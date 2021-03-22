@@ -160,33 +160,33 @@ void FLiveLinkFreeDSource::OnSettingsChanged(ULiveLinkSourceSettings* Settings, 
 			{
 				switch (SourceSettings->DefaultConfig)
 				{
-					case EFreeDDefaultConfigs::Generic:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, 0, 0xffff, 0x0000ffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, 0, 0xffff, 0x0000ffff });
+					case EFreeDDefaultConfigs::Generic:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, false, 0, 0xffff, 0x0000ffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, false, 0, 0xffff, 0x0000ffff });
 															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ false });
 															break;
 
-					case EFreeDDefaultConfigs::Panasonic:	SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 1000.0f, false, 0x0555, 0x0fff, 0x0000ffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 176.0f, false, 0x0555, 0x0fff, 0x0000ffff });
-															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 25.5f, false, 0x0555, 0x0fff, 0x0000ffff });
+					case EFreeDDefaultConfigs::Panasonic:	SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 1000.0f, false, false, 0x0555, 0x0fff, 0x0000ffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 176.0f, false, false, 0x0555, 0x0fff, 0x0000ffff });
+															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 25.5f, true, false, 0x0555, 0x0fff, 0x0000ffff });
 															break;
 
-					case EFreeDDefaultConfigs::Sony:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 1000.0f, false, 0x1000, 0xf000, 0x0000ffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 111.6f, false, 0, 0x7ac0, 0x0000ffff });
-															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 11.0f, false, 0, 0x0fff, 0x00000fff });
+					case EFreeDDefaultConfigs::Sony:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 1000.0f, false, false, 0x1000, 0xf000, 0x0000ffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 111.6f, false, false, 0, 0x7ac0, 0x0000ffff });
+															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 11.0f, false, false, 0, 0x0fff, 0x00000fff });
 															break;
 
-					case EFreeDDefaultConfigs::Mosys:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, 0, 0xffff, 0x0000ffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, 0, 0xffff, 0x0000ffff });
+					case EFreeDDefaultConfigs::Mosys:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, false, 0, 0xffff, 0x0000ffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, false, 0, 0xffff, 0x0000ffff });
 															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ false });
 															break;
 
-					case EFreeDDefaultConfigs::Stype:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, 0, 0xffffff, 0x00ffffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, 0, 0xffffff, 0x00ffffff });
+					case EFreeDDefaultConfigs::Stype:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, false, 0, 0xffffff, 0x00ffffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, false, 0, 0xffffff, 0x00ffffff });
 															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ false });
 															break;
 
-					case EFreeDDefaultConfigs::Ncam:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, 0, 0xffffff, 0x00ffffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, 0, 0xffffff, 0x00ffffff });
+					case EFreeDDefaultConfigs::Ncam:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, false, 0, 0xffffff, 0x00ffffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, false, 0, 0xffffff, 0x00ffffff });
 															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ false });
 															break;
 				}
@@ -443,7 +443,12 @@ float FLiveLinkFreeDSource::ProcessEncoderData(FFreeDEncoderData& EncoderData, i
 		int32 Delta = EncoderData.Max - EncoderData.Min;
 		if (Delta != 0)
 		{
-			FinalEncoderValue = EncoderData.Scale * FMath::Clamp((float)(RawEncoderValueInt - EncoderData.Min) / (float)Delta, 0.0f, 1.0f);
+			FinalEncoderValue = FMath::Clamp((float)(RawEncoderValueInt - EncoderData.Min) / (float)Delta, 0.0f, 1.0f);
+			if (EncoderData.bInvertEncoder)
+			{
+				FinalEncoderValue = 1.0f - FinalEncoderValue;
+			}
+			FinalEncoderValue *= EncoderData.Scale;
 		}
 	}
 

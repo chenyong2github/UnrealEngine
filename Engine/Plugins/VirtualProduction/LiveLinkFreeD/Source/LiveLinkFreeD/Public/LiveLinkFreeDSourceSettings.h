@@ -19,6 +19,10 @@ struct FFreeDEncoderData
 	UPROPERTY(EditAnywhere, Category = "Encoder Data", meta = (EditCondition = "bIsValid"))
 	float Scale;
 
+	/** Invert the encoder input direction */
+	UPROPERTY(EditAnywhere, Category = "Encoder Data", meta = (EditCondition = "bIsValid"))
+	bool bInvertEncoder;
+
 	/** Use manual Min/Max values for the encoder normalization (normally uses dynamic auto ranging based on inputs) */
 	UPROPERTY(EditAnywhere, Category = "Encoder Data", meta = (EditCondition = "bIsValid"))
 	bool bUseManualRange;
@@ -32,7 +36,7 @@ struct FFreeDEncoderData
 	int32 Max;
 
 	/** Mask bits for raw encoder value */
-	UPROPERTY(EditAnywhere, Category = "Encoder Data", meta = (ClampMin = 0, ClampMax = 0x00ffffff, EditCondition = "bIsValid && bUseManualRange"))
+	UPROPERTY(EditAnywhere, Category = "Encoder Data", meta = (ClampMin = 0, ClampMax = 0x00ffffff, EditCondition = "bIsValid"))
 	int32 MaskBits;
 };
 
@@ -86,13 +90,13 @@ public:
 
 	/** Raw focus distance (in cm) encoder parameters for this camera - 24 bits max */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	FFreeDEncoderData FocusDistanceEncoderData = { true, 10000.0f, false, 0x00ffffff, 0, 0x00ffffff };
+	FFreeDEncoderData FocusDistanceEncoderData = { true, 10000.0f, false, false, 0x00ffffff, 0, 0x00ffffff };
 
 	/** Raw focal length/zoom (in mm) encoder parameters for this camera - 24 bits max */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	FFreeDEncoderData FocalLengthEncoderData = { true, 100.0f, false, 0x00ffffff, 0, 0x00ffffff };
+	FFreeDEncoderData FocalLengthEncoderData = { true, 100.0f, false, false, 0x00ffffff, 0, 0x00ffffff };
 
 	/** Raw user defined/spare data encoder (normally used for Aperture) parameters for this camera - 16 bits max */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	FFreeDEncoderData UserDefinedEncoderData = { false, 1.0f, false, 0x0000ffff, 0, 0x0000ffff };
+	FFreeDEncoderData UserDefinedEncoderData = { false, 1.0f, false, false, 0x0000ffff, 0, 0x0000ffff };
 };
