@@ -12,7 +12,7 @@
 
 // predeclarations
 class UPreviewMesh;
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 
 /**
