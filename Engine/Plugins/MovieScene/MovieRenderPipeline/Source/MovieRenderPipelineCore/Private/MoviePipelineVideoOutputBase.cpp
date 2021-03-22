@@ -45,15 +45,13 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 			FormatOverrides.Add(TEXT("render_pass"), RenderPassData.Key.Name);
 			FormatOverrides.Add(TEXT("ext"), GetFilenameExtension());
 
+			// The FinalVideoFileName is relative to the output directory (ie: if the user puts folders in to the filename path)
 			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, FinalVideoFileName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
 
-			FinalFilePath = OutputDirectory / FinalVideoFileName;
-			FPaths::NormalizeFilename(FinalFilePath);
-			if (FPaths::IsRelative(FinalFilePath))
-			{
-				FinalFilePath = FPaths::ConvertRelativePathToFull(FinalFilePath);
-			}
-			
+			// Then we add the OutputDirectory, and resolve the filename format arguments again so the arguments in the directory get resolved.
+			FString FullFilepathFormatString = OutputDirectory / FileNameFormatString;
+			GetPipeline()->ResolveFilenameFormatArguments(FullFilepathFormatString, FormatOverrides, FinalFilePath, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
+
 			// Ensure the directory is created
 			{
 				FString FolderPath = FPaths::GetPath(FinalFilePath);
