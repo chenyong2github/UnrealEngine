@@ -136,11 +136,9 @@ public:
 	bool AreEditorCellsLoaded(const FBox& Box);
 	bool RefreshLoadedEditorCells();
 
-	// PIE/Game Methods
-	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
-
 	// PIE/Game/Cook Methods
 	bool GenerateStreaming(EWorldPartitionStreamingMode Mode, TArray<FString>* OutPackagesToGenerate = nullptr);
+	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 
 	// Cook Methods
 	bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName);

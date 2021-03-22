@@ -13,6 +13,7 @@
 #include "UnrealEngine.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartition.h"
 #include "LevelUtils.h"
 #include "Templates/SharedPointer.h"
 
@@ -61,6 +62,40 @@ void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPa
 		{
 			UE_LOG(LogEngine, Warning, TEXT("Can't find actor %s."), *PackageObjectMapping.Path.ToString());
 		}
+	}
+}
+
+void FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(ULevel* InLevel, UWorldPartition* InWorldPartition)
+{
+	check(InLevel);
+	check(InWorldPartition);
+
+	struct FSoftPathFixupSerializer : public FArchiveUObject
+	{
+		FSoftPathFixupSerializer(TFunctionRef<void(FSoftObjectPath&)> InCustomFixupFunction)
+			: CustomFixupFunction(InCustomFixupFunction)
+		{
+			this->SetIsSaving(true);
+		}
+
+		FArchive& operator<<(FSoftObjectPath& Value)
+		{
+			if (!Value.IsNull())
+			{
+				CustomFixupFunction(Value);
+			}
+			return *this;
+		}
+
+		TFunctionRef<void(FSoftObjectPath&)> CustomFixupFunction;
+	};
+
+	FSoftPathFixupSerializer FixupSerializer([InWorldPartition](FSoftObjectPath& ObjectPath) { InWorldPartition->RemapSoftObjectPath(ObjectPath); });
+	TArray<UObject*> SubObjects;
+	GetObjectsWithOuter(InLevel, SubObjects);
+	for (UObject* Object : SubObjects)
+	{
+		Object->Serialize(FixupSerializer);
 	}
 }
 

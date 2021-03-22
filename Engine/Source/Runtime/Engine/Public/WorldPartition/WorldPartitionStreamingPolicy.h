@@ -36,8 +36,8 @@ public:
 	virtual TSubclassOf<class UWorldPartitionRuntimeCell> GetRuntimeCellClass() const PURE_VIRTUAL(UWorldPartitionStreamingPolicy::GetRuntimeCellClass, return UWorldPartitionRuntimeCell::StaticClass(); );
 
 	// PIE/Game methods
-	virtual void OnBeginPlay() {}
-	virtual void OnEndPlay() {}
+	virtual void PrepareActorToCellRemapping() {}
+	virtual void ClearActorToCellRemapping() {}
 	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) {}
 #endif
 

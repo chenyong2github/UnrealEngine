@@ -29,6 +29,7 @@
 #include "ScopedTransaction.h"
 #include "UnrealEdMisc.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
+#include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
@@ -149,7 +150,6 @@ void UWorldPartition::OnBeginPlay(EWorldPartitionStreamingMode Mode)
 {
 	GenerateStreaming(Mode);
 	RuntimeHash->OnBeginPlay(Mode);
-	GetStreamingPolicy()->OnBeginPlay();
 }
 
 void UWorldPartition::OnEndPlay()
@@ -158,7 +158,8 @@ void UWorldPartition::OnEndPlay()
 
 	FlushStreaming();
 	RuntimeHash->OnEndPlay();
-	GetStreamingPolicy()->OnEndPlay();
+
+	GetStreamingPolicy()->ClearActorToCellRemapping();
 
 	World->PersistentLevel->ActorsModifiedForPIE.Empty();
 }
@@ -329,9 +330,13 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	}
 
 #if WITH_EDITOR
-	if (IsRunningGame())
+	if (!bEditorOnly)
 	{
-		OnBeginPlay(EWorldPartitionStreamingMode::EditorStandalone);
+		if (IsRunningGame())
+		{
+			OnBeginPlay(EWorldPartitionStreamingMode::EditorStandalone);
+		}
+		GetStreamingPolicy()->PrepareActorToCellRemapping();
 	}
 #endif
 }
@@ -988,7 +993,15 @@ void UWorldPartition::DrawRuntimeHashPreview()
 bool UWorldPartition::GenerateStreaming(EWorldPartitionStreamingMode Mode, TArray<FString>* OutPackagesToGenerate)
 {
 	check(RuntimeHash);
-	return RuntimeHash->GenerateRuntimeStreaming(Mode, GetStreamingPolicy(), OutPackagesToGenerate);
+	bool Result = RuntimeHash->GenerateRuntimeStreaming(Mode, GetStreamingPolicy(), OutPackagesToGenerate);
+	if (Mode == EWorldPartitionStreamingMode::Cook)
+	{
+		// For Cook, prepare actor to cell remapping
+		GetStreamingPolicy()->PrepareActorToCellRemapping();
+		// Apply remapping of Persistent Level's SoftObjectPaths
+		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
+	}
+	return Result;
 }
 
 bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName)
@@ -1095,10 +1108,7 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 
 void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
 {
-	if (GetWorld()->IsGameWorld())
-	{
-		GetStreamingPolicy()->RemapSoftObjectPath(ObjectPath);
-	}
+	GetStreamingPolicy()->RemapSoftObjectPath(ObjectPath);
 }
 
 FBox UWorldPartition::GetWorldBounds() const

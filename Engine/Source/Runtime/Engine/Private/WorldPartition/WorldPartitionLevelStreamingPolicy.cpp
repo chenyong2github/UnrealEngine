@@ -199,7 +199,7 @@ TSubclassOf<UWorldPartitionRuntimeCell> UWorldPartitionLevelStreamingPolicy::Get
 	return UWorldPartitionRuntimeLevelStreamingCell::StaticClass();
 }
 
-void UWorldPartitionLevelStreamingPolicy::OnBeginPlay()
+void UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping()
 {
 	TSet<const UWorldPartitionRuntimeCell*> StreamingCells;
 	WorldPartition->RuntimeHash->GetAllStreamingCells(StreamingCells, /*bIncludeDataLayers*/ true);
@@ -216,15 +216,15 @@ void UWorldPartitionLevelStreamingPolicy::OnBeginPlay()
 	}
 }
 
-void UWorldPartitionLevelStreamingPolicy::OnEndPlay()
+void UWorldPartitionLevelStreamingPolicy::ClearActorToCellRemapping()
 {
 	ActorToCellRemapping.Empty();
 }
 
 void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
 {
-	// Once we fix up the path to the proper streaming Level, normal flow of FixupForPIE will adapt the path for PIE.
-	FString SrcPath = ObjectPath.ToString();
+	// Make sure to work on non-PIE path (can happen for modified actors in PIE)
+	FString SrcPath = UWorld::RemovePIEPrefix(ObjectPath.ToString());
 
 	FName* CellName = ActorToCellRemapping.Find(FName(*SrcPath));
 	if (!CellName)
@@ -254,7 +254,14 @@ void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& O
 		{
 			const FString ObjectNameWithoutPackage = ShortPackageOuterAndName.Mid(DelimiterIdx + 1);
 			const FString PackagePath = UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(*CellName, WorldPartition->GetWorld());
-			FString NewPath = FString::Printf(TEXT("%s.%s"), *PackagePath, *ObjectNameWithoutPackage);
+			FString PrefixPath;
+			if (IsRunningCookCommandlet())
+			{
+				//@todo_ow: Temporary workaround. This information should be provided by the COTFS
+				const UPackage* Package = GetOuterUWorldPartition()->GetWorld()->GetPackage();
+				PrefixPath = FString::Printf(TEXT("%s/%s/_Generated_"), *FPackageName::GetLongPackagePath(Package->GetPathName()), *FPackageName::GetShortName(Package->GetName()));
+			}
+			FString NewPath = FString::Printf(TEXT("%s%s.%s"), *PrefixPath, *PackagePath, *ObjectNameWithoutPackage);
 			ObjectPath.SetPath(MoveTemp(NewPath));
 		}
 	}

@@ -337,6 +337,12 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
 	RuntimePackage->MarkAsFullyLoaded();
 
+	if (OuterWorld->IsGameWorld())
+	{
+		// Remap Runtime Level's SoftObjectPaths
+		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(RuntimeLevel, OuterWorldPartition.Get());
+	}
+
 	if (OuterWorld->IsPlayInEditor())
 	{
 		int32 PIEInstanceID = GetPackage()->PIEInstanceID;
@@ -348,44 +354,7 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 		FixupLazyPointersAr << RuntimeLevel;
 
 		// PIE Fixup SoftObjectPaths
-		RuntimeLevel->FixupForPIE(PIEInstanceID, [&](int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)
-		{
-			OuterWorldPartition->RemapSoftObjectPath(ObjectPath);
-		});
-	}
-	else if (IsRunningGame())
-	{
-		check(OuterWorld->IsGameWorld());
-
-		struct FSoftPathFixupSerializer : public FArchiveUObject
-		{
-			FSoftPathFixupSerializer(TFunctionRef<void(FSoftObjectPath&)> InCustomFixupFunction)
-			: CustomFixupFunction(InCustomFixupFunction)
-			{
-				this->SetIsSaving(true);
-			}
-
-			FArchive& operator<<(FSoftObjectPath& Value)
-			{
-				if (!Value.IsNull())
-				{
-					CustomFixupFunction(Value);
-				}
-				return *this;
-			}
-
-			TFunctionRef<void(FSoftObjectPath&)> CustomFixupFunction;
-		};
-
-		FSoftPathFixupSerializer FixupSerializer([&](FSoftObjectPath& ObjectPath) { OuterWorldPartition->RemapSoftObjectPath(ObjectPath); });
-		
-		TArray<UObject*> SubObjects;
-		GetObjectsWithOuter(RuntimeLevel, SubObjects);
-		
-		for (UObject* Object : SubObjects)
-		{
-			Object->Serialize(FixupSerializer);
-		}
+		RuntimeLevel->FixupForPIE(PIEInstanceID);
 	}
 
 	SetLoadedLevel(RuntimeLevel);
