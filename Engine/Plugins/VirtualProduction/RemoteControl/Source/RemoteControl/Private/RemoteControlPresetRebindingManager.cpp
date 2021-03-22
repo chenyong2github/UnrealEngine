@@ -96,10 +96,13 @@ namespace RCPresetRebindingManager
 			}
 		};
 
-        for (TActorIterator<AActor> It(GetCurrentWorld(), AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
-        {
-        	AddRelevantClassesForObject(*It);
-        }
+		if (UWorld* World = GetCurrentWorld())
+		{
+			for (TActorIterator<AActor> It(World, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
+			{
+        		AddRelevantClassesForObject(*It);
+			}
+		}
 
 		const EObjectFlags ExcludeFlags = RF_ClassDefaultObject | RF_ArchetypeObject | RF_Transient;
 		for (TObjectIterator<UActorComponent> It(ExcludeFlags, true, EInternalObjectFlags::PendingKill); It; ++It)
