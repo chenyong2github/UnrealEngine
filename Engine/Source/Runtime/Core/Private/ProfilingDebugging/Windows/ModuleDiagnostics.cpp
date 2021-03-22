@@ -171,7 +171,8 @@ void FModuleTrace::OnDllLoaded(const UNICODE_STRING& Name, UPTRINT Base)
 	const auto* NtHeaders = (IMAGE_NT_HEADERS*)(Base + DosHeader->e_lfanew);
 	const IMAGE_OPTIONAL_HEADER& OptionalHeader = NtHeaders->OptionalHeader;
 
-	UE_TRACE_LOG(Diagnostics, ModuleLoad, ModuleChannel, Name.Length * sizeof(TCHAR))
+	// Note: UNICODE_STRING.Length is the size in bytes of the string buffer.
+	UE_TRACE_LOG(Diagnostics, ModuleLoad, ModuleChannel, Name.Length)
 		<< ModuleLoad.Name(Name.Buffer, Name.Length / 2)
 		<< ModuleLoad.Base(uint32(Base >> 16)) // Windows' DLLs are on 64K page boundaries
 		<< ModuleLoad.Size(OptionalHeader.SizeOfImage);
