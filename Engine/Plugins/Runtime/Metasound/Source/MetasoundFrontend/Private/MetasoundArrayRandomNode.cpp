@@ -103,7 +103,7 @@ namespace Metasound
 
 		if (InNoRepeatOrder != NoRepeatOrder)
 		{
-			PreviousIndicesQueue = MakeUnique<TCircularQueue<int32>>(InNoRepeatOrder + 1);
+			PreviousIndicesQueue = MakeUnique<TCircularQueue<int32>>(InNoRepeatOrder + 2);
 			PreviousIndices.Reset();
 			NoRepeatOrder = InNoRepeatOrder;
 		}
