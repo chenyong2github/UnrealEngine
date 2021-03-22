@@ -937,7 +937,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 
 				uint32* PagePtr = GPUPageToLastPendingPageIndex.Find(PendingPages[LastPendingPageIndex].GPUPageIndex);
 				if (PagePtr == nullptr || *PagePtr != LastPendingPageIndex)
-					continue;
+					continue;	// Skip resource install. Resource no longer exists or page has already been overwritten.
 
 				FStreamingPageInfo& StreamingPageInfo = StreamingPageInfos[PendingPage.GPUPageIndex];
 			
@@ -1015,7 +1015,10 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 		TRACE_CPUPROFILER_EVENT_SCOPE(CopyPageTask);
 		const FUploadTask& Task = UploadTasks[i];
 		
-		DecompressPage(Task.Dst, Task.Tmp, Task.DstSize, Task.Src, Task.SrcSize, Task.bLZCompressed);
+		if(Task.Dst)	// Dst can be 0 if we skipped install in InstallReadyPages.
+		{
+			DecompressPage(Task.Dst, Task.Tmp, Task.DstSize, Task.Src, Task.SrcSize, Task.bLZCompressed);
+		}
 
 #if !WITH_EDITOR
 		if (Task.PendingPage->AsyncRequest)
