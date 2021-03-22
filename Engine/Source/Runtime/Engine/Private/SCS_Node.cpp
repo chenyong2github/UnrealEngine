@@ -485,9 +485,7 @@ void USCS_Node::SetParent(USCS_Node* InParentNode)
 	ensure(InParentNode);
 	USimpleConstructionScript* ParentSCS = InParentNode ? InParentNode->GetSCS() : nullptr;
 	ensure(ParentSCS);
-	UBlueprint* ParentBlueprint = ParentSCS ? ParentSCS->GetBlueprint() : nullptr;
-	ensure(ParentBlueprint);
-	UClass* ParentBlueprintGeneratedClass = ParentBlueprint ? ParentBlueprint->GeneratedClass : nullptr;
+	UClass* ParentBlueprintGeneratedClass = ParentSCS ? ParentSCS->GetOwnerClass() : nullptr;
 
 	if (ParentBlueprintGeneratedClass && InParentNode)
 	{
@@ -530,16 +528,22 @@ void USCS_Node::SetParent(const USceneComponent* InParentComponent)
 
 USceneComponent* USCS_Node::GetParentComponentTemplate(UBlueprint* InBlueprint) const
 {
+	check(InBlueprint && InBlueprint->GeneratedClass);
+	return GetParentComponentTemplate(CastChecked<UBlueprintGeneratedClass>(InBlueprint->GeneratedClass));
+}
+
+USceneComponent* USCS_Node::GetParentComponentTemplate(UBlueprintGeneratedClass* BPGC) const
+{
 	USceneComponent* ParentComponentTemplate = nullptr;
 	if(ParentComponentOrVariableName != NAME_None)
 	{
-		check(InBlueprint != nullptr && InBlueprint->GeneratedClass != nullptr);
+		check(BPGC);
 
 		// If the parent component template is found in the 'Components' array of the CDO (i.e. native)
 		if(bIsParentComponentNative)
 		{
 			// Access the Blueprint CDO
-			AActor* CDO = InBlueprint->GeneratedClass->GetDefaultObject<AActor>();
+			AActor* CDO = BPGC->GetDefaultObject<AActor>();
 			if(CDO != nullptr)
 			{
 				// Find the component template in the CDO that matches the specified name
@@ -559,26 +563,25 @@ USceneComponent* USCS_Node::GetParentComponentTemplate(UBlueprint* InBlueprint) 
 		else
 		{
 			// Get the Blueprint hierarchy
-			TArray<UBlueprint*> ParentBPStack;
-			UBlueprint::GetBlueprintHierarchyFromClass(InBlueprint->GeneratedClass, ParentBPStack);
+			TArray<UBlueprintGeneratedClass*> ParentBPStack;
+			UBlueprint::GetBlueprintHierarchyFromClass(BPGC, ParentBPStack);
 
 			// Find the parent Blueprint in the hierarchy
-			for(int32 StackIndex = ParentBPStack.Num() - 1; StackIndex > 0 && !ParentComponentTemplate; --StackIndex)
+			for (int32 StackIndex = ParentBPStack.Num() - 1; StackIndex > 0 && !ParentComponentTemplate; --StackIndex)
 			{
-				UBlueprint* ParentBlueprint = ParentBPStack[StackIndex];
-				if(ParentBlueprint != nullptr
-					&& ParentBlueprint->SimpleConstructionScript != nullptr
-					&& ParentBlueprint->GeneratedClass->GetFName() == ParentComponentOwnerClassName)
+				UBlueprintGeneratedClass* ParentBPGC = ParentBPStack[StackIndex];
+				if (ParentBPGC
+					&& ParentBPGC->SimpleConstructionScript
+					&& ParentBPGC->GetFName() == ParentComponentOwnerClassName)
 				{
 					// Find the SCS node with a variable name that matches the specified name
-					TArray<USCS_Node*> ParentSCSNodes = ParentBlueprint->SimpleConstructionScript->GetAllNodes();
-					for(int32 ParentNodeIndex = 0; ParentNodeIndex < ParentSCSNodes.Num(); ++ParentNodeIndex)
+					for (USCS_Node* Node : ParentBPGC->SimpleConstructionScript->GetAllNodes())
 					{
-						USceneComponent* CompTemplate = Cast<USceneComponent>(ParentSCSNodes[ParentNodeIndex]->ComponentTemplate);
-						if(CompTemplate != nullptr && ParentSCSNodes[ParentNodeIndex]->GetVariableName() == ParentComponentOrVariableName)
+						USceneComponent* CompTemplate = Cast<USceneComponent>(Node->ComponentTemplate);
+						if (CompTemplate && Node->GetVariableName() == ParentComponentOrVariableName)
 						{
 							// Found a match; this is our parent, we're done
-							ParentComponentTemplate = Cast<USceneComponent>(ParentSCSNodes[ParentNodeIndex]->GetActualComponentTemplate(Cast<UBlueprintGeneratedClass>(InBlueprint->GeneratedClass)));
+							ParentComponentTemplate = Cast<USceneComponent>(Node->GetActualComponentTemplate(Cast<UBlueprintGeneratedClass>(BPGC)));
 							break;
 						}
 					}

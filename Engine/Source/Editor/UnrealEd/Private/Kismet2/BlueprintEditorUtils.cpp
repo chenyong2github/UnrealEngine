@@ -1768,14 +1768,14 @@ void FBlueprintEditorUtils::PropagateParentBlueprintDefaults(UClass* ClassToProp
 	check(NewCDO);
 
 	// Get the blueprint's BP derived lineage
-	TArray<UBlueprint*> ParentBP;
-	UBlueprint::GetBlueprintHierarchyFromClass(ClassToPropagate, ParentBP);
+	TArray<UBlueprintGeneratedClass*> ParentBPStack;
+	UBlueprint::GetBlueprintHierarchyFromClass(ClassToPropagate, ParentBPStack);
 
 	// Starting from the least derived BP class, copy the properties into the new CDO
-	for(int32 i = ParentBP.Num() - 1; i > 0; i--)
+	for(int32 Index = ParentBPStack.Num() - 1; Index > 0; --Index)
 	{
-		checkf(ParentBP[i]->GeneratedClass != nullptr, TEXT("Parent classes for class %s have not yet been generated.  Compile-on-load must be processed for the parent class first."), *ClassToPropagate->GetName());
-		UObject* LayerCDO = ParentBP[i]->GeneratedClass->GetDefaultObject();
+		checkf(ParentBPStack[Index], TEXT("Parent classes for class %s have not yet been generated.  Compile-on-load must be processed for the parent class first."), *ClassToPropagate->GetName());
+		UObject* LayerCDO = ParentBPStack[Index]->GetDefaultObject();
 
 		UEditorEngine::FCopyPropertiesForUnrelatedObjectsParams CopyDetails;
 		CopyDetails.bReplaceObjectClassReferences = false;
@@ -3695,14 +3695,30 @@ int32 FBlueprintEditorUtils::FindTimelineIndex(const UBlueprint* Blueprint, cons
 
 void FBlueprintEditorUtils::GetSCSVariableNameList(const UBlueprint* Blueprint, TSet<FName>& VariableNames)
 {
-	if(Blueprint != nullptr && Blueprint->SimpleConstructionScript != nullptr)
+	if (Blueprint)
 	{
-		for (USCS_Node* SCS_Node : Blueprint->SimpleConstructionScript->GetAllNodes())
+		GetSCSVariableNameList(Blueprint->SimpleConstructionScript, VariableNames);
+	}
+}
+
+void FBlueprintEditorUtils::GetSCSVariableNameList(const UBlueprintGeneratedClass* BPGC, TSet<FName>& VariableNames)
+{
+	if (BPGC)
+	{
+		GetSCSVariableNameList(BPGC->SimpleConstructionScript, VariableNames);
+	}
+}
+
+void FBlueprintEditorUtils::GetSCSVariableNameList(const USimpleConstructionScript* SCS, TSet<FName>& VariableNames)
+{
+	if (SCS)
+	{
+		for (USCS_Node* SCS_Node : SCS->GetAllNodes())
 		{
-			if (SCS_Node != nullptr)
+			if (SCS_Node)
 			{
 				const FName VariableName = SCS_Node->GetVariableName();
-				if(VariableName != NAME_None)
+				if (VariableName != NAME_None)
 				{
 					VariableNames.Add(VariableName);
 				}
@@ -4619,21 +4635,28 @@ void FBlueprintEditorUtils::GetClassVariableList(const UBlueprint* Blueprint, TS
 		if (bIncludePrivateVars)
 		{
 			// Include SCS node variable names, timelines, and other member variables that may be pending compilation. Consider them to be "private" as they're not technically accessible for editing just yet.
-			TArray<UBlueprint*> ParentBPStack;
+			TArray<UBlueprintGeneratedClass*> ParentBPStack;
 			UBlueprint::GetBlueprintHierarchyFromClass(Blueprint->SkeletonGeneratedClass, ParentBPStack);
 			for (int32 StackIndex = ParentBPStack.Num() - 1; StackIndex >= 0; --StackIndex)
 			{
-				UBlueprint* ParentBP = ParentBPStack[StackIndex];
-				check(ParentBP != nullptr);
+				UBlueprintGeneratedClass* ParentPBGC = ParentBPStack[StackIndex];
+				check(ParentPBGC);
+				UBlueprint* ParentBP = Cast<UBlueprint>(ParentPBGC->ClassGeneratedBy);
 
-				GetSCSVariableNameList(ParentBP, VisibleVariables);
+				GetSCSVariableNameList(ParentPBGC, VisibleVariables);
 
-				for (int32 VariableIndex = 0; VariableIndex < ParentBP->NewVariables.Num(); ++VariableIndex)
+				if (ParentBP)
 				{
-					VisibleVariables.Add(ParentBP->NewVariables[VariableIndex].VarName);
+					for (const FBPVariableDescription& Variable : ParentBP->NewVariables)
+					{
+						VisibleVariables.Add(Variable.VarName);
+					}
 				}
 
-				for (UTimelineTemplate* Timeline : ParentBP->Timelines)
+				// Since we defer copying the timeline templates to the BPGC until compile time, 
+				// we consider the BP (when present) to be authoritative.
+				const TArray<UTimelineTemplate*>& Timelines = ParentBP ? ParentBP->Timelines : ParentPBGC->Timelines;
+				for (UTimelineTemplate* Timeline : Timelines)
 				{
 					if (Timeline)
 					{

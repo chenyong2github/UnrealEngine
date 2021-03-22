@@ -191,6 +191,9 @@ class USCS_Node : public UObject
 	/** Finds and returns the parent component template through the given Blueprint */
 	ENGINE_API USceneComponent* GetParentComponentTemplate(UBlueprint* InBlueprint) const;
 
+	/** Finds and returns the parent component template through the given BPGC */
+	ENGINE_API USceneComponent* GetParentComponentTemplate(UBlueprintGeneratedClass* BPGC) const;
+
 	/** Saves the current state of SimpleConstructionScript and its nodes to the transaction buffer. */
 	ENGINE_API void SaveToTransactionBuffer();
 #endif

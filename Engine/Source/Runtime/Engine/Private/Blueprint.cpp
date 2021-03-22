@@ -1548,7 +1548,7 @@ UBlueprint* UBlueprint::GetBlueprintFromClass(const UClass* InClass)
 
 bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UBlueprint*>& OutBlueprintParents)
 {
-	OutBlueprintParents.Empty();
+	OutBlueprintParents.Reset();
 
 	bool bNoErrors = true;
 	const UClass* CurrentClass = InClass;
@@ -1561,14 +1561,48 @@ bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UB
 #endif // #if WITH_EDITORONLY_DATA
 
 		// If valid, use stored ParentClass rather than the actual UClass::GetSuperClass(); handles the case when the class has not been recompiled yet after a reparent operation.
-		if(const UClass* ParentClass = BP->ParentClass)
+		if (BP->ParentClass)
 		{
-			CurrentClass = ParentClass;
+			CurrentClass = BP->ParentClass;
 		}
 		else
 		{
 			check(CurrentClass);
 			CurrentClass = CurrentClass->GetSuperClass();
+		}
+	}
+
+	return bNoErrors;
+}
+
+bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UBlueprintGeneratedClass*>& OutBlueprintParents)
+{
+	OutBlueprintParents.Reset();
+
+	bool bNoErrors = true;
+	UBlueprintGeneratedClass* CurrentClass = Cast<UBlueprintGeneratedClass>(const_cast<UClass*>(InClass));
+	while (CurrentClass)
+	{
+		OutBlueprintParents.Add(CurrentClass);
+
+		UBlueprint* BP = UBlueprint::GetBlueprintFromClass(CurrentClass);
+
+#if WITH_EDITORONLY_DATA
+		if (BP)
+		{
+			bNoErrors &= (BP->Status != BS_Error);
+		}
+#endif // #if WITH_EDITORONLY_DATA
+
+		// If valid, use stored ParentClass rather than the actual UClass::GetSuperClass(); handles the case when the class has not been recompiled yet after a reparent operation.
+		if (BP && BP->ParentClass)
+		{
+			CurrentClass = Cast<UBlueprintGeneratedClass>(BP->ParentClass);
+		}
+		else
+		{
+			check(CurrentClass);
+			CurrentClass = Cast<UBlueprintGeneratedClass>(CurrentClass->GetSuperClass());
 		}
 	}
 

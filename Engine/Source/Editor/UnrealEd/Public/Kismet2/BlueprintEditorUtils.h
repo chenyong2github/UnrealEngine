@@ -1279,6 +1279,20 @@ public:
 	 */
 	static void GetSCSVariableNameList(const UBlueprint* Blueprint, TSet<FName>& VariableNames);
 
+	/**
+	 * Gets a list of SCS node variable names for the given BPGC.
+	 *
+	 * @param [in,out]	VariableNames		The list of variable names for the SCS node array.
+	 */
+	static void GetSCSVariableNameList(const UBlueprintGeneratedClass* BPGC, TSet<FName>& VariableNames);
+
+	/**
+	 * Gets a list of SCS node variable names for the given SCS.
+	 *
+	 * @param [in,out]	VariableNames		The list of variable names for the SCS node array.
+	 */
+	static void GetSCSVariableNameList(const USimpleConstructionScript* SCS, TSet<FName>& VariableNames);
+
 	/** 
 	 * Gets a list of function names in blueprints that implement the interface defined by the given blueprint.
 	 *
