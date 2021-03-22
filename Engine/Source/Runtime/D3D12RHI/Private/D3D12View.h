@@ -624,7 +624,7 @@ class FD3D12OfflineDescriptorManager;
 template <typename TDesc>
 class TD3D12ViewDescriptorHandle : public FD3D12DeviceChild
 {
-	CD3DX12_CPU_DESCRIPTOR_HANDLE Handle;
+	D3D12_CPU_DESCRIPTOR_HANDLE Handle;
 	uint32 Index;
 
 public:
@@ -651,7 +651,7 @@ public:
 	inline void CreateView(const TDesc& Desc, ID3D12Resource* Resource);
 	inline void CreateViewWithCounter(const TDesc& Desc, ID3D12Resource* Resource, ID3D12Resource* CounterResource);
 
-	inline const CD3DX12_CPU_DESCRIPTOR_HANDLE& GetHandle() const { return Handle; }
+	inline const D3D12_CPU_DESCRIPTOR_HANDLE& GetHandle() const { return Handle; }
 	inline uint32 GetIndex() const { return Index; }
 
 private:
@@ -789,7 +789,7 @@ public:
 	inline FD3D12Device*					GetParentDevice_Unsafe()	const { return Descriptor.GetParentDevice_Unsafe(); }
 	inline FD3D12ResourceLocation*			GetResourceLocation()		const { return ResourceLocation; }
 	inline const TDesc&						GetDesc()					const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Desc; }
-	inline CD3DX12_CPU_DESCRIPTOR_HANDLE	GetView()					const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetHandle(); }
+	inline D3D12_CPU_DESCRIPTOR_HANDLE		GetView()					const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetHandle(); }
 	inline uint32							GetDescriptorHeapIndex()	const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetIndex(); }
 	inline FD3D12Resource*					GetResource()				const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Resource; }
 	inline FD3D12ResidencyHandle*			GetResidencyHandle()		const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ResidencyHandle; }
@@ -1008,7 +1008,7 @@ class FD3D12ConstantBufferView : public FD3D12DeviceChild
 			public:
 //protected:
 	/** The handle to the descriptor in the offline descriptor heap */
-	CD3DX12_CPU_DESCRIPTOR_HANDLE OfflineDescriptorHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE OfflineDescriptorHandle;
 
 	/** Index of the descriptor in the offline heap */
 	uint32 OfflineHeapIndex;

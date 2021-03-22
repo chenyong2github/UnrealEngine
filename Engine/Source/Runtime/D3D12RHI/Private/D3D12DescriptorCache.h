@@ -108,11 +108,11 @@ typedef FD3D12ConservativeMap<FD3D12SamplerArrayDesc, D3D12_GPU_DESCRIPTOR_HANDL
 template< uint32 CPUTableSize>
 struct FD3D12UniqueDescriptorTable
 {
-	FD3D12UniqueDescriptorTable() : GPUHandle({}) {};
-	FD3D12UniqueDescriptorTable(FD3D12SamplerArrayDesc KeyIn, CD3DX12_CPU_DESCRIPTOR_HANDLE* Table) : GPUHandle({})
+	FD3D12UniqueDescriptorTable() = default;
+	FD3D12UniqueDescriptorTable(FD3D12SamplerArrayDesc KeyIn, D3D12_CPU_DESCRIPTOR_HANDLE* Table)
 	{
 		FMemory::Memcpy(&Key, &KeyIn, sizeof(Key));//Memcpy to avoid alignement issues
-		FMemory::Memcpy(CPUTable, Table, Key.Count * sizeof(CD3DX12_CPU_DESCRIPTOR_HANDLE));
+		FMemory::Memcpy(CPUTable, Table, Key.Count * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE));
 	}
 
 	FORCEINLINE uint32 GetTypeHash(const FD3D12UniqueDescriptorTable& Table)
@@ -120,11 +120,11 @@ struct FD3D12UniqueDescriptorTable
 		return FD3D12PipelineStateCache::HashData((void*)Table.Key.SamplerID, Table.Key.Count * sizeof(Table.Key.SamplerID[0]));
 	}
 
-	FD3D12SamplerArrayDesc Key;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE CPUTable[MAX_SAMPLERS];
+	FD3D12SamplerArrayDesc Key{};
+	D3D12_CPU_DESCRIPTOR_HANDLE CPUTable[MAX_SAMPLERS]{};
 
 	// This will point to the table start in the global heap
-	D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle{};
 };
 
 template<typename FD3D12UniqueDescriptorTable, bool bInAllowDuplicateKeys = false>

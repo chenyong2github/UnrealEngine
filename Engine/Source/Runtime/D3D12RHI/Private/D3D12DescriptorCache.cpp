@@ -320,9 +320,9 @@ void FD3D12DescriptorCache::SetUAVs(const FD3D12RootSignature* RootSignature, FD
 	uint32 FirstSlotIndex = HeapSlot;
 	HeapSlot += SlotsNeeded;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE DestDescriptor(CurrentViewHeap->GetCPUSlotHandle(FirstSlotIndex));
-	CD3DX12_GPU_DESCRIPTOR_HANDLE BindDescriptor(CurrentViewHeap->GetGPUSlotHandle(FirstSlotIndex));
-	CD3DX12_CPU_DESCRIPTOR_HANDLE SrcDescriptors[MAX_UAVS];
+	D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor(CurrentViewHeap->GetCPUSlotHandle(FirstSlotIndex));
+	D3D12_GPU_DESCRIPTOR_HANDLE BindDescriptor(CurrentViewHeap->GetGPUSlotHandle(FirstSlotIndex));
+	D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptors[MAX_UAVS];
 
 	FD3D12CommandListHandle& CommandList = CmdContext->CommandListHandle;
 
@@ -479,7 +479,7 @@ void FD3D12DescriptorCache::SetSamplers(const FD3D12RootSignature* RootSignature
 		checkSlow(SlotsNeeded <= MAX_SAMPLERS);
 
 		// Fill heap slots
-		CD3DX12_CPU_DESCRIPTOR_HANDLE SrcDescriptors[MAX_SAMPLERS];
+		D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptors[MAX_SAMPLERS];
 		for (uint32 SlotIndex = 0; SlotIndex < SlotsNeeded; SlotIndex++)
 		{
 			if (Samplers[SlotIndex] != nullptr)
