@@ -32,6 +32,7 @@ struct REMOTECONTROL_API FRemoteControlActor : public FRemoteControlEntity
 		}
 	}
 	
+	//~	Begin RemoteControlEntityInterface 
 	virtual void BindObject(UObject* InObjectToBind) override
 	{
 		if (InObjectToBind && InObjectToBind->IsA<AActor>())
@@ -44,7 +45,10 @@ struct REMOTECONTROL_API FRemoteControlActor : public FRemoteControlEntity
 	{
 		return GetTypeHash(Path);
 	}
-
+	
+    virtual UClass* GetSupportedBindingClass() const override { return AActor::StaticClass(); }
+	//~ End RemoteControlEntityInterface
+	
 	AActor* GetActor() const
 	{
 		if (Bindings.Num() && Bindings[0].IsValid())

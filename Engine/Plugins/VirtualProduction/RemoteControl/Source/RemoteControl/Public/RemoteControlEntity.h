@@ -74,7 +74,7 @@ struct REMOTECONTROL_API FRemoteControlEntity
 	/**
 	 *  Get the class of the object that can hold this field.
 	 */
-	virtual UClass* GetSupportedBindingClass() const PURE_VIRTUAL(FRemoteControlEntity::GetSupportedBindingClass, return nullptr;);
+	virtual UClass* GetSupportedBindingClass() const { return UObject::StaticClass(); }
 
 	bool operator==(const FRemoteControlEntity& InEntity) const;
 	bool operator==(FGuid InEntityId) const;

@@ -4,6 +4,7 @@
 
 #include "RemoteControlEntity.h"
 #include "RemoteControlField.h"
+#include "SceneOutlinerFilters.h"
 #include "SceneOutlinerModule.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SComboButton.h"
