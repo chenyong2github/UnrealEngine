@@ -212,10 +212,6 @@ void FNDIPhysicsFieldProxy::ConsumePerInstanceDataFromGameThread(void* PerInstan
 	{
 		TargetData->FieldResource = SourceData->FieldResource;
 	}
-	else
-	{
-		UE_LOG(LogPhysicsField, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %d"), Instance);
-	}
 }
 
 void FNDIPhysicsFieldProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)

@@ -815,7 +815,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			Commands.Add(Cmd);
 		}
 		Parameters.InitializationCommands.Empty();
-		FieldParameterUpdateCallback(RigidsSolver);
+		FieldParameterUpdateCallback(RigidsSolver, false);
 
 		if (Parameters.InitialVelocityType == EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
 		{
@@ -1319,59 +1319,6 @@ void FGeometryCollectionPhysicsProxy::GetRelevantParticleHandles(
 			Array.SetNum(NumIndices);
 		}
 #endif
-}
-
-
-void FGeometryCollectionPhysicsProxy::PushKinematicStateToSolver()
-{
-	FGeometryDynamicCollection& Collection = GameThreadCollection;
-	if (Collection.Transform.Num())
-	{
-		TManagedArray<int32>& DynamicState = Collection.DynamicState;
-
-		for (int32 TransformIndex = 0; TransformIndex < DynamicState.Num(); TransformIndex++)
-		{
-			Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Handle = SolverParticleHandles[TransformIndex];
-			if (!Handle)
-			{
-				continue;
-			}
-	
-			if (DynamicState[TransformIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic
-				&& (Handle->ObjectState() == Chaos::EObjectStateType::Kinematic || Handle->ObjectState() == Chaos::EObjectStateType::Static)
-				&& FLT_EPSILON < Handle->M())
-			{
-				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
-				if (Parameters.InitialVelocityType == EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
-				{
-					Handle->SetV(Collection.InitialLinearVelocity[TransformIndex]);
-					Handle->SetW(Collection.InitialAngularVelocity[TransformIndex]);
-				}
-			}
-			else if ((DynamicState[TransformIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic)
-				&& (Handle->ObjectState() == Chaos::EObjectStateType::Dynamic)
-				&& FLT_EPSILON < Handle->M())
-			{
-				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Kinematic);
-			}
-			else if ((DynamicState[TransformIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Static)
-				&& (Handle->ObjectState() == Chaos::EObjectStateType::Dynamic)
-				&& FLT_EPSILON < Handle->M())
-			{
-				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Static);
-			}
-			else if ((DynamicState[TransformIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Sleeping)
-				&& (Handle->ObjectState() == Chaos::EObjectStateType::Dynamic))
-			{
-				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Sleeping);
-			}
-			else if ((DynamicState[TransformIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic)
-				&& (Handle->ObjectState() == Chaos::EObjectStateType::Sleeping))
-			{
-				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
-			}
-		}
-	}
 }
 
 int32 FGeometryCollectionPhysicsProxy::CalculateHierarchyLevel(const FGeometryDynamicCollection& GeometryCollection, int32 TransformIndex) const
@@ -2549,11 +2496,12 @@ void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollecti
 // FIELDS
 //==============================================================================
 
-void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver)
+void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver, const bool bUpdateViews)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Object);
 
-	FGeometryDynamicCollection& Collection = GameThreadCollection;
+	// We are updating the Collection from the InitializeBodiesPT, so we need the PT collection
+	FGeometryDynamicCollection& Collection = PhysicsThreadCollection;
 	Chaos::FPBDPositionConstraints PositionTarget;
 	TMap<int32, int32> TargetedParticles;
 
@@ -2598,6 +2546,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 
 						SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicState);
 						{
+							bool bHasStateChanged = false;
 							InitDynamicStateResults(ParticleHandles, FieldContext, LocalResults);
 
 							static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
@@ -2606,10 +2555,29 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 								Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 								if (RigidHandle)
 								{
-									Collection.DynamicState[HandleToTransformGroupIndex[RigidHandle]] = ResultsView[Index.Result];
+									const int8 ResultState = ResultsView[Index.Result];  
+									const int32 TransformIndex = HandleToTransformGroupIndex[RigidHandle];
+
+									// Update of the handles object state. No need to update 
+									// the initial velocities since it is done after this function call in InitializeBodiesPT
+									if (bUpdateViews && (Parameters.InitialVelocityType == EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined))
+									{
+										bHasStateChanged |= ReportDynamicStateResult(RigidSolver, static_cast<Chaos::EObjectStateType>(ResultState), RigidHandle,
+											true, Collection.InitialLinearVelocity[TransformIndex], true, Collection.InitialAngularVelocity[TransformIndex]);
+									}
+									else
+									{
+										bHasStateChanged |= ReportDynamicStateResult(RigidSolver, static_cast<Chaos::EObjectStateType>(ResultState), RigidHandle,
+											false, Chaos::TVector<float, 3>(0), false, Chaos::TVector<float, 3>(0));
+									}
+									// Update of the Collection dynamic state. It will be used just after to set the initial velocity
+									Collection.DynamicState[TransformIndex] = ResultState;
 								}
 							}
-							PushKinematicStateToSolver();
+							if (bUpdateViews)
+							{
+								UpdateSolverParticlesState(RigidSolver, bHasStateChanged);
+							}
 						}
 						CommandsToRemove.Add(CommandIndex);
 					}

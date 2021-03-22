@@ -16180,7 +16180,7 @@ int32 UMaterialExpressionSamplePhysicsIntegerField::Compile(class FMaterialCompi
 
 void UMaterialExpressionSamplePhysicsIntegerField::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("SamplePhysicsScalarField"));
+	OutCaptions.Add(TEXT("SamplePhysicsIntegerField"));
 }
 #endif // WITH_EDITOR
 

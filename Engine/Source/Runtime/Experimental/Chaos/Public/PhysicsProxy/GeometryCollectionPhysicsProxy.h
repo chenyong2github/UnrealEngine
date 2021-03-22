@@ -161,7 +161,7 @@ public:
 
 	void FieldForcesUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver);
 
-	void FieldParameterUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver);
+	void FieldParameterUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver, const bool bUpdateViews = true);
 
 	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const float InDt, const float InTime, FKinematicProxy& InKinematicProxy) {}
 	void StartFrameCallback(const float InDt, const float InTime) {}
@@ -231,8 +231,6 @@ protected:
 		TArray<Chaos::TPBDRigidParticleHandle<float, 3>*>& ChildHandles,
 		const TArray<int32>& ChildTransformGroupIndices,
 		const Chaos::FClusterCreationParameters & Parameters);
-
-	void PushKinematicStateToSolver();
 
 	/** 
 	 * Traverses the parents of \p TransformIndex in \p GeometryCollection, counting
