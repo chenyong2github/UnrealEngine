@@ -479,7 +479,7 @@ void SDataprepGraphEditor::DeleteSelectedNodes()
 		{
 			if (ActionNode->CanUserDeleteNode() && ActionNode->GetDataprepActionAsset())
 			{
-				ActionsToDelete.Add(ActionNode->GetExecutionOrder());
+				ActionsToDelete.Add(DataprepAssetPtr->GetActionIndex(ActionNode->GetDataprepActionAsset()));
 				ActionAssets.Add(ActionNode->GetDataprepActionAsset());
 			}
 		}

@@ -452,6 +452,15 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 
 	int32 ActionInsertIndex = TrackNodePtr.Pin()->GetActionIndex(InsertIndex);
 
+	if (DraggedNodeWidgets.Num() > 0)
+	{
+		TSharedPtr<SDataprepGraphActionNode> ParentNodePtr = DraggedNodeWidgets[0]->GetParentNode().Pin();
+		if (ParentNodePtr.IsValid() && ParentNodePtr->GetExecutionOrder() < InsertIndex)
+		{
+			ActionInsertIndex = TrackNodePtr.Pin()->GetActionIndex(InsertIndex + 1);
+		}
+	}
+
 	if(DraggedSteps.Num() > 0)
 	{
 		FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
