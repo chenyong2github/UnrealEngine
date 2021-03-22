@@ -1074,7 +1074,21 @@ namespace DatasmithEditingOperationsUtils
 				{
 					if(MeshComponent->GetStaticMesh() && MeshComponent->GetStaticMesh()->GetSourceModels().Num() > 0)
 					{
-						ComponentsToMerge.Add(MeshComponent);
+						if (AActor* Owner = MeshComponent->GetAttachmentRootActor())
+						{
+							if(World == nullptr)
+							{
+								World = Owner->GetWorld();
+							}
+
+							if(World != Owner->GetWorld())
+							{
+								UE_LOG( LogDataprep, Log, TEXT("Actor %s is not part of the Dataprep transient world ..."), *Actor->GetActorLabel() );
+								continue;
+							}
+
+							ComponentsToMerge.Add(MeshComponent);
+						}
 					}
 				}
 			}
