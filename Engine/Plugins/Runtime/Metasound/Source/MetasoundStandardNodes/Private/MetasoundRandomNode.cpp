@@ -112,6 +112,9 @@ namespace Metasound
  
 	using FRandomNodeBool = TRandomNode<bool>;
 	METASOUND_REGISTER_NODE(FRandomNodeBool)
+
+	using FRandomNodeTime = TRandomNode<FTime>;
+	METASOUND_REGISTER_NODE(FRandomNodeTime)
 }
 
 #undef LOCTEXT_NAMESPACE
