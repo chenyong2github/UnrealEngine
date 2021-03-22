@@ -2901,9 +2901,12 @@ namespace LLMPrivate
 #if LLM_ALLOW_ASSETS_TAGS
 			AllocInfo.SetAssetTag(AssetTagData, LLMRef);
 #endif
-			LLMCheck(Size <= 0xffffffffu);
+			LLMCheck(Size <= 0x0000'ffff'ffff'ffff);
+			uint32 SizeLow = uint32(Size);
+			uint16 SizeHigh = uint16(Size >> 32ull);
 			FScopeLock AllocationScopeLock(&AllocationMapLock);
-			AllocationMap.Add(Ptr, static_cast<uint32>(Size), AllocInfo);
+			PointerKey Key(Ptr, SizeHigh);
+			AllocationMap.Add(Key, SizeLow, AllocInfo);
 		}
 	}
 
@@ -2913,7 +2916,7 @@ namespace LLMPrivate
 		FLLMAllocMap::Values Values;
 		{
 			FScopeLock AllocationScopeLock(&AllocationMapLock);
-			if (!AllocationMap.Remove(Ptr, Values))
+			if (!AllocationMap.Remove(PointerKey(Ptr), Values))
 			{
 				return;
 			}
@@ -2925,7 +2928,9 @@ namespace LLMPrivate
 			return;
 		}
 
-		int64 Size = static_cast<int64>(Values.Value1);
+		int64 SizeLow = static_cast<int64>(Values.Value1);
+		int64 SizeHigh = Values.Key.GetExtraData();
+		int64 Size = (SizeHigh << 32ull) | SizeLow;
 		FLLMTracker::FLowLevelAllocInfo& AllocInfo = Values.Value2;
 
 		// track the total quickly
@@ -2947,12 +2952,13 @@ namespace LLMPrivate
 		FLLMAllocMap::Values Values;
 		{
 			FScopeLock AllocationScopeLock(&AllocationMapLock);
-			if (!AllocationMap.Remove(Source, Values))
+			if (!AllocationMap.Remove(PointerKey(Source), Values))
 			{
 				return;
 			}
 
-			AllocationMap.Add(Dest, Values.Value1, Values.Value2);
+			PointerKey Key(Dest, uint16(Values.Key.GetExtraData()));
+			AllocationMap.Add(Key, Values.Value1, Values.Value2);
 		}
 
 		if (IsPaused(AllocType))
@@ -2961,7 +2967,9 @@ namespace LLMPrivate
 			return;
 		}
 
-		int64 Size = static_cast<int64>(Values.Value1);
+		int64 SizeLow = static_cast<int64>(Values.Value1);
+		int64 SizeHigh = Values.Key.GetExtraData();
+		int64 Size = (SizeHigh << 32ull) | SizeLow;
 		const FLLMTracker::FLowLevelAllocInfo& AllocInfo = Values.Value2;
 		const FTagData* TagData = AllocInfo.GetTag(LLMRef);
 
@@ -3226,7 +3234,7 @@ namespace LLMPrivate
 			FScopeLock AllocationScopeLock(&AllocationMapLock);
 			uint32* Size;
 			FLowLevelAllocInfo* AllocInfoPtr;
-			AllocationMap.Find(Ptr, Size, AllocInfoPtr);
+			AllocationMap.Find(PointerKey(Ptr), Size, AllocInfoPtr);
 			if (!AllocInfoPtr)
 			{
 				return nullptr;
