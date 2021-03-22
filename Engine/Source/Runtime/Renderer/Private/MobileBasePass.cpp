@@ -174,7 +174,7 @@ bool MobileBasePass::GetShaders(
 static bool UseSkyReflectionCapture(const FScene* RenderScene)
 {
 	return RenderScene
-		&& RenderScene->ReflectionSceneData.RegisteredReflectionCapturePositions.Num() == 0
+		&& RenderScene->ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Num() == 0
 		&& RenderScene->SkyLight
 		&& RenderScene->SkyLight->ProcessedTexture
 		&& RenderScene->SkyLight->ProcessedTexture->TextureRHI;
