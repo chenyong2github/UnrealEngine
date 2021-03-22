@@ -149,7 +149,7 @@ public:
 };
 
 /**
-	@brief UE4 interface for DNA Reader wrappers.
+	@brief UE interface for DNA Reader wrappers.
 */
 class IDNAReader : public IBehaviorReader, public IGeometryReader
 {
