@@ -532,6 +532,11 @@ void FFractureEditorModeToolkit::BindCommands()
 	const FFractureEditorCommands& Commands = FFractureEditorCommands::Get();
 	
 	ToolkitCommands->MapAction(
+		Commands.ToggleShowBoneColors,
+		FExecuteAction::CreateSP(this, &FFractureEditorModeToolkit::ToggleShowBoneColors)//,
+	);
+	
+	ToolkitCommands->MapAction(
 		Commands.ViewUpOneLevel,
 		FExecuteAction::CreateSP(this, &FFractureEditorModeToolkit::ViewUpOneLevel)//,
 	);
@@ -752,6 +757,17 @@ void FFractureEditorModeToolkit::OnLevelViewValueChanged()
 	SetOutlinerComponents(GeomCompSelection.Array());
 
 	GCurrentLevelEditingViewportClient->Invalidate();
+}
+
+void FFractureEditorModeToolkit::ToggleShowBoneColors()
+{
+	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	GetSelectedGeometryCollectionComponents(GeomCompSelection);
+
+	for (UGeometryCollectionComponent* Comp : GeomCompSelection)
+	{
+		Comp->SetShowBoneColors(!Comp->GetShowBoneColors());
+	}
 }
 
 void FFractureEditorModeToolkit::ViewUpOneLevel()

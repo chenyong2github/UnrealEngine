@@ -116,6 +116,8 @@ public:
 	TSharedRef<SWidget> GetLevelViewMenuContent(TSharedRef<IPropertyHandle> PropertyHandle);
 	TSharedRef<SWidget> GetViewMenuContent();
 
+	void ToggleShowBoneColors();
+
 	void ViewUpOneLevel();
 	void ViewDownOneLevel();
 
