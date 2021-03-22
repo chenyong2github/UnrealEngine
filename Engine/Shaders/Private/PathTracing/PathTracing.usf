@@ -438,8 +438,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	// Seed the array with a uniform CDF at first so that we always have a valid CDF
 	float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
 
-	InitLightPickingCdf(LightPickingCdf);
-
 	Ray.Direction = normalize(Ray.Direction);
 
 	FRayCone RayCone = (FRayCone)0;
@@ -494,6 +492,8 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 		const bool bDoLightLoop = PathTracingData.SkipDirectLighting == 0 || Bounce > 0;
 
+		float LightPickingCdfSum = 0;
+
 		// If we are using Light sampling and the material can use it ...
 		if (MISMode != 0 && bIsNeeValid && SceneLightCount > 0 && bDoLightLoop)
 		{
@@ -504,13 +504,16 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 			bool IsTransmissiveMaterial = ENABLE_TRANSMISSION && IsMaterialTransmissive(Payload);
 
-			if (InitLightPickingCdf(WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf))
+			LightPickingCdfSum = InitLightPickingCdf(WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf);
+
+			if (LightPickingCdfSum > 0)
 			{
 				// init worked
 				int LightId;
 				float LightPickPdf = 0;
 
-				SelectLight(RandSample.x, LightPickingCdf, LightId, LightPickPdf);
+				SelectLight(RandSample.x * LightPickingCdfSum, LightPickingCdf, LightId, LightPickPdf);
+				LightPickPdf /= LightPickingCdfSum;
 
 				FLightSample LightSample = SampleLight(LightId, RandSample, WorldPos, WorldNormal);
 
@@ -614,6 +617,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			// While it would be possible to just loop around and use the indirect ray to do this, it would prevent the application
 			// of shadow ray specific logic for transparent shadows or various per light tricks like shadow casting
 			float PreviousCdfValue = 0.0;
+			const bool bUseMIS = MISMode == 2 && LightPickingCdfSum > 0;
 			for (uint LightId = 0; LightId < SceneLightCount; ++LightId)
 			{
 				if ((Payload.PrimitiveLightingChannelMask & GetLightingChannelMask(LightId)) == 0)
@@ -624,10 +628,15 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 				FLightHit LightResult = TraceLight(Ray, LightId);
 
-				float3 LightContrib = PathThroughput * LightResult.Radiance;
-				if (MISMode == 2)
+				if (LightResult.IsMiss())
 				{
-					float LightPickPdf =  LightPickingCdf[LightId] - PreviousCdfValue;
+					continue;
+				}
+
+				float3 LightContrib = PathThroughput * LightResult.Radiance;
+				if (bUseMIS)
+				{
+					float LightPickPdf =  (LightPickingCdf[LightId] - PreviousCdfValue) / LightPickingCdfSum;
 					PreviousCdfValue = LightPickingCdf[LightId];
 
 					LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf * LightPickPdf);

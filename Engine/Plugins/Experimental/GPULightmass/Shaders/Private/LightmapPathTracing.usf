@@ -181,7 +181,7 @@ void PathTracingKernel(
 	// Seed the array with a uniform CDF at first so that we always have a valid CDF
 	float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
 
-	InitLightPickingCdf(LightPickingCdf);
+	float LightPickingCdfSum = 0.0;
 	
 	FRayCone RayCone = (FRayCone)0;
 	
@@ -269,7 +269,8 @@ void PathTracingKernel(
 				// GPULightmass records direct contribution for only static lights
 				if (Bounce > 1 || (Bounce == 1 && !IsStationary(LightId)))
 				{
-					AccumulateRadiance(Radiance, PathThroughput * LightResult.Radiance * MISWeightRobust(PrevMaterialPdf, LightResult.Pdf * LightPickPdf));
+					float MISWeight = LightPickingCdfSum > 0.0 ? MISWeightRobust(PrevMaterialPdf, LightResult.Pdf * LightPickPdf / LightPickingCdfSum) : 1.0;
+					AccumulateRadiance(Radiance, PathThroughput * LightResult.Radiance * MISWeight);
 				}
 			}
 		}
@@ -382,15 +383,19 @@ void PathTracingKernel(
 
 			bool IsTransmissiveMaterial = false; // ENABLE_TRANSMISSION && IsMaterialTransmissive(Payload);
 			
-			if (InitLightPickingCdf(WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf))
+			LightPickingCdfSum = InitLightPickingCdf(WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf);
+
+			if (LightPickingCdfSum > 0.0)
 			{
 				// init worked
 				int LightId;
 				float LightPickPdf = 0;
 
-				SelectLight(RandSample.x, LightPickingCdf, LightId, LightPickPdf);
+				SelectLight(RandSample.x * LightPickingCdfSum, LightPickingCdf, LightId, LightPickPdf);
 
 				FLightSample LightSample = SampleLight(LightId, RandSample, WorldPos, WorldNormal);
+
+				LightPickPdf /= LightPickingCdfSum;
 
 				LightSample.RadianceOverPdf /= LightPickPdf;
 				LightSample.Pdf *= LightPickPdf;

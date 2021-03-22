@@ -77,16 +77,7 @@ float EstimateLight(
 }
 
 // #dxr_todo: passing LightPickingCdf as anything but inout causes performance to drop significantly -- why ?
-void InitLightPickingCdf(inout float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM])
-{
-	for (uint LightIndex = 0; LightIndex < SceneLightCount; ++LightIndex)
-	{
-		LightPickingCdf[LightIndex] = float(LightIndex + 1) / float(SceneLightCount);
-	}
-}
-
-// #dxr_todo: passing LightPickingCdf as anything but inout causes performance to drop significantly -- why ?
-bool InitLightPickingCdf(
+float InitLightPickingCdf(
 	float3 WorldPos,
 	float3 WorldNormal,
 	uint PrimitiveLightingChannelMask,
@@ -95,41 +86,29 @@ bool InitLightPickingCdf(
 {
 	// This code assumes SceneLightCount > 0
 #ifdef UNIFORM_LIGHT_SELECTION
-	InitLightPickingCdf(LightPickingCdf);
+	return SceneLightCount;
 #else
 	// Build irradiance estimate prefix sum
-	float LastCdf = 0;
+	float CdfSum = 0;
 	{
 		for (uint LightIndex = 0; LightIndex < SceneLightCount; ++LightIndex)
 		{
-			LightPickingCdf[LightIndex] = EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial);
-			LightPickingCdf[LightIndex] += LastCdf;
-			LastCdf = LightPickingCdf[LightIndex];
+			CdfSum += EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial);
+			LightPickingCdf[LightIndex] = CdfSum;
 		}
 	}
-
-	if (LastCdf == 0)
-	{
-		// all the lights are invisible
-		return false;
-	}
-	{
-		// CDF normalization
-		for (uint LightIndex = 0; LightIndex < SceneLightCount; ++LightIndex)
-		{
-			LightPickingCdf[LightIndex] /= LastCdf;
-		}
-		LightPickingCdf[SceneLightCount - 1] = 1.0;
-	}
+	return CdfSum;
 #endif
-	return true;
 }
 
 // #dxr_todo: passing LightPickingCdf as anything but inout causes performance to drop significantly -- why ?
 void SelectLight(float RandSample, inout float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM], out uint LightId, out float LightPickPdf)
 {
 	// This code assumes SceneLightCount > 0
-
+#ifdef UNIFORM_LIGHT_SELECTION
+	LightId = min(int(floor(RandSample * SceneLightCount)), SceneLightCount - 1);
+	LightPickPdf = 1.0;
+#else
 #if 0
 	// linear search
 	float PreviousCdfValue = 0;
@@ -163,7 +142,7 @@ void SelectLight(float RandSample, inout float LightPickingCdf[RAY_TRACING_LIGHT
 
 	LightPickPdf = LightPickingCdf[LightId] - ((LightId > 0) ? LightPickingCdf[LightId - 1] : 0.0);
 #endif
-
+#endif
 }
 
 bool SampleLight(
@@ -193,7 +172,9 @@ bool SampleLight(
 
 	float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
 
-	if (!InitLightPickingCdf(WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf))
+	float LightPickingCdfSum = InitLightPickingCdf(WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf);
+
+	if (LightPickingCdfSum > 0.0)
 	{
 		// light picking cdf is all 0
 		return false;
@@ -201,7 +182,9 @@ bool SampleLight(
 
 	float LightPickPdf = 0;
 
-	SelectLight(RandSample.x, LightPickingCdf, OutLightId, LightPickPdf);
+	SelectLight(RandSample.x * LightPickingCdfSum, LightPickingCdf, OutLightId, LightPickPdf);
+
+	LightPickPdf /= LightPickingCdfSum;
 
 	FLightSample Result = SampleLight(OutLightId, RandSample, WorldPos, WorldNormal);
 	OutDirection = Result.Direction;
