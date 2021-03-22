@@ -990,6 +990,18 @@ FViewInfo::~FViewInfo()
 
 	//this uses memstack allocation for strongrefs, so we need to manually empty to get the destructor called to not leak the uniformbuffers stored here.
 	TranslucentSelfShadowUniformBufferMap.Empty();
+
+#if RHI_RAYTRACING
+	// Per-task structures are allocated using memstack so we have to call destructors explicitly.
+	for (FRayTracingMeshCommandOneFrameArray* It : VisibleRayTracingMeshCommandsPerTask)
+	{
+		It->~FRayTracingMeshCommandOneFrameArray();
+	}
+	for (FDynamicRayTracingMeshCommandStorage* It : DynamicRayTracingMeshCommandStoragePerTask)
+	{
+		It->~FDynamicRayTracingMeshCommandStorage();
+	}
+#endif // RHI_RAYTRACING
 }
 
 #if DO_CHECK || USING_CODE_ANALYSIS
