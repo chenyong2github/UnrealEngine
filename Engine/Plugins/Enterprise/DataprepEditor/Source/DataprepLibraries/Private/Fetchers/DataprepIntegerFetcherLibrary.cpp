@@ -112,7 +112,15 @@ int32 UDataprepVertexCountFetcher::Fetch_Implementation(const UObject* Object, b
 					}
 				}
 			}
-		} 
+		}
+		else if ( const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>( Object ) )
+		{
+			if ( const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh() )
+			{
+				VertexCount = GetStaticMeshVertexCount( StaticMesh );
+				bOutFetchSucceded = true;
+			}
+		}
 		else if ( const UStaticMesh* StaticMesh = Cast<const UStaticMesh>(Object) )
 		{
 			VertexCount = GetStaticMeshVertexCount(StaticMesh);
