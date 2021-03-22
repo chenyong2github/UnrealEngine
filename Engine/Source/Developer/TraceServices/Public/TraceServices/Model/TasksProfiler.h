@@ -69,7 +69,7 @@ namespace TraceServices
 	{
 		TArray<TaskTrace::FId> Tasks;
 		double StartedTimestamp;
-		double FinishedTimestamp;
+		double FinishedTimestamp = FTaskInfo::InvalidTimestamp;
 	};
 
 	// query interface to tasks info
