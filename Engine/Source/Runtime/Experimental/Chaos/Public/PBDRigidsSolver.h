@@ -312,6 +312,9 @@ namespace Chaos
 		/** Update the particles forces based on field evaluation */
 		void FieldForcesUpdateCallback();
 
+		// Update the counter in Stats and the CSV profiler
+		void UpdateStatCounters() const;
+
 	private:
 
 		/**/
