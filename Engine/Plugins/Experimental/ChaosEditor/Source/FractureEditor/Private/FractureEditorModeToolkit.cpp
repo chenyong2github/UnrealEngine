@@ -767,6 +767,8 @@ void FFractureEditorModeToolkit::ToggleShowBoneColors()
 	for (UGeometryCollectionComponent* Comp : GeomCompSelection)
 	{
 		Comp->SetShowBoneColors(!Comp->GetShowBoneColors());
+		Comp->MarkRenderStateDirty();
+		Comp->MarkRenderDynamicDataDirty();
 	}
 }
 
