@@ -664,8 +664,9 @@ void FClothingSimulationNv::Simulate(IClothingSimulationContext* InContext)
 				Scratch.ConvexMasks.AddZeroed();
 				uint32& ConvexMask = Scratch.ConvexMasks.Last();
 
-				for(FPlane& ConvexPlane : Convex.Planes)
+				for(FClothCollisionPrim_ConvexFace& ConvexFace : Convex.Faces)
 				{
+					const FPlane& ConvexPlane = ConvexFace.Plane;
 					Scratch.PlaneData.AddDefaulted();
 					physx::PxVec4& NewPlane = Scratch.PlaneData.Last();
 

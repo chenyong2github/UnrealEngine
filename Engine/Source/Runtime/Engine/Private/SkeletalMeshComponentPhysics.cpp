@@ -3003,7 +3003,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 
 								NewCollisionData.Convexes.AddDefaulted();
 								FClothCollisionPrim_Convex& Convex = NewCollisionData.Convexes.Last();
-								Convex.Planes.Reset(6);
+								Convex.Faces.SetNum(6);
 
 								// we need to inflate the hull to get nicer collisions (only particles collide)
 								const static float Inflate = 2.0f;
@@ -3011,27 +3011,27 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 				
 								FPlane UPlane1(1, 0, 0, BoxGeo.halfExtents.x);
 								UPlane1 = UPlane1.TransformBy(FullTransformMatrix);
-								Convex.Planes.Add(UPlane1);
+								Convex.Faces[0].Plane = UPlane1;
 
 								FPlane UPlane2(-1, 0, 0, BoxGeo.halfExtents.x);
 								UPlane2 = UPlane2.TransformBy(FullTransformMatrix);
-								Convex.Planes.Add(UPlane2);
+								Convex.Faces[1].Plane = UPlane2;
 
 								FPlane UPlane3(0, 1, 0, BoxGeo.halfExtents.y);
 								UPlane3 = UPlane3.TransformBy(FullTransformMatrix);
-								Convex.Planes.Add(UPlane3);
+								Convex.Faces[2].Plane = UPlane3;
 
 								FPlane UPlane4(0, -1, 0, BoxGeo.halfExtents.y);
 								UPlane4 = UPlane4.TransformBy(FullTransformMatrix);
-								Convex.Planes.Add(UPlane4);
+								Convex.Faces[3].Plane = UPlane4;
 
 								FPlane UPlane5(0, 0, 1, BoxGeo.halfExtents.z);
 								UPlane5 = UPlane5.TransformBy(FullTransformMatrix);
-								Convex.Planes.Add(UPlane5);
+								Convex.Faces[4].Plane = UPlane5;
 
 								FPlane UPlane6(0, 0, -1, BoxGeo.halfExtents.z);
 								UPlane6 = UPlane6.TransformBy(FullTransformMatrix);
-								Convex.Planes.Add(UPlane6);
+								Convex.Faces[5].Plane = UPlane6;
 
 								Convex.BoneIndex = INDEX_NONE;
 							}
@@ -3052,7 +3052,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 									FMatrix FullTransformMatrix = ShapeLocalPose * ComponentToClothMatrix;
 
 									uint32 NumPolys = MeshGeo.convexMesh->getNbPolygons();
-									NewConvex.Planes.Empty(NumPolys);
+									NewConvex.Faces.SetNum(NumPolys);
 
 									PxHullPolygon HullData;
 									for(uint32 PolyIndex = 0; PolyIndex < NumPolys; ++PolyIndex)
@@ -3064,7 +3064,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 										
 										UPlane.W += Inflate;
 
-										NewConvex.Planes.Add(UPlane);
+										NewConvex.Faces[PolyIndex].Plane = UPlane;
 									}
 								}	
 							}
