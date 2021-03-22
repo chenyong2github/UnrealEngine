@@ -175,12 +175,6 @@ public:
 	/** Does the variable start with this namespace?*/
 	static bool IsInNamespace(const FNiagaraVariable& InVar, const FString& Namespace);
 
-	/** Given the script type and flags, should we treat the System namespace as read-only?*/
-	static bool IsSystemNamespaceReadOnly(const UNiagaraScript* InScript);
-
-	/** Given the script type and flags, should we treat the Emitter aliased namespace as read-only?*/
-	static bool IsEmitterNamespaceReadOnly(const UNiagaraScript* InScript);
-
 	static void GetValidNamespacesForReading(const UNiagaraScript* InScript, TArray<FString>& OutputNamespaces);
 	static void GetValidNamespacesForReading(ENiagaraScriptUsage InScriptUsage, int32 InUsageBitmask, TArray<FString>& OutputNamespaces);
 	static bool IsValidNamespaceForReading(ENiagaraScriptUsage InScriptUsage, int32 InUsageBitmask, FString Namespace);
@@ -194,7 +188,7 @@ public:
 	bool IsExportableExternalConstant(const FNiagaraVariable& InVar, const UNiagaraScript* InScript);
 
 	/** Does this variable belong in a namespace that needs to come in as an external constant to this script?*/
-	static bool IsExternalConstantNamespace(const FNiagaraVariable& InVar, const UNiagaraScript* InScript);
+	static bool IsExternalConstantNamespace(const FNiagaraVariable& InVar, const UNiagaraScript* InScript, const FGuid& VersionGuid);
 	static bool IsExternalConstantNamespace(const FNiagaraVariable& InVar, ENiagaraScriptUsage InUsage, int32 InUsageBitmask);
 	
 	/** Take a non-namespaced variable and move it to an appropriate external constant namespace for this script type.*/

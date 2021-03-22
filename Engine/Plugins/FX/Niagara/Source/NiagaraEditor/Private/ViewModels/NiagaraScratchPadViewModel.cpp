@@ -188,7 +188,7 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::GetVi
 
 TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::GetViewModelForEditScript(UNiagaraScript* InEditScript)
 {
-	TSharedRef<FNiagaraScratchPadScriptViewModel>* ViewModelForEditScript = ScriptViewModels.FindByPredicate([InEditScript](TSharedRef<FNiagaraScratchPadScriptViewModel>& ScriptViewModel) { return ScriptViewModel->GetEditScript() == InEditScript; });
+	TSharedRef<FNiagaraScratchPadScriptViewModel>* ViewModelForEditScript = ScriptViewModels.FindByPredicate([InEditScript](TSharedRef<FNiagaraScratchPadScriptViewModel>& ScriptViewModel) { return ScriptViewModel->GetEditScript().Script == InEditScript; });
 	if (ViewModelForEditScript != nullptr)
 	{
 		return *ViewModelForEditScript;
@@ -231,7 +231,8 @@ void UNiagaraScratchPadViewModel::SetActiveScriptViewModel(TSharedRef<FNiagaraSc
 	if (ensureMsgf(ScriptViewModels.Contains(InActiveScriptViewModel), TEXT("Can only set an active view model from this scratch pad view model.")))
 	{
 		ActiveScriptViewModel = InActiveScriptViewModel;
-		ObjectSelection->SetSelectedObject(ActiveScriptViewModel->GetEditScript());
+		const FVersionedNiagaraScript& EditScript = ActiveScriptViewModel->GetEditScript();
+		ObjectSelection->SetSelectedObject(EditScript.Script, &EditScript.Version);
 		RefreshEditScriptViewModels();
 		OnActiveScriptChangedDelegate.Broadcast();
 	}
@@ -424,7 +425,7 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 		NewScript->ClearFlags(RF_Public | RF_Standalone);
 		ScriptOuter->Modify();
 		TargetScripts->Add(NewScript);
-		NewScript->ModuleUsageBitmask |= (1 << (int32)InTargetSupportedUsage);
+		NewScript->GetScriptData()->ModuleUsageBitmask |= (1 << (int32)InTargetSupportedUsage);
 		RefreshScriptViewModels();
 		UpdateChangeId(GetSystemViewModel());
 	}
@@ -627,7 +628,8 @@ void UNiagaraScratchPadViewModel::ScriptGraphNodeSelectionChanged(TWeakPtr<FNiag
 		}
 		else if (ActiveScriptViewModel.IsValid())
 		{
-			ObjectSelection->SetSelectedObject(ActiveScriptViewModel->GetEditScript());
+			const FVersionedNiagaraScript& EditScript = ActiveScriptViewModel->GetEditScript();
+			ObjectSelection->SetSelectedObject(EditScript.Script, &EditScript.Version);
 		}
 		else
 		{

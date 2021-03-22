@@ -33,6 +33,9 @@ public:
 	/** Gets the display text for this graph. */
 	FText GetDisplayName() const;
 
+	/** Sets the display text for this graph. */
+	void SetDisplayName(FText NewName);
+
 	/** Gets the script displayed and edited by this view model. */
 	UNiagaraScriptSource* GetScriptSource();
 

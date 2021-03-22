@@ -1,34 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
-#include "NiagaraScriptVariable.h"
-#include "NiagaraGraph.h"
+
+#include "EdGraphSchema_Niagara.h"
+#include "Editor.h"
 #include "NiagaraActions.h"
+#include "NiagaraConstants.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraGraph.h"
+#include "NiagaraNodeParameterMapSet.h"
+#include "NiagaraObjectSelection.h"
+#include "NiagaraParameterNameViewModel.h"
+#include "NiagaraScriptGraphViewModel.h"
+#include "NiagaraScriptVariable.h"
+#include "NiagaraSystem.h"
+#include "NiagaraSystemEditorData.h"
+#include "NiagaraSystemScriptViewModel.h"
+#include "NiagaraTypes.h"
+#include "ScopedTransaction.h"
 #include "SGraphActionMenu.h"
 #include "SNiagaraParameterNameView.h"
-#include "NiagaraParameterNameViewModel.h"
-#include "NiagaraStandaloneScriptViewModel.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "NiagaraConstants.h"
-#include "EdGraphSchema_Niagara.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
-#include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "NiagaraScriptGraphViewModel.h"
-#include "NiagaraNodeParameterMapGet.h"
-#include "NiagaraNodeParameterMapSet.h"
-#include "NiagaraSystemScriptViewModel.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
-#include "NiagaraEmitterHandle.h"
-#include "NiagaraEmitter.h"
-#include "NiagaraSystem.h"
-#include "NiagaraObjectSelection.h"
 #include "EdGraph/EdGraphSchema.h"
-#include "Editor.h"
-#include "ScopedTransaction.h"
-#include "NiagaraSystemEditorData.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "NiagaraEditorModule.h"
-#include "NiagaraTypes.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanelViewModel"
 
@@ -1028,15 +1026,18 @@ TStaticArray<FScopeIsEnabledAndTooltip, (int32)ENiagaraParameterScope::Num> FNia
 			}
 		}*/
 
+		FVersionedNiagaraScript StandaloneScript = ScriptViewModel->GetStandaloneScript();
+		FVersionedNiagaraScriptData* ScriptData = StandaloneScript.Script->GetScriptData(StandaloneScript.Version);
+
 		// Prevent making Module namespace parameters in function and dynamic input scripts
-		if (ScriptViewModel->GetStandaloneScript()->GetUsage() != ENiagaraScriptUsage::Module)
+		if (StandaloneScript.Script->GetUsage() != ENiagaraScriptUsage::Module)
 		{
 			PerScopeInfo[(int32)ENiagaraParameterScope::Input].bEnabled = false;
 			PerScopeInfo[(int32)ENiagaraParameterScope::Input].Tooltip = FText::Format(LOCTEXT("NiagaraInvalidScopeSelectionModule", "Cannot select scope '{0}': Scope is only valid in Module Scripts.")
 				, FText::FromName(FNiagaraEditorUtilities::GetScopeNameForParameterScope(ENiagaraParameterScope::Input)));
 		}
 
-		const TArray<ENiagaraParameterScope> InvalidParameterScopes = ScriptViewModel->GetStandaloneScript()->GetUnsupportedParameterScopes();
+		const TArray<ENiagaraParameterScope> InvalidParameterScopes = ScriptData->GetUnsupportedParameterScopes();
 		for (ENiagaraParameterScope InvalidScope : InvalidParameterScopes)
 		{
 			PerScopeInfo[(int32)InvalidScope].bEnabled = false;

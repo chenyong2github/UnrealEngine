@@ -488,10 +488,10 @@ void INiagaraModule::UnregisterCompileResultDelegate(FDelegateHandle DelegateHan
 	CompilationResultDelegate.Unbind();
 }
 
-TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> INiagaraModule::Precompile(UObject* Obj)
+TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> INiagaraModule::Precompile(UObject* Obj, FGuid Version)
 {
 	checkf(ObjectPrecompilerDelegate.IsBound(), TEXT("ObjectPrecompiler delegate not bound."));
-	return ObjectPrecompilerDelegate.Execute(Obj);
+	return ObjectPrecompilerDelegate.Execute(Obj, Version);
 }
 
 FDelegateHandle INiagaraModule::RegisterPrecompiler(FOnPrecompile PreCompiler)

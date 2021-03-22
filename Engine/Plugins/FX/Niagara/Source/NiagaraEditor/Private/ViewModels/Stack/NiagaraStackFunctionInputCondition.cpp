@@ -127,7 +127,7 @@ TOptional<FNiagaraVariableMetaData> FNiagaraStackFunctionInputCondition::GetCond
 {
 	checkf(IsValid(), TEXT("Can not get the input metadata for an invalid input condition"));
 	FNiagaraVariable InputVariable(InputBinder.GetInputType(), InputBinder.GetInputName());
-	UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(FunctionCallNode->FunctionScript->GetSource())->NodeGraph;
+	UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(FunctionCallNode->GetFunctionScriptSource())->NodeGraph;
 	return FunctionGraph->GetMetaData(InputVariable);
 }
 

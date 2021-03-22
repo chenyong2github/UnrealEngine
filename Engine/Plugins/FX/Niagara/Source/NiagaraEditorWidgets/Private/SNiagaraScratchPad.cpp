@@ -381,7 +381,7 @@ private:
 	TArray<ENiagaraScriptUsage> OnGetCategoriesForItem(const TSharedRef<FNiagaraScratchPadScriptViewModel>& Item)
 	{
 		TArray<ENiagaraScriptUsage> Categories;
-		Categories.Add(Item->GetScripts()[0]->GetUsage());
+		Categories.Add(Item->GetScripts()[0].Script->GetUsage());
 		return Categories;
 	}
 
@@ -837,7 +837,8 @@ private:
 				else
 				{
 					TSharedRef<FNiagaraObjectSelection> ScriptSelection = MakeShared<FNiagaraObjectSelection>();
-					ScriptSelection->SetSelectedObject(NewScriptViewModel->GetEditScript());
+					const FVersionedNiagaraScript& EditScript = NewScriptViewModel->GetEditScript();
+					ScriptSelection->SetSelectedObject(EditScript.Script, &EditScript.Version);
 					TArray<TSharedRef<FNiagaraObjectSelection>> ParameterSelections;
 					ParameterSelections.Add(ScriptSelection);
 					ParameterSelections.Add(NewScriptViewModel->GetVariableSelection());

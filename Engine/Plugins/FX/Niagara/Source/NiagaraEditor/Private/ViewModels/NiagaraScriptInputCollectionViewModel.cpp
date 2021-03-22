@@ -47,7 +47,7 @@ FNiagaraScriptInputCollectionViewModel::~FNiagaraScriptInputCollectionViewModel(
 	}
 }
 
-void FNiagaraScriptInputCollectionViewModel::SetScripts(TArray<UNiagaraScript*> InScripts)
+void FNiagaraScriptInputCollectionViewModel::SetScripts(TArray<FVersionedNiagaraScript>& InScripts)
 {
 	if (Graph.IsValid())
 	{
@@ -56,20 +56,20 @@ void FNiagaraScriptInputCollectionViewModel::SetScripts(TArray<UNiagaraScript*> 
 	}
 
 	Scripts.Empty();
-	for (UNiagaraScript* Script : InScripts)
+	for (FVersionedNiagaraScript& Script : InScripts)
 	{
-		Scripts.Add(Script);
-		check(Script->GetSource() == InScripts[0]->GetSource());
+		Scripts.Add(Script.ToWeakPtr());
+		check(Script.Script->GetSource(Script.Version) == InScripts[0].Script->GetSource(InScripts[0].Version));
 	}
 
-	if (InScripts.Num() != 0 && Scripts[0].IsValid() && Scripts[0]->GetSource())
+	if (InScripts.Num() != 0 && Scripts[0].Script.IsValid() && Scripts[0].Script->GetSource(Scripts[0].Version))
 	{
-		Graph = Cast<UNiagaraScriptSource>(Scripts[0]->GetSource())->NodeGraph;
+		Graph = Cast<UNiagaraScriptSource>(Scripts[0].Script->GetSource(Scripts[0].Version))->NodeGraph;
 		OnGraphChangedHandle = Graph->AddOnGraphChangedHandler(
 			FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScriptInputCollectionViewModel::OnGraphChanged));
 		OnRecompileHandle = Graph->AddOnGraphNeedsRecompileHandler(
 			FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScriptInputCollectionViewModel::OnGraphChanged));
-		bCanHaveNumericParameters = Scripts[0]->IsStandaloneScript();
+		bCanHaveNumericParameters = Scripts[0].Script->IsStandaloneScript();
 	}
 	else
 	{
@@ -247,9 +247,9 @@ void FNiagaraScriptInputCollectionViewModel::RefreshParameterViewModels()
 			{
 				FNiagaraVariable* EmitterVariable = nullptr;
 				UNiagaraScript* Script = nullptr;
-				for (TWeakObjectPtr<UNiagaraScript> ScriptWeakPtr : Scripts)
+				for (FVersionedNiagaraScriptWeakPtr& ScriptWeakPtr : Scripts)
 				{
-					if (!ScriptWeakPtr.IsValid() || !ScriptWeakPtr->GetVMExecutableData().IsValid())
+					if (!ScriptWeakPtr.Script.IsValid() || !ScriptWeakPtr.Script->GetVMExecutableData().IsValid())
 					{
 						continue;
 					}
@@ -258,7 +258,7 @@ void FNiagaraScriptInputCollectionViewModel::RefreshParameterViewModels()
 						break;
 					}
 
-					for (FNiagaraVariable& EmitterVariableToCheck : ScriptWeakPtr->GetVMExecutableData().Parameters.Parameters)
+					for (FNiagaraVariable& EmitterVariableToCheck : ScriptWeakPtr.Script->GetVMExecutableData().Parameters.Parameters)
 					{
 
 						// @TODO We should check ID's here, but its possible that the 
@@ -267,7 +267,7 @@ void FNiagaraScriptInputCollectionViewModel::RefreshParameterViewModels()
 						if (EmitterVariableToCheck.GetName() == GraphVariable.GetName())
 						{
 							EmitterVariable = &EmitterVariableToCheck;
-							Script = ScriptWeakPtr.Get();
+							Script = ScriptWeakPtr.Script.Get();
 							break;
 						}
 					}
@@ -278,20 +278,18 @@ void FNiagaraScriptInputCollectionViewModel::RefreshParameterViewModels()
 			else
 			{
 				UNiagaraDataInterface* EmitterDataInterface = InputNode->GetDataInterface();
-				UNiagaraScript* Script = nullptr;
-				for (TWeakObjectPtr<UNiagaraScript> ScriptWeakPtr : Scripts)
+				for (FVersionedNiagaraScriptWeakPtr& ScriptWeakPtr : Scripts)
 				{
 					if (EmitterDataInterface != nullptr)
 					{
 						break;
 					}
 
-					for (FNiagaraScriptDataInterfaceInfo& DataInterfaceInfoItem : ScriptWeakPtr->GetCachedDefaultDataInterfaces())
+					for (FNiagaraScriptDataInterfaceInfo& DataInterfaceInfoItem : ScriptWeakPtr.Script->GetCachedDefaultDataInterfaces())
 					{
 						if (DataInterfaceInfoItem.Name == InputNode->Input.GetName())
 						{
 							EmitterDataInterface = DataInterfaceInfoItem.DataInterface;
-							Script = ScriptWeakPtr.Get();
 							break;
 						}
 					}
@@ -323,10 +321,10 @@ bool FNiagaraScriptInputCollectionViewModel::SupportsType(const FNiagaraTypeDefi
 		return false;
 	}
 
-	if (Scripts.Num() == 1 && Scripts[0] != nullptr)
+	if (Scripts.Num() == 1 && Scripts[0].Script.IsValid())
 	{
 		// We only support parameter map inputs for dynamic inputs and modules, with the ability to create data interfaces as needed for defaults.
-		if (Scripts[0]->GetUsage() == ENiagaraScriptUsage::DynamicInput || Scripts[0]->GetUsage() == ENiagaraScriptUsage::Module)
+		if (Scripts[0].Script->GetUsage() == ENiagaraScriptUsage::DynamicInput || Scripts[0].Script->GetUsage() == ENiagaraScriptUsage::Module)
 		{
 			if (Type != FNiagaraTypeDefinition::GetParameterMapDef() && !Type.IsDataInterface())
 			{
@@ -421,13 +419,13 @@ void FNiagaraScriptInputCollectionViewModel::OnParameterTypeChanged(FNiagaraVari
 	}
 
 	// Synchronize script variables...
-	for (TWeakObjectPtr<UNiagaraScript> Script : Scripts)
+	for (FVersionedNiagaraScriptWeakPtr& VersionedScript : Scripts)
 	{
-		if (!Script.IsValid() || !Script->GetVMExecutableData().IsValid())
+		if (!VersionedScript.Script.IsValid() || !VersionedScript.Script->GetVMExecutableData().IsValid())
 		{
 			continue;
 		}
-		for (FNiagaraVariable& EmitterVariableToCheck : Script->GetVMExecutableData().Parameters.Parameters)
+		for (FNiagaraVariable& EmitterVariableToCheck : VersionedScript.Script->GetVMExecutableData().Parameters.Parameters)
 		{
 			if (EmitterVariableToCheck.GetName() == ParameterVariable->GetName() && ParameterVariable != &EmitterVariableToCheck)
 			{
@@ -477,14 +475,14 @@ void FNiagaraScriptInputCollectionViewModel::OnParameterValueChangedInternal(TSh
 			}
 			
 			// Synchronize script variables...
-			for (TWeakObjectPtr<UNiagaraScript> Script : Scripts)
+			for (FVersionedNiagaraScriptWeakPtr& VersionedScript : Scripts)
 			{
-				if (!Script.IsValid() || !Script->GetVMExecutableData().IsValid())
+				if (!VersionedScript.Script.IsValid() || !VersionedScript.Script->GetVMExecutableData().IsValid())
 				{
 					continue;
 				}
 
-				for (FNiagaraVariable& EmitterVariableToCheck : Script->GetVMExecutableData().Parameters.Parameters)
+				for (FNiagaraVariable& EmitterVariableToCheck : VersionedScript.Script->GetVMExecutableData().Parameters.Parameters)
 				{
 					if (EmitterVariableToCheck.GetName() == ChangedParameter->GetName())
 					{
@@ -515,13 +513,13 @@ void FNiagaraScriptInputCollectionViewModel::OnParameterValueChangedInternal(TSh
 				}
 
 				// Synchronize script variables...
-				for (TWeakObjectPtr<UNiagaraScript> Script : Scripts)
+				for (FVersionedNiagaraScriptWeakPtr& VersionedScript : Scripts)
 				{
-					if (!Script.IsValid() || !Script->GetVMExecutableData().IsValid())
+					if (!VersionedScript.Script.IsValid() || !VersionedScript.Script->GetVMExecutableData().IsValid())
 					{
 						continue;
 					}
-					for (FNiagaraScriptDataInterfaceInfo& Info : Script->GetCachedDefaultDataInterfaces())
+					for (FNiagaraScriptDataInterfaceInfo& Info : VersionedScript.Script->GetCachedDefaultDataInterfaces())
 					{
 						if (Info.Name == ChangedParameter->GetName() && DataInterface != Info.DataInterface)
 						{

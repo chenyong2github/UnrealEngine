@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stack/SNiagaraStackItem.h"
+
+#include "EditorFontGlyphs.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorStyle.h"
 #include "EditorStyleSet.h"
@@ -92,7 +94,7 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 			[
 				SNew(STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FText::FromString(FString(TEXT("\xf1f8"))))
+				.Text(FEditorFontGlyphs::Trash)
 			]
 		];
 	}
@@ -145,7 +147,7 @@ EVisibility SNiagaraStackItem::GetResetToBaseButtonVisibility() const
 FText SNiagaraStackItem::GetResetToBaseButtonToolTipText() const
 {
 	FText CanResetToBaseMessage;
-	Item->TestCanCopyWithMessage(CanResetToBaseMessage);
+	Item->TestCanResetToBaseWithMessage(CanResetToBaseMessage);
 	return CanResetToBaseMessage;
 }
 

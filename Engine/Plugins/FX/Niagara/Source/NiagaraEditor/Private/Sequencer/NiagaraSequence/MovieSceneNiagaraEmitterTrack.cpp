@@ -244,7 +244,7 @@ void UMovieSceneNiagaraEmitterTrack::CreateSections(const FFrameRate& InFrameRes
 		UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(StackGroup.EndNode);
 		if (FunctionNode != nullptr && FunctionNode->FunctionScript != nullptr)
 		{
-			FString* SectionClassName = FunctionNode->FunctionScript->ScriptMetaData.Find("NiagaraTimelineSectionClass");
+			FString* SectionClassName = FunctionNode->GetScriptData()->ScriptMetaData.Find("NiagaraTimelineSectionClass");
 			if (SectionClassName != nullptr)
 			{
 				UClass* SectionClass = FindObject<UClass>(ANY_PACKAGE, **SectionClassName);

@@ -37,10 +37,7 @@
 
 void SNiagaraScriptGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagaraScriptGraphViewModel> InViewModel)
 {
-	ViewModel = InViewModel;
-	ViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddSP(this, &SNiagaraScriptGraph::ViewModelSelectedNodesChanged);
-	ViewModel->OnNodesPasted().AddSP(this, &SNiagaraScriptGraph::NodesPasted);
-	ViewModel->OnGraphChanged().AddSP(this, &SNiagaraScriptGraph::GraphChanged);
+	UpdateViewModel(InViewModel);
 	bUpdatingGraphSelectionFromViewModel = false;
 
 	GraphTitle = InArgs._GraphTitle;
@@ -60,12 +57,36 @@ void SNiagaraScriptGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagar
 	CurrentFocusedSearchMatchIndex = 0;
 }
 
+void SNiagaraScriptGraph::UpdateViewModel(TSharedRef<FNiagaraScriptGraphViewModel> InNewModel)
+{
+	// remove old listeners
+	if (ViewModel)
+	{
+		ViewModel->GetNodeSelection()->OnSelectedObjectsChanged().RemoveAll(this);
+		ViewModel->OnNodesPasted().RemoveAll(this);
+		ViewModel->OnGraphChanged().RemoveAll(this);
+	}
+
+	// set model and listeners
+	ViewModel = InNewModel;
+	ViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddSP(this, &SNiagaraScriptGraph::ViewModelSelectedNodesChanged);
+	ViewModel->OnNodesPasted().AddSP(this, &SNiagaraScriptGraph::NodesPasted);
+	ViewModel->OnGraphChanged().AddSP(this, &SNiagaraScriptGraph::GraphChanged);
+}
+
+void SNiagaraScriptGraph::RecreateGraphWidget()
+{
+	GraphEditor = ConstructGraphEditor();
+	ChildSlot
+    [
+        GraphEditor.ToSharedRef()
+    ];
+}
+
 TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 {
 	FGraphAppearanceInfo AppearanceInfo;
 	AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText", "NIAGARA");
-
-	const FSearchBoxStyle& Style = FCoreStyle::Get().GetWidgetStyle<FSearchBoxStyle>("SearchBox");
 
 	TSharedRef<SWidget> TitleBarWidget =
 		SNew(SBorder)

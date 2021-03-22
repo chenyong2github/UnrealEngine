@@ -1,41 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stack/SNiagaraStackFunctionInputValue.h"
-#include "ViewModels/Stack/NiagaraStackFunctionInput.h"
-#include "ViewModels/NiagaraScratchPadViewModel.h"
-#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
-#include "NiagaraEditorModule.h"
+
+#include "AssetRegistryModule.h"
+#include "EditorFontGlyphs.h"
 #include "INiagaraEditorTypeUtilities.h"
+#include "IStructureDetailsView.h"
+#include "NiagaraActions.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEditorSettings.h"
+#include "NiagaraEditorStyle.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorWidgetsStyle.h"
-#include "NiagaraEditorStyle.h"
-#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraEditorWidgetsUtilities.h"
 #include "NiagaraNodeCustomHlsl.h"
-#include "NiagaraActions.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraParameterCollection.h"
+#include "NiagaraSystem.h"
+#include "ScopedTransaction.h"
+#include "SDropTarget.h"
+#include "SNiagaraGraphActionWidget.h"
 #include "SNiagaraParameterEditor.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Images/SImage.h"
 #include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
 #include "Framework/Application/SlateApplication.h"
-#include "IStructureDetailsView.h"
-#include "SDropTarget.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
-#include "NiagaraParameterCollection.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "NiagaraSystem.h"
-#include "SNiagaraGraphActionWidget.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "EditorFontGlyphs.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraStackFunctionInput.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
 #include "Widgets/SNiagaraParameterName.h"
-#include "NiagaraEditorSettings.h"
-#include "NiagaraEditorWidgetsUtilities.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -48,7 +51,6 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 	FunctionInput = InFunctionInput;
 	FunctionInput->OnValueChanged().AddSP(this, &SNiagaraStackFunctionInputValue::OnInputValueChanged);
 
-	FMargin ItemPadding = FMargin(0);
 	ChildSlot
 	[
 		SNew(SDropTarget)
@@ -219,6 +221,35 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 					]
 				];
 		}
+		else if (FunctionInput->GetDynamicInputNode()->FunctionScript->IsVersioningEnabled())
+		{
+			return SNew(SHorizontalBox)
+                + SHorizontalBox::Slot()
+                .VAlign(VAlign_Center)
+                [
+                    DynamicInputText
+                ]
+                + SHorizontalBox::Slot()
+                .AutoWidth()
+                [
+	                SNew(SComboButton)
+				    .HasDownArrow(false)
+				    .ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				    .ForegroundColor(FSlateColor::UseForeground())
+				    .OnGetMenuContent(this, &SNiagaraStackFunctionInputValue::GetVersionSelectorDropdownMenu)
+				    .ContentPadding(FMargin(2))
+				    .ToolTipText(LOCTEXT("VersionTooltip", "Change the version of this module script"))
+				    .HAlign(HAlign_Center)
+				    .VAlign(VAlign_Center)
+				    .ButtonContent()
+				    [
+				        SNew(STextBlock)
+				        .Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				        .ColorAndOpacity(this, &SNiagaraStackFunctionInputValue::GetVersionSelectorColor)
+				        .Text(FEditorFontGlyphs::Random)
+				    ]
+                ];
+		}
 		else
 		{
 			return DynamicInputText;
@@ -254,6 +285,56 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 	}
 }
 
+TSharedRef<SWidget> SNiagaraStackFunctionInputValue::GetVersionSelectorDropdownMenu()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
+
+	UNiagaraScript* Script = FunctionInput->GetDynamicInputNode()->FunctionScript;
+	TArray<FNiagaraAssetVersion> AssetVersions = Script->GetAllAvailableVersions();
+	for (FNiagaraAssetVersion& Version : AssetVersions)
+	{
+		FVersionedNiagaraScriptData* ScriptData = Script->GetScriptData(Version.VersionGuid);
+		bool bIsSelected = FunctionInput->GetDynamicInputNode()->SelectedScriptVersion == Version.VersionGuid;
+		
+		FText Tooltip = LOCTEXT("NiagaraSelectVersion_Tooltip", "Select this version to use for the module");
+		if (!ScriptData->VersionChangeDescription.IsEmpty())
+		{
+			Tooltip = FText::Format(LOCTEXT("NiagaraSelectVersionChangelist_Tooltip", "Select this version to use for the dynamic input. Change description for this version:\n{0}"), ScriptData->VersionChangeDescription);
+		}
+		
+		FUIAction UIAction(FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputValue::SwitchToVersion, Version),
+        FCanExecuteAction(),
+        FIsActionChecked::CreateLambda([bIsSelected]() { return bIsSelected; }));
+		FText Format = (Version == Script->GetExposedVersion()) ? FText::FromString("{0}.{1}*") : FText::FromString("{0}.{1}");
+		FText Label = FText::Format(Format, Version.MajorVersion, Version.MinorVersion);
+		MenuBuilder.AddMenuEntry(Label, Tooltip, FSlateIcon(), UIAction, NAME_None, EUserInterfaceActionType::RadioButton);	
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SNiagaraStackFunctionInputValue::SwitchToVersion(FNiagaraAssetVersion Version)
+{
+	FScopedTransaction ScopedTransaction(LOCTEXT("NiagaraChangeVersion_Transaction", "Changing dynamic input version"));
+	FunctionInput->GetDynamicInputNode()->ChangeScriptVersion(Version.VersionGuid, true);
+	FunctionInput->ApplyModuleChanges();
+}
+
+FSlateColor SNiagaraStackFunctionInputValue::GetVersionSelectorColor() const
+{
+	UNiagaraScript* Script = FunctionInput->GetDynamicInputNode()->FunctionScript;
+	
+	if (Script && Script->IsVersioningEnabled())
+	{
+		FVersionedNiagaraScriptData* ScriptData = Script->GetScriptData(FunctionInput->GetDynamicInputNode()->SelectedScriptVersion);
+		if (ScriptData && ScriptData->Version < Script->GetExposedVersion())
+		{
+			return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.IconColor.VersionUpgrade");
+		}
+	}
+	return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor");
+}
 
 bool SNiagaraStackFunctionInputValue::GetInputEnabled() const
 {
@@ -432,6 +513,7 @@ FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked(const FGeo
 	{
 		if (DynamicInputNode->FunctionScript->IsAsset())
 		{
+			DynamicInputNode->FunctionScript->VersionToOpenInEditor = DynamicInputNode->SelectedScriptVersion;
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(DynamicInputNode->FunctionScript);
 			return FReply::Handled();
 		}
@@ -572,13 +654,14 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		FunctionInput->GetAvailableDynamicInputs(DynamicInputScripts, bLibraryOnly == false);
 		for (UNiagaraScript* DynamicInputScript : DynamicInputScripts)
 		{
-			bool bIsInLibrary = DynamicInputScript->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
+			FVersionedNiagaraScriptData* ScriptData = DynamicInputScript->GetScriptData();
+			bool bIsInLibrary = ScriptData->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
 			const FText DynamicInputText = FNiagaraEditorUtilities::FormatScriptName(DynamicInputScript->GetFName(), bIsInLibrary);
-			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(DynamicInputScript->Description, *DynamicInputScript->GetPathName(), bIsInLibrary);
-			TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, DynamicInputScript->Keywords,
+			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(ScriptData->Description, *DynamicInputScript->GetPathName(), bIsInLibrary);
+			TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, ScriptData->Keywords,
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::DynamicInputScriptSelected, DynamicInputScript)));
 
-			DynamicInputAction->IsExperimental = DynamicInputScript->bExperimental;
+			DynamicInputAction->IsExperimental = ScriptData->bExperimental;
 			OutAllActions.AddAction(DynamicInputAction);
 		}
 	}
@@ -818,10 +901,11 @@ void SNiagaraStackFunctionInputValue::CollectDynamicInputActionsForReassign(FGra
 	FunctionInput->GetAvailableDynamicInputs(DynamicInputScripts, bLibraryOnly == false);
 	for (UNiagaraScript* DynamicInputScript : DynamicInputScripts)
 	{
-		bool bIsInLibrary = DynamicInputScript->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
+		FVersionedNiagaraScriptData* ScriptData = DynamicInputScript->GetScriptData();
+		bool bIsInLibrary = ScriptData->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
 		const FText DynamicInputText = FNiagaraEditorUtilities::FormatScriptName(DynamicInputScript->GetFName(), bIsInLibrary);
-		const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(DynamicInputScript->Description, *DynamicInputScript->GetPathName(), bIsInLibrary);
-		TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, DynamicInputScript->Keywords,
+		const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(ScriptData->Description, *DynamicInputScript->GetPathName(), bIsInLibrary);
+		TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, ScriptData->Keywords,
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateStatic(&ReassignDynamicInputScript, FunctionInput, DynamicInputScript)));
 		DynamicInputActions.AddAction(DynamicInputAction);
 	}

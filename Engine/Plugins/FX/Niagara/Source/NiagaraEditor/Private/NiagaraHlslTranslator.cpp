@@ -6234,7 +6234,7 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 		ScriptUsage = FunctionNode->FunctionScript->GetUsage();
 		Name = FunctionNode->FunctionScript->GetName();
 		FullName = FunctionNode->FunctionScript->GetFullName();
-		Source = CastChecked<UNiagaraScriptSource>(FunctionNode->FunctionScript->GetSource());
+		Source = FunctionNode->GetFunctionScriptSource();
 		check(Source->GetOutermost() == GetTransientPackage());
 	}
 	else if (Signature.bRequiresExecPin)

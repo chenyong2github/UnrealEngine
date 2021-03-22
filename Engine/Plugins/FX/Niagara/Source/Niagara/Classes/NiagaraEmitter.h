@@ -399,8 +399,6 @@ public:
 	bool NIAGARA_API AreAllScriptAndSourcesSynchronized() const;
 	void NIAGARA_API OnPostCompile();
 
-	UNiagaraEmitter* MakeRecursiveDeepCopy(UObject* DestOuter) const;
-	UNiagaraEmitter* MakeRecursiveDeepCopy(UObject* DestOuter, TMap<const UObject*, UObject*>& ExistingConversions) const;
 	void NIAGARA_API InvalidateCompileResults();
 
 	/* Gets a Guid which is updated any time data in this emitter is changed. */
@@ -603,7 +601,7 @@ private:
 	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
 	FOnEmitterCompiled OnGPUScriptCompiledDelegate;
 
-	void RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript);
+	void RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion);
 #endif
 
 #if !UE_BUILD_SHIPPING

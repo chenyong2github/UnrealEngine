@@ -1,25 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
+
+#include "AssetToolsModule.h"
+#include "EdGraphSchema_Niagara.h"
+#include "IAssetTypeActions.h"
 #include "NiagaraCommon.h"
 #include "NiagaraEditorModule.h"
-#include "NiagaraScript.h"
-#include "EdGraph/EdGraph.h"
+#include "NiagaraEditorSettings.h"
 #include "NiagaraGraph.h"
-#include "NiagaraScriptSource.h"
-#include "NiagaraScriptFactoryNew.h"
-#include "NiagaraNodeOutput.h"
 #include "NiagaraNodeInput.h"
+#include "NiagaraNodeOutput.h"
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
-#include "EdGraphSchema_Niagara.h"
-#include "NiagaraEditorSettings.h"
-#include "IAssetTypeActions.h"
-#include "AssetToolsModule.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "NiagaraScript.h"
+#include "NiagaraScriptFactoryNew.h"
+#include "NiagaraScriptSource.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
+#include "EdGraph/EdGraph.h"
+#include "Modules/ModuleManager.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptFactory"
 
@@ -212,7 +212,7 @@ void UNiagaraScriptFactoryNew::InitializeScript(UNiagaraScript* NewScript)
 			NewScript->SetSource(Source);
 
 
-			NewScript->RequestCompile();
+			NewScript->RequestCompile(FGuid());
 		}
 	}
 }

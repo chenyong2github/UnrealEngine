@@ -282,6 +282,9 @@ struct FNiagaraScriptStackDiffResults
 	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> MovedBaseModules;
 	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> MovedOtherModules;
 
+	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> ChangedVersionBaseModules;
+	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> ChangedVersionOtherModules;
+
 	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> EnabledChangedBaseModules;
 	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> EnabledChangedOtherModules;
 

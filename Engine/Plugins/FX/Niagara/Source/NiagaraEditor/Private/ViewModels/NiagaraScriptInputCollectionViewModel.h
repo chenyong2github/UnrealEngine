@@ -21,7 +21,7 @@ public:
 	~FNiagaraScriptInputCollectionViewModel();
 
 	/** Sets the view model to a new script. */
-	void SetScripts(TArray<UNiagaraScript*> InScripts);
+	void SetScripts(TArray<FVersionedNiagaraScript>& InScripts);
 
 	//~ INiagaraParameterCollectionViewModel interface
 	virtual FText GetDisplayName() const override;
@@ -63,7 +63,7 @@ private:
 	TArray<TSharedRef<INiagaraParameterViewModel>> ParameterViewModels;
 
 	/** The script which provides the input parameters viewed and edited by this view model. */
-	TArray<TWeakObjectPtr<UNiagaraScript>> Scripts;
+	TArray<FVersionedNiagaraScriptWeakPtr> Scripts;
 
 	/** The graph which owns the non-compiled input parameters viewed and edited by this view model. */
 	TWeakObjectPtr<UNiagaraGraph> Graph;

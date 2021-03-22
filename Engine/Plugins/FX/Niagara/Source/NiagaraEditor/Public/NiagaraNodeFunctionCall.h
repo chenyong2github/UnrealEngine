@@ -54,10 +54,12 @@ class UNiagaraNodeFunctionCall : public UNiagaraNodeWithDynamicPins
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnInputsChanged);
 
-public:
 
 	UPROPERTY(EditAnywhere, Category = "Function")
 	UNiagaraScript* FunctionScript;
+
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Version Details")
+	FGuid SelectedScriptVersion;
 
 	/** 
 	 * A path to a script asset which can be used to assign the function script the first time that
@@ -78,6 +80,10 @@ public:
 	UPROPERTY()
 	TArray<FNiagaraPropagatedVariable> PropagatedStaticSwitchParameters;
 
+	/** Can be used by the ui after a version change to display change notes */
+	UPROPERTY()
+	FGuid PreviousScriptVersion;
+
 	bool ScriptIsValid() const;
 
 	//Begin UObject interface
@@ -91,7 +97,6 @@ public:
 	virtual bool RefreshFromExternalChanges() override;
 	virtual ENiagaraNumericOutputTypeSelectionMode GetNumericOutputTypeSelectionMode() const override;
 	virtual bool CanAddToGraph(UNiagaraGraph* TargetGraph, FString& OutErrorMsg) const override;
-	virtual void SubsumeExternalDependencies(TMap<const UObject*, UObject*>& ExistingConversions) override;
 	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const override;
 	virtual void UpdateCompileHashForNode(FSHA1& HashState) const override;
 	//End UNiagaraNode interface
@@ -117,9 +122,13 @@ public:
 
 	void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 
+	NIAGARAEDITOR_API void ChangeScriptVersion(FGuid NewScriptVersion, bool bShowNotesInStack = false);
+
 	FString GetFunctionName() const { return FunctionDisplayName; }
-	UNiagaraGraph* GetCalledGraph() const;
-	ENiagaraScriptUsage GetCalledUsage() const;
+	NIAGARAEDITOR_API UNiagaraGraph* GetCalledGraph() const;
+	NIAGARAEDITOR_API ENiagaraScriptUsage GetCalledUsage() const;
+	NIAGARAEDITOR_API UNiagaraScriptSource* GetFunctionScriptSource() const;
+	NIAGARAEDITOR_API FVersionedNiagaraScriptData* GetScriptData() const;
 
 	/** Walk through the internal script graph for an ParameterMapGet nodes and see if any of them specify a default for VariableName.*/
 	UEdGraphPin* FindParameterMapDefaultValuePin(const FName VariableName, ENiagaraScriptUsage InParentUsage, FCompileConstantResolver ConstantResolver) const;
@@ -166,7 +175,7 @@ protected:
 
 	TArray<FGuid> GetBoundPinGuidsByName(FName InputName) const;
 
-	void UpdateBoundModuleOutputs();
+	void FixupFunctionScriptVersion();
 
 	/** Adjusted every time that we compile this script. Lets us know that we might differ from any cached versions.*/
 	UPROPERTY(meta = (SkipForCompileHash="true"))

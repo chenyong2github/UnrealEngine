@@ -2,31 +2,31 @@
 
 
 #include "NiagaraSystem.h"
-#include "NiagaraRendererProperties.h"
-#include "NiagaraRenderer.h"
+
+#include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraConstants.h"
-#include "NiagaraScriptSourceBase.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraEditorDataBase.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraModule.h"
+#include "NiagaraPrecompileContainer.h"
+#include "NiagaraRenderer.h"
+#include "NiagaraRendererProperties.h"
+#include "NiagaraScriptSourceBase.h"
+#include "NiagaraSettings.h"
+#include "NiagaraStats.h"
 #include "NiagaraTrace.h"
 #include "NiagaraTypes.h"
-#include "Modules/ModuleManager.h"
-#include "NiagaraEmitter.h"
-#include "UObject/Package.h"
-#include "NiagaraEmitterHandle.h"
-#include "AssetData.h"
-#include "NiagaraStats.h"
-#include "NiagaraEditorDataBase.h"
-#include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraWorldManager.h"
-#include "NiagaraEmitterInstanceBatcher.h"
-#include "NiagaraSettings.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "NiagaraPrecompileContainer.h"
-#include "ProfilingDebugging/CookStats.h"
 #include "Algo/RemoveIf.h"
 #include "Async/Async.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Modules/ModuleManager.h"
+#include "ProfilingDebugging/CookStats.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystem"
 
@@ -2359,7 +2359,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 				UNiagaraPrecompileContainer* Container = NewObject<UNiagaraPrecompileContainer>(GetTransientPackage());
 				Container->System = this;
 				Container->Scripts = ScriptsNeedingCompile;
-				TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData = NiagaraModule.Precompile(Container);
+				TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData = NiagaraModule.Precompile(Container, FGuid());
 
 				if (SystemPrecompiledData.IsValid() == false)
 				{

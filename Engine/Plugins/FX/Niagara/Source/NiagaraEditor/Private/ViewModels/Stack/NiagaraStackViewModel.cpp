@@ -1,23 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
-#include "ViewModels/Stack/NiagaraStackRoot.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
-#include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "NiagaraScriptGraphViewModel.h"
-#include "ViewModels/NiagaraScriptViewModel.h"
-#include "NiagaraSystemEditorData.h"
+
 #include "NiagaraEmitterEditorData.h"
+#include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraStackEditorData.h"
 #include "NiagaraSystem.h"
-#include "NiagaraEmitterHandle.h"
-#include "NiagaraEmitter.h"
-#include "ViewModels/Stack/NiagaraStackItemGroup.h"
-#include "ViewModels/Stack/NiagaraStackItem.h"
+#include "NiagaraSystemEditorData.h"
 #include "ScopedTransaction.h"
-
-#include "Editor.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraStackItem.h"
+#include "ViewModels/Stack/NiagaraStackItemGroup.h"
+#include "ViewModels/Stack/NiagaraStackRoot.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 const double UNiagaraStackViewModel::MaxSearchTime = .02f; // search at 50 fps
@@ -351,7 +348,7 @@ void UNiagaraStackViewModel::OnSystemCompiled()
 	bRefreshPending = true;
 }
 
-void UNiagaraStackViewModel::OnEmitterCompiled()
+void UNiagaraStackViewModel::OnEmitterCompiled(UNiagaraScript*, const FGuid&)
 {
 	// Queue a refresh for the next tick because forcing a refresh now can cause entries to be finalized while they're still being used.
 	bRefreshPending = true;

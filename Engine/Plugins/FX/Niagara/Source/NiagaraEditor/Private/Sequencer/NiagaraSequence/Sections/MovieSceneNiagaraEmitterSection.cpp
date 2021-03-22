@@ -123,7 +123,7 @@ TSharedPtr<FStructOnScope> GetKeyStruct(TMovieSceneChannelHandle<FMovieSceneNiag
 
 bool UMovieSceneNiagaraEmitterSection::TryAddModule(UNiagaraNodeFunctionCall& InModule, FText& OutErrorMessage)
 {
-	FString* TimelineModeValue = InModule.FunctionScript->ScriptMetaData.Find(TimelineModeKey);
+	FString* TimelineModeValue = InModule.GetScriptData()->ScriptMetaData.Find(TimelineModeKey);
 
 	if (TimelineModeValue == nullptr)
 	{

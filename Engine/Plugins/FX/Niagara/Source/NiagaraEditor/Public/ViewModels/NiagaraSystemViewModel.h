@@ -424,7 +424,7 @@ private:
 	void UpdateSimulationFromParameterChange();
 
 	/** Called when a script is compiled */
-	void ScriptCompiled();
+	void ScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion);
 
 	/** Called whenever the data in the sequence is changed. */
 	void SequencerDataChanged(EMovieSceneDataChangeType DataChangeType);

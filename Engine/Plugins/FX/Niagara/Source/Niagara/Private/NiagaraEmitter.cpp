@@ -2,22 +2,22 @@
 
 
 #include "NiagaraEmitter.h"
+
+#include "NiagaraCustomVersion.h"
+#include "NiagaraEditorDataBase.h"
+#include "NiagaraModule.h"
+#include "NiagaraRenderer.h"
+#include "NiagaraRendererProperties.h"
 #include "NiagaraScript.h"
 #include "NiagaraScriptSourceBase.h"
-#include "NiagaraRendererProperties.h"
-#include "NiagaraSimulationStageBase.h"
-#include "NiagaraTrace.h"
-#include "NiagaraCustomVersion.h"
-#include "UObject/Package.h"
-#include "UObject/Linker.h"
-#include "NiagaraModule.h"
-#include "NiagaraSystem.h"
-#include "NiagaraStats.h"
-#include "NiagaraRenderer.h"
-#include "Modules/ModuleManager.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "NiagaraEditorDataBase.h"
 #include "NiagaraSettings.h"
+#include "NiagaraSimulationStageBase.h"
+#include "NiagaraStats.h"
+#include "NiagaraSystem.h"
+#include "NiagaraTrace.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 const FName UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, EventHandlerScriptProps);
@@ -1379,66 +1379,6 @@ void UNiagaraEmitter::OnPostCompile()
 
 	OnEmitterVMCompiled().Broadcast(this);
 }
-
-UNiagaraEmitter* UNiagaraEmitter::MakeRecursiveDeepCopy(UObject* DestOuter) const
-{
-	TMap<const UObject*, UObject*> ExistingConversions;
-	return MakeRecursiveDeepCopy(DestOuter, ExistingConversions);
-}
-
-UNiagaraEmitter* UNiagaraEmitter::MakeRecursiveDeepCopy(UObject* DestOuter, TMap<const UObject*, UObject*>& ExistingConversions) const
-{
-	ResetLoaders(GetTransientPackage());
-	GetTransientPackage()->LinkerCustomVersion.Empty();
-
-	EObjectFlags Flags = RF_AllFlags & ~RF_Standalone & ~RF_Public; // Remove Standalone and Public flags..
-	UNiagaraEmitter* Props = CastChecked<UNiagaraEmitter>(StaticDuplicateObject(this, GetTransientPackage(), *GetName(), Flags));
-	check(Props->HasAnyFlags(RF_Standalone) == false);
-	check(Props->HasAnyFlags(RF_Public) == false);
-	Props->Rename(nullptr, DestOuter, REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-	UE_LOG(LogNiagara, Warning, TEXT("MakeRecursiveDeepCopy %s"), *Props->GetFullName());
-	ExistingConversions.Add(this, Props);
-
-	check(GraphSource != Props->GraphSource);
-
-	Props->GraphSource->SubsumeExternalDependencies(ExistingConversions);
-	ExistingConversions.Add(GraphSource, Props->GraphSource);
-
-	// Suck in the referenced scripts into this package.
-	if (Props->SpawnScriptProps.Script)
-	{
-		Props->SpawnScriptProps.Script->SubsumeExternalDependencies(ExistingConversions);
-		check(Props->GraphSource == Props->SpawnScriptProps.Script->GetSource());
-	}
-
-	if (Props->UpdateScriptProps.Script)
-	{
-		Props->UpdateScriptProps.Script->SubsumeExternalDependencies(ExistingConversions);
-		check(Props->GraphSource == Props->UpdateScriptProps.Script->GetSource());
-	}
-
-	if (Props->EmitterSpawnScriptProps.Script)
-	{
-		Props->EmitterSpawnScriptProps.Script->SubsumeExternalDependencies(ExistingConversions);
-		check(Props->GraphSource == Props->EmitterSpawnScriptProps.Script->GetSource());
-	}
-	if (Props->EmitterUpdateScriptProps.Script)
-	{
-		Props->EmitterUpdateScriptProps.Script->SubsumeExternalDependencies(ExistingConversions);
-		check(Props->GraphSource == Props->EmitterUpdateScriptProps.Script->GetSource());
-	}
-
-
-	for (int32 i = 0; i < Props->GetEventHandlers().Num(); i++)
-	{
-		if (Props->GetEventHandlers()[i].Script)
-		{
-			Props->GetEventHandlers()[i].Script->SubsumeExternalDependencies(ExistingConversions);
-			check(Props->GraphSource == Props->GetEventHandlers()[i].Script->GetSource());
-		}
-	}
-	return Props;
-}
 #endif
 
 bool UNiagaraEmitter::UsesScript(const UNiagaraScript* Script)const
@@ -1921,7 +1861,7 @@ void UNiagaraEmitter::GraphSourceChanged()
 	UpdateChangeId(TEXT("Graph source changed."));
 }
 
-void UNiagaraEmitter::RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript)
+void UNiagaraEmitter::RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion)
 {
 	OnGPUScriptCompiledDelegate.Broadcast(this);
 }

@@ -158,6 +158,34 @@ struct FNiagaraMatrix
 	FVector4 Row3 = FVector4(EForceInit::ForceInitToZero);
 };
 
+USTRUCT()
+struct FNiagaraAssetVersion
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** The major version is used to track breaking changes between asset versions */
+	UPROPERTY(VisibleAnywhere, Category = "Version Control")
+	int32 MajorVersion = 1;
+
+	/** The minor version is used to track non-breaking changes between asset versions */
+	UPROPERTY(VisibleAnywhere, Category = "Version Control")
+	int32 MinorVersion = 0;
+
+	/** The guid is used to keep track of specific asset version references. The minor and major versions do not provide enough uniqueness to guard against collisions when e.g. the same version was created in different branches. */
+	UPROPERTY(VisibleAnywhere, Category = "Version Control", meta=(IgnoreForMemberInitializationTest))
+	FGuid VersionGuid = FGuid::NewGuid();
+
+	bool operator==(const FNiagaraAssetVersion& Other) const { return VersionGuid == Other.VersionGuid; }
+	bool operator!=(const FNiagaraAssetVersion& Other) const { return !(*this == Other); }
+	bool operator<(const FNiagaraAssetVersion& Other) const { return MajorVersion < Other.MajorVersion || (MajorVersion == Other.MajorVersion && MinorVersion < Other.MinorVersion); }
+	bool operator<=(const FNiagaraAssetVersion& Other) const { return *this < Other || *this == Other; }
+};
+
+FORCEINLINE uint32 GetTypeHash(const FNiagaraAssetVersion& Version)
+{
+	return HashCombine(GetTypeHash(Version.MajorVersion), GetTypeHash(Version.MinorVersion));
+}
+
 /** Data controlling the spawning of particles */
 USTRUCT(BlueprintType, meta = (DisplayName = "Spawn Info", NiagaraClearEachFrame = "true"))
 struct FNiagaraSpawnInfo

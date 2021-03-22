@@ -1348,15 +1348,15 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 		if (InFilter.bIncludeDeprecatedScripts == false)
 		{
 			bool bScriptIsDeprecated = false;
-			bool bFoundDeprecatedTag = FilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bDeprecated), bScriptIsDeprecated);
+			bool bFoundDeprecatedTag = FilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, bDeprecated), bScriptIsDeprecated);
 			if (bFoundDeprecatedTag == false)
 			{
 				if (FilteredScriptAssets[i].IsAssetLoaded())
 				{
 					UNiagaraScript* Script = static_cast<UNiagaraScript*>(FilteredScriptAssets[i].GetAsset());
-					if (Script != nullptr)
+					if (Script != nullptr && Script->GetScriptData())
 					{
-						bScriptIsDeprecated = Script->bDeprecated;
+						bScriptIsDeprecated = Script->GetScriptData()->bDeprecated;
 					}
 				}
 			}
@@ -1370,21 +1370,21 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 		if (InFilter.TargetUsageToMatch.IsSet())
 		{
 			int32 BitfieldValue = 0;
+			FString BitfieldTagValue;
 			if (NiagaraVersion == INDEX_NONE || NiagaraVersion < FNiagaraCustomVersion::AddSimulationStageUsageEnum)
 			{
 				// If there is no custom version, or it's less than the simulation stage enum fix up, we need to load the 
 				// asset to get the correct bitmask since the shader stage enum broke the old ones.
 				UNiagaraScript* AssetScript = Cast<UNiagaraScript>(FilteredScriptAssets[i].GetAsset());
-				if (AssetScript != nullptr)
+				if (AssetScript != nullptr && AssetScript->GetScriptData())
 				{
-					BitfieldValue = AssetScript->ModuleUsageBitmask;
+					BitfieldValue = AssetScript->GetScriptData()->ModuleUsageBitmask;
 				}
 			}
 			else
 			{
 				// Otherwise the asset is new enough to have a valid bitmask.
-				FString BitfieldTagValue;
-				BitfieldTagValue = FilteredScriptAssets[i].GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
+				BitfieldTagValue = FilteredScriptAssets[i].GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, ModuleUsageBitmask));
 				BitfieldValue = FCString::Atoi(*BitfieldTagValue);
 			}
 
@@ -1478,7 +1478,7 @@ const FNiagaraEmitterHandle* FNiagaraEditorUtilities::GetEmitterHandleForEmitter
 ENiagaraScriptLibraryVisibility FNiagaraEditorUtilities::GetScriptAssetVisibility(const FAssetData& ScriptAssetData)
 {
 	FString Value;
-	bool bIsLibraryTagFound = ScriptAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, LibraryVisibility), Value);
+	bool bIsLibraryTagFound = ScriptAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, LibraryVisibility), Value);
 
 	ENiagaraScriptLibraryVisibility ScriptVisibility = ENiagaraScriptLibraryVisibility::Invalid;
 	if (bIsLibraryTagFound == false)
@@ -1488,7 +1488,7 @@ ENiagaraScriptLibraryVisibility FNiagaraEditorUtilities::GetScriptAssetVisibilit
 			UNiagaraScript* Script = static_cast<UNiagaraScript*>(ScriptAssetData.GetAsset());
 			if (Script != nullptr)
 			{
-				ScriptVisibility = Script->LibraryVisibility;
+				ScriptVisibility = Script->GetScriptData()->LibraryVisibility;
 			}
 		}
 	}

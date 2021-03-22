@@ -36,6 +36,10 @@ public:
 
 	void OnCreateComment();
 
+	void UpdateViewModel(TSharedRef<FNiagaraScriptGraphViewModel> InNewModel);
+
+	void RecreateGraphWidget();
+
 private:
 	/** Constructs the graph editor widget for the current graph. */
 	TSharedRef<SGraphEditor> ConstructGraphEditor();

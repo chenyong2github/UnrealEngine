@@ -1109,7 +1109,8 @@ void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 	{
 		if (UNiagaraScript* Script = Cast<UNiagaraScript>(Object))
 		{
-			AddGraph(Script->GetSource());
+			FGuid Version = SelectedScriptObjects->GetAdditionalSelectionInfo() ? *(FGuid*)SelectedScriptObjects->GetAdditionalSelectionInfo() : FGuid();
+			AddGraph(Script->GetSource(Version));
 			break;
 		}
 		else if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Object))
@@ -2217,7 +2218,7 @@ void SNiagaraAddParameterMenu::CollectAllActions(FGraphActionListBuilderBase& Ou
 			UNiagaraScript* Script = Cast<UNiagaraScript>(Source->GetOuter());
 			if (Script)
 			{
-				TArray<ENiagaraScriptUsage> Usages = Script->GetSupportedUsageContexts();
+				TArray<ENiagaraScriptUsage> Usages = Script->GetScriptData()->GetSupportedUsageContexts();
 				if (!Usages.Contains(ENiagaraScriptUsage::ParticleEventScript) && 
 					!Usages.Contains(ENiagaraScriptUsage::ParticleSpawnScript) && 
 					!Usages.Contains(ENiagaraScriptUsage::ParticleUpdateScript))

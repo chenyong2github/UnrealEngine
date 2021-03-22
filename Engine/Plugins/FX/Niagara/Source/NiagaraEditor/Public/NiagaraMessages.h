@@ -177,6 +177,7 @@ public:
 	FNiagaraMessageJobCompileEvent(
 		const FNiagaraCompileEvent& InCompileEvent
 		, const TWeakObjectPtr<const UNiagaraScript>& InOriginatingScriptWeakObjPtr
+		, FGuid InCompiledScriptVersion = FGuid()
 		, const TOptional<const FString>& InOwningScriptNameString = TOptional<const FString>()
 		, const TOptional<const FString>& InSourceScriptAssetPath = TOptional<const FString>()
 		);
@@ -197,6 +198,7 @@ private:
 
 	const FNiagaraCompileEvent CompileEvent;
 	const TWeakObjectPtr<const UNiagaraScript> OriginatingScriptWeakObjPtr;
+	FGuid CompiledScriptVersion;
 	TOptional<const FString> OwningScriptNameString;
 	TOptional<const FString> SourceScriptAssetPath;
 };

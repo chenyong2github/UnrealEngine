@@ -446,7 +446,7 @@ void FNiagaraEmitterViewModel::OnVMCompiled(UNiagaraEmitter* InEmitter)
 			SharedScriptViewModel->UpdateCompileStatus(AggregateStatus, AggregateErrors, CompileStatuses, CompileErrors, CompilePaths, Scripts);
 		}
 	}
-	OnScriptCompiled().Broadcast();
+	OnScriptCompiled().Broadcast(nullptr, FGuid());
 }
 
 ENiagaraScriptCompileStatus FNiagaraEmitterViewModel::GetLatestCompileStatus()

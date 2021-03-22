@@ -427,42 +427,6 @@ bool FNiagaraParameterMapHistory::IsAttribute(const FNiagaraVariable& InVar)
 	return IsInNamespace(InVar, PARAM_MAP_ATTRIBUTE_STR);
 }
 
-bool FNiagaraParameterMapHistory::IsSystemNamespaceReadOnly(const UNiagaraScript* InScript)
-{
-	if (InScript->IsSystemSpawnScript() || InScript->IsSystemUpdateScript())
-	{
-		return false;
-	}
-	else if (InScript->IsStandaloneScript())
-	{
-		TArray<ENiagaraScriptUsage> IntendedUsages = InScript->GetSupportedUsageContexts();
-		if (IntendedUsages.Contains(ENiagaraScriptUsage::SystemSpawnScript) || IntendedUsages.Contains(ENiagaraScriptUsage::SystemUpdateScript))
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-bool FNiagaraParameterMapHistory::IsEmitterNamespaceReadOnly(const UNiagaraScript* InScript)
-{
-	if (InScript->IsEmitterSpawnScript() || InScript->IsEmitterUpdateScript() || InScript->IsSystemSpawnScript() || InScript->IsSystemUpdateScript())
-	{
-		return false;
-	}
-	else if (InScript->IsStandaloneScript())
-	{
-		TArray<ENiagaraScriptUsage> IntendedUsages = InScript->GetSupportedUsageContexts();
-		if (IntendedUsages.Contains(ENiagaraScriptUsage::EmitterSpawnScript) || IntendedUsages.Contains(ENiagaraScriptUsage::EmitterUpdateScript) || IntendedUsages.Contains(ENiagaraScriptUsage::SystemSpawnScript) || IntendedUsages.Contains(ENiagaraScriptUsage::SystemUpdateScript))
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
 const UEdGraphPin* FNiagaraParameterMapHistory::GetDefaultValuePin(int32 VarIdx) const
 {
 	if (PerVariableWriteHistory[VarIdx].Num() > 0)
@@ -638,7 +602,7 @@ bool FNiagaraParameterMapHistory::IsExportableExternalConstant(const FNiagaraVar
 {
 	if (InScript->IsEquivalentUsage(ENiagaraScriptUsage::SystemSpawnScript))
 	{
-		return IsExternalConstantNamespace(InVar, InScript);
+		return IsExternalConstantNamespace(InVar, InScript, FGuid());
 	}
 	else
 	{
@@ -695,9 +659,9 @@ bool FNiagaraParameterMapHistory::IsExternalConstantNamespace(const FNiagaraVari
 	return false;
 }
 
-bool FNiagaraParameterMapHistory::IsExternalConstantNamespace(const FNiagaraVariable& InVar, const UNiagaraScript* InScript)
+bool FNiagaraParameterMapHistory::IsExternalConstantNamespace(const FNiagaraVariable& InVar, const UNiagaraScript* InScript, const FGuid& VersionGuid)
 {
-	return IsExternalConstantNamespace(InVar, InScript->GetUsage(), InScript->ModuleUsageBitmask);
+	return IsExternalConstantNamespace(InVar, InScript->GetUsage(), InScript->GetScriptData(VersionGuid)->ModuleUsageBitmask);
 }
 
 const UNiagaraNodeOutput* FNiagaraParameterMapHistory::GetFinalOutputNode() const

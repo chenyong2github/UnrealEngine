@@ -3,12 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "NiagaraCommon.h"
 #include "EdGraph/EdGraph.h"
 #include "NiagaraScript.h"
-#include "Misc/SecureHash.h"
-#include "NiagaraParameterStore.h"
 #include "NiagaraGraph.generated.h"
 
 class UNiagaraScriptVariable;
@@ -246,6 +243,8 @@ class UNiagaraGraph : public UEdGraph
 
 	bool HasParameterMapParameters()const;
 
+	NIAGARAEDITOR_API bool GetPropertyMetadata(FName PropertyName, FString& OutValue) const;
+
 	/** Signal to listeners that the graph has changed */
 	void NotifyGraphNeedsRecompile();
 		
@@ -257,9 +256,6 @@ class UNiagaraGraph : public UEdGraph
 
 	/** Gather all the change ids of external references for this specific graph traversal.*/
 	void GatherExternalDependencyData(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs);
-
-	/** Determine if there are any external dependencies wrt to scripts and ensure that those dependencies are sucked into the existing package.*/
-	void SubsumeExternalDependencies(TMap<const UObject*, UObject*>& ExistingConversions);
 
 	/** Determine if another item has been synchronized with this graph.*/
 	bool IsOtherSynchronized(const FGuid& InChangeId) const;

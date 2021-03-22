@@ -993,6 +993,8 @@ bool FNiagaraScriptStackDiffResults::IsEmpty() const
 		AddedOtherModules.Num() == 0 &&
 		MovedBaseModules.Num() == 0 &&
 		MovedOtherModules.Num() == 0 &&
+		ChangedVersionBaseModules.Num() == 0 &&
+		ChangedVersionOtherModules.Num() == 0 &&
 		EnabledChangedBaseModules.Num() == 0 &&
 		EnabledChangedOtherModules.Num() == 0 &&
 		RemovedBaseInputOverrides.Num() == 0 &&
@@ -2032,6 +2034,12 @@ void FNiagaraScriptMergeManager::DiffScriptStacks(TSharedRef<FNiagaraScriptStack
 			DiffResults.EnabledChangedOtherModules.Add(CommonValuePair.OtherValue);
 		}
 
+		if (CommonValuePair.BaseValue->GetFunctionCallNode()->SelectedScriptVersion != CommonValuePair.OtherValue->GetFunctionCallNode()->SelectedScriptVersion)
+		{
+			DiffResults.ChangedVersionBaseModules.Add(CommonValuePair.BaseValue);
+			DiffResults.ChangedVersionOtherModules.Add(CommonValuePair.OtherValue);
+		}
+
 		UNiagaraScript* BaseFunctionScript = CommonValuePair.BaseValue->GetFunctionCallNode()->FunctionScript;
 		UNiagaraScript* OtherFunctionScript = CommonValuePair.OtherValue->GetFunctionCallNode()->FunctionScript;
 		bool bFunctionScriptsMatch = BaseFunctionScript == OtherFunctionScript;
@@ -2697,6 +2705,15 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 	{
 		BaseScriptStackAdapter->GetScript()->SetUsage(DiffResults.ChangedOtherUsage.GetValue());
 		BaseScriptStackAdapter->GetOutputNode()->SetUsage(DiffResults.ChangedOtherUsage.GetValue());
+	}
+
+	// Update module versions
+	for (int i = 0; i < DiffResults.ChangedVersionOtherModules.Num(); i++)
+	{
+		TSharedRef<FNiagaraStackFunctionMergeAdapter> BaseModule = DiffResults.ChangedVersionBaseModules[i];
+		TSharedRef<FNiagaraStackFunctionMergeAdapter> ChangedModule = DiffResults.ChangedVersionOtherModules[i];
+		FGuid NewScriptVersion = BaseModule->GetFunctionCallNode()->SelectedScriptVersion;
+		ChangedModule->GetFunctionCallNode()->ChangeScriptVersion(NewScriptVersion, true);
 	}
 
 	// Apply the graph actions.
