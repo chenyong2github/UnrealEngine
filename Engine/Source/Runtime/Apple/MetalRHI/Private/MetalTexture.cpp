@@ -196,6 +196,85 @@ void SafeReleaseMetalTexture(FMetalSurface* Surface, FMetalTexture& Texture)
 	}
 }
 
+mtlpp::PixelFormat ToSRGBFormat(mtlpp::PixelFormat LinMTLFormat)
+{
+	mtlpp::PixelFormat MTLFormat = LinMTLFormat;
+	
+	switch (LinMTLFormat)
+	{
+		case mtlpp::PixelFormat::RGBA8Unorm:
+			MTLFormat = mtlpp::PixelFormat::RGBA8Unorm_sRGB;
+			break;
+		case mtlpp::PixelFormat::BGRA8Unorm:
+			MTLFormat = mtlpp::PixelFormat::BGRA8Unorm_sRGB;
+			break;
+#if PLATFORM_MAC
+		case mtlpp::PixelFormat::BC1_RGBA:
+			MTLFormat = mtlpp::PixelFormat::BC1_RGBA_sRGB;
+			break;
+		case mtlpp::PixelFormat::BC2_RGBA:
+			MTLFormat = mtlpp::PixelFormat::BC2_RGBA_sRGB;
+			break;
+		case mtlpp::PixelFormat::BC3_RGBA:
+			MTLFormat = mtlpp::PixelFormat::BC3_RGBA_sRGB;
+			break;
+		case mtlpp::PixelFormat::BC7_RGBAUnorm:
+			MTLFormat = mtlpp::PixelFormat::BC7_RGBAUnorm_sRGB;
+			break;
+#endif //PLATFORM_MAC
+#if PLATFORM_IOS
+		case mtlpp::PixelFormat::R8Unorm:
+			MTLFormat = mtlpp::PixelFormat::R8Unorm_sRGB;
+			break;
+		case mtlpp::PixelFormat::PVRTC_RGBA_2BPP:
+			MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_2BPP_sRGB;
+			break;
+		case mtlpp::PixelFormat::PVRTC_RGBA_4BPP:
+			MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB;
+			break;
+		case mtlpp::PixelFormat::ASTC_4x4_LDR:
+			MTLFormat = mtlpp::PixelFormat::ASTC_4x4_sRGB;
+			break;
+		case mtlpp::PixelFormat::ASTC_6x6_LDR:
+			MTLFormat = mtlpp::PixelFormat::ASTC_6x6_sRGB;
+			break;
+		case mtlpp::PixelFormat::ASTC_8x8_LDR:
+			MTLFormat = mtlpp::PixelFormat::ASTC_8x8_sRGB;
+			break;
+		case mtlpp::PixelFormat::ASTC_10x10_LDR:
+			MTLFormat = mtlpp::PixelFormat::ASTC_10x10_sRGB;
+			break;
+		case mtlpp::PixelFormat::ASTC_12x12_LDR:
+			MTLFormat = mtlpp::PixelFormat::ASTC_12x12_sRGB;
+			break;
+#endif //PLATFORM_IOS
+		default:
+			break;
+	}
+	
+	return MTLFormat;
+}
+
+static inline mtlpp::PixelFormat ToSRGBFormat(mtlpp::PixelFormat InMTLFormat, ERHIResourceType InResourceType)
+{
+#if PLATFORM_MAC
+	// R8Unorm_sRGB is not available on macOS
+	// For now R8 sRGB expansion is 2D only, log other usage for later.
+	if (InMTLFormat == mtlpp::PixelFormat::R8Unorm)
+	{
+		if (InResourceType == RRT_Texture2D)
+		{
+			InMTLFormat = mtlpp::PixelFormat::RGBA8Unorm;
+		}
+		else
+		{
+			UE_LOG(LogMetal, Error, TEXT("Attempting to use unsupported mtlpp::PixelFormat::R8Unorm_sRGB on Mac with texture type: %d, no format expansion will be provided so rendering errors may occur."), InResourceType);
+		}
+	}
+#endif
+	return ToSRGBFormat(InMTLFormat);
+}
+
 void FMetalSurface::PrepareTextureView()
 {
 	// Recreate the texture to enable MTLTextureUsagePixelFormatView which must be off unless we definitely use this feature or we are throwing ~4% performance vs. Windows on the floor.
@@ -434,6 +513,11 @@ void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange)
 	};
 
 	mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[PixelFormat].PlatformFormat;
+	if (Flags & TexCreate_SRGB)
+	{
+		// Ensure we have the correct sRGB target format if we create a new texture view rather than using the source texture
+		MetalFormat = ToSRGBFormat(MetalFormat, Type);
+	}
 	
 	bool const bUseSourceTex = (Source.PixelFormat != PF_DepthStencil) && MipRange.location == 0 && MipRange.length == Source.Texture.GetMipmapLevelCount();
 	
@@ -478,9 +562,18 @@ void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange, EPixelFormat F
 	
 	bool bUseSourceTex = (Source.PixelFormat != PF_DepthStencil) && Source.PixelFormat == Format && MipRange.location == 0 && MipRange.length == Source.Texture.GetMipmapLevelCount();
 	
-	if (bSRGBForceDisable && (Flags & TexCreate_SRGB))
+	if (Flags & TexCreate_SRGB)
 	{
-		bUseSourceTex = false;
+		if(bSRGBForceDisable)
+		{
+			// Force no sRGB, should create new view without sRGB format
+			bUseSourceTex = false;
+		}
+		else
+		{
+			// Ensure we have the correct sRGB target format if we create a new texture view rather than using the source texture
+			MetalFormat = ToSRGBFormat(MetalFormat, Type);
+		}
 	}
 	
 	// Recreate the texture to enable MTLTextureUsagePixelFormatView which must be off unless we definitely use this feature or we are throwing ~4% performance vs. Windows on the floor.
@@ -571,65 +664,6 @@ FMetalSurface::FMetalSurface(FMetalSurface& Source, NSRange const MipRange, EPix
 	Init(Source, MipRange, Format, bSRGBForceDisable);
 }
 
-mtlpp::PixelFormat ToSRGBFormat(mtlpp::PixelFormat LinMTLFormat)
-{
-	mtlpp::PixelFormat MTLFormat = LinMTLFormat;
-	
-	switch (LinMTLFormat)
-	{
-		case mtlpp::PixelFormat::RGBA8Unorm:
-			MTLFormat = mtlpp::PixelFormat::RGBA8Unorm_sRGB;
-			break;
-		case mtlpp::PixelFormat::BGRA8Unorm:
-			MTLFormat = mtlpp::PixelFormat::BGRA8Unorm_sRGB;
-			break;
-#if PLATFORM_MAC
-		case mtlpp::PixelFormat::BC1_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC1_RGBA_sRGB;
-			break;
-		case mtlpp::PixelFormat::BC2_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC2_RGBA_sRGB;
-			break;
-		case mtlpp::PixelFormat::BC3_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC3_RGBA_sRGB;
-			break;
-		case mtlpp::PixelFormat::BC7_RGBAUnorm:
-			MTLFormat = mtlpp::PixelFormat::BC7_RGBAUnorm_sRGB;
-			break;
-#endif //PLATFORM_MAC
-#if PLATFORM_IOS
-		case mtlpp::PixelFormat::R8Unorm:
-			MTLFormat = mtlpp::PixelFormat::R8Unorm_sRGB;
-			break;
-		case mtlpp::PixelFormat::PVRTC_RGBA_2BPP:
-			MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_2BPP_sRGB;
-			break;
-		case mtlpp::PixelFormat::PVRTC_RGBA_4BPP:
-			MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB;
-			break;
-		case mtlpp::PixelFormat::ASTC_4x4_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_4x4_sRGB;
-			break;
-		case mtlpp::PixelFormat::ASTC_6x6_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_6x6_sRGB;
-			break;
-		case mtlpp::PixelFormat::ASTC_8x8_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_8x8_sRGB;
-			break;
-		case mtlpp::PixelFormat::ASTC_10x10_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_10x10_sRGB;
-			break;
-		case mtlpp::PixelFormat::ASTC_12x12_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_12x12_sRGB;
-			break;
-#endif //PLATFORM_IOS
-		default:
-			break;
-	}
-	
-	return MTLFormat;
-}
-
 static TMap<uint64, uint8>& GetMetalPixelFormatKeyMap()
 {
 	static TMap<uint64, uint8> PixelFormatKeyMap;
@@ -692,21 +726,7 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 	
 	if (Flags & TexCreate_SRGB)
 	{
-#if PLATFORM_MAC
-		// For now R8 sRGB expansion is 2D only, log other usage for later.
-		if (MTLFormat == mtlpp::PixelFormat::R8Unorm)
-		{
-			if (Type == RRT_Texture2D)
-			{
-				MTLFormat = mtlpp::PixelFormat::RGBA8Unorm;
-			}
-			else
-			{
-				UE_LOG(LogMetal, Error, TEXT("Attempting to use unsupported mtlpp::PixelFormat::R8Unorm_sRGB on Mac with texture type: %d, no format expansion will be provided so rendering errors may occur."), Type);
-			}
-		}
-#endif
-		MTLFormat = ToSRGBFormat(MTLFormat);
+		MTLFormat = ToSRGBFormat(MTLFormat, Type);
 	}
 	
 	// set the key
