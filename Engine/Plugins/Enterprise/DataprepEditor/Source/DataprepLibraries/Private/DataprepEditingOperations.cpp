@@ -1083,7 +1083,7 @@ namespace DatasmithEditingOperationsUtils
 
 							if(World != Owner->GetWorld())
 							{
-								UE_LOG( LogDataprep, Log, TEXT("Actor %s is not part of the Dataprep transient world ..."), *Actor->GetActorLabel() );
+								UE_LOG( LogDataprep, Log, TEXT("Actor %s is not part of the Dataprep transient world ..."), *Owner->GetActorLabel() );
 								continue;
 							}
 
