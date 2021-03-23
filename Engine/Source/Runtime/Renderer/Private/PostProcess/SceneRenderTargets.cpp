@@ -18,6 +18,7 @@
 #include "WideCustomResolveShaders.h"
 #include "ClearQuad.h"
 #include "RenderUtils.h"
+#include "RendererInterface.h"
 #include "PipelineStateCache.h"
 #include "OneColorShader.h"
 #include "ResolveShader.h"
@@ -1605,15 +1606,12 @@ void FSceneRenderTargets::AllocateShadingRateTexture(FRHICommandList& RHICmdList
 	if (StereoRenderTargetManager && StereoRenderTargetManager->NeedReAllocateShadingRateTexture(ShadingRateTexture))
 	{
 		ShadingRateTexture.SafeRelease();
-	}
-	bAllocatedShadingRateTexture = StereoRenderTargetManager && StereoRenderTargetManager->AllocateShadingRateTexture(0, BufferSize.X, BufferSize.Y, GRHIVariableRateShadingImageFormat, 0, TexCreate_None, TexCreate_None, Texture, TextureSize);
-	if (bAllocatedShadingRateTexture)
-	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(TextureSize, GRHIVariableRateShadingImageFormat, FClearValueBinding::White, TexCreate_None, TexCreate_None, false));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadingRateTexture, TEXT("ShadingRate"));
-		const uint32 OldElementSize = ShadingRateTexture->ComputeMemorySize();
-		ShadingRateTexture->GetRenderTargetItem().ShaderResourceTexture = ShadingRateTexture->GetRenderTargetItem().TargetableTexture = Texture;
-		GRenderTargetPool.UpdateElementSize(ShadingRateTexture, OldElementSize);
+
+		bAllocatedShadingRateTexture = StereoRenderTargetManager->AllocateShadingRateTexture(0, BufferSize.X, BufferSize.Y, PF_R8G8, 0, TexCreate_None, TexCreate_None, Texture, TextureSize);
+		if (bAllocatedShadingRateTexture)
+		{
+			ShadingRateTexture = CreateRenderTarget(Texture, TEXT("ShadingRate"));
+		}
 	}
 }
 
