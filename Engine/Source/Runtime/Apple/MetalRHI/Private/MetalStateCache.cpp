@@ -2122,6 +2122,23 @@ void FMetalStateCache::SetRenderState(FMetalCommandEncoder& CommandEncoder, FMet
 	}
 }
 
+void FMetalStateCache::EnsureTextureAndType(EMetalShaderStages Stage, uint32 Index, const TMap<uint8, uint8>& TexTypes) const
+{
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+	if (ShaderTextures[Stage].Textures[Index])
+	{
+		if (ShaderTextures[Stage].Textures[Index].GetTextureType() != (mtlpp::TextureType)TexTypes.FindRef(Index))
+		{
+			ensureMsgf(0, TEXT("Mismatched texture type: EMetalShaderStages %d, Index %d, ShaderTextureType %d != TexTypes %d"), (uint32)Stage, Index, (uint32)ShaderTextures[Stage].Textures[Index].GetTextureType(), (uint32)TexTypes.FindRef(Index));
+		}
+	}
+	else
+	{
+		ensureMsgf(0, TEXT("NULL texture: EMetalShaderStages %d, Index %d"), (uint32)Stage, Index);
+	}
+#endif
+}
+
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 void FMetalStateCache::SetStreamOutPipelineState(FMetalCommandEncoder& CommandEncoder)
 {
@@ -2139,7 +2156,7 @@ void FMetalStateCache::SetStreamOutPipelineState(FMetalCommandEncoder& CommandEn
 
 		FMetalDebugShaderResourceMask VertexMask = Pipeline->ResourceMask[EMetalShaderStream];
 		TArray<uint32>& MinVertexBufferSizes = Pipeline->BufferDataSizes[EMetalShaderStream];
-		TMap<uint8, uint8> VertexTexTypes = Pipeline->TextureTypes[EMetalShaderStream];
+		const TMap<uint8, uint8>& VertexTexTypes = Pipeline->TextureTypes[EMetalShaderStream];
 		while(VertexMask.BufferMask)
 		{
 			uint32 Index = __builtin_ctz(VertexMask.BufferMask);
@@ -2161,8 +2178,7 @@ void FMetalStateCache::SetStreamOutPipelineState(FMetalCommandEncoder& CommandEn
 			{
 				uint32 Index = __builtin_ctzll(LoTextures);
 				LoTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[VertexStage].Textures[Index]);
-				ensure(ShaderTextures[VertexStage].Textures[Index].GetTextureType() == (mtlpp::TextureType)VertexTexTypes.FindRef(Index));
+				EnsureTextureAndType(VertexStage, Index, VertexTexTypes);
 			}
 			
 			uint64 HiTextures = (uint64)(VertexMask.TextureMask >> FMetalTextureMask(64));
@@ -2170,8 +2186,7 @@ void FMetalStateCache::SetStreamOutPipelineState(FMetalCommandEncoder& CommandEn
 			{
 				uint32 Index = __builtin_ctzll(HiTextures);
 				HiTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[VertexStage].Textures[Index + 64]);
-				ensure(ShaderTextures[VertexStage].Textures[Index + 64].GetTextureType() == (mtlpp::TextureType)VertexTexTypes.FindRef(Index + 64));
+				EnsureTextureAndType(VertexStage, Index + 64, VertexTexTypes);
 			}
 		}
 #else
@@ -2179,9 +2194,7 @@ void FMetalStateCache::SetStreamOutPipelineState(FMetalCommandEncoder& CommandEn
 		{
 			uint32 Index = __builtin_ctz(VertexMask.TextureMask);
 			VertexMask.TextureMask &= ~(1 << Index);
-			
-			ensure(ShaderTextures[VertexStage].Textures[Index]);
-			ensure(ShaderTextures[VertexStage].Textures[Index].GetTextureType() == (mtlpp::TextureType)VertexTexTypes.FindRef(Index));
+			EnsureTextureAndType(VertexStage, Index, VertexTexTypes);
 		}
 #endif
 		while(VertexMask.SamplerMask)
@@ -2226,7 +2239,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			
 			FMetalDebugShaderResourceMask ComputeMask = Pipeline->ResourceMask[EMetalShaderCompute];
 			TArray<uint32>& MinComputeBufferSizes = Pipeline->BufferDataSizes[EMetalShaderCompute];
-			TMap<uint8, uint8> ComputeTexTypes = Pipeline->TextureTypes[EMetalShaderCompute];
+			const TMap<uint8, uint8>& ComputeTexTypes = Pipeline->TextureTypes[EMetalShaderCompute];
 			while(ComputeMask.BufferMask)
 			{
 				uint32 Index = __builtin_ctz(ComputeMask.BufferMask);
@@ -2253,7 +2266,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 				{
 					uint32 Index = __builtin_ctzll(LoTextures);
 					LoTextures &= ~(uint64(1) << uint64(Index));
-					ensure(ShaderTextures[EMetalShaderStages::Vertex].Textures[Index] || ShaderTextures[EMetalShaderStages::Hull].Textures[Index + 64]);
+					ensure(ShaderTextures[EMetalShaderStages::Vertex].Textures[Index] || ShaderTextures[EMetalShaderStages::Hull].Textures[Index]);
 					ensure(!ShaderTextures[EMetalShaderStages::Vertex].Textures[Index] || ShaderTextures[EMetalShaderStages::Vertex].Textures[Index].GetTextureType() == (mtlpp::TextureType)ComputeTexTypes.FindRef(Index));
 					ensure(!ShaderTextures[EMetalShaderStages::Hull].Textures[Index] || ShaderTextures[EMetalShaderStages::Hull].Textures[Index].GetTextureType() == (mtlpp::TextureType)ComputeTexTypes.FindRef(Index));
 				}
@@ -2290,7 +2303,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 		
 		FMetalDebugShaderResourceMask VertexMask = Pipeline->ResourceMask[EMetalShaderVertex];
 		TArray<uint32>& MinVertexBufferSizes = Pipeline->BufferDataSizes[EMetalShaderVertex];
-		TMap<uint8, uint8> VertexTexTypes = Pipeline->TextureTypes[EMetalShaderVertex];
+		const TMap<uint8, uint8>& VertexTexTypes = Pipeline->TextureTypes[EMetalShaderVertex];
 		while(VertexMask.BufferMask)
 		{
 			uint32 Index = __builtin_ctz(VertexMask.BufferMask);
@@ -2316,8 +2329,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			{
 				uint32 Index = __builtin_ctzll(LoTextures);
 				LoTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[VertexStage].Textures[Index]);
-				ensure(ShaderTextures[VertexStage].Textures[Index].GetTextureType() == (mtlpp::TextureType)VertexTexTypes.FindRef(Index));
+				EnsureTextureAndType(VertexStage, Index, VertexTexTypes);
 			}
 			
 			uint64 HiTextures = (uint64)(VertexMask.TextureMask >> FMetalTextureMask(64));
@@ -2325,8 +2337,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			{
 				uint32 Index = __builtin_ctzll(HiTextures);
 				HiTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[VertexStage].Textures[Index + 64]);
-				ensure(ShaderTextures[VertexStage].Textures[Index + 64].GetTextureType() == (mtlpp::TextureType)VertexTexTypes.FindRef(Index + 64));
+				EnsureTextureAndType(VertexStage, Index + 64, VertexTexTypes);
 			}
 		}
 #else
@@ -2335,8 +2346,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			uint32 Index = __builtin_ctz(VertexMask.TextureMask);
 			VertexMask.TextureMask &= ~(1 << Index);
 			
-			ensure(ShaderTextures[VertexStage].Textures[Index]);
-			ensure(ShaderTextures[VertexStage].Textures[Index].GetTextureType() == (mtlpp::TextureType)VertexTexTypes.FindRef(Index));
+			EnsureTextureAndType(VertexStage, Index, VertexTexTypes);
 		}
 #endif
 		while(VertexMask.SamplerMask)
@@ -2348,7 +2358,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 		
 		FMetalDebugShaderResourceMask FragmentMask = Pipeline->ResourceMask[EMetalShaderFragment];
 		TArray<uint32>& MinFragmentBufferSizes = Pipeline->BufferDataSizes[EMetalShaderFragment];
-		TMap<uint8, uint8> FragmentTexTypes = Pipeline->TextureTypes[EMetalShaderFragment];
+		const TMap<uint8, uint8>& FragmentTexTypes = Pipeline->TextureTypes[EMetalShaderFragment];
 		while(FragmentMask.BufferMask)
 		{
 			uint32 Index = __builtin_ctz(FragmentMask.BufferMask);
@@ -2366,8 +2376,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			{
 				uint32 Index = __builtin_ctzll(LoTextures);
 				LoTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index]);
-				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index].GetTextureType() == (mtlpp::TextureType)FragmentTexTypes.FindRef(Index));
+				EnsureTextureAndType(EMetalShaderStages::Pixel, Index, FragmentTexTypes);
 			}
 			
 			uint64 HiTextures = (uint64)(FragmentMask.TextureMask >> FMetalTextureMask(64));
@@ -2375,8 +2384,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			{
 				uint32 Index = __builtin_ctzll(HiTextures);
 				HiTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index + 64]);
-				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index + 64].GetTextureType() == (mtlpp::TextureType)FragmentTexTypes.FindRef(Index + 64));
+				EnsureTextureAndType(EMetalShaderStages::Pixel, Index + 64, FragmentTexTypes);
 			}
 		}
 #else
@@ -2385,8 +2393,7 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			uint32 Index = __builtin_ctz(FragmentMask.TextureMask);
 			FragmentMask.TextureMask &= ~(1 << Index);
 			
-			ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index]);
-			ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index].GetTextureType() == (mtlpp::TextureType)FragmentTexTypes.FindRef(Index));
+			EnsureTextureAndType(EMetalShaderStages::Pixel, Index, FragmentTexTypes);
 		}
 #endif
 		while(FragmentMask.SamplerMask)
@@ -2431,7 +2438,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 			
 			FMetalDebugShaderResourceMask ComputeMask = Pipeline->ResourceMask[EMetalShaderCompute];
 			TArray<uint32>& MinComputeBufferSizes = Pipeline->BufferDataSizes[EMetalShaderCompute];
-			TMap<uint8, uint8> ComputeTexTypes = Pipeline->TextureTypes[EMetalShaderCompute];
+			const TMap<uint8, uint8>& ComputeTexTypes = Pipeline->TextureTypes[EMetalShaderCompute];
 			while(ComputeMask.BufferMask)
 			{
 				uint32 Index = __builtin_ctz(ComputeMask.BufferMask);
@@ -2457,8 +2464,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 				{
 					uint32 Index = __builtin_ctzll(LoTextures);
 					LoTextures &= ~(uint64(1) << uint64(Index));
-					ensure(ShaderTextures[EMetalShaderStages::Hull].Textures[Index + 64]);
-					ensure(ShaderTextures[EMetalShaderStages::Hull].Textures[Index].GetTextureType() == (mtlpp::TextureType)ComputeTexTypes.FindRef(Index));
+					EnsureTextureAndType(EMetalShaderStages::Hull, Index, ComputeTexTypes);
 				}
 				
 				uint64 HiTextures = (uint64)(ComputeMask.TextureMask >> FMetalTextureMask(64));
@@ -2466,8 +2472,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 				{
 					uint32 Index = __builtin_ctzll(HiTextures);
 					HiTextures &= ~(uint64(1) << uint64(Index));
-					ensure(ShaderTextures[EMetalShaderStages::Hull].Textures[Index + 64]);
-					ensure(ShaderTextures[EMetalShaderStages::Hull].Textures[Index + 64].GetTextureType() == (mtlpp::TextureType)ComputeTexTypes.FindRef(Index + 64));
+					EnsureTextureAndType(EMetalShaderStages::Hull, Index + 64, ComputeTexTypes);
 				}
 			}
 #else
@@ -2475,9 +2480,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 			{
 				uint32 Index = __builtin_ctz(ComputeMask.TextureMask);
 				ComputeMask.TextureMask &= ~(1 << Index);
-				
-				ensure(ShaderTextures[EMetalShaderStages::Hull].Textures[Index]);
-				ensure(ShaderTextures[EMetalShaderStages::Hull].Textures[Index].GetTextureType() == (mtlpp::TextureType)ComputeTexTypes.FindRef(Index));
+				EnsureTextureAndType(EMetalShaderStages::Hull, Index, ComputeTexTypes);
 			}
 #endif
 			while(ComputeMask.SamplerMask)
@@ -2491,7 +2494,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 		
 		FMetalDebugShaderResourceMask VertexMask = Pipeline->ResourceMask[EMetalShaderVertex];
 		TArray<uint32>& MinVertexBufferSizes = Pipeline->BufferDataSizes[EMetalShaderVertex];
-		TMap<uint8, uint8> VertexTexTypes = Pipeline->TextureTypes[EMetalShaderVertex];
+		const TMap<uint8, uint8>& VertexTexTypes = Pipeline->TextureTypes[EMetalShaderVertex];
 		while(VertexMask.BufferMask)
 		{
 			uint32 Index = __builtin_ctz(VertexMask.BufferMask);
@@ -2513,8 +2516,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 			{
 				uint32 Index = __builtin_ctzll(LoTextures);
 				LoTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[VertexStage].Textures[Index]);
-				ensure(ShaderTextures[VertexStage].Textures[Index].GetTextureType() == (mtlpp::TextureType)VertexTexTypes.FindRef(Index));
+				EnsureTextureAndType(VertexStage, Index, VertexTexTypes);
 			}
 			
 			uint64 HiTextures = (uint64)(VertexMask.TextureMask >> FMetalTextureMask(64));
@@ -2522,8 +2524,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 			{
 				uint32 Index = __builtin_ctzll(HiTextures);
 				HiTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[VertexStage].Textures[Index + 64]);
-				ensure(ShaderTextures[VertexStage].Textures[Index + 64].GetTextureType() == (mtlpp::TextureType)VertexTexTypes.FindRef(Index + 64));
+				EnsureTextureAndType(VertexStage, Index + 64, VertexTexTypes);
 			}
 		}
 #else
@@ -2531,9 +2532,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 		{
 			uint32 Index = __builtin_ctz(VertexMask.TextureMask);
 			VertexMask.TextureMask &= ~(1 << Index);
-			
-			ensure(ShaderTextures[VertexStage].Textures[Index]);
-			ensure(ShaderTextures[VertexStage].Textures[Index].GetTextureType() == (mtlpp::TextureType)VertexTexTypes.FindRef(Index));
+			EnsureTextureAndType(VertexStage, Index, VertexTexTypes);
 		}
 #endif
 		while(VertexMask.SamplerMask)
@@ -2545,7 +2544,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 		
 		FMetalDebugShaderResourceMask FragmentMask = Pipeline->ResourceMask[EMetalShaderFragment];
 		TArray<uint32>& MinFragmentBufferSizes = Pipeline->BufferDataSizes[EMetalShaderFragment];
-		TMap<uint8, uint8> FragmentTexTypes = Pipeline->TextureTypes[EMetalShaderFragment];
+		const TMap<uint8, uint8>& FragmentTexTypes = Pipeline->TextureTypes[EMetalShaderFragment];
 		while(FragmentMask.BufferMask)
 		{
 			uint32 Index = __builtin_ctz(FragmentMask.BufferMask);
@@ -2563,8 +2562,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 			{
 				uint32 Index = __builtin_ctzll(LoTextures);
 				LoTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index]);
-				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index].GetTextureType() == (mtlpp::TextureType)FragmentTexTypes.FindRef(Index));
+				EnsureTextureAndType(EMetalShaderStages::Pixel, Index, FragmentTexTypes);
 			}
 			
 			uint64 HiTextures = (uint64)(FragmentMask.TextureMask >> FMetalTextureMask(64));
@@ -2572,8 +2570,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 			{
 				uint32 Index = __builtin_ctzll(HiTextures);
 				HiTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index + 64]);
-				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index + 64].GetTextureType() == (mtlpp::TextureType)FragmentTexTypes.FindRef(Index + 64));
+				EnsureTextureAndType(EMetalShaderStages::Pixel, Index + 64, FragmentTexTypes);
 			}
 		}
 #else
@@ -2582,8 +2579,7 @@ void FMetalStateCache::SetTessellationPipelineState(FMetalCommandEncoder& Comman
 			uint32 Index = __builtin_ctz(FragmentMask.TextureMask);
 			FragmentMask.TextureMask &= ~(1 << Index);
 			
-			ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index]);
-			ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index].GetTextureType() == (mtlpp::TextureType)FragmentTexTypes.FindRef(Index));
+			EnsureTextureAndType(EMetalShaderStages::Pixel, Index, FragmentTexTypes);
 		}
 #endif
 		while(FragmentMask.SamplerMask)
@@ -2614,7 +2610,7 @@ void FMetalStateCache::SetComputePipelineState(FMetalCommandEncoder& CommandEnco
 		
 		FMetalDebugShaderResourceMask ComputeMask = Pipeline->ResourceMask[EMetalShaderCompute];
 		TArray<uint32>& MinComputeBufferSizes = Pipeline->BufferDataSizes[EMetalShaderCompute];
-		TMap<uint8, uint8> ComputeTexTypes = Pipeline->TextureTypes[EMetalShaderCompute];
+		const TMap<uint8, uint8>& ComputeTexTypes = Pipeline->TextureTypes[EMetalShaderCompute];
 		while(ComputeMask.BufferMask)
 		{
 			uint32 Index = __builtin_ctz(ComputeMask.BufferMask);
@@ -2632,8 +2628,7 @@ void FMetalStateCache::SetComputePipelineState(FMetalCommandEncoder& CommandEnco
 			{
 				uint32 Index = __builtin_ctzll(LoTextures);
 				LoTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index]);
-				ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index].GetTextureType() == (mtlpp::TextureType)ComputeTexTypes.FindRef(Index));
+				EnsureTextureAndType(EMetalShaderStages::Compute, Index, ComputeTexTypes);
 			}
 			
 			uint64 HiTextures = (uint64)(ComputeMask.TextureMask >> FMetalTextureMask(64));
@@ -2641,8 +2636,7 @@ void FMetalStateCache::SetComputePipelineState(FMetalCommandEncoder& CommandEnco
 			{
 				uint32 Index = __builtin_ctzll(HiTextures);
 				HiTextures &= ~(uint64(1) << uint64(Index));
-				ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index + 64]);
-				ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index + 64].GetTextureType() == (mtlpp::TextureType)ComputeTexTypes.FindRef(Index + 64));
+				EnsureTextureAndType(EMetalShaderStages::Compute, Index + 64, ComputeTexTypes);
 			}
 		}
 #else
@@ -2651,8 +2645,7 @@ void FMetalStateCache::SetComputePipelineState(FMetalCommandEncoder& CommandEnco
 			uint32 Index = __builtin_ctz(ComputeMask.TextureMask);
 			ComputeMask.TextureMask &= ~(1 << Index);
 			
-			ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index]);
-			ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index].GetTextureType() == (mtlpp::TextureType)ComputeTexTypes.FindRef(Index));
+			EnsureTextureAndType(EMetalShaderStages::Compute, Index, ComputeTexTypes);
 		}
 #endif
 		while(ComputeMask.SamplerMask)

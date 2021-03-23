@@ -195,6 +195,10 @@ private:
 	void SetScissorRect(uint32 Index, bool const bEnable, mtlpp::ScissorRect const& Rect);
 
 private:
+
+	void EnsureTextureAndType(EMetalShaderStages Stage, uint32 Index, const TMap<uint8, uint8>& TexTypes) const;
+	
+private:
 #pragma mark - Private Type Declarations -
 	struct FMetalBufferBinding
 	{
