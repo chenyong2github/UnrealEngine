@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+
+#include "Containers/StringView.h"
 #include "Misc/AsciiSet.h"
 #include "Misc/AutomationTest.h"
 
@@ -44,22 +46,44 @@ bool TAsciiSetTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("AdvanceToFirst"),	*FAsciiSet::FindFirstOrEnd("NonWhitespaceNonWhitespace", Whitespaces), '\0');
 	TestEqual(TEXT("AdvanceToLast"),	*FAsciiSet::FindLastOrEnd("NonWhitespaceNonWhitespace", Whitespaces), '\0');
 
-	constexpr FAsciiSet XmlEscapeChars("&<>\"'");
-	TestTrue(TEXT("None"), FAsciiSet::HasNone("No escape chars", XmlEscapeChars));
-	TestFalse(TEXT("Any"), FAsciiSet::HasAny("No escape chars", XmlEscapeChars));
-	TestFalse(TEXT("Only"), FAsciiSet::HasOnly("No escape chars", XmlEscapeChars));
+	constexpr FAsciiSet Lowercase("abcdefghijklmnopqrstuvwxyz");
+	TestEqual(TEXT("TrimPrefixWithout"),		FAsciiSet::TrimPrefixWithout("ABcdEF"_ASV, Lowercase), "cdEF"_ASV);
+	TestEqual(TEXT("FindPrefixWithout"),		FAsciiSet::FindPrefixWithout("ABcdEF"_ASV, Lowercase), "AB"_ASV);
+	TestEqual(TEXT("TrimSuffixWithout"),		FAsciiSet::TrimSuffixWithout("ABcdEF"_ASV, Lowercase), "ABcd"_ASV);
+	TestEqual(TEXT("FindSuffixWithout"),		FAsciiSet::FindSuffixWithout("ABcdEF"_ASV, Lowercase), "EF"_ASV);
+	TestEqual(TEXT("TrimPrefixWithout none"),	FAsciiSet::TrimPrefixWithout("same"_ASV, Lowercase), "same"_ASV);
+	TestEqual(TEXT("FindPrefixWithout none"),	FAsciiSet::FindPrefixWithout("same"_ASV, Lowercase), ""_ASV);
+	TestEqual(TEXT("TrimSuffixWithout none"),	FAsciiSet::TrimSuffixWithout("same"_ASV, Lowercase), "same"_ASV);
+	TestEqual(TEXT("FindSuffixWithout none"),	FAsciiSet::FindSuffixWithout("same"_ASV, Lowercase), ""_ASV);
+	TestEqual(TEXT("TrimPrefixWithout empty"),	FAsciiSet::TrimPrefixWithout(""_ASV, Lowercase), ""_ASV);
+	TestEqual(TEXT("FindPrefixWithout empty"),	FAsciiSet::FindPrefixWithout(""_ASV, Lowercase), ""_ASV);
+	TestEqual(TEXT("TrimSuffixWithout empty"),	FAsciiSet::TrimSuffixWithout(""_ASV, Lowercase), ""_ASV);
+	TestEqual(TEXT("FindSuffixWithout empty"),	FAsciiSet::FindSuffixWithout(""_ASV, Lowercase), ""_ASV);
 
-	TestTrue(TEXT("None"), FAsciiSet::HasNone("", XmlEscapeChars));
-	TestFalse(TEXT("Any"), FAsciiSet::HasAny("", XmlEscapeChars));
-	TestTrue(TEXT("Only"), FAsciiSet::HasOnly("", XmlEscapeChars));
 
-	TestFalse(TEXT("None"), FAsciiSet::HasNone("&<>\"'", XmlEscapeChars));
-	TestTrue(TEXT("Any"), FAsciiSet::HasAny("&<>\"'", XmlEscapeChars));
-	TestTrue(TEXT("Only"), FAsciiSet::HasOnly("&<>\"'", XmlEscapeChars));
+	auto TestHasFunctions = [&](auto MakeString)
+	{
+		constexpr FAsciiSet XmlEscapeChars("&<>\"'");
+		TestTrue(TEXT("None"),	FAsciiSet::HasNone(MakeString("No escape chars"), XmlEscapeChars));
+		TestFalse(TEXT("Any"),	FAsciiSet::HasAny(MakeString("No escape chars"), XmlEscapeChars));
+		TestFalse(TEXT("Only"), FAsciiSet::HasOnly(MakeString("No escape chars"), XmlEscapeChars));
 
-	TestFalse(TEXT("None"), FAsciiSet::HasNone("&<>\"' and more", XmlEscapeChars));
-	TestTrue(TEXT("Any"), FAsciiSet::HasAny("&<>\"' and more", XmlEscapeChars));
-	TestFalse(TEXT("Only"), FAsciiSet::HasOnly("&<>\"' and more", XmlEscapeChars));
+		TestTrue(TEXT("None"),	FAsciiSet::HasNone(MakeString(""), XmlEscapeChars));
+		TestFalse(TEXT("Any"),	FAsciiSet::HasAny(MakeString(""), XmlEscapeChars));
+		TestTrue(TEXT("Only"),	FAsciiSet::HasOnly(MakeString(""), XmlEscapeChars));
+
+		TestFalse(TEXT("None"), FAsciiSet::HasNone(MakeString("&<>\"'"), XmlEscapeChars));
+		TestTrue(TEXT("Any"),	FAsciiSet::HasAny(MakeString("&<>\"'"), XmlEscapeChars));
+		TestTrue(TEXT("Only"),	FAsciiSet::HasOnly(MakeString("&<>\"'"), XmlEscapeChars));
+
+		TestFalse(TEXT("None"), FAsciiSet::HasNone(MakeString("&<>\"' and more"), XmlEscapeChars));
+		TestTrue(TEXT("Any"),	FAsciiSet::HasAny(MakeString("&<>\"' and more"), XmlEscapeChars));
+		TestFalse(TEXT("Only"), FAsciiSet::HasOnly(MakeString("&<>\"' and more"), XmlEscapeChars));
+	};
+	TestHasFunctions([] (const char* Str) { return Str; });
+	TestHasFunctions([] (const char* Str) { return FAnsiStringView(Str); });
+	TestHasFunctions([] (const char* Str) { return FString(Str); });
+
 
 	constexpr FAsciiSet Abc("abc");
 	constexpr FAsciiSet Abcd = Abc + 'd';
