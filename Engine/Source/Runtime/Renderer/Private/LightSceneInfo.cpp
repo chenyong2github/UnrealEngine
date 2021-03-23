@@ -93,8 +93,6 @@ void FLightSceneInfo::AddToScene()
 		// Mobile path supports dynamic point/spot lights in the base pass using forward rendering, so we need to know the primitives
 		|| bIsValidLightTypeMobile)
 	{
-		Scene->FlushAsyncLightPrimitiveInteractionCreation();
-		
 		// Directional lights have no finite extent and cannot meaningfully be in the LocalShadowCastingLightOctree
 		if (LightSceneInfoCompact.LightType == LightType_Directional)
 		{
@@ -147,8 +145,6 @@ void FLightSceneInfo::CreateLightPrimitiveInteraction(const FLightSceneInfoCompa
 
 void FLightSceneInfo::RemoveFromScene()
 {
-	Scene->FlushAsyncLightPrimitiveInteractionCreation();
-
 	if (OctreeId.IsValidId())
 	{
 		// Remove the light from the octree.
@@ -232,30 +228,18 @@ bool FLightSceneInfo::IsPrecomputedLightingValid() const
 	return (bPrecomputedLightingIsValid && NumUnbuiltInteractions < GWholeSceneShadowUnbuiltInteractionThreshold) || !Proxy->HasStaticShadowing();
 }
 
-const TArray<FLightPrimitiveInteraction*>* FLightSceneInfo::GetInteractionShadowPrimitives(bool bSync) const
+const TArray<FLightPrimitiveInteraction*>* FLightSceneInfo::GetInteractionShadowPrimitives() const
 {
-	if (bSync)
-	{
-		Scene->FlushAsyncLightPrimitiveInteractionCreation();
-	}
 	return bRecordInteractionShadowPrimitives ? &InteractionShadowPrimitives : nullptr;
 }
 
-FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionOftenMovingPrimitiveList(bool bSync) const
+FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionOftenMovingPrimitiveList() const
 {
-	if (bSync)
-	{
-		Scene->FlushAsyncLightPrimitiveInteractionCreation();
-	}
 	return DynamicInteractionOftenMovingPrimitiveList;
 }
 
-FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionStaticPrimitiveList(bool bSync) const
+FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionStaticPrimitiveList() const
 {
-	if (bSync)
-	{
-		Scene->FlushAsyncLightPrimitiveInteractionCreation();
-	}
 	return DynamicInteractionStaticPrimitiveList;
 }
 

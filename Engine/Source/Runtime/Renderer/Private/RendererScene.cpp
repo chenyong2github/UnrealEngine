@@ -108,13 +108,6 @@ static TAutoConsoleVariable<int32> CVarBasePassWriteDepthEvenWithFullPrepass(
 	TEXT("0 to allow a readonly base pass, which skips an MSAA depth resolve, and allows masked materials to get EarlyZ (writing to depth while doing clip() disables EarlyZ) (default)\n")
 	TEXT("1 to force depth writes in the base pass.  Useful for debugging when the prepass and base pass don't match what they render."));
 
-static int32 GAsyncCreateLightPrimitiveInteractions = 1;
-static FAutoConsoleVariableRef CVarAsyncCreateLightPrimitiveInteractions(
-	TEXT("r.AsyncCreateLightPrimitiveInteractions"),
-	GAsyncCreateLightPrimitiveInteractions,
-	TEXT("Whether to create LPIs asynchronously."),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarWPOPrimitivesOutputVelocity(
 	TEXT("r.WPOPrimitivesOutputVelocity"),
 	0,
@@ -1016,7 +1009,6 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 #if RHI_RAYTRACING
 ,	RayTracingDynamicGeometryCollection(nullptr)
 #endif
-,	AsyncCreateLightPrimitiveInteractionsTask(nullptr)
 ,	NumVisibleLights_GameThread(0)
 ,	NumEnabledSkylights_GameThread(0)
 ,	SceneFrameNumber(0)
@@ -1136,12 +1128,6 @@ FScene::~FScene()
 
 	BeginReleaseResource(&HaltonPrimesResource);
 #endif
-
-	if (AsyncCreateLightPrimitiveInteractionsTask)
-	{
-		delete AsyncCreateLightPrimitiveInteractionsTask;
-		AsyncCreateLightPrimitiveInteractionsTask = nullptr;
-	}
 
 	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("Leaking %d FPrimitiveSceneInfo instances."), RemovedPrimitiveSceneInfos.Num()); // Ensure UpdateAllPrimitiveSceneInfos() is called before destruction.
 }
@@ -3524,7 +3510,6 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 		(*It).LightSceneInfo->Proxy->ApplyWorldOffset(InOffset);
 	}
 
-	FlushAsyncLightPrimitiveInteractionCreation();
 	LocalShadowCastingLightOctree.ApplyOffset(InOffset, /*bGlobalOctee*/ true);
 
 	// Cached preshadows
@@ -3719,20 +3704,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 	TSet<FPrimitiveSceneInfo*> DeletedSceneInfos;
 	DeletedSceneInfos.Reserve(RemovedLocalPrimitiveSceneInfos.Num());
-
-	if (!!GAsyncCreateLightPrimitiveInteractions && !AsyncCreateLightPrimitiveInteractionsTask && FApp::ShouldUseThreadingForPerformance())
-	{
-		AsyncCreateLightPrimitiveInteractionsTask = new FAsyncTask<FAsyncCreateLightPrimitiveInteractionsTask>();
-	}
-
-	if (AsyncCreateLightPrimitiveInteractionsTask)
-	{
-		if (!AsyncCreateLightPrimitiveInteractionsTask->IsDone())
-		{
-			AsyncCreateLightPrimitiveInteractionsTask->EnsureCompletion();
-		}
-		AsyncCreateLightPrimitiveInteractionsTask->GetTask().Init(this);
-	}
 
 	{
 		SCOPED_NAMED_EVENT(FScene_RemovePrimitiveSceneInfos, FColor::Red);
@@ -4195,12 +4166,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			}
 		}
 
-		if (AsyncCreateLightPrimitiveInteractionsTask && AsyncCreateLightPrimitiveInteractionsTask->GetTask().HasPendingPrimitives())
-		{
-			check(GAsyncCreateLightPrimitiveInteractions);
-			AsyncCreateLightPrimitiveInteractionsTask->StartBackgroundTask();
-		}
-
 		for (const auto& Transform : OverridenPreviousTransforms)
 		{
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = Transform.Key;
@@ -4279,48 +4244,21 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 void FScene::CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* PrimitiveInfo, bool bAsyncCreateLPIs)
 {
-	if (!bAsyncCreateLPIs
-		|| !GAsyncCreateLightPrimitiveInteractions
-		|| !FApp::ShouldUseThreadingForPerformance()
-		|| GetShadingPath() == EShadingPath::Mobile
-		|| PrimitiveInfo->LODParentComponentId.IsValid()
-		|| !PrimitiveInfo->Proxy->IsMeshShapeOftenMoving())
-	{
-		FMemMark MemStackMark(FMemStack::Get());
-		const FBoxSphereBounds& Bounds = PrimitiveInfo->Proxy->GetBounds();
-		const FPrimitiveSceneInfoCompact PrimitiveSceneInfoCompact(PrimitiveInfo);
+	FMemMark MemStackMark(FMemStack::Get());
+	const FBoxSphereBounds& Bounds = PrimitiveInfo->Proxy->GetBounds();
+	const FPrimitiveSceneInfoCompact PrimitiveSceneInfoCompact(PrimitiveInfo);
 
-		// Find local lights that affect the primitive in the light octree.
-		LocalShadowCastingLightOctree.FindElementsWithBoundsTest(Bounds.GetBox(), [&PrimitiveSceneInfoCompact](const FLightSceneInfoCompact& LightSceneInfoCompact)
+	// Find local lights that affect the primitive in the light octree.
+	LocalShadowCastingLightOctree.FindElementsWithBoundsTest(Bounds.GetBox(), [&PrimitiveSceneInfoCompact](const FLightSceneInfoCompact& LightSceneInfoCompact)
 		{
 			LightSceneInfoCompact.LightSceneInfo->CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
 		});
-	
-		// Also loop through non-local (directional) shadow-casting lights
-		for (int32 LightID : DirectionalShadowCastingLightIDs)
-		{
-			const FLightSceneInfoCompact& LightSceneInfoCompact = Lights[LightID];
-			LightSceneInfoCompact.LightSceneInfo->CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
-		}
-	}
-	else
-	{
-		check(AsyncCreateLightPrimitiveInteractionsTask);
-		AsyncCreateLightPrimitiveInteractionsTask->GetTask().AddPrimitive(PrimitiveInfo);
-	}
-}
 
-void FScene::FlushAsyncLightPrimitiveInteractionCreation() const
-{
-	if (!GAsyncCreateLightPrimitiveInteractions || !FApp::ShouldUseThreadingForPerformance())
+	// Also loop through non-local (directional) shadow-casting lights
+	for (int32 LightID : DirectionalShadowCastingLightIDs)
 	{
-		check(!AsyncCreateLightPrimitiveInteractionsTask || AsyncCreateLightPrimitiveInteractionsTask->IsIdle());
-	}
-	else if (AsyncCreateLightPrimitiveInteractionsTask && !AsyncCreateLightPrimitiveInteractionsTask->IsWorkDone())
-	{
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FlushAsyncLPICreation);
-		SCOPE_CYCLE_COUNTER(STAT_FlushAsyncLPICreation);
-		AsyncCreateLightPrimitiveInteractionsTask->EnsureCompletion();
+		const FLightSceneInfoCompact& LightSceneInfoCompact = Lights[LightID];
+		LightSceneInfoCompact.LightSceneInfo->CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
 	}
 }
 

@@ -3343,8 +3343,6 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 
 		if (MaxFadeAlpha > 1.0f / 256.0f)
 		{
-			Scene->FlushAsyncLightPrimitiveInteractionCreation();
-
 			for (int32 ShadowIndex = 0, ShadowCount = ProjectedShadowInitializers.Num(); ShadowIndex < ShadowCount; ShadowIndex++)
 			{
 				FWholeSceneProjectedShadowInitializer& ProjectedShadowInitializer = ProjectedShadowInitializers[ShadowIndex];
@@ -3481,8 +3479,8 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					ProjectedShadowInfo->MeshPassTargetType = EMeshPass::VSMShadowDepth;
 
 					bool bContainsNaniteSubjects = false;
-					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false), ProjectedShadowInfo, bContainsNaniteSubjects);
-					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false), ProjectedShadowInfo, bContainsNaniteSubjects);
+					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
+					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
 
 					VisibleLightInfo.VirtualShadowMapId = ProjectedShadowInfo->VirtualShadowMaps[0]->ID;
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
@@ -3525,12 +3523,12 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 							&& (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly || bCastCachedShadowFromMovablePrimitives))
 						{
 							// Add all the shadow casting primitives affected by the light to the shadow's subject primitive list.
-							AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false), ProjectedShadowInfo, bContainsNaniteSubjects);
+							AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
 						}
 						
 						if (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly)
 						{
-							AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false), ProjectedShadowInfo, bContainsNaniteSubjects);
+							AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
 						}
 					}
 
@@ -5087,9 +5085,7 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 
 						if( !bMobile || (LightSceneInfo->Proxy->CastsModulatedShadows() && !LightSceneInfo->Proxy->UseCSMForDynamicObjects()))
 						{
-							Scene->FlushAsyncLightPrimitiveInteractionCreation();
-
-							const TArray<FLightPrimitiveInteraction*>* InteractionShadowPrimitives = LightSceneInfo->GetInteractionShadowPrimitives(false);
+							const TArray<FLightPrimitiveInteraction*>* InteractionShadowPrimitives = LightSceneInfo->GetInteractionShadowPrimitives();
 
 							if (InteractionShadowPrimitives)
 							{
@@ -5102,7 +5098,7 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 							else
 							{
 								// Look for individual primitives with a dynamic shadow.
-								for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false);
+								for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList();
 									Interaction;
 									Interaction = Interaction->GetNextPrimitive()
 									)
@@ -5110,7 +5106,7 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 									SetupInteractionShadows(RHICmdList, Interaction, VisibleLightInfo, bStaticSceneOnly, ViewDependentWholeSceneShadows, PreShadows);
 								}
 
-								for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false);
+								for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionStaticPrimitiveList();
 									Interaction;
 									Interaction = Interaction->GetNextPrimitive()
 									)

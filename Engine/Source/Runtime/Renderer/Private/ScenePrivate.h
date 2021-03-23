@@ -2969,8 +2969,6 @@ public:
 
 	void CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* PrimitiveInfo, bool bAsyncCreateLPIs);
 
-	void FlushAsyncLightPrimitiveInteractionCreation() const;
-
 	bool IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) const;
 
 protected:
@@ -3097,8 +3095,6 @@ private:
 	TSet<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
 	TSet<FPrimitiveSceneInfo*> RemovedPrimitiveSceneInfos;
 	TSet<FPrimitiveSceneInfo*> DistanceFieldSceneDataUpdates;
-
-	FAsyncTask<class FAsyncCreateLightPrimitiveInteractionsTask>* AsyncCreateLightPrimitiveInteractionsTask;
 
 	/** 
 	 * The number of visible lights in the scene

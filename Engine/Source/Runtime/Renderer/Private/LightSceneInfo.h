@@ -332,11 +332,11 @@ public:
 		return DynamicShadowMapChannel;
 	}
 
-	const TArray<FLightPrimitiveInteraction*>* GetInteractionShadowPrimitives(bool bSync = true) const;
+	const TArray<FLightPrimitiveInteraction*>* GetInteractionShadowPrimitives() const;
 
-	FLightPrimitiveInteraction* GetDynamicInteractionOftenMovingPrimitiveList(bool bSync = true) const;
+	FLightPrimitiveInteraction* GetDynamicInteractionOftenMovingPrimitiveList() const;
 
-	FLightPrimitiveInteraction* GetDynamicInteractionStaticPrimitiveList(bool bSync = true) const;
+	FLightPrimitiveInteraction* GetDynamicInteractionStaticPrimitiveList() const;
 
 	/** Hash function. */
 	friend uint32 GetTypeHash(const FLightSceneInfo* LightSceneInfo)
