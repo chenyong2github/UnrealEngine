@@ -6,7 +6,7 @@
 #include "HairStrandsVoxelPageCommon.ush"
 #include "HairStrandsAABBCommon.ush"
 
-#if SHADER_ALLOCATEPAGEINDEX
+#if SHADER_ALLOCATEPAGEINDEX 
 
 float				PageWorldSize;
 uint				TotalPageIndexCount; 	// This is the max page index count;

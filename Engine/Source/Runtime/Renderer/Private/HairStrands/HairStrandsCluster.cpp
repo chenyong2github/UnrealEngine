@@ -20,14 +20,14 @@ class FHairMacroGroupAABBCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(uint32, MacroGroupValid)
 		SHADER_PARAMETER(uint32, bClearBuffer)
-		SHADER_PARAMETER_SRV(Buffer, InGroupAABBBuffer0)
-		SHADER_PARAMETER_SRV(Buffer, InGroupAABBBuffer1)
-		SHADER_PARAMETER_SRV(Buffer, InGroupAABBBuffer2)
-		SHADER_PARAMETER_SRV(Buffer, InGroupAABBBuffer3)
-		SHADER_PARAMETER_SRV(Buffer, InGroupAABBBuffer4)
-		SHADER_PARAMETER_SRV(Buffer, InGroupAABBBuffer5)
-		SHADER_PARAMETER_SRV(Buffer, InGroupAABBBuffer6)
-		SHADER_PARAMETER_SRV(Buffer, InGroupAABBBuffer7)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer0)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer1)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer2)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer3)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer4)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer5)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer6)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer7)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutMacroGroupAABBBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -68,7 +68,7 @@ static void AddHairMacroGroupAABBPass(
 		{
 			const uint32 PrimitiveIndex = PassIt * GroupPerPass + PassPrimitiveIt;
 			const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo = MacroGroup.PrimitivesInfos[PrimitiveIndex];
-			FShaderResourceViewRHIRef GroupAABBBufferSRV = PrimitiveInfo.PublicDataPtr->GetGroupAABBBuffer().SRV;
+			FRDGBufferSRVRef GroupAABBBufferSRV = RegisterAsSRV(GraphBuilder, PrimitiveInfo.PublicDataPtr->GetGroupAABBBuffer());
 
 			// Default value
 			if (PassPrimitiveIt == 0 && PassPrimitiveCount != GroupPerPass)

@@ -242,7 +242,7 @@ class FVoxelMarkValidPageIndex_PrepareCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MaxScatterAllocationCount)
 		SHADER_PARAMETER(uint32, bForceDirectPageAllocation)
 
-		SHADER_PARAMETER_SRV(Buffer, ClusterAABBsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterAABBsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PageIndexResolutionAndOffsetBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutValidPageIndexBuffer)
@@ -315,7 +315,7 @@ class FVoxelMarkValidPageIndexCS : public FGlobalShader
 		SHADER_PARAMETER(FVector, CPU_MaxAABB)
 		SHADER_PARAMETER(uint32, CPU_PageIndexOffset)
 		SHADER_PARAMETER(uint32, MacroGroupId)
-		SHADER_PARAMETER_SRV(Buffer, ClusterAABBsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterAABBsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PageIndexResolutionAndOffsetBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutValidPageIndexBuffer)
@@ -649,7 +649,7 @@ static void AddAllocateVoxelPagesPass(
 				Parameters->MaxScatterAllocationCount	= MaxAllocationCount;
 				Parameters->bForceDirectPageAllocation	= GHairVirtualVoxelUseImmediatePageAllocation > 0 ? 1 : 0;
 
-				Parameters->ClusterAABBsBuffer		= HairGroupData->GetClusterAABBBuffer().SRV;
+				Parameters->ClusterAABBsBuffer		= RegisterAsSRV(GraphBuilder, HairGroupData->GetClusterAABBBuffer());
 				Parameters->MacroGroupAABBBuffer	= GraphBuilder.CreateSRV(MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 				Parameters->PageIndexResolutionAndOffsetBuffer = PageIndexResolutionAndOffsetBufferSRV;
 
@@ -713,7 +713,7 @@ static void AddAllocateVoxelPagesPass(
 				Parameters->CPU_PageIndexOffset = CPUAllocationDesc.PageIndexOffset;
 				Parameters->CPU_MinAABB = CPUAllocationDesc.MinAABB;
 				Parameters->CPU_MaxAABB = CPUAllocationDesc.MaxAABB;
-				Parameters->ClusterAABBsBuffer = HairGroupData->GetClusterAABBBuffer().SRV;
+				Parameters->ClusterAABBsBuffer = RegisterAsSRV(GraphBuilder, HairGroupData->GetClusterAABBBuffer());
 				Parameters->OutValidPageIndexBuffer = PageIndexBufferUAV;
 
 				if (bIsGPUDriven)
