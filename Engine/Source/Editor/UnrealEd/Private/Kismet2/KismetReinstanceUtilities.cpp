@@ -2435,7 +2435,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 		}
 
 		// Skipping CDOs as CSs are not allowed for them.
-		if (!ActorInstance->HasAnyFlags(RF_ClassDefaultObject))
+		if (!ActorInstance->HasAnyFlags(RF_ClassDefaultObject) && ActorInstance->GetLevel())
 		{
 			ActorInstance->RerunConstructionScripts();
 		}
