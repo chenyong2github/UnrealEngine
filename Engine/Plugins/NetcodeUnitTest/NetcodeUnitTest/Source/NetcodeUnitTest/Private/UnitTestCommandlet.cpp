@@ -82,9 +82,6 @@ int32 UUnitTestCommandlet::Main(const FString& Params)
 	FModuleManager::Get().LoadModule(TEXT("OnlineSubsystem"));
 	FModuleManager::Get().LoadModule(TEXT("OnlineSubsystemUtils"));
 
-
-	UE_LOG(LogUnitTest, Log, TEXT("NetcodeUnitTest built to target mainline CL '%i'."), TARGET_UE4_CL);
-
 	if (!IsEngineExitRequested())
 	{
 		GIsRunning = true;

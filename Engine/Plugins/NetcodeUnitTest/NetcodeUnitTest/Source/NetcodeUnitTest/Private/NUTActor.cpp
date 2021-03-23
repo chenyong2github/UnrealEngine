@@ -18,12 +18,7 @@
 #include "NUTGlobals.h"
 #include "NUTUtil.h"
 
-
-#if TARGET_UE4_CL < CL_BEACONHOST
-const FName NAME_BeaconDriver = FName(TEXT("BeaconDriver"));
-#else
 const FName NAME_BeaconDriver = FName(TEXT("BeaconNetDriver"));
-#endif
 
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(NUTControl);
 
@@ -60,11 +55,7 @@ void ANUTActor::PostActorCreated()
 	}
 }
 
-#if TARGET_UE4_CL < CL_CONSTNETCONN
-UNetConnection* ANUTActor::GetNetConnection()
-#else
 UNetConnection* ANUTActor::GetNetConnection() const
-#endif
 {
 	UNetConnection* ReturnVal = Super::GetNetConnection();
 
@@ -361,9 +352,6 @@ void ANUTActor::Tick(float DeltaSeconds)
 		// Monitor for the beacon net driver, so it can be hooked
 		if (bMonitorForBeacon)
 		{
-#if TARGET_UE4_CL < CL_BEACONHOST
-			UNetDriver* BeaconDriver = GEngine->FindNamedNetDriver(CurWorld, NAME_BeaconDriver);
-#else
 			// Somehow, the beacon driver name got messed up in a subsequent checkin, so now has to be found manually
 			UNetDriver* BeaconDriver = nullptr;
 
@@ -380,7 +368,6 @@ void ANUTActor::Tick(float DeltaSeconds)
 					}
 				}
 			}
-#endif
 
 			// Only hook when a client is connected
 			if (BeaconDriver != nullptr && BeaconDriver->ClientConnections.Num() > 0)

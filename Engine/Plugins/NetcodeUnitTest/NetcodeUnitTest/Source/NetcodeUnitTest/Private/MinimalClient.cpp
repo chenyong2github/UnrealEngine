@@ -61,9 +61,7 @@ UMinimalClient::UMinimalClient(const FObjectInitializer& ObjectInitializor)
 	, UnitConn(nullptr)
 	, PendingNetActorChans()
 	, bSentBunch(false)
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 	, InternalNotifyNetworkFailureDelegateHandle()
-#endif
 {
 }
 
@@ -92,12 +90,8 @@ bool UMinimalClient::Connect(FMinClientParms Parms, FMinClientHooks Hooks)
 		{
 			if (GEngine != nullptr)
 			{
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 				InternalNotifyNetworkFailureDelegateHandle = GEngine->OnNetworkFailure().AddUObject(this,
 																&UMinimalClient::InternalNotifyNetworkFailure);
-#else
-				GEngine->OnNetworkFailure().AddUObject(this, &UMinimalClient::InternalNotifyNetworkFailure);
-#endif
 			}
 
 			if (!(MinClientFlags & EMinClientFlags::AcceptRPCs) || !!(MinClientFlags & EMinClientFlags::NotifyProcessNetEvent))
@@ -148,11 +142,7 @@ void UMinimalClient::Cleanup()
 
 	if (GEngine != nullptr)
 	{
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 		GEngine->OnNetworkFailure().Remove(InternalNotifyNetworkFailureDelegateHandle);
-#else
-		GEngine->OnNetworkFailure().RemoveUObject(this, &UMinimalClient::InternalNotifyNetworkFailure);
-#endif
 	}
 
 	// Immediately cleanup (or rather, at start of next tick, as that's earliest possible time) after sending the RPC
@@ -730,7 +720,6 @@ bool UMinimalClient::ConnectMinimalClient()
 
 			UnitControlChan->MinClient = this;
 
-#if TARGET_UE4_CL >= CL_STATELESSCONNECT
 			if (UnitConn->Handler.IsValid())
 			{
 				UnitConn->Handler->BeginHandshaking(
@@ -740,7 +729,6 @@ bool UMinimalClient::ConnectMinimalClient()
 			{
 				SendInitialJoin();
 			}
-#endif
 		}
 		else
 		{
@@ -871,12 +859,9 @@ void UMinimalClient::SendInitialJoin()
 		uint32 LocalNetworkVersion = FNetworkVersion::GetLocalNetworkVersion();
 		*ControlChanBunch << LocalNetworkVersion;
 
-#if TARGET_UE4_CL >= CL_HELLOENCRYPTION
 		FString EncryptionToken = TEXT("");
 
 		*ControlChanBunch << EncryptionToken;
-#endif
-
 
 		bool bSkipControlJoin = !!(MinClientFlags & EMinClientFlags::SkipControlJoin);
 		bool bBeaconConnect = !!(MinClientFlags & EMinClientFlags::BeaconConnect);

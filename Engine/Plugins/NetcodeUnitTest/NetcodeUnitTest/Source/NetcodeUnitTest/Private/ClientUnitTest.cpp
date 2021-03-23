@@ -1172,7 +1172,7 @@ void UClientUnitTest::StartUnitTestServer()
 			ServerParameters += FString::Printf(TEXT(" -BeaconPort=%i -NUTMonitorBeacon"), ServerBeaconPort);
 		}
 
-		ServerHandle = StartUE4UnitTestProcess(ServerParameters, true, EBuildTargetType::Server);
+		ServerHandle = StartUEUnitTestProcess(ServerParameters, true, EBuildTargetType::Server);
 
 		if (ServerHandle.IsValid())
 		{
@@ -1195,7 +1195,7 @@ void UClientUnitTest::StartUnitTestServer()
 
 			TSharedPtr<FUnitTestProcess> CurHandle = ServerHandle.Pin();
 
-			CurHandle->ProcessTag = FString::Printf(TEXT("UE4_Server_%i"), CurHandle->ProcessID);
+			CurHandle->ProcessTag = FString::Printf(TEXT("UE_Server_%i"), CurHandle->ProcessID);
 			CurHandle->BaseLogType = ELogType::Server;
 			CurHandle->LogPrefix = TEXT("[SERVER]");
 			CurHandle->MainLogColor = COLOR_CYAN;
@@ -1230,7 +1230,7 @@ FString UClientUnitTest::ConstructServerParameters()
 		ServerLogParam = TEXT(" -Log=UnitTestServer.log");
 	}
 
-	// NOTE: In the absence of "-ddc=noshared", a VPN connection can cause UE4 to take a long time to startup
+	// NOTE: In the absence of "-ddc=noshared", a VPN connection can cause UE to take a long time to startup
 	// NOTE: Without '-CrashForUAT'/'-unattended' the auto-reporter can pop up
 	// NOTE: Without '-UseAutoReporter' the crash report executable is launched
 	// NOTE: Without '?bIsLanMatch', the Steam net driver will be active, when OnlineSubsystemSteam is in use
@@ -1284,14 +1284,14 @@ TWeakPtr<FUnitTestProcess> UClientUnitTest::StartUnitTestClient(FString ConnectI
 
 	FString ClientParameters = ConstructClientParameters(ConnectIP);
 
-	ReturnVal = StartUE4UnitTestProcess(ClientParameters, bMinimized);
+	ReturnVal = StartUEUnitTestProcess(ClientParameters, bMinimized);
 
 	if (ReturnVal.IsValid())
 	{
 		auto CurHandle = ReturnVal.Pin();
 
 		// @todo #JohnBMultiClient: If you add support for multiple clients, make the log prefix numbered, also try to differentiate colours
-		CurHandle->ProcessTag = FString::Printf(TEXT("UE4_Client_%i"), CurHandle->ProcessID);
+		CurHandle->ProcessTag = FString::Printf(TEXT("UE_Client_%i"), CurHandle->ProcessID);
 		CurHandle->BaseLogType = ELogType::Client;
 		CurHandle->LogPrefix = TEXT("[CLIENT]");
 		CurHandle->MainLogColor = COLOR_GREEN;
@@ -1316,7 +1316,7 @@ FString UClientUnitTest::ConstructClientParameters(FString ConnectIP)
 		ClientLogParam = TEXT(" -Log=UnitTestClient.log");
 	}
 
-	// NOTE: In the absence of "-ddc=noshared", a VPN connection can cause UE4 to take a long time to startup
+	// NOTE: In the absence of "-ddc=noshared", a VPN connection can cause UE to take a long time to startup
 	// NOTE: Without '-CrashForUAT'/'-unattended' the auto-reporter can pop up
 	// NOTE: Without '-UseAutoReporter' the crash report executable is launched
 	FString Parameters = FPaths::GetProjectFilePath() + TEXT(" ") + ConnectIP + BaseClientURL + TEXT(" -game ") + BaseClientParameters +

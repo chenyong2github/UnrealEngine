@@ -67,7 +67,7 @@ enum class ELogType : uint32
 	/** Log output style modifiers */
 	StyleBold			= 0x00200000,					// Output text in bold
 	StyleItalic			= 0x00400000,					// Output text in italic
-	StyleUnderline		= 0x00800000,					// Output pseudo-underline text (add newline and --- chars; UE4 can't underline)
+	StyleUnderline		= 0x00800000,					// Output pseudo-underline text (add newline and --- chars; UE can't underline)
 	StyleMonospace		= 0x01000000,					// Output monospaced text (e.g. for list tab formatting); can't use bold/italic
 
 	All					= 0xFFFFFFFF,

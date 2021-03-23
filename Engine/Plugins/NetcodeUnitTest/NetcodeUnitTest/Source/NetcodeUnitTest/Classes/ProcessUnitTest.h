@@ -14,7 +14,7 @@
 // Enum definitions
 
 /**
- * Enum for different stages of error log parsing (mainly applicable to UE4 processes)
+ * Enum for different stages of error log parsing (mainly applicable to Unreal Engine processes)
  */
 enum class EErrorLogStage : uint8
 {
@@ -66,7 +66,7 @@ struct FErrorLog
 };
 
 /**
- * Struct used for handling a launched UE4 client/server process
+ * Struct used for handling a launched UE client/server process
  */
 struct FUnitTestProcess
 {
@@ -158,7 +158,7 @@ DECLARE_DELEGATE_RetVal_TwoParams(bool, FProcessLogWatch, TWeakPtr<FUnitTestProc
 
 
 /**
- * Base class for all unit tests which launch child processes, whether they be UE4 child processes, or other arbitrary programs.
+ * Base class for all unit tests which launch child processes, whether they be UE child processes, or other arbitrary programs.
  *
  * Handles management of child processes, memory usage tracking, log/stdout output gathering/printing, and crash detection.
  */
@@ -235,14 +235,14 @@ protected:
 	virtual TWeakPtr<FUnitTestProcess> StartUnitTestProcess(FString Path, FString InCommandline, bool bMinimized=true);
 
 	/**
-	 * Starts a child UE4 process, tied to the unit test
+	 * Starts a child UE process, tied to the unit test
 	 *
 	 * @param InCommandline		The commandline that the child process should use
 	 * @param bMinimized		Starts the process with the window minimized
 	 * @param Type				If we are not in Dev Editor mode, the Game/Server processes are separate - specify which here
 	 * @return					Returns a pointer to the new processes handling struct
 	 */
-	virtual TWeakPtr<FUnitTestProcess> StartUE4UnitTestProcess(FString InCommandline, bool bMinimized=true,
+	virtual TWeakPtr<FUnitTestProcess> StartUEUnitTestProcess(FString InCommandline, bool bMinimized=true,
 																EBuildTargetType Type=EBuildTargetType::Game);
 
 	/**

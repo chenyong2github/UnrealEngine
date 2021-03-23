@@ -20,14 +20,9 @@ void FFrameProfiler::Start()
 		bActive = true;
 		StatsMasterEnableAdd();
 
-
 		const FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 		OnNewFrameDelegateHandle = Stats.NewFrameDelegate.AddRaw(this, &FFrameProfiler::OnNewFrame);
-#else
-		Stats.NewFrameDelegate.AddRaw(this, &FFrameProfiler::OnNewFrame);
-#endif
 	}
 }
 
@@ -37,12 +32,7 @@ void FFrameProfiler::Stop()
 	{
 		const FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 		Stats.NewFrameDelegate.Remove(OnNewFrameDelegateHandle);
-#else
-		Stats.NewFrameDelegate.RemoveRaw(this, &FFrameProfiler::OnNewFrame);
-#endif
-
 
 		StatsMasterEnableSubtract();
 		bActive = false;

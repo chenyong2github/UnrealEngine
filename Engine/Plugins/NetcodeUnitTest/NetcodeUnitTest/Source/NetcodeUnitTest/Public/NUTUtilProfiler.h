@@ -7,7 +7,7 @@
 
 #if STATS
 /**
- * Uses the inbuilt UE4 profiler, to probe the specified profiling events performance,
+ * Uses the inbuilt UE profiler, to probe the specified profiling events performance,
  * and to detect if the event uses up more than the specified percentage of frame time.
  *
  * NOTE: Only works with SCOPE_CYCLE_COUNTER stats
@@ -77,11 +77,8 @@ protected:
 	/** Whether or not profiling is active */
 	bool bActive;
 
-
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 	/** Handle to the registered OnNewFrame delegate */
 	FDelegateHandle OnNewFrameDelegateHandle;
-#endif
 };
 #endif
 

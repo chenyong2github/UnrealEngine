@@ -97,7 +97,7 @@ TWeakPtr<FUnitTestProcess> UProcessUnitTest::StartUnitTestProcess(FString Path, 
 	return ReturnVal;
 }
 
-TWeakPtr<FUnitTestProcess> UProcessUnitTest::StartUE4UnitTestProcess(FString InCommandline, bool bMinimized/*=true*/,
+TWeakPtr<FUnitTestProcess> UProcessUnitTest::StartUEUnitTestProcess(FString InCommandline, bool bMinimized/*=true*/,
 																		EBuildTargetType Type/*=EBuildTargetType::Game*/)
 {
 	TWeakPtr<FUnitTestProcess> ReturnVal = nullptr;
@@ -126,8 +126,8 @@ TWeakPtr<FUnitTestProcess> UProcessUnitTest::StartUE4UnitTestProcess(FString InC
 
 		if (CurHandle->ProcessHandle.IsValid())
 		{
-			CurHandle->ProcessTag = FString::Printf(TEXT("UE4_%i"), CurHandle->ProcessID);
-			CurHandle->LogPrefix = FString::Printf(TEXT("[UE4%i]"), CurHandle->ProcessID);
+			CurHandle->ProcessTag = FString::Printf(TEXT("UE_%i"), CurHandle->ProcessID);
+			CurHandle->LogPrefix = FString::Printf(TEXT("[UE%i]"), CurHandle->ProcessID);
 		}
 	}
 
@@ -148,11 +148,7 @@ void UProcessUnitTest::ShutdownUnitTestProcess(TSharedPtr<FUnitTestProcess> InHa
 		//						is fixed.
 		FPlatformProcess::TerminateProc(InHandle->ProcessHandle);//, true);
 
-#if TARGET_UE4_CL < CL_CLOSEPROC
-		InHandle->ProcessHandle.Close();
-#else
 		FPlatformProcess::CloseProc(InHandle->ProcessHandle);
-#endif
 	}
 
 	FPlatformProcess::ClosePipe(InHandle->ReadPipe, InHandle->WritePipe);
@@ -269,8 +265,8 @@ void UProcessUnitTest::UpdateProcessStats()
 
 void UProcessUnitTest::CheckOutputForError(TSharedPtr<FUnitTestProcess> InProcess, const TArray<FString>& InLines)
 {
-	// Perform error parsing, for UE4 processes
-	if (InProcess->ProcessTag.StartsWith(TEXT("UE4_")))
+	// Perform error parsing, for UE processes
+	if (InProcess->ProcessTag.StartsWith(TEXT("UE_")))
 	{
 		// Array of log messages that can indicate the start of an error
 		static const TArray<FString> ErrorStartLogs = TArrayBuilder<FString>()
@@ -506,11 +502,7 @@ void UProcessUnitTest::PollProcessOutput()
 				TArray<FString> LogLines;
 				
 				// @todo #JohnB: Perhaps add support for both platforms line terminator, at some stage
-#if TARGET_UE4_CL < CL_STRINGPARSEARRAY
-				CurValue.ParseIntoArray(&LogLines, LINE_TERMINATOR, true);
-#else
 				CurValue.ParseIntoArray(LogLines, LINE_TERMINATOR, true);
-#endif
 
 
 				// For process logs, replace the timestamp/category with a tag (e.g. [SERVER]), and set a unique colour so it stands out

@@ -67,11 +67,7 @@ public:
 
 	virtual void PostActorCreated() override;
 
-#if TARGET_UE4_CL < CL_CONSTNETCONN
-	virtual UNetConnection* GetNetConnection() override;
-#else
 	virtual UNetConnection* GetNetConnection() const override;
-#endif
 
 	bool NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch);
 

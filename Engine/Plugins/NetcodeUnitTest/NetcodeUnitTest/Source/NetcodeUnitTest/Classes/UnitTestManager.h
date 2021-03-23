@@ -57,7 +57,7 @@ public:
 	uint8 MaxAutoCloseCount;
 
 
-	/** The number of recorded session where UE4 has run unit tests (max one per each run of the UE4 process) */
+	/** The number of recorded sessions where UE has run unit tests (max one per each run of the UE process) */
 	UPROPERTY(config)
 	uint32 UnitTestSessionCount;
 

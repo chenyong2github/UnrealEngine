@@ -247,13 +247,8 @@ void FWorldTickHook::Init()
 {
 	if (AttachedWorld != nullptr)
 	{
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 		TickDispatchDelegateHandle  = AttachedWorld->OnTickDispatch().AddRaw(this, &FWorldTickHook::TickDispatch);
 		PostTickFlushDelegateHandle = AttachedWorld->OnPostTickFlush().AddRaw(this, &FWorldTickHook::PostTickFlush);
-#else
-		AttachedWorld->OnTickDispatch().AddRaw(this, &FWorldTickHook::TickDispatch);
-		AttachedWorld->OnPostTickFlush().AddRaw(this, &FWorldTickHook::PostTickFlush);
-#endif
 	}
 }
 
@@ -261,13 +256,8 @@ void FWorldTickHook::Cleanup()
 {
 	if (AttachedWorld != nullptr)
 	{
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 		AttachedWorld->OnPostTickFlush().Remove(PostTickFlushDelegateHandle);
 		AttachedWorld->OnTickDispatch().Remove(TickDispatchDelegateHandle);
-#else
-		AttachedWorld->OnPostTickFlush().RemoveRaw(this, &FWorldTickHook::PostTickFlush);
-		AttachedWorld->OnTickDispatch().RemoveRaw(this, &FWorldTickHook::TickDispatch);
-#endif
 	}
 
 	AttachedWorld = nullptr;

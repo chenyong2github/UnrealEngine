@@ -567,10 +567,7 @@ protected:
 	/** Whether or not a bunch was successfully sent */
 	bool bSentBunch;
 
-
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 private:
 	/** Handle to the registered InternalNotifyNetworkFailure delegate */
 	FDelegateHandle InternalNotifyNetworkFailureDelegateHandle;
-#endif
 };

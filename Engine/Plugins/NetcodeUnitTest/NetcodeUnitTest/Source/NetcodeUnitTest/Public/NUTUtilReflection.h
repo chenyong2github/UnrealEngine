@@ -16,7 +16,7 @@ class FFuncReflection;
  * FVMReflection - Reflection Helper
  *
  * Description:
- *	The purpose of the reflection helper, is to allow complete access to the UE4 UScript/Blueprint Virtual Machine through reflection,
+ *	The purpose of the reflection helper, is to allow complete access to the UE UScript/Blueprint Virtual Machine through reflection,
  *	i.e. without directly/statically referencing any classes/structs/variables/etc., referencing them all only by name/string instead,
  *	so anything using the VM can be accessed without a dependency on other packages (and without compile fails when something changes).
  *

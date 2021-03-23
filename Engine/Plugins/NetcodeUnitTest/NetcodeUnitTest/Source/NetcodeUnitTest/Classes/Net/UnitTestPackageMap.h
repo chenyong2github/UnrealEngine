@@ -36,17 +36,6 @@ class UUnitTestPackageMap : public UPackageMapClient
 {
 	GENERATED_UCLASS_BODY()
 
-#if TARGET_UE4_CL < CL_DEPRECATENEW
-	UUnitTestPackageMap(const FObjectInitializer& ObjectInitializer, UNetConnection* InConnection,
-						TSharedPtr<FNetGUIDCache> InNetGUIDCache)
-		: UPackageMapClient(ObjectInitializer, InConnection, InNetGUIDCache)
-		, bWithinSerializeNewActor(false)
-		, bPendingArchetypeSpawn(false)
-	{
-	}
-#endif
-
-
 	virtual bool SerializeObject(FArchive& Ar, UClass* InClass, UObject*& Obj, FNetworkGUID* OutNetGUID=nullptr) override;
 
 	virtual bool SerializeName(FArchive& Ar, FName& InName) override;

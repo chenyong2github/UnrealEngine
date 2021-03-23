@@ -148,10 +148,8 @@ protected:
 	int									LogHeight;
 
 
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 	/** Handles to registered OnWindowClosed delegates for particular windows */
 	TMap<SLogWindow*, FDelegateHandle> OnWindowClosedDelegateHandles;
-#endif
 };
 
 

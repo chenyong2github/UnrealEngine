@@ -272,14 +272,12 @@ public:
 	/** The world this is attached to */
 	UWorld* AttachedWorld;
 
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 private:
 	/** Handle for Tick dispatch delegate */
 	FDelegateHandle TickDispatchDelegateHandle;
 
 	/** Handle for PostTick dispatch delegate */
 	FDelegateHandle PostTickFlushDelegateHandle;
-#endif
 };
 
 

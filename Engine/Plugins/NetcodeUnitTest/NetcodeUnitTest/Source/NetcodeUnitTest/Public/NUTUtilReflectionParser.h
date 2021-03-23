@@ -7,11 +7,11 @@
 class FVMReflection;
 
 /**
- * FVMReflectionParser - A string interface for FVMReflection, which performs reflection on the UE4 virtual machine.
+ * FVMReflectionParser - A string interface for FVMReflection, which performs reflection on the UE virtual machine.
  *
  * This allows access to reflection through console commands, using a lexer which implements C++ style syntax for parsing.
  *
- * This aims to provide easy access to everything in the UE4 VM - like a supercharged version of the 'get/set' commands,
+ * This aims to provide easy access to everything in the UE VM - like a supercharged version of the 'get/set' commands,
  * able to access and step-through any variable/array/struct type and call any function with any parameter types, with no limitations
  * (all of which FVMReflection is capable of on its own, but lacking a string interface).
  */

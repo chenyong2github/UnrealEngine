@@ -2329,11 +2329,11 @@ static bool UnitTestExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 		bReturnVal = true;
 	}
 	/**
-	 * Implements a command for utilizing the UE4 reflection system, through the NetcodeUnitTest FVMReflection helper class.
-	 * This is like a supercharged version of the 'get/set' commands, able to access anything in the UE4 VM, using C++-like syntax.
+	 * Implements a command for utilizing the UE reflection system, through the NetcodeUnitTest FVMReflection helper class.
+	 * This is like a supercharged version of the 'get/set' commands, able to access anything in the UE VM, using C++-like syntax.
 	 *
 	 * This can save lots of time spent debugging using other means (e.g. log messages and associated recompiling/launching),
-	 * by allowing much better reach through the UE4 VM - almost like writing/executing code from the console.
+	 * by allowing much better reach through the UE VM - almost like writing/executing code from the console.
 	 *
 	 *
 	 * Basic Usage:

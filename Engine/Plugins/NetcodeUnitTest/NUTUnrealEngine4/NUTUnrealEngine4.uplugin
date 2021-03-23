@@ -3,7 +3,7 @@
 	"Version" : 1,
 	"VersionName" : "1.0",
 	"FriendlyName" : "Netcode Unit Test - Unreal Engine 4",
-	"Description" : "Exploit unit tests for UE4 and some base UE4 games, based on the Netcode Unit Test framework",
+	"Description" : "Exploit unit tests for Unreal Engine and some base Unreal Engine games, based on the Netcode Unit Test framework",
 	"Category" : "Networking",
 	"CreatedBy" : "Epic Games, Inc.",
 	"CreatedByURL" : "http://epicgames.com",

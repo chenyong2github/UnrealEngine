@@ -97,7 +97,7 @@ FString FUnitTestEnvironment::GetDefaultServerParameters(FString InLogCmds/*=TEX
 	}
 
 	// Need to force all shader compilation, to happen with ShaderCompileWorker, so it can be detected easily;
-	// sometimes it would occur within threads in the main UE4 process, which was not possible to detect, and which this disables
+	// sometimes it would occur within threads in the main UE process, which was not possible to detect, and which this disables
 	ReturnVal += TEXT(" -ini:Engine:[DevOptions.Shaders]:bAllowAsynchronousShaderCompiling=False");
 
 	// Need to disable Steam by default, on servers, to eliminate spurious warnings
@@ -131,7 +131,7 @@ FString FUnitTestEnvironment::GetDefaultClientParameters()
 	}
 
 	// Need to force all shader compilation, to happen with ShaderCompileWorker, so it can be detected easily;
-	// sometimes it would occur within threads in the main UE4 process, which was not possible to detect, and which this disables
+	// sometimes it would occur within threads in the main UE process, which was not possible to detect, and which this disables
 	ReturnVal += TEXT(" -ini:Engine:[DevOptions.Shaders]:bAllowAsynchronousShaderCompiling=False");
 
 	SetupDefaultClientParameters(ReturnVal);

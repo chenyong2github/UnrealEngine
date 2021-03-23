@@ -47,9 +47,7 @@ class FNetcodeUnitTest : public INetcodeUnitTest
 private:
 	static FWorldDelegates::FWorldInitializationEvent::FDelegate OnWorldCreatedDelegate;
 
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 	static FDelegateHandle OnWorldCreatedDelegateHandle;
-#endif
 
 	static FDelegateHandle DumpRPCsHandle;
 
@@ -68,11 +66,7 @@ public:
 			OnWorldCreatedDelegate = FWorldDelegates::FWorldInitializationEvent::FDelegate::CreateStatic(
 										&FNetcodeUnitTest::OnWorldCreated);
 
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 			OnWorldCreatedDelegateHandle = FWorldDelegates::OnPreWorldInitialization.Add(OnWorldCreatedDelegate);
-#else
-			FWorldDelegates::OnPreWorldInitialization.Add(OnWorldCreatedDelegate);
-#endif
 
 			bSetDelegate = true;
 		}
@@ -170,11 +164,7 @@ public:
 		}
 
 		// Now remove it, so it's only called once
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 		FWorldDelegates::OnPreWorldInitialization.Remove(OnWorldCreatedDelegateHandle);
-#else
-		FWorldDelegates::OnPreWorldInitialization.Remove(OnWorldCreatedDelegate);
-#endif
 	}
 
 	// @todo #JohnB: Presently this has a 'bug' (feature?) where it logs not just received RPC's, but sent RPC's as well.
@@ -205,9 +195,7 @@ public:
 
 FWorldDelegates::FWorldInitializationEvent::FDelegate FNetcodeUnitTest::OnWorldCreatedDelegate = nullptr;
 
-#if TARGET_UE4_CL >= CL_DEPRECATEDEL
 FDelegateHandle FNetcodeUnitTest::OnWorldCreatedDelegateHandle;
-#endif
 
 FDelegateHandle FNetcodeUnitTest::DumpRPCsHandle;
 

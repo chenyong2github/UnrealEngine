@@ -30,11 +30,7 @@ public:
 		auto OwnerWidget = this->OwnerTablePtr.Pin();
 
 		// When the user starts dragging a log line, treat that as the start of selecting multiple-lines
-#if TARGET_UE4_CL < CL_GETSELECTIONMODE
-		if (OwnerWidget->Private_GetSelectionMode() == ESelectionMode::Multi)
-#else
 		if (this->GetSelectionMode() == ESelectionMode::Multi)
-#endif
 		{
 			const ItemType* MyItem = OwnerWidget->Private_ItemFromWidget(this);
 
@@ -58,11 +54,7 @@ public:
 		auto OwnerWidget = this->OwnerTablePtr.Pin();
 
 		// Each time the user mouses-over another log line when dragging, select all lines from the dragged line to the current line
-#if TARGET_UE4_CL < CL_GETSELECTIONMODE
-		if (OwnerWidget->Private_GetSelectionMode() == ESelectionMode::Multi && OwnerWidget->Private_GetNumSelectedItems() > 0)
-#else
 		if (this->GetSelectionMode() == ESelectionMode::Multi && OwnerWidget->Private_GetNumSelectedItems() > 0)
-#endif
 		{
 			const ItemType* MyItem = OwnerWidget->Private_ItemFromWidget(this);
 
