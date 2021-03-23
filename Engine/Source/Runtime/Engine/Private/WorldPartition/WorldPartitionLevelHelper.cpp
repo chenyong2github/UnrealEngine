@@ -11,6 +11,7 @@
 
 #include "FileHelpers.h"
 #include "UnrealEngine.h"
+#include "UObject/UObjectHash.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartition.h"
