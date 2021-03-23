@@ -28,7 +28,7 @@ enum class ETimecodeSynchronizationSyncMode
 	 * Synchronization will be achieved once the synchronizer detects all input sources have frames that correspond
 	 * with the offset timecode.
 	 *
-	 * This is suitable for applications trying to keep multiple UE4 instances in sync while using nDisplay / genlock.
+	 * This is suitable for applications trying to keep multiple Unreal Engine instances in sync while using nDisplay / genlock.
 	 */
 	UserDefinedOffset,
 
@@ -36,7 +36,7 @@ enum class ETimecodeSynchronizationSyncMode
 	 * Engine will try and automatically determine an appropriate offset based on what frames are available
 	 * on the given sources.
 	 *
-	 * This is suitable for running a single UE4 instance that just wants to synchronize its inputs.
+	 * This is suitable for running a single Unreal Engine instance that just wants to synchronize its inputs.
 	 */
 	Auto,
 

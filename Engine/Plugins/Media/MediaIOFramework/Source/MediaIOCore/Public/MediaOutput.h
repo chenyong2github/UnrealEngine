@@ -33,7 +33,7 @@ enum class EMediaCaptureSourceType : int8
  * Abstract base class for media output.
  *
  * Media output describe the location and/or settings of media objects that can
- * be used to output the content of UE4 to a target device via a MediaCapture.
+ * be used to output the content of Unreal Engine to a target device via a MediaCapture.
  */
 UCLASS(Abstract, editinlinenew, BlueprintType, hidecategories = (Object))
 class MEDIAIOCORE_API UMediaOutput : public UObject

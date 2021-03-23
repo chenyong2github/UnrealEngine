@@ -54,13 +54,13 @@ DEFINE_LOG_CATEGORY(LogLiveLink);
 static TAutoConsoleVariable<int32> CVarMaxNewStaticDataPerUpdate(
 	TEXT("LiveLink.Client.MaxNewStaticDataPerUpdate"),
 	64,
-	TEXT("Maximun number of new static data that can be added in a single UE4 frame."),
+	TEXT("Maximun number of new static data that can be added in a single UE frame."),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarMaxNewFrameDataPerUpdate(
 	TEXT("LiveLink.Client.MaxNewFrameDataPerUpdate"),
 	64,
-	TEXT("Maximun number of new frame data that can be added in a single UE4 frame."),
+	TEXT("Maximun number of new frame data that can be added in a single UE frame."),
 	ECVF_Default);
 
 

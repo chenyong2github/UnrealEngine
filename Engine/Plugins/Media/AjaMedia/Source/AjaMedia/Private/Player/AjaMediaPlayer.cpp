@@ -385,7 +385,7 @@ void FAjaMediaPlayer::VerifyFrameDropCount()
 		}
 		else if (PreviousFrameDropCount > 0)
 		{
-			UE_LOG(LogAjaMedia, Warning, TEXT("Lost %d frames on input %s. UE4 frame rate is too slow and the capture card was not able to send the frame(s) to UE4."), PreviousFrameDropCount, *GetUrl());
+			UE_LOG(LogAjaMedia, Warning, TEXT("Lost %d frames on input %s. Unreal Engine's frame rate is too slow and the capture card was not able to send the frame(s) to Unreal."), PreviousFrameDropCount, *GetUrl());
 			PreviousFrameDropCount = 0;
 		}
 		LastFrameDropCount = FrameDropCount;

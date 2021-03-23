@@ -21,7 +21,7 @@ enum class EBlackmagicMediaSourceColorFormat : uint8
 };
 
 /**
- * Available number of audio channel supported by UE4 & Capture card.
+ * Available number of audio channel supported by Unreal Engine & Capture card.
  */
 UENUM(BlueprintType)
 enum class EBlackmagicMediaAudioChannel : uint8

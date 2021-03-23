@@ -55,13 +55,13 @@ public:
 	virtual bool UpdateSubjectStaticData(const FName SubjectName, TSubclassOf<ULiveLinkRole> Role, FLiveLinkStaticDataStruct&& StaticData) = 0;
 
 	/**
-	 * Inform UE4 that a subject won't be streamed anymore.
+	 * Inform UE that a subject won't be streamed anymore.
 	 * @param SubjectName	The name of the subject.
 	 */
 	virtual void RemoveSubject(const FName SubjectName) = 0;
 
 	/**
-	 * Send the static data of a subject to UE4.
+	 * Send the static data of a subject to UE.
 	 * @param SubjectName	The name of the subject
 	 * @param StaticData	The frame data of the subject. The type should match the role's data send with UpdateSubjectStaticData.
 							The FLiveLinkFrameDataStruct doesn't have a copy constructor.

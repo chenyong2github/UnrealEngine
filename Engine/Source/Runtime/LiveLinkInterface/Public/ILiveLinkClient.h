@@ -103,7 +103,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 /**
- * Interface for streaming and consuming data from external sources into UE4.
+ * Interface for streaming and consuming data from external sources into UE.
  * A LiveLinkSource, may stream multiple LiveLinkSubject.
  * Pushing and evaluating data can be executed on any thread. The other functions must be executed on the Game Thread.
  * Subject may shared name between sources, but only 1 of those subjects may be enabled.

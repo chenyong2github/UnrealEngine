@@ -19,7 +19,7 @@ enum class EAjaMediaSourceColorFormat : uint8
 };
 
 /**
- * Available number of audio channel supported by UE4 & AJA
+ * Available number of audio channel supported by Unreal Engine & AJA
  */
 UENUM()
 enum class EAjaMediaAudioChannel : uint8

@@ -376,7 +376,7 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 	switch (InBlackmagicMediaOutput->OutputConfiguration.MediaConfiguration.MediaConnection.TransportType)
 	{
 	case EMediaIOTransportType::SingleLink:
-	case EMediaIOTransportType::HDMI: // Blackmagic support HDMI but it is not shown in UE4 UI. It's configured in BMD design tool and it's consider a normal link by UE4.
+	case EMediaIOTransportType::HDMI: // Blackmagic support HDMI but it is not shown in UE's UI. It's configured in BMD design tool and it's considered a normal link by UE.
 		ChannelOptions.LinkConfiguration = BlackmagicDesign::ELinkConfiguration::SingleLink;
 		break;
 	case EMediaIOTransportType::DualLink:
