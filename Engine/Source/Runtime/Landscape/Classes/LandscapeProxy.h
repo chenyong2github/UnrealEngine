@@ -119,7 +119,7 @@ enum class ELandscapeImportAlphamapType : uint8
 {
 	// Three layers blended 50/30/20 represented as 0.5, 0.3, and 0.2 in the alpha maps
 	// All alpha maps for blended layers total to 1.0
-	// This is the style used by UE4 internally for blended layers
+	// This is the style used by UE internally for blended layers
 	Additive,
 
 	// Three layers blended 50/30/20 represented as 0.5, 0.6, and 1.0 in the alpha maps

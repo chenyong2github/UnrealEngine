@@ -2505,7 +2505,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 
 		LandscapeGuid = Landscape->LandscapeGuid;
 
-		//@todo UE4 merge, landscape, this needs work
+		//@todo UE merge, landscape, this needs work
 		RootComponent->SetRelativeScale3D(Landscape->GetRootComponent()->GetComponentToWorld().GetScale3D());
 
 		//PrePivot = Landscape->PrePivot;
