@@ -146,7 +146,7 @@ namespace LowLevelTasks
 
 			void Push(FSleepEvent* Item)
 			{
-				checkSlow(Item != nullptr);
+				check(Item != nullptr);
 				checkSlow(reinterpret_cast<uintptr_t>(Item) < (1ull << 48));
 				checkSlow((reinterpret_cast<uintptr_t>(Item) & 0x7) == 0);
 				checkSlow(Item->Next == nullptr);
