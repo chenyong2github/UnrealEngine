@@ -297,6 +297,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 		FViewInfo& View = Views[ViewIndex];
 		FForwardLightData& ForwardLightData = View.ForwardLightingResources->ForwardLightData;
 		ForwardLightData = FForwardLightData();
+		View.ForwardLightingResources->SelectedForwardDirectionalLightProxy = nullptr;
 
 		TArray<FForwardLocalLightData, SceneRenderingAllocator> ForwardLocalLightData;
 #if ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
@@ -470,6 +471,8 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 					}
 					else if (SortedLightInfo.SortKey.Fields.LightType == LightType_Directional && ViewFamily.EngineShowFlags.DirectionalLights)
 					{
+						View.ForwardLightingResources->SelectedForwardDirectionalLightProxy = LightProxy;
+
 						ForwardLightData.HasDirectionalLight = 1;
 						ForwardLightData.DirectionalLightColor = LightParameters.Color;
 						ForwardLightData.DirectionalLightVolumetricScatteringIntensity = LightProxy->GetVolumetricScatteringIntensity();

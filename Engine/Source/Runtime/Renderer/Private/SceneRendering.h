@@ -659,6 +659,8 @@ class FForwardLightingViewResources
 {
 public:
 	FForwardLightData ForwardLightData;
+	const FLightSceneProxy* SelectedForwardDirectionalLightProxy = nullptr;
+
 	TUniformBufferRef<FForwardLightData> ForwardLightDataUniformBuffer;
 	FDynamicReadBuffer ForwardLocalLightBuffer;
 	FRWBuffer NumCulledLightsGrid;

@@ -19,6 +19,18 @@
 RWTexture3D<float4> RWVBufferA;
 RWTexture3D<float4> RWVBufferB;
 
+#ifndef USE_CLOUD_TRANSMITTANCE
+#define USE_CLOUD_TRANSMITTANCE 0
+#endif
+#if USE_CLOUD_TRANSMITTANCE
+#include "VolumetricCloudCommon.ush"
+Texture2D<float3>	CloudShadowmapTexture;
+SamplerState		CloudShadowmapSampler;
+float				CloudShadowmapFarDepthKm;
+float4x4			CloudShadowmapWorldToLightClipMatrix;
+float				CloudShadowmapStrength;
+#endif
+
 float ComputeDepthFromZSlice(float ZSlice)
 {
 	float SliceDepth = (exp2(ZSlice / VolumetricFog.GridZParams.z) - VolumetricFog.GridZParams.y) / VolumetricFog.GridZParams.x;
@@ -489,6 +501,11 @@ void LightScatteringCS(
 			{
 				ShadowFactor *= ComputeDirectionalLightStaticShadowing(WorldPosition);
 				ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPosition, SceneDepth);
+
+			#if USE_CLOUD_TRANSMITTANCE
+				float OutOpticalDepth = 0.0f; 
+				ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(WorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
+			#endif
 			}
 
 			ShadowFactor *= GetLightFunction(WorldPosition);

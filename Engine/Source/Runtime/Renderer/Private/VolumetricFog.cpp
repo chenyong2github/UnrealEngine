@@ -19,6 +19,7 @@ VolumetricFog.cpp
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "Math/Halton.h"
+#include "VolumetricCloudRendering.h"
 
 IMPLEMENT_TYPE_LAYOUT(FVolumetricFogIntegrationParameters);
 IMPLEMENT_TYPE_LAYOUT(FVolumeShadowingParameters);
@@ -542,12 +543,14 @@ class TVolumetricFogLightScatteringCS : public FGlobalShader
 
 	class FTemporalReprojection			: SHADER_PERMUTATION_BOOL("USE_TEMPORAL_REPROJECTION");
 	class FDistanceFieldSkyOcclusion	: SHADER_PERMUTATION_BOOL("DISTANCE_FIELD_SKY_OCCLUSION");
-	class FSuperSampleCount				: SHADER_PERMUTATION_RANGE_INT("HISTORY_MISS_SUPER_SAMPLE_COUNT",1,16);
+	class FSuperSampleCount				: SHADER_PERMUTATION_RANGE_INT("HISTORY_MISS_SUPER_SAMPLE_COUNT", 1, 16);
+	class FCloudTransmittance			: SHADER_PERMUTATION_BOOL("USE_CLOUD_TRANSMITTANCE");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FSuperSampleCount,
 		FTemporalReprojection,
-		FDistanceFieldSkyOcclusion >;
+		FDistanceFieldSkyOcclusion,
+		FCloudTransmittance>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -599,6 +602,12 @@ public:
 		UseDirectionalLightShadowing.Bind(Initializer.ParameterMap, TEXT("UseDirectionalLightShadowing"));
 		AOParameters.Bind(Initializer.ParameterMap);
 		GlobalDistanceFieldParameters.Bind(Initializer.ParameterMap);
+
+		CloudShadowmapTexture.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapTexture"));
+		CloudShadowmapSampler.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapSampler"));
+		CloudShadowmapFarDepthKm.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapFarDepthKm"));
+		CloudShadowmapWorldToLightClipMatrix.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapWorldToLightClipMatrix"));
+		CloudShadowmapStrength.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapStrength"));
 	}
 
 	TVolumetricFogLightScatteringCS()
@@ -612,7 +621,10 @@ public:
 		const FExponentialHeightFogSceneInfo& FogInfo,
 		FRHITexture* LightScatteringHistoryTexture,
 		bool bUseDirectionalLightShadowing,
-		const FMatrix& DirectionalLightFunctionWorldToShadowValue)
+		const FMatrix& DirectionalLightFunctionWorldToShadowValue,
+		const int AtmosphericDirectionalLightIndex,
+		const FLightSceneProxy* AtmosphereLightProxy,
+		const FVolumetricCloudRenderSceneInfo* CloudInfo)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
@@ -684,6 +696,47 @@ public:
 
 		AOParameters.Set(RHICmdList, ShaderRHI, AOParameterData);
 		GlobalDistanceFieldParameters.Set(RHICmdList, ShaderRHI, View.GlobalDistanceFieldInfo.ParameterData);
+
+		if (CloudShadowmapTexture.IsBound())
+		{
+			FMatrix CloudWorldToLightClipShadowMatrix = FMatrix::Identity;
+			float CloudShadowmap_FarDepthKm = 0.0f;
+			float CloudShadowmap_Strength = 0.0f;
+			IPooledRenderTarget* CloudShadowmap_Texture = nullptr;
+			if (CloudInfo && AtmosphericDirectionalLightIndex >= 0 && AtmosphereLightProxy)
+			{
+				CloudShadowmap_Texture = View.VolumetricCloudShadowRenderTarget[AtmosphericDirectionalLightIndex];
+				CloudWorldToLightClipShadowMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[AtmosphericDirectionalLightIndex];
+				CloudShadowmap_FarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[AtmosphericDirectionalLightIndex].X;
+				CloudShadowmap_Strength = AtmosphereLightProxy->GetCloudShadowOnSurfaceStrength();
+			}
+
+			SetTextureParameter(
+				RHICmdList,
+				ShaderRHI,
+				CloudShadowmapTexture,
+				CloudShadowmapSampler,
+				TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
+				CloudShadowmap_Texture ? CloudShadowmap_Texture->GetRenderTargetItem().ShaderResourceTexture : GBlackTexture->TextureRHI);
+
+			SetShaderValue(
+				RHICmdList,
+				ShaderRHI,
+				CloudShadowmapFarDepthKm,
+				CloudShadowmap_FarDepthKm);
+
+			SetShaderValue(
+				RHICmdList,
+				ShaderRHI,
+				CloudShadowmapWorldToLightClipMatrix,
+				CloudWorldToLightClipShadowMatrix);
+
+			SetShaderValue(
+				RHICmdList,
+				ShaderRHI,
+				CloudShadowmapStrength,
+				CloudShadowmap_Strength);
+		}
 	}
 
 private:
@@ -704,6 +757,11 @@ private:
 	LAYOUT_FIELD(FShaderParameter, UseDirectionalLightShadowing);
 	LAYOUT_FIELD(FAOParameters, AOParameters);
 	LAYOUT_FIELD(FGlobalDistanceFieldParameters, GlobalDistanceFieldParameters);
+	LAYOUT_FIELD(FShaderResourceParameter, CloudShadowmapTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, CloudShadowmapSampler);
+	LAYOUT_FIELD(FShaderParameter, CloudShadowmapFarDepthKm);
+	LAYOUT_FIELD(FShaderParameter, CloudShadowmapWorldToLightClipMatrix);
+	LAYOUT_FIELD(FShaderParameter, CloudShadowmapStrength);
 };
 
 IMPLEMENT_GLOBAL_SHADER(TVolumetricFogLightScatteringCS, "/Engine/Private/VolumetricFog.usf", "LightScatteringCS", SF_Compute);
@@ -980,6 +1038,30 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 		FRDGTexture* LightFunctionTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
 		bool bUseDirectionalLightShadowing;
 
+		// Recover the information about the light use as the forward directional light for cloud shadowing
+		int AtmosphericDirectionalLightIndex = -1;
+		FLightSceneProxy* AtmosphereLightProxy = nullptr;
+		if(View.ForwardLightingResources->SelectedForwardDirectionalLightProxy)
+		{
+			FLightSceneProxy* AtmosphereLight0Proxy = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0]->Proxy : nullptr;
+			FLightSceneProxy* AtmosphereLight1Proxy = Scene->AtmosphereLights[1] ? Scene->AtmosphereLights[1]->Proxy : nullptr;
+			FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
+			const bool VolumetricCloudShadowMap0Valid = View.VolumetricCloudShadowRenderTarget[0].IsValid();
+			const bool VolumetricCloudShadowMap1Valid = View.VolumetricCloudShadowRenderTarget[1].IsValid();
+			const bool bLight0CloudPerPixelTransmittance = CloudInfo && VolumetricCloudShadowMap0Valid && View.ForwardLightingResources->SelectedForwardDirectionalLightProxy == AtmosphereLight0Proxy && AtmosphereLight0Proxy && AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
+			const bool bLight1CloudPerPixelTransmittance = CloudInfo && VolumetricCloudShadowMap1Valid && View.ForwardLightingResources->SelectedForwardDirectionalLightProxy == AtmosphereLight1Proxy && AtmosphereLight1Proxy && AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
+			if (bLight0CloudPerPixelTransmittance)
+			{
+				AtmosphereLightProxy = AtmosphereLight0Proxy;
+				AtmosphericDirectionalLightIndex = 0;
+			}
+			else if (bLight1CloudPerPixelTransmittance)
+			{
+				AtmosphereLightProxy = AtmosphereLight1Proxy;
+				AtmosphericDirectionalLightIndex = 1;
+			}
+		}
+
 		RenderLightFunctionForVolumetricFog(
 			GraphBuilder,
 			View,
@@ -1077,6 +1159,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			PermutationVector.Set< TVolumetricFogLightScatteringCS::FTemporalReprojection >(bUseTemporalReprojection);
 			PermutationVector.Set< TVolumetricFogLightScatteringCS::FDistanceFieldSkyOcclusion >(bUseDistanceFieldSkyOcclusion);
 			PermutationVector.Set< TVolumetricFogLightScatteringCS::FSuperSampleCount >(GVolumetricFogHistoryMissSupersampleCount);
+			PermutationVector.Set< TVolumetricFogLightScatteringCS::FCloudTransmittance >(AtmosphericDirectionalLightIndex >= 0);
 
 			auto ComputeShader = View.ShaderMap->GetShader< TVolumetricFogLightScatteringCS >(PermutationVector);
 			ClearUnusedGraphResources(ComputeShader, PassParameters);
@@ -1091,7 +1174,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 					PassParameters->LightFunctionTexture ? TEXT("LF") : TEXT("")),
 				PassParameters,
 				ERDGPassFlags::Compute,
-				[PassParameters, ComputeShader, &View, this, FogInfo, bUseTemporalReprojection, VolumetricFogGridSize, IntegrationData, bUseDirectionalLightShadowing, bUseDistanceFieldSkyOcclusion, LightFunctionWorldToShadow](FRHICommandListImmediate& RHICmdList)
+				[PassParameters, ComputeShader, &View, this, FogInfo, bUseTemporalReprojection, VolumetricFogGridSize, IntegrationData, bUseDirectionalLightShadowing, bUseDistanceFieldSkyOcclusion, LightFunctionWorldToShadow, AtmosphericDirectionalLightIndex, AtmosphereLightProxy](FRHICommandListImmediate& RHICmdList)
 			{
 				const FIntVector NumGroups = FIntVector::DivideAndRoundUp(VolumetricFogGridSize, FIntVector(VolumetricFogLightScatteringGroupSizeX, VolumetricFogLightScatteringGroupSizeY, VolumetricFogLightScatteringGroupSizeZ));
 
@@ -1103,7 +1186,9 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 					LightScatteringHistoryTexture = View.ViewState->LightScatteringHistory->GetRenderTargetItem().ShaderResourceTexture;
 					RHICmdList.Transition(FRHITransitionInfo(LightScatteringHistoryTexture, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 				}
-				ComputeShader->SetParameters(RHICmdList, View, IntegrationData, FogInfo, LightScatteringHistoryTexture, bUseDirectionalLightShadowing, LightFunctionWorldToShadow);
+
+				FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
+				ComputeShader->SetParameters(RHICmdList, View, IntegrationData, FogInfo, LightScatteringHistoryTexture, bUseDirectionalLightShadowing, LightFunctionWorldToShadow, AtmosphericDirectionalLightIndex, AtmosphereLightProxy, CloudInfo);
 
 				SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), *PassParameters);
 				DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups.X, NumGroups.Y, NumGroups.Z);
