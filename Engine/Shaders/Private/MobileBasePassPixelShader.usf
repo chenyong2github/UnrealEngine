@@ -385,6 +385,19 @@ half3 FrameBufferBlendOp(half4 Source)
 #endif
 }
 
+#ifndef MOBILE_USE_CSM_BRANCH
+#define MOBILE_USE_CSM_BRANCH 0
+#endif
+
+bool UseCSM()
+{
+#if MOBILE_USE_CSM_BRANCH
+	return MobileBasePass.UseCSM != 0;
+#else
+	return true;
+#endif
+}
+
 void ApplyPixelDepthOffsetForMobileBasePass(inout FMaterialPixelParameters MaterialParameters, FPixelMaterialInputs PixelMaterialInputs, out float OutDepth)
 {
     float PixelDepthOffset = ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);
@@ -724,13 +737,13 @@ void Main(
 	float  ShadowPositionZ = 0;
 #if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// Cascaded Shadow Map
-	if(MobileBasePass.UseCSM)
+	if (UseCSM())
 	{
 		half ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w, ShadowPositionZ);
-	#if MOVABLE_DIRECTIONAL_LIGHT
-		Shadow = ShadowMap;
-	#else
+	#if ALLOW_STATIC_LIGHTING
 		Shadow = min(ShadowMap, Shadow);
+	#else
+		Shadow = ShadowMap;
 	#endif
 	}
 #endif /* DIRECTIONAL_LIGHT_CSM */

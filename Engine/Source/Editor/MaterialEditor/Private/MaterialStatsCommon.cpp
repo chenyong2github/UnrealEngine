@@ -430,22 +430,25 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 		}
 		else
 		{
-			static auto* CVarAllowDistanceFieldShadows = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowDistanceFieldShadows"));
-			const bool bAllowDistanceFieldShadows = CVarAllowDistanceFieldShadows->GetValueOnAnyThread() != 0;
-
-			static auto* CVarPointLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileNumDynamicPointLights"));
-			const bool bPointLights = CVarPointLights->GetValueOnAnyThread() > 0;
-
-			static auto* CVarPointLightsStaticBranch = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileDynamicPointLightsUseStaticBranch"));
-			const bool bPointLightsStaticBranch = CVarPointLightsStaticBranch->GetValueOnAnyThread() != 0;
-
+			static auto* CVarAllowStaticLighting = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+			const bool bAllowStaticLighting = CVarAllowStaticLighting->GetValueOnAnyThread() != 0;
+			
 			static auto* CVarMobileSkyLightPermutation = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SkyLightPermutation"));
 			const bool bOnlySkyPermutation = CVarMobileSkyLightPermutation->GetValueOnAnyThread() == 2;
-
-			const int32 NumPointLights = bPointLightsStaticBranch ? CVarPointLights->GetValueOnAnyThread() : 1;
-
-			if (TargetMaterial->IsUsedWithStaticLighting())
+						
+			if (bAllowStaticLighting && TargetMaterial->IsUsedWithStaticLighting())
 			{
+				static auto* CVarAllowDistanceFieldShadows = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowDistanceFieldShadows"));
+				const bool bAllowDistanceFieldShadows = CVarAllowDistanceFieldShadows->GetValueOnAnyThread() != 0;
+
+				static auto* CVarPointLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileNumDynamicPointLights"));
+				const bool bPointLights = CVarPointLights->GetValueOnAnyThread() > 0;
+
+				static auto* CVarPointLightsStaticBranch = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileDynamicPointLightsUseStaticBranch"));
+				const bool bPointLightsStaticBranch = CVarPointLightsStaticBranch->GetValueOnAnyThread() != 0;
+				
+				const int32 NumPointLights = bPointLightsStaticBranch ? CVarPointLights->GetValueOnAnyThread() : 1;
+				
 				if (bAllowDistanceFieldShadows)// distance field shadows
 				{
 					// distance field shadows only shaders
@@ -470,11 +473,11 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 						// distance field shadows & CSM shaders
 						{
 							static const FName Name_HDRLinear64 = bOnlySkyPermutation ? 
-								TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsAndLQLightMapPolicy0HDRLinear64Skylight") : 
-								TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsAndLQLightMapPolicy0HDRLinear64");
+								TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsLightMapAndCSMLightingPolicy0HDRLinear64Skylight") : 
+								TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsLightMapAndCSMLightingPolicy0HDRLinear64");
 							static const FName Name_LDRGamma32 = bOnlySkyPermutation ? 
-								TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsAndLQLightMapPolicy0LDRGamma32Skylight") : 
-								TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsAndLQLightMapPolicy0LDRGamma32");
+								TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsLightMapAndCSMLightingPolicy0LDRGamma32Skylight") : 
+								TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsLightMapAndCSMLightingPolicy0LDRGamma32");
 							static const FName ShaderName = bMobileHDR ? Name_HDRLinear64 : Name_LDRGamma32;
 
 							const FString Description = FString::Printf(TEXT("Mobile base pass shader with distance field shadows and CSM%s"), DescSuffix);
