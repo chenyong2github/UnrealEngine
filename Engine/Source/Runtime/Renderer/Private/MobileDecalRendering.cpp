@@ -187,11 +187,12 @@ FRHIBlendState* MobileDeferred_GetDecalBlendState(EDecalBlendMode DecalBlendMode
 
 void FMobileSceneRenderer::RenderDecals(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
-	if (!IsMobileHDR())
+	if (!IsMobileHDR() || !ViewFamily.EngineShowFlags.Decals || View.bIsPlanarReflection)
 	{
 		return;
 	}
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDecals);
 	SCOPE_CYCLE_COUNTER(STAT_DecalsDrawTime);
 
 	// Deferred decals

@@ -615,8 +615,12 @@ bool FMobileSceneRenderer::ShouldRenderPrePass() const
 
 void FMobileSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FInstanceCullingDrawParams* InstanceCullingDrawParams/* = nullptr*/)
 {
+	if (!ShouldRenderPrePass())
+	{
+		return;
+	}
+	
 	checkSlow(RHICmdList.IsInsideRenderPass());
-	checkSlow(ShouldRenderPrePass());
 
 	SCOPED_NAMED_EVENT(FMobileSceneRenderer_RenderPrePass, FColor::Emerald);
 	SCOPED_DRAW_EVENT(RHICmdList, MobileRenderPrePass);

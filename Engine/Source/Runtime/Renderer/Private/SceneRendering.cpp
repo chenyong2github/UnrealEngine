@@ -2864,9 +2864,9 @@ void FSceneRenderer::ComputeFamilySize()
 	check(bInitializedExtents);
 }
 
-bool FSceneRenderer::DoOcclusionQueries(ERHIFeatureLevel::Type InFeatureLevel) const
+bool FSceneRenderer::DoOcclusionQueries() const
 {
-	return InFeatureLevel >= ERHIFeatureLevel::ES3_1 && CVarAllowOcclusionQueries.GetValueOnRenderThread() != 0;
+	return CVarAllowOcclusionQueries.GetValueOnRenderThread() != 0;
 }
 
 FSceneRenderer::~FSceneRenderer()

@@ -1527,6 +1527,11 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 
 void FMobileSceneRenderer::RenderOcclusion(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
+	if (!DoOcclusionQueries())
+	{
+		return;
+	}
+
 	{
 		SCOPED_NAMED_EVENT(FMobileSceneRenderer_BeginOcclusionTests, FColor::Emerald);
 		const FViewOcclusionQueriesPerView QueriesPerView = AllocateOcclusionTests(Scene, VisibleLightInfos, Views);
