@@ -1648,6 +1648,7 @@ void UStruct::DestroyChildPropertiesAndResetPropertyLinks()
 #if WITH_EDITORONLY_DATA
 	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
 #endif // WITH_EDITORONLY_DATA
+	DestroyUnversionedSchema(this);
 }
 
 UStruct::~UStruct()
