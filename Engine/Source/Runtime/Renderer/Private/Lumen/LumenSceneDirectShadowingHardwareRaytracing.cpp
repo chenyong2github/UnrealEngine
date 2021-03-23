@@ -101,7 +101,7 @@ namespace Lumen
 		}
 
 		// Turn raytracing off if no rendering feature is enabled.
-		if (!View.GetRayTracingScene())
+		if (!View.HasRayTracingScene())
 		{
 			bUseHardwareRayTracedShadows = false;
 		}

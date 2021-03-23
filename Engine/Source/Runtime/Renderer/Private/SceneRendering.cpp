@@ -1005,6 +1005,10 @@ FViewInfo::~FViewInfo()
 }
 
 #if RHI_RAYTRACING
+bool FViewInfo::HasRayTracingScene() const
+{
+	return CreateRayTracingSceneTask.IsValid() || RayTracingSceneRHI.IsValid();
+}
 FRHIRayTracingScene* FViewInfo::GetRayTracingScene() const
 {
 	if (CreateRayTracingSceneTask.IsValid())

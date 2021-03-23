@@ -1411,6 +1411,7 @@ public:
 	FRayTracingSceneRHIRef RayTracingSceneRHI;
 	FGraphEventRef CreateRayTracingSceneTask;
 
+	bool HasRayTracingScene() const;
 	FRHIRayTracingScene* GetRayTracingScene() const;
 	FRHIRayTracingScene* GetRayTracingSceneChecked() const;
 
