@@ -53,8 +53,7 @@ private:
 	TSharedRef<SWidget> ConstructComponentWidget(int32 Index)
 	{
 		return SNew(SNumericEntryBox<float>)
-		.Font(FNiagaraEditorStyle::Get().GetFontStyle("NiagaraEditor.ParameterFont"))
-		.OverrideTextMargin(2)
+		.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 		.MinValue(TOptional<float>())
 		.MaxValue(TOptional<float>())
 		.MaxSliderValue(TOptional<float>())

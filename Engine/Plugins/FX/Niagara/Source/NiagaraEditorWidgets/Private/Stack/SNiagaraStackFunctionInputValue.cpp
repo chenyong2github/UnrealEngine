@@ -97,17 +97,28 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(3, 0, 0, 0)
+			.Padding(5, 0, 2, 0)
 			[
 				SAssignNew(SetFunctionInputButton, SComboButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
+				.HasDownArrow(false)
+				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton") // Use the tool bar item style for this button
 				.OnGetMenuContent(this, &SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu)
 				.ContentPadding(FMargin(2))
 				.Visibility(this, &SNiagaraStackFunctionInputValue::GetDropdownButtonVisibility)
 				.MenuPlacement(MenuPlacement_BelowRightAnchor)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
+				.ButtonContent()
+				[
+					SNew(SBox)
+					.WidthOverride(12)
+					.HeightOverride(12)
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.Link"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+				]
 			]
 
 			// Reset Button
@@ -119,7 +130,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 				SNew(SButton)
 				.IsFocusable(false)
 				.ToolTipText(LOCTEXT("ResetToolTip", "Reset to the default value"))
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 				.ContentPadding(0)
 				.Visibility(this, &SNiagaraStackFunctionInputValue::GetResetButtonVisibility)
 				.OnClicked(this, &SNiagaraStackFunctionInputValue::ResetButtonPressed)
@@ -127,6 +138,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 				[
 					SNew(SImage)
 					.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
 
@@ -139,7 +151,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 				SNew(SButton)
 				.IsFocusable(false)
 				.ToolTipText(LOCTEXT("ResetToBaseToolTip", "Reset this input to the value defined by the parent emitter"))
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 				.ContentPadding(0)
 				.Visibility(this, &SNiagaraStackFunctionInputValue::GetResetToBaseButtonVisibility)
 				.OnClicked(this, &SNiagaraStackFunctionInputValue::ResetToBaseButtonPressed)
@@ -495,16 +507,12 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 	TSharedPtr<SNiagaraLibraryOnlyToggleHeader> LibraryOnlyToggle;
 	TSharedPtr<SGraphActionMenu> GraphActionMenu;
 
-	TSharedRef<SBorder> MenuWidget = SNew(SBorder)
-	.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-	.Padding(5)
-	[
-		SNew(SBox)
+	TSharedRef<SBox> MenuWidget = SNew(SBox)
 		.MinDesiredWidth(300)
 		.HeightOverride(400)
 		[
 			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
+			+ SVerticalBox::Slot()
 			.Padding(1.0f)
 			[
 				SAssignNew(LibraryOnlyToggle, SNiagaraLibraryOnlyToggleHeader)
@@ -512,7 +520,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 				.LibraryOnly(this, &SNiagaraStackFunctionInputValue::GetLibraryOnly)
 				.LibraryOnlyChanged(this, &SNiagaraStackFunctionInputValue::SetLibraryOnly)
 			]
-			+SVerticalBox::Slot()
+			+ SVerticalBox::Slot()
 			.FillHeight(15)
 			[
 				SAssignNew(GraphActionMenu, SGraphActionMenu)
@@ -526,9 +534,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 					return SNew(SNiagaraGraphActionWidget, InData);
 				})
 			]
-		]
-	];
-
+		];
 	LibraryOnlyToggle->SetActionMenu(GraphActionMenu.ToSharedRef());
 	SetFunctionInputButton->SetMenuContentWidgetToFocus(GraphActionMenu->GetFilterTextBox()->AsShared());
 	return MenuWidget;

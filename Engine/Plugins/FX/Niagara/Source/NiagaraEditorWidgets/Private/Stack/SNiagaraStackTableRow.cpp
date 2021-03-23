@@ -14,6 +14,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackTableRow"
 
@@ -39,8 +40,9 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 	CollapsedImage = FCoreStyle::Get().GetBrush("TreeArrow_Collapsed");
 
 	ItemBackgroundColor = InArgs._ItemBackgroundColor;
-	DisabledItemBackgroundColor = ItemBackgroundColor + FLinearColor(.02f, .02f, .02f, 0.0f);
+	DisabledItemBackgroundColor = FStyleColors::Recessed;
 	ForegroundColor = InArgs._ItemForegroundColor;
+	IndicatorColor = InArgs._IndicatorColor;
 
 	ExecutionCategoryToolTipText = InStackEntry->GetExecutionSubcategoryName() != NAME_None
 		? FText::Format(LOCTEXT("ExecutionCategoryToolTipFormat", "{0} - {1}"), FText::FromName(InStackEntry->GetExecutionCategoryName()), FText::FromName(InStackEntry->GetExecutionSubcategoryName()))
@@ -156,7 +158,6 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		.ButtonStyle(FCoreStyle::Get(), "NoBorder")
 		.Visibility(this, &SNiagaraStackTableRow::GetExpanderVisibility)
 		.OnClicked(this, &SNiagaraStackTableRow::ExpandButtonClicked)
-		.ForegroundColor(FSlateColor::UseForeground())
 		.ContentPadding(2)
 		.HAlign(HAlign_Center)
 		[
@@ -218,7 +219,7 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 	if (InValueWidget.IsValid())
 	{
 		ChildContent = SNew(SSplitter)
-		.Style(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.Splitter")
+		.Style(FAppStyle::Get(), "DetailsView.Splitter")
 		.PhysicalSplitterHandleSize(1.0f)
 		.HitDetectionSplitterHandleSize(5.0f)
 
@@ -231,14 +232,8 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 			.Padding(FMargin(ContentPadding.Left, 0, 0, 0))
 		    .AutoWidth()
 		    [
-				 SNew(SBorder)
-		        .BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-		        .BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.DividerColor"))
-		        .Padding(0)
-		        [
-		            SNew(SBox)
-		            .WidthOverride(StackEntry->HasFrontDivider() ? 1 : 0)
-		        ]
+				SNew(SBox)
+				.WidthOverride(StackEntry->HasFrontDivider() ? 1 : 0)
 		    ]
 		    + SHorizontalBox::Slot()
             [
@@ -282,7 +277,9 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 	}
 
 	FName AccentColorName = FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName());
-	FLinearColor AccentColor = AccentColorName != NAME_None ? FNiagaraEditorWidgetsStyle::Get().GetColor(AccentColorName) : FLinearColor::Transparent;
+	const bool bDisplayingIndicator = IndicatorColor != FStyleColors::Transparent;
+	FSlateColor AccentColor = bDisplayingIndicator ? IndicatorColor : (AccentColorName != NAME_None ? FNiagaraEditorWidgetsStyle::Get().GetColor(AccentColorName) : FStyleColors::Transparent);
+
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
@@ -290,70 +287,74 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		// Accent color.
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(1, 0, 6, 0)
+		.Padding(bDisplayingIndicator ? FMargin(0, 0, 5, 0) : FMargin(1, 0, 6, 0) )
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+ 			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(AccentColor)
 			.Padding(0)
 			[
 				SNew(SBox)
-				.WidthOverride(4)
+				.WidthOverride(bDisplayingIndicator ? 6 : 4)
 			]
 		]
 		// Content
 		+ SHorizontalBox::Slot()
+		.Padding(0.0f)
 		[
 			// Row content
-			SNew(SBox)
-			.Padding(RowPadding)
+			SNew(SBorder)
+			.BorderImage(bDisplayingIndicator ? FAppStyle::Get().GetBrush("Brushes.Header") : FAppStyle::Get().GetBrush("DetailsView.GridLine"))
+			.Padding(FMargin(0, 0, 0, 1))
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(this, &SNiagaraStackTableRow::GetItemBackgroundColor)
-				.ForegroundColor(ForegroundColor)
-				.Padding(0)
-				[
-					SNew(SVerticalBox)
-					+SVerticalBox::Slot()
-					.Padding(bInsertDivAbove ? FMargin(8, 8, 8, 4) : 0)
-					.AutoHeight()
-                    [
-	                    SNew(SBorder)
-			            .BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-			            .BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.DividerColor"))
-			            .Visibility(bInsertDivAbove ? EVisibility::Visible : EVisibility::Collapsed)
-			            .Padding(0)
-			            [
-			                SNew(SBox)
-			                .HeightOverride(1)
-			            ]
-                    ]
-					+SVerticalBox::Slot()
+					SNew(SBorder)
+ 					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+					.BorderBackgroundColor(this, &SNiagaraStackTableRow::GetItemBackgroundColor)
+ 					.ForegroundColor(ForegroundColor)
+					.Padding(0)
 					[
-						SNew(SBorder)
-						.BorderImage(this, &SNiagaraStackTableRow::GetSearchResultBorderBrush)
-						.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.SearchHighlightColor"))
-						.Padding(0)
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.Padding(0.0f)
 						[
-							SNew(SBorder)
-							.BorderImage(this, &SNiagaraStackTableRow::GetSelectionBorderBrush)
+							SNew(SVerticalBox)
+							+SVerticalBox::Slot()
+							.Padding(bInsertDivAbove ? FMargin(8, 8, 8, 4) : 0)
+							.AutoHeight()
+							[
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+ 								.BorderBackgroundColor(FStyleColors::Panel)
+								.Visibility(bInsertDivAbove ? EVisibility::Visible : EVisibility::Collapsed)
+								.Padding(0)
+								[
+									SNew(SBox)
+									.HeightOverride(1)
+								]
+							]
+							+SVerticalBox::Slot()
 							.Padding(0)
 							[
-								ChildContent.ToSharedRef()
+								SNew(SBorder)
+								.BorderImage(this, &SNiagaraStackTableRow::GetSearchResultBorderBrush)
+ 								.BorderBackgroundColor(FStyleColors::Select)
+								.Padding(0)
+								[
+									ChildContent.ToSharedRef()
+								]
 							]
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(3, 0)
+						[
+							SNew(SNiagaraStackIssueIcon, StackViewModel, StackEntry)
+							.Visibility(IssueIconVisibility)
 						]
 					]
 				]
 			]
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(3, 0, 0, 0)
-		[
-			SNew(SNiagaraStackIssueIcon, StackViewModel, StackEntry)
-			.Visibility(IssueIconVisibility)
-		]
+		
 	];
 }
 

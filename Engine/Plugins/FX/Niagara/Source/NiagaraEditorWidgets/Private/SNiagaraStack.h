@@ -102,7 +102,6 @@ private:
 	void CollapseAll();
 
 	TSharedRef<SWidget> GetViewOptionsMenu() const;
-	const FSlateBrush* GetViewOptionsIconBrush() const;
 
 	// Drag/Drop
 	FReply OnRowDragDetected(const FGeometry& InGeometry, const FPointerEvent& InPointerEvent, UNiagaraStackEntry* InStackEntry);

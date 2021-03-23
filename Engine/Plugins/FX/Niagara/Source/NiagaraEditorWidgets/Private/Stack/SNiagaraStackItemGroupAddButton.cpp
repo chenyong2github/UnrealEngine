@@ -28,53 +28,33 @@ void SNiagaraStackItemGroupAddButton::Construct(const FArguments& InArgs, UNiaga
 		if (AddUtilities->GetAddMode() == INiagaraStackItemGroupAddUtilities::AddFromAction)
 		{
 			Content = SAssignNew(AddActionButton, SComboButton)
-				.ButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.AddButton")
-				.ButtonColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(InStackItemGroup.GetExecutionCategoryName())))
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				.ToolTipText(FText::Format(AddToGroupFormat, AddUtilities->GetAddItemName()))
 				.HasDownArrow(false)
 				.OnGetMenuContent(this, &SNiagaraStackItemGroupAddButton::GetAddMenu)
 				.IsEnabled_UObject(&InStackItemGroup, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
-				.ContentPadding(0)
+				.ContentPadding(1.0f)
 				.MenuPlacement(MenuPlacement_BelowRightAnchor)
 				.ButtonContent()
 				[
-					SNew(SBox)
-					.WidthOverride(InArgs._Width)
-					.HeightOverride(TextIconSize)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						//.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.AddButtonText")
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-						.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-					]
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(InStackItemGroup.GetExecutionCategoryName())))
 				];
 		}
 		else if (AddUtilities->GetAddMode() == INiagaraStackItemGroupAddUtilities::AddDirectly)
 		{
 			Content = SNew(SButton)
-				.ButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.AddButton")
-				.ButtonColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(InStackItemGroup.GetExecutionCategoryName())))
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				.ToolTipText(FText::Format(AddToGroupFormat, AddUtilities->GetAddItemName()))
 				.IsEnabled_UObject(&InStackItemGroup, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
-				.ContentPadding(0)
+				.ContentPadding(1.0f)
 				.OnClicked(this, &SNiagaraStackItemGroupAddButton::AddDirectlyButtonClicked)
 				.Content()
 				[
-					SNew(SBox)
-					.WidthOverride(InArgs._Width)
-					.HeightOverride(TextIconSize)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						//.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.AddButtonText")
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-						.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-					]
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(InStackItemGroup.GetExecutionCategoryName())))
 				];
 		}
 	}

@@ -112,8 +112,7 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 	[
 		SAssignNew(AddButton, SComboButton)
 		.HasDownArrow(false)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-		.ForegroundColor(FSlateColor::UseForeground())
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 		.OnGetMenuContent(this, &SNiagaraStackModuleItem::RaiseActionMenuClicked)
 		.ContentPadding(FMargin(2))
 		.HAlign(HAlign_Center)
@@ -123,7 +122,8 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 		.ButtonContent()
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::Get().GetBrush("Icons.PlusCircle"))
+			.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	];
 
@@ -133,9 +133,8 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 	.AutoWidth()
 	[
 		SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 		.IsFocusable(false)
-		.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
 		.ToolTipText(LOCTEXT("RefreshTooltip", "Refresh this module"))
 		.Visibility(this, &SNiagaraStackModuleItem::GetRefreshVisibility)
 		.IsEnabled(this, &SNiagaraStackModuleItem::GetButtonsEnabled)
@@ -144,7 +143,8 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 		[
 			SNew(STextBlock)
 			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-		.Text(FEditorFontGlyphs::Refresh)
+			.Text(FEditorFontGlyphs::Refresh)
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	];
 }

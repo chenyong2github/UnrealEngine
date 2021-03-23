@@ -56,7 +56,7 @@ void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagar
 			.IsEnabled(this, &SNiagaraStackFunctionInputName::GetIsEnabled)
 			.IsSelected(this, &SNiagaraStackFunctionInputName::GetIsNameWidgetSelected)
 			.OnTextCommitted(this, &SNiagaraStackFunctionInputName::OnNameTextCommitted)
-			//.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 			.ToolTipText(this, &SNiagaraStackFunctionInputName::GetToolTipText)
 		];
 	}

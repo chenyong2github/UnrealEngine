@@ -22,8 +22,7 @@ public:
 		ChildSlot
 		[
 			SNew(SSpinBox<float>)
-			.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterSpinBox")
-			.Font(FNiagaraEditorStyle::Get().GetFontStyle("NiagaraEditor.ParameterFont"))
+			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 			.MinValue(TOptional<float>())
 			.MaxValue(TOptional<float>())
 			.MaxSliderValue(TOptional<float>())

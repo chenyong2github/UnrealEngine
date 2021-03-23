@@ -509,19 +509,23 @@ void FNiagaraScriptToolkit::ExtendToolbar()
 FSlateIcon FNiagaraScriptToolkit::GetCompileStatusImage() const
 {
 	ENiagaraScriptCompileStatus Status = ScriptViewModel->GetLatestCompileStatus();
-
+	static const FName CompileStatusBackground("AssetEditor.CompileStatus.Background");
+	static const FName CompileStatusUnknown("AssetEditor.CompileStatus.Overlay.Unknown");
+	static const FName CompileStatusError("AssetEditor.CompileStatus.Overlay.Error");
+	static const FName CompileStatusGood("AssetEditor.CompileStatus.Overlay.Good");
+	static const FName CompileStatusWarning("AssetEditor.CompileStatus.Overlay.Warning");
 	switch (Status)
 	{
 	default:
 	case ENiagaraScriptCompileStatus::NCS_Unknown:
 	case ENiagaraScriptCompileStatus::NCS_Dirty:
-		return FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.CompileStatus.Unknown");
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown);
 	case ENiagaraScriptCompileStatus::NCS_Error:
-		return FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.CompileStatus.Error");
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusError);
 	case ENiagaraScriptCompileStatus::NCS_UpToDate:
-		return FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.CompileStatus.Good");
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusGood);
 	case ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings:
-		return FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.CompileStatus.Warning");
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusWarning);
 	}
 }
 void FNiagaraScriptToolkit::Tick(float DeltaTime)

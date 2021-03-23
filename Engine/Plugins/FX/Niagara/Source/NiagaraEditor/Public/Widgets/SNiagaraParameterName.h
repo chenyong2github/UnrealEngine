@@ -8,6 +8,7 @@
 #include "Styling/SlateTypes.h"
 #include "Framework/SlateDelegates.h"
 #include "Styling/SlateWidgetStyleAsset.h"
+#include "NiagaraEditorStyle.h"
 
 class SInlineEditableTextBlock;
 class SBorder;
@@ -27,8 +28,8 @@ public:
 	};
 public:
 	SLATE_BEGIN_ARGS(SNiagaraParameterName) 
-		: _EditableTextStyle(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"))
-		, _ReadOnlyTextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+		: _EditableTextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("NiagaraEditor.ParameterInlineEditableText"))
+		, _ReadOnlyTextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.ParameterText"))
 		, _IsReadOnly(false)
 		, _SingleNameDisplayMode(ESingleNameDisplayMode::Name)
 		, _DecoratorHAlign(HAlign_Left)
@@ -104,8 +105,8 @@ class NIAGARAEDITOR_API SNiagaraParameterNameTextBlock : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraParameterNameTextBlock)
-		: _EditableTextStyle(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"))
-		, _ReadOnlyTextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+		: _EditableTextStyle(&FAppStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"))
+		, _ReadOnlyTextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 		, _IsReadOnly(false)
 		, _DecoratorHAlign(HAlign_Left)
 		, _DecoratorPadding(5.0f, 0.0f, 0.0f, 0.0f)

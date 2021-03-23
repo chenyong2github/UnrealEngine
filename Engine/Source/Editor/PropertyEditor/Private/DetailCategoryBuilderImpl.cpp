@@ -15,6 +15,7 @@
 #include "IPropertyGenerationUtilities.h"
 #include "DetailBuilderTypes.h"
 #include "PropertyCustomizationHelpers.h"
+#include "Styling/StyleColors.h"
 
 namespace DetailLayoutConstants
 {
@@ -711,13 +712,13 @@ bool FDetailCategoryImpl::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) con
 	}
 
 	const bool bIsInnerCategory = DetailLayoutBuilder.Pin()->IsLayoutForExternalRoot();
-
+	FTextBlockStyle NameStyle = bIsInnerCategory ? FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText") : FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("DetailsView.CategoryTextStyleUpdate");
 	OutRow.NameContent()
 	[
 		SNew(STextBlock)
 		.Text(GetDisplayName())
-		.Font(FEditorStyle::GetFontStyle(bIsInnerCategory ? "PropertyWindow.NormalFont" : "DetailsView.CategoryFontStyle"))
-		.ShadowOffset(bIsInnerCategory ? FVector2D::ZeroVector : FVector2D(1.0f, 1.0f))
+		.TextStyle(&NameStyle)
+		.ShadowOffset(FVector2D::ZeroVector)
 	];
 
 	if(HeaderContentWidget.IsValid())

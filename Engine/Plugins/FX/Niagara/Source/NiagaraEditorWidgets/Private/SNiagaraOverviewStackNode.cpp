@@ -28,6 +28,7 @@
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
 
@@ -131,7 +132,6 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleRightWidget()
 			.IsFocusable(false)
 			.ToolTipText(LOCTEXT("OpenAndFocusParentEmitterToolTip", "Open and Focus Parent Emitter"))
 			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
 			.ContentPadding(2)
 			.OnClicked(this, &SNiagaraOverviewStackNode::OpenParentEmitter)
 			.Visibility(this, &SNiagaraOverviewStackNode::GetOpenParentEmitterVisibility)
@@ -140,7 +140,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleRightWidget()
 			[
 				SNew(SImage)
 				.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.GoToSourceIcon"))
-				.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
 		+ SHorizontalBox::Slot()
@@ -333,8 +333,8 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 			+SHorizontalBox::Slot()
 			[
 				SNew(SBorder)
-				.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.SystemOverview.NodeBackgroundBorder"))
-				.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.NodeBackgroundColor"))
+ 				.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.SystemOverview.NodeBackgroundBorder"))
+ 				.BorderBackgroundColor(FStyleColors::Panel)
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 				.Padding(FMargin(0, 0, 0, 4))

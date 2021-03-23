@@ -24,7 +24,6 @@ private:
 	bool GetIconIsEnabled() const;
 
 	const FSlateBrush* GetIconBrush() const;
-
 	FText GetIconToolTip() const;
 
 	void UpdateFromEntry();

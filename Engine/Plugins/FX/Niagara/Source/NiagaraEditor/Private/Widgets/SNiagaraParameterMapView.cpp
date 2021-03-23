@@ -230,7 +230,6 @@ void SNiagaraParameterMapView::Construct(const FArguments& InArgs, const TArray<
 	ToolkitType = InToolkitType;
 	ToolkitCommands = InToolkitCommands;
 	AddParameterButtons.SetNum(NiagaraParameterMapSectionID::Num);
-	const FVector2D ViewOptionsShadowOffset = FNiagaraEditorStyle::Get().GetVector("NiagaraEditor.Stack.ViewOptionsShadowOffset");
 	ParametersWithNamespaceModifierRenamePending = MakeShared<TArray<FName>>();
 
 	SelectedScriptObjects = InSelectedObjects[0];
@@ -269,30 +268,16 @@ void SNiagaraParameterMapView::Construct(const FArguments& InArgs, const TArray<
 		[
 			SNew(SComboButton)
 			.ContentPadding(0)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton") // Use the tool bar item style for this button
+			.HasDownArrow(false)
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
 			.ToolTipText(LOCTEXT("ViewOptionsToolTip", "View Options"))
 			.OnGetMenuContent(this, &SNiagaraParameterMapView::GetViewOptionsMenu)
 			.ButtonContent()
 			[
-				SNew(SOverlay)
-				// drop shadow
-				+ SOverlay::Slot()
-				.VAlign(VAlign_Top)
-				.Padding(ViewOptionsShadowOffset.X, ViewOptionsShadowOffset.Y, 0, 0)
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("GenericViewButton"))
-					.ColorAndOpacity(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.Stack.ViewOptionsShadowColor"))
-				]
-				+ SOverlay::Slot()
-				.VAlign(VAlign_Top)
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("GenericViewButton"))
-					.ColorAndOpacity(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
-				]
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		];
 
@@ -1013,8 +998,7 @@ TSharedRef<SWidget> SNiagaraParameterMapView::CreateAddToSectionButton(const Nia
 {
 	TSharedPtr<SComboButton> Button;
 	SAssignNew(Button, SComboButton)
-	.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-	.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+	.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 	.ContentPadding(FMargin(2, 0))
 	.OnGetMenuContent(this, &SNiagaraParameterMapView::OnGetParameterMenu, InSection)
 	.IsEnabled(this, &SNiagaraParameterMapView::ParameterAddEnabled)
@@ -1024,27 +1008,9 @@ TSharedRef<SWidget> SNiagaraParameterMapView::CreateAddToSectionButton(const Nia
 	.AddMetaData<FTagMetaData>(FTagMetaData(MetaDataTag))
 	.ButtonContent()
 	[
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(FMargin(0, 1))
-		[
-			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("Plus"))
-		]
-
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(FMargin(2,0,0,0))
-		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFontBold())
-			.Text(AddNewText)
-			.Visibility(this, &SNiagaraParameterMapView::OnAddButtonTextVisibility, WeakRowWidget, InSection)
-			.ShadowOffset(FVector2D(1,1))
-		]
+		SNew(SImage)
+		.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+		.ColorAndOpacity(FSlateColor::UseForeground())
 	];
 	AddParameterButtons[InSection] = Button;
 

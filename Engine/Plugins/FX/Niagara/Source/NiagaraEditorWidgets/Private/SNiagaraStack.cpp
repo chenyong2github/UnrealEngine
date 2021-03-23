@@ -59,6 +59,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "Widgets/SNiagaraParameterName.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStack"
 
@@ -80,102 +81,109 @@ public:
 		ParentStackPtr = InArgs._ParentStack;
 		ChildSlot
 		[
-			SNew(SVerticalBox)
-
-			//~ Enable check box, view source emitter button, and external header controls.
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Fill)
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(FStyleColors::Panel)
 			[
-				SNew(SHorizontalBox)
-				//~ Enabled
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2, 4, 0, 0)
-				.VAlign(VAlign_Top)
-				[
-					SNew(SCheckBox)
-					.ToolTipText(LOCTEXT("EnabledToolTip", "Toggles whether this emitter is enabled. Disabled emitters don't simulate or render."))
-					.IsChecked(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::GetIsEnabledCheckState)
-					.OnCheckStateChanged(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::OnIsEnabledCheckStateChanged)
-				]
-				+ SHorizontalBox::Slot()
-				.Padding(2)
+				SNew(SVerticalBox)
+
+				//~ Enable check box, view source emitter button, and external header controls.
+				+ SVerticalBox::Slot()
+				.AutoHeight()
 				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Center)
-				.FillWidth(1.0f)
 				[
-					// Name and Source Emitter Name
-					SNew(SWrapBox)
-					.Clipping(EWidgetClipping::ClipToBoundsAlways) 
-					.UseAllottedSize(true)
-					+ SWrapBox::Slot()
+					SNew(SHorizontalBox)
+					//~ Enabled
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(3)
+					.VAlign(VAlign_Center)
 					[
+						SNew(SCheckBox)
+						.ToolTipText(LOCTEXT("EnabledToolTip", "Toggles whether this emitter is enabled. Disabled emitters don't simulate or render."))
+						.IsChecked(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::GetIsEnabledCheckState)
+						.OnCheckStateChanged(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::OnIsEnabledCheckStateChanged)
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(2)
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Center)
+					.FillWidth(1.0f)
+					[
+						// Name and Source Emitter Name
+						SNew(SWrapBox)
+						.Clipping(EWidgetClipping::ClipToBoundsAlways) 
+						.UseAllottedSize(true)
+						+ SWrapBox::Slot()
+						[
 				
-						SAssignNew(EmitterNameTextBlock, SInlineEditableTextBlock)
-						.ToolTipText(this, &SNiagaraStackEmitterHeader::GetEmitterNameToolTip)
-						.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.HeadingInlineEditableText") 
-						.Clipping(EWidgetClipping::ClipToBoundsAlways)
-						.Text(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::GetNameText)
-						.OnTextCommitted(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::OnNameTextComitted)
-						.OnVerifyTextChanged(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::VerifyNameTextChanged)
-						.IsReadOnly(EmitterHandleViewModel->CanRenameEmitter() == false)
-					]
-					+ SWrapBox::Slot()
-					.Padding(4, 0, 0, 0)
-					[
-						SNew(STextBlock)
-						.ToolTipText(this, &SNiagaraStackEmitterHeader::GetEmitterNameToolTip)
-						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.SubduedHeadingTextBox")
-						.Clipping(EWidgetClipping::ClipToBoundsAlways)
-						.Text(EmitterHandleViewModel->GetEmitterViewModel(), &FNiagaraEmitterViewModel::GetParentNameText)
-						.Visibility(this, &SNiagaraStackEmitterHeader::GetSourceEmitterNameVisibility) 
-					]
-				]
-				// Issue Icon
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				.Padding(0, 0, 2, 0)
-				[
-					SNew(SNiagaraStackIssueIcon, StackViewModel, InRootEntry)
-					.Visibility(InArgs._IssueIconVisibility)
-					.OnClicked(this, &SNiagaraStackEmitterHeader::OnIssueIconClicked)
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Center)
-				.Padding(0, 0, 2, 0)
-				[
-					SAssignNew(SettingsAnchor, SMenuAnchor)
-					.Placement(MenuPlacement_MenuLeft)
-					.OnGetMenuContent(this, &SNiagaraStackEmitterHeader::OnGetContent)
-					[
-						SNew(SButton)
-						.ForegroundColor(FSlateColor::UseForeground())
-						.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton"))
-						.OnClicked(this, &SNiagaraStackEmitterHeader::OpenSubmenu)
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Fill)
+							SAssignNew(EmitterNameTextBlock, SInlineEditableTextBlock)
+							.ToolTipText(this, &SNiagaraStackEmitterHeader::GetEmitterNameToolTip)
+							.Style(FAppStyle::Get(), "DetailsView.NameTextBlockStyle")
+							.Clipping(EWidgetClipping::ClipToBoundsAlways)
+							.Text(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::GetNameText)
+							.OnTextCommitted(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::OnNameTextComitted)
+							.OnVerifyTextChanged(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::VerifyNameTextChanged)
+							.IsReadOnly(EmitterHandleViewModel->CanRenameEmitter() == false)
+						]
+						+ SWrapBox::Slot()
+						.Padding(4, 0, 0, 0)
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
-							.Text(FEditorFontGlyphs::Cogs)
+							.ToolTipText(this, &SNiagaraStackEmitterHeader::GetEmitterNameToolTip)
+							.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.HeadingTextBlockSubdued")
+							.Clipping(EWidgetClipping::ClipToBoundsAlways)
+							.Text(EmitterHandleViewModel->GetEmitterViewModel(), &FNiagaraEmitterViewModel::GetParentNameText)
+							.Visibility(this, &SNiagaraStackEmitterHeader::GetSourceEmitterNameVisibility) 
+						]
+					]
+					// Issue Icon
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Center)
+					.Padding(0, 0, 2, 0)
+					[
+						SNew(SNiagaraStackIssueIcon, StackViewModel, InRootEntry)
+						.Visibility(InArgs._IssueIconVisibility)
+						.OnClicked(this, &SNiagaraStackEmitterHeader::OnIssueIconClicked)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Center)
+					.Padding(0, 0, 2, 0)
+					[
+						SAssignNew(SettingsAnchor, SMenuAnchor)
+						.Placement(MenuPlacement_MenuLeft)
+						.OnGetMenuContent(this, &SNiagaraStackEmitterHeader::OnGetContent)
+						[
+							SNew(SButton)
+							.ContentPadding(0)
+							.ForegroundColor(FSlateColor::UseForeground())
+							.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+							.OnClicked(this, &SNiagaraStackEmitterHeader::OpenSubmenu)
+							.VAlign(VAlign_Center)
+							.HAlign(HAlign_Fill)
+							[
+								SNew(SImage)
+								.ColorAndOpacity(FSlateColor::UseForeground())
+								.Image(FAppStyle::Get().GetBrush("DetailsView.ViewOptions"))
+							]
 						]
 					]
 				]
-			]
 
-			//~ Stats
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Fill)
-			.Padding(2)
-			[
-				SNew(STextBlock)
-				.Text(EmitterHandleViewModel->GetEmitterViewModel(), &FNiagaraEmitterViewModel::GetStatsText)
+				//~ Stats
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Fill)
+				.Padding(2)
+				[
+					SNew(STextBlock)
+					.Text(EmitterHandleViewModel->GetEmitterViewModel(), &FNiagaraEmitterViewModel::GetStatsText)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
 			]
 		];
 	}
@@ -273,7 +281,8 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 		.Padding(1, 1, 1, 4)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(FStyleColors::Panel)
 			.Padding(5)
 			[
 				ConstructHeaderWidget()
@@ -282,19 +291,14 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 		+ SVerticalBox::Slot()
 		.Padding(1)
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-			.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.BackgroundColor"))
-			[
-				SAssignNew(StackTree, STreeView<UNiagaraStackEntry*>)
-				.OnGenerateRow(this, &SNiagaraStack::OnGenerateRowForStackItem)
-				.OnGetChildren(this, &SNiagaraStack::OnGetChildren)
-				.TreeItemsSource(&StackViewModel->GetRootEntryAsArray())
-				.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
-				.OnSelectionChanged(this, &SNiagaraStack::StackTreeSelectionChanged)
-				.SelectionMode(ESelectionMode::Multi)
-				.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
-			]
+			SAssignNew(StackTree, STreeView<UNiagaraStackEntry*>)
+			.OnGenerateRow(this, &SNiagaraStack::OnGenerateRowForStackItem)
+			.OnGetChildren(this, &SNiagaraStack::OnGetChildren)
+			.TreeItemsSource(&StackViewModel->GetRootEntryAsArray())
+			.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
+			.OnSelectionChanged(this, &SNiagaraStack::StackTreeSelectionChanged)
+			.SelectionMode(ESelectionMode::Multi)
+			.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
 		]
 	];
 
@@ -325,8 +329,6 @@ void SNiagaraStack::SynchronizeTreeExpansion()
 
 TSharedRef<SWidget> SNiagaraStack::ConstructHeaderWidget()
 {
-	const FVector2D ViewOptionsShadowOffset = FNiagaraEditorWidgetsStyle::Get().GetVector("NiagaraEditor.Stack.ViewOptionsShadowOffset");
-
 	return SNew(SVerticalBox)
 		//~ Top level object list view
 		+ SVerticalBox::Slot()
@@ -363,52 +365,21 @@ TSharedRef<SWidget> SNiagaraStack::ConstructHeaderWidget()
 			.AutoWidth()
 			.Padding(4, 0, 0, 0)
 			[
-				SNew(SBorder)
-				.Padding(0)
-				.BorderImage(this, &SNiagaraStack::GetViewOptionsIconBrush)
+				SNew(SComboButton)
+				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton") // Use the tool bar item style for this button
+				.HasDownArrow(false)
+				.ToolTipText(LOCTEXT("ViewOptionsToolTip", "View Options"))
+				.OnGetMenuContent(this, &SNiagaraStack::GetViewOptionsMenu)
+				.ContentPadding(1)
+				.MenuPlacement(MenuPlacement_BelowRightAnchor)
+				.ButtonContent()
 				[
-					SNew(SComboButton)
-					.ComboButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ViewOptionsButton")
-					.ForegroundColor(FSlateColor::UseForeground())
-					.ToolTipText(LOCTEXT("ViewOptionsToolTip", "View Options"))
-					.OnGetMenuContent(this, &SNiagaraStack::GetViewOptionsMenu)
-					.ContentPadding(1)
-					.MenuPlacement(MenuPlacement_BelowRightAnchor)
-					.ButtonContent()
-					[
-						SNew(SOverlay)
-						// drop shadow
-						+ SOverlay::Slot()
-						.VAlign(VAlign_Top)
-						.Padding(ViewOptionsShadowOffset.X, ViewOptionsShadowOffset.Y, 0, 0)
-						[
-							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("GenericViewButton"))
-							.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ViewOptionsShadowColor"))
-						]
-						+ SOverlay::Slot()
-						.VAlign(VAlign_Top)
-						[
-							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("GenericViewButton"))
-							.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
-						]
-					]
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
 		];
-}
-
-const FSlateBrush* SNiagaraStack::GetViewOptionsIconBrush() const
-{
-	bool bIsDefault = StackViewModel->GetShowAllAdvanced() == false &&
-		StackViewModel->GetShowLinkedInputs() == false &&
-		StackViewModel->GetShowOutputs() == false &&
-		StackViewModel->GetShowOnlyIssues() == false;
-
-	return bIsDefault ? 
-		FCoreStyle::Get().GetBrush("NoBrush") :
-		FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.HighlightedButtonBrush");
 }
 
 void SNiagaraStack::OnSearchTextChanged(const FText& SearchText)
@@ -688,23 +659,29 @@ TSharedRef<ITableRow> SNiagaraStack::OnGenerateRowForTopLevelObject(TSharedRef<U
 	TSharedPtr<SWidget> Content;
 	if (Item->SystemViewModel.IsValid())
 	{
-		Content = SNew(SHorizontalBox)
-			// System name
-			+ SHorizontalBox::Slot()
+		Content =
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(FStyleColors::Panel)
 			[
-				SNew(STextBlock)
-				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.HeadingTextBlock")
-				.Text(Item->SystemViewModel.ToSharedRef(), &FNiagaraSystemViewModel::GetDisplayName)
-			]
-			// Issue Icon
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(4, 0, 2, 0)
-			[
-				SNew(SNiagaraStackIssueIcon, StackViewModel, Item->RootEntry.Get())
-				.Visibility(this, &SNiagaraStack::GetIssueIconVisibility)
-				.OnClicked(this, &SNiagaraStack::OnCycleThroughSystemIssues, Item->SystemViewModel)
+				SNew(SHorizontalBox)
+				// System name
+				+ SHorizontalBox::Slot()
+				[
+					SNew(STextBlock)
+					.TextStyle(FAppStyle::Get(), "DetailsView.ConstantTextBlockStyle")
+					.Text(Item->SystemViewModel.ToSharedRef(), &FNiagaraSystemViewModel::GetDisplayName)
+				]
+				// Issue Icon
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4, 0, 2, 0)
+				[
+					SNew(SNiagaraStackIssueIcon, StackViewModel, Item->RootEntry.Get())
+					.Visibility(this, &SNiagaraStack::GetIssueIconVisibility)
+					.OnClicked(this, &SNiagaraStack::OnCycleThroughSystemIssues, Item->SystemViewModel)
+				]
 			];
 	}
 	else if (Item->EmitterHandleViewModel.IsValid())
@@ -778,29 +755,28 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 	float RightContentPadding = 6;
 	TAttribute<FMargin> RowPadding = FMargin(0, 0, 0, 0);
 	FMargin ContentPadding(LeftContentPadding, 0, RightContentPadding, 0);
-	FLinearColor ItemBackgroundColor;
-	FLinearColor ItemForegroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor");
+	FSlateColor ItemBackgroundColor = FStyleColors::Panel;
+	FSlateColor ItemForegroundColor = FStyleColors::Foreground;
+	FSlateColor IndicatorColor = FLinearColor::Transparent;
 	bool bIsCategoryIconHighlighted;
 	bool bShowExecutionCategoryIcon;
 	switch (Item->GetStackRowStyle())
 	{
 	case UNiagaraStackEntry::EStackRowStyle::None:
-		ItemBackgroundColor = FLinearColor::Transparent;
 		bIsCategoryIconHighlighted = false;
 		bShowExecutionCategoryIcon = false;
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::GroupHeader:
 		ContentPadding = FMargin(LeftContentPadding, 3, 0, 3);
-		ItemBackgroundColor = FLinearColor::Transparent;
-		ItemForegroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.GroupForegroundColor");
+		ItemBackgroundColor = FStyleColors::Header;
 		bIsCategoryIconHighlighted = true;
 		bShowExecutionCategoryIcon = true;
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::GroupFooter:
 		RowPadding = FMargin(0, 0, 0, 6);
-		ItemBackgroundColor = FLinearColor::Transparent;
 		bIsCategoryIconHighlighted = false;
 		bShowExecutionCategoryIcon = false;
+		ItemBackgroundColor = FStyleColors::Recessed;
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::ItemHeader:
 		RowPadding.Bind(TAttribute<FMargin>::FGetter::CreateLambda([Item]()
@@ -815,31 +791,27 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 			}
 		}));
 		ContentPadding = FMargin(LeftContentPadding, 2, 2, 2);
-		ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.HeaderBackgroundColor");
 		bIsCategoryIconHighlighted = false;
 		bShowExecutionCategoryIcon = true;
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::ItemContent:
 		ContentPadding = FMargin(LeftContentPadding, 3, RightContentPadding, 3);
-		ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.ContentBackgroundColor");
 		bIsCategoryIconHighlighted = false;
 		bShowExecutionCategoryIcon = false;
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::ItemContentAdvanced:
 		ContentPadding = FMargin(LeftContentPadding, 3, RightContentPadding, 3);
-		ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.ContentAdvancedBackgroundColor");
 		bIsCategoryIconHighlighted = false;
 		bShowExecutionCategoryIcon = false;
+		ItemBackgroundColor = FStyleColors::Recessed;
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::ItemFooter:
 		RowPadding = FMargin(0, 0, 0, 2);
-		ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.FooterBackgroundColor");
 		bIsCategoryIconHighlighted = false;
 		bShowExecutionCategoryIcon = false;
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::ItemCategory:
 		ContentPadding = FMargin(LeftContentPadding, 3, RightContentPadding, 3);
-		ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.ContentBackgroundColor");
 		bIsCategoryIconHighlighted = false;
 		bShowExecutionCategoryIcon = false;
 		break;
@@ -848,13 +820,16 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 		switch (Item->GetIssueSeverity())
 		{
 			case EStackIssueSeverity::Error:
-				ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.ErrorBackgroundColor");
+				ItemBackgroundColor = FStyleColors::Header;
+				IndicatorColor = FStyleColors::Error;
 				break;
 			case EStackIssueSeverity::Warning:
-				ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.WarningBackgroundColor");
+				ItemBackgroundColor = FStyleColors::Header;
+				IndicatorColor = FStyleColors::Warning;
 				break;
 			case EStackIssueSeverity::Info:
-				ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.InfoBackgroundColor");
+				ItemBackgroundColor = FStyleColors::Header;
+				IndicatorColor = FStyleColors::Foreground;
 				break;
 			default:
 				checkf(false, TEXT("Issue severity not set for stack issue."));
@@ -865,7 +840,6 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 		bShowExecutionCategoryIcon = false;
 		break;
 	default:
-		ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.UnknownColor");
 		bIsCategoryIconHighlighted = false;
 		bShowExecutionCategoryIcon = false;
 		break;
@@ -874,8 +848,9 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 	return SNew(SNiagaraStackTableRow, StackViewModel, Item, StackCommandContext.ToSharedRef(), StackTree.ToSharedRef())
 		.RowPadding(RowPadding)
 		.ContentPadding(ContentPadding)
-		.ItemBackgroundColor(ItemBackgroundColor)
+ 		.ItemBackgroundColor(ItemBackgroundColor)
 		.ItemForegroundColor(ItemForegroundColor)
+		.IndicatorColor(IndicatorColor)
 		.IsCategoryIconHighlighted(bIsCategoryIconHighlighted)
 		.ShowExecutionCategoryIcon(bShowExecutionCategoryIcon)
 		.NameColumnWidth(this, &SNiagaraStack::GetNameColumnWidth)
@@ -941,7 +916,7 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		Container->SetOverrideNameAlignment(EHorizontalAlignment::HAlign_Fill, EVerticalAlignment::VAlign_Center);
 		return FRowWidgets(SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ParameterText")
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
 			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
 			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
@@ -968,7 +943,7 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	else if (Item->IsA<UNiagaraStackInputCategory>())
 	{
 		return FRowWidgets(SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.CategoryText")
+			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
 			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
 			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
 			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
@@ -981,7 +956,7 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 		UNiagaraStackModuleItemOutput* ModuleItemOutput = CastChecked<UNiagaraStackModuleItemOutput>(Item);
 		return FRowWidgets(
 			SNew(SNiagaraParameterName)
-				.ReadOnlyTextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.DefaultText")
+				.ReadOnlyTextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
 				.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
 				.ParameterName(ModuleItemOutput->GetOutputParameterHandle().GetParameterHandleString())
 				.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
@@ -995,7 +970,7 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		return FRowWidgets(
 			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.DefaultText")
+			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
 			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
 			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
 			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
@@ -1026,9 +1001,8 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 		else
 		{
 			Container->SetOverrideNameWidth(PropertyRowWidgets.NameWidgetLayoutData.MinWidth, PropertyRowWidgets.NameWidgetLayoutData.MaxWidth);
-			//Container->SetOverrideNameAlignment(PropertyRowWidgets.NameWidgetLayoutData.HorizontalAlignment, PropertyRowWidgets.NameWidgetLayoutData.VerticalAlignment);
 			Container->SetOverrideValueWidth(PropertyRowWidgets.ValueWidgetLayoutData.MinWidth, PropertyRowWidgets.ValueWidgetLayoutData.MaxWidth);
-			//Container->SetOverrideValueAlignment(PropertyRowWidgets.ValueWidgetLayoutData.HorizontalAlignment, PropertyRowWidgets.ValueWidgetLayoutData.VerticalAlignment);
+			Container->SetOverrideNameAlignment(HAlign_Left, VAlign_Center);
 			PropertyRowWidgets.NameWidget->SetEnabled(IsEnabled);
 			PropertyRowWidgets.ValueWidget->SetEnabled(IsEnabled);
 

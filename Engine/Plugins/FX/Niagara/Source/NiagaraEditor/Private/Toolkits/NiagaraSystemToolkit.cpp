@@ -1006,19 +1006,18 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 
 		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, FNiagaraSystemToolkit* Toolkit)
 		{
-			if (Toolkit->Emitter != nullptr)
-			{
-				ToolbarBuilder.BeginSection("Apply");
-				{
-					ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().Apply,
-						NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-						FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Apply"),
-						FName(TEXT("ApplyNiagaraEmitter")));
-				}
-				ToolbarBuilder.EndSection();
-			}
 			ToolbarBuilder.BeginSection("Compile");
 			{
+				if (Toolkit->Emitter != nullptr)
+				{
+					{
+						ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().Apply,
+							NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+							FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.Apply"),
+							FName(TEXT("ApplyNiagaraEmitter")));
+					}
+				}
+		
 				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().Compile,
 					NAME_None,
 					TAttribute<FText>(),
@@ -1035,27 +1034,23 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 			}
 			ToolbarBuilder.EndSection();
 
-			ToolbarBuilder.BeginSection("NiagaraThumbnail");
+			ToolbarBuilder.BeginSection("NiagaraTools");
 			{
 				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().SaveThumbnailImage, NAME_None,
 					LOCTEXT("GenerateThumbnail", "Thumbnail"),
 					LOCTEXT("GenerateThumbnailTooltip","Generate a thumbnail image."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Cascade.SaveThumbnailImage"));
-			}
-			ToolbarBuilder.EndSection();
-
-			ToolbarBuilder.BeginSection("NiagaraPreviewOptions");
-			{
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.SaveThumbnail"));
+		
 				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().ToggleBounds, NAME_None,
 					LOCTEXT("ShowBounds", "Bounds"),
 					LOCTEXT("ShowBoundsTooltip", "Show the bounds for the scene."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Cascade.ToggleBounds"));
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.ToggleShowBounds"));
 				ToolbarBuilder.AddComboButton(
 					FUIAction(),
 					FOnGetContent::CreateRaw(Toolkit, &FNiagaraSystemToolkit::GenerateBoundsMenuContent, Toolkit->GetToolkitCommands()),
 					LOCTEXT("BoundsMenuCombo_Label", "Bounds Options"),
 					LOCTEXT("BoundsMenuCombo_ToolTip", "Bounds options"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Cascade.ToggleBounds"),
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.ToggleShowBounds"),
 					true
 				);
 			}
@@ -1065,15 +1060,15 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 			ToolbarBuilder.BeginSection("NiagaraStatisticsOptions");
 			{
 				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().ToggleStatPerformance, NAME_None,
-                    LOCTEXT("NiagaraShowPerformance", "Performance"),
-                    LOCTEXT("NiagaraShowPerformanceTooltip", "Show runtime performance for particle scripts."),
-                    FSlateIcon(FEditorStyle::GetStyleSetName(), "MaterialEditor.ToggleMaterialStats"));
+					LOCTEXT("NiagaraShowPerformance", "Performance"),
+					LOCTEXT("NiagaraShowPerformanceTooltip", "Show runtime performance for particle scripts."),
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.ToggleStats"));
 				ToolbarBuilder.AddComboButton(
                     FUIAction(),
                     FOnGetContent::CreateRaw(Toolkit, &FNiagaraSystemToolkit::GenerateStatConfigMenuContent, Toolkit->GetToolkitCommands()),
                     FText(),
                     LOCTEXT("NiagaraShowPerformanceCombo_ToolTip", "Runtime performance options"),
-                    FSlateIcon(FEditorStyle::GetStyleSetName(), "MaterialEditor.ToggleMaterialStats"),
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.ToggleStats"),
                     true);
 			}
 			ToolbarBuilder.EndSection();
@@ -1086,7 +1081,7 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 					FOnGetContent::CreateStatic(Local::FillSimulationOptionsMenu, Toolkit),
 					LOCTEXT("SimulationOptions", "Simulation"),
 					LOCTEXT("SimulationOptionsTooltip", "Simulation options"),
-					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.SimulationOptions")
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.Simulate")
 				);
 			}
 			ToolbarBuilder.EndSection();
@@ -1303,9 +1298,14 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateCompileMenuContent()
 	FUIAction FullRebuildAction(
 		FExecuteAction::CreateRaw(this, &FNiagaraSystemToolkit::CompileSystem, true));
 
+
+	static const FName CompileStatusBackground("AssetEditor.CompileStatus.Background");
+	static const FName CompileStatusUnknown("AssetEditor.CompileStatus.Overlay.Unknown");
+
+
 	MenuBuilder.AddMenuEntry(LOCTEXT("FullRebuild", "Full Rebuild"),
 		LOCTEXT("FullRebuildTooltip", "Triggers a full rebuild of this system, ignoring the change tracking."),
-		FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.CompileStatus.Unknown"),
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown),
 		FullRebuildAction, NAME_None, EUserInterfaceActionType::Button);
 	MenuBuilder.AddMenuEntry(LOCTEXT("AutoCompile", "Automatically compile when graph changes"),
 		FText(), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::ToggleButton);
@@ -1317,18 +1317,24 @@ FSlateIcon FNiagaraSystemToolkit::GetCompileStatusImage() const
 {
 	ENiagaraScriptCompileStatus Status = SystemViewModel->GetLatestCompileStatus();
 
+	static const FName CompileStatusBackground("AssetEditor.CompileStatus.Background");
+	static const FName CompileStatusUnknown("AssetEditor.CompileStatus.Overlay.Unknown");
+	static const FName CompileStatusError("AssetEditor.CompileStatus.Overlay.Error");
+	static const FName CompileStatusGood("AssetEditor.CompileStatus.Overlay.Good");
+	static const FName CompileStatusWarning("AssetEditor.CompileStatus.Overlay.Warning");
+
 	switch (Status)
 	{
 	default:
 	case ENiagaraScriptCompileStatus::NCS_Unknown:
 	case ENiagaraScriptCompileStatus::NCS_Dirty:
-		return FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.CompileStatus.Unknown");
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown);
 	case ENiagaraScriptCompileStatus::NCS_Error:
-		return FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.CompileStatus.Error");
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusError);
 	case ENiagaraScriptCompileStatus::NCS_UpToDate:
-		return FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.CompileStatus.Good");
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusGood);
 	case ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings:
-		return FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.CompileStatus.Warning");
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusWarning);
 	}
 }
 

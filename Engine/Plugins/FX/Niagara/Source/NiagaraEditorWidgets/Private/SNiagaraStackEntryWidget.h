@@ -7,6 +7,7 @@
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Framework/SlateDelegates.h"
 #include "NiagaraEditorWidgetsStyle.h"
+#include "Styling/AppStyle.h"
 
 class UNiagaraStackViewModel;
 class UNiagaraStackEntry;
@@ -32,9 +33,9 @@ class SNiagaraStackDisplayName : public SNiagaraStackEntryWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraStackDisplayName)
-		: _NameStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.Stack.ItemText"))
-		, _EditableNameStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("NiagaraEditor.Stack.EditableItemText"))
-		, _OriginalNameStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.Stack.SubduedItemText"))
+		: _NameStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+		, _EditableNameStyle(&FAppStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"))
+ 		, _OriginalNameStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 	{
 		_Clipping = EWidgetClipping::OnDemand;
 	}

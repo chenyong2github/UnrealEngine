@@ -29,8 +29,9 @@ public:
 		, _RowPadding(FMargin(0, 0, 0, 0))
 	{}
 	SLATE_ARGUMENT(FMargin, ContentPadding)
-		SLATE_ARGUMENT(FLinearColor, ItemBackgroundColor)
-		SLATE_ARGUMENT(FLinearColor, ItemForegroundColor)
+		SLATE_ARGUMENT(FSlateColor, ItemBackgroundColor)
+		SLATE_ARGUMENT(FSlateColor, ItemForegroundColor)
+		SLATE_ARGUMENT(FSlateColor, IndicatorColor)
 		SLATE_ARGUMENT(bool, IsCategoryIconHighlighted)
 		SLATE_ARGUMENT(bool, ShowExecutionCategoryIcon)
 		SLATE_ATTRIBUTE(float, NameColumnWidth)
@@ -114,9 +115,10 @@ private:
 	const FSlateBrush* ExpandedImage;
 	const FSlateBrush* CollapsedImage;
 
-	FLinearColor ItemBackgroundColor;
-	FLinearColor DisabledItemBackgroundColor;
-	FLinearColor ForegroundColor;
+	FSlateColor ItemBackgroundColor;
+	FSlateColor DisabledItemBackgroundColor;
+	FSlateColor ForegroundColor;
+	FSlateColor IndicatorColor;
 
 	FText ExecutionCategoryToolTipText;
 

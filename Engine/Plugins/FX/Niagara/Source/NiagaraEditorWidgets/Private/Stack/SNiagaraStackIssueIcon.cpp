@@ -39,9 +39,8 @@ void SNiagaraStackIssueIcon::Construct(const FArguments& InArgs, UNiagaraStackVi
 	{
 		TSharedRef<SButton> IconButton =
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
-			.ContentPadding(FMargin(1, 0, 0, 0))
+			.ContentPadding(0)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.OnClicked(InArgs._OnClicked)
 			.Content()
 			[
@@ -206,15 +205,15 @@ void SNiagaraStackIssueIcon::UpdateFromEntry()
 
 	if (StackEntry->GetTotalNumberOfErrorIssues() > 0)
 	{
-		IconBrush = FEditorStyle::GetBrush("Icons.Error");
+		IconBrush = FAppStyle::Get().GetBrush("Icons.ErrorWithColor");
 	}
 	else if (StackEntry->GetTotalNumberOfWarningIssues() > 0)
 	{
-		IconBrush = FEditorStyle::GetBrush("Icons.Warning");
+		IconBrush = FAppStyle::Get().GetBrush("Icons.WarningWithColor");
 	}
 	else if (StackEntry->GetTotalNumberOfInfoIssues() > 0)
 	{
-		IconBrush = FEditorStyle::GetBrush("Icons.Info");
+		IconBrush = FAppStyle::Get().GetBrush("Icons.InfoWithColor");
 	}
 
 	IconToolTipCache.Reset();

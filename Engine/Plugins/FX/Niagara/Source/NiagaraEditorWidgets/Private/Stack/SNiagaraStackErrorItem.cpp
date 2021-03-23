@@ -11,6 +11,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SHyperlink.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraStackErrorItem"
 
@@ -18,21 +19,20 @@ void SNiagaraStackErrorItem::Construct(const FArguments& InArgs, UNiagaraStackEr
 {
 	ErrorItem = InErrorItem;
 	StackViewModel = InStackViewModel;
-
 	const FSlateBrush* IconBrush;
 	switch (ErrorItem->GetStackIssue().GetSeverity())
 	{
 	case EStackIssueSeverity::Error:
-		IconBrush = FEditorStyle::GetBrush("Icons.Error");
+		IconBrush = FAppStyle::Get().GetBrush("Icons.ErrorWithColor");
 		break;
 	case EStackIssueSeverity::Warning:
-		IconBrush = FEditorStyle::GetBrush("Icons.Warning");
+		IconBrush = FAppStyle::Get().GetBrush("Icons.WarningWithColor");
 		break;
 	case EStackIssueSeverity::Info:
-		IconBrush = FEditorStyle::GetBrush("Icons.Info");
+		IconBrush = FAppStyle::Get().GetBrush("Icons.InfoWithColor");
 		break;
 	default:
-		IconBrush = FEditorStyle::GetBrush("NoBrush");
+		IconBrush = FAppStyle::Get().GetBrush("NoBrush");
 		break;
 	}
 

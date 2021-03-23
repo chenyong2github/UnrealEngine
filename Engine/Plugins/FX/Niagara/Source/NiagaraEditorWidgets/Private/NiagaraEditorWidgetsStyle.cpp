@@ -3,13 +3,14 @@
 #include "NiagaraEditorWidgetsStyle.h"
 
 #include "Framework/Application/SlateApplication.h"
-#include "EditorStyleSet.h"
 #include "Slate/SlateGameResources.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "Classes/EditorStyleSettings.h"
+#include "Styling/AppStyle.h"
+#include "Styling/StyleColors.h"
 
 TSharedPtr< FSlateStyleSet > FNiagaraEditorWidgetsStyle::NiagaraEditorWidgetsStyleInstance = NULL;
  
@@ -57,9 +58,9 @@ const FVector2D Icon40x40(40.0f, 40.0f);
 
 TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 {
-	const FTextBlockStyle NormalText = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
-	const FEditableTextBoxStyle NormalEditableTextBox = FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
-	const FSpinBoxStyle NormalSpinBox = FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("SpinBox");
+	const FTextBlockStyle NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	const FEditableTextBoxStyle NormalEditableTextBox = FAppStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
+	const FSpinBoxStyle NormalSpinBox = FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("SpinBox");
 
 	TSharedRef< FSlateStyleSet > Style = MakeShareable(new FSlateStyleSet("NiagaraEditorWidgetsStyle"));
 	Style->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate/Niagara"));
@@ -67,30 +68,43 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	// Stack
 	Style->Set("NiagaraEditor.Stack.IconSize", FVector2D(18.0f, 18.0f));
 
-	FSlateFontInfo StackGroupFont = DEFAULT_FONT("Bold", 10);
-	FTextBlockStyle StackGroupText = FTextBlockStyle(NormalText)
-		.SetFont(StackGroupFont)
-		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
+	const FTextBlockStyle CategoryText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("DetailsView.CategoryTextStyle");
+	FSlateFontInfo CategoryFont = FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.BoldFont"));
+	FTextBlockStyle StackGroupText = FTextBlockStyle(CategoryText)
+		.SetFont(CategoryFont)
+		.SetTransformPolicy(ETextTransformPolicy::ToUpper);
 
 	Style->Set("NiagaraEditor.Stack.GroupText", StackGroupText);
-	
+
 	FEditableTextBoxStyle StackEditableGroupText = FEditableTextBoxStyle(NormalEditableTextBox)
-		.SetFont(StackGroupFont);
+		.SetFont(CategoryFont);
 
 	FInlineEditableTextBlockStyle StackInlineEditableGroupText = FInlineEditableTextBlockStyle()
 		.SetEditableTextBoxStyle(StackEditableGroupText)
-		.SetTextStyle(StackGroupText); 
+		.SetTextStyle(StackGroupText);
 
 	Style->Set("NiagaraEditor.Stack.EditableGroupText", StackInlineEditableGroupText);
 
-	FSlateFontInfo StackDefaultFont = DEFAULT_FONT("Regular", 10);
+	FSlateFontInfo NormalFont = FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.NormalFont"));
+	FTextBlockStyle StackItemText = FTextBlockStyle(CategoryText)
+		.SetFont(NormalFont)
+		.SetTransformPolicy(ETextTransformPolicy::ToUpper);
+
+	Style->Set("NiagaraEditor.Stack.ItemText", StackItemText);
+	
+	FEditableTextBoxStyle StackEditableItemText = FEditableTextBoxStyle(NormalEditableTextBox)
+		.SetFont(NormalFont);
+
+	FInlineEditableTextBlockStyle StackInlineEditableItemText = FInlineEditableTextBlockStyle()
+		.SetEditableTextBoxStyle(StackEditableItemText)
+		.SetTextStyle(StackItemText);
+	Style->Set("NiagaraEditor.Stack.EditableItemText", StackInlineEditableItemText);
+
 	FTextBlockStyle StackDefaultText = FTextBlockStyle(NormalText)
-		.SetFont(StackDefaultFont);
+		.SetFont(NormalFont);
 	Style->Set("NiagaraEditor.Stack.DefaultText", StackDefaultText);
 
-	FSlateFontInfo StackCategoryFont = DEFAULT_FONT("Bold", 10);
-	FTextBlockStyle StackCategoryText = FTextBlockStyle(NormalText)
-		.SetFont(StackCategoryFont);
+	FTextBlockStyle StackCategoryText = FTextBlockStyle(NormalText);
 	Style->Set("NiagaraEditor.Stack.CategoryText", StackCategoryText);
 	Style->Set("NiagaraEditor.SystemOverview.GroupHeaderText", StackCategoryText);
 
@@ -104,11 +118,6 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 		.SetFont(TextContentFont);
 	Style->Set("NiagaraEditor.Stack.TextContentText", TextContentText);
 
-	FSlateFontInfo StackItemFont = DEFAULT_FONT("Regular", 11);
-	FTextBlockStyle StackItemText = FTextBlockStyle(NormalText)
-		.SetFont(StackItemFont);
-	Style->Set("NiagaraEditor.Stack.ItemText", StackItemText);
-
 	FSlateFontInfo PerfWidgetDetailFont = DEFAULT_FONT("Regular", 7);
 	Style->Set("NiagaraEditor.Stack.Stats.DetailFont", PerfWidgetDetailFont);
 	FSlateFontInfo PerfWidgetGroupFont = DEFAULT_FONT("Regular", 8);
@@ -116,13 +125,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	FSlateFontInfo PerfWidgetEvalTypeFont = DEFAULT_FONT("Regular", 7);
 	Style->Set("NiagaraEditor.Stack.Stats.EvalTypeFont", PerfWidgetEvalTypeFont);
 	
-	FEditableTextBoxStyle StackEditableItemText = FEditableTextBoxStyle(NormalEditableTextBox)
-		.SetFont(StackItemFont);
 
-	FInlineEditableTextBlockStyle StackInlineEditableItemText = FInlineEditableTextBlockStyle()
-		.SetTextStyle(StackItemText)
-		.SetEditableTextBoxStyle(StackEditableItemText);
-	Style->Set("NiagaraEditor.Stack.EditableItemText", StackInlineEditableItemText);
 
 	FSlateFontInfo StackSubduedItemFont = DEFAULT_FONT("Regular", 9);
 	FTextBlockStyle StackSubduedItemText = FTextBlockStyle(NormalText)
@@ -151,6 +154,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.SystemOverview.NodeBackgroundBorder", new BOX_PLUGIN_BRUSH("Icons/SystemOverviewNodeBackground", FMargin(1.0f / 4.0f)));
 	Style->Set("NiagaraEditor.SystemOverview.NodeBackgroundColor", FLinearColor(FColor(48, 48, 48)));
 
+	const FTableRowStyle& NormalTableRowStyle = FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
 	FSlateFontInfo CurveOverviewTopLevelFont = DEFAULT_FONT("Bold", 10);
 	FTextBlockStyle CurveOverviewTopLevelText = FTextBlockStyle(NormalText)
 		.SetFont(CurveOverviewTopLevelFont);
@@ -197,36 +201,22 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 
 	Style->Set("NiagaraEditor.CurveDetails.ShowInOverview.Small", new IMAGE_CORE_BRUSH("Common/GoToSource", Icon12x12, FLinearColor(.9f, .9f, .9f, 1.0f)));
 
-	const FTableRowStyle& NormalTableRowStyle = FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
-
-	FSlateBrush StackRowSelectionBrush = BOX_PLUGIN_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), GetDefault<UEditorStyleSettings>()->SelectionColor);
-	FSlateBrush StackRowSubduedSelectionBrush = BOX_PLUGIN_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), GetDefault<UEditorStyleSettings>()->GetSubduedSelectionColor());
+	FSlateBrush StackRowSelectionBrush = BOX_PLUGIN_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), FStyleColors::Select);
+	FSlateBrush StackRowSubduedSelectionBrush = BOX_PLUGIN_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), FStyleColors::SelectInactive);
 	Style->Set("NiagaraEditor.Stack.TableViewRow", FTableRowStyle(NormalTableRowStyle)
+		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::White))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::White))
 		.SetActiveBrush(StackRowSelectionBrush)
 		.SetActiveHoveredBrush(StackRowSelectionBrush)
 		.SetInactiveBrush(StackRowSubduedSelectionBrush)
 		.SetInactiveHoveredBrush(StackRowSelectionBrush));
 
 	Style->Set("NiagaraEditor.SystemOverview.TableViewRow", FTableRowStyle(NormalTableRowStyle)
+		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel))
+		.SetSelectedTextColor(FStyleColors::Background)
 		.SetInactiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, GetDefault<UEditorStyleSettings>()->GetSubduedSelectionColor())));
 
-	Style->Set("NiagaraEditor.Stack.BackgroundColor", FLinearColor(FColor(96, 96, 96)));
-	Style->Set("NiagaraEditor.Stack.Item.HeaderBackgroundColor", FLinearColor(FColor(48, 48, 48)));
-	Style->Set("NiagaraEditor.Stack.Item.ContentBackgroundColor", FLinearColor(FColor(62, 62, 62)));
-	Style->Set("NiagaraEditor.Stack.Item.ContentAdvancedBackgroundColor", FLinearColor(FColor(53, 53, 53)));
-	Style->Set("NiagaraEditor.Stack.Item.FooterBackgroundColor", FLinearColor(FColor(75, 75, 75)));
-	Style->Set("NiagaraEditor.Stack.Item.InfoBackgroundColor", FLinearColor(FColor(68, 100, 106)));
-	Style->Set("NiagaraEditor.Stack.Item.WarningBackgroundColor", FLinearColor(FColor(97, 97, 68)));
-	Style->Set("NiagaraEditor.Stack.Item.ErrorBackgroundColor", FLinearColor(FColor(126, 78, 68)));
-
-	Style->Set("NiagaraEditor.Stack.UnknownColor", FLinearColor(1, 0, 1));
-
-	Style->Set("NiagaraEditor.Stack.ItemHeaderFooter.BackgroundBrush", new FSlateColorBrush(FLinearColor(FColor(20, 20, 20))));
-
-	Style->Set("NiagaraEditor.Stack.ForegroundColor", FLinearColor(FColor(220, 220, 220)));
-	Style->Set("NiagaraEditor.Stack.GroupForegroundColor", FLinearColor(FColor(220, 220, 220)));
-	Style->Set("NiagaraEditor.Stack.FlatButtonColor", FLinearColor(FColor(205, 205, 205)));
-	Style->Set("NiagaraEditor.Stack.DividerColor", FLinearColor(FColor(92, 92, 92)));
 	
 	Style->Set("NiagaraEditor.Stack.Stats.EvalTypeColor", FLinearColor(FColor(168, 168, 168)));
 	Style->Set("NiagaraEditor.Stack.Stats.RuntimePlaceholderColor", FLinearColor(FColor(86, 86, 86)));
@@ -239,21 +229,6 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.Stack.Stats.MediumCostColor", FLinearColor(FColor(220, 210, 86)));
 	Style->Set("NiagaraEditor.Stack.Stats.HighCostColor", FLinearColor(FColor(205, 114, 69)));
 	Style->Set("NiagaraEditor.Stack.Stats.MaxCostColor", FLinearColor(FColor(200, 60, 60)));
-
-	Style->Set("NiagaraEditor.Stack.HighlightedButtonBrush", new BOX_CORE_BRUSH("Common/ButtonHoverHint", FMargin(4 / 16.0f), GetDefault<UEditorStyleSettings>()->SelectionColor));
-
-	const FVector2D ViewOptionsShadowOffset = FVector2D(0, 1);
-	Style->Set("NiagaraEditor.Stack.ViewOptionsShadowOffset", ViewOptionsShadowOffset);
-
-	FComboButtonStyle ViewOptionsComboButtonStyle = FCoreStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton");
-
-	const FLinearColor ViewOptionsShadowColor = FLinearColor::Black;
-	Style->Set("NiagaraEditor.Stack.ViewOptionsShadowColor", FLinearColor::Black);
-	Style->Set("NiagaraEditor.Stack.ViewOptionsButton",	ViewOptionsComboButtonStyle
-		.SetButtonStyle(FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("HoverHintOnly"))
-		.SetShadowOffset(ViewOptionsShadowOffset)
-		.SetShadowColorAndOpacity(ViewOptionsShadowColor)
-	);
 
 	Style->Set("NiagaraEditor.Stack.AccentColor.System", FLinearColor(FColor(67, 105, 124)));
 	Style->Set("NiagaraEditor.Stack.AccentColor.Emitter", FLinearColor(FColor(126, 87, 67)));
@@ -301,18 +276,6 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 
 	Style->Set("NiagaraEditor.Stack.SearchHighlightColor", FEditorStyle::GetColor("TextBlock.HighlighColor"));
 	Style->Set("NiagaraEditor.Stack.SearchResult", new BOX_PLUGIN_BRUSH("Icons/SearchResultBorder", FMargin(1.f/8.f)));
-
-	Style->Set("NiagaraEditor.Stack.AddButton", FButtonStyle()
-		.SetNormal(BOX_CORE_BRUSH("Common/FlatButton", 2.0f / 8.0f, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
-		.SetHovered(BOX_CORE_BRUSH("Common/FlatButton", 2.0f / 8.0f, FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)))
-		.SetPressed(BOX_CORE_BRUSH("Common/FlatButton", 2.0f / 8.0f, FLinearColor(.8f, .8f, .8f, 1.0f)))
-	);
-
-	FTextBlockStyle AddButtonText = FTextBlockStyle(NormalText)
-		.SetColorAndOpacity(FLinearColor(0.8f, 0.8f, 0.8f, 1.0f))
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
-	Style->Set("NiagaraEditor.Stack.AddButtonText", AddButtonText);
 
 	Style->Set("NiagaraEditor.Stack.ModuleHighlight", new IMAGE_PLUGIN_BRUSH("Icons/ModuleHighlight", Icon6x6, FLinearColor::White));
 	Style->Set("NiagaraEditor.Stack.ModuleHighlightMore", new IMAGE_PLUGIN_BRUSH("Icons/ModuleHighlightMore", Icon6x6, FLinearColor::White));

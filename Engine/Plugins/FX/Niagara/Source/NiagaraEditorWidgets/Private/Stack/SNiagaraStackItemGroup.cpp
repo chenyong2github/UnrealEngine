@@ -11,6 +11,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackItemGroup"
 
@@ -30,6 +31,7 @@ void SNiagaraStackItemGroup::Construct(const FArguments& InArgs, UNiagaraStackIt
 	[
 		SNew(SNiagaraStackDisplayName, InGroup, *InStackViewModel)
 		.NameStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.GroupText")
+		.EditableNameStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.EditableGroupText")
 	];
 
 	// Delete group button
@@ -39,16 +41,15 @@ void SNiagaraStackItemGroup::Construct(const FArguments& InArgs, UNiagaraStackIt
 		SNew(SButton)
 		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 		.IsFocusable(false)
-		.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
 		.ToolTipText(this, &SNiagaraStackItemGroup::GetDeleteButtonToolTip)
 		.OnClicked(this, &SNiagaraStackItemGroup::DeleteClicked)
 		.IsEnabled(this, &SNiagaraStackItemGroup::GetDeleteButtonIsEnabled)
 		.Visibility(this, &SNiagaraStackItemGroup::GetDeleteButtonVisibility)
 		.Content()
 		[
-			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-			.Text(FText::FromString(FString(TEXT("\xf1f8"))))
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	];
 

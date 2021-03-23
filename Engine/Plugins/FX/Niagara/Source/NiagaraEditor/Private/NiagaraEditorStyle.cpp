@@ -63,16 +63,13 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 {
 	const FTextBlockStyle NormalText = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
 	const FEditableTextBoxStyle NormalEditableTextBox = FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
-	const FSpinBoxStyle NormalSpinBox = FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("SpinBox");
+	const FSpinBoxStyle NormalSpinBox = FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("SpinBox");
 
 	TSharedRef< FSlateStyleSet > Style = MakeShareable(new FSlateStyleSet("NiagaraEditorStyle"));
 	Style->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate/Niagara"));
 
 	// Stats
-	FTextBlockStyle CategoryText = FTextBlockStyle(NormalText)
-		.SetFont(DEFAULT_FONT("Regular", 10))
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+	const FTextBlockStyle CategoryText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("DetailsView.CategoryTextStyle");
 
 	Style->Set("NiagaraEditor.StatsText", CategoryText);
 
@@ -130,19 +127,17 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	Style->Set("NiagaraEditor.NewAssetDialog.SubBorder", new BOX_CORE_BRUSH("Common/GroupBorderLight", FMargin(4.0f / 16.0f)));
 
 	// Emitter Header
-	FTextBlockStyle HeadingText = FTextBlockStyle(NormalText)
-		.SetFont(DEFAULT_FONT("Regular", 14));
+	FTextBlockStyle StackHeaderText = FTextBlockStyle(NormalText);
+	StackHeaderText.SetFont(DEFAULT_FONT("Regular", 11))
+		.SetColorAndOpacity(FSlateColor(EStyleColor::White));
 
-	FEditableTextBoxStyle HeadingEditableTextBox = FEditableTextBoxStyle(NormalEditableTextBox)
-		.SetFont(DEFAULT_FONT("Regular", 14));
+	Style->Set("NiagaraEditor.HeadingTextBlock", StackHeaderText);
 
-	Style->Set("NiagaraEditor.HeadingTextBlock", HeadingText);
+	FTextBlockStyle StackHeaderTextSubdued = FTextBlockStyle(NormalText);
+	StackHeaderTextSubdued.SetFont(DEFAULT_FONT("Regular", 11))
+		.SetColorAndOpacity(FStyleColors::Foreground);
 
-	Style->Set("NiagaraEditor.HeadingEditableTextBox", HeadingEditableTextBox);
-
-	Style->Set("NiagaraEditor.HeadingInlineEditableText", FInlineEditableTextBlockStyle()
-		.SetTextStyle(HeadingText)
-		.SetEditableTextBoxStyle(HeadingEditableTextBox));
+	Style->Set("NiagaraEditor.HeadingTextBlockSubdued", StackHeaderTextSubdued);
 
 	FTextBlockStyle TabText = FTextBlockStyle(NormalText)
 		.SetFont(DEFAULT_FONT("Regular", 12))
@@ -164,28 +159,21 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	Style->Set("NiagaraEditor.DetailsHeadingText", DetailsHeadingText);
 
 	// Parameters
-	FSlateFontInfo ParameterFont = DEFAULT_FONT("Regular", 8);
-
-	Style->Set("NiagaraEditor.ParameterFont", ParameterFont);
-
+	
+	FSlateFontInfo NormalFont = FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.NormalFont"));
 	FTextBlockStyle ParameterText = FTextBlockStyle(NormalText)
-		.SetFont(ParameterFont);
+		.SetFont(NormalFont);
 
 	Style->Set("NiagaraEditor.ParameterText", ParameterText);
 
-	FEditableTextBoxStyle ParameterEditableTextBox = FEditableTextBoxStyle(NormalEditableTextBox)
-		.SetFont(ParameterFont);
+	FEditableTextBoxStyle ParameterEditableText = FEditableTextBoxStyle(NormalEditableTextBox)
+		.SetFont(NormalFont);
 
-	Style->Set("NiagaraEditor.ParameterEditableTextBox", ParameterEditableTextBox);
+	FInlineEditableTextBlockStyle ParameterEditableTextBox = FInlineEditableTextBlockStyle()
+		.SetEditableTextBoxStyle(ParameterEditableText)
+		.SetTextStyle(ParameterText);
+	Style->Set("NiagaraEditor.ParameterInlineEditableText", ParameterEditableTextBox);
 
-	Style->Set("NiagaraEditor.ParameterInlineEditableText", FInlineEditableTextBlockStyle()
-		.SetTextStyle(ParameterText)
-		.SetEditableTextBoxStyle(ParameterEditableTextBox));
-
-	FSpinBoxStyle ParameterSpinBox = FSpinBoxStyle(NormalSpinBox)
-		.SetTextPadding(1);
-
-	Style->Set("NiagaraEditor.ParameterSpinbox", ParameterSpinBox);
 
 	Style->Set("NiagaraEditor.ParameterName.NamespaceBorder", new BOX_PLUGIN_BRUSH("Icons/NamespaceBorder", FMargin(4.0f / 16.0f)));
 
@@ -205,15 +193,9 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 		.SetFont(DEFAULT_FONT("Regular", 8))
 		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.5f)));
 
-	Style->Set("NiagaraEditor.Stack.HighlightedButtonBrush", new BOX_CORE_BRUSH("Common/ButtonHoverHint", FMargin(4 / 16.0f), FStyleColors::Primary));
-
 	// Parameter Map View
 	Style->Set("NiagaraEditor.Stack.DepressedHighlightedButtonBrush", new BOX_CORE_BRUSH("Common/ButtonHoverHint", FMargin(4 / 16.0f), FStyleColors::PrimaryPress));
-	Style->Set("NiagaraEditor.Stack.ViewOptionsShadowColor", FLinearColor::Black);
 	Style->Set("NiagaraEditor.Stack.FlatButtonColor", FLinearColor(FColor(205, 205, 205)));
-
-	const FVector2D ViewOptionsShadowOffset = FVector2D(0, 1);
-	Style->Set("NiagaraEditor.Stack.ViewOptionsShadowOffset", ViewOptionsShadowOffset);
 
 	// Code View
 	{
@@ -240,10 +222,6 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	Style->Set("NiagaraEditor.SelectedEmitter.UnsupportedSelectionText", SelectedEmitterUnsupportedSelectionText);
 
 	// Toolbar Icons
-	Style->Set("NiagaraEditor.Apply", new IMAGE_BRUSH("Icons/icon_Niagara_Apply_40x", Icon40x40));
-	Style->Set("NiagaraEditor.Apply.Small", new IMAGE_BRUSH("Icons/icon_Niagara_Apply_40x", Icon20x20));
-	Style->Set("NiagaraEditor.Compile", new IMAGE_BRUSH("Icons/icon_compile_40x", Icon40x40));
-	Style->Set("NiagaraEditor.Compile.Small", new IMAGE_BRUSH("Icons/icon_compile_40x", Icon20x20));
 	Style->Set("NiagaraEditor.AddEmitter", new IMAGE_BRUSH("Icons/icon_AddObject_40x", Icon40x40));
 	Style->Set("NiagaraEditor.AddEmitter.Small", new IMAGE_BRUSH("Icons/icon_AddObject_40x", Icon20x20));
 	Style->Set("NiagaraEditor.UnlockToChanges", new IMAGE_BRUSH("Icons/icon_levels_unlocked_40x", Icon40x40));
@@ -253,14 +231,6 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	Style->Set("NiagaraEditor.SimulationOptions", new IMAGE_PLUGIN_BRUSH("Icons/Commands/icon_simulationOptions_40x", Icon40x40));
 	Style->Set("NiagaraEditor.SimulationOptions.Small", new IMAGE_PLUGIN_BRUSH("Icons/Commands/icon_simulationOptions_40x", Icon20x20));
 
-	Style->Set("Niagara.CompileStatus.Unknown", new IMAGE_BRUSH("Icons/CompileStatus_Working", Icon40x40));
-	Style->Set("Niagara.CompileStatus.Unknown.Small", new IMAGE_BRUSH("Icons/CompileStatus_Working", Icon20x20));
-	Style->Set("Niagara.CompileStatus.Error",   new IMAGE_BRUSH("Icons/CompileStatus_Fail", Icon40x40));
-	Style->Set("Niagara.CompileStatus.Error.Small", new IMAGE_BRUSH("Icons/CompileStatus_Fail", Icon20x20));
-	Style->Set("Niagara.CompileStatus.Good",    new IMAGE_BRUSH("Icons/CompileStatus_Good", Icon40x40));
-	Style->Set("Niagara.CompileStatus.Good.Small", new IMAGE_BRUSH("Icons/CompileStatus_Good", Icon20x20));
-	Style->Set("Niagara.CompileStatus.Warning", new IMAGE_BRUSH("Icons/CompileStatus_Warning", Icon40x40));
-	Style->Set("Niagara.CompileStatus.Warning.Small", new IMAGE_BRUSH("Icons/CompileStatus_Warning", Icon20x20));
 	Style->Set("Niagara.Asset.ReimportAsset.Needed", new IMAGE_BRUSH("Icons/icon_Reimport_Needed_40x", Icon40x40));
 	Style->Set("Niagara.Asset.ReimportAsset.Default", new IMAGE_BRUSH("Icons/icon_Reimport_40x", Icon40x40));
 	

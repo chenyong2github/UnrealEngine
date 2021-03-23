@@ -8,6 +8,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraStackEntryWidget"
 
@@ -17,8 +18,8 @@ void SNiagaraStackDisplayName::Construct(const FArguments& InArgs, UNiagaraStack
 	StackViewModel = &InStackViewModel;
 
 	NameStyle = InArgs._NameStyle;
-	EditableNameStyle = InArgs._EditableNameStyle;
-	OriginalNameStyle = InArgs._OriginalNameStyle;
+ 	EditableNameStyle = InArgs._EditableNameStyle;
+ 	OriginalNameStyle = InArgs._OriginalNameStyle;
 
 	TAttribute<FText> EntryToolTipText;
 	EntryToolTipText.Bind(this, &SNiagaraStackDisplayName::GetEntryToolTipText);
@@ -214,7 +215,7 @@ FSlateColor SNiagaraStackEntryWidget::GetTextColorForSearch(FSlateColor DefaultC
 {
 	if (IsCurrentSearchMatch())
 	{
-		return FSlateColor(FLinearColor(FColor::Orange));
+		return FStyleColors::Select;
 	}
 	return DefaultColor;
 }

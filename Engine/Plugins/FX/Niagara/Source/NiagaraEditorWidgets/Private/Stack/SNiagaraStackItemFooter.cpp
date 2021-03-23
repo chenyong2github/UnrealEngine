@@ -51,7 +51,7 @@ void SNiagaraStackItemFooter::Construct(const FArguments& InArgs, UNiagaraStackI
 
 EVisibility SNiagaraStackItemFooter::GetExpandButtonVisibility() const
 {
-	return ItemFooter->GetHasAdvancedContent() ? EVisibility::Visible : EVisibility::Hidden;
+	return ItemFooter->GetHasAdvancedContent() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SNiagaraStackItemFooter::GetOverrideIconVisibility() const

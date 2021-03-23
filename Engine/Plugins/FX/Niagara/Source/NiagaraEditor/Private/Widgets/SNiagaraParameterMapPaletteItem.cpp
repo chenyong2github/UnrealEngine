@@ -58,30 +58,39 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 	bool bForceReadOnly = NamespaceMetadata.IsValid() == false || NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName);
 
 	ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)
+		.EditableTextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterInlineEditableText")
+		.ReadOnlyTextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 		.ParameterText(FText::FromName(ParameterAction->Parameter.GetName()))
 		.HighlightText(InCreateData->HighlightText)
 		.OnTextCommitted(this, &SNiagaraParameterMapPalleteItem::OnNameTextCommitted)
 		.OnVerifyTextChanged(this, &SNiagaraParameterMapPalleteItem::OnNameTextVerifyChanged)
 		.IsSelected(InCreateData->IsRowSelectedDelegate)
 		.IsReadOnly(InCreateData->bIsReadOnly || bForceReadOnly || ParameterAction->bIsExternallyReferenced)
+		.DecoratorHAlign(HAlign_Fill)
 		.Decorator()
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0, 0, 5, 0)
+			.FillWidth(1.0)
 			[
-				SNew(STextBlock)
+				SNew(SSpacer)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 2, 0)
+			[
+				SNew(SImage)
 				.Visibility(ParameterAction->bIsExternallyReferenced ? EVisibility::Visible : EVisibility::Collapsed)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
-				.Text(FEditorFontGlyphs::Lock)
+				.Image(FAppStyle::Get().GetBrush("Icons.Lock"))
 				.ToolTipText(LOCTEXT("LockedToolTip", "This parameter is used in a referenced external graph and can't be edited directly."))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(0, 0, 5, 0)
 			[
 				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 				.Visibility(ParameterAction->bIsSourcedFromCustomStackContext ? EVisibility::Visible : EVisibility::Collapsed)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
 				.Text(FEditorFontGlyphs::Database)
@@ -115,18 +124,16 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 		.VAlign(VAlign_Center)
 		.Padding(3, 0)
 		[
-			SNew(SComboButton)
-			.HasDownArrow(false)
-			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ContentPadding(FMargin(2.0f))
+			SNew(SBox)
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
-			.ButtonContent()
+			.MinDesiredWidth(30.0f)
+			.Content()
 			[
 				SNew(STextBlock)
 				.Text(this, &SNiagaraParameterMapPalleteItem::GetReferenceCount)
-				.Font(Font)
+				.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("HintText"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
 

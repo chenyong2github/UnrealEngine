@@ -418,21 +418,23 @@ private:
 		.Padding(3, 0, 0, 0)
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.GroupText")
 			.Text(ViewModel->GetDisplayNameForUsage(Category))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(0.0f, 4.0f, 3.0f, 4.0f)
+		.Padding(0.0f, 2.0f, 3.0f, 2.0f)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.OnClicked(this, &SNiagaraScratchPadScriptSelector::ScriptSelectorAddButtonClicked, Category)
 			.ContentPadding(FMargin(3.0f, 2.0f, 2.0f, 2.0f))
 			.Content()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Plus"))
+				.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		];
 	}
@@ -910,8 +912,9 @@ class SNiagaraScratchPadSectionBox : public SCompoundWidget
 			.Padding(1.0f, 5.0f, 0.0f, 4.0f)
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "Docking.TabFont")
+				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.GroupText")
 				.Text(InArgs._HeaderText)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 			+ SVerticalBox::Slot()
 			.Padding(5.0f, 0.0f, 3.0f, 5.0f)

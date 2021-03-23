@@ -207,8 +207,9 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 				.NameContent()
 				[
 					SNew(STextBlock)
-					.Font(FNiagaraEditorStyle::Get().GetFontStyle("NiagaraEditor.ParameterFont"))
+					.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 					.Text(FText::FromString(TEXT("Default Value")))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 				.ValueContent()
 				.HAlign(HAlign_Fill)
@@ -230,8 +231,9 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 					.HAlign(HAlign_Fill)
 					[
 						SNew(STextBlock)
-						.Font(FNiagaraEditorStyle::Get().GetFontStyle("NiagaraEditor.ParameterFont"))
-					.Text(NSLOCTEXT("ScriptVariableCustomization", "MissingDefaults", "To set default, add to a Map Get node that is wired to the graph."))
+						.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
+						.Text(NSLOCTEXT("ScriptVariableCustomization", "MissingDefaults", "To set default, add to a Map Get node that is wired to the graph."))
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					];
 			}
 		}

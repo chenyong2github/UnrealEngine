@@ -417,8 +417,6 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 							.OnGetMenuContent(this, &FNiagaraVariableAttributeBindingCustomization::OnGetMenuContent)
 							.ContentPadding(1)
 							.ToolTipText(this, &FNiagaraVariableAttributeBindingCustomization::GetTooltipText)
-							.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-							.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 							.ButtonContent()
 							[
 								/*SNew(STextBlock)
@@ -447,6 +445,7 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 							[
 								SNew(SImage)
 								.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 						]
 					];
@@ -509,17 +508,16 @@ TSharedRef<SWidget> FNiagaraUserParameterBindingCustomization::OnGetMenuContent(
 	FGraphActionMenuBuilder MenuBuilder;
 
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SBox)
 			[
 				SNew(SGraphActionMenu)
 				.OnActionSelected(const_cast<FNiagaraUserParameterBindingCustomization*>(this), &FNiagaraUserParameterBindingCustomization::OnActionSelected)
-		.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraUserParameterBindingCustomization*>(this), &FNiagaraUserParameterBindingCustomization::OnCreateWidgetForAction))
-		.OnCollectAllActions(const_cast<FNiagaraUserParameterBindingCustomization*>(this), &FNiagaraUserParameterBindingCustomization::CollectAllActions)
-		.AutoExpandActionMenu(false)
-		.ShowFilterTextBox(true)
+				.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraUserParameterBindingCustomization*>(this), &FNiagaraUserParameterBindingCustomization::OnCreateWidgetForAction))
+				.OnCollectAllActions(const_cast<FNiagaraUserParameterBindingCustomization*>(this), &FNiagaraUserParameterBindingCustomization::CollectAllActions)
+				.AutoExpandActionMenu(false)
+				.ShowFilterTextBox(true)
 			]
 		];
 }
@@ -627,15 +625,13 @@ void FNiagaraUserParameterBindingCustomization::CustomizeHeader(TSharedRef<IProp
 				[
 					PropertyHandle->CreatePropertyNameWidget()
 				]
-			.ValueContent()
+				.ValueContent()
 				.MaxDesiredWidth(200.f)
 				[
 					SNew(SComboButton)
 					.OnGetMenuContent(this, &FNiagaraUserParameterBindingCustomization::OnGetMenuContent)
 					.ContentPadding(1)
 					.ToolTipText(this, &FNiagaraUserParameterBindingCustomization::GetTooltipText)
-					.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-					.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 					.ButtonContent()
 					[
 
