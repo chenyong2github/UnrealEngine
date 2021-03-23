@@ -1424,22 +1424,25 @@ bool FSceneViewport::HasFixedSize() const
 
 void FSceneViewport::SetFixedViewportSize(uint32 NewViewportSizeX, uint32 NewViewportSizeY)
 {
-	if (NewViewportSizeX > 0 && NewViewportSizeY > 0)
+	if (ViewportWidget.IsValid())
 	{
-		bForceViewportSize = true;
-		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
-		if (Window.IsValid())
+		if (NewViewportSizeX > 0 && NewViewportSizeY > 0)
 		{
-			ResizeViewport(NewViewportSizeX, NewViewportSizeY, Window->GetWindowMode());
+			bForceViewportSize = true;
+			TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
+			if (Window.IsValid())
+			{
+				ResizeViewport(NewViewportSizeX, NewViewportSizeY, Window->GetWindowMode());
+			}
 		}
-	}
-	else
-	{
-		bForceViewportSize = false;
-		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
-		if (Window.IsValid())
+		else
 		{
-			Window->Invalidate(EInvalidateWidget::PaintAndVolatility);
+			bForceViewportSize = false;
+			TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
+			if (Window.IsValid())
+			{
+				Window->Invalidate(EInvalidateWidget::PaintAndVolatility);
+			}
 		}
 	}
 }
