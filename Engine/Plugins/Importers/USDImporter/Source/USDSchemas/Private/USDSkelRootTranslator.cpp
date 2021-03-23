@@ -858,7 +858,7 @@ namespace UsdSkelRootTranslatorImpl
 							// Bone/CurveCompressionSettings. Undoing that transaction would call UAnimSequence::Serialize with nullptr values for both, which crashes.
 							// Besides, this particular asset type is only ever created when we import to content folder assets (so never for realtime), and
 							// in that case we don't need it to be transactional anyway
-							AnimSequence = NewObject<UAnimSequence>( GetTransientPackage(), *UsdToUnreal::ConvertString( SkelAnimPrim.GetName() ), Context->ObjectFlags & ~EObjectFlags::RF_Transactional );
+							AnimSequence = NewObject<UAnimSequence>( GetTransientPackage(), NAME_None, Context->ObjectFlags & ~EObjectFlags::RF_Transactional );
 							AnimSequence->SetSkeleton(SkeletalMesh->Skeleton);
 
 							TUsdStore<pxr::VtArray<pxr::UsdSkelSkinningQuery>> SkinningTargets = Binding.GetSkinningTargets();
