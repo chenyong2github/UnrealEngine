@@ -15,6 +15,8 @@ DISABLE_SDK_WARNINGS_END
 #include "DatasmithExporterManager.h"
 #include "DatasmithDirectLink.h"
 
+#include "Modules/ModuleManager.h"
+
 #include "DebugTools.h"
 
 #if defined(WIN32)
@@ -78,12 +80,13 @@ bool LoadDatasmithDlls()
 			FDatasmithExporterManager::FInitOptions Options;
 			Options.bEnableMessaging = true; // DirectLink requires the Messaging service.
 			Options.bSuppressLogs = UE_AC_VERBOSEF_ON == 0; // Log are useful, don't suppress them
-			Options.bUseDatasmithExporterUI = false;
+			Options.bUseDatasmithExporterUI = true;
 #ifdef WIN32
 			Options.RemoteEngineDirPath = TEXT("C:\\ProgramData\\Epic\\Exporter\\RevitEngine\\");
 #else
 			Options.RemoteEngineDirPath = TEXT("/Volumes/MacDev/GitEpicGames/UE426/Engine/");
 #endif
+
 			if (!FDatasmithExporterManager::Initialize(Options))
 			{
 				UE_AC_DebugF("FDatasmithExporterManager Initialize returned false\n");

@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release23|x64">
+      <Configuration>Release23</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{37856728-77DB-42E0-AD54-20803E4E2FC7}</ProjectGuid>
+    <ProjectName>DatasmithARCHICAD23Exporter</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release23|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props')" />
+    <Import Project="DatasmithARCHICAD23Exporter.props" />
+    <Import Project="..\Config\DatasmithArchicadExporter.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props')" />
+    <Import Project="DatasmithARCHICAD23Exporter.props" />
+    <Import Project="..\Config\DatasmithArchicadExporter.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release23|x64'" Label="PropertySheets">
+    <Import Project="$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props')" />
+    <Import Project="DatasmithARCHICAD23Exporter.props" />
+    <Import Project="..\Config\DatasmithArchicadExporter.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IntDir>$(UEIntermediateDir)\DatasmithArchiCADExporter23\</IntDir>
+    <OutDir>$(EngineDir)\Binaries\Win64\DatasmithArchiCADExporter\ArchiCAD23\</OutDir>
+    <TargetExt>.apx</TargetExt>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IntDir>$(UEIntermediateDir)\DatasmithArchiCADExporter23\</IntDir>
+    <OutDir>$(EngineDir)\Binaries\Win64\DatasmithArchiCADExporter\ArchiCAD23\</OutDir>
+    <TargetExt>.apx</TargetExt>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">
+    <IntDir>$(UEIntermediateDir)\DatasmithArchiCADExporter23\</IntDir>
+    <OutDir>$(EngineDir)\Binaries\Win64\DatasmithArchiCADExporter\ArchiCAD23\</OutDir>
+    <TargetExt>.apx</TargetExt>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(OutDir)$(ProjectName)-Debug.pdb</ProgramDataBaseFileName>
+      <BrowseInformation>true</BrowseInformation>
+      <BrowseInformationFile>$(IntDir)</BrowseInformationFile>
+      <CallingConvention>FastCall</CallingConvention>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4996;5208;4251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <OutputFile>$(OutDir)$(ProjectName)-Debug.apx</OutputFile>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>$(OutDir)$(ProjectName).pdb</ProgramDatabaseFile>
+      <SubSystem>NotSet</SubSystem>
+      <EntryPointSymbol>DllMainEntry</EntryPointSymbol>
+      <TargetMachine>MachineX64</TargetMachine>
+      <ImportLibrary>
+      </ImportLibrary>
+      <LinkDLL>true</LinkDLL>
+      <AdditionalOptions>/export:GetExportedFuncAddrs,%401 /export:SetImportedFuncAddrs,%402 %(AdditionalOptions)</AdditionalOptions>
+      <DelayLoadDLLs>DbgHelp.dll</DelayLoadDLLs>
+    </Link>
+    <PostBuildEvent>
+      <Command>echo Copying files
+copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.dll $(OutDir) /Y
+copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb $(OutDir) /Y
+
+copy $(OutDir)$(ProjectName).apx D:\Temp\DatasmithARCHICAD23Exporter /Y
+copy $(OutDir)DatasmithUE4ArchiCAD.dll D:\Temp\DatasmithARCHICAD23Exporter /Y
+
+copy $(OutDir)$(TargetName).pdb D:\Temp\DatasmithARCHICAD23Exporter /Y
+copy $(OutDir)DatasmithUE4ArchiCAD.pdb D:\Temp\DatasmithARCHICAD23Exporter /Y
+</Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>pushd ..\..\..\..\..\..\..
+call Build\BatchFiles\Build.bat DatasmithUE4ArchiCAD Win64 Debug -WaitMutex -FromMsBuild
+popd
+</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <Optimization>MaxSpeed</Optimization>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <MinimalRebuild>false</MinimalRebuild>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(OutDir)$(ProjectName).pdb</ProgramDataBaseFileName>
+      <BrowseInformation>true</BrowseInformation>
+      <BrowseInformationFile>$(IntDir)</BrowseInformationFile>
+      <CallingConvention>FastCall</CallingConvention>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4996;5208;4251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <OutputFile>$(OutDir)$(ProjectName).apx</OutputFile>
+      <SubSystem>NotSet</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <EntryPointSymbol>DllMainEntry</EntryPointSymbol>
+      <TargetMachine>MachineX64</TargetMachine>
+      <ImportLibrary>
+      </ImportLibrary>
+      <LinkDLL>true</LinkDLL>
+      <AdditionalOptions>/export:GetExportedFuncAddrs,%401 /export:SetImportedFuncAddrs,%402 %(AdditionalOptions)</AdditionalOptions>
+      <DelayLoadDLLs>DbgHelp.dll;DatasmithUE4ArchiCAD.dll</DelayLoadDLLs>
+    </Link>
+    <PostBuildEvent>
+      <Command>echo Copying files
+copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.dll $(OutDir) /Y
+copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb $(OutDir) /Y
+
+copy $(OutDir)$(ProjectName).apx D:\Temp\DatasmithARCHICAD23Exporter /Y
+copy $(OutDir)DatasmithUE4ArchiCAD.dll D:\Temp\DatasmithARCHICAD23Exporter /Y
+
+copy $(OutDir)$(TargetName).pdb D:\Temp\DatasmithARCHICAD23Exporter /Y
+copy $(OutDir)DatasmithUE4ArchiCAD.pdb D:\Temp\DatasmithARCHICAD23Exporter /Y
+</Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>pushd ..\..\..\..\..\..\..
+call Build\BatchFiles\Build.bat DatasmithUE4ArchiCAD Win64 Development -WaitMutex -FromMsBuild
+popd
+</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">
+    <ClCompile>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <Optimization>MaxSpeed</Optimization>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <MinimalRebuild>false</MinimalRebuild>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(OutDir)$(ProjectName).pdb</ProgramDataBaseFileName>
+      <BrowseInformation>true</BrowseInformation>
+      <BrowseInformationFile>$(IntDir)</BrowseInformationFile>
+      <CallingConvention>FastCall</CallingConvention>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4996;5208;4251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <OutputFile>$(OutDir)$(ProjectName).apx</OutputFile>
+      <SubSystem>NotSet</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <EntryPointSymbol>DllMainEntry</EntryPointSymbol>
+      <TargetMachine>MachineX64</TargetMachine>
+      <ImportLibrary>
+      </ImportLibrary>
+      <LinkDLL>true</LinkDLL>
+      <AdditionalOptions>/export:GetExportedFuncAddrs,%401 /export:SetImportedFuncAddrs,%402 %(AdditionalOptions)</AdditionalOptions>
+      <DelayLoadDLLs>DbgHelp.dll</DelayLoadDLLs>
+    </Link>
+    <PostBuildEvent>
+      <Command>echo Copying files
+copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.dll $(OutDir) /Y
+copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb $(OutDir) /Y
+</Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\Private\APIEnvir.h" />
+    <ClInclude Include="..\..\Private\AutoChangeDatabase.h" />
+    <ClInclude Include="..\..\Private\Commander.h" />
+    <ClInclude Include="..\..\Private\DatasmithHashTools.h" />
+    <ClInclude Include="..\..\Private\Element2String.h" />
+    <ClInclude Include="..\..\Private\ElementEvent.h" />
+    <ClInclude Include="..\..\Private\ElementTools.h" />
+    <ClInclude Include="..\..\Private\Export.h" />
+    <ClInclude Include="..\..\Private\Exporter.h" />
+    <ClInclude Include="..\..\Private\GeometryUtil.h" />
+    <ClInclude Include="..\..\Private\LocalizeTools.h" />
+    <ClInclude Include="..\..\Private\Menus.h" />
+    <ClInclude Include="..\..\Private\MetaData.h" />
+    <ClInclude Include="..\..\Private\Options.h" />
+    <ClInclude Include="..\..\Private\Palette.h" />
+    <ClInclude Include="..\..\Private\Pasteboard.h" />
+    <ClInclude Include="..\..\Private\ProjectEvent.h" />
+    <ClInclude Include="..\..\Private\SaverReader.h" />
+    <ClInclude Include="..\..\Private\ShellOpenDocument.h" />
+    <ClInclude Include="..\..\Private\StatsCounter.h" />
+    <ClInclude Include="..\..\Private\Synchronizer.h" />
+    <ClInclude Include="..\..\Private\TAssValueName.h" />
+    <ClInclude Include="..\..\Private\AddonTools.h" />
+    <ClInclude Include="..\..\Private\CurrentOS.h" />
+    <ClInclude Include="..\..\Private\DebugTools.h" />
+    <ClInclude Include="..\..\Private\LoadDatasmithDlls.h" />
+    <ClInclude Include="..\..\Private\WarningsDisabler.h" />
+    <ClInclude Include="..\..\Private\ResourcesIDs.h" />
+    <ClInclude Include="..\..\Private\Element2StaticMesh.h" />
+    <ClInclude Include="..\..\Private\ElementID.h" />
+    <ClInclude Include="..\..\Private\Error.h" />
+    <ClInclude Include="..\..\Private\MaterialsDatabase.h" />
+    <ClInclude Include="..\..\Private\Preferences.h" />
+    <ClInclude Include="..\..\Private\Progression.h" />
+    <ClInclude Include="..\..\Private\SyncContext.h" />
+    <ClInclude Include="..\..\Private\SyncData.h" />
+    <ClInclude Include="..\..\Private\SyncDatabase.h" />
+    <ClInclude Include="..\..\Private\TexturesCache.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\Private\AddOn.cpp" />
+    <ClCompile Include="..\..\Private\AutoChangeDatabase.cpp" />
+    <ClCompile Include="..\..\Private\Commander.cpp" />
+    <ClCompile Include="..\..\Private\DatasmithHashTools.cpp" />
+    <ClCompile Include="..\..\Private\Element2String.cpp" />
+    <ClCompile Include="..\..\Private\ElementEvent.cpp" />
+    <ClCompile Include="..\..\Private\ElementTools.cpp" />
+    <ClCompile Include="..\..\Private\Error.cpp" />
+    <ClCompile Include="..\..\Private\Export.cpp" />
+    <ClCompile Include="..\..\Private\Exporter.cpp" />
+    <ClCompile Include="..\..\Private\GeometryUtil.cpp" />
+    <ClCompile Include="..\..\Private\Menus.cpp" />
+    <ClCompile Include="..\..\Private\MetaData.cpp" />
+    <ClCompile Include="..\..\Private\Options.cpp" />
+    <ClCompile Include="..\..\Private\Palette.cpp" />
+    <ClCompile Include="..\..\Private\Pasteboard.cpp" />
+    <ClCompile Include="..\..\Private\Preferences.cpp" />
+    <ClCompile Include="..\..\Private\ProjectEvent.cpp" />
+    <ClCompile Include="..\..\Private\Synchronizer.cpp" />
+    <ClCompile Include="..\..\Private\TAssValueName.cpp" />
+    <ClCompile Include="..\..\Private\LocalizeTools.cpp" />
+    <ClCompile Include="..\..\Private\AddonTools.cpp" />
+    <ClCompile Include="..\..\Private\DebugTools.cpp" />
+    <ClCompile Include="..\..\Private\LoadDatasmithDlls.cpp" />
+    <ClCompile Include="..\..\Private\WinOS.cpp" />
+    <ClCompile Include="..\..\Private\Element2StaticMesh.cpp" />
+    <ClCompile Include="..\..\Private\ElementID.cpp" />
+    <ClCompile Include="..\..\Private\MaterialsDatabase.cpp" />
+    <ClCompile Include="..\..\Private\Progression.cpp" />
+    <ClCompile Include="..\..\Private\ShellOpenDocument.cpp" />
+    <ClCompile Include="..\..\Private\SyncContext.cpp" />
+    <ClCompile Include="..\..\Private\SyncData.cpp" />
+    <ClCompile Include="..\..\Private\SyncDatabase.cpp" />
+    <ClCompile Include="..\..\Private\TexturesCache.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\Resources\RINT\$(ProjectName).grc">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DDEBUG /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName).grc.rc2.i" "..\..\Resources\RINT\$(ProjectName).grc"
+        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName).grc.rc2.i" -D _DEBUG -o "$(OutDir)\RO\$(ProjectName).grc.rc2"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling the localized GRC file...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName).grc.rc2.i" "..\..\Resources\RINT\$(ProjectName).grc"
+        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName).grc.rc2.i" -o "$(OutDir)\RO\$(ProjectName).grc.rc2"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName).grc.rc2.i" "..\..\Resources\RINT\$(ProjectName).grc"
+        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName).grc.rc2.i" -o "$(OutDir)\RO\$(ProjectName).grc.rc2"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the localized GRC file...</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">Compiling the localized GRC file...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;%(Outputs)</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\Resources\RFIX\$(ProjectName)Fix.grc">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DDEBUG /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" "..\..\Resources\RFIX\$(ProjectName)Fix.grc"
+        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -D _DEBUG -o "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling the non-localized GRC file...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" "..\..\Resources\RFIX\$(ProjectName)Fix.grc"
+        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" "..\..\Resources\RFIX\$(ProjectName)Fix.grc"
+        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the non-localized GRC file...</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">Compiling the non-localized GRC file...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;%(Outputs)</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\Resources\RFIX.WIN\$(ProjectName).rc2">
+      <FileType>RC</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /d _DEBUG /fo"$(OutDir)$(ProjectName).res" "..\..\Resources\RFIX.WIN\$(ProjectName).rc2"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling the RC2 file...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)$(ProjectName).res;%(Outputs)</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /fo"$(OutDir)$(ProjectName).res" "..\..\Resources\RFIX.WIN\$(ProjectName).rc2"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /fo"$(OutDir)$(ProjectName).res" "..\..\Resources\RFIX.WIN\$(ProjectName).rc2"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the RC2 file...</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">Compiling the RC2 file...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)$(ProjectName).res;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">$(OutDir)$(ProjectName).res;%(Outputs)</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;$(OutDir)\RO\ElemIcons.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;$(OutDir)\RO\ElemIcons.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STAT.lib">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STAT.lib" Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STATD.lib">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Modules\DGLib\Win\DGImp.lib">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Modules\GSRoot\Win\GSRootImp.lib">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Modules\GSUtils\Win\GSUtilsImp.lib">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Modules\InputOutput\Win\InputOutputImp.lib">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Modules\UCLib\Win\UCImp.lib">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Modules\UDLib\Win\UDImp.lib">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Modules\TextEngine\Win\TextEngineImp.LIB">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Modules\ObjectDatabase\Win\ObjectDatabaseImp.LIB">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Modules\VectorImage\Win\VectorImageImp.LIB">
+      <FileType>Document</FileType>
+    </Library>
+    <Library Include="$(ACSDKPATH)\Support\Modules\Geometry\Win\GeometryImp.LIB" />
+    <Library Include="$(ACSDKPATH)\Support\Modules\GSModeler\Win\GSModelerImp.LIB" />
+    <Library Include="$(ACSDKPATH)\Support\Modules\GXImageBase\Win\GXImageBaseImp.LIB" />
+    <Library Include="$(ACSDKPATH)\Support\Modules\GXImage\Win\GXImageImp.LIB" />
+    <Library Include="$(ACSDKPATH)\Support\Modules\GX\Win\GXImp.LIB" />
+    <Library Include="$(ACSDKPATH)\Support\Modules\VBAttributes\Win\VBAttributesImp.LIB" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Private\macOS.mm" />
+    <None Include="..\..\Resources\RFIX\Images\MenuIcon_18x18.svg" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
