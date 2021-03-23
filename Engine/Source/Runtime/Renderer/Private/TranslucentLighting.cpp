@@ -955,10 +955,10 @@ FTranslucencyLightingVolumeParameters GetTranslucencyLightingVolumeParameters(FR
 	else
 	{
 		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-		Parameters.TranslucencyLightingVolumeAmbientInner = SystemTextures.Black;
-		Parameters.TranslucencyLightingVolumeAmbientOuter = SystemTextures.Black;
-		Parameters.TranslucencyLightingVolumeDirectionalInner = SystemTextures.Black;
-		Parameters.TranslucencyLightingVolumeDirectionalOuter = SystemTextures.Black;
+		Parameters.TranslucencyLightingVolumeAmbientInner = SystemTextures.VolumetricBlack;
+		Parameters.TranslucencyLightingVolumeAmbientOuter = SystemTextures.VolumetricBlack;
+		Parameters.TranslucencyLightingVolumeDirectionalInner = SystemTextures.VolumetricBlack;
+		Parameters.TranslucencyLightingVolumeDirectionalOuter = SystemTextures.VolumetricBlack;
 	}
 	return Parameters;
 }
