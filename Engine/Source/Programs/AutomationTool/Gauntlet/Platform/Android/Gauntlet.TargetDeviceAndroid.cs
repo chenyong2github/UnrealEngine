@@ -250,7 +250,7 @@ namespace Gauntlet
 
 
 			// pull all the artifacts
-			string ArtifactPullCommand = string.Format("pull {0} {1}", Install.AndroidDevice.DeviceArtifactPath, Install.AndroidDevice.LocalCachePath);
+			string ArtifactPullCommand = string.Format("pull {0} \"{1}\"", Install.AndroidDevice.DeviceArtifactPath, Install.AndroidDevice.LocalCachePath);
 			IProcessResult PullCmd = Install.AndroidDevice.RunAdbDeviceCommand(ArtifactPullCommand, bShouldLogCommand: Log.IsVerbose);
 
 			if (PullCmd.ExitCode != 0)
@@ -926,7 +926,6 @@ namespace Gauntlet
 				// Convert the files from the source to final destination names
 				Dictionary<string, string> FilesToInstall = new Dictionary<string, string>();
 
-                Console.WriteLine("trying to copy files over.");
                 if (AppConfig.FilesToCopy != null)
                 {
                     if (LocalDirectoryMappings.Count == 0)
@@ -1160,7 +1159,7 @@ namespace Gauntlet
 		/// </summary>
 		public void EnablePermissions(string AndroidPackageName)
 		{
-			List<string> Permissions = new List<string>{ "WRITE_EXTERNAL_STORAGE", "GET_ACCOUNTS", "RECORD_AUDIO" };
+			List<string> Permissions = new List<string>{ "WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE", "GET_ACCOUNTS", "RECORD_AUDIO" };
 			Permissions.ForEach(Permission => {
 				string CommandLine = string.Format("shell pm grant {0} android.permission.{1}", AndroidPackageName, Permission);
 				Log.Verbose(string.Format("Enabling permission: {0} {1}", AndroidPackageName, Permission));
