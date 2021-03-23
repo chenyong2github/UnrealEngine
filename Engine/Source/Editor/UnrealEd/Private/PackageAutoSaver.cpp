@@ -380,7 +380,7 @@ void FPackageAutoSaver::UpdateDirtyListsForPackage(UPackage* Pkg)
 		if ( !IsAutoSaving() )
 		{
 			// Add package into the appropriate list (map or content)
-			if (UWorld::FindWorldInPackage(Pkg))
+			if (UWorld::IsWorldOrExternalActorPackage(Pkg))
 			{
 				DirtyMapsForAutoSave.Add(Pkg);
 			}

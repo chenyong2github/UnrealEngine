@@ -7219,6 +7219,30 @@ UWorld* UWorld::FindWorldInPackage(UPackage* Package)
 	return RetVal;
 }
 
+bool UWorld::IsWorldOrExternalActorPackage(UPackage* Package)
+{
+	bool bRetVal = false;
+	ForEachObjectWithPackage(Package, [&bRetVal](UObject* PackageObject)
+	{
+		if (PackageObject->IsA<UWorld>())
+		{
+			bRetVal = true;
+			return false;
+		}
+		else if (AActor* Actor = Cast<AActor>(PackageObject))
+		{
+			if (Actor->IsPackageExternal())
+			{
+				bRetVal = true;
+				return false;
+			}
+		}
+		return true;
+	}, false);
+
+	return bRetVal;
+}
+
 UWorld* UWorld::FollowWorldRedirectorInPackage(UPackage* Package, UObjectRedirector** OptionalOutRedirector)
 {
 	UWorld* RetVal = nullptr;

@@ -3834,6 +3834,9 @@ public:
 	/** Given a package, locate the UWorld contained within if one exists */
 	static UWorld* FindWorldInPackage(UPackage* Package);
 
+	/** Given a package, return if package contains UWorld or External Actor */
+	static bool IsWorldOrExternalActorPackage(UPackage* Package);
+
 	/** If the specified package contains a redirector to a UWorld, that UWorld is returned. Otherwise, nullptr is returned. */
 	static UWorld* FollowWorldRedirectorInPackage(UPackage* Package, UObjectRedirector** OptionalOutRedirector = nullptr);
 

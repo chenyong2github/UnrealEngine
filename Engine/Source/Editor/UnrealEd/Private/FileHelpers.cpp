@@ -2866,7 +2866,8 @@ EAutosaveContentPackagesResult::Type FEditorFileUtils::AutosaveMapEx(const FStri
 						{
 							return EAutosaveContentPackagesResult::Failure;
 						}
-
+						// We saved an actor
+						bResult = true;
 						// Re-mark the package as dirty, because autosaving it will have cleared the dirty flag
 						ExternalPackage->MarkPackageDirty();
 					}
