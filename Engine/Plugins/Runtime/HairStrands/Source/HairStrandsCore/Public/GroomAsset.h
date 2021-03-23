@@ -454,6 +454,10 @@ public:
 private:
 	void ApplyStripFlags(uint8 StripFlags, const class ITargetPlatform* CookTarget);
 
+	void AllocateGuidesResources(uint32 GroupIndex);
+	void AllocateInterpolationResources(uint32 GroupIndex);
+	friend class UGroomComponent;
+
 #if WITH_EDITORONLY_DATA
 	bool HasImportedStrandsData() const;
 

@@ -439,12 +439,18 @@ void UGroomAsset::UpdateResource()
 
 		check(GroupIndex < uint32(GetNumHairGroups()));
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
-		InternalUpdateResource(GroupData.Guides.RestResource);
+		if (GroupData.Guides.RestResource)
+		{
+			InternalUpdateResource(GroupData.Guides.RestResource);
+		}
 
 		if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
 		{
 			InternalUpdateResource(GroupData.Strands.RestResource);
-			InternalUpdateResource(GroupData.Strands.InterpolationResource);
+			if (GroupData.Strands.InterpolationResource)
+			{
+				InternalUpdateResource(GroupData.Strands.InterpolationResource);
+			}
 
 			if ((ChangeType & GroomChangeType_LOD) && GroupData.Strands.HasValidData())
 			{
@@ -2159,13 +2165,34 @@ void UGroomAsset::UpdateCachedSettings()
 
 void UGroomAsset::InitGuideResources()
 {
-	for (FHairGroupData& GroupData : HairGroupsData)
+	// Guide resources are lazy allocated, as these resources are only used when RBF/simulation is enabled by a groom component
+	// for (uint32 GroupIndex = 0, GroupCount = GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
+	//{
+	//	AllocateGuidesResources(GroupIndex);
+	//}
+}
+
+void UGroomAsset::AllocateGuidesResources(uint32 GroupIndex)
+{
+	if (GroupIndex < uint32(GetNumHairGroups()))
 	{
+		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
 		if (GroupData.Guides.HasValidData())
 		{
 			GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.Data.RenderData, GroupData.Guides.Data.BoundingBox.GetCenter());
 			BeginInitResource(GroupData.Guides.RestResource);
 		}
+	}
+}
+
+void UGroomAsset::AllocateInterpolationResources(uint32 GroupIndex)
+{
+	if (GroupIndex < uint32(GetNumHairGroups()))
+	{
+		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
+		check(GroupData.Guides.IsValid());
+		GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationData.RenderData, GroupData.Guides.Data);
+		BeginInitResource(GroupData.Strands.InterpolationResource);
 	}
 }
 
@@ -2205,9 +2232,8 @@ void UGroomAsset::InitStrandsResources()
 				BeginInitResource(GroupData.Strands.ClusterCullingResource);
 			}
 
-			check(GroupData.Guides.IsValid());
-			GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationData.RenderData, GroupData.Guides.Data);
-			BeginInitResource(GroupData.Strands.InterpolationResource);
+			// Interpolation are lazy allocated, as these resources are only used when RBF/simulation is enabled by a groom component
+			// AllocateInterpolationResources(GroupIndex);
 		}
 	}
 }
