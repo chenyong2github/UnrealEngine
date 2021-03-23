@@ -147,4 +147,6 @@ public:
 	/** Query this items visibility state. Only called if the item type has visibility info */
 	virtual bool GetVisibility() const { return false; }
 
+	/** Called when this item's label has changed */
+	virtual void OnLabelChanged() {}
 };

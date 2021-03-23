@@ -45,8 +45,11 @@ public:
 	virtual void OnVisibilityChanged(const bool bNewVisibility) override;
 	virtual bool HasVisibilityInfo() const override { return true; }
 	virtual bool GetVisibility() const override;
+	virtual void OnLabelChanged() override;
 	/* End ISceneOutlinerTreeItem Implementation */
 public:
 	/** true if this item exists in both the current world and PIE. */
 	bool bExistsInCurrentWorldAndPIE;
+	/** Cached actor label */
+	FString ActorLabel;
 };

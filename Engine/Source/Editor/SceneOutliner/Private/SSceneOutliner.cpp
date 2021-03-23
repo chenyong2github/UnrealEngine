@@ -1654,6 +1654,8 @@ void SSceneOutliner::OnItemLabelChanged(FSceneOutlinerTreeItemPtr ChangedItem)
 	// If the item already exists
 	if (FSceneOutlinerTreeItemPtr* ExistingItem = TreeItemMap.Find(ChangedItem->GetID()))
 	{
+		(*ExistingItem)->OnLabelChanged();
+		
 		// The changed item flags will have been set already
 		if (!ChangedItem->Flags.bIsFilteredOut)
 		{
