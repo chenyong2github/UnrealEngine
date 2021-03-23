@@ -110,6 +110,9 @@ public:
 	// FSelfRegisteringExec interface
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
+	/** Reset only the linker exports associated with this package. */
+	void ResetLinkerExports(UPackage* InPackage);
+
 	/** Empty the loaders */
 	void ResetLoaders(UObject* InPkg);
 

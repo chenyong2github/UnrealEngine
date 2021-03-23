@@ -60,7 +60,7 @@ void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPa
 		{
 			const bool bSameOuter = (InLevel == Actor->GetOuter());
 			Actor->SetPackageExternal(false, false);
-			Actor->Rename(nullptr, InLevel);
+			Actor->Rename(nullptr, InLevel, REN_ForceNoResetLoaders);
 			check(Actor->GetPackage() == LevelPackage);
 			if (bSameOuter && !InLevel->Actors.Contains(Actor))
 			{

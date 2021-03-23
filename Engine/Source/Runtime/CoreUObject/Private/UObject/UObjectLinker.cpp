@@ -108,8 +108,7 @@ void UObject::SetLinker( FLinkerLoad* LinkerLoad, int32 LinkerIndex, bool bShoul
 	// Detach from existing linker.
 	if( Existing.Linker && bShouldDetachExisting )
 	{
-		// HACK-FH: temporarily downgrading assert to a warning until OFPA name collision problem are resolved for good.
-		UE_CLOG(HasAnyFlags(RF_NeedLoad|RF_NeedPostLoad), LogUObjectLinker, Warning,
+		UE_CLOG(HasAnyFlags(RF_NeedLoad|RF_NeedPostLoad), LogUObjectLinker, Error,
 			TEXT("Detaching from existing linker for %s while object %s needs loading from linker %s."),
 			*Existing.Linker->GetArchiveName(),
 			*GetFullName(),

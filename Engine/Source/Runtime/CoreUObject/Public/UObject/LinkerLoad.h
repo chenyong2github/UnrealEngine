@@ -833,9 +833,14 @@ public:
 	COREUOBJECT_API void LoadAndDetachAllBulkData();
 
 	/**
-	* Detaches linker from bulk data/ exports and removes itself from array of loaders.
-	*/
+	 * Detaches linker from bulk data and exports and removes itself from array of loaders.
+	 */
 	COREUOBJECT_API void Detach();
+
+	/**
+	 * Only detaches the linker from its exports and the reset their cached state in the linker without touching bulkdata or underlying loader
+	 */
+	COREUOBJECT_API void DetachExports();
 
 private:
 

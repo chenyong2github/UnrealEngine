@@ -613,6 +613,12 @@ typedef uint32 ELazyLoaderFlags;
 -----------------------------------------------------------------------------*/
 
 /**
+ * Reset the linker exports associated with the package
+ * @note, this might flush async loading if the linker is owned by the loading thread
+ */
+COREUOBJECT_API void ResetLinkerExports(UPackage* InPackage);
+
+/**
  * Remove references to the linker for the given package and delete the linker. 
  * Can be called after the package has finished loading.
  * Flushes async loading.

@@ -94,16 +94,29 @@ bool FLinkerManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 	return false;
 }
 
+void FLinkerManager::ResetLinkerExports(UPackage* InPackage)
+{
+	if (FLinkerLoad* LinkerToReset = FLinkerLoad::FindExistingLinkerForPackage(InPackage))
+	{
+		// if the linker owner thread is not the main thread, we need to flush async loading (todo: for that package) before we can reset the linker
+		if (LinkerToReset->GetOwnerThreadId() != GGameThreadId)
+		{
+			FlushAsyncLoading();
+		}
+		LinkerToReset->DetachExports();
+	}
+}
+
 void FLinkerManager::ResetLoaders(UObject* InPkg)
 {
 	// Top level package to reset loaders for.
-	UObject*		TopLevelPackage = InPkg ? InPkg->GetOutermost() : NULL;
+	UObject*		TopLevelPackage = InPkg ? InPkg->GetOutermost() : nullptr;
 
 	// Find loader/ linker associated with toplevel package. We do this upfront as Detach resets LinkerRoot.
 	if (TopLevelPackage)
 	{
 		// Linker to reset/ detach.
-		auto LinkerToReset = FLinkerLoad::FindExistingLinkerForPackage(CastChecked<UPackage>(TopLevelPackage));
+		FLinkerLoad* LinkerToReset = FLinkerLoad::FindExistingLinkerForPackage(CastChecked<UPackage>(TopLevelPackage));
 		if (LinkerToReset)
 		{
 			{
@@ -119,7 +132,7 @@ void FLinkerManager::ResetLoaders(UObject* InPkg)
 						{
 							if (Import.SourceLinker == LinkerToReset)
 							{
-								Import.SourceLinker = NULL;
+								Import.SourceLinker = nullptr;
 								Import.SourceIndex = INDEX_NONE;
 							}
 						}

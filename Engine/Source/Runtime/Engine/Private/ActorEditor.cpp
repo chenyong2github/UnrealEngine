@@ -875,8 +875,8 @@ void AActor::SetPackageExternal(bool bExternal, bool bShouldDirty)
 	else 
 	{
 		UPackage* ActorPackage = GetExternalPackage();
-		// Detach the linker from the actor package so that the actor won't keep references to it if we wanted to delete the package
-		ResetLoaders(ActorPackage);
+		// Detach the linker exports so it doesn't resolve to this actor anymore
+		ResetLinkerExports(ActorPackage);
 		SetExternalPackage(nullptr);
 	}
 

@@ -480,6 +480,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Global functions
 -----------------------------------------------------------------------------*/
 
+void ResetLinkerExports(UPackage* InPackage)
+{
+	FLinkerManager::Get().ResetLinkerExports(InPackage);
+}
+
 void ResetLoaders(UObject* InPkg)
 {
 	if (IsAsyncLoading())

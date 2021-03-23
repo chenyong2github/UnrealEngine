@@ -5423,39 +5423,39 @@ UObject* FLinkerLoad::IndexToObject( FPackageIndex Index )
 // Detach an export from this linker.
 void FLinkerLoad::DetachExport( int32 i )
 {
-	FObjectExport& E = ExportMap[ i ];
-	check(E.Object);
-	if( !E.Object->IsValidLowLevel() )
+	FObjectExport& Export = ExportMap[ i ];
+	check(Export.Object);
+	if( !Export.Object->IsValidLowLevel() )
 	{
-		UE_LOG(LogLinker, Fatal, TEXT("Linker object %s %s.%s is invalid"), *GetExportClassName(i).ToString(), *LinkerRoot->GetName(), *E.ObjectName.ToString() );
+		UE_LOG(LogLinker, Fatal, TEXT("Linker object %s %s.%s is invalid"), *GetExportClassName(i).ToString(), *LinkerRoot->GetName(), *Export.ObjectName.ToString() );
 	}
 	{
-		const FLinkerLoad* ActualLinker = E.Object->GetLinker();
+		const FLinkerLoad* ActualLinker = Export.Object->GetLinker();
 		// TODO: verify the condition
 		const bool DynamicType = !ActualLinker
-			&& (E.Object->HasAnyFlags(RF_Dynamic)
-			|| (E.Object->GetClass()->HasAnyFlags(RF_Dynamic) && E.Object->HasAnyFlags(RF_ClassDefaultObject) ));
+			&& (Export.Object->HasAnyFlags(RF_Dynamic)
+			|| (Export.Object->GetClass()->HasAnyFlags(RF_Dynamic) && Export.Object->HasAnyFlags(RF_ClassDefaultObject) ));
 		if ((ActualLinker != this) && !DynamicType)
 		{
-			UObject* Object = E.Object;
+			UObject* Object = Export.Object;
 			UE_LOG(LogLinker, Log, TEXT("Object            : %s"), *Object->GetFullName());
 			//UE_LOG(LogLinker, Log, TEXT("Object Linker     : %s"), *Object->GetLinker()->GetFullName() );
 			UE_LOG(LogLinker, Log, TEXT("Linker LinkerRoot : %s"), Object->GetLinker() ? *Object->GetLinker()->LinkerRoot->GetFullName() : TEXT("None"));
 			//UE_LOG(LogLinker, Log, TEXT("Detach Linker     : %s"), *GetFullName() );
 			UE_LOG(LogLinker, Log, TEXT("Detach LinkerRoot : %s"), *LinkerRoot->GetFullName());
-			UE_LOG(LogLinker, Fatal, TEXT("Linker object %s %s.%s mislinked!"), *GetExportClassName(i).ToString(), *LinkerRoot->GetName(), *E.ObjectName.ToString());
+			UE_LOG(LogLinker, Fatal, TEXT("Linker object %s %s.%s mislinked!"), *GetExportClassName(i).ToString(), *LinkerRoot->GetName(), *Export.ObjectName.ToString());
 		}
 	}
 
-	if (E.Object->GetLinkerIndex() == -1)
+	if (Export.Object->GetLinkerIndex() == -1)
 	{
-		UE_LOG(LogLinker, Warning, TEXT("Linker object %s %s.%s was already detached."), *GetExportClassName(i).ToString(), *LinkerRoot->GetName(), *E.ObjectName.ToString());
+		UE_LOG(LogLinker, Warning, TEXT("Linker object %s %s.%s was already detached."), *GetExportClassName(i).ToString(), *LinkerRoot->GetName(), *Export.ObjectName.ToString());
 	}
 	else
 	{
-		checkf(E.Object->GetLinkerIndex() == i, TEXT("Mismatched linker index in FLinkerLoad::DetachExport for %s in %s. Linker index was supposed to be %d, was %d"), *GetExportClassName(i).ToString(), *LinkerRoot->GetName(), i, E.Object->GetLinkerIndex());
+		checkf(Export.Object->GetLinkerIndex() == i, TEXT("Mismatched linker index in FLinkerLoad::DetachExport for %s in %s. Linker index was supposed to be %d, was %d"), *GetExportClassName(i).ToString(), *LinkerRoot->GetName(), i, Export.Object->GetLinkerIndex());
 	}
-	ExportMap[i].Object->SetLinker( NULL, INDEX_NONE );
+	Export.Object->SetLinker(nullptr, INDEX_NONE);
 }
 
 void FLinkerLoad::LoadAndDetachAllBulkData()
@@ -5480,6 +5480,18 @@ void FLinkerLoad::DestroyLoader()
 	bIsDestroyingLoader = false;
 }
 
+void FLinkerLoad::DetachExports()
+{
+	// Detach all objects linked with this linker.
+	for (int32 ExportIndex = 0; ExportIndex < ExportMap.Num(); ++ExportIndex)
+	{
+		if (ExportMap[ExportIndex].Object)
+		{
+			DetachExport(ExportIndex);
+		}
+	}
+}
+
 void FLinkerLoad::Detach()
 {
 #if WITH_EDITOR
@@ -5489,13 +5501,7 @@ void FLinkerLoad::Detach()
 #endif
 
 	// Detach all objects linked with this linker.
-	for (int32 ExportIndex = 0; ExportIndex < ExportMap.Num(); ++ExportIndex)
-	{	
-		if (ExportMap[ExportIndex].Object)
-		{
-			DetachExport(ExportIndex);
-		}
-	}
+	DetachExports();
 
 	// Remove from object manager, if it has been added.
 	FLinkerManager::Get().RemoveLoaderFromObjectLoadersAndLoadersWithNewImports(this);
