@@ -43,7 +43,7 @@ bool FOodleArchiveBase::SerializeOodleCompressData(FOodleCompressedData& OutData
 		OutDataInfo.DecompressedLength.Set(*this, DataBytes);
 	
 #if HAS_OODLE_DATA_SDK
-#if UE4_OODLE_VER > 255
+#if UE_OODLE_VER > 255
 		uint32 CompressBufferLen = OodleLZ_GetCompressedBufferSizeNeeded(OodleLZ_Compressor_Kraken, DataBytes);
 #else
 		uint32 CompressBufferLen = OodleLZ_GetCompressedBufferSizeNeeded(DataBytes);
@@ -123,7 +123,7 @@ bool FOodleArchiveBase::SerializeOodleDecompressData(FOodleCompressedData& DataI
 			}
 	
 			InnerArchive.Serialize(CompressedData, CompressedLength);
-#if UE4_OODLE_VER > 255
+#if UE_OODLE_VER > 255
 			SINTa OodleLen = OodleLZ_Decompress((void*)CompressedData, CompressedLength, (void*)DecompressedData, DecompressedLength, OodleLZ_FuzzSafe_Yes);
 #else
 			SINTa OodleLen = OodleLZ_Decompress((void*)CompressedData, CompressedLength, (void*)DecompressedData, DecompressedLength, OodleLZ_FuzzSafe_No);
@@ -399,7 +399,7 @@ FOodleDictionaryArchive::FOodleDictionaryArchive(FArchive& InInnerArchive)
 	if (IsSaving())
 	{
 		Header.DictionaryVersion = DICTIONARY_FILE_VERSION;
-#if UE4_OODLE_VER > 255
+#if UE_OODLE_VER > 255
 		Header.OodleMajorHeaderVersion = OODLE2NET_VERSION_MAJOR;
 #else
 		Header.OodleMajorHeaderVersion = OODLE2_VERSION_MAJOR;

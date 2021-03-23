@@ -362,7 +362,7 @@ public:
 
 
 /**
- * Archive for handling UE4 Oodle dictionary (.udic) files
+ * Archive for handling UE Oodle dictionary (.udic) files
  */
 class FOodleDictionaryArchive : public FOodleArchiveBase
 {

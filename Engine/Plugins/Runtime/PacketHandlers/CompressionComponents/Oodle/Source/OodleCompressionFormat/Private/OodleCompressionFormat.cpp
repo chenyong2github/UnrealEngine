@@ -57,7 +57,7 @@ struct FOodleCustomCompressor : ICompressionFormat
 			return TEXT("Kraken");
 		case OodleLZ_Compressor_Selkie:
 			return TEXT("Selkie");
-#if UE4_OODLE_VER >= 270
+#if UE_OODLE_VER >= 270
 		case OodleLZ_Compressor_Leviathan:
 			return TEXT("Leviathan");
 #else
@@ -101,7 +101,7 @@ struct FOodleCustomCompressor : ICompressionFormat
 
 	virtual uint32 GetVersion()
 	{
-		return uint32(UE4_OODLE_VER);
+		return uint32(UE_OODLE_VER);
 	}
 
 	virtual FString GetDDCKeySuffix()
@@ -145,7 +145,7 @@ struct FOodleCustomCompressor : ICompressionFormat
 	{
 		ConditionalInitialize();
 
-#if UE4_OODLE_VER > 255
+#if UE_OODLE_VER > 255
 		int32 Needed = (int32)OodleLZ_GetCompressedBufferSizeNeeded(Compressor, UncompressedSize);
 #else
 		int32 Needed = (int32)OodleLZ_GetCompressedBufferSizeNeeded(UncompressedSize);
@@ -178,7 +178,7 @@ class FOodleCompressionFormatModuleInterface : public IModuleInterface
 			{ TEXT("Mermaid"), OodleLZ_Compressor_Mermaid },
 			{ TEXT("Kraken"), OodleLZ_Compressor_Kraken },
 			{ TEXT("Selkie"), OodleLZ_Compressor_Selkie },
-#if UE4_OODLE_VER >= 270
+#if UE_OODLE_VER >= 270
 			{ TEXT("Leviathan"), OodleLZ_Compressor_Leviathan },
 #else
 			{ TEXT("LZNA"), OodleLZ_Compressor_LZNA },
@@ -207,7 +207,7 @@ class FOodleCompressionFormatModuleInterface : public IModuleInterface
 
 		IModularFeatures::Get().RegisterModularFeature(COMPRESSION_FORMAT_FEATURE_NAME, CompressionFormat);
 
-#if UE4_OODLE_VER > 255
+#if UE_OODLE_VER > 255
 		OodleCore_Plugins_SetPrintf(OodleCore_Plugin_Printf_Verbose);
 #endif
 

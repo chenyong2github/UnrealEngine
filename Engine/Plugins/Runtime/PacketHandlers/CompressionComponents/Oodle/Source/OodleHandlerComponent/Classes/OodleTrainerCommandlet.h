@@ -13,7 +13,7 @@
 #define USE_OODLE_TRAINER_COMMANDLET (HAS_OODLE_NET_SDK && WITH_EDITOR)
 
 /**
- * Commandlet for processing UE4 packet captures, through Oodle's training API, for generating compressed state dictionaries.
+ * Commandlet for processing UE packet captures, through Oodle's training API, for generating compressed state dictionaries.
  *
  *
  * Primary Commands:

@@ -7,18 +7,18 @@ echo.
 REM This batch file can only work from within the Oodle folder.
 set BaseFolder="..\..\..\..\..\.."
 
-if exist %BaseFolder:"=%\Engine goto SetUE4Editor
+if exist %BaseFolder:"=%\Engine goto SetUEEditor
 
-echo Could not locate Engine folder. This .bat must be located within UE4\Engine\Plugins\Runtime\PacketHandlers\CompressionComponents\Oodle
+echo Could not locate Engine folder. This .bat must be located within UE\Engine\Plugins\Runtime\PacketHandlers\CompressionComponents\Oodle
 goto End
 
 
-:SetUE4Editor
-set UE4EditorLoc="%BaseFolder:"=%\Engine\Binaries\Win64\UE4Editor.exe"
+:SetUEEditor
+set UEEditorLoc="%BaseFolder:"=%\Engine\Binaries\Win64\UnrealEditor.exe"
 
-if exist %UE4EditorLoc:"=% goto GetGame
+if exist %UEEditorLoc:"=% goto GetGame
 
-echo Could not locate UE4Editor.exe
+echo Could not locate UEEditor.exe
 goto End
 
 
@@ -36,7 +36,7 @@ echo Executing plugin enable commandlet - commandline:
 echo %FinalEnableCmdLine%
 
 @echo on
-%UE4EditorLoc:"=% %FinalEnableCmdLine%
+%UEEditorLoc:"=% %FinalEnableCmdLine%
 @echo off
 echo.
 
@@ -56,7 +56,7 @@ echo Executing Oodle PacketHandler enable commandlet - commandline:
 echo %FinalHandlerCmdLine%
 
 @echo on
-%UE4EditorLoc:"=% %FinalHandlerCmdLine%
+%UEEditorLoc:"=% %FinalHandlerCmdLine%
 @echo off
 echo.
 
