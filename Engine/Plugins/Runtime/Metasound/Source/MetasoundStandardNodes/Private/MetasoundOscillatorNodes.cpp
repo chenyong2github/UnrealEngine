@@ -90,27 +90,62 @@ namespace Metasound
 			PhaseWrap Wrap;
 			float CurrentFade = 0.0f;
 			float FadeSmooth = 0.01f;
-
+			float PreviousFreq = -1.f;
+		
 			void operator()(const FGeneratorArgs& InArgs)
 			{
 				int32 RemainingSamplesInBlock = InArgs.AlignedBuffer.Num();
 				float* Out = InArgs.AlignedBuffer.GetData();
-				float OneOverSampleRate = 1.f / InArgs.SampleRate;
-				float PulseWidth = InArgs.PulseWidth;
-				float DeltaPhase = InArgs.FrequencyHz * OneOverSampleRate;
-
-				while (RemainingSamplesInBlock > 0)
+				const float OneOverSampleRate = 1.f / InArgs.SampleRate;
+		
+				// Constant Freq between this an last update? 
+				if (FMath::IsNearlyEqual(InArgs.FrequencyHz, PreviousFreq) || PreviousFreq < 0.f )
 				{
-					Wrap(Phase);
+					const float DeltaPhase = InArgs.FrequencyHz * OneOverSampleRate;
+					while (RemainingSamplesInBlock > 0)
+					{
+						Wrap(Phase);
 
-					*Out++ = CurrentFade * Osc(Phase, DeltaPhase, InArgs);
+						float Output = Osc(Phase, DeltaPhase, InArgs);
+						Output *= CurrentFade;
+						*Out++ = Output;
 
-					CurrentFade = CurrentFade + FadeSmooth * (1.0f - CurrentFade);
+						CurrentFade = CurrentFade + FadeSmooth * (1.0f - CurrentFade);
 
-					Phase += DeltaPhase;
+						Phase += DeltaPhase;
 
-					RemainingSamplesInBlock--;
+						RemainingSamplesInBlock--;
+					}
 				}
+				else
+				{
+					// Lerp freq over this block 
+					const float OneOverBlockCount = 1.f / (float)RemainingSamplesInBlock;
+					const float BlockDeltaFreq = InArgs.FrequencyHz - PreviousFreq;
+					const float DeltaFreq = BlockDeltaFreq * OneOverBlockCount;
+
+					float Freq = PreviousFreq;
+					
+					while (RemainingSamplesInBlock > 0)
+					{
+						Wrap(Phase);
+
+						const float DeltaPhase = Freq * OneOverSampleRate;
+						
+						float Output = Osc(Phase, DeltaPhase, InArgs);
+						Output *= CurrentFade;
+						*Out++ = Output;
+
+						CurrentFade = CurrentFade + FadeSmooth * (1.0f - CurrentFade);
+
+						Phase += DeltaPhase;
+						Freq += DeltaFreq;
+
+						RemainingSamplesInBlock--;
+					}
+				}
+
+				PreviousFreq = InArgs.FrequencyHz;
 			}
 		};
 
@@ -126,27 +161,67 @@ namespace Metasound
 			Oscillator Osc;
 			PhaseWrap Wrap;
 
+			float CurrentFade = 0.0f;
+			float FadeSmooth = 0.01f;
+			float PreviousFreq = -1.f;
+
 			void operator()(const FGeneratorArgs& InArgs)
 			{
 				int32 RemainingSamplesInBlock = InArgs.AlignedBuffer.Num();
 				float* Out = InArgs.AlignedBuffer.GetData();
 				const float* FM = InArgs.FM.GetData();
-				float OneOverSampleRate = 1.f / InArgs.SampleRate;
-				float PulseWidth = InArgs.PulseWidth;
+				const float OneOverSampleRate = 1.f / InArgs.SampleRate;
 
-				while (RemainingSamplesInBlock > 0)
+				// Constant Base Freq between this and last update? 
+				if (FMath::IsNearlyEqual(InArgs.FrequencyHz, PreviousFreq) || PreviousFreq < 0.f)
 				{
-					float PerSampleFreq = InArgs.FrequencyHz + *FM++;
-					float DeltaPhase = PerSampleFreq * OneOverSampleRate;
+					while (RemainingSamplesInBlock > 0)
+					{
+						const float PerSampleFreq = InArgs.FrequencyHz + *FM++;
+						const float DeltaPhase = PerSampleFreq * OneOverSampleRate;
 
-					*Out++ = Osc(Phase, DeltaPhase, InArgs);
+						Wrap(Phase);
 
-					Phase += DeltaPhase;
+						float Output = Osc(Phase, DeltaPhase, InArgs);
+						Output *= CurrentFade;
+						*Out++ = Output;
+												
+						CurrentFade = CurrentFade + FadeSmooth * (1.0f - CurrentFade);
 
-					Wrap(Phase);
+						Phase += DeltaPhase;
 
-					RemainingSamplesInBlock--;
+						RemainingSamplesInBlock--;
+					}
 				}
+				else
+				{
+					// Lerp Base Frequency over this block
+					const float OneOverBlockCount = 1.f / (float)RemainingSamplesInBlock;
+					const float BlockDeltaFreq = InArgs.FrequencyHz - PreviousFreq;
+					const float DeltaFreq = BlockDeltaFreq * OneOverBlockCount;
+					
+					float Freq = PreviousFreq;
+
+					while (RemainingSamplesInBlock > 0)
+					{
+						const float ModulatedFreqSum = Freq + *FM++;
+						const float DeltaPhase = ModulatedFreqSum * OneOverSampleRate;
+
+						Wrap(Phase);
+
+						float Output = Osc(Phase, DeltaPhase, InArgs);
+						Output *= CurrentFade;
+						*Out++ = Output;
+						
+						CurrentFade = CurrentFade + FadeSmooth * (1.0f - CurrentFade);
+
+						Phase += DeltaPhase;
+						Freq += DeltaFreq;
+
+						RemainingSamplesInBlock--;
+					}
+				}
+				PreviousFreq = InArgs.FrequencyHz;
 			}
 		};	
 		
@@ -1263,3 +1338,4 @@ namespace Metasound
 #pragma endregion LFO
 }
 #undef LOCTEXT_NAMESPACE //MetasoundStandardNodes
+
