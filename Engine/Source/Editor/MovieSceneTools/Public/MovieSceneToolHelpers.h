@@ -364,7 +364,7 @@ public:
 	* Import FBX Camera to existing camera's
 	*
 	* @param CameraNode The Fbx camera
-	* @param InCameraActor Ue4 actor
+	* @param InCameraActor UE actor
 	*/
 	static void CopyCameraProperties(fbxsdk::FbxCamera* CameraNode, AActor* InCameraActor);
 

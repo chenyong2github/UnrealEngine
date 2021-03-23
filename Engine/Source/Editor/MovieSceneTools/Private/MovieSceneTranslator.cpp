@@ -54,9 +54,9 @@ FMovieSceneExportData::FMovieSceneExportData(const UMovieScene* InMovieScene, FF
 	SaveFilename = InSaveFilename;
 	MovieExtension = InMovieExtension;
 
-	// preferred sample rate in UE4
+	// preferred sample rate in UE
 	DefaultAudioSampleRate = 44100;
-	// all audio in UE4 is has depth 16
+	// all audio in UE is has depth 16
 	DefaultAudioDepth = 16;
 
 	bExportDataIsValid = ConstructData(InMovieScene);

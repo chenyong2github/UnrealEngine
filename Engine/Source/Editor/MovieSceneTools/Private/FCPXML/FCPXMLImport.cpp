@@ -802,17 +802,17 @@ bool FFCPXMLImportVisitor::ParseMetadata(const FString& InMetadata, const FStrin
 	return ParseMetadata(InMetadata, InKey, OutValue, MetadataRemaining);
 }
 
-/** Get sequencer section name from section metadata. Format is "[UE4ShotSection=sectionobjectname]", whitespace ok. */
+/** Get sequencer section name from section metadata. Format is "[UEShotSection=sectionobjectname]", whitespace ok. */
 bool FFCPXMLImportVisitor::GetCinematicSectionPathNameFromMetadata(const FString& InMetadata, FString& OutSectionObjectName) const
 {
-	return ParseMetadata(InMetadata, TEXT("UE4ShotSection"), OutSectionObjectName);
+	return ParseMetadata(InMetadata, TEXT("UEShotSection"), OutSectionObjectName);
 }
 
-/** Get sequencer shot handle frames from section metadata. Format is "[UE4ShotHandleFrames=handleframes]", whitespace ok. */
+/** Get sequencer shot handle frames from section metadata. Format is "[UEShotHandleFrames=handleframes]", whitespace ok. */
 bool FFCPXMLImportVisitor::GetCinematicSectionHandleFramesFromMetadata(const FString& InMetadata, int32& OutHandleFrames) const
 {
 	FString HandleFrameData;
-	bool bSuccess = ParseMetadata(InMetadata, TEXT("UE4ShotHandleFrames"), HandleFrameData);
+	bool bSuccess = ParseMetadata(InMetadata, TEXT("UEShotHandleFrames"), HandleFrameData);
 	if (bSuccess)
 	{
 		OutHandleFrames = FCString::Atoi(*HandleFrameData);
@@ -820,11 +820,11 @@ bool FFCPXMLImportVisitor::GetCinematicSectionHandleFramesFromMetadata(const FSt
 	return bSuccess;
 }
 
-/** Get sequencer shot start offset frame from section metadata. Format is "[UE4ShotStartOffset=startoffset]", whitespace ok. */
+/** Get sequencer shot start offset frame from section metadata. Format is "[UEShotStartOffset=startoffset]", whitespace ok. */
 bool FFCPXMLImportVisitor::GetCinematicSectionStartOffsetFromMetadata(const FString& InMetadata, int32& OutStartOffset) const
 {
 	FString StartOffsetData;
-	bool bSuccess = ParseMetadata(InMetadata, TEXT("UE4ShotStartOffset"), StartOffsetData);
+	bool bSuccess = ParseMetadata(InMetadata, TEXT("UEShotStartOffset"), StartOffsetData);
 	if (bSuccess)
 	{
 		OutStartOffset = FCString::Atoi(*StartOffsetData);
@@ -832,24 +832,24 @@ bool FFCPXMLImportVisitor::GetCinematicSectionStartOffsetFromMetadata(const FStr
 	return bSuccess;
 }
 
-/** Get sequencer track name from track metadata. Format is "[UE4Track=trackobjectname][UE4Row=rowindex]", whitespace ok. */
+/** Get sequencer track name from track metadata. Format is "[UETrack=trackobjectname][UERow=rowindex]", whitespace ok. */
 bool FFCPXMLImportVisitor::GetAudioFromMetadata(const FString& InMetadata, TSharedPtr<FFCPXMLImportAudioMetadata>& OutAudioMetadata) const
 {
 	FString Metadata1{ TEXT("") };
 	FString SoundWavePathName;
-	bool bSuccess = ParseMetadata(InMetadata, TEXT("UE4SoundWave"), SoundWavePathName, Metadata1);
+	bool bSuccess = ParseMetadata(InMetadata, TEXT("UESoundWave"), SoundWavePathName, Metadata1);
 	OutAudioMetadata = MakeShared<FFCPXMLImportAudioMetadata>(SoundWavePathName);
 
 	if (bSuccess)
 	{
 		FString Metadata2{ TEXT("") };
 		FString AudioSectionTopLevel{ TEXT("") };
-		bSuccess = ParseMetadata(Metadata1, TEXT("UE4AudioSectionTopLevel"), AudioSectionTopLevel, Metadata2);
+		bSuccess = ParseMetadata(Metadata1, TEXT("UEAudioSectionTopLevel"), AudioSectionTopLevel, Metadata2);
 
 		if (bSuccess)
 		{
 			FString AudioSection{ TEXT("") };
-			while (ParseMetadata(Metadata2, TEXT("UE4AudioSection"), AudioSection, Metadata1))
+			while (ParseMetadata(Metadata2, TEXT("UEAudioSection"), AudioSection, Metadata1))
 			{
 				FString AudioSectionPathName = AudioSectionTopLevel + TEXT(".") + AudioSection;
 				TSharedPtr<FFCPXMLImportAudioSectionMetadata> AudioSectionMetadata = MakeShared<FFCPXMLImportAudioSectionMetadata>(AudioSectionPathName);

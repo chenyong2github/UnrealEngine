@@ -118,9 +118,9 @@ protected:
 	/** Returns true if audio track data contains sections with 2 channels */
 	bool HasStereoAudioSections(const  TArray<TSharedPtr<FMovieSceneExportAudioSectionData>>& InAudioTrackData) const;
 
-	/** Get metadata section name from sequencer shot name - format is "[UE4Section=sectionobjectname]", whitespace ok. */
+	/** Get metadata section name from sequencer shot name - format is "[UESection=sectionobjectname]", whitespace ok. */
 	bool CreateCinematicSectionMetadata(const UMovieSceneCinematicShotSection* InSection, FString& OutMetadata) const;
-	/** Get metadata section name from sequencer shot name - format is "[UE4SoundWave=soundwaveobjectname]", whitespace ok. */
+	/** Get metadata section name from sequencer shot name - format is "[UESoundWave=soundwaveobjectname]", whitespace ok. */
 	bool CreateSoundWaveMetadata(const USoundWave* InSoundWave, const TArray<const UMovieSceneAudioSection*> InAudioSections, FString& OutMetadata) const;
 	/** Get id for audio top level section */
 	static FString GetAudioSectionTopLevelName(const UMovieSceneAudioSection* InAudioSection);

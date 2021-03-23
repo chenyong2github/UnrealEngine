@@ -51,7 +51,7 @@
 #define LOCTEXT_NAMESPACE "MovieSceneEventCustomization"
 
 
-namespace UE4_MovieSceneEventCustomization
+namespace UE_MovieSceneEventCustomization
 {
 	void CollectQuickBindActions(FGraphActionListBuilderBase& OutAllActions, UBlueprint* Blueprint, UClass* BoundObjectPinClass)
 	{
@@ -917,7 +917,7 @@ void FMovieSceneEventCustomization::PopulateQuickBindSubMenu(FMenuBuilder& MenuB
 
 	TSharedRef<SGraphActionMenu> ActionMenu = SNew(SGraphActionMenu)
 		.OnCreateCustomRowExpander_Static([](const FCustomExpanderData& Data) -> TSharedRef<SExpanderArrow> { return SNew(SExpanderArrow, Data.TableRow); })
-		.OnCollectAllActions_Static(UE4_MovieSceneEventCustomization::CollectQuickBindActions, Blueprint, EventParams.BoundObjectPinClass)
+		.OnCollectAllActions_Static(UE_MovieSceneEventCustomization::CollectQuickBindActions, Blueprint, EventParams.BoundObjectPinClass)
 		.OnActionSelected(this, &FMovieSceneEventCustomization::HandleQuickBindActionSelected, Blueprint, EventParams);
 
 	ActionMenu->RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda(
@@ -1061,7 +1061,7 @@ void FMovieSceneEventCustomization::PopulateRebindSubMenu(FMenuBuilder& MenuBuil
 
 	TSharedRef<SGraphActionMenu> ActionMenu = SNew(SGraphActionMenu)
 		.OnCreateCustomRowExpander_Static([](const FCustomExpanderData& Data) -> TSharedRef<SExpanderArrow> { return SNew(SExpanderArrow, Data.TableRow); })
-		.OnCollectAllActions_Static(UE4_MovieSceneEventCustomization::CollectAllRebindActions, Blueprint)
+		.OnCollectAllActions_Static(UE_MovieSceneEventCustomization::CollectAllRebindActions, Blueprint)
 		.OnActionSelected(this, &FMovieSceneEventCustomization::HandleRebindActionSelected, Blueprint, EventParams.BoundObjectPinClass);
 
 	ActionMenu->RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda(

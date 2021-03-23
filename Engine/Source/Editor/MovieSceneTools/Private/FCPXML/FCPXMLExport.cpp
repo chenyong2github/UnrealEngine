@@ -1304,19 +1304,19 @@ bool FFCPXMLExportVisitor::CreateCinematicSectionMetadata(const UMovieSceneCinem
 		return false;
 	}
 
-	OutMetadata = TEXT("[UE4ShotSection=") + InSection->GetPathName() + TEXT("]");
+	OutMetadata = TEXT("[UEShotSection=") + InSection->GetPathName() + TEXT("]");
 
 	// Store the start offset and the handle frames for round-tripping to compute the new start offset
 	int32 HandleFrames = ExportData->GetHandleFrames();
 	FFrameRate TickResolution = InSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 	int32 StartFrameOffset = ConvertFrameTime(InSection->Parameters.StartFrameOffset, TickResolution, ExportData->GetFrameRate()).CeilToFrame().Value;
 
-	OutMetadata += TEXT("[UE4ShotStartOffset=") + FString::FromInt(StartFrameOffset) + TEXT("]");
-	OutMetadata += TEXT("[UE4ShotHandleFrames=") + FString::FromInt(HandleFrames) + TEXT("]");
+	OutMetadata += TEXT("[UEShotStartOffset=") + FString::FromInt(StartFrameOffset) + TEXT("]");
+	OutMetadata += TEXT("[UEShotHandleFrames=") + FString::FromInt(HandleFrames) + TEXT("]");
 	return true;
 }
 
-/** Get metadata section name from sequencer shot name - format is "[UE4SoundWave=soundwaveobjectname][UE4SoundSectionTopLevel=toplevelobjectname][UE4SoundSection=sectionobjectname]", whitespace ok. */
+/** Get metadata section name from sequencer shot name - format is "[UESoundWave=soundwaveobjectname][UESoundSectionTopLevel=toplevelobjectname][UESoundSection=sectionobjectname]", whitespace ok. */
 bool FFCPXMLExportVisitor::CreateSoundWaveMetadata(const USoundWave* InSoundWave, const TArray<const UMovieSceneAudioSection*> InAudioSections, FString& OutMetadata) const
 {
 	if (InSoundWave == nullptr)
@@ -1326,12 +1326,12 @@ bool FFCPXMLExportVisitor::CreateSoundWaveMetadata(const USoundWave* InSoundWave
 
 	TArray<FString> SectionsAdded;
 	bool bTopLevelAdded = false;
-	OutMetadata = TEXT("[UE4SoundWave=") + InSoundWave->GetPathName() + TEXT("]");
+	OutMetadata = TEXT("[UESoundWave=") + InSoundWave->GetPathName() + TEXT("]");
 	for (const UMovieSceneAudioSection* AudioSection : InAudioSections)
 	{
 		if (!bTopLevelAdded)
 		{
-			OutMetadata += TEXT("[UE4AudioSectionTopLevel=") + FFCPXMLExportVisitor::GetAudioSectionTopLevelName(AudioSection) + TEXT("]");
+			OutMetadata += TEXT("[UEAudioSectionTopLevel=") + FFCPXMLExportVisitor::GetAudioSectionTopLevelName(AudioSection) + TEXT("]");
 			bTopLevelAdded = true;
 		}
 
@@ -1339,7 +1339,7 @@ bool FFCPXMLExportVisitor::CreateSoundWaveMetadata(const USoundWave* InSoundWave
 		FString SectionName = FFCPXMLExportVisitor::GetAudioSectionName(AudioSection);
 		if (SectionsAdded.Num() == 0 || !SectionsAdded.Contains(SectionName))
 		{
-			OutMetadata += TEXT("[UE4AudioSection=") + SectionName + TEXT("]");
+			OutMetadata += TEXT("[UEAudioSection=") + SectionName + TEXT("]");
 			SectionsAdded.Add(SectionName);
 		}
 	}
