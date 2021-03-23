@@ -13,6 +13,7 @@
 
 #include "AssetToolsModule.h"
 #include "IAssetTypeActions.h"
+#include "AssetTypeActions_SlateVectorArtData.h"
 #include "AssetTypeActions_WidgetBlueprint.h"
 #include "AssetTypeActions_WidgetBlueprintGeneratedClass.h"
 #include "KismetCompilerModule.h"
@@ -73,6 +74,7 @@ public:
 
 		// Register asset types
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_SlateVectorArtData()));
 		RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_WidgetBlueprint()));
 		RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_WidgetBlueprintGeneratedClass()));
 
