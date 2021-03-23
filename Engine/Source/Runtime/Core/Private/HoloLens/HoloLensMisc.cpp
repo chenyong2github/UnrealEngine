@@ -415,3 +415,11 @@ void FHoloLensMisc::GetValidTargetPlatforms(class TArray<class FString>& TargetP
 	TargetPlatformNames.Add(FPlatformProperties::PlatformName());
 }
 
+bool FHoloLensMisc::VerifyWindowsVersion(uint32 MajorVersion, uint32 MinorVersion, uint32 BuildNumber)
+{
+	// HoloLens is a Windows 10 OS.  
+	// UWP does not have an equivalent of Win32's VerifyVersionInfo function which is used in WindowsPlatformMisc.
+	// The closest alternative is parsing Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamilyVersion,
+	// But, this string is not intended for runtime version checking and its format could change.
+	return MajorVersion <= 10;
+}
