@@ -270,6 +270,9 @@ public:
 	FMemoryImageSection* AllocateSection()
 	{
 		FMemoryImageSection* Section = new FMemoryImageSection(this);
+#if WITH_EDITOR
+		Section->Bytes.Reserve(512 * 1024);	// reserve at least 512KB per section to avoid resizing
+#endif
 		Sections.Add(Section);
 		return Section;
 	}

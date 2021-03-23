@@ -13,6 +13,7 @@
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Serialization/Archive.h"
 #include "Misc/MemStack.h"
+#include "Async/ParallelFor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMemoryImage, Log, All);
 
@@ -1751,11 +1752,13 @@ void FMemoryImage::Flatten(FMemoryImageResult& OutResult, bool bMergeDuplicateSe
 	if(bMergeDuplicateSections)
 	{
 		// Find unique sections
+		// precompute hashes in parallel
+		ParallelFor(Sections.Num(), [this](int32 Index) { Sections[Index]->ComputeHash(); });
+
 		TMap<FSHAHash, int32> HashToSectionIndex;
 		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
 		{
 			FMemoryImageSection* Section = Sections[SectionIndex];
-			Section->ComputeHash();
 			int32* FoundIndex = HashToSectionIndex.Find(Section->Hash);
 			int32 NewIndex = INDEX_NONE;
 			if (!FoundIndex)
