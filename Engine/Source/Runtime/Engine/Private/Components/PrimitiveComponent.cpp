@@ -360,7 +360,6 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bNeverDistanceCull = false;
 
 	bUseEditorCompositing = false;
-	bIsBeingMovedByEditor = false;
 
 	SetGenerateOverlapEvents(true);
 	bMultiBodyOverlap = false;
@@ -1591,8 +1590,10 @@ uint64 UPrimitiveComponent::GetHiddenEditorViews() const
 
 void UPrimitiveComponent::SetIsBeingMovedByEditor(bool bIsBeingMoved)
 {
-	bIsBeingMovedByEditor = bIsBeingMoved;
-	MarkRenderStateDirty();
+	if (SceneProxy)
+	{
+		SceneProxy->SetIsBeingMovedByEditor_GameThread(bIsBeingMoved);
+	}
 }
 #endif// WITH_EDITOR
 

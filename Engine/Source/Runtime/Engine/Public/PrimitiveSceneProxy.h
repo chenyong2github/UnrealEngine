@@ -168,6 +168,14 @@ public:
 	 */
 	void SetHiddenEdViews_GameThread( uint64 InHiddenEditorViews );
 
+#if WITH_EDITOR
+	/**
+	 * Enqueue and update for the render thread to notify it that the editor is currently moving the owning component with gizmos.
+	 */
+	void SetIsBeingMovedByEditor_GameThread(bool bIsBeingMoved);
+	void SetIsBeingMovedByEditor_RenderThread(bool bIsBeingMoved);
+#endif	// WITH_EDITOR
+
 	/** @return True if the primitive is visible in the given View. */
 	ENGINE_API bool IsShown(const FSceneView* View) const;
 
