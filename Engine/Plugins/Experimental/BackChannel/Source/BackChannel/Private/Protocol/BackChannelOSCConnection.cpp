@@ -93,6 +93,9 @@ void FBackChannelOSCConnection::ReceiveAndDispatchMessages(const float MaxTime /
 
 void FBackChannelOSCConnection::ReceiveMessages(const float MaxTime /*= 0*/)
 {
+    // Cap packets at 128MB.
+	const int kMaxPacketSize = 128 * 1024 * 1024;
+
 	const double StartTime = FPlatformTime::Seconds();
     
     //UE_LOG(LogBackChannel, Log, TEXT("Starting Packet Check at %.02f"), StartTime);
@@ -123,12 +126,24 @@ void FBackChannelOSCConnection::ReceiveMessages(const float MaxTime /*= 0*/)
 					int32 Size(0);
 					FMemory::Memcpy(&Size, ReceiveBuffer.GetData(), sizeof(int32));
 
-					if (Size > ReceiveBuffer.Num())
+					if (Size >= 0 && Size <= kMaxPacketSize)
 					{
-						ReceiveBuffer.AddUninitialized(Size - ReceiveBuffer.Num());
+						if (Size > ReceiveBuffer.Num())
+						{
+							ReceiveBuffer.AddUninitialized(Size - ReceiveBuffer.Num());
+						}
+                        ExpectedSizeOfNextPacket = Size;
 					}
-
-					ExpectedSizeOfNextPacket = Size;
+					else
+					{
+						// if this is abnormally large it's likely a malformed packet so just reject it. We have to disconnect because we've no
+                        // idea where the next valid packet in the stream is.
+						UE_LOG(LogBackChannel, Error,
+                               TEXT("Received packet of %d bytes that was out of the range [0,%d]. Assuming data is malformed and disconnecring"),
+                               Size, kMaxPacketSize);
+                        HasErrorState = true;
+                        ExpectedSizeOfNextPacket = 4;
+					}
 				}
 				else
 				{
@@ -181,7 +196,7 @@ void FBackChannelOSCConnection::ReceiveMessages(const float MaxTime /*= 0*/)
 		const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
 
         // keep receiving until we run out of time, unless we received a packet
-		KeepReceiving = ElapsedTime < MaxTime && PacketsReceived == 0;
+		KeepReceiving = ElapsedTime < MaxTime && PacketsReceived == 0 && HasErrorState == false;
 
 	} while (KeepReceiving);
     
