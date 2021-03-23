@@ -47,6 +47,31 @@ class LENSDISTORTION_API ULensDistortionDataHandler : public UAssetUserData
 	GENERATED_BODY()
 
 public:
+	/** Get the first instance of a LensDistortionDataHandler object belonging to the input component */
+	UFUNCTION(BlueprintCallable, Category = "Distortion")
+	static ULensDistortionDataHandler* GetLensDistortionDataHandler(UActorComponent* InComponentWithUserData);
+
+	/** Update the lens distortion state, recompute the overscan factor, and set all material parameters */
+	UFUNCTION(BlueprintCallable, Category = "Distortion")
+	void Update(const FLensDistortionState& InNewState);
+
+	/** Update the camera settings of the lens distortion state, recompute the overscan factor, and set all material parameters */
+	UFUNCTION(BlueprintCallable, Category = "Distortion")
+	void UpdateCameraSettings(FVector2D InSensorDimensions, float InFocalLength);
+
+	/** Get the UV displacement map that was drawn during the last call to Update() */
+	UFUNCTION(BlueprintCallable, Category = "Distortion")
+	UTextureRenderTarget2D* GetUVDisplacementMap() const { return DisplacementMapRT; }
+
+public:
+	//~ Begin UObject Interface
+	virtual void PostInitProperties() override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif	
+	//~ End UObject Interface
+
 	/** Get the current distortion state (the lens model and properties that mathematically represent the distortion characteristics */
 	FLensDistortionState GetCurrentDistortionState() const { return CurrentState; }
 
@@ -54,7 +79,7 @@ public:
 	float GetOverscanFactor() const { return OverscanFactor; }
 
 	/** Get the post-process MID for the currently specified lens model */
-	UMaterialInstanceDynamic* GetDistortionMID() const { return DistortionMID; }
+	UMaterialInstanceDynamic* GetDistortionMID() const { return DistortionPostProcessMID; }
 
 	/** Get the specified lens model that characterizes the distortion effect */
 	ELensModel GetLensModel() const { return CurrentState.LensModel; };
@@ -71,25 +96,6 @@ public:
 	/** Get the focal length of the camera, in millimeters */
 	float GetFocalLength() const { return CurrentState.FocalLength; }
 
-public:
-	/** Get the first instance of a LensDistortionDataHandler object belonging to the input component */
-	UFUNCTION(BlueprintCallable, Category = "Distortion")
-	static ULensDistortionDataHandler* GetLensDistortionDataHandler(UActorComponent* InComponentWithUserData);
-
-	/** Update the lens distortion state, recompute the overscan factor, and set all material parameters */
-	UFUNCTION(BlueprintCallable, Category = "Distortion")
-	void Update(const FLensDistortionState& InNewState);
-
-	/** Update the camera settings of the lens distortion state, recompute the overscan factor, and set all material parameters */
-	UFUNCTION(BlueprintCallable, Category = "Distortion")
-	void UpdateCameraSettings(FVector2D InSensorDimensions, float InFocalLength);
-
-	//~ Begin UObject Interface
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif	
-	//~ End UObject Interface
-
 private:
 	/** Use the current distortion state to compute the distortion position of an input UV coordinate */
 	FVector2D ComputeDistortedUV(const FVector2D& InScreenUV) const;
@@ -97,10 +103,19 @@ private:
 	/** Use the current distortion state to compute the overscan factor needed such that all distorted UVs will fall into the valid range of [0,1] */
 	float ComputeOverscanFactor() const;
 
+	/** Create the distortion MIDs */
+	void InitDistortionMaterials();
+
 	/** Update the lens distortion state, recompute the overscan factor, and set all material parameters */
 	void UpdateInternal(const FLensDistortionState& InNewState);
 
+public:
+	/** Dynamically created post-process material instance for the currently specified lens model */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
+	UMaterialInstanceDynamic* DistortionPostProcessMID = nullptr;
+
 protected:
+	/** Current state as set by the most recent call to Update() */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Distortion", meta = (ShowOnlyInnerProperties))
 	FLensDistortionState CurrentState;
 
@@ -108,7 +123,16 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
 	float OverscanFactor = 1.0f;
 
-	/** Dynamically created post-process material instance for the currently specified lens model */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
-	UMaterialInstanceDynamic* DistortionMID;
+private:
+	/** MID used to draw a UV distortion displacement map to the DisplacementMapRT */
+	UPROPERTY(Transient)
+	UMaterialInstanceDynamic* DisplacementMapMID = nullptr;
+
+	/** Render Target representing a UV distortion displacement map */
+	UPROPERTY(Transient)
+	UTextureRenderTarget2D* DisplacementMapRT = nullptr;
+
+private:
+	static constexpr uint32 DisplacementMapWidth = 256;
+	static constexpr uint32 DisplacementMapHeight = 256;
 };

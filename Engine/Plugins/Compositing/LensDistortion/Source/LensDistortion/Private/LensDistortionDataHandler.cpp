@@ -5,6 +5,7 @@
 #include "Algo/MaxElement.h"
 #include "Components/SceneComponent.h"
 #include "Interfaces/Interface_AssetUserData.h"
+#include "Kismet/KismetRenderingLibrary.h"
 #include "Math/NumericLimits.h"
 
 bool FLensDistortionState::operator==(const FLensDistortionState& Other) const
@@ -28,6 +29,12 @@ ULensDistortionDataHandler* ULensDistortionDataHandler::GetLensDistortionDataHan
 
 void ULensDistortionDataHandler::Update(const FLensDistortionState& InNewState)
 {
+	/** Will need to revisit this init logic once we move to arbitrary lens model support */
+	if (!DistortionPostProcessMID || !DisplacementMapMID)
+	{
+		InitDistortionMaterials();
+	}
+
 	/** Check for duplicate updates. If the new CurrentState is equivalent to the current CurrentState, there is nothing to update. */
 	if (CurrentState == InNewState)
 	{
@@ -39,6 +46,12 @@ void ULensDistortionDataHandler::Update(const FLensDistortionState& InNewState)
 
 void ULensDistortionDataHandler::UpdateCameraSettings(FVector2D InSensorDimensions, float InFocalLength)
 {
+	/** Will need to revisit this init logic once we move to arbitrary lens model support */
+	if (!DistortionPostProcessMID || !DisplacementMapMID)
+	{
+		InitDistortionMaterials();
+	}
+
 	/** Check for duplicate updates. If the new camera settings are equivalent to the current camera settings, there is nothing to update. */
 	if ((CurrentState.SensorDimensions == InSensorDimensions) && (CurrentState.FocalLength == InFocalLength))
 	{
@@ -49,6 +62,21 @@ void ULensDistortionDataHandler::UpdateCameraSettings(FVector2D InSensorDimensio
 	CurrentState.FocalLength = InFocalLength;
 
 	UpdateInternal(CurrentState);
+}
+
+void ULensDistortionDataHandler::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		DisplacementMapRT = NewObject<UTextureRenderTarget2D>(this, MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("DistortedUVDisplacementMap")));
+		DisplacementMapRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA16f;
+		DisplacementMapRT->ClearColor = FLinearColor::Gray;
+		DisplacementMapRT->bAutoGenerateMips = false;
+		DisplacementMapRT->InitAutoFormat(DisplacementMapWidth, DisplacementMapHeight);
+		DisplacementMapRT->UpdateResourceImmediate(true);
+	}
 }
 
 #if WITH_EDITOR
@@ -64,6 +92,12 @@ void ULensDistortionDataHandler::PostEditChangeProperty(struct FPropertyChangedE
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(FVector2D, X))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(FVector2D, Y)))
 	{
+		/** Will need to revisit this init logic once we move to arbitrary lens model support */
+		if (!DistortionPostProcessMID || !DisplacementMapMID)
+		{
+			InitDistortionMaterials();
+		}
+
 		UpdateInternal(CurrentState);
 	}
 }
@@ -155,39 +189,51 @@ FVector2D ULensDistortionDataHandler::ComputeDistortedUV(const FVector2D& InUndi
 	return DistortedUV;
 }
 
-void ULensDistortionDataHandler::UpdateInternal(const FLensDistortionState& InNewState)
+void ULensDistortionDataHandler::InitDistortionMaterials()
 {
-	/** If the lens model has changed, or the MID is null, a new MID needs to be created */
-	if ((CurrentState.LensModel != InNewState.LensModel) || (!DistortionMID))
+	if (DistortionPostProcessMID == nullptr)
 	{
-		if (InNewState.LensModel == ELensModel::Spherical)
-		{
-			UMaterialInterface* DistortionMaterialParent = LoadObject<UMaterialInterface>(NULL, TEXT("/LensDistortion/Materials/MAT_brown3t2_overscan.MAT_brown3t2_overscan"), NULL, LOAD_None, NULL);
-			DistortionMID = UMaterialInstanceDynamic::Create(DistortionMaterialParent, this);
-		}
+		UMaterialInterface* DistortionMaterialParent = LoadObject<UMaterialInterface>(NULL, TEXT("/LensDistortion/Materials/M_SphericalDistortionPostProcess.M_SphericalDistortionPostProcess"), NULL, LOAD_None, NULL);
+		DistortionPostProcessMID = UMaterialInstanceDynamic::Create(DistortionMaterialParent, this);
 	}
 
+	if (DisplacementMapMID == nullptr)
+	{
+		UMaterialInterface* DisplacementMapMaterialParent = LoadObject<UMaterialInterface>(NULL, TEXT("/LensDistortion/Materials/M_SphericalDistortionDisplacementMap.M_SphericalDistortionDisplacementMap"), NULL, LOAD_None, NULL);
+		DisplacementMapMID = UMaterialInstanceDynamic::Create(DisplacementMapMaterialParent, this);
+	}
+
+	DistortionPostProcessMID->SetTextureParameterValue("UVDisplacementMap", DisplacementMapRT);
+
+	UpdateInternal(CurrentState);
+}
+
+void ULensDistortionDataHandler::UpdateInternal(const FLensDistortionState& InNewState)
+{
 	CurrentState = InNewState;
 
 	/** Recompute the overscan factor using the new state */
 	OverscanFactor = ComputeOverscanFactor();
 
 	/** Update the material parameters */
-	if (DistortionMID)
+	if (DisplacementMapMID)
 	{
-		DistortionMID->SetScalarParameterValue("sensor_w_mm", CurrentState.SensorDimensions.X);
-		DistortionMID->SetScalarParameterValue("sensor_h_mm", CurrentState.SensorDimensions.Y);
-		DistortionMID->SetScalarParameterValue("fl_mm", CurrentState.FocalLength);
+		DisplacementMapMID->SetScalarParameterValue("sensor_w_mm", CurrentState.SensorDimensions.X);
+		DisplacementMapMID->SetScalarParameterValue("sensor_h_mm", CurrentState.SensorDimensions.Y);
+		DisplacementMapMID->SetScalarParameterValue("fl_mm", CurrentState.FocalLength);
 
-		DistortionMID->SetScalarParameterValue("K1", CurrentState.DistortionParameters.K1);
-		DistortionMID->SetScalarParameterValue("K2", CurrentState.DistortionParameters.K2);
-		DistortionMID->SetScalarParameterValue("K3", CurrentState.DistortionParameters.K3);
-		DistortionMID->SetScalarParameterValue("P1", CurrentState.DistortionParameters.P1);
-		DistortionMID->SetScalarParameterValue("P2", CurrentState.DistortionParameters.P2);
+		DisplacementMapMID->SetScalarParameterValue("k1", CurrentState.DistortionParameters.K1);
+		DisplacementMapMID->SetScalarParameterValue("k2", CurrentState.DistortionParameters.K2);
+		DisplacementMapMID->SetScalarParameterValue("k3", CurrentState.DistortionParameters.K3);
+		DisplacementMapMID->SetScalarParameterValue("p1", CurrentState.DistortionParameters.P1);
+		DisplacementMapMID->SetScalarParameterValue("p2", CurrentState.DistortionParameters.P2);
 
-		DistortionMID->SetScalarParameterValue("cx", CurrentState.PrincipalPoint.X);
-		DistortionMID->SetScalarParameterValue("cy", CurrentState.PrincipalPoint.Y);
+		DisplacementMapMID->SetScalarParameterValue("cx", CurrentState.PrincipalPoint.X);
+		DisplacementMapMID->SetScalarParameterValue("cy", CurrentState.PrincipalPoint.Y);
 
-		DistortionMID->SetScalarParameterValue("OverscanFactor", OverscanFactor);
+		DisplacementMapMID->SetScalarParameterValue("overscan_factor", OverscanFactor);
 	}
+
+	/** Draw the updated displacement map render target */
+	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DisplacementMapRT, DisplacementMapMID);
 }
