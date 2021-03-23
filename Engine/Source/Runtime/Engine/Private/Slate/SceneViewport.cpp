@@ -552,7 +552,7 @@ FReply FSceneViewport::AcquireFocusAndCapture(FIntPoint MousePosition, EFocusCau
 bool FSceneViewport::IsCurrentlyGameViewport()
 {
 	// Either were game code only or were are currently play in editor.
-	return (FApp::IsGame() && !GIsEditor) || IsPlayInEditorViewport();
+	return (FApp::IsGame() && !GIsEditor && ViewportClient == GEngine->GameViewport) || IsPlayInEditorViewport();
 }
 
 FReply FSceneViewport::OnMouseButtonUp( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent )
