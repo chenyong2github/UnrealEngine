@@ -37,6 +37,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Styling/StyleColors.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
 

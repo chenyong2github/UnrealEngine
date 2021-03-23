@@ -12,6 +12,7 @@
 #include "Widgets/SNiagaraParameterMapView.h"
 #include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterMapPalleteItem"
 
