@@ -203,15 +203,6 @@ void UPropertyValueMaterial::ApplyDataToResolvedObject()
 		ContainerObject->SetMaterial(MatIndex, Mat);
 	}
 
-	// Update object on viewport
-#if WITH_EDITOR
-	ContainerObject->PostEditChange();
-	if (ContainerOwnerObject && ContainerOwnerObject != ContainerObject)
-	{
-		ContainerOwnerObject->PostEditChange();
-	}
-#endif
-
 	OnPropertyApplied.Broadcast();
 }
 
