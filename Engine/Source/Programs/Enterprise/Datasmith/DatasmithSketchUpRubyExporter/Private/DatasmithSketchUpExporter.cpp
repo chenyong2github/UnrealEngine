@@ -41,6 +41,10 @@
 #include "DatasmithSceneFactory.h"
 #include "Misc/Paths.h"
 
+#include "HAL/FileManager.h"
+#include "HAL/PlatformFilemanager.h"
+#include "DatasmithSceneXmlWriter.h"
+
 #include "DatasmithSceneFactory.h"
 
 class FDatasmithSketchUpScene
@@ -118,12 +122,12 @@ class FDatasmithSketchUpDirectLinkManager
 {
 public:
 
-	static bool Init(const FString& InEnginePath)
+	static bool Init(bool bEnableUI, const FString& InEnginePath)
 	{
 		FDatasmithExporterManager::FInitOptions Options;
 		Options.bEnableMessaging = true; // DirectLink requires the Messaging service.
 		Options.bSuppressLogs = false;   // Log are useful, don't suppress them
-		Options.bUseDatasmithExporterUI = !InEnginePath.IsEmpty();
+		Options.bUseDatasmithExporterUI = bEnableUI;
 		Options.RemoteEngineDirPath = *InEnginePath;
 
 		if (!FDatasmithExporterManager::Initialize(Options))
@@ -145,7 +149,7 @@ public:
 
 	void UpdateScene(FDatasmithSketchUpScene& Scene)
 	{
-		FDatasmithSceneUtils::CleanUpScene(Scene.GetDatasmithSceneRef(), true);
+		// FDatasmithSceneUtils::CleanUpScene(Scene.GetDatasmithSceneRef(), true);
 		DirectLink.UpdateScene(Scene.GetDatasmithSceneRef());
 	}
 
@@ -204,8 +208,124 @@ public:
 		}
 	}
 
+	// XXX: REMOVE before shipping
+	// Used for simple testing on the plugin side what is being sent to DL
+	void ExportCurrentDatasmithSceneWithoutCleanup()
+	{
+		{
+			TSharedRef<IDatasmithScene> DatasmithScene = ExportedScene.GetDatasmithSceneRef();
+			FString FilePath = FPaths::Combine(ExportedScene.GetSceneExporterRef()->GetOutputPath(), ExportedScene.GetSceneExporterRef()->GetName()) + TEXT(".") + FDatasmithUtils::GetFileExtension();
+
+			TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileWriter(*FilePath));
+
+			if (!Archive.IsValid())
+			{
+				// XXX - removed 
+				//if (Impl->Logger.IsValid())
+				//{
+				//	Impl->Logger->AddGeneralError(*(TEXT("Unable to create file ") + FilePath + TEXT(", Aborting the export process")));
+				//}
+				return;
+			}
+
+			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+			PlatformFile.CreateDirectoryTree(ExportedScene.GetSceneExporterRef()->GetAssetsOutputPath());
+
+			// Add Bump maps from Material objects to scene as TextureElement
+			// XXX - removed Impl->CheckBumpMaps(DatasmithScene);
+
+			// XXX - removed FDatasmithSceneUtils::CleanUpScene(DatasmithScene, bCleanupUnusedElements);
+
+			// Update TextureElements
+			// XXX - removed Impl->UpdateTextureElements(DatasmithScene);
+
+			// XXX - note todo
+			// todo: keep relative myself
+			// Convert paths to relative
+			FString AbsoluteDir = FString(ExportedScene.GetSceneExporterRef()->GetOutputPath()) + TEXT("/");
+
+			for (int32 MeshIndex = 0; MeshIndex < DatasmithScene->GetMeshesCount(); ++MeshIndex)
+			{
+				TSharedPtr< IDatasmithMeshElement > Mesh = DatasmithScene->GetMesh(MeshIndex);
+
+				FString RelativePath = Mesh->GetFile();
+				FPaths::MakePathRelativeTo(RelativePath, *AbsoluteDir);
+
+				Mesh->SetFile(*RelativePath);
+			}
+
+			for (int32 TextureIndex = 0; TextureIndex < DatasmithScene->GetTexturesCount(); ++TextureIndex)
+			{
+				TSharedPtr< IDatasmithTextureElement > Texture = DatasmithScene->GetTexture(TextureIndex);
+
+				FString TextureFile = Texture->GetFile();
+				FPaths::MakePathRelativeTo(TextureFile, *AbsoluteDir);
+				Texture->SetFile(*TextureFile);
+			}
+
+			// XXX - removed 
+			//FDatasmithAnimationSerializer AnimSerializer;
+			//int32 NumSequences = DatasmithScene->GetLevelSequencesCount();
+			//for (int32 SequenceIndex = 0; SequenceIndex < NumSequences; ++SequenceIndex)
+			//{
+			//	const TSharedPtr<IDatasmithLevelSequenceElement>& LevelSequence = DatasmithScene->GetLevelSequence(SequenceIndex);
+			//	if (LevelSequence.IsValid())
+			//	{
+			//		FString AnimFilePath = FPaths::Combine(Impl->AssetsOutputPath, LevelSequence->GetName()) + DATASMITH_ANIMATION_EXTENSION;
+
+			//		if (AnimSerializer.Serialize(LevelSequence.ToSharedRef(), *AnimFilePath))
+			//		{
+			//			TUniquePtr<FArchive> AnimArchive(IFileManager::Get().CreateFileReader(*AnimFilePath));
+			//			if (AnimArchive)
+			//			{
+			//				LevelSequence->SetFileHash(FMD5Hash::HashFileFromArchive(AnimArchive.Get()));
+			//			}
+
+			//			FPaths::MakePathRelativeTo(AnimFilePath, *AbsoluteDir);
+			//			LevelSequence->SetFile(*AnimFilePath);
+			//		}
+			//	}
+			//}
+
+			// XXX - removed 
+			// Log time spent to export scene in seconds
+			//int ElapsedTime = (int)FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - Impl->ExportStartCycles);
+			//DatasmithScene->SetExportDuration(ElapsedTime);
+
+			FDatasmithSceneXmlWriter DatasmithSceneXmlWriter;
+			DatasmithSceneXmlWriter.Serialize(DatasmithScene, *Archive);
+
+			Archive->Close();
+
+			// Run the garbage collector at this point so that we're in a good state for the next export
+			FDatasmithExporterManager::RunGarbageCollection();
+		}
+
+		TSharedRef<IDatasmithScene> DatasmithScene = ExportedScene.GetDatasmithSceneRef();
+
+		// Convert paths back to absolute(they were changes by Export)
+		FString AbsoluteDir = FString(ExportedScene.GetSceneExporterRef()->GetOutputPath()) + TEXT("/");
+		for (int32 MeshIndex = 0; MeshIndex < DatasmithScene->GetMeshesCount(); ++MeshIndex)
+		{
+			TSharedPtr< IDatasmithMeshElement > Mesh = DatasmithScene->GetMesh(MeshIndex);
+
+			FString RelativePath = Mesh->GetFile();
+			Mesh->SetFile(*FPaths::ConvertRelativePathToFull(AbsoluteDir, *RelativePath));
+		}
+
+		for (int32 TextureIndex = 0; TextureIndex < DatasmithScene->GetTexturesCount(); ++TextureIndex)
+		{
+			TSharedPtr< IDatasmithTextureElement > Texture = DatasmithScene->GetTexture(TextureIndex);
+
+			FString RelativePath = Texture->GetFile();
+
+			Texture->SetFile(*FPaths::ConvertRelativePathToFull(AbsoluteDir, *RelativePath));
+		}
+	}
+
 	void ExportCurrentDatasmithScene()
 	{
+		// NOTE: FDatasmithSceneUtils::CleanUpScene is called from FDatasmithSceneExporter::Export
 		ExportedScene.GetSceneExporterRef()->Export(ExportedScene.GetDatasmithSceneRef());
 
 		TSharedRef<IDatasmithScene> DatasmithScene = ExportedScene.GetDatasmithSceneRef();
@@ -235,7 +355,7 @@ public:
 		// todo: set flag that update needs to be sent
 	}
 
-	bool OnComponentInstanceChanged(SUEntityRef Entity)
+	FORCENOINLINE bool OnComponentInstanceChanged(SUEntityRef Entity)
 	{
 		DatasmithSketchUp::FEntityIDType EntityId = DatasmithSketchUpUtils::GetEntityID(Entity);
 
@@ -244,7 +364,7 @@ public:
 		return true;
 	}
 
-	bool InvalidateGeometryForFace(DatasmithSketchUp::FEntityIDType FaceId)
+	FORCENOINLINE bool InvalidateGeometryForFace(DatasmithSketchUp::FEntityIDType FaceId)
 	{
 		// When Face is modified find Entities it belongs too, reexport Entities meshes and update Occurrences using this Entities
 		if (DatasmithSketchUp::FEntities* Entities = Context.EntitiesObjects.FindFace(FaceId.EntityID))
@@ -256,7 +376,7 @@ public:
 		return false;
 	}
 
-	bool OnEntityRemoved(DatasmithSketchUp::FEntityIDType EntityId)
+	FORCENOINLINE bool OnEntityRemoved(DatasmithSketchUp::FEntityIDType EntityId)
 	{
 		// todo: map each existing entity id to its type so don't need to check every collection?
 
@@ -299,6 +419,34 @@ public:
 			{
 				// todo: unexpected
 			}
+		}
+		default:
+		{
+			// todo: not expected
+		}
+		}
+		return true;
+	}
+
+	bool OnEntityAdded(SUEntityRef EntityParent, SUEntityRef Entity)
+	{
+		SURefType EntityType = SUEntityGetType(Entity);
+		switch (EntityType)
+		{
+		case SURefType_Group:
+		case SURefType_ComponentInstance:
+		{
+			TSharedPtr<DatasmithSketchUp::FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(SUComponentInstanceFromEntity(Entity));
+			Context.GetEntityDefinition(EntityParent)->AddInstance(Context, ComponentInstance);
+			break;
+		}
+		case SURefType_Face:
+		{
+			Context.GetEntityDefinition(EntityParent)->InvalidateDefinitionGeometry();
+		}
+		case SURefType_Material:
+		{
+			Context.Materials.CreateMaterial(SUMaterialFromEntity(Entity));
 		}
 		default:
 		{
@@ -409,7 +557,16 @@ VALUE DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene(VALUE s
 	return Qtrue;
 }
 
+VALUE DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene_no_cleanup(VALUE self)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, ptr);
+	// Done converting args
 
+	ptr->ExportCurrentDatasmithSceneWithoutCleanup();
+	return Qtrue;
+}
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_component_instance_changed(VALUE self, VALUE ruby_entity)
 {
@@ -448,6 +605,29 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_modified(VALUE self, VALUE r
 	return Qtrue;
 }
 
+VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added(VALUE self, VALUE ruby_parent_entity, VALUE ruby_entity)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	SUEntityRef ParentEntity = SU_INVALID;
+	if (!NIL_P(ruby_parent_entity) && (SUEntityFromRuby(ruby_parent_entity, &ParentEntity) != SU_ERROR_NONE)) {
+		
+		rb_raise(rb_eTypeError, "Expected SketchUp Entity but found '%s'", StringValue(ruby_parent_entity));
+	}
+
+	SUEntityRef Entity = SU_INVALID;
+	if (SUEntityFromRuby(ruby_entity, &Entity) != SU_ERROR_NONE) {
+		rb_raise(rb_eTypeError, "Expected SketchUp Entity or nil");
+	}
+	// Done converting args
+
+	Ptr->OnEntityAdded(ParentEntity, Entity);
+
+	return Qtrue;
+}
+
 VALUE DatasmithSketchUpDirectLinkExporter_on_entity_removed(VALUE self, VALUE ruby_entity_id)
 {
 	// Converting args
@@ -464,15 +644,16 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_removed(VALUE self, VALUE ru
 	return Qtrue;
 }
 
-VALUE on_load(VALUE self, VALUE engine_path) {
+VALUE on_load(VALUE self, VALUE enable_ui, VALUE engine_path) {
 	// Converting args
 	Check_Type(engine_path, T_STRING);
 
+	bool bEnableUI = RTEST(enable_ui);
 	FString EnginePathUnreal = RubyStringToUnreal(engine_path);
 	// Done converting args
 
 	// This needs to be called before creating instance of DirectLink
-	return FDatasmithSketchUpDirectLinkManager::Init(EnginePathUnreal) ? Qtrue : Qfalse;
+	return FDatasmithSketchUpDirectLinkManager::Init(bEnableUI, EnginePathUnreal) ? Qtrue : Qfalse;
 }
 
 VALUE on_unload() {
@@ -498,7 +679,7 @@ extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby2020()
 	VALUE EpicGames = rb_define_module("EpicGames");
 	VALUE Datasmith = rb_define_module_under(EpicGames, "DatasmithBackend");
 
-	rb_define_module_function(Datasmith, "on_load", ToRuby(on_load), 1);
+	rb_define_module_function(Datasmith, "on_load", ToRuby(on_load), 2);
 	rb_define_module_function(Datasmith, "on_unload", ToRuby(on_unload), 0);
 
 	rb_define_module_function(Datasmith, "open_directlink_ui", ToRuby(open_directlink_ui), 0);
@@ -509,11 +690,14 @@ extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby2020()
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "start", ToRuby(DatasmithSketchUpDirectLinkExporter_start), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_component_instance_changed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_component_instance_changed), 1);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_modified", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_modified), 1);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_added", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_added), 2);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_removed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_removed), 1);
-	
+
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "update", ToRuby(DatasmithSketchUpDirectLinkExporter_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "send_update", ToRuby(DatasmithSketchUpDirectLinkExporter_send_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "export_current_datasmith_scene", ToRuby(DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene), 0);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "export_current_datasmith_scene_no_cleanup", ToRuby(DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene_no_cleanup), 0);
+	
 }
 
 /* todo:

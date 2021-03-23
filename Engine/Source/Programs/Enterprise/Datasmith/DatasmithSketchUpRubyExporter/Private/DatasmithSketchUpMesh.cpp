@@ -389,8 +389,6 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 			// Set the mesh element label used in the Unreal UI.
 			MeshElementPtr->SetLabel(*MeshLabel);
 
-			Context.DatasmithScene->AddMesh(MeshElementPtr);
-
 			EntitiesGeometry->AddMesh(Context, MeshElementPtr, ExtractedMesh.MeshTriangleMaterialIDSet);
 		}
 	};
@@ -399,6 +397,23 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 	ScanSketchUpEntitiesFaces(EntitiesRef, FaceIds, ProcessExtractedMesh);
 
 	Context.EntitiesObjects.RegisterEntitiesFaces(*this, FaceIds);
+}
+
+
+void FEntities::AddMeshesToDatasmithScene(FExportContext& Context)
+{
+	for (TSharedPtr<FDatasmithInstantiatedMesh> Mesh : EntitiesGeometry->Meshes)
+	{
+		Context.DatasmithScene->AddMesh(Mesh->DatasmithMesh);
+	}
+}
+
+void FEntities::RemoveMeshesFromDatasmithScene(FExportContext& Context)
+{
+	for (TSharedPtr<FDatasmithInstantiatedMesh> Mesh : EntitiesGeometry->Meshes)
+	{
+		Context.DatasmithScene->RemoveMesh(Mesh->DatasmithMesh);
+	}
 }
 
 void FEntities::CleanEntitiesGeometry(FExportContext& Context)
@@ -431,6 +446,9 @@ TSharedPtr<IDatasmithMeshElement> FEntities::CreateMeshElement(FExportContext& C
 
 TArray<SUGroupRef> FEntities::GetGroups()
 {
+	// Get the number of groups in the SketchUp model entities.
+	size_t SourceGroupCount;
+	SUEntitiesGetNumGroups(EntitiesRef, &SourceGroupCount);
 	// Retrieve the groups in the source SketchUp entities.
 	TArray<SUGroupRef> SGroups;
 	SGroups.Init(SU_INVALID, SourceGroupCount);
@@ -441,6 +459,10 @@ TArray<SUGroupRef> FEntities::GetGroups()
 
 TArray<SUComponentInstanceRef> FEntities::GetComponentInstances()
 {
+	// Get the number of component instances in the SketchUp model entities.
+	size_t SourceComponentInstanceCount;
+	SUEntitiesGetNumInstances(EntitiesRef, &SourceComponentInstanceCount);
+
 	// Retrieve the component instances in the source SketchUp entities.
 	TArray<SUComponentInstanceRef> SComponentInstances;
 	SComponentInstances.Init(SU_INVALID, SourceComponentInstanceCount);

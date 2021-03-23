@@ -89,8 +89,8 @@ void FExportContext::Populate()
 	SUModelGetDefaultLayer(ModelRef, &DefaultLayerRef);
 
 	// Setup root Node, based on Model
-	Model = MakeShared<DatasmithSketchUp::FModel>(*ModelDefinition);
-	RootNode = MakeShared<DatasmithSketchUp::FNodeOccurence>(*Model);
+	Model = MakeShared<FModel>(*ModelDefinition);
+	RootNode = MakeShared<FNodeOccurence>(*Model);
 	RootNode->WorldTransform = WorldTransform;
 	RootNode->EffectiveLayerRef = DefaultLayerRef;
 	// Name and label for root loose mesh actors
@@ -112,16 +112,36 @@ void FExportContext::Populate()
 
 void FExportContext::Update()
 {
-	// Update Datasmith Meshes
+	// Invalidate occurrences for changed instances first
+	Model->UpdateEntityProperties(*this);
+	ComponentInstances.UpdateProperties(); 
+
+	// Update occurrences visibility(before updating meshes to make sure to skip updating unused meshes)
+	RootNode->UpdateVisibility(*this);
+
+	// Update Datasmith Meshes after their usage was refreshed(in visibility update) and before node hierarchy update(where Mesh Actors are updated for meshes)
 	ModelDefinition->UpdateDefinition(*this);
-	ComponentDefinitions.Update(); 
+	ComponentDefinitions.Update();
 
-	// Update Datasmith Mesh Actors
-	Model->UpdateEntity(*this);
-	ComponentInstances.Update(); 
+	// ComponentInstances will invalidate occurrences 
+	Model->UpdateEntityGeometry(*this);
+	ComponentInstances.UpdateGeometry();
 
-	// Update transforms/names for Datasmith Actors and MeshActors
-	RootNode->Update(*this); 
+	// Update transforms/names for Datasmith Actors and MeshActors, create these actors if needed
+	RootNode->Update(*this);
+}
+
+FDefinition* FExportContext::GetEntityDefinition(SUEntityRef Entity)
+{
+	// No Entity means Model
+	if (SUIsInvalid(Entity))
+	{
+		return ModelDefinition.Get();
+	}
+	else
+	{
+		return ComponentDefinitions.GetComponentDefinition(SUComponentDefinitionFromEntity(Entity)).Get();
+	}
 }
 
 void FComponentDefinitionCollection::Update()
@@ -210,11 +230,12 @@ void FComponentDefinitionCollection::PopulateFromModel(SUModelRef InModelRef)
 	}
 }
 
-void FComponentDefinitionCollection::AddComponentDefinition(SUComponentDefinitionRef InComponentDefinitionRef)
+TSharedPtr<FComponentDefinition> FComponentDefinitionCollection::AddComponentDefinition(SUComponentDefinitionRef InComponentDefinitionRef)
 {
 	TSharedPtr<FComponentDefinition> Definition = MakeShared<FComponentDefinition>(InComponentDefinitionRef);
 	Definition->Parse(Context);
 	ComponentDefinitionMap.Add(Definition->SketchupSourceID, Definition);
+	return Definition;
 }
 
 TSharedPtr<FComponentDefinition> FComponentDefinitionCollection::GetComponentDefinition(
@@ -224,24 +245,19 @@ TSharedPtr<FComponentDefinition> FComponentDefinitionCollection::GetComponentDef
 	// Retrieve the component definition of the SketchUp component instance.
 	SUComponentDefinitionRef SComponentDefinitionRef = SU_INVALID;
 	SUComponentInstanceGetDefinition(InComponentInstanceRef, &SComponentDefinitionRef); // we can ignore the returned SU_RESULT
+	return GetComponentDefinition(SComponentDefinitionRef);
+}
 
-	// Get the component ID of the SketckUp component definition.
-	FComponentDefinitionIDType SComponentID = DatasmithSketchUpUtils::GetComponentID(SComponentDefinitionRef);
-
+TSharedPtr<FComponentDefinition> FComponentDefinitionCollection::GetComponentDefinition(SUComponentDefinitionRef ComponentDefinitionRef)
+{
+	FComponentDefinitionIDType ComponentDefinitionID = DatasmithSketchUpUtils::GetComponentID(ComponentDefinitionRef);
 	// Make sure the SketchUp component definition exists in our dictionary of component definitions.
-	if (ComponentDefinitionMap.Contains(SComponentID))
+	if (TSharedPtr<FComponentDefinition>* Ptr = ComponentDefinitionMap.Find(ComponentDefinitionID))
 	{
-		// Return the component definition.
-		return ComponentDefinitionMap[SComponentID];
+		return *Ptr;
 	}
 
-	// Retrieve the SketchUp component definition name.
-	FString SComponentDefinitionName;
-	SComponentDefinitionName = SuGetString(SUComponentDefinitionGetName, SComponentDefinitionRef);
-
-	ADD_SUMMARY_LINE(TEXT("WARNING: Cannot find component %ls"), *SComponentDefinitionName);
-
-	return TSharedPtr<FComponentDefinition>();
+	return AddComponentDefinition(ComponentDefinitionRef);
 }
 
 void FEntitiesObjectCollection::RegisterEntitiesFaces(DatasmithSketchUp::FEntities& Entities, const TSet<int32>& FaceIds)
@@ -257,11 +273,6 @@ TSharedPtr<FEntities> FEntitiesObjectCollection::AddEntities(FDefinition& InDefi
 	TSharedPtr<FEntities> Entities = MakeShared<FEntities>(InDefinition);
 
 	Entities->EntitiesRef = EntitiesRef;
-	// Get the number of component instances in the SketchUp model entities.
-	SUEntitiesGetNumInstances(EntitiesRef, &Entities->SourceComponentInstanceCount);
-	// Get the number of groups in the SketchUp model entities.
-	SUEntitiesGetNumGroups(EntitiesRef, &Entities->SourceGroupCount);
-
 	return Entities;
 }
 
@@ -285,12 +296,10 @@ TSharedPtr<FComponentInstance> FComponentInstanceCollection::AddComponentInstanc
 	}
 
 	TSharedPtr<FComponentDefinition> Definition = Context.ComponentDefinitions.GetComponentDefinition(InComponentInstanceRef);
-	if (!Definition)
-	{
-		return TSharedPtr<FComponentInstance>();
-	}
 
 	TSharedPtr<FComponentInstance> ComponentInstance = MakeShared<FComponentInstance>(SUComponentInstanceToEntity(InComponentInstanceRef), *Definition);
+
+	Definition->LinkComponentInstance(ComponentInstance.Get());
 
 	ComponentInstanceMap.Add(ComponentInstanceId, ComponentInstance);
 	return ComponentInstance;
@@ -305,18 +314,11 @@ bool FComponentInstanceCollection::RemoveComponentInstance(FComponentInstanceIDT
 	}
 	const TSharedPtr<FComponentInstance>& ComponentInstance = *ComponentInstancePtr;
 
-	ComponentInstance->RemoveOccurrences(Context);
+	ComponentInstance->RemoveComponentInstance(Context);
 
 	ComponentInstanceMap.Remove(ComponentInstanceId);
 
 	return true;
-}
-
-
-
-void FComponentInstanceCollection::AddOccurrence(FComponentInstanceIDType ComponentInstanceID, const TSharedPtr<DatasmithSketchUp::FNodeOccurence>& Occurrence)
-{
-	ComponentInstanceOccurencesMap.FindOrAdd(ComponentInstanceID).Add(Occurrence);
 }
 
 void FComponentInstanceCollection::InvalidateComponentInstanceGeometry(FComponentInstanceIDType ComponentInstanceID)
@@ -351,12 +353,21 @@ void FComponentInstanceCollection::InvalidateComponentInstanceProperties(FCompon
 	}
 }
 
-void FComponentInstanceCollection::Update()
+void FComponentInstanceCollection::UpdateProperties()
 {
 	for (const auto& KeyValue : ComponentInstanceMap)
 	{
 		TSharedPtr<FComponentInstance> ComponentInstance = KeyValue.Value;
-		ComponentInstance->UpdateEntity(Context);
+		ComponentInstance->UpdateEntityProperties(Context);
+	}
+}
+
+void FComponentInstanceCollection::UpdateGeometry()
+{
+	for (const auto& KeyValue : ComponentInstanceMap)
+	{
+		TSharedPtr<FComponentInstance> ComponentInstance = KeyValue.Value;
+		ComponentInstance->UpdateEntityGeometry(Context);
 	}
 }
 
@@ -380,9 +391,7 @@ void FMaterialCollection::PopulateFromModel(SUModelRef InModelRef)
 		for (SUMaterialRef SMaterialDefinitionRef : SMaterialDefinitions)
 		{
 
-			TSharedPtr<FMaterial> Material = FMaterial::Create(Context, SMaterialDefinitionRef);
-
-			MaterialDefinitionMap.Emplace(DatasmithSketchUpUtils::GetMaterialID(SMaterialDefinitionRef), Material);
+			CreateMaterial(SMaterialDefinitionRef);
 		}
 	}
 }
@@ -393,10 +402,6 @@ FMaterialOccurrence* FMaterialCollection::RegisterInstance(FMaterialIDType Mater
 	{
 		const TSharedPtr<DatasmithSketchUp::FMaterial>& Material = *Ptr;
 		return &Material->RegisterInstance(NodeOccurrence);
-	}
-	else
-	{
-
 	}
 	return DefaultMaterial.Get();
 }
@@ -427,4 +432,11 @@ void FMaterialCollection::UnregisterGeometry(DatasmithSketchUp::FEntitiesGeometr
 	}
 
 	EntitiesGeometry->MaterialsUsed.Reset();
+}
+
+TSharedPtr<FMaterial> FMaterialCollection::CreateMaterial(SUMaterialRef MaterialDefinitionRef)
+{
+	TSharedPtr<FMaterial> Material = FMaterial::Create(Context, MaterialDefinitionRef);
+	MaterialDefinitionMap.Emplace(DatasmithSketchUpUtils::GetMaterialID(MaterialDefinitionRef), Material);
+	return Material;
 }
