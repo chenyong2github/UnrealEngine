@@ -78,7 +78,7 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	NumFlipbookFrames = 1;
 #endif
 
-	AttributeBindings.Reserve(16);
+	AttributeBindings.Reserve(21);
 	AttributeBindings.Add(&PositionBinding);
 	AttributeBindings.Add(&VelocityBinding);
 	AttributeBindings.Add(&ColorBinding);
@@ -93,6 +93,13 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	AttributeBindings.Add(&DynamicMaterial2Binding);
 	AttributeBindings.Add(&DynamicMaterial3Binding);
 	AttributeBindings.Add(&CameraOffsetBinding);
+
+	// These are associated with attributes in the VF layout only if bGenerateAccurateMotionVectors is true
+	AttributeBindings.Add(&PrevPositionBinding);
+	AttributeBindings.Add(&PrevScaleBinding);
+	AttributeBindings.Add(&PrevMeshOrientationBinding);
+	AttributeBindings.Add(&PrevCameraOffsetBinding);
+	AttributeBindings.Add(&PrevVelocityBinding);
 
 	// The remaining bindings are not associated with attributes in the VF layout
 	AttributeBindings.Add(&RendererVisibilityTagBinding);
@@ -158,14 +165,14 @@ FNiagaraBoundsCalculator* UNiagaraMeshRendererProperties::CreateBoundsCalculator
 					Offset = Offset.ComponentMax(MeshProperties.PivotOffset.GetAbs());
 				}
 				break;
-			}			
+			}
 
 			LocalBounds += MeshBounds;
 		}
 	}
 
 	if (LocalBounds.IsValid)
-	{		
+	{
 		// Take the bounding center into account with the extents, as it may not be at the origin
 		const FVector Extents = LocalBounds.Max.GetAbs().ComponentMax(LocalBounds.Min.GetAbs());
 		FNiagaraBoundsCalculatorHelper<false, true, false>* BoundsCalculator
@@ -250,10 +257,23 @@ void UNiagaraMeshRendererProperties::InitBindings()
 		//Default custom sorting to age
 		CustomSortingBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_NORMALIZED_AGE);
 	}
+
+	SetPreviousBindings(nullptr, SourceMode);
+}
+
+void UNiagaraMeshRendererProperties::SetPreviousBindings(const UNiagaraEmitter* SrcEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	PrevPositionBinding.SetAsPreviousValue(PositionBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
+	PrevScaleBinding.SetAsPreviousValue(ScaleBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
+	PrevMeshOrientationBinding.SetAsPreviousValue(MeshOrientationBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
+	PrevCameraOffsetBinding.SetAsPreviousValue(CameraOffsetBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
+	PrevVelocityBinding.SetAsPreviousValue(VelocityBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
 }
 
 void UNiagaraMeshRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
 {
+	Super::UpdateSourceModeDerivates(InSourceMode, bFromPropertyEdit);
+
 	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
 	if (SrcEmitter)
 	{
@@ -261,9 +281,9 @@ void UNiagaraMeshRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererS
 		{
 			MaterialParamBinding.CacheValues(SrcEmitter);
 		}
-	}
 
-	Super::UpdateSourceModeDerivates(InSourceMode, bFromPropertyEdit);
+		SetPreviousBindings(SrcEmitter, InSourceMode);
+	}
 }
 
 void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
@@ -271,12 +291,13 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 	UpdateSourceModeDerivates(SourceMode);
 
 	// Initialize layout
-	RendererLayoutWithCustomSorting.Initialize(ENiagaraMeshVFLayout::Num);
+	const int32 NumLayoutVars = NeedsPreciseMotionVectors() ? ENiagaraMeshVFLayout::Num_Max : ENiagaraMeshVFLayout::Num_Default;
+	RendererLayoutWithCustomSorting.Initialize(NumLayoutVars);
 	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, PositionBinding, ENiagaraMeshVFLayout::Position);
 	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, VelocityBinding, ENiagaraMeshVFLayout::Velocity);
 	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, ColorBinding, ENiagaraMeshVFLayout::Color);
 	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, ScaleBinding, ENiagaraMeshVFLayout::Scale);
-	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, MeshOrientationBinding, ENiagaraMeshVFLayout::Transform);
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, MeshOrientationBinding, ENiagaraMeshVFLayout::Rotation);
 	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, MaterialRandomBinding, ENiagaraMeshVFLayout::MaterialRandom);
 	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, NormalizedAgeBinding, ENiagaraMeshVFLayout::NormalizedAge);
 	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, CustomSortingBinding, ENiagaraMeshVFLayout::CustomSorting);
@@ -286,14 +307,22 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial1Binding, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
 	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial2Binding, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
 	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial3Binding, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
+	if (NeedsPreciseMotionVectors())
+	{
+		RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, PrevPositionBinding, ENiagaraMeshVFLayout::PrevPosition);
+		RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, PrevScaleBinding, ENiagaraMeshVFLayout::PrevScale);
+		RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, PrevMeshOrientationBinding, ENiagaraMeshVFLayout::PrevRotation);
+		RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, PrevCameraOffsetBinding, ENiagaraMeshVFLayout::PrevCameraOffset);
+		RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, PrevVelocityBinding, ENiagaraMeshVFLayout::PrevVelocity);
+	}
 	RendererLayoutWithCustomSorting.Finalize();
 
-	RendererLayoutWithoutCustomSorting.Initialize(ENiagaraMeshVFLayout::Num);
+	RendererLayoutWithoutCustomSorting.Initialize(NumLayoutVars);
 	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, PositionBinding, ENiagaraMeshVFLayout::Position);
 	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, VelocityBinding, ENiagaraMeshVFLayout::Velocity);
 	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, ColorBinding, ENiagaraMeshVFLayout::Color);
 	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, ScaleBinding, ENiagaraMeshVFLayout::Scale);
-	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, MeshOrientationBinding, ENiagaraMeshVFLayout::Transform);
+	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, MeshOrientationBinding, ENiagaraMeshVFLayout::Rotation);
 	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, MaterialRandomBinding, ENiagaraMeshVFLayout::MaterialRandom);
 	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, NormalizedAgeBinding, ENiagaraMeshVFLayout::NormalizedAge);
 	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, SubImageIndexBinding, ENiagaraMeshVFLayout::SubImage);
@@ -302,6 +331,14 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial1Binding, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
 	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial2Binding, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
 	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial3Binding, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
+	if (NeedsPreciseMotionVectors())
+	{
+		RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, PrevPositionBinding, ENiagaraMeshVFLayout::PrevPosition);
+		RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, PrevScaleBinding, ENiagaraMeshVFLayout::PrevScale);
+		RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, PrevMeshOrientationBinding, ENiagaraMeshVFLayout::PrevRotation);
+		RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, PrevCameraOffsetBinding, ENiagaraMeshVFLayout::PrevCameraOffset);
+		RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, PrevVelocityBinding, ENiagaraMeshVFLayout::PrevVelocity);
+	}
 	RendererLayoutWithoutCustomSorting.Finalize();
 }
 
@@ -322,7 +359,7 @@ bool UNiagaraMeshRendererProperties::IsSupportedVariableForBinding(const FNiagar
 void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const FNiagaraEmitterInstance* Emitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
 	check(Meshes.IsValidIndex(MeshIndex));
-	
+
 	const UStaticMesh* Mesh = Meshes[MeshIndex].Mesh;
 	check(Mesh);
 
@@ -331,7 +368,7 @@ void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const
 
 	OutMaterials.SetNum(0, false);
 
-	// Retrieve a list of materials whose indices match up with the mesh, and only fill it in with materials that are used by any section of any LOD	
+	// Retrieve a list of materials whose indices match up with the mesh, and only fill it in with materials that are used by any section of any LOD
 	for (const FStaticMeshLODResources& LODModel : RenderData->LODResources)
 	{
 		for (const FStaticMeshSection& Section : LODModel.Sections)
@@ -373,7 +410,7 @@ void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const
 				{
 					Emitter->FindBinding(OverrideMaterials[OverrideIndex].UserParamBinding, OverrideMat);
 				}
-				
+
 				if (!OverrideMat)
 				{
 					OverrideMat = OverrideMaterials[OverrideIndex].ExplicitMat;
@@ -459,7 +496,11 @@ void UNiagaraMeshRendererProperties::PostLoad()
 		}
 	}
 
+
 	PostLoadBindings(SourceMode);
+	
+	// Fix up these bindings from their loaded source bindings
+	SetPreviousBindings(nullptr, SourceMode);
 
 	for ( const FNiagaraMeshMaterialOverride& OverrideMaterial : OverrideMaterials )
 	{
@@ -508,6 +549,19 @@ const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetOptionalAttri
 	}
 
 	return Attrs;
+}
+
+void UNiagaraMeshRendererProperties::GetAdditionalVariables(TArray<FNiagaraVariableBase>& OutArray) const
+{
+	if (NeedsPreciseMotionVectors())
+	{
+		OutArray.Reserve(5);
+		OutArray.AddUnique(PrevPositionBinding.GetParamMapBindableVariable());
+		OutArray.AddUnique(PrevScaleBinding.GetParamMapBindableVariable());
+		OutArray.AddUnique(PrevMeshOrientationBinding.GetParamMapBindableVariable());
+		OutArray.AddUnique(PrevCameraOffsetBinding.GetParamMapBindableVariable());
+		OutArray.AddUnique(PrevVelocityBinding.GetParamMapBindableVariable());		
+	}
 }
 
 void UNiagaraMeshRendererProperties::GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
@@ -645,7 +699,7 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 			RebuildMeshList();
 		}
 	}
-		
+
 	if (bIsRedirect || bRebuildMeshList)
 	{
 		// We only need to check material usage as we will invalidate any renderers later on
@@ -765,11 +819,11 @@ void UNiagaraMeshRendererProperties::CheckMaterialUsage()
 }
 
 bool UNiagaraMeshRendererProperties::ChangeRequiresMeshListRebuild(const FProperty* Property)
-{	
+{
 	if (Property == nullptr)
 	{
 		return false;
-	}	
+	}
 
 	// If any of these are changed, we have to rebuild the mesh list
 	static const TArray<FName, TInlineAllocator<4>> RebuildMeshPropertyNames
@@ -798,7 +852,7 @@ void UNiagaraMeshRendererProperties::RebuildMeshList()
 		// No first page mesh selected
 		return;
 	}
-	
+
 	Meshes.AddDefaulted_GetRef().Mesh = FirstFlipbookFrame;
 
 	if (NumFlipbookFrames <= 1)
@@ -827,7 +881,7 @@ void UNiagaraMeshRendererProperties::RebuildMeshList()
 	}
 
 	FSoftObjectPath ParticleMeshPath = FirstFlipbookFrame->GetPathName();
-	FString BaseName = ParticleMeshPath.GetAssetName();	
+	FString BaseName = ParticleMeshPath.GetAssetName();
 	int32 FirstFrameIdx = 0;
 
 	// Build a regex pattern string to use to attempt to find the first frame number in the first frame mesh
@@ -885,7 +939,7 @@ void UNiagaraMeshRendererProperties::RebuildMeshList()
 
 		TMap<FString, FStringFormatArg> Args = {
 			{ TEXT("frame_number"), NumString }
-		};		
+		};
 
 		FString FrameName = BaseName + FString::Format(*FlipbookSuffixFormat, Args);
 		FSoftObjectPath ObjPath(BasePackageLocation / (FrameName + TCHAR('.') + FrameName));

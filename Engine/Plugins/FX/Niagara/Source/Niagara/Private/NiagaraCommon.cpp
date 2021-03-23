@@ -472,7 +472,43 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 	CacheValues(InEmitter, InSourceMode);	
 }
 
-void FNiagaraVariableAttributeBinding::Setup(const FNiagaraVariableBase& InRootVar, const FNiagaraVariableBase& InDataSetVar, const FNiagaraVariable& InDefaultValue, ENiagaraRendererSourceDataMode InSourceMode)
+void FNiagaraVariableAttributeBinding::SetAsPreviousValue(const FNiagaraVariableBase& Src, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	static const FString PreviousNamespace = FNiagaraConstants::PreviousNamespace.ToString();
+
+	RootVariable = ParamMapVariable = DataSetVariable = Src;
+
+	// Split out the name and it's namespace
+	TArray<FString> SplitName;
+	Src.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
+
+	// If the name already contains a "Previous" in the name, just go with that
+	bool bIsPrev = false;
+	for (const FString& Split : SplitName)
+	{
+		if (Split.Equals(PreviousNamespace, ESearchCase::IgnoreCase))
+		{
+			bIsPrev = true;
+			break;
+		}
+	}
+
+	if (bIsPrev)
+	{
+		SetValue(Src.GetName(), InEmitter, InSourceMode);
+	}
+	else
+	{
+		// insert "Previous" into the name, after the first namespace. Or the beginning, if it has none
+		const int32 Location = SplitName.Num() > 1 ? 1 : 0;
+		SplitName.Insert(PreviousNamespace, Location);
+
+		FString PrevName = FString::Join(SplitName, TEXT("."));
+		SetValue(*PrevName, InEmitter, InSourceMode);
+	}
+}
+
+void FNiagaraVariableAttributeBinding::Setup(const FNiagaraVariableBase& InRootVar, const FNiagaraVariable& InDefaultValue, ENiagaraRendererSourceDataMode InSourceMode)
 {
 	RootVariable = InRootVar;
 	if (InDefaultValue.IsDataAllocated() && InDefaultValue.GetType() == InRootVar.GetType())
@@ -495,10 +531,6 @@ FString FNiagaraVariableAttributeBinding::GetDefaultValueString() const
 	return DefaultValueStr;
 }
 
-const FName& FNiagaraVariableAttributeBinding::GetName(ENiagaraRendererSourceDataMode InSourceMode) const
-{
-	return CachedDisplayName;
-}
 #endif
 
 void FNiagaraVariableAttributeBinding::PostLoad(ENiagaraRendererSourceDataMode InSourceMode)

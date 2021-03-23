@@ -5,10 +5,11 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEmitter.h"
+#include "NiagaraScriptSourceBase.h"
+#include "NiagaraSettings.h"
+#include "NiagaraSystem.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Styling/SlateIconFinder.h"
-#include "NiagaraScriptSourceBase.h"
-#include "NiagaraSystem.h"
 
 void FNiagaraRendererLayout::Initialize(int32 NumVariables)
 {
@@ -18,7 +19,7 @@ void FNiagaraRendererLayout::Initialize(int32 NumVariables)
 	TotalHalfComponents_GT = 0;
 }
 
-bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariable& Variable, int32 VFVarOffset)
+bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariableBase& Variable, int32 VFVarOffset)
 {
 	// No compiled data, nothing to bind
 	if (CompiledData == nullptr)
@@ -328,6 +329,44 @@ void UNiagaraRendererProperties::PostInitProperties()
 #endif
 }
 
+void UNiagaraRendererProperties::PostLoad()
+{
+	Super::PostLoad();
+
+	if (bMotionBlurEnabled_DEPRECATED == false)
+	{
+		MotionVectorSetting = ENiagaraRendererMotionVectorSetting::Disable;
+	}
+}
+
+#if WITH_EDITORONLY_DATA
+
+void UNiagaraRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>())
+	{
+		// Check for properties changing that invalidate the current script compilation for the emitter
+		bool bNeedsRecompile = false;
+		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UNiagaraRendererProperties, MotionVectorSetting))
+		{
+			if (Emitter->GraphSource)
+			{
+				Emitter->GraphSource->MarkNotSynchronized(TEXT("Renderer MotionVectorSetting changed"));
+			}
+			bNeedsRecompile = true;
+		}
+
+		if (bNeedsRecompile)
+		{
+			UNiagaraSystem::RequestCompileForEmitter(Emitter);
+		}
+	}
+}
+
+#endif
+
 void UNiagaraRendererProperties::SetIsEnabled(bool bInIsEnabled)
 {
 	if (bIsEnabled != bInIsEnabled)
@@ -370,4 +409,16 @@ void UNiagaraRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourc
 		}
 #endif
 	}
+}
+
+bool UNiagaraRendererProperties::NeedsPreciseMotionVectors() const
+{
+	if (MotionVectorSetting == ENiagaraRendererMotionVectorSetting::AutoDetect)
+	{
+		// TODO - We could get even smarter here and early return with false if we know that the material can absolutely not be overridden by the user and
+		// it doesn't need to render velocity
+		return GetDefault<UNiagaraSettings>()->DefaultRendererMotionVectorSetting == ENiagaraDefaultRendererMotionVectorSetting::Precise;
+	}
+	
+	return MotionVectorSetting == ENiagaraRendererMotionVectorSetting::Precise;
 }

@@ -196,7 +196,7 @@ FName FNiagaraVariableAttributeBindingCustomization::GetVariableName() const
 {
 	if (BaseEmitter && TargetVariableBinding)
 	{
-		return (TargetVariableBinding->GetName(RenderProps->GetCurrentSourceMode()));
+		return (TargetVariableBinding->GetName());
 	}
 	return FName();
 }
@@ -205,7 +205,7 @@ FText FNiagaraVariableAttributeBindingCustomization::GetCurrentText() const
 {
 	if (BaseEmitter && TargetVariableBinding)
 	{
-		return FText::FromName(TargetVariableBinding->GetName(RenderProps->GetCurrentSourceMode()));
+		return FText::FromName(TargetVariableBinding->GetName());
 	}
 	return FText::FromString(TEXT("Missing"));
 }
@@ -216,7 +216,7 @@ FText FNiagaraVariableAttributeBindingCustomization::GetTooltipText() const
 	{
 		FString DefaultValueStr = TargetVariableBinding->GetDefaultValueString();
 
-		FText TooltipDesc = FText::Format(LOCTEXT("AttributeBindingTooltip", "Use the variable \"{0}\" if it exists, otherwise use the default \"{1}\" "), FText::FromName(TargetVariableBinding->GetName(RenderProps->GetCurrentSourceMode())),
+		FText TooltipDesc = FText::Format(LOCTEXT("AttributeBindingTooltip", "Use the variable \"{0}\" if it exists, otherwise use the default \"{1}\" "), FText::FromName(TargetVariableBinding->GetName()),
 			FText::FromString(DefaultValueStr));
 		return TooltipDesc;
 	}

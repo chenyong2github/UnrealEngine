@@ -288,7 +288,10 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 					if (Properties->GetIsActive() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
 					{
 						NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get(), Component);
-						bAlwaysHasVelocity |= Properties->bMotionBlurEnabled;
+						if (Properties->MotionVectorSetting != ENiagaraRendererMotionVectorSetting::Disable)
+						{
+							bAlwaysHasVelocity = true;
+						}
 					}
 					EmitterRenderers.Add(NewRenderer);
 				}

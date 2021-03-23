@@ -421,12 +421,12 @@ void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropert
 			CreateTemplateComponent();
 
 			FNiagaraComponentPropertyBinding PositionBinding;
-			PositionBinding.AttributeBinding.Setup(SYS_PARAM_PARTICLES_POSITION,  FNiagaraConstants::GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_POSITION), SYS_PARAM_PARTICLES_POSITION);
+			PositionBinding.AttributeBinding.Setup(SYS_PARAM_PARTICLES_POSITION, SYS_PARAM_PARTICLES_POSITION);
 			PositionBinding.PropertyName = FName("RelativeLocation");
 			PropertyBindings.Add(PositionBinding);
 
 			FNiagaraComponentPropertyBinding ScaleBinding;
-			ScaleBinding.AttributeBinding.Setup(SYS_PARAM_PARTICLES_SCALE, FNiagaraConstants::GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_SCALE), SYS_PARAM_PARTICLES_SCALE);
+			ScaleBinding.AttributeBinding.Setup(SYS_PARAM_PARTICLES_SCALE, SYS_PARAM_PARTICLES_SCALE);
 			ScaleBinding.PropertyName = FName("RelativeScale3D");
 			PropertyBindings.Add(ScaleBinding);
 		}

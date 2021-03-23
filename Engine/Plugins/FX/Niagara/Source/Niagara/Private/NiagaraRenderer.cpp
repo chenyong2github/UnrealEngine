@@ -272,7 +272,7 @@ FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type InFeatureLevel, const 
 	: DynamicDataRender(nullptr)
 	, bLocalSpace(Emitter->GetCachedEmitter()->bLocalSpace)
 	, bHasLights(false)
-	, bMotionBlurEnabled(InProps ? InProps->bMotionBlurEnabled : false)
+	, bMotionBlurEnabled(InProps ? InProps->MotionVectorSetting != ENiagaraRendererMotionVectorSetting::Disable : false)
 	, SimTarget(Emitter->GetCachedEmitter()->SimTarget)
 	, FeatureLevel(InFeatureLevel)
 {

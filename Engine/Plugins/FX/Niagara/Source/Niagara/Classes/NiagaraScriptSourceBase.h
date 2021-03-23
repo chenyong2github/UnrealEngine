@@ -68,6 +68,7 @@ public:
 	FString Name;
 	int32 TargetUsageBitmask;
 	TArray<FString> AdditionalDefines;
+	TArray<FNiagaraVariableBase> AdditionalVariables;
 };
 
 struct FNiagaraParameterStore;

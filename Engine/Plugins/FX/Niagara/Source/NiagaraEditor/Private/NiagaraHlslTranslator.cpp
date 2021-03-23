@@ -758,9 +758,29 @@ FString FHlslNiagaraTranslator::BuildParameterMapHlslDefinitions(TArray<FNiagara
 	// For now we only care about attributes from the other output parameter map histories.
 	for (int32 ParamMapIdx = 0; ParamMapIdx < OtherOutputParamMapHistories.Num(); ParamMapIdx++)
 	{
-		for (int32 VarIdx = 0; VarIdx < OtherOutputParamMapHistories[ParamMapIdx].Variables.Num(); VarIdx++)
+		TArray<FNiagaraVariable> Vars = OtherOutputParamMapHistories[ParamMapIdx].Variables;
+		for (const FNiagaraVariableBase& Var : CompileOptions.AdditionalVariables)
 		{
-			FNiagaraVariable& Var = OtherOutputParamMapHistories[ParamMapIdx].Variables[VarIdx];
+			bool bAddVar = true;
+			if (FNiagaraParameterMapHistory::IsPreviousValue(Var))
+			{
+				FNiagaraVariable Source = FNiagaraParameterMapHistory::GetSourceForPreviousValue(FNiagaraVariable(Var));
+				if (!UniqueVariables.Contains(Source))
+				{
+					// Disallow the addition previous values if its source is not used
+					bAddVar = false;
+				}
+			}
+
+			if (bAddVar)
+			{
+				Vars.AddUnique(FNiagaraVariable(Var.GetType(), Var.GetName()));
+			}
+		}
+
+		for (int32 VarIdx = 0; VarIdx < Vars.Num(); VarIdx++)
+		{
+			FNiagaraVariable& Var = Vars[VarIdx];
 			if (OtherOutputParamMapHistories[ParamMapIdx].IsPrimaryDataSetOutput(Var, CompileOptions.TargetUsage))
 			{
 				int32 PreviousMax = UniqueVariables.Num();

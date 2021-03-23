@@ -18,12 +18,6 @@ class FNiagaraMeshVertexFactoryShaderParametersVS : public FVertexFactoryShaderP
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
-		//PrevTransformBuffer.Bind(ParameterMap, TEXT("PrevTransformBuffer"));
-
-		// 		NiagaraParticleDataInt.Bind(ParameterMap, TEXT("NiagaraParticleDataInt"));
-		// 		FloatDataOffset.Bind(ParameterMap, TEXT("NiagaraInt32DataOffset"));
-		// 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraInt3DataStride"));
-
 		SortedIndices.Bind(ParameterMap, TEXT("SortedIndices"));
 		SortedIndicesOffset.Bind(ParameterMap, TEXT("SortedIndicesOffset"));
 	}
@@ -48,16 +42,8 @@ public:
 	}
 
 private:
-
-
-		//LAYOUT_FIELD(FShaderResourceParameter, PrevTransformBuffer)
-
-		// 	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataInt)
-		// 	LAYOUT_FIELD(FShaderParameter, Int32DataOffset)
-		// 	LAYOUT_FIELD(FShaderParameter, Int32DataStride)
-		LAYOUT_FIELD(FShaderResourceParameter, SortedIndices)
-		LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset)
-
+	LAYOUT_FIELD(FShaderResourceParameter, SortedIndices)
+	LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset)
 };
 
 class FNiagaraMeshVertexFactoryShaderParametersPS : public FVertexFactoryShaderParameters
@@ -78,9 +64,6 @@ public:
 		FNiagaraMeshVertexFactory* NiagaraMeshVF = (FNiagaraMeshVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraMeshUniformParameters>(), NiagaraMeshVF->GetUniformBuffer());
 	}
-
-	
-	
 };
 
 void FNiagaraMeshVertexFactory::InitRHI()
@@ -150,39 +133,6 @@ void FNiagaraMeshVertexFactory::InitRHI()
 	}
 }
 
-/*
-uint8* FNiagaraMeshVertexFactory::LockPreviousTransformBuffer(uint32 ParticleCount)
-{
-	const static uint32 ElementSize = sizeof(FVector4);
-	const static uint32 ParticleSize = ElementSize * 3;
-	const uint32 AllocationRequest = ParticleCount * ParticleSize;
-
-	check(!PrevTransformBuffer.MappedBuffer);
-
-	if (AllocationRequest > PrevTransformBuffer.NumBytes)
-	{
-		PrevTransformBuffer.Release();
-		PrevTransformBuffer.Initialize(ElementSize, ParticleCount * 3, PF_A32B32G32R32F, BUF_Dynamic);
-	}
-
-	PrevTransformBuffer.Lock();
-
-	return PrevTransformBuffer.MappedBuffer;
-}
-
-void FNiagaraMeshVertexFactory::UnlockPreviousTransformBuffer()
-{
-	check(PrevTransformBuffer.MappedBuffer);
-
-	PrevTransformBuffer.Unlock();
-}
-
-FRHIShaderResourceView* FNiagaraMeshVertexFactory::GetPreviousTransformBufferSRV() const
-{
-	return PrevTransformBuffer.SRV;
-}
-*/
-
 bool FNiagaraMeshVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
 	return (FNiagaraUtilities::SupportsNiagaraRendering(Parameters.Platform)) && (Parameters.MaterialParameters.bIsUsedWithNiagaraMeshParticles || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
@@ -203,3 +153,14 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactory, SF_RayHitGrou
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactory, SF_Pixel, FNiagaraMeshVertexFactoryShaderParametersPS);
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactory, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush", true, false, true, false, false);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEx, SF_Vertex, FNiagaraMeshVertexFactoryShaderParametersVS);
+#if RHI_RAYTRACING
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEx, SF_Compute, FNiagaraMeshVertexFactoryShaderParametersVS);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEx, SF_RayHitGroup, FNiagaraMeshVertexFactoryShaderParametersVS);
+#endif
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEx, SF_Pixel, FNiagaraMeshVertexFactoryShaderParametersPS);
+
+IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactoryEx, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush", true, false, true, true, false);

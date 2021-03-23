@@ -283,7 +283,7 @@ void FNiagaraComponentRendererPropertiesDetails::ChangePropertyBinding(TSharedPt
 	{
 		FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangePropertyBinding", "Change component property binding to \"{0}\" "), FText::FromName(BindingVar.GetName())));
 		FNiagaraComponentPropertyBinding NewBinding = ToPropertyBinding(PropertyHandle, ComponentProperties);
-		NewBinding.AttributeBinding.Setup(BindingVar, FNiagaraConstants::GetAttributeAsParticleDataSetKey(BindingVar), BindingVar);
+		NewBinding.AttributeBinding.Setup(BindingVar, BindingVar);
 
 		ComponentProperties->Modify();
 		PropertyHandle->NotifyPreChange();
@@ -373,7 +373,7 @@ FText FNiagaraComponentRendererPropertiesDetails::GetCurrentBindingText(TSharedP
 		const FNiagaraComponentPropertyBinding* PropertyBinding = FindBinding(PropertyHandle);
 		if (PropertyBinding)
 		{
-			return FText::FromName(PropertyBinding->AttributeBinding.GetName(ENiagaraRendererSourceDataMode::Particles));
+			return FText::FromName(PropertyBinding->AttributeBinding.GetName());
 		}
 	}
 	return FText::FromString(TEXT("Missing"));

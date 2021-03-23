@@ -35,6 +35,10 @@
 /** Blends between FaceCamera and FaceCameraPosition.*/
 #define FACING_MODE_FACECAMERADISTANCEBLEND 4
 
+#ifndef ENABLE_PRECISE_MOTION_VECTORS
+#define ENABLE_PRECISE_MOTION_VECTORS 0
+#endif
+
 struct FVertexFactoryInput
 {
 	float2	TexCoord				: ATTRIBUTE0;
@@ -185,7 +189,6 @@ struct FVertexFactoryIntermediates
 
 	/** The particle worldspace position */
 	float3 Position;
-	float3 OldPosition;
 	
 	float4 SizeRotSubImage;
 	
@@ -439,7 +442,7 @@ float3 SafeNormalizeWithFallback(float3 V, float3 Fallback)
 	return L > 0.000001 ? V / L : Fallback; 
 }
 
-void GetTangents(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 ParticleDirection, out float3 OutRight, out float3 OutUp)
+void GetTangents(FVertexFactoryInput Input, float3 ParticlePosition, float Rotation, float3 CustomFacing, float3 CustomAlignment, float3 ParticleDirection, out float3 OutRight, out float3 OutUp)
 {
 	// Select camera up/right vectors.
 	float3 ResolvedViewRight = lerp(ResolvedView.ViewRight, ResolvedView.HMDViewNoRollRight, NiagaraSpriteVF.RemoveHMDRoll);
@@ -451,13 +454,13 @@ void GetTangents(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermed
 	float3 CameraFacingVector = -ResolvedView.ViewForward;
 
 	// Determine the vector from the particle to the camera and the particle's movement direction.
-	const float3 CameraVector = ResolvedView.WorldCameraOrigin - Intermediates.Position;
+	const float3 CameraVector = ResolvedView.WorldCameraOrigin - ParticlePosition;
 	const float3 CameraDirection = SafeNormalize(CameraVector);
 
-	float3 CustomFacingVector = NiagaraSpriteVFLooseParameters.ParticleFacingMode == FACING_MODE_CUSTOMFACINGVECTOR ? Intermediates.CustomFacingVector : CameraDirection;
+	float3 CustomFacingVector = NiagaraSpriteVFLooseParameters.ParticleFacingMode == FACING_MODE_CUSTOMFACINGVECTOR ? CustomFacing : CameraDirection;
 	
 	// the particle's movement direction.
-	float3 DirectionVector	= lerp(ParticleDirection, Intermediates.CustomAlignmentVector, NiagaraSpriteVFLooseParameters.ParticleAlignmentMode == ALIGNMENT_MODE_CUSTOMALIGNMENT);
+	float3 DirectionVector	= lerp(ParticleDirection, CustomAlignment, NiagaraSpriteVFLooseParameters.ParticleAlignmentMode == ALIGNMENT_MODE_CUSTOMALIGNMENT);
 	
 	// Tangent vectors for any non-default alignment mode.
 	float3 CameraRightAligned	= SafeNormalize(cross(CustomFacingVector, DirectionVector));
@@ -523,7 +526,7 @@ void GetTangents(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermed
 	// Determine the angle of rotation.
 	float SinRotation;
 	float CosRotation;
-	const float SpriteRotation = Intermediates.SizeRotSubImage.z * NiagaraSpriteVF.RotationScale + NiagaraSpriteVF.RotationBias;
+	const float SpriteRotation = Rotation * NiagaraSpriteVF.RotationScale + NiagaraSpriteVF.RotationBias;
 	sincos(SpriteRotation, SinRotation, CosRotation);
 
 	float3 SR = Right * SinRotation;
@@ -567,10 +570,10 @@ float3x3 CalcTangentBasis(FVertexFactoryIntermediates Intermediates)
 	return Result;
 }
 
-void ComputeBillboardUVs(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, out float2 UVForPosition, out float2 UVForTexturing, out float2 UVForTexturingUnflipped)
+void ComputeBillboardUVs(FVertexFactoryInput Input, float2 ParticleSize, float SubImageIndex, out float2 UVForPosition, out float2 UVForTexturing, out float2 UVForTexturingUnflipped)
 {
 	// Encoding the UV flip in the sign of the size data.
-	float2 UVFlip = sign(Intermediates.SizeRotSubImage.xy);
+	float2 UVFlip = sign(ParticleSize);
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	BRANCH
@@ -580,7 +583,7 @@ void ComputeBillboardUVs(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 		const uint VertexIndexMask = NiagaraSpriteVFLooseParameters.NumCutoutVerticesPerFrame == 8 ? 7 : 3; // BVC_FourVertices || BVC_EightVertices
 		uint CutoutVertexIndex = Input.VertexId & VertexIndexMask;
 		float NumFrames = NiagaraSpriteVF.SubImageSize.x * NiagaraSpriteVF.SubImageSize.y;
-		uint SubImageIndexInt = (uint)fmod(Intermediates.SizeRotSubImage.w, NumFrames);
+		uint SubImageIndexInt = (uint)fmod(SubImageIndex, NumFrames);
 
 		FLATTEN
 		if (UVFlip.x * UVFlip.y < 0)
@@ -608,40 +611,42 @@ void ComputeBillboardUVs(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 	}
 }
 
-float3 TransformPosition(float3 InPosition)
+float3 LocalToWorldPos(float3 LocalSpacePos, float4x4 LocalToWorld)
 {
-	if (NiagaraSpriteVF.bLocalSpace)
-	{
-		return TransformLocalToWorld(InPosition).xyz;
-	}
-	else
-	{
-		return InPosition;
-	}
+	return
+		LocalToWorld[0].xyz * LocalSpacePos.x +
+		LocalToWorld[1].xyz * LocalSpacePos.y +
+		LocalToWorld[2].xyz * LocalSpacePos.z +
+		LocalToWorld[3].xyz;
 }
 
-float3 TransformPrevPosition(float3 InPosition)
+float3 SimToWorldPos(float3 SimSpacePos, float4x4 LocalToWorld)
 {
 	if (NiagaraSpriteVF.bLocalSpace)
 	{
-		return mul(float4(InPosition,1), Primitive.PreviousLocalToWorld).xyz;
+		return LocalToWorldPos(SimSpacePos, LocalToWorld);
 	}
-	else
-	{
-		return InPosition;
-	}
+	
+	return SimSpacePos;
 }
 
-float3 TransformVector(float3 InVector)
+float3 LocalToWorldVec(float3 LocalSpaceVec, float4x4 LocalToWorld)
+{
+	const float3 InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
+	return
+		InvScale.x * LocalToWorld[0].xyz * LocalSpaceVec.xxx +
+		InvScale.y * LocalToWorld[1].xyz * LocalSpaceVec.yyy +
+		InvScale.z * LocalToWorld[2].xyz * LocalSpaceVec.zzz;
+}
+
+float3 SimToWorldVec(float3 SimSpaceVec, float4x4 LocalToWorld)
 {
 	if (NiagaraSpriteVF.bLocalSpace)
 	{
-		return RotateLocalToWorld(InVector);
+		return LocalToWorldVec(SimSpaceVec, LocalToWorld);
 	}
-	else
-	{
-		return InVector;
-	}
+	
+	return SimSpaceVec;
 }
 
 /*********************************************************************************
@@ -650,195 +655,140 @@ float3 TransformVector(float3 InVector)
 
 float3 GetNiagaraParticlePosition(uint InstanceID)
 {
-	if(NiagaraSpriteVF.PositionDataOffset  == -1)
-	{
-		// See FNiagaraConstants for a synchronized value...
-		return TransformPosition(NiagaraSpriteVF.DefaultPos.xyz);
-	}
-	return TransformPosition(GetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID));
+	return SimToWorldPos(SafeGetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID, NiagaraSpriteVF.DefaultPos.xyz), Primitive.LocalToWorld);
 }
-float3 GetNiagaraParticlePrevPosition(uint InstanceID)
+
+float3 GetNiagaraPreviousParticlePosition(uint InstanceID)
 {
-	if(NiagaraSpriteVF.PositionDataOffset  == -1)
-	{
-		// See FNiagaraConstants for a synchronized value...
-		return TransformPrevPosition(NiagaraSpriteVF.DefaultPos.xyz);
-	}
-	return TransformPrevPosition(GetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID));
+	return SimToWorldPos(SafeGetVec3(NiagaraSpriteVF.PrevPositionDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevPos.xyz), Primitive.PreviousLocalToWorld);
 }
+
 float3 GetNiagaraParticleVelocity(uint InstanceID)
 {
-	if(NiagaraSpriteVF.VelocityDataOffset  == -1)
-	{
-		// See FNiagaraConstants for a synchronized value...
-		return TransformVector(NiagaraSpriteVF.DefaultVelocity.xyz); 
-	}
-	return TransformVector(GetVec3(NiagaraSpriteVF.VelocityDataOffset, InstanceID));
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.VelocityDataOffset, InstanceID, NiagaraSpriteVF.DefaultVelocity.xyz), Primitive.LocalToWorld);
 }
+
+float3 GetNiagaraPreviousParticleVelocity(uint InstanceID)
+{
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.PrevVelocityDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevVelocity.xyz), Primitive.PreviousLocalToWorld);
+}
+
 float2 GetNiagaraParticleSize(uint InstanceID)
 {
-	if(NiagaraSpriteVF.SizeDataOffset  == -1)
-	{
-		// See FNiagaraConstants for a synchronized value...
-		return NiagaraSpriteVF.DefaultSize.xy;
-	}
-	return GetVec2(NiagaraSpriteVF.SizeDataOffset, InstanceID);
+	return SafeGetVec2(NiagaraSpriteVF.SizeDataOffset, InstanceID, NiagaraSpriteVF.DefaultSize.xy);
 }
+
+float2 GetNiagaraPreviousParticleSize(uint InstanceID)
+{
+	return SafeGetVec2(NiagaraSpriteVF.PrevSizeDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevSize.xy);
+}
+
 float GetNiagaraParticleRotation(uint InstanceID)
 {
-	if(NiagaraSpriteVF.RotationDataOffset  == -1)
-	{
-		// See FNiagaraConstants for a synchronized value...
-		return  (NiagaraSpriteVF.DefaultRotation / 180.0f) * PI;
-	}
-	return (GetFloat(NiagaraSpriteVF.RotationDataOffset, InstanceID) / 180.0f) * PI;
+	// See FNiagaraConstants for a synchronized value...
+	return (SafeGetFloat(NiagaraSpriteVF.RotationDataOffset, InstanceID, NiagaraSpriteVF.DefaultRotation) / 180.0f) * PI;
 }
+
+float GetNiagaraPreviousParticleRotation(uint InstanceID)
+{
+	// See FNiagaraConstants for a synchronized value...
+	return (SafeGetFloat(NiagaraSpriteVF.PrevRotationDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevRotation) / 180.0f) * PI;
+}
+
 float4 GetNiagaraParticleColor(uint InstanceID)
 {
-	if(NiagaraSpriteVF.ColorDataOffset  == -1)
-	{
-		// See FNiagaraConstants for a synchronized value...
-		return NiagaraSpriteVF.DefaultColor;
-	}
-	return GetVec4(NiagaraSpriteVF.ColorDataOffset, InstanceID);
+	return SafeGetVec4(NiagaraSpriteVF.ColorDataOffset, InstanceID, NiagaraSpriteVF.DefaultColor);
 }
 
 float2 GetNiagaraUVScale(uint InstanceID)
 {
-	if(NiagaraSpriteVF.UVScaleDataOffset  == -1)
-	{
-		// See FNiagaraConstants for a synchronized value...
-		return NiagaraSpriteVF.DefaultUVScale.xy;
-	}
-	return GetVec2(NiagaraSpriteVF.UVScaleDataOffset, InstanceID);	
+	return SafeGetVec2(NiagaraSpriteVF.UVScaleDataOffset, InstanceID, NiagaraSpriteVF.DefaultUVScale.xy);
 }
 
 float2 GetNiagaraPivotOffset(uint InstanceID)
 {
-	if(NiagaraSpriteVF.PivotOffsetDataOffset == -1)
-	{
-		return NiagaraSpriteVF.DefaultPivotOffset;
-	}
-	return GetVec2(NiagaraSpriteVF.PivotOffsetDataOffset, InstanceID);
+	return SafeGetVec2(NiagaraSpriteVF.PivotOffsetDataOffset, InstanceID, NiagaraSpriteVF.DefaultPivotOffset);
+}
+
+float2 GetNiagaraPreviousPivotOffset(uint InstanceID)
+{
+	return SafeGetVec2(NiagaraSpriteVF.PrevPivotOffsetDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevPivotOffset);
 }
 
 float GetNiagaraParticleRandom(uint InstanceID)
 {
-	if(NiagaraSpriteVF.MaterialRandomDataOffset  == -1)
-	{
-		// See FNiagaraConstants for a synchronized value...
-		return  NiagaraSpriteVF.DefaultMatRandom;
-	}
-	return GetFloat(NiagaraSpriteVF.MaterialRandomDataOffset, InstanceID);	
+	return SafeGetFloat(NiagaraSpriteVF.MaterialRandomDataOffset, InstanceID, NiagaraSpriteVF.DefaultMatRandom);
 }
 
 float GetNiagaraCameraOffset(uint InstanceID)
 {
-	if (NiagaraSpriteVF.CameraOffsetDataOffset == -1)
-	{
-		// See FNiagaraConstants for a synchronized value...
-		return NiagaraSpriteVF.DefaultCamOffset;
-	}
-	return GetFloat(NiagaraSpriteVF.CameraOffsetDataOffset, InstanceID);
+	return SafeGetFloat(NiagaraSpriteVF.CameraOffsetDataOffset, InstanceID, NiagaraSpriteVF.DefaultCamOffset);
+}
+
+float GetNiagaraPreviousCameraOffset(uint InstanceID)
+{
+	return SafeGetFloat(NiagaraSpriteVF.PrevCameraOffsetDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevCamOffset);
 }
 
 #if USE_PARTICLE_TIME
 float GetNiagaraNormalizedAge(uint InstanceID)
 {
-	if (NiagaraSpriteVF.NormalizedAgeDataOffset == -1)
-	{
-		return NiagaraSpriteVF.DefaultNormAge;
-	}
-	return GetFloat(NiagaraSpriteVF.NormalizedAgeDataOffset, InstanceID);
+	return SafeGetFloat(NiagaraSpriteVF.NormalizedAgeDataOffset, InstanceID, NiagaraSpriteVF.DefaultNormAge);
 }
 #endif
 
 #if (DYNAMIC_PARAMETERS_MASK & 1)
 float4 GetNiagaraParticleDynamicParameters(uint InstanceID)
 {
-	if (NiagaraSpriteVF.MaterialParamDataOffset != -1)
-	{
-		return GetVec4(NiagaraSpriteVF.MaterialParamDataOffset, InstanceID);
-	}
-	else
-	{
-		return NiagaraSpriteVF.DefaultDynamicMaterialParameter0;
-	}
+	return SafeGetVec4(NiagaraSpriteVF.MaterialParamDataOffset, InstanceID, NiagaraSpriteVF.DefaultDynamicMaterialParameter0);
 }
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 2)
 float4 GetNiagaraParticleDynamicParameters1(uint InstanceID)
 {
-	if (NiagaraSpriteVF.MaterialParam1DataOffset != -1)
-	{
-		return GetVec4(NiagaraSpriteVF.MaterialParam1DataOffset, InstanceID);
-	}
-	else
-	{
-		return  NiagaraSpriteVF.DefaultDynamicMaterialParameter1;
-	}
+	return SafeGetVec4(NiagaraSpriteVF.MaterialParam1DataOffset, InstanceID, NiagaraSpriteVF.DefaultDynamicMaterialParameter1);
 }
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 4)
 float4 GetNiagaraParticleDynamicParameters2(uint InstanceID)
 {
-	if (NiagaraSpriteVF.MaterialParam2DataOffset != -1)
-	{
-		return GetVec4(NiagaraSpriteVF.MaterialParam2DataOffset, InstanceID);
-	}
-	else
-	{
-		return NiagaraSpriteVF.DefaultDynamicMaterialParameter2;
-	}
+	return SafeGetVec4(NiagaraSpriteVF.MaterialParam2DataOffset, InstanceID, NiagaraSpriteVF.DefaultDynamicMaterialParameter2);
 }
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 8)
 float4 GetNiagaraParticleDynamicParameters3(uint InstanceID)
 {
-	if (NiagaraSpriteVF.MaterialParam3DataOffset != -1)
-	{
-		return GetVec4(NiagaraSpriteVF.MaterialParam3DataOffset, InstanceID);
-	}
-	else
-	{
-		return NiagaraSpriteVF.DefaultDynamicMaterialParameter3;
-	}
+	return SafeGetVec4(NiagaraSpriteVF.MaterialParam3DataOffset, InstanceID, NiagaraSpriteVF.DefaultDynamicMaterialParameter3);
 }
 #endif
-
 
 float GetNiagaraParticleSubimage(uint InstanceID)
 {
 	// See FNiagaraConstants for a synchronized value...
-	float Val = NiagaraSpriteVF.DefaultSubImage;
-    if(NiagaraSpriteVF.SubimageDataOffset != -1)
-	{
-		Val = GetFloat(NiagaraSpriteVF.SubimageDataOffset, InstanceID);
-	}
-	return Val;
+	return SafeGetFloat(NiagaraSpriteVF.SubimageDataOffset, InstanceID, NiagaraSpriteVF.DefaultSubImage);
 }
 
 float3 GetNiagaraParticleFacingVector(uint InstanceID)
 {
 	// See FNiagaraConstants for a synchronized value...
-	float3 Val = NiagaraSpriteVF.DefaultFacing.xyz;
-    if(NiagaraSpriteVF.FacingDataOffset != -1)
-	{
-		Val = GetVec3(NiagaraSpriteVF.FacingDataOffset, InstanceID);
-	}
-	return TransformVector(Val);
+	return SafeGetVec3(NiagaraSpriteVF.FacingDataOffset, InstanceID, NiagaraSpriteVF.DefaultFacing.xyz);
+}
+
+float3 GetNiagaraPreviousParticleFacingVector(uint InstanceID)
+{
+	// See FNiagaraConstants for a synchronized value...
+	return SafeGetVec3(NiagaraSpriteVF.PrevFacingDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevFacing.xyz);
 }
 
 float3 GetNiagaraParticleAlignmentVector(uint InstanceID)
 {
-	float3 Val = NiagaraSpriteVF.DefaultAlignment.xyz;
-    if(NiagaraSpriteVF.AlignmentDataOffset != -1)
-	{
-		Val = GetVec3(NiagaraSpriteVF.AlignmentDataOffset, InstanceID);
-	}
-	return TransformVector(Val);
+	return SafeGetVec3(NiagaraSpriteVF.AlignmentDataOffset, InstanceID, NiagaraSpriteVF.DefaultAlignment.xyz);
 }
 
+float3 GetNiagaraPreviousParticleAlignmentVector(uint InstanceID)
+{
+	return SafeGetVec3(NiagaraSpriteVF.PrevAlignmentDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevAlignment.xyz);
+}
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
@@ -850,10 +800,21 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		ParticleID = NiagaraSpriteVFLooseParameters.SortedIndices[NiagaraSpriteVFLooseParameters.SortedIndicesOffset + ParticleID];
 	}
 
-	float2 ParticleSize = GetNiagaraParticleSize(ParticleID);
-	Intermediates.SizeRotSubImage = float4(ParticleSize.x, ParticleSize.y, GetNiagaraParticleRotation(ParticleID), GetNiagaraParticleSubimage(ParticleID));
+	const float3 ParticlePosition = GetNiagaraParticlePosition(ParticleID);
+	const float ParticleRotation = GetNiagaraParticleRotation(ParticleID);
+	const float2 ParticleSize = GetNiagaraParticleSize(ParticleID);
+	const float3 ParticleVelocity = GetNiagaraParticleVelocity(ParticleID);
+	const float SubImageIndex = GetNiagaraParticleSubimage(ParticleID);
+	const float3 CustomFacing = SafeNormalize(GetNiagaraParticleFacingVector(ParticleID));
+	const float3 CustomAlignment = SafeNormalize(GetNiagaraParticleAlignmentVector(ParticleID));	
+	const float2 PivotOffset = GetNiagaraPivotOffset(ParticleID);
+	const float2 UVScale = GetNiagaraUVScale(ParticleID);
+	const float3 CameraOffset = SafeNormalize(ResolvedView.WorldCameraOrigin - ParticlePosition) * GetNiagaraCameraOffset(ParticleID);
+	
+	Intermediates.Position = ParticlePosition;
+	Intermediates.SizeRotSubImage = float4(ParticleSize.x, ParticleSize.y, ParticleRotation, SubImageIndex);
 	Intermediates.Color	= GetNiagaraParticleColor(ParticleID);
-	Intermediates.CustomFacingVector = SafeNormalize(GetNiagaraParticleFacingVector(ParticleID));
+	Intermediates.CustomFacingVector = CustomFacing;
 	Intermediates.CustomAlignmentVector = SafeNormalize(GetNiagaraParticleAlignmentVector(ParticleID));
 
 #if (DYNAMIC_PARAMETERS_MASK & 1)
@@ -869,17 +830,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.DynamicParameter3 = GetNiagaraParticleDynamicParameters3(ParticleID);
 #endif
 
-	// Particle world position, before any sprite aligment.
-	Intermediates.Position = GetNiagaraParticlePosition(ParticleID);
-
-	const float3 ParticleVelocity = GetNiagaraParticleVelocity(ParticleID);
-
 	// Tangents.
 	{
 		const float3 ParticleDirection = SafeNormalizeWithFallback(ParticleVelocity, float3(0,0,1));
 		float3 Right,Up;
 
-		GetTangents(Input, Intermediates, ParticleDirection, Right, Up);
+		GetTangents(Input, ParticlePosition, ParticleRotation, CustomFacing, CustomAlignment, ParticleDirection, Right, Up);
 		Intermediates.TangentUp = Up;
 		Intermediates.TangentRight = Right;
 	}
@@ -887,38 +843,60 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float2 UVForPosition;
 	float2 UVForTexturing;
 	float2 UVForTexturingUnflipped;
-	ComputeBillboardUVs(Input, Intermediates, UVForPosition, UVForTexturing, UVForTexturingUnflipped);
+	ComputeBillboardUVs(Input, ParticleSize, SubImageIndex, UVForPosition, UVForTexturing, UVForTexturingUnflipped);
 
-	const float2 UVScale = GetNiagaraUVScale(ParticleID);
 	UVForTexturing.xy = float2(0.5f, 0.5f) + (UVForTexturing.xy - float2(0.5f, 0.5f) ) *  UVScale.xy; 
 	const float2 Size = abs(Intermediates.SizeRotSubImage.xy);
 	
-	const float2 PivotOffset = GetNiagaraPivotOffset(ParticleID);
 
-	// Vertex position and prev vertex position.
+	// Vertex position
+	const float2x3 Tangents = float2x3(Intermediates.TangentRight, Intermediates.TangentUp);
+	const float3 VertexOffset = CameraOffset + mul(Size * (UVForPosition - PivotOffset), Tangents);
+
+	Intermediates.VertexWorldPosition = ParticlePosition + VertexOffset;
+		
+	// Prev vertex position (approximated from current velocity unless ENABLE_PRECISE_MOTION_VECTORS)
+#if ENABLE_PRECISE_MOTION_VECTORS
 	{
-		// Do we need the hack that forces particles at the camera origin to be *really* behind the camera origin?
-		const float3 CameraOffset = SafeNormalize(ResolvedView.WorldCameraOrigin - Intermediates.Position) * GetNiagaraCameraOffset(ParticleID);
-
-		const float2x3 Tangents = float2x3(Intermediates.TangentRight, Intermediates.TangentUp);
-		const float3 VertexOffset = CameraOffset + mul(Size * (UVForPosition - PivotOffset), Tangents);
-
-		Intermediates.VertexWorldPosition = Intermediates.Position + VertexOffset;
-		Intermediates.PreviousVertexWorldPosition = GetNiagaraParticlePrevPosition(ParticleID) + VertexOffset + ParticleVelocity * NiagaraSpriteVF.DeltaSeconds;
+		const float3 PrevParticlePosition = GetNiagaraPreviousParticlePosition(ParticleID);
+		const float PrevParticleRotation = GetNiagaraPreviousParticleRotation(ParticleID);
+		const float2 PrevParticleSize = GetNiagaraPreviousParticleSize(ParticleID);
+		const float3 PrevParticleVelocity = GetNiagaraPreviousParticleVelocity(ParticleID);		
+		const float3 PrevCustomFacing = SafeNormalize(GetNiagaraPreviousParticleFacingVector(ParticleID));
+		const float3 PrevCustomAlignment = SafeNormalize(GetNiagaraPreviousParticleAlignmentVector(ParticleID));
+		const float2 PrevPivotOffset = GetNiagaraPreviousPivotOffset(ParticleID);
+		const float3 PrevCameraOffset = SafeNormalize(ResolvedView.PrevWorldCameraOrigin - PrevParticlePosition) * GetNiagaraPreviousCameraOffset(ParticleID);
+		const float3 PrevParticleDirection = SafeNormalizeWithFallback(PrevParticleVelocity, float3(0,0,1));
+			
+		float3 PrevRight, PrevUp;
+		GetTangents(Input, PrevParticlePosition, PrevParticleRotation, PrevCustomFacing, PrevCustomAlignment, PrevParticleDirection, PrevRight, PrevUp);
+		
+		// NOTE: Don't use previous SubImageIndex here because cutout verts don't correlate between sub images
+		float2 PrevUVForPosition;
+		float2 PrevUVForTexturing;
+		float2 PrevUVForTexturingUnflipped;
+		ComputeBillboardUVs(Input, PrevParticleSize, SubImageIndex, PrevUVForPosition, PrevUVForTexturing, PrevUVForTexturingUnflipped);
+			
+		const float2x3 PrevTangents = float2x3(PrevRight, PrevUp);
+		const float3 PrevVertexOffset = PrevCameraOffset + mul(abs(PrevParticleSize) * (PrevUVForPosition - PivotOffset), PrevTangents);
+		
+		Intermediates.PreviousVertexWorldPosition = PrevParticlePosition + PrevVertexOffset;
+	}
+#else
+	Intermediates.PreviousVertexWorldPosition = Intermediates.VertexWorldPosition - ParticleVelocity * NiagaraSpriteVF.DeltaSeconds;
+#endif
 
 #if USE_PARTICLE_POSITION
-		// Do we really want the camera offset here ? What about when GENERATE_SPHERICAL_PARTICLE_NORMALS
-		Intermediates.TranslatedWorldPositionAndSize.xyz = Intermediates.Position + CameraOffset + ResolvedView.PreViewTranslation;
-		Intermediates.TranslatedWorldPositionAndSize.w = .5f * min(Size.x, Size.y);
+	// Do we really want the camera offset here ? What about when GENERATE_SPHERICAL_PARTICLE_NORMALS
+	Intermediates.TranslatedWorldPositionAndSize.xyz = Intermediates.Position + CameraOffset + ResolvedView.PreViewTranslation;
+	Intermediates.TranslatedWorldPositionAndSize.w = .5f * min(Size.x, Size.y);
 #if GENERATE_SPHERICAL_PARTICLE_NORMALS
-		// Recenter the particle position for GENERATE_SPHERICAL_PARTICLE_NORMALS to use the right center.
-		Intermediates.TranslatedWorldPositionAndSize.xyz += mul(Size * (float2(.5, .5) - PivotOffset), Tangents);
+	// Recenter the particle position for GENERATE_SPHERICAL_PARTICLE_NORMALS to use the right center.
+	Intermediates.TranslatedWorldPositionAndSize.xyz += mul(Size * (float2(.5, .5) - PivotOffset), Tangents);
 #endif // GENERATE_SPHERICAL_PARTICLE_NORMALS
 #endif // USE_PARTICLE_POSITION
-	}
 	
 	// SubUV.
-	float SubImageIndex = Intermediates.SizeRotSubImage.w;
 	float SubImageLerp = frac(SubImageIndex);
 	float SubImageA = SubImageIndex - SubImageLerp;
 	float SubImageB = SubImageA + 1;

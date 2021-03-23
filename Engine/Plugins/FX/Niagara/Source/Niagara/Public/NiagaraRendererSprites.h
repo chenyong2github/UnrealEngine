@@ -8,6 +8,7 @@ NiagaraRendererSprites.h: Renderer for rendering Niagara particles as sprites.
 
 #include "NiagaraRenderer.h"
 #include "NiagaraSpriteRendererProperties.h"
+#include "NiagaraSpriteVertexFactory.h"
 
 struct FNiagaraDynamicDataSprites;
 
@@ -42,6 +43,29 @@ private:
 		FGlobalDynamicReadBuffer::FAllocation IntData;
 	};
 
+	/* Mesh collector classes */
+	class FMeshCollectorResourcesBase : public FOneFrameResource
+	{
+	public:
+		FNiagaraSpriteUniformBufferRef UniformBuffer;
+
+		virtual ~FMeshCollectorResourcesBase() {}
+		virtual FNiagaraSpriteVertexFactory& GetVertexFactory() = 0;
+	};
+
+	template <typename TVertexFactory>
+	class TMeshCollectorResources : public FMeshCollectorResourcesBase
+	{
+	public:
+		TVertexFactory VertexFactory;
+
+		virtual ~TMeshCollectorResources() { VertexFactory.ReleaseResource(); }
+		virtual FNiagaraSpriteVertexFactory& GetVertexFactory() override { return VertexFactory; }
+	};
+
+	using FMeshCollectorResources = TMeshCollectorResources<FNiagaraSpriteVertexFactory>;
+	using FMeshCollectorResourcesEx = TMeshCollectorResources<FNiagaraSpriteVertexFactoryEx>;
+
 	FCPUSimParticleDataAllocation ConditionalAllocateCPUSimParticleData(FNiagaraDynamicDataSprites *DynamicDataSprites, const FNiagaraRendererLayout* RendererLayout, FGlobalDynamicReadBuffer& DynamicReadBuffer, bool bNeedsGPUVis) const;
 	TUniformBufferRef<class FNiagaraSpriteUniformParameters> CreatePerViewUniformBuffer(const FSceneView* View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy *SceneProxy, const FNiagaraRendererLayout* RendererLayout, const FNiagaraDynamicDataSprites* DynamicDataSprites) const;
 	void SetVertexFactoryParticleData(
@@ -62,7 +86,7 @@ private:
 		FNiagaraDynamicDataSprites* DynamicDataSprites,
 		FMeshBatch& OutMeshBatch,
 		class FNiagaraSpriteVFLooseParameters& VFLooseParams,
-		class FNiagaraMeshCollectorResourcesSprite& OutCollectorResources,
+		class FMeshCollectorResourcesBase& OutCollectorResources,
 		const FNiagaraRendererLayout* RendererLayout
 	) const;
 
@@ -82,6 +106,7 @@ private:
 	uint32 bGpuLowLatencyTranslucency : 1;
 	uint32 bEnableCulling : 1;
 	uint32 bEnableDistanceCulling : 1;
+	uint32 bAccurateMotionVectors : 1;
 	uint32 bSetAnyBoundVars : 1;
 	uint32 bVisTagInParamStore : 1;
 
@@ -95,7 +120,7 @@ private:
 	int32 RendererVisTagOffset;
 	int32 RendererVisibility;
 
-	int32 VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Type::Num];
+	int32 VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Type::Num_Max];
 
 	const FNiagaraRendererLayout* RendererLayoutWithCustomSort;
 	const FNiagaraRendererLayout* RendererLayoutWithoutCustomSort;
