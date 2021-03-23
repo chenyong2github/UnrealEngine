@@ -4,6 +4,7 @@
 
 #include "VectorTypes.h"
 #include "IndexTypes.h"
+#include "BoxTypes.h"
 #include "DisjointSet.h"
 
 namespace UE
@@ -41,7 +42,7 @@ public:
 	/** If true, islands can be flipped in addition to rotate/translate/scale */
 	bool bAllowFlips = false;
 
-	/** Rescale islands to match texel-to-world-space ratio across islands */
+	/** Attempt to rescale islands to match texel-to-world-space ratio across islands, based on ratio of World- and UV-space edge lengths */
 	bool bScaleIslandsByWorldSpaceTexelRatio = false;
 
 	/**
@@ -75,6 +76,13 @@ public:
 				IslandOut = UVIslands[Idx];
 			});
 	}
+
+protected:
+
+	/**
+	 * Compute common stats used by the packing algorithms to transform UV islands
+	 */
+	void GetIslandStats(IUVMeshView* Mesh, const TArray<int32>& Island, FAxisAlignedBox2d& IslandBoundsOut, double& IslandScaleFactorOut, double& UVAreaOut);
 
 };
 

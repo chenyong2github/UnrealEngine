@@ -16,13 +16,15 @@ namespace UE { namespace PlanarCut {
  * @param GutterSize		Space to leave between UV islands, in pixels at the target resolution
  * @param bOnlyOddMaterials	If true, restrict UV island layout to odd-numbered material IDs
  * @param WhichMaterials	If non-empty, restrict UV island layout to only the listed material IDs
+ * @param bRecreateUVsForDegenerateIslands If true, detect and fix islands that don't have proper UVs (i.e. UVs all zero or otherwise collapsed to a point)
  */
 bool PLANARCUT_API UVLayout(
 	FGeometryCollection& Collection,
 	int32 UVRes = 1024,
 	float GutterSize = 1,
 	bool bOnlyOddMaterials = true,
-	TArrayView<int32> WhichMaterials = TArrayView<int32>()
+	TArrayView<int32> WhichMaterials = TArrayView<int32>(),
+	bool bRecreateUVsForDegenerateIslands = true
 );
 
 

@@ -242,7 +242,8 @@ bool UVLayout(
 	int32 UVRes,
 	float GutterSize,
 	bool bOnlyOddMaterials,
-	TArrayView<int32> WhichMaterials
+	TArrayView<int32> WhichMaterials,
+	bool bRecreateUVsForDegenerateIslands
 )
 {
 	TArray<bool> ActiveTriangles;
@@ -252,8 +253,6 @@ bool UVLayout(
 	TArray<TArray<int32>> UVIslands;
 	UE::UVPacking::CreateUVIslandsFromMeshTopology<FGeomMesh>(UVMesh, UVIslands);
 
-	// detect and fix islands that don't have proper UVs (UVs all zero or otherwise collapsed to a point)
-	bool bRecreateUVsForDegenerateIslands = true;
 	if (bRecreateUVsForDegenerateIslands)
 	{
 		TArray<int> IslandVert; IslandVert.SetNumUninitialized(UVMesh.MaxVertexID());
@@ -276,7 +275,8 @@ bool UVLayout(
 				FVector3d Normal = VectorUtil::NormalArea(VA, VB, VC, Area);
 				AvgNormal += Area * Normal;
 			}
-			Normalize(AvgNormal);
+			double AvgNormalLen = Normalize(AvgNormal);
+			bool bHasValidNormal = AvgNormalLen > 0;
 			bool bDoProjection = FMathd::Abs(UVArea) < FMathd::ZeroTolerance;
 			if (bDoProjection)
 			{
@@ -311,8 +311,8 @@ bool UVLayout(
 				{
 					Tris.Add(TID);
 				}
-				bool bExpMapFailed = !UVEditor.SetTriangleUVsFromExpMap(Tris);
-				if (!bExpMapFailed)
+				bool bExpMapSuccess = UVEditor.SetTriangleUVsFromExpMap(Tris);
+				if (bExpMapSuccess)
 				{
 					// transfer UVs from the overlay
 					FDynamicMeshUVOverlay* UVOverlay = IslandMesh.Attributes()->PrimaryUV();
@@ -323,7 +323,7 @@ bool UVLayout(
 						if (!ensure(UVTri != FIndex3i::Invalid()))
 						{
 							// we shouldn't have unset tris like this if the ExpMap returned success
-							bExpMapFailed = true;
+							bExpMapSuccess = false;
 							break;
 						}
 						for (int SubIdx = 0; SubIdx < 3; SubIdx++)
@@ -334,7 +334,7 @@ bool UVLayout(
 						}
 					}
 				}
-				if (bExpMapFailed)
+				if (!bExpMapSuccess && bHasValidNormal)
 				{
 					// expmap failed; fall back to projecting UVs
 					FFrame3d Frame(AnyPt, AvgNormal);

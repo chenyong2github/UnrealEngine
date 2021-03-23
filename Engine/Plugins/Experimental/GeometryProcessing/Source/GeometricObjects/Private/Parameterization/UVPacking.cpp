@@ -827,49 +827,10 @@ bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<voi
 		Chart.UVArea = 0.0f;
 		double UVLengthSum = 0, WorldLengthSum = 0;
 
-		for (int32 tid : Chart.Triangles)
-		{
-			FIndex3i Triangle3D = Packer.Mesh->GetTriangle(tid);
-			FIndex3i TriangleUV = Packer.Mesh->GetUVTriangle(tid);
-			
-			FVector3d Positions[3];
-			FVector2d UVs[3];
-
-			for (int k = 0; k < 3; k++)
-			{
-				Positions[k] = Packer.Mesh->GetVertex(Triangle3D[k]);
-				UVs[k] = (FVector2d)Packer.Mesh->GetUV(TriangleUV[k]);
-
-				Chart.MinUV.X = FMathd::Min(Chart.MinUV.X, UVs[k].X);
-				Chart.MinUV.Y = FMathd::Min(Chart.MinUV.Y, UVs[k].Y);
-				Chart.MaxUV.X = FMathd::Max(Chart.MaxUV.X, UVs[k].X);
-				Chart.MaxUV.Y = FMathd::Max(Chart.MaxUV.Y, UVs[k].Y);
-			}
-
-			FVector3d Edge1 = Positions[1] - Positions[0];
-			FVector3d Edge2 = Positions[2] - Positions[0];
-			FVector3d Edge3 = Positions[2] - Positions[1];
-			double WorldLength = Edge1.Length() + Edge2.Length() + Edge3.Length();
-
-			FVector2d EdgeUV1 = UVs[1] - UVs[0];
-			FVector2d EdgeUV2 = UVs[2] - UVs[0];
-			FVector2d EdgeUV3 = UVs[2] - UVs[1];
-			double UVLength = EdgeUV1.Length() + EdgeUV2.Length() + EdgeUV3.Length();
-			double UVArea = 0.5f * FMathd::Abs(EdgeUV1.X * EdgeUV2.Y - EdgeUV1.Y * EdgeUV2.X);
-
-			UVLengthSum += UVLength;
-			WorldLengthSum += WorldLength;
-			Chart.UVArea += UVArea;
-		}
-
-		if (!bScaleIslandsByWorldSpaceTexelRatio || UVLengthSum < FMathd::ZeroTolerance)
-		{
-			Chart.ScaleToWorld = 1;
-		}
-		else
-		{
-			Chart.ScaleToWorld = WorldLengthSum / UVLengthSum;
-		}
+		FAxisAlignedBox2d IslandBounds;
+		GetIslandStats(Mesh, Chart.Triangles, IslandBounds, Chart.ScaleToWorld, Chart.UVArea);
+		Chart.MinUV = IslandBounds.Min;
+		Chart.MaxUV = IslandBounds.Max;
 	}
 
 
@@ -922,27 +883,21 @@ bool FUVPacker::StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(i
 	// figure out maximum width and height of existing charts
 	TArray<FAxisAlignedBox2d> AllIslandBounds;
 	AllIslandBounds.SetNum(NumCharts);
+	TArray<double> AllIslandScaleFactors;
+	AllIslandScaleFactors.SetNum(NumCharts);
 	double MaxWidth = 0, MaxHeight = 0;
 	for (int32 ci = 0; ci < NumCharts; ++ci)
 	{
-		FAxisAlignedBox2d IslandBounds = FAxisAlignedBox2d::Empty();
 		TArray<int32> Island;
 		CopyIsland(ci, Island);
-		for (int32 tid : Island)
-		{
-			FVector2f UVTri[3];
-			FIndex3i UVTriInds = Mesh->GetUVTriangle(tid);
-			UVTri[0] = Mesh->GetUV(UVTriInds.A);
-			UVTri[1] = Mesh->GetUV(UVTriInds.B);
-			UVTri[2] = Mesh->GetUV(UVTriInds.C);
-			IslandBounds.Contain((FVector2d)UVTri[0]);
-			IslandBounds.Contain((FVector2d)UVTri[1]);
-			IslandBounds.Contain((FVector2d)UVTri[2]);
-			AllIslandBounds[ci] = IslandBounds;
-		}
+		FAxisAlignedBox2d IslandBounds;
+		double IslandScaleFactor, UVArea;
+		GetIslandStats(Mesh, Island, IslandBounds, IslandScaleFactor, UVArea);
+		AllIslandBounds[ci] = IslandBounds;
+		AllIslandScaleFactors[ci] = IslandScaleFactor;
 
-		MaxWidth = FMathd::Max(IslandBounds.Width(), MaxWidth);
-		MaxHeight = FMathd::Max(IslandBounds.Height(), MaxHeight);
+		MaxWidth = FMathd::Max(IslandBounds.Width() * IslandScaleFactor, MaxWidth);
+		MaxHeight = FMathd::Max(IslandBounds.Height() * IslandScaleFactor, MaxHeight);
 	}
 
 	// figure out uniform scale that will make them all fit
@@ -969,13 +924,67 @@ bool FUVPacker::StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(i
 			IslandElements.Add(UVTri[2]);
 		}
 
+		double ScaleFactor = UseUniformScale * AllIslandScaleFactors[ci];
 		for (int32 elemid : IslandElements)
 		{
 			FVector2d CurUV = (FVector2d)Mesh->GetUV(elemid);
-			FVector2d NewUV = (CurUV - IslandBounds.Min) * UseUniformScale;
+			FVector2d NewUV = (CurUV - IslandBounds.Min) * ScaleFactor;
 			Mesh->SetUV(elemid, (FVector2f)NewUV);
 		}
 	}
 
 	return true;
 }
+
+
+void FUVPacker::GetIslandStats(IUVMeshView* Mesh, const TArray<int32>& Island, FAxisAlignedBox2d& IslandBoundsOut, double& IslandScaleFactorOut, double& UVAreaOut)
+{
+	IslandBoundsOut = FAxisAlignedBox2d::Empty();
+	UVAreaOut = 0.0f;
+	double UVLengthSum = 0, WorldLengthSum = 0;
+
+	for (int32 tid : Island)
+	{
+		FIndex3i Triangle3D = Mesh->GetTriangle(tid);
+		FIndex3i TriangleUV = Mesh->GetUVTriangle(tid);
+
+		FVector3d Positions[3];
+		FVector2d UVs[3];
+
+		for (int k = 0; k < 3; k++)
+		{
+			Positions[k] = Mesh->GetVertex(Triangle3D[k]);
+			UVs[k] = (FVector2d)Mesh->GetUV(TriangleUV[k]);
+
+			IslandBoundsOut.Contain(UVs[k]);
+		}
+
+		FVector3d Edge1 = Positions[1] - Positions[0];
+		FVector3d Edge2 = Positions[2] - Positions[0];
+		FVector3d Edge3 = Positions[2] - Positions[1];
+		double WorldLength = Edge1.Length() + Edge2.Length() + Edge3.Length();
+
+		FVector2d EdgeUV1 = UVs[1] - UVs[0];
+		FVector2d EdgeUV2 = UVs[2] - UVs[0];
+		FVector2d EdgeUV3 = UVs[2] - UVs[1];
+		double UVLength = EdgeUV1.Length() + EdgeUV2.Length() + EdgeUV3.Length();
+		double UVArea = 0.5f * FMathd::Abs(EdgeUV1.X * EdgeUV2.Y - EdgeUV1.Y * EdgeUV2.X);
+
+		UVLengthSum += UVLength;
+		WorldLengthSum += WorldLength;
+		UVAreaOut += UVArea;
+	}
+
+	if (!bScaleIslandsByWorldSpaceTexelRatio || UVLengthSum < FMathd::ZeroTolerance)
+	{
+		IslandScaleFactorOut = 1;
+	}
+	else
+	{
+		// Use ratio of edge lengths instead of areas for robustness
+		//  (e.g. to avoid over-scaling a ~zero area UV island, from bad projections or disconnected sliver tris)
+		IslandScaleFactorOut = WorldLengthSum / UVLengthSum;
+	}
+}
+
+
