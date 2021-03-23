@@ -2265,7 +2265,6 @@ private:
 	bool bRenderToSceneColor;
 	bool bRequiresMultiPass;
 	bool bKeepDepthContent;
-	bool bSubmitOffscreenRendering;
 	bool bModulatedShadowsInUse;
 	bool bShouldRenderCustomDepth;
 	bool bRequiresPixelProjectedPlanarRelfectionPass;
