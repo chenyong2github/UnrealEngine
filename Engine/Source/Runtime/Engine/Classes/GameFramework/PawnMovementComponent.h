@@ -88,8 +88,11 @@ protected:
 	UPROPERTY(Transient, DuplicateTransient)
 	TObjectPtr<class APawn> PawnOwner;
 
+	/** Returns this component's associated controller, typically from the owning Pawn. May be null. May be overridden for special handling when the controller isn't paired with the Pawn that owns this component. */
+	virtual AController* GetController() const;
+
 	/**
-	 * Attempts to mark the PlayerCameraManager as dirty.
+	 * Attempts to mark the PlayerCameraManager as dirty, if the controller has one.
 	 * This will have no effect if called from the server.
 	 */
 	void MarkForClientCameraUpdate();

@@ -1200,7 +1200,7 @@ protected:
 	// Setup
 
 	/** Get our controller */
-	AController* GetController() const;
+	virtual AController* GetController() const override;
 
 	/** Get the mesh this vehicle is tied to */
 	class UMeshComponent* GetMesh() const;

@@ -96,17 +96,25 @@ void UPawnMovementComponent::OnTeleported()
 	}
 }
 
+AController* UPawnMovementComponent::GetController() const
+{
+	if (PawnOwner)
+	{
+		return PawnOwner->GetController();
+	}
+
+	return nullptr;
+}
+
 void UPawnMovementComponent::MarkForClientCameraUpdate()
 {
-	if(PawnOwner)
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
-		if (APlayerController* PlayerController = Cast<APlayerController>(PawnOwner->GetController()))
+		APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager;
+		if (PlayerCameraManager != nullptr && PlayerCameraManager->bUseClientSideCameraUpdates)
 		{
-			APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager;
-			if (PlayerCameraManager != nullptr && PlayerCameraManager->bUseClientSideCameraUpdates)
-			{
-				PlayerCameraManager->bShouldSendClientSideCameraUpdate = true;
-			}
+			PlayerCameraManager->bShouldSendClientSideCameraUpdate = true;
 		}
-	}	
+	}
 }

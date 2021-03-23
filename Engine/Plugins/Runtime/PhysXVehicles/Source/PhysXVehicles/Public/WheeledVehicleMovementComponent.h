@@ -499,7 +499,7 @@ public:
 
 protected:
 
-	AController* GetController() const;
+	virtual AController* GetController() const override;
 
 	// replicated state of vehicle 
 	UPROPERTY(Transient, Replicated)
