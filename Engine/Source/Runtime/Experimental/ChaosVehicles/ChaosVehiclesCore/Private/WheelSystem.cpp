@@ -16,6 +16,7 @@ namespace Chaos
 		, TractionControlEnabled(SetupIn->TractionControlEnabled)
 		, ABSEnabled(SetupIn->ABSEnabled)
 		, FrictionMultiplier(SetupIn->FrictionMultiplier)
+		, LateralSlipGraphMultiplier(SetupIn->LateralSlipGraphMultiplier)
 		, CorneringStiffness(SetupIn->CorneringStiffness)
 		, MaxSteeringAngle(SetupIn->MaxSteeringAngle)
 		, MaxBrakeTorque(SetupIn->MaxBrakeTorque)
@@ -289,7 +290,7 @@ namespace Chaos
 			}
 			else
 			{ 
-				FinalLateralForce = Setup().LateralSlipGraph.EvaluateY(FMath::RadiansToDegrees(SlipAngle));
+				FinalLateralForce = Setup().LateralSlipGraph.EvaluateY(FMath::RadiansToDegrees(SlipAngle)) * LateralSlipGraphMultiplier;
 			}
 
 			if (FinalLateralForce > FMath::Abs(ForceRequiredToBringToStop))

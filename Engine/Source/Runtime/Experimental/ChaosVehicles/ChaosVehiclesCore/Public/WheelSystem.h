@@ -88,6 +88,7 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, LateralFrictionMultiplier(1.0f)
 		, LongitudinalFrictionMultiplier(1.0f)
 		, FrictionMultiplier(2.0f)
+		, LateralSlipGraphMultiplier(1.0f)
 		, CorneringStiffness(1000.0f)
 		, SideSlipModifier(1.0f)
 		, SlipThreshold(20.0f)
@@ -128,6 +129,7 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 	float LateralFrictionMultiplier;
 	float LongitudinalFrictionMultiplier;
 	float FrictionMultiplier;
+	float LateralSlipGraphMultiplier;
 	float CorneringStiffness;
 	float SideSlipModifier;
 
@@ -400,6 +402,7 @@ public:
 	bool TractionControlEnabled;// Straight Line Traction Control
 	bool ABSEnabled;			// Advanced braking system operational
 	float FrictionMultiplier;
+	float LateralSlipGraphMultiplier;
 	float CorneringStiffness;
 	float MaxSteeringAngle;
 	float MaxBrakeTorque;

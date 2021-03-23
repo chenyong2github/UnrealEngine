@@ -2383,6 +2383,22 @@ void UChaosWheeledVehicleMovementComponent::SetWheelFrictionMultiplier(int Wheel
 	}
 }
 
+void UChaosWheeledVehicleMovementComponent::SetWheelSlipGraphMultiplier(int WheelIndex, float Multiplier)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+			{
+				if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+				{
+					Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+					VehicleWheel.LateralSlipGraphMultiplier = Multiplier;
+				}
+			});
+	}
+}
+
 void UChaosWheeledVehicleMovementComponent::SetWheelMaxBrakeTorque(int WheelIndex, float Torque)
 {
 	if (FBodyInstance* TargetInstance = GetBodyInstance())

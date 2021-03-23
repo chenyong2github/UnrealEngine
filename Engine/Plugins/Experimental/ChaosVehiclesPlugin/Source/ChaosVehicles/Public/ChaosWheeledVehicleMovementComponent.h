@@ -794,6 +794,9 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	void SetWheelFrictionMultiplier(int WheelIndex, float Friction);
 
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
+	void SetWheelSlipGraphMultiplier(int WheelIndex, float Multiplier);
+
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	void SetWheelMaxBrakeTorque(int WheelIndex, float Torque);
 
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
