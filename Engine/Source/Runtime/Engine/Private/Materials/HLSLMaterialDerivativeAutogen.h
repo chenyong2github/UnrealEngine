@@ -114,7 +114,7 @@ private:
 	static int32 GetFunc1ReturnNumComponents(int32 SrcTypeIndex, EFunc1 Op);
 	static int32 GetFunc2ReturnNumComponents(int32 LhsTypeIndex, int32 RhsTypeIndex, EFunc2 Op);
 
-	FString CoerceValueRaw(const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType);
+	FString CoerceValueRaw(FHLSLMaterialTranslator& Translator, const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType);
 	FString CoerceValueDeriv(const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType);
 
 	void EnableGeneratedDepencencies();
