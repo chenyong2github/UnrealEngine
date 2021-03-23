@@ -526,7 +526,7 @@ void FMatinee::NewGroupPopupTextCommitted(
 
 		// Folders don't need a group instance
 		UInterpGroupInst* NewGroupInst = NULL;
-		//@todo UE4 Matinee: No Kismet
+		//@todo UE Matinee: No Kismet
 		//USeqVar_Character* AIVarObj = NULL;
 		if( !bIsNewFolder )
 		{

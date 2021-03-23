@@ -3537,7 +3537,7 @@ void FMatinee::SaveRecordingParentOffsets(void)
 			}
 
 			//get the parent actor
-			/** @todo UE4 no longer using general base attachment system
+			/** @todo UE no longer using general base attachment system
 			AActor* ParentActor = Actor->Base;
 			if (ParentActor)
 			{
@@ -3571,7 +3571,7 @@ void FMatinee::ApplyRecordingParentOffsets(void)
 				return;
 			}
 
-			/** @todo UE4 no longer using general base attachment system
+			/** @todo UE no longer using general base attachment system
 			//get the parent actor
 			AActor* ParentActor = Actor->Base;
 			if (ParentActor)
@@ -3582,7 +3582,7 @@ void FMatinee::ApplyRecordingParentOffsets(void)
 			*/
 		}
 
-		/** @todo UE4 no longer using general base attachment system
+		/** @todo UE no longer using general base attachment system
 		//now apply parent offsets to list
 		for (int32 i = 0; i < RecordingActorsWithParents.Num(); ++i)
 		{
