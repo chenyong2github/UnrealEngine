@@ -1408,7 +1408,11 @@ public:
 #endif
 
 	// Ray tracing scene specific to this view
-	FRayTracingScene RayTracingScene;
+	FRayTracingSceneRHIRef RayTracingSceneRHI;
+	FGraphEventRef CreateRayTracingSceneTask;
+
+	FRHIRayTracingScene* GetRayTracingScene() const;
+	FRHIRayTracingScene* GetRayTracingSceneChecked() const;
 
 	// Primary pipeline state object to be used with the ray tracing scene for this view.
 	// Material shaders are only available when using this pipeline.

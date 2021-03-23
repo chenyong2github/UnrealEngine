@@ -659,7 +659,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.SkyLightDecoupleSampleGeneration = GetRayTracingSkyLightDecoupleSampleGenerationCVarValue();
 	CommonParameters.SampleMode = (int32)ESamplePhase::Monlithic;
 
-	CommonParameters.TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
+	CommonParameters.TLAS = View.GetRayTracingSceneChecked()->GetShaderResourceView();
 	CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	CommonParameters.LightDataPacked = View.RayTracingLightData.UniformBuffer;
 	CommonParameters.LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
@@ -742,7 +742,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 					FRayTracingShaderBindingsWriter GlobalResources;
 					SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
 
-					FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+					FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 					RHICmdList.RayTraceDispatch(Pipeline, RayGenShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, TileAlignedResolution.X, TileAlignedResolution.Y);
 				});
 
@@ -768,7 +768,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 						FRayTracingShaderBindingsWriter GlobalResources;
 						SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
 
-						FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+						FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 
 						if (DeferredMaterialMode == EDeferredMaterialMode::Shade)
 						{
@@ -811,7 +811,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 								FRayTracingShaderBindingsWriter GlobalResources;
 								SetShaderParameters(GlobalResources, RayGenShader, *TilePassParameters);
 
-								FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+								FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 								RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DispatchSizeX, DispatchSizeY);
 							});
 						}

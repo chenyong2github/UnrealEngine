@@ -472,7 +472,7 @@ void FDeferredShadingSceneRenderer::SetupRayTracingLightingMissShader(FRHIComman
 
 	int32 ParameterSlots = BindParameters(MissShader, MissParameters, MaxUniformBuffers, MissData);
 
-	RHICmdList.SetRayTracingMissShader(View.RayTracingScene.RayTracingSceneRHI,
+	RHICmdList.SetRayTracingMissShader(View.GetRayTracingSceneChecked(),
 		RAY_TRACING_MISS_SHADER_SLOT_LIGHTING, // Shader slot in the scene
 		View.RayTracingMaterialPipeline,
 		RAY_TRACING_MISS_SHADER_SLOT_LIGHTING, // Miss shader index in the pipeline

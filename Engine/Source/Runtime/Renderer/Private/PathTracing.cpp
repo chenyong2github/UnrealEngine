@@ -890,7 +890,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	if (NeedsMoreRays)
 	{
 		FPathTracingRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingRG::FParameters>();
-		PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
+		PassParameters->TLAS = View.GetRayTracingSceneChecked()->GetShaderResourceView();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->PathTracingData = CreateUniformBufferImmediate(PathTracingData, EUniformBufferUsage::UniformBuffer_SingleFrame);
 		// upload sky/lights data
@@ -912,7 +912,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			ERDGPassFlags::Compute,
 			[PassParameters, RayGenShader, &View](FRHICommandListImmediate& RHICmdList)
 		{
-			FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+			FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 			
 			int32 DispatchSizeX = View.ViewRect.Size().X;
 			int32 DispatchSizeY = View.ViewRect.Size().Y;

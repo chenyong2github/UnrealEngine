@@ -1004,6 +1004,31 @@ FViewInfo::~FViewInfo()
 #endif // RHI_RAYTRACING
 }
 
+#if RHI_RAYTRACING
+FRHIRayTracingScene* FViewInfo::GetRayTracingScene() const
+{
+	if (CreateRayTracingSceneTask.IsValid())
+	{
+		// #dxr_todo: This is temporarily here, until dependency on scene during RDG setup is removed.
+		// Then the wait would only need to happen during RDG execution.
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(WaitForCreateRayTracingScene);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(CreateRayTracingSceneTask, ENamedThreads::GetRenderThread_Local());
+	}
+
+	checkf(!CreateRayTracingSceneTask.IsValid() || CreateRayTracingSceneTask->IsComplete(),
+		TEXT("Ray tracing scene creation task is expected to be waited upon and ready when we get here."));
+
+	return RayTracingSceneRHI.GetReference();
+}
+FRHIRayTracingScene* FViewInfo::GetRayTracingSceneChecked() const
+{
+	FRHIRayTracingScene* Result = GetRayTracingScene();
+	checkf(Result, TEXT("Ray tracing scene is expected to be created at this point."));
+	return Result;
+}
+#endif // RHI_RAYTRACING
+
 #if DO_CHECK || USING_CODE_ANALYSIS
 bool FViewInfo::VerifyMembersChecks() const
 {

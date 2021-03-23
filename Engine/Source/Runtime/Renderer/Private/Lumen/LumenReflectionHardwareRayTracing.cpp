@@ -307,7 +307,7 @@ void RenderLumenHardwareRayTracingReflections(
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
-				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+				FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 
 				if (GRHISupportsRayTracingDispatchIndirect && CVarLumenReflectionsHardwareRayTracingIndirect.GetValueOnRenderThread() == 1)
 				{
@@ -369,7 +369,7 @@ void RenderLumenHardwareRayTracingReflections(
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
-				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+				FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 				FRayTracingPipelineState* RayTracingPipeline = PermutationSettings.bUseMinimalPayload ? View.LumenHardwareRayTracingMaterialPipeline : View.RayTracingMaterialPipeline;
 
 				if (GRHISupportsRayTracingDispatchIndirect && CVarLumenReflectionsHardwareRayTracingIndirect.GetValueOnRenderThread() == 1)

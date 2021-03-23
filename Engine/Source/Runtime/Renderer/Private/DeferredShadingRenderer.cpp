@@ -1248,12 +1248,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		}
 #endif // DO_CHECK
 
-		FRayTracingSceneInitializer SceneInitializer;
-		SceneInitializer.DebugName = FName(TEXT("FDeferredShadingSceneRenderer.Views[].RayTracingScene"));
-		SceneInitializer.Instances = View.RayTracingGeometryInstances;
-		SceneInitializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
-		SceneInitializer.NumMissShaderSlots = RAY_TRACING_NUM_MISS_SHADER_SLOTS;
-
 		// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. register each effect at startup and just loop over them automatically to gather all required shaders
 		TArray<FRHIRayTracingShader*> RayGenShaders;
 		PrepareRayTracingReflections(View, *Scene, RayGenShaders);
@@ -1270,7 +1264,19 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
 		PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
 
-		View.RayTracingScene.RayTracingSceneRHI = RHICreateRayTracingScene(SceneInitializer);
+		View.CreateRayTracingSceneTask = FFunctionGraphTask::CreateAndDispatchWhenReady([
+			&Result = View.RayTracingSceneRHI,
+			Instances = MakeArrayView(View.RayTracingGeometryInstances)]()
+		{
+			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
+
+			FRayTracingSceneInitializer SceneInitializer;
+			SceneInitializer.DebugName = FName(TEXT("FDeferredShadingSceneRenderer.Views[].RayTracingScene"));
+			SceneInitializer.Instances = Instances;
+			SceneInitializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
+			SceneInitializer.NumMissShaderSlots = RAY_TRACING_NUM_MISS_SHADER_SLOTS;
+			Result = RHICreateRayTracingScene(SceneInitializer);
+		}, TStatId(), nullptr, ENamedThreads::AnyThread);
 
 		if (RayGenShaders.Num())
 		{
@@ -1320,7 +1326,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
 				FViewInfo& View = Views[ViewIndex];
-				RHIAsyncCmdList.BuildAccelerationStructure(View.RayTracingScene.RayTracingSceneRHI);
+				RHIAsyncCmdList.BuildAccelerationStructure(View.GetRayTracingSceneChecked());
 			}
 
 			RHIAsyncCmdList.BeginTransition(RayTracingDynamicGeometryUpdateEndTransition);
@@ -1344,7 +1350,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 				{
 					FViewInfo& View = Views[ViewIndex];
-					RHICmdList.BuildAccelerationStructure(View.RayTracingScene.RayTracingSceneRHI);
+					RHICmdList.BuildAccelerationStructure(View.GetRayTracingSceneChecked());
 				}
 
 				// Submit potentially expensive BVH build commands to the GPU as soon as possible.
@@ -1370,10 +1376,12 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
 			FViewInfo& View = Views[ViewIndex];
-			if (View.RayTracingScene.RayTracingSceneRHI)
+			checkf(!View.CreateRayTracingSceneTask.IsValid() || View.CreateRayTracingSceneTask->IsComplete(), 
+				TEXT("Ray tracing scene creation task is expected to be waited upon and ready when we get here."));
+			if (View.RayTracingSceneRHI)
 			{
-				RHICmdList.ClearRayTracingBindings(View.RayTracingScene.RayTracingSceneRHI);
-				View.RayTracingScene.RayTracingSceneRHI.SafeRelease();
+				RHICmdList.ClearRayTracingBindings(View.RayTracingSceneRHI);
+				View.RayTracingSceneRHI.SafeRelease();
 			}
 
 			// Release common lighting resources
@@ -1459,9 +1467,12 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 					}
 				}
 
+				checkf(!View.CreateRayTracingSceneTask.IsValid() || View.CreateRayTracingSceneTask->IsComplete(),
+					TEXT("Ray tracing scene creation task is expected to be waited upon and ready when we get here."));
+
 				const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
 				RHICmdList.SetRayTracingHitGroups(
-					View.RayTracingScene.RayTracingSceneRHI,
+					View.GetRayTracingSceneChecked(),
 					View.RayTracingMaterialPipeline,
 					NumTotalBindings, MergedBindings,
 					bCopyDataToInlineStorage);
@@ -1512,7 +1523,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
-			FRHIRayTracingScene* RayTracingScene = Views[ViewIndex].RayTracingScene.RayTracingSceneRHI.GetReference();
+			FRHIRayTracingScene* RayTracingScene = Views[ViewIndex].GetRayTracingSceneChecked();
 			RHICmdList.Transition(FRHITransitionInfo(RayTracingScene, ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
 		}
 	});

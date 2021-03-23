@@ -101,7 +101,7 @@ namespace Lumen
 		}
 
 		// Turn raytracing off if no rendering feature is enabled.
-		if (!View.RayTracingScene.RayTracingSceneRHI)
+		if (!View.GetRayTracingScene())
 		{
 			bUseHardwareRayTracedShadows = false;
 		}
@@ -485,7 +485,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(
 		PassParameters->NormalBias = GetHardwareRaytracingMaxNormalBias();
 
 		LightSceneProxy->GetLightShaderParameters(PassParameters->Light);
-		PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
+		PassParameters->TLAS = View.GetRayTracingSceneChecked()->GetShaderResourceView();
 
 		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
 
@@ -526,7 +526,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(
 			FRayTracingShaderBindingsWriter GlobalResources;
 			SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
-			FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+			FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 
 			if (bRayTracingShadowsEnableMateris)
 			{
