@@ -372,6 +372,7 @@ void FRawStaticIndexBuffer::CopyRHIForStreaming(const FRawStaticIndexBuffer& Oth
 
 void FRawStaticIndexBuffer::InitRHI()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRawStaticIndexBuffer::InitRHI);
 	IndexBufferRHI = CreateRHIBuffer_RenderThread();
 }
 

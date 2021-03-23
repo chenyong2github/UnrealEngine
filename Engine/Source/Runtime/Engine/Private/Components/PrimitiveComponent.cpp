@@ -474,6 +474,8 @@ void UPrimitiveComponent::GetStreamingRenderAssetInfoWithNULLRemoval(FStreamingT
 	// Ignore components that are fully initialized but have no scene proxy (hidden primitive or non game primitive)
 	if (!IsRegistered() || !IsRenderStateCreated() || SceneProxy)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UPrimitiveComponent::GetStreamingRenderAssetInfoWithNULLRemoval);
+
 		GetStreamingRenderAssetInfo(LevelContext, OutStreamingRenderAssets);
 		for (int32 Index = 0; Index < OutStreamingRenderAssets.Num(); Index++)
 		{

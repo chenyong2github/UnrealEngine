@@ -76,6 +76,8 @@ void FRenderResource::ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel)
 
 void FRenderResource::InitResource()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRenderResource::InitResource);
+	
 	check(IsInRenderingThread());
 	if (ListIndex == INDEX_NONE)
 	{

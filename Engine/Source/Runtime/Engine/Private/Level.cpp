@@ -1169,6 +1169,8 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 DECLARE_CYCLE_STAT(TEXT("Deferred Init Bodies"), STAT_DeferredUpdateBodies, STATGROUP_Physics);
 void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bRerunConstructionScripts, FRegisterComponentContext* Context)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULevel::IncrementalUpdateComponents);
+
 	// A value of 0 means that we want to update all components.
 	if (NumComponentsToUpdate != 0)
 	{

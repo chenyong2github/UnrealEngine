@@ -99,6 +99,8 @@ void UStylusInputSubsystem::RemoveMessageHandler(IStylusMessageHandler& InHandle
 
 void UStylusInputSubsystem::Tick(float DeltaTime)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStylusInputSubsystem::Tick);
+
 	if (InputInterface.IsValid())
 	{
 		InputInterface->Tick();

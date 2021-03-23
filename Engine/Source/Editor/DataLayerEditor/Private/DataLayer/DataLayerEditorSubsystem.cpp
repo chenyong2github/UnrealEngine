@@ -805,6 +805,8 @@ bool UDataLayerEditorSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutS
 
 bool UDataLayerEditorSubsystem::UpdateAllActorsVisibility(const bool bNotifySelectionChange, const bool bRedrawViewports)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UDataLayerEditorSubsystem::UpdateAllActorsVisibility);
+
 	bool bSelectionChanged = false;
 	bool bChangesOccurred = false;
 	for (AActor* Actor : FActorRange(GetWorld()))
