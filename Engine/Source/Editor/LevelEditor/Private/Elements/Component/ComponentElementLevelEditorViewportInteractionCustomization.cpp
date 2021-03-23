@@ -28,28 +28,29 @@ void FComponentElementLevelEditorViewportInteractionCustomization::GetElementsTo
 			}
 #endif	// DO_CHECK
 
-			if (FActorElementLevelEditorViewportInteractionCustomization::CanMoveActorInViewport(ComponentOwner, InWorldType))
+			if (ComponentOwner->GetRootComponent() == SceneComponent)
 			{
-				if (ComponentOwner->GetRootComponent() == SceneComponent)
+				if (FActorElementLevelEditorViewportInteractionCustomization::CanMoveActorInViewport(ComponentOwner, InWorldType))
 				{
 					// If it is a root component, use the parent actor instead
 					FActorElementLevelEditorViewportInteractionCustomization::AppendActorsToMove(ComponentOwner, InSelectionSet, OutElementsToMove, OutElementsToMoveFinalizers);
 				}
-				else
+			}
+			else
+			{
+				// Check to see if any parent is selected
+				bool bHasSelectedParent = false;
+				for (USceneComponent* Parent = SceneComponent->GetAttachParent(); Parent && !bHasSelectedParent; Parent = Parent->GetAttachParent())
 				{
-					// Check to see if any parent is selected
-					bool bHasSelectedParent = false;
-					for (USceneComponent* Parent = SceneComponent->GetAttachParent(); Parent && !bHasSelectedParent; Parent = Parent->GetAttachParent())
-					{
-						FTypedElementHandle ParentElementHandle = UEngineElementsLibrary::AcquireEditorComponentElementHandle(Parent, /*bAllowCreate*/false);
-						bHasSelectedParent = ParentElementHandle && InSelectionSet->IsElementSelected(ParentElementHandle, FTypedElementIsSelectedOptions());
-					}
+					FTypedElementHandle ParentElementHandle = UEngineElementsLibrary::AcquireEditorComponentElementHandle(Parent, /*bAllowCreate*/false);
+					bHasSelectedParent = ParentElementHandle && InSelectionSet->IsElementSelected(ParentElementHandle, FTypedElementIsSelectedOptions());
+				}
 
-					if (!bHasSelectedParent)
-					{
-						// If no parent of this component is also in the selection set, move it
-						OutElementsToMove->Add(InElementWorldHandle);
-					}
+				const bool bCanMoveInEditorWorld = (InWorldType == ETypedElementViewportInteractionWorldType::Editor) || (SceneComponent->Mobility == EComponentMobility::Type::Movable);
+				if (!bHasSelectedParent && bCanMoveInEditorWorld)
+				{
+					// If no parent of this component is also in the selection set, move it
+					OutElementsToMove->Add(InElementWorldHandle);
 				}
 			}
 		}

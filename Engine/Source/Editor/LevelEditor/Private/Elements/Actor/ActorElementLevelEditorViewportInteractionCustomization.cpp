@@ -151,11 +151,18 @@ bool FActorElementLevelEditorViewportInteractionCustomization::CanMoveActorInVie
 		return false;
 	}
 
+	// If the actor has a root component, but it cannot be moved, then the actor cannot move.
+	const bool bIsPlayInEditorWorld = (InWorldType == ETypedElementViewportInteractionWorldType::PlayInEditor);
+	if (bIsPlayInEditorWorld && InActor->GetRootComponent() && !InActor->IsRootComponentMovable())
+	{
+		return false;
+	}
+
 	// The actor needs to be in the current viewport world
 	if (GEditor->PlayWorld)
 	{
 		const UWorld* CurrentWorld = InActor->GetWorld();
-		const UWorld* RequiredWorld = InWorldType == ETypedElementViewportInteractionWorldType::PlayInEditor ? GEditor->PlayWorld : GEditor->EditorWorld;
+		const UWorld* RequiredWorld = bIsPlayInEditorWorld ? GEditor->PlayWorld : GEditor->EditorWorld;
 		if (CurrentWorld != RequiredWorld)
 		{
 			return false;
