@@ -3824,6 +3824,9 @@ namespace WindowsMixedReality
 							{ std::wstringstream string; string << L"RemotingDisconnectedEvent: Reason: " << static_cast<int>(failureReason) << " " << ConnectFailureReasonString[static_cast<int32>(failureReason)]; Log(string); }
 
 							ReportConnectionStatus(MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer);
+
+							// Fully disconnect from remote device to ensure we're in a clean state for the next connection.
+							DisconnectFromDevice();
 						});
 
 				remoteSpeech = m_remoteContext.GetRemoteSpeech();
