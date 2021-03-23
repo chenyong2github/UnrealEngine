@@ -41,6 +41,9 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 {
 	DetailsViewArgs = InDetailsViewArgs;
 
+	ColumnSizeData.SetValueColumnWidth(DetailsViewArgs.ColumnWidth);
+	ColumnSizeData.RightColumnMinWidth = DetailsViewArgs.RightColumnMinWidth;
+
 	SetObjectFilter(InDetailsViewArgs.ObjectFilter);
 
 	bViewingClassDefaultObject = false;

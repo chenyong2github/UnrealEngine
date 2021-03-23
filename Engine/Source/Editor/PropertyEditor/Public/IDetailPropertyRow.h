@@ -21,7 +21,7 @@ public:
 	FDetailColumnSizeData()
 	{
 		ValueColumnWidthValue = 0.7f;
-		RightColumnWidthValue = 0.05f;
+		RightColumnWidthValue = 0;
 		HoveredSplitterIndexValue = INDEX_NONE;
 
 		NameColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetNameColumnWidth);
@@ -29,7 +29,7 @@ public:
 		PropertyColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetPropertyColumnWidth);
 		RightColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetRightColumnWidth);
 		HoveredSplitterIndex.BindRaw(this, &FDetailColumnSizeData::GetHoveredSplitterIndex);
-		OnValueColumnResized.BindRaw(this, &FDetailColumnSizeData::OnSetValueColumnWidth);
+		OnValueColumnResized.BindRaw(this, &FDetailColumnSizeData::SetValueColumnWidth);
 		OnRightColumnResized.BindRaw(this, &FDetailColumnSizeData::OnSetRightColumnWidth);
 		OnSplitterHandleHovered.BindRaw(this, &FDetailColumnSizeData::OnSetHoveredSplitterIndex);
 
@@ -37,6 +37,8 @@ public:
 		OnPropertyColumnResized.BindLambda([](float) {});
 		OnNameColumnResized.BindLambda([](float) {}); 
 	}
+
+	float RightColumnMinWidth;
 
 	TAttribute<float> NameColumnWidth;
 	TAttribute<float> ValueColumnWidth;
@@ -49,6 +51,12 @@ public:
 	SSplitter::FOnSlotResized OnRightColumnResized;
 	SSplitter::FOnHandleHovered OnSplitterHandleHovered;
 
+	void SetValueColumnWidth(float NewWidth)
+	{ 
+		ensure(NewWidth <= 1.0f); 
+		ValueColumnWidthValue = NewWidth;
+	} 
+
 private:
 	float ValueColumnWidthValue;
 	float RightColumnWidthValue;
@@ -60,12 +68,7 @@ private:
 	float GetPropertyColumnWidth() const { return 1.0f - RightColumnWidthValue; }
 	int32 GetHoveredSplitterIndex() const { return HoveredSplitterIndexValue; }
 
-	void OnSetValueColumnWidth(float NewWidth)
-	{ 
-		ensure(NewWidth <= 1.0f); 
-		ValueColumnWidthValue = NewWidth;
-	} 
-
+	
 	void OnSetRightColumnWidth(float NewWidth)
 	{
 		ensure(NewWidth <= 1.0f);
