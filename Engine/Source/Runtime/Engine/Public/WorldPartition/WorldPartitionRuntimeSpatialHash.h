@@ -180,11 +180,6 @@ class ASpatialHashRuntimeGridInfo : public AInfo
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** Begin UObject override */
-	virtual bool IsEditorOnly() const override { return true; }
-	/** End UObject override */
-
-public:
 	UPROPERTY(EditAnywhere, Category=Settings)
 	FSpatialHashRuntimeGrid	GridSettings;
 };
