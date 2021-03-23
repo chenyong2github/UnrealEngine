@@ -47,7 +47,7 @@ UE_TRACE_EVENT_BEGIN(GpuProfiler, Frame)
 UE_TRACE_EVENT_END()
 
 // GPU Index 1
-UE_TRACE_EVENT_BEGIN(GpuProfiler2, Frame2)
+UE_TRACE_EVENT_BEGIN(GpuProfiler, Frame2)
 	UE_TRACE_EVENT_FIELD(uint64, CalibrationBias)
 	UE_TRACE_EVENT_FIELD(uint64, TimestampBase)
 	UE_TRACE_EVENT_FIELD(uint32, RenderingFrameNumber)
@@ -165,7 +165,7 @@ void FGpuProfilerTrace::EndFrame(uint32 GPUIndex)
 		}
 		else if (GPUIndex == 1)
 		{
-			UE_TRACE_LOG(GpuProfiler2, Frame2, GpuChannel)
+			UE_TRACE_LOG(GpuProfiler, Frame2, GpuChannel)
 				<< Frame2.CalibrationBias(Bias)
 				<< Frame2.TimestampBase(GCurrentFrame.TimestampBase)
 				<< Frame2.RenderingFrameNumber(GCurrentFrame.RenderingFrameNumber)

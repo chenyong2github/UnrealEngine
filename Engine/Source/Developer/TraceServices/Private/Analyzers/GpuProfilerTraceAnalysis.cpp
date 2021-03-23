@@ -18,7 +18,7 @@ void FGpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 	Builder.RouteEvent(RouteId_EventSpec, "GpuProfiler", "EventSpec");
 	Builder.RouteEvent(RouteId_Frame, "GpuProfiler", "Frame");
-	Builder.RouteEvent(RouteId_Frame2, "GpuProfiler2", "Frame2");
+	Builder.RouteEvent(RouteId_Frame2, "GpuProfiler", "Frame2");
 }
 
 bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)

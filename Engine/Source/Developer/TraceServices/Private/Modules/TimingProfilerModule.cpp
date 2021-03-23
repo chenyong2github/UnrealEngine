@@ -36,7 +36,6 @@ void FTimingProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 {
 	OutLoggers.Add(TEXT("CpuProfiler"));
 	OutLoggers.Add(TEXT("GpuProfiler"));
-	OutLoggers.Add(TEXT("GpuProfiler2"));
 }
 
 const ITimingProfilerProvider* ReadTimingProfilerProvider(const IAnalysisSession& Session)
