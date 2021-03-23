@@ -365,7 +365,7 @@ void SConsolidateToolWidget::Construct( const FArguments& InArgs )
 	SelectedListItem = NULL;
 	bSavePackagesChecked = ISourceControlModule::Get().IsEnabled();
 
-	this->BorderImage = FInvalidatableBrushAttribute(FEditorStyle::GetBrush("NoBorder"));
+	SetBorderImage(FEditorStyle::GetBrush("NoBorder"));
 
 	ChildSlot
 	[

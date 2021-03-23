@@ -1135,7 +1135,7 @@ protected:
 		check(InArgs._ExpanderStyleSet);
 		ExpanderStyleSet = InArgs._ExpanderStyleSet;
 
-		this->BorderImage = FInvalidatableBrushAttribute(TAttribute<const FSlateBrush*>(this, &STableRow::GetBorder));
+		SetBorderImage(TAttribute<const FSlateBrush*>(this, &STableRow::GetBorder));
 
 		this->SetForegroundColor(TAttribute<FSlateColor>( this, &STableRow::GetForegroundBasedOnSelection ));
 

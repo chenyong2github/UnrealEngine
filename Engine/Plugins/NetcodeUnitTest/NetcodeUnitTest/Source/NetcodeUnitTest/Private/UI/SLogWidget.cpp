@@ -45,8 +45,8 @@ IMPLEMENT_GET_PRIVATE_VAR(SEditableTextBox, EditableText, TSharedPtr<SEditableTe
 // Enable access to SButton.Style
 IMPLEMENT_GET_PRIVATE_VAR(SButton, Style, const FButtonStyle*);
 
-// Enable reading SBorder.BorderBackgroundColor
-IMPLEMENT_GET_PRIVATE_VAR(SBorder, BorderBackgroundColor, TAttribute<FSlateColor>);
+// Enable reading SBorder::GetBorderBackgroundColor
+IMPLEMENT_GET_PROTECTED_FUNC_CONST(SBorder, GetBorderBackgroundColor, const FSlateColor&, void,, const);
 
 // Enable access to SDockTab::GetCurrentStyle, using the CALL_PROTECTED macro
 IMPLEMENT_GET_PROTECTED_FUNC_CONST(SDockTab, GetCurrentStyle, const FDockTabStyle&, void,, const);
@@ -1440,7 +1440,7 @@ void SLogWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentT
 		if (ActiveFindLabel.IsValid() && ActiveFindLabel->GetVisibility() != EVisibility::Collapsed)
 		{
 			const float FadeDuration = 2.f;
-			FLinearColor CurColor = (GET_PRIVATE(SBorder, ActiveFindLabel, BorderBackgroundColor)).Get().GetSpecifiedColor();
+			FLinearColor CurColor = CALL_PROTECTED(SBorder, ActiveFindLabel, GetBorderBackgroundColor)().GetSpecifiedColor();
 
 			CurColor.A -= (InDeltaTime / FadeDuration);
 

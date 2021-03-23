@@ -28,7 +28,7 @@ void SDataTableListViewRow::Construct(const FArguments& InArgs, const TSharedRef
 		InOwnerTableView
 	);
 
-	BorderImage = TAttribute<const FSlateBrush*>(this, &SDataTableListViewRow::GetBorder);
+	SetBorderImage(TAttribute<const FSlateBrush*>(this, &SDataTableListViewRow::GetBorder));
 
 }
 

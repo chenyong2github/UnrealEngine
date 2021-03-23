@@ -13,7 +13,7 @@ void SCAQueryTableRow::Construct(const FArguments& InArgs, const TSharedRef<STab
 
 	if(Item->bIsGroup)
 	{
-		BorderImage = FInvalidatableBrushAttribute(FCollisionAnalyzerStyle::Get()->GetBrush("CollisionAnalyzer.GroupBackground"));
+		SetBorderImage(FCollisionAnalyzerStyle::Get()->GetBrush("CollisionAnalyzer.GroupBackground"));
 	}
 }
 

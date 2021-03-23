@@ -261,7 +261,7 @@ void SEnvQueryProfilerTableRow::Construct(const FArguments& InArgs, const TShare
 	StatInfo = InStatInfo;
 
 	SMultiColumnTableRow<FEnvQueryProfilerStatDataPtr>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
-	BorderImage = TAttribute<const FSlateBrush*>(this, &SEnvQueryProfilerTableRow::GetBorder);
+	SetBorderImage(TAttribute<const FSlateBrush*>(this, &SEnvQueryProfilerTableRow::GetBorder));
 }
 
 const FSlateBrush* SEnvQueryProfilerTableRow::GetBorder() const

@@ -108,7 +108,7 @@ int32 SButton::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry
 			AllottedGeometry.ToPaintGeometry(),
 			BrushResource,
 			DrawEffects,
-			BrushResource->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint() * BorderBackgroundColor.Get().GetColor(InWidgetStyle)
+			BrushResource->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint() * GetBorderBackgroundColor().GetColor(InWidgetStyle)
 		);
 	}
 
@@ -421,7 +421,7 @@ bool SButton::IsInteractable() const
 bool SButton::ComputeVolatility() const
 {
 	// Note: we need to be careful with button volatility.  The parent SBorder class always has bound delegates to button but the following are the only thing that actually would be bound that would not be caught by an Invalidate call alone
-	return DesiredSizeScale.IsBound() || BorderBackgroundColor.IsBound() || ContentPadding.IsBound();
+	return ContentPadding.IsBound();
 }
 
 TEnumAsByte<EButtonClickMethod::Type> SButton::GetClickMethodFromInputType(const FPointerEvent& MouseEvent) const

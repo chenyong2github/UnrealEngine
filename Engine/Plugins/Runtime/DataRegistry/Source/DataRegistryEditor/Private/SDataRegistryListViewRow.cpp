@@ -23,8 +23,7 @@ void SDataRegistryListViewRow::Construct(const FArguments& InArgs, const TShared
 		InOwnerTableView
 	);
 
-	BorderImage = TAttribute<const FSlateBrush*>(this, &SDataRegistryListViewRow::GetBorder);
-
+	SetBorderImage(TAttribute<const FSlateBrush*>(this, &SDataRegistryListViewRow::GetBorder));
 }
 
 FReply SDataRegistryListViewRow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
