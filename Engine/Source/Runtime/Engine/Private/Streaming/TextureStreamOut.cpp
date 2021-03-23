@@ -155,7 +155,11 @@ void FTextureStreamOut::FinalizeNewMips(const FContext& Context)
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FTextureStreamOut::FinalizeNewMips"), STAT_TextureStreamIn_FinalizeNewMips, STATGROUP_StreamingDetails);
 
 	// Execute
-	if (!DoFinalizeNewMips(Context))
+	if (DoFinalizeNewMips(Context))
+	{
+		MarkAsSuccessfullyFinished();
+	}
+	else
 	{
 		MarkAsCancelled();
 	}
