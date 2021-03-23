@@ -107,7 +107,7 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (IsMetalPlatform(Parameters.Platform))
+		if (IsMetalPlatform(Parameters.Platform) && !IsMetalSM5Platform(Parameters.Platform))
 		{
 			return false;
 		}
@@ -911,7 +911,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 		// Applies diffuse indirect and ambient occlusion to the scene color.
 		if ((DenoiserOutputs.Textures[0] || AmbientOcclusionMask) && (!bIsVisualizePass || ViewPipelineState.DiffuseIndirectDenoiser != IScreenSpaceDenoiser::EMode::Disabled || ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
-			&& !IsMetalPlatform(ShaderPlatform))
+			&& !(IsMetalPlatform(ShaderPlatform) && !IsMetalSM5Platform(ShaderPlatform)))
 		{
 			FDiffuseIndirectCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiffuseIndirectCompositePS::FParameters>();
 			

@@ -496,6 +496,10 @@ void ShaderYield()
 #define EARLYDEPTHSTENCIL [earlydepthstencil]
 #endif
 
+#if METAL_MRT_PROFILE || METAL_SM5_PROFILE || METAL_SM5_NOTESS_PROFILE
+#define DUAL_SOURCE_BLENDING_SLOT(SLOT) [[vk::location(0), vk::index(SLOT)]]
+#endif
+
 // ---------------------------------------------------- Compiler attribute fallbacks
 
 #ifndef UNROLL
@@ -532,6 +536,10 @@ void ShaderYield()
 
 #ifndef EARLYDEPTHSTENCIL
 #define EARLYDEPTHSTENCIL
+#endif
+
+#ifndef DUAL_SOURCE_BLENDING_SLOT
+#define DUAL_SOURCE_BLENDING_SLOT(SLOT)
 #endif
 
 #ifndef DEPTHSTENCIL_EARLYTEST_LATEWRITE
