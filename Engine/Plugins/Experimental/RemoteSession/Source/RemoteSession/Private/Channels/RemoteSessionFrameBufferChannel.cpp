@@ -46,5 +46,3 @@ public:
 };
 
 REGISTER_CHANNEL_FACTORY(FRemoteSessionFrameBufferChannel, FRemoteSessionFrameBufferChannelFactoryWorker, ERemoteSessionChannelMode::Write);
-REGISTER_CHANNEL_FACTORY(FRemoteSessionFrameBufferChannel_DEPRECATED, FRemoteSessionFrameBufferChannelFactoryWorker, ERemoteSessionChannelMode::Write);
-
