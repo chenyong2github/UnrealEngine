@@ -666,7 +666,7 @@ bool UPolygonSelectionMechanic::EndChangeAndEmitIfModified()
 	if (SelectionTimestamp != ActiveChange->Timestamp)
 	{
 		GetParentTool()->GetToolManager()->EmitObjectChange(this, MoveTemp(ActiveChange),
-			LOCTEXT("SelectionChange", "Selection Change"));
+			LOCTEXT("SelectionChangeMessage", "Selection Change"));
 		return true;
 	}
 	ActiveChange = TUniquePtr<FPolygonSelectionMechanicSelectionChange>();
