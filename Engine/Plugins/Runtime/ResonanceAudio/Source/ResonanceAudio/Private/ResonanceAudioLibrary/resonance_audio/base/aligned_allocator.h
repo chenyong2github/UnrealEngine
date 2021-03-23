@@ -84,9 +84,9 @@ class AlignedAllocator : public std::allocator<Type> {
  public:
 
 #if __cplusplus >= 201703L
-  using Pointer = pointer;
-  using ConstPointer = const_pointer;
-  using SizeType = size_type;
+  using Pointer = typename std::allocator_traits<std::allocator<Type>>::pointer;
+  using ConstPointer = typename std::allocator_traits<std::allocator<Type>>::const_pointer;
+  using SizeType = typename std::allocator_traits<std::allocator<Type>>::size_type;
 
 #else
   typedef typename std::allocator<Type>::pointer Pointer;

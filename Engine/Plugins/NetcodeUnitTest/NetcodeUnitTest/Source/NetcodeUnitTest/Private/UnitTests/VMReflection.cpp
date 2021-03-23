@@ -47,7 +47,7 @@ bool UVMReflection::ExecuteUnitTest()
 		(void)(UObject*)(FVMReflection(TestObjA)->*"AObjectRef", &bOriginalError);
 
 		bool bError = false;
-		(FString)(FVMReflection(TestObjA)->*"AObjectRef", &bError);
+		(void)(FString)(FVMReflection(TestObjA)->*"AObjectRef", &bError);
 
 
 		TestResults.Add(TEXT("Reflection casting error"), (!bOriginalError && bError));
