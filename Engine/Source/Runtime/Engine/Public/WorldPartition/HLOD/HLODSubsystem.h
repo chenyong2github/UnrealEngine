@@ -8,9 +8,9 @@
 
 #include "HLODSubsystem.generated.h"
 
-class UWorldPartitionSubsystem;
-class AWorldPartitionHLOD;
+class UWorldPartition;
 class UWorldPartitionRuntimeCell;
+class AWorldPartitionHLOD;
 
 /**
  * UHLODSubsystem
@@ -36,6 +36,8 @@ public:
 	void OnCellHidden(const UWorldPartitionRuntimeCell* InCell);
 	
 private:
+	void OnWorldPartitionRegistered(UWorldPartition* InWorldPartition);
+	void OnWorldPartitionUnregistered(UWorldPartition* InWorldPartition);
 
 private:
 	struct FCellHLODMapping
@@ -48,5 +50,5 @@ private:
 		}
 	};
 
-	TMap<FName, FCellHLODMapping> CellsHLODMapping;
+	TMap<UWorldPartition*, TMap<FName, FCellHLODMapping>> CellsHLODMapping;
 };

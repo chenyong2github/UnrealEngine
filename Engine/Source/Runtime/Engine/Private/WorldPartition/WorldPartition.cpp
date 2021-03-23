@@ -323,12 +323,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	InitState = EWorldPartitionInitState::Initialized;
 
-	if (!IsRunningCookCommandlet())
-	{
-		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-		WorldPartitionSubsystem->RegisterWorldPartition(this);
-	}
-
 #if WITH_EDITOR
 	if (!bEditorOnly)
 	{
@@ -341,6 +335,12 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
 	}
 #endif
+
+	if (!IsRunningCookCommandlet())
+	{
+		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
+		WorldPartitionSubsystem->RegisterWorldPartition(this);
+	}
 }
 
 void UWorldPartition::RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
