@@ -70,10 +70,16 @@ public:
 class ITimingEventRelation
 {
 public:
+	enum class EDrawFilter
+	{
+		BetweenScrollableTracks, //  Only draw relations between 2 scrollable tracks.
+		BetweenDockedTracks, // Only draw relation if the source or target track are docked.
+	};
+
 	ITimingEventRelation() {}
 	virtual ~ITimingEventRelation() {}
 	virtual bool IsSolved() = 0;
-	virtual void Draw(const FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const ITimingViewDrawHelper& Helper) = 0;
+	virtual void Draw(const FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const ITimingViewDrawHelper& Helper, const EDrawFilter Filter) = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

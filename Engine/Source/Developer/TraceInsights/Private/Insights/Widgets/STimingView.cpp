@@ -1148,6 +1148,9 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		PreDrawTracksDurationHistory.AddValue(PreDrawTracksStopwatch.AccumulatedTime);
 	}
 
+	const FVector2D Position = AllottedGeometry.GetAbsolutePosition();
+	const float Scale = AllottedGeometry.GetAccumulatedLayoutTransform().GetScale();
+
 	//////////////////////////////////////////////////
 	// Draw
 	{
@@ -1155,9 +1158,6 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		DrawTracksStopwatch.Start();
 
 		Helper.BeginDrawTracks();
-
-		const FVector2D Position = AllottedGeometry.GetAbsolutePosition();
-		const float Scale = AllottedGeometry.GetAccumulatedLayoutTransform().GetScale();
 
 		// Draw the scrollable tracks.
 		{
@@ -1186,6 +1186,10 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 					TrackPtr->Draw(TimingDrawContext);
 				}
 			}
+
+			// Draw relations between scrollable tracks.
+			const FTimingViewDrawHelper& TimingHelper = *static_cast<const FTimingViewDrawHelper*>(&TimingDrawContext.GetHelper());
+			TimingHelper.DrawRelations(CurrentRelations, ITimingEventRelation::EDrawFilter::BetweenScrollableTracks);
 
 			DrawContext.ElementList.PopClip();
 		}
@@ -1298,9 +1302,6 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	// Draw the time range selection.
 	FDrawHelpers::DrawTimeRangeSelection(DrawContext, Viewport, SelectionStartTime, SelectionEndTime, WhiteBrush, MainFont);
 
-	const FTimingViewDrawHelper& TimingHelper = *static_cast<const FTimingViewDrawHelper*>(&TimingDrawContext.GetHelper());
-	TimingHelper.DrawRelations(CurrentRelations);
-
 	//////////////////////////////////////////////////
 	// Post-Draw
 	{
@@ -1398,6 +1399,30 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			const float Opacity = OverscrollBottom * static_cast<float>(OverscrollLineCount - LineIndex) / static_cast<float>(OverscrollLineCount);
 			DrawContext.DrawBox(0.0f, OverscrollLineY - (1 + LineIndex) * OverscrollLineSize, ViewWidth, OverscrollLineSize, WhiteBrush, FLinearColor(1.0f, 0.1f, 0.1f, Opacity));
 		}
+	}
+
+	//////////////////////////////////////////////////
+
+	// Draw relations between docked/foreground tracks.
+	if (GraphTrack->IsVisible())
+	{
+		const float TopY = GraphTrack->GetPosY() + GraphTrack->GetHeight();
+		const float BottomY = Viewport.GetHeight();
+
+		const float L = Position.X;
+		const float R = Position.X + (Viewport.GetWidth() * Scale);
+		const float T = Position.Y + (TopY * Scale);
+		const float B = Position.Y + (BottomY * Scale);
+		const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+		DrawContext.ElementList.PushClip(ClipZone);
+	}
+
+	const FTimingViewDrawHelper& TimingHelper = *static_cast<const FTimingViewDrawHelper*>(&TimingDrawContext.GetHelper());
+	TimingHelper.DrawRelations(CurrentRelations, ITimingEventRelation::EDrawFilter::BetweenDockedTracks);
+
+	if (GraphTrack->IsVisible())
+	{
+		DrawContext.ElementList.PopClip();
 	}
 
 	//////////////////////////////////////////////////

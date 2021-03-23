@@ -7,8 +7,9 @@
 #include "Math/Color.h"
 
 // Insights
-#include "Insights/ViewModels/TimingEventsTrack.h" // for ITimingEventsTrackDrawStateBuilder
+#include "Insights/ViewModels/ITimingEvent.h"
 #include "Insights/ViewModels/ITimingViewDrawHelper.h"
+#include "Insights/ViewModels/TimingEventsTrack.h" // for ITimingEventsTrackDrawStateBuilder
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -195,7 +196,7 @@ public:
 
 	void EndDrawTracks() const;
 
-	void DrawRelations(const TArray<ITimingEventRelation*> Relations) const;
+	void DrawRelations(const TArray<ITimingEventRelation*> Relations, ITimingEventRelation::EDrawFilter Filter) const;
 
 	//////////////////////////////////////////////////
 

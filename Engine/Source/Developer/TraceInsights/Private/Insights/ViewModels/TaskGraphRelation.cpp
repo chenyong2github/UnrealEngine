@@ -18,8 +18,28 @@ FTaskGraphRelation::FTaskGraphRelation(double InSourceTime, int32 InSourceThread
 	Type = InType;
 }
 
-void FTaskGraphRelation::Draw(const FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const ITimingViewDrawHelper& Helper)
+void FTaskGraphRelation::Draw(const FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const ITimingViewDrawHelper& Helper, const ITimingEventRelation::EDrawFilter Filter)
 {
+	int32 LayerId = Helper.GetRelationLayerId();
+
+	if (Filter == ITimingEventRelation::EDrawFilter::BetweenScrollableTracks)
+	{
+		if (SourceTrack.Pin()->GetLocation() > ETimingTrackLocation::Scrollable || TargetTrack.Pin()->GetLocation() > ETimingTrackLocation::Scrollable)
+		{
+			return;
+		}
+	}
+
+	if (Filter == ITimingEventRelation::EDrawFilter::BetweenDockedTracks)
+	{
+		if (SourceTrack.Pin()->GetLocation() <= ETimingTrackLocation::Scrollable && TargetTrack.Pin()->GetLocation() <= ETimingTrackLocation::Scrollable)
+		{
+			return;
+		}
+
+		LayerId = DrawContext.LayerId;
+	}
+
 	float X1 = Viewport.TimeToSlateUnitsRounded(SourceTime);
 	float Y1 = SourceTrack.Pin()->GetPosY();
 	Y1 += Viewport.GetLayout().GetLaneY(SourceDepth) + Viewport.GetLayout().EventH / 2.0f;
@@ -55,24 +75,24 @@ void FTaskGraphRelation::Draw(const FDrawContext& DrawContext, const FTimingTrac
 		FVector2D SplineStart(StartPoint.X + LineLenghtAtEnds, StartPoint.Y);
 		FVector2D SplineEnd(EndPoint.X - LineLenghtAtEnds, EndPoint.Y);
 
-		DrawContext.DrawSpline(Helper.GetRelationLayerId(), 0.0f, 0.0f, SplineStart, StartDir, SplineEnd, StartDir, /*Thickness=*/ 2.0f, Color);
+		DrawContext.DrawSpline(LayerId, 0.0f, 0.0f, SplineStart, StartDir, SplineEnd, StartDir, /*Thickness=*/ 2.0f, Color);
 
 		ArrowPoints.Add(StartPoint);
 		ArrowPoints.Add(SplineStart);
 
-		DrawContext.DrawLines(Helper.GetRelationLayerId(), 0.0f, 0.0f, ArrowPoints, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, /*Thickness=*/ 2.0f);
+		DrawContext.DrawLines(LayerId, 0.0f, 0.0f, ArrowPoints, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, /*Thickness=*/ 2.0f);
 
 		ArrowPoints.Empty();
 		ArrowPoints.Add(SplineEnd);
 		ArrowPoints.Add(EndPoint);
-		DrawContext.DrawLines(Helper.GetRelationLayerId(), 0.0f, 0.0f, ArrowPoints, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, /*Thickness=*/ 2.0f);
+		DrawContext.DrawLines(LayerId, 0.0f, 0.0f, ArrowPoints, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, /*Thickness=*/ 2.0f);
 	}
 	else
 	{
 		ArrowPoints.Empty();
 		ArrowPoints.Add(StartPoint);
 		ArrowPoints.Add(EndPoint);
-		DrawContext.DrawLines(Helper.GetRelationLayerId(), 0.0f, 0.0f, ArrowPoints, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, /*Thickness=*/ 2.0f);
+		DrawContext.DrawLines(LayerId, 0.0f, 0.0f, ArrowPoints, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, /*Thickness=*/ 2.0f);
 	}
 
 	FVector2D ArrowOrigin = EndPoint;
@@ -87,7 +107,7 @@ void FTaskGraphRelation::Draw(const FDrawContext& DrawContext, const FTimingTrac
 	ArrowPoints.Add(ArrowOrigin + ArrowDirection.GetRotated(-ArrowRotationAngle));
 
 	constexpr float YOffset = 1.0f; // Needed to align the arrow with the line. 
-	DrawContext.DrawLines(Helper.GetRelationLayerId(), 0.0f, YOffset, ArrowPoints, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, /*Thickness=*/ 2.0f);
+	DrawContext.DrawLines(LayerId, 0.0f, YOffset, ArrowPoints, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, /*Thickness=*/ 2.0f);
 }
 
 } // namespace Insights
