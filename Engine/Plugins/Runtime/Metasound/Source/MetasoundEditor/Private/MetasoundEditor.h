@@ -188,19 +188,19 @@ namespace Metasound
 
 			/** Toolbar command methods */
 			void Import();
+			void ExecuteNode();
 			void Export();
 			void Play();
-			void PlayNode();
 			void Stop();
 
 			/** Whether we can play the current selection of nodes */
-			bool CanPlayNode() const;
+			bool CanExecuteNode() const;
 
 			/** Either play the Metasound or stop currently playing sound */
 			void TogglePlayback();
 
-			/** Plays a single specified node */
-			void PlaySingleNode(UEdGraphNode* Node);
+			/** Executes specified node (If supported) */
+			void ExecuteNode(UEdGraphNode* Node);
 
 			/** Sync the content browser to the current selection of nodes */
 			void SyncInBrowser();

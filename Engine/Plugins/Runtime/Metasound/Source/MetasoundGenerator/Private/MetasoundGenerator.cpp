@@ -155,8 +155,6 @@ namespace Metasound
 			bIsFinished = true;
 		}
 
-		OnPlayTriggerRef->AdvanceBlock();
-
 		return NumSamplesWritten;
 	}
 

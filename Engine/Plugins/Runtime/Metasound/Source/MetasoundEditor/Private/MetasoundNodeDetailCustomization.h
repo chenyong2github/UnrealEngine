@@ -40,11 +40,24 @@ namespace Metasound
 			//~ End IPropertyTypeCustomization
 
 		protected:
+			virtual FText GetPropertyNameOverride() const { return FText::GetEmpty(); }
 			virtual TSharedRef<SWidget> CreateStructureWidget(TSharedPtr<IPropertyHandle>& PropertyHandle) const = 0;
 			virtual void CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle) { }
 
 		private:
+			TSharedRef<SWidget> CreateNameWidget(TSharedPtr<IPropertyHandle> StructPropertyHandle) const;
 			TSharedRef<SWidget> CreateValueWidget(TSharedPtr<IPropertyHandleArray> ParentArrayProperty, TSharedPtr<IPropertyHandle> StructPropertyHandle, bool bIsInArray) const;
+		};
+
+		class FMetasoundInputBoolDetailCustomization : public FMetasoundInputArrayDetailCustomizationBase
+		{
+		protected:
+			virtual FText GetPropertyNameOverride() const override;
+			virtual TSharedRef<SWidget> CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const override;
+			virtual void CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle) override;
+
+		private:
+			FName DataTypeName;
 		};
 
 		class FMetasoundInputIntDetailCustomization : public FMetasoundInputArrayDetailCustomizationBase

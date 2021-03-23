@@ -286,6 +286,10 @@ namespace Metasound
 					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundOutputDetailCustomization>(); }));
 
 				PropertyModule.RegisterCustomPropertyTypeLayout(
+					"MetasoundEditorGraphInputBoolRef",
+					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputBoolDetailCustomization>(); }));
+
+				PropertyModule.RegisterCustomPropertyTypeLayout(
 					"MetasoundEditorGraphInputIntRef",
 					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputIntDetailCustomization>(); }));
 

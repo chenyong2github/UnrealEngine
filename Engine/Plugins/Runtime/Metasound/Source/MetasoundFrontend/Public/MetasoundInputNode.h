@@ -5,6 +5,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundTrigger.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGraphCore"
 
@@ -19,9 +20,13 @@ namespace Metasound
 			using FDataWriteReference = TDataWriteReference<DataType>;
 
 			TInputOperator(const FVertexKey& InDataReferenceName, FDataWriteReference InDataReference)
+				: DataReferenceName(InDataReferenceName)
+				// Executable DataTypes require a copy of the output to operate on whereas non-executable
+				// types do not. Avoid copy by assigning to reference for non-executable types.
+				, Output(TExecutableDataType<DataType>::bIsExecutable ? FDataWriteReference::CreateNew(*InDataReference) : InDataReference)
 			{
 				Inputs.AddDataWriteReference<DataType>(InDataReferenceName, InDataReference);
-				Outputs.AddDataReadReference<DataType>(InDataReferenceName, InDataReference);
+				Outputs.AddDataReadReference<DataType>(InDataReferenceName, Output);
 			}
 
 			virtual ~TInputOperator() {}
@@ -36,12 +41,30 @@ namespace Metasound
 				return Outputs;
 			}
 
+			void Execute()
+			{
+				FDataWriteReference Input = Inputs.GetDataWriteReference<DataType>(DataReferenceName);
+				TExecutableDataType<DataType>::Execute(*Input, *Output);
+			}
+
+			static void ExecuteFunction(IOperator* InOperator)
+			{
+				static_cast<TInputOperator<DataType>*>(InOperator)->Execute();
+			}
+
 			virtual FExecuteFunction GetExecuteFunction() override
 			{
+				if (TExecutableDataType<DataType>::bIsExecutable)
+				{
+					return &TInputOperator<FTrigger>::ExecuteFunction;
+				}
 				return nullptr;
 			}
 
 		private:
+			FVertexKey DataReferenceName;
+			FDataWriteReference Output;
+
 			FDataReferenceCollection Outputs;
 			FDataReferenceCollection Inputs;
 	};

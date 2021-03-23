@@ -188,6 +188,8 @@ namespace Metasound
 
 		virtual ~ISender();
 
+		virtual int64 GetPayloadID() const = 0;
+
 		// Constructs the value with a literal and pushes to data channel. 
 		virtual bool PushLiteral(const FLiteral& InLiteral) = 0;
 
@@ -239,6 +241,7 @@ namespace Metasound
 			return NumAliveSenders.GetValue();
 		}
 
+		virtual int64 GetPayloadID() const { return 0; }
 		virtual bool PushOpaque(ISender& InSender) { return true; };
 		virtual void PopOpaque(IReceiver& InReceiver) {};
 		virtual bool IsEmpty() const { return true; };
@@ -404,6 +407,11 @@ namespace Metasound
 			SetDelay(InitParams.DelayTimeInSeconds);
 		}
 
+		int64 GetPayloadID() const override
+		{
+			return PayloadID;
+		}
+
 		TDataType RetrievePayload()
 		{
 			check(Payload.IsValid());
@@ -413,9 +421,10 @@ namespace Metasound
 		// Push from the SenderBuffer to the data channel.
 		bool PushToDataChannel()
 		{
+			++PayloadID;
 			if (!Payload.IsValid())
 			{
-				Payload.Reset(new TDataType(SenderBuffer.Pop()));
+				Payload = MakeUnique<TDataType>(SenderBuffer.Pop());
 			}
 			else
 			{
@@ -428,6 +437,8 @@ namespace Metasound
 	private:
 		// This buffer acts as a delay line for this sender specifically.
 		Audio::TCircularAudioBuffer<TDataType> SenderBuffer;
+
+		int64 PayloadID = 0;
 
 		// lazily initialized holder for payload, allocated on first call to Push.
 		// Placed on the heap so that we don't have to assume we know how to construct TDataType.
@@ -447,7 +458,7 @@ namespace Metasound
 
 		bool CanPop() const
 		{
-			return !DataChannel->IsEmpty();
+			return DataChannel->GetPayloadID() != LastPayloadID && !DataChannel->IsEmpty();
 		}
 
 		// Pop the latest value from the data channel.
@@ -471,11 +482,18 @@ namespace Metasound
 		{
 		}
 
-		void PushPayload(const TDataType& InDataPayload)
+		void PushPayload(int64 InPayloadID, const TDataType& InDataPayload)
 		{
+			// Attempting to send the same payload again, so ignore.
+			if (InPayloadID == LastPayloadID)
+			{
+				return;
+			}
+
+			LastPayloadID = InPayloadID;
 			if (!Payload.IsValid())
 			{
-				Payload.Reset(new TDataType(InDataPayload));
+				Payload = MakeUnique<TDataType>(InDataPayload);
 			}
 			else
 			{
@@ -484,6 +502,7 @@ namespace Metasound
 		}
 
 	private:
+		int64 LastPayloadID = INDEX_NONE;
 		TUniquePtr<TDataType> Payload;
 		FOperatorSettings OperatorSettings;
 	};
@@ -501,18 +520,26 @@ namespace Metasound
 			, OperatorSettings(InOperatorSettings)
 		{}
 
+		virtual int64 GetPayloadID() const override
+		{
+			return PayloadID;
+		}
+
 		virtual bool PushOpaque(ISender& InSender) override
 		{
 			TSender<TDataType>& CastSender = InSender.GetAs<TSender<TDataType>>();
 
-			FScopeLock ScopeLock(&AtomicDataLock);
-			if (!AtomicData.IsValid())
 			{
-				AtomicData.Reset(new TDataType(CastSender.RetrievePayload()));
-			}
-			else
-			{
-				*AtomicData = CastSender.RetrievePayload();
+				FScopeLock ScopeLock(&AtomicDataLock);
+				PayloadID = InSender.GetPayloadID();
+				if (!AtomicData.IsValid())
+				{
+					AtomicData = MakeUnique<TDataType>(CastSender.RetrievePayload());
+				}
+				else
+				{
+					*AtomicData = CastSender.RetrievePayload();
+				}
 			}
 
 			return true;
@@ -525,7 +552,7 @@ namespace Metasound
 			FScopeLock ScopeLock(&AtomicDataLock);
 			if (AtomicData.IsValid())
 			{
-				CastReceiver.PushPayload(*AtomicData);
+				CastReceiver.PushPayload(PayloadID, *AtomicData);
 			}
 		}
 
@@ -553,7 +580,7 @@ namespace Metasound
 				FScopeLock ScopeLock(&AtomicDataLock);
 				if (!AtomicData.IsValid())
 				{
-					AtomicData.Reset(new TDataType(DataToPush));
+					AtomicData = MakeUnique<TDataType>(DataToPush);
 				}
 				else
 				{
@@ -580,13 +607,13 @@ namespace Metasound
 		}
 
 	private:
-		FThreadSafeCounter ReceiverCounter;
-
 		// NOTE- In the future, this could be changed to use a TCircualrAudioBuffer or a TQueue for lockless operation.
 		// The primary challenge with this is handling multiple senders and receivers.
 		// In order to support multiple senders and receivers at scale, we'd need a good implementation of a bounded MPMC queue for arbitrary datatypes.
 		TUniquePtr<TDataType> AtomicData;
 		FCriticalSection AtomicDataLock;
+
+		int64 PayloadID = 0;
 
 		FOperatorSettings OperatorSettings;
 	};
@@ -620,6 +647,11 @@ namespace Metasound
 			}
 
 			return true;
+		}
+
+		int64 GetPayloadID() const override
+		{
+			return 0;
 		}
 
 		bool PushLiteral(const FLiteral& InLiteral) override

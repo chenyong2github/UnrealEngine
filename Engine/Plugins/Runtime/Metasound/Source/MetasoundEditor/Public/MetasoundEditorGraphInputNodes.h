@@ -93,6 +93,16 @@ protected:
 	friend class Metasound::Editor::FGraphBuilder;
 };
 
+// Broken out to be able to customize and swap enum behavior for basic integer literal behavior
+USTRUCT()
+struct FMetasoundEditorGraphInputBoolRef
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = DefaultValue)
+	bool Value = false;
+};
+
 UCLASS(MinimalAPI)
 class UMetasoundEditorGraphInputBool : public UMetasoundEditorGraphInputLiteral
 {
@@ -102,12 +112,12 @@ public:
 	virtual ~UMetasoundEditorGraphInputBool() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
-	bool Default = false;
+	FMetasoundEditorGraphInputBoolRef Default;
 
 	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
 		FMetasoundFrontendLiteral Literal;
-		Literal.Set(Default);
+		Literal.Set(Default.Value);
 		return Literal;
 	}
 
@@ -118,7 +128,7 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		InInstanceTransmitter.SetParameter(*InParameterName, Default);
+		InInstanceTransmitter.SetParameter(*InParameterName, Default.Value);
 	}
 };
 
@@ -131,12 +141,15 @@ public:
 	virtual ~UMetasoundEditorGraphInputBoolArray() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
-	TArray<bool> Default;
+	TArray<FMetasoundEditorGraphInputBoolRef> Default;
 
 	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
+		TArray<bool> BoolArray;
+		Algo::Transform(Default, BoolArray, [](const FMetasoundEditorGraphInputBoolRef& InValue) { return InValue.Value; });
+
 		FMetasoundFrontendLiteral Literal;
-		Literal.Set(Default);
+		Literal.Set(BoolArray);
 		return Literal;
 	}
 
@@ -147,7 +160,10 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		InInstanceTransmitter.SetParameter(*InParameterName, TArray<bool>{Default});
+		TArray<bool> BoolArray;
+		Algo::Transform(Default, BoolArray, [](const FMetasoundEditorGraphInputBoolRef& InValue) { return InValue.Value; });
+
+		InInstanceTransmitter.SetParameter(*InParameterName, MoveTemp(BoolArray));
 	}
 };
 
@@ -222,7 +238,7 @@ public:
 		TArray<int32> IntArray;
 		Algo::Transform(Default, IntArray, [](const FMetasoundEditorGraphInputIntRef& InValue) { return InValue.Value; });
 
-		InInstanceTransmitter.SetParameter(*InParameterName, TArray<int32>{ IntArray });
+		InInstanceTransmitter.SetParameter(*InParameterName, MoveTemp(IntArray));
 	}
 };
 
@@ -280,7 +296,7 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		InInstanceTransmitter.SetParameter(*InParameterName, TArray<float>{Default});
+		InInstanceTransmitter.SetParameter(*InParameterName, TArray<float> { Default });
 	}
 };
 
@@ -309,7 +325,7 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		InInstanceTransmitter.SetParameter(*InParameterName, FString{ Default });
+		InInstanceTransmitter.SetParameter(*InParameterName, FString { Default });
 	}
 };
 
@@ -338,7 +354,7 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		InInstanceTransmitter.SetParameter(*InParameterName, TArray<FString>{Default});
+		InInstanceTransmitter.SetParameter(*InParameterName, TArray<FString> { Default });
 	}
 };
 

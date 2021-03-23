@@ -36,7 +36,6 @@ namespace Metasound
 
 		if (InFrameToTrigger < NumFramesPerBlock)
 		{
-			// Update last trigger pos. 
 			UpdateLastTriggerIndexInBlock();
 		}
 

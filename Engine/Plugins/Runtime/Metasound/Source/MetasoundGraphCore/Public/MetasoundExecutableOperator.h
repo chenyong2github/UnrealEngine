@@ -6,12 +6,33 @@
 
 #include "MetasoundOperatorInterface.h"
 
+
 namespace Metasound
 {
+	// As a general rule, ExecutableDataTypes should be avoided whenever possible
+	// as they incur an undesired cost and are generally not typically necessary.
+	// This is primarily for the special case of trigger types, where state management
+	// cannot be avoided (or rather an avoidable design has yet to be formulated).
+	template<class DataType>
+	struct TExecutableDataType
+	{
+		static constexpr bool bIsExecutable = false;
+
+		static void Execute(const DataType& InData, const DataType& OutData)
+		{
+			// No-Op for base case as most DataTypes (ex POD) are not executable.
+		}
+
+		static void ExecuteInline(DataType& InData, bool bInUpdated)
+		{
+			// No-Op for base case as most DataTypes (ex POD) are not executable.
+		}
+	};
+
 	/** Convenience class for supporting the IOperator interface's GetExecuteFunction virtual member function.
 	 *
-	 * Dervied classes should inherit from this template class as well as implement a void Execute() member
-	 * function. 
+	 * Derived classes should inherit from this template class as well as implement a void Execute() member
+	 * function.
 	 *
 	 * 	class MyOperator : public TExecutableOperator<MyOperator>
 	 * 	{
@@ -19,7 +40,7 @@ namespace Metasound
 	 * 	  ...
 	 * 	  void Execute()
 	 * 	  {
-	 * 	     ...
+	 *		  ...
 	 * 	  }
 	 * 	};
 	 */

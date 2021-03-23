@@ -16,6 +16,7 @@
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "IAudioExtensionPlugin.h"
 #include "IDetailsView.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Metasound.h"
@@ -717,7 +718,6 @@ namespace Metasound
 					}
 				}
 
-
 				MetasoundGraphEditor->RegisterActiveTimer(0.0f,
 					FWidgetActiveTimerDelegate::CreateLambda([](double InCurrentTime, float InDeltaTime)
 						{
@@ -735,19 +735,18 @@ namespace Metasound
 			}
 		}
 
-		void FEditor::PlayNode()
+		void FEditor::ExecuteNode()
 		{
 			const FGraphPanelSelectionSet SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
 			for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 			{
-				PlaySingleNode(CastChecked<UEdGraphNode>(*NodeIt));
+				ExecuteNode(CastChecked<UEdGraphNode>(*NodeIt));
 			}
 		}
 
-		bool FEditor::CanPlayNode() const
+		bool FEditor::CanExecuteNode() const
 		{
-			// TODO: Implement node playback
-			return false;
+			return true;
 		}
 
 		void FEditor::Stop()
@@ -771,9 +770,22 @@ namespace Metasound
 			}
 		}
 
-		void FEditor::PlaySingleNode(UEdGraphNode* Node)
+		void FEditor::ExecuteNode(UEdGraphNode* Node)
 		{
-			// TODO: Implement? Will we support single node playback?
+			if (UMetasoundEditorGraphInputNode* InputNode = Cast<UMetasoundEditorGraphInputNode>(Node))
+			{
+				// TODO: fix how identifying the parameter to update is determined. It should not be done
+				// with a "DisplayName" but rather the vertex Guid.
+				if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(InputNode->GetOuter()))
+				{
+					if (IAudioInstanceTransmitter* Transmitter = MetasoundGraph->GetMetasoundInstanceTransmitter())
+					{
+						Metasound::Frontend::FConstNodeHandle NodeHandle = InputNode->GetConstNodeHandle();
+						Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
+						Transmitter->SetParameter(*VertexKey, true);
+					}
+				}
+			}
 		}
 
 		void FEditor::EditMetasoundSettings()
@@ -874,6 +886,10 @@ namespace Metasound
 					FExecuteAction::CreateLambda([this]() { PasteNodes(); }),
 					FCanExecuteAction::CreateSP(this, &FEditor::CanPasteNodes));
 
+				GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
+					FExecuteAction::CreateSP(this, &FEditor::DeleteSelectedNodes),
+					FCanExecuteAction::CreateLambda([this]() { return CanDeleteNodes(); }));
+
 				GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
 					FExecuteAction::CreateLambda([this] { CopySelectedNodes(); PasteNodes(); }),
 					FCanExecuteAction::CreateLambda([this]() { return CanCopyNodes(); }));
@@ -914,7 +930,7 @@ namespace Metasound
 			SGraphEditor::FGraphEditorEvents InEvents;
 			InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FEditor::OnSelectedNodesChanged);
 			InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FEditor::OnNodeTitleCommitted);
-			InEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &FEditor::PlaySingleNode);
+			InEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &FEditor::ExecuteNode);
 
 			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 			check(MetasoundAsset);
@@ -1189,7 +1205,7 @@ namespace Metasound
 
 		bool FEditor::CanDeleteNodes() const
 		{
-			if (MetasoundGraphEditor->GetSelectedNodes().Num() == 0)
+			if (MetasoundGraphEditor->GetSelectedNodes().IsEmpty())
 			{
 				return false;
 			}

@@ -489,13 +489,10 @@ void UMetasoundEditorGraphSchema::GetContextMenuActions(class UToolMenu* Menu, c
 			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
 		}
 	}
-	else if (Context->Node)
+	else if (Context->Node && Context->Node->IsA<UMetasoundEditorGraphNode>())
 	{
-		const UMetasoundEditorGraphNode* SoundGraphNode = Cast<const UMetasoundEditorGraphNode>(Context->Node);
-		{
-			FToolMenuSection& Section = Menu->AddSection("MetasoundGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
-			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
-		}
+		FToolMenuSection& Section = Menu->AddSection("MetasoundGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
+		Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 	}
 
 	Super::GetContextMenuActions(Menu, Context);

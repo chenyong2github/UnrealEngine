@@ -66,23 +66,20 @@ namespace Metasound
 		return SetParameterWithLiteral(InParameterName, FLiteral(MoveTemp(InValue)));
 	}
 
-	bool FMetasoundInstanceTransmitter::SetParameterWithLiteral(const FName& InParameterName, const FLiteral& InLiteral) 
+	bool FMetasoundInstanceTransmitter::SetParameterWithLiteral(const FName& InParameterName, const FLiteral& InLiteral)
 	{
-		ISender* Sender = FindSender(InParameterName);
-
-		if (nullptr == Sender)
+		if (ISender* Sender = FindSender(InParameterName))
 		{
-			// If not sender exists for parameter name, attempt to add one.
-			if (const FSendInfo* SendInfo = FindSendInfo(InParameterName))
-			{
-				Sender = AddSender(*SendInfo);
-			}
+			return Sender->PushLiteral(InLiteral);
 		}
 
-		if (nullptr != Sender)
+		// If no sender exists for parameter name, attempt to add one.
+		if (const FSendInfo* SendInfo = FindSendInfo(InParameterName))
 		{
-			// Push data using found sender.
-			return Sender->PushLiteral(InLiteral);
+			if (ISender* Sender = AddSender(*SendInfo))
+			{
+				return Sender->PushLiteral(InLiteral);
+			}
 		}
 
 		return false;
@@ -100,8 +97,7 @@ namespace Metasound
 
 	ISender* FMetasoundInstanceTransmitter::FindSender(const FName& InParameterName)
 	{
-		TUniquePtr<ISender>* SenderPtrPtr = InputSends.Find(InParameterName);
-		if (SenderPtrPtr)
+		if (TUniquePtr<ISender>* SenderPtrPtr = InputSends.Find(InParameterName))
 		{
 			return SenderPtrPtr->Get();
 		}

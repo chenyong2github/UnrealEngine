@@ -62,8 +62,108 @@ namespace Metasound
 			static const FText InputNameText = LOCTEXT("Input_Name", "Input Name");
 			static const FText OutputNameText = LOCTEXT("Output_Name", "Output Name");
 
+			static const FName TriggerTypeName = "Trigger";
+
 			static const FName DataTypeNameIdentifier = "DataTypeName";
 			static const FName ProxyGeneratorClassNameIdentifier = "GeneratorClass";
+
+			void ExecuteInputTrigger(UMetasoundEditorGraphInputLiteral* Literal)
+			{
+				if (!Literal)
+				{
+					return;
+				}
+
+				UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(Literal->GetOuter());
+				if (!ensure(Input))
+				{
+					return;
+				}
+
+				// TODO: fix how identifying the parameter to update is determined. It should not be done
+				// with a "DisplayName" but rather the vertex Guid.
+				if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(Input->GetOuter()))
+				{
+					if (IAudioInstanceTransmitter* Transmitter = MetasoundGraph->GetMetasoundInstanceTransmitter())
+					{
+						Metasound::Frontend::FConstNodeHandle NodeHandle = Input->GetConstNodeHandle();
+						Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
+						Transmitter->SetParameter(*VertexKey, true);
+					}
+				}
+			}
+		}
+
+		void FMetasoundInputBoolDetailCustomization::CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle)
+		{
+			DataTypeName = FName();
+
+			const FString* MetadataDataTypeName = ProxyHandle->GetInstanceMetaData(VariableCustomizationPrivate::DataTypeNameIdentifier);
+			if (ensure(MetadataDataTypeName))
+			{
+				DataTypeName = **MetadataDataTypeName;
+			}
+		}
+
+		FText FMetasoundInputBoolDetailCustomization::GetPropertyNameOverride() const
+		{
+			if (DataTypeName == VariableCustomizationPrivate::TriggerTypeName)
+			{
+				return LOCTEXT("TriggerInput_SimulateTitle", "Simulate");
+			}
+
+			return FText::GetEmpty();
+		}
+
+		TSharedRef<SWidget> FMetasoundInputBoolDetailCustomization::CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const
+		{
+			using namespace Frontend;
+
+			if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
+			{
+				TSharedPtr<IPropertyHandle> ValueProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundEditorGraphInputBoolRef, Value));
+				if (ValueProperty.IsValid())
+				{
+					// Not a trigger, so just display as underlying literal type (bool)
+					if (DataTypeName != VariableCustomizationPrivate::TriggerTypeName)
+					{
+						return ValueProperty->CreatePropertyValueWidget();
+					}
+
+					return
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+						.VAlign(VAlign_Center)
+						[
+							SNew(SButton)
+							.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+							.OnClicked_Lambda([ValueProperty]()
+							{
+								TArray<UObject*> OuterObjects;
+								ValueProperty->GetOuterObjects(OuterObjects);
+								for (UObject* Object : OuterObjects)
+								{
+									UMetasoundEditorGraphInputLiteral* Literal = Cast<UMetasoundEditorGraphInputLiteral>(Object);
+									VariableCustomizationPrivate::ExecuteInputTrigger(Literal);
+								}
+								return FReply::Handled();
+							})
+							.ToolTipText(LOCTEXT("TriggerTestToolTip", "Executes trigger if currently previewing Metasound."))
+							.ForegroundColor(FSlateColor::UseForeground())
+							.ContentPadding(0)
+							.IsFocusable(false)
+							[
+								SNew(SImage)
+								.Image(FAppStyle::Get().GetBrush("Icons.CircleArrowDown"))
+								.ColorAndOpacity(FSlateColor::UseForeground())
+							]
+						];
+				}
+			}
+
+			return SNullWidget::NullWidget;
 		}
 
 		void FMetasoundInputIntDetailCustomization::CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle)
@@ -253,12 +353,27 @@ namespace Metasound
 				.NewAssetFactories(PropertyCustomizationHelpers::GetNewAssetFactoriesForClasses(AllowedClasses));
 		}
 
+		TSharedRef<SWidget> FMetasoundInputArrayDetailCustomizationBase::CreateNameWidget(TSharedPtr<IPropertyHandle> StructPropertyHandle) const
+		{
+			const FText PropertyName = GetPropertyNameOverride();
+			if (!PropertyName.IsEmpty())
+			{
+				return SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.Text(PropertyName);
+			}
+
+			return SNew(STextBlock)
+				.Text(VariableCustomizationPrivate::DefaultPropertyText)
+				.Font(IDetailLayoutBuilder::GetDetailFont());
+		}
+
 		TSharedRef<SWidget> FMetasoundInputArrayDetailCustomizationBase::CreateValueWidget(TSharedPtr<IPropertyHandleArray> ParentArrayProperty, TSharedPtr<IPropertyHandle> StructPropertyHandle, bool bIsInArray) const
 		{
-			TSharedRef<SWidget> ObjectPickerWidget = CreateStructureWidget(StructPropertyHandle);
+			TSharedRef<SWidget> ValueWidget = CreateStructureWidget(StructPropertyHandle);
 			if (!bIsInArray)
 			{
-				return ObjectPickerWidget;
+				return ValueWidget;
 			}
 
 			TSharedPtr<IPropertyHandle> StructPropertyPtr = StructPropertyHandle;
@@ -295,7 +410,7 @@ namespace Metasound
 				.Padding(1.0f, 0.0f, 0.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
-					ObjectPickerWidget
+					ValueWidget
 				]
 				+ SHorizontalBox::Slot()
 				.FillWidth(0.05f)
@@ -327,7 +442,6 @@ namespace Metasound
 			CacheProxyData(ProxyProperty);
 
 			TSharedRef<SWidget> ValueWidget = CreateValueWidget(ParentArrayProperty, StructPropertyHandle, bIsInArray);
-
 			FDetailWidgetRow& ValueRow = ChildBuilder.AddCustomRow(VariableCustomizationPrivate::DefaultPropertyText);
 			if (bIsInArray)
 			{
@@ -340,9 +454,7 @@ namespace Metasound
 			{
 				ValueRow.NameContent()
 				[
-					SNew(STextBlock)
-					.Text(VariableCustomizationPrivate::DefaultPropertyText)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
+					CreateNameWidget(StructPropertyHandle)
 				];
 			}
 
@@ -454,7 +566,7 @@ namespace Metasound
 				]
 				+ SHorizontalBox::Slot()
 				.FillWidth(0.40f)
-				.Padding(1.0f, 0.0f, 0.0f, 0.0f)
+				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(DataTypeArrayCheckbox, SCheckBox)
@@ -720,15 +832,16 @@ namespace Metasound
 		{
 			using namespace Frontend;
 
-			FNodeHandle NodeHandle = GraphVariable->GetNodeHandle();
-			const TArray<FOutputHandle> Outputs = NodeHandle->GetOutputs();
+			FName TypeName;
 
-			if (!ensure(Outputs.Num() == 1))
+			// Just take last type.  If more than one, all types are the same.
+			FConstNodeHandle NodeHandle = GraphVariable->GetConstNodeHandle();
+			NodeHandle->IterateConstOutputs([InTypeName = &TypeName](FConstOutputHandle OutputHandle)
 			{
-				return FName();
-			}
+				*InTypeName = OutputHandle->GetDataType();
+			});
 
-			return Outputs[0]->GetDataType();
+			return TypeName;
 		}
 
 		void FMetasoundInputDetailCustomization::OnDisplayNameChanged(const FText& InNewName)
@@ -736,6 +849,7 @@ namespace Metasound
 			using namespace Frontend;
 
 			bIsNameInvalid = false;
+			DisplayNameEditableTextBox->SetError(FText::GetEmpty());
 
 			if (!ensure(GraphVariable.IsValid()))
 			{
@@ -755,7 +869,9 @@ namespace Metasound
 
 			GraphHandle->IterateConstNodes([this, NodeID, InNewName](FConstNodeHandle NodeToCompare)
 			{
-				if (NodeID != NodeToCompare->GetID())
+				// Disregard display name collisions with hidden nodes
+				const bool bIsVisible = NodeToCompare->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Visible;
+				if (NodeID != NodeToCompare->GetID() && bIsVisible)
 				{
 					if (InNewName.CompareToCaseIgnored(NodeToCompare->GetDisplayName()) == 0)
 					{
@@ -869,11 +985,10 @@ namespace Metasound
 				return;
 			}
 
-			static const FString ArrayIdentifier = TEXT(":Array");
 			FString TypeNameString = TypeName.ToString();
-			if (TypeNameString.EndsWith(ArrayIdentifier))
+			if (TypeNameString.EndsWith(VariableCustomizationPrivate::ArrayIdentifier))
 			{
-				TypeNameString = TypeNameString.LeftChop(ArrayIdentifier.Len());
+				TypeNameString = TypeNameString.LeftChop(VariableCustomizationPrivate::ArrayIdentifier.Len());
 			}
 			InDefaultPropertyHandle->SetInstanceMetaData(VariableCustomizationPrivate::DataTypeNameIdentifier, TypeNameString);
 
@@ -901,15 +1016,16 @@ namespace Metasound
 		{
 			using namespace Frontend;
 
-			FNodeHandle NodeHandle = GraphVariable->GetNodeHandle();
-			const TArray<FOutputHandle> Outputs = NodeHandle->GetOutputs();
+			FName TypeName;
 
-			if (!ensure(Outputs.Num() == 1))
+			// Just take last type.  If more than one, all types are the same.
+			FConstNodeHandle NodeHandle = GraphVariable->GetConstNodeHandle();
+			NodeHandle->IterateConstInputs([InTypeName = &TypeName](FConstInputHandle InputHandle)
 			{
-				return FName();
-			}
+				*InTypeName = InputHandle->GetDataType();
+			});
 
-			return Outputs[0]->GetDataType();
+			return TypeName;
 		}
 
 		void FMetasoundOutputDetailCustomization::OnDisplayNameChanged(const FText& InNewName)
@@ -917,6 +1033,7 @@ namespace Metasound
 			using namespace Frontend;
 
 			bIsNameInvalid = false;
+			DisplayNameEditableTextBox->SetError(FText::GetEmpty());
 
 			if (!ensure(GraphVariable.IsValid()))
 			{
@@ -936,7 +1053,9 @@ namespace Metasound
 
 			GraphHandle->IterateConstNodes([this, NodeID, InNewName](FConstNodeHandle NodeToCompare)
 			{
-				if (NodeID != NodeToCompare->GetID())
+				// Disregard display name collisions with hidden nodes
+				const bool bIsVisible = NodeToCompare->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Visible;
+				if (NodeID != NodeToCompare->GetID() && bIsVisible)
 				{
 					if (InNewName.CompareToCaseIgnored(NodeToCompare->GetDisplayName()) == 0)
 					{

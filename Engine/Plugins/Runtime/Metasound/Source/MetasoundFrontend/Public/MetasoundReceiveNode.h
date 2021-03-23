@@ -48,7 +48,6 @@ namespace Metasound
 	class TReceiveNode : public FNode
 	{
 	public:
-
 		static FVertexInterface DeclareVertexInterface()
 		{
 			return FVertexInterface(
@@ -89,9 +88,9 @@ namespace Metasound
 	private:
 		class TReceiverOperator : public TExecutableOperator<TReceiverOperator>
 		{
-				TReceiverOperator() = delete;
-			public:
+			TReceiverOperator() = delete;
 
+			public:
 				TReceiverOperator(TDataReadReference<TDataType> InInitDataRef, TDataWriteReference<TDataType> InOutDataRef, TDataReadReference<FSendAddress> InSendAddress, const FOperatorSettings& InOperatorSettings)
 					: bHasNotReceivedData(true)
 					, DefaultData(InInitDataRef)
@@ -135,13 +134,20 @@ namespace Metasound
 						*OutputData = *DefaultData;
 					}
 
+					bool bHasNewData = false;
 					if (ensure(Receiver.IsValid()))
 					{
-						if (Receiver->CanPop())
+						bHasNewData = Receiver->CanPop();
+						if (bHasNewData)
 						{
 							Receiver->Pop(*OutputData);
 							bHasNotReceivedData = false;
 						}
+					}
+
+					if (TExecutableDataType<TDataType>::bIsExecutable)
+					{
+						TExecutableDataType<TDataType>::ExecuteInline(*OutputData, bHasNewData);
 					}
 				}
 

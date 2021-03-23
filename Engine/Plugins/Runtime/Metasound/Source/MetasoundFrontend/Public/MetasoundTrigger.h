@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MetasoundDataReference.h"
+#include "MetasoundExecutableOperator.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundTime.h"
 
@@ -153,10 +154,34 @@ namespace Metasound
 
 			TArray<int32> TriggeredFrames;
 
+			bool bHasAdvanced = false;
+			bool bTriggeredFromInit = false;
 			bool bHasTrigger = false;
 			int32 NumFramesPerBlock = 0;
 			FSampleRate SampleRate = 0;
 			int32 LastTriggerIndexInBlock = 0;
+	};
+
+	template<>
+	struct TExecutableDataType<FTrigger>
+	{
+		static constexpr bool bIsExecutable = true;
+
+		static void Execute(FTrigger& InData, FTrigger& OutData)
+		{
+			OutData = InData;
+			InData.AdvanceBlock();
+		}
+
+		static void ExecuteInline(FTrigger& OutData, bool bInUpdated)
+		{
+			// Only advance (i.e. flush old triggers) if not updated.  If
+			// updated, leave trigger alone as it has new information.
+			if (!bInUpdated)
+			{
+				OutData.AdvanceBlock();
+			}
+		}
 	};
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FTrigger, METASOUNDFRONTEND_API, FTriggerTypeInfo, FTriggerReadRef, FTriggerWriteRef);
