@@ -82,7 +82,7 @@ public:
 		return FixDescription;
 	}
 
-	bool IsDismissable() const 
+	bool IsDismissable() const
 	{
 		return Dismissable;
 	}
@@ -130,7 +130,7 @@ struct FNiagaraRendererVariableInfo
 struct FNiagaraRendererLayout
 {
 	void Initialize(int32 NumVariables);
-	bool SetVariable(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariable& Variable, int32 VFVarOffset);
+	bool SetVariable(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariableBase& Variable, int32 VFVarOffset);
 	bool SetVariableFromBinding(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariableAttributeBinding& VariableBinding, int32 VFVarOffset);
 	void Finalize();
 
@@ -160,16 +160,20 @@ class NIAGARA_API UNiagaraRendererProperties : public UNiagaraMergeable
 	GENERATED_BODY()
 
 public:
-	UNiagaraRendererProperties()
+	UNiagaraRendererProperties()		
 		: bIsEnabled(true)
-		, bMotionBlurEnabled(true)
+		, bMotionBlurEnabled_DEPRECATED(true)
 	{
 	}
 
-
+	//UObject Interface Begin
 	virtual void PostInitProperties() override;
-
+	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	//UObject Interface End
+	
 	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent) PURE_VIRTUAL ( UNiagaraRendererProperties::CreateEmitterRenderer, return nullptr;);
 	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() PURE_VIRTUAL(UNiagaraRendererProperties::CreateBoundsCalculator, return nullptr;);
 	virtual void GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const PURE_VIRTUAL(UNiagaraRendererProperties::GetUsedMaterials,);
@@ -185,8 +189,8 @@ public:
 	virtual void GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraRendererProperties*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const;
 
 	/** In the case that we need parameters bound in that aren't Particle variables, these should be set up here so that the data is appropriately populated after the simulation.*/
-	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore) { return false; }
-	
+	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore) { return false; }	
+
 #if WITH_EDITORONLY_DATA
 
 	virtual bool IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const;
@@ -203,6 +207,8 @@ public:
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
 
+	virtual void GetAdditionalVariables(TArray<FNiagaraVariableBase>& OutArray) const { };
+
 	UNiagaraRendererProperties* StaticDuplicateWithNewMergeId(UObject* InOuter) const
 	{
 		return CastChecked<UNiagaraRendererProperties>(Super::StaticDuplicateWithNewMergeIdInternal(InOuter));
@@ -212,7 +218,7 @@ public:
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const PURE_VIRTUAL(UNiagaraRendererProperties::GetRendererTooltipWidgets, );
 	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const {};
 	virtual void GetRendererFeedback(UNiagaraEmitter* InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const;
-	
+
 	// The icon to display in the niagara stack widget under the renderer section
 	virtual const FSlateBrush* GetStackIcon() const;
 
@@ -235,24 +241,29 @@ public:
 	virtual bool NeedsSystemPostTick() const { return false; }
 	/** When true, the renderer will be opted in to get its OnSystemComplete_GameThread overload called */
 	virtual bool NeedsSystemCompletion() const { return false; }
-	
+
+	bool NeedsPreciseMotionVectors() const;
+
 	/** Platforms on which this renderer is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	FNiagaraPlatformSet Platforms;
 
-	/** By default, emitters are drawn in the order that they are added to the system. This value will allow you to control the order in a more fine-grained manner. 
+	/** By default, emitters are drawn in the order that they are added to the system. This value will allow you to control the order in a more fine-grained manner.
 	Materials of the same type (i.e. Transparent) will draw in order from lowest to highest within the system. The default value is 0.*/
 	UPROPERTY(EditAnywhere, Category = "Sort Order")
 	int32 SortOrderHint;
-	
+
+	/** Hint about how to generate motion (velocity) vectors for this renderer. */
+	UPROPERTY(EditAnywhere, Category = "Motion Blur")
+	ENiagaraRendererMotionVectorSetting MotionVectorSetting;
+
 	UPROPERTY()
 	bool bIsEnabled;
 
-	/** Is motion blur enabled on this renderer or not, the material must also have motion blur enabled. */
-	UPROPERTY(EditAnywhere, Category = "Rendering")
-	bool bMotionBlurEnabled;
-
 protected:
+	UPROPERTY()
+	bool bMotionBlurEnabled_DEPRECATED; // This has been rolled into MotionVectorSetting
+
 	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
 
 	virtual void PostLoadBindings(ENiagaraRendererSourceDataMode InSourceMode);

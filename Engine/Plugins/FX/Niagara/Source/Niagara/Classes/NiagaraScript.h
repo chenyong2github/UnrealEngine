@@ -167,6 +167,11 @@ public:
 	/** Configuration options*/
 	UPROPERTY()
 	TArray<FString> AdditionalDefines;
+
+	UPROPERTY()
+	TArray<FNiagaraVariableBase> AdditionalVariables;
+
+	TArray<FString> GetAdditionalVariableStrings();
 #endif
 
 	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/

@@ -339,7 +339,7 @@ FNiagaraVariable FNiagaraParameterMapHistory::VariableToNamespacedVariable(const
 	return RetVar;
 }
 
-bool FNiagaraParameterMapHistory::IsInNamespace(const FNiagaraVariable& InVar, const FString& Namespace)
+bool FNiagaraParameterMapHistory::IsInNamespace(const FNiagaraVariableBase& InVar, const FString& Namespace)
 {
 	if (Namespace.EndsWith(TEXT(".")))
 	{
@@ -422,7 +422,7 @@ bool FNiagaraParameterMapHistory::SplitRapidIterationParameterName(const FNiagar
 	return false;
 }
 
-bool FNiagaraParameterMapHistory::IsAttribute(const FNiagaraVariable& InVar)
+bool FNiagaraParameterMapHistory::IsAttribute(const FNiagaraVariableBase& InVar)
 {
 	return IsInNamespace(InVar, PARAM_MAP_ATTRIBUTE_STR);
 }
@@ -476,7 +476,7 @@ const UEdGraphPin* FNiagaraParameterMapHistory::GetDefaultValuePin(int32 VarIdx)
 	return nullptr;
 }
 
-bool FNiagaraParameterMapHistory::IsInitialValue(const FNiagaraVariable& InVar)
+bool FNiagaraParameterMapHistory::IsInitialValue(const FNiagaraVariableBase& InVar)
 {
 	TArray<FString> SplitName;
 	InVar.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
@@ -491,7 +491,7 @@ bool FNiagaraParameterMapHistory::IsInitialValue(const FNiagaraVariable& InVar)
 	return false;
 }
 
-bool FNiagaraParameterMapHistory::IsPreviousValue(const FNiagaraVariable& InVar)
+bool FNiagaraParameterMapHistory::IsPreviousValue(const FNiagaraVariableBase& InVar)
 {
 	TArray<FString> SplitName;
 	InVar.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));

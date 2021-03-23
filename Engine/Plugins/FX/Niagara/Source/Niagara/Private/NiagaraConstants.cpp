@@ -721,8 +721,7 @@ FNiagaraVariableAttributeBinding FNiagaraConstants::GetAttributeDefaultBinding(c
 	}
 
 	FNiagaraVariableAttributeBinding Binding;
-	const FNiagaraVariable* FoundVar = AttrDataSetKeyMap.Find(InVar);
-	Binding.Setup(InVar, FoundVar ? *FoundVar : InVar, GetAttributeWithDefaultValue(InVar));
+	Binding.Setup(InVar, GetAttributeWithDefaultValue(InVar));
 	return Binding;
 }
 

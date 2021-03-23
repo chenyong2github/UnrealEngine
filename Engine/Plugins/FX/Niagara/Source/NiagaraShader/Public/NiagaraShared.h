@@ -239,6 +239,9 @@ public:
 	/** Configuration options */
 	LAYOUT_FIELD(TMemoryImageArray<FMemoryImageString>, AdditionalDefines);
 
+	/** Configuration options */
+	LAYOUT_FIELD(TMemoryImageArray<FMemoryImageString>, AdditionalVariables);
+
 	/**
 	* The hash of the subgraph this shader primarily represents.
 	*/
@@ -764,7 +767,7 @@ public:
 
 	const FString& GetFriendlyName() const { return FriendlyName; }
 
-	NIAGARASHADER_API void SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines,
+	NIAGARASHADER_API void SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines, const TArray<FString>& InAdditionalVariables,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
 		bool bInUsesRapidIterationParams, FString InFriendlyName);
 
@@ -860,6 +863,9 @@ private:
 
 	/** Configuration options */
 	TArray<FString> AdditionalDefines;
+
+	/** Additional variables needed*/
+	TArray<FString> AdditionalVariables;
 
 	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
 	bool bUsesRapidIterationParams = true;

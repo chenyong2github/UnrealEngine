@@ -109,6 +109,36 @@ enum class ENiagaraDefaultMode : uint8
 	FailIfPreviouslyNotSet
 };
 
+/** How to handle how Niagara rendered effects should generate motion vectors by default (can still be overridden on a case-by-case basis) */
+UENUM()
+enum class ENiagaraDefaultRendererMotionVectorSetting
+{
+	/**
+	 * Motion vectors generated are precise (ideal for motion blur and temporal anti-aliasing).
+	 * Requires relevant emitters to store more data per particle, and may affect vertex processing performance.
+	 */
+	Precise,
+	/**
+	 * Approximates the motion vectors from current velocity.
+	 * Saves memory and performance, but can result in lower quality motion blur and/or anti-aliasing.
+	 */
+	Approximate
+};
+
+/** How a given Niagara renderer should handle motion vector generation. */
+UENUM()
+enum class ENiagaraRendererMotionVectorSetting
+{
+	/** Determines the best method to employ when generating motion vectors (accurate vs. approximate) based on project and renderer settings */
+	AutoDetect,
+	/** Force motion vectors to be precise for this renderer. */
+	Precise,
+	/** Force motion vectors to be approximate for this renderer (higher performance, lower particle memory usage). */
+	Approximate,
+	/** Do not generate motion vectors (i.e. render the object as though it is stationary). */
+	Disable
+};
+
 UENUM()
 enum class ENiagaraSimTarget : uint8
 {
@@ -886,12 +916,13 @@ struct FNiagaraVariableAttributeBinding
 	bool NIAGARA_API DoesBindingExistOnSource() const { return bBindingExistsOnSource; }
 	bool NIAGARA_API CanBindToHostParameterMap() const { return bBindingExistsOnSource && !bIsCachedParticleValue; }
 	void NIAGARA_API SetValue(const FName& InValue, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	void NIAGARA_API SetAsPreviousValue(const FNiagaraVariableBase& Src, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	void NIAGARA_API CacheValues(const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	bool NIAGARA_API RenameVariableIfMatching(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	bool NIAGARA_API Matches(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 
 #if WITH_EDITORONLY_DATA
-	NIAGARA_API const FName& GetName(ENiagaraRendererSourceDataMode InSourceMode) const;
+	NIAGARA_API const FName& GetName() const { return CachedDisplayName; }
 	NIAGARA_API FString GetDefaultValueString() const;
 #endif
 	NIAGARA_API const FNiagaraVariableBase& GetParamMapBindableVariable() const { return ParamMapVariable; }
@@ -906,7 +937,7 @@ struct FNiagaraVariableAttributeBinding
 		return RootVariable.GetValue<T>();
 	}
 
-	void NIAGARA_API Setup(const FNiagaraVariableBase& InRootVar, const FNiagaraVariableBase& InDataSetVar, const FNiagaraVariable& InDefaultValue, ENiagaraRendererSourceDataMode InSourceMode = ENiagaraRendererSourceDataMode::Particles);
+	void NIAGARA_API Setup(const FNiagaraVariableBase& InRootVar, const FNiagaraVariable& InDefaultValue, ENiagaraRendererSourceDataMode InSourceMode = ENiagaraRendererSourceDataMode::Particles);
 
 	void NIAGARA_API PostLoad(ENiagaraRendererSourceDataMode InSourceMode);
 	void NIAGARA_API Dump() const;

@@ -5,9 +5,9 @@ NiagaraRenderer.h: Base class for Niagara render modules
 ==============================================================================*/
 #pragma once
 
-#include "NiagaraMeshVertexFactory.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraMeshRendererProperties.h"
+#include "NiagaraMeshVertexFactory.h"
 
 class FNiagaraDataSet;
 struct FNiagaraDynamicDataMesh;
@@ -34,7 +34,7 @@ public:
 #endif
 	//FNiagaraRenderer Interface END
 
-	void SetupVertexFactory(FNiagaraMeshVertexFactory *InVertexFactory, const FStaticMeshLODResources& LODResources) const;
+	void SetupVertexFactory(FNiagaraMeshVertexFactory& InVertexFactory, const FStaticMeshLODResources& LODResources) const;
 
 protected:
 	struct FParticleGPUBufferData
@@ -58,6 +58,28 @@ protected:
 		FSphere LocalCullingSphere = FSphere(ForceInitToZero);
 		TArray<uint32, TInlineAllocator<4>> MaterialRemapTable;
 	};
+
+	class FMeshCollectorResourcesBase : public FOneFrameResource
+	{
+	public:
+		FNiagaraMeshUniformBufferRef UniformBuffer;
+
+		virtual ~FMeshCollectorResourcesBase() {}
+		virtual FNiagaraMeshVertexFactory& GetVertexFactory() = 0;
+	};
+
+	template <typename TVertexFactory>
+	class TMeshCollectorResources : public FMeshCollectorResourcesBase
+	{
+	public:
+		TVertexFactory VertexFactory;
+
+		virtual ~TMeshCollectorResources() { VertexFactory.ReleaseResource(); }
+		virtual FNiagaraMeshVertexFactory& GetVertexFactory() override { return VertexFactory; }
+	};
+
+	using FMeshCollectorResources = TMeshCollectorResources<FNiagaraMeshVertexFactory>;
+	using FMeshCollectorResourcesEx = TMeshCollectorResources<FNiagaraMeshVertexFactoryEx>;
 
 	int32 GetLODIndex(int32 MeshIndex) const;
 
@@ -122,6 +144,7 @@ private:
 	uint32 bLockedAxisEnable : 1;
 	uint32 bEnableCulling : 1;
 	uint32 bEnableFrustumCulling : 1;
+	uint32 bAccurateMotionVectors : 1;
 
 	uint32 bSubImageBlend : 1;
 	FVector2D SubImageSize;
@@ -136,7 +159,7 @@ private:
 	uint32 MaterialParamValidMask;
 	uint32 MaxSectionCount;
 
-	int32 VFBoundOffsetsInParamStore[ENiagaraMeshVFLayout::Type::Num];
+	int32 VFBoundOffsetsInParamStore[ENiagaraMeshVFLayout::Type::Num_Max];
 	uint32 bSetAnyBoundVars : 1;
 
 	const FNiagaraRendererLayout* RendererLayoutWithCustomSorting;

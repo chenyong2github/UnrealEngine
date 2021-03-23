@@ -150,10 +150,15 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 	//HashState.Update((const uint8*)&BaseScriptID, sizeof(BaseScriptID));
 	HashState.Update(BaseCompileHash.Hash, FNiagaraCompileHash::HashSize);
 	HashState.Update((const uint8*)&FeatureLevel, sizeof(FeatureLevel));
-		
+
 	for (int32 Index = 0; Index < AdditionalDefines.Num(); Index++)
 	{
 		HashState.UpdateWithString(*AdditionalDefines[Index], AdditionalDefines[Index].Len());
+	}
+
+	for (int32 Index = 0; Index < AdditionalVariables.Num(); Index++)
+	{
+		HashState.UpdateWithString(*AdditionalVariables[Index], AdditionalVariables[Index].Len());
 	}
 
 	for (int32 Index = 0; Index < ReferencedCompileHashes.Num(); Index++)
@@ -195,6 +200,11 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		return false;
 	}
 
+	if (AdditionalVariables.Num() != ReferenceSet.AdditionalVariables.Num())
+	{
+		return false;
+	}
+
 	if (ReferencedCompileHashes.Num() != ReferenceSet.ReferencedCompileHashes.Num())
 	{
 		return false;
@@ -205,6 +215,16 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		const FString& ReferenceStr = ReferenceSet.AdditionalDefines[Idx];
 
 		if (AdditionalDefines[Idx] != ReferenceStr)
+		{
+			return false;
+		}
+	}
+
+	for (int32 Idx = 0; Idx < ReferenceSet.AdditionalVariables.Num(); Idx++)
+	{
+		const FString& ReferenceStr = ReferenceSet.AdditionalVariables[Idx];
+
+		if (AdditionalVariables[Idx] != ReferenceStr)
 		{
 			return false;
 		}
@@ -298,6 +318,16 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 	{
 		KeyString += AdditionalDefines[DefinesIndex];
 		if (DefinesIndex < AdditionalDefines.Num() - 1)
+		{
+			KeyString += TEXT("_");
+		}
+	}
+
+	// Add additional variables
+	for (int32 VariablesIndex = 0; VariablesIndex < AdditionalVariables.Num(); VariablesIndex++)
+	{
+		KeyString += AdditionalVariables[VariablesIndex];
+		if (VariablesIndex < AdditionalVariables.Num() - 1)
 		{
 			KeyString += TEXT("_");
 		}

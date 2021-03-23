@@ -61,7 +61,19 @@ namespace ENiagaraSpriteVFLayout
 		CustomSorting,
 		NormalizedAge,
 
-		Num,
+		Num_Default,
+
+		// The remaining layout params aren't needed unless accurate motion vectors are required
+		PrevPosition = Num_Default,
+		PrevVelocity,
+		PrevRotation,
+		PrevSize,
+		PrevFacing,
+		PrevAlignment,
+		PrevCameraOffset,
+		PrevPivotOffset,
+
+		Num_Max,
 	};
 };
 
@@ -100,6 +112,7 @@ public:
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) override;
 	virtual void FixMaterial(UMaterial* Material) override;
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
+	virtual void GetAdditionalVariables(TArray<FNiagaraVariableBase>& OutArray) const override;
 	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const override;
@@ -269,7 +282,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	TArray< FNiagaraMaterialAttributeBinding > MaterialParameterBindings;
 
-	void InitBindings();
+	// The following bindings are only needed for accurate motion vectors
+
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevPositionBinding;
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevVelocityBinding;
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevSpriteRotationBinding;
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevSpriteSizeBinding;
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevSpriteFacingBinding;
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevSpriteAlignmentBinding;
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevCameraOffsetBinding;
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevPivotOffsetBinding;
 
 	virtual bool NeedsMIDsForMaterials() const { return MaterialParameterBindings.Num() > 0; }
 
@@ -314,7 +344,9 @@ public:
 	uint32 MaterialParamValidMask = 0;
 	
 protected:
-	void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
+	void InitBindings();
+	void SetPreviousBindings(const UNiagaraEmitter* SrcEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
 
 private:
 	/** Derived data for this asset, generated off of SubUVTexture. */

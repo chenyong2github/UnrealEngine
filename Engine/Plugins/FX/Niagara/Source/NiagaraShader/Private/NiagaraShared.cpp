@@ -129,7 +129,8 @@ void FNiagaraShaderScript::LegacySerialize(FArchive& Ar)
 bool FNiagaraShaderScript::IsSame(const FNiagaraShaderMapId& InId) const
 {
 	if (InId.ReferencedCompileHashes.Num() != ReferencedCompileHashes.Num() ||
-		InId.AdditionalDefines.Num() != AdditionalDefines.Num())
+		InId.AdditionalDefines.Num() != AdditionalDefines.Num() ||
+		InId.AdditionalVariables.Num() != AdditionalVariables.Num())
 	{
 		return false;
 	}
@@ -144,6 +145,13 @@ bool FNiagaraShaderScript::IsSame(const FNiagaraShaderMapId& InId) const
 	for (int32 i = 0; i < AdditionalDefines.Num(); ++i)
 	{
 		if (AdditionalDefines[i] != *InId.AdditionalDefines[i])
+		{
+			return false;
+		}
+	}
+	for (int32 i = 0; i < AdditionalVariables.Num(); ++i)
+	{
+		if (AdditionalVariables[i] != *InId.AdditionalVariables[i])
 		{
 			return false;
 		}
@@ -249,6 +257,12 @@ void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Platform, const ITarge
 		for(const FString& Define : AdditionalDefines)
 		{
 			OutId.AdditionalDefines.Emplace(Define);
+		}
+
+		OutId.AdditionalVariables.Empty(AdditionalVariables.Num());
+		for(const FString& Variable : AdditionalVariables)
+		{
+			OutId.AdditionalVariables.Emplace(Variable);
 		}
 
 		TArray<FShaderType*> DependentShaderTypes;
@@ -377,7 +391,7 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 	}
 }
 
-void FNiagaraShaderScript::SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersionID,  const TArray<FString>& InAdditionalDefines,
+void FNiagaraShaderScript::SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersionID,  const TArray<FString>& InAdditionalDefines, const TArray<FString>& InAdditionalVariables,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
 		bool bInUsesRapidIterationParams, FString InFriendlyName)
 {
@@ -386,6 +400,7 @@ void FNiagaraShaderScript::SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLe
 	CompilerVersionId = InCompilerVersionID;
 	//BaseScriptId = InBaseScriptID;
 	AdditionalDefines = InAdditionalDefines;
+	AdditionalVariables = InAdditionalVariables;
 	bUsesRapidIterationParams = bInUsesRapidIterationParams;
 	BaseCompileHash = InBaseCompileHash;
 	ReferencedCompileHashes = InReferencedCompileHashes;

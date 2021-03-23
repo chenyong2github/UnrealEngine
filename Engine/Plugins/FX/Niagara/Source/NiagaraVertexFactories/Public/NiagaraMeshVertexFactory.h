@@ -35,15 +35,18 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(FVector4, SubImageSize)
 	SHADER_PARAMETER(uint32, TexCoordWeightA)
 	SHADER_PARAMETER(uint32, TexCoordWeightB)
-	SHADER_PARAMETER(uint32, PrevTransformAvailable)
 	SHADER_PARAMETER(float, DeltaSeconds)
 	SHADER_PARAMETER(uint32, MaterialParamValidMask)
 
 	SHADER_PARAMETER(int, PositionDataOffset)
+	SHADER_PARAMETER(int, PrevPositionDataOffset)
 	SHADER_PARAMETER(int, VelocityDataOffset)
+	SHADER_PARAMETER(int, PrevVelocityDataOffset)
 	SHADER_PARAMETER(int, ColorDataOffset)
-	SHADER_PARAMETER(int, TransformDataOffset)
+	SHADER_PARAMETER(int, RotationDataOffset)
+	SHADER_PARAMETER(int, PrevRotationDataOffset)
 	SHADER_PARAMETER(int, ScaleDataOffset)
+	SHADER_PARAMETER(int, PrevScaleDataOffset)
 	SHADER_PARAMETER(int, MaterialParamDataOffset)
 	SHADER_PARAMETER(int, MaterialParam1DataOffset)
 	SHADER_PARAMETER(int, MaterialParam2DataOffset)
@@ -52,12 +55,17 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(int, SubImageDataOffset)
 	SHADER_PARAMETER(int, MaterialRandomDataOffset)
 	SHADER_PARAMETER(int, CameraOffsetDataOffset)
+	SHADER_PARAMETER(int, PrevCameraOffsetDataOffset)
 
 	SHADER_PARAMETER(FVector4, DefaultPos)
+	SHADER_PARAMETER(FVector4, DefaultPrevPos)
 	SHADER_PARAMETER(FVector, DefaultVelocity)
+	SHADER_PARAMETER(FVector, DefaultPrevVelocity)
 	SHADER_PARAMETER(FVector4, DefaultColor)
-	SHADER_PARAMETER(FVector4, DefaultTransform)
+	SHADER_PARAMETER(FVector4, DefaultRotation)
+	SHADER_PARAMETER(FVector4, DefaultPrevRotation)
 	SHADER_PARAMETER(FVector, DefaultScale)
+	SHADER_PARAMETER(FVector, DefaultPrevScale)
 	SHADER_PARAMETER(FVector4, DefaultDynamicMaterialParameter0)
 	SHADER_PARAMETER(FVector4, DefaultDynamicMaterialParameter1)
 	SHADER_PARAMETER(FVector4, DefaultDynamicMaterialParameter2)
@@ -66,6 +74,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(float, DefaultSubImage)
 	SHADER_PARAMETER(float, DefaultMatRandom)
 	SHADER_PARAMETER(float, DefaultCamOffset)
+	SHADER_PARAMETER(float, DefaultPrevCamOffset)
 
 	SHADER_PARAMETER(int, SubImageBlendMode)
 	SHADER_PARAMETER(uint32, FacingMode)
@@ -206,12 +215,23 @@ protected:
 	uint32 SortedIndicesOffset;
 };
 
-inline FNiagaraMeshVertexFactory* ConstructNiagaraMeshVertexFactory()
+/**
+* Advanced mesh vertex factory. Used for enabling accurate motion vector output
+*/
+class NIAGARAVERTEXFACTORIES_API FNiagaraMeshVertexFactoryEx : public FNiagaraMeshVertexFactory
 {
-	return new FNiagaraMeshVertexFactory();
-}
+	DECLARE_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactoryEx);
+public:
+	FNiagaraMeshVertexFactoryEx(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
+		: FNiagaraMeshVertexFactory(InType, InFeatureLevel)
+	{}
 
-inline FNiagaraMeshVertexFactory* ConstructNiagaraMeshVertexFactory(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
-{
-	return new FNiagaraMeshVertexFactory(InType, InFeatureLevel);
-}
+	FNiagaraMeshVertexFactoryEx() {}
+
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNiagaraMeshVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("ENABLE_PRECISE_MOTION_VECTORS"), TEXT("1"));
+	}
+};

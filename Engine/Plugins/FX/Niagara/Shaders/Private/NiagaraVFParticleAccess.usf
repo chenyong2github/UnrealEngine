@@ -99,3 +99,38 @@ float4 GetVec4(int RegisterIdx, uint InstanceID)
 	}
 }
 
+float SafeGetFloat(int RegisterIdx, uint InstanceID, float Default)
+{
+	// NOTE: Branch to prevent unnecessary loads
+	BRANCH
+	if (RegisterIdx == -1)
+		return Default;
+	return GetFloat(RegisterIdx, InstanceID);
+}
+
+float2 SafeGetVec2(int RegisterIdx, uint InstanceID, float2 Default)
+{
+	// NOTE: Branch to prevent unnecessary loads
+	BRANCH
+	if (RegisterIdx == -1)
+		return Default;
+	return GetVec2(RegisterIdx, InstanceID);
+}
+
+float3 SafeGetVec3(int RegisterIdx, uint InstanceID, float3 Default)
+{
+	// NOTE: Branch to prevent unnecessary loads
+	BRANCH
+	if (RegisterIdx == -1)
+		return Default;
+	return GetVec3(RegisterIdx, InstanceID);
+}
+
+float4 SafeGetVec4(int RegisterIdx, uint InstanceID, float4 Default)
+{
+	// NOTE: Branch to prevent unnecessary loads
+	BRANCH
+	if (RegisterIdx == -1)
+		return Default;
+	return GetVec4(RegisterIdx, InstanceID);
+}

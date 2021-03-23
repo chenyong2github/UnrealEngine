@@ -173,7 +173,7 @@ public:
 	static FString MakeSafeNamespaceString(const FString& InStr);
 
 	/** Does the variable start with this namespace?*/
-	static bool IsInNamespace(const FNiagaraVariable& InVar, const FString& Namespace);
+	static bool IsInNamespace(const FNiagaraVariableBase& InVar, const FString& Namespace);
 
 	/** Given the script type and flags, should we treat the System namespace as read-only?*/
 	static bool IsSystemNamespaceReadOnly(const UNiagaraScript* InScript);
@@ -203,13 +203,13 @@ public:
 	/**
 	* Does this parameter start with the "Particles" namespace?
 	*/
-	static bool IsAttribute(const FNiagaraVariable& InVar);
-	
+	static bool IsAttribute(const FNiagaraVariableBase& InVar);
+
 	/** Does this parameter contain the "Initial" namespace as one of its intermediate namespaces?*/
-	static bool IsInitialValue(const FNiagaraVariable& InVar);
+	static bool IsInitialValue(const FNiagaraVariableBase& InVar);
 
 	/** Does this parameter contain the "Previous" namespace as one of its intermediate namespaces?*/
-	static bool IsPreviousValue(const FNiagaraVariable& InVar);
+	static bool IsPreviousValue(const FNiagaraVariableBase& InVar);
 
 	/** Get the output node associated with this graph.*/
 	const UNiagaraNodeOutput* GetFinalOutputNode() const;
