@@ -767,6 +767,13 @@ public:
 	 */
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
 
+	/**
+	 * Temporary interim solution to gather external actors asset registry data.
+	 *
+	 * @param	OutTags		A list of key-value pairs associated with this object and their types
+	 */
+	virtual void GetExternalActorExtendedAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const {}
+
 	/** Gathers a list of asset registry tags for an FAssetData  */
 	void GetAssetRegistryTags(FAssetData& Out) const;
 
