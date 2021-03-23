@@ -22,6 +22,8 @@ public:
 	inline FName GetCellName() const { return CellName; }
 	inline uint32 GetLODLevel() const { return LODLevel; }
 
+	virtual bool IsHLODRelevant() const override { return true; }
+
 #if WITH_EDITOR
 	void SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives);
 
