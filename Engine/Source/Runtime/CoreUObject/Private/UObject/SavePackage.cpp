@@ -2509,7 +2509,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						UObject* Asset = nullptr;
 						ForEachObjectWithOuter(Package, [&Asset](UObject* Object)
 							{
-								if (!Asset && Object->IsAsset())
+								if (!Asset && Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object))
 								{
 									Asset = Object;
 								}

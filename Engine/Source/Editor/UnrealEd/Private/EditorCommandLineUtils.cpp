@@ -5,6 +5,7 @@
 #include "Misc/Paths.h"
 #include "Stats/Stats.h"
 #include "Misc/App.h"
+#include "Misc/AssetRegistryInterface.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectHash.h"
 #include "Misc/PackageName.h"
@@ -696,7 +697,7 @@ static UObject* EditorCommandLineUtilsImpl::ExtractAssetFromPackage(UPackage* Pa
 	UObject* FoundAsset = nullptr;
 	for (UObject* PackageObj : ObjectsWithOuter)
 	{
-		if (PackageObj->IsAsset())
+		if (PackageObj->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(PackageObj))
 		{
 			FoundAsset = PackageObj;
 			break;

@@ -179,6 +179,20 @@ namespace AssetRegistry
 			friend class ::UAssetRegistryImpl;
 		};
 	}
+
+	class COREUOBJECT_API FFiltering
+	{
+	public:
+		/** Called to check whether we should filter out assets of the given class and package flags from the editor's asset registry */
+		static bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags);
+
+		/** Called to check whether we should filter out the given object (assumed to be an asset) from the editor's asset registry */
+		static bool ShouldSkipAsset(const UObject* InAsset);
+
+		/** Call to invalidate the list of skip assets and cause their next use to recreate them on demand */
+		static void MarkDirty();
+	};
+
 }
 }
 

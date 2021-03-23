@@ -8,6 +8,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
+#include "Misc/AssetRegistryInterface.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/MetaData.h"
 #include "UObject/ConstructorHelpers.h"
@@ -4524,7 +4525,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 			GetObjectsWithPackage(InOuter, PotentialAssets, false);
 			for (UObject* Object : PotentialAssets)
 			{
-				if (Object->IsAsset())
+				if (Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object))
 				{
 					Base = Object;
 					break;
