@@ -31,7 +31,7 @@ namespace ProxyLOD
 	void ComputeVertexNormals( FVertexDataMesh& InOutMesh, 
 		                       const ENormalComputationMethod Method = ENormalComputationMethod::AngleWeighted);
 	/**
-	* Uses UE4 code in the Mesh Utilities module to compute the tangent space
+	* Uses UE code in the Mesh Utilities module to compute the tangent space
 	* The computation is a Mikk-T(angent) space version of tangent space.  
 	*
 	* NB: This updates the FMeshDescription::TangentX and FMeshDescription::TangentY and optionally TangentZ.

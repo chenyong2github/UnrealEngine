@@ -24,7 +24,7 @@ ProxyLOD::FQuadricMeshSimplifier::FQuadricMeshSimplifier(const MeshVertType* Ver
 	edgeHash(1 << FMath::Min(16u, FMath::FloorLog2(NumVerts))),
 	quadricCache(numSVerts, numSTris)
 {
-	//	SCOPE_LOG_TIME(TEXT("UE4_ProxyLOD_Simplifier_Constructor"), nullptr);
+	//	SCOPE_LOG_TIME(TEXT("UE_ProxyLOD_Simplifier_Constructor"), nullptr);
 	vertFlagLock = 0;
 	triFlagLock = 0;
 
@@ -382,7 +382,7 @@ void ProxyLOD::FQuadricMeshSimplifier::InitCosts()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::FQuadricMeshSimplifier::InitCosts)
 
-	//	SCOPE_LOG_TIME(TEXT("UE4_ProxyLOD_Simplifier_InitCosts"), nullptr);
+	//	SCOPE_LOG_TIME(TEXT("UE_ProxyLOD_Simplifier_InitCosts"), nullptr);
 	for (int i = 0; i < edges.Num(); i++)
 	{
 		float cost = ComputeEdgeCollapseCost(&edges[i]);

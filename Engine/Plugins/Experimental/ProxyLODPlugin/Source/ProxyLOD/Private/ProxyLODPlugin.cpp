@@ -496,7 +496,7 @@ static void SimplifyMesh( const FClosestPolyField& SrcGeometryPolyField,
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(SimplifyMesh)
 
-	//SCOPE_LOG_TIME(TEXT("UE4_ProxyLOD_Simplifier"), nullptr);
+	//SCOPE_LOG_TIME(TEXT("UE_ProxyLOD_Simplifier"), nullptr);
 
 	// Compute some of the metrics that relate the desired resolution to simplifier parameters.
 	const FMeshDescriptionArrayAdapter& SrcGeometryAdapter = SrcGeometryPolyField.MeshAdapter();
