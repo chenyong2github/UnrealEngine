@@ -318,6 +318,7 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 	, BaseParticleIndex(INDEX_NONE)
 	, IsObjectDynamic(false)
 	, IsObjectLoading(true)
+	, IsObjectDeleting(false)
 	, SimFilter(InSimFilter)
 	, QueryFilter(InQueryFilter)
 #if TODO_REIMPLEMENT_RIGID_CACHING
@@ -1331,31 +1332,57 @@ void FGeometryCollectionPhysicsProxy::InitializeRemoveOnFracture(FParticlesType&
 
 void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver *RBDSolver)
 {
-	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
-
 	Chaos::FPBDRigidsEvolutionGBF* Evolution = RBDSolver->GetEvolution();
 
-	for (const FClusterHandle* Handle : SolverClusterHandles)
+	TSet< FClusterHandle* > ClustersToReuild;
+	for (int i = 0; i < SolverParticleHandles.Num(); i++)
 	{
-		RBDSolver->RemoveParticleToProxy(Handle);
-	}
-
-	for (FClusterHandle* Handle : SolverParticleHandles)
-	{	
-		if (Handle)
+		if (FClusterHandle* Handle = SolverParticleHandles[i])
 		{
-			if (Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Cluster = Handle->CastToClustered())
+			RBDSolver->RemoveParticleToProxy(Handle);
+			if (FClusterHandle* ParentCluster = Evolution->GetRigidClustering().DestroyClusterParticle(Handle))
 			{
-				Evolution->GetRigidClustering().GetTopLevelClusterParents().Remove(Cluster);
-				Evolution->GetRigidClustering().GetChildrenMap().Remove(Cluster);
-				Evolution->DestroyParticle(Cluster);
-			}
-			else
-			{
-				Evolution->DestroyParticle(Handle);
+				if (ParentCluster->InternalCluster())
+				{
+					ClustersToReuild.Add(ParentCluster);
+				}
 			}
 		}
 	}
+
+	for (int i = 0; i < SolverParticleHandles.Num(); i++)
+	{
+		if (FClusterHandle* Handle = SolverParticleHandles[i])
+		{
+			Evolution->DestroyParticle(Handle);
+		}
+	}
+
+	for (FClusterHandle* Cluster : ClustersToReuild)
+	{
+		ensure(Cluster->InternalCluster());
+		if (ensure(Evolution->GetRigidClustering().GetChildrenMap().Contains(Cluster)))
+		{
+			// copy cluster state for recreation
+			int32 ClusterGroupIndex = Cluster->ClusterGroupIndex();
+			TArray<FParticleHandle*> Children = Evolution->GetRigidClustering().GetChildrenMap()[Cluster];
+
+			// destroy the invalid cluster
+			FClusterHandle* NullHandle = Evolution->GetRigidClustering().DestroyClusterParticle(Cluster);
+			ensure(NullHandle == nullptr);
+
+			// create a new cluster if needed
+			if (Children.Num())
+			{
+				if (FClusterHandle* NewParticle = Evolution->GetRigidClustering().CreateClusterParticle(ClusterGroupIndex, MoveTemp(Children)))
+				{
+					NewParticle->SetInternalCluster(true);
+				}
+			}
+		}		
+	}
+
+	IsObjectDeleting = true;
 }
 
 void FGeometryCollectionPhysicsProxy::OnRemoveFromScene()
@@ -1414,7 +1441,7 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 	 */
 	using namespace Chaos;
 	SCOPE_CYCLE_COUNTER(STAT_CacheResultGeomCollection);
-
+	if (IsObjectDeleting) return;
 	BufferData.SetProxy(*this);
 
 	IsObjectDynamic = false;
@@ -1626,6 +1653,8 @@ void FGeometryCollectionPhysicsProxy::FlipBuffer()
 // Called from FPhysScene_ChaosInterface::SyncBodies(), NOT the solver.
 bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGeometryCollectionData& BufferData, const int32 SolverSyncTimestamp)
 {
+	if(IsObjectDeleting) return false;
+
 	/**
 	 * CONTEXT: GAMETHREAD (Read Locked)
 	 * Perform a similar operation to Sync, but take the data from a gamethread-safe buffer. This will be called

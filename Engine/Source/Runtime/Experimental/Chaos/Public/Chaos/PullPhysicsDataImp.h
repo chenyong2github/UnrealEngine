@@ -28,7 +28,11 @@ public:
 
 	TProxy* GetProxy() const
 	{
-		return !Timestamp->bDeleted ? Proxy : nullptr;
+		if( Timestamp )
+		{
+			return !Timestamp->bDeleted ? Proxy : nullptr;
+		}
+		return nullptr;
 	}
 
 	const FProxyTimestamp* GetTimestamp() const { return Timestamp.Get(); }

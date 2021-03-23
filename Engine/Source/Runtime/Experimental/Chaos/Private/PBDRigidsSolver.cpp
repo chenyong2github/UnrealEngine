@@ -553,7 +553,8 @@ namespace Chaos
 				GeometryCollectionPhysicsProxies_Internal.RemoveSingle(InProxy);
 				InProxy->SyncBeforeDestroy();
 				InProxy->OnRemoveFromSolver(this);
-				delete InProxy;
+				InProxy->ResetDirtyIdx();
+				PendingDestroyGeometryCollectionPhysicsProxy.Add(InProxy);
 			});
 	}
 
@@ -689,6 +690,19 @@ namespace Chaos
 			delete Proxy;
 		}
 		PendingDestroyPhysicsProxy.Reset();
+
+		bool bResetCollisionConstraints=false;
+		for (auto Proxy : PendingDestroyGeometryCollectionPhysicsProxy)
+		{
+			//ensure(Proxy->GetHandle_LowLevel() == nullptr);	//should have already cleared this out
+			MarshallingManager.GetCurrentPullData_Internal()->DirtyGeometryCollections.Reset();
+			bResetCollisionConstraints = true;
+			delete Proxy;
+		}
+		PendingDestroyGeometryCollectionPhysicsProxy.Reset();
+
+		if(bResetCollisionConstraints)
+			GetEvolution()->GetCollisionConstraints();
 	}
 
 	void FPBDRigidsSolver::AdvanceSolverBy(const FReal DeltaTime, const FSubStepInfo& SubStepInfo)

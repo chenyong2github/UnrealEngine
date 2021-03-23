@@ -274,6 +274,7 @@ private:
 	//
 	bool IsObjectDynamic; // Records current dynamic state
 	bool IsObjectLoading; // Indicate when loaded
+	bool IsObjectDeleting; // Indicatge when pending deletion
 
 	TManagedArray<TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
 	FCollisionFilterData SimFilter;

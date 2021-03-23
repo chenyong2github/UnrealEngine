@@ -64,9 +64,6 @@ namespace Chaos
 	int32 MinCleanedPointsBeforeRemovingInternals = 10;
 	FAutoConsoleVariableRef CVarMinCleanedPointsBeforeRemovingInternals(TEXT("p.MinCleanedPointsBeforeRemovingInternals"), MinCleanedPointsBeforeRemovingInternals, TEXT("If we only have this many clean points, don't bother removing internal points as the object is likely very small"));
 
-	int32 MoveClustersWhenDeactivated = 0;
-	FAutoConsoleVariableRef CVarMoveClustersWhenDeactivated(TEXT("p.MoveClustersWhenDeactivated"), MoveClustersWhenDeactivated, TEXT("If clusters should be moved when deactivated."));
-
 	int32 DeactivateClusterChildren = 0;
 	FAutoConsoleVariableRef CVarDeactivateClusterChildren(TEXT("p.DeactivateClusterChildren"), DeactivateClusterChildren, TEXT("If children should be decativated when broken and put into another cluster."));
 
@@ -530,7 +527,7 @@ namespace Chaos
 		NewParticle->SetCollisionGroup(INT_MAX);
 		TopLevelClusterParents.Add(NewParticle);
 		NewParticle->SetInternalCluster(true);
-		NewParticle->SetClusterId(ClusterId(Parent, Children.Num()));
+		NewParticle->SetClusterId(ClusterId(nullptr, Children.Num()));
 		for (auto& Constituent : Children) MEvolution.DoInternalParticleInitilization(Constituent, NewParticle);
 
 		//
@@ -1205,6 +1202,7 @@ namespace Chaos
 		}
 		return ActivatedBodies;
 	}
+
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::AdvanceClustering"), STAT_AdvanceClustering, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::Update Impulse from Strain"), STAT_UpdateImpulseStrain, STATGROUP_Chaos);
@@ -1973,14 +1971,6 @@ namespace Chaos
 	{
 		// #note: we don't recursively descend to the children
 		MEvolution.DisableParticle(ClusteredParticle);
-
-		if (MoveClustersWhenDeactivated)
-		{
-			ClusteredParticle->P() -= FVector(0.f, 0.f, -10000.f); // HACK : Move them away to prevent reactivation. 
-			ClusteredParticle->X() -= FVector(0.f, 0.f, -10000.f); // HACK : Move them away to prevent reactivation. 
-			ClusteredParticle->V() = FVector(0.f);            // HACK : Move them away to prevent reactivation.
-		}
-
 		TopLevelClusterParents.Remove(ClusteredParticle);
 		GetChildrenMap().Remove(ClusteredParticle);
 		ClusteredParticle->ClusterIds() = ClusterId();
@@ -2006,6 +1996,78 @@ namespace Chaos
 			ClusterBreak.Mass = Particle->M();
 		}
 	}
+
+	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
+	FPBDRigidClusteredParticleHandle*
+	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::DestroyClusterParticle(
+		FPBDRigidClusteredParticleHandle* ClusteredParticle,
+		const FClusterDestoryParameters& Parameters)
+	{
+		FClusterHandle ParentParticle = nullptr;
+
+		// detach connections to thie parent from the children
+		if (MChildren.Contains(ClusteredParticle))
+		{
+			for (FRigidHandle Child : MChildren[ClusteredParticle])
+			{
+				if (FClusterHandle ClusteredChild = Child->CastToClustered())
+				{
+					ClusteredChild->ClusterIds() = ClusterId();
+					ClusteredChild->ClusterGroupIndex() = 0;
+				}
+			}
+
+			MChildren.Remove(ClusteredParticle);
+		}
+
+		// disable within the solver
+		if (!ClusteredParticle->Disabled())
+		{
+			MEvolution.DisableParticle(ClusteredParticle);
+			ensure(ClusteredParticle->ClusterIds().Id == nullptr);
+		}
+
+		// reset the structures
+		TopLevelClusterParents.Remove(ClusteredParticle);
+		MActiveRemovalIndices.Remove(ClusteredParticle);
+
+		// disconnect from the parents
+		if (ClusteredParticle->ClusterIds().Id)
+		{
+			ParentParticle = ClusteredParticle->ClusterIds().Id->CastToClustered();
+
+			ClusteredParticle->ClusterIds() = ClusterId();
+			ClusteredParticle->ClusterGroupIndex() = 0;
+
+			if (MChildren.Contains(ParentParticle))
+			{
+				FRigidHandleArray& Children = MChildren[ParentParticle];
+
+				// disconnect from your parents children list
+				Children.Remove(ClusteredParticle);
+
+				// disable internal parents that have lost all their children
+				if (!MChildren[ParentParticle].Num() && ParentParticle->InternalCluster())
+				{
+					DisableCluster(ClusteredParticle);
+				}
+			}
+		}
+
+		// remove internal parents that have no children. 
+		if (ClusteredParticle->InternalCluster())
+		{
+			MEvolution.DestroyParticle(ClusteredParticle);
+		}
+
+		if (Parameters.bReturnInternalOnly && ParentParticle && !ParentParticle->InternalCluster())
+		{
+			ParentParticle = nullptr;
+		}
+		return ParentParticle;
+
+	}
+
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingPointImplicit"), STAT_UpdateConnectivityGraphUsingPointImplicit, STATGROUP_Chaos);
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
