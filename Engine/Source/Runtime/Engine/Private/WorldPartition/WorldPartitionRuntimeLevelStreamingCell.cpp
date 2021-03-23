@@ -127,6 +127,9 @@ void UWorldPartitionRuntimeLevelStreamingCell::MoveAlwaysLoadedContentToPersiste
 
 		UWorld* OuterWorld = GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
 		FWorldPartitionLevelHelper::MoveExternalActorsToLevel(Packages, OuterWorld->PersistentLevel);
+
+		// Empty cell's package list (this ensures that no one can rely on cell's content).
+		Packages.Empty();
 	}
 }
 
