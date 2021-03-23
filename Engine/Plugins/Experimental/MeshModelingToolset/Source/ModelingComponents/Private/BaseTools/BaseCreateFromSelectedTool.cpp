@@ -19,6 +19,7 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/AssetBackedTarget.h"
 #include "ToolTargetManager.h"
 
 #define LOCTEXT_NAMESPACE "UBaseCreateFromSelectedTool"
@@ -35,7 +36,8 @@ const FToolTargetTypeRequirements& UBaseCreateFromSelectedToolBuilder::GetTarget
 		UMeshDescriptionCommitter::StaticClass(),
 		UMeshDescriptionProvider::StaticClass(),
 		UPrimitiveComponentBackedTarget::StaticClass(),
-		UMaterialProvider::StaticClass()
+		UMaterialProvider::StaticClass(),
+		UAssetBackedTarget::StaticClass()
 		});
 	return TypeRequirements;
 }

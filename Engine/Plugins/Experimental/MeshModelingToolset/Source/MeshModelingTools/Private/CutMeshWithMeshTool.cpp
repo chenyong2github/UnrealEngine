@@ -15,6 +15,7 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/AssetBackedTarget.h"
 #include "ToolTargetManager.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -138,14 +139,13 @@ void UCutMeshWithMeshTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	}
 	Preview->ConfigureMaterials(AllMaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 
-	// TODO port this to ToolTargets
 	// check if we have the same mesh on both inputs
-	//if (ComponentTargets[0]->HasSameSourceData(*ComponentTargets[1]))
-	//{
-	//	GetToolManager()->DisplayMessage(
-	//		LOCTEXT("SameSourceError", "WARNING: Target Mesh has same Asset as Cutting Mesh, both inputs will be affected"),
-	//		EToolMessageLevel::UserWarning);
-	//}
+	if (Cast<IAssetBackedTarget>(Targets[0])->HasSameSourceData(Targets[1]))
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("SameSourceError", "WARNING: Target Mesh has same Asset as Cutting Mesh, both inputs will be affected"),
+			EToolMessageLevel::UserWarning);
+	}
 }
 
 

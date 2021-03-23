@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "UObject/Interface.h"
+#include "ToolTargets/ToolTarget.h"
 
 #include "AssetBackedTarget.generated.h"
 
@@ -23,4 +24,10 @@ public:
 	 * @return the underlying source asset for this Target.
 	 */
 	virtual UObject* GetSourceData() const = 0;
+
+	virtual bool HasSameSourceData(UToolTarget* OtherTarget) const
+	{
+		IAssetBackedTarget* OtherAsset = Cast<IAssetBackedTarget>(OtherTarget);
+		return OtherAsset && GetSourceData() == OtherAsset->GetSourceData();
+	}
 };
