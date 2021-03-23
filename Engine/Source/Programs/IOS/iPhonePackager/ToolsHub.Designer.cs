@@ -1,4 +1,4 @@
-﻿namespace iPhonePackager
+namespace iPhonePackager
 {
     partial class ToolsHub
     {
@@ -486,8 +486,8 @@
 			this.linkLabel4.Size = new System.Drawing.Size(215, 13);
 			this.linkLabel4.TabIndex = 53;
 			this.linkLabel4.TabStop = true;
-			this.linkLabel4.Tag = "http://udn.epicgames.com/Three/UnrealiPhonePackager.html";
-			this.linkLabel4.Text = "UE3 documentation for tools (still applicable)";
+			this.linkLabel4.Tag = "https://docs.unrealengine.com/en-US/SharingAndReleasing/Mobile/iOS/iPhonePackager/index.html";
+			this.linkLabel4.Text = "Unreal Engine Documentation for iPhone Packager";
 			this.linkLabel4.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.HyperlinkClicked);
 			// 
 			// label20

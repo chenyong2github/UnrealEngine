@@ -355,11 +355,11 @@ namespace iPhonePackager
 
 		void ScanConnectedDevices()
 		{
-			ConnectedDeviceInfo [] DeviceMap = null;
+			ConnectedDeviceInformation [] DeviceMap = null;
 
 			Program.ProgressDialog.OnBeginBackgroundWork = delegate
 			{
-				DeviceMap = DeploymentHelper.Get().EnumerateConnectedDevices();
+				DeviceMap = DeploymentHelper.GetAllConnectedDevices();
 			};
 
 			if ((Program.ProgressDialog.ShowDialog() == DialogResult.OK) && (DeviceMap != null))
@@ -621,7 +621,7 @@ namespace iPhonePackager
 			{
 				Program.ProgressDialog.OnBeginBackgroundWork = delegate
 				{
-					DeploymentHelper.Get().BackupDocumentsDirectory(BundleID, Config.GetRootBackedUpDocumentsDirectory());
+					DeploymentHelper.BackupDocumentsDirectory(BundleID, Config.GetRootBackedUpDocumentsDirectory());
 				};
 				Program.ProgressDialog.ShowDialog();
 			}
@@ -635,7 +635,7 @@ namespace iPhonePackager
 			{
 				Program.ProgressDialog.OnBeginBackgroundWork = delegate
 				{
-					DeploymentHelper.Get().UninstallIPAOnDevice(BundleID);
+					DeploymentHelper.UninstallIPAOnDevices(BundleID);
 				};
 				Program.ProgressDialog.ShowDialog();
 			}

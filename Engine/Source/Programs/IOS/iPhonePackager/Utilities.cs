@@ -922,7 +922,6 @@ namespace iPhonePackager
 		{
 			if (Environment.OSVersion.Platform == PlatformID.Unix || Environment.OSVersion.Platform == PlatformID.MacOSX)
 			{
-				// From Mono 6, the FriendlyName field cannot be set on Unix so we always parse it out of the Subject.
 				return GetCommonNameFromCert(Cert);
 			}
 			else

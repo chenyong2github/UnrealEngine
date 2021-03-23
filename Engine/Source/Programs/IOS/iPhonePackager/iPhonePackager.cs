@@ -720,7 +720,7 @@ namespace iPhonePackager
 
         static void ListDevices()
         {
-            var DeviceList = DeploymentHelper.Get().EnumerateConnectedDevices();
+            var DeviceList = DeploymentHelper.GetAllConnectedDevices();
 
             Console.WriteLine("-------------------------------------------------------");
             Console.WriteLine("List of devices attached");
@@ -1046,13 +1046,6 @@ namespace iPhonePackager
                 if (ReturnCode == 0)
                 {
                     Program.ReturnCode = (int)ErrorCodes.Error_Unknown;
-                }
-            }
-            finally
-            {
-                if (DeploymentHelper.DeploymentServerProcess != null)
-                {
-                    DeploymentHelper.DeploymentServerProcess.Close();
                 }
             }
 
