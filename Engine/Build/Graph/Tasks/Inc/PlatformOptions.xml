@@ -126,6 +126,8 @@
 <!-- PS5 packaging isn't supported by Gauntlet yet :( )-->
 <Property Name="PlatformsToSkipPackaging" Value="PS5" />
 
+<!-- These platforms can't run from loose staged content-->
+<Property Name="PlatformsThatRequirePackaging" Value="Android+iOS" />
 
 <!-- Support explicit flags for horde but hide them otherwise as the option list is overwhelming..-->
 <Do If="$(ShowExplicitFlags)" >

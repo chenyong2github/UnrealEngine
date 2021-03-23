@@ -11,18 +11,29 @@
 
 		This script should be included after CommonProperties.xml where build strings are defines.
 
-		InOption: PublishBuilds - Enabled/Disable publishing of builds to build storage
+		InOption: PublishPackages - Enabled/Disable publishing of builds to build storage
 		
 		InProperty: ProjectName
 		InProperty: EscapedBranch
 
+		OutOption: PublishPackages - Publish packages from the build
+		OutOption: PublishStagedContent - Publish staged content from the build
+		OutOption: PublishReports - Publish reports from the build
+
 		OutProperty: ProjectOutputDirectory - Local path to package builds to
-		OutProperty: ProjectPublishPath - Path to publish builds to. If empty publishing should be skipped
+		OutProperty: NetworkOutputDirectory - Network path to be used to publish builds or staged content to
+		OutProperty: AutomationReportOutputDirectory - Path to publish reports to. If empty publishing should be skipped
+
 	-->
 
-	<!-- Publish builds to the network ?-->
-	<Option Name="PublishBuilds" DefaultValue="false" Description="Publish packaged builds to the builds folder on the netwok"/>
-	<Option Name="PublishReports" DefaultValue="$(PublishBuilds)" Description="Publish packaged builds to the builds folder on the netwok"/>
+	<!-- Publish packaged builds to the network ?-->
+	<Option Name="PublishPackages" DefaultValue="$(IsBuildMachine)" Description="Publish packaged builds to the builds folder on the network"/>
+
+	<!-- Publish staged content to the network-->
+	<Option Name="PublishStagedContent" DefaultValue="false" Description="When publishing builds, also include the staged content"/>
+
+	<!-- Publish automation reports to the network-->
+	<Option Name="PublishReports" DefaultValue="$(IsBuildMachine)" Description="Publish packaged builds to the builds folder on the netwok"/>
 
 
 	<!-- Where builds are saved to locally (todo - use ProjectDir?) -->
@@ -41,9 +52,24 @@
 	<Property Name="NetworkReportRoot" Value="/Volumes/Builds/Automation/Reports"/>
 	<Property Name="NetworkReportRoot" Value="P:/Builds/Automation/Reports" If="'$(HostPlatform)' == 'Win64'"/>
 
-	<!-- Declare the publish path, and point to the network if PublishBuilds is true -->
-	<Property Name="ProjectPublishPath" Value="" />
-	<Property Name="ProjectPublishPath" Value="$(NetworkPublishRoot)" If="$(PublishBuilds)"/>
+	<!-- Allow scripts to override the network locations-->
+	<Do If="'$(NetworkTempRootOverride)' != ''" >
+		<Property Name="NetworkTempRoot" Value="$(NetworkTempRootOverride)"/>
+	</Do>
+
+	<Do If="'$(NetworkPublishRootOverride)' != ''" >
+		<Property Name="NetworkPublishRoot" Value="$(NetworkPublishRootOverride)"/>
+	</Do>
+
+	<Do If="'$(NetworkReportRootOverride)' != ''" >
+		<Property Name="NetworkReportRoot" Value="$(NetworkReportRootOverride)"/>
+	</Do>
+
+	<!-- Declare the network outout path. Build machines need to write to the network for tests so use temp by default, but the publish path if that's being used -->
+	<Property Name="NetworkOutputDirectory" Value="" />
+	<Property Name="NetworkOutputDirectory" Value="$(NetworkTempRoot)" If="$(IsBuildMachine)"/>
+	<Property Name="NetworkOutputDirectory" Value="$(NetworkPublishRoot)" If="$(PublishPackages) or $(PublishStagedContent)"/>
+	<Property Name="NetworkOutputDirectory" Value="$(NetworkOutputDirectory)/$(EscapedBranch)/$(BuildName)" If="'$(NetworkOutputDirectory)' != ''"/>
 
 	<!-- Automation can publish reports to a folder that is mapped to a website -->
 	<Do If="$(IsBuildMachine) or $(PublishReports)" >
@@ -51,13 +77,5 @@
 		<Property Name="AutomationReportOutputDirectory" Value="$(AutomationReportOutputDirectory)/$(EscapedBranch)/$(ProjectName)/$(CL-String)"/>
 		<Property Name="AutomationReportUrl" Value="http://automation.epicgames.net/reports/$(EscapedBranch)/$(ProjectName)/$(CL-String)"/>
 	</Do>
-
-	<!-- Build machines always need to publish somewhere so other agents can run the builds-->
-	<Do If="$(IsBuildMachine) And !$(PublishBuilds)">
-		<Property Name="ProjectPublishPath" Value="$(NetworkTempRoot)/$(EscapedBranch)/$(ProjectName)/$(CL-String)" />
-	</Do>
-
-	<!-- If we have a publish dir now, fully form the path-->
-	<Property Name="ProjectPublishPath" Value="$(NetworkPublishRoot)/$(EscapedBranch)/$(BuildName)" If="'$(ProjectPublishPath)' != ''"/>
 
 </BuildGraph>

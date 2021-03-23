@@ -22,9 +22,10 @@
 	<Option Name="WithBATDefaults" DefaultValue="true" Description="Used by parent scripts to specify defaults when including this script"/>
 
 	<!-- 
-		Allow tests to specify their own defaults by specifying a WithBATDefaults property that is true. The reason 
-		we use an option is we need something to check, and a property in a parent script will always override 
-		an option. Note - this means if a parent script includes this script multiple tiles then it should
+		Allow project graphs that Include this file to specify their own defaults. This is done by specifying WithBATDefaults=false
+		then declaring *all* these default values (leaving them empty if no default is required). 
+		The reason we need to wrap these in WithBATDefaults is that the properties always neeed to be declared.
+		Note - this means if a parent script includes this script multiple tiles then it should
 		always WithBATDefaults true/false before doing so, and if false it should supply all these arguments.
 	-->
 	<Do If="$(WithBATDefaults)">
@@ -33,6 +34,9 @@
 		<Property Name="DefaultTargetConfigurations" Value="Development" />
 		<Property Name="DefaultEditorTestList" Value="" />
 		<Property Name="DefaultTargetTestList" Value="" />
+		<Property Name="NetworkTempRootOverride" Value="" />
+		<Property Name="NetworkPublishRootOverride" Value="" />
+		<Property Name="NetworkReportRootOverride" Value="" />
 	</Do>
 
 	<!-- This will define options for all platforms and create lists called EditorPlatforms, RequiredEditorPlatforms, and TargetPlatforms. E.g. TargetPlatforms=Win64+Mac+PS4 -->
@@ -257,17 +261,31 @@
 		<!-- Now package the exe and cooked data-->
 		<Agent Name="Package $(PlatformAgentName)" Type="$(HostAgentType)">
 			<ForEach Name="PackageConfiguration" Values="$(PackageConfigurations)" Separator="+">
+				<Property Name="PackageDir" Value="$(ProjectOutputDirectory)/$(PackageConfiguration)/Packages" />
+				<Property Name="StagedDir" Value="$(ProjectOutputDirectory)/$(PackageConfiguration)/Staged" />
+
+				<Property Name="IsPackaged" Value="true" />
+				<Property Name="IsPackaged" Value="false" If="ContainsItem('$(PlatformsToSkipPackaging)','$(TargetPlatform)','+')" />	
+
 				<Node Name="$(PlatformPackageNodeName) $(PackageConfiguration)" Requires="$(PlatformCompileNodeName) $(PackageConfiguration);$(PlatformCookNodeName)">
-						<Property Name="BCRArgs" Value="-project=$(TargetProject) -platform=$(TargetPlatform) -configuration=$(PackageConfiguration) $(ExtraStageAndPackageArguments) -skipbuild -skipcook -pak -stage -archive -archivedirectory=&quot;$(ProjectOutputDirectory)/$(PackageConfiguration)&quot;" />
+						<Property Name="BCRArgs" Value="-project=$(TargetProject) -platform=$(TargetPlatform) -configuration=$(PackageConfiguration) $(ExtraStageAndPackageArguments) -skipbuild -skipcook -pak -stage -StagingDirectory=&quot;$(StagedDir)&quot;" />
 						<Property Name="BCRArgs" Value="$(BCRArgs) -client" If="'$(TargetType)' == 'Client'" />
 						<Property Name="BCRArgs" Value="$(BCRArgs) -server" If="'$(DedicatedServer)'" />
-						<Property Name="BCRArgs" Value="$(BCRArgs) -package" If="!ContainsItem('$(PlatformsToSkipPackaging)','$(TargetPlatform)','+')" />		
+						<Property Name="BCRArgs" Value="$(BCRArgs) -package -archive -archivedirectory=&quot;$(PackageDir)&quot;" If="$(IsPackaged)" />		
 						<Command Name="BuildCookRun" Arguments="$(BCRArgs)" />
 				</Node>
 				<Node Name="$(PlatformPublishNodeName) $(PackageConfiguration)" Requires="$(PlatformPackageNodeName) $(PackageConfiguration)">
-					<!-- Typically only build machines publish -->
-					<Do If="'$(ProjectPublishPath)' != ''" >
-						<Copy Files="..." From="$(ProjectOutputDirectory)/$(PackageConfiguration)/$(CookPlatform)" To="$(ProjectPublishPath)/$(PackageConfiguration)/$(CookPlatform)"/>
+					<!-- 	
+						If this path is set we need to write to the network. This path will reflect set to scratch or semi-permanent storage based on whether
+						PublishPackages=true or we're a buld machine ( build machines always need to put builds on the network for testing)
+					-->
+					<Do If="'$(NetworkOutputDirectory)' != ''">						
+						<Do If="$(IsPackaged)" >
+							<Copy Files="..." From="$(PackageDir)/$(CookPlatform)" To="$(NetworkOutputDirectory)/$(CookPlatform)/$(PackageConfiguration)"/>
+						</Do>
+						<Do If="$(PublishStagedContent) or !$(IsPackaged)" >
+							<Copy Files="..." From="$(StagedDir)/$(CookPlatform)" To="$(NetworkOutputDirectory)/$(CookPlatform)/Staged"/>
+						</Do>
 					</Do>
 				</Node>
 				<Property Name="AllPlatformCookNodes" Value="$(AllPlatformCookNodes);$(PlatformPackageNodeName) $(PackageConfiguration)" />
@@ -283,7 +301,7 @@
 			<ForEach Name="TestConfiguration" Values="$(TestConfigurations)" Separator="+">
 				<!-- Create the -build argument for Gauntlet based on whether builds are local or on the network-->
 				<Property Name="GauntletBuildArg" Value="-build=&quot;$(ProjectOutputDirectory)/$(TestConfiguration)&quot;" />
-				<Property Name="GauntletBuildArg" Value="-build=&quot;$(ProjectPublishPath)/$(TestConfiguration)&quot;" If ="'$(ProjectPublishPath)' != ''" />
+				<Property Name="GauntletBuildArg" Value="-build=&quot;$(NetworkOutputDirectory)&quot;" If ="'$(NetworkOutputDirectory)' != ''" />
 				<!-- Declare a boot test for the target-->	
 				<Property Name="BootTestName" Value="$(DisplayTargetName) $(TargetPlatform) $(TestConfiguration) BootTest" />
 				<Node Name="$(BootTestName)" After="$(PlatformPublishNodeName) $(TestConfiguration)">

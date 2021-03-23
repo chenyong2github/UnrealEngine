@@ -183,7 +183,10 @@ namespace Gauntlet
 		/// </summary>
 		public static List<Action> PostAbortHandlers { get { return InnerPostAbortHandlers; } }
 
-
+		/// <summary>
+		/// Used by network functions that need to deal with multiple adapters
+		/// </summary>
+		public static string PreferredNetworkDomain {  get { return "epicgames.net";  } }
 	}
 
 	/// <summary>
@@ -1553,6 +1556,86 @@ namespace Gauntlet
 			Files = Files.Where(F => Pattern.IsMatch(F));
 
 			return Files.ToArray();
+		}
+
+		/// <summary>
+		/// Returns true if any part of the specified path contains 'Component'. E.g. c:\Temp\Foo\Bar would return true for 'Foo'
+		/// </summary>
+		/// <param name="InPath">Path to search</param>
+		/// <param name="InComponent">Component to look for</param>
+		/// <param name="InPartialMatch">Whether a partial match is ok. E.g 'Fo' instead of 'Foo'</param>
+		/// <returns></returns>
+		public static bool PathContainsComponent(string InPath, string InComponent, bool InPartialMatch=false)
+		{
+			// normalize and split the path
+			var Components = new DirectoryInfo(InPath).FullName.Split(Path.DirectorySeparatorChar);
+
+			return InPartialMatch
+				? Components.Any(S => S.Contains(InComponent, StringComparison.OrdinalIgnoreCase))
+				: Components.Any(S => S.Equals(InComponent, StringComparison.OrdinalIgnoreCase));
+		}
+
+		/// <summary>
+		/// Returns subdirectories that match the specified regular expression, searching up to the specified maximum depth
+		/// </summary>
+		/// <param name="BaseDir">Directory to start searching in</param>
+		/// <param name="RegexPattern">Regular expression to match on</param>
+		/// <param name="RecursionDepth">Depth to search (-1 = unlimited)</param>
+		/// <returns></returns>
+		public static IEnumerable<DirectoryInfo> FindMatchingDirectories(string BaseDir, string RegexPattern, int RecursionDepth=0)
+		{
+			List<DirectoryInfo> Found = new List<DirectoryInfo>();
+
+			List<DirectoryInfo> Candidates = new List<DirectoryInfo>(new DirectoryInfo(BaseDir).GetDirectories());
+
+			Regex Pattern = new Regex(RegexPattern, RegexOptions.IgnoreCase);
+
+			int CurrentDepth = 0;
+
+			do
+			{
+				IEnumerable<DirectoryInfo> MatchingDirs = Candidates.Where(D => Pattern.IsMatch(D.Name));
+
+				Found.AddRange(MatchingDirs);
+
+				// recurse
+				Candidates = Candidates.SelectMany(D => D.GetDirectories()).ToList();
+
+			} while (Candidates.Any() && (CurrentDepth++ < RecursionDepth || RecursionDepth == -1)); ;
+
+			return Found;
+		}
+
+		/// <summary>
+		/// Returns files that match the specified regular expression in the provided folder, searching up to a maximum depth
+		/// </summary>
+		/// <param name="BaseDir">Directory to start searching in</param>
+		/// <param name="RegexPattern">Regular expression to match on</param>
+		/// <param name="RecursionDepth">Depth to search (-1 = unlimited)</param>
+		/// <returns></returns>
+		public static IEnumerable<FileInfo> FindMatchingFiles(string BaseDir, string RegexPattern, int RecursionDepth = 0)
+		{
+			List<FileInfo> Found = new List<FileInfo>();
+
+			IEnumerable<DirectoryInfo> CandidateDirs = new DirectoryInfo[] { new DirectoryInfo(BaseDir) };
+
+			Regex Pattern = new Regex(RegexPattern, RegexOptions.IgnoreCase);
+
+			int CurrentDepth = 0;
+
+			do
+			{
+				// check for matching files in this set of directories
+				IEnumerable<FileInfo> MatchingFiles = CandidateDirs.SelectMany(D => D.GetFiles()).Where(F => Pattern.IsMatch(F.Name));
+
+				Found.AddRange(MatchingFiles);
+
+				// recurse into this set of directories
+				CandidateDirs = CandidateDirs.SelectMany(D => D.GetDirectories()).ToList();
+
+			} while (CandidateDirs.Any() && (CurrentDepth++ < RecursionDepth || RecursionDepth == -1)); ;
+
+			return Found;
 		}
 	}
 

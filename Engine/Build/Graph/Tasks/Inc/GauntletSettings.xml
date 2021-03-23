@@ -11,8 +11,6 @@
 		InProperty: ProjectPath - Path where the .uproject is located
         InProperty: ProjectName - Name of the project (e.g. <ProjectName>.uproject)
 		InProperty: EscapedBranch
-		InProperty: ProjectOutputDirectory - Local pathwhere builds are found
-		InProperty: ProjectPublishPath - Path (if any) builds are published to
 
         OutProperty: GauntletEditorTestArgs - Arguments to pass to Gauntlet tests executed under the editor
 		OutProperty: GauntletTargetTestArgs - Arguments to pass to Gauntlet tests executed using cooked builds
