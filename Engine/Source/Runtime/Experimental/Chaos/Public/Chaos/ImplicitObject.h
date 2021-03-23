@@ -271,8 +271,18 @@ public:
 
 	virtual int32 FindMostOpposingFaceScaled(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist, const FVec3& Scale) const
 	{
-		//Many objects have no concept of a face
-		return INDEX_NONE;
+		// For now, this is the implementation that used to be in FImplicitObjectScaled to use as a default.
+		// @todo(chaos): implement FindMostOpposingFaceScaled for all types that can be wrapped in ImplicitObjectScaled
+		// NOTE: this isn't strictly correct. The distance check does not account for non-uniforms scales, but also the algorithm is finding the
+		// face which has the most opposing normal. The scaled-space normal for a face i is Ns_i = (N_i / S) / |(N_i / S)|
+		// We want to find i with the minimum F_i = (D . Ns_i), where D is the unit direction we are interested in.
+		// F_i = D . (N_i / S) / |(N_i / S)|
+		// Below we are effectively testing F_i = ((D / S) . N_i) and ignoring the |(N_i / S)| which is dependent on i and therefore cannot 
+		// be ignored in the minimum check.
+		const FReal UnscaledSearchDist = SearchDist * Scale.Max();	//this is not quite right since it's no longer a sphere, but the whole thing is fuzzy anyway
+		const FVec3 UnscaledPosition = Position / Scale;
+		const FVec3 UnscaledNormal = GetInnerUnscaledNormal(UnitDir, Scale);
+		return FindMostOpposingFace(UnscaledPosition, UnscaledNormal, HintFaceIndex, UnscaledSearchDist);
 	}
 
 
@@ -349,6 +359,29 @@ public:
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const { return 0; }
 
 protected:
+
+	// Safely scale a normal - used with both scale and inverse scale
+	FVec3 ScaledNormalHelper(const FVec3& Normal, const FVec3& Scale) const
+	{
+		const FVec3 ScaledNormal = Scale * Normal;
+		const float ScaledNormalLen = ScaledNormal.Size();
+		return ensure(ScaledNormalLen > TNumericLimits<FReal>::Min())
+			? ScaledNormal / ScaledNormalLen
+			: FVec3(0.f, 0.f, 1.f);
+	}
+
+	// Convert a normal in the inner unscaled object space into a normal in the outer scaled object space.
+	// Note: INverse scale is passed in, not the scale
+	FVec3 GetOuterScaledNormal(const FVec3& InnerNormal, const FVec3& Scale) const
+	{
+		return ScaledNormalHelper(InnerNormal, FVec3(1.0f / Scale.X, 1.0f / Scale.Y, 1.0f / Scale.Z));
+	}
+
+	// Convert a normal in the outer scaled object space into a normal in the inner unscaled object space
+	FVec3 GetInnerUnscaledNormal(const FVec3& OuterNormal, const FVec3& Scale) const
+	{
+		return ScaledNormalHelper(OuterNormal, Scale);
+	}
 
 	// Not all derived types support a margin, and for some it represents some other
 	// property (the radius of a sphere for example), so the setter should only be exposed 
