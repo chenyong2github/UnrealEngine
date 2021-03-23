@@ -7,6 +7,7 @@
 #include "MetasoundEditorGraphInputNodes.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundUObjectRegistry.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 

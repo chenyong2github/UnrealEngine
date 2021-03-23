@@ -34,6 +34,8 @@
 #include "SMetasoundPalette.h"
 #include "SNodePanel.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
 #include "Templates/SharedPointer.h"
