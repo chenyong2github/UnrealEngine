@@ -453,6 +453,8 @@ struct FRasterContext
 	ERasterTechnique	RasterTechnique;
 	ERasterScheduling	RasterScheduling;
 
+	FIntVector4			VisualizeConfig;
+
 	FRDGTextureRef		LockBuffer;
 	FRDGTextureRef		DepthBuffer;
 	FRDGTextureRef		VisBuffer64;
@@ -462,6 +464,13 @@ struct FRasterContext
 	FRasterParameters	Parameters;
 };
 
+struct FVisualizeResult
+{
+	FRDGTextureRef ModeOutput;
+	FName ModeName;
+	int32 ModeID;
+};
+
 struct FRasterResults
 {
 	FIntVector4		SOAStrides;
@@ -469,8 +478,8 @@ struct FRasterResults
 	uint32			MaxNodes;
 	uint32			RenderFlags;
 
-	FRDGBufferRef		ViewsBuffer{};
-	FRDGBufferRef		VisibleClustersSWHW{};
+	FRDGBufferRef	ViewsBuffer{};
+	FRDGBufferRef	VisibleClustersSWHW{};
 
 	FRDGTextureRef	VisBuffer64{};
 	FRDGTextureRef	DbgBuffer64{};
@@ -479,6 +488,8 @@ struct FRasterResults
 	FRDGTextureRef	MaterialDepth{};
 	FRDGTextureRef	NaniteMask{};
 	FRDGTextureRef	VelocityBuffer{};
+
+	TArray<FVisualizeResult, TInlineAllocator<32>> Visualizations;
 };
 
 FCullingContext	InitCullingContext(
@@ -658,12 +669,12 @@ void DrawLumenMeshCapturePass(
 	FRDGTextureRef DepthAtlasTexture
 );
 
-void DrawVisualization(
+void AddVisualizationPasses(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneDepth,
-	const FScene& Scene,
-	const FViewInfo& View,
-	const FRasterResults& RasterResults
+	const FScene* Scene,
+	const FSceneTextures& SceneTextures,
+	TArrayView<const FViewInfo> Views,
+	TArrayView<Nanite::FRasterResults> Results
 );
 
 #if WITH_EDITOR

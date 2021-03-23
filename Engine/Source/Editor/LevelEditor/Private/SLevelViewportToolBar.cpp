@@ -1585,7 +1585,6 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 		);
 	}
 
-#if 0 // TODO: NANITE_VIEW_MODES
 	{
 		FToolMenuSection& Section = Menu->FindOrAddSection("ViewMode");
 		Section.AddSubMenu(
@@ -1609,7 +1608,6 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeNaniteMode")
 		);
 	}
-#endif
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("LevelViewportLandscape", LOCTEXT("LandscapeHeader", "Landscape"), InsertPosition);

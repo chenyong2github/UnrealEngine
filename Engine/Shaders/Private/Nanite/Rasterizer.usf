@@ -21,7 +21,7 @@ uint2 GetVisualizeValues()
 	uint DebugValueMax; // InterlockedMax64 using depth (value associated with surviving fragment)
 	uint DebugValueAdd; // InterlockedAdd32 (value accumulated with every evaluated fragment)
 	const uint VisualizeMode = VisualizeConfig.x;
-	if (VisualizeMode == VISUALIZE_HW_VS_SW)
+	if (VisualizeMode == VISUALIZE_RASTER_MODE)
 	{
 	#if SOFTWARE_RASTER
 		DebugValueMax = 2; // Software Raster
@@ -219,8 +219,8 @@ void RasterizeTri(
 			{
 				WritePixel( OutVisBuffer64, PixelValue, uint2(x, y), ZY, NaniteView, bUsePageTable );
 			#if DEBUG_VISUALIZE
-					WritePixel( OutDbgBuffer64, DebugValues.x, uint2(x, y), ZY, NaniteView, bUsePageTable );
-					InterlockedAdd(OutDbgBuffer32[uint2(x, y)], DebugValues.y);
+				WritePixel( OutDbgBuffer64, DebugValues.x, uint2(x, y), ZY, NaniteView, bUsePageTable );
+				InterlockedAdd(OutDbgBuffer32[uint2(x, y)], DebugValues.y);
 			#endif
 			}
 

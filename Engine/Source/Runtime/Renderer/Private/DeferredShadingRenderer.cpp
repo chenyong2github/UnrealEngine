@@ -51,6 +51,7 @@
 #include "HairStrands/HairStrandsData.h"
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "GPUSortManager.h"
+#include "NaniteVisualizationData.h"
 #include "Rendering/NaniteResources.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "SceneTextureReductions.h"
@@ -1593,10 +1594,20 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
 	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
+
+	bool bVisualizeNanite = false;
 	if (bNaniteEnabled)
 	{
 		Nanite::GGlobalResources.Update(GraphBuilder); // Needed to managed scratch buffers for Nanite.
 		Nanite::GStreamingManager.BeginAsyncUpdate(GraphBuilder);
+
+		FNaniteVisualizationData& NaniteVisualization = GetNaniteVisualizationData();
+		if (Views.Num() > 0 && ViewFamily.EngineShowFlags.VisualizeNanite)
+		{
+			const FName& NaniteViewMode = Views[0].CurrentNaniteVisualizationMode;
+			NaniteVisualization.Update(NaniteViewMode);
+			bVisualizeNanite = NaniteVisualization.IsActive();
+		}
 	}
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
@@ -2050,7 +2061,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					bUpdateStreaming,
 					bSupportsMultiplePasses,
 					bForceHWRaster,
-					bPrimaryContext);
+					bPrimaryContext
+				);
 
 				static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
 				const bool bExtractStats = Nanite::IsStatFilterActive(EmptyFilterName);
@@ -2324,20 +2336,23 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					View,
 					RasterResults
 				);
-
-				Nanite::DrawVisualization(
-					GraphBuilder,
-					SceneTextures.Depth.Target,
-					*Scene,
-					View,
-					RasterResults
-				);
 			}
 		}
 
 		if (!bAllowReadOnlyDepthBasePass)
 		{
 			AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
+		}
+
+		if (bVisualizeNanite)
+		{
+			Nanite::AddVisualizationPasses(
+				GraphBuilder,
+				Scene,
+				SceneTextures,
+				Views,
+				NaniteRasterResults
+			);
 		}
 	}
 
@@ -2796,6 +2811,41 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 #endif
+
+	// TODO: NANITE_VIEW_MODES: Ideal place to run the visualization passes, but need to remove NANITE_USE_SCRATCH_BUFFERS first
+	/*if (bVisualizeNanite)
+	{
+		Nanite::AddVisualizationPasses(
+			GraphBuilder,
+			Scene,
+			SceneTextures,
+			Views,
+			NaniteRasterResults
+		);
+	}*/
+	if (bVisualizeNanite)
+	{
+		if (Views.Num() > 0 && NaniteRasterResults.Num() > 0)
+		{
+			const FViewInfo& View = Views[0];
+			const Nanite::FRasterResults& RasterResults = NaniteRasterResults[0];
+			
+			// TODO: NANITE_VIEW_MODES: Add resample + tile grid and border for overview (multiple visualizations)
+			if (RasterResults.Visualizations.Num() == 1)
+			{
+				const Nanite::FVisualizeResult& Visualization = RasterResults.Visualizations[0];
+				AddDrawTexturePass(
+					GraphBuilder,
+					View,
+					Visualization.ModeOutput,
+					SceneTextures.Color.Target,
+					View.ViewRect.Min,
+					View.ViewRect.Min,
+					View.ViewRect.Size()
+				);
+			}
+		}
+	}
 
 	RendererModule.RenderOverlayExtensions(GraphBuilder, Views, SceneTextures);
 

@@ -1574,9 +1574,7 @@ void SLevelViewport::BindViewCommands( FUICommandList& OutCommandList )
 	LevelEditorModule.IterateViewportTypes(ProcessViewportTypeActions);
 
 	FBufferVisualizationMenuCommands::Get().BindCommands(OutCommandList, Client);
-#if 0 // TODO: NANITE_VIEW_MODES
 	FNaniteVisualizationMenuCommands::Get().BindCommands(OutCommandList, Client);
-#endif
 }
 
 

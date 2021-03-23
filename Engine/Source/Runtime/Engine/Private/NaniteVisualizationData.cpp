@@ -86,7 +86,7 @@ void FNaniteVisualizationData::ConfigureConsoleCommand()
 	ConsoleDocumentationVisualizationMode += AvailableVisualizationModes;
 
 	IConsoleManager::Get().RegisterConsoleVariable(
-		TEXT("r.Nanite.Visualize"),
+		GetVisualizeConsoleCommandName(),
 		TEXT(""),
 		*ConsoleDocumentationVisualizationMode,
 		ECVF_Cheat);
@@ -95,7 +95,7 @@ void FNaniteVisualizationData::ConfigureConsoleCommand()
 	ConsoleDocumentationOverviewTargets += AvailableVisualizationModes;
 
 	IConsoleManager::Get().RegisterConsoleVariable(
-		TEXT("r.Nanite.VisualizeOverview"),
+		GetOverviewConsoleCommandName(),
 		TEXT("Triangles,Clusters,Primitives,Instances,Mask,Overdraw"),
 		*ConsoleDocumentationOverviewTargets,
 		ECVF_Default
@@ -119,6 +119,103 @@ void FNaniteVisualizationData::AddVisualizationMode(
 	Record.ModeID		= ModeID;
 }
 
+bool FNaniteVisualizationData::IsActive() const
+{
+	return IsInitialized() && ActiveVisualizationModes.Num() > 0;
+}
+
+bool FNaniteVisualizationData::Update(const FName& InViewMode)
+{
+	if (IsInitialized())
+	{
+		ActiveVisualizationModes.Reset();
+
+		// First check if overview has a configured mode list
+		static IConsoleVariable* ICVarOverview = IConsoleManager::Get().FindConsoleVariable(GetOverviewConsoleCommandName());
+		if (ICVarOverview)
+		{
+			FString OverviewModeList = ICVarOverview->GetString();
+			if (IsDifferentToCurrentOverviewModeList(OverviewModeList))
+			{
+				FString Left, Right;
+
+				// Update our record of the list of modes we've been asked to display
+				SetCurrentOverviewModeList(OverviewModeList);
+				CurrentOverviewModeNames.Reset();
+
+				// Extract each mode name from the comma separated string
+				while (OverviewModeList.Len())
+				{
+					// Detect last entry in the list
+					if (!OverviewModeList.Split(TEXT(","), &Left, &Right))
+					{
+						Left = OverviewModeList;
+						Right = FString();
+					}
+
+					// Look up the mode ID for this name
+					Left.TrimStartInline();
+
+					const FName ModeName = FName(*Left);
+					const int32 ModeID = GetModeID(ModeName);
+
+					if (ModeID == INDEX_NONE)
+					{
+						UE_LOG(LogNaniteVisualization, Warning, TEXT("Unknown Nanite visualization mode '%s'"), *Left);
+					}
+					else
+					{
+						CurrentOverviewModeNames.Emplace(ModeName);
+						ActiveVisualizationModes.Add(ModeID);
+
+					}
+
+					OverviewModeList = Right;
+				}
+			}
+		}
+
+	#if 1 // NANITE_VIEW_MODES // TODO: Overview support
+		ActiveVisualizationModes.Reset();
+	#endif
+
+		// Next check if the console command is set (overrides the editor)
+		if (ActiveVisualizationModes.Num() == 0)
+		{
+			static IConsoleVariable* ICVarVisualize = IConsoleManager::Get().FindConsoleVariable(GetVisualizeConsoleCommandName());
+			if (ICVarVisualize)
+			{
+				const FString ConsoleVisualizationMode = ICVarVisualize->GetString();
+				if (!ConsoleVisualizationMode.IsEmpty())
+				{
+					const FName  ActiveVisualizationName = FName(*ConsoleVisualizationMode);
+					const int32 ActiveVisualizationMode = GetModeID(ActiveVisualizationName);
+					if (ActiveVisualizationMode == INDEX_NONE)
+					{
+						UE_LOG(LogNaniteVisualization, Warning, TEXT("Unknown Nanite visualization mode '%s'"), *ConsoleVisualizationMode);
+					}
+					else
+					{
+						ActiveVisualizationModes.Add(ActiveVisualizationMode);
+					}
+				}
+			}
+		}
+
+		// Finally check the view mode state
+		if (ActiveVisualizationModes.Num() == 0 && InViewMode != NAME_None)
+		{
+			const int32 ActiveVisualizationMode = GetModeID(InViewMode);
+			if (ensure(ActiveVisualizationMode != INDEX_NONE))
+			{
+				ActiveVisualizationModes.Add(ActiveVisualizationMode);
+			}
+		}
+	}
+
+	return IsActive();
+}
+
 FText FNaniteVisualizationData::GetModeDisplayName(FName InModeName) const
 {
 	if (const FModeRecord* Record = ModeMap.Find(InModeName))
@@ -131,7 +228,7 @@ FText FNaniteVisualizationData::GetModeDisplayName(FName InModeName) const
 	}
 }
 
-uint32 FNaniteVisualizationData::GetModeID(FName InModeName) const
+int32 FNaniteVisualizationData::GetModeID(FName InModeName) const
 {
 	if (const FModeRecord* Record = ModeMap.Find(InModeName))
 	{
@@ -139,24 +236,19 @@ uint32 FNaniteVisualizationData::GetModeID(FName InModeName) const
 	}
 	else
 	{
-		return VISUALIZE_OVERVIEW;
+		return INDEX_NONE;
 	}
 }
 
-void FNaniteVisualizationData::SetCurrentOverviewModeNames(const FString& InNameList)
+void FNaniteVisualizationData::SetCurrentOverviewModeList(const FString& InNameList)
 {
-	CurrentOverviewModeNames = InNameList;
+	CurrentOverviewModeList = InNameList;
 }
 
-bool FNaniteVisualizationData::IsDifferentToCurrentOverviewModeNames(const FString& InNameList)
+bool FNaniteVisualizationData::IsDifferentToCurrentOverviewModeList(const FString& InNameList)
 {
-	return InNameList != CurrentOverviewModeNames;
+	return InNameList != CurrentOverviewModeList;
 }
-
-/*TArray<UMaterialInterface*>& FNaniteVisualizationData::GetOverviewMaterials()
-{
-	return OverviewMaterials;
-}*/
 
 FNaniteVisualizationData& GetNaniteVisualizationData()
 {

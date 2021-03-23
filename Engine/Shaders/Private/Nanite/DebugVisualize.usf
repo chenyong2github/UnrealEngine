@@ -41,6 +41,7 @@ float3 IntToColor(uint Index)
 	return Color * (1.0f / 255.0f);
 }
 
+// TODO: Try N.V to improve shading look
 float3 ApplySobelFilter(uint2 PixelPosXY, uint DepthInt, float3 Color)
 {
 	// Sobel edge detect depth
@@ -204,7 +205,7 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		{
 			Result = IntToColor(VisibleCluster.InstanceId) * 0.8;
 		}
-		else if (VisualizeMode == VISUALIZE_HW_VS_SW)
+		else if (VisualizeMode == VISUALIZE_RASTER_MODE)
 		{
 			Result = ( IntToColor(DebugValueMax) * 0.75 + 0.25 ) * ( IntToColor(TriIndex).x * 0.5 + 0.5 );
 		}
@@ -219,7 +220,7 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		{
 			Result = IntToColor(HierarchyOffset);
 		}
-		else if (VisualizeMode == VISUALIZE_MATERIAL_FAST_VS_SLOW)
+		else if (VisualizeMode == VISUALIZE_MATERIAL_MODE)
 		{
 			Result = IsMaterialFastPath(Cluster) ? float3(0, 1, 0) : float3(1, 0, 0);
 		}
@@ -227,11 +228,11 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		{
 			Result = IntToColor(GetRelativeMaterialIndex(Cluster, TriIndex));
 		}
-		else if (VisualizeMode == VISUALIZE_MATERIAL_ID)
+		else if (VisualizeMode == VISUALIZE_MATERIAL_DEPTH)
 		{
 			Result = IntToColor(GetMaterialDepthId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable));
 		}
-		else if (VisualizeMode == VISUALIZE_HIT_PROXY_ID)
+		else if (VisualizeMode == VISUALIZE_HIT_PROXY_DEPTH)
 		{
 			Result = IntToColor(GetMaterialHitProxyId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable));
 		}
