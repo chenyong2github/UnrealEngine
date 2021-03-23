@@ -30,32 +30,15 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 struct FHairStrandsVisibilityData
 {
-	FRDGTextureRef DepthTexture = nullptr;
-	FRDGTextureRef IDTexture = nullptr;
-	FRDGTextureRef MaterialTexture = nullptr;
-	FRDGTextureRef AttributeTexture = nullptr;
 	FRDGTextureRef VelocityTexture = nullptr;
 	FRDGTextureRef ResolveMaskTexture = nullptr;
 	FRDGTextureRef CategorizationTexture = nullptr;
 	FRDGTextureRef ViewHairCountTexture = nullptr;
 	FRDGTextureRef ViewHairCountUintTexture = nullptr;
-	FRDGTextureRef DepthTextureUint = nullptr;
 	FRDGTextureRef EmissiveTexture = nullptr;
-
 	FRDGTextureRef HairOnlyDepthTexture = nullptr;
 
-	FRDGTextureRef ViewHairVisibilityTexture0 = nullptr;
-	FRDGTextureRef ViewHairVisibilityTexture1 = nullptr;
-	FRDGTextureRef ViewHairVisibilityTexture2 = nullptr;
-	FRDGTextureRef ViewHairVisibilityTexture3 = nullptr;
-
 	FRDGTextureRef LightChannelMaskTexture = nullptr;
-
-	FRDGTextureRef	PPLLNodeCounterTexture = nullptr;
-	FRDGTextureRef	PPLLNodeIndexTexture = nullptr;
-	FRDGBufferRef	PPLLNodeDataBuffer = nullptr;
-	uint32			MaxPPLLNodePerPixelCount = 0;
-	uint32			MaxPPLLNodeCount = 0;
 
 	FRDGTextureRef	TileIndexTexture = nullptr;
 	FRDGBufferRef	TileBuffer = nullptr;
@@ -310,7 +293,7 @@ struct FHairStrandsDebugData
 		FRDGBufferRef SampleCounter = nullptr;
 	} Resources;
 
-	bool IsValid() const
+	bool IsPlotDataValid() const
 	{
 		return Resources.ShadingPointBuffer && Resources.ShadingPointCounter && Resources.SampleBuffer && Resources.SampleCounter;
 	}
@@ -318,6 +301,16 @@ struct FHairStrandsDebugData
 	static Data CreateData(FRDGBuilder& GraphBuilder);
 	static void SetParameters(FRDGBuilder& GraphBuilder, Data& In, FWriteParameters& Out);
 	static void SetParameters(FRDGBuilder& GraphBuilder, const Data& In, FReadParameters& Out);
+
+	// PPLL debug data
+	bool IsPPLLDataValid() const 
+	{ 
+		return PPLLNodeCounterTexture && PPLLNodeIndexTexture && PPLLNodeDataBuffer; 
+	}
+
+	FRDGTextureRef	PPLLNodeCounterTexture = nullptr;
+	FRDGTextureRef	PPLLNodeIndexTexture = nullptr;
+	FRDGBufferRef	PPLLNodeDataBuffer = nullptr;
 };
 
 typedef TArray<FHairStrandsMacroGroupData, SceneRenderingAllocator> FHairStrandsMacroGroupDatas;

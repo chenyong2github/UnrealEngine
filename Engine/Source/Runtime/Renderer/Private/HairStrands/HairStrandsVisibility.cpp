@@ -82,6 +82,9 @@ static FAutoConsoleVariableRef CVarHairStrandsVisibility_UseFastPath(TEXT("r.Hai
 static int32 GHairStrandsVisibility_OutputEmissiveData = 0;
 static FAutoConsoleVariableRef CVarHairStrandsVisibility_OutputEmissiveData(TEXT("r.HairStrands.Visibility.Emissive"), GHairStrandsVisibility_OutputEmissiveData, TEXT("Enable emissive data during the material pass."));
 
+static int32 GHairStrandsDebugPPLL = 0;
+static FAutoConsoleVariableRef CVarHairStrandsDebugPPLL(TEXT("r.HairStrands.Visibility.PPLL.Debug"), GHairStrandsDebugPPLL, TEXT("Draw debug per pixel light list rendering."));
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 namespace HairStrandsVisibilityInternal
@@ -228,6 +231,11 @@ inline uint32 GetMeanSamplePerPixel()
 		return 1;
 	}
 	return 1;
+}
+
+uint32 GetHairStrandsMeanSamplePerPixel()
+{
+	return GetMeanSamplePerPixel();
 }
 
 struct FRasterComputeOutput
@@ -3365,11 +3373,6 @@ void RenderHairStrandsVisibilityBuffer(
 						VisibilityData.EmissiveTexture = PassOutput.EmissiveTexture;
 					}
 
-					VisibilityData.ViewHairVisibilityTexture0 = RasterOutput.VisibilityTexture0;
-					VisibilityData.ViewHairVisibilityTexture1 = RasterOutput.VisibilityTexture1;
-					VisibilityData.ViewHairVisibilityTexture2 = RasterOutput.VisibilityTexture2;
-					VisibilityData.ViewHairVisibilityTexture3 = RasterOutput.VisibilityTexture3;
-
 					// For fully covered pixels, write: 
 					// * black color into the scene color
 					// * closest depth
@@ -3484,13 +3487,9 @@ void RenderHairStrandsVisibilityBuffer(
 
 				// This is used when compaction is not enabled.
 				VisibilityData.MaxSampleCount = MsaaVisibilityResources.IdTexture->Desc.NumSamples;
-				VisibilityData.IDTexture = MsaaVisibilityResources.IdTexture;
-				VisibilityData.DepthTexture = MsaaVisibilityResources.DepthTexture;
 				VisibilityData.HairOnlyDepthTexture = HairOnlyDepthTexture;
 				if (!bIsVisiblityEnable)
 				{
-					VisibilityData.MaterialTexture = MsaaVisibilityResources.MaterialTexture;
-					VisibilityData.AttributeTexture = MsaaVisibilityResources.AttributeTexture;
 					VisibilityData.VelocityTexture = MsaaVisibilityResources.VelocityTexture;
 				}
 
@@ -3723,9 +3722,12 @@ void RenderHairStrandsVisibilityBuffer(
 
 			#if WITH_EDITOR
 				// Extract texture for debug visualization
-				VisibilityData.PPLLNodeCounterTexture = PPLLNodeCounterTexture;
-				VisibilityData.PPLLNodeIndexTexture = PPLLNodeIndexTexture;
-				VisibilityData.PPLLNodeDataBuffer = PPLLNodeDataBuffer;
+				if (GHairStrandsDebugPPLL > 0)
+				{
+					View.HairStrandsViewData.DebugData.PPLLNodeCounterTexture = PPLLNodeCounterTexture;
+					View.HairStrandsViewData.DebugData.PPLLNodeIndexTexture = PPLLNodeIndexTexture;
+					View.HairStrandsViewData.DebugData.PPLLNodeDataBuffer = PPLLNodeDataBuffer;
+				}
 			#endif
 			}
 
