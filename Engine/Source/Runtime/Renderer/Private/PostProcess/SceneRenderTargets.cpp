@@ -18,6 +18,7 @@
 #include "WideCustomResolveShaders.h"
 #include "ClearQuad.h"
 #include "RenderUtils.h"
+#include "RendererInterface.h"
 #include "PipelineStateCache.h"
 #include "OneColorShader.h"
 #include "ResolveShader.h"
@@ -1577,15 +1578,12 @@ void FSceneRenderTargets::AllocateFoveationTexture(FRHICommandList& RHICmdList)
 	if (StereoRenderTargetManager && StereoRenderTargetManager->NeedReAllocateFoveationTexture(FoveationTexture))
 	{
 		FoveationTexture.SafeRelease();
-	}
-	bAllocatedFoveationTexture = StereoRenderTargetManager && StereoRenderTargetManager->AllocateFoveationTexture(0, BufferSize.X, BufferSize.Y, PF_R8G8, 0, TexCreate_None, TexCreate_None, Texture, TextureSize);
-	if (bAllocatedFoveationTexture)
-	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(TextureSize, PF_R8G8, FClearValueBinding::White, TexCreate_None, TexCreate_None, false));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, FoveationTexture, TEXT("FixedFoveation"));
-		const uint32 OldElementSize = FoveationTexture->ComputeMemorySize();
-		FoveationTexture->GetRenderTargetItem().ShaderResourceTexture = FoveationTexture->GetRenderTargetItem().TargetableTexture = Texture;
-		GRenderTargetPool.UpdateElementSize(FoveationTexture, OldElementSize);
+
+		bAllocatedFoveationTexture = StereoRenderTargetManager->AllocateFoveationTexture(0, BufferSize.X, BufferSize.Y, PF_R8G8, 0, TexCreate_None, TexCreate_None, Texture, TextureSize);
+		if (bAllocatedFoveationTexture)
+		{
+			FoveationTexture = CreateRenderTarget(Texture, TEXT("ShadingRate"));
+		}
 	}
 }
 
