@@ -208,13 +208,25 @@ void ConvertToExternalBufferWithViews(FRDGBuilder& GraphBuilder, FRDGBufferRef& 
 	ConvertToExternalBuffer(GraphBuilder, InBuffer, OutBuffer.Buffer);
 	if (Format != PF_Unknown)
 	{
-		OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer, Format));
-		OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer, Format));
+		if (InBuffer->Desc.Usage & BUF_ShaderResource)
+		{
+			OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer, Format));
+		}
+		if (InBuffer->Desc.Usage & BUF_UnorderedAccess)
+		{
+			OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer, Format));
+		}
 	}
 	else
 	{
-		OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer));
-		OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer));
+		if (InBuffer->Desc.Usage & BUF_ShaderResource)
+		{
+			OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer));
+		}
+		if (InBuffer->Desc.Usage & BUF_UnorderedAccess)
+		{
+			OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer));
+		}
 	}
 	OutBuffer.Format = Format;
 }
