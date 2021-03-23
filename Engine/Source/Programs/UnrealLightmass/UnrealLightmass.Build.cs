@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class UnrealLightmass : ModuleRules
 {
@@ -86,10 +87,12 @@ public class UnrealLightmass : ModuleRules
 		{
             string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree270/Linux/x86_64-unknown-linux-gnu/";
 
-            PublicIncludePaths.Add(SDKDir + "include");
-            PublicAdditionalLibraries.Add(SDKDir + "lib/libembree.so");
+            PublicIncludePaths.Add(Path.Combine(SDKDir, "include"));
+            PublicAdditionalLibraries.Add(Path.Combine(SDKDir, "lib/libembree.so"));
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/Linux/libembree.so");
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/Linux/libtbb.so", IntelTBBLibs + "Linux/libtbb.so"); // Take latest version to avoid overwriting the editor's copy
+			PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so"));
+			RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so"));
+			RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so.2"));
 			// disabled for Linux atm due to a bug in libtbbmalloc on exit
 			// RuntimeDependencies.Add("$(EngineDir)/Binaries/Linux/libtbbmalloc.so", IntelTBBLibs + "Linux/libtbbmalloc.so");
 			PublicDefinitions.Add("USE_EMBREE=1");
