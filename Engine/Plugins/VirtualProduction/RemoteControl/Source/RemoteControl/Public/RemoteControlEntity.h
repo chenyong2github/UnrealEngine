@@ -69,7 +69,11 @@ struct REMOTECONTROL_API FRemoteControlEntity
 	 * Get an identifier for the underlying entity.
 	 * This is used to figure out if two remote control entities have the same underlying field/actor. 
 	 */
-	virtual uint32 GetUnderlyingEntityIdentifier() const PURE_VIRTUAL(FRemoteControlEntity::GetUnderlyingEntityIdentifier, return 0;);
+	virtual uint32 GetUnderlyingEntityIdentifier() const
+	{
+		ensureAlwaysMsgf(false, TEXT("GetUnderlyingEntityIdentifier must be implemented in derived structs."));
+		return 0;
+	}
 
 	/**
 	 *  Get the class of the object that can hold this field.

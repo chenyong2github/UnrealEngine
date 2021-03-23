@@ -3,12 +3,14 @@
 #include "RemoteControlPresetRebindingManager.h"
 
 #include "Algo/Transform.h"
+#include "Components.h"
 #include "Engine/Brush.h"
 #include "EngineUtils.h"
 #include "Misc/Char.h"
 #include "RemoteControlBinding.h"
 #include "RemoteControlEntity.h"
 #include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
