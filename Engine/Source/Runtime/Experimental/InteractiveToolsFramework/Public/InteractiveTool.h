@@ -226,7 +226,8 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UInteractiveToolPropertySet> CachedProperties = nullptr;
 
-	UPROPERTY()
+	// Controls whether a property set is shown in the UI.  Transient so that disabling a PropertySet in one tool doesn't disable it in others.
+	UPROPERTY(meta=(TransientToolProperty))
 	bool bIsPropertySetEnabled = true;
 
 	friend class UInteractiveTool;	// so that tool can enable/disable
