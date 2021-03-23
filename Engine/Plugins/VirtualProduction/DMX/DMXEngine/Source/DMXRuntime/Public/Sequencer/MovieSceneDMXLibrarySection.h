@@ -19,6 +19,12 @@ struct FDMXFixtureFunctionChannel
 {
 	GENERATED_BODY()
 
+	FDMXFixtureFunctionChannel()
+		: CellCoordinate(FIntPoint(-1, -1))
+		, DefaultValue(0)
+		, bEnabled(true)
+	{}
+
 	/** Attribute Name of the function */
 	FName AttributeName;
 
@@ -30,7 +36,7 @@ struct FDMXFixtureFunctionChannel
 	 * For Cell Functions the coordinate of the cell
 	 * For common functions -1.
 	 */
-	FIntPoint CellCoordinate = FIntPoint(-1, -1);
+	FIntPoint CellCoordinate;
 
 	/** Default value to use when this Function is disabled in the track. */
 	UPROPERTY()
@@ -41,7 +47,7 @@ struct FDMXFixtureFunctionChannel
 	 * If false, the Function's default value is sent to DMX protocols.
 	 */
 	UPROPERTY()
-	bool bEnabled = true;
+	bool bEnabled;
 
 	/** True if the function is a cell function */
 	bool IsCellFunction() const { return CellCoordinate.X != -1 && CellCoordinate.Y != -1; }

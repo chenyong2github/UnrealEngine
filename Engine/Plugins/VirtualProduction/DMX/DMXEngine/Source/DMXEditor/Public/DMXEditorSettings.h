@@ -14,6 +14,15 @@ struct FDMXOutputConsoleFaderDescriptor
 {
 	GENERATED_BODY()
 
+	FDMXOutputConsoleFaderDescriptor()
+		: Value(0)
+		, MaxValue(255)
+		, MinValue(0)
+		, UniversID(1)
+		, StartingAddress(1)
+		, EndingAddress(1)
+	{}
+
 	UPROPERTY()
 	FString FaderName;
 
