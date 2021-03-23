@@ -2,11 +2,11 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class NUTUnrealEngine4 : ModuleRules
+	public class NUTUnrealEngine : ModuleRules
 	{
-		public NUTUnrealEngine4(ReadOnlyTargetRules Target) : base(Target)
+		public NUTUnrealEngine(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("NUTUnrealEngine4/Private");
+			PrivateIncludePaths.Add("NUTUnrealEngine/Private");
 
 			PublicDependencyModuleNames.AddRange
 			(

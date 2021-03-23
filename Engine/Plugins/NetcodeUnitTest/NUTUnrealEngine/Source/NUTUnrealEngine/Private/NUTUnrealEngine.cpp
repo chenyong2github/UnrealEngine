@@ -3,14 +3,14 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-#include "INUTUnrealEngine4.h"
+#include "INUTUnrealEngine.h"
 
-#include "UnrealEngine4Environment.h"
+#include "UnrealEngineEnvironment.h"
 
 /**
  * Module implementation
  */
-class FNUTUnrealEngine4 : public INUTUnrealEngine4
+class FNUTUnrealEngine : public INUTUnrealEngine
 {
 public:
 	virtual void StartupModule() override
@@ -29,5 +29,5 @@ public:
 };
 
 
-IMPLEMENT_MODULE(FNUTUnrealEngine4, NUTUnrealEngine4);
+IMPLEMENT_MODULE(FNUTUnrealEngine, NUTUnrealEngine);
 

@@ -2,7 +2,7 @@
 	"FileVersion" : 3,
 	"Version" : 1,
 	"VersionName" : "1.0",
-	"FriendlyName" : "Netcode Unit Test - Unreal Engine 4",
+	"FriendlyName" : "Netcode Unit Test - Unreal Engine",
 	"Description" : "Exploit unit tests for Unreal Engine and some base Unreal Engine games, based on the Netcode Unit Test framework",
 	"Category" : "Networking",
 	"CreatedBy" : "Epic Games, Inc.",
@@ -17,7 +17,7 @@
 	"Modules" :
 	[
 		{
-			"Name" : "NUTUnrealEngine4",
+			"Name" : "NUTUnrealEngine",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
 			"WhitelistPlatforms" :
