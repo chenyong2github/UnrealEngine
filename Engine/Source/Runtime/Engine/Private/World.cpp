@@ -7153,11 +7153,14 @@ FString UWorld::GetAddressURL() const
 	return FString::Printf( TEXT("%s"), *URL.GetHostPortString() );
 }
 
-FString UWorld::RemovePIEPrefix(const FString &Source)
+FString UWorld::RemovePIEPrefix(const FString &Source, int32* OutPIEInstanceID)
 {
 	// PIE prefix is: UEDPIE_X_MapName (where X is some decimal number)
 	const FString LookFor = PLAYWORLD_PACKAGE_PREFIX;
-
+	if (OutPIEInstanceID)
+	{
+		*OutPIEInstanceID = INDEX_NONE;
+	}
 	int32 idx = Source.Find(LookFor);
 	if (idx >= 0)
 	{
@@ -7167,6 +7170,7 @@ FString UWorld::RemovePIEPrefix(const FString &Source)
 			UE_LOG(LogWorld, Warning, TEXT("Looks like World path invalid PIE prefix (expected '_' characeter after PIE prefix): %s"), *Source);
 			return Source;
 		}
+		int32 PIEInstanceIDStartIndex = end + 1;
 		for (++end; (end < Source.Len()) && (Source[end] != '_'); ++end)
 		{
 			if ((Source[end] < '0') || (Source[end] > '9'))
@@ -7179,6 +7183,12 @@ FString UWorld::RemovePIEPrefix(const FString &Source)
 		{
 			UE_LOG(LogWorld, Warning, TEXT("Looks like World path invalid PIE prefix (can't find end of PIE prefix): %s"), *Source);
 			return Source;
+		}
+		if (OutPIEInstanceID && (end > PIEInstanceIDStartIndex))
+		{
+			const int32 PIEInstanceIDCount = end - PIEInstanceIDStartIndex;
+			const FString PIEInstanceIDStr = Source.Mid(PIEInstanceIDStartIndex, PIEInstanceIDCount);
+			TTypeFromString<int32>::FromString(*OutPIEInstanceID, *PIEInstanceIDStr);
 		}
 		const FString Prefix = Source.Left(idx);
 		const FString Suffix = Source.Right(Source.Len() - end - 1);

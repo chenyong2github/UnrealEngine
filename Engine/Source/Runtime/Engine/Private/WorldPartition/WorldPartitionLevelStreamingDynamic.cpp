@@ -337,12 +337,6 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
 	RuntimePackage->MarkAsFullyLoaded();
 
-	if (OuterWorld->IsGameWorld())
-	{
-		// Remap Runtime Level's SoftObjectPaths
-		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(RuntimeLevel, OuterWorldPartition.Get());
-	}
-
 	if (OuterWorld->IsPlayInEditor())
 	{
 		int32 PIEInstanceID = GetPackage()->PIEInstanceID;
@@ -354,7 +348,17 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 		FixupLazyPointersAr << RuntimeLevel;
 
 		// PIE Fixup SoftObjectPaths
-		RuntimeLevel->FixupForPIE(PIEInstanceID);
+		RuntimeLevel->FixupForPIE(PIEInstanceID, [&](int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)
+		{
+			// Remap Runtime Level's SoftObjectPath before each PIE Fixup to avoid doing 2 passes of serialization
+			OuterWorldPartition->RemapSoftObjectPath(ObjectPath);
+		});
+	}
+	else if (OuterWorld->IsGameWorld())
+	{
+		check(IsRunningGame());
+		// Remap Runtime Level's SoftObjectPaths
+		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(RuntimeLevel, OuterWorldPartition.Get());
 	}
 
 	SetLoadedLevel(RuntimeLevel);

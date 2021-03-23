@@ -224,7 +224,8 @@ void UWorldPartitionLevelStreamingPolicy::ClearActorToCellRemapping()
 void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
 {
 	// Make sure to work on non-PIE path (can happen for modified actors in PIE)
-	FString SrcPath = UWorld::RemovePIEPrefix(ObjectPath.ToString());
+	int32 PIEInstanceID = INDEX_NONE;
+	FString SrcPath = UWorld::RemovePIEPrefix(ObjectPath.ToString(), &PIEInstanceID);
 
 	FName* CellName = ActorToCellRemapping.Find(FName(*SrcPath));
 	if (!CellName)
@@ -252,8 +253,9 @@ void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& O
 		int32 DelimiterIdx;
 		if (ShortPackageOuterAndName.FindChar('.', DelimiterIdx))
 		{
+			UWorld* World = WorldPartition->GetWorld();
 			const FString ObjectNameWithoutPackage = ShortPackageOuterAndName.Mid(DelimiterIdx + 1);
-			const FString PackagePath = UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(*CellName, WorldPartition->GetWorld());
+			const FString PackagePath = UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(*CellName, World);
 			FString PrefixPath;
 			if (IsRunningCookCommandlet())
 			{
@@ -263,6 +265,11 @@ void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& O
 			}
 			FString NewPath = FString::Printf(TEXT("%s%s.%s"), *PrefixPath, *PackagePath, *ObjectNameWithoutPackage);
 			ObjectPath.SetPath(MoveTemp(NewPath));
+			// Put back PIE prefix
+			if (World->IsPlayInEditor() && (PIEInstanceID != INDEX_NONE))
+			{
+				ObjectPath.FixupForPIE(PIEInstanceID);
+			}
 		}
 	}
 }

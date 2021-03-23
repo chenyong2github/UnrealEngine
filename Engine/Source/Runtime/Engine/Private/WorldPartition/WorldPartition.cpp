@@ -337,6 +337,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			OnBeginPlay(EWorldPartitionStreamingMode::EditorStandalone);
 		}
 		GetStreamingPolicy()->PrepareActorToCellRemapping();
+		// Apply remapping of Persistent Level's SoftObjectPaths
+		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
 	}
 #endif
 }

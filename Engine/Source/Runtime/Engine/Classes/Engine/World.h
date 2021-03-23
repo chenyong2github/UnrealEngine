@@ -3828,8 +3828,8 @@ public:
 	/** Given a loaded editor UWorld, duplicate it for play in editor purposes with OwningWorld as the world with the persistent level. */
 	static UWorld* DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningWorld);
 
-	/** Given a string, return that string with any PIE prefix removed */
-	static FString RemovePIEPrefix(const FString &Source);
+	/** Given a string, return that string with any PIE prefix removed. Optionally returns the PIE Instance ID. */
+	static FString RemovePIEPrefix(const FString &Source, int32* OutPIEInstanceID = nullptr);
 
 	/** Given a package, locate the UWorld contained within if one exists */
 	static UWorld* FindWorldInPackage(UPackage* Package);
