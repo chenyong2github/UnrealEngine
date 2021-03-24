@@ -216,7 +216,7 @@ void UWorldPartitionRuntimeHash::CheckForErrors() const
 						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_Actor", "Actor")))
 						->AddToken(FAssetNameToken::Create(GetActorLabel(ActorDescView)))
 						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_HaveMissingRefsTo", "have missing references to")))
-						->AddToken(FAssetNameToken::Create(GetActorLabel(*ActorDescRefView)))
+						->AddToken(FTextToken::Create(FText::FromString(ActorDescRefGuid.ToString())))
 						->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_MissingActorReference_CheckForErrors"))));
 				}
 			}
