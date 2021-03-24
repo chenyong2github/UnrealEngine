@@ -138,7 +138,7 @@ protected:
 	bool bIsAlwaysLoaded;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(Transient)
+	UPROPERTY()
 	bool bIsModifiedForPIE;
 #endif
 
