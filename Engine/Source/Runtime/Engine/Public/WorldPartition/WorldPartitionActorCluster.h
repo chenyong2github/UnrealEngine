@@ -13,8 +13,6 @@ class FWorldPartitionActorDesc;
 class UWorldPartitionRuntimeHash;
 enum class EContainerClusterMode : uint8;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionActorCluster, Log, All);
-
 /**
  * List of actors bound together based on clustering rules. (mainly object references)
  */
