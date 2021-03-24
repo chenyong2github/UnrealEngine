@@ -157,12 +157,12 @@ UNiagaraScript::UNiagaraScript()
 }
 
 #if WITH_EDITORONLY_DATA
-FVersionedNiagaraScriptData* UNiagaraScript::GetScriptData()
+FVersionedNiagaraScriptData* UNiagaraScript::GetLatestScriptData()
 {
-	return const_cast<FVersionedNiagaraScriptData*>(const_cast<const UNiagaraScript*>(this)->GetScriptData());
+	return const_cast<FVersionedNiagaraScriptData*>(const_cast<const UNiagaraScript*>(this)->GetLatestScriptData());
 }
 
-const FVersionedNiagaraScriptData* UNiagaraScript::GetScriptData() const
+const FVersionedNiagaraScriptData* UNiagaraScript::GetLatestScriptData() const
 {
 	if (VersionData.Num() == 0)
 	{
@@ -229,7 +229,7 @@ TArray<FNiagaraAssetVersion> UNiagaraScript::GetAllAvailableVersions() const
 
 FNiagaraAssetVersion UNiagaraScript::GetExposedVersion() const
 {
-	const FVersionedNiagaraScriptData* ScriptData = GetScriptData();
+	const FVersionedNiagaraScriptData* ScriptData = GetLatestScriptData();
 	return ScriptData ? ScriptData->Version : FNiagaraAssetVersion();
 }
 
@@ -1384,7 +1384,7 @@ void UNiagaraScript::PostLoad()
 	}
 
 #if WITH_EDITORONLY_DATA
-	FVersionedNiagaraScriptData* ScriptData = GetScriptData();
+	FVersionedNiagaraScriptData* ScriptData = GetLatestScriptData();
 	ensure(ScriptData);
 	if (NiagaraVer < FNiagaraCustomVersion::AddSimulationStageUsageEnum)
 	{
@@ -1525,6 +1525,16 @@ bool UNiagaraScript::ShouldCacheShadersForCooking(const ITargetPlatform* TargetP
 	return false;
 }
 
+UNiagaraScriptSourceBase* UNiagaraScript::GetLatestSource()
+{
+	return GetSource(FGuid());
+}
+
+const UNiagaraScriptSourceBase* UNiagaraScript::GetLatestSource() const
+{
+	return GetSource(FGuid());
+}
+
 void UNiagaraScript::GenerateStatIDs()
 {
 #if STATS
@@ -1612,6 +1622,11 @@ UNiagaraScriptSourceBase* UNiagaraScript::GetSource(const FGuid& VersionGuid)
 const UNiagaraScriptSourceBase* UNiagaraScript::GetSource(const FGuid& VersionGuid) const
 {
 	return const_cast<UNiagaraScript*>(this)->GetSource(VersionGuid);
+}
+
+void UNiagaraScript::SetLatestSource(UNiagaraScriptSourceBase* InSource)
+{
+	SetSource(InSource, FGuid());
 }
 
 void UNiagaraScript::SetSource(UNiagaraScriptSourceBase* InSource, const FGuid& VersionGuid)
@@ -2117,7 +2132,7 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 		CustomAssetRegistryTagCache = TMap<FName, FString>();
 	}
 
-	const FVersionedNiagaraScriptData* ScriptData = GetScriptData();
+	const FVersionedNiagaraScriptData* ScriptData = GetLatestScriptData();
 
 	// Dependencies
 	TArray<FName> ProvidedDependencies = ScriptData ? ScriptData->ProvidedDependencies : ProvidedDependencies_DEPRECATED; 
@@ -2457,7 +2472,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 	if (CanBeRunOnGpu())
 	{
 		// Need to make sure the owner supports GPU scripts, otherwise this is a wasted compile.
-		UNiagaraScriptSourceBase* Source = GetScriptData()->Source;
+		UNiagaraScriptSourceBase* Source = GetLatestScriptData()->Source;
 		if (Source && OwnerCanBeRunOnGpu())
 		{
 			ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;

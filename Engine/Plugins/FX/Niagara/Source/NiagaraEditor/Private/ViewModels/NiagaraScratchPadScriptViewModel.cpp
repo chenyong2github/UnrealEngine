@@ -29,9 +29,9 @@ FNiagaraScratchPadScriptViewModel::~FNiagaraScratchPadScriptViewModel()
 {
 	if (EditScript.Script != nullptr)
 	{
-		if (EditScript.Script->GetSource() != nullptr)
+		if (EditScript.Script->GetLatestSource() != nullptr)
 		{
-			UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript.Script->GetSource());
+			UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript.Script->GetLatestSource());
 			EditScriptSource->NodeGraph->RemoveOnGraphNeedsRecompileHandler(OnGraphNeedsRecompileHandle);
 		}
 		EditScript.Script->OnPropertyChanged().RemoveAll(this);
@@ -44,7 +44,7 @@ void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script)
 	OriginalScript = Script;
 	EditScript.Script = CastChecked<UNiagaraScript>(StaticDuplicateObject(Script, GetTransientPackage()));
 	SetScript(EditScript);
-	UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript.Script->GetSource());
+	UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript.Script->GetLatestSource());
 	OnGraphNeedsRecompileHandle = EditScriptSource->NodeGraph->AddOnGraphNeedsRecompileHandler(FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptGraphChanged));
 	EditScript.Script->OnPropertyChanged().AddSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptPropertyChanged);
 	ParameterPanelCommands = MakeShared<FUICommandList>();

@@ -421,7 +421,7 @@ void UMovieSceneNiagaraEmitterSection::UpdateKeyModulesFromSection(FChannelAndMo
 		TArray<UNiagaraScript*> BinderDependentScripts;
 		BinderDependentScripts.Add(SystemUpdateScript);
 
-		UNiagaraScriptSource* EmitterUpdateSource = CastChecked<UNiagaraScriptSource>(EmitterUpdateScript->GetSource());
+		UNiagaraScriptSource* EmitterUpdateSource = CastChecked<UNiagaraScriptSource>(EmitterUpdateScript->GetLatestSource());
 		UNiagaraNodeOutput* EmitterUpdateOutputNode = EmitterUpdateSource->NodeGraph->FindOutputNode(ENiagaraScriptUsage::EmitterUpdateScript);
 		
 		bool bRequired = true;

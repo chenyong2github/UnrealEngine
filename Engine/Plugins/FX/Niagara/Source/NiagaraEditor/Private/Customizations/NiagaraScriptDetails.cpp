@@ -823,7 +823,7 @@ private:
 			{
 				UNiagaraScript* Script = CastChecked<UNiagaraScript>(MatchingScriptAsset.GetAsset());
 				Script->Modify();
-				for (FNiagaraScriptHighlight& Highlight : Script->GetScriptData()->Highlights)
+				for (FNiagaraScriptHighlight& Highlight : Script->GetLatestScriptData()->Highlights)
 				{
 					if (Highlight == CurrentHighlight)
 					{

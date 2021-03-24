@@ -530,7 +530,7 @@ void DumpCompileIdDataForScript(UNiagaraScript* Script, int32 IndentLevel, FStri
 	FString Indent;
 	MakeIndent(IndentLevel, Indent);
 	Dump.Append(FString::Printf(TEXT("%sScript: %s\n"), *Indent, *Script->GetPathName()));
-	UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource());
+	UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetLatestSource());
 	TArray<UNiagaraNode*> Nodes;
 	ScriptSource->NodeGraph->GetNodesOfClass<UNiagaraNode>(Nodes);
 	for (UNiagaraNode* Node : Nodes)
@@ -1399,7 +1399,7 @@ const TArray<FNiagaraScriptHighlight>& FNiagaraEditorModule::GetCachedScriptAsse
 			if (ScriptAsset.IsAssetLoaded())
 			{
 				UNiagaraScript* Script = CastChecked<UNiagaraScript>(ScriptAsset.GetAsset());
-				for (const FNiagaraScriptHighlight& Highlight : Script->GetScriptData()->Highlights)
+				for (const FNiagaraScriptHighlight& Highlight : Script->GetLatestScriptData()->Highlights)
 				{
 					if (Highlight.IsValid())
 					{
@@ -1438,7 +1438,7 @@ void FNiagaraEditorModule::GetScriptAssetsMatchingHighlight(const FNiagaraScript
 		if (ScriptAsset.IsAssetLoaded())
 		{
 			UNiagaraScript* Script = CastChecked<UNiagaraScript>(ScriptAsset.GetAsset());
-			for (const FNiagaraScriptHighlight& Highlight : Script->GetScriptData()->Highlights)
+			for (const FNiagaraScriptHighlight& Highlight : Script->GetLatestScriptData()->Highlights)
 			{
 				if (Highlight == InHighlight)
 				{

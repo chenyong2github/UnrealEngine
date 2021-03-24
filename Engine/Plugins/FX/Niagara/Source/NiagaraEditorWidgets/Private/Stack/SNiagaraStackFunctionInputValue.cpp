@@ -654,7 +654,7 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		FunctionInput->GetAvailableDynamicInputs(DynamicInputScripts, bLibraryOnly == false);
 		for (UNiagaraScript* DynamicInputScript : DynamicInputScripts)
 		{
-			FVersionedNiagaraScriptData* ScriptData = DynamicInputScript->GetScriptData();
+			FVersionedNiagaraScriptData* ScriptData = DynamicInputScript->GetLatestScriptData();
 			bool bIsInLibrary = ScriptData->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
 			const FText DynamicInputText = FNiagaraEditorUtilities::FormatScriptName(DynamicInputScript->GetFName(), bIsInLibrary);
 			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(ScriptData->Description, *DynamicInputScript->GetPathName(), bIsInLibrary);
@@ -901,7 +901,7 @@ void SNiagaraStackFunctionInputValue::CollectDynamicInputActionsForReassign(FGra
 	FunctionInput->GetAvailableDynamicInputs(DynamicInputScripts, bLibraryOnly == false);
 	for (UNiagaraScript* DynamicInputScript : DynamicInputScripts)
 	{
-		FVersionedNiagaraScriptData* ScriptData = DynamicInputScript->GetScriptData();
+		FVersionedNiagaraScriptData* ScriptData = DynamicInputScript->GetLatestScriptData();
 		bool bIsInLibrary = ScriptData->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
 		const FText DynamicInputText = FNiagaraEditorUtilities::FormatScriptName(DynamicInputScript->GetFName(), bIsInLibrary);
 		const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(ScriptData->Description, *DynamicInputScript->GetPathName(), bIsInLibrary);

@@ -531,12 +531,12 @@ void UNiagaraSystem::PostLoad()
 			SystemSpawnScript->SetUsage(ENiagaraScriptUsage::SystemSpawnScript);
 			INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
 			SystemScriptSource = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultScriptSource(this);
-			SystemSpawnScript->SetSource(SystemScriptSource);
+			SystemSpawnScript->SetLatestSource(SystemScriptSource);
 		}
 		else
 		{
 			SystemSpawnScript->ConditionalPostLoad();
-			SystemScriptSource = SystemSpawnScript->GetSource();
+			SystemScriptSource = SystemSpawnScript->GetLatestSource();
 		}
 		AllSystemScripts.Add(SystemSpawnScript);
 
@@ -544,7 +544,7 @@ void UNiagaraSystem::PostLoad()
 		{
 			SystemUpdateScript = NewObject<UNiagaraScript>(this, "SystemUpdateScript", RF_Transactional);
 			SystemUpdateScript->SetUsage(ENiagaraScriptUsage::SystemUpdateScript);
-			SystemUpdateScript->SetSource(SystemScriptSource);
+			SystemUpdateScript->SetLatestSource(SystemScriptSource);
 		}
 		else
 		{
@@ -1707,8 +1707,8 @@ UNiagaraSystem::FOnSystemPostEditChange& UNiagaraSystem::OnSystemPostEditChange(
 
 void UNiagaraSystem::ForceGraphToRecompileOnNextCheck()
 {
-	check(SystemSpawnScript->GetSource() == SystemUpdateScript->GetSource());
-	SystemSpawnScript->GetSource()->ForceGraphToRecompileOnNextCheck();
+	check(SystemSpawnScript->GetLatestSource() == SystemUpdateScript->GetLatestSource());
+	SystemSpawnScript->GetLatestSource()->ForceGraphToRecompileOnNextCheck();
 
 	for (FNiagaraEmitterHandle Handle : EmitterHandles)
 	{
@@ -2258,7 +2258,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 
 	SCOPE_CYCLE_COUNTER(STAT_Niagara_System_Precompile);
 	
-	check(SystemSpawnScript->GetSource() == SystemUpdateScript->GetSource());
+	check(SystemSpawnScript->GetLatestSource() == SystemUpdateScript->GetLatestSource());
 	TArray<FNiagaraVariable> OriginalExposedParams;
 	GetExposedParameters().GetParameters(OriginalExposedParams);
 

@@ -524,8 +524,8 @@ public:
 	NIAGARA_API bool IsVersioningEnabled() const { return bVersioningEnabled; }
 
 	/** Returns the script data for latest exposed version. */
-	NIAGARA_API FVersionedNiagaraScriptData* GetScriptData();
-	NIAGARA_API const FVersionedNiagaraScriptData* GetScriptData() const;
+	NIAGARA_API FVersionedNiagaraScriptData* GetLatestScriptData();
+	NIAGARA_API const FVersionedNiagaraScriptData* GetLatestScriptData() const;
 
 	/** Returns the script data for a specific version or nullptr if no such version is found. For the null-Guid it returns the exposed version.  */
 	NIAGARA_API FVersionedNiagaraScriptData* GetScriptData(const FGuid& VersionGuid);
@@ -765,9 +765,12 @@ public:
 	NIAGARA_API bool ShouldCacheShadersForCooking(const ITargetPlatform* TargetPlatform) const;
 
 #if WITH_EDITORONLY_DATA
-	NIAGARA_API class UNiagaraScriptSourceBase* GetSource(const FGuid& VersionGuid = FGuid());
-	NIAGARA_API const class UNiagaraScriptSourceBase* GetSource(const FGuid& VersionGuid = FGuid()) const;
-	NIAGARA_API void SetSource(class UNiagaraScriptSourceBase* InSource, const FGuid& VersionGuid = FGuid());
+	NIAGARA_API class UNiagaraScriptSourceBase* GetLatestSource();
+	NIAGARA_API const class UNiagaraScriptSourceBase* GetLatestSource() const;
+	NIAGARA_API class UNiagaraScriptSourceBase* GetSource(const FGuid& VersionGuid);
+	NIAGARA_API const class UNiagaraScriptSourceBase* GetSource(const FGuid& VersionGuid) const;
+	NIAGARA_API void SetLatestSource(class UNiagaraScriptSourceBase* InSource);
+	NIAGARA_API void SetSource(class UNiagaraScriptSourceBase* InSource, const FGuid& VersionGuid);
 
 	NIAGARA_API FGuid GetBaseChangeID(const FGuid& VersionGuid = FGuid()) const;
 	NIAGARA_API ENiagaraScriptCompileStatus GetLastCompileStatus() const;

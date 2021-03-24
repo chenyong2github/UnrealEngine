@@ -88,7 +88,7 @@ bool UNiagaraStackRendererItem::AddMissingVariable(UNiagaraEmitter* Emitter, con
 	{
 		return false;
 	}
-	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Script->GetSource());
+	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Script->GetLatestSource());
 	if (!Source)
 	{
 		return false;

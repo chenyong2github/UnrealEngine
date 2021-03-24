@@ -55,7 +55,7 @@ public:
 		EventScriptProperties.Script = NewObject<UNiagaraScript>(Emitter, MakeUniqueObjectName(Emitter, UNiagaraScript::StaticClass(), "EventScript"), EObjectFlags::RF_Transactional);
 		EventScriptProperties.Script->SetUsage(ENiagaraScriptUsage::ParticleEventScript);
 		EventScriptProperties.Script->SetUsageId(FGuid::NewGuid());
-		EventScriptProperties.Script->SetSource(Source);
+		EventScriptProperties.Script->SetLatestSource(Source);
 		Emitter->AddEventHandler(EventScriptProperties);
 		FNiagaraStackGraphUtilities::ResetGraphForOutput(*Graph, ENiagaraScriptUsage::ParticleEventScript, EventScriptProperties.Script->GetUsageId());
 

@@ -463,7 +463,7 @@ void UNiagaraNodeAssignment::InitializeScript(UNiagaraScript* NewScript)
 {
 	if (NewScript != NULL)
 	{		
-		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(NewScript->GetSource());
+		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(NewScript->GetLatestSource());
 
 		if (nullptr == Source)
 		{

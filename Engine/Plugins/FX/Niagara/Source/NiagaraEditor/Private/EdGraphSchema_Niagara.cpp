@@ -259,11 +259,11 @@ const UNiagaraGraph* GetAlternateGraph(const UNiagaraGraph* NiagaraGraph)
 			{
 				if (EmitterProperties->SpawnScriptProps.Script == Script)
 				{
-					return CastChecked<UNiagaraScriptSource>(EmitterProperties->UpdateScriptProps.Script->GetSource())->NodeGraph;
+					return CastChecked<UNiagaraScriptSource>(EmitterProperties->UpdateScriptProps.Script->GetLatestSource())->NodeGraph;
 				}
 				else if (EmitterProperties->UpdateScriptProps.Script == Script)
 				{
-					return CastChecked<UNiagaraScriptSource>(EmitterProperties->SpawnScriptProps.Script->GetSource())->NodeGraph;
+					return CastChecked<UNiagaraScriptSource>(EmitterProperties->SpawnScriptProps.Script->GetLatestSource())->NodeGraph;
 				}
 			}
 		}

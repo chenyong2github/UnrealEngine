@@ -132,7 +132,7 @@ void FNiagaraEditorUtilities::GetParameterVariablesFromSystem(UNiagaraSystem& Sy
 	UNiagaraScript* SystemScript = System.GetSystemSpawnScript();
 	if (SystemScript != nullptr)
 	{
-		UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(SystemScript->GetSource());
+		UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(SystemScript->GetLatestSource());
 		if (ScriptSource != nullptr)
 		{
 			UNiagaraGraph* SystemGraph = ScriptSource->NodeGraph;
@@ -653,9 +653,9 @@ void FNiagaraEditorUtilities::GatherChangeIds(UNiagaraEmitter& Emitter, TMap<FGu
 	// First gather all the graphs used by this emitter..
 	for (UNiagaraScript* Script : Scripts)
 	{
-		if (Script != nullptr && Script->GetSource() != nullptr)
+		if (Script != nullptr && Script->GetLatestSource() != nullptr)
 		{
-			UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource());
+			UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetLatestSource());
 			if (ScriptSource != nullptr)
 			{
 				Graphs.AddUnique(ScriptSource->NodeGraph);
@@ -1354,9 +1354,9 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 				if (FilteredScriptAssets[i].IsAssetLoaded())
 				{
 					UNiagaraScript* Script = static_cast<UNiagaraScript*>(FilteredScriptAssets[i].GetAsset());
-					if (Script != nullptr && Script->GetScriptData())
+					if (Script != nullptr && Script->GetLatestScriptData())
 					{
-						bScriptIsDeprecated = Script->GetScriptData()->bDeprecated;
+						bScriptIsDeprecated = Script->GetLatestScriptData()->bDeprecated;
 					}
 				}
 			}
@@ -1376,9 +1376,9 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 				// If there is no custom version, or it's less than the simulation stage enum fix up, we need to load the 
 				// asset to get the correct bitmask since the shader stage enum broke the old ones.
 				UNiagaraScript* AssetScript = Cast<UNiagaraScript>(FilteredScriptAssets[i].GetAsset());
-				if (AssetScript != nullptr && AssetScript->GetScriptData())
+				if (AssetScript != nullptr && AssetScript->GetLatestScriptData())
 				{
-					BitfieldValue = AssetScript->GetScriptData()->ModuleUsageBitmask;
+					BitfieldValue = AssetScript->GetLatestScriptData()->ModuleUsageBitmask;
 				}
 			}
 			else
@@ -1408,7 +1408,7 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 
 UNiagaraNodeOutput* FNiagaraEditorUtilities::GetScriptOutputNode(UNiagaraScript& Script)
 {
-	UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(Script.GetSource());
+	UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(Script.GetLatestSource());
 	return Source->NodeGraph->FindEquivalentOutputNode(Script.GetUsage(), Script.GetUsageId());
 }
 
@@ -1488,7 +1488,7 @@ ENiagaraScriptLibraryVisibility FNiagaraEditorUtilities::GetScriptAssetVisibilit
 			UNiagaraScript* Script = static_cast<UNiagaraScript*>(ScriptAssetData.GetAsset());
 			if (Script != nullptr)
 			{
-				ScriptVisibility = Script->GetScriptData()->LibraryVisibility;
+				ScriptVisibility = Script->GetLatestScriptData()->LibraryVisibility;
 			}
 		}
 	}

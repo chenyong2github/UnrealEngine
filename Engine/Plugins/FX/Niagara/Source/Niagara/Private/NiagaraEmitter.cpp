@@ -426,7 +426,7 @@ void UNiagaraEmitter::PostLoad()
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
 		GPUComputeScript->SetUsage(ENiagaraScriptUsage::ParticleGPUComputeScript);
-		GPUComputeScript->SetSource(SpawnScriptProps.Script ? SpawnScriptProps.Script->GetSource() : nullptr);
+		GPUComputeScript->SetLatestSource(SpawnScriptProps.Script ? SpawnScriptProps.Script->GetLatestSource() : nullptr);
 	}
 
 	GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
@@ -445,8 +445,8 @@ void UNiagaraEmitter::PostLoad()
 
 		if (SpawnScriptProps.Script)
 		{
-			EmitterSpawnScriptProps.Script->SetSource(SpawnScriptProps.Script->GetSource());
-			EmitterUpdateScriptProps.Script->SetSource(SpawnScriptProps.Script->GetSource());
+			EmitterSpawnScriptProps.Script->SetLatestSource(SpawnScriptProps.Script->GetLatestSource());
+			EmitterUpdateScriptProps.Script->SetLatestSource(SpawnScriptProps.Script->GetLatestSource());
 		}
 	}
 #endif

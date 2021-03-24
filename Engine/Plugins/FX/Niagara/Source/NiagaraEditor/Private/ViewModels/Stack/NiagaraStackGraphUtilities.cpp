@@ -1679,7 +1679,7 @@ FNiagaraVariable FNiagaraStackGraphUtilities::CreateRapidIterationParameter(cons
 
 void FNiagaraStackGraphUtilities::CleanUpStaleRapidIterationParameters(UNiagaraScript& Script, UNiagaraEmitter& OwningEmitter)
 {
-	UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(Script.GetSource());
+	UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(Script.GetLatestSource());
 	UNiagaraNodeOutput* OutputNode = Source->NodeGraph->FindOutputNode(Script.GetUsage(), Script.GetUsageId());
 	if (OutputNode != nullptr)
 	{
@@ -2549,7 +2549,7 @@ bool FNiagaraStackGraphUtilities::ParameterAllowedInExecutionCategory(const FNam
 
 void FNiagaraStackGraphUtilities::RebuildEmitterNodes(UNiagaraSystem& System)
 {
-	UNiagaraScriptSource* SystemScriptSource = Cast<UNiagaraScriptSource>(System.GetSystemSpawnScript()->GetSource());
+	UNiagaraScriptSource* SystemScriptSource = Cast<UNiagaraScriptSource>(System.GetSystemSpawnScript()->GetLatestSource());
 	UNiagaraGraph* SystemGraph = SystemScriptSource->NodeGraph;
 	if (SystemGraph == nullptr)
 	{
@@ -2829,7 +2829,7 @@ void FNiagaraStackGraphUtilities::RenameReferencingParameters(UNiagaraSystem* Sy
 			}
 		}
 
-		if (UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource()))
+		if (UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetLatestSource()))
 		{
 			// rename all parameter map get nodes that use the parameter name
 			TArray<UNiagaraNodeParameterMapGet*> ParameterGetNodes;

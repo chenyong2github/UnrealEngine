@@ -147,11 +147,11 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 
 		// Fix up source pointers.
 		NewEmitter->GraphSource = Source;
-		NewEmitter->SpawnScriptProps.Script->SetSource(Source);
-		NewEmitter->UpdateScriptProps.Script->SetSource(Source);
-		NewEmitter->EmitterSpawnScriptProps.Script->SetSource(Source);
-		NewEmitter->EmitterUpdateScriptProps.Script->SetSource(Source);
-		NewEmitter->GetGPUComputeScript()->SetSource(Source);
+		NewEmitter->SpawnScriptProps.Script->SetLatestSource(Source);
+		NewEmitter->UpdateScriptProps.Script->SetLatestSource(Source);
+		NewEmitter->EmitterSpawnScriptProps.Script->SetLatestSource(Source);
+		NewEmitter->EmitterUpdateScriptProps.Script->SetLatestSource(Source);
+		NewEmitter->GetGPUComputeScript()->SetLatestSource(Source);
 
 		// Initialize the scripts for output.
 		UNiagaraNodeOutput* EmitterSpawnOutputNode = FNiagaraStackGraphUtilities::ResetGraphForOutput(*Source->NodeGraph, ENiagaraScriptUsage::EmitterSpawnScript, NewEmitter->EmitterSpawnScriptProps.Script->GetUsageId());

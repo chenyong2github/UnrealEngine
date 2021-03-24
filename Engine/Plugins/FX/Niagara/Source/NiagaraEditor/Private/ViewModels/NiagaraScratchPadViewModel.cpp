@@ -389,7 +389,7 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 		{
 			NewScript = CastChecked<UNiagaraScript>(StaticDuplicateObject(DefaultDynamicInput, ScriptOuter, GetUniqueScriptName(ScriptOuter, TEXT("ScratchDynamicInput"))));
 			TArray<UNiagaraNodeOutput*> OutputNodes;
-			CastChecked<UNiagaraScriptSource>(NewScript->GetSource())->NodeGraph->GetNodesOfClass(OutputNodes);
+			CastChecked<UNiagaraScriptSource>(NewScript->GetLatestSource())->NodeGraph->GetNodesOfClass(OutputNodes);
 			if (OutputNodes.Num() == 1)
 			{
 				if (InOutputType.IsValid())
@@ -425,7 +425,7 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 		NewScript->ClearFlags(RF_Public | RF_Standalone);
 		ScriptOuter->Modify();
 		TargetScripts->Add(NewScript);
-		NewScript->GetScriptData()->ModuleUsageBitmask |= (1 << (int32)InTargetSupportedUsage);
+		NewScript->GetLatestScriptData()->ModuleUsageBitmask |= (1 << (int32)InTargetSupportedUsage);
 		RefreshScriptViewModels();
 		UpdateChangeId(GetSystemViewModel());
 	}

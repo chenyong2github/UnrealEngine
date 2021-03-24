@@ -159,8 +159,8 @@ void UNiagaraSystemFactoryNew::InitializeSystem(UNiagaraSystem* System, bool bCr
 		SystemScriptSource->NodeGraph = NewObject<UNiagaraGraph>(SystemScriptSource, "SystemScriptGraph", RF_Transactional);
 	}
 
-	SystemSpawnScript->SetSource(SystemScriptSource);
-	SystemUpdateScript->SetSource(SystemScriptSource);
+	SystemSpawnScript->SetLatestSource(SystemScriptSource);
+	SystemUpdateScript->SetLatestSource(SystemScriptSource);
 
 	if (bCreateDefaultNodes)
 	{

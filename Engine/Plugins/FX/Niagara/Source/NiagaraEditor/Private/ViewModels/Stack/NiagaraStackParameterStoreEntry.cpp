@@ -179,7 +179,7 @@ TArray<UEdGraphPin*> UNiagaraStackParameterStoreEntry::GetOwningPins()
 	UNiagaraScript* SystemScript = GetSystemViewModel()->GetSystem().GetSystemSpawnScript();
 	if (SystemScript != nullptr)
 	{
-		UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(SystemScript->GetSource());
+		UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(SystemScript->GetLatestSource());
 		if (ScriptSource != nullptr)
 		{
 			UNiagaraGraph* SystemGraph = ScriptSource->NodeGraph;

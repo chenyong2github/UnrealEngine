@@ -209,7 +209,7 @@ void UNiagaraScriptFactoryNew::InitializeScript(UNiagaraScript* NewScript)
 
 			FNiagaraStackGraphUtilities::RelayoutGraph(*CreatedGraph);
 			// Set pointer in script to source
-			NewScript->SetSource(Source);
+			NewScript->SetLatestSource(Source);
 
 
 			NewScript->RequestCompile(FGuid());

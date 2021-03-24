@@ -332,7 +332,7 @@ void FNiagaraEmitterViewModel::AddEventHandler(FNiagaraEventScriptProperties& Ev
 	EventScriptProperties.Script = NewObject<UNiagaraScript>(GetEmitter(), MakeUniqueObjectName(GetEmitter(), UNiagaraScript::StaticClass(), "EventScript"), EObjectFlags::RF_Transactional);
 	EventScriptProperties.Script->SetUsage(ENiagaraScriptUsage::ParticleEventScript);
 	EventScriptProperties.Script->SetUsageId(FGuid::NewGuid());
-	EventScriptProperties.Script->SetSource(GetSharedScriptViewModel()->GetGraphViewModel()->GetScriptSource());
+	EventScriptProperties.Script->SetLatestSource(GetSharedScriptViewModel()->GetGraphViewModel()->GetScriptSource());
 	Emitter->AddEventHandler(EventScriptProperties);
 	if (bResetGraphForOutput)
 	{
@@ -506,7 +506,7 @@ void FNiagaraEmitterViewModel::AddScriptEventHandlers()
 		Emitter->GetScripts(Scripts, false);
 		for (UNiagaraScript* Script : Scripts)
 		{
-			UNiagaraScriptSource* ScriptSource = CastChecked<UNiagaraScriptSource>(Script->GetSource());
+			UNiagaraScriptSource* ScriptSource = CastChecked<UNiagaraScriptSource>(Script->GetLatestSource());
 			FDelegateHandle OnGraphChangedHandle = ScriptSource->NodeGraph->AddOnGraphChangedHandler(
 				FOnGraphChanged::FDelegate::CreateSP<FNiagaraEmitterViewModel, const UNiagaraScript&>(this->AsShared(), &FNiagaraEmitterViewModel::ScriptGraphChanged, *Script));
 			FDelegateHandle OnGraphNeedRecompileHandle = ScriptSource->NodeGraph->AddOnGraphNeedsRecompileHandler(
@@ -534,14 +534,14 @@ void FNiagaraEmitterViewModel::RemoveScriptEventHandlers()
 			FDelegateHandle* OnGraphChangedHandle = ScriptToOnGraphChangedHandleMap.Find(FObjectKey(Script));
 			if (OnGraphChangedHandle != nullptr)
 			{
-				UNiagaraScriptSource* ScriptSource = CastChecked<UNiagaraScriptSource>(Script->GetSource());
+				UNiagaraScriptSource* ScriptSource = CastChecked<UNiagaraScriptSource>(Script->GetLatestSource());
 				ScriptSource->NodeGraph->RemoveOnGraphChangedHandler(*OnGraphChangedHandle);
 			}
 
 			FDelegateHandle* OnGraphRecompileHandle = ScriptToRecompileHandleMap.Find(FObjectKey(Script));
 			if (OnGraphRecompileHandle != nullptr)
 			{
-				UNiagaraScriptSource* ScriptSource = CastChecked<UNiagaraScriptSource>(Script->GetSource());
+				UNiagaraScriptSource* ScriptSource = CastChecked<UNiagaraScriptSource>(Script->GetLatestSource());
 				ScriptSource->NodeGraph->RemoveOnGraphNeedsRecompileHandler(*OnGraphRecompileHandle);
 			}
 

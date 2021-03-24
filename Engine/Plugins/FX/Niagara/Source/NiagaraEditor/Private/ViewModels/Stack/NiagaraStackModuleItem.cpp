@@ -286,7 +286,7 @@ UNiagaraNodeOutput* GetCompatibleTargetOutputNodeFromOrderedScripts(const TArray
 		UNiagaraScript* CurrentScript = OrderedScripts[CurrentScriptIndex];
 		if (UNiagaraScript::ContainsEquivilentUsage(CompatibleUsages, CurrentScript->GetUsage()))
 		{
-			UNiagaraScriptSource* CurrentScriptSource = CastChecked<UNiagaraScriptSource>(CurrentScript->GetSource());
+			UNiagaraScriptSource* CurrentScriptSource = CastChecked<UNiagaraScriptSource>(CurrentScript->GetLatestSource());
 			UNiagaraNodeOutput* CurrentOutputNode = CurrentScriptSource->NodeGraph->FindEquivalentOutputNode(CurrentScript->GetUsage(), CurrentScript->GetUsageId());
 			if (CurrentOutputNode != nullptr)
 			{
@@ -299,7 +299,7 @@ UNiagaraNodeOutput* GetCompatibleTargetOutputNodeFromOrderedScripts(const TArray
 
 void GetCompatibleOutputNodeAndIndex(TSharedRef<FNiagaraSystemViewModel> DependentSystemViewModel, FGuid EmitterHandleId, UNiagaraScript& DependencyProviderScript, const FNiagaraStackModuleData& LastDependentModuleData, FNiagaraModuleDependency RequiredDependency, UNiagaraNodeOutput*& OutTargetOutputNode, TOptional<int32>& OutTargetIndex)
 {
-	TArray<ENiagaraScriptUsage> CompatibleUsages = UNiagaraScript::GetSupportedUsageContextsForBitmask(DependencyProviderScript.GetScriptData()->ModuleUsageBitmask);
+	TArray<ENiagaraScriptUsage> CompatibleUsages = UNiagaraScript::GetSupportedUsageContextsForBitmask(DependencyProviderScript.GetLatestScriptData()->ModuleUsageBitmask);
 	if (UNiagaraScript::ContainsEquivilentUsage(CompatibleUsages, LastDependentModuleData.Usage))
 	{
 		// If the dependency provider is compatible with the last dependent usage it can be added directly before or after the last dependent.
@@ -1114,6 +1114,10 @@ void UNiagaraStackModuleItem::SetIsModuleScriptReassignmentPending(bool bIsPendi
 
 void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 {
+	if (ModuleScript == nullptr)
+	{
+		return;
+	}
 	if (ensureMsgf(FunctionCallNode != nullptr && FunctionCallNode->GetClass() == UNiagaraNodeFunctionCall::StaticClass(),
 		TEXT("Can not reassign the module script when the module isn't a valid function call module.")))
 	{
@@ -1124,7 +1128,7 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 
 		FunctionCallNode->Modify();
 		UNiagaraClipboardContent* OldClipboardContent = nullptr;
-		FVersionedNiagaraScriptData* ScriptData = ModuleScript->GetScriptData();
+		FVersionedNiagaraScriptData* ScriptData = ModuleScript->GetLatestScriptData();
 		if (ScriptData->ConversionUtility != nullptr)
 		{
 			OldClipboardContent = UNiagaraClipboardContent::Create();

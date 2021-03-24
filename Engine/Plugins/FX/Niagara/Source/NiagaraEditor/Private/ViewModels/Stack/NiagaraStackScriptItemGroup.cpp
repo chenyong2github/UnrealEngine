@@ -61,7 +61,7 @@ public:
 
 	static TSharedRef<FScriptGroupAddAction> CreateScriptModuleAction(UNiagaraScript* ModuleScript)
 	{
-		FVersionedNiagaraScriptData* ScriptData = ModuleScript->GetScriptData();
+		FVersionedNiagaraScriptData* ScriptData = ModuleScript->GetLatestScriptData();
 		FText Category = ScriptData->Category;
 		if (Category.IsEmptyOrWhitespace())
 		{
@@ -241,7 +241,7 @@ public:
 			UNiagaraScript* ScratchPadScript = ScratchPadScriptViewModel->GetOriginalScript();
 			if (ScratchPadScript->Usage == ENiagaraScriptUsage::Module)
 			{
-				TArray<ENiagaraScriptUsage> SupportedUsages = ScratchPadScript->GetScriptData()->GetSupportedUsageContexts();
+				TArray<ENiagaraScriptUsage> SupportedUsages = ScratchPadScript->GetLatestScriptData()->GetSupportedUsageContexts();
 				if (SupportedUsages.Contains(OutputNode->GetUsage()))
 				{
 					OutAddActions.Add(FScriptGroupAddAction::CreateScriptModuleAction(ScratchPadScript));
@@ -402,7 +402,7 @@ bool UNiagaraStackScriptItemGroup::TestCanPasteWithMessage(const UNiagaraClipboa
 				if (ClipboardFunctionScript != nullptr)
 				{
 					bValidFunction = true;
-					if (ClipboardFunctionScript->GetScriptData()->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
+					if (ClipboardFunctionScript->GetLatestScriptData()->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
 					{
 						bValidUsage = true;
 					}
@@ -1202,7 +1202,7 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 			case ENiagaraClipboardFunctionScriptMode::ScriptAsset:
 			{
 				UNiagaraScript* ClipboardFunctionScript = ClipboardFunction->Script.LoadSynchronous();
-				if (ClipboardFunctionScript != nullptr && ClipboardFunctionScript->GetScriptData()->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
+				if (ClipboardFunctionScript != nullptr && ClipboardFunctionScript->GetLatestScriptData()->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
 				{
 					UNiagaraScript* NewFunctionScript;
 					if (ClipboardFunctionScript->IsAsset() ||

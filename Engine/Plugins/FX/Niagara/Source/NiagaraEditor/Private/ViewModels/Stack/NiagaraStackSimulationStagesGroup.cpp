@@ -96,7 +96,7 @@ public:
 		SimulationStage->Script = NewObject<UNiagaraScript>(SimulationStage, MakeUniqueObjectName(SimulationStage, UNiagaraScript::StaticClass(), "SimulationStage"), EObjectFlags::RF_Transactional);
 		SimulationStage->Script->SetUsage(ENiagaraScriptUsage::ParticleSimulationStageScript);
 		SimulationStage->Script->SetUsageId(SimulationStage->GetMergeId());
-		SimulationStage->Script->SetSource(Source);
+		SimulationStage->Script->SetLatestSource(Source);
 		Emitter->AddSimulationStage(SimulationStage);
 		FNiagaraStackGraphUtilities::ResetGraphForOutput(*Graph, ENiagaraScriptUsage::ParticleSimulationStageScript, SimulationStage->Script->GetUsageId());
 

@@ -137,7 +137,7 @@ void UNiagaraStackFunctionInput::Initialize(
 			SourceScript = AffectedScript;
 			RapidIterationParametersChangedHandle = SourceScript->RapidIterationParameters.AddOnChangedHandler(
 				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraStackFunctionInput::OnRapidIterationParametersChanged));
-			SourceScript->GetSource()->OnChanged().AddUObject(this, &UNiagaraStackFunctionInput::OnScriptSourceChanged);
+			SourceScript->GetLatestSource()->OnChanged().AddUObject(this, &UNiagaraStackFunctionInput::OnScriptSourceChanged);
 			break;
 		}
 	}
@@ -183,7 +183,7 @@ void UNiagaraStackFunctionInput::FinalizeInternal()
 	if (SourceScript.IsValid())
 	{
 		SourceScript->RapidIterationParameters.RemoveOnChangedHandler(RapidIterationParametersChangedHandle);
-		SourceScript->GetSource()->OnChanged().RemoveAll(this);
+		SourceScript->GetLatestSource()->OnChanged().RemoveAll(this);
 	}
 
 	if (MessageManagerRegistrationKey.IsValid())
@@ -922,7 +922,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 	else if (OwningFunctionCallNode->FunctionScript != nullptr)
 	{
 		// Otherwise just get it from the defining graph.
-		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->FunctionScript->GetSource())->NodeGraph;
+		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->FunctionScript->GetLatestSource())->NodeGraph;
 		FNiagaraVariable InputVariable(InputType, InputParameterHandle.GetParameterHandleString());
 		InputMetaData = FunctionGraph->GetMetaData(InputVariable);
 	}
@@ -1257,7 +1257,7 @@ void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript
 	TArray<UNiagaraNodeOutput*> OutputNodes;
 	auto MatchesInputType = [this, &InputPins, &OutputNodes](UNiagaraScript* Script)
 	{
-		UNiagaraScriptSource* DynamicInputScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource());
+		UNiagaraScriptSource* DynamicInputScriptSource = Cast<UNiagaraScriptSource>(Script->GetLatestSource());
 		OutputNodes.Reset();
 		DynamicInputScriptSource->NodeGraph->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
 		if (OutputNodes.Num() == 1)
@@ -1911,6 +1911,10 @@ void UNiagaraStackFunctionInput::SetIsDynamicInputScriptReassignmentPending(bool
 
 void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* DynamicInputScript)
 {
+	if (DynamicInputScript == nullptr)
+	{
+		return;
+	}
 	if (ensureMsgf(InputValues.Mode == EValueMode::Dynamic && InputValues.DynamicNode != nullptr && InputValues.DynamicNode->GetClass() == UNiagaraNodeFunctionCall::StaticClass(),
 		TEXT("Can not reassign the dynamic input script when tne input doesn't have a valid dynamic input.")))
 	{
@@ -1922,7 +1926,7 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 
 		UNiagaraClipboardContent* OldClipboardContent = nullptr;
 		UNiagaraScript* OldScript = InputValues.DynamicNode->FunctionScript;
-		FVersionedNiagaraScriptData* ScriptData = DynamicInputScript->GetScriptData();
+		FVersionedNiagaraScriptData* ScriptData = DynamicInputScript->GetLatestScriptData();
 		if (ScriptData->ConversionUtility != nullptr)
 		{
 			OldClipboardContent = UNiagaraClipboardContent::Create();
@@ -2379,7 +2383,7 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 	UNiagaraScriptVariable* InputScriptVariable = nullptr;
 	if (OwningFunctionCallNode->FunctionScript != nullptr)
 	{
-		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->FunctionScript->GetSource())->NodeGraph;
+		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->FunctionScript->GetLatestSource())->NodeGraph;
 		InputScriptVariable = FunctionGraph->GetScriptVariable(InputParameterHandle.GetParameterHandleString());
 	}
 
