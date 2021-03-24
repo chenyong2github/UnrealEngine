@@ -9,6 +9,7 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -188,19 +189,38 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 
 bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const
 {
-	TSet<const UWorldPartitionRuntimeCell*> Cells;
-	WorldPartition->RuntimeHash->GetStreamingCells(QuerySources, Cells);
-	
-	for (const UWorldPartitionRuntimeCell* Cell : Cells)
+	const UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+
+	for (const FWorldPartitionStreamingQuerySource& QuerySource : QuerySources)
 	{
-		EWorldPartitionRuntimeCellState CellState = GetCurrentStateForCell(Cell);
-		if (CellState != QueryState)
+		TSet<const UWorldPartitionRuntimeCell*> Cells;
+		WorldPartition->RuntimeHash->GetStreamingCells(QuerySource, Cells);
+
+		for (const UWorldPartitionRuntimeCell* Cell : Cells)
 		{
-			if (bExactState || CellState < QueryState)
+			EWorldPartitionRuntimeCellState CellState = GetCurrentStateForCell(Cell);
+			if (CellState != QueryState)
 			{
-				return false;
+				bool bSkipCell = false;
+				// If we are querying for Unloaded/Loaded but a Cell is part of a data layer outside of the query that is activated do not consider it
+				if (QueryState < CellState)
+				{
+					for (const FName& CellDataLayer : Cell->GetDataLayers())
+					{
+						if (!QuerySource.DataLayers.Contains(CellDataLayer) && DataLayerSubsystem->GetDataLayerStateByName(CellDataLayer) > EDataLayerState::Unloaded)
+						{
+							bSkipCell = true;
+							break;
+						}
+					}
+				}
+								
+				if (!bSkipCell && (bExactState || CellState < QueryState))
+				{
+					return false;
+				}
 			}
-		}
+		}	
 	}
 
 	return true;

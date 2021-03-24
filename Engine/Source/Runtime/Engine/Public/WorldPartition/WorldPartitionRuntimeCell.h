@@ -100,6 +100,8 @@ enum class EWorldPartitionRuntimeCellState : uint8
 	Activated
 };
 
+static_assert(EWorldPartitionRuntimeCellState::Unloaded < EWorldPartitionRuntimeCellState::Loaded && EWorldPartitionRuntimeCellState::Loaded < EWorldPartitionRuntimeCellState::Activated, "Streaming Query code is dependent on this being true");
+
 /**
  * Represents a PIE/Game streaming cell which points to external actor/data chunk packages
  */

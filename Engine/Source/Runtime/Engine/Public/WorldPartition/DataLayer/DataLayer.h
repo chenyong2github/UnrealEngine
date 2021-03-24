@@ -19,6 +19,8 @@ enum class EDataLayerState : uint8
 	Activated
 };
 
+static_assert(EDataLayerState::Unloaded < EDataLayerState::Loaded && EDataLayerState::Loaded < EDataLayerState::Activated, "Streaming Query code is dependent on this being true");
+
 UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, BlueprintType)
 class ENGINE_API UDataLayer : public UObject
 {

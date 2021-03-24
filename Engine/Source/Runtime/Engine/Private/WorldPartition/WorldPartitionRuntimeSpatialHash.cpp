@@ -102,7 +102,7 @@ const FSquare2DGridHelper& FSpatialHashStreamingGrid::GetGridHelper() const
 	return *GridHelper;
 }
 
-void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const
+void FSpatialHashStreamingGrid::GetCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const
 {
 	auto ShouldAddCell = [](const UWorldPartitionRuntimeCell* Cell, const FWorldPartitionStreamingQuerySource& QuerySource)
 	{
@@ -122,41 +122,38 @@ void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingQu
 	};
 
 	const FSquare2DGridHelper& Helper = GetGridHelper();
-	for (const FWorldPartitionStreamingQuerySource& QuerySource : QuerySources)
-	{
 		// Spatial Query
-		if (QuerySource.bSpatialQuery)
+	if (QuerySource.bSpatialQuery)
+	{
+		const FSphere GridSphere(QuerySource.Location, QuerySource.bUseLoadingRangeRadius ? GetLoadingRange() : QuerySource.Radius);
+		Helper.ForEachIntersectingCells(GridSphere, [&](const FIntVector& Coords)
 		{
-			const FSphere GridSphere(QuerySource.Location, QuerySource.bUseLoadingRangeRadius? GetLoadingRange() : QuerySource.Radius);
-			Helper.ForEachIntersectingCells(GridSphere, [&](const FIntVector& Coords)
-				{
-					if (const int32* LayerCellIndexPtr = GridLevels[Coords.Z].LayerCellsMapping.Find(Coords.Y * Helper.Levels[Coords.Z].GridSize + Coords.X))
-					{
-						const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
-						for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
-						{
-							if (ShouldAddCell(Cell, QuerySource))
-							{
-								OutCells.Add(Cell);
-							}
-						}
-					}
-				});
-		}
-
-		// Non Spatial (always included)
-		const int32 TopLevel = GridLevels.Num() - 1;
-		for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevels[TopLevel].LayerCells)
-		{
-			for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
+			if (const int32* LayerCellIndexPtr = GridLevels[Coords.Z].LayerCellsMapping.Find(Coords.Y * Helper.Levels[Coords.Z].GridSize + Coords.X))
 			{
-				if (ShouldAddCell(Cell, QuerySource))
+				const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
+				for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
 				{
-					OutCells.Add(Cell);
+					if (ShouldAddCell(Cell, QuerySource))
+					{
+						OutCells.Add(Cell);
+					}
 				}
 			}
-		}
+		});
 	}
+
+	// Non Spatial (always included)
+	const int32 TopLevel = GridLevels.Num() - 1;
+	for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevels[TopLevel].LayerCells)
+	{
+		for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
+		{
+			if (ShouldAddCell(Cell, QuerySource))
+			{
+				OutCells.Add(Cell);
+			}
+		}
+	}	
 }
 
 void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSource>& Sources, const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const
@@ -947,11 +944,11 @@ int32 UWorldPartitionRuntimeSpatialHash::GetAllStreamingCells(TSet<const UWorldP
 	return Cells.Num();
 }
 
-bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPartitionStreamingQuerySource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const 
+bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const 
 {
 	for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 	{
-		StreamingGrid.GetCells(Sources, OutCells);
+		StreamingGrid.GetCells(QuerySource, OutCells);
 	}
 
 	return !!OutCells.Num();
