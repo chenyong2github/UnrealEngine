@@ -220,6 +220,9 @@ public:
 	/** New changelist information */
 	FPerforceSourceControlChangelist NewChangelist;
 	FPerforceSourceControlChangelistState NewChangelistState;
+
+	/** Files that were moved */
+	TArray<FString> MovedFiles;
 };
 
 class FPerforceDeleteChangelistWorker : public IPerforceSourceControlWorker

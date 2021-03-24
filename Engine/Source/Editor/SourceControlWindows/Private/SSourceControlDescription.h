@@ -9,6 +9,17 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 
+struct SSourceControlDescriptionItem
+{
+	SSourceControlDescriptionItem(const FText& InTitle, const FText& InDescription, bool bInCanEditDescription)
+		: Title(InTitle), Description(InDescription), bCanEditDescription(bInCanEditDescription)
+	{}
+
+	FText Title;
+	FText Description;
+	bool bCanEditDescription;
+};
+
 class SSourceControlDescriptionWidget : public SCompoundWidget
 {
 public:
@@ -16,11 +27,13 @@ public:
 		: _ParentWindow()
 		, _Label()
 		, _Text()
+		, _Items()
 	{}
 
 		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
 		SLATE_ATTRIBUTE(FText, Label)
 		SLATE_ATTRIBUTE(FText, Text)
+		SLATE_ARGUMENT(const TArray<SSourceControlDescriptionItem>*, Items)
 
 	SLATE_END_ARGS()
 
@@ -36,12 +49,21 @@ public:
 	/** Returns the text currently in the edit box */
 	FText GetDescription() const;
 
+	/** Returns the currently selected item index if any */
+	int32 GetSelectedItemIndex() const { return CurrentlySelectedItemIndex; }
+
 private:
 	/** Called when the settings of the dialog are to be accepted*/
 	FReply OKClicked();
 
 	/** Called when the settings of the dialog are to be ignored*/
 	FReply CancelClicked();
+
+	/** Called to populate the dropdown */
+	TSharedRef<SWidget> GetSelectionContent();
+
+	/** Returns title of currently selected item */
+	FText GetSelectedItemTitle() const;
 
 private:
 	bool bResult = false;
@@ -50,10 +72,21 @@ private:
 	TWeakPtr<SWindow> ParentWindow;
 
 	TSharedPtr< SMultiLineEditableTextBox> TextBox;
+
+	const TArray<SSourceControlDescriptionItem>* Items;
+	int32 CurrentlySelectedItemIndex;
 };
 
 bool GetChangelistDescription(
 	const TSharedPtr<SWidget>& ParentWidget,
 	const FText& InWindowTitle,
 	const FText& InLabel,
+	FText& OutDescription);
+
+bool PickChangelistOrNewWithDescription(
+	const TSharedPtr<SWidget>& ParentWidget,
+	const FText& InWindowTitle,
+	const FText& InLabel,
+	const TArray<SSourceControlDescriptionItem>& Items,
+	int32& OutPickedIndex,
 	FText& OutDescription);

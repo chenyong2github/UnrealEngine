@@ -46,7 +46,7 @@ FText FShelvedChangelistTreeItem::GetDisplayText() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bIsShelvedFile)
+FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths, bool bIsShelvedFile)
 	: FileState(InFileState)
 {
 	Type = (bIsShelvedFile ? IChangelistTreeItem::ShelvedFile : IChangelistTreeItem::File);
@@ -62,7 +62,7 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bIsShelved
 
 	// For deleted items, the file is not on disk anymore so the only way we can get the asset data is by getting the file from the depot.
 	// For shelved files, if the file still exists locally, it will have been found before, otherwise, the history of the shelved file state will point to the remote version
-	if (FileState->IsDeleted() || (bIsShelvedFile && Assets.Num() == 0))
+	if (bBeautifyPaths && (FileState->IsDeleted() || (bIsShelvedFile && Assets.Num() == 0)))
 	{
 		// At the moment, getting the asset data from non-external assets yields issues with the package path
 		// so we will fall down to our recovery (below) instead

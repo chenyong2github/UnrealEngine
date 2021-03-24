@@ -76,6 +76,7 @@ private:
 	void OnDeleteShelvedFiles();
 
 	/** Files operations */
+	void OnMoveFiles();
 	void OnLocateFile();
 	bool CanLocateFile();
 	void OnShowHistory();
@@ -115,4 +116,12 @@ private:
 	FDelegateHandle SourceControlStateChangedDelegateHandle;
 
 	bool bShouldRefresh;
+
+	void StartRefreshStatus();
+	void TickRefreshStatus(double InDeltaTime);
+	void EndRefreshStatus();
+
+	FText RefreshStatus;
+	bool bIsRefreshing;
+	double RefreshStatusTimeElapsed;
 };

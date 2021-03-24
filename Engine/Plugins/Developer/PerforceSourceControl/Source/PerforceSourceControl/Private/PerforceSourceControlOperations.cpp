@@ -2107,18 +2107,33 @@ bool FPerforceNewChangelistWorker::Execute(class FPerforceSourceControlCommand& 
 		check(InCommand.Operation->GetName() == GetName());
 		TSharedRef<FNewChangelist, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FNewChangelist>(InCommand.Operation);
 
-		int32 ChangeList = Connection.CreatePendingChangelist(Operation->GetDescription(), InCommand.Files, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
+		int32 ChangeList = Connection.CreatePendingChangelist(Operation->GetDescription(), TArray<FString>(), FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
 
 		InCommand.bCommandSuccessful = (ChangeList > 0);
-
-		if (InCommand.bCommandSuccessful)
+		
+		// Successfully created new changelist
+		if (ChangeList > 0)
 		{
 			NewChangelist = FPerforceSourceControlChangelist(ChangeList);
 			NewChangelistState.Changelist = NewChangelist;
 			NewChangelistState.Description = Operation->GetDescription().ToString();
 			NewChangelistState.bHasShelvedFiles = false;
 
-			// Todo: keep files state also so we can update properly
+			if (InCommand.Files.Num() > 0)
+			{
+				// Move files to changelist
+				if (!RunReopenCommand(InCommand, InCommand.Files, NewChangelist, &MovedFiles))
+				{
+					// Move failed; delete newly created changelist
+					FP4RecordSet Records;
+					TArray<FString> ChangeParams;
+					ChangeParams.Add(TEXT("-d"));
+					ChangeParams.Add(NewChangelist.ToString());
+					Connection.RunCommand(TEXT("change"), ChangeParams, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+
+					InCommand.bCommandSuccessful = false;
+				}
+			}
 		}
 	}
 
@@ -2127,16 +2142,37 @@ bool FPerforceNewChangelistWorker::Execute(class FPerforceSourceControlCommand& 
 
 bool FPerforceNewChangelistWorker::UpdateStates() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-	const FDateTime Now = FDateTime::Now();
+	if (NewChangelist.IsInitialized())
+	{
+		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
+		const FDateTime Now = FDateTime::Now();
 
-	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(NewChangelist);
-	*ChangelistState = NewChangelistState;
-	ChangelistState->TimeStamp = Now;
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(NewChangelist);
+		*ChangelistState = NewChangelistState;
+		ChangelistState->TimeStamp = Now;
 
-	// TODO: Files in new changelist support
+		for (const FString& MovedFile : MovedFiles)
+		{
+			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FileState = PerforceSourceControl.GetProvider().GetStateInternal(MovedFile);
 
-	return true;
+			// 1- Remove these files from their previous changelist
+			TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> PreviousChangelist = PerforceSourceControl.GetProvider().GetStateInternal(FileState->Changelist);
+			PreviousChangelist->Files.Remove(FileState);
+
+			// 2- Add to the new changelist
+			ChangelistState->Files.Add(FileState);
+
+			// 3- Update changelist in file state
+			FileState->Changelist = NewChangelist;
+			FileState->TimeStamp = Now;
+		}
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}	
 }
 
 

@@ -25,6 +25,7 @@
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Algo/AnyOf.h"
 
 #include "SSourceControlSubmit.h"
@@ -53,6 +54,7 @@ struct FSCCFileDragDropOp : public FDragDropOperation
 //////////////////////////////
 SSourceControlChangelistsWidget::SSourceControlChangelistsWidget()
 {
+	bIsRefreshing = false;
 }
 
 void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
@@ -92,6 +94,19 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 				TreeView.ToSharedRef()
 			]
 		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SBorder)
+			.Visibility_Lambda([this]() -> EVisibility
+			{
+				return bIsRefreshing ? EVisibility::Visible : EVisibility::Collapsed;
+			})
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return RefreshStatus; })
+			]
+		]
 	];
 
 	bShouldRefresh = true;
@@ -111,6 +126,13 @@ TSharedRef<SWidget> SSourceControlChangelistsWidget::MakeToolBar()
 		LOCTEXT("SourceControl_RefreshButton_Tooltip", "Refreshes changelists from source control provider."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Refresh"));
 
+	ToolBarBuilder.AddToolBarButton(
+		FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnNewChangelist)),
+		NAME_None,
+		LOCTEXT("SourceControl_NewChangelistButton", "New Changelist"),
+		LOCTEXT("SourceControl_NewChangelistButton_Tooltip", "Creates an empty changelist"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Add"));
+
 	return ToolBarBuilder.MakeWidget();
 }
 
@@ -129,12 +151,19 @@ void SSourceControlChangelistsWidget::Tick(const FGeometry& AllottedGeometry, co
 			ClearChangelistsTree();
 		}
 	}
+	
+	if (bIsRefreshing)
+	{
+		TickRefreshStatus(InDeltaTime);
+	}
 }
 
 void SSourceControlChangelistsWidget::RequestRefresh()
 {
 	if (ISourceControlModule::Get().IsEnabled())
 	{
+		StartRefreshStatus();
+
 		TSharedRef<FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> UpdatePendingChangelistsOperation = ISourceControlOperation::Create<FUpdatePendingChangelistsStatus>();
 		UpdatePendingChangelistsOperation->SetUpdateAllChangelists(true);
 		UpdatePendingChangelistsOperation->SetUpdateFilesStates(true);
@@ -148,6 +177,24 @@ void SSourceControlChangelistsWidget::RequestRefresh()
 		// No provider available, clear changelist tree
 		ClearChangelistsTree();
 	}
+}
+
+void SSourceControlChangelistsWidget::StartRefreshStatus()
+{
+	bIsRefreshing = true;
+	RefreshStatusTimeElapsed = 0;
+}
+
+void SSourceControlChangelistsWidget::TickRefreshStatus(double InDeltaTime)
+{
+	RefreshStatusTimeElapsed += InDeltaTime;
+	const int SecondsElapsed = (int)RefreshStatusTimeElapsed;
+	RefreshStatus = FText::Format(LOCTEXT("SourceControl_RefreshStatus", "Refreshing changelists... ({0} s)"), FText::AsNumber(SecondsElapsed));
+}
+
+void SSourceControlChangelistsWidget::EndRefreshStatus()
+{
+	bIsRefreshing = false;
 }
 
 void SSourceControlChangelistsWidget::ClearChangelistsTree()
@@ -174,14 +221,29 @@ void SSourceControlChangelistsWidget::Refresh()
 
 		ChangelistsNodes.Reset(ChangelistsStates.Num());
 
+		// Count number of steps for slow task...
+		int32 ElementsToProcess = ChangelistsStates.Num();
+		for (FSourceControlChangelistStateRef ChangelistState : ChangelistsStates)
+		{
+			ElementsToProcess += ChangelistState->GetFilesStates().Num();
+			ElementsToProcess += ChangelistState->GetShelvedFilesStates().Num();
+		}
+
+		FScopedSlowTask SlowTask(ElementsToProcess, LOCTEXT("SourceControl_RebuildTree", "Beautifying Changelist Tree Items Paths"));
+		SlowTask.MakeDialog(/*bShowCancelButton=*/true);
+
+		bool bBeautifyPaths = true;
+
 		for (FSourceControlChangelistStateRef ChangelistState : ChangelistsStates)
 		{
 			FChangelistTreeItemRef ChangelistTreeItem = MakeShareable(new FChangelistTreeItem(ChangelistState));
 
 			for (FSourceControlStateRef FileRef : ChangelistState->GetFilesStates())
 			{
-				FChangelistTreeItemRef FileTreeItem = MakeShareable(new FFileTreeItem(FileRef));
+				FChangelistTreeItemRef FileTreeItem = MakeShareable(new FFileTreeItem(FileRef, bBeautifyPaths));
 				ChangelistTreeItem->AddChild(FileTreeItem);
+				SlowTask.EnterProgressFrame();
+				bBeautifyPaths &= !SlowTask.ShouldCancel();
 			}
 
 			if (ChangelistState->GetShelvedFilesStates().Num() > 0)
@@ -191,12 +253,16 @@ void SSourceControlChangelistsWidget::Refresh()
 
 				for (FSourceControlStateRef ShelvedFileRef : ChangelistState->GetShelvedFilesStates())
 				{
-					FChangelistTreeItemRef ShelvedFileTreeItem = MakeShareable(new FShelvedFileTreeItem(ShelvedFileRef));
+					FChangelistTreeItemRef ShelvedFileTreeItem = MakeShareable(new FShelvedFileTreeItem(ShelvedFileRef, bBeautifyPaths));
 					ShelvedChangelistTreeItem->AddChild(ShelvedFileTreeItem);
+					SlowTask.EnterProgressFrame();
+					bBeautifyPaths &= !SlowTask.ShouldCancel();
 				}
 			}
 
 			ChangelistsNodes.Add(ChangelistTreeItem);
+			SlowTask.EnterProgressFrame();
+			bBeautifyPaths &= !SlowTask.ShouldCancel();
 		}
 
 		RestoreExpandedState(ExpandedStates);
@@ -207,6 +273,8 @@ void SSourceControlChangelistsWidget::Refresh()
 	{
 		ClearChangelistsTree();
 	}
+
+	EndRefreshStatus();
 }
 
 void SSourceControlChangelistsWidget::OnSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider)
@@ -664,6 +732,76 @@ bool SSourceControlChangelistsWidget::CanSubmitChangelist()
 	return Changelist != nullptr && Changelist->GetFilesStates().Num() > 0 && Changelist->GetShelvedFilesStates().Num() == 0;
 }
 
+void SSourceControlChangelistsWidget::OnMoveFiles()
+{
+	TArray<FString> SelectedFiles = GetSelectedFiles();
+
+	if (SelectedFiles.Num() == 0)
+	{
+		return;
+	}
+
+	const bool bAddNewChangelistEntry = true;
+
+	// Build selection list for changelists
+	TArray<SSourceControlDescriptionItem> Items;
+	Items.Reset(ChangelistsNodes.Num() + (bAddNewChangelistEntry ? 1 : 0));
+
+	if (bAddNewChangelistEntry)
+	{
+		// First is always new changelist
+		Items.Emplace(
+			LOCTEXT("SourceControl_NewChangelistText", "New Changelist"),
+			LOCTEXT("SourceControl_NewChangelistDescription", "<enter description here>"),
+			/*bCanEditDescription=*/true);
+	}
+
+	const bool bCanEditAlreadyExistingChangelistDescription = false;
+
+	for (FChangelistTreeItemPtr Changelist : ChangelistsNodes)
+	{
+		if (!Changelist || Changelist->GetTreeItemType() != IChangelistTreeItem::Changelist)
+		{
+			continue;
+		}
+
+		auto TypedChangelist = StaticCastSharedPtr<FChangelistTreeItem>(Changelist);
+		Items.Emplace(TypedChangelist->GetDisplayText(), TypedChangelist->GetDescriptionText(), bCanEditAlreadyExistingChangelistDescription);
+	}
+
+	int32 PickedItem = 0;
+	FText ChangelistDescription;
+	
+	bool bOk = PickChangelistOrNewWithDescription(
+		nullptr,
+		LOCTEXT("SourceControl.MoveFiles.Title", "Move Files To..."),
+		LOCTEXT("SourceControl.MoveFIles.Label", "Target Changelist:"),
+		Items,
+		PickedItem,
+		ChangelistDescription);
+
+	if (!bOk)
+	{
+		return;
+	}
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+
+	// Create new changelist
+	if (bAddNewChangelistEntry && PickedItem == 0)
+	{
+		auto NewChangelistOperation = ISourceControlOperation::Create<FNewChangelist>();
+		NewChangelistOperation->SetDescription(ChangelistDescription);
+		SourceControlProvider.Execute(NewChangelistOperation, SelectedFiles);
+	}
+	else
+	{
+		const int32 ChangelistIndex = (bAddNewChangelistEntry ? PickedItem - 1 : PickedItem);
+		FSourceControlChangelistPtr Changelist = StaticCastSharedPtr<FChangelistTreeItem>(ChangelistsNodes[ChangelistIndex])->ChangelistState->GetChangelist();
+		SourceControlProvider.Execute(ISourceControlOperation::Create<FMoveToChangelist>(), Changelist, SelectedFiles);
+	}
+}
+
 void SSourceControlChangelistsWidget::OnLocateFile()
 { 
 	TArray<FAssetData> AssetsToSync;
@@ -826,6 +964,10 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	if(bHasSelectedFiles)
 	{
 		Section.AddSeparator("FilesSeparator");
+
+		Section.AddMenuEntry("MoveFiles", LOCTEXT("SourceControl_MoveFiles", "Move Files To..."), LOCTEXT("SourceControl_MoveFiles_Tooltip", "Move Files To A Different Changelist..."), FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnMoveFiles)));
 
 		Section.AddMenuEntry("LocateFile", LOCTEXT("SourceControl_LocateFile", "Locate File..."), LOCTEXT("SourceControl_LocateFile_Tooltip", "Locate File in Project..."), FSlateIcon(),
 			FUIAction(

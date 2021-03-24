@@ -84,7 +84,7 @@ struct FShelvedChangelistTreeItem : public IChangelistTreeItem
 
 struct FFileTreeItem : public IChangelistTreeItem
 {
-	explicit FFileTreeItem(FSourceControlStateRef InFileState, bool bIsShelvedFile = false);
+	explicit FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths = true, bool bIsShelvedFile = false);
 
 	/** Returns the asset name of the item */
 	FText GetAssetName() const { return AssetName; }
@@ -164,8 +164,8 @@ private:
 
 struct FShelvedFileTreeItem : public FFileTreeItem
 {
-	explicit FShelvedFileTreeItem(FSourceControlStateRef InFileState)
-		: FFileTreeItem(InFileState, /*bIsShelved=*/true)
+	explicit FShelvedFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths = true)
+		: FFileTreeItem(InFileState, bBeautifyPaths,/*bIsShelved=*/true)
 	{}
 };
 
