@@ -15,6 +15,11 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -25,22 +30,9 @@ using namespace UE::Geometry;
  */
 
 
-bool UPolygonOnMeshToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* UPolygonOnMeshToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
-UInteractiveTool* UPolygonOnMeshToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UPolygonOnMeshTool* NewTool = NewObject<UPolygonOnMeshTool>(SceneState.ToolManager);
-
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-	check(MeshComponent != nullptr);
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
-
-	NewTool->SetWorld(SceneState.World);
-	return NewTool;
+	return NewObject<UPolygonOnMeshTool>(SceneState.ToolManager);
 }
 
 
@@ -84,10 +76,11 @@ void UPolygonOnMeshTool::Setup()
 	HoverBehavior->Initialize(this);
 	AddInputBehavior(HoverBehavior);
 
-	WorldTransform = UE::Geometry::FTransform3d(ComponentTarget->GetWorldTransform());
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	WorldTransform = UE::Geometry::FTransform3d(TargetComponent->GetWorldTransform());
 
 	// hide input StaticMeshComponent
-	ComponentTarget->SetOwnerVisibility(false);
+	TargetComponent->SetOwnerVisibility(false);
 
 	BasicProperties = NewObject<UPolygonOnMeshToolProperties>(this);
 	AddToolPropertySource(BasicProperties);
@@ -132,12 +125,12 @@ void UPolygonOnMeshTool::Setup()
 		DrawPlaneWorld = PlaneMechanic->Plane;
 		UpdateDrawPlane();
 	});
-	PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(ComponentTarget->GetOwnerComponent());
+	PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(TargetComponent->GetOwnerComponent());
 
 	// Convert input mesh description to dynamic mesh
 	OriginalDynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(ComponentTarget->GetMesh(), *OriginalDynamicMesh);
+	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalDynamicMesh);
 	// TODO: consider adding an AABB tree construction here?  tradeoff vs doing a raycast against full every time a param change happens ...
 
 	LastDrawnPolygon = FPolygon2d();
@@ -226,7 +219,7 @@ void UPolygonOnMeshTool::SetupPreview()
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 	FComponentMaterialSet MaterialSet;
-	ComponentTarget->GetMaterialSet(MaterialSet);
+	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 	Preview->ConfigureMaterials(MaterialSet.Materials,
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
@@ -244,7 +237,7 @@ void UPolygonOnMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 
 	// Restore (unhide) the source meshes
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 
 	TArray<FDynamicMeshOpResult> Results;
 	Results.Emplace(Preview->Shutdown());
@@ -408,10 +401,10 @@ void UPolygonOnMeshTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Resul
 	
 	check(Results.Num() > 0);
 	check(Results[0].Mesh.Get() != nullptr);
-	ComponentTarget->CommitMesh([&Results](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+	Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([&Results](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 	{
 		FDynamicMeshToMeshDescription Converter;
-		Converter.Convert(Results[0].Mesh.Get(), *CommitParams.MeshDescription);
+		Converter.Convert(Results[0].Mesh.Get(), *CommitParams.MeshDescriptionOut);
 	});
 
 	GetToolManager()->EndUndoTransaction();

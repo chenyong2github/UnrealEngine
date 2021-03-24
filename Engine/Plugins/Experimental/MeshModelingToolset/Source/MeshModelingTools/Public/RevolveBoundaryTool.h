@@ -24,15 +24,13 @@ class IAssetGenerationAPI;
 // Tool Builder
 
 UCLASS()
-class MESHMODELINGTOOLS_API URevolveBoundaryToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API URevolveBoundaryToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
-	bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool RequiresAssetAPI() const override { return true; }
 };
 
 UCLASS()
@@ -86,7 +84,6 @@ class MESHMODELINGTOOLS_API URevolveBoundaryTool : public UMeshBoundaryToolBase,
 	GENERATED_BODY()
 
 public:
-	virtual void SetAssetAPI(IAssetGenerationAPI* NewAssetApi) { AssetAPI = NewAssetApi; }
 
 	virtual bool CanAccept() const override;
 
@@ -103,8 +100,6 @@ protected:
 	// Support for Ctrl+Clicking a boundary to align the revolution axis to that segment
 	bool bAlignAxisOnClick = false;
 	int32 AlignAxisModifier = 2;
-
-	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	UPROPERTY()
 	URevolveBoundaryToolProperties* Settings = nullptr;

@@ -27,34 +27,33 @@
 #include "Engine/Classes/PhysicsEngine/BodySetup.h"
 #include "Engine/Classes/PhysicsEngine/AggregateGeom.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/StaticMeshBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UExtractCollisionGeometryTool"
 
-bool UExtractCollisionGeometryToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+const FToolTargetTypeRequirements& UExtractCollisionGeometryToolBuilder::GetTargetRequirements() const
 {
-	int32 NumStaticMeshes = ToolBuilderUtil::CountComponents(SceneState, [&](UActorComponent* Comp) { return Cast<UStaticMeshComponent>(Comp) != nullptr; });
-	int32 NumComponentTargets = ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget);
-	return (NumStaticMeshes == 1 && NumStaticMeshes == NumComponentTargets);
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMaterialProvider::StaticClass(),
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass(),
+		UStaticMeshBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
 }
 
 
-UInteractiveTool* UExtractCollisionGeometryToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* UExtractCollisionGeometryToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UExtractCollisionGeometryTool* NewTool = NewObject<UExtractCollisionGeometryTool>(SceneState.ToolManager);
-	NewTool->SetWorld(SceneState.World);
-	check(AssetAPI);
-	NewTool->SetAssetAPI(AssetAPI);
-
-	TArray<UActorComponent*> ValidComponents = ToolBuilderUtil::FindAllComponents(SceneState,
-		[&](UActorComponent* Comp) { return Cast<UStaticMeshComponent>(Comp) != nullptr; });
-	check(ValidComponents.Num() == 1);
-
-	TUniquePtr<FPrimitiveComponentTarget> ComponentTargets;
-	UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(ValidComponents[0]);
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
-	return NewTool;
+	return NewObject<UExtractCollisionGeometryTool>(SceneState.ToolManager);
 }
 
 
@@ -63,10 +62,11 @@ void UExtractCollisionGeometryTool::Setup()
 	UInteractiveTool::Setup();
 
 	// create preview mesh
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->bBuildSpatialDataStructure = false;
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
-	PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+	PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
 	PreviewMesh->SetMaterial(ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager()));
 	PreviewMesh->SetOverrideRenderMaterial(ToolSetupUtil::GetSelectionMaterial(GetToolManager()));
 	PreviewMesh->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)
@@ -81,7 +81,7 @@ void UExtractCollisionGeometryTool::Setup()
 	VizSettings->WatchProperty(VizSettings->Color, [this](FColor NewValue) { bVisualizationDirty = true; });
 
 
-	const UStaticMeshComponent* Component = CastChecked<UStaticMeshComponent>(ComponentTarget->GetOwnerComponent());
+	const UStaticMeshComponent* Component = CastChecked<UStaticMeshComponent>(TargetComponent->GetOwnerComponent());
 	const UStaticMesh* StaticMesh = Component->GetStaticMesh();
 	if (ensure(StaticMesh && StaticMesh->GetBodySetup()))
 	{
@@ -89,10 +89,10 @@ void UExtractCollisionGeometryTool::Setup()
 		PhysicsInfo->InitializeFromComponent(Component, true);
 
 		PreviewElements = NewObject<UPreviewGeometry>(this);
-		FTransform TargetTransform = ComponentTarget->GetWorldTransform();
+		FTransform TargetTransform = TargetComponent->GetWorldTransform();
 		//PhysicsInfo->ExternalScale3D = TargetTransform.GetScale3D();
 		//TargetTransform.SetScale3D(FVector::OneVector);
-		PreviewElements->CreateInWorld(ComponentTarget->GetOwnerActor()->GetWorld(), TargetTransform);
+		PreviewElements->CreateInWorld(TargetComponent->GetOwnerActor()->GetWorld(), TargetTransform);
 		
 		UE::PhysicsTools::InitializePreviewGeometryLines(*PhysicsInfo, PreviewElements,
 			VizSettings->Color, VizSettings->LineThickness, 0.0f, 16);
@@ -125,8 +125,8 @@ void UExtractCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		UMaterialInterface* UseMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 
-		FString NewName = ComponentTarget->IsValid() ?
-			FString::Printf(TEXT("%s_Collision"), *ComponentTarget->GetOwnerComponent()->GetName()) : TEXT("CollisionGeo");
+		FString NewName = Target->IsValid() ?
+			FString::Printf(TEXT("%s_Collision"), *Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerComponent()->GetName()) : TEXT("CollisionGeo");
 
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("CreateCollisionMesh", "Collision To Mesh"));
 

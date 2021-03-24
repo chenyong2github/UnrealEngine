@@ -11,6 +11,7 @@
 #include "DynamicMesh3.h"
 #include "MeshTangents.h"
 #include "ParameterizationOps/CalculateTangentsOp.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "MeshTangentsTool.generated.h"
 
 
@@ -25,13 +26,15 @@ class UMaterialInstanceDynamic;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+
+protected:
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -78,13 +81,11 @@ public:
  * Simple Mesh Simplifying Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsTool : public USingleSelectionTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshTangentsd>
+class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshTangentsd>
 {
 	GENERATED_BODY()
 public:
 	UMeshTangentsTool();
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -116,8 +117,6 @@ protected:
 	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshTangentsd>> Compute = nullptr;
 
 protected:
-	UWorld* TargetWorld;
-
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> InputMeshDescription;
 	TSharedPtr<UE::Geometry::FMeshTangentsf, ESPMode::ThreadSafe> InitialTangents;
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;

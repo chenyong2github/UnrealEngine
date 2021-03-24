@@ -6,6 +6,7 @@
 #include "InteractiveToolBuilder.h"
 #include "SingleSelectionMeshEditingTool.generated.h"
 
+class IAssetGenerationAPI;
 class USingleSelectionMeshEditingTool;
 
 /**
@@ -14,12 +15,12 @@ class USingleSelectionMeshEditingTool;
  * for editing meshes.
  */
 UCLASS(Transient, Abstract)
-class MESHMODELINGTOOLS_API USingleSelectionMeshEditingToolBuilder : public UInteractiveToolBuilder
+class MODELINGCOMPONENTS_API USingleSelectionMeshEditingToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 public:
 	/** @return true if a single mesh source can be found in the active selection */
@@ -46,15 +47,15 @@ protected:
  * Single Selection Mesh Editing tool base class.
  */
 UCLASS()
-class MESHMODELINGTOOLS_API USingleSelectionMeshEditingTool : public USingleSelectionTool
+class MODELINGCOMPONENTS_API USingleSelectionMeshEditingTool : public USingleSelectionTool
 {
 	GENERATED_BODY()
 
 public:
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn) { AssetAPI = AssetAPIIn; }
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPIIn) { AssetAPI = AssetAPIIn; }
 
 protected:
 	UWorld* TargetWorld = nullptr;
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 };

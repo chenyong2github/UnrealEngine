@@ -13,7 +13,7 @@
 #include "Selection/GroupTopologySelector.h"
 #include "SingleSelectionTool.h"
 #include "ToolDataVisualizer.h"
-#include "SingleSelectionMeshEditingTool.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 
 #include "EdgeLoopInsertionTool.generated.h"
 

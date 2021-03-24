@@ -14,7 +14,7 @@
 #include "Selection/GroupTopologySelector.h"
 #include "SingleSelectionTool.h"
 #include "ToolDataVisualizer.h"
-#include "SingleSelectionMeshEditingTool.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 
 #include "GroupEdgeInsertionTool.generated.h"
 

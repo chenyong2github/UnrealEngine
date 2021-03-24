@@ -8,6 +8,7 @@
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "WeldMeshEdgesTool.generated.h"
 
 
@@ -19,20 +20,19 @@ class USimpleDynamicMeshComponent;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UWeldMeshEdgesToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UWeldMeshEdgesToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 /**
  * Mesh Weld Edges Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UWeldMeshEdgesTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API UWeldMeshEdgesTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 

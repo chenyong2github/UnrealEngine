@@ -16,6 +16,11 @@
 #include "ParameterizationOps/ParameterizeMeshOp.h"
 #include "ToolSetupUtil.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -27,23 +32,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogParameterizeMeshTool, Log, All);
  * ToolBuilder
  */
 
-bool UParameterizeMeshToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
-{
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
-UInteractiveTool* UParameterizeMeshToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* UParameterizeMeshToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	UParameterizeMeshTool* NewTool = NewObject<UParameterizeMeshTool>(SceneState.ToolManager);
-
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-	check(MeshComponent != nullptr);
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
-	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 	NewTool->SetUseAutoGlobalParameterizationMode(bDoAutomaticGlobalUnwrap);
-
 	return NewTool;
 }
 
@@ -52,16 +44,6 @@ UInteractiveTool* UParameterizeMeshToolBuilder::BuildTool(const FToolBuilderStat
  */
 UParameterizeMeshTool::UParameterizeMeshTool()
 {
-}
-
-void UParameterizeMeshTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
-
-void UParameterizeMeshTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
 }
 
 void UParameterizeMeshTool::SetUseAutoGlobalParameterizationMode(bool bEnable)
@@ -75,21 +57,24 @@ void UParameterizeMeshTool::Setup()
 	UInteractiveTool::Setup();
 
 	// Copy existing material if there is one	
-	DefaultMaterial = ComponentTarget->GetMaterial(0);
+	IMaterialProvider* TargetMaterial = Cast<IMaterialProvider>(Target);
+	DefaultMaterial = TargetMaterial->GetMaterial(0);
 	if (DefaultMaterial == nullptr)
 	{
 		DefaultMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EngineMaterials/DefaultMaterial"));  
 	}
 
 	// hide input StaticMeshComponent
-	ComponentTarget->SetOwnerVisibility(false);
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	TargetComponent->SetOwnerVisibility(false);
 
 	// Construct the preview object and set the material on it
+	IMeshDescriptionProvider* TargetMeshProvider = Cast<IMeshDescriptionProvider>(Target);
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
-	Preview->PreviewMesh->InitializeMesh(ComponentTarget->GetMesh());
+	Preview->PreviewMesh->InitializeMesh(TargetMeshProvider->GetMeshDescription());
 
 	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Op)
 	{
@@ -104,12 +89,12 @@ void UParameterizeMeshTool::Setup()
 		bHasGroups = FaceGroupUtil::HasMultipleGroups(*InputMesh);
 
 		FComponentMaterialSet MaterialSet;
-		ComponentTarget->GetMaterialSet(MaterialSet);
+		TargetMaterial->GetMaterialSet(MaterialSet);
 		Preview->ConfigureMaterials(MaterialSet.Materials,
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
 
-		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+		Preview->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
 	}
 
 	if (bDoAutomaticGlobalUnwrap == false && bHasGroups == false)
@@ -124,7 +109,7 @@ void UParameterizeMeshTool::Setup()
 
 	UVChannelProperties = NewObject<UMeshUVChannelProperties>(this);
 	UVChannelProperties->RestoreProperties(this);
-	UVChannelProperties->Initialize(ComponentTarget->GetMesh(), false);
+	UVChannelProperties->Initialize(TargetMeshProvider->GetMeshDescription(), false);
 	UVChannelProperties->ValidateSelection(true);
 	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue) 
 	{
@@ -193,7 +178,7 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	
 	// Restore (unhide) the source meshes
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -201,9 +186,9 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		check(DynamicMeshResult != nullptr);
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("ParameterizeMesh", "Parameterize Mesh"));
 
-		ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
-			FMeshDescription* MeshDescription = CommitParams.MeshDescription;
+			FMeshDescription* MeshDescription = CommitParams.MeshDescriptionOut;
 
 			bool bVerticesOnly = false;
 			bool bAttributesOnly = true;
@@ -272,7 +257,7 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 
 	ParameterizeMeshOp->Method = (EParamOpBackend)(int)Settings->Method;
 
-	UE::Geometry::FTransform3d XForm3d(ComponentTarget->GetWorldTransform());
+	UE::Geometry::FTransform3d XForm3d(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 	ParameterizeMeshOp->SetTransform(XForm3d);
 
 	return ParameterizeMeshOp;

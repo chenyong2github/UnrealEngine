@@ -8,19 +8,19 @@
 #include "InteractiveToolChange.h" //FToolCommandChange
 #include "SingleSelectionTool.h" //USingleSelectionTool
 #include "Operations/FFDLattice.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "LatticeDeformerTool.generated.h"
 
 class ULatticeControlPointsMechanic;
 class UMeshOpPreviewWithBackgroundCompute;
 
 UCLASS()
-class MESHMODELINGTOOLS_API ULatticeDeformerToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API ULatticeDeformerToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -97,16 +97,13 @@ public:
 
 /** Deform a mesh using a regular hexahedral lattice */
 UCLASS()
-class MESHMODELINGTOOLS_API ULatticeDeformerTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API ULatticeDeformerTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
 public:
 
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
-
-	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
-	virtual void SetAssetAPI(IToolsContextAssetAPI* NewAssetApi) { AssetAPI = NewAssetApi; }
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -121,9 +118,6 @@ public:
 	UE::Geometry::FVector3i GetLatticeResolution() const;
 
 protected:
-
-	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
 
 	// Input mesh
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;

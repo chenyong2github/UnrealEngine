@@ -32,32 +32,15 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-const FToolTargetTypeRequirements& UMeshToVolumeToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass(),
-		UMaterialProvider::StaticClass()
-		});
-	return TypeRequirements;
-}
-
 bool UMeshToVolumeToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	// We don't want to allow this tool to run on selected volumes
-	return ToolBuilderUtil::CountSelectedActorsOfType<AVolume>(SceneState) == 0 
-		&& SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
+	return ToolBuilderUtil::CountSelectedActorsOfType<AVolume>(SceneState) == 0 && Super::CanBuildTool(SceneState);
 }
 
-UInteractiveTool* UMeshToVolumeToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* UMeshToVolumeToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UMeshToVolumeTool* NewTool = NewObject<UMeshToVolumeTool>(SceneState.ToolManager);
-
-	UToolTarget* Target = SceneState.TargetManager->BuildFirstSelectedTargetable(SceneState, GetTargetRequirements());
-	check(Target);
-	NewTool->SetTarget(Target);
-
-	return NewTool;
+	return NewObject<UMeshToVolumeTool>(SceneState.ToolManager);
 }
 
 /*
@@ -137,7 +120,7 @@ void UMeshToVolumeTool::Shutdown(EToolShutdownType ShutdownType)
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	TargetComponent->SetOwnerVisibility(true);
 
-	UWorld* TargetWorld = TargetComponent->GetOwnerActor()->GetWorld();
+	UWorld* TargetOwnerWorld = TargetComponent->GetOwnerActor()->GetWorld();
 
 
 	if (ShutdownType == EToolShutdownType::Accept)
@@ -157,11 +140,11 @@ void UMeshToVolumeTool::Shutdown(EToolShutdownType ShutdownType)
 			UClass* VolumeClass = Settings->NewVolumeType.Get();
 			if (VolumeClass)
 			{
-				TargetVolume = (AVolume*)TargetWorld->SpawnActor(VolumeClass, &NewActorTransform, SpawnInfo);
+				TargetVolume = (AVolume*)TargetOwnerWorld->SpawnActor(VolumeClass, &NewActorTransform, SpawnInfo);
 			}
 			else
 			{
-				TargetVolume = TargetWorld->SpawnActor<ABlockingVolume>(FVector::ZeroVector, Rotation, SpawnInfo);
+				TargetVolume = TargetOwnerWorld->SpawnActor<ABlockingVolume>(FVector::ZeroVector, Rotation, SpawnInfo);
 			}
 			TargetVolume->BrushType = EBrushType::Brush_Add;
 			UModel* Model = NewObject<UModel>(TargetVolume);

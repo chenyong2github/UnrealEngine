@@ -7,6 +7,7 @@
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
 #include "Physics/CollisionPropertySets.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "ExtractCollisionGeometryTool.generated.h"
 
 class UPreviewGeometry;
@@ -14,15 +15,16 @@ class UPreviewMesh;
 class IAssetGenerationAPI;
 
 UCLASS()
-class MESHMODELINGTOOLS_API UExtractCollisionGeometryToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UExtractCollisionGeometryToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool RequiresAssetAPI() const override { return true; }
 
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+protected:
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -32,13 +34,10 @@ public:
  * Mesh Inspector Tool for visualizing mesh information
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UExtractCollisionGeometryTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API UExtractCollisionGeometryTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 public:
-	virtual void SetWorld(UWorld* World) { this->TargetWorld = World; }
-	virtual void SetAssetAPI(IAssetGenerationAPI* InAssetAPI) { this->AssetAPI = InAssetAPI; }
-
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -65,9 +64,6 @@ protected:
 
 	// these are TSharedPtr because TPimplPtr cannot currently be added to a TArray?
 	TSharedPtr<FPhysicsDataCollection> PhysicsInfo;
-
-	UWorld* TargetWorld = nullptr;
-	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	UE::Geometry::FDynamicMesh3 CurrentMesh;
 	bool bResultValid = false;

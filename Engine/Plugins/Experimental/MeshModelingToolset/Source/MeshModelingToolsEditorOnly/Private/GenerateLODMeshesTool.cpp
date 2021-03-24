@@ -19,6 +19,9 @@
 
 #include "Modules/ModuleManager.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 #include "IMeshReductionManagerModule.h"
 #include "IMeshReductionInterfaces.h"
@@ -36,24 +39,9 @@ using namespace UE::Geometry;
 /*
  * ToolBuilder
  */
-bool UGenerateLODMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* UGenerateLODMeshesToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
-UInteractiveTool* UGenerateLODMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UGenerateLODMeshesTool* NewTool = NewObject<UGenerateLODMeshesTool>(SceneState.ToolManager);
-
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-	check(MeshComponent != nullptr);
-
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
-	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
-
-	return NewTool;
+	return NewObject<UGenerateLODMeshesTool>(SceneState.ToolManager);
 }
 
 /*
@@ -88,16 +76,6 @@ UGenerateLODMeshesToolProperties::UGenerateLODMeshesToolProperties()
 	LODLevels.Add(LOD2);
 }
 
-void UGenerateLODMeshesTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
-
-void UGenerateLODMeshesTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
 void UGenerateLODMeshesTool::Setup()
 {
 	UInteractiveTool::Setup();
@@ -121,19 +99,20 @@ void UGenerateLODMeshesTool::Setup()
 #else
 		auto EnterProgressFrame = [](int Progress) {};
 #endif
-		OriginalMeshDescription = MakeShared<FMeshDescription, ESPMode::ThreadSafe>(*ComponentTarget->GetMesh());
+		IMeshDescriptionProvider* TargetMeshProvider = Cast<IMeshDescriptionProvider>(Target);
+		OriginalMeshDescription = MakeShared<FMeshDescription, ESPMode::ThreadSafe>(*TargetMeshProvider->GetMeshDescription());
 		EnterProgressFrame(1);
 		// aux-data isn't deep copied - by default it is built during initial evaluation (not thread safe)  
 		// so force aux-data rebuild now before multiple UE4 simplifiers try to use it in parallel.
 		OriginalMeshDescription->BuildIndexers();   
 		OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
+		Converter.Convert(TargetMeshProvider->GetMeshDescription(), *OriginalMesh);
 		EnterProgressFrame(2);
 		OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalMesh.Get(), true);
 	}
 
-	WorldBounds = FAxisAlignedBox3d(ComponentTarget->GetOwnerActor()->GetComponentsBoundingBox());
+	WorldBounds = FAxisAlignedBox3d(Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerActor()->GetComponentsBoundingBox());
 
 	// initialize our properties
 	SimplifyProperties = NewObject<UGenerateLODMeshesToolProperties>(this);
@@ -162,7 +141,7 @@ void UGenerateLODMeshesTool::Setup()
 void UGenerateLODMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	SimplifyProperties->SaveProperties(this);
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -206,7 +185,7 @@ void UGenerateLODMeshesTool::UpdateNumPreviews()
 
 	check(CurNumPreviews < NumPreviews);		// todo: support less
 
-	FTransform OrigTransform = ComponentTarget->GetWorldTransform();
+	FTransform OrigTransform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
 	FVector WorldShift = (FVector)((WorldBounds.Width() * 1.1) * FVector3d::UnitX());
 
 	for (int32 k = CurNumPreviews; k < NumPreviews; ++k)
@@ -218,7 +197,7 @@ void UGenerateLODMeshesTool::UpdateNumPreviews()
 		NewPreview->Setup(this->TargetWorld, Factory.Get());
 
 		FComponentMaterialSet MaterialSet;
-		ComponentTarget->GetMaterialSet(MaterialSet);
+		Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 		NewPreview->ConfigureMaterials(MaterialSet.Materials,
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
@@ -320,7 +299,7 @@ TUniquePtr<UE::Geometry::FDynamicMeshOperator> FGenerateLODOperatorFactory::Make
 void UGenerateLODMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	//FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	//FTransform Transform = ComponentTarget->GetWorldTransform(); //Actor->GetTransform();
+	//FTransform Transform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform(); //Actor->GetTransform();
 
 	//FColor LineColor(255, 0, 0);
 	//const FDynamicMesh3* TargetMesh = Preview->PreviewMesh->GetPreviewDynamicMesh();
@@ -346,8 +325,9 @@ void UGenerateLODMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UGenerateLODMeshesTool::UpdateVisualization()
 {
+	IMaterialProvider* TargetMaterial = Cast<IMaterialProvider>(Target);
 	FComponentMaterialSet MaterialSet;
-	ComponentTarget->GetMaterialSet(MaterialSet);
+	TargetMaterial->GetMaterialSet(MaterialSet);
 
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
@@ -369,7 +349,7 @@ void UGenerateLODMeshesTool::UpdateVisualization()
 	//}
 	//else
 	//{
-	//	ComponentTarget->GetMaterialSet(MaterialSet);
+	//	TargetMaterial->GetMaterialSet(MaterialSet);
 	//	Preview->PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
 	//}
 
@@ -393,7 +373,8 @@ void UGenerateLODMeshesTool::GenerateAssets()
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("GenerateLODMeshesToolTransactionName", "Simplify Mesh"));
 
-	FTransform Transform = ComponentTarget->GetWorldTransform();
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	FTransform Transform = TargetComponent->GetWorldTransform();
 
 	int32 NumLODs = Previews.Num();
 	for (int32 k = 0; k < NumLODs; ++k)
@@ -407,9 +388,9 @@ void UGenerateLODMeshesTool::GenerateAssets()
 		}
 
 		FComponentMaterialSet MaterialSet;
-		ComponentTarget->GetMaterialSet(MaterialSet);
+		Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 
-		FString BaseName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTarget->GetOwnerComponent());
+		FString BaseName = AssetGenerationUtil::GetComponentAssetBaseName(TargetComponent->GetOwnerComponent());
 		FString Name = FString::Printf( TEXT("%s_LOD%d"), *BaseName, (SimplifyProperties->NameIndexBase+k) );
 
 		AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(

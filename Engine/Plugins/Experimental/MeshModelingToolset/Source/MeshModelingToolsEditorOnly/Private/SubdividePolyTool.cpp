@@ -12,6 +12,11 @@
 #include "SimpleDynamicMeshComponent.h"
 #include "Drawing/PreviewGeometryActor.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -54,22 +59,9 @@ public:
 
 // Tool builder
 
-bool USubdividePolyToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* USubdividePolyToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
-UInteractiveTool* USubdividePolyToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-	check(MeshComponent != nullptr);
-
-	USubdividePolyTool* NewTool = NewObject<USubdividePolyTool>(SceneState.ToolManager);
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<USubdividePolyTool>(SceneState.ToolManager);
 }
 
 
@@ -165,7 +157,7 @@ void USubdividePolyTool::Setup()
 	UInteractiveTool::Setup();
 	SetToolDisplayName(LOCTEXT("ToolName", "Subdivide"));
 
-	if (!ComponentTarget)
+	if (!Target)
 	{
 		return;
 	}
@@ -173,7 +165,7 @@ void USubdividePolyTool::Setup()
 	bool bWantVertexNormals = false;
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(bWantVertexNormals, false, false, false);
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
+	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalMesh);
 
 	FText ErrorMessage;
 	bool bCatmullClarkOK = CheckGroupTopology(ErrorMessage);
@@ -201,6 +193,7 @@ void USubdividePolyTool::Setup()
 	AddToolPropertySource(Properties);
 	SetToolPropertySourceEnabled(Properties, true);
 
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	if (PreviewMesh == nullptr)
 	{
@@ -208,7 +201,7 @@ void USubdividePolyTool::Setup()
 	}
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
 
-	PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+	PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
 	PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
 	USimpleDynamicMeshComponent* PreviewDynamicMeshComponent = (USimpleDynamicMeshComponent*)PreviewMesh->GetRootComponent();
@@ -227,7 +220,7 @@ void USubdividePolyTool::Setup()
 
 	// Use the input mesh's material on the preview
 	FComponentMaterialSet MaterialSet;
-	ComponentTarget->GetMaterialSet(MaterialSet);
+	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
 	{
 		PreviewMesh->SetMaterial(k, MaterialSet.Materials[k]);
@@ -303,13 +296,13 @@ void USubdividePolyTool::Setup()
 	});
 
 	PreviewGeometry = NewObject<UPreviewGeometry>(this);
-	PreviewGeometry->CreateInWorld(ComponentTarget->GetOwnerActor()->GetWorld(), ComponentTarget->GetWorldTransform());
+	PreviewGeometry->CreateInWorld(TargetComponent->GetOwnerActor()->GetWorld(), TargetComponent->GetWorldTransform());
 	CreateOrUpdatePreviewGeometry();
 
 	// regenerate preview geo if mesh changes due to undo/redo/etc
 	PreviewDynamicMeshComponent->OnMeshChanged.AddLambda([this]() { bPreviewGeometryNeedsUpdate = true; });
 
-	ComponentTarget->SetOwnerVisibility(false);
+	TargetComponent->SetOwnerVisibility(false);
 	PreviewMesh->SetVisible(true);
 }
 
@@ -389,7 +382,7 @@ void USubdividePolyTool::Shutdown(EToolShutdownType ShutdownType)
 		PreviewGeometry->Disconnect();
 	}
 	
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 
 	if (PreviewMesh)
 	{
@@ -400,10 +393,10 @@ void USubdividePolyTool::Shutdown(EToolShutdownType ShutdownType)
 			USimpleDynamicMeshComponent* PreviewDynamicMeshComponent = (USimpleDynamicMeshComponent*)PreviewMesh->GetRootComponent();
 			FDynamicMesh3* DynamicMeshResult = PreviewDynamicMeshComponent->GetRenderMesh();
 
-			ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 			{
 				FDynamicMeshToMeshDescription Converter;
-				Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescription);
+				Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
 			});
 
 			GetToolManager()->EndUndoTransaction();

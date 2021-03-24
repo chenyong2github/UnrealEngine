@@ -11,6 +11,7 @@
 #include "DynamicMeshAABBTree3.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "PreviewMesh.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "MeshInspectorTool.generated.h"
 
 
@@ -22,13 +23,12 @@ class UMaterialInstanceDynamic;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UMeshInspectorToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UMeshInspectorToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -90,7 +90,7 @@ public:
  * Mesh Inspector Tool for visualizing mesh information
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UMeshInspectorTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API UMeshInspectorTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 

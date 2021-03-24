@@ -13,6 +13,7 @@
 #include "SimpleDynamicMeshComponent.h"
 #include "ToolDataVisualizer.h"
 #include "BaseGizmos/GizmoInterfaces.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 
 #include "MeshSpaceDeformerTool.generated.h"
 
@@ -32,17 +33,12 @@ class FSelectClickedAction;
  * ToolBuilder
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UMeshSpaceDeformerToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UMeshSpaceDeformerToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	UMeshSpaceDeformerToolBuilder()
-	{
-	}
-
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 /** ENonlinearOperation determines which type of nonlinear deformation will be applied*/
@@ -193,7 +189,7 @@ public:
  * Applies non-linear deformations to a mesh 
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UMeshSpaceDeformerTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API UMeshSpaceDeformerTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 public:
@@ -201,9 +197,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
 
 	void RequestAction(EMeshSpaceDeformerToolAction ActionType);
 
@@ -244,9 +237,6 @@ protected:
 
 	UPROPERTY()
 	UPreviewMesh* OriginalMeshPreview;
-
-	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
 
 	// Stores the materials of the original object, used to make the object semi-transparent.
 	FComponentMaterialSet StoredMaterialSet;

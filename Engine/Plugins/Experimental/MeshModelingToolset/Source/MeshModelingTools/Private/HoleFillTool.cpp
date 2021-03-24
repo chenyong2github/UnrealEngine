@@ -14,6 +14,11 @@
 #include "MeshOpPreviewHelpers.h"
 #include "Selection/PolygonSelectionMechanic.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -23,22 +28,9 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-bool UHoleFillToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* UHoleFillToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
-UInteractiveTool* UHoleFillToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-	check(MeshComponent != nullptr);
-
-	UHoleFillTool* NewTool = NewObject<UHoleFillTool>(SceneState.ToolManager);
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<UHoleFillTool>(SceneState.ToolManager);
 }
 
 /*
@@ -101,7 +93,7 @@ TUniquePtr<FDynamicMeshOperator> UHoleFillOperatorFactory::MakeNewOperator()
 {
 	TUniquePtr<FHoleFillOp> FillOp = MakeUnique<FHoleFillOp>();
 
-	FTransform LocalToWorld = FillTool->ComponentTarget->GetWorldTransform();
+	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(FillTool->Target)->GetWorldTransform();
 	FillOp->SetResultTransform((UE::Geometry::FTransform3d)LocalToWorld);
 	FillOp->OriginalMesh = FillTool->OriginalMesh;
 	FillOp->MeshUVScaleFactor = FillTool->MeshUVScaleFactor;
@@ -125,7 +117,7 @@ void UHoleFillTool::Setup()
 {
 	USingleSelectionTool::Setup();
 
-	if (!ComponentTarget)
+	if (!Target)
 	{
 		return;
 	}
@@ -133,7 +125,7 @@ void UHoleFillTool::Setup()
 	// create mesh to operate on
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
+	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalMesh);
 
 	// initialize properties
 	Properties = NewObject<UHoleFillToolProperties>(this, TEXT("Hole Fill Settings"));
@@ -172,6 +164,7 @@ void UHoleFillTool::Setup()
 	bool bTopologyOK = Topology->RebuildTopology();
 
 	// Set up selection mechanic to find and select edges
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
 	SelectionMechanic->bAddSelectionFilterPropertiesToParentTool = false;
 	SelectionMechanic->Setup(this);
@@ -179,7 +172,7 @@ void UHoleFillTool::Setup()
 	SelectionMechanic->Properties->bSelectFaces = false;
 	SelectionMechanic->Properties->bSelectVertices = false;
 	SelectionMechanic->Initialize(OriginalMesh.Get(),
-		ComponentTarget->GetWorldTransform(),
+		TargetComponent->GetWorldTransform(),
 		TargetWorld,
 		Topology.Get(),
 		[this]() { return &MeshSpatial; }
@@ -226,7 +219,7 @@ void UHoleFillTool::Setup()
 			EToolMessageLevel::UserNotification);
 
 		// Hide all meshes except the Preview
-		ComponentTarget->SetOwnerVisibility(false);
+		TargetComponent->SetOwnerVisibility(false);
 	}
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Fill Holes"));
@@ -270,7 +263,7 @@ void UHoleFillTool::Shutdown(EToolShutdownType ShutdownType)
 		SelectionMechanic->Shutdown();
 	}
 
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
@@ -278,12 +271,12 @@ void UHoleFillTool::Shutdown(EToolShutdownType ShutdownType)
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("HoleFillToolTransactionName", "Hole Fill Tool"));
 
 		check(Result.Mesh.Get() != nullptr);
-		ComponentTarget->CommitMesh([&Result](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([&Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
 
 			// full conversion if normal topology changed or faces were inverted
-			Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
+			Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescriptionOut);
 		});
 
 		GetToolManager()->EndUndoTransaction();
@@ -307,11 +300,6 @@ void UHoleFillTool::RequestAction(EHoleFillToolActions ActionType)
 	bHavePendingAction = true;
 }
 
-void UHoleFillTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
-
 
 void UHoleFillTool::InvalidatePreviewResult()
 {
@@ -329,7 +317,7 @@ void UHoleFillTool::SetupPreview()
 	Preview->Setup(this->TargetWorld, OpFactory);
 
 	FComponentMaterialSet MaterialSet;
-	ComponentTarget->GetMaterialSet(MaterialSet);
+	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 	Preview->ConfigureMaterials(MaterialSet.Materials,
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
@@ -366,7 +354,7 @@ void UHoleFillTool::SetupPreview()
 	});
 
 	// set initial preview to un-processed mesh
-	Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+	Preview->PreviewMesh->SetTransform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
 	Preview->SetVisibility(true);

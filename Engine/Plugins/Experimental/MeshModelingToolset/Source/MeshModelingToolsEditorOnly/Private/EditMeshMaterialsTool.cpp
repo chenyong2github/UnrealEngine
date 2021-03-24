@@ -15,6 +15,10 @@
 #include "AssetGenerationUtil.h"
 #include "ToolSetupUtil.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -52,8 +56,9 @@ void UEditMeshMaterialsTool::Setup()
 
 	PreviewMesh->ClearOverrideRenderMaterial();
 
+	IMaterialProvider* TargetMaterial = Cast<IMaterialProvider>(Target);
 	FComponentMaterialSet AssetMaterials;
-	ComponentTarget->GetMaterialSet(AssetMaterials, true);
+	TargetMaterial->GetMaterialSet(AssetMaterials, true);
 	MaterialProps->Materials = AssetMaterials.Materials;
 	CurrentMaterials = MaterialProps->Materials;
 	InitialMaterialKey = GetMaterialKey();
@@ -63,7 +68,7 @@ void UEditMeshMaterialsTool::Setup()
 		[this](FMaterialSetKey NewKey) { OnMaterialSetChanged(); });
 
 	FComponentMaterialSet ComponentMaterials;
-	ComponentTarget->GetMaterialSet(ComponentMaterials, false);
+	TargetMaterial->GetMaterialSet(ComponentMaterials, false);
 	if (ComponentMaterials != AssetMaterials)
 	{
 		GetToolManager()->DisplayMessage(
@@ -224,7 +229,7 @@ void UEditMeshMaterialsTool::OnShutdown(EToolShutdownType ShutdownType)
 		{
 			FComponentMaterialSet NewMaterialSet;
 			NewMaterialSet.Materials = CurrentMaterials;
-			ComponentTarget->CommitMaterialSetUpdate(NewMaterialSet, true);
+			Cast<IMaterialProvider>(Target)->CommitMaterialSetUpdate(NewMaterialSet, true);
 		}
 
 		UMeshSelectionTool::OnShutdown(ShutdownType);

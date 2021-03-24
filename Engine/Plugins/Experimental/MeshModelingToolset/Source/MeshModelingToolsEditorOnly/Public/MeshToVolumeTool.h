@@ -13,6 +13,7 @@
 #include "PreviewMesh.h"
 #include "Drawing/LineSetComponent.h"
 #include "PropertySets/OnAcceptProperties.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "MeshToVolumeTool.generated.h"
 
 class IAssetGenerationAPI;
@@ -21,17 +22,12 @@ class IAssetGenerationAPI;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshToVolumeToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UMeshToVolumeToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState & SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState & SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState & SceneState) const override;
 };
 
 
@@ -75,14 +71,12 @@ public:
  * tool can be moved out of the editor-only section and put with VolumeToMeshTool.
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshToVolumeTool : public USingleSelectionTool
+class MESHMODELINGTOOLSEDITORONLY_API UMeshToVolumeTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
 public:
 	UMeshToVolumeTool();
-
-	virtual void SetAssetAPI(IAssetGenerationAPI* InAssetAPI) { this->AssetAPI = InAssetAPI; }
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -107,8 +101,6 @@ protected:
 	ULineSetComponent* VolumeEdgesSet;
 
 protected:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	UE::Geometry::FDynamicMesh3 InputMesh;
 
 	void RecalculateVolume();

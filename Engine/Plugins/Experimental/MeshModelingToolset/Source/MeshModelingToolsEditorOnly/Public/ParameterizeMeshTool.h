@@ -10,6 +10,7 @@
 #include "MeshOpPreviewHelpers.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Properties/MeshUVChannelProperties.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 
 #include "ParameterizeMeshTool.generated.h"
 
@@ -18,7 +19,6 @@
 class USimpleDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
-class IAssetGenerationAPI;
 
 
 
@@ -40,22 +40,13 @@ enum class EParameterizeMeshMaterialMode : uint8
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-
-	IAssetGenerationAPI* AssetAPI;
 	bool bDoAutomaticGlobalUnwrap = false;
-
-	UParameterizeMeshToolBuilder()
-	{
-		AssetAPI = nullptr;
-	}
-
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -149,15 +140,13 @@ public:
  * Simple Mesh Simplifying Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshTool : public USingleSelectionTool, public UE::Geometry::IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	UParameterizeMeshTool();
 
-	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 	virtual void SetUseAutoGlobalParameterizationMode(bool bEnable);
 
 	virtual void Setup() override;
@@ -202,9 +191,6 @@ protected:
 	bool bDoAutomaticGlobalUnwrap = false;
 
 protected:
-	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
-
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 
 };

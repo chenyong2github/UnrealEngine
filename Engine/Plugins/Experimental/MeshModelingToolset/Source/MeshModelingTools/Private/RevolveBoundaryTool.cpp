@@ -15,6 +15,8 @@
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
 
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -22,24 +24,9 @@ using namespace UE::Geometry;
 
 // Tool builder
 
-bool URevolveBoundaryToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* URevolveBoundaryToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return this->AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
-UInteractiveTool* URevolveBoundaryToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-	check(MeshComponent != nullptr);
-
-	URevolveBoundaryTool* NewTool = NewObject<URevolveBoundaryTool>(SceneState.ToolManager);
-
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
-	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
-
-	return NewTool;
+	return NewObject<URevolveBoundaryTool>(SceneState.ToolManager);
 }
 
 
@@ -57,7 +44,7 @@ TUniquePtr<FDynamicMeshOperator> URevolveBoundaryOperatorFactory::MakeNewOperato
 		if (RevolveBoundaryTool->Topology->IsBoundaryEdge(EdgeID))
 		{
 			const TArray<int32>& VertexIndices = RevolveBoundaryTool->Topology->GetGroupEdgeVertices(EdgeID);
-			FTransform ToWorld = RevolveBoundaryTool->ComponentTarget->GetWorldTransform();
+			FTransform ToWorld = Cast<IPrimitiveComponentBackedTarget>(RevolveBoundaryTool->Target)->GetWorldTransform();
 
 			// Boundary loop includes the last vertex twice, so stop early.
 			CurveSweepOp->ProfileCurve.Reserve(VertexIndices.Num() - 1);
@@ -123,7 +110,7 @@ void URevolveBoundaryTool::Setup()
 
 	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
 
-	ComponentTarget->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Revolve Boundary"));
 	GetToolManager()->DisplayMessage(
@@ -189,7 +176,7 @@ void URevolveBoundaryTool::OnClicked(const FInputDeviceRay& ClickPos)
 			
 			FVector3d VertexA, VertexB;
 			OriginalMesh->GetEdgeV(ClickedEid, VertexA, VertexB);
-			FTransform ToWorldTranform = ComponentTarget->GetWorldTransform();
+			FTransform ToWorldTranform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
 			FLine3d EdgeLine = FLine3d::FromPoints(ToWorldTranform.TransformPosition((FVector)VertexA), 
 				ToWorldTranform.TransformPosition((FVector)VertexB));
 			
@@ -269,7 +256,7 @@ void URevolveBoundaryTool::Shutdown(EToolShutdownType ShutdownType)
 
 	PlaneMechanic->Shutdown();
 
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 
 	if (Preview)
 	{
@@ -350,7 +337,7 @@ void URevolveBoundaryTool::OnPropertyModified(UObject* PropertySet, FProperty* P
 		FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).Quaternion()));
 	UpdateRevolutionAxis();
 
-	ComponentTarget->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
 	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
 
 	if (Preview)

@@ -14,6 +14,11 @@
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ToolTargetManager.h"
 
 #define LOCTEXT_NAMESPACE "UBaseMeshProcessingTool"
 
@@ -23,39 +28,29 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
+const FToolTargetTypeRequirements& UBaseMeshProcessingToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMaterialProvider::StaticClass(),
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
 
 bool UBaseMeshProcessingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	if (SupportsMultipleObjects())
-	{
-		return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 0;
-	}
-	else
-	{
-		return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-	}
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
 }
 
 UInteractiveTool* UBaseMeshProcessingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
-	check(SupportsMultipleObjects() == false); // not supported yet
-
 	UBaseMeshProcessingTool* NewTool = MakeNewToolInstance(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if (MeshComponent)
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection( MoveTemp(ComponentTargets[0]) );
+	UToolTarget* Target = SceneState.TargetManager->BuildFirstSelectedTargetable(SceneState, GetTargetRequirements());
+	check(Target);
+	NewTool->SetTarget(Target);
 	NewTool->SetWorld(SceneState.World);
 
 	return NewTool;
@@ -79,14 +74,15 @@ void UBaseMeshProcessingTool::Setup()
 	UInteractiveTool::Setup();
 
 	// hide input StaticMeshComponent
-	ComponentTarget->SetOwnerVisibility(false);
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	TargetComponent->SetOwnerVisibility(false);
 
 	// initialize our properties
 	ToolPropertyObjects.Add(this);
 
 	// populate the BaseMesh with a conversion of the input mesh.
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(ComponentTarget->GetMesh(), InitialMesh);
+	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), InitialMesh);
 
 	if (RequiresScaleNormalization())
 	{
@@ -102,7 +98,7 @@ void UBaseMeshProcessingTool::Setup()
 		MeshTransforms::Scale(InitialMesh, (1.0 / SrcScale) * FVector3d::One(), FVector3d::Zero());
 
 		// apply that transform to target transform so that visible mesh stays in the same spot
-		OverrideTransform = ComponentTarget->GetWorldTransform();
+		OverrideTransform = TargetComponent->GetWorldTransform();
 		FVector TranslateDelta = OverrideTransform.TransformVector((FVector)SrcTranslate);
 		FVector CurScale = OverrideTransform.GetScale3D();
 		OverrideTransform.AddToTranslation(TranslateDelta);
@@ -117,7 +113,7 @@ void UBaseMeshProcessingTool::Setup()
 	{
 		SrcTranslate = FVector3d::Zero();
 		SrcScale = 1.0;
-		OverrideTransform = ComponentTarget->GetWorldTransform();
+		OverrideTransform = TargetComponent->GetWorldTransform();
 		bIsScaleNormalizationApplied = false;
 	}
 
@@ -149,7 +145,7 @@ void UBaseMeshProcessingTool::Setup()
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 	FComponentMaterialSet MaterialSet;
-	ComponentTarget->GetMaterialSet(MaterialSet);
+	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 	Preview->ConfigureMaterials(MaterialSet.Materials,
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
@@ -220,7 +216,7 @@ void UBaseMeshProcessingTool::Shutdown(EToolShutdownType ShutdownType)
 	SavePropertySets();
 
 	// Restore (unhide) the source meshes
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 
 	if (Preview != nullptr)
 	{
@@ -241,16 +237,16 @@ void UBaseMeshProcessingTool::Shutdown(EToolShutdownType ShutdownType)
 			}
 
 			bool bTopologyChanged = HasMeshTopologyChanged();
-			ComponentTarget->CommitMesh([DynamicMeshResult, bTopologyChanged](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult, bTopologyChanged](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 			{
 				FDynamicMeshToMeshDescription Converter;
 				if (bTopologyChanged)
 				{
-					Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescription);
+					Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
 				}
 				else
 				{
-					Converter.Update(DynamicMeshResult, *CommitParams.MeshDescription);
+					Converter.Update(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
 				}
 			});
 
@@ -375,7 +371,7 @@ void UBaseMeshProcessingTool::SetupWeightMapPropertySet(UWeightMapSetProperties*
 	WeightMapPropertySet = Properties;
 
 	// initialize property list
-	Properties->InitializeFromMesh(ComponentTarget->GetMesh());
+	Properties->InitializeFromMesh(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
 
 	Properties->WatchProperty(Properties->WeightMap,
 		[&](FName) { OnSelectedWeightMapChanged(true); });
@@ -391,7 +387,7 @@ void UBaseMeshProcessingTool::OnSelectedWeightMapChanged(bool bInvalidate)
 	TSharedPtr<FIndexedWeightMap1f> NewWeightMap = MakeShared<FIndexedWeightMap1f>();
 
 	// this will return all-ones weight map if None is selected
-	bool bFound = UE::WeightMaps::GetVertexWeightMap(ComponentTarget->GetMesh(), WeightMapPropertySet->WeightMap, *NewWeightMap, 1.0f);
+	bool bFound = UE::WeightMaps::GetVertexWeightMap(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), WeightMapPropertySet->WeightMap, *NewWeightMap, 1.0f);
 	if (bFound && WeightMapPropertySet->bInvertWeightMap)
 	{
 		NewWeightMap->InvertWeightMap();

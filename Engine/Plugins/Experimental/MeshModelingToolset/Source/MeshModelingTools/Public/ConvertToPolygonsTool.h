@@ -11,7 +11,7 @@
 #include "PreviewMesh.h"
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
-#include "SingleSelectionMeshEditingTool.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "ConvertToPolygonsTool.generated.h"
 
 // predeclaration

@@ -13,24 +13,17 @@ class INTERACTIVETOOLSFRAMEWORK_API USingleSelectionTool : public UInteractiveTo
 {
 GENERATED_BODY()
 public:
-	// @deprecated Use SetTarget instead, and don't use FPrimitiveComponentTarget.
-	void SetSelection(TUniquePtr<FPrimitiveComponentTarget> ComponentTargetIn)
-    {
-		ComponentTarget = MoveTemp(ComponentTargetIn);
-	}
-
 	void SetTarget(UToolTarget* TargetIn)
 	{
 		Target = TargetIn;
 	}
 
 	/**
-	 * @return true if all ComponentTargets of this tool are still valid
+	 * @return true if all ToolTargets of this tool are still valid
 	 */
 	virtual bool AreAllTargetsValid() const
 	{
-		// TODO: This needs to be updated once tools no longer use ComponentTarget.
-		return Target ? Target->IsValid() : ComponentTarget->IsValid();
+		return Target ? Target->IsValid() : false;
 	}
 
 
@@ -41,9 +34,6 @@ public:
 	}
 
 protected:
-	/** @deprecated Tools should use Target instead. */
-	TUniquePtr<FPrimitiveComponentTarget> ComponentTarget{};
-
 	UPROPERTY()
 	TObjectPtr<UToolTarget> Target;
 };

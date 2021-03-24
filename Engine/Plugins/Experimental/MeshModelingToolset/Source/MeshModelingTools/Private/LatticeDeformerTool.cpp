@@ -19,6 +19,11 @@
 #include "Algo/ForEach.h"
 #include "Operations/FFDLattice.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -26,22 +31,9 @@ using namespace UE::Geometry;
 
 // Tool builder
 
-bool ULatticeDeformerToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* ULatticeDeformerToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	// TODO: Do we want the ability to handle multiple meshes with the same lattice?
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
-UInteractiveTool* ULatticeDeformerToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	ULatticeDeformerTool* NewTool = NewObject<ULatticeDeformerTool>(SceneState.ToolManager);
-
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-	check(MeshComponent != nullptr);
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
-	NewTool->SetWorld(SceneState.World);
-	return NewTool;
+	return NewObject<ULatticeDeformerTool>(SceneState.ToolManager);
 }
 
 
@@ -89,7 +81,7 @@ void ULatticeDeformerTool::InitializeLattice(TArray<FVector3d>& OutLatticePoints
 	Lattice->GenerateInitialLatticePositions(OutLatticePoints);
 
 	// Put the lattice in world space
-	UE::Geometry::FTransform3d LocalToWorld(ComponentTarget->GetWorldTransform());
+	UE::Geometry::FTransform3d LocalToWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 	Algo::ForEach(OutLatticePoints, [&LocalToWorld](FVector3d& Point) {
 		Point = LocalToWorld.TransformPosition(Point);
 	});
@@ -107,7 +99,7 @@ void ULatticeDeformerTool::Setup()
 
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
+	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalMesh);
 
 	Settings = NewObject<ULatticeDeformerToolProperties>(this, TEXT("Lattice Deformer Tool Settings"));
 	Settings->RestoreProperties(this);
@@ -144,7 +136,7 @@ void ULatticeDeformerTool::Setup()
 	ControlPointsMechanic = NewObject<ULatticeControlPointsMechanic>(this);
 	ControlPointsMechanic->Setup(this);
 	ControlPointsMechanic->SetWorld(TargetWorld);
-	UE::Geometry::FTransform3d LocalToWorld(ComponentTarget->GetWorldTransform());
+	UE::Geometry::FTransform3d LocalToWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 	ControlPointsMechanic->Initialize(LatticePoints, LatticeEdges, LocalToWorld);
 
 	auto OnPointsChangedLambda = [this]()
@@ -165,7 +157,8 @@ void ULatticeDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 	Settings->SaveProperties(this);
 	ControlPointsMechanic->Shutdown();
 
-	ComponentTarget->SetOwnerVisibility(true);
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	TargetComponent->SetOwnerVisibility(true);
 
 	if (Preview)
 	{
@@ -180,13 +173,13 @@ void ULatticeDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 
 			// The lattice and its output mesh are in world space, so get them in local space.
 			// TODO: Would it make more sense to do all the lattice computation in local space?
-			UE::Geometry::FTransform3d LocalToWorld(ComponentTarget->GetWorldTransform());
+			UE::Geometry::FTransform3d LocalToWorld(TargetComponent->GetWorldTransform());
 			MeshTransforms::ApplyTransformInverse(*DynamicMeshResult, LocalToWorld);
 
-			ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 			{
 				FDynamicMeshToMeshDescription Converter;
-				Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescription);
+				Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
 			});
 
 			GetToolManager()->EndUndoTransaction();
@@ -207,7 +200,7 @@ void ULatticeDeformerTool::StartPreview()
 	Preview->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);
 
 	FComponentMaterialSet MaterialSet;
-	ComponentTarget->GetMaterialSet(MaterialSet);
+	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 	Preview->ConfigureMaterials(MaterialSet.Materials,
 								ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
@@ -223,7 +216,7 @@ void ULatticeDeformerTool::StartPreview()
 	Preview->SetVisibility(true);
 	Preview->InvalidateResult();
 
-	ComponentTarget->SetOwnerVisibility(false);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(false);
 }
 
 void ULatticeDeformerTool::OnTick(float DeltaTime)
@@ -235,7 +228,7 @@ void ULatticeDeformerTool::OnTick(float DeltaTime)
 			TArray<FVector3d> LatticePoints;
 			TArray<FVector2i> LatticeEdges;
 			InitializeLattice(LatticePoints, LatticeEdges);
-			UE::Geometry::FTransform3d LocalToWorld(ComponentTarget->GetWorldTransform());
+			UE::Geometry::FTransform3d LocalToWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 			ControlPointsMechanic->Initialize(LatticePoints, LatticeEdges, LocalToWorld);
 			Preview->InvalidateResult();
 			bShouldRebuild = false;

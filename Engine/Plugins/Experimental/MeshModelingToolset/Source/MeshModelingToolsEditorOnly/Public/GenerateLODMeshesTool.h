@@ -12,6 +12,7 @@
 #include "CleaningOps/SimplifyMeshOp.h"
 #include "Properties/MeshStatisticsProperties.h"
 #include "Properties/RemeshProperties.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "GenerateLODMeshesTool.generated.h"
 
 
@@ -22,15 +23,13 @@ class IAssetGenerationAPI;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UGenerateLODMeshesToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UGenerateLODMeshesToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool RequiresAssetAPI() const override { return true; }
 };
 
 
@@ -153,14 +152,11 @@ public:
  * Simple Mesh Simplifying Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UGenerateLODMeshesTool : public USingleSelectionTool
+class MESHMODELINGTOOLSEDITORONLY_API UGenerateLODMeshesTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
 public:
-	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
-
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -185,9 +181,6 @@ private:
 
 	void UpdateNumPreviews();
 	void InvalidateAllPreviews();
-
-	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> OriginalMeshDescription;
 	// Dynamic Mesh versions precomputed in Setup (rather than recomputed for every simplify op)

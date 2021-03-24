@@ -12,7 +12,7 @@
 #include "MeshOpPreviewHelpers.h"
 #include "Spatial/SampledScalarField2.h"
 #include "WeightMapUtil.h"
-#include "SingleSelectionMeshEditingTool.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "DisplaceMeshTool.generated.h"
 
 struct FMeshDescription;

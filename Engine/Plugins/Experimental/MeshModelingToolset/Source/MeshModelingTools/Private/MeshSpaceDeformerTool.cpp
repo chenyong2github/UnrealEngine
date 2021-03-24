@@ -27,6 +27,10 @@
 #include "CoreMinimal.h"
 #include "Math/Matrix.h"
 
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -35,26 +39,10 @@ using namespace UE::Geometry;
 /*
  * ToolBuilder
  */
-UInteractiveTool* UMeshSpaceDeformerToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* UMeshSpaceDeformerToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UMeshSpaceDeformerTool* MeshSpaceDeformerTool = NewObject<UMeshSpaceDeformerTool>(SceneState.ToolManager);
-	
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-	check(MeshComponent != nullptr);
-
-	MeshSpaceDeformerTool->SetSelection(MakeComponentTarget(MeshComponent));
-	MeshSpaceDeformerTool->SetWorld(SceneState.World);
-
-	return MeshSpaceDeformerTool;
+	return NewObject<UMeshSpaceDeformerTool>(SceneState.ToolManager);
 }
-
-
-bool UMeshSpaceDeformerToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
-{
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
 
 
 TUniquePtr<FDynamicMeshOperator> USpaceDeformerOperatorFactory::MakeNewOperator()
@@ -121,18 +109,6 @@ UMeshSpaceDeformerTool::UMeshSpaceDeformerTool()
 {
 }
 
-void UMeshSpaceDeformerTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
-
-
-void UMeshSpaceDeformerTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
-
 bool UMeshSpaceDeformerTool::CanAccept() const 
 {
 	return Super::CanAccept() && (Preview == nullptr || Preview->HaveValidResult());
@@ -154,14 +130,15 @@ void UMeshSpaceDeformerTool::Setup()
 	{
 		OriginalDynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(ComponentTarget->GetMesh(), *OriginalDynamicMesh);
+		Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalDynamicMesh);
 	}
 
-	FTransform MeshTransform = ComponentTarget->GetWorldTransform();
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	FTransform MeshTransform = TargetComponent->GetWorldTransform();
 
 	// Hide the mesh, and potentially put a semi-transparent copy in its place. We could
 	// update the materials and restore them later, but this seems safer.
-	ComponentTarget->SetOwnerVisibility(false);
+	TargetComponent->SetOwnerVisibility(false);
 
 	OriginalMeshPreview = NewObject<UPreviewMesh>();
 	OriginalMeshPreview->CreateInWorld(TargetWorld, MeshTransform);
@@ -207,7 +184,7 @@ void UMeshSpaceDeformerTool::Setup()
 	// add click to set plane behavior
 	SetPointInWorldConnector = MakePimpl<FSelectClickedAction>();
 	SetPointInWorldConnector->World = this->TargetWorld;
-	SetPointInWorldConnector->InvisibleComponentsToHitTest.Add(ComponentTarget->GetOwnerComponent());
+	SetPointInWorldConnector->InvisibleComponentsToHitTest.Add(TargetComponent->GetOwnerComponent());
 	SetPointInWorldConnector->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
 		SetGizmoFrameFromWorldPos(Hit.ImpactPoint, Hit.ImpactNormal, Settings->bAlignToNormalOnCtrlClick);
@@ -315,7 +292,7 @@ void UMeshSpaceDeformerTool::Setup()
 	// We want to align to the original mesh, even though it is hidden (our stand-in preview mesh that
 	// we use to display a transparent version does not get hit tested by our normal raycasts into
 	// the world).
-	TArray<const UPrimitiveComponent*> ComponentsToInclude{ ComponentTarget->GetOwnerComponent() } ;
+	TArray<const UPrimitiveComponent*> ComponentsToInclude{ TargetComponent->GetOwnerComponent() } ;
 	DragAlignmentMechanic->AddToGizmo(TransformGizmo, nullptr, &ComponentsToInclude);
 	DragAlignmentMechanic->AddToGizmo(IntervalGizmo, nullptr, &ComponentsToInclude);
 
@@ -330,7 +307,7 @@ void UMeshSpaceDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 	Settings->SaveProperties(this);
 
 	// Restore source mesh and remove our stand-in
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 	OriginalMeshPreview->SetVisible(false);
 	OriginalMeshPreview->Disconnect();
 	OriginalMeshPreview = nullptr;
@@ -346,10 +323,10 @@ void UMeshSpaceDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 			check(DynamicMeshResult != nullptr);
 
-			ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 			{
 				FDynamicMeshToMeshDescription Converter;
-				Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescription);
+				Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
 			});
 
 
@@ -388,7 +365,7 @@ void  UMeshSpaceDeformerTool::OnPropertyModified(UObject* PropertySet, FProperty
 void UMeshSpaceDeformerTool::UpdateOpParameters(FMeshSpaceDeformerOp& MeshSpaceDeformerOp) const
 {
 	MeshSpaceDeformerOp.OriginalMesh = OriginalDynamicMesh;
-	MeshSpaceDeformerOp.SetTransform(ComponentTarget->GetWorldTransform());
+	MeshSpaceDeformerOp.SetTransform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 	MeshSpaceDeformerOp.GizmoFrame = GizmoFrame;
 
 	// set the bound range

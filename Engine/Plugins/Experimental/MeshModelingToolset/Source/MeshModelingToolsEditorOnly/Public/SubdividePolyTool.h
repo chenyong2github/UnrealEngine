@@ -10,6 +10,7 @@
 #include "SingleSelectionTool.h"
 #include "SimpleDynamicMeshComponent.h"
 #include "MeshOpPreviewHelpers.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "SubdividePolyTool.generated.h"
 
 class USubdividePolyTool;
@@ -19,14 +20,11 @@ class UPreviewGeometry;
  * Tool builder
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API USubdividePolyToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API USubdividePolyToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
-
-	bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-
-	UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 /**
@@ -69,13 +67,11 @@ public:
  * Tool actual
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API USubdividePolyTool : public USingleSelectionTool
+class MESHMODELINGTOOLSEDITORONLY_API USubdividePolyTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
 public:
-
-	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -89,8 +85,6 @@ public:
 protected:
 
 	friend class USubdividePolyOperatorFactory;
-
-	UWorld* TargetWorld;
 
 	UPROPERTY()
 	UPreviewMesh* PreviewMesh = nullptr;

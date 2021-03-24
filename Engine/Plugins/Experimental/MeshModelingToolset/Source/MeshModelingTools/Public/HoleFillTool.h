@@ -12,6 +12,7 @@
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "DynamicMeshAABBTree3.h"
 #include "GroupTopology.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "HoleFillTool.generated.h"
 
 class UPolygonSelectionMechanic;
@@ -26,13 +27,12 @@ class UHoleFillTool;
  */
 
 UCLASS()
-class MESHMODELINGTOOLS_API UHoleFillToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UHoleFillToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 /*
@@ -211,7 +211,7 @@ public:
  */
 
 UCLASS()
-class MESHMODELINGTOOLS_API UHoleFillTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API UHoleFillTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -260,15 +260,10 @@ protected:
 	// UV Scale factor is cached based on the bounding box of the mesh before any fills are performed
 	float MeshUVScaleFactor = 0.0f;
 
-	// World in which to create the Preview mesh actor
-	UWorld* TargetWorld = nullptr;
-
 	// Used for hit querying
 	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
 
 	TSet<int32> NewTriangleIDs;
-
-	void SetWorld(UWorld* World);
 
 	// Create the Preview object
 	void SetupPreview();

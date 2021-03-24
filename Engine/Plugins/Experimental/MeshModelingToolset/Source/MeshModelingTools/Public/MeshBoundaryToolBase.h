@@ -8,7 +8,7 @@
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "DynamicMeshAABBTree3.h"
 #include "GroupTopology.h"
-#include "SingleSelectionTool.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 
 #include "MeshBoundaryToolBase.generated.h"
 
@@ -22,12 +22,11 @@ class USingleClickInputBehavior;
   *	TODO: We can refactor to make the HoleFiller tool inherit from this.
   */
 UCLASS()
-class MESHMODELINGTOOLS_API UMeshBoundaryToolBase : public USingleSelectionTool
+class MESHMODELINGTOOLS_API UMeshBoundaryToolBase : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
 public:
-	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -39,8 +38,6 @@ public:
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 protected:
-
-	UWorld* TargetWorld;
 
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 

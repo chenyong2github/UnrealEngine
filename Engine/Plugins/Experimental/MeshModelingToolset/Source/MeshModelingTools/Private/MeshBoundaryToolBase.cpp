@@ -9,6 +9,9 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Selection/PolygonSelectionMechanic.h"
 
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -18,7 +21,7 @@ void UMeshBoundaryToolBase::Setup()
 {
 	USingleSelectionTool::Setup();
 
-	if (!ComponentTarget)
+	if (!Target)
 	{
 		return;
 	}
@@ -26,7 +29,7 @@ void UMeshBoundaryToolBase::Setup()
 	// create mesh to operate on
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
+	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalMesh);
 
 	// initialize hit query
 	MeshSpatial.SetMesh(OriginalMesh.Get());
@@ -43,7 +46,7 @@ void UMeshBoundaryToolBase::Setup()
 	SelectionMechanic->Properties->bSelectFaces = false;
 	SelectionMechanic->Properties->bSelectVertices = false;
 	SelectionMechanic->Initialize(OriginalMesh.Get(),
-		ComponentTarget->GetWorldTransform(),
+		Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform(),
 		TargetWorld,
 		Topology.Get(),
 		[this]() { return &MeshSpatial; }
