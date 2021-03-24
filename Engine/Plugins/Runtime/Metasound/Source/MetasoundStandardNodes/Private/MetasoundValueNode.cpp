@@ -32,34 +32,6 @@ namespace Metasound
 	}
 
 
-	namespace ValueVertexNames
-	{
-		const FString& GetInitValueName()
-		{
-			static const FString Name = TEXT("Init");
-			return Name;
-		}
-
-		const FString& GetSetValueName()
-		{
-			static const FString Name = TEXT("Value");
-			return Name;
-		}
-
-		const FString& GetInputTriggerName()
-		{
-			static const FString Name = TEXT("Set");
-			return Name;
-		}
-
-		const FString& GetOutputValueName()
-		{
-			static const FString Name = TEXT("Value");
-			return Name;
-		}
-	}
-
-
 	using FValueNodeInt32 = TValueNode<int32>;
  	METASOUND_REGISTER_NODE(FValueNodeInt32)
 

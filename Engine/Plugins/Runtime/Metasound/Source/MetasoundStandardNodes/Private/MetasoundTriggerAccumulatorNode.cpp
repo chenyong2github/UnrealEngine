@@ -38,41 +38,6 @@ namespace Metasound
 		}
 	}
 
-	namespace TriggerAccumulatorVertexNames
-	{
-		const FString GetInputAutoResetName()
-		{
-			return TEXT("Auto Reset");
-		}
-
-		const FText GetInputAutoResetDescription()
-		{
-			return LOCTEXT("TriggerAccumulatorAutoResetDesc", "Set to true to automatically reset the trigger accumulator state once the output is triggered.");
-		}
-
-		const FString GetInputTriggerName(uint32 InIndex)
-		{
-			return FText::Format(LOCTEXT("TriggerAccumulatorTriggerInputName", "In {0}"), InIndex).ToString();
-		}
-
-		const FText GetInputTriggerDescription(uint32 InIndex)
-		{
-			return FText::Format(LOCTEXT("TriggerAccumulatorInputTriggerDesc", "Trigger {0} input. All trigger inputs must be triggered before the output trigger is hit."), InIndex);
-		}
-
-		const FString& GetOutputTriggerName()
-		{
-			static const FString Name = TEXT("Out");
-			return Name;
-		}
-
-		const FText& GetOutputTriggerDescription()
-		{
-			static const FText Desc = LOCTEXT("TriggerAccumulateOutputTriggerDesc", "Triggered when all input triggers have been triggered. Call Reset to reset the state or use \"Auto Reset\"");
-			return Desc;
-		}
-	}
-
 	REGISTER_TRIGGER_ACCUMULATOR_NODE(1)
 	REGISTER_TRIGGER_ACCUMULATOR_NODE(2)
 	REGISTER_TRIGGER_ACCUMULATOR_NODE(3)

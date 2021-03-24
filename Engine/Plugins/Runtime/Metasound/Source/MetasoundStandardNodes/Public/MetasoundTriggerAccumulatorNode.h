@@ -8,8 +8,10 @@
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 #include "Internationalization/Text.h"
+#include "MetasoundParamHelper.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+
 
 namespace Metasound
 {
@@ -20,14 +22,9 @@ namespace Metasound
 
 	namespace TriggerAccumulatorVertexNames
 	{
-		METASOUNDSTANDARDNODES_API const FString GetInputAutoResetName();
-		METASOUNDSTANDARDNODES_API const FText GetInputAutoResetDescription();
-
-		METASOUNDSTANDARDNODES_API const FString GetInputTriggerName(uint32 InIndex);
-		METASOUNDSTANDARDNODES_API const FText GetInputTriggerDescription(uint32 InIndex);
-
-		METASOUNDSTANDARDNODES_API const FString& GetOutputTriggerName();
-		METASOUNDSTANDARDNODES_API const FText& GetOutputTriggerDescription();
+		METASOUND_PARAM(InputAutoReset, "Auto Reset", "Input trigger which results in a delayed trigger.");	
+		METASOUND_PARAM(InputTrigger, "In {0}", "Trigger {0} input. All trigger inputs must be triggered before the output trigger is hit.");
+		METASOUND_PARAM(OutputOnTrigger, "Out", "Triggered when all input triggers have been triggered. Call Reset to reset the state or use \"Auto Reset\".");
 	}
 
 	template<uint32 NumInputs>
@@ -42,15 +39,15 @@ namespace Metasound
 			{
 				FInputVertexInterface InputInterface;
 
-				InputInterface.Add(TInputDataVertexModel<bool>(GetInputAutoResetName(), GetInputAutoResetDescription()));
-
 				for (uint32 i = 0; i < NumInputs; ++i)
 				{
-					InputInterface.Add(TInputDataVertexModel<FTrigger>(GetInputTriggerName(i), GetInputTriggerDescription(i)));
+					InputInterface.Add(TInputDataVertexModel<FTrigger>(METASOUND_GET_VARIABLE_PARAM_NAME_AND_TT(InputTrigger, i)));
 				}
 
+				InputInterface.Add(TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_TT(InputAutoReset)));
+
 				FOutputVertexInterface OutputInterface;
-				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(GetOutputTriggerName(), GetOutputTriggerDescription()));
+				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnTrigger)));
 
 				return FVertexInterface(InputInterface, OutputInterface);
 			};
@@ -82,12 +79,12 @@ namespace Metasound
 			const FInputVertexInterface& InputInterface = InParams.Node.GetVertexInterface().GetInputInterface();
 			const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
-			FBoolReadRef bInAutoReset = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, GetInputAutoResetName(), InParams.OperatorSettings);
+			FBoolReadRef bInAutoReset = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, METASOUND_GET_PARAM_NAME(InputAutoReset), InParams.OperatorSettings);
 			TArray<FTriggerReadRef> InputTriggers;
 
 			for (uint32 i = 0; i < NumInputs; ++i)
 			{
-				InputTriggers.Add(InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(GetInputTriggerName(i), InParams.OperatorSettings));
+				InputTriggers.Add(InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_VARIABLE_PARAM_NAME(InputTrigger, i), InParams.OperatorSettings));
 			}
 
 			return MakeUnique<TTriggerAccumulatorOperator<NumInputs>>(InParams.OperatorSettings, bInAutoReset, MoveTemp(InputTriggers));
@@ -111,11 +108,11 @@ namespace Metasound
 			using namespace TriggerAccumulatorVertexNames;
 
 			FDataReferenceCollection Inputs;
-			Inputs.AddDataReadReference(GetInputAutoResetName(), bAutoReset);
 			for (uint32 i = 0; i < NumInputs; ++i)
 			{
-				Inputs.AddDataReadReference(GetInputTriggerName(i), InputTriggers[i]);
+				Inputs.AddDataReadReference(METASOUND_GET_VARIABLE_PARAM_NAME(InputTrigger, i), InputTriggers[i]);
 			}
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAutoReset), bAutoReset);
 
 			return Inputs;
 		}
@@ -125,7 +122,7 @@ namespace Metasound
 			using namespace TriggerAccumulatorVertexNames;
 
 			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference(GetOutputTriggerName(), OutputTrigger);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnTrigger), OutputTrigger);
 
 			return Outputs;
 		}

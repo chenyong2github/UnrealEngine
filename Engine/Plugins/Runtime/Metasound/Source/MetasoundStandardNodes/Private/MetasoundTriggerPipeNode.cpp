@@ -16,12 +16,20 @@
 #include "MetasoundTrigger.h"
 #include "MetasoundSampleCounter.h"
 #include "MetasoundStandardNodesCategories.h"
+#include "MetasoundParamHelper.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
-
 namespace Metasound
 {
+	namespace TriggerPipeVertexNames
+	{
+		METASOUND_PARAM(InputInTrigger, "In", "Trigger to execute at a future time by the given delay amount.");
+		METASOUND_PARAM(InputReset, "Reset", "Resets the trigger delay, clearing any pending execution tasks.");
+		METASOUND_PARAM(InputDelayTime, "Delay Time", "Time to delay and execute deferred input trigger execution(s) in seconds.");
+		METASOUND_PARAM(OutputOutTrigger, "Out", "The delayed output trigger(s).");
+	}
+
 	METASOUND_REGISTER_NODE(FTriggerPipeNode)
 
 	class FTriggerPipeOperator : public TExecutableOperator<FTriggerPipeOperator>
@@ -44,35 +52,39 @@ namespace Metasound
 		FTriggerReadRef TriggerReset;
 		FTriggerWriteRef TriggerOut;
 
-		FTimeReadRef Delay;
+		FTimeReadRef DelayTime;
 
 		FSampleCount FramesPerBlock;
 		FSampleRate SampleRate;
 	};
 
-	FTriggerPipeOperator::FTriggerPipeOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerReset, const FTriggerReadRef& InTriggerIn, const FTimeReadRef& InDelay)
-	:	TriggerIn(InTriggerIn)
-	,	TriggerReset(InTriggerReset)
-	,	TriggerOut(FTriggerWriteRef::CreateNew(InSettings))
-	,	Delay(InDelay)
-	,	FramesPerBlock(InSettings.GetNumFramesPerBlock())
-	,	SampleRate(InSettings.GetSampleRate())
+	FTriggerPipeOperator::FTriggerPipeOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerReset, const FTriggerReadRef& InTriggerIn, const FTimeReadRef& InDelayTime)
+	: TriggerIn(InTriggerIn)
+	, TriggerReset(InTriggerReset)
+	, TriggerOut(FTriggerWriteRef::CreateNew(InSettings))
+	, DelayTime(InDelayTime)
+	, FramesPerBlock(InSettings.GetNumFramesPerBlock())
+	, SampleRate(InSettings.GetSampleRate())
 	{
 	}
 
 	FDataReferenceCollection FTriggerPipeOperator::GetInputs() const
 	{
+		using namespace TriggerPipeVertexNames;
+
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(TEXT("Delay"), FTimeReadRef(Delay));
-		InputDataReferences.AddDataReadReference(TEXT("In"), FTriggerReadRef(TriggerIn));
-		InputDataReferences.AddDataReadReference(TEXT("Reset"), FTriggerReadRef(TriggerIn));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInTrigger), TriggerIn);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputReset), TriggerReset);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputDelayTime), DelayTime);
 		return InputDataReferences;
 	}
 
 	FDataReferenceCollection FTriggerPipeOperator::GetOutputs() const
 	{
+		using namespace TriggerPipeVertexNames;
+
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(TEXT("Out"), FTriggerReadRef(TriggerOut));
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOutTrigger), TriggerOut);
 
 		return OutputDataReferences;
 	}
@@ -88,7 +100,7 @@ namespace Metasound
 			},
 			[this](int32 StartFrame, int32 EndFrame)
 			{
-				SamplesUntilTrigger.AddUnique(Delay->GetSeconds() * SampleRate);
+				SamplesUntilTrigger.AddUnique(DelayTime->GetSeconds() * SampleRate);
 			}
 		);
 
@@ -128,27 +140,31 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FTriggerPipeOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
+		using namespace TriggerPipeVertexNames;
+
 		const FTriggerPipeNode& DelayNode = static_cast<const FTriggerPipeNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FTimeReadRef Delay = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, TEXT("Delay"), InParams.OperatorSettings);
-		FTriggerReadRef TriggerIn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("In"), InParams.OperatorSettings);
-		FTriggerReadRef TriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Reset"), InParams.OperatorSettings);
+		FTimeReadRef DelayTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputDelayTime), InParams.OperatorSettings);
+		FTriggerReadRef TriggerIn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputDelayTime), InParams.OperatorSettings);
+		FTriggerReadRef TriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputReset), InParams.OperatorSettings);
 
-		return MakeUnique<FTriggerPipeOperator>(InParams.OperatorSettings, TriggerReset, TriggerIn, Delay);
+		return MakeUnique<FTriggerPipeOperator>(InParams.OperatorSettings, TriggerReset, TriggerIn, DelayTime);
 	}
 
 	const FVertexInterface& FTriggerPipeOperator::GetVertexInterface()
 	{
+		using namespace TriggerPipeVertexNames;
+
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FTime>(TEXT("Delay"), LOCTEXT("DelayTooltip", "Time to delay and execute deferred input trigger execution(s) in seconds."), 1.0f),
-				TInputDataVertexModel<FTrigger>(TEXT("In"), LOCTEXT("TriggerInTooltip", "Trigger to execute at a future time by the given delay amount.")),
-				TInputDataVertexModel<FTrigger>(TEXT("Reset"), LOCTEXT("TriggerDelayResetInTooltip", "Resets the trigger delay, clearing any pending execution tasks."))
-			),
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputDelayTime)),
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputDelayTime)),
+				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputReset), 1.0f)
+				),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTrigger>(TEXT("Out"), LOCTEXT("TriggerOutTooltip", "The deferred output trigger"))
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOutTrigger))
 			)
 		);
 
@@ -160,11 +176,11 @@ namespace Metasound
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeClassMetadata Info;
-			Info.ClassName = FNodeClassName(StandardNodes::Namespace, "Pipe", "Trigger");
+			Info.ClassName = FNodeClassName(StandardNodes::Namespace, "Pipe", "");
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = LOCTEXT("PipeTriggerNode_NodeDisplayName", "Trigger Pipe");
-			Info.Description = LOCTEXT("Metasound_DelayNodeDescription", "Delays execution of the input trigger by the given delay for all input trigger executions.");
+			Info.Description = LOCTEXT("Metasound_DelayNodeDescription", "Delays execution of the input trigger(s) by the given delay for all input trigger executions.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

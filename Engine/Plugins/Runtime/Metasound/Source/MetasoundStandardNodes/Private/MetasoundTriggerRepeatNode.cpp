@@ -15,6 +15,8 @@
 #include "MetasoundPrimitives.h"
 #include "MetasoundSampleCounter.h"
 #include "MetasoundStandardNodesNames.h"
+#include "MetasoundStandardNodesCategories.h"
+#include "MetasoundParamHelper.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -24,55 +26,11 @@ namespace Metasound
 
 	namespace TriggerRepeatVertexNames
 	{
-		const FString& GetInputStartName()
-		{
-			static FString Name = TEXT("Start");
-			return Name;
-		}
-
-		const FText& GetInputStartDescription()
-		{
-			static FText Desc = LOCTEXT("TriggerEnableTooltip", "Starts executing periodic output triggers.");
-			return Desc;
-		}
-
-		const FString& GetInputStopName()
-		{
-			static FString Name = TEXT("Stop");
-			return Name;
-		}
-
-		const FText& GetInputStopDescription()
-		{
-			static FText Desc = LOCTEXT("TriggerDisableTooltip", "Stops executing periodic output triggers.");
-			return Desc;
-		}
-
-		const FString& GetInputPeriodName()
-		{
-			static FString Name = TEXT("Period");
-			return Name;
-		}
-
-		const FText& GetInputPeriodDescription()
-		{
-			static FText Desc = LOCTEXT("PeriodTooltip", "The period to trigger in seconds.");
-			return Desc;
-		}
-
-		const FString& GetOutputTriggerName()
-		{
-			static FString Name = TEXT("Out");
-			return Name;
-		}
-
-		const FText& GetOutputTriggerDescription()
-		{
-			static FText Desc = LOCTEXT("TriggerOutTooltip", "The periodically generated output trigger");
-			return Desc;
-		}
+		METASOUND_PARAM(InputStart, "Start", "Starts executing periodic output triggers.");
+		METASOUND_PARAM(InputStop, "Stop", "Stops executing periodic output triggers.");
+		METASOUND_PARAM(InputPeriod, "Period", "The period to trigger in seconds.");
+		METASOUND_PARAM(OutputOnTrigger, "Out", "The periodically generated output trigger.");
 	}
-
 
 	class FTriggerRepeatOperator : public TExecutableOperator<FTriggerRepeatOperator>
 	{
@@ -104,13 +62,13 @@ namespace Metasound
 	};
 
 	FTriggerRepeatOperator::FTriggerRepeatOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerEnable, const FTriggerReadRef& InTriggerDisable, const FTimeReadRef& InPeriod)
-	:	bEnabled(false)
-	,	TriggerOut(FTriggerWriteRef::CreateNew(InSettings))
-	,	TriggerEnable(InTriggerEnable)
-	,	TriggerDisable(InTriggerDisable)
-	,	Period(InPeriod)
-	,	BlockSize(InSettings.GetNumFramesPerBlock())
-	,	SampleCounter(0, InSettings.GetSampleRate())
+		: bEnabled(false)
+		, TriggerOut(FTriggerWriteRef::CreateNew(InSettings))
+		, TriggerEnable(InTriggerEnable)
+		, TriggerDisable(InTriggerDisable)
+		, Period(InPeriod)
+		, BlockSize(InSettings.GetNumFramesPerBlock())
+		, SampleCounter(0, InSettings.GetSampleRate())
 	{
 	}
 
@@ -119,9 +77,9 @@ namespace Metasound
 		using namespace TriggerRepeatVertexNames;
 
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(GetInputStartName(), FTriggerReadRef(TriggerEnable));
-		InputDataReferences.AddDataReadReference(GetInputStopName(), FTriggerReadRef(TriggerDisable));
-		InputDataReferences.AddDataReadReference(GetInputPeriodName(), FTimeReadRef(Period));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputStart), TriggerEnable);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputStop), TriggerDisable);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputPeriod), Period);
 		return InputDataReferences;
 	}
 
@@ -130,7 +88,7 @@ namespace Metasound
 		using namespace TriggerRepeatVertexNames;
 
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(GetOutputTriggerName(), FTriggerReadRef(TriggerOut));
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnTrigger), TriggerOut);
 
 		return OutputDataReferences;
 	}
@@ -181,9 +139,9 @@ namespace Metasound
 		const FTriggerRepeatNode& PeriodicTriggerNode = static_cast<const FTriggerRepeatNode&>(InParams.Node);
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FTriggerReadRef TriggerEnable = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(GetInputStartName(), InParams.OperatorSettings);
-		FTriggerReadRef TriggerDisable = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(GetInputStopName(), InParams.OperatorSettings);
-		FTimeReadRef Period = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, GetInputPeriodName(), InParams.OperatorSettings);
+		FTriggerReadRef TriggerEnable = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputStart), InParams.OperatorSettings);
+		FTriggerReadRef TriggerDisable = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputStop), InParams.OperatorSettings);
+		FTimeReadRef Period = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputPeriod), InParams.OperatorSettings);
 
 		return MakeUnique<FTriggerRepeatOperator>(InParams.OperatorSettings, TriggerEnable, TriggerDisable, Period);
 	}
@@ -194,12 +152,12 @@ namespace Metasound
 
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FTrigger>(GetInputStartName(), GetInputStartDescription()),
-				TInputDataVertexModel<FTrigger>(GetInputStopName(), GetInputStopDescription()),
-				TInputDataVertexModel<FTime>(GetInputPeriodName(), GetInputPeriodDescription(), 0.2f)
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputStart)),
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputStop)),
+				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputPeriod), 0.2f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTrigger>(GetOutputTriggerName(), GetOutputTriggerDescription())
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnTrigger))
 			)
 		);
 
@@ -219,6 +177,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
+			Info.CategoryHierarchy.Emplace(StandardNodes::TriggerUtils);
 
 			return Info;
 		};

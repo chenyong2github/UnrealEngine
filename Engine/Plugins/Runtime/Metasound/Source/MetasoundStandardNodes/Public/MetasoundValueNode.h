@@ -9,6 +9,7 @@
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 #include "Internationalization/Text.h"
+#include "MetasoundParamHelper.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -21,10 +22,13 @@ namespace Metasound
 
 	namespace ValueVertexNames
 	{
-		METASOUNDSTANDARDNODES_API const FString& GetInitValueName();
-		METASOUNDSTANDARDNODES_API const FString& GetSetValueName();
-		METASOUNDSTANDARDNODES_API const FString& GetInputTriggerName();
-		METASOUNDSTANDARDNODES_API const FString& GetOutputValueName();
+		METASOUND_PARAM(InputSetTrigger, "Set", "Trigger to write the set value to the output.");
+		METASOUND_PARAM(InputResetTrigger, "Reset", "Trigger to reset the value to the initial value.");
+		METASOUND_PARAM(InputInitValue, "Init Value", "Value to initialize the output value to.");
+		METASOUND_PARAM(InputTargetValue, "Target Value", "Value to immediately set the output to when triggered.");
+		METASOUND_PARAM(OutputOnSet, "On Set", "Triggered when the set input is triggered.");
+		METASOUND_PARAM(OutputOnReset, "On Reset", "Triggered when the reset input is triggered.");
+		METASOUND_PARAM(OutputValue, "Output Value", "The current output value.");
 	}
 
 	template<typename ValueType>
@@ -37,12 +41,15 @@ namespace Metasound
 
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<ValueType>(GetInitValueName(), LOCTEXT("InitValue", "Value to init the output to.")),
-					TInputDataVertexModel<ValueType>(GetSetValueName(), LOCTEXT("ValueInput", "Value to set the output to when triggered.")),
-					TInputDataVertexModel<FTrigger>(GetInputTriggerName(), LOCTEXT("ValueTrigger", "Trigger to write the set value to the output."))
+					TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputSetTrigger)),
+					TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputResetTrigger)),
+					TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_TT(InputInitValue)),
+					TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_TT(InputTargetValue))
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<ValueType>(GetOutputValueName(), LOCTEXT("ValueOutput", "The output value cached in the node."))
+					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnSet)),
+					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnReset)),
+					TOutputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_TT(OutputValue))
 				)
 			);
 
@@ -73,19 +80,23 @@ namespace Metasound
 			const FInputVertexInterface& InputInterface = InParams.Node.GetVertexInterface().GetInputInterface();
 			const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
-			FTriggerReadRef Trigger = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(GetInputTriggerName(), InParams.OperatorSettings);
-			TDataReadReference<ValueType> InitValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInitValueName(), InParams.OperatorSettings);
-			TDataReadReference<ValueType> SetValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetSetValueName(), InParams.OperatorSettings);
+			FTriggerReadRef SetTrigger = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputSetTrigger), InParams.OperatorSettings);
+			FTriggerReadRef ResetTrigger = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputResetTrigger), InParams.OperatorSettings);
+			TDataReadReference<ValueType> InitValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, METASOUND_GET_PARAM_NAME(InputInitValue), InParams.OperatorSettings);
+			TDataReadReference<ValueType> TargetValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, METASOUND_GET_PARAM_NAME(InputTargetValue), InParams.OperatorSettings);
 
-			return MakeUnique<TValueOperator<ValueType>>(InParams.OperatorSettings, Trigger, InitValue, SetValue);
+			return MakeUnique<TValueOperator<ValueType>>(InParams.OperatorSettings, SetTrigger, ResetTrigger, InitValue, TargetValue);
 		}
 
 
-		TValueOperator(const FOperatorSettings& InSettings, TDataReadReference<FTrigger> InTrigger, TDataReadReference<ValueType> InInitValue, TDataReadReference<ValueType> InSetValue)
-			: Trigger(InTrigger)
+		TValueOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InSetTrigger, const FTriggerReadRef& InResetTrigger, const TDataReadReference<ValueType>& InInitValue, const TDataReadReference<ValueType>& InTargetValue)
+			: SetTrigger(InSetTrigger)
+			, ResetTrigger(InResetTrigger)
 			, InitValue(InInitValue)
-			, SetValue(InSetValue)
+			, TargetValue(InTargetValue)
 			, OutputValue(TDataWriteReferenceFactory<ValueType>::CreateAny(InSettings))
+			, TriggerOnSet(FTriggerWriteRef::CreateNew(InSettings))
+			, TriggerOnReset(FTriggerWriteRef::CreateNew(InSettings))
 		{
 			*OutputValue = *InitValue;
 		}
@@ -98,9 +109,10 @@ namespace Metasound
 			using namespace ValueVertexNames;
 
 			FDataReferenceCollection Inputs;
-			Inputs.AddDataReadReference(GetInputTriggerName(), Trigger);
-			Inputs.AddDataReadReference(GetInitValueName(), InitValue);
-			Inputs.AddDataReadReference(GetSetValueName(), SetValue);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputSetTrigger), SetTrigger);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputResetTrigger), ResetTrigger);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInitValue), InitValue);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTargetValue), TargetValue);
 
 			return Inputs;
 		}
@@ -110,25 +122,59 @@ namespace Metasound
 			using namespace ValueVertexNames;
 
 			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference(GetOutputValueName(), OutputValue);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnSet), TriggerOnSet);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnReset), TriggerOnReset);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputValue), OutputValue);
 
 			return Outputs;
 		}
 
 		void Execute()
 		{
-			if (*Trigger)
+			TriggerOnReset->AdvanceBlock();
+			TriggerOnSet->AdvanceBlock();
+
+			if (*ResetTrigger)
 			{
-				*OutputValue = *SetValue;
+				*OutputValue = *InitValue;
 			}
+
+			if (*SetTrigger)
+			{
+				*OutputValue = *TargetValue;
+			}
+
+			ResetTrigger->ExecuteBlock(
+				[&](int32 StartFrame, int32 EndFrame)
+				{
+				},
+				[this](int32 StartFrame, int32 EndFrame)
+				{
+					TriggerOnReset->TriggerFrame(StartFrame);
+				}
+			);
+
+			SetTrigger->ExecuteBlock(
+				[&](int32 StartFrame, int32 EndFrame)
+				{
+				},
+				[this](int32 StartFrame, int32 EndFrame)
+				{
+					TriggerOnSet->TriggerFrame(StartFrame);
+				}
+			);
+
 		}
 
 	private:
 
-		TDataReadReference<FTrigger> Trigger;
+		TDataReadReference<FTrigger> SetTrigger;
+		TDataReadReference<FTrigger> ResetTrigger;
 		TDataReadReference<ValueType> InitValue;
-		TDataReadReference<ValueType> SetValue;
+		TDataReadReference<ValueType> TargetValue;
 		TDataWriteReference<ValueType> OutputValue;
+		TDataWriteReference<FTrigger> TriggerOnSet;
+		TDataWriteReference<FTrigger> TriggerOnReset;
 	};
 
 	/** TValueNode

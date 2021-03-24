@@ -14,16 +14,22 @@
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundStandardNodesCategories.h"
+#include "MetasoundParamHelper.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
 namespace Metasound
 {
-	namespace TriggerCounter
+	namespace TriggerCounterVertexNames
 	{
-		static const TCHAR* InParamNameInput = TEXT("In");
-		static const TCHAR* InParamNameReset = TEXT("Reset");
-		static const TCHAR* OutParamNameOutput = TEXT("Out");
+		METASOUND_PARAM(InputInTrigger, "In", "Trigger Input to count.");
+		METASOUND_PARAM(InputReset, "Reset", "Resets the counter back to the start count.");
+		METASOUND_PARAM(InputStartCount, "Start Value", "The value to start output counter by.");
+		METASOUND_PARAM(InputStepSize, "Step Size", "The value to add to the current count each input trigger. Can be negative.");
+		METASOUND_PARAM(InputAutoResetCount, "Auto Reset Count", "The number of input triggers to automatically set the count back to Start Count. If 0, won't auto-reset.");
+		METASOUND_PARAM(OutputOnTrigger, "On Trigger", "Triggered when the input is triggered.");
+		METASOUND_PARAM(OutputOnReset, "On Reset", "Triggered when the input reset trigger is triggered or if the counter automatically resets.");
+		METASOUND_PARAM(OutputCount, "Count", "The current count value of the node.");
 	}
 
 	class FTriggerCounterOperator : public TExecutableOperator<FTriggerCounterOperator>
@@ -33,7 +39,12 @@ namespace Metasound
 			static const FVertexInterface& GetVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
-			FTriggerCounterOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerIn, const FTriggerReadRef& InTriggerReset);
+			FTriggerCounterOperator(const FOperatorSettings& InSettings,
+				const FTriggerReadRef& InTriggerIn,
+				const FTriggerReadRef& InTriggerReset,
+				const FInt32ReadRef& InStartCount,
+				const FInt32ReadRef& InCountBy,
+				const FInt32ReadRef& InAutoResetCount);
 
 			virtual FDataReferenceCollection GetInputs() const override;
 			virtual FDataReferenceCollection GetOutputs() const override;
@@ -43,43 +54,81 @@ namespace Metasound
 		private:
 			FTriggerReadRef TriggerIn;
 			FTriggerReadRef TriggerReset;
-			FInt32WriteRef TriggerCount;
+			FInt32ReadRef StartCount;
+			FInt32ReadRef CountBy;
+			FInt32ReadRef AutoResetCount;
+
+			FTriggerWriteRef TriggerOut;
+			FTriggerWriteRef TriggerOnReset;
+			FInt32WriteRef OutValue;
+
+			// Internal state to do the counting math
+			int32 CurrentAutoResetCount = 0;
+			int32 CurrentTriggerCount = 0;
 	};
 
-	FTriggerCounterOperator::FTriggerCounterOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerIn, const FTriggerReadRef& InTriggerReset)
-	: TriggerIn(InTriggerIn)
-	, TriggerReset(InTriggerReset)
-	, TriggerCount(FInt32WriteRef::CreateNew(0))
+	FTriggerCounterOperator::FTriggerCounterOperator(const FOperatorSettings& InSettings, 
+		const FTriggerReadRef& InTriggerIn, 
+		const FTriggerReadRef& InTriggerReset,
+		const FInt32ReadRef& InStartCount,
+		const FInt32ReadRef& InCountBy,
+		const FInt32ReadRef& InAutoResetCount)
+		: TriggerIn(InTriggerIn)
+		, TriggerReset(InTriggerReset)
+		, StartCount(InStartCount)
+		, CountBy(InCountBy)
+		, AutoResetCount(InAutoResetCount)
+		, TriggerOut(FTriggerWriteRef::CreateNew(InSettings))
+		, TriggerOnReset(FTriggerWriteRef::CreateNew(InSettings))
+		, OutValue(FInt32WriteRef::CreateNew(*StartCount))
 	{
+		CurrentAutoResetCount = FMath::Max(0, *AutoResetCount);
 	}
 
 	FDataReferenceCollection FTriggerCounterOperator::GetInputs() const
 	{
+		using namespace TriggerCounterVertexNames;
+
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(TriggerCounter::InParamNameInput, TriggerIn);
-		InputDataReferences.AddDataReadReference(TriggerCounter::InParamNameReset, TriggerReset);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInTrigger), TriggerIn);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputReset), TriggerReset);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputStartCount), StartCount);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputStepSize), CountBy);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAutoResetCount), AutoResetCount);
+
 		return InputDataReferences;
 	}
 
 	FDataReferenceCollection FTriggerCounterOperator::GetOutputs() const
 	{
+		using namespace TriggerCounterVertexNames;
+
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(TriggerCounter::OutParamNameOutput, FInt32WriteRef(TriggerCount));
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnTrigger), TriggerOut);
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnReset), TriggerOnReset);
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputCount), OutValue);
 
 		return OutputDataReferences;
 	}
 
 	void FTriggerCounterOperator::Execute()
-	{
-		// TODO: fix this up when we implement merged trigger execution to avoid edge cases of ordering problems
-		// for when these triggers are executed at differnet times within the same block
+	{	
+		TriggerOnReset->AdvanceBlock();
+		TriggerOut->AdvanceBlock();
+
+		// Update the current auto reset count
+		CurrentAutoResetCount = FMath::Max(0, *AutoResetCount);
+
 		TriggerReset->ExecuteBlock(
 			[&](int32 StartFrame, int32 EndFrame)
 			{
 			},
 			[this](int32 StartFrame, int32 EndFrame)
 			{
-				*TriggerCount = 0;
+				CurrentTriggerCount = 0;
+				*OutValue = *StartCount;
+
+				TriggerOnReset->TriggerFrame(StartFrame);
 			}
 		);
 
@@ -89,29 +138,55 @@ namespace Metasound
 			},
 			[this](int32 StartFrame, int32 EndFrame)
 			{
-				++(*TriggerCount);
+				++CurrentTriggerCount;
+
+				if (CurrentAutoResetCount > 0 && CurrentTriggerCount >= CurrentAutoResetCount)
+				{
+					CurrentTriggerCount = 0;
+					*OutValue = *StartCount;
+					TriggerOnReset->TriggerFrame(StartFrame);
+				}
+				else
+				{
+					*OutValue += *CountBy;
+				}
+
+				TriggerOut->TriggerFrame(StartFrame);
 			}
 		);
+
 	}
 
 	TUniquePtr<IOperator> FTriggerCounterOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
-		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
-		FTriggerReadRef TriggerIn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TriggerCounter::InParamNameInput, InParams.OperatorSettings);
-		FTriggerReadRef TriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TriggerCounter::InParamNameReset, InParams.OperatorSettings);
+		using namespace TriggerCounterVertexNames;
 
-		return MakeUnique<FTriggerCounterOperator>(InParams.OperatorSettings, TriggerIn, TriggerReset);
+		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
+		FTriggerReadRef TriggerIn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputInTrigger), InParams.OperatorSettings);
+		FTriggerReadRef TriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputReset), InParams.OperatorSettings);
+		FInt32ReadRef StartCount = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, METASOUND_GET_PARAM_NAME(InputStartCount), InParams.OperatorSettings);
+		FInt32ReadRef StepSize = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, METASOUND_GET_PARAM_NAME(InputStepSize), InParams.OperatorSettings);
+		FInt32ReadRef AutoResetCount = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, METASOUND_GET_PARAM_NAME(InputAutoResetCount), InParams.OperatorSettings);
+
+		return MakeUnique<FTriggerCounterOperator>(InParams.OperatorSettings, TriggerIn, TriggerReset, StartCount, StepSize, AutoResetCount);
 	}
 
 	const FVertexInterface& FTriggerCounterOperator::GetVertexInterface()
 	{
+		using namespace TriggerCounterVertexNames;
+
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FTrigger>(TriggerCounter::InParamNameInput, LOCTEXT("TriggerCounterInTooltip", "Trigger input to count.")),
-				TInputDataVertexModel<FTrigger>(TriggerCounter::InParamNameReset, LOCTEXT("TriggerCounterResetInTooltip", "Resets the counter back to 0."))
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputInTrigger)),
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputReset)),
+				TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_TT(InputStartCount), 0),
+				TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_TT(InputStepSize), 1),
+				TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_TT(InputAutoResetCount), 0)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<int32>(TriggerCounter::OutParamNameOutput, LOCTEXT("TriggerCounterOutTooltip", "The current count of triggers."))
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnTrigger)),
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnReset)),
+				TOutputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_TT(OutputCount))
 			)
 		);
 
@@ -127,7 +202,7 @@ namespace Metasound
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = LOCTEXT("Metasound_TriggerCounterNodeDisplayName", "Trigger Counter");
-			Info.Description = LOCTEXT("Metasound_TriggerCounterNodeDescription", "Counts the trigger inputs.");
+			Info.Description = LOCTEXT("Metasound_TriggerCounterNodeDescription", "Counts the trigger inputs. Supports a start count value, counting by a step size, and auto resetting back to the start count.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
