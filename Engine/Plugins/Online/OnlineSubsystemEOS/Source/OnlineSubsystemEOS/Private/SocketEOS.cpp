@@ -389,6 +389,8 @@ bool FSocketEOS::SendTo(const uint8* Data, int32 Count, int32& OutBytesSent, con
 	Options.LocalUserId = LocalAddress.GetLocalUserId();
 	Options.RemoteUserId = DestinationAddress.GetRemoteUserId();
 	Options.SocketId = &SocketId;
+	Options.bAllowDelayedDelivery = EOS_TRUE;
+	Options.Reliability = EOS_EPacketReliability::EOS_PR_UnreliableUnordered;
 	Options.Channel = DestinationAddress.GetChannel();
 	Options.DataLengthBytes = Count;
 	Options.Data = Data;
