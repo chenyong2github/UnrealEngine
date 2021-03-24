@@ -5,7 +5,6 @@
 #include "VectorTypes.h"
 #include "IndexTypes.h"
 #include "BoxTypes.h"
-#include "DisjointSet.h"
 
 namespace UE
 {
@@ -90,67 +89,3 @@ protected:
 } // end namespace UE::Geometry
 } // end namespace UE
 
-namespace UE
-{
-namespace UVPacking
-{
-	using namespace UE::Geometry;
-/**
- * Create UV islands from a triangle mesh connectivity.
- * Assumes the triangles are already split at UV seams, but topologically connected otherwise.
- * Not recommended for meshes that already have built-in edge connectivity data.
- *
- * @param Mesh The mesh to create islands for
- * @param IslandsOut The triangle IDs for each island
- * @param IncludeTri Optional function to filter which tris are assigned to islands
- */
-template <typename TriangleMeshType>
-inline void CreateUVIslandsFromMeshTopology(TriangleMeshType& Mesh,
-	TArray<TArray<int>>& IslandsOut,
-	TFunctionRef<bool(int32)> IncludeTri = [](int32)
-	{
-		return true;
-	})
-{
-	FDisjointSet VertComponents(Mesh.MaxVertexID());
-	// Add Source vertices to hash & disjoint sets
-	for (int32 TID = 0; TID < Mesh.MaxTriangleID(); TID++)
-	{
-		if (!Mesh.IsTriangle(TID) || !IncludeTri(TID))
-		{
-			continue;
-		}
-
-		FIndex3i Tri = Mesh.GetTriangle(TID);
-		for (int32 First = 2, Second = 0; Second < 3; First = Second++)
-		{
-			VertComponents.Union(Tri[First], Tri[Second]);
-		}
-	}
-
-	IslandsOut.Reset();
-	TMap<uint32, int32> IslandIDToIdx;
-	for (int32 TID = 0; TID < Mesh.MaxTriangleID(); TID++)
-	{
-		if (!Mesh.IsTriangle(TID) || !IncludeTri(TID))
-		{
-			continue;
-		}
-
-		FIndex3i Tri = Mesh.GetTriangle(TID);
-		uint32 IslandID = VertComponents.Find(Tri.A);
-		int32 Idx = -1;
-		int32* FoundIdx = IslandIDToIdx.Find(IslandID);
-		if (!FoundIdx)
-		{
-			Idx = IslandsOut.Emplace();
-			IslandIDToIdx.Add(IslandID, Idx);
-		}
-		else
-		{
-			Idx = *FoundIdx;
-		}
-		IslandsOut[Idx].Add(TID);
-	}
-}
-}} // namespace UE::UVPacking

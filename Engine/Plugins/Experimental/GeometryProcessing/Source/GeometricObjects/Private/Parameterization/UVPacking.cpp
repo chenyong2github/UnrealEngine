@@ -2,12 +2,12 @@
 
 
 #include "Parameterization/UVPacking.h"
+#include "Parameterization/UVSpaceAllocator.h"
 
 #include "Async/Future.h"
 #include "Async/Async.h"
 
 #include "Misc/SecureHash.h"
-#include "Allocator2D.h"
 
 #include "BoxTypes.h"
 
@@ -23,6 +23,8 @@ inline uint32 GetTypeHash(const FMD5Hash& Hash)
 
 
 namespace UE { namespace InternalUVPacking {
+
+	using namespace UE::Geometry;
 
 //
 // local representation of a UV island as a set of triangle indices
@@ -84,7 +86,7 @@ protected:
 	void ScaleCharts(TArray<FUVIsland>& Charts, double UVScale);
 	bool PackCharts(TArray<FUVIsland>& Charts, double UVScale, double& OutEfficiency, TAtomic<bool>& bAbort);
 	void OrientChart(FUVIsland& Chart, int32 Orientation);
-	void RasterizeChart(const FUVIsland& Chart, uint32 RectW, uint32 RectH, FAllocator2D& OutChartRaster);
+	void RasterizeChart(const FUVIsland& Chart, uint32 RectW, uint32 RectH, FUVSpaceAllocator& OutChartRaster);
 };
 
 
@@ -398,9 +400,9 @@ bool FStandardChartPacker::PackCharts(TArray<FUVIsland>& Charts, double UVScale,
 {
 	ScaleCharts(Charts, UVScale);
 
-	FAllocator2D BestChartRaster(FAllocator2D::EMode::UsedSegments, TextureResolution, TextureResolution, ELightmapUVVersion::Latest);
-	FAllocator2D ChartRaster(FAllocator2D::EMode::UsedSegments, TextureResolution, TextureResolution, ELightmapUVVersion::Latest);
-	FAllocator2D LayoutRaster(FAllocator2D::EMode::FreeSegments, TextureResolution, TextureResolution, ELightmapUVVersion::Latest);
+	FUVSpaceAllocator BestChartRaster(FUVSpaceAllocator::EMode::UsedSegments, TextureResolution, TextureResolution);
+	FUVSpaceAllocator ChartRaster(FUVSpaceAllocator::EMode::UsedSegments, TextureResolution, TextureResolution);
+	FUVSpaceAllocator LayoutRaster(FUVSpaceAllocator::EMode::FreeSegments, TextureResolution, TextureResolution);
 
 	uint64 RasterizeCycles = 0;
 	uint64 FindCycles = 0;
@@ -427,19 +429,19 @@ bool FStandardChartPacker::PackCharts(TArray<FUVIsland>& Charts, double UVScale,
 
 			// Try different orientations and pick best
 			int32				BestOrientation = -1;
-			FAllocator2D::FRect	BestRect = { ~0u, ~0u, ~0u, ~0u };
+			FUVSpaceAllocator::FRect	BestRect = { ~0u, ~0u, ~0u, ~0u };
 
 			// This version focus on minimal surface area giving fairness to both horizontal and vertical chart placement
 			// instead of only taking the pixel offset of the lower left corner into account.
-			TFunction<bool(const FAllocator2D::FRect&)> IsBestRect =
-				[&BestRect](const FAllocator2D::FRect& Rect)
+			TFunction<bool(const FUVSpaceAllocator::FRect&)> IsBestRect =
+				[&BestRect](const FUVSpaceAllocator::FRect& Rect)
 			{
 				return ((Rect.X + Rect.W) + (Rect.Y + Rect.H)) <((BestRect.X + BestRect.W) + (BestRect.Y + BestRect.H));
 			};
 
 			// simpler thing?
-			//TFunction<bool(const FAllocator2D::FRect&)> IsBestRect =
-			//	[this, &BestRect](const FAllocator2D::FRect& Rect)
+			//TFunction<bool(const FUVSpaceAllocator::FRect&)> IsBestRect =
+			//	[this, &BestRect](const FUVSpaceAllocator::FRect& Rect)
 			//{
 			//	return Rect.X + Rect.Y * TextureResolution <BestRect.X + BestRect.Y * TextureResolution;
 			//};
@@ -455,7 +457,7 @@ bool FStandardChartPacker::PackCharts(TArray<FUVIsland>& Charts, double UVScale,
 				ChartSize = ChartSize.X * Chart.PackingScaleU + ChartSize.Y * Chart.PackingScaleV;
 
 				// Only need half pixel dilate for rects
-				FAllocator2D::FRect	Rect;
+				FUVSpaceAllocator::FRect	Rect;
 				Rect.X = 0;
 				Rect.Y = 0;
 				Rect.W = FMath::CeilToInt( (float)FMathd::Abs(ChartSize.X) + 1.0f);
@@ -500,7 +502,7 @@ bool FStandardChartPacker::PackCharts(TArray<FUVIsland>& Charts, double UVScale,
 					bool bFound = false;
 
 					// Use the real raster size for optimal placement
-					FAllocator2D::FRect RasterRect = Rect;
+					FUVSpaceAllocator::FRect RasterRect = Rect;
 					RasterRect.W = ChartRaster.GetRasterWidth();
 					RasterRect.H = ChartRaster.GetRasterHeight();
 
@@ -525,7 +527,6 @@ bool FStandardChartPacker::PackCharts(TArray<FUVIsland>& Charts, double UVScale,
 							RasterRect.Y = StartPos->Y;
 						}
 
-						LayoutRaster.ResetStats();
 						bFound = LayoutRaster.FindWithSegments(RasterRect, ChartRaster, IsBestRect);
 						if (bFound)
 						{
@@ -557,8 +558,6 @@ bool FStandardChartPacker::PackCharts(TArray<FUVIsland>& Charts, double UVScale,
 							Rect.Y = RasterRect.Y;
 
 						}
-
-						LayoutRaster.PublishStats(ChartIndex, Orientation, bFound, Rect, BestRect, RasterMD5, IsBestRect);
 					}
 
 				
@@ -692,7 +691,7 @@ void FStandardChartPacker::OrientChart(FUVIsland& Chart, int32 Orientation)
 // Dilate in 28.4 fixed point. Half pixel dilation is conservative rasterization.
 // Dilation same as Minkowski sum of triangle and square.
 template<int32 Dilate>
-void InternalRasterizeTriangle(FAllocator2D& Shader, const FVector2f Points[3], int32 ScissorWidth, int32 ScissorHeight)
+void InternalRasterizeTriangle(FUVSpaceAllocator& Shader, const FVector2f Points[3], int32 ScissorWidth, int32 ScissorHeight)
 {
 	const FVector2f HalfPixel(0.5f, 0.5f);
 	FVector2f p0 = Points[0] - HalfPixel;
@@ -772,7 +771,7 @@ void InternalRasterizeTriangle(FAllocator2D& Shader, const FVector2f Points[3], 
 
 
 
-void FStandardChartPacker::RasterizeChart(const FUVIsland& Chart, uint32 RectW, uint32 RectH, FAllocator2D& OutChartRaster)
+void FStandardChartPacker::RasterizeChart(const FUVIsland& Chart, uint32 RectW, uint32 RectH, FUVSpaceAllocator& OutChartRaster)
 {
 	// Bilinear footprint is -1 to 1 pixels. If packed geometrically, only a half pixel dilation
 	// would be needed to guarantee all charts were at least 1 pixel away, safe for bilinear filtering.
