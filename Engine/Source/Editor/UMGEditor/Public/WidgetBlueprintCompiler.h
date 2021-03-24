@@ -81,6 +81,10 @@ protected:
 
 	UWidgetBlueprintGeneratedClass* NewWidgetBlueprintClass;
 
+	UWidgetTree* OldWidgetTree;
+
+	TArray<UWidgetAnimation*> OldWidgetAnimations;
+
 	class UWidgetGraphSchema* WidgetSchema;
 
 	// Map of properties created for widgets; to aid in debug data generation
