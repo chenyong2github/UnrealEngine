@@ -42,7 +42,7 @@ if DEFINED JAVA_HOME (set a=1) ELSE (
 	set JAVA_HOME=%STUDIO_PATH%\jre
 	setx JAVA_HOME "%STUDIO_PATH%\jre"
 )
-set NDKINSTALLPATH=%STUDIO_SDK_PATH%\ndk\21.1.6352462
+set NDKINSTALLPATH=%STUDIO_SDK_PATH%\ndk\21.4.7075529
 set PLATFORMTOOLS=%STUDIO_SDK_PATH%\platform-tools;%STUDIO_SDK_PATH%\tools
 
 set KEY_NAME=HKCU\Environment
@@ -72,7 +72,7 @@ IF EXIST "%SDKMANAGER%" (
 	)
 )
 
-call "%SDKMANAGER%" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "cmake;3.10.2.4988404" "ndk;21.1.6352462"
+call "%SDKMANAGER%" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "cmake;3.10.2.4988404" "ndk;21.4.7075529"
 
 IF /I "%ERRORLEVEL%" NEQ "0" (
 	echo Update failed. Please check the Android Studio install.
