@@ -363,7 +363,7 @@ void FDetailLayoutBuilderImpl::GenerateDetailLayout()
 	}
 
 	// Customizations can add more categories while customizing so just keep doing this until the maps are empty
-	while(CustomCategoryMap.Num() > 0)
+	while (CustomCategoryMap.Num() > 0)
 	{
 		FCategoryMap CustomCategoryMapCopy = CustomCategoryMap;
 
@@ -427,7 +427,7 @@ void FDetailLayoutBuilderImpl::GenerateDetailLayout()
 	}
 
 	TSharedPtr<FComplexPropertyNode> RootNodePinned = RootNode.Pin();
-	if(DetailsView && DetailsView->GetRootObjectCustomization() && RootNodePinned->GetInstancesNum())
+	if (DetailsView && DetailsView->GetRootObjectCustomization() && RootNodePinned->GetInstancesNum())
 	{
 		FObjectPropertyNode* ObjectNode = RootNodePinned->AsObjectNode();
 

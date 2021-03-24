@@ -63,6 +63,11 @@ public:
 	virtual FProperty* GetProperty() const = 0;
 
 	/**
+	 * Gets the property node being edited.
+	 */
+	virtual TSharedPtr<FPropertyNode> GetPropertyNode() const = 0;
+
+	/**
 	 * Gets the property we should use to read meta-data
 	 */
 	virtual FProperty* GetMetaDataProperty() const = 0;

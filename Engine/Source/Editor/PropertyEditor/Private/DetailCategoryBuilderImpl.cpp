@@ -23,40 +23,42 @@ namespace DetailLayoutConstants
 	const FMargin RowPadding(10.0f, 2.0f);
 }
 
-void FDetailLayout::AddCustomLayout(const FDetailLayoutCustomization& Layout, bool bAdvanced)
+void FDetailLayout::AddLayout(const FDetailLayoutCustomization& Layout)
 {
-	AddLayoutInternal(Layout, bAdvanced ? CustomAdvancedLayouts : CustomSimpleLayouts);
-}
-
-void FDetailLayout::AddDefaultLayout(const FDetailLayoutCustomization& Layout, bool bAdvanced)
-{
-	AddLayoutInternal(Layout, bAdvanced ? DefaultAdvancedLayouts : DefaultSimpleLayouts);
+	if (Layout.bAdvanced)
+	{
+		AdvancedLayouts.Add(Layout);
+	}
+	else
+	{
+		SimpleLayouts.Add(Layout);
+	}
 }
 
 FDetailLayoutCustomization* FDetailLayout::GetDefaultLayout(const TSharedRef<FPropertyNode>& PropertyNode)
 {
 	FDetailLayoutCustomization* Customization = 
-		DefaultSimpleLayouts.FindByPredicate([&PropertyNode](const FDetailLayoutCustomization& TestCustomization)
+		SimpleLayouts.FindByPredicate([&PropertyNode](const FDetailLayoutCustomization& TestCustomization)
 		{
 			return TestCustomization.GetPropertyNode() == PropertyNode;
 		});
 
 	// Didn't find it in the simple layouts, look in advanced layouts
-	if (!Customization)
+	if (Customization == nullptr)
 	{
 		Customization = 
-			DefaultAdvancedLayouts.FindByPredicate([&PropertyNode](const FDetailLayoutCustomization& TestCustomization)
+			AdvancedLayouts.FindByPredicate([&PropertyNode](const FDetailLayoutCustomization& TestCustomization)
 			{
 				return TestCustomization.GetPropertyNode() == PropertyNode;
 			});
 	}
 
-	return Customization;
-}
+	if (Customization != nullptr && Customization->bCustom)
+	{
+		return nullptr;
+	}
 
-void FDetailLayout::AddLayoutInternal(const FDetailLayoutCustomization& Layout, FCustomizationList& ListToUse)
-{
-	ListToUse.Add(Layout);
+	return Customization;
 }
 
 FDetailLayoutCustomization::FDetailLayoutCustomization()
@@ -148,10 +150,12 @@ FDetailCategoryImpl::~FDetailCategoryImpl()
 FDetailWidgetRow& FDetailCategoryImpl::AddCustomRow(const FText& FilterString, bool bForAdvanced)
 {
 	FDetailLayoutCustomization NewCustomization;
+	NewCustomization.bCustom = true;
+	NewCustomization.bAdvanced = bForAdvanced;
 	NewCustomization.WidgetDecl = MakeShareable(new FDetailWidgetRow);
 	NewCustomization.WidgetDecl->FilterString(FilterString);
 
-	AddCustomLayout(NewCustomization, bForAdvanced);
+	AddCustomLayout(NewCustomization);
 
 	return *NewCustomization.WidgetDecl;
 }
@@ -160,17 +164,40 @@ FDetailWidgetRow& FDetailCategoryImpl::AddCustomRow(const FText& FilterString, b
 void FDetailCategoryImpl::AddCustomBuilder(TSharedRef<IDetailCustomNodeBuilder> InCustomBuilder, bool bForAdvanced)
 {
 	FDetailLayoutCustomization NewCustomization;
+	NewCustomization.bCustom = true;
+	NewCustomization.bAdvanced = bForAdvanced;
 	NewCustomization.CustomBuilderRow = MakeShareable(new FDetailCustomBuilderRow(InCustomBuilder));
 
-	AddCustomLayout(NewCustomization, bForAdvanced);
+	if (!bFavoriteCategory)
+	{
+		TStringBuilder<256> PathToNode;
+		PathToNode.Append(GetCategoryPathName());
+		PathToNode.Append(TEXT("."));
+		PathToNode.Append(InCustomBuilder->GetName().ToString());
+
+		if (GetDetailsView()->IsCustomBuilderFavorite(PathToNode))
+		{
+			TSharedPtr<FDetailLayoutBuilderImpl> LayoutBuilder = DetailLayoutBuilder.Pin();
+			if (LayoutBuilder.IsValid())
+			{
+				static const FName FavoritesCategoryName(TEXT("Favorites"));
+				FDetailCategoryImpl& FavoritesCategory = LayoutBuilder->DefaultCategory(FavoritesCategoryName);
+				FavoritesCategory.AddCustomBuilder(InCustomBuilder, false);
+			}
+		}
+	}
+
+	AddCustomLayout(NewCustomization);
 }
 
 IDetailGroup& FDetailCategoryImpl::AddGroup(FName GroupName, const FText& LocalizedDisplayName, bool bForAdvanced, bool bStartExpanded)
 {
 	FDetailLayoutCustomization NewCustomization;
+	NewCustomization.bCustom = true;
+	NewCustomization.bAdvanced = bForAdvanced;
 	NewCustomization.DetailGroup = MakeShareable(new FDetailGroup(GroupName, AsShared(), LocalizedDisplayName, bStartExpanded));
 
-	AddCustomLayout(NewCustomization, bForAdvanced);
+	AddCustomLayout(NewCustomization);
 
 	return *NewCustomization.DetailGroup;
 }
@@ -179,14 +206,10 @@ int32 FDetailCategoryImpl::GetNumCustomizations() const
 {
 	int32 NumCustomizations = 0;
 
-	for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
+	for (const FDetailLayout& Layout : LayoutMap)
 	{
-		const FDetailLayout& Layout = LayoutMap[LayoutIndex];
-
-		NumCustomizations += Layout.GetDefaultSimpleLayouts().Num();
-		NumCustomizations += Layout.GetDefaultAdvancedLayouts().Num();
-		NumCustomizations += Layout.GetCustomSimpleLayouts().Num();
-		NumCustomizations += Layout.GetCustomAdvancedLayouts().Num();
+		NumCustomizations += Layout.GetSimpleLayouts().Num();
+		NumCustomizations += Layout.GetAdvancedLayouts().Num();
 	}
 
 	return NumCustomizations;
@@ -195,22 +218,17 @@ int32 FDetailCategoryImpl::GetNumCustomizations() const
 void FDetailCategoryImpl::GetDefaultProperties(TArray<TSharedRef<IPropertyHandle> >& OutDefaultProperties, bool bSimpleProperties, bool bAdvancedProperties)
 {
 	FDetailLayoutBuilderImpl& DetailLayoutBuilderRef = GetParentLayoutImpl();
-	for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
+	for (const FDetailLayout& Layout : LayoutMap)
 	{
-		const FDetailLayout& Layout = LayoutMap[LayoutIndex];
-
 		if (bSimpleProperties)
 		{
-			const FCustomizationList& CustomizationList = Layout.GetDefaultSimpleLayouts();
-
-			for (int32 CustomizationIndex = 0; CustomizationIndex < CustomizationList.Num(); ++CustomizationIndex)
+			for (const FDetailLayoutCustomization& Customization : Layout.GetSimpleLayouts())
 			{
-				if (CustomizationList[CustomizationIndex].HasPropertyNode())
+				if (Customization.HasPropertyNode())
 				{
-					const TSharedPtr<FPropertyNode>& Node = CustomizationList[CustomizationIndex].GetPropertyNode();
+					const TSharedPtr<FPropertyNode>& Node = Customization.GetPropertyNode();
 
 					TSharedRef<IPropertyHandle> PropertyHandle = DetailLayoutBuilderRef.GetPropertyHandle(Node);
-
 					if (PropertyHandle->IsValidHandle())
 					{
 						OutDefaultProperties.Add(PropertyHandle);
@@ -221,15 +239,16 @@ void FDetailCategoryImpl::GetDefaultProperties(TArray<TSharedRef<IPropertyHandle
 
 		if (bAdvancedProperties)
 		{
-			const FCustomizationList& CustomizationList = Layout.GetDefaultAdvancedLayouts();
-
-			for (int32 CustomizationIndex = 0; CustomizationIndex < CustomizationList.Num(); ++CustomizationIndex)
+			for (const FDetailLayoutCustomization& Customization : Layout.GetAdvancedLayouts())
 			{
-				if (CustomizationList[CustomizationIndex].HasPropertyNode())
+				if (Customization.HasPropertyNode())
 				{
-					const TSharedPtr<FPropertyNode>& Node = CustomizationList[CustomizationIndex].GetPropertyNode();
-
-					OutDefaultProperties.Add(DetailLayoutBuilderRef.GetPropertyHandle(Node));
+					const TSharedPtr<FPropertyNode>& Node = Customization.GetPropertyNode();
+					TSharedRef<IPropertyHandle> PropertyHandle = DetailLayoutBuilderRef.GetPropertyHandle(Node);
+					if (PropertyHandle->IsValidHandle())
+					{
+						OutDefaultProperties.Add(PropertyHandle);
+					}
 				}
 			}
 		}
@@ -281,6 +300,8 @@ IDetailCategoryBuilder& FDetailCategoryImpl::HeaderContent(TSharedRef<SWidget> I
 IDetailPropertyRow& FDetailCategoryImpl::AddProperty(FName PropertyPath, UClass* ClassOutermost, FName InstanceName, EPropertyLocation::Type Location)
 {
 	FDetailLayoutCustomization NewCustomization;
+	NewCustomization.bCustom = true;
+
 	TSharedPtr<FPropertyNode> PropertyNode = GetParentLayoutImpl().GetPropertyNode(PropertyPath, ClassOutermost, InstanceName);
 	if (PropertyNode.IsValid())
 	{
@@ -288,21 +309,9 @@ IDetailPropertyRow& FDetailCategoryImpl::AddProperty(FName PropertyPath, UClass*
 	}
 
 	NewCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(PropertyNode, AsShared()));
+	NewCustomization.bAdvanced = (Location == EPropertyLocation::Default) ? IsAdvancedLayout(NewCustomization) : (Location == EPropertyLocation::Advanced);
 
-	bool bForAdvanced = false;
-
-	if (Location == EPropertyLocation::Default)
-	{
-		// Get the default location of this property
-		bForAdvanced = IsAdvancedLayout(NewCustomization);
-	}
-	else if (Location == EPropertyLocation::Advanced)
-	{
-		// Force advanced
-		bForAdvanced = true;
-	}
-
-	AddCustomLayout(NewCustomization, bForAdvanced);
+	AddCustomLayout(NewCustomization);
 
 	return *NewCustomization.PropertyRow;
 }
@@ -310,6 +319,8 @@ IDetailPropertyRow& FDetailCategoryImpl::AddProperty(FName PropertyPath, UClass*
 IDetailPropertyRow& FDetailCategoryImpl::AddProperty(TSharedPtr<IPropertyHandle> PropertyHandle, EPropertyLocation::Type Location)
 {
 	FDetailLayoutCustomization NewCustomization;
+	NewCustomization.bCustom = true;
+
 	TSharedPtr<FPropertyNode> PropertyNode = GetParentLayoutImpl().GetPropertyNode(PropertyHandle);
 
 	if (PropertyNode.IsValid())
@@ -318,21 +329,9 @@ IDetailPropertyRow& FDetailCategoryImpl::AddProperty(TSharedPtr<IPropertyHandle>
 	}
 
 	NewCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(PropertyNode, AsShared()));
+	NewCustomization.bAdvanced = (Location == EPropertyLocation::Default) ? IsAdvancedLayout(NewCustomization) : (Location == EPropertyLocation::Advanced);
 
-	bool bForAdvanced = false;
-
-	if (Location == EPropertyLocation::Default)
-	{
-		// Get the default location of this property
-		bForAdvanced = IsAdvancedLayout(NewCustomization);
-	}
-	else if (Location == EPropertyLocation::Advanced)
-	{
-		// Force advanced
-		bForAdvanced = true;
-	}
-
-	AddCustomLayout(NewCustomization, bForAdvanced);
+	AddCustomLayout(NewCustomization);
 
 	return *NewCustomization.PropertyRow;
 }
@@ -340,6 +339,8 @@ IDetailPropertyRow& FDetailCategoryImpl::AddProperty(TSharedPtr<IPropertyHandle>
 IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjects(const TArray<UObject*>& Objects, EPropertyLocation::Type Location /*= EPropertyLocation::Default*/, const FAddPropertyParams& Params /*= FAddPropertyParams()*/)
 {
 	FDetailLayoutCustomization NewCustomization;
+	NewCustomization.bCustom = true;
+	NewCustomization.bAdvanced = Location == EPropertyLocation::Advanced;
 
 	FAddPropertyParams AddPropertyParams = Params;
 	AddPropertyParams.AllowChildren(true);
@@ -350,14 +351,7 @@ IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjects(const TArray<UObject
 
 	if (NewRow.IsValid())
 	{
-		bool bForAdvanced = false;
-		if (Location == EPropertyLocation::Advanced)
-		{
-			// Force advanced
-			bForAdvanced = true;
-		}
-
-		AddCustomLayout(NewCustomization, bForAdvanced);
+		AddCustomLayout(NewCustomization);
 	}
 
 	return NewRow.Get();
@@ -366,6 +360,8 @@ IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjects(const TArray<UObject
 IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjectProperty(const TArray<UObject*>& Objects, FName PropertyName, EPropertyLocation::Type Location, const FAddPropertyParams& Params)
 {
 	FDetailLayoutCustomization NewCustomization;
+	NewCustomization.bCustom = true;
+	NewCustomization.bAdvanced = Location == EPropertyLocation::Advanced;
 
 	FDetailPropertyRow::MakeExternalPropertyRowCustomization(Objects, PropertyName, AsShared(), NewCustomization, Params);
 
@@ -373,14 +369,7 @@ IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjectProperty(const TArray<
 
 	if (NewRow.IsValid())
 	{
-		bool bForAdvanced = false;
-		if (Location == EPropertyLocation::Advanced)
-		{
-			// Force advanced
-			bForAdvanced = true;
-		}
-
-		AddCustomLayout(NewCustomization, bForAdvanced);
+		AddCustomLayout(NewCustomization);
 
 	}
 
@@ -395,6 +384,8 @@ IDetailPropertyRow* FDetailCategoryImpl::AddExternalStructure(TSharedPtr<FStruct
 IDetailPropertyRow* FDetailCategoryImpl::AddExternalStructureProperty(TSharedPtr<FStructOnScope> StructData, FName PropertyName, EPropertyLocation::Type Location/* = EPropertyLocation::Default*/, const FAddPropertyParams& Params)
 {
 	FDetailLayoutCustomization NewCustomization;
+	NewCustomization.bCustom = true;
+	NewCustomization.bAdvanced = Location == EPropertyLocation::Advanced;
 
 	FDetailPropertyRow::MakeExternalPropertyRowCustomization(StructData, PropertyName, AsShared(), NewCustomization, Params);
 
@@ -405,14 +396,7 @@ IDetailPropertyRow* FDetailCategoryImpl::AddExternalStructureProperty(TSharedPtr
 		TSharedPtr<FPropertyNode> PropertyNode = NewRow->GetPropertyNode();
 		TSharedPtr<FComplexPropertyNode> RootNode = StaticCastSharedRef<FComplexPropertyNode>(PropertyNode->FindComplexParent()->AsShared());
 
-		bool bForAdvanced = false;
-		if (Location == EPropertyLocation::Advanced)
-		{
-			// Force advanced
-			bForAdvanced = true;
-		}
-
-		AddCustomLayout(NewCustomization, bForAdvanced);
+		AddCustomLayout(NewCustomization);
 	}
 
 	return NewRow.Get();
@@ -438,7 +422,6 @@ TArray<TSharedPtr<IPropertyHandle>> FDetailCategoryImpl::AddAllExternalStructure
 
 	FDetailLayoutBuilderImpl& DetailLayoutBuilderRef = GetParentLayoutImpl();
 
-	const bool bForAdvanced = Location == EPropertyLocation::Advanced;
 	if (RootPropertyNode.IsValid())
 	{
 		RootPropertyNode->RebuildChildren();
@@ -450,8 +433,9 @@ TArray<TSharedPtr<IPropertyHandle>> FDetailCategoryImpl::AddAllExternalStructure
 			if (FProperty* Property = PropertyNode->GetProperty())
 			{
 				FDetailLayoutCustomization NewCustomization;
+				NewCustomization.bAdvanced = Location == EPropertyLocation::Advanced;
 				NewCustomization.PropertyRow = MakeShared<FDetailPropertyRow>(PropertyNode, AsShared(), RootPropertyNode);
-				AddDefaultLayout(NewCustomization, bForAdvanced, NAME_None);
+				AddDefaultLayout(NewCustomization, NAME_None);
 
 				Handles.Add(DetailLayoutBuilderRef.GetPropertyHandle(PropertyNode));
 			}
@@ -464,9 +448,9 @@ TArray<TSharedPtr<IPropertyHandle>> FDetailCategoryImpl::AddAllExternalStructure
 void FDetailCategoryImpl::AddPropertyNode(TSharedRef<FPropertyNode> PropertyNode, FName InstanceName)
 {
 	FDetailLayoutCustomization NewCustomization;
-
+	NewCustomization.bAdvanced = IsAdvancedLayout(NewCustomization);
 	NewCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(PropertyNode, AsShared()));
-	AddDefaultLayout(NewCustomization, IsAdvancedLayout(NewCustomization), InstanceName);
+	AddDefaultLayout(NewCustomization, InstanceName);
 }
 
 bool FDetailCategoryImpl::IsAdvancedLayout(const FDetailLayoutCustomization& LayoutInfo)
@@ -480,14 +464,16 @@ bool FDetailCategoryImpl::IsAdvancedLayout(const FDetailLayoutCustomization& Lay
 	return bAdvanced;
 }
 
-void FDetailCategoryImpl::AddCustomLayout(const FDetailLayoutCustomization& LayoutInfo, bool bForAdvanced)
+void FDetailCategoryImpl::AddCustomLayout(const FDetailLayoutCustomization& LayoutInfo)
 {
-	GetLayoutForInstance(GetParentLayoutImpl().GetCurrentCustomizationVariableName()).AddCustomLayout(LayoutInfo, bForAdvanced);
+	ensure(LayoutInfo.bCustom == true);
+	GetLayoutForInstance(GetParentLayoutImpl().GetCurrentCustomizationVariableName()).AddLayout(LayoutInfo);
 }
 
-void FDetailCategoryImpl::AddDefaultLayout(const FDetailLayoutCustomization& LayoutInfo, bool bForAdvanced, FName InstanceName)
+void FDetailCategoryImpl::AddDefaultLayout(const FDetailLayoutCustomization& LayoutInfo, FName InstanceName)
 {
-	GetLayoutForInstance(InstanceName).AddDefaultLayout(LayoutInfo, bForAdvanced);
+	ensure(LayoutInfo.bCustom == false);
+	GetLayoutForInstance(InstanceName).AddLayout(LayoutInfo);
 }
 
 FDetailLayout& FDetailCategoryImpl::GetLayoutForInstance(FName InstanceName)
@@ -510,11 +496,7 @@ FDetailLayoutCustomization* FDetailCategoryImpl::GetDefaultCustomization(TShared
 	FDetailLayout& Layout = GetLayoutForInstance(GetParentLayoutImpl().GetCurrentCustomizationVariableName());
 	
 	FDetailLayoutCustomization* Customization = Layout.GetDefaultLayout(PropertyNode);
-	if (Customization)
-	{
-		return Customization;
-	}
-	return nullptr;
+	return Customization;
 }
 
 bool FDetailCategoryImpl::ShouldShowAdvanced() const
@@ -806,16 +788,13 @@ static bool ShouldBeInlineNode(const TSharedRef<FDetailItemNode>& Node)
 	return false;
 }
 
-void FDetailCategoryImpl::GenerateNodesFromCustomizations(const FCustomizationList& InCustomizationList, bool bDefaultLayouts, FDetailNodeList& OutNodeList, bool &bOutLastItemHasMultipleColumns)
+void FDetailCategoryImpl::GenerateNodesFromCustomizations(const TArray<FDetailLayoutCustomization>& InCustomizationList, FDetailNodeList& OutNodeList)
 {
 	TAttribute<bool> IsParentEnabled(this, &FDetailCategoryImpl::IsParentEnabled);
 
-	bOutLastItemHasMultipleColumns = false;
-	for (int32 CustomizationIndex = 0; CustomizationIndex < InCustomizationList.Num(); ++CustomizationIndex)
+	for (const FDetailLayoutCustomization& Customization : InCustomizationList)
 	{
-		const FDetailLayoutCustomization& Customization = InCustomizationList[CustomizationIndex];
-		// When building default layouts cull default properties which have been customized
-		if (bFavoriteCategory || (Customization.IsValidCustomization() && (!bDefaultLayouts || !IsCustomProperty(Customization.GetPropertyNode()))))
+		if (bFavoriteCategory || Customization.IsValidCustomization())
 		{
 			TSharedRef<FDetailItemNode> NewNode = MakeShareable(new FDetailItemNode(Customization, AsShared(), IsParentEnabled));
 			NewNode->Initialize();
@@ -827,112 +806,34 @@ void FDetailCategoryImpl::GenerateNodesFromCustomizations(const FCustomizationLi
 				continue;
 			}
 
-			// Add the node unless only its children should be visible or it didnt generate any children or if it is a custom builder which can generate children at any point
+			// Add the node unless only its children should be visible or it didn't generate any children or if it is a custom builder which can generate children at any point
 			if (!NewNode->ShouldShowOnlyChildren() || NewNode->HasGeneratedChildren() || Customization.HasCustomBuilder())
 			{
-				if (CustomizationIndex == InCustomizationList.Num() - 1)
-				{
-					bOutLastItemHasMultipleColumns = NewNode->HasMultiColumnWidget();
-				}
-
 				OutNodeList.Add(NewNode);
 			}
 		}
 	}
 }
 
-
-bool FDetailCategoryImpl::GenerateChildrenForSingleLayout(const FName RequiredGroupName, bool bDefaultLayout, bool bNeedsGroup, const FCustomizationList& LayoutList, FDetailNodeList& OutChildren, bool& bOutLastItemHasMultipleColumns)
-{
-	bool bGeneratedAnyChildren = false;
-	if (LayoutList.Num() > 0)
-	{
-		FDetailNodeList GeneratedChildren;
-		GenerateNodesFromCustomizations(LayoutList, bDefaultLayout, GeneratedChildren, bOutLastItemHasMultipleColumns);
-
-		if (GeneratedChildren.Num() > 0)
-		{
-			bGeneratedAnyChildren = true;
-			if (bNeedsGroup)
-			{
-				TSharedRef<FDetailTreeNode> GroupNode = MakeShareable(new FDetailCategoryGroupNode(GeneratedChildren, RequiredGroupName, *this));
-				OutChildren.Add(GroupNode);
-			}
-			else
-			{
-				OutChildren.Append(GeneratedChildren);
-			}
-		}
-	}
-
-	return bGeneratedAnyChildren;
-}
-
 void FDetailCategoryImpl::GenerateChildrenForLayouts()
 {
-	bool bHasAdvancedLayouts = false;
-	bool bGeneratedAnyChildren = false;
-
-	bool bLastItemHasMultipleColumns = false;
-	// @todo Details each loop can be a function
-	for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
+	for (const FDetailLayout& Layout : LayoutMap)
 	{
-		const FDetailLayout& Layout = LayoutMap[LayoutIndex];
-
-		const FName RequiredGroupName = Layout.GetInstanceName();
-
-		bHasAdvancedLayouts |= Layout.HasAdvancedLayouts();
-
-		const bool bDefaultLayout = false;
-		const bool bShouldShowGroup = LayoutMap.ShouldShowGroup(RequiredGroupName);
-		bGeneratedAnyChildren |= GenerateChildrenForSingleLayout(RequiredGroupName, bDefaultLayout, bShouldShowGroup, Layout.GetCustomSimpleLayouts(), SimpleChildNodes, bLastItemHasMultipleColumns);
+		GenerateNodesFromCustomizations(Layout.GetSimpleLayouts(), SimpleChildNodes);
 	}
 
-	for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
+	for (const FDetailLayout& Layout : LayoutMap)
 	{
-		const FDetailLayout& Layout = LayoutMap[LayoutIndex];
-
-		const FName RequiredGroupName = Layout.GetInstanceName();
-
-		const bool bDefaultLayout = true;
-		const bool bShouldShowGroup = LayoutMap.ShouldShowGroup(RequiredGroupName);
-		bGeneratedAnyChildren |= GenerateChildrenForSingleLayout(RequiredGroupName, bDefaultLayout, bShouldShowGroup, Layout.GetDefaultSimpleLayouts(), SimpleChildNodes, bLastItemHasMultipleColumns);
-	}
-
-	TAttribute<bool> ShowAdvanced(this, &FDetailCategoryImpl::ShouldShowAdvanced);
-	TAttribute<bool> IsEnabled(this, &FDetailCategoryImpl::IsAdvancedDropdownEnabled);
-	if (bHasAdvancedLayouts)
-	{
-		for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
-		{
-			const FDetailLayout& Layout = LayoutMap[LayoutIndex];
-
-			const FName RequiredGroupName = Layout.GetInstanceName();
-
-			const bool bDefaultLayout = false;
-			const bool bShouldShowGroup = LayoutMap.ShouldShowGroup(RequiredGroupName);
-			bGeneratedAnyChildren |= GenerateChildrenForSingleLayout(RequiredGroupName, bDefaultLayout, bShouldShowGroup, Layout.GetCustomAdvancedLayouts(), AdvancedChildNodes, bLastItemHasMultipleColumns);
-		}
-
-		for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
-		{
-			const FDetailLayout& Layout = LayoutMap[LayoutIndex];
-
-			const FName RequiredGroupName = Layout.GetInstanceName();
-
-			const bool bDefaultLayout = true;
-			const bool bShouldShowGroup = LayoutMap.ShouldShowGroup(RequiredGroupName);
-			bGeneratedAnyChildren |= GenerateChildrenForSingleLayout(RequiredGroupName, bDefaultLayout, bShouldShowGroup, Layout.GetDefaultAdvancedLayouts(), AdvancedChildNodes, bLastItemHasMultipleColumns);
-		}
+		GenerateNodesFromCustomizations(Layout.GetAdvancedLayouts(), AdvancedChildNodes);
 	}
 
 	// Generate nodes for advanced dropdowns
+	if (AdvancedChildNodes.Num() > 0)
 	{
-		if (AdvancedChildNodes.Num() > 0)
-		{
-			AdvancedDropdownNodeTop = MakeShareable(new FAdvancedDropdownNode(*this, true));
-		}
+		TAttribute<bool> ShowAdvanced(this, &FDetailCategoryImpl::ShouldShowAdvanced);
+		TAttribute<bool> IsEnabled(this, &FDetailCategoryImpl::IsAdvancedDropdownEnabled);
 
+		AdvancedDropdownNodeTop = MakeShareable(new FAdvancedDropdownNode(*this, true));
 		AdvancedDropdownNodeBottom = MakeShareable(new FAdvancedDropdownNode(*this, ShowAdvanced, IsEnabled, AdvancedChildNodes.Num() > 0, SimpleChildNodes.Num() == 0));
 	}
 }

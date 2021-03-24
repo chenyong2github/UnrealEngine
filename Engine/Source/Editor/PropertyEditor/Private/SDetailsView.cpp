@@ -2,24 +2,27 @@
 
 
 #include "SDetailsView.h"
-#include "GameFramework/Actor.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Misc/ConfigCacheIni.h"
+#include "DetailLayoutBuilderImpl.h"
+#include "DetailsViewGenericObjectFilter.h"
+#include "DetailsViewPropertyGenerationUtilities.h"
+#include "Editor.h"
+#include "EditorMetadataOverrides.h"
 #include "ObjectPropertyNode.h"
+#include "PropertyEditorHelpers.h"
+#include "SDetailNameArea.h"
+
+#include "Classes/EditorStyleSettings.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GameFramework/Actor.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
+#include "Styling/StyleColors.h"
+#include "UserInterface/PropertyDetails/PropertyDetailsUtilities.h"
+#include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "SDetailNameArea.h"
-#include "PropertyEditorHelpers.h"
-#include "UserInterface/PropertyDetails/PropertyDetailsUtilities.h"
-#include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Classes/EditorStyleSettings.h"
-#include "DetailLayoutBuilderImpl.h"
-#include "DetailsViewPropertyGenerationUtilities.h"
-#include "DetailsViewGenericObjectFilter.h"
-#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SDetailsView"
 
@@ -982,6 +985,156 @@ FReply SDetailsView::OnToggleFavoritesClicked()
 	RerunCurrentFilter();
 
 	return FReply::Handled();
+}
+
+bool SDetailsView::IsGroupFavorite(FStringView GroupPath) const
+{
+	UEditorMetadataOverrides* EditorMetadata = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+	if (!EditorMetadata)
+	{
+		return false;
+	}
+
+	const FString GroupPathString(GroupPath);
+
+	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	{
+		const UStruct* BaseStruct = RootPropertyNode->GetBaseStructure();
+		if (BaseStruct != nullptr)
+		{
+			static const FName FavoriteGroupsName("FavoriteGroups");
+
+			TArray<FString> FavoriteGroupsList;
+			if (EditorMetadata->GetArrayMetadata(BaseStruct, FavoriteGroupsName, FavoriteGroupsList))
+			{
+				if (FavoriteGroupsList.Contains(GroupPathString))
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+void SDetailsView::SetGroupFavorite(FStringView GroupPath, bool IsFavorite)
+{
+	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+	if (!MetadataOverrides)
+	{
+		return;
+	}
+
+	const FString GroupPathString(GroupPath);
+
+	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	{
+		const UStruct* BaseStruct = RootPropertyNode->GetBaseStructure();
+		if (BaseStruct != nullptr)
+		{
+			static const FName FavoriteGroupsName("FavoriteGroups");
+
+			TArray<FString> FavoriteGroupsList;
+			if (MetadataOverrides->GetArrayMetadata(BaseStruct, FavoriteGroupsName, FavoriteGroupsList))
+			{
+				if (IsFavorite)
+				{
+					FavoriteGroupsList.AddUnique(GroupPathString);
+				}
+				else
+				{
+					FavoriteGroupsList.Remove(GroupPathString);
+				}
+
+				MetadataOverrides->SetArrayMetadata(BaseStruct, FavoriteGroupsName, FavoriteGroupsList);
+			}
+			else
+			{
+				// no favorite groups set yet
+				if (IsFavorite)
+				{
+					FavoriteGroupsList.Add(GroupPathString);
+					MetadataOverrides->SetArrayMetadata(BaseStruct, FavoriteGroupsName, FavoriteGroupsList);
+				}
+			}
+		}
+	}
+}
+
+bool SDetailsView::IsCustomBuilderFavorite(FStringView Path) const
+{
+	UEditorMetadataOverrides* EditorMetadata = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+	if (!EditorMetadata)
+	{
+		return false;
+	}
+
+	const FString PathString(Path);
+
+	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	{
+		const UStruct* BaseStruct = RootPropertyNode->GetBaseStructure();
+		if (BaseStruct != nullptr)
+		{
+			static const FName FavoriteCustomBuildersName("FavoriteCustomBuilders");
+
+			TArray<FString> FavoriteBuildersList;
+			if (EditorMetadata->GetArrayMetadata(BaseStruct, FavoriteCustomBuildersName, FavoriteBuildersList))
+			{
+				if (FavoriteBuildersList.Contains(PathString))
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+void SDetailsView::SetCustomBuilderFavorite(FStringView Path, bool IsFavorite)
+{
+	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+	if (!MetadataOverrides)
+	{
+		return;
+	}
+
+	const FString PathString(Path);
+
+	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	{
+		const UStruct* BaseStruct = RootPropertyNode->GetBaseStructure();
+		if (BaseStruct != nullptr)
+		{
+			static const FName FavoriteCustomBuildersName("FavoriteCustomBuilders");
+
+			TArray<FString> FavoriteBuildersList;
+			if (MetadataOverrides->GetArrayMetadata(BaseStruct, FavoriteCustomBuildersName, FavoriteBuildersList))
+			{
+				if (IsFavorite)
+				{
+					FavoriteBuildersList.AddUnique(PathString);
+				}
+				else
+				{
+					FavoriteBuildersList.Remove(PathString);
+				}
+
+				MetadataOverrides->SetArrayMetadata(BaseStruct, FavoriteCustomBuildersName, FavoriteBuildersList);
+			}
+			else
+			{
+				// no favorite groups set yet
+				if (IsFavorite)
+				{
+					FavoriteBuildersList.Add(PathString);
+					MetadataOverrides->SetArrayMetadata(BaseStruct, FavoriteCustomBuildersName, FavoriteBuildersList);
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

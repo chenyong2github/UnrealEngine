@@ -6,6 +6,7 @@
 #include "DetailPropertyRow.h"
 #include "DetailWidgetRow.h"
 #include "Editor.h"
+#include "EditorMetadataOverrides.h"
 #include "IDetailKeyframeHandler.h"
 #include "IDetailPropertyExtensionHandler.h"
 #include "ObjectPropertyNode.h"
@@ -691,17 +692,13 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 	{
 		FUIAction FavoriteAction;
 		FavoriteAction.ExecuteAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnFavoriteMenuToggle);
-		FavoriteAction.CanExecuteAction = FCanExecuteAction::CreateLambda([this]()
-			{
-				return Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->CanDisplayFavorite();
-			});
+		FavoriteAction.CanExecuteAction = FCanExecuteAction::CreateSP(this, &SDetailSingleItemRow::CanFavorite);
 
 		FText FavoriteText = NSLOCTEXT("PropertyView", "FavoriteProperty", "Add to Favorites");
 		FText FavoriteTooltipText = NSLOCTEXT("PropertyView", "FavoriteProperty_ToolTip", "Add this property to your favorites.");
 		FName FavoriteIcon = "DetailsView.PropertyIsFavorite";
 
-		bool IsFavorite = Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->IsFavorite();
-		if (IsFavorite)
+		if (IsFavorite())
 		{
 			FavoriteText = NSLOCTEXT("PropertyView", "RemoveFavoriteProperty", "Remove from Favorites");
 			FavoriteTooltipText = NSLOCTEXT("PropertyView", "RemoveFavoriteProperty_ToolTip", "Remove this property from your favorites.");
@@ -834,20 +831,87 @@ TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget() const
 	return ExtensionWidget.ToSharedRef();
 }
 
+bool SDetailSingleItemRow::CanFavorite() const
+{
+	if (Customization->HasPropertyNode())
+	{
+		return Customization->GetPropertyNode()->CanDisplayFavorite();
+	}
+
+	if (Customization->HasCustomBuilder())
+	{
+		return Customization->CustomBuilderRow->GetCustomBuilderName() != NAME_None;
+	}
+
+	return false;
+}
+
+bool SDetailSingleItemRow::IsFavorite() const
+{
+	if (Customization->HasPropertyNode())
+	{
+		return Customization->GetPropertyNode()->IsFavorite();
+	}
+
+	if (Customization->HasCustomBuilder())
+	{
+		TSharedPtr<FDetailTreeNode> OwnerTreeNodePinned = OwnerTreeNode.Pin();
+		if (OwnerTreeNodePinned.IsValid())
+		{
+			TSharedPtr<FDetailCategoryImpl> ParentCategory = OwnerTreeNodePinned->GetParentCategory();
+			if (ParentCategory.IsValid())
+			{
+				FName BuilderName = Customization->CustomBuilderRow->GetCustomBuilderName();
+				if (BuilderName != NAME_None)
+				{
+					TStringBuilder<256> PathToNode;
+					PathToNode.Append(ParentCategory->GetCategoryPathName());
+					PathToNode.Append(TEXT("."));
+					PathToNode.Append(BuilderName.ToString());
+
+					return OwnerTreeNodePinned->GetDetailsView()->IsCustomBuilderFavorite(PathToNode);
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 void SDetailSingleItemRow::OnFavoriteMenuToggle()
 {
-	if (!Customization->GetPropertyNode().IsValid() || !Customization->GetPropertyNode()->CanDisplayFavorite())
+	if (!CanFavorite())
 	{
 		return; 
 	}
-
-	bool bToggled = !Customization->GetPropertyNode()->IsFavorite();
-	Customization->GetPropertyNode()->SetFavorite(bToggled);
 
 	TSharedPtr<FDetailTreeNode> OwnerTreeNodePinned = OwnerTreeNode.Pin();
 	if (!OwnerTreeNodePinned.IsValid())
 	{
 		return;
+	}
+
+	IDetailsViewPrivate* DetailsView = OwnerTreeNodePinned->GetDetailsView();
+
+	bool bNewValue = !IsFavorite();
+	if (Customization->HasPropertyNode())
+	{
+		TSharedPtr<FPropertyNode> PropertyNode = Customization->GetPropertyNode();
+		PropertyNode->SetFavorite(bNewValue);
+	}
+	else if (Customization->HasCustomBuilder())
+	{
+		TSharedPtr<FDetailCategoryImpl> ParentCategory = OwnerTreeNodePinned->GetParentCategory();
+		if (ParentCategory.IsValid())
+		{
+			TStringBuilder<256> PathToNode;
+			PathToNode.Append(ParentCategory->GetCategoryPathName());
+			PathToNode.Append(TEXT("."));
+			PathToNode.Append(Customization->CustomBuilderRow->GetCustomBuilderName().ToString());
+
+			bNewValue = !DetailsView->IsCustomBuilderFavorite(PathToNode);
+			DetailsView->SetCustomBuilderFavorite(PathToNode, bNewValue);
+		}
 	}
 
 	// Calculate the scrolling offset (by item) to make sure the mouse stay over the same property
@@ -863,8 +927,7 @@ void SDetailSingleItemRow::OnFavoriteMenuToggle()
 	}
 
 	// Apply the calculated offset
-	IDetailsViewPrivate* DetailsView = OwnerTreeNodePinned->GetDetailsView();
-	DetailsView->MoveScrollOffset(bToggled ? ExpandSize : -ExpandSize);
+	DetailsView->MoveScrollOffset(bNewValue ? ExpandSize : -ExpandSize);
 
 	// Refresh the tree
 	DetailsView->ForceRefresh();

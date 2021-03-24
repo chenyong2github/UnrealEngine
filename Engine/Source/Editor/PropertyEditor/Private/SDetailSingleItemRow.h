@@ -81,6 +81,8 @@ private:
 	bool IsHighlighted() const;
 
 	void OnFavoriteMenuToggle();
+	bool CanFavorite() const;
+	bool IsFavorite() const;
 
 	void OnArrayDragEnter(const FDragDropEvent& DragDropEvent);
 	void OnArrayDragLeave(const FDragDropEvent& DragDropEvent);

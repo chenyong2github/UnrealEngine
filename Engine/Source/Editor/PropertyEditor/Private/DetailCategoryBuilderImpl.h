@@ -19,12 +19,10 @@
 #include "DetailCategoryBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 
-class FDetailCustomBuilderRow;
-class FDetailGroup;
-class FDetailPropertyRow;
-class FDetailWidgetRow;
 class IDetailGroup;
+class FDetailGroup;
 class IDetailPropertyRow;
+class FDetailPropertyRow;
 
 /**
  * Defines a customization for a specific detail
@@ -58,9 +56,11 @@ struct FDetailLayoutCustomization
 	TSharedPtr<FPropertyNode> GetPropertyNode() const;
 	/** @return The row to display from this customization */
 	FDetailWidgetRow GetWidgetRow() const;
+	/** Whether or not this customization is considered an advanced property. */
+	bool bAdvanced { false };
+	/** Whether or not this customization is custom or a default one. */
+	bool bCustom { false };
 };
-
-typedef TArray<FDetailLayoutCustomization> FCustomizationList;
 
 class FDetailLayout
 {
@@ -69,31 +69,26 @@ public:
 		: InstanceName(InInstanceName)
 	{}
 
-	void AddCustomLayout(const FDetailLayoutCustomization& Layout, bool bAdvanced);
-	void AddDefaultLayout(const FDetailLayoutCustomization& Layout, bool bAdvanced);
+	void AddLayout(const FDetailLayoutCustomization& Layout);
 
-	const FCustomizationList& GetCustomSimpleLayouts() const { return CustomSimpleLayouts; }
-	const FCustomizationList& GetCustomAdvancedLayouts() const { return CustomAdvancedLayouts; }
-	const FCustomizationList& GetDefaultSimpleLayouts() const { return DefaultSimpleLayouts; }
-	const FCustomizationList& GetDefaultAdvancedLayouts() const { return DefaultAdvancedLayouts; }
+	const TArray<FDetailLayoutCustomization>& GetSimpleLayouts() const { return SimpleLayouts; }
+	const TArray<FDetailLayoutCustomization>& GetAdvancedLayouts() const { return AdvancedLayouts; }
 
 	FDetailLayoutCustomization* GetDefaultLayout(const TSharedRef<FPropertyNode>& PropertyNode);
 
-	bool HasAdvancedLayouts() const { return CustomAdvancedLayouts.Num() > 0 || DefaultAdvancedLayouts.Num() > 0; }
+	bool HasAdvancedLayouts() const { return AdvancedLayouts.Num() > 0; }
 
+	/**
+	 * Get the instance name - this is usually the UObject's name when in a multi-selection.
+	 * Used to display a group beneath the category if multiple objects share some of the same-named properties.
+	 */
 	FName GetInstanceName() const { return InstanceName; }
 
 private:
-	void AddLayoutInternal(const FDetailLayoutCustomization& Layout, FCustomizationList& ListToUse);
-private:
-	/** Customized layouts that appear in the simple (visible by default) area of a category */
-	FCustomizationList CustomSimpleLayouts;
-	/** Customized layouts that appear in the advanced (hidden by default) details area of a category */
-	FCustomizationList CustomAdvancedLayouts;
-	/** Default layouts that appear in the simple (visible by default) details area of a category */
-	FCustomizationList DefaultSimpleLayouts;
-	/** Default layouts that appear in the advanced (visible by default) details area of a category */
-	FCustomizationList DefaultAdvancedLayouts;
+	/** Layouts that appear in the simple (visible by default) area of a category */
+	TArray<FDetailLayoutCustomization> SimpleLayouts;
+	/** Layouts that appear in the advanced (hidden by default) details area of a category */
+	TArray<FDetailLayoutCustomization> AdvancedLayouts;
 	/** The sort order in which this layout is displayed (lower numbers are displayed first) */
 	FName InstanceName;
 };
@@ -124,16 +119,13 @@ public:
 		return Layouts[Index];
 	}
 
-	/**
-	 * @return The number of layouts
-	 */
-	int32 Num() const { return Layouts.Num(); }
+	using RangedForIteratorType = TArray<FDetailLayout>::RangedForIteratorType;
+	using RangedForConstIteratorType = TArray<FDetailLayout>::RangedForConstIteratorType;
 
-	/**
-	 * @return Gets a layout at a specific instance
-	 */
-	const FDetailLayout& operator[](int32 Index) const { return Layouts[Index]; }
-	FDetailLayout& operator[](int32 Index) { return Layouts[Index]; }
+	FORCEINLINE RangedForIteratorType      begin()       { return Layouts.begin(); }
+	FORCEINLINE RangedForConstIteratorType begin() const { return Layouts.begin(); }
+	FORCEINLINE RangedForIteratorType      end()         { return Layouts.end(); }
+	FORCEINLINE RangedForConstIteratorType end()   const { return Layouts.end(); }
 
 	/**
 	 * @return Whether or not we need to display a group border around a list of details.
@@ -293,6 +285,9 @@ public:
 	/** @return true if this category only contains advanced properties */
 	bool ContainsOnlyAdvanced() const;
 
+	/**
+	 * Get the number of customizations in this category.
+	 */
 	int32 GetNumCustomizations() const;
 
 	/**
@@ -325,20 +320,8 @@ private:
 	 *
 	 * @param InCustomizationList	The list of customizations to generate nodes from
 	 * @param OutNodeList			The generated nodes
-	 * @param bDefaultLayouts		True if we are generating a default layout
 	 */
-	void GenerateNodesFromCustomizations(const FCustomizationList& InCustomizationList, bool bDefaultLayouts, FDetailNodeList& OutNodeList, bool &bOutHasMultipleColumns);
-
-	/**
-	 * Generates nodes from a list of customization in a single layout
-	 *
-	 * @param RequiredGroupName 	If valid the children will be surrounded by a group
-	 * @param bDefaultLayout	True if we are generating a default layout
-	 * @param bNeedsGroup		True if the children need to be grouped
-	 * @param LayoutList		The list of customizations to generate nodes from
-		 * @param OutChildren		The generated nodes
-	 */
-	bool GenerateChildrenForSingleLayout(const FName RequiredGroupName, bool bDefaultLayout, bool bNeedsGroup, const FCustomizationList& LayoutList, FDetailNodeList& OutChildren, bool& bOutHasMultipleColumns);
+	void GenerateNodesFromCustomizations(const TArray<FDetailLayoutCustomization>& InCustomizationList, FDetailNodeList& OutNodeList);
 
 	/**
 	 * @return Whether or not a customization should appear in the advanced section of the category by default
@@ -351,7 +334,7 @@ private:
 	 * @param LayoutInfo	The custom layout information
 	 * @param bForAdvanced	Whether or not the custom layout should appear in the advanced section of the category
 	 */
-	void AddCustomLayout(const FDetailLayoutCustomization& LayoutInfo, bool bForAdvanced);
+	void AddCustomLayout(const FDetailLayoutCustomization& LayoutInfo);
 
 	/**
 	 * Adds a default layout to this category
@@ -359,7 +342,7 @@ private:
 	 * @param DefaultLayoutInfo		The layout information
 	 * @param bForAdvanced			Whether or not the layout should appear in the advanced section of the category
 	 */
-	void AddDefaultLayout(const FDetailLayoutCustomization& DefaultLayoutInfo, bool bForAdvanced, FName InstanceName);
+	void AddDefaultLayout(const FDetailLayoutCustomization& DefaultLayoutInfo, FName InstanceName);
 
 	/**
 	 * Returns the layout for a given object instance name
@@ -407,7 +390,7 @@ private:
 	FString CategoryPathName;
 	/** Custom header content displayed to the right of the category name */
 	TSharedPtr<SWidget> HeaderContentWidget;
-
+	/** A property node that is displayed in the header row to the right of the category name. */
 	TSharedPtr<FDetailTreeNode> InlinePropertyNode;
 	/** The parent detail builder */
 	TWeakPtr<FDetailLayoutBuilderImpl> DetailLayoutBuilder;
@@ -429,7 +412,7 @@ private:
 	bool bHasVisibleDetails : 1;
 	/** true if the category is visible at all */
 	bool bIsCategoryVisible : 1;
-	/*true if the category is the special favorite category, all property in the layout will be display when we generate the roottree */
+	/*true if this category is the special favorite category, all property in the layout will be display when we generate the root tree */
 	bool bFavoriteCategory : 1;
 	bool bShowOnlyChildren : 1;
 };

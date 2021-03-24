@@ -145,4 +145,16 @@ public:
 
 	/** Does this details view allow favoriting? */
 	virtual bool IsFavoritingEnabled() const = 0;
+
+	/** Is the given group a favorite? */
+	virtual bool IsGroupFavorite(FStringView GroupPath) const = 0;
+
+	/** Set the given group's favorite status. */
+	virtual void SetGroupFavorite(FStringView GroupPath, bool IsFavorite) = 0;
+
+	/** Is the given custom builder a favorite? */
+	virtual bool IsCustomBuilderFavorite(FStringView Path) const = 0;
+
+	/** Set the given group's favorite status. */
+	virtual void SetCustomBuilderFavorite(FStringView GroupPath, bool IsFavorite) = 0;
 };

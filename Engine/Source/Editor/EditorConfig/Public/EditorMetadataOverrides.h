@@ -51,6 +51,16 @@ struct FMetadataConfig
 	TMap<FName, FStructMetadata> Classes;
 };
 
+UENUM()
+enum class EMetadataType
+{
+	None,
+	Bool,
+	Int,
+	Float,
+	String
+};
+
 UCLASS()
 class EDITORCONFIG_API UEditorMetadataOverrides : 
 	public UEditorSubsystem, 
@@ -67,7 +77,8 @@ public:
 	bool LoadFromConfig(TSharedPtr<FEditorConfig> Config);
 	void Save();
 
-	bool HasMetadata(const FField* Field, FName Key) const;
+	EMetadataType GetMetadataType(const FField* Field, FName Key) const;
+	EMetadataType GetMetadataType(const UStruct* Struct, FName Key) const;
 
 	bool GetStringMetadata(const FField* Field, FName Key, FString& OutValue) const;
 	void SetStringMetadata(const FField* Field, FName Key, FStringView Value);
@@ -84,14 +95,48 @@ public:
 	bool GetClassMetadata(const FField* Field, FName Key, UClass*& OutValue) const;
 	void SetClassMetadata(const FField* Field, FName Key, UClass* Value);
 
+	bool GetArrayMetadata(const FField* Field, FName Key, TArray<FString>& OutValue) const;
+	void SetArrayMetadata(const FField* Field, FName Key, const TArray<FString>& Value);
+
+	void AddToArrayMetadata(const FField* Field, FName Key, const FString& Value);
+	void RemoveFromArrayMetadata(const FField* Field, FName Key, const FString& Value);
+
 	void RemoveMetadata(const FField* Field, FName Key);
+
+	bool GetStringMetadata(const UStruct* Struct, FName Key, FString& OutValue) const;
+	void SetStringMetadata(const UStruct* Struct, FName Key, FStringView Value);
+
+	bool GetFloatMetadata(const UStruct* Struct, FName Key, float& OutValue) const;
+	void SetFloatMetadata(const UStruct* Struct, FName Key, float Value);
+
+	bool GetIntMetadata(const UStruct* Struct, FName Key, int32& OutValue) const;
+	void SetIntMetadata(const UStruct* Struct, FName Key, int32 Value);
+
+	bool GetBoolMetadata(const UStruct* Struct, FName Key, bool& OutValue) const;
+	void SetBoolMetadata(const UStruct* Struct, FName Key, bool Value);
+
+	bool GetClassMetadata(const UStruct* Struct, FName Key, UClass*& OutValue) const;
+	void SetClassMetadata(const UStruct* Struct, FName Key, UClass* Value);
+
+	bool GetArrayMetadata(const UStruct* Struct, FName Key, TArray<FString>& OutValue) const;
+	void SetArrayMetadata(const UStruct* Struct, FName Key, const TArray<FString>& Value);
+
+	void AddToArrayMetadata(const UStruct* Struct, FName Key, const FString& Value);
+	void RemoveFromArrayMetadata(const UStruct* Struct, FName Key, const FString& Value);
+
+	void RemoveMetadata(const UStruct* Struct, FName Key);
 
 	void Tick(float DeltaTime) override;
 	TStatId GetStatId() const override;
 
 private:
-	const FMetadataSet* FindFieldMetadata(const FField* Field, FName Key) const;
-	FMetadataSet* FindOrAddFieldMetadata(const FField* Field, FName Key);
+	const FMetadataSet* FindFieldMetadata(const FField* Field) const;
+	FMetadataSet* FindFieldMetadata(const FField* Field);
+	FMetadataSet* FindOrAddFieldMetadata(const FField* Field);
+
+	const FMetadataSet* FindStructMetadata(const UStruct* Struct) const;
+	FMetadataSet* FindStructMetadata(const UStruct* Struct);
+	FMetadataSet* FindOrAddStructMetadata(const UStruct* Struct);
 
 	void OnCompleted(bool bSuccess);
 

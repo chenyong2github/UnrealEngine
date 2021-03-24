@@ -42,6 +42,10 @@ public:
 	virtual void SetObjects(const TArray<UObject*>& InObjects, bool bForceRefresh = false, bool bOverrideLock = false) override;
 	virtual void SetObjects(const TArray<TWeakObjectPtr<UObject>>& InObjects, bool bForceRefresh = false, bool bOverrideLock = false) override;
 	virtual void SetObject(UObject* InObject, bool bForceRefresh = false) override;
+	virtual bool IsGroupFavorite(FStringView GroupPath) const override;
+	virtual void SetGroupFavorite(FStringView GroupPath, bool IsFavorite) override;
+	virtual bool IsCustomBuilderFavorite(FStringView Path) const override;
+	virtual void SetCustomBuilderFavorite(FStringView Path, bool IsFavorite) override;
 
 	virtual void RemoveInvalidObjects() override;
 	virtual void SetObjectPackageOverrides(const TMap<TWeakObjectPtr<UObject>, TWeakObjectPtr<UPackage>>& InMapping) override;

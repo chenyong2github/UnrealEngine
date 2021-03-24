@@ -42,12 +42,12 @@ public:
 	/**
 	 * Called to generate child content of this node
 	 *
-	 * @param OutChildRows An array of rows to add children to
+	 * @param ChildrenBuilder The builder to add child rows to.
 	 */
-	virtual void GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilder ) = 0;
+	virtual void GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilder ) {}
 
 	/**
-	 * Called each tick if ReqiresTick is true
+	 * Called each tick if RequiresTick is true
 	 */
 	virtual void Tick(float DeltaTime) {}
 
