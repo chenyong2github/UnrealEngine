@@ -49,6 +49,7 @@
 #include "PixelShaderUtils.h"
 #include "ScreenSpaceRayTracing.h"
 #include "SceneViewExtension.h"
+#include "NaniteVisualizationData.h"
 #include "FXSystem.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
@@ -1012,6 +1013,25 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 	if (EngineShowFlags.TestImage)
 	{
 		AddTestImagePass(GraphBuilder, View, SceneColor);
+	}
+
+	const FNaniteVisualizationData& NaniteVisualizationData = GetNaniteVisualizationData();
+	if (EngineShowFlags.VisualizeNanite && NaniteRasterResults != nullptr && NaniteVisualizationData.IsActive())
+	{
+		// TODO: NANITE_VIEW_MODES: Add resample + tile grid and border for overview (multiple visualizations)
+		if (NaniteRasterResults->Visualizations.Num() == 1)
+		{
+			const Nanite::FVisualizeResult& Visualization = NaniteRasterResults->Visualizations[0];
+			AddDrawTexturePass(
+				GraphBuilder,
+				View,
+				Visualization.ModeOutput,
+				SceneColor.Texture,
+				View.ViewRect.Min,
+				View.ViewRect.Min,
+				View.ViewRect.Size()
+			);
+		}
 	}
 
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
