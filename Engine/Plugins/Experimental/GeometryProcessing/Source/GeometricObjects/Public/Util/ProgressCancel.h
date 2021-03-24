@@ -5,6 +5,9 @@
 #pragma once
 
 #include "Templates/Function.h"
+#include "Containers/Array.h"
+#include "Internationalization/Text.h"
+#include "Misc/DateTime.h"
 
 /**
  * FProgressCancel is an obejct that is intended to be passed to long-running
