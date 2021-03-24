@@ -206,8 +206,6 @@ struct TInterval1
 
 typedef TInterval1<float> FInterval1f;
 typedef TInterval1<double> FInterval1d;
-typedef TInterval1<int> FInterval1i;
-
 
 
 template <typename RealType>
@@ -713,10 +711,8 @@ struct TAxisAlignedBox2
 
 typedef TAxisAlignedBox2<float> FAxisAlignedBox2f;
 typedef TAxisAlignedBox2<double> FAxisAlignedBox2d;
-typedef TAxisAlignedBox2<int> FAxisAlignedBox2i;
 typedef TAxisAlignedBox3<float> FAxisAlignedBox3f;
 typedef TAxisAlignedBox3<double> FAxisAlignedBox3d;
-typedef TAxisAlignedBox3<int> FAxisAlignedBox3i;
 
 } // end namespace UE::Geometry
 } // end namespace UE

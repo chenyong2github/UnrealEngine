@@ -7,6 +7,7 @@
 #include "Util/DynamicVector.h"
 #include "IndexTypes.h"
 #include "VectorTypes.h"
+#include "IntVectorTypes.h"
 
 
 namespace IndexUtil

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "VectorTypes.h"
+#include "IntVectorTypes.h"
 #include "LineTypes.h"
 #include "TriangleTypes.h"
 #include "VectorUtil.h"

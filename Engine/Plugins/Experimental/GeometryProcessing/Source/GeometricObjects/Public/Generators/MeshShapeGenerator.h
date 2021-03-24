@@ -3,6 +3,7 @@
 #pragma once
 
 #include "VectorTypes.h"
+#include "IntVectorTypes.h"
 #include "IndexTypes.h"
 
 namespace UE

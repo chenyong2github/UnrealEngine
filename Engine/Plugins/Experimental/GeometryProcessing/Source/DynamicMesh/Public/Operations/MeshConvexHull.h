@@ -4,6 +4,7 @@
 
 #include "MathUtil.h"
 #include "VectorTypes.h"
+#include "IntVectorTypes.h"
 #include "GeometryTypes.h"
 #include "DynamicMesh3.h"
 

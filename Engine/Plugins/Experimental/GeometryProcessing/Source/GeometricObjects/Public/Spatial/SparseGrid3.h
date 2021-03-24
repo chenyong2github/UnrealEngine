@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "BoxTypes.h"
+#include "IntBoxTypes.h"
 
 namespace UE
 {

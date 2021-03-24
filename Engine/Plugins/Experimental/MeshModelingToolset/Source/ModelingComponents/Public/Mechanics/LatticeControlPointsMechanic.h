@@ -12,6 +12,7 @@
 #include "Spatial/GeometrySet3.h"
 #include "ToolContextInterfaces.h" //FViewCameraState
 #include "VectorTypes.h"
+#include "IntVectorTypes.h"
 #include "VectorUtil.h"
 #include "ToolDataVisualizer.h"
 #include "SceneView.h"

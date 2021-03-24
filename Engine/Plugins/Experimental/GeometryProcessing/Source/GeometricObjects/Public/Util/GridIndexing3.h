@@ -5,6 +5,7 @@
 #pragma once
 
 #include "VectorTypes.h"
+#include "IntVectorTypes.h"
 #include "BoxTypes.h"
 
 namespace UE

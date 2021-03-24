@@ -29,9 +29,11 @@
 
 #include "IndexTypes.h"
 #include "VectorTypes.h"
+#include "IntVectorTypes.h"
 #include "MatrixTypes.h"
 #include "Quaternion.h"
 #include "BoxTypes.h"
+#include "IntBoxTypes.h"
 #include "PlaneTypes.h"
 #include "HalfspaceTypes.h"
 #include "LineTypes.h"
@@ -57,7 +59,6 @@ using UE::Geometry::FVector2i;
 using UE::Geometry::FVector3i;
 //using UE::Geometry::FVector4f;
 //using UE::Geometry::FVector4d;
-using UE::Geometry::FVector4i;
 
 using UE::Geometry::FMatrix3f;
 using UE::Geometry::FMatrix3d;

@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/StaticArray.h"
+#include "IntVectorTypes.h"
 #include "BoxTypes.h"
 #include "GeometryTypes.h"
 #include "Util/DynamicVector.h"

@@ -16,7 +16,7 @@ namespace Geometry {
 * maintaining compatibility with existing g3Sharp code. Has an API
 * similar to WildMagic, GTEngine, Eigen, etc.
 *
-* Convenience typedefs for FVector2f/FVector2d/FVector2i are defined, and
+* Convenience typedefs for FVector2f/FVector2d are defined, and
 * should be preferentially used over the base template type
 *
 * @todo Possibly can be replaced/merged with Chaos TVector<T,N>
@@ -326,7 +326,7 @@ FVector2<T> Lerp(const FVector2<T>& A, const FVector2<T>& B, T Alpha)
  * maintaining compatibility with existing g3Sharp code. Has an API
  * similar to WildMagic, GTEngine, Eigen, etc. 
  * 
- * Convenience typedefs for FVector3f/FVector3d/FVector3i are defined, and
+ * Convenience typedefs for FVector3f/FVector3d are defined, and
  * should be preferentially used over the base template type
  * 
  * @todo Possibly can be replaced/merged with Chaos TVector<T,N>
@@ -780,8 +780,6 @@ std::ostream& operator<<(std::ostream& os, const FVector3<RealType>& Vec)
 	return os;
 }
 
-typedef FVector3<int> FVector3i;
-
 template <typename T>
 FORCEINLINE uint32 GetTypeHash(const FVector3<T>& Vector)
 {
@@ -821,10 +819,6 @@ std::ostream& operator<<(std::ostream& os, const FVector2<RealType>& Vec)
 	os << Vec.X << " " << Vec.Y;
 	return os;
 }
-
-typedef FVector2<int> FVector2i;
-
-
 
 
 
@@ -1111,7 +1105,6 @@ std::ostream& operator<<(std::ostream& os, const TVector4<RealType>& Vec)
 	return os;
 }
 
-typedef TVector4<int> FVector4i;
 
 template <typename T>
 FORCEINLINE uint32 GetTypeHash(const TVector4<T>& Vector)
