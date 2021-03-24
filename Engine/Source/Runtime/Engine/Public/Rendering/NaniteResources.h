@@ -356,7 +356,7 @@ struct FResources
 #endif
 	
 	ENGINE_API void InitResources();
-	ENGINE_API void ReleaseResources();
+	ENGINE_API bool ReleaseResources();
 
 	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner);
 };

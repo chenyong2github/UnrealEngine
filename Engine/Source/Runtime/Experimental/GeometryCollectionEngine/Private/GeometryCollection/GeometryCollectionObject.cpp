@@ -844,6 +844,7 @@ FGeometryCollectionNaniteData::FGeometryCollectionNaniteData()
 
 FGeometryCollectionNaniteData::~FGeometryCollectionNaniteData()
 {
+	ReleaseResources();
 }
 
 void FGeometryCollectionNaniteData::Serialize(FArchive& Ar, UGeometryCollection* Owner)
@@ -892,7 +893,14 @@ void FGeometryCollectionNaniteData::ReleaseResources()
 		return;
 	}
 
-	NaniteResource.ReleaseResources();
+	if (NaniteResource.ReleaseResources())
+	{
+		// HACK: Make sure the renderer is done processing the command, and done using NaniteResource, before we continue.
+		// This code could really use a refactor.
+		FRenderCommandFence Fence;
+		Fence.BeginFence();
+		Fence.Wait();
+	}
 
 	bIsInitialized = false;
 }
