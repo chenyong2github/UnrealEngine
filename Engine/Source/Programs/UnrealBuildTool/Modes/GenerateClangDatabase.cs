@@ -97,13 +97,20 @@ namespace UnrealBuildTool
 								StringBuilder CommandBuilder = new StringBuilder();
 								CommandBuilder.AppendFormat("\"{0}\"", ClangPath.FullName);
 
-								if (ModuleCompileEnvironment.CppStandard >= CppStandardVersion.Cpp17)
+								switch (ModuleCompileEnvironment.CppStandard)
 								{
-									CommandBuilder.AppendFormat(" -std=c++17");
-								}
-								else if (ModuleCompileEnvironment.CppStandard >= CppStandardVersion.Cpp14)
-								{
-									CommandBuilder.AppendFormat(" -std=c++14");
+									case CppStandardVersion.Cpp14:
+										CommandBuilder.AppendFormat(" -std=c++14");
+										break;
+									case CppStandardVersion.Latest:
+									case CppStandardVersion.Cpp17:
+										CommandBuilder.AppendFormat(" -std=c++17");
+										break;
+									case CppStandardVersion.Cpp20:
+										CommandBuilder.AppendFormat(" -std=c++20");
+										break;
+									default:
+										throw new BuildException($"Unsupported C++ standard type set: {ModuleCompileEnvironment.CppStandard}");
 								}
 
 								foreach (FileItem ForceIncludeFile in ModuleCompileEnvironment.ForceIncludeFiles)

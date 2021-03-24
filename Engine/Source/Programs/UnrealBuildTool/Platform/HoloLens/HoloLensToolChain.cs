@@ -255,18 +255,26 @@ namespace UnrealBuildTool
 			// we've hit problems where types are somehow in windows.winmd on some installations but not others, leading to either
 			// missing or duplicated type references.
 			Arguments.Add("/ZW:nostdlib");
-
-			if (CompileEnvironment.CppStandard >= CppStandardVersion.Latest)
+			
+			// Note: Should be shared with all Windows-like platforms.
+			switch (CompileEnvironment.CppStandard)
 			{
-				Arguments.Add("/std:c++latest");
-			}
-			else if (CompileEnvironment.CppStandard >= CppStandardVersion.Cpp17)
-			{
-				Arguments.Add("/std:c++17");
-			}
-			else if (CompileEnvironment.CppStandard >= CppStandardVersion.Cpp14)
-			{
-				Arguments.Add("/std:c++14");
+				case CppStandardVersion.Cpp14:
+					Arguments.Add("/std:c++14");
+					break;
+				case CppStandardVersion.Cpp17:
+					Arguments.Add("/std:c++17");
+					break;
+				case CppStandardVersion.Latest:
+					Arguments.Add("/std:c++latest");
+					break;
+				// Will be added when MSVC is feature-complete.
+				// https://docs.microsoft.com/en-us/cpp/build/reference/std-specify-language-standard-version?view=msvc-160
+				// case CppStandardVersion.Cpp20:
+				//	Arguments.Add("/std:c++20");
+				//  break;
+				default:
+					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
 			}
 
 			// Explicitly compile the file as C++.

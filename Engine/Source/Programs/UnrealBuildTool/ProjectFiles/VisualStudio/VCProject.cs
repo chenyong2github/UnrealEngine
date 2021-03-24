@@ -574,7 +574,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets compiler switch for specifying in AdditionalOptions in .vcxproj file for specific C++ version
 		/// </summary>
-		private static string GetIntelliSenseSwitchForCppVersion(CppStandardVersion Version)
+		private static string GetCppStandardCompileArgument(CppStandardVersion Version)
 		{
 			switch (Version)
 			{
@@ -1059,7 +1059,7 @@ namespace UnrealBuildTool
 				VCProjectFileContent.AppendLine("    <NMakeForcedIncludes>$(NMakeForcedIncludes)</NMakeForcedIncludes>");
 				VCProjectFileContent.AppendLine("    <NMakeAssemblySearchPath>$(NMakeAssemblySearchPath)</NMakeAssemblySearchPath>");
 				VCProjectFileContent.AppendLine("    <AdditionalOptions>{0}</AdditionalOptions>",
-					GetIntelliSenseSwitchForCppVersion(GetIntelliSenseCppVersion()));
+					GetCppStandardCompileArgument(GetIntelliSenseCppVersion()));
 				VCProjectFileContent.AppendLine("  </PropertyGroup>");
 			}
 
@@ -1674,19 +1674,7 @@ namespace UnrealBuildTool
 					VCProjectFileContent.AppendLine("    <NMakeReBuildCommandLine>{0} {1}</NMakeReBuildCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Rebuild.bat"))), BuildArguments.ToString());
 					VCProjectFileContent.AppendLine("    <NMakeCleanCommandLine>{0} {1}</NMakeCleanCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Clean.bat"))), BuildArguments.ToString());
 					VCProjectFileContent.AppendLine("    <NMakeOutput>{0}</NMakeOutput>", NormalizeProjectPath(NMakePath.FullName));
-
-					if (TargetRulesObject.CppStandard >= CppStandardVersion.Latest)
-					{
-						VCProjectFileContent.AppendLine("    <AdditionalOptions>/std:c++latest</AdditionalOptions>");
-					}
-					else if (TargetRulesObject.CppStandard >= CppStandardVersion.Cpp17)
-					{
-						VCProjectFileContent.AppendLine("    <AdditionalOptions>/std:c++17</AdditionalOptions>");
-					}
-					else if (TargetRulesObject.CppStandard >= CppStandardVersion.Cpp14)
-					{
-						VCProjectFileContent.AppendLine("    <AdditionalOptions>/std:c++14</AdditionalOptions>");
-					}
+					VCProjectFileContent.AppendLine("    <AdditionalOptions>{0}</AdditionalOptions>", GetCppStandardCompileArgument(TargetRulesObject.CppStandard));
 
 					if (TargetRulesObject.Type == TargetType.Game || TargetRulesObject.Type == TargetType.Client || TargetRulesObject.Type == TargetType.Server)
 					{
