@@ -659,22 +659,25 @@ void UWorldPartitionRuntimeSpatialHash::CreateActorDescViewMap(const UActorDescC
 
 		if (!ActorDescView.GetActorIsEditorOnly())
 		{
-			if (ActorDescView.GetGridPlacement() == EActorGridPlacement::Bounds)
+			if (ActorDescView.GetActorClass()->GetDefaultObject<AActor>()->GetDefaultGridPlacement() == EActorGridPlacement::None)
 			{
-				const int32* GridIndexPtr = GridsMapping.Find(ActorDescView.GetRuntimeGrid());
-				const int32 GridIndex = GridIndexPtr ? *GridIndexPtr : 0;
-				const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
-				const float CellArea = RuntimeGrid.CellSize * RuntimeGrid.CellSize;
-				const FBox2D ActorBounds2D = FBox2D(FVector2D(ActorDescView.GetBounds().Min), FVector2D(ActorDescView.GetBounds().Max));
-				const float ActorBoundsArea = ActorBounds2D.GetArea();
+				if (ActorDescView.GetGridPlacement() != EActorGridPlacement::AlwaysLoaded)
+				{
+					const int32* GridIndexPtr = GridsMapping.Find(ActorDescView.GetRuntimeGrid());
+					const int32 GridIndex = GridIndexPtr ? *GridIndexPtr : 0;
+					const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
+					const float CellArea = RuntimeGrid.CellSize * RuntimeGrid.CellSize;
+					const FBox2D ActorBounds2D = FBox2D(FVector2D(ActorDescView.GetBounds().Min), FVector2D(ActorDescView.GetBounds().Max));
+					const float ActorBoundsArea = ActorBounds2D.GetArea();
 
-				if (ActorBoundsArea < CellArea / 16.0f)
-				{
-					ChangeActorDescViewGridPlacement(ActorDescView, EActorGridPlacement::Location);
-				}
-				else if (ActorBoundsArea > WorldBoundsArea / 2.0f)
-				{
-					ChangeActorDescViewGridPlacement(ActorDescView, EActorGridPlacement::AlwaysLoaded);
+					if (ActorBoundsArea > WorldBoundsArea / 2.0f)
+					{
+						ChangeActorDescViewGridPlacement(ActorDescView, EActorGridPlacement::AlwaysLoaded);
+					}
+					else if (ActorBoundsArea > CellArea)
+					{
+						ChangeActorDescViewGridPlacement(ActorDescView, EActorGridPlacement::Bounds);
+					}
 				}
 			}
 		}

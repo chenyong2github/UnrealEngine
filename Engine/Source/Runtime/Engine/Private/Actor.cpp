@@ -175,7 +175,7 @@ void AActor::InitializeDefaults()
 #endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
 
 #if WITH_EDITORONLY_DATA
-	GridPlacement = EActorGridPlacement::Bounds;
+	GridPlacement = EActorGridPlacement::Location;
 #endif
 }
 
