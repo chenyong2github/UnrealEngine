@@ -916,27 +916,28 @@ void FPerInstanceRenderData::UpdateFromPreallocatedData(FStaticMeshInstanceData&
 
 void FPerInstanceRenderData::UpdateBoundsTransforms_Concurrent()
 {
-	if (!bTrackBounds)
-	{
-		return;
-	}
-
-	// We shouldn't have multiple tasks in flight updating bounds/transforms to avoid a data race.
+	// We shouldn't have multiple tasks in flight updating bounds/transforms, to avoid a data race.
 	// Note that even if this check doesn't fail, there's still a race condition since there's a small
 	// possibility another thread could call UpdateBounds at the same time and write to UpdateBoundsTask
 	// between us checking the value and us writing to it.
+	// So for now it's recommended that after the initial creation of this object, only to call this function
+	// from the rendering thread.
 	check(!UpdateBoundsTask.IsValid());
 
 	UpdateBoundsTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
 		[this]()
 	{
 		const int32 InstanceCount = InstanceBuffer.GetNumInstances();
+			FBoxSphereBounds LocalBounds;
+			if (bTrackBounds)
+			{
+				LocalBounds = FBoxSphereBounds(InstanceLocalBounds);
 		PerInstanceBounds.Empty();
 		PerInstanceBounds.Reserve(InstanceCount);
+			}
 		PerInstanceTransforms.Empty();
 		PerInstanceTransforms.Reserve(InstanceCount);
 
-		FBoxSphereBounds LocalBounds(InstanceLocalBounds);
 		for (int InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
 		{
 			FMatrix InstTransform;
@@ -944,8 +945,11 @@ void FPerInstanceRenderData::UpdateBoundsTransforms_Concurrent()
 			InstanceBuffer.GetInstanceTransform(InstanceIndex, InstTransform);
 			InstTransform.M[3][3] = 1.0f;
 
+				if (bTrackBounds)
+				{
 			FBoxSphereBounds TransformedBounds = LocalBounds.TransformBy(InstTransform);
 			PerInstanceBounds.Add(FVector4(TransformedBounds.Origin, TransformedBounds.SphereRadius));
+				}
 			PerInstanceTransforms.Add(InstTransform);
 		}
 	}
@@ -954,6 +958,9 @@ void FPerInstanceRenderData::UpdateBoundsTransforms_Concurrent()
 
 const TArray<FVector4>& FPerInstanceRenderData::GetPerInstanceBounds()
 {
+	check(bTrackBounds);
+	check(IsInRenderingThread());
+
 	// wait for bounds update to complete
 	if (UpdateBoundsTask.IsValid())
 	{
@@ -966,7 +973,9 @@ const TArray<FVector4>& FPerInstanceRenderData::GetPerInstanceBounds()
 
 const TArray<FMatrix>& FPerInstanceRenderData::GetPerInstanceTransforms()
 {
-	// wait for bounds update to complete
+	check(IsInRenderingThread());
+
+	// wait for transforms update to complete
 	if (UpdateBoundsTask.IsValid())
 	{
 		UpdateBoundsTask->Wait(ENamedThreads::GetRenderThread_Local());
@@ -1064,12 +1073,9 @@ int32 FInstancedStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsC
 		FStaticMeshInstanceBuffer& InstanceBuffer = InstancedRenderData.PerInstanceRenderData->InstanceBuffer;
 		const int32 NumInstances = InstanceBuffer.GetNumInstances();
 		
-		for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
+		const TArray<FMatrix>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
+		for (const FMatrix& InstanceToLocal: PerInstanceTransforms)
 		{
-			FMatrix InstanceToLocal;
-			InstanceBuffer.GetInstanceTransform(InstanceIndex, InstanceToLocal);	
-			InstanceToLocal.M[3][3] = 1.0f;
-						
 			Collector.AddElements(OccluderData->VerticesSP, OccluderData->IndicesSP, InstanceToLocal * GetLocalToWorld());
 		}
 		
@@ -1212,12 +1218,9 @@ void FInstancedStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolume
 	ObjectLocalToWorldTransforms.Reset();
 
 	const uint32 NumInstances = InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances();
-	for (uint32 InstanceIndex = 0; InstanceIndex < NumInstances; InstanceIndex++)
+	const TArray<FMatrix>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
+	for (const FMatrix& InstanceToLocal: PerInstanceTransforms)
 	{
-		FMatrix InstanceToLocal;
-		InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIndex, InstanceToLocal);	
-		InstanceToLocal.M[3][3] = 1.0f;
-
 		ObjectLocalToWorldTransforms.Add(InstanceToLocal * GetLocalToWorld());
 	}
 }
@@ -1228,6 +1231,7 @@ void FInstancedStaticMeshSceneProxy::GetDistanceFieldInstanceInfo(int32& NumInst
 
 	if (NumInstances > 0)
 	{
+		// intentionally not waiting on the transform conversion task because we only need a single converted transform
 		FMatrix InstanceToLocal;
 		const int32 InstanceIndex = 0;
 		InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIndex, InstanceToLocal);
