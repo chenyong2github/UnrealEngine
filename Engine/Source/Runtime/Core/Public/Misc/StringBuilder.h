@@ -193,6 +193,55 @@ public:
 		return *this;
 	}
 
+	/** Replace characters at given position and length with substring */
+	void ReplaceAt(int32 Pos, int32 RemoveLen, ViewType Str)
+	{
+		check(Pos >= 0);
+		check(RemoveLen >= 0);
+		check(Pos + RemoveLen <= Len());
+
+		const int DeltaLen = Str.Len() - RemoveLen;		
+		if (DeltaLen < 0)
+		{
+			CurPos += DeltaLen;
+
+			for (CharType* It = Base + Pos, *NewEnd = CurPos; It != NewEnd; ++It)
+			{
+				*It = *(It - DeltaLen);
+			}
+		}
+		else if (DeltaLen > 0)
+		{
+			EnsureCapacity(Len() + DeltaLen);
+			CurPos += DeltaLen;
+
+			for (CharType* It = CurPos - 1, *StopIt = Base + Pos + Str.Len() - 1; It != StopIt; --It)
+			{
+				*It = *(It - DeltaLen);
+			}
+		}
+		
+		FMemory::Memcpy(Base + Pos, Str.GetData(), Str.Len() * sizeof(CharType));
+	}
+
+	/** Insert substring at given position */
+	void InsertAt(int32 Pos, ViewType Str)
+	{
+		ReplaceAt(Pos, 0, Str);
+	}
+
+	/** Remove characters at given position */
+	void RemoveAt(int32 Pos, int32 RemoveLen)
+	{
+		ReplaceAt(Pos, RemoveLen, ViewType());
+	}
+
+	/** Insert prefix */
+	void Prepend(ViewType Str)
+	{
+		ReplaceAt(0, 0, Str);
+	}
+
 	/**
 	 * Append every element of the range to the builder, separating the elements by the delimiter.
 	 *
