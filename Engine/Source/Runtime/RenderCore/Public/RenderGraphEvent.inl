@@ -73,10 +73,11 @@ void TRDGScopeStackHelper<TScopeType>::EndExecute(PopFunctionType PopFunction)
 template <typename TScopeType>
 TRDGScopeStack<TScopeType>::TRDGScopeStack(
 	FRHIComputeCommandList& InRHICmdList,
+	FRDGAllocator& InAllocator,
 	FPushFunction InPushFunction,
 	FPopFunction InPopFunction)
 	: RHICmdList(InRHICmdList)
-	, MemStack(FMemStack::Get())
+	, Allocator(InAllocator)
 	, PushFunction(InPushFunction)
 	, PopFunction(InPopFunction)
 {}
@@ -91,7 +92,7 @@ template <typename TScopeType>
 template <typename... TScopeConstructArgs>
 void TRDGScopeStack<TScopeType>::BeginScope(TScopeConstructArgs... ScopeConstructArgs)
 {
-	auto Scope = new(MemStack) TScopeType(CurrentScope, Forward<TScopeConstructArgs>(ScopeConstructArgs)...);
+	auto Scope = Allocator.AllocNoDestruct<TScopeType>(CurrentScope, Forward<TScopeConstructArgs>(ScopeConstructArgs)...);
 	Scopes.Add(Scope);
 	CurrentScope = Scope;
 }
@@ -214,9 +215,9 @@ inline const TCHAR* FRDGEventName::GetTCHAR() const
 
 #if RDG_GPU_SCOPES
 
-inline FRDGGPUScopeStacks::FRDGGPUScopeStacks(FRHIComputeCommandList& RHICmdList)
-	: Event(RHICmdList)
-	, Stat(RHICmdList)
+inline FRDGGPUScopeStacks::FRDGGPUScopeStacks(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator)
+	: Event(RHICmdList, Allocator)
+	, Stat(RHICmdList, Allocator)
 {}
 
 inline void FRDGGPUScopeStacks::BeginExecute()
@@ -250,9 +251,9 @@ inline FRDGGPUScopes FRDGGPUScopeStacks::GetCurrentScopes() const
 	return Scopes;
 }
 
-inline FRDGGPUScopeStacksByPipeline::FRDGGPUScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute)
-	: Graphics(RHICmdListGraphics)
-	, AsyncCompute(RHICmdListAsyncCompute)
+inline FRDGGPUScopeStacksByPipeline::FRDGGPUScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute, FRDGAllocator& Allocator)
+	: Graphics(RHICmdListGraphics, Allocator)
+	, AsyncCompute(RHICmdListAsyncCompute, Allocator)
 {}
 
 inline void FRDGGPUScopeStacksByPipeline::BeginEventScope(FRDGEventName&& ScopeName)
@@ -333,8 +334,8 @@ inline FRDGGPUScopes FRDGGPUScopeStacksByPipeline::GetCurrentScopes(ERHIPipeline
 
 #if RDG_CPU_SCOPES
 
-inline FRDGCPUScopeStacks::FRDGCPUScopeStacks(FRHIComputeCommandList& RHICmdList, const char* UnaccountedCSVStat)
-	: CSV(RHICmdList, UnaccountedCSVStat)
+inline FRDGCPUScopeStacks::FRDGCPUScopeStacks(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator, const char* UnaccountedCSVStat)
+	: CSV(RHICmdList, Allocator, UnaccountedCSVStat)
 {}
 
 inline void FRDGCPUScopeStacks::BeginExecute()

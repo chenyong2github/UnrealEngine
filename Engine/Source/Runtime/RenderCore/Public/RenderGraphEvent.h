@@ -76,7 +76,7 @@ public:
 	using FPushFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
 	using FPopFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
 
-	TRDGScopeStack(FRHIComputeCommandList& InRHICmdList, FPushFunction InPushFunction, FPopFunction InPopFunction);
+	TRDGScopeStack(FRHIComputeCommandList& InRHICmdList, FRDGAllocator& Allocator, FPushFunction InPushFunction, FPopFunction InPopFunction);
 	~TRDGScopeStack();
 
 	//////////////////////////////////////////////////////////////////////////
@@ -109,10 +109,11 @@ public:
 	}
 
 	FRHIComputeCommandList& RHICmdList;
-	FMemStackBase& MemStack;
 
 private:
 	void ClearScopes();
+
+	FRDGAllocator& Allocator;
 
 	FPushFunction PushFunction;
 	FPopFunction PopFunction;
@@ -195,7 +196,7 @@ public:
 class RENDERCORE_API FRDGEventScopeStack final
 {
 public:
-	FRDGEventScopeStack(FRHIComputeCommandList& RHICmdList);
+	FRDGEventScopeStack(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator);
 
 	void BeginScope(FRDGEventName&& EventName);
 
@@ -259,7 +260,7 @@ public:
 class RENDERCORE_API FRDGGPUStatScopeStack final
 {
 public:
-	FRDGGPUStatScopeStack(FRHIComputeCommandList& RHICmdList);
+	FRDGGPUStatScopeStack(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator);
 
 	void BeginScope(const FName& Name, const FName& StatName, int32 (*DrawCallCounter)[MAX_NUM_GPUS]);
 
@@ -301,7 +302,7 @@ struct FRDGGPUScopes
 /** The complete set of scope stack implementations. */
 struct FRDGGPUScopeStacks
 {
-	FRDGGPUScopeStacks(FRHIComputeCommandList& RHICmdList);
+	FRDGGPUScopeStacks(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator);
 
 	void BeginExecute();
 
@@ -319,7 +320,7 @@ struct FRDGGPUScopeStacks
 
 struct FRDGGPUScopeStacksByPipeline
 {
-	FRDGGPUScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute);
+	FRDGGPUScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute, FRDGAllocator& Allocator);
 
 	void BeginEventScope(FRDGEventName&& ScopeName);
 
@@ -372,7 +373,7 @@ public:
 class RENDERCORE_API FRDGCSVStatScopeStack final
 {
 public:
-	FRDGCSVStatScopeStack(FRHIComputeCommandList& RHICmdList, const char* UnaccountedStatName);
+	FRDGCSVStatScopeStack(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator, const char* UnaccountedStatName);
 
 	void BeginScope(const char* StatName);
 
@@ -426,7 +427,7 @@ struct FRDGCPUScopes
 
 struct FRDGCPUScopeStacks
 {
-	FRDGCPUScopeStacks(FRHIComputeCommandList& RHICmdList, const char* UnaccountedCSVStat);
+	FRDGCPUScopeStacks(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator, const char* UnaccountedCSVStat);
 
 	void BeginExecute();
 

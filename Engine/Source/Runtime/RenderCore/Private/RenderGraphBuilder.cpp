@@ -534,10 +534,10 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 	, RHICmdListAsyncCompute(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList())
 	, BuilderName(InName)
 #if RDG_CPU_SCOPES
-	, CPUScopeStacks(RHICmdList, kDefaultUnaccountedCSVStat)
+	, CPUScopeStacks(RHICmdList, Allocator, kDefaultUnaccountedCSVStat)
 #endif
 #if RDG_GPU_SCOPES
-	, GPUScopeStacks(RHICmdList, RHICmdListAsyncCompute)
+	, GPUScopeStacks(RHICmdList, RHICmdListAsyncCompute, Allocator)
 #endif
 #if RDG_ENABLE_DEBUG
 	, UserValidation(Allocator)
