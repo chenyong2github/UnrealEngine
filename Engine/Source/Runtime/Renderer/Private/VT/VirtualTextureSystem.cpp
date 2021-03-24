@@ -33,7 +33,7 @@ DECLARE_CYCLE_STAT(TEXT("Submit Tasks"), STAT_ProcessRequests_SubmitTasks, STATG
 DECLARE_CYCLE_STAT(TEXT("Wait Tasks"), STAT_ProcessRequests_WaitTasks, STATGROUP_VirtualTexturing);
 
 DECLARE_CYCLE_STAT(TEXT("Queue Adaptive Requests"), STAT_ProcessRequests_QueueAdaptiveRequests, STATGROUP_VirtualTexturing);
-DECLARE_CYCLE_STAT(TEXT("Finalize Adaptive Requests"), STAT_ProcessRequests_FinalizeAdaptiveRequests, STATGROUP_VirtualTexturing);
+DECLARE_CYCLE_STAT(TEXT("Finalize Adaptive Requests"), STAT_ProcessRequests_UpdateAdaptiveAllocations, STATGROUP_VirtualTexturing);
 
 DECLARE_CYCLE_STAT(TEXT("Feedback Map"), STAT_FeedbackMap, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Feedback Analysis"), STAT_FeedbackAnalysis, STATGROUP_VirtualTexturing);
@@ -932,13 +932,15 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	SCOPE_CYCLE_COUNTER(STAT_VirtualTextureSystem_Update);
 	SCOPED_GPU_STAT(RHICmdList, VirtualTexture);
 	
-	// Update Adaptive VTs
-	SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_FinalizeAdaptiveRequests);
-	for (uint32 ID = 0; ID < MaxSpaces; ID++)
+	// Update Adaptive VTs. This can trigger allocation/destruction of VTs and must happen before the flush below.
 	{
-		if (AdaptiveVTs[ID])
+		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_UpdateAdaptiveAllocations);
+		for (uint32 ID = 0; ID < MaxSpaces; ID++)
 		{
-			AdaptiveVTs[ID]->UpdateAllocations(this, RHICmdList, Frame);
+			if (AdaptiveVTs[ID])
+			{
+				AdaptiveVTs[ID]->UpdateAllocations(this, RHICmdList, Frame);
+			}
 		}
 	}
 
