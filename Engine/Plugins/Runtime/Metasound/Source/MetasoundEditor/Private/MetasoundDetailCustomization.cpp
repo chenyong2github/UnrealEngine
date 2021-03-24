@@ -11,6 +11,7 @@
 #include "IDetailGroup.h"
 #include "Input/Events.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundEditorSettings.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundUObjectRegistry.h"
@@ -29,13 +30,6 @@
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 
-static int32 ShowLiteralMetasoundInputsInEditorCVar = 0;
-FAutoConsoleVariableRef CVarShowLiteralMetasoundInputsInEditor(
-	TEXT("au.Debug.Editor.Metasounds.ShowLiteralInputs"),
-	ShowLiteralMetasoundInputsInEditorCVar,
-	TEXT("Show literal inputs in the Metasound Editor.\n")
-	TEXT("0: Disabled (default), !0: Enabled"),
-	ECVF_Default);
 
 namespace Metasound
 {
@@ -49,102 +43,6 @@ namespace Metasound
 		FName BuildChildPath(const FName& InBasePath, FName InPropertyName)
 		{
 			return FName(InBasePath.ToString() + TEXT(".") + InPropertyName.ToString());
-		}
-
-		TSet<FString> GetLiteralInputs(IDetailLayoutBuilder& InDetailLayout)
-		{
-			TSet<FString> LiteralInputs;
-			TArray<TWeakObjectPtr<UObject>> Objects;
-			InDetailLayout.GetObjectsBeingCustomized(Objects);
-
-			if (Objects.IsEmpty() || !Objects[0].IsValid())
-			{
-				return LiteralInputs;
-			}
-
-			UObject* Metasound = Objects[0].Get();
-			if (FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound))
-			{
-				Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
-				TArray<Frontend::FNodeHandle> InputNodes = GraphHandle->GetInputNodes();
-				for (Frontend::FNodeHandle& NodeHandle : InputNodes)
-				{
-					if (NodeHandle->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
-					{
-						LiteralInputs.Add(NodeHandle->GetNodeName());
-					}
-				}
-			}
-
-			return LiteralInputs;
-		}
-
-		template <typename T>
-		void BuildIOFixedArray(IDetailLayoutBuilder& InDetailLayout, FName InCategoryName, FName InPropertyName)
-		{
-			const bool bIsInput = InCategoryName == "Inputs";
-
-			IDetailCategoryBuilder& CategoryBuilder = InDetailLayout.EditCategory(InCategoryName);
-			TSharedPtr<IPropertyHandle> ParentProperty = InDetailLayout.GetProperty(InPropertyName);
-			TSharedPtr<IPropertyHandleArray> ArrayHandle = ParentProperty->AsArray();
-
-			TSet<FString> LiteralInputs;
-			if (bIsInput && !ShowLiteralMetasoundInputsInEditorCVar)
-			{
-				LiteralInputs = GetLiteralInputs(InDetailLayout);
-			}
-
-			uint32 NumElements = 0;
-			ArrayHandle->GetNumElements(NumElements);
-			for (int32 i = 0; i < static_cast<int32>(NumElements); ++i)
-			{
-				TSharedRef<IPropertyHandle> ArrayItemHandle = ArrayHandle->GetElement(i);
-
-				const FName TypeNamePropertyName = GET_MEMBER_NAME_CHECKED(T, TypeName);
-				const FName NamePropertyName = GET_MEMBER_NAME_CHECKED(T, Name);
-				const FName ToolTipPropertyName = GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVertexMetadata, Description);
-				const FName DisplayNamePropertyName = GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVertexMetadata, DisplayName);
-
-				TSharedPtr<IPropertyHandle> TypeProperty = ArrayItemHandle->GetChildHandle(TypeNamePropertyName);
-				TSharedPtr<IPropertyHandle> NameProperty = ArrayItemHandle->GetChildHandle(NamePropertyName);
-
-				TSharedPtr<IPropertyHandle> ToolTipProperty = ArrayItemHandle->GetChildHandle(ToolTipPropertyName, true /* bRecurse */);
-				TSharedPtr<IPropertyHandle> DisplayNameProperty = ArrayItemHandle->GetChildHandle(DisplayNamePropertyName, true /* bRecurse */);
-
-				FString Name;
-				const bool bNameFound = NameProperty->GetValue(Name) == FPropertyAccess::Success;
-
-				// Hide literal members
-				if (LiteralInputs.Contains(Name))
-				{
-					continue;
-				}
-
-				CategoryBuilder.AddCustomRow(ParentProperty->GetPropertyDisplayName())
-				.NameContent()
-				[
-					SNew(STextBlock)
-					.Font(IDetailLayoutBuilder::GetDetailFontBold())
-					.Text(TAttribute<FText>::Create([i, DisplayNameProperty]()
-					{
-						FText DisplayName;
-						DisplayNameProperty->GetValue(DisplayName);
-						return DisplayName;
-					}))
-					.ToolTipText(TAttribute<FText>::Create([ToolTipProperty]()
-					{
-						FText ToolTip;
-						ToolTipProperty->GetValue(ToolTip);
-						return ToolTip;
-					}))
-				];
-			}
-
-			FSimpleDelegate RefreshDelegate = FSimpleDelegate::CreateLambda([DetailLayout = &InDetailLayout]()
-			{
-				DetailLayout->ForceRefreshDetails();
-			});
-			ArrayHandle->SetOnNumElementsChanged(RefreshDelegate);
 		}
 
 		FMetasoundDetailCustomization::FMetasoundDetailCustomization(FName InDocumentPropertyName)
@@ -168,53 +66,84 @@ namespace Metasound
 		{
 			using namespace Metasound::Editor;
 
-			// General Category
-			IDetailCategoryBuilder& GeneralCategoryBuilder = DetailLayout.EditCategory("General");
+			EMetasoundActiveDetailView DetailsView = EMetasoundActiveDetailView::Metasound;
+			if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+			{
+				DetailsView = EditorSettings->DetailView;
+			}
 
-			const FName AuthorPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Author));
-			const FName DescPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Description));
-			const FName VersionPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Version));
-			const FName MajorVersionPropertyPath = BuildChildPath(VersionPropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVersionNumber, Major));
-			const FName MinorVersionPropertyPath = BuildChildPath(VersionPropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVersionNumber, Minor));
+			switch (DetailsView)
+			{
+				case EMetasoundActiveDetailView::Metasound:
+				{
+					IDetailCategoryBuilder& GeneralCategoryBuilder = DetailLayout.EditCategory("Metasound");
+					const FName AuthorPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Author));
+					const FName DescPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Description));
+					const FName VersionPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Version));
+					const FName MajorVersionPropertyPath = BuildChildPath(VersionPropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVersionNumber, Major));
+					const FName MinorVersionPropertyPath = BuildChildPath(VersionPropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVersionNumber, Minor));
 
-			TSharedPtr<IPropertyHandle> AuthorHandle = DetailLayout.GetProperty(AuthorPropertyPath);
-			TSharedPtr<IPropertyHandle> DescHandle = DetailLayout.GetProperty(DescPropertyPath);
-			TSharedPtr<IPropertyHandle> MajorVersionHandle = DetailLayout.GetProperty(MajorVersionPropertyPath);
-			TSharedPtr<IPropertyHandle> MinorVersionHandle = DetailLayout.GetProperty(MinorVersionPropertyPath);
+					TSharedPtr<IPropertyHandle> AuthorHandle = DetailLayout.GetProperty(AuthorPropertyPath);
+					TSharedPtr<IPropertyHandle> DescHandle = DetailLayout.GetProperty(DescPropertyPath);
+					TSharedPtr<IPropertyHandle> MajorVersionHandle = DetailLayout.GetProperty(MajorVersionPropertyPath);
+					TSharedPtr<IPropertyHandle> MinorVersionHandle = DetailLayout.GetProperty(MinorVersionPropertyPath);
 
-			GeneralCategoryBuilder.AddProperty(AuthorHandle);
-			GeneralCategoryBuilder.AddProperty(DescHandle);
-			GeneralCategoryBuilder.AddProperty(MajorVersionHandle);
-			GeneralCategoryBuilder.AddProperty(MinorVersionHandle);
+					GeneralCategoryBuilder.AddProperty(AuthorHandle);
+					GeneralCategoryBuilder.AddProperty(DescHandle);
+					GeneralCategoryBuilder.AddProperty(MajorVersionHandle);
+					GeneralCategoryBuilder.AddProperty(MinorVersionHandle);
 
-			// Input/Output Categories
+					// Hack to hide categories brought in from UMetasoundSource inherited from USoundBase
+					DetailLayout.HideCategory("Analysis");
+					DetailLayout.HideCategory("Attenuation");
+					DetailLayout.HideCategory("Debug");
+					DetailLayout.HideCategory("Effects");
+					DetailLayout.HideCategory("Loading");
+					DetailLayout.HideCategory("Modulation");
+					DetailLayout.HideCategory("Sound");
+					DetailLayout.HideCategory("SoundWave");
+					DetailLayout.HideCategory("Voice Management");
+				}
+				break;
 
-			// If editing multiple metasound objects, all should be the same type, so safe to just check first in array for
-			// required inputs/outputs
-			TArray<TWeakObjectPtr<UObject>> Objects;
-			DetailLayout.GetObjectsBeingCustomized(Objects);
+				case EMetasoundActiveDetailView::General:
+				default:
+					DetailLayout.HideCategory("Metasound");
 
+					const bool bShouldBeInitiallyCollapsed = true;
+					DetailLayout.EditCategory("Analysis").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+					DetailLayout.EditCategory("Attenuation").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+					DetailLayout.EditCategory("Debug").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+					DetailLayout.EditCategory("Effects").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+					DetailLayout.EditCategory("Modulation").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+					DetailLayout.EditCategory("Sound").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+					DetailLayout.EditCategory("SoundWave").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+					DetailLayout.EditCategory("Voice Management").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+
+					const bool bRestore = false;
+					DetailLayout.EditCategory("Analysis").RestoreExpansionState(bRestore);
+					DetailLayout.EditCategory("Attenuation").RestoreExpansionState(bRestore);
+					DetailLayout.EditCategory("Debug").RestoreExpansionState(bRestore);
+					DetailLayout.EditCategory("Effects").RestoreExpansionState(bRestore);
+					DetailLayout.EditCategory("Modulation").RestoreExpansionState(bRestore);
+					DetailLayout.EditCategory("Sound").RestoreExpansionState(bRestore);
+					DetailLayout.EditCategory("SoundWave").RestoreExpansionState(bRestore);
+					DetailLayout.EditCategory("Voice Management").RestoreExpansionState(bRestore);
+
+					break;
+			}
 
 			// Hack to hide parent structs for nested metadata properties
 			DetailLayout.HideCategory("CustomView");
 
-			// Hack to hide categories brought in from UMetasoundSource inherited from USoundBase
-			DetailLayout.HideCategory("Analysis");
-			DetailLayout.HideCategory("Attenuation");
 			DetailLayout.HideCategory("Curves");
-			DetailLayout.HideCategory("Debug");
 			DetailLayout.HideCategory("Developer");
-			DetailLayout.HideCategory("Effects");
 			DetailLayout.HideCategory("File Path");
 			DetailLayout.HideCategory("Format");
 			DetailLayout.HideCategory("Info");
 			DetailLayout.HideCategory("Loading");
-			DetailLayout.HideCategory("Modulation");
 			DetailLayout.HideCategory("Playback");
-			DetailLayout.HideCategory("Sound");
-			DetailLayout.HideCategory("SoundWave");
 			DetailLayout.HideCategory("Subtitles");
-			DetailLayout.HideCategory("Voice Management");
 		}
 	} // namespace Editor
 } // namespace Metasound

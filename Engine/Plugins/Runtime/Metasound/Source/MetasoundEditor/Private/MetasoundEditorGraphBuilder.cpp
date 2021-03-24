@@ -283,24 +283,6 @@ namespace Metasound
 			return nullptr;
 		}
 
-		UMetasoundEditorGraphInputNode* FGraphBuilder::AddInputNode(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip, FVector2D InLocation, EMetasoundFrontendNodeStyleDisplayVisibility Visibility, bool bInSelectNewNode)
-		{
-			using namespace Frontend;
-
-			FNodeHandle NodeHandle = AddInputNodeHandle(InMetasound, InName, InTypeName, InToolTip, Visibility);
-			UMetasoundEditorGraphInputNode* NewGraphNode = AddInputNode(InMetasound, NodeHandle, InLocation, bInSelectNewNode);
-			if (ensure(NewGraphNode))
-			{
-				return NewGraphNode;
-			}
-			else
-			{
-				GraphBuilderPrivate::DeleteNode(InMetasound, NodeHandle);
-			}
-
-			return nullptr;
-		}
-
 		void FGraphBuilder::AddOrUpdateLiteralInput(UObject& InMetasound, Frontend::FNodeHandle InNodeHandle, UEdGraphPin& InInputPin, bool bForcePinValueAsDefault)
 		{
 			using namespace Frontend;
@@ -346,9 +328,6 @@ namespace Metasound
 				}
 
 				ensure(InputHandle->Connect(*OutputHandle));
-
-				InMetasound.PostEditChange();
-				InMetasound.MarkPackageDirty();
 			}
 			else
 			{
@@ -360,9 +339,6 @@ namespace Metasound
 					const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(InputNode->GetNodeName());
 
 					GraphHandle->SetDefaultInput(VertexID, PinDataTypeDefaultLiteral);
-
-					InMetasound.PostEditChange();
-					InMetasound.MarkPackageDirty();
 				}
 			}
 		}
@@ -560,12 +536,6 @@ namespace Metasound
 			}
 
 			return NodeHandle;
-		}
-
-		UMetasoundEditorGraphOutputNode* FGraphBuilder::AddOutputNode(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip, FVector2D InLocation, bool bInSelectNewNode)
-		{
-			Frontend::FNodeHandle NodeHandle = AddOutputNodeHandle(InMetasound, InName, InTypeName, InToolTip);
-			return AddOutputNode(InMetasound, NodeHandle, InLocation, bInSelectNewNode);
 		}
 
 		Frontend::FNodeHandle FGraphBuilder::AddOutputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip)
@@ -812,9 +782,6 @@ namespace Metasound
 					}
 				}
 			}
-
-			InMetasound.PostEditChange();
-			InMetasound.MarkPackageDirty();
 		}
 
 		void FGraphBuilder::DeleteVariableNodeHandle(UMetasoundEditorGraphVariable& InVariable)
@@ -872,8 +839,6 @@ namespace Metasound
 			{
 				return false;
 			}
-
-			InNode.MarkPackageDirty();
 
 			// If node isn't a MetasoundEditorGraphNode, just remove and return (ex. comment nodes)
 			UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(&InNode);
@@ -977,7 +942,6 @@ namespace Metasound
 					AddPinToNode(InGraphNode, OutputHandle);
 				}
 			}
-			InGraphNode.MarkPackageDirty();
 		}
 
 		bool FGraphBuilder::IsMatchingInputHandleAndPin(const Frontend::FInputHandle& InInputHandle, const UEdGraphPin& InEditorPin)
@@ -1199,17 +1163,7 @@ namespace Metasound
 					}
 				}
 
-				if (bIsNodeDirty)
-				{
-					EditorNode->MarkPackageDirty();
-				}
-
 				bIsGraphDirty |= bIsNodeDirty;
-			}
-
-			if (bIsGraphDirty)
-			{
-				EditorGraph->MarkPackageDirty();
 			}
 
 			return bIsGraphDirty;
@@ -1369,13 +1323,6 @@ namespace Metasound
 
 			// Synchronize connections.
 			bIsEditorGraphDirty |= SynchronizeConnections(InMetasound);
-
-			if (bIsEditorGraphDirty)
-			{
-				InMetasound.PostEditChange();
-				InMetasound.MarkPackageDirty();
-			}
-
 			return bIsEditorGraphDirty;
 		}
 

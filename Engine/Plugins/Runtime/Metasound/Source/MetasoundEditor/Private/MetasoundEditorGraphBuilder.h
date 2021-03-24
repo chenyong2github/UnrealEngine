@@ -55,17 +55,6 @@ namespace Metasound
 			// nor does it remove existing bound Frontend Node (if set) from associated Frontend Graph.
 			static Frontend::FNodeHandle AddNodeHandle(UObject& InMetasound, UMetasoundEditorGraphNode& InGraphNode);
 
-			// Adds an input node to the editor graph that corresponds to the provided node handle.
-			// Generates analogous FNodeHandle.
-			static UMetasoundEditorGraphInputNode* AddInputNode(
-				UObject& InMetasound,
-				const FString& InName,
-				const FName InTypeName,
-				const FText& InToolTip,
-				FVector2D InLocation,
-				EMetasoundFrontendNodeStyleDisplayVisibility Visibility = EMetasoundFrontendNodeStyleDisplayVisibility::Visible,
-				bool bInSelectNewNode = true);
-
 			// Adds a corresponding UMetasoundEditorGraphInputNode for the provided node handle.
 			static UMetasoundEditorGraphInputNode* AddInputNode(UObject& InMetasound, Frontend::FNodeHandle InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
 
@@ -94,21 +83,17 @@ namespace Metasound
 			// Adds an output node to the editor graph that corresponds to the provided node handle.
 			static UMetasoundEditorGraphOutputNode* AddOutputNode(UObject& InMetasound, Frontend::FNodeHandle& InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
 
-			// Adds an output node to the editor graph that corresponds to the provided node handle.
-			// Generates analogous FNodeHandle.
-			static UMetasoundEditorGraphOutputNode* AddOutputNode(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip, FVector2D InLocation, bool bInSelectNewNode = true);
-
 			// Generates analogous FNodeHandle for the given internal node data. Does not bind nor create EdGraph representation of given node.
 			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip);
 
-			// Attempts to connect frontend node counterparts together for provided pines.  Returns true if succeeded,
+			// Attempts to connect Frontend node counterparts together for provided pins.  Returns true if succeeded,
 			// and breaks pin link and returns false if failed.  If bConnectEdPins is set, will attempt to connect
 			// the Editor Graph representation of the pins.
 			static bool ConnectNodes(UEdGraphPin& InInputPin, UEdGraphPin& InOutputPin, bool bInConnectEdPins);
 
 			// Disconnects pin from any linked input or output nodes, and reflects change
 			// in the Frontend graph.  (Handles generation of literal inputs where needed).
-			// If bAddLiteralInputs - If true, will attempt to connect literal inputs where
+			// If bAddLiteralInputs true, will attempt to connect literal inputs where
 			// applicable post disconnection.
 			static void DisconnectPin(UEdGraphPin& InPin, bool bAddLiteralInputs = true);
 

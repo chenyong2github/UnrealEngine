@@ -205,7 +205,10 @@ namespace Metasound
 			/** Sync the content browser to the current selection of nodes */
 			void SyncInBrowser();
 
-			/** Show the metasound object's settings in the Inspector */
+			/** Show the Metasound object's General settings in the Inspector */
+			void EditGeneralSettings();
+
+			/** Show the Metasound object's Metasound-specific settings in the Inspector */
 			void EditMetasoundSettings();
 
 			/** Add an input to the currently selected node */
@@ -227,6 +230,8 @@ namespace Metasound
 			TSharedRef<SGraphEditor> CreateGraphEditorWidget();
 
 		private:
+			void EditObjectSettings();
+
 			/** List of open tool panels; used to ensure only one exists at any one time */
 			TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
@@ -236,8 +241,8 @@ namespace Metasound
 			/** Details tab */
 			TSharedPtr<IDetailsView> MetasoundDetails;
 
-			/** Metasound General info widget */
-			TSharedPtr<SGraphActionMenu> MetasoundGeneralMenu;
+			/** Metasound Interface menu */
+			TSharedPtr<SGraphActionMenu> MetasoundInterfaceMenu;
 
 			/** Metasound Output Meter widget */
 			TSharedPtr<SAudioMeter> MetasoundMeter;

@@ -747,6 +747,10 @@ namespace Metasound
 						DataTypeString += VariableCustomizationPrivate::ArrayIdentifier;
 					}
 
+					// Have to stop playback to avoid attempting to change live edit data on invalid input type.
+					check(GEditor);
+					GEditor->ResetPreviewAudioComponent();
+
 					InGraphVariable->SetDataType(FName(DataTypeString));
 
 					// Required to rebuild the literal details customization.
@@ -768,6 +772,10 @@ namespace Metasound
 				{
 					DataTypeString += VariableCustomizationPrivate::ArrayIdentifier;
 				}
+
+				// Have to stop playback to avoid attempting to change live edit data on invalid input type.
+				check(GEditor);
+				GEditor->ResetPreviewAudioComponent();
 
 				InGraphVariable->SetDataType(FName(DataTypeString));
 

@@ -104,6 +104,12 @@ public:
 
 	virtual FMetasoundFrontendClassName GetClassName() const override;
 	virtual FGuid GetNodeID() const override;
+	
+	// Disallow deleting outputs as they require being connected to some
+	// part of the graph by the Frontend Graph Builder (which is enforced
+	// even when the Editor Graph Node does not have a visible input by
+	// way of a literal input.
+	virtual bool CanUserDeleteNode() const override;
 
 protected:
 	virtual void SetNodeID(FGuid InNodeID) override;

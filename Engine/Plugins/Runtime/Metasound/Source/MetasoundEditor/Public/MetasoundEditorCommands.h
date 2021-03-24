@@ -46,7 +46,10 @@ namespace Metasound
 			/** Removes an input from the node */
 			TSharedPtr<FUICommandInfo> DeleteInput;
 
-			/** Shows the Metasound's top-level object settings in the Inspector */
+			/** Shows the Metasound's top-level Metasound-specific settings in the Inspector */
+			TSharedPtr<FUICommandInfo> EditGeneralSettings;
+
+			/** Shows the Metasound's top-level general object settings in the Inspector */
 			TSharedPtr<FUICommandInfo> EditMetasoundSettings;
 
 			/** Initialize commands */

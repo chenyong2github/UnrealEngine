@@ -244,9 +244,6 @@ UMetasoundEditorGraphInputNode* UMetasoundEditorGraph::CreateInputNode(Metasound
 			NewInputNode->AllocateDefaultPins();
 		}
 
-		PostEditChange();
-		MarkPackageDirty();
-
 		return NewInputNode;
 	}
 	

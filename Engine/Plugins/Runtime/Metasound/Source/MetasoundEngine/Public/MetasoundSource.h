@@ -51,7 +51,7 @@ public:
 	UMetasoundSource(const FObjectInitializer& ObjectInitializer);
 
 	// The output audio format of the metasound source.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Audio)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Metasound)
 	EMetasoundSourceAudioFormat OutputFormat;
 
 #if WITH_EDITOR

@@ -15,6 +15,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "IAudioExtensionPlugin.h"
 #include "IDetailsView.h"
@@ -25,6 +26,7 @@
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphSchema.h"
+#include "MetasoundEditorSettings.h"
 #include "MetasoundEditorTabFactory.h"
 #include "MetasoundUObjectRegistry.h"
 #include "Misc/Attribute.h"
@@ -43,7 +45,17 @@
 // This needs to be moved to public directory
 #include "../../GraphEditor/Private/GraphActionNode.h"
 
+
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
+
+static int32 ShowLiteralMetasoundInputsInEditorCVar = 0;
+FAutoConsoleVariableRef CVarShowLiteralMetasoundInputsInEditor(
+	TEXT("au.Debug.Editor.Metasounds.ShowLiteralInputs"),
+	ShowLiteralMetasoundInputsInEditorCVar,
+	TEXT("Show literal inputs in the Metasound Editor.\n")
+	TEXT("0: Disabled (default), !0: Enabled"),
+	ECVF_Default);
+
 
 namespace Metasound
 {
@@ -153,7 +165,7 @@ namespace Metasound
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
-			InTabManager->RegisterTabSpawner(TabFactory::Names::Metasound, FOnSpawnTab::CreateLambda([InMetasoundMenu = MetasoundGeneralMenu](const FSpawnTabArgs& Args)
+			InTabManager->RegisterTabSpawner(TabFactory::Names::Metasound, FOnSpawnTab::CreateLambda([InMetasoundMenu = MetasoundInterfaceMenu](const FSpawnTabArgs& Args)
 			{
 				return TabFactory::CreateMetasoundTab(InMetasoundMenu, Args);
 			}))
@@ -371,9 +383,9 @@ namespace Metasound
 				MetasoundGraphEditor->NotifyGraphChanged();
 			}
 
-			if (MetasoundGeneralMenu.IsValid())
+			if (MetasoundInterfaceMenu.IsValid())
 			{
-				MetasoundGeneralMenu->RefreshAllActions(true /* bPreserveExpansion */);
+				MetasoundInterfaceMenu->RefreshAllActions(true /* bPreserveExpansion */);
 			}
 
 			FSlateApplication::Get().DismissAllMenus();
@@ -397,9 +409,12 @@ namespace Metasound
 				{
 					if (IMetasoundUObjectRegistry::Get().IsRegisteredClass(MetasoundObj))
 					{
-						FGraphBuilder::SynchronizeGraph(*MetasoundObj);
+						if (FGraphBuilder::SynchronizeGraph(*MetasoundObj))
+						{
+							MetasoundObj->MarkPackageDirty();
+						}
 						MetasoundGraphEditor->NotifyGraphChanged();
-						MetasoundGeneralMenu->RefreshAllActions(true /* bPreserveExpansion */);
+						MetasoundInterfaceMenu->RefreshAllActions(true /* bPreserveExpansion */);
 					}
 				}
 			}
@@ -415,7 +430,7 @@ namespace Metasound
 
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-			SAssignNew(MetasoundGeneralMenu, SGraphActionMenu, false)
+			SAssignNew(MetasoundInterfaceMenu, SGraphActionMenu, false)
 				.AlphaSortItems(false)
 // 				.OnActionDoubleClicked(this, &FEditor::OnActionDoubleClicked)
 				.OnActionDragged(this, &FEditor::OnActionDragged)
@@ -545,12 +560,21 @@ namespace Metasound
 					ToolbarBuilder.BeginSection("Utilities");
 					{
 						ToolbarBuilder.AddToolBarButton(
+							FEditorCommands::Get().EditGeneralSettings,
+							NAME_None,
+							TAttribute<FText>(),
+							TAttribute<FText>(),
+							TAttribute<FSlateIcon>::Create([this]() { return GetSettingsImage(); }),
+							"EditGeneralSettings"
+						);
+
+						ToolbarBuilder.AddToolBarButton(
 							FEditorCommands::Get().EditMetasoundSettings,
-								NAME_None,
-								TAttribute<FText>(),
-								TAttribute<FText>(),
-								TAttribute<FSlateIcon>::Create([this]() { return GetSettingsImage(); }),
-								"EditMetasoundSettings"
+							NAME_None,
+							TAttribute<FText>(),
+							TAttribute<FText>(),
+							TAttribute<FSlateIcon>::Create([this]() { return GetSettingsImage(); }),
+							"EditMetasoundSettings"
 						);
 					}
 					ToolbarBuilder.EndSection();
@@ -618,6 +642,10 @@ namespace Metasound
 			ToolkitCommands->MapAction(
 				Commands.EditMetasoundSettings,
 				FExecuteAction::CreateSP(this, &FEditor::EditMetasoundSettings));
+
+			ToolkitCommands->MapAction(
+				Commands.EditGeneralSettings,
+				FExecuteAction::CreateSP(this, &FEditor::EditGeneralSettings));
 
 			ToolkitCommands->MapAction(
 				FGenericCommands::Get().Delete,
@@ -790,11 +818,11 @@ namespace Metasound
 			}
 		}
 
-		void FEditor::EditMetasoundSettings()
+		void FEditor::EditObjectSettings()
 		{
-			if (MetasoundGeneralMenu.IsValid())
+			if (MetasoundInterfaceMenu.IsValid())
 			{
-				MetasoundGeneralMenu->SelectItemByName(FName());
+				MetasoundInterfaceMenu->SelectItemByName(FName());
 			}
 
 			if (MetasoundGraphEditor.IsValid())
@@ -804,7 +832,31 @@ namespace Metasound
 				bManuallyClearingGraphSelection = false;
 			}
 
+			// Clear selection first to force refresh of customization
+			// if swapping from one object-level edit mode to the other
+			// (ex. Metasound Settings to General Settings)
+			SetSelection({ });
 			SetSelection({ Metasound });
+		}
+
+		void FEditor::EditGeneralSettings()
+		{
+			if (UMetasoundEditorSettings* EditorSettings = GetMutableDefault<UMetasoundEditorSettings>())
+			{
+				EditorSettings->DetailView = EMetasoundActiveDetailView::General;
+			}
+
+			EditObjectSettings();
+		}
+
+		void FEditor::EditMetasoundSettings()
+		{
+			if (UMetasoundEditorSettings* EditorSettings = GetMutableDefault<UMetasoundEditorSettings>())
+			{
+				EditorSettings->DetailView = EMetasoundActiveDetailView::Metasound;
+			}
+
+			EditObjectSettings();
 		}
 
 		void FEditor::SyncInBrowser()
@@ -859,6 +911,9 @@ namespace Metasound
 
 				GraphEditorCommands->MapAction(FEditorCommands::Get().EditMetasoundSettings,
 					FExecuteAction::CreateSP(this, &FEditor::EditMetasoundSettings));
+
+				GraphEditorCommands->MapAction(FEditorCommands::Get().EditGeneralSettings,
+					FExecuteAction::CreateSP(this, &FEditor::EditGeneralSettings));
 
 				GraphEditorCommands->MapAction(FEditorCommands::Get().AddInput,
 					FExecuteAction::CreateSP(this, &FEditor::AddInput),
@@ -966,9 +1021,9 @@ namespace Metasound
 				}
 			}
 
-			if (MetasoundGeneralMenu.IsValid() && !bManuallyClearingGraphSelection)
+			if (MetasoundInterfaceMenu.IsValid() && !bManuallyClearingGraphSelection)
 			{
-				MetasoundGeneralMenu->SelectItemByName(FName());
+				MetasoundInterfaceMenu->SelectItemByName(FName());
 			}
 			SetSelection(Selection);
 		}
@@ -987,10 +1042,10 @@ namespace Metasound
 		{
 			using namespace Frontend;
 
-			if (MetasoundGeneralMenu.IsValid())
+			if (MetasoundInterfaceMenu.IsValid())
 			{
 				TArray<TSharedPtr<FEdGraphSchemaAction>> Actions;
-				MetasoundGeneralMenu->GetSelectedActions(Actions);
+				MetasoundInterfaceMenu->GetSelectedActions(Actions);
 
 				if (!Actions.IsEmpty())
 				{
@@ -1083,11 +1138,11 @@ namespace Metasound
 
 						FGraphBuilder::DeleteVariableNodeHandle(*Variable);
 						Graph->RemoveVariable(*Variable);
-						MetasoundGeneralMenu->RefreshAllActions(true /* bPreserveExpansion */);
+						MetasoundInterfaceMenu->RefreshAllActions(true /* bPreserveExpansion */);
 
 						if (!NameToSelect.IsNone())
 						{
-							MetasoundGeneralMenu->SelectItemByName(NameToSelect, ESelectInfo::Direct, SectionId);
+							MetasoundInterfaceMenu->SelectItemByName(NameToSelect, ESelectInfo::Direct, SectionId);
 						}
 					}
 					return;
@@ -1430,14 +1485,14 @@ namespace Metasound
 
 		void FEditor::OnInputNameChanged(FGuid InNodeID)
 		{
-			if (!MetasoundGeneralMenu.IsValid())
+			if (!MetasoundInterfaceMenu.IsValid())
 			{
 				return;
 			}
 
 			TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
-			MetasoundGeneralMenu->GetSelectedActions(SelectedActions);
-			MetasoundGeneralMenu->RefreshAllActions(/* bPreserveExpansion */ true);
+			MetasoundInterfaceMenu->GetSelectedActions(SelectedActions);
+			MetasoundInterfaceMenu->RefreshAllActions(/* bPreserveExpansion */ true);
 
 			for(const TSharedPtr<FEdGraphSchemaAction>& Action : SelectedActions)
 			{
@@ -1451,7 +1506,7 @@ namespace Metasound
 						if (ensure(OutputHandles.Num() == 1))
 						{
 							const FName ActionName = *OutputHandles[0]->GetDisplayName().ToString();
-							MetasoundGeneralMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
+							MetasoundInterfaceMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
 						}
 						break;
 					}
@@ -1461,14 +1516,14 @@ namespace Metasound
 
 		void FEditor::OnOutputNameChanged(FGuid InNodeID)
 		{
-			if (!MetasoundGeneralMenu.IsValid())
+			if (!MetasoundInterfaceMenu.IsValid())
 			{
 				return;
 			}
 
 			TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
-			MetasoundGeneralMenu->GetSelectedActions(SelectedActions);
-			MetasoundGeneralMenu->RefreshAllActions(/* bPreserveExpansion */ true);
+			MetasoundInterfaceMenu->GetSelectedActions(SelectedActions);
+			MetasoundInterfaceMenu->RefreshAllActions(/* bPreserveExpansion */ true);
 
 			for (const TSharedPtr<FEdGraphSchemaAction>& Action : SelectedActions)
 			{
@@ -1482,7 +1537,7 @@ namespace Metasound
 						if (ensure(InputHandles.Num() == 1))
 						{
 							const FName ActionName = *InputHandles[0]->GetDisplayName().ToString();
-							MetasoundGeneralMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
+							MetasoundInterfaceMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
 						}
 						break;
 					}
@@ -1499,7 +1554,8 @@ namespace Metasound
 
 			MetasoundAsset->GetRootGraphHandle()->IterateConstNodes([this, EditorGraph, MetasoundAsset, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Input)
 			{
-				if (Input->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+				const bool bIsLiteralInput = Input->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden;
+				if (!ShowLiteralMetasoundInputsInEditorCVar && bIsLiteralInput)
 				{
 					return;
 				}
@@ -1641,6 +1697,10 @@ namespace Metasound
 				{
 					AddNewText = LOCTEXT("AddNewInput", "Input");
 					MetaDataTag = "AddNewInput";
+
+					// TODO: Add back for outputs once reading outputs/Metasound
+					// composition is supported.
+					return CreateAddInputButton(InSectionID, AddNewText, MetaDataTag);
 				}
 				break;
 
@@ -1652,10 +1712,10 @@ namespace Metasound
 				break;
 
 				default:
-					return SNullWidget::NullWidget;
+				break;
 			}
 
-			return CreateAddInputButton(InSectionID, AddNewText, MetaDataTag);
+			return SNullWidget::NullWidget;
 		}
 
 		bool FEditor::CanAddNewElementToSection(int32 InSectionID) const
@@ -1737,12 +1797,12 @@ namespace Metasound
 				return FReply::Unhandled();
 			}
 
-			if (MetasoundGeneralMenu.IsValid())
+			if (MetasoundInterfaceMenu.IsValid())
 			{
-				MetasoundGeneralMenu->RefreshAllActions(/* bPreserveExpansion */ true);
+				MetasoundInterfaceMenu->RefreshAllActions(/* bPreserveExpansion */ true);
 				if (NameToSelect.IsNone())
 				{
-					MetasoundGeneralMenu->SelectItemByName(NameToSelect);
+					MetasoundInterfaceMenu->SelectItemByName(NameToSelect);
 				}
 			}
 			return FReply::Handled();

@@ -9,6 +9,13 @@
 #include "MetasoundEditorSettings.generated.h"
 
 
+UENUM()
+enum class EMetasoundActiveDetailView : uint8
+{
+	Metasound,
+	General
+};
+
 UCLASS(config=EditorPerProjectUserSettings)
 class METASOUNDEDITOR_API UMetasoundEditorSettings : public UObject
 {
@@ -58,4 +65,8 @@ public:
 	/** Trigger pin type color */
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor TriggerPinTypeColor;
+
+	/** Determines which details view to show in Metasounds Editor */
+	UPROPERTY(Transient)
+	EMetasoundActiveDetailView DetailView = EMetasoundActiveDetailView::Metasound;
 };

@@ -561,31 +561,31 @@ struct FMetasoundFrontendClassMetadata
 
 	FMetasoundFrontendClassMetadata(const Metasound::FNodeClassMetadata& InNodeClassMetadata);
 
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	FMetasoundFrontendClassName ClassName;
 
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	FMetasoundFrontendVersionNumber Version;
 
-	UPROPERTY(VisibleAnywhere, Category = General)
+	UPROPERTY(VisibleAnywhere, Category = Metasound)
 	EMetasoundFrontendClassType Type = EMetasoundFrontendClassType::Invalid;
 
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	FText DisplayName;
 
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	FText Description;
 
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	FText PromptIfMissing;
 
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	FText Author;
 
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	TArray<FName> Keywords;
 
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	TArray<FText> CategoryHierarchy;
 };
 

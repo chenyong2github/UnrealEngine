@@ -20,7 +20,8 @@ namespace Metasound
 			UI_COMMAND(AddInput, "Add Input", "Adds an input to the node", EUserInterfaceActionType::Button, FInputChord());
 			UI_COMMAND(DeleteInput, "Delete Input", "Removes an input from the node", EUserInterfaceActionType::Button, FInputChord());
 
-			UI_COMMAND(EditMetasoundSettings, "Settings", "Edit Metasound Settings", EUserInterfaceActionType::Button, FInputChord());
+			UI_COMMAND(EditMetasoundSettings, "Metasound", "Edit Metasound settings", EUserInterfaceActionType::Button, FInputChord());
+			UI_COMMAND(EditGeneralSettings, "General", "Edit general sound settings", EUserInterfaceActionType::Button, FInputChord());
 		}
 	} // namespace Editor
 } // namespace Metasound
