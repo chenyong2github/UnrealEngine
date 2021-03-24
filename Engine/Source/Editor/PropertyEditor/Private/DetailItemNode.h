@@ -52,6 +52,11 @@ public:
 	 */
 	bool HasGeneratedChildren() const { return Children.Num() > 0;}
 
+	/**
+	 * @return The new, uncached visibility of this item.
+	 */
+	EVisibility ComputeItemVisibility() const;
+
 	/** FDetailTreeNode interface */
 	virtual IDetailsView* GetNodeDetailsView() const override { return ParentCategory.Pin()->GetNodeDetailsView(); }
 	virtual IDetailsViewPrivate* GetDetailsView() const override{ return ParentCategory.Pin()->GetDetailsView(); }
@@ -70,7 +75,7 @@ public:
 	virtual void SetIsHighlighted(bool bInIsHighlighted) override { bIsHighlighted = bInIsHighlighted; }
 	virtual bool IsHighlighted() const override { return bIsHighlighted; }
 	virtual bool IsLeaf() override { return Children.Num() == 0;  }
-	virtual TAttribute<bool> IsPropertyEditingEnabled() const override { return IsParentEnabled; }
+	virtual TAttribute<bool> IsPropertyEditingEnabled() const override;
 	virtual TSharedPtr<FPropertyNode> GetPropertyNode() const override;
 	virtual TSharedPtr<FComplexPropertyNode> GetExternalRootPropertyNode() const override;
 	virtual TSharedPtr<IDetailPropertyRow> GetRow() const override;

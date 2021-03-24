@@ -463,14 +463,14 @@ void SDetailsViewBase::SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly InIsPro
 	IsPropertyReadOnlyDelegate = InIsPropertyReadOnly;
 }
 
-void SDetailsViewBase::SetIsCustomRowVisibilityFilteredDelegate(FIsCustomRowVisibilityFiltered InIsCustomRowVisibilityFilteredDelegate)
-{
-	IsCustomRowVisibilityFilteredDelegate = InIsCustomRowVisibilityFilteredDelegate;
-};
-
 void SDetailsViewBase::SetIsCustomRowVisibleDelegate(FIsCustomRowVisible InIsCustomRowVisible)
 {
 	IsCustomRowVisibleDelegate = InIsCustomRowVisible;
+}
+
+void SDetailsViewBase::SetIsCustomRowReadOnlyDelegate(FIsCustomRowReadOnly InIsCustomRowReadOnly)
+{
+	IsCustomRowReadOnlyDelegate = InIsCustomRowReadOnly;
 }
 
 void SDetailsViewBase::SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled IsPropertyEditingEnabled)
@@ -566,18 +566,14 @@ bool SDetailsViewBase::IsPropertyReadOnly( const FPropertyAndParent& PropertyAnd
 	return IsPropertyReadOnlyDelegate.IsBound() ? IsPropertyReadOnlyDelegate.Execute(PropertyAndParent) : false;
 }
 
-bool SDetailsViewBase::IsCustomRowVisibilityFiltered() const
-{
-	if (!IsCustomRowVisibleDelegate.IsBound())
-	{
-		return false;
-	}
-	return IsCustomRowVisibilityFilteredDelegate.IsBound() ? IsCustomRowVisibilityFilteredDelegate.Execute() : true;
-}
-
 bool SDetailsViewBase::IsCustomRowVisible(FName InRowName, FName InParentName) const
 {
 	return IsCustomRowVisibleDelegate.IsBound() ? IsCustomRowVisibleDelegate.Execute(InRowName, InParentName) : true;
+}
+
+bool SDetailsViewBase::IsCustomRowReadOnly(FName InRowName, FName InParentName) const
+{
+	return IsCustomRowReadOnlyDelegate.IsBound() ? IsCustomRowReadOnlyDelegate.Execute(InRowName, InParentName) : false;
 }
 
 TSharedPtr<IPropertyUtilities> SDetailsViewBase::GetPropertyUtilities()

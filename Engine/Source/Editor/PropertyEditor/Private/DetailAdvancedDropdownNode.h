@@ -39,7 +39,7 @@ private:
 	virtual void GetChildren(FDetailNodeList& OutChildren) override {}
 	virtual void OnItemExpansionChanged( bool bIsExpanded, bool bShouldSaveState) override {}
 	virtual bool ShouldBeExpanded() const override { return false; }
-	virtual ENodeVisibility GetVisibility() const override { return ENodeVisibility::Visible; }
+	virtual ENodeVisibility GetVisibility() const override;
 	virtual void FilterNode( const FDetailFilter& InFilter ) override {}
 	virtual void Tick( float DeltaTime ) override {}
 	virtual bool ShouldShowOnlyChildren() const override { return false; }

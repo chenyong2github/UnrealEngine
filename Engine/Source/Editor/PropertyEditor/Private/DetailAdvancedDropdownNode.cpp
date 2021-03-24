@@ -171,3 +171,13 @@ FReply FAdvancedDropdownNode::OnAdvancedDropDownClicked()
 
 	return FReply::Handled();
 }
+
+ENodeVisibility FAdvancedDropdownNode::GetVisibility() const
+{
+	IDetailsViewPrivate* DetailsView = GetDetailsView();
+	if (!DetailsView || DetailsView->IsCustomRowVisible(FName(NAME_None), FName(*GetParentCategory()->GetDisplayName().ToString())))
+	{
+		return ENodeVisibility::Visible;
+	}
+	return ENodeVisibility::ForcedHidden;
+}

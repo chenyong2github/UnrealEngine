@@ -57,19 +57,7 @@ void FDetailItemNode::Initialize()
 		SetExpansionState(bShouldExpand, bSaveState);
 	}
 
-	// Cache the visibility of customizations that can set it
-	if( Customization.HasCustomWidget() )
-	{	
-		CachedItemVisibility = Customization.WidgetDecl->VisibilityAttr.Get();
-	}
-	else if( Customization.HasPropertyNode() )
-	{
-		CachedItemVisibility = Customization.PropertyRow->GetPropertyVisibility();
-	}
-	else if( Customization.HasGroup() )
-	{
-		CachedItemVisibility = Customization.DetailGroup->GetGroupVisibility();
-	}
+	CachedItemVisibility = ComputeItemVisibility();
 
 	const bool bUpdateFilteredNodes = false;
 	GenerateChildren( bUpdateFilteredNodes );
@@ -173,7 +161,6 @@ void FDetailItemNode::InitCustomBuilder()
 		const bool bSaveState = false;
 		SetExpansionState(ParentCategory.Pin()->GetSavedExpansionState(*this), bSaveState);
 	}
-
 }
 
 void FDetailItemNode::InitGroup()
@@ -433,14 +420,14 @@ bool FDetailItemNode::ShouldBeExpanded() const
 
 ENodeVisibility FDetailItemNode::GetVisibility() const
 {
-	ENodeVisibility Visibility;
+	ENodeVisibility Visibility = CachedItemVisibility == EVisibility::Collapsed ? ENodeVisibility::ForcedHidden : ENodeVisibility::Visible;
 	if(Customization.IsHidden())
 	{
 		Visibility = ENodeVisibility::ForcedHidden;
 	}
 	else
 	{
-		Visibility = (bShouldBeVisibleDueToFiltering || bShouldBeVisibleDueToChildFiltering) ? ENodeVisibility::Visible : ENodeVisibility::HiddenDueToFiltering;
+		Visibility = (bShouldBeVisibleDueToFiltering || bShouldBeVisibleDueToChildFiltering) ? Visibility : ENodeVisibility::HiddenDueToFiltering;
 	}
 	return Visibility;
 }
@@ -626,19 +613,7 @@ void FDetailItemNode::Tick( float DeltaTime )
 		}
 
 		// Recache visibility
-		EVisibility NewVisibility;
-		if( Customization.HasCustomWidget() )
-		{	
-			NewVisibility = Customization.WidgetDecl->VisibilityAttr.Get();
-		}
-		else if( Customization.HasPropertyNode() )
-		{
-			NewVisibility = Customization.PropertyRow->GetPropertyVisibility();
-		}
-		else if( Customization.HasGroup() )
-		{
-			NewVisibility = Customization.DetailGroup->GetGroupVisibility();
-		}
+		EVisibility NewVisibility = ComputeItemVisibility();
 	
 		if( CachedItemVisibility != NewVisibility )
 		{
@@ -648,6 +623,44 @@ void FDetailItemNode::Tick( float DeltaTime )
 			ParentCategory.Pin()->RefreshTree( bRefilterCategory );
 		}
 	}
+}
+
+EVisibility FDetailItemNode::ComputeItemVisibility() const
+{
+	EVisibility NewVisibility;
+	if (Customization.HasCustomWidget())
+	{	
+		NewVisibility = Customization.WidgetDecl->VisibilityAttr.Get();
+
+		IDetailsViewPrivate* DetailsView = GetDetailsView();
+		if (DetailsView && !DetailsView->IsCustomRowVisible(FName(*Customization.WidgetDecl->FilterTextString.ToString()), FName(*GetParentCategory()->GetDisplayName().ToString())))
+		{
+			NewVisibility = EVisibility::Collapsed;
+		}
+	}
+	else if (Customization.HasPropertyNode())
+	{
+		NewVisibility = Customization.PropertyRow->GetPropertyVisibility();
+	}
+	else if (Customization.HasGroup())
+	{
+		NewVisibility = Customization.DetailGroup->GetGroupVisibility();
+	}
+	else if (Customization.HasCustomBuilder())
+	{
+		NewVisibility = EVisibility::Collapsed;
+
+		for (TSharedRef<FDetailTreeNode> Child : Children)
+		{
+			if (Child->GetVisibility() == ENodeVisibility::Visible)
+			{
+				NewVisibility = EVisibility::Visible;
+				break;
+			}
+		}
+	}
+
+	return NewVisibility;
 }
 
 bool FDetailItemNode::ShouldShowOnlyChildren() const
@@ -694,6 +707,25 @@ FPropertyPath FDetailItemNode::GetPropertyPath() const
 		Ret = *FPropertyNode::CreatePropertyPath( PropertyNode.ToSharedRef() );
 	}
 	return Ret;
+}
+
+TAttribute<bool> FDetailItemNode::IsPropertyEditingEnabled() const
+{
+	return TAttribute<bool>::Create([this]()
+		{
+			bool IsParentEnabledValue = IsParentEnabled.Get(true);
+			if (Customization.HasCustomWidget())
+			{
+				IDetailsViewPrivate* DetailsView = GetDetailsView();
+				if (DetailsView)
+				{
+					return IsParentEnabledValue && 
+						!DetailsView->IsCustomRowReadOnly(FName(*Customization.WidgetDecl->FilterTextString.ToString()), FName(*GetParentCategory()->GetDisplayName().ToString()));
+				}
+			}
+
+			return IsParentEnabledValue;
+		});
 }
 
 TSharedPtr<FPropertyNode> FDetailItemNode::GetPropertyNode() const

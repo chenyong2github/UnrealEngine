@@ -127,12 +127,12 @@ public:
 	virtual FOnDisplayedPropertiesChanged& GetOnDisplayedPropertiesChanged() override { return OnDisplayedPropertiesChangedDelegate; }
 	virtual void SetDisableCustomDetailLayouts( bool bInDisableCustomDetailLayouts ) override { bDisableCustomDetailLayouts = bInDisableCustomDetailLayouts; }
 	virtual void SetIsPropertyVisibleDelegate(FIsPropertyVisible InIsPropertyVisible) override;
-	virtual FIsCustomRowVisibilityFiltered& GetIsCustomRowVisibilityFilteredDelegate() override { return IsCustomRowVisibilityFilteredDelegate; };
-	virtual void SetIsCustomRowVisibilityFilteredDelegate(FIsCustomRowVisibilityFiltered InIsCustomRowVisibilityFilteredDelegate) override;
 	virtual FIsPropertyVisible& GetIsPropertyVisibleDelegate() override { return IsPropertyVisibleDelegate; }
 	virtual void SetIsCustomRowVisibleDelegate(FIsCustomRowVisible InIsCustomRowVisible) override;
 	virtual FIsCustomRowVisible& GetIsCustomRowVisibleDelegate() override { return IsCustomRowVisibleDelegate; }
 	virtual void SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly InIsPropertyReadOnly) override;
+	virtual FIsCustomRowReadOnly& GetIsCustomRowReadOnlyDelegate() override { return IsCustomRowReadOnlyDelegate; }
+	virtual void SetIsCustomRowReadOnlyDelegate(FIsCustomRowReadOnly InIsCustomRowReadOnly) override;
 	virtual FIsPropertyReadOnly& GetIsPropertyReadOnlyDelegate() override { return IsPropertyReadOnlyDelegate; }
 	virtual void SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled IsPropertyEditingEnabled) override;
 	virtual FIsPropertyEditingEnabled& GetIsPropertyEditingEnabledDelegate() override { return IsPropertyEditingEnabledDelegate; }
@@ -143,8 +143,8 @@ public:
 	virtual TSharedPtr<IDetailPropertyExtensionHandler> GetExtensionHandler() override;
 	virtual bool IsPropertyVisible(const struct FPropertyAndParent& PropertyAndParent) const override;
 	virtual bool IsPropertyReadOnly(const struct FPropertyAndParent& PropertyAndParent) const override;
-    virtual bool IsCustomRowVisibilityFiltered() const override;
 	virtual bool IsCustomRowVisible(FName InRowName, FName InParentName) const override;
+	virtual bool IsCustomRowReadOnly(FName InRowName, FName InParentName) const override;
 	virtual void SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance OnGetGenericDetails) override;
 	virtual FOnGetDetailCustomizationInstance& GetGenericLayoutDetailsDelegate() override { return GenericLayoutDelegate; }
 	virtual bool IsLocked() const override { return bIsLocked; }
@@ -386,12 +386,12 @@ protected:
 	FDetailNodeList RootTreeNodes;
 	/** Delegate executed to determine if a property should be visible */
 	FIsPropertyVisible IsPropertyVisibleDelegate;
-	/** Delegate executed to check if custom row visibility is filtered. */
-	FIsCustomRowVisibilityFiltered IsCustomRowVisibilityFilteredDelegate;
 	/** Delegate executed to determine if a custom row should be visible. */
 	FIsCustomRowVisible IsCustomRowVisibleDelegate;
 	/** Delegate executed to determine if a property should be read-only */
 	FIsPropertyReadOnly IsPropertyReadOnlyDelegate;
+	/** Delegate executed to determine if a custom row should be read-only. */
+	FIsCustomRowReadOnly IsCustomRowReadOnlyDelegate;
 	/** Delegate called to see if a property editing is enabled */
 	FIsPropertyEditingEnabled IsPropertyEditingEnabledDelegate;
 	/** Delegate called when the details panel finishes editing a property (after post edit change is called) */

@@ -32,13 +32,6 @@ FDetailWidgetRow& FCustomChildrenBuilder::AddCustomRow( const FText& SearchStrin
 	FDetailLayoutCustomization NewCustomization;
 
 	NewRow->FilterString( SearchString );
-	
-	IDetailsViewPrivate* DetailsView = ParentCategory.Pin()->GetDetailsView();
-	if (DetailsView && DetailsView->IsCustomRowVisibilityFiltered() && !DetailsView->IsCustomRowVisible(FName(*SearchString.ToString()), FName(*GetParentCategory().GetDisplayName().ToString())))
-	{
-		NewRow->Visibility(TAttribute<EVisibility>(EVisibility::Collapsed));
-	}
-
 	NewCustomization.WidgetDecl = NewRow;
 
 	ChildCustomizations.Add( NewCustomization );

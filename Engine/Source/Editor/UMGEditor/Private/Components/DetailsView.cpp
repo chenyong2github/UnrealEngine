@@ -79,9 +79,7 @@ void UDetailsView::BuildContentWidget()
 			
 			DetailViewWidget->SetCustomFilterLabel(LOCTEXT("ShowAllParameters", "Show All Parameters"));
 			DetailViewWidget->SetCustomFilterDelegate(FSimpleDelegate::CreateUObject(this, &UDetailsView::ToggleWhitelistedProperties));
-
 			DetailViewWidget->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateUObject(this, &UDetailsView::GetIsPropertyVisible));
-			DetailViewWidget->SetIsCustomRowVisibilityFilteredDelegate(FIsCustomRowVisibilityFiltered::CreateUObject(this, &UDetailsView::IsRowVisibilityFiltered));
 			DetailViewWidget->SetIsCustomRowVisibleDelegate(FIsCustomRowVisible::CreateUObject(this, &UDetailsView::GetIsRowVisible));
 			DetailViewWidget->SetObject(ViewedObject);
 			if (DetailViewWidget.IsValid())
@@ -162,14 +160,9 @@ void UDetailsView::ToggleWhitelistedProperties()
 }
 
 
-bool UDetailsView::IsRowVisibilityFiltered() const
-{
-	return bShowOnlyWhitelisted && (PropertiesToShow.Num() > 0 || CategoriesToShow.Num() > 0);
-}
-
 bool UDetailsView::GetIsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const
 {
-    if (!IsRowVisibilityFiltered())
+    if (!bShowOnlyWhitelisted)
 	{
 		return true;
 	}
@@ -186,7 +179,7 @@ bool UDetailsView::GetIsPropertyVisible(const FPropertyAndParent& PropertyAndPar
 
 bool UDetailsView::GetIsRowVisible(FName InRowName, FName InParentName) const
 {
-    if (!IsRowVisibilityFiltered())
+    if (!bShowOnlyWhitelisted)
 	{
 		return true;
 	}
