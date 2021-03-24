@@ -82,6 +82,7 @@ public class MeshUtilities : ModuleRules
 
         // Always use the official version of IntelTBB
         string IntelTBBLibs = Target.UEThirdPartyBinariesDirectory + "Intel/TBB/";
+        string IntelEmbreeLibs = Target.UEThirdPartyBinariesDirectory + "Intel/Embree/Embree2140";
 
         // EMBREE
         if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -110,13 +111,16 @@ public class MeshUtilities : ModuleRules
         }
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")) // no support for arm64 yet
 		{
-			string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/Linux/x86_64-unknown-linux-gnu/";
+            string IncludeDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/Linux/x86_64-unknown-linux-gnu";
+			string SDKDir = Path.Combine(IntelEmbreeLibs, "Linux/x86_64-unknown-linux-gnu/lib");
 
-            PublicIncludePaths.Add(Path.Combine(SDKDir, "include"));
-            PublicAdditionalLibraries.Add(Path.Combine(SDKDir, "lib/libembree.so"));
+            PublicIncludePaths.Add(Path.Combine(IncludeDir, "include"));
+            PublicAdditionalLibraries.Add(Path.Combine(SDKDir, "libembree.so"));
             PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so"));
 			// disabled for Linux atm due to a bug in libtbbmalloc on exit
             // PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Linux/libtbbmalloc.so"));
+            RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree.so"));
+            RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree.so.2"));
 			RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so"));
 			RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so.2"));
 			// disabled for Linux atm due to a bug in libtbbmalloc on exit
