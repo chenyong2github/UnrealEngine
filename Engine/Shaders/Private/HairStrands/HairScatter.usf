@@ -15,6 +15,7 @@
 #include "../ShadingModels.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsDeepTransmittanceCommon.ush"
+#include "HairStrandsDeepTransmittanceDualScattering.ush" 
 #include "HairStrandsVoxelPageCommon.ush"
 
 #define DEBUG_ENABLE 0
@@ -62,15 +63,10 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	float3 WorldPosition,
 	float3 SamplePosition,
 	uint MacroGroupId,
-	FGBufferData GBuffer,
 	FTransmittanceSettings Settings,
-	Texture3D<float4>	HairLUTTexture,
-	SamplerState		HairLUTSampler,
 	bool bDebugEnabled)
 {
 	const float3 L = normalize(SamplePosition - WorldPosition);;
-	const float3 T = GBuffer.WorldNormal;
-	const float SinLightAngle = dot(L, T);
 
 	// Depth bias
 	// Origin is shifted voxels away towards the light + a constant bias of the size of the voxel
@@ -107,7 +103,10 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 		VirtualVoxel.PageTexture,
 		TraversalSettings);
 
-	return ComputeTransmittanceFromHairCount(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairLUTTexture, HairLUTSampler);
+	FHairTransmittanceMask Out;
+	Out.HairCount = Result.HairCount;
+	Out.Visibility = Result.Visibility;
+	return Out;
 }
 
 FGBufferData GetGBufferData(uint2 PixelCoord)
@@ -254,10 +253,7 @@ void MainPS(
 					WorldPosition,
 					SampleWorldPos,
 					MacroGroupId,
-					GBuffer,
 					Settings,
-					HairLUTTexture,
-					LinearSampler,
 					bDebugEnabled && DEBUG_ENABLE);
 			}
 			#endif
@@ -325,8 +321,10 @@ void MainPS(
 			}
 			#endif
 
+			const float3 Transmittance = GetHairTransmittanceOnly(InitHairTransmittanceMask(TransmittanceMask.HairCount, TransmittanceMask.Visibility), GBuffer, SampleSinLightAngle, HairLUTTexture, LinearSampler);
+
 			const float Area = 0;
-			const float3 TransmittedLight = TransmittanceMask.Transmittance * TransmittanceMask.Visibility * SampleColor.xyz;
+			const float3 TransmittedLight = Transmittance * TransmittanceMask.Visibility * SampleColor.xyz;
 			float3 Luminance = HairShading(GBuffer, L, V, T, 1, TransmittanceData, 1, Area, uint2(0,0)) * TransmittedLight;
 			
 			AccIndirectLuminance.rgb += Luminance.xyz;

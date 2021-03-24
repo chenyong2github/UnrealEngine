@@ -76,7 +76,7 @@ Buffer<uint4>				IndirectArgsBuffer;
 
 Texture3D<float4>			HairLUTTexture;
 SamplerState				LinearSampler;
-RWStructuredBuffer<FPackedHairTransmittanceMask> OutputColor;
+RWBuffer<uint>				OutputColor;
 
 #if PERMUTATION_GROUP_SIZE == 0
 	#define TRANSMITTANCE_GROUP_SIZE 64
@@ -88,6 +88,7 @@ RWStructuredBuffer<FPackedHairTransmittanceMask> OutputColor;
 
 #if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_DEEP_SHADOW
 
+#if 0
 // Sample deep shadow with PCF kernel and doing transmittance evaluation for each sample
 FHairTransmittanceMask SampleDOM_PCF_Accurate(
 	float3 LightSpacePosition,
@@ -164,16 +165,14 @@ FHairTransmittanceMask SampleDOM_PCF_Accurate(
 
 	return Out;
 }
+#endif 
 
 FHairTransmittanceMask ComputeTransmittance(
 	float3 WorldPosition,
-	FGBufferData GBuffer, 
 	FTransmittanceSettings Settings,
 	float4				InLayerDepths,
 	Texture2D<float>	FrontDepthTexture,
-	Texture2D<float4>	DomTexture,
-	Texture3D<float4>	HairLUTTexture,
-	SamplerState		LinearSampler)
+	Texture2D<float4>	DomTexture)
 {
 	FHairTransmittanceMask Out = InitHairTransmittanceMask();
 	{
@@ -182,8 +181,6 @@ FHairTransmittanceMask ComputeTransmittance(
 		// LightSpacePosition is 'WorldPosition' in LightSpace (TexelCoord.XY / NDC Depth.Z)
 		const float3 LightSpacePosition = ToLightPosition(WorldPosition, Settings.WorldToLightTransform) * float3(Settings.DeepShadowResolution, 1) + float3(Settings.DeepShadowOffset, 0); 
 		const float3 L = bIsDirectionalLight ? Settings.LightDirection : normalize(Settings.LightPosition.xyz - WorldPosition);
-		const float3 T = GBuffer.WorldNormal;
-		const float SinLightAngle = dot(L, T);
 
 		float DepthBias = 0;
 		if (Settings.DeepShadowDepthBiasScale > 0)
@@ -200,7 +197,9 @@ FHairTransmittanceMask ComputeTransmittance(
 		// Compute the number of hair count between light & shading point
 		if (Settings.TransmittanceKernelType == 4)
 		{
-			Out = SampleDOM_PCF_Accurate(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
+			//Out = SampleDOM_PCF_Accurate(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
+			Out.HairCount = 0;
+			Out.Visibility = 1;
 		}
 		else
 		{
@@ -221,12 +220,12 @@ FHairTransmittanceMask ComputeTransmittance(
 			{
 				HairCount = 0;
 			}
-			Out = ComputeTransmittanceFromHairCount(HairCount * Settings.DeepShadowDensityScale, 1, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
+			Out.HairCount = HairCount * Settings.DeepShadowDensityScale;
+			Out.Visibility = 1;
 		}
 
 		if (Settings.DebugMode != 0)
 		{
-			Out.Transmittance = ComputeDomDebugColor(WorldPosition, Settings.WorldToLightTransform, InLayerDepths, FrontDepthTexture, LinearSampler);
 			Out.HairCount = 1;
 		}
 	}
@@ -260,12 +259,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			return;
 		}
 
-		FGBufferData GBuffer;
-		GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
-		GBuffer.WorldNormal = Sample.Tangent;
-		GBuffer.BaseColor = Sample.BaseColor;
-		GBuffer.Roughness = Sample.Roughness;
-
 		const uint MacroGroupIndex = clamp(Sample.MacroGroupId, 0, MAX_HAIR_MACROGROUP_COUNT - 1);
 		const int3 SlotOffset_SlotIndex = DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[MacroGroupIndex].xyz;
 		float4x4 WorldToLightTransform = 0;
@@ -293,10 +286,9 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
 		const float3 WorldPosition = ToWorldPosition(UV, SceneDepth);
-		const FHairTransmittanceMask TransmittanceMask = ComputeTransmittance(WorldPosition, GBuffer, Settings, DeepShadow_LayerDepths, DeepShadow_FrontDepthTexture, DeepShadow_DomTexture, HairLUTTexture, LinearSampler);
+		const FHairTransmittanceMask TransmittanceMask = ComputeTransmittance(WorldPosition, Settings, DeepShadow_LayerDepths, DeepShadow_FrontDepthTexture, DeepShadow_DomTexture);
 
-		const FPackedHairTransmittanceMask PackedTransmittanceMask = PackTransmittanceMask(TransmittanceMask);
-		OutputColor[LocalOffset] = PackedTransmittanceMask;
+		OutputColor[LocalOffset] = PackTransmittanceMask(TransmittanceMask);
 	}
 }
 #endif
@@ -352,10 +344,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	const float PixelRadius,
 	float3 WorldPosition,
 	uint MacroGroupId,
-	FGBufferData GBuffer,
 	FTransmittanceSettings Settings,
-	Texture3D<float4>	HairLUTTexture,
-	SamplerState		HairLUTSampler,
 	bool bDebugEnabled)
 {
 
@@ -364,8 +353,6 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	const float3 LightPosition  = bIsDirectionalLight ? -Settings.LightDirection*VoxelShadowMaxDistance + WorldPosition : Settings.LightPosition.xyz;
 	const float3 LightDirection = bIsDirectionalLight ? -Settings.LightDirection : normalize(Settings.LightPosition.xyz - WorldPosition);
 	const float TanLightAngle = bIsDirectionalLight ? 0 : LightRadius / length(Settings.LightPosition.xyz - WorldPosition);
-	const float3 T = GBuffer.WorldNormal;
-	const float SinLightAngle = dot(LightDirection, T);
 
 	// Compute the number of hair count between light & shading point
 	const float DistanceThreshold = 100000;
@@ -427,7 +414,10 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	AvgHairVisility /= max(1u, SampleCount);
 	#endif
 
-	return ComputeTransmittanceFromHairCount(AvgHairCount, AvgHairVisility, GBuffer, SinLightAngle, HairLUTTexture, HairLUTSampler);
+	FHairTransmittanceMask Out;
+	Out.HairCount = AvgHairCount;
+	Out.Visibility = AvgHairVisility;
+	return Out;
 }
 
 [numthreads(TRANSMITTANCE_GROUP_SIZE, 1, 1)]
@@ -446,9 +436,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	if (RayMarchMaskTexture.Load(uint3(PixelCoord, 0)).r == 0.0f)
 	{
 		// This pixel is already fully shadowed opaque. (RayMarchMaskTexture is computed using the closest sample as of today)
-		FHairTransmittanceMask DefaultMask = InitHairTransmittanceMask();
-		const FPackedHairTransmittanceMask PackedTransmittanceMask = PackTransmittanceMask(DefaultMask);
-		OutputColor[LocalOffset] = PackedTransmittanceMask;
+		const FHairTransmittanceMask DefaultMask = InitHairTransmittanceMask();
+		OutputColor[LocalOffset] = PackTransmittanceMask(DefaultMask);
 		return;
 	}
 
@@ -489,17 +478,16 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		const float PixelRadius = SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
 	
-		const FHairTransmittanceMask TransmittanceMask = ComputeTransmittanceVoxel(PixelCoord, PixelRadius, WorldPosition, MacroGroupIndex, GBuffer, Settings, HairLUTTexture, LinearSampler, bDebugEnabled);
+		const FHairTransmittanceMask Out = ComputeTransmittanceVoxel(PixelCoord, PixelRadius, WorldPosition, MacroGroupIndex, Settings, bDebugEnabled);
 
 		#if VOXEL_TRAVERSAL_DEBUG
 		if (bDebugEnabled)
 		{
-			PrintInfo(LocalOffset, PixelCoord, TransmittanceMask);
+			PrintInfo(LocalOffset, PixelCoord, Out);
 		}
 		#endif	
 
-		const FPackedHairTransmittanceMask PackedTransmittanceMask = PackTransmittanceMask(TransmittanceMask);
-		OutputColor[LocalOffset] = PackedTransmittanceMask;
+		OutputColor[LocalOffset] = PackTransmittanceMask(Out);
 	}
 }
 #endif
@@ -511,7 +499,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if SHADER_CLEAR
 
 uint ElementCount;
-RWStructuredBuffer<FPackedHairTransmittanceMask> OutputMask;
+RWBuffer<uint> OutputMask;
 
 [numthreads(64, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)

@@ -15,6 +15,7 @@ class FViewInfo;
 
 struct FHairStrandsTransmittanceMaskData
 {
+	static const EPixelFormat Format = PF_R32_UINT;
 	FRDGBufferRef TransmittanceMask = nullptr;
 };
 

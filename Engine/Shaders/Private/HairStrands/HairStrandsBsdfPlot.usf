@@ -260,13 +260,8 @@ void MainPS(
 				// Compute the transmittance based on precompute Hair transmittance LUT
 				FHairAverageScattering AverageScattering = SampleHairLUT(HairScatteringLUTTexture, HairLUTSampler, P.BaseColor, P.Roughness, SinLightAngle);
 
-				FHairTransmittanceMask TransmittanceMask;
-				TransmittanceMask.HairCount = 0;
-				TransmittanceMask.Visibility = 1;
-				TransmittanceMask.Transmittance = 1;
-
 				TransmittanceData = ComputeDualScatteringTerms(
-					TransmittanceMask,
+					InitHairTransmittanceMask(),
 					AverageScattering,
 					P.Roughness,
 					SampleBacklit,

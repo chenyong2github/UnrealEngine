@@ -306,7 +306,7 @@ void DeferredLightPixelMain(
 Texture2D<float4> ScreenShadowMaskSubPixelTexture;
 
 uint HairTransmittanceBufferMaxCount;
-StructuredBuffer<FPackedHairTransmittanceMask> HairTransmittanceBuffer;
+Buffer<uint> HairTransmittanceBuffer;
 uint HairShadowMaskValid;
 
 void DeferredLightPixelMain(

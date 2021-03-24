@@ -2441,7 +2441,7 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		check(InTransmittanceMaskData.TransmittanceMask);
 
 		PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
-		PassParameters->HairTransmittanceMaskSRV = GraphBuilder.CreateSRV(InTransmittanceMaskData.TransmittanceMask);
+		PassParameters->HairTransmittanceMaskSRV = GraphBuilder.CreateSRV(InTransmittanceMaskData.TransmittanceMask, FHairStrandsTransmittanceMaskData::Format);
 
 		const bool bIsShadowMaskValid = !!PassParameters->Light.ShadowMaskTexture;
 		const uint32 MaxTransmittanceElementCount = InTransmittanceMaskData.TransmittanceMask ? InTransmittanceMaskData.TransmittanceMask->Desc.NumElements : 0;

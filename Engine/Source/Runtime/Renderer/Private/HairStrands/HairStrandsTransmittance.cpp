@@ -93,7 +93,7 @@ class FHairStrandsClearTransmittanceMaskCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, ElementCount)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutputMask)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutputMask)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -118,7 +118,7 @@ static void AddHairStrandsClearTransmittanceMaskPass(
 {
 	FHairStrandsClearTransmittanceMaskCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsClearTransmittanceMaskCS::FParameters>();
 	Parameters->ElementCount = OutTransmittanceMask->Desc.NumElements;
-	Parameters->OutputMask = GraphBuilder.CreateUAV(OutTransmittanceMask);
+	Parameters->OutputMask = GraphBuilder.CreateUAV(OutTransmittanceMask, FHairStrandsTransmittanceMaskData::Format);
 
 	FHairStrandsClearTransmittanceMaskCS::FPermutationDomain PermutationVector;
 	TShaderMapRef<FHairStrandsClearTransmittanceMaskCS> ComputeShader(ShaderMap, PermutationVector);
@@ -135,8 +135,8 @@ static void AddHairStrandsClearTransmittanceMaskPass(
 
 static FRDGBufferRef CreateHairStrandsTransmittanceMaskBuffer(FRDGBuilder& GraphBuilder, uint32 NumElements)
 {
-	return GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(
-		4 * sizeof(float),
+	return GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(
+		sizeof(uint32),
 		NumElements),
 		TEXT("Hair.TransmittanceNodeData"));
 }
@@ -202,7 +202,7 @@ class FDeepTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, HairVisibilityNodeCoord)
 		RDG_BUFFER_ACCESS(IndirectArgsBuffer, ERHIAccess::IndirectArgs)
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutputColor)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutputColor)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ShadowSampler)
 
@@ -288,7 +288,7 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	Parameters->DeepShadow_FrontDepthTexture = Params.DeepShadow_FrontDepthTexture;
 	Parameters->DeepShadow_DomTexture = Params.DeepShadow_DomTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Parameters->OutputColor = GraphBuilder.CreateUAV(OutBuffer);
+	Parameters->OutputColor = GraphBuilder.CreateUAV(OutBuffer, FHairStrandsTransmittanceMaskData::Format);
 	Parameters->LightChannelMask = Params.LightChannelMask;
 	Parameters->DeepShadow_Resolution = Params.DeepShadow_Resolution;
 	Parameters->LightDirection = Params.LightDirection;
