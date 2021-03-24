@@ -212,6 +212,22 @@ namespace UnrealBuildTool
 			return FullClangVersion;
 		}
 
+		protected static string GetCppStandardCompileArgument(CppStandardVersion Version)
+		{
+			switch (Version)
+			{
+				case CppStandardVersion.Cpp14:
+					return " -std=c++14";
+				case CppStandardVersion.Cpp17:
+					return " -std=c++17";
+				case CppStandardVersion.Latest:
+				case CppStandardVersion.Cpp20:
+					return " -std=c++20";
+				default:
+					throw new BuildException($"Unsupported C++ standard type set: {Version}");
+			}
+		}
+
 		protected string GetDsymutilPath(out string ExtraOptions, bool bIsForLTOBuild=false)
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");

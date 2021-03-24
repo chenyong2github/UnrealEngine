@@ -872,30 +872,27 @@ namespace UnrealBuildTool
 				: string.Format("{0}={1}", myKey, myValue);
 		}
 
-		static string GetCompilerStandardVersion_CPP(CppCompileEnvironment CompileEnvironment)
+		static string GetCompilerStandardVersion_CPP(CppStandardVersion Version)
 		{
-			if (CompileEnvironment.CppStandard == CppStandardVersion.Cpp14 || CompileEnvironment.CppStandard == CppStandardVersion.Default)
+			switch (Version)
 			{
-				return " -std=c++14";
+				case CppStandardVersion.Cpp14:
+					return " -std=c++14";
+				case CppStandardVersion.Cpp17:
+					return " -std=c++17";
+				case CppStandardVersion.Latest:
+				case CppStandardVersion.Cpp20:
+					return " -std=c++20";
+				default:
+					throw new BuildException($"Unsupported C++ standard type set: {Version}");
 			}
-			else if (CompileEnvironment.CppStandard == CppStandardVersion.Cpp17)
-			{
-				return " -std=c++17";
-			}
-			else if (CompileEnvironment.CppStandard == CppStandardVersion.Latest)
-			{
-				return " -std=c++17";
-			}
-
-			throw new BuildException(
-			string.Format("Unknown C++ standard type set: {0}", CompileEnvironment.CppStandard));
 		}
 
 		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x c++";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment.CppStandard);
 			return Result;
 		}
 
@@ -912,7 +909,7 @@ namespace UnrealBuildTool
 			Result += " -x objective-c++";
 			Result += " -fobjc-abi-version=2";
 			Result += " -fobjc-legacy-dispatch";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment.CppStandard);
 			return Result;
 		}
 
@@ -941,7 +938,7 @@ namespace UnrealBuildTool
 			Result += " -x objective-c";
 			Result += " -fobjc-abi-version=2";
 			Result += " -fobjc-legacy-dispatch";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment.CppStandard);
 			return Result;
 		}
 
@@ -949,7 +946,7 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 			Result += " -x c++-header";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment.CppStandard);
 			return Result;
 		}
 

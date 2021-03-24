@@ -766,16 +766,20 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		static string GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment)
+		static string GetCppStandardCompileArgument(CppStandardVersion Version)
 		{
-			var Mapping = new Dictionary<CppStandardVersion, string>
+			switch (Version)
 			{
-				{ CppStandardVersion.Cpp14, " -std=c++14" },
-				{ CppStandardVersion.Cpp17, " -std=c++17" },
-				{ CppStandardVersion.Latest, " -std=c++17" },
-				{ CppStandardVersion.Default, " -std=c++14" }
-			};
-			return Mapping[CompileEnvironment.CppStandard];
+				case CppStandardVersion.Cpp14:
+					return " -std=c++14";
+				case CppStandardVersion.Latest:
+				case CppStandardVersion.Cpp17:
+					return " -std=c++17";
+				case CppStandardVersion.Cpp20:
+					return " -std=c++20";
+				default:
+					throw new BuildException($"Unsupported C++ standard type set: {Version}");
+			}
 		}
 
 		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment, bool bDisableOptimizations)
@@ -783,7 +787,7 @@ namespace UnrealBuildTool
 			string Result = "";
 
 			Result += " -x c++";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 
 			// optimization level
 			if (bDisableOptimizations)
@@ -822,7 +826,7 @@ namespace UnrealBuildTool
 			string Result = "";
 
 			Result += " -x c++-header";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 
 			// optimization level
 			if (bDisableOptimizations)

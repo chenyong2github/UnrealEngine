@@ -578,15 +578,18 @@ namespace UnrealBuildTool
 		{
 			switch (Version)
 			{
-				case CppStandardVersion.Default:
 				case CppStandardVersion.Cpp14:
 					return "/std:c++14";
 				case CppStandardVersion.Cpp17:
 					return "/std:c++17";
 				case CppStandardVersion.Latest:
 					return "/std:c++latest";
+				// Will be added when MSVC is feature-complete.
+				// https://docs.microsoft.com/en-us/cpp/build/reference/std-specify-language-standard-version?view=msvc-160
+				// case CppStandardVersion.Cpp20:
+				//	return "/std:c++20";
 				default:
-					throw new ArgumentOutOfRangeException(nameof(Version), Version, "Please update switch above with new C++ version");
+					throw new BuildException($"Unsupported C++ standard type set: {Version}");
 			}
 		}
 

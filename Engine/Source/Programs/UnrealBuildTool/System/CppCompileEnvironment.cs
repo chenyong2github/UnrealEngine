@@ -28,11 +28,6 @@ namespace UnrealBuildTool
 	public enum CppStandardVersion
 	{
 		/// <summary>
-		/// Use the default standard version
-		/// </summary>
-		Default,
-
-		/// <summary>
 		/// Supports C++14
 		/// </summary>
 		Cpp14,
@@ -46,11 +41,16 @@ namespace UnrealBuildTool
 		/// Supports C++20
 		/// </summary>
 		Cpp20,
-
+		
 		/// <summary>
 		/// Latest standard supported by the compiler
 		/// </summary>
 		Latest,
+		
+		/// <summary>
+		/// Use the default standard version
+		/// </summary>
+		Default = Cpp14,
 	}
 
 	/// <summary>

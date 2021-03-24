@@ -292,26 +292,14 @@ namespace UnrealBuildTool
 
 			return Result;
 		}
-
-		static string GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment)
-		{
-			var Mapping = new Dictionary<CppStandardVersion, string>
-			{
-				{ CppStandardVersion.Cpp14, " -std=c++14" },
-				{ CppStandardVersion.Cpp17, " -std=c++17" },
-				{ CppStandardVersion.Latest, " -std=c++17" },
-				{ CppStandardVersion.Default, " -std=c++14" }
-			};
-			return Mapping[CompileEnvironment.CppStandard];
-		}
-
+		
 		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x objective-c++";
 			Result += " -fobjc-abi-version=2";
 			Result += " -fobjc-legacy-dispatch";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 			Result += " -stdlib=libc++";
 			return Result;
 		}
@@ -322,7 +310,7 @@ namespace UnrealBuildTool
 			Result += " -x objective-c++";
 			Result += " -fobjc-abi-version=2";
 			Result += " -fobjc-legacy-dispatch";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 			Result += " -stdlib=libc++";
 			return Result;
 		}
@@ -350,7 +338,7 @@ namespace UnrealBuildTool
 			Result += " -x objective-c++-header";
 			Result += " -fobjc-abi-version=2";
 			Result += " -fobjc-legacy-dispatch";
-			Result += GetCppStandardCompileArgument(CompileEnvironment);
+			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 			Result += " -stdlib=libc++";
 			return Result;
 		}
