@@ -47,9 +47,8 @@
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargetManager.h"
 
-#if WITH_EDITOR
+static_assert(WITH_EDITOR, "Tool being compiled without editor");
 #include "Misc/ScopedSlowTask.h"
-#endif
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -207,11 +206,33 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	IPrimitiveComponentBackedTarget* SourceComponent = TargetComponentInterface(0);
 	UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(SourceComponent->GetOwnerComponent());
 	UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+
+	FProgressCancel Progress;
+	FScopedSlowTask SlowTask(2, LOCTEXT("UGenerateStaticMeshLODAssetTool_Setup", "Initializing tool ..."));
+	SlowTask.MakeDialog();
+
 	if (StaticMesh)
 	{
-		GenerateProcess->Initialize(StaticMesh);		// Must happen on main thread
+		SlowTask.EnterProgressFrame(1);
+
+		bool bInitializeOK = GenerateProcess->Initialize(StaticMesh, &Progress);		// Must happen on main thread
+
+		if (Progress.Warnings.Num() > 0)
+		{
+			const FProgressCancel::FMessageInfo& Warning = Progress.Warnings[0];
+			GetToolManager()->DisplayMessage(Warning.MessageText, (EToolMessageLevel)Warning.MessageLevel);
+		}
+	}
+	else
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("GenerateStaticMeshLODAssetTool_NoStaticMesh", "Could not find Static Mesh in selected input"),
+			EToolMessageLevel::UserError);
 	}
 
+	
+
+	SlowTask.EnterProgressFrame(1);
 	BasicProperties = NewObject<UGenerateStaticMeshLODAssetToolProperties>(this);
 	AddToolPropertySource(BasicProperties);
 	BasicProperties->RestoreProperties(this);

@@ -163,7 +163,7 @@ class UGenerateStaticMeshLODProcess : public UObject
 	GENERATED_BODY()
 public:
 
-	bool Initialize(UStaticMesh* SourceMesh);
+	bool Initialize(UStaticMesh* SourceMesh, FProgressCancel* Progress = nullptr);
 
 	const FGenerateStaticMeshLODProcessSettings& GetCurrentSettings() const { return CurrentSettings; }
 	void UpdateSettings(const FGenerateStaticMeshLODProcessSettings& NewSettings);

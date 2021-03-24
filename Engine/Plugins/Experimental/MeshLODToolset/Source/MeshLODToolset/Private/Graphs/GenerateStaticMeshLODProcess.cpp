@@ -95,7 +95,7 @@ namespace GenerateStaticMeshLODProcessHelpers
 	}
 }
 
-bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn)
+bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgressCancel* Progress)
 {
 	if (!ensure(StaticMeshIn)) return false;
 	if (!ensure(StaticMeshIn->GetNumSourceModels() > 0)) return false;
@@ -172,10 +172,15 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn)
 			}
 			if (bFoundTextureNonParamExpession)
 			{
-				// TODO: bubble this up to the tool level
-				UE_LOG(LogTemp, Warning, 
-					   TEXT("UGenerateStaticMeshLODProcess: Non-parameter texture sampler detected in input material [%s]. Output materials may have unexpected behaviour."),
-					   *Material->GetName());
+				FString WarningMessage("WARNING: UGenerateStaticMeshLODProcess: Non-parameter texture sampler detected in input material [%s]. Output materials may have unexpected behaviour.");
+				UE_LOG(LogTemp, Warning, TEXT("%s"), *WarningMessage, *Material->GetName());
+
+				if (Progress)
+				{
+					FText WarningText = FText::Format(LOCTEXT("NonParameterTextureWarning", "Non-parameter texture sampler detected in input material [{0}]. Output materials may have unexpected behaviour."),
+								  FText::FromString(Material->GetName()));
+					Progress->AddWarning(WarningText, FProgressCancel::EMessageLevel::UserWarning);
+				}
 			}
 		}
 

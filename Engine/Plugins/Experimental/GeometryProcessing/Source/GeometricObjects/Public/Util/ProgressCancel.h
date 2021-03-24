@@ -32,4 +32,37 @@ public:
 		WasCancelled = CancelF();
 		return WasCancelled;
 	}
+
+
+public:
+
+	enum class EMessageLevel
+	{
+		// Note: Corresponds to EToolMessageLevel in InteractiveToolsFramework/ToolContextInterfaces.h
+
+		/** Development message goes into development log */
+		Internal = 0,
+		/** User message should appear in user-facing log */
+		UserMessage = 1,
+		/** Notification message should be shown in a non-modal notification window */
+		UserNotification = 2,
+		/** Warning message should be shown in a non-modal notification window with panache */
+		UserWarning = 3,
+		/** Error message should be shown in a modal notification window */
+		UserError = 4
+	};
+
+	struct FMessageInfo
+	{
+		FText MessageText;
+		EMessageLevel MessageLevel;
+		FDateTime Timestamp;
+	};
+
+	void AddWarning(const FText& MessageText, EMessageLevel MessageLevel)
+	{
+		Warnings.Add(FMessageInfo{ MessageText , MessageLevel, FDateTime::Now() });
+	}
+
+	TArray<FMessageInfo> Warnings;
 };
