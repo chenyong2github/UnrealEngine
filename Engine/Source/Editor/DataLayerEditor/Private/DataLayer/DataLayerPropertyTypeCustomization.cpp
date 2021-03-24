@@ -91,10 +91,15 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 	HeaderRow.IsEnabled(TAttribute<bool>(StructPropertyHandle, &IPropertyHandle::IsEditable));
 }
 
-UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle() const
+UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle(FPropertyAccess::Result* OutPropertyAccessResult) const
 {
 	FName DataLayerName;
-	if (PropertyHandle->GetValue(DataLayerName) == FPropertyAccess::Success)
+	FPropertyAccess::Result Result = PropertyHandle->GetValue(DataLayerName);
+	if (OutPropertyAccessResult)
+	{
+		*OutPropertyAccessResult = Result;
+	}
+	if (Result == FPropertyAccess::Success)
 	{
 		UDataLayer* DataLayer = UDataLayerEditorSubsystem::Get()->GetDataLayerFromName(DataLayerName);
 		return DataLayer;
@@ -104,7 +109,13 @@ UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle(
 
 FText FDataLayerPropertyTypeCustomization::GetDataLayerText() const
 {
-	return UDataLayer::GetDataLayerText(GetDataLayerFromPropertyHandle());
+	FPropertyAccess::Result PropertyAccessResult;
+	const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
+	if (PropertyAccessResult == FPropertyAccess::MultipleValues)
+	{
+		return NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values");
+	}
+	return UDataLayer::GetDataLayerText(DataLayer);
 }
 
 TSharedRef<SWidget> FDataLayerPropertyTypeCustomization::OnGetDataLayerMenu()

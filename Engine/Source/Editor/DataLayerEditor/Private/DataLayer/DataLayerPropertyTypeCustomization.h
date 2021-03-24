@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "PropertyEditorModule.h"
 #include "IPropertyTypeCustomization.h"
 
 struct EVisibility;
@@ -21,7 +22,7 @@ private:
 
 	void AssignDataLayer(const UDataLayer* InDataLayer);
 
-	UDataLayer* GetDataLayerFromPropertyHandle() const;
+	UDataLayer* GetDataLayerFromPropertyHandle(FPropertyAccess::Result* OutPropertyAccessResult = nullptr) const;
 	FText GetDataLayerText() const;
 	EVisibility GetSelectDataLayerVisibility() const;
 
