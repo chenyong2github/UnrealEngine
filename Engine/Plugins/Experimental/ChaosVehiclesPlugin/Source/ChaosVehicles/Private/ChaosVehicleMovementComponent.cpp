@@ -600,8 +600,16 @@ void UChaosVehicleSimulation::InitializeWheel(int WheelIndex, const Chaos::FSimp
 		PVehicle->Wheels[WheelIndex].SetupPtr = InWheelSetup;
 		PVehicle->Wheels[WheelIndex].SetWheelRadius(InWheelSetup->WheelRadius);
 	}
-
 }
+
+void UChaosVehicleSimulation::InitializeSuspension(int WheelIndex, const Chaos::FSimpleSuspensionConfig* InSuspensionSetup)
+{
+	if (PVehicle->IsValid() && InSuspensionSetup && WheelIndex < PVehicle->Suspension.Num())
+	{
+		PVehicle->Suspension[WheelIndex].SetupPtr = InSuspensionSetup;
+	}
+}
+
 
 /**
  * UChaosVehicleMovementComponent

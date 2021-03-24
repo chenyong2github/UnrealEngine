@@ -726,6 +726,9 @@ public:
 	/** Reinitialize a wheel at runtime */
 	void InitializeWheel(int WheelIndex, const Chaos::FSimpleWheelConfig* InWheelSetup);
 
+	/** Reinitialize the physics suspension at runtime */
+	void InitializeSuspension(int WheelIndex, const Chaos::FSimpleSuspensionConfig* InSuspensionSetup);
+
 	/** Draw debug text for the wheels and suspension */
 	virtual void DrawDebug3D();
 	UWorld* World;

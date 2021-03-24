@@ -2120,20 +2120,28 @@ void UChaosWheeledVehicleMovementComponent::SetWheelClass(int WheelIndex, TSubcl
 
 		if (TargetInstance && WheelIndex < Wheels.Num())
 		{
-			UChaosVehicleWheel* Wheel = Wheels[WheelIndex];
-			Wheel->Shutdown();
-			Wheel = NewObject<UChaosVehicleWheel>(this, InWheelClass);
-			Wheel->Init(this, WheelIndex);
 
 			FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
 				{
 					if (VehicleSimulationPT)
 					{
-						VehicleSimulationPT->InitializeWheel(WheelIndex, &Wheel->GetPhysicsWheelConfig());
+						UChaosVehicleWheel* OldWheel = Wheels[WheelIndex];
+						UChaosVehicleWheel* NewWheel = NewObject<UChaosVehicleWheel>(this, InWheelClass);
+						NewWheel->Init(this, WheelIndex);
+
+						VehicleSimulationPT->InitializeWheel(WheelIndex, &NewWheel->GetPhysicsWheelConfig());
+						VehicleSimulationPT->InitializeSuspension(WheelIndex, &NewWheel->GetPhysicsSuspensionConfig());
+
+						Wheels[WheelIndex] = NewWheel;
+
+						OldWheel->Shutdown();
 					}
-				});
+				});			
+				
+
 		}
 	}
+
 }
 
 FWheeledSnaphotData UChaosWheeledVehicleMovementComponent::GetSnapshot() const
