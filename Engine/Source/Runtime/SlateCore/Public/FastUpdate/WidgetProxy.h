@@ -94,7 +94,7 @@ public:
 	/** Use with "Slate.InvalidationRoot.VerifyWidgetVisibility". Cached the last FastPathVisible value to find widgets that do not call Invalidate properly. */
 	uint8 bDebug_LastFrameVisible : 1;
 	uint8 bDebug_LastFrameVisibleSet : 1;
-	/** Use with "SLate.InvalidationRoot.VerifyWidgetAttribute". */
+	/** Use with "Slate.InvalidationRoot.VerifyWidgetAttribute". */
 	uint8 bDebug_AttributeUpdated : 1;
 };
 

@@ -104,8 +104,8 @@ public:
 	{
 		struct FReIndexOperation
 		{
-			FReIndexOperation(FIndexRange const& InRange, FSlateInvalidationWidgetIndex InReIndexTarget) : Range(InRange), ReIndexTarget(InReIndexTarget) {}
-			FIndexRange const& GetRange() const { return Range; }
+			FReIndexOperation(const FIndexRange& InRange, FSlateInvalidationWidgetIndex InReIndexTarget) : Range(InRange), ReIndexTarget(InReIndexTarget) {}
+			const FIndexRange& GetRange() const { return Range; }
 			UE_NODISCARD FSlateInvalidationWidgetIndex ReIndex(FSlateInvalidationWidgetIndex Index) const;
 		private:
 			const FIndexRange& Range;
@@ -113,36 +113,36 @@ public:
 		};
 		struct FReSortOperation
 		{
-			FReSortOperation(FIndexRange const& InRange) : Range(InRange) {}
-			FIndexRange const& GetRange() const { return Range; }
+			FReSortOperation(const FIndexRange& InRange) : Range(InRange) {}
+			const FIndexRange& GetRange() const { return Range; }
 		private:
-			FIndexRange const& Range;
+			const FIndexRange& Range;
 		};
 
 		/** Widget proxies that will be removed and will not be valid anymore. */
-		virtual void PreChildRemove(FIndexRange const& Range) {}
+		virtual void PreChildRemove(const FIndexRange& Range) {}
 		/** Widget proxies that got moved/re-indexed by the operation. */
-		virtual void ProxiesReIndexed(FReIndexOperation const& Operation) {}
+		virtual void ProxiesReIndexed(const FReIndexOperation& Operation) {}
 		/** Widget proxies that got resorted by the operation. */
-		virtual void ProxiesPreResort(FReSortOperation const& Operation) {}
+		virtual void ProxiesPreResort(const FReSortOperation& Operation) {}
 		/** Widget proxies that got resorted by the operation. */
 		virtual void ProxiesPostResort() {}
 		/** Widget proxies built by the operation. */
-		virtual void ProxiesBuilt(FIndexRange const& Range) {}
+		virtual void ProxiesBuilt(const FIndexRange& Range) {}
 	};
 
 	/**
 	 * Process widget that have a ChildOrder invalidation.
 	 * @returns true if the InvalidationWidget is still valid.
 	 */
-	bool ProcessChildOrderInvalidation(InvalidationWidgetType const& InvalidationWidget, IProcessChildOrderInvalidationCallback& Callback);
+	bool ProcessChildOrderInvalidation(const InvalidationWidgetType& InvalidationWidget, IProcessChildOrderInvalidationCallback& Callback);
 
 
 	/**
 	 * Test, then adds or removes from the registered attribute list.
 	 * @returns true if the Widget go added to the registered attribute list.
 	 */
-	void ProcessAttributeRegistrationInvalidation(InvalidationWidgetType const& InvalidationWidget);
+	void ProcessAttributeRegistrationInvalidation(const InvalidationWidgetType& InvalidationWidget);
 
 	/** Performs an operation on all SWidget in the list. */
 	template<typename Predicate>
@@ -188,21 +188,23 @@ public:
 	struct FWidgetAttributeIterator
 	{
 	private:
-		FSlateInvalidationWidgetList const& WidgetList;
+		const FSlateInvalidationWidgetList& WidgetList;
 		FSlateInvalidationWidgetIndex CurrentWidgetIndex;
 		FSlateInvalidationWidgetSortOrder CurrentWidgetSortOrder;
 		int32 AttributeIndex;
 
 		FSlateInvalidationWidgetIndex MoveToWidgetIndexOnNextAdvance;
+		/** A fix-up is required. MoveToWidgetIndexOnNextAdvance cannot be used since it may point to the last element (invalid) */
+		bool bNeedsWidgetFixUp;
 
 	public:
-		FWidgetAttributeIterator(FSlateInvalidationWidgetList const& InWidgetList);
+		FWidgetAttributeIterator(const FSlateInvalidationWidgetList& InWidgetList);
 
 		//~ Handle operation
-		void PreChildRemove(FIndexRange const& Range);
-		void ReIndexed(IProcessChildOrderInvalidationCallback::FReIndexOperation const& Operation);
+		void PreChildRemove(const FIndexRange& Range);
+		void ReIndexed(const IProcessChildOrderInvalidationCallback::FReIndexOperation& Operation);
 		void PostResort();
-		void ProxiesBuilt(FIndexRange const& Range);
+		void ProxiesBuilt(const FIndexRange& Range);
 		void FixCurrentWidgetIndex();
 		void Seek(FSlateInvalidationWidgetIndex SeekTo);
 
@@ -222,7 +224,7 @@ public:
 		void AdvanceArrayIndex(int32 ArrayIndex);
 	};
 
-	FWidgetAttributeIterator CreateWidgetAttributeIterator()
+	FWidgetAttributeIterator CreateWidgetAttributeIterator() const
 	{
 		return FWidgetAttributeIterator(*this);
 	}
@@ -392,6 +394,7 @@ private:
 		WidgetListType ElementIndexList_WidgetWithRegisteredSlateAttribute;
 
 		void RemoveElementIndexBiggerOrEqualThan(IndexType ElementIndex);
+		void RemoveElementIndexBetweenOrEqualThan(IndexType StartElementIndex, IndexType EndElementIndex);
 	};
 	using ArrayNodeType = TSparseArray<FArrayNode>;
 

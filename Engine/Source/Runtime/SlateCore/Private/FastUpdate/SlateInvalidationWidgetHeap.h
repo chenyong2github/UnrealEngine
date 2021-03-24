@@ -82,6 +82,12 @@ public:
 		OwnerList[Result].bContainedByWidgetPreHeap = false;
 		return Result;
 	}
+
+	/** Removes the biggest WidgetIndex from the list. */
+	void HeapPopDiscard()
+	{
+		Heap.HeapPopDiscard(SortPredicate(), false);
+	}
 	
 	/** Returns the biggest WidgetIndex from the list. */
 	inline FSlateInvalidationWidgetIndex HeapPeek() const

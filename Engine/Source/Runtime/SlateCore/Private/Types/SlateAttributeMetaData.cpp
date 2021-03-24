@@ -53,7 +53,10 @@ void FSlateAttributeMetaData::RegisterAttribute(SWidget& OwningWidget, FSlateAtt
 		NewAttributeMetaData->RegisterAttributeImpl(OwningWidget, Attribute, AttributeType, MoveTemp(Wrapper));
 		OwningWidget.bHasRegisteredSlateAttribute = true;
 		OwningWidget.MetaData.Insert(NewAttributeMetaData, 0);
-		OwningWidget.Invalidate(EInvalidateWidgetReason::AttributeRegistration);
+		if (!OwningWidget.bPauseAttributeInvalidation)
+		{
+			OwningWidget.Invalidate(EInvalidateWidgetReason::AttributeRegistration);
+		}
 	}
 }
 
@@ -133,7 +136,10 @@ bool FSlateAttributeMetaData::UnregisterAttribute(SWidget& OwningWidget, const F
 			check(bResult); // if the num is 0 then we should have remove an item.
 			OwningWidget.bHasRegisteredSlateAttribute = false;
 			OwningWidget.MetaData.RemoveAtSwap(0);
-			OwningWidget.Invalidate(EInvalidateWidgetReason::AttributeRegistration);
+			if (!OwningWidget.bPauseAttributeInvalidation)
+			{
+				OwningWidget.Invalidate(EInvalidateWidgetReason::AttributeRegistration);
+			}
 		}
 		return bResult;
 	}
