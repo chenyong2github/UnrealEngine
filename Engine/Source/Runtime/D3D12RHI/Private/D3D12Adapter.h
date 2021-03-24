@@ -201,7 +201,7 @@ public:
 	FORCEINLINE IDXGIFactory* GetDXGIFactory() const { return DxgiFactory; }
 	FORCEINLINE IDXGIFactory2* GetDXGIFactory2() const { return DxgiFactory2; }
 
-	FORCEINLINE FD3D12DynamicHeapAllocator& GetUploadHeapAllocator(uint32 GPUIndex) 
+	FORCEINLINE FD3D12UploadHeapAllocator& GetUploadHeapAllocator(uint32 GPUIndex)
 	{ 
 		return *(UploadHeapAllocator[GPUIndex]); 
 	}
@@ -328,7 +328,7 @@ public:
 
 	FORCEINLINE uint32 GetFrameCount() const { return FrameCounter; }
 
-	void TrackAllocationData(FD3D12ResourceLocation* InAllocation, const D3D12_RESOURCE_ALLOCATION_INFO& InInfo);
+	void TrackAllocationData(FD3D12ResourceLocation* InAllocation, uint64 InAllocationSize);
 	void ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAllocation);
 	void DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool bWithCallstack);
 
@@ -407,7 +407,7 @@ protected:
 
 	FD3D12FenceCorePool FenceCorePool;
 
-	FD3D12DynamicHeapAllocator*	UploadHeapAllocator[MAX_NUM_GPUS];
+	FD3D12UploadHeapAllocator*	UploadHeapAllocator[MAX_NUM_GPUS];
 
 	/** A list of all viewport RHIs that have been created. */
 	TArray<FD3D12Viewport*> Viewports;
@@ -436,7 +436,7 @@ protected:
 		static const int32 MaxStackDepth = 30;
 
 		FD3D12ResourceLocation* ResourceAllocation;
-		D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo;
+		uint64 AllocationSize;
 		uint32 StackDepth;
 		uint64 Stack[MaxStackDepth];
 	};

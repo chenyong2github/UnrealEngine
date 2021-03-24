@@ -7,6 +7,25 @@
 #define NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND 0
 #endif
 
+#if TRACK_RESOURCE_ALLOCATIONS
+
+// Limited size because tracking currently still takes some overhead when creating the callstack for each allocation
+// Arbitrary size right now for which we are interested to know where these allocations are coming from and if they are needed
+// and can be optimized.
+static int32 GD3D12MinPoolAllocationSizeToTrack = 16 * 1024 * 1024;
+static FAutoConsoleVariableRef CVarD3D12MinPoolAllocationSizeToTrack(
+	TEXT("d3d12.MinPoolAllocationSizeToTrack"),
+	GD3D12MinPoolAllocationSizeToTrack,
+	TEXT("Minimum allocation size to track for pool allocations (default 16MB)"),
+	ECVF_ReadOnly);
+
+static bool ShouldTrackAllocation(EResourceAllocationStrategy InAllocationStrategy, D3D12_HEAP_TYPE InHeapType, uint64 InAllocationSize)
+{
+	return (InHeapType == D3D12_HEAP_TYPE_DEFAULT && GD3D12MinPoolAllocationSizeToTrack > 0 && InAllocationSize >= (uint32)GD3D12MinPoolAllocationSizeToTrack);
+}
+
+#endif // TRACK_RESOURCE_ALLOCATIONS
+
 //-----------------------------------------------------------------------------
 //	FD3D12MemoryPool
 //-----------------------------------------------------------------------------
@@ -173,8 +192,8 @@ EResourceAllocationStrategy FD3D12PoolAllocator::GetResourceAllocationStrategy(D
 
 
 FD3D12PoolAllocator::FD3D12PoolAllocator(FD3D12Device* ParentDevice, FRHIGPUMask VisibleNodes, const FD3D12ResourceInitConfig& InInitConfig, const FString& InName,
-	EResourceAllocationStrategy InAllocationStrategy, uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool bInDefragEnabled) :
-	FRHIPoolAllocator(InPoolSize, InPoolAlignment, InMaxAllocationSize, InFreeListOrder, bInDefragEnabled), 
+	EResourceAllocationStrategy InAllocationStrategy, uint64 InDefaultPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool bInDefragEnabled) :
+	FRHIPoolAllocator(InDefaultPoolSize, InPoolAlignment, InMaxAllocationSize, InFreeListOrder, bInDefragEnabled), 
 	FD3D12DeviceChild(ParentDevice), 
 	FD3D12MultiNodeGPUObject(ParentDevice->GetGPUMask(), VisibleNodes), 
 	InitConfig(InInitConfig), 
@@ -269,52 +288,55 @@ void FD3D12PoolAllocator::AllocateResource(D3D12_HEAP_TYPE InHeapType, const D3D
 
 		// Try to allocate in one of the pools
 		FRHIPoolAllocationData& AllocationData = ResourceLocation.GetPoolAllocatorPrivateData().PoolData;
-		if (TryAllocateInternal(InSize, AllocationAlignment, AllocationData))
+		verify(TryAllocateInternal(InSize, AllocationAlignment, AllocationData));
+
+		// Setup the resource location
+		ResourceLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eSubAllocation);
+		ResourceLocation.SetPoolAllocator(this);
+		ResourceLocation.SetSize(InSize);
+
+		AllocationData.SetOwner(&ResourceLocation);
+
+		if (AllocationStrategy == EResourceAllocationStrategy::kManualSubAllocation)
 		{
-			// Setup the resource location
-			ResourceLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eSubAllocation);
-			ResourceLocation.SetPoolAllocator(this);
-			ResourceLocation.SetSize(InSize);
+			FD3D12Resource* BackingResource = GetBackingResource(ResourceLocation);
 
-			AllocationData.SetOwner(&ResourceLocation);
+			ResourceLocation.SetOffsetFromBaseOfResource(AllocationData.GetOffset());
+			ResourceLocation.SetResource(BackingResource);
+			ResourceLocation.SetGPUVirtualAddress(BackingResource->GetGPUVirtualAddress() + AllocationData.GetOffset());
 
-			if (AllocationStrategy == EResourceAllocationStrategy::kManualSubAllocation)
+			if (IsCPUAccessible(InitConfig.HeapType))
 			{
-				FD3D12Resource* BackingResource = GetBackingResource(ResourceLocation);
-
-				ResourceLocation.SetOffsetFromBaseOfResource(AllocationData.GetOffset());
-				ResourceLocation.SetResource(BackingResource);
-				ResourceLocation.SetGPUVirtualAddress(BackingResource->GetGPUVirtualAddress() + AllocationData.GetOffset());
-
-				if (IsCPUAccessible(InitConfig.HeapType))
-				{
-					ResourceLocation.SetMappedBaseAddress((uint8*)BackingResource->GetResourceBaseAddress() + AllocationData.GetOffset());
-				}
+				ResourceLocation.SetMappedBaseAddress((uint8*)BackingResource->GetResourceBaseAddress() + AllocationData.GetOffset());
 			}
-			else
-			{
-				check(ResourceLocation.GetResource() == nullptr);
+		}
+		else
+		{
+			check(ResourceLocation.GetResource() == nullptr);
 
-				FD3D12Resource* NewResource = CreatePlacedResource(AllocationData, InDesc, InCreateState, InResourceStateMode, InClearValue, InName);
-				ResourceLocation.SetResource(NewResource);
-			}
-
-			// Successfully sub-allocated
-			return;
+			FD3D12Resource* NewResource = CreatePlacedResource(AllocationData, InDesc, InCreateState, InResourceStateMode, InClearValue, InName);
+			ResourceLocation.SetResource(NewResource);
 		}
 
-		// shouldn't fail
-		check(false);
+#if TRACK_RESOURCE_ALLOCATIONS
+		// Update stats if above a certain size
+		if (ShouldTrackAllocation(AllocationStrategy, InitConfig.HeapType, AllocationData.GetSize()))
+		{
+			Adapter->TrackAllocationData(&ResourceLocation, AllocationData.GetSize());
+		}
+#endif // TRACK_RESOURCE_ALLOCATIONS
 	}
+	else
+	{
+		// Allocate Standalone - move to owner of resource because this allocator should only manage pooled allocations (needed for now to do the same as FD3D12DefaultBufferPool)
+		FD3D12Resource* NewResource = nullptr;
+		const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(InHeapType, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
+		D3D12_RESOURCE_DESC Desc = InDesc;
+		Desc.Alignment = 0;
+		VERIFYD3D12RESULT(Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InCreateState, InResourceStateMode, InCreateState, InClearValue, &NewResource, InName, false));
 
-	// Allocate Standalone - move to owner of resource because this allocator should only manage pooled allocations (needed for now to do the same as FD3D12DefaultBufferPool)
-	FD3D12Resource* NewResource = nullptr;
-	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(InHeapType, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
-	D3D12_RESOURCE_DESC Desc = InDesc;
-	Desc.Alignment = 0;
-	VERIFYD3D12RESULT(Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InCreateState, InResourceStateMode, InCreateState, InClearValue, &NewResource, InName, false));
-	
-	ResourceLocation.AsStandAlone(NewResource, InSize);
+		ResourceLocation.AsStandAlone(NewResource, InSize);
+	}
 }
 
 
@@ -339,11 +361,19 @@ void FD3D12PoolAllocator::DeallocateResource(FD3D12ResourceLocation& ResourceLoc
 {
 	check(IsOwner(ResourceLocation));
 
-	FScopeLock Lock(&CS);
-
 	// Mark allocation data as free
-	FRHIPoolAllocationData& AllocationData = ResourceLocation.GetPoolAllocatorPrivateData().PoolData;	
+	FRHIPoolAllocationData& AllocationData = ResourceLocation.GetPoolAllocatorPrivateData().PoolData;
 	check(AllocationData.IsAllocated());
+
+#if TRACK_RESOURCE_ALLOCATIONS
+	// Release tracked resource if tracked
+	if (ShouldTrackAllocation(AllocationStrategy, InitConfig.HeapType, AllocationData.GetSize()))
+	{
+		GetParentDevice()->GetParentAdapter()->ReleaseTrackedAllocationData(&ResourceLocation);
+	}
+#endif // TRACK_RESOURCE_ALLOCATIONS
+
+	FScopeLock Lock(&CS);
 
 	// If locked then assume still initial setup or in defragmentation unlock request
 	// Mark as nop because block will be deleted anyway
@@ -407,8 +437,19 @@ void FD3D12PoolAllocator::DeallocateResource(FD3D12ResourceLocation& ResourceLoc
 }
 
 
-FRHIMemoryPool* FD3D12PoolAllocator::CreateNewPool(int16 InPoolIndex)
+FRHIMemoryPool* FD3D12PoolAllocator::CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FD3D12PoolAllocator::CreateNewPool);
+
+	// Find out the pool size - use default, but if allocation doesn't fit then round up to next power of 2
+	// so it 'always' fits the pool allocator
+	uint32 PoolSize = DefaultPoolSize;
+	if (InMinimumAllocationSize > PoolSize)
+	{
+		check(InMinimumAllocationSize <= MaxAllocationSize);
+		PoolSize = FMath::Min(FMath::RoundUpToPowerOfTwo(InMinimumAllocationSize), (uint32)MaxAllocationSize);
+	}
+
 	FD3D12MemoryPool* NewPool = new FD3D12MemoryPool(GetParentDevice(),	GetVisibilityMask(), InitConfig,
 		Name, AllocationStrategy, InPoolIndex, PoolSize, PoolAlignment, FreeListOrder);
 	NewPool->Init();
@@ -455,6 +496,14 @@ bool FD3D12PoolAllocator::HandleDefragRequest(FRHIPoolAllocationData* InSourceBl
 	check(CopyOp.SourceResource != nullptr);
 	check(CopyOp.DestResource != nullptr);
 	PendingCopyOps.Add(CopyOp);
+
+#if TRACK_RESOURCE_ALLOCATIONS
+	// Update stats if above a certain size
+	if (ShouldTrackAllocation(AllocationStrategy, InitConfig.HeapType, InSourceBlock->GetSize()))
+	{
+		Adapter->TrackAllocationData(Owner, InSourceBlock->GetSize());
+	}
+#endif // TRACK_RESOURCE_ALLOCATIONS
 
 	// TODO: Using aliasing buffer on whole heap for copies to reduce flushes and resource transitions
 
@@ -536,6 +585,32 @@ void FD3D12PoolAllocator::CleanUpAllocations(uint64 InFrameLag)
 			Pools[PoolIndex] = nullptr;
 		}
 	}
+
+	// Update the allocation order
+	Algo::Sort(PoolAllocationOrder, [this](uint32 InLHS, uint32 InRHS)
+		{
+			// first allocate from 'fullest' pools when defrag is enabled, otherwise try and allocate from
+			// default sized pools with stable order
+			if (bDefragEnabled)
+			{
+				uint32 LHSUsePoolSize = Pools[InLHS] ? Pools[InLHS]->GetUsedSize() : UINT32_MAX;
+				uint32 RHSUsePoolSize = Pools[InRHS] ? Pools[InRHS]->GetUsedSize() : UINT32_MAX;
+				return LHSUsePoolSize > RHSUsePoolSize;
+			}
+			else
+			{
+				uint32 LHSPoolSize = Pools[InLHS] ? Pools[InLHS]->GetPoolSize() : UINT32_MAX;
+				uint32 RHSPoolSize = Pools[InRHS] ? Pools[InRHS]->GetPoolSize() : UINT32_MAX;
+				if (LHSPoolSize != RHSPoolSize)
+				{
+					return LHSPoolSize < RHSPoolSize;
+				}
+
+				uint32 LHSPoolIndex = Pools[InLHS] ? Pools[InLHS]->GetPoolIndex() : UINT32_MAX;
+				uint32 RHSPoolIndex = Pools[InRHS] ? Pools[InRHS]->GetPoolIndex() : UINT32_MAX;
+				return LHSPoolIndex < RHSPoolIndex;
+			}
+		});
 }
 
 

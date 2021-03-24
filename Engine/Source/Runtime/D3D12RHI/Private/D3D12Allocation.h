@@ -348,38 +348,37 @@ private:
 	const uint64 BlockRetentionFrameCount;
 };
 
-#if USE_BUCKET_ALLOCATOR
-typedef FD3D12BucketAllocator FD3D12AllocatorType;
-#else
-typedef FD3D12MultiBuddyAllocator FD3D12AllocatorType;
-#endif
 
 //-----------------------------------------------------------------------------
-//	FD3D12DynamicHeapAllocator
+//	FD3D12UploadHeapAllocator
 //-----------------------------------------------------------------------------
 // This is designed for allocation of scratch memory such as temporary staging buffers
 // or shadow buffers for dynamic resources.
-class FD3D12DynamicHeapAllocator : public FD3D12AdapterChild, public FD3D12MultiNodeGPUObject
+class FD3D12UploadHeapAllocator : public FD3D12AdapterChild, public FD3D12MultiNodeGPUObject
 {
 public:
 
-	FD3D12DynamicHeapAllocator(FD3D12Adapter* InParent, FD3D12Device* InParentDevice, const FString& InName, EResourceAllocationStrategy InAllocationStrategy,
-		uint32 InMaxSizeForPooling,
-		uint32 InMaxBlockSize,
-		uint32 InMinBlockSize);
+	FD3D12UploadHeapAllocator(FD3D12Adapter* InParent, FD3D12Device* InParentDevice, const FString& InName);
 
-	void Init();
+	void Init() {}
+	void Destroy();
 
 	// Allocates <size> bytes from the end of an available resource heap.
-	void* AllocUploadResource(uint32 size, uint32 alignment, FD3D12ResourceLocation& ResourceLocation);
+	void* AllocUploadResource(uint32 InSize, uint32 InAlignment, FD3D12ResourceLocation& ResourceLocation);
+	void* AllocFastConstantAllocationPage(uint32 InSize, uint32 InAlignment, FD3D12ResourceLocation& ResourceLocation);
 
 	void CleanUpAllocations(uint64 InFrameLag);
-
-	void Destroy();
+	void UpdateMemoryStats();
 
 private:
 
-	FD3D12AllocatorType Allocator;
+	// Buddy allocator used for all 'small' allocation - fast but aligns to power of 2
+	FD3D12MultiBuddyAllocator SmallBlockAllocator;
+	// Pool allocator for all bigger allocations - less fast but less alignment waste
+	FD3D12PoolAllocator		  BigBlockAllocator;
+	// Seperate buddy allocator used for the fast constant allocator pages which get always freed within the same frame by default
+	// (different allocator to avoid fragmentation with the other pools - always the same size allocations)
+	FD3D12MultiBuddyAllocator FastConstantPageAllocator;
 };
 
 //-----------------------------------------------------------------------------
@@ -388,7 +387,7 @@ private:
 class FD3D12DefaultBufferPool : public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
 {
 public:
-	FD3D12DefaultBufferPool(FD3D12Device* InParent, FD3D12AllocatorType* InAllocator);
+	FD3D12DefaultBufferPool(FD3D12Device* InParent, FD3D12MultiBuddyAllocator* InAllocator);
 	~FD3D12DefaultBufferPool() { delete Allocator; }
 
 	bool SupportsAllocation(D3D12_HEAP_TYPE InHeapType, D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode) const;
@@ -401,7 +400,7 @@ public:
 	static EResourceAllocationStrategy GetResourceAllocationStrategy(D3D12_RESOURCE_FLAGS InResourceFlags, ED3D12ResourceStateMode InResourceStateMode);
 
 private:
-	FD3D12AllocatorType* Allocator;
+	FD3D12MultiBuddyAllocator* Allocator;
 };
 
 #if USE_POOL_ALLOCATOR

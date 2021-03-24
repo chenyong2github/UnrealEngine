@@ -194,7 +194,7 @@ class RHICORE_API FRHIPoolAllocator
 public:
 
 	// Constructor
-	FRHIPoolAllocator(uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool InDefragEnabled);
+	FRHIPoolAllocator(uint64 InDefaultPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool InDefragEnabled);
 	virtual ~FRHIPoolAllocator();
 
 	// Setup/Shutdown
@@ -214,14 +214,14 @@ protected:
 	void DeallocateInternal(FRHIPoolAllocationData& AllocationData);
 	
 	// Helper function to create a new platform specific pool
-	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex) = 0;
+	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize) = 0;
 
 	// Handle a rhi specific defrag op
 	friend class FRHIMemoryPool;
 	virtual bool HandleDefragRequest(FRHIPoolAllocationData* InSourceBlock, FRHIPoolAllocationData& InTmpTargetBlock) = 0;
 
 	// Const creation members - used to create new pools
-	const uint64 PoolSize;
+	const uint64 DefaultPoolSize;
 	const uint32 PoolAlignment;
 	const uint64 MaxAllocationSize;
 	const FRHIMemoryPool::EFreeListOrder FreeListOrder;
@@ -232,6 +232,10 @@ protected:
 
 	// Actual pools managing each a linked list of allocations
 	TArray<FRHIMemoryPool*> Pools;
+
+	// Allocation order of the pools when performing new allocations
+	// Can' sort the pools directly because pool index is stored in the allocation info
+	TArray<uint32> PoolAllocationOrder;
 
 	// Stats
 	uint32 TotalAllocatedBlocks;

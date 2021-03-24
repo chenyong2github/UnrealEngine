@@ -725,7 +725,7 @@ void FD3D12TransientResourceAllocator::Freeze()
 }
 
 
-FRHIMemoryPool* FD3D12TransientResourceAllocator::CreateNewPool(int16 InPoolIndex)
+FRHIMemoryPool* FD3D12TransientResourceAllocator::CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize)
 {
 	// Get pool from manager - don't reallocate each time
 	return GetParentDevice()->GetTransientMemoryPoolManager().GetOrCreateMemoryPool(InPoolIndex);

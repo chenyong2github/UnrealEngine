@@ -22,6 +22,16 @@ enum class EResourceAllocationStrategy
 // All data required to create a pool
 struct FD3D12ResourceInitConfig
 {
+	static FD3D12ResourceInitConfig CreateUpload()
+	{
+		FD3D12ResourceInitConfig Config;
+		Config.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		Config.HeapFlags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+		Config.ResourceFlags = D3D12_RESOURCE_FLAG_NONE;
+		Config.InitialResourceState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		return Config;
+	}
+
 	bool operator==(const FD3D12ResourceInitConfig& InOther) const
 	{
 		return HeapType == InOther.HeapType &&
@@ -117,7 +127,7 @@ public:
 
 	// Constructor
 	FD3D12PoolAllocator(FD3D12Device* ParentDevice, FRHIGPUMask VisibleNodes, const FD3D12ResourceInitConfig& InInitConfig, const FString& InName,
-		EResourceAllocationStrategy InAllocationStrategy, uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool bInDefragEnabled);
+		EResourceAllocationStrategy InAllocationStrategy, uint64 InDefaultPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool bInDefragEnabled);
 	~FD3D12PoolAllocator();
 	
 	// Function names currently have to match with FD3D12DefaultBufferPool until we can make full replacement of the allocator
@@ -147,7 +157,7 @@ public:
 protected:
 
 	// Implementation of FRHIPoolAllocator pure virtuals
-	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex) override;
+	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize) override;
 	virtual bool HandleDefragRequest(FRHIPoolAllocationData* InSourceBlock, FRHIPoolAllocationData& InTmpTargetBlock) override;
 	
 	// Placed resource allocation helper function which can be overriden

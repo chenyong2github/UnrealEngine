@@ -438,11 +438,7 @@ private:
 	}
 };
 
-#if USE_BUCKET_ALLOCATOR
-typedef class FD3D12BucketAllocator FD3D12BaseAllocatorType;
-#else
 typedef class FD3D12BuddyAllocator FD3D12BaseAllocatorType;
-#endif
 
 struct FD3D12BuddyAllocatorPrivateData
 {

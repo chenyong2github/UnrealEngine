@@ -82,34 +82,70 @@ static FAutoConsoleVariableRef CVarD3D12PoolAllocatorRTUAVTextureMaxAllocationSi
 	ECVF_ReadOnly);
 
 static int32 GD3D12VRAMTexturePoolDefrag = 1;
-static FAutoConsoleVariableRef CVarD3D12D3D12VRAMTexturePoolDefrag(
+static FAutoConsoleVariableRef CVarD3D12VRAMTexturePoolDefrag(
 	TEXT("d3d12.VRAMTexturePoolDefrag"),
 	GD3D12VRAMTexturePoolDefrag,
 	TEXT("Defrag the VRAM Texture pool (enabled by default)"),
 	ECVF_ReadOnly);
 
 static int32 GD3D12VRAMTexturePoolDefragMaxCopySizePerFrame = 32 * 1024 * 1024;
-static FAutoConsoleVariableRef CVarD3D12D3D12VRAMTexturePoolDefragMaxCopySizePerFrame(
+static FAutoConsoleVariableRef CVarD3D12VRAMTexturePoolDefragMaxCopySizePerFrame(
 	TEXT("d3d12.VRAMTexturePoolDefrag.MaxCopySizePerFrame"),
 	GD3D12VRAMTexturePoolDefragMaxCopySizePerFrame,
 	TEXT("Max amount of data to copy during defragmentation in a single frame (default 32MB)"),
 	ECVF_ReadOnly);
 
 static int32 GD3D12VRAMBufferPoolDefrag = 1;
-static FAutoConsoleVariableRef CVarD3D12D3D12VRAMBufferPoolDefrag(
+static FAutoConsoleVariableRef CVarD3D12VRAMBufferPoolDefrag(
 	TEXT("d3d12.VRAMBufferPoolDefrag"),
 	GD3D12VRAMBufferPoolDefrag,
 	TEXT("Defrag the VRAM buffer pool (disabled by default)"),
 	ECVF_ReadOnly);
 
 static int32 GD3D12VRAMBufferPoolDefragMaxCopySizePerFrame = 32 * 1024 * 1024;
-static FAutoConsoleVariableRef CVarD3D12D3D12VRAMBufferPoolDefragMaxCopySizePerFrame(
+static FAutoConsoleVariableRef CVarD3D12VRAMBufferPoolDefragMaxCopySizePerFrame(
 	TEXT("d3d12.VRAMBufferPoolDefrag.MaxCopySizePerFrame"),
 	GD3D12VRAMBufferPoolDefragMaxCopySizePerFrame,
 	TEXT("Max amount of data to copy during defragmentation in a single frame (default 32MB)"),
 	ECVF_ReadOnly);
 
 #endif // USE_POOL_ALLOCATOR
+
+static int32 GD3D12UploadHeapSmallBlockMaxAllocationSize = 64 * 1024;
+static FAutoConsoleVariableRef CVarD3D12UploadHeapSmallBlockMaxAllocationSize(
+	TEXT("d3d12.UploadHeap.SmallBlock.MaxAllocationSize"),
+	GD3D12UploadHeapSmallBlockMaxAllocationSize,
+	TEXT("Maximum allocation size on the small block allocator for upload memory"),
+	ECVF_ReadOnly);
+
+static int32 GD3D12UploadHeapSmallBlockPoolSize = 4 * 1024 * 1024;
+static FAutoConsoleVariableRef CVarD3D12UploadHeapSmallBlockPoolSize(
+	TEXT("d3d12.UploadHeap.SmallBlock.PoolSize"),
+	GD3D12UploadHeapSmallBlockPoolSize,
+	TEXT("Pool size for the upload memory small block allocator"),
+	ECVF_ReadOnly);
+
+static int32 GD3D12UploadHeapBigBlockMaxAllocationSize = 64 * 1024 * 1024;
+static FAutoConsoleVariableRef CVarD3D12UploadHeapBigBlockMaxAllocationSize(
+	TEXT("d3d12.UploadHeap.BigBlock.MaxAllocationSize"),
+	GD3D12UploadHeapBigBlockMaxAllocationSize,
+	TEXT("Maximum allocation size on the big block allocator for upload memory"),
+	ECVF_ReadOnly);
+
+static int32 GD3D12UploadHeapBigBlockPoolSize = 8 * 1024 * 1024;
+static FAutoConsoleVariableRef CVarD3D12UploadHeapBigBlockPoolSize(
+	TEXT("d3d12.UploadHeap.BigBlock.PoolSize"),
+	GD3D12UploadHeapBigBlockPoolSize,
+	TEXT("Pool size for the upload memory big block allocator"),
+	ECVF_ReadOnly);
+
+static int32 GD3D12FastConstantAllocatorPageSize = 64 * 1024;
+static FAutoConsoleVariableRef CVarD3D12FastConstantAllocatorPageSize(
+	TEXT("d3d12.FastConstantAllocatorPageSize"),
+	GD3D12FastConstantAllocatorPageSize,
+	TEXT("Page size for the fast constant allocator"),
+	ECVF_ReadOnly);
+
 
 #if D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE
 static int32 GD3D12SegListTrackLeaks = 0;
@@ -958,95 +994,102 @@ void FD3D12BucketAllocator::Reset()
 //	Dynamic Buffer Allocator
 //-----------------------------------------------------------------------------
 
-FD3D12DynamicHeapAllocator::FD3D12DynamicHeapAllocator(FD3D12Adapter* InParent, FD3D12Device* InParentDevice, const FString& InName, EResourceAllocationStrategy InAllocationStrategy,
-	uint32 InMaxSizeForPooling,
-	uint32 InMaxBlockSize,
-	uint32 InMinBlockSize)
+FD3D12UploadHeapAllocator::FD3D12UploadHeapAllocator(FD3D12Adapter* InParent, FD3D12Device* InParentDevice, const FString& InName)
 	: FD3D12AdapterChild(InParent)
-	, FD3D12MultiNodeGPUObject(InParentDevice->GetGPUMask(), FRHIGPUMask::All()), // Dynamic heaps are upload memory, thus they can be trivially visibile to all GPUs
-#if USE_BUCKET_ALLOCATOR
-	Allocator(InParentDevice,
-		GetVisibilityMask(),
-		FD3D12ResourceInitConfig
-		{
-			D3D12_HEAP_TYPE_UPLOAD,
-			D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS,
-			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_GENERIC_READ
-		},
-		InName,
-		5)
-#else
-	Allocator(InParentDevice,
-		GetVisibilityMask(),
-		FD3D12ResourceInitConfig
-		{
-			D3D12_HEAP_TYPE_UPLOAD,
-			D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS,
-			D3D12_RESOURCE_FLAG_NONE,
-			D3D12_RESOURCE_STATE_GENERIC_READ
-		},
-		InName,
-		InAllocationStrategy,
-		InMaxSizeForPooling,
-		InMaxBlockSize,
-		InMinBlockSize
-		)
-#endif
+	, FD3D12MultiNodeGPUObject(InParentDevice->GetGPUMask(), FRHIGPUMask::All()), // Upload memory, thus they can be trivially visibile to all GPUs
+	SmallBlockAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), InName, EResourceAllocationStrategy::kManualSubAllocation,
+		GD3D12UploadHeapSmallBlockMaxAllocationSize, GD3D12UploadHeapSmallBlockPoolSize, 256),
+	BigBlockAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), InName, EResourceAllocationStrategy::kManualSubAllocation,
+		GD3D12UploadHeapBigBlockPoolSize, 256, GD3D12UploadHeapBigBlockMaxAllocationSize, FRHIMemoryPool::EFreeListOrder::SortByOffset, false /*defrag*/),
+	FastConstantPageAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), InName, EResourceAllocationStrategy::kManualSubAllocation,
+		GD3D12FastConstantAllocatorPageSize * 64, GD3D12UploadHeapSmallBlockPoolSize, GD3D12FastConstantAllocatorPageSize)
 {
 }
 
-void FD3D12DynamicHeapAllocator::Init()
-{
 
+void FD3D12UploadHeapAllocator::Destroy()
+{
+	SmallBlockAllocator.Destroy();
+	BigBlockAllocator.Destroy();
+	FastConstantPageAllocator.Destroy();
 }
 
-void* FD3D12DynamicHeapAllocator::AllocUploadResource(uint32 Size, uint32 Alignment, FD3D12ResourceLocation& ResourceLocation)
+
+void* FD3D12UploadHeapAllocator::AllocUploadResource(uint32 InSize, uint32 InAlignment, FD3D12ResourceLocation& ResourceLocation)
 {
-	FD3D12Adapter* Adapter = GetParentAdapter();
+	TRACE_CPUPROFILER_EVENT_SCOPE(FD3D12UploadHeapAllocator::AllocUploadResource);
 
-	ResourceLocation.Clear();
-
-	//TODO: For some reason 0 sized buffers are being created and then expected to have a resource
-	if (Size == 0)
-	{
-		Size = 16;
-	}
-	
 	// Clean up the release queue of resources which are currently not used by the GPU anymore
+	FD3D12Adapter* Adapter = GetParentAdapter();
 	if (Adapter->GetDeferredDeletionQueue().QueueSize() > 128)
 	{
 		Adapter->GetDeferredDeletionQueue().ReleaseResources(true, false);
-		Allocator.CleanUpAllocations(0); // 0 - no FrameLag, delete all unsued pages
+		SmallBlockAllocator.CleanUpAllocations(0); // 0 - no FrameLag, delete all unsued pages
+		BigBlockAllocator.CleanUpAllocations(0);
+	}
+
+	check(InSize > 0);
+	ResourceLocation.Clear();
+
+	// Fit in small block allocator?
+	if (InSize <= SmallBlockAllocator.GetMaximumAllocationSizeForPooling())
+	{
+		verify(SmallBlockAllocator.TryAllocate(InSize, InAlignment, ResourceLocation));
+	}
+	else
+	{
+		// Forward to the big block allocator
+		const D3D12_RESOURCE_DESC ResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(InSize, D3D12_RESOURCE_FLAG_NONE);
+		BigBlockAllocator.AllocateResource(D3D12_HEAP_TYPE_UPLOAD, ResourceDesc, InSize, InAlignment, ED3D12ResourceStateMode::SingleState, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, nullptr, ResourceLocation);
+		ResourceLocation.UnlockPoolData();		
 	}
 	
-	if (Size <= Allocator.GetMaximumAllocationSizeForPooling())
-	{
-		if (Allocator.TryAllocate(Size, Alignment, ResourceLocation))
-		{
-			return ResourceLocation.GetMappedBaseAddress();
-		}
-	}
-
-	FD3D12Resource* NewResource = nullptr;
-
-	//Allocate Standalone
-	VERIFYD3D12RESULT(Adapter->CreateBuffer(D3D12_HEAP_TYPE_UPLOAD, GetGPUMask(), GetVisibilityMask(), Size, &NewResource, TEXT("Stand Alone Upload Buffer")));
-
-	ResourceLocation.AsStandAlone(NewResource, Size);
-
 	return ResourceLocation.GetMappedBaseAddress();
 }
 
-void FD3D12DynamicHeapAllocator::CleanUpAllocations(uint64 InFrameLag)
+
+void* FD3D12UploadHeapAllocator::AllocFastConstantAllocationPage(uint32 InSize, uint32 InAlignment, FD3D12ResourceLocation& ResourceLocation)
 {
-	Allocator.CleanUpAllocations(InFrameLag);
+	check(InSize > 0);
+	check(InSize <= FastConstantPageAllocator.GetMaximumAllocationSizeForPooling());
+
+	ResourceLocation.Clear();
+	verify(FastConstantPageAllocator.TryAllocate(InSize, InAlignment, ResourceLocation));
+	return ResourceLocation.GetMappedBaseAddress();
 }
 
-void FD3D12DynamicHeapAllocator::Destroy()
+
+void FD3D12UploadHeapAllocator::CleanUpAllocations(uint64 InFrameLag)
 {
-	Allocator.Destroy();
+	SmallBlockAllocator.CleanUpAllocations(InFrameLag);
+	BigBlockAllocator.CleanUpAllocations(InFrameLag);
+	FastConstantPageAllocator.CleanUpAllocations(InFrameLag);
 }
+
+
+void FD3D12UploadHeapAllocator::UpdateMemoryStats()
+{
+	uint32 MemoryAllocated = 0;
+	uint32 MemoryUsed = 0;
+	uint32 FreeMemory = 0;
+	uint32 AlignmentWaste = 0;
+	uint32 AllocatedPageCount = 0;
+	uint32 FullPageCount = 0;
+
+#if defined(D3D12RHI_TRACK_DETAILED_STATS)
+	SmallBlockAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
+	BigBlockAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
+	FastConstantPageAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
+#endif
+
+	SET_MEMORY_STAT(STAT_D3D12UploadPoolMemoryAllocated, MemoryAllocated);
+	SET_MEMORY_STAT(STAT_D3D12UploadPoolMemoryUsed, MemoryUsed);
+	SET_MEMORY_STAT(STAT_D3D12UploadPoolMemoryFree, FreeMemory);
+	SET_MEMORY_STAT(STAT_D3D12UploadPoolAlignmentWaste, AlignmentWaste);
+	SET_DWORD_STAT(STAT_D3D12UploadPoolPageCount, AllocatedPageCount);
+	SET_DWORD_STAT(STAT_D3D12UploadPoolFullPages, FullPageCount);
+}
+
 
 //-----------------------------------------------------------------------------
 //	Default Buffer Allocator
@@ -1114,7 +1157,7 @@ EResourceAllocationStrategy FD3D12DefaultBufferPool::GetResourceAllocationStrate
 //-----------------------------------------------------------------------------
 
 
-FD3D12DefaultBufferPool::FD3D12DefaultBufferPool(FD3D12Device* InParent, FD3D12AllocatorType* InAllocator)
+FD3D12DefaultBufferPool::FD3D12DefaultBufferPool(FD3D12Device* InParent, FD3D12MultiBuddyAllocator* InAllocator)
 	: FD3D12DeviceChild(InParent)
 	, FD3D12MultiNodeGPUObject(InAllocator->GetGPUMask(), InAllocator->GetVisibilityMask())
 	, Allocator(InAllocator)
@@ -1125,13 +1168,8 @@ FD3D12DefaultBufferPool::FD3D12DefaultBufferPool(FD3D12Device* InParent, FD3D12A
 bool FD3D12DefaultBufferPool::SupportsAllocation(D3D12_HEAP_TYPE InHeapType, D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode) const
 {
 	FD3D12ResourceInitConfig InitConfig = GetResourceAllocatorInitConfig(InHeapType, InResourceFlags, InBufferUsage);
-
-#if USE_BUCKET_ALLOCATOR
-	return Allocator->GetInitConfig() == InitConfig;
-#else
 	EResourceAllocationStrategy AllocationStrategy = GetResourceAllocationStrategy(InResourceFlags, InResourceStateMode);
 	return (Allocator->GetInitConfig() == InitConfig && Allocator->GetAllocationStrategy() == AllocationStrategy);
-#endif
 }
 
 
@@ -1179,11 +1217,7 @@ void FD3D12DefaultBufferPool::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, c
 
 	if (PoolResource)
 	{
-#if USE_BUCKET_ALLOCATOR
-		const bool bPlacedResource = false;
-#else
 		const bool bPlacedResource = (Allocator->GetAllocationStrategy() == EResourceAllocationStrategy::kPlacedResource);
-#endif // USE_BUCKET_ALLOCATOR
 
 		// Ensure we're allocating from the correct pool
 		if (bPlacedResource)
@@ -1252,8 +1286,6 @@ FD3D12DefaultBufferAllocator::FD3D12DefaultBufferAllocator(FD3D12Device* InParen
 FD3D12BufferPool* FD3D12DefaultBufferAllocator::CreateBufferPool(D3D12_HEAP_TYPE InHeapType, D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode)
 {
 	FD3D12Device* Device = GetParentDevice();
-	FD3D12AllocatorType* Allocator = nullptr;
-
 	FD3D12ResourceInitConfig InitConfig = FD3D12BufferPool::GetResourceAllocatorInitConfig(InHeapType, InResourceFlags, InBufferUsage);
 
 #if USE_POOL_ALLOCATOR
@@ -1282,23 +1314,13 @@ FD3D12BufferPool* FD3D12DefaultBufferAllocator::CreateBufferPool(D3D12_HEAP_TYPE
 
 #else // USE_POOL_ALLOCATOR
 
-#if USE_BUCKET_ALLOCATOR
-
-	const FString Name(L"Default Buffer Bucket Allocator");
-	Allocator = new FD3D12BucketAllocator(Device,
-		GetVisibilityMask(),
-		InitConfig,
-		Name,
-		5);
-#else
-
 	EResourceAllocationStrategy AllocationStrategy = FD3D12DefaultBufferPool::GetResourceAllocationStrategy(InResourceFlags, InResourceStateMode);
 
 	// if placed then 64KB alignment required :(
 	uint32 MinBlockSize = (AllocationStrategy == EResourceAllocationStrategy::kPlacedResource) ? MIN_PLACED_RESOURCE_SIZE : 16;
 
 	const FString Name(L"Default Buffer Multi Buddy Allocator");
-	Allocator = new FD3D12MultiBuddyAllocator(Device,
+	FD3D12MultiBuddyAllocator* Allocator = new FD3D12MultiBuddyAllocator(Device,
 		GetVisibilityMask(),
 		InitConfig,
 		Name,
@@ -1307,7 +1329,6 @@ FD3D12BufferPool* FD3D12DefaultBufferAllocator::CreateBufferPool(D3D12_HEAP_TYPE
 		InHeapType == D3D12_HEAP_TYPE_READBACK ? READBACK_BUFFER_POOL_DEFAULT_POOL_SIZE : DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE,
 		MinBlockSize
 		);
-#endif
 
 	FD3D12DefaultBufferPool* NewPool = new FD3D12DefaultBufferPool(Device, Allocator);
 
@@ -1320,12 +1341,8 @@ FD3D12BufferPool* FD3D12DefaultBufferAllocator::CreateBufferPool(D3D12_HEAP_TYPE
 
 bool FD3D12DefaultBufferAllocator::IsPlacedResource(D3D12_RESOURCE_FLAGS InResourceFlags, ED3D12ResourceStateMode InResourceStateMode)
 {
-#if USE_BUCKET_ALLOCATOR
-	return false;
-#else
 	EResourceAllocationStrategy AllocationStrategy = FD3D12BufferPool::GetResourceAllocationStrategy(InResourceFlags, InResourceStateMode);
 	return (AllocationStrategy == EResourceAllocationStrategy::kPlacedResource);
-#endif
 }
 
 
@@ -2038,8 +2055,8 @@ FD3D12FastConstantAllocator::FD3D12FastConstantAllocator(FD3D12Device* Parent, F
 	: FD3D12DeviceChild(Parent)
 	, FD3D12MultiNodeGPUObject(Parent->GetGPUMask(), VisibiltyMask)
 	, UnderlyingResource(Parent)
-	, Offset(64 * 1024) // Initial offset is at end of page so that first Allocate() call triggers a page allocation
-	, PageSize(64 * 1024)
+	, Offset(GD3D12FastConstantAllocatorPageSize) // Initial offset is at end of page so that first Allocate() call triggers a page allocation
+	, PageSize(GD3D12FastConstantAllocatorPageSize)
 {
 	check(PageSize % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0);
 }
@@ -2061,8 +2078,8 @@ void* FD3D12FastConstantAllocator::Allocate(uint32 Bytes, FD3D12ResourceLocation
 		FD3D12Device* Device = GetParentDevice();
 		FD3D12Adapter* Adapter = Device->GetParentAdapter();
 
-		FD3D12DynamicHeapAllocator& Allocator = Adapter->GetUploadHeapAllocator(Device->GetGPUIndex());
-		Allocator.AllocUploadResource(PageSize, DEFAULT_CONTEXT_UPLOAD_POOL_ALIGNMENT, UnderlyingResource);
+		FD3D12UploadHeapAllocator& Allocator = Adapter->GetUploadHeapAllocator(Device->GetGPUIndex());
+		Allocator.AllocFastConstantAllocationPage(PageSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, UnderlyingResource);
 	}
 
 	OutLocation.AsFastAllocation(UnderlyingResource.GetResource(),

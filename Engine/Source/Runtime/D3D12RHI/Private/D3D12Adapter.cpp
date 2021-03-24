@@ -905,14 +905,7 @@ void FD3D12Adapter::InitializeDevices()
 		for (uint32 GPUIndex : FRHIGPUMask::All())
 		{
 			// Safe to init as we have a device;
-			UploadHeapAllocator[GPUIndex] = new FD3D12DynamicHeapAllocator(this,
-				Devices[GPUIndex],
-				Name,
-				EResourceAllocationStrategy::kManualSubAllocation,
-				DEFAULT_CONTEXT_UPLOAD_POOL_MAX_ALLOC_SIZE,
-				DEFAULT_CONTEXT_UPLOAD_POOL_SIZE,
-				DEFAULT_CONTEXT_UPLOAD_POOL_ALIGNMENT);
-
+			UploadHeapAllocator[GPUIndex] = new FD3D12UploadHeapAllocator(this,	Devices[GPUIndex], Name);
 			UploadHeapAllocator[GPUIndex]->Init();
 		}
 
@@ -1247,12 +1240,12 @@ void FD3D12Adapter::BlockUntilIdle()
 }
 
 
-void FD3D12Adapter::TrackAllocationData(FD3D12ResourceLocation* InAllocation, const D3D12_RESOURCE_ALLOCATION_INFO& InInfo)
+void FD3D12Adapter::TrackAllocationData(FD3D12ResourceLocation* InAllocation, uint64 InAllocationSize)
 {
 #if TRACK_RESOURCE_ALLOCATIONS
 	FTrackedAllocationData AllocationData;
 	AllocationData.ResourceAllocation = InAllocation;
-	AllocationData.AllocationInfo = InInfo;
+	AllocationData.AllocationSize = InAllocationSize;
 	AllocationData.StackDepth = FPlatformStackWalk::CaptureStackBackTrace(&AllocationData.Stack[0], FTrackedAllocationData::MaxStackDepth);
 
 	FScopeLock Lock(&TrackedAllocationDataCS);
@@ -1297,7 +1290,7 @@ void FD3D12Adapter::DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool 
 	TrackedAllocationData.GenerateValueArray(Allocations);
 	Allocations.Sort([](const FTrackedAllocationData& InLHS, const FTrackedAllocationData& InRHS)
 		{
-			return InLHS.AllocationInfo.SizeInBytes > InRHS.AllocationInfo.SizeInBytes;
+			return InLHS.AllocationSize > InRHS.AllocationSize;
 		});
 
 	TArray<FTrackedAllocationData> BufferAllocations;	
@@ -1310,12 +1303,12 @@ void FD3D12Adapter::DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool 
 		if (ResourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 		{
 			BufferAllocations.Add(AllocationData);
-			TotalBufferAllocationSize += AllocationData.AllocationInfo.SizeInBytes;
+			TotalBufferAllocationSize += AllocationData.AllocationSize;
 		}
 		else
 		{
 			TextureAllocations.Add(AllocationData);
-			TotalTextureAllocationSize += AllocationData.AllocationInfo.SizeInBytes;
+			TotalTextureAllocationSize += AllocationData.AllocationSize;
 		}
 	}
 
@@ -1344,7 +1337,7 @@ void FD3D12Adapter::DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool 
 
 		OutputData += FString::Printf(TEXT("\tName: %s - Size: %3.3fMB - Width: %d - Height: %d - DepthOrArraySize: %d - MipLevels: %d - Flags: %s\n"), 
 			*AllocationData.ResourceAllocation->GetResource()->GetName().ToString(), 
-			AllocationData.AllocationInfo.SizeInBytes / (1024.0f * 1024),
+			AllocationData.AllocationSize / (1024.0f * 1024),
 			ResourceDesc.Width, ResourceDesc.Height, ResourceDesc.DepthOrArraySize, ResourceDesc.MipLevels,
 			Flags.IsEmpty() ? TEXT("None") : *Flags);
 
@@ -1367,7 +1360,7 @@ void FD3D12Adapter::DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool 
 
 		OutputData += FString::Printf(TEXT("\tName: %s - Size: %3.3fMB - Width: %d - UAV: %s\n"), 
 			*AllocationData.ResourceAllocation->GetResource()->GetName().ToString(), 
-			AllocationData.AllocationInfo.SizeInBytes / (1024.0f * 1024),
+			AllocationData.AllocationSize / (1024.0f * 1024),
 			ResourceDesc.Width,
 			EnumHasAnyFlags(ResourceDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) ? TEXT("Yes") : TEXT("No"));
 

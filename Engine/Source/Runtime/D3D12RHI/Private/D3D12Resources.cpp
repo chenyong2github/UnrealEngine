@@ -449,6 +449,8 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 		return E_POINTER;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(CreateCommittedResource);
+
 	LLM_PLATFORM_SCOPE(ELLMTag::GraphicsPlatform);
 
 	TRefCountPtr<ID3D12Resource> pResource;
@@ -833,7 +835,7 @@ void FD3D12ResourceLocation::UpdateStandAloneStats(bool bIncrement)
 		// Track all committed resource allocations
 		if (bIncrement)
 		{
-			UnderlyingResource->GetParentDevice()->GetParentAdapter()->TrackAllocationData(this, Info);
+			UnderlyingResource->GetParentDevice()->GetParentAdapter()->TrackAllocationData(this, Info.SizeInBytes);
 		}
 		else
 		{

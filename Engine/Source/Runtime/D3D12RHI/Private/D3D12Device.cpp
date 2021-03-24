@@ -421,7 +421,7 @@ void FD3D12Device::Cleanup()
 	// Cleanup thread resources
 	for (int32 index; (index = FPlatformAtomics::InterlockedDecrement(&NumThreadDynamicHeapAllocators)) != -1;)
 	{
-		FD3D12DynamicHeapAllocator* pHeapAllocator = ThreadDynamicHeapAllocatorArray[index];
+		FD3D12UploadHeapAllocator* pHeapAllocator = ThreadDynamicHeapAllocatorArray[index];
 		pHeapAllocator->ReleaseAllResources();
 		delete(pHeapAllocator);
 	}

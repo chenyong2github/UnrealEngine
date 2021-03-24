@@ -202,7 +202,7 @@ private:
 
 	// Override placed resource allocation helper function to get from cache if available
 	virtual FD3D12Resource* CreatePlacedResource(const FRHIPoolAllocationData& InAllocationData, const D3D12_RESOURCE_DESC& InDesc, D3D12_RESOURCE_STATES InCreateState, ED3D12ResourceStateMode InResourceStateMode, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName) override;
-	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex) override;
+	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize) override;
 
 	// Shared allocation/deallocation helper
 	FD3D12BaseShaderResource* GetBaseShaderResource(FRHITexture* InRHITexture);
