@@ -35,7 +35,7 @@ public:
 
 
 	/**
-	 * Standard UE4 UV layout, similar to that used for Lightmap UVs. 
+	 * Standard UnrealEngine UV layout, similar to that used for Lightmap UVs. 
 	 * All UV islands are packed into standard positive-unit-square.
 	 * Only supports single-pixel border size.
 	 */

@@ -58,7 +58,7 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 				"UnrealEd",
 				"MeshBuilder",
 				"MeshUtilitiesCommon",  
-				"MeshReductionInterface", // for UE4 standard simplification 
+				"MeshReductionInterface", // for UE standard simplification 
                 "ProxyLODMeshReduction", // for mesh merging voxel-based csg
 				"OpenSubdiv",
 				//"Slate",

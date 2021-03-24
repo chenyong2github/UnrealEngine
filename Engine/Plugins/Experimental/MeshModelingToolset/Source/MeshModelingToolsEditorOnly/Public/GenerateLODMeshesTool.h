@@ -42,7 +42,7 @@ struct MESHMODELINGTOOLSEDITORONLY_API FLODLevelGenerateSettings
 
 	/** Simplification Scheme  */
 	UPROPERTY(EditAnywhere, Category = Options)
-	ESimplifyType SimplifierType = ESimplifyType::UE4Standard;
+	ESimplifyType SimplifierType = ESimplifyType::UEStandard;
 
 	/** Simplification Target Type  */
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -89,7 +89,7 @@ public:
 	/** Simplification Scheme  */
 	//UPROPERTY(EditAnywhere, Category = Options)
 	UPROPERTY()
-	ESimplifyType SimplifierType = ESimplifyType::UE4Standard;
+	ESimplifyType SimplifierType = ESimplifyType::UEStandard;
 
 	/** Output LOD Assets will be numbered starting at this number */
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -101,7 +101,7 @@ public:
 	int TargetPercentage = 50;
 
 	/** Target edge length */
-	//UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "3.0", UIMax = "10.0", ClampMin = "0.001", ClampMax = "1000.0", EditCondition = "TargetMode == ESimplifyTargetType::EdgeLength && SimplifierType != ESimplifyType::UE4Standard"))
+	//UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "3.0", UIMax = "10.0", ClampMin = "0.001", ClampMax = "1000.0", EditCondition = "TargetMode == ESimplifyTargetType::EdgeLength && SimplifierType != ESimplifyType::UEStandard"))
 	UPROPERTY()
 	float TargetEdgeLength;
 

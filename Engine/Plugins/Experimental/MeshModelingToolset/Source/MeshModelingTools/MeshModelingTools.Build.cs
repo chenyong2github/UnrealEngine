@@ -65,7 +65,7 @@ public class MeshModelingTools : ModuleRules
 				//"MeshBuilder",
                 //"MeshDescriptionOperations",
 				//"MeshUtilitiesCommon",
-				//"MeshReductionInterface", // for UE4 standard simplification
+				//"MeshReductionInterface", // for UE standard simplification
                 //"ProxyLODMeshReduction", // for mesh merging voxel-based csg
 				//"Slate",
 				//"SlateCore",

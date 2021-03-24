@@ -49,7 +49,7 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 
 				"MeshBuilder",
 				"MeshUtilitiesCommon",  
-				"MeshReductionInterface", // for UE4 standard simplification 
+				"MeshReductionInterface", // for UE standard simplification 
 				"MeshUtilities",			// for tangents calculation
 			}
 			);

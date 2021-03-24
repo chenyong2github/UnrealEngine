@@ -43,7 +43,7 @@ enum class ESimplifyType : uint8
 	Attribute = 1 UMETA(DisplayName = "Normal Aware"),
 
 	/** Highest quality reduction. */
-	UE4Standard = 2 UMETA(DisplayName = "UE4 Standard"),
+	UEStandard = 2 UMETA(DisplayName = "UE Standard"),
 
 	/** Edge collapse to existing vertices only.  Quality may suffer.*/
 	MinimalExistingVertex = 3 UMETA(DisplayName = "Existing Positions"),
@@ -76,7 +76,7 @@ public:
 	/** Angle threshold in degrees used for testing if two triangles should be considered coplanar, or two lines collinear */
 	float MinimalPlanarAngleThresh = 0.01f;
 
-	// stored for the UE4 Standard path
+	// stored for the UEStandard path
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> OriginalMeshDescription;
 	// stored for the GeometryProcessing custom simplifier paths (currently precomputed once in tool setup)
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;

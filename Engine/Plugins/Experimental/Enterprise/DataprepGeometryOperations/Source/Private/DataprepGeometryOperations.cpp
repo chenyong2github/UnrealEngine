@@ -176,7 +176,7 @@ void UDataprepSimplifyMeshOperation::OnExecution_Implementation(const FDataprepC
 		Op.bPreventNormalFlips = true;
 		Op.bPreserveSharpEdges = true;
 		Op.bReproject = false;
-		Op.SimplifierType = ESimplifyType::UE4Standard;
+		Op.SimplifierType = ESimplifyType::UEStandard;
 //		Op.TargetCount = TargetCount;
 //		Op.TargetEdgeLength = TargetEdgeLength;
 		Op.TargetMode = ESimplifyTargetType::Percentage;

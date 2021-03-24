@@ -249,7 +249,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 
 
 		bool bFailedModifyNeedsRegen = false;
-		// The UE4 tool will split the UV boundaries.  Need to weld this.
+		// The UEStandard simplifier will split the UV boundaries.  Need to weld this.
 		{
 			FDynamicMesh3* ComponentMesh = ResultMesh.Get();
 

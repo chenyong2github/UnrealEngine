@@ -67,21 +67,21 @@ UGenerateLODMeshesToolProperties::UGenerateLODMeshesToolProperties()
 	// hardcoded for hair helmet
 
 	FLODLevelGenerateSettings LOD0;
-	LOD0.SimplifierType = ESimplifyType::UE4Standard;
+	LOD0.SimplifierType = ESimplifyType::UEStandard;
 	LOD0.TargetMode = ESimplifyTargetType::VertexCount;
 	LOD0.TargetPercentage = 50;
 	LOD0.TargetCount = 500;
 	LODLevels.Add(LOD0);
 
 	FLODLevelGenerateSettings LOD1;
-	LOD1.SimplifierType = ESimplifyType::UE4Standard;
+	LOD1.SimplifierType = ESimplifyType::UEStandard;
 	LOD1.TargetMode = ESimplifyTargetType::VertexCount;
 	LOD1.TargetPercentage = 30;
 	LOD1.TargetCount = 250;
 	LODLevels.Add(LOD1);
 
 	FLODLevelGenerateSettings LOD2;
-	LOD2.SimplifierType = ESimplifyType::UE4Standard;
+	LOD2.SimplifierType = ESimplifyType::UEStandard;
 	LOD2.TargetMode = ESimplifyTargetType::VertexCount;
 	LOD2.TargetPercentage = 15;
 	LOD2.TargetCount = 150;
