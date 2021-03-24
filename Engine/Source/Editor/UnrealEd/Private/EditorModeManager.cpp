@@ -1380,13 +1380,13 @@ bool FEditorModeTools::ProcessCapturedMouseMoves( FEditorViewportClient* InViewp
 /** Notifies all active modes of keyboard input */
 bool FEditorModeTools::InputKey(FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event, bool bRouteToToolsContext)
 {
-	if (bRouteToToolsContext && InteractiveToolsContext->InputKey(InViewportClient, Viewport, Key, Event))
-	{
-		return true;
-	}
 	bool bHandled = false;
+	if (bRouteToToolsContext)
+	{
+		bHandled |= InteractiveToolsContext->InputKey(InViewportClient, Viewport, Key, Event);
+	}
 	
-	// Copy the modes and iterate of that since a key may remove the edit mode and change CopyActiveScriptableModes
+	// Copy the modes and iterate of that since a key may remove the edit mode and change ActiveScriptableModes
 	TArray<UEdMode*> CopyActiveScriptableModes(ActiveScriptableModes);
 	for (UEdMode* Mode : CopyActiveScriptableModes)
 	{
