@@ -617,32 +617,56 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 		if(FPipelineCacheFileFormatPSO::DescriptorType::Graphics == PSO.Type)
 		{
 			FGraphicsPipelineStateInitializer GraphicsInitializer;
-			
-			FRHIVertexDeclaration* VertexDesc = PipelineStateCache::GetOrCreateVertexDeclaration(PSO.GraphicsDesc.VertexDescriptor);
-			GraphicsInitializer.BoundShaderState.VertexDeclarationRHI = VertexDesc;
-			
-			FVertexShaderRHIRef VertexShader;
-			if (PSO.GraphicsDesc.VertexShader != FSHAHash())
+
+			if (PSO.GraphicsDesc.MeshShader != FSHAHash())
 			{
-				VertexShader = FShaderCodeLibrary::CreateVertexShader(Platform, PSO.GraphicsDesc.VertexShader);
-				GraphicsInitializer.BoundShaderState.VertexShaderRHI = VertexShader;
+				FMeshShaderRHIRef MeshShader = FShaderCodeLibrary::CreateMeshShader(Platform, PSO.GraphicsDesc.MeshShader);
+				GraphicsInitializer.BoundShaderState.MeshShaderRHI = MeshShader;
+
+				if (PSO.GraphicsDesc.AmplificationShader != FSHAHash())
+				{
+					FAmplificationShaderRHIRef AmplificationShader = FShaderCodeLibrary::CreateAmplificationShader(Platform, PSO.GraphicsDesc.AmplificationShader);
+					GraphicsInitializer.BoundShaderState.AmplificationShaderRHI = AmplificationShader;
+				}
+			}
+			else
+			{
+				FRHIVertexDeclaration* VertexDesc = PipelineStateCache::GetOrCreateVertexDeclaration(PSO.GraphicsDesc.VertexDescriptor);
+				GraphicsInitializer.BoundShaderState.VertexDeclarationRHI = VertexDesc;
+			
+				FVertexShaderRHIRef VertexShader;
+				if (PSO.GraphicsDesc.VertexShader != FSHAHash())
+				{
+					VertexShader = FShaderCodeLibrary::CreateVertexShader(Platform, PSO.GraphicsDesc.VertexShader);
+					GraphicsInitializer.BoundShaderState.VertexShaderRHI = VertexShader;
+				}
+
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+				FHullShaderRHIRef HullShader;
+				if (PSO.GraphicsDesc.HullShader != FSHAHash())
+				{
+					HullShader = FShaderCodeLibrary::CreateHullShader(Platform, PSO.GraphicsDesc.HullShader);
+					GraphicsInitializer.BoundShaderState.HullShaderRHI = HullShader;
+				}
+
+				FDomainShaderRHIRef DomainShader;
+				if (PSO.GraphicsDesc.DomainShader != FSHAHash())
+				{
+					DomainShader = FShaderCodeLibrary::CreateDomainShader(Platform, PSO.GraphicsDesc.DomainShader);
+					GraphicsInitializer.BoundShaderState.DomainShaderRHI = DomainShader;
+				}
+#endif
+
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+				FGeometryShaderRHIRef GeometryShader;
+				if (PSO.GraphicsDesc.GeometryShader != FSHAHash())
+				{
+					GeometryShader = FShaderCodeLibrary::CreateGeometryShader(Platform, PSO.GraphicsDesc.GeometryShader);
+					GraphicsInitializer.BoundShaderState.GeometryShaderRHI = GeometryShader;
+				}
+#endif
 			}
 
-	#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			FHullShaderRHIRef HullShader;
-			if (PSO.GraphicsDesc.HullShader != FSHAHash())
-			{
-				HullShader = FShaderCodeLibrary::CreateHullShader(Platform, PSO.GraphicsDesc.HullShader);
-				GraphicsInitializer.BoundShaderState.HullShaderRHI = HullShader;
-			}
-
-			FDomainShaderRHIRef DomainShader;
-			if (PSO.GraphicsDesc.DomainShader != FSHAHash())
-			{
-				DomainShader = FShaderCodeLibrary::CreateDomainShader(Platform, PSO.GraphicsDesc.DomainShader);
-				GraphicsInitializer.BoundShaderState.DomainShaderRHI = DomainShader;
-			}
-	#endif
 			FPixelShaderRHIRef FragmentShader;
 			if (PSO.GraphicsDesc.FragmentShader != FSHAHash())
 			{
@@ -650,14 +674,6 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 				GraphicsInitializer.BoundShaderState.PixelShaderRHI = FragmentShader;
 			}
 
-	#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			FGeometryShaderRHIRef GeometryShader;
-			if (PSO.GraphicsDesc.GeometryShader != FSHAHash())
-			{
-				GeometryShader = FShaderCodeLibrary::CreateGeometryShader(Platform, PSO.GraphicsDesc.GeometryShader);
-				GraphicsInitializer.BoundShaderState.GeometryShaderRHI = GeometryShader;
-			}
-	#endif
 			auto BlendState = GetOrCreateBlendState(PSO.GraphicsDesc.BlendState);
 			GraphicsInitializer.BlendState = BlendState;
 			
@@ -808,7 +824,20 @@ void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCache
             if (PSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 			{
                 // See if the shaders exist in the current code libraries, before trying to load the shader data
-                if (PSO.GraphicsDesc.VertexShader != EmptySHA)
+				if (PSO.GraphicsDesc.MeshShader != EmptySHA)
+				{
+					RequiredShaders.Add(PSO.GraphicsDesc.MeshShader);
+					bOK &= FShaderCodeLibrary::ContainsShaderCode(PSO.GraphicsDesc.MeshShader);
+					UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to find MeshShader shader: %s"), *(PSO.GraphicsDesc.MeshShader.ToString()));
+
+					if (PSO.GraphicsDesc.AmplificationShader != EmptySHA)
+					{
+						RequiredShaders.Add(PSO.GraphicsDesc.AmplificationShader);
+						bOK &= FShaderCodeLibrary::ContainsShaderCode(PSO.GraphicsDesc.AmplificationShader);
+						UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to find AmplificationShader shader: %s"), *(PSO.GraphicsDesc.AmplificationShader.ToString()));
+					}
+				}
+                else if (PSO.GraphicsDesc.VertexShader != EmptySHA)
                 {
                     RequiredShaders.Add(PSO.GraphicsDesc.VertexShader);
                     bOK &= FShaderCodeLibrary::ContainsShaderCode(PSO.GraphicsDesc.VertexShader);
@@ -826,12 +855,6 @@ void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCache
 						bOK &= FShaderCodeLibrary::ContainsShaderCode(PSO.GraphicsDesc.DomainShader);
 						UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to find DomainShader shader: %s"), *(PSO.GraphicsDesc.DomainShader.ToString()));
 					}
-					if (PSO.GraphicsDesc.FragmentShader != EmptySHA)
-					{
-						RequiredShaders.Add(PSO.GraphicsDesc.FragmentShader);
-						bOK &= FShaderCodeLibrary::ContainsShaderCode(PSO.GraphicsDesc.FragmentShader);
-						UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to find FragmentShader shader: %s"), *(PSO.GraphicsDesc.FragmentShader.ToString()));
-					}
 					if (PSO.GraphicsDesc.GeometryShader != EmptySHA)
 					{
 						RequiredShaders.Add(PSO.GraphicsDesc.GeometryShader);
@@ -846,12 +869,33 @@ void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCache
 					UE_LOG(LogRHI, Error, TEXT("PSO Entry has no vertex shader: %u this is an invalid entry!"), PSORead->Hash);
 					bOK = false;
 				}
-                
+
+				if (PSO.GraphicsDesc.FragmentShader != EmptySHA)
+				{
+					RequiredShaders.Add(PSO.GraphicsDesc.FragmentShader);
+					bOK &= FShaderCodeLibrary::ContainsShaderCode(PSO.GraphicsDesc.FragmentShader);
+					UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to find FragmentShader shader: %s"), *(PSO.GraphicsDesc.FragmentShader.ToString()));
+				}
+
                 // If everything is OK then we can issue reads of the actual shader code
 				if (bOK && PSO.GraphicsDesc.VertexShader != FSHAHash())
 				{
 					bOK &= FShaderCodeLibrary::PreloadShader(PSO.GraphicsDesc.VertexShader, AsyncJob.ReadRequests);
                     UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to read VertexShader shader: %s"), *(PSO.GraphicsDesc.VertexShader.ToString()));
+				}
+
+				// If everything is OK then we can issue reads of the actual shader code
+				if (bOK && PSO.GraphicsDesc.MeshShader != FSHAHash())
+				{
+					bOK &= FShaderCodeLibrary::PreloadShader(PSO.GraphicsDesc.MeshShader, AsyncJob.ReadRequests);
+					UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to read MeshShader shader: %s"), *(PSO.GraphicsDesc.MeshShader.ToString()));
+				}
+
+				// If everything is OK then we can issue reads of the actual shader code
+				if (bOK && PSO.GraphicsDesc.AmplificationShader != FSHAHash())
+				{
+					bOK &= FShaderCodeLibrary::PreloadShader(PSO.GraphicsDesc.AmplificationShader, AsyncJob.ReadRequests);
+					UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to read AmplificationShader shader: %s"), *(PSO.GraphicsDesc.AmplificationShader.ToString()));
 				}
 		
 				if (bOK && PSO.GraphicsDesc.HullShader != EmptySHA)

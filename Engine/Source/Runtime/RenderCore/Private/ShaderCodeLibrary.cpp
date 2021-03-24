@@ -2656,6 +2656,24 @@ FComputeShaderRHIRef FShaderCodeLibrary::CreateComputeShader(EShaderPlatform Pla
 	return nullptr;
 }
 
+FMeshShaderRHIRef FShaderCodeLibrary::CreateMeshShader(EShaderPlatform Platform, const FSHAHash& Hash)
+{
+	if (FShaderLibrariesCollection::Impl)
+	{
+		return FMeshShaderRHIRef(FShaderLibrariesCollection::Impl->CreateShader(SF_Mesh, Hash));
+	}
+	return nullptr;
+}
+
+FAmplificationShaderRHIRef FShaderCodeLibrary::CreateAmplificationShader(EShaderPlatform Platform, const FSHAHash& Hash)
+{
+	if (FShaderLibrariesCollection::Impl)
+	{
+		return FAmplificationShaderRHIRef(FShaderLibrariesCollection::Impl->CreateShader(SF_Amplification, Hash));
+	}
+	return nullptr;
+}
+
 FRayTracingShaderRHIRef FShaderCodeLibrary::CreateRayTracingShader(EShaderPlatform Platform, const FSHAHash& Hash, EShaderFrequency Frequency)
 {
 	if (FShaderLibrariesCollection::Impl)
