@@ -245,6 +245,8 @@ struct FEngineShowFlags
 		SetLightShafts(true);
 		SetPostProcessMaterial(true);
 		SetDistanceFieldAO(true);
+		SetLumenGlobalIllumination(false);
+		SetLumenReflections(false);
 	}
 
 	bool IsVisualizeCalibrationEnabled() const
