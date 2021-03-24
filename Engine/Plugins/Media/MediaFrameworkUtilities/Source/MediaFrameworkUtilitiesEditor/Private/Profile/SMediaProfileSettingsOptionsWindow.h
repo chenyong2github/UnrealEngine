@@ -36,7 +36,7 @@ public:
 private:
 	FReply OnConfigure();
 	FReply OnCancel();
-	bool CanConfigure();
+	bool CanConfigure() const;
 
 private:
 	TWeakPtr<SWindow> Window;

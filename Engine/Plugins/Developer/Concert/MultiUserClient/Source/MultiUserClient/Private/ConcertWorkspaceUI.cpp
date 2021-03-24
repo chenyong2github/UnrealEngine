@@ -105,7 +105,7 @@ public:
 	}
 
 private:
-	EVisibility GetVisibility()
+	EVisibility GetVisibility() const
 	{
 		// If the asset is locked, make the icon visible, collapsed/hidden otherwise.
 		return WorkspaceFrontend->GetResourceLockId(AssetPath).IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
@@ -265,7 +265,7 @@ public:
 	}
 
 private:
-	EVisibility GetVisibility()
+	EVisibility GetVisibility() const
 	{
 		return WorkspaceFrontend->IsAssetModifiedByOtherClients(AssetPath) ? EVisibility::Visible : EVisibility::Collapsed;
 	}

@@ -143,7 +143,7 @@ FReply SMediaProfileSettingsOptionsWindow::OnCancel()
 }
 
 
-bool SMediaProfileSettingsOptionsWindow::CanConfigure()
+bool SMediaProfileSettingsOptionsWindow::CanConfigure() const
 {
 	return Options.IsValid();
 }
