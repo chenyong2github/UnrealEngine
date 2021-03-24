@@ -1525,16 +1525,6 @@ bool UNiagaraScript::ShouldCacheShadersForCooking(const ITargetPlatform* TargetP
 	return false;
 }
 
-UNiagaraScriptSourceBase* UNiagaraScript::GetLatestSource()
-{
-	return GetSource(FGuid());
-}
-
-const UNiagaraScriptSourceBase* UNiagaraScript::GetLatestSource() const
-{
-	return GetSource(FGuid());
-}
-
 void UNiagaraScript::GenerateStatIDs()
 {
 #if STATS
@@ -1622,6 +1612,16 @@ UNiagaraScriptSourceBase* UNiagaraScript::GetSource(const FGuid& VersionGuid)
 const UNiagaraScriptSourceBase* UNiagaraScript::GetSource(const FGuid& VersionGuid) const
 {
 	return const_cast<UNiagaraScript*>(this)->GetSource(VersionGuid);
+}
+
+UNiagaraScriptSourceBase* UNiagaraScript::GetLatestSource()
+{
+	return GetSource(FGuid());
+}
+
+const UNiagaraScriptSourceBase* UNiagaraScript::GetLatestSource() const
+{
+	return GetSource(FGuid());
 }
 
 void UNiagaraScript::SetLatestSource(UNiagaraScriptSourceBase* InSource)
