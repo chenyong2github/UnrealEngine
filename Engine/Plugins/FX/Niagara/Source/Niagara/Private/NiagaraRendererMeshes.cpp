@@ -965,7 +965,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				// Sort/Cull particles if needed.
 				VertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
-				if (bShouldSort || bDoGPUCulling)
+				if ((bShouldSort || bDoGPUCulling) && SortInfo.SortAttributeOffset != INDEX_NONE)
 				{
 					// Set up mesh-specific sorting parameters
 					SortInfo.CulledGPUParticleCountOffset = bDoGPUCulling ? Batcher->GetGPUInstanceCounterManager().AcquireCulledEntry() : INDEX_NONE;
