@@ -1318,15 +1318,31 @@ bool GetAssetFileItemAttributes(const FContentBrowserAssetFileItemDataPayload& I
 	}
 
 	// Generic attribute keys
+	static const FName BlueprintAssetClass = FName("Blueprint");
+	static const FName ParentClassTag = FName("ParentClass");
 	{
 		const FAssetData& AssetData = InAssetPayload.GetAssetData();
 		const FAssetPropertyTagCache::FClassPropertyTagCache& ClassPropertyTagCache = FAssetPropertyTagCache::Get().GetCacheForClass(AssetData.AssetClass);
+		const FAssetPropertyTagCache::FClassPropertyTagCache* ParentClassPropertyTagCache = nullptr;
+
+		if (AssetData.AssetClass == BlueprintAssetClass)
+		{
+			FAssetTagValueRef ParentClassRef = AssetData.TagsAndValues.FindTag(ParentClassTag);
+			if (ParentClassRef.IsSet())
+			{
+				ParentClassPropertyTagCache = &FAssetPropertyTagCache::Get().GetCacheForClass(ParentClassRef.AsName());
+			}
+		}
 
 		OutAttributeValues.Reserve(OutAttributeValues.Num() + AssetData.TagsAndValues.Num());
 		for (const auto& TagAndValue : AssetData.TagsAndValues)
 		{
 			FContentBrowserItemDataAttributeValue& GenericAttributeValue = OutAttributeValues.Add(TagAndValue.Key);
 			GetGenericItemAttribute(TagAndValue.Key, TagAndValue.Value.AsString(), ClassPropertyTagCache, InIncludeMetaData, GenericAttributeValue);
+			if (ParentClassPropertyTagCache && ParentClassPropertyTagCache->GetCacheForTag(TagAndValue.Key))
+			{
+				GetGenericItemAttribute(TagAndValue.Key, TagAndValue.Value.AsString(), *ParentClassPropertyTagCache, InIncludeMetaData, GenericAttributeValue);
+			}
 		}
 	}
 
