@@ -137,14 +137,13 @@ namespace Metasound
 		const FAudioBufferReadRef& InAudioInput, 
 		const FFloatReadRef& InPanningAmount,
 		const FPanningLawReadRef& InPanningLaw)
-
 		: AudioInput(InAudioInput)
 		, PanningAmount(InPanningAmount)
 		, PanningLaw(InPanningLaw)
 		, AudioLeftOutput(FAudioBufferWriteRef::CreateNew(InSettings))
 		, AudioRightOutput(FAudioBufferWriteRef::CreateNew(InSettings))
 	{
-		PrevPanningAmount = *PanningAmount;
+		PrevPanningAmount = FMath::Clamp(*PanningAmount, -1.0f, 1.0f);
 
 		ComputePanGains(PrevPanningAmount, PrevLeftPan, PrevRightPan);
 	}
