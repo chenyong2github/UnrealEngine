@@ -125,7 +125,7 @@ union FPackedAdaptiveAllocationRequest
 namespace
 {
 	/** Allocate a virtual texture for a subset of the full adaptive virtual texture. */
-	IAllocatedVirtualTexture* AllocatedVirtualTexture(
+	IAllocatedVirtualTexture* AllocateVirtualTexture(
 		FVirtualTextureSystem* InSystem,
 		FAllocatedVTDescription const& InAllocatedDesc,
 		FIntPoint InGridSize,
@@ -250,7 +250,7 @@ void FAdaptiveVirtualTexture::Init(FVirtualTextureSystem* InSystem)
 {
 	// Allocate a low mips virtual texture.
 	const int32 LevelOffset = AdaptiveDesc.MaxAdaptiveLevel;
-	AllocatedVirtualTextureLowMips = (FAllocatedVirtualTexture*)AllocatedVirtualTexture(InSystem, AllocatedDesc, GridSize, 0xff, GridSize.X, GridSize.Y, FIntPoint::ZeroValue, LevelOffset);
+	AllocatedVirtualTextureLowMips = (FAllocatedVirtualTexture*)AllocateVirtualTexture(InSystem, AllocatedDesc, GridSize, 0xff, GridSize.X, GridSize.Y, FIntPoint::ZeroValue, LevelOffset);
 }
 
 void FAdaptiveVirtualTexture::Destroy(FVirtualTextureSystem* InSystem)
@@ -471,7 +471,7 @@ void FAdaptiveVirtualTexture::Allocate(FVirtualTextureSystem* InSystem, uint32 I
 	const int32 LevelOffset = (int32)AdaptiveDesc.MaxAdaptiveLevel - (int32)InNewLevel;
 
 	FAllocatedVirtualTexture* OldAllocatedVT = (InAllocationIndex != INDEX_NONE) ? AllocationSlots[InAllocationIndex].AllocatedVT : nullptr;
-	FAllocatedVirtualTexture* NewAllocatedVT = (FAllocatedVirtualTexture*)AllocatedVirtualTexture(InSystem, AllocatedDesc, GridSize, GetSpaceID(), 1 << InNewLevel, 1 << InNewLevel, PageOffset, LevelOffset);
+	FAllocatedVirtualTexture* NewAllocatedVT = (FAllocatedVirtualTexture*)AllocateVirtualTexture(InSystem, AllocatedDesc, GridSize, GetSpaceID(), 1 << InNewLevel, 1 << InNewLevel, PageOffset, LevelOffset);
 
 	if (OldAllocatedVT != nullptr)
 	{
