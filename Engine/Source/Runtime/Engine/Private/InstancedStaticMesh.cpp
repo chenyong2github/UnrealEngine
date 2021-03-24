@@ -880,12 +880,7 @@ FPerInstanceRenderData::FPerInstanceRenderData(FStaticMeshInstanceData& Other, E
 	InstanceBuffer_GameThread = InstanceBuffer.InstanceData;
 
 	BeginInitResource(&InstanceBuffer);
-	UpdateBoundsTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
-		[this]()
-	{
-		UpdateBounds();
-	}
-	);
+	UpdateBoundsTransforms_Concurrent();
 }
 
 FPerInstanceRenderData::~FPerInstanceRenderData()
@@ -914,14 +909,26 @@ void FPerInstanceRenderData::UpdateFromPreallocatedData(FStaticMeshInstanceData&
 		{
 			InInstanceBuffer->InstanceData = InInstanceBufferDataPtr;
 			InInstanceBuffer->UpdateRHI();
-			UpdateBounds();
+			UpdateBoundsTransforms_Concurrent();
 		}
 	);
 }
 
-void FPerInstanceRenderData::UpdateBounds()
+void FPerInstanceRenderData::UpdateBoundsTransforms_Concurrent()
 {
-	if (bTrackBounds)
+	if (!bTrackBounds)
+	{
+		return;
+	}
+
+	// We shouldn't have multiple tasks in flight updating bounds/transforms to avoid a data race.
+	// Note that even if this check doesn't fail, there's still a race condition since there's a small
+	// possibility another thread could call UpdateBounds at the same time and write to UpdateBoundsTask
+	// between us checking the value and us writing to it.
+	check(!UpdateBoundsTask.IsValid());
+
+	UpdateBoundsTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
+		[this]()
 	{
 		const int32 InstanceCount = InstanceBuffer.GetNumInstances();
 		PerInstanceBounds.Empty();
@@ -942,6 +949,7 @@ void FPerInstanceRenderData::UpdateBounds()
 			PerInstanceTransforms.Add(InstTransform);
 		}
 	}
+	);
 }
 
 const TArray<FVector4>& FPerInstanceRenderData::GetPerInstanceBounds()
@@ -971,12 +979,7 @@ const TArray<FMatrix>& FPerInstanceRenderData::GetPerInstanceTransforms()
 void FPerInstanceRenderData::UpdateFromCommandBuffer(FInstanceUpdateCmdBuffer& CmdBuffer)
 {
 	InstanceBuffer.UpdateFromCommandBuffer_Concurrent(CmdBuffer);
-	UpdateBoundsTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
-		[this]()
-	{
-		UpdateBounds();
-	}
-	);
+	UpdateBoundsTransforms_Concurrent();
 }
 
 SIZE_T FInstancedStaticMeshSceneProxy::GetTypeHash() const

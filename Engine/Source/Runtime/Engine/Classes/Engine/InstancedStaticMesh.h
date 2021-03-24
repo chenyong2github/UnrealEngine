@@ -367,11 +367,6 @@ struct FPerInstanceRenderData
 	*/
 	ENGINE_API void UpdateFromCommandBuffer(FInstanceUpdateCmdBuffer& CmdBuffer);
 
-	/**
-	 * Called to update the PerInstanceBounds/PerInstanceTransforms arrays whenever the instance array is modified
-	*/
-	ENGINE_API void UpdateBounds();
-
 	/** Hit proxies for the instances */
 	TArray<TRefCountPtr<HHitProxy>>		HitProxies;
 
@@ -388,10 +383,15 @@ struct FPerInstanceRenderData
 	const TArray<FMatrix>& GetPerInstanceTransforms();
 
 private:
+	/**
+	 * Called to update the PerInstanceBounds/PerInstanceTransforms arrays whenever the instance array is modified
+	 */
+	void UpdateBoundsTransforms_Concurrent();
+
 	TArray<FVector4> PerInstanceBounds;
 	TArray<FMatrix> PerInstanceTransforms;
-	FBox InstanceLocalBounds;
 	FGraphEventRef UpdateBoundsTask;
+	const FBox InstanceLocalBounds;
 	const bool bTrackBounds;
 };
 
