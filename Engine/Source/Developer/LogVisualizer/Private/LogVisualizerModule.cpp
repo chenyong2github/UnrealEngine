@@ -63,7 +63,7 @@ void FLogVisualizerModule::StartupModule()
 	{
 		SettingsModule->RegisterSettings("Editor", "Advanced", "VisualLogger",
 			LOCTEXT("AIToolsSettingsName", "Visual Logger"),
-			LOCTEXT("AIToolsSettingsDescription", "General settings for UE4 AI Tools."),
+			LOCTEXT("AIToolsSettingsDescription", "General settings for UE AI Tools."),
 			ULogVisualizerSettings::StaticClass()->GetDefaultObject()
 			);
 	}
