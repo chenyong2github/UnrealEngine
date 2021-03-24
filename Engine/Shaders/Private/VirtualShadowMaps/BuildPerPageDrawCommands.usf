@@ -178,8 +178,12 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 	GroupMemoryBarrierWithGroupSync();
 
 	uint ThreadTotalForAllViews = 0;
+#if LOOP_OVER_VIEWS
 	// Loop over views and output visible instance (i.e., those that overlap a valid page)
 	for (uint PrimaryViewId = FirstPrimaryView; PrimaryViewId < FirstPrimaryView + NumPrimaryViews; ++PrimaryViewId)
+#else
+	uint PrimaryViewId = ViewIdIndex;
+#endif
 	{
 		uint VisibleMipsMask = 0;
 		uint ThreadTotalPageOverlaps = 0;
