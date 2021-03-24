@@ -1875,8 +1875,19 @@ void FOpenXRHMD::DestroySession()
 
 	if (Session != XR_NULL_HANDLE)
 	{
+		FlushRenderingCommands();
+
 		Swapchain.Reset();
 		DepthSwapchain.Reset();
+
+		PipelinedLayerStateRendering.ColorSwapchain.Reset();
+		PipelinedLayerStateRendering.DepthSwapchain.Reset();
+
+		// TODO: Once we handle OnFinishRendering_RHIThread + StopSession interactions
+		// properly, we can release these shared pointers in that function, and use
+		// `ensure` here to make sure these are released.
+		PipelinedLayerStateRHI.ColorSwapchain.Reset();
+		PipelinedLayerStateRHI.DepthSwapchain.Reset();
 
 		// Destroy device spaces, they will be recreated
 		// when the session is created again.
@@ -1888,8 +1899,6 @@ void FOpenXRHMD::DestroySession()
 		// Close the session now we're allowed to.
 		XR_ENSURE(xrDestroySession(Session));
 		Session = XR_NULL_HANDLE;
-
-		FlushRenderingCommands();
 
 		bStereoEnabled = false;
 		bIsReady = false;

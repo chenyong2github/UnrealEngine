@@ -13,24 +13,9 @@ FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChai
 {
 }
 
-FOpenXRSwapchain::~FOpenXRSwapchain() {
-	if (IsInGameThread())
-	{
-		ExecuteOnRenderThread([this]()
-		{
-			ExecuteOnRHIThread([this]()
-			{
-				ReleaseResources_RHIThread();
-			});
-		});
-	}
-	else
-	{
-		ExecuteOnRHIThread([this]()
-		{
-			ReleaseResources_RHIThread();
-		});
-	}
+FOpenXRSwapchain::~FOpenXRSwapchain() 
+{
+	XR_ENSURE(xrDestroySwapchain(Handle));
 }
 
 void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
@@ -86,12 +71,6 @@ void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 	ReleaseInfo.type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO;
 	ReleaseInfo.next = nullptr;
 	XR_ENSURE(xrReleaseSwapchainImage(Handle, &ReleaseInfo));
-}
-
-void FOpenXRSwapchain::ReleaseResources_RHIThread()
-{
-	FXRSwapChain::ReleaseResources_RHIThread();
-	XR_ENSURE(xrDestroySwapchain(Handle));
 }
 
 uint8 GetNearestSupportedSwapchainFormat(XrSession InSession, uint8 RequestedFormat, TFunction<uint32(uint8)> ToPlatformFormat = nullptr)
