@@ -2090,6 +2090,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 		EndFrame = StartFrame + EndFrame;
 		SetEndFrame(EndFrame);
 	}
+	ControlRig->Modify();
 
 	int32 NumFrames = Length * FrameRate;
 	NumFrames = AnimSequence->GetNumberOfFrames();
@@ -2099,6 +2100,23 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	FScopedSlowTask Progress(NumFrames + ExtraProgress, LOCTEXT("BakingToControlRig_SlowTask", "Baking To Control Rig..."));	
 	Progress.MakeDialog(true);
 
+	//Make sure we are reset and run setup event  before evaluating
+	TArray<FRigElementKey> ControlsToReset = ControlRig->GetHierarchy()->GetAllItems();
+	for (const FRigElementKey& ControlToReset : ControlsToReset)
+	{
+		if (ControlToReset.Type == ERigElementType::Control)
+		{
+			FRigControl* Control = ControlRig->FindControl(ControlToReset.Name);
+			if (Control && !Control->bIsTransientControl)
+			{
+				FTransform Transform = ControlRig->GetControlHierarchy().GetLocalTransform(ControlToReset.Name, ERigControlValueType::Initial);
+				ControlRig->GetControlHierarchy().SetLocalTransform(ControlToReset.Name, Transform);
+			}
+		}
+	}
+	SourceBones.ResetTransforms();
+	SourceCurves.ResetValues();
+	ControlRig->Execute(EControlRigState::Update, TEXT("Setup"));
 
 	for (int32 Index = 0; Index < NumFrames; ++Index)
 	{
