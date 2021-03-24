@@ -863,6 +863,7 @@ FPerInstanceRenderData::FPerInstanceRenderData(FStaticMeshInstanceData& Other, E
 	: ResourceSize(InRequireCPUAccess ? Other.GetResourceSize() : 0)
 	, InstanceBuffer(InFeaureLevel, InRequireCPUAccess)
 	, bTrackBounds(false)
+	, bBoundsTransformsDirty(true)
 {
 	InstanceBuffer.InitFromPreallocatedData(Other);
 	InstanceBuffer_GameThread = InstanceBuffer.InstanceData;
@@ -875,6 +876,7 @@ FPerInstanceRenderData::FPerInstanceRenderData(FStaticMeshInstanceData& Other, E
 	, InstanceBuffer(InFeaureLevel, InRequireCPUAccess)
 	, InstanceLocalBounds(InBounds)
 	, bTrackBounds(bTrack)
+	, bBoundsTransformsDirty(true)
 {
 	InstanceBuffer.InitFromPreallocatedData(Other);
 	InstanceBuffer_GameThread = InstanceBuffer.InstanceData;
@@ -922,12 +924,35 @@ void FPerInstanceRenderData::UpdateBoundsTransforms_Concurrent()
 	ENQUEUE_RENDER_COMMAND(FInstanceBuffer_UpdateBoundsTransforms)(
 		[this](FRHICommandListImmediate& RHICmdList)
 		{
-	// We shouldn't have multiple tasks in flight updating bounds/transforms, to avoid a data race.
-	check(!UpdateBoundsTask.IsValid());
+			bBoundsTransformsDirty = true;
+			if (!IsRayTracingEnabled() || !CVarRayTracingRenderInstances.GetValueOnRenderThread())
+			{
+				return;
+			}
+
+			FGraphEventArray Prerequisites{};
+			if (UpdateBoundsTask.IsValid())
+			{
+				// There's already a task either in flight or unconsumed, but the instance data has now changed so its result might be incorrect.
+				// This new task should run after the first one completes, so make the old one a prerequisite of the new one.
+				Prerequisites = FGraphEventArray{ UpdateBoundsTask };
+				UE_LOG(LogStaticMesh, Warning, TEXT("Unconsumed ISM bounds/transforms update task, we did more work than necessary"));
+			}
 
 	UpdateBoundsTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
 		[this]()
 	{
+					UpdateBoundsTransforms();
+				},
+				TStatId(),
+				&Prerequisites
+			);
+		}
+	);
+}
+
+void FPerInstanceRenderData::UpdateBoundsTransforms()
+{
 		const int32 InstanceCount = InstanceBuffer.GetNumInstances();
 			FBoxSphereBounds LocalBounds;
 			if (bTrackBounds)
@@ -953,38 +978,39 @@ void FPerInstanceRenderData::UpdateBoundsTransforms_Concurrent()
 				}
 			PerInstanceTransforms.Add(InstTransform);
 		}
+}
+
+
+void FPerInstanceRenderData::EnsureInstanceDataUpdated()
+{
+	check(IsInRenderingThread());
+
+	// wait for bounds/transforms update to complete
+	if (UpdateBoundsTask.IsValid())
+	{
+		UpdateBoundsTask->Wait(ENamedThreads::GetRenderThread_Local());
+		UpdateBoundsTask.SafeRelease();
+		bBoundsTransformsDirty = false;
 	}
-	);
-		}
-	);
+
+	// manually update if there is no pending update task
+	if (bBoundsTransformsDirty)
+	{
+		UpdateBoundsTransforms();
+		bBoundsTransformsDirty = false;
+	}
 }
 
 const TArray<FVector4>& FPerInstanceRenderData::GetPerInstanceBounds()
 {
 	check(bTrackBounds);
-	check(IsInRenderingThread());
-
-	// wait for bounds update to complete
-	if (UpdateBoundsTask.IsValid())
-	{
-		UpdateBoundsTask->Wait(ENamedThreads::GetRenderThread_Local());
-		UpdateBoundsTask.SafeRelease();
-	}
-
+	EnsureInstanceDataUpdated();
 	return PerInstanceBounds;
 }
 
 const TArray<FMatrix>& FPerInstanceRenderData::GetPerInstanceTransforms()
 {
-	check(IsInRenderingThread());
-
-	// wait for transforms update to complete
-	if (UpdateBoundsTask.IsValid())
-	{
-		UpdateBoundsTask->Wait(ENamedThreads::GetRenderThread_Local());
-		UpdateBoundsTask.SafeRelease();
-	}
-
+	EnsureInstanceDataUpdated();
 	return PerInstanceTransforms;
 }
 

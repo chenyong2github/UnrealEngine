@@ -387,12 +387,15 @@ private:
 	 * Called to update the PerInstanceBounds/PerInstanceTransforms arrays whenever the instance array is modified
 	 */
 	void UpdateBoundsTransforms_Concurrent();
+	void UpdateBoundsTransforms();
+	void EnsureInstanceDataUpdated();
 
 	TArray<FVector4> PerInstanceBounds;
 	TArray<FMatrix> PerInstanceTransforms;
 	FGraphEventRef UpdateBoundsTask;
 	const FBox InstanceLocalBounds;
 	const bool bTrackBounds;
+	bool bBoundsTransformsDirty;
 };
 
 
