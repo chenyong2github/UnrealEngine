@@ -63,7 +63,7 @@ void UActorFactoryCacheManager::PostSpawnActor(UObject* Asset, AActor* NewActor)
 						
 						UPrimitiveComponent* NewComponent = CastChecked<UPrimitiveComponent>(StaticDuplicateObjectEx(Parameters));
 						NewComponent->SetupAttachment(Manager->GetRootComponent());
-						NewComponent->SetWorldTransform(Template.InitialTransform);
+						NewComponent->SetRelativeTransform(Template.ComponentTransform);
 						Manager->AddInstanceComponent(NewComponent);
 						NewComponent->RegisterComponent();
 

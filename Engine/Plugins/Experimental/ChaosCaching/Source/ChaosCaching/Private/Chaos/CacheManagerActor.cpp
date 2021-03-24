@@ -284,9 +284,9 @@ void AChaosCacheManager::BeginPlay()
 						{
 							SolverData->PlaybackIndices.Add(Index);
 							SolverData->PlaybackTickRecords.AddDefaulted();
-							SolverData->PlaybackTickRecords.Last().SetSpaceTransform(Comp->GetComponentToWorld());
+							SolverData->PlaybackTickRecords.Last().SetSpaceTransform(GetTransform());
 							Observed.Cache = PlayCache;
-							Observed.TickRecord.SetSpaceTransform(Comp->GetComponentToWorld());
+							Observed.TickRecord.SetSpaceTransform(GetTransform());
 							OpenPlaybackCaches.Add(TTuple<FCacheUserToken, UChaosCache*>(MoveTemp(Token), Observed.Cache));
 							CurrAdapter->InitializeForPlayback(Comp, Observed.Cache);
 						}
@@ -328,14 +328,16 @@ void AChaosCacheManager::BeginPlay()
 					FName CacheName = Observed.CacheName == NAME_None ? MakeUniqueObjectName(CacheCollection, UChaosCache::StaticClass(), "Cache") : Observed.CacheName;
 
 					UChaosCache*    RecordCache = CacheCollection->FindOrAddCache(CacheName);
-					FCacheUserToken Token       = RecordCache->BeginRecord(Observed.GetComponent(), CurrAdapter->GetGuid());
+					FCacheUserToken Token       = RecordCache->BeginRecord(Observed.GetComponent(), CurrAdapter->GetGuid(), GetTransform());
 
 					if(Token.IsOpen())
 					{
 						SolverData->RecordIndices.Add(Index);
 
 						Observed.Cache = CacheCollection->FindOrAddCache(CacheName);
-						Observed.TickRecord.SetSpaceTransform(Comp->GetComponentToWorld());
+						
+						// We'll record the observed component in Cache Manager's local space.
+						Observed.TickRecord.SetSpaceTransform(GetTransform());
 						OpenRecordCaches.Add(TTuple<FCacheUserToken, UChaosCache*>(MoveTemp(Token), Observed.Cache));
 						CurrAdapter->InitializeForRecord(Component, Observed.Cache);
 

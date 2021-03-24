@@ -73,6 +73,7 @@ struct FCacheSpawnableTemplate
 	FCacheSpawnableTemplate()
 		: DuplicatedTemplate(nullptr)
 		, InitialTransform(FTransform::Identity)
+		, ComponentTransform(FTransform::Identity)
 	{}
 
 	UPROPERTY(VisibleAnywhere, Category = "Caching")
@@ -80,6 +81,9 @@ struct FCacheSpawnableTemplate
 
 	UPROPERTY(VisibleAnywhere, Category = "Caching")
 	FTransform InitialTransform;
+
+	UPROPERTY(VisibleAnywhere, Category = "Caching")
+	FTransform ComponentTransform;
 };
 
 struct FPlaybackTickRecord
@@ -249,7 +253,7 @@ public:
 	 * Reset and initialize a cache to make it ready to record the specified component
 	 * @param InComponent Component to prepare the cache for
 	 */
-	FCacheUserToken BeginRecord(UPrimitiveComponent* InComponent, FGuid InAdapterId);
+	FCacheUserToken BeginRecord(UPrimitiveComponent* InComponent, FGuid InAdapterId, const FTransform& SpaceTransform);
 
 	/**
 	 * End the recording session for the cache. At this point the cache is deemed to now contain
@@ -296,7 +300,7 @@ public:
 	 * when a cache is dragged into the scene.
 	 * @param InComponent Component to build the spawnable template from
 	 */
-	void BuildSpawnableFromComponent(UPrimitiveComponent* InComponent);
+	void BuildSpawnableFromComponent(UPrimitiveComponent* InComponent, const FTransform& SpaceTransform);
 
 	/**
 	 * Read access to the spawnable template stored in the cache

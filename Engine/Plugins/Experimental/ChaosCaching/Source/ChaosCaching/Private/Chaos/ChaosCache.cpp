@@ -93,7 +93,7 @@ void UChaosCache::FlushPendingFrames()
 	}
 }
 
-FCacheUserToken UChaosCache::BeginRecord(UPrimitiveComponent* InComponent, FGuid InAdapterId)
+FCacheUserToken UChaosCache::BeginRecord(UPrimitiveComponent* InComponent, FGuid InAdapterId, const FTransform& SpaceTransform)
 {
 	// First make sure we're valid to record
 	int32 OtherRecordersCount = CurrentRecordCount.fetch_add(1);
@@ -114,7 +114,7 @@ FCacheUserToken UChaosCache::BeginRecord(UPrimitiveComponent* InComponent, FGuid
 			PendingWrites.Empty();
 
 			// Initialise the spawnable template to handle the provided component
-			BuildSpawnableFromComponent(InComponent);
+			BuildSpawnableFromComponent(InComponent, SpaceTransform);
 
 			// Build a compatibility hash for the component state.
 			AdapterGuid = InAdapterId;
@@ -338,10 +338,11 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 	return Result;
 }
 
-void UChaosCache::BuildSpawnableFromComponent(UPrimitiveComponent* InComponent)
+void UChaosCache::BuildSpawnableFromComponent(UPrimitiveComponent* InComponent, const FTransform& SpaceTransform)
 {
 	Spawnable.DuplicatedTemplate = StaticDuplicateObject(InComponent, this);
 	Spawnable.InitialTransform = InComponent->GetComponentToWorld();
+	Spawnable.ComponentTransform = InComponent->GetComponentToWorld() * SpaceTransform.Inverse();
 }
 
 const FCacheSpawnableTemplate& UChaosCache::GetSpawnableTemplate() const
