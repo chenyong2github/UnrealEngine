@@ -7,7 +7,7 @@
 
 #define CONFIG_OUTPUT_HALF_RES 1
 
-#define TILE_SIZE 8
+#define TILE_SIZE 16
 
 
 //------------------------------------------------------- PARAMETERS
@@ -42,14 +42,10 @@ void MainCS(
 {
 	float4 Debug = 0.0;
 
-	uint2 DispatchThreadId = (
-		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
-		GroupId * uint2(TILE_SIZE, TILE_SIZE));
-
-	uint2 InputPixelPos = LowFrequencyInfo_ViewportMin + DispatchThreadId;
-
-	float2 InputBufferUV = (InputPixelPos + 0.5) * LowFrequencyInfo_ExtentInverse;
-	InputBufferUV = clamp(InputBufferUV, LowFrequencyInfo_UVViewportBilinearMin, LowFrequencyInfo_UVViewportBilinearMax);
+	taa_short2 InputPixelPos = (
+		taa_short2(InputPixelPosMin) +
+		taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE) +
+		Map16x16Tile2x2Lane(GroupThreadIndex));
 
 	taa_half3 InputMinColor;
 	taa_half3 InputMaxColor;
@@ -57,7 +53,7 @@ void MainCS(
 	taa_half ParallaxRejectionMask;
 	taa_half InterferenceWeight;
 	{
-		InputCenterColor = TransformColorForClampingBox(FilteredInputTexture.SampleLevel(GlobalPointClampedSampler, InputBufferUV, 0));
+		InputCenterColor = TransformColorForClampingBox(FilteredInputTexture[InputPixelPos]);
 		ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
 
 		InputMinColor = InputCenterColor;
@@ -73,11 +69,13 @@ void MainCS(
 		{
 			continue;
 		}
+		
+		taa_short2 SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
+			InputPixelPos,
+			kOffsets3x3[i], kOffsets3x3[i],
+			InputPixelPosMin, InputPixelPosMax);
 
-		float2 SampleInputBufferUV = InputBufferUV + float2(kOffsets3x3[i]) * LowFrequencyInfo_ExtentInverse;
-		SampleInputBufferUV = clamp(SampleInputBufferUV, LowFrequencyInfo_UVViewportBilinearMin, LowFrequencyInfo_UVViewportBilinearMax);
-
-		taa_half3 Color = TransformColorForClampingBox(FilteredInputTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0));
+		taa_half3 Color = TransformColorForClampingBox(FilteredInputTexture[SampleInputPixelPos]);
 
 		InputMinColor = min(InputMinColor, Color);
 		InputMaxColor = max(InputMaxColor, Color);
@@ -98,6 +96,7 @@ void MainCS(
 	}
 	#endif
 	
+	FLATTEN
 	if (bEnableInterferenceHeuristic)
 	{
 		Rejection = saturate(Rejection + 1.0 - InterferenceWeight);
@@ -122,25 +121,30 @@ void MainCS(
 			Rejection = min(Rejection, SharedRejection[GroupThreadIndex ^ ButterflySwap]);
 		}
 
-		
-		if (all(InputPixelPos < LowFrequencyInfo_ViewportMax) && all(((InputPixelPos - LowFrequencyInfo_ViewportMin) % 2) == 0))
-		{
-			HistoryRejectionOutput[(InputPixelPos - LowFrequencyInfo_ViewportMin) / 2] = Rejection;
-		}
+		bool bIsValid = all(InputPixelPos <= taa_short2(InputPixelPosMax)) && all((taa_ushort2(InputPixelPos - taa_short2(InputPixelPosMin)) % taa_ushort(2)) == taa_ushort(0));
+
+		taa_ushort2 OutputPixelPos = taa_ushort2(InputPixelPos - taa_short2(InputPixelPosMin)) / taa_ushort(2);
+		OutputPixelPos.x = bIsValid ? OutputPixelPos.x : ~taa_ushort(0);
+
+		HistoryRejectionOutput[OutputPixelPos] = Rejection;
 	}
 	#endif
 
-	if (all(InputPixelPos < LowFrequencyInfo_ViewportMax))
 	{
+		bool bIsValid = all(InputPixelPos <= taa_short2(InputPixelPosMax));
+
+		taa_ushort2 OutputPixelPos = taa_ushort2(InputPixelPos - taa_short2(InputPixelPosMin));
+		OutputPixelPos.x = bIsValid ? OutputPixelPos.x : ~taa_ushort(0);
+
 		#if !CONFIG_OUTPUT_HALF_RES
 		{
-			HistoryRejectionOutput[(InputPixelPos - LowFrequencyInfo_ViewportMin)] = Rejection;
+			HistoryRejectionOutput[OutputPixelPos] = Rejection;
 		}
 		#endif
 
 		#if DEBUG_OUTPUT
 		{
-			DebugOutput[InputPixelPos - LowFrequencyInfo_ViewportMin] = Debug;
+			DebugOutput[OutputPixelPos] = Debug;
 		}
 		#endif
 	}

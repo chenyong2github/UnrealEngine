@@ -134,15 +134,37 @@ static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 5, 7 };
 
 
 #if CONFIG_COMPILE_FP16
-	#define taa_half half
+	#define taa_half  half
 	#define taa_half2 half2
 	#define taa_half3 half3
 	#define taa_half4 half4
+
+	#define taa_short  int16_t
+	#define taa_short2 int16_t2
+	#define taa_short3 int16_t3
+	#define taa_short4 int16_t4
+
+	#define taa_ushort  uint16_t
+	#define taa_ushort2 uint16_t2
+	#define taa_ushort3 uint16_t3
+	#define taa_ushort4 uint16_t4
+
 #else
-	#define taa_half float
+	#define taa_half  float
 	#define taa_half2 float2
 	#define taa_half3 float3
 	#define taa_half4 float4
+
+	#define taa_short  int
+	#define taa_short2 int2
+	#define taa_short3 int3
+	#define taa_short4 int4
+
+	#define taa_ushort  uint
+	#define taa_ushort2 uint2
+	#define taa_ushort3 uint3
+	#define taa_ushort4 uint4
+
 #endif
 
 #define taa_subpixel_details uint
@@ -278,7 +300,54 @@ uint GetGroupThreadIndex(uint GroupThreadIndex, uint GroupWaveIndex)
 }
 #endif
 
+// Clamp the offset to be shared across multiple samples
+taa_short2 ClampPixelOffset(
+	taa_short2 KernelCenterPixelPos,
+	taa_short2 Offset,
+	const taa_short2 OffsetDirection,
+	int2 MinPixelPos, int2 MaxPixelPos)
+{
+	taa_short2 Min = taa_short2(MinPixelPos) - KernelCenterPixelPos;
+	taa_short2 Max = taa_short2(MaxPixelPos) - KernelCenterPixelPos;
 
+	// Only do clamp based on the compile time known direction of the offset.
+	// This turns only 1 v_pk_max_i16 and v_pk_min_i16 for a 3x3 kernel.
+	taa_short2 ClampedOffset = 0;
+
+	if (OffsetDirection.x > 0)
+		ClampedOffset.x = min(Offset.x, Max.x);
+	else if (OffsetDirection.x < 0)
+		ClampedOffset.x = max(Offset.x, Min.x);
+		
+	if (OffsetDirection.y > 0)
+		ClampedOffset.y = min(Offset.y, Max.y);
+	else if (OffsetDirection.y < 0)
+		ClampedOffset.y = max(Offset.y, Min.y);
+
+	return ClampedOffset;
+}
+
+taa_ushort2 Map8x8Tile2x2Lane(uint GroupThreadIndex)
+{
+	taa_ushort T = taa_ushort(GroupThreadIndex);
+
+	taa_ushort2 GroupId;
+	GroupId.x = ((T >> taa_ushort(0)) & taa_ushort(0x01)) | ((T >> taa_ushort(2 - 1)) & taa_ushort(0x03 << 1));
+	GroupId.y = ((T >> taa_ushort(1)) & taa_ushort(0x01)) | ((T >> taa_ushort(4 - 1)) & taa_ushort(0x03 << 1));
+
+	return GroupId;
+}
+
+taa_ushort2 Map16x16Tile2x2Lane(uint GroupThreadIndex)
+{
+	taa_ushort T = taa_ushort(GroupThreadIndex);
+
+	taa_ushort2 GroupId;
+	GroupId.x = ((T >> taa_ushort(0)) & taa_ushort(0x01)) | ((T >> taa_ushort(2 - 1)) & taa_ushort(0x07 << 1));
+	GroupId.y = ((T >> taa_ushort(1)) & taa_ushort(0x01)) | ((T >> taa_ushort(5 - 1)) & taa_ushort(0x07 << 1));
+	
+	return GroupId;
+}
 
 float SafeRcp(float x)
 {
