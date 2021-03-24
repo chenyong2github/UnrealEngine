@@ -681,6 +681,13 @@ void UHLODProxy::RemoveAssets(const FHLODProxyMesh& ProxyMesh)
 		{
 			DestroyObject(StaticMesh);
 		}
+
+		// Notify the LOD Actor that the static mesh just marked for deletion is no longer usable,
+		// so that it regenerates its render thread state to no longer point to the deleted mesh.
+		if (ALODActor* LODActor = ProxyMesh.GetLODActor().Get())
+		{
+			LODActor->SetStaticMesh(nullptr);
+		}
 	}
 }
 
