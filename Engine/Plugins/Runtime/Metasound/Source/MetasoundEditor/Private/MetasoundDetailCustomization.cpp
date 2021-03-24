@@ -20,6 +20,7 @@
 #include "PropertyRestriction.h"
 #include "SGraphPalette.h"
 #include "SlateCore/Public/Styling/SlateColor.h"
+#include "Sound/SoundWave.h"
 #include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
@@ -93,15 +94,12 @@ namespace Metasound
 					GeneralCategoryBuilder.AddProperty(MajorVersionHandle);
 					GeneralCategoryBuilder.AddProperty(MinorVersionHandle);
 
-					// Hack to hide categories brought in from UMetasoundSource inherited from USoundBase
 					DetailLayout.HideCategory("Analysis");
 					DetailLayout.HideCategory("Attenuation");
-					DetailLayout.HideCategory("Debug");
 					DetailLayout.HideCategory("Effects");
 					DetailLayout.HideCategory("Loading");
 					DetailLayout.HideCategory("Modulation");
 					DetailLayout.HideCategory("Sound");
-					DetailLayout.HideCategory("SoundWave");
 					DetailLayout.HideCategory("Voice Management");
 				}
 				break;
@@ -111,24 +109,32 @@ namespace Metasound
 					DetailLayout.HideCategory("Metasound");
 
 					const bool bShouldBeInitiallyCollapsed = true;
-					DetailLayout.EditCategory("Analysis").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+					IDetailCategoryBuilder& SoundCategory = DetailLayout.EditCategory("Sound");
+					SoundCategory.InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+
+					static const TSet<FName> SoundPropsToHide =
+					{
+						GET_MEMBER_NAME_CHECKED(USoundWave, bLooping),
+						GET_MEMBER_NAME_CHECKED(USoundWave, SoundGroup)
+					};
+
+					TArray<TSharedRef<IPropertyHandle>>SoundProperties;
+					SoundCategory.GetDefaultProperties(SoundProperties);
+					for (TSharedRef<IPropertyHandle> Property : SoundProperties)
+					{
+						if (SoundPropsToHide.Contains(Property->GetProperty()->GetFName()))
+						{
+							Property->MarkHiddenByCustomization();
+						}
+					}
+
 					DetailLayout.EditCategory("Attenuation").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
-					DetailLayout.EditCategory("Debug").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
 					DetailLayout.EditCategory("Effects").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
 					DetailLayout.EditCategory("Modulation").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
-					DetailLayout.EditCategory("Sound").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
-					DetailLayout.EditCategory("SoundWave").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
 					DetailLayout.EditCategory("Voice Management").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
 
-					const bool bRestore = false;
-					DetailLayout.EditCategory("Analysis").RestoreExpansionState(bRestore);
-					DetailLayout.EditCategory("Attenuation").RestoreExpansionState(bRestore);
-					DetailLayout.EditCategory("Debug").RestoreExpansionState(bRestore);
-					DetailLayout.EditCategory("Effects").RestoreExpansionState(bRestore);
-					DetailLayout.EditCategory("Modulation").RestoreExpansionState(bRestore);
-					DetailLayout.EditCategory("Sound").RestoreExpansionState(bRestore);
-					DetailLayout.EditCategory("SoundWave").RestoreExpansionState(bRestore);
-					DetailLayout.EditCategory("Voice Management").RestoreExpansionState(bRestore);
+					DetailLayout.EditCategory("Analysis").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
+					DetailLayout.EditCategory("Advanced").InitiallyCollapsed(bShouldBeInitiallyCollapsed);
 
 					break;
 			}

@@ -185,7 +185,7 @@ public:
 	TArray<FSoundSourceBusSendInfo> PreEffectBusSends;
 
 	/** Array of user data stored with the asset */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Sound)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Advanced)
 	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 public:
