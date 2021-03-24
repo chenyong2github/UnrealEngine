@@ -109,7 +109,7 @@ bool FXAudio2Device::InitializeHardware()
 	LoadVorbisLibraries();
 #endif
 
-	SampleRate = UE4_XAUDIO2_SAMPLERATE;
+	SampleRate = UE_XAUDIO2_SAMPLERATE;
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	bComInitialized = FPlatformMisc::CoInitialize();
@@ -239,7 +239,7 @@ bool FXAudio2Device::InitializeHardware()
 	DeviceProperties->XAudio2->SetDebugConfiguration(&DebugConfig);
 #endif // #if DEBUG_XAUDIO2
 
-	FXAudioDeviceProperties::NumSpeakers = UE4_XAUDIO2_NUMCHANNELS;
+	FXAudioDeviceProperties::NumSpeakers = UE_XAUDIO2_NUMCHANNELS;
 	SampleRate = FXAudioDeviceProperties::DeviceDetails.OutputFormat.Format.nSamplesPerSec;
 
 	// Clamp the output frequency to the limits of the reverb XAPO
@@ -257,10 +257,10 @@ bool FXAudio2Device::InitializeHardware()
 			FXAudioDeviceProperties::NumSpeakers,
 			( float )SampleRate / 1000.0f,
 			BitsPerSample,
-			(uint32)UE4_XAUDIO2_CHANNELMASK );
+			(uint32)UE_XAUDIO2_CHANNELMASK );
 	}
 
-	if( !GetOutputMatrix( UE4_XAUDIO2_CHANNELMASK, FXAudioDeviceProperties::NumSpeakers ) )
+	if( !GetOutputMatrix( UE_XAUDIO2_CHANNELMASK, FXAudioDeviceProperties::NumSpeakers ) )
 	{
 		UE_LOG(LogInit, Log, TEXT( "Unsupported speaker configuration for this number of channels" ) );
 		DeviceProperties->XAudio2 = NULL;
@@ -278,7 +278,7 @@ bool FXAudio2Device::InitializeHardware()
 #else	// #if XAUDIO_SUPPORTS_DEVICE_DETAILS
 	// Create the final output voice
 	if (!ValidateAPICall(TEXT("CreateMasteringVoice"),
-		DeviceProperties->XAudio2->CreateMasteringVoice(&DeviceProperties->MasteringVoice, UE4_XAUDIO2_NUMCHANNELS, UE4_XAUDIO2_SAMPLERATE, 0, 0, nullptr )))
+		DeviceProperties->XAudio2->CreateMasteringVoice(&DeviceProperties->MasteringVoice, UE_XAUDIO2_NUMCHANNELS, UE_XAUDIO2_SAMPLERATE, 0, 0, nullptr )))
 	{
 		UE_LOG(LogInit, Warning, TEXT( "Failed to create the mastering voice for XAudio2" ) );
 		DeviceProperties->XAudio2 = nullptr;

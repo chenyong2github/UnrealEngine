@@ -1676,7 +1676,7 @@ void FSpatializationHelper::Init()
 	//
 	//  Speaker geometry configuration on the final mix, specifies assignment of channels
 	//  to speaker positions, defined as per WAVEFORMATEXTENSIBLE.dwChannelMask
-	X3DAudioInitialize( UE4_XAUDIO2_CHANNELMASK, X3DAUDIO_SPEED_OF_SOUND, X3DInstance );
+	X3DAudioInitialize( UE_XAUDIO2_CHANNELMASK, X3DAUDIO_SPEED_OF_SOUND, X3DInstance );
 
 	// Initialize 3D audio parameters
 #if X3DAUDIO_VECTOR_IS_A_D3DVECTOR

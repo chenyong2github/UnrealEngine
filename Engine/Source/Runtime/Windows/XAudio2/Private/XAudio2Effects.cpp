@@ -314,7 +314,7 @@ XAPO_REGISTRATION_PROPERTIES FXAudio2RadioEffect::Registration =
  */
 bool FXAudio2EffectsManager::CreateEQPremasterVoices()
 {
-	uint32 SampleRate = UE4_XAUDIO2_SAMPLERATE;
+	uint32 SampleRate = UE_XAUDIO2_SAMPLERATE;
 
 	// Create the EQ effect
 	if( !XAudio2Device->ValidateAPICall( TEXT( "CreateFX (EQ)" ), 
@@ -349,8 +349,8 @@ bool FXAudio2EffectsManager::CreateEQPremasterVoices()
 	}
 
 	// Set the output matrix catering for a potential downmix
-	const uint32 NumChannels = UE4_XAUDIO2_NUMCHANNELS;
-	FXAudio2Device::GetOutputMatrix(UE4_XAUDIO2_CHANNELMASK, NumChannels);
+	const uint32 NumChannels = UE_XAUDIO2_NUMCHANNELS;
+	FXAudio2Device::GetOutputMatrix(UE_XAUDIO2_CHANNELMASK, NumChannels);
 
 	if( !XAudio2Device->ValidateAPICall( TEXT( "SetOutputMatrix (EQPremaster)" ), 
 		EQPremasterVoice->SetOutputMatrix( NULL, SPEAKER_COUNT, NumChannels, FXAudioDeviceProperties::OutputMixMatrix ) ) )
@@ -374,7 +374,7 @@ bool FXAudio2EffectsManager::CreateReverbVoice()
 {
 	UINT32 Flags;
 
-	uint32 SampleRate = UE4_XAUDIO2_SAMPLERATE;
+	uint32 SampleRate = UE_XAUDIO2_SAMPLERATE;
 
 	Flags = 0;		// XAUDIO2FX_DEBUG
 
@@ -438,7 +438,7 @@ bool FXAudio2EffectsManager::CreateReverbVoice()
 bool FXAudio2EffectsManager::CreateRadioVoice()
 {
 	// Grab the sample rate, which is needed to configure the radio distortion effect settings.
-	const uint32 SampleRate = UE4_XAUDIO2_SAMPLERATE;
+	const uint32 SampleRate = UE_XAUDIO2_SAMPLERATE;
 	
 	// Create the custom XAPO radio distortion effect
 	FXAudio2RadioEffect* NewRadioEffect = new FXAudio2RadioEffect( SampleRate );
@@ -468,8 +468,8 @@ bool FXAudio2EffectsManager::CreateRadioVoice()
 		return false;
 	}
 
-	const uint32 NumChannels = UE4_XAUDIO2_NUMCHANNELS;
-	FXAudio2Device::GetOutputMatrix( UE4_XAUDIO2_CHANNELMASK, NumChannels );
+	const uint32 NumChannels = UE_XAUDIO2_NUMCHANNELS;
+	FXAudio2Device::GetOutputMatrix( UE_XAUDIO2_CHANNELMASK, NumChannels );
 
 	// Designate the radio-distorted audio to route to the master voice.
 	if( !XAudio2Device->ValidateAPICall( TEXT( "SetOutputMatrix (Radio)" ), 
