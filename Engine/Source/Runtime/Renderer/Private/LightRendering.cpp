@@ -2536,6 +2536,7 @@ void FDeferredShadingSceneRenderer::RenderLightsForHair(
 				continue;
 			}
 
+			FHairStrandsTransmittanceMaskData DummyTransmittanceMaskData = CreateDummyHairStrandsTransmittanceMaskData(GraphBuilder, View.ShaderMap);
 			for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
 			{
 				const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
@@ -2543,7 +2544,7 @@ void FDeferredShadingSceneRenderer::RenderLightsForHair(
 				if (LightSceneInfo.Proxy)
 				{
 					const bool bDrawHairShadow = SortedLightInfo.SortKey.Fields.bShadowed;
-					FHairStrandsTransmittanceMaskData TransmittanceMaskData;
+					FHairStrandsTransmittanceMaskData TransmittanceMaskData = DummyTransmittanceMaskData;
 					if (bDrawHairShadow)
 					{
 						TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, View, &LightSceneInfo, ScreenShadowMaskSubPixelTexture);
