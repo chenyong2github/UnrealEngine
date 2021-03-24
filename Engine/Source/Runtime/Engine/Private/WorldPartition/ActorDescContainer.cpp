@@ -215,6 +215,18 @@ void UActorDescContainer::OnPackageDeleted(UPackage* Package)
 	}
 }
 
+void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
+{
+	if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindRef(ActorGuid))
+	{
+		// This should never be called on already loaded actors
+		check(!(*ExistingActorDesc)->GetActor());
+		OnActorDescRemoved(*ExistingActorDesc);
+		Actors.Remove((*ExistingActorDesc)->GetGuid());
+		ExistingActorDesc->Release();
+	}
+}
+
 void UActorDescContainer::RegisterDelegates()
 {
 	if (GEditor && !IsTemplate())

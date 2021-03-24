@@ -25,6 +25,7 @@ public:
 	const FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid) const;
 
 	const FWorldPartitionActorDesc* GetActorDesc(const FString& PackageName) const;
+	const FWorldPartitionActorDesc* GetActorDesc(const FSoftObjectPath& InActorPath) const;
 
 	int32 GetActorDescCount() const { return Actors.Num(); }
 

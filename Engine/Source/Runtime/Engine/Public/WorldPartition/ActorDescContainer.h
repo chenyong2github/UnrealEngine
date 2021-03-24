@@ -28,6 +28,9 @@ public:
 	virtual void OnPackageDeleted(UPackage* Package);
 
 	FName GetContainerPackage() const { return ContainerPackageName; }
+
+	/** Removes an actor desc without the need to load a package */
+	virtual void RemoveActor(const FGuid& ActorGuid);
 #endif
 
 	UPROPERTY(Transient)

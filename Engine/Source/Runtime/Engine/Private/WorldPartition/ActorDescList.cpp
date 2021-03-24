@@ -43,7 +43,21 @@ const FWorldPartitionActorDesc* FActorDescList::GetActorDesc(const FString& Pack
 	const FName PackageFName(*PackageName);
 	for (const TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
 	{
-		if (ActorDescPtr->GetActorPackage() == PackageFName)
+		if (ActorDescPtr && ActorDescPtr->GetActorPackage() == PackageFName)
+		{
+			return ActorDescPtr.Get();
+		}
+	}
+
+	return nullptr;
+}
+
+const FWorldPartitionActorDesc* FActorDescList::GetActorDesc(const FSoftObjectPath& InActorPath) const
+{
+	const FName ActorPath(*InActorPath.ToString());
+	for (const TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
+	{
+		if (ActorDescPtr && ActorDescPtr->GetActorPath() == ActorPath)
 		{
 			return ActorDescPtr.Get();
 		}
