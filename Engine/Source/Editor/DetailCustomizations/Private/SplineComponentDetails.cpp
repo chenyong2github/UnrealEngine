@@ -746,6 +746,13 @@ void FSplinePointDetails::OnSetPosition(float NewValue, ETextCommit::Type Commit
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsPosition().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point location: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsPosition().Points.Num());
+			continue;
+		}
+
 		FVector PointPosition = SplineComp->GetSplinePointsPosition().Points[Index].OutVal;
 		PointPosition.Component(Axis) = NewValue;
 		SplineComp->GetSplinePointsPosition().Points[Index].OutVal = PointPosition;
@@ -771,6 +778,13 @@ void FSplinePointDetails::OnSetArriveTangent(float NewValue, ETextCommit::Type C
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsPosition().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point arrive tangent: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsPosition().Points.Num());
+			continue;
+		}
+
 		FVector PointTangent = SplineComp->GetSplinePointsPosition().Points[Index].ArriveTangent;
 		PointTangent.Component(Axis) = NewValue;
 		SplineComp->GetSplinePointsPosition().Points[Index].ArriveTangent = PointTangent;
@@ -797,6 +811,13 @@ void FSplinePointDetails::OnSetLeaveTangent(float NewValue, ETextCommit::Type Co
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsPosition().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point leave tangent: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsPosition().Points.Num());
+			continue;
+		}
+
 		FVector PointTangent = SplineComp->GetSplinePointsPosition().Points[Index].LeaveTangent;
 		PointTangent.Component(Axis) = NewValue;
 		SplineComp->GetSplinePointsPosition().Points[Index].LeaveTangent = PointTangent;
@@ -823,6 +844,13 @@ void FSplinePointDetails::OnSetRotation(float NewValue, ETextCommit::Type Commit
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsRotation().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point rotation: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsRotation().Points.Num());
+			continue;
+		}
+
 		FRotator PointRotation = SplineComp->GetSplinePointsRotation().Points[Index].OutVal.Rotator();
 
 		switch (Axis)
@@ -855,6 +883,13 @@ void FSplinePointDetails::OnSetScale(float NewValue, ETextCommit::Type CommitInf
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsScale().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point scale: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsScale().Points.Num());
+			continue;
+		}
+
 		FVector PointScale = SplineComp->GetSplinePointsScale().Points[Index].OutVal;
 		PointScale.Component(Axis) = NewValue;
 		SplineComp->GetSplinePointsScale().Points[Index].OutVal = PointScale;
@@ -892,6 +927,13 @@ void FSplinePointDetails::OnSplinePointTypeChanged(TSharedPtr<FString> NewValue,
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsPosition().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point type: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsPosition().Points.Num());
+			continue;
+		}
+
 		SplineComp->GetSplinePointsPosition().Points[Index].InterpMode = Mode;
 	}
 
