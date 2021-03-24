@@ -154,6 +154,8 @@ public:
 	// Debugging Methods
 	void DrawRuntimeHashPreview();
 	void DumpActorDescs(const FString& Path);
+
+	void CheckForErrors() const;
 #endif
 
 public:

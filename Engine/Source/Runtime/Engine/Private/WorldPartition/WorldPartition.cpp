@@ -42,7 +42,7 @@
 
 DEFINE_LOG_CATEGORY(LogWorldPartition);
 
-#define LOCTEXT_NAMESPACE "WorldPartitionEditor"
+#define LOCTEXT_NAMESPACE "WorldPartition"
 
 #if WITH_EDITOR
 static FAutoConsoleCommand DumpActorDescs(
@@ -1105,6 +1105,14 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 
 		LogFile->Close();
 		delete LogFile;
+	}
+}
+
+void UWorldPartition::CheckForErrors() const
+{
+	if (RuntimeHash)
+	{
+		RuntimeHash->CheckForErrors();
 	}
 }
 

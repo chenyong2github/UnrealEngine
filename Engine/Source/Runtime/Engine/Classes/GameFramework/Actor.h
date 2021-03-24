@@ -842,6 +842,7 @@ public:
 private:
 	friend class FActorDescList;
 	friend class UActorDescContainer;
+	friend class FWorldPartitionActorViewProxy;
 
 	/**
 	 * Creates an uninitialized actor descriptor. Can be overriden.

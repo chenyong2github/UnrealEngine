@@ -118,6 +118,7 @@
 #include "InstancedFoliageActor.h"
 #include "IMovieSceneCapture.h"
 #include "MovieSceneCaptureModule.h"
+#include "WorldPartition/WorldPartition.h"
 
 #include "Kismet2/KismetEditorUtilities.h"
 #include "PropertyEditorModule.h"
@@ -3988,6 +3989,11 @@ bool UEditorEngine::Map_Check( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 	if (InWorld->NumTextureStreamingUnbuiltComponents > 0 || InWorld->NumTextureStreamingDirtyResources > 0)
 	{
 		FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_TextureStreamingNeedsRebuild", "Texture streaming needs to be rebuilt ({0} Components, {1} Resource Refs), run 'Build Texture Streaming'."), InWorld->NumTextureStreamingUnbuiltComponents, InWorld->NumTextureStreamingDirtyResources)));
+	}
+
+	if (const UWorldPartition* WorldPartition = InWorld->GetWorldPartition())
+	{
+		WorldPartition->CheckForErrors();
 	}
 
 	GWarn->StatusUpdate( 0, ProgressDenominator, CheckMapLocText );
