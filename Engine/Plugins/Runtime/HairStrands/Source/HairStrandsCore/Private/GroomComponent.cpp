@@ -2139,8 +2139,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 			// Initialize the simulation and the global deformation to its default behavior by setting it with LODIndex = -1
 			const int32 LODIndex = -1;
-			HairGroupInstance->Guides.bIsSimulationEnable = GroomAsset && GroomAsset->IsGlobalInterpolationEnable(GroupIt,LODIndex);
-			HairGroupInstance->Guides.bHasGlobalInterpolation = LocalBindingAsset && GroomAsset && GroomAsset->IsGlobalInterpolationEnable(GroupIt,LODIndex);
+			HairGroupInstance->Guides.bIsSimulationEnable = GroomAsset->IsGlobalInterpolationEnable(GroupIt,LODIndex);
+			HairGroupInstance->Guides.bHasGlobalInterpolation = LocalBindingAsset && GroomAsset->IsGlobalInterpolationEnable(GroupIt,LODIndex);
 		}
 
 		// LODBias is in the Modifier which is needed for LOD selection regardless if the strands are there or not
