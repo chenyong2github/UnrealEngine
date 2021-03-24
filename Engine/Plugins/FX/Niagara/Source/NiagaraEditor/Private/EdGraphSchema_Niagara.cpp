@@ -1123,6 +1123,7 @@ void UEdGraphSchema_Niagara::DroppedAssetsOnGraph(const TArray<FAssetData>&Asset
 			FGraphNodeCreator<UNiagaraNodeStaticSwitch> SwitchNodeCreator(*Graph);
 			FString NewName = FString::Printf(TEXT("Switch on %s"), *Enum->GetName());
 			UNiagaraNodeStaticSwitch* SwitchNode = SwitchNodeCreator.CreateNode();
+			SwitchNode->NodePosX = GraphPosition.X;
 			SwitchNode->NodePosY = GraphPosition.Y + Offset * 50.f;
 			SwitchNode->InputParameterName = FName(NewName);
 			SwitchNode->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Enum;

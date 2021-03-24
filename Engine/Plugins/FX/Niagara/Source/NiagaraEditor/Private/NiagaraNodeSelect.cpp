@@ -657,7 +657,7 @@ TArray<int32> UNiagaraNodeSelect::GetOptionValues() const
 
 	if(SelectorPinType == FNiagaraTypeDefinition::GetBoolDef())
 	{
-		SelectorValues = { 0, 1 };
+		SelectorValues = { 1, 0 };
 	}
 	else if(SelectorPinType == FNiagaraTypeDefinition::GetIntDef())
 	{
