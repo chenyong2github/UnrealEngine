@@ -278,7 +278,7 @@ protected:
 	float InitialFOVSinOffset;
 
 	/** Temp actor to use for playing camera anims. Used when playing a camera anim in non-gameplay context, e.g. in the editor */
-	AActor* TempCameraActorForCameraAnims;
+	TWeakObjectPtr<AActor> TempCameraActorForCameraAnims;
 
 	/** Sequence shake pattern for when using a sequence instead of a camera anim */
 	UPROPERTY(Instanced)

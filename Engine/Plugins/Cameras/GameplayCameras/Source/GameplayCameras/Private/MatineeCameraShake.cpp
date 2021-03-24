@@ -217,7 +217,7 @@ void UMatineeCameraShake::DoStartShake(const FCameraShakeStartParams& Params)
 					{
 						// note: we don't have a temp camera actor necessary for evaluating a camera anim.
 						// caller is responsible in this case for providing one by calling SetTempCameraAnimActor() on the shake instance before playing the shake
-						AnimInst->Play(Anim, TempCameraActorForCameraAnims, AnimPlayRate, FinalAnimScale, AnimBlendInTime, AnimBlendOutTime, bLoop, bRandomStart, Duration);
+						AnimInst->Play(Anim, TempCameraActorForCameraAnims.Get(), AnimPlayRate, FinalAnimScale, AnimBlendInTime, AnimBlendOutTime, bLoop, bRandomStart, Duration);
 						AnimInst->SetPlaySpace(AnimPlaySpace, UserPlaySpaceRot);
 					}
 				}
@@ -347,7 +347,7 @@ void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, 
 
 			// Don't allow shake to flip pitch past vertical, if not using a headset (where we can't limit the camera locked to your head).
 			APlayerCameraManager* CameraOwner = GetCameraManager();
-			AActor * WorldActor = (CameraOwner ? CameraOwner : TempCameraActorForCameraAnims);
+			AActor * WorldActor = (CameraOwner ? CameraOwner : TempCameraActorForCameraAnims.Get());
 			UWorld * World = (WorldActor ? WorldActor->GetWorld() : nullptr);
 			if (!GEngine->XRSystem.IsValid() ||
 				!(World != nullptr ? GEngine->XRSystem->IsHeadTrackingAllowedForWorld(*World) : GEngine->XRSystem->IsHeadTrackingAllowed()))
