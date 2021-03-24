@@ -16,11 +16,11 @@
 extern "C" {
 #endif
 
-/// @defgroup review Play Review
-/// Native API for Play Review
+/// @defgroup review Play In-App Review
+/// Native API for Play In-App Review
 /// @{
 
-/// Errors that can be encountered while using the review API.
+/// Errors that can be encountered while using the in-app review API.
 enum ReviewErrorCode {
   /// No error has occurred.
   REVIEW_NO_ERROR = 0,
@@ -40,9 +40,12 @@ enum ReviewErrorCode {
 
   /// An invalid parameter was passed to the function.
   REVIEW_INVALID_REQUEST = -5,
+
+  /// The Play Store app is either not installed or not the official version.
+  REVIEW_PLAY_STORE_NOT_FOUND = -6,
 };
 
-/// Status returned when requesting or launching the review flow.
+/// Status returned when requesting or launching the in-app review flow.
 enum ReviewStatus {
   /// Unknown Review status.
   REVIEW_STATUS_UNKNOWN = 0,
@@ -64,22 +67,22 @@ enum ReviewStatus {
   REVIEW_LAUNCH_FLOW_COMPLETED = 4,
 };
 
-/// Initialize the Review API, making the other functions available to call.
-///
-/// @param jvm The app's single JavaVM, e.g. from ANativeActivity's "vm" field.
-/// @param android_context An Android Context, e.g. from ANativeActivity's
-/// "clazz" field.
+/// Initialize the in-app review API, making the other functions available to
+/// call.
+/// @param jvm The app's single JavaVM, for example from ANativeActivity's "vm"
+/// field.
+/// @param android_context An Android Context, for example from
+/// ANativeActivity's "clazz" field.
 /// @return REVIEW_NO_ERROR if initialization succeeded, or an error if it
-/// failed. In case of failure the Review API is unavailable, and there will
-/// be an error in logcat. The most common reason for failure is that the
+/// failed. In case of failure the in-app review API is unavailable, and there
+/// will be an error in logcat. The most common reason for failure is that the
 /// PlayCore AAR is missing or some of its classes/methods weren't retained by
 /// ProGuard.
 /// @see ReviewManager_destroy()
 ReviewErrorCode ReviewManager_init(JavaVM* jvm, jobject android_context);
 
-/// Frees up memory allocated for the Review API.
-///
-/// Does nothing if ReviewManager_init() hasn't been called.
+/// Frees up memory allocated for the in-app review API. Does nothing if
+/// ReviewManager_init() hasn't been called.
 void ReviewManager_destroy();
 
 /// Asynchronously requests the information needed to launch the in-app review
@@ -93,16 +96,15 @@ void ReviewManager_destroy();
 /// if it failed.
 ReviewErrorCode ReviewManager_requestReviewFlow();
 
-/// Asynchronously requests to display the launch in-app review flow to the
-/// user. Use ReviewManager_getReviewStatus() to monitor progress and get the
-/// result.
+/// Asynchronously requests to display the in-app review flow to the user. Use
+/// ReviewManager_getReviewStatus() to monitor progress and get the result.
 ///
 /// Note: ReviewManager_requestReviewFlow() and ReviewManager_launchReviewFlow()
 /// should not be called simultaneously from multiple threads.
 ///
-/// Note 2: in some circumstances the review flow will not be shown to the user,
-/// e.g. they have already seen it recently, so do not assume that calling this
-/// method will always display the review dialog.
+/// Note: in some circumstances the review flow will not be shown to the user,
+/// for example if they have already seen it recently. Don't assume that calling
+/// this function will always display the review dialog.
 ///
 /// @param android_activity An Android Activity object parameter, it can be
 /// obtained from ANativeActivity's "clazz" field, and it will be used for
@@ -115,8 +117,8 @@ ReviewErrorCode ReviewManager_launchReviewFlow(jobject android_activity);
 /// the flow.
 ///
 /// ReviewManager_requestReviewFlow() and ReviewManager_launchReviewFlow()
-/// execute an asynchronous operation and this method helps to keep track of the
-/// current status of their asynchronous operation.
+/// execute an asynchronous operation, and this function helps to keep track of
+/// the current status of their asynchronous operation.
 ///
 /// When using ReviewManager_requestReviewFlow(), the possible
 /// ReviewStatus values are:

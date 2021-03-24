@@ -12,7 +12,7 @@ cmake_minimum_required(VERSION 3.6)
 
 set(PLAYCORE_LIBS_ABI_DIR ${CMAKE_CURRENT_LIST_DIR}/libs/${ANDROID_ABI})
 
-function(add_playcore_static_library)
+function(find_playcore_library OUT_PLAYCORE_LIBS_NDK_DIR)
     if (NOT ANDROID_NDK_MAJOR)
         # Workaround for NDK r16 and earlier which don't set ANDROID_NDK_MAJOR.
         if (NOT ANDROID_NDK_SOURCE_PROPERTIES MATCHES ${ANDROID_NDK_SOURCE_PROPERTIES_REGEX})
@@ -64,7 +64,19 @@ function(add_playcore_static_library)
         message(FATAL_ERROR "Failed to find path for version ${PLAYCORE_BEST_MAJOR} in directory: ${PLAYCORE_LIBS_ABI_DIR}")
     endif ()
 
-    # Add the static library to the build.
+    set("${OUT_PLAYCORE_LIBS_NDK_DIR}" "${PLAYCORE_LIBS_NDK_DIR}" PARENT_SCOPE)
+endfunction()
+
+function(add_playcore_shared_library)
+    find_playcore_library(PLAYCORE_LIBS_NDK_DIR)
+    add_library(playcore SHARED IMPORTED)
+    set_target_properties(playcore
+            PROPERTIES
+            IMPORTED_LOCATION ${PLAYCORE_LIBS_NDK_DIR}/${ANDROID_STL}/libplaycore.so)
+endfunction()
+
+function(add_playcore_static_library)
+    find_playcore_library(PLAYCORE_LIBS_NDK_DIR)
     add_library(playcore STATIC IMPORTED)
     set_target_properties(playcore
             PROPERTIES

@@ -10,7 +10,7 @@
 		<setBoolFromProperty result="bAllowPatchOBBFile" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bAllowPatchOBBFile" default="false"/>
 
 		<!-- NDK path -->
-		<setString result="NDKVersion" value="ndk21.3.6528147"/>
+		<setString result="NDKVersion" value="ndk21.4.7075529"/>
 
 		<if condition="bEnabled">
 			<true>
@@ -181,7 +181,7 @@ android {
 <![CDATA[
 // for GooglePAD
 dependencies {
-	implementation('com.google.android.play:core:1.8.3')
+	implementation('com.google.android.play:core:1.10.0')
 }
 
 // add the assetpacks

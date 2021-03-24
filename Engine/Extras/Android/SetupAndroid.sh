@@ -43,7 +43,7 @@ then
 	echo >>$HOME/.bashrc
 	echo "export JAVA_HOME=\"$JAVA_HOME\"" >>$HOME/.bashrc
 fi
-NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/21.1.6352462"
+NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/21.4.7075529"
 PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/28.0.3:$STUDIO_SDK_PATH/tools/bin"
 
 retVal=$(type -P "adb")
@@ -63,7 +63,7 @@ if [ ! -d "$SDKMANAGERPATH" ]; then
 	fi
 fi
 
-"$SDKMANAGERPATH/sdkmanager" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "cmake;3.10.2.4988404" "ndk;21.1.6352462"
+"$SDKMANAGERPATH/sdkmanager" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "cmake;3.10.2.4988404" "ndk;21.4.7075529"
 
 retVal=$?
 if [ $retVal -ne 0 ]; then
