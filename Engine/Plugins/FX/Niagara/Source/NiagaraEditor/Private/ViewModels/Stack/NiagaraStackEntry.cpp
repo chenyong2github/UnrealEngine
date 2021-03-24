@@ -679,8 +679,9 @@ void UNiagaraStackEntry::RefreshStackErrorChildren()
 {
 	// keep the error entries that are already built
 	TArray<UNiagaraStackErrorItem*> NewErrorChildren;
-	for (FStackIssue Issue : StackIssues)
+	for (int i = 0; i < StackIssues.Num(); i++)
 	{
+		const FStackIssue& Issue = StackIssues[i];
 		UNiagaraStackErrorItem* ErrorEntry = nullptr;
 		UNiagaraStackErrorItem** Found = ErrorChildren.FindByPredicate(
 			[&](UNiagaraStackErrorItem* CurrentChild) { return CurrentChild->GetStackIssue().GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); });
@@ -693,6 +694,11 @@ void UNiagaraStackEntry::RefreshStackErrorChildren()
 		{
 			ErrorEntry = *Found;
 			ErrorEntry->SetStackIssue(Issue); // we found the entry by id but we want to properly refresh the subentries of the issue (specifically its fixes), too
+		}
+		if (i > 0)
+		{
+			// If there is more than one issue, only expand the first by default and collapse the others
+			ErrorEntry->SetIsExpandedByDefault(false);
 		}
 		if (ensureMsgf(NewErrorChildren.Contains(ErrorEntry) == false,
 			TEXT("Duplicate stack issue rows detected, this is caused by two different issues generating the same unique id. Issue Short description: %s Issue Long description: %s.  This issue will not be shown in the UI."),
