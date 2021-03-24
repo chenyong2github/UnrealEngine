@@ -379,9 +379,7 @@ FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform)
 
 	HeightFieldObjectBuffers = nullptr;
 
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-
-	bTrackAllPrimitives = (DoesPlatformSupportDistanceFieldAO(ShaderPlatform) || DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform)) && CVar->GetValueOnGameThread() != 0 && IsUsingDistanceFields(ShaderPlatform);
+	bTrackAllPrimitives = ShouldAllPrimitivesHaveDistanceField(ShaderPlatform);
 
 	bCanUse16BitObjectIndices = RHISupportsBufferLoadTypeConversion(ShaderPlatform);
 
@@ -395,10 +393,14 @@ FDistanceFieldSceneData::~FDistanceFieldSceneData()
 
 bool IncludePrimitiveInDistanceFieldSceneData(bool bTrackAllPrimitives, const FPrimitiveSceneProxy* Proxy)
 {
-	return (bTrackAllPrimitives || Proxy->CastsDynamicIndirectShadow())
-		&& Proxy->AffectsDistanceFieldLighting()
-		&& (Proxy->IsDrawnInGame() || Proxy->CastsHiddenShadow())
-		&& (Proxy->CastsDynamicShadow() || Proxy->AffectsDynamicIndirectLighting());
+	return PrimitiveNeedsDistanceFieldSceneData(
+		bTrackAllPrimitives, 
+		Proxy->CastsDynamicIndirectShadow(), 
+		Proxy->AffectsDistanceFieldLighting(), 
+		Proxy->IsDrawnInGame(),  
+		Proxy->CastsHiddenShadow(), 
+		Proxy->CastsDynamicShadow(),
+		Proxy->AffectsDynamicIndirectLighting());
 }
 
 void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)

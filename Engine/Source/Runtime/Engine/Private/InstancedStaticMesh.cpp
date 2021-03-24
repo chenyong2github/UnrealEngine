@@ -1286,14 +1286,17 @@ void FInstancedStaticMeshSceneProxy::GetDistancefieldInstanceData(TArray<FMatrix
 {
 	ObjectLocalToWorldTransforms.Reset();
 
-	const uint32 NumInstances = InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances();
-	for (uint32 InstanceIndex = 0; InstanceIndex < NumInstances; InstanceIndex++)
+	if (ensureMsgf(InstancedRenderData.PerInstanceRenderData->InstanceBuffer.RequireCPUAccess, TEXT("GetDistancefieldInstanceData requires a CPU copy of the per-instance data to be accessible. Possible mismatch in ComponentRequestsCPUAccess / IncludePrimitiveInDistanceFieldSceneData filtering.")))
 	{
-		FMatrix InstanceToLocal;
-		InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIndex, InstanceToLocal);
-		InstanceToLocal.M[3][3] = 1.0f;
+		const uint32 NumInstances = InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances();
+		for (uint32 InstanceIndex = 0; InstanceIndex < NumInstances; InstanceIndex++)
+		{
+			FMatrix InstanceToLocal;
+			InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIndex, InstanceToLocal);
+			InstanceToLocal.M[3][3] = 1.0f;
 
-		ObjectLocalToWorldTransforms.Add(InstanceToLocal * GetLocalToWorld());
+			ObjectLocalToWorldTransforms.Add(InstanceToLocal * GetLocalToWorld());
+		}
 	}
 }
 
@@ -3296,11 +3299,17 @@ static bool ComponentRequestsCPUAccess(UInstancedStaticMeshComponent* InComponen
 	{
 		if ((FeatureLevel > ERHIFeatureLevel::ES3_1) || IsMobileDistanceFieldEnabled(GMaxRHIShaderPlatform))
 		{
-			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-
-			bNeedsCPUAccess |= (InComponent->CastShadow && InComponent->bAffectDistanceFieldLighting
-				// Distance field algorithms need access to instance data on the CPU
-				&& (CVar->GetValueOnAnyThread(true) != 0 || StaticMesh->bGenerateMeshDistanceField));
+			// Mirror the conditions used in the FPrimitiveSceneProxy since these are used in IncludePrimitiveInDistanceFieldSceneData in RendererScene.cpp to filter the 
+			// primitives that are included in the distance field scene. If these are not in sync, the host copy may be discarded and thus crashing in the distance field update.
+			auto ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+			bNeedsCPUAccess |= PrimitiveNeedsDistanceFieldSceneData(
+				ShouldAllPrimitivesHaveDistanceField(ShaderPlatform),
+				/* bCastsDynamicIndirectShadow */ InComponent->bCastDynamicShadow && InComponent->CastShadow && InComponent->bCastDistanceFieldIndirectShadow && InComponent->Mobility != EComponentMobility::Static,
+				InComponent->bAffectDistanceFieldLighting,
+				true, /* conservatively overestimate DrawInGame - it has complex logic in the Proxy. */
+				InComponent->bCastHiddenShadow,
+				/* bCastsDynamicShadow */ InComponent->bCastDynamicShadow && InComponent->CastShadow && !InComponent->GetShadowIndirectOnly(),
+				InComponent->bAffectDynamicIndirectLighting);
 		}
 
 		// Check Nanite

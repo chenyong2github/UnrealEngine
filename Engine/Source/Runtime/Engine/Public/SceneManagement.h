@@ -1052,6 +1052,31 @@ inline bool DoesPlatformSupportDistanceFieldAO(EShaderPlatform Platform)
 	return DoesPlatformSupportDistanceFields(Platform);
 }
 
+inline bool ShouldAllPrimitivesHaveDistanceField(EShaderPlatform ShaderPlatform)
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+
+	return (DoesPlatformSupportDistanceFieldAO(ShaderPlatform) || DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform)) && CVar->GetValueOnGameThread() != 0 && IsUsingDistanceFields(ShaderPlatform);
+}
+
+/**
+ * Centralized decision function to avoid diverging logic.
+ */
+inline bool PrimitiveNeedsDistanceFieldSceneData(bool bTrackAllPrimitives,
+	bool bCastsDynamicIndirectShadow,
+	bool bAffectsDistanceFieldLighting,
+	bool bIsDrawnInGame,
+	bool bCastsHiddenShadow,
+	bool bCastsDynamicShadow,
+	bool bAffectsDynamicIndirectLighting)
+{
+	return (bTrackAllPrimitives || bCastsDynamicIndirectShadow)
+		&& bAffectsDistanceFieldLighting
+		&& (bIsDrawnInGame || bCastsHiddenShadow)
+		&& (bCastsDynamicShadow || bAffectsDynamicIndirectLighting);
+}
+
+
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters,ENGINE_API)
 	SHADER_PARAMETER(FVector4, Params) // x - inv average brightness, y - sky cubemap max mip, z - Max value for RGBM, w - unused
 	SHADER_PARAMETER_TEXTURE(TextureCube, Texture)
