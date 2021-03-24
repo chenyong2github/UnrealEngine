@@ -2470,7 +2470,7 @@ bool UStaticMeshComponent::IsHLODRelevant() const
 		return false;
 	}
 
-	if (bHiddenInGame)
+	if (!IsVisible())
 	{
 		return false;
 	}
