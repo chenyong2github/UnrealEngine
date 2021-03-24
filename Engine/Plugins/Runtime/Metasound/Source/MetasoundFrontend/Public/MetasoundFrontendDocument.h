@@ -246,7 +246,7 @@ struct FMetasoundFrontendStyleEdge
 	GENERATED_BODY()
 
 	UPROPERTY()
-	EMetasoundFrontendStyleEdgeDisplay Display;
+	EMetasoundFrontendStyleEdgeDisplay Display = EMetasoundFrontendStyleEdgeDisplay::Default;
 };
 
 // Styling for a class of edges dependent upon edge data type.
