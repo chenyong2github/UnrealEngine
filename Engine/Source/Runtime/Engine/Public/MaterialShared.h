@@ -1137,7 +1137,7 @@ public:
 
 #if WITH_EDITOR
 	/** Saves this shader map to the derived data cache. */
-	void SaveToDerivedDataCache(const ITargetPlatform* TargetPlatform);
+	void SaveToDerivedDataCache();
 #endif
 
 	/** Backs up any FShaders in this shader map to memory through serialization and clears FShader references. */

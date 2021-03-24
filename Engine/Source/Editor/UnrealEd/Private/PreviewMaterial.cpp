@@ -225,6 +225,7 @@ public:
 	 * Should shaders compiled for this material be saved to disk?
 	 */
 	virtual bool IsPersistent() const override { return false; }
+	virtual FString GetAssetName() const override { return FString::Printf(TEXT("Preview:%s"), *FMaterialResource::GetAssetName()); }
 };
 
 /** Implementation of Preview Material functions*/

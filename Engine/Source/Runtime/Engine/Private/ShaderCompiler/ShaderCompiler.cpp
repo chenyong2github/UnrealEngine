@@ -3655,7 +3655,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 					ShaderMapToUseForRendering->bCompilationFinalized = true;
 					if (ShaderMapToUseForRendering->bIsPersistent)
 					{
-						ShaderMapToUseForRendering->SaveToDerivedDataCache(CompilingShaderMap->PendingCompilerEnvironment->TargetPlatform);
+						ShaderMapToUseForRendering->SaveToDerivedDataCache();
 					}
 				}
 

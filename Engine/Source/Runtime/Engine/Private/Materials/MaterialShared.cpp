@@ -2149,6 +2149,10 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 			TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
 			FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap, DDCKeyHash);
 			ShaderMap = LoadedShaderMap;
+			if (LoadedShaderMap)
+			{
+				UE_LOG(LogMaterial, Verbose, TEXT("Loaded shaders for %s from DDC (key hash: %s)"), *GetAssetName(), *DDCKeyHash);
+			}
 		}
 
 		check(!ShaderMap || ShaderMap->GetFrozenContentSize() > 0u);
@@ -3126,7 +3130,7 @@ void FMaterialRenderProxy::CacheUniformExpressions_GameThread(bool bRecreateUnif
 {
 	if (FApp::CanEverRender())
 	{
-		UE_LOG(LogMaterial, Verbose, TEXT("Caching uniform expressions for material: %s"), *GetFriendlyName());
+		UE_LOG(LogMaterial, VeryVerbose, TEXT("Caching uniform expressions for material: %s"), *GetFriendlyName());
 
 		FMaterialRenderProxy* RenderProxy = this;
 		ENQUEUE_RENDER_COMMAND(FCacheUniformExpressionsCommand)(
