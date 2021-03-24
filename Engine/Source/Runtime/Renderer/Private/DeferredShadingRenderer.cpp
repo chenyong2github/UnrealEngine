@@ -2196,7 +2196,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 #endif // RHI_RAYTRACING
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
-	else if (HairDatas)
+	else if (HairDatas && ViewFamily.EngineShowFlags.Lighting)
 	{
 		RenderLightsForHair(GraphBuilder, SceneTextures, SortedLightSet, HairDatas, ForwardScreenSpaceShadowMaskHairTexture, LightingChannelsTexture);
 		RenderDeferredReflectionsAndSkyLightingHair(GraphBuilder, HairDatas);

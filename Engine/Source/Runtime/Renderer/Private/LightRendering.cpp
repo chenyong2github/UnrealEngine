@@ -2582,6 +2582,12 @@ void FDeferredShadingSceneRenderer::RenderLightsForHair(
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "DirectLighting");
 
+		FHairStrandsTransmittanceMaskData DummyTransmittanceMaskData;
+		if (bUseHairLighting && Views.Num() > 0)
+		{
+			DummyTransmittanceMaskData = CreateDummyHairStrandsTransmittanceMaskData(GraphBuilder, Views[0].ShaderMap);
+		}
+
 		for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
 		{
 			const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
@@ -2589,7 +2595,7 @@ void FDeferredShadingSceneRenderer::RenderLightsForHair(
 			if (LightSceneInfo.Proxy)
 			{
 				const bool bDrawHairShadow = SortedLightInfo.SortKey.Fields.bShadowed;
-				FHairStrandsTransmittanceMaskData TransmittanceMaskData;
+				FHairStrandsTransmittanceMaskData TransmittanceMaskData = DummyTransmittanceMaskData;
 				if (bDrawHairShadow)
 				{
 					TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, Views, &LightSceneInfo, HairDatas, ScreenShadowMaskSubPixelTexture);
