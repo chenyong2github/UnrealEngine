@@ -74,7 +74,10 @@ public:
 									 FLatticeExecutionInfo ExecutionInfo,
 									 FProgressCancel* Progress) const;
 
+	/// Return the set of lattice corner positions in undeformed state
 	void GenerateInitialLatticePositions(TArray<FVector3d>& OutLatticePositions) const;
+
+	/// Return the lattice edges by index. The indices refer to the array of lattice positions returned by GenerateInitialLatticePositions
 	void GenerateLatticeEdges(TArray<FVector2i>& OutLatticeEdges) const;
 
 protected:
@@ -92,8 +95,6 @@ protected:
 	TArray<FEmbedding> VertexEmbeddings;
 
 
-	void InitializeLatticePositions();
-
 	/// Get the index into the flat TArray of positions given the (i,j,k) coordinates in the lattice
 	int ControlPointIndexFromCoordinates(int i, int j, int k) const
 	{
@@ -101,6 +102,7 @@ protected:
 		return Idx;
 	}
 
+	/// Get the index into the flat TArray of positions given the (i,j,k) coordinates in the lattice
 	int ControlPointIndexFromCoordinates(const FVector3i& Index) const
 	{
 		return ControlPointIndexFromCoordinates(Index.X, Index.Y, Index.Z);
