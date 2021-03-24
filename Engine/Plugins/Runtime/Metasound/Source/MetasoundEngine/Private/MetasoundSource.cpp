@@ -153,67 +153,20 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 
 	// Create handles for new root graph
 	Frontend::FConstDocumentHandle NewDocumentHandle = Frontend::IDocumentController::CreateDocumentHandle(Frontend::MakeAccessPtr<const FMetasoundFrontendDocument>(DocumentWithInjectedReceives.AccessPoint, DocumentWithInjectedReceives));
-	Frontend::FConstGraphHandle RootGraph = NewDocumentHandle->GetRootGraph();
 
-	ensureAlways(RootGraph->IsValid());
-
-	// Create the operator from the graph handle.
-	TArray<IOperatorBuilder::FBuildErrorPtr> BuildErrors;
-	TUniquePtr<IOperator> Operator = RootGraph->BuildOperator(InSettings, Environment, BuildErrors);
-
-	// Log build errors
-	for (const IOperatorBuilder::FBuildErrorPtr& Error : BuildErrors)
+	FMetasoundGeneratorInitParams InitParams = 
 	{
-		if (Error.IsValid())
-		{
-			UE_LOG(LogMetasound, Warning, TEXT("MetasoundSource [%s] build error [%s] \"%s\""), *GetName(), *(Error->GetErrorType().ToString()), *(Error->GetErrorDescription().ToString()));
-		}
-	}
-	if (!Operator.IsValid())
-	{
-		UE_LOG(LogMetasound, Error, TEXT("Failed to build Metasound operator from graph in MetasoundSource [%s]"), *GetName());
-	}
-	else
-	{
-		FDataReferenceCollection Outputs = Operator->GetOutputs();
-		TArrayView<FAudioBufferReadRef> OutputBuffers;
+		InSettings,
+		MoveTemp(DocumentWithInjectedReceives),
+		Environment,
+		NumChannels,
+		GetName(),
+		GetAudioOutputName(),
+		GetOnPlayInputName(),
+		GetIsFinishedOutputName()
+	};
 
-		// Get output audio buffers.
-		if (EMetasoundSourceAudioFormat::Stereo == OutputFormat)
-		{
-			if (!Outputs.ContainsDataReadReference<FStereoAudioFormat>(GetAudioOutputName()))
-			{
-				UE_LOG(LogMetasound, Warning, TEXT("MetasoundSource [%s] does not contain stereo output [%s] in output"), *GetName(), *GetAudioOutputName());
-			}
-			OutputBuffers = Outputs.GetDataReadReferenceOrConstruct<FStereoAudioFormat>(GetAudioOutputName(), InSettings)->GetBuffers();
-		}
-		else if (EMetasoundSourceAudioFormat::Mono == OutputFormat)
-		{
-			if (!Outputs.ContainsDataReadReference<FMonoAudioFormat>(GetAudioOutputName()))
-			{
-				UE_LOG(LogMetasound, Warning, TEXT("MetasoundSource [%s] does not contain mono output [%s] in output"), *GetName(), *GetAudioOutputName());
-			}
-			OutputBuffers = Outputs.GetDataReadReferenceOrConstruct<FMonoAudioFormat>(GetAudioOutputName(), InSettings)->GetBuffers();
-		}
-
-		// References must be cached before moving the operator to the InitParams
-		FDataReferenceCollection Inputs = Operator->GetInputs();
-		FTriggerWriteRef PlayTrigger = Inputs.GetDataWriteReferenceOrConstruct<FTrigger>(GetOnPlayInputName(), InSettings, false);
-		FTriggerReadRef FinishTrigger = Outputs.GetDataReadReferenceOrConstruct<FTrigger>(GetIsFinishedOutputName(), InSettings, false);
-
-		// Create the FMetasoundGenerator.
-		FMetasoundGeneratorInitParams InitParams =
-		{
-			MoveTemp(Operator),
-			OutputBuffers,
-			MoveTemp(PlayTrigger),
-			MoveTemp(FinishTrigger)
-		};
-
-		return ISoundGeneratorPtr(new FMetasoundGenerator(MoveTemp(InitParams)));
-	}
-
-	return ISoundGeneratorPtr(nullptr);
+	return ISoundGeneratorPtr(new FMetasoundGenerator(MoveTemp(InitParams)));
 }
 
 TUniquePtr<IAudioInstanceTransmitter> UMetasoundSource::CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const

@@ -175,7 +175,7 @@ namespace Metasound
 	/** FMetasoundEnvironment contains a set of TMetasoundEnvironmentVariables requiring
 	 * that each environment variable has a unique name. 
 	 */
-	class FMetasoundEnvironment
+	class METASOUNDGRAPHCORE_API FMetasoundEnvironment
 	{
 	public:
 		FMetasoundEnvironment() = default;

@@ -9,10 +9,26 @@
 #include "MetasoundPrimitives.h"
 #include "MetasoundTrigger.h"
 #include "Sound/SoundGenerator.h"
+#include "MetasoundFrontendController.h"
+#include "Async/Async.h"
+#include "Tickable.h"
 
 namespace Metasound
 {
+	// Struct needed for building the metasound graph
 	struct FMetasoundGeneratorInitParams
+	{
+		FOperatorSettings OperatorSettings;
+		FMetasoundFrontendDocument DocumentCopy;
+		FMetasoundEnvironment Environment;
+		int32 NumOutputChannels = 0;
+		FString MetaSoundName;
+		FString OutputName;
+		FString InputName;
+		FString IsFinishedOutputName;
+	};
+
+	struct FMetasoundGeneratorData
 	{
 		TUniquePtr<Metasound::IOperator> GraphOperator;
 		TArrayView<TDataReadReference<FAudioBuffer>> OutputBuffers;
@@ -20,10 +36,37 @@ namespace Metasound
 		FTriggerReadRef TriggerOnFinishRef;
 	};
 
+	class FMetasoundGenerator;
+
+	class FAsyncMetaSoundBuilder : public FNonAbandonableTask
+	{
+	public:
+		FAsyncMetaSoundBuilder(FMetasoundGeneratorInitParams&& InInitParams);
+		~FAsyncMetaSoundBuilder() = default;
+
+		void DoWork();
+		bool SetDataOnGenerator(FMetasoundGenerator& InGenerator);
+
+		FORCEINLINE TStatId GetStatId() const
+		{
+			RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncMetaSoundBuilder, STATGROUP_ThreadPoolAsyncTasks);
+		}
+
+	private:
+		FMetasoundGeneratorInitParams InitParams;
+		TUniquePtr<IOperator> GraphOperator;
+		TArrayView<FAudioBufferReadRef> OutputBuffers;
+		FTriggerWriteRef PlayTrigger;
+		FTriggerReadRef FinishTrigger;
+		bool bSuccess;
+	};
+
+
 	/** FMetasoundGenerator generates audio from a given metasound IOperator
 	 * which produces a multichannel audio output.
 	 */
-	class METASOUNDGENERATOR_API FMetasoundGenerator : public ISoundGenerator
+	class METASOUNDGENERATOR_API FMetasoundGenerator : public ISoundGenerator, 
+														public FTickableGameObject
 	{
 	public:
 		using FOperatorUniquePtr = TUniquePtr<Metasound::IOperator>;
@@ -37,6 +80,15 @@ namespace Metasound
 		FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams);
 
 		virtual ~FMetasoundGenerator();
+
+		//~ Begin FTickableGameObject
+		virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Conditional; }
+		virtual bool IsTickableWhenPaused() const override { return true; }
+		virtual bool IsTickableInEditor() const override { return true; }
+		virtual bool IsTickable() const override;
+		virtual void Tick(float DeltaTime) override;
+		virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(MetasoundGenerator, STATGROUP_Tickables); }
+		//~ End FTickableGameObject
 
 		/** Set the value of a graph's input data using the assignment operator.
 		 *
@@ -94,7 +146,7 @@ namespace Metasound
 		 *
 		 * @return Returns true if the graph operator was successfully swapped. False otherwise.
 		 */
-		bool UpdateGraphOperator(FMetasoundGeneratorInitParams&& InParams);
+//		bool UpdateGraphOperator(FMetasoundGeneratorInitParams&& InParams);
 
 		/** Return the number of audio channels. */
 		int32 GetNumChannels() const;
@@ -107,7 +159,7 @@ namespace Metasound
 
 	private:
 		// Internal set graph after checking compatibility.
-		void SetGraph(FMetasoundGeneratorInitParams&& InParams);
+		void SetGraph(FMetasoundGeneratorData&& InData);
 
 		// Fill OutAudio with data in InBuffer, up to maximum number of samples.
 		// Returns the number of samples used.
@@ -118,6 +170,7 @@ namespace Metasound
 		
 		FExecuter RootExecuter;
 
+		bool bIsGraphBuilding;
 		bool bIsPlaying;
 		bool bIsFinished;
 
@@ -136,6 +189,11 @@ namespace Metasound
 		Audio::AlignedFloatBuffer InterleavedAudioBuffer;
 
 		Audio::AlignedFloatBuffer OverflowBuffer;
+
+		typedef FAsyncTask<FAsyncMetaSoundBuilder> FBuilderTask;
+		TUniquePtr<FBuilderTask> BuilderTask;
+
+		friend class FAsyncMetaSoundBuilder;
 	};
 }
 
