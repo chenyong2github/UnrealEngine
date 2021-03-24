@@ -11,6 +11,7 @@
 #else
 	typedef void* RTCDevice;
 	typedef void* RTCScene;
+	typedef void* RTCGeometry;
 #endif
 
 class FSourceMeshDataForDerivedDataTask;
