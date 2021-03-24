@@ -6839,7 +6839,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 				}
 
 				// Copy cheat flags if the game info is present
-				// @todo UE4 FIXMELH - see if this exists, it should not since it's created in GameMode or it's garbage info
+				// @todo FIXMELH - see if this exists, it should not since it's created in GameMode or it's garbage info
 				if (LoadedWorld->NetworkManager != nullptr)
 				{
 					LoadedWorld->NetworkManager->bHasStandbyCheatTriggered = bHasStandbyCheatTriggered;

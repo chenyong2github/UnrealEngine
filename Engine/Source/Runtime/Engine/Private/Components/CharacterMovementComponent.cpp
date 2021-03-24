@@ -1095,7 +1095,7 @@ void UCharacterMovementComponent::SetMovementMode(EMovementMode NewMovementMode,
 	// Handle change in movement mode
 	OnMovementModeChanged(PrevMovementMode, PrevCustomMode);
 
-	// @todo UE4 do we need to disable ragdoll physics here? Should this function do nothing if in ragdoll?
+	// @todo do we need to disable ragdoll physics here? Should this function do nothing if in ragdoll?
 }
 
 
@@ -1977,7 +1977,7 @@ void UCharacterMovementComponent::MaybeSaveBaseLocation()
 	}
 }
 
-// @todo UE4 - handle lift moving up and down through encroachment
+// @todo handle lift moving up and down through encroachment
 void UCharacterMovementComponent::UpdateBasedMovement(float DeltaSeconds)
 {
 	if (!HasValidData())

@@ -1725,8 +1725,7 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 		MergeInBoneIndexArrays(OutRequiredBones, PhysAssetBones);
 	}
 
-	// Make sure that bones with per-poly collision are also always updated.
-	// TODO UE4
+	// TODO - Make sure that bones with per-poly collision are also always updated.
 
 	// Purge invisible bones and their children
 	// this has to be done before mirror table check/physics body checks

@@ -939,7 +939,7 @@ void UActorComponent::ConsolidatedPostEditChange(const FPropertyChangedEvent& Pr
 	// Don't do do a full recreate in this situation, and instead simply detach.
 	if( IsPendingKill() )
 	{
-		// @todo UE4 james should this call UnregisterComponent instead to remove itself from the RegisteredComponents array on the owner?
+		// @todo james should this call UnregisterComponent instead to remove itself from the RegisteredComponents array on the owner?
 		ExecuteUnregisterEvents();
 		WorldPrivate = nullptr;
 	}

@@ -1168,8 +1168,7 @@ FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector& RootOffset,
 		NewBounds = FBoxSphereBounds(LocalToWorld.GetLocation(), FVector::ZeroVector, 0.f);
 	}
 
-	// Add bounds of any per-poly collision data.
-	// TODO UE4
+	// TODO - Add bounds of any per-poly collision data.
 
 	NewBounds.BoxExtent *= BoundsScale;
 	NewBounds.SphereRadius *= BoundsScale;

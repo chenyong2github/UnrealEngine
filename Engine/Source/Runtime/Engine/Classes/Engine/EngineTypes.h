@@ -1818,7 +1818,7 @@ struct FLightmassPrimitiveSettings
 
 	friend bool operator==(const FLightmassPrimitiveSettings& A, const FLightmassPrimitiveSettings& B)
 	{
-		//@todo UE4. Do we want a little 'leeway' in joining 
+		//@todo Do we want a little 'leeway' in joining 
 		if ((A.bUseTwoSidedLighting != B.bUseTwoSidedLighting) ||
 			(A.bShadowIndirectOnly != B.bShadowIndirectOnly) || 
 			(A.bUseEmissiveForStaticLighting != B.bUseEmissiveForStaticLighting) || 
@@ -1964,7 +1964,7 @@ struct FSwarmDebugOptions
 	{
 	}
 
-	//@todo UE4. For some reason, the global instance is not initializing to the default settings...
+	//@todo For some reason, the global instance is not initializing to the default settings...
 	// Be sure to update this function to properly set the desired initial values!!!!
 	void Touch();
 };

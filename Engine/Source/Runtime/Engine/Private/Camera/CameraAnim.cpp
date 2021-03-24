@@ -45,7 +45,7 @@ bool UCameraAnim::CreateFromInterpGroup(class UInterpGroup* SrcGroup, class AMat
 	if (CameraInterpGroup != SrcGroup)
 	{
 		// copy the source interp group for use in the CameraAnim
-		// @fixme jf: fixed this potentially creating an object of UInterpGroup and raw casting it to InterpGroupCamera.  No source data in UE4 to test though.
+		// @fixme jf: fixed this potentially creating an object of UInterpGroup and raw casting it to InterpGroupCamera.  No source data to test though.
 		CameraInterpGroup = Cast<UInterpGroupCamera>(StaticDuplicateObject(SrcGroup, this, NAME_None, RF_AllFlags, UInterpGroupCamera::StaticClass()));
 
 		if (CameraInterpGroup)

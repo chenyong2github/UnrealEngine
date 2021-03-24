@@ -48,7 +48,7 @@ bool InvalidateOrUpdateBoxBodySetup(BodySetupType& ShapeBodySetup, bool bUseArch
 	check(ShapeBodySetup->AggGeom.BoxElems.Num() == 1);
 	FKBoxElem* se = ShapeBodySetup->AggGeom.BoxElems.GetData();
 
-	// @todo UE4 do we allow this now?
+	// @todo do we allow this now?
 	// check for malformed values
 	if (BoxExtent.X < KINDA_SMALL_NUMBER)
 	{
