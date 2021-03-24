@@ -56,7 +56,13 @@ void UActorFactoryCacheManager::PostSpawnActor(UObject* Asset, AActor* NewActor)
 					{
 						check(Template.DuplicatedTemplate->GetClass()->IsChildOf(UPrimitiveComponent::StaticClass()));
 
-						UPrimitiveComponent* NewComponent = CastChecked<UPrimitiveComponent>(StaticDuplicateObject(Template.DuplicatedTemplate, Manager));
+						FObjectDuplicationParameters Parameters(Template.DuplicatedTemplate, Manager);
+						Parameters.FlagMask &= ~RF_Transient;
+						Parameters.FlagMask &= ~RF_DefaultSubObject;
+						Parameters.FlagMask &= ~RF_Transactional;
+						
+						UPrimitiveComponent* NewComponent = CastChecked<UPrimitiveComponent>(StaticDuplicateObjectEx(Parameters));
+						NewComponent->SetupAttachment(Manager->GetRootComponent());
 						NewComponent->SetWorldTransform(Template.InitialTransform);
 						Manager->AddInstanceComponent(NewComponent);
 						NewComponent->RegisterComponent();
