@@ -298,7 +298,7 @@ bool FSerializedUATProcess::LaunchInternal()
 {
 	if (bHasSucceededOnce)
 	{
-//		Params += TEXT(" -nocompile");
+		Params += TEXT(" -nocompile");
 	}
 
 	FOnMonitoredProcessCompleted OriginalCompletedDelegate = CompletedDelegate;
