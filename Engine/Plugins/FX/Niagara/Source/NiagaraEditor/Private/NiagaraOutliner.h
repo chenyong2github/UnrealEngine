@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraDebuggerCommon.h"
+#include "Misc/NotifyHook.h"
 #include "NiagaraOutliner.generated.h"
 
 UENUM()
