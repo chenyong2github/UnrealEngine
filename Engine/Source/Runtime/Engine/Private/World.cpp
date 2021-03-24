@@ -548,8 +548,10 @@ bool UWorld::Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags)
 		{
 			if (ALODActor* LODActor = Cast<ALODActor>(Actor))
 			{
-				UHLODProxy* HLODProxy = LODActor->GetProxy();
-				OldHLODPackages[LODActor->LODLevel - 1] = HLODProxy->GetPackage();
+				if (UHLODProxy* HLODProxy = LODActor->GetProxy())
+				{
+					OldHLODPackages[LODActor->LODLevel - 1] = HLODProxy->GetPackage();
+				}
 			}
 		}
 	}
