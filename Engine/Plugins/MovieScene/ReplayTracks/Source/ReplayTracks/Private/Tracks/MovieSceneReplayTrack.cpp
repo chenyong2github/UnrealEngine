@@ -35,6 +35,17 @@ const TArray<UMovieSceneSection*>& UMovieSceneReplayTrack::GetAllSections() cons
 	return Sections;
 }
 
+bool UMovieSceneReplayTrack::HasSection(const UMovieSceneSection& Section) const
+{
+	return Sections.Contains(&Section);
+}
+
+
+bool UMovieSceneReplayTrack::IsEmpty() const
+{
+	return Sections.Num() == 0;
+}
+
 void UMovieSceneReplayTrack::RemoveSection(UMovieSceneSection& Section)
 {
 	Sections.Remove(&Section);
@@ -43,6 +54,11 @@ void UMovieSceneReplayTrack::RemoveSection(UMovieSceneSection& Section)
 void UMovieSceneReplayTrack::RemoveSectionAt(int32 SectionIndex)
 {
 	Sections.RemoveAt(SectionIndex);
+}
+
+void UMovieSceneReplayTrack::RemoveAllAnimationData()
+{
+	Sections.Empty();
 }
 
 UMovieSceneReplaySection* UMovieSceneReplayTrack::AddNewReplaySection(FFrameNumber KeyTime)
