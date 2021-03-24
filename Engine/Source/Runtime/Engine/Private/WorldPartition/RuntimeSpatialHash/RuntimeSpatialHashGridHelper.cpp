@@ -30,7 +30,7 @@ FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVecto
 	}
 	else
 	{
-		UE_LOG(LogWorldPartitionRuntimeSpatialHash, Warning, TEXT("Invalid world bounds, grid partitioning will use a runtime grid with 1 cell."));
+		UE_LOG(LogWorldPartition, Warning, TEXT("Invalid world bounds, grid partitioning will use a runtime grid with 1 cell."));
 	}
 
 	check(FMath::IsPowerOfTwo(GridSize));
@@ -98,7 +98,7 @@ int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphere& InSphere, TFu
 #if WITH_EDITOR
 void FSquare2DGridHelper::ValidateSingleActorReferer()
 {
-	UE_SCOPED_TIMER(TEXT("ValidateSingleActorReferer"), LogWorldPartitionRuntimeSpatialHash);
+	UE_SCOPED_TIMER(TEXT("ValidateSingleActorReferer"), LogWorldPartition);
 
 	TSet<FActorInstance> ActorUsage;
 	for (int32 Level = 0; Level < Levels.Num() - 1; Level++)
@@ -130,7 +130,7 @@ FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int32 GridCellSize)
 
 FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<const FActorClusterInstance*>& GridActors)
 {
-	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartitionRuntimeSpatialHash);
+	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartition);
 
 	//
 	// Create the hierarchical grids for the game
@@ -143,7 +143,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		LastGridLevel.ForEachIntersectingCells(WorldBounds, [&IntersectingCellCount](const FIntVector2& Coords) { ++IntersectingCellCount; });
 		if (!ensure(IntersectingCellCount == 1))
 		{
-			UE_LOG(LogWorldPartitionRuntimeSpatialHash, Warning, TEXT("Can't find grid cell that encompasses world bounds."));
+			UE_LOG(LogWorldPartition, Warning, TEXT("Can't find grid cell that encompasses world bounds."));
 		}
 	}
 
@@ -215,13 +215,13 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			check(0);
 		}
 
-		if (UE_LOG_ACTIVE(LogWorldPartitionRuntimeSpatialHash, Verbose))
+		if (UE_LOG_ACTIVE(LogWorldPartition, Verbose))
 		{
 			if (ActorCluster->Actors.Num() > 1)
 			{
 				static UEnum* ActorGridPlacementEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EActorGridPlacement"));
 
-				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("Clustered %d actors (%s%s%s), generated shared BV of [%d x %d] (meters)"),
+				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered %d actors (%s%s%s), generated shared BV of [%d x %d] (meters)"),
 					ActorCluster->Actors.Num(),
 					*ActorGridPlacementEnum->GetNameStringByValue((int64)GridPlacement),
 					bAlwaysLoadedPromotedCluster ? TEXT(":PromotedCluster") : TEXT(""),
@@ -232,9 +232,9 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 				for (const FGuid& ActorGuid : ActorCluster->Actors)
 				{
 					const FWorldPartitionActorDescView& ActorDescView = ClusterInstance->ContainerInstance->GetActorDescView(ActorGuid);
-					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("   - Actor: %s (%s)"), *ActorDescView.GetActorPath().ToString(), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
-					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("         Package: %s"), *ActorDescView.GetActorPackage().ToString());
-					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("         Container (%08x): %s"), ClusterInstance->ContainerInstance->ID, *ClusterInstance->ContainerInstance->Container->GetContainerPackage().ToString())
+					UE_LOG(LogWorldPartition, Verbose, TEXT("   - Actor: %s (%s)"), *ActorDescView.GetActorPath().ToString(), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
+					UE_LOG(LogWorldPartition, Verbose, TEXT("         Package: %s"), *ActorDescView.GetActorPackage().ToString());
+					UE_LOG(LogWorldPartition, Verbose, TEXT("         Container (%08x): %s"), ClusterInstance->ContainerInstance->ID, *ClusterInstance->ContainerInstance->Container->GetContainerPackage().ToString())
 				}
 			}
 		}

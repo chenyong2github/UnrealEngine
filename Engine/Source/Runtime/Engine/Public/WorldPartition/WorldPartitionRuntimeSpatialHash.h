@@ -14,8 +14,6 @@
 #include "WorldPartitionRuntimeSpatialHashGridPreviewer.h"
 #include "WorldPartitionRuntimeSpatialHash.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionRuntimeSpatialHash, Log, All);
-
 USTRUCT()
 struct FSpatialHashStreamingGridLayerCell
 {
