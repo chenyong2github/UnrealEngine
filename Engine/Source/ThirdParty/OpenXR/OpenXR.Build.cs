@@ -44,5 +44,12 @@ public class OpenXR : ModuleRules
 			PublicDelayLoadDLLs.Add("openxr_loader.dll");
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/OpenXR/hololens/arm64/openxr_loader.dll");
 		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			PublicSystemLibraryPaths.Add("/usr/lib/x86_64-linux-gnu/");
+			PublicSystemLibraryPaths.Add("/usr/lib/");
+			PublicSystemLibraryPaths.Add("/usr/local/lib/");
+			PublicSystemLibraries.Add("openxr_loader");
+		}
 	}
 }

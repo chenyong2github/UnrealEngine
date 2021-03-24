@@ -362,6 +362,16 @@ PFN_xrGetInstanceProcAddr FOpenXRHMDPlugin::GetDefaultLoader()
 	FPlatformProcess::PushDllDirectory(*BinariesPath);
 	LoaderHandle = FPlatformProcess::GetDllHandle(*LoaderName);
 	FPlatformProcess::PopDllDirectory(*BinariesPath);
+#elif PLATFORM_LINUX
+	LoaderHandle = FPlatformProcess::GetDllHandle(TEXT("/usr/lib/libopenxr_loader.so"));
+	if (!LoaderHandle)
+	{
+		LoaderHandle = FPlatformProcess::GetDllHandle(TEXT("/usr/lib/x86_64-linux-gnu/libopenxr_loader.so"));
+		if (!LoaderHandle)
+		{
+			LoaderHandle = FPlatformProcess::GetDllHandle(TEXT("/usr/local/lib/libopenxr_loader.so"));
+		}
+	}
 #elif PLATFORM_HOLOLENS
 #ifndef PLATFORM_64BITS
 #error HoloLens platform does not currently support 32-bit. 32-bit OpenXR loader binaries are needed.

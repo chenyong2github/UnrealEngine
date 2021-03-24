@@ -17,6 +17,7 @@
 	"SupportedTargetPlatforms": [
 		"Win32",
 		"Win64",
+		"Linux",
 		"HoloLens",
 		"Android"
 	],
@@ -28,6 +29,7 @@
 			"WhitelistPlatforms": [
 				"Win32",
 				"Win64",
+				"Linux",
 				"HoloLens",
 				"Android"
 			]
@@ -40,6 +42,7 @@
 			"WhitelistPlatforms": [
 				"Win32",
 				"Win64",
+				"Linux",
 				"HoloLens",
 				"Android"
 			]
