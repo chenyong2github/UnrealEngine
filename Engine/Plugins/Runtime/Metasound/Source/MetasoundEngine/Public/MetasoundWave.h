@@ -8,6 +8,7 @@
 #include "Sound/SoundWave.h"
 #include "IAudioCodecRegistry.h"
 #include "IAudioCodec.h"
+#include "DSP/InterpolatedLinearPitchShifter.h"
 
 
 namespace Metasound
@@ -78,10 +79,11 @@ namespace Audio
 	public:
 		struct InitParams
 		{
-			float OutputSampleRate;
-			uint32 OutputBlockSizeInFrames;
-			float MaxPitchShiftMagnitudeAllowedInOctaves = 4.f;
-			float StartTimeSeconds = 0.f;
+			uint32 OutputBlockSizeInFrames{ 512 };
+			float OutputSampleRate { 44100.0f };
+			float MaxPitchShiftMagnitudeAllowedInOctaves { 4.0f };
+			float InitialPitchShiftSemitones { 0.0f };
+			float StartTimeSeconds { 0.0f };
 		};
 
 		bool CanGenerateAudio() const
@@ -92,13 +94,11 @@ namespace Audio
 		bool Initialize(const InitParams& InInitParams, const FSoundWaveProxyPtr& InWave);
 
 		// returns number of samples written.   
-		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents = 0.f, bool bIsLooping = false);
+		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents = 0.0f, bool bIsLooping = false);
 
 		void SeekToTime(const float InSeconds);
 
 	private:
-		float GetSampleRateRatio(float PitchShiftInCents) const;
-
 		// actual decoder objects
 		TUniquePtr<Audio::IDecoder> Decoder;
 		TUniquePtr<Audio::IDecoderOutput> Output;
@@ -107,8 +107,9 @@ namespace Audio
 		// init helper for decoders
 		bool InitializeDecodersInternal(const FSoundWaveProxyPtr& Wave);
 
-		// SRC object
+		// SRC objects
 		Audio::FResampler Resampler;
+		FLinearPitchShifter PitchShifter;
 
 		// buffers
 		TArray<float> PreSrcBuffer;
@@ -116,26 +117,24 @@ namespace Audio
 		Audio::TCircularAudioBuffer<float> OutputCircularBuffer;
 
 		// meta data:
-		float InputSampleRate;
-		float OutputSampleRate;
-		float FsOutToInRatio;
-		float MaxPitchShiftCents;
-		float MaxPitchShiftRatio;
+		float InputSampleRate{ 44100.f };
+		float OutputSampleRate{ 44100.f };
+		float FsOutToInRatio{ 1.f };
+		float MaxPitchShiftCents{ 12.0f };
+		float MaxPitchShiftRatio{ 2.0f };
 
-		uint32 NumChannels;
-		uint32 DecodeBlockSizeInFrames;
-		uint32 DecodeBlockSizeInSamples;
+		uint32 NumChannels{ 1 };
+		uint32 DecodeBlockSizeInFrames{ 64 };
+		uint32 DecodeBlockSizeInSamples{ 64 };
 		
 		// cached values
-		float StartTimeSeconds{ 0.f };
-		float LastPitchShiftCents{ 0.f };
+		float StartTimeSeconds{ 0.0f };
 		int32 TotalNumFramesOutput{ 0 };
 		int32 TotalNumFramesDecoded{ 0 };
 
 		bool bDecoderIsDone{ true };
+		bool bIsSeekable{ false };
 		bool bDecoderHasLooped{ false };
 
 	}; // class FSimpleDecoderWrapper
-
-
 } // namespace Audio

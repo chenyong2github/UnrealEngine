@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"MetasoundGenerator",
 					"AudioExtensions",
 					"AudioCodecEngine",
+					"SignalProcessing"
 				}
 			);
 
@@ -34,7 +35,7 @@ namespace UnrealBuildTool.Rules
 					"MetasoundStandardNodes",
 					"AudioCodecEngine",
 					"Serialization",
-					"AudioPlatformConfiguration"
+					"AudioPlatformConfiguration",
 				}
 			);
 		}

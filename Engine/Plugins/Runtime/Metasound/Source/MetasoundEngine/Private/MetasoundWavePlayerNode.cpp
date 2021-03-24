@@ -221,6 +221,7 @@ namespace Metasound
 				{
 					bIsPlaying = false;
 					ResetDecoder();
+					TrigggerOnDone->TriggerFrame(CurrAudioFrame);
 					++StopTrigIndex;
 				}
 			}
@@ -253,7 +254,8 @@ namespace Metasound
 			Audio::FSimpleDecoderWrapper::InitParams Params;
 			Params.OutputBlockSizeInFrames = OutputBlockSizeInFrames;
 			Params.OutputSampleRate = OutputSampleRate;
-			Params.MaxPitchShiftMagnitudeAllowedInOctaves = 4.f;
+			Params.MaxPitchShiftMagnitudeAllowedInOctaves = 6.f;
+			Params.InitialPitchShiftSemitones = *PitchShiftSemiTones;
 			Params.StartTimeSeconds = FMath::Max(0.f, *SeekTimeSeconds);
 
 			if (false == Wave->IsSoundWaveValid())
