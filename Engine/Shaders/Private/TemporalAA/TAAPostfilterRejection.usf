@@ -72,37 +72,33 @@ void MainCS(
 {
 	float4 Debug = 0.0;
 
-	uint2 DispatchThreadId = (
-		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
-		GroupId * uint2(TILE_SIZE, TILE_SIZE));
-
-	uint2 RejectionPixelPos = DispatchThreadId;
-
-	float2 RejectionBufferUV = (RejectionPixelPos + 0.5) * RejectionInfo_ExtentInverse;
+	taa_short2 RejectionPixelPos = (
+		taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE) +
+		Map8x8Tile2x2Lane(GroupThreadIndex));
 
 	// Fetch neighborhood of the kernel
 	taa_half InSamples[9];
 	UNROLL
 	for (uint i = 0; i < 9; i++)
 	{
-		float2 Offset = float2(kOffsets3x3[i]);
-		
-		float2 SampleRejectionBufferUV = RejectionBufferUV + Offset * RejectionInfo_ExtentInverse;
-		SampleRejectionBufferUV = clamp(SampleRejectionBufferUV, RejectionInfo_UVViewportBilinearMin, RejectionInfo_UVViewportBilinearMax);
+		taa_short2 SampleInputPixelPos = RejectionPixelPos + ClampPixelOffset(
+			RejectionPixelPos,
+			kOffsets3x3[i], kOffsets3x3[i],
+			RejectionInfo_ViewportMin, RejectionInfo_ViewportMax - 1);
 
-		InSamples[i] = HistoryRejectionTexture.SampleLevel(GlobalPointClampedSampler, SampleRejectionBufferUV, 0);
+		InSamples[i] = HistoryRejectionTexture[SampleInputPixelPos];
 	}
 
 	taa_half Rejection = Median9(InSamples);
 
-	if (all(RejectionPixelPos < RejectionInfo_ViewportSize))
-	{
-		HistoryRejectionOutput[RejectionPixelPos] = Rejection;
+	bool bIsValid = all(RejectionPixelPos < taa_short2(RejectionInfo_ViewportMax));
+	RejectionPixelPos.x = bIsValid ? RejectionPixelPos.x : ~taa_ushort(0);
 
-		#if DEBUG_OUTPUT
-		{
-			DebugOutput[RejectionPixelPos] = Debug;
-		}
-		#endif
+	HistoryRejectionOutput[RejectionPixelPos] = Rejection;
+
+	#if DEBUG_OUTPUT
+	{
+		DebugOutput[RejectionPixelPos] = Debug;
 	}
+	#endif
 }
