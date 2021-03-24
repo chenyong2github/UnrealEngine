@@ -676,7 +676,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 		{
 			bNeedToProceed = false;
 		}
-		else // the file has been converted into CT file but meshed with different parameters
+		else if (FileDescription.Extension != "jt") // the file has been converted into CT file but meshed with different parameters, if Jt file, the CT file is the structure only of the JT, so we keep the original file
 		{
 			FileDescription.ReplaceByKernelIOBackup(CTFilePath);
 		}
@@ -828,7 +828,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 		CT_LIST_IO ObjectList;
 		ObjectList.PushBack(MainId);
 
-		CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(CachePath, TEXT("cad"), CTFilePath), L"Ct");
+		CT_KERNEL_IO::SaveFile(ObjectList, *CTFilePath, L"Ct");
 	}
 
 	AddFaceIdAttribut(MainId);
