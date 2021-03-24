@@ -75,6 +75,7 @@ namespace DetailedCookStats
 	double TickLoopShaderProcessAsyncResultsTimeSec = 0.0;
 	double TickLoopProcessDeferredCommandsTimeSec = 0.0;
 	double TickLoopTickCommandletStatsTimeSec = 0.0;
+	double TickLoopFlushRenderingCommandsTimeSec = 0.0;
 
 	FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 	{
@@ -96,9 +97,10 @@ namespace DetailedCookStats
 		ADD_COOK_STAT_FLT(" 0. 1. 4", TickLoopShaderProcessAsyncResultsTimeSec);
 		ADD_COOK_STAT_FLT(" 0. 1. 5", TickLoopProcessDeferredCommandsTimeSec);
 		ADD_COOK_STAT_FLT(" 0. 1. 6", TickLoopTickCommandletStatsTimeSec);
-		ADD_COOK_STAT_FLT(" 0. 1. 7", TargetPlatforms);
-		ADD_COOK_STAT_FLT(" 0. 1. 8", CookProject);
-		ADD_COOK_STAT_FLT(" 0. 1. 9", CookCultures);
+		ADD_COOK_STAT_FLT(" 0. 1. 7", TickLoopFlushRenderingCommandsTimeSec);
+		ADD_COOK_STAT_FLT(" 0. 1. 8", TargetPlatforms);
+		ADD_COOK_STAT_FLT(" 0. 1. 9", CookProject);
+		ADD_COOK_STAT_FLT(" 0. 1. 10", CookCultures);
 		#undef ADD_COOK_STAT_FLT
 	});
 
@@ -582,6 +584,12 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 			}
 
 			CookOnTheFlyGCController.ConditionallyCollectGarbage(CookOnTheFlyServer);
+
+			{
+				// Flush rendering commands to release any RHI resources (shaders and shader maps).
+				// Delete any FPendingCleanupObjects (shader maps).
+				FlushRenderingCommands();
+			}
 
 			CookOnTheFlyServer->WaitForRequests(100 /* timeoutMs */);
 		}
@@ -1137,6 +1145,14 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 				{
 					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_ProcessDeferredCommands, DetailedCookStats::TickLoopProcessDeferredCommandsTimeSec);
 					ProcessDeferredCommands();
+				}
+
+				{
+					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_TickCommandletStats, DetailedCookStats::TickLoopFlushRenderingCommandsTimeSec);
+
+					// Flush rendering commands to release any RHI resources (shaders and shader maps).
+					// Delete any FPendingCleanupObjects (shader maps).
+					FlushRenderingCommands();
 				}
 			}
 
