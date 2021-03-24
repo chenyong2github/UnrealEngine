@@ -166,14 +166,16 @@ void UHLODProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 	{
 		if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
 		{
-			UWorld* World = Cast<UWorld>(OwningMap.ToSoftObjectPath().ResolveObject());
-			for (AActor* Actor : World->PersistentLevel->Actors)
+			if (UWorld* World = Cast<UWorld>(OwningMap.ToSoftObjectPath().ResolveObject()))
 			{
-				if (ALODActor* LODActor = Cast<ALODActor>(Actor))
+				for (AActor* Actor : World->PersistentLevel->Actors)
 				{
-					if (LODActor->ProxyDesc && LODActor->ProxyDesc->GetOutermost() == GetOutermost())
+					if (ALODActor* LODActor = Cast<ALODActor>(Actor))
 					{
-						LODActor->ProxyDesc->Key = UHLODProxy::GenerateKeyForActor(LODActor);
+						if (LODActor->ProxyDesc && LODActor->ProxyDesc->GetOutermost() == GetOutermost())
+						{
+							LODActor->ProxyDesc->Key = UHLODProxy::GenerateKeyForActor(LODActor);
+						}
 					}
 				}
 			}
