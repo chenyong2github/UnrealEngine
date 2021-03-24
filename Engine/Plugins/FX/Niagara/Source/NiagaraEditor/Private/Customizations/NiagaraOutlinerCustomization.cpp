@@ -66,7 +66,7 @@ public:
 
 	void RefreshContent()
 	{
-		if (!Item->bVisible)
+		if (!Item->bVisible && Item->GetType() != ENiagaraOutlinerTreeItemType::World)
 		{
 			ChildSlot
 			.Padding(0.0f)
@@ -176,7 +176,7 @@ void SNiagaraOutlinerTree::Construct(const FArguments& InArgs, TSharedPtr<FNiaga
 			FStructureDetailsViewArgs(),
 			nullptr);
 
-		Outliner->OnDataChangedDelegate.AddSP(this, &SNiagaraOutlinerTree::RequestRefresh);
+		Outliner->OnChangedDelegate.AddSP(this, &SNiagaraOutlinerTree::RequestRefresh);
 
 		TreeView = SNew(STreeView<TSharedRef<FNiagaraOutlinerTreeItem>>)
 			.ItemHeight(20.0f)
@@ -465,8 +465,8 @@ void SNiagaraOutlinerTree::RefreshTree_Helper(const TSharedPtr<FNiagaraOutlinerT
 					InTreeEntry->SortChildren();
 
 					//Apply any system instance filters. No need to generate and check children with these filters.
-					if ((Outliner->ViewSettings.bFilterBySystemExecutionState && Outliner->ViewSettings.SystemExecutionState != InstData->ActualExecutionState) ||
-						(Outliner->ViewSettings.bFilterBySystemCullState && Outliner->ViewSettings.bSystemCullState != InstData->ScalabilityState.bCulled) )
+					if ((Outliner->ViewSettings.FilterSettings.bFilterBySystemExecutionState && Outliner->ViewSettings.FilterSettings.SystemExecutionState != InstData->ActualExecutionState) ||
+						(Outliner->ViewSettings.FilterSettings.bFilterBySystemCullState && Outliner->ViewSettings.FilterSettings.bSystemCullState != InstData->ScalabilityState.bCulled) )
 					{
 						bFiltered = true;
 					}
@@ -477,13 +477,13 @@ void SNiagaraOutlinerTree::RefreshTree_Helper(const TSharedPtr<FNiagaraOutlinerT
 				//Should this emitter be filtered out.
 				if (FNiagaraOutlinerEmitterInstanceData* EmitterData = (FNiagaraOutlinerEmitterInstanceData*)InTreeEntry->GetData())
 				{
-					bFiltered = (Outliner->ViewSettings.bFilterByEmitterExecutionState && Outliner->ViewSettings.EmitterExecutionState != EmitterData->ExecState) ||
-						(Outliner->ViewSettings.bFilterByEmitterSimTarget && Outliner->ViewSettings.EmitterSimTarget != EmitterData->SimTarget);
+					bFiltered = (Outliner->ViewSettings.FilterSettings.bFilterByEmitterExecutionState && Outliner->ViewSettings.FilterSettings.EmitterExecutionState != EmitterData->ExecState) ||
+						(Outliner->ViewSettings.FilterSettings.bFilterByEmitterSimTarget && Outliner->ViewSettings.FilterSettings.EmitterSimTarget != EmitterData->SimTarget);
 				}
 			}
 
 			bool bIsLeaf = (Type == ENiagaraOutlinerTreeItemType::Emitter);
-			bool bAnyFiltersActive = SearchText.IsEmpty() == false || Outliner->ViewSettings.bFilterByEmitterExecutionState || Outliner->ViewSettings.bFilterByEmitterSimTarget || Outliner->ViewSettings.bFilterBySystemExecutionState;
+			bool bAnyFiltersActive = SearchText.IsEmpty() == false || Outliner->ViewSettings.FilterSettings.AnyActive();
 
 			bool bVisible = false;
 			if (bFiltered)
@@ -562,6 +562,7 @@ class SNiagaraOutlinerTreeItemHeaderDataWidget : public SCompoundWidget
 		[
 			SNew(SBox)
 			.MinDesiredWidth(InArgs._MinDesiredWidth)
+			.ToolTipText(InArgs._ToolTipText)
 			[
 				SNew(SBorder)
 				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
@@ -618,6 +619,7 @@ class SNiagaraOutlinerTreeItemHeaderDataWidget<FText> : public SCompoundWidget
 		[
 			SNew(SBox)
 			.MinDesiredWidth(InArgs._MinDesiredWidth)
+			.ToolTipText(InArgs._ToolTipText)
 			[
 				SNew(SBorder)
 				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
@@ -718,6 +720,7 @@ class SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData> : pub
 		[
 				SNew(SBorder)
 				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.ToolTipText(InArgs._ToolTipText)
 				.HAlign(HAlign_Center)
 				[
 					HeaderWidget
@@ -1331,31 +1334,6 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeEmitterItem::GetHeaderWidget()
 
 //////////////////////////////////////////////////////////////////////////
 
-void FNiagaraOutlinerCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
-{
-	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-	TSharedPtr<FNiagaraDebugger> Debugger = NiagaraEditorModule.GetDebugger();
-	if (UNiagaraOutliner * Outliner = Debugger->GetOutliner())
-	{
-		//Hide this property as it this data is displayed in the outliner tree.
-		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Data)));
-		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, CaptureSettings)));
-		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, ViewSettings)));
-
-		//DetailBuilder.HideCategory(TEXT("Outliner"));
-		DetailBuilder.HideCategory(TEXT("Settings"));
-		DetailBuilder.HideCategory(TEXT("Filters"));
-
-		TSharedRef<IPropertyHandle> OutlinerDataProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Data));
-		OutlinerDataProperty->SetIgnoreValidation(true);
-		IDetailCategoryBuilder& OutlinerCategory = DetailBuilder.EditCategory("Outliner", FText::GetEmpty(), ECategoryPriority::Important);
-		OutlinerCategory.AddProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, CaptureSettings)));
-		OutlinerCategory.AddProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, ViewSettings)));
-	}
-}
-
-#undef LOCTEXT_NAMESPACE
-
 void FNiagaraOutlinerWorldDetailsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 }
@@ -1415,7 +1393,8 @@ void FNiagaraOutlinerSystemInstanceDetailsCustomization::CustomizeChildren(TShar
 	{
 		TSharedPtr<IPropertyHandle> ChildProperty = StructPropertyHandle->GetChildHandle(ChildNum);
 
-		if (ChildProperty->GetProperty()->GetFName() != GET_MEMBER_NAME_CHECKED(FNiagaraOutlinerSystemInstanceData, Emitters))
+		if (ChildProperty->GetProperty()->GetFName() != GET_MEMBER_NAME_CHECKED(FNiagaraOutlinerSystemInstanceData, Emitters)
+		&& ChildProperty->GetProperty()->GetFName() != GET_MEMBER_NAME_CHECKED(FNiagaraOutlinerSystemInstanceData, ComponentName))
 		{
 			ChildBuilder.AddProperty(ChildProperty.ToSharedRef());
 		}
@@ -1429,3 +1408,5 @@ void FNiagaraOutlinerEmitterInstanceDetailsCustomization::CustomizeHeader(TShare
 void FNiagaraOutlinerEmitterInstanceDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 }
+
+#undef LOCTEXT_NAMESPACE

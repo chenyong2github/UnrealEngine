@@ -8,31 +8,33 @@ UNiagaraOutliner::UNiagaraOutliner(const FObjectInitializer& Initializer)
 
 }
 
+#if WITH_EDITOR
 void UNiagaraOutliner::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Data) ||
-		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, ViewSettings))
-	{
-		OnDataChangedDelegate.Broadcast();
-	}
-	else
-	{
-		//Delegate will trigger the capture if bTriggerCapture is set.
-		OnSettingsChangedDelegate.Broadcast();
+	OnChanged();
 
-		CaptureSettings.bTriggerCapture = false;
+	//Ensure the capture trigger is not left on.
+	CaptureSettings.bTriggerCapture = false;
 
-		SaveConfig();
-	}
+	SaveConfig();
+}
+#endif
+
+void UNiagaraOutliner::OnChanged()
+{
+#if WITH_EDITOR
+	Modify();
+#endif
+
+	OnChangedDelegate.Broadcast();
 }
 
 void UNiagaraOutliner::UpdateData(const FNiagaraOutlinerData& NewData)
 {
 	FNiagaraOutlinerData::StaticStruct()->CopyScriptStruct(&Data, &NewData);
-	Modify();
-	OnDataChangedDelegate.Broadcast();
+	OnChanged();
 	//TODO: Do some kind of diff on the data and collect any recently removed components etc into their own area.
 	//Possibly keep them in the UI optionally but colour/mark them as dead until the user opts to remove them or on some timed interval.
 }

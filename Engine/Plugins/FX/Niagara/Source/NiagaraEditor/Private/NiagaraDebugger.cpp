@@ -26,7 +26,7 @@ FNiagaraDebugger::~FNiagaraDebugger()
 	}
 
 	GetMutableDefault<UNiagaraDebugHUDSettings>()->OnChangedDelegate.RemoveAll(this);
-	GetMutableDefault<UNiagaraOutliner>()->OnSettingsChangedDelegate.RemoveAll(this);
+	GetMutableDefault<UNiagaraOutliner>()->OnChangedDelegate.RemoveAll(this);
 }
 
 void FNiagaraDebugger::Init()
@@ -47,7 +47,7 @@ void FNiagaraDebugger::Init()
 	}
 
 	GetMutableDefault<UNiagaraDebugHUDSettings>()->OnChangedDelegate.AddSP(this, &FNiagaraDebugger::UpdateDebugHUDSettings);
-	GetMutableDefault<UNiagaraOutliner>()->OnSettingsChangedDelegate.AddSP(this, &FNiagaraDebugger::TriggerOutlinerCapture);
+	GetMutableDefault<UNiagaraOutliner>()->OnChangedDelegate.AddSP(this, &FNiagaraDebugger::TriggerOutlinerCapture);
 }
 
 void FNiagaraDebugger::ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld)
@@ -95,9 +95,9 @@ void FNiagaraDebugger::RequestUpdatedClientInfo()
 void FNiagaraDebugger::TriggerOutlinerCapture()
 {
 	//Send the current settings as a message to all connected clients.
-	if (const UNiagaraOutliner* Outliner = GetDefault<UNiagaraOutliner>())
+	if (UNiagaraOutliner* Outliner = GetMutableDefault<UNiagaraOutliner>())
 	{
-		if (Outliner->CaptureSettings.bTriggerCapture)
+		if(Outliner->CaptureSettings.bTriggerCapture)
 		{
 			auto SendSettingsUpdate = [&](FNiagaraDebugger::FClientInfo& Client)
 			{
@@ -110,6 +110,8 @@ void FNiagaraDebugger::TriggerOutlinerCapture()
 			};
 
 			ForAllConnectedClients(SendSettingsUpdate);
+
+			Outliner->CaptureSettings.bTriggerCapture = false;
 
 			//We also need at least minimal debug hud verbosity so we see the countdown timer.
 			if (Outliner->CaptureSettings.CaptureDelayFrames > 0)

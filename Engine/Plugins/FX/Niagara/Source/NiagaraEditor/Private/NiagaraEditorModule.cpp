@@ -890,8 +890,6 @@ void FNiagaraEditorModule::StartupModule()
 		FNiagaraDebugHUDSettingsData::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraDebugHUDSettingsDetailsCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomClassLayout(UNiagaraOutliner::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraOutlinerCustomization::MakeInstance));
-
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraOutlinerWorldData::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraOutlinerWorldDetailsCustomization::MakeInstance));

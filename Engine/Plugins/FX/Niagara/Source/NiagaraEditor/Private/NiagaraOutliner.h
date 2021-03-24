@@ -30,20 +30,29 @@ enum class ENiagaraOutlinerSortMode : uint8
 UENUM()
 enum class ENiagaraOutlinerTimeUnits : uint8
 {
-	Microseconds,
-	Milliseconds,
-	Seconds,
+	Microseconds UMETA(DisplayName="us", ToolTip="Microseconds"),
+	Milliseconds UMETA(DisplayName = "ms", ToolTip = "Milliseconds"),
+	Seconds UMETA(DisplayName = "s", ToolTip = "Seconds"),
 };
 
 /** View settings used in the Niagara Outliner. */
 USTRUCT()
-struct FNiagaraOutlinerViewSettings
+struct FNiagaraOutlinerFilterSettings
 {
 	GENERATED_BODY()
+
+	FNiagaraOutlinerFilterSettings()
+		: bFilterBySystemExecutionState(0)
+		, bFilterByEmitterExecutionState(0)
+		, bFilterByEmitterSimTarget(0)
+		, bFilterBySystemCullState(0)
+	{}
+
+	FORCEINLINE bool AnyActive()const 
+	{
+		return bFilterBySystemExecutionState || bFilterByEmitterExecutionState || bFilterByEmitterSimTarget || bFilterBySystemCullState;
+	}
 	
-	UPROPERTY(EditAnywhere, Category = "View")
-	ENiagaraOutlinerViewModes ViewMode = ENiagaraOutlinerViewModes::State;
-		
 	UPROPERTY(EditAnywhere, Category = "Filters", meta = (InlineEditConditionToggle))
 	uint32 bFilterBySystemExecutionState : 1;
 
@@ -58,19 +67,32 @@ struct FNiagaraOutlinerViewSettings
 
 	/** Only show systems with the following execution state. */
 	UPROPERTY(EditAnywhere, Config, Category="Filters", meta = (EditCondition = "bFilterBySystemExecutionState"))
-	ENiagaraExecutionState SystemExecutionState;
+	ENiagaraExecutionState SystemExecutionState = ENiagaraExecutionState::Active;
 
 	/** Only show emitters with the following execution state. */
 	UPROPERTY(EditAnywhere, Config, Category="Filters", meta = (EditCondition = "bFilterByEmitterExecutionState"))
-	ENiagaraExecutionState EmitterExecutionState;
+	ENiagaraExecutionState EmitterExecutionState = ENiagaraExecutionState::Active;
 
 	/** Only show emitters with this SimTarget. */
 	UPROPERTY(EditAnywhere, Config, Category = "Filters", meta = (EditCondition = "bFilterByEmitterSimTarget"))
-	ENiagaraSimTarget EmitterSimTarget;
+	ENiagaraSimTarget EmitterSimTarget = ENiagaraSimTarget::CPUSim;
 
 	/** Only show system instances with this cull state. */
  	UPROPERTY(EditAnywhere, Config, Category = "Filters", meta = (EditCondition = "bFilterBySystemCullState"))
 	bool bSystemCullState = true;
+};
+
+/** View settings used in the Niagara Outliner. */
+USTRUCT()
+struct FNiagaraOutlinerViewSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "View")
+	ENiagaraOutlinerViewModes ViewMode = ENiagaraOutlinerViewModes::State;
+	
+	UPROPERTY(EditAnywhere, Category = "View")
+	FNiagaraOutlinerFilterSettings FilterSettings;
 
 	/** Whether to sort ascending or descending. */
 	UPROPERTY(EditAnywhere, Category="View")
@@ -94,19 +116,29 @@ struct FNiagaraOutlinerViewSettings
 };
 
 UCLASS(config = EditorPerProjectUserSettings, defaultconfig)
-class UNiagaraOutliner : public UObject
+class UNiagaraOutliner : public UObject, public FNotifyHook
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnChanged);
 	
-	FOnChanged OnSettingsChangedDelegate;
-	FOnChanged OnDataChangedDelegate;
+	FOnChanged OnChangedDelegate;
 
+	void OnChanged();
+
+#if WITH_EDITOR
 	//UObject Interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)override;
 	//UObject Interface END
+
+	//FNotifyHook Interface
+	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)override { PreEditChange(PropertyAboutToChange);	}
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)override { PostEditChange(); }
+	virtual void NotifyPreChange(class FEditPropertyChain* PropertyAboutToChange)override{ PreEditChange(nullptr);	}
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, class FEditPropertyChain* PropertyThatChanged)override	{ PostEditChange();	}
+	//FNotifyHook Interface END
+#endif
 
 	void UpdateData(const FNiagaraOutlinerData& NewData);
 
