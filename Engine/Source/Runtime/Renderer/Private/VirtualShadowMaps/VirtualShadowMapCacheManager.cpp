@@ -129,13 +129,14 @@ public:
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualSmCopyStatsCS, "/Engine/Private/VirtualShadowMaps/CopyStats.usf", "CopyStatsCS", SF_Compute);
 
-void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder)
+void FVirtualShadowMapArrayCacheManager::ExtractFrameData(bool bEnableCaching, FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder)
 {
 	// Drop all refs.
 	PrevBuffers = FVirtualShadowMapArrayFrameData();
 	PrevUniformParameters.NumShadowMaps = 0;
 
-	if (VirtualShadowMapArray.IsAllocated()
+	if (bEnableCaching 
+		&& VirtualShadowMapArray.IsAllocated()
 		&& CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
 	{
 		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &PrevBuffers.PageTable);

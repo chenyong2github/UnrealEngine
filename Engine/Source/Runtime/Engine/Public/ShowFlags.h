@@ -221,6 +221,9 @@ struct FEngineShowFlags
 		SetVolumetricLightmap(false);
 		SetLumenGlobalIllumination(false);
 		SetLumenReflections(false);
+
+		// TODO: Remove when Physical page pool size scales automatically with demand
+		SetVirtualShadowMapCaching(false);
 	}
 
 	void EnableAdvancedFeatures()
@@ -247,6 +250,9 @@ struct FEngineShowFlags
 		SetDistanceFieldAO(true);
 		SetLumenGlobalIllumination(false);
 		SetLumenReflections(false);
+
+		// TODO: Remove when Physical page pool size scales automatically with demand
+		SetVirtualShadowMapCaching(false);
 	}
 
 	bool IsVisualizeCalibrationEnabled() const

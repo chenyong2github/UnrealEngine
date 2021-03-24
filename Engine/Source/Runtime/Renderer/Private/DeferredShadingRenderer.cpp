@@ -2446,7 +2446,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		if (Scene->VirtualShadowMapArrayCacheManager)
 		{
-			Scene->VirtualShadowMapArrayCacheManager->ExtractFrameData(VirtualShadowMapArray, GraphBuilder);
+			Scene->VirtualShadowMapArrayCacheManager->ExtractFrameData(ViewFamily.EngineShowFlags.VirtualShadowMapCaching, VirtualShadowMapArray, GraphBuilder);
 		}
 	}
 

@@ -108,8 +108,11 @@ public:
 
 	static constexpr float ClipSpaceScaleFactor = float(EffectiveCacheResolutionTexels) / float(FVirtualShadowMap::VirtualMaxResolutionXY);
 
-	// Call at end of frame to extract resouces from the virtual SM array to preserve to next frame
-	void ExtractFrameData(FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder);
+	/**
+	 * Call at end of frame to extract resouces from the virtual SM array to preserve to next frame.
+	 * If bCachingEnabled is false, all cache data is dropped and cache data will not be available for the next frame.
+	 */ 
+	void ExtractFrameData(bool bEnableCaching, FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder);
 
 	/**
 	 * Finds an existing cache entry and moves to the active set or creates a fresh one.
