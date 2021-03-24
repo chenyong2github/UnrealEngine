@@ -88,6 +88,8 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 URemeshMeshTool::URemeshMeshTool(const FObjectInitializer&)
 {
 	BasicProperties = CreateDefaultSubobject<URemeshMeshToolProperties>(TEXT("RemeshProperties"));
+	// CreateDefaultSubobject automatically sets RF_Transactional flag, we need to clear it so that undo/redo doesn't affect tool properties
+	BasicProperties->ClearFlags(RF_Transactional);
 }
 
 void URemeshMeshTool::SetWorld(UWorld* World)

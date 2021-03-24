@@ -117,6 +117,8 @@ void UAddPrimitiveTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 UAddPrimitiveTool::UAddPrimitiveTool(const FObjectInitializer&)
 {
 	ShapeSettings = CreateDefaultSubobject<UProceduralShapeToolProperties>(TEXT("ShapeSettings"));
+	// CreateDefaultSubobject automatically sets RF_Transactional flag, we need to clear it so that undo/redo doesn't affect tool properties
+	ShapeSettings->ClearFlags(RF_Transactional);
 }
 
 void UAddPrimitiveTool::Setup()
