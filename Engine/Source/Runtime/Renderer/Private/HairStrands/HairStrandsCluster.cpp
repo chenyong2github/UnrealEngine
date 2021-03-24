@@ -126,12 +126,12 @@ static bool DoesGroupExists(uint32 ResourceId, uint32 GroupIndex, const FHairStr
 	return false;
 }
 
-inline const FHairGroupPublicData* GetHairStrandsPublicData(const FMeshBatchAndRelevance& InMeshBatchAndRelevance)
+inline const FHairGroupPublicData* GetHairStrandsPublicData(const FMeshBatch* InMeshBatch)
 {
-	 return reinterpret_cast<const FHairGroupPublicData*>(InMeshBatchAndRelevance.Mesh->Elements[0].VertexFactoryUserData);
+	 return reinterpret_cast<const FHairGroupPublicData*>(InMeshBatch->Elements[0].VertexFactoryUserData);
 }
 
-static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int32& MaterialId, const FMeshBatchAndRelevance* MeshBatchAndRelevance, const FPrimitiveSceneProxy* Proxy)
+static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int32& MaterialId, const FMeshBatchAndRelevance* MeshBatchAndRelevance)
 {
 	if (MeshBatchAndRelevance)
 	{
@@ -145,7 +145,8 @@ static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int
 		}
 
 		FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo = MacroGroup.PrimitivesInfos.AddZeroed_GetRef();
-		PrimitiveInfo.MeshBatchAndRelevance = *MeshBatchAndRelevance;
+		PrimitiveInfo.Mesh = MeshBatchAndRelevance->Mesh;
+		PrimitiveInfo.PrimitiveSceneProxy = MeshBatchAndRelevance->PrimitiveSceneProxy;
 		PrimitiveInfo.MaterialId = MaterialId++;
 		PrimitiveInfo.ResourceId = reinterpret_cast<uint64>(MeshBatchAndRelevance->Mesh->Elements[0].UserData);
 		PrimitiveInfo.GroupIndex = HairGroupPublicData->GetGroupIndex();
@@ -188,7 +189,7 @@ void CreateHairStrandsMacroGroups(
 			if (bIntersect)
 			{
 				MacroGroup.Bounds = Union(MacroGroup.Bounds, PrimitiveBounds);
-				InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance, Proxy);
+				InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance);
 				bFound = true;
 				break;
 			}
@@ -198,7 +199,7 @@ void CreateHairStrandsMacroGroups(
 		{
 			FHairStrandsMacroGroupData MacroGroup;
 			MacroGroup.MacroGroupId = MacroGroupId++;
-			InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance, Proxy);
+			InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance);
 			MacroGroup.Bounds = PrimitiveBounds;
 			MacroGroups.Add(MacroGroup);
 		}
@@ -234,6 +235,6 @@ void CreateHairStrandsMacroGroups(
 
 bool FHairStrandsMacroGroupData::PrimitiveInfo::IsCullingEnable() const
 {
-	const FHairGroupPublicData* HairGroupPublicData = GetHairStrandsPublicData(MeshBatchAndRelevance);
+	const FHairGroupPublicData* HairGroupPublicData = GetHairStrandsPublicData(Mesh);
 	return HairGroupPublicData->GetCullingResultAvailable();
 }

@@ -414,9 +414,9 @@ void AddHairStrandsRasterPass(
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : PrimitiveSceneInfos)
 		{
 			const bool bCullingEnable = PrimitiveInfo.IsCullingEnable();
-			const FMeshBatch& MeshBatch = *PrimitiveInfo.MeshBatchAndRelevance.Mesh;
+			const FMeshBatch& MeshBatch = *PrimitiveInfo.Mesh;
 			const uint64 BatchElementMask = ~0ull;
-			HairRasterMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.MeshBatchAndRelevance.PrimitiveSceneProxy, -1 , bCullingEnable);
+			HairRasterMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1 , bCullingEnable);
 		}
 
 		if (VisibleMeshDrawCommands.Num() > 0)

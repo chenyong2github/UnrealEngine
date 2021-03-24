@@ -10,6 +10,9 @@
 #include "RendererInterface.h"
 #include "Shader.h"
 
+class FPrimitiveSceneProxy;
+struct FMeshBatch;
+
 ////////////////////////////////////////////////////////////////////////////////////
 // HairStrands uniform buffer
 
@@ -223,7 +226,8 @@ struct FHairStrandsMacroGroupData
 	// List of primitive/mesh batch within an instance group
 	struct PrimitiveInfo
 	{
-		FMeshBatchAndRelevance MeshBatchAndRelevance;
+		const FMeshBatch* Mesh = nullptr;
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy = nullptr;
 		uint32 MaterialId;
 		uint32 ResourceId;
 		uint32 GroupIndex;
