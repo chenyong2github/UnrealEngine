@@ -34,14 +34,6 @@ private:
 	FGuid BlueprintGuid;
 
 public:
-	UE_DEPRECATED(4.22, "The minimum UE4 object version implies the Blueprint generated class is always authoritative. It is no longer necessary to explicitly set it.")
-	void SetLegacyGeneratedClassIsAuthoritative() {}
-
-	UE_DEPRECATED(4.22, "The minimum UE4 object version implies the Blueprint generated class is always authoritative. It is no longer necessary to explicitly check it.")
-	bool IsGeneratedClassAuthoritative()
-	{
-		return true;
-	}
 
 	virtual void Serialize( FArchive& Ar ) override;
 
