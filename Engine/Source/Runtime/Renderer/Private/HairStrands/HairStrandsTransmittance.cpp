@@ -145,7 +145,6 @@ FHairStrandsTransmittanceMaskData CreateDummyHairStrandsTransmittanceMaskData(FR
 {
 	FHairStrandsTransmittanceMaskData Out;
 	Out.TransmittanceMask = CreateHairStrandsTransmittanceMaskBuffer(GraphBuilder, 1);
-	Out.TransmittanceMaskSRV = GraphBuilder.CreateSRV(Out.TransmittanceMask);
 	AddHairStrandsClearTransmittanceMaskPass(GraphBuilder, ShaderMap, Out.TransmittanceMask);
 	return Out;
 }
@@ -554,11 +553,12 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	const FHairStrandsVoxelResources& VoxelResources,
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture)
 {
+	FHairStrandsTransmittanceMaskData Out;
 	if (MacroGroupDatas.Num() == 0)
-		return FHairStrandsTransmittanceMaskData();
+		return Out;
 
 	if (!HasDeepShadowData(LightSceneInfo, MacroGroupDatas) && !IsHairStrandsVoxelizationEnable())
-		return FHairStrandsTransmittanceMaskData();
+		return Out;
 
 	DECLARE_GPU_STAT(HairStrandsTransmittanceMask);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsTransmittanceMask");
@@ -580,7 +580,6 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	memset(Params.DeepShadow_CPUWorldToLightTransforms, 0, sizeof(Params.DeepShadow_CPUWorldToLightTransforms));
 
 
-	FRDGBufferRef OutShadowMask = nullptr;
 	bool bHasFoundLight = false;
 	if (!IsHairStrandsForVoxelTransmittanceAndShadowEnable())
 	{
@@ -617,7 +616,7 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 		{
 			check(Params.DeepShadow_FrontDepthTexture);
 			check(Params.DeepShadow_DomTexture);
-			OutShadowMask = AddDeepShadowTransmittanceMaskPass(
+			Out.TransmittanceMask = AddDeepShadowTransmittanceMaskPass(
 				GraphBuilder,
 				SceneTextures,
 				View,
@@ -643,7 +642,7 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 		Params.LightRadius = FMath::Max(LightParameters.SourceLength, LightParameters.SourceRadius);
 		Params.VirtualVoxelResources = &VoxelResources;
 
-		OutShadowMask = AddDeepShadowTransmittanceMaskPass(
+		Out.TransmittanceMask = AddDeepShadowTransmittanceMaskPass(
 			GraphBuilder,
 			SceneTextures,
 			View,
@@ -655,10 +654,7 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 			ScreenShadowMaskSubPixelTexture);
 	}
 
-	FHairStrandsTransmittanceMaskData OutTransmittanceMaskData;
-	OutTransmittanceMaskData.TransmittanceMask = OutShadowMask;
-	OutTransmittanceMaskData.TransmittanceMaskSRV = GraphBuilder.CreateSRV(OutShadowMask);
-	return OutTransmittanceMaskData;
+	return Out;
 }
 
 FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(

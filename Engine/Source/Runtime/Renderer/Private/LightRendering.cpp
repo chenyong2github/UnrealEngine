@@ -1164,7 +1164,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 	const int32 SimpleLightsEnd = SortedLightSet.SimpleLightsEnd;
 
 	FHairStrandsTransmittanceMaskData DummyTransmittanceMaskData;
-	if (HairStrands::HasViewHairStrandsData(Views) && Views.Num() > 0)
+	if (bUseHairLighting && Views.Num() > 0)
 	{
 		DummyTransmittanceMaskData = CreateDummyHairStrandsTransmittanceMaskData(GraphBuilder, Views[0].ShaderMap);
 	}
@@ -2436,6 +2436,9 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 			LightingChannelsTexture, 
 			GetCloudShadowAOParameters(GraphBuilder, View, CloudInfo), 
 			PassParameters->Light);
+
+		// Sanity check
+		check(InTransmittanceMaskData.TransmittanceMask);
 
 		PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 		PassParameters->HairTransmittanceMaskSRV = GraphBuilder.CreateSRV(InTransmittanceMaskData.TransmittanceMask);

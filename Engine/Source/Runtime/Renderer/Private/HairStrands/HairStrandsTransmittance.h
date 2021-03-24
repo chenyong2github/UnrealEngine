@@ -16,7 +16,6 @@ class FViewInfo;
 struct FHairStrandsTransmittanceMaskData
 {
 	FRDGBufferRef TransmittanceMask = nullptr;
-	FRDGBufferSRVRef TransmittanceMaskSRV = nullptr;
 };
 
 /// Write opaque hair shadow onto screen shadow mask to have fine hair details cast onto opaque geometries
