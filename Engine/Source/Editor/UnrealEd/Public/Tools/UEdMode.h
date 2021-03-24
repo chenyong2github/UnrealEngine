@@ -163,6 +163,11 @@ public:
 
 	virtual void RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder);
 
+	/** 
+	 * Subclasses can override this to add additional checks on whether a tool should be allowed to start.
+	 * By default the check disallows starting tools during play/simulate in editor.
+	 */
+	virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const;
 
 	virtual void Exit();
 	virtual UTexture2D* GetVertexTexture();

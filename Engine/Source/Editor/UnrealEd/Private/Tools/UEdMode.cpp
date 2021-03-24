@@ -228,11 +228,20 @@ void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIde
 	ToolsContext->ToolManager->RegisterToolType(ToolIdentifier, Builder);
 	CommandList->MapAction(UICommand,
 		FExecuteAction::CreateUObject(ToolsContext.Get(), &UEdModeInteractiveToolsContext::StartTool, ToolIdentifier),
-		FCanExecuteAction::CreateUObject(ToRawPtr(ToolsContext->ToolManager), &UInteractiveToolManager::CanActivateTool, EToolSide::Mouse, ToolIdentifier),
+		FCanExecuteAction::CreateWeakLambda(ToolsContext.Get(), [this, ToolIdentifier]() {
+			return ShouldToolStartBeAllowed(ToolIdentifier) && 
+				 ToolsContext->ToolManager->CanActivateTool(EToolSide::Mouse, ToolIdentifier);
+			}),
 		FIsActionChecked::CreateUObject(ToolsContext.Get(), &UEdModeInteractiveToolsContext::IsToolActive, EToolSide::Mouse, ToolIdentifier),
 		EUIActionRepeatMode::RepeatDisabled);
 
 	RegisteredTools.Emplace(UICommand, ToolIdentifier);
+}
+
+bool UEdMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const
+{
+	// Disallow starting tools when playing in editor or simulating.
+	return !GEditor->PlayWorld && !GIsPlayInEditorWorld;
 }
 
 void UEdMode::Exit()
