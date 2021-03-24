@@ -469,6 +469,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	bool IsPaused() const;
 
+	UE_DEPRECATED(4.27, "This method will be removed in a future release. Use the method provided by the Niagara Function Library instead.")
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	UNiagaraDataInterface* GetDataInterface(const FString &Name);
 
@@ -523,11 +524,6 @@ public:
 
 #if WITH_EDITOR
 	void PostLoadNormalizeOverrideNames();
-	UE_DEPRECATED(4.25, "This function is replaced by HasParameterOverride().")
-	bool IsParameterValueOverriddenLocally(const FName& InParamName) { return false; }
-
-	UE_DEPRECATED(4.25, "This function is replaced by SetParameterOverride().")
-	void SetParameterValueOverriddenLocally(const FNiagaraVariable& InParam, bool bInOverridden, bool bRequiresSystemInstanceReset) {}
 	
 	FOnSystemInstanceChanged& OnSystemInstanceChanged() { return OnSystemInstanceChangedDelegate; }
 
