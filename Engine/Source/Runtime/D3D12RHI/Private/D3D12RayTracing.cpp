@@ -168,6 +168,46 @@ const FD3D12ShaderIdentifier FD3D12ShaderIdentifier::Null = { 0, 0, 0, 0 };
 
 static_assert(sizeof(FD3D12ShaderIdentifier) == D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, "Unexpected shader identifier size");
 
+static D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS TranslateRayTracingAccelerationStructureFlags(ERayTracingAccelerationStructureFlags Flags)
+{
+	uint32 Result = {};
+
+	auto HandleFlag = [&Flags, &Result](ERayTracingAccelerationStructureFlags Engine, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS Native)
+	{
+		if (EnumHasAllFlags(Flags, Engine))
+		{
+			Result |= (uint32)Native;
+			EnumRemoveFlags(Flags, Engine);
+		}
+	};
+
+	HandleFlag(ERayTracingAccelerationStructureFlags::AllowUpdate, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE);
+	HandleFlag(ERayTracingAccelerationStructureFlags::AllowCompaction, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION);
+	HandleFlag(ERayTracingAccelerationStructureFlags::FastTrace, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
+	HandleFlag(ERayTracingAccelerationStructureFlags::FastBuild, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD);
+	HandleFlag(ERayTracingAccelerationStructureFlags::MinimizeMemory, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_MINIMIZE_MEMORY);
+
+	checkf(!EnumHasAnyFlags(Flags, Flags), TEXT("Some ERayTracingAccelerationStructureFlags entries were not handled"));
+
+	return D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS(Result);
+}
+
+static D3D12_RAYTRACING_GEOMETRY_TYPE TranslateRayTracingGeometryType(ERayTracingGeometryType GeometryType)
+{
+	switch (GeometryType)
+	{
+	case RTGT_Triangles:
+		return D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+		break;
+	case RTGT_Procedural:
+		return D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+		break;
+	default:
+		checkf(false, TEXT("Unexpected ray tracing geometry type"));
+		return D3D12_RAYTRACING_GEOMETRY_TYPE(0);
+	}
+}
+
 struct FDXILLibrary
 {
 	// No copy assignment or move because FDXILLibrary points to internal struct memory
@@ -439,9 +479,9 @@ void FD3D12RayTracingCompactionRequestHandler::RequestCompact(FD3D12RayTracingGe
 {
 	uint32 GPUIndex = GetParentDevice()->GetGPUIndex();
 	check(InRTGeometry->AccelerationStructureBuffers[GPUIndex]);
-	check((InRTGeometry->BuildFlags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION) &&
-		(InRTGeometry->BuildFlags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE) &&
-		!(InRTGeometry->BuildFlags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE));
+	check(EnumHasAllFlags(InRTGeometry->BuildFlags, ERayTracingAccelerationStructureFlags::AllowCompaction) &&
+		EnumHasAllFlags(InRTGeometry->BuildFlags, ERayTracingAccelerationStructureFlags::FastTrace) &&
+		!EnumHasAnyFlags(InRTGeometry->BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate));
 
 	FScopeLock Lock(&CS);
 	PendingRequests.Add(InRTGeometry);
@@ -2358,6 +2398,222 @@ void FD3D12Device::CleanupRayTracing()
 	// Note: RayTracingDescriptorHeapCache is destroyed in ~FD3D12Device, after all deferred deletion is processed
 }
 
+FRayTracingAccelerationStructureSize FD3D12DynamicRHI::RHICalcRayTracingSceneSize(uint32 MaxInstances, ERayTracingAccelerationStructureFlags Flags)
+{
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
+	BuildInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+	BuildInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	BuildInputs.NumDescs = MaxInstances;
+	BuildInputs.Flags = TranslateRayTracingAccelerationStructureFlags(Flags);
+
+	FD3D12Adapter& Adapter = GetAdapter();
+
+	FRayTracingAccelerationStructureSize SizeInfo = {};
+	for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
+	{
+		ID3D12Device5* RayTracingDevice = Adapter.GetDevice(GPUIndex)->GetDevice5();
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PrebuildInfo = {};
+		RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&BuildInputs, &PrebuildInfo);
+
+		SizeInfo.ResultSize = FMath::Max(SizeInfo.ResultSize, PrebuildInfo.ResultDataMaxSizeInBytes);
+		SizeInfo.BuildScratchSize  = FMath::Max(SizeInfo.BuildScratchSize, PrebuildInfo.ScratchDataSizeInBytes);
+		SizeInfo.UpdateScratchSize = FMath::Max(SizeInfo.UpdateScratchSize, PrebuildInfo.UpdateScratchDataSizeInBytes);
+	}
+
+	return SizeInfo;
+}
+
+static ERayTracingAccelerationStructureFlags GetRayTracingAccelerationStructureBuildFlags(const FRayTracingGeometryInitializer& Initializer)
+{
+	ERayTracingAccelerationStructureFlags BuildFlags = ERayTracingAccelerationStructureFlags::None;
+
+	if (Initializer.bFastBuild)
+	{
+		BuildFlags = ERayTracingAccelerationStructureFlags::FastBuild;
+	}
+	else
+	{
+		BuildFlags = ERayTracingAccelerationStructureFlags::FastTrace;
+	}
+
+	if (Initializer.bAllowUpdate)
+	{
+		EnumAddFlags(BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate);
+	}
+
+	if (!Initializer.bFastBuild && !Initializer.bAllowUpdate && GD3D12RayTracingAllowCompaction)
+	{
+		EnumAddFlags(BuildFlags, ERayTracingAccelerationStructureFlags::AllowCompaction);
+	}
+
+	if (GRayTracingDebugForceBuildMode == 1)
+	{
+		EnumAddFlags(BuildFlags, ERayTracingAccelerationStructureFlags::FastBuild);
+		EnumRemoveFlags(BuildFlags, ERayTracingAccelerationStructureFlags::FastTrace);
+	}
+	else if (GRayTracingDebugForceBuildMode == 2)
+	{
+		EnumAddFlags(BuildFlags, ERayTracingAccelerationStructureFlags::FastTrace);
+		EnumRemoveFlags(BuildFlags, ERayTracingAccelerationStructureFlags::FastBuild);
+	}
+
+	return BuildFlags;
+}
+
+void TranslateRayTracingGeometryDescs(const FRayTracingGeometryInitializer& Initializer, TArrayView<D3D12_RAYTRACING_GEOMETRY_DESC> Output)
+{
+	check(Output.Num() == Initializer.Segments.Num());
+
+	D3D12_RAYTRACING_GEOMETRY_TYPE GeometryType = TranslateRayTracingGeometryType(Initializer.GeometryType);
+
+	static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
+
+	uint32 ComputedPrimitiveCountForValidation = 0;
+
+	for (int32 SegmentIndex = 0; SegmentIndex < Initializer.Segments.Num(); ++SegmentIndex)
+	{
+		const FRayTracingGeometrySegment& Segment = Initializer.Segments[SegmentIndex];
+
+		checkf(Segment.VertexBuffer, TEXT("Position vertex buffer is required for ray tracing geometry."));
+		checkf(Segment.VertexBufferStride, TEXT("Non-zero position vertex buffer stride is required."));
+		checkf(Segment.VertexBufferStride % 4 == 0, TEXT("Position vertex buffer stride must be aligned to 4 bytes for ByteAddressBuffer loads to work."));
+
+		checkf(Segment.MaxVertices != 0 || Segment.NumPrimitives == 0,
+			TEXT("FRayTracingGeometrySegment.MaxVertices for '%s' must contain number of positions in the vertex buffer or maximum index buffer value+1 if index buffer is provided."),
+			*Initializer.DebugName.ToString());
+
+		if (Initializer.GeometryType == RTGT_Triangles)
+		{
+			checkf(Segment.VertexBufferElementType == VET_Float3
+				|| Segment.VertexBufferElementType == VET_Float4, TEXT("Only float3/4 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
+			checkf(Segment.VertexBufferStride >= 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
+		}
+		else if (Initializer.GeometryType == RTGT_Procedural)
+		{
+			checkf(Segment.VertexBufferStride >= (2 * sizeof(FVector)), TEXT("Procedural geometry vertex buffer must contain at least 2xFloat3 that defines 3D bounding boxes of primitives."));
+		}
+
+		check(Segment.FirstPrimitive + Segment.NumPrimitives <= Initializer.TotalPrimitiveCount);
+
+		if (Initializer.IndexBuffer)
+		{
+			uint32 IndexStride = Initializer.IndexBuffer->GetStride();
+			check(Initializer.IndexBuffer->GetSize() >=
+				(Segment.FirstPrimitive + Segment.NumPrimitives) * IndicesPerPrimitive * IndexStride + Initializer.IndexBufferOffset);
+		}
+
+		D3D12_RAYTRACING_GEOMETRY_DESC Desc = {};
+
+		Desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+		Desc.Type = GeometryType;
+
+		if (Segment.bForceOpaque)
+		{
+			// Deny anyhit shader invocations when this segment is hit
+			Desc.Flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+		}
+
+		if (!Segment.bAllowDuplicateAnyHitShaderInvocation)
+		{
+			// Allow only a single any-hit shader invocation per primitive
+			Desc.Flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION;
+		}
+
+		switch (GeometryType)
+		{
+		case D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES:
+			switch (Segment.VertexBufferElementType)
+			{
+			case VET_Float4:
+				// While the DXGI_FORMAT_R32G32B32A32_FLOAT format is not supported by DXR, since we manually load vertex 
+				// data when we are building the BLAS, we can just rely on the vertex stride to offset the read index, 
+				// and read only the 3 vertex components, and so use the DXGI_FORMAT_R32G32B32_FLOAT vertex format
+			case VET_Float3:
+				Desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+				break;
+			case VET_Float2:
+				Desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32_FLOAT;
+				break;
+			case VET_Half2:
+				Desc.Triangles.VertexFormat = DXGI_FORMAT_R16G16_FLOAT;
+				break;
+			default:
+				checkNoEntry();
+				break;
+			}
+
+			if (Initializer.IndexBuffer)
+			{
+				// In some cases the geometry is created with 16 bit index buffer, but it's 32 bit at build time.
+				// We conservatively set this to 32 bit to allocate acceleration structure memory.
+				Desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+				Desc.Triangles.IndexCount = Segment.NumPrimitives * IndicesPerPrimitive;
+				Desc.Triangles.VertexCount = Segment.MaxVertices;
+			}
+			else
+			{
+				// Non-indexed geometry
+				checkf(Initializer.Segments.Num() == 1, TEXT("Non-indexed geometry with multiple segments is not implemented."));
+				Desc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
+				Desc.Triangles.VertexCount = FMath::Min<uint32>(Segment.MaxVertices, Initializer.TotalPrimitiveCount * 3);
+			}
+			break;
+
+		case D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS:
+			Desc.AABBs.AABBCount = Segment.NumPrimitives;
+			break;
+
+		default:
+			checkf(false, TEXT("Unexpected ray tracing geometry type"));
+			break;
+		}
+
+		ComputedPrimitiveCountForValidation += Segment.NumPrimitives;
+
+
+		Output[SegmentIndex] = Desc;
+	}
+
+	check(ComputedPrimitiveCountForValidation == Initializer.TotalPrimitiveCount);
+}
+
+FRayTracingAccelerationStructureSize FD3D12DynamicRHI::RHICalcRayTracingGeometrySize(const FRayTracingGeometryInitializer& Initializer)
+{
+	FRayTracingAccelerationStructureSize SizeInfo = {};
+	
+	ERayTracingAccelerationStructureFlags BuildFlags = GetRayTracingAccelerationStructureBuildFlags(Initializer);
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS PrebuildDescInputs = {};
+
+	TArray<D3D12_RAYTRACING_GEOMETRY_DESC, TInlineAllocator<32>> GeometryDescs;
+	GeometryDescs.SetNumUninitialized(Initializer.Segments.Num());
+	TranslateRayTracingGeometryDescs(Initializer, GeometryDescs);
+
+	D3D12_RAYTRACING_GEOMETRY_TYPE GeometryType = TranslateRayTracingGeometryType(Initializer.GeometryType);
+
+	PrebuildDescInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+	PrebuildDescInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	PrebuildDescInputs.NumDescs = GeometryDescs.Num();
+	PrebuildDescInputs.pGeometryDescs = GeometryDescs.GetData();
+	PrebuildDescInputs.Flags = TranslateRayTracingAccelerationStructureFlags(BuildFlags);
+
+	FD3D12Adapter& Adapter = GetAdapter();
+
+	// Get maximum buffer sizes for all GPUs in the system
+	for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
+	{
+		ID3D12Device5* RayTracingDevice = Adapter.GetDevice(GPUIndex)->GetDevice5();
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PrebuildInfo = {};
+		RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&PrebuildDescInputs, &PrebuildInfo);
+
+		SizeInfo.ResultSize = FMath::Max(SizeInfo.ResultSize, PrebuildInfo.ResultDataMaxSizeInBytes);
+		SizeInfo.BuildScratchSize = FMath::Max(SizeInfo.BuildScratchSize, PrebuildInfo.ScratchDataSizeInBytes);
+		SizeInfo.UpdateScratchSize = FMath::Max(SizeInfo.UpdateScratchSize, PrebuildInfo.UpdateScratchDataSizeInBytes);
+	}
+
+	return SizeInfo;
+}
+
 FRayTracingPipelineStateRHIRef FD3D12DynamicRHI::RHICreateRayTracingPipelineState(const FRayTracingPipelineStateInitializer& Initializer)
 {
 	FD3D12Device* Device = GetAdapter().GetDevice(0); // All pipelines are created on the first node, as they may be used on any other linked GPU.
@@ -2457,47 +2713,10 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 	IndexOffsetInBytes = Initializer.IndexBufferOffset;
 	TotalPrimitiveCount = Initializer.TotalPrimitiveCount;
 
-	switch (Initializer.GeometryType)
-	{
-	case RTGT_Triangles:
-		GeometryType = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-		break;
-	case RTGT_Procedural:
-		GeometryType = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
-		break;
-	default:
-		checkf(false, TEXT("Unexpected ray tracing geometry type"));
-	}
+	GeometryType = TranslateRayTracingGeometryType(Initializer.GeometryType);
 
-	if (Initializer.bFastBuild)
-	{
-		BuildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-	}
-	else
-	{
-		BuildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-	}
-
-	if (Initializer.bAllowUpdate)
-	{
-		BuildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
-	}
-
-	if (!Initializer.bFastBuild && !Initializer.bAllowUpdate && GD3D12RayTracingAllowCompaction)
-	{
-		BuildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION;
-	}
-
-	if (GRayTracingDebugForceBuildMode == 1)
-	{
-		BuildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-		BuildFlags &= ~D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-	}
-	else if (GRayTracingDebugForceBuildMode == 2)
-	{
-		BuildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-		BuildFlags &= ~D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-	}
+	// #yuriy_todo: get flags directly through the initializer
+	BuildFlags = GetRayTracingAccelerationStructureBuildFlags(Initializer);
 
 	checkf(Initializer.Segments.Num() > 0, TEXT("Ray tracing geometry must be initialized with at least one segment."));
 	Segments = TArray<FRayTracingGeometrySegment>(Initializer.Segments.GetData(), Initializer.Segments.Num());
@@ -2506,111 +2725,8 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 
 	static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
 
-	GeometryDescs.Reserve(Segments.Num());
-
-	uint32 ComputedPrimitiveCountForValidation = 0;
-
-	for (const FRayTracingGeometrySegment& Segment : Segments)
-	{
-		checkf(Segment.VertexBuffer, TEXT("Position vertex buffer is required for ray tracing geometry"));
-		checkf(Segment.VertexBufferStride, TEXT("Position vertex buffer is required for ray tracing geometry"));
-		checkf(Segment.VertexBufferStride % 4 == 0, TEXT("Position vertex buffer stride must be aligned to 4 bytes for ByteAddressBuffer loads to work"));
-
-		checkf(Segment.MaxVertices != 0 || Segment.NumPrimitives == 0,
-			TEXT("FRayTracingGeometrySegment.MaxVertices for '%s' must contain number of positions in the vertex buffer or maximum index buffer value+1 if index buffer is provided."),
-			*DebugName.ToString());
-
-		if (Initializer.GeometryType == RTGT_Triangles)
-		{
-			checkf(Segment.VertexBufferElementType == VET_Float3
-				|| Segment.VertexBufferElementType == VET_Float4, TEXT("Only float3/4 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
-			checkf(Segment.VertexBufferStride >= 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
-		}
-		else if (Initializer.GeometryType == RTGT_Procedural)
-		{
-			checkf(Segment.VertexBufferStride >= (2 * sizeof(FVector)), TEXT("Procedural geometry vertex buffer must contain at least 2xFloat3 that defines 3D bounding boxes of primitives."));
-		}
-
-		ComputedPrimitiveCountForValidation += Segment.NumPrimitives;
-		check(Segment.FirstPrimitive + Segment.NumPrimitives <= Initializer.TotalPrimitiveCount);
-
-		if (Initializer.IndexBuffer)
-		{
-			check(Initializer.IndexBuffer->GetSize() >=
-				(Segment.FirstPrimitive + Segment.NumPrimitives) * IndicesPerPrimitive * IndexStride + IndexOffsetInBytes);
-		}
-
-
-		D3D12_RAYTRACING_GEOMETRY_DESC Desc = {};
-
-		Desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
-		Desc.Type = GeometryType;
-
-		if (Segment.bForceOpaque)
-		{
-			// Deny anyhit shader invocations when this segment is hit
-			Desc.Flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
-		}
-
-		if (!Segment.bAllowDuplicateAnyHitShaderInvocation)
-		{
-			// Allow only a single any-hit shader invocation per primitive
-			Desc.Flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION;
-		}
-
-		switch (GeometryType)
-		{
-		case D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES:
-			switch (Segment.VertexBufferElementType)
-			{
-			case VET_Float4:
-				// While the DXGI_FORMAT_R32G32B32A32_FLOAT format is not supported by DXR, since we manually load vertex 
-				// data when we are building the BLAS, we can just rely on the vertex stride to offset the read index, 
-				// and read only the 3 vertex components, and so use the DXGI_FORMAT_R32G32B32_FLOAT vertex format
-			case VET_Float3:
-				Desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-				break;
-			case VET_Float2:
-				Desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32_FLOAT;
-				break;
-			case VET_Half2:
-				Desc.Triangles.VertexFormat = DXGI_FORMAT_R16G16_FLOAT;
-				break;
-			default:
-				checkNoEntry();
-				break;
-			}
-
-			if (Initializer.IndexBuffer)
-			{
-				// In some cases the geometry is created with 16 bit index buffer, but it's 32 bit at build time.
-				// We conservatively set this to 32 bit to allocate acceleration structure memory.
-				Desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
-				Desc.Triangles.IndexCount = Segment.NumPrimitives * IndicesPerPrimitive;
-				Desc.Triangles.VertexCount = Segment.MaxVertices;
-			}
-			else
-			{
-				// Non-indexed geometry
-				checkf(Segments.Num() == 1, TEXT("Non-indexed geometry with multiple segments is not implemented."));
-				Desc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
-				Desc.Triangles.VertexCount = FMath::Min<uint32>(Segment.MaxVertices, TotalPrimitiveCount * 3);
-			}
-			break;
-
-		case D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS:
-			Desc.AABBs.AABBCount = Segment.NumPrimitives;
-			break;
-
-		default:
-			checkf(false, TEXT("Unexpected ray tracing geometry type"));
-			break;
-		}
-
-		GeometryDescs.Add(Desc);
-	}
-
-	check(ComputedPrimitiveCountForValidation == Initializer.TotalPrimitiveCount);
+	GeometryDescs.SetNumUninitialized(Segments.Num());
+	TranslateRayTracingGeometryDescs(Initializer, GeometryDescs);
 
 	RHIIndexBuffer = Initializer.IndexBuffer;
 	SetDirty(FRHIGPUMask::All(), true);
@@ -2621,24 +2737,15 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 	PrebuildDescInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	PrebuildDescInputs.NumDescs = GeometryDescs.Num();
 	PrebuildDescInputs.pGeometryDescs = GeometryDescs.GetData();
-	PrebuildDescInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS(BuildFlags);
+	PrebuildDescInputs.Flags = TranslateRayTracingAccelerationStructureFlags(BuildFlags);
 
 	// Get maximum buffer sizes for all GPUs in the system
-	for (uint32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS && GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
-	{
-		ID3D12Device5* RayTracingDevice = Adapter->GetDevice(GPUIndex)->GetDevice5();
-		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PrebuildInfo = {};
-		RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&PrebuildDescInputs, &PrebuildInfo);
-
-		AccelerationStructureSize = FMath::Max(AccelerationStructureSize, PrebuildInfo.ResultDataMaxSizeInBytes);
-		BuildScratchBufferSize = FMath::Max(BuildScratchBufferSize, PrebuildInfo.ScratchDataSizeInBytes);
-		UpdateScratchBufferSize = FMath::Max(UpdateScratchBufferSize, PrebuildInfo.UpdateScratchDataSizeInBytes);
-	}
+	SizeInfo = RHICalcRayTracingGeometrySize(Initializer);
 
 	// Allocate acceleration structure buffer
 	for (uint32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS && GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
 	{
-		AccelerationStructureBuffers[GPUIndex] = CreateRayTracingBuffer(Adapter, GPUIndex, AccelerationStructureSize, ERayTracingBufferType::AccelerationStructure, DebugName);
+		AccelerationStructureBuffers[GPUIndex] = CreateRayTracingBuffer(Adapter, GPUIndex, SizeInfo.ResultSize, ERayTracingBufferType::AccelerationStructure, DebugName);
 
 		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
 		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingBLASMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
@@ -2791,10 +2898,10 @@ void FD3D12RayTracingGeometry::SetupHitGroupSystemParameters(uint32 InGPUIndex)
 	}
 }
 
-static bool ShouldCompactAfterBuild(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags)
+static bool ShouldCompactAfterBuild(ERayTracingAccelerationStructureFlags BuildFlags)
 {
-	return EnumHasAllFlags(BuildFlags, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE)
-		&& !EnumHasAnyFlags(BuildFlags, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE);
+	return EnumHasAllFlags(BuildFlags, ERayTracingAccelerationStructureFlags::AllowCompaction | ERayTracingAccelerationStructureFlags::FastTrace)
+		&& !EnumHasAnyFlags(BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate);
 }
 
 void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& CommandContext, EAccelerationStructureBuildMode BuildMode)
@@ -2920,7 +3027,7 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 
 	if (bIsUpdate)
 	{
-		checkf(BuildFlags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE,
+		checkf(EnumHasAllFlags(BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate),
 			TEXT("Acceleration structure must be created with FRayTracingGeometryInitializer::bAllowUpdate=true to perform refit / update."));
 
 		LocalBuildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
@@ -2939,21 +3046,21 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 	RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&PrebuildDescInputs, &PrebuildInfo);
 
 	// Must make sure that values computed in the constructor are valid.
-	check(PrebuildInfo.ResultDataMaxSizeInBytes <= AccelerationStructureSize);
+	check(PrebuildInfo.ResultDataMaxSizeInBytes <= SizeInfo.ResultSize);
 
 	TRefCountPtr<FD3D12Buffer> ScratchBuffer;
 
 	if (bIsUpdate)
 	{
-		check(PrebuildInfo.UpdateScratchDataSizeInBytes <= UpdateScratchBufferSize);
+		check(PrebuildInfo.UpdateScratchDataSizeInBytes <= SizeInfo.UpdateScratchSize);
 		static const FName BufferName("UpdateScratchBLAS");
-		ScratchBuffer = CreateRayTracingBuffer(Adapter, GPUIndex, UpdateScratchBufferSize, ERayTracingBufferType::Scratch, BufferName);
+		ScratchBuffer = CreateRayTracingBuffer(Adapter, GPUIndex, SizeInfo.UpdateScratchSize, ERayTracingBufferType::Scratch, BufferName);
 	}
 	else
 	{
-		check(PrebuildInfo.ScratchDataSizeInBytes <= BuildScratchBufferSize);
+		check(PrebuildInfo.ScratchDataSizeInBytes <= SizeInfo.BuildScratchSize);
 		static const FName BufferName("BuildScratchBLAS");
-		ScratchBuffer = CreateRayTracingBuffer(Adapter, GPUIndex, BuildScratchBufferSize, ERayTracingBufferType::Scratch, BufferName);
+		ScratchBuffer = CreateRayTracingBuffer(Adapter, GPUIndex, SizeInfo.BuildScratchSize, ERayTracingBufferType::Scratch, BufferName);
 	}
 
 	TransitionBuffers(CommandContext);
@@ -3170,27 +3277,23 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 		}
 	}, ParallelForFlags);
 
+	ERayTracingAccelerationStructureFlags BuildFlags = ERayTracingAccelerationStructureFlags::FastTrace; // #yuriy_todo: pass this in
+
+	BuildInputs = {};
 	BuildInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 	BuildInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	BuildInputs.NumDescs = Instances.Num();
-	BuildInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	BuildInputs.Flags = TranslateRayTracingAccelerationStructureFlags(BuildFlags);
 
 	NumCallableShaderSlots = Initializer.NumCallableShaderSlots;
 	NumMissShaderSlots = FMath::Max<uint32>(1, Initializer.NumMissShaderSlots);
 
-	for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
-	{
-		ID3D12Device5* RayTracingDevice = Adapter->GetDevice(GPUIndex)->GetDevice5();
-		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PrebuildInfo = {};
-		RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&BuildInputs, &PrebuildInfo);
-
-		AccelerationStructureSize = FMath::Max(AccelerationStructureSize, PrebuildInfo.ResultDataMaxSizeInBytes);
-		BuildScratchBufferSize = FMath::Max(BuildScratchBufferSize, PrebuildInfo.ScratchDataSizeInBytes);
-	}
+	// Get maximum buffer sizes for all GPUs in the system
+	SizeInfo = RHICalcRayTracingSceneSize(BuildInputs.NumDescs, BuildFlags);
 
 	for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
 	{
-		AccelerationStructureBuffers[GPUIndex] = CreateRayTracingBuffer(Adapter, GPUIndex, AccelerationStructureSize, ERayTracingBufferType::AccelerationStructure, DebugName);
+		AccelerationStructureBuffers[GPUIndex] = CreateRayTracingBuffer(Adapter, GPUIndex, SizeInfo.ResultSize, ERayTracingBufferType::AccelerationStructure, DebugName);
 
 		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
 		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingTLASMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
@@ -3243,8 +3346,8 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PrebuildInfo = {};
 	RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&BuildInputs, &PrebuildInfo);
-	check(PrebuildInfo.ResultDataMaxSizeInBytes <= AccelerationStructureSize);
-	check(PrebuildInfo.ScratchDataSizeInBytes <= BuildScratchBufferSize);
+	check(PrebuildInfo.ResultDataMaxSizeInBytes <= SizeInfo.ResultSize);
+	check(PrebuildInfo.ScratchDataSizeInBytes <= SizeInfo.BuildScratchSize);
 
 	static const FName ScratchBufferName("BuildScratchTLAS");
 	ScratchBuffer = CreateRayTracingBuffer(Adapter, GPUIndex, PrebuildInfo.ScratchDataSizeInBytes, ERayTracingBufferType::Scratch, ScratchBufferName);

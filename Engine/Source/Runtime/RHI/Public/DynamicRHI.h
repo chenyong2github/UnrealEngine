@@ -11,6 +11,7 @@ DynamicRHI.h: Dynamically bound Render Hardware Interface definitions.
 #include "MultiGPU.h"
 #include "Serialization/MemoryLayout.h"
 #include "Containers/ArrayView.h"
+#include "Misc/EnumClassFlags.h"
 
 class FBlendStateInitializerRHI;
 class FGraphicsPipelineStateInitializer;
@@ -214,6 +215,17 @@ enum ERayTracingSceneLifetime
 	// RTSL_MultiFrame,
 };
 
+enum class ERayTracingAccelerationStructureFlags
+{
+	None            = 0,
+	AllowUpdate     = 1 << 0,
+	AllowCompaction = 1 << 1,
+	FastTrace       = 1 << 2,
+	FastBuild       = 1 << 3,
+	MinimizeMemory  = 1 << 4,
+};
+ENUM_CLASS_FLAGS(ERayTracingAccelerationStructureFlags);
+
 struct FRayTracingSceneInitializer
 {
 	TArrayView<FRayTracingGeometryInstance> Instances;
@@ -239,6 +251,13 @@ struct FRayTracingSceneInitializer
 	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
 
 	FName DebugName;
+};
+
+struct FRayTracingAccelerationStructureSize
+{
+	uint64 ResultSize = 0;
+	uint64 BuildScratchSize = 0;
+	uint64 UpdateScratchSize = 0;
 };
 
 struct FShaderResourceViewInitializer
@@ -1375,6 +1394,19 @@ public:
 	virtual bool RHIRequiresComputeGenerateMips() const { return false; };
 
 #if RHI_RAYTRACING
+
+	virtual FRayTracingAccelerationStructureSize RHICalcRayTracingSceneSize(uint32 MaxInstances, ERayTracingAccelerationStructureFlags Flags)
+	{
+		checkNoEntry();
+		return {};
+	}
+
+	virtual FRayTracingAccelerationStructureSize RHICalcRayTracingGeometrySize(const FRayTracingGeometryInitializer& Initializer)
+	{
+		checkNoEntry();
+		return {};
+	}
+
 	virtual FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
 	{
 		checkNoEntry();
@@ -1665,6 +1697,16 @@ FORCEINLINE IRHITransientResourceAllocator* RHICreateTransientResourceAllocator(
 
 
 #if RHI_RAYTRACING
+
+FORCEINLINE FRayTracingAccelerationStructureSize RHICalcRayTracingSceneSize(uint32 MaxInstances, ERayTracingAccelerationStructureFlags Flags)
+{
+	return GDynamicRHI->RHICalcRayTracingSceneSize(MaxInstances, Flags);
+}
+
+FORCEINLINE FRayTracingAccelerationStructureSize RHICalcRayTracingGeometrySize(const FRayTracingGeometryInitializer& Initializer)
+{
+	return GDynamicRHI->RHICalcRayTracingGeometrySize(Initializer);
+}
 
 FORCEINLINE FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
 {

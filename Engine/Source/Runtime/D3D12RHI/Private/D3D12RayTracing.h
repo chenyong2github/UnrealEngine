@@ -57,7 +57,7 @@ public:
 	D3D12_RAYTRACING_GEOMETRY_TYPE GeometryType = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 
 	TArray<FRayTracingGeometrySegment> Segments; // Defines addressable parts of the mesh that can be used for material assignment (one segment = one SBT record)
-	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags;
+	ERayTracingAccelerationStructureFlags BuildFlags = ERayTracingAccelerationStructureFlags::None;
 
 	FBufferRHIRef  RHIIndexBuffer;
 	static FBufferRHIRef NullTransformBuffer; // Null transform for hidden sections
@@ -77,10 +77,8 @@ public:
 	// Used as a template for BuildAccelerationStructure() later.
 	TArray<D3D12_RAYTRACING_GEOMETRY_DESC, TInlineAllocator<1>> GeometryDescs;
 
-	uint64 AccelerationStructureSize = 0;
 	uint64 AccelerationStructureCompactedSize = 0;
-	uint64 BuildScratchBufferSize = 0;
-	uint64 UpdateScratchBufferSize = 0;
+	FRayTracingAccelerationStructureSize SizeInfo = {};
 };
 
 class FD3D12RayTracingScene : public FRHIRayTracingScene, public FD3D12AdapterChild, public FNoncopyable
@@ -102,8 +100,7 @@ public:
 	TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> Instances;
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
 
-	uint64 AccelerationStructureSize = 0;
-	uint64 BuildScratchBufferSize = 0;
+	FRayTracingAccelerationStructureSize SizeInfo = {};
 
 	struct FInstanceCopyCommand
 	{
