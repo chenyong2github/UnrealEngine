@@ -4481,10 +4481,11 @@ void FRepLayout::CallRepNotifies(FReceivingRepState* RepState, UObject* Object) 
 				}
 				else
 				{
-					// This could be cached off as a Parent flag, to avoid touching the Commands array.
-					if (ERepLayoutCmdType::PropertyBool == Cmds[Parent.CmdStart].Type)
+					// Handle bitfields.
+					const FBoolProperty* BoolProperty = CastField<const FBoolProperty>(Parent.Property);
+					if (BoolProperty && !BoolProperty->IsNativeBool())
 					{
-						bool BoolPropertyValue = !!static_cast<const FBoolProperty*>(Parent.Property)->GetPropertyValue(PropertyData);
+						bool BoolPropertyValue = BoolProperty->GetPropertyValue(PropertyData);
 						Object->ProcessEvent(RepNotifyFunc, &BoolPropertyValue);
 					}
 					else
