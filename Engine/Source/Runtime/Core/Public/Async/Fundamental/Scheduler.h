@@ -144,7 +144,7 @@ namespace LowLevelTasks
 				}
 			}
 
-			void Push(FSleepEvent* Item)
+			void Push(CA_VALID_POINTER FSleepEvent* Item)
 			{
 				check(Item != nullptr);
 				checkSlow(reinterpret_cast<uintptr_t>(Item) < (1ull << 48));
