@@ -277,6 +277,10 @@ bool FSocketEOS::HasPendingData(uint32& PendingDataSize)
 	Options.RequestedChannel = &Channel;
 
 	EOS_EResult Result = EOS_P2P_GetNextReceivedPacketSize(SocketSubsystem.GetP2PHandle(), &Options, &PendingDataSize);
+	if (Result == EOS_EResult::EOS_NotFound)
+	{
+		return false;
+	}
 	if (Result != EOS_EResult::EOS_Success)
 	{
 		UE_LOG(LogSocketSubsystemEOS, Warning, TEXT("Unable to check for data on address (%s) result code = (%s)"), *LocalAddress.ToString(true), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
