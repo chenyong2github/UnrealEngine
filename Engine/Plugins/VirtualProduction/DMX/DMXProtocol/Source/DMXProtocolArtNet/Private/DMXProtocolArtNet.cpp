@@ -367,7 +367,7 @@ bool FDMXProtocolArtNet::CreateDMXListener(FString& OutErrorMessage)
 	// Save New socket;
 	ListeningSocket = NewListeningSocket;
 
-	FTimespan ThreadWaitTime = FTimespan::MaxValue();
+	FTimespan ThreadWaitTime = FTimespan::FromMilliseconds(1000);
 	ArtNetReceiver = MakeShared<FDMXProtocolReceiverArtNet>(*ListeningSocket, this, ThreadWaitTime);
 	ArtNetReceiver->OnDataReceived().BindRaw(this, &FDMXProtocolArtNet::OnDataReceived);
 
