@@ -27,6 +27,10 @@ UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, Abstract, Displa
 class UMaterialExpressionStrataBSDF : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
+
+#if WITH_EDITOR
+		virtual int32 CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+#endif
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Slab BSDF")

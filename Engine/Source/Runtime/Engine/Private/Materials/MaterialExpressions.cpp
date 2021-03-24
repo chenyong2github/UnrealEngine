@@ -19725,6 +19725,13 @@ UMaterialExpressionStrataBSDF::UMaterialExpressionStrataBSDF(const FObjectInitia
 {
 }
 
+int32 UMaterialExpressionStrataBSDF::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	// Strata nodes cannot be previewed due to the complex Strata type.
+	// So we override the default implementation calling Compile and we simply return a default black preview color.
+	return Compiler->Constant(0.0f);
+}
+
 UMaterialExpressionStrataSlabBSDF::UMaterialExpressionStrataSlabBSDF(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
