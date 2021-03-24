@@ -6,8 +6,8 @@
 #include "kDOP.h"
 
 #if USE_EMBREE
-	#include <embree2/rtcore.h>
-	#include <embree2/rtcore_ray.h>
+	#include <embree3/rtcore.h>
+	#include <embree3/rtcore_ray.h>
 #else
 	typedef void* RTCDevice;
 	typedef void* RTCScene;
@@ -65,7 +65,10 @@ struct FEmbreeTriangleDesc
 // Mapping between Embree Geometry Id and engine Mesh/LOD Id
 struct FEmbreeGeometry
 {
+	TArray<uint32> IndexArray;
+	TArray<FVector> VertexArray;
 	TArray<FEmbreeTriangleDesc> TriangleDescs; // The material ID of each triangle.
+	RTCGeometry InternalGeometry;
 };
 
 class FEmbreeScene
@@ -84,22 +87,22 @@ public:
 };
 
 #if USE_EMBREE
-struct FEmbreeRay : public RTCRay
+struct FEmbreeRay : public RTCRayHit
 {
 	FEmbreeRay() :
 		ElementIndex(-1)
 	{
-		u = v = 0;
-		time = 0;
-		mask = 0xFFFFFFFF;
-		geomID = -1;
-		instID = -1;
-		primID = -1;
+		hit.u = hit.v = 0;
+		ray.time = 0;
+		ray.mask = 0xFFFFFFFF;
+		hit.geomID = RTC_INVALID_GEOMETRY_ID;
+		hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
+		hit.primID = RTC_INVALID_GEOMETRY_ID;
 	}
 
 	FVector GetHitNormal() const
 	{
-		return FVector(Ng[0], Ng[1], Ng[2]).GetSafeNormal();
+		return FVector(-hit.Ng_x, -hit.Ng_y, -hit.Ng_z).GetSafeNormal();
 	}	
 
 	bool IsHitTwoSided() const
@@ -111,6 +114,23 @@ struct FEmbreeRay : public RTCRay
 	// Additional Outputs.
 	int32 ElementIndex; // Material Index
 };
+
+struct FEmbreeIntersectionContext : public RTCIntersectContext
+{
+	FEmbreeIntersectionContext() :
+		ElementIndex(-1)
+	{}
+
+	bool IsHitTwoSided() const
+	{
+		// MaterialIndex on the build triangles was set to 1 if two-sided, or 0 if one-sided
+		return ElementIndex == 1;
+	}
+
+	// Additional Outputs.
+	int32 ElementIndex; // Material Index
+};
+
 #endif
 
 namespace MeshRepresentation

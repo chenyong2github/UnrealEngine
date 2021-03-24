@@ -27,6 +27,8 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWVisualizeMeshDistanceFields)
 		SHADER_PARAMETER(FVector2D, NumGroups)
@@ -56,22 +58,13 @@ public:
 
 	void SetParameters(
 		FRHICommandList& RHICmdList,
+		const FDistanceFieldSceneData& DistanceFieldSceneData,
 		const FDistanceFieldAOParameters& Parameters,
 		const FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
-		FRHITexture* TextureAtlas;
-		int32 AtlasSizeX;
-		int32 AtlasSizeY;
-		int32 AtlasSizeZ;
-
-		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, DistanceFieldSceneData);
 
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 
@@ -97,8 +90,11 @@ public:
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)	
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisualizeDistanceFieldTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VisualizeDistanceFieldSampler)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -126,7 +122,6 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(
 		|| FeatureLevel < ERHIFeatureLevel::SM5
 		|| !DoesPlatformSupportDistanceFieldAO(FirstView.GetShaderPlatform())
 		|| Views.Num() != 1
-		|| !GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI
 		|| Scene->DistanceFieldSceneData.NumObjectsInBuffer == 0)
 	{
 		return;
@@ -163,9 +158,12 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FVisualizeMeshDistanceFieldCS::FParameters>();
 		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+		PassParameters->ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
 		PassParameters->NumGroups = FVector2D(GroupSizeX, GroupSizeY);
 		PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 		PassParameters->RWVisualizeMeshDistanceFields = GraphBuilder.CreateUAV(VisualizeResultTexture);
+		const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
 		check(!bUseGlobalDistanceField || View.GlobalDistanceFieldInfo.Clipmaps.Num() > 0);
 
@@ -173,12 +171,12 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(
 			RDG_EVENT_NAME("VisualizeMeshDistanceFieldCS"),
 			PassParameters,
 			ERDGPassFlags::Compute,
-			[&View, Parameters, ComputeShader, PassParameters, GroupSizeX, GroupSizeY](FRHICommandList& RHICmdList)
+			[&View, &DistanceFieldSceneData, Parameters, ComputeShader, PassParameters, GroupSizeX, GroupSizeY](FRHICommandList& RHICmdList)
 		{
 			FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
 			RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 			SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, *PassParameters);
-			ComputeShader->SetParameters(RHICmdList, Parameters, View.GlobalDistanceFieldInfo);
+			ComputeShader->SetParameters(RHICmdList, DistanceFieldSceneData, Parameters, View.GlobalDistanceFieldInfo);
 			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
 			UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
 		});
@@ -198,10 +196,14 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(
 	{
 		auto* PassParameters = GraphBuilder.AllocParameters<FVisualizeDistanceFieldUpsamplePS::FParameters>();
 		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 		PassParameters->VisualizeDistanceFieldTexture = VisualizeResultTexture;
 		PassParameters->VisualizeDistanceFieldSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
-		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilRead);
+
+		PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
+		PassParameters->DistanceFieldAtlas = DistanceField::SetupAtlasParameters(Scene->DistanceFieldSceneData);
 
 		const FScreenPassTextureViewport InputViewport(VisualizeResultTexture, GetDownscaledRect(View.ViewRect, GAODownsampleFactor));
 		const FScreenPassTextureViewport OutputViewport(SceneTextures.Color.Target, View.ViewRect);

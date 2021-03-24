@@ -458,7 +458,6 @@ static void RenderOpaqueFX(
 	}
 }
 
-
 #if RHI_RAYTRACING
 
 bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandListImmediate& RHICmdList)

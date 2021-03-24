@@ -419,7 +419,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, PassParameters->RadianceCacheParameters);
 				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 
-				bool bTraceCards = GVisualizeLumenSceneTraceCards != 0 && MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0;
+				bool bTraceCards = GVisualizeLumenSceneTraceCards != 0 && MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0;
 
 				FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FVisualizeLumenSceneCS::FTraceCards>(bTraceCards);
@@ -579,7 +579,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		
 		if (GLumenSceneDumpStats >= 2)
 		{
-			GDistanceFieldVolumeTextureAtlas.ListMeshDistanceFields();
+			DistanceFieldSceneData.ListMeshDistanceFields(true);
 		}
 
 		GLumenSceneDumpStats = 0;

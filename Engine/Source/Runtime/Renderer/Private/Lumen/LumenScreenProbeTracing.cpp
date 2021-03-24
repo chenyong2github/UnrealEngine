@@ -634,7 +634,7 @@ void TraceScreenProbes(
 				IndirectTracingParameters,
 				/* out */ MeshSDFGridParameters);
 
-			if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
+			if (MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0)
 			{
 				FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
 					GraphBuilder,

@@ -1731,7 +1731,10 @@ public:
 		Primitive(InPrimitive),
 		bOftenMoving(InPrimitive->Proxy->IsOftenMoving()),
 		DistanceFieldInstanceIndices(Primitive->DistanceFieldInstanceIndices)
-	{}
+	{
+		float SelfShadowBias;
+		InPrimitive->Proxy->GetDistancefieldAtlasData(DistanceFieldData, SelfShadowBias);
+	}
 
 	/** 
 	 * Must not be dereferenced after creation, the primitive was removed from the scene and deleted
@@ -1742,6 +1745,8 @@ public:
 	bool bOftenMoving;
 
 	TArray<int32, TInlineAllocator<1>> DistanceFieldInstanceIndices;
+
+	const FDistanceFieldVolumeData* DistanceFieldData;
 };
 
 class FHeightFieldPrimitiveRemoveInfo : public FPrimitiveRemoveInfo
@@ -1757,6 +1762,123 @@ public:
 	FBox WorldBounds;
 };
 
+/** Identifies a mip of a distance field atlas. */
+class FDistanceFieldAssetMipId
+{
+public:
+
+	FDistanceFieldAssetMipId(FSetElementId InAssetId, int32 InReversedMipIndex = 0) :
+		AssetId(InAssetId),
+		ReversedMipIndex(InReversedMipIndex)
+	{}
+
+	FSetElementId AssetId;
+	int32 ReversedMipIndex;
+};
+
+/** Stores state about a distance field mip that is tracked by the scene. */
+class FDistanceFieldAssetMipState
+{
+public:
+
+	FDistanceFieldAssetMipState() :
+		IndirectionDimensions(FIntVector(0, 0, 0)),
+		IndirectionTableOffset(-1),
+		NumBricks(0)
+	{}
+
+	FIntVector IndirectionDimensions;
+	int32 IndirectionTableOffset;
+	int32 NumBricks;
+	TArray<int32, TInlineAllocator<4>> AllocatedBlocks;
+};
+
+class FDistanceFieldAssetState
+{
+public:
+
+	FDistanceFieldAssetState() :
+		BuiltData(nullptr),
+		RefCount(0),
+		WantedNumMips(0)
+	{}
+
+	const FDistanceFieldVolumeData* BuiltData;
+	int32 RefCount;
+	int32 WantedNumMips;
+	TArray<FDistanceFieldAssetMipState, TInlineAllocator<3>> ReversedMips;
+};
+
+struct TFDistanceFieldAssetStateFuncs : BaseKeyFuncs<FDistanceFieldAssetState, const FDistanceFieldVolumeData*, /* bInAllowDuplicateKeys = */ false>
+{
+	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
+	{
+		return Element.BuiltData;
+	}
+	static bool Matches(KeyInitType A,KeyInitType B)
+	{
+		return A == B;
+	}
+	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	{
+		return PointerHash(Key);
+	}
+};
+
+class FDistanceFieldBlockAllocator
+{
+public:
+	void Allocate(int32 NumBlocks, TArray<int32, TInlineAllocator<4>>& OutBlocks);
+
+	void Free(const TArray<int32, TInlineAllocator<4>>& ElementRange);
+
+	int32 GetMaxSize() const 
+	{ 
+		return MaxNumBlocks; 
+	}
+
+	int32 GetAllocatedSize() const
+	{
+		return MaxNumBlocks - FreeBlocks.Num();
+	}
+
+private:
+	int32 MaxNumBlocks = 0;
+	TArray<int32, TInlineAllocator<4>> FreeBlocks;
+};
+
+struct FDistanceFieldReadRequest
+{
+	// SDF scene context
+	FSetElementId AssetSetId;
+	int32 ReversedMipIndex = 0;
+	int32 NumDistanceFieldBricks = 0;
+
+	// Used when BulkData is nullptr
+	const uint8* AlwaysLoadedDataPtr = nullptr;
+
+	// Inputs of read request
+	const FByteBulkData* BulkData = nullptr;
+	uint32 BulkOffset = 0;
+	uint32 BulkSize = 0;
+
+	// Outputs of read request
+	uint8* ReadOutputDataPtr = nullptr;
+	FIoRequest Request;
+	IAsyncReadFileHandle* AsyncHandle = nullptr;
+	IAsyncReadRequest* AsyncRequest = nullptr;
+};
+
+struct FDistanceFieldAsyncUpdateParameters
+{
+	FDistanceFieldSceneData* DistanceFieldSceneData = nullptr;
+	FIntVector4* BrickUploadCoordinatesPtr = nullptr;
+	uint8* BrickUploadDataPtr = nullptr;
+	TArray<FDistanceFieldReadRequest> NewReadRequests;
+	TArray<FDistanceFieldReadRequest> ReadRequestsToUpload;
+	TArray<FDistanceFieldReadRequest> ReadRequestsToCleanUp;
+};
+
 /** Scene data used to manage distance field object buffers on the GPU. */
 class FDistanceFieldSceneData
 {
@@ -1770,6 +1892,22 @@ public:
 	void RemovePrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void Release();
 	void VerifyIntegrity();
+	void ListMeshDistanceFields(bool bDumpAssetStats) const;
+
+	void UpdateDistanceFieldObjectBuffers(
+		FRDGBuilder& GraphBuilder, 
+		FScene* Scene,
+		TArray<FDistanceFieldAssetMipId>& DistanceFieldAssetAdds,
+		TArray<FSetElementId>& DistanceFieldAssetRemoves);
+
+	void UpdateDistanceFieldAtlas(
+		FRDGBuilder& GraphBuilder, 
+		const FViewInfo& View,
+		FScene* Scene,
+		bool bLumenEnabled,
+		FGlobalShaderMap* GlobalShaderMap,
+		TArray<FDistanceFieldAssetMipId>& DistanceFieldAssetAdds,
+		TArray<FSetElementId>& DistanceFieldAssetRemoves);
 
 	bool HasPendingOperations() const
 	{
@@ -1840,6 +1978,28 @@ public:
 	TArray<int32> IndicesToUpdateInObjectBuffers;
 	TArray<int32> IndicesToUpdateInHeightFieldObjectBuffers;
 
+	TSet<FDistanceFieldAssetState, TFDistanceFieldAssetStateFuncs> AssetStateArray;
+	FRWBufferStructured AssetDataBuffer;
+	FScatterUploadBuffer AssetDataUploadBuffer;
+
+	TArray<FRHIGPUBufferReadback*> StreamingRequestReadbackBuffers;
+	uint32 MaxStreamingReadbackBuffers = 4;
+	uint32 ReadbackBuffersWriteIndex = 0;
+	uint32 ReadbackBuffersNumPending = 0;
+
+	FGrowOnlySpanAllocator IndirectionTableAllocator;
+	FRWByteAddressBuffer IndirectionTable;
+	FScatterUploadBuffer IndirectionTableUploadBuffer;
+
+	FDistanceFieldBlockAllocator DistanceFieldAtlasBlockAllocator;
+	TRefCountPtr<IPooledRenderTarget> DistanceFieldBrickVolumeTexture;
+	FIntVector BrickTextureDimensionsInBricks;
+	FReadBuffer BrickUploadCoordinatesBuffer;
+	FReadBuffer BrickUploadDataBuffer;
+
+	TArray<FDistanceFieldReadRequest> ReadRequests;
+	FGraphEventArray AsyncTaskEvents;
+
 	/** Stores the primitive and instance index of every entry in the object buffer. */
 	TArray<FPrimitiveAndInstance> PrimitiveInstanceMapping;
 	TArray<FPrimitiveSceneInfo*> HeightfieldPrimitives;
@@ -1854,13 +2014,36 @@ public:
 	TArray<FPrimitiveSceneInfo*> PendingHeightFieldUpdateOps;
 	TArray<FHeightFieldPrimitiveRemoveInfo> PendingHeightFieldRemoveOps;
 
-	/** Used to detect atlas reallocations, since objects store UVs into the atlas and need to be updated when it changes. */
-	int32 AtlasGeneration;
 	int32 HeightFieldAtlasGeneration;
 	int32 HFVisibilityAtlasGenerattion;
 
 	bool bTrackAllPrimitives;
 	bool bCanUse16BitObjectIndices;
+
+private:
+
+	void ProcessStreamingRequestsFromGPU(
+		TArray<FDistanceFieldReadRequest>& NewReadRequests,
+		TArray<FDistanceFieldAssetMipId>& AssetDataUploads);
+
+	void ProcessReadRequests(
+		TArray<FDistanceFieldAssetMipId>& AssetDataUploads,
+		TArray<FDistanceFieldAssetMipId>& DistanceFieldAssetMipAdds,
+		TArray<FDistanceFieldReadRequest>& ReadRequestsToUpload,
+		TArray<FDistanceFieldReadRequest>& ReadRequestsToCleanUp);
+
+	void ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap);
+
+	void AsyncUpdate(FDistanceFieldAsyncUpdateParameters UpdateParameters);
+
+	void GenerateStreamingRequests(
+		FRDGBuilder& GraphBuilder, 
+		const FViewInfo& View,
+		FScene* Scene,
+		bool bLumenEnabled,
+		FGlobalShaderMap* GlobalShaderMap);
+
+	friend class FDistanceFieldStreamingUpdateTask;
 };
 
 /** Stores data for an allocation in the FIndirectLightingCache. */

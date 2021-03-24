@@ -11,6 +11,7 @@
 #include "SceneRendering.h"
 #include "RendererPrivateUtils.h"
 #include "Lumen.h"
+#include "DistanceFieldLightingShared.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardScatterParameters, )
 	RDG_BUFFER_ACCESS(CardIndirectArgs, ERHIAccess::IndirectArgs)
@@ -374,12 +375,8 @@ void RenderHardwareRayTracedShadowIntoLumenCards(
 extern void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, FLumenCardTracingParameters& TracingParameters, bool bShaderWillTraceCardsOnly = false);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFTracingParameters, )
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
-	SHADER_PARAMETER(uint32, NumSceneObjects)
-	SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldSampler)
-	SHADER_PARAMETER(FVector, DistanceFieldAtlasTexelSize)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFGridParameters, )

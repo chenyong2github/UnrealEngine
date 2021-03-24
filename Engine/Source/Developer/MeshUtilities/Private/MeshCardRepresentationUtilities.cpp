@@ -53,22 +53,24 @@ bool IsSurfacePointInsideMesh(const RTCScene& FullMeshEmbreeScene, FVector Surfa
 		FVector RayDirection = SurfaceBasis.TransformVector(RayDirectionsOverHemisphere[SampleIndex]);
 
 		FEmbreeRay EmbreeRay;
-		EmbreeRay.org[0] = SurfacePoint.X;
-		EmbreeRay.org[1] = SurfacePoint.Y;
-		EmbreeRay.org[2] = SurfacePoint.Z;
-		EmbreeRay.dir[0] = RayDirection.X;
-		EmbreeRay.dir[1] = RayDirection.Y;
-		EmbreeRay.dir[2] = RayDirection.Z;
-		EmbreeRay.tnear = 0.1f;
-		EmbreeRay.tfar = FLT_MAX;
+		EmbreeRay.ray.org_x = SurfacePoint.X;
+		EmbreeRay.ray.org_y = SurfacePoint.Y;
+		EmbreeRay.ray.org_z = SurfacePoint.Z;
+		EmbreeRay.ray.dir_x = RayDirection.X;
+		EmbreeRay.ray.dir_y = RayDirection.Y;
+		EmbreeRay.ray.dir_z = RayDirection.Z;
+		EmbreeRay.ray.tnear = 0.1f;
+		EmbreeRay.ray.tfar = FLT_MAX;
 
-		rtcIntersect(FullMeshEmbreeScene, EmbreeRay);
+		FEmbreeIntersectionContext EmbreeContext;
+		rtcInitIntersectContext(&EmbreeContext);
+		rtcIntersect1(FullMeshEmbreeScene, &EmbreeContext, &EmbreeRay);
 
-		if (EmbreeRay.geomID != -1 && EmbreeRay.primID != -1)
+		if (EmbreeRay.hit.geomID != RTC_INVALID_GEOMETRY_ID && EmbreeRay.hit.primID != RTC_INVALID_GEOMETRY_ID)
 		{
 			++NumHits;
 
-			if (FVector::DotProduct(RayDirection, EmbreeRay.GetHitNormal()) > 0.0f && !EmbreeRay.IsHitTwoSided())
+			if (FVector::DotProduct(RayDirection, EmbreeRay.GetHitNormal()) > 0.0f && !EmbreeContext.IsHitTwoSided())
 			{
 				++NumBackFaceHits;
 			}
@@ -339,27 +341,30 @@ void BuildMeshCards(const FBox& MeshBounds, const FGenerateCardMeshContext& Cont
 					for (int32 StepIndex = 0; StepIndex < 64; ++StepIndex)
 					{
 						FEmbreeRay EmbreeRay;
-						EmbreeRay.org[0] = RayOrigin.X;
-						EmbreeRay.org[1] = RayOrigin.Y;
-						EmbreeRay.org[2] = RayOrigin.Z;
-						EmbreeRay.dir[0] = RayDirection.X;
-						EmbreeRay.dir[1] = RayDirection.Y;
-						EmbreeRay.dir[2] = RayDirection.Z;
-						EmbreeRay.tnear = StepTMin;
-						EmbreeRay.tfar = FLT_MAX;
-						rtcIntersect(Context.FullMeshEmbreeScene, EmbreeRay);
+						EmbreeRay.ray.org_x = RayOrigin.X;
+						EmbreeRay.ray.org_y = RayOrigin.Y;
+						EmbreeRay.ray.org_z = RayOrigin.Z;
+						EmbreeRay.ray.dir_x = RayDirection.X;
+						EmbreeRay.ray.dir_y = RayDirection.Y;
+						EmbreeRay.ray.dir_z = RayDirection.Z;
+						EmbreeRay.ray.tnear = StepTMin;
+						EmbreeRay.ray.tfar = FLT_MAX;
 
-						if (EmbreeRay.geomID != -1 && EmbreeRay.primID != -1)
+						FEmbreeIntersectionContext EmbreeContext;
+						rtcInitIntersectContext(&EmbreeContext);
+						rtcIntersect1(Context.FullMeshEmbreeScene, &EmbreeContext, &EmbreeRay);
+
+						if (EmbreeRay.hit.geomID != RTC_INVALID_GEOMETRY_ID && EmbreeRay.hit.primID != RTC_INVALID_GEOMETRY_ID)
 						{
-							const FVector SurfacePoint = RayOrigin + RayDirection * EmbreeRay.tfar;
+							const FVector SurfacePoint = RayOrigin + RayDirection * EmbreeRay.ray.tfar;
 							const FVector SurfaceNormal = EmbreeRay.GetHitNormal();
 
 							const float NdotD = FVector::DotProduct(RayDirection, SurfaceNormal);
-							const bool bPassCullTest = EmbreeRay.IsHitTwoSided() || NdotD <= 0.0f;
+							const bool bPassCullTest = EmbreeContext.IsHitTwoSided() || NdotD <= 0.0f;
 							const bool bPassProjectionAngleTest = FMath::Abs(NdotD) >= FMath::Cos(75.0f * (PI / 180.0f));
 
 							const float MinDistanceBetweenPoints = (MaxRayT / MeshSliceNum);
-							const bool bPassDistanceToAnotherSurfaceTest = EmbreeRay.tnear <= 0.0f || (EmbreeRay.tfar - EmbreeRay.tnear > MinDistanceBetweenPoints);
+							const bool bPassDistanceToAnotherSurfaceTest = EmbreeRay.ray.tnear <= 0.0f || (EmbreeRay.ray.tfar - EmbreeRay.ray.tnear > MinDistanceBetweenPoints);
 
 							if (bPassCullTest && bPassProjectionAngleTest && bPassDistanceToAnotherSurfaceTest)
 							{
@@ -367,12 +372,12 @@ void BuildMeshCards(const FBox& MeshBounds, const FGenerateCardMeshContext& Cont
 								if (!bIsInsideMesh)
 								{
 									HeightfieldLayers[HeighfieldX + HeighfieldY * HeighfieldSize.X].Add(
-										{ EmbreeRay.tnear, EmbreeRay.tfar }
+										{ EmbreeRay.ray.tnear, EmbreeRay.ray.tfar }
 									);
 								}
 							}
 
-							StepTMin = EmbreeRay.tfar + 0.01f;
+							StepTMin = EmbreeRay.ray.tfar + 0.01f;
 						}
 						else
 						{
@@ -509,13 +514,19 @@ bool FMeshUtilities::GenerateCardRepresentationData(
 
 	FGenerateCardMeshContext Context(MeshName, EmbreeScene.EmbreeScene, EmbreeScene.EmbreeDevice, OutData);
 
-	BuildMeshCards(Bounds.GetBox(), Context, OutData);
+	// Note: must operate on the SDF bounds because SDF generation can expand the mesh's bounds
+	BuildMeshCards(DistanceFieldVolumeData->LocalSpaceMeshBounds, Context, OutData);
 
 	MeshRepresentation::DeleteEmbreeScene(EmbreeScene);
 
-	UE_LOG(LogMeshUtilities, Log, TEXT("Finished mesh card build in %.1fs %s"),
-		(float)(FPlatformTime::Seconds() - StartTime),
-		*MeshName);
+	const float TimeElapsed = (float)(FPlatformTime::Seconds() - StartTime);
+
+	if (TimeElapsed > 1.0f)
+	{
+		UE_LOG(LogMeshUtilities, Log, TEXT("Finished mesh card build in %.1fs %s"),
+			TimeElapsed,
+			*MeshName);
+	}
 
 	return true;
 #else

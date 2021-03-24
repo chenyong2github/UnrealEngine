@@ -720,10 +720,9 @@ bool TileBoundsIntersectDistanceFieldCaster(
 #if USE_DISTANCE_FIELD_FOR_TILE_CULLING
 		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 		float3 VolumeSamplePosition = mul(float4(TileBoundingSphere.xyz, 1), DFObjectData.WorldToVolume).xyz;
-		float3 ClampedSamplePosition = clamp(VolumeSamplePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+		float3 ClampedSamplePosition = clamp(VolumeSamplePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 		float DistanceToClamped = length(ClampedSamplePosition - VolumeSamplePosition);
-		float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
-		float WorldDistanceToOccluder = (SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped) * DFObjectData.VolumeScale;
+		float WorldDistanceToOccluder = (DistanceToMeshSurfaceStandalone(ClampedSamplePosition, DFObjectData) + DistanceToClamped) * DFObjectData.VolumeScale;
 
 		float ErrorTolerance = 1.1f;
 		// The tile can only be affected by the object's shadow if the closest part of the object is less than MaxOcclusionDistance from the tile bounds
@@ -865,6 +864,7 @@ float ShadowConeTraceAgainstCulledDistanceFieldCasters(
 		float VolumeMaxSphereRadius = MaxSphereRadius / DFObjectData.VolumeScale;
 
 		{
+			FDFAssetData DFAssetData = LoadDFAssetDataHighestResolution(DFObjectData.AssetIndex);
 			float MinTraceVisibility = 1;
 			//@todo - derive from texel size
 			float StartOffset = .02f;
@@ -882,10 +882,9 @@ float ShadowConeTraceAgainstCulledDistanceFieldCasters(
 			for (; StepIndex < MaxSteps; StepIndex++)
 			{
 				float3 SampleVolumePosition = VolumeRayStart + VolumeRayDirection * SampleRayTime;
-				float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+				float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 				float DistanceToClamped = length(ClampedSamplePosition - SampleVolumePosition);
-				float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
-				float VolumeDistanceToOccluder = SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped;
+				float VolumeDistanceToOccluder = SampleSparseMeshSignedDistanceField(ClampedSamplePosition, DFAssetData) + DistanceToClamped;
 
 				float SphereRadius = clamp(TanConeAngle * SampleRayTime, 0, VolumeMaxSphereRadius);
 				float StepVisibility = pow(saturate(VolumeDistanceToOccluder / SphereRadius), OcclusionExponent);
@@ -925,10 +924,9 @@ float ShadowConeTraceAgainstCulledDistanceFieldCasters(
 
 			{
 				float3 SampleVolumePosition = VolumeRayStart;
-				float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+				float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 				float DistanceToClamped = length(ClampedSamplePosition - SampleVolumePosition);
-				float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
-				float VolumeDistanceToOccluder = SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped;
+				float VolumeDistanceToOccluder = SampleSparseMeshSignedDistanceField(ClampedSamplePosition, DFAssetData) + DistanceToClamped;
 
 				WeightDistance = VolumeDistanceToOccluder * DFObjectData.VolumeScale;
 				//WeightDistance = length(SphereCenterAndRadius.xyz - WorldRayStart);

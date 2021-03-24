@@ -293,16 +293,14 @@ bool IntersectObjectWithConeDepthRange(
 		float TileBoundingSphereRadius = sqrt(DistanceAlongAxis * DistanceAlongAxis + FarDepthDistanceToEdgeOfCone * FarDepthDistanceToEdgeOfCone);
 
 		float3 VolumeTileBoundingSphereCenter = mul(float4(WorldTileBoundingSphereCenter, 1), DFObjectData.WorldToVolume).xyz;
-		float BoxDistance = ComputeDistanceFromBoxToPoint(-DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent, VolumeTileBoundingSphereCenter) * DFObjectData.VolumeScale;
+		float BoxDistance = ComputeDistanceFromBoxToPoint(-DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent, VolumeTileBoundingSphereCenter) * DFObjectData.VolumeScale;
 
 		BRANCH
 		if (BoxDistance < TileBoundingSphereRadius + AOObjectMaxDistance)
 		{
-			float3 ClampedSamplePosition = clamp(VolumeTileBoundingSphereCenter, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+			float3 ClampedSamplePosition = clamp(VolumeTileBoundingSphereCenter, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 			float DistanceToClamped = length(VolumeTileBoundingSphereCenter - ClampedSamplePosition);
-
-			float3 StepVolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
-			float DistanceToOccluder = (SampleMeshDistanceField(StepVolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped) * DFObjectData.VolumeScale;
+			float DistanceToOccluder = (DistanceToMeshSurfaceStandalone(ClampedSamplePosition, DFObjectData) + DistanceToClamped) * DFObjectData.VolumeScale;
 
 			BRANCH
 			if (DistanceToOccluder < TileBoundingSphereRadius + AOObjectMaxDistance)

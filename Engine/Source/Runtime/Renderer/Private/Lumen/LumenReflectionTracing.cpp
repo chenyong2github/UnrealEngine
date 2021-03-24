@@ -442,7 +442,7 @@ void TraceReflections(
 					/* out */ MeshSDFGridParameters);
 			}
 
-			if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
+			if (MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0)
 			{
 				FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
 					GraphBuilder,

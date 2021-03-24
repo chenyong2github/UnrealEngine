@@ -80,56 +80,6 @@ public class MeshUtilities : ModuleRules
             AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");
 		}
 
-        // Always use the official version of IntelTBB
-        string IntelTBBLibs = Target.UEThirdPartyBinariesDirectory + "Intel/TBB/";
-        string IntelEmbreeLibs = Target.UEThirdPartyBinariesDirectory + "Intel/Embree/Embree2140";
-
-        // EMBREE
-        if (Target.Platform == UnrealTargetPlatform.Win64)
-        {
-            string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/Win64/";
-
-            PublicIncludePaths.Add(SDKDir + "include");
-            PublicAdditionalLibraries.Add(SDKDir + "lib/embree.2.14.0.lib");
-            RuntimeDependencies.Add("$(TargetOutputDir)/embree.2.14.0.dll", SDKDir + "lib/embree.2.14.0.dll");
-            RuntimeDependencies.Add("$(TargetOutputDir)/tbb.dll", IntelTBBLibs + "Win64/tbb.dll");
-            RuntimeDependencies.Add("$(TargetOutputDir)/tbbmalloc.dll", IntelTBBLibs + "Win64/tbbmalloc.dll");
-            PublicDefinitions.Add("USE_EMBREE=1");
-        }
-        else if (Target.Platform == UnrealTargetPlatform.Mac)
-        {
-            string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/MacOSX/";
-
-            PublicIncludePaths.Add(SDKDir + "include");
-            PublicAdditionalLibraries.Add(SDKDir + "lib/libembree.2.14.0.dylib");
-            PublicAdditionalLibraries.Add(IntelTBBLibs + "Mac/libtbb.dylib");
-            PublicAdditionalLibraries.Add(IntelTBBLibs + "Mac/libtbbmalloc.dylib");
-            RuntimeDependencies.Add("$(TargetOutputDir)/libembree.2.14.0.dylib", SDKDir + "lib/libembree.2.14.0.dylib");
-            RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.dylib", IntelTBBLibs + "Mac/libtbb.dylib");
-            RuntimeDependencies.Add("$(TargetOutputDir)/libtbbmalloc.dylib", IntelTBBLibs + "Mac/libtbbmalloc.dylib");
-            PublicDefinitions.Add("USE_EMBREE=1");
-        }
-		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")) // no support for arm64 yet
-		{
-            string IncludeDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/Linux/x86_64-unknown-linux-gnu";
-			string SDKDir = Path.Combine(IntelEmbreeLibs, "Linux/x86_64-unknown-linux-gnu/lib");
-
-            PublicIncludePaths.Add(Path.Combine(IncludeDir, "include"));
-            PublicAdditionalLibraries.Add(Path.Combine(SDKDir, "libembree.so"));
-            PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so"));
-			// disabled for Linux atm due to a bug in libtbbmalloc on exit
-            // PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Linux/libtbbmalloc.so"));
-            RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree.so"));
-            RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree.so.2"));
-			RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so"));
-			RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so.2"));
-			// disabled for Linux atm due to a bug in libtbbmalloc on exit
-            // RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "Linux/libtbbmalloc.so"));
-            PublicDefinitions.Add("USE_EMBREE=1");
-		}
-        else
-        {
-            PublicDefinitions.Add("USE_EMBREE=0");
-        }
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "Embree3");
 	}
 }

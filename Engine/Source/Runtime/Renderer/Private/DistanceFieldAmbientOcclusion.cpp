@@ -623,7 +623,6 @@ void ListDistanceFieldLightingMemory(const FViewInfo& View, FSceneRenderer& Scen
 		UE_LOG(LogRenderer, Log, TEXT("   Scene Object data %.3fMb"), Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->GetSizeBytes() / 1024.0f / 1024.0f);
 	}
 	
-	UE_LOG(LogRenderer, Log, TEXT("   %s"), *GDistanceFieldVolumeTextureAtlas.GetSizeString());
 	UE_LOG(LogRenderer, Log, TEXT(""));
 	UE_LOG(LogRenderer, Log, TEXT("Distance Field AO"));
 	
@@ -746,7 +745,6 @@ bool FDeferredShadingSceneRenderer::ShouldRenderDistanceFieldLighting() const
 		// ViewState is used to cache tile intersection resources which have to be sized based on the view
 		&& View.State
 		&& View.IsPerspectiveProjection()
-		&& GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI
 		&& Scene->DistanceFieldSceneData.NumObjectsInBuffer;
 }
 
@@ -779,7 +777,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 	if (bListMeshDistanceFieldsMemoryNextFrame)
 	{
 		bListMeshDistanceFieldsMemoryNextFrame = false;
-		GDistanceFieldVolumeTextureAtlas.ListMeshDistanceFields();
+		Scene->DistanceFieldSceneData.ListMeshDistanceFields(true);
 	}
 
 	FRDGTextureRef DistanceFieldNormal = nullptr;

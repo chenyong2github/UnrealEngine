@@ -28,152 +28,23 @@ class UTexture2D;
 
 template <class T> class TLockFreePointerListLIFO;
 
+// Change DDC key when modifying these (or any DF encoding logic)
 namespace DistanceField
 {
-	// One texel border for handling biliear filtering
-	constexpr int32 MeshDistanceFieldBorder = 1;
+	// One voxel border around object for handling gradient
+	constexpr int32 MeshDistanceFieldObjectBorder = 1;
+	constexpr int32 UniqueDataBrickSize = 7;
+	// Half voxel border around brick for trilinear filtering
+	constexpr int32 BrickSize = 8;
+	// Trade off between SDF memory and number of steps required to find intersection
+	constexpr int32 BandSizeInVoxels = 4;
+	constexpr int32 NumMips = 3;
+	constexpr uint32 InvalidBrickIndex = 0xFFFFFFFF;
+	constexpr EPixelFormat DistanceFieldFormat = PF_G8;
+
+	// Must match LoadDFAssetData
+	constexpr uint32 MaxIndirectionDimension = 1024;
 };
-
-/** Represents a distance field volume texture for a single UStaticMesh. */
-class ENGINE_API FDistanceFieldVolumeTexture
-{
-public:
-	FDistanceFieldVolumeTexture(class FDistanceFieldVolumeData& InVolumeData) :
-		VolumeData(InVolumeData),
-		AtlasAllocationMin(FIntVector(-1, -1, -1)),
-		SizeInAtlas(FIntVector::ZeroValue),
-		bReferencedByAtlas(false),
-		bThrottled(false),
-		StaticMesh(NULL)
-	{}
-
-	~FDistanceFieldVolumeTexture();
-
-	/** Called at load time on game thread */
-	void Initialize(UStaticMesh* InStaticMesh);
-
-	/** Called before unload on game thread */
-	void Release();
-
-	/** Discard CPU data */
-	void DiscardCPUData();
-
-	FIntVector GetAllocationMin() const
-	{
-		return AtlasAllocationMin;
-	}
-
-	FIntVector GetAllocationSizeInAtlas() const
-	{
-		return SizeInAtlas;
-	}
-
-	FIntVector GetAllocationSize() const;
-
-	int32 GetAllocationVolume() const
-	{
-		return GetAllocationSize().X * GetAllocationSize().Y * GetAllocationSize().Z;
-	}
-
-	bool IsValidDistanceFieldVolume() const;
-
-	bool Throttled() const
-	{
-		return bThrottled;
-	}
-
-	UStaticMesh* GetStaticMesh() const
-	{
-		return StaticMesh;
-	}
-
-private:
-	FDistanceFieldVolumeData& VolumeData;
-	FIntVector AtlasAllocationMin;
-	FIntVector SizeInAtlas;
-
-	bool bReferencedByAtlas : 1;
-	/** bThrottled prevents any objects using the texture from being uploaded to the scene buffer until upload of the texture to distance field atlas is complete */
-	bool bThrottled         : 1;
-	UStaticMesh* StaticMesh;
-
-	friend class FDistanceFieldVolumeTextureAtlas;
-};
-
-/** Global volume texture atlas that collects all static mesh resource distance fields. */
-class ENGINE_API FDistanceFieldVolumeTextureAtlas : public FRenderResource
-{
-public:
-	FDistanceFieldVolumeTextureAtlas();
-
-	void InitializeIfNeeded();
-
-	virtual void ReleaseRHI() override
-	{
-		VolumeTextureUAVRHI.SafeRelease();
-		VolumeTextureRHI.SafeRelease();
-	}
-
-	int32 GetSizeX() const { return VolumeTextureRHI->GetSizeX(); }
-	int32 GetSizeY() const { return VolumeTextureRHI->GetSizeY(); }
-	int32 GetSizeZ() const { return VolumeTextureRHI->GetSizeZ(); }
-
-	FString GetSizeString() const;
-
-	void ListMeshDistanceFields() const;
-
-	/** Add an allocation to the atlas. */
-	void AddAllocation(FDistanceFieldVolumeTexture* Texture);
-
-	/** Remove an allocation from the atlas. This must be done prior to deleting the FDistanceFieldVolumeTexture object. */
-	void RemoveAllocation(FDistanceFieldVolumeTexture* Texture);
-
-	/** Reallocates the volume texture if necessary and uploads new allocations. */
-	void UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type InFeatureLevel);
-
-	UE_DEPRECATED(5.0, "This method has been refactored to use an FRDGBuilder instead.")
-	void UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel);
-
-	int32 GetGeneration() const { return Generation; }
-
-	EPixelFormat Format;
-	FTexture3DRHIRef VolumeTextureRHI;
-	FUnorderedAccessViewRHIRef VolumeTextureUAVRHI;
-
-private:
-	/** Manages the atlas layout. */
-	FTextureLayout3d BlockAllocator;
-
-	/** Allocations that are waiting to be added until the next update. */
-	TArray<FDistanceFieldVolumeTexture*> PendingAllocations;
-
-	/** Allocations that have already been added, stored in case we need to realloc. */
-	TArray<FDistanceFieldVolumeTexture*> CurrentAllocations;
-
-	/** Allocations that have failed, stored in case they could fit next time a mesh is evicted from atlas. */
-	TArray<FDistanceFieldVolumeTexture*> FailedAllocations;
-		
-	/** Incremented when the atlas is reallocated, so dependencies know to update. */
-	int32 Generation;
-
-	bool bInitialized;
-
-	/** Number of pixel used in atlas distance field */
-	uint32 AllocatedPixels;
-	
-	/** Number of pixel that have failed to be allocated in atlas */
-	uint32 FailedAllocatedPixels;
-
-	/** Max position used in distance field */
-	uint32 MaxUsedAtlasX;
-	uint32 MaxUsedAtlasY;
-	uint32 MaxUsedAtlasZ;
-
-	/** Keep track of allocated raw CPU mesh DF data */
-	uint32 AllocatedCPUDataInBytes;
-};
-
-extern ENGINE_API TGlobalResource<FDistanceFieldVolumeTextureAtlas> GDistanceFieldVolumeTextureAtlas;
 
 class ENGINE_API FLandscapeTextureAtlas : public FRenderResource
 {
@@ -323,45 +194,87 @@ private:
 extern ENGINE_API TGlobalResource<FLandscapeTextureAtlas> GHeightFieldTextureAtlas;
 extern ENGINE_API TGlobalResource<FLandscapeTextureAtlas> GHFVisibilityTextureAtlas;
 
+class FSparseDistanceFieldMip
+{
+public:
+
+	FSparseDistanceFieldMip() :
+		IndirectionDimensions(FIntVector::ZeroValue),
+		NumDistanceFieldBricks(0),
+		VolumeToVirtualUVScale(FVector::ZeroVector),
+		VolumeToVirtualUVAdd(FVector::ZeroVector),
+		DistanceFieldToVolumeScaleBias(FVector2D::ZeroVector),
+		BulkOffset(0),
+		BulkSize(0)
+	{}
+
+	FIntVector IndirectionDimensions;
+	int32 NumDistanceFieldBricks;
+	FVector VolumeToVirtualUVScale;
+	FVector VolumeToVirtualUVAdd;
+	FVector2D DistanceFieldToVolumeScaleBias;
+	uint32 BulkOffset;
+	uint32 BulkSize;
+
+	friend FArchive& operator<<(FArchive& Ar,FSparseDistanceFieldMip& Mip)
+	{
+		Ar << Mip.IndirectionDimensions << Mip.NumDistanceFieldBricks << Mip.VolumeToVirtualUVScale << Mip.VolumeToVirtualUVAdd << Mip.DistanceFieldToVolumeScaleBias << Mip.BulkOffset << Mip.BulkSize;
+		return Ar;
+	}
+
+	SIZE_T GetResourceSizeBytes() const
+	{
+		FResourceSizeEx ResSize;
+		GetResourceSizeEx(ResSize);
+		return ResSize.GetTotalMemoryBytes();
+	}
+
+	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(sizeof(*this));
+	}
+};
+
 /** Distance field data payload and output of the mesh build process. */
 class ENGINE_API FDistanceFieldVolumeData : public FDeferredCleanupInterface
 {
 public:
 
-	/** 
-	 * FP16 Signed distance field volume stored in local space.  
-	 * This has to be kept around after the inital upload to GPU memory to support reallocs of the distance field atlas, so it is compressed.
-	 */
-	TArray<uint8> CompressedDistanceFieldVolume;
-
-	/** Dimensions of DistanceFieldVolume. */
-	FIntVector Size;
-
 	/** Local space bounding box of the distance field volume. */
-	FBox LocalBoundingBox;
+	FBox LocalSpaceMeshBounds;
 
-	FVector2D DistanceMinMax;
-
-	/** Whether the distance field was built assuming that every triangle is a frontface. */
-	bool bBuiltAsIfTwoSided;
+	/** Whether most of the triangles in the mesh used a two-sided material. */
+	bool bMostlyTwoSided;
 
 	bool bAsyncBuilding;
 
-	FDistanceFieldVolumeTexture VolumeTexture;
+	TStaticArray<FSparseDistanceFieldMip, DistanceField::NumMips> Mips;
+
+	// Lowest resolution mip is always loaded so we always have something
+	TArray<uint8> AlwaysLoadedMip;
+
+	// Remaining mips are streamed
+	FByteBulkData StreamableMips;
+
+	// For stats
+	FName AssetName;
 
 	FDistanceFieldVolumeData() :
-		Size(FIntVector(0, 0, 0)),
-		LocalBoundingBox(ForceInit),
-		DistanceMinMax(FVector2D(0, 0)),
-		bBuiltAsIfTwoSided(false),
-		bAsyncBuilding(false),
-		VolumeTexture(*this)
+		LocalSpaceMeshBounds(ForceInit),
+		bMostlyTwoSided(false),
+		bAsyncBuilding(false)
 	{}
 
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
 	{
 		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(sizeof(*this));
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(CompressedDistanceFieldVolume.GetAllocatedSize());
+		
+		for (const FSparseDistanceFieldMip& Mip : Mips)
+		{
+			Mip.GetResourceSizeEx(CumulativeResourceSize);
+		}
+
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(AlwaysLoadedMip.GetAllocatedSize());
 	}
 
 	SIZE_T GetResourceSizeBytes() const
@@ -373,16 +286,11 @@ public:
 
 #if WITH_EDITORONLY_DATA
 
-	void CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, class FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided);
+	void CacheDerivedData(const FString& InStaticMeshDerivedDataKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, class FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided);
 
 #endif
 
-	friend FArchive& operator<<(FArchive& Ar,FDistanceFieldVolumeData& Data)
-	{
-		// Note: this is derived data, no need for versioning (bump the DDC guid)
-		Ar << Data.CompressedDistanceFieldVolume << Data.Size << Data.LocalBoundingBox << Data.DistanceMinMax << Data.bBuiltAsIfTwoSided;
-		return Ar;
-	}
+	void Serialize(FArchive& Ar, UObject* Owner);
 };
 
 class FAsyncDistanceFieldTask;

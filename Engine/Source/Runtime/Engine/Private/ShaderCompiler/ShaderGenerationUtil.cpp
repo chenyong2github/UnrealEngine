@@ -81,7 +81,6 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderGlobalDefines& SrcDef
 	FETCH_COMPILE_BOOL(PROJECT_SUPPORT_SKY_ATMOSPHERE_AFFECTS_HEIGHFOG);
 	FETCH_COMPILE_BOOL(PROJECT_MOBILE_USE_LEGACY_SHADING);
 	FETCH_COMPILE_BOOL(POST_PROCESS_ALPHA);
-	FETCH_COMPILE_BOOL(EIGHT_BIT_MESH_DISTANCE_FIELDS);
 	FETCH_COMPILE_BOOL(PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK);
 	FETCH_COMPILE_BOOL(PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK);
 	FETCH_COMPILE_BOOL(PLATFORM_SUPPORTS_DISTANCE_FIELDS);
@@ -372,11 +371,6 @@ static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatf
 			PropagateAlpha = 0;
 		}
 		Ret.POST_PROCESS_ALPHA = PropagateAlpha != 0;
-	}
-
-	{
-		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFieldBuild.EightBit"));
-		Ret.EIGHT_BIT_MESH_DISTANCE_FIELDS = CVar ? (CVar->GetInt() != 0) : 0;
 	}
 
 	Ret.PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK = RHISupportsRenderTargetWriteMask(EShaderPlatform(TargetPlatform)) ? 1 : 0;

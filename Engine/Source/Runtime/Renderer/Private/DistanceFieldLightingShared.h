@@ -74,10 +74,23 @@ public:
 class FDistanceFieldObjectBuffers : public TDistanceFieldObjectBuffers<DFPT_SignedDistanceField> {};
 class FHeightFieldObjectBuffers : public TDistanceFieldObjectBuffers<DFPT_HeightField> {};
 
+BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldObjectBufferParameters, )
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
+	SHADER_PARAMETER(uint32, NumSceneObjects)
+END_SHADER_PARAMETER_STRUCT()
+
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldAtlasParameters, )
-	SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldTexture)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneDistanceFieldAssetData)
+	SHADER_PARAMETER_SRV(StructuredBuffer<uint>, DistanceFieldIndirectionTable)
+	SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldBrickTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldSampler)
-	SHADER_PARAMETER(FVector, DistanceFieldAtlasTexelSize)
+	SHADER_PARAMETER(FVector, DistanceFieldBrickSize)
+	SHADER_PARAMETER(FVector, DistanceFieldUniqueDataBrickSize)
+	SHADER_PARAMETER(FIntVector, DistanceFieldBrickAtlasSizeInBricks)
+	SHADER_PARAMETER(FIntVector, DistanceFieldBrickAtlasMask)
+	SHADER_PARAMETER(FIntVector, DistanceFieldBrickAtlasSizeLog2)
+	SHADER_PARAMETER(FVector, DistanceFieldBrickAtlasTexelSize)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FHeightFieldAtlasParameters, )
@@ -86,15 +99,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHeightFieldAtlasParameters, )
 	SHADER_PARAMETER(FVector2D, HeightFieldAtlasTexelSize)
 END_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldObjectBufferParameters, )
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
-	SHADER_PARAMETER(uint32, NumSceneObjects)
-END_SHADER_PARAMETER_STRUCT()
-
 namespace DistanceField
 {
-	void SetupObjectBufferParameters(const FDistanceFieldSceneData& DistanceFieldSceneData, FDistanceFieldObjectBufferParameters& ObjectBufferParameters);
+	FDistanceFieldObjectBufferParameters SetupObjectBufferParameters(const FDistanceFieldSceneData& DistanceFieldSceneData);
+	FDistanceFieldAtlasParameters SetupAtlasParameters(const FDistanceFieldSceneData& DistanceFieldSceneData);
 };
 
 template <EDistanceFieldPrimitiveType PrimitiveType>
@@ -107,9 +115,6 @@ public:
 		SceneObjectBounds.Bind(ParameterMap, TEXT("SceneObjectBounds"));
 		SceneObjectData.Bind(ParameterMap, TEXT("SceneObjectData"));
 		NumSceneObjects.Bind(ParameterMap, TEXT("NumSceneObjects"));
-		DistanceFieldTexture.Bind(ParameterMap, TEXT("DistanceFieldTexture"));
-		DistanceFieldSampler.Bind(ParameterMap, TEXT("DistanceFieldSampler"));
-		DistanceFieldAtlasTexelSize.Bind(ParameterMap, TEXT("DistanceFieldAtlasTexelSize"));
 	}
 
 	template<typename TParamRef>
@@ -118,10 +123,6 @@ public:
 		const TParamRef& ShaderRHI,
 		const TDistanceFieldObjectBuffers<PrimitiveType>& ObjectBuffers,
 		int32 NumObjectsValue,
-		FRHITexture* TextureAtlas,
-		int32 AtlasSizeX,
-		int32 AtlasSizeY,
-		int32 AtlasSizeZ,
 		bool bBarrier = false)
 	{
 		if (bBarrier)
@@ -135,20 +136,6 @@ public:
 		SceneObjectBounds.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffers.Bounds);
 		SceneObjectData.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffers.Data);
 		SetShaderValue(RHICmdList, ShaderRHI, NumSceneObjects, NumObjectsValue);
-
-		SetTextureParameter(
-			RHICmdList,
-			ShaderRHI,
-			DistanceFieldTexture,
-			DistanceFieldSampler,
-			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			TextureAtlas);
-
-		const int32 NumTexelsOneDimX = AtlasSizeX;
-		const int32 NumTexelsOneDimY = AtlasSizeY;
-		const int32 NumTexelsOneDimZ = AtlasSizeZ;
-		const FVector InvTextureDim(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
-		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldAtlasTexelSize, InvTextureDim);
 	}
 
 	template<typename TParamRef>
@@ -168,13 +155,13 @@ public:
 
 	friend FArchive& operator<<(FArchive& Ar, TDistanceFieldObjectBufferParameters& P)
 	{
-		Ar << P.SceneObjectBounds << P.SceneObjectData << P.NumSceneObjects << P.DistanceFieldTexture << P.DistanceFieldSampler << P.DistanceFieldAtlasTexelSize;
+		Ar << P.SceneObjectBounds << P.SceneObjectData << P.NumSceneObjects;
 		return Ar;
 	}
 
 	bool AnyBound() const
 	{
-		return SceneObjectBounds.IsBound() || SceneObjectData.IsBound() || NumSceneObjects.IsBound() || DistanceFieldTexture.IsBound() || DistanceFieldSampler.IsBound() || DistanceFieldAtlasTexelSize.IsBound();
+		return SceneObjectBounds.IsBound() || SceneObjectData.IsBound() || NumSceneObjects.IsBound();
 	}
 
 private:
@@ -182,9 +169,6 @@ private:
 	LAYOUT_FIELD(FRWShaderParameter, SceneObjectBounds)
 	LAYOUT_FIELD(FRWShaderParameter, SceneObjectData)
 	LAYOUT_FIELD(FShaderParameter, NumSceneObjects)
-	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldTexture)
-	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldSampler)
-	LAYOUT_FIELD(FShaderParameter, DistanceFieldAtlasTexelSize)
 };
 
 template <EDistanceFieldPrimitiveType PrimitiveType>
@@ -344,9 +328,16 @@ public:
 		CulledObjectData.Bind(ParameterMap, TEXT("CulledObjectData"));
 		CulledObjectBoxBounds.Bind(ParameterMap, TEXT("CulledObjectBoxBounds"));
 		HFVisibilityTexture.Bind(ParameterMap, TEXT("HFVisibilityTexture"));
-		DistanceFieldTexture.Bind(ParameterMap, TEXT("DistanceFieldTexture"));
+		SceneDistanceFieldAssetData.Bind(ParameterMap, TEXT("SceneDistanceFieldAssetData"));
+		DistanceFieldIndirectionTable.Bind(ParameterMap, TEXT("DistanceFieldIndirectionTable"));
+		DistanceFieldBrickTexture.Bind(ParameterMap, TEXT("DistanceFieldBrickTexture"));
 		DistanceFieldSampler.Bind(ParameterMap, TEXT("DistanceFieldSampler"));
-		DistanceFieldAtlasTexelSize.Bind(ParameterMap, TEXT("DistanceFieldAtlasTexelSize"));
+		DistanceFieldBrickSize.Bind(ParameterMap, TEXT("DistanceFieldBrickSize"));
+		DistanceFieldUniqueDataBrickSize.Bind(ParameterMap, TEXT("DistanceFieldUniqueDataBrickSize"));
+		DistanceFieldBrickAtlasSizeInBricks.Bind(ParameterMap, TEXT("DistanceFieldBrickAtlasSizeInBricks"));
+		DistanceFieldBrickAtlasMask.Bind(ParameterMap, TEXT("DistanceFieldBrickAtlasMask"));
+		DistanceFieldBrickAtlasSizeLog2.Bind(ParameterMap, TEXT("DistanceFieldBrickAtlasSizeLog2"));
+		DistanceFieldBrickAtlasTexelSize.Bind(ParameterMap, TEXT("DistanceFieldBrickAtlasTexelSize"));
 	}
 
 	template<typename TShaderRHI, typename TRHICommandList>
@@ -354,8 +345,7 @@ public:
 		TRHICommandList& RHICmdList,
 		TShaderRHI* ShaderRHI,
 		const TDistanceFieldCulledObjectBuffers<PrimitiveType>& ObjectBuffers,
-		FRHITexture* TextureAtlas,
-		const FIntVector& AtlasSizes,
+		const FDistanceFieldSceneData& DistanceFieldSceneData,
 		FRHITexture* HFVisibilityAtlas = nullptr)
 	{
 		ObjectIndirectArguments.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffers.ObjectIndirectArguments);
@@ -368,26 +358,32 @@ public:
 			CulledObjectBoxBounds.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffers.BoxBounds);
 		}
 
+		FDistanceFieldAtlasParameters AtlasParameters = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
+
+		SetSRVParameter(RHICmdList, ShaderRHI, SceneDistanceFieldAssetData, AtlasParameters.SceneDistanceFieldAssetData);
+		SetSRVParameter(RHICmdList, ShaderRHI, DistanceFieldIndirectionTable, AtlasParameters.DistanceFieldIndirectionTable);
+
 		SetTextureParameter(
 			RHICmdList,
 			ShaderRHI,
-			DistanceFieldTexture,
+			DistanceFieldBrickTexture,
 			DistanceFieldSampler,
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			TextureAtlas
+			DistanceFieldSceneData.DistanceFieldBrickVolumeTexture->GetRenderTargetItem().ShaderResourceTexture
 			);
+
+		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldBrickSize, AtlasParameters.DistanceFieldBrickSize);
+		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldUniqueDataBrickSize, AtlasParameters.DistanceFieldUniqueDataBrickSize);
+		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldBrickAtlasSizeInBricks, AtlasParameters.DistanceFieldBrickAtlasSizeInBricks);
+		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldBrickAtlasMask, AtlasParameters.DistanceFieldBrickAtlasMask);
+		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldBrickAtlasSizeLog2, AtlasParameters.DistanceFieldBrickAtlasSizeLog2);
+		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldBrickAtlasTexelSize, AtlasParameters.DistanceFieldBrickAtlasTexelSize);
 
 		if (HFVisibilityTexture.IsBound())
 		{
 			check(HFVisibilityAtlas);
 			SetTextureParameter(RHICmdList, ShaderRHI, HFVisibilityTexture, HFVisibilityAtlas);
 		}
-
-		const int32 NumTexelsOneDimX = AtlasSizes.X;
-		const int32 NumTexelsOneDimY = AtlasSizes.Y;
-		const int32 NumTexelsOneDimZ = AtlasSizes.Z;
-		const FVector InvTextureDim(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
-		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldAtlasTexelSize, InvTextureDim);
 	}
 
 	template<typename TRHIShader, typename TRHICommandList>
@@ -439,9 +435,16 @@ public:
 		Ar << P.CulledObjectData;
 		Ar << P.CulledObjectBoxBounds;
 		Ar << P.HFVisibilityTexture;
-		Ar << P.DistanceFieldTexture;
+		Ar << P.SceneDistanceFieldAssetData;
+		Ar << P.DistanceFieldIndirectionTable;
+		Ar << P.DistanceFieldBrickTexture;
 		Ar << P.DistanceFieldSampler;
-		Ar << P.DistanceFieldAtlasTexelSize;
+		Ar << P.DistanceFieldBrickSize;
+		Ar << P.DistanceFieldUniqueDataBrickSize;
+		Ar << P.DistanceFieldBrickAtlasSizeInBricks;
+		Ar << P.DistanceFieldBrickAtlasMask;
+		Ar << P.DistanceFieldBrickAtlasSizeLog2;
+		Ar << P.DistanceFieldBrickAtlasTexelSize;
 		return Ar;
 	}
 
@@ -452,9 +455,16 @@ private:
 	LAYOUT_FIELD(FRWShaderParameter, CulledObjectData)
 	LAYOUT_FIELD(FRWShaderParameter, CulledObjectBoxBounds)
 	LAYOUT_FIELD(FShaderResourceParameter, HFVisibilityTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, SceneDistanceFieldAssetData)
+	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldIndirectionTable)
+	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldBrickTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldSampler)
-	LAYOUT_FIELD(FShaderParameter, DistanceFieldAtlasTexelSize)
+	LAYOUT_FIELD(FShaderParameter, DistanceFieldBrickSize);
+	LAYOUT_FIELD(FShaderParameter, DistanceFieldUniqueDataBrickSize);
+	LAYOUT_FIELD(FShaderParameter, DistanceFieldBrickAtlasSizeInBricks);
+	LAYOUT_FIELD(FShaderParameter, DistanceFieldBrickAtlasMask);
+	LAYOUT_FIELD(FShaderParameter, DistanceFieldBrickAtlasSizeLog2);
+	LAYOUT_FIELD(FShaderParameter, DistanceFieldBrickAtlasTexelSize);
 };
 
 class FCPUUpdatedBuffer

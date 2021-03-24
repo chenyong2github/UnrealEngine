@@ -630,7 +630,7 @@ void ComposeObjectsIntoPagesCS(
 		{
 			uint ObjectIndex = SharedCulledObjectList[ListObjectIndex];
 
-			float DistanceToOccluder = DistanceToNearestSurfaceForObject(ObjectIndex, VoxelWorldCenter, InfluenceRadius);
+			float DistanceToOccluder = DistanceToNearestSurfaceForObject(ObjectIndex, VoxelWorldCenter, min(InfluenceRadius, MinDistance));
 			MinDistance = min(MinDistance, DistanceToOccluder);
 		}
 	}

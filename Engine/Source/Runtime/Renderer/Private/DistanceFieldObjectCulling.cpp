@@ -148,18 +148,8 @@ public:
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		FRHITexture* TextureAtlas;
-		int32 AtlasSizeX;
-		int32 AtlasSizeY;
-		int32 AtlasSizeZ;
-
-		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-
-		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()), Scene->DistanceFieldSceneData.NumObjectsInBuffer, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
-		CulledObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
+		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()), Scene->DistanceFieldSceneData.NumObjectsInBuffer);
+		CulledObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, Scene->DistanceFieldSceneData);
 
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 
@@ -338,22 +328,12 @@ public:
 
 	FObjectCullVS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FDistanceFieldAOParameters& Parameters)
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FDistanceFieldSceneData& DistanceFieldSceneData, const FDistanceFieldAOParameters& Parameters)
 	{
 		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		
-		FRHITexture* TextureAtlas;
-		int32 AtlasSizeX;
-		int32 AtlasSizeY;
-		int32 AtlasSizeZ;
-
-		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, DistanceFieldSceneData);
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 
 		const int32 NumRings = StencilingGeometry::GLowPolyStencilSphereVertexBuffer.GetNumRings();
@@ -408,22 +388,12 @@ public:
 		NumGroups.Bind(Initializer.ParameterMap, TEXT("NumGroups"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, FVector2D NumGroupsValue, const FDistanceFieldAOParameters& Parameters)
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FDistanceFieldSceneData& DistanceFieldSceneData, FVector2D NumGroupsValue, const FDistanceFieldAOParameters& Parameters)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		FRHITexture* TextureAtlas;
-		int32 AtlasSizeX;
-		int32 AtlasSizeY;
-		int32 AtlasSizeZ;
-
-		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, DistanceFieldSceneData);
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 
 		FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
@@ -485,23 +455,13 @@ public:
 	FComputeCulledTilesStartOffsetCS()
 	{
 	}
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FDistanceFieldSceneData& DistanceFieldSceneData)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		FRHITexture* TextureAtlas;
-		int32 AtlasSizeX;
-		int32 AtlasSizeY;
-		int32 AtlasSizeZ;
-
-		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, DistanceFieldSceneData);
 
 		FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 		
@@ -539,7 +499,7 @@ private:
 IMPLEMENT_SHADER_TYPE(,FComputeCulledTilesStartOffsetCS,TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"),TEXT("ComputeCulledTilesStartOffsetCS"),SF_Compute);
 
 template<bool bCountingPass>
-void ScatterTilesToObjects(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FIntPoint TileListGroupSize, const FDistanceFieldAOParameters& Parameters)
+void ScatterTilesToObjects(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FDistanceFieldSceneData& DistanceFieldSceneData, FIntPoint TileListGroupSize, const FDistanceFieldAOParameters& Parameters)
 {
 	TShaderMapRef<FObjectCullVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<TObjectCullPS<bCountingPass>> PixelShader(View.ShaderMap);
@@ -588,8 +548,8 @@ void ScatterTilesToObjects(FRHICommandListImmediate& RHICmdList, const FViewInfo
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-		VertexShader->SetParameters(RHICmdList, View, Parameters);
-		PixelShader->SetParameters(RHICmdList, View, FVector2D(TileListGroupSize.X, TileListGroupSize.Y), Parameters);
+		VertexShader->SetParameters(RHICmdList, View, DistanceFieldSceneData, Parameters);
+		PixelShader->SetParameters(RHICmdList, View, DistanceFieldSceneData, FVector2D(TileListGroupSize.X, TileListGroupSize.Y), Parameters);
 
 		RHICmdList.SetStreamSource(0, StencilingGeometry::GLowPolyStencilSphereVertexBuffer.VertexBufferRHI, 0);
 
@@ -680,7 +640,7 @@ void BuildTileObjectLists(FRDGBuilder& GraphBuilder, FScene* Scene, TArray<FView
 					RHICmdList.ClearUAVUint(TileIntersectionResources->NumCulledTilesArray.UAV, FUintVector4(0, 0, 0, 0));
 
 					// Rasterize object bounding shapes and intersect with screen tiles to compute how many tiles intersect each object
-					ScatterTilesToObjects<true>(RHICmdList, View, TileListGroupSize, Parameters);
+					ScatterTilesToObjects<true>(RHICmdList, View, Scene->DistanceFieldSceneData, TileListGroupSize, Parameters);
 				}
 
 				{
@@ -695,7 +655,7 @@ void BuildTileObjectLists(FRDGBuilder& GraphBuilder, FScene* Scene, TArray<FView
 					// Must write to RWObjectTilesIndirectArguments
 					check(GroupSize != 0);
 					RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-					ComputeShader->SetParameters(RHICmdList, View);
+					ComputeShader->SetParameters(RHICmdList, View, Scene->DistanceFieldSceneData);
 					DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSize, 1, 1);
 
 					ComputeShader->UnsetParameters(RHICmdList, View);
@@ -709,7 +669,7 @@ void BuildTileObjectLists(FRDGBuilder& GraphBuilder, FScene* Scene, TArray<FView
 					RHICmdList.ClearUAVUint(TileIntersectionResources->NumCulledTilesArray.UAV, FUintVector4(0, 0, 0, 0));
 
 					// Rasterize object bounding shapes and intersect with screen tiles, and write out intersecting tile indices for the cone tracing pass
-					ScatterTilesToObjects<false>(RHICmdList, View, TileListGroupSize, Parameters);
+					ScatterTilesToObjects<false>(RHICmdList, View, Scene->DistanceFieldSceneData, TileListGroupSize, Parameters);
 				}
 			}
 			else

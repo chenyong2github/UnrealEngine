@@ -14,6 +14,8 @@
 #include "LumenCardCommon.ush"
 // 16 bit render target accumulation
 #define DEPTH_WEIGHTED_OIT_32_BIT 0
+// Faster to always trace highest resolution mip for short voxelization traces, there's rarely empty space to skip
+#define SDF_TRACING_TRAVERSE_MIPS 0
 #include "LumenTracingCommon.ush"
 
 #ifndef THREADGROUP_SIZE

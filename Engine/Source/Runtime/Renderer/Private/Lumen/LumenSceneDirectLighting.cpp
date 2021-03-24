@@ -455,8 +455,7 @@ void RenderDirectLightIntoLumenCards(
 
 	const bool bDynamicallyShadowed = ShadowSetup.DenseShadowMap != nullptr;
 
-	FDistanceFieldObjectBufferParameters ObjectBufferParameters;
-	DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData, ObjectBufferParameters);
+	FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
 
 	FLightTileIntersectionParameters LightTileIntersectionParameters;
 	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
@@ -547,10 +546,7 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->PS.CulledObjectBufferParameters = CulledObjectBufferParameters;
 		PassParameters->PS.LightTileIntersectionParameters = LightTileIntersectionParameters;
 
-		FDistanceFieldAtlasParameters DistanceFieldAtlasParameters;
-		DistanceFieldAtlasParameters.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		DistanceFieldAtlasParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
-		DistanceFieldAtlasParameters.DistanceFieldAtlasTexelSize = FVector(1.0f / GDistanceFieldVolumeTextureAtlas.GetSizeX(), 1.0f / GDistanceFieldVolumeTextureAtlas.GetSizeY(), 1.0f / GDistanceFieldVolumeTextureAtlas.GetSizeZ());
+		FDistanceFieldAtlasParameters DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(Scene->DistanceFieldSceneData);
 
 		PassParameters->PS.DistanceFieldAtlasParameters = DistanceFieldAtlasParameters;
 		PassParameters->PS.WorldToShadow = WorldToMeshSDFShadowValue;

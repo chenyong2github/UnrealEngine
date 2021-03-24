@@ -309,9 +309,7 @@ class FCullToVoxelClipmapCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWObjectIndexBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWTraceSetupIndirectArgBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
-		SHADER_PARAMETER(uint32, NumSceneObjects)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
 		SHADER_PARAMETER(FVector, VoxelClipmapWorldCenter)
 		SHADER_PARAMETER(FVector, VoxelClipmapWorldExtent)
 		SHADER_PARAMETER(float, MeshSDFRadiusThreshold)
@@ -348,8 +346,7 @@ class FSetupVoxelTracesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, UpdateTileMaskTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ObjectIndexBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ObjectIndexNumBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
 		SHADER_PARAMETER(FVector, ConservativeRasterizationExtent)
 		SHADER_PARAMETER(FIntVector, UpdateGridResolution)
 		SHADER_PARAMETER(FVector, ClipmapToUpdateGridScale)
@@ -390,11 +387,8 @@ class FVoxelTraceCS : public FGlobalShader
 		SHADER_PARAMETER(FVector, GridVoxelSize)
 		SHADER_PARAMETER(FIntVector, ClipmapGridResolution)
 		SHADER_PARAMETER(FIntVector, OutputGridResolution)
-		SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldTexture)
-		SHADER_PARAMETER(FVector, DistanceFieldAtlasTexelSize)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
-		SHADER_PARAMETER(uint32, NumSceneObjects)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 		SHADER_PARAMETER(FIntVector, CullGridResolution)
 		SHADER_PARAMETER(FVector, VoxelCoordToUVScale)
 		SHADER_PARAMETER(FVector, VoxelCoordToUVBias)
@@ -554,19 +548,9 @@ void VoxelizeVisBuffer(
 
 	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
-	const int32 NumTexelsOneDimX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-	const int32 NumTexelsOneDimY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-	const int32 NumTexelsOneDimZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-	const FVector DistanceFieldAtlasTexelSize(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
-
 	FLumenMeshSDFTracingParameters MeshSDFTracingParameters;
-	FMemory::Memzero(MeshSDFTracingParameters);
-	MeshSDFTracingParameters.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-	MeshSDFTracingParameters.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-	MeshSDFTracingParameters.NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
-	MeshSDFTracingParameters.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-	MeshSDFTracingParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	MeshSDFTracingParameters.DistanceFieldAtlasTexelSize = DistanceFieldAtlasTexelSize;
+	MeshSDFTracingParameters.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+	MeshSDFTracingParameters.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 
 	// Vis buffer shading
 	for (int32 ClipmapIndex : ClipmapsToUpdate)
@@ -1015,9 +999,7 @@ void UpdateVoxelVisBuffer(
 				FCullToVoxelClipmapCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullToVoxelClipmapCS::FParameters>();
 				PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(ObjectIndexBuffer, PF_R32_UINT);
 				PassParameters->RWTraceSetupIndirectArgBuffer = GraphBuilder.CreateUAV(TraceSetupIndirectArgBuffer, PF_R32_UINT);
-				PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-				PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-				PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+				PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
 				PassParameters->VoxelClipmapWorldCenter = Clipmap.Center;
 				PassParameters->VoxelClipmapWorldExtent = Clipmap.Extent;
 				PassParameters->MeshSDFRadiusThreshold = Clipmap.MeshSDFRadiusThreshold;
@@ -1044,8 +1026,7 @@ void UpdateVoxelVisBuffer(
 				PassParameters->UpdateTileMaskTexture = UpdateTileMaskTexture;
 				PassParameters->ObjectIndexBuffer = GraphBuilder.CreateSRV(ObjectIndexBuffer, PF_R32_UINT);
 				PassParameters->TraceSetupIndirectArgBuffer = TraceSetupIndirectArgBuffer;
-				PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-				PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+				PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
 				PassParameters->UpdateGridResolution = UpdateGridResolution;
 				PassParameters->ClipmapToUpdateGridScale = FVector(1.0f) / (2.0f * UpdateTileWorldExtent);
 				PassParameters->ClipmapToUpdateGridBias = -(Clipmap.Center - Clipmap.Extent) / (2.0f * UpdateTileWorldExtent) + 0.5f;
@@ -1064,23 +1045,15 @@ void UpdateVoxelVisBuffer(
 
 			// Voxel tracing
 			{
-				const int32 NumTexelsOneDimX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-				const int32 NumTexelsOneDimY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-				const int32 NumTexelsOneDimZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-				const FVector DistanceFieldAtlasTexelSize(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
-
 				FVoxelTraceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelTraceCS::FParameters>();
 				PassParameters->RWVoxelVisBuffer = GraphBuilder.CreateUAV(VoxelVisBuffer);
 				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
 				PassParameters->TraceIndirectArgBuffer = TraceIndirectArgBuffer;
 				PassParameters->VoxelTraceData = GraphBuilder.CreateSRV(VoxelTraceData, PF_R32_UINT);
+				PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+				PassParameters->DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 				PassParameters->ClipmapIndex = ClipmapIndex;
 				PassParameters->ClipmapGridResolution = ClipmapResolution;
-				PassParameters->DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-				PassParameters->DistanceFieldAtlasTexelSize = DistanceFieldAtlasTexelSize;
-				PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-				PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-				PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
 				PassParameters->GridMin = Clipmap.Center - Clipmap.Extent;
 				PassParameters->GridVoxelSize = Clipmap.VoxelSize;
 				PassParameters->CullGridResolution = UpdateGridResolution;

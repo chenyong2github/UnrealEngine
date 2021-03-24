@@ -249,6 +249,7 @@ public:
 		LightDirectionData.Bind(Initializer.ParameterMap, TEXT("LightDirectionData"));
 		IndirectCapsuleSelfShadowingIntensity.Bind(Initializer.ParameterMap, TEXT("IndirectCapsuleSelfShadowingIntensity"));
 		DistanceFieldObjectParameters.Bind(Initializer.ParameterMap);
+		DistanceFieldCulledObjectParameters.Bind(Initializer.ParameterMap);
 	}
 
 	void SetParameters(
@@ -361,25 +362,18 @@ public:
 
 		if (Scene->DistanceFieldSceneData.GetCurrentObjectBuffers())
 		{
-			FRHITexture* TextureAtlas;
-			int32 AtlasSizeX;
-			int32 AtlasSizeY;
-			int32 AtlasSizeZ;
-
-			TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-			AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-			AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-			AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-
 			DistanceFieldObjectParameters.Set(
 				RHICmdList,
 				ShaderRHI,
 				*Scene->DistanceFieldSceneData.GetCurrentObjectBuffers(),
-				Scene->DistanceFieldSceneData.NumObjectsInBuffer,
-				TextureAtlas,
-				AtlasSizeX,
-				AtlasSizeY,
-				AtlasSizeZ);
+				Scene->DistanceFieldSceneData.NumObjectsInBuffer);
+
+			TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField> Dummy;
+			DistanceFieldCulledObjectParameters.Set(
+				RHICmdList,
+				ShaderRHI,
+				Dummy,
+				Scene->DistanceFieldSceneData);
 		}
 		else
 		{
@@ -423,6 +417,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, LightDirectionData);
 	LAYOUT_FIELD(FShaderParameter, IndirectCapsuleSelfShadowingIntensity);
 	LAYOUT_FIELD((TDistanceFieldObjectBufferParameters<DFPT_SignedDistanceField>), DistanceFieldObjectParameters);
+	LAYOUT_FIELD((TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField>), DistanceFieldCulledObjectParameters);
 };
 
 template<ECapsuleShadowingType ShadowingType, EIndirectShadowingPrimitiveTypes PrimitiveTypes>

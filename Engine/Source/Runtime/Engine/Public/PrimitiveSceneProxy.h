@@ -298,15 +298,10 @@ public:
 		bShadowMapped = false;
 	}
 
-	virtual void GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, float& SelfShadowBias, bool& bOutThrottled) const
+	virtual void GetDistancefieldAtlasData(const class FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const
 	{
-		LocalVolumeBounds = FBox(ForceInit);
-		OutDistanceMinMax = FVector2D(0, 0);
-		OutBlockMin = FIntVector(-1, -1, -1);
-		OutBlockSize = FIntVector(0, 0, 0);
-		bOutBuiltAsIfTwoSided = false;
+		OutDistanceFieldData = nullptr;
 		SelfShadowBias = 0;
-		bOutThrottled = false;
 	}
 
 	virtual void GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const

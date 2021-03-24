@@ -238,19 +238,6 @@ const int32 GGlobalDistanceFieldPageAtlasSizeInPagesX = 32;
 const int32 GGlobalDistanceFieldPageAtlasSizeInPagesY = 32;
 const int32 GGlobalDistanceFieldInfluenceRangeInVoxels = 4;
 
-namespace GlobalDistanceField
-{
-	int32 GetClipmapResolution(bool bLumenEnabled);
-	int32 GetMipFactor();
-	int32 GetClipmapMipResolution(bool bLumenEnabled);
-	float GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene, bool bLumenEnabled);
-	FIntVector GetPageAtlasSizeInPages(bool bLumenEnabled);
-	FIntVector GetPageAtlasSize(bool bLumenEnabled);
-	uint32 GetPageTableClipmapResolution(bool bLumenEnabled);
-	FIntVector GetPageTableTextureResolution(bool bLumenEnabled);
-	int32 GetMaxPageNum(bool bLumenEnabled);
-};
-
 int32 GlobalDistanceField::GetClipmapResolution(bool bLumenEnabled)
 {
 	int32 DFResolution = GAOGlobalDFResolution;
@@ -1118,9 +1105,7 @@ class FCullObjectsToClipmapCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWObjectIndexBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWObjectIndexNumBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
-		SHADER_PARAMETER(uint32, NumSceneObjects)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
 		SHADER_PARAMETER(FVector, ClipmapWorldCenter)
 		SHADER_PARAMETER(FVector, ClipmapWorldExtent)
 		SHADER_PARAMETER(uint32, AcceptOftenMovingObjectsOnly)
@@ -1226,8 +1211,7 @@ class FCullObjectsToGridCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CullGridTileBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ObjectIndexBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ObjectIndexNumBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
 		SHADER_PARAMETER(FIntVector, CullGridResolution)
 		SHADER_PARAMETER(FVector, CullGridCoordToWorldCenterScale)
 		SHADER_PARAMETER(FVector, CullGridCoordToWorldCenterBias)
@@ -1259,16 +1243,14 @@ class FComposeObjectsIntoPagesCS : public FGlobalShader
 		RDG_BUFFER_ACCESS(ComposeIndirectArgBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ComposeTileBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, HeightfieldMarkedPageBuffer)
-		SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, PageTableLayerTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, ParentPageTableLayerTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CullGridObjectHeader)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CullGridObjectArray)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ObjectIndexNumBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ObjectIndexBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 		SHADER_PARAMETER(float, ClipmapVoxelExtent)
 		SHADER_PARAMETER(float, InfluenceRadius)
 		SHADER_PARAMETER(float, InfluenceRadiusSq)
@@ -1376,11 +1358,8 @@ class FAllocatePagesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CullGridObjectHeader)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CullGridObjectArray)
 		SHADER_PARAMETER(FIntVector, CullGridResolution)
-		SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldSampler)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
-		SHADER_PARAMETER(uint32, NumSceneObjects)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FMarkedHeightfieldPageBuffer : SHADER_PERMUTATION_BOOL("MARKED_HEIGHTFIELD_PAGE_BUFFER");
@@ -1829,9 +1808,7 @@ void UpdateGlobalDistanceFieldVolume(
 							FCullObjectsToClipmapCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullObjectsToClipmapCS::FParameters>();
 							PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(ObjectIndexBuffer, PF_R32_UINT);
 							PassParameters->RWObjectIndexNumBuffer = GraphBuilder.CreateUAV(ObjectIndexNumBuffer, PF_R32_UINT);
-							PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-							PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-							PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+							PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
 							PassParameters->ClipmapWorldCenter = Clipmap.Bounds.GetCenter();
 							PassParameters->ClipmapWorldExtent = Clipmap.Bounds.GetExtent();
 							PassParameters->AcceptOftenMovingObjectsOnly = AcceptOftenMovingObjectsOnlyValue;
@@ -2018,6 +1995,9 @@ void UpdateGlobalDistanceFieldVolume(
 						FRDGBufferRef CullGridObjectHeader = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2 * PageGridSize), TEXT("CullGridObjectHeader"));
 						FRDGBufferRef CullGridObjectArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PageGridSize * AverageCulledObjectsPerPage), TEXT("CullGridObjectArray"));
 
+						FDistanceFieldObjectBufferParameters DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+						FDistanceFieldAtlasParameters DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
+
 						// Cull objects into a cull grid
 						{
 							AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CullGridAllocator, PF_R32_UINT), 0);
@@ -2031,8 +2011,7 @@ void UpdateGlobalDistanceFieldVolume(
 							PassParameters->CullGridTileBuffer = GraphBuilder.CreateSRV(PageUpdateTileBuffer, PF_R32_UINT);
 							PassParameters->ObjectIndexBuffer = GraphBuilder.CreateSRV(ObjectIndexBuffer, PF_R32_UINT);
 							PassParameters->ObjectIndexNumBuffer = GraphBuilder.CreateSRV(ObjectIndexNumBuffer, PF_R32_UINT);
-							PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-							PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+							PassParameters->DistanceFieldObjectBuffers = DistanceFieldObjectBuffers;
 							PassParameters->CullGridResolution = PageGridResolution;
 							PassParameters->CullGridCoordToWorldCenterScale = PageGridCoordToWorldCenterScale;
 							PassParameters->CullGridCoordToWorldCenterBias = PageGridCoordToWorldCenterBias;
@@ -2090,11 +2069,8 @@ void UpdateGlobalDistanceFieldVolume(
 								PassParameters->CullGridObjectArray = GraphBuilder.CreateSRV(CullGridObjectArray, PF_R32_UINT);
 								PassParameters->CullGridResolution = PageGridResolution;
 
-								PassParameters->DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-								PassParameters->DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-								PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-								PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-								PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+								PassParameters->DistanceFieldObjectBuffers = DistanceFieldObjectBuffers;
+								PassParameters->DistanceFieldAtlas = DistanceFieldAtlas;
 
 								FAllocatePagesCS::FPermutationDomain PermutationVector;
 								PermutationVector.Set<FAllocatePagesCS::FMarkedHeightfieldPageBuffer>(MarkedHeightfieldPageBuffer != nullptr);
@@ -2166,15 +2142,12 @@ void UpdateGlobalDistanceFieldVolume(
 							PassParameters->ComposeTileBuffer = GraphBuilder.CreateSRV(PageComposeTileBuffer, PF_R32_UINT);
 							PassParameters->PageTableLayerTexture = PageTableLayerTexture;
 							PassParameters->ParentPageTableLayerTexture = ParentPageTableLayerTexture;
-							PassParameters->DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-							PassParameters->DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 							PassParameters->CullGridObjectHeader = GraphBuilder.CreateSRV(CullGridObjectHeader, PF_R32_UINT);
 							PassParameters->CullGridObjectArray = GraphBuilder.CreateSRV(CullGridObjectArray, PF_R32_UINT);
 							PassParameters->ObjectIndexBuffer = GraphBuilder.CreateSRV(ObjectIndexBuffer, PF_R32_UINT);
 							PassParameters->ObjectIndexNumBuffer = GraphBuilder.CreateSRV(ObjectIndexNumBuffer, PF_R32_UINT);
-							PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-							PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-							PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+							PassParameters->DistanceFieldObjectBuffers = DistanceFieldObjectBuffers;
+							PassParameters->DistanceFieldAtlas = DistanceFieldAtlas;
 							PassParameters->InfluenceRadius = ClipmapInfluenceRadius;
 							PassParameters->InfluenceRadiusSq = ClipmapInfluenceRadius * ClipmapInfluenceRadius;
 							PassParameters->ClipmapVoxelExtent = ClipmapVoxelExtent.X;

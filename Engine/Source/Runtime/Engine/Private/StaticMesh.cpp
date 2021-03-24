@@ -91,7 +91,6 @@ DECLARE_MEMORY_STAT( TEXT( "StaticMesh Total Memory" ), STAT_StaticMeshTotalMemo
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh Vertex Memory" ), STAT_StaticMeshVertexMemory, STATGROUP_MemoryStaticMesh );
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh VxColor Resource Mem" ), STAT_ResourceVertexColorMemory, STATGROUP_MemoryStaticMesh );
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh Index Memory" ), STAT_StaticMeshIndexMemory, STATGROUP_MemoryStaticMesh );
-DECLARE_MEMORY_STAT( TEXT( "StaticMesh Distance Field Memory" ), STAT_StaticMeshDistanceFieldMemory, STATGROUP_MemoryStaticMesh );
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh Occluder Memory" ), STAT_StaticMeshOccluderMemory, STATGROUP_MemoryStaticMesh );
 
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh Total Memory" ), STAT_StaticMeshTotalMemory, STATGROUP_Memory );
@@ -1306,12 +1305,6 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 	}
 #endif // RHI_RAYTRACING
 
-	if (DistanceFieldData)
-	{
-		DistanceFieldData->VolumeTexture.Initialize(Parent);
-		INC_DWORD_STAT_BY( STAT_StaticMeshDistanceFieldMemory, DistanceFieldData->GetResourceSizeBytes() );
-	}
-
 #if STATS
 	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
 		[this](FRHICommandListImmediate&)
@@ -1359,12 +1352,6 @@ void FStaticMeshLODResources::ReleaseResources()
 		*Ptr = FRayTracingGeometry(); // Explicitly reset all contents, including any resource references.
 	});
 #endif // RHI_RAYTRACING
-
-	if (DistanceFieldData)
-	{
-		DEC_DWORD_STAT_BY( STAT_StaticMeshDistanceFieldMemory, DistanceFieldData->GetResourceSizeBytes() );
-		DistanceFieldData->VolumeTexture.Release();
-	}
 }
 
 void FStaticMeshLODResources::IncrementMemoryStats()
@@ -1641,16 +1628,12 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 
 						if (Divider > 1)
 						{
-							FDistanceFieldVolumeData DownSampledDFVolumeData = *LOD.DistanceFieldData;
-							IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
-
-							MeshUtilities.DownSampleDistanceFieldVolumeData(DownSampledDFVolumeData, Divider);
-
-							Ar << DownSampledDFVolumeData;
+							//@todo - strip mips
+							LOD.DistanceFieldData->Serialize(Ar, Owner);
 						}
 						else
 						{
-							Ar << *(LOD.DistanceFieldData);
+							LOD.DistanceFieldData->Serialize(Ar, Owner);
 						}
 					}
 					else
@@ -1659,9 +1642,10 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 						if (LOD.DistanceFieldData == nullptr)
 						{
 							LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+							LOD.DistanceFieldData->AssetName = Owner->GetFName();
 						}
 
-						Ar << *(LOD.DistanceFieldData);
+						LOD.DistanceFieldData->Serialize(Ar, Owner);
 					}
 				}
 			}
@@ -1721,12 +1705,6 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 			LODResources[LODIndex].InitResources(Owner);
 			LODVertexFactories[LODIndex].InitResources(LODResources[LODIndex], LODIndex, Owner);
 		}
-		else if (!LODIndex && LODResources[LODIndex].DistanceFieldData)
-		{
-			FDistanceFieldVolumeData* DistanceFieldData = LODResources[LODIndex].DistanceFieldData;
-			DistanceFieldData->VolumeTexture.Initialize(Owner);
-			INC_DWORD_STAT_BY(STAT_StaticMeshDistanceFieldMemory, DistanceFieldData->GetResourceSizeBytes());
-		}
 	}
 
 #if RHI_RAYTRACING
@@ -1768,12 +1746,6 @@ void FStaticMeshRenderData::ReleaseResources()
 		{
 			LODResources[LODIndex].ReleaseResources();
 			LODVertexFactories[LODIndex].ReleaseResources();
-		}
-		else if (!LODIndex && LODResources[LODIndex].DistanceFieldData)
-		{
-			FDistanceFieldVolumeData* DistanceFieldData = LODResources[LODIndex].DistanceFieldData;
-			DEC_DWORD_STAT_BY(STAT_StaticMeshDistanceFieldMemory, DistanceFieldData->GetResourceSizeBytes());
-			DistanceFieldData->VolumeTexture.Release();
 		}
 	}
 
@@ -2791,12 +2763,12 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 
 	if (CVar->GetValueOnAnyThread(true) != 0 || Owner->bGenerateMeshDistanceField)
 	{
-		FString DistanceFieldKey = BuildDistanceFieldDerivedDataKey(DerivedDataKey);
 		if (LODResources.IsValidIndex(0))
 		{
 			if (!LODResources[0].DistanceFieldData)
 			{
 				LODResources[0].DistanceFieldData = new FDistanceFieldVolumeData();
+				LODResources[0].DistanceFieldData->AssetName = Owner->GetFName();
 			}
 
 			const FMeshBuildSettings& BuildSettings = Owner->GetSourceModel(0).BuildSettings;
@@ -2808,7 +2780,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 				BuildSettings.DistanceFieldReplacementMesh->ConditionalPostLoad();
 			}
 
-			LODResources[0].DistanceFieldData->CacheDerivedData(DistanceFieldKey, TargetPlatform, Owner, *this, MeshToGenerateFrom, BuildSettings.DistanceFieldResolutionScale, BuildSettings.bGenerateDistanceFieldAsIfTwoSided);
+			LODResources[0].DistanceFieldData->CacheDerivedData(DerivedDataKey, TargetPlatform, Owner, *this, MeshToGenerateFrom, BuildSettings.DistanceFieldResolutionScale, BuildSettings.bGenerateDistanceFieldAsIfTwoSided);
 		}
 		else
 		{
@@ -4630,17 +4602,6 @@ void UStaticMesh::CacheDerivedData()
 				GCardRepresentationAsyncQueue->CancelBuild(this);
 			}
 		}
-
-		for (int32 LODIndex = 0; LODIndex < GetRenderData()->LODResources.Num(); ++LODIndex)
-		{
-			FDistanceFieldVolumeData* DistanceFieldData = GetRenderData()->LODResources[LODIndex].DistanceFieldData;
-
-			if (DistanceFieldData)
-			{
-				// Release before destroying RenderData
-				DistanceFieldData->VolumeTexture.Release();
-			}
-		}
 	}
 
 	SetRenderData(MakeUnique<FStaticMeshRenderData>());
@@ -5109,11 +5070,26 @@ void UStaticMesh::BeginPostLoadInternal(FStaticMeshPostLoadContext& Context)
 
 	if (GetNumSourceModels() > 0)
 	{
-		UStaticMesh* DistanceFieldReplacementMesh = GetSourceModel(0).BuildSettings.DistanceFieldReplacementMesh;
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 
-		if (DistanceFieldReplacementMesh)
+		if (CVar->GetValueOnAnyThread(true) != 0 || bGenerateMeshDistanceField)
 		{
-			DistanceFieldReplacementMesh->ConditionalPostLoad();
+			for (int32 MaterialIndex = 0; MaterialIndex < GetStaticMaterials().Num(); MaterialIndex++)
+			{
+				UMaterialInterface* MaterialInterface = GetStaticMaterials()[MaterialIndex].MaterialInterface;
+				if (MaterialInterface)
+				{
+					// Make sure dependency is postloaded
+					MaterialInterface->ConditionalPostLoad();
+				}
+			}
+
+			UStaticMesh* DistanceFieldReplacementMesh = GetSourceModel(0).BuildSettings.DistanceFieldReplacementMesh;
+
+			if (DistanceFieldReplacementMesh)
+			{
+				DistanceFieldReplacementMesh->ConditionalPostLoad();
+			}
 		}
 	}
 

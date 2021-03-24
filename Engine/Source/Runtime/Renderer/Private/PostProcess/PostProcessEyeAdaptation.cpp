@@ -225,7 +225,6 @@ bool IsAutoExposureDebugMode(const FViewInfo& View)
 		(EngineShowFlags.VisualizeNanite && View.CurrentNaniteVisualizationMode != NAME_None) ||
 		EngineShowFlags.RayTracingDebug ||
 		EngineShowFlags.VisualizeDistanceFieldAO ||
-		EngineShowFlags.VisualizeMeshDistanceFields ||
 		EngineShowFlags.VisualizeGlobalDistanceField ||
 		EngineShowFlags.VisualizeVolumetricCloudConservativeDensity ||
 		EngineShowFlags.CollisionVisibility ||

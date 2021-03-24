@@ -35,6 +35,10 @@ Texture2D DepthAtlas;
 	#define ENABLE_DYNAMIC_SKY_LIGHT 1
 #endif
 
+#ifndef SDF_TRACING_TRAVERSE_MIPS
+	#define SDF_TRACING_TRAVERSE_MIPS 0
+#endif
+
 #define MIN_flt			(1.175494351e-38F)			/* min positive value */
 
 #if CARD_TRACE_DEPTH_WEIGHTED_OIT
@@ -576,22 +580,6 @@ Buffer<uint> NumGridCulledMeshSDFObjects;
 Buffer<uint> GridCulledMeshSDFObjectStartOffsetArray;
 Buffer<uint> GridCulledMeshSDFObjectIndicesArray;
 
-float3 CalculateMeshSDFGradient(float3 VolumeUV, float2 DistanceFieldMAD)
-{
-	// Mesh distance fields 1 texel border and can't bilinear sample further than 0.5 texel from that border
-	float3 VoxelOffset = 0.5f * DistanceFieldAtlasTexelSize;
-
-	float R = SampleMeshDistanceField(float3(VolumeUV.x + VoxelOffset.x, VolumeUV.y, VolumeUV.z), DistanceFieldMAD);
-	float L = SampleMeshDistanceField(float3(VolumeUV.x - VoxelOffset.x, VolumeUV.y, VolumeUV.z), DistanceFieldMAD);
-	float F = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y + VoxelOffset.y, VolumeUV.z), DistanceFieldMAD);
-	float B = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y - VoxelOffset.y, VolumeUV.z), DistanceFieldMAD);
-	float U = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y, VolumeUV.z + VoxelOffset.z), DistanceFieldMAD);
-	float D = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y, VolumeUV.z - VoxelOffset.z), DistanceFieldMAD);
-
-	float3 Gradient = float3(R - L, F - B, U - D);
-	return Gradient;
-}
-
 struct FTraceMeshSDFResult
 {
 	float HitDistance;
@@ -616,7 +604,7 @@ void RayTraceSingleMeshSDF(
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 	// Trace up to the current hit point
-	MaxTraceDistance = min(MaxTraceDistance, TraceResult.HitDistance + DFObjectData.LocalSurfaceBias);
+	MaxTraceDistance = min(MaxTraceDistance, TraceResult.HitDistance + DFObjectData.VolumeSurfaceBias);
 
 	float3 WorldRayEnd = WorldRayStart + WorldRayDirection * MaxTraceDistance;
 	float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
@@ -627,18 +615,29 @@ void RayTraceSingleMeshSDF(
 	float VolumeMinTraceDistance = VolumeMaxTraceDistance * (MinTraceDistance / MaxTraceDistance);
 	VolumeRayDirection /= VolumeMaxTraceDistance;
 
-	float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+	float2 VolumeSpaceIntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 
-	IntersectionTimes *= VolumeMaxTraceDistance;
-	IntersectionTimes.x = max(IntersectionTimes.x, VolumeMinTraceDistance);
+	VolumeSpaceIntersectionTimes *= VolumeMaxTraceDistance;
+	VolumeSpaceIntersectionTimes.x = max(VolumeSpaceIntersectionTimes.x, VolumeMinTraceDistance);
 
 	BRANCH
-	if (IntersectionTimes.x < IntersectionTimes.y)
+	if (VolumeSpaceIntersectionTimes.x < VolumeSpaceIntersectionTimes.y)
 	{
+		uint MaxMipIndex = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips - 1;
+		// Start tracing at the highest resolution mip
+		uint ReversedMipIndex = MaxMipIndex;
+		FDFAssetData DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
+
+		#if !SDF_TRACING_TRAVERSE_MIPS
+			ReversedMipIndex = MaxMipIndex;
+			DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
+		#endif
+
 		bool bRayStartInsideGeometry = false;
-		float SampleRayTime = IntersectionTimes.x;
+		float SampleRayTime = VolumeSpaceIntersectionTimes.x;
+
 		uint MaxSteps = 64;
-		float MinStepSize = 1.0f / (4 * MaxSteps);
+		float MinStepSize = 1.0f / (16 * MaxSteps);
 		uint StepIndex = 0;
 		bool bHit = false;
 		float MaxDistance = InitialMaxDistance;
@@ -647,23 +646,42 @@ void RayTraceSingleMeshSDF(
 		for (; StepIndex < MaxSteps; StepIndex++)
 		{
 			float3 SampleVolumePosition = VolumeRayStart + VolumeRayDirection * SampleRayTime;
-			float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
-			float DistanceField = SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x;
+			float DistanceField = SampleSparseMeshSignedDistanceField(SampleVolumePosition, DFAssetMipData);
 
 			MaxDistance = max(DistanceField, MaxDistance);
 			float ExpandSurfaceTime = bExpandSurfaceUsingRayTimeInsteadOfMaxDistance ? SampleRayTime : MaxDistance;
 
 			// Expand the surface to find thin features, but only away from the start of the trace where it won't introduce incorrect self-occlusion
 			// This still causes incorrect self-occlusion at grazing angles
-			float ExpandSurfaceDistance = DFObjectData.LocalSurfaceBias;
+			float ExpandSurfaceDistance = DFObjectData.VolumeSurfaceBias;
 			const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
 			const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(ExpandSurfaceTime / ExpandSurfaceFalloff);
 
-			if (DistanceField < ExpandSurfaceAmount)
+#if SDF_TRACING_TRAVERSE_MIPS
+
+			float MaxEncodedDistance = DFAssetMipData.DistanceFieldToVolumeScaleBias.x + DFAssetMipData.DistanceFieldToVolumeScaleBias.y;
+
+			// We reached the maximum distance of this mip's narrow band, use a lower resolution mip for next iteration
+			if (abs(DistanceField) >= MaxEncodedDistance && ReversedMipIndex > 0)
 			{
-				// One more step to the surface
+				ReversedMipIndex--;
+				DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
+			}
+			// We are close to the surface, step back to safety and use a higher resolution mip for next iteration
+			else if (abs(DistanceField) < .25f * MaxEncodedDistance && ReversedMipIndex < MaxMipIndex)
+			{
+				DistanceField -= 6.0f * DFObjectData.VolumeSurfaceBias;
+				ReversedMipIndex++;
+				DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
+			}
+			else 
+#endif
+			if (DistanceField < ExpandSurfaceAmount && ReversedMipIndex == MaxMipIndex)
+			{
 				bRayStartInsideGeometry = SampleRayTime <= 0.0f && SampleRayTime + DistanceField < 0.0f ? true : false;
-				SampleRayTime = clamp(SampleRayTime + DistanceField - ExpandSurfaceAmount, IntersectionTimes.x, IntersectionTimes.y);
+				// One more step to the surface
+				// Pull back by ExpandSurfaceAmount to improve the gradient computed off of the hit point
+				SampleRayTime = clamp(SampleRayTime + DistanceField - ExpandSurfaceAmount, VolumeSpaceIntersectionTimes.x, VolumeSpaceIntersectionTimes.y);
 				bHit = true;
 				break;
 			}
@@ -671,7 +689,7 @@ void RayTraceSingleMeshSDF(
 			float StepDistance = max(DistanceField, MinStepSize);
 			SampleRayTime += StepDistance;		
 
-			if (SampleRayTime > IntersectionTimes.y + ExpandSurfaceAmount)
+			if (SampleRayTime > VolumeSpaceIntersectionTimes.y + ExpandSurfaceAmount)
 			{
 				break;
 			}
@@ -684,7 +702,7 @@ void RayTraceSingleMeshSDF(
 
 		if (bHit)
 		{
-			float NewHitDistance = length(VolumeRayDirection * SampleRayTime * DFObjectData.VolumeToLocalScale);
+			float NewHitDistance = length(VolumeRayDirection * SampleRayTime * DFObjectData.VolumeToWorldScale);
 
 			if (NewHitDistance < TraceResult.HitDistance)
 			{
@@ -717,15 +735,18 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	float3 SampleVolumePosition = mul(float4(HitPosition, 1), DFObjectData.WorldToVolume).xyz;
 
 	// Clamp hit point to a valid volume
-	SampleVolumePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+	SampleVolumePosition = clamp(SampleVolumePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 
-	float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
-	float3 LocalGradient = CalculateMeshSDFGradient(VolumeUV, DFObjectData.DistanceFieldMAD);
+	FDFAssetData DFAssetData = LoadDFAssetDataHighestResolution(DFObjectData.AssetIndex);
+	float3 VolumeGradient = CalculateMeshSDFGradient(SampleVolumePosition, DFAssetData);
+	float VolumeGradientLength = length(VolumeGradient);
+	float3 VolumeNormal = VolumeGradientLength > 0.0f ? VolumeGradient / VolumeGradientLength : 0;
+	// Transform by transposed inverse to handle non-uniform scaling
+	float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)DFObjectData.WorldToVolume));
+	float WorldGradientLength = length(WorldGradient);
+	TraceSDFData.HitNormal = WorldGradientLength > 0.0f ? WorldGradient / WorldGradientLength : 0;
 
-	float3 WorldSpaceGradient = mul(LocalGradient, (float3x3) DFObjectData.VolumeToWorld);
-	float WorldSpaceGradientLength = length(WorldSpaceGradient);
-	TraceSDFData.HitNormal = WorldSpaceGradientLength > 0.001f ? WorldSpaceGradient / WorldSpaceGradientLength : -WorldRayDirection;
-	TraceSDFData.bAccurateHit = !DFObjectData.bGeneratedAsTwoSided;
+	TraceSDFData.bAccurateHit = !DFObjectData.bMostlyTwoSided;
 
 	return TraceSDFData;
 }

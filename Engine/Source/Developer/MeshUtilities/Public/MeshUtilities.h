@@ -233,16 +233,6 @@ public:
 		bool bGenerateAsIfTwoSided,
 		class FCardRepresentationData& OutData) = 0;
 
-	/** 
-	 * Down sample distance field volume. 
-	 * Method overwrites data of DistanceFieldData. 
-	 * If input is compressed, it will be decompressed, downsampled and recompressed
-	 */
-	virtual void DownSampleDistanceFieldVolumeData(
-		class FDistanceFieldVolumeData& DistanceFieldData,
-		float Divider) = 0;
-
-
 	/** Helper structure for skeletal mesh import options */
 	struct MeshBuildOptions
 	{

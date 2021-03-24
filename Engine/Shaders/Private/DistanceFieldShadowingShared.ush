@@ -101,11 +101,13 @@ float ShadowRayTraceThroughCulledObjects(
 			float ObjectCenterDistanceAlongRay = dot(-VolumeRayStart, VolumeRayDirection);
 			float LocalConeRadiusAtObject = min(TanLightAngle * max(ObjectCenterDistanceAlongRay, 0), VolumeMaxSphereRadius);
 
-			float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -DFObjectData.LocalPositionExtent - LocalConeRadiusAtObject, DFObjectData.LocalPositionExtent + LocalConeRadiusAtObject);
+			float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -DFObjectData.VolumePositionExtent - LocalConeRadiusAtObject, DFObjectData.VolumePositionExtent + LocalConeRadiusAtObject);
 
 			BRANCH
 			if (IntersectionTimes.x < IntersectionTimes.y)
 			{
+				FDFAssetData DFAssetData = LoadDFAssetDataHighestResolution(DFObjectData.AssetIndex);
+
 				float SampleRayTime = IntersectionTimes.x * VolumeRayLength;
 #if DF_SHADOW_QUALITY == 2
 				uint MaxSteps = 64;
@@ -123,13 +125,12 @@ float ShadowRayTraceThroughCulledObjects(
 				for (; StepIndex < MaxSteps; StepIndex++)
 				{
 					float3 SampleVolumePosition = VolumeRayStart + VolumeRayDirection * SampleRayTime;
-					float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+					float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 					float DistanceToClamped = length(ClampedSamplePosition - SampleVolumePosition);
-					float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
-					float DistanceField = SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped;
+					float DistanceField = SampleSparseMeshSignedDistanceField(ClampedSamplePosition, DFAssetData) + DistanceToClamped;
 					
 					FLATTEN
-					if (DFObjectData.bGeneratedAsTwoSided)
+					if (DFObjectData.bMostlyTwoSided)
 					{
 						DistanceField -= VolumeTwoSidedMeshDistanceBias;
 					}
@@ -137,7 +138,7 @@ float ShadowRayTraceThroughCulledObjects(
 					{
 						// Expand the surface to find thin features, but only away from the start of the trace where it won't introduce incorrect self-occlusion
 						// This still causes incorrect self-occlusion at grazing angles
-						const float ExpandSurfaceDistance = DFObjectData.LocalSurfaceBias;
+						const float ExpandSurfaceDistance = DFObjectData.VolumeSurfaceBias;
 						const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
 						const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(SampleRayTime / ExpandSurfaceFalloff);
 						DistanceField -= ExpandSurfaceAmount;

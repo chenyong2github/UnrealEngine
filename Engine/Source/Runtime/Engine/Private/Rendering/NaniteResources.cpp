@@ -993,28 +993,10 @@ const FCardRepresentationData* FSceneProxy::GetMeshCardRepresentation() const
 	return CardRepresentationData;
 }
 
-void FSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, float& SelfShadowBias, bool& bOutThrottled) const
+void FSceneProxy::GetDistancefieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const
 {
-	if (DistanceFieldData)
-	{
-		LocalVolumeBounds = DistanceFieldData->LocalBoundingBox;
-		OutDistanceMinMax = DistanceFieldData->DistanceMinMax;
-		OutBlockMin = DistanceFieldData->VolumeTexture.GetAllocationMin();
-		OutBlockSize = DistanceFieldData->VolumeTexture.GetAllocationSize();
-		bOutBuiltAsIfTwoSided = DistanceFieldData->bBuiltAsIfTwoSided;
-		SelfShadowBias = DistanceFieldSelfShadowBias;
-		bOutThrottled = DistanceFieldData->VolumeTexture.Throttled();
-	}
-	else
-	{
-		LocalVolumeBounds = FBox(ForceInit);
-		OutDistanceMinMax = FVector2D(0, 0);
-		OutBlockMin = FIntVector(-1, -1, -1);
-		OutBlockSize = FIntVector(0, 0, 0);
-		bOutBuiltAsIfTwoSided = false;
-		SelfShadowBias = 0;
-		bOutThrottled = false;
-	}
+	OutDistanceFieldData = DistanceFieldData;
+	SelfShadowBias = DistanceFieldSelfShadowBias;
 }
 
 void FSceneProxy::GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const
@@ -1040,7 +1022,7 @@ void FSceneProxy::GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWor
 
 bool FSceneProxy::HasDistanceFieldRepresentation() const
 {
-	return CastsDynamicShadow() && AffectsDistanceFieldLighting() && DistanceFieldData && DistanceFieldData->VolumeTexture.IsValidDistanceFieldVolume();
+	return CastsDynamicShadow() && AffectsDistanceFieldLighting() && DistanceFieldData;
 }
 
 int32 FSceneProxy::GetLightMapCoordinateIndex() const

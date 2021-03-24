@@ -105,8 +105,6 @@ private:
 		bool bGenerateAsIfTwoSided,
 		FDistanceFieldVolumeData& OutData) override;
 	
-	virtual void DownSampleDistanceFieldVolumeData(class FDistanceFieldVolumeData& DistanceFieldData, float Divider) override;
-
 	virtual bool GenerateCardRepresentationData(
 		FString MeshName,
 		const FSourceMeshDataForDerivedDataTask& SourceMeshData,

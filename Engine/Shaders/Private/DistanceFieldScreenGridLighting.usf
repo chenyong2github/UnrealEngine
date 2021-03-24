@@ -82,13 +82,17 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 		FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
 
 		float3 VolumeShadingPosition = mul(float4(WorldShadingPosition, 1), DFObjectData.WorldToVolume).xyz;
-		float BoxDistance = ComputeDistanceFromBoxToPoint(-DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent, VolumeShadingPosition) * DFObjectData.VolumeScale;
+		float BoxDistance = ComputeDistanceFromBoxToPoint(-DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent, VolumeShadingPosition) * DFObjectData.VolumeScale;
 
 		BRANCH
 		if (BoxDistance < AOObjectMaxDistance)
 		{
-			float ObjectOccluderRadius = length(DFObjectData.LocalPositionExtent) * .5f * DFObjectData.VolumeScale;
+			float ObjectOccluderRadius = length(DFObjectData.VolumePositionExtent) * .5f * DFObjectData.VolumeScale;
 			float SelfShadowScale = 1.0f / max(DFObjectData.SelfShadowBias, .0001f);
+
+			uint NumMips = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips;
+			// Always trace against medium resolution mip
+			FDFAssetData DFAssetData = LoadDFAssetData(DFObjectData.AssetIndex, min(1, NumMips - 1));
 
 			LOOP
 			for (uint ConeIndex = 0; ConeIndex < NUM_CONE_DIRECTIONS; ConeIndex++)
@@ -110,11 +114,10 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 				for (uint StepIndex = 0; StepIndex < NUM_CONE_STEPS && WorldStepOffset < MaxWorldStepOffset; StepIndex++)
 				{
 					float3 StepSamplePosition = VolumeShadingPosition + ScaledLocalConeDirection * WorldStepOffset;
-					float3 ClampedSamplePosition = fastClamp(StepSamplePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+					float3 ClampedSamplePosition = fastClamp(StepSamplePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 					float DistanceToClamped = lengthFast(StepSamplePosition - ClampedSamplePosition);
 
-					float3 StepVolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
-					float DistanceToOccluder = (SampleMeshDistanceField(StepVolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped) * DFObjectData.VolumeScale;
+					float DistanceToOccluder = (SampleSparseMeshSignedDistanceField(ClampedSamplePosition, DFAssetData) + DistanceToClamped) * DFObjectData.VolumeScale;
 
 					float SphereRadius = WorldStepOffset * TanConeHalfAngle;
 					float InvSphereRadius = rcpFast(SphereRadius);

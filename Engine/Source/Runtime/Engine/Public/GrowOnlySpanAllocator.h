@@ -18,9 +18,26 @@ public:
 	// Free an already allocated range.  
 	ENGINE_API void Free(int32 BaseOffset, int32 Num);
 
+	int32 GetSparselyAllocatedSize() const
+	{
+		int32 AllocatedSize = MaxSize;
+
+		for (int32 i = 0; i < FreeSpans.Num(); i++)
+		{
+			AllocatedSize -= FreeSpans[i].Num;
+		}
+
+		return AllocatedSize;
+	}
+
 	int32 GetMaxSize() const
 	{
 		return MaxSize;
+	}
+
+	int32 GetNumFreeSpans() const
+	{
+		return FreeSpans.Num();
 	}
 
 private:

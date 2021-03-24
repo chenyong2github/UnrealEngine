@@ -1277,9 +1277,9 @@ bool FInstancedStaticMeshSceneProxy::GetWireframeMeshElement(int32 LODIndex, int
 	return false;
 }
 
-void FInstancedStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, float& SelfShadowBias, bool& bOutThrottled) const
+void FInstancedStaticMeshSceneProxy::GetDistancefieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const
 {
-	FStaticMeshSceneProxy::GetDistancefieldAtlasData(LocalVolumeBounds, OutDistanceMinMax, OutBlockMin, OutBlockSize, bOutBuiltAsIfTwoSided, SelfShadowBias, bOutThrottled);
+	FStaticMeshSceneProxy::GetDistancefieldAtlasData(OutDistanceFieldData, SelfShadowBias);
 }
 
 void FInstancedStaticMeshSceneProxy::GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const

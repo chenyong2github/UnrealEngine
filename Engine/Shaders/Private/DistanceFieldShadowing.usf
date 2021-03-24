@@ -57,7 +57,7 @@ void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 		FDFObjectData DFObjectData = LoadDFObjectData(SourceIndex);
-		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex, 1.0f), DFObjectData.VolumeToWorld).xyz;
+		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex * DFObjectData.VolumePositionExtent, 1.0f), DFObjectData.VolumeToWorld).xyz;
 #else
 		float3 WorldBoundsPosition = UnitBoxVertex * BoxExtent.xyz + BoxOriginAndSphereRadius.xyz;
 #endif

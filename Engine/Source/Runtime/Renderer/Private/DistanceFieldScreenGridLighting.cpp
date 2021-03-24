@@ -113,24 +113,15 @@ public:
 	void SetParameters(
 		FRHICommandList& RHICmdList, 
 		const FViewInfo& View, 
-		FRHITexture* DistanceFieldNormal, 
+		const FDistanceFieldSceneData& DistanceFieldSceneData,
+		FRHITexture* DistanceFieldNormal,  
 		const FDistanceFieldAOParameters& Parameters,
 		const FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		FRHITexture* TextureAtlas;
-		int32 AtlasSizeX;
-		int32 AtlasSizeY;
-		int32 AtlasSizeZ;
-
-		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, DistanceFieldSceneData);
 
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
@@ -250,6 +241,7 @@ public:
 	void SetParameters(
 		FRHICommandList& RHICmdList, 
 		const FViewInfo& View, 
+		const FDistanceFieldSceneData& DistanceFieldSceneData,
 		FIntPoint TileListGroupSizeValue, 
 		FRHITexture* DistanceFieldNormal, 
 		const FDistanceFieldAOParameters& Parameters,
@@ -258,17 +250,7 @@ public:
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		FRHITexture* TextureAtlas;
-		int32 AtlasSizeX;
-		int32 AtlasSizeY;
-		int32 AtlasSizeZ;
-
-		TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, DistanceFieldSceneData);
 
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
@@ -523,12 +505,13 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		FDistanceFieldAOScreenGridParameters* PassParameters = GraphBuilder.AllocParameters<FDistanceFieldAOScreenGridParameters>();
 		PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 		PassParameters->DistanceFieldNormal = DistanceFieldNormal;
+		const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
 		GraphBuilder.AddPass(
 			{},
 			PassParameters,
 			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[&View, &ScreenGridResources, Parameters, DistanceFieldNormal, TileListGroupSize, bUseGlobalDistanceField, bUseObjectDistanceField]
+			[&View, &ScreenGridResources, &DistanceFieldSceneData, Parameters, DistanceFieldNormal, TileListGroupSize, bUseGlobalDistanceField, bUseObjectDistanceField]
 			(FRHICommandListImmediate& RHICmdList)
 		{
 			ScreenGridResources->AcquireTransientResource();
@@ -551,7 +534,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 					TShaderMapRef<TConeTraceScreenGridGlobalOcclusionCS<true> > ComputeShader(View.ShaderMap);
 
 					RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-					ComputeShader->SetParameters(RHICmdList, View, TileListGroupSize, DistanceFieldNormal->GetRHI(), Parameters, View.GlobalDistanceFieldInfo);
+					ComputeShader->SetParameters(RHICmdList, View, DistanceFieldSceneData, TileListGroupSize, DistanceFieldNormal->GetRHI(), Parameters, View.GlobalDistanceFieldInfo);
 					DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
 					ComputeShader->UnsetParameters(RHICmdList, View);
 				}
@@ -560,7 +543,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 					TShaderMapRef<TConeTraceScreenGridGlobalOcclusionCS<false> > ComputeShader(View.ShaderMap);
 
 					RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-					ComputeShader->SetParameters(RHICmdList, View, TileListGroupSize, DistanceFieldNormal->GetRHI(), Parameters, View.GlobalDistanceFieldInfo);
+					ComputeShader->SetParameters(RHICmdList, View, DistanceFieldSceneData, TileListGroupSize, DistanceFieldNormal->GetRHI(), Parameters, View.GlobalDistanceFieldInfo);
 					DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
 					ComputeShader->UnsetParameters(RHICmdList, View);
 				}
@@ -581,7 +564,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 						TShaderMapRef<TConeTraceScreenGridObjectOcclusionCS<true> > ComputeShader(View.ShaderMap);
 
 						RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-						ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), Parameters, View.GlobalDistanceFieldInfo);
+						ComputeShader->SetParameters(RHICmdList, View, DistanceFieldSceneData, DistanceFieldNormal->GetRHI(), Parameters, View.GlobalDistanceFieldInfo);
 						DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
 						ComputeShader->UnsetParameters(RHICmdList, View);
 					}
@@ -592,7 +575,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 						TShaderMapRef<TConeTraceScreenGridObjectOcclusionCS<false> > ComputeShader(View.ShaderMap);
 
 						RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-						ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), Parameters, View.GlobalDistanceFieldInfo);
+						ComputeShader->SetParameters(RHICmdList, View, DistanceFieldSceneData, DistanceFieldNormal->GetRHI(), Parameters, View.GlobalDistanceFieldInfo);
 						DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
 						ComputeShader->UnsetParameters(RHICmdList, View);
 					}

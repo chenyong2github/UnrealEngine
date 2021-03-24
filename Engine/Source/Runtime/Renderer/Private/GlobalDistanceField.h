@@ -23,6 +23,19 @@ inline bool UseGlobalDistanceField(const FDistanceFieldAOParameters& Parameters)
 	return UseGlobalDistanceField() && Parameters.GlobalMaxOcclusionDistance > 0;
 }
 
+namespace GlobalDistanceField
+{
+	int32 GetClipmapResolution(bool bLumenEnabled);
+	int32 GetMipFactor();
+	int32 GetClipmapMipResolution(bool bLumenEnabled);
+	float GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene, bool bLumenEnabled);
+	FIntVector GetPageAtlasSizeInPages(bool bLumenEnabled);
+	FIntVector GetPageAtlasSize(bool bLumenEnabled);
+	uint32 GetPageTableClipmapResolution(bool bLumenEnabled);
+	FIntVector GetPageTableTextureResolution(bool bLumenEnabled);
+	int32 GetMaxPageNum(bool bLumenEnabled);
+};
+
 /** 
  * Updates the global distance field for a view.  
  * Typically issues updates for just the newly exposed regions of the volume due to camera movement.

@@ -32,57 +32,84 @@
 #define DISTANCEFIELD_PRIMITIVE_TYPE DFPT_SignedDistanceField
 #endif
 
-float3 DistanceFieldVolumePositionToUV(float3 VolumePosition, float3 UVScale, float3 UVAdd)
+// Size of SDF brick in voxels, including padding
+float3 DistanceFieldBrickSize;
+
+// Size of SDF brick unique data in voxels
+float3 DistanceFieldUniqueDataBrickSize;
+
+// Size of brick atlas, in bricks
+uint3 DistanceFieldBrickAtlasSizeInBricks;
+
+// Mask and Log2 sizes used to decompose linear brick index into 3d with shifts and masks
+uint3 DistanceFieldBrickAtlasMask;
+uint3 DistanceFieldBrickAtlasSizeLog2;
+
+// Size of a voxel in the brick atlas, which is also 1 / AtlasSize.
+float3 DistanceFieldBrickAtlasTexelSize;
+
+// Stores ranges of global brick indices for each asset mip.  Brick indices be INVALID_BRICK_INDEX.  
+ByteAddressBuffer DistanceFieldIndirectionTable;
+
+// Brick atlas texture, used with hardware trilinear filtering
+Texture3D DistanceFieldBrickTexture;
+
+// Distance Field Asset data specific to a given mip
+struct FDFAssetData
 {
-	float3 VolumeUV = VolumePosition * UVScale + UVAdd;
-	return VolumeUV;
+	// Number of available mip maps
+	uint NumMips;
+
+	// 3d size of the mip's indirection table, which is flattened in DistanceFieldIndirectionTable
+	uint3 IndirectionDimensions;
+
+	// Offset into DistanceFieldIndirectionTable that was allocated for this mip
+	uint IndirectionTableOffset;
+
+	// Transforms the volume texture encoded distance to volume space 
+	float2 DistanceFieldToVolumeScaleBias;
+
+	// Transforms a volume space position to virtual UV space
+	float3 VolumeToVirtualUVAdd;
+	float3 VolumeToVirtualUVScale;
+};
+
+// Per-scene buffer containing packed Distance Field Asset data
+StructuredBuffer<float4> SceneDistanceFieldAssetData;
+
+// Must match C++
+#define DF_ASSET_DATA_MIP_STRIDE 3
+#define DF_MAX_NUM_MIPS 3
+#define DF_ASSET_DATA_STRIDE (DF_ASSET_DATA_MIP_STRIDE * DF_MAX_NUM_MIPS)
+#define INVALID_BRICK_INDEX 0xFFFFFFFF
+
+// ReversedMipIndex must be in [0, NumMips - 1], where 0 is the lowest resolution mip that is always present
+FDFAssetData LoadDFAssetData(uint AssetIndex, uint ReversedMipIndex)
+{
+	FDFAssetData Data;
+	uint4 Vector0 = asuint(SceneDistanceFieldAssetData[AssetIndex * DF_ASSET_DATA_STRIDE + ReversedMipIndex * DF_ASSET_DATA_MIP_STRIDE + 0]);
+	// Must match DistanceField::MaxIndirectionDimension
+	Data.IndirectionDimensions.x = Vector0.x & 0x3FF;
+	Data.IndirectionDimensions.y = (Vector0.x >> 10) & 0x3FF;
+	Data.IndirectionDimensions.z = (Vector0.x >> 20) & 0x3FF;
+	Data.NumMips = Vector0.x >> 30;
+	Data.DistanceFieldToVolumeScaleBias = float2(f16tof32(asuint(Vector0.y) & 0xFFFF), f16tof32(asuint(Vector0.y) >> 16));
+	Data.IndirectionTableOffset = Vector0.z;
+
+	float4 Vector1 = SceneDistanceFieldAssetData[AssetIndex * DF_ASSET_DATA_STRIDE + ReversedMipIndex * DF_ASSET_DATA_MIP_STRIDE + 1];
+	Data.VolumeToVirtualUVScale = Vector1.xyz;
+	float4 Vector2 = SceneDistanceFieldAssetData[AssetIndex * DF_ASSET_DATA_STRIDE + ReversedMipIndex * DF_ASSET_DATA_MIP_STRIDE + 2];
+	Data.VolumeToVirtualUVAdd = Vector2.xyz;
+	return Data;
 }
 
-Texture2D HFVisibilityTexture;
-
-#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-Texture3D DistanceFieldTexture;
-
-float SampleMeshDistanceField(float3 VolumeUV, float2 ObjectDistanceFieldMAD)
+// Loads the mip asset data for the highest resolution mip, which is also the narrowest band, so the distance field sampled with this asset data will have clamped distances.  
+// Use DistanceToMeshSurfaceStandalone instead to get both an accurate and unclamped distance field.
+FDFAssetData LoadDFAssetDataHighestResolution(uint AssetIndex)
 {
-	float TextureValue = Texture3DSampleLevel(DistanceFieldTexture, GlobalBilinearWrappedSampler, VolumeUV, 0).x;
-#if EIGHT_BIT_MESH_DISTANCE_FIELDS
-	TextureValue = TextureValue * ObjectDistanceFieldMAD.x + ObjectDistanceFieldMAD.y;
-#endif
-	return TextureValue;
+	uint NumMips = LoadDFAssetData(AssetIndex, 0).NumMips;
+	return LoadDFAssetData(AssetIndex, NumMips - 1);
 }
-
-float SampleHeightFieldAtlas(float2 UV)
-{
-	return 0.0;
-}
-
-float SampleHFVisibilityTexture(float2 UV)
-{
-	return 0.0;
-}
-#else
-Texture2D HeightFieldTexture;
-
-float SampleMeshDistanceField(float3 VolumeUV, float2 ObjectDistanceFieldMAD)
-{
-	return 0.0;
-}
-
-float SampleHeightFieldAtlas(float2 UV)
-{
-	float4 SampleValue = Texture2DSampleLevel(HeightFieldTexture, GlobalBilinearWrappedSampler, UV, 0);
-	return DecodePackedHeight(SampleValue.xy);
-}
-
-float SampleHFVisibilityTexture(float2 UV)
-{
-	return Texture2DSampleLevel(HFVisibilityTexture, GlobalBilinearWrappedSampler, UV, 0).r;
-}
-#endif
-
-float3 DistanceFieldAtlasTexelSize;
-float2 HeightFieldAtlasTexelSize;
 
 RWBuffer<uint> RWObjectIndirectArguments;
 Buffer<uint> ObjectIndirectArguments;
@@ -96,7 +123,7 @@ uint GetCulledNumObjects()
 // In float4's.  Must match equivalent C++ variables.
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 #define OBJECT_BOUNDS_STRIDE 2
-#define OBJECT_DATA_STRIDE 11
+#define OBJECT_DATA_STRIDE 9
 #elif (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_HeightField)
 #define OBJECT_BOUNDS_STRIDE 2
 #define OBJECT_DATA_STRIDE 6
@@ -119,33 +146,46 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 {
 	FDFObjectBounds Bounds;
 
-	Bounds.Center = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
-	Bounds.SphereRadius = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].w;
+	float4 Vector0 = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0];
+	Bounds.Center = Vector0.xyz;
+	Bounds.SphereRadius = Vector0.w;
 
-	Bounds.BoxExtent = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz;
-	Bounds.OftenMoving = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].w;
+	float4 Vector1 = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1];
+	Bounds.BoxExtent = Vector1.xyz;
+	Bounds.OftenMoving = Vector1.w;
 
 	return Bounds;
 }
 
 struct FDFObjectData
 {
-	float3 LocalPositionExtent;
-	float LocalSurfaceBias;
+	// Extent of the mesh bounds in volume space
+	float3 VolumePositionExtent;
 
-	float3 UVAdd;
-	float3 UVScale;
-	bool bGeneratedAsTwoSided;
+	// Volume space bias and surface expand amount
+	float VolumeSurfaceBias;
+
+	// Whether the mesh used two sided materials and hit positions from tracing will be more inaccurate
+	bool bMostlyTwoSided;
+
+	// Deprecated, use VolumeToWorldScale instead
 	float VolumeScale;
+
+	// Artist specified world space distance to avoid self shadowing on this mesh, usually to prevent incorrect self-intersection from WPO animation
 	float SelfShadowBias;
 
-	float2 DistanceFieldMAD;
+	// For view distance culling to match main view rasterizer
 	float2 MinMaxDrawDistance2;
 
+	// Transforms between world space and the volume space that tracing happens in
 	float4x4 WorldToVolume;
 	float4x4 VolumeToWorld;
 
-	float3 VolumeToLocalScale;
+	// Scales along each axis to transform from volume space to world space.  Transform a scaled direction to better handle non-uniform scaling.
+	float3 VolumeToWorldScale;
+
+	// Index into SceneDistanceFieldAssetData
+	uint AssetIndex;
 };
 
 FDFObjectData LoadDFObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, uint ObjectIndex)
@@ -157,26 +197,24 @@ FDFObjectData LoadDFObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, 
 	float4 V2 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 2];
 	Data.WorldToVolume = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	Data.LocalPositionExtent = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 3].xyz;
-	Data.LocalSurfaceBias = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 3].w;
+	float4 Vector3 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 3];
+	Data.VolumePositionExtent = Vector3.xyz;
+	Data.VolumeSurfaceBias = abs(Vector3.w);
+	Data.bMostlyTwoSided = Vector3.w < 0.0f;
 
-	V0 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 4];
-	Data.UVScale = V0.xyz;
-	Data.bGeneratedAsTwoSided = V0.w < 0.0f;
-	Data.VolumeScale = abs(V0.w);
-
-	Data.UVAdd = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 5].xyz;
-	Data.SelfShadowBias = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 5].w;
-
-	Data.DistanceFieldMAD = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 6].xy;
-	Data.MinMaxDrawDistance2 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 6].zw;
-
-	V0 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 7];
-	V1 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 8];
-	V2 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 9];
+	float4 Vector4 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 4];
+	Data.MinMaxDrawDistance2 = Vector4.xy;
+	Data.SelfShadowBias = Vector4.z;
+	
+	V0 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 5];
+	V1 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 6];
+	V2 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 7];
 	Data.VolumeToWorld = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	Data.VolumeToLocalScale = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 10].xyz;
+	float4 Vector8 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 8];
+	Data.VolumeToWorldScale = Vector8.xyz;
+	Data.VolumeScale = min(Data.VolumeToWorldScale.x, min(Data.VolumeToWorldScale.y, Data.VolumeToWorldScale.z));
+	Data.AssetIndex = asuint(Vector8.w);
 
 	return Data;
 }
@@ -364,3 +402,110 @@ float GetVPLOcclusion(float3 BentNormalAO, float3 NormalizedVectorToVPL, float V
 
 	return Visibility;
 }
+
+// Returns a Volume space signed distance to the mesh's surface
+// This distance is clamped to the band of the current mip
+float SampleSparseMeshSignedDistanceField(float3 SampleVolumePosition, FDFAssetData DFAssetData)
+{
+	// Transform the volume space position into the [0 - 1] virtual UV space of the mesh
+	float3 VolumeUV = SampleVolumePosition * DFAssetData.VolumeToVirtualUVScale + DFAssetData.VolumeToVirtualUVAdd; 
+
+	uint3 IndirectionCoord = VolumeUV * DFAssetData.IndirectionDimensions;
+	uint IndirectionIndex = (IndirectionCoord.z * DFAssetData.IndirectionDimensions.y + IndirectionCoord.y) * DFAssetData.IndirectionDimensions.x + IndirectionCoord.x;
+	// Fetch the brick index that covers this region of the virtual UV space
+	uint BrickIndex = DistanceFieldIndirectionTable.Load((DFAssetData.IndirectionTableOffset + IndirectionIndex) * 4);
+
+	float MaxEncodedDistance = DFAssetData.DistanceFieldToVolumeScaleBias.x + DFAssetData.DistanceFieldToVolumeScaleBias.y;
+	float DistanceField = MaxEncodedDistance;
+
+	// If the brick was not stored then it had the maximum encodable distance
+	if (BrickIndex != INVALID_BRICK_INDEX)
+	{
+		// Half voxel border around each brick
+		float3 BrickLocalUV = (VolumeUV * DFAssetData.IndirectionDimensions - IndirectionCoord) * DistanceFieldUniqueDataBrickSize + .5f;
+
+		// Decompose into 3d offset
+		float3 BrickOffset = uint3(
+			BrickIndex & DistanceFieldBrickAtlasMask.x, 
+			(BrickIndex >> DistanceFieldBrickAtlasSizeLog2.x) & DistanceFieldBrickAtlasMask.y, 
+			BrickIndex >> (DistanceFieldBrickAtlasSizeLog2.x + DistanceFieldBrickAtlasSizeLog2.y));
+
+		float3 AtlasUV = (BrickOffset * DistanceFieldBrickSize + BrickLocalUV) * DistanceFieldBrickAtlasTexelSize;
+		float EncodedDistanceField = Texture3DSampleLevel(DistanceFieldBrickTexture, GlobalBilinearWrappedSampler, AtlasUV, 0).x;
+		DistanceField = EncodedDistanceField * DFAssetData.DistanceFieldToVolumeScaleBias.x + DFAssetData.DistanceFieldToVolumeScaleBias.y;
+	}
+
+	return DistanceField;
+}
+
+// Returns the Volume space distance to the mesh's surface, sampling only the lowest resolution mip for speed.  Will be inaccurate near the mesh surface.
+// Use this variant when querying distance for culling, rather than sphere tracing
+// SampleVolumePosition must be within [-VolumePositionExtent, VolumePositionExtent]
+float DistanceToMeshSurfaceStandaloneApproximate(float3 SampleVolumePosition, FDFObjectData DFObjectData)
+{
+	// Hardcode lowest resolution mip
+	FDFAssetData DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, 0);
+	float DistanceField = SampleSparseMeshSignedDistanceField(SampleVolumePosition, DFAssetMipData);
+	return DistanceField;
+}
+
+// Returns the Volume space distance to the mesh's surface
+// Use this variant when querying distance for culling, rather than sphere tracing
+// SampleVolumePosition must be within [-VolumePositionExtent, VolumePositionExtent]
+float DistanceToMeshSurfaceStandalone(float3 SampleVolumePosition, FDFObjectData DFObjectData)
+{
+	uint NumMips = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips;
+	float DistanceField = 0;
+
+	// Start from the lowest resolution mip, continue sampling higher resolution mips if we are near the surface
+	for (uint ReversedMipIndex = 0; ReversedMipIndex < NumMips; ReversedMipIndex++)
+	{
+		FDFAssetData DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
+		DistanceField = SampleSparseMeshSignedDistanceField(SampleVolumePosition, DFAssetMipData);
+
+		float MaxEncodedDistance = DFAssetMipData.DistanceFieldToVolumeScaleBias.x + DFAssetMipData.DistanceFieldToVolumeScaleBias.y;
+
+		if (abs(DistanceField) > .25 * MaxEncodedDistance)
+		{
+			break;
+		}
+	}
+
+	return DistanceField;
+}
+
+// Only valid near the surface
+// SampleVolumePosition must be within [-VolumePositionExtent, VolumePositionExtent]
+float3 CalculateMeshSDFGradient(float3 SampleVolumePosition, FDFAssetData DFAssetData)
+{
+	float3 VirtualUVVoxelSize = 1.0f / float3(DFAssetData.IndirectionDimensions * DistanceFieldUniqueDataBrickSize);
+	float3 VolumeSpaceVoxelSize = VirtualUVVoxelSize / DFAssetData.VolumeToVirtualUVScale;
+
+	// Mesh distance fields have a 1 voxel border around the mesh bounds and can't bilinear sample further than 0.5 voxel from that border
+	float3 VoxelOffset = 0.5f * VolumeSpaceVoxelSize;
+	float R = SampleSparseMeshSignedDistanceField(float3(SampleVolumePosition.x + VoxelOffset.x, SampleVolumePosition.y, SampleVolumePosition.z), DFAssetData);
+	float L = SampleSparseMeshSignedDistanceField(float3(SampleVolumePosition.x - VoxelOffset.x, SampleVolumePosition.y, SampleVolumePosition.z), DFAssetData);
+	float F = SampleSparseMeshSignedDistanceField(float3(SampleVolumePosition.x, SampleVolumePosition.y + VoxelOffset.y, SampleVolumePosition.z), DFAssetData);
+	float B = SampleSparseMeshSignedDistanceField(float3(SampleVolumePosition.x, SampleVolumePosition.y - VoxelOffset.y, SampleVolumePosition.z), DFAssetData);
+	float U = SampleSparseMeshSignedDistanceField(float3(SampleVolumePosition.x, SampleVolumePosition.y, SampleVolumePosition.z + VoxelOffset.z), DFAssetData);
+	float D = SampleSparseMeshSignedDistanceField(float3(SampleVolumePosition.x, SampleVolumePosition.y, SampleVolumePosition.z - VoxelOffset.z), DFAssetData);
+
+	float3 Gradient = float3(R - L, F - B, U - D);
+	return Gradient;
+}
+
+Texture2D HeightFieldTexture;
+Texture2D HFVisibilityTexture;
+
+float SampleHeightFieldAtlas(float2 UV)
+{
+	float4 SampleValue = Texture2DSampleLevel(HeightFieldTexture, GlobalBilinearWrappedSampler, UV, 0);
+	return DecodePackedHeight(SampleValue.xy);
+}
+
+float SampleHFVisibilityTexture(float2 UV)
+{
+	return Texture2DSampleLevel(HFVisibilityTexture, GlobalBilinearWrappedSampler, UV, 0).r;
+}
+
+float2 HeightFieldAtlasTexelSize;

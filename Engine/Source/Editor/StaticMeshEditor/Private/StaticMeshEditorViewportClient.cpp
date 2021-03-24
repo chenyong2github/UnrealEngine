@@ -829,20 +829,15 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 		if (StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData != nullptr )
 		{
 			const FDistanceFieldVolumeData& VolumeData = *(StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData);
-
-			if (VolumeData.Size.GetMax() > 0)
+			const FIntVector VolumeSize = VolumeData.Mips[0].IndirectionDimensions * DistanceField::UniqueDataBrickSize;
 			{
-				static const auto CVarEightBit = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.EightBit"));
-				const bool bEightBitFixedPoint = CVarEightBit->GetValueOnAnyThread() != 0;
-				const int32 FormatSize = GPixelFormats[bEightBitFixedPoint ? PF_G8 : PF_R16F].BlockBytes;
-
-				float MemoryMb = (VolumeData.Size.X * VolumeData.Size.Y * VolumeData.Size.Z * FormatSize + VolumeData.CompressedDistanceFieldVolume.Num() * VolumeData.CompressedDistanceFieldVolume.GetTypeSize()) / (1024.0f * 1024.0f);
+				float MemoryMb = VolumeData.GetResourceSizeBytes() / (1024.0f * 1024.0f);
 
 				FNumberFormattingOptions NumberOptions;
 				NumberOptions.MinimumFractionalDigits = 2;
 				NumberOptions.MaximumFractionalDigits = 2;
 
-				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "DistanceFieldRes_F", "Distance Field:  {0}x{1}x{2} = {3}Mb"), FText::AsNumber(VolumeData.Size.X), FText::AsNumber(VolumeData.Size.Y), FText::AsNumber(VolumeData.Size.Z), FText::AsNumber(MemoryMb, &NumberOptions)));
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "DistanceFieldRes_F", "Distance Field:  {0}x{1}x{2} = {3}Mb"), FText::AsNumber(VolumeSize.X), FText::AsNumber(VolumeSize.Y), FText::AsNumber(VolumeSize.Z), FText::AsNumber(MemoryMb, &NumberOptions)));
 			}
 		}
 	}

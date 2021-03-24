@@ -11,186 +11,238 @@
 #include "MeshRepresentationCommon.h"
 #include "Async/ParallelFor.h"
 
-//@todo - implement required vector intrinsics for other implementations
-#if PLATFORM_ENABLE_VECTORINTRINSICS
+#if USE_EMBREE
 
-class FMeshDistanceFieldAsyncTask
+
+class FEmbreePointQueryContext : public RTCPointQueryContext
 {
 public:
-	FMeshDistanceFieldAsyncTask(
-		TkDOPTree<const FMeshBuildDataProvider, uint32>* InkDopTree,
-		bool bInUseEmbree,
-		RTCScene InEmbreeScene,
+	RTCGeometry MeshGeometry;
+	int32 NumTriangles;
+};
+
+bool EmbreePointQueryFunction(RTCPointQueryFunctionArguments* args)
+{
+	const FEmbreePointQueryContext* Context = (const FEmbreePointQueryContext*)args->context;
+
+	check(args->userPtr);
+	float& ClosestDistanceSq = *(float*)(args->userPtr);
+
+	const int32 TriangleIndex = args->primID;
+	check(TriangleIndex < Context->NumTriangles);
+
+	const FVector* VertexBuffer = (const FVector*)rtcGetGeometryBufferData(Context->MeshGeometry, RTC_BUFFER_TYPE_VERTEX, 0);
+	const uint32* IndexBuffer = (const uint32*)rtcGetGeometryBufferData(Context->MeshGeometry, RTC_BUFFER_TYPE_INDEX, 0);
+
+	const uint32 I0 = IndexBuffer[TriangleIndex * 3 + 0];
+	const uint32 I1 = IndexBuffer[TriangleIndex * 3 + 1];
+	const uint32 I2 = IndexBuffer[TriangleIndex * 3 + 2];
+
+	const FVector V0 = VertexBuffer[I0];
+	const FVector V1 = VertexBuffer[I1];
+	const FVector V2 = VertexBuffer[I2];
+
+	const FVector QueryPosition(args->query->x, args->query->y, args->query->z);
+	const FVector ClosestPoint = FMath::ClosestPointOnTriangleToPoint(QueryPosition, V0, V1, V2);
+	const float QueryDistanceSq = (ClosestPoint - QueryPosition).SizeSquared();
+
+	if (QueryDistanceSq < ClosestDistanceSq)
+	{
+		ClosestDistanceSq = QueryDistanceSq;
+
+		bool bShrinkQuery = true;
+
+		if (bShrinkQuery)
+		{
+			args->query->radius = FMath::Sqrt(ClosestDistanceSq);
+			// Return true to indicate that the query radius has shrunk
+			return true;
+		}
+	}
+
+	// Return false to indicate that the query radius hasn't changed
+	return false;
+}
+
+int32 ComputeLinearVoxelIndex(FIntVector VoxelCoordinate, FIntVector VolumeDimensions)
+{
+	return (VoxelCoordinate.Z * VolumeDimensions.Y + VoxelCoordinate.Y) * VolumeDimensions.X + VoxelCoordinate.X;
+}
+
+class FSparseMeshDistanceFieldAsyncTask
+{
+public:
+	FSparseMeshDistanceFieldAsyncTask(
+		const FEmbreeScene& InEmbreeScene,
 		const TArray<FVector4>* InSampleDirections,
+		float InLocalSpaceTraceDistance,
 		FBox InVolumeBounds,
-		FIntVector InVolumeDimensions,
-		float InVolumeMaxDistance,
-		int32 InZIndex,
-		TArray<float>* DistanceFieldVolume)
+		float InLocalToVolumeScale,
+		FVector2D InDistanceFieldToVolumeScaleBias,
+		FIntVector InBrickCoordinate,
+		FIntVector InIndirectionSize,
+		bool bInUsePointQuery)
 		:
-		kDopTree(InkDopTree),
-		bUseEmbree(bInUseEmbree),
 		EmbreeScene(InEmbreeScene),
 		SampleDirections(InSampleDirections),
+		LocalSpaceTraceDistance(InLocalSpaceTraceDistance),
 		VolumeBounds(InVolumeBounds),
-		VolumeDimensions(InVolumeDimensions),
-		VolumeMaxDistance(InVolumeMaxDistance),
-		ZIndex(InZIndex),
-		OutDistanceFieldVolume(DistanceFieldVolume),
-		bNegativeAtBorder(false)
+		LocalToVolumeScale(InLocalToVolumeScale),
+		DistanceFieldToVolumeScaleBias(InDistanceFieldToVolumeScaleBias),
+		BrickCoordinate(InBrickCoordinate),
+		IndirectionSize(InIndirectionSize),
+		bUsePointQuery(bInUsePointQuery),
+		BrickMaxDistance(MIN_uint8),
+		BrickMinDistance(MAX_uint8)
 	{}
 
 	void DoWork();
 
-	bool WasNegativeAtBorder() const
-	{
-		return bNegativeAtBorder;
-	}
-
-private:
-
 	// Readonly inputs
-	TkDOPTree<const FMeshBuildDataProvider, uint32>* kDopTree;
-	bool bUseEmbree;
-	RTCScene EmbreeScene;
+	const FEmbreeScene& EmbreeScene;
 	const TArray<FVector4>* SampleDirections;
+	float LocalSpaceTraceDistance;
 	FBox VolumeBounds;
-	FIntVector VolumeDimensions;
-	float VolumeMaxDistance;
-	int32 ZIndex;
+	float LocalToVolumeScale;
+	FVector2D DistanceFieldToVolumeScaleBias;
+	FIntVector BrickCoordinate;
+	FIntVector IndirectionSize;
+	bool bUsePointQuery;
 
 	// Output
-	TArray<float>* OutDistanceFieldVolume;
-	bool bNegativeAtBorder;
+	uint8 BrickMaxDistance;
+	uint8 BrickMinDistance;
+	TArray<uint8> DistanceFieldVolume;
 };
 
-void FMeshDistanceFieldAsyncTask::DoWork()
+int32 DebugX = 0;
+int32 DebugY = 0;
+int32 DebugZ = 0;
+
+void FSparseMeshDistanceFieldAsyncTask::DoWork()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDistanceFieldAsyncTask::DoWork);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSparseMeshDistanceFieldAsyncTask::DoWork);
 
-	FMeshBuildDataProvider kDOPDataProvider(*kDopTree);
-	const FVector DistanceFieldVoxelSize(VolumeBounds.GetSize() / FVector(VolumeDimensions.X, VolumeDimensions.Y, VolumeDimensions.Z));
-	const float VoxelDiameterSqr = DistanceFieldVoxelSize.SizeSquared();
+	const FVector IndirectionVoxelSize = VolumeBounds.GetSize() / FVector(IndirectionSize);
+	const FVector DistanceFieldVoxelSize = IndirectionVoxelSize / FVector(DistanceField::UniqueDataBrickSize);
+	const FVector BrickMinPosition = VolumeBounds.Min + FVector(BrickCoordinate) * IndirectionVoxelSize;
 
-	for (int32 YIndex = 0; YIndex < VolumeDimensions.Y; YIndex++)
+	DistanceFieldVolume.Empty(DistanceField::BrickSize * DistanceField::BrickSize * DistanceField::BrickSize);
+	DistanceFieldVolume.AddZeroed(DistanceField::BrickSize * DistanceField::BrickSize * DistanceField::BrickSize);
+
+	for (int32 ZIndex = 0; ZIndex < DistanceField::BrickSize; ZIndex++)
 	{
-		for (int32 XIndex = 0; XIndex < VolumeDimensions.X; XIndex++)
+		for (int32 YIndex = 0; YIndex < DistanceField::BrickSize; YIndex++)
 		{
-			const FVector VoxelPosition = FVector(XIndex + .5f, YIndex + .5f, ZIndex + .5f) * DistanceFieldVoxelSize + VolumeBounds.Min;
-			const int32 Index = (ZIndex * VolumeDimensions.Y * VolumeDimensions.X + YIndex * VolumeDimensions.X + XIndex);
-
-			float MinDistance = VolumeMaxDistance;
-			int32 Hit = 0;
-			int32 HitBack = 0;
-
-			for (int32 SampleIndex = 0; SampleIndex < SampleDirections->Num(); SampleIndex++)
+			for (int32 XIndex = 0; XIndex < DistanceField::BrickSize; XIndex++)
 			{
-				const FVector UnitRayDirection = (*SampleDirections)[SampleIndex];
-				const FVector EndPosition = VoxelPosition + UnitRayDirection * VolumeMaxDistance;
-
-				if (FMath::LineBoxIntersection(VolumeBounds, VoxelPosition, EndPosition, UnitRayDirection))
+				if (XIndex == DebugX && YIndex == DebugY && ZIndex == DebugZ)
 				{
-#if USE_EMBREE
-					if (bUseEmbree)
+					int32 DebugBreak = 0;
+				}
+
+				const FVector VoxelPosition = FVector(XIndex, YIndex, ZIndex) * DistanceFieldVoxelSize + BrickMinPosition;
+				const int32 Index = (ZIndex * DistanceField::BrickSize * DistanceField::BrickSize + YIndex * DistanceField::BrickSize + XIndex);
+
+				float MinLocalSpaceDistance = LocalSpaceTraceDistance;
+
+				bool bTraceRays = true;
+
+				if (bUsePointQuery)
+				{
+					RTCPointQuery PointQuery;
+					PointQuery.x = VoxelPosition.X;
+					PointQuery.y = VoxelPosition.Y;
+					PointQuery.z = VoxelPosition.Z;
+					PointQuery.time = 0;
+					PointQuery.radius = LocalSpaceTraceDistance;
+
+					FEmbreePointQueryContext QueryContext;
+					rtcInitPointQueryContext(&QueryContext);
+					QueryContext.MeshGeometry = EmbreeScene.Geometry.InternalGeometry;
+					QueryContext.NumTriangles = EmbreeScene.Geometry.TriangleDescs.Num();
+					float ClosestUnsignedDistanceSq = (LocalSpaceTraceDistance * 2.0f) * (LocalSpaceTraceDistance * 2.0f);
+					rtcPointQuery(EmbreeScene.EmbreeScene, &PointQuery, &QueryContext, EmbreePointQueryFunction, &ClosestUnsignedDistanceSq);
+
+					const float ClosestDistance = FMath::Sqrt(ClosestUnsignedDistanceSq);
+					bTraceRays = ClosestDistance <= LocalSpaceTraceDistance;
+					MinLocalSpaceDistance = FMath::Min(MinLocalSpaceDistance, ClosestDistance);
+				}
+				
+				if (bTraceRays)
+				{
+					int32 Hit = 0;
+					int32 HitBack = 0;
+
+					for (int32 SampleIndex = 0; SampleIndex < SampleDirections->Num(); SampleIndex++)
 					{
-						FEmbreeRay EmbreeRay;
+						const FVector UnitRayDirection = (*SampleDirections)[SampleIndex];
+						const float PullbackEpsilon = 1.e-4f;
+						// Pull back the starting position slightly to make sure we hit a triangle that VoxelPosition is exactly on.  
+						// This happens a lot with boxes, since we trace from voxel corners.
+						const FVector StartPosition = VoxelPosition - PullbackEpsilon * LocalSpaceTraceDistance * UnitRayDirection;
+						const FVector EndPosition = VoxelPosition + UnitRayDirection * LocalSpaceTraceDistance;
 
-						FVector RayDirection = EndPosition - VoxelPosition;
-						EmbreeRay.org[0] = VoxelPosition.X;
-						EmbreeRay.org[1] = VoxelPosition.Y;
-						EmbreeRay.org[2] = VoxelPosition.Z;
-						EmbreeRay.dir[0] = RayDirection.X;
-						EmbreeRay.dir[1] = RayDirection.Y;
-						EmbreeRay.dir[2] = RayDirection.Z;
-						EmbreeRay.tnear = 0;
-						EmbreeRay.tfar = 1.0f;
-
-						rtcIntersect(EmbreeScene, EmbreeRay);
-
-						if (EmbreeRay.geomID != -1 && EmbreeRay.primID != -1)
+						if (FMath::LineBoxIntersection(VolumeBounds, VoxelPosition, EndPosition, UnitRayDirection))
 						{
-							Hit++;
+							FEmbreeRay EmbreeRay;
 
-							const FVector HitNormal = EmbreeRay.GetHitNormal();
+							FVector RayDirection = EndPosition - VoxelPosition;
+							EmbreeRay.ray.org_x = StartPosition.X;
+							EmbreeRay.ray.org_y = StartPosition.Y;
+							EmbreeRay.ray.org_z = StartPosition.Z;
+							EmbreeRay.ray.dir_x = RayDirection.X;
+							EmbreeRay.ray.dir_y = RayDirection.Y;
+							EmbreeRay.ray.dir_z = RayDirection.Z;
+							EmbreeRay.ray.tnear = 0;
+							EmbreeRay.ray.tfar = 1.0f;
 
-							if (FVector::DotProduct(UnitRayDirection, HitNormal) > 0 && !EmbreeRay.IsHitTwoSided())
+							FEmbreeIntersectionContext EmbreeContext;
+							rtcInitIntersectContext(&EmbreeContext);
+							rtcIntersect1(EmbreeScene.EmbreeScene, &EmbreeContext, &EmbreeRay);
+
+							if (EmbreeRay.hit.geomID != RTC_INVALID_GEOMETRY_ID && EmbreeRay.hit.primID != RTC_INVALID_GEOMETRY_ID)
 							{
-								HitBack++;
-							}
+								check(EmbreeContext.ElementIndex != -1);
+								Hit++;
 
-							const float CurrentDistance = VolumeMaxDistance * EmbreeRay.tfar;
+								const FVector HitNormal = EmbreeRay.GetHitNormal();
 
-							if (CurrentDistance < MinDistance)
-							{
-								MinDistance = CurrentDistance;
+								if (FVector::DotProduct(UnitRayDirection, HitNormal) > 0 && !EmbreeContext.IsHitTwoSided())
+								{
+									HitBack++;
+								}
+
+								if (!bUsePointQuery)
+								{
+									const float CurrentDistance = EmbreeRay.ray.tfar * LocalSpaceTraceDistance;
+
+									if (CurrentDistance < MinLocalSpaceDistance)
+									{
+										MinLocalSpaceDistance = CurrentDistance;
+									}
+								}
 							}
 						}
 					}
-					else
-#endif
+
+					// Consider this voxel 'inside' an object if we hit a significant number of backfaces
+					if (Hit > 0 && HitBack > .25f * SampleDirections->Num())
 					{
-						FkHitResult Result;
-
-						TkDOPLineCollisionCheck<const FMeshBuildDataProvider, uint32> kDOPCheck(
-							VoxelPosition,
-							EndPosition,
-							true,
-							kDOPDataProvider,
-							&Result);
-
-						bool bHit = kDopTree->LineCheck(kDOPCheck);
-
-						if (bHit)
-						{
-							Hit++;
-
-							const FVector HitNormal = kDOPCheck.GetHitNormal();
-
-							if (FVector::DotProduct(UnitRayDirection, HitNormal) > 0
-								// MaterialIndex on the build triangles was set to 1 if two-sided, or 0 if one-sided
-								&& kDOPCheck.Result->Item == 0)
-							{
-								HitBack++;
-							}
-
-							const float CurrentDistance = VolumeMaxDistance * Result.Time;
-
-							if (CurrentDistance < MinDistance)
-							{
-								MinDistance = CurrentDistance;
-							}
-						}
+						MinLocalSpaceDistance *= -1;
 					}
 				}
+
+				// Transform to the tracing shader's Volume space
+				const float VolumeSpaceDistance = MinLocalSpaceDistance * LocalToVolumeScale;
+				// Transform to the Distance Field texture's space
+				const float RescaledDistance = (VolumeSpaceDistance - DistanceFieldToVolumeScaleBias.Y) / DistanceFieldToVolumeScaleBias.X;
+				check(DistanceField::DistanceFieldFormat == PF_G8);
+				const uint8 QuantizedDistance = FMath::Clamp<int32>(FMath::FloorToInt(RescaledDistance * 255.0f + .5f), 0, 255);
+				DistanceFieldVolume[Index] = QuantizedDistance;
+				BrickMaxDistance = FMath::Max(BrickMaxDistance, QuantizedDistance);
+				BrickMinDistance = FMath::Min(BrickMinDistance, QuantizedDistance);
 			}
-
-			const float UnsignedDistance = MinDistance;
-
-			// Consider this voxel 'inside' an object if more than 40% of the rays hit back faces
-			if (Hit > 0 && HitBack > SampleDirections->Num() * .4f)
-			{
-				MinDistance *= -1;
-			}
-
-			// If we are very close to a surface and nearly all of our rays hit backfaces, treat as inside
-			// This is important for one sided planes
-			if (FMath::Square(UnsignedDistance) < VoxelDiameterSqr && HitBack > .95f * Hit)
-			{
-				MinDistance = -UnsignedDistance;
-			}
-
-			MinDistance = FMath::Min(MinDistance, VolumeMaxDistance);
-			const float VolumeSpaceDistance = MinDistance / VolumeBounds.GetExtent().GetMax();
-
-			if (MinDistance < 0 &&
-				(XIndex == 0 || XIndex == VolumeDimensions.X - 1 ||
-				YIndex == 0 || YIndex == VolumeDimensions.Y - 1 ||
-				ZIndex == 0 || ZIndex == VolumeDimensions.Z - 1))
-			{
-				bNegativeAtBorder = true;
-			}
-
-			(*OutDistanceFieldVolume)[Index] = VolumeSpaceDistance;
 		}
 	}
 }
@@ -206,8 +258,6 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 	bool bGenerateAsIfTwoSided,
 	FDistanceFieldVolumeData& OutData)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshUtilities::GenerateSignedDistanceFieldVolumeData);
-
 	if (DistanceFieldResolutionScale > 0)
 	{
 		const double StartTime = FPlatformTime::Seconds();
@@ -220,228 +270,267 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 			bGenerateAsIfTwoSided,
 			EmbreeScene);
 
-		//@todo - project setting
-		const int32 NumVoxelDistanceSamples = 1200;
-		TArray<FVector4> SampleDirections;
-		FRandomStream RandomStream(0);
-		MeshUtilities::GenerateStratifiedUniformHemisphereSamples(NumVoxelDistanceSamples, RandomStream, SampleDirections);
-		TArray<FVector4> OtherHemisphereSamples;
-		MeshUtilities::GenerateStratifiedUniformHemisphereSamples(NumVoxelDistanceSamples, RandomStream, OtherHemisphereSamples);
+		check(EmbreeScene.bUseEmbree);
 
-		for (int32 i = 0; i < OtherHemisphereSamples.Num(); i++)
+		bool bMostlyTwoSided;
 		{
-			FVector4 Sample = OtherHemisphereSamples[i];
-			Sample.Z *= -1;
-			SampleDirections.Add(Sample);
+			uint32 NumTrianglesTotal = 0;
+			uint32 NumTwoSidedTriangles = 0;
+
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			{
+				const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+
+				if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
+				{
+					NumTrianglesTotal += Section.NumTriangles;
+
+					if (MaterialBlendModes[Section.MaterialIndex].bTwoSided)
+					{
+						NumTwoSidedTriangles += Section.NumTriangles;
+					}
+				}
+			}
+
+			bMostlyTwoSided = NumTwoSidedTriangles * 4 >= NumTrianglesTotal || bGenerateAsIfTwoSided;
+		}
+
+		// Whether to use an Embree Point Query to compute the closest unsigned distance.  Rays will only be traced to determine backfaces visible for sign.
+		const bool bUsePointQuery = true;
+
+		TArray<FVector4> SampleDirections;
+		{
+			const int32 NumVoxelDistanceSamples = bUsePointQuery ? 120 : 1200;
+			FRandomStream RandomStream(0);
+			MeshUtilities::GenerateStratifiedUniformHemisphereSamples(NumVoxelDistanceSamples, RandomStream, SampleDirections);
+			TArray<FVector4> OtherHemisphereSamples;
+			MeshUtilities::GenerateStratifiedUniformHemisphereSamples(NumVoxelDistanceSamples, RandomStream, OtherHemisphereSamples);
+
+			for (int32 i = 0; i < OtherHemisphereSamples.Num(); i++)
+			{
+				FVector4 Sample = OtherHemisphereSamples[i];
+				Sample.Z *= -1;
+				SampleDirections.Add(Sample);
+			}
 		}
 
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.MaxPerMeshResolution"));
 		const int32 PerMeshMax = CVar->GetValueOnAnyThread();
 
 		// Meshes with explicit artist-specified scale can go higher
-		const int32 MaxNumVoxelsOneDim = DistanceFieldResolutionScale <= 1 ? PerMeshMax / 2 : PerMeshMax;
-		const int32 MinNumVoxelsOneDim = 8;
+		const int32 MaxNumBlocksOneDim = FMath::Min<int32>(FMath::DivideAndRoundNearest(DistanceFieldResolutionScale <= 1 ? PerMeshMax / 2 : PerMeshMax, DistanceField::UniqueDataBrickSize), DistanceField::MaxIndirectionDimension - 1);
 
 		static const auto CVarDensity = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.DistanceFields.DefaultVoxelDensity"));
 		const float VoxelDensity = CVarDensity->GetValueOnAnyThread();
 
 		const float NumVoxelsPerLocalSpaceUnit = VoxelDensity * DistanceFieldResolutionScale;
-		FBox MeshBounds(Bounds.GetBox());
+		FBox LocalSpaceMeshBounds(Bounds.GetBox());
 
-		// Make sure BBox isn't empty and we can generate an SDF for it. This handles e.g. infinitely thin planes.
-		FVector MeshBoundsCenter = MeshBounds.GetCenter();
-		FVector MeshBoundsExtent = FVector::Max(MeshBounds.GetExtent(), FVector(1.0f, 1.0f, 1.0f));
-		MeshBounds.Min = MeshBoundsCenter - MeshBoundsExtent;
-		MeshBounds.Max = MeshBoundsCenter + MeshBoundsExtent;
-
-		static const auto CVarEightBit = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.EightBit"));
-
-		const bool bEightBitFixedPoint = CVarEightBit->GetValueOnAnyThread() != 0;
-		const int32 FormatSize = GPixelFormats[bEightBitFixedPoint ? PF_G8 : PF_R16F].BlockBytes;
-
+		// Make sure the mesh bounding box has positive extents to handle planes
 		{
-			FVector DesiredDimensions = FVector(MeshBounds.GetSize()* FVector(NumVoxelsPerLocalSpaceUnit));
-			FIntVector VolumeDimensions = FIntVector(
-				FMath::Clamp(FMath::TruncToInt(DesiredDimensions.X) + 2 * DistanceField::MeshDistanceFieldBorder, MinNumVoxelsOneDim, MaxNumVoxelsOneDim),
-				FMath::Clamp(FMath::TruncToInt(DesiredDimensions.Y) + 2 * DistanceField::MeshDistanceFieldBorder, MinNumVoxelsOneDim, MaxNumVoxelsOneDim),
-				FMath::Clamp(FMath::TruncToInt(DesiredDimensions.Z) + 2 * DistanceField::MeshDistanceFieldBorder, MinNumVoxelsOneDim, MaxNumVoxelsOneDim));
+			FVector MeshBoundsCenter = LocalSpaceMeshBounds.GetCenter();
+			FVector MeshBoundsExtent = FVector::Max(LocalSpaceMeshBounds.GetExtent(), FVector(1.0f, 1.0f, 1.0f));
+			LocalSpaceMeshBounds.Min = MeshBoundsCenter - MeshBoundsExtent;
+			LocalSpaceMeshBounds.Max = MeshBoundsCenter + MeshBoundsExtent;
+		}
+
+		// We sample on voxel corners and use central differencing for gradients, so a box mesh using two-sided materials whose vertices lie on LocalSpaceMeshBounds produces a zero gradient on intersection
+		// Expand the mesh bounds by a fraction of a voxel to allow room for a pullback on the hit location for computing the gradient.
+		// Only expand for two sided meshes as this adds significant Mesh SDF tracing cost
+		if (bMostlyTwoSided)
+		{
+			const FVector DesiredDimensions = FVector(LocalSpaceMeshBounds.GetSize() * FVector(NumVoxelsPerLocalSpaceUnit / (float)DistanceField::UniqueDataBrickSize));
+			const FIntVector Mip0IndirectionDimensions = FIntVector(
+				FMath::Clamp(FMath::RoundToInt(DesiredDimensions.X), 1, MaxNumBlocksOneDim),
+				FMath::Clamp(FMath::RoundToInt(DesiredDimensions.Y), 1, MaxNumBlocksOneDim),
+				FMath::Clamp(FMath::RoundToInt(DesiredDimensions.Z), 1, MaxNumBlocksOneDim));
+
+			const float CentralDifferencingExpandInVoxels = .25f;
+			const FVector TexelObjectSpaceSize = LocalSpaceMeshBounds.GetSize() / FVector(Mip0IndirectionDimensions * DistanceField::UniqueDataBrickSize - FIntVector(2 * CentralDifferencingExpandInVoxels));
+			LocalSpaceMeshBounds = LocalSpaceMeshBounds.ExpandBy(TexelObjectSpaceSize);
+		}
+
+		// The tracing shader uses a Volume space that is normalized by the maximum extent, to keep Volume space within [-1, 1], we must match that behavior when encoding
+		const float LocalToVolumeScale = 1.0f / LocalSpaceMeshBounds.GetExtent().GetMax();
+
+		const FVector DesiredDimensions = FVector(LocalSpaceMeshBounds.GetSize() * FVector(NumVoxelsPerLocalSpaceUnit / (float)DistanceField::UniqueDataBrickSize));
+		const FIntVector Mip0IndirectionDimensions = FIntVector(
+			FMath::Clamp(FMath::RoundToInt(DesiredDimensions.X), 1, MaxNumBlocksOneDim),
+			FMath::Clamp(FMath::RoundToInt(DesiredDimensions.Y), 1, MaxNumBlocksOneDim),
+			FMath::Clamp(FMath::RoundToInt(DesiredDimensions.Z), 1, MaxNumBlocksOneDim));
+
+		TArray<uint8> StreamableMipData;
+
+		for (int32 MipIndex = 0; MipIndex < DistanceField::NumMips; MipIndex++)
+		{
+			const FIntVector IndirectionDimensions = FIntVector(
+				FMath::DivideAndRoundUp(Mip0IndirectionDimensions.X, 1 << MipIndex),
+				FMath::DivideAndRoundUp(Mip0IndirectionDimensions.Y, 1 << MipIndex),
+				FMath::DivideAndRoundUp(Mip0IndirectionDimensions.Z, 1 << MipIndex));
 
 			// Expand to guarantee one voxel border for gradient reconstruction using bilinear filtering
-			const FVector TexelObjectSpaceSize = MeshBounds.GetSize() / FVector(VolumeDimensions - FIntVector(2 * DistanceField::MeshDistanceFieldBorder));
-			const FBox DistanceFieldVolumeBounds = MeshBounds.ExpandBy(DistanceField::MeshDistanceFieldBorder * TexelObjectSpaceSize);
-			const float DistanceFieldVolumeMaxDistance = DistanceFieldVolumeBounds.GetExtent().Size();
+			const FVector TexelObjectSpaceSize = LocalSpaceMeshBounds.GetSize() / FVector(IndirectionDimensions * DistanceField::UniqueDataBrickSize - FIntVector(2 * DistanceField::MeshDistanceFieldObjectBorder));
+			const FBox DistanceFieldVolumeBounds = LocalSpaceMeshBounds.ExpandBy(TexelObjectSpaceSize);
 
-			TArray<float> DistanceFieldVolume;
-			DistanceFieldVolume.Empty(VolumeDimensions.X * VolumeDimensions.Y * VolumeDimensions.Z);
-			DistanceFieldVolume.AddZeroed(VolumeDimensions.X * VolumeDimensions.Y * VolumeDimensions.Z);
+			const FVector IndirectionVoxelSize = DistanceFieldVolumeBounds.GetSize() / FVector(IndirectionDimensions);
+			const float IndirectionVoxelRadius = IndirectionVoxelSize.Size();
 
-			TArray<FMeshDistanceFieldAsyncTask> AsyncTasks;
-			AsyncTasks.Reserve(VolumeDimensions.Z);
+			const FVector VolumeSpaceDistanceFieldVoxelSize = IndirectionVoxelSize * LocalToVolumeScale / FVector(DistanceField::UniqueDataBrickSize);
+			const float MaxDistanceForEncoding = VolumeSpaceDistanceFieldVoxelSize.Size() * DistanceField::BandSizeInVoxels;
+			const float LocalSpaceTraceDistance = MaxDistanceForEncoding / LocalToVolumeScale;
+			const FVector2D DistanceFieldToVolumeScaleBias(2.0f * MaxDistanceForEncoding, -MaxDistanceForEncoding);
 
-			for (int32 ZIndex = 0; ZIndex < VolumeDimensions.Z; ZIndex++)
+			TArray<FSparseMeshDistanceFieldAsyncTask> AsyncTasks;
+			AsyncTasks.Reserve(IndirectionDimensions.X * IndirectionDimensions.Y * IndirectionDimensions.Z / 8);
+
+			for (int32 ZIndex = 0; ZIndex < IndirectionDimensions.Z; ZIndex++)
 			{
-				AsyncTasks.Emplace(
-					&EmbreeScene.kDopTree,
-					EmbreeScene.bUseEmbree,
-					EmbreeScene.EmbreeScene,
-					&SampleDirections,
-					DistanceFieldVolumeBounds,
-					VolumeDimensions,
-					DistanceFieldVolumeMaxDistance,
-					ZIndex,
-					&DistanceFieldVolume);
+				for (int32 YIndex = 0; YIndex < IndirectionDimensions.Y; YIndex++)
+				{
+					for (int32 XIndex = 0; XIndex < IndirectionDimensions.X; XIndex++)
+					{
+						AsyncTasks.Emplace(
+							EmbreeScene,
+							&SampleDirections,
+							LocalSpaceTraceDistance,
+							DistanceFieldVolumeBounds,
+							LocalToVolumeScale,
+							DistanceFieldToVolumeScaleBias,
+							FIntVector(XIndex, YIndex, ZIndex),
+							IndirectionDimensions,
+							bUsePointQuery);
+					}
+				}
 			}
 
-			bool bNegativeAtBorder = false;
+			static bool bMultiThreaded = true;
 
-			ParallelForTemplate(AsyncTasks.Num(), [&AsyncTasks](int32 TaskIndex)
+			if (bMultiThreaded)
 			{
-				AsyncTasks[TaskIndex].DoWork();
-			}, EParallelForFlags::Unbalanced);
+				EParallelForFlags Flags = EParallelForFlags::BackgroundPriority | EParallelForFlags::Unbalanced;
+
+				ParallelForTemplate(AsyncTasks.Num(), [&AsyncTasks](int32 TaskIndex)
+				{
+					AsyncTasks[TaskIndex].DoWork();
+				}, Flags);
+			}
+			else
+			{
+				for (FSparseMeshDistanceFieldAsyncTask& AsyncTask : AsyncTasks)
+				{
+					AsyncTask.DoWork();
+				}
+			}
+
+			FSparseDistanceFieldMip& OutMip = OutData.Mips[MipIndex];
+			TArray<uint32> IndirectionTable;
+			IndirectionTable.Empty(IndirectionDimensions.X * IndirectionDimensions.Y * IndirectionDimensions.Z);
+			IndirectionTable.AddUninitialized(IndirectionDimensions.X * IndirectionDimensions.Y * IndirectionDimensions.Z);
+
+			for (int32 i = 0; i < IndirectionTable.Num(); i++)
+			{
+				IndirectionTable[i] = DistanceField::InvalidBrickIndex;
+			} 
+
+			TArray<FSparseMeshDistanceFieldAsyncTask*> ValidBricks;
+			ValidBricks.Empty(AsyncTasks.Num());
 
 			for (int32 TaskIndex = 0; TaskIndex < AsyncTasks.Num(); TaskIndex++)
 			{
-				bNegativeAtBorder = bNegativeAtBorder || AsyncTasks[TaskIndex].WasNegativeAtBorder();
-			}
-
-			if (bNegativeAtBorder)
-			{
-				// Mesh distance fields which have negative values at the boundaries (unclosed meshes) are edited to have a virtual surface just behind the real surface, effectively closing them.
-
-				bNegativeAtBorder = false;
-				const float MinInteriorDistance = -.1f;
-
-				for (int32 Index = 0; Index < DistanceFieldVolume.Num(); Index++)
+				if (AsyncTasks[TaskIndex].BrickMinDistance < MAX_uint8 && AsyncTasks[TaskIndex].BrickMaxDistance > MIN_uint8)
 				{
-					const float OriginalVolumeSpaceDistance = DistanceFieldVolume[Index];
-					float NewVolumeSpaceDistance = OriginalVolumeSpaceDistance;
-
-					if (OriginalVolumeSpaceDistance < MinInteriorDistance)
-					{
-						NewVolumeSpaceDistance = MinInteriorDistance - OriginalVolumeSpaceDistance;
-						DistanceFieldVolume[Index] = NewVolumeSpaceDistance;
-					}
-
-					const int32 XIndex = Index % VolumeDimensions.X;
-					const int32 ZIndex = Index / (VolumeDimensions.Y * VolumeDimensions.X);
-					const int32 YIndex = (Index - ZIndex * VolumeDimensions.Y * VolumeDimensions.X) / VolumeDimensions.X;
-
-					if (NewVolumeSpaceDistance < 0 &&
-						(XIndex == 0 || XIndex == VolumeDimensions.X - 1 ||
-						YIndex == 0 || YIndex == VolumeDimensions.Y - 1 ||
-						ZIndex == 0 || ZIndex == VolumeDimensions.Z - 1))
-					{
-						bNegativeAtBorder = true;
-					}
+					ValidBricks.Add(&AsyncTasks[TaskIndex]);
 				}
 			}
 
-			if (bNegativeAtBorder)
+			const uint32 NumBricks = ValidBricks.Num();
+
+			const uint32 BrickSizeBytes = DistanceField::BrickSize * DistanceField::BrickSize * DistanceField::BrickSize * GPixelFormats[DistanceField::DistanceFieldFormat].BlockBytes;
+
+			TArray<uint8> DistanceFieldBrickData;
+			DistanceFieldBrickData.Empty(BrickSizeBytes * NumBricks);
+			DistanceFieldBrickData.AddUninitialized(BrickSizeBytes * NumBricks);
+
+			for (int32 BrickIndex = 0; BrickIndex < ValidBricks.Num(); BrickIndex++)
 			{
-				UE_LOG(LogMeshUtilities, Log, TEXT("Distance field for %s mesh has a negative border."), *MeshName);
+				const FSparseMeshDistanceFieldAsyncTask& Brick = *ValidBricks[BrickIndex];
+				const int32 IndirectionIndex = ComputeLinearVoxelIndex(Brick.BrickCoordinate, IndirectionDimensions);
+				IndirectionTable[IndirectionIndex] = BrickIndex;
+
+				check(BrickSizeBytes == Brick.DistanceFieldVolume.Num() * Brick.DistanceFieldVolume.GetTypeSize());
+				FPlatformMemory::Memcpy(&DistanceFieldBrickData[BrickIndex * BrickSizeBytes], Brick.DistanceFieldVolume.GetData(), Brick.DistanceFieldVolume.Num() * Brick.DistanceFieldVolume.GetTypeSize());
 			}
 
-			TArray<uint8> QuantizedDistanceFieldVolume;
-			QuantizedDistanceFieldVolume.Empty(VolumeDimensions.X * VolumeDimensions.Y * VolumeDimensions.Z * FormatSize);
-			QuantizedDistanceFieldVolume.AddZeroed(VolumeDimensions.X * VolumeDimensions.Y * VolumeDimensions.Z * FormatSize);
+			const int32 IndirectionTableBytes = IndirectionTable.Num() * IndirectionTable.GetTypeSize();
+			const int32 MipDataBytes = IndirectionTableBytes + DistanceFieldBrickData.Num();
 
-			float MinVolumeDistance = 1.0f;
-			float MaxVolumeDistance = -1.0f;
-
-			for (int32 Index = 0; Index < DistanceFieldVolume.Num(); Index++)
+			if (MipIndex == DistanceField::NumMips - 1)
 			{
-				const float VolumeSpaceDistance = DistanceFieldVolume[Index];
-				MinVolumeDistance = FMath::Min(MinVolumeDistance, VolumeSpaceDistance);
-				MaxVolumeDistance = FMath::Max(MaxVolumeDistance, VolumeSpaceDistance);
-			}
+				OutData.AlwaysLoadedMip.Empty(MipDataBytes);
+				OutData.AlwaysLoadedMip.AddUninitialized(MipDataBytes);
 
-			MinVolumeDistance = FMath::Max(MinVolumeDistance, -1.0f);
-			MaxVolumeDistance = FMath::Min(MaxVolumeDistance, 1.0f);
+				FPlatformMemory::Memcpy(&OutData.AlwaysLoadedMip[0], IndirectionTable.GetData(), IndirectionTableBytes);
 
-			const float InvDistanceRange = 1.0f / (MaxVolumeDistance - MinVolumeDistance);
-
-			for (int32 Index = 0; Index < DistanceFieldVolume.Num(); Index++)
-			{
-				const float VolumeSpaceDistance = DistanceFieldVolume[Index];
-
-				if (bEightBitFixedPoint)
+				if (DistanceFieldBrickData.Num() > 0)
 				{
-					check(FormatSize == sizeof(uint8));
-					// [MinVolumeDistance, MaxVolumeDistance] -> [0, 1]
-					const float RescaledDistance = (VolumeSpaceDistance - MinVolumeDistance) * InvDistanceRange;
-					// Encoding based on D3D format conversion rules for float -> UNORM
-					const int32 QuantizedDistance = FMath::FloorToInt(RescaledDistance * 255.0f + .5f);
-					QuantizedDistanceFieldVolume[Index * FormatSize] = (uint8)FMath::Clamp<int32>(QuantizedDistance, 0, 255);
-				}
-				else
-				{
-					check(FormatSize == sizeof(FFloat16));
-					FFloat16* OutputPointer = (FFloat16*)&(QuantizedDistanceFieldVolume[Index * FormatSize]);
-					*OutputPointer = FFloat16(VolumeSpaceDistance);
-				}
-			}
-
-			DistanceFieldVolume.Empty();
-
-			OutData.bBuiltAsIfTwoSided = bGenerateAsIfTwoSided;
-			OutData.Size = VolumeDimensions;
-			OutData.LocalBoundingBox = MeshBounds;
-			OutData.DistanceMinMax = FVector2D(MinVolumeDistance, MaxVolumeDistance);
-
-			if (QuantizedDistanceFieldVolume.Num() > 0)
-			{
-				static const auto CVarCompress = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.Compress"));
-				const bool bCompress = CVarCompress->GetValueOnAnyThread() != 0;
-
-				if (bCompress)
-				{
-					const int32 UncompressedSize = QuantizedDistanceFieldVolume.Num() * QuantizedDistanceFieldVolume.GetTypeSize();
-					TArray<uint8> TempCompressedMemory;
-					// Compressed can be slightly larger than uncompressed
-					TempCompressedMemory.Empty(UncompressedSize * 4 / 3);
-					TempCompressedMemory.AddUninitialized(UncompressedSize * 4 / 3);
-					int32 CompressedSize = TempCompressedMemory.Num() * TempCompressedMemory.GetTypeSize();
-
-					verify(FCompression::CompressMemory(
-						NAME_LZ4, 
-						TempCompressedMemory.GetData(), 
-						CompressedSize, 
-						QuantizedDistanceFieldVolume.GetData(), 
-						UncompressedSize,
-						COMPRESS_BiasMemory));
-
-					OutData.CompressedDistanceFieldVolume.Empty(CompressedSize);
-					OutData.CompressedDistanceFieldVolume.AddUninitialized(CompressedSize);
-
-					FPlatformMemory::Memcpy(OutData.CompressedDistanceFieldVolume.GetData(), TempCompressedMemory.GetData(), CompressedSize);
-				}
-				else
-				{
-					int32 CompressedSize = QuantizedDistanceFieldVolume.Num() * QuantizedDistanceFieldVolume.GetTypeSize();
-
-					OutData.CompressedDistanceFieldVolume.Empty(CompressedSize);
-					OutData.CompressedDistanceFieldVolume.AddUninitialized(CompressedSize);
-
-					FPlatformMemory::Memcpy(OutData.CompressedDistanceFieldVolume.GetData(), QuantizedDistanceFieldVolume.GetData(), CompressedSize);
+					FPlatformMemory::Memcpy(&OutData.AlwaysLoadedMip[IndirectionTableBytes], DistanceFieldBrickData.GetData(), DistanceFieldBrickData.Num());
 				}
 			}
 			else
 			{
-				OutData.CompressedDistanceFieldVolume.Empty();
-			}
+				OutMip.BulkOffset = StreamableMipData.Num();
+				StreamableMipData.AddUninitialized(MipDataBytes);
+				OutMip.BulkSize = StreamableMipData.Num() - OutMip.BulkOffset;
 
-			UE_LOG(LogMeshUtilities, Log, TEXT("Finished distance field build in %.1fs - %ux%ux%u distance field, %u triangles, Range [%.1f, %.1f], %s"),
-				(float)(FPlatformTime::Seconds() - StartTime),
-				VolumeDimensions.X,
-				VolumeDimensions.Y,
-				VolumeDimensions.Z,
-				EmbreeScene.NumIndices / 3,
-				MinVolumeDistance,
-				MaxVolumeDistance,
-				*MeshName);
+				FPlatformMemory::Memcpy(&StreamableMipData[OutMip.BulkOffset], IndirectionTable.GetData(), IndirectionTableBytes);
+
+				if (DistanceFieldBrickData.Num() > 0)
+				{
+					FPlatformMemory::Memcpy(&StreamableMipData[OutMip.BulkOffset + IndirectionTableBytes], DistanceFieldBrickData.GetData(), DistanceFieldBrickData.Num());
+				}
+			}
+	
+			OutMip.IndirectionDimensions = IndirectionDimensions;
+			OutMip.DistanceFieldToVolumeScaleBias = DistanceFieldToVolumeScaleBias;
+			OutMip.NumDistanceFieldBricks = NumBricks;
+
+			// Account for the border voxels we added
+			const FVector VirtualUVMin = FVector(DistanceField::MeshDistanceFieldObjectBorder) / FVector(IndirectionDimensions * DistanceField::UniqueDataBrickSize);
+			const FVector VirtualUVSize = FVector(IndirectionDimensions * DistanceField::UniqueDataBrickSize - FIntVector(2 * DistanceField::MeshDistanceFieldObjectBorder)) / FVector(IndirectionDimensions * DistanceField::UniqueDataBrickSize);
+		
+			const FVector VolumePositionExtent = LocalSpaceMeshBounds.GetExtent() * LocalToVolumeScale;
+
+			// [-VolumePositionExtent, VolumePositionExtent] -> [VirtualUVMin, VirtualUVMin + VirtualUVSize]
+			OutMip.VolumeToVirtualUVScale = VirtualUVSize / (2 * VolumePositionExtent);
+			OutMip.VolumeToVirtualUVAdd = VolumePositionExtent * OutMip.VolumeToVirtualUVScale + VirtualUVMin;
 		}
 
 		MeshRepresentation::DeleteEmbreeScene(EmbreeScene);
+
+		OutData.bMostlyTwoSided = bMostlyTwoSided;
+		OutData.LocalSpaceMeshBounds = LocalSpaceMeshBounds;
+
+		OutData.StreamableMips.Lock(LOCK_READ_WRITE);
+		uint8* Ptr = (uint8*)OutData.StreamableMips.Realloc(StreamableMipData.Num());
+		FMemory::Memcpy(Ptr, StreamableMipData.GetData(), StreamableMipData.Num());
+		OutData.StreamableMips.Unlock();
+		OutData.StreamableMips.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+
+		const float BuildTime = (float)(FPlatformTime::Seconds() - StartTime);
+		 
+		if (BuildTime > 1.0f)
+		{
+			UE_LOG(LogMeshUtilities, Log, TEXT("Finished distance field build in %.1fs - %ux%ux%u sparse distance field, %.1fMb total, %.1fMb always loaded, %u%% occupied, %u triangles, %s"),
+				BuildTime,
+				Mip0IndirectionDimensions.X * DistanceField::UniqueDataBrickSize,
+				Mip0IndirectionDimensions.Y * DistanceField::UniqueDataBrickSize,
+				Mip0IndirectionDimensions.Z * DistanceField::UniqueDataBrickSize,
+				(OutData.GetResourceSizeBytes() + OutData.StreamableMips.GetBulkDataSize()) / 1024.0f / 1024.0f,
+				(OutData.AlwaysLoadedMip.GetAllocatedSize()) / 1024.0f / 1024.0f,
+				FMath::RoundToInt(100.0f * OutData.Mips[0].NumDistanceFieldBricks / (float)(Mip0IndirectionDimensions.X * Mip0IndirectionDimensions.Y * Mip0IndirectionDimensions.Z)),
+				EmbreeScene.NumIndices / 3,
+				*MeshName);
+		}
 	}
 }
 
@@ -460,143 +549,8 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 {
 	if (DistanceFieldResolutionScale > 0)
 	{
-		UE_LOG(LogMeshUtilities, Error, TEXT("Couldn't generate distance field for mesh, platform is missing required Vector intrinsics."));
+		UE_LOG(LogMeshUtilities, Error, TEXT("Couldn't generate distance field for mesh, platform is missing Embree support."));
 	}
 }
 
 #endif // PLATFORM_ENABLE_VECTORINTRINSICS
-
-void FMeshUtilities::DownSampleDistanceFieldVolumeData(FDistanceFieldVolumeData& DistanceFieldData, float Divider)
-{
-	static const auto CVarCompress = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.Compress"));
-	const bool bDataIsCompressed = CVarCompress->GetValueOnAnyThread() != 0;
-
-	static const auto CVarEightBit = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.EightBit"));
-	const bool bDataIsEightBit = CVarEightBit->GetValueOnAnyThread() != 0;
-
-	if (!bDataIsEightBit)
-	{
-		return;
-	}
-
-	TArray<uint8> UncompressedData;
-	const TArray<uint8>* SourceData = &DistanceFieldData.CompressedDistanceFieldVolume;
-
-	if (DistanceFieldData.Size.X <= 4 || DistanceFieldData.Size.Y <= 4 || DistanceFieldData.Size.Z <= 4)
-	{
-		return;
-	}
-
-	int32 UncompressedSize = DistanceFieldData.Size.X * DistanceFieldData.Size.Y * DistanceFieldData.Size.Z;
-
-	if (bDataIsCompressed)
-	{
-		UncompressedData.AddUninitialized(UncompressedSize);
-		verify(FCompression::UncompressMemory(NAME_LZ4, UncompressedData.GetData(), UncompressedSize, DistanceFieldData.CompressedDistanceFieldVolume.GetData(), DistanceFieldData.CompressedDistanceFieldVolume.Num()));
-		SourceData = &UncompressedData;
-	}
-
-	const FIntVector SrcSize = DistanceFieldData.Size;
-
-	FVector DstSizeFloat = FVector(SrcSize);
-	DstSizeFloat /= Divider;
-	
-	FIntVector DstSize;
-	DstSize.X = FMath::TruncToInt(DstSizeFloat.X);
-	DstSize.Y = FMath::TruncToInt(DstSizeFloat.Y);
-	DstSize.Z = FMath::TruncToInt(DstSizeFloat.Z);
-
-	FIntVector IntVectorOne = FIntVector(1);
-	FIntVector SrcSizeMinusOne = SrcSize - IntVectorOne;
-	FIntVector DstSizeMinusOne = DstSize - IntVectorOne;
-	
-	FVector Divider3 = FVector(SrcSizeMinusOne) / FVector(DstSizeMinusOne);
-
-	TArray<uint8> DownSampledTexture;
-	DownSampledTexture.SetNum(DstSize.X * DstSize.Y * DstSize.Z);
-
-	int32 SrcPitchX = SrcSize.X;
-	int32 SrcPitchY = SrcSize.X * SrcSize.Y;
-	int32 DstPitchX = DstSize.X;
-	int32 DstPitchY = DstSize.X * DstSize.Y;
-
-	for (int32 DstPosZ = 0; DstPosZ < DstSize.Z; ++DstPosZ)
-	{
-		int32 SrcPosZ0 = FMath::TruncToInt((float(DstPosZ) + 0.0f) * Divider3.Z);
-		int32 SrcPosZ1 = FMath::TruncToInt((float(DstPosZ) + 1.0f) * Divider3.Z);
-		SrcPosZ1 = FMath::Min(SrcPosZ1, SrcSizeMinusOne.Z);
-
-		int32 SrcOffsetZ0 = SrcPosZ0 * SrcPitchY;
-		int32 SrcOffsetZ1 = SrcPosZ1 * SrcPitchY;
-		
-		int32 DstOffsetZ = DstPosZ * DstPitchY;
-
-		for (int32 DstPosY = 0; DstPosY < DstSize.Y; ++DstPosY)
-		{
-			int32 SrcPosY0 = FMath::TruncToInt(float(DstPosY) + 0.0f) * Divider3.Y;
-			int32 SrcPosY1 = FMath::TruncToInt(float(DstPosY) + 1.0f) * Divider3.Y;
-			SrcPosY1 = FMath::Min(SrcPosY1, SrcSizeMinusOne.Y);
-
-			int32 SrcOffsetZ0Y0 = SrcPosY0 * SrcPitchX + SrcOffsetZ0;
-			int32 SrcOffsetZ0Y1 = SrcPosY1 * SrcPitchX + SrcOffsetZ0;
-			int32 SrcOffsetZ1Y0 = SrcPosY0 * SrcPitchX + SrcOffsetZ1;
-			int32 SrcOffsetZ1Y1 = SrcPosY1 * SrcPitchX + SrcOffsetZ1;
-
-			int32 DstOffsetZY = DstPosY * DstPitchX + DstOffsetZ;
-
-			for (int32 DstPosX = 0; DstPosX < DstSize.X; ++DstPosX)
-			{
-				int32 SrcPosX0 = FMath::TruncToInt(float(DstPosX) + 0.0f) * Divider3.X;
-				int32 SrcPosX1 = FMath::TruncToInt(float(DstPosX) + 1.0f) * Divider3.X;
-				SrcPosX1 = FMath::Min(SrcPosX1, SrcSizeMinusOne.X - 1);
-
-				uint32 a = uint32((*SourceData)[SrcPosX0 + SrcOffsetZ0Y0]);
-				uint32 b = uint32((*SourceData)[SrcPosX1 + SrcOffsetZ0Y0]);
-				uint32 c = uint32((*SourceData)[SrcPosX0 + SrcOffsetZ0Y1]);
-				uint32 d = uint32((*SourceData)[SrcPosX1 + SrcOffsetZ0Y1]);
-
-				uint32 e = uint32((*SourceData)[SrcPosX0 + SrcOffsetZ1Y0]);
-				uint32 f = uint32((*SourceData)[SrcPosX1 + SrcOffsetZ1Y0]);
-				uint32 g = uint32((*SourceData)[SrcPosX0 + SrcOffsetZ1Y1]);
-				uint32 h = uint32((*SourceData)[SrcPosX1 + SrcOffsetZ1Y1]);
-
-
-				a = a + b + c + d + e + f + g + h;
-				a /= 8;
-
-				DownSampledTexture[DstOffsetZY + DstPosX] = uint8(a);
-			}
-		}
-	}
-
-	DistanceFieldData.Size = DstSize;
-	UncompressedSize = DownSampledTexture.Num();
-
-	if (bDataIsCompressed)
-	{
-		TArray<uint8> TempCompressedMemory;
-		// Compressed can be slightly larger than uncompressed
-		TempCompressedMemory.Empty(UncompressedSize * 4 / 3);
-		TempCompressedMemory.AddUninitialized(UncompressedSize * 4 / 3);
-		int32 CompressedSize = TempCompressedMemory.Num() * TempCompressedMemory.GetTypeSize();
-
-		verify(FCompression::CompressMemory(
-			NAME_LZ4,
-			TempCompressedMemory.GetData(),
-			CompressedSize,
-			DownSampledTexture.GetData(),
-			UncompressedSize,
-			COMPRESS_BiasMemory));
-
-		DistanceFieldData.CompressedDistanceFieldVolume.Empty(CompressedSize);
-		DistanceFieldData.CompressedDistanceFieldVolume.AddUninitialized(CompressedSize);
-
-		FPlatformMemory::Memcpy(DistanceFieldData.CompressedDistanceFieldVolume.GetData(), TempCompressedMemory.GetData(), CompressedSize);
-	}
-	else
-	{
-		DistanceFieldData.CompressedDistanceFieldVolume.Empty(UncompressedSize);
-		DistanceFieldData.CompressedDistanceFieldVolume.AddUninitialized(UncompressedSize);
-		FPlatformMemory::Memcpy(DistanceFieldData.CompressedDistanceFieldVolume.GetData(), DownSampledTexture.GetData(), UncompressedSize);
-	}
-}

@@ -10,16 +10,15 @@ float DistanceToNearestSurfaceForObject(uint ObjectIndex, float3 WorldPosition, 
 
 	float3 VolumePosition = mul(float4(WorldPosition, 1), DFObjectData.WorldToVolume).xyz;
 
-	float3 ClampedVolumePosition = clamp(VolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
-	float DistanceToBox = length((VolumePosition - ClampedVolumePosition) * DFObjectData.VolumeToLocalScale);
+	float3 ClampedVolumePosition = clamp(VolumePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
+	float DistanceToBox = length((VolumePosition - ClampedVolumePosition) * DFObjectData.VolumeToWorldScale);
 
 	float DistanceToOccluder = MaxDistance;
 
 	BRANCH
 	if (DistanceToBox < MaxDistance)
 	{
-		float3 StepVolumeUV = DistanceFieldVolumePositionToUV(ClampedVolumePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
-		DistanceToOccluder = SampleMeshDistanceField(StepVolumeUV, DFObjectData.DistanceFieldMAD).x * DFObjectData.VolumeScale + DistanceToBox;
+		DistanceToOccluder = DistanceToMeshSurfaceStandalone(ClampedVolumePosition, DFObjectData) * DFObjectData.VolumeScale + DistanceToBox;
 
 		// Don't allow negative SDF distance to stick out of the bounding box
 		if (DistanceToBox > 0.0f)

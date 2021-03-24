@@ -40,12 +40,10 @@ class FCullMeshSDFObjectsForViewCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWObjectIndexBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWObjectIndirectArguments)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float>, SceneObjectBounds)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float>, SceneObjectData)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(uint32, NumConvexHullPlanes)
 		SHADER_PARAMETER_ARRAY(FVector4, ViewFrustumConvexHull, [6])
-		SHADER_PARAMETER(uint32, NumSceneObjects)
 		SHADER_PARAMETER(uint32, ObjectBoundingGeometryIndexCount)
 		SHADER_PARAMETER(float, CardTraceEndDistanceFromCamera)
 		SHADER_PARAMETER(float, MaxMeshSDFInfluenceRadius)
@@ -76,8 +74,7 @@ class FMeshSDFObjectCullVS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint32>, ObjectIndexBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(float, ConservativeRadiusScale)
 		SHADER_PARAMETER(float, MaxMeshSDFInfluenceRadius)
@@ -108,9 +105,7 @@ class FMeshSDFObjectCullPS : public FGlobalShader
 		SHADER_PARAMETER(uint32, CardGridPixelSizeShift)
 		SHADER_PARAMETER(FIntVector, CullGridSize)
 		SHADER_PARAMETER(float, CardTraceEndDistanceFromCamera)
-		SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldSampler)
-		SHADER_PARAMETER(FVector, DistanceFieldAtlasTexelSize)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 		SHADER_PARAMETER(uint32, MaxNumberOfCulledObjects)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ClosestHZBTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
@@ -149,9 +144,7 @@ class FMeshSDFObjectCullForProbesPS : public FGlobalShader
 		SHADER_PARAMETER(float, MaxMeshSDFInfluenceRadius)
 		SHADER_PARAMETER(uint32, ProbeHierarchyLevelIndex)
 		SHADER_PARAMETER(FIntPoint, EmitTileStorageExtent)
-		SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldSampler)
-		SHADER_PARAMETER(FVector, DistanceFieldAtlasTexelSize)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 		SHADER_PARAMETER(uint32, MaxNumberOfCulledObjects)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -252,7 +245,6 @@ class FMeshSDFCullingContext
 public:
 	uint32 NumCullGridCells = 0;
 	uint32 MaxNumberOfCulledObjects = 0;
-	FVector DistanceFieldAtlasTexelSize = FVector(0.0f, 0.0f, 0.0f);
 
 	FRDGBufferRef ObjectIndirectArguments = nullptr;
 
@@ -274,13 +266,7 @@ void InitMeshSDFCullingContext(
 {
 	Context.MaxNumberOfCulledObjects = NumCullGridCells * GMeshSDFAverageCulledCount;
 
-	const int32 NumTexelsOneDimX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-	const int32 NumTexelsOneDimY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-	const int32 NumTexelsOneDimZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-	const FVector DistanceFieldAtlasTexelSize(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
-
 	Context.NumCullGridCells = NumCullGridCells;
-	Context.DistanceFieldAtlasTexelSize = DistanceFieldAtlasTexelSize;
 
 	Context.NumGridCulledMeshSDFObjects = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), NumCullGridCells), TEXT("Lumen.NumGridCulledMeshSDFObjects"));
 	Context.GridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Context.MaxNumberOfCulledObjects), TEXT("Lumen.GridCulledMeshSDFObjectIndicesArray"));
@@ -297,36 +283,23 @@ void FillGridParameters(
 	const FMeshSDFCullingContext* Context,
 	FLumenMeshSDFGridParameters& OutGridParameters)
 {
+	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
+	OutGridParameters.TracingParameters.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+
 	if (Context)
 	{
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-		const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
-
 		OutGridParameters.NumGridCulledMeshSDFObjects = GraphBuilder.CreateSRV(Context->NumGridCulledMeshSDFObjects, PF_R32_UINT);
 		OutGridParameters.GridCulledMeshSDFObjectStartOffsetArray = GraphBuilder.CreateSRV(Context->GridCulledMeshSDFObjectStartOffsetArray, PF_R32_UINT);
 		OutGridParameters.GridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateSRV(Context->GridCulledMeshSDFObjectIndicesArray, PF_R32_UINT);
 
-		OutGridParameters.TracingParameters.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-		OutGridParameters.TracingParameters.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-		OutGridParameters.TracingParameters.NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
-
-		OutGridParameters.TracingParameters.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		OutGridParameters.TracingParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		OutGridParameters.TracingParameters.DistanceFieldAtlasTexelSize = Context->DistanceFieldAtlasTexelSize;
+		OutGridParameters.TracingParameters.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 	}
 	else
 	{
 		OutGridParameters.NumGridCulledMeshSDFObjects = nullptr;
 		OutGridParameters.GridCulledMeshSDFObjectStartOffsetArray = nullptr;
 		OutGridParameters.GridCulledMeshSDFObjectIndicesArray = nullptr;
-
-		OutGridParameters.TracingParameters.SceneObjectBounds = nullptr;
-		OutGridParameters.TracingParameters.SceneObjectData = nullptr;
-		OutGridParameters.TracingParameters.NumSceneObjects = 0;
-
-		OutGridParameters.TracingParameters.DistanceFieldTexture = nullptr;
-		OutGridParameters.TracingParameters.DistanceFieldSampler = nullptr;
-		OutGridParameters.TracingParameters.DistanceFieldAtlasTexelSize = FVector::ZeroVector;
 	}
 }
 
@@ -354,8 +327,7 @@ void CullMeshSDFObjectsForView(
 		FCullMeshSDFObjectsForViewCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullMeshSDFObjectsForViewCS::FParameters>();
 		PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(Context.ObjectIndexBuffer, PF_R32_UINT);
 		PassParameters->RWObjectIndirectArguments = GraphBuilder.CreateUAV(Context.ObjectIndirectArguments, PF_R32_UINT);
-		PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-		PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+		PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->NumConvexHullPlanes = View.ViewFrustum.Planes.Num();
@@ -365,7 +337,6 @@ void CullMeshSDFObjectsForView(
 			PassParameters->ViewFrustumConvexHull[i] = FVector4(View.ViewFrustum.Planes[i], View.ViewFrustum.Planes[i].W);
 		}
 
-		PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
 		PassParameters->ObjectBoundingGeometryIndexCount = StencilingGeometry::GLowPolyStencilSphereIndexBuffer.GetIndexCount();
 		PassParameters->CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
 		PassParameters->MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
@@ -487,8 +458,7 @@ void CullMeshSDFObjectsToProbes(
 
 			FMeshSDFObjectCullForProbes* PassParameters = GraphBuilder.AllocParameters<FMeshSDFObjectCullForProbes>();
 
-			PassParameters->VS.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-			PassParameters->VS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+			PassParameters->VS.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
 			PassParameters->VS.ObjectIndexBuffer = GraphBuilder.CreateSRV(Context.ObjectIndexBuffer, PF_R32_UINT);
 			PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
 
@@ -505,9 +475,7 @@ void CullMeshSDFObjectsToProbes(
 			PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
 			PassParameters->PS.MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
 			PassParameters->PS.CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
-			PassParameters->PS.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-			PassParameters->PS.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			PassParameters->PS.DistanceFieldAtlasTexelSize = Context.DistanceFieldAtlasTexelSize;
+			PassParameters->PS.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 			PassParameters->PS.HierarchyParameters = ProbeHierarchyParameters;
 			PassParameters->PS.ProbeHierarchyLevelIndex = ProbeHierarchyLevelIndex;
 			PassParameters->PS.EmitTileStorageExtent = EmitProbeParameters.EmitTileStorageExtent;
@@ -620,8 +588,7 @@ void CullMeshSDFObjectsToViewGrid(
 		{
 			FMeshSDFObjectCull* PassParameters = GraphBuilder.AllocParameters<FMeshSDFObjectCull>();
 
-			PassParameters->VS.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-			PassParameters->VS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+			PassParameters->VS.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
 			PassParameters->VS.ObjectIndexBuffer = GraphBuilder.CreateSRV(Context.ObjectIndexBuffer, PF_R32_UINT);
 			PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
 
@@ -641,9 +608,7 @@ void CullMeshSDFObjectsToViewGrid(
 			PassParameters->PS.CardGridPixelSizeShift = FMath::FloorLog2(GridPixelsPerCellXY);
 			PassParameters->PS.CullGridSize = CullGridSize;
 			PassParameters->PS.CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
-			PassParameters->PS.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-			PassParameters->PS.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			PassParameters->PS.DistanceFieldAtlasTexelSize = Context.DistanceFieldAtlasTexelSize;
+			PassParameters->PS.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 			PassParameters->PS.MaxNumberOfCulledObjects = Context.MaxNumberOfCulledObjects;
 			PassParameters->PS.ClosestHZBTexture = View.ClosestHZB ? View.ClosestHZB : GSystemTextures.GetBlackDummy(GraphBuilder);
 			PassParameters->PS.FurthestHZBTexture = View.HZB;

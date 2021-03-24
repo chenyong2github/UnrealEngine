@@ -58,13 +58,28 @@ FMatrix MeshRepresentation::GetTangentBasisFrisvad(FVector TangentZ)
 }
 
 #if USE_EMBREE
-void EmbreeFilterFunc(void* UserPtr, RTCRay& InRay)
+void EmbreeFilterFunc(const struct RTCFilterFunctionNArguments* args)
 {
-	FEmbreeGeometry* EmbreeGeometry = (FEmbreeGeometry*)UserPtr;
-	FEmbreeRay& EmbreeRay = (FEmbreeRay&)InRay;
-	FEmbreeTriangleDesc Desc = EmbreeGeometry->TriangleDescs[InRay.primID];
+	FEmbreeGeometry* EmbreeGeometry = (FEmbreeGeometry*)args->geometryUserPtr;
+	FEmbreeTriangleDesc Desc = EmbreeGeometry->TriangleDescs[RTCHitN_primID(args->hit, 1, 0)];
 
-	EmbreeRay.ElementIndex = Desc.ElementIndex;
+	FEmbreeIntersectionContext& IntersectionContext = *static_cast<FEmbreeIntersectionContext*>(args->context);
+	IntersectionContext.ElementIndex = Desc.ElementIndex;
+}
+
+void EmbreeErrorFunc(void* userPtr, RTCError code, const char* str)
+{
+	FString ErrorString;
+	TArray<TCHAR>& ErrorStringArray = ErrorString.GetCharArray();
+	ErrorStringArray.Empty();
+
+	int32 StrLen = FCStringAnsi::Strlen(str);
+	int32 Length = FUTF8ToTCHAR_Convert::ConvertedLength(str, StrLen);
+	ErrorStringArray.AddUninitialized(Length + 1); // +1 for the null terminator
+	FUTF8ToTCHAR_Convert::Convert(ErrorStringArray.GetData(), ErrorStringArray.Num(), reinterpret_cast<const ANSICHAR*>(str), StrLen);
+	ErrorStringArray[Length] = TEXT('\0');
+
+	UE_LOG(LogMeshUtilities, Error, TEXT("Embree error: %s Code=%u"), *ErrorString, (uint32)code);
 }
 #endif
 
@@ -76,35 +91,36 @@ void MeshRepresentation::SetupEmbreeScene(
 	bool bGenerateAsIfTwoSided,
 	FEmbreeScene& EmbreeScene)
 {
-	const int32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.GetNumIndices() : LODModel.IndexBuffer.GetNumIndices();
+	const uint32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.GetNumIndices() : LODModel.IndexBuffer.GetNumIndices();
 	const int32 NumTriangles = NumIndices / 3;
-	const int32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.GetNumVertices() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
+	const uint32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.GetNumVertices() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
 	EmbreeScene.NumIndices = NumTriangles;
 
 	TArray<FkDOPBuildCollisionTriangle<uint32> > BuildTriangles;
 
 #if USE_EMBREE
-	static const auto CVarEmbree = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.UseEmbree"));
-	EmbreeScene.bUseEmbree = CVarEmbree->GetValueOnAnyThread() != 0;
+	EmbreeScene.bUseEmbree = true;
 
 	if (EmbreeScene.bUseEmbree)
 	{
 		EmbreeScene.EmbreeDevice = rtcNewDevice(nullptr);
+		rtcSetDeviceErrorFunction(EmbreeScene.EmbreeDevice, EmbreeErrorFunc, nullptr);
 
-		RTCError ReturnErrorNewDevice = rtcDeviceGetError(EmbreeScene.EmbreeDevice);
-		if (ReturnErrorNewDevice != RTC_NO_ERROR)
+		RTCError ReturnErrorNewDevice = rtcGetDeviceError(EmbreeScene.EmbreeDevice);
+		if (ReturnErrorNewDevice != RTC_ERROR_NONE)
 		{
 			UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateSignedDistanceFieldVolumeData failed for %s. Embree rtcNewDevice failed. Code: %d"), *MeshName, (int32)ReturnErrorNewDevice);
 			return;
 		}
 
-		EmbreeScene.EmbreeScene = rtcDeviceNewScene(EmbreeScene.EmbreeDevice, RTC_SCENE_STATIC, RTC_INTERSECT1);
+		EmbreeScene.EmbreeScene = rtcNewScene(EmbreeScene.EmbreeDevice);
+		rtcSetSceneFlags(EmbreeScene.EmbreeScene, RTC_SCENE_FLAG_NONE);
 
-		RTCError ReturnErrorNewScene = rtcDeviceGetError(EmbreeScene.EmbreeDevice);
-		if (ReturnErrorNewScene != RTC_NO_ERROR)
+		RTCError ReturnErrorNewScene = rtcGetDeviceError(EmbreeScene.EmbreeDevice);
+		if (ReturnErrorNewScene != RTC_ERROR_NONE)
 		{
-			UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateSignedDistanceFieldVolumeData failed for %s. Embree rtcDeviceNewScene failed. Code: %d"), *MeshName, (int32)ReturnErrorNewScene);
-			rtcDeleteDevice(EmbreeScene.EmbreeDevice);
+			UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateSignedDistanceFieldVolumeData failed for %s. Embree rtcNewScene failed. Code: %d"), *MeshName, (int32)ReturnErrorNewScene);
+			rtcReleaseDevice(EmbreeScene.EmbreeDevice);
 			return;
 		}
 	}
@@ -175,29 +191,21 @@ void MeshRepresentation::SetupEmbreeScene(
 		}
 	}
 
-	FVector4* EmbreeVertices = nullptr;
-	int32* EmbreeIndices = nullptr;
-	uint32 GeomID = 0;
+	EmbreeScene.Geometry.VertexArray.Empty(NumVertices);
+	EmbreeScene.Geometry.VertexArray.AddUninitialized(NumVertices);
 
-#if USE_EMBREE
-	if (EmbreeScene.bUseEmbree)
-	{
-		GeomID = rtcNewTriangleMesh(EmbreeScene.EmbreeScene, RTC_GEOMETRY_STATIC, FilteredTriangles.Num(), NumVertices);
+	const int32 NumFilteredIndices = FilteredTriangles.Num() * 3;
 
-		rtcSetIntersectionFilterFunction(EmbreeScene.EmbreeScene, GeomID, EmbreeFilterFunc);
-		rtcSetOcclusionFilterFunction(EmbreeScene.EmbreeScene, GeomID, EmbreeFilterFunc);
-		rtcSetUserData(EmbreeScene.EmbreeScene, GeomID, &EmbreeScene.Geometry);
+	EmbreeScene.Geometry.IndexArray.Empty(NumFilteredIndices);
+	EmbreeScene.Geometry.IndexArray.AddUninitialized(NumFilteredIndices);
 
-		EmbreeVertices = (FVector4*)rtcMapBuffer(EmbreeScene.EmbreeScene, GeomID, RTC_VERTEX_BUFFER);
-		EmbreeIndices = (int32*)rtcMapBuffer(EmbreeScene.EmbreeScene, GeomID, RTC_INDEX_BUFFER);
-
-		EmbreeScene.Geometry.TriangleDescs.Empty(FilteredTriangles.Num());
-	}
-#endif
+	FVector* EmbreeVertices = EmbreeScene.Geometry.VertexArray.GetData();
+	uint32* EmbreeIndices = EmbreeScene.Geometry.IndexArray.GetData();
+	EmbreeScene.Geometry.TriangleDescs.Empty(FilteredTriangles.Num());
 
 	for (int32 FilteredTriangleIndex = 0; FilteredTriangleIndex < FilteredTriangles.Num(); FilteredTriangleIndex++)
 	{
-		int32 I0, I1, I2;
+		uint32 I0, I1, I2;
 		FVector V0, V1, V2;
 
 		const int32 TriangleIndex = FilteredTriangles[FilteredTriangleIndex];
@@ -246,9 +254,9 @@ void MeshRepresentation::SetupEmbreeScene(
 			EmbreeIndices[FilteredTriangleIndex * 3 + 1] = I1;
 			EmbreeIndices[FilteredTriangleIndex * 3 + 2] = I2;
 
-			EmbreeVertices[I0] = FVector4(V0, 0);
-			EmbreeVertices[I1] = FVector4(V1, 0);
-			EmbreeVertices[I2] = FVector4(V2, 0);
+			EmbreeVertices[I0] = V0;
+			EmbreeVertices[I1] = V1;
+			EmbreeVertices[I2] = V2;
 
 			FEmbreeTriangleDesc Desc;
 			// Store bGenerateAsIfTwoSided in material index
@@ -269,30 +277,25 @@ void MeshRepresentation::SetupEmbreeScene(
 #if USE_EMBREE
 	if (EmbreeScene.bUseEmbree)
 	{
-		rtcUnmapBuffer(EmbreeScene.EmbreeScene, GeomID, RTC_VERTEX_BUFFER);
-		rtcUnmapBuffer(EmbreeScene.EmbreeScene, GeomID, RTC_INDEX_BUFFER);
+		RTCGeometry Geometry = rtcNewGeometry(EmbreeScene.EmbreeDevice, RTC_GEOMETRY_TYPE_TRIANGLE);
+		EmbreeScene.Geometry.InternalGeometry = Geometry;
 
-		RTCError ReturnError = rtcDeviceGetError(EmbreeScene.EmbreeDevice);
-		if (ReturnError != RTC_NO_ERROR)
-		{
-			UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateSignedDistanceFieldVolumeData failed for %s. Embree rtcUnmapBuffer failed. Code: %d"), *MeshName, (int32)ReturnError);
-			rtcDeleteScene(EmbreeScene.EmbreeScene);
-			rtcDeleteDevice(EmbreeScene.EmbreeDevice);
-			return;
-		}
-	}
-#endif
+		rtcSetSharedGeometryBuffer(Geometry, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, EmbreeVertices, 0, sizeof(FVector), NumVertices); 
+		rtcSetSharedGeometryBuffer(Geometry, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, EmbreeIndices, 0, sizeof(uint32) * 3, FilteredTriangles.Num());
 
-#if USE_EMBREE
-	if (EmbreeScene.bUseEmbree)
-	{
-		rtcCommit(EmbreeScene.EmbreeScene);
-		RTCError ReturnError = rtcDeviceGetError(EmbreeScene.EmbreeDevice);
-		if (ReturnError != RTC_NO_ERROR)
+		rtcSetGeometryUserData(Geometry, &EmbreeScene.Geometry);
+		rtcSetGeometryIntersectFilterFunction(Geometry, EmbreeFilterFunc);
+
+		rtcCommitGeometry(Geometry);
+		rtcAttachGeometry(EmbreeScene.EmbreeScene, Geometry);
+		rtcReleaseGeometry(Geometry);
+
+		rtcCommitScene(EmbreeScene.EmbreeScene);
+
+		RTCError ReturnError = rtcGetDeviceError(EmbreeScene.EmbreeDevice);
+		if (ReturnError != RTC_ERROR_NONE)
 		{
-			UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateSignedDistanceFieldVolumeData failed for %s. Embree rtcCommit failed. Code: %d"), *MeshName, (int32)ReturnError);
-			rtcDeleteScene(EmbreeScene.EmbreeScene);
-			rtcDeleteDevice(EmbreeScene.EmbreeDevice);
+			UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateSignedDistanceFieldVolumeData failed for %s. Embree rtcCommitScene failed. Code: %d"), *MeshName, (int32)ReturnError);
 			return;
 		}
 	}
@@ -308,8 +311,8 @@ void MeshRepresentation::DeleteEmbreeScene(FEmbreeScene& EmbreeScene)
 #if USE_EMBREE
 	if (EmbreeScene.bUseEmbree)
 	{
-		rtcDeleteScene(EmbreeScene.EmbreeScene);
-		rtcDeleteDevice(EmbreeScene.EmbreeDevice);
+		rtcReleaseScene(EmbreeScene.EmbreeScene);
+		rtcReleaseDevice(EmbreeScene.EmbreeDevice);
 	}
 #endif
 }
