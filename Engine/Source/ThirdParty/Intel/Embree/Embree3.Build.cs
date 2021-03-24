@@ -22,6 +22,10 @@ public class Embree3 : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
+			//@todo - fix for Mac
+			PublicDefinitions.Add("USE_EMBREE=0");
+			/*
+
 			string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree3122/MacOSX/";
 
 			PublicIncludePaths.Add(SDKDir + "include");
@@ -30,6 +34,8 @@ public class Embree3 : ModuleRules
 			RuntimeDependencies.Add("$(TargetOutputDir)/libembree3.3.dylib", SDKDir + "lib/libembree3.3.dylib");
 			RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.12.1.dylib", SDKDir + "lib/libtbb.12.1.dylib");
 			PublicDefinitions.Add("USE_EMBREE=1");
+*/
+
 		}
 		else
 		{
