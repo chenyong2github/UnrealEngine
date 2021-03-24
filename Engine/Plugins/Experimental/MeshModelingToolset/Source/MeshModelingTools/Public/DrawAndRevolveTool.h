@@ -93,7 +93,7 @@ public:
 	virtual void SetAssetAPI(IAssetGenerationAPI* NewAssetApi) { AssetAPI = NewAssetApi; }
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
-	void OnBackspacePress();
+	virtual void OnPointDeletionKeyPress();
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }

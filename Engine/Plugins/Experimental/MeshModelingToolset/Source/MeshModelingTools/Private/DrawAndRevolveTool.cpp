@@ -83,17 +83,21 @@ TUniquePtr<FDynamicMeshOperator> URevolveOperatorFactory::MakeNewOperator()
 void UDrawAndRevolveTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 1,
-		TEXT("DeletePoint"),
+		TEXT("DeletePointBackspaceKey"),
 		LOCTEXT("DeletePointUIName", "Delete Point"),
 		LOCTEXT("DeletePointTooltip", "Delete currently selected point(s)"),
 		EModifierKey::None, EKeys::BackSpace,
-		[this]() { OnBackspacePress(); });
+		[this]() { OnPointDeletionKeyPress(); });
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 2,
+		TEXT("DeletePointDeleteKey"),
+		LOCTEXT("DeletePointUIName", "Delete Point"),
+		LOCTEXT("DeletePointTooltip", "Delete currently selected point(s)"),
+		EModifierKey::None, EKeys::Delete,
+		[this]() { OnPointDeletionKeyPress(); });
 }
 
-void UDrawAndRevolveTool::OnBackspacePress()
+void UDrawAndRevolveTool::OnPointDeletionKeyPress()
 {
-	// TODO: Someday we'd like the mechanic to register the action itself and not have to catch and forward
-	// it in the tool.
 	if (ControlPointsMechanic)
 	{
 		ControlPointsMechanic->DeleteSelectedPoints();
