@@ -59,6 +59,21 @@ namespace UnrealGameSync
 
 		ToolUpdateMonitor ToolUpdateMonitor;
 
+		class ToolItem
+		{
+			public ToolDefinition Definition { get; }
+
+			public ToolItem(ToolDefinition Definition)
+			{
+				this.Definition = Definition;
+			}
+
+			public override string ToString()
+			{
+				return Definition.Description;
+			}
+		}
+
 		private ApplicationSettingsWindow(string DefaultServerAndPort, string DefaultUserName, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, TextWriter Log)
 		{
 			InitializeComponent();
@@ -119,8 +134,11 @@ namespace UnrealGameSync
 				this.EnableProtocolHandlerCheckBox.CheckState = CheckState.Indeterminate;
 			}
 
-			EnableP4VExtensionsCheckBox.Checked = Settings.bEnableP4VExtensions;
-			EnableUshellCheckBox.Checked = Settings.bEnableUshell;
+			List<ToolDefinition> Tools = ToolUpdateMonitor.Tools;
+			foreach (ToolDefinition Tool in Tools)
+			{
+				this.CustomToolsListBox.Items.Add(new ToolItem(Tool), Settings.EnabledTools.Contains(Tool.Id));
+			}
 		}
 
 		public static bool? ShowModal(IWin32Window Owner, PerforceConnection DefaultConnection, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, TextWriter Log)
@@ -216,16 +234,14 @@ namespace UnrealGameSync
 				Settings.Save();
 			}
 
-			if (Settings.bEnableP4VExtensions != EnableP4VExtensionsCheckBox.Checked)
+			List<Guid> NewEnabledTools = new List<Guid>();
+			foreach (ToolItem Item in CustomToolsListBox.CheckedItems)
 			{
-				Settings.bEnableP4VExtensions = EnableP4VExtensionsCheckBox.Checked;
-				Settings.Save();
-				ToolUpdateMonitor.UpdateNow();
+				NewEnabledTools.Add(Item.Definition.Id);
 			}
-
-			if (Settings.bEnableUshell != EnableUshellCheckBox.Checked)
+			if (!NewEnabledTools.SequenceEqual(Settings.EnabledTools))
 			{
-				Settings.bEnableUshell = EnableUshellCheckBox.Checked;
+				Settings.EnabledTools = NewEnabledTools.ToArray();
 				Settings.Save();
 				ToolUpdateMonitor.UpdateNow();
 			}

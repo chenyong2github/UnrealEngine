@@ -8,36 +8,47 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
+	class ToolLink
+	{
+		public string Label;
+		public string FileName;
+		public string Arguments;
+		public string WorkingDir;
+	}
+
+	class ToolDefinition
+	{
+		public Guid Id;
+		public string Name;
+		public string Description;
+		public bool Enabled;
+		public Action<TextWriter> InstallAction;
+		public Action<TextWriter> UninstallAction;
+		public List<ToolLink> StatusPanelLinks = new List<ToolLink>();
+		public string ZipPath;
+		public int ZipChange;
+		public string ConfigPath;
+		public int ConfigChange;
+	}
+
 	class ToolUpdateMonitor : IDisposable
 	{
 		Thread WorkerThread;
 		AutoResetEvent WakeEvent;
 		bool bQuit;
 		string LogFile;
+		public List<ToolDefinition> Tools { get; private set; } = new List<ToolDefinition>();
+		int LastChange = -1;
 
 		public PerforceConnection Perforce { get; }
 		string ToolsDir { get; }
 		UserSettings Settings { get; }
 
-		class ToolDefinition
-		{
-			public string Name;
-			public Action<TextWriter> InstallAction;
-			public Action<TextWriter> UninstallAction;
-			public bool bEnabled;
-
-			public ToolDefinition(string Name, Action<TextWriter> InstallAction, Action<TextWriter> UninstallAction, bool bEnabled)
-			{
-				this.Name = Name;
-				this.InstallAction = InstallAction;
-				this.UninstallAction = UninstallAction;
-				this.bEnabled = bEnabled;
-			}
-		}
-
+		public event Action OnChange;
 
 		public ToolUpdateMonitor(PerforceConnection InPerforce, string DataDir, UserSettings Settings)
 		{
@@ -50,7 +61,10 @@ namespace UnrealGameSync
 			Directory.CreateDirectory(ToolsDir);
 
 			WakeEvent = new AutoResetEvent(false);
+		}
 
+		public void Start()
+		{
 			if (DeploymentSettings.ToolsDepotPath != null)
 			{
 				WorkerThread = new Thread(() => PollForUpdates());
@@ -122,47 +136,72 @@ namespace UnrealGameSync
 
 		void PollForUpdatesOnce(TextWriter Log)
 		{
-			List<ToolDefinition> Tools = new List<ToolDefinition>();
-			Tools.Add(new ToolDefinition("P4VUtils", x => RunP4VUtils("install", x), x => RunP4VUtils("uninstall", x), Settings.bEnableP4VExtensions));
-			Tools.Add(new ToolDefinition("Ushell", null, null, Settings.bEnableUshell));
-
-			if (Tools.Any(x => x.bEnabled))
+			List<PerforceChangeSummary> Changes;
+			if (!Perforce.FindChanges(DeploymentSettings.ToolsDepotPath + "/...", 1, out Changes, Log) || Changes.Count == 0 || Changes[0].Number == LastChange)
 			{
-				List<PerforceFileRecord> FileRecords;
-				if (Perforce.Stat(DeploymentSettings.ToolsDepotPath + "/...", out FileRecords, Log))
+				return;
+			}
+
+			List<PerforceFileRecord> FileRecords;
+			if (!Perforce.Stat(DeploymentSettings.ToolsDepotPath + "/...", out FileRecords, Log))
+			{
+				return;
+			}
+
+			// Update the tools list
+			List<ToolDefinition> NewTools = new List<ToolDefinition>();
+			foreach (PerforceFileRecord FileRecord in FileRecords)
+			{
+				if (FileRecord.DepotPath.EndsWith(".ini"))
 				{
-					foreach (ToolDefinition Tool in Tools.Where(x => x.bEnabled))
+					ToolDefinition Tool = Tools.FirstOrDefault(x => x.ConfigPath.Equals(FileRecord.DepotPath, StringComparison.Ordinal));
+					if (Tool == null || Tool.ConfigChange != FileRecord.HeadChange)
 					{
-						string Prefix = String.Format("{0}/{1}/", DeploymentSettings.ToolsDepotPath, Tool.Name);
-
-						List<PerforceFileRecord> ToolFileRecords = FileRecords.Where(x => x.DepotPath.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase)).ToList();
-						if (ToolFileRecords.Count == 0)
-						{
-							continue;
-						}
-
-						int HeadChange = ToolFileRecords.Max(x => x.HeadChange);
-						if (HeadChange == GetToolChange(Tool.Name))
-						{
-							continue;
-						}
-
-						List<PerforceFileRecord> SyncFileRecords = ToolFileRecords.Where(x => x.Action != "delete").ToList();
-						try
-						{
-							UpdateTool(Tool.Name, HeadChange, SyncFileRecords, Tool.InstallAction, Log);
-						}
-						catch (Exception Ex)
-						{
-							Log.WriteLine("Exception while updating tool: {0}", Ex.ToString());
-						}
+						Tool = ReadToolDefinition(FileRecord.DepotPath, FileRecord.HeadChange, Log);
+					}
+					if (Tool != null)
+					{
+						NewTools.Add(Tool);
 					}
 				}
 			}
+			Tools = NewTools;
 
-			foreach (ToolDefinition Tool in Tools.Where(x => !x.bEnabled))
+			foreach (ToolDefinition Tool in Tools)
 			{
-				if (GetToolChange(Tool.Name) != 0)
+				Tool.Enabled = Settings.EnabledTools.Contains(Tool.Id);
+
+				if(!Tool.Enabled)
+				{
+					continue;
+				}
+
+				List<PerforceFileRecord> ToolFileRecords = FileRecords.Where(x => x.DepotPath.Equals(Tool.ZipPath, StringComparison.OrdinalIgnoreCase)).ToList();
+				if (ToolFileRecords.Count == 0)
+				{
+					continue;
+				}
+
+				int HeadChange = ToolFileRecords.Max(x => x.HeadChange);
+				if (HeadChange == GetToolChange(Tool.Name))
+				{
+					continue;
+				}
+
+				List<PerforceFileRecord> SyncFileRecords = ToolFileRecords.Where(x => x.Action != "delete").ToList();
+				try
+				{
+					UpdateTool(Tool.Name, HeadChange, SyncFileRecords, Tool.InstallAction, Log);
+				}
+				catch (Exception Ex)
+				{
+					Log.WriteLine("Exception while updating tool: {0}", Ex.ToString());
+				}
+			}
+
+			foreach (ToolDefinition Tool in Tools)
+			{
+				if (!Tool.Enabled && GetToolChange(Tool.Name) != 0)
 				{
 					try
 					{
@@ -174,13 +213,88 @@ namespace UnrealGameSync
 					}
 				}
 			}
+
+			OnChange();
 		}
 
-		void RunP4VUtils(string Command, TextWriter Log)
+		ToolDefinition ReadToolDefinition(string DepotPath, int Change, TextWriter Log)
 		{
-			string ToolPath = GetToolPathInternal("P4VUtils");
+			List<string> Lines;
+			if (!Perforce.Print(String.Format("{0}@{1}", DepotPath, Change), out Lines, Log))
+			{
+				return null;
+			}
 
-			int ExitCode = Utility.ExecuteProcess(Path.Combine(ToolPath, "P4VUtils.exe"), ToolPath, Command, null, Log);
+			int NameIdx = DepotPath.LastIndexOf('/') + 1;
+			int ExtensionIdx = DepotPath.LastIndexOf('.');
+
+			ConfigFile ConfigFile = new ConfigFile();
+			ConfigFile.Parse(Lines.ToArray());
+
+			ToolDefinition Tool = new ToolDefinition();
+
+			string Id = ConfigFile.GetValue("Settings.Id", null);
+			if (Id == null || !Guid.TryParse(Id, out Tool.Id))
+			{
+				return null;
+			}
+
+			Tool.Name = ConfigFile.GetValue("Settings.Name", DepotPath.Substring(NameIdx, ExtensionIdx - NameIdx));
+			Tool.Description = ConfigFile.GetValue("Settings.Description", Tool.Name);
+			Tool.ZipPath = DepotPath.Substring(0, ExtensionIdx) + ".zip";
+			Tool.ZipChange = GetToolChange(Tool.Name);
+			Tool.ConfigPath = DepotPath;
+			Tool.ConfigChange = Change;
+
+			string InstallCommand = ConfigFile.GetValue("Settings.InstallCommand", null);
+			if (!String.IsNullOrEmpty(InstallCommand))
+			{
+				Tool.InstallAction = NewLog => RunCommand(Tool.Name, InstallCommand, NewLog);
+			}
+
+			string UninstallCommand = ConfigFile.GetValue("Settings.UninstallCommand", null);
+			if (!String.IsNullOrEmpty(UninstallCommand))
+			{
+				Tool.UninstallAction = NewLog => RunCommand(Tool.Name, UninstallCommand, NewLog);
+			}
+
+			string[] StatusPanelLinks = ConfigFile.GetValues("Settings.StatusPanelLinks", new string[0]);
+			foreach (string StatusPanelLink in StatusPanelLinks)
+			{
+				ConfigObject Object = new ConfigObject(StatusPanelLink);
+
+				string Label = Object.GetValue("Label", null);
+				string FileName = Object.GetValue("FileName", null);
+
+				if (Label != null && FileName != null)
+				{
+					ToolLink Link = new ToolLink();
+					Link.Label = Label;
+					Link.FileName = FileName;
+					Link.Arguments = Object.GetValue("Arguments", null);
+					Link.WorkingDir = Object.GetValue("WorkingDir", null);
+					Tool.StatusPanelLinks.Add(Link);
+				}
+			}
+
+			return Tool;
+		}
+
+		void RunCommand(string ToolName, string Command, TextWriter Log)
+		{
+			string ToolPath = GetToolPathInternal(ToolName);
+
+			string CommandExe = Command;
+			string CommandArgs = string.Empty;
+
+			int SpaceIdx = Command.IndexOf(' ');
+			if (SpaceIdx != -1)
+			{
+				CommandExe = Command.Substring(0, SpaceIdx);
+				CommandArgs = Command.Substring(SpaceIdx + 1);
+			}
+
+			int ExitCode = Utility.ExecuteProcess(Path.Combine(ToolPath, CommandExe), ToolPath, CommandArgs, null, Log);
 			Log.WriteLine("(Exit: {0})", ExitCode);
 		}
 
@@ -197,9 +311,11 @@ namespace UnrealGameSync
 			SetToolChange(ToolName, null);
 
 			string ToolPath = GetToolPath(ToolName);
-			Log.WriteLine("Removing {0}", ToolPath);
-
-			TryDeleteDirectory(ToolPath);
+			if (ToolPath != null)
+			{
+				Log.WriteLine("Removing {0}", ToolPath);
+				TryDeleteDirectory(ToolPath);
+			}
 		}
 
 		static void ForceDeleteDirectory(string DirectoryName)

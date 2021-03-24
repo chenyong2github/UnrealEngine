@@ -258,8 +258,7 @@ namespace UnrealGameSync
 		public bool bShowAutomatedChanges;
 		public bool bShowLocalTimes;
 		public bool bKeepInTray;
-		public bool bEnableP4VExtensions;
-		public bool bEnableUshell;
+		public Guid[] EnabledTools;
 		public bool bShowNetCoreInfo;
 		public int FilterIndex;
 		public UserSelectedProjectSettings LastProject;
@@ -359,8 +358,18 @@ namespace UnrealGameSync
 			bShowAutomatedChanges = ConfigFile.GetValue("General.ShowAutomated", false);
 			bShowLocalTimes = ConfigFile.GetValue("General.ShowLocalTimes", false);
 			bKeepInTray = ConfigFile.GetValue("General.KeepInTray", true);
-			bEnableP4VExtensions = ConfigFile.GetValue("General.EnableP4VExtensions", false);
-			bEnableUshell = ConfigFile.GetValue("General.EnableUshell", false);
+
+			List<Guid> EnabledTools = ConfigFile.GetGuidValues("General.EnabledTools", new Guid[0]).ToList();
+			if (ConfigFile.GetValue("General.EnableP4VExtensions", false))
+			{
+				EnabledTools.Add(new Guid("963850A0-BF63-4E0E-B903-1C5954C7DCF8"));
+			}
+			if (ConfigFile.GetValue("General.EnableUshell", false))
+			{
+				EnabledTools.Add(new Guid("922EED87-E732-464C-92DC-5A8F7ED955E2"));
+			}
+			this.EnabledTools = EnabledTools.ToArray();
+
 			bShowNetCoreInfo = ConfigFile.GetValue("General.ShowNetCoreInfo", true);
 			int.TryParse(ConfigFile.GetValue("General.FilterIndex", "0"), out FilterIndex);
 
@@ -723,8 +732,7 @@ namespace UnrealGameSync
 			}
 			GeneralSection.SetValues("OpenProjects", OpenProjects.Select(x => x.ToConfigEntry()).ToArray());
 			GeneralSection.SetValue("KeepInTray", bKeepInTray);
-			GeneralSection.SetValue("EnableP4VExtensions", bEnableP4VExtensions);
-			GeneralSection.SetValue("EnableUshell", bEnableUshell);
+			GeneralSection.SetValues("EnabledTools", EnabledTools);
 			GeneralSection.SetValue("ShowNetCoreInfo", bShowNetCoreInfo);
 			GeneralSection.SetValue("FilterIndex", FilterIndex);
 			GeneralSection.SetValues("RecentProjects", RecentProjects.Select(x => x.ToConfigEntry()).ToArray());

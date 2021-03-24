@@ -27,6 +27,8 @@ namespace UnrealGameSync
 
 	interface IWorkspaceControlOwner
 	{
+		ToolUpdateMonitor ToolUpdateMonitor { get; }
+
 		void EditSelectedProject(WorkspaceControl Workspace);
 		void RequestProjectChange(WorkspaceControl Workspace, UserSelectedProjectSettings Project, bool bModal);
 		void ShowAndActivate();
@@ -442,6 +444,8 @@ namespace UnrealGameSync
 
 				TintColor = GetTintColor();
 			}
+
+			Owner.ToolUpdateMonitor.OnChange += UpdateStatusPanel_CrossThread;
 		}
 
 		public void IssueMonitor_OnIssuesChangedAsync()
@@ -697,6 +701,8 @@ namespace UnrealGameSync
 		/// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
 		protected override void Dispose(bool disposing)
 		{
+			Owner.ToolUpdateMonitor.OnChange -= UpdateStatusPanel_CrossThread;
+
 			bIsDisposing = true;
 
 			if (disposing && (components != null))
@@ -3222,16 +3228,24 @@ namespace UnrealGameSync
 			SafeProcessStart("p4v.exe", CommandLine.ToString());
 		}
 
-		private void OpenUshell()
+
+		void RunTool(ToolDefinition Tool, ToolLink Link)
 		{
-			StringBuilder CommandLine = new StringBuilder();
-			CommandLine.AppendFormat("/C \"\"{0}\"", Path.Combine(DataFolder, "Tools", "Ushell", "Current", "ushell.bat"));
-			if (SelectedFileName.EndsWith(".uproject"))
-			{
-				CommandLine.AppendFormat(" --project=\"{0}\"", SelectedFileName);
-			}
-			CommandLine.Append("\"");
-			SafeProcessStart(Environment.GetEnvironmentVariable("COMSPEC"), CommandLine.ToString(), BranchDirectoryName);
+			string ToolDir = Owner.ToolUpdateMonitor.GetToolPath(Tool.Name);
+
+			Dictionary<string, string> Variables = GetWorkspaceVariables(Workspace.CurrentChangeNumber);
+			Variables["ToolDir"] = ToolDir;
+
+			string FileName = Utility.ExpandVariables(Link.FileName, Variables);
+			string Arguments = Utility.ExpandVariables(Link.Arguments, Variables);
+			string WorkingDir = Utility.ExpandVariables(Link.WorkingDir ?? ToolDir, Variables);
+
+			SafeProcessStart(FileName, Arguments, WorkingDir);
+		}
+
+		private void UpdateStatusPanel_CrossThread()
+		{
+			MainThreadSynchronizationContext.Post((o) => { if (!IsDisposed) { UpdateStatusPanel(); } }, null);
 		}
 
 		private void UpdateStatusPanel()
@@ -3366,11 +3380,20 @@ namespace UnrealGameSync
 					ProgramsLine.AddLink("Visual Studio", FontStyle.Regular, () => { OpenSolution(); });
 					ProgramsLine.AddText("  |  ");
 				}
-				if (Settings.bEnableUshell)
+
+				List<ToolDefinition> Tools = Owner.ToolUpdateMonitor.Tools;
+				foreach(ToolDefinition Tool in Tools)
 				{
-					ProgramsLine.AddLink("Ushell", FontStyle.Regular, () => { OpenUshell(); });
-					ProgramsLine.AddText("  |  ");
+					if (Tool.Enabled)
+					{
+						foreach (ToolLink Link in Tool.StatusPanelLinks)
+						{
+							ProgramsLine.AddLink(Link.Label, FontStyle.Regular, () => RunTool(Tool, Link));
+							ProgramsLine.AddText("  |  ");
+						}
+					}
 				}
+
 				ProgramsLine.AddLink("Windows Explorer", FontStyle.Regular, () => { SafeProcessStart("explorer.exe", String.Format("\"{0}\"", Path.GetDirectoryName(SelectedFileName))); });
 
 				if (GetDefaultIssueFilter() != null)
