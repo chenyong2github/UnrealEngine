@@ -835,8 +835,12 @@ function createNodeRow(nodeData, includeActions, includeCollapseControls=true) {
 	if (window.showNodeLastChanges) {
 		columnArray.push(renderLastChangeCell_Common(nodeData.bot, nodeData.def.name, nodeData.last_cl, nodeAPIOp, operationArgs))
 	}
+	else {
+		columnArray.push($('<div>').addClass('lastchangecell'))
+	}
 
 	return columnArray
+
 }
 
 // Helper function to create consistent columns between edges
@@ -873,7 +877,12 @@ function createEdgeRow(nodeData, edgeData, includeActions) {
 	}
 
 	// Last Change Column 
-	columnArray.push(renderLastChangeCell_Common(nodeData.bot, nodeData.def.name, edgeData.last_cl, edgeAPIOp, operationArgs, edgeData.display_name))
+	const cell = renderLastChangeCell_Common(nodeData.bot, nodeData.def.name, edgeData.last_cl, edgeAPIOp, operationArgs, edgeData.display_name)
+	if (edgeData.num_changes_remaining > 1) {
+		const kind = edgeData.lastGoodCL ? 'gate' : 'head'
+		cell.prop('title', `Revisions behind ${kind}: ${edgeData.num_changes_remaining}`)
+	}
+	columnArray.push(cell)
 	postRenderLastChangeCell_Edge(columnArray[columnArray.length - 1], edgeData)
 
 	return columnArray
@@ -1375,6 +1384,7 @@ function renderActionsCell_Common(actionCell, data, operationFunction, operation
 			if (conflict.targetStream) {
 				shelfRequest += '&' + toQuery({ targetStream: conflict.targetStream })
 			}
+			shelfRequest += location.hash
 
 			const toTargetText = conflict.target ? ' -> ' + conflict.target : '';
 			const shelfOption = createActionOption('Create Shelf for ' + conflict.cl + toTargetText, function() {
@@ -1511,7 +1521,7 @@ function renderActionsCell_Edge(actionCell, nodeData, edgeData, conflict=null) {
 				branch: getAPIName(nodeData),
 				cl: edgeData.blockage.change,
 				edge: edgeData.blockage.targetBranchName
-			})
+			}) + location.hash
 
 			let tooltip = `Skip past the blockage caused by changelist ${edgeData.blockage.change}. `
 			tooltip += 
@@ -1533,9 +1543,9 @@ function renderActionsCell_Edge(actionCell, nodeData, edgeData, conflict=null) {
 
 // Helper function to create last change cell
 function renderLastChangeCell_Common(botname, nodename, lastCl, operationFunction, operationArgs, edgename=null) {
-	let lastChangeCell = $('<div class="lastchangecell">')
+	const lastChangeCell = $('<div>').addClass('lastchangecell')
 
-	let swarmLink = $(makeClLink(lastCl)).appendTo(lastChangeCell)
+	const swarmLink = $(makeClLink(lastCl)).appendTo(lastChangeCell)
 	// On shift+click, we can set the CL instead
 	swarmLink.click(function(evt) {
 		if (evt.shiftKey)

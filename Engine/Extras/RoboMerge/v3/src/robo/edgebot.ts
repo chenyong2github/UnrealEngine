@@ -2,7 +2,7 @@
 
 import { ContextualLogger } from "../common/logger";
 import { Recipients } from "../common/mailer";
-import { ChangelistStatus, ClientSpec, ConflictedResolveNFile, EditOwnerOpts, IntegrationSource }  from "../common/perforce";
+import { Change, ChangelistStatus, ClientSpec, ConflictedResolveNFile, EditOwnerOpts, IntegrationSource }  from "../common/perforce";
 import { ResolveResult, IntegrationTarget, isExecP4Error, OpenedFileRecord, PerforceContext, EXCLUSIVE_CHECKOUT_REGEX } from "../common/perforce";
 import { convertIntegrateToEdit } from "../common/p4util";
 import { VersionReader } from "../common/version";
@@ -51,7 +51,9 @@ class EdgeBotImpl extends PerforceStatefulBot {
 	private lastGoodCLDate?: Date
 
 	// would like to encapsulate this in EdgeBot, but resolution is currently done by node bot
-	private currentIntegrationStartTimestamp: number = -1
+	private currentIntegrationStartTimestamp = -1
+	// just used for status: how many changes remaining if we're catching up on multiple commits
+	private numChangesRemaining = 0
 
 	/**
 	 * Returns true if bot is currently merging a change
@@ -119,7 +121,13 @@ class EdgeBotImpl extends PerforceStatefulBot {
 	}
 
 	async setBotToLatestCl(): Promise<void> {
+		this.numChangesRemaining = 0
 		return PerforceStatefulBot.setBotToLatestClInBranch(this, this.sourceBranch)
+	}
+
+	protected _forceSetLastCl_NoReset(value: number) {
+		this.numChangesRemaining = 0
+		return super._forceSetLastCl_NoReset(value)
 	}
 
 	async tick() {
@@ -187,12 +195,41 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 	// isAvailable override to take account of gates
 	get isAvailable() {
+		// if paused on a gate, normally this.lastGoodCL === this.lastCl
+		// (while C=this.lastGoodCL was being integrated, this.lastCl was still set to the previous CL. When
+		// the integration completes, this.lastCl gets set to C and isAvailable becomes false)
 		return super.isAvailable && (!this.lastGoodCL || this.lastGoodCL > this.lastCl)
 	}
 
 	preIntegrate(cl: number) {
+		// wind back to gate CL if it has been set to before the current cursor
 		if (this.lastGoodCL && cl > this.lastGoodCL && this.isAvailable) {
 			this.lastCl = this.lastGoodCL
+		}
+	}
+
+	updateLastCl(changesFetched: Change[], changeIndex: number) {
+		this.lastCl = changesFetched[changeIndex].change
+
+		if (!this.lastGoodCL) {
+			this.numChangesRemaining = changesFetched.length - changeIndex - 1
+		}
+		else if (this.lastCl >= this.lastGoodCL) {
+			this.numChangesRemaining = 0
+		}
+		else {
+			// e.g. say relevant changes sequential multiples of 10
+			//  integrating changes 30->80 inclusive, gate set to 60
+			//  index 0 is 30, 1 is 40 etc, to gateIndex to find is 3
+			//  non-exact matches:
+			//		if gate file was set to 45, we'll integrate up to 40, so find first CL >= to gate CL
+			let gateIndex = changeIndex
+			for (; gateIndex < changesFetched.length; ++gateIndex) {
+				if (changesFetched[gateIndex].change >= this.lastGoodCL) {
+					break
+				}
+			}
+			this.numChangesRemaining = gateIndex - changeIndex;
 		}
 	}
 
@@ -298,7 +335,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		this.block(this.createEdgeBlockageInfo(failure, pending), pauseDurationSeconds)
 	}
 
-	async performMerge(info: ChangeInfo, target: MergeAction, convertIntegratesToEdits: boolean) {
+	performMerge(info: ChangeInfo, target: MergeAction, convertIntegratesToEdits: boolean): Promise<PerforceRequestResult> {
 		// make sure we come back in here afterwords
 		this._log_action(`Merging CL ${info.cl} via ${this.fullName} (${target.mergeMode})`)
 
@@ -423,15 +460,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		target.description = description
 
 		// do the integration
-		const result: PerforceRequestResult = await this.integrate(info, target)
-
-		// If we aren't paused after the integration, assume we've correctly processed the CL
-		// Unless this is a manual change (which could be anything), update the lastCl if it's larger than our previous cl
-		if (this.isAvailable && !info.userRequest && info.cl > this.lastCl) {
-			this.lastCl = info.cl
-		}
-
-		return result
+		return this.integrate(info, target)
 	}
 
 	public resetIntegrationTimestamp() {
@@ -887,6 +916,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		status.rootPath = this.targetBranch.rootPath
 
 		status.last_cl = this.lastCl
+		status.num_changes_remaining = this.numChangesRemaining
 
 		status.is_active = this.isActive
 		status.is_available = this.isAvailable
@@ -1034,6 +1064,10 @@ export class EdgeBot extends EdgeBotEntryPoints {
 	
 	preIntegrate(cl: number) {
 		this.impl.preIntegrate(cl)
+	}
+
+	updateLastCl(changesFetched: Change[], changeIndex: number) {
+		this.impl.updateLastCl(changesFetched, changeIndex)
 	}
 
 	/* Mirrored Variables */

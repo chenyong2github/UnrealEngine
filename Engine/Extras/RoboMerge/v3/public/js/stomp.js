@@ -1,4 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
+function goHome() {
+    location.href = '/' + location.hash
+}
+
 function stompVerify() {
     let queryParams = processQueryParameters(['bot', 'branch', 'cl', 'target'])
     if (!queryParams) return;
@@ -112,7 +117,7 @@ function stompVerify() {
                     // Return to Robomerge homepage
                     let cancelButton = $('<button type="button" class="btn btn-lg btn-info" style="margin:.3em;">').text(`Cancel`).appendTo(formButtonDiv)
                     cancelButton.click(function() {
-                        window.location.href='/'
+                        goHome()
                     })
 
                     // Perform stomp
