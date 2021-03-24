@@ -932,6 +932,16 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	SCOPE_CYCLE_COUNTER(STAT_VirtualTextureSystem_Update);
 	SCOPED_GPU_STAT(RHICmdList, VirtualTexture);
 	
+	// Update Adaptive VTs
+	SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_FinalizeAdaptiveRequests);
+	for (uint32 ID = 0; ID < MaxSpaces; ID++)
+	{
+		if (AdaptiveVTs[ID])
+		{
+			AdaptiveVTs[ID]->UpdateAllocations(this, RHICmdList, Frame);
+		}
+	}
+
 	if (bFlushCaches)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FlushCache);
@@ -970,18 +980,6 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 		{
 			// Each RVT will call FVirtualTextureSystem::FlushCache()
 			Scene->FlushDirtyRuntimeVirtualTextures();
-		}
-	}
-
-	// Update Adaptive VTs
-	{
-		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_FinalizeAdaptiveRequests);
-		for (uint32 ID = 0; ID < MaxSpaces; ID++)
-		{
-			if (AdaptiveVTs[ID])
-			{
-				AdaptiveVTs[ID]->UpdateAllocations(this, RHICmdList, Frame);
-			}
 		}
 	}
 
