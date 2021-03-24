@@ -5130,7 +5130,7 @@ void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& 
 	if (MeshMaterialMaps.Num() > 0)
 	{
 		// this will stop the rendering thread, and reattach components, in the destructor
-		FMaterialUpdateContext UpdateContext;
+		FMaterialUpdateContext UpdateContext(0);
 
 		// parse the shaders
 		FMemoryReader MemoryReader(MeshMaterialMaps, true);
