@@ -231,7 +231,7 @@ FProjectLightResult ProjectLight(
 		const bool bIsHair = InputType == INPUT_TYPE_HAIRSTRANDS;
 		const half3 EstimatedGeoWorldNormal = bIsHair ? L : GBufferNormal;
 
-		float3 OffsetTranslatedWorldPosition = TranslatedWorldPosition + EstimatedGeoWorldNormal * NormalOffsetWorld;
+		TranslatedWorldPosition += EstimatedGeoWorldNormal * lerp(NormalOffsetWorld, 0.01, saturate(dot(EstimatedGeoWorldNormal, L)));
 
 		if (SMRTRayCount > 0)
 		{
@@ -242,7 +242,7 @@ FProjectLightResult ProjectLight(
 				Light,
 				PixelPos,
 				SceneDepth,
-				OffsetTranslatedWorldPosition,
+				TranslatedWorldPosition,
 				ContactShadowLengthWorld,
 				SMRTRayCount,
 				SMRTSamplesPerRay,
@@ -256,7 +256,7 @@ FProjectLightResult ProjectLight(
 				LightType,
 				PixelPos,
 				SceneDepth,
-				OffsetTranslatedWorldPosition,
+				TranslatedWorldPosition,
 				ContactShadowLengthWorld,
 				SMRTRayCount,
 				SMRTSamplesPerRay,
@@ -271,7 +271,7 @@ FProjectLightResult ProjectLight(
 			ShadowFactor = ProjectSingleSample(
 				VirtualShadowMapId,
 				L,
-				OffsetTranslatedWorldPosition,
+				TranslatedWorldPosition,
 				EstimatedGeoWorldNormal,
 				ContactShadowLengthWorld,
 				HitDistance);
