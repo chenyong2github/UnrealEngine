@@ -1931,6 +1931,9 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 			EditorSkelComp->SetAnimationMode(EAnimationMode::AnimationCustomMode);
 			EditorSkelComp->InitAnim(true);
 
+			// Disable main solver physics
+			EditorSkelComp->SetAllBodiesSimulatePhysics(false);
+
 			// Add the floor
 			TSharedPtr<IPersonaPreviewScene> Scene = PreviewScene.Pin();
 			if (Scene != nullptr)
