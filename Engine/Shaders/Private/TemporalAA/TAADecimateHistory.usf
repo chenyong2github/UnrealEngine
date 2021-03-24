@@ -103,7 +103,16 @@ void MainCS(
 
 			bool bValidPixelPos = all(PixelPos >= InputInfo_ViewportMin && PixelPos < InputInfo_ViewportMax);
 
-			uint HistoryUseCount = PrevUseCountTexture[PixelPos];
+			#if COMPRESS_PREV_USE_COUNT
+				uint2 CompressedUseCountPixelPos;
+				uint Shift;
+				ComputeCompressedUseCountPixelCoordinates(PixelPos, /* out */ CompressedUseCountPixelPos, /* out */ Shift);
+
+				uint HistoryUseCount = (PrevUseCountTexture[CompressedUseCountPixelPos] >> (8 * Shift)) & 0xFF;
+			#else
+				uint HistoryUseCount = PrevUseCountTexture[PixelPos];
+			#endif
+
 			float HistoryClosestDeviceZ = f16tof32(PrevClosestDepthTexture[PixelPos]);
 			float HistoryClosestWorldDepth = ConvertFromDeviceZ(HistoryClosestDeviceZ);
 
@@ -119,7 +128,7 @@ void MainCS(
 				DepthRejection = saturate(taa_half(2.0) - taa_half(DeltaDepth / WorldDepthEpsilon));
 			}
 
-			taa_half HistoryGhostingRejection = saturate(taa_half(1.0) - taa_half(3.0) * abs(taa_half(HistoryUseCount) * rcp(taa_half(256)) - taa_half(1.0)));
+			taa_half HistoryGhostingRejection = saturate(taa_half(1.0) - taa_half(3.0) * abs(taa_half(HistoryUseCount) * rcp(taa_half(PREV_USE_COUNT_QUANTIZATION)) - taa_half(1.0)));
 
 			FLATTEN
 			if (bValidPixelPos)

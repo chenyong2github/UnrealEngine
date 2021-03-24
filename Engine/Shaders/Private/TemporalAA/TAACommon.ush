@@ -33,6 +33,14 @@
 
 #define MAX_FALLBACK_SAMPLE_COUNT 20
 
+#define COMPRESS_PREV_USE_COUNT 1
+#if COMPRESS_PREV_USE_COUNT
+	// COMPRESS_PREV_USE_COUNT compress the use count in 8bit, so need to sum of a 2x2 to not overflow these 8bits
+	#define PREV_USE_COUNT_QUANTIZATION 63
+#else
+	#define PREV_USE_COUNT_QUANTIZATION 256
+#endif
+
 #define PARALLAX_REJECTION_MASK_THRESHOLD 0.5
 
 #define MAX_PARALLAX_FACTOR 8.0
@@ -556,3 +564,17 @@ FSuperResHistory UnpackSuperResHistory(uint2 Packed)
 
 	return SuperRes;
 }
+
+#if COMPRESS_PREV_USE_COUNT
+
+// encode 4 use count that are 8bits shifted in the PF_R32_UINT
+void ComputeCompressedUseCountPixelCoordinates(uint2 PixelPos, out uint2 CompressedUseCountPixelPos, out uint Shift)
+{
+	// Overlap 2x2 consecutive blocks of 8x8 pixel to reduce atomic contention in the scattering pass
+	const uint kTileSize = 8;
+
+	CompressedUseCountPixelPos = (PixelPos % kTileSize) | ((PixelPos >> 1) & ~(kTileSize - 1));
+	Shift = ((PixelPos.x / kTileSize) % 2) | (((PixelPos.y / kTileSize) % 2) << 1);
+}
+	
+#endif

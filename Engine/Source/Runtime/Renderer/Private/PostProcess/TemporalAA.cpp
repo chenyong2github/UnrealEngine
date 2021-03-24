@@ -360,6 +360,9 @@ class FTAADilateVelocityCS : public FTAAGen5Shader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 
+		SHADER_PARAMETER(FVector2D, PrevOutputBufferUVMin)
+		SHADER_PARAMETER(FVector2D, PrevOutputBufferUVMax)
+
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneVelocityTexture)
 
@@ -1068,7 +1071,7 @@ FTAAOutputs AddTemporalAAPass(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TAA %s%s %dx%d -> %dx%d",
+			RDG_EVENT_NAME("TAA Gen4 %s%s %dx%d -> %dx%d",
 				PassName, Inputs.bUseFast ? TEXT(" Fast") : TEXT(""),
 				PracticableSrcRect.Width(), PracticableSrcRect.Height(),
 				PracticableDestRect.Width(), PracticableDestRect.Height()),
@@ -1264,6 +1267,8 @@ static void AddGen5MainTemporalAAPasses(
 
 		FTAADilateVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAADilateVelocityCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
+		PassParameters->PrevOutputBufferUVMin = CommonParameters.InputInfo.UVViewportBilinearMin - CommonParameters.InputInfo.ExtentInverse;
+		PassParameters->PrevOutputBufferUVMax = CommonParameters.InputInfo.UVViewportBilinearMax + CommonParameters.InputInfo.ExtentInverse;
 		PassParameters->SceneDepthTexture = PassInputs.SceneDepthTexture;
 		PassParameters->SceneVelocityTexture = PassInputs.SceneVelocityTexture;
 		PassParameters->DilatedVelocityOutput = GraphBuilder.CreateUAV(DilatedVelocityTexture);

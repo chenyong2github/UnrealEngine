@@ -12,6 +12,9 @@
 
 //------------------------------------------------------- PARAMETERS
 
+float2 PrevOutputBufferUVMin;
+float2 PrevOutputBufferUVMax;
+
 Texture2D SceneDepthTexture;
 Texture2D SceneVelocityTexture;
 
@@ -124,39 +127,46 @@ void MainCS(
 	#endif
 
 	// Scatter parallax rejection
-	#if 1
-	if (all(InputPixelPos < InputInfo_ViewportMax))
-	{
-		float2 PrevScreenPos = ScreenPos - FinalScreenVelocity;
-		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
+	float2 PrevScreenPos = ScreenPos - FinalScreenVelocity;
+	float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
 
-		FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(PrevInputBufferUV, InputInfo_Extent, InputInfo_ExtentInverse);
-
-		UNROLL_N(4)
-		for (uint i = 0; i < 4; i++)
-		{
-			float Weight = GetSampleWeight(BilinearInter, i);
-			uint2 PixelPos = GetSamplePixelCoord(BilinearInter, i);
-
-			uint FinalAdd = uint(round(Weight * 256));
-			
-			if (all(PixelPos >= InputInfo_ViewportMin && PixelPos < InputInfo_ViewportMax))
-			{
-				InterlockedAdd(PrevUseCountOutput[PixelPos], FinalAdd);
-
-				if (FinalAdd > 0)
-				{
-					InterlockedMax(PrevClosestDepthOutput[PixelPos], f32tof16(ClosestDeviceZ));
-				}
-			}
-		}
-	}
-	#endif
 
 	Debug.rg = VelocityPixelOffset * 0.5 + 0.5;
 
 	if (all(InputPixelPos < InputInfo_ViewportMax))
 	{
+		#if 1
+		{
+			bool bValidHistoryCoord = all(PrevInputBufferUV > PrevOutputBufferUVMin && PrevInputBufferUV < PrevOutputBufferUVMax);
+
+			FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(PrevInputBufferUV, InputInfo_Extent, InputInfo_ExtentInverse);
+
+			UNROLL_N(4)
+			for (uint i = 0; i < 4; i++)
+			{
+				float Weight = GetSampleWeight(BilinearInter, i);
+				uint2 PixelPos = GetSamplePixelCoord(BilinearInter, i);
+
+				uint FinalAdd = uint(round(Weight * PREV_USE_COUNT_QUANTIZATION));
+			
+				PixelPos.x = ((FinalAdd > 0) && bValidHistoryCoord) ? PixelPos.x : (~0);
+
+				#if COMPRESS_PREV_USE_COUNT
+					uint2 CompressedUseCountPixelPos;
+					uint Shift;
+					ComputeCompressedUseCountPixelCoordinates(PixelPos, /* out */ CompressedUseCountPixelPos, /* out */ Shift);
+
+					FinalAdd = FinalAdd << (8 * Shift);
+				#else
+					uint2 CompressedUseCountPixelPos = PixelPos;
+				#endif
+
+				InterlockedAdd(PrevUseCountOutput[CompressedUseCountPixelPos], FinalAdd);
+				InterlockedMax(PrevClosestDepthOutput[PixelPos], f32tof16(ClosestDeviceZ));
+			}
+		}
+		#endif
+		
 		DilatedVelocityOutput[InputPixelPos] = EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
 		ClosestDepthOutput[InputPixelPos] = ClosestDeviceZ;
 		ParallaxFactorOutput[InputPixelPos] = CompressParallaxFactor(ParallaxFactorForHistory) | (CompressParallaxFactor(ParallaxFactorForHistoryRejection) << 4);
