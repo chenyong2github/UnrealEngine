@@ -97,9 +97,9 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 
 	// Construct parms:
 	//	-Override GameUserSettings.ini
-	//	-Force no steam
 	//	-Allow saving of config files (since we are giving them an override INI)
-	CommandLine += FString::Printf(TEXT(" GameUserSettingsINI=\"%s\" -MultiprocessSaveConfig -MultiprocessOSS"), *GameUserSettingsOverride);
+	//	-Force the OSS (Steam is the only thing that implements this right now) to use passthrough sockets instead of connecting to the platform session int.
+	CommandLine += FString::Printf(TEXT(" GameUserSettingsINI=\"%s\" -MultiprocessSaveConfig -forcepassthrough"), *GameUserSettingsOverride);
 
 	if (bIsDedicatedServer)
 	{
