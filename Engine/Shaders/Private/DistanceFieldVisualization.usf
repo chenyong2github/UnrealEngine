@@ -117,7 +117,7 @@ void RayTraceThroughTileCulledDistanceFields(float3 WorldRayStart, float3 WorldR
 				}
 			}
 
-			TotalStepsTaken += max(StepIndex, 1);
+			TotalStepsTaken += max(StepIndex, 1u);
 		}
 	}
 }

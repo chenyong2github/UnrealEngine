@@ -92,7 +92,7 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 
 			uint NumMips = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips;
 			// Always trace against medium resolution mip
-			FDFAssetData DFAssetData = LoadDFAssetData(DFObjectData.AssetIndex, min(1, NumMips - 1));
+			FDFAssetData DFAssetData = LoadDFAssetData(DFObjectData.AssetIndex, min(1u, NumMips - 1));
 
 			LOOP
 			for (uint ConeIndex = 0; ConeIndex < NUM_CONE_DIRECTIONS; ConeIndex++)
