@@ -801,13 +801,13 @@ namespace Generator
 			}
 			case mi::neuraylib::IFunction_definition::DS_INTRINSIC_TEX_DEPTH:
 			{
-				// UE4 doesn't know about 3D textures ?? Does that mean, the depth is always 1 ?
+				// Unreal doesn't know about 3D textures ?? Does that mean, the depth is always 1 ?
 				check(Inputs.Num() == 1);
 				return {NewMaterialExpressionConstant(CurrentMaterial, 1.0f)};
 			}
 			case mi::neuraylib::IFunction_definition::DS_INTRINSIC_TEX_TEXTURE_ISVALID:
 			{
-				// in UE4, a texture is always valid, so just make a static bool <true>
+				// in Unreal, a texture is always valid, so just make a static bool <true>
 				return {NewMaterialExpressionStaticBool(CurrentMaterial, true)};
 			}
 			default:

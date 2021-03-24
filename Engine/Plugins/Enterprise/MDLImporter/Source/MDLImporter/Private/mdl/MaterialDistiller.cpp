@@ -131,8 +131,8 @@ namespace Mdl
 			return GetParam((int)Type, MaterialBakeParam);
 		}
 
-		// Handles the material semantic for UE4 target models and sets the bake paths for the maps
-		void HandleMaterialSemanticUE4(mi::neuraylib::ITransaction*             Transaction,
+		// Handles the material semantic for Unreal target models and sets the bake paths for the maps
+		void HandleMaterialSemanticUnreal(mi::neuraylib::ITransaction*             Transaction,
 		                               const mi::neuraylib::ICompiled_material* CompiledMaterial,
 		                               TArray<FBakeParam>&                      BakeParams)
 		{
@@ -232,7 +232,7 @@ namespace Mdl
 		                       float MetersPerSceneUnit)
 		{
 			TArray<FBakeParam>& BakeParams = MaterialBakeParams;
-			// Setup some UE4 material parameters
+			// Setup some Unreal material parameters
 			BakeParams.Emplace((int)EParameterType::BaseColor, Material.BaseColor);
 			BakeParams.Emplace((int)EParameterType::Metallic, Material.Metallic);
 			BakeParams.Emplace((int)EParameterType::Roughness, Material.Roughness, RemapRoughness);
@@ -291,7 +291,7 @@ namespace Mdl
 
 			BakeParams.Emplace((int)EParameterType::IOR, Material.IOR);
 
-			HandleMaterialSemanticUE4(Transaction, DistilledMaterial, MaterialBakeParams);
+			HandleMaterialSemanticUnreal(Transaction, DistilledMaterial, MaterialBakeParams);
 
 			// Check for cutout-opacity
 
@@ -433,8 +433,8 @@ namespace Mdl
 	                                const FString&               MaterialCompiledDbName,
 	                                FMaterial&                   Material) const
 	{
-		// Always using UE4 material model
-		static const char* TargetModel = "ue4";
+		// Always using Unreal material model
+		static const char* TargetModel = "ue4"; // Name of the target model passed to the MDL SDK
 
 		TArray<FBakeParam> MaterialBakeParams;
 		MaterialBakeParams.Reserve((int)EParameterType::Count);
