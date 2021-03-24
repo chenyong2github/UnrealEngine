@@ -58,6 +58,8 @@ enum ECompilerFlags
 	CFLAG_VertexToGeometryShader,
 	// Hint that it is a vertex to primitive shader
 	CFLAG_VertexToPrimitiveShader,
+	// Hint that a vertex shader should use automatic culling on certain platforms.
+	CFLAG_VertexUseAutoCulling,
 	// Prepare the shader for archiving in the native binary shader cache format
 	CFLAG_Archive,
 	// Shaders uses external texture so may need special runtime handling

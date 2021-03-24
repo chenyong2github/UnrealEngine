@@ -1826,7 +1826,8 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 		ShadowDepthPass.SetDumpInstancingStats(TEXT("ShadowDepth ") + PassNameForStats);
 	}
 	
-	const uint32 InstanceFactor = !GetShadowDepthType().bOnePassPointLightShadow || RHISupportsGeometryShaders(Renderer.Scene->GetShaderPlatform()) ? 1 : 6;
+	extern int32 GShadowUseGS;
+	const uint32 InstanceFactor = !GetShadowDepthType().bOnePassPointLightShadow || (GShadowUseGS && RHISupportsGeometryShaders(Renderer.Scene->GetShaderPlatform())) ? 1 : 6;
 
 	ShadowDepthPass.DispatchPassSetup(
 		Renderer.Scene,
