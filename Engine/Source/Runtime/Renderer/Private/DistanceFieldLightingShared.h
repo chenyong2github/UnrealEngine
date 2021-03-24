@@ -15,6 +15,7 @@
 #include "DistanceFieldAtlas.h"
 #include "Templates/UniquePtr.h"
 #include "SceneRendering.h"
+#include "ScenePrivate.h"
 
 class FLightSceneProxy;
 class FMaterialRenderProxy;
