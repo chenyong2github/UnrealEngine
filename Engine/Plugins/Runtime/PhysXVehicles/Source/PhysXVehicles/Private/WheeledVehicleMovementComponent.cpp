@@ -237,7 +237,7 @@ void UWheeledVehicleMovementComponent::CreateVehicle()
 			check(UpdatedComponent);
 			if (ensure(UpdatedPrimitive != nullptr))
 			{
-				check(UpdatedPrimitive->GetBodyInstance()->IsDynamic());
+				ensure(UpdatedPrimitive->GetBodyInstance()->IsDynamic());
 				
 				SetupVehicle();
 
