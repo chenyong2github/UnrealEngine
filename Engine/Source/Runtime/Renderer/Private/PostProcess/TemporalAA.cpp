@@ -113,6 +113,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTAACommonParameters, )
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, RejectionInfo)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, HistoryInfo)
 
+	SHADER_PARAMETER(FIntPoint, InputPixelPosMin)
+	SHADER_PARAMETER(FIntPoint, InputPixelPosMax)
+
 	SHADER_PARAMETER(FVector2D, InputJitter)
 	SHADER_PARAMETER(int32, bCameraCut)
 	SHADER_PARAMETER(int32, bEnableInterferenceHeuristic)
@@ -1186,6 +1189,8 @@ static void AddGen5MainTemporalAAPasses(
 	{
 		CommonParameters.InputInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
 			InputExtent, InputRect));
+		CommonParameters.InputPixelPosMin = CommonParameters.InputInfo.ViewportMin;
+		CommonParameters.InputPixelPosMax = CommonParameters.InputInfo.ViewportMax - 1;
 
 		CommonParameters.LowFrequencyInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
 			LowFrequencyExtent, LowFrequencyRect));
@@ -1621,7 +1626,7 @@ static void AddGen5MainTemporalAAPasses(
 				RDG_EVENT_NAME("TAA FilterFrequencies %dx%d", LowFrequencyRect.Width(), LowFrequencyRect.Height()),
 				ComputeShader,
 				PassParameters,
-				FComputeShaderUtils::GetGroupCount(LowFrequencyRect.Size(), 8));
+				FComputeShaderUtils::GetGroupCount(LowFrequencyRect.Size(), 16));
 		}
 
 		// Compare the low frequencies

@@ -167,6 +167,8 @@ float2 InputInfo_UVViewportSizeInverse;
 float2 InputInfo_UVViewportBilinearMin;
 float2 InputInfo_UVViewportBilinearMax;
 float2 InputJitter;
+int2   InputPixelPosMin;
+int2   InputPixelPosMax;
 
 float2 LowFrequencyInfo_Extent;
 float2 LowFrequencyInfo_ExtentInverse;
@@ -237,6 +239,46 @@ uint bEnableInterferenceHeuristic;
 
 
 //------------------------------------------------------- FUNCTIONS
+
+/** Compute the group wave index into SGRP to then recompue the GroupThreadIndex latter */
+uint GetGroupWaveIndex(uint GroupThreadIndex, uint GroupSize)
+#if COMPILER_SUPPORTS_WAVE_ONCE
+{
+	uint LaneCountPerWave = WaveGetLaneCount();
+
+	if (LaneCountPerWave >= GroupSize)
+	{
+		return 0;
+	}
+
+	return WaveReadLaneFirst(GroupThreadIndex / LaneCountPerWave);
+}
+#else
+{
+	return 0;
+}
+#endif
+
+/** Force compute the group GroupThreadIndex through lane index and wave index if possible to reduce VGPR pressure. */
+uint GetGroupThreadIndex(uint GroupThreadIndex, uint GroupWaveIndex)
+#if COMPILER_SUPPORTS_WAVE_ONCE
+{
+	// shares GroupWaveOffset to save SALU
+	uint GroupWaveOffset = WaveGetLaneCount() * GroupWaveIndex;
+
+	// Do not share
+	ISOLATE
+	{
+		return GroupWaveOffset + WaveGetLaneIndex();
+	}
+}
+#else
+{
+	return GroupThreadIndex;
+}
+#endif
+
+
 
 float SafeRcp(float x)
 {
