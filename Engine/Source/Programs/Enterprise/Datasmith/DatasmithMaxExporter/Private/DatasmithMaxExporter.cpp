@@ -42,7 +42,7 @@ THIRD_PARTY_INCLUDES_START
 #include <locale.h>
 THIRD_PARTY_INCLUDES_END
 
-static FString OriginalLocale( _wsetlocale(LC_NUMERIC, nullptr) ); // Cache LC_NUMERIC locale before initialization of UE4
+static FString OriginalLocale( _wsetlocale(LC_NUMERIC, nullptr) ); // Cache LC_NUMERIC locale before initialization of UnrealEditor
 static FString NewLocale = _wsetlocale(LC_NUMERIC, TEXT("C"));
 
 HINSTANCE FDatasmithMaxExporter::HInstanceMax;
@@ -76,7 +76,7 @@ __declspec( dllexport ) int LibInitialize(void)
 {
 	bool bResult = FDatasmithExporterManager::Initialize();
 
-	// Restore LC_NUMERIC locale after initialization of UE4
+	// Restore LC_NUMERIC locale after initialization of UnrealEditor
 	_wsetlocale(LC_NUMERIC, *OriginalLocale);
 
 	return bResult;

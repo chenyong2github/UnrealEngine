@@ -74,7 +74,7 @@ class FDatasmithMaxSceneParser
 public:
 	static EMaxLightClass GetLightClass(INode* InNode);
 	static bool CanBeTriMesh(Object* Obj);
-	static const TArray< FString, TInlineAllocator< 4 > > CollisionNodesPrefixes; // List of supported mesh prefixes for UE4 collision
+	static const TArray< FString, TInlineAllocator< 4 > > CollisionNodesPrefixes; // List of supported mesh prefixes for Unreal collision
 
 	FDatasmithMaxSceneParser();
 	~FDatasmithMaxSceneParser();

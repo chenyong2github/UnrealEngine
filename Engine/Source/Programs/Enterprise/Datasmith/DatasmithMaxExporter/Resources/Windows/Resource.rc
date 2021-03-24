@@ -169,7 +169,7 @@ BEGIN
             VALUE "LegalCopyright", "Copyright Epic Games, Inc. All Rights Reserved."
             VALUE "OriginalFilename", "DatasmithMaxExporter.dle"
             VALUE "ProductName", "Unreal Engine"
-            VALUE "ProductVersion", "4.21.0-0+UE4"
+            VALUE "ProductVersion", "5.0"
         END
     END
     BLOCK "VarFileInfo"
