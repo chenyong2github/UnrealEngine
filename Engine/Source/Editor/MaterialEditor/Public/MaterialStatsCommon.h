@@ -18,6 +18,11 @@ public:
 		return Material;
 	}
 
+	/**
+	 * Should shaders compiled for this material be saved to disk?
+	 */
+	virtual bool IsPersistent() const override { return false; }
+
 	/** this will enable shader source extraction and pass paths to (eventual) offline shader compilers */
 	virtual void SetupExtaCompilationSettings(const EShaderPlatform Platform, FExtraShaderCompilerSettings& Settings) const override;
 };
