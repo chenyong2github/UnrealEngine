@@ -1188,10 +1188,14 @@ void USoundWave::EnsureZerothChunkIsLoaded()
 	}
 
 #if WITH_EDITOR 
-	if (RunningPlatformData.IsValid())
+
+	if (!RunningPlatformData.IsValid())
 	{
-		CachePlatformData(false);
+		// we may be in the middle of garbage collection, don't access RunningPlatformData
+		return;
 	}
+
+	CachePlatformData(false);
 
 	// If we're running the editor, we'll need to retrieve the chunked audio from the DDC:
 	uint8* TempChunkBuffer = nullptr;
@@ -2445,6 +2449,10 @@ bool USoundWave::HasCookedAmplitudeEnvelopeData() const
 
 FSoundWaveProxyPtr USoundWave::CreateSoundWaveProxy()
 {
+#if WITH_EDITORONLY_DATA
+	EnsureZerothChunkIsLoaded();
+#endif // #if WITH_EDITORONLY_DATA
+
 	return MakeShared<FSoundWaveProxy, ESPMode::ThreadSafe>(this);
 }
 
@@ -3101,12 +3109,10 @@ uint32 FSoundWaveProxy::GetSizeOfChunk(uint32 ChunkIndex) const
 
 TArrayView<const uint8> FSoundWaveProxy::GetZerothChunk(const FSoundWaveProxyPtr& SoundWaveProxy, bool bForImmediatePlayback)
 {
-	if (ensure(SoundWaveProxy.IsValid()))
+	if (ensure(SoundWaveProxy.IsValid()) && SoundWaveProxy->IsZerothChunkDataLoaded())
 	{
 		if (SoundWaveProxy->bShouldUseStreamCaching)
 		{
-			check(SoundWaveProxy->IsZerothChunkDataLoaded());
-
 			if (SoundWaveProxy->GetNumChunks() > 1)
 			{
 				// Prime first chunk for playback
