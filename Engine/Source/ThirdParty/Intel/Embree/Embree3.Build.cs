@@ -26,15 +26,9 @@ public class Embree3 : ModuleRules
 
 			PublicIncludePaths.Add(SDKDir + "include");
 			PublicAdditionalLibraries.Add(SDKDir + "lib/libembree3.3.dylib");
-			PublicAdditionalLibraries.Add(SDKDir + "lib/libembree3.dylib");
 			PublicAdditionalLibraries.Add(SDKDir + "lib/libtbb.12.1.dylib");
-			PublicAdditionalLibraries.Add(SDKDir + "lib/libtbb.12.dylib");
-			PublicAdditionalLibraries.Add(SDKDir + "lib/libtbb.dylib");
 			RuntimeDependencies.Add("$(TargetOutputDir)/libembree3.3.dylib", SDKDir + "lib/libembree3.3.dylib");
-			RuntimeDependencies.Add("$(TargetOutputDir)/libembree3.dylib", SDKDir + "lib/libembree3.dylib");
 			RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.12.1.dylib", SDKDir + "lib/libtbb.12.1.dylib");
-			RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.12.dylib", SDKDir + "lib/libtbb.12.dylib");
-			RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.dylib", SDKDir + "lib/libtbb.dylib");
 			PublicDefinitions.Add("USE_EMBREE=1");
 		}
 		else
