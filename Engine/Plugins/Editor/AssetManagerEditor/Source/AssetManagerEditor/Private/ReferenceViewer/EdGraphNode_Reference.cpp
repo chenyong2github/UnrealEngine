@@ -57,7 +57,11 @@ void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const 
 		{
 			NodeComment = First.PackageName.ToString();
 		}
+
+		static const FName NAME_ActorLabel(TEXT("ActorLabel"));
+
 		NodeTitle = FText::FromString(MainAssetName);
+		InAssetData.GetTagValue(NAME_ActorLabel, NodeTitle);
 	}
 	else
 	{
