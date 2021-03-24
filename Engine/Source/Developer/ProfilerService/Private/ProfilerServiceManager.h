@@ -205,9 +205,9 @@ private:
 
 #endif //STATS
 
-	void AddNewFrameHandleStatsThread();
+	void AddNewFrameHandleStatsPipe();
 
-	void RemoveNewFrameHandleStatsThread();
+	void RemoveNewFrameHandleStatsPipe();
 
 	/** Holds the messaging endpoint. */
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;

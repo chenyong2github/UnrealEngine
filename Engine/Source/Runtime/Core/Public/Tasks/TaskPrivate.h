@@ -196,8 +196,8 @@ namespace UE { namespace Tasks
 				return true;
 			}
 
-			bool PushIntoPipe();
-			void UnblockPipe();
+			CORE_API bool PushIntoPipe();
+			CORE_API void UnblockPipe();
 
 			// after being executed the task checks if it has a subsequent to launch. it's the only time the task will do this check so
 			// it "closes" itself and setting a subsequent fill fail after that.

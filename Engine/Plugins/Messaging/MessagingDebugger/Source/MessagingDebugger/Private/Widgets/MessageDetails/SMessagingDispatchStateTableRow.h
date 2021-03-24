@@ -189,12 +189,6 @@ protected:
 			return LOCTEXT("ActualRenderingThread", "ActualRenderingThread");
 			break;
 
-#if STATS
-		case ENamedThreads::StatsThread:
-			return LOCTEXT("StatsThread", "StatsThread");
-			break;
-#endif
-
 		default:
 			return LOCTEXT("UnknownThread", "Unknown");
 		}

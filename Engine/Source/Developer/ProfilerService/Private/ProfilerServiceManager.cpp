@@ -7,7 +7,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Stats/StatsData.h"
 #include "Stats/StatsFile.h"
-
+#include "Tasks/Pipe.h"
 
 DEFINE_LOG_CATEGORY(LogProfilerService);
 
@@ -126,7 +126,7 @@ TSharedPtr<IProfilerServiceManager> FProfilerServiceManager::CreateSharedService
 }
 
 
-void FProfilerServiceManager::AddNewFrameHandleStatsThread()
+void FProfilerServiceManager::AddNewFrameHandleStatsPipe()
 {
 #if	STATS
 	const FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
@@ -137,7 +137,7 @@ void FProfilerServiceManager::AddNewFrameHandleStatsThread()
 }
 
 
-void FProfilerServiceManager::RemoveNewFrameHandleStatsThread()
+void FProfilerServiceManager::RemoveNewFrameHandleStatsPipe()
 {
 #if	STATS
 	const FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
@@ -147,6 +147,7 @@ void FProfilerServiceManager::RemoveNewFrameHandleStatsThread()
 #endif //STATS
 }
 
+extern CORE_API UE::Tasks::FPipe GStatsPipe;
 
 void FProfilerServiceManager::SetPreviewState( const FMessageAddress& ClientAddress, const bool bRequestedPreviewState )
 {
@@ -163,12 +164,18 @@ void FProfilerServiceManager::SetPreviewState( const FMessageAddress& ClientAddr
 				// Enable stat capture.
 				if (PreviewClients.Num() == 0)
 				{
-					FSimpleDelegateGraphTask::CreateAndDispatchWhenReady
-					(
-						FSimpleDelegateGraphTask::FDelegate::CreateRaw( this, &FProfilerServiceManager::AddNewFrameHandleStatsThread ),
-						TStatId(), nullptr,
-						FPlatformProcess::SupportsMultithreading() ? ENamedThreads::StatsThread : ENamedThreads::GameThread
-					);
+					if (FPlatformProcess::SupportsMultithreading())
+					{
+						GStatsPipe.Launch(UE_SOURCE_LOCATION, [this] { AddNewFrameHandleStatsPipe(); });
+					}
+					else
+					{
+						FSimpleDelegateGraphTask::CreateAndDispatchWhenReady
+						(
+							FSimpleDelegateGraphTask::FDelegate::CreateRaw(this, &FProfilerServiceManager::AddNewFrameHandleStatsPipe),
+							TStatId(), nullptr, ENamedThreads::GameThread
+						);
+					}
 				}
 				PreviewClients.Add(ClientAddress);
 				Client->Preview = true;
@@ -183,13 +190,18 @@ void FProfilerServiceManager::SetPreviewState( const FMessageAddress& ClientAddr
 				// Disable stat capture.
 				if (PreviewClients.Num() == 0)
 				{
-					FSimpleDelegateGraphTask::CreateAndDispatchWhenReady
-					(
-						FSimpleDelegateGraphTask::FDelegate::CreateRaw( this, &FProfilerServiceManager::RemoveNewFrameHandleStatsThread ),
-						TStatId(), nullptr,
-						FPlatformProcess::SupportsMultithreading() ? ENamedThreads::StatsThread : ENamedThreads::GameThread
-					);
-					
+					if (FPlatformProcess::SupportsMultithreading())
+					{
+						GStatsPipe.Launch(UE_SOURCE_LOCATION, [this] { RemoveNewFrameHandleStatsPipe(); });
+					}
+					else
+					{
+						FSimpleDelegateGraphTask::CreateAndDispatchWhenReady
+						(
+							FSimpleDelegateGraphTask::FDelegate::CreateRaw(this, &FProfilerServiceManager::RemoveNewFrameHandleStatsPipe),
+							TStatId(), nullptr, ENamedThreads::GameThread
+						);
+					}
 				}	
 			}
 		}

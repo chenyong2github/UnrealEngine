@@ -896,7 +896,9 @@ namespace TaskGraphTests
 #if STATS
 		{	// StatsThread
 			bool bExecuted = false;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FFunctionGraphTask::CreateAndDispatchWhenReady([&bExecuted] { bExecuted = true; }, TStatId{}, nullptr, ENamedThreads::StatsThread)->Wait();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			check(bExecuted);
 		}
 #endif
@@ -1297,6 +1299,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool FPerfTest::RunTest(const FString& Parameters)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TaskGraphTests_PerfTest);
+
 		//UE_BENCHMARK(1, TestSpawning<100000>);
 		//return true;
 
@@ -1318,8 +1322,27 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	void PipeStressTest()
 	{
 #if STATS
-		constexpr ENamedThreads::Type Pipe = ENamedThreads::StatsThread;
-		constexpr ENamedThreads::Type ManualPipe = ENamedThreads::Type(ENamedThreads::StatsThread | ENamedThreads::LocalQueue);
+		FThread StatsThread;
+		if (FPlatformProcess::SupportsMultithreading())
+		{
+			// we simulate StatsThread for this test, as it was removed but the interface is still present (though it's deprecated)
+			StatsThread = FThread{ TEXT("Test StatsThread"),
+				[]
+				{
+					FMemory::SetupTLSCachesOnCurrentThread();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					FTaskGraphInterface::Get().AttachToThread(ENamedThreads::StatsThread);
+					FTaskGraphInterface::Get().ProcessThreadUntilRequestReturn(ENamedThreads::StatsThread);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+					FMemory::ClearAndDisableTLSCachesOnCurrentThread();
+				}
+			};
+		}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const ENamedThreads::Type Pipe = FPlatformProcess::SupportsMultithreading() ? ENamedThreads::StatsThread : ENamedThreads::GameThread;
+		const ENamedThreads::Type ManualPipe = FPlatformProcess::SupportsMultithreading() ? ENamedThreads::StatsThread_Local : ENamedThreads::GameThread_Local;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		{	// check that piped task is executed
 			std::atomic<bool> bExecuted{ false };
@@ -1362,7 +1385,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					T1Launcher->Wait();
 					bT1Executed = true;
 					bExecutingPipe = false;
-				}, 
+				},
 				TStatId{}, nullptr, Pipe
 			);
 
@@ -1376,7 +1399,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					T2Launcher->Wait();
 					bT2Executed = true;
 					bExecutingPipe = false;
-				}, 
+				},
 				TStatId{}, nullptr, Pipe
 			);
 
@@ -1390,7 +1413,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					T3Launcher->Wait();
 					bT3Executed = true;
 					bExecutingPipe = false;
-				}, 
+				},
 				TStatId{}, nullptr, Pipe
 			);
 
@@ -1433,7 +1456,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ManualPipe);
 					check(bExecuted);
 					check(ManualPipeTask->IsComplete());
-				}, 
+				},
 				TStatId{}, nullptr, Pipe
 			)->Wait();
 			check(bExecuted);
@@ -1477,10 +1500,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{	// test GetCurrentThread() from inside manual pipe
 			FFunctionGraphTask::CreateAndDispatchWhenReady(
 				[ManualPipe]
-				{ 
+				{
 					checkf(FTaskGraphInterface::Get().GetCurrentThreadIfKnown(true) == ManualPipe, TEXT("%d - %d"), FTaskGraphInterface::Get().GetCurrentThreadIfKnown(true), ManualPipe);
 				},
-			TStatId{}, nullptr, ManualPipe);
+				TStatId{}, nullptr, ManualPipe);
 
 			FFunctionGraphTask::CreateAndDispatchWhenReady([ManualPipe] { FTaskGraphInterface::Get().ProcessThreadUntilIdle(ManualPipe); }, TStatId{}, nullptr, Pipe)
 				->Wait();
@@ -1492,15 +1515,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				{
 					check(FTaskGraphInterface::Get().IsThreadProcessingTasks(ManualPipe));
 				},
-			TStatId{}, nullptr, ManualPipe);
+				TStatId{}, nullptr, ManualPipe);
 
 			FFunctionGraphTask::CreateAndDispatchWhenReady(
 				[ManualPipe]
 				{
 					check(!FTaskGraphInterface::Get().IsThreadProcessingTasks(ManualPipe));
-					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ManualPipe); 
-				}, 
-			TStatId{}, nullptr, Pipe)->Wait();
+					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ManualPipe);
+				},
+				TStatId{}, nullptr, Pipe)->Wait();
 		}
 
 		{	// check that independent task can bypass a task with pending prereq
@@ -1575,6 +1598,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			//UE_LOG(LogTemp, Display, TEXT("Tasks completed"));
 			check(TasksExecutedNum == TasksNum);
 		}
+
+		if (FPlatformProcess::SupportsMultithreading())
+		{
+			// stop StatsThread
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			FGraphEventRef QuitTask = TGraphTask<FReturnGraphTask>::CreateTask(NULL, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(ENamedThreads::StatsThread);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(QuitTask, ENamedThreads::GameThread_Local);
+			StatsThread.Join();
+		}
 #endif
 	}
 
@@ -1582,7 +1615,32 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool FPipeTest::RunTest(const FString& Parameters)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TaskGraphTests_PipeTest);
+
 		UE_BENCHMARK(5, PipeStressTest);
+
+		return true;
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphStatsThreadRedirectionTest, "System.Core.Async.TaskGraph.StatsThreadRedirection", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTaskGraphStatsThreadRedirectionTest::RunTest(const FString& Parameters)
+	{
+		if (!FPlatformProcess::SupportsMultithreading())
+		{
+			// no StatsThread around
+			return true;
+		}
+
+#if STATS
+
+		bool bExecuted = false;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FFunctionGraphTask::CreateAndDispatchWhenReady([&bExecuted] { bExecuted = true; }, TStatId{}, nullptr, ENamedThreads::StatsThread)->Wait();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		check(bExecuted);
+
+#endif
 
 		return true;
 	}

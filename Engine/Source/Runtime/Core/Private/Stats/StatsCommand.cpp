@@ -24,6 +24,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/DefaultValueHelper.h"
+#include "Tasks/Pipe.h"
 
 #if STATS
 
@@ -41,6 +42,8 @@ static float DumpCull = 1.0f;
 
 //Whether or not we render stats in certain modes
 bool GRenderStats = true;
+
+extern CORE_API UE::Tasks::FPipe GStatsPipe;
 
 static TAutoConsoleVariable<int32> GCVarDumpHitchesAllThreads(
 	TEXT("t.DumpHitches.AllThreads"),
@@ -2340,12 +2343,6 @@ bool DirectStatsCommand(const TCHAR* Cmd, bool bBlockForCompletion /*= false*/, 
 		{
 			const FString FullCmd = FString(Cmd) + AddArgs;
 #if STATS
-			ENamedThreads::Type ThreadType = ENamedThreads::GameThread;
-			if (FPlatformProcess::SupportsMultithreading())
-			{
-				ThreadType = ENamedThreads::StatsThread;
-			}
-
 			// make sure these are initialized on the game thread
 			FLatestGameThreadStatsData::Get();
 			FStatGroupGameThreadNotifier::Get();
@@ -2354,13 +2351,10 @@ bool DirectStatsCommand(const TCHAR* Cmd, bool bBlockForCompletion /*= false*/, 
 				STAT_FSimpleDelegateGraphTask_StatCmd,
 				STATGROUP_TaskGraphTasks);
 
-			FGraphEventRef CompleteHandle = FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-				FSimpleDelegateGraphTask::FDelegate::CreateStatic(&StatCmd, FullCmd, bStatCommand, Ar),
-				GET_STATID(STAT_FSimpleDelegateGraphTask_StatCmd), NULL, ThreadType
-			);
-			if (bBlockForCompletion && FPlatformProcess::SupportsMultithreading())
+			UE::Tasks::TTask<void> Task = GStatsPipe.Launch(UE_SOURCE_LOCATION, [FullCmd, bStatCommand, Ar] { StatCmd(FullCmd, bStatCommand, Ar); });
+			if (bBlockForCompletion)
 			{
-				FTaskGraphInterface::Get().WaitUntilTaskCompletes(CompleteHandle);
+				Task.Wait();
 				GLog->FlushThreadedLogs();
 			}
 #else
@@ -2374,8 +2368,13 @@ bool DirectStatsCommand(const TCHAR* Cmd, bool bBlockForCompletion /*= false*/, 
 
 #if STATS
 
-static void GetPermanentStats_StatsThread(TArray<FStatMessage>* OutStats)
+static void GetPermanentStats_StatsPipe(TArray<FStatMessage>* OutStats)
 {
+	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.GetPermanentStatsString_StatsPipe"),
+		STAT_FSimpleDelegateGraphTask_GetPermanentStatsString_StatsPipe,
+		STATGROUP_TaskGraphTasks);
+	SCOPE_CYCLE_COUNTER(STAT_FSimpleDelegateGraphTask_GetPermanentStatsString_StatsPipe);
+
 	FStatsThreadState& StatsData = FStatsThreadState::GetLocalState();
 	TArray<FStatMessage>& Stats = *OutStats;
 	for (auto It = StatsData.NotClearedEveryFrame.CreateConstIterator(); It; ++It)
@@ -2387,18 +2386,10 @@ static void GetPermanentStats_StatsThread(TArray<FStatMessage>* OutStats)
 
 void GetPermanentStats(TArray<FStatMessage>& OutStats)
 {
-	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.GetPermanentStatsString_StatsThread"),
-		STAT_FSimpleDelegateGraphTask_GetPermanentStatsString_StatsThread,
-		STATGROUP_TaskGraphTasks);
-
-	FGraphEventRef CompleteHandle = FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-		FSimpleDelegateGraphTask::FDelegate::CreateStatic(&GetPermanentStats_StatsThread, &OutStats),
-		GET_STATID(STAT_FSimpleDelegateGraphTask_GetPermanentStatsString_StatsThread), NULL,
-		FPlatformProcess::SupportsMultithreading() ? ENamedThreads::StatsThread : ENamedThreads::GameThread
-	);
-	FTaskGraphInterface::Get().WaitUntilTaskCompletes(CompleteHandle);
+	GStatsPipe
+		.Launch(UE_SOURCE_LOCATION, [&OutStats] { GetPermanentStats_StatsPipe(&OutStats); })
+		.Wait();
 }
-
 
 #endif
 

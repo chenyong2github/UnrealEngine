@@ -1222,7 +1222,7 @@ class FThreadStats : FNoncopyable
 {
 	friend class FStatsMallocProfilerProxy;
 	friend class FStatsThreadState;
-	friend class FStatsThread;
+	friend class FStatsProcessor;
 	friend struct FThreadStatsPool;
 
 	/** Used to control when we are collecting stats. User of the stats system increment and decrement this counter as they need data. **/
@@ -1265,14 +1265,13 @@ class FThreadStats : FNoncopyable
 	/** Tracks current stack depth for cycle counters. **/
 	bool bSawExplicitFlush;
 
-	/** True if this is the stats thread, which needs special handling. **/
-	bool bIsStatsThread;
-
 	/** Gathers information about the current thread and sets up the TLS value. **/
 	CORE_API FThreadStats();
 
 	/** Constructor used for the pool. */
 	CORE_API FThreadStats(EConstructor);
+
+	void SendMessage_Async(FStatPacket* ToSend);
 
 public:
 	/** Checks the TLS for a thread packet and if it isn't found, it makes a new one. **/
@@ -1656,7 +1655,7 @@ private:
 /** Manages startup messages, usually to update the metadata. */
 class FStartupMessages
 {
-	friend class FStatsThread;
+	friend class FStatsProcessor;
 
 	TArray<FStatMessage> DelayedMessages;
 	FCriticalSection CriticalSection;

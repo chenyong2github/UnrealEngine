@@ -34,6 +34,7 @@
 #include "Misc/ConfigCacheIni.h"
 
 #include "Async/Fundamental/Scheduler.h"
+#include "Tasks/Pipe.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTaskGraph, Log, All);
 
@@ -671,7 +672,9 @@ public:
 			}
 			// else StatName = none, we need to let the scope empty so that the render thread submits tasks in a timely manner. 
 		}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		else if (ThreadId != ENamedThreads::StatsThread)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			StatName = GET_STATID(STAT_TaskGraph_OtherTasks);
 			StallStatId = GET_STATID(STAT_TaskGraph_OtherStalls);
@@ -826,7 +829,9 @@ private:
 			return TEXT("Audio Thread");
 		}
 #if STATS
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		else if (ThreadId == ENamedThreads::StatsThread)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			return TEXT("Stats Thread");
 		}
@@ -1377,6 +1382,30 @@ public:
 		FPlatformTLS::FreeTlsSlot(PerThreadIDTLSSlot);
 	}
 
+	// StatsThread was removed and replaced by a pipe. While all engine code was converted where's a tiny possibilty that 
+	// an external code is using it directly. Redirect all stats tasks to the pipe
+	static void RedirectStatsTasksToPipe(FBaseGraphTask* Task)
+	{
+#if STATS
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (ENamedThreads::GetThreadIndex(Task->ThreadToExecuteOn) == ENamedThreads::StatsThread)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		{
+			checkf(ENamedThreads::GetQueueIndex(Task->ThreadToExecuteOn) == ENamedThreads::MainQueue, TEXT("`StatsThread_Local` is not supported and unlikely to be used intentionally. Check that `Task->ThreadToExecuteOn` value is not rubbish: %d"), Task->ThreadToExecuteOn);
+
+			extern CORE_API UE::Tasks::FPipe GStatsPipe;
+			GStatsPipe.Launch(UE_SOURCE_LOCATION,
+				[Task]
+				{
+					TArray<FBaseGraphTask*> Dummy;
+					Task->Execute(Dummy, ENamedThreads::AnyThread, true);
+				}
+			);
+			return;
+		}
+#endif
+	}
+
 	// API inherited from FTaskGraphInterface
 
 	/** 
@@ -1388,6 +1417,8 @@ public:
 	virtual void QueueTask(FBaseGraphTask* Task, bool bWakeUpWorker, ENamedThreads::Type ThreadToExecuteOn, ENamedThreads::Type InCurrentThreadIfKnown = ENamedThreads::AnyThread) final override
 	{
 		TASKGRAPH_SCOPE_CYCLE_COUNTER(2, STAT_TaskGraph_QueueTask);
+
+		RedirectStatsTasksToPipe(Task);
 
 		if (ENamedThreads::GetThreadIndex(ThreadToExecuteOn) == ENamedThreads::AnyThread)
 		{
@@ -1889,6 +1920,8 @@ public:
 private:
 	void QueueTask(class FBaseGraphTask* Task, bool bWakeUpWorker, ENamedThreads::Type InThreadToExecuteOn, ENamedThreads::Type InCurrentThreadIfKnown) override
 	{
+		FTaskGraphImplementation::RedirectStatsTasksToPipe(Task);
+
 		if (ENamedThreads::GetThreadIndex(InThreadToExecuteOn) == ENamedThreads::AnyThread)
 		{
 			uint32 ThreadPriority = GetThreadPriorityIndex(InThreadToExecuteOn);
@@ -2520,10 +2553,12 @@ void FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes(bool bDoTaskTh
 
 	FGraphEventArray Tasks;
 #if STATS
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (FTaskGraphInterface::Get().IsThreadProcessingTasks(ENamedThreads::StatsThread))
 	{
 		Tasks.Add(TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("Stats"), ENamedThreads::SetTaskPriority(ENamedThreads::StatsThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr));
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 	if (IsRHIThreadRunning())
 	{

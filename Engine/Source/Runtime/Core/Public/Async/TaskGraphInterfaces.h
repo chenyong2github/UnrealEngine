@@ -57,7 +57,7 @@ namespace ENamedThreads
 		UnusedAnchor = -1,
 		/** The always-present, named threads are listed next **/
 #if STATS
-		StatsThread, 
+		StatsThread UE_DEPRECATED(5.0, "`StatsThread` has been removed. Stats system should be used by its public API in `Stats2.h`"),
 #endif
 		RHIThread,
 		AudioThread,
@@ -98,7 +98,9 @@ namespace ENamedThreads
 
 		/** Combinations **/
 #if STATS
-		StatsThread_Local = StatsThread | LocalQueue,
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		StatsThread_Local UE_DEPRECATED(5.0, "`StatsThread_Local` has been removed (and has never been supported). Stats system should be used by its public API in `Stats2.h`") = StatsThread | LocalQueue,
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 		GameThread_Local = GameThread | LocalQueue,
 		ActualRenderingThread_Local = ActualRenderingThread | LocalQueue,
