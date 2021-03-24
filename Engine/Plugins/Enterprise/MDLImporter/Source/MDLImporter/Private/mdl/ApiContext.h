@@ -68,7 +68,7 @@ namespace Mdl
 		}
 
 		/**
-		 * Returns the material distiller used for material distillation to the UE4 target model.
+		 * Returns the material distiller used for material distillation to the Unreal target model.
 		 */
 		virtual FMaterialDistiller* GetDistiller()
 		{

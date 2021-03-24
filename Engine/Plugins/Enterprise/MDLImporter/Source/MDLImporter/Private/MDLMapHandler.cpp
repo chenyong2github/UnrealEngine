@@ -125,7 +125,7 @@ bool FMDLMapHandler::Import(const FString& MapName, bool bIsTexture, Mdl::FBakeP
 
 	if (MapNameLower.Find(TEXT("roughness")) != INDEX_NONE)
 	{
-		// convert from GGX to UE4
+		// convert from GGX to Unreal
 		UMaterialExpression* Roughness =
 		    Generator::NewMaterialExpressionSquareRoot(CurrentMaterial, {Outputs[0].GetExpressionAndUse(), Outputs[0].GetExpressionOutputIndex()});
 		MapBakeParam.SetExpression(Roughness, bIsTexture, 0);

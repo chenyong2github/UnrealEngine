@@ -222,9 +222,9 @@ namespace Generator
 		FunctionGenerateMap.Add(TEXT("mdl_nvidia_distilling_support_refl_from_ior_color"), {&FFunctionGenerator::DistillingSupportReflFromIORFloat3, 3});
 		FunctionGenerateMap.Add(TEXT("mdl_nvidia_distilling_support_refl_from_ior_float"), {&FFunctionGenerator::DistillingSupportReflFromIORFloat, 1});
 
-		// UE4 Omni
-		FunctionGenerateMap.Add(TEXT("mdl_OmniUe4Base_tangent_space_normal"), { &FFunctionGenerator::UE4TangentSpaceNormal, 1 });
-		FunctionGenerateMap.Add(TEXT("mdl_OmniUe4Translucent_get_translucent_opacity"), { &FFunctionGenerator::UE4OpacityWeight, 1 });
+		// Unreal Omni
+		FunctionGenerateMap.Add(TEXT("mdl_OmniUe4Base_tangent_space_normal"), { &FFunctionGenerator::UnrealTangentSpaceNormal, 1 });
+		FunctionGenerateMap.Add(TEXT("mdl_OmniUe4Translucent_get_translucent_opacity"), { &FFunctionGenerator::UnrealOpacityWeight, 1 });
 
 		// common functions generation
 		const FString EngineUtilityPath = TEXT("/Engine/Functions/Engine_MaterialFunctions02/Utility");

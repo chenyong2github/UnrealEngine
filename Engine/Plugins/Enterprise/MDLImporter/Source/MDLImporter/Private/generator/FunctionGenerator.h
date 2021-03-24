@@ -256,7 +256,7 @@ namespace Generator
 			        NewMaterialExpressionIfEqual(Function, Anisotropy, 1.0f, 0.0001f, NewMaterialExpressionOneMinus(Function, Anisotropy))));
 
 			UMaterialExpressionMultiply* RotationAngle = NewMaterialExpressionMultiply(Function, 2.0f * PI, AnisotropyRotation);
-			// As UE4 is left-handed, swap StateNormal and TangentU in this cross product to get the TangentV !
+			// As Unreal is left-handed, swap StateNormal and TangentU in this cross product to get the TangentV !
 			UMaterialExpressionCrossProduct* TangentV =
 			    NewMaterialExpressionCrossProduct(Function, TangentU, NewMaterialExpressionFunctionCall(Function, StateNormal, {}));
 			UMaterialExpressionSubtract* RotatedTangentU =
@@ -508,7 +508,7 @@ namespace Generator
 			UMaterialExpressionMaterialFunctionCall* Normal = NewMaterialExpressionFunctionCall(
 			    Function, StateTransformVector,
 			    {(int)ECoordinateSpace::Internal, CoordinateSpace,
-			     StateNormalCall});  // would need to transform a normal here! but I'm not aware of such a method in UE4!
+			     StateNormalCall});  // would need to transform a normal here! but I'm not aware of such a method in Unreal!
 
 			UMaterialExpressionMaterialFunctionCall* Cubic = NewMaterialExpressionFunctionCall(
 			    Function, ImporterComputeCubicTransform,
@@ -1738,7 +1738,7 @@ namespace Generator
 			    NewMaterialExpressionStaticSwitch(Function, FlipTangentV, NewMaterialExpressionNegate(Function, UVWTangentV), UVWTangentV);
 #endif
 
-			// UE4 already applies bias to normal after sampling so no need to do it manually
+			// Unreal already applies bias to normal after sampling so no need to do it manually
 			UMaterialExpressionMultiply* TangentSpaceNormal = NewMaterialExpressionMultiply(
 			    Function,
 #if defined(USE_WORLD_ALIGNED_TEXTURES)
@@ -3295,7 +3295,7 @@ namespace Generator
 			check(0 == ArraySize);
 			Function->Description = TEXT("Array of geometry bitangents.");
 
-			// As UE4 is left handed, the v-tangent is (0, -1, 0) !
+			// As Unreal is left handed, the v-tangent is (0, -1, 0) !
 			NewMaterialExpressionFunctionOutput(Function, TEXT("geometry_tangent_v"), {0.0f, -1.0f, 0.0f});
 		}
 
@@ -3414,7 +3414,7 @@ namespace Generator
 			check(0 == ArraySize);
 			Function->Description = TEXT("The array of bitangent vectors for each texture space.");
 
-			// As UE4 is left handed, the v-tangent is (0, -1, 0) !
+			// As Unreal is left handed, the v-tangent is (0, -1, 0) !
 			NewMaterialExpressionFunctionOutput(Function, TEXT("texture_tangent_v"), {0.0f, -1.0f, 0.0f});
 		}
 
@@ -4289,7 +4289,7 @@ namespace Generator
 			    NewMaterialExpressionNormalize(Function, NewMaterialExpressionCrossProduct(Function, Normal, TangentUSimplePreliminary));
 			UMaterialExpressionIf* TangentVUDirCheck =
 			    NewMaterialExpressionIfGreater(Function, NormalDotUDir, 0.999f, TangentVComplex, TangentVSimple);
-			// As UE4 is left-handed, negate the resulting v-tangent !
+			// As Unreal is left-handed, negate the resulting v-tangent !
 			UMaterialExpressionSubtract* TangentV = NewMaterialExpressionNegate(
 			    Function, NewMaterialExpressionIfGreater(Function, NormalDotVDir, 0.999f, TangentVComplex, TangentVUDirCheck));
 
@@ -4385,7 +4385,7 @@ namespace Generator
 			                                NewMaterialExpressionNegate(Function, TangentVSimplePreliminary), TangentVSimplePreliminary);
 			UMaterialExpressionIf* TangentVUDirCheck =
 			    NewMaterialExpressionIfGreater(Function, NormalDotUDir, 0.999f, TangentVComplex, TangentVSimple);
-			// As UE4 is left-handed, negate the resulting v-tangent !
+			// As Unreal is left-handed, negate the resulting v-tangent !
 			UMaterialExpressionSubtract* TangentV = NewMaterialExpressionNegate(
 			    Function, NewMaterialExpressionIfGreater(Function, NormalDotVDir, 0.999f, TangentVComplex, TangentVUDirCheck));
 
@@ -5772,7 +5772,7 @@ namespace Generator
 			NewMaterialExpressionFunctionOutput(Function, TEXT("refl"), Refl);
 		}
 
-		void UE4TangentSpaceNormal(UMaterialFunction* Function, int32 ArraySize)
+		void UnrealTangentSpaceNormal(UMaterialFunction* Function, int32 ArraySize)
 		{
 			check(0 == ArraySize);
 			UMaterialFunction* StateNormal = LoadFunction(TEXT("mdl_state_normal"));
@@ -5802,7 +5802,7 @@ namespace Generator
 			NewMaterialExpressionFunctionOutput(Function, TEXT("normal"), UnclippedNormal);
 		}
 
-		void UE4OpacityWeight(UMaterialFunction* Function, int32 ArraySize)
+		void UnrealOpacityWeight(UMaterialFunction* Function, int32 ArraySize)
 		{
 			// always return 1
 			UMaterialExpressionFunctionInput* Opacity = NewMaterialExpressionFunctionInput(Function, TEXT("opacity"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
