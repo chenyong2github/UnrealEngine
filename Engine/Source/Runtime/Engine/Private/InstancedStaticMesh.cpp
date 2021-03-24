@@ -916,12 +916,13 @@ void FPerInstanceRenderData::UpdateFromPreallocatedData(FStaticMeshInstanceData&
 
 void FPerInstanceRenderData::UpdateBoundsTransforms_Concurrent()
 {
+	// Enqueue a render command to create a task to update the buffer data.
+	// Yes double-wrapping a lambda looks a little silly, but the only safe way to update the render data
+	// is to issue this task from the rendering thread.
+	ENQUEUE_RENDER_COMMAND(FInstanceBuffer_UpdateBoundsTransforms)(
+		[this](FRHICommandListImmediate& RHICmdList)
+		{
 	// We shouldn't have multiple tasks in flight updating bounds/transforms, to avoid a data race.
-	// Note that even if this check doesn't fail, there's still a race condition since there's a small
-	// possibility another thread could call UpdateBounds at the same time and write to UpdateBoundsTask
-	// between us checking the value and us writing to it.
-	// So for now it's recommended that after the initial creation of this object, only to call this function
-	// from the rendering thread.
 	check(!UpdateBoundsTask.IsValid());
 
 	UpdateBoundsTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
@@ -953,6 +954,8 @@ void FPerInstanceRenderData::UpdateBoundsTransforms_Concurrent()
 			PerInstanceTransforms.Add(InstTransform);
 		}
 	}
+	);
+		}
 	);
 }
 
