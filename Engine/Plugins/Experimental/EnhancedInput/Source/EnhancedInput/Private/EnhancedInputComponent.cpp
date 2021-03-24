@@ -77,11 +77,11 @@ FInputActionValue UEnhancedInputComponent::GetBoundActionValue(const UInputActio
 	return FInputActionValue(Action->ValueType, FVector::ZeroVector);
 }
 
+// Must be in C++ to avoid duplicate statics across execution units
+static uint32 GInputBindingHandle = 1;
 
 FInputBindingHandle::FInputBindingHandle()
 {
 	// Handles are shared between all binding types
-	// Must be in C++ to avoid duplicate statics across execution units
-	static uint32 GHandle = 1;
-	Handle = GHandle++;
+	Handle = GInputBindingHandle++;
 }

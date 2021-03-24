@@ -312,6 +312,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		}
 
 		// Trigger bound event delegates
+		static TArray<TUniquePtr<FEnhancedInputActionEventBinding>> TriggeredDelegates;
 		for (const TUniquePtr<FEnhancedInputActionEventBinding>& Binding : IC->GetActionEventBindings())
 		{
 			// PERF: Lots of map lookups! Group EnhancedActionBindings by Action?
@@ -321,10 +322,22 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 				if (ActionData->TriggerEvent == Binding->GetTriggerEvent() ||
 					(Binding->GetTriggerEvent() == ETriggerEvent::Started && ActionData->TriggerEventInternal == ETriggerEventInternal::StartedAndTriggered))	// Triggering in a single tick should also fire the started event.
 				{
-					Binding->Execute(*ActionData);
+					// Record intent to trigger
+					TriggeredDelegates.Add(Binding->Clone());
 				}
 			}
 		}
+
+		// Action all delegates that triggered this tick, in the order in which they triggered.
+		for (TUniquePtr<FEnhancedInputActionEventBinding>& Delegate : TriggeredDelegates)
+		{
+			// Search for the action instance data a second time as a previous delegate call may have deleted it.
+			if (const FInputActionInstance* ActionData = FindActionInstanceData(Delegate->GetAction()))
+			{
+				Delegate->Execute(*ActionData);
+			}
+		}
+		TriggeredDelegates.Reset();
 
 		// Update action value bindings
 		for (const FEnhancedInputActionValueBinding& Binding : IC->GetActionValueBindings())
@@ -342,6 +355,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		// No support for the 'Any Key' concept. Explicit key binds only.
 		// They will always fire, and cannot mask each other or action bindings (i.e. no bConsumeInput option)
 		// Chords are supported, but there is no chord masking protection. Exact chord combinations must be met. So a binding of Ctrl + A will not fire if Ctrl + Alt + A is pressed.
+		static TArray<TUniquePtr<FInputDebugKeyBinding>> TriggeredDebugDelegates;
 		for (const TUniquePtr<FInputDebugKeyBinding>& KeyBinding : IC->GetDebugKeyBindings())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_DebugKeys);
@@ -361,11 +375,19 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 					FKeyState* KeyState = KeyStateMap.Find(KeyBinding->Chord.Key);
 					if (KeyState && KeyState->EventCounts[KeyBinding->KeyEvent].Num() > 0)
 					{
-						KeyBinding->Execute();
+						// Record intent to trigger
+						TriggeredDebugDelegates.Add(KeyBinding->Clone());
 					}
 				}
 			}
 		}
+
+		// Action all debug delegates that triggered this tick, in the order in which they triggered.
+		for (TUniquePtr<FInputDebugKeyBinding>& Delegate : TriggeredDebugDelegates)
+		{
+			Delegate->Execute();
+		}
+		TriggeredDebugDelegates.Reset();
 #endif
 
 
