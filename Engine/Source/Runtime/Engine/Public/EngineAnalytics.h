@@ -13,7 +13,7 @@ struct FAnalyticsEventAttribute;
 /**
  * The public interface for the editor's analytics provider singleton.
  * 
- * WARNING: This is an analytics provider instance that is created whenever UE4 editor is launched. 
+ * WARNING: This is an analytics provider instance that is created whenever UE editor is launched. 
  * It is intended ONLY for use by Epic Games. This is NOT intended for games to send 
  * game-specific telemetry. Create your own provider instance for your game and configure
  * it independently.

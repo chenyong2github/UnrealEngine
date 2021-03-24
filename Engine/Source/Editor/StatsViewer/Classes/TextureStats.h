@@ -22,7 +22,7 @@ enum ETextureObjectSets
 	TextureObjectSet_SelectedActors			UMETA( DisplayName = "Selected Actor(s)" , ToolTip = "Display texture statistics of selected Actors" ),
 	TextureObjectSet_SelectedMaterials		UMETA( DisplayName = "Selected Materials(s)" , ToolTip = "Display texture statistics of selected Materials" ),
 
-	// @todo: These two stat sets are deprecated as UE4 doesnt support them currently
+	// @todo: These two stat sets are deprecated as UE doesnt support them currently
 	// To recreate them, you will need to re-implement the functionality left behind in
 	// Engine\Source\Editor\Stats\Private\TextureInfo.cpp
 //	TextureObjectSet_CookerStatistics		UMETA( DisplayName = "Cooker Statistics" , ToolTip = "Display texture statistics from a cooker statistics file (.upk)" ),
