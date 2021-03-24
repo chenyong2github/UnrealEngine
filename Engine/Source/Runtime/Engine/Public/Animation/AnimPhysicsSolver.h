@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// This code is based upon and adapted to UE4 from the code 
+// This code is based upon and adapted to Unreal from the code 
 // provided in the Sandbox project here:
 // https://github.com/melax/sandbox
 

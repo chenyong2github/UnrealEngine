@@ -64,7 +64,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 private:
 	/** Non-serialised cache of linkups between different skeletal meshes and this AnimSet. */
-	// @UE4: Do not change private - they will go away
+	// Do not change private - they will go away
 	UPROPERTY(transient)
 	TArray<struct FAnimSetMeshLinkup> LinkupCache;
 
@@ -73,22 +73,22 @@ private:
 	 *	This is basically a cooked down version of UseTranslationBoneNames for speed.
 	 *	Size matches the number of tracks.
 	 */
-	// @UE4: Do not change private - they will go away
+	// Do not change private - they will go away
 	UPROPERTY(transient)
 	TArray<uint8> BoneUseAnimTranslation;
 
 	/** Cooked down version of ForceMeshTranslationBoneNames */
-	// @UE4: Do not change private - they will go away
+	// Do not change private - they will go away
 	UPROPERTY(transient)
 	TArray<uint8> ForceUseMeshTranslation;
 
 	/** Names of bones that should use translation from the animation, if bAnimRotationOnly is set. */
-	// @UE4: Do not change private - they will go away
+	// Do not change private - they will go away
 	UPROPERTY(EditAnywhere, Category=AnimSet)
 	TArray<FName> UseTranslationBoneNames;
 
 	/** List of bones which are ALWAYS going to use their translation from the mesh and not the animation. */
-	// @UE4: Do not change private - they will go away
+	// Do not change private - they will go away
 	UPROPERTY(EditAnywhere, Category=AnimSet)
 	TArray<FName> ForceMeshTranslationBoneNames;
 
@@ -113,7 +113,7 @@ public:
 
 public:
 	/** Runtime built mapping table between SkeletalMeshes, and LinkupCache array indices. */
-	// @UE4: Do change private - they will go away
+	// Do change private - they will go away
 	TMap<FName,int32> SkelMesh2LinkupCache;
 
 	//~ Begin UObject Interface

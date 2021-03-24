@@ -2216,7 +2216,7 @@ public:
 #if WITH_EDITOR && WITH_APEX_CLOTHING
 	/** 
 	 * Take clothing assets that were imported using APEX files before we moved away from the APEX simulation
-	 * framework and upgrade them to UE4 UClothingAssets. This will bind the new assets to the mesh so the
+	 * framework and upgrade them to UClothingAssets. This will bind the new assets to the mesh so the
 	 * clothing remains working as before.
 	 */
 	void UpgradeOldClothingAssets();

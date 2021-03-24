@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	AnimationUE4.cpp: Animation runtime utilities
+	AnimationRuntime.cpp: Animation runtime utilities
 =============================================================================*/ 
 
 #include "AnimationRuntime.h"
