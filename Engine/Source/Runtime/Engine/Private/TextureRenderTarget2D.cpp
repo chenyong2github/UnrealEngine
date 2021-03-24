@@ -524,6 +524,12 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 			RenderTargetTextureRHI,
 			Texture2DRHI
 			);
+
+		if ((TexCreateFlags & TexCreate_UAV) != 0)
+		{
+			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetTextureRHI);
+		}
+
 		SetGPUMask(CreateInfo.GPUMask);
 		TextureRHI = (FTextureRHIRef&)Texture2DRHI;
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);

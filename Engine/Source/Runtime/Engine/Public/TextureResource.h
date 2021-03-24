@@ -315,10 +315,10 @@ public:
 
 	// FTextureRenderTargetResource interface
 	
-	virtual class FTextureRenderTarget2DResource* GetTextureRenderTarget2DResource()
-	{
-		return NULL;
-	}
+	virtual class FTextureRenderTarget2DResource* GetTextureRenderTarget2DResource() { return nullptr; }
+	virtual class FTextureRenderTarget2DArrayResource* GetTextureRenderTarget2DArrayResource() { return nullptr; }
+	virtual class FTextureRenderTargetVolumeResource* GetTextureRenderTargetVolumeResource() { return nullptr; }
+
 	virtual void ClampSize(int32 SizeX,int32 SizeY) {}
 
 	// FRenderTarget interface.
@@ -441,6 +441,12 @@ public:
 	 * @return TextureRHI for rendering 
 	 */
 	FTexture2DRHIRef GetTextureRHI() { return Texture2DRHI; }
+
+	/**
+	 * @return UnorderedAccessView for rendering
+	 */
+	FUnorderedAccessViewRHIRef GetUnorderedAccessViewRHI() { return UnorderedAccessViewRHI; }
+
 protected:
 	/**
 	 * Updates (resolves) the render target texture.
@@ -456,6 +462,8 @@ private:
 	const class UTextureRenderTarget2D* Owner;
 	/** Texture resource used for rendering with and resolving to */
 	FTexture2DRHIRef Texture2DRHI;
+	/** Optional Unordered Access View for the resource, automatically created if bCanCreateUAV is true */
+	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
 	/** the color the texture is cleared to */
 	FLinearColor ClearColor;
 	EPixelFormat Format;

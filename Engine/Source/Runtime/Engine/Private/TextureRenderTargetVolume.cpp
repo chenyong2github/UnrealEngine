@@ -262,6 +262,11 @@ void FTextureRenderTargetVolumeResource::InitDynamicRHI()
 			);
 		}
 
+		if ((TexCreateFlags & TexCreate_UAV) != 0)
+		{
+			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetVolumeRHI);
+		}
+
 		TextureRHI = TextureVolumeRHI;
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);
 
