@@ -7,6 +7,7 @@
 #include "Evaluation/MovieSceneCameraShakeTemplate.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "UObject/Object.h"
+#include "GameFramework/Actor.h"
 #include "MatineeCameraShake.generated.h"
 
 class AActor;
