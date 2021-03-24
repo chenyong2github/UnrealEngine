@@ -175,7 +175,7 @@ void APackedLevelInstance::DestroyPackedComponents()
 
 void APackedLevelInstance::RerunConstructionScripts()
 {
-	if (bRerunConstructionScripts)
+	//if (bRerunConstructionScripts)
 	{
 		Super::RerunConstructionScripts();
 	}
