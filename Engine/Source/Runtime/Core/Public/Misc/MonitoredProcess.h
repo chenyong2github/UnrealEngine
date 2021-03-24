@@ -285,10 +285,18 @@ public:
 
 private:
 
+	bool LaunchNext();
+	bool LaunchInternal();
+	static void CancelQueue();
+
+	// When this one completes, run the next in line
+	FSerializedUATProcess* NextProcessToRun = nullptr;
+
 	// Holds a delegate that is executed when the process fails to launch (delayed, in a thread). Used in place of the return value
 	// of Launch in the parent class, since it's async
 	FSimpleDelegate LaunchFailedDelegate;
 
 	static FCriticalSection Serializer;
 	static bool bHasSucceededOnce;
+	static FSerializedUATProcess* HeadProcess;
 };
