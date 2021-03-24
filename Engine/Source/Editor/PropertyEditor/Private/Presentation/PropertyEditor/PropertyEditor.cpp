@@ -42,8 +42,6 @@ FPropertyEditor::FPropertyEditor( const TSharedRef<FPropertyNode>& InPropertyNod
 	// FPropertyEditor isn't built to handle CategoryNodes
 	check( InPropertyNode->AsCategoryNode() == NULL );
 
-	FProperty* Property = InPropertyNode->GetProperty();
-
 	PropertyHandle = PropertyEditorHelpers::GetPropertyHandle( InPropertyNode, PropertyUtilities->GetNotifyHook(), PropertyUtilities );
 	check( PropertyHandle.IsValid() && PropertyHandle->IsValidHandle() );
 }
@@ -583,21 +581,6 @@ void FPropertyEditor::ForceRefresh()
 void FPropertyEditor::RequestRefresh()
 {
 	PropertyUtilities->RequestRefresh();
-}
-
-void FPropertyEditor::AddPropertyEditorChild( const TSharedRef<FPropertyEditor>& Child )
-{
-	ChildPropertyEditors.Add( Child );
-}
-
-void FPropertyEditor::RemovePropertyEditorChild( const TSharedRef<FPropertyEditor>& Child )
-{
-	ChildPropertyEditors.Remove( Child );
-}
-
-const TArray< TSharedRef< FPropertyEditor > >& FPropertyEditor::GetPropertyEditorChildren() const
-{
-	return ChildPropertyEditors;
 }
 
 TSharedRef< FPropertyNode > FPropertyEditor::GetPropertyNode() const

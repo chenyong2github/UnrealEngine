@@ -73,10 +73,6 @@ public:
 	/**	@return Whether the property passes the current filter restrictions. If no there are no filter restrictions false will be returned. */
 	bool DoesPassFilterRestrictions() const;
 
-	void AddPropertyEditorChild( const TSharedRef<FPropertyEditor>& Child );
-	void RemovePropertyEditorChild( const TSharedRef<FPropertyEditor>& Child );
-	const TArray< TSharedRef< FPropertyEditor > >& GetPropertyEditorChildren() const;
-
 	void UseSelected();
 	void AddItem();
 	void AddGivenItem(const FString& InGivenItem);
@@ -115,8 +111,6 @@ private:
 	void OnEmptyArray();
 
 private:
-
-	TArray< TSharedRef< FPropertyEditor > >	ChildPropertyEditors;
 
 	/** Property handle for actually reading/writing the value of a property */
 	TSharedPtr< class IPropertyHandle > PropertyHandle;
