@@ -27,7 +27,7 @@ struct FActorCluster
 	TSet<const UDataLayer*>		DataLayers;
 	FDataLayersID				DataLayersID;
 
-	FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView& InActorDescView, EActorGridPlacement InGridPlacement);
+	FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView& InActorDescView);
 	void Add(const FActorCluster& InActorCluster);
 
 };
