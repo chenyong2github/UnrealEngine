@@ -376,6 +376,12 @@ public:
 	// Setup the initial transforms / ref pose of the bones based on a reference skeleton
 	void SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkeleton& InReferenceSkeleton);
 
+	const FControlRigDrawInterface& GetDrawInterface() const { return DrawInterface; };
+	FControlRigDrawInterface& GetDrawInterface() { return DrawInterface; };
+
+	const FControlRigDrawContainer& GetDrawContainer() const { return DrawContainer; };
+	FControlRigDrawContainer& GetDrawContainer() { return DrawContainer; };
+
 private:
 
 	UPROPERTY()
