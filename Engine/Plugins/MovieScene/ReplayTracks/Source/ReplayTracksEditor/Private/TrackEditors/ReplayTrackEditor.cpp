@@ -186,7 +186,7 @@ UWorld* FReplayTrackEditor::GetPIEPlaybackWorld()
 
 	const UObject* PlaybackContext = SequencerPtr->GetPlaybackContext();
 	UWorld* PlaybackWorld = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
-	if (PlaybackWorld->WorldType != EWorldType::PIE && PlaybackWorld->WorldType != EWorldType::Game)
+	if (PlaybackWorld && PlaybackWorld->WorldType != EWorldType::PIE && PlaybackWorld->WorldType != EWorldType::Game)
 	{
 		return nullptr;
 	}
@@ -215,6 +215,11 @@ AActor* FReplayTrackEditor::GetPIEViewportLockedActor()
 
 void FReplayTrackEditor::MoveLockedActorsToPIEViewTarget(UWorld* PlaybackWorld)
 {
+	if (!PlaybackWorld)
+	{
+		return;
+	}
+
 	bool bMoveLockedActor = true;
 	AActor* LockedActor = GetPIEViewportLockedActor();
 
@@ -259,6 +264,11 @@ void FReplayTrackEditor::MoveLockedActorsToPIEViewTarget(UWorld* PlaybackWorld)
 
 void FReplayTrackEditor::MovePIEViewTargetToLockedActor(UWorld* PlaybackWorld)
 {
+	if (!PlaybackWorld)
+	{
+		return;
+	}
+
 	AActor* LockedActor = GetPIEViewportLockedActor();
 
 	APlayerController* PlayerController = PlaybackWorld->GetFirstPlayerController();
