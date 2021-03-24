@@ -56,15 +56,11 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FCoreStyle::Get().GetBrush("NotificationList.ItemBackground"))
+			.Padding( FMargin(5) )
+			.BorderImage(FCoreStyle::Get().GetBrush("NotificationList.ItemBackground_Border"))
+			.BorderBackgroundColor(FColor(0,0,0,1))
 			[
-				SNew(SBorder)
-				.Padding( FMargin(5) )
-				.BorderImage(FCoreStyle::Get().GetBrush("NotificationList.ItemBackground_Border"))
-				.BorderBackgroundColor(FColor(0,0,0,1))
-				[
-					ConstructInternals(InArgs)
-				]
+				ConstructInternals(InArgs)
 			]
 		];
 	}

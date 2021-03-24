@@ -7,10 +7,10 @@
 
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAsyncCompilation, Log, All);
 
-class SNotificationItem;
 class FQueuedThreadPoolWrapper;
 
 class FAsyncCompilationNotification
@@ -23,7 +23,9 @@ public:
 
 	void Update(int32 NumJobs);
 private:
-	TWeakPtr<SNotificationItem> NotificationItemPtr;
+	FProgressNotificationHandle NotificationHandle;
+	/** The number of jobs when the notification began */
+	int32 StartNumJobs;
 	FText AssetType;
 };
 

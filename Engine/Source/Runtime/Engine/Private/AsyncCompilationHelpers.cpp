@@ -39,45 +39,31 @@ static FAutoConsoleCommand CVarAsyncAssetDumpStallStacks(
 void FAsyncCompilationNotification::Update(int32 NumJobs)
 {
 	check(IsInGameThread());
-	TSharedPtr<SNotificationItem> NotificationItem = NotificationItemPtr.Pin();
 
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("AssetType"), AssetType);
+	Args.Add(TEXT("NumJobs"), FText::AsNumber(NumJobs));
+	FText ProgressMessage = FText::Format(LOCTEXT("AsyncCompilationProgress", "Preparing {AssetType} ({NumJobs})"), Args);
 
 	if (NumJobs == 0)
 	{
-		if (NotificationItem.IsValid())
+		if (NotificationHandle.IsValid())
 		{
-			NotificationItem->SetText(FText::Format(LOCTEXT("AsyncCompilationFinished", "Finished preparing {AssetType}!"), Args));
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
-			NotificationItem->ExpireAndFadeout();
-
-			NotificationItemPtr.Reset();
+			FSlateNotificationManager::Get().UpdateProgressNotification(NotificationHandle, StartNumJobs, StartNumJobs, ProgressMessage);
 		}
+		StartNumJobs = 0;
+		NotificationHandle = FProgressNotificationHandle();
 	}
-	else
+	else 
 	{
-		Args.Add(TEXT("NumJobs"), FText::AsNumber(NumJobs));
-		FText ProgressMessage = FText::Format(LOCTEXT("AsyncCompilationProgress", "Preparing {AssetType} ({NumJobs})"), Args);
-
-		if (!NotificationItem.IsValid())
+		if(!NotificationHandle.IsValid())
 		{
-			FNotificationInfo Info(ProgressMessage);
-			Info.bFireAndForget = false;
-
-			// Setting fade out and expire time to 0 as the expire message is currently very obnoxious
-			Info.FadeOutDuration = 0.0f;
-			Info.ExpireDuration = 0.0f;
-
-			NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
-			NotificationItemPtr = NotificationItem;
+			StartNumJobs = NumJobs;
+			NotificationHandle = FSlateNotificationManager::Get().StartProgressNotification(ProgressMessage, StartNumJobs);
 		}
-
-		if (NotificationItem.IsValid())
+		else
 		{
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
-			NotificationItem->SetVisibility(EVisibility::HitTestInvisible);
-			NotificationItem->SetText(ProgressMessage);
+			FSlateNotificationManager::Get().UpdateProgressNotification(NotificationHandle, StartNumJobs - NumJobs, StartNumJobs, ProgressMessage);
 		}
 	}
 };

@@ -251,8 +251,9 @@ void SSourceControlLogin::DisplayConnectionSuccess() const
 	FNotificationInfo Info( LOCTEXT("ConnectionSuccessful", "Connection to source control was successful!") );
 	Info.bFireAndForget = true;
 	Info.bUseSuccessFailIcons = true;
-	Info.Image = FEditorStyle::GetBrush(TEXT("NotificationList.SuccessImage"));
-	FSlateNotificationManager::Get().AddNotification(Info);
+	TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+
+	Notification->SetCompletionState(SNotificationItem::CS_Success);
 }
 
 EVisibility SSourceControlLogin::GetThrobberVisibility() const

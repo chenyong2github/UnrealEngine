@@ -696,11 +696,12 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 	TArray<FString> OpenAssets;
 	GConfig->GetArray(TEXT("AssetEditorSubsystem"), TEXT("OpenAssetsAtExit"), OpenAssets, GEditorPerProjectIni);
 
-	bool bCleanShutdown = false;
+	bool bCleanShutdown = true;
 	GConfig->GetBool(TEXT("AssetEditorSubsystem"), TEXT("CleanShutdown"), bCleanShutdown, GEditorPerProjectIni);
 
 	SaveOpenAssetEditors(false);
 
+/*
 	if (OpenAssets.Num() > 0)
 	{
 		if (bCleanShutdown)
@@ -720,10 +721,10 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 				GConfig->GetBool(TEXT("AssetEditorSubsystem"), TEXT("SuppressRestorePreviouslyOpenAssetsNotification"), bSuppressNotification, GEditorPerProjectIni);
 
 				if (!bSuppressNotification)
-				{
+				{*/
 					// Ask the user; this doesn't block so will reopen the assets later
 					SpawnRestorePreviouslyOpenAssetsNotification(bCleanShutdown, OpenAssets);
-				}
+	/*			}
 			}
 		}
 		else
@@ -731,7 +732,7 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 			// If we crashed, we always ask regardless of what the user previously said
 			SpawnRestorePreviouslyOpenAssetsNotification(bCleanShutdown, OpenAssets);
 		}
-	}
+	}*/
 }
 
 void UAssetEditorSubsystem::SetAutoRestoreAndDisableSaving(const bool bInAutoRestoreAndDisableSaving)
@@ -783,8 +784,8 @@ void UAssetEditorSubsystem::SpawnRestorePreviouslyOpenAssetsNotification(const b
 	));
 
 	// We will let the notification expire automatically after 10 seconds
-	Info.bFireAndForget = false;
-	Info.ExpireDuration = 10.0f;
+	Info.bFireAndForget = true;
+	Info.ExpireDuration = 20.0f;
 
 	// We want the auto-save to be subtle
 	Info.bUseLargeFont = false;

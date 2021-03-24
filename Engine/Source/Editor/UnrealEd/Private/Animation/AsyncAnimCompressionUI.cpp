@@ -6,38 +6,30 @@
 #include "Animation/AnimCompressionDerivedDataPublic.h"
 #include "Animation/AnimSequence.h"
 
-/** Notification class for asynchronous shader compiling. */
-class FAnimCompressionNotificationImpl : public FGlobalEditorNotification
-{
-protected:
-	/** FGlobalEditorNotification interface */
-	virtual bool ShouldShowNotification(const bool bIsNotificationAlreadyActive) const override;
-	virtual void SetNotificationText(const TSharedPtr<SNotificationItem>& InNotificationItem) const override;
-};
-
 /** Global notification object. */
-FAnimCompressionNotificationImpl GAnimCompressionNotification;
 
-bool FAnimCompressionNotificationImpl::ShouldShowNotification(const bool bIsNotificationAlreadyActive) const
+/** Notification class for asynchronous shader compiling. */
+class FAnimCompressionNotificationImpl : public FGlobalEditorProgressNotification
 {
-	const uint32 RemainingJobsThreshold = 0;
-	const uint32 ActiveJobs = GAsyncCompressedAnimationsTracker ? GAsyncCompressedAnimationsTracker->GetNumRemainingJobs() : 0;
-
-	return ActiveJobs > RemainingJobsThreshold;
-}
-
-void FAnimCompressionNotificationImpl::SetNotificationText(const TSharedPtr<SNotificationItem>& InNotificationItem) const
-{
-	if(GAsyncCompressedAnimationsTracker)
+public:
+	FAnimCompressionNotificationImpl()
+		: FGlobalEditorProgressNotification(NSLOCTEXT("AsyncAnimCompression", "AnimCompressionInProgress", "Compressing Animations"))
+	{}
+protected:
+	/** FGlobalEditorProgressNotification interface */
+	virtual int32 UpdateProgress()
 	{
-		const int32 RemainingJobs = GAsyncCompressedAnimationsTracker->GetNumRemainingJobs();
+		const int32 RemainingJobs = GAsyncCompressedAnimationsTracker ? GAsyncCompressedAnimationsTracker->GetNumRemainingJobs() : 0;
 		if (RemainingJobs > 0)
 		{
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("AnimsToCompress"), FText::AsNumber(RemainingJobs));
-			const FText ProgressMessage = FText::Format(NSLOCTEXT("AsyncAnimCompression", "AnimCompressionInProgressFormat", "Compressing Animations ({AnimsToCompress})"), Args);
+			UpdateProgressMessage(FText::Format(NSLOCTEXT("AsyncAnimCompression", "AnimCompressionInProgressFormat", "Compressing Animations ({AnimsToCompress})"), Args));
 
-			InNotificationItem->SetText(ProgressMessage);
 		}
+
+		return RemainingJobs;
 	}
-}
+};
+
+FAnimCompressionNotificationImpl GAnimCompressionNotification;
