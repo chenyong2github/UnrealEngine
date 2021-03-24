@@ -26,6 +26,7 @@
 #include "BasePassRendering.h"
 #include "Lumen/LumenSceneRendering.h"
 #include "ScreenPass.h"
+#include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 
 #define CULLING_PASS_NO_OCCLUSION		0
 #define CULLING_PASS_OCCLUSION_MAIN		1
@@ -406,14 +407,12 @@ BEGIN_SHADER_PARAMETER_STRUCT( FGPUSceneParameters, )
 	SHADER_PARAMETER( uint32,						GPUSceneFrameNumber)
 END_SHADER_PARAMETER_STRUCT()
 
-// TODO: is it better to declare the buffers in 'FVirtualShadowMapCommonParameters' and not always have them set? I.e., before they are built.
 BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
-
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
-
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FVirtualShadowMapUniformParameters, VirtualShadowMap )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, PageFlags )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, HPageFlags )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint4 >, PageRectBounds )
+	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	ShadowHZBPageTable )
 END_SHADER_PARAMETER_STRUCT()
 
 class FRasterTechnique
@@ -574,7 +573,6 @@ class FInstanceCullVSM_CS : public FNaniteShader
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters, VirtualShadowMap )
-		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	ShadowHZBPageTable )
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER( FInstanceCullVSM_CS, "/Engine/Private/Nanite/InstanceCulling.usf", "InstanceCullVSM", SF_Compute );
@@ -614,7 +612,6 @@ class FPersistentClusterCull_CS : public FNaniteShader
 
 		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters, VirtualShadowMap )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >, OutDynamicCasterFlags)
-		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	ShadowHZBPageTable )
 
 		SHADER_PARAMETER(uint32,												MaxNodes)
 		SHADER_PARAMETER(uint32, LargePageRectThreshold)
@@ -2335,24 +2332,9 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
 
-	FRDGBufferRef PageFlags = nullptr;
-	FRDGBufferRef HPageFlags = nullptr;
-	FRDGBufferRef HZBPageTable = nullptr;
-
 	if (VirtualShadowMapArray)
 	{
 		RDG_GPU_STAT_SCOPE( GraphBuilder, NaniteInstanceCullVSM );
-
-		PageFlags = VirtualShadowMapArray->PageFlagsRDG;
-		HPageFlags = VirtualShadowMapArray->HPageFlagsRDG;
-		if (VirtualShadowMapArray->HZBPageTable)
-		{
-			HZBPageTable = GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->HZBPageTable, TEXT("Shadow.Virtual.HZBPageTable"));
-		}
-		else
-		{
-			HZBPageTable = VirtualShadowMapArray->PageTableRDG;
-		}
 
 		FInstanceCullVSM_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceCullVSM_CS::FParameters >();
 
@@ -2362,8 +2344,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->GPUSceneParameters = GPUSceneParameters;
 		PassParameters->CullingParameters = CullingParameters;
 
-		PassParameters->VirtualShadowMap = VirtualTargetParameters;
-		PassParameters->ShadowHZBPageTable	= GraphBuilder.CreateSRV( HZBPageTable, PF_R32_UINT );
+		PassParameters->VirtualShadowMap = VirtualTargetParameters;		
 		
 		PassParameters->OutMainAndPostPassPersistentStates	= GraphBuilder.CreateUAV( CullingContext.MainAndPostPassPersistentStates );
 
@@ -2524,7 +2505,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		{
 			PassParameters->VirtualShadowMap = VirtualTargetParameters;
 			PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(VirtualShadowMapArray->DynamicCasterPageFlagsRDG, PF_R32_UINT);
-			PassParameters->ShadowHZBPageTable	= GraphBuilder.CreateSRV( HZBPageTable, PF_R32_UINT );
 		}
 
 		if (CullingContext.StatsBuffer)
@@ -2781,9 +2761,11 @@ FRasterContext InitRasterContext(
 	EOutputBufferMode RasterMode,
 	bool bClearTarget,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,
-	uint32 NumRects
-)
+	uint32 NumRects,
+	FRDGTextureRef ExternalDepthBuffer )
 {
+	// If an external depth buffer is provided, it must match the context size
+	check( ExternalDepthBuffer == nullptr || ExternalDepthBuffer->Desc.Extent == TextureSize );
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
 	LLM_SCOPE_BYTAG(Nanite);
@@ -2854,7 +2836,8 @@ FRasterContext InitRasterContext(
 	#endif
 	}
 
-	RasterContext.DepthBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DepthBuffer32") );
+	RasterContext.DepthBuffer	= ExternalDepthBuffer ? ExternalDepthBuffer :
+								  GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DepthBuffer32") );
 	RasterContext.VisBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32G32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.VisBuffer64") );
 	RasterContext.DbgBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32G32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DbgBuffer64") );
 	RasterContext.DbgBuffer32	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DbgBuffer32") );
@@ -3051,6 +3034,11 @@ void CullRasterize(
 		VirtualTargetParameters.PageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageFlagsRDG, PF_R32_UINT);
 		VirtualTargetParameters.HPageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->HPageFlagsRDG, PF_R32_UINT);
 		VirtualTargetParameters.PageRectBounds = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageRectBoundsRDG);
+
+		FRDGBufferRef HZBPageTable = (VirtualShadowMapArray->CacheManager && VirtualShadowMapArray->CacheManager->HZBPageTable) ?
+			GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->CacheManager->HZBPageTable, TEXT( "Shadow.Virtual.HZBPageTable" ) ) :
+			VirtualShadowMapArray->PageTableRDG;
+		VirtualTargetParameters.ShadowHZBPageTable = GraphBuilder.CreateSRV( HZBPageTable, PF_R32_UINT );
 	}
 	FGPUSceneParameters GPUSceneParameters;
 	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceDataBuffer.SRV;

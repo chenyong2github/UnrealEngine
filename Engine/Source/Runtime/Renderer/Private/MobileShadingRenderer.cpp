@@ -655,7 +655,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Important that this uses consistent logic throughout the frame, so evaluate once and pass in the flag from here
 	// NOTE: Must be done after  system texture initialization
-	VirtualShadowMapArray.Initialize(GraphBuilder, UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
+	VirtualShadowMapArray.Initialize(GraphBuilder, Scene->VirtualShadowMapArrayCacheManager, UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
 
 	// Find the visible primitives and prepare targets and buffers for rendering
 	InitViews(GraphBuilder, SceneTexturesConfig, InstanceCullingManager);

@@ -511,7 +511,8 @@ FRasterContext InitRasterContext(
 	EOutputBufferMode RasterMode = EOutputBufferMode::VisBuffer,
 	bool bClearTarget = true,
 	FRDGBufferSRVRef RectMinMaxBufferSRV = nullptr,
-	uint32 NumRects = 0
+	uint32 NumRects = 0,
+	FRDGTextureRef ExternalDepthBuffer = nullptr
 );
 
 struct FPackedViewParams

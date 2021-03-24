@@ -1683,7 +1683,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Important that this uses consistent logic throughout the frame, so evaluate once and pass in the flag from here
 	// NOTE: Must be done after  system texture initialization
-	VirtualShadowMapArray.Initialize(GraphBuilder, UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
+	VirtualShadowMapArray.Initialize(GraphBuilder, Scene->VirtualShadowMapArrayCacheManager, UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
 
 	// Nanite materials do not currently support most debug view modes.
 	const bool bShouldApplyNaniteMaterials
@@ -2154,7 +2154,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			ensureMsgf(AreLightsInLightGrid(), TEXT("Virtual shadow map setup requires local lights to be injected into the light grid (this may be caused by 'r.LightCulling.Quality=0')."));
 			// ensure(ShadowMapSetupDone)
-			VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, SortedLightSet, VisibleLightInfos, NaniteRasterResults, bPostBasePass, Scene->VirtualShadowMapArrayCacheManager);
+			VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, SortedLightSet, VisibleLightInfos, NaniteRasterResults, bPostBasePass);
 		}
 	};
 
@@ -2438,7 +2438,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (VirtualShadowMapArray.IsEnabled())
 	{
-		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder, Scene->VirtualShadowMapArrayCacheManager);
+		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder);
 
 		if (Views.Num() > 0)
 		{

@@ -334,7 +334,7 @@ void InitPageRectBounds(uint3 Index : SV_DispatchThreadID)
 void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : SV_GroupID)
 {
 	// early out any overflowing threads.
-	if (ThreadId.x >= VirtualShadowMap.PageTableSize)
+	if (ThreadId.x >= VSM_PAGE_TABLE_SIZE)
 	{
 		return;
 	}
@@ -342,7 +342,7 @@ void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 G
 	uint PageTableEntryIndex = ThreadId.x;
 	// Use the group ID to ensure the compiler knows it is scalar / uniform
 	uint ShadowMapID = GroupId.y;
-	uint GlobalPageTableEntryIndex = ShadowMapID * VirtualShadowMap.PageTableSize + PageTableEntryIndex;
+	uint GlobalPageTableEntryIndex = ShadowMapID * VSM_PAGE_TABLE_SIZE + PageTableEntryIndex;
 	// If the flag is set, let's get on with it
 
 	uint Flag = PageFlags[GlobalPageTableEntryIndex];
@@ -927,18 +927,18 @@ StructuredBuffer<uint> VirtualShadowMapFlags;
 /**
  * Processes all page tables organized as a linear block, page table entries for mip levels are in a consecutive range,
  * so it makes no difference to this process which shadow map or level is being handled.
- * Run with Dispatch size: {NumVirtualShadowMaps * VirtualShadowMap.PageTableSize / VSM_DEFAULT_CS_GROUP_X, 1, 1}
+ * Run with Dispatch size: {NumVirtualShadowMaps * VSM_PAGE_TABLE_SIZE / VSM_DEFAULT_CS_GROUP_X, 1, 1}
  */
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
 void MarkRenderedPhysicalPages(uint3 PageTableEntryIndex : SV_DispatchThreadID)
 {
 	// Because of launch size rounding we might get here.
-	if (PageTableEntryIndex.x >= VirtualShadowMap.NumShadowMaps * VirtualShadowMap.PageTableSize)
+	if (PageTableEntryIndex.x >= VirtualShadowMap.NumShadowMaps * VSM_PAGE_TABLE_SIZE)
 	{
 		return;
 	}
 
-	uint ShadowMapID = PageTableEntryIndex.x / VirtualShadowMap.PageTableSize;
+	uint ShadowMapID = PageTableEntryIndex.x / VSM_PAGE_TABLE_SIZE;
 
 	// This is estupido, should at least use array of IDs to skip all unused ones...
 	if (VirtualShadowMapFlags[ShadowMapID] == 0)

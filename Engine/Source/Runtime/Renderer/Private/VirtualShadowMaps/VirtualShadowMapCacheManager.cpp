@@ -131,48 +131,38 @@ IMPLEMENT_GLOBAL_SHADER(FVirtualSmCopyStatsCS, "/Engine/Private/VirtualShadowMap
 
 void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder)
 {
+	// Drop all refs.
+	PrevBuffers = FVirtualShadowMapArrayFrameData();
+	PrevUniformParameters.NumShadowMaps = 0;
+
 	if (VirtualShadowMapArray.IsAllocated()
 		&& CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
 	{
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &PrevPageTable);
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageFlagsRDG, &PrevPageFlags);
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.HPageFlagsRDG, &PrevHPageFlags);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &PrevBuffers.PageTable);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageFlagsRDG, &PrevBuffers.PageFlags);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.HPageFlagsRDG, &PrevBuffers.HPageFlags);
 		
-		GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolRDG, &PrevPhysicalPagePool);
+		GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolRDG, &PrevBuffers.PhysicalPagePool);
 
 		if( VirtualShadowMapArray.PhysicalPagePoolHw )
 		{
-			GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolHw, &PrevPhysicalPagePoolHw);
+			GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolHw, &PrevBuffers.PhysicalPagePoolHw);
 		}
 		else
 		{
-			PrevPhysicalPagePoolHw = TRefCountPtr<IPooledRenderTarget>();
+			PrevBuffers.PhysicalPagePoolHw = TRefCountPtr<IPooledRenderTarget>();
 		}
 
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevPhysicalPageMetaData);
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevDynamicCasterPageFlags);
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ShadowMapProjectionDataRDG, &PrevShadowMapProjectionDataBuffer);
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageRectBoundsRDG, &PrevPageRectBounds);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevBuffers.PhysicalPageMetaData);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevBuffers.DynamicCasterPageFlags);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ShadowMapProjectionDataRDG, &PrevBuffers.ShadowMapProjectionDataBuffer);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageRectBoundsRDG, &PrevBuffers.PageRectBounds);
 		// Move cache entries to previous frame, this implicitly removes any that were not used
 		PrevCacheEntries = CacheEntries;
 		PrevUniformParameters = VirtualShadowMapArray.UniformParameters;
 	}
 	else
 	{
-		// Drop all refs.
-		PrevPageTable = TRefCountPtr<FRDGPooledBuffer>();
-		PrevPageFlags = TRefCountPtr<FRDGPooledBuffer>();
-		PrevHPageFlags = TRefCountPtr<FRDGPooledBuffer>();
-
-		PrevPhysicalPagePool = TRefCountPtr<IPooledRenderTarget>();
-		PrevPhysicalPagePoolHw = TRefCountPtr<IPooledRenderTarget>();
-		PrevPhysicalPageMetaData = TRefCountPtr<FRDGPooledBuffer>();
-		PrevDynamicCasterPageFlags = TRefCountPtr<FRDGPooledBuffer>();
-		PrevShadowMapProjectionDataBuffer = TRefCountPtr<FRDGPooledBuffer>();
-		PrevPageRectBounds = TRefCountPtr<FRDGPooledBuffer>();
-
-		PrevUniformParameters.NumShadowMaps = 0;
-
 		PrevCacheEntries.Empty();
 	}
 	CacheEntries.Reset();
@@ -303,11 +293,11 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 bool FVirtualShadowMapArrayCacheManager::IsValid()
 {
 	return CVarCacheVirtualSMs.GetValueOnRenderThread() != 0
-		&& PrevPageTable
-		&& PrevPageFlags
-		&& (PrevPhysicalPagePool || PrevPhysicalPagePoolHw)
-		&& PrevPhysicalPageMetaData
-		&& PrevDynamicCasterPageFlags;
+		&& PrevBuffers.PageTable
+		&& PrevBuffers.PageFlags
+		&& (PrevBuffers.PhysicalPagePool || PrevBuffers.PhysicalPagePoolHw)
+		&& PrevBuffers.PhysicalPageMetaData
+		&& PrevBuffers.DynamicCasterPageFlags;
 }
 
 
@@ -318,7 +308,7 @@ bool FVirtualShadowMapArrayCacheManager::IsAccumulatingStats()
 
 void FVirtualShadowMapArrayCacheManager::ProcessRemovedPrimives(FRDGBuilder& GraphBuilder, const FGPUScene &GPUScene, const TArray<FPrimitiveSceneInfo*> &RemovedPrimitiveSceneInfos)
 {
-	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0 && RemovedPrimitiveSceneInfos.Num() > 0 && PrevDynamicCasterPageFlags.IsValid())
+	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0 && RemovedPrimitiveSceneInfos.Num() > 0 && PrevBuffers.DynamicCasterPageFlags.IsValid())
 	{
 		// Note: Could filter out primitives that have no nanite here (though later this might be bad anyway, when regular geo is also rendered into virtual SMs)
 		TArray<FInstanceDataRange> InstanceRangesLarge;
@@ -440,8 +430,8 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 	};
 
 	// Update references in our last frame uniform buffer with reimported resources for this frame
-	PrevUniformParameters.ProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("Shadow.Virtual.PrevProjectionData"));
-	PrevUniformParameters.PageTable = RegExtCreateSrv(PrevPageTable, TEXT("Shadow.Virtual.PrevPageTable"));
+	PrevUniformParameters.ProjectionData = RegExtCreateSrv(PrevBuffers.ShadowMapProjectionDataBuffer, TEXT("Shadow.Virtual.PrevProjectionData"));
+	PrevUniformParameters.PageTable = RegExtCreateSrv(PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable"));
 	// Unused in this path
 	PrevUniformParameters.PhysicalPagePool = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 	PrevUniformParameters.PhysicalPagePoolHw = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
@@ -457,11 +447,11 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
 		PassParameters->NumRemovedItems = InstanceRangesSmall.Num();
 
-		PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("Shadow.Virtual.PrevPageFlags"));
-		PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("Shadow.Virtual.PrevHPageFlags"));
-		PassParameters->PageRectBounds = RegExtCreateSrv(PrevPageRectBounds, TEXT("Shadow.Virtual.PrevPageRectBounds"));
+		PassParameters->PageFlags = RegExtCreateSrv(PrevBuffers.PageFlags, TEXT("Shadow.Virtual.PrevPageFlags"));
+		PassParameters->HPageFlags = RegExtCreateSrv(PrevBuffers.HPageFlags, TEXT("Shadow.Virtual.PrevHPageFlags"));
+		PassParameters->PageRectBounds = RegExtCreateSrv(PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.PrevPageRectBounds"));
 
-		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("Shadow.Virtual.DynamicCasterFlags"));
+		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevBuffers.DynamicCasterPageFlags, TEXT("Shadow.Virtual.PrevDynamicCasterFlags"));
 		PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterFlagsRDG);
 
 		PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
@@ -493,11 +483,11 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
 		PassParameters->NumRemovedItems = InstanceRangesLarge.Num();
 
-		PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("Shadow.Virtual.PrevPageFlags"));
-		PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("Shadow.Virtual.PrevHPageFlags"));
-		PassParameters->PageRectBounds = RegExtCreateSrv(PrevPageRectBounds, TEXT("Shadow.Virtual.PrevPageRectBounds"));
+		PassParameters->PageFlags = RegExtCreateSrv(PrevBuffers.PageFlags, TEXT("Shadow.Virtual.PrevPageFlags"));
+		PassParameters->HPageFlags = RegExtCreateSrv(PrevBuffers.HPageFlags, TEXT("Shadow.Virtual.PrevHPageFlags"));
+		PassParameters->PageRectBounds = RegExtCreateSrv(PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.PrevPageRectBounds"));
 
-		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("Shadow.Virtual.DynamicCasterFlags"));
+		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevBuffers.DynamicCasterPageFlags, TEXT("Shadow.Virtual.PrevDynamicCasterFlags"));
 		PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterFlagsRDG);
 
 		PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;

@@ -50,11 +50,6 @@ public:
 	//static constexpr uint32 PageSize = 512U;
 	//static constexpr uint32 Level0DimPagesXY = 32U;
 
-
-	// With 128x128 pages, a 8k x 4k texture holds 2048 physical pages
-	static constexpr uint32 PhysicalPagePoolTexureSizeX = 8192U;
-	static constexpr uint32 PhysicalPagePoolTexureSizeY = 4096U;
-
 	static constexpr uint32 PageSizeMask = PageSize - 1U;
 	static constexpr uint32 Log2PageSize = ILog2Const(PageSize);
 	static constexpr uint32 Log2Level0DimPagesXY = ILog2Const(Level0DimPagesXY);
@@ -113,7 +108,6 @@ FMatrix CalcTranslatedWorldToShadowUVNormalMatrix(const FMatrix& TranslatedWorld
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER_ARRAY(uint32, HPageFlagLevelOffsets, [FVirtualShadowMap::MaxMipLevels])
-	SHADER_PARAMETER(uint32, PageTableSize)
 	SHADER_PARAMETER(uint32, HPageTableSize)
 	SHADER_PARAMETER(uint32, NumShadowMaps)
 	SHADER_PARAMETER(uint32, NumDirectionalLights)
@@ -121,8 +115,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	// use to map linear index to x,y page coord
 	SHADER_PARAMETER(uint32, PhysicalPageRowMask)
 	SHADER_PARAMETER(uint32, PhysicalPageRowShift)
-	SHADER_PARAMETER(FVector4, PhysicalPoolSize)
 	SHADER_PARAMETER(FVector4, RecPhysicalPoolSize)
+	SHADER_PARAMETER(FIntPoint, PhysicalPoolSize)
 	SHADER_PARAMETER(FIntPoint, PhysicalPoolSizePages)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ProjectionData)
@@ -151,13 +145,11 @@ END_SHADER_PARAMETER_STRUCT()
 
 class FVirtualShadowMapArray
 {
-public:
-	FVirtualShadowMapUniformParameters UniformParameters;
-	
+public:	
 	FVirtualShadowMapArray();
 	~FVirtualShadowMapArray();
 
-	void Initialize(FRDGBuilder& GraphBuilder, bool bInEnabled);
+	void Initialize(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager* InCacheManager, bool bInEnabled);
 
 	// Returns true if virtual shadow maps are enabled
 	bool IsEnabled() const
@@ -173,18 +165,14 @@ public:
 		return SM;
 	}
 
-	FIntPoint GetPhysicalPoolSize() const
-	{
-		FIntPoint PhysicalPoolSize(FVirtualShadowMap::PhysicalPagePoolTexureSizeX, FVirtualShadowMap::PhysicalPagePoolTexureSizeY);
-		return PhysicalPoolSize;
-	}
+	FIntPoint GetPhysicalPoolSize() const;
 
 	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment);
 
 	// Call after creating physical page pools and rendering
 	void SetupProjectionParameters(FRDGBuilder& GraphBuilder);
 
-	void ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDGTextureRef& PhysicalTexture, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager);
+	void ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDGTextureRef& PhysicalTexture);
 	void MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder, const TArray<uint32, SceneRenderingAllocator> &VirtualShadowMapFlags);
 
 	//
@@ -195,8 +183,7 @@ public:
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 
 		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults, 
-		bool bPostBasePass, 
-		FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager);
+		bool bPostBasePass);
 
 	bool IsAllocated() const
 	{
@@ -210,10 +197,10 @@ public:
 	 */
 	void RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualSmMeshCommandPasses, FScene& Scene);
 
-	void AddInitializePhysicalPagesHwPass(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager);
+	void AddInitializePhysicalPagesHwPass(FRDGBuilder& GraphBuilder);
 
 	// Draw debug info into render target 'VSMDebug' of screen-size, the mode is controlled by 'r.Shadow.Virtual.DebugVisualize'.
-	void RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager);
+	void RenderDebugInfo(FRDGBuilder& GraphBuilder);
 	// 
 	void PrintStats(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
@@ -228,10 +215,15 @@ public:
 
 	void GetPageTableParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapPageTableParameters& OutParameters);
 
+	bool bInitialized = false;
 	// Are virtual shadow maps enabled? We store this at the start of the frame to centralize the logic.
 	bool bEnabled = false;
+	// We keep a reference to the cache manager that was used to initialize this frame as it owns some of the buffers
+	FVirtualShadowMapArrayCacheManager* CacheManager = nullptr;
 
 	TArray<FVirtualShadowMap*, SceneRenderingAllocator> ShadowMaps;
+
+	FVirtualShadowMapUniformParameters UniformParameters;
 
 	// Buffer that serves as the page table for all virtual shadow maps
 	FRDGBufferRef PageTableRDG = nullptr;
@@ -274,14 +266,10 @@ public:
 
 	// These are not created or managed by this class - references are copied from the cache manager
 	// when needed as they come from the previous frame.
-	TRefCountPtr<IPooledRenderTarget>	HZBPhysical;
-	//FRDGTextureRef HZBPhysicalRDG = nullptr;
-	TRefCountPtr<FRDGPooledBuffer>		HZBPageTable;
-	//FRDGBufferRef HZBPageTableRDG = nullptr;
+	//TRefCountPtr<IPooledRenderTarget>	HZBPhysical;
+	//TRefCountPtr<FRDGPooledBuffer>		HZBPageTable;
 
-	// Covnert also?
+	// Convert also?
 	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationOutput;
-	//FRDGBufferRef RDG = nullptr;
 	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationProjectionOutput;
-	//FRDGBufferRef RDG = nullptr;
 };

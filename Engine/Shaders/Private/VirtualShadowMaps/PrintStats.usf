@@ -35,26 +35,31 @@ void PrintStats()
 	float TopMargin = 0.05f;
 	float HeadlineX = 0.47f;
 	float ItemX = 0.48f;
-
-	// Main Pass
+	float ValueX = 0.58f;
 	float2 ScreenPos = float2(HeadlineX, TopMargin);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _M_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _X_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _G_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos.x = ValueX;
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, VirtualShadowMap.MaxPhysicalPages);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
 	ScreenPos.x = ItemX;
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _G_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos.x = ValueX;
 	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
-
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _X_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0] * VSM_PAGE_SIZE * VSM_PAGE_SIZE);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 
 	ScreenPos.x = ItemX;
@@ -70,6 +75,7 @@ void PrintStats()
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _G_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos.x = ValueX;
 	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[1]);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 
@@ -86,12 +92,11 @@ void PrintStats()
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
-
+	ScreenPos.x = ValueX;
 	if (InStatsBuffer[0])
 	{
 		ScreenPos = ShaderPrintLeftAlign(ScreenPos, (InStatsBuffer[1] * 100) / InStatsBuffer[0]);
 	}
-
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 
 	ScreenPos.x = ItemX;
@@ -104,6 +109,7 @@ void PrintStats()
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _V_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos.x = ValueX;
 	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[2]);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 
@@ -115,14 +121,13 @@ void PrintStats()
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _D_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _F_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _B_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
-
+	ScreenPos.x = ValueX;
 	if (InStatsBuffer[0])
 	{
 		ScreenPos = ShaderPrintLeftAlign(ScreenPos, (InStatsBuffer[2] * 100) / InStatsBuffer[0]);

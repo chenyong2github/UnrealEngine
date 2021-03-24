@@ -70,6 +70,22 @@ public:
 	ClipmapCacheKey ClipmapCacheValidKey;
 };
 
+// Persistent buffers that we ping pong frame by frame
+struct FVirtualShadowMapArrayFrameData
+{
+	TRefCountPtr<FRDGPooledBuffer>		PageTable;
+	TRefCountPtr<FRDGPooledBuffer>		PageFlags;
+	TRefCountPtr<FRDGPooledBuffer>		HPageFlags;
+
+	TRefCountPtr<FRDGPooledBuffer>		ShadowMapProjectionDataBuffer;
+	TRefCountPtr<FRDGPooledBuffer>		PageRectBounds;
+
+	TRefCountPtr<FRDGPooledBuffer>		DynamicCasterPageFlags;
+
+	TRefCountPtr<IPooledRenderTarget>	PhysicalPagePool;
+	TRefCountPtr<IPooledRenderTarget>	PhysicalPagePoolHw;
+	TRefCountPtr<FRDGPooledBuffer>		PhysicalPageMetaData;
+};
 
 struct FVirtualShadowMapHZBMetadata
 {
@@ -128,19 +144,8 @@ public:
 	TMap< FIntPoint, TSharedPtr<FVirtualShadowMapCacheEntry> > CacheEntries;
 	TMap< FIntPoint, TSharedPtr<FVirtualShadowMapCacheEntry> > PrevCacheEntries;
 
-
-	TRefCountPtr<FRDGPooledBuffer>		PrevPageTable;
-	TRefCountPtr<FRDGPooledBuffer>		PrevPageFlags;
-	TRefCountPtr<FRDGPooledBuffer>		PrevHPageFlags;
-
-	TRefCountPtr<FRDGPooledBuffer>		PrevDynamicCasterPageFlags;
-	TRefCountPtr<IPooledRenderTarget>	PrevPhysicalPagePool;
-	TRefCountPtr<FRDGPooledBuffer>		PrevPhysicalPageMetaData;
-
-	TRefCountPtr<IPooledRenderTarget>	PrevPhysicalPagePoolHw;
-
-	TRefCountPtr<FRDGPooledBuffer>		PrevShadowMapProjectionDataBuffer;
-	TRefCountPtr<FRDGPooledBuffer>		PrevPageRectBounds;
+	FVirtualShadowMapArrayFrameData PrevBuffers;
+	FVirtualShadowMapUniformParameters PrevUniformParameters;
 
 	// Enough for er lots...
 	static constexpr uint32 MaxStatFrames = 512*1024U;
@@ -155,8 +160,6 @@ public:
 	TRefCountPtr<FRDGPooledBuffer>				HZBPageTable = nullptr;
 	uint32										HZBFrameNumber = 0;
 	TMap<int32, FVirtualShadowMapHZBMetadata>	HZBMetadata;
-	
-	FVirtualShadowMapUniformParameters			PrevUniformParameters;
 
 protected:
 
