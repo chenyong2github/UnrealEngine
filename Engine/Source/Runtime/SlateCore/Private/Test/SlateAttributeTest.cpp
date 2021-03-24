@@ -32,7 +32,7 @@ struct FConstructionCounter
 	FConstructionCounter& operator=(FConstructionCounter&& Other) { Value = Other.Value; ++MoveOperatorCounter;  return *this; }
 
 	int32 Value;
-	bool operator== (const FConstructionCounter& Other) { return Other.Value == Value; }
+	bool operator== (const FConstructionCounter& Other) const { return Other.Value == Value; }
 
 	static int32 DefaultConstructionCounter;
 	static int32 CopyConstructionCounter;
@@ -451,10 +451,10 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			}
 			{
 				bool bIsBound1 = Widget->AttributeA.IsBound(*Widget);
-				bool bIsIdentical1 = Widget->AttributeA.IsIdenticalTo(*Widget, Widget->AttributeA);
+				bool bIsIdentical1 = Widget->AttributeA.IdenticalTo(*Widget, Widget->AttributeA);
 				auto Getter1 = TAttribute<int32>::FGetter::CreateStatic(UE::Slate::Private::CallbackForIntAttribute, 1);
 				TAttribute<int32> Attribute1 = TAttribute<int32>::Create(Getter1);
-				bool bIsIdentical2 = Widget->AttributeA.IsIdenticalTo(*Widget, Attribute1);
+				bool bIsIdentical2 = Widget->AttributeA.IdenticalTo(*Widget, Attribute1);
 			}
 		}
 		{
@@ -597,7 +597,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 				Attribute1.Set({ 2 });
 				FLocalConstructionCounter::ResetCounter();
 				Attribute.Assign(MoveTemp(Attribute1));
-				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 1, TEXT("Assign Move failed."));
+				AddErrorIfCounterDoNotMatches(0, 0, 2, 0, 1, TEXT("Assign Move failed."));
 			}
 			// Test unbinded Attribute
 			{
@@ -688,7 +688,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 				TAttribute<FLocalConstructionCounter> Attribute1 = Counter;
 				FLocalConstructionCounter::ResetCounter();
 				Attribute.Assign(MoveTemp(Attribute1), Counter);
-				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 1, TEXT("Assign Set Move failed."));
+				AddErrorIfCounterDoNotMatches(0, 0, 2, 0, 1, TEXT("Assign Set Move failed."));
 			}
 			{
 				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
@@ -696,7 +696,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 				TAttribute<FLocalConstructionCounter> Attribute1 = Counter;
 				FLocalConstructionCounter::ResetCounter();
 				Attribute.Assign(MoveTemp(Attribute1), MoveTemp(Counter));
-				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 1, TEXT("Assign Set Move failed."));
+				AddErrorIfCounterDoNotMatches(0, 0, 2, 0, 1, TEXT("Assign Set Move failed."));
 			}
 		}
 	}

@@ -835,7 +835,7 @@ public:
 	const FMargin& GetSlotPadding() const { return SlotPadding.Get(); }
 
 public:
-	using SlotPaddingAttributeType = SlateAttributePrivate::TSlateMemberAttribute<FMargin, TSlateAttributeInvalidationReason<EInvalidateWidgetReason::Layout>>;
+	using SlotPaddingAttributeType = SlateAttributePrivate::TSlateMemberAttribute<FMargin, TSlateAttributeInvalidationReason<EInvalidateWidgetReason::Layout>, TSlateAttributeComparePredicate<>>;
 	using SlotPaddingAttributeRefType = SlateAttributePrivate::TSlateMemberAttributeRef<SlotPaddingAttributeType>;
 
 	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
