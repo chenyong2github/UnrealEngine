@@ -202,7 +202,7 @@ namespace Metasound
 				const FString& PrimaryOperandName = MathOpNames::PrimaryOperandName;
 				if (InputInterface.Contains(PrimaryOperandName))
 				{
-					DefaultValue = InputInterface[PrimaryOperandName].GetDefaultValue().Clone();
+					DefaultValue = InputInterface[PrimaryOperandName].GetDefaultLiteral();
 				}
 				TDataClassReadRef PrimaryOperand = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<TDataClass>(MathOpNames::PrimaryOperandName, TMathOpClass::GetDefault(InParams.OperatorSettings, DefaultValue));
 
@@ -210,7 +210,7 @@ namespace Metasound
 				const FString& OpName = MathOpNames::AdditionalOperandsName;
 				if (InputInterface.Contains(OpName))
 				{
-					DefaultValue = InputInterface[OpName].GetDefaultValue().Clone();
+					DefaultValue = InputInterface[OpName].GetDefaultLiteral();
 				}
 				TOperandDataClassReadRef Op1 = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<TOperandDataClass>(OpName, TMathOpClass::GetDefaultOp(InParams.OperatorSettings, DefaultValue));
 				TArray<TOperandDataClassReadRef> AdditionalOperandRefs = { Op1 };

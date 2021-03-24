@@ -160,8 +160,8 @@ namespace Metasound
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
 		FTriggerReadRef InOnTriggerCompare = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(TriggerCompare::InParamNameCompare, InParams.OperatorSettings);
-		FInt32ReadRef InValueA = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, TriggerCompare::InParamNameA);
-		FInt32ReadRef InValueB = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, TriggerCompare::InParamNameB);
+		FInt32ReadRef InValueA = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, TriggerCompare::InParamNameA, InParams.OperatorSettings);
+		FInt32ReadRef InValueB = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<int32>(InputInterface, TriggerCompare::InParamNameB, InParams.OperatorSettings);
 		FEnumTriggerComparisonTypeReadRef InComparison = InputCollection.GetDataReadReferenceOrConstruct<FEnumTriggerComparisonType>(TriggerCompare::InParamCompareType);
 
 		return MakeUnique<FTriggerCompareOperator>(InParams.OperatorSettings, InOnTriggerCompare, InValueA, InValueB, InComparison);

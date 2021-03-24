@@ -162,7 +162,7 @@ namespace Metasound
 				InputBuffers.Emplace(InputCol.GetDataReadReference<FAudioBuffer>(AudioPinName));
 				
 				// Make sure for every valid/connected pin, we have a corresponding gain, even if its defaulted.
-				InputGains.Emplace(InputCol.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, GainPinName));
+				InputGains.Emplace(InputCol.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, GainPinName, InParams.OperatorSettings));
 			}
 		}
 		

@@ -88,7 +88,7 @@ namespace Metasound
 			const FInputVertexInterface& InputInterface = InParams.Node.GetVertexInterface().GetInputInterface();
 			const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
-			TDataReadReference<ValueType> InputInitValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputInitValueName());
+			TDataReadReference<ValueType> InputInitValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputInitValueName(), InParams.OperatorSettings);
 
 			TArray<FTriggerReadRef> InputTriggers;
 			TArray<TDataReadReference<ValueType>> InputValues;
@@ -96,7 +96,7 @@ namespace Metasound
 			for (uint32 i = 0; i < NumInputs; ++i)
 			{
 				InputTriggers.Add(InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(GetInputTriggerName(i), InParams.OperatorSettings));
-				InputValues.Add(InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputValueName(i)));
+				InputValues.Add(InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputValueName(i), InParams.OperatorSettings));
 			}
 
 			return MakeUnique<TTriggerRouteOperator<ValueType, NumInputs>>(InParams.OperatorSettings, InputInitValue, MoveTemp(InputTriggers), MoveTemp(InputValues));

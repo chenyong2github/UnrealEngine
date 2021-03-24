@@ -125,12 +125,12 @@ namespace Metasound
 			const FInputVertexInterface& InputInterface = InParams.Node.GetVertexInterface().GetInputInterface();
 			const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
-			TDataReadReference<ValueType> InputValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputValueName());
-			TDataReadReference<ValueType> InputInRangeA = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputInRangeAName());
-			TDataReadReference<ValueType> InputInRangeB = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputInRangeBName());
-			TDataReadReference<ValueType> InputOutRangeA = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputOutRangeAName());
-			TDataReadReference<ValueType> InputOutRangeB = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputOutRangeBName());
-			FBoolReadRef bInputClamped = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, GetInputClampedName());
+			TDataReadReference<ValueType> InputValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputValueName(), InParams.OperatorSettings);
+			TDataReadReference<ValueType> InputInRangeA = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputInRangeAName(), InParams.OperatorSettings);
+			TDataReadReference<ValueType> InputInRangeB = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputInRangeBName(), InParams.OperatorSettings);
+			TDataReadReference<ValueType> InputOutRangeA = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputOutRangeAName(), InParams.OperatorSettings);
+			TDataReadReference<ValueType> InputOutRangeB = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputOutRangeBName(), InParams.OperatorSettings);
+			FBoolReadRef bInputClamped = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, GetInputClampedName(), InParams.OperatorSettings);
 
 			return MakeUnique<TMapRangeOperator<ValueType>>(InParams.OperatorSettings, InputValue, InputInRangeA, InputInRangeB, InputOutRangeA, InputOutRangeB, bInputClamped);
 		}

@@ -23,28 +23,30 @@ namespace Metasound
 				: DataReferenceName(InDataReferenceName)
 				// Executable DataTypes require a copy of the output to operate on whereas non-executable
 				// types do not. Avoid copy by assigning to reference for non-executable types.
-				, Output(TExecutableDataType<DataType>::bIsExecutable ? FDataWriteReference::CreateNew(*InDataReference) : InDataReference)
+				, InputValue(InDataReference)
+				, OutputValue(TExecutableDataType<DataType>::bIsExecutable ? FDataWriteReference::CreateNew(*InDataReference) : InDataReference)
 			{
-				Inputs.AddDataWriteReference<DataType>(InDataReferenceName, InDataReference);
-				Outputs.AddDataReadReference<DataType>(InDataReferenceName, Output);
 			}
 
 			virtual ~TInputOperator() {}
 
 			virtual FDataReferenceCollection GetInputs() const override
 			{
+				FDataReferenceCollection Inputs;
+				Inputs.AddDataWriteReference<DataType>(DataReferenceName, InputValue);
 				return Inputs;
 			}
 
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
+				FDataReferenceCollection Outputs;
+				Outputs.AddDataReadReference<DataType>(DataReferenceName, OutputValue);
 				return Outputs;
 			}
 
 			void Execute()
 			{
-				FDataWriteReference Input = Inputs.GetDataWriteReference<DataType>(DataReferenceName);
-				TExecutableDataType<DataType>::Execute(*Input, *Output);
+				TExecutableDataType<DataType>::Execute(*InputValue, *OutputValue);
 			}
 
 			static void ExecuteFunction(IOperator* InOperator)
@@ -63,10 +65,10 @@ namespace Metasound
 
 		private:
 			FVertexKey DataReferenceName;
-			FDataWriteReference Output;
 
-			FDataReferenceCollection Outputs;
-			FDataReferenceCollection Inputs;
+			FDataWriteReference InputValue;
+			FDataWriteReference OutputValue;
+
 	};
 
 	/** TInputOperatorLiteralFactory creates an input by passing it a literal. */

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundVertex.h"
@@ -220,21 +221,16 @@ namespace Metasound
 			/** Returns a readable data ref from the collection or construct one
 			 * if one is not there with the default provided from the given input vertex collection.
 			 *
-			 * @param InName - Name of readable data.
 			 * @param InputVertices - Collection of input vertices to retrieve default from if reference is not available
-			 * @param ConstructorArgs - Arguments to pass to constructor of TDataReadReference<DataType>
+			 * @param InName - Name of readable data.
+			 * @param InSettings - OperatorSettings of Metasound Operator 
 			 *
 			 * @return A readable data reference.
 			 */
-			// TODO: FIXME
-			// 1. Remove extra template parameters "DefaultDataType", "ConstructorArgTypes"
-			// 2. Use data factory instead of read reference class to construct
-			// 3. Pipe in FOperatorSettings to the factory call.
-			// 4. Build from literal, not from DefaultDataType.
-			template<typename DataType, typename DefaultDataType = DataType, typename... ConstructorArgTypes>
-			TDataReadReference<DataType> GetDataReadReferenceOrConstructWithVertexDefault(const FInputVertexInterface& InputVertices, const FString& InName) const
+			template<typename DataType>
+			TDataReadReference<DataType> GetDataReadReferenceOrConstructWithVertexDefault(const FInputVertexInterface& InputVertices, const FString& InName, const FOperatorSettings& InSettings) const
 			{
-				using FDataRef = TDataReadReference<DataType>;
+				using FDataFactory = TDataReadReferenceLiteralFactory<DataType>;
 
 				if (ContainsDataReadReference<DataType>(InName))
 				{
@@ -242,33 +238,14 @@ namespace Metasound
 				}
 				else
 				{
-					const DefaultDataType DefaultValue = InputVertices[InName].GetDefaultValue().Value.Get<DefaultDataType>();
-					return FDataRef::CreateNew(DefaultValue);
-				}
-			}
-
-			/** Returns a readable data ref from the collection or construct one
-			 * if one is not there with the default provided from the given input vertex collection.
-			 *
-			 * @param InName - Name of readable data.
-			 * @param InputVertices - Collection of input vertices to retrieve default from if reference is not available
-			 * @param ConstructorArgs - Arguments to pass to constructor of TDataReadReference<DataType>
-			 *
-			 * @return A readable data reference.
-			 */
-			template<typename DataType, typename DefaultDataType = DataType, typename... ConstructorArgTypes>
-			TDataReadReference<DataType> GetDataReadReferenceOrConstructWithVertexDefault(const FInputVertexInterface& InputVertices, const FString& InName, const FOperatorSettings& InOperatorSettings) const
-			{
-				using FDataRefType = TDataReadReference<DataType>;
-
-				if (ContainsDataReadReference<DataType>(InName))
-				{
-					return GetDataReadReference<DataType>(InName);
-				}
-				else
-				{
-					const DefaultDataType DefaultValue = InputVertices[InName].GetDefaultValue().Value.Get<DefaultDataType>();
-					return FDataRefType::CreateNew(InOperatorSettings, DefaultValue);
+					if (ensure(InputVertices.Contains(InName)))
+					{
+						return FDataFactory::CreateExplicitArgs(InSettings, InputVertices[InName].GetDefaultLiteral());
+					}
+					else
+					{
+						return FDataFactory::CreateExplicitArgs(InSettings, FLiteral::CreateInvalid());
+					}
 				}
 			}
 

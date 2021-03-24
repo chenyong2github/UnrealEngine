@@ -87,21 +87,76 @@ namespace Metasound
 	 */
 	struct FInputDataVertexModel : public FDataVertexModel
 	{
+	private:
+		
+		// Factory for creating a literal. 
+		struct ILiteralFactory
+		{
+			virtual ~ILiteralFactory() = default;
+			virtual FLiteral CreateLiteral() const = 0;
+			virtual TUniquePtr<ILiteralFactory> Clone() const = 0;
+		};
+
+		// Create a literal with a copyable type.
+		template<typename LiteralValueType>
+		struct TLiteralFactory : ILiteralFactory
+		{
+			LiteralValueType LiteralValue;
+
+			TLiteralFactory(const LiteralValueType& InValue)
+			: LiteralValue(InValue)
+			{
+			}
+			
+			FLiteral CreateLiteral() const override
+			{
+				return FLiteral(LiteralValue);
+			}
+
+			TUniquePtr<ILiteralFactory> Clone() const override
+			{
+				return MakeUnique<TLiteralFactory<LiteralValueType>>(*this);
+			}
+		};
+
+	public:
+
 		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FText& InDescription)
 			: FDataVertexModel(InVertexName, InDataTypeName, InDescription)
 		{
 		}
 
-		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FText& InDescription, const FLiteral& InDefaultValue)
+		template<typename LiteralValueType>
+		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FText& InDescription, const LiteralValueType& InLiteralValue)
 			: FDataVertexModel(InVertexName, InDataTypeName, InDescription)
-			, DefaultValue(InDefaultValue.Clone())
+			, LiteralFactory(MakeUnique<TLiteralFactory<LiteralValueType>>(InLiteralValue))
 		{
+		}
+
+		FInputDataVertexModel(const FInputDataVertexModel& InOther)
+		: FDataVertexModel(InOther)
+		{
+			if (InOther.LiteralFactory)
+			{
+				LiteralFactory = InOther.LiteralFactory->Clone();
+			}
 		}
 
 		/** Create a clone of this FInputDataVertexModel */
 		virtual TUniquePtr<FInputDataVertexModel> Clone() const = 0;
 
-		FLiteral DefaultValue;
+		/** Creates the default literal for this vertex. If a default does not exist,
+		 * then an invalid literal is returned. 
+		 */
+		FLiteral CreateDefaultLiteral() const 
+		{
+			if (LiteralFactory.IsValid())
+			{
+				return LiteralFactory->CreateLiteral();
+			}
+
+			return FLiteral::CreateInvalid();
+		}
 
 		friend bool METASOUNDGRAPHCORE_API operator==(const FInputDataVertex& InLHS, const FInputDataVertex& InRHS);
 		friend bool METASOUNDGRAPHCORE_API operator!=(const FInputDataVertex& InLHS, const FInputDataVertex& InRHS);
@@ -113,6 +168,8 @@ namespace Metasound
 		 * @return True if models are equal, false otherwise.
 		 */
 		virtual bool IsEqual(const FInputDataVertexModel& InOther) const = 0;
+
+		TUniquePtr<ILiteralFactory> LiteralFactory;
 	};
 
 	/** FOutputDataVertexModel
@@ -148,19 +205,9 @@ namespace Metasound
 		 * @InVertexName - Name of vertex.
 		 * @InDescription - Human readable vertex description.
 		 */
-		TBaseVertexModel(const FString& InVertexName, const FText& InDescription)
-		:	VertexModelType(InVertexName, GetMetasoundDataTypeName<DataType>(), InDescription)
-		{
-		}
-
-		/** TBaseVertexModel Constructor
-		 *
-		 * @InVertexName - Name of vertex.
-		 * @InDescription - Human readable vertex description.
-		 * @InDefaultValue - Default value of vertex.
-		 */
-		TBaseVertexModel(const FString& InVertexName, const FText& InDescription, const FLiteral& InDefaultValue)
-		:	VertexModelType(InVertexName, GetMetasoundDataTypeName<DataType>(), InDescription, InDefaultValue)
+		template<typename... ModelArgTypes>
+		TBaseVertexModel(const FString& InVertexName, const FText& InDescription, ModelArgTypes&&... ModelArgs)
+		:	VertexModelType(InVertexName, GetMetasoundDataTypeName<DataType>(), InDescription, Forward<ModelArgTypes>(ModelArgs)...)
 		{
 		}
 
@@ -197,6 +244,7 @@ namespace Metasound
 	template<typename DataType>
 	struct TInputDataVertexModel : public TBaseVertexModel<DataType, FInputDataVertexModel>
 	{
+
 		using TBaseVertexModel<DataType, FInputDataVertexModel>::TBaseVertexModel;
 
 		/** TInputDataVertexModel Constructor
@@ -215,10 +263,13 @@ namespace Metasound
 		 * @InDescription - Human readable vertex description.
 		 * @InDefaultValue - Default Value of vertex
 		 */
-		TInputDataVertexModel(const FString& InVertexName, const FText& InDescription, const FLiteral& InDefaultValue)
+		template<typename LiteralValueType>
+		TInputDataVertexModel(const FString& InVertexName, const FText& InDescription, const LiteralValueType& InDefaultValue)
 		:	TBaseVertexModel<DataType, FInputDataVertexModel>(InVertexName, InDescription, InDefaultValue)
 		{
 		}
+
+		TInputDataVertexModel(const TInputDataVertexModel& InOther) = default;
 
 		/** Return the vertex type name (not to be confused with the data type name).
 		 *
@@ -235,7 +286,7 @@ namespace Metasound
 		/** Create a clone of this VertexModelType */
 		virtual TUniquePtr<FInputDataVertexModel> Clone() const override
 		{
-			return MakeUnique<TInputDataVertexModel<DataType>>(this->VertexName, this->Description, this->DefaultValue);
+			return MakeUnique<TInputDataVertexModel<DataType>>(*this);
 		}
 	};
 
@@ -284,7 +335,7 @@ namespace Metasound
 			const FText& GetDescription() const;
 
 			/** Default value of the vertex. */
-			const FLiteral& GetDefaultValue() const;
+			FLiteral GetDefaultLiteral() const;
 
 			/** Determine if vertex refers to same data type. 
 			 *

@@ -286,10 +286,10 @@ namespace Metasound
 		// TODO: If none of these are connected, could pre-generate ADSR envelope and return a different operator.
 		FADSRReferences ADSRReferences =
 		{
-			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime, float>(InputInterface, TEXT("Attack")),
-			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime, float>(InputInterface, TEXT("Decay")),
-			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, TEXT("Sustain Level")),
-			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime, float>(InputInterface, TEXT("Release")),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, TEXT("Attack"), InParams.OperatorSettings),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, TEXT("Decay"), InParams.OperatorSettings),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, TEXT("Sustain Level"), InParams.OperatorSettings),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, TEXT("Release"), InParams.OperatorSettings),
 		};
 
 		return MakeUnique<FADSROperator>(InParams.OperatorSettings, TriggerAttack, TriggerRelease, ADSRReferences);

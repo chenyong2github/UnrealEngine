@@ -168,8 +168,8 @@ namespace Metasound
 		const FOperatorSettings& Settings = InParams.OperatorSettings;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FFloatReadRef Frequency = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, FrequencyPinName);
-		FBoolReadRef Enabled = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, EnabledPinName);
+		FFloatReadRef Frequency = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, FrequencyPinName, InParams.OperatorSettings);
+		FBoolReadRef Enabled = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, EnabledPinName, InParams.OperatorSettings);
 
 		return MakeUnique<FOscOperator>(InParams.OperatorSettings, Frequency, Enabled);
 	}

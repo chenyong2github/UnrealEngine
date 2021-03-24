@@ -74,8 +74,8 @@ namespace Metasound
 				const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
 				FTriggerReadRef Trigger = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(DebugLogVertexNames::GetInputTriggerName(), InParams.OperatorSettings);
-				TDataReadReference<FString> Label = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FString>(InputInterface, DebugLogVertexNames::GetLabelDebugLogName());
-				TDataReadReference<DebugLogType> ValueToLog = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<DebugLogType>(InputInterface, DebugLogVertexNames::GetToLogDebugLogName());
+				TDataReadReference<FString> Label = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FString>(InputInterface, DebugLogVertexNames::GetLabelDebugLogName(), InParams.OperatorSettings);
+				TDataReadReference<DebugLogType> ValueToLog = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<DebugLogType>(InputInterface, DebugLogVertexNames::GetToLogDebugLogName(), InParams.OperatorSettings);
 
 				return MakeUnique<TDebugLogOperator<DebugLogType>>(InParams.OperatorSettings, Trigger, Label, ValueToLog);
 			}

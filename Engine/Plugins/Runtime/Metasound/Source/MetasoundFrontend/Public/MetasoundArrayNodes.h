@@ -41,32 +41,6 @@ namespace Metasound
 		{
 			using Type = ElementType;
 		};
-		
-		// TODO: Remove me and swap after fixing FDataReferenceCollection::GetDataReadReferenceOrConstructWithVertexDefault
-		//
-		// This existing implementation of `GetDataReadReferenceOrConstructWithVertexDefault` does not automatically
-		// utilize the set type of the FLiteral or the TDataReadReferenceLiteralFactory 
-		// for that type. The implementation in FDataReferenceCollection should be replaced
-		// with this implementation. It will require reworking of all nodes which
-		// call `GetDataReadReferenceOrConstructWithVertexDefault`.
-		template<typename DataType>
-		TDataReadReference<DataType> GetDataReadReferenceOrConstructWithVertexDefault(const FDataReferenceCollection& InCollection, const FInputVertexInterface& InputVertices, const FString& InName, const FOperatorSettings& InSettings)
-		{
-			using FDataFactory = TDataReadReferenceLiteralFactory<DataType>;
-
-			if (InCollection.ContainsDataReadReference<DataType>(InName))
-			{
-				return InCollection.GetDataReadReference<DataType>(InName);
-			}
-			else
-			{
-				// TODO: replace mechanism in data vertex to "CreateDefaultValue"
-				// instead of get in order to avoid the need to have a `Clone` on 
-				// FLiteral. Then move FLiteral when needed.
-				const FLiteral& Literal = InputVertices[InName].GetDefaultValue();
-				return FDataFactory::CreateExplicitArgs(InSettings, Literal);
-			}
-		}
 	}
 
 	namespace ArrayNodeVertexNames
@@ -139,7 +113,7 @@ namespace Metasound
 			const FInputVertexInterface& Inputs = InParams.Node.GetVertexInterface().GetInputInterface();
 
 			// Get the input array or construct an empty one. 
-			FArrayDataReadReference Array = GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(InParams.InputDataReferences, Inputs, GetInputArrayName(), InParams.OperatorSettings);
+			FArrayDataReadReference Array = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, GetInputArrayName(), InParams.OperatorSettings);
 
 			return MakeUnique<TArrayNumOperator>(Array);
 		}
@@ -253,13 +227,13 @@ namespace Metasound
 			const FInputVertexInterface& Inputs = InParams.Node.GetVertexInterface().GetInputInterface();
 
 			// Input Trigger
-			TDataReadReference<FTrigger> Trigger = GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(InParams.InputDataReferences, Inputs, GetInputTriggerName(), InParams.OperatorSettings);
+			TDataReadReference<FTrigger> Trigger = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, GetInputTriggerName(), InParams.OperatorSettings);
 			
 			// Input Array
-			FArrayDataReadReference Array = GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(InParams.InputDataReferences, Inputs, GetInputArrayName(), InParams.OperatorSettings);
+			FArrayDataReadReference Array = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, GetInputArrayName(), InParams.OperatorSettings);
 
 			// Input Index
-			TDataReadReference<int32> Index = GetDataReadReferenceOrConstructWithVertexDefault<int32>(InParams.InputDataReferences, Inputs, GetInputIndexName(), InParams.OperatorSettings);
+			TDataReadReference<int32> Index = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, GetInputIndexName(), InParams.OperatorSettings);
 
 			return MakeUnique<TArrayGetOperator>(InParams.OperatorSettings, Trigger, Array, Index);
 		}
@@ -390,14 +364,14 @@ namespace Metasound
 
 			const FInputVertexInterface& Inputs = InParams.Node.GetVertexInterface().GetInputInterface();
 			
-			TDataReadReference<FTrigger> Trigger = GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(InParams.InputDataReferences, Inputs, GetInputTriggerName(), InParams.OperatorSettings);
+			TDataReadReference<FTrigger> Trigger = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, GetInputTriggerName(), InParams.OperatorSettings);
 
-			FArrayDataReadReference InitArray = GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(InParams.InputDataReferences, Inputs, GetInputArrayName(), InParams.OperatorSettings);
+			FArrayDataReadReference InitArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, GetInputArrayName(), InParams.OperatorSettings);
 			FArrayDataWriteReference Array = TDataWriteReferenceFactory<ArrayType>::CreateExplicitArgs(InParams.OperatorSettings, *InitArray);
 
-			TDataReadReference<int32> Index = GetDataReadReferenceOrConstructWithVertexDefault<int32>(InParams.InputDataReferences, Inputs, GetInputIndexName(), InParams.OperatorSettings);
+			TDataReadReference<int32> Index = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, GetInputIndexName(), InParams.OperatorSettings);
 
-			TDataReadReference<ElementType> Value = GetDataReadReferenceOrConstructWithVertexDefault<ElementType>(InParams.InputDataReferences, Inputs, GetInputValueName(), InParams.OperatorSettings);
+			TDataReadReference<ElementType> Value = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ElementType>(Inputs, GetInputValueName(), InParams.OperatorSettings);
 
 			return MakeUnique<TArraySetOperator>(InParams.OperatorSettings, Trigger, InitArray, Array, Index, Value);
 		}
@@ -530,10 +504,10 @@ namespace Metasound
 
 			const FInputVertexInterface& Inputs = InParams.Node.GetVertexInterface().GetInputInterface();
 			
-			TDataReadReference<FTrigger> Trigger = GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(InParams.InputDataReferences, Inputs, GetInputTriggerName(), InParams.OperatorSettings);
+			TDataReadReference<FTrigger> Trigger = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, GetInputTriggerName(), InParams.OperatorSettings);
 
-			FArrayDataReadReference LeftArray = GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(InParams.InputDataReferences, Inputs, GetInputLeftArrayName(), InParams.OperatorSettings);
-			FArrayDataReadReference RightArray = GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(InParams.InputDataReferences, Inputs, GetInputRightArrayName(), InParams.OperatorSettings);
+			FArrayDataReadReference LeftArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, GetInputLeftArrayName(), InParams.OperatorSettings);
+			FArrayDataReadReference RightArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, GetInputRightArrayName(), InParams.OperatorSettings);
 
 			FArrayDataWriteReference OutArray = TDataWriteReferenceFactory<ArrayType>::CreateExplicitArgs(InParams.OperatorSettings);
 
@@ -656,12 +630,12 @@ namespace Metasound
 
 			const FInputVertexInterface& Inputs = InParams.Node.GetVertexInterface().GetInputInterface();
 			
-			TDataReadReference<FTrigger> Trigger = GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(InParams.InputDataReferences, Inputs, GetInputTriggerName(), InParams.OperatorSettings);
+			TDataReadReference<FTrigger> Trigger = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, GetInputTriggerName(), InParams.OperatorSettings);
 
-			FArrayDataReadReference InArray = GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(InParams.InputDataReferences, Inputs, GetInputArrayName(), InParams.OperatorSettings);
+			FArrayDataReadReference InArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, GetInputArrayName(), InParams.OperatorSettings);
 
-			TDataReadReference<int32> StartIndex = GetDataReadReferenceOrConstructWithVertexDefault<int32>(InParams.InputDataReferences, Inputs, GetInputStartIndexName(), InParams.OperatorSettings);
-			TDataReadReference<int32> EndIndex = GetDataReadReferenceOrConstructWithVertexDefault<int32>(InParams.InputDataReferences, Inputs, GetInputEndIndexName(), InParams.OperatorSettings);
+			TDataReadReference<int32> StartIndex = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, GetInputStartIndexName(), InParams.OperatorSettings);
+			TDataReadReference<int32> EndIndex = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, GetInputEndIndexName(), InParams.OperatorSettings);
 
 			FArrayDataWriteReference OutArray = TDataWriteReferenceFactory<ArrayType>::CreateExplicitArgs(InParams.OperatorSettings);
 

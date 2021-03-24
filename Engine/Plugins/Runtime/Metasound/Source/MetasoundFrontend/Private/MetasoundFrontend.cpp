@@ -84,8 +84,8 @@ namespace Metasound
 				ClassInput.Metadata.DisplayName = FText::FromString(InputTuple.Value.GetVertexName());
 				ClassInput.Metadata.Description = InputTuple.Value.GetDescription();
 
-				const FLiteral& DefaultLiteral = InputTuple.Value.GetDefaultValue();
-				if (DefaultLiteral.GetType() != ELiteralType::None)
+				FLiteral DefaultLiteral = InputTuple.Value.GetDefaultLiteral();
+				if (DefaultLiteral.GetType() != ELiteralType::Invalid)
 				{
 					ClassInput.DefaultLiteral.SetFromLiteral(DefaultLiteral);
 				}

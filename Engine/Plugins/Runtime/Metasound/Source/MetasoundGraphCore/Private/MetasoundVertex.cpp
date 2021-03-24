@@ -53,9 +53,9 @@ namespace Metasound
 		return VertexModel->DataTypeName;
 	}
 
-	const FLiteral& FInputDataVertex::GetDefaultValue() const
+	FLiteral FInputDataVertex::GetDefaultLiteral() const
 	{
-		return VertexModel->DefaultValue;
+		return VertexModel->CreateDefaultLiteral();
 	}
 
 	const FText& FInputDataVertex::GetDescription() const
