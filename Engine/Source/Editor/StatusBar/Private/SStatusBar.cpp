@@ -14,6 +14,7 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "TimerManager.h"
 #include "Framework/Commands/Commands.h"
 #include "ToolMenuContext.h"
@@ -24,9 +25,23 @@
 #include "Widgets/Layout/SSplitter.h"
 #include "InputCoreTypes.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Widgets/Notifications/SProgressBar.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/INotificationWidget.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"
 
+namespace StatusBarNotificationConstants
+{
+	// How long progress notification toasts should appear for
+	const float NotificationExpireTime = 5.0f;
+
+	const float NotificationFadeDuration = .15f;
+
+	// Delay before a progress notification becomes visible. This is to avoid the status bar to animate and flicker from short lived notifications. 
+	const double NotificationDelay = 0.5;
+}
 
 class SDrawerOverlay : public SCompoundWidget
 {
@@ -67,7 +82,7 @@ class SDrawerOverlay : public SCompoundWidget
 
 		OnTargetHeightChanged = InArgs._OnTargetHeightChanged;
 
-		BackgroundBrush = FAppStyle::Get().GetBrush("StatusBar.Background");
+		BackgroundBrush = FAppStyle::Get().GetBrush("Brushes.Panel");
 		ShadowBrush = FAppStyle::Get().GetBrush("StatusBar.ContentBrowserShadow");
 
 		bIsResizeHandleHovered = false;
@@ -255,12 +270,235 @@ private:
 	float CurrentHeight;
 	float MinHeight;
 	float MaxHeight;
-	float TargetHeight;
+	float TargetHeight; 
 	float InitialHeightAtResize;
 	bool bIsResizing;
 	bool bIsResizeHandleHovered;
 };
 
+class SStatusBarProgressWidget : public SCompoundWidget, public INotificationWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SStatusBarProgressWidget)
+	{}
+		SLATE_ATTRIBUTE(const FStatusBarProgress*, StatusBarProgress)
+	SLATE_END_ARGS()
+	
+public:
+	void Construct(const FArguments& InArgs, bool bIsShownInNotification = false)
+	{
+		StatusBarProgress = InArgs._StatusBarProgress;
+
+		ChildSlot
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 3.0f, 0.0f, 2.0f)
+				[
+					SAssignNew(ProgressTextWidget, STextBlock)
+				]
+
+				+ SVerticalBox::Slot()
+				//.AutoWidth()
+				[
+					SNew(SBox)
+					.HeightOverride(8)
+					[
+						SNew(SOverlay)
+						+ SOverlay::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(1.0f, 0.0f)
+						[
+							SAssignNew(ProgressBar, SProgressBar)
+							.Percent(0.0f)
+						]
+						+ SOverlay::Slot()
+						[
+							SNew(SImage)
+							.Image(FAppStyle::Get().GetBrush("StatusBar.ProgressOverlay"))
+							.Visibility(EVisibility::HitTestInvisible)
+						]
+					]
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(PercentText, STextBlock)
+			]
+		];
+	
+		if (bIsShownInNotification)
+		{
+			ProgressTextWidget->SetFont(FAppStyle::Get().GetFontStyle("NotificationList.FontBold"));
+		}
+	}
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override
+	{
+		const FStatusBarProgress* ProgressData = StatusBarProgress.Get();
+		if (ProgressData)
+		{
+			float PercentDone = FMath::Clamp((float)ProgressData->TotalWorkDone / ProgressData->TotalWorkToDo, 0.0f, 1.0f);
+			ProgressTextWidget->SetText(ProgressData->DisplayText);
+			PercentText->SetText(FText::AsPercent(PercentDone));
+			ProgressBar->SetPercent(PercentDone);
+		}
+		else if(StatusBarProgress.IsBound())
+		{
+			StatusBarProgress = nullptr;
+			FText CurrentText = ProgressTextWidget->GetText();
+			ProgressTextWidget->SetText(FText::Format(LOCTEXT("CancelledProgressText", "{0} (Canceled)"), CurrentText));
+		}
+	}
+
+	void SetProgressText(FText ProgressText)
+	{
+		ProgressTextWidget->SetText(ProgressText);
+	}
+
+	void SetProgressPercent(float Percent)
+	{
+		ProgressBar->SetPercent(Percent);
+		PercentText->SetText(FText::AsPercent(Percent));
+	}
+	
+	/** INotificationWidget interface */
+	virtual void OnSetCompletionState(SNotificationItem::ECompletionState) override
+	{}
+
+	TSharedRef<SWidget> AsWidget() override
+	{
+		return AsShared();
+	}
+
+	bool UseNotificationBackground() const override { return true; }
+private:
+	TAttribute<const FStatusBarProgress*> StatusBarProgress;
+	TSharedPtr<SProgressBar> ProgressBar;
+	TSharedPtr<STextBlock> PercentText;
+	TSharedPtr<STextBlock> ProgressTextWidget;
+};
+
+class SStatusBarProgressArea : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SStatusBarProgressArea)
+	{}
+		SLATE_EVENT(FOnGetContent, OnGetProgressMenuContent)
+
+	SLATE_END_ARGS()
+
+	void SetPercent(float Percent)
+	{
+		MainProgressWidget->SetProgressPercent(Percent);
+		MainProgressWidget->SetProgressText(FText::AsPercent(Percent));
+	}
+
+	void SetProgressText(FText ProgressText)
+	{
+		MainProgressWidget->SetProgressText(ProgressText);
+	}
+
+public:
+	void Construct(const FArguments& InArgs)
+	{
+		OpenCloseEasingCurve = FCurveSequence(0.0f, 0.15f, ECurveEaseFunction::QuadOut);
+
+		SetVisibility(EVisibility::Collapsed);
+
+		ChildSlot
+		[
+			SAssignNew(Box, SBox)
+			.WidthOverride(300.0f)
+			.Padding(FMargin(4.0f,0.0f))
+			[
+				SAssignNew(ProgressCombo, SComboButton)
+				.MenuPlacement(MenuPlacement_AboveAnchor)
+				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+				.OnGetMenuContent(InArgs._OnGetProgressMenuContent)
+				.ButtonContent()
+				[
+					SAssignNew(MainProgressWidget, SStatusBarProgressWidget)
+				]
+			]
+		];
+	}
+
+	void OpenProgressBar()
+	{
+		if(!GetVisibility().IsVisible())
+		{
+			SetVisibility(EVisibility::Visible);
+
+			if (!OpenCloseEasingCurve.IsPlaying())
+			{
+				OpenCloseEasingCurve.Play(SharedThis(this), false, 0.0f, false);
+
+				if (!OpenCloseTimer.IsValid())
+				{
+					AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
+					OpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(SharedThis(this), &SStatusBarProgressArea::UpdateProgressAnimation));
+				}
+			}
+		}
+	}
+
+	void DismissProgressBar()
+	{
+		if (GetVisibility().IsVisible())
+		{
+			if (OpenCloseEasingCurve.IsForward())
+			{
+				OpenCloseEasingCurve.Reverse();
+			}
+
+			if (!OpenCloseTimer.IsValid())
+			{
+				AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
+				OpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SStatusBarProgressArea::UpdateProgressAnimation));
+			}
+
+			ProgressCombo->SetIsOpen(false);
+		}
+	}
+
+	virtual FVector2D ComputeDesiredSize(float Scale) const
+	{
+		return SCompoundWidget::ComputeDesiredSize(Scale) * FVector2D(OpenCloseEasingCurve.GetLerp(), 1.0f);
+	}
+private:
+	EActiveTimerReturnType UpdateProgressAnimation(double CurrentTime, float DeltaTime)
+	{
+		if (!OpenCloseEasingCurve.IsPlaying())
+		{
+			if (OpenCloseEasingCurve.IsAtStart())
+			{
+				SetVisibility(EVisibility::Collapsed);
+			}
+
+			FSlateThrottleManager::Get().LeaveResponsiveMode(AnimationThrottle);
+			OpenCloseTimer.Reset();
+			return EActiveTimerReturnType::Stop;
+		}
+
+		return EActiveTimerReturnType::Continue;
+	}
+
+private:
+	TSharedPtr<SBox> Box;
+	TSharedPtr<SStatusBarProgressWidget> MainProgressWidget;
+	TSharedPtr<SComboButton> ProgressCombo;
+	FCurveSequence OpenCloseEasingCurve;
+	FThrottleRequest AnimationThrottle;
+	TSharedPtr<FActiveTimerHandle> OpenCloseTimer;
+};
 
 SStatusBar::~SStatusBar()
 {
@@ -278,7 +516,7 @@ void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, cons
 	UpArrow = FAppStyle::Get().GetBrush("StatusBar.ContentBrowserUp");
 	DownArrow = FAppStyle::Get().GetBrush("StatusBar.ContentBrowserDown");
 
-	const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("StatusBar.Background");
+	const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("Brushes.Panel");
 
 	DrawerEasingCurve = FCurveSequence(0.0f, 0.15f, ECurveEaseFunction::QuadOut);
 
@@ -305,7 +543,6 @@ void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, cons
 			    .Padding(1.0f, 0.0f)
 			    [
 				    SNew(SBorder)
-				    .Padding(0.0f)
 				    .BorderImage(StatusBarBackground)
 				    .VAlign(VAlign_Center)
 				    .Padding(FMargin(6.0f, 0.0f))
@@ -318,7 +555,6 @@ void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, cons
 				.Padding(1.0f, 0.0f)
 				[
 					SNew(SBorder)
-					.Padding(0.0f)
 					.BorderImage(StatusBarBackground)
 					.VAlign(VAlign_Center)
 					.Padding(FMargin(6.0f, 0.0f))
@@ -339,17 +575,31 @@ void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, cons
 						MakeStatusBarToolBarWidget()
 					]
 				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.AutoWidth()
+				.Padding(1.0f, 0.0f)
+				[
+					SNew(SBorder)
+					.Padding(0.0f)
+					.BorderImage(StatusBarBackground)
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(6.0f, 0.0f))
+					[
+						MakeProgressBar()
+					]
+				]
 			]
 		]
 	];
 }
 
-void SStatusBar::PushMessage(FStatusBarMessageHandle& InHandle, const TAttribute<FText>& InMessage, const TAttribute<FText>& InHintText)
+void SStatusBar::PushMessage(FStatusBarMessageHandle InHandle, const TAttribute<FText>& InMessage, const TAttribute<FText>& InHintText)
 {
 	MessageStack.Emplace(InMessage, InHintText, InHandle);
 }
 
-void SStatusBar::PopMessage(FStatusBarMessageHandle& InHandle)
+void SStatusBar::PopMessage(FStatusBarMessageHandle InHandle)
 {
 	if (InHandle.IsValid() && MessageStack.Num() > 0)
 	{
@@ -363,6 +613,68 @@ void SStatusBar::PopMessage(FStatusBarMessageHandle& InHandle)
 void SStatusBar::ClearAllMessages()
 {
 	MessageStack.Empty();
+}
+
+void SStatusBar::StartProgressNotification(FProgressNotificationHandle InHandle, FText DisplayText, int32 TotalWorkToDo)
+{
+	if (!FindProgressNotification(InHandle))
+	{
+		if(TotalWorkToDo > 0)
+		{
+			ProgressNotifications.Emplace(DisplayText, FPlatformTime::Seconds(), InHandle, TotalWorkToDo);
+
+			// If a notification was already active, refresh its fadeout time 
+			if (TSharedPtr<SNotificationItem> ActiveProgressNotificationPin = ActiveProgressNotification.Pin())
+			{
+				ActiveProgressNotificationPin->SetExpireDuration(StatusBarNotificationConstants::NotificationExpireTime);
+				ActiveProgressNotificationPin->ExpireAndFadeout();
+			}
+			else
+			{
+				bAllowedToRefreshProgressNotification = true;
+			}
+			UpdateProgressStatus();
+		}
+		else
+		{
+			//UE_LOG(LogUnrealEdEngine, Log, TEXT("Progress notification \"%s\" has no work to do so it will not be displayed"), *DisplayText.ToString()))
+		}
+	}
+}
+
+bool SStatusBar::UpdateProgressNotification(FProgressNotificationHandle InHandle, int32 TotalWorkDone, int32 UpdatedTotalWorkToDo, FText UpdatedDisplayText)
+{
+	if (FStatusBarProgress* Progress = FindProgressNotification(InHandle))
+	{
+		Progress->TotalWorkDone = FMath::Clamp(TotalWorkDone, 0, Progress->TotalWorkToDo);
+		if (!UpdatedDisplayText.IsEmpty())
+		{
+			Progress->DisplayText = UpdatedDisplayText;
+		}
+
+		if (UpdatedTotalWorkToDo != 0)
+		{
+			Progress->TotalWorkToDo = UpdatedTotalWorkToDo;
+		}
+
+		UpdateProgressStatus();
+
+		return true;
+	}
+
+	return false;
+}
+
+bool SStatusBar::CancelProgressNotification(FProgressNotificationHandle InHandle)
+{
+	if (ProgressNotifications.RemoveAll([InHandle](const FStatusBarProgress& Progress){ return Progress.Handle == InHandle;}) != 0)
+	{
+		UpdateProgressStatus();
+
+		return true;
+	}
+
+	return false;
 }
 
 EVisibility SStatusBar::GetHelpIconVisibility() const
@@ -573,6 +885,13 @@ TSharedRef<SWidget> SStatusBar::MakeStatusMessageWidget()
 }
 
 
+TSharedRef<SWidget> SStatusBar::MakeProgressBar()
+{
+	return 
+		SAssignNew(ProgressBar, SStatusBarProgressArea)
+		.OnGetProgressMenuContent(this, &SStatusBar::OnGetProgressBarMenuContent);
+}
+
 bool SStatusBar::IsDrawerOpened(const FName DrawerId) const
 {
 	return OpenedDrawerData.Key == DrawerId ? true : false;
@@ -655,6 +974,157 @@ void SStatusBar::RegisterSourceControlStatus()
 	}
 }
 
+FStatusBarProgress* SStatusBar::FindProgressNotification(FProgressNotificationHandle InHandle)
+{
+	return ProgressNotifications.FindByPredicate(
+		[InHandle](const FStatusBarProgress& Progress)
+		{
+			return Progress.Handle == InHandle;
+		});
+}
+
+void SStatusBar::UpdateProgressStatus()
+{
+	int32 NumIncompleteTasks = 0;
+
+	if (ProgressNotifications.Num())
+	{
+		int32 TotalWorkToDo = 0;
+		int32 CurrentWorkDone = 0;
+
+		bool bShouldAnyProgressBeVisible = false;
+
+		double CurrentTime = FPlatformTime::Seconds();
+
+		const FStatusBarProgress* LastIncompleteTask = &ProgressNotifications.Last();
+		for (const FStatusBarProgress& Progress : ProgressNotifications)
+		{
+			TotalWorkToDo += Progress.TotalWorkToDo;
+			CurrentWorkDone += Progress.TotalWorkDone;
+
+			bShouldAnyProgressBeVisible |= ((CurrentTime - Progress.StartTime) >= StatusBarNotificationConstants::NotificationDelay);
+
+			if (Progress.TotalWorkToDo > Progress.TotalWorkDone)
+			{
+				++NumIncompleteTasks;
+				LastIncompleteTask = &Progress;
+			}
+		}
+
+		// Just assume 100% of the work is done if there is no work to do. The progress bar will dismiss in this case but we want to show 100% while its dismissing
+		const float Percent = TotalWorkToDo > 0 ? (float)CurrentWorkDone / TotalWorkToDo : 1.0f;
+		FText StatusBarProgressText;
+		if (NumIncompleteTasks > 1)
+		{
+			StatusBarProgressText = FText::Format(LOCTEXT("ProgressBarLabel", "{0} (+{1} more)"), LastIncompleteTask->DisplayText, FText::AsNumber(NumIncompleteTasks - 1));
+		}
+		else
+		{
+			StatusBarProgressText = LastIncompleteTask->DisplayText;
+		}
+
+		bShouldAnyProgressBeVisible &= (NumIncompleteTasks > 0);
+		
+		TSharedPtr<SStatusBarProgressWidget> ActiveNotificationProgressWidgetPin = ActiveNotificationProgressWidget.Pin();
+
+		if(bShouldAnyProgressBeVisible)
+		{
+			TSharedPtr<SNotificationItem> ActiveProgressNotificationPin = ActiveProgressNotification.Pin();
+		
+			// Show a new notification the first time a new progress task is started assuming we don't already have a notification open
+			if (!ActiveProgressNotificationPin.IsValid() && bAllowedToRefreshProgressNotification)
+			{
+				FNotificationInfo ProgressNotification(FText::GetEmpty());
+
+				ActiveNotificationProgressWidgetPin = SNew(SStatusBarProgressWidget, true);
+				ProgressNotification.ContentWidget = ActiveNotificationProgressWidgetPin.ToSharedRef();
+				ProgressNotification.FadeOutDuration = StatusBarNotificationConstants::NotificationFadeDuration;
+				ProgressNotification.ForWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+
+				ActiveProgressNotificationPin = FSlateNotificationManager::Get().AddNotification(ProgressNotification);
+
+				ActiveProgressNotification = ActiveProgressNotificationPin;
+				ActiveNotificationProgressWidget = ActiveNotificationProgressWidgetPin;
+
+				ActiveProgressNotificationPin->SetExpireDuration(StatusBarNotificationConstants::NotificationExpireTime);
+				ActiveProgressNotificationPin->ExpireAndFadeout();
+
+				// Do not show the notification again unless a new task is started.
+				bAllowedToRefreshProgressNotification = false;
+			}
+
+			OpenProgressBar();
+
+			ProgressBar->SetPercent(Percent);
+
+			ProgressBar->SetProgressText(StatusBarProgressText);
+		}
+
+		// Update the notification if it exists. Even if no progress should be visible, if the notification is visible we want to update it while it fades out
+		if (ActiveNotificationProgressWidgetPin)
+		{
+			ActiveNotificationProgressWidgetPin->SetProgressText(StatusBarProgressText);
+			ActiveNotificationProgressWidgetPin->SetProgressPercent(Percent);
+		}
+	}
+
+	if (NumIncompleteTasks == 0)
+	{
+		DismissProgressBar();
+	}
+}
+
+void SStatusBar::OpenProgressBar()
+{
+	ProgressBar->OpenProgressBar();
+}
+
+void SStatusBar::DismissProgressBar()
+{
+	ProgressBar->DismissProgressBar();
+	bAllowedToRefreshProgressNotification = false;
+	ProgressNotifications.Empty();
+}
+
+TSharedRef<SWidget> SStatusBar::OnGetProgressBarMenuContent()
+{
+	FMenuBuilder ProgressBarMenu(false, nullptr);
+
+	const float StatusBarHeight = FAppStyle::Get().GetFloat("StatusBar.Height");
+
+	for (int32 ProgressIndex = 0; ProgressIndex < ProgressNotifications.Num(); ++ProgressIndex)
+	{
+		FStatusBarProgress& Progress = ProgressNotifications[ProgressIndex];
+
+		FProgressNotificationHandle Handle = Progress.Handle;
+
+		const bool bLastProgressBar = (ProgressIndex + 1 == ProgressNotifications.Num());
+
+		TSharedRef<SWidget> MenuWidget =
+			SNew(SBox)
+			.Padding(FMargin(8.0f, ProgressIndex == 0 ? 0.0f : 4.0f, 8.0f, bLastProgressBar ? 0.0f : 8.0f))
+			[
+				SNew(SStatusBarProgressWidget)
+				.StatusBarProgress_Lambda([this, Handle]() { return FindProgressNotification(Handle); })
+			];
+
+
+		ProgressBarMenu.AddWidget(MenuWidget, FText::GetEmpty(), false, false);
+
+		if (!bLastProgressBar)
+		{
+			ProgressBarMenu.AddWidget(SNew(SSeparator).Thickness(1.0f), FText::GetEmpty(), false, false);
+		}
+	}
+
+	return
+		SNew(SBox)
+		.WidthOverride(ProgressBar->GetDesiredSize().X-8.0f)
+		[
+			ProgressBarMenu.MakeWidget()
+		];
+}
+
 void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer)
 {
 	const int32 NumDrawers = RegisteredDrawers.Num();
@@ -662,7 +1132,7 @@ void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer)
 
 	if (RegisteredDrawers.Num() > NumDrawers)
 	{
-		const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("StatusBar.Background");
+		const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("Brushes.Panel");
 
 		DrawerBox->AddSlot()
 		.Padding(1.0f, 0.0f)
@@ -676,35 +1146,6 @@ void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer)
 				MakeStatusBarDrawerButton(Drawer)
 			]
 		];
-/*
-			/ *+ SHorizontalBox::Slot()
-				.Padding(1.0f, 0.0f)
-				.AutoWidth()
-				[
-					SNew(SBorder)
-					.Padding(FMargin(2.0f, 0.0f))
-					.BorderImage(StatusBarBackground)
-					.VAlign(VAlign_Center)
-					[
-						MakeStatusBarDrawerButton(ContentBrowserDrawerButton)
-					]
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(1.0f, 0.0f)
-				[
-					SNew(SBorder)
-					.Padding(0.0f)
-					.BorderImage(StatusBarBackground)
-					.VAlign(VAlign_Center)
-					.Padding(FMargin(6.0f, 0.0f))
-					[
-						MakeDebugConsoleWidget(InArgs._OnConsoleClosed)
-					]
-				]* /
-		}
-*/
-
 	}
 }
 

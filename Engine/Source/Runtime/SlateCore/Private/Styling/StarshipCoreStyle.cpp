@@ -282,6 +282,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("AppIconPadding", FMargin(5.f, 5.f, 5.f, 5.f));
 #endif
 
+		Style->Set("AppIconFlat", new IMAGE_BRUSH_SVG("Starship/Common/unreal", FVector2D(32, 32), FStyleColors::Foreground));
 		Style->Set("AppIcon.Small", new IMAGE_BRUSH_SVG("Starship/Common/unreal-small", Icon24x24, FStyleColors::Foreground));
 		Style->Set("AppIconPadding.Small", FMargin(4.f, 4.f, 0.f, 0.f));
 
@@ -293,14 +294,26 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	
 		Style->Set("Icons.Download", new IMAGE_BRUSH("Icons/icon_Downloads_16x", Icon16x16));
 
-		Style->Set("Icons.Error", new IMAGE_BRUSH_SVG("Starship/Common/alert-circle", Icon16x16));
-		Style->Set("Icons.ErrorWithColor", new IMAGE_BRUSH_SVG("Starship/Common/alert-circle", Icon16x16, FStyleColors::Error));
+		Style->Set("Icons.Error", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle", Icon16x16));
+		Style->Set("Icons.ErrorWithColor", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle", Icon16x16, FStyleColors::Error));
 
 		Style->Set("Icons.Warning", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle", Icon16x16));
 		Style->Set("Icons.WarningWithColor", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle", Icon16x16, FStyleColors::Warning));
 
 		Style->Set("Icons.Info", new IMAGE_BRUSH_SVG("Starship/Common/Info", Icon16x16));
 		Style->Set("Icons.InfoWithColor", new IMAGE_BRUSH_SVG("Starship/Common/Info", Icon16x16, FStyleColors::Foreground));
+
+		Style->Set("Icons.Success", new IMAGE_BRUSH_SVG("Starship/Common/check-circle", Icon16x16));
+		Style->Set("Icons.SuccessWithColor", new IMAGE_BRUSH_SVG("Starship/Common/check-circle", Icon16x16, FStyleColors::Success));
+
+		Style->Set("Icons.Error.Large", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle-large", Icon32x32));
+		Style->Set("Icons.ErrorWithColor.Large", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle-large", Icon32x32, FStyleColors::Error));
+
+		Style->Set("Icons.Warning.Large", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle-large", Icon32x32));
+		Style->Set("Icons.WarningWithColor.Large", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle-large", Icon32x32, FStyleColors::Warning));
+
+		Style->Set("Icons.Success.Large", new IMAGE_BRUSH_SVG("Starship/Common/check-circle-large", Icon32x32));
+		Style->Set("Icons.SuccessWithColor.Large", new IMAGE_BRUSH_SVG("Starship/Common/check-circle-large", Icon32x32, FStyleColors::Success));
 
 		Style->Set("Icons.box-perspective", new IMAGE_BRUSH_SVG("Starship/Common/box-perspective", Icon16x16));
 		Style->Set("Icons.cylinder", new IMAGE_BRUSH_SVG("Starship/Common/cylinder", Icon16x16));
@@ -599,14 +612,25 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 	// SNotificationList defaults...
 	{
-		Style->Set("NotificationList.FontBold", DEFAULT_FONT("Bold", 16));
+		Style->Set("NotificationList.FontBold", DEFAULT_FONT("Bold", 12));
 		Style->Set("NotificationList.FontLight", DEFAULT_FONT("Light", 12));
-		Style->Set("NotificationList.ItemBackground", new BOX_BRUSH("Old/Menu_Background", FMargin(8.0f / 64.0f)));
-		Style->Set("NotificationList.ItemBackground_Border", new BOX_BRUSH("Old/Menu_Background_Inverted_Border_Bold", FMargin(8.0f / 64.0f)));
+		Style->Set("NotificationList.ItemBackground", new FSlateColorBrush(FStyleColors::Notifications));
+		
+		Style->Set("NotificationList.ItemBackground_Border", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 5.0f, FStyleColors::Black, 1.0f));
 		Style->Set("NotificationList.ItemBackground_Border_Transparent", new BOX_BRUSH("Old/Notification_Border_Flash", FMargin(8.0f / 64.0f)));
+
+		Style->Set("NotificationList.Throbber", new IMAGE_BRUSH("Starship/Notifications/Throbber", FVector2D(40, 40)));
+
+		Style->Set("NotificationList.Watermark", new IMAGE_BRUSH_SVG("Starship/Notifications/Watermark", FVector2D(128, 128)));
+
+		// Should be deleted. everywhere using this is looking for a generic "alert" icon
+		Style->Set("NotificationList.DefaultMessage", new IMAGE_BRUSH("Common/EventMessage_Default", Icon40x40));
+
+		// Should be deleted. everywhere using this should be using Icons.Success
 		Style->Set("NotificationList.SuccessImage", new IMAGE_BRUSH("Icons/notificationlist_success", Icon16x16));
 		Style->Set("NotificationList.FailImage", new IMAGE_BRUSH("Icons/notificationlist_fail", Icon16x16));
-		Style->Set("NotificationList.DefaultMessage", new IMAGE_BRUSH("Common/EventMessage_Default", Icon40x40));
+
+	
 	}
 
 	// SSeparator defaults...
@@ -689,6 +713,10 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 		Style->Set("Window", Window);
 		
+		Window.SetCornerRadius(8.0f);
+
+		Style->Set("NotificationWindow", Window);
+
 		Style->Set("ChildWindow.Background", new FSlateColorBrush(FStyleColors::Recessed));
 	}
 

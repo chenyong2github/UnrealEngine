@@ -12,21 +12,25 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Editor.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
-
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"
 
-
-int32 UStatusBarSubsystem::HandleCounter = 0;
+int32 UStatusBarSubsystem::MessageHandleCounter = 0;
 
 void UStatusBarSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	FSourceControlCommands::Register();
+
+	FSlateNotificationManager::Get().SetProgressNotificationHandler(this);
 }
 
 void UStatusBarSubsystem::Deinitialize()
 {
 	FSourceControlCommands::Unregister();
+
+	FSlateNotificationManager::Get().SetProgressNotificationHandler(nullptr);
 }
 
 bool UStatusBarSubsystem::FocusDebugConsole(TSharedRef<SWindow> ParentWindow)
@@ -139,7 +143,7 @@ FStatusBarMessageHandle UStatusBarSubsystem::PushStatusBarMessage(FName StatusBa
 {
 	if (TSharedPtr<SStatusBar> StatusBar = GetStatusBar(StatusBarName))
 	{
-		FStatusBarMessageHandle NewHandle(++HandleCounter);
+		FStatusBarMessageHandle NewHandle(++MessageHandleCounter);
 
 		StatusBar->PushMessage(NewHandle, InMessage, InHintText);
 
@@ -167,6 +171,52 @@ void UStatusBarSubsystem::ClearStatusBarMessages(FName StatusBarName)
 	if (TSharedPtr<SStatusBar> StatusBar = GetStatusBar(StatusBarName))
 	{
 		StatusBar->ClearAllMessages();
+	}
+}
+
+void UStatusBarSubsystem::StartProgressNotification(FProgressNotificationHandle Handle, FText DisplayText, int32 TotalWorkToDo)
+{
+	// Find the active status bar to display the progress in
+	for (auto StatusBar : StatusBars)
+	{
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		{
+			TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
+			if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == FSlateApplication::Get().GetActiveTopLevelRegularWindow())
+			{
+				StatusBarPinned->StartProgressNotification(Handle, DisplayText, TotalWorkToDo);
+				break;
+			}
+		}
+	}
+}
+
+void UStatusBarSubsystem::UpdateProgressNotification(FProgressNotificationHandle Handle, int32 TotalWorkDone, int32 UpdatedTotalWorkToDo, FText UpdatedDisplayText)
+{
+	for (auto StatusBar : StatusBars)
+	{
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		{
+			if (StatusBarPinned->UpdateProgressNotification(Handle, TotalWorkDone, UpdatedTotalWorkToDo, UpdatedDisplayText))
+			{
+				break;
+			}
+		}
+	}
+
+}
+
+void UStatusBarSubsystem::CancelProgressNotification(FProgressNotificationHandle Handle)
+{
+	for (auto StatusBar : StatusBars)
+	{
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		{
+			if (StatusBarPinned->CancelProgressNotification(Handle))
+			{
+				break;
+			}
+		}
 	}
 }
 

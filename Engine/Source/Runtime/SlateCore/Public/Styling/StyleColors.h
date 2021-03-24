@@ -47,6 +47,7 @@ enum class EStyleColor : uint8
 	SelectInactive,
 	SelectParent,
 	SelectHover,
+	Notifications,
 	AccentBlue,
 	AccentPurple,
 	AccentPink,
@@ -61,6 +62,7 @@ enum class EStyleColor : uint8
 	AccentFolder,
 	Warning,
 	Error,
+	Success,
 
 	/** Only user colors should be below this line
 	 * To use user colors:
@@ -315,6 +317,8 @@ struct SLATECORE_API FStyleColors
 	static const FSlateColor SelectParent;
 	static const FSlateColor SelectHover;
 
+	static const FSlateColor Notifications;
+
 	static const FSlateColor AccentBlue;
 	static const FSlateColor AccentPurple;
 	static const FSlateColor AccentPink;
@@ -330,4 +334,5 @@ struct SLATECORE_API FStyleColors
 
 	static const FSlateColor Warning;
 	static const FSlateColor Error;
+	static const FSlateColor Success;
 };

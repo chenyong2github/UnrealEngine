@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorSubsystem.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #include "StatusBarSubsystem.generated.h"
 
@@ -47,7 +48,7 @@ private:
 };
 
 UCLASS()
-class STATUSBAR_API UStatusBarSubsystem : public UEditorSubsystem
+class STATUSBAR_API UStatusBarSubsystem : public UEditorSubsystem, public IProgressNotificationHandler
 {
 	GENERATED_BODY()
 
@@ -112,6 +113,11 @@ public:
 	void ClearStatusBarMessages(FName StatusBarName);
 
 private:
+	/** IProgressNotificationHandler interface */
+	virtual void StartProgressNotification(FProgressNotificationHandle Handle, FText DisplayText, int32 TotalWorkToDo) override;
+	virtual void UpdateProgressNotification(FProgressNotificationHandle Handle, int32 TotalWorkDone, int32 UpdatedTotalWorkToDo, FText UpdatedDisplayText) override;
+	virtual void CancelProgressNotification(FProgressNotificationHandle Handle) override;
+
 	bool ToggleContentBrowser(TSharedRef<SWindow> ParentWindow);
 	void OnDebugConsoleClosed();
 	void CreateContentBrowserIfNeeded();
@@ -127,5 +133,5 @@ private:
 
 	/** The floating content browser that is opened via the content browser button in the status bar */
 	TSharedPtr<SWidget> StatusBarContentBrowser;
-	static int32 HandleCounter;
+	static int32 MessageHandleCounter;
 };

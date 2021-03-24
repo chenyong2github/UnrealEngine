@@ -1354,6 +1354,9 @@ public:
 	}
 
 	virtual TSharedPtr<SWindow> GetActiveTopLevelWindow() const override;
+
+	virtual TSharedPtr<SWindow> GetActiveTopLevelRegularWindow() const override;
+
 	virtual const FSlateBrush* GetAppIcon() const override;
 	virtual const FSlateBrush* GetAppIconSmall() const override;
 

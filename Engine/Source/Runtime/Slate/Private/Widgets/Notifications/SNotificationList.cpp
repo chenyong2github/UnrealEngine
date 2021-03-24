@@ -16,6 +16,7 @@
 #include "Widgets/Images/SThrobber.h"
 #include "Widgets/Notifications/INotificationWidget.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Styling/StyleColors.h"
 
 /////////////////////////////////////////////////
 // SNotificationExtendable
@@ -74,17 +75,22 @@ public:
 		// Make visible
 		SetVisibility(EVisibility::Visible);
 
+		TSharedRef<SWidget> Self = AsShared();
+
 		// Play Fadein animation
 		FadeAnimation = FCurveSequence();
 		FadeCurve = FadeAnimation.AddCurve(0.f, FadeInDuration.Get());
-		FadeAnimation.Play( this->AsShared() );
+		FadeAnimation.Play(Self);
+
+		ThrobberAnimation = FCurveSequence(0.0f, 1.0f);
+		ThrobberAnimation.Play(Self, true);
 
 		// Scale up/flash animation
 		IntroAnimation = FCurveSequence();
 		ScaleCurveX = IntroAnimation.AddCurve(0.2f, 0.3f, ECurveEaseFunction::QuadOut);
 		ScaleCurveY = IntroAnimation.AddCurve(0.f, 0.2f);
 		GlowCurve = IntroAnimation.AddCurve(0.5f, 0.55f, ECurveEaseFunction::QuadOut);
-		IntroAnimation.Play( this->AsShared() );
+		IntroAnimation.Play(Self);
 
 		// When a fade in occurs, we need a high framerate for the animation to look good
 		if( FadeInDuration.Get() > KINDA_SMALL_NUMBER && bAllowThrottleWhenFrameRateIsLow && !ThrottleHandle.IsValid() )
@@ -168,9 +174,9 @@ protected:
 		}
 
 		// Clear reference
-		if( MyList.IsValid() )
+		if(TSharedPtr< SNotificationList> MyListPinned = MyList.Pin())
 		{
-			MyList.Pin()->NotificationItemFadedOut(SharedThis(this));
+			MyListPinned->NotificationItemFadedOut(SharedThis(this));
 		}
 	}
 
@@ -185,9 +191,12 @@ protected:
 	{
 		// if we have a parent window, we need to make that transparent, rather than
 		// this widget
-		if(MyList.IsValid() && MyList.Pin()->ParentWindowPtr.IsValid())
+		if(TSharedPtr<SNotificationList> MyListPinned = MyList.Pin())
 		{
-			MyList.Pin()->ParentWindowPtr.Pin()->SetOpacity( FadeCurve.GetLerp() );
+			if (TSharedPtr<SWindow> MyWindow = MyListPinned->ParentWindowPtr.Pin())
+			{
+				MyWindow->SetOpacity(FadeCurve.GetLerp());
+			}
 			return FLinearColor(1,1,1,1);
 		}
 		else
@@ -220,10 +229,27 @@ protected:
 		return FVector2D(  ScaleCurveX.GetLerp(), ScaleCurveY.GetLerp() );
 	}
 
+	FMargin GetIconPadding() const
+	{
+		if (GetThrobberVisibility().IsVisible())
+		{
+			// Account for the throbber taking up space
+			return FMargin(-6.0f, 0.0f, 0.0f, 0.0f);
+		}
+
+		return FMargin(0);
+	}
+
 	/** Gets the visibility for the throbber */
 	EVisibility GetThrobberVisibility() const
 	{
 		return CompletionState == CS_Pending ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
+	TOptional<FSlateRenderTransform> GetThrobberTransform() const
+	{
+		const float DeltaAngle = ThrobberAnimation.GetLerp()*2*PI;
+		return FSlateRenderTransform(FQuat2D(DeltaAngle));
 	}
 
 	EVisibility GetSuccessFailImageVisibility() const
@@ -231,9 +257,17 @@ protected:
 		return (CompletionState == CS_Success || CompletionState == CS_Fail) ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
-	const FSlateBrush* GetSuccessFailImage() const
+	const FSlateBrush* GetNotificationIcon() const
 	{
-		return CompletionState == CS_Success ? FCoreStyle::Get().GetBrush("NotificationList.SuccessImage") : FCoreStyle::Get().GetBrush("NotificationList.FailImage");
+		switch (CompletionState)
+		{
+		case ECompletionState::CS_Success:
+			return FAppStyle::Get().GetBrush("Icons.SuccessWithColor.Large");
+		case ECompletionState::CS_Fail:
+			return FAppStyle::Get().GetBrush("Icons.ErrorWithColor.Large");
+		default:
+			return BaseIcon.Get();
+		}
 	}
 
 public:
@@ -243,16 +277,18 @@ public:
 protected:
 
 	/** The text displayed in this text block */
-	TAttribute< FText > Text;
+	TAttribute<FText> Text;
 
 	/** The fade in duration for this element */
-	TAttribute< float > FadeInDuration;
+	TAttribute<float> FadeInDuration;
 
 	/** The fade out duration for this element */
-	TAttribute< float > FadeOutDuration;
+	TAttribute<float> FadeOutDuration;
 
 	/** The duration before a fadeout for this element */
-	TAttribute< float > ExpireDuration;
+	TAttribute<float> ExpireDuration;
+
+	TAttribute<const FSlateBrush*> BaseIcon;
 
 	/** The default glow color for pulse animation. */
 	FLinearColor DefaultGlowColor = FLinearColor(1.0f, 1.0f, 1.0f);
@@ -272,7 +308,7 @@ protected:
 	FCurveHandle ScaleCurveX;
 	FCurveHandle ScaleCurveY;
 	FCurveHandle GlowCurve;
-
+	FCurveSequence ThrobberAnimation;
 	/** The completion state change animation */
 	FCurveSequence CompletionStateAnimation;
 
@@ -280,6 +316,78 @@ protected:
 	FThrottleRequest ThrottleHandle;
 };
 
+
+class SNotificationBackground : public SBorder
+{
+public:
+	SLATE_BEGIN_ARGS(SNotificationBackground) {}
+		SLATE_ATTRIBUTE(FMargin, Padding)
+		/** ColorAndOpacity is the color and opacity of content in the border */
+		SLATE_ATTRIBUTE(FLinearColor, ColorAndOpacity)
+		/** BorderBackgroundColor refers to the actual color and opacity of the supplied border image.*/
+		SLATE_ATTRIBUTE(FSlateColor, BorderBackgroundColor)
+
+		SLATE_ATTRIBUTE(FVector2D, DesiredSizeScale)
+
+		SLATE_DEFAULT_SLOT(FArguments, Content)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs)
+	{
+		WatermarkBrush = FAppStyle::Get().GetBrush("NotificationList.Watermark");
+		BorderBrush = FAppStyle::Get().GetBrush("NotificationList.ItemBackground_Border");
+
+		WatermarkTint = FStyleColors::Notifications.GetSpecifiedColor() * FLinearColor(1.15f, 1.15f, 1.15f, 1.0f);
+
+		SBorder::Construct(
+			SBorder::FArguments()
+			.BorderImage(FAppStyle::Get().GetBrush("NotificationList.ItemBackground"))
+			.Padding(InArgs._Padding)
+			.BorderBackgroundColor(InArgs._BorderBackgroundColor)
+			.ColorAndOpacity(InArgs._ColorAndOpacity)
+			.DesiredSizeScale(InArgs._DesiredSizeScale)
+			[
+				InArgs._Content.Widget
+			]
+		);
+	}
+
+	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
+	{
+		if (WatermarkBrush && WatermarkBrush->DrawAs != ESlateBrushDrawType::NoDrawType)
+		{
+			// The watermark should be 250% bigger than the size of the notification to get the desired effect
+			const float SizeY = AllottedGeometry.GetLocalSize().Y;
+			const float WatermarkSize = FMath::Clamp(SizeY * 2.50f, 130.0f, 220.0f);
+	
+			FSlateDrawElement::MakeBox(
+				OutDrawElements,
+				LayerId + 1,
+				AllottedGeometry.ToPaintGeometry(FVector2D(4.0f, 4.0f), FVector2D(WatermarkSize, WatermarkSize)),
+				WatermarkBrush,
+				ESlateDrawEffect::None,
+				WatermarkTint * InWidgetStyle.GetColorAndOpacityTint() * BorderBackgroundColor.Get().GetColor(InWidgetStyle));
+		}
+
+
+		int32 OutLayerId = SBorder::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
+
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			OutLayerId,
+			AllottedGeometry.ToPaintGeometry(),
+			BorderBrush,
+			ESlateDrawEffect::None,
+			BorderBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint());
+
+		return OutLayerId+1;
+	}
+	
+private:
+	const FSlateBrush* WatermarkBrush = nullptr;
+	const FSlateBrush* BorderBrush = nullptr;
+	FLinearColor WatermarkTint;
+};
 
 /////////////////////////////////////////////////
 // SNotificationItemImpl
@@ -290,7 +398,6 @@ class SNotificationItemImpl : public SNotificationExtendable
 public:
 	SLATE_BEGIN_ARGS( SNotificationItemImpl )
 		: _Text()
-		, _Font()
 		, _Image()	
 		, _FadeInDuration(0.5f)
 		, _FadeOutDuration(2.f)
@@ -299,37 +406,36 @@ public:
 	{}
 
 		/** The text displayed in this text block */
-		SLATE_ATTRIBUTE( FText, Text )
-		/** Sets the font used to draw the text */
-		SLATE_ATTRIBUTE(FSlateFontInfo, Font)
+		SLATE_ARGUMENT(FText, Text)
+
 		/** Setup information for the buttons on the notification */ 
-		SLATE_ATTRIBUTE(TArray<FNotificationButtonInfo>, ButtonDetails)
+		SLATE_ARGUMENT(TArray<FNotificationButtonInfo>, ButtonDetails)
 		/** The icon image to display next to the text */
-		SLATE_ATTRIBUTE( const FSlateBrush*, Image )
+		SLATE_ARGUMENT(const FSlateBrush*, Image)
 		/** The fade in duration for this element */
-		SLATE_ATTRIBUTE( float, FadeInDuration )
+		SLATE_ARGUMENT(float, FadeInDuration)
 		/** The fade out duration for this element */
-		SLATE_ATTRIBUTE( float, FadeOutDuration )
+		SLATE_ARGUMENT(float, FadeOutDuration)
 		/** The duration before a fadeout for this element */
-		SLATE_ATTRIBUTE( float, ExpireDuration )
+		SLATE_ARGUMENT(float, ExpireDuration)
 		/** Controls whether or not to add the animated throbber */
-		SLATE_ATTRIBUTE( bool, bUseThrobber)
+		SLATE_ARGUMENT(bool, bUseThrobber)
 		/** Controls whether or not to display the success and fail icons */
-		SLATE_ATTRIBUTE( bool, bUseSuccessFailIcons)
+		SLATE_ARGUMENT(bool, bUseSuccessFailIcons)
 		/** When true the larger bolder font will be used to display the message */
-		SLATE_ATTRIBUTE( bool, bUseLargeFont)
+		SLATE_ARGUMENT(bool, bUseLargeFont)
 		/** When set this forces the width of the box, used to stop resizeing on text change */
-		SLATE_ARGUMENT( FOptionalSize, WidthOverride )
+		SLATE_ARGUMENT(FOptionalSize, WidthOverride)
 		/** When set this will display a check box on the notification; handles getting the current check box state */
-		SLATE_ATTRIBUTE( ECheckBoxState, CheckBoxState )
+		SLATE_ATTRIBUTE(ECheckBoxState, CheckBoxState)
 		/** When set this will display a check box on the notification; handles setting the new check box state */
-		SLATE_EVENT( FOnCheckStateChanged, CheckBoxStateChanged );
+		SLATE_EVENT(FOnCheckStateChanged, CheckBoxStateChanged);
 		/** Text to display for the check box message */
-		SLATE_ATTRIBUTE( FText, CheckBoxText );
+		SLATE_ATTRIBUTE(FText, CheckBoxText );
 		/** When set this will display as a hyperlink on the right side of the notification. */
-		SLATE_EVENT( FSimpleDelegate, Hyperlink)
+		SLATE_EVENT(FSimpleDelegate, Hyperlink)
 		/** Text to display for the hyperlink (if Hyperlink is valid) */
-		SLATE_ATTRIBUTE( FText, HyperlinkText );
+		SLATE_ATTRIBUTE(FText, HyperlinkText);
 
 	SLATE_END_ARGS()
 	/**
@@ -348,194 +454,152 @@ public:
 
 		ChildSlot
 		[
-			SNew(SBorder)
-			.BorderImage(FCoreStyle::Get().GetBrush("NotificationList.ItemBackground"))
-			.BorderBackgroundColor(this, &SNotificationItemImpl::GetContentColor)
-			.ColorAndOpacity(this, &SNotificationItemImpl::GetContentColorRaw)
-			.DesiredSizeScale(this, &SNotificationItemImpl::GetItemScale)
-			[
-				SNew(SBorder)
-				.Padding( FMargin(5) )
-				.BorderImage(FCoreStyle::Get().GetBrush("NotificationList.ItemBackground_Border"))
-				.BorderBackgroundColor(this, &SNotificationItemImpl::GetGlowColor)
+/*
+			SNew(SOverlay)
+			+ SOverlay::Slot()
+			[*/
+				SNew(SNotificationBackground)
+				.Padding(FMargin(16, 8))
+				.BorderBackgroundColor(this, &SNotificationItemImpl::GetContentColor)
+				.ColorAndOpacity(this, &SNotificationItemImpl::GetContentColorRaw)
+				.DesiredSizeScale(this, &SNotificationItemImpl::GetItemScale)
 				[
 					ConstructInternals(InArgs)
 				]
+/*
 			]
+			+SOverlay::Slot()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("NotificationList.ItemBackground_Border"))
+				.Visibility(EVisibility::HitTestInvisible)
+			]*/
 		];
 	}
 	
 	/**
 	 * Returns the internals of the notification
 	 */
-	TSharedRef<SHorizontalBox> ConstructInternals( const FArguments& InArgs ) 
+	TSharedRef<SWidget> ConstructInternals( const FArguments& InArgs ) 
 	{
 		CheckBoxStateChanged = InArgs._CheckBoxStateChanged;
 		Hyperlink = InArgs._Hyperlink;
 		HyperlinkText = InArgs._HyperlinkText;
+		BaseIcon = InArgs._Image;
 
-		TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
+		// Container for the text and optional interactive widgets (buttons, check box, and hyperlink)
+		TSharedRef<SVerticalBox> InteractiveWidgetsBox = SNew(SVerticalBox);
 
-		// Notification image
-		HorizontalBox->AddSlot()
-		.AutoWidth()
-		.Padding(10.f, 0.f, 0.f, 0.f)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Left)
+		InteractiveWidgetsBox->AddSlot()
 		[
-			SNew(SImage)
-			.Image( InArgs._Image )
+			SAssignNew(MyTextBlock, STextBlock)
+			.Text(Text)
+			.Font(FAppStyle::Get().GetFontStyle(TEXT("NotificationList.FontBold")))
+			.WrapTextAt(InArgs._WidthOverride.IsSet() ? InArgs._WidthOverride.Get()-50.0f : 0.0f )
 		];
 
 		{
-			FSlateFontInfo Font = InArgs._Font.Get();
-
-			if (!Font.HasValidFont())
-			{
-				Font = InArgs._bUseLargeFont.Get()
-					? FCoreStyle::Get().GetFontStyle(TEXT("NotificationList.FontBold"))
-					: FCoreStyle::Get().GetFontStyle(TEXT("NotificationList.FontLight"));
-			}
-
-			// Container for the text and optional interactive widgets (buttons, check box, and hyperlink)
-			TSharedRef<SVerticalBox> TextAndInteractiveWidgetsBox = SNew(SVerticalBox);
-
-			HorizontalBox->AddSlot()
-			.AutoWidth()
-			.Padding(10.f, 0.f, 15.f, 0.f)
+			InteractiveWidgetsBox->AddSlot()
+			.AutoHeight()
+			.Padding(FMargin(0.0f, 10.0f, 0.0f, 2.0f))
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[
-				TextAndInteractiveWidgetsBox
+				SNew(SHyperlink)
+				.Visibility(this, &SNotificationItemImpl::GetHyperlinkVisibility)
+				.Text(this, &SNotificationItemImpl::GetHyperlinkText)
+				.OnNavigate(this, &SNotificationItemImpl::OnHyperlinkClicked)
 			];
+		}
 
-			// Build Text box
-			TextAndInteractiveWidgetsBox->AddSlot()
+		{
+			InteractiveWidgetsBox->AddSlot()
 			.AutoHeight()
+			.Padding(FMargin(0.0f, 10.0f, 0.0f, 2.0f))
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SNew(SBox)
-				.WidthOverride(InArgs._WidthOverride)
+				SNew(SCheckBox)
+				.Visibility(this, &SNotificationItemImpl::GetCheckBoxVisibility)
+				.IsChecked(InArgs._CheckBoxState)
+				.OnCheckStateChanged(CheckBoxStateChanged)
+				.Padding(FMargin(2.0f, 0.0f))
 				[
-					SAssignNew(MyTextBlock, STextBlock)
-					.Text(Text)
-					.Font(Font)
-					.AutoWrapText(InArgs._WidthOverride.IsSet()) // only auto-wrap the text if we've been given a size constraint; otherwise, fill the notification area
+					SNew(STextBlock)
+					.Text(InArgs._CheckBoxText)
 				]
 			];
+		}
 
-			TSharedRef<SHorizontalBox> InteractiveWidgetsBox = SNew(SHorizontalBox);
-			TextAndInteractiveWidgetsBox->AddSlot()
-			.AutoHeight()
-			[
-				InteractiveWidgetsBox
-			];
-
+		{
 			// Adds any buttons that were passed in.
-			{
-				TSharedRef<SHorizontalBox> ButtonsBox = SNew(SHorizontalBox);
-				for (int32 idx = 0; idx < InArgs._ButtonDetails.Get().Num(); idx++)
-				{
-					FNotificationButtonInfo Button = InArgs._ButtonDetails.Get()[idx];
+			TSharedRef<SHorizontalBox> ButtonsBox = SNew(SHorizontalBox);
 
-					ButtonsBox->AddSlot()
-					.AutoWidth()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-					[
-						SNew(SButton)
-						.Text(Button.Text)
-						.ToolTipText(Button.ToolTip)
-						.OnClicked(this, &SNotificationItemImpl::OnButtonClicked, Button.Callback) 
-						.Visibility( this, &SNotificationItemImpl::GetButtonVisibility, Button.VisibilityOnNone, Button.VisibilityOnPending, Button.VisibilityOnSuccess, Button.VisibilityOnFail )
-					];
-				}
-				InteractiveWidgetsBox->AddSlot()
+			for (int32 idx = 0; idx < InArgs._ButtonDetails.Num(); idx++)
+			{
+				FNotificationButtonInfo Button = InArgs._ButtonDetails[idx];
+
+				ButtonsBox->AddSlot()
 				.AutoWidth()
-				.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+
 				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Left)
+				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				[
-					ButtonsBox
+					SNew(SButton)
+					.Text(Button.Text)
+					.ToolTipText(Button.ToolTip)
+					.OnClicked(this, &SNotificationItemImpl::OnButtonClicked, Button.Callback) 
+					.Visibility( this, &SNotificationItemImpl::GetButtonVisibility, Button.VisibilityOnNone, Button.VisibilityOnPending, Button.VisibilityOnSuccess, Button.VisibilityOnFail )
 				];
 			}
 
-			// Adds a check box, but only visible when bound
 			InteractiveWidgetsBox->AddSlot()
-			.AutoWidth()
+			.AutoHeight()
+			.Padding(0.0f, 5.0f, 0.0f, 0.0f)
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			[
-				SNew(SBox)
-				.Padding(FMargin(0.0f, 2.0f, 4.0f, 0.0f))
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Left)
-				.Visibility(this, &SNotificationItemImpl::GetCheckBoxVisibility)
-				[
-					SNew(SCheckBox)
-					.IsChecked(InArgs._CheckBoxState)
-					.OnCheckStateChanged(CheckBoxStateChanged)
-					[
-						SNew(STextBlock)
-						.Text(InArgs._CheckBoxText)
-					]
-				]
-			];
-
-			// Adds a hyperlink, but only visible when bound
-			InteractiveWidgetsBox->AddSlot()
-			.VAlign(VAlign_Bottom)
 			.HAlign(HAlign_Right)
 			[
-				SNew(SBox)
-				.Padding(FMargin(0.0f, 2.0f, 0.0f, 2.0f))
-				.VAlign(VAlign_Center)
+				ButtonsBox
+			];
+		}
+
+		return
+			SNew(SBox)
+			.WidthOverride(InArgs._WidthOverride)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(MakeAttributeSP(this, &SNotificationItemImpl::GetIconPadding))
+				.VAlign(VAlign_Top)
 				.HAlign(HAlign_Left)
-				.Visibility(this, &SNotificationItemImpl::GetHyperlinkVisibility)
 				[
-					SNew(SHyperlink)
-					.Text(this, &SNotificationItemImpl::GetHyperlinkText)
-					.OnNavigate(this, &SNotificationItemImpl::OnHyperlinkClicked)
+					SNew(SOverlay)
+					+SOverlay::Slot()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("NotificationList.Throbber"))
+						.Visibility(this, &SNotificationItemImpl::GetThrobberVisibility)
+						.RenderTransform(this, &SNotificationItemImpl::GetThrobberTransform)
+						.RenderTransformPivot(FVector2D(.5f,.5f))
+					] 
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					[
+						SNew(SImage)
+						.Image(InArgs._bUseSuccessFailIcons ? MakeAttributeSP<const FSlateBrush*>(this, &SNotificationItemImpl::GetNotificationIcon) : BaseIcon)
+						.DesiredSizeOverride(FVector2D(32,32))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(10.f, 0.f, 0.f, 0.f)
+				[
+					InteractiveWidgetsBox
 				]
 			];
-		}
-
-		if (InArgs._bUseThrobber.Get())
-		{
-			// Build pending throbber
-			HorizontalBox->AddSlot()
-			.AutoWidth()
-			[
-				SNew(SBox)
-				.Padding(FMargin(5.f, 0.f, 10.f, 0.f))
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Visibility( this, &SNotificationItemImpl::GetThrobberVisibility )
-				[
-					SNew(SThrobber)
-				]
-			];
-		}
-
-		if (InArgs._bUseSuccessFailIcons.Get())
-		{
-			// Build success/fail image
-			HorizontalBox->AddSlot()
-			.AutoWidth()
-			[
-				SNew(SBox)
-				.Padding(FMargin(8.f, 0.f, 10.f, 0.f))
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Visibility( this, &SNotificationItemImpl::GetSuccessFailImageVisibility )
-				[
-					SNew(SImage)
-					.Image( this, &SNotificationItemImpl::GetSuccessFailImage )
-				]
-			];
-		}
-
-		return HorizontalBox;
 	}
 
 	/** Sets the text and delegate for the hyperlink */
@@ -609,7 +673,7 @@ protected:
 	FSimpleDelegate Hyperlink;
 
 	/** Text to display for the hyperlink message */
-	TAttribute< FText > HyperlinkText;
+	TAttribute<FText> HyperlinkText;
 };
 
 /////////////////////////////////////////////////
@@ -631,6 +695,8 @@ public:
 		SLATE_ATTRIBUTE(float, FadeOutDuration)
 		/** The duration before a fadeout for this element */
 		SLATE_ATTRIBUTE(float, ExpireDuration)
+		/** When set this forces the width of the notification */
+		SLATE_ARGUMENT(FOptionalSize, WidthOverride)
 		/** The widget that provides the notification to display */
 		SLATE_ARGUMENT(TSharedPtr<INotificationWidget>, ContentWidget)
 
@@ -650,8 +716,37 @@ public:
 		ExpireDuration = InArgs._ExpireDuration;
 		NotificationWidget = InArgs._ContentWidget;
 
-		ChildSlot
-			[
+		TSharedRef<SWidget> Internals = SNullWidget::NullWidget;
+
+		if (NotificationWidget->UseNotificationBackground())
+		{
+			Internals =
+				/*SNew(SOverlay)
+				+ SOverlay::Slot()
+				[*/
+					SNew(SNotificationBackground)
+					.Padding(FMargin(16, 8))
+					.BorderBackgroundColor(this, &SNotificationItemExternalImpl::GetContentColor)
+					.ColorAndOpacity(this, &SNotificationItemExternalImpl::GetContentColorRaw)
+					.DesiredSizeScale(this, &SNotificationItemExternalImpl::GetItemScale)
+					[
+						SNew(SBox)
+						.WidthOverride(InArgs._WidthOverride)
+						[
+							NotificationWidget->AsWidget()
+						]
+					];
+			/*	]
+				+SOverlay::Slot()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("NotificationList.ItemBackground_Border"))
+					.Visibility(EVisibility::HitTestInvisible)
+				];*/
+		}
+		else
+		{
+			Internals = 
 				SNew(SBorder)
 				.Padding(0.f)
 				.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
@@ -659,21 +754,30 @@ public:
 				.ColorAndOpacity(this, &SNotificationItemExternalImpl::GetContentColorRaw)
 				.DesiredSizeScale(this, &SNotificationItemExternalImpl::GetItemScale)
 				[
-					SNew(SOverlay)
-					+ SOverlay::Slot()
+					SNew(SBox)
+					.WidthOverride(InArgs._WidthOverride)
 					[
-						NotificationWidget->AsWidget()
+						SNew(SOverlay)
+						+ SOverlay::Slot()
+						[
+							NotificationWidget->AsWidget()
+						]
+						+ SOverlay::Slot()
+						[
+							SNew(SBorder)
+							.Padding(0)
+							.BorderImage(FCoreStyle::Get().GetBrush("NotificationList.ItemBackground_Border_Transparent"))
+							.BorderBackgroundColor(this, &SNotificationItemExternalImpl::GetGlowColor)
+							.Visibility(EVisibility::SelfHitTestInvisible)
+						]
 					]
-					+ SOverlay::Slot()
-					[
-						SNew(SBorder)
-						.Padding(0)
-						.BorderImage(FCoreStyle::Get().GetBrush("NotificationList.ItemBackground_Border_Transparent"))
-						.BorderBackgroundColor(this, &SNotificationItemExternalImpl::GetGlowColor)
-						.Visibility(EVisibility::SelfHitTestInvisible)
-					]
-				]
-			];
+				];
+		}
+
+		ChildSlot
+		[
+			Internals
+		];
 	}
 
 	/** SNotificationItem interface */
@@ -702,16 +806,16 @@ TSharedRef<SNotificationItem> SNotificationList::AddNotification(const FNotifica
 				.ContentWidget(Info.ContentWidget)
 				.FadeInDuration(Info.FadeInDuration)
 				.ExpireDuration(Info.ExpireDuration)
-				.FadeOutDuration(Info.FadeOutDuration);
+				.FadeOutDuration(Info.FadeOutDuration)
+				.WidthOverride(Info.WidthOverride);
 		}
 		else
 		{
-			static const FSlateBrush* CachedImage = FCoreStyle::Get().GetBrush("NotificationList.DefaultMessage");
+			static const FSlateBrush* CachedImage = FAppStyle::Get().GetBrush("AppIconFlat");
 
 			// Create notification.
 			NewItem = SNew(SNotificationItemImpl)
 				.Text(Info.Text)
-				.Font(Font)
 				.ButtonDetails(Info.ButtonDetails)
 				.Image((Info.Image != nullptr) ? Info.Image : CachedImage)
 				.FadeInDuration(Info.FadeInDuration)
@@ -776,7 +880,6 @@ void SNotificationList::NotificationItemFadedOut (const TSharedRef<SNotification
 void SNotificationList::Construct(const FArguments& InArgs)
 {
 	bDone = false;
-	Font = InArgs._Font;
 
 	ChildSlot
 	[

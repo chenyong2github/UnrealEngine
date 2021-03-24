@@ -44,6 +44,8 @@ const FSlateColor FStyleColors::Select = EStyleColor::Select;
 const FSlateColor FStyleColors::SelectInactive = EStyleColor::SelectInactive;
 const FSlateColor FStyleColors::SelectParent = EStyleColor::SelectParent;
 const FSlateColor FStyleColors::SelectHover = EStyleColor::SelectHover;
+
+const FSlateColor FStyleColors::Notifications = EStyleColor::Notifications;
 // if select ==  primary shouldnt we have a select pressed which is the same as primary press?
 
 const FSlateColor FStyleColors::AccentBlue = EStyleColor::AccentBlue;
@@ -61,6 +63,7 @@ const FSlateColor FStyleColors::AccentFolder = EStyleColor::AccentFolder;
 
 const FSlateColor FStyleColors::Warning= EStyleColor::Warning;
 const FSlateColor FStyleColors::Error = EStyleColor::Error;
+const FSlateColor FStyleColors::Success = EStyleColor::Success;
 
 USlateThemeManager::USlateThemeManager()
 {
@@ -104,6 +107,9 @@ void USlateThemeManager::InitalizeDefaults()
 	SetDefaultColor(EStyleColor::SelectInactive, COLOR("#99B3BFFF"));
 	SetDefaultColor(EStyleColor::SelectParent, COLOR("#2C323AFF"));
 	SetDefaultColor(EStyleColor::SelectHover, GetDefaultColor(EStyleColor::Panel));
+
+	SetDefaultColor(EStyleColor::Notifications, COLOR("464B50FF"));
+
 	// if select ==  primary shouldnt we have a select pressed which is the same as primary press?
 
 	SetDefaultColor(EStyleColor::AccentBlue, COLOR("#26BBFFFF"));
@@ -121,6 +127,7 @@ void USlateThemeManager::InitalizeDefaults()
 
 	SetDefaultColor(EStyleColor::Warning, COLOR("#FFB800FF"));
 	SetDefaultColor(EStyleColor::Error, COLOR("#EF3535FF"));
+	SetDefaultColor(EStyleColor::Success, COLOR("#1FE44BFF"));
 }
 
 #if ALLOW_THEMES

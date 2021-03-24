@@ -433,6 +433,7 @@ TSharedRef<SWindow> SWindow::MakeNotificationWindow()
 {
 	TSharedRef<SWindow> NewWindow =
 		SNew(SWindow)
+		.Style(FAppStyle::Get(), "NotificationWindow")
 		.Type( EWindowType::Notification )
 		.SupportsMaximize( false )
 		.SupportsMinimize( false )
