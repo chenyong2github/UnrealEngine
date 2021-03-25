@@ -50,6 +50,7 @@ private:
 	void OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger );
 
 	void OnAddPrim();
+	void OnRenamePrim();
 	void OnRemovePrim();
 	void OnAddReference();
 	void OnClearReferences();
