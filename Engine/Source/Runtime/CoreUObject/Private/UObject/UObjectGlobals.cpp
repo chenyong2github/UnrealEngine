@@ -4176,7 +4176,7 @@ FString FAssetMsg::GetAssetLogString(const UObject* Object, const FString& Messa
 	return ensure(Object) ? GetAssetLogString(*Object->GetOutermost()->GetName(), Message) : FString();
 }
 
-namespace UE4CodeGen_Private
+namespace UECodeGen_Private
 {
 	void ConstructFProperty(FFieldVariant Outer, const FPropertyParamsBase* const*& PropertyArray, int32& NumProperties)
 	{

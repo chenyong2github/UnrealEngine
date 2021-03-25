@@ -39,7 +39,7 @@ FString FVisualStudioCodeSourceCodeAccessor::GetSolutionPath() const
 
 		if (!FUProjectDictionary::GetDefault().IsForeignProject(CachedSolutionPath))
 		{
-			CachedSolutionPath = FPaths::Combine(FPaths::RootDir(), FString("UE4") + GVSCodeWorkspaceExtension);
+			CachedSolutionPath = FPaths::Combine(FPaths::RootDir(), FString("UE5") + GVSCodeWorkspaceExtension);
 		}
 		else
 		{

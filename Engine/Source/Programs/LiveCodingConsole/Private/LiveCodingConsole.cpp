@@ -512,7 +512,7 @@ bool LiveCodingConsoleMain(const TCHAR* CmdLine)
 				return false;
 			}
 
-			// Set the normal UE4 IsEngineExitRequested() when outer frame is closed
+			// Set the normal UE IsEngineExitRequested() when outer frame is closed
 			Slate->SetExitRequestedHandler(FSimpleDelegate::CreateStatic(&OnRequestExit));
 
 			// Prepare the custom Slate styles

@@ -821,7 +821,7 @@ bool GameProjectUtils::OpenCodeIDE(const FString& ProjectFile, FText& OutFailRea
 	else
 	{
 		SolutionFolder = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FPaths::RootDir());
-		SolutionFilenameWithoutExtension = TEXT("UE4");
+		SolutionFilenameWithoutExtension = TEXT("UE5");
 	}
 
 	if (!FSourceCodeNavigation::OpenProjectSolution(FPaths::Combine(SolutionFolder, SolutionFilenameWithoutExtension)))

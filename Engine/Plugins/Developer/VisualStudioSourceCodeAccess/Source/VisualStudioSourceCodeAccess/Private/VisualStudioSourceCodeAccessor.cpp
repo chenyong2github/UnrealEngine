@@ -1412,7 +1412,7 @@ FString FVisualStudioSourceCodeAccessor::GetSolutionPath() const
 				FString MasterProjectName;
 				if (!FFileHelper::LoadFileToString(MasterProjectName, *(FPaths::EngineIntermediateDir() / TEXT("ProjectFiles/MasterProjectName.txt"))))
 				{
-					MasterProjectName = "UE4";
+					MasterProjectName = "UE5";
 				}
 				CachedSolutionPath = FPaths::Combine(FPaths::RootDir(), MasterProjectName + TEXT(".sln"));
 			}
