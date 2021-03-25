@@ -17,7 +17,7 @@ class TRIOAPI MemoryMappedFileStream : public BoundedIOStream, public Buffered, 
         /**
             @brief Factory method for creation of a MemoryMappedFileStream instance.
             @param path
-                Path to file to be opened.
+                UTF-8 encoded path to file to be opened.
             @param accessMode
                 Control whether the file is opened for reading or writing.
             @param memRes
@@ -45,9 +45,6 @@ class TRIOAPI MemoryMappedFileStream : public BoundedIOStream, public Buffered, 
 
         MemoryMappedFileStream(MemoryMappedFileStream&&) = default;
         MemoryMappedFileStream& operator=(MemoryMappedFileStream&&) = default;
-
-        virtual const char* path() const = 0;
-        virtual AccessMode accessMode() const = 0;
 
 };
 

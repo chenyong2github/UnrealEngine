@@ -8,6 +8,7 @@
 #endif  // TRIO_LARGE_FILE_SUPPORT
 
 #include "trio/streams/MemoryMappedFileStreamUnix.h"
+#include "trio/utils/NativeString.h"
 #include "trio/utils/ScopedEnumEx.h"
 
 #include <pma/PolyAllocator.h>
@@ -40,7 +41,7 @@ namespace {
 
 constexpr std::size_t minViewSizeUnix = 65536ul;
 
-inline std::uint64_t getFileSizeUnix(const char* path) {
+inline std::uint64_t getFileSizeUnix(const NativeCharacter* path) {
     struct stat st{};
     if (::stat(path, &st) != 0) {
         return 0ul;
@@ -104,13 +105,13 @@ private:
 }  // namespace
 
 MemoryMappedFileStreamUnix::MemoryMappedFileStreamUnix(const char* path_, AccessMode accessMode_, MemoryResource* memRes_) :
-    filePath{path_, memRes_},
+    filePath{NativeStringConverter::from(path_, memRes_)},
     fileAccessMode{accessMode_},
     memRes{memRes_},
     file{-1},
     data{nullptr},
     position{},
-    fileSize{getFileSizeUnix(path_)},
+    fileSize{getFileSizeUnix(filePath.c_str())},
     viewOffset{},
     viewSize{},
     delayedMapping{false},
@@ -127,14 +128,6 @@ MemoryResource* MemoryMappedFileStreamUnix::getMemoryResource() {
 
 std::uint64_t MemoryMappedFileStreamUnix::size() {
     return fileSize;
-}
-
-const char* MemoryMappedFileStreamUnix::path() const {
-    return filePath.c_str();
-}
-
-AccessMode MemoryMappedFileStreamUnix::accessMode() const {
-    return fileAccessMode;
 }
 
 void MemoryMappedFileStreamUnix::open() {

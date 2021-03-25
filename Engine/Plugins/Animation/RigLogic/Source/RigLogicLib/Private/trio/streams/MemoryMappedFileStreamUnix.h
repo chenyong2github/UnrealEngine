@@ -8,6 +8,7 @@
 #include "trio/streams/MemoryMappedFileStream.h"
 #include "trio/streams/StreamStatus.h"
 #include "trio/types/Aliases.h"
+#include "trio/utils/NativeString.h"
 
 #include <pma/TypeDefs.h>
 
@@ -37,8 +38,6 @@ class MemoryMappedFileStreamUnix : public MemoryMappedFileStream {
         std::size_t write(Readable* source, std::size_t size) override;
         void flush() override;
         void resize(std::uint64_t size) override;
-        const char* path() const override;
-        AccessMode accessMode() const override;
 
         MemoryResource* getMemoryResource();
 
@@ -51,7 +50,7 @@ class MemoryMappedFileStreamUnix : public MemoryMappedFileStream {
 
     private:
         StreamStatus status;
-        pma::String<char> filePath;
+        NativeString filePath;
         AccessMode fileAccessMode;
         MemoryResource* memRes;
         int file;

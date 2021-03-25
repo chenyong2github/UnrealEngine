@@ -40,8 +40,6 @@ class MemoryMappedFileStreamFallback : public MemoryMappedFileStream {
         std::size_t write(Readable* source, std::size_t size) override;
         void flush() override;
         void resize(std::uint64_t size) override;
-        const char* path() const override;
-        AccessMode accessMode() const override;
 
         MemoryResource* getMemoryResource();
 
