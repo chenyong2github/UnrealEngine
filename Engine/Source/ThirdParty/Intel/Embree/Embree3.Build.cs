@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class Embree3 : ModuleRules
 {
@@ -36,6 +37,18 @@ public class Embree3 : ModuleRules
 			PublicDefinitions.Add("USE_EMBREE=1");
 */
 
+		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")) // no support for arm64 yet
+		{
+			string IntelEmbreeLibs = Target.UEThirdPartyBinariesDirectory + "Intel/Embree/Embree3122";
+			string IncludeDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree3122/Linux/x86_64-unknown-linux-gnu";
+			string SDKDir = Path.Combine(IntelEmbreeLibs, "Linux/x86_64-unknown-linux-gnu/lib");
+
+			PublicIncludePaths.Add(Path.Combine(IncludeDir, "include"));
+			PublicAdditionalLibraries.Add(Path.Combine(SDKDir, "libembree.so"));
+			RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree.so"));
+			RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree.so.2"));
+			PublicDefinitions.Add("USE_EMBREE=1");
 		}
 		else
 		{
