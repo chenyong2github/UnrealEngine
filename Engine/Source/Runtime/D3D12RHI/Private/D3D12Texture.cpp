@@ -745,7 +745,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 
 	if (bTextureArray)
 	{
-		check(SizeZ <= GetMaxTextureArrayLayers());
+		check(SizeZ > 0 && SizeZ <= GetMaxTextureArrayLayers());
 	}
 
 	// Render target allocation with UAV flag will silently fail in feature level 10
