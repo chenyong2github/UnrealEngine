@@ -242,6 +242,9 @@ TSharedPtr< IDatasmithMaterialExpression > FDatasmithSceneFactory::CreateMateria
 	case EDatasmithMaterialExpressionType::TextureCoordinate:
 		Expression = MakeShared<FDatasmithMaterialExpressionTextureCoordinateImpl>();
 		break;
+	case EDatasmithMaterialExpressionType::Custom:
+		Expression = MakeShared<FDatasmithMaterialExpressionCustomImpl>();
+		break;
 	default:
 		check( false );
 		break;
