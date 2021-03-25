@@ -20,8 +20,12 @@ public:
 		FString   ModeString;
 		FName     ModeName;
 		FText     ModeText;
+		FText     ModeDesc;
 		FModeType ModeType;
-		uint32    ModeID;
+		int32     ModeID;
+
+		// Whether or not this mode (by default) composites with regular scene depth.
+		bool      DefaultComposited;
 	};
 
 	/** Mapping of FName to a visualization mode record. */
@@ -46,23 +50,45 @@ public:
 	ENGINE_API bool Update(const FName& InViewMode);
 
 	/** Get the display name of a named mode from the available mode map. **/
-	ENGINE_API FText GetModeDisplayName(FName InModeName) const;
+	ENGINE_API FText GetModeDisplayName(const FName& InModeName) const;
 
-	ENGINE_API int32 GetModeID(FName InModeName) const;
+	ENGINE_API int32 GetModeID(const FName& InModeName) const;
+
+	ENGINE_API bool GetModeDefaultComposited(const FName& InModeName) const;
 
 	/** We cache the overview mode name list from the console command here, so all dynamically created views can re-use the existing cached list of modes. */
 	void SetCurrentOverviewModeList(const FString& InNameList);
 	bool IsDifferentToCurrentOverviewModeList(const FString& InNameList);
 
-	inline const TArray<uint32, TInlineAllocator<32>>& GetActiveModeIDs() const
+	inline int32 GetActiveModeID() const
 	{
-		return ActiveVisualizationModes;
+		return ActiveVisualizationModeID;
+	}
+
+	inline const FName& GetActiveModeName() const
+	{
+		return ActiveVisualizationModeName;
+	}
+
+	inline bool GetActiveModeDefaultComposited() const
+	{
+		return bActiveVisualizationModeComposited;
 	}
 
 	/** Access the list of modes currently in use by the Nanite visualization overview. */
 	inline const TArray<FName, TInlineAllocator<32>>& GetOverviewModeNames() const
 	{
 		return CurrentOverviewModeNames;
+	}
+
+	inline const TArray<int32, TInlineAllocator<32>>& GetOverviewModeIDs() const
+	{
+		return CurrentOverviewModeIDs;
+	}
+
+	inline uint32 GetOverviewModeBitMask() const
+	{
+		return CurrentOverviewModeBitMask;
 	}
 
 	inline const TModeMap& GetModeMap() const
@@ -90,20 +116,27 @@ private:
 		const TCHAR* ModeString,
 		const FText& ModeText,
 		const FModeType ModeType,
-		uint32 ModeID
+		int32 ModeID,
+		bool DefaultComposited
 	);
+
+	void SetActiveMode(int32 ModeID, const FName& ModeName, bool bDefaultComposited);
 
 private:
 	/** The name->mode mapping table */
 	TModeMap ModeMap;
 
-	TArray<uint32, TInlineAllocator<32>> ActiveVisualizationModes;
+	int32 ActiveVisualizationModeID = INDEX_NONE;
+	FName ActiveVisualizationModeName = NAME_None;
+	bool bActiveVisualizationModeComposited = true;
 
 	/** List of modes names to use in the Nanite visualization overview. */
 	FString CurrentOverviewModeList;
 
 	/** Tokenized Nanite visualization mode names. */
 	TArray<FName, TInlineAllocator<32>> CurrentOverviewModeNames;
+	TArray<int32, TInlineAllocator<32>> CurrentOverviewModeIDs;
+	uint32 CurrentOverviewModeBitMask = 0x0;
 
 	/** Storage for console variable documentation strings. **/
 	FString ConsoleDocumentationVisualizationMode;

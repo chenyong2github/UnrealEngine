@@ -3,6 +3,8 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "../DeferredShadingCommon.ush"
+#include "../ColorMap.ush"
+
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
 
@@ -121,7 +123,7 @@ bool ShouldApplySobelFilter()
 }
 
 [numthreads(8, 8, 1)]
-void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
+void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 {
 	const UlongType VisPixel = VisBuffer64[PixelPos.xy];
 
@@ -181,6 +183,8 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		const int HierarchyOffset = InstanceData.NaniteHierarchyOffset;
 		const uint VisualizeMode = GetVisualizeMode();
 
+		// Note: The mode is no longer a bitmask at this point, just a single visualization mode.
+
 		if (VisualizeMode == VISUALIZE_TRIANGLES)
 		{
 			Result = IntToColor(TriIndex);
@@ -214,7 +218,7 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 			const float OverdrawScale = GetOverdrawScale();
 			const float OverdrawCount = DebugValueAdd; // Num of evaluations per pixel
 			const float OverdrawColor = 1 - exp2( -OverdrawCount * OverdrawScale );
-			Result = float3( sin( OverdrawColor * 6.28/4 ), Pow3( OverdrawColor ), lerp( sin( OverdrawColor * 6.28 ), OverdrawColor, 0.6 ) );
+			Result = ColorMapInferno(OverdrawColor);
 		}
 		else if (VisualizeMode == VISUALIZE_HIERARCHY_OFFSET)
 		{

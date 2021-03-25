@@ -10,6 +10,13 @@
 #include "EditorStyleSet.h"
 #include "EditorViewportClient.h"
 
+int32 GNaniteVisualizeAdvanced = 0;
+static FAutoConsoleVariableRef CVarNaniteVisualizeAdvanced(
+	TEXT("r.Nanite.Visualize.Advanced"),
+	GNaniteVisualizeAdvanced,
+	TEXT("")
+);
+
 #define LOCTEXT_NAMESPACE "NaniteVisualizationMenuCommands"
 
 FNaniteVisualizationMenuCommands::FNaniteVisualizationMenuCommands()
@@ -39,7 +46,7 @@ void FNaniteVisualizationMenuCommands::BuildCommandMap()
 			this->AsShared(),
 			Entry.ModeName,
 			Entry.ModeText,
-			Entry.ModeText)
+			Entry.ModeDesc)
 			.UserInterfaceType(EUserInterfaceActionType::RadioButton)
 			.DefaultChord(FInputChord()
 		);
@@ -64,6 +71,8 @@ void FNaniteVisualizationMenuCommands::BuildCommandMap()
 
 void FNaniteVisualizationMenuCommands::BuildVisualisationSubMenu(FMenuBuilder& Menu)
 {
+	const bool bShowAdvanced = GNaniteVisualizeAdvanced != 0;
+
 	const FNaniteVisualizationMenuCommands& Commands = FNaniteVisualizationMenuCommands::Get();
 	if (Commands.IsPopulated())
 	{
@@ -76,10 +85,16 @@ void FNaniteVisualizationMenuCommands::BuildVisualisationSubMenu(FMenuBuilder& M
 
 		if (Commands.AddCommandTypeToMenu(Menu, FNaniteVisualizationType::Standard))
 		{
-			Menu.AddMenuSeparator();
+			if (bShowAdvanced)
+			{
+				Menu.AddMenuSeparator();
+			}
 		}
 
-		Commands.AddCommandTypeToMenu(Menu, FNaniteVisualizationType::Advanced);
+		if (bShowAdvanced)
+		{
+			Commands.AddCommandTypeToMenu(Menu, FNaniteVisualizationType::Advanced);
+		}
 
 		Menu.EndSection();
 	}

@@ -11,34 +11,26 @@
 #define SUBPIXEL_MASK				(SUBPIXEL_SAMPLES - 1)
 #define SUBPIXEL_DILATE				0	// To correct for mismatch with HW rasterizer
 
-uint RasterStateReverseCull;
-
 #if DEBUG_VISUALIZE
-int4 VisualizeConfig;
+uint VisualizeModeBitMask;
 
 uint2 GetVisualizeValues()
 {
-	uint DebugValueMax; // InterlockedMax64 using depth (value associated with surviving fragment)
-	uint DebugValueAdd; // InterlockedAdd32 (value accumulated with every evaluated fragment)
-	const uint VisualizeMode = VisualizeConfig.x;
-	if (VisualizeMode == VISUALIZE_RASTER_MODE)
+	uint DebugValueMax = 0; // InterlockedMax64 using depth (value associated with surviving fragment)
+	uint DebugValueAdd = 0; // InterlockedAdd32 (value accumulated with every evaluated fragment)
+	
+	if (VisualizeModeBitMask & VISUALIZE_RASTER_MODE)
 	{
 	#if SOFTWARE_RASTER
 		DebugValueMax = 2; // Software Raster
 	#else
 		DebugValueMax = 1; // Hardware Raster
 	#endif
-		DebugValueAdd = 0;
 	}
-	else if (VisualizeMode == VISUALIZE_OVERDRAW)
+
+	if (VisualizeModeBitMask & VISUALIZE_OVERDRAW)
 	{
-		DebugValueMax = 0;
 		DebugValueAdd = 1;
-	}
-	else
-	{
-		DebugValueMax = 0;
-		DebugValueAdd = 0;
 	}
 
 	return uint2(DebugValueMax, DebugValueAdd);
@@ -280,7 +272,7 @@ bool ReverseWindingOrder(FInstanceSceneData InstanceData)
 	// that an odd number of components are negative, so
 	// we need to reverse the triangle winding order.
 	bool bReverseInstanceCull = (InstanceData.InvNonUniformScaleAndDeterminantSign.w < 0.0f);
-	bool bRasterStateReverseCull = (RasterStateReverseCull != 0);
+	bool bRasterStateReverseCull = (RenderFlags & RENDER_FLAG_REVERSE_CULLING);
 	
 	// Logical XOR
 	return (bReverseInstanceCull != bRasterStateReverseCull);

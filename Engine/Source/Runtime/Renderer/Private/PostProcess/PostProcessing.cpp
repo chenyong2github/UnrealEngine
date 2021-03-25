@@ -18,6 +18,7 @@
 #include "PostProcess/PostProcessVisualizeLevelInstance.h"
 #include "PostProcess/PostProcessGBufferHints.h"
 #include "PostProcess/PostProcessVisualizeBuffer.h"
+#include "PostProcess/PostProcessVisualizeNanite.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "PostProcess/PostProcessTonemap.h"
 #include "PostProcess/PostProcessLensFlares.h"
@@ -41,7 +42,6 @@
 #include "HighResScreenshot.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
-#include "BufferVisualizationData.h"
 #include "DeferredShadingRenderer.h"
 #include "MobileSeparateTranslucencyPass.h"
 #include "MobileDistortionPass.h"
@@ -49,7 +49,6 @@
 #include "PixelShaderUtils.h"
 #include "ScreenSpaceRayTracing.h"
 #include "SceneViewExtension.h"
-#include "NaniteVisualizationData.h"
 #include "FXSystem.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
@@ -1014,33 +1013,21 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		AddTestImagePass(GraphBuilder, View, SceneColor);
 	}
 
-	const FNaniteVisualizationData& NaniteVisualizationData = GetNaniteVisualizationData();
-	if (EngineShowFlags.VisualizeNanite && NaniteRasterResults != nullptr && NaniteVisualizationData.IsActive())
+	if (EngineShowFlags.VisualizeNanite && NaniteRasterResults != nullptr)
 	{
-		// TODO: NANITE_VIEW_MODES: Add resample + tile grid and border for overview (multiple visualizations)
-		if (NaniteRasterResults->Visualizations.Num() == 1)
-		{
-			const Nanite::FVisualizeResult& Visualization = NaniteRasterResults->Visualizations[0];
-			AddDrawTexturePass(
-				GraphBuilder,
-				View,
-				Visualization.ModeOutput,
-				SceneColor.Texture,
-				View.ViewRect.Min,
-				View.ViewRect.Min,
-				View.ViewRect.Size()
-			);
-		}
+		AddVisualizeNanitePass(GraphBuilder, View, SceneColor, *NaniteRasterResults);
 	}
 
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
 	{
 		ShaderDrawDebug::DrawView(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
 	}
+
 	if (ShaderPrint::IsEnabled() && ShaderPrint::IsSupported(View))
 	{
 		ShaderPrint::DrawView(GraphBuilder, View, SceneColor.Texture);
 	}
+
 	if ( View.Family && View.Family->Scene )
 	{
 		if (FFXSystemInterface* FXSystem = View.Family->Scene->GetFXSystem())

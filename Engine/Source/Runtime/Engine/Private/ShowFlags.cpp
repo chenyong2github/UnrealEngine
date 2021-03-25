@@ -546,7 +546,8 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 
 		if (ViewModeIndex == VMI_VisualizeNanite)
 		{
-			EngineShowFlags.SetVisualizeHDR(false);
+			// TODO: NANITE_VIEW_MODES: Only disable these in fullscreen mode
+			/*EngineShowFlags.SetVisualizeHDR(false);
 			EngineShowFlags.SetVisualizeMotionBlur(false);
 			EngineShowFlags.SetDepthOfField(false);
 			EngineShowFlags.SetPostProcessMaterial(false);
@@ -555,7 +556,7 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 			if (bCanDisableTonemapper)
 			{
 				EngineShowFlags.SetTonemapper(false);
-			}
+			}*/
 		}
 	}
 

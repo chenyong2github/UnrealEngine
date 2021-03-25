@@ -453,7 +453,7 @@ struct FRasterContext
 	ERasterTechnique	RasterTechnique;
 	ERasterScheduling	RasterScheduling;
 
-	FIntVector4			VisualizeConfig;
+	FRasterParameters	Parameters;
 
 	FRDGTextureRef		LockBuffer;
 	FRDGTextureRef		DepthBuffer;
@@ -461,7 +461,8 @@ struct FRasterContext
 	FRDGTextureRef		DbgBuffer64;
 	FRDGTextureRef		DbgBuffer32;
 
-	FRasterParameters	Parameters;
+	uint32				VisualizeModeBitMask;
+	bool				VisualizeActive;
 };
 
 struct FVisualizeResult
@@ -469,6 +470,8 @@ struct FVisualizeResult
 	FRDGTextureRef ModeOutput;
 	FName ModeName;
 	int32 ModeID;
+	uint8 bCompositeScene : 1;
+	uint8 bSkippedTile    : 1;
 };
 
 struct FRasterResults
@@ -674,6 +677,7 @@ void AddVisualizationPasses(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FSceneTextures& SceneTextures,
+	const FEngineShowFlags& EngineShowFlags,
 	TArrayView<const FViewInfo> Views,
 	TArrayView<Nanite::FRasterResults> Results
 );

@@ -63,6 +63,7 @@
 #define RENDER_FLAG_FORCE_HW_RASTER				0x2
 #define RENDER_FLAG_PRIMITIVE_SHADER			0x4
 #define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS	0x8
+#define RENDER_FLAG_REVERSE_CULLING				0x10
 
 // Only available with the DEBUG_FLAGS permutation active.
 #define DEBUG_FLAG_WRITE_STATS					0x1
@@ -91,29 +92,30 @@ uint GetHWClusterCounterIndex(uint InRenderFlags)
 }
 
 // Debug Visualization Modes (must match NaniteRender.cpp)
-#define VISUALIZE_TRIANGLES							1
-#define VISUALIZE_CLUSTERS							2
-#define VISUALIZE_PRIMITIVES						3
-#define VISUALIZE_INSTANCES							4
-#define VISUALIZE_GROUPS							5
-#define VISUALIZE_PAGES								6
-#define VISUALIZE_OVERDRAW							7
-#define VISUALIZE_RASTER_MODE						8
-#define VISUALIZE_SCENE_Z_MIN						9
-#define VISUALIZE_SCENE_Z_MAX						10
-#define VISUALIZE_SCENE_Z_DELTA						11
-#define VISUALIZE_MATERIAL_Z_MIN					12
-#define VISUALIZE_MATERIAL_Z_MAX					13
-#define VISUALIZE_MATERIAL_Z_DELTA					14
-#define VISUALIZE_MATERIAL_MODE						15
-#define VISUALIZE_MATERIAL_INDEX					16
-#define VISUALIZE_MATERIAL_DEPTH					17
-#define VISUALIZE_HIT_PROXY_DEPTH					18
-#define VISUALIZE_NANITE_MASK						19
-#define VISUALIZE_LIGHTMAP_UVS						20
-#define VISUALIZE_LIGHTMAP_UV_INDEX					21
-#define VISUALIZE_LIGHTMAP_DATA_INDEX				22
-#define VISUALIZE_HIERARCHY_OFFSET					23
+#define VISUALIZE_OVERVIEW							0u
+#define VISUALIZE_TRIANGLES							(1u << 0u)
+#define VISUALIZE_CLUSTERS							(1u << 1u)
+#define VISUALIZE_PRIMITIVES						(1u << 2u)
+#define VISUALIZE_INSTANCES							(1u << 3u)
+#define VISUALIZE_GROUPS							(1u << 4u)
+#define VISUALIZE_PAGES								(1u << 5u)
+#define VISUALIZE_OVERDRAW							(1u << 6u)
+#define VISUALIZE_RASTER_MODE						(1u << 7u)
+#define VISUALIZE_SCENE_Z_MIN						(1u << 8u)
+#define VISUALIZE_SCENE_Z_MAX						(1u << 9u)
+#define VISUALIZE_SCENE_Z_DELTA						(1u << 10u)
+#define VISUALIZE_MATERIAL_Z_MIN					(1u << 11u)
+#define VISUALIZE_MATERIAL_Z_MAX					(1u << 12u)
+#define VISUALIZE_MATERIAL_Z_DELTA					(1u << 13u)
+#define VISUALIZE_MATERIAL_MODE						(1u << 14u)
+#define VISUALIZE_MATERIAL_INDEX					(1u << 15u)
+#define VISUALIZE_MATERIAL_DEPTH					(1u << 16u)
+#define VISUALIZE_HIT_PROXY_DEPTH					(1u << 17u)
+#define VISUALIZE_NANITE_MASK						(1u << 18u)
+#define VISUALIZE_LIGHTMAP_UVS						(1u << 19u)
+#define VISUALIZE_LIGHTMAP_UV_INDEX					(1u << 20u)
+#define VISUALIZE_LIGHTMAP_DATA_INDEX				(1u << 21u)
+#define VISUALIZE_HIERARCHY_OFFSET					(1u << 22u)
 
 struct FStats
 {

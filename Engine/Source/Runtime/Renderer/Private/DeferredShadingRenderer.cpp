@@ -1626,10 +1626,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		Nanite::GStreamingManager.BeginAsyncUpdate(GraphBuilder);
 
 		FNaniteVisualizationData& NaniteVisualization = GetNaniteVisualizationData();
-		if (Views.Num() > 0 && ViewFamily.EngineShowFlags.VisualizeNanite)
+		if (Views.Num() > 0)
 		{
 			const FName& NaniteViewMode = Views[0].CurrentNaniteVisualizationMode;
-			NaniteVisualization.Update(NaniteViewMode);
+			if (NaniteVisualization.Update(NaniteViewMode))
+			{
+				// When activating the view modes from the command line, automatically enable the VisualizeNanite show flag for convenience.
+				ViewFamily.EngineShowFlags.SetVisualizeNanite(true);
+			}
 			bVisualizeNanite = NaniteVisualization.IsActive();
 		}
 	}
@@ -2374,6 +2378,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				GraphBuilder,
 				Scene,
 				SceneTextures,
+				ViewFamily.EngineShowFlags,
 				Views,
 				NaniteRasterResults
 			);
