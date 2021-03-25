@@ -49,9 +49,6 @@ public:
 	inline ByteArray& GetBytes() { return Hash; }
 	inline const ByteArray& GetBytes() const { return Hash; }
 
-	/** Returns the hash as a 40-character hex string. */
-	CORE_API FString ToString() const;
-
 	/** Calculate the hash of the input data. */
 	static inline FIoHash HashBuffer(const void* Data, uint64 Size);
 
@@ -146,3 +143,12 @@ inline FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, const
 	UE::String::BytesToHexLower(Hash.GetBytes(), Builder);
 	return Builder;
 }
+
+/** Construct a hash from a 40-character hex string. */
+inline void LexFromString(FIoHash& OutHash, const TCHAR* Buffer)
+{
+	OutHash = FIoHash(Buffer);
+}
+
+/** Convert a hash to a 40-character hex string. */
+UE_NODISCARD CORE_API FString LexToString(const FIoHash& Hash);

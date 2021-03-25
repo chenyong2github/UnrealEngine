@@ -137,9 +137,6 @@ inline FArchive& operator<<(FArchive& Ar, FBlake3Hash& Hash)
 	return Ar;
 }
 
-/** Stringifies the hash for textual output (e.g. to log file) */
-CORE_API FString LexToString(const FBlake3Hash& Hash);
-
 inline uint32 GetTypeHash(const FBlake3Hash& Hash)
 {
 	return *reinterpret_cast<const uint32*>(Hash.GetBytes());
@@ -156,3 +153,12 @@ inline FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, const
 	UE::String::BytesToHexLower(Hash.GetBytes(), Builder);
 	return Builder;
 }
+
+/** Construct a hash from a 64-character hex string. */
+inline void LexFromString(FBlake3Hash& OutHash, const TCHAR* Buffer)
+{
+	OutHash = FBlake3Hash(Buffer);
+}
+
+/** Convert a hash to a 64-character hex string. */
+UE_NODISCARD CORE_API FString LexToString(const FBlake3Hash& Hash);

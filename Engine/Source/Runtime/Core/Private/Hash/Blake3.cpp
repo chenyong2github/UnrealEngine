@@ -40,7 +40,12 @@ FBlake3Hash FBlake3::HashBuffer(const void* Data, uint64 Size)
 
 FString LexToString(const FBlake3Hash& Hash)
 {
-	return BytesToHex((const uint8*)Hash.GetBytes(), sizeof(decltype(Hash.GetBytes())));
+	FString Output;
+	TArray<TCHAR>& CharArray = Output.GetCharArray();
+	CharArray.AddUninitialized(sizeof(FBlake3Hash::ByteArray) * 2 + 1);
+	UE::String::BytesToHexLower(Hash.GetBytes(), CharArray.GetData());
+	CharArray.Last() = 0;
+	return Output;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
