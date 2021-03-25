@@ -223,6 +223,7 @@ bool UDisplayClusterGameEngine::LoadMap(FWorldContext& WorldContext, FURL URL, c
 
 		// Start new scene
 		GDisplayCluster->StartScene(WorldContext.World());
+		WorldContextObject = WorldContext.World();
 
 		// Game start barrier
 		if (NodeController)
