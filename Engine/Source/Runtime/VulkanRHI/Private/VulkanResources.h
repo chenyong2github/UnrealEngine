@@ -75,6 +75,7 @@ public:
 	static void EmptyCache();
 };
 
+struct FGfxPipelineDesc;
 
 class FVulkanShader : public IRefCountedObject
 {
@@ -83,6 +84,7 @@ public:
 		: ShaderKey(0)
 		, StageFlag(InStageFlag)
 		, Frequency(InFrequency)
+		, SpirvSize(0)
 		, Device(InDevice)
 	{
 	}
@@ -103,6 +105,22 @@ public:
 
 		return CreateHandle(Layout, LayoutHash);
 	}
+	
+	VkShaderModule GetOrCreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash)
+	{
+		if (NeedsSpirvInputAttachmentPatching(Desc))
+		{
+			LayoutHash = HashCombine(LayoutHash, 1);
+		}
+		
+		VkShaderModule* Found = ShaderModules.Find(LayoutHash);
+		if (Found)
+		{
+			return *Found;
+		}
+
+		return CreateHandle(Desc, Layout, LayoutHash);
+	}
 
 	inline const FString& GetDebugName() const
 	{
@@ -112,7 +130,7 @@ public:
 	// Name should be pointing to "main_"
 	void GetEntryPoint(ANSICHAR* Name, int32 NameLength)
 	{
-		FCStringAnsi::Snprintf(Name, NameLength, "main_%0.8x_%0.8x", Spirv.Num() * sizeof(uint32), CodeHeader.SpirvCRC);
+		FCStringAnsi::Snprintf(Name, NameLength, "main_%0.8x_%0.8x", SpirvSize, CodeHeader.SpirvCRC);
 	}
 
 	FORCEINLINE const FVulkanShaderHeader& GetCodeHeader() const
@@ -140,10 +158,15 @@ protected:
 	TArray<FUniformBufferStaticSlot> StaticSlots;
 
 	TArray<uint32>					Spirv;
+	// this is size of unmodified spriv code
+	uint32							SpirvSize;
 
 	FVulkanDevice*					Device;
 
 	VkShaderModule CreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash);
+	VkShaderModule CreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash);
+	
+	bool NeedsSpirvInputAttachmentPatching(const FGfxPipelineDesc& Desc) const;
 
 	friend class FVulkanCommandListContext;
 	friend class FVulkanPipelineStateCacheManager;

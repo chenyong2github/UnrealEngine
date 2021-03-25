@@ -98,6 +98,8 @@ void FVulkanShader::Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 
 
 	checkf(Spirv.Num() != 0, TEXT("Empty SPIR-V! %s"), *CodeHeader.DebugName);
 
+	SpirvSize = Spirv.Num() * sizeof(uint32);
+
 	if (CodeHeader.bHasRealUBs)
 	{
 		check(CodeHeader.UniformBufferSpirvInfos.Num() == CodeHeader.UniformBuffers.Num());
@@ -130,9 +132,131 @@ void FVulkanShader::Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 
 #endif
 }
 
+static VkShaderModule CreateShaderModule(FVulkanDevice* Device, const TArray<uint32>& Spirv)
+{
+	VkShaderModule ShaderModule;
+	VkShaderModuleCreateInfo ModuleCreateInfo;
+	ZeroVulkanStruct(ModuleCreateInfo, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
+	//ModuleCreateInfo.flags = 0;
+
+	ModuleCreateInfo.codeSize = Spirv.Num() * sizeof(uint32);
+	ModuleCreateInfo.pCode = Spirv.GetData();
+
+#if VULKAN_SUPPORTS_VALIDATION_CACHE
+	VkShaderModuleValidationCacheCreateInfoEXT ValidationInfo;
+	if (Device->GetOptionalExtensions().HasEXTValidationCache)
+	{
+		ZeroVulkanStruct(ValidationInfo, VK_STRUCTURE_TYPE_SHADER_MODULE_VALIDATION_CACHE_CREATE_INFO_EXT);
+		ValidationInfo.validationCache = Device->GetValidationCache();
+		ModuleCreateInfo.pNext = &ValidationInfo;
+	}
+#endif
+
+	VERIFYVULKANRESULT(VulkanRHI::vkCreateShaderModule(Device->GetInstanceHandle(), &ModuleCreateInfo, VULKAN_CPU_ALLOCATOR, &ShaderModule));
+	return ShaderModule;
+}
+
+/*
+ *  Replace all subpassInput declarations with subpassInputMS
+ *  Replace all subpassLoad(Input) with subpassLoad(Input, 0)
+ */
+static void PatchSpirvInputAttachments(TArray<uint32>& InSpirv)
+{
+	const uint32 kHeaderLength = 5;
+	const uint32 kOpTypeImage = 25;
+	const uint32 kDimSubpassData = 6;
+	const uint32 kOpImageRead = 98;
+	const uint32 kOpLoad = 61;
+	const uint32 kOpConstant = 43;
+	const uint32 kOpTypeInt = 21;
+
+	const uint32 Len = InSpirv.Num();
+	// Make sure we at least have a header
+	if (Len < kHeaderLength)
+	{
+		return;
+	}
+
+	TArray<uint32> OutSpirv;
+	OutSpirv.Reserve(Len + 2);
+	// Copy header
+	OutSpirv.Append(&InSpirv[0], kHeaderLength);
+
+	uint32 IntegerType = 0;
+	uint32 Constant0 = 0;
+	TArray<uint32, TInlineAllocator<4>> SubpassDataImages;
+	
+	for (uint32 Pos = kHeaderLength; Pos < Len;)
+	{
+		uint32* SpirvData = &InSpirv[Pos];
+		const uint32 InstLen =	SpirvData[0] >> 16;
+		const uint32 Opcode =	SpirvData[0] & 0x0000ffffu;
+		bool bSkip = false;
+
+		if (Opcode == kOpTypeInt && SpirvData[3] == 1)
+		{
+			// signed int
+			IntegerType = SpirvData[1];
+		}
+		else if (Opcode == kOpConstant && SpirvData[1] == IntegerType && SpirvData[3] == 0)
+		{
+			// const signed int == 0
+			Constant0 = SpirvData[2];
+		}
+		else if (Opcode == kOpTypeImage && SpirvData[3] == kDimSubpassData)
+		{
+			SpirvData[6] = 1; // mark as multisampled
+			SubpassDataImages.Add(SpirvData[1]);
+		}
+		else if (Opcode == kOpLoad && SubpassDataImages.Contains(SpirvData[1]))
+		{
+			// pointers to our image
+			SubpassDataImages.Add(SpirvData[2]);
+		}
+		else if (Opcode == kOpImageRead && SubpassDataImages.Contains(SpirvData[3]))
+		{
+			// const int 0, must be present as it's used for coord operand in image sampling
+			check(Constant0 != 0);
+
+			OutSpirv.Add((7u << 16) | kOpImageRead); // new instruction with 7 operands
+			OutSpirv.Append(&SpirvData[1], 4); // copy existing operands
+			OutSpirv.Add(0x40);			// Sample operand
+			OutSpirv.Add(Constant0);	// Sample number
+			bSkip = true;
+		}
+
+		if (!bSkip)
+		{
+			OutSpirv.Append(&SpirvData[0], InstLen);
+		}
+		Pos += InstLen;
+	}
+
+	Swap(InSpirv, OutSpirv);
+}
+
+bool FVulkanShader::NeedsSpirvInputAttachmentPatching(const FGfxPipelineDesc& Desc) const
+{
+	return (Desc.RasterizationSamples > 1 && CodeHeader.InputAttachments.Num() > 0);
+}
+
+VkShaderModule FVulkanShader::CreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash)
+{
+	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader, StageFlag);
+	if (NeedsSpirvInputAttachmentPatching(Desc))
+	{
+		PatchSpirvInputAttachments(Spirv);
+	}
+
+	VkShaderModule Module = CreateShaderModule(Device, Spirv);
+	ShaderModules.Add(LayoutHash, Module);
+	return Module;
+}
+
 VkShaderModule FVulkanShader::CreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)
 {
-	VkShaderModule Module = Layout->CreatePatchedPatchSpirvModule(Spirv, Frequency, CodeHeader, StageFlag);
+	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader, StageFlag);
+	VkShaderModule Module = CreateShaderModule(Device, Spirv);
 	ShaderModules.Add(LayoutHash, Module);
 	return Module;
 }
@@ -153,13 +277,8 @@ void FVulkanShader::PurgeShaderModules()
 	ShaderModules.Empty(0);
 }
 
-VkShaderModule FVulkanLayout::CreatePatchedPatchSpirvModule(TArray<uint32>& Spirv, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const
+void FVulkanLayout::PatchSpirvBindings(TArray<uint32>& Spirv, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const
 {
-	VkShaderModule ShaderModule;
-	VkShaderModuleCreateInfo ModuleCreateInfo;
-	ZeroVulkanStruct(ModuleCreateInfo, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
-	//ModuleCreateInfo.flags = 0;
-
 	//#todo-rco: Do we need an actual copy of the SPIR-V?
 	ShaderStage::EStage Stage = ShaderStage::GetStageForFrequency(Frequency);
 	const FDescriptorSetRemappingInfo::FStageInfo& StageInfo = DescriptorSetLayout.RemappingInfo.StageInfos[Stage];
@@ -202,24 +321,7 @@ VkShaderModule FVulkanLayout::CreatePatchedPatchSpirvModule(TArray<uint32>& Spir
 		Spirv[OffsetDescriptorSet] = StageInfo.PackedUBDescriptorSet;
 		Spirv[OffsetBindingIndex] = StageInfo.PackedUBBindingIndices[Index];
 	}
-
-	ModuleCreateInfo.codeSize = Spirv.Num() * sizeof(uint32);
-	ModuleCreateInfo.pCode = Spirv.GetData();
-
-#if VULKAN_SUPPORTS_VALIDATION_CACHE
-	VkShaderModuleValidationCacheCreateInfoEXT ValidationInfo;
-	if (Device->GetOptionalExtensions().HasEXTValidationCache)
-	{
-		ZeroVulkanStruct(ValidationInfo, VK_STRUCTURE_TYPE_SHADER_MODULE_VALIDATION_CACHE_CREATE_INFO_EXT);
-		ValidationInfo.validationCache = Device->GetValidationCache();
-		ModuleCreateInfo.pNext = &ValidationInfo;
-	}
-#endif
-
-	VERIFYVULKANRESULT(VulkanRHI::vkCreateShaderModule(Device->GetInstanceHandle(), &ModuleCreateInfo, VULKAN_CPU_ALLOCATOR, &ShaderModule));
-	return ShaderModule;
 }
-
 
 FVertexShaderRHIRef FVulkanDynamicRHI::RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {

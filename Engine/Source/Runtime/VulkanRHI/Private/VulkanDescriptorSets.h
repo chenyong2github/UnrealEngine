@@ -843,7 +843,7 @@ public:
 		return DescriptorSetLayout.GetHash();
 	}
 
-	VkShaderModule CreatePatchedPatchSpirvModule(TArray<uint32>& Spirv, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const;
+	void PatchSpirvBindings(TArray<uint32>& Spirv, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const;
 
 protected:
 	FVulkanDescriptorSetsLayout	DescriptorSetLayout;
