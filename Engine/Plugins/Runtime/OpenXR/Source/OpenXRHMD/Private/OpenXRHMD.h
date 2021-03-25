@@ -162,8 +162,6 @@ protected:
 
 	const FPipelinedFrameState& GetPipelinedFrameStateForThread() const;
 	FPipelinedFrameState& GetPipelinedFrameStateForThread();
-	const FPipelinedLayerState& GetPipelinedLayerStateForThread() const;
-	FPipelinedLayerState& GetPipelinedLayerStateForThread();
 
 	void UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins);
 	void EnumerateViews(FPipelinedFrameState& PipelineState);

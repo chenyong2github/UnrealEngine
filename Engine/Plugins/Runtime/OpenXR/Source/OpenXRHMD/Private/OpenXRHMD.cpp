@@ -1088,14 +1088,11 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 	int32 ViewIndex = GetViewIndexForPass(StereoPass);
 	float NearZ = GNearClippingPlane / GetWorldToMetersScale();
 
-	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
-	FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
-
 	// Keep the swapchains alive in the LayerState to ensure the XrSwapchain handles remain valid until xrEndFrame.
-	LayerState.ColorSwapchain = Swapchain;
-	LayerState.DepthSwapchain = DepthSwapchain;
+	PipelinedLayerStateRendering.ColorSwapchain = Swapchain;
+	PipelinedLayerStateRendering.DepthSwapchain = DepthSwapchain;
 
-	XrSwapchainSubImage& ColorImage = LayerState.ColorImages[ViewIndex];
+	XrSwapchainSubImage& ColorImage = PipelinedLayerStateRendering.ColorImages[ViewIndex];
 	ColorImage.swapchain = Swapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle() : XR_NULL_HANDLE;
 	ColorImage.imageArrayIndex = bIsMobileMultiViewEnabled && ViewIndex < 2 ? ViewIndex : 0;
 	ColorImage.imageRect = {
@@ -1103,7 +1100,7 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 		{ FinalViewRect.Width(), FinalViewRect.Height() }
 	};
 
-	XrSwapchainSubImage& DepthImage = LayerState.DepthImages[ViewIndex];
+	XrSwapchainSubImage& DepthImage = PipelinedLayerStateRendering.DepthImages[ViewIndex];
 	if (bDepthExtensionSupported)
 	{
 		DepthImage.swapchain = DepthSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle() : XR_NULL_HANDLE;
@@ -1111,20 +1108,20 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 		DepthImage.imageRect = ColorImage.imageRect;
 	}
 
-	if (!PipelineState.PluginViews.IsValidIndex(ViewIndex))
+	if (!PipelinedFrameStateRendering.PluginViews.IsValidIndex(ViewIndex))
 	{
 		// This plugin is no longer providing this view.
 		return;
 	}
 
-	if (PipelineState.PluginViews[ViewIndex])
+	if (PipelinedFrameStateRendering.PluginViews[ViewIndex])
 	{
 		// Defer to the plugin to handle submission
 		return;
 	}
 
-	XrCompositionLayerProjectionView& Projection = LayerState.ProjectionLayers[ViewIndex];
-	XrCompositionLayerDepthInfoKHR& DepthLayer = LayerState.DepthLayers[ViewIndex];
+	XrCompositionLayerProjectionView& Projection = PipelinedLayerStateRendering.ProjectionLayers[ViewIndex];
+	XrCompositionLayerDepthInfoKHR& DepthLayer = PipelinedLayerStateRendering.DepthLayers[ViewIndex];
 
 	Projection.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW;
 	Projection.next = nullptr;
@@ -1451,11 +1448,10 @@ FOpenXRHMD::~FOpenXRHMD()
 
 const FOpenXRHMD::FPipelinedFrameState& FOpenXRHMD::GetPipelinedFrameStateForThread() const
 {
-	if (IsInRHIThread())
-	{
-		return PipelinedFrameStateRHI;
-	}
-	else if (IsInRenderingThread())
+	// Relying on implicit selection of the RHI struct is hazardous since the RHI thread isn't always present
+	check(!IsInRHIThread());
+
+	if (IsInRenderingThread())
 	{
 		return PipelinedFrameStateRendering;
 	}
@@ -1468,11 +1464,10 @@ const FOpenXRHMD::FPipelinedFrameState& FOpenXRHMD::GetPipelinedFrameStateForThr
 
 FOpenXRHMD::FPipelinedFrameState& FOpenXRHMD::GetPipelinedFrameStateForThread()
 {
-	if (IsInRHIThread())
-	{
-		return PipelinedFrameStateRHI;
-	}
-	else if (IsInRenderingThread())
+	// Relying on implicit selection of the RHI struct is hazardous since the RHI thread isn't always present
+	check(!IsInRHIThread());
+
+	if (IsInRenderingThread())
 	{
 		return PipelinedFrameStateRendering;
 	}
@@ -1480,32 +1475,6 @@ FOpenXRHMD::FPipelinedFrameState& FOpenXRHMD::GetPipelinedFrameStateForThread()
 	{
 		check(IsInGameThread());
 		return PipelinedFrameStateGame;
-	}
-}
-
-const FOpenXRHMD::FPipelinedLayerState& FOpenXRHMD::GetPipelinedLayerStateForThread() const
-{
-	if (IsInRHIThread())
-	{
-		return PipelinedLayerStateRHI;
-	}
-	else
-	{
-		check(IsInRenderingThread());
-		return PipelinedLayerStateRendering;
-	}
-}
-
-FOpenXRHMD::FPipelinedLayerState& FOpenXRHMD::GetPipelinedLayerStateForThread()
-{
-	if (IsInRHIThread())
-	{
-		return PipelinedLayerStateRHI;
-	}
-	else
-	{
-		check(IsInRenderingThread());
-		return PipelinedLayerStateRendering;
 	}
 }
 
@@ -2083,15 +2052,14 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 
 	PipelinedFrameStateRendering = PipelinedFrameStateGame;
 
-	FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
-	for (int32 ViewIndex = 0; ViewIndex < LayerState.ProjectionLayers.Num(); ViewIndex++)
+	for (int32 ViewIndex = 0; ViewIndex < PipelinedLayerStateRendering.ProjectionLayers.Num(); ViewIndex++)
 	{
 		const XrView& View = PipelinedFrameStateRendering.Views[ViewIndex];
 		FTransform EyePose = ToFTransform(View.pose, GetWorldToMetersScale());
 
 		// Apply the base HMD pose to each eye pose, we will late update this pose for late update in another callback
 		FTransform BasePose(ViewFamily.Views[ViewIndex]->BaseHmdOrientation, ViewFamily.Views[ViewIndex]->BaseHmdLocation);
-		XrCompositionLayerProjectionView& Projection = LayerState.ProjectionLayers[ViewIndex];
+		XrCompositionLayerProjectionView& Projection = PipelinedLayerStateRendering.ProjectionLayers[ViewIndex];
 		FTransform BasePoseTransform = EyePose * BasePose;
 		BasePoseTransform.NormalizeRotation();
 		Projection.pose = ToXrPose(BasePoseTransform, GetWorldToMetersScale());
@@ -2148,13 +2116,11 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHIC
 	FHeadMountedDisplayBase::OnLateUpdateApplied_RenderThread(RHICmdList, NewRelativeTransform);
 
 	ensure(IsInRenderingThread());
-	FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
-	FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
 
-	for (int32 ViewIndex = 0; ViewIndex < LayerState.ProjectionLayers.Num(); ViewIndex++)
+	for (int32 ViewIndex = 0; ViewIndex < PipelinedLayerStateRendering.ProjectionLayers.Num(); ViewIndex++)
 	{
-		const XrView& View = FrameState.Views[ViewIndex];
-		XrCompositionLayerProjectionView& Projection = LayerState.ProjectionLayers[ViewIndex];
+		const XrView& View = PipelinedFrameStateRendering.Views[ViewIndex];
+		XrCompositionLayerProjectionView& Projection = PipelinedLayerStateRendering.ProjectionLayers[ViewIndex];
 
 		// Apply the new HMD orientation to each eye pose for the final pose
 		FTransform EyePose = ToFTransform(View.pose, GetWorldToMetersScale());
@@ -2368,7 +2334,7 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 	SCOPED_NAMED_EVENT(BeginFrame, FColor::Red);
 
 	FReadScopeLock Lock(SessionHandleMutex);
-	if (!bIsRunning || !Swapchain)
+	if (!bIsRunning)
 	{
 		return;
 	}
@@ -2398,11 +2364,14 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 
 	if (XR_SUCCEEDED(Result))
 	{
-		Swapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
-		if (bDepthExtensionSupported && DepthSwapchain)
+		if (PipelinedLayerStateRHI.ColorSwapchain)
 		{
-			ensure(DepthSwapchain != nullptr);
-			DepthSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			PipelinedLayerStateRHI.ColorSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			if (bDepthExtensionSupported && PipelinedLayerStateRHI.DepthSwapchain)
+			{
+				ensure(PipelinedLayerStateRHI.DepthSwapchain != nullptr);
+				PipelinedLayerStateRHI.DepthSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			}
 		}
 
 		bIsRendering = true;
@@ -2416,21 +2385,18 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	SCOPED_NAMED_EVENT(EndFrame, FColor::Red);
 
 	FReadScopeLock Lock(SessionHandleMutex);
-	if (!bIsRunning || !Swapchain)
+	if (!bIsRunning)
 	{
 		return;
 	}
-
-	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
-	const FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
 
 	XrCompositionLayerProjection Layer = {};
 	Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
 	Layer.next = nullptr;
 	Layer.layerFlags = bProjectionLayerAlphaEnabled ? XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT : 0;
-	Layer.space = PipelineState.TrackingSpace;
-	Layer.viewCount = LayerState.ProjectionLayers.Num();
-	Layer.views = LayerState.ProjectionLayers.GetData();
+	Layer.space = PipelinedFrameStateRHI.TrackingSpace;
+	Layer.viewCount = PipelinedLayerStateRHI.ProjectionLayers.Num();
+	Layer.views = PipelinedLayerStateRHI.ProjectionLayers.GetData();
 
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
@@ -2439,21 +2405,24 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 
 	if (bIsRendering)
 	{
-		Swapchain->ReleaseCurrentImage_RHIThread();
-
-		if (bDepthExtensionSupported && DepthSwapchain)
+		if (PipelinedLayerStateRHI.ColorSwapchain)
 		{
-			DepthSwapchain->ReleaseCurrentImage_RHIThread();
+			PipelinedLayerStateRHI.ColorSwapchain->ReleaseCurrentImage_RHIThread();
+
+			if (bDepthExtensionSupported && PipelinedLayerStateRHI.DepthSwapchain)
+			{
+				PipelinedLayerStateRHI.DepthSwapchain->ReleaseCurrentImage_RHIThread();
+			}
 		}
 
 		XrFrameEndInfo EndInfo;
 		XrCompositionLayerBaseHeader* Headers[1] = { reinterpret_cast<XrCompositionLayerBaseHeader*>(&Layer) };
 		EndInfo.type = XR_TYPE_FRAME_END_INFO;
 		EndInfo.next = nullptr;
-		EndInfo.displayTime = PipelineState.FrameState.predictedDisplayTime;
+		EndInfo.displayTime = PipelinedFrameStateRHI.FrameState.predictedDisplayTime;
 		EndInfo.environmentBlendMode = SelectedEnvironmentBlendMode;
-		EndInfo.layerCount = PipelineState.FrameState.shouldRender ? 1 : 0;
-		EndInfo.layers = PipelineState.FrameState.shouldRender ?
+		EndInfo.layerCount = PipelinedFrameStateRHI.FrameState.shouldRender ? 1 : 0;
+		EndInfo.layers = PipelinedFrameStateRHI.FrameState.shouldRender ?
 			reinterpret_cast<XrCompositionLayerBaseHeader**>(Headers) : nullptr;
 
 		// Make callback to plugin including any extra view subimages they've requested
@@ -2461,14 +2430,14 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 		{
 			TArray<XrSwapchainSubImage> ColorImages;
 			TArray<XrSwapchainSubImage> DepthImages;
-			for (int32 i = 0; i < PipelineState.PluginViews.Num(); i++)
+			for (int32 i = 0; i < PipelinedFrameStateRHI.PluginViews.Num(); i++)
 			{
-				if (PipelineState.PluginViews[i] == Module && LayerState.ColorImages.IsValidIndex(i))
+				if (PipelinedFrameStateRHI.PluginViews[i] == Module && PipelinedLayerStateRHI.ColorImages.IsValidIndex(i))
 				{
-					ColorImages.Add(LayerState.ColorImages[i]);
+					ColorImages.Add(PipelinedLayerStateRHI.ColorImages[i]);
 					if (bDepthExtensionSupported)
 					{
-						DepthImages.Add(LayerState.DepthImages[i]);
+						DepthImages.Add(PipelinedLayerStateRHI.DepthImages[i]);
 					}
 				}
 			}
