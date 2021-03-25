@@ -4,6 +4,7 @@
 
 #if WITH_EDITOR
 #include "EdGraph/EdGraph.h"
+#include "UObject/ObjectSaveContext.h"
 #endif
 #include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -57,9 +58,14 @@ FLinearColor UConversationDatabase::GetDebugParticipantColor(FGameplayTag Partic
 #if WITH_EDITOR
 void UConversationDatabase::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
 
-
+void UConversationDatabase::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 }
 
 EDataValidationResult UConversationDatabase::IsDataValid(TArray<FText>& ValidationErrors)

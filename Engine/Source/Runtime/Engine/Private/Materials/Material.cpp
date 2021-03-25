@@ -5,10 +5,12 @@
 =============================================================================*/
 
 #include "Materials/Material.h"
+
 #include "Stats/StatsMisc.h"
 #include "Misc/FeedbackContext.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "Misc/App.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
@@ -1027,7 +1029,14 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 
 void UMaterial::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UMaterial::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 #if WITH_EDITOR
 	GMaterialsWithDirtyUsageFlags.RemoveAnnotation(this);
 #endif

@@ -31,13 +31,15 @@ protected:
 
 	bool SatisfiesTest(IGameplayTagAssetInterface* ItemGameplayTagAssetInterface) const;
 
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	/**
 	 * Presave function. Gets called once before an object gets serialized for saving. This function is necessary
 	 * for save time computation as Serialize gets called three times per object from within SavePackage.
 	 *
 	 * @warning: Objects created from within PreSave will NOT have PreSave called on them!!!
 	 */
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 	virtual void PostLoad() override;
 

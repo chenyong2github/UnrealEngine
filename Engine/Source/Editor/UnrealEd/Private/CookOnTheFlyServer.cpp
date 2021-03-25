@@ -44,6 +44,7 @@
 #include "UObject/SavePackage.h"
 #include "UObject/MetaData.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectArray.h"
 #include "Misc/PackageName.h"
 #include "Misc/RedirectCollector.h"
@@ -8142,13 +8143,16 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	TSet<UPackage*> ProcessedPackages;
 	ProcessedPackages.Reserve(65536);
 
-	TMap<UWorld*, bool> WorldsToPostSaveRoot;
+	TMap<UWorld*, TArray<bool>> WorldsToPostSaveRoot;
 	WorldsToPostSaveRoot.Reserve(1024);
 
 	TArray<UObject*> ObjectsToWaitForCookedPlatformData;
 	ObjectsToWaitForCookedPlatformData.Reserve(65536);
 
 	TArray<FString> PackagesToLoad;
+
+	FObjectSaveContextData ObjectSaveContext(nullptr, nullptr, TEXT(""), SaveFlags);
+
 	do
 	{
 		PackagesToLoad.Reset();
@@ -8236,35 +8240,42 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 							UWorld* World = Cast<UWorld>(Obj);
 							bool bInitializedPhysicsSceneForSave = false;
 							bool bForceInitializedWorld = false;
-							if (World && bSaveConcurrent)
-							{
-								UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_SettingUpWorlds);
-								// We need a physics scene at save time in case code does traces during onsave events.
-								bInitializedPhysicsSceneForSave = GEditor->InitializePhysicsSceneForSaveIfNecessary(World, bForceInitializedWorld);
-
-								GIsCookerLoadingPackage = true;
-								{
-									UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PreSaveWorld);
-									GEditor->OnPreSaveWorld(SaveFlags, World);
-								}
-								{
-									UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PreSaveRoot);
-									bool bCleanupIsRequired = World->PreSaveRoot(TEXT(""));
-									WorldsToPostSaveRoot.Add(World, bCleanupIsRequired);
-								}
-								GIsCookerLoadingPackage = false;
-							}
 
 							bool bAllPlatformDataLoaded = true;
 							bool bIsTexture = Obj->IsA(UTexture::StaticClass());
+							bool bFirstPlatform = true;
 							for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 							{
+								ObjectSaveContext.TargetPlatform = TargetPlatform;
+								ObjectSaveContext.bOuterConcurrentSave = bFirstPlatform;
+								bFirstPlatform = false;
+
 								if (bSaveConcurrent)
 								{
 									GIsCookerLoadingPackage = true;
+									if (World)
+									{
+										UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_SettingUpWorlds);
+										// We need a physics scene at save time in case code does traces during onsave events.
+										if (ObjectSaveContext.bOuterConcurrentSave)
+										{
+											bInitializedPhysicsSceneForSave = GEditor->InitializePhysicsSceneForSaveIfNecessary(World, bForceInitializedWorld);
+										}
+
+										{
+											UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PreSaveWorld);
+											GEditor->OnPreSaveWorld(World, FObjectPreSaveContext(ObjectSaveContext));
+										}
+										{
+											UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PreSaveRoot);
+											UE::SavePackageUtilities::CallPreSaveRoot(World, ObjectSaveContext);
+											WorldsToPostSaveRoot.FindOrAdd(World).Add(ObjectSaveContext.bCleanupRequired);
+										}
+									}
+
 									{
 										UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PreSave);
-										Obj->PreSave(TargetPlatform);
+										UE::SavePackageUtilities::CallPreSave(Obj, ObjectSaveContext);
 									}
 									GIsCookerLoadingPackage = false;
 								}
@@ -8610,11 +8621,18 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	{
 		UE_LOG(LogCook, Display, TEXT("Calling PostSaveRoot on worlds..."));
 		UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PostSaveRoot);
-		for (auto WorldIt = WorldsToPostSaveRoot.CreateConstIterator(); WorldIt; ++WorldIt)
+		for (const TPair<UWorld*,TArray<bool>>& WorldIt : WorldsToPostSaveRoot)
 		{
-			UWorld* World = WorldIt.Key();
+			UWorld* World = WorldIt.Key;
+			const TArray<bool>& PlatformNeedsCleanup = WorldIt.Value;
 			check(World);
-			World->PostSaveRoot(WorldIt.Value());
+			check(PlatformNeedsCleanup.Num() == TargetPlatforms.Num());
+			for (int PlatformIndex = TargetPlatforms.Num() - 1; PlatformIndex >= 0; --PlatformIndex)
+			{
+				ObjectSaveContext.TargetPlatform = TargetPlatforms[PlatformIndex];
+				ObjectSaveContext.bOuterConcurrentSave = PlatformIndex == 0;
+				UE::SavePackageUtilities::CallPostSaveRoot(World, ObjectSaveContext, PlatformNeedsCleanup[PlatformIndex]);
+			}
 		}
 	}
 

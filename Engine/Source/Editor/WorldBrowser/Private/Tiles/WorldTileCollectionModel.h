@@ -158,10 +158,10 @@ private:
 	void SetupParentChildLinks();
 
 	/** Called before saving world into package file */
-	void OnPreSaveWorld(uint32 SaveFlags, class UWorld* World);
+	void OnPreSaveWorld(class UWorld* World, FObjectPreSaveContext ObjectSaveContext);
 	
 	/** Called right after world was saved into package file */
-	void OnPostSaveWorld(uint32 SaveFlags, class UWorld* World, bool bSuccess);
+	void OnPostSaveWorld(class UWorld* World, FObjectPostSaveContext ObjectSaveContext);
 
 	/** Called when world has new current level */
 	void OnNewCurrentLevel();

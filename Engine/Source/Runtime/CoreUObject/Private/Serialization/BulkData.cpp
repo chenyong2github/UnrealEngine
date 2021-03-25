@@ -1496,7 +1496,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 #if WITH_EDITOR
 				// If we are overwriting the LoadedPath for the current package, set the location variables on *this equal to the new values
 				// that we are writing into the package on disk
-				if (LinkerSave && LinkerSave->bSavingNewLoadedPath)
+				if (LinkerSave && LinkerSave->bUpdatingLoadedPath)
 				{
 					SetFlagsFromDiskWrittenValues(LocalBulkDataFlags, LocalBulkDataOffsetInFile, LocalBulkDataSizeOnDisk,
 						INDEX_NONE /* LinkerSummaryBulkDataStartOffset, not applicable */);

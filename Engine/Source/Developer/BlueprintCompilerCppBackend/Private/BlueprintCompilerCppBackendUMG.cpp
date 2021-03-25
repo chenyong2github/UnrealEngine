@@ -18,7 +18,7 @@ void FBackendHelperUMG::WidgetFunctionsInHeader(FEmitterLocalContext& Context)
 	if (Cast<UWidgetBlueprintGeneratedClass>(Context.GetCurrentlyGeneratedClass()))
 	{
 		Context.Header.AddLine(FString::Printf(TEXT("virtual void %s(TArray<FName>& SlotNames) const override;"), GET_FUNCTION_NAME_STRING_CHECKED(UUserWidget, GetSlotNames)));
-		Context.Header.AddLine(FString::Printf(TEXT("virtual void %s(const class ITargetPlatform* TargetPlatform) override;"), GET_FUNCTION_NAME_STRING_CHECKED(UUserWidget, PreSave)));
+		Context.Header.AddLine(FString::Printf(TEXT("virtual void %s(FObjectPreSaveContext ObjectSaveContext) override;"), GET_FUNCTION_NAME_STRING_CHECKED_OneParam(UUserWidget, PreSave, FObjectPreSaveContext)));
 		Context.Header.AddLine(TEXT("virtual void InitializeNativeClassData() override;"));
 	}
 }
@@ -145,10 +145,10 @@ void FBackendHelperUMG::EmitWidgetInitializationFunctions(FEmitterLocalContext& 
 		}
 
 		// PreSave
-		Context.AddLine(FString::Printf(TEXT("void %s::%s(const class ITargetPlatform* TargetPlatform)"), *CppClassName, GET_FUNCTION_NAME_STRING_CHECKED(UUserWidget, PreSave)));
+		Context.AddLine(FString::Printf(TEXT("void %s::%s(FObjectPreSaveContext ObjectSaveContext)"), *CppClassName, GET_FUNCTION_NAME_STRING_CHECKED_OneParam(UUserWidget, PreSave, FObjectPreSaveContext)));
 		Context.AddLine(TEXT("{"));
 		Context.IncreaseIndent();
-		Context.AddLine(FString::Printf(TEXT("Super::%s(TargetPlatform);"), GET_FUNCTION_NAME_STRING_CHECKED(UObject, PreSave)));
+		Context.AddLine(FString::Printf(TEXT("Super::%s(ObjectSaveContext);"), GET_FUNCTION_NAME_STRING_CHECKED_OneParam(UObject, PreSave, FObjectPreSaveContext)));
 		Context.AddLine(TEXT("TArray<FName> LocalNamedSlots;"));
 		Context.AddLine(FString::Printf(TEXT("%s(LocalNamedSlots);"), GET_FUNCTION_NAME_STRING_CHECKED(UUserWidget, GetSlotNames)));
 		Context.AddLine(TEXT("RemoveObsoleteBindings(LocalNamedSlots);")); //RemoveObsoleteBindings is protected - no check

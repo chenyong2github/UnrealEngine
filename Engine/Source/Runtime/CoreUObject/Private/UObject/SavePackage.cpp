@@ -26,6 +26,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectSaveContext.h"
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectIterator.h"
@@ -1641,7 +1642,7 @@ struct FPackageExportTagger
 	,	TargetPlatform(InTargetPlatform)
 	{}
 
-	void TagPackageExports( FArchiveSaveTagExports& ExportTagger, bool bRoutePresave )
+	void TagPackageExports( FArchiveSaveTagExports& ExportTagger, bool bRoutePresave, FObjectSaveContextData& ObjectSaveContext )
 	{
 		const bool bIsCooking = !!TargetPlatform;
 
@@ -1655,7 +1656,7 @@ struct FPackageExportTagger
 					FArchiveObjectCrc32NonEditorProperties CrcArchive;
 
 					int32 Before = CrcArchive.Crc32(Base);
-					Base->PreSave(TargetPlatform);
+					UE::SavePackageUtilities::CallPreSave(Base, ObjectSaveContext);
 					int32 After = CrcArchive.Crc32(Base);
 
 					if (Before != After)
@@ -1672,7 +1673,7 @@ struct FPackageExportTagger
 				}
 				else
 				{
-					Base->PreSave(TargetPlatform);
+					UE::SavePackageUtilities::CallPreSave(Base, ObjectSaveContext);
 				}
 			}
 
@@ -1715,7 +1716,7 @@ struct FPackageExportTagger
 						FArchiveObjectCrc32NonEditorProperties CrcArchive;
 
 						int32 Before = CrcArchive.Crc32(Obj);
-						Obj->PreSave(TargetPlatform);
+						UE::SavePackageUtilities::CallPreSave(Obj, ObjectSaveContext);
 						int32 After = CrcArchive.Crc32(Obj);
 
 						if (Before != After)
@@ -1732,7 +1733,7 @@ struct FPackageExportTagger
 					}
 					else
 					{
-						Obj->PreSave(TargetPlatform);
+						UE::SavePackageUtilities::CallPreSave(Obj, ObjectSaveContext);
 					}
 				}
 			}
@@ -2053,6 +2054,10 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 	check(Filename);
 	const bool bIsCooking = TargetPlatform != nullptr;
 	FPackagePath TargetPackagePath = FPackagePath::FromLocalPath(Filename);
+	if (TargetPackagePath.GetHeaderExtension() == EPackageExtension::Unspecified)
+	{
+		TargetPackagePath.SetHeaderExtension(EPackageExtension::EmptyString);
+	}
 
 #if WITH_EDITOR
 	TMap<UObject*, UObject*> ReplacedImportOuters;
@@ -2070,8 +2075,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		InOuter->SetPersistentGuid(FGuid::NewGuid());
 	}
 #endif //WITH_EDITOR
-	const bool bSavingNewLoadedPath = SavePackageUtilities::IsSavingNewLoadedPath(bIsCooking, TargetPackagePath, SaveFlags);
 	const bool bSavingConcurrent = !!(SaveFlags & ESaveFlags::SAVE_Concurrent);
+	FObjectSaveContextData ObjectSaveContext(InOuter, TargetPlatform, TargetPackagePath, SaveFlags);
 
 	if (FPlatformProperties::HasEditorOnlyData())
 	{
@@ -2231,10 +2236,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 		// Route PreSaveRoot to allow e.g. the world to attach components for the persistent level.
 		// If we are saving concurrently, this should have been called before UPackage::Save was called.
-		bool bCleanupIsRequired = false;
+		bool bCleanupRequired = false;
 		if (Base && !bSavingConcurrent)
 		{
-			bCleanupIsRequired = Base->PreSaveRoot(Filename);
+			UE::SavePackageUtilities::CallPreSaveRoot(Base, ObjectSaveContext);
+			bCleanupRequired = ObjectSaveContext.bCleanupRequired;
 		}
 
 		// Init.
@@ -2295,7 +2301,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// Do not route presave if saving concurrently. This should have been done before the concurrent save started.
 				// Also if we're trying to diff the package and gathering callstacks, Presave has already been done
 				const bool bRoutePresave = !bSavingConcurrent && !(SaveFlags & SAVE_DiffCallstack);
-				PackageExportTagger.TagPackageExports(ExportTaggerArchive, bRoutePresave);
+				PackageExportTagger.TagPackageExports(ExportTaggerArchive, bRoutePresave, ObjectSaveContext);
 				ExportTaggerArchive.SetFilterEditorOnly(FilterEditorOnly);
 			}
 		
@@ -2326,7 +2332,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					UnMarkAllObjects();
 			
 					// We need to serialize objects yet again to tag objects that were created by PreSave as OBJECTMARK_TagExp.
-					PackageExportTagger.TagPackageExports( ExportTaggerArchive, false );
+					PackageExportTagger.TagPackageExports( ExportTaggerArchive, false, ObjectSaveContext);
 				}
 
 				// Kick off any Precaching required for the target platform to save these objects
@@ -2451,7 +2457,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, *TempFilename.GetValue(), bForceByteSwapping, bSaveUnversioned));
 						}
 					}
-					Linker->bSavingNewLoadedPath = bSavingNewLoadedPath;
+					Linker->bProceduralSave = ObjectSaveContext.bProceduralSave;
+					Linker->bUpdatingLoadedPath = ObjectSaveContext.bUpdatingLoadedPath;
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 					if (bTextFormat)
@@ -4612,7 +4619,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 			// Also if we're trying to diff the package and gathering callstacks, Presave has already been done
 			if( Base && !bSavingConcurrent && !(SaveFlags & SAVE_DiffCallstack) )
 			{
-				Base->PostSaveRoot( bCleanupIsRequired );
+				UE::SavePackageUtilities::CallPostSaveRoot(Base, ObjectSaveContext, bCleanupRequired);
 			}
 
 			SlowTask.EnterProgressFrame();
@@ -4634,7 +4641,10 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 			InOuter->ClearPackageFlags(PKG_NewlyCreated);
 
 			// send a message that the package was saved
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 			UPackage::PackageSavedEvent.Broadcast(Filename, InOuter);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+			UPackage::PackageSavedWithContextEvent.Broadcast(Filename, InOuter, FObjectPostSaveContext(ObjectSaveContext));
 		}
 
 		// We're done!
@@ -4646,7 +4656,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		{
 			// if the save was successful, update the internal package filename path if we aren't currently cooking
 #if WITH_EDITOR
-			if (bSavingNewLoadedPath)
+			if (ObjectSaveContext.bUpdatingLoadedPath)
 			{
 				InOuter->SetLoadedPath(TargetPackagePath);
 			}

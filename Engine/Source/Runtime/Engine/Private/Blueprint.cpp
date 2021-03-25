@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/Blueprint.h"
+
 #include "Misc/CoreMisc.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/BlueprintsObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "UObject/UnrealType.h"
@@ -368,10 +370,18 @@ static TAutoConsoleVariable<bool> CVarBPForceOldSearchDataFormatVersionOnSave(
 
 void UBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 	// Clear all upgrade notes, the user has saved and should not see them anymore
 	UpgradeNotesLog.Reset();
+	const ITargetPlatform* TargetPlatform = ObjectSaveContext.GetTargetPlatform();
 
 	if (!TargetPlatform || TargetPlatform->HasEditorOnlyData())
 	{

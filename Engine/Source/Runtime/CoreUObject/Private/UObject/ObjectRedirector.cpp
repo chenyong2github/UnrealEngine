@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "UObject/ObjectRedirector.h"
+
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
 #include "UObject/PropertyPortFlags.h"
@@ -14,9 +16,16 @@
 -----------------------------------------------------------------------------*/
 
 
+void UObjectRedirector::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
 // If this object redirector is pointing to an object that won't be serialized anyway, set the RF_Transient flag
 // so that this redirector is also removed from the package.
-void UObjectRedirector::PreSave(const class ITargetPlatform* TargetPlatform)
+void UObjectRedirector::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	if (DestinationObject == NULL
 	||	DestinationObject->HasAnyFlags(RF_Transient)
@@ -31,6 +40,8 @@ void UObjectRedirector::PreSave(const class ITargetPlatform* TargetPlatform)
 			DestinationObject->SetFlags(RF_Transient);
 		}
 	}
+
+	Super::PreSave(ObjectSaveContext);
 }
 
 IMPLEMENT_FARCHIVE_SERIALIZER(UObjectRedirector);

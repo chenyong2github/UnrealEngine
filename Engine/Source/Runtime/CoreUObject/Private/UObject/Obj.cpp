@@ -34,6 +34,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
 #include "UObject/ObjectRedirector.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/ReferenceChainSearch.h"
 #include "Serialization/ArchiveCountMem.h"
@@ -1192,8 +1193,30 @@ void UObject::ConditionalPostLoadSubobjects( FObjectInstancingGraph* OuterInstan
 	CheckDefaultSubobjects();
 }
 
+bool UObject::PreSaveRoot(const TCHAR* Filename)
+{
+	return false;
+}
+
+void UObject::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext)
+{
+}
+
+void UObject::PostSaveRoot(bool bCleanupIsRequired)
+{
+}
+
+void UObject::PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext)
+{
+}
+
 void UObject::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+}
+
+void UObject::PreSave(FObjectPreSaveContext SaveContext)
+{
+	SaveContext.Data.bBaseClassCalled = true;
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnObjectSaved.Broadcast(this);
 #endif

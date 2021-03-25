@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimSceneAsset.h"
+
 #include "AnimationRuntime.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimTypes.h"
 #include "ContextualAnimUtilities.h"
+#include "UObject/ObjectSaveContext.h"
 
 UContextualAnimSceneAsset::UContextualAnimSceneAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -14,6 +16,13 @@ UContextualAnimSceneAsset::UContextualAnimSceneAsset(const FObjectInitializer& O
 
 void UContextualAnimSceneAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UContextualAnimSceneAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 	// Necessary for FCompactPose that uses a FAnimStackAllocator (TMemStackAllocator) which allocates from FMemStack.
 	// When allocating memory from FMemStack we need to explicitly use FMemMark to ensure items are freed when the scope exits. 
 	// UWorld::Tick adds a FMemMark to catch any allocation inside the game tick 
@@ -21,7 +30,7 @@ void UContextualAnimSceneAsset::PreSave(const class ITargetPlatform* TargetPlatf
 	FMemMark Mark(FMemStack::Get());
 
 	// Generate scene pivot for each alignment section
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 	
 	const FTransform MeshToComponentInverse = MeshToComponent.Inverse();
 	const float SampleInterval = 1.f / SampleRate;

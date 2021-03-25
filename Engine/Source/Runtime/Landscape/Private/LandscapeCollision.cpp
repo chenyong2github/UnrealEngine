@@ -6,6 +6,7 @@
 #include "Stats/Stats.h"
 #include "Serialization/BufferArchive.h"
 #include "Misc/FeedbackContext.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/PropertyPortFlags.h"
 #include "EngineDefines.h"
 #include "Engine/EngineTypes.h"
@@ -2480,7 +2481,14 @@ void ULandscapeHeightfieldCollisionComponent::PostLoad()
 
 void ULandscapeHeightfieldCollisionComponent::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void ULandscapeHeightfieldCollisionComponent::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 	if (!IsRunningCommandlet())
 	{

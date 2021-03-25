@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Blueprint/UserWidget.h"
+
 #include "Rendering/DrawElements.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SlateSound.h"
@@ -22,6 +23,7 @@
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UMGPrivate.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/PropertyPortFlags.h"
 #include "TimerManager.h"
@@ -1827,13 +1829,20 @@ bool UUserWidget::IsAsset() const
 
 void UUserWidget::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UUserWidget::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 	// Remove bindings that are no longer contained in the class.
 	if ( UWidgetBlueprintGeneratedClass* BGClass = GetWidgetTreeOwningClass())
 	{
 		RemoveObsoleteBindings(BGClass->NamedSlots);
 	}
 
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 void UUserWidget::PostLoad()

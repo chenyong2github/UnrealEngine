@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/HLODProxy.h"
+
 #include "Engine/LODActor.h"
 #include "GameFramework/WorldSettings.h"
 
@@ -19,6 +20,7 @@
 #include "LevelUtils.h"
 #include "Engine/LevelStreaming.h"
 #include "Math/UnrealMathUtility.h"
+#include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITOR
 
@@ -153,7 +155,14 @@ void UHLODProxy::DeletePackage()
 
 void UHLODProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UHLODProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 	if (!OwningMap.IsValid())
 	{

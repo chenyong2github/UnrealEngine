@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomBindingAsset.h"
+
 #include "EngineUtils.h"
 #include "GeometryCache.h"
 #include "GeometryCacheMeshData.h"
 #include "GroomAsset.h"
 #include "GroomBindingBuilder.h"
+#include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITORONLY_DATA
 #include "DerivedDataCacheInterface.h"
@@ -285,13 +287,20 @@ void UGroomBindingAsset::PostLoad()
 
 void UGroomBindingAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UGroomBindingAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 #if WITH_EDITOR
 	while (QueryStatus == EQueryStatus::Submitted)
 	{
 		FPlatformProcess::Sleep(1);
 	}
 #endif
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 #if WITH_EDITOR
 	OnGroomBindingAssetChanged.Broadcast();
 #endif
@@ -299,7 +308,14 @@ void UGroomBindingAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 
 void UGroomBindingAsset::PostSaveRoot(bool bCleanupIsRequired)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PostSaveRoot(bCleanupIsRequired);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UGroomBindingAsset::PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext)
+{
+	Super::PostSaveRoot(ObjectSaveContext);
 #if WITH_EDITOR
 	OnGroomBindingAssetChanged.Broadcast();
 #endif

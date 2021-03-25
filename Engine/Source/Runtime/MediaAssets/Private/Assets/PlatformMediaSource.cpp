@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlatformMediaSource.h"
+
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "UObject/MediaFrameWorkObjectVersion.h"
 #include "Modules/ModuleManager.h"
@@ -14,14 +16,23 @@
 
 void UPlatformMediaSource::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UPlatformMediaSource::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 #if WITH_EDITORONLY_DATA
 	// Do this only if we are cooking (aka: have a target platform)
+	const ITargetPlatform* TargetPlatform = ObjectSaveContext.GetTargetPlatform();
 	if (TargetPlatform)
 	{
 		UE_TRANSITIONAL_OBJECT_PTR(UMediaSource)* PlatformMediaSource = PlatformMediaSources.Find(TargetPlatform->IniPlatformName());
 		MediaSource = (PlatformMediaSource != nullptr) ? *PlatformMediaSource : nullptr;
 	}
 #endif
+	Super::PreSave(ObjectSaveContext);
 }
 
 /* UMediaSource interface

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Tiles/WorldTileCollectionModel.h"
+
 #include "Misc/PackageName.h"
 #include "Components/PrimitiveComponent.h"
 #include "Misc/CoreDelegates.h"
@@ -47,6 +49,7 @@
 #include "IMeshReductionManagerModule.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
+#include "UObject/ObjectSaveContext.h"
 
 #define LOCTEXT_NAMESPACE "WorldBrowser"
 
@@ -71,8 +74,8 @@ FWorldTileCollectionModel::~FWorldTileCollectionModel()
 	GEditor->UnregisterForUndo(this);
 	FCoreDelegates::PreWorldOriginOffset.RemoveAll(this);
 	FCoreDelegates::PostWorldOriginOffset.RemoveAll(this);
-	FEditorDelegates::PreSaveWorld.RemoveAll(this);
-	FEditorDelegates::PostSaveWorld.RemoveAll(this);
+	FEditorDelegates::PreSaveWorldWithContext.RemoveAll(this);
+	FEditorDelegates::PostSaveWorldWithContext.RemoveAll(this);
 	FEditorDelegates::NewCurrentLevel.RemoveAll(this);
 }
 
@@ -86,8 +89,8 @@ void FWorldTileCollectionModel::Initialize(UWorld* InWorld)
 	GEditor->RegisterForUndo(this);
 	FCoreDelegates::PreWorldOriginOffset.AddSP(this, &FWorldTileCollectionModel::PreWorldOriginOffset);
 	FCoreDelegates::PostWorldOriginOffset.AddSP(this, &FWorldTileCollectionModel::PostWorldOriginOffset);
-	FEditorDelegates::PreSaveWorld.AddSP(this, &FWorldTileCollectionModel::OnPreSaveWorld);
-	FEditorDelegates::PostSaveWorld.AddSP(this, &FWorldTileCollectionModel::OnPostSaveWorld);
+	FEditorDelegates::PreSaveWorldWithContext.AddSP(this, &FWorldTileCollectionModel::OnPreSaveWorld);
+	FEditorDelegates::PostSaveWorldWithContext.AddSP(this, &FWorldTileCollectionModel::OnPostSaveWorld);
 	FEditorDelegates::NewCurrentLevel.AddSP(this, &FWorldTileCollectionModel::OnNewCurrentLevel);
 	BindCommands();
 			
@@ -1895,14 +1898,14 @@ void FWorldTileCollectionModel::ResetLevelOrigin_Executed()
 	RequestUpdateAllLevels();
 }
 
-void FWorldTileCollectionModel::OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
+void FWorldTileCollectionModel::OnPreSaveWorld(UWorld* World, FObjectPreSaveContext ObjectSaveContext)
 {
 	// Levels during OnSave procedure might be moved to original position
 	// and then back to position with offset
 	bIsSavingLevel = true;
 }
 
-void FWorldTileCollectionModel::OnPostSaveWorld(uint32 SaveFlags, UWorld* World, bool bSuccess)
+void FWorldTileCollectionModel::OnPostSaveWorld(UWorld* World, FObjectPostSaveContext ObjectSaveContext)
 {
 	bIsSavingLevel = false;
 }

@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeEditor.h"
+
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Engine/Blueprint.h"
 #include "Widgets/Layout/SBorder.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "BehaviorTree/BTDecorator.h"
 #include "BehaviorTree/BTCompositeNode.h"
@@ -72,7 +74,7 @@ FBehaviorTreeEditor::FBehaviorTreeEditor()
 	: IBehaviorTreeEditor()
 {
 	// listen for package change events to update injected nodes
-	OnPackageSavedDelegateHandle     = UPackage::PackageSavedEvent.AddRaw(this, &FBehaviorTreeEditor::OnPackageSaved);
+	OnPackageSavedDelegateHandle     = UPackage::PackageSavedWithContextEvent.AddRaw(this, &FBehaviorTreeEditor::OnPackageSaved);
 
 	bShowDecoratorRangeLower = false;
 	bShowDecoratorRangeSelf = false;
@@ -91,7 +93,7 @@ FBehaviorTreeEditor::FBehaviorTreeEditor()
 
 FBehaviorTreeEditor::~FBehaviorTreeEditor()
 {
-	UPackage::PackageSavedEvent.Remove(OnPackageSavedDelegateHandle);
+	UPackage::PackageSavedWithContextEvent.Remove(OnPackageSavedDelegateHandle);
 
 	Debugger.Reset();
 }
@@ -1107,7 +1109,7 @@ void FBehaviorTreeEditor::OnFinishedChangingProperties(const FPropertyChangedEve
 	BehaviorTree->BTGraph->GetSchema()->ForceVisualizationCacheClear();
 }
 
-void FBehaviorTreeEditor::OnPackageSaved(const FString& PackageFileName, UObject* Outer)
+void FBehaviorTreeEditor::OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
 {
 	UBehaviorTreeGraph* MyGraph = BehaviorTree ? Cast<UBehaviorTreeGraph>(BehaviorTree->BTGraph) : NULL;
 	if (MyGraph)

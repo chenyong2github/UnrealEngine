@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Blueprint/WidgetTree.h"
+
 #include "Components/Visual.h"
 #include "Components/Widget.h"
 #include "Blueprint/UserWidget.h"
 #include "UMGPrivate.h"
+#include "UObject/ObjectSaveContext.h"
 
 /////////////////////////////////////////////////////
 // UWidgetTree
@@ -240,7 +242,14 @@ void UWidgetTree::ForWidgetAndChildren(UWidget* Widget, TFunctionRef<void(UWidge
 
 void UWidgetTree::PreSave(const class ITargetPlatform* TargetPlatform)
 {
-	if (TargetPlatform == nullptr)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UWidgetTree::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	if (!ObjectSaveContext.IsCooking())
 	{
 #if WITH_EDITORONLY_DATA
 		AllWidgets.Empty();
@@ -262,7 +271,7 @@ void UWidgetTree::PreSave(const class ITargetPlatform* TargetPlatform)
 	});
 #endif
 
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 void UWidgetTree::PostLoad()

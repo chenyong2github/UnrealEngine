@@ -70,8 +70,12 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDollyPerspectiveCamera, const FVector&, int32 );
 	/** delegate type for pre save world events ( uint32 SaveFlags, UWorld* World ) */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPreSaveWorld, uint32, class UWorld*);
+	/** delegate type for pre save world events ( UWorld* World, FObjectPreSaveContext ObjectSaveContext ) */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPreSaveWorldWithContext, class UWorld*, FObjectPreSaveContext);
 	/** delegate type for post save world events ( uint32 SaveFlags, UWorld* World, bool bSuccess ) */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPostSaveWorld, uint32, class UWorld*, bool);
+	/** delegate type for post save world events ( UWorld* World, FObjectPostSaveContext ObjectSaveContext, bool bSuccess ) */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPostSaveWorldWithContext, class UWorld*, FObjectPostSaveContext);
 	/** delegate for a PIE event (begin, end, pause/resume, etc) (Params: bool bIsSimulating) */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPIEEvent, const bool);
 	/** delegate for a standalone local play event (Params: uint32 processID) */
@@ -211,10 +215,14 @@ struct UNREALED_API FEditorDelegates
 	static FSimpleMulticastDelegate PropertySelectionChange;
 	/** Called after Landscape layer infomap update have completed */
 	static FSimpleMulticastDelegate PostLandscapeLayerUpdated;
-	/** Called before SaveWorld is processed */
+	UE_DEPRECATED(5.0, "Use PreSaveWorldWithContext instead.")
 	static FOnPreSaveWorld PreSaveWorld;
-	/** Called after SaveWorld is processed */
+	/** Called before SaveWorld is processed */
+	static FOnPreSaveWorldWithContext PreSaveWorldWithContext;
+	UE_DEPRECATED(5.0, "Use PostSaveWorldWithContext instead.")
 	static FOnPostSaveWorld PostSaveWorld;
+	/** Called after SaveWorld is processed */
+	static FOnPostSaveWorldWithContext PostSaveWorldWithContext;
 	/** Called when finishing picking a new blueprint class during construction */
 	static FOnFinishPickingBlueprintClass OnFinishPickingBlueprintClass;
 	/** Called when beginning configuration of a new asset */

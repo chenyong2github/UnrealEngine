@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonConversationGraphModule.h"
+
 #include "ConversationDatabase.h"
 #include "ConversationCompiler.h"
 #include "Engine/AssetManager.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/CoreRedirects.h"
 
@@ -17,7 +19,7 @@ DEFINE_LOG_CATEGORY(LogCommonConversationGraph);
 
 void FCommonConversationGraphModule::StartupModule()
 {
-	UPackage::PreSavePackageEvent.AddRaw(this, &FCommonConversationGraphModule::HandlePreSavePackage);
+	UPackage::PreSavePackageWithContextEvent.AddRaw(this, &FCommonConversationGraphModule::HandlePreSavePackage);
 
 #if WITH_EDITOR
 	FEditorDelegates::BeginPIE.AddRaw(this, &FCommonConversationGraphModule::HandleBeginPIE);
@@ -33,14 +35,14 @@ void FCommonConversationGraphModule::ShutdownModule()
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
 
-	UPackage::PreSavePackageEvent.RemoveAll(this);
+	UPackage::PreSavePackageWithContextEvent.RemoveAll(this);
 
 #if WITH_EDITOR
 	FEditorDelegates::BeginPIE.RemoveAll(this);
 #endif
 }
 
-void FCommonConversationGraphModule::HandlePreSavePackage(UPackage* Package)
+void FCommonConversationGraphModule::HandlePreSavePackage(UPackage* Package, FObjectPreSaveContext ObjectSaveContext)
 {
 	TArray<UObject*> Objects;
 	const bool bIncludeNestedObjects = false;

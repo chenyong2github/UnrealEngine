@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNotifies/AnimNotify.h"
+
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequenceBase.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 
 /////////////////////////////////////////////////////
@@ -82,10 +84,17 @@ void UAnimNotify::PostLoad()
 
 void UAnimNotify::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UAnimNotify::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 #if WITH_EDITOR
 	ValidateAssociatedAssets();
 #endif
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 UObject* UAnimNotify::GetContainingAsset() const

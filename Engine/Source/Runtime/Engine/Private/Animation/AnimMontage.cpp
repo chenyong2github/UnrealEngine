@@ -7,6 +7,7 @@
 #include "Animation/AnimMontage.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/Package.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Animation/AssetMappingTable.h"
 #include "Animation/AnimSequence.h"
@@ -344,10 +345,17 @@ void UAnimMontage::UnregisterOnMontageChanged(void* Unregister)
 
 void UAnimMontage::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UAnimMontage::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 #if WITH_EDITOR
 	BakeTimeStretchCurve();
 #endif // WITH_EDITOR
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 void UAnimMontage::PostLoad()

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/World.h"
+
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
@@ -16,6 +17,7 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
 #include "UObject/ObjectRedirector.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/ReferenceChainSearch.h"
 #include "Misc/PackageName.h"
@@ -1195,6 +1197,18 @@ void UWorld::PreDuplicate(FObjectDuplicationParameters& DupParams)
 
 bool UWorld::PreSaveRoot(const TCHAR* Filename)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	return Super::PreSaveRoot(Filename);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UWorld::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext)
+{
+	if (!ObjectSaveContext.IsFirstConcurrentSave())
+	{
+		return;
+	}
+
 #if WITH_EDITOR
 	// if we are cooking this world, convert its persistent level to internal actors before doing so
 	if (GIsCookerLoadingPackage)
@@ -1204,19 +1218,29 @@ bool UWorld::PreSaveRoot(const TCHAR* Filename)
 #endif
 
 	// Update components and keep track off whether we need to clean them up afterwards.
-	bool bCleanupIsRequired = false;
 	if(!PersistentLevel->bAreComponentsCurrentlyRegistered)
 	{
 		PersistentLevel->UpdateLevelComponents(true);
-		bCleanupIsRequired = true;
+		ObjectSaveContext.SetCleanupRequired(true);
 	}
-
-	return bCleanupIsRequired;
 }
 
-void UWorld::PostSaveRoot( bool bCleanupIsRequired )
+void UWorld::PostSaveRoot(bool bCleanupIsRequired)
 {
-	if( bCleanupIsRequired )
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PostSaveRoot(bCleanupIsRequired);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UWorld::PostSaveRoot( FObjectPostSaveRootContext ObjectSaveContext )
+{
+	Super::PostSaveRoot(ObjectSaveContext);
+	if (!ObjectSaveContext.IsLastConcurrentSave())
+	{
+		return;
+	}
+
+	if( ObjectSaveContext.IsCleanupRequired() )
 	{
 		PersistentLevel->ClearLevelComponents();
 	}

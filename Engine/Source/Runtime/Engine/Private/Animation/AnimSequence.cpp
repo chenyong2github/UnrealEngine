@@ -5,9 +5,11 @@
 =============================================================================*/ 
 
 #include "Animation/AnimSequence.h"
+
 #include "Misc/MessageDialog.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "Serialization/MemoryReader.h"
 #include "UObject/UObjectIterator.h"
@@ -782,6 +784,13 @@ void UAnimSequence::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 
 void UAnimSequence::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UAnimSequence::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 #if WITH_EDITOR
 	// Could already be compressing
 	WaitOnExistingCompression();
@@ -797,6 +806,7 @@ void UAnimSequence::PreSave(const class ITargetPlatform* TargetPlatform)
 		ensureAlwaysMsgf(!bUseRawDataOnly,  TEXT("Animation : %s failed to compress"), *GetName());
 	}
 
+	const ITargetPlatform* TargetPlatform = ObjectSaveContext.GetTargetPlatform();
 	if (TargetPlatform)
 	{
 		// Update compressed data for platform
@@ -807,14 +817,13 @@ void UAnimSequence::PreSave(const class ITargetPlatform* TargetPlatform)
 
 	WaitOnExistingCompression(); // Wait on updated data
 
-	const bool bIsCooking = (TargetPlatform != nullptr);
-	if (!bIsCooking)
+	if (!ObjectSaveContext.IsCooking())
 	{
 		UpdateRetargetSourceAsset();
 	}
 #endif
 
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 void UAnimSequence::PostLoad()

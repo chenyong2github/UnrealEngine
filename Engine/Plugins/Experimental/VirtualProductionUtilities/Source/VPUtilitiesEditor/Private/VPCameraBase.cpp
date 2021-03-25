@@ -12,6 +12,7 @@
 #include "ScopedTransaction.h"
 #include "SLevelViewport.h"
 #include "VREditorMode.h"
+#include "UObject/ObjectSaveContext.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "VPCameraUIBase"
@@ -89,8 +90,15 @@ void AVPCameraBase::BeginDestroy()
 
 void AVPCameraBase::PreSave(const class ITargetPlatform* TargetPlatform)
 {
-	RemoveUser(true);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void AVPCameraBase::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	RemoveUser(true);
+	Super::PreSave(ObjectSaveContext);
 }
 
 void AVPCameraBase::AddPreview()

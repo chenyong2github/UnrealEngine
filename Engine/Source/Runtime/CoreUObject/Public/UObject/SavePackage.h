@@ -16,6 +16,8 @@
 
 class FArchive;
 class FIoBuffer;
+struct FObjectSaveContextData;
+class FPackagePath;
 class FPackageStoreBulkDataManifest;
 class FSavePackageContext;
 class FArchiveDiffMap;
@@ -98,3 +100,32 @@ public:
 	FPackageStoreBulkDataManifest* BulkDataManifest;
 	bool bForceLegacyOffsets;
 };
+
+namespace UE
+{
+namespace SavePackageUtilities
+{
+	/**
+	 * Return whether the given save parameters indicate the LoadedPath of the package being saved should be updated.
+	 * This allows us to update the in-memory package when it is saved in editor to match its new save file.
+	 */
+	COREUOBJECT_API bool IsUpdatingLoadedPath(bool bIsCooking, const FPackagePath& TargetPackagePath, uint32 SaveFlags);
+
+	/**
+	 * Return whether the given save parameters indicate the package is a procedural save.
+	 * Any save without the the possibility of user-generated edits to the package is a procedural save (Cooking, EditorDomain).
+	 * This allows us to execute transforms that only need to be executed in response to new user data.
+	 */
+	COREUOBJECT_API bool IsProceduralSave(bool bIsCooking, const FPackagePath& TargetPackagePath, uint32 SaveFlags);
+
+	/** Call the PreSave function on the given object and log a warning if there is an incorrect override. */
+	COREUOBJECT_API void CallPreSave(UObject* Object, FObjectSaveContextData& ObjectSaveContext);
+
+	/** Call the PreSaveRoot function on the given object. */
+	COREUOBJECT_API void CallPreSaveRoot(UObject* Object, FObjectSaveContextData& ObjectSaveContext);
+
+	/** Call the PostSaveRoot function on the given object. */
+	COREUOBJECT_API void CallPostSaveRoot(UObject* Object, FObjectSaveContextData& ObjectSaveContext, bool bCleanupRequired);
+
+}
+}

@@ -2605,8 +2605,12 @@ public:
 	virtual bool IsReadyForFinishDestroy() override;
 	virtual void PostLoad() override;
 	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) override;
-	virtual bool PreSaveRoot(const TCHAR* Filename) override;
-	virtual void PostSaveRoot( bool bCleanupIsRequired ) override;
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	virtual bool PreSaveRoot(const TCHAR* InFilename) override;
+	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveContext instead.")
+	virtual void PostSaveRoot(bool bCleanupIsRequired) override;
+	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
 	virtual UWorld* GetWorld() const override;
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);

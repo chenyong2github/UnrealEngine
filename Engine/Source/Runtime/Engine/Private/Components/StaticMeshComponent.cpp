@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/StaticMeshComponent.h"
+
 #include "Modules/ModuleManager.h"
 #include "RenderingThread.h"
 #include "Components.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/CollisionProfile.h"
@@ -381,7 +383,14 @@ bool UStaticMeshComponent::AreNativePropertiesIdenticalTo( UObject* Other ) cons
 #if WITH_EDITORONLY_DATA
 void UStaticMeshComponent::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UStaticMeshComponent::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 	CachePaintedDataIfNecessary();
 }

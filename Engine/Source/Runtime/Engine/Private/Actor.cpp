@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/Actor.h"
+
 #include "EngineDefines.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
@@ -12,6 +13,7 @@
 #include "AI/NavigationSystemBase.h"
 #include "Components/InputComponent.h"
 #include "Engine/Engine.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
@@ -379,7 +381,14 @@ bool AActor::IsAsset() const
 
 bool AActor::PreSaveRoot(const TCHAR* InFilename)
 {
-	bool bResult = Super::PreSaveRoot(InFilename);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	return Super::PreSaveRoot(InFilename);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void AActor::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext)
+{
+	Super::PreSaveRoot(ObjectSaveContext);
 #if WITH_EDITOR
 	// if `PreSaveRoot` is called on an actor, it should be have its package overridden (external to the level)
 	// if this actor is not in the current persistent level then we might need to remove level streamin transform before saving it
@@ -392,19 +401,25 @@ bool AActor::PreSaveRoot(const TCHAR* InFilename)
 		{
 			FLevelUtils::RemoveEditorTransform(LevelStreaming, true, this);
 		}
-		bResult |= true;
+		ObjectSaveContext.SetCleanupRequired(true);
 	}
 #endif
-	return bResult;
 }
 
 void AActor::PostSaveRoot(bool bCleanupIsRequired)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PostSaveRoot(bCleanupIsRequired);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void AActor::PostSaveRoot(FObjectPostSaveRootContext  ObjectSaveContext)
+{
+	Super::PostSaveRoot(ObjectSaveContext);
 #if WITH_EDITOR
 	// if this actor is not in the current persistent level then we will need to clean up the removal of level streaming
 	ULevel* Level = GetLevel();
-	if (bCleanupIsRequired && IsPackageExternal() && Level && !Level->IsPersistentLevel())
+	if (ObjectSaveContext.IsCleanupRequired() && IsPackageExternal() && Level && !Level->IsPersistentLevel())
 	{
 		// If we can get the streaming level, we should remove the editor transform before saving
 		ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(Level);
@@ -418,7 +433,14 @@ void AActor::PostSaveRoot(bool bCleanupIsRequired)
 
 void AActor::PreSave(const ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void AActor::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 #if WITH_EDITOR
 	FixupDataLayers();
 #endif

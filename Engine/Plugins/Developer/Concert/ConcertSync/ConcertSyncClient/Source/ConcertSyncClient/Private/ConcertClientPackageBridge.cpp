@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertClientPackageBridge.h"
+
 #include "ConcertLogGlobal.h"
 #include "ConcertWorkspaceData.h"
 #include "ConcertSyncClientUtil.h"
 
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "UObject/PackageReload.h"
 #include "Misc/Paths.h"
@@ -56,8 +58,8 @@ FConcertClientPackageBridge::FConcertClientPackageBridge()
 	// correctly outside of take recorder.  There is a lot of code in MultiUser that assumes that in -game mode is
 	// "receive" only.
 	//
-	UPackage::PreSavePackageEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackagePreSave);
-	UPackage::PackageSavedEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackageSaved);
+	UPackage::PreSavePackageWithContextEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackagePreSave);
+	UPackage::PackageSavedWithContextEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackageSaved);
 	FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FConcertClientPackageBridge::HandleAssetReload);
 
 	if (GIsEditor)
@@ -79,8 +81,8 @@ FConcertClientPackageBridge::~FConcertClientPackageBridge()
 {
 #if WITH_EDITOR
 	// Unregister Package Events
-	UPackage::PreSavePackageEvent.RemoveAll(this);
-	UPackage::PackageSavedEvent.RemoveAll(this);
+	UPackage::PreSavePackageWithContextEvent.RemoveAll(this);
+	UPackage::PackageSavedWithContextEvent.RemoveAll(this);
 	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
 
 	if (GIsEditor)
@@ -122,7 +124,7 @@ bool& FConcertClientPackageBridge::GetIgnoreLocalDiscardRef()
 	return bIgnoreLocalDiscard;
 }
 
-void FConcertClientPackageBridge::HandlePackagePreSave(UPackage* Package)
+void FConcertClientPackageBridge::HandlePackagePreSave(UPackage* Package, FObjectPreSaveContext ObjectSaveContext)
 {
 	// Ignore package operations fired by the cooker (cook on the fly).
 	if (GIsCookerLoadingPackage)
@@ -162,10 +164,8 @@ void FConcertClientPackageBridge::HandlePackagePreSave(UPackage* Package)
 	UE_LOG(LogConcert, Verbose, TEXT("Asset Pre-Saved: %s"), *Package->GetName());
 }
 
-void FConcertClientPackageBridge::HandlePackageSaved(const FString& PackageFilename, UObject* Outer)
+void FConcertClientPackageBridge::HandlePackageSaved(const FString& PackageFilename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
 {
-	UPackage* Package = CastChecked<UPackage>(Outer);
-
 	// Ignore package operations fired by the cooker (cook on the fly).
 	if (GIsCookerLoadingPackage)
 	{

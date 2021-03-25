@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneSequence.h"
+
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "MovieScene.h"
 #include "UObject/EditorObjectVersion.h"
+#include "UObject/ObjectSaveContext.h"
 #include "Tracks/MovieSceneSubTrack.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Logging/MessageLog.h"
@@ -97,9 +99,17 @@ EMovieSceneServerClientMask UMovieSceneSequence::OverrideNetworkMask(EMovieScene
 
 void UMovieSceneSequence::PreSave(const ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UMovieSceneSequence::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 #if WITH_EDITOR
 	if (!HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
 	{
+		const ITargetPlatform* TargetPlatform = ObjectSaveContext.GetTargetPlatform();
 		if (TargetPlatform && TargetPlatform->RequiresCookedData())
 		{
 			EMovieSceneServerClientMask NetworkMask = EMovieSceneServerClientMask::All;
@@ -122,7 +132,7 @@ void UMovieSceneSequence::PreSave(const ITargetPlatform* TargetPlatform)
 		}
 	}
 #endif
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 void UMovieSceneSequence::Serialize(FArchive& Ar)

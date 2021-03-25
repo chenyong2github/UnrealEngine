@@ -10,6 +10,7 @@
 #include "EditorActorFolders.generated.h"
 
 class AActor;
+class FObjectPostSaveContext;
 
 /** Multicast delegates for broadcasting various folder events */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActorFolderCreate, UWorld&, FName);
@@ -138,7 +139,7 @@ private:
 	void OnMapChange(uint32 MapChangeFlags);
 
 	/** Called after a world has been saved */
-	void OnWorldSaved(uint32 SaveFlags, UWorld* World, bool bSuccess);
+	void OnWorldSaved(UWorld* World, FObjectPostSaveContext ObjectSaveContext);
 
 	/** Remove any references to folder arrays for dead worlds */
 	void Housekeeping();

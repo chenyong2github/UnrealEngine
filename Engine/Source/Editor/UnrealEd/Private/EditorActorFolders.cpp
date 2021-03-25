@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorActorFolders.h"
+
 #include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
@@ -13,6 +14,7 @@
 #include "Editor.h"
 #include "EditorFolderUtils.h"
 #include "ScopedTransaction.h"
+#include "UObject/ObjectSaveContext.h"
 
 #define LOCTEXT_NAMESPACE "FActorFolders"
 
@@ -47,7 +49,7 @@ FActorFolders::FActorFolders()
 	GEngine->OnLevelActorListChanged().AddRaw(this, &FActorFolders::OnLevelActorListChanged);
 
 	FEditorDelegates::MapChange.AddRaw(this, &FActorFolders::OnMapChange);
-	FEditorDelegates::PostSaveWorld.AddRaw(this, &FActorFolders::OnWorldSaved);
+	FEditorDelegates::PostSaveWorldWithContext.AddRaw(this, &FActorFolders::OnWorldSaved);
 }
 
 FActorFolders::~FActorFolders()
@@ -57,7 +59,7 @@ FActorFolders::~FActorFolders()
 	GEngine->OnLevelActorListChanged().RemoveAll(this);
 
 	FEditorDelegates::MapChange.RemoveAll(this);
-	FEditorDelegates::PostSaveWorld.RemoveAll(this);
+	FEditorDelegates::PostSaveWorldWithContext.RemoveAll(this);
 }
 
 void FActorFolders::AddReferencedObjects(FReferenceCollector& Collector)
@@ -130,7 +132,7 @@ void FActorFolders::OnMapChange(uint32 MapChangeFlags)
 	OnLevelActorListChanged();
 }
 
-void FActorFolders::OnWorldSaved(uint32 SaveFlags, UWorld* World, bool bSuccess)
+void FActorFolders::OnWorldSaved(UWorld* World, FObjectPostSaveContext ObjectSaveContext)
 {
 	// Attempt to save the folder state
 	const UEditorActorFolders* const* ExisingFolders = TemporaryWorldFolders.Find(World);

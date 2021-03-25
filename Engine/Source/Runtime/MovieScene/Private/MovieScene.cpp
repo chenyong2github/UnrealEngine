@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieScene.h"
+
 #include "MovieSceneTrack.h"
 #include "MovieSceneFolder.h"
 #include "MovieSceneSequence.h"
@@ -10,6 +11,7 @@
 #include "Evaluation/IMovieSceneCustomClockSource.h"
 #include "CommonFrameRates.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 
 #define LOCTEXT_NAMESPACE "MovieScene"
@@ -1227,7 +1229,14 @@ void UMovieScene::RemoveNullTracks()
 
 void UMovieScene::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UMovieScene::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 #if WITH_EDITORONLY_DATA
 	// compress meta data mappings prior to saving

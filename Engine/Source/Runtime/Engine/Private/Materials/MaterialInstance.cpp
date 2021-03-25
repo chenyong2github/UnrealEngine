@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Materials/MaterialInstance.h"
+
 #include "Stats/StatsMisc.h"
 #include "EngineGlobals.h"
 #include "EngineModule.h"
@@ -45,6 +46,7 @@
 #include "Materials/MaterialStaticParameterValueResolver.h"
 #include "ShaderPlatformQualitySettings.h"
 #include "MaterialShaderQualitySettings.h"
+#include "UObject/ObjectSaveContext.h"
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -4699,8 +4701,15 @@ void UMaterialInstance::GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid
 
 void UMaterialInstance::PreSave(const class ITargetPlatform* TargetPlatform)
 {
-	// @TODO : Remove any duplicate data from parent? Aims at improving change propagation (if controlled by parent)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UMaterialInstance::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	// @TODO : Remove any duplicate data from parent? Aims at improving change propagation (if controlled by parent)
+	Super::PreSave(ObjectSaveContext);
 }
 
 float UMaterialInstance::GetTextureDensity(FName TextureName, const struct FMeshUVChannelInfo& UVChannelData) const

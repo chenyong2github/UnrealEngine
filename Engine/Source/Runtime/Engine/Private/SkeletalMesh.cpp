@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/SkeletalMesh.h"
+
 #include "Serialization/CustomVersion.h"
 #include "Misc/App.h"
 #include "Misc/PackageSegment.h"
@@ -27,6 +28,7 @@
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/NiagaraObjectVersion.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/PackageResourceManager.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/RenderingObjectVersion.h"
@@ -2089,10 +2091,17 @@ void USkeletalMesh::FinishBuildInternal(FSkeletalMeshBuildContext& Context)
 
 void USkeletalMesh::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void USkeletalMesh::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 	// check the parent index of the root bone is invalid
 	check((GetRefSkeleton().GetNum() == 0) || (GetRefSkeleton().GetRefBoneInfo()[0].ParentIndex == INDEX_NONE));
 
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 // Pre-calculate refpose-to-local transforms

@@ -16,6 +16,7 @@ class FBehaviorTreeDebugger;
 class FBehaviorTreeEditorToolbar;
 class FDocumentTabFactory;
 class FDocumentTracker;
+class FObjectPostSaveContext;
 class IDetailsView;
 class SBehaviorTreeBlackboardEditor;
 class SBehaviorTreeBlackboardView;
@@ -90,7 +91,7 @@ public:
 	void JumpToNode(const UEdGraphNode* Node);
 
 	bool IsPropertyEditable() const;
-	void OnPackageSaved(const FString& PackageFileName, UObject* Outer);
+	void OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext);
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 	virtual void OnClassListUpdated() override;
 

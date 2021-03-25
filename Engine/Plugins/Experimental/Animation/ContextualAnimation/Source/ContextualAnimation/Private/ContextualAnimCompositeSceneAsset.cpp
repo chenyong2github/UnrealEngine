@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimCompositeSceneAsset.h"
+
 #include "ContextualAnimMetadata.h"
 #include "Animation/AnimMontage.h"
+#include "UObject/ObjectSaveContext.h"
 
 const FName UContextualAnimCompositeSceneAsset::InteractorRoleName = FName(TEXT("interactor"));
 const FName UContextualAnimCompositeSceneAsset::InteractableRoleName = FName(TEXT("interactable"));
@@ -25,6 +27,13 @@ EContextualAnimJoinRule UContextualAnimCompositeSceneAsset::GetJoinRuleForRole(c
 
 void UContextualAnimCompositeSceneAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UContextualAnimCompositeSceneAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 	// Necessary for FCompactPose that uses a FAnimStackAllocator (TMemStackAllocator) which allocates from FMemStack.
 	// When allocating memory from FMemStack we need to explicitly use FMemMark to ensure items are freed when the scope exits. 
 	// UWorld::Tick adds a FMemMark to catch any allocation inside the game tick 
@@ -32,7 +41,7 @@ void UContextualAnimCompositeSceneAsset::PreSave(const class ITargetPlatform* Ta
 	FMemMark Mark(FMemStack::Get());
 
 	// Generate scene pivot for each alignment section
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 
 	// Generate alignment tracks relative to scene pivot
 	for (FContextualAnimData& Data : InteractorTrack.AnimDataContainer)

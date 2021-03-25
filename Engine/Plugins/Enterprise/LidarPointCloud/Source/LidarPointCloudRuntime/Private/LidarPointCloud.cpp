@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LidarPointCloud.h"
+
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudActor.h"
 #include "LidarPointCloudComponent.h"
@@ -26,6 +27,7 @@
 #include "Editor.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Misc/MessageDialog.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectGlobals.h"
 #endif
 
@@ -46,8 +48,8 @@ class FLidarPackageReloader : public FTickableGameObject
 	TArray<TWeakObjectPtr<UPackage>> PackagesToReload;
 
 public:
-	FLidarPackageReloader() { UPackage::PackageSavedEvent.AddRaw(this, &FLidarPackageReloader::OnPackageSaved); }
-	virtual ~FLidarPackageReloader() { UPackage::PackageSavedEvent.RemoveAll(this); }
+	FLidarPackageReloader() { UPackage::PackageSavedWithContextEvent.AddRaw(this, &FLidarPackageReloader::OnPackageSaved); }
+	virtual ~FLidarPackageReloader() { UPackage::PackageSavedWithContextEvent.RemoveAll(this); }
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(LidarPackageReloader, STATGROUP_Tickables); }
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
 	virtual bool IsTickableInEditor() const override { return true; }
@@ -66,11 +68,10 @@ public:
 	}
 
 private:
-	void OnPackageSaved(const FString& Filename, UObject* Obj)
+	void OnPackageSaved(const FString& Filename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
 	{
 		if (GetDefault<ULidarPointCloudSettings>()->bReleaseAssetAfterSaving)
 		{
-			UPackage* Package = Cast<UPackage>(Obj);
 			if (Cast<ULidarPointCloud>(Package->FindAssetInPackage()))
 			{
 				PackagesToReload.Add(Package);
@@ -360,7 +361,14 @@ void ULidarPointCloud::BeginDestroy()
 
 void ULidarPointCloud::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void ULidarPointCloud::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 	OnPreSaveCleanupEvent.Broadcast();
 }
 

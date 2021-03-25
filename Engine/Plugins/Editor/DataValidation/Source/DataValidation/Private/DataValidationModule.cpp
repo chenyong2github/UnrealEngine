@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataValidationModule.h"
+
 #include "UObject/Object.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/SoftObjectPath.h"
 #include "GameFramework/HUD.h"
 
@@ -43,7 +45,7 @@ private:
 	TSharedRef<FExtender> OnExtendContentBrowserPathSelectionMenu(const TArray<FString>& SelectedPaths);
 	void CreateDataValidationContentBrowserAssetMenu(FMenuBuilder& MenuBuilder, TArray<FAssetData> SelectedAssets);
 	void CreateDataValidationContentBrowserPathMenu(FMenuBuilder& MenuBuilder, TArray<FString> SelectedPaths);
-	void OnPackageSaved(const FString& PackageFileName, UObject* PackageObj);
+	void OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext);
 
 	// Adds Asset and any assets it depends on to the set DependentAssets
 	void FindAssetDependencies(const FAssetRegistryModule& AssetRegistryModule, const FAssetData& Asset, TSet<FAssetData>& DependentAssets);
@@ -78,7 +80,7 @@ void FDataValidationModule::StartupModule()
 		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FDataValidationModule::RegisterMenus);
 
 		// Add save callback
-		UPackage::PackageSavedEvent.AddRaw(this, &FDataValidationModule::OnPackageSaved);
+		UPackage::PackageSavedWithContextEvent.AddRaw(this, &FDataValidationModule::OnPackageSaved);
 
 		ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 		SettingsModule.RegisterSettings("Editor", "Advanced", "DataValidation",
@@ -105,7 +107,7 @@ void FDataValidationModule::ShutdownModule()
 		UToolMenus::UnregisterOwner(this);
 		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 
-		UPackage::PackageSavedEvent.RemoveAll(this);
+		UPackage::PackageSavedWithContextEvent.RemoveAll(this);
 	}
 }
 
@@ -306,12 +308,12 @@ void FDataValidationModule::CreateDataValidationContentBrowserPathMenu(FMenuBuil
 	);
 }
 
-void FDataValidationModule::OnPackageSaved(const FString& PackageFileName, UObject* PackageObj)
+void FDataValidationModule::OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
 {
 	UEditorValidatorSubsystem* EditorValidationSubsystem = GEditor->GetEditorSubsystem<UEditorValidatorSubsystem>();
-	if (EditorValidationSubsystem && PackageObj)
+	if (EditorValidationSubsystem && Package)
 	{
-		EditorValidationSubsystem->ValidateSavedPackage(PackageObj->GetFName());
+		EditorValidationSubsystem->ValidateSavedPackage(Package->GetFName());
 	}
 }
 

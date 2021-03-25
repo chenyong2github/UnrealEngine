@@ -15,6 +15,7 @@
 #include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
 #include "GameFramework/WorldSettings.h"
+#include "UObject/ObjectSaveContext.h"
 
 void UHLODEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -62,7 +63,7 @@ void UHLODEngineSubsystem::RegisterRecreateLODActorsDelegates()
 	{
 		OnPostWorldInitializationDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UHLODEngineSubsystem::RecreateLODActorsForWorld);
 		OnLevelAddedToWorldDelegateHandle = FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UHLODEngineSubsystem::RecreateLODActorsForLevel);
-		OnPreSaveWorlDelegateHandle = FEditorDelegates::PreSaveWorld.AddUObject(this, &UHLODEngineSubsystem::OnPreSaveWorld);
+		OnPreSaveWorlDelegateHandle = FEditorDelegates::PreSaveWorldWithContext.AddUObject(this, &UHLODEngineSubsystem::OnPreSaveWorld);
 	}	
 }
 
@@ -165,7 +166,7 @@ bool UHLODEngineSubsystem::CleanupHLOD(ALODActor* InLODActor)
 	return bShouldDestroyActor;
 }
 
-void UHLODEngineSubsystem::OnPreSaveWorld(uint32 InSaveFlags, UWorld* InWorld)
+void UHLODEngineSubsystem::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)
 {
 	// When cooking, make sure that the LODActors are not transient
 	if (InWorld && InWorld->PersistentLevel && GIsCookerLoadingPackage)

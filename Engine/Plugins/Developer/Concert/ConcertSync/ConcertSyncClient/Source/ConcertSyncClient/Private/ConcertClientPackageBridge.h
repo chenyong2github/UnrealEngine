@@ -4,6 +4,8 @@
 
 #include "IConcertClientPackageBridge.h"
 
+class FObjectPostSaveContext;
+class FObjectPreSaveContext;
 class UPackage;
 class FPackageReloadedEvent;
 
@@ -26,10 +28,10 @@ public:
 
 private:
 	/** Called prior to a package being saved to disk */
-	void HandlePackagePreSave(UPackage* Package);
+	void HandlePackagePreSave(UPackage* Package, FObjectPreSaveContext ObjectSavecontext);
 
 	/** Called after a package has been saved to disk */
-	void HandlePackageSaved(const FString& PackageFilename, UObject* Outer);
+	void HandlePackageSaved(const FString& PackageFilename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext);
 
 	/** Called when a new asset is added */
 	void HandleAssetAdded(UObject *Object);

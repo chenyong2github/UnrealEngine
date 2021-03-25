@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomAsset.h"
+
 #include "Async/Async.h"
 #include "EngineUtils.h"
 #include "GroomAssetImportData.h"
@@ -27,6 +28,7 @@
 #include "Engine/StaticMesh.h"
 #include "Logging/LogMacros.h"
 #include "HairStrandsCore.h"
+#include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITOR
 #include "Interfaces/ITargetPlatform.h"
@@ -733,6 +735,13 @@ void UGroomAsset::PostLoad()
 
 void UGroomAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UGroomAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 #if WITH_EDITORONLY_DATA
 	check(AreGroupsValid());
 
@@ -792,7 +801,9 @@ void UGroomAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 	UpdateHairGroupsInfo();
 	UpdateCachedSettings();
 #endif
+	Super::PreSave(ObjectSaveContext);
 }
+
 void UGroomAsset::BeginDestroy()
 {
 	ReleaseResource();

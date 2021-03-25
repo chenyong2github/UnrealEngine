@@ -20,6 +20,7 @@
 #include "Animation/AnimationPoseData.h"
 #include "AnimationRuntime.h"
 #include "BonePose.h"
+#include "UObject/ObjectSaveContext.h"
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::PoseSearch::IPoseHistoryProvider);
 
@@ -222,6 +223,13 @@ bool FPoseSearchFeatureVectorLayout::IsValid(int32 MaxNumBones) const
 
 void UPoseSearchSchema::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UPoseSearchSchema::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 	SampleRate = FMath::Clamp(SampleRate, 1, 60);
 	SamplingInterval = 1.0f / SampleRate;
 
@@ -235,7 +243,7 @@ void UPoseSearchSchema::PreSave(const class ITargetPlatform* TargetPlatform)
 	GenerateLayout();
 	ResolveBoneReferences();
 
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 void UPoseSearchSchema::PostLoad()
@@ -397,6 +405,13 @@ void FPoseSearchIndex::Reset()
 
 void UPoseSearchSequenceMetaData::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UPoseSearchSequenceMetaData::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 	SearchIndex.Reset();
 
 	if (IsValidForIndexing())
@@ -408,7 +423,7 @@ void UPoseSearchSequenceMetaData::PreSave(const class ITargetPlatform* TargetPla
 		}
 	}
 
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 bool UPoseSearchSequenceMetaData::IsValidForIndexing() const
@@ -473,6 +488,13 @@ bool UPoseSearchDatabase::IsValidForSearch() const
 
 void UPoseSearchDatabase::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UPoseSearchDatabase::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 	SearchIndex.Reset();
 
 	if (IsValidForIndexing())
@@ -480,7 +502,7 @@ void UPoseSearchDatabase::PreSave(const class ITargetPlatform* TargetPlatform)
 		UE::PoseSearch::BuildIndex(this);
 	}
 
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 

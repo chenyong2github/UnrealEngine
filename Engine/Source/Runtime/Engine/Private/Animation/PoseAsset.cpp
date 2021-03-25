@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/PoseAsset.h"
+
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "AnimationRuntime.h"
@@ -10,6 +11,7 @@
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimSequenceHelpers.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "PoseAsset"
@@ -891,14 +893,20 @@ void UPoseAsset::Serialize(FArchive& Ar)
 
 void UPoseAsset::PreSave(const ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UPoseAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 #if WITH_EDITOR
-	const bool bIsCooking = (TargetPlatform != nullptr);
-	if (!bIsCooking)
+	if (!ObjectSaveContext.IsCooking())
 	{
 		UpdateRetargetSourceAsset();
 	}
 #endif // WITH_EDITOR
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 void UPoseAsset::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const

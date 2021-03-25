@@ -14,6 +14,8 @@ class AActor;
 class FExtender;
 class FMenuBuilder;
 class FSequencer;
+class FObjectPostSaveContext;
+class FObjectPreSaveContext;
 class FUICommandList;
 class IAssetViewport;
 class ISequencer;
@@ -90,10 +92,10 @@ public:
 private:
 
 	/** Called before the world is going to be saved. The sequencer puts everything back to its initial state. */
-	void OnPreSaveWorld(uint32 SaveFlags, UWorld* World);
+	void OnPreSaveWorld(UWorld* World, FObjectPreSaveContext ObjectSaveContext);
 
 	/** Called after the world has been saved. The sequencer updates to the animated state. */
-	void OnPostSaveWorld(uint32 SaveFlags, UWorld* World, bool bSuccess);
+	void OnPostSaveWorld(UWorld* World, FObjectPostSaveContext ObjectSaveContext);
 
 	/** Called after a level has been added */
 	void OnLevelAdded(ULevel* InLevel, UWorld* InWorld);

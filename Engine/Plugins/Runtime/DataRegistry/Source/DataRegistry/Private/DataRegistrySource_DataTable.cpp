@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataRegistrySource_DataTable.h"
+
 #include "DataRegistryTypesPrivate.h"
 #include "DataRegistrySettings.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Engine/AssetManager.h"
+#include "UObject/ObjectSaveContext.h"
 
 void UDataRegistrySource_DataTable::SetSourceTable(const TSoftObjectPtr<UDataTable>& InSourceTable, const FDataRegistrySource_DataTableRules& InTableRules)
 {
@@ -292,7 +294,14 @@ void UDataRegistrySource_DataTable::EditorRefreshSource()
 
 void UDataRegistrySource_DataTable::PreSave(const ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UDataRegistrySource_DataTable::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 	// Force load it to validate type on save
 	SetCachedTable(true);

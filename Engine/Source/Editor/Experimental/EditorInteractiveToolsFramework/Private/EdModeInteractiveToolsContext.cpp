@@ -2,6 +2,7 @@
 
 
 #include "EdModeInteractiveToolsContext.h"
+
 #include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
@@ -32,6 +33,7 @@
 
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "UnrealClient.h"
+#include "UObject/ObjectSaveContext.h"
 
 //#define ENABLE_DEBUG_PRINTING
 
@@ -546,7 +548,7 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 	{
 		TerminateActiveToolsOnPIEStart();
 	});
-	PreSaveWorldDelegateHandle = FEditorDelegates::PreSaveWorld.AddLambda([this](uint32 SaveFlags, UWorld* World)
+	PreSaveWorldDelegateHandle = FEditorDelegates::PreSaveWorldWithContext.AddLambda([this](UWorld* World, FObjectPreSaveContext ObjectSaveContext)
 	{
 		TerminateActiveToolsOnSaveWorld();
 	});
@@ -580,7 +582,7 @@ void UEdModeInteractiveToolsContext::Shutdown()
 	{
 		LevelEditor->OnMapChanged().Remove(WorldTearDownDelegateHandle);
 		FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
-		FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
+		FEditorDelegates::PreSaveWorldWithContext.Remove(PreSaveWorldDelegateHandle);
 		GEditor->OnViewportClientListChanged().Remove(ViewportClientListChangedHandle);
 
 		// auto-accept any in-progress tools

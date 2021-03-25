@@ -99,7 +99,9 @@ class ENGINE_API UAnimNotify : public UObject
 
 	/** UObject Interface */
 	virtual void PostLoad() override;
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	/** End UObject Interface */
 
 	/** This notify is always a branching point when used on Montages. */

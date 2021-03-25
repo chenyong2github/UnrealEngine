@@ -2,11 +2,13 @@
 
 
 #include "K2Node_FunctionEntry.h"
+
 #include "Engine/Blueprint.h"
 #include "Animation/AnimBlueprint.h"
 #include "UObject/UnrealType.h"
 #include "UObject/BlueprintsObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/StructOnScope.h"
 #include "Engine/UserDefinedStruct.h"
 #include "EdGraph/EdGraphSchema.h"
@@ -203,8 +205,15 @@ UK2Node_FunctionEntry::UK2Node_FunctionEntry(const FObjectInitializer& ObjectIni
 
 void UK2Node_FunctionEntry::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
-	
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UK2Node_FunctionEntry::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
+
 	const UBlueprint* Blueprint = HasValidBlueprint() ? GetBlueprint() : nullptr;
 	if (Blueprint && LocalVariables.Num() > 0)
 	{

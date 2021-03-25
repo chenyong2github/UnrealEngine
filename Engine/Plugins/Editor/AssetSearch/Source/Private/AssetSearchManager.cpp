@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetSearchManager.h"
+
 #include "IAssetRegistry.h"
 #include "AssetRegistryModule.h"
 #include "AssetSearchDatabase.h"
@@ -29,6 +30,7 @@
 #include "PackageTools.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectKey.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "FileHelpers.h"
 #include "Misc/MessageDialog.h"
@@ -202,7 +204,7 @@ FAssetSearchManager::~FAssetSearchManager()
 
 	StopScanningAssets();
 
-	UPackage::PackageSavedEvent.RemoveAll(this);
+	UPackage::PackageSavedWithContextEvent.RemoveAll(this);
 	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
 	UObject::FAssetRegistryTag::OnGetExtraObjectTags.RemoveAll(this);
 
@@ -227,7 +229,7 @@ void FAssetSearchManager::Start()
 
 	RegisterSearchProvider(TEXT("AssetRegistry"), MakeUnique<FAssetRegistrySearchProvider>());
 
-	UPackage::PackageSavedEvent.AddRaw(this, &FAssetSearchManager::HandlePackageSaved);
+	UPackage::PackageSavedWithContextEvent.AddRaw(this, &FAssetSearchManager::HandlePackageSaved);
 	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FAssetSearchManager::OnAssetLoaded);
 
 	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAssetSearchManager::Tick_GameThread), 0);
@@ -446,7 +448,7 @@ void FAssetSearchManager::OnAssetScanFinished()
 	});
 }
 
-void FAssetSearchManager::HandlePackageSaved(const FString& PackageFilename, UObject* Outer)
+void FAssetSearchManager::HandlePackageSaved(const FString& PackageFilename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
 {
 	check(IsInGameThread());
 
@@ -455,8 +457,6 @@ void FAssetSearchManager::HandlePackageSaved(const FString& PackageFilename, UOb
 	{
 		return;
 	}
-
-	UPackage* Package = CastChecked<UPackage>(Outer);
 
 	if (GIsEditor && !IsRunningCommandlet())
 	{

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/Texture2D.h"
+
 #include "Serialization/MemoryWriter.h"
 #include "Misc/App.h"
 #include "HAL/PlatformFileManager.h"
@@ -50,6 +51,7 @@
 #include "Engine/Public/ImageUtils.h"
 #include "TextureCompiler.h"
 #include "Misc/ScopedSlowTask.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/StrongObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "UTexture2D"
@@ -625,7 +627,14 @@ void UTexture2D::PostLoad()
 
 void UTexture2D::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UTexture2D::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 #if WITH_EDITOR
 	if( bTemporarilyDisableStreaming )
 	{

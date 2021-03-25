@@ -14,6 +14,7 @@
 #include "LevelCollectionModel.h"
 #include "Misc/TextFilter.h"
 #include "SLevelsTreeWidget.h"
+#include "UObject/ObjectSaveContext.h"
 
 #include "IWorldTreeItem.h"
 
@@ -301,7 +302,7 @@ private:
 	bool GetDisplayActorsCountState() const;
 
 	/** Callback for when the world is saved */
-	void OnWorldSaved(uint32 SaveFlags, UWorld* World, bool bSuccess);
+	void OnWorldSaved(UWorld* World, FObjectPostSaveContext ObjectSaveContext);
 
 private:
 	/**	Whether the view is currently updating the viewmodel selection */

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTagsEditorModule.h"
+
 #include "Misc/Paths.h"
 #include "PropertyEditorModule.h"
 #include "Factories/Factory.h"
@@ -33,6 +34,7 @@
 #include "UObject/UObjectHash.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
+#include "UObject/ObjectSaveContext.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagEditor"
 
@@ -90,7 +92,7 @@ public:
 			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.AddRaw(this, &FGameplayTagsEditorModule::OnObjectReimported);
 			FEditorDelegates::OnEditAssetIdentifiers.AddRaw(this, &FGameplayTagsEditorModule::OnEditGameplayTag);
 			IGameplayTagsModule::OnTagSettingsChanged.AddRaw(this, &FGameplayTagsEditorModule::OnEditorSettingsChanged);
-			UPackage::PackageSavedEvent.AddRaw(this, &FGameplayTagsEditorModule::OnPackageSaved);
+			UPackage::PackageSavedWithContextEvent.AddRaw(this, &FGameplayTagsEditorModule::OnPackageSaved);
 		}
 	}
 
@@ -124,7 +126,7 @@ public:
 		}
 		FEditorDelegates::OnEditAssetIdentifiers.RemoveAll(this);
 		IGameplayTagsModule::OnTagSettingsChanged.RemoveAll(this);
-		UPackage::PackageSavedEvent.RemoveAll(this);
+		UPackage::PackageSavedWithContextEvent.RemoveAll(this);
 	}
 
 	void OnEditorSettingsChanged()
@@ -145,7 +147,7 @@ public:
 		}
 	}
 
-	void OnPackageSaved(const FString& PackageFileName, UObject* PackageObj)
+	void OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
 	{
 		if (GIsEditor && !IsRunningCommandlet())
 		{
@@ -155,7 +157,7 @@ public:
 
 			TArray<UObject*> Objects;
 			const bool bIncludeNestedObjects = false;
-			GetObjectsWithPackage(Cast<UPackage>(PackageObj), Objects, bIncludeNestedObjects);
+			GetObjectsWithPackage(Package, Objects, bIncludeNestedObjects);
 			for (UObject* Entry : Objects)
 			{
 				if (UDataTable* DataTable = Cast<UDataTable>(Entry))

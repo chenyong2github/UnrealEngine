@@ -5,10 +5,12 @@
 =============================================================================*/
 
 #include "Components/LightComponent.h"
+
 #include "Misc/App.h"
 #include "RenderingThread.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Materials/Material.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -593,7 +595,14 @@ void ULightComponent::PostLoad()
 #if WITH_EDITOR
 void ULightComponent::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void ULightComponent::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 	ValidateLightGUIDs();
 }
 

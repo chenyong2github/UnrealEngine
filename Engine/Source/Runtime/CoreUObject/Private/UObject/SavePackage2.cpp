@@ -31,6 +31,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectRedirector.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage/PackageHarvester.h"
 #include "UObject/SavePackage/SaveContext.h"
@@ -240,7 +241,7 @@ ESavePackageResult RoutePresave(FSaveContext& SaveContext)
 			{
 				FArchiveObjectCrc32NonEditorProperties CrcArchive;
 				int32 Before = CrcArchive.Crc32(Object);
-				Object->PreSave(SaveContext.GetTargetPlatform());
+				UE::SavePackageUtilities::CallPreSave(Object, SaveContext.GetObjectSaveContext());
 				int32 After = CrcArchive.Crc32(Object);
 
 				if (Before != After)
@@ -257,7 +258,7 @@ ESavePackageResult RoutePresave(FSaveContext& SaveContext)
 			}
 			else
 			{
-				Object->PreSave(SaveContext.GetTargetPlatform());
+				UE::SavePackageUtilities::CallPreSave(Object, SaveContext.GetObjectSaveContext());
 			}
 		}
 	}
@@ -700,7 +701,8 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 				SaveContext.Linker = MakeUnique<FLinkerSave>(SaveContext.GetPackage(), *SaveContext.TempFilename.GetValue(), SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversioned());
 			}
 		}
-		SaveContext.Linker->bSavingNewLoadedPath = SaveContext.IsSavingNewLoadedPath();
+		SaveContext.Linker->bUpdatingLoadedPath = SaveContext.IsUpdatingLoadedPath();
+		SaveContext.Linker->bProceduralSave = SaveContext.IsProceduralSave();
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 		if (SaveContext.IsTextFormat())
@@ -1919,12 +1921,15 @@ void PostSavePackage(FSaveContext& SaveContext)
 	Package->ClearPackageFlags(PKG_NewlyCreated);
 
 	// Send a message that the package was saved
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	UPackage::PackageSavedEvent.Broadcast(SaveContext.GetFilename(), Package);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	UPackage::PackageSavedWithContextEvent.Broadcast(SaveContext.GetFilename(), Package, FObjectPostSaveContext(SaveContext.GetObjectSaveContext()));
 
 	// update the internal package filename path if we're saving to a valid mounted path and we aren't currently cooking
 #if WITH_EDITOR
 	const FPackagePath& PackagePath = SaveContext.GetTargetPackagePath();
-	if (SaveContext.IsSavingNewLoadedPath())
+	if (SaveContext.IsUpdatingLoadedPath())
 	{
 		Package->SetLoadedPath(PackagePath);
 	}
@@ -2167,7 +2172,9 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 	PreSavePackage(SaveContext);
 	if (InAsset)
 	{
-		SaveContext.SetPreSaveCleanup(InAsset->PreSaveRoot(InFilename));
+		FObjectSaveContextData& ObjectSaveContext = SaveContext.GetObjectSaveContext();
+		UE::SavePackageUtilities::CallPreSaveRoot(InAsset, ObjectSaveContext);
+		SaveContext.SetPreSaveCleanup(ObjectSaveContext.bCleanupRequired);
 	}
 
 	// Route Presave only if not calling concurrently or diffing callstack, in those case they should be handled separately already
@@ -2200,7 +2207,7 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 	SlowTask.EnterProgressFrame();
 	if (InAsset)
 	{
-		InAsset->PostSaveRoot(SaveContext.GetPreSaveCleanup());
+		UE::SavePackageUtilities::CallPostSaveRoot(InAsset, SaveContext.GetObjectSaveContext(), SaveContext.GetPreSaveCleanup());
 		SaveContext.SetPreSaveCleanup(false);
 	}
 
@@ -2246,7 +2253,9 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 			if (SaveContext.GetAsset())
 			{
 				SCOPED_SAVETIMER(UPackage_SaveConcurrent_PreSaveRoot);
-				SaveContext.SetPreSaveCleanup(SaveContext.GetAsset()->PreSaveRoot(SaveContext.GetFilename()));
+				FObjectSaveContextData& ObjectSaveContext = SaveContext.GetObjectSaveContext();
+				UE::SavePackageUtilities::CallPreSaveRoot(SaveContext.GetAsset(), ObjectSaveContext);
+				SaveContext.SetPreSaveCleanup(ObjectSaveContext.bCleanupRequired);
 			}
 
 			// Route Presave
@@ -2316,7 +2325,7 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 			// PostSave Asset
 			if (SaveContext.GetAsset())
 			{
-				SaveContext.GetAsset()->PostSaveRoot(SaveContext.GetPreSaveCleanup());
+				UE::SavePackageUtilities::CallPostSaveRoot(SaveContext.GetAsset(), SaveContext.GetObjectSaveContext(), SaveContext.GetPreSaveCleanup());
 				SaveContext.SetPreSaveCleanup(false);
 			}
 

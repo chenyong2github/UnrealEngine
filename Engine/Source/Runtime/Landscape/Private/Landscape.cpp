@@ -5,6 +5,7 @@ Landscape.cpp: Terrain rendering
 =============================================================================*/
 
 #include "Landscape.h"
+
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/BufferArchive.h"
 #include "Serialization/MemoryReader.h"
@@ -56,6 +57,7 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeSubsystem.h"
 #include "Streaming/LandscapeMeshMobileUpdate.h"
 #include "ContentStreaming.h"
+#include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITOR
 #include "LandscapeEdit.h"
@@ -2047,7 +2049,14 @@ void ALandscapeProxy::OnFeatureLevelChanged(ERHIFeatureLevel::Type NewFeatureLev
 
 void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 #if WITH_EDITOR
 	// Work out whether we have grass or not for the next game run
@@ -2782,7 +2791,14 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeHoleMaterial() const
 
 void ALandscape::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void ALandscape::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 	//ULandscapeInfo* Info = GetLandscapeInfo();
 	//if (GIsEditor && Info && !IsRunningCommandlet())
 	//{

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Slate/SlateVectorArtData.h"
+
 #include "RawIndexBuffer.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UMGPrivate.h"
 #include "StaticMeshResources.h"
 #include "Engine/StaticMesh.h"
+#include "UObject/ObjectSaveContext.h"
 
 static void StaticMeshToSlateRenderData(const UStaticMesh& DataSource, TArray<FSlateMeshVertex>& OutSlateVerts, TArray<uint32>& OutIndexes, FVector2D& OutExtentMin, FVector2D& OutExtentMax )
 {
@@ -152,7 +154,14 @@ void USlateVectorArtData::EnsureValidData()
 
 void USlateVectorArtData::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void USlateVectorArtData::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 	EnsureValidData();
 }
 

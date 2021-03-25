@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IMeshPaintMode.h"
+
 #include "SceneView.h"
 #include "EditorViewportClient.h"
 #include "Modules/ModuleManager.h"
@@ -17,6 +18,7 @@
 #include "EditorSupportDelegates.h"
 
 #include "MeshPaintHelpers.h"
+#include "UObject/ObjectSaveContext.h"
 
 //Slate dependencies
 #include "LevelEditor.h"
@@ -71,8 +73,8 @@ void IMeshPaintEdMode::Enter()
 	FCoreUObjectDelegates::OnObjectsReplaced.AddSP(this, &IMeshPaintEdMode::OnObjectsReplaced);
 
 	// Hook into pre/post world save, so that the original collision volumes can be temporarily reinstated
-	FEditorDelegates::PreSaveWorld.AddSP(this, &IMeshPaintEdMode::OnPreSaveWorld);
-	FEditorDelegates::PostSaveWorld.AddSP(this, &IMeshPaintEdMode::OnPostSaveWorld);
+	FEditorDelegates::PreSaveWorldWithContext.AddSP(this, &IMeshPaintEdMode::OnPreSaveWorld);
+	FEditorDelegates::PostSaveWorldWithContext.AddSP(this, &IMeshPaintEdMode::OnPostSaveWorld);
 
 	// Catch assets if they are about to be (re)imported
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.AddSP(this, &IMeshPaintEdMode::OnPostImportAsset);
@@ -139,8 +141,8 @@ void IMeshPaintEdMode::Exit()
 	AssetRegistryModule.Get().OnAssetRemoved().RemoveAll(this);
 	FReimportManager::Instance()->OnPostReimport().RemoveAll(this);
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
-	FEditorDelegates::PreSaveWorld.RemoveAll(this);
-	FEditorDelegates::PostSaveWorld.RemoveAll(this);
+	FEditorDelegates::PreSaveWorldWithContext.RemoveAll(this);
+	FEditorDelegates::PostSaveWorldWithContext.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 	USelection::SelectionChangedEvent.Remove(SelectionChangedHandle);
 
@@ -293,12 +295,12 @@ bool IMeshPaintEdMode::InputKey( FEditorViewportClient* InViewportClient, FViewp
 	return bHandled;
 }
 
-void IMeshPaintEdMode::OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
+void IMeshPaintEdMode::OnPreSaveWorld(UWorld* World, FObjectPreSaveContext ObjectSaveContext)
 {
 	MeshPainter->Refresh();
 }
 
-void IMeshPaintEdMode::OnPostSaveWorld(uint32 SaveFlags, UWorld* World, bool bSuccess)
+void IMeshPaintEdMode::OnPostSaveWorld(UWorld* World, FObjectPostSaveContext ObjectSaveContext)
 {
 	MeshPainter->Refresh();
 }

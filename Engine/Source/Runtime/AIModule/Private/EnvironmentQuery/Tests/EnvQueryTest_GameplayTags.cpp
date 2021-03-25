@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvironmentQuery/Tests/EnvQueryTest_GameplayTags.h"
+
 #include "GameFramework/Actor.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_ActorBase.h"
 #include "BehaviorTree/BTNode.h"
 #include "GameplayTagAssetInterface.h"
+#include "UObject/ObjectSaveContext.h"
 
 UEnvQueryTest_GameplayTags::UEnvQueryTest_GameplayTags(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
@@ -20,12 +22,19 @@ UEnvQueryTest_GameplayTags::UEnvQueryTest_GameplayTags(const FObjectInitializer&
 
 void UEnvQueryTest_GameplayTags::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UEnvQueryTest_GameplayTags::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 	// If this is a new object, it's already converted to new format.  If it was old, this should've already been set to
 	// true in PostLoad.  This prevents us from erroneously trying to import old data multiple times and so obliterating
 	// current data.
 	bUpdatedToUseQuery = true;
 
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 void UEnvQueryTest_GameplayTags::PostLoad()

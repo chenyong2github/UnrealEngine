@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/DataAsset.h"
+
 #include "Misc/PackageName.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "Engine/AssetManager.h"
+
 UDataAsset::UDataAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -34,7 +37,14 @@ void UPrimaryDataAsset::UpdateAssetBundleData()
 
 void UPrimaryDataAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UPrimaryDataAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 	UpdateAssetBundleData();
 

@@ -229,7 +229,6 @@ public:
 	void CB_SelectedProps();
 	void CB_DisplayLoadErrors();
 	void CB_RefreshEditor();
-	void PreSaveWorld(uint32 SaveFlags, class UWorld* World);
 
 	/** Tells the editor that something has been done to change the map.  Can be anything from loading a whole new map to changing the BSP. */
 	void CB_MapChange( uint32 InFlags );
@@ -291,9 +290,6 @@ public:
 	/** Delegate used to update the map of asset update counts */
 	void OnObjectSaved(UObject* SavedObject);
 
-	/** Delegate used to update the map of asset update counts (for UWorlds specifically) */
-	void OnWorldSaved(uint32 SaveFlags, UWorld* SavedWorld);
-
 	/** Logs an update to an asset */
 	void LogAssetUpdate(UObject* UpdatedAsset);
 
@@ -312,6 +308,7 @@ public:
 	FString GetProjectEditorBinaryPath();
 
 private:
+	void PreSaveWorld(class UWorld* World, FObjectPreSaveContext ObjectSaveContext);
 
 	/** The current state of the autosave */
 	EAutosaveState::Type AutosaveState;

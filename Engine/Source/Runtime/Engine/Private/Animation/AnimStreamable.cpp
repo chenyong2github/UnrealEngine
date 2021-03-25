@@ -5,11 +5,13 @@
 =============================================================================*/ 
 
 #include "Animation/AnimStreamable.h"
+
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/ObjectSaveContext.h"
 #include "Animation/AnimCompressionDerivedData.h"
 #include "DerivedDataCacheInterface.h"
 #include "Animation/AnimBoneCompressionSettings.h"
@@ -133,7 +135,15 @@ UAnimStreamable::UAnimStreamable(const FObjectInitializer& ObjectInitializer)
 
 void UAnimStreamable::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UAnimStreamable::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 #if WITH_EDITOR
+	const ITargetPlatform* TargetPlatform = ObjectSaveContext.GetTargetPlatform();
 	if (TargetPlatform)
 	{
 		RequestCompressedData(TargetPlatform); //Make sure target platform data is built
@@ -141,7 +151,7 @@ void UAnimStreamable::PreSave(const class ITargetPlatform* TargetPlatform)
 
 #endif
 
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 }
 
 void UAnimStreamable::Serialize(FArchive& Ar)

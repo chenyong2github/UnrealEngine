@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WidgetBlueprint.h"
+
 #include "Components/Widget.h"
 #include "Blueprint/UserWidget.h"
 #include "MovieScene.h"
@@ -19,6 +20,7 @@
 #include "WidgetBlueprintCompiler.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/ObjectSaveContext.h"
 #include "WidgetGraphSchema.h"
 #include "UMGEditorProjectSettings.h"
 
@@ -586,7 +588,14 @@ void UWidgetBlueprint::ReplaceDeprecatedNodes()
 #if WITH_EDITORONLY_DATA
 void UWidgetBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UWidgetBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 }
 #endif // WITH_EDITORONLY_DATA
 

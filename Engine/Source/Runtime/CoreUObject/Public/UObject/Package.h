@@ -114,16 +114,24 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPackageDirtyStateChanged, class UPackage*);
 	/** delegate type for package saved events ( Params: const FString& PackageFileName, UObject* Outer ) */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPackageSaved, const FString&, UObject*);					
+	/** delegate type for package saved events ( Params: const FString& PackageFileName, UObject* Outer, FObjectPostSaveContext ObjectSaveContext ) */
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPackageSavedWithContext, const FString&, UPackage*, FObjectPostSaveContext);
 	/** delegate type for when a package is marked as dirty via UObjectBaseUtilty::MarkPackageDirty ( Params: UPackage* ModifiedPackage, bool bWasDirty ) */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPackageMarkedDirty, class UPackage*, bool);
 	/** delegate type for when a package is about to be saved */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPreSavePackage, class UPackage*);
+	/** delegate type for when a package is about to be saved */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FPreSavePackageWithContext, class UPackage*, FObjectPreSaveContext);
 
-	/** Delegate to notify subscribers when a package is about to be saved. */
+	UE_DEPRECATED(5.0, "Use PreSavePackageWithContextEvent instead.")
 	static FPreSavePackage PreSavePackageEvent;
+	/** Delegate to notify subscribers when a package is about to be saved. */
+	static FPreSavePackageWithContext PreSavePackageWithContextEvent;
+	UE_DEPRECATED(5.0, "Use PackageSavedWithContextEvent instead.")
+	static FOnPackageSaved PackageSavedEvent;
 	/** Delegate to notify subscribers when a package has been saved. This is triggered when the package saving
 	*  has completed and was successful. */
-	static FOnPackageSaved PackageSavedEvent;
+	static FOnPackageSavedWithContext PackageSavedWithContextEvent;
 	/** Delegate to notify subscribers when the dirty state of a package is changed.
 	*  Allows the editor to register the modified package as one that should be prompted for source control checkout. 
 	*  Use Package->IsDirty() to get the updated dirty state of the package */

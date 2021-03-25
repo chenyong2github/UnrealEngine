@@ -50,7 +50,9 @@ public:
 	ENGINE_API virtual void UpdateAssetBundleData();
 
 	/** Updates AssetBundleData */
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	ENGINE_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 protected:
 	/** Asset Bundle data computed at save time. In cooked builds this is accessible from AssetRegistry */

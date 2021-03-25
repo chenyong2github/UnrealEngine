@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeEditorModule.h"
+
 #include "Modules/ModuleManager.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UICommandList.h"
@@ -33,6 +34,7 @@
 #include "LandscapeSubsystem.h"
 
 #include "LandscapeRender.h"
+#include "UObject/ObjectSaveContext.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor"
 
@@ -65,7 +67,7 @@ public:
 	{
 		FLandscapeEditorCommands::Register();
 
-		PreSaveWorldHandle = FEditorDelegates::PreSaveWorld.AddRaw(this, &FLandscapeEditorModule::OnPreSaveWorld);
+		PreSaveWorldHandle = FEditorDelegates::PreSaveWorldWithContext.AddRaw(this, &FLandscapeEditorModule::OnPreSaveWorld);
 
 		// register the editor mode
 		FEditorModeRegistry::Get().RegisterMode<FEdModeLandscape>(
@@ -141,7 +143,7 @@ public:
 	{
 		FLandscapeEditorCommands::Unregister();
 
-		FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldHandle);
+		FEditorDelegates::PreSaveWorldWithContext.Remove(PreSaveWorldHandle);
 
 		// unregister the editor mode
 		FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_Landscape);
@@ -292,12 +294,12 @@ public:
 		}
 	}
 
-	void OnPreSaveWorld(uint32 SaveFlags, class UWorld* World)
+	void OnPreSaveWorld( class UWorld* World, FObjectPreSaveContext ObjectSaveContext)
 	{
 		FEdModeLandscape* EdMode = (FEdModeLandscape*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Landscape);
 		if (EdMode)
 		{
-			EdMode->OnPreSaveWorld(SaveFlags, World);
+			EdMode->OnPreSaveWorld(World, ObjectSaveContext);
 		}
 	}
 

@@ -17,11 +17,12 @@
 	UPackage.
 -----------------------------------------------------------------------------*/
 
-/** Delegate to notify subscribers when a package is about to be saved. */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 UPackage::FPreSavePackage UPackage::PreSavePackageEvent;
-/** Delegate to notify subscribers when a package has been saved. This is triggered when the package saving
- *  has completed and was successful. */
 UPackage::FOnPackageSaved UPackage::PackageSavedEvent;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+UPackage::FPreSavePackageWithContext UPackage::PreSavePackageWithContextEvent;
+UPackage::FOnPackageSavedWithContext UPackage::PackageSavedWithContextEvent;
 /** Delegate to notify subscribers when the dirty state of a package is changed.
  *  Allows the editor to register the modified package as one that should be prompted for source control checkout. 
  *  Use Package->IsDirty() to get the updated dirty state of the package */

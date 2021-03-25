@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelEditorSequencerIntegration.h"
+
 #include "SequencerEdMode.h"
 #include "Styling/SlateIconFinder.h"
 #include "PropertyHandle.h"
@@ -43,6 +44,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "UObject/ObjectKey.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UnrealEdGlobals.h"
 #include "UnrealEdMisc.h"
 #include "Editor/UnrealEdEngine.h"
@@ -169,12 +171,12 @@ void FLevelEditorSequencerIntegration::Initialize(const FLevelEditorSequencerInt
 
 	// Register for saving the level so that the state of the scene can be restored before saving and updated after saving.
 	{
-		FDelegateHandle Handle = FEditorDelegates::PreSaveWorld.AddRaw(this, &FLevelEditorSequencerIntegration::OnPreSaveWorld);
-		AcquiredResources.Add([=]{ FEditorDelegates::PreSaveWorld.Remove(Handle); });
+		FDelegateHandle Handle = FEditorDelegates::PreSaveWorldWithContext.AddRaw(this, &FLevelEditorSequencerIntegration::OnPreSaveWorld);
+		AcquiredResources.Add([=]{ FEditorDelegates::PreSaveWorldWithContext.Remove(Handle); });
 	}
 	{
-		FDelegateHandle Handle = FEditorDelegates::PostSaveWorld.AddRaw(this, &FLevelEditorSequencerIntegration::OnPostSaveWorld);
-		AcquiredResources.Add([=]{ FEditorDelegates::PostSaveWorld.Remove(Handle); });
+		FDelegateHandle Handle = FEditorDelegates::PostSaveWorldWithContext.AddRaw(this, &FLevelEditorSequencerIntegration::OnPostSaveWorld);
+		AcquiredResources.Add([=]{ FEditorDelegates::PostSaveWorldWithContext.Remove(Handle); });
 	}
 	{
 		FDelegateHandle Handle = FEditorDelegates::PreBeginPIE.AddRaw(this, &FLevelEditorSequencerIntegration::OnPreBeginPIE);
@@ -308,7 +310,7 @@ void FLevelEditorSequencerIntegration::OnActorLabelChanged(AActor* ChangedActor)
 	}
 }
 
-void FLevelEditorSequencerIntegration::OnPreSaveWorld(uint32 SaveFlags, class UWorld* World)
+void FLevelEditorSequencerIntegration::OnPreSaveWorld(class UWorld* World, FObjectPreSaveContext ObjectSaveContext)
 {
 	// Restore the saved state so that the level save can save that instead of the animated state.
 	IterateAllSequencers(
@@ -322,7 +324,7 @@ void FLevelEditorSequencerIntegration::OnPreSaveWorld(uint32 SaveFlags, class UW
 	);
 }
 
-void FLevelEditorSequencerIntegration::OnPostSaveWorld(uint32 SaveFlags, class UWorld* World, bool bSuccess)
+void FLevelEditorSequencerIntegration::OnPostSaveWorld(class UWorld* World, FObjectPostSaveContext ObjectSaveContext)
 {
 	// Reset the time after saving so that an update will be triggered to put objects back to their animated state.
 	IterateAllSequencers(

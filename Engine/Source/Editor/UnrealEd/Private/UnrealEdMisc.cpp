@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnrealEdMisc.h"
+
 #include "TickableEditorObject.h"
 #include "Components/PrimitiveComponent.h"
 #include "Misc/MessageDialog.h"
@@ -27,6 +28,7 @@
 #include "HAL/PlatformSplash.h"
 #include "Internationalization/Culture.h"
 #include "Misc/ConfigCacheIni.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
 #include "EditorViewportClient.h"
@@ -245,12 +247,11 @@ void FUnrealEdMisc::OnInit()
 	FEditorDelegates::DisplayLoadErrors.AddRaw(this, &FUnrealEdMisc::CB_DisplayLoadErrors);
 	FEditorDelegates::MapChange.AddRaw(this, &FUnrealEdMisc::CB_MapChange);
 	FEditorDelegates::RefreshEditor.AddRaw(this, &FUnrealEdMisc::CB_RefreshEditor);
-	FEditorDelegates::PreSaveWorld.AddRaw(this, &FUnrealEdMisc::PreSaveWorld);
+	FEditorDelegates::PreSaveWorldWithContext.AddRaw(this, &FUnrealEdMisc::PreSaveWorld);
 	FEditorSupportDelegates::RedrawAllViewports.AddRaw(this, &FUnrealEdMisc::CB_RedrawAllViewports);
 	GEngine->OnLevelActorAdded().AddRaw( this, &FUnrealEdMisc::CB_LevelActorsAdded );
 
 	FCoreUObjectDelegates::OnObjectSaved.AddRaw(this, &FUnrealEdMisc::OnObjectSaved);
-	FEditorDelegates::PreSaveWorld.AddRaw(this, &FUnrealEdMisc::OnWorldSaved);
 
 #if USE_UNIT_TESTS
 	FAutomationTestFramework::Get().PreTestingEvent.AddRaw(this, &FUnrealEdMisc::CB_PreAutomationTesting);
@@ -987,7 +988,7 @@ void FUnrealEdMisc::OnExit()
 	FEditorDelegates::DisplayLoadErrors.RemoveAll(this);
 	FEditorDelegates::MapChange.RemoveAll(this);
 	FEditorDelegates::RefreshEditor.RemoveAll(this);
-	FEditorDelegates::PreSaveWorld.RemoveAll(this);
+	FEditorDelegates::PreSaveWorldWithContext.RemoveAll(this);
 	FEditorSupportDelegates::RedrawAllViewports.RemoveAll(this);
 	GEngine->OnLevelActorAdded().RemoveAll(this);
 
@@ -1091,10 +1092,11 @@ void FUnrealEdMisc::CB_RefreshEditor()
 	FEditorDelegates::RefreshAllBrowsers.Broadcast();
 }
 
-void FUnrealEdMisc::PreSaveWorld(uint32 SaveFlags, UWorld* World)
+void FUnrealEdMisc::PreSaveWorld(UWorld* World, FObjectPreSaveContext ObjectSaveContext)
 {
-	const bool bAutosaveOrPIE = (SaveFlags & SAVE_FromAutosave) != 0;
-	if (bAutosaveOrPIE || World == NULL || World != GEditor->GetEditorWorldContext().World() || !FEngineAnalytics::IsAvailable())
+	LogAssetUpdate(World);
+	const bool bAutosaveOrPIE = (ObjectSaveContext.GetSaveFlags() & SAVE_FromAutosave) != 0;
+	if (bAutosaveOrPIE || !World || World != GEditor->GetEditorWorldContext().World() || !FEngineAnalytics::IsAvailable())
 	{
 		return;
 	}
@@ -1647,11 +1649,6 @@ void FUnrealEdMisc::OnObjectSaved(UObject* SavedObject)
 	{
 		LogAssetUpdate(SavedObject);
 	}
-}
-
-void FUnrealEdMisc::OnWorldSaved(uint32 SaveFlags, UWorld* SavedWorld)
-{
-	LogAssetUpdate(SavedWorld);
 }
 
 void FUnrealEdMisc::LogAssetUpdate(UObject* UpdatedAsset)

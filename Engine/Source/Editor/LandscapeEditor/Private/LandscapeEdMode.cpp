@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeEdMode.h"
+
 #include "SceneView.h"
 #include "Engine/Texture2D.h"
 #include "EditorViewportClient.h"
@@ -32,6 +33,7 @@
 #include "LandscapeInfoMap.h"
 #include "LandscapeImportHelper.h"
 #include "LandscapeConfigHelper.h"
+#include "UObject/ObjectSaveContext.h"
 
 //Slate dependencies
 #include "Misc/FeedbackContext.h"
@@ -668,7 +670,7 @@ void FEdModeLandscape::Exit()
 	FEdMode::Exit();
 }
 
-void FEdModeLandscape::OnPreSaveWorld(uint32 InSaveFlags, const class UWorld* InWorld)
+void FEdModeLandscape::OnPreSaveWorld(const class UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)
 {
 	// Avoid doing this during cooking to keep determinism and we don't want to do this on GameWorlds.
 	if (!InWorld->IsGameWorld() && !GIsCookerLoadingPackage)

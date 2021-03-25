@@ -53,7 +53,7 @@ private:
 	// Recreate LOD actors for the given level.
 	void RecreateLODActorsForLevel(ULevel* InLevel, UWorld* InWorld);
 
-	void OnPreSaveWorld(uint32 InSaveFlags, UWorld* InWorld);
+	void OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext);
 
 	void UnregisterRecreateLODActorsDelegates();
 	void RegisterRecreateLODActorsDelegates();

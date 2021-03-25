@@ -358,12 +358,6 @@ namespace SavePackageUtilities
 	void AsyncWriteFileWithSplitExports(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const int64 HeaderSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions);
 
 	void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects);
-
-	/**
-	 * Return whether the given save parameters indicate the LoadedPath of the package being saved should be updated.
-	 * This allows us to update the in-memory package when it is saved in editor to match its new save file.
-	 */
-	bool IsSavingNewLoadedPath(bool bIsCooking, const FPackagePath& TargetPackagePath, uint32 SaveFlags);
 }
 
 #if ENABLE_COOK_STATS

@@ -38,7 +38,9 @@ private:
 public:
 
 	//~ UObject interface
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext);
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual void Serialize(FArchive& Ar) override;
 

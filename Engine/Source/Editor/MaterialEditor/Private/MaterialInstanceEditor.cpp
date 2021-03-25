@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialInstanceEditor.h"
+
 #include "Widgets/Text/STextBlock.h"
 #include "EngineGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Views/SListView.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
@@ -610,7 +612,7 @@ FMaterialInstanceEditor::FMaterialInstanceEditor()
 , FunctionMaterialProxy(nullptr)
 , FunctionInstanceProxy(nullptr)
 {
-	UPackage::PreSavePackageEvent.AddRaw(this, &FMaterialInstanceEditor::PreSavePackage);
+	UPackage::PreSavePackageWithContextEvent.AddRaw(this, &FMaterialInstanceEditor::PreSavePackage);
 }
 
 FMaterialInstanceEditor::~FMaterialInstanceEditor()
@@ -620,7 +622,7 @@ FMaterialInstanceEditor::~FMaterialInstanceEditor()
 
 	GEditor->UnregisterForUndo( this );
 
-	UPackage::PreSavePackageEvent.RemoveAll(this);
+	UPackage::PreSavePackageWithContextEvent.RemoveAll(this);
 
 	// The streaming data will be null if there were any edits
 	if (MaterialEditorInstance && MaterialEditorInstance->SourceInstance && !MaterialEditorInstance->SourceInstance->HasTextureStreamingData())
@@ -1118,7 +1120,7 @@ void FMaterialInstanceEditor::RefreshPreviewAsset()
 	PreviewVC->SetPreviewAsset(PreviewAsset);
 }
 
-void FMaterialInstanceEditor::PreSavePackage(UPackage* Package)
+void FMaterialInstanceEditor::PreSavePackage(UPackage* Package, FObjectPreSaveContext ObjectSaveContext)
 {
 	// The streaming data will be null if there were any edits
 	if (MaterialEditorInstance && 

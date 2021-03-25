@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Editor/EditorEngine.h"
+
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
@@ -11,6 +12,7 @@
 #include "Misc/AssetRegistryInterface.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/MetaData.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Application/ThrottleManager.h"
 #include "Framework/Application/SlateApplication.h"
@@ -4288,16 +4290,14 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 		}
 	}
 
-	// Record the package flags before OnPreSaveWorld. They will be used in OnPostSaveWorld.
-	const uint32 OriginalPackageFlags = (InOuter ? InOuter->GetPackageFlags() : 0);
-
 	SlowTask.EnterProgressFrame(10);
 
 	UWorld* World = Cast<UWorld>(Base);
 	bool bInitializedPhysicsSceneForSave = false;
 	bool bForceInitializedWorld = false;
 	const bool bSavingConcurrent = !!(SaveFlags & ESaveFlags::SAVE_Concurrent);
-	
+
+	FObjectSaveContextData ObjectSaveContext(InOuter, TargetPlatform, Filename, SaveFlags);
 	UWorld *OriginalOwningWorld = nullptr;
 	if ( World )
 	{
@@ -4305,7 +4305,10 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 		{
 			bInitializedPhysicsSceneForSave = InitializePhysicsSceneForSaveIfNecessary(World, bForceInitializedWorld);
 
-			OnPreSaveWorld(SaveFlags, World);
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+			OnPreSaveWorld(ObjectSaveContext.SaveFlags, World);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+			OnPreSaveWorld(World, FObjectPreSaveContext(ObjectSaveContext));
 		}
 
 		OriginalOwningWorld = World->PersistentLevel->OwningWorld;
@@ -4322,10 +4325,14 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 
 	SlowTask.EnterProgressFrame(70);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	UPackage::PreSavePackageEvent.Broadcast(InOuter);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	UPackage::PreSavePackageWithContextEvent.Broadcast(InOuter, FObjectPreSaveContext(ObjectSaveContext));
 	FSavePackageResultStruct Result = UPackage::Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping, bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask, InOutDiffMap, SavePackageContext);
 
 	SlowTask.EnterProgressFrame(10);
+	ObjectSaveContext.bSaveSucceeded = Result == ESavePackageResult::Success;
 
 	// If the package is a valid candidate for being automatically-added to source control, go ahead and add it
 	// to the default changelist
@@ -4361,7 +4368,10 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 
 		if (!bSavingConcurrent)
 		{
-			OnPostSaveWorld(SaveFlags, World, OriginalPackageFlags, Result == ESavePackageResult::Success);
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+			OnPostSaveWorld(ObjectSaveContext.SaveFlags, World, ObjectSaveContext.OriginalPackageFlags, ObjectSaveContext.bSaveSucceeded);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+			OnPostSaveWorld(World, FObjectPostSaveContext(ObjectSaveContext));
 
 			if (bInitializedPhysicsSceneForSave)
 			{
@@ -4393,6 +4403,14 @@ bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InBase, EObjectFlags
 
 void UEditorEngine::OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
 {
+}
+
+void UEditorEngine::OnPreSaveWorld(UWorld* World, FObjectPreSaveContext ObjectSaveContext)
+{
+	if (!ObjectSaveContext.IsFirstConcurrentSave())
+	{
+		return;
+	}
 	if ( !ensure(World) )
 	{
 		return;
@@ -4403,14 +4421,17 @@ void UEditorEngine::OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
 	check(World->PersistentLevel);
 
 	// Pre save world event
-	FEditorDelegates::PreSaveWorld.Broadcast(SaveFlags, World);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	FEditorDelegates::PreSaveWorld.Broadcast(ObjectSaveContext.GetSaveFlags(), World);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	FEditorDelegates::PreSaveWorldWithContext.Broadcast(World, ObjectSaveContext);
 
 	// Update cull distance volumes (and associated primitives).
 	World->UpdateCullDistanceVolumes();
 
 	if ( !IsRunningCommandlet() )
 	{
-		const bool bAutosave = (SaveFlags & SAVE_FromAutosave) != 0;
+		const bool bAutosave = (ObjectSaveContext.GetSaveFlags() & SAVE_FromAutosave) != 0;
 		if ( bAutosave )
 		{
 			// Temporarily flag packages saved under a PIE filename as PKG_PlayInEditor for serialization so loading
@@ -4475,15 +4496,25 @@ void UEditorEngine::OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
 
 void UEditorEngine::OnPostSaveWorld(uint32 SaveFlags, UWorld* World, uint32 OriginalPackageFlags, bool bSuccess)
 {
+}
+
+void UEditorEngine::OnPostSaveWorld(UWorld* World, FObjectPostSaveContext ObjectSaveContext)
+{
+	if (!ObjectSaveContext.IsLastConcurrentSave())
+	{
+		return;
+	}
 	if ( !ensure(World) )
 	{
 		return;
 	}
+	uint32 OriginalPackageFlags = ObjectSaveContext.GetOriginalPackageFlags();
+	bool bSuccess = ObjectSaveContext.SaveSucceeded();
 
 	if ( !IsRunningCommandlet() )
 	{
 		UPackage* WorldPackage = World->GetOutermost();
-		const bool bAutosave = (SaveFlags & SAVE_FromAutosave) != 0;
+		const bool bAutosave = (ObjectSaveContext.GetSaveFlags() & SAVE_FromAutosave) != 0;
 		if ( bAutosave )
 		{
 			// Restore original value of PKG_PlayInEditor if we changed it during PIE saving
@@ -4552,7 +4583,10 @@ void UEditorEngine::OnPostSaveWorld(uint32 SaveFlags, UWorld* World, uint32 Orig
 	}
 
 	// Post save world event
-	FEditorDelegates::PostSaveWorld.Broadcast(SaveFlags, World, bSuccess);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	FEditorDelegates::PostSaveWorld.Broadcast(ObjectSaveContext.GetSaveFlags(), World, bSuccess);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	FEditorDelegates::PostSaveWorldWithContext.Broadcast(World, ObjectSaveContext);
 }
 
 APlayerStart* UEditorEngine::CheckForPlayerStart()

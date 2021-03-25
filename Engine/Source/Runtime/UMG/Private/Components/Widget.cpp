@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/Widget.h"
+
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/UObjectToken.h"
 #include "CoreGlobals.h"
@@ -9,6 +10,7 @@
 #include "Widgets/IToolTip.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SOverlay.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/LocalPlayer.h"
@@ -1140,7 +1142,14 @@ void UWidget::DeselectByDesigner()
 
 void UWidget::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void UWidget::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 	// This is a failsafe to make sure all the accessibility data is copied over in case
 	// some rare instance isn't handled by SynchronizeProperties. It might not be necessary.

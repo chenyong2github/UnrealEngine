@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimSceneAssetBase.h"
+
 #include "AnimationRuntime.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimationPoseData.h"
@@ -9,6 +10,7 @@
 #include "ContextualAnimScenePivotProvider.h"
 #include "ContextualAnimUtilities.h"
 #include "ContextualAnimMetadata.h"
+#include "UObject/ObjectSaveContext.h"
 
 UContextualAnimSceneAssetBase::UContextualAnimSceneAssetBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -96,7 +98,14 @@ void UContextualAnimSceneAssetBase::GenerateAlignmentTracksRelativeToScenePivot(
 
 void UContextualAnimSceneAssetBase::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UContextualAnimSceneAssetBase::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 	// Generate scene pivot for each alignment section
 	for (int32 Idx = 0; Idx < AlignmentSections.Num(); Idx++)

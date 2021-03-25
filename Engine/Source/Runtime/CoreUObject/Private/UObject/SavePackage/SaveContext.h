@@ -17,6 +17,7 @@
 #include "UObject/LinkerSave.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 #include "UObject/SavePackage/SavePackageUtilities.h"
@@ -88,6 +89,10 @@ public:
 		}
 
 		TargetPackagePath = FPackagePath::FromLocalPath(InFilename);
+		if (TargetPackagePath.GetHeaderExtension() == EPackageExtension::Unspecified)
+		{
+			TargetPackagePath.SetHeaderExtension(EPackageExtension::EmptyString);
+		}
 
 		// if we aren't cooking and top level flags aren't empty, add RF_HasExternalPackage to them to catch external packages data
 		if (SaveArgs.TopLevelFlags != RF_NoFlags && !IsCooking())
@@ -103,7 +108,7 @@ public:
 			bIsProcessingPrestreamPackages = ProcessPrestreamingRequests->GetInt() > 0;
 		}
 
-		bSavingNewLoadedPath = SavePackageUtilities::IsSavingNewLoadedPath(IsCooking(), TargetPackagePath, SaveArgs.SaveFlags);
+		ObjectSaveContext.Set(InPackage, GetTargetPlatform(), TargetPackagePath, SaveArgs.SaveFlags);
 	}
 
 	~FSaveContext()
@@ -121,7 +126,7 @@ public:
 
 		if (bNeedPreSaveCleanup && Asset)
 		{
-			Asset->PostSaveRoot(bNeedPreSaveCleanup);
+			UE::SavePackageUtilities::CallPostSaveRoot(Asset, ObjectSaveContext, bNeedPreSaveCleanup);
 		}
 	}
 
@@ -190,9 +195,14 @@ public:
 		return SaveArgs.TargetPlatform != nullptr;
 	}
 
-	bool IsSavingNewLoadedPath() const
+	bool IsProceduralSave() const
 	{
-		return bSavingNewLoadedPath;
+		return ObjectSaveContext.bProceduralSave;
+	}
+
+	bool IsUpdatingLoadedPath() const
+	{
+		return ObjectSaveContext.bUpdatingLoadedPath;
 	}
 
 	bool IsFilterEditorOnly() const
@@ -536,6 +546,11 @@ public:
 		return FSavePackageResultStruct(FinalResult, TotalPackageSizeUncompressed, AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)), IsCompareLinker() ? MoveTemp(Linker) : nullptr);
 	}
 
+	FObjectSaveContextData& GetObjectSaveContext()
+	{
+		return ObjectSaveContext;
+	}
+
 public:
 	ESavePackageResult Result;
 
@@ -569,12 +584,12 @@ private:
 
 	// State context
 	FUObjectSerializeContext* SerializeContext = nullptr;
+	FObjectSaveContextData ObjectSaveContext;
 	bool bCanUseUnversionedPropertySerialization = false;
 	bool bTextFormat = false;
 	bool bIsProcessingPrestreamPackages = false;
 	bool bNeedPreSaveCleanup = false;
 	bool bGenerateFileStub = false;
-	bool bSavingNewLoadedPath = false;
 
 	// Config classes shared with the old Save
 	FSavePackageDiffSettings DiffSettings;

@@ -44,7 +44,9 @@ public:
 
 	UContextualAnimSceneAssetBase(const FObjectInitializer& ObjectInitializer);
 
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 	//@TODO: Make pure virtual
 	virtual UClass* GetPreviewActorClassForRole(const FName& Role) const { return nullptr; }

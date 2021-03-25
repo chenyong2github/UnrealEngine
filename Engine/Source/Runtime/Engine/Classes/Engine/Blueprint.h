@@ -906,7 +906,9 @@ public:
 
 	//~ Begin UObject Interface
 #if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 #endif // WITH_EDITORONLY_DATA
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;

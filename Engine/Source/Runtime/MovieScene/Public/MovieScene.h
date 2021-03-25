@@ -1124,8 +1124,10 @@ protected:
 
 protected:
 
-	/** Called before this object is being deserialized. */
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	/** Called before this object is being deserialized. */
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 	/** Perform legacy upgrade of time ranges */
 	void UpgradeTimeRanges();

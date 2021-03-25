@@ -9,6 +9,7 @@
 #include "Containers/Queue.h"
 #include "HAL/Runnable.h"
 
+class FObjectPostSaveContext;
 class FRunnableThread;
 class UClass;
 class ISearchProvider;
@@ -46,7 +47,7 @@ private:
 	void OnAssetRemoved(const FAssetData& InAssetData);
 	void OnAssetScanFinished();
 
-	void HandlePackageSaved(const FString& PackageFilename, UObject* Outer);
+	void HandlePackageSaved(const FString& PackageFilename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext);
 	void OnAssetLoaded(UObject* InObject);
 
 	void AddOrUpdateAsset(const FAssetData& InAsset, const FString& IndexedJson, const FString& DerivedDataKey);

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/Texture.h"
+
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "Materials/MaterialInterface.h"
@@ -9,6 +10,7 @@
 #include "Misc/FeedbackContext.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/ObjectSaveContext.h"
 #include "TextureResource.h"
 #include "Engine/Texture2D.h"
 #include "ContentStreaming.h"
@@ -577,9 +579,16 @@ void UTexture::FinishDestroy()
 
 void UTexture::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UTexture::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
 	PreSaveEvent.Broadcast(this);
 
-	Super::PreSave(TargetPlatform);
+	Super::PreSave(ObjectSaveContext);
 
 #if WITH_EDITOR
 	if (DeferCompression)
@@ -589,8 +598,7 @@ void UTexture::PreSave(const class ITargetPlatform* TargetPlatform)
 		UpdateResource();
 	}
 
-	bool bIsCooking = TargetPlatform != nullptr;
-	if (!GEngine->IsAutosaving() && (!bIsCooking))
+	if (!GEngine->IsAutosaving() && !ObjectSaveContext.IsCooking())
 	{
 		GWarn->StatusUpdate(0, 0, FText::Format(NSLOCTEXT("UnrealEd", "SavingPackage_CompressingSourceArt", "Compressing source art for texture:  {0}"), FText::FromString(GetName())));
 		Source.Compress();

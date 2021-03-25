@@ -214,10 +214,12 @@ public:
 
 	//~ UObject interface
 	void PostInitProperties();
-	void Serialize(FArchive& Ar)override;
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override; 
 	virtual void BeginDestroy() override;
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyThatWillChange)override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 

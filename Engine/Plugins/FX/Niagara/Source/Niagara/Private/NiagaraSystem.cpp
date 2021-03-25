@@ -2,6 +2,7 @@
 
 
 #include "NiagaraSystem.h"
+
 #include "NiagaraRendererProperties.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraConstants.h"
@@ -27,6 +28,7 @@
 #include "Algo/RemoveIf.h"
 #include "Async/Async.h"
 #include "Misc/ScopedSlowTask.h"
+#include "UObject/ObjectSaveContext.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystem"
 
@@ -132,9 +134,16 @@ void UNiagaraSystem::BeginDestroy()
 	//FNiagaraWorldManager::DestroyAllSystemSimulations(this);
 }
 
-void UNiagaraSystem::PreSave(const class ITargetPlatform * TargetPlatform)
+void UNiagaraSystem::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UNiagaraSystem::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 #if WITH_EDITORONLY_DATA
 	WaitForCompilationComplete();
 #endif

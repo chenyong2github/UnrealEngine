@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/LODActor.h"
+
 #include "UObject/UObjectIterator.h"
 #include "Engine/CollisionProfile.h"
 #include "Logging/TokenizedMessage.h"
@@ -26,6 +27,7 @@
 #include "IHierarchicalLODUtilities.h"
 #include "ObjectTools.h"
 #include "HierarchicalLOD.h"
+#include "UObject/ObjectSaveContext.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLOD, Log, All);
@@ -1384,7 +1386,14 @@ void ALODActor::Serialize(FArchive& Ar)
 
 void ALODActor::PreSave(const class ITargetPlatform* TargetPlatform)
 {
-	Super::PreSave(TargetPlatform);	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void ALODActor::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 	// Always rebuild key on save here.
 	// We don't do this while cooking as keys rely on platform derived data which is context-dependent during cook

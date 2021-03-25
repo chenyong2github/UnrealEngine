@@ -15,6 +15,7 @@
 #include "TickableEditorObject.h"
 
 class FCanvas;
+class FObjectPreSaveContext;
 class UToolMenu;
 class UMaterialEditorInstanceConstant;
 class UMaterialInterface;
@@ -75,7 +76,7 @@ public:
 	/** Post edit change notify for properties. */
 	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged ) override;
 
-	void PreSavePackage(UPackage* Obj);
+	void PreSavePackage(UPackage* Obj, FObjectPreSaveContext ObjectSaveContext);
 
 	/** Rebuilds the inheritance list for this material instance. */
 	void RebuildInheritanceList();

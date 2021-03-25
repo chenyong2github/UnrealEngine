@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataRegistrySource_CurveTable.h"
+
 #include "DataRegistryTypesPrivate.h"
 #include "DataRegistrySettings.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Engine/AssetManager.h"
+#include "UObject/ObjectSaveContext.h"
 
 void UDataRegistrySource_CurveTable::SetSourceTable(const TSoftObjectPtr<UCurveTable>& InSourceTable, const FDataRegistrySource_DataTableRules& InTableRules)
 {
@@ -295,7 +297,14 @@ void UDataRegistrySource_CurveTable::EditorRefreshSource()
 
 void UDataRegistrySource_CurveTable::PreSave(const ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UDataRegistrySource_CurveTable::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 	// Force load it to validate type on save
 	SetCachedTable(true);

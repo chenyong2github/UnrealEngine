@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SWorldHierarchyImpl.h"
+
 #include "SLevelsTreeWidget.h"
 #include "SWorldHierarchyItem.h"
 #include "SWorldHierarchy.h"
@@ -11,6 +12,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
+#include "UObject/ObjectSaveContext.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
@@ -59,7 +61,7 @@ SWorldHierarchyImpl::~SWorldHierarchyImpl()
 		LevelFolders.OnFolderDelete.RemoveAll(this);
 	}
 
-	FEditorDelegates::PostSaveWorld.RemoveAll(this);
+	FEditorDelegates::PostSaveWorldWithContext.RemoveAll(this);
 }
 
 void SWorldHierarchyImpl::Construct(const FArguments& InArgs)
@@ -326,7 +328,7 @@ void SWorldHierarchyImpl::Construct(const FArguments& InArgs)
 
 		if (!bFoldersOnlyMode)
 		{
-			FEditorDelegates::PostSaveWorld.AddSP(this, &SWorldHierarchyImpl::OnWorldSaved);
+			FEditorDelegates::PostSaveWorldWithContext.AddSP(this, &SWorldHierarchyImpl::OnWorldSaved);
 		}
 	}
 
@@ -364,7 +366,7 @@ void SWorldHierarchyImpl::Tick( const FGeometry& AllotedGeometry, const double I
 	}
 }
 
-void SWorldHierarchyImpl::OnWorldSaved(uint32 SaveFlags, UWorld* World, bool bSuccess)
+void SWorldHierarchyImpl::OnWorldSaved(UWorld* World, FObjectPostSaveContext ObjectSaveContext)
 {
 	if (FLevelFolders::IsAvailable())
 	{

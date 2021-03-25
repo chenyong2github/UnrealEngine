@@ -25,6 +25,7 @@
 #include "UObject/LinkerSave.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectRedirector.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 #include "UObject/UnrealType.h"
@@ -690,19 +691,110 @@ void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects)
 		}
 	}
 }
+} // end namespace SavePackageUtilities
 
-bool IsSavingNewLoadedPath(bool bIsCooking, const FPackagePath& TargetPackagePath, uint32 SaveFlags)
+namespace UE
+{
+namespace SavePackageUtilities
+{
+
+bool IsUpdatingLoadedPath(bool bIsCooking, const FPackagePath& TargetPackagePath, uint32 SaveFlags)
 {
 #if WITH_EDITOR
-	return !bIsCooking &&												// Do not update the loadedpath if we're cooking
-		TargetPackagePath.IsMountedPath() &&							// Do not update the loadedpath if the new path is not a viable mounted path
-		!(SaveFlags & (SAVE_BulkDataByReference | SAVE_FromAutosave));	// Do not update the loadedpath if we're storing references to the old loadedpath or autosaving
+	return !bIsCooking &&							// Do not update the loadedpath if we're cooking
+		TargetPackagePath.IsMountedPath() &&		// Do not update the loadedpath if the new path is not a viable mounted path
+		!(SaveFlags & SAVE_BulkDataByReference) &&	// Do not update the loadedpath if it's an EditorDomainSave. TODO: Change the name of this flag.
+		!(SaveFlags & SAVE_FromAutosave);			// Do not update the loadedpath if it's an autosave.
 #else
 	return false; // Saving when not in editor never updates the LoadedPath
 #endif
 }
 
-} // end namespace SavePackageUtilities
+bool IsProceduralSave(bool bIsCooking, const FPackagePath& TargetPackagePath, uint32 SaveFlags)
+{
+#if WITH_EDITOR
+	return bIsCooking ||							// Cooking is a procedural save
+		(SaveFlags & SAVE_BulkDataByReference);		// EditorDomainSave is a procedural save. TODO: Change the name of this flag.
+#else
+	return false; // Saving when not in editor never has user changes
+#endif
+}
+
+void CallPreSave(UObject* Object, FObjectSaveContextData& ObjectSaveContext)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Object->PreSave(ObjectSaveContext.TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+
+	FObjectPreSaveContext ObjectPreSaveContext(ObjectSaveContext);
+	ObjectSaveContext.bBaseClassCalled = false;
+	ObjectSaveContext.NumRefPasses = 0;
+	Object->PreSave(ObjectPreSaveContext);
+	if (!ObjectSaveContext.bBaseClassCalled)
+	{
+		UE_LOG(LogSavePackage, Warning, TEXT("Class %s did not call Super::PreSave"), *Object->GetClass()->GetName());
+	}
+	// When we deprecate PreSave, and need to take different actions based on the PreSave, remove this bAllowPreSave variable
+	constexpr bool bAllowPreSave = true;
+	if (!bAllowPreSave && ObjectSaveContext.NumRefPasses > 1)
+	{
+		UE_LOG(LogSavePackage, Warning, TEXT("Class %s overrides the deprecated PreSave function"), *Object->GetClass()->GetName());
+	}
+}
+
+void CallPreSaveRoot(UObject* Object, FObjectSaveContextData& ObjectSaveContext)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	bool bLegacyNeedsCleanup = Object->PreSaveRoot(*ObjectSaveContext.TargetFilename);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+
+	ObjectSaveContext.bCleanupRequired = false;
+	Object->PreSaveRoot(FObjectPreSaveRootContext(ObjectSaveContext));
+	ObjectSaveContext.bCleanupRequired |= bLegacyNeedsCleanup;
+}
+
+void CallPostSaveRoot(UObject* Object, FObjectSaveContextData& ObjectSaveContext, bool bNeedsCleanup)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Object->PostSaveRoot(bNeedsCleanup);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+
+	ObjectSaveContext.bCleanupRequired = bNeedsCleanup;
+	Object->PostSaveRoot(FObjectPostSaveRootContext(ObjectSaveContext));
+}
+
+}
+} // end namespace UE::SavePackageUtilities
+
+FObjectSaveContextData::FObjectSaveContextData(UPackage* Package, const ITargetPlatform* InTargetPlatform, const TCHAR* InTargetFilename, uint32 InSaveFlags)
+{
+	Set(Package, InTargetPlatform, InTargetFilename, InSaveFlags);
+}
+
+FObjectSaveContextData::FObjectSaveContextData(UPackage* Package, const ITargetPlatform* InTargetPlatform, const FPackagePath& TargetPath, uint32 InSaveFlags)
+{
+	Set(Package, InTargetPlatform, TargetPath, InSaveFlags);
+}
+
+void FObjectSaveContextData::Set(UPackage* Package, const ITargetPlatform* InTargetPlatform, const TCHAR* InTargetFilename, uint32 InSaveFlags)
+{
+	FPackagePath PackagePath(FPackagePath::FromLocalPath(TargetFilename));
+	if (PackagePath.GetHeaderExtension() == EPackageExtension::Unspecified)
+	{
+		PackagePath.SetHeaderExtension(EPackageExtension::EmptyString);
+	}
+	Set(Package, InTargetPlatform, PackagePath, InSaveFlags);
+}
+
+void FObjectSaveContextData::Set(UPackage* Package, const ITargetPlatform* InTargetPlatform, const FPackagePath& TargetPath, uint32 InSaveFlags)
+{
+	TargetFilename = TargetPath.GetLocalFullPath();
+	TargetPlatform = InTargetPlatform;
+	SaveFlags = InSaveFlags;
+	OriginalPackageFlags = Package ? Package->GetPackageFlags() : 0;
+	bProceduralSave = UE::SavePackageUtilities::IsProceduralSave(InTargetPlatform != nullptr, TargetPath, InSaveFlags);
+	bUpdatingLoadedPath = UE::SavePackageUtilities::IsUpdatingLoadedPath(InTargetPlatform != nullptr, TargetPath, InSaveFlags);
+}
 
 bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks)
 {
@@ -1879,9 +1971,9 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 		{
 			FailureReason = TEXT("SAVE_BulkDataByReference is incompatible with BulkDataManifest");
 		}
-		else if (Linker->bSavingNewLoadedPath)
+		else if (Linker->bUpdatingLoadedPath)
 		{
-			FailureReason = TEXT("SAVE_BulkDataByReference is incompatible with bSavingNewLoadedPath");
+			FailureReason = TEXT("SAVE_BulkDataByReference is incompatible with bUpdatingLoadedPath");
 		}
 		else if (SavePackageContext != nullptr && SavePackageContext->bForceLegacyOffsets)
 		{
@@ -2084,7 +2176,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 #if WITH_EDITOR
 		// If we are overwriting the LoadedPath for the current package, the bulk data flags and location need to be updated to match
 		// the values set in the package on disk.
-		if (Linker->bSavingNewLoadedPath)
+		if (Linker->bUpdatingLoadedPath)
 		{
 			BulkData->SetFlagsFromDiskWrittenValues(static_cast<EBulkDataFlags>(BulkDataFlags), BulkDataOffsetInFile,
 				BulkDataSizeOnDisk, StartOfBulkDataArea);

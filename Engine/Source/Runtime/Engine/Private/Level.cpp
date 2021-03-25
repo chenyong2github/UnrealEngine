@@ -5,6 +5,7 @@ Level.cpp: Level-related functions
 =============================================================================*/
 
 #include "Engine/Level.h"
+
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
@@ -26,6 +27,7 @@ Level.cpp: Level-related functions
 #include "Engine/Brush.h"
 #include "Engine/Engine.h"
 #include "Containers/TransArray.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/PropertyPortFlags.h"
@@ -732,10 +734,16 @@ void ULevel::SortActorList()
 	Actors = MoveTemp(NewActors);
 }
 
-
 void ULevel::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void ULevel::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
 
 #if WITH_EDITOR
 	if( !IsTemplate() )

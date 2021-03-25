@@ -7,6 +7,8 @@
 #include "UObject/WeakObjectPtr.h"
 #include "IPackageAutoSaver.h"
 
+class FObjectPostSaveContext;
+
 namespace ECloseNotification
 {
 	enum Type
@@ -61,7 +63,7 @@ private:
 	 * @param Filename The filename the package was saved to
 	 * @param Obj The package that was saved
 	 */
-	void OnPackageSaved(const FString& Filename, UObject* Obj);
+	void OnPackageSaved(const FString& Filename, UPackage* Pkg, FObjectPostSaveContext ObjectSaveContext);
 
 	/**
 	 * Update the dirty lists for the current package

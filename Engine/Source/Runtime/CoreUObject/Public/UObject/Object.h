@@ -16,6 +16,10 @@
 struct FAssetData;
 class FConfigCacheIni;
 class FEditPropertyChain;
+class FObjectPostSaveContext;
+class FObjectPostSaveRootContext;
+class FObjectPreSaveContext;
+class FObjectPreSaveRootContext;
 class ITargetPlatform;
 class ITransactionObjectAnnotation;
 class FTransactionObjectEvent;
@@ -207,25 +211,31 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	virtual bool PreSaveRoot(const TCHAR* Filename);
+
 	/**
 	 * Called from within SavePackage on the passed in base/root object. The return value of this function will be passed to PostSaveRoot. 
 	 * This is used to allow objects used as a base to perform required actions before saving and cleanup afterwards.
-	 * @param Filename: Name of the file being saved to (includes path)
-
-	 * @return	Whether PostSaveRoot needs to perform internal cleanup
+	 *
+	 * @param	ObjectSaveContext Context providing access to parameters of the save,
+	*							  Also allows storage of variables like bCleanupIsRequired for use in PostSaveRoot
 	 */
-	virtual bool PreSaveRoot(const TCHAR* Filename)
-	{
-		return false;
-	}
+	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext);
+
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveContext instead.")
+	virtual void PostSaveRoot(bool bCleanupIsRequired);
 
 	/**
 	 * Called from within SavePackage on the passed in base/root object. 
 	 * This function is called after the package has been saved and can perform cleanup.
 	 *
-	 * @param	bCleanupIsRequired	Whether PreSaveRoot dirtied state that needs to be cleaned up
+	 * @param	ObjectSaveContext Context providing access to parameters of the save and to values from PreSaveRoot
 	 */
-	virtual void PostSaveRoot( bool bCleanupIsRequired ) {}
+	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext);
+
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
 
 	/**
 	 * Presave function. Gets called once before an object gets serialized for saving. This function is necessary
@@ -233,7 +243,7 @@ public:
 	 *
 	 * @warning: Objects created from within PreSave will NOT have PreSave called on them!!!
 	 */
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
+	virtual void PreSave(FObjectPreSaveContext SaveContext);
 
 	/**
 	 * Note that the object will be modified.  If we are currently recording into the 

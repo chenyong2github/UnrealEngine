@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PackageAutoSaver.h"
+
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
@@ -100,14 +102,14 @@ FPackageAutoSaver::FPackageAutoSaver()
 	UPackage::PackageMarkedDirtyEvent.AddRaw(this, &FPackageAutoSaver::OnMarkPackageDirty);
 
 	// Register for the package modified callback to catch packages that have been saved
-	UPackage::PackageSavedEvent.AddRaw(this, &FPackageAutoSaver::OnPackageSaved);
+	UPackage::PackageSavedWithContextEvent.AddRaw(this, &FPackageAutoSaver::OnPackageSaved);
 }
 
 FPackageAutoSaver::~FPackageAutoSaver()
 {
 	UPackage::PackageDirtyStateChangedEvent.RemoveAll(this);
 	UPackage::PackageMarkedDirtyEvent.RemoveAll(this);
-	UPackage::PackageSavedEvent.RemoveAll(this);
+	UPackage::PackageSavedWithContextEvent.RemoveAll(this);
 }
 
 void FPackageAutoSaver::UpdateAutoSaveCount(const float DeltaSeconds)
@@ -338,10 +340,8 @@ void FPackageAutoSaver::OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty)
 	UpdateDirtyListsForPackage(Pkg);
 }
 
-void FPackageAutoSaver::OnPackageSaved(const FString& Filename, UObject* Obj)
+void FPackageAutoSaver::OnPackageSaved(const FString& Filename, UPackage* Pkg, FObjectPostSaveContext ObjectSaveContext)
 {
-	UPackage* const Pkg = Cast<UPackage>(Obj);
-
 	// If this has come from an auto-save, update the last known filename in the user dirty list so that we can offer is up as a restore file later
 	if(IsAutoSaving())
 	{

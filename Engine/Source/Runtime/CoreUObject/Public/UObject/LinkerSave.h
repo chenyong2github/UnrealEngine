@@ -78,10 +78,18 @@ public:
 	TArray<AdditionalDataCallback> AdditionalDataToAppend;
 
 	/**
-	 * Stores whether the target of the save is the path PackagePath that already is/will be stored in the Package's LoadedPath
+	 * Set to true when the package is being saved due to a procedural save.
+	 * Any save without the the possibility of user-generated edits to the package is a procedural save (Cooking, EditorDomain).
+	 * This allows us to execute transforms that only need to be executed in response to new user data.
+	 */
+	bool bProceduralSave = false;
+
+	/**
+	 * Set to true when the LoadedPath of the package being saved is being updated.
+	 * This allows us to update the in-memory package when it is saved in editor to match its new save file.
 	 * This is used e.g. to decide whether to update the in-memory file offsets for BulkData.
 	 */
-	bool bSavingNewLoadedPath = false;
+	bool bUpdatingLoadedPath = false;
 
 	/** A mapping of package name to generated script SHA keys */
 	COREUOBJECT_API static TMap<FString, TArray<uint8> > PackagesToScriptSHAMap;

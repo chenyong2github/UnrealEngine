@@ -201,7 +201,9 @@ public:
 	int32 NumBones () const { return BoneIndices.Num(); }
 
 public: // UObject
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
 
 public: // IBoneReferenceSkeletonProvider
@@ -258,7 +260,9 @@ public:
 	bool IsValidForSearch() const;
 
 public: // UObject
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 };
 
 /** An entry in a UPoseSearchDatabase. */
@@ -328,7 +332,9 @@ public:
 	bool IsValidForSearch() const;
 
 public: // UObject
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 };
 
 
