@@ -1547,11 +1547,7 @@ bool FLevelEditorViewportClient::CanApplyMaterialToHitProxy( const HHitProxy* Hi
 }
 
 FTrackingTransaction::FTrackingTransaction()
-	: TransCount(0)
-	, ScopedTransaction(NULL)
-	, TrackingTransactionState(ETransactionState::Inactive)
 {
-	USelection::SelectionChangedEvent.AddRaw(this, &FTrackingTransaction::OnEditorSelectionChanged);
 }
 
 FTrackingTransaction::~FTrackingTransaction()
@@ -1568,53 +1564,52 @@ void FTrackingTransaction::Begin(const FText& Description, AActor* AdditionalAct
 
 	TrackingTransactionState = ETransactionState::Active;
 
-	TSet<AGroupActor*> GroupActors;
-
-	auto ProcessActorModify = [&](AActor* Actor)
+	if (UTypedElementSelectionSet* SelectionSet = GetMutableSelectionSet())
 	{
-		// Some tracking transactions, such as a duplication operation into a sublevel do not modify the selected Actors
-		// Store the initial package dirty state so we can restore if necessary
-		UPackage* Package = Actor->GetOutermost();
-		if (!InitialPackageDirtyStates.Contains(Package))
-		{
-			InitialPackageDirtyStates.Add(Package, Package->IsDirty());
-		}
-		
-		Actor->Modify();
+		// TODO: Ideally "Begin" would *not* speculatively call Modify at all (nor need to track/restore dirty state), 
+		//       as Modify should be called on-demand prior to changes within the transaction, however various existing 
+		//       code makes assumptions that tracking transactions will call Modify on the active selection.
 
-		if (UActorGroupingUtils::IsGroupingActive())
+		// Call modify the currently selected objects, gathering up any groups for processing later
+		TSet<AGroupActor*> GroupsPendingModify;
+		auto ModifyObject = [this, &GroupsPendingModify](UObject* InObject)
 		{
-			// if this actor is in a group, add the GroupActor into a list to be modified shortly
-			AGroupActor* ActorLockedRootGroup = AGroupActor::GetRootForActor(Actor, true);
-			if (ActorLockedRootGroup != nullptr)
+			// Track the dirty state of the packages so that it can be restored if the selection changes mid-transaction (eg, drag duplication)
+			UPackage* Package = InObject->GetOutermost();
+			if (!InitialPackageDirtyStates.Contains(Package))
 			{
-				GroupActors.Add(ActorLockedRootGroup);
+				InitialPackageDirtyStates.Add(Package, Package->IsDirty());
 			}
+
+			AActor* Actor = Cast<AActor>(InObject);
+			if (Actor && UActorGroupingUtils::IsGroupingActive())
+			{
+				if (AGroupActor* GroupActor = AGroupActor::GetRootForActor(Actor, true))
+				{
+					GroupsPendingModify.Add(GroupActor);
+				}
+			}
+
+			InObject->Modify();
+
+			return true;
+		};
+		SelectionSet->ForEachSelectedObject(ModifyObject);
+		if (AdditionalActor)
+		{
+			ModifyObject(AdditionalActor);
 		}
-	};
 
-	// Modify selected actors to record their state at the start of the transaction
-	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
-	{
-		AActor* Actor = CastChecked<AActor>(*It);
-		ProcessActorModify(Actor);
-	}
-	// And the additional optional actor provided
-	if (AdditionalActor)
-	{
-		ProcessActorModify(AdditionalActor);
-	}
+		// Recursively call modify on any groups, as viewport manipulation of an actor within a group tends to affect the entire group
+		for (AGroupActor* GroupPendingModify : GroupsPendingModify)
+		{
+			GroupPendingModify->ForEachActorInGroup([](AActor* InActor)
+			{
+				InActor->Modify();
+			});
+		}
 
-	// Modify unique group actors
-	for (AGroupActor* GroupActor : GroupActors)
-	{		
-		GroupActor->Modify();
-	}
-
-	// Modify selected components
-	for (FSelectionIterator It(GEditor->GetSelectedComponentIterator()); It; ++It)
-	{
-		CastChecked<UActorComponent>(*It)->Modify();
+		SelectionSet->OnChanged().AddRaw(this, &FTrackingTransaction::OnEditorSelectionChanged);
 	}
 }
 
@@ -1627,6 +1622,10 @@ void FTrackingTransaction::End()
 	}
 	TrackingTransactionState = ETransactionState::Inactive;
 	InitialPackageDirtyStates.Empty();
+	if (UTypedElementSelectionSet* SelectionSet = GetMutableSelectionSet())
+	{
+		SelectionSet->OnChanged().RemoveAll(this);
+	}
 }
 
 void FTrackingTransaction::Cancel()
@@ -1655,7 +1654,19 @@ void FTrackingTransaction::PromotePendingToActive()
 	}
 }
 
-void FTrackingTransaction::OnEditorSelectionChanged(UObject* NewSelection)
+// TODO: Ideally this should be given the selection set for the level editor, rather than rely on the global state
+const UTypedElementSelectionSet* FTrackingTransaction::GetSelectionSet() const
+{
+	return GetMutableSelectionSet();
+}
+UTypedElementSelectionSet* FTrackingTransaction::GetMutableSelectionSet() const
+{
+	return (GEditor && GEditor->GetSelectedActors())
+		? GEditor->GetSelectedActors()->GetElementSelectionSet()
+		: nullptr;
+}
+
+void FTrackingTransaction::OnEditorSelectionChanged(const UTypedElementSelectionSet* InSelectionSet)
 {
 	if (!InitialPackageDirtyStates.Num())
 	{
@@ -1664,28 +1675,26 @@ void FTrackingTransaction::OnEditorSelectionChanged(UObject* NewSelection)
 
 	checkf(TrackingTransactionState == ETransactionState::Active, TEXT("Inactive tracking transaction contains package states"));
 
-	// The selection has changed due to a duplication or other operation
-	// So, restore dirty state on any package which is no longer selected
-	TArray<UPackage*> SelectedPackages;
-	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	// The selection state has changed mid-transaction (eg, drag duplication)
+	// Restore the dirty state on any packages which no longer have selected objects
+	TSet<UPackage*> SelectedPackages;
+	InSelectionSet->ForEachSelectedObject([&SelectedPackages](UObject* InObject)
 	{
-		AActor* Actor = static_cast<AActor*>(*It);
-		checkSlow(Actor->IsA(AActor::StaticClass()));
-		SelectedPackages.AddUnique(Actor->GetOutermost());
-	}
+		SelectedPackages.Add(InObject->GetOutermost());
+		return true;
+	});
 
-	for (const auto& Entry : InitialPackageDirtyStates)
+	for (const TTuple<UPackage*, bool>& InitialPackageDirtyState : InitialPackageDirtyStates)
 	{
-		// If no Actors in the package are currently selected, restore unmodified package state
-		UPackage* Package = Entry.Key;
-		if (!SelectedPackages.Contains(Package) && !Entry.Value && Package->IsDirty())
+		UPackage* Package = InitialPackageDirtyState.Key;
+		const bool bInitialDirtyState = InitialPackageDirtyState.Value;
+		if (!SelectedPackages.Contains(Package) && !bInitialDirtyState && Package->IsDirty())
 		{
 			Package->SetDirtyFlag(false);
 		}
 	}
 
 	InitialPackageDirtyStates.Empty();
-
 }
 
 

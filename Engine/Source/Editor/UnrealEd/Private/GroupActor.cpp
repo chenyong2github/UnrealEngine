@@ -103,6 +103,25 @@ bool AGroupActor::IsSelected() const
 	return (IsLocked() && HasSelectedActors()) || Super::IsSelected();
 }
 
+void AGroupActor::ForEachActorInGroup(TFunctionRef<void(AActor*)> InCallback)
+{
+	for (AActor* Actor : GroupActors)
+	{
+		if (Actor)
+		{
+			InCallback(Actor);
+		}
+	}
+	for (AGroupActor* SubGroup : SubGroups)
+	{
+		if (SubGroup)
+		{
+			SubGroup->ForEachActorInGroup(InCallback);
+		}
+	}
+	InCallback(this);
+}
+
 namespace GroupActorHelpers
 {
 
@@ -178,65 +197,6 @@ void AGroupActor::GroupApplyDelta(const FVector& InDrag, const FRotator& InRot, 
 	{
 		GEditor->ApplyDeltaToActor(InActor, true, &InDrag, &InRot, &InScale);
 	});
-}
-
-bool AGroupActor::Modify(bool bAlwaysMarkDirty/*=true*/)
-{
-	bool bSavedToTransactionBuffer = false;
-	for(int32 ActorIndex=0; ActorIndex<GroupActors.Num(); ++ActorIndex)
-	{
-		if( GroupActors[ActorIndex] != NULL )
-		{
-			bSavedToTransactionBuffer = GroupActors[ActorIndex]->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
-		}
-	}
-	for(int32 SubGroupIndex=0; SubGroupIndex<SubGroups.Num(); ++SubGroupIndex)
-	{
-		if( SubGroups[SubGroupIndex] != NULL )
-		{
-			bSavedToTransactionBuffer = SubGroups[SubGroupIndex]->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
-		}
-	}
-	bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
-	return  bSavedToTransactionBuffer;
-}
-
-void AGroupActor::InvalidateLightingCacheDetailed(bool bTranslationOnly)
-{
-	for(int32 ActorIndex=0; ActorIndex<GroupActors.Num(); ++ActorIndex)
-	{
-		if( GroupActors[ActorIndex] != NULL )
-		{
-			GroupActors[ActorIndex]->InvalidateLightingCacheDetailed(bTranslationOnly);
-		}
-	}
-	for(int32 SubGroupIndex=0; SubGroupIndex<SubGroups.Num(); ++SubGroupIndex)
-	{
-		if( SubGroups[SubGroupIndex] != NULL )
-		{
-			SubGroups[SubGroupIndex]->InvalidateLightingCacheDetailed(bTranslationOnly);
-		}
-	}
-	Super::InvalidateLightingCacheDetailed(bTranslationOnly);
-}
-
-void AGroupActor::PostEditMove(bool bFinished)
-{
-	for(int32 ActorIndex=0; ActorIndex<GroupActors.Num(); ++ActorIndex)
-	{
-		if( GroupActors[ActorIndex] != NULL )
-		{
-			GroupActors[ActorIndex]->PostEditMove(bFinished);
-		}
-	}
-	for(int32 SubGroupIndex=0; SubGroupIndex<SubGroups.Num(); ++SubGroupIndex)
-	{
-		if( SubGroups[SubGroupIndex] != NULL )
-		{
-			SubGroups[SubGroupIndex]->PostEditMove(bFinished);
-		}
-	}
-	Super::PostEditMove(bFinished);
 }
 
 void AGroupActor::SetIsTemporarilyHiddenInEditor( bool bIsHidden )

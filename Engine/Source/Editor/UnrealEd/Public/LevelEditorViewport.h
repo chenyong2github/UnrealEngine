@@ -104,18 +104,21 @@ struct UNREALED_API FTrackingTransaction
 
 	bool IsPending() const { return TrackingTransactionState == ETransactionState::Pending; }
 	
-	int32 TransCount;
+	int32 TransCount = 0;
 
 private:
 
+	const UTypedElementSelectionSet* GetSelectionSet() const;
+	UTypedElementSelectionSet* GetMutableSelectionSet() const;
+
 	/** Editor selection changed delegate handler */	
-	void OnEditorSelectionChanged(UObject* NewSelection);
+	void OnEditorSelectionChanged(const UTypedElementSelectionSet* InSelectionSet);
 
 	/** The current transaction. */
-	class FScopedTransaction*	ScopedTransaction;
+	class FScopedTransaction* ScopedTransaction = nullptr;
 
 	/** This is set to Active if TrackingStarted() has initiated a transaction, Pending if a transaction will begin before the next delta change */
-	ETransactionState::Enum TrackingTransactionState;
+	ETransactionState::Enum TrackingTransactionState = ETransactionState::Inactive;
 
 	/** The description to use if a pending transaction turns into a real transaction */
 	FText PendingDescription;

@@ -37,14 +37,11 @@ class AGroupActor : public AActor
 	virtual void PostLoad() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
-	virtual bool Modify( bool bAlwaysMarkDirty=true ) override;
 	virtual bool IsEditorOnly() const override { return true; }
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
 	virtual void PostActorCreated() override;
-	virtual void InvalidateLightingCacheDetailed(bool bTranslationOnly) override;
-	virtual void PostEditMove(bool bFinished) override;
 	virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden ) override;
 	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
 	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
@@ -53,6 +50,12 @@ class AGroupActor : public AActor
 
 	// @todo document
 	virtual bool IsSelected() const;
+
+	/**
+	 * Enumerate all actors and subgroups for this group (includes this).
+	 * @param InCallback		The function to call for each actor
+	 */
+	UNREALED_API void ForEachActorInGroup(TFunctionRef<void(AActor*)> InCallback);
 
 	/**
 	 * Enumerate all actors and subgroups for this group that should be moved alongside this actor (includes this).
