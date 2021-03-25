@@ -111,7 +111,7 @@ void FRenderDocPluginLoader::Initialize()
 	{
 		// THIS WILL NEVER TRIGGER because of a sort of chicken-and-egg problem: RenderDoc Loader is a PostConfigInit
 		// plugin, and GUsingNullRHI is only initialized properly between PostConfigInit and PreLoadingScreen phases.
-		// (nevertheless, keep this comment around for future iterations of UE4)
+		// (nevertheless, keep this comment around for future iterations of UE)
 		UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because a null RHI (Cook Server, perhaps) is being used."));
 		return;
 	}
