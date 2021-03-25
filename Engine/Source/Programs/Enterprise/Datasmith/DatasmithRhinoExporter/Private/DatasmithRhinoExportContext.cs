@@ -163,9 +163,16 @@ namespace DatasmithRhino
 			{
 				DirectLinkSynchronizationStatus Status = base.DirectLinkStatus;
 
-				if (DefinitionNode != null && Status == DirectLinkSynchronizationStatus.Synced)
+				if (DefinitionNode != null)
 				{
-					return DefinitionNode.DirectLinkStatus;
+					DirectLinkSynchronizationStatus DefinitionStatus = DefinitionNode.DirectLinkStatus;
+
+					// Use the Definition status when the instanced actor is synced.
+					// Deleting a definition also takes priority on the instance status.
+					if (Status == DirectLinkSynchronizationStatus.Synced || DefinitionStatus == DirectLinkSynchronizationStatus.PendingDeletion)
+					{
+						return DefinitionStatus;
+					}
 				}
 				return Status;
 			}
@@ -1258,16 +1265,19 @@ namespace DatasmithRhino
 		{
 			foreach (DatasmithActorInfo CurrentInfo in ActorInfos)
 			{
-				RhinoObject CurrentRhinoObject = CurrentInfo.RhinoCommonObject as RhinoObject;
-				bool bIsNotInstancedObject = CurrentRhinoObject == null || CurrentInfo.DefinitionNode == null || (CurrentRhinoObject.ObjectType == ObjectType.InstanceReference && !CurrentInfo.bIsInstanceDefinition);
-
-				if (CurrentInfo.DirectLinkStatus != DirectLinkSynchronizationStatus.PendingDeletion && bIsNotInstancedObject)
+				if (CurrentInfo.DirectLinkStatus != DirectLinkSynchronizationStatus.PendingDeletion)
 				{
-					ObjectIdToHierarchyActorNodeDictionary[CurrentInfo.RhinoObjectId] = CurrentInfo;
-
-					if (CurrentRhinoObject != null)
+					RhinoObject CurrentRhinoObject = CurrentInfo.RhinoCommonObject as RhinoObject;
+					bool bIsNotInstancedObject = CurrentRhinoObject == null || CurrentInfo.DefinitionNode == null || (CurrentRhinoObject.ObjectType == ObjectType.InstanceReference && !CurrentInfo.bIsInstanceDefinition);
+					
+					if (bIsNotInstancedObject)
 					{
-						AddObjectMaterialReference(CurrentRhinoObject, CurrentInfo.MaterialIndex);
+						ObjectIdToHierarchyActorNodeDictionary[CurrentInfo.RhinoObjectId] = CurrentInfo;
+
+						if (CurrentRhinoObject != null)
+						{
+							AddObjectMaterialReference(CurrentRhinoObject, CurrentInfo.MaterialIndex);
+						}
 					}
 				}
 			}
