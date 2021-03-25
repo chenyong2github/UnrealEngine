@@ -19,11 +19,6 @@ static FAutoConsoleVariableRef CVarD3D12MinPoolAllocationSizeToTrack(
 	TEXT("Minimum allocation size to track for pool allocations (default 16MB)"),
 	ECVF_ReadOnly);
 
-static bool ShouldTrackAllocation(EResourceAllocationStrategy InAllocationStrategy, D3D12_HEAP_TYPE InHeapType, uint64 InAllocationSize)
-{
-	return (InHeapType == D3D12_HEAP_TYPE_DEFAULT && GD3D12MinPoolAllocationSizeToTrack > 0 && InAllocationSize >= (uint32)GD3D12MinPoolAllocationSizeToTrack);
-}
-
 #endif // TRACK_RESOURCE_ALLOCATIONS
 
 //-----------------------------------------------------------------------------
@@ -318,13 +313,7 @@ void FD3D12PoolAllocator::AllocateResource(D3D12_HEAP_TYPE InHeapType, const D3D
 			ResourceLocation.SetResource(NewResource);
 		}
 
-#if TRACK_RESOURCE_ALLOCATIONS
-		// Update stats if above a certain size
-		if (ShouldTrackAllocation(AllocationStrategy, InitConfig.HeapType, AllocationData.GetSize()))
-		{
-			Adapter->TrackAllocationData(&ResourceLocation, AllocationData.GetSize());
-		}
-#endif // TRACK_RESOURCE_ALLOCATIONS
+		UpdateAllocationTracking(ResourceLocation, EAllocationType::Allocate);
 	}
 	else
 	{
@@ -361,19 +350,13 @@ void FD3D12PoolAllocator::DeallocateResource(FD3D12ResourceLocation& ResourceLoc
 {
 	check(IsOwner(ResourceLocation));
 
+	UpdateAllocationTracking(ResourceLocation, EAllocationType::Free);
+	
+	FScopeLock Lock(&CS);
+
 	// Mark allocation data as free
 	FRHIPoolAllocationData& AllocationData = ResourceLocation.GetPoolAllocatorPrivateData().PoolData;
 	check(AllocationData.IsAllocated());
-
-#if TRACK_RESOURCE_ALLOCATIONS
-	// Release tracked resource if tracked
-	if (ShouldTrackAllocation(AllocationStrategy, InitConfig.HeapType, AllocationData.GetSize()))
-	{
-		GetParentDevice()->GetParentAdapter()->ReleaseTrackedAllocationData(&ResourceLocation);
-	}
-#endif // TRACK_RESOURCE_ALLOCATIONS
-
-	FScopeLock Lock(&CS);
 
 	// If locked then assume still initial setup or in defragmentation unlock request
 	// Mark as nop because block will be deleted anyway
@@ -497,13 +480,7 @@ bool FD3D12PoolAllocator::HandleDefragRequest(FRHIPoolAllocationData* InSourceBl
 	check(CopyOp.DestResource != nullptr);
 	PendingCopyOps.Add(CopyOp);
 
-#if TRACK_RESOURCE_ALLOCATIONS
-	// Update stats if above a certain size
-	if (ShouldTrackAllocation(AllocationStrategy, InitConfig.HeapType, InSourceBlock->GetSize()))
-	{
-		Adapter->TrackAllocationData(Owner, InSourceBlock->GetSize());
-	}
-#endif // TRACK_RESOURCE_ALLOCATIONS
+	UpdateAllocationTracking(*Owner, EAllocationType::Allocate);
 
 	// TODO: Using aliasing buffer on whole heap for copies to reduce flushes and resource transitions
 
@@ -650,6 +627,32 @@ FD3D12HeapAndOffset FD3D12PoolAllocator::GetBackingHeapAndAllocationOffsetInByte
 	HeapAndOffset.Heap = ((FD3D12MemoryPool*)Pools[InAllocationData.GetPoolIndex()])->GetBackingHeap();
 	HeapAndOffset.Offset = uint64(AlignDown(InAllocationData.GetOffset(), PoolAlignment));
 	return HeapAndOffset;
+}
+
+
+void FD3D12PoolAllocator::UpdateAllocationTracking(FD3D12ResourceLocation& InAllocation, EAllocationType InAllocationType)
+{
+#if TRACK_RESOURCE_ALLOCATIONS
+	// Only track for default heap and of allocation is of certain minimum size
+	check(IsOwner(InAllocation));
+	FRHIPoolAllocationData& AllocationData = InAllocation.GetPoolAllocatorPrivateData().PoolData;
+	check(AllocationData.IsAllocated());
+	uint64 AllocationSize = AllocationData.GetSize();
+	if (InitConfig.HeapType == D3D12_HEAP_TYPE_DEFAULT && GD3D12MinPoolAllocationSizeToTrack > 0 && AllocationSize >= (uint32)GD3D12MinPoolAllocationSizeToTrack)
+	{
+		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();		
+		if (InAllocationType == EAllocationType::Allocate)
+		{
+			Adapter->TrackAllocationData(&InAllocation, AllocationSize);
+		}
+		else
+		{
+			Adapter->ReleaseTrackedAllocationData(&InAllocation);
+		}
+	}
+#else 
+	return false;
+#endif // TRACK_RESOURCE_ALLOCATIONS
 }
 
 

@@ -163,6 +163,14 @@ protected:
 	// Placed resource allocation helper function which can be overriden
 	virtual FD3D12Resource* CreatePlacedResource(const FRHIPoolAllocationData& InAllocationData, const D3D12_RESOURCE_DESC& InDesc, D3D12_RESOURCE_STATES InCreateState, ED3D12ResourceStateMode InResourceStateMode, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName);
 	
+	// Track the allocation
+	enum class EAllocationType
+	{
+		Allocate,
+		Free
+	};
+	virtual void UpdateAllocationTracking(FD3D12ResourceLocation& InAllocation, EAllocationType InAllocationType);
+
 	// Locked allocation data which needs to do something specific at certain frame fence value	
 	struct FrameFencedAllocationData
 	{

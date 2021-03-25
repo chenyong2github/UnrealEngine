@@ -209,6 +209,9 @@ private:
 	void SetupAllocatedResource(FD3D12BaseShaderResource* InBaseShaderResource, FD3D12TransientMemoryStats& Stats);
 	void DeallocateMemory(FD3D12BaseShaderResource* InBaseShaderResource, FD3D12TransientMemoryStats& Stats);
 
+	// Don't track any allocations
+	virtual void UpdateAllocationTracking(FD3D12ResourceLocation& InAllocation, EAllocationType InAllocationType) override {}
+
 	// Reference all the allocated resources - owner of all the resources and will be returned back to the manager when the allocator is destroyed
 	TArray<FD3D12PooledTextureData> AllocatedTextures;
 	TArray<FD3D12PooledBufferData> AllocatedBuffers;
