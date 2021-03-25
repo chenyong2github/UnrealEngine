@@ -279,6 +279,15 @@ public:
 	// Finalize hash and report
 	void Final();
 
+	// Finalize hash and return it
+	FSHAHash Finalize()
+	{
+		Final();
+		FSHAHash Digest;
+		GetHash(reinterpret_cast<uint8*>(&Digest));
+		return Digest;
+	}
+
 	// Report functions: as pre-formatted and raw data
 	void GetHash(uint8 *puDest);
 
@@ -290,6 +299,20 @@ public:
 	 * @param OutHash Resulting hash value (20 byte buffer)
 	 */
 	static void HashBuffer(const void* Data, uint64 DataSize, uint8* OutHash);
+
+	/**
+	 * Calculate the hash on a single block and return it
+	 *
+	 * @param Data Input data to hash
+	 * @param DataSize Size of the Data block
+	 * @return Resulting digest
+	 */
+	static FSHAHash HashBuffer(const void* Data, uint64 DataSize)
+	{
+		FSHAHash Hash;
+		HashBuffer(Data, DataSize, Hash.Hash);
+		return Hash;
+	}
 
 	/**
 	 * Generate the HMAC (Hash-based Message Authentication Code) for a block of data.

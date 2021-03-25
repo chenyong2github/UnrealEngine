@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Hash/Blake3.h"
+#include "Containers/UnrealString.h"
 
 #include "blake3.h"
 
@@ -35,6 +36,11 @@ FBlake3Hash FBlake3::HashBuffer(const void* Data, uint64 Size)
 	FBlake3 Hash;
 	Hash.Update(Data, Size);
 	return Hash.Finalize();
+}
+
+FString LexToString(const FBlake3Hash& Hash)
+{
+	return BytesToHex((const uint8*)Hash.GetBytes(), sizeof(decltype(Hash.GetBytes())));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

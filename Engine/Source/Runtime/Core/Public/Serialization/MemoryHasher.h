@@ -12,6 +12,7 @@
 #include "CoreGlobals.h"
 #include "Serialization/MemoryArchive.h"
 #include "Misc/SecureHash.h"
+#include "Hash/Blake3.h"
 
 /**
  * Archive for hashing arbitrary data
@@ -32,16 +33,9 @@ public:
 		BuilderState.Update(reinterpret_cast<uint8*>(Data), Num);
 	}
 
-	void Finalize()
+	HashDigest Finalize()
 	{
-		BuilderState.Final();
-	}
-
-	HashDigest GetHash()
-	{
-		HashDigest Digest;
-		BuilderState.GetHash(reinterpret_cast<uint8*>(&Digest));
-		return Digest;
+		return BuilderState.Finalize();
 	}
 
 	/**
@@ -64,3 +58,4 @@ protected:
 };
 
 using FMemoryHasherSHA1 = TMemoryHasher<FSHA1, FSHAHash>;
+using FMemoryHasherBlake3 = TMemoryHasher<FBlake3, FBlake3Hash>;

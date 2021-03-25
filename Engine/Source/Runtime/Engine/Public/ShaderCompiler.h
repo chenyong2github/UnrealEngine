@@ -23,6 +23,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Containers/HashTable.h"
 #include "Containers/List.h"
+#include "Misc/Blake3.h"
 
 class FShaderCompileJob;
 class FShaderPipelineCompileJob;
@@ -107,6 +108,8 @@ using FPendingShaderMapCompileResultsPtr = TRefCountPtr<FPendingShaderMapCompile
 class FShaderCommonCompileJob : public TIntrusiveLinkedList<FShaderCommonCompileJob>
 {
 public:
+	using FInputHash = FBlake3Hash;
+
 	FPendingShaderMapCompileResultsPtr PendingShaderMap;
 
 	mutable FThreadSafeCounter NumRefs;
@@ -134,7 +137,7 @@ public:
 	/** Whether we hashed the inputs */
 	uint8 bInputHashSet : 1;
 	/** Hash of all the job inputs */
-	FSHAHash InputHash;
+	FInputHash InputHash;
 
 	uint32 AddRef() const
 	{
@@ -156,7 +159,7 @@ public:
 	}
 
 	/** Returns hash of all inputs for this job (needed for caching). */
-	virtual FSHAHash GetInputHash() { return FSHAHash(); }
+	virtual FInputHash GetInputHash() { return FInputHash(); }
 
 	/** Serializes (and deserializes) the output for caching purposes. */
 	virtual void SerializeOutput(FArchive& Ar) {}
@@ -245,7 +248,7 @@ public:
 	// List of pipelines that are sharing this job.
 	TMap<const FVertexFactoryType*, TArray<const FShaderPipelineType*>> SharingPipelines;
 
-	virtual ENGINE_API FSHAHash GetInputHash() override;
+	virtual ENGINE_API FInputHash GetInputHash() override;
 	virtual ENGINE_API void SerializeOutput(FArchive& Ar) override;
 
 	FShaderCompileJob(uint32 InHash, uint32 InId, EShaderCompileJobPriority InPriroity, const FShaderCompileJobKey& InKey) :
@@ -284,7 +287,7 @@ public:
 	TArray<TRefCountPtr<FShaderCompileJob>> StageJobs;
 	bool bFailedRemovingUnused;
 
-	virtual ENGINE_API FSHAHash GetInputHash() override;
+	virtual ENGINE_API FInputHash GetInputHash() override;
 	virtual ENGINE_API void SerializeOutput(FArchive& Ar) override;
 
 	FShaderPipelineCompileJob(uint32 InHash, uint32 InId, EShaderCompileJobPriority InPriroity, const FShaderPipelineCompileJobKey& InKey);
@@ -322,7 +325,7 @@ inline void FShaderCommonCompileJob::Destroy() const
 class FShaderJobCache
 {
 public:
-	using FJobInputHash = FSHAHash;
+	using FJobInputHash = FShaderCommonCompileJob::FInputHash;
 	using FJobCachedOutput = TArray<uint8>;
 
 	/** Looks for the job in the cache, returns null if not found */
@@ -341,7 +344,7 @@ public:
 	uint64 GetCurrentMemoryBudget() const;
 
 private:
-	using FJobOutputHash = FSHAHash;
+	using FJobOutputHash = FBlake3Hash;
 	struct FStoredOutput
 	{
 		/** How many times this output is referenced by the cached jobs */
@@ -502,10 +505,10 @@ private:
 	mutable FRWLock Lock;
 
 	/** Map of input hash to the jobs that we decided to execute. Note that mapping will miss cloned jobs (to avoid being a multimap). */
-	TMap<FSHAHash, FShaderCommonCompileJob*> JobsInFlight;
+	TMap<FShaderCommonCompileJob::FInputHash, FShaderCommonCompileJob*> JobsInFlight;
 
 	/** Map of input hash to the jobs that we delayed because a job with the same hash was executing. Each job is a head of a linked list of jobs with the same input hash (ihash) */
-	TMap<FSHAHash, FShaderCommonCompileJob*> DuplicateJobsWaitList;
+	TMap<FShaderCommonCompileJob::FInputHash, FShaderCommonCompileJob*> DuplicateJobsWaitList;
 
 	/** Cache for the completed jobs.*/
 	FShaderJobCache CompletedJobsCache;

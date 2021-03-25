@@ -137,6 +137,9 @@ inline FArchive& operator<<(FArchive& Ar, FBlake3Hash& Hash)
 	return Ar;
 }
 
+/** Stringifies the hash for textual output (e.g. to log file) */
+CORE_API FString LexToString(const FBlake3Hash& Hash);
+
 inline uint32 GetTypeHash(const FBlake3Hash& Hash)
 {
 	return *reinterpret_cast<const uint32*>(Hash.GetBytes());

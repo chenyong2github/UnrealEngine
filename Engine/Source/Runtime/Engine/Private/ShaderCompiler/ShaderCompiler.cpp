@@ -365,7 +365,7 @@ int32 FShaderCompileJobCollection::RemoveAllPendingJobsWithId(uint32 InId)
 		{
 			// Also look into the jobs that are cached
 			// Since each entry in DuplicateJobsWaitList is a list, and the head node can be removed, we essentially have to rebuild it
-			for (TMap<FSHAHash, FShaderCommonCompileJob*>::TIterator Iter(DuplicateJobsWaitList); Iter; ++Iter)
+			for (TMap<FShaderCommonCompileJob::FInputHash, FShaderCommonCompileJob*>::TIterator Iter(DuplicateJobsWaitList); Iter; ++Iter)
 			{
 				FShaderCommonCompileJob* ListHead = Iter.Value();
 				FShaderCommonCompileJob* NewListHead = ListHead;
@@ -439,12 +439,12 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 				bool bNewJob = true;
 				if (ShaderCompiler::IsJobCacheEnabled())
 				{
-					const FSHAHash& InputHash = Job->GetInputHash();
+					const FShaderCommonCompileJob::FInputHash& InputHash = Job->GetInputHash();
 
 					// see if we can find the job in the cache first
 					if (TArray<uint8>* ExistingOutput = CompletedJobsCache.Find(InputHash))
 					{
-						UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("There is already a cached job with the ihash %s, processing the new one immediately."), *InputHash.ToString());
+						UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("There is already a cached job with the ihash %s, processing the new one immediately."), *LexToString(InputHash));
 						FMemoryReader MemReader(*ExistingOutput);
 						Job->SerializeOutput(MemReader);
 
@@ -456,7 +456,7 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 					// see if another job with the same input hash is being worked on
 					else if (FShaderCommonCompileJob** DuplicateInFlight = JobsInFlight.Find(InputHash))
 					{
-						UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("There is an outstanding job with the ihash %s, not submitting another one (adding to wait list)."), *InputHash.ToString());
+						UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("There is an outstanding job with the ihash %s, not submitting another one (adding to wait list)."), *LexToString(InputHash));
 
 						// because of the cloned jobs, we need to maintain a separate mapping
 						FShaderCommonCompileJob** WaitListHead = DuplicateJobsWaitList.Find(InputHash);
@@ -536,7 +536,7 @@ void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompi
 
 	ensureMsgf(FinishedJob->bInputHashSet, TEXT("Finished job didn't have input hash set, was shader compiler jobs cache toggled runtime?"));
 
-	const FSHAHash& InputHash = FinishedJob->GetInputHash();
+	const FShaderCommonCompileJob::FInputHash& InputHash = FinishedJob->GetInputHash();
 	TArray<uint8> Output;
 	FMemoryWriter Writer(Output);
 	FinishedJob->SerializeOutput(Writer);
@@ -569,7 +569,7 @@ void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompi
 
 		if (NumOutstandingJobsWithSameHash > 0)
 		{
-			UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("Processed %d outstanding jobs with the same ihash %s."), NumOutstandingJobsWithSameHash, *InputHash.ToString());
+			UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("Processed %d outstanding jobs with the same ihash %s."), NumOutstandingJobsWithSameHash, *LexToString(InputHash));
 		}
 	}
 
@@ -6363,7 +6363,7 @@ void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& Comp
 	}
 }
 
-FSHAHash FShaderCompileJob::GetInputHash()
+FShaderCommonCompileJob::FInputHash FShaderCompileJob::GetInputHash()
 {
 	if (bInputHashSet)
 	{
@@ -6378,8 +6378,8 @@ FSHAHash FShaderCompileJob::GetInputHash()
 		Archive << Input.Environment;
 
 		// hash the source file so changes to files during the development are picked up
-		const FSHAHash &SourceHash = GetShaderFileHash(*Input.VirtualSourceFilePath, Input.Target.GetPlatform());
-		Archive << const_cast<FSHAHash &>(SourceHash);
+		const FSHAHash& SourceHash = GetShaderFileHash(*Input.VirtualSourceFilePath, Input.Target.GetPlatform());
+		Archive << const_cast<FSHAHash&>(SourceHash);
 
 		for (TMap<FString, FThreadSafeSharedStringPtr>::TConstIterator It(Input.Environment.IncludeVirtualPathToExternalContentsMap); It; ++It)
 		{
@@ -6405,10 +6405,9 @@ FSHAHash FShaderCompileJob::GetInputHash()
 	};
 
 	// use faster hasher that doesn't allocate memory
-	FMemoryHasherSHA1 MemHasher;
+	FMemoryHasherBlake3 MemHasher;
 	SerializeInputs(MemHasher);
-	MemHasher.Finalize();
-	InputHash = MemHasher.GetHash();
+	InputHash = MemHasher.Finalize();
 
 	if (GShaderCompilerDumpCompileJobInputs)
 	{
@@ -6434,11 +6433,10 @@ FSHAHash FShaderCompileJob::GetInputHash()
 		DumpAr->Serialize(MemoryBlob.GetData(), MemoryBlob.Num());
 
 		// as an additional debugging feature, make sure that the hash is the same as calculated by the memhasher
-		FSHAHash Check;
-		FSHA1::HashBuffer(MemoryBlob.GetData(), MemoryBlob.Num(), Check.Hash);
+		FBlake3Hash Check = FBlake3::HashBuffer(MemoryBlob.GetData(), MemoryBlob.Num());
 		if (Check != InputHash)
 		{
-			UE_LOG(LogShaderCompilers, Error, TEXT("Job input hash disagrees between FMemoryHasherSHA1 (%s) and FMemoryWriter + FSHA1 (%s, which was dumped to disk)"), *InputHash.ToString(), *Check.ToString());
+			UE_LOG(LogShaderCompilers, Error, TEXT("Job input hash disagrees between FMemoryHasherSHA1 (%s) and FMemoryWriter + FSHA1 (%s, which was dumped to disk)"), *LexToString(InputHash), *LexToString(Check));
 		}
 	}
 
@@ -6473,26 +6471,24 @@ void FShaderCompileJob::SerializeOutput(FArchive& Ar)
 	}
 }
 
-FSHAHash FShaderPipelineCompileJob::GetInputHash()
+FShaderCommonCompileJob::FInputHash FShaderPipelineCompileJob::GetInputHash()
 {
 	if (bInputHashSet)
 	{
 		return InputHash;
 	}
 
-	FSHA1 Hasher;
-
+	FBlake3 Hasher;
 	for (int32 Index = 0; Index < StageJobs.Num(); ++Index)
 	{
 		if (StageJobs[Index])
 		{
-			FSHAHash StageHash = StageJobs[Index]->GetInputHash();
-			Hasher.Update(&StageHash.Hash[0], sizeof(StageHash.Hash));
+			FShaderCommonCompileJob::FInputHash StageHash = StageJobs[Index]->GetInputHash();
+			Hasher.Update(StageHash.GetBytes(), sizeof(decltype(StageHash.GetBytes())));
 		}
 	}
 
-	Hasher.Final();
-	Hasher.GetHash(&InputHash.Hash[0]);
+	InputHash = Hasher.Finalize();
 
 	bInputHashSet = true;
 	return InputHash;
@@ -6527,7 +6523,7 @@ FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Ha
 
 			FStoredOutput** CannedOutput = Outputs.Find(*OutputHash);
 			// we should not allow a dangling input to output mapping to exist
-			checkf(CannedOutput != nullptr, TEXT("Inconsistency in FShaderJobCache - cache record for ihash %s exists, but output cannot be found."), *Hash.ToString());
+			checkf(CannedOutput != nullptr, TEXT("Inconsistency in FShaderJobCache - cache record for ihash %s exists, but output cannot be found."), *LexToString(Hash));
 			// update the output hit count
 			(*CannedOutput)->NumHits++;
 			return &(*CannedOutput)->JobOutput;
@@ -6558,8 +6554,7 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 		return;
 	}
 
-	FSHAHash OutputHash;
-	FSHA1::HashBuffer(Contents.GetData(), Contents.Num(), OutputHash.Hash);
+	FJobOutputHash OutputHash = FBlake3::HashBuffer(Contents.GetData(), Contents.Num());
 
 	// add the record
 	InputHashToOutput.Add(Hash, OutputHash);
@@ -6596,7 +6591,7 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 					{
 						MemoryThatWillBeUsed -= static_cast<uint64>(Iter.Value()->JobOutput.Num());
 
-						FSHAHash RemovedOutputHash = Iter.Key();
+						FJobOutputHash RemovedOutputHash = Iter.Key();
 						Iter.RemoveCurrent();
 
 						// remove all mappings
