@@ -58,12 +58,16 @@ void FTexturePagePool::EvictAllPages(FVirtualTextureSystem* System)
 	}
 }
 
-void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID, uint32 vAddress, uint32 Size, uint32 MaxLevel)
+void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID, uint32 vAddress, uint32 Width, uint32 Height, uint32 MaxLevel)
 {
-	check(Size > 0u);
+	check(Width > 0u);
+	check(Height > 0u);
 	checkf((vAddress & (0xffffffff << (MaxLevel * 2u))) == vAddress, TEXT("vAddress %08X is not aligned to max level %d"), vAddress, MaxLevel);
 
+	const uint32 Size = FMath::Max(Width, Height);
 	const uint32 vAddressMax = vAddress + FMath::Square(Size);
+	const uint32 vTileX0 = FMath::ReverseMortonCode2(vAddress);
+	const uint32 vTileY0 = FMath::ReverseMortonCode2(vAddress >> 1);
 
 	// walk through all of our current mapping entries, and unmap any that belong to the current space
 	for (int32 MappingIndex = NumPages + 1; MappingIndex < PageMapping.Num(); ++MappingIndex)
@@ -75,8 +79,16 @@ void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint
 			Mapping.vAddress >= vAddress &&
 			Mapping.vAddress < vAddressMax)
 		{
-			// we're unmapping all pages for space, so don't try to map any ancestor pages...they'll be unmapped as well
-			UnmapPageMapping(System, MappingIndex, false);
+			const uint32 vTileX = FMath::ReverseMortonCode2(Mapping.vAddress);
+			const uint32 vTileY = FMath::ReverseMortonCode2(Mapping.vAddress >> 1);
+			if (vTileX >= vTileX0 &&
+				vTileY >= vTileY0 &&
+				vTileX < vTileX0 + Width &&
+				vTileY < vTileY0 + Height)
+			{
+				// we're unmapping all pages for space, so don't try to map any ancestor pages...they'll be unmapped as well
+				UnmapPageMapping(System, MappingIndex, false);
+			}
 		}
 	}
 }

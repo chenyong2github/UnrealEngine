@@ -203,9 +203,12 @@ void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysic
 	SortedKeysDirty = true;
 }
 
-void FTexturePageMap::GetMappedPagesInRange(uint32 vAddress, uint32 Size, TArray<FMappedTexturePage>& OutMappedPages) const
+void FTexturePageMap::GetMappedPagesInRange(uint32 vAddress, uint32 Width, uint32 Height, TArray<FMappedTexturePage>& OutMappedPages) const
 {
+	const uint32 Size = FMath::Max(Width, Height);
 	const uint32 vAddressMax = vAddress + FMath::Square(Size);
+	const uint32 vTileX0 = FMath::ReverseMortonCode2(vAddress);
+	const uint32 vTileY0 = FMath::ReverseMortonCode2(vAddress >> 1);
 
 	uint32 PageIndex = Pages[PageListHead_Mapped].NextIndex;
 	uint32 CheckPageCount = 0u;
@@ -214,11 +217,19 @@ void FTexturePageMap::GetMappedPagesInRange(uint32 vAddress, uint32 Size, TArray
 		const FPageEntry& Entry = Pages[PageIndex];
 		if (Entry.Page.vAddress >= vAddress && Entry.Page.vAddress < vAddressMax)
 		{
-			FMappedTexturePage& OutPage = OutMappedPages.AddDefaulted_GetRef();
-			OutPage.Page = Entry.Page;
-			OutPage.pAddress = Entry.pAddress;
-			OutPage.PhysicalSpaceID = Entry.PhysicalSpaceID;
-			OutPage.vLevel = Entry.vLevel;
+			const uint32 vTileX = FMath::ReverseMortonCode2(Entry.Page.vAddress);
+			const uint32 vTileY = FMath::ReverseMortonCode2(Entry.Page.vAddress >> 1);
+			if (vTileX >= vTileX0 &&
+				vTileY >= vTileY0 &&
+				vTileX < vTileX0 + Width &&
+				vTileY < vTileY0 + Height)
+			{
+				FMappedTexturePage& OutPage = OutMappedPages.AddDefaulted_GetRef();
+				OutPage.Page = Entry.Page;
+				OutPage.pAddress = Entry.pAddress;
+				OutPage.PhysicalSpaceID = Entry.PhysicalSpaceID;
+				OutPage.vLevel = Entry.vLevel;
+			}
 		}
 
 		PageIndex = Entry.NextIndex;

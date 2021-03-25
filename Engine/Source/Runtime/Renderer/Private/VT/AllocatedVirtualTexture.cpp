@@ -181,8 +181,8 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 
 	// Physical pool needs to evict all pages that belong to this VT
 	{
-		// Allocator always allocates square regions, need to update logic here if that changes
-		const uint32 BlockSize = FMath::Max(GetWidthInTiles(), GetHeightInTiles());
+		const uint32 WidthInTiles = GetWidthInTiles();
+		const uint32 HeightInTiles = GetHeightInTiles();
 
 		TArray<FVirtualTexturePhysicalSpace*> UniquePhysicalSpaces;
 		for (int32 PageTableIndex = 0u; PageTableIndex < UniquePageTableLayers.Num(); ++PageTableIndex)
@@ -195,7 +195,7 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 
 		for (FVirtualTexturePhysicalSpace* PhysicalSpace : UniquePhysicalSpaces)
 		{
-			PhysicalSpace->GetPagePool().UnmapAllPagesForSpace(System, Space->GetID(), VirtualAddress, BlockSize, MaxLevel);
+			PhysicalSpace->GetPagePool().UnmapAllPagesForSpace(System, Space->GetID(), VirtualAddress, WidthInTiles, HeightInTiles, MaxLevel);
 		}
 
 		for (int32 PageTableIndex = 0u; PageTableIndex < UniquePageTableLayers.Num(); ++PageTableIndex)
@@ -209,11 +209,11 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 			const FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(LayerIndex);
 
 			TArray<FMappedTexturePage> MappedPages;
-			PageMap.GetMappedPagesInRange(VirtualAddress, BlockSize, MappedPages);
+			PageMap.GetMappedPagesInRange(VirtualAddress, WidthInTiles, HeightInTiles, MappedPages);
 			if (MappedPages.Num() > 0)
 			{
 				TStringBuilder<2048> Message;
-				Message.Appendf(TEXT("Mapped pages remain after releasing AllocatedVT - vAddress: %d, Size: %d, PhysicalSpaces: ["), VirtualAddress, BlockSize);
+				Message.Appendf(TEXT("Mapped pages remain after releasing AllocatedVT - vAddress: %d, Size: %d x %d, PhysicalSpaces: ["), VirtualAddress, WidthInTiles, HeightInTiles);
 				for (FVirtualTexturePhysicalSpace* PhysicalSpace : UniquePhysicalSpaces)
 				{
 					Message.Appendf(TEXT("%d "), PhysicalSpace->GetID());
