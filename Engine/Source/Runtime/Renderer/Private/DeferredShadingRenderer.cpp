@@ -354,8 +354,12 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTex
 				GraphBuilder,
 				SceneDepthTexture,
 				/* VisBufferTexture = */ nullptr,
-				View,
+				View.ViewRect,
+				View.GetFeatureLevel(),
+				View.GetShaderPlatform(),
+				TEXT("HZBClosest"),
 				/* OutClosestHZBTexture = */ ViewPipelineState.bClosestHZB ? &ClosestHZBTexture : nullptr,
+				TEXT("HZBFurthest"),
 				/* OutFurthestHZBTexture = */ &FurthestHZBTexture);
 
 			// Update the view.
@@ -2136,14 +2140,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					FRDGTextureRef SceneDepth = SystemTextures.Black;
 					FRDGTextureRef GraphHZB = nullptr;
 
-					BuildHZB(
+					BuildHZBFurthest(
 						GraphBuilder,
 						SceneDepth,
 						RasterContext.VisBuffer64,
 						PrimaryViewRect,
 						FeatureLevel,
 						ShaderPlatform,
-						/* OutClosestHZBTexture = */ nullptr,
+						TEXT("Nanite.HZB"),
 						/* OutFurthestHZBTexture = */ &GraphHZB );
 					
 					GraphBuilder.QueueTextureExtraction( GraphHZB, &View.ViewState->PrevFrameViewInfo.NaniteHZB );

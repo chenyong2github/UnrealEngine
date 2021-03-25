@@ -3050,10 +3050,16 @@ void CullRasterize(
 		VirtualTargetParameters.HPageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->HPageFlagsRDG, PF_R32_UINT);
 		VirtualTargetParameters.PageRectBounds = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageRectBoundsRDG);
 
-		FRDGBufferRef HZBPageTable = (VirtualShadowMapArray->CacheManager && VirtualShadowMapArray->CacheManager->HZBPageTable) ?
-			GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->CacheManager->HZBPageTable, TEXT( "Shadow.Virtual.HZBPageTable" ) ) :
-			VirtualShadowMapArray->PageTableRDG;
-		VirtualTargetParameters.ShadowHZBPageTable = GraphBuilder.CreateSRV( HZBPageTable, PF_R32_UINT );
+		// HZB (if provided) comes from the previous frame, so we need last frame's page table
+		FRDGBufferRef HZBPageTableRDG = VirtualShadowMapArray->PageTableRDG;	// Dummy data, but matches the expected format
+		if (CullingContext.PrevHZB)
+		{
+			check( VirtualShadowMapArray->CacheManager );
+			TRefCountPtr<FRDGPooledBuffer> HZBPageTable = VirtualShadowMapArray->CacheManager->PrevBuffers.PageTable;
+			check( HZBPageTable );
+			HZBPageTableRDG = GraphBuilder.RegisterExternalBuffer( HZBPageTable, TEXT( "Shadow.Virtual.HZBPageTable" ) );
+		}
+		VirtualTargetParameters.ShadowHZBPageTable = GraphBuilder.CreateSRV( HZBPageTableRDG, PF_R32_UINT );
 	}
 	FGPUSceneParameters GPUSceneParameters;
 	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceDataBuffer.SRV;
@@ -3170,14 +3176,14 @@ void CullRasterize(
 				ViewRect = FIntRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W);
 			}
 			
-			BuildHZB(
+			BuildHZBFurthest(
 				GraphBuilder,
 				SceneDepth,
 				RasterizedDepth,
 				CullingContext.HZBBuildViewRect,
 				Scene.GetFeatureLevel(),
 				Scene.GetShaderPlatform(),
-				/* OutClosestHZBTexture = */ nullptr,
+				TEXT("Nanite.PreviousOccluderHZB"),
 				/* OutFurthestHZBTexture = */ &OutFurthestHZBTexture);
 
 			CullingParameters.HZBTexture = OutFurthestHZBTexture;

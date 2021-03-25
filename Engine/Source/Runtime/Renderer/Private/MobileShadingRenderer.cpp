@@ -1719,12 +1719,14 @@ void FMobileSceneRenderer::RenderHZB(FRDGBuilder& GraphBuilder, FRDGTextureRef S
 			
 			FRDGTextureRef FurthestHZBTexture = nullptr;
 
-			BuildHZB(
+			BuildHZBFurthest(
 				GraphBuilder,
 				SceneDepthTexture,
 				/* VisBufferTexture = */ nullptr,
-				View,
-				nullptr,
+				View.ViewRect,
+				View.GetFeatureLevel(),
+				View.GetShaderPlatform(),
+				TEXT("MobileHZBFurthest"),
 				&FurthestHZBTexture);
 
 			View.HZBMipmap0Size = FurthestHZBTexture->Desc.Extent;

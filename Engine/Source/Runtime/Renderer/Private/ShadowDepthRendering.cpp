@@ -1294,12 +1294,12 @@ static void RenderShadowDepthAtlasNanite(
 	ERHIFeatureLevel::Type FeatureLevel,
 	FScene& Scene,
 	const FSortedShadowMapAtlas& ShadowMapAtlas,
-	const int32 AtlasIndex, bool bIsCompletePass)
+	const int32 AtlasIndex)
 {
 	const FIntPoint AtlasSize = ShadowMapAtlas.RenderTargets.DepthTarget->GetDesc().Extent;
 
 	const bool bUseHZB = (CVarNaniteShadowsUseHZB.GetValueOnRenderThread() != 0);
-	TArray<TRefCountPtr<IPooledRenderTarget>>&	PrevAtlasHZBs = bIsCompletePass ? Scene.PrevAtlasCompleteHZBs : Scene.PrevAtlasHZBs;
+	TArray<TRefCountPtr<IPooledRenderTarget>>&	PrevAtlasHZBs = Scene.PrevAtlasHZBs;
 
 	bool bWantsNearClip = false;
 	bool bWantsNoNearClip = false;
@@ -1335,7 +1335,6 @@ static void RenderShadowDepthAtlasNanite(
 		ShadowKey.AtlasIndex = AtlasIndex;
 		ShadowKey.ProjectionId = ProjectedShadowInfo->ProjectionIndex;
 		ShadowKey.SubjectPrimitiveComponentIndex = ProjectedShadowInfo->SubjectPrimitiveComponentIndex;
-		ShadowKey.bIsCompletePass = bIsCompletePass;
 
 		FPersistentShadowState* PrevShadowState = LightSceneInfo.PrevPersistentShadows.Find(ShadowKey);
 
@@ -1415,15 +1414,16 @@ static void RenderShadowDepthAtlasNanite(
 		if (bUseHZB)
 		{
 			FRDGTextureRef FurthestHZBTexture;
-			BuildHZB(
+			BuildHZBFurthest(
 				GraphBuilder,
 				GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy),
 				RasterContext.DepthBuffer,
 				FullAtlasViewRect,
 				FeatureLevel,
 				Scene.GetShaderPlatform(),
-				/* OutClosestHZBTexture = */ nullptr,
-				/* OutFurthestHZBTexture = */ &FurthestHZBTexture);
+				TEXT("Shadow.AtlasHZB"),
+				/* OutFurthestHZBTexture = */ &FurthestHZBTexture,
+				PF_R32_FLOAT);
 			ConvertToExternalTexture(GraphBuilder, FurthestHZBTexture, PrevAtlasHZBs[AtlasIndex]);
 		}
 		else
@@ -1560,7 +1560,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 
 		if (bNaniteEnabled)
 		{
-			RenderShadowDepthAtlasNanite(GraphBuilder, FeatureLevel, *Scene, ShadowMapAtlas, AtlasIndex, false);
+			RenderShadowDepthAtlasNanite(GraphBuilder, FeatureLevel, *Scene, ShadowMapAtlas, AtlasIndex);
 		}
 
 		// Make readable because AtlasDepthTexture is not tracked via RDG yet
@@ -1596,17 +1596,17 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	if (bNaniteEnabled && (bHasVSMShadows || bHasVSMClipMaps))
 	{				
 		FVirtualShadowMapArrayCacheManager *CacheManager = Scene->VirtualShadowMapArrayCacheManager;
-		const uint32 CachedFrameNumber = CacheManager->HZBFrameNumber;
-		const uint32 CurrentFrameNumber = ++CacheManager->HZBFrameNumber;
-		
+		const TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = bUseHZB ? CacheManager->PrevBuffers.HZBPhysical : nullptr;
+
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps");
 
 			const FIntPoint VirtualShadowSize = VirtualShadowMapArray.GetPhysicalPoolSize();
 			const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
-
-			// TODO: Move to shadow cache manager
-			FRDGTextureRef ShadowDepthTexture = GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(VirtualShadowSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Shadow.Virtual.PhysicalTexture") );
+ 
+			VirtualShadowMapArray.PhysicalPagePoolRDG = GraphBuilder.CreateTexture( 
+				FRDGTextureDesc::Create2D(VirtualShadowSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV),
+				TEXT("Shadow.Virtual.PhysicalTexture") );
 
 			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
 				GraphBuilder,
@@ -1615,7 +1615,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 				Nanite::EOutputBufferMode::DepthOnly,
 				bAllocatePageRectAtlas,	// Clear entire texture
 				nullptr, 0,
-				ShadowDepthTexture);
+				VirtualShadowMapArray.PhysicalPagePoolRDG );
 
 			if( !bAllocatePageRectAtlas )
 			{
@@ -1634,8 +1634,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 				bUseHZB,
 				Scene = Scene,
 				CacheManager = CacheManager,
-				CurrentFrameNumber,
-				CachedFrameNumber
+				PrevHZBPhysical
 			](bool bShouldClampToNearPlane, const FString &VirtualFilterName)
 			{
 				TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
@@ -1666,29 +1665,35 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 							Nanite::FPackedViewParams Params = BaseParams;
 							Params.TargetLayerIndex = Clipmap->GetVirtualShadowMap(ClipmapLevelIndex)->ID;
 							Params.ViewMatrices = Clipmap->GetViewMatrices(ClipmapLevelIndex);
+							Params.PrevTargetLayerIndex = INDEX_NONE;
+							Params.PrevViewMatrices = Params.ViewMatrices;
+							Params.Flags = 0;
 
 							// TODO: Clean this up - could be stored in a single structure for the whole clipmap
 							int32 AbsoluteClipmapLevel = Clipmap->GetClipmapLevel(ClipmapLevelIndex);		// NOTE: Can be negative!
 							int32 ClipmapLevelKey = AbsoluteClipmapLevel + 128;
 							check(ClipmapLevelKey > 0 && ClipmapLevelKey < 256);
-
 							int32 HZBKey = Clipmap->GetLightSceneInfo().Id + (ClipmapLevelKey << 24);
-							FVirtualShadowMapHZBMetadata& PrevHZB = CacheManager->HZBMetadata.FindOrAdd(HZBKey);
-							if (PrevHZB.FrameNumber == CachedFrameNumber)
+
+							if (PrevHZBPhysical)
 							{
-								Params.PrevTargetLayerIndex = PrevHZB.TargetLayerIndex;
-								Params.PrevViewMatrices = PrevHZB.ViewMatrices;
-								Params.Flags = VIEW_FLAG_HZBTEST;
-							}
-							else
-							{
-								Params.PrevTargetLayerIndex = INDEX_NONE;
-								Params.PrevViewMatrices = Params.ViewMatrices;
+								FVirtualShadowMapHZBMetadata* PrevHZBMeta = CacheManager->PrevBuffers.HZBMetadata.Find(HZBKey);
+								if (PrevHZBMeta)
+								{
+									Params.PrevTargetLayerIndex = PrevHZBMeta->TargetLayerIndex;
+									Params.PrevViewMatrices = PrevHZBMeta->ViewMatrices;
+									Params.Flags = VIEW_FLAG_HZBTEST;
+								}
 							}
 
-							PrevHZB.TargetLayerIndex = Params.TargetLayerIndex;
-							PrevHZB.FrameNumber = CurrentFrameNumber;
-							PrevHZB.ViewMatrices = Params.ViewMatrices;
+							// If we're going to generate a new HZB this frame, save the associated metadata
+							if (bUseHZB)
+							{
+								FVirtualShadowMapHZBMetadata& HZBMeta = VirtualShadowMapArray.HZBMetadata.FindOrAdd(HZBKey);
+								HZBMeta.TargetLayerIndex = Params.TargetLayerIndex;
+								HZBMeta.ViewMatrices = Params.ViewMatrices;
+								HZBMeta.ViewRect = Params.ViewRect;
+							}
 
 							Nanite::FPackedView View = Nanite::CreatePackedView(Params);
 							VirtualShadowViews.Add(View);
@@ -1716,24 +1721,30 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 							Nanite::FPackedViewParams Params = BaseParams;
 							Params.TargetLayerIndex = ProjectedShadowInfo->VirtualShadowMaps[i]->ID;
 							Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(i, true);
+							Params.PrevTargetLayerIndex = INDEX_NONE;
+							Params.PrevViewMatrices = Params.ViewMatrices;
+							Params.Flags = 0;
 
 							int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id + (i << 24);
-							FVirtualShadowMapHZBMetadata& PrevHZB = CacheManager->HZBMetadata.FindOrAdd(HZBKey);
-							if( PrevHZB.FrameNumber == CachedFrameNumber )
+							if (PrevHZBPhysical)
 							{
-								Params.PrevTargetLayerIndex = PrevHZB.TargetLayerIndex;
-								Params.PrevViewMatrices = PrevHZB.ViewMatrices;
-								Params.Flags = VIEW_FLAG_HZBTEST;
+								FVirtualShadowMapHZBMetadata* PrevHZBMeta = CacheManager->PrevBuffers.HZBMetadata.Find(HZBKey);
+								if (PrevHZBMeta)
+								{
+									Params.PrevTargetLayerIndex = PrevHZBMeta->TargetLayerIndex;
+									Params.PrevViewMatrices = PrevHZBMeta->ViewMatrices;
+									Params.Flags = VIEW_FLAG_HZBTEST;
+								}
 							}
-							else
+
+							// If we're going to generate a new HZB this frame, save the associated metadata
+							if (bUseHZB)
 							{
-								Params.PrevTargetLayerIndex = INDEX_NONE;
-								Params.PrevViewMatrices = Params.ViewMatrices;
+								FVirtualShadowMapHZBMetadata& HZBMeta = VirtualShadowMapArray.HZBMetadata.FindOrAdd(HZBKey);
+								HZBMeta.TargetLayerIndex = Params.TargetLayerIndex;
+								HZBMeta.ViewMatrices = Params.ViewMatrices;
+								HZBMeta.ViewRect = Params.ViewRect;
 							}
-						
-							PrevHZB.TargetLayerIndex = Params.TargetLayerIndex;
-							PrevHZB.FrameNumber = CurrentFrameNumber;
-							PrevHZB.ViewMatrices = Params.ViewMatrices;
 
 							Nanite::FPackedView View = Nanite::CreatePackedView(Params);
 							VirtualShadowViews.Add(View);
@@ -1758,12 +1769,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 					const bool bPrimaryContext = false;
 
-					
-
 					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 						GraphBuilder,
 						*Scene,
-						bUseHZB ? Scene->VirtualShadowMapArrayCacheManager->HZBPhysical : nullptr,
+						PrevHZBPhysical,
 						FIntRect(),
 						false,
 						bUpdateStreaming,
@@ -1803,32 +1812,22 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 			if (bUseHZB)
 			{
-				RDG_EVENT_SCOPE(GraphBuilder, "BuildShadowHZB");
-
 				FRDGTextureRef SceneDepth = GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy );
-				FRDGTextureRef OutHZBPhysical = nullptr;
 
 				// NOTE: 32-bit HZB is important to not lose precision (and thus culling efficiency) with
 				// some of the shadow depth functions.
-				BuildHZB(
+				BuildHZBFurthest(
 					GraphBuilder,
 					SceneDepth,
 					RasterContext.DepthBuffer,
 					VirtualShadowViewRect,
 					FeatureLevel,
 					ShaderPlatform,
-					/* OutClosestHZBTexture = */ nullptr,
-					/* OutFurthestHZBTexture = */ &OutHZBPhysical,
+					TEXT("Shadow.Virtual.HZB"),
+					/* OutFurthestHZBTexture = */ &VirtualShadowMapArray.HZBPhysical,
 					PF_R32_FLOAT);
-			
-				GraphBuilder.QueueTextureExtraction(OutHZBPhysical, &VirtualShadowMapArray.CacheManager->HZBPhysical);
-
 			}
-
-			VirtualShadowMapArray.PhysicalPagePoolRDG = RasterContext.DepthBuffer;
 		}
-
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &Scene->VirtualShadowMapArrayCacheManager->HZBPageTable);
 	}
 
 	if (UseNonNaniteVirtualShadowMaps(ShaderPlatform, FeatureLevel))
@@ -1970,14 +1969,14 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					if (bUseHZB)
 					{
 						FRDGTextureRef FurthestHZBTexture;
-						BuildHZB(
+						BuildHZBFurthest(
 							GraphBuilder,
 							GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy),
 							RasterContext.DepthBuffer,
 							ShadowViewRect,
 							FeatureLevel,
 							ShaderPlatform,
-							/* OutClosestHZBTexture = */ nullptr,
+							TEXT("Shadow.CubemapHZB"),
 							/* OutFurthestHZBTexture = */ &FurthestHZBTexture);
 
 						ConvertToExternalTexture(GraphBuilder, FurthestHZBTexture, HZB);

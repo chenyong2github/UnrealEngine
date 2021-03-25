@@ -85,14 +85,9 @@ struct FVirtualShadowMapArrayFrameData
 	TRefCountPtr<IPooledRenderTarget>	PhysicalPagePool;
 	TRefCountPtr<IPooledRenderTarget>	PhysicalPagePoolHw;
 	TRefCountPtr<FRDGPooledBuffer>		PhysicalPageMetaData;
-};
 
-struct FVirtualShadowMapHZBMetadata
-{
-	FViewMatrices ViewMatrices;
-	FIntRect	  ViewRect;
-	uint32		  TargetLayerIndex = INDEX_NONE;
-	uint32		  FrameNumber = 0;
+	TRefCountPtr<IPooledRenderTarget>			HZBPhysical;
+	TMap<int32, FVirtualShadowMapHZBMetadata>	HZBMetadata;
 };
 
 class FVirtualShadowMapArrayCacheManager
@@ -110,7 +105,7 @@ public:
 
 	/**
 	 * Call at end of frame to extract resouces from the virtual SM array to preserve to next frame.
-	 * If bCachingEnabled is false, all cache data is dropped and cache data will not be available for the next frame.
+	 * If bCachingEnabled is false, all previous frame data is dropped and cache (and HZB!) data will not be available for the next frame.
 	 */ 
 	void ExtractFrameData(bool bEnableCaching, FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder);
 
@@ -157,13 +152,7 @@ public:
 	TRefCountPtr<FRDGPooledBuffer>		AccumulatedStatsBuffer;
 	bool bAccumulatingStats = false;
 	FRHIGPUBufferReadback *GPUBufferReadback = nullptr;
-
-	// HZB of physical pages from previous frame
-	TRefCountPtr<IPooledRenderTarget>			HZBPhysical = nullptr;
-	TRefCountPtr<FRDGPooledBuffer>				HZBPageTable = nullptr;
-	uint32										HZBFrameNumber = 0;
-	TMap<int32, FVirtualShadowMapHZBMetadata>	HZBMetadata;
-
+	
 protected:
 
 	// Must match shader...

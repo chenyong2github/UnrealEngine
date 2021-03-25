@@ -103,8 +103,12 @@ struct FVirtualShadowMapProjectionShaderData
 };
 static_assert((sizeof(FVirtualShadowMapProjectionShaderData) % 16) == 0, "FVirtualShadowMapProjectionShaderData size should be a multiple of 16-bytes for alignment.");
 
-FMatrix CalcTranslatedWorldToShadowUVMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
-FMatrix CalcTranslatedWorldToShadowUVNormalMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
+struct FVirtualShadowMapHZBMetadata
+{
+	FViewMatrices ViewMatrices;
+	FIntRect	  ViewRect;
+	uint32		  TargetLayerIndex = INDEX_NONE;
+};
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER_ARRAY(uint32, HPageFlagLevelOffsets, [FVirtualShadowMap::MaxMipLevels])
@@ -142,6 +146,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapPageTableParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, PageRectBounds)
 END_SHADER_PARAMETER_STRUCT()
 
+FMatrix CalcTranslatedWorldToShadowUVMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
+FMatrix CalcTranslatedWorldToShadowUVNormalMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
 
 class FVirtualShadowMapArray
 {
@@ -264,10 +270,10 @@ public:
 	FRDGBufferRef ShadowMapProjectionDataRDG = nullptr;
 	TArray< FRDGBufferRef, SceneRenderingAllocator > VirtualShadowMapIdRemapRDG;
 
-	// These are not created or managed by this class - references are copied from the cache manager
-	// when needed as they come from the previous frame.
-	//TRefCountPtr<IPooledRenderTarget>	HZBPhysical;
-	//TRefCountPtr<FRDGPooledBuffer>		HZBPageTable;
+	// HZB generated for the *current* frame's physical page pool
+	// We use the *previous* frame's HZB (from VirtualShadowMapCacheManager) for culling the current frame
+	FRDGTextureRef HZBPhysical = nullptr;
+	TMap<int32, FVirtualShadowMapHZBMetadata> HZBMetadata;
 
 	// Convert also?
 	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationOutput;

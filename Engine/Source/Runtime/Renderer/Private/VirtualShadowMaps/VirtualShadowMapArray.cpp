@@ -1200,17 +1200,18 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder)
 			DebugOutputDesc,
 			TEXT("Shadow.Virtual.Debug"));
 
-		TRefCountPtr<IPooledRenderTarget> HZBPhysical  = CacheManager ? CacheManager->HZBPhysical : nullptr;
-		TRefCountPtr<FRDGPooledBuffer>    HZBPageTable = CacheManager ? CacheManager->HZBPageTable : nullptr;
-
 		FDebugVisualizeVirtualSmCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugVisualizeVirtualSmCS::FParameters>();
 		PassParameters->ProjectionParameters = GetSamplingParameters(GraphBuilder);
 
 		PassParameters->PageFlags			= GraphBuilder.CreateSRV( PageFlagsRDG );
 		PassParameters->HPageFlags			= GraphBuilder.CreateSRV( HPageFlagsRDG );
 
-		PassParameters->HZBPhysical			= RegisterExternalTextureWithFallback( GraphBuilder, HZBPhysical, GSystemTextures.BlackDummy);
-		PassParameters->HZBPageTable		= GraphBuilder.CreateSRV( HZBPageTable ? GraphBuilder.RegisterExternalBuffer(HZBPageTable) : PageTableRDG);
+		// TODO: unclear if it's preferable to debug the HZB we generated "this frame" here, or the previous frame (that was used for culling)?
+		// We'll stick with the previous frame logic that was there, but it's cleaner to just reference the current frame one
+		TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = CacheManager ? CacheManager->PrevBuffers.HZBPhysical : nullptr;
+		TRefCountPtr<FRDGPooledBuffer>    PrevPageTable = CacheManager ? CacheManager->PrevBuffers.PageTable : nullptr;
+		PassParameters->HZBPhysical			= RegisterExternalTextureWithFallback( GraphBuilder, PrevHZBPhysical, GSystemTextures.BlackDummy );
+		PassParameters->HZBPageTable		= GraphBuilder.CreateSRV( PrevPageTable ? GraphBuilder.RegisterExternalBuffer( PrevPageTable ) : PageTableRDG );
 
 		PassParameters->DebugTargetWidth = DebugTargetWidth;
 		PassParameters->DebugTargetHeight = DebugTargetHeight;

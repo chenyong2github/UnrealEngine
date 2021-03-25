@@ -109,9 +109,12 @@ void BuildHZB(
 	const FIntRect ViewRect,
 	ERHIFeatureLevel::Type FeatureLevel,
 	EShaderPlatform ShaderPlatform,
+	const TCHAR* ClosestHZBName,
 	FRDGTextureRef* OutClosestHZBTexture,
+	const TCHAR* FurthestHZBName,
 	FRDGTextureRef* OutFurthestHZBTexture,
-	EPixelFormat Format)
+	EPixelFormat Format
+)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB");
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BuildHZB);
@@ -135,12 +138,12 @@ void BuildHZB(
 	/** Closest and furthest HZB are intentionally in separate render target, because majority of the case you only one or the other.
 	 * Keeping them separate avoid doubling the size in cache for this cases, to avoid performance regression.
 	 */
-	FRDGTextureRef FurthestHZBTexture = GraphBuilder.CreateTexture(HZBDesc, TEXT("HZBFurthest"));
+	FRDGTextureRef FurthestHZBTexture = GraphBuilder.CreateTexture(HZBDesc, FurthestHZBName);
 
 	FRDGTextureRef ClosestHZBTexture = nullptr;
 	if (bReduceClosestDepth)
 	{
-		ClosestHZBTexture = GraphBuilder.CreateTexture(HZBDesc, TEXT("HZBClosest"));
+		ClosestHZBTexture = GraphBuilder.CreateTexture(HZBDesc, ClosestHZBName);
 	}
 
 	int32 MaxMipBatchSize = bUseCompute ? FHZBBuildCS::kMaxMipBatchSize : 1;
@@ -287,13 +290,28 @@ void BuildHZB(
 	}
 }
 
-void BuildHZB(
+void BuildHZBFurthest(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef SceneDepth,
 	FRDGTextureRef VisBufferTexture,
-	const FViewInfo& View,
-	FRDGTextureRef* OutClosestHZBTexture,
-	FRDGTextureRef* OutFurthestHZBTexture)
+	const FIntRect ViewRect,
+	ERHIFeatureLevel::Type FeatureLevel,
+	EShaderPlatform ShaderPlatform,
+	const TCHAR* FurthestHZBName,
+	FRDGTextureRef* OutFurthestHZBTexture,
+	EPixelFormat Format
+)
 {
-	BuildHZB(GraphBuilder, SceneDepth, VisBufferTexture, View.ViewRect, View.GetFeatureLevel(), View.GetShaderPlatform(), OutClosestHZBTexture, OutFurthestHZBTexture);
+	BuildHZB(
+		GraphBuilder,
+		SceneDepth,
+		VisBufferTexture,
+		ViewRect,
+		FeatureLevel,
+		ShaderPlatform,
+		TEXT("HZBClosest"),
+		nullptr,
+		FurthestHZBName,
+		OutFurthestHZBTexture,
+		Format);
 }

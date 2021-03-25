@@ -135,32 +135,48 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(bool bEnableCaching, F
 	PrevBuffers = FVirtualShadowMapArrayFrameData();
 	PrevUniformParameters.NumShadowMaps = 0;
 
-	if (bEnableCaching 
-		&& VirtualShadowMapArray.IsAllocated()
-		&& CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
+	if (bEnableCaching && VirtualShadowMapArray.IsAllocated())
 	{
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &PrevBuffers.PageTable);
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageFlagsRDG, &PrevBuffers.PageFlags);
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.HPageFlagsRDG, &PrevBuffers.HPageFlags);
+		bool bExtractPageTable = false;
+
+		// HZB and associated page table are needed by next frame even when VSM physical page caching is disabled
+		if (VirtualShadowMapArray.HZBPhysical)
+		{
+			bExtractPageTable = true;
+			GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.HZBPhysical, &PrevBuffers.HZBPhysical);
+			PrevBuffers.HZBMetadata = VirtualShadowMapArray.HZBMetadata;
+		}
+
+		if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
+		{
+			bExtractPageTable = true;
+			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageFlagsRDG, &PrevBuffers.PageFlags);
+			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.HPageFlagsRDG, &PrevBuffers.HPageFlags);
 		
-		GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolRDG, &PrevBuffers.PhysicalPagePool);
+			GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolRDG, &PrevBuffers.PhysicalPagePool);
 
-		if( VirtualShadowMapArray.PhysicalPagePoolHw )
-		{
-			GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolHw, &PrevBuffers.PhysicalPagePoolHw);
-		}
-		else
-		{
-			PrevBuffers.PhysicalPagePoolHw = TRefCountPtr<IPooledRenderTarget>();
+			if( VirtualShadowMapArray.PhysicalPagePoolHw )
+			{
+				GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolHw, &PrevBuffers.PhysicalPagePoolHw);
+			}
+			else
+			{
+				PrevBuffers.PhysicalPagePoolHw = TRefCountPtr<IPooledRenderTarget>();
+			}
+
+			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevBuffers.PhysicalPageMetaData);
+			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevBuffers.DynamicCasterPageFlags);
+			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ShadowMapProjectionDataRDG, &PrevBuffers.ShadowMapProjectionDataBuffer);
+			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageRectBoundsRDG, &PrevBuffers.PageRectBounds);
+			// Move cache entries to previous frame, this implicitly removes any that were not used
+			PrevCacheEntries = CacheEntries;
+			PrevUniformParameters = VirtualShadowMapArray.UniformParameters;
 		}
 
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevBuffers.PhysicalPageMetaData);
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevBuffers.DynamicCasterPageFlags);
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ShadowMapProjectionDataRDG, &PrevBuffers.ShadowMapProjectionDataBuffer);
-		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageRectBoundsRDG, &PrevBuffers.PageRectBounds);
-		// Move cache entries to previous frame, this implicitly removes any that were not used
-		PrevCacheEntries = CacheEntries;
-		PrevUniformParameters = VirtualShadowMapArray.UniformParameters;
+		if (bExtractPageTable)
+		{
+			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &PrevBuffers.PageTable);
+		}
 	}
 	else
 	{

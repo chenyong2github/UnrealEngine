@@ -150,17 +150,16 @@ struct FPersistentShadowStateKey
 	int32 AtlasIndex = -1;
 	int32 ProjectionId = -1;
 	int32 SubjectPrimitiveComponentIndex = -1;
-	bool bIsCompletePass = false;
 };
 
 inline uint32 GetTypeHash(const FPersistentShadowStateKey& Key)
 {
-	return HashCombine(HashCombine((uint32)Key.AtlasIndex, (uint32)Key.ProjectionId), HashCombine((uint32)Key.SubjectPrimitiveComponentIndex, (uint32)Key.bIsCompletePass));
+	return HashCombine(HashCombine((uint32)Key.AtlasIndex, (uint32)Key.ProjectionId), (uint32)Key.SubjectPrimitiveComponentIndex);
 }
 
 inline bool operator==(const FPersistentShadowStateKey& A, const FPersistentShadowStateKey& B)
 {
-	return A.AtlasIndex == B.AtlasIndex && A.ProjectionId == B.ProjectionId && A.SubjectPrimitiveComponentIndex == B.SubjectPrimitiveComponentIndex && A.bIsCompletePass == B.bIsCompletePass;
+	return A.AtlasIndex == B.AtlasIndex && A.ProjectionId == B.ProjectionId && A.SubjectPrimitiveComponentIndex == B.SubjectPrimitiveComponentIndex;
 }
 
 class FPersistentShadowState
