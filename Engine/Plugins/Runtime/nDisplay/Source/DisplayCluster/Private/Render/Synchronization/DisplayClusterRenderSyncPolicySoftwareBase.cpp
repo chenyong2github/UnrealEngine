@@ -150,6 +150,8 @@ bool FDisplayClusterRenderSyncPolicySoftwareBase::SynchronizeClusterRendering(in
 		}
 	}
 
+	DXOutput->Release();
+
 	++FrameCounter;
 
 	return bNeedEnginePresent;
