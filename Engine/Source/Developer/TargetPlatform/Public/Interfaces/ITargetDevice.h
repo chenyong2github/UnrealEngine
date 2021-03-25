@@ -387,6 +387,16 @@ public:
 	 * @param ProcessIdentifier The bundle id
 	 */
 	virtual bool TerminateLaunchedProcess(const FString & ProcessIdentifier) { return false;  };
+	
+	/**
+	 * Execute console command on the device to reload the global shader map
+	 * 
+	 * @param GlobalShaderMapDirectory path to directory that contains global shader map
+	 */
+	virtual void ReloadGlobalShadersMap(const FString& GlobalShaderMapDirectory) const
+	{
+		return ExecuteConsoleCommand(TEXT("ReloadGlobalShaders"));
+	}
 
 public:
 

@@ -204,7 +204,7 @@ int32 UCookGlobalShadersCommandlet::Main(const FString& Params)
 		if (bCopySucceeded && bExecuteReload && TargetDevice.IsValid())
 		{
 			UE_LOG(LogCookGlobalShaders, Log, TEXT("Sending Reload Command..."));
-			TargetDevice->ExecuteConsoleCommand("ReloadGlobalShaders");
+			TargetDevice->ReloadGlobalShadersMap(OutputDir / TEXT("Engine"));
 		}
 	}
 	UE_LOG(LogCookGlobalShaders, Log, TEXT("Complete"));
