@@ -7097,8 +7097,14 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 			}
 			NodesToSelect.Add(DisplayNode);
 		}
-		Selection.AddToSelection(NodesToSelect);
-		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
+
+		if (NodesToSelect.Num() > 0)
+		{
+			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
+		
+			Selection.AddToSelection(NodesToSelect);
+			Selection.RequestOutlinerNodeSelectionChangedBroadcast();
+		}
 	}
 	else if (Nodes.Num() > 0)
 	{
@@ -7160,8 +7166,14 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 			}
 			NodesToSelect.Add(DisplayNode);
 		}
-		Selection.AddToSelection(NodesToSelect);
-		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
+
+		if (NodesToSelect.Num() > 0)
+		{
+			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
+
+			Selection.AddToSelection(NodesToSelect);
+			Selection.RequestOutlinerNodeSelectionChangedBroadcast();
+		}
 	}
 	else if (Nodes.Num() > 0)
 	{
