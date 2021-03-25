@@ -5290,7 +5290,7 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 			FRecompileShadersTimer TestTimer(TEXT("RecompileShaders"));
 			RecompileGlobalShaders();
 
-			FMaterialUpdateContext UpdateContext;
+			FMaterialUpdateContext UpdateContext(0);
 			for( TObjectIterator<UMaterial> It; It; ++It )
 			{
 				UMaterial* Material = *It;
