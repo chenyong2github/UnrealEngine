@@ -480,7 +480,7 @@ bool FRDGBuilder::IsTransient(FRDGBufferRef Buffer) const
 	// Buffers smaller than a page go through normal pooled allocation.
 	const uint32 TransientSizeMin = 64 * 1024;
 
-	return Buffer->Desc.GetTotalNumBytes() >= TransientSizeMin;
+	return Buffer->Desc.GetTotalNumBytes() >= TransientSizeMin && EnumHasAnyFlags(Buffer->Desc.Usage, BUF_UnorderedAccess);
 }
 
 bool FRDGBuilder::IsTransient(FRDGTextureRef Texture) const
