@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+class FObjectPreSaveContext;
 class UObject;
 class UPackage;
 
@@ -19,6 +20,6 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-	void HandlePreSavePackage(UPackage* Package);
+	void HandlePreSavePackage(UPackage* Package, FObjectPreSaveContext ObjectSaveContext);
 	void HandleBeginPIE(bool bIsSimulating);
 };
