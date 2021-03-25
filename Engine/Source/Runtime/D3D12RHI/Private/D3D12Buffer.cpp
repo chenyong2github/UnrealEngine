@@ -454,7 +454,11 @@ FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListImmediate
 	uint32 Alignment;
 	FD3D12Buffer::GetResourceDescAndAlignment(Size, Stride, Usage, Desc, Alignment);
 
-	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(RHICmdList, Desc, Alignment, Stride, Size, Usage, ED3D12ResourceStateMode::Default, ResourceState, CreateInfo, ResourceAllocator);
+	ED3D12ResourceStateMode StateMode = EnumHasAllFlags(Usage, BUF_AccelerationStructure) 
+		? ED3D12ResourceStateMode::SingleState 
+		: ED3D12ResourceStateMode::Default;
+
+	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(RHICmdList, Desc, Alignment, Stride, Size, Usage, StateMode, ResourceState, CreateInfo, ResourceAllocator);
 	if (Buffer->ResourceLocation.IsTransient())
 	{
 		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level

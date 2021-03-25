@@ -951,7 +951,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	PassParameters->RenderTileOffsetY = 0;
 
 	// Global
-	PassParameters->TLAS = View.GetRayTracingSceneChecked()->GetShaderResourceView();
+	PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 	// Light data
@@ -1179,7 +1179,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 	PassParameters->GatherPointData = CreateUniformBufferImmediate(GatherPointData, EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	// Scene data
-	PassParameters->TLAS = View.GetRayTracingSceneChecked()->GetShaderResourceView();
+	PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 	// Shading data
@@ -1276,7 +1276,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 	PassParameters->UseFireflySuppression = CVarRayTracingGlobalIlluminationFireflySuppression.GetValueOnRenderThread() != 0;
 	PassParameters->DiffuseThreshold = GRayTracingGlobalIlluminationDiffuseThreshold;
 	PassParameters->NextEventEstimationSamples = GRayTracingGlobalIlluminationNextEventEstimationSamples;
-	PassParameters->TLAS = View.GetRayTracingSceneChecked()->GetShaderResourceView();
+	PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	SetupLightParameters(*Scene, View, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount);
 	PassParameters->SceneTextures = SceneTextures;

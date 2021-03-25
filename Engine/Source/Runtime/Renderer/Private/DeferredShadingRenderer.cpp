@@ -1229,15 +1229,13 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	{
 		FViewInfo& View = Views[ViewIndex];
 
-#if STATS
-		uint32 TotalInstances = 0;
+		uint32 NumTotalInstances = 0;
 		for (const FRayTracingGeometryInstance& Instance : View.RayTracingGeometryInstances)
 		{
 			ensure(Instance.NumTransforms >= uint32(Instance.GetTransforms().Num()));
-			TotalInstances += Instance.NumTransforms;
+			NumTotalInstances += Instance.NumTransforms;
 		}
-		SET_DWORD_STAT(STAT_RayTracingInstances, TotalInstances);
-#endif // STATS
+		SET_DWORD_STAT(STAT_RayTracingInstances, NumTotalInstances);
 
 #ifdef DO_CHECK
 		// Validate all the ray tracing geometries lifetimes
@@ -1264,8 +1262,20 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
 		PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
 
+		if (GRHISupportsRayTracingExplicitMemoryManagement)
+		{
+			// #yuriy_todo: allocate these using RDG transient resources!
+			FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingSceneSize(NumTotalInstances, ERayTracingAccelerationStructureFlags::FastTrace);
+			check(SizeInfo.ResultSize < ~0u);
+			FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingSceneBuffer"));
+			View.RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, CreateInfo);
+			View.RayTracingSceneSRV = RHICreateShaderResourceView(View.RayTracingSceneBuffer);
+		}
+
 		View.CreateRayTracingSceneTask = FFunctionGraphTask::CreateAndDispatchWhenReady([
-			&Result = View.RayTracingSceneRHI,
+			NumTotalInstances,
+			&ResultScene = View.RayTracingSceneRHI,
+			&ResultBuffer = View.RayTracingSceneBuffer,
 			Instances = MakeArrayView(View.RayTracingGeometryInstances)]()
 		{
 			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
@@ -1275,7 +1285,10 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 			SceneInitializer.Instances = Instances;
 			SceneInitializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
 			SceneInitializer.NumMissShaderSlots = RAY_TRACING_NUM_MISS_SHADER_SLOTS;
-			Result = RHICreateRayTracingScene(SceneInitializer);
+			SceneInitializer.bExplicitMemoryManagement = GRHISupportsRayTracingExplicitMemoryManagement;
+
+			ResultScene = RHICreateRayTracingScene(SceneInitializer);
+
 		}, TStatId(), nullptr, ENamedThreads::AnyThread);
 
 		if (RayGenShaders.Num())
@@ -1326,7 +1339,15 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
 				FViewInfo& View = Views[ViewIndex];
-				RHIAsyncCmdList.BuildAccelerationStructure(View.GetRayTracingSceneChecked());
+				FRHIRayTracingScene* RayTracingScene = View.GetRayTracingSceneChecked();
+				if (GRHISupportsRayTracingExplicitMemoryManagement)
+				{
+					check(View.RayTracingSceneBuffer.IsValid());
+					check(View.RayTracingSceneSRV.IsValid());
+					RHIAsyncCmdList.BindAccelerationStructureMemory(RayTracingScene, View.RayTracingSceneBuffer, 0);
+				}
+
+				RHIAsyncCmdList.BuildAccelerationStructure(RayTracingScene);
 			}
 
 			RHIAsyncCmdList.BeginTransition(RayTracingDynamicGeometryUpdateEndTransition);
@@ -1350,7 +1371,16 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 				{
 					FViewInfo& View = Views[ViewIndex];
-					RHICmdList.BuildAccelerationStructure(View.GetRayTracingSceneChecked());
+					FRHIRayTracingScene* RayTracingScene = View.GetRayTracingSceneChecked();
+
+					if (GRHISupportsRayTracingExplicitMemoryManagement)
+					{
+						check(View.RayTracingSceneBuffer.IsValid());
+						check(View.RayTracingSceneSRV.IsValid());
+						RHICmdList.BindAccelerationStructureMemory(RayTracingScene, View.RayTracingSceneBuffer, 0);
+					}
+
+					RHICmdList.BuildAccelerationStructure(RayTracingScene);
 				}
 
 				// Submit potentially expensive BVH build commands to the GPU as soon as possible.

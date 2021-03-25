@@ -324,6 +324,12 @@ public:
 	{
 		checkNoEntry();
 	}
+
+	virtual void RHIBindAccelerationStructureMemory(FRHIRayTracingScene* Scene, FRHIBuffer* Buffer, uint32 BufferOffset)
+	{
+		checkNoEntry();
+	}
+
 #if ENABLE_RHI_VALIDATION
 
 	RHIValidation::FTracker* Tracker = nullptr;

@@ -352,6 +352,27 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 				return ShaderResourceView;
 			});
 		}
+
+	#if D3D12_RHI_RAYTRACING
+		case FShaderResourceViewInitializer::EType::AccelerationStructureSRV:
+		{
+			return GetAdapter().CreateLinkedViews<FD3D12Buffer, FD3D12ShaderResourceView>(Buffer,
+				[Desc](FD3D12Buffer* Buffer)
+			{
+				check(Buffer);
+
+				D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+
+				SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
+				SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+				SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				SRVDesc.RaytracingAccelerationStructure.Location = Buffer->ResourceLocation.GetGPUVirtualAddress() + Desc.StartOffsetBytes;
+
+				FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(Buffer->GetParentDevice(), SRVDesc, Buffer, 4);
+				return ShaderResourceView;
+			});
+		}
+	#endif // D3D12_RHI_RAYTRACING
 	}
 
 	checkNoEntry();

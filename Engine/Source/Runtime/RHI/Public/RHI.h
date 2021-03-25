@@ -575,6 +575,9 @@ extern RHI_API bool GRHISupportsRayTracingDispatchIndirect;
 /** Whether or not the RHI supports async building ray tracing acceleration structures. */
 extern RHI_API bool GRHISupportsRayTracingAsyncBuildAccelerationStructure;
 
+/** Whether RHI allows high-level code to explicitly allocate memory for ray tracing acceleration structures. */
+extern RHI_API bool GRHISupportsRayTracingExplicitMemoryManagement;
+
 /** Whether or not the RHI supports the AMD Hit Token extension. */
 extern RHI_API bool GRHISupportsRayTracingAMDHitToken;
 

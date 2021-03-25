@@ -535,6 +535,11 @@ void FRHICommandCopyBufferRegions::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHICopyBufferRegions)(Params);
 }
 
+void FRHICommandBindAccelerationStructureMemory::Execute(FRHICommandListBase& CmdList)
+{
+	INTERNAL_DECORATOR_COMPUTE(RHIBindAccelerationStructureMemory)(Scene, Buffer, BufferOffset);
+}
+
 void FRHICommandBuildAccelerationStructure::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BuildAccelerationStructure);

@@ -565,7 +565,7 @@ FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuf
 }
 
 FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer)
-	: BufferInitializer({ InBuffer, 0, UINT32_MAX }), Type(EType::StructuredBufferSRV) 
+	: BufferInitializer({ InBuffer, 0, UINT32_MAX }), Type(EType::StructuredBufferSRV)
 {
 	InitType();
 }
@@ -582,6 +582,10 @@ void FShaderResourceViewInitializer::InitType()
 		else if (Usage & BUF_IndexBuffer)
 		{
 			Type = EType::IndexBufferSRV;
+		}
+		else if (Usage & BUF_AccelerationStructure)
+		{
+			Type = EType::AccelerationStructureSRV;
 		}
 		else
 		{

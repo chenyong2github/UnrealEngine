@@ -2083,6 +2083,21 @@ FRHICOMMAND_MACRO(FRHICommandCopyBufferRegions)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandBindAccelerationStructureMemory final : public FRHICommand<FRHICommandBindAccelerationStructureMemory>
+{
+	FRHIRayTracingScene* Scene;
+	FRHIBuffer* Buffer;
+	uint32 BufferOffset;
+
+	FRHICommandBindAccelerationStructureMemory(FRHIRayTracingScene* InScene, FRHIBuffer* InBuffer, uint32 InBufferOffset)
+		: Scene(InScene)
+		, Buffer(InBuffer)
+		, BufferOffset(InBufferOffset)
+	{}
+
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHICommandBuildAccelerationStructure>
 {
 	FRHIRayTracingScene* Scene;
@@ -2833,6 +2848,18 @@ public:
 		else
 		{
 			ALLOC_COMMAND(FRHICommandBuildAccelerationStructure)(Scene);
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void BindAccelerationStructureMemory(FRHIRayTracingScene* Scene, FRHIBuffer* Buffer, uint32 BufferOffset)
+	{
+		if (Bypass())
+		{
+			GetComputeContext().RHIBindAccelerationStructureMemory(Scene, Buffer, BufferOffset);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandBindAccelerationStructureMemory)(Scene, Buffer, BufferOffset);
 		}
 	}
 #endif

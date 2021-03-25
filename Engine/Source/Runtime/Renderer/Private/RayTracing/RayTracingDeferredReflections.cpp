@@ -520,7 +520,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 
 	CommonParameters.DenoisingOutputFormat               = bSpatialResolve ? 1 : 0;
 
-	CommonParameters.TLAS                    = View.GetRayTracingSceneChecked()->GetShaderResourceView();
+	CommonParameters.TLAS                    = View.GetRayTracingSceneViewChecked();
 	CommonParameters.SceneTextures           = SceneTextures;
 	CommonParameters.ViewUniformBuffer       = View.ViewUniformBuffer;
 	CommonParameters.LightDataPacked         = View.RayTracingLightData.UniformBuffer;

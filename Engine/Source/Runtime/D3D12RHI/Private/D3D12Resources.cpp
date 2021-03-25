@@ -461,7 +461,16 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 		HeapFlags |= D3D12_HEAP_FLAG_SHARED;
 	}
 
-	const HRESULT hr = RootDevice->CreateCommittedResource(&HeapProps, HeapFlags, &InDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	D3D12_RESOURCE_DESC LocalDesc = InDesc;
+
+#if D3D12_RHI_RAYTRACING
+	if (InDefaultState == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+	{
+		LocalDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	}
+#endif // D3D12_RHI_RAYTRACING
+
+	const HRESULT hr = RootDevice->CreateCommittedResource(&HeapProps, HeapFlags, &LocalDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
 	if (bVerifyHResult)
 	{
 		VERIFYD3D12RESULT_EX(hr, RootDevice);

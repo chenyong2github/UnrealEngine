@@ -93,9 +93,11 @@ public:
 	FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayTracingSceneInitializer& Initializer);
 	~FD3D12RayTracingScene();
 
+	void BindBuffer(FRHIBuffer* Buffer, uint32 BufferOffset);
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext);
 
 	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
+	uint32 BufferOffset = 0;
 
 	TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> Instances;
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
@@ -154,6 +156,8 @@ public:
 	uint64 CreatedFrameFenceValue = 0;
 
 	uint64 LastCommandListID = 0;
+
+	bool bExplicitMemoryManagement = false;
 
 	FName DebugName;
 };

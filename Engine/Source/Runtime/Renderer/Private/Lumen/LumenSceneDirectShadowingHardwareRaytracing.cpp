@@ -485,7 +485,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(
 		PassParameters->NormalBias = GetHardwareRaytracingMaxNormalBias();
 
 		LightSceneProxy->GetLightShaderParameters(PassParameters->Light);
-		PassParameters->TLAS = View.GetRayTracingSceneChecked()->GetShaderResourceView();
+		PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
 
 		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
 

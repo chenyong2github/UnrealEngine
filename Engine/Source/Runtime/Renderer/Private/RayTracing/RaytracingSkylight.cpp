@@ -497,7 +497,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 		PassParameters->SceneTextures = SceneTextures;
 		PassParameters->UpscaleFactor = UpscaleFactor;
 
-		PassParameters->TLAS = View.GetRayTracingSceneChecked()->GetShaderResourceView();
+		PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 		const bool bUseHairLighting = 

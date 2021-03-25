@@ -890,7 +890,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	if (NeedsMoreRays)
 	{
 		FPathTracingRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingRG::FParameters>();
-		PassParameters->TLAS = View.GetRayTracingSceneChecked()->GetShaderResourceView();
+		PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->PathTracingData = CreateUniformBufferImmediate(PathTracingData, EUniformBufferUsage::UniformBuffer_SingleFrame);
 		// upload sky/lights data
