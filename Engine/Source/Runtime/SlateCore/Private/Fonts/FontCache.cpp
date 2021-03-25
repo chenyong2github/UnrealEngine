@@ -543,6 +543,7 @@ int8 FCharacterList::GetKerning(TCHAR FirstChar, TCHAR SecondChar, const EFontFa
 
 int8 FCharacterList::GetKerning( const FCharacterEntry& FirstCharacterEntry, const FCharacterEntry& SecondCharacterEntry )
 {
+#if WITH_FREETYPE
 	// We can only get kerning if both characters are using the same font
 	if (FirstCharacterEntry.Valid &&
 		SecondCharacterEntry.Valid &&
@@ -551,9 +552,17 @@ int8 FCharacterList::GetKerning( const FCharacterEntry& FirstCharacterEntry, con
 		*FirstCharacterEntry.FontData == *SecondCharacterEntry.FontData
 		)
 	{
-		return FontCache.GetKerning(*FirstCharacterEntry.FontData, FontKey.GetFontInfo().Size, FirstCharacterEntry.Character, SecondCharacterEntry.Character, FirstCharacterEntry.FontScale);
+		const TSharedPtr<FFreeTypeKerningCache>& KerningCache = FirstCharacterEntry.KerningCache;
+		if (KerningCache)
+		{
+			FT_Vector KerningVector;
+			if (KerningCache->FindOrCache(FirstCharacterEntry.GlyphIndex, SecondCharacterEntry.GlyphIndex, KerningVector))
+			{
+				return FreeTypeUtils::Convert26Dot6ToRoundedPixel<int8>(KerningVector.x);
+			}
+		}
 	}
-
+#endif // WITH_FREETYPE
 	return 0;
 }
 
@@ -716,6 +725,8 @@ FCharacterList::FCharacterListEntry FCharacterList::CacheCharacter(TCHAR Charact
 			NewInternalEntry.ShapedGlyphEntry.XAdvance = XAdvance;
 			NewInternalEntry.ShapedGlyphEntry.bIsVisible = !bIsWhitespace;
 
+			NewInternalEntry.KerningCache = FontCache.FontRenderer->GetKerningCache(*FontDataPtr, FontInfo.Size, FinalFontScale);
+
 			NewInternalEntry.FontData = FontDataPtr;
 			NewInternalEntry.FallbackLevel = FaceGlyphData.CharFallbackLevel;
 			NewInternalEntry.HasKerning = bHasKerning;
@@ -758,6 +769,7 @@ FCharacterEntry FCharacterList::MakeCharacterEntry(TCHAR Character, const FChara
 			CharEntry.Character = Character;
 			CharEntry.GlyphIndex = InternalEntry.ShapedGlyphEntry.GlyphIndex;
 			CharEntry.FontData = InternalEntry.FontData;
+			CharEntry.KerningCache = InternalEntry.KerningCache;
 			CharEntry.FontScale = InternalEntry.ShapedGlyphEntry.FontFaceData->FontScale;
 			CharEntry.BitmapRenderScale = InternalEntry.ShapedGlyphEntry.FontFaceData->BitmapRenderScale;
 			CharEntry.StartU = ShapedGlyphFontAtlasData.StartU;
@@ -782,10 +794,10 @@ FSlateFontCache::FSlateFontCache( TSharedRef<ISlateFontAtlasFactory> InFontAtlas
 	: FTLibrary( new FFreeTypeLibrary() )
 	, FTGlyphCache( new FFreeTypeGlyphCache() )
 	, FTAdvanceCache( new FFreeTypeAdvanceCache() )
-	, FTKerningPairCache( new FFreeTypeKerningPairCache() )
+	, FTKerningCacheDirectory( new FFreeTypeKerningCacheDirectory() )
 	, CompositeFontCache( new FCompositeFontCache( FTLibrary.Get() ) )
-	, FontRenderer( new FSlateFontRenderer( FTLibrary.Get(), FTGlyphCache.Get(), FTKerningPairCache.Get(), CompositeFontCache.Get() ) )
-	, TextShaper( new FSlateTextShaper( FTGlyphCache.Get(), FTAdvanceCache.Get(), FTKerningPairCache.Get(), CompositeFontCache.Get(), FontRenderer.Get(), this ) )
+	, FontRenderer( new FSlateFontRenderer( FTLibrary.Get(), FTGlyphCache.Get(), FTKerningCacheDirectory.Get(), CompositeFontCache.Get() ) )
+	, TextShaper( new FSlateTextShaper( FTGlyphCache.Get(), FTAdvanceCache.Get(), FTKerningCacheDirectory.Get(), CompositeFontCache.Get(), FontRenderer.Get(), this ) )
 	, FontAtlasFactory( InFontAtlasFactory )
 	, bFlushRequested( false )
 	, CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest(InitialMaxAtlasPagesBeforeFlushRequest)
@@ -807,7 +819,7 @@ FSlateFontCache::~FSlateFontCache()
 	TextShaper.Reset();
 	FontRenderer.Reset();
 	CompositeFontCache.Reset();
-	FTKerningPairCache.Reset();
+	FTKerningCacheDirectory.Reset();
 	FTAdvanceCache.Reset();
 	FTGlyphCache.Reset();
 	FTLibrary.Reset();
@@ -1244,7 +1256,7 @@ void FSlateFontCache::FlushData()
 	{
 		FTGlyphCache->FlushCache();
 		FTAdvanceCache->FlushCache();
-		FTKerningPairCache->FlushCache();
+		FTKerningCacheDirectory->FlushCache();
 		CompositeFontCache->FlushCache();
 	}
 

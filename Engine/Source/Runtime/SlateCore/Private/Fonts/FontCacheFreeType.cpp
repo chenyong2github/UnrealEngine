@@ -688,24 +688,26 @@ void FFreeTypeAdvanceCache::FlushCache()
 #endif // WITH_FREETYPE
 }
 
-
 #if WITH_FREETYPE
 
-bool FFreeTypeKerningPairCache::FindOrCache(FT_Face InFace, const FKerningPair& InKerningPair, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale, FT_Vector& OutKerning)
+FFreeTypeKerningCache::FFreeTypeKerningCache(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale)
+	: Face(InFace)
+	, KerningFlags(InKerningFlags)
+	, FontSize(InFontSize)
+	, FontScale(InFontScale)
+	, KerningMap()
 {
-	// Skip the cache if the font itself doesn't have kerning
-	if (!FT_HAS_KERNING(InFace))
-	{
-		OutKerning.x = 0;
-		OutKerning.y = 0;
-		return true;
-	}
+	check(Face);
+	check(FT_HAS_KERNING(InFace));
+}
 
-	const FCachedKerningPairKey CachedKerningPairKey(InFace, InKerningPair, InKerningFlags, InFontSize, InFontScale);
+bool FFreeTypeKerningCache::FindOrCache(const uint32 InFirstGlyphIndex, const uint32 InSecondGlyphIndex, FT_Vector& OutKerning)
+{
+	const FKerningPair KerningPair(InFirstGlyphIndex, InSecondGlyphIndex);
 
 	// Try and find the kerning from the cache...
 	{
-		const FT_Vector* FoundCachedKerning = CachedKerningPairMap.Find(CachedKerningPairKey);
+		const FT_Vector* FoundCachedKerning = KerningMap.Find(KerningPair);
 		if (FoundCachedKerning)
 		{
 			OutKerning = *FoundCachedKerning;
@@ -713,34 +715,51 @@ bool FFreeTypeKerningPairCache::FindOrCache(FT_Face InFace, const FKerningPair& 
 		}
 	}
 
-	FreeTypeUtils::ApplySizeAndScale(InFace, InFontSize, InFontScale);
+	FreeTypeUtils::ApplySizeAndScale(Face, FontSize, FontScale);
 
 	// No cached data, go ahead and add an entry for it...
-	FT_Error Error = FT_Get_Kerning(InFace, InKerningPair.FirstGlyphIndex, InKerningPair.SecondGlyphIndex, InKerningFlags, &OutKerning);
+	FT_Error Error = FT_Get_Kerning(Face, InFirstGlyphIndex, InSecondGlyphIndex, KerningFlags, &OutKerning);
 	if (Error == 0)
 	{
-		if (InKerningFlags != FT_KERNING_UNSCALED)
+		if (KerningFlags != FT_KERNING_UNSCALED)
 		{
-			if (!FT_IS_SCALABLE(InFace) && FT_HAS_FIXED_SIZES(InFace))
+			if (!FT_IS_SCALABLE(Face) && FT_HAS_FIXED_SIZES(Face))
 			{
 				// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
-				OutKerning.x = FT_MulFix(OutKerning.x, InFace->size->metrics.x_scale);
-				OutKerning.y = FT_MulFix(OutKerning.y, InFace->size->metrics.y_scale);
+				OutKerning.x = FT_MulFix(OutKerning.x, Face->size->metrics.x_scale);
+				OutKerning.y = FT_MulFix(OutKerning.y, Face->size->metrics.y_scale);
 			}
 		}
 
-		CachedKerningPairMap.Add(CachedKerningPairKey, OutKerning);
+		KerningMap.Add(KerningPair, OutKerning);
 		return true;
 	}
 
 	return false;
 }
 
+TSharedPtr<FFreeTypeKerningCache> FFreeTypeKerningCacheDirectory::GetKerningCache(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale)
+{
+	// Check if this font has kerning as not all fonts do.
+	// We also can't perform kerning between two separate font faces
+	if (InFace && FT_HAS_KERNING(InFace))
+	{
+		const FFontKey Key(InFace, FT_KERNING_DEFAULT, InFontSize, InFontScale);
+		TSharedPtr<FFreeTypeKerningCache>& Entry = KerningCacheMap.FindOrAdd(Key);
+		if (!Entry)
+		{
+			Entry = MakeShared<FFreeTypeKerningCache>(InFace, FT_KERNING_DEFAULT, InFontSize, InFontScale);
+		}
+		return Entry;
+	}
+	return nullptr;
+}
+
 #endif // WITH_FREETYPE
 
-void FFreeTypeKerningPairCache::FlushCache()
+void FFreeTypeKerningCacheDirectory::FlushCache()
 {
 #if WITH_FREETYPE
-	CachedKerningPairMap.Empty();
+	KerningCacheMap.Empty();
 #endif // WITH_FREETYPE
 }

@@ -52,7 +52,7 @@ public:
 class FSlateTextShaper
 {
 public:
-	FSlateTextShaper(FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache, FCompositeFontCache* InCompositeFontCache, FSlateFontRenderer* InFontRenderer, FSlateFontCache* InFontCache);
+	FSlateTextShaper(FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningCacheDirectory* InFTKerningCacheDirectory, FCompositeFontCache* InCompositeFontCache, FSlateFontRenderer* InFontRenderer, FSlateFontCache* InFontCache);
 
 	FShapedGlyphSequenceRef ShapeBidirectionalText(const TCHAR* InText, const int32 InTextStart, const int32 InTextLen, const FSlateFontInfo& InFontInfo, const float InFontScale, const TextBiDi::ETextDirection InBaseDirection, const ETextShapingMethod TextShapingMethod) const;
 
@@ -75,7 +75,7 @@ private:
 
 	FFreeTypeGlyphCache* FTGlyphCache;
 	FFreeTypeAdvanceCache* FTAdvanceCache;
-	FFreeTypeKerningPairCache* FTKerningPairCache;
+	FFreeTypeKerningCacheDirectory* FTKerningCacheDirectory;
 	FCompositeFontCache* CompositeFontCache;
 	FSlateFontRenderer* FontRenderer;
 	FSlateFontCache* FontCache;

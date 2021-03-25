@@ -103,12 +103,12 @@ hb_user_data_key_t UserDataKey;
 
 struct FUserData
 {
-	FUserData(const int32 InFontSize, const float InFontScale, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache, const hb_font_extents_t& InHarfBuzzFontExtents)
+	FUserData(const int32 InFontSize, const float InFontScale, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningCacheDirectory* InFTKerningPairCache, const hb_font_extents_t& InHarfBuzzFontExtents)
 		: FontSize(InFontSize)
 		, FontScale(InFontScale)
 		, FTGlyphCache(InFTGlyphCache)
 		, FTAdvanceCache(InFTAdvanceCache)
-		, FTKerningPairCache(InFTKerningPairCache)
+		, FTKerningCacheDirectory(InFTKerningPairCache)
 		, HarfBuzzFontExtents(InHarfBuzzFontExtents)
 	{
 	}
@@ -117,13 +117,13 @@ struct FUserData
 	float FontScale;
 	FFreeTypeGlyphCache* FTGlyphCache;
 	FFreeTypeAdvanceCache* FTAdvanceCache;
-	FFreeTypeKerningPairCache* FTKerningPairCache;
+	FFreeTypeKerningCacheDirectory* FTKerningCacheDirectory;
 	hb_font_extents_t HarfBuzzFontExtents;
 };
 
-void* CreateUserData(const int32 InFontSize, const float InFontScale, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache, const hb_font_extents_t& InHarfBuzzFontExtents)
+void* CreateUserData(const int32 InFontSize, const float InFontScale, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningCacheDirectory* InFTKerningCacheDirectory, const hb_font_extents_t& InHarfBuzzFontExtents)
 {
-	return new FUserData(InFontSize, InFontScale, InFTGlyphCache, InFTAdvanceCache, InFTKerningPairCache, InHarfBuzzFontExtents);
+	return new FUserData(InFontSize, InFontScale, InFTGlyphCache, InFTAdvanceCache, InFTKerningCacheDirectory, InHarfBuzzFontExtents);
 }
 
 void DestroyUserData(void* UserData)
@@ -333,10 +333,14 @@ hb_position_t get_glyph_h_kerning(hb_font_t* InFont, void* InFontData, hb_codepo
 	FT_Face FreeTypeFace = get_ft_face(InFont);
 	const FUserData* UserDataPtr = static_cast<FUserData*>(hb_font_get_user_data(InFont, &UserDataKey));
 
-	FT_Vector KerningVector;
-	if (UserDataPtr->FTKerningPairCache->FindOrCache(FreeTypeFace, FFreeTypeKerningPairCache::FKerningPair(InLeftGlyphIndex, InRightGlyphIndex), FT_KERNING_DEFAULT, UserDataPtr->FontSize, UserDataPtr->FontScale, KerningVector))
+	TSharedPtr<FFreeTypeKerningCache> KerningCache = UserDataPtr->FTKerningCacheDirectory->GetKerningCache(FreeTypeFace, FT_KERNING_DEFAULT, UserDataPtr->FontSize, UserDataPtr->FontScale);
+	if (KerningCache)
 	{
-		return KerningVector.x;
+		FT_Vector KerningVector;
+		if (KerningCache->FindOrCache(InLeftGlyphIndex, InRightGlyphIndex, KerningVector))
+		{
+			return KerningVector.x;
+		}
 	}
 
 	return 0;
@@ -404,14 +408,14 @@ hb_bool_t get_glyph_contour_point(hb_font_t* InFont, void* InFontData, hb_codepo
 
 #endif // WITH_FREETYPE && WITH_HARFBUZZ
 
-FHarfBuzzFontFactory::FHarfBuzzFontFactory(FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache)
+FHarfBuzzFontFactory::FHarfBuzzFontFactory(FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningCacheDirectory* InFTKerningCacheDirectory)
 	: FTGlyphCache(InFTGlyphCache)
 	, FTAdvanceCache(InFTAdvanceCache)
-	, FTKerningPairCache(InFTKerningPairCache)
+	, FTKerningCacheDirectory(InFTKerningCacheDirectory)
 {
 	check(FTGlyphCache);
 	check(FTAdvanceCache);
-	check(FTKerningPairCache);
+	check(FTKerningCacheDirectory);
 
 #if WITH_HARFBUZZ
 	CustomHarfBuzzFuncs = hb_font_funcs_create();
@@ -492,7 +496,7 @@ hb_font_t* FHarfBuzzFontFactory::CreateFont(const FFreeTypeFace& InFace, const u
 	hb_font_set_user_data(
 		HarfBuzzFont, 
 		&HarfBuzzFontFunctions::UserDataKey, 
-		HarfBuzzFontFunctions::CreateUserData(InFontSize, InFontScale, FTGlyphCache, FTAdvanceCache, FTKerningPairCache, HarfBuzzFontExtents),
+		HarfBuzzFontFunctions::CreateUserData(InFontSize, InFontScale, FTGlyphCache, FTAdvanceCache, FTKerningCacheDirectory, HarfBuzzFontExtents),
 		&HarfBuzzFontFunctions::DestroyUserData, 
 		true
 		);

@@ -8,7 +8,7 @@
 class FFreeTypeAdvanceCache;
 class FFreeTypeFace;
 class FFreeTypeGlyphCache;
-class FFreeTypeKerningPairCache;
+class FFreeTypeKerningCacheDirectory;
 
 #ifndef WITH_HARFBUZZ
 	#define WITH_HARFBUZZ 0
@@ -51,7 +51,7 @@ void AppendStringToBuffer(const FStringView InString, const int32 InStartIndex, 
 class FHarfBuzzFontFactory
 {
 public:
-	FHarfBuzzFontFactory(FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache);
+	FHarfBuzzFontFactory(FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningCacheDirectory* InFTKerningCacheDirectory);
 	~FHarfBuzzFontFactory();
 
 #if WITH_HARFBUZZ
@@ -62,7 +62,7 @@ public:
 private:
 	FFreeTypeGlyphCache* FTGlyphCache;
 	FFreeTypeAdvanceCache* FTAdvanceCache;
-	FFreeTypeKerningPairCache* FTKerningPairCache;
+	FFreeTypeKerningCacheDirectory* FTKerningCacheDirectory;
 
 #if WITH_HARFBUZZ
 	hb_font_funcs_t* CustomHarfBuzzFuncs;

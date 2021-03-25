@@ -169,15 +169,15 @@ void ResizeFontBitmap(const int32 SrcWidth, const int32 SrcHeight, const TArray<
 } // namespace SlateFontRendererUtils
 
 
-FSlateFontRenderer::FSlateFontRenderer(const FFreeTypeLibrary* InFTLibrary, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeKerningPairCache* InFTKerningPairCache, FCompositeFontCache* InCompositeFontCache)
+FSlateFontRenderer::FSlateFontRenderer(const FFreeTypeLibrary* InFTLibrary, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeKerningCacheDirectory* InFTKerningCacheDirectory, FCompositeFontCache* InCompositeFontCache)
 	: FTLibrary(InFTLibrary)
 	, FTGlyphCache(InFTGlyphCache)
-	, FTKerningPairCache(InFTKerningPairCache)
+	, FTKerningCacheDirectory( InFTKerningCacheDirectory)
 	, CompositeFontCache(InCompositeFontCache)
 {
 	check(FTLibrary);
 	check(FTGlyphCache);
-	check(FTKerningPairCache);
+	check(FTKerningCacheDirectory);
 	check(CompositeFontCache);
 }
 
@@ -287,28 +287,36 @@ bool FSlateFontRenderer::HasKerning(const FFontData& InFontData) const
 int8 FSlateFontRenderer::GetKerning(const FFontData& InFontData, const int32 InSize, TCHAR First, TCHAR Second, const float InScale) const
 {
 #if WITH_FREETYPE
-	int8 Kerning = 0;
-
 	FT_Face FontFace = GetFontFace(InFontData);
 
 	// Check if this font has kerning as not all fonts do.
 	// We also can't perform kerning between two separate font faces
 	if (FontFace && FT_HAS_KERNING(FontFace))
 	{
-		FT_UInt FirstIndex = FT_Get_Char_Index(FontFace, First);
-		FT_UInt SecondIndex = FT_Get_Char_Index(FontFace, Second);
-
-		FT_Vector KerningVec;
-		if (FTKerningPairCache->FindOrCache(FontFace, FFreeTypeKerningPairCache::FKerningPair(FirstIndex, SecondIndex), FT_KERNING_DEFAULT, InSize, InScale, KerningVec))
+		const FT_UInt FirstIndex = FT_Get_Char_Index(FontFace, First);
+		const FT_UInt SecondIndex = FT_Get_Char_Index(FontFace, Second);
+		TSharedPtr<FFreeTypeKerningCache> KerningCache = GetKerningCache(InFontData, InSize, InScale);
+		if (KerningCache)
 		{
-			// Return pixel sizes
-			Kerning = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int8>(KerningVec.x);
+			FT_Vector KerningVector;
+			if (KerningCache->FindOrCache(FirstIndex, SecondIndex, KerningVector))
+			{
+				// Return pixel sizes
+				return FreeTypeUtils::Convert26Dot6ToRoundedPixel<int8>(KerningVector.x);
+			}
 		}
 	}
-
-	return Kerning;
-#else
+#endif // WITH_FREETYPE
 	return 0;
+}
+
+TSharedPtr<FFreeTypeKerningCache> FSlateFontRenderer::GetKerningCache(const FFontData& InFontData, const int32 InSize, const float InScale) const
+{
+#if WITH_FREETYPE
+	FT_Face FontFace = GetFontFace(InFontData);
+	return FTKerningCacheDirectory->GetKerningCache(FontFace, FT_KERNING_DEFAULT, InSize, InScale);
+#else
+	return nullptr;
 #endif // WITH_FREETYPE
 }
 

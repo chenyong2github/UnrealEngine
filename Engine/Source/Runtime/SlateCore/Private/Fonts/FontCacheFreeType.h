@@ -461,11 +461,26 @@ private:
 
 
 /**
- * Provides low-level kerning-pair caching to avoid repeated calls to FT_Get_Kerning.
+ * Provides low-level kerning-pair caching for a set of font parameters to avoid repeated calls to FT_Get_Kerning.
  */
-class FFreeTypeKerningPairCache
+class FFreeTypeKerningCache
 {
 public:
+#if WITH_FREETYPE
+	FFreeTypeKerningCache(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale);
+
+	/**
+	 * Retrieve the kerning vector for a given pair of glyphs.
+	 @param InFirstGlyphIndex		The first (left) glyph index
+	 @param InSecondGlyphIndex		The second (right) glyph index
+	 @param OutKerning				The vector to fill out with kerning amounts
+	 @return True if the kerning value was found
+	 */
+	bool FindOrCache(const uint32 InFirstGlyphIndex, const uint32 InSecondGlyphIndex, FT_Vector& OutKerning);
+#endif // WITH_FREETYPE
+
+private:
+#if WITH_FREETYPE
 	struct FKerningPair
 	{
 		FKerningPair(const uint32 InFirstGlyphIndex, const uint32 InSecondGlyphIndex)
@@ -497,60 +512,75 @@ public:
 		uint32 SecondGlyphIndex;
 	};
 
+	FT_Face Face;
+	const int32 KerningFlags;
+	const int32 FontSize;
+	const float FontScale;
+	TMap<FKerningPair, FT_Vector> KerningMap;
+#endif // WITH_FREETYPE
+};
+
+
+/**
+ * Class that manages directory of kerning caches that can be retrieved by font parameters.
+ */
+class FFreeTypeKerningCacheDirectory
+{
+public:
 #if WITH_FREETYPE
-	bool FindOrCache(FT_Face InFace, const FKerningPair& InKerningPair, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale, FT_Vector& OutKerning);
+	/**
+	 * Retrieve a kerning cache object for a given set of font parameters.
+	 * @return A pointer to the font kerning cache, invalid if the font does not perform kerning.
+	 */
+	TSharedPtr<FFreeTypeKerningCache> GetKerningCache(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale);
 #endif // WITH_FREETYPE
 
 	void FlushCache();
 
 private:
 #if WITH_FREETYPE
-	struct FCachedKerningPairKey
+	class FFontKey
 	{
 	public:
-		FCachedKerningPairKey(FT_Face InFace, const FKerningPair& InKerningPair, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale)
+		FFontKey(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale)
 			: Face(InFace)
-			, KerningPair(InKerningPair)
 			, KerningFlags(InKerningFlags)
 			, FontSize(InFontSize)
 			, FontScale(InFontScale)
 			, KeyHash(0)
 		{
 			KeyHash = HashCombine(KeyHash, GetTypeHash(Face));
-			KeyHash = HashCombine(KeyHash, GetTypeHash(KerningPair));
 			KeyHash = HashCombine(KeyHash, GetTypeHash(KerningFlags));
 			KeyHash = HashCombine(KeyHash, GetTypeHash(FontSize));
 			KeyHash = HashCombine(KeyHash, GetTypeHash(FontScale));
 		}
 
-		FORCEINLINE bool operator==(const FCachedKerningPairKey& Other) const
+		FORCEINLINE bool operator==(const FFontKey& Other) const
 		{
-			return Face == Other.Face 
-				&& KerningPair == Other.KerningPair
+			return Face == Other.Face
 				&& KerningFlags == Other.KerningFlags
 				&& FontSize == Other.FontSize
 				&& FontScale == Other.FontScale;
 		}
 
-		FORCEINLINE bool operator!=(const FCachedKerningPairKey& Other) const
+		FORCEINLINE bool operator!=(const FFontKey& Other) const
 		{
 			return !(*this == Other);
 		}
 
-		friend inline uint32 GetTypeHash(const FCachedKerningPairKey& Key)
+		friend inline uint32 GetTypeHash(const FFontKey& Key)
 		{
 			return Key.KeyHash;
 		}
 
 	private:
 		FT_Face Face;
-		FKerningPair KerningPair;
 		int32 KerningFlags;
 		int32 FontSize;
 		float FontScale;
 		uint32 KeyHash;
 	};
 
-	TMap<FCachedKerningPairKey, FT_Vector> CachedKerningPairMap;
+	TMap<FFontKey, TSharedPtr<FFreeTypeKerningCache>> KerningCacheMap;
 #endif // WITH_FREETYPE
 };
