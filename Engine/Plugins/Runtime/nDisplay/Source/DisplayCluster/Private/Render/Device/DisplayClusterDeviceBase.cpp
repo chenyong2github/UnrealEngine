@@ -581,6 +581,9 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 	SCOPED_GPU_STAT(RHICmdList, nDisplay_Device_RenderTexture);
 	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Device_RenderTexture);
 
+	//  Temporary for 4.26.X: this is a temporary solution to match hotfix requirements (no public API changes).
+	FScopeLock Lock(&PPAccessScope);
+
 	// Get registered PP operations map
 	const TMap<FString, IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperationsMap = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
 
@@ -642,6 +645,9 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 
 	// Finally, copy the render target texture to the back buffer
 	CopyTextureToBackBuffer_RenderThread(RHICmdList, BackBuffer, SrcTexture, WindowSize);
+
+	// Temporary for 4.26.X: we need to release shared pointers stored inside FDisplayClusterPPInfo
+	FDisplayClusterDeviceBase_PostProcess::PPOperations.Reset();
 }
 
 int32 FDisplayClusterDeviceBase::GetDesiredNumberOfViews(bool bStereoRequested) const
@@ -743,11 +749,15 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 		}
 	}
 
-	// Pass UpdateViewport to all PP operations
-	TMap<FString, IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperationsMap = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
-	for (auto& it : PPOperationsMap)
 	{
-		it.Value.Operation->PerformUpdateViewport(Viewport, RenderViewports);
+		FScopeLock Lock(&PPAccessScope);
+
+		// Pass UpdateViewport to all PP operations
+		TMap<FString, IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperationsMap = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
+		for (auto& it : PPOperationsMap)
+		{
+			it.Value.Operation->PerformUpdateViewport(Viewport, RenderViewports);
+		}
 	}
 }
 
