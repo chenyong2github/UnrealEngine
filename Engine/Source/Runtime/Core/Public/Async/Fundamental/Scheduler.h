@@ -41,6 +41,9 @@ namespace LowLevelTasks
 		static thread_local EWorkerType WorkerType;
 		static CORE_API FScheduler Singleton;
 
+		// number of busy-waiting calls in the call-stack
+		static thread_local uint32 BusyWaitingDepth;
+
 		// using 16 bytes here because it fits the vtable and one additional pointer
 		using FConditional = TTaskDelegate<16, bool>;
 
@@ -80,6 +83,9 @@ namespace LowLevelTasks
 		//the template parameter can be any Type that has a const conversion operator to FTask
 		template<typename TaskType>
 		inline void BusyWait(const TArrayView<const TaskType>& Tasks);
+
+		// returns true if the current thread execution is in the context of busy-waiting
+		inline static bool IsBusyWaiting();
 
 		//number of instantiated workers
 		inline uint32 GetNumWorkers() const;
@@ -300,6 +306,11 @@ namespace LowLevelTasks
 			FLocalQueueInstaller Installer(*this);
 			FScheduler::BusyWaitInternal([&AllTasksCompleted](){ return AllTasksCompleted(); });
 		}
+	}
+
+	inline bool FScheduler::IsBusyWaiting()
+	{
+		return BusyWaitingDepth != 0;
 	}
 
 	inline void FScheduler::TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, bool& Drowsing, bool bBackgroundWorker)

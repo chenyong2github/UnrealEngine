@@ -14,6 +14,7 @@ namespace LowLevelTasks
 	thread_local FTask* FScheduler::ActiveTask = nullptr;
 	thread_local FScheduler* FScheduler::ActiveScheduler = nullptr;
 	thread_local FScheduler::EWorkerType FScheduler::WorkerType = FScheduler::EWorkerType::None;
+	thread_local uint32 FScheduler::BusyWaitingDepth = 0;
 
 	FScheduler FScheduler::Singleton;
 
@@ -294,6 +295,9 @@ namespace LowLevelTasks
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FScheduler::BusyWaitInternal);
 		FTaskTagScope WorkerScope(ETaskTag::EWorkerThread);
+
+		++BusyWaitingDepth;
+		ON_SCOPE_EXIT{ --BusyWaitingDepth; };
 
 		checkSlow(LocalQueue != nullptr);
 		check(ActiveWorkers.load(std::memory_order_relaxed));

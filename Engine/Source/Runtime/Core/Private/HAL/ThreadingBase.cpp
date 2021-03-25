@@ -12,6 +12,7 @@
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformStackWalk.h"
 #include "ProfilingDebugging/MiscTrace.h"
+#include "Async/Fundamental/Scheduler.h"
 
 #include <atomic>
 
@@ -158,10 +159,13 @@ CORE_API bool IsInGameThread()
 	{
 		bool newValue = FTaskTagScope::IsCurrentTag(ETaskTag::EGameThread) || FTaskTagScope::IsRunningDuringStaticInit();
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-		const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-		bool oldValue = CurrentThreadId == GGameThreadId;
-		ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::EGameThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x)"), oldValue, newValue, FTaskTagScope::GetCurrentTag());
-		newValue = oldValue;
+		if (!LowLevelTasks::FScheduler::IsBusyWaiting())
+		{
+			const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+			bool oldValue = CurrentThreadId == GGameThreadId;
+			ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::EGameThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x)"), oldValue, newValue, FTaskTagScope::GetCurrentTag());
+			newValue = oldValue;
+		}
 #endif
 		return newValue;
 	}
@@ -179,9 +183,12 @@ CORE_API bool IsInSlateThread()
 	// If this explicitly is a slate thread, not just the main thread running slate
 	bool newValue = FTaskTagScope::IsCurrentTag(ETaskTag::ESlateThread);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	bool oldValue = GSlateLoadingThreadId != 0 && FPlatformTLS::GetCurrentThreadId() == GSlateLoadingThreadId;
-	ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::ESlateThread) as as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x)"), oldValue, newValue, FTaskTagScope::GetCurrentTag());
-	newValue = oldValue;
+	if (!LowLevelTasks::FScheduler::IsBusyWaiting())
+	{
+		bool oldValue = GSlateLoadingThreadId != 0 && FPlatformTLS::GetCurrentThreadId() == GSlateLoadingThreadId;
+		ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::ESlateThread) as as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x)"), oldValue, newValue, FTaskTagScope::GetCurrentTag());
+		newValue = oldValue;
+	}
 #endif
 	return newValue;
 }
@@ -205,9 +212,12 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		? FTaskTagScope::IsCurrentTag(ETaskTag::EGameThread)
 		: FTaskTagScope::IsCurrentTag(ETaskTag::EAudioThread);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	bool oldValue = FPlatformTLS::GetCurrentThreadId() == ((nullptr == GAudioThread || GIsAudioThreadSuspended.Load(EMemoryOrder::Relaxed)) ? GGameThreadId : GAudioThread->GetThreadID());
-	ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::EAudioThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x)"), oldValue, newValue, FTaskTagScope::GetCurrentTag());
-	newValue = oldValue;
+	if (!LowLevelTasks::FScheduler::IsBusyWaiting())
+	{
+		bool oldValue = FPlatformTLS::GetCurrentThreadId() == ((nullptr == GAudioThread || GIsAudioThreadSuspended.Load(EMemoryOrder::Relaxed)) ? GGameThreadId : GAudioThread->GetThreadID());
+		ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::EAudioThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x)"), oldValue, newValue, FTaskTagScope::GetCurrentTag());
+		newValue = oldValue;
+	}
 #endif
 	return newValue;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -222,9 +232,12 @@ CORE_API bool IsInActualRenderingThread()
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bool newValue = FTaskTagScope::IsCurrentTag(ETaskTag::ERenderingThread);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	bool oldValue = FPlatformTLS::GetCurrentThreadId() == GRenderThreadId;
-	ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::ERenderingThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x)"), oldValue, newValue, FTaskTagScope::GetCurrentTag());
-	newValue = oldValue;
+	if (!LowLevelTasks::FScheduler::IsBusyWaiting())
+	{
+		bool oldValue = FPlatformTLS::GetCurrentThreadId() == GRenderThreadId;
+		ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::ERenderingThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x)"), oldValue, newValue, FTaskTagScope::GetCurrentTag());
+		newValue = oldValue;
+	}
 #endif
 	return newValue;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -240,9 +253,12 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FTaskTagScope::IsCurrentTag(ETaskTag::ERenderingThread);
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	bool oldValue = !GRenderingThread || bLocalIsLoadingThreadSuspended || (FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID());
-	ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::ERenderingThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x), GRenderingThread(%x), GIsRenderingThreadSuspended(%d)"), oldValue, newValue, FTaskTagScope::GetCurrentTag(), GRenderingThread, bLocalIsLoadingThreadSuspended);
-	newValue = oldValue;
+	if (!LowLevelTasks::FScheduler::IsBusyWaiting())
+	{
+		bool oldValue = !GRenderingThread || bLocalIsLoadingThreadSuspended || (FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID());
+		ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::ERenderingThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x), GRenderingThread(%x), GIsRenderingThreadSuspended(%d)"), oldValue, newValue, FTaskTagScope::GetCurrentTag(), GRenderingThread, bLocalIsLoadingThreadSuspended);
+		newValue = oldValue;
+	}
 #endif
 	return newValue;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -267,17 +283,20 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	bool oldValue = false;
-	if (!GRenderingThread || bLocalIsLoadingThreadSuspended)
+	if (!LowLevelTasks::FScheduler::IsBusyWaiting())
 	{
-		oldValue = true;
+		bool oldValue = false;
+		if (!GRenderingThread || bLocalIsLoadingThreadSuspended)
+		{
+			oldValue = true;
+		}
+		else
+		{
+			oldValue = FPlatformTLS::GetCurrentThreadId() != GGameThreadId;
+		}
+		ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::EParallelRenderingThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x), GRenderingThread(%x), GIsRenderingThreadSuspended(%d)"), oldValue, newValue, FTaskTagScope::GetCurrentTag(), GRenderingThread, bLocalIsLoadingThreadSuspended);
+		newValue = oldValue;
 	}
-	else
-	{
-		oldValue = FPlatformTLS::GetCurrentThreadId() != GGameThreadId;
-	}
-	ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::EParallelRenderingThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x), GRenderingThread(%x), GIsRenderingThreadSuspended(%d)"), oldValue, newValue, FTaskTagScope::GetCurrentTag(), GRenderingThread, bLocalIsLoadingThreadSuspended);
-	newValue = oldValue;
 #endif
 	return newValue;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
