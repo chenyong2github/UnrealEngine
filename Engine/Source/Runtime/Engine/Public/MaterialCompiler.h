@@ -370,7 +370,7 @@ public:
 	virtual int32 GetCloudSampleAltitude() = 0;
 	virtual int32 GetCloudSampleAltitudeInLayer() = 0;
 	virtual int32 GetCloudSampleNormAltitudeInLayer() = 0;
-	virtual int32 GetCloudSampleIsShadowSample() = 0;
+	virtual int32 GetCloudSampleShadowSampleDistance() = 0;
 	virtual int32 GetVolumeSampleConservativeDensity() = 0;
 
 	virtual int32 GetHairUV() = 0;
@@ -732,9 +732,9 @@ public:
 		return Compiler->GetCloudSampleNormAltitudeInLayer();
 	}
 
-	virtual int32 GetCloudSampleIsShadowSample() override
+	virtual int32 GetCloudSampleShadowSampleDistance() override
 	{
-		return Compiler->GetCloudSampleIsShadowSample();
+		return Compiler->GetCloudSampleShadowSampleDistance();
 	}
 
 	virtual int32 GetVolumeSampleConservativeDensity() override
