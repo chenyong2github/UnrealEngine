@@ -9009,7 +9009,19 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 
 	if (SelectedNodes.Num() == 0)
 	{
-		SelectedNodes = Selection.GetNodesWithSelectedKeysOrSections();
+		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : NodeTree->GetRootNodes())
+		{
+			TSet<TWeakObjectPtr<UMovieSceneSection>> Sections;
+			SequencerHelpers::GetAllSections(DisplayNode, Sections);
+			for (TWeakObjectPtr<UMovieSceneSection> Section : Sections)
+			{
+				if (Selection.GetSelectedSections().Contains(Section.Get()))
+				{
+					SelectedNodes.Add(DisplayNode);
+					break;
+				}
+			}
+		}
 	}
 
 	if (SelectedNodes.Num() == 0)
