@@ -12,9 +12,10 @@
 #include "UObject/Object.h"
 #include "UObject/Package.h"
 #include "Serialization/ArchiveUObject.h"
-#include "Misc/ITransaction.h"
 #include "Serialization/ArchiveSerializedPropertyChain.h"
+#include "Misc/ITransaction.h"
 #include "Algo/Find.h"
+#include <type_traits>
 #include "Transactor.generated.h"
 
 /*-----------------------------------------------------------------------------
@@ -54,44 +55,53 @@ protected:
 		*/
 		struct FPersistentObjectRef
 		{
-			// This enum represents all of the different special cases
-			// we are handling with this type:
-			enum class EReferenceType : uint8
-			{
-				SubObject,
-				RootObject,
-
-				Unknown
-			};
-
-			EReferenceType ReferenceType;
-			UObject* Object;
-			TArray<FName> SubObjectHierarchyID;
-			FName ComponentName;
-
+		public:
 			friend FArchive& operator<<(FArchive& Ar, FPersistentObjectRef& ReferencedObject)
 			{
-				Ar << (uint8&)ReferencedObject.ReferenceType;
-				Ar << ReferencedObject.Object;
-				Ar << ReferencedObject.SubObjectHierarchyID;
+				Ar << (std::underlying_type_t<EReferenceType>&)ReferencedObject.ReferenceType;
+				Ar << ReferencedObject.RootObject;
+				Ar << ReferencedObject.SubObjectHierarchyIDs;
 				return Ar;
 			}
 
-			FPersistentObjectRef()
-				: ReferenceType(EReferenceType::Unknown)
-				, Object(nullptr)
-			{}
+			FPersistentObjectRef() = default;
 
 			explicit FPersistentObjectRef(UObject* InObject);
 
+			bool IsRootObjectReference() const
+			{
+				return ReferenceType == EReferenceType::RootObject;
+			}
+
+			bool IsSubObjectReference() const
+			{
+				return ReferenceType == EReferenceType::SubObject;
+			}
+
 			UObject* Get() const;
 
-			UObject* operator->() const
+			void AddReferencedObjects(FReferenceCollector& Collector);
+
+		private:
+			/** This enum represents all of the different special cases we are handling with this type */
+			enum class EReferenceType : uint8
 			{
-				UObject* Obj = Get();
-				check(Obj);
-				return Obj;
-			}
+				Unknown,
+				RootObject,
+				SubObject,
+			};
+
+			/** The reference type we're handling */
+			EReferenceType ReferenceType = EReferenceType::Unknown;
+			/** Stores the object pointer when ReferenceType==RootObject, and the outermost pointer of the sub-object chain when when ReferenceType==SubObject */
+			UObject* RootObject = nullptr;
+			/** Stores the sub-object name chain when ReferenceType==SubObject */
+			TArray<FName, TInlineAllocator<4>> SubObjectHierarchyIDs;
+
+			/** Cached pointers corresponding to RootObject when ReferenceType==SubObject (@note cache needs testing on access as it may have become stale) */
+			mutable TWeakObjectPtr<UObject> CachedRootObject;
+			/** Cache of pointers corresponding to the items within SubObjectHierarchyIDs when ReferenceType==SubObject (@note cache needs testing on access as it may have become stale) */
+			mutable TArray<TWeakObjectPtr<UObject>, TInlineAllocator<4>> CachedSubObjectHierarchy;
 		};
 
 		struct FSerializedProperty
