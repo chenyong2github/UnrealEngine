@@ -473,8 +473,15 @@ void FConstraintInstance::InitConstraint_AssumesLocked(const FPhysicsActorHandle
 	// Put the bodies back to sleep both bodies were asleep
 	if (bActor1WasAsleep && bActor2WasAsleep)
 	{
-		FPhysicsInterface::PutToSleep_AssumesLocked(ActorRef1);
-		FPhysicsInterface::PutToSleep_AssumesLocked(ActorRef2);
+		if(!FPhysicsInterface::IsKinematic_AssumesLocked(ActorRef1))
+		{
+			FPhysicsInterface::PutToSleep_AssumesLocked(ActorRef1);
+		}
+
+		if(!FPhysicsInterface::IsKinematic_AssumesLocked(ActorRef2))
+		{
+			FPhysicsInterface::PutToSleep_AssumesLocked(ActorRef2);
+		}
 	}
 }
 
