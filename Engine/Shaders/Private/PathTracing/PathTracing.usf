@@ -123,7 +123,7 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 			{
 				if (SelectionWeight < SelectionWeightSum)
 				{
-					// the acceptanace probability is not 1.0
+					// the acceptance probability is not 1.0
 					// generate a random number to see if we should accept this hit
 					float RandValue = RandomSequence_GenerateSample1D(RandSequence);
 					AcceptHit = RandValue * SelectionWeightSum < SelectionWeight;
@@ -405,26 +405,80 @@ bool ProcessSubsurfaceRandomWalk(inout FMaterialClosestHitPayload Payload, inout
 	return false;
 }
 
+uint2 Shuffle(uint2 Value, uint2 Seed)
+{
+	const uint M = PATHTRACER_COHERENT_TILE_SIZE;
+#if 1
+	// Scramble the MxM tile of pixels with an error-diffusion pattern
+	// visualizing the seeds shows the distribution of seeds is slightly better
+	const uint X = Value.x;
+	const uint Y = Value.y;
+	uint TileID = 0, HilbertState = 0;
+	for (int i = PATHTRACER_COHERENT_TILE_SHIFT - 1; i >= 0; i--) {
+		uint xi = (X >> i) & 1;
+		uint yi = (Y >> i) & 1;
+		uint Row = 8 * HilbertState + 4 * xi + 2 * yi;
+		TileID = TileID * 4 + ((0x361E9CB4u >> Row) & 3);
+		HilbertState = (0x8FE65831u >> Row) & 3;
+	}
+	uint SeedTile = StrongIntegerHash(Seed.x + StrongIntegerHash(Seed.y));
+	uint SobolIndex = FastOwenScrambling(reversebits(TileID), SeedTile);
+	uint SobolX = SobolIndex;
+	uint SobolY = 0;
+	for (uint v = 1; SobolIndex; SobolIndex >>= 1, v ^= v << 1)
+	{
+		SobolY ^= (SobolIndex & 1) * v;
+	}
+	return reversebits(uint2(SobolX, SobolY)) >> (32 - PATHTRACER_COHERENT_TILE_SHIFT);
+#elif 1
+	// randomly shuffle coordinate (x,y) within an RxR tile of pixels according to the given seed
+	// this has a slight directional preference when visualizing seeds
+	uint SeedTile = StrongIntegerHash(Seed.x + StrongIntegerHash(Seed.y));
+	uint Index = Value.x + Value.y * M;
+	uint ShuffledIndex = FastOwenScrambling(reversebits(Index), SeedTile) % (M * M);
+	return uint2(ShuffledIndex % M, ShuffledIndex / M);
+#else
+	// no shuffling (just to show repeating artifacts)
+	return Value;
+#endif
+}
+
+uint2 Reorder(uint2 I, uint2 N)
+{
+	const uint M = PATHTRACER_COHERENT_TILE_SIZE;
+	uint2 GroupId = I * M / N;				// [0, M)  - which group we landed in?
+	uint2 GroupCoord = ((I * M) % N) / M;	// [0, N/M) - which pixel within the group?
+
+	// reconstruct pixel coordinate, shuffling the assignment of pixels within a group to hide repeating structure
+	return GroupCoord * M + Shuffle(GroupId, GroupCoord);
+}
 
 RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 {
-	uint2 LaunchIndex = DispatchRaysIndex().xy + View.ViewRectMin.xy + TileOffset.xy;
-	
+	uint2 DispatchIdx = DispatchRaysIndex().xy;
+	uint2 DispatchDim = DispatchRaysDimensions().xy;
+
+	// shuffle the pixels around so the ones that share a seed land in the same warp
+	uint2 LaunchIndex = (PathTracingData.CoherentSampling ? Reorder(DispatchIdx, DispatchDim) : DispatchIdx) + View.ViewRectMin.xy + TileOffset.xy;
+
 	// Initialize random sequence 
-	float2 BufferSize = View.BufferSizeAndInvSize.xy; 
-	uint LinearIndex = LaunchIndex.x + (LaunchIndex.y * BufferSize.x); 
 	RandomSequence RandSequence;
 
+	uint2 RandPixel = PathTracingData.CoherentSampling
+		? (DispatchIdx / PATHTRACER_COHERENT_TILE_SIZE)	// unique seed within small squares of the shuffled sub-images
+		//? (DispatchIdx * PATHTRACER_COHERENT_TILE_SIZE) / DispatchDim // unique seed per sub-image
+		: LaunchIndex; // unique seed per pixel
 	if (PathTracingData.UseErrorDiffusion)
 	{
 		// z-sampler init
-		RandomSequence_Initialize(RandSequence, LaunchIndex, PathTracingData.Iteration, PathTracingData.TemporalSeed - PathTracingData.Iteration, PathTracingData.MaxSamples);
+		RandomSequence_Initialize(RandSequence, RandPixel, PathTracingData.Iteration, PathTracingData.TemporalSeed - PathTracingData.Iteration, PathTracingData.MaxSamples);
 	}
 	else
 	{
 		// random sobol init
-		RandomSequence_Initialize(RandSequence, LinearIndex, PathTracingData.TemporalSeed);
+		RandomSequence_Initialize(RandSequence, RandPixel.x + RandPixel.y * 65536, PathTracingData.TemporalSeed);
 	}
+
 
 	float3 Radiance = 0;
 
@@ -457,6 +511,11 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 	for (int Bounce = 0; Bounce <= PathTracingData.MaxBounces; Bounce++)
 	{
+#if 0
+		// visualize pixel seeds
+		Radiance = 0.5 + 0.3 * cos(2 * PI * ((StrongIntegerHash(RandPixel.x + StrongIntegerHash(RandPixel.y)) & 0xFFFFFF) * 5.96046447754e-08 + float3(0.0, 0.333, 0.6666)));
+		break;
+#endif
 		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, Bounce == 0, Bounce == PathTracingData.MaxBounces, PathTracingData.SkipDirectLighting == 0 || Bounce > 1, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
 
 		if (Payload.IsMiss())
