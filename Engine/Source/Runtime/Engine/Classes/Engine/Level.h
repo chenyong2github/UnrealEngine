@@ -1018,6 +1018,12 @@ public:
 	static ENGINE_API FString GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName = FString());
 
 	/**
+	 * Get the folder name from which all external actors paths are created
+	 * @return folder name
+	 */
+	static ENGINE_API const TCHAR* GetExternalActorsFolderName();
+		
+	/**
 	 * Create an package for this actor
 	 * @param InActorPath the fully qualified actor path, in the format: 'Outermost.Outer.Name'
 	 * @return the created package

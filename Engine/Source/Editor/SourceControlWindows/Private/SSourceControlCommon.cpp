@@ -12,6 +12,8 @@
 #include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Layout/SBox.h"
 
+#include "Engine/Level.h"
+
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
 //////////////////////////////////////////////////////////////////////////
@@ -66,7 +68,7 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyP
 	{
 		// At the moment, getting the asset data from non-external assets yields issues with the package path
 		// so we will fall down to our recovery (below) instead
-		if (Filename.Contains("__ExternalActors__"))
+		if (Filename.Contains(ULevel::GetExternalActorsFolderName()))
 		{
 			const int64 MaxFetchSize = (1 << 20); // 1MB
 			// In the case of shelved "marked for delete", we'll piggy back on the non-shelved file
