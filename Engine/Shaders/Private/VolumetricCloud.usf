@@ -211,9 +211,13 @@ FCloudLayerParameters GetCloudLayerParams()
 	return CloudLayerParams;
 }
 
+#define TRACING_SHADOW_ON	true
+#define TRACING_SHADOW_OFF	false
+
 // Function to update the material parameter structure for an evaluation
 void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters, 
-	float3 AbsoluteWorldPosition, in ViewState InputView, in FCloudLayerParameters CloudLayerParams)
+	float3 AbsoluteWorldPosition, in ViewState InputView, in FCloudLayerParameters CloudLayerParams,
+	in bool bIsTracingShadow)
 {
 	MaterialParameters.AbsoluteWorldPosition = AbsoluteWorldPosition;
 	MaterialParameters.WorldPosition_CamRelative = MaterialParameters.AbsoluteWorldPosition + InputView.PreViewTranslation.xyz;
@@ -231,6 +235,8 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 #if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 	MaterialParameters.VolumeSampleConservativeDensity = GetVolumetricAdvancedMaterialOutput6(MaterialParameters);	// Evaluate conservative density
 #endif
+
+	MaterialParameters.IsShadowSample = bIsTracingShadow ? 1.0f : 0.0f;
 }
 
 #endif // CLOUD_LAYER_PIXEL_SHADER
@@ -638,7 +644,8 @@ bool TraceClouds(
 		//////////////////////////////
 		// Update FMaterialPixelParameters according to current sample.
 		//////////////////////////////
-		UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition, ResolvedView, CloudLayerParams);
+		UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition, 
+			ResolvedView, CloudLayerParams, TRACING_SHADOW_OFF);
 
 	#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 		if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
@@ -746,7 +753,8 @@ bool TraceClouds(
 					DebugGroundShadowMaterialSampleCount++;
 					float CurrentNormT = ShadowT * ShadowT; // CurrentNormT is the end of the considered segment to integrate, PreviousNormT is its beginning.
 					const float DetlaNormT = CurrentNormT - PreviousNormT;
-					UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + float3(0.0f, 0.0f, -1.0f) * ShadowLengthTest * (CurrentNormT - 0.5 * DetlaNormT), ResolvedView, CloudLayerParams);
+					UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + float3(0.0f, 0.0f, -1.0f) * ShadowLengthTest * (CurrentNormT - 0.5 * DetlaNormT), 
+						ResolvedView, CloudLayerParams, TRACING_SHADOW_ON);
 					PreviousNormT = CurrentNormT;
 				#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 					if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
@@ -764,7 +772,8 @@ bool TraceClouds(
 				const float ShadowJitterNorm = InterleavedGradientNoise(SvPosition.xy, ShadowJitteringSeed) - 0.5f;
 				for (float ShadowT = 0.5; ShadowT < ShadowStepCount; ShadowT += 1.0f)
 				{
-					UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + float3(0.0f, 0.0f, -1.0f) * ShadowLengthTest * (ShadowT * InvShadowStepCount), ResolvedView, CloudLayerParams);
+					UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + float3(0.0f, 0.0f, -1.0f) * ShadowLengthTest * (ShadowT * InvShadowStepCount), 
+						ResolvedView, CloudLayerParams, TRACING_SHADOW_ON);
 				#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 					if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 					{
@@ -823,7 +832,8 @@ bool TraceClouds(
 			const float ShadowDtMeter = ShadowLengthTest * CENTIMETER_TO_METER / ShadowStepCount;
 			for (float ShadowT = ShadowJitterNorm; ShadowT < ShadowStepCount; ShadowT += 1.0f)
 			{
-				UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + Light0Direction * ShadowLengthTest * (ShadowT * InvShadowStepCount), ResolvedView, CloudLayerParams);
+				UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + Light0Direction * ShadowLengthTest * (ShadowT * InvShadowStepCount), 
+					ResolvedView, CloudLayerParams, TRACING_SHADOW_ON);
 				const float ExtinctionFactor = 1.0f;
 		#else
 			// Non-linear shadow sample distribution, hardcoded to x^2
@@ -834,7 +844,8 @@ bool TraceClouds(
 				float CurrentNormT = ShadowT * ShadowT; // CurrentNormT is the end of the considered segment to integrate, PreviousNormT is its beginning.
 				const float DetlaNormT = CurrentNormT - PreviousNormT;
 				const float ExtinctionFactor = DetlaNormT;
-				UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + Light0Direction * ShadowLengthTest * (PreviousNormT + DetlaNormT * ShadowJitterNorm), ResolvedView, CloudLayerParams);
+				UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + Light0Direction * ShadowLengthTest * (PreviousNormT + DetlaNormT * ShadowJitterNorm), 
+					ResolvedView, CloudLayerParams, TRACING_SHADOW_ON);
 				PreviousNormT = CurrentNormT;
 		#endif
 
@@ -899,7 +910,8 @@ bool TraceClouds(
 				float CurrentNormT = ShadowT * ShadowT; // CurrentNormT is the end of the considered segment to integrate, PreviousNormT is its beginning.
 				const float DetlaNormT = CurrentNormT - PreviousNormT;
 				const float ExtinctionFactor = DetlaNormT;
-				UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + Light1Direction * ShadowLengthTest * (PreviousNormT + DetlaNormT * ShadowJitterNorm), ResolvedView, CloudLayerParams);
+				UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + Light1Direction * ShadowLengthTest * (PreviousNormT + DetlaNormT * ShadowJitterNorm), 
+					ResolvedView, CloudLayerParams, TRACING_SHADOW_ON);
 				PreviousNormT = CurrentNormT;
 
 			#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
@@ -1419,7 +1431,8 @@ void MainPS(
 		for (float ShadowT = 0.5; ShadowT < ShadowStepCount; ShadowT += 1.0f)
 		{
 			const float SampleT = ShadowLengthTest * (ShadowT * InvShadowStepCount);
-			UpdateMaterialCloudParam(MaterialParameters, WorldPosOnLayer + LightDirection * SampleT, ResolvedView, CloudLayerParams);
+			UpdateMaterialCloudParam(MaterialParameters, WorldPosOnLayer + LightDirection * SampleT, 
+				ResolvedView, CloudLayerParams, TRACING_SHADOW_ON);
 
 		#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 			if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)

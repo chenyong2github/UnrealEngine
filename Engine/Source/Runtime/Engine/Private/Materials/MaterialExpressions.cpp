@@ -18777,6 +18777,7 @@ UMaterialExpressionCloudSampleAttribute::UMaterialExpressionCloudSampleAttribute
 	Outputs.Add(FExpressionOutput(TEXT("Altitude")));
 	Outputs.Add(FExpressionOutput(TEXT("AltitudeInLayer")));
 	Outputs.Add(FExpressionOutput(TEXT("NormAltitudeInLayer")));
+	Outputs.Add(FExpressionOutput(TEXT("IsShadowSample")));
 #endif
 }
 
@@ -18795,6 +18796,10 @@ int32 UMaterialExpressionCloudSampleAttribute::Compile(class FMaterialCompiler* 
 	{
 		return Compiler->GetCloudSampleNormAltitudeInLayer();
 	}
+	else if (OutputIndex == 3)
+	{
+		return Compiler->GetCloudSampleIsShadowSample();
+	}
 
 	return Compiler->Errorf(TEXT("Invalid input parameter"));
 }
@@ -18806,7 +18811,7 @@ void UMaterialExpressionCloudSampleAttribute::GetCaption(TArray<FString>& OutCap
 
 void UMaterialExpressionCloudSampleAttribute::GetExpressionToolTip(TArray<FString>& OutToolTip)
 {
-	ConvertToMultilineToolTip(TEXT("Cloud sample attributes.\nCloudSampleAltitude is the sample atlitude relative to the planet ground (centimeters).\nCloudSampleAltitudeInLayer is the sample atlitude relative to the cloud layer bottom altitude (centimeters).\nCloudSampleNormAltitudeInLayer is the normalised sample altitude within the cloud layer (0=bottom, 1=top)."), 80, OutToolTip);
+	ConvertToMultilineToolTip(TEXT("Cloud sample attributes.\nAltitude is the sample atlitude relative to the planet ground (centimeters).\nAltitudeInLayer is the sample atlitude relative to the cloud layer bottom altitude (centimeters).\nNormAltitudeInLayer is the normalised sample altitude within the cloud layer (0=bottom, 1=top).\nIsShadowSample is 0.0 if the sample is used to trace the visual cloud and it is 1.0 is the sample is used to trace cloud shadow (during secondary ray marching or Beer shadow map ray marching): This can help tweaking the shadow strength, skip some code using dynamic branching or sample texture lower mipmaps."), 80, OutToolTip);
 }
 
 #endif // WITH_EDITOR
