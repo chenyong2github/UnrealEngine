@@ -701,7 +701,7 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 	}
 }
 
-void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanAllocation& NewAllocation)
+void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& NewAllocation)
 {
 	FImageCreateInfo ImageCreateInfo;
 	FVulkanSurface::GenerateImageCreateInfo(ImageCreateInfo,
@@ -709,8 +709,6 @@ void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanAllocation& New
 		PixelFormat, Width, Height, Depth,
 		ArraySize, NumMips, NumSamples, UEFlags,
 		&StorageFormat, &ViewFormat);
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FVulkanCommandListContext& Context = (FVulkanCommandListContext&)RHICmdList.GetContext();
 
 	VkImage MovedImage;
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo.ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &MovedImage));
@@ -803,7 +801,7 @@ void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanAllocation& New
 }
 
 
-void FVulkanSurface::OnFullDefrag(FVulkanDevice& InDevice, uint32 NewOffset)
+void FVulkanSurface::OnFullDefrag(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, uint32 NewOffset)
 {
 	FImageCreateInfo ImageCreateInfo;
 	FVulkanSurface::GenerateImageCreateInfo(ImageCreateInfo,
@@ -811,8 +809,6 @@ void FVulkanSurface::OnFullDefrag(FVulkanDevice& InDevice, uint32 NewOffset)
 		PixelFormat, Width, Height, Depth,
 		ArraySize, NumMips, NumSamples, UEFlags,
 		&StorageFormat, &ViewFormat);
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FVulkanCommandListContext& Context = (FVulkanCommandListContext&)RHICmdList.GetContext();
 
 	VkImage MovedImage;
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo.ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &MovedImage));
@@ -2402,7 +2398,7 @@ void FVulkanSurface::Evict(FVulkanDevice& Device_)
 {
 	checkNoEntry(); //not supported
 }
-void FVulkanSurface::Move(FVulkanDevice& Device_ , FVulkanAllocation& NewAllocation)
+void FVulkanSurface::Move(FVulkanDevice& Device_, FVulkanCommandListContext& Context, FVulkanAllocation& NewAllocation)
 {
 	checkNoEntry(); //not supported
 }
@@ -2442,7 +2438,7 @@ void FVulkanTextureBase::InvalidateViews(FVulkanDevice& Device)
 	}
 }
 
-void FVulkanTextureBase::Move(FVulkanDevice& Device, FVulkanAllocation& NewAllocation)
+void FVulkanTextureBase::Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, FVulkanAllocation& NewAllocation)
 {
 	FRHITexture* Tex = GetRHITexture();
 	uint64 Size = Surface.GetMemorySize();
@@ -2454,11 +2450,11 @@ void FVulkanTextureBase::Move(FVulkanDevice& Device, FVulkanAllocation& NewAlloc
 		UE_LOG(LogVulkanRHI, Display, TEXT("Evicted %8.4fkb %8.4fkb   TB %p // %p  :: IMG %p   %-40s\n"), Size / (1024.f), TotalSize / (1024.f), this, &Surface, Surface.Image, *GetResourceFName().ToString());
 	}
 
-	Surface.MoveSurface(Device, NewAllocation);
+	Surface.MoveSurface(Device, Context, NewAllocation);
 	InvalidateViews(Device);
 }
 
-void FVulkanTextureBase::OnFullDefrag(FVulkanDevice& Device, uint32 NewOffset)
+void FVulkanTextureBase::OnFullDefrag(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 NewOffset)
 {
 	FRHITexture* Tex = GetRHITexture();
 	uint64 Size = Surface.GetMemorySize();
@@ -2470,7 +2466,7 @@ void FVulkanTextureBase::OnFullDefrag(FVulkanDevice& Device, uint32 NewOffset)
 		UE_LOG(LogVulkanRHI, Display, TEXT("Evicted %8.4fkb %8.4fkb   TB %p // %p  :: IMG %p   %-40s\n"), Size / (1024.f), TotalSize / (1024.f), this, &Surface, Surface.Image, *GetResourceFName().ToString());
 	}
 
-	Surface.OnFullDefrag(Device, NewOffset);
+	Surface.OnFullDefrag(Device, Context, NewOffset);
 	InvalidateViews(Device);
 }
 

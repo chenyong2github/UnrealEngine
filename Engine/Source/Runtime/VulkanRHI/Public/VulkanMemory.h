@@ -89,9 +89,9 @@ class FVulkanEvictable
 {
 public:
 	virtual void Evict(FVulkanDevice& Device) = 0;
-	virtual void Move(FVulkanDevice& Device, VulkanRHI::FVulkanAllocation& Allocation) = 0;
+	virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& Allocation) = 0;
 
-	virtual void OnFullDefrag(FVulkanDevice& Device, uint32 NewOffset);
+	virtual void OnFullDefrag(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 NewOffset);
 	
 	virtual struct FVulkanTextureBase* GetTextureBase(){return 0;}
 	virtual bool CanMove(){return true;}
@@ -622,8 +622,8 @@ namespace VulkanRHI
 	protected:
 		void SetIsDefragging(bool bInIsDefragging){ bIsDefragging = bInIsDefragging; }
 		void DumpFullHeap();
-		bool DefragFull(FVulkanDevice& Device, FVulkanResourceHeap* Heap);
-		int32 DefragTick(FVulkanDevice& Device, FVulkanResourceHeap* Heap, uint32 Count);
+		bool DefragFull(FVulkanDevice& Device, FVulkanCommandListContext& Context, FVulkanResourceHeap* Heap);
+		int32 DefragTick(FVulkanDevice& Device, FVulkanCommandListContext& Context, FVulkanResourceHeap* Heap, uint32 Count);
 		bool CanDefrag();
 		uint64 EvictToHost(FVulkanDevice& Device);
 		void SetFreePending(FVulkanAllocation& Allocation);
@@ -710,7 +710,7 @@ namespace VulkanRHI
 		}
 
 		uint64 EvictOne(FVulkanDevice& Device);
-		void DefragTick(FVulkanDevice& Device, uint32 Count);
+		void DefragTick(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 Count);
 		void DumpMemory(FResourceHeapStats& Stats);
 
 		void SetDefragging(FVulkanSubresourceAllocator* Allocator);
@@ -785,7 +785,7 @@ namespace VulkanRHI
 		void ReleaseSubresourceAllocator(FVulkanSubresourceAllocator* SubresourceAllocator);
 
 
-		void ReleaseFreedPages();
+		void ReleaseFreedPages(FVulkanCommandListContext& Context);
 		void DumpMemory(bool bFullDump = true);
 
 
@@ -903,7 +903,7 @@ namespace VulkanRHI
 	class FStagingBuffer : public FVulkanEvictable, public FRefCount
 	{
 		virtual void Evict(FVulkanDevice& Device);
-		virtual void Move(FVulkanDevice& Device, FVulkanAllocation& Allocation);
+		virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, FVulkanAllocation& Allocation);
 		virtual bool CanMove(){return false;}
 		virtual bool CanEvict(){return false;}
 

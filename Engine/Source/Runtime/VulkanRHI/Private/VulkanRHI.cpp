@@ -908,7 +908,7 @@ void FVulkanCommandListContext::RHIEndFrame()
 	GetCommandBufferManager()->FreeUnusedCmdBuffers();
 
 	Device->GetStagingManager().ProcessPendingFree(false, true);
-	Device->GetMemoryManager().ReleaseFreedPages();
+	Device->GetMemoryManager().ReleaseFreedPages(*this);
 
 	if (UseVulkanDescriptorCache())
 	{
