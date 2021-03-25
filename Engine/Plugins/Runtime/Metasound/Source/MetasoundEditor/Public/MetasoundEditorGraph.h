@@ -70,6 +70,10 @@ public:
 	{
 		return EMetasoundFrontendLiteralType::None;
 	}
+
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral)
+	{
+	}
 };
 
 UCLASS()

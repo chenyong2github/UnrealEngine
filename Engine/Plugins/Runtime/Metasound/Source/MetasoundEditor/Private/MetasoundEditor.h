@@ -146,7 +146,6 @@ namespace Metasound
 			/** Cut the currently selected nodes */
 			void CutSelectedNodes();
 
-
 			/** Copy the currently selected nodes */
 			void CopySelectedNodes();
 

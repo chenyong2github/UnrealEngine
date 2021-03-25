@@ -97,9 +97,9 @@ namespace Metasound
 			// applicable post disconnection.
 			static void DisconnectPin(UEdGraphPin& InPin, bool bAddLiteralInputs = true);
 
-			static FString GenerateUniqueInputName(const UObject& InMetasound);
+			static FString GenerateUniqueInputName(const UObject& InMetasound, const FString* InBaseName = nullptr);
 
-			static FString GenerateUniqueOutputName(const UObject& InMetasound);
+			static FString GenerateUniqueOutputName(const UObject& InMetasound, const FString* InBaseName = nullptr);
 
 			static TArray<FString> GetDataTypeNameCategories(const FName& InDataTypeName);
 
@@ -118,7 +118,8 @@ namespace Metasound
 			// 2. the pin's DataType literal default.
 			static void AddOrUpdateLiteralInput(UObject& InMetasound, Frontend::FNodeHandle InNodeHandle, UEdGraphPin& InInputPin, bool bForcePinValueAsDefault = false);
 
-			static bool GetPinDefaultLiteral(UEdGraphPin& InInputPin, Frontend::FInputHandle InputHandle, FMetasoundFrontendLiteral& OutLiteralDefault);
+			// Returns the default literal stored on the respective Frontend Node's Input.
+			static bool GetPinDefaultLiteral(UEdGraphPin& InInputPin, FMetasoundFrontendLiteral& OutLiteralDefault);
 
 			// Deletes Editor Graph Variable's associated Frontend node, as well as any
 			// Editor Graph nodes referencing the given variable.

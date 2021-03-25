@@ -5,6 +5,7 @@
 #include "Algo/Transform.h"
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
+#include "MetasoundDataReference.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundFrontend.h"
@@ -12,6 +13,7 @@
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendLiteral.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundPrimitives.h"
 #include "Misc/Guid.h"
 #include "Sound/SoundWave.h"
 #include "UObject/ObjectMacros.h"
@@ -27,10 +29,28 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		// Forward Declarations
 		class FGraphBuilder;
+
+		namespace InputPrivate
+		{
+			template <typename TPODType>
+			void ConvertLiteral(const FMetasoundFrontendLiteral& InLiteral, TPODType& OutValue)
+			{
+				const FName& TypeName = GetMetasoundDataTypeName<TPODType>();
+				OutValue = InLiteral.ToLiteral(TypeName).Value.Get<TPODType>();
+			}
+
+			template <typename TPODType, typename TLiteralType = TPODType>
+			void ConvertLiteralToArray(const FMetasoundFrontendLiteral& InLiteral, TArray<TLiteralType>& OutArray)
+			{
+				const FName& TypeName = *FString(GetMetasoundDataTypeString<TPODType>() + TEXT(":Array"));
+				TArray<TPODType> NewValue = InLiteral.ToLiteral(TypeName).Value.Get<TArray<TPODType>>();
+				Algo::Transform(NewValue, OutArray, [](const TPODType& InValue) { return TLiteralType { InValue }; });
+			}
+		}
 	}
 }
-
 
 UCLASS()
 class METASOUNDEDITOR_API UMetasoundEditorGraphInputNode : public UMetasoundEditorGraphNode
@@ -54,7 +74,7 @@ public:
 		return Super::GetClassName();
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const
 	{
 		if (ensure(Input))
 		{
@@ -121,12 +141,17 @@ public:
 		return Literal;
 	}
 
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
+	virtual EMetasoundFrontendLiteralType GetLiteralType() const override
 	{
 		return EMetasoundFrontendLiteralType::Boolean;
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
+	{
+		Metasound::Editor::InputPrivate::ConvertLiteral<bool>(InLiteral, Default.Value);
+	}
+
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		InInstanceTransmitter.SetParameter(*InParameterName, Default.Value);
 	}
@@ -153,12 +178,17 @@ public:
 		return Literal;
 	}
 
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
+	virtual EMetasoundFrontendLiteralType GetLiteralType() const override
 	{
 		return EMetasoundFrontendLiteralType::BooleanArray;
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
+	{
+		Metasound::Editor::InputPrivate::ConvertLiteralToArray<bool, FMetasoundEditorGraphInputBoolRef>(InLiteral, Default);
+	}
+
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		TArray<bool> BoolArray;
 		Algo::Transform(Default, BoolArray, [](const FMetasoundEditorGraphInputBoolRef& InValue) { return InValue.Value; });
@@ -195,12 +225,17 @@ public:
 		return Literal;
 	}
 
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
+	virtual EMetasoundFrontendLiteralType GetLiteralType() const override
 	{
 		return EMetasoundFrontendLiteralType::Integer;
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
+	{
+		Metasound::Editor::InputPrivate::ConvertLiteral<int32>(InLiteral, Default.Value);
+	}
+
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		InInstanceTransmitter.SetParameter(*InParameterName, Default.Value);
 	}
@@ -228,9 +263,14 @@ public:
 		return Literal;
 	}
 
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
+	virtual EMetasoundFrontendLiteralType GetLiteralType() const override
 	{
 		return EMetasoundFrontendLiteralType::IntegerArray;
+	}
+
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
+	{
+		Metasound::Editor::InputPrivate::ConvertLiteralToArray<int32, FMetasoundEditorGraphInputIntRef>(InLiteral, Default);
 	}
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
@@ -260,12 +300,17 @@ public:
 		return Literal;
 	}
 
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
+	virtual EMetasoundFrontendLiteralType GetLiteralType() const override
 	{
 		return EMetasoundFrontendLiteralType::Float;
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
+	{
+		Metasound::Editor::InputPrivate::ConvertLiteral<float>(InLiteral, Default);
+	}
+
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		InInstanceTransmitter.SetParameter(*InParameterName, Default);
 	}
@@ -289,12 +334,17 @@ public:
 		return Literal;
 	}
 
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
+	virtual EMetasoundFrontendLiteralType GetLiteralType() const override
 	{
 		return EMetasoundFrontendLiteralType::FloatArray;
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
+	{
+		Metasound::Editor::InputPrivate::ConvertLiteralToArray<float>(InLiteral, Default);
+	}
+
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		InInstanceTransmitter.SetParameter(*InParameterName, TArray<float> { Default });
 	}
@@ -318,12 +368,17 @@ public:
 		return Literal;
 	}
 
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
+	virtual EMetasoundFrontendLiteralType GetLiteralType() const override
 	{
 		return EMetasoundFrontendLiteralType::String;
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
+	{
+		Metasound::Editor::InputPrivate::ConvertLiteral<FString>(InLiteral, Default);
+	}
+
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		InInstanceTransmitter.SetParameter(*InParameterName, FString { Default });
 	}
@@ -347,12 +402,17 @@ public:
 		return Literal;
 	}
 
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
+	virtual EMetasoundFrontendLiteralType GetLiteralType() const override
 	{
 		return EMetasoundFrontendLiteralType::StringArray;
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
+	{
+		Metasound::Editor::InputPrivate::ConvertLiteralToArray<FString>(InLiteral, Default);
+	}
+
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		InInstanceTransmitter.SetParameter(*InParameterName, TArray<FString> { Default });
 	}
@@ -386,12 +446,17 @@ public:
 		return Literal;
 	}
 
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
+	virtual EMetasoundFrontendLiteralType GetLiteralType() const override
 	{
 		return EMetasoundFrontendLiteralType::UObject;
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
+	{
+// 		Metasound::Editor::InputPrivate::ConvertLiteral<UObject*>(InLiteral, Default.Object);
+	}
+
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		// TODO. We need proxy object here safely.
 		//InInstanceTransmitter.SetParameter(*InParameterName, Default.Object);
@@ -419,12 +484,17 @@ public:
 		return Literal;
 	}
 
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
+	virtual EMetasoundFrontendLiteralType GetLiteralType() const override
 	{
 		return EMetasoundFrontendLiteralType::UObjectArray;
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
+	{
+// 		Metasound::Editor::InputPrivate::ConvertLiteralToArray<UObject*, FMetasoundEditorGraphInputObjectRef>(InLiteral, Default);
+	}
+
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		TArray<UObject*> ObjectArray;
 		Algo::Transform(Default, ObjectArray, [](const FMetasoundEditorGraphInputObjectRef& InValue) { return InValue.Object; });

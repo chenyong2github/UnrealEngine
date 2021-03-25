@@ -92,7 +92,7 @@ namespace Metasound
 	} // namespace Editor
 } // namespace Metasound
 
-/** Action to add an input to the graph */
+/** Action to add an input reference to the graph */
 USTRUCT()
 struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FEdGraphSchemaAction
 {
@@ -106,6 +106,23 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FEdGrap
 	{}
 
 	FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FGuid InInputNodeID, FText InToolTip, const int32 InGrouping);
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};
+
+/** Action to promote a literal to a graph input */
+USTRUCT()
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToInput : public FEdGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY();
+
+	FMetasoundGraphSchemaAction_PromoteToInput()
+		: FEdGraphSchemaAction()
+	{}
+
+	FMetasoundGraphSchemaAction_PromoteToInput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping);
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;

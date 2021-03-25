@@ -156,37 +156,41 @@ namespace Metasound
 			return Categories;
 		}
 
-		FString FGraphBuilder::GenerateUniqueInputName(const UObject& InMetasound)
+		FString FGraphBuilder::GenerateUniqueInputName(const UObject& InMetasound, const FString* InBaseName)
 		{
-			FString NameBase = TEXT("Input");
+			static const FString DefaultBaseName = TEXT("Input");
+			const FString* NameBase = InBaseName ? InBaseName : &DefaultBaseName;
+
 			const FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
 			check(MetasoundAsset);
 
 			const Frontend::FConstGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 
 			int32 i = 1;
-			FString NewInputName = NameBase + FString::Printf(TEXT("_%02d"), i);
+			FString NewInputName = *NameBase + FString::Printf(TEXT(" %02d"), i);
 			while (GraphHandle->ContainsInputVertexWithName(NewInputName))
 			{
-				NewInputName = NameBase + FString::Printf(TEXT("_%02d"), ++i);
+				NewInputName = *NameBase + FString::Printf(TEXT(" %02d"), ++i);
 			}
 
 			return NewInputName;
 		}
 
-		FString FGraphBuilder::GenerateUniqueOutputName(const UObject& InMetasound)
+		FString FGraphBuilder::GenerateUniqueOutputName(const UObject& InMetasound, const FString* InBaseName)
 		{
-			FString NameBase = TEXT("Output");
+			static const FString DefaultBaseName = TEXT("Input");
+			const FString* NameBase = InBaseName ? InBaseName : &DefaultBaseName;
+
 			const FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
 			check(MetasoundAsset);
 
 			const Frontend::FConstGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 
 			int32 i = 1;
-			FString NewOutputName = NameBase + FString::Printf(TEXT("_%02d"), i);
+			FString NewOutputName = *NameBase + FString::Printf(TEXT(" %02d"), i);
 			while (GraphHandle->ContainsOutputVertexWithName(NewOutputName))
 			{
-				NewOutputName = NameBase + FString::Printf(TEXT("_%02d"), ++i);
+				NewOutputName = *NameBase + FString::Printf(TEXT(" %02d"), ++i);
 			}
 
 			return NewOutputName;
@@ -287,16 +291,14 @@ namespace Metasound
 		{
 			using namespace Frontend;
 
-			const FString InInputName = InInputPin.GetName();
-			TArray<FInputHandle> InputHandles = InNodeHandle->GetInputsWithVertexName(InInputName);
-			if (!ensure(InputHandles.Num() == 1))
+			FMetasoundFrontendLiteral PinDataTypeDefaultLiteral;
+			if (!GetPinDefaultLiteral(InInputPin, PinDataTypeDefaultLiteral))
 			{
 				return;
 			}
 
-			FInputHandle InputHandle = InputHandles[0];
-			FMetasoundFrontendLiteral PinDataTypeDefaultLiteral;
-			if (!GetPinDefaultLiteral(InInputPin, InputHandle, PinDataTypeDefaultLiteral))
+			FInputHandle InputHandle = GetInputHandleFromPin(&InInputPin);
+			if (!ensure(InputHandle->IsValid()))
 			{
 				return;
 			}
@@ -343,11 +345,17 @@ namespace Metasound
 			}
 		}
 
-		bool FGraphBuilder::GetPinDefaultLiteral(UEdGraphPin& InInputPin, Frontend::FInputHandle InputHandle, FMetasoundFrontendLiteral& OutDefaultLiteral)
+		bool FGraphBuilder::GetPinDefaultLiteral(UEdGraphPin& InInputPin, FMetasoundFrontendLiteral& OutDefaultLiteral)
 		{
 			using namespace Frontend;
 
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
+
+			FInputHandle InputHandle = GetInputHandleFromPin(&InInputPin);
+			if (!ensure(InputHandle->IsValid()))
+			{
+				return false;
+			}
 
 			const FString& InStringValue = InInputPin.DefaultValue;
 			const FName TypeName = InputHandle->GetDataType();

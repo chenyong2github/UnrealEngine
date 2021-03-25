@@ -327,7 +327,9 @@ UMetasoundEditorGraphInput* UMetasoundEditorGraph::FindOrAddInput(Metasound::Fro
 		EMetasoundFrontendLiteralType LiteralType = DefaultLiteral.GetType();
 		IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
 		TSubclassOf<UMetasoundEditorGraphInputLiteral> InputLiteralClass = EditorModule.FindInputLiteralClass(LiteralType);
+
 		NewInput->Literal = NewObject<UMetasoundEditorGraphInputLiteral>(this, InputLiteralClass);
+		NewInput->Literal->SetFromLiteral(DefaultLiteral);
 
 		Inputs.Add(NewInput);
 		return NewInput;
