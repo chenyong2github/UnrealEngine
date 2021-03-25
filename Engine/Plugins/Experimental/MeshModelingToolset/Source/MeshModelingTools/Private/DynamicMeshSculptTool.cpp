@@ -151,6 +151,9 @@ void UDynamicMeshSculptTool::Setup()
 	BrushRelativeSizeRange = FInterval1d(MaxDimension*0.01, MaxDimension);
 	BrushProperties = NewObject<USculptBrushProperties>(this);
 	BrushProperties->bShowStrength = false;
+	BrushProperties->bShowFlowRate = false;
+	BrushProperties->bShowSpacing = false;
+	BrushProperties->bShowLazyness = false;
 	CalculateBrushRadius();
 
 	// initialize other properties
