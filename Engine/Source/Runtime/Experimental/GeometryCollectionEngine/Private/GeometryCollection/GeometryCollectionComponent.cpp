@@ -463,83 +463,87 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 void UGeometryCollectionComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	Super::CreateRenderState_Concurrent(Context);
-
-	if (SceneProxy && RestCollection && RestCollection->HasVisibleGeometry())
-	{
-		FGeometryCollectionConstantData* const ConstantData = ::new FGeometryCollectionConstantData;
-		InitConstantData(ConstantData);
-
-		FGeometryCollectionDynamicData* const DynamicData = ::new FGeometryCollectionDynamicData;
-		InitDynamicData(DynamicData);
-
-		if (SceneProxy->IsNaniteMesh())
-		{
-			FNaniteGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
-
-			// ...
-
-		#if GEOMETRYCOLLECTION_EDITOR_SELECTION
-			if (bIsTransformSelectionModeEnabled)
-			{
-				// ...
-			}
-		#endif
-
-			ENQUEUE_RENDER_COMMAND(CreateRenderState)(
-				[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
-				{
-					if (GeometryCollectionSceneProxy)
-					{
-						GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
-						GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
-						GeometryCollectionSceneProxy->GetPrimitiveSceneInfo()->RequestGPUSceneUpdate();
-					}
-				}
-			);
-		}
-		else
-		{
-			FGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(SceneProxy);
-
-		#if GEOMETRYCOLLECTION_EDITOR_SELECTION
-			// Re-init subsections
-			if (bIsTransformSelectionModeEnabled)
-			{
-				GeometryCollectionSceneProxy->UseSubSections(true, false);  // Do not force reinit now, it'll be done in SetConstantData_RenderThread
-			}
-		#endif
-
-			ENQUEUE_RENDER_COMMAND(CreateRenderState)(
-				[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
-				{
-					if (GeometryCollectionSceneProxy)
-					{
-						GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
-						GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
-					}
-				}
-			);
-		}
-	}
 }
 
 FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 {
-	if (!RestCollection)
-	{
-		return nullptr;
-	}
+	FPrimitiveSceneProxy* LocalSceneProxy = nullptr;
 
-	// TODO: Abstract with a common helper
-	if (UseNanite(GetScene()->GetShaderPlatform()) &&
-		RestCollection->EnableNanite &&
-		RestCollection->NaniteData != nullptr &&
-		GGeometryCollectionNanite != 0)
+	if (RestCollection)
 	{
-		return new FNaniteGeometryCollectionSceneProxy(this);
-	}
+		// TODO: Abstract with a common helper
+		if (UseNanite(GetScene()->GetShaderPlatform()) &&
+			RestCollection->EnableNanite &&
+			RestCollection->NaniteData != nullptr &&
+			GGeometryCollectionNanite != 0)
+		{
+			LocalSceneProxy = new FNaniteGeometryCollectionSceneProxy(this);
+		}
+		else
+		{
+			LocalSceneProxy = new FGeometryCollectionSceneProxy(this);
+		}
 
-	return new FGeometryCollectionSceneProxy(this);
+		if (RestCollection->HasVisibleGeometry())
+		{
+			FGeometryCollectionConstantData* const ConstantData = ::new FGeometryCollectionConstantData;
+			InitConstantData(ConstantData);
+
+			FGeometryCollectionDynamicData* const DynamicData = ::new FGeometryCollectionDynamicData;
+			InitDynamicData(DynamicData);
+
+			if (LocalSceneProxy->IsNaniteMesh())
+			{
+				FNaniteGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(LocalSceneProxy);
+
+				// ...
+
+#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+				if (bIsTransformSelectionModeEnabled)
+				{
+					// ...
+				}
+#endif
+
+				ENQUEUE_RENDER_COMMAND(CreateRenderState)(
+					[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
+					{
+						if (GeometryCollectionSceneProxy)
+						{
+							GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
+							GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
+							GeometryCollectionSceneProxy->GetPrimitiveSceneInfo()->RequestGPUSceneUpdate();
+						}
+					}
+				);
+			}
+			else
+			{
+				FGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(LocalSceneProxy);
+
+#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+				// Re-init subsections
+				if (bIsTransformSelectionModeEnabled)
+				{
+					GeometryCollectionSceneProxy->UseSubSections(true, false);  // Do not force reinit now, it'll be done in SetConstantData_RenderThread
+				}
+#endif
+
+				ENQUEUE_RENDER_COMMAND(CreateRenderState)(
+					[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
+					{
+						if (GeometryCollectionSceneProxy)
+						{
+							GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
+							GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
+						}
+					}
+				);
+			}
+		}
+	}
+	return LocalSceneProxy;
+
 }
 
 bool UGeometryCollectionComponent::ShouldCreatePhysicsState() const
