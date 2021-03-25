@@ -152,6 +152,9 @@ void FReflectionEnvironmentCubemapArray::InitDynamicRHI()
 {
 	if (SupportsTextureCubeArray(GetFeatureLevel()))
 	{
+		check(MaxCubemaps > 0);
+		check(CubemapSize > 0);
+
 		const int32 NumReflectionCaptureMips = FMath::CeilLogTwo(CubemapSize) + 1;
 
 		ReleaseCubeArray();
@@ -248,6 +251,8 @@ void FReflectionEnvironmentSceneData::ResizeCubemapArrayGPU(uint32 InMaxCubemaps
 
 void FReflectionEnvironmentCubemapArray::ResizeCubemapArrayGPU(uint32 InMaxCubemaps, int32 InCubemapSize, const TArray<int32>& IndexRemapping)
 {
+	check(InMaxCubemaps > 0);
+	check(InCubemapSize > 0);
 	check(IsInRenderingThread());
 	check(GetFeatureLevel() >= ERHIFeatureLevel::SM5);
 	check(IsInitialized());
@@ -304,6 +309,8 @@ void FReflectionEnvironmentCubemapArray::ResizeCubemapArrayGPU(uint32 InMaxCubem
 
 void FReflectionEnvironmentCubemapArray::UpdateMaxCubemaps(uint32 InMaxCubemaps, int32 InCubemapSize)
 {
+	check(InMaxCubemaps > 0);
+	check(InCubemapSize > 0);
 	MaxCubemaps = InMaxCubemaps;
 	CubemapSize = InCubemapSize;
 
