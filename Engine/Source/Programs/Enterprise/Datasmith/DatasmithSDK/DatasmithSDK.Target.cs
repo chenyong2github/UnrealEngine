@@ -70,31 +70,31 @@ public class DatasmithSDKTarget : TargetRules
 		// Other headers we depend on, but that are not part of our public API:
 		PostBuildCopy(
 			@"$(EngineDir)\Source\Runtime\TraceLog\Public\*.h",
-			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Internal\"
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
 		);
 		PostBuildCopy(
 			@"$(EngineDir)\Source\Runtime\TraceLog\Public\*.inl",
-			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Internal\"
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
 		);
 
 		PostBuildCopy(
 			@"$(EngineDir)\Source\Runtime\Messaging\Public\*.h",
-			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Internal\"
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
 		);
 
 		PostBuildCopy(
 			@"$(EngineDir)\Source\Runtime\Core\Public\*.h",
-			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Internal\"
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
 		);
 
 		PostBuildCopy(
 			@"$(EngineDir)\Source\Runtime\Core\Public\*.inl",
-			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Internal\"
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
 		);
 
 		PostBuildCopy(
 			@"$(EngineDir)\Source\Runtime\CoreUObject\Public\*.h",
-			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Internal\"
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
 		);
 	}
 }
