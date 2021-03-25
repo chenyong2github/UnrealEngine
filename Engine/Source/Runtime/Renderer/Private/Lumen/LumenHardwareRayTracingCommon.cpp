@@ -18,6 +18,12 @@ static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracing(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingPullbackBias(
+	TEXT("r.Lumen.HardwareRayTracing.PullbackBias"),
+	8.0,
+	TEXT("Determines the pull-back bias when resuming a screen-trace ray (default = 8.0)"),
+	ECVF_RenderThreadSafe
+);
 
 #if RHI_RAYTRACING
 
@@ -42,6 +48,11 @@ namespace Lumen
 		}
 
 		return TEXT("Geometry");
+	}
+
+	float GetHardwareRayTracingPullbackBias()
+	{
+		return CVarLumenHardwareRayTracingPullbackBias.GetValueOnRenderThread();
 	}
 }
 

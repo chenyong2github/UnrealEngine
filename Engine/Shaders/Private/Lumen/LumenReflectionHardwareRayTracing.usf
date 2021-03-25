@@ -21,6 +21,7 @@ RWTexture2D<float3> RWTraceRadiance;
 
 RaytracingAccelerationStructure TLAS;
 float MaxTraceDistance;
+float PullbackBias;
 int MaxTranslucentSkipCount;
 
 StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
@@ -67,7 +68,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 	Ray.Origin = WorldPosition;
 	Ray.Direction = RayData.Direction;
 	float RayBias = 0.05;
-	Ray.TMin = max(TraceHitDistance, RayBias);
+	Ray.TMin = max(TraceHitDistance - PullbackBias, RayBias);
 	Ray.TMax = MaxTraceDistance;
 
 	float NormalBias = 0.05;
@@ -150,7 +151,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingDeferredMaterialRGS)
 	Ray.Origin = WorldPosition;
 	Ray.Direction = RayData.Direction;
 	float RayBias = 0.05;
-	Ray.TMin = max(TraceHitDistance, RayBias);
+	Ray.TMin = max(TraceHitDistance - PullbackBias, RayBias);
 	Ray.TMax = MaxTraceDistance;
 
 	float NormalBias = 0.05;

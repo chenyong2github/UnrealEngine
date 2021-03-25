@@ -154,6 +154,7 @@ class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTra
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 
 		// Constants
+		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 
 		// Radiance cache
@@ -186,6 +187,9 @@ class FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS : public FLum
 		// Screen probes
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
+
+		// Constants
+		SHADER_PARAMETER(float, PullbackBias)
 
 		// Radiance cache
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
@@ -290,6 +294,9 @@ void RenderHardwareRayTracingScreenProbe(
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
+		// Constants
+		PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
+
 		// Radiance cache arguments
 		FRGSRadianceCacheParameters RGSRadianceCacheParameters;
 		SetupRGSRadianceCacheParametersNew(RadianceCacheParameters, RGSRadianceCacheParameters);
@@ -350,6 +357,7 @@ void RenderHardwareRayTracingScreenProbe(
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
 		// Constants
+		PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 		PassParameters->MaxTranslucentSkipCount = CVarLumenScreenProbeGatherHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 
 		// Radiance cache arguments

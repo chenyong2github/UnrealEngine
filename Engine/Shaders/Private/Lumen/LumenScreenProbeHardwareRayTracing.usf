@@ -19,8 +19,8 @@
 
 RaytracingAccelerationStructure TLAS;
 float MaxTraceDistance;
-int MaxTranslucentSkipCount;
-float SurfaceBias;
+float PullbackBias;
+int MaxTranslucentSkipCount; 
 
 StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
 
@@ -79,11 +79,11 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			RayDesc Ray;
 			Ray.Origin = WorldPosition;
 			Ray.Direction = WorldConeDirection;
-			Ray.TMin = TraceHitDistance;
+			Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);
 			Ray.TMax = MaxTraceDistance;
 
 			float NormalBias = 0.1;
-			ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, max(NormalBias, SurfaceBias * 0.5));
+			ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
 
 			FRayCone RayCone = (FRayCone)0;
 			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
@@ -175,11 +175,11 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	RayDesc Ray;
 	Ray.Origin = WorldPosition;
 	Ray.Direction = WorldConeDirection;
-	Ray.TMin = TraceHitDistance;
+	Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);
 	Ray.TMax = MaxTraceDistance;
 
 	float NormalBias = 0.1;
-	ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, max(NormalBias, SurfaceBias * 0.5));
+	ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
 
 	if (DIM_RADIANCE_CACHE)
 	{

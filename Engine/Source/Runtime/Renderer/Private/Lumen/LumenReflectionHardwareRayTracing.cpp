@@ -155,6 +155,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 
 		// Constants
 		SHADER_PARAMETER(float, MaxTraceDistance)
+		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 
 		// Reflection-specific includes (includes output targets)
@@ -186,6 +187,7 @@ class FLumenReflectionHardwareRayTracingDeferredMaterialRGS : public FLumenHardw
 
 		// Constants
 		SHADER_PARAMETER(float, MaxTraceDistance)
+		SHADER_PARAMETER(float, PullbackBias)
 
 		// Reflection-specific includes (includes output targets)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
@@ -279,6 +281,7 @@ void RenderLumenHardwareRayTracingReflections(
 			&PassParameters->DeferredMaterialParameters.SharedParameters);
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 		PassParameters->MaxTraceDistance = MaxVoxelTraceDistance;
+		PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 		PassParameters->RayTraceDispatchIndirectArgs = CompactedTraceParameters.RayTraceDispatchIndirectArgs;
 
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
@@ -342,6 +345,7 @@ void RenderLumenHardwareRayTracingReflections(
 		PassParameters->DeferredMaterialBuffer = GraphBuilder.CreateSRV(DeferredMaterialBuffer);
 		PassParameters->RayTraceDispatchIndirectArgs = CompactedTraceParameters.RayTraceDispatchIndirectArgs;
 		PassParameters->MaxTraceDistance = MaxVoxelTraceDistance;
+		PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 		PassParameters->MaxTranslucentSkipCount = CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;

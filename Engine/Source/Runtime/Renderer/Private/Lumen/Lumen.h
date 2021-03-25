@@ -49,6 +49,7 @@ namespace Lumen
 	const TCHAR* GetRayTracedLightingModeName(EHardwareRayTracingLightingMode LightingMode);
 	const TCHAR* GetRayTracedNormalModeName(int NormalMode);
 	void SetupViewUniformBufferParameters(FScene* Scene, FViewUniformShaderParameters& ViewUniformShaderParameters);
+	float GetHardwareRayTracingPullbackBias();
 };
 
 extern int32 GLumenFastCameraMode;
