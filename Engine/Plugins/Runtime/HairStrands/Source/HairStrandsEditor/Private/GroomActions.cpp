@@ -339,12 +339,15 @@ void FGroomActions::ExecuteCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAss
 		TArray<FFollicleInfo> Infos;
 		for (FFollicleMaskOptions& Option : CurrentOptions->Grooms)
 		{
-			Option.Groom->ConditionalPostLoad();
+			if (Option.Groom)
+			{
+				Option.Groom->ConditionalPostLoad();
 
-			FFollicleInfo& Info = Infos.AddDefaulted_GetRef();
-			Info.GroomAsset			= Option.Groom;
-			Info.Channel			= FFollicleInfo::EChannel(uint8(Option.Channel));
-			Info.KernelSizeInPixels = FMath::Max(2, CurrentOptions->RootRadius);
+				FFollicleInfo& Info = Infos.AddDefaulted_GetRef();
+				Info.GroomAsset			= Option.Groom;
+				Info.Channel			= FFollicleInfo::EChannel(uint8(Option.Channel));
+				Info.KernelSizeInPixels = FMath::Max(2, CurrentOptions->RootRadius);
+			}
 		}
 
 		const uint32 Resolution = FMath::RoundUpToPowerOfTwo(CurrentOptions->Resolution);
