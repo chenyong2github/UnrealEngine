@@ -81,7 +81,6 @@ public:
 	FSlateInvalidationWidgetIndex Index;
 	FSlateInvalidationWidgetIndex ParentIndex;
 	FSlateInvalidationWidgetIndex LeafMostChildIndex;
-	EWidgetUpdateFlags UpdateFlags;
 	EInvalidateWidgetReason CurrentInvalidateReason;
 	/** The widgets own visibility */
 	EVisibility Visibility;

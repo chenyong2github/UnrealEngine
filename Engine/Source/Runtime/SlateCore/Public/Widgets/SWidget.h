@@ -726,6 +726,11 @@ public:
 	 */
 	FSlateRect CalculateCullingAndClippingRules(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, bool& bClipToBounds, bool& bAlwaysClip, bool& bIntersectClipBounds) const;
 
+	bool HasAnyUpdateFlags(EWidgetUpdateFlags FlagsToCheck) const
+	{
+		return EnumHasAnyFlags(UpdateFlags, FlagsToCheck);
+	}
+
 protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) { return false; }
 
@@ -750,10 +755,6 @@ protected:
 	 */
 	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const = 0;
 
-	bool HasAnyUpdateFlags(EWidgetUpdateFlags FlagsToCheck) const
-	{
-		return EnumHasAnyFlags(UpdateFlags, FlagsToCheck);
-	}
 
 private:
 	void SetFastPathProxyHandle(const FWidgetProxyHandle& Handle) { FastPathProxyHandle = Handle; }
