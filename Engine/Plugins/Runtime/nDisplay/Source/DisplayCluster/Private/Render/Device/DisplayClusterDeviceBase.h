@@ -185,4 +185,7 @@ protected:
 
 	// Data access synchronization
 	mutable FCriticalSection InternalsSyncScope;
+	// Temporary for 4.26.X: PP operations access sync.
+	// 4.27 will have a better solution
+	mutable FCriticalSection PPAccessScope;
 };
