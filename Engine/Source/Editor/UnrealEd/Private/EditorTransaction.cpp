@@ -879,9 +879,9 @@ void FTransaction::SnapshotObject( UObject* InObject, TArrayView<const FProperty
 {
 	if (InObject && ObjectMap.Contains(InObject))
 	{
-		FObjectRecord* FoundObjectRecord = Algo::FindByPredicate(Records, [InObject](const FObjectRecord& ObjRecord)
+		FObjectRecord* FoundObjectRecord = Algo::FindByPredicate(Records, [ObjRefToFind = FObjectRecord::FPersistentObjectRef(InObject)](const FObjectRecord& ObjRecord)
 		{
-			return ObjRecord.Object.Get() == InObject;
+			return ObjRecord.Object == ObjRefToFind;
 		});
 
 		if (FoundObjectRecord)

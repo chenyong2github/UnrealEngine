@@ -64,8 +64,19 @@ protected:
 				return Ar;
 			}
 
-			FPersistentObjectRef() = default;
+			friend bool operator==(const FPersistentObjectRef& LHS, const FPersistentObjectRef& RHS)
+			{
+				return LHS.ReferenceType == RHS.ReferenceType
+					&& LHS.RootObject == RHS.RootObject
+					&& (LHS.ReferenceType != EReferenceType::SubObject || LHS.SubObjectHierarchyIDs == RHS.SubObjectHierarchyIDs);
+			}
 
+			friend bool operator!=(const FPersistentObjectRef& LHS, const FPersistentObjectRef& RHS)
+			{
+				return !(LHS == RHS);
+			}
+
+			FPersistentObjectRef() = default;
 			explicit FPersistentObjectRef(UObject* InObject);
 
 			bool IsRootObjectReference() const
