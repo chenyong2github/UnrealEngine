@@ -222,14 +222,18 @@ FVirtualTextureSystem& FVirtualTextureSystem::Get()
 }
 
 FVirtualTextureSystem::FVirtualTextureSystem()
-	: Frame(1u), // Need to start on Frame 1, otherwise the first call to update will fail to allocate any pages
-	bFlushCaches(false),
-	FlushCachesCommand(TEXT("r.VT.Flush"), TEXT("Flush all the physical caches in the VT system."),
-		FConsoleCommandDelegate::CreateRaw(this, &FVirtualTextureSystem::FlushCachesFromConsole)),
-	DumpCommand(TEXT("r.VT.Dump"), TEXT("Lot a whole lot of info on the VT system state."),
-		FConsoleCommandDelegate::CreateRaw(this, &FVirtualTextureSystem::DumpFromConsole)),
-	ListPhysicalPools(TEXT("r.VT.ListPhysicalPools"), TEXT("Lot a whole lot of info on the VT system state."),
+	: Frame(1u) // Need to start on Frame 1, otherwise the first call to update will fail to allocate any pages
+	, bFlushCaches(false)
+	, FlushCachesCommand(TEXT("r.VT.Flush"), TEXT("Flush all the physical caches in the VT system."),
+		FConsoleCommandDelegate::CreateRaw(this, &FVirtualTextureSystem::FlushCachesFromConsole))
+	, DumpCommand(TEXT("r.VT.Dump"), TEXT("Lot a whole lot of info on the VT system state."),
+		FConsoleCommandDelegate::CreateRaw(this, &FVirtualTextureSystem::DumpFromConsole))
+	, ListPhysicalPools(TEXT("r.VT.ListPhysicalPools"), TEXT("Lot a whole lot of info on the VT system state."),
 		FConsoleCommandDelegate::CreateRaw(this, &FVirtualTextureSystem::ListPhysicalPoolsFromConsole))
+#if WITH_EDITOR
+	, SaveAllocatorImages(TEXT("r.VT.SaveAllocatorImages"), TEXT("Save images showing allocator usage."),
+		FConsoleCommandDelegate::CreateRaw(this, &FVirtualTextureSystem::SaveAllocatorImagesFromConsole))
+#endif
 {
 }
 
@@ -370,10 +374,11 @@ void FVirtualTextureSystem::ListPhysicalPoolsFromConsole()
 
 		const FVTSpaceDescription& Desc = Space->GetDescription();
 		const FVirtualTextureAllocator& Allocator = Space->GetAllocator();
-		const uint32 PageTableSize = Space->GetPageTableSize();
+		const uint32 PageTableWidth = Space->GetPageTableWidth();
+		const uint32 PageTableHeight = Space->GetPageTableHeight();
 		const uint32 TotalSizeInBytes = Space->GetSizeInBytes();
 		const uint32 NumAllocatedPages = Allocator.GetNumAllocatedPages();
-		const uint32 NumTotalPages = PageTableSize * PageTableSize;
+		const uint32 NumTotalPages = PageTableWidth * PageTableHeight;
 		const double AllocatedRatio = (double)NumAllocatedPages / NumTotalPages;
 
 		const uint32 PhysicalTileSize = Desc.TileSize + Desc.TileBorderSize * 2u;
@@ -386,7 +391,7 @@ void FVirtualTextureSystem::ListPhysicalPoolsFromConsole()
 		}
 
 		UE_LOG(LogConsoleResponse, Display, TEXT("Pool: [%i] %s (%ix%i) x %i:"), ID, FormatName, PhysicalTileSize, PhysicalTileSize, Desc.NumPageTableLayers);
-		UE_LOG(LogConsoleResponse, Display, TEXT("  PageTableSize= %ix%i"), PageTableSize, PageTableSize);
+		UE_LOG(LogConsoleResponse, Display, TEXT("  PageTableSize= %ix%i"), PageTableWidth, PageTableHeight);
 		UE_LOG(LogConsoleResponse, Display, TEXT("  Allocations= %i, %i%% (%fMB)"),
 			Allocator.GetNumAllocations(),
 			(int)(AllocatedRatio * 100.0),
@@ -398,6 +403,20 @@ void FVirtualTextureSystem::ListPhysicalPoolsFromConsole()
 	UE_LOG(LogConsoleResponse, Display, TEXT("TotalPageTableMemory: %fMB"), (double)TotalPageTableMemory / 1024.0 / 1024.0);
 	UE_LOG(LogConsoleResponse, Display, TEXT("TotalPhysicalMemory: %fMB"), (double)TotalPhysicalMemory / 1024.0 / 1024.0);
 }
+
+#if WITH_EDITOR
+void FVirtualTextureSystem::SaveAllocatorImagesFromConsole()
+{
+	for (int ID = 0; ID < 16; ID++)
+	{
+		const FVirtualTextureSpace* Space = Spaces[ID].Get();
+		if (Space)
+		{
+			Space->SaveAllocatorDebugImage();
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FAllocatedVTDescription& Desc)
 {

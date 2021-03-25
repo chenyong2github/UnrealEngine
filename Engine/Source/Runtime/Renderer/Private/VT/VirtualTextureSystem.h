@@ -126,6 +126,11 @@ private:
 	void ListPhysicalPoolsFromConsole();
 	FAutoConsoleCommand ListPhysicalPools;
 
+#if WITH_EDITOR
+	void SaveAllocatorImagesFromConsole();
+	FAutoConsoleCommand SaveAllocatorImages;
+#endif
+
 	FCriticalSection RequestedTilesLock;
 	TArray<uint32> RequestedPackedTiles;
 

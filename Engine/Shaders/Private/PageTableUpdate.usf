@@ -2,7 +2,7 @@
 
 #include "Common.ush"
 
-uint PageTableSize;
+uint2 PageTableSize;
 uint FirstUpdate;
 uint NumUpdates;
 

@@ -453,7 +453,7 @@ void FAdaptiveVirtualTexture::Allocate(FVirtualTextureSystem* InSystem, uint32 I
 
 	// Check if we have space in the page table to allocate. If not then hopefully we can allocate next frame.
 	FVirtualTextureSpace* Space = InSystem->GetSpace(GetSpaceID());
-	if (Space->GetPageTableSize() >= Space->GetDescription().MaxSpaceSize && !Space->GetAllocator().TryAlloc(NewLevel))
+	if (!Space->GetAllocator().TryAlloc(NewLevel))
 	{
 		return;
 	}
@@ -560,7 +560,7 @@ bool FAdaptiveVirtualTexture::FreeLRU(FVirtualTextureSystem* InSystem, uint32 In
 	int32 NewLevel = CurrentLevel - 1;
 	while (NewLevel > 0)
 	{
-		if (Space->GetPageTableSize() < Space->GetDescription().MaxSpaceSize || Space->GetAllocator().TryAlloc(NewLevel))
+		if (Space->GetAllocator().TryAlloc(NewLevel))
 		{
 			break;
 		}

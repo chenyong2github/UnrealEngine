@@ -4,26 +4,36 @@
 #include "AllocatedVirtualTexture.h"
 #include "VirtualTexturing.h"
 
+#if WITH_EDITOR
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
+#endif // WITH_EDITOR
+
 FVirtualTextureAllocator::FVirtualTextureAllocator(uint32 Dimensions)
 	: vDimensions(Dimensions)
-	, LogSize(0u)
+	, AllocatedWidth(0u)
+	, AllocatedHeight(0u)
 	, NumAllocations(0u)
 	, NumAllocatedPages(0u)
 {
 }
 
-void FVirtualTextureAllocator::Initialize(uint32 InSize)
+void FVirtualTextureAllocator::Initialize(uint32 MaxSize)
 {
+	const uint32 vLogSize = FMath::CeilLogTwo(MaxSize);
+	check(vLogSize <= VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE);
 	check(NumAllocations == 0);
-	LogSize = FMath::CeilLogTwo(InSize);
 
 	AddressBlocks.Reset(1);
 	SortedAddresses.Reset(1);
 	SortedIndices.Reset(1);
-	FreeList.Reset(LogSize + 1);
+	FreeList.Reset(vLogSize + 1);
+	PartiallyFreeList.Reset(vLogSize + 1);
 
 	// Start with one empty block
-	FAddressBlock DefaultBlock(LogSize);
+	FAddressBlock DefaultBlock(vLogSize);
 	DefaultBlock.State = EBlockState::FreeList;
 	AddressBlocks.Add(DefaultBlock);
 
@@ -31,12 +41,15 @@ void FVirtualTextureAllocator::Initialize(uint32 InSize)
 	SortedIndices.Add(0u);
 
 	// Init free list
-	FreeList.AddUninitialized(LogSize + 1);
-	for (uint8 i = 0; i < LogSize; i++)
+	FreeList.AddUninitialized(vLogSize + 1);
+	PartiallyFreeList.AddUninitialized(vLogSize + 1);
+	for (uint8 i = 0; i < vLogSize; i++)
 	{
 		FreeList[i] = 0xffff;
+		PartiallyFreeList[i] = 0xffff;
 	}
-	FreeList[LogSize] = 0;
+	FreeList[vLogSize] = 0;
+	PartiallyFreeList[vLogSize] = 0xffff;
 
 	// Init global free list
 	GlobalFreeList = 0xffff;
@@ -44,78 +57,46 @@ void FVirtualTextureAllocator::Initialize(uint32 InSize)
 	RootIndex = 0;
 }
 
-void FVirtualTextureAllocator::Grow()
+void FVirtualTextureAllocator::LinkFreeList(uint16& InOutListHead, EBlockState State, uint16 Index)
 {
-	// If we are empty then fast path is to reinitialize
-	if (NumAllocations == 0)
+	FAddressBlock& AddressBlock = AddressBlocks[Index];
+	check(AddressBlock.State == EBlockState::None);
+	check(AddressBlock.NextFree == 0xffff);
+	check(AddressBlock.PrevFree == 0xffff);
+
+	// Only the PartiallyFreeList free list is allowed to have children
+	check(State == EBlockState::PartiallyFreeList || AddressBlock.FirstChild == 0xffff);
+
+	AddressBlock.State = State;
+	AddressBlock.NextFree = InOutListHead;
+	if (AddressBlock.NextFree != 0xffff)
 	{
-		Initialize(1 << (LogSize + 1));
-		return;
+		AddressBlocks[AddressBlock.NextFree].PrevFree = Index;
 	}
+	InOutListHead = Index;
+}
 
-	++LogSize;
-
-	// Add entry for for free list of next LogSize (currently empty)
-	FreeList.Add(0xffff);
-
-	uint16 OldRootIndex = RootIndex;
-
-	// Add new root block
-	FAddressBlock RootBlock(LogSize);
-	RootBlock.State = EBlockState::AllocatedChildren;
-	RootBlock.FirstChild = OldRootIndex;
-
-	RootIndex = AcquireBlock();
-	AddressBlocks[RootIndex] = RootBlock;
-
-	// Reparent old root block
-	int32 NextSibling = AcquireBlock();
-	AddressBlocks[OldRootIndex].Parent = RootIndex;
-	AddressBlocks[OldRootIndex].FirstSibling = OldRootIndex;
-	AddressBlocks[OldRootIndex].NextSibling = NextSibling;
-
-	// Add new siblings for old root block
-	const int32 NumChildren = (1 << vDimensions);
-	for (int32 Sibling = 1; Sibling < NumChildren; Sibling++)
+void FVirtualTextureAllocator::UnlinkFreeList(uint16& InOutListHead, EBlockState State, uint16 Index)
+{
+	FAddressBlock& AddressBlock = AddressBlocks[Index];
+	check(AddressBlock.State == State);
+	const uint32 PrevFreeIndex = AddressBlock.PrevFree;
+	const uint32 NextFreeIndex = AddressBlock.NextFree;
+	if (PrevFreeIndex != 0xffff)
 	{
-		const int32 BlockIndex = NextSibling;
-		NextSibling = (Sibling + 1 < NumChildren) ? AcquireBlock() : 0xffff;
-
-		FAddressBlock Block(AddressBlocks[OldRootIndex], Sibling, vDimensions);
-		Block.NextSibling = NextSibling;
-		AddressBlocks[BlockIndex] = Block;
+		AddressBlocks[PrevFreeIndex].NextFree = NextFreeIndex;
+		AddressBlock.PrevFree = 0xffff;
 	}
-
-	// Add new siblings to lists
-	SortedAddresses.InsertUninitialized(0, NumChildren - 1);
-	SortedIndices.InsertUninitialized(0, NumChildren - 1);
-	check(SortedAddresses.Num() == SortedIndices.Num());
-
-	int32 Sibling = 1;
-	uint16 Index = AddressBlocks[OldRootIndex].NextSibling;
-	while (Index != 0xffff)
+	if (NextFreeIndex != 0xffff)
 	{
-		FAddressBlock& AddressBlock = AddressBlocks[Index];
-
-		// Place on free list
-		check(AddressBlock.State == EBlockState::None);
-		AddressBlock.State = EBlockState::FreeList;
-
-		AddressBlock.NextFree = FreeList[AddressBlock.vLogSize];
-		if (AddressBlock.NextFree != 0xffff)
-		{
-			AddressBlocks[AddressBlock.NextFree].PrevFree = Index;
-		}
-		FreeList[AddressBlock.vLogSize] = Index;
-
-		// Add to sorted list
-		// We are inserting sorted so need to be careful to add siblings in reverse order
-		SortedAddresses[NumChildren - Sibling - 1] = AddressBlock.vAddress;
-		SortedIndices[NumChildren - Sibling - 1] = Index;
-
-		Index = AddressBlock.NextSibling;
-		Sibling++;
+		AddressBlocks[NextFreeIndex].PrevFree = PrevFreeIndex;
+		AddressBlock.NextFree = 0xffff;
 	}
+	if (InOutListHead == Index)
+	{
+		InOutListHead = NextFreeIndex;
+	}
+	AddressBlock.State = EBlockState::None;
 }
 
 int32 FVirtualTextureAllocator::AcquireBlock()
@@ -124,15 +105,12 @@ int32 FVirtualTextureAllocator::AcquireBlock()
 	if (Index == 0xffff)
 	{
 		Index = AddressBlocks.AddUninitialized();
+		ensure(Index <= 0x8000); // make sure we're not getting close
+		check(Index <= 0xffff); // make sure we fit in 16bit index
 	}
 	else
 	{
-		check(AddressBlocks[Index].State == EBlockState::GlobalFreeList);
-		GlobalFreeList = AddressBlocks[Index].NextFree;
-		if (GlobalFreeList != 0xffff)
-		{
-			AddressBlocks[GlobalFreeList].PrevFree = 0xffff;
-		}
+		UnlinkFreeList(GlobalFreeList, EBlockState::GlobalFreeList, Index);
 	}
 
 	// Debug fill memory to invalid value
@@ -202,10 +180,17 @@ bool FVirtualTextureAllocator::TryAlloc(uint32 InLogSize)
 void FVirtualTextureAllocator::SubdivideBlock(uint32 ParentIndex)
 {
 	const uint32 NumChildren = (1 << vDimensions);
-	
-	const uint32 vLogSize = AddressBlocks[ParentIndex].vLogSize - 1u;
-	const uint32 vAddress = AddressBlocks[ParentIndex].vAddress;
 
+	const uint32 vParentLogSize = AddressBlocks[ParentIndex].vLogSize;
+	check(vParentLogSize > 0u);
+	const uint32 vChildLogSize = vParentLogSize - 1u;
+
+	// Only free blocks can be subdivided, move to the partially free list
+	check(AddressBlocks[ParentIndex].FirstChild == 0xffff);
+	UnlinkFreeList(FreeList[vParentLogSize], EBlockState::FreeList, ParentIndex);
+	LinkFreeList(PartiallyFreeList[vParentLogSize], EBlockState::PartiallyFreeList, ParentIndex);
+
+	const uint32 vAddress = AddressBlocks[ParentIndex].vAddress;
 	const int32 SortedIndex = FindAddressBlock(vAddress);
 	check(vAddress == SortedAddresses[SortedIndex]);
 
@@ -219,90 +204,71 @@ void FVirtualTextureAllocator::SubdivideBlock(uint32 ParentIndex)
 	for (uint32 Sibling = 0; Sibling < NumChildren; Sibling++)
 	{
 		const int32 ChildBlockIndex = AcquireBlock();
-		const uint32 vChildAddress = vAddress + (Sibling << (vDimensions * vLogSize));
+		const uint32 vChildAddress = vAddress + (Sibling << (vDimensions * vChildLogSize));
+
+		const int32 SortedIndexOffset = NumChildren - 1 - Sibling;
+		SortedAddresses[SortedIndex + SortedIndexOffset] = vChildAddress;
+		SortedIndices[SortedIndex + SortedIndexOffset] = ChildBlockIndex;
 
 		if (Sibling == 0u)
 		{
 			FirstSiblingIndex = ChildBlockIndex;
-			AddressBlocks[ParentIndex].FirstChild = FirstSiblingIndex;
-			// Replace parent block with new allocated block
-			SortedIndices[SortedIndex] = FirstSiblingIndex;
+			AddressBlocks[ParentIndex].FirstChild = ChildBlockIndex;
 		}
 		else
 		{
-			const int32 SortedIndexOffset = NumChildren - 1 - Sibling;
-			SortedAddresses[SortedIndex + SortedIndexOffset] = vChildAddress;
-			SortedIndices[SortedIndex + SortedIndexOffset] = ChildBlockIndex;
 			AddressBlocks[PrevChildIndex].NextSibling = ChildBlockIndex;
 		}
 	
-		FAddressBlock ChildBlock(vLogSize);
+		FAddressBlock ChildBlock(vChildLogSize);
 		ChildBlock.vAddress = vChildAddress;
 		ChildBlock.Parent = ParentIndex;
 		ChildBlock.FirstSibling = FirstSiblingIndex;
 		ChildBlock.NextSibling = 0xffff;
+		AddressBlocks[ChildBlockIndex] = ChildBlock;
 
 		// New child blocks start out on the free list
-		ChildBlock.State = EBlockState::FreeList;
-		ChildBlock.NextFree = FreeList[vLogSize];
-		if (ChildBlock.NextFree != 0xffff)
-		{
-			AddressBlocks[ChildBlock.NextFree].PrevFree = ChildBlockIndex;
-		}
-		FreeList[vLogSize] = ChildBlockIndex;
+		LinkFreeList(FreeList[vChildLogSize], EBlockState::FreeList, ChildBlockIndex);
 
-		AddressBlocks[ChildBlockIndex] = ChildBlock;
 		PrevChildIndex = ChildBlockIndex;
 	}
 }
 
-void FVirtualTextureAllocator::MarkBlockAllocated(uint32 Index, uint32 vAllocatedTileX, uint32 vAllocatedTileY, FAllocatedVirtualTexture* VT)
+void FVirtualTextureAllocator::MarkBlockAllocated(uint32 Index, uint32 vAllocatedTileX0, uint32 vAllocatedTileY0, FAllocatedVirtualTexture* VT)
 {
 	FAddressBlock* AllocBlock = &AddressBlocks[Index];
-	check(AllocBlock->State == EBlockState::FreeList);
-	check(AllocBlock->FirstChild == 0xffff);
+	check(AllocBlock->State != EBlockState::None);
+	check(AllocBlock->State != EBlockState::GlobalFreeList);
 
 	const uint32 vLogSize = AllocBlock->vLogSize;
 
 	// check to see if block is in the correct position
-	const uint32 vAllocatedTileX1 = vAllocatedTileX + VT->GetWidthInTiles();
-	const uint32 vAllocatedTileY1 = vAllocatedTileY + VT->GetHeightInTiles();
-	const uint32 vBlockAddress = AllocBlock->vAddress;
-	const uint32 vBlockTileX = FMath::ReverseMortonCode2(vBlockAddress);
-	const uint32 vBlockTileY = FMath::ReverseMortonCode2(vBlockAddress >> 1);
+	const uint32 vAllocatedTileX1 = vAllocatedTileX0 + VT->GetWidthInTiles();
+	const uint32 vAllocatedTileY1 = vAllocatedTileY0 + VT->GetHeightInTiles();
 	const uint32 BlockSize = (1u << vLogSize);
+	const uint32 vBlockAddress = AllocBlock->vAddress;
+	const uint32 vBlockTileX0 = FMath::ReverseMortonCode2(vBlockAddress);
+	const uint32 vBlockTileY0 = FMath::ReverseMortonCode2(vBlockAddress >> 1);
+	const uint32 vBlockTileX1 = vBlockTileX0 + BlockSize;
+	const uint32 vBlockTileY1 = vBlockTileY0 + BlockSize;
 
-	check(vBlockTileX >= vAllocatedTileX);
-	check(vBlockTileY >= vAllocatedTileY);
-
-	if (vBlockTileX < vAllocatedTileX1 && vBlockTileY < vAllocatedTileY1)
+	if (vAllocatedTileX1 > vBlockTileX0 &&
+		vAllocatedTileX0 < vBlockTileX1 &&
+		vAllocatedTileY1 > vBlockTileY0 &&
+		vAllocatedTileY0 < vBlockTileY1)
 	{
 		// Block overlaps the VT we're trying to allocate
-
-		// Remove from free list
-		{
-			const uint32 PrevFreeIndex = AllocBlock->PrevFree;
-			const uint32 NextFreeIndex = AllocBlock->NextFree;
-			if (PrevFreeIndex != 0xffff)
-			{
-				AddressBlocks[PrevFreeIndex].NextFree = NextFreeIndex;
-				AllocBlock->PrevFree = 0xffff;
-			}
-			if (NextFreeIndex != 0xffff)
-			{
-				AddressBlocks[NextFreeIndex].PrevFree = PrevFreeIndex;
-				AllocBlock->NextFree = 0xffff;
-			}
-			if (FreeList[vLogSize] == Index)
-			{
-				FreeList[vLogSize] = NextFreeIndex;
-			}
-			AllocBlock->State = EBlockState::None;
-		}
-
-		if (vBlockTileX + BlockSize <= vAllocatedTileX1 || vBlockTileY + BlockSize <= vAllocatedTileY1)
+		if (vBlockTileX0 >= vAllocatedTileX0 &&
+			vBlockTileX1 <= vAllocatedTileX1 &&
+			vBlockTileY0 >= vAllocatedTileY0 &&
+			vBlockTileY1 <= vAllocatedTileY1)
 		{
 			// Block is entirely contained within the VT we're trying to allocate
+
+			// In this case, block must be completely free (or else there's an error somewhere else)
+			check(AllocBlock->FirstChild == 0xffff);
+			UnlinkFreeList(FreeList[vLogSize], EBlockState::FreeList, Index);
+			
 			++NumAllocations;
 			NumAllocatedPages += 1u << (vDimensions * vLogSize);
 
@@ -315,11 +281,15 @@ void FVirtualTextureAllocator::MarkBlockAllocated(uint32 Index, uint32 vAllocate
 		}
 		else
 		{
-			// Block intersects the VT, subdivide further
-			AllocBlock->State = EBlockState::AllocatedChildren;
+			// Block intersects the VT
+			if (AllocBlock->State == EBlockState::FreeList)
+			{
+				// If block is completely free, need to subdivide further
+				SubdivideBlock(Index);
+			}
+			// otherwise block is already subdivided
 			AllocBlock = nullptr; // list will be potentially reallocated
-
-			SubdivideBlock(Index);
+			check(AddressBlocks[Index].State == EBlockState::PartiallyFreeList);
 	
 			uint32 NumChildren = 0u;
 			uint16 ChildIndex = AddressBlocks[Index].FirstChild;
@@ -328,7 +298,7 @@ void FVirtualTextureAllocator::MarkBlockAllocated(uint32 Index, uint32 vAllocate
 			{
 				check(AddressBlocks[ChildIndex].Parent == Index);
 
-				MarkBlockAllocated(ChildIndex, vAllocatedTileX, vAllocatedTileY, VT);
+				MarkBlockAllocated(ChildIndex, vAllocatedTileX0, vAllocatedTileY0, VT);
 
 				ChildIndex = AddressBlocks[ChildIndex].NextSibling;
 				NumChildren++;
@@ -338,38 +308,167 @@ void FVirtualTextureAllocator::MarkBlockAllocated(uint32 Index, uint32 vAllocate
 	}
 }
 
-uint32 FVirtualTextureAllocator::Alloc(FAllocatedVirtualTexture* VT)
+bool FVirtualTextureAllocator::TestAllocation(uint32 Index, uint32 vAllocatedTileX0, uint32 vAllocatedTileY0, uint32 vAllocatedTileX1, uint32 vAllocatedTileY1) const
 {
-	// Pad out to square power of 2
-	const uint32 MinSize = FMath::Min(VT->GetWidthInTiles(), VT->GetHeightInTiles());
-	const uint32 MaxSize = FMath::Max(VT->GetWidthInTiles(), VT->GetHeightInTiles());
-	const uint8 vLogMaxSize = FMath::CeilLogTwo(MaxSize);
+	const FAddressBlock& AllocBlock = AddressBlocks[Index];
+	const uint32 vLogSize = AllocBlock.vLogSize;
+	const uint32 BlockSize = (1u << vLogSize);
 
-	// Find smallest free that fits
-	for (int i = vLogMaxSize; i < FreeList.Num(); i++)
+	const uint32 vBlockAddress = AllocBlock.vAddress;
+	const uint32 vBlockTileX0 = FMath::ReverseMortonCode2(vBlockAddress);
+	const uint32 vBlockTileY0 = FMath::ReverseMortonCode2(vBlockAddress >> 1);
+	const uint32 vBlockTileX1 = vBlockTileX0 + BlockSize;
+	const uint32 vBlockTileY1 = vBlockTileY0 + BlockSize;
+
+	if (vAllocatedTileX1 > vBlockTileX0 &&
+		vAllocatedTileX0 < vBlockTileX1 &&
+		vAllocatedTileY1 > vBlockTileY0 &&
+		vAllocatedTileY0 < vBlockTileY1)
 	{
-		uint16 FreeIndex = FreeList[i];
-		if (FreeIndex != 0xffff)
+		// Block overlaps the VT we're trying to allocate
+		if (AllocBlock.State == EBlockState::AllocatedTexture)
 		{
-			// Found free
-			uint16 AllocIndex = FreeIndex;
-			FAddressBlock& AllocBlock = AddressBlocks[AllocIndex];
-			check(AllocBlock.VT == nullptr);
-			check(AllocBlock.State == EBlockState::FreeList);
+			return false;
+		}
+		else
+		{
+			check(AllocBlock.State == EBlockState::PartiallyFreeList);
+			if (vBlockTileX0 >= vAllocatedTileX0 &&
+				vBlockTileX1 <= vAllocatedTileX1 &&
+				vBlockTileY0 >= vAllocatedTileY0 &&
+				vBlockTileY1 <= vAllocatedTileY1)
+			{
+				// If block is fully contained within the check region, don't need to search children, we are guaranteed to find an intersection
+				return false;
+			}
 
-			const uint32 vAddress = AllocBlock.vAddress;
-			const uint32 vTileX = FMath::ReverseMortonCode2(vAddress);
-			const uint32 vTileY = FMath::ReverseMortonCode2(vAddress >> 1);
-
-			MarkBlockAllocated(AllocIndex, vTileX, vTileY, VT);
-
-			check(AddressBlocks[AllocIndex].State != EBlockState::FreeList);
-
-			return vAddress;
+			uint16 ChildIndex = AddressBlocks[Index].FirstChild;
+			check(ChildIndex == AddressBlocks[ChildIndex].FirstSibling);
+			while (ChildIndex != 0xffff)
+			{
+				const FAddressBlock& ChildBlock = AddressBlocks[ChildIndex];
+				check(ChildBlock.Parent == Index);
+				if (ChildBlock.State != EBlockState::FreeList &&
+					!TestAllocation(ChildIndex, vAllocatedTileX0, vAllocatedTileY0, vAllocatedTileX1, vAllocatedTileY1))
+				{
+					return false;
+				}
+				ChildIndex = ChildBlock.NextSibling;
+			}
 		}
 	}
 
-	return ~0u;
+	return true;
+}
+
+uint32 FVirtualTextureAllocator::Alloc(FAllocatedVirtualTexture* VT)
+{
+	const uint32 WidthInTiles = VT->GetWidthInTiles();
+	const uint32 HeightInTiles = VT->GetHeightInTiles();
+	const uint32 MinSize = FMath::Min(WidthInTiles, HeightInTiles);
+	const uint32 MaxSize = FMath::Max(WidthInTiles, HeightInTiles);
+	const int32 vLogMinSize = FMath::CeilLogTwo(MinSize);
+	const int32 vLogMaxSize = FMath::CeilLogTwo(MaxSize);
+
+	// Tile must be aligned to match the max level of the VT, otherwise tiles at lower mip levels may intersect neighboring regions
+	const uint32 MaxLevel = VT->GetMaxLevel();
+	const uint32 vAddressAlignment = 1u << (vDimensions * MaxLevel);
+
+	if (vLogMaxSize >= FreeList.Num())
+	{
+		// VT is larger than the entire page table
+		return ~0u;
+	}
+
+	uint16 AllocIndex = 0xffff;
+	uint32 vAddress = ~0u;
+
+	// See if we have any completely free blocks big enough
+	// Here we search all free blocks, including ones that are too large (large blocks will still be subdivided to fit)
+	for (int32 vLogSize = vLogMaxSize; vLogSize < FreeList.Num(); ++vLogSize)
+	{
+		// Could avoid this loop if FreeList was kept sorted by vAddress
+		uint16 FreeIndex = FreeList[vLogSize];
+		while (FreeIndex != 0xffff)
+		{
+			const FAddressBlock& AllocBlock = AddressBlocks[FreeIndex];
+			check(AllocBlock.State == EBlockState::FreeList);
+			if (AllocBlock.vAddress < vAddress)
+			{
+				AllocIndex = FreeIndex;
+				vAddress = AllocBlock.vAddress;
+			}
+			FreeIndex = AllocBlock.NextFree;
+		}
+	}
+
+	// Look for a partially allocated block that has room for this allocation
+	// Only need to check partially allocated blocks of the correct size
+	// Larger partially allocated blocks will contain a child block that's completely free, that will already be discovered by the above search
+	{
+		uint16 FreeIndex = PartiallyFreeList[vLogMaxSize];
+		while (FreeIndex != 0xffff)
+		{
+			FAddressBlock& AllocBlock = AddressBlocks[FreeIndex];
+			if (AllocBlock.vAddress < vAddress)
+			{
+				check(AllocBlock.State == EBlockState::PartiallyFreeList);
+				const uint32 BlockSize = 1u << vLogMaxSize;
+				uint32 vCheckAddress = AllocBlock.vAddress;
+				const uint32 vBlockTileX0 = FMath::ReverseMortonCode2(vCheckAddress);
+				const uint32 vBlockTileY0 = FMath::ReverseMortonCode2(vCheckAddress >> 1);
+				const uint32 vBlockTileX1 = vBlockTileX0 + BlockSize;
+				const uint32 vBlockTileY1 = vBlockTileY0 + BlockSize;
+
+				// Search all valid positions within the block (in ascending morton order), looking for a fit for the texture we're trying to allocate
+				// Step size is driven by our alignment requirements
+				// Seems like there is probably a more clever way to accomplish this, if perf becomes an issue
+				while (true)
+				{
+					const uint32 vTileX0 = FMath::ReverseMortonCode2(vCheckAddress);
+					const uint32 vTileY0 = FMath::ReverseMortonCode2(vCheckAddress >> 1);
+					const uint32 vTileX1 = vTileX0 + WidthInTiles;
+					const uint32 vTileY1 = vTileY0 + HeightInTiles;
+					if (vTileY1 > vBlockTileY1)
+					{
+						break;
+					}
+
+					if (vTileX1 <= vBlockTileX1)
+					{
+						if (TestAllocation(FreeIndex, vTileX0, vTileY0, vTileX1, vTileY1))
+						{
+							// here AllocIndex won't point to exactly the correct block yet, but we don't want to subdivide yet, until we're sure this is the best fit
+							// MarkBlockAllocated will properly subdivide the initial block as needed
+							AllocIndex = FreeIndex;
+							vAddress = vCheckAddress;
+							break;
+						}
+					}
+
+					vCheckAddress += vAddressAlignment;
+				}
+			}
+			FreeIndex = AllocBlock.NextFree;
+		}
+	}
+
+	if (AllocIndex != 0xffff)
+	{
+		check(vAddress != ~0u);
+		FAddressBlock& AllocBlock = AddressBlocks[AllocIndex];
+		const uint32 vTileX = FMath::ReverseMortonCode2(vAddress);
+		const uint32 vTileY = FMath::ReverseMortonCode2(vAddress >> 1);
+
+		MarkBlockAllocated(AllocIndex, vTileX, vTileY, VT);
+
+		check(AddressBlocks[AllocIndex].State != EBlockState::FreeList);
+
+		AllocatedWidth = FMath::Max(AllocatedWidth, vTileX + WidthInTiles);
+		AllocatedHeight = FMath::Max(AllocatedHeight, vTileY + HeightInTiles);
+	}
+
+	return vAddress;
 }
 
 void FVirtualTextureAllocator::Free(FAllocatedVirtualTexture* VT)
@@ -385,7 +484,7 @@ void FVirtualTextureAllocator::Free(FAllocatedVirtualTexture* VT)
 		{
 			check(AddressBlock.State == EBlockState::AllocatedTexture);
 			check(AddressBlock.FirstChild == 0xffff); // texture allocation should be leaf
-			AddressBlock.State = EBlockState::AllocatedChildren;
+			AddressBlock.State = EBlockState::None;
 			AddressBlock.VT = nullptr;
 
 			check(NumAllocations > 0u);
@@ -397,7 +496,7 @@ void FVirtualTextureAllocator::Free(FAllocatedVirtualTexture* VT)
 
 			// Add block to free list
 			// This handles merging free siblings
-			FreeAddressBlock(Index);
+			FreeAddressBlock(Index, true);
 
 			// Remove the index from the hash table as it may be reused later
 			HashTable.Remove(Key, Index);
@@ -406,36 +505,46 @@ void FVirtualTextureAllocator::Free(FAllocatedVirtualTexture* VT)
 	}
 }
 
-void FVirtualTextureAllocator::FreeAddressBlock(uint32 Index)
+void FVirtualTextureAllocator::FreeAddressBlock(uint32 Index, bool bTopLevelBlock)
 {
 	FAddressBlock& AddressBlock = AddressBlocks[Index];
+	if (bTopLevelBlock)
+	{
+		// Block was freed directly, should already be removed froms lists
+		check(AddressBlock.State == EBlockState::None);
+	}
+	else
+	{
+		// Block was freed by consolidating children
+		UnlinkFreeList(PartiallyFreeList[AddressBlock.vLogSize], EBlockState::PartiallyFreeList, Index);
+	}
+
 	check(AddressBlock.VT == nullptr);
-	check(AddressBlock.State == EBlockState::AllocatedChildren);
 	check(AddressBlock.NextFree == 0xffff);
 	check(AddressBlock.PrevFree == 0xffff);
+
+	// If we got here, the block's children have already been consolidated/removed
+	AddressBlock.FirstChild = 0xffff;
 
 	// If all siblings are free then we can merge them
 	uint32 SiblingIndex = AddressBlock.FirstSibling;
 	bool bConsolidateSiblings = SiblingIndex != 0xffff;
 	while (bConsolidateSiblings && SiblingIndex != 0xffff)
 	{
-		bConsolidateSiblings &= (SiblingIndex == Index || FreeList[AddressBlock.vLogSize] == SiblingIndex || AddressBlocks[SiblingIndex].PrevFree != 0xffff);
-		SiblingIndex = AddressBlocks[SiblingIndex].NextSibling;
+		const FAddressBlock& SiblingBlock = AddressBlocks[SiblingIndex];
+		if (SiblingIndex != Index)
+		{
+			check(SiblingBlock.State != EBlockState::None);
+			check(SiblingBlock.State != EBlockState::GlobalFreeList);
+			bConsolidateSiblings &= (SiblingBlock.State == EBlockState::FreeList);
+		}
+		SiblingIndex = SiblingBlock.NextSibling;
 	}
 
 	if (!bConsolidateSiblings)
 	{
-		// If we got here, the block's children have already been consolidated/removed
-		AddressBlock.FirstChild = 0xffff;
-
 		// Simply place this block on the free list
-		AddressBlock.State = EBlockState::FreeList;
-		AddressBlock.NextFree = FreeList[AddressBlock.vLogSize];
-		if (AddressBlock.NextFree != 0xffff)
-		{
-			AddressBlocks[AddressBlock.NextFree].PrevFree = Index;
-		}
-		FreeList[AddressBlock.vLogSize] = Index;
+		LinkFreeList(FreeList[AddressBlock.vLogSize], EBlockState::FreeList, Index);
 	}
 	else
 	{
@@ -448,36 +557,15 @@ void FVirtualTextureAllocator::FreeAddressBlock(uint32 Index)
 			if (FreeIndex != Index)
 			{
 				// All our siblings must be free (we checked above to get into this case)
-				check(FreeBlock.State == EBlockState::FreeList);
-
-				const uint32 PrevFreeIndex = FreeBlock.PrevFree;
-				const uint32 NextFreeIndex = FreeBlock.NextFree;
-				if (PrevFreeIndex != 0xffff)
-				{
-					AddressBlocks[PrevFreeIndex].NextFree = NextFreeIndex;
-					FreeBlock.PrevFree = 0xffff;
-				}
-				if (NextFreeIndex != 0xffff)
-				{
-					AddressBlocks[NextFreeIndex].PrevFree = PrevFreeIndex;
-					FreeBlock.NextFree = 0xffff;
-				}
-				if (FreeList[AddressBlock.vLogSize] == FreeIndex)
-				{
-					FreeList[AddressBlock.vLogSize] = NextFreeIndex;
-				}
+				UnlinkFreeList(FreeList[AddressBlock.vLogSize], EBlockState::FreeList, FreeIndex);
 			}
 
-			if (GlobalFreeList != 0xffff)
-			{
-				FreeBlock.NextFree = GlobalFreeList;
-				AddressBlocks[GlobalFreeList].PrevFree = FreeIndex;
-			}
-			GlobalFreeList = FreeIndex;
-			FreeBlock.State = EBlockState::GlobalFreeList;
+			LinkFreeList(GlobalFreeList, EBlockState::GlobalFreeList, FreeIndex);
 
 			FreeIndex = FreeBlock.NextSibling;
 		}
+
+		check(AddressBlock.State == EBlockState::GlobalFreeList);
 
 		// Remove this block and its siblings from the sorted lists
 		// We can assume that the sibling blocks are sequential in the sorted list since they are free and so have no children
@@ -496,7 +584,7 @@ void FVirtualTextureAllocator::FreeAddressBlock(uint32 Index)
 		check(SortedAddresses[SortedIndexRangeStart] == AddressBlocks[AddressBlock.Parent].vAddress);
 
 		// Add parent block to free list (and possibly consolidate)
-		FreeAddressBlock(AddressBlock.Parent);
+		FreeAddressBlock(AddressBlock.Parent, false);
 	}
 }
 
@@ -527,3 +615,108 @@ void FVirtualTextureAllocator::DumpToConsole(bool verbose)
 		}
 	}
 }
+
+#if WITH_EDITOR
+void FVirtualTextureAllocator::FillDebugImage(uint32 Index, uint32* ImageData, TMap<FAllocatedVirtualTexture*, uint32>& ColorMap) const
+{
+	const FAddressBlock& AddressBlock = AddressBlocks[Index];
+	if (AddressBlock.State == EBlockState::AllocatedTexture || AddressBlock.State == EBlockState::FreeList)
+	{
+		const uint32 vTileX = FMath::ReverseMortonCode2(AddressBlock.vAddress);
+		const uint32 vTileY = FMath::ReverseMortonCode2(AddressBlock.vAddress >> 1);
+		const uint32 BlockSize = (1u << AddressBlock.vLogSize);
+
+		if (vTileX + BlockSize <= AllocatedWidth && vTileY + BlockSize <= AllocatedHeight)
+		{
+			uint32 Color;
+			uint32 BorderColor;
+			if (AddressBlock.State == EBlockState::FreeList)
+			{
+				// Free blocks are black, with grey border
+				Color = FColor::Black.ToPackedABGR();
+				BorderColor = FColor(100u, 100u, 100u).ToPackedABGR();
+			}
+			else
+			{
+				// Allocated blocks have white border, random color for each AllocatedVT
+				uint32* FoundColor = ColorMap.Find(AddressBlock.VT);
+				if (!FoundColor)
+				{
+					FoundColor = &ColorMap.Add(AddressBlock.VT, FColor::MakeRandomColor().ToPackedABGR());
+				}
+				Color = *FoundColor;
+				BorderColor = FColor::White.ToPackedABGR();
+			}
+
+			// Add top/bottom borders
+			for (uint32 X = 0u; X < BlockSize; ++X)
+			{
+				const uint32 ImageY0 = vTileY;
+				const uint32 ImageY1 = vTileY + BlockSize - 1u;
+				const uint32 ImageX = vTileX + X;
+				ImageData[ImageY0 * AllocatedWidth + ImageX] = BorderColor;
+				ImageData[ImageY1 * AllocatedWidth + ImageX] = BorderColor;
+			}
+
+			for (uint32 Y = 1u; Y < BlockSize - 1u; ++Y)
+			{
+				const uint32 ImageY = vTileY + Y;
+
+				// Add left/right borders
+				ImageData[ImageY * AllocatedWidth + vTileX] = BorderColor;
+				ImageData[ImageY * AllocatedWidth + vTileX + BlockSize - 1u] = BorderColor;
+
+				for (uint32 X = 1u; X < BlockSize - 1u; ++X)
+				{
+					const uint32 ImageX = vTileX + X;
+					ImageData[ImageY * AllocatedWidth + ImageX] = Color;
+				}
+			}
+		}
+		else
+		{
+			// If block is outside allocated size, it must be free
+			check(AddressBlock.State == EBlockState::FreeList);
+		}
+	}
+	else if (AddressBlock.State == EBlockState::PartiallyFreeList)
+	{
+		uint32 ChildIndex = AddressBlock.FirstChild;
+		while (ChildIndex != 0xffff)
+		{
+			FillDebugImage(ChildIndex, ImageData, ColorMap);
+			ChildIndex = AddressBlocks[ChildIndex].NextSibling;
+		}
+	}
+	else
+	{
+		// Blocks of this state should not be in the tree
+		checkf(false, TEXT("Invalid block state %d"), (int32)AddressBlock.State);
+	}
+}
+
+void FVirtualTextureAllocator::SaveDebugImage(const TCHAR* ImageName) const
+{
+	const uint32 EmptyColor = FColor(255, 0, 255).ToPackedABGR();
+	TArray<uint32> ImageData;
+	ImageData.Init(EmptyColor, AllocatedWidth * AllocatedHeight);
+	TMap<FAllocatedVirtualTexture*, uint32> ColorMap;
+	FillDebugImage(RootIndex, ImageData.GetData(), ColorMap);
+
+	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+	ImageWrapper->SetRaw(ImageData.GetData(), ImageData.Num() * 4, AllocatedWidth, AllocatedHeight, ERGBFormat::RGBA, 8);
+
+	// Compress and write image
+	IFileManager& FileManager = IFileManager::Get();
+	const FString BasePath = FPaths::ProjectUserDir();
+	const FString ImagePath = BasePath / ImageName;
+	FArchive* Ar = FileManager.CreateFileWriter(*ImagePath);
+	if (Ar)
+	{
+		const TArray64<uint8>& CompressedData = ImageWrapper->GetCompressed();
+		Ar->Serialize((void*)CompressedData.GetData(), CompressedData.Num());
+		delete Ar;
+	}
+}
+#endif // WITH_EDITOR

@@ -56,7 +56,10 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 
 	// Max level of overall allocated VT is limited by size in tiles
 	// With multiple layers of different sizes, some layers may have mips smaller than a single tile
-	MaxLevel = FMath::Min(MaxLevel, FMath::CeilLogTwo(FMath::Max(GetWidthInTiles(), GetHeightInTiles())));
+	// We can either use the Min or Max of Width/Height to determine the number of mips
+	// - Using Max will allow more mips for rectangular VTs, which could potentially reduce aliasing in certain situations
+	// - Using Min will relax alignment requirements for the page table allocator, which will tend to reduce overall VRAM usage
+	MaxLevel = FMath::Min(MaxLevel, FMath::CeilLogTwo(FMath::Min(GetWidthInTiles(), GetHeightInTiles())));
 
 	MaxLevel = FMath::Min(MaxLevel, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE - 1u);
 
