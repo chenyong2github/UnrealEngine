@@ -8,7 +8,7 @@
 #endif
 
 // FORT-101886
-// UE4 implemented high level PSO caches on the general RHI level already
+// UE implemented high level PSO caches on the general RHI level already
 // D3D12RHI high level PSO caches never cleanup (until shutdown) currently
 // and stale PSOs remain in the cache, which is being suspected as the cause
 // of some XboxOne crashes

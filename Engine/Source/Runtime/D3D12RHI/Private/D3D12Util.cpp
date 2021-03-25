@@ -611,7 +611,7 @@ namespace D3D12RHI
 		if (InGPUCrashDump != nullptr)
 		{
 			// Write out crash dump to project log dir - exception handling code will take care of copying it to the correct location
-			const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+			const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UEGPUAftermathMinidumpName);
 
 			// Just use raw windows file routines for the GPU minidump (TODO: refactor to our own functions?)
 			HANDLE FileHandle = CreateFileW(*GPUMiniDumpPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);

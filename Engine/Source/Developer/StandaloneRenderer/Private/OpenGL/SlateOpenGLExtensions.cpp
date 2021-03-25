@@ -72,14 +72,14 @@ bool bOpenGLExtensionsLoaded;
 
 /**
  * Loads all OpenGL extensions.  
- * @todo UE4: For now we assume this cannot fail                   
+ * @todo UE: For now we assume this cannot fail                   
  */
 void LoadOpenGLExtensions()
 {
 #if PLATFORM_WINDOWS
 	if( !bOpenGLExtensionsLoaded )
 	{
-		//@todo UE4: Assumes the video card supports these for now.
+		//@todo UE: Assumes the video card supports these for now.
 		bOpenGLExtensionsLoaded = true;
 		glGenBuffers				=(PFNGLGENBUFFERSARBPROC)			wglGetProcAddress("glGenBuffers");
 		glBindBuffer				=(PFNGLBINDBUFFERARBPROC)			wglGetProcAddress("glBindBuffer");

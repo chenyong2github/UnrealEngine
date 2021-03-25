@@ -56,7 +56,7 @@ bool FVulkanWindowsPlatform::LoadVulkanLibrary()
 			const FString PreviousEnvVar = FPlatformMisc::GetEnvironmentVariable(TEXT("VK_LAYER_PATH"));
 			if (PreviousEnvVar.IsEmpty())
 			{
-				// Change behavior of loading Vulkan layers by setting environment variable "VK_LAYER_PATH" to UE4 specific directory
+				// Change behavior of loading Vulkan layers by setting environment variable "VK_LAYER_PATH" to UE specific directory
 				FString VulkanLayerPath = FPaths::EngineDir();
 #if PLATFORM_64BITS
 				VulkanLayerPath.Append(TEXT("Binaries/ThirdParty/Windows/Vulkan/Win64"));

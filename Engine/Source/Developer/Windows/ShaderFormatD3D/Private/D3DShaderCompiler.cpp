@@ -1058,7 +1058,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 			FShaderCompilerError NewError;
 
 			// Extract filename and line number from FXC output with format:
-			// "d:\UE4\Binaries\BasePassPixelShader(30,7): error X3000: invalid target or usage string"
+			// "d:\Project\Binaries\BasePassPixelShader(30,7): error X3000: invalid target or usage string"
 			int32 FirstParenIndex = CurrentError.Find(TEXT("("));
 			int32 LastParenIndex = CurrentError.Find(TEXT("):"));
 			if (FirstParenIndex != INDEX_NONE &&

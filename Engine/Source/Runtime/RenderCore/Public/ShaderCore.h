@@ -232,7 +232,7 @@ public:
 
 	friend FArchive& operator<<(FArchive& Ar,FShaderParameterMap& InParameterMap)
 	{
-		// Note: this serialize is used to pass between UE4 and the shader compile worker, recompile both when modifying
+		// Note: this serialize is used to pass between UE and the shader compile worker, recompile both when modifying
 		Ar << InParameterMap.ParameterMap;
 		return Ar;
 	}
@@ -461,7 +461,7 @@ struct FShaderCompilerEnvironment
 
 	friend FArchive& operator<<(FArchive& Ar,FShaderCompilerEnvironment& Environment)
 	{
-		// Note: this serialize is used to pass between UE4 and the shader compile worker, recompile both when modifying
+		// Note: this serialize is used to pass between UE and the shader compile worker, recompile both when modifying
 		Ar << Environment.IncludeVirtualPathToContentsMap;
 
 		// Note: skipping Environment.IncludeVirtualPathToExternalContentsMap, which is handled by FShaderCompileUtilities::DoWriteTasks in order to maintain sharing

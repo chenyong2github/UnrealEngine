@@ -269,7 +269,7 @@ bool AllowDebugViewmodes(EShaderPlatform Platform)
 
 	#if 0
 		// We can't distinguish between editor and non-editor targets solely from EShaderPlatform.
-		// RequiresCookedData() was always returning true for Windows in UE4, and false in UE5, for Windows
+		// RequiresCookedData() was always returning true for Windows in UE 4, and false in UE 5, for Windows
 		TStringBuilder<64> PlatformName;
 		ShaderPlatformToPlatformName(Platform).ToString(PlatformName);
 		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformName);
@@ -1405,7 +1405,7 @@ FArchive& operator<<(FArchive& Ar, FShaderCode& Output)
 		Output.FinalizeShaderCode();
 	}
 
-	// Note: this serialize is used to pass between UE4 and the shader compile worker, recompile both when modifying
+	// Note: this serialize is used to pass between UE and the shader compile worker, recompile both when modifying
 	Ar << Output.ShaderCodeWithOptionalData;
 	Ar << Output.UncompressedSize;
 	{
@@ -1419,7 +1419,7 @@ FArchive& operator<<(FArchive& Ar, FShaderCode& Output)
 
 FArchive& operator<<(FArchive& Ar, FShaderCompilerInput& Input)
 {
-	// Note: this serialize is used to pass between UE4 and the shader compile worker, recompile both when modifying
+	// Note: this serialize is used to pass between UE and the shader compile worker, recompile both when modifying
 	Ar << Input.Target;
 	{
 		FString ShaderFormatString(Input.ShaderFormat.ToString());

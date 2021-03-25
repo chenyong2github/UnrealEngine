@@ -621,7 +621,7 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 #ifdef NVAPI_INTERFACE
 			NvU32 DisplayId = 0;
 
-			// Technically, the DeviceName is a WCHAR however, UE4 makes the assumption elsewhere that TCHAR == WCHAR on Windows
+			// Technically, the DeviceName is a WCHAR however, UE makes the assumption elsewhere that TCHAR == WCHAR on Windows
 			NvAPI_Status Status = NvAPI_DISP_GetDisplayIdByDisplayName(TCHAR_TO_ANSI(OutputDesc.DeviceName), &DisplayId);
 
 			if (Status == NVAPI_OK)
@@ -1282,7 +1282,7 @@ static void D3D11AftermathCrashCallback(const void* InGPUCrashDump, const uint32
 	}
 
 	// Write out crash dump to project log dir - exception handling code will take care of copying it to the correct location
-	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UEGPUAftermathMinidumpName);
 
 	// Just use raw windows file routines for the GPU minidump (TODO: refactor to our own functions?)
 	HANDLE FileHandle = CreateFileW(*GPUMiniDumpPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -1626,7 +1626,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 {
 	check( IsInGameThread() );
 
-	// UE4 no longer supports clean-up and recovery on DEVICE_LOST.
+	// UE no longer supports clean-up and recovery on DEVICE_LOST.
 
 	// If we don't have a device yet, either because this is the first viewport, or the old device was removed, create a device.
 	if(!Direct3DDevice)

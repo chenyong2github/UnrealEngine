@@ -7,7 +7,7 @@
 #include "EmptyRHIPrivate.h"
 
 /**
- * Translate from UE3 enums to Empty enums (leaving these in Empty just for help in setting them up)
+ * Translate from UE 3 enums to Empty enums (leaving these in Empty just for help in setting them up)
  */
 static int32 TranslateMipFilterMode(ESamplerFilter Filter)
 {

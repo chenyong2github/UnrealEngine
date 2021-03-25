@@ -12,7 +12,7 @@ bool UE::Interchange::FImportImageHelper::IsImportResolutionValid(int32 Width, i
 {
 	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
 
-	// In theory this value could be much higher, but various UE4 image code currently uses 32bit size/offset values
+	// In theory this value could be much higher, but various UE image code currently uses 32bit size/offset values
 	const int32 MaximumSupportedVirtualTextureResolution = 16 * 1024;
 
 	// Calculate the maximum supported resolution utilizing the global max texture mip count

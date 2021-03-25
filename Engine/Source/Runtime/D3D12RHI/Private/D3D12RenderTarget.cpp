@@ -1424,7 +1424,7 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFenc
 		OutWidth = ReadBackHeapDesc.Footprint.RowPitch / BytesPerPixel;
 		OutHeight = ReadBackHeapDesc.Footprint.Height;
 
-		// MS: It seems like the second frame in some scenes comes into RHIMapStagingSurface BEFORE the copy to the staging texture, thus the readbackHeapDesc isn't set. This could be bug in UE4.
+		// MS: It seems like the second frame in some scenes comes into RHIMapStagingSurface BEFORE the copy to the staging texture, thus the readbackHeapDesc isn't set. This could be bug in UE.
 		if (ReadBackHeapDesc.Footprint.Format != DXGI_FORMAT_UNKNOWN)
 		{
 			check(OutWidth != 0);

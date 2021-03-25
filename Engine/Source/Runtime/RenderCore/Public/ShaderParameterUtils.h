@@ -228,7 +228,7 @@ FORCEINLINE void SetTextureParameter(
 		}
 	}
 	
-	// @todo ue4 samplerstate Should we maybe pass in two separate values? SamplerElement and TextureElement? Or never allow an array of samplers? Unsure best
+	// @todo UE samplerstate Should we maybe pass in two separate values? SamplerElement and TextureElement? Or never allow an array of samplers? Unsure best
 	// if there is a matching sampler for this texture array index (ElementIndex), then set it. This will help with this case:
 	//			Texture2D LightMapTextures[NUM_LIGHTMAP_COEFFICIENTS];
 	//			SamplerState LightMapTexturesSampler;
@@ -267,7 +267,7 @@ FORCEINLINE void SetTextureParameter(
 			RHICmdList.SetShaderTexture( Shader, TextureParameter.GetBaseIndex() + ElementIndex, TextureRHI);
 		}
 	}
-	// @todo ue4 samplerstate Should we maybe pass in two separate values? SamplerElement and TextureElement? Or never allow an array of samplers? Unsure best
+	// @todo UE samplerstate Should we maybe pass in two separate values? SamplerElement and TextureElement? Or never allow an array of samplers? Unsure best
 	// if there is a matching sampler for this texture array index (ElementIndex), then set it. This will help with this case:
 	//			Texture2D LightMapTextures[NUM_LIGHTMAP_COEFFICIENTS];
 	//			SamplerState LightMapTexturesSampler;

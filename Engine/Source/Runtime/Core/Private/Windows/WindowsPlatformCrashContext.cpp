@@ -149,7 +149,7 @@ struct FAssertInfo
 	}
 };
 
-const TCHAR* const FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName = TEXT("UE4AftermathD3D12.nv-gpudmp");
+const TCHAR* const FWindowsPlatformCrashContext::UEGPUAftermathMinidumpName = TEXT("UEAftermathD3D12.nv-gpudmp");
 
 /**
 * Implement platform specific static cleanup function
@@ -166,7 +166,7 @@ void FGenericCrashContext::CleanupPlatformSpecificFiles()
 	const FString CrashVideoPath = FPaths::ProjectLogDir() + TEXT("CrashVideo.avi");
 	IFileManager::Get().Delete(*CrashVideoPath);
 
-	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UEGPUAftermathMinidumpName);
 	IFileManager::Get().Delete(*GPUMiniDumpPath);
 }
 
@@ -344,7 +344,7 @@ void FWindowsPlatformCrashContext::CopyPlatformSpecificFiles(const TCHAR* Output
 	}
 
 	// If present, include the gpu crash minidump
-	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UEGPUAftermathMinidumpName);
 	if (IFileManager::Get().FileExists(*GPUMiniDumpPath))
 	{
 		FString GPUMiniDumpFilename = FPaths::GetCleanFilename(GPUMiniDumpPath);
