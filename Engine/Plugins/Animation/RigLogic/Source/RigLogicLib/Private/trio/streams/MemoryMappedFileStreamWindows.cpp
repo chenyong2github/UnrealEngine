@@ -5,6 +5,7 @@
 
 #include "trio/streams/MemoryMappedFileStreamWindows.h"
 
+#include "trio/utils/NativeString.h"
 #include "trio/utils/ScopedEnumEx.h"
 
 #include <pma/PolyAllocator.h>
@@ -31,9 +32,9 @@ namespace {
 
 constexpr std::size_t minViewSizeWindows = 65536ul;
 
-inline std::uint64_t getFileSizeWindows(const char* path) {
+inline std::uint64_t getFileSizeWindows(const NativeCharacter* path) {
     WIN32_FILE_ATTRIBUTE_DATA w32fad;
-    if (GetFileAttributesExA(path, GetFileExInfoStandard, &w32fad) == 0) {
+    if (GetFileAttributesEx(path, GetFileExInfoStandard, &w32fad) == 0) {
         return 0ul;
     }
     ULARGE_INTEGER size;
@@ -96,14 +97,14 @@ private:
 }  // namespace
 
 MemoryMappedFileStreamWindows::MemoryMappedFileStreamWindows(const char* path_, AccessMode accessMode_, MemoryResource* memRes_) :
-    filePath{path_, memRes_},
+    filePath{NativeStringConverter::from(path_, memRes_)},
     fileAccessMode{accessMode_},
     memRes{memRes_},
     file{INVALID_HANDLE_VALUE},
     mapping{nullptr},
     data{nullptr},
     position{},
-    fileSize{getFileSizeWindows(path_)},
+    fileSize{getFileSizeWindows(filePath.c_str())},
     viewOffset{},
     viewSize{},
     delayedMapping{false},
@@ -123,14 +124,6 @@ MemoryResource* MemoryMappedFileStreamWindows::getMemoryResource() {
 
 std::uint64_t MemoryMappedFileStreamWindows::size() {
     return fileSize;
-}
-
-const char* MemoryMappedFileStreamWindows::path() const {
-    return filePath.c_str();
-}
-
-AccessMode MemoryMappedFileStreamWindows::accessMode() const {
-    return fileAccessMode;
 }
 
 void MemoryMappedFileStreamWindows::open() {
@@ -382,7 +375,7 @@ void MemoryMappedFileStreamWindows::openFile() {
         creationDisposition = static_cast<DWORD>(OPEN_ALWAYS);
     }
 
-    file = CreateFileA(filePath.c_str(), access, sharing, nullptr, creationDisposition, FILE_ATTRIBUTE_NORMAL, nullptr);
+    file = CreateFile(filePath.c_str(), access, sharing, nullptr, creationDisposition, FILE_ATTRIBUTE_NORMAL, nullptr);
 }
 
 void MemoryMappedFileStreamWindows::closeFile() {

@@ -15,7 +15,7 @@ class TRIOAPI FileStream : public BoundedIOStream {
         /**
             @brief Factory method for creation of a FileStream instance.
             @param path
-                Path to file to be opened.
+                UTF-8 encoded path to file to be opened.
             @param accessMode
                 Control whether the file is opened for reading or writing.
             @param openMode
@@ -45,10 +45,6 @@ class TRIOAPI FileStream : public BoundedIOStream {
 
         FileStream(FileStream&&) = default;
         FileStream& operator=(FileStream&&) = default;
-
-        virtual const char* path() const = 0;
-        virtual AccessMode accessMode() const = 0;
-        virtual OpenMode openMode() const = 0;
 
 };
 

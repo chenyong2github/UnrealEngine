@@ -59,6 +59,17 @@ inline void filter(std::vector<T, Args...>& source, Predicate pred) {
     }), source.end());
 }
 
+template<class TContainer, class Predicate, typename ... Args>
+inline void filter(TContainer& source, Predicate pred) {
+    using value_type = typename TContainer::value_type;
+    auto newEnd = std::remove_if(std::begin(source), std::end(source), [&source, &pred](const value_type& value) {
+        const auto index = static_cast<std::size_t>(&value - source.data());
+        return !pred(value, index);
+    });
+    const auto newSize = static_cast<std::size_t>(std::distance(source.begin(), newEnd));
+    source.resize(newSize);
+}
+
 namespace impl {
 
 enum class LUTStrategy {

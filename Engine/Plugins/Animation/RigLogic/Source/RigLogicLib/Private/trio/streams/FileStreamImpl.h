@@ -5,6 +5,7 @@
 #include "trio/streams/FileStream.h"
 #include "trio/streams/StreamStatus.h"
 #include "trio/types/Aliases.h"
+#include "trio/utils/NativeString.h"
 
 #include <pma/TypeDefs.h>
 
@@ -35,20 +36,17 @@ class FileStreamImpl : public FileStream {
         std::size_t read(Writable* destination, std::size_t size) override;
         std::size_t write(const char* source, std::size_t size) override;
         std::size_t write(Readable* source, std::size_t size) override;
-        const char* path() const override;
-        AccessMode accessMode() const override;
-        OpenMode openMode() const override;
 
         MemoryResource* getMemoryResource();
 
     private:
-        StreamStatus status;
         std::fstream file;
-        pma::String<char> filePath;
+        NativeString filePath;
         AccessMode fileAccessMode;
         OpenMode fileOpenMode;
         std::uint64_t fileSize;
         MemoryResource* memRes;
+        StreamStatus status;
 };
 
 }  // namespace trio
