@@ -168,7 +168,7 @@ void FDetailCategoryImpl::AddCustomBuilder(TSharedRef<IDetailCustomNodeBuilder> 
 	NewCustomization.bAdvanced = bForAdvanced;
 	NewCustomization.CustomBuilderRow = MakeShareable(new FDetailCustomBuilderRow(InCustomBuilder));
 
-	if (!bFavoriteCategory)
+	if (GetDetailsView() != nullptr && !bFavoriteCategory)
 	{
 		TStringBuilder<256> PathToNode;
 		PathToNode.Append(GetCategoryPathName());
