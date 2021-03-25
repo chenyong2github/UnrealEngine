@@ -4,13 +4,37 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/PropertyHelper.h"
 #include "UObject/UnrealType.h"
+#include "UObject/LinkerLoad.h"
 #include "UObject/LinkerPlaceholderExportObject.h"
 #include "UObject/LinkerPlaceholderClass.h"
 
 /*-----------------------------------------------------------------------------
 	FObjectPtrProperty.
 -----------------------------------------------------------------------------*/
-IMPLEMENT_FIELD(FObjectPtrProperty)
+struct FObjectPropertyFieldNameOverride
+{
+	FObjectPropertyFieldNameOverride(FFieldClass* FieldClass)
+	{
+		FFieldClass::GetNameToFieldClassMap().FindOrAdd(TEXT("ObjectPtrProperty")) = FieldClass;
+		if (!FLinkerLoad::IsImportLazyLoadEnabled())
+		{
+			FFieldClass::GetNameToFieldClassMap().FindOrAdd(TEXT("ObjectProperty")) = FObjectProperty::StaticClass();
+		}
+	}
+};
+
+FField* FObjectPtrProperty::Construct(const FFieldVariant& InOwner, const FName& InName, EObjectFlags InFlags)
+{
+	IMPLEMENT_FIELD_CONSTRUCT_IMPLEMENTATION(FObjectPtrProperty)
+}
+
+FFieldClass* FObjectPtrProperty::StaticClass()
+{
+	// This property type shares the same field name and can supplant FObjectProperty in the NameToFieldClassMap in some configurations because it is serialization compatible with it
+	static FFieldClass StaticFieldClass(TEXT("FObjectProperty"), FObjectPtrProperty::StaticClassCastFlagsPrivate(), FObjectPtrProperty::StaticClassCastFlags(), FObjectPtrProperty::Super::StaticClass(), &FObjectPtrProperty::Construct);
+	static FObjectPropertyFieldNameOverride ObjectPropertyFieldNameOverride(&StaticFieldClass);
+	return &StaticFieldClass;
+}
 
 FString FObjectPtrProperty::GetCPPType(FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/) const
 {
@@ -93,41 +117,11 @@ bool FObjectPtrProperty::Identical(const void* A, const void* B, uint32 PortFlag
 bool FObjectPtrProperty::StaticIdentical(const void* A, const void* B, uint32 PortFlags)
 {
 	FObjectPtr ObjectA = A ? *((FObjectPtr*)A) : FObjectPtr();
+	FObjectHandle ObjectAHandle = ObjectA.GetHandle();
 	FObjectPtr ObjectB = B ? *((FObjectPtr*)B) : FObjectPtr();
+	FObjectHandle ObjectBHandle = ObjectB.GetHandle();
 
-	if (ObjectA.IsNull() || ObjectB.IsNull())
-	{
-		return ObjectA.IsNull() == ObjectB.IsNull();
-	}
-
-	// Compare actual pointers. We don't do this during PIE because we want to be sure to serialize everything. An example is the LevelScriptActor being serialized against its CDO,
-	// which contains actor references. We want to serialize those references so they are fixed up.
-	const bool bDuplicatingForPIE = (PortFlags&PPF_DuplicateForPIE) != 0;
-	bool bResult = !bDuplicatingForPIE ? (ObjectA == ObjectB) : false;
-	// always serialize the cross level references, because they could be NULL
-	// @todo: okay, this is pretty hacky overall - we should have a PortFlag or something
-	// that is set during SavePackage. Other times, we don't want to immediately return false
-	// (instead of just this ExportDefProps case)
-	// instance testing
-	if (!bResult && ObjectA->GetClass() == ObjectB->GetClass())
-	{
-		bool bPerformDeepComparison = (PortFlags&PPF_DeepComparison) != 0;
-		if ((PortFlags&PPF_DeepCompareInstances) && !bPerformDeepComparison)
-		{
-			bPerformDeepComparison = ObjectA->IsTemplate() != ObjectB->IsTemplate();
-		}
-
-		if (!bResult && bPerformDeepComparison)
-		{
-			// In order for deep comparison to be match they both need to have the same name and that name needs to be included in the instancing table for the class
-			if (ObjectA->GetFName() == ObjectB->GetFName() && ObjectA->GetClass()->GetDefaultSubobjectByName(ObjectA->GetFName()))
-			{
-				checkSlow(ObjectA->IsDefaultSubobject() && ObjectB->IsDefaultSubobject() && ObjectA->GetClass()->GetDefaultSubobjectByName(ObjectA->GetFName()) == ObjectB->GetClass()->GetDefaultSubobjectByName(ObjectB->GetFName())); // equivalent
-				bResult = AreInstancedObjectsIdentical(ObjectA.Get(), ObjectB.Get(), PortFlags);
-			}
-		}
-	}
-	return bResult;
+	return ObjectAHandle == ObjectBHandle;
 }
 
 UObject* FObjectPtrProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const
@@ -143,6 +137,11 @@ void FObjectPtrProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObj
 bool FObjectPtrProperty::AllowCrossLevel() const
 {
 	return true;
+}
+
+bool FObjectPtrProperty::AllowObjectTypeReinterpretationTo(const FObjectPropertyBase* Other) const
+{
+	return Other && Other->IsA<FObjectProperty>();
 }
 
 uint32 FObjectPtrProperty::GetValueTypeHashInternal(const void* Src) const

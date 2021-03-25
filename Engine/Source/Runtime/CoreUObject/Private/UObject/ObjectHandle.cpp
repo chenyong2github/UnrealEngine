@@ -14,6 +14,8 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 
+DEFINE_LOG_CATEGORY(LogObjectHandle);
+
 bool operator==(const FObjectHandleDataClassDescriptor& Lhs, const FObjectHandleDataClassDescriptor& Rhs)
 {
 	return (Lhs.PackageName == Rhs.PackageName) && (Lhs.ClassName == Rhs.ClassName);
@@ -434,6 +436,7 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 			else
 			{
 				// Shunt the load request to happen on the game thread and block on its completion.  This is a deadlock risk!  The game thread may be blocked waiting on this thread.
+				UE_LOG(LogObjectHandle, Warning, TEXT("Resolve of object in package '%s' from a non-game thread was shunted to the game thread."), *ObjectRef.PackageName.ToString());
 				TGraphTask<FFullyLoadPackageOnHandleResolveTask>::CreateTask().ConstructAndDispatchWhenReady(TargetPackage)->Wait();
 			}
 
@@ -453,8 +456,16 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 
 	if (CurrentObject->HasAnyFlags(RF_NeedLoad) && TargetPackage->LinkerLoad)
 	{
-		check(IsInGameThread());
-		TargetPackage->LinkerLoad->Preload(CurrentObject);
+		if (IsInAsyncLoadingThread() || IsInGameThread())
+		{
+			TargetPackage->LinkerLoad->LoadAllObjects(true);
+		}
+		else
+		{
+			// Shunt the load request to happen on the game thread and block on its completion.  This is a deadlock risk!  The game thread may be blocked waiting on this thread.
+			UE_LOG(LogObjectHandle, Warning, TEXT("Resolve of object in package '%s' from a non-game thread was shunted to the game thread."), *ObjectRef.PackageName.ToString());
+			TGraphTask<FFullyLoadPackageOnHandleResolveTask>::CreateTask().ConstructAndDispatchWhenReady(TargetPackage)->Wait();
+		}
 	}
 	ObjectHandle_Private::OnReferenceResolved(ObjectRef, TargetPackage, CurrentObject);
 

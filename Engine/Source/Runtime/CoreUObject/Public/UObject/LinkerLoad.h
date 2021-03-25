@@ -10,6 +10,7 @@
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/PackageResourceManager.h"
+#include "UObject/ObjectHandle.h"
 
 class FLinkerPlaceholderBase;
 class IPakFile;
@@ -281,6 +282,16 @@ public:
 	 * @return true if the provided package was removed from the KnownMissingPackage list
 	 */
 	COREUOBJECT_API static bool RemoveKnownMissingPackage(FName PackageName);
+
+	/**
+	 * Determines if imports can be lazily loaded.  This relies on compile-time enabling of UE_WITH_OBJECT_HANDLE_LATE_RESOLVE from ObjectHandle.h as well as other factors.
+	 * @return true if imports can be lazily loaded
+	 */
+	#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	COREUOBJECT_API static bool IsImportLazyLoadEnabled();
+	#else
+	inline static bool IsImportLazyLoadEnabled() { return false; }
+	#endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
 	/**
 	 * 
@@ -1054,6 +1065,7 @@ private:
 		//LazyBackground,
 		LazyOnDemand,
 	};
+	static EImportLoadBehavior ParseImportLoadBehavior(const FString* LoadBehaviorMeta);
 	EImportLoadBehavior GetCurrentPropertyImportLoadBehavior(FPackageIndex ImportIndex);
 #endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 public:

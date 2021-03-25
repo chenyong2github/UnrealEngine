@@ -31,6 +31,7 @@ Field.cpp: Defines FField property system fundamentals
 #include "UObject/ObjectResource.h"
 #include "UObject/LinkerSave.h"
 #include "UObject/Interface.h"
+#include "UObject/LinkerLoad.h"
 #include "UObject/LinkerPlaceholderClass.h"
 #include "UObject/LinkerPlaceholderFunction.h"
 #include "UObject/StructScriptLoader.h"
@@ -1044,7 +1045,14 @@ FField* FField::CreateFromUField(UField* InField)
 	}
 	else if (UFieldClass == UObjectProperty::StaticClass())
 	{
-		NewField = new FObjectProperty(InField);
+		if (FLinkerLoad::IsImportLazyLoadEnabled())
+		{
+			NewField = new FObjectPtrProperty(InField);
+		}
+		else
+		{
+			NewField = new FObjectProperty(InField);
+		}
 	}
 	else if (UFieldClass == UWeakObjectProperty::StaticClass())
 	{

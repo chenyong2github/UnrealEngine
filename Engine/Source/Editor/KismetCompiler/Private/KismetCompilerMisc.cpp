@@ -945,6 +945,10 @@ FProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(FFieldVariant Prope
 				{
 					NewPropertyObj = new FWeakObjectProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
 				}
+				else if (FLinkerLoad::IsImportLazyLoadEnabled())
+				{
+					NewPropertyObj = new FObjectPtrProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
+				}
 				else
 				{
 					NewPropertyObj = new FObjectProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);

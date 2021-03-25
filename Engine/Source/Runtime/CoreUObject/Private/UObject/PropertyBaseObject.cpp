@@ -536,6 +536,11 @@ bool FObjectPropertyBase::AllowCrossLevel() const
 	return false;
 }
 
+bool FObjectPropertyBase::AllowObjectTypeReinterpretationTo(const FObjectPropertyBase* Other) const
+{
+	return false;
+}
+
 void FObjectPropertyBase::CheckValidObject(void* Value) const
 {
 	UObject *Object = GetObjectPropertyValue(Value);
@@ -586,7 +591,8 @@ void FObjectPropertyBase::CheckValidObject(void* Value) const
 
 bool FObjectPropertyBase::SameType(const FProperty* Other) const
 {
-	return Super::SameType(Other) && (PropertyClass == ((FObjectPropertyBase*)Other)->PropertyClass);
+	return (Super::SameType(Other) || (Other && Other->IsA<FObjectPropertyBase>() && ((FObjectPropertyBase*)Other)->AllowObjectTypeReinterpretationTo(this))) && 
+			 (PropertyClass == ((FObjectPropertyBase*)Other)->PropertyClass);
 }
 
 void FObjectPropertyBase::CopySingleValueToScriptVM( void* Dest, void const* Src ) const

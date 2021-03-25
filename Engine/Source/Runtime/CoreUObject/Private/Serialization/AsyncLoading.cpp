@@ -6026,13 +6026,10 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports(FFlushTree* FlushTree)
 	TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncPackage::LoadImports);
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_LoadImports);
 
-#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-	static bool bLazyLoadAllImports = FParse::Param(FCommandLine::Get(), TEXT("LazyLoadAllImports"));
-	if (bLazyLoadAllImports)
+	if (FLinkerLoad::IsImportLazyLoadEnabled())
 	{
 		return EAsyncPackageState::Complete;
 	}
-#endif
 
 	LastObjectWorkWasPerformedOn	= LinkerRoot;
 	LastTypeOfWorkPerformed			= TEXT("loading imports");
@@ -6159,13 +6156,10 @@ EAsyncPackageState::Type FAsyncPackage::CreateImports()
 	SCOPED_LOADTIMER(CreateImportsTime);
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_CreateImports);
 
-#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-	static bool bLazyLoadAllImports = FParse::Param(FCommandLine::Get(), TEXT("LazyLoadAllImports"));
-	if (bLazyLoadAllImports)
+	if (FLinkerLoad::IsImportLazyLoadEnabled())
 	{
 		return EAsyncPackageState::Complete;
 	}
-#endif
 
 	// GC can't run in here
 	FGCScopeGuard GCGuard;
