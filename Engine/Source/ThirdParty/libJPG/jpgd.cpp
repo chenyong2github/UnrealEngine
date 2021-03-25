@@ -37,7 +37,7 @@ namespace jpgd {
 	static inline void jpgd_free(void *p) { FMemory::Free(p); }
 
 // BEGIN EPIC MOD
-//@UE3 - use UE3 BGRA encoding instead of assuming RGBA
+//@UE - use UE BGRA encoding instead of assuming RGBA
 	// stolen from IImageWrapper.h
 	enum ERGBFormatJPG
 	{
