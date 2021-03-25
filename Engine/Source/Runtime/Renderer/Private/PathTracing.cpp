@@ -104,13 +104,21 @@ TAutoConsoleVariable<int32> CVarPathTracingEnableCameraBackfaceCulling(
 	ECVF_RenderThreadSafe
 );
 
-
 TAutoConsoleVariable<int32> CVarPathTracingFrameIndependentTemporalSeed(
 	TEXT("r.PathTracing.FrameIndependentTemporalSeed"),
 	1,
 	TEXT("Indicates to use different temporal seed for each sample across frames rather than resetting the sequence at the start of each frame\n")
 	TEXT("0: off\n")
 	TEXT("1: on (default)\n"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingCoherentSampling(
+	TEXT("r.PathTracing.CoherentSampling"),
+	0,
+	TEXT("When non-zero, share pixel seeds to improve coherence of execution on the GPU. This trades some correlation across the image in exchange for better performance.\n")
+	TEXT("0: off (default)\n")
+	TEXT("1: on\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -179,6 +187,7 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.UseErrorDiffusion = CVarPathTracingUseErrorDiffusion.GetValueOnRenderThread();
 	PathTracingData.ApproximateCaustics = CVarPathTracingApproximateCaustics.GetValueOnRenderThread();
 	PathTracingData.EnableCameraBackfaceCulling = CVarPathTracingEnableCameraBackfaceCulling.GetValueOnRenderThread();
+	PathTracingData.CoherentSampling = CVarPathTracingCoherentSampling.GetValueOnRenderThread();
 	float FilterWidth = CVarPathTracingFilterWidth.GetValueOnRenderThread();
 	if (FilterWidth < 0)
 	{
@@ -268,6 +277,14 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	{
 		NeedInvalidation = true;
 		PreviousSkipDirectLighting = PathTracingData.SkipDirectLighting;
+	}
+
+	// Changing coherent sampling requires starting over
+	static uint32 PreviousCoherentSampling = PathTracingData.CoherentSampling;
+	if (PreviousCoherentSampling != PathTracingData.CoherentSampling)
+	{
+		NeedInvalidation = true;
+		PreviousCoherentSampling = PathTracingData.CoherentSampling;
 	}
 
 	// the rest of PathTracingData and AdaptiveSamplingData is filled in by SetParameters below
@@ -914,8 +931,11 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		{
 			FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 			
-			int32 DispatchSizeX = View.ViewRect.Size().X;
-			int32 DispatchSizeY = View.ViewRect.Size().Y;
+			// Round up to coherent path tracing tile size to simplify pixel shuffling
+			// TODO: be careful not to write extra pixels past the boundary when using multi-gpu
+			const int32 TS = PATHTRACER_COHERENT_TILE_SIZE;
+			int32 DispatchSizeX = FMath::DivideAndRoundUp(View.ViewRect.Size().X, TS) * TS;
+			int32 DispatchSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y, TS) * TS;
 
 			FRayTracingShaderBindingsWriter GlobalResources;
 			SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
