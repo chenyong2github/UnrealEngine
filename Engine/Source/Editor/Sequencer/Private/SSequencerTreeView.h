@@ -229,7 +229,7 @@ private:
 	TArray<TSharedPtr<SSequencerTreeView>> SlaveTreeViews;
 
 	/** The SSequencerTreeView object this SSequencerTreeView is slave to, or nullptr if not a slave */
-	TSharedPtr<SSequencerTreeView> MasterTreeView;
+	TWeakPtr<SSequencerTreeView> MasterTreeView;
 
 	/** When true, the sequencer selection is being updated from a change in the tree seleciton. */
 	bool bUpdatingSequencerSelection;

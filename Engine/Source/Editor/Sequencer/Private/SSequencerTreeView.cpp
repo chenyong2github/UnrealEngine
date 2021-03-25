@@ -821,7 +821,7 @@ bool SSequencerTreeView::SynchronizeSequencerSelectionWithTreeSelection()
 	// If this is a slave SSequencerTreeView it only has a partial view of what is selected. The master should handle syncing the entire selection instead.
 	if (MasterTreeView.IsValid())
 	{
-		return MasterTreeView->SynchronizeSequencerSelectionWithTreeSelection();
+		return MasterTreeView.Pin()->SynchronizeSequencerSelectionWithTreeSelection();
 	}
 
 	bool bSelectionChanged = false;
