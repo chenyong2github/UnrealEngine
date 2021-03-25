@@ -7,6 +7,7 @@
 #include "Templates/IsSigned.h"
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Misc/AssertionMacros.h"
+#include "Templates/Invoke.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Traits/ElementType.h"
 #include "Containers/Array.h"
@@ -400,7 +401,7 @@ public:
 		for (const ElementType* RESTRICT Start = GetData(), *RESTRICT Data = Start + StartIndex; Data != Start; )
 		{
 			--Data;
-			if (Pred(*Data))
+			if (::Invoke(Pred, *Data))
 			{
 				return static_cast<SizeType>(Data - Start);
 			}
@@ -458,7 +459,7 @@ public:
 		const ElementType* RESTRICT Start = GetData();
 		for (const ElementType* RESTRICT Data = Start, *RESTRICT DataEnd = Start + ArrayNum; Data != DataEnd; ++Data)
 		{
-			if (Pred(*Data))
+			if (::Invoke(Pred, *Data))
 			{
 				return static_cast<SizeType>(Data - Start);
 			}
@@ -501,7 +502,7 @@ public:
 	{
 		for (ElementType* RESTRICT Data = GetData(), *RESTRICT DataEnd = Data + ArrayNum; Data != DataEnd; ++Data)
 		{
-			if (Pred(*Data))
+			if (::Invoke(Pred, *Data))
 			{
 				return Data;
 			}
@@ -524,7 +525,7 @@ public:
 		TArray<typename TRemoveConst<ElementType>::Type> FilterResults;
 		for (const ElementType* RESTRICT Data = GetData(), *RESTRICT DataEnd = Data + ArrayNum; Data != DataEnd; ++Data)
 		{
-			if (Pred(*Data))
+			if (::Invoke(Pred, *Data))
 			{
 				FilterResults.Add(*Data);
 			}
