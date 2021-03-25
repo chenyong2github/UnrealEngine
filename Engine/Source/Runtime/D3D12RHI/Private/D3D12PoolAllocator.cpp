@@ -650,8 +650,6 @@ void FD3D12PoolAllocator::UpdateAllocationTracking(FD3D12ResourceLocation& InAll
 			Adapter->ReleaseTrackedAllocationData(&InAllocation);
 		}
 	}
-#else 
-	return false;
 #endif // TRACK_RESOURCE_ALLOCATIONS
 }
 
