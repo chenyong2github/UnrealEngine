@@ -3,9 +3,9 @@
 #include "AnimNodes/AnimNode_IKRig.h"
 #include "IKRigProcessor.h"
 #include "IKRigDefinition.h"
+#include "Drawing/ControlRigDrawInterface.h"
 #include "Animation/AnimInstanceProxy.h"
-/////////////////////////////////////////////////////
-// AnimNode_IKRig
+
 
 FAnimNode_IKRig::FAnimNode_IKRig()
 	: RigDefinitionAsset (nullptr)
@@ -29,32 +29,34 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 		SourcePose.ResetToRefPose();
 	}
 
-	if (!RigProcessor)
+	if (!IKRigProcessor && IKRigProcessor->IsInitialized())
 	{
 		Output = SourcePose;
 		return;
 	}
 
+	FCompactPose& OutPose = SourcePose.Pose;
+	FIKRigSkeleton& IKRigSkeleton = IKRigProcessor->GetSkeleton();
+	
 	if (bStartFromRefPose)
 	{
-		RigProcessor->ResetToRefPose();
-	}
-		
-	FCompactPose& OutPose = SourcePose.Pose;
-	FIKRigTransforms& Transforms = RigProcessor->GetCurrentGlobalTransforms();
-
-	// copy input pose
-	for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
+		// start Solve() from REFERENCE pose
+		IKRigProcessor->SetInputPoseToRefPose();
+	}else
 	{
-		int32* Index = CompactPoseToRigIndices.Find(CPIndex);
-		if (Index)
+		// start Solve() from INPUT pose
+
+		// copy local bone transforms into IKRigProcessor skeleton
+		for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
 		{
-			// Todo: this is again slow. 
-			// the tricky part is that if we go start from child to parent
-			// we may still missing joints that don't exists
-			// so this is slow and for safety but needs revisit
-			Transforms.SetLocalTransform(*Index, OutPose[CPIndex], true);
+			int32* Index = CompactPoseToRigIndices.Find(CPIndex);
+			if (Index)
+			{
+				IKRigSkeleton.CurrentPoseLocal[*Index] = OutPose[CPIndex];
+			}
 		}
+		// update global pose in IK Rig
+		IKRigSkeleton.UpdateAllGlobalTransformFromLocal();
 	}
 
 	// update goal transforms before solve
@@ -62,23 +64,26 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 	{
 		if (ensure(GoalTransforms.IsValidIndex(GoalIndex)))
 		{
-			RigProcessor->SetGoalTransform(
+			IKRigProcessor->SetGoalTransform(
 				GoalNames[GoalIndex], 
 				GoalTransforms[GoalIndex].GetLocation(),
 				GoalTransforms[GoalIndex].GetRotation());
 		}
 	}
 
-	// run stack of solvers, generate new pose
-	RigProcessor->Solve();
+	// run stack of solvers, updates global transforms with new pose
+	IKRigProcessor->Solve();
 
-	// copy output pose
+	// update local transforms of current IKRig pose
+	IKRigSkeleton.UpdateAllLocalTransformFromGlobal();
+
+	// copy local transforms to output pose
 	for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
 	{
 		int32* Index = CompactPoseToRigIndices.Find(CPIndex);
 		if (Index)
 		{
-			Output.Pose[CPIndex] = Transforms.GetLocalTransform(*Index);
+			Output.Pose[CPIndex] = IKRigSkeleton.CurrentPoseLocal[*Index];
 		}
 	}
 
@@ -98,42 +103,43 @@ void FAnimNode_IKRig::GatherDebugData(FNodeDebugData& DebugData)
 void FAnimNode_IKRig::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
 	FAnimNode_Base::Initialize_AnyThread(Context);
 	Source.Initialize(Context);
-
-	if (RigProcessor)
+	if (!IKRigProcessor)
 	{
-		RigProcessor->Initialize(RigDefinitionAsset);
-		GoalNames.Reset();
-		RigProcessor->GetGoalNames(GoalNames);
+		return;
 	}
+	
+	IKRigProcessor->Initialize(RigDefinitionAsset);
+	GoalNames.Reset();
+	IKRigProcessor->GetGoalNames(GoalNames);
 }
 
 void FAnimNode_IKRig::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	if (RigDefinitionAsset && !RigProcessor)
-	{
-		RigProcessor = NewObject<UIKRigProcessor>(InAnimInstance->GetOwningComponent());
-	}
-
 	FAnimNode_Base::OnInitializeAnimInstance(InProxy, InAnimInstance);
+	
+	if (RigDefinitionAsset && !IKRigProcessor)
+	{
+		IKRigProcessor = UIKRigProcessor::MakeNewIKRigProcessor(InAnimInstance->GetOwningComponent());
+	}
 }
 
 bool FAnimNode_IKRig::RebuildGoalList()
 {
-	if (RigDefinitionAsset)
+	if (!RigDefinitionAsset)
 	{
-		TArray<FName> SolverGoals;
-		RigDefinitionAsset->GetGoalNamesFromSolvers(SolverGoals);
-		const int32 GoalNum = SolverGoals.Num();
-		if (GoalTransforms.Num() != GoalNum)
-		{
-			GoalTransforms.SetNum(GoalNum);
-			return true;
-		}
+		return false;
+	}
+	
+	TArray<FName> SolverGoals;
+	RigDefinitionAsset->GetGoalNamesFromSolvers(SolverGoals);
+	const int32 GoalNum = SolverGoals.Num();
+	if (GoalTransforms.Num() != GoalNum)
+	{
+		GoalTransforms.SetNum(GoalNum);
+		return true;
 	}
 
 	return false;
@@ -157,7 +163,6 @@ FName FAnimNode_IKRig::GetGoalName(int32 Index) const
 void FAnimNode_IKRig::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
 	GetEvaluateGraphExposedInputs().Execute(Context);
-
 	FAnimNode_Base::Update_AnyThread(Context);
 	Source.Update(Context);
 }
@@ -166,48 +171,38 @@ void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Co
 {
 	FAnimNode_Base::CacheBones_AnyThread(Context);
 	Source.CacheBones(Context);
-
-	if (RigProcessor)
+	
+	const FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
+	if (!RequiredBones.IsValid())
 	{
-		// fill up node names
-		const FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
+		return;
+	}
 
-		CompactPoseToRigIndices.Reset();
-
-		if (RequiredBones.IsValid())
+	// fill up node names
+	CompactPoseToRigIndices.Reset();
+	const TArray<FBoneIndexType>& RequiredBonesArray = RequiredBones.GetBoneIndicesArray();
+	const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
+	const int32 NumBones = RequiredBonesArray.Num();
+	for (uint16 Index = 0; Index < NumBones; ++Index)
+	{
+		const int32 MeshBone = RequiredBonesArray[Index];
+		if (!ensure(MeshBone != INDEX_NONE))
 		{
-			const TArray<FBoneIndexType>& RequiredBonesArray = RequiredBones.GetBoneIndicesArray();
-			const int32 NumBones = RequiredBonesArray.Num();
-
-			const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
-			const FIKRigHierarchy* Hierarchy = RigProcessor->GetHierarchy();
-
-			if (Hierarchy)
-			{
-
-				// even if not mapped, we map only node that exists in the controlrig
-				for (uint16 Index = 0; Index < NumBones; ++Index)
-				{
-					// get the name
-					int32 MeshBone = RequiredBonesArray[Index];
-					if (ensure(MeshBone != INDEX_NONE))
-					{
-						FCompactPoseBoneIndex CPIndex = RequiredBones.MakeCompactPoseIndex(FMeshPoseBoneIndex(MeshBone));
-						FName Name = RequiredBones.GetReferenceSkeleton().GetBoneName(MeshBone);
-						CompactPoseToRigIndices.Add(CPIndex) = Hierarchy->GetIndex(Name);
-					}
-				}
-			}
+			continue;
 		}
+		
+		FCompactPoseBoneIndex CPIndex = RequiredBones.MakeCompactPoseIndex(FMeshPoseBoneIndex(MeshBone));
+		const FName Name = RefSkeleton.GetBoneName(MeshBone);
+		CompactPoseToRigIndices.Add(CPIndex) = RigDefinitionAsset->Skeleton.GetBoneIndexFromName(Name);
 	}
 }
 
 void FAnimNode_IKRig::QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FTransform& ComponentToWorld)
 {
-	check (RigProcessor);
+	check (IKRigProcessor);
 	check (AnimProxy);
 
-	for (const FControlRigDrawInstruction& Instruction : RigProcessor->GetDrawInterface())
+	for (const FControlRigDrawInstruction& Instruction : IKRigProcessor->GetDrawInterface())
 	{
 		if (!Instruction.IsValid())
 		{

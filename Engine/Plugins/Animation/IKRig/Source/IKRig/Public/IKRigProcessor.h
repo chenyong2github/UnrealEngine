@@ -5,13 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "IKRigDataTypes.h"
 #include "Drawing/ControlRigDrawInterface.h"
+#include "IKRigDataTypes.h"
+#include "IKRigSkeleton.h"
+
 #include "IKRigProcessor.generated.h"
 
 class UIKRigDefinition;
 class UIKRigSolver;
-struct FControlRigDrawInterface;
 
 UCLASS(BlueprintType)
 class IKRIG_API UIKRigProcessor : public UObject
@@ -20,60 +21,77 @@ class IKRIG_API UIKRigProcessor : public UObject
 
 public:
 
-	// the runtime for an IKRig, general steps are:
-	// 1. Initialize() with an IKRigDefinition asset
-	// 2. each tick, call SetGoalTransform() and update GlobalBoneTransforms
-	// 3. Call Solve()
-	// 4. Copy back output transforms...
-	// 5. Profit.
+	/** the runtime for an IKRig to convert an input pose into
+	*   a solved output pose given the goal transforms:
+	* 1. Create a new IKRigProcessor once using MakeNewIKRigProcessor()
+	* 2. Initialize() with an IKRigDefinition asset
+	* 3. each tick, call SetGoalTransform() and update GlobalBoneTransforms
+	* 4. Call Solve()
+	* 5. Copy back output transforms...
+	*/
+
+	static UIKRigProcessor* MakeNewIKRigProcessor(UObject* Outer);
 	 
-	// setup
+	/** setup a new processor to run the given IKRig asset  */
 	void Initialize(UIKRigDefinition* InRigDefinition);
 
-	// run entire stack of solvers
-	void Solve();
+	//
+	// BEGIN UPDATE SEQUENCE FUNCTIONS
+	//
+	// This is the general sequence of function calls to run a typical IK solve:
+	// 
+	
+	/** set all transforms in global space */
+	void SetInputPoseGlobal(const TArray<FTransform>& InGlobalBoneTransforms);
 
-	// optionally can be called before Solve() to do deterministic solve
-	void ResetToRefPose();
+	/** optionally can be called before Solve() to use the reference pose as start pose */
+	void SetInputPoseToRefPose();
 
-	// get all global bone transforms
-	FIKRigTransforms& GetCurrentGlobalTransforms();
-
-	// set goal transform by name
+	/** set goal transform by name */
 	void SetGoalTransform(const FName& GoalName, const FVector& Position, const FQuat& Rotation);
 
-	// get all goal names in the solver stack
+	/** run entire stack of solvers */
+	void Solve();
+
+	/** get the results after calling Solve() */
+	void CopyOutputGlobalPoseToArray(TArray<FTransform>& OutputPoseGlobal) const;
+
+	//
+	// END UPDATE SEQUENCE FUNCTIONS
+	//
+
+	/** get all goal names in the solver stack */
 	void GetGoalNames(TArray<FName>& OutGoalNames) const;
 
-	// total number of goals in solver stack
+	/** total number of goals in solver stack */
 	int GetNumGoals() const;
 
-	// get access to the hierarchy the solver stack expects
-	const FIKRigHierarchy* GetHierarchy() const;
+	bool IsInitialized() const { return bInitialized; };
 
-	// interface for debug drawing
-	const FControlRigDrawInterface& GetDrawInterface() { return DrawInterface; }
+	/** interface for debug drawing */
+	const FControlRigDrawInterface& GetDrawInterface() const { return DrawInterface; }
+
+	/** get access to the internal skeleton data */
+	FIKRigSkeleton& GetSkeleton();
 	
 private:
 
+	/** solving disabled until this flag is true */
 	bool bInitialized = false;
 
-	UPROPERTY(EditAnywhere, Category = "RigDefinition")
-	UIKRigDefinition* RigDefinition = nullptr;
-
-	UPROPERTY(transient)
-	TArray<FTransform> RefPoseGlobalTransforms;
-
-	UPROPERTY(transient)
-	FIKRigTransforms GlobalBoneTransforms;
-
+	/** the stack of solvers to run in order */
 	UPROPERTY(transient)
 	TArray<UIKRigSolver*> Solvers;
 
+	/** storage for solver debug drawing data (lines, boxes etc) */
 	UPROPERTY(transient)
 	FControlRigDrawInterface DrawInterface;
 
+	/** the named transforms that solvers use as end effectors */
 	UPROPERTY(transient)
 	FIKRigGoalContainer Goals;
-};
 
+	/** storage for hierarchy and bone transforms */
+	UPROPERTY(transient)
+	FIKRigSkeleton Skeleton;
+};

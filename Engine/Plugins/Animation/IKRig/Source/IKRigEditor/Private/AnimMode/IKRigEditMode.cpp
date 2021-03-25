@@ -5,18 +5,20 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 
+// NOTE: This mode is disabled until we can revisit the idea of pulling effectors in ABP viewport
+
 void FIKRigEditMode::EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode)
 {
-	RuntimeNode = static_cast<FAnimNode_IKRig*>(InRuntimeNode);
-	GraphNode = CastChecked<UAnimGraphNode_IKRig>(InEditorNode);
+	//RuntimeNode = static_cast<FAnimNode_IKRig*>(InRuntimeNode);
+	//GraphNode = CastChecked<UAnimGraphNode_IKRig>(InEditorNode);
 
 	FAnimNodeEditMode::EnterMode(InEditorNode, InRuntimeNode);
 }
 
 void FIKRigEditMode::ExitMode()
 {
-	RuntimeNode = nullptr;
-	GraphNode = nullptr;
+	//RuntimeNode = nullptr;
+	//GraphNode = nullptr;
 
 	FAnimNodeEditMode::ExitMode();
 }

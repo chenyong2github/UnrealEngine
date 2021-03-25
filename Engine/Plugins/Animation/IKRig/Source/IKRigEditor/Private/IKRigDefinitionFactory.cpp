@@ -7,9 +7,6 @@
 #define LOCTEXT_NAMESPACE "IKRigDefinitionFactory"
 
 
-/* UFactory interface
- *****************************************************************************/
-
 UIKRigDefinitionFactory::UIKRigDefinitionFactory()
 {
 	bCreateNew = true;
@@ -44,7 +41,7 @@ uint32 UIKRigDefinitionFactory::GetMenuCategories() const
 
 FText UIKRigDefinitionFactory::GetToolTip() const
 {
-	return LOCTEXT("IKRigDefinition_Tooltip", "Create a customized IK Rig to be embedded in an Anim Graph or Control Rig.");
+	return LOCTEXT("IKRigDefinition_Tooltip", "Defines a set of IK Solvers and Effectors to pose a skeleton with Goals.");
 }
 
 FString UIKRigDefinitionFactory::GetDefaultNewAssetName() const

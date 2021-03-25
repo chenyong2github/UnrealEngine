@@ -5,6 +5,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "IKRigDataTypes.h"
+#include "IKRigSkeleton.h"
 #include "IKRigSolver.generated.h"
 
 struct FIKRigTarget;
@@ -35,12 +36,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bEnabled = true;
 
-	/** override Init() to setup internal data based on ref pose */
-	virtual void Init(const FIKRigTransforms& InGlobalTransform) PURE_VIRTUAL("Init");
+	/** override to setup internal data based on ref pose */
+	virtual void Initialize(const FIKRigSkeleton& IKRigSkeleton) PURE_VIRTUAL("Init");
 
 	/** override Solve() to evaluate new output pose (InOutGlobalTransform) */
 	virtual void Solve(
-		FIKRigTransforms& InOutGlobalTransform,
+		FIKRigSkeleton& IKRigSkeleton,
 		const FIKRigGoalContainer& Goals,
 		FControlRigDrawInterface* InOutDrawInterface) PURE_VIRTUAL("Solve");
 

@@ -26,11 +26,8 @@ public:
 	static UIKRigController* GetControllerByRigDefinition(UIKRigDefinition* InIKRigDefinition);
 
 	//** skeleton */
-	const FIKRigHierarchy* GetHierarchy() const;
-	const TArray<FTransform>& GetRefPoseTransforms() const;
-	void SetSkeleton(const FReferenceSkeleton& InSkeleton);
-	bool AddBone(const FName& InName, const FName& InParent, const FTransform& InGlobalTransform);
-	void ResetHierarchy();
+	void SetSkeleton(const FReferenceSkeleton& InSkeleton) const;
+	FIKRigSkeleton& GetSkeleton() const;
 
 	//** solvers */
 	UIKRigSolver* AddSolver(TSubclassOf<UIKRigSolver> InSolverClass);

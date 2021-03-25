@@ -5,17 +5,17 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
-#include "IKRigDefinitionFactory.generated.h"
+#include "IKRetargeterFactory.generated.h"
 
 
 UCLASS(BlueprintType, hidecategories=Object)
-class UIKRigDefinitionFactory : public UFactory
+class UIKRetargeterFactory : public UFactory
 {
 	GENERATED_BODY()
 
 public:
 
-	UIKRigDefinitionFactory();
+	UIKRetargeterFactory();
 
 	// UFactory Interface
 	virtual FText GetDisplayName() const override;

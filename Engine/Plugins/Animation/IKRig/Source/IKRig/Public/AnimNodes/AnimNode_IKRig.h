@@ -10,10 +10,6 @@
 class UIKRigDefinition;
 class UIKRigProcessor;
 
-/**
-*	Controller which implements the FABRIK IK approximation algorithm -  see http://www.academia.edu/9165835/FABRIK_A_fast_iterative_solver_for_the_Inverse_Kinematics_problem for details
-*/
-
 USTRUCT(BlueprintInternalUseOnly)
 struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 {
@@ -29,7 +25,7 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, EditFixedSize, Category = Goal, meta = (PinShownByDefault))
 	TArray<FTransform> GoalTransforms;
 
-	/** For every evaluation, we'll start with refpose, this is safer if you have joints that don't exists in the target */
+	/** optionally ignore the input pose and start from the reference pose each solve */
 	UPROPERTY(EditAnywhere, Category = Solver)
 	bool bStartFromRefPose = false;
 
@@ -41,7 +37,7 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 
 private: 
 	UPROPERTY(Transient)
-	UIKRigProcessor* RigProcessor = nullptr;
+	UIKRigProcessor* IKRigProcessor = nullptr;
 
 	TArray<FName> GoalNames;
 	TMap<FCompactPoseBoneIndex, int32, FDefaultSetAllocator, TCompactPoseBoneIndexMapKeyFuncs<int32>> CompactPoseToRigIndices;

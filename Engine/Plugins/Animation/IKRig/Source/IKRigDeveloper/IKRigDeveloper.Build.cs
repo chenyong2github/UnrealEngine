@@ -6,16 +6,14 @@ namespace UnrealBuildTool.Rules
     {
         public IKRigDeveloper(ReadOnlyTargetRules Target) : base(Target)
         {
-            // Copying some these from ControlRig.build.cs, our deps are likely leaner
-            // and therefore these could be pruned if needed:
-            PrivateDependencyModuleNames.AddRange(
+	        PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
 					"Core",
 					"CoreUObject",
 					"Engine",
 					"IKRig",
-				}
+                }
             );
 
             PublicDependencyModuleNames.AddRange(
@@ -29,7 +27,10 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.AddRange(
                     new string[]
                     {
-						"AnimGraph",
+                        "EditorFramework",
+                        "UnrealEd",
+                        "Kismet",
+                        "AnimGraph",
                         "BlueprintGraph",
                     }
                 );

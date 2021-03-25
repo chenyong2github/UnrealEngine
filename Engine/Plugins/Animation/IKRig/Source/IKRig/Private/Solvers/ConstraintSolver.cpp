@@ -3,13 +3,13 @@
 #include "Solvers/ConstraintSolver.h"
 #include "IKRigBoneSetting.h"
 
-void UIKRigConstraintSolver::Init(const FIKRigTransforms& InGlobalTransform)
+void UIKRigConstraintSolver::Initialize(const FIKRigSkeleton& InSkeleton)
 {
 	// TODO get constraints that this solver can deal with
 }
 
 void UIKRigConstraintSolver::Solve(
-	FIKRigTransforms& InOutGlobalTransform,
+	FIKRigSkeleton& IKRigSkeleton,
 	const FIKRigGoalContainer& Goals,
 	FControlRigDrawInterface* InOutDrawInterface)
 {

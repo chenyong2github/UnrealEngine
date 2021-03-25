@@ -17,7 +17,7 @@ public class IKRig : ModuleRules
 				"SlateCore",
 				"AnimationCore", 
 				"AnimGraphRuntime",
-				"ControlRig",
+				
 				"FullBodyIK"
 			}
 			);
@@ -25,6 +25,7 @@ public class IKRig : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"ControlRig",
 				"Core",
 			}
 			);

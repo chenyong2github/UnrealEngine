@@ -13,4 +13,6 @@ public:
 
 private:
 	TSharedPtr<class FAssetTypeActions_IKRigDefinition> IKRigDefinitionAssetAction;
+	TSharedPtr<class FAssetTypeActions_IKRetargeter> IKRetargeterAssetAction;
+	TSharedPtr<class FAssetTypeActions_IKRetargetRig> IKRetargetRigAssetAction;
 };

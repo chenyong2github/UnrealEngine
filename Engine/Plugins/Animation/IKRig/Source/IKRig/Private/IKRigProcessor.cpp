@@ -3,75 +3,87 @@
 #include "IKRigProcessor.h"
 #include "IKRigDefinition.h"
 #include "IKRigSolver.h"
-#include "Solvers/ConstraintSolver.h"
 
+
+UIKRigProcessor* UIKRigProcessor::MakeNewIKRigProcessor(UObject* Outer)
+{
+	return NewObject<UIKRigProcessor>(Outer);
+}
 
 void UIKRigProcessor::Initialize(UIKRigDefinition* InRigDefinition)
 {
 	bInitialized = false;
 
-	RigDefinition = InRigDefinition;
-	if (!RigDefinition)
+	if (!ensureMsgf(InRigDefinition, TEXT("Trying to initialize IKRigProcessor with a null IKRigDefinition asset.")))
 	{
 		return;
 	}
-	
-	RefPoseGlobalTransforms = RigDefinition->RefPoseTransforms;
-	GlobalBoneTransforms = FIKRigTransforms(&RigDefinition->Hierarchy);
-	GlobalBoneTransforms.SetAllGlobalTransforms(RefPoseGlobalTransforms);
 
+	// copy skeleton data from IKRigDefinition
+	Skeleton = InRigDefinition->Skeleton; // trivial copy assignment operator for POD
+
+	// initialize goal names based on solvers
 	TArray<FName> GoalNames;
-	RigDefinition->GetGoalNamesFromSolvers(GoalNames);
+	InRigDefinition->GetGoalNamesFromSolvers(GoalNames);
 	Goals.InitializeGoalsFromNames(GoalNames);
 
-	TArray<UIKRigSolver*> RigSolvers = RigDefinition->Solvers;
-	const int32 NumSolvers = RigSolvers.Num();
-	Solvers.Reset(NumSolvers);
-	for (int32 Index = 0; Index < NumSolvers; ++Index)
+	// create copies of all the solvers in the IK rig
+	Solvers.Reset(InRigDefinition->Solvers.Num());
+	for (UIKRigSolver* IKRigSolver : InRigDefinition->Solvers)
 	{
-		if (!RigSolvers[Index])
+		if (!IKRigSolver)
 		{
+			// this can happen if asset references deleted IK Solver type
+			// which should only happen during development (if at all)
 			continue;
 		}
 		
-		UIKRigSolver* Solver = DuplicateObject(RigSolvers[Index], this);
-		Solver->Init(GlobalBoneTransforms);
+		UIKRigSolver* Solver = DuplicateObject(IKRigSolver, this);
+		Solver->Initialize(Skeleton);
 		Solvers.Add(Solver);
 	}
 
 	bInitialized = true;
 }
 
-void UIKRigProcessor::Solve()
-{
-	if (!ensure(bInitialized))
-	{
-		return;
-	}
-
-	check (RigDefinition);
-
-	DrawInterface.Reset();
-
-	for (int32 Index = 0; Index < Solvers.Num(); ++Index)
-	{
-		Solvers[Index]->Solve(GlobalBoneTransforms, Goals, &DrawInterface);
-	}
-}
-
-FIKRigTransforms& UIKRigProcessor::GetCurrentGlobalTransforms() 
+void UIKRigProcessor::SetInputPoseGlobal(const TArray<FTransform>& InGlobalBoneTransforms) 
 {
 	check(bInitialized);
-	return GlobalBoneTransforms;
+	check(InGlobalBoneTransforms.Num() == Skeleton.CurrentPoseGlobal.Num());
+	Skeleton.CurrentPoseGlobal = InGlobalBoneTransforms;
+	Skeleton.UpdateAllLocalTransformFromGlobal();
+}
+
+void UIKRigProcessor::SetInputPoseToRefPose()
+{
+	check(bInitialized);
+	Skeleton.CurrentPoseGlobal = Skeleton.RefPoseGlobal;
+	Skeleton.UpdateAllLocalTransformFromGlobal();
 }
 
 void UIKRigProcessor::SetGoalTransform(
-	const FName& GoalName,
-	const FVector& Position,
-	const FQuat& Rotation)
+    const FName& GoalName,
+    const FVector& Position,
+    const FQuat& Rotation)
 {
 	check(bInitialized);
 	Goals.SetGoalTransform(GoalName, Position, Rotation);
+}
+
+void UIKRigProcessor::Solve()
+{
+	check(bInitialized);
+	DrawInterface.Reset();
+	for (UIKRigSolver* Solver : Solvers)
+	{
+		Solver->Solve(Skeleton, Goals, &DrawInterface);
+	}
+}
+
+void UIKRigProcessor::CopyOutputGlobalPoseToArray(TArray<FTransform>& OutputPoseGlobal) const
+{
+	check(bInitialized);
+	OutputPoseGlobal = Skeleton.CurrentPoseGlobal;
 }
 
 void UIKRigProcessor::GetGoalNames(TArray<FName>& OutGoalNames) const
@@ -82,17 +94,12 @@ void UIKRigProcessor::GetGoalNames(TArray<FName>& OutGoalNames) const
 
 int UIKRigProcessor::GetNumGoals() const
 {
+	check(bInitialized);
 	return Goals.GetNumGoals();
 }
 
-const FIKRigHierarchy* UIKRigProcessor::GetHierarchy() const
+FIKRigSkeleton& UIKRigProcessor::GetSkeleton()
 {
 	check(bInitialized);
-	return ensure(RigDefinition) ? &RigDefinition->Hierarchy : nullptr;
-}
-
-void UIKRigProcessor::ResetToRefPose()
-{
-	check(bInitialized);
-	GlobalBoneTransforms.SetAllGlobalTransforms(RefPoseGlobalTransforms);
+	return Skeleton;
 }

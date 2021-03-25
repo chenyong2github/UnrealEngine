@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	FullBodyIKSolver.cpp: Solver execution class for Transform
-=============================================================================*/
-
 #include "Solvers/IKRigFBIKSolver.h"
 #include "IKRigDataTypes.h"
-#include "IKRigHierarchy.h"
 #include "FBIKConstraint.h"
 #include "JacobianIK.h"
 #include "FBIKUtil.h"
@@ -18,7 +13,7 @@ const FName UIKRigFBIKSolver::EffectorTargetPrefix = FName(TEXT("FullBodyIKTarge
 //////////////////////////////////////////////
 // utility functions
 ////////////////////////////////////////////////
-static float EnsureToAddBoneToLinkData(const FIKRigTransforms& TransformModifier, const int32 CurrentItem, TArray<FFBIKLinkData>& LinkData,
+static float EnsureToAddBoneToLinkData(const FIKRigSkeleton& InSkeleton, const int32 CurrentItem, TArray<FFBIKLinkData>& LinkData,
 	TMap<int32, int32>& HierarchyToLinkDataMap, TMap<int32, int32>& LinkDataToHierarchyIndices)
 {
 	float ChainLength = 0;
@@ -31,16 +26,16 @@ static float EnsureToAddBoneToLinkData(const FIKRigTransforms& TransformModifier
 		FFBIKLinkData& NewLink = LinkData[NewLinkIndex];
 
 		// find parent LinkIndex
-		const int32 ParentItem = TransformModifier.Hierarchy->GetParentIndex(CurrentItem);
+		const int32 ParentItem = InSkeleton.GetParentIndex(CurrentItem);
 		FoundLinkIndex = HierarchyToLinkDataMap.Find(ParentItem);
 		NewLink.ParentLinkIndex = (FoundLinkIndex) ? *FoundLinkIndex : INDEX_NONE;
-		NewLink.SetTransform(TransformModifier.GetGlobalTransform(CurrentItem));
+		NewLink.SetTransform(InSkeleton.RefPoseGlobal[CurrentItem]);
 
 		if (ParentItem != INDEX_NONE)
 		{
 			// @todo: currently we assume the input pose is init transform
 			// this could use reference pose getter from IKRigSolver or we could wrap it to TransformModifier
-			FVector DiffLocation = TransformModifier.GetGlobalTransform(CurrentItem).GetLocation() - TransformModifier.GetGlobalTransform(ParentItem).GetLocation();
+			FVector DiffLocation = InSkeleton.RefPoseGlobal[CurrentItem].GetLocation() - InSkeleton.RefPoseGlobal[ParentItem].GetLocation();
 			// set Length
 			NewLink.Length = DiffLocation.Size();
 		}
@@ -84,18 +79,18 @@ static void AddToEffectorTarget(int32 EffectorIndex, const int32 Effector, TMap<
 }
 
 // the output should be from current index -> to root parent 
-static bool GetBoneChain(const FIKRigTransforms& TransformModifier, const FName& Root, const FName& Current, TArray<int32>& ChainIndices)
+static bool GetBoneChain(const FIKRigSkeleton& InSkeleton, const FName& Root, const FName& Current, TArray<int32>& ChainIndices)
 {
 	ChainIndices.Reset();
 
-	int32 RootIndex = TransformModifier.Hierarchy->GetIndex(Root);
-	int32 Iterator = TransformModifier.Hierarchy->GetIndex(Current);;
+	int32 RootIndex = InSkeleton.GetBoneIndexFromName(Root);
+	int32 Iterator = InSkeleton.GetBoneIndexFromName(Current);;
 
 	// iterates until key is valid
 	while (Iterator!=INDEX_NONE && Iterator != RootIndex)
 	{
 		ChainIndices.Insert(Iterator, 0);
-		Iterator = TransformModifier.Hierarchy->GetParentIndex(Iterator);
+		Iterator = InSkeleton.GetParentIndex(Iterator);
 	}
 
 	// add the last one if valid
@@ -110,7 +105,7 @@ static bool GetBoneChain(const FIKRigTransforms& TransformModifier, const FName&
 	return !ChainIndices.IsEmpty();
 }
 
-static void AddEffectors(const FIKRigTransforms& TransformModifier, const FName Root, const TArray<FFBIKRigEffector>& Effectors,
+static void AddEffectors(const FIKRigSkeleton& IKRigSkeleton, const FName Root, const TArray<FFBIKRigEffector>& Effectors,
 	TArray<FFBIKLinkData>& LinkData, TMap<int32, FFBIKEffectorTarget>& EffectorTargets, TArray<int32>& EffectorLinkIndices,
 	TMap<int32, int32>& LinkDataToHierarchyIndices, TMap<int32, int32>& HierarchyToLinkDataMap, const FSolverInput& SolverProperty)
 {
@@ -122,7 +117,7 @@ static void AddEffectors(const FIKRigTransforms& TransformModifier, const FName 
 		EffectorLinkIndices[Index] = INDEX_NONE;
 		// create LinkeData from root bone to all effectors 
 		const FName Bone = Effectors[Index].Target.Bone;
-		const int32 BoneIndex = TransformModifier.Hierarchy->GetIndex(Bone);
+		const int32 BoneIndex = IKRigSkeleton.GetBoneIndexFromName(Bone);
 
 		if (Bone == NAME_None || BoneIndex == INDEX_NONE)
 		{
@@ -133,7 +128,7 @@ static void AddEffectors(const FIKRigTransforms& TransformModifier, const FName 
 
 		TArray<int32> ChainIndices;
 		// if we haven't got to root, this is not valid chain
-		if (GetBoneChain(TransformModifier, Root, Bone, ChainIndices))
+		if (GetBoneChain(IKRigSkeleton, Root, Bone, ChainIndices))
 		{
 			auto CalculateStrength = [&](int32 InBoneChainDepth, const int32 MaxDepth, float CurrentStrength, float MinStrength) -> float
 			{
@@ -182,7 +177,7 @@ static void AddEffectors(const FIKRigTransforms& TransformModifier, const FName 
 			for (int32 BoneChainIndex = 0; BoneChainIndex < ChainIndices.Num(); ++BoneChainIndex)
 			{
 				const int32 CurrentItem = ChainIndices[BoneChainIndex];
-				ChainLength += EnsureToAddBoneToLinkData(TransformModifier, CurrentItem, LinkData,
+				ChainLength += EnsureToAddBoneToLinkData(IKRigSkeleton, CurrentItem, LinkData,
 					HierarchyToLinkDataMap, LinkDataToHierarchyIndices);
 
 				const int32 ChainDepth = ChainIndices.Num() - BoneChainIndex;
@@ -204,7 +199,7 @@ UIKRigFBIKSolver::UIKRigFBIKSolver()
 {
 }
 
-void UIKRigFBIKSolver::Init(const FIKRigTransforms& InGlobalTransform)
+void UIKRigFBIKSolver::Initialize(const FIKRigSkeleton& IKRigSkeleton)
 {
 
 	LinkData.Reset();
@@ -214,12 +209,12 @@ void UIKRigFBIKSolver::Init(const FIKRigTransforms& InGlobalTransform)
 	HierarchyToLinkDataMap.Reset();
 
 	// verify the chain
-	AddEffectors(InGlobalTransform, Root, Effectors, LinkData, EffectorTargets, EffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
+	AddEffectors(IKRigSkeleton, Root, Effectors, LinkData, EffectorTargets, EffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
 	
 }
 
 void UIKRigFBIKSolver::Solve(
-	FIKRigTransforms& InOutGlobalTransform,
+	FIKRigSkeleton& IKRigSkeleton,
 	const FIKRigGoalContainer& Goals,
 	FControlRigDrawInterface* InOutDrawInterface)
 {
@@ -259,7 +254,7 @@ void UIKRigFBIKSolver::Solve(
 		for (int32 LinkIndex = 0; LinkIndex < LinkData.Num(); ++LinkIndex)
 		{
 			const int32 Item = *LinkDataToHierarchyIndices.Find(LinkIndex);
-			LinkData[LinkIndex].SetTransform(InOutGlobalTransform.GetGlobalTransform(Item));
+			LinkData[LinkIndex].SetTransform(IKRigSkeleton.CurrentPoseGlobal[Item]);
 			// @todo: fix this somewhere else - we can add this to prepare step
 			// @todo: we update motion scale here, then?
 			LinkData[LinkIndex].FinalizeForSolver();
@@ -546,6 +541,10 @@ void UIKRigFBIKSolver::Solve(
 		///////////////////////////////////////////////////////////////////////////
 	}
 
+	// record bones that are controlled by solver
+	TArray<bool> SolvedBones;
+	SolvedBones.Init(false, IKRigSkeleton.CurrentPoseGlobal.Num());
+	
 	// we update back to hierarchy
 	for (int32 LinkIndex = 0; LinkIndex < LinkData.Num(); ++LinkIndex)
 	{
@@ -553,7 +552,17 @@ void UIKRigFBIKSolver::Solve(
 		// this means, only the last joint in the test
 		const int32 CurrentItem = *LinkDataToHierarchyIndices.Find(LinkIndex);
 		const FTransform& LinkTransform = LinkData[LinkIndex].GetTransform();
-		InOutGlobalTransform.SetGlobalTransform(CurrentItem, LinkTransform, true);
+		IKRigSkeleton.CurrentPoseGlobal[CurrentItem] = LinkTransform;
+		SolvedBones[CurrentItem] = true;
+	}
+
+	// update non-solved global pose
+	for (int32 BoneIndex=0; BoneIndex<IKRigSkeleton.CurrentPoseGlobal.Num(); ++BoneIndex)
+	{
+		if (!SolvedBones[BoneIndex])
+		{
+			IKRigSkeleton.UpdateGlobalTransformFromLocal(BoneIndex);
+		}
 	}
 }
 

@@ -3,7 +3,6 @@
 
 #include "Solvers/TransformSolver.h"
 #include "IKRigDataTypes.h"
-#include "IKRigHierarchy.h"
 
 
 UTransformSolver::UTransformSolver()
@@ -11,13 +10,13 @@ UTransformSolver::UTransformSolver()
 	Effector.Goal = "DefaultGoal";
 }
 
-void UTransformSolver::Init(const FIKRigTransforms& InGlobalTransform)
+void UTransformSolver::Initialize(const FIKRigSkeleton& IKRigSkeleton)
 {
-	
+	BoneIndex = IKRigSkeleton.GetBoneIndexFromName(Effector.Bone);
 }
 
 void UTransformSolver::Solve(
-	FIKRigTransforms& InOutGlobalTransform,
+	FIKRigSkeleton& IKRigSkeleton,
 	const FIKRigGoalContainer& Goals,
 	FControlRigDrawInterface* InOutDrawInterface)
 {
@@ -26,25 +25,20 @@ void UTransformSolver::Solve(
 	{
 		return;
 	}
-	
-	int32 Index = InOutGlobalTransform.Hierarchy->GetIndex(Effector.Bone);
-	if (Index == INDEX_NONE)
-	{
-		return;
-	}
 
-	FTransform CurrentTransform = InOutGlobalTransform.GetGlobalTransform(Index);
+	FTransform& CurrentTransform = IKRigSkeleton.CurrentPoseGlobal[BoneIndex];
 
 	if (bEnablePosition)
 	{
 		CurrentTransform.SetLocation(Goal.Position);
 	}
+	
 	if (bEnableRotation)
 	{
 		CurrentTransform.SetRotation(Goal.Rotation);
 	}
 
-	InOutGlobalTransform.SetGlobalTransform(Index, CurrentTransform, true);
+	IKRigSkeleton.PropagateGlobalPoseBelowBone(BoneIndex);
 }
 
 void UTransformSolver::CollectGoalNames(TSet<FName>& OutGoals) const

@@ -26,11 +26,15 @@ public:
 
 protected:
 	
-	virtual void Init(const FIKRigTransforms& InGlobalTransform) override;
+	virtual void Initialize(const FIKRigSkeleton& IKRigSkeleton) override;
 	virtual void Solve(
-		FIKRigTransforms& InOutGlobalTransform, 
+		FIKRigSkeleton& IKRigSkeleton, 
 		const FIKRigGoalContainer& Goals,
 		FControlRigDrawInterface* InOutDrawInterface) override;
 	virtual void CollectGoalNames(TSet<FName>& OutGoals) const override;
+
+private:
+	
+	int32 BoneIndex;
 };
 

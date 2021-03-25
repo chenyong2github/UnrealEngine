@@ -65,23 +65,7 @@ void UIKRigController::SetIKRigDefinition(UIKRigDefinition* InIKRigDefinition)
 // SKELETON
 //
 
-const FIKRigHierarchy* UIKRigController::GetHierarchy() const
-{
-	return IKRigDefinition ? &IKRigDefinition->Hierarchy : nullptr;
-}
-
-const TArray<FTransform>& UIKRigController::GetRefPoseTransforms() const
-{
-	if (IKRigDefinition)
-	{
-		return IKRigDefinition->RefPoseTransforms;
-	}
-
-	static TArray<FTransform> Dummy;
-	return Dummy;
-}
-
-void UIKRigController::SetSkeleton(const FReferenceSkeleton& InSkeleton)
+void UIKRigController::SetSkeleton(const FReferenceSkeleton& InSkeleton) const
 {
 	if (!IKRigDefinition)
 	{
@@ -91,47 +75,14 @@ void UIKRigController::SetSkeleton(const FReferenceSkeleton& InSkeleton)
 	FScopedTransaction Transaction(LOCTEXT("SetSkeleton_Label", "Set Skeleton"));
 	IKRigDefinition->Modify();
 
-	IKRigDefinition->ResetHierarchy();
-
-	const TArray<FMeshBoneInfo>& RefBoneInfo = InSkeleton.GetRefBoneInfo();
-	TArray<FTransform> RefPoseInCS;
-	FAnimationRuntime::FillUpComponentSpaceTransforms(InSkeleton, InSkeleton.GetRefBonePose(), RefPoseInCS);
-	ensure(RefPoseInCS.Num() == RefBoneInfo.Num());
-	for (int32 Index = 0; Index < RefBoneInfo.Num(); ++Index)
-	{
-		int32 ParentIndex = RefBoneInfo[Index].ParentIndex;
-		ensure(IKRigDefinition->AddBone(RefBoneInfo[Index].Name, (ParentIndex != INDEX_NONE) ? RefBoneInfo[ParentIndex].Name : NAME_None, RefPoseInCS[Index]));
-	}
-
-	ensure(IKRigDefinition->Hierarchy.GetNum() == IKRigDefinition->RefPoseTransforms.Num());
+	IKRigDefinition->Skeleton.Initialize(InSkeleton);
 }
 
-bool UIKRigController::AddBone(const FName& InName, const FName& InParent, const FTransform& InGlobalTransform)
+FIKRigSkeleton& UIKRigController::GetSkeleton() const
 {
-	if (!IKRigDefinition)
-	{
-		return false;
-	}
-
-	FScopedTransaction Transaction(LOCTEXT("AddBone_Label", "Add Bone"));
-	IKRigDefinition->Modify();
-
-	return IKRigDefinition->AddBone(InName, InParent, InGlobalTransform);
+	return IKRigDefinition->Skeleton;
 }
 
-
-void UIKRigController::ResetHierarchy()
-{
-	if (!IKRigDefinition)
-	{
-		return;
-	}
-
-	FScopedTransaction Transaction(LOCTEXT("ResetHierarchy_Label", "Reset Hierarchy"));
-	IKRigDefinition->Modify();
-
-	IKRigDefinition->ResetHierarchy();
-}
 
 // -------------------------------------------------------
 // SOLVERS
