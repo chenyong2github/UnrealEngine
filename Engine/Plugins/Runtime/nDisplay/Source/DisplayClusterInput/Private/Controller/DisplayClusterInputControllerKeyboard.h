@@ -33,6 +33,6 @@ private:
 	void ConnectKey(FChannelBinds& KeyboardData, uint32 VrpnChannel, const TCHAR* KeyName);
 
 	//  Run-time flags for init
-	bool bReflectToUE4             : 1;  // Bind vrpn keyboard to UE4 at OnDisplayClusterStartSession pass
+	bool bReflectToUE              : 1;  // Bind vrpn keyboard to UE at OnDisplayClusterStartSession pass
 	bool bReflectToNDisplayCluster : 1;  // Bind vrpn keyboard to nDisplay keyboard at OnDisplayClusterStartSession pass
 };

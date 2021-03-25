@@ -25,7 +25,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// This file has been adapted to UE4
+// This file has been adapted to UE
 
 #include "HaltonUtilities.h"
 

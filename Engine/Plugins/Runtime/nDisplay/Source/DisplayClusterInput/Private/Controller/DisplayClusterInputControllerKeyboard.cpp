@@ -265,16 +265,16 @@ void FKeyboardController::ConnectKey(FChannelBinds& KeyboardData, uint32 VrpnCha
 		KeyboardData[VrpnChannel].UnBindTarget(NDisplayTargetName);
 	}
 
-	FName UE4TargetName(*FString::Printf(TEXT("%s"), KeyName));
-	if (bReflectToUE4)
+	FName UETargetName(*FString::Printf(TEXT("%s"), KeyName));
+	if (bReflectToUE)
 	{
-		// Reflect link to UE4 keyboard
-		KeyboardData[VrpnChannel].BindTarget(UE4TargetName);
+		// Reflect link to UE keyboard
+		KeyboardData[VrpnChannel].BindTarget(UETargetName);
 	}
 	else
 	{
-		// Remove bind to UE4 keyboard  (runtime reflect purpose)
-		KeyboardData[VrpnChannel].UnBindTarget(UE4TargetName);
+		// Remove bind to UE keyboard  (runtime reflect purpose)
+		KeyboardData[VrpnChannel].UnBindTarget(UETargetName);
 	}
 }
 
@@ -292,17 +292,17 @@ void FKeyboardController::ReflectKeyboard(const FString& VrpnDeviceId, EDisplayC
 		break;
 
 	case EDisplayClusterInputKeyboardReflectionMode::Core:
-		bReflectToUE4 = true;
+		bReflectToUE = true;
 		break;
 
 	case EDisplayClusterInputKeyboardReflectionMode::All:
 		bReflectToNDisplayCluster = true;
-		bReflectToUE4 = true;
+		bReflectToUE = true;
 		break;
 
 	case EDisplayClusterInputKeyboardReflectionMode::None:
 	default:
-		bReflectToUE4 = false;
+		bReflectToUE = false;
 		bReflectToNDisplayCluster = false;
 	}
 

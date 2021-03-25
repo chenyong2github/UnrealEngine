@@ -101,7 +101,7 @@ float NormalDistributionUnscaled(float X, float Sigma, float CrossCenterWeight)
 	}
 	else
 	{
-		// Constant is tweaked give a similar look to UE4 before we fix the scale bug (Some content tweaking might be needed).
+		// Constant is tweaked give a similar look to UE before we fixed the scale bug (Some content tweaking might be needed).
 		// The value defines how much of the Gaussian clipped by the sample window.
 		// r.Filter.SizeScale allows to tweak that for performance/quality.
 		const float LegacyCompatibilityConstant = -16.7f;

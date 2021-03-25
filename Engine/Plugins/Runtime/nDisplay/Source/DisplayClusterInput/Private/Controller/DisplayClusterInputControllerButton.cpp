@@ -15,13 +15,13 @@
 #define LOCTEXT_NAMESPACE "DisplayClusterInput"
 
 
-// Add vrpn buttons to UE4 global name-space
+// Add vrpn buttons to UE global name-space
 void FButtonController::Initialize()
 {
 	static const FName nDisplayClusterInputCategoryName(TEXT("nDisplayButtons"));
 	EKeys::AddMenuCategoryDisplayInfo(nDisplayClusterInputCategoryName, LOCTEXT("nDisplayInputSubCateogry", "nDisplay"), TEXT("GraphEditor.KeyEvent_16x"));
 
-	// Register all names in UE4 namespace by macros. Purpose: easy add new channels and reduce code size
+	// Register all names in UE namespace by macros. Purpose: easy add new channels and reduce code size
 	for (int32 idx = 0; idx < FButtonKey::TotalCount; ++idx)
 	{
 		FText ButtonLocaleText = FText::Format(LOCTEXT("nDisplayButtonHintFmt", "nDisplay Button {0}"), idx);

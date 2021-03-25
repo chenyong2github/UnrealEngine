@@ -104,7 +104,7 @@ public:
 
 	static void BeginFrameCapture(HWND WindowHandle, FRenderDocPluginLoader::RENDERDOC_API_CONTEXT* RenderDocAPI)
 	{
-		UE4_GEmitDrawEvents_BeforeCapture = GetEmitDrawEvents();
+		UE_GEmitDrawEvents_BeforeCapture = GetEmitDrawEvents();
 		SetEmitDrawEvents(true);
 		RenderDocAPI->StartFrameCapture(GetRenderdocDevicePointer(), WindowHandle);
 	}
@@ -113,7 +113,7 @@ public:
 	{
 		FRHICommandListExecutor::GetImmediateCommandList().SubmitCommandsAndFlushGPU();
 		uint32 Result = RenderDocAPI->EndFrameCapture(GetRenderdocDevicePointer(), WindowHandle);
-		SetEmitDrawEvents(UE4_GEmitDrawEvents_BeforeCapture);
+		SetEmitDrawEvents(UE_GEmitDrawEvents_BeforeCapture);
 		return Result;
 	}
 
@@ -188,9 +188,9 @@ public:
 	}
 
 private:
-	static bool UE4_GEmitDrawEvents_BeforeCapture;
+	static bool UE_GEmitDrawEvents_BeforeCapture;
 };
-bool FRenderDocFrameCapturer::UE4_GEmitDrawEvents_BeforeCapture = false;
+bool FRenderDocFrameCapturer::UE_GEmitDrawEvents_BeforeCapture = false;
 
 class FRenderDocDummyInputDevice : public IInputDevice
 {

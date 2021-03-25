@@ -15,10 +15,10 @@ float RadialAttenuationMask(float3 WorldLightVector)
 }
 float RadialAttenuation(float3 WorldLightVector, half FalloffExponent)
 {
-	// UE3 (fast, but now we not use the default of 2 which looks quite bad):
+	// Old (fast, but now we not use the default of 2 which looks quite bad):
 	return pow(RadialAttenuationMask(WorldLightVector), FalloffExponent);
 
-	// new UE4 (more physically correct but slower and has a more noticable cutoff ring in the dark):
+	// New (more physically correct but slower and has a more noticable cutoff ring in the dark):
 	// AttenFunc(x) = 1 / (x * x + 1)
 	// derived: InvAttenFunc(y) = sqrtf(1 / y - 1)
 	// FalloffExponent is ignored

@@ -2316,7 +2316,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 				FarDepth = 0.0f;
 			}
 
-			// UE4 uses reversed depth, so far < near
+			// UE uses reversed depth, so far < near
 			RHICmdList.SetDepthBounds(FarDepth, NearDepth);
 		}
 
