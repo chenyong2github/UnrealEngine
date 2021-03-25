@@ -617,7 +617,7 @@ protected:
 	}
 
 protected:
-	friend class USkeletalMeshSimulationComponent;
+	//friend class USkeletalMeshSimulationComponent;
 	friend struct FPhysicsAssetSimulationUtil;
 
 	FName BoneName;
