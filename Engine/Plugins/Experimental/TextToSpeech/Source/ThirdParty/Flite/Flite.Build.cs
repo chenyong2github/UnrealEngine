@@ -19,7 +19,6 @@ public class Flite : ModuleRules
 				Path.Combine(FlitePath, "include")
 			}
 		);
-		PublicDefinitions.Add("USING_FLITE=1");
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			// Only VS2019 supported as of now

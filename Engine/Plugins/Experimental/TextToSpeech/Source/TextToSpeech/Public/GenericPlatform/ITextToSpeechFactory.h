@@ -14,6 +14,7 @@ class FTextToSpeechBase;
 class TEXTTOSPEECH_API ITextToSpeechFactory
 {
 public:
+	virtual ~ITextToSpeechFactory() = default;
 	/**
 	 * Creates an instance of a text to speech object. 
 	 * It is advised to only have 1 TTS as multiple TTS can speak over each other.

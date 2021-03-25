@@ -22,8 +22,6 @@ public class TextToSpeech : ModuleRules
 				"ApplicationCore"
 			}
 		);
-
-		
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PrivateDependencyModuleNames.AddRange(
@@ -37,5 +35,12 @@ public class TextToSpeech : ModuleRules
 			);
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Flite");
 		}
+		PrivateDefinitions.Add("USING_FLITE=" + (IsFliteUsed() ? "1" : "0"));
 	}
+	// platforms that inherit from this should override and return true if they intend to use Flite
+	protected virtual bool IsFliteUsed()
+	{
+		// for now only Win64 needs to use Flite. Can be expanded to Android etc in future
+		return Target.Platform == UnrealTargetPlatform.Win64;
+}
 }
