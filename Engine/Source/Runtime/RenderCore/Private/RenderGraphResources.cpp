@@ -339,6 +339,10 @@ FRHIShaderResourceView* FRDGPooledBuffer::GetOrCreateSRV(FRDGBufferSRVDesc SRVDe
 	{
 		RHIShaderResourceView = RHICreateShaderResourceView(Buffer);
 	}
+	else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::AccelerationStructure)
+	{
+		RHIShaderResourceView = RHICreateShaderResourceView(Buffer);
+	}
 	else
 	{
 		checkNoEntry();

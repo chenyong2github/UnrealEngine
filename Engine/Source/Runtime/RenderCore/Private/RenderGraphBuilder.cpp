@@ -304,7 +304,15 @@ void EnumerateBufferAccess(FRDGParameterStruct PassParameters, ERDGPassFlags Pas
 		case UBMT_RDG_BUFFER_SRV:
 			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
 			{
-				AccessFunction(SRV, SRV->GetParent(), SRVAccess);
+				FRDGBufferRef Buffer = SRV->GetParent();
+				ERHIAccess BufferAccess = SRVAccess;
+
+				if (EnumHasAnyFlags(Buffer->Desc.Usage, BUF_AccelerationStructure))
+				{
+					BufferAccess = ERHIAccess::BVHRead;
+				}
+
+				AccessFunction(SRV, Buffer, BufferAccess);
 			}
 		break;
 		case UBMT_RDG_BUFFER_UAV:

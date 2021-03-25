@@ -243,10 +243,14 @@ inline FRDGTextureSubresourceRange FRDGTextureUAV::GetSubresourceRange() const
 inline FRDGBufferSRVDesc::FRDGBufferSRVDesc(FRDGBufferRef InBuffer)
 	: Buffer(InBuffer)
 {
-	if (Buffer->Desc.Usage & BUF_DrawIndirect)
+	if (EnumHasAnyFlags(Buffer->Desc.Usage, BUF_DrawIndirect))
 	{
 		BytesPerElement = 4;
 		Format = PF_R32_UINT;
+	}
+	else if (EnumHasAnyFlags(Buffer->Desc.Usage, BUF_AccelerationStructure))
+	{
+		// nothing special here
 	}
 	else
 	{
@@ -257,7 +261,7 @@ inline FRDGBufferSRVDesc::FRDGBufferSRVDesc(FRDGBufferRef InBuffer)
 inline FRDGBufferUAVDesc::FRDGBufferUAVDesc(FRDGBufferRef InBuffer)
 	: Buffer(InBuffer)
 {
-	if (Buffer->Desc.Usage & BUF_DrawIndirect)
+	if (EnumHasAnyFlags(Buffer->Desc.Usage, BUF_DrawIndirect))
 	{
 		Format = PF_R32_UINT;
 	}

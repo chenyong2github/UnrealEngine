@@ -746,7 +746,8 @@ struct FRDGBufferDesc
 	enum class EUnderlyingType
 	{
 		VertexBuffer,
-		StructuredBuffer
+		StructuredBuffer,
+		AccelerationStructure
 	};
 
 	/** Create the descriptor for an indirect RHI call.
