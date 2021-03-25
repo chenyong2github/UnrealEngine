@@ -9,10 +9,12 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundEditor.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphInputNodes.h"
 #include "MetasoundEditorModule.h"
+#include "MetasoundEditorSettings.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundFrontendRegistries.h"
@@ -20,6 +22,7 @@
 #include "MetasoundUObjectRegistry.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/Tuple.h"
+#include "Toolkits/ToolkitManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 
@@ -194,6 +197,75 @@ namespace Metasound
 			}
 
 			return NewOutputName;
+		}
+
+		TSharedPtr<FEditor> FGraphBuilder::GetEditorForGraph(const UObject& Metasound)
+		{
+			TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(CastChecked<const UObject>(&Metasound));
+			return StaticCastSharedPtr<FEditor, IToolkit>(FoundAssetEditor);
+		}
+
+		TSharedPtr<FEditor> FGraphBuilder::GetEditorForGraph(const UEdGraph& EdGraph)
+		{
+			const UMetasoundEditorGraph* MetasoundGraph = CastChecked<const UMetasoundEditorGraph>(&EdGraph);
+			return GetEditorForGraph(MetasoundGraph->GetMetasoundChecked());
+		}
+
+		FLinearColor FGraphBuilder::GetPinCategoryColor(const FEdGraphPinType& PinType)
+		{
+			const UMetasoundEditorSettings* Settings = GetDefault<UMetasoundEditorSettings>();
+			check(Settings);
+
+			if (PinType.PinCategory == PinCategoryAudio)
+			{
+				return Settings->AudioPinTypeColor;
+			}
+
+			if (PinType.PinCategory == PinCategoryTrigger)
+			{
+				return Settings->TriggerPinTypeColor;
+			}
+
+			if (PinType.PinCategory == PinCategoryBoolean)
+			{
+				return Settings->BooleanPinTypeColor;
+			}
+
+			if (PinType.PinCategory == PinCategoryFloat)
+			{
+				if (PinType.PinSubCategory == PinSubCategoryTime)
+				{
+					return Settings->TimePinTypeColor;
+				}
+				return Settings->FloatPinTypeColor;
+			}
+
+			if (PinType.PinCategory == PinCategoryInt32)
+			{
+				return Settings->IntPinTypeColor;
+			}
+
+			if (PinType.PinCategory == PinCategoryInt64)
+			{
+				return Settings->Int64PinTypeColor;
+			}
+
+			if (PinType.PinCategory == PinCategoryString)
+			{
+				return Settings->StringPinTypeColor;
+			}
+
+			if (PinType.PinCategory == PinCategoryDouble)
+			{
+				return Settings->DoublePinTypeColor;
+			}
+
+			if (PinType.PinCategory == PinCategoryObject)
+			{
+				return Settings->ObjectPinTypeColor;
+			}
+
+			return Settings->DefaultPinTypeColor;
 		}
 
 		Frontend::FInputHandle FGraphBuilder::GetInputHandleFromPin(const UEdGraphPin* InPin)

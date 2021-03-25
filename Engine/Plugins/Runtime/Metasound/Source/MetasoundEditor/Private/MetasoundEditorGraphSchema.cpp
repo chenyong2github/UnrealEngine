@@ -127,75 +127,6 @@ namespace Metasound
 				return false;
 			}
 
-			TSharedPtr<FEditor> GetEditorForGraph(const UObject& Metasound)
-			{
-				TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(CastChecked<const UObject>(&Metasound));
-				return StaticCastSharedPtr<FEditor, IToolkit>(FoundAssetEditor);
-			}
-
-			TSharedPtr<FEditor> GetEditorForGraph(const UEdGraph& EdGraph)
-			{
-				const UMetasoundEditorGraph* MetasoundGraph = CastChecked<const UMetasoundEditorGraph>(&EdGraph);
-				return GetEditorForGraph(MetasoundGraph->GetMetasoundChecked());
-			}
-
-			FLinearColor GetPinCategoryColor(const FEdGraphPinType& PinType)
-			{
-				const UMetasoundEditorSettings* Settings = GetDefault<UMetasoundEditorSettings>();
-				check(Settings);
-
-				if (PinType.PinCategory == FGraphBuilder::PinCategoryAudio)
-				{
-					return Settings->AudioPinTypeColor;
-				}
-
-				if (PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
-				{
-					return Settings->TriggerPinTypeColor;
-				}
-
-				if (PinType.PinCategory == FGraphBuilder::PinCategoryBoolean)
-				{
-					return Settings->BooleanPinTypeColor;
-				}
-
-				if (PinType.PinCategory == FGraphBuilder::PinCategoryFloat)
-				{
-					if (PinType.PinSubCategory == FGraphBuilder::PinSubCategoryTime)
-					{
-						return Settings->TimePinTypeColor;
-					}
-					return Settings->FloatPinTypeColor;
-				}
-
-				if (PinType.PinCategory == FGraphBuilder::PinCategoryInt32)
-				{
-					return Settings->IntPinTypeColor;
-				}
-
-				if (PinType.PinCategory == FGraphBuilder::PinCategoryInt64)
-				{
-					return Settings->Int64PinTypeColor;
-				}
-
-				if (PinType.PinCategory == FGraphBuilder::PinCategoryString)
-				{
-					return Settings->StringPinTypeColor;
-				}
-
-				if (PinType.PinCategory == FGraphBuilder::PinCategoryDouble)
-				{
-					return Settings->DoublePinTypeColor;
-				}
-
-				if (PinType.PinCategory == FGraphBuilder::PinCategoryObject)
-				{
-					return Settings->ObjectPinTypeColor;
-				}
-
-				return Settings->DefaultPinTypeColor;
-			}
-
 			struct FDataTypeActionQuery
 			{
 				FGraphActionMenuBuilder& ActionMenuBuilder;
@@ -224,74 +155,6 @@ namespace Metasound
 						TSharedPtr<TAction> NewNodeAction = MakeShared<TAction>(GroupName, DisplayName, NodeHandle->GetID(), Tooltip, static_cast<int32>(InQuery.ContextGroup));
 						InQuery.ActionMenuBuilder.AddAction(NewNodeAction);
 					}
-				}
-			}
-		}
-
-		FConnectionDrawingPolicy* FGraphConnectionDrawingPolicyFactory::CreateConnectionPolicy(
-			const UEdGraphSchema* InSchema,
-			int32 InBackLayerID,
-			int32 InFrontLayerID,
-			float InZoomFactor,
-			const FSlateRect& InClippingRect,
-			FSlateWindowElementList& InDrawElements,
-			UEdGraph* InGraphObj) const
-		{
-			if (InSchema->IsA(UMetasoundEditorGraphSchema::StaticClass()))
-			{
-				return new FGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj);
-			}
-			return nullptr;
-		}
-
-		FGraphConnectionDrawingPolicy::FGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
-			: FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements)
-			, GraphObj(InGraphObj)
-		{
-			ActiveWireThickness = Settings->TraceAttackWireThickness;
-			InactiveWireThickness = Settings->TraceReleaseWireThickness;
-		}
-
-		void FGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, FConnectionParams& OutParams)
-		{
-			using namespace Frontend;
-
-			if (!OutputPin || !InputPin || !GraphObj)
-			{
-				return;
-			}
-
-			OutParams.AssociatedPin1 = InputPin;
-			OutParams.AssociatedPin2 = OutputPin;
-
-			OutParams.WireColor = SchemaPrivate::GetPinCategoryColor(OutputPin->PinType);
-			bool bExecuted = false;
-
-			// Run through the predecessors, and on
-			if (FExecPairingMap* PredecessorMap = PredecessorNodes.Find(OutputPin->GetOwningNode()))
-			{
-				if (FTimePair* Times = PredecessorMap->Find(InputPin->GetOwningNode()))
-				{
-					bExecuted = true;
-
-					OutParams.WireThickness = ActiveWireThickness;
-					OutParams.bDrawBubbles = true;
-				}
-			}
-
-			if (!bExecuted)
-			{
-				if (InputPin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
-				{
-					OutParams.WireThickness = Settings->DefaultExecutionWireThickness;
-				}
-				else if (InputPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudio)
-				{
-					OutParams.bDrawBubbles = true;
-				}
-				else
-				{
-					OutParams.WireThickness = InactiveWireThickness;
 				}
 			}
 		}
@@ -398,7 +261,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 
 				if (ensure(SchemaPrivate::TryConnectNewNodeToPin(*EdGraphNode, FromPin)))
 				{
-					TSharedPtr<FEditor> MetasoundEditor = SchemaPrivate::GetEditorForGraph(*ParentGraph);
+					TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*ParentGraph);
 					if (MetasoundEditor.IsValid())
 					{
 						MetasoundEditor->OnInputNameChanged(NewGraphNode->GetNodeID());
@@ -467,7 +330,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewComment::PerformAction(UEdGraph* Pa
 
 	FSlateRect Bounds;
 	FVector2D SpawnLocation = Location;
-	TSharedPtr<FEditor> MetasoundEditor = SchemaPrivate::GetEditorForGraph(*ParentGraph);
+	TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*ParentGraph);
 
 	if (MetasoundEditor.IsValid() && MetasoundEditor->GetBoundsForSelectedNodes(Bounds, 50.0f))
 	{
@@ -483,7 +346,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_Paste::PerformAction(UEdGraph* ParentG
 {
 	using namespace Metasound::Editor;
 
-	TSharedPtr<FEditor> MetasoundEditor = SchemaPrivate::GetEditorForGraph(*ParentGraph);
+	TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*ParentGraph);
 	if (MetasoundEditor.IsValid())
 	{
 		MetasoundEditor->PasteNodes(&Location);
@@ -570,7 +433,7 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 	}
 	else
 	{
-		TSharedPtr<FEditor> MetasoundEditor = SchemaPrivate::GetEditorForGraph(*ContextMenuBuilder.CurrentGraph);
+		TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*ContextMenuBuilder.CurrentGraph);
 		if (MetasoundEditor.IsValid() && MetasoundEditor->CanPasteNodes())
 		{
 			TSharedPtr<FMetasoundGraphSchemaAction_Paste> NewAction = MakeShared<FMetasoundGraphSchemaAction_Paste>(FText::GetEmpty(), LOCTEXT("PasteHereAction", "Paste here"), FText::GetEmpty(), 0);
@@ -788,7 +651,7 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 
 FLinearColor UMetasoundEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
-	return Metasound::Editor::SchemaPrivate::GetPinCategoryColor(PinType);
+	return Metasound::Editor::FGraphBuilder::GetPinCategoryColor(PinType);
 
 }
 
@@ -991,7 +854,7 @@ void UMetasoundEditorGraphSchema::GetCommentAction(FGraphActionMenuBuilder& Acti
 
 	if (!ActionMenuBuilder.FromPin && CurrentGraph)
 	{
-		TSharedPtr<FEditor> MetasoundEditor = SchemaPrivate::GetEditorForGraph(*CurrentGraph);
+		TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*CurrentGraph);
 		if (MetasoundEditor.IsValid())
 		{
 			const int32 NumSelected = MetasoundEditor->GetNumNodesSelected();
@@ -1008,7 +871,7 @@ int32 UMetasoundEditorGraphSchema::GetNodeSelectionCount(const UEdGraph* Graph) 
 {
 	using namespace Metasound::Editor;
 
-	TSharedPtr<FEditor> MetasoundEditor = SchemaPrivate::GetEditorForGraph(*Graph);
+	TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*Graph);
 	if (MetasoundEditor.IsValid())
 	{
 		return MetasoundEditor->GetNumNodesSelected();

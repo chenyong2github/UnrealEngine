@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,58 +7,67 @@
 #include "EdGraphUtilities.h"
 #include "ConnectionDrawingPolicy.h"
 
+
+// Forward Declarations
 class FSlateRect;
 class FSlateWindowElementList;
 class UEdGraph;
 class UEdGraphSchema;
 
-struct FMetasoundGraphConnectionDrawingPolicyFactory : public FGraphPanelPinConnectionFactory
+namespace Metasound
 {
-public:
-	virtual ~FMetasoundGraphConnectionDrawingPolicyFactory() = default;
-
-	// FGraphPanelPinConnectionFactory
-	virtual class FConnectionDrawingPolicy* CreateConnectionPolicy(const UEdGraphSchema* Schema, int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const override;
-	// ~FGraphPanelPinConnectionFactory
-};
-
-
-// This class draws the connections for an UEdGraph using a Metasound schema
-class FMetasoundGraphConnectionDrawingPolicy : public FConnectionDrawingPolicy
-{
-protected:
-	// Times for one execution pair within the current graph
-	struct FTimePair
+	namespace Editor
 	{
-		double PredExecTime;
-		double ThisExecTime;
-
-		FTimePair()
-			: PredExecTime(0.0)
-			, ThisExecTime(0.0)
+		struct FGraphConnectionDrawingPolicyFactory : public FGraphPanelPinConnectionFactory
 		{
-		}
-	};
+		public:
+			virtual ~FGraphConnectionDrawingPolicyFactory() = default;
 
-	// Map of pairings
-	using FExecPairingMap = TMap<UEdGraphNode*, FTimePair>;
+			// FGraphPanelPinConnectionFactory
+			virtual class FConnectionDrawingPolicy* CreateConnectionPolicy(
+				const UEdGraphSchema* Schema,
+				int32 InBackLayerID,
+				int32 InFrontLayerID,
+				float ZoomFactor,
+				const FSlateRect& InClippingRect,
+				FSlateWindowElementList& InDrawElements,
+				UEdGraph* InGraphObj) const override;
+			// ~FGraphPanelPinConnectionFactory
+		};
 
-	// Map of nodes that preceded before a given node in the execution sequence (one entry for each pairing)
-	TMap<UEdGraphNode*, FExecPairingMap> PredecessorNodes;
+		// This class draws the connections for an UEdGraph using a SoundCue schema
+		class FGraphConnectionDrawingPolicy : public FConnectionDrawingPolicy
+		{
+		protected:
+			// Times for one execution pair within the current graph
+			struct FTimePair
+			{
+				double PredExecTime = 0.0;
+				double ThisExecTime = 0.0;
+			};
 
-	UEdGraph* GraphObj;
+			// Map of pairings
+			using FExecPairingMap = TMap<UEdGraphNode*, FTimePair>;
 
-	FLinearColor ActiveColor;
-	FLinearColor InactiveColor;
+			// Map of nodes that preceded before a given node in the execution sequence (one entry for each pairing)
+			TMap<UEdGraphNode*, FExecPairingMap> PredecessorNodes;
 
-	float ActiveWireThickness;
-	float InactiveWireThickness;
+			UEdGraph* GraphObj = nullptr;
 
-public:
-	FMetasoundGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj);
+			FLinearColor ActiveColor;
+			FLinearColor InactiveColor;
 
-	// FConnectionDrawingPolicy interface
-	virtual void DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params) override;
-	virtual void Draw(TMap<TSharedRef<SWidget>, FArrangedWidget>& PinGeometries, FArrangedChildren& ArrangedNodes) override;
-	// End of FConnectionDrawingPolicy interface
-};
+			float ActiveWireThickness;
+			float InactiveWireThickness;
+
+			void Draw(TMap<TSharedRef<SWidget>, FArrangedWidget>& InPinGeometries, FArrangedChildren& ArrangedNodes);
+
+		public:
+			FGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj);
+
+			// FConnectionDrawingPolicy interface
+			virtual void DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params) override;
+			// End of FConnectionDrawingPolicy interface
+		};
+	} // namespace Editor
+} // namespace Metasound

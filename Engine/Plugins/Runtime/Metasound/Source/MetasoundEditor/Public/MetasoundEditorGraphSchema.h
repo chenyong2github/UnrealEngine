@@ -36,59 +36,6 @@ namespace Metasound
 			FInputFilterFunction InputFilterFunction;
 			FOutputFilterFunction OutputFilterFunction;
 		};
-
-		struct FGraphConnectionDrawingPolicyFactory : public FGraphPanelPinConnectionFactory
-		{
-		public:
-			virtual ~FGraphConnectionDrawingPolicyFactory() = default;
-
-			// FGraphPanelPinConnectionFactory
-			virtual class FConnectionDrawingPolicy* CreateConnectionPolicy(
-				const UEdGraphSchema* Schema,
-				int32 InBackLayerID,
-				int32 InFrontLayerID,
-				float ZoomFactor,
-				const FSlateRect& InClippingRect,
-				FSlateWindowElementList& InDrawElements,
-				UEdGraph* InGraphObj) const override;
-			// ~FGraphPanelPinConnectionFactory
-		};
-
-		// This class draws the connections for an UEdGraph using a SoundCue schema
-		class FGraphConnectionDrawingPolicy : public FConnectionDrawingPolicy
-		{
-		protected:
-			// Times for one execution pair within the current graph
-			struct FTimePair
-			{
-				double PredExecTime;
-				double ThisExecTime;
-
-				FTimePair()
-					: PredExecTime(0.0)
-					, ThisExecTime(0.0)
-				{
-				}
-			};
-
-			// Map of pairings
-			using FExecPairingMap = TMap<UEdGraphNode*, FTimePair>;
-
-			// Map of nodes that preceded before a given node in the execution sequence (one entry for each pairing)
-			TMap<UEdGraphNode*, FExecPairingMap> PredecessorNodes;
-
-			UEdGraph* GraphObj = nullptr;
-
-			float ActiveWireThickness;
-			float InactiveWireThickness;
-
-		public:
-			FGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj);
-
-			// FConnectionDrawingPolicy interface
-			virtual void DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params) override;
-			// End of FConnectionDrawingPolicy interface
-		};
 	} // namespace Editor
 } // namespace Metasound
 

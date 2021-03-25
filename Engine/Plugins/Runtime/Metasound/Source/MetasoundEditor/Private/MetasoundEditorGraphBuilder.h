@@ -17,6 +17,7 @@ class UEdGraphPin;
 class UMetasound;
 class UMetasoundEditorGraphNode;
 
+struct FEdGraphPinType;
 struct FMetasoundFrontendNodeStyle;
 
 
@@ -27,6 +28,9 @@ namespace Metasound
 
 	namespace Editor
 	{
+		// Forward Declarations
+		class FEditor;
+
 		class FGraphBuilder
 		{
 			static void InitGraphNode(Frontend::FNodeHandle& InNodeHandle, UMetasoundEditorGraphNode* NewGraphNode, UObject& InMetasound);
@@ -50,6 +54,10 @@ namespace Metasound
 
 			// Adds an EdGraph node to mirror the provided FNodeHandle.
 			static UMetasoundEditorGraphNode* AddNode(UObject& InMetasound, Frontend::FNodeHandle InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
+
+			// Convenience functions for retrieving the editor for the given Metasound/EdGraph
+			static TSharedPtr<FEditor> GetEditorForGraph(const UObject& Metasound);
+			static TSharedPtr<FEditor> GetEditorForGraph(const UEdGraph& EdGraph);
 
 			// Adds a node handle to mirror the provided graph node and binds to it.  Does *NOT* mirror existing EdGraph connections
 			// nor does it remove existing bound Frontend Node (if set) from associated Frontend Graph.
@@ -124,6 +132,9 @@ namespace Metasound
 			// Deletes Editor Graph Variable's associated Frontend node, as well as any
 			// Editor Graph nodes referencing the given variable.
 			static void DeleteVariableNodeHandle(UMetasoundEditorGraphVariable& InVariable);
+
+			// Retrieves the proper pin color for the given PinType
+			static FLinearColor GetPinCategoryColor(const FEdGraphPinType& PinType);
 
 			// Constructs graph with default inputs & outputs.
 			static void ConstructGraph(UObject& InMetasound);

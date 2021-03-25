@@ -798,6 +798,11 @@ namespace Metasound
 			return true;
 		}
 
+		double FEditor::GetPlayTime() const
+		{
+			return PlayTime;
+		}
+
 		void FEditor::Stop()
 		{
 			check(GEditor);

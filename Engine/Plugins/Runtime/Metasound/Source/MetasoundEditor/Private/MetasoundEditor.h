@@ -65,6 +65,8 @@ namespace Metasound
 			virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 			virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 
+			double GetPlayTime() const;
+
 			/** Edits the specified Metasound object */
 			void InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
 
@@ -254,7 +256,7 @@ namespace Metasound
 
 			/** Widget showing playtime that overlays the graph when previewing */
 			TSharedPtr<STextBlock> PlayTimeWidget;
-			double PlayTime = 0.0f;
+			double PlayTime = 0.0;
 
 			/** Command list for this editor */
 			TSharedPtr<FUICommandList> GraphEditorCommands;
