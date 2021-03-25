@@ -1549,7 +1549,7 @@ public:
 	 * Pushes the specified stat onto the hierarchy for this thread. Starts
 	 * the timing of the cycles used
 	 */
-	FORCEINLINE_STATS void Start( TStatId InStatId, EStatFlags InStatFlags, bool bAlways = false )
+	FORCEINLINE_STATS void Start(TStatId InStatId, EStatFlags InStatFlags, bool bAlways = false)
 	{
 		FMinimalName StatMinimalName = InStatId.GetMinimalName(EMemoryOrder::Relaxed);
 		if (StatMinimalName.IsNone())
@@ -1558,31 +1558,30 @@ public:
 		}
 
 		// Emit named event for active cycle stat.
-		if ( GCycleStatsShouldEmitNamedEvents > 0 
+		if (GCycleStatsShouldEmitNamedEvents > 0
 			&& (GShouldEmitVerboseNamedEvents || !EnumHasAnyFlags(InStatFlags, EStatFlags::Verbose)))
 		{
-#if	PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING
-			FPlatformMisc::BeginNamedEvent( FColor( 0 ), InStatId.GetStatDescriptionANSI() );
+#if PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING
+			FPlatformMisc::BeginNamedEvent(FColor(0), InStatId.GetStatDescriptionANSI());
 #else
-			FPlatformMisc::BeginNamedEvent( FColor( 0 ), InStatId.GetStatDescriptionWIDE() );
-#endif // PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING
+			FPlatformMisc::BeginNamedEvent(FColor(0), InStatId.GetStatDescriptionWIDE());
+#endif
 			EmittedEvent |= NamedEvent;
-		}
 
 #if CPUPROFILERTRACE_ENABLED
-		if (GCycleStatsShouldEmitNamedEvents > 0 && UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel)
-			&& (GShouldEmitVerboseNamedEvents || !EnumHasAnyFlags(InStatFlags, EStatFlags::Verbose)))
-		{
-			FCpuProfilerTrace::OutputBeginDynamicEvent(InStatId.GetStatDescriptionANSI()); //todo: Could we use FName index as event id?
-			EmittedEvent |= TraceEvent;
-		}
+			if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+			{
+				FCpuProfilerTrace::OutputBeginDynamicEvent(InStatId.GetStatDescriptionANSI()); //todo: Could we use FName index as event id?
+				EmittedEvent |= TraceEvent;
+			}
 #endif
+		}
 
-		if( (bAlways && FThreadStats::WillEverCollectData()) || FThreadStats::IsCollectingData() )
+		if ((bAlways && FThreadStats::WillEverCollectData()) || FThreadStats::IsCollectingData())
 		{
 			FName StatName = MinimalNameToName(StatMinimalName);
 			StatId = StatName;
-			FThreadStats::AddMessage( StatName, EStatOperation::CycleScopeStart );
+			FThreadStats::AddMessage(StatName, EStatOperation::CycleScopeStart);
 			EmittedEvent |= ThreadStatsEvent;
 		}
 	}
@@ -1597,7 +1596,7 @@ public:
 	 */
 	FORCEINLINE_STATS void Stop()
 	{
-		if ( EmittedEvent & NamedEvent )
+		if (EmittedEvent & NamedEvent)
 		{
 			FPlatformMisc::EndNamedEvent();
 		}
@@ -1609,7 +1608,7 @@ public:
 		}
 #endif
 
-		if(EmittedEvent & ThreadStatsEvent)
+		if (EmittedEvent & ThreadStatsEvent)
 		{
 			FThreadStats::AddMessage(StatId, EStatOperation::CycleScopeEnd);
 		}
