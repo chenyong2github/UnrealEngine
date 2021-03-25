@@ -43,6 +43,14 @@ namespace UnrealBuildTool.Rules
                 null,
                 true)
             );
+
+			PublicAdditionalFrameworks.Add(
+                new Framework(
+                "CoarseReloc",
+                "ThirdParty/CoarseReloc.embeddedframework.zip",
+                null,
+                true)
+            );
 		}
 	}
 }
