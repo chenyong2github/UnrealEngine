@@ -4,6 +4,8 @@
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "EdGraphSchema_Niagara.h"
+#include "NiagaraNodeStaticSwitch.h"
+#include "NiagaraScriptVariable.h"
 #include "Widgets/SWidget.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/MenuStack.h"
@@ -176,6 +178,9 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 		FNiagaraParameterAction* ParameterAction = (FNiagaraParameterAction*)SourceAction.Get();
 		if (ParameterAction)
 		{
+			UNiagaraGraph* NiagaraGraph = Cast<UNiagaraGraph>(&Graph);
+			UNiagaraScriptVariable* ScriptVariable = NiagaraGraph->GetScriptVariable(ParameterAction->GetParameter());
+
 			FNiagaraParameterNodeConstructionParams NewNodeParams;
 			NewNodeParams.Graph = &Graph;
 			NewNodeParams.GraphPosition = GraphPosition;
@@ -184,6 +189,13 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 			// Take into account current state of modifier keys in case the user changed his mind
 			FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
 			const bool bModifiedKeysActive = ModifierKeys.IsControlDown() || ModifierKeys.IsAltDown();
+			
+			if(ScriptVariable->Metadata.GetIsStaticSwitch())
+			{
+				MakeStaticSwitch(NewNodeParams);
+				return FReply::Handled();
+			}
+			
 			const bool bAutoCreateGetter = bModifiedKeysActive ? ModifierKeys.IsControlDown() : bControlDrag;
 			const bool bAutoCreateSetter = bModifiedKeysActive ? ModifierKeys.IsAltDown() : bAltDrag;
 			// Handle Getter/Setters
@@ -272,6 +284,35 @@ void FNiagaraParameterGraphDragOperation::MakeSetMap(FNiagaraParameterNodeConstr
 	SetNode->NodePosY = InParams.GraphPosition.Y;
 	SetNodeCreator.Finalize();
 	SetNode->RequestNewTypedPin(EGPD_Input, InParams.Parameter.GetType(), InParams.Parameter.GetName());
+}
+
+void FNiagaraParameterGraphDragOperation::MakeStaticSwitch(FNiagaraParameterNodeConstructionParams InParams)
+{
+	FScopedTransaction AddNewPinTransaction(LOCTEXT("MakeStaticSwitch", "Make Static Switch"));
+	check(InParams.Graph);
+	InParams.Graph->Modify();
+	FGraphNodeCreator<UNiagaraNodeStaticSwitch> SetNodeCreator(*InParams.Graph);
+	UNiagaraNodeStaticSwitch* SwitchNode = SetNodeCreator.CreateNode();
+	SwitchNode->NodePosX = InParams.GraphPosition.X;
+	SwitchNode->NodePosY = InParams.GraphPosition.Y;
+	SwitchNode->InputParameterName = InParams.Parameter.GetName();
+	const FNiagaraTypeDefinition& Type = InParams.Parameter.GetType();
+	
+	if (Type == FNiagaraTypeDefinition::GetBoolDef())
+	{
+		SwitchNode->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Bool;
+	}
+	else if (Type == FNiagaraTypeDefinition::GetIntDef())
+	{
+		SwitchNode->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Integer;
+	}
+	else if (Type.IsEnum())
+	{
+		SwitchNode->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Enum;
+		SwitchNode->SwitchTypeData.Enum = Type.GetEnum();
+	}
+	
+	SetNodeCreator.Finalize();
 }
 
 EVisibility FNiagaraParameterGraphDragOperation::GetIconVisible() const

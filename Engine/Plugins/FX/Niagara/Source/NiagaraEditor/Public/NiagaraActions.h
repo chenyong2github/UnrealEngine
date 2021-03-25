@@ -137,6 +137,7 @@ protected:
 
 	static void MakeGetMap(FNiagaraParameterNodeConstructionParams InParams);
 	static void MakeSetMap(FNiagaraParameterNodeConstructionParams InParams);
+	static void MakeStaticSwitch(FNiagaraParameterNodeConstructionParams InParams);
 
 	virtual EVisibility GetIconVisible() const override;
 	virtual EVisibility GetErrorIconVisible() const override;
