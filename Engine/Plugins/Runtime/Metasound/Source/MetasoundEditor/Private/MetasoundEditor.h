@@ -226,7 +226,7 @@ namespace Metasound
 			void OnCreateComment();
 
 			/** Create new graph editor widget */
-			TSharedRef<SGraphEditor> CreateGraphEditorWidget();
+			void CreateGraphEditorWidget();
 
 		private:
 			void EditObjectSettings();
@@ -251,6 +251,10 @@ namespace Metasound
 
 			/** Palette of Node types */
 			TSharedPtr<SMetasoundPalette> Palette;
+
+			/** Widget showing playtime that overlays the graph when previewing */
+			TSharedPtr<STextBlock> PlayTimeWidget;
+			double PlayTime = 0.0f;
 
 			/** Command list for this editor */
 			TSharedPtr<FUICommandList> GraphEditorCommands;

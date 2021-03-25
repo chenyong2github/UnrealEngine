@@ -79,6 +79,12 @@ TSharedPtr<SGraphPin> SMetasoundGraphNode::CreatePinWidget(UEdGraphPin* InPin) c
 
 	if (const UMetasoundEditorGraphSchema* GraphSchema = Cast<const UMetasoundEditorGraphSchema>(InPin->GetSchema()))
 	{
+		// Don't show default value field for container types
+		if (InPin->PinType.ContainerType != EPinContainerType::None)
+		{
+			return SNew(SGraphPin, InPin);
+		}
+
 		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudio)
 		{
 			return SNew(SGraphPin, InPin);

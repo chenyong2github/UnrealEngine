@@ -38,7 +38,7 @@ namespace Metasound
 					];
 			}
 
-			TSharedRef<SDockTab> CreateGraphCanvasTab(TSharedPtr<SGraphEditor> GraphEditor, const FSpawnTabArgs& Args)
+			TSharedRef<SDockTab> CreateGraphCanvasTab(TSharedPtr<SWidget> GraphEditor, const FSpawnTabArgs& Args)
 			{
 				check(Args.GetTabId() == Names::GraphCanvas);
 

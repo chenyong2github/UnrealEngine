@@ -150,7 +150,9 @@ namespace Metasound
 
 			virtual void RegisterDataType(FName InPinCategoryName, FName InPinSubCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) override
 			{
-				FEdGraphPinType PinType(InPinCategoryName, InPinSubCategoryName, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
+				const bool bIsArray = InRegistryInfo.IsArrayType();
+				const EPinContainerType ContainerType = bIsArray ? EPinContainerType::Array : EPinContainerType::None;
+				FEdGraphPinType PinType(InPinCategoryName, InPinSubCategoryName, nullptr, ContainerType, false, FEdGraphTerminalType());
 				DataTypeInfo.Emplace(InRegistryInfo.DataTypeName, Editor::FEditorDataType(MoveTemp(PinType), InRegistryInfo));
 			}
 
@@ -252,7 +254,9 @@ namespace Metasound
 						}
 					}
 
-					FEdGraphPinType PinType(PinCategory, PinSubCategory, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
+					const bool bIsArray = RegistryInfo.IsArrayType();
+					const EPinContainerType ContainerType = bIsArray ? EPinContainerType::Array : EPinContainerType::None;
+					FEdGraphPinType PinType(PinCategory, PinSubCategory, nullptr, ContainerType, false, FEdGraphTerminalType());
  					UClass* ClassToUse = FMetasoundFrontendRegistryContainer::Get()->GetLiteralUClassForDataType(DataTypeName);
  					PinType.PinSubCategoryObject = Cast<UObject>(ClassToUse);
 

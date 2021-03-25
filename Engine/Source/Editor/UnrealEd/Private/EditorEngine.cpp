@@ -2379,10 +2379,9 @@ UAudioComponent* UEditorEngine::ResetPreviewAudioComponent( USoundBase* Sound, U
 	return PreviewAudioComponent;
 }
 
-void UEditorEngine::PlayPreviewSound( USoundBase* Sound,  USoundNode* SoundNode )
+UAudioComponent* UEditorEngine::PlayPreviewSound(USoundBase* Sound,  USoundNode* SoundNode)
 {
-	UAudioComponent* AudioComponent = ResetPreviewAudioComponent(Sound, SoundNode);
-	if(AudioComponent)
+	if(UAudioComponent* AudioComponent = ResetPreviewAudioComponent(Sound, SoundNode))
 	{
 		AudioComponent->bAutoDestroy = false;
 		AudioComponent->bIsUISound = true;
@@ -2390,8 +2389,12 @@ void UEditorEngine::PlayPreviewSound( USoundBase* Sound,  USoundNode* SoundNode 
 		AudioComponent->bReverb = false;
 		AudioComponent->bCenterChannelOnly = false;
 		AudioComponent->bIsPreviewSound = true;
-		AudioComponent->Play();	
+		AudioComponent->Play();
+
+		return AudioComponent;
 	}
+
+	return nullptr;
 }
 
 void UEditorEngine::PlayEditorSound( const FString& SoundAssetName )

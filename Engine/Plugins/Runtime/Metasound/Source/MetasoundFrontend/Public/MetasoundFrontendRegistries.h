@@ -103,6 +103,15 @@ namespace Metasound
 		// If this datatype was registered with a specific UClass to use to filter with, that will be used here:
 		UClass* ProxyGeneratorClass = nullptr;
 
+		FORCEINLINE bool IsArrayType() const
+		{
+			return bIsDefaultArrayParsable
+			|| bIsBoolArrayParsable
+			|| bIsIntArrayParsable
+			|| bIsFloatArrayParsable
+			|| bIsStringArrayParsable
+			|| bIsProxyArrayParsable;
+		}
 	};
 
 	namespace Frontend

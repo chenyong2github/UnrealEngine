@@ -1126,7 +1126,7 @@ public:
 	 * @param	Sound		A sound to attach to the audio component
 	 * @param	SoundNode	A sound node that is attached to the audio component when the sound is NULL
 	 */
-	UAudioComponent* ResetPreviewAudioComponent( class USoundBase* Sound = NULL, class USoundNode* SoundNode = NULL );
+	UAudioComponent* ResetPreviewAudioComponent(USoundBase* Sound = nullptr, USoundNode* SoundNode = nullptr);
 
 	/**
 	 * Plays a preview of a specified sound or node
@@ -1134,7 +1134,7 @@ public:
 	 * @param	Sound		A sound to attach to the audio component
 	 * @param	SoundNode	A sound node that is attached to the audio component when the sound is NULL
 	 */
-	void PlayPreviewSound(USoundBase* Sound, USoundNode* SoundNode = NULL);
+	UAudioComponent* PlayPreviewSound(USoundBase* Sound, USoundNode* SoundNode = nullptr);
 
 	/**
 	 * Clean up any world specific editor components so they can be GC correctly

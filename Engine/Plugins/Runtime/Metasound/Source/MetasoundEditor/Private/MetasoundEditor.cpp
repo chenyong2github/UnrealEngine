@@ -44,6 +44,8 @@
 
 // This needs to be moved to public directory
 #include "../../GraphEditor/Private/GraphActionNode.h"
+#include "../../PropertyEditor/Public/DetailLayoutBuilder.h"
+#include "../../../Runtime/SlateCore/Public/Widgets/SOverlay.h"
 
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
@@ -149,9 +151,19 @@ namespace Metasound
 
 			FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
-			InTabManager->RegisterTabSpawner(TabFactory::Names::GraphCanvas, FOnSpawnTab::CreateLambda([InMetasoundGraphEditor = MetasoundGraphEditor](const FSpawnTabArgs& Args)
+			InTabManager->RegisterTabSpawner(TabFactory::Names::GraphCanvas, FOnSpawnTab::CreateLambda([InPlayTimeWidget = PlayTimeWidget, InMetasoundGraphEditor = MetasoundGraphEditor](const FSpawnTabArgs& Args)
 			{
-				return TabFactory::CreateGraphCanvasTab(InMetasoundGraphEditor, Args);
+				return TabFactory::CreateGraphCanvasTab(SNew(SOverlay)
+					+ SOverlay::Slot()
+					[
+						InMetasoundGraphEditor.ToSharedRef()
+					]
+					+ SOverlay::Slot()
+					[
+						InPlayTimeWidget.ToSharedRef()
+					]
+					.Padding(5.0f, 5.0f)
+				, Args);
 			}))
 			.SetDisplayName(LOCTEXT("GraphCanvasTab", "Viewport"))
 			.SetGroup(WorkspaceMenuCategoryRef)
@@ -274,29 +286,29 @@ namespace Metasound
 
 			CreateAnalyzers();
 
-			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v6")
+			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v7")
 				->AddArea
 				(
 					FTabManager::NewPrimaryArea()
 					->SetOrientation(Orient_Vertical)
 					->Split(FTabManager::NewSplitter()
 						->SetOrientation(Orient_Horizontal)
-						->SetSizeCoefficient(0.9f)
 						->Split
 						(
 							FTabManager::NewSplitter()
+							->SetSizeCoefficient(0.15f)
 							->SetOrientation(Orient_Vertical)
 							->Split
 							(
 								FTabManager::NewStack()
-								->SetSizeCoefficient(0.5f)
+								->SetSizeCoefficient(0.25f)
 								->SetHideTabWell(false)
 								->AddTab(TabFactory::Names::Metasound, ETabState::OpenedTab)
 							)
 							->Split
 							(
 								FTabManager::NewStack()
-								->SetSizeCoefficient(0.5f)
+								->SetSizeCoefficient(0.50f)
 								->SetHideTabWell(false)
 								->AddTab(TabFactory::Names::Inspector, ETabState::OpenedTab)
 							)
@@ -304,14 +316,14 @@ namespace Metasound
 						->Split
 						(
 							FTabManager::NewStack()
-							->SetSizeCoefficient(0.65f)
+							->SetSizeCoefficient(0.80f)
 							->SetHideTabWell(true)
 							->AddTab(TabFactory::Names::GraphCanvas, ETabState::OpenedTab)
 						)
 						->Split
 						(
 							FTabManager::NewStack()
-							->SetSizeCoefficient(0.125f)
+							->SetSizeCoefficient(0.05f)
 							->SetHideTabWell(true)
 							->AddTab(TabFactory::Names::Analyzers, ETabState::OpenedTab)
 						)
@@ -422,13 +434,11 @@ namespace Metasound
 
 		void FEditor::CreateInternalWidgets()
 		{
-			MetasoundGraphEditor = CreateGraphEditorWidget();
+			CreateGraphEditorWidget();
 
 			FDetailsViewArgs Args;
 			Args.bHideSelectionTip = true;
 			Args.NotifyHook = this;
-
-			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 			SAssignNew(MetasoundInterfaceMenu, SGraphActionMenu, false)
 				.AlphaSortItems(false)
@@ -447,8 +457,8 @@ namespace Metasound
 				.OnGetSectionWidget(this, &FEditor::OnGetMenuSectionWidget)
 				.UseSectionStyling(true);
 
+			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 			MetasoundDetails = PropertyModule.CreateDetailView(Args);
-
 			Palette = SNew(SMetasoundPalette);
 		}
 
@@ -717,12 +727,11 @@ namespace Metasound
 
 			if (USoundBase* MetasoundToPlay = Cast<USoundBase>(Metasound))
 			{
-
-				GEditor->PlayPreviewSound(MetasoundToPlay);
-
 				// Set the send to the audio bus that is used for analyzing the metasound output
-				if (UAudioComponent* PreviewComp = GEditor->GetPreviewAudioComponent())
+				if (UAudioComponent* PreviewComp = GEditor->PlayPreviewSound(MetasoundToPlay))
 				{
+					PlayTime = 0.0;
+
 					if (MetasoundAudioBus.IsValid())
 					{
 						PreviewComp->SetAudioBusSendPostEffect(MetasoundAudioBus.Get(), 1.0f);
@@ -736,9 +745,8 @@ namespace Metasound
 						if(FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound))
 						{
 							const uint64 AudioComponentID = PreviewComp->GetAudioComponentID();
-							float SampleRate = PreviewAudioDevice->GetSampleRate();
-
-							MetasoundComm = MetasoundToPlay->CreateInstanceTransmitter(FAudioInstanceTransmitterInitParams{AudioComponentID, SampleRate});
+							const float SampleRate = PreviewAudioDevice->GetSampleRate();
+							MetasoundComm = MetasoundToPlay->CreateInstanceTransmitter(FAudioInstanceTransmitterInitParams { AudioComponentID, SampleRate });
 						}
 					}
 
@@ -749,18 +757,29 @@ namespace Metasound
 				}
 
 				MetasoundGraphEditor->RegisterActiveTimer(0.0f,
-					FWidgetActiveTimerDelegate::CreateLambda([](double InCurrentTime, float InDeltaTime)
+					FWidgetActiveTimerDelegate::CreateLambda([this](double InCurrentTime, float InDeltaTime)
+					{
+						UAudioComponent* PreviewComp = GEditor->GetPreviewAudioComponent();
+						if (PreviewComp && PreviewComp->IsPlaying())
 						{
-							UAudioComponent* PreviewComp = GEditor->GetPreviewAudioComponent();
-							if (PreviewComp && PreviewComp->IsPlaying())
+							if (PlayTimeWidget.IsValid())
 							{
-								return EActiveTimerReturnType::Continue;
+								PlayTime += InDeltaTime;
+								FString PlayTimeString = FTimespan::FromSeconds(PlayTime).ToString();
+
+								// Remove leading '+'
+								PlayTimeString.ReplaceInline(TEXT("+"), TEXT(""));
+								PlayTimeWidget->SetText(FText::FromString(PlayTimeString));
 							}
-							else
-							{
-								return EActiveTimerReturnType::Stop;
-							}
-						})
+							return EActiveTimerReturnType::Continue;
+						}
+						else
+						{
+							PlayTime = 0.0;
+							PlayTimeWidget->SetText(FText::GetEmpty());
+							return EActiveTimerReturnType::Stop;
+						}
+					})
 				);
 			}
 		}
@@ -900,7 +919,7 @@ namespace Metasound
 		{
 		}
 
-		TSharedRef<SGraphEditor> FEditor::CreateGraphEditorWidget()
+		void FEditor::CreateGraphEditorWidget()
 		{
 			if (!GraphEditorCommands.IsValid())
 			{
@@ -992,7 +1011,7 @@ namespace Metasound
 			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 			check(MetasoundAsset);
 
-			return SNew(SGraphEditor)
+			SAssignNew(MetasoundGraphEditor, SGraphEditor)
 				.AdditionalCommands(GraphEditorCommands)
 				.IsEditable(true)
 				.Appearance(AppearanceInfo)
@@ -1000,6 +1019,11 @@ namespace Metasound
 				.GraphEvents(InEvents)
 				.AutoExpandActionMenu(true)
 				.ShowGraphStateOverlay(false);
+
+			SAssignNew(PlayTimeWidget, STextBlock)
+				.Visibility(EVisibility::HitTestInvisible)
+				.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+				.ColorAndOpacity(FLinearColor(1, 1, 1, 0.30f));
 		}
 
 		void FEditor::OnSelectedNodesChanged(const TSet<UObject*>& InSelectedNodes)
