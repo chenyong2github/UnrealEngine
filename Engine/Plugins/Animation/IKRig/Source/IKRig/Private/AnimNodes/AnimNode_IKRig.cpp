@@ -29,7 +29,13 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 		SourcePose.ResetToRefPose();
 	}
 
-	if (!IKRigProcessor && IKRigProcessor->IsInitialized())
+	if (!IKRigProcessor)
+	{
+		Output = SourcePose;
+		return;
+	}
+	
+	if (!IKRigProcessor->IsInitialized())
 	{
 		Output = SourcePose;
 		return;
