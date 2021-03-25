@@ -53,7 +53,7 @@ public:
 
 	/** Flag as to whether or not any derived classes from ActorClass should also be considered when filtering */
 	UPROPERTY(EditAnywhere, Category = TraceSourceFiltering)
-	bool bIncludeDerivedClasses;
+	bool bIncludeDerivedClasses = false;
 
 	inline bool operator==(const FActorClassFilter Rhs)
 	{
