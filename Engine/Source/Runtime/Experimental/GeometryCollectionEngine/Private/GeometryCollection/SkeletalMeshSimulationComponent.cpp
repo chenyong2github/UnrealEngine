@@ -156,27 +156,30 @@ void USkeletalMeshSimulationComponent::OnCreatePhysicsState()
 			FPhysicsAssetSimulationUtil::UpdateAnimState(this, OwningActor, SkelMeshComponent, 0.0f, OutPhysicsParams);
 		};
 
-		check(PhysicsProxy == nullptr);
-		PhysicsProxy = new FSkeletalMeshPhysicsProxy(this, InitFunc);
-
 		TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
-		Scene->AddObject(SkelMeshComponent, PhysicsProxy);
-
-		AChaosSolverActor* const SolverActor = Cast<AChaosSolverActor>(Scene->GetSolverActor());
-		UChaosGameplayEventDispatcher* const EventDispatcher = SolverActor ? SolverActor->GetGameplayEventDispatcher() : nullptr;
-		if (EventDispatcher)
+		if(Scene.IsValid())
 		{
-			if (bNotifyCollisions)
-			{
-				// I want the more-detailed Chaos events
-				EventDispatcher->RegisterForCollisionEvents(SkelMeshComponent, this);
-			}
+			check(PhysicsProxy == nullptr);
+			PhysicsProxy = new FSkeletalMeshPhysicsProxy(this, InitFunc);
 
-			if (FBodyInstance const* const BI = SkelMeshComponent->GetBodyInstance())
+			Scene->AddObject(SkelMeshComponent, PhysicsProxy);
+
+			AChaosSolverActor* const SolverActor = Cast<AChaosSolverActor>(Scene->GetSolverActor());
+			UChaosGameplayEventDispatcher* const EventDispatcher = SolverActor ? SolverActor->GetGameplayEventDispatcher() : nullptr;
+			if(EventDispatcher)
 			{
-				if (BI->bNotifyRigidBodyCollision)
+				if(bNotifyCollisions)
 				{
-					EventDispatcher->RegisterForCollisionEvents(SkelMeshComponent, SkelMeshComponent);
+					// I want the more-detailed Chaos events
+					EventDispatcher->RegisterForCollisionEvents(SkelMeshComponent, this);
+				}
+
+				if(FBodyInstance const* const BI = SkelMeshComponent->GetBodyInstance())
+				{
+					if(BI->bNotifyRigidBodyCollision)
+					{
+						EventDispatcher->RegisterForCollisionEvents(SkelMeshComponent, SkelMeshComponent);
+					}
 				}
 			}
 		}
