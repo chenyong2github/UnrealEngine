@@ -26,7 +26,6 @@ static FName NAME_SF_METAL_TVOS(TEXT("SF_METAL_TVOS"));
 static FName NAME_SF_METAL_MRT_TVOS(TEXT("SF_METAL_MRT_TVOS"));
 static FName NAME_SF_METAL_MRT_MAC(TEXT("SF_METAL_MRT_MAC"));
 static FName NAME_SF_METAL_SM5(TEXT("SF_METAL_SM5"));
-static FName NAME_SF_METAL_SM5_NOTESS(TEXT("SF_METAL_SM5_NOTESS"));
 static FName NAME_SF_METAL_MACES3_1(TEXT("SF_METAL_MACES3_1"));
 
 static FName NAME_VULKAN_ES3_1_ANDROID(TEXT("SF_VULKAN_ES31_ANDROID"));
@@ -70,8 +69,6 @@ static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 		return NAME_SF_METAL_MRT_MAC;
 	case SP_METAL_SM5:
 		return NAME_SF_METAL_SM5;
-	case SP_METAL_SM5_NOTESS:
-		return NAME_SF_METAL_SM5_NOTESS;
 	case SP_METAL_MACES3_1:
 		return NAME_SF_METAL_MACES3_1;
 	case SP_VULKAN_ES3_1_ANDROID:
@@ -118,7 +115,6 @@ static EShaderPlatform ShaderFormatNameToShaderPlatform(FName ShaderFormat)
 	if (ShaderFormat == NAME_SF_METAL_MRT_TVOS)			return SP_METAL_MRT_TVOS;
 	if (ShaderFormat == NAME_SF_METAL_MRT_MAC)			return SP_METAL_MRT_MAC;
 	if (ShaderFormat == NAME_SF_METAL_SM5)				return SP_METAL_SM5;
-	if (ShaderFormat == NAME_SF_METAL_SM5_NOTESS)		return SP_METAL_SM5_NOTESS;
 	if (ShaderFormat == NAME_SF_METAL_MACES3_1)			return SP_METAL_MACES3_1;
 
 	if (ShaderFormat == NAME_VULKAN_ES3_1_ANDROID)		return SP_VULKAN_ES3_1_ANDROID;

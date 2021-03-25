@@ -123,11 +123,6 @@ struct FMacPlatformProperties
 		return 1.0f;
 	}
 	
-	static FORCEINLINE bool SupportsTessellation()
-	{
-		return true;
-	}
-
 	static FORCEINLINE bool SupportsAudioStreaming()
 	{
 		return !IsServerOnly();

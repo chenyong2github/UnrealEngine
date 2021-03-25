@@ -29,8 +29,8 @@ typedef NS_OPTIONS(uint64, EMetalFeatures)
 	EMetalFeaturesLayeredRendering = 1 << 4,
 	/** Support for specifying small buffers as byte arrays */
 	EMetalFeaturesSetBytes = 1 << 5,
-	/** Supports tessellation rendering */
-	EMetalFeaturesTessellation = 1 << 6,
+	/** Unused Reserved Bit */
+	EMetalFeaturesUnusedReservedBit6 = 1 << 6, // was EMetalFeaturesTessellation
 	/** Supports framework-level validation */
 	EMetalFeaturesValidation = 1 << 7,
 	/** Supports detailed statistics */
@@ -71,8 +71,8 @@ typedef NS_OPTIONS(uint64, EMetalFeatures)
     EMetalFeaturesPipelineBufferMutability = 1llu << 25llu,
     /** Supports tile shaders */
     EMetalFeaturesTileShaders = 1llu << 26llu,
-	/** Supports separate tessellation shader execution */
-	EMetalFeaturesSeparateTessellation = 1llu << 27llu,
+	/** Unused Reserved Bit */
+	EMetalFeaturesUnusedReservedBit27 = 1llu << 27llu, // was EMetalFeaturesSeparateTessellation
 	/** Supports indirect argument buffers Tier 2 */
 	EMetalFeaturesTier2IABs = 1llu << 28llu,
 };

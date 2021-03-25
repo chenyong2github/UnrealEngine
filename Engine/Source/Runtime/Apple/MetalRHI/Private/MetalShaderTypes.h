@@ -8,8 +8,6 @@
 
 #include "Shaders/Types/Templates/MetalBaseShader.h"
 #include "Shaders/Types/MetalVertexShader.h"
-#include "Shaders/Types/MetalHullShader.h"
-#include "Shaders/Types/MetalDomainShader.h"
 #include "Shaders/Types/MetalGeometryShader.h"
 #include "Shaders/Types/MetalPixelShader.h"
 #include "Shaders/Types/MetalComputeShader.h"

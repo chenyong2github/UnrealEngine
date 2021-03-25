@@ -90,10 +90,6 @@ static uint32 MetalBufferUsage(uint32 InUsage)
 
 	if (InUsage & BUF_IndexBuffer)
 	{
-		if (RHISupportsTessellation(GMaxRHIShaderPlatform))
-		{
-			Usage |= BUF_ShaderResource;
-		}
 		Usage |= (EMetalBufferUsage_GPUOnly | EMetalBufferUsage_LinearTex);
 	}
 
@@ -700,18 +696,7 @@ FMetalResourceMultiBuffer::FMetalResourceMultiBuffer(uint32 InSize, uint32 InUsa
 	, FMetalRHIBuffer(InSize, InUsage, Type)
 	, IndexType((InStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32)
 {
-	if (InUsage & BUF_IndexBuffer)
-	{
-		if (InSize)
-		{
-			if (RHISupportsTessellation(GMaxRHIShaderPlatform))
-			{
-				EPixelFormat Format = IndexType == mtlpp::IndexType::UInt16 ? PF_R16_UINT : PF_R32_UINT;
-				CreateLinearTexture(Format, this);
-			}
-		}
-	}
-	else if (InUsage & BUF_StructuredBuffer)
+	if (InUsage & BUF_StructuredBuffer)
 	{
 		check((InSize % InStride) == 0);
 

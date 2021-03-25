@@ -19,7 +19,6 @@ static FText GetFriendlyShaderPlatformName(const EShaderPlatform InShaderPlatfor
 	}
 	break;
 
-	case SP_METAL_SM5_NOTESS:
 	case SP_METAL_MRT_MAC:
 	case SP_METAL_MRT:
 	{

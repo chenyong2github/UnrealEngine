@@ -448,108 +448,6 @@ namespace CrossCompiler
 		Strings.ArgumentBuffers += TEXT("]");
 	}
 
-	void FHlslccHeaderWriter::WriteTessellationInputControlPoints(uint32 PatchSize)
-	{
-		checkf(Strings.TessellationInputControlPoints.IsEmpty(), TEXT("cannot define @TessellationInputControlPoints attribute more than once"));
-		Strings.TessellationInputControlPoints = FString::Printf(TEXT("%u"), PatchSize);
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationOutputControlPoints(uint32 PatchSize)
-	{
-		checkf(Strings.TessellationOutputControlPoints.IsEmpty(), TEXT("cannot define @TessellationOutputControlPoints attribute more than once"));
-		Strings.TessellationOutputControlPoints = FString::Printf(TEXT("%u"), PatchSize);
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationMaxTessFactor(uint32 MaxTessFactor)
-	{
-		checkf(Strings.TessellationMaxTessFactor.IsEmpty(), TEXT("cannot define @TessellationMaxTessFactor attribute more than once"));
-		Strings.TessellationMaxTessFactor = FString::Printf(TEXT("%u"), MaxTessFactor);
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationDomainTri()
-	{
-		checkf(Strings.TessellationDomain.IsEmpty(), TEXT("cannot define @TessellationDomain attribute more than once"));
-		Strings.TessellationDomain = TEXT("tri");
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationDomainQuad()
-	{
-		checkf(Strings.TessellationDomain.IsEmpty(), TEXT("cannot define @TessellationDomain attribute more than once"));
-		Strings.TessellationDomain = TEXT("quad");
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationOutputWindingCW()
-	{
-		checkf(Strings.TessellationOutputWinding.IsEmpty(), TEXT("cannot define @TessellationOutputWinding attribute more than once"));
-		Strings.TessellationOutputWinding = TEXT("cw");
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationOutputWindingCCW()
-	{
-		checkf(Strings.TessellationOutputWinding.IsEmpty(), TEXT("cannot define @TessellationOutputWinding attribute more than once"));
-		Strings.TessellationOutputWinding = TEXT("ccw");
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationPartitioningInteger()
-	{
-		checkf(Strings.TessellationPartitioning.IsEmpty(), TEXT("cannot define @TessellationPartitioning attribute more than once"));
-		Strings.TessellationPartitioning = TEXT("integer");
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationPartitioningFractionalOdd()
-	{
-		checkf(Strings.TessellationPartitioning.IsEmpty(), TEXT("cannot define @TessellationPartitioning attribute more than once"));
-		Strings.TessellationPartitioning = TEXT("fractional_odd");
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationPartitioningFractionalEven()
-	{
-		checkf(Strings.TessellationPartitioning.IsEmpty(), TEXT("cannot define @TessellationPartitioning attribute more than once"));
-		Strings.TessellationPartitioning = TEXT("fractional_even");
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationPatchesPerThreadGroup(uint32 NumPatches)
-	{
-		checkf(Strings.TessellationPatchesPerThreadGroup.IsEmpty(), TEXT("cannot define @TessellationPatchesPerThreadGroup attribute more than once"));
-		Strings.TessellationPatchesPerThreadGroup = FString::Printf(TEXT("%u"), NumPatches);
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationPatchCountBuffer(uint32 BindingIndex)
-	{
-		checkf(Strings.TessellationPatchCountBuffer.IsEmpty(), TEXT("cannot define @TessellationPatchCountBuffer attribute more than once"));
-		Strings.TessellationPatchCountBuffer = FString::Printf(TEXT("%u"), BindingIndex);
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationIndexBuffer(uint32 BindingIndex)
-	{
-		checkf(Strings.TessellationIndexBuffer.IsEmpty(), TEXT("cannot define @TessellationIndexBuffer attribute more than once"));
-		Strings.TessellationIndexBuffer = FString::Printf(TEXT("%u"), BindingIndex);
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationHSOutBuffer(uint32 BindingIndex)
-	{
-		checkf(Strings.TessellationHSOutBuffer.IsEmpty(), TEXT("cannot define @TessellationHSOutBuffer attribute more than once"));
-		Strings.TessellationHSOutBuffer = FString::Printf(TEXT("%u"), BindingIndex);
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationHSTFOutBuffer(uint32 BindingIndex)
-	{
-		checkf(Strings.TessellationHSTFOutBuffer.IsEmpty(), TEXT("cannot define @TessellationHSTFOutBuffer attribute more than once"));
-		Strings.TessellationHSTFOutBuffer = FString::Printf(TEXT("%u"), BindingIndex);
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationControlPointOutBuffer(uint32 BindingIndex)
-	{
-		checkf(Strings.TessellationControlPointOutBuffer.IsEmpty(), TEXT("cannot define @TessellationControlPointOutBuffer attribute more than once"));
-		Strings.TessellationControlPointOutBuffer = FString::Printf(TEXT("%u"), BindingIndex);
-	}
-
-	void FHlslccHeaderWriter::WriteTessellationControlPointIndexBuffer(uint32 BindingIndex)
-	{
-		checkf(Strings.TessellationControlPointIndexBuffer.IsEmpty(), TEXT("cannot define @TessellationControlPointIndexBuffer attribute more than once"));
-		Strings.TessellationControlPointIndexBuffer = FString::Printf(TEXT("%u"), BindingIndex);
-	}
-
 	FString FHlslccHeaderWriter::ToString() const
 	{
 		FString MetaData;
@@ -574,19 +472,6 @@ namespace CrossCompiler
 		PrintAttributes(TEXT("NumThreads"), Strings.NumThreads);
 		PrintAttributes(TEXT("SideTable"), Strings.SideTable);
 		PrintAttributes(TEXT("ArgumentBuffers"), Strings.ArgumentBuffers);
-		PrintAttributes(TEXT("TessellationOutputControlPoints"), Strings.TessellationOutputControlPoints);
-		PrintAttributes(TEXT("TessellationDomain"), Strings.TessellationDomain);
-		PrintAttributes(TEXT("TessellationInputControlPoints"), Strings.TessellationInputControlPoints);
-		PrintAttributes(TEXT("TessellationMaxTessFactor"), Strings.TessellationMaxTessFactor);
-		PrintAttributes(TEXT("TessellationOutputWinding"), Strings.TessellationOutputWinding);
-		PrintAttributes(TEXT("TessellationPartitioning"), Strings.TessellationPartitioning);
-		PrintAttributes(TEXT("TessellationPatchesPerThreadGroup"), Strings.TessellationPatchesPerThreadGroup);
-		PrintAttributes(TEXT("TessellationPatchCountBuffer"), Strings.TessellationPatchCountBuffer);
-		PrintAttributes(TEXT("TessellationIndexBuffer"), Strings.TessellationIndexBuffer);
-		PrintAttributes(TEXT("TessellationHSOutBuffer"), Strings.TessellationHSOutBuffer);
-		PrintAttributes(TEXT("TessellationControlPointOutBuffer"), Strings.TessellationControlPointOutBuffer);
-		PrintAttributes(TEXT("TessellationHSTFOutBuffer"), Strings.TessellationHSTFOutBuffer);
-		PrintAttributes(TEXT("TessellationControlPointIndexBuffer"), Strings.TessellationControlPointIndexBuffer);
 
 		return MetaData;
 	}

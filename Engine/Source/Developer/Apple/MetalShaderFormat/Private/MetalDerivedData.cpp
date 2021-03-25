@@ -34,7 +34,6 @@ extern void BuildMetalShaderOutput(
 	TCHAR const* MinOSVersion,
 	EMetalTypeBufferMode TypeMode,
 	TArray<FShaderCompilerError>& OutErrors,
-	FMetalTessellationOutputs const& TessOutputAttribs,
 	uint32 TypedBuffers,
 	uint32 InvariantBuffers,
 	uint32 TypedUAVs,
@@ -361,7 +360,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 	}
 	
 	FMetalShaderOutputMetaData OutputData;
-	FMetalTessellationOutputs Attribs;
 	
 	uint32 CRCLen = 0;
 	uint32 CRC = 0;
@@ -377,11 +375,8 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 	};
 	TMap<FString, TArray<FMetalResourceTableEntry>> IABs;
 	
-	bool bUsingTessellation = Input.IsUsingTessellation();
-	
 #if PLATFORM_MAC || PLATFORM_WINDOWS
 	{
-		const bool bRewriteHlslSource = !bUsingTessellation;
 		std::string EntryPointNameAnsi(TCHAR_TO_UTF8(*Input.EntryPointName));
 
 		CrossCompiler::FShaderConductorContext CompilerContext;
@@ -389,13 +384,9 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		// Initialize compilation options for ShaderConductor
 		CrossCompiler::FShaderConductorOptions Options;
 
-		// Always enable FMA pass for Hull shader, always disable for Pixel and Compute shader,
+		// Always disable FMA pass for Pixel and Compute shader,
 		// otherwise determine whether [[position, invariant]] qualifier is available in Metal or not.
-		if (Frequency == HSF_HullShader)
-		{
-			Options.bEnableFMAPass = true;
-		}
-		else if (Frequency == HSF_PixelShader || Frequency == HSF_ComputeShader)
+		if (Frequency == HSF_PixelShader || Frequency == HSF_ComputeShader)
 		{
 			Options.bEnableFMAPass = false;
 		}
@@ -407,16 +398,13 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		// Load shader source into compiler context
 		CompilerContext.LoadSource(PreprocessedShader, Input.VirtualSourceFilePath, Input.EntryPointName, Frequency);
 
-		if (bRewriteHlslSource)
+		// Rewrite HLSL source code to remove unused global resources and variables
+		Options.bRemoveUnusedGlobals = true;
+		if (!CompilerContext.RewriteHlsl(Options, &PreprocessedShader))
 		{
-			// Rewrite HLSL source code to remove unused global resources and variables
-			Options.bRemoveUnusedGlobals = true;
-			if (!CompilerContext.RewriteHlsl(Options, &PreprocessedShader))
-			{
-				CompilerContext.FlushErrors(Output.Errors);
-			}
-			Options.bRemoveUnusedGlobals = false;
+			CompilerContext.FlushErrors(Output.Errors);
 		}
+		Options.bRemoveUnusedGlobals = false;
 
 		// Convert shader source to ANSI string
 		std::string SourceData(CompilerContext.GetSourceString(), static_cast<size_t>(CompilerContext.GetSourceLength()));
@@ -433,7 +421,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			CompilerContext.LoadSource(SourceData.c_str(), /*Fileanme:*/ nullptr, /*EntryPoint:*/ nullptr, Frequency);
 		}
 
-		if (bDumpDebugInfo && bRewriteHlslSource)
+		if (bDumpDebugInfo)
 		{
 			DumpDebugShaderText(Input, &SourceData[0], SourceData.size(), TEXT("rewritten.hlsl"));
 		}
@@ -549,37 +537,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				}
 			}
 			
-			if(Frequency == HSF_HullShader)
-			{
-				uint32 PatchSize = 0;
-				size_t ThreadSizeIdx = SourceData.find("InputPatch<");
-				check(ThreadSizeIdx != std::string::npos);
-				char const* String = SourceData.c_str() + ThreadSizeIdx;
-				
-#if !PLATFORM_WINDOWS
-				size_t Found = sscanf(String, "InputPatch< %*s ,  %u >", &PatchSize);
-#else
-				size_t Found = sscanf_s(String, "InputPatch< %*s ,  %u >", &PatchSize);
-#endif
-				check(Found == 1);
-				
-				ThreadSizeIdx = SourceData.find("[maxtessfactor(");
-				check(ThreadSizeIdx != std::string::npos);
-				String = SourceData.c_str() + ThreadSizeIdx;
-				
-				uint32 MaxTessFactor = 0;
-#if !PLATFORM_WINDOWS
-				Found = sscanf(String, "[maxtessfactor(%u)]", &MaxTessFactor);
-#else
-				Found = sscanf_s(String, "[maxtessfactor(%u)]", &MaxTessFactor);
-#endif
-				check(Found == 1);
-				
-				CCHeaderWriter.WriteTessellationInputControlPoints(PatchSize);
-				CCHeaderWriter.WriteTessellationMaxTessFactor(MaxTessFactor);
-				CCHeaderWriter.WriteTessellationPatchesPerThreadGroup(1);
-			}
-			
 			{
 				Count = 0;
 				SPVRResult = Reflection.EnumerateExecutionModes(&Count, nullptr);
@@ -599,94 +556,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 								CCHeaderWriter.WriteNumThreads(Mode->operands[0], Mode->operands[1], Mode->operands[2]);
 							}
 							break;
-						case SpvExecutionModeTriangles:
-							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
-							{
-								CCHeaderWriter.WriteTessellationDomainTri();
-								Attribs.HSTFOutSize = 8; // sizeof(MTLTriangleTessellationFactorsHalf);
-							}
-							break;
-						case SpvExecutionModeQuads:
-							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
-							{
-								CCHeaderWriter.WriteTessellationDomainQuad();
-								Attribs.HSTFOutSize = 12; // sizeof(MTLQuadTessellationFactorsHalf);
-							}
-							break;
-						case SpvExecutionModeIsolines:
-							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
-							{
-								check(0); // Not supported by Metal
-							}
-							break;
-						case SpvExecutionModeOutputVertices:
-							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
-							{
-								check(Mode->operands_count == 1);
-								CCHeaderWriter.WriteTessellationOutputControlPoints(Mode->operands[0]);
-							}
-							break;
-						case SpvExecutionModeVertexOrderCw:
-							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
-							{
-								CCHeaderWriter.WriteTessellationOutputWindingCW();
-							}
-							break;
-						case SpvExecutionModeVertexOrderCcw:
-							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
-							{
-								CCHeaderWriter.WriteTessellationOutputWindingCCW();
-							}
-							break;
-						case SpvExecutionModeSpacingEqual:
-							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
-							{
-								CCHeaderWriter.WriteTessellationPartitioningInteger();
-							}
-							break;
-						case SpvExecutionModeSpacingFractionalEven:
-							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
-							{
-								CCHeaderWriter.WriteTessellationPartitioningFractionalEven();
-							}
-							break;
-						case SpvExecutionModeSpacingFractionalOdd:
-							if (Frequency == HSF_HullShader || Frequency == HSF_DomainShader)
-							{
-								CCHeaderWriter.WriteTessellationPartitioningFractionalOdd();
-							}
-							break;
-						case SpvExecutionModeInvocations:
-						case SpvExecutionModePixelCenterInteger:
-						case SpvExecutionModeOriginUpperLeft:
-						case SpvExecutionModeOriginLowerLeft:
-						case SpvExecutionModeEarlyFragmentTests:
-						case SpvExecutionModePointMode:
-						case SpvExecutionModeXfb:
-						case SpvExecutionModeDepthReplacing:
-						case SpvExecutionModeDepthGreater:
-						case SpvExecutionModeDepthLess:
-						case SpvExecutionModeDepthUnchanged:
-						case SpvExecutionModeInputPoints:
-						case SpvExecutionModeInputLines:
-						case SpvExecutionModeInputLinesAdjacency:
-						case SpvExecutionModeInputTrianglesAdjacency:
-						case SpvExecutionModeOutputPoints:
-						case SpvExecutionModeOutputLineStrip:
-						case SpvExecutionModeOutputTriangleStrip:
-						case SpvExecutionModeVecTypeHint:
-						case SpvExecutionModeContractionOff:
-						case SpvExecutionModeInitializer:
-						case SpvExecutionModeFinalizer:
-						case SpvExecutionModeSubgroupSize:
-						case SpvExecutionModeSubgroupsPerWorkgroup:
-						case SpvExecutionModeSubgroupsPerWorkgroupId:
-						case SpvExecutionModeLocalSizeId:
-						case SpvExecutionModeLocalSizeHintId:
-						case SpvExecutionModePostDepthCoverage:
-						case SpvExecutionModeStencilRefReplacingEXT:
-							break;
-							
 						default:
 							break;
 					}
@@ -1296,321 +1165,11 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				}
 			}
 			
-			if (Frequency == HSF_VertexShader && bUsingTessellation)
-			{
-				Count = 0;
-				SPVRResult = Reflection.EnumerateOutputVariables(&Count, nullptr);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				OutputVars.SetNum(Count);
-				SPVRResult = Reflection.EnumerateOutputVariables(&Count, OutputVars.GetData());
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				if (Count > 0)
-				{
-					
-					OutputVars.Sort([](SpvReflectInterfaceVariable& LHS, SpvReflectInterfaceVariable& RHS)  { return LHS.location < RHS.location; });
-					uint32 Offset = 0;
-					uint32 InitialAlign = 0;
-					for (auto const& Var : OutputVars)
-					{
-						if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1)
-						{
-							unsigned Location = Var->location;
-							
-							uint32 ArrayCount = 1;
-							for (uint32 Dim = 0; Dim < Var->array.dims_count; Dim++)
-							{
-								ArrayCount *= Var->array.dims[Dim];
-							}
-							
-							auto const type = *Var->type_description;
-							uint32_t masked_type = type.type_flags & 0xF;
-							
-							for (uint32 j = 0; j < ArrayCount; j++)
-							{
-								FMetalAttribute& Attrib = Attribs.HSOut.AddDefaulted_GetRef();
-								Attrib.Index = Location + j;
-								uint32 ElementSize = 0;
-								switch (masked_type) {
-									default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
-									case SPV_REFLECT_TYPE_FLAG_BOOL  : Attrib.Type = EMetalComponentType::Bool; ElementSize = 1; break;
-									case SPV_REFLECT_TYPE_FLAG_INT   : Attrib.Type = (type.traits.numeric.scalar.signedness ? EMetalComponentType::Int : EMetalComponentType::Uint); ElementSize = 4; break;
-									case SPV_REFLECT_TYPE_FLAG_FLOAT : Attrib.Type = (type.traits.numeric.scalar.width == 32 ? EMetalComponentType::Float : EMetalComponentType::Half); if(type.traits.numeric.scalar.width == 32) { ElementSize = 4; } else { ElementSize = 2; } break;
-								}
-								if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-								{
-									Attrib.Components = (type.traits.numeric.matrix.row_count * type.traits.numeric.matrix.column_count);
-								}
-								else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
-								{
-									Attrib.Components = (type.traits.numeric.vector.component_count);
-								}
-								else
-								{
-									Attrib.Components = 1;
-								}
-								
-								char const* NumberedSemantic = strstr(Var->name, Var->semantic);
-								FString Semantic = FString::Printf(TEXT("%s_%u"), UTF8_TO_TCHAR(NumberedSemantic), j);
-								Attrib.Semantic = GetTypeHash(Semantic);
-								
-								uint32 AlignedComponents = Attrib.Components == 3 ? 4 : Attrib.Components;
-								InitialAlign = InitialAlign == 0 ? ElementSize * AlignedComponents : InitialAlign;
-								Offset = Align(Offset, ElementSize * AlignedComponents);
-								Attrib.Offset = Offset;
-								Offset += ElementSize * AlignedComponents;
-
-								if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
-									ALNString += FString::Printf(TEXT("%sHSOut.%s(%u)"), ALNString.Len() ? TEXT(",") : TEXT(""), *Semantic, Attrib.Offset);
-							}
-						}
-					}
-					Attribs.HSOutSize = Align(Offset, 16);
-					
-					if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
-						ALNString += FString::Printf(TEXT(" = HSOutSize(%u)"), Attribs.HSOutSize);
-				}
-			}
-			
-			if (Frequency == HSF_HullShader)
-			{
-				Count = 0;
-				SPVRResult = Reflection.EnumerateInputVariables(&Count, nullptr);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				InputVars.SetNum(Count);
-				SPVRResult = Reflection.EnumerateInputVariables(&Count, InputVars.GetData());
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				if (Count > 0)
-				{
-					
-					InputVars.Sort([](SpvReflectInterfaceVariable& LHS, SpvReflectInterfaceVariable& RHS)  { return LHS.location < RHS.location; });
-					uint32 Offset = 0;
-					for (auto const& Var : InputVars)
-					{
-						if (Var->storage_class == SpvStorageClassInput && Var->built_in == -1)
-						{
-							unsigned Location = Var->location;
-							
-							uint32 ArrayCount = 1;
-							for (uint32 Dim = 1; Dim < Var->array.dims_count; Dim++)
-							{
-								ArrayCount *= Var->array.dims[Dim];
-							}
-							
-							auto const type = *Var->type_description;
-							uint32_t masked_type = type.type_flags & 0xF;
-							
-							for (uint32 j = 0; j < ArrayCount; j++)
-							{
-								FMetalAttribute& Attrib = Attribs.HSIn.AddDefaulted_GetRef();
-								Attrib.Index = Location + j;
-								uint32 ElementSize = 0;
-								switch (masked_type) {
-									default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
-									case SPV_REFLECT_TYPE_FLAG_BOOL  : Attrib.Type = EMetalComponentType::Bool; ElementSize = 1; break;
-									case SPV_REFLECT_TYPE_FLAG_INT   : Attrib.Type = (type.traits.numeric.scalar.signedness ? EMetalComponentType::Int : EMetalComponentType::Uint); ElementSize = 4; break;
-									case SPV_REFLECT_TYPE_FLAG_FLOAT : Attrib.Type = (type.traits.numeric.scalar.width == 32 ? EMetalComponentType::Float : EMetalComponentType::Half); if(type.traits.numeric.scalar.width == 32) { ElementSize = 4; } else { ElementSize = 2; } break;
-								}
-								if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-								{
-									Attrib.Components = (type.traits.numeric.matrix.row_count * type.traits.numeric.matrix.column_count);
-								}
-								else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
-								{
-									Attrib.Components = (type.traits.numeric.vector.component_count);
-								}
-								else
-								{
-									Attrib.Components = 1;
-								}
-								
-								char const* NumberedSemantic = strstr(Var->name, Var->semantic);
-								FString Semantic = FString::Printf(TEXT("%s_%u"), UTF8_TO_TCHAR(NumberedSemantic), j);
-								Attrib.Semantic = GetTypeHash(Semantic);
-								
-								uint32 AlignedComponents = Attrib.Components == 3 ? 4 : Attrib.Components;
-								Offset = Align(Offset, ElementSize * AlignedComponents);
-								Attrib.Offset = Offset;
-								Offset += ElementSize * AlignedComponents;
-								
-								if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
-									ALNString += FString::Printf(TEXT("%sHSIn.%s(%u)"), ALNString.Len() ? TEXT(",") : TEXT(""), *Semantic, Attrib.Offset);
-							}
-						}
-					}
-				}
-				
-				Count = 0;
-				SPVRResult = Reflection.EnumerateOutputVariables(&Count, nullptr);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				OutputVars.SetNum(Count);
-				SPVRResult = Reflection.EnumerateOutputVariables(&Count, OutputVars.GetData());
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				if (Count > 0)
-				{
-					uint32 HSOutOffset = 0;
-					uint32 PatchControlPointOffset = 0;
-					uint32 HSOutAlign = 0;
-					uint32 PatchControlPointAlign = 0;
-					
-					OutputVars.Sort([](SpvReflectInterfaceVariable& LHS, SpvReflectInterfaceVariable& RHS)  { return LHS.location < RHS.location; });
-					
-					for (auto const& Var : OutputVars)
-					{
-						if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1 && !CrossCompiler::FShaderConductorContext::IsIntermediateSpirvOutputVariable(Var->name))
-						{
-							unsigned Location = Var->location;
-							uint32 ArrayCount = 1;
-							for (uint32 Dim = 1; Dim < Var->array.dims_count; Dim++)
-							{
-								ArrayCount *= Var->array.dims[Dim];
-							}
-							
-							auto const type = *Var->type_description;
-							uint32_t masked_type = type.type_flags & 0xF;
-							
-							for (uint32 j = 0; j < ArrayCount; j++)
-							{
-								FMetalAttribute& Attrib = Var->array.dims_count ? Attribs.PatchControlPointOut.AddDefaulted_GetRef() : Attribs.HSOut.AddDefaulted_GetRef();
-								Attrib.Index = Location + j;
-								uint32 ElementSize = 0;
-								switch (masked_type) {
-									default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
-									case SPV_REFLECT_TYPE_FLAG_BOOL  : Attrib.Type = EMetalComponentType::Bool; ElementSize = 1; break;
-									case SPV_REFLECT_TYPE_FLAG_INT   : Attrib.Type = (type.traits.numeric.scalar.signedness ? EMetalComponentType::Int : EMetalComponentType::Uint); ElementSize = 4; break;
-									case SPV_REFLECT_TYPE_FLAG_FLOAT : Attrib.Type = (type.traits.numeric.scalar.width == 32 ? EMetalComponentType::Float : EMetalComponentType::Half); if(type.traits.numeric.scalar.width == 32) { ElementSize = 4; } else { ElementSize = 2; } break;
-								}
-								if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-								{
-									Attrib.Components = (type.traits.numeric.matrix.row_count * type.traits.numeric.matrix.column_count);
-								}
-								else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
-								{
-									Attrib.Components = (type.traits.numeric.vector.component_count);
-								}
-								else
-								{
-									Attrib.Components = 1;
-								}
-								
-								uint32& Offset = Var->array.dims_count ? PatchControlPointOffset : HSOutOffset;
-								uint32& InitialAlign = Var->array.dims_count ? PatchControlPointAlign : HSOutAlign;
-								TCHAR const* Name = Var->array.dims_count ? TEXT("PatchOut") : TEXT("HSOut");
-								
-								char const* NumberedSemantic = strstr(Var->name, Var->semantic);
-								FString Semantic = FString::Printf(TEXT("%s_%u"), UTF8_TO_TCHAR(NumberedSemantic), j);
-								Attrib.Semantic = GetTypeHash(Semantic);
-								
-								uint32 AlignedComponents = Attrib.Components == 3 ? 4 : Attrib.Components;
-								InitialAlign = InitialAlign == 0 ? ElementSize * AlignedComponents : InitialAlign;
-								Offset = Align(Offset, ElementSize * AlignedComponents);
-								Attrib.Offset = Offset;
-								Offset += ElementSize * AlignedComponents;
-								
-								if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
-									ALNString += FString::Printf(TEXT("%s%s.%s(%u)"), ALNString.Len() ? TEXT(",") : TEXT(""), Name, *Semantic, Attrib.Offset);
-							}
-						}
-					}
-					Attribs.HSOutSize = Align(HSOutOffset, 16);
-					Attribs.PatchControlPointOutSize = Align(PatchControlPointOffset, 16);
-					
-					if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
-						ALNString += FString::Printf(TEXT(" = HSOutSize(%u), PatchControlPointOutSize(%u)"), Attribs.HSOutSize, Attribs.PatchControlPointOutSize);
-				}
-			}
-			
-			if (Frequency == HSF_DomainShader)
-			{
-				Count = 0;
-				SPVRResult = Reflection.EnumerateInputVariables(&Count, nullptr);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				InputVars.SetNum(Count);
-				SPVRResult = Reflection.EnumerateInputVariables(&Count, InputVars.GetData());
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				if (Count > 0)
-				{
-					uint32 HSOutOffset = 0;
-					uint32 PatchControlPointOffset = 0;
-					uint32 HSOutAlign = 0;
-					uint32 PatchControlPointAlign = 0;
-					
-					InputVars.Sort([](SpvReflectInterfaceVariable& LHS, SpvReflectInterfaceVariable& RHS)  { return LHS.location < RHS.location; });
-					for (auto const& Var : InputVars)
-					{
-						if (Var->storage_class == SpvStorageClassInput && Var->built_in == -1)
-						{
-							unsigned Location = Var->location;
-							
-							uint32 ArrayCount = 1;
-							for (uint32 Dim = 1; Dim < Var->array.dims_count; Dim++)
-							{
-								ArrayCount *= Var->array.dims[Dim];
-							}
-							
-							auto const type = *Var->type_description;
-							uint32_t masked_type = type.type_flags & 0xF;
-							
-							for (uint32 j = 0; j < ArrayCount; j++)
-							{
-								FMetalAttribute& Attrib = Var->array.dims_count ? Attribs.PatchControlPointOut.AddDefaulted_GetRef() : Attribs.HSOut.AddDefaulted_GetRef();
-								Attrib.Index = Location + j;
-								uint32 ElementSize = 0;
-								switch (masked_type) {
-									default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
-									case SPV_REFLECT_TYPE_FLAG_BOOL  : Attrib.Type = EMetalComponentType::Bool; ElementSize = 1; break;
-									case SPV_REFLECT_TYPE_FLAG_INT   : Attrib.Type = (type.traits.numeric.scalar.signedness ? EMetalComponentType::Int : EMetalComponentType::Uint); ElementSize = 4; break;
-									case SPV_REFLECT_TYPE_FLAG_FLOAT : Attrib.Type = (type.traits.numeric.scalar.width == 32 ? EMetalComponentType::Float : EMetalComponentType::Half); if(type.traits.numeric.scalar.width == 32) { ElementSize = 4; } else { ElementSize = 2; } break;
-								}
-								if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-								{
-									Attrib.Components = (type.traits.numeric.matrix.row_count * type.traits.numeric.matrix.column_count);
-								}
-								else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
-								{
-									Attrib.Components = (type.traits.numeric.vector.component_count);
-								}
-								else
-								{
-									Attrib.Components = 1;
-								}
-								
-								uint32& Offset = Var->array.dims_count ? PatchControlPointOffset : HSOutOffset;
-								uint32& InitialAlign = Var->array.dims_count ? PatchControlPointAlign : HSOutAlign;
-								TCHAR const* Name = Var->array.dims_count ? TEXT("PatchOut") : TEXT("HSOut");
-								
-								char const* NumberedSemantic = strstr(Var->name, Var->semantic);
-								FString Semantic = FString::Printf(TEXT("%s_%u"), UTF8_TO_TCHAR(NumberedSemantic), j);
-								Attrib.Semantic = GetTypeHash(Semantic);
-								
-								uint32 AlignedComponents = Attrib.Components == 3 ? 4 : Attrib.Components;
-								InitialAlign = InitialAlign == 0 ? ElementSize * AlignedComponents : InitialAlign;
-								Offset = Align(Offset, ElementSize * AlignedComponents);
-								Attrib.Offset = Offset;
-								Offset += ElementSize * AlignedComponents;
-								
-								if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
-									ALNString += FString::Printf(TEXT("%s%s.%s(%u)"), ALNString.Len() ? TEXT(",") : TEXT(""), Name, *Semantic, Attrib.Offset);
-							}
-						}
-					}
-					Attribs.HSOutSize = Align(HSOutOffset, 16);
-					Attribs.PatchControlPointOutSize = Align(PatchControlPointOffset, 16);
-					
-					if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
-						ALNString += FString::Printf(TEXT(" = HSOutSize(%u), PatchControlPointOutSize(%u)"), Attribs.HSOutSize, Attribs.PatchControlPointOutSize);
-				}
-			}
-			
 			// Copy reflection code back to SPIR-V buffer
 			SpirvData = TArray<uint32>(Reflection.GetCode(), Reflection.GetCodeSize() / sizeof(uint32));
 		}
 		
 		uint32 SideTableIndex = 0;
-		uint32 OutputBufferIndex = 0;
-		uint32 IndirectParamsIndex = 0;
-		uint32 PatchBufferIndex = 0;
-		uint32 TessFactorBufferIndex = 0;
-		uint32 HullIndexBuffer = 0;
 
 		CrossCompiler::FShaderConductorTarget TargetDesc;
 
@@ -1666,70 +1225,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					// forward this dimension to SPIRV-Cross because SPIR-V doesn't support a dimension for OpTypeImage instruction with SubpassData
 					TargetDesc.CompileFlags.SetDefine(subpass_input_dimension_names[SubpassIndex], SubpassInputDim);
 				}
-			}
-			
-			if (Frequency == HSF_VertexShader && bUsingTessellation)
-			{
-				TargetDesc.CompileFlags.SetDefine(TEXT("capture_output_to_buffer"), 1);
-			}
-			
-			if (Frequency == HSF_VertexShader && bUsingTessellation)
-			{
-				OutputBufferIndex = FPlatformMath::CountTrailingZeros64(BufferIndices);
-				BufferIndices &= ~(1ull << (uint64)OutputBufferIndex);
-				TargetDesc.CompileFlags.SetDefine(TEXT("shader_output_buffer_index"), OutputBufferIndex);
-
-				IndirectParamsIndex = FPlatformMath::CountTrailingZeros64(BufferIndices);
-				BufferIndices &= ~(1ull << (uint64)IndirectParamsIndex);
-				TargetDesc.CompileFlags.SetDefine(TEXT("indirect_params_buffer_index"), IndirectParamsIndex);
-				
-				CCHeaderWriter.WriteTessellationHSOutBuffer(OutputBufferIndex);
-				CCHeaderWriter.WriteTessellationPatchCountBuffer(IndirectParamsIndex);
-			}
-			
-			if (Frequency == HSF_DomainShader)
-			{
-				OutputBufferIndex = FPlatformMath::CountTrailingZeros64(BufferIndices);
-				BufferIndices &= ~(1ull << (uint64)OutputBufferIndex);
-				
-				IndirectParamsIndex = FPlatformMath::CountTrailingZeros64(BufferIndices);
-				BufferIndices &= ~(1ull << (uint64)IndirectParamsIndex);
-				
-				CCHeaderWriter.WriteTessellationHSOutBuffer(OutputBufferIndex);
-				CCHeaderWriter.WriteTessellationControlPointOutBuffer(IndirectParamsIndex);
-			}
-			
-			if (Frequency == HSF_HullShader)
-			{
-				OutputBufferIndex = FPlatformMath::CountTrailingZeros64(BufferIndices);
-				BufferIndices &= ~(1ull << (uint64)OutputBufferIndex);
-				TargetDesc.CompileFlags.SetDefine(TEXT("shader_output_buffer_index"), OutputBufferIndex);
-
-				IndirectParamsIndex = FPlatformMath::CountTrailingZeros64(BufferIndices);
-				BufferIndices &= ~(1ull << (uint64)IndirectParamsIndex);
-				TargetDesc.CompileFlags.SetDefine(TEXT("indirect_params_buffer_index"), IndirectParamsIndex);
-
-				PatchBufferIndex = FPlatformMath::CountTrailingZeros64(BufferIndices);
-				BufferIndices &= ~(1ull << (uint64)PatchBufferIndex);
-				TargetDesc.CompileFlags.SetDefine(TEXT("shader_patch_output_buffer_index"), PatchBufferIndex);
-
-				TessFactorBufferIndex = FPlatformMath::CountTrailingZeros64(BufferIndices);
-				BufferIndices &= ~(1ull << (uint64)TessFactorBufferIndex);
-				TargetDesc.CompileFlags.SetDefine(TEXT("shader_tess_factor_buffer_index"), TessFactorBufferIndex);
-				TargetDesc.CompileFlags.SetDefine(TEXT("shader_input_wg_index"), 0);
-
-				HullIndexBuffer = FPlatformMath::CountTrailingZeros64(BufferIndices);
-				BufferIndices &= ~(1ull << (uint64)HullIndexBuffer);
-				
-				uint32 HullVertexBuffer = FPlatformMath::CountTrailingZeros64(BufferIndices);
-				BufferIndices &= ~(1ull << (uint64)HullVertexBuffer);
-				
-				CCHeaderWriter.WriteTessellationHSOutBuffer(PatchBufferIndex);
-				CCHeaderWriter.WriteTessellationPatchCountBuffer(IndirectParamsIndex);
-				CCHeaderWriter.WriteTessellationControlPointIndexBuffer(HullVertexBuffer);
-				CCHeaderWriter.WriteTessellationHSTFOutBuffer(TessFactorBufferIndex);
-				CCHeaderWriter.WriteTessellationControlPointOutBuffer(OutputBufferIndex);
-				CCHeaderWriter.WriteTessellationIndexBuffer(HullIndexBuffer);
 			}
 			
 			if (VersionEnum >= 4)
@@ -1823,7 +1318,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			MetalSource = TCHAR_TO_UTF8(*MetaData);
 			MetalSource += ResultsTargetDataAsString;
 			
-			// Tessellation vertex & hull shaders must always use FMA
 			if (Options.bEnableFMAPass)
 			{
 				std::string FMADefine = std::string("\n"
@@ -1844,72 +1338,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				if (IncludePos != std::string::npos)
 					MetalSource.replace(IncludePos, IncludeString.length(), FMADefine);
 			}
-			
-			if (Frequency == HSF_DomainShader)
-			{
-				uint32 PatchSize = 0;
-				size_t ThreadSizeIdx = SourceData.find("OutputPatch<");
-				check(ThreadSizeIdx != std::string::npos);
-				char const* String = SourceData.c_str() + ThreadSizeIdx;
-				while(!isdigit((unsigned char)*String))
-				{
-					String++;
-				}
-#if !PLATFORM_WINDOWS
-				size_t Found = sscanf(String, "%u", &PatchSize);
-#else
-				size_t Found = sscanf_s(String, "%u", &PatchSize);
-#endif
-				check(Found == 1);
-				
-				std::string PatchAttr;
-				std::string PatchSearch = "[[ patch(triangle, 0) ]]";
-				size_t PatchIdx = MetalSource.find(PatchSearch);
-				if (PatchIdx != std::string::npos)
-				{
-					PatchAttr = "[[ patch(triangle, ";
-				}
-				else
-				{
-					PatchSearch = "[[ patch(quad, 0) ]]";
-					PatchIdx = MetalSource.find(PatchSearch);
-					PatchAttr = "[[ patch(quad, ";
-				}
-				if (PatchIdx != std::string::npos)
-				{
-					char BufferIdx[3];
-					FCStringAnsi::Snprintf(BufferIdx, 3, "%d", PatchSize);
-					PatchAttr += BufferIdx;
-					PatchAttr += ") ]]";
-					MetalSource.replace(PatchIdx, PatchSearch.length(), PatchAttr);
-				}
-				
-				CRCLen = MetalSource.length();
-				CRC = FCrc::MemCrc_DEPRECATED(MetalSource.c_str(), CRCLen);
 
-				std::string PatchInputName = EntryPointNameAnsi + "_patchIn";
-				std::string PatchNameDefine = "#define ";
-				PatchNameDefine += PatchInputName;
-				PatchNameDefine += " ";
-				PatchNameDefine += PatchInputName;
-				PatchNameDefine += std::to_string(CRC);
-				PatchNameDefine += std::to_string(CRCLen);
-				PatchNameDefine += "\n";
-				
-				std::string PatchInput = EntryPointNameAnsi + "_in";
-				std::string PatchDefine = "#define ";
-				PatchDefine += PatchInput;
-				PatchDefine += " ";
-				PatchDefine += PatchInput;
-				PatchDefine += std::to_string(CRC);
-				PatchDefine += std::to_string(CRCLen);
-				PatchDefine += "\n";
-				
-				size_t Pos = MetalSource.find("#include ");
-				MetalSource.insert(Pos, PatchNameDefine);
-				MetalSource.insert(Pos, PatchDefine);
-			}
-			
 			CRCLen = MetalSource.length();
 			CRC = FCrc::MemCrc_DEPRECATED(MetalSource.c_str(), CRCLen);
 			
@@ -2138,7 +1567,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 	if (Result != 0)
 	{
 		Output.Target = Input.Target;
-		BuildMetalShaderOutput(Output, Input, GUIDHash, CCFlags, MetalSource.c_str(), MetalSource.length(), CRCLen, CRC, VersionEnum, *Standard, *MinOSVersion, TypeMode, Output.Errors, Attribs, OutputData.TypedBuffers, OutputData.InvariantBuffers, OutputData.TypedUAVs, OutputData.ConstantBuffers, OutputData.TypedBufferFormats, bAllowFastIntriniscs);
+		BuildMetalShaderOutput(Output, Input, GUIDHash, CCFlags, MetalSource.c_str(), MetalSource.length(), CRCLen, CRC, VersionEnum, *Standard, *MinOSVersion, TypeMode, Output.Errors, OutputData.TypedBuffers, OutputData.InvariantBuffers, OutputData.TypedUAVs, OutputData.ConstantBuffers, OutputData.TypedBufferFormats, bAllowFastIntriniscs);
 
 		FMemoryWriter Ar(OutData);
 		Ar << Output;

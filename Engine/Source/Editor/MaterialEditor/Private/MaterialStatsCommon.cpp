@@ -148,8 +148,6 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 			return FString("METAL_SM5");
 		case SP_VULKAN_PCES3_1:
 			return FString("VULKAN_PCES3_1");
-		case SP_METAL_SM5_NOTESS:
-			return FString("METAL_SM5_NOTESS");
 		case SP_VULKAN_SM5:
 			return FString("VULKAN_SM5");
 		case SP_VULKAN_ES3_1_ANDROID:
@@ -223,7 +221,6 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 		case SP_METAL_MRT_TVOS:
 		case SP_PCD3D_ES3_1:
 		case SP_METAL_SM5:
-		case SP_METAL_SM5_NOTESS:
 		case SP_METAL_MACES3_1:
 		case SP_SWITCH:
 		case SP_SWITCH_FORWARD:

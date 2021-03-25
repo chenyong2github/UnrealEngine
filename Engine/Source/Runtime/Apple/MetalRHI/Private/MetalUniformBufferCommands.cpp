@@ -83,16 +83,6 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* Shad
 			SetUniformBufferInternal<EMetalShaderStages::Vertex, FRHIVertexShader>(Context, static_cast<FRHIVertexShader*>(Shader), BufferIndex, Buffer);
 			break;
 
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		case SF_Hull:
-			SetUniformBufferInternal<EMetalShaderStages::Hull, FRHIHullShader>(Context, static_cast<FRHIHullShader*>(Shader), BufferIndex, Buffer);
-			break;
-
-		case SF_Domain:
-			SetUniformBufferInternal<EMetalShaderStages::Domain, FRHIDomainShader>(Context, static_cast<FRHIDomainShader*>(Shader), BufferIndex, Buffer);
-			break;
-#endif // PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-
 		case SF_Geometry:
 			NOT_SUPPORTED("RHISetShaderUniformBuffer-Geometry");
 			break;

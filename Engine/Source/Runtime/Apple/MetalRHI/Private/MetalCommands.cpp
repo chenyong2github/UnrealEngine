@@ -96,10 +96,6 @@ static FORCEINLINE EMetalShaderStages GetShaderStage(FRHIGraphicsShader* ShaderR
 	switch (ShaderRHI->GetFrequency())
 	{
 	case SF_Vertex:		Stage = EMetalShaderStages::Vertex; break;
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case SF_Hull:		Stage = EMetalShaderStages::Hull; break;
-	case SF_Domain:		Stage = EMetalShaderStages::Domain; break;
-#endif
 	case SF_Pixel:		Stage = EMetalShaderStages::Pixel; break;
 	default:
 		checkf(0, TEXT("FRHIShader Type %d is invalid or unsupported!"), (int32)ShaderRHI->GetFrequency());
@@ -268,10 +264,6 @@ void FMetalRHICommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineSt
 		if (bApplyAdditionalState)
 		{
 			ApplyStaticUniformBuffers(PipelineState->VertexShader.GetReference());
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			ApplyStaticUniformBuffers(PipelineState->HullShader.GetReference());
-			ApplyStaticUniformBuffers(PipelineState->DomainShader.GetReference());
-#endif
 			ApplyStaticUniformBuffers(PipelineState->PixelShader.GetReference());
 		}
 	}

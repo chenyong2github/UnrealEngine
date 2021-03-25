@@ -13,7 +13,7 @@ class FMetalGraphicsPipelineState : public FRHIGraphicsPipelineState
 public:
 	virtual ~FMetalGraphicsPipelineState();
 
-	FMetalShaderPipeline* GetPipeline(EMetalIndexType IndexType);
+	FMetalShaderPipeline* GetPipeline();
 
 	/** Cached vertex structure */
 	TRefCountPtr<FMetalVertexDeclaration> VertexDeclaration;
@@ -21,10 +21,6 @@ public:
 	/** Cached shaders */
 	TRefCountPtr<FMetalVertexShader> VertexShader;
 	TRefCountPtr<FMetalPixelShader> PixelShader;
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	TRefCountPtr<FMetalHullShader> HullShader;
-	TRefCountPtr<FMetalDomainShader> DomainShader;
-#endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	TRefCountPtr<FMetalGeometryShader> GeometryShader;
 #endif
@@ -53,6 +49,5 @@ private:
 	// Needed to runtime refine shaders currently.
 	FGraphicsPipelineStateInitializer Initializer;
 
-	// Tessellation pipelines have three different variations for the indexing-style.
-	FMetalShaderPipeline* PipelineStates[EMetalIndexType_Num];
+	FMetalShaderPipeline* PipelineState;
 };

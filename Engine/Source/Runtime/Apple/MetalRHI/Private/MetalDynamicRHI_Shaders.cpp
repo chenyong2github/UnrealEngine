@@ -33,30 +33,12 @@ FPixelShaderRHIRef FMetalDynamicRHI::RHICreatePixelShader(TArrayView<const uint8
 
 FHullShaderRHIRef FMetalDynamicRHI::RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	@autoreleasepool {
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		FMetalHullShader* Shader = new FMetalHullShader(Code);
-#else
-		FMetalHullShader* Shader = new FMetalHullShader;
-		FMetalCodeHeader Header;
-		Shader->Init(Code, Header);
-#endif // PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		return Shader;
-	}
+	return nullptr;
 }
 
 FDomainShaderRHIRef FMetalDynamicRHI::RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	@autoreleasepool {
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		FMetalDomainShader* Shader = new FMetalDomainShader(Code);
-#else
-		FMetalDomainShader* Shader = new FMetalDomainShader;
-		FMetalCodeHeader Header;
-		Shader->Init(Code, Header);
-#endif // PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		return Shader;
-	}
+	return nullptr;
 }
 
 FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)

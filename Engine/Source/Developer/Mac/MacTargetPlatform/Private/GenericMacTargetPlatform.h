@@ -113,8 +113,6 @@ return TSuper::SupportsFeature(Feature);
 		// no shaders needed for dedicated server target
 		if (!IS_DEDICATED_SERVER)
 		{
-			static FName NAME_SF_METAL_SM5_NOTESS(TEXT("SF_METAL_SM5_NOTESS"));
-			OutFormats.AddUnique(NAME_SF_METAL_SM5_NOTESS);
 			static FName NAME_SF_METAL_SM5(TEXT("SF_METAL_SM5"));
 			OutFormats.AddUnique(NAME_SF_METAL_SM5);
 			static FName NAME_SF_METAL_MACES3_1(TEXT("SF_METAL_MACES3_1"));

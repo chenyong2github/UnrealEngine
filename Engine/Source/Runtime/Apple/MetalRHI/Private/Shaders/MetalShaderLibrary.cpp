@@ -143,16 +143,6 @@ TRefCountPtr<FRHIShader> FMetalShaderLibrary::CreateShader(int32 Index)
 			checkf(false, TEXT("Geometry shaders not supported"));
 			break;
 
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		case SF_Hull:
-			Shader = CreateMetalShader<FMetalHullShader>(Code, Library[LibraryIndex]);
-			break;
-
-		case SF_Domain:
-			Shader = CreateMetalShader<FMetalDomainShader>(Code, Library[LibraryIndex]);
-			break;
-#endif // PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-
 		case SF_Compute:
 			Shader = CreateMetalShader<FMetalComputeShader>(Code, Library[LibraryIndex]);
 			break;

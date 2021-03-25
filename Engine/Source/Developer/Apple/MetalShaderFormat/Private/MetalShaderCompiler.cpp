@@ -76,51 +76,21 @@ static inline uint32 ParseNumber(const ANSICHAR* Str)
 
 struct FHlslccMetalHeader : public CrossCompiler::FHlslccHeader
 {
-	FHlslccMetalHeader(uint8 const Version, bool const bUsingTessellation);
+	FHlslccMetalHeader(uint8 const Version);
 	virtual ~FHlslccMetalHeader();
 	
 	// After the standard header, different backends can output their own info
 	virtual bool ParseCustomHeaderEntries(const ANSICHAR*& ShaderSource) override;
 	
-	float  TessellationMaxTessFactor;
-	uint32 TessellationOutputControlPoints;
-	uint32 TessellationDomain; // 3 = tri, 4 = quad
-	uint32 TessellationInputControlPoints;
-	uint32 TessellationPatchesPerThreadGroup;
-	uint32 TessellationPatchCountBuffer;
-	uint32 TessellationIndexBuffer;
-	uint32 TessellationHSOutBuffer;
-	uint32 TessellationHSTFOutBuffer;
-	uint32 TessellationControlPointOutBuffer;
-	uint32 TessellationControlPointIndexBuffer;
-	EMetalOutputWindingMode TessellationOutputWinding;
-	EMetalPartitionMode TessellationPartitioning;
 	TMap<uint8, TArray<uint8>> ArgumentBuffers;
 	int8 SideTable;
 	uint8 Version;
-	bool bUsingTessellation;
 };
 
-FHlslccMetalHeader::FHlslccMetalHeader(uint8 const InVersion, bool const bInUsingTessellation)
+FHlslccMetalHeader::FHlslccMetalHeader(uint8 const InVersion)
 {
-	TessellationMaxTessFactor = 0.0f;
-	TessellationOutputControlPoints = 0;
-	TessellationDomain = 0;
-	TessellationInputControlPoints = 0;
-	TessellationPatchesPerThreadGroup = 0;
-	TessellationOutputWinding = EMetalOutputWindingMode::Clockwise;
-	TessellationPartitioning = EMetalPartitionMode::Pow2;
-	
-	TessellationPatchCountBuffer = UINT_MAX;
-	TessellationIndexBuffer = UINT_MAX;
-	TessellationHSOutBuffer = UINT_MAX;
-	TessellationHSTFOutBuffer = UINT_MAX;
-	TessellationControlPointOutBuffer = UINT_MAX;
-	TessellationControlPointIndexBuffer = UINT_MAX;
-	
 	SideTable = -1;
 	Version = InVersion;
-	bUsingTessellation = bInUsingTessellation;
 }
 
 FHlslccMetalHeader::~FHlslccMetalHeader()
@@ -133,19 +103,6 @@ bool FHlslccMetalHeader::ParseCustomHeaderEntries(const ANSICHAR*& ShaderSource)
 #define DEF_PREFIX_STR(Str) \
 static const ANSICHAR* Str##Prefix = "// @" #Str ": "; \
 static const int32 Str##PrefixLen = FCStringAnsi::Strlen(Str##Prefix)
-	DEF_PREFIX_STR(TessellationOutputControlPoints);
-	DEF_PREFIX_STR(TessellationDomain);
-	DEF_PREFIX_STR(TessellationInputControlPoints);
-	DEF_PREFIX_STR(TessellationMaxTessFactor);
-	DEF_PREFIX_STR(TessellationOutputWinding);
-	DEF_PREFIX_STR(TessellationPartitioning);
-	DEF_PREFIX_STR(TessellationPatchesPerThreadGroup);
-	DEF_PREFIX_STR(TessellationPatchCountBuffer);
-	DEF_PREFIX_STR(TessellationIndexBuffer);
-	DEF_PREFIX_STR(TessellationHSOutBuffer);
-	DEF_PREFIX_STR(TessellationHSTFOutBuffer);
-	DEF_PREFIX_STR(TessellationControlPointOutBuffer);
-	DEF_PREFIX_STR(TessellationControlPointIndexBuffer);
 	DEF_PREFIX_STR(ArgumentBuffers);
 	DEF_PREFIX_STR(SideTable);
 #undef DEF_PREFIX_STR
@@ -234,191 +191,6 @@ static const int32 Str##PrefixLen = FCStringAnsi::Strlen(Str##Prefix)
 		}
 	}
 	
-	// Early out for non-tessellation...
-	if (!bUsingTessellation)
-	{
-		return true;
-	}
-	
-	auto ParseUInt32Attribute = [&ShaderSource](const ANSICHAR* prefix, int32 prefixLen, uint32& attributeOut)
-	{
-		if (FCStringAnsi::Strncmp(ShaderSource, prefix, prefixLen) == 0)
-		{
-			ShaderSource += prefixLen;
-			
-			if (!CrossCompiler::ParseIntegerNumber(ShaderSource, attributeOut))
-			{
-				return false;
-			}
-			
-			if (!CrossCompiler::Match(ShaderSource, '\n'))
-			{
-				return false;
-			}
-		}
-		
-		return true;
-	};
- 
-	// Read number of tessellation output control points
-	if (!ParseUInt32Attribute(TessellationOutputControlPointsPrefix, TessellationOutputControlPointsPrefixLen, TessellationOutputControlPoints))
-	{
-		return false;
-	}
-	
-	// Read the tessellation domain (tri vs quad)
-	if (FCStringAnsi::Strncmp(ShaderSource, TessellationDomainPrefix, TessellationDomainPrefixLen) == 0)
-	{
-		ShaderSource += TessellationDomainPrefixLen;
-		
-		if (FCStringAnsi::Strncmp(ShaderSource, "tri", 3) == 0)
-		{
-			ShaderSource += 3;
-			TessellationDomain = 3;
-		}
-		else if (FCStringAnsi::Strncmp(ShaderSource, "quad", 4) == 0)
-		{
-			ShaderSource += 4;
-			TessellationDomain = 4;
-		}
-		else
-		{
-			return false;
-		}
-		
-		if (!CrossCompiler::Match(ShaderSource, '\n'))
-		{
-			return false;
-		}
-	}
-	
-	// Read number of tessellation input control points
-	if (!ParseUInt32Attribute(TessellationInputControlPointsPrefix, TessellationInputControlPointsPrefixLen, TessellationInputControlPoints))
-	{
-		return false;
-	}
-	
-	// Read max tessellation factor
-	if (FCStringAnsi::Strncmp(ShaderSource, TessellationMaxTessFactorPrefix, TessellationMaxTessFactorPrefixLen) == 0)
-	{
-		ShaderSource += TessellationMaxTessFactorPrefixLen;
-		
-#if PLATFORM_WINDOWS
-		if (sscanf_s(ShaderSource, "%g\n", &TessellationMaxTessFactor) != 1)
-#else
-		if (sscanf(ShaderSource, "%g\n", &TessellationMaxTessFactor) != 1)
-#endif
-		{
-			return false;
-		}
-		
-		while (*ShaderSource != '\n')
-		{
-			++ShaderSource;
-		}
-		++ShaderSource; // to match the newline
-	}
-	
-	// Read tessellation output winding mode
-	if (FCStringAnsi::Strncmp(ShaderSource, TessellationOutputWindingPrefix, TessellationOutputWindingPrefixLen) == 0)
-	{
-		ShaderSource += TessellationOutputWindingPrefixLen;
-		
-		if (FCStringAnsi::Strncmp(ShaderSource, "cw", 2) == 0)
-		{
-			ShaderSource += 2;
-			TessellationOutputWinding = EMetalOutputWindingMode::Clockwise;
-		}
-		else if (FCStringAnsi::Strncmp(ShaderSource, "ccw", 3) == 0)
-		{
-			ShaderSource += 3;
-			TessellationOutputWinding = EMetalOutputWindingMode::CounterClockwise;
-		}
-		else
-		{
-			return false;
-		}
-		
-		if (!CrossCompiler::Match(ShaderSource, '\n'))
-		{
-			return false;
-		}
-	}
-	
-	// Read tessellation partition mode
-	if (FCStringAnsi::Strncmp(ShaderSource, TessellationPartitioningPrefix, TessellationPartitioningPrefixLen) == 0)
-	{
-		ShaderSource += TessellationPartitioningPrefixLen;
-		
-		static char const* partitionModeNames[] =
-		{
-			// order match enum order
-			"pow2",
-			"integer",
-			"fractional_odd",
-			"fractional_even",
-		};
-		
-		bool match = false;
-		for (size_t i = 0; i < sizeof(partitionModeNames) / sizeof(partitionModeNames[0]); ++i)
-		{
-			size_t partitionModeNameLen = strlen(partitionModeNames[i]);
-			if (FCStringAnsi::Strncmp(ShaderSource, partitionModeNames[i], partitionModeNameLen) == 0)
-			{
-				ShaderSource += partitionModeNameLen;
-				TessellationPartitioning = (EMetalPartitionMode)i;
-				match = true;
-				break;
-			}
-		}
-		
-		if (!match)
-		{
-			return false;
-		}
-		
-		if (!CrossCompiler::Match(ShaderSource, '\n'))
-		{
-			return false;
-		}
-	}
-	
-	// Read number of tessellation patches per threadgroup
-	if (!ParseUInt32Attribute(TessellationPatchesPerThreadGroupPrefix, TessellationPatchesPerThreadGroupPrefixLen, TessellationPatchesPerThreadGroup))
-	{
-		return false;
-	}
-	
-	if (!ParseUInt32Attribute(TessellationPatchCountBufferPrefix, TessellationPatchCountBufferPrefixLen, TessellationPatchCountBuffer))
-	{
-		TessellationPatchCountBuffer = UINT_MAX;
-	}
-	
-	if (!ParseUInt32Attribute(TessellationIndexBufferPrefix, TessellationIndexBufferPrefixLen, TessellationIndexBuffer))
-	{
-		TessellationIndexBuffer = UINT_MAX;
-	}
-	
-	if (!ParseUInt32Attribute(TessellationHSOutBufferPrefix, TessellationHSOutBufferPrefixLen, TessellationHSOutBuffer))
-	{
-		TessellationHSOutBuffer = UINT_MAX;
-	}
-	
-	if (!ParseUInt32Attribute(TessellationControlPointOutBufferPrefix, TessellationControlPointOutBufferPrefixLen, TessellationControlPointOutBuffer))
-	{
-		TessellationControlPointOutBuffer = UINT_MAX;
-	}
-	
-	if (!ParseUInt32Attribute(TessellationHSTFOutBufferPrefix, TessellationHSTFOutBufferPrefixLen, TessellationHSTFOutBuffer))
-	{
-		TessellationHSTFOutBuffer = UINT_MAX;
-	}
-	
-	if (!ParseUInt32Attribute(TessellationControlPointIndexBufferPrefix, TessellationControlPointIndexBufferPrefixLen, TessellationControlPointIndexBuffer))
-	{
-		TessellationControlPointIndexBuffer = UINT_MAX;
-	}
-	
 	return true;
 }
 
@@ -442,7 +214,6 @@ void BuildMetalShaderOutput(
 	TCHAR const* MinOSVersion,
 	EMetalTypeBufferMode TypeMode,
 	TArray<FShaderCompilerError>& OutErrors,
-	FMetalTessellationOutputs const& TessOutputAttribs,
 	uint32 TypedBuffers,
 	uint32 InvariantBuffers,
 	uint32 TypedUAVs,
@@ -466,9 +237,7 @@ void BuildMetalShaderOutput(
 		Main++;
 	}
 	
-	bool bUsingTessellation = ShaderInput.IsUsingTessellation();
-	
-	FHlslccMetalHeader CCHeader(Version, bUsingTessellation);
+	FHlslccMetalHeader CCHeader(Version);
 	if (!CCHeader.Read(USFSource, SourceLen))
 	{
 		UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("Bad hlslcc header found"));
@@ -733,27 +502,6 @@ void BuildMetalShaderOutput(
 	Header.NumThreadsY = CCHeader.NumThreads[1];
 	Header.NumThreadsZ = CCHeader.NumThreads[2];
 	
-	if (ShaderInput.Target.Platform == SP_METAL_SM5 && (Frequency == SF_Vertex || Frequency == SF_Hull || Frequency == SF_Domain))
-	{
-		FMetalTessellationHeader TessHeader;
-		TessHeader.TessellationOutputControlPoints 		= CCHeader.TessellationOutputControlPoints;
-		TessHeader.TessellationDomain					= CCHeader.TessellationDomain;
-		TessHeader.TessellationInputControlPoints       = CCHeader.TessellationInputControlPoints;
-		TessHeader.TessellationMaxTessFactor            = CCHeader.TessellationMaxTessFactor;
-		TessHeader.TessellationOutputWinding			= CCHeader.TessellationOutputWinding;
-		TessHeader.TessellationPartitioning				= CCHeader.TessellationPartitioning;
-		TessHeader.TessellationPatchesPerThreadGroup    = CCHeader.TessellationPatchesPerThreadGroup;
-		TessHeader.TessellationPatchCountBuffer         = CCHeader.TessellationPatchCountBuffer;
-		TessHeader.TessellationIndexBuffer              = CCHeader.TessellationIndexBuffer;
-		TessHeader.TessellationHSOutBuffer              = CCHeader.TessellationHSOutBuffer;
-		TessHeader.TessellationHSTFOutBuffer            = CCHeader.TessellationHSTFOutBuffer;
-		TessHeader.TessellationControlPointOutBuffer    = CCHeader.TessellationControlPointOutBuffer;
-		TessHeader.TessellationControlPointIndexBuffer  = CCHeader.TessellationControlPointIndexBuffer;
-		TessHeader.TessellationOutputAttribs            = TessOutputAttribs;
-
-		Header.Tessellation.Add(TessHeader);
-		
-	}
 	Header.bDeviceFunctionConstants				= (FCStringAnsi::Strstr(USFSource, "#define __METAL_DEVICE_CONSTANT_INDEX__ 1") != nullptr);
 	Header.SideTable 							= CCHeader.SideTable;
 	Header.Bindings.ArgumentBufferMasks			= CCHeader.ArgumentBuffers;
@@ -1190,15 +938,6 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		MetalCompilerTarget = HCT_FeatureLevelES3_1;
 		Semantics = EMetalGPUSemanticsImmediateDesktop;
 	}
-	else if (Input.ShaderFormat == NAME_SF_METAL_SM5_NOTESS)
-	{
-		UE_CLOG(VersionEnum < 3, LogShaders, Warning, TEXT("Metal shader version must be Metal v2.0 or higher for format %s!"), VersionEnum, *Input.ShaderFormat.ToString());
-		AdditionalDefines.SetDefine(TEXT("METAL_SM5_NOTESS_PROFILE"), 1);
-		AdditionalDefines.SetDefine(TEXT("USING_VERTEX_SHADER_LAYER"), 1);
-		VersionEnum = VersionEnum > 3 ? VersionEnum : 3;
-		MetalCompilerTarget = HCT_FeatureLevelSM5;
-		Semantics = EMetalGPUSemanticsImmediateDesktop;
-	}
 	else if (Input.ShaderFormat == NAME_SF_METAL_SM5)
 	{
 		UE_CLOG(VersionEnum < 3, LogShaders, Warning, TEXT("Metal shader version must be Metal v2.0 or higher for format %s!"), VersionEnum, *Input.ShaderFormat.ToString());
@@ -1379,34 +1118,6 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	else
 	{
 		AdditionalDefines.SetDefine(TEXT("COMPILER_SUPPORTS_ATTRIBUTES"), (uint32)1);
-	}
-
-	if (!Input.bSkipPreprocessedCache && !bDirectCompile)
-	{
-		bool bUsingTessellation = Input.IsUsingTessellation();
-		if (bUsingTessellation && (Input.Target.Frequency == SF_Vertex))
-		{
-			// force HULLSHADER on so that VS that is USING_TESSELLATION can be built together with the proper HS
-			FString const* VertexShaderDefine = Input.Environment.GetDefinitions().Find(TEXT("VERTEXSHADER"));
-			check(VertexShaderDefine && FString("1") == *VertexShaderDefine);
-			FString const* HullShaderDefine = Input.Environment.GetDefinitions().Find(TEXT("HULLSHADER"));
-			check(HullShaderDefine && FString("0") == *HullShaderDefine);
-			Input.Environment.SetDefine(TEXT("HULLSHADER"), 1u);
-		}
-		if (Input.Target.Frequency == SF_Hull)
-		{
-			check(bUsingTessellation);
-			// force VERTEXSHADER on so that HS that is USING_TESSELLATION can be built together with the proper VS
-			FString const* VertexShaderDefine = Input.Environment.GetDefinitions().Find(TEXT("VERTEXSHADER"));
-			check(VertexShaderDefine && FString("0") == *VertexShaderDefine);
-			FString const* HullShaderDefine = Input.Environment.GetDefinitions().Find(TEXT("HULLSHADER"));
-			check(HullShaderDefine && FString("1") == *HullShaderDefine);
-
-			// enable VERTEXSHADER so that this HS will hash uniquely with its associated VS
-			// We do not want a given HS to be shared among numerous VS'Sampler
-			// this should accomplish that goal -- see GenerateOutputHash
-			Input.Environment.SetDefine(TEXT("VERTEXSHADER"), 1u);
-		}
 	}
 
 	if (Input.bSkipPreprocessedCache)

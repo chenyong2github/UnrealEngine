@@ -144,13 +144,13 @@ RHI_API int32 RHIGetPreferredClearUAVRectPSResourceType(const FStaticShaderPlatf
 
 inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
 {
-	return Platform == EShaderPlatform::SP_PCD3D_SM5 || Platform == EShaderPlatform::SP_METAL_SM5 || Platform == EShaderPlatform::SP_METAL_SM5_NOTESS
+	return Platform == EShaderPlatform::SP_PCD3D_SM5 || Platform == EShaderPlatform::SP_METAL_SM5
 		|| Platform == EShaderPlatform::SP_PCD3D_ES3_1 || FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
 }
 
 inline bool RHISupportsMultiView(const FStaticShaderPlatform Platform)
 {
-	return ((Platform == EShaderPlatform::SP_METAL_SM5 || Platform == SP_METAL_SM5_NOTESS))
+	return ((Platform == EShaderPlatform::SP_METAL_SM5))
 		|| FDataDrivenShaderPlatformInfo::GetSupportsMultiView(Platform);
 }
 

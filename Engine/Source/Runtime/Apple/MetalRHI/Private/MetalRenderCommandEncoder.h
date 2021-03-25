@@ -47,16 +47,6 @@ public:
 	
 	void DrawIndexed(mtlpp::PrimitiveType primitiveType, mtlpp::IndexType indexType, FMetalBuffer const& indexBuffer, NSUInteger indexBufferOffset, FMetalBuffer const& indirectBuffer, NSUInteger indirectBufferOffset);
 	
-	void SetTessellationFactorBuffer( FMetalBuffer const& buffer, NSUInteger offset, NSUInteger instanceStride);
-	
-	void DrawPatches(NSUInteger numberOfPatchControlPoints, NSUInteger patchStart, NSUInteger patchCount,  FMetalBuffer const& patchIndexBuffer, NSUInteger patchIndexBufferOffset, NSUInteger instanceCount, NSUInteger baseInstance);
-	
-	void DrawPatches(NSUInteger numberOfPatchControlPoints,  FMetalBuffer const& patchIndexBuffer, NSUInteger patchIndexBufferOffset, FMetalBuffer const& indirectBuffer, NSUInteger indirectBufferOffset);
-	
-	void DrawIndexedPatches(NSUInteger numberOfPatchControlPoints, NSUInteger patchStart, NSUInteger patchCount,  FMetalBuffer const& patchIndexBuffer, NSUInteger patchIndexBufferOffset, FMetalBuffer const& controlPointIndexBuffer, NSUInteger controlPointIndexBufferOffset, NSUInteger instanceCount, NSUInteger baseInstance);
-	
-	void DrawIndexedPatches(NSUInteger numberOfPatchControlPoints,  FMetalBuffer const& patchIndexBuffer, NSUInteger patchIndexBufferOffset, FMetalBuffer const& controlPointIndexBuffer, NSUInteger controlPointIndexBufferOffset, FMetalBuffer const& indirectBuffer, NSUInteger indirectBufferOffset);
-	
 	/** Validates the pipeline/binding state */
 	bool ValidateFunctionBindings(EMetalShaderFrequency Frequency);
 	void Validate();

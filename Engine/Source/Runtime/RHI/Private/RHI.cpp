@@ -1209,7 +1209,6 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_METAL_MRT:
 		return NAME_PLATFORM_IOS;
 	case SP_METAL_SM5:
-	case SP_METAL_SM5_NOTESS:
 	case SP_METAL_MACES3_1:
 	case SP_METAL_MRT_MAC:
 		return NAME_PLATFORM_MAC;
@@ -1344,10 +1343,9 @@ RHI_API bool RHISupportsTessellation(const FStaticShaderPlatform Platform)
 	{
 		return true;
 	}
-
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
-		return (Platform == SP_PCD3D_SM5) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform));
+		return (Platform == SP_PCD3D_SM5) || (IsVulkanSM5Platform(Platform));
 	}
 	return false;
 }
@@ -1623,7 +1621,6 @@ FString LexToString(EShaderPlatform Platform, bool bError)
 	case SP_METAL_MRT_TVOS: return TEXT("METAL_MRT_TVOS");
 	case SP_METAL_MRT_MAC: return TEXT("METAL_MRT_MAC");
 	case SP_METAL_SM5: return TEXT("METAL_SM5");
-	case SP_METAL_SM5_NOTESS: return TEXT("METAL_SM5_NOTESS");
 	case SP_METAL_MACES3_1: return TEXT("METAL_MACES3_1");
 	case SP_VULKAN_ES3_1_ANDROID: return TEXT("VULKAN_ES3_1_ANDROID");
 	case SP_VULKAN_ES3_1_LUMIN: return TEXT("VULKAN_ES3_1_LUMIN");

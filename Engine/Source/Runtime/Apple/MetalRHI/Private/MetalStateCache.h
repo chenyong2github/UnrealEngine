@@ -55,7 +55,6 @@ public:
 	void SetViewports(const mtlpp::Viewport InViewport[], uint32 Count);
 	void SetVertexStream(uint32 const Index, FMetalBuffer* Buffer, FMetalBufferData* Bytes, uint32 const Offset, uint32 const Length);
 	void SetGraphicsPipelineState(FMetalGraphicsPipelineState* State);
-	void SetIndexType(EMetalIndexType IndexType);
 	void BindUniformBuffer(EMetalShaderStages const Freq, uint32 const BufferIndex, FRHIUniformBuffer* BufferRHI);
 	void SetDirtyUniformBuffers(EMetalShaderStages const Freq, uint32 const Dirty);
 	
@@ -111,13 +110,6 @@ public:
 
 	void CommitRenderResources(FMetalCommandEncoder* Raster);
 
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	void CommitTessellationResources(FMetalCommandEncoder* Raster, FMetalCommandEncoder* Compute);
-	
-	void CommitVertexStreamResources(FMetalCommandEncoder* Raster);
-	void CommitSeparateTessellationResources(FMetalCommandEncoder* Raster, FMetalCommandEncoder* Compute);
-#endif
-
 	void CommitComputeResources(FMetalCommandEncoder* Compute);
 	
 	void CommitResourceTable(EMetalShaderStages const Frequency, mtlpp::FunctionType const Type, FMetalCommandEncoder& CommandEncoder);
@@ -146,10 +138,6 @@ public:
 	bool GetScissorRectEnabled() const { return bScissorRectEnabled; }
 	bool NeedsToSetRenderTarget(const FRHIRenderPassInfo& RenderPassInfo);
 	bool HasValidDepthStencilSurface() const { return IsValidRef(DepthStencilSurface); }
-	EMetalIndexType GetIndexType() const { return IndexType; }
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	bool GetUsingTessellation() const { return bUsingTessellation; }
-#endif
     bool CanRestartRenderPass() const { return bCanRestartRenderPass; }
 	mtlpp::RenderPassDescriptor GetRenderPassDescriptor(void) const { return RenderPassDesc; }
 	uint32 GetSampleCount(void) const { return SampleCount; }
@@ -163,10 +151,6 @@ public:
 	bool GetFallbackDepthStencilBound(void) const { return bFallbackDepthStencilBound; }
 	
 	void SetRenderPipelineState(FMetalCommandEncoder& CommandEncoder, FMetalCommandEncoder* PrologueEncoder);
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	void SetTessellationPipelineState(FMetalCommandEncoder& CommandEncoder, FMetalCommandEncoder* PrologueEncoder);
-	void SetStreamOutPipelineState(FMetalCommandEncoder& CommandEncoder);
-#endif
     void SetComputePipelineState(FMetalCommandEncoder& CommandEncoder);
 	void FlushVisibilityResults(FMetalCommandEncoder& CommandEncoder);
 
@@ -248,7 +232,6 @@ private:
 private:
 	FMetalShaderParameterCache ShaderParameters[EMetalShaderStages::Num];
 
-	EMetalIndexType IndexType;
 	uint32 SampleCount;
 
 	TSet<TRefCountPtr<FRHIUniformBuffer>> ActiveUniformBuffers;
@@ -306,9 +289,6 @@ private:
 	bool bHasValidRenderTarget;
 	bool bHasValidColorTarget;
 	bool bScissorRectEnabled;
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-    bool bUsingTessellation;
-#endif
     bool bCanRestartRenderPass;
     bool bImmediate;
 	bool bFallbackDepthStencilBound;

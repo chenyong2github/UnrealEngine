@@ -47,11 +47,6 @@ public:
     
     void DrawIndexedPrimitiveIndirect(uint32 PrimitiveType,FMetalIndexBuffer* IndexBufferRHI,FMetalVertexBuffer* VertexBufferRHI,uint32 ArgumentOffset);
 	
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-    void DrawPatches(uint32 PrimitiveType, FMetalBuffer const& IndexBuffer, uint32 IndexBufferStride, int32 BaseVertexIndex, uint32 FirstInstance, uint32 StartIndex,
-                     uint32 NumPrimitives, uint32 NumInstances);
-#endif
-	
     void Dispatch(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ);
     
     void DispatchIndirect(FMetalVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset);
@@ -161,30 +156,17 @@ public:
 	void InsertTextureBarrier();
 	
 private:
-#pragma mark -
     void ConditionalSwitchToRender(void);
-    void ConditionalSwitchToTessellation(void);
-	void ConditionalSwitchToSeparateTessellation(void);
     void ConditionalSwitchToCompute(void);
 	void ConditionalSwitchToBlit(void);
 	void ConditionalSwitchToAsyncBlit(void);
 	void ConditionalSwitchToAsyncCompute(void);
 	
     void PrepareToRender(uint32 PrimType);
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-    void PrepareToTessellate(uint32 PrimType);
-	void PrepareToStreamOut(uint32 PrimType);
-	void PrepareToSeparateTessellate(uint32 PrimType);
-#endif
     void PrepareToDispatch(void);
 	void PrepareToAsyncDispatch(void);
 
     void CommitRenderResourceTables(void);
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-    void CommitTessellationResourceTables(void);
-	void CommitStreamOutResourceTables(void);
-	void CommitSeparateTessellationResourceTables(void);
-#endif
     void CommitDispatchResourceTables(void);
 	void CommitAsyncDispatchResourceTables(void);
     
@@ -195,8 +177,8 @@ private:
 	
 	void InsertDebugDraw(FMetalCommandData& Data);
 	void InsertDebugDispatch(FMetalCommandData& Data);
+
 private:
-#pragma mark -
 	FMetalCommandList& CmdList;
     FMetalStateCache& State;
     

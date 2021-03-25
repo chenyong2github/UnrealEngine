@@ -228,100 +228,10 @@ struct FMetalAttribute
 	}
 };
 
-struct FMetalTessellationOutputs
-{
-	TArray<FMetalAttribute> HSIn;
-	TArray<FMetalAttribute> HSOut;
-	TArray<FMetalAttribute> PatchControlPointOut;
-	uint32 HSOutSize;
-	uint32 HSTFOutSize;
-	uint32 PatchControlPointOutSize;
-	
-	FMetalTessellationOutputs()
-	: HSOutSize(0)
-	, HSTFOutSize(0)
-	, PatchControlPointOutSize(0)
-	{
-		
-	}
-	
-	friend FArchive& operator<<(FArchive& Ar, FMetalTessellationOutputs& Attrs)
-	{
-		Ar << Attrs.HSIn;
-		Ar << Attrs.HSOut;
-		Ar << Attrs.PatchControlPointOut;
-		Ar << Attrs.HSOutSize;
-		Ar << Attrs.HSTFOutSize;
-		Ar << Attrs.PatchControlPointOutSize;
-		return Ar;
-	}
-};
-
-struct FMetalTessellationHeader
-{
-	FMetalTessellationOutputs TessellationOutputAttribs;
-	
-	uint32 TessellationOutputControlPoints;
-	uint32 TessellationDomain; // 3 = tri, 4 = quad // TODO unused
-	uint32 TessellationInputControlPoints; // TODO unused
-	uint32 TessellationPatchesPerThreadGroup;
-	uint32 TessellationPatchCountBuffer;
-	uint32 TessellationIndexBuffer;
-	uint32 TessellationHSOutBuffer;
-	uint32 TessellationHSTFOutBuffer;
-	uint32 TessellationControlPointOutBuffer;
-	uint32 TessellationControlPointIndexBuffer;
-	float  TessellationMaxTessFactor;
-	
-	EMetalOutputWindingMode TessellationOutputWinding;
-	EMetalPartitionMode TessellationPartitioning;
-	
-	FMetalTessellationHeader()
-	: TessellationOutputControlPoints(0)
-	, TessellationDomain(0)
-	, TessellationInputControlPoints(0)
-	, TessellationPatchesPerThreadGroup(0)
-	, TessellationPatchCountBuffer(~0u)
-	, TessellationIndexBuffer(~0u)
-	, TessellationHSOutBuffer(~0u)
-	, TessellationHSTFOutBuffer(~0u)
-	, TessellationControlPointOutBuffer(~0u)
-	, TessellationControlPointIndexBuffer(~0u)
-	, TessellationMaxTessFactor(0)
-	, TessellationOutputWinding(EMetalOutputWindingMode::Clockwise)
-	, TessellationPartitioning(EMetalPartitionMode::Pow2)
-	{
-		
-	}
-	
-	friend FArchive& operator<<(FArchive& Ar, FMetalTessellationHeader& Header)
-	{
-		Ar << Header.TessellationOutputAttribs;
-		
-		Ar << Header.TessellationOutputControlPoints;
-		Ar << Header.TessellationDomain;
-		Ar << Header.TessellationInputControlPoints;
-		Ar << Header.TessellationPatchesPerThreadGroup;
-		Ar << Header.TessellationMaxTessFactor;
-		
-		Ar << Header.TessellationPatchCountBuffer;
-		Ar << Header.TessellationIndexBuffer;
-		Ar << Header.TessellationHSOutBuffer;
-		Ar << Header.TessellationHSTFOutBuffer;
-		Ar << Header.TessellationControlPointOutBuffer;
-		Ar << Header.TessellationControlPointIndexBuffer;
-		
-		Ar << Header.TessellationOutputWinding;
-		Ar << Header.TessellationPartitioning;
-		return Ar;
-	}
-};
-
 struct FMetalCodeHeader
 {
 	FMetalShaderBindings Bindings;
 	TArray<CrossCompiler::FUniformBufferCopyInfo> UniformBuffersCopyInfo;
-	TArray<FMetalTessellationHeader> Tessellation;
 	FString ShaderName;
 
 	uint64 CompilerBuild;
@@ -378,7 +288,6 @@ inline FArchive& operator<<(FArchive& Ar, FMetalCodeHeader& Header)
 		}
 	}
 	
-	Ar << Header.Tessellation;
 	Ar << Header.ShaderName;
 
 	Ar << Header.CompilerBuild;

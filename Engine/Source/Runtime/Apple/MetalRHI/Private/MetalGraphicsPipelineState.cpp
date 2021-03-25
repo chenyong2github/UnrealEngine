@@ -17,7 +17,7 @@
 
 
 // From MetalPipeline.cpp:
-extern FMetalShaderPipeline* GetMTLRenderPipeline(bool const bSync, FMetalGraphicsPipelineState const* State, const FGraphicsPipelineStateInitializer& Init, EMetalIndexType const IndexType);
+extern FMetalShaderPipeline* GetMTLRenderPipeline(bool const bSync, FMetalGraphicsPipelineState const* State, const FGraphicsPipelineStateInitializer& Init);
 extern void ReleaseMTLRenderPipeline(FMetalShaderPipeline* Pipeline);
 
 
@@ -28,46 +28,34 @@ extern void ReleaseMTLRenderPipeline(FMetalShaderPipeline* Pipeline);
 
 FMetalGraphicsPipelineState::FMetalGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Init)
 	: Initializer(Init)
+	, PipelineState(nil)
 {
 	// void
 }
 
 bool FMetalGraphicsPipelineState::Compile()
 {
-	FMemory::Memzero(PipelineStates);
-
-	for (uint32 i = 0; i < EMetalIndexType_Num; i++)
-	{
-		PipelineStates[i] = [GetMTLRenderPipeline(true, this, Initializer, (EMetalIndexType)i) retain];
-		if(!PipelineStates[i])
-		{
-			return false;
-		}
-	}
-
-	return true;
+	check(PipelineState == nil);
+	PipelineState = [GetMTLRenderPipeline(true, this, Initializer) retain];
+	return (PipelineState != nil);
 }
 
 FMetalGraphicsPipelineState::~FMetalGraphicsPipelineState()
 {
-	for (uint32 i = 0; i < EMetalIndexType_Num; i++)
+	if (PipelineState != nil)
 	{
-		ReleaseMTLRenderPipeline(PipelineStates[i]);
-		PipelineStates[i] = nil;
+		ReleaseMTLRenderPipeline(PipelineState);
+		PipelineState = nil;
 	}
 }
 
-FMetalShaderPipeline* FMetalGraphicsPipelineState::GetPipeline(EMetalIndexType IndexType)
+FMetalShaderPipeline* FMetalGraphicsPipelineState::GetPipeline()
 {
-	check(IndexType < EMetalIndexType_Num);
-
-	if (!PipelineStates[IndexType])
+	if (PipelineState == nil)
 	{
-		PipelineStates[IndexType] = [GetMTLRenderPipeline(true, this, Initializer, IndexType) retain];
+		PipelineState = [GetMTLRenderPipeline(true, this, Initializer) retain];
+		check(PipelineState != nil);
 	}
 
-	FMetalShaderPipeline* Pipe = PipelineStates[IndexType];
-	check(Pipe);
-
-    return Pipe;
+    return PipelineState;
 }

@@ -68,7 +68,7 @@ enum EShaderPlatform
 	SP_OPENGL_PCES3_1				= 15,
 	SP_METAL_SM5					= 16,
 	SP_VULKAN_PCES3_1				= 17,
-	SP_METAL_SM5_NOTESS				= 18,
+	SP_METAL_SM5_NOTESS_REMOVED		= 18,
 	SP_VULKAN_SM4_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 19,
 	SP_VULKAN_SM5					= 20,
 	SP_VULKAN_ES3_1_ANDROID			= 21,
@@ -1613,7 +1613,7 @@ inline bool IsPCPlatform(const FStaticShaderPlatform Platform)
 {
 	return Platform == SP_PCD3D_SM5 || Platform == SP_PCD3D_ES3_1 ||
 		Platform == SP_OPENGL_PCES3_1 ||
-		Platform == SP_METAL_SM5_NOTESS || Platform == SP_METAL_SM5 ||
+		Platform == SP_METAL_SM5 ||
 		Platform == SP_VULKAN_PCES3_1 || Platform == SP_VULKAN_SM5 || Platform == SP_METAL_MACES3_1 || Platform == SP_METAL_MRT_MAC 
 		|| FDataDrivenShaderPlatformInfo::GetIsPC(Platform);
 }
@@ -1640,7 +1640,7 @@ inline bool IsOpenGLPlatform(const FStaticShaderPlatform Platform)
 inline bool IsMetalPlatform(const FStaticShaderPlatform Platform)
 {
 	return Platform == SP_METAL || Platform == SP_METAL_MRT || Platform == SP_METAL_TVOS || Platform == SP_METAL_MRT_TVOS 
-		|| Platform == SP_METAL_SM5_NOTESS || Platform == SP_METAL_SM5
+		|| Platform == SP_METAL_SM5
 		|| Platform == SP_METAL_MACES3_1 || Platform == SP_METAL_MRT_MAC
 		|| FDataDrivenShaderPlatformInfo::GetIsLanguageMetal(Platform);
 }
@@ -1659,7 +1659,7 @@ inline bool IsMetalMRTPlatform(const FStaticShaderPlatform Platform)
 
 inline bool IsMetalSM5Platform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_METAL_MRT || Platform == SP_METAL_MRT_TVOS || Platform == SP_METAL_SM5_NOTESS || Platform == SP_METAL_SM5 || Platform == SP_METAL_MRT_MAC
+	return Platform == SP_METAL_MRT || Platform == SP_METAL_MRT_TVOS || Platform == SP_METAL_SM5 || Platform == SP_METAL_MRT_MAC
 		|| (FDataDrivenShaderPlatformInfo::GetIsLanguageMetal(Platform) && FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::SM5);
 }
 
@@ -1735,7 +1735,6 @@ inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatfo
 	case SP_METAL_MRT:
 	case SP_METAL_MRT_TVOS:
 	case SP_METAL_MRT_MAC:
-	case SP_METAL_SM5_NOTESS:
 	case SP_VULKAN_SM5:
 	case SP_VULKAN_SM5_LUMIN:
 	case SP_SWITCH:

@@ -33,28 +33,6 @@ namespace CrossCompiler
 		void WriteSideTable(const TCHAR* ResourceName, uint32 SideTableIndex);
 		void WriteArgumentBuffers(uint32 BindingIndex, const TArray<uint32>& ResourceIndices);
 
-		void WriteTessellationInputControlPoints(uint32 PatchSize);
-		void WriteTessellationOutputControlPoints(uint32 PatchSize);
-		void WriteTessellationMaxTessFactor(uint32 MaxTessFactor);
-
-		void WriteTessellationDomainTri();
-		void WriteTessellationDomainQuad();
-
-		void WriteTessellationOutputWindingCW();
-		void WriteTessellationOutputWindingCCW();
-
-		void WriteTessellationPartitioningInteger();
-		void WriteTessellationPartitioningFractionalOdd();
-		void WriteTessellationPartitioningFractionalEven();
-
-		void WriteTessellationPatchesPerThreadGroup(uint32 NumPatches);
-		void WriteTessellationPatchCountBuffer(uint32 BindingIndex);
-		void WriteTessellationIndexBuffer(uint32 BindingIndex);
-		void WriteTessellationHSOutBuffer(uint32 BindingIndex);
-		void WriteTessellationHSTFOutBuffer(uint32 BindingIndex);
-		void WriteTessellationControlPointOutBuffer(uint32 BindingIndex);
-		void WriteTessellationControlPointIndexBuffer(uint32 BindingIndex);
-
 		/** Returns the finalized meta data. */
 		FString ToString() const;
 
@@ -79,19 +57,6 @@ namespace CrossCompiler
 			FString ExternalTextures; // External texture resources (Vulkan ES3.1 profile only)
 			FString SideTable; // Side table for additional indices, e.,g. "spvBufferSizeConstants(31)" (Metal only)
 			FString ArgumentBuffers; // Indirect argument buffers (Metal only)
-			FString TessellationOutputControlPoints;
-			FString TessellationDomain;
-			FString TessellationInputControlPoints;
-			FString TessellationMaxTessFactor;
-			FString TessellationOutputWinding;
-			FString TessellationPartitioning;
-			FString TessellationPatchesPerThreadGroup;
-			FString TessellationPatchCountBuffer;
-			FString TessellationIndexBuffer;
-			FString TessellationHSOutBuffer;
-			FString TessellationControlPointOutBuffer;
-			FString TessellationHSTFOutBuffer;
-			FString TessellationControlPointIndexBuffer;
 		};
 
 	private:

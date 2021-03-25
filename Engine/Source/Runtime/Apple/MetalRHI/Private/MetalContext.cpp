@@ -1260,7 +1260,7 @@ void FMetalContext::ResetRenderCommandEncoder()
 	SetRenderPassInfo(StateCache.GetRenderPassInfo(), true);
 }
 
-bool FMetalContext::PrepareToDraw(uint32 PrimitiveType, EMetalIndexType IndexType)
+bool FMetalContext::PrepareToDraw(uint32 PrimitiveType)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MetalPrepareDrawTime);
 	TRefCountPtr<FMetalGraphicsPipelineState> CurrentPSO = StateCache.GetGraphicsPSO();
@@ -1407,9 +1407,6 @@ bool FMetalContext::PrepareToDraw(uint32 PrimitiveType, EMetalIndexType IndexTyp
 		check(StateCache.GetHasValidRenderTarget());
 	}
 	
-	// make sure the BSS has a valid pipeline state object
-	StateCache.SetIndexType(IndexType);
-	
 	return true;
 }
 
@@ -1547,7 +1544,7 @@ void FMetalContext::DrawPrimitiveIndirect(uint32 PrimitiveType, FMetalVertexBuff
 void FMetalContext::DrawIndexedPrimitive(FMetalBuffer const& IndexBuffer, uint32 IndexStride, mtlpp::IndexType IndexType, uint32 PrimitiveType, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
 {
 	// finalize any pending state
-	if(!PrepareToDraw(PrimitiveType, GetRHIMetalIndexType(IndexType)))
+	if(!PrepareToDraw(PrimitiveType))
 	{
 		return;
 	}

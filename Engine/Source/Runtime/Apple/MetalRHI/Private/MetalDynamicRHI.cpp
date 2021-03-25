@@ -59,10 +59,6 @@ FGraphicsPipelineStateRHIRef FMetalDynamicRHI::RHICreateGraphicsPipelineState(co
 		State->VertexDeclaration = ResourceCast(Initializer.BoundShaderState.VertexDeclarationRHI);
 		State->VertexShader = ResourceCast(Initializer.BoundShaderState.VertexShaderRHI);
 		State->PixelShader = ResourceCast(Initializer.BoundShaderState.PixelShaderRHI);
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		State->HullShader = ResourceCast(Initializer.BoundShaderState.HullShaderRHI);
-		State->DomainShader = ResourceCast(Initializer.BoundShaderState.DomainShaderRHI);
-#endif // PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		State->GeometryShader = ResourceCast(Initializer.BoundShaderState.GeometryShaderRHI);
 #endif // PLATFORM_SUPPORTS_GEOMETRY_SHADERS

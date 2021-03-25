@@ -20,12 +20,10 @@ DEFINE_STAT(STAT_MetalPipelineStateTime);
 DEFINE_STAT(STAT_MetalPrepareDrawTime);
 
 DEFINE_STAT(STAT_MetalSwitchToRenderTime);
-DEFINE_STAT(STAT_MetalSwitchToTessellationTime);
 DEFINE_STAT(STAT_MetalSwitchToComputeTime);
 DEFINE_STAT(STAT_MetalSwitchToBlitTime);
 DEFINE_STAT(STAT_MetalSwitchToAsyncBlitTime);
 DEFINE_STAT(STAT_MetalPrepareToRenderTime);
-DEFINE_STAT(STAT_MetalPrepareToTessellateTime);
 DEFINE_STAT(STAT_MetalPrepareToDispatchTime);
 DEFINE_STAT(STAT_MetalCommitRenderResourceTablesTime);
 DEFINE_STAT(STAT_MetalSetRenderStateTime);

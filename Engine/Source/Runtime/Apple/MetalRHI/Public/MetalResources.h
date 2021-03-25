@@ -22,15 +22,6 @@ class FMetalContext;
 
 extern NSString* DecodeMetalSourceCode(uint32 CodeSize, TArray<uint8> const& CompressedSource);
 
-enum EMetalIndexType
-{
-	EMetalIndexType_None   = 0,
-	EMetalIndexType_UInt16 = 1,
-	EMetalIndexType_UInt32 = 2,
-	EMetalIndexType_Num	   = 3
-};
-
-
 struct FMetalRenderPipelineHash
 {
 	friend uint32 GetTypeHash(FMetalRenderPipelineHash const& Hash)
@@ -675,8 +666,6 @@ class FMetalGraphicsPipelineState;
 class FMetalComputePipelineState;
 class FMetalVertexDeclaration;
 class FMetalVertexShader;
-class FMetalHullShader;
-class FMetalDomainShader;
 class FMetalGeometryShader;
 class FMetalPixelShader;
 class FMetalComputeShader;
@@ -707,16 +696,6 @@ template<>
 struct TMetalResourceTraits<FRHIGeometryShader>
 {
 	typedef FMetalGeometryShader TConcreteType;
-};
-template<>
-struct TMetalResourceTraits<FRHIHullShader>
-{
-	typedef FMetalHullShader TConcreteType;
-};
-template<>
-struct TMetalResourceTraits<FRHIDomainShader>
-{
-	typedef FMetalDomainShader TConcreteType;
 };
 template<>
 struct TMetalResourceTraits<FRHIPixelShader>

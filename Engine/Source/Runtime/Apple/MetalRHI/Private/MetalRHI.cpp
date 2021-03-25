@@ -366,13 +366,8 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 	else
 	{
-		if (bRequestedSM5)
-		{
-			UE_LOG(LogMetal, Warning, TEXT("Metal Shader Model 5 w/tessellation support requires 10.12.6 for Nvidia, it is broken on 10.13.0+. Falling back to Metal Shader Model 5 without tessellation support."));
-		}
-	
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		GMaxRHIShaderPlatform = SP_METAL_SM5_NOTESS;
+		GMaxRHIShaderPlatform = SP_METAL_SM5;
 	}
 
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
@@ -423,7 +418,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 	
 	// Disable the distance field AO & shadowing effects on GPU drivers that don't currently execute the shaders correctly.
-	if ((GMaxRHIShaderPlatform == SP_METAL_SM5 || GMaxRHIShaderPlatform == SP_METAL_SM5_NOTESS) && !bSupportsDistanceFields && !FParse::Param(FCommandLine::Get(),TEXT("metaldistancefields")))
+	if ((GMaxRHIShaderPlatform == SP_METAL_SM5) && !bSupportsDistanceFields && !FParse::Param(FCommandLine::Get(),TEXT("metaldistancefields")))
 	{
 		static auto CVarDistanceFieldAO = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFieldAO"));
 		if(CVarDistanceFieldAO && CVarDistanceFieldAO->GetInt() != 0)
