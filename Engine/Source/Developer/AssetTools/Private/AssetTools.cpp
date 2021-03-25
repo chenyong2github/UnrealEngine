@@ -3045,6 +3045,12 @@ void UAssetToolsImpl::PerformAdvancedCopyPackages(TArray<FName> SelectedAssetAnd
 	FAdvancedCopyParams CopyParams = FAdvancedCopyParams(SelectedAssetAndFolderNames, TargetPath);
 	CopyParams.bShouldCheckForDependencies = SelectedAssetAndFolderNames.Num() == 1;
 
+	// Suppress UI if we're running in unattended mode
+	if (FApp::IsUnattended())
+	{
+		CopyParams.bShouldSuppressUI = true;
+	}
+
 	for (auto NameIt = SelectedAssetAndFolderNames.CreateConstIterator(); NameIt; ++NameIt)
 	{
 		UAdvancedCopyCustomization* CopyCustomization = nullptr;
