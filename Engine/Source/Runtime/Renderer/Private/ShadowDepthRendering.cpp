@@ -299,7 +299,7 @@ public:
 				// Masked and WPO materials need their shaders but cannot be used with a position only stream.
 				|| ((!Parameters.MaterialParameters.bWritesEveryPixelShadowPass || Parameters.MaterialParameters.bMaterialMayModifyMeshPosition) && !bUsePositionOnlyStream))
 				// Only compile one pass point light shaders for feature levels >= SM5
-				&& (ShaderMode != VertexShadowDepth_OnePassPointLight || IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
+				&& ((ShaderMode != VertexShadowDepth_OnePassPointLight && ShaderMode != VertexShadowDepth_VSLayer) || IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 				// Only compile position-only shaders for vertex factories that support it. (Note: this assumes that a vertex factor which supports PositionOnly, supports also PositionAndNormalOnly)
 				&& (!bUsePositionOnlyStream || Parameters.VertexFactoryType->SupportsPositionOnly())
 				// Don't render ShadowDepth for translucent unlit materials
