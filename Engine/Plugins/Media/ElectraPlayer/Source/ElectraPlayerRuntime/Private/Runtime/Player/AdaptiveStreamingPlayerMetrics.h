@@ -222,6 +222,11 @@ public:
 	virtual void ReportReceivedPlaylists() = 0;
 
 	/**
+	 * Called when the available tracks or their properties have changed.
+	 */
+	virtual void ReportTracksChanged() = 0;
+
+	/**
 	 * Called at the end of every downloaded playlist.
 	 */
 	virtual void ReportPlaylistDownload(const Metrics::FPlaylistDownloadStats& PlaylistDownloadStats) = 0;

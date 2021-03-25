@@ -395,6 +395,7 @@ FErrorDetail FManifestBuilderHLS::SetupRenditions(FManifestHLSInternal* Manifest
 		{
 			Adapt = new FPlaybackAssetAdaptationSetHLS;
 			Adapt->UniqueIdentifier = It.Key();
+			Adapt->Metadata.TrackID = Adapt->UniqueIdentifier;
 			TSharedPtrTS<FPlaybackAssetAdaptationSetHLS> IAdapt(Adapt);
 			Asset->AudioAdaptationSets.Push(IAdapt);
 		}
@@ -690,10 +691,20 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				Manifest->VariantStreams.Push(vs);
 				Manifest->BandwidthToQualityIndex.Add(vs->Bandwidth, vs->Bandwidth);
 
+				// Add to timeline asset
+				FPlaybackAssetAdaptationSetHLS* Adapt = nullptr;
+				if (!Asset->VideoAdaptationSet.IsValid())
+				{
+					Adapt = new FPlaybackAssetAdaptationSetHLS;
+					Asset->VideoAdaptationSet = MakeShareable(Adapt);
+					Adapt->UniqueIdentifier = TEXT("$video$");
+					Adapt->Metadata.TrackID = Adapt->UniqueIdentifier;
+				}
+				Adapt = static_cast<FPlaybackAssetAdaptationSetHLS*>(Asset->VideoAdaptationSet.Get());
+
 				FStreamMetadata StreamMetaData;
-				StreamMetaData.Bandwidth	  = vs->Bandwidth;
-				StreamMetaData.StreamUniqueID = vs->Internal.UniqueID;
-				StreamMetaData.PlaylistID     = UrlBuilder->ResolveWith(vs->URI);
+				StreamMetaData.Bandwidth = vs->Bandwidth;
+				StreamMetaData.ID = LexToString(vs->Internal.UniqueID);
 				for(int32 i=0; i<vs->StreamCodecInformationList.Num(); ++i)
 				{
 					if (vs->StreamCodecInformationList[i].IsVideoCodec())
@@ -702,17 +713,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 						break;
 					}
 				}
-				Manifest->StreamMetadataVideo.Push(StreamMetaData);
 
-				// Add to timeline asset
-				FPlaybackAssetAdaptationSetHLS* Adapt = nullptr;
-				if (!Asset->VideoAdaptationSet.IsValid())
-				{
-					Adapt = new FPlaybackAssetAdaptationSetHLS;
-					Asset->VideoAdaptationSet = MakeShareable(Adapt);
-					Adapt->UniqueIdentifier = TEXT("$video$");
-				}
-				Adapt = static_cast<FPlaybackAssetAdaptationSetHLS*>(Asset->VideoAdaptationSet.Get());
 				if (Adapt->Codecs.Find(StreamMetaData.CodecInformation.GetCodecSpecifierRFC6381()) == INDEX_NONE)
 				{
 					if (Adapt->Codecs.Len())
@@ -722,14 +723,15 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 					Adapt->Codecs.Append(StreamMetaData.CodecInformation.GetCodecSpecifierRFC6381());
 				}
 				FPlaybackAssetRepresentationHLS* Repr = new FPlaybackAssetRepresentationHLS;
-				Repr->UniqueIdentifier = LexToString(StreamMetaData.StreamUniqueID);
+				Repr->UniqueIdentifier = StreamMetaData.ID;
 				Repr->CodecInformation = StreamMetaData.CodecInformation;
 				Repr->Bitrate   	   = StreamMetaData.Bandwidth;
 				Adapt->Representations.Push(TSharedPtrTS<IPlaybackAssetRepresentation>(Repr));
+				Adapt->Metadata.StreamDetails.Emplace(StreamMetaData);
 
 				vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
 				vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
-				vs->Internal.CDN					= StreamMetaData.PlaylistID;
+				vs->Internal.CDN					= UrlBuilder->ResolveWith(vs->URI);;
 
 				// Check if there is an audio adaptation set already due to an audio rendition group referenced by this variant.
 				if (bHaveAudioGroup)
@@ -770,9 +772,8 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				Manifest->AudioOnlyStreams.Push(vs);
 
 				FStreamMetadata StreamMetaData;
-				StreamMetaData.Bandwidth	  = vs->Bandwidth;
-				StreamMetaData.StreamUniqueID = vs->Internal.UniqueID;
-				StreamMetaData.PlaylistID     = UrlBuilder->ResolveWith(vs->URI);
+				StreamMetaData.Bandwidth = vs->Bandwidth;
+				StreamMetaData.ID = LexToString(vs->Internal.UniqueID);
 				for(int32 i=0; i<vs->StreamCodecInformationList.Num(); ++i)
 				{
 					if (vs->StreamCodecInformationList[i].IsAudioCodec())
@@ -781,7 +782,6 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 						break;
 					}
 				}
-				Manifest->StreamMetadataAudio.Push(StreamMetaData);
 
 				// Check if there is an audio adaptation set already due to an audio rendition group referenced by this variant.
 				FPlaybackAssetAdaptationSetHLS* Adapt = nullptr;
@@ -801,6 +801,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 					{
 						Adapt = new FPlaybackAssetAdaptationSetHLS;
 						Adapt->UniqueIdentifier = TEXT("$audio$");
+						Adapt->Metadata.TrackID = Adapt->UniqueIdentifier;
 						TSharedPtrTS<FPlaybackAssetAdaptationSetHLS> IAdapt(Adapt);
 						Asset->AudioAdaptationSets.Push(IAdapt);
 					}
@@ -817,17 +818,20 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				if (!bHaveAudioGroup)
 				{
 					FPlaybackAssetRepresentationHLS* Repr = new FPlaybackAssetRepresentationHLS;
-					Repr->UniqueIdentifier = LexToString(StreamMetaData.StreamUniqueID);
+					Repr->UniqueIdentifier = StreamMetaData.ID;
 					Repr->CodecInformation = StreamMetaData.CodecInformation;
 					Repr->Bitrate   	   = StreamMetaData.Bandwidth;
 					Adapt->Representations.Push(TSharedPtrTS<IPlaybackAssetRepresentation>(Repr));
+					Adapt->Metadata.StreamDetails.Emplace(StreamMetaData);
 
 					vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
 					vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
-					vs->Internal.CDN					= StreamMetaData.PlaylistID;
+					vs->Internal.CDN					= UrlBuilder->ResolveWith(vs->URI);
 				}
 				else
 				{
+					Adapt->Metadata.StreamDetails.Emplace(StreamMetaData);
+
 					for(int32 i=0; i<Adapt->GetNumberOfRepresentations(); ++i)
 					{
 						FPlaybackAssetRepresentationHLS* Repr = static_cast<FPlaybackAssetRepresentationHLS*>(Adapt->GetRepresentationByIndex(i).Get());
@@ -841,7 +845,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 						Manifest->AudioRenditions.MultiFindPointer(vs->AudioGroupID, RenditionRange);
 						if (RenditionRange.Num())
 						{
-							for(int32 ii=0; ii < RenditionRange.Num(); ++ii)
+							for(int32 ii=0; ii<RenditionRange.Num(); ++ii)
 							{
 								TSharedPtrTS<FManifestHLSInternal::FRendition>& Rendition = *RenditionRange[ii];
 								if (Rendition->URI.Len() == 0)
@@ -851,7 +855,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 									Repr->Bitrate = StreamMetaData.Bandwidth;
 									vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
 									vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
-									vs->Internal.CDN					= StreamMetaData.PlaylistID;
+									vs->Internal.CDN					= UrlBuilder->ResolveWith(vs->URI);
 								}
 							}
 						}
@@ -877,13 +881,12 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 			{
 				Manifest->PlaylistIDMap.Remove(Manifest->AudioOnlyStreams[i]->Internal.UniqueID);
 				Manifest->AudioOnlyStreams.RemoveAt(i);
-				Manifest->StreamMetadataAudio.RemoveAt(i);
 			}
 		}
 		// Set up variants from the renditions in the audio adaptation sets.
 		for(int32 i=0; i<Asset->AudioAdaptationSets.Num(); ++i)
 		{
-			const FPlaybackAssetAdaptationSetHLS* Adapt = static_cast<const FPlaybackAssetAdaptationSetHLS*>(Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Audio, i).Get());
+			FPlaybackAssetAdaptationSetHLS* Adapt = static_cast<FPlaybackAssetAdaptationSetHLS*>(Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Audio, i).Get());
 			for(int32 j=0; j<Adapt->GetNumberOfRepresentations(); ++j)
 			{
 				const FPlaybackAssetRepresentationHLS* Repr = static_cast<const FPlaybackAssetRepresentationHLS*>(Adapt->GetRepresentationByIndex(j).Get());
@@ -902,10 +905,8 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 						vs->Internal.UniqueID = FMediaInterlockedIncrement(NextUniqueID) + 1;
 
 						FStreamMetadata StreamMetaData;
-						StreamMetaData.Bandwidth	  = 128000;
-						StreamMetaData.StreamUniqueID = vs->Internal.UniqueID;
-						StreamMetaData.PlaylistID     = UrlBuilder->ResolveWith(vs->URI);
-						StreamMetaData.LanguageCode   = Rendition->Language;
+						StreamMetaData.Bandwidth = 128000;
+						StreamMetaData.ID = LexToString(vs->Internal.UniqueID);
 						for(int32 k=0; k<vs->StreamCodecInformationList.Num(); ++k)
 						{
 							if (vs->StreamCodecInformationList[k].IsAudioCodec())
@@ -914,11 +915,11 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 								break;
 							}
 						}
-						Manifest->StreamMetadataAudio.Push(StreamMetaData);
+						Adapt->Metadata.StreamDetails.Emplace(StreamMetaData);
 
 						vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
 						vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
-						vs->Internal.CDN					= StreamMetaData.PlaylistID;
+						vs->Internal.CDN					= UrlBuilder->ResolveWith(vs->URI);
 						Manifest->AudioOnlyStreams.Push(vs);
 
 						Manifest->PlaylistIDMap.Add(vs->Internal.UniqueID, vs);
@@ -930,6 +931,33 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 		}
 	}
 
+	// Set up the highest bandwidth and corresponding codec information in the adaptation sets.
+	if (Asset->VideoAdaptationSet.IsValid())
+	{
+		FTrackMetadata& Meta = Asset->VideoAdaptationSet->Metadata;
+		for(int32 i=0; i<Meta.StreamDetails.Num(); ++i)
+		{
+			if (Meta.StreamDetails[i].Bandwidth > Meta.HighestBandwidth)
+			{
+				Meta.HighestBandwidth = Meta.StreamDetails[i].Bandwidth;
+				Meta.HighestBandwidthCodec = Meta.StreamDetails[i].CodecInformation;
+			}
+		}
+		Manifest->TrackMetadataVideo.Push(Meta);
+	}
+	for(int32 j=0; j<Asset->AudioAdaptationSets.Num(); ++j)
+	{
+		FTrackMetadata& Meta = Asset->AudioAdaptationSets[j]->Metadata;
+		for(int32 i=0; i<Meta.StreamDetails.Num(); ++i)
+		{
+			if (Meta.StreamDetails[i].Bandwidth > Meta.HighestBandwidth)
+			{
+				Meta.HighestBandwidth = Meta.StreamDetails[i].Bandwidth;
+				Meta.HighestBandwidthCodec = Meta.StreamDetails[i].CodecInformation;
+			}
+		}
+		Manifest->TrackMetadataAudio.Push(Meta);
+	}
 
 	// Index the stream quality level map. Lower quality = lower index
 	int32 QualityIndex = 0;

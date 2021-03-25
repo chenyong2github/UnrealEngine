@@ -305,8 +305,8 @@ struct FManifestHLSInternal
 	TSharedPtrTS<IInitSegmentCacheHLS>						InitSegmentCache;
 	TSharedPtrTS<ILicenseKeyCacheHLS>						LicenseKeyCache;
 
-	TArray<FStreamMetadata>									StreamMetadataVideo;
-	TArray<FStreamMetadata>									StreamMetadataAudio;
+	TArray<FTrackMetadata>									TrackMetadataVideo;
+	TArray<FTrackMetadata>									TrackMetadataAudio;
 
 	TSharedPtrTS<FTimelineMediaAssetHLS>					CurrentMediaAsset;
 
@@ -548,6 +548,7 @@ public:
 	FString													UniqueIdentifier;
 	FString													Language;
 	FString													Codecs;
+	FTrackMetadata											Metadata;
 };
 
 
@@ -605,6 +606,34 @@ public:
 			}
 		}
 	}
+
+	virtual void GetMetaData(TArray<FTrackMetadata>& OutMetadata, EStreamType OfStreamType) const override
+	{
+		switch(OfStreamType)
+		{
+			case EStreamType::Video:
+			{
+				if (VideoAdaptationSet.IsValid())
+				{
+					OutMetadata.Emplace(VideoAdaptationSet->Metadata);
+				}
+				break;
+			}
+			case EStreamType::Audio:
+			{
+				for(int32 i=0, iMax=AudioAdaptationSets.Num(); i<iMax; ++i)
+				{
+					OutMetadata.Emplace(AudioAdaptationSets[i]->Metadata);
+				}
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
+	}
+
 	TSharedPtrTS<IPlaybackAssetAdaptationSet> GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType OfStreamType, const FString& InUniqueIdentifier) const
 	{
 		switch(OfStreamType)
@@ -615,7 +644,7 @@ public:
 			}
 			case EStreamType::Audio:
 			{
-				for(int32 i=0, iMax=(int32)AudioAdaptationSets.Num(); i<iMax; ++i)
+				for(int32 i=0, iMax=AudioAdaptationSets.Num(); i<iMax; ++i)
 				{
 					if (AudioAdaptationSets[i]->GetUniqueIdentifier() == InUniqueIdentifier)
 					{

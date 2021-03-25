@@ -124,7 +124,7 @@ namespace Electra
 		virtual ~FAdaptiveStreamSelector();
 		virtual void SetPresentationType(EMediaPresentationType PresentationType) override;
 		virtual void SetCanSwitchToAlternateStreams(bool bCanSwitch) override;
-		virtual void SetCurrentPlaybackPeriod(TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPlayPeriod) override;
+		virtual void SetCurrentPlaybackPeriod(EStreamType InStreamType, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPlayPeriod) override;
 		virtual void SetBandwidth(int64 bitsPerSecond) override;
 		virtual void SetForcedNextBandwidth(int64 bitsPerSecond) override;
 		virtual void MarkStreamAsUnavailable(const FBlacklistedStream& BlacklistedStream) override;
@@ -146,6 +146,7 @@ namespace Electra
 		virtual void ReportOpenSource(const FString& URL) override {}
 		virtual void ReportReceivedMasterPlaylist(const FString& EffectiveURL) override {}
 		virtual void ReportReceivedPlaylists() override {}
+		virtual void ReportTracksChanged() override {}
 		virtual void ReportPlaylistDownload(const Metrics::FPlaylistDownloadStats& PlaylistDownloadStats) override {}
 		virtual void ReportBandwidth(int64 EffectiveBps, int64 ThroughputBps, double LatencyInSeconds) override {}
 		virtual void ReportBufferUtilization(const Metrics::FBufferStats& BufferStats) override {}
@@ -214,13 +215,13 @@ namespace Electra
 
 		FMediaCriticalSection								AccessMutex;
 		EMediaPresentationType								PresentationType;
-		TSharedPtrTS<IManifest::IPlayPeriod>				CurrentPlayPeriod;
+		TSharedPtrTS<IManifest::IPlayPeriod>				CurrentPlayPeriodVideo;
+		TSharedPtrTS<IManifest::IPlayPeriod>				CurrentPlayPeriodAudio;
 		bool												bPlayerIsBuffering;
 		bool												bCanSwitchToAlternateStreams;
 
 		TArray<TSharedPtrTS<FStreamInformation>>			StreamInformationVideo;
 		TArray<TSharedPtrTS<FStreamInformation>>			StreamInformationAudio;
-		FString												CurrentMediaAssetID;
 		FString												CurrentVideoAdaptationSetID;
 		FString												CurrentAudioAdaptationSetID;
 
@@ -352,84 +353,97 @@ namespace Electra
 	/**
 	 * Sets the playback period from which to select streams now.
 	 *
+	 * @param InStreamType
 	 * @param CurrentPlayPeriod
 	 */
-	void FAdaptiveStreamSelector::SetCurrentPlaybackPeriod(TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPlayPeriod)
+	void FAdaptiveStreamSelector::SetCurrentPlaybackPeriod(EStreamType InStreamType, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPlayPeriod)
 	{
 		FMediaCriticalSection::ScopedLock lock(AccessMutex);
-		CurrentPlayPeriod = InCurrentPlayPeriod;
-		if (CurrentPlayPeriod.IsValid())
+		if (InStreamType == EStreamType::Video)
 		{
-			TSharedPtrTS<ITimelineMediaAsset> Asset = CurrentPlayPeriod->GetMediaAsset();
-			if (Asset.IsValid() && CurrentMediaAssetID != Asset->GetUniqueIdentifier())
+			CurrentPlayPeriodVideo = InCurrentPlayPeriod;
+			if (CurrentPlayPeriodVideo.IsValid())
 			{
-				CurrentMediaAssetID.Empty();
-				CurrentVideoAdaptationSetID.Empty();
-				CurrentAudioAdaptationSetID.Empty();
-				StreamInformationVideo.Empty();
-				StreamInformationAudio.Empty();
-				// Get video stream information
-				if (Asset->GetNumberOfAdaptationSets(EStreamType::Video) > 0)
+				TSharedPtrTS<ITimelineMediaAsset> Asset = CurrentPlayPeriodVideo->GetMediaAsset();
+				if (Asset.IsValid())
 				{
-					TSharedPtrTS<IPlaybackAssetAdaptationSet> Adapt = Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Video, 0);
-					if (Adapt.IsValid())
+					CurrentVideoAdaptationSetID.Empty();
+					StreamInformationVideo.Empty();
+					// Get video stream information
+					if (Asset->GetNumberOfAdaptationSets(InStreamType) > 0)
 					{
-						CurrentMediaAssetID = Asset->GetUniqueIdentifier();
-						CurrentVideoAdaptationSetID = Adapt->GetUniqueIdentifier();
-						for(int32 i=0, iMax=Adapt->GetNumberOfRepresentations(); i<iMax; ++i)
+						TSharedPtrTS<IPlaybackAssetAdaptationSet> Adapt = Asset->GetAdaptationSetByTypeAndIndex(InStreamType, 0);
+						if (Adapt.IsValid())
 						{
-							TSharedPtrTS<IPlaybackAssetRepresentation> Repr = Adapt->GetRepresentationByIndex(i);
-
-							TSharedPtrTS<FStreamInformation> si = MakeSharedTS<FStreamInformation>();
-							si->AdaptationSetUniqueID = Adapt->GetUniqueIdentifier();
-							si->RepresentationUniqueID = Repr->GetUniqueIdentifier();
-							si->Bitrate = Repr->GetBitrate();
-							if (Repr->GetCodecInformation().IsVideoCodec())
+							CurrentVideoAdaptationSetID = Adapt->GetUniqueIdentifier();
+							for(int32 i=0, iMax=Adapt->GetNumberOfRepresentations(); i<iMax; ++i)
 							{
-								si->Resolution = Repr->GetCodecInformation().GetResolution();
+								TSharedPtrTS<IPlaybackAssetRepresentation> Repr = Adapt->GetRepresentationByIndex(i);
+								TSharedPtrTS<FStreamInformation> si = MakeSharedTS<FStreamInformation>();
+								si->AdaptationSetUniqueID = Adapt->GetUniqueIdentifier();
+								si->RepresentationUniqueID = Repr->GetUniqueIdentifier();
+								si->Bitrate = Repr->GetBitrate();
+								if (Repr->GetCodecInformation().IsVideoCodec())
+								{
+									si->Resolution = Repr->GetCodecInformation().GetResolution();
+								}
+								StreamInformationVideo.Push(si);
 							}
-							StreamInformationVideo.Push(si);
+							// Sort the representations by ascending bitrate
+							StreamInformationVideo.Sort([](const TSharedPtrTS<FStreamInformation>& a, const TSharedPtrTS<FStreamInformation>& b)
+							{
+								return a->Bitrate < b->Bitrate;
+							});
 						}
-						// Sort the representations by ascending bitrate
-						StreamInformationVideo.Sort([](const TSharedPtrTS<FStreamInformation>& a, const TSharedPtrTS<FStreamInformation>& b)
-						{
-							return a->Bitrate < b->Bitrate;
-						});
-					}
-				}
-				// Get audio stream information
-				if (Asset->GetNumberOfAdaptationSets(EStreamType::Audio) > 0)
-				{
-					TSharedPtrTS<IPlaybackAssetAdaptationSet> Adapt = Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Audio, 0);
-					if (Adapt.IsValid())
-					{
-						CurrentMediaAssetID = Asset->GetUniqueIdentifier();
-						CurrentAudioAdaptationSetID = Adapt->GetUniqueIdentifier();
-						for(int32 i=0, iMax=Adapt->GetNumberOfRepresentations(); i<iMax; ++i)
-						{
-							TSharedPtrTS<IPlaybackAssetRepresentation> Repr = Adapt->GetRepresentationByIndex(i);
-							TSharedPtrTS<FStreamInformation> si = MakeSharedTS<FStreamInformation>();
-							si->AdaptationSetUniqueID = Adapt->GetUniqueIdentifier();
-							si->RepresentationUniqueID = Repr->GetUniqueIdentifier();
-							si->Bitrate = Repr->GetBitrate();
-							StreamInformationAudio.Push(si);
-						}
-						// Sort the representations by ascending bitrate
-						StreamInformationAudio.Sort([](const TSharedPtrTS<FStreamInformation>& a, const TSharedPtrTS<FStreamInformation>& b)
-						{
-							return a->Bitrate > b->Bitrate;
-						});
 					}
 				}
 			}
+			else
+			{
+				CurrentVideoAdaptationSetID.Empty();
+				StreamInformationVideo.Empty();
+			}
 		}
-		else
+		else if (InStreamType == EStreamType::Audio)
 		{
-			CurrentMediaAssetID.Empty();
-			CurrentVideoAdaptationSetID.Empty();
-			CurrentAudioAdaptationSetID.Empty();
-			StreamInformationVideo.Empty();
-			StreamInformationAudio.Empty();
+			CurrentPlayPeriodAudio = InCurrentPlayPeriod;
+			if (CurrentPlayPeriodAudio.IsValid())
+			{
+				TSharedPtrTS<ITimelineMediaAsset> Asset = CurrentPlayPeriodAudio->GetMediaAsset();
+				if (Asset.IsValid())
+				{
+					CurrentAudioAdaptationSetID.Empty();
+					StreamInformationAudio.Empty();
+					// Get audio stream information
+					if (Asset->GetNumberOfAdaptationSets(InStreamType) > 0)
+					{
+						TSharedPtrTS<IPlaybackAssetAdaptationSet> Adapt = Asset->GetAdaptationSetByTypeAndIndex(InStreamType, 0);
+						if (Adapt.IsValid())
+						{
+							CurrentAudioAdaptationSetID = Adapt->GetUniqueIdentifier();
+							for(int32 i=0, iMax=Adapt->GetNumberOfRepresentations(); i<iMax; ++i)
+							{
+								TSharedPtrTS<IPlaybackAssetRepresentation> Repr = Adapt->GetRepresentationByIndex(i);
+								TSharedPtrTS<FStreamInformation> si = MakeSharedTS<FStreamInformation>();
+								si->AdaptationSetUniqueID = Adapt->GetUniqueIdentifier();
+								si->RepresentationUniqueID = Repr->GetUniqueIdentifier();
+								si->Bitrate = Repr->GetBitrate();
+								StreamInformationAudio.Push(si);
+							}
+							// Sort the representations by ascending bitrate
+							StreamInformationAudio.Sort([](const TSharedPtrTS<FStreamInformation>& a, const TSharedPtrTS<FStreamInformation>& b)
+							{
+								return a->Bitrate > b->Bitrate;
+							});
+						}
+					}
+				}
+			}
+			else
+			{
+				CurrentAudioAdaptationSetID.Empty();
+				StreamInformationAudio.Empty();
+			}
 		}
 	}
 
@@ -794,10 +808,6 @@ namespace Electra
 	IAdaptiveStreamSelector::ESegmentAction FAdaptiveStreamSelector::SelectSuitableStreams(FTimeValue& OutDelay, TSharedPtrTS<const IStreamSegment> CurrentSegment)
 	{
 		OutDelay.SetToZero();
-		if (!CurrentPlayPeriod.IsValid())
-		{
-			return ESegmentAction::FetchNext;
-		}
 
 		FTimeValue TimeNow = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 		// Make all streams available again if their blacklist time has expired
@@ -820,6 +830,21 @@ namespace Electra
 
 
 		EStreamType StreamType = CurrentSegment.IsValid() ? CurrentSegment->GetType() : StreamInformationVideo.Num() ? EStreamType::Video : EStreamType::Audio;
+		
+		TSharedPtrTS<IManifest::IPlayPeriod> CurrentPlayPeriod;
+		if (StreamType == EStreamType::Video)
+		{
+			CurrentPlayPeriod = CurrentPlayPeriodVideo;
+		}
+		else if (StreamType == EStreamType::Audio)
+		{
+			CurrentPlayPeriod = CurrentPlayPeriodAudio;
+		}
+		if (!CurrentPlayPeriod.IsValid())
+		{
+			return ESegmentAction::FetchNext;
+		}
+
 		// Was the previous segment download in error?
 		bool bRetryIfPossible = false;
 		bool bSkipWithFiller = false;
@@ -827,8 +852,9 @@ namespace Electra
 		{
 			Metrics::FSegmentDownloadStats Stats;
 			CurrentSegment->GetDownloadStats(Stats);
+			// Try to get the stream information for the current downloaded segment. We may not find it on a period transition where the
+			// segment is the last of the previous period.
 			TSharedPtrTS<FAdaptiveStreamSelector::FStreamInformation> CurrentStreamInfo = GetStreamInformation(Stats);
-			check(CurrentStreamInfo.IsValid());
 			if (CurrentStreamInfo.IsValid())
 			{
 				if (!Stats.bWasSuccessful)

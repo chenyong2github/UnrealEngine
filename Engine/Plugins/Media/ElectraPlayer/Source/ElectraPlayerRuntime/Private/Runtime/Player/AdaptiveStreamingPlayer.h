@@ -144,8 +144,8 @@ public:
 	//! Returns the current loop state.
 	virtual void GetLoopState(FPlayerLoopState& OutLoopState) const = 0;
 
-	//! Returns stream metadata of the currently active play period.
-	virtual void GetStreamMetadata(TArray<FStreamMetadata>& OutStreamMetadata, EStreamType StreamType) const = 0;
+	//! Returns track metadata of the currently active play period.
+	virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutTrackMetadata, EStreamType StreamType) const = 0;
 
 
 	//-------------------------------------------------------------------------
@@ -158,9 +158,9 @@ public:
 	//! Setting both will limit on either width or height, whichever limits first.
 	virtual void SetMaxResolution(int32 MaxWidth, int32 MaxHeight) = 0;
 
-	//! Selects a track based from one of the array members returned by GetStreamMetadata().
+	//! Selects a track based from one of the array members returned by GetTrackMetadata().
 	//! NOTE: Presently this must be done before starting playback!
-	virtual void SelectTrackByMetadata(EStreamType StreamType, const FStreamMetadata& StreamMetadata) = 0;
+	virtual void SelectTrackByMetadata(EStreamType StreamType, const FTrackMetadata& StreamMetadata) = 0;
 
 	//! Deselect track. The stream will continue to stream to allow for immediate selection/activation but no data will be fed to the decoder.
 	virtual void DeselectTrack(EStreamType StreamType) = 0;

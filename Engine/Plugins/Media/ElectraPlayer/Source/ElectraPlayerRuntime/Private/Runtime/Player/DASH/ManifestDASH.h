@@ -25,13 +25,15 @@ public:
 	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override;
 	virtual FTimeValue GetDuration() const override;
 	virtual FTimeValue GetDefaultStartTime() const override;
+	virtual void ClearDefaultStartTime() override;
 	virtual int64 GetDefaultStartingBitrate() const override;
 	virtual FTimeValue GetMinBufferTime() const override;
-	virtual void GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const override;
+	virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const override;
 	virtual void UpdateDynamicRefetchCounter() override;
 	virtual IStreamReader* CreateStreamReaderHandler() override;
 
 	virtual FResult FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
+	virtual FResult FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
 
 private:
 	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHManifest);
@@ -40,10 +42,6 @@ private:
 
 	IPlayerSessionServices* 					PlayerSessionServices = nullptr;
 	TSharedPtrTS<FManifestDASHInternal>			CurrentManifest;
-	mutable TArray<FStreamMetadata>				CurrentMetadataVideo;
-	mutable TArray<FStreamMetadata>				CurrentMetadataAudio;
-	mutable TArray<FStreamMetadata>				CurrentMetadataSubtitle;
-	mutable bool								bHaveCurrentMetadata = false;
 	int64										CurrentPeriodAndAdaptationXLinkResolveID = 1;
 };
 

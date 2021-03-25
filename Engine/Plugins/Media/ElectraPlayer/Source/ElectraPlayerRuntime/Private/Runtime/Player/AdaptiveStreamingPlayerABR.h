@@ -57,7 +57,7 @@ public:
 	virtual void SetCanSwitchToAlternateStreams(bool bCanSwitch) = 0;
 
 	//! Sets the manifest from which to select streams.
-	virtual void SetCurrentPlaybackPeriod(TSharedPtrTS<IManifest::IPlayPeriod> CurrentPlayPeriod) = 0;
+	virtual void SetCurrentPlaybackPeriod(EStreamType InStreamType, TSharedPtrTS<IManifest::IPlayPeriod> CurrentPlayPeriod) = 0;
 
 	//! Sets the initial bandwidth, either from guessing, past history or a current measurement.
 	virtual void SetBandwidth(int64 bitsPerSecond) = 0;
@@ -120,6 +120,7 @@ public:
 	virtual void ReportOpenSource(const FString& URL) = 0;
 	virtual void ReportReceivedMasterPlaylist(const FString& EffectiveURL) = 0;
 	virtual void ReportReceivedPlaylists() = 0;
+	virtual void ReportTracksChanged() = 0;
 	virtual void ReportPlaylistDownload(const Metrics::FPlaylistDownloadStats& PlaylistDownloadStats) = 0;
 	virtual void ReportBufferingStart(Metrics::EBufferingReason BufferingReason) = 0;
 	virtual void ReportBufferingEnd(Metrics::EBufferingReason BufferingReason) = 0;

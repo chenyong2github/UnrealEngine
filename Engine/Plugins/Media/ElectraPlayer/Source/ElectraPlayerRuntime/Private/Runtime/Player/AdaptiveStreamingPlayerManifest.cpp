@@ -106,25 +106,20 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 		FString mimeType = Playlist::GetMIMETypeForURL(URL);
 		if (mimeType.Len())
 		{
-			CurrentState = EPlayerState::eState_ParsingManifest;
+			check(!ManifestReader.IsValid());
 
+			CurrentState = EPlayerState::eState_ParsingManifest;
 			if (mimeType == Playlist::MIMETypeHLS)
 			{
 				ManifestReader = IPlaylistReaderHLS::Create(this);
-				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
-				ManifestReader->LoadAndParse(URL);
 			}
 			else if (mimeType == Playlist::MIMETypeMP4)
 			{
 				ManifestReader = IPlaylistReaderMP4::Create(this);
-				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
-				ManifestReader->LoadAndParse(URL);
 			}
 			else if (mimeType == Playlist::MIMETypeDASH)
 			{
 				ManifestReader = IPlaylistReaderDASH::Create(this);
-				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
-				ManifestReader->LoadAndParse(URL);
 			}
 			else
 			{
@@ -133,6 +128,12 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 				err.SetMessage(TEXT("Unsupported stream MIME type"));
 				err.SetCode(INTERR_UNSUPPORTED_FORMAT);
 				PostError(err);
+			}
+
+			if (ManifestReader.IsValid())
+			{
+				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
+				ManifestReader->LoadAndParse(URL);
 			}
 		}
 		else
@@ -176,11 +177,11 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 			PlaybackState.SetTimelineRange(NewPresentation->GetTotalTimeRange());
 			PlaybackState.SetDuration(NewPresentation->GetDuration());
 
-			TArray<FStreamMetadata> VideoStreamMetadata;
-			TArray<FStreamMetadata> AudioStreamMetadata;
-			NewPresentation->GetStreamMetadata(VideoStreamMetadata, EStreamType::Video);
-			NewPresentation->GetStreamMetadata(AudioStreamMetadata, EStreamType::Audio);
-			PlaybackState.SetStreamMetadata(VideoStreamMetadata, AudioStreamMetadata);
+			TArray<FTrackMetadata> VideoTrackMetadata;
+			TArray<FTrackMetadata> AudioTrackMetadata;
+			NewPresentation->GetTrackMetadata(VideoTrackMetadata, EStreamType::Video);
+			NewPresentation->GetTrackMetadata(AudioTrackMetadata, EStreamType::Audio);
+			PlaybackState.SetTrackMetadata(VideoTrackMetadata, AudioTrackMetadata);
 			PlaybackState.SetHaveMetadata(true);
 
 			Manifest = NewPresentation;
@@ -210,22 +211,15 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 
 void FAdaptiveStreamingPlayer::UpdateManifest()
 {
-	check(Manifest.IsValid());
-
-	TArray<FTimespan> SeekablePositions;
-
-	PlaybackState.SetSeekableRange(Manifest->GetSeekableTimeRange());
-	Manifest->GetSeekablePositions(SeekablePositions);
-	PlaybackState.SetSeekablePositions(SeekablePositions);
-	PlaybackState.SetTimelineRange(Manifest->GetTotalTimeRange());
-	PlaybackState.SetDuration(Manifest->GetDuration());
-
-	TArray<FStreamMetadata> VideoStreamMetadata;
-	TArray<FStreamMetadata> AudioStreamMetadata;
-	Manifest->GetStreamMetadata(VideoStreamMetadata, EStreamType::Video);
-	Manifest->GetStreamMetadata(AudioStreamMetadata, EStreamType::Audio);
-	PlaybackState.SetStreamMetadata(VideoStreamMetadata, AudioStreamMetadata);
-	PlaybackState.SetHaveMetadata(true);
+	if (Manifest.IsValid())
+	{
+		TArray<FTimespan> SeekablePositions;
+		PlaybackState.SetSeekableRange(Manifest->GetSeekableTimeRange());
+		Manifest->GetSeekablePositions(SeekablePositions);
+		PlaybackState.SetSeekablePositions(SeekablePositions);
+		PlaybackState.SetTimelineRange(Manifest->GetTotalTimeRange());
+		PlaybackState.SetDuration(Manifest->GetDuration());
+	}
 }
 
 } // namespace Electra

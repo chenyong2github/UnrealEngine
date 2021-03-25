@@ -780,23 +780,23 @@ bool FElectraPlayer::Seek(const FTimespan& Time)
 	return false;
 }
 
-TSharedPtr<Electra::FStreamMetadata, ESPMode::ThreadSafe> FElectraPlayer::GetTrackStreamMetadata(EPlayerTrackType TrackType, int32 TrackIndex) const
+TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> FElectraPlayer::GetTrackStreamMetadata(EPlayerTrackType TrackType, int32 TrackIndex) const
 {
 	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
 	if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
 	{
-		TArray<Electra::FStreamMetadata> StreamMetaData;
+		TArray<Electra::FTrackMetadata> TrackMetaData;
 		if (TrackType == EPlayerTrackType::Video)
 		{
-			CurrentPlayer->AdaptivePlayer->GetStreamMetadata(StreamMetaData, Electra::EStreamType::Video);
+			CurrentPlayer->AdaptivePlayer->GetTrackMetadata(TrackMetaData, Electra::EStreamType::Video);
 		}
 		else if (TrackType == EPlayerTrackType::Audio)
 		{
-			CurrentPlayer->AdaptivePlayer->GetStreamMetadata(StreamMetaData, Electra::EStreamType::Audio);
+			CurrentPlayer->AdaptivePlayer->GetTrackMetadata(TrackMetaData, Electra::EStreamType::Audio);
 		}
-		if (TrackIndex >= 0 && TrackIndex < StreamMetaData.Num())
+		if (TrackIndex >= 0 && TrackIndex < TrackMetaData.Num())
 		{
-			return MakeShared<Electra::FStreamMetadata, ESPMode::ThreadSafe>(StreamMetaData[TrackIndex]);
+			return MakeShared<Electra::FTrackMetadata, ESPMode::ThreadSafe>(TrackMetaData[TrackIndex]);
 		}
 	}
 	return nullptr;
@@ -807,10 +807,10 @@ bool FElectraPlayer::GetAudioTrackFormat(int32 TrackIndex, int32 FormatIndex, FA
 {
 	if (TrackIndex >= 0 && TrackIndex < NumTracksAudio && FormatIndex == 0)
 	{
-		TSharedPtr<Electra::FStreamMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Audio, TrackIndex);
+		TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Audio, TrackIndex);
 		if (Meta.IsValid())
 		{
-			const Electra::FStreamCodecInformation& ci = Meta->CodecInformation;
+			const Electra::FStreamCodecInformation& ci = Meta->HighestBandwidthCodec;
 			OutFormat.BitsPerSample = 16;
 			OutFormat.NumChannels = (uint32)ci.GetNumberOfChannels();
 			OutFormat.SampleRate = (uint32)ci.GetSamplingRate();
@@ -827,10 +827,10 @@ bool FElectraPlayer::GetVideoTrackFormat(int32 TrackIndex, int32 FormatIndex, FV
 {
 	if (TrackIndex == 0 && FormatIndex == 0)
 	{
-		TSharedPtr<Electra::FStreamMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Video, TrackIndex);
+		TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Video, TrackIndex);
 		if (Meta.IsValid())
 		{
-			const Electra::FStreamCodecInformation& ci = Meta->CodecInformation;
+			const Electra::FStreamCodecInformation& ci = Meta->HighestBandwidthCodec;
 			OutFormat.Dim.X = ci.GetResolution().Width;
 			OutFormat.Dim.Y = ci.GetResolution().Height;
 			OutFormat.FrameRate = (float)ci.GetFrameRate().GetAsDouble();
@@ -885,19 +885,16 @@ int32 FElectraPlayer::GetSelectedTrack(EPlayerTrackType TrackType) const
 
 FText FElectraPlayer::GetTrackDisplayName(EPlayerTrackType TrackType, int32 TrackIndex) const
 {
-	TSharedPtr<Electra::FStreamMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(TrackType, TrackIndex);
+	TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(TrackType, TrackIndex);
 	if (Meta.IsValid())
 	{
-		//const Electra::FStreamCodecInformation &ci = StreamMetaData[TrackIndex].CodecInformation;
 		if (TrackType == EPlayerTrackType::Video)
 		{
-			//return FText::Format(LOCTEXT("AudioTrackDisplayNameFormat", "Audio Track {0}"), TrackIndex);
-			//Track->Name = FString::Printf(TEXT("Video Track %i"), TrackIndex);
-			return FText::FromString(FString::Printf(TEXT("Video Track ID %u"), Meta->StreamUniqueID));
+			return FText::FromString(FString::Printf(TEXT("Video Track ID %s"), *Meta->TrackID));
 		}
 		else if (TrackType == EPlayerTrackType::Audio)
 		{
-			return FText::FromString(FString::Printf(TEXT("Audio Track ID %u"), Meta->StreamUniqueID));
+			return FText::FromString(FString::Printf(TEXT("Audio Track ID %s"), *Meta->TrackID));
 		}
 	}
 	return FText();
@@ -911,34 +908,16 @@ int32 FElectraPlayer::GetTrackFormat(EPlayerTrackType TrackType, int32 TrackInde
 
 FString FElectraPlayer::GetTrackLanguage(EPlayerTrackType TrackType, int32 TrackIndex) const
 {
-	TSharedPtr<Electra::FStreamMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(TrackType, TrackIndex);
+	TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(TrackType, TrackIndex);
 	if (Meta.IsValid())
 	{
-		return Meta->LanguageCode;
+		return Meta->Language;
 	}
 	return TEXT("");
 }
 
 FString FElectraPlayer::GetTrackName(EPlayerTrackType TrackType, int32 TrackIndex) const
 {
-#if 0
-	TSharedPtr<Electra::FStreamMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(TrackType, TrackIndex);
-	if (Meta.IsValid())
-	{
-		//const Electra::FStreamCodecInformation &ci = StreamMetaData[TrackIndex].CodecInformation;
-		if (TrackType == EPlayerTrackType::Video)
-		{
-			//return FText::Format(LOCTEXT("AudioTrackDisplayNameFormat", "Audio Track {0}"), TrackIndex);
-			//Track->Name = FString::Printf(TEXT("Video Track %i"), TrackIndex);
-			return FText::FromString(FString::Printf(TEXT("Video Track ID %u"), Meta->StreamUniqueID));
-		}
-		else if (TrackType == EPlayerTrackType::Audio)
-		{
-			return FText::FromString(FString::Printf(TEXT("Audio Track ID %u"), Meta->StreamUniqueID));
-		}
-	}
-	return FText();
-#endif
 	return TEXT("");
 }
 
@@ -950,7 +929,7 @@ bool FElectraPlayer::SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex)
 		if (TrackIndex >= 0)
 		{
 			// Do a quick check if the track index is valid by checking the presence of the track metadata.
-			TSharedPtr<Electra::FStreamMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Audio, TrackIndex);
+			TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Audio, TrackIndex);
 			if (Meta.IsValid())
 			{
 				PlaystartOptions.AudioTrackIndex = TrackIndex;
@@ -1148,12 +1127,18 @@ void FElectraPlayer::ReportReceivedPlaylists()
 	Statistics.MediaTimelineAtEnd = MediaTimeline;
 	Statistics.MediaDuration = MediaDuration.IsInfinity() ? -1.0 : MediaDuration.GetAsSeconds();
 	// Get the video bitrates and populate our number of segments per bitrate map.
-	TArray<Electra::FStreamMetadata> VideoStreamMetaData;
-	CurrentPlayer->AdaptivePlayer->GetStreamMetadata(VideoStreamMetaData, Electra::EStreamType::Video);
+	TArray<Electra::FTrackMetadata> VideoStreamMetaData;
+	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(VideoStreamMetaData, Electra::EStreamType::Video);
 	NumTracksVideo = VideoStreamMetaData.Num();
-	for(int32 i=0; i<NumTracksVideo; ++i)
+	if (NumTracksVideo)
 	{
-		UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Found %d * %d video stream at bitrate %d"), this, CurrentPlayer.Get(), VideoStreamMetaData[i].CodecInformation.GetResolution().Width, VideoStreamMetaData[i].CodecInformation.GetResolution().Height, VideoStreamMetaData[i].Bandwidth);
+		for(int32 i=0; i<VideoStreamMetaData[0].StreamDetails.Num(); ++i)
+		{
+			UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Found %d * %d video stream at bitrate %d"), this, CurrentPlayer.Get(), 
+												VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Width,
+												VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Height,
+												VideoStreamMetaData[0].StreamDetails[i].Bandwidth);
+		}
 	}
 	StatisticsLock.Unlock();
 
@@ -1167,8 +1152,8 @@ void FElectraPlayer::ReportReceivedPlaylists()
 		EnqueueAnalyticsEvent(AnalyticEvent);
 	}
 
-	TArray<Electra::FStreamMetadata> AudioStreamMetaData;
-	CurrentPlayer->AdaptivePlayer->GetStreamMetadata(AudioStreamMetaData, Electra::EStreamType::Audio);
+	TArray<Electra::FTrackMetadata> AudioStreamMetaData;
+	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(AudioStreamMetaData, Electra::EStreamType::Audio);
 	NumTracksAudio = AudioStreamMetaData.Num();
 
 	// Select the desired audio track by hard metadata index.
@@ -1203,6 +1188,36 @@ void FElectraPlayer::ReportReceivedPlaylists()
 	// Trigger buffering at the intended start time.
 	CurrentPlayer->AdaptivePlayer->SeekTo(playParam);
 }
+
+void FElectraPlayer::ReportTracksChanged()
+{
+	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
+	if (!LockedPlayer.IsValid() || !LockedPlayer->AdaptivePlayer.IsValid())
+	{
+		return;
+	}
+
+	TArray<Electra::FTrackMetadata> VideoStreamMetaData;
+	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(VideoStreamMetaData, Electra::EStreamType::Video);
+	NumTracksVideo = VideoStreamMetaData.Num();
+	if (NumTracksVideo)
+	{
+		for(int32 i=0; i<VideoStreamMetaData[0].StreamDetails.Num(); ++i)
+		{
+			UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Found %d * %d video stream at bitrate %d"), this, CurrentPlayer.Get(), 
+												VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Width,
+												VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Height,
+												VideoStreamMetaData[0].StreamDetails[i].Bandwidth);
+		}
+	}
+
+	TArray<Electra::FTrackMetadata> AudioStreamMetaData;
+	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(AudioStreamMetaData, Electra::EStreamType::Audio);
+	NumTracksAudio = AudioStreamMetaData.Num();
+
+	DeferredEvents.Enqueue(IElectraPlayerAdapterDelegate::EPlayerEvent::TracksChanged);
+}
+
 
 void FElectraPlayer::ReportPlaylistDownload(const Electra::Metrics::FPlaylistDownloadStats& PlaylistDownloadStats)
 {
@@ -1493,17 +1508,20 @@ void FElectraPlayer::ReportVideoQualityChange(int32 NewBitrate, int32 PreviousBi
 	int32 prvWidth  = Statistics.CurrentlyActiveResolutionWidth;
 	int32 prvHeight = Statistics.CurrentlyActiveResolutionHeight;
 	// Get the current playlist URL
-	TArray<Electra::FStreamMetadata> VideoStreamMetaData;
-	CurrentPlayer->AdaptivePlayer->GetStreamMetadata(VideoStreamMetaData, Electra::EStreamType::Video);
-	for(int32 i = 0; i < VideoStreamMetaData.Num(); ++i)
+	TArray<Electra::FTrackMetadata> VideoStreamMetaData;
+	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(VideoStreamMetaData, Electra::EStreamType::Video);
+	if (VideoStreamMetaData.Num())
 	{
-		if (VideoStreamMetaData[i].Bandwidth == NewBitrate)
+		for(int32 i=0; i<VideoStreamMetaData[0].StreamDetails.Num(); ++i)
 		{
-			SelectedQuality = i;
-			Statistics.CurrentlyActivePlaylistURL = VideoStreamMetaData[i].PlaylistID;
-			Statistics.CurrentlyActiveResolutionWidth = VideoStreamMetaData[i].CodecInformation.GetResolution().Width;
-			Statistics.CurrentlyActiveResolutionHeight = VideoStreamMetaData[i].CodecInformation.GetResolution().Height;
-			break;
+			if (VideoStreamMetaData[0].StreamDetails[i].Bandwidth == NewBitrate)
+			{
+				SelectedQuality = i;
+				Statistics.CurrentlyActivePlaylistURL = VideoStreamMetaData[0].TrackID;
+				Statistics.CurrentlyActiveResolutionWidth = VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Width;
+				Statistics.CurrentlyActiveResolutionHeight = VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Height;
+				break;
+			}
 		}
 	}
 

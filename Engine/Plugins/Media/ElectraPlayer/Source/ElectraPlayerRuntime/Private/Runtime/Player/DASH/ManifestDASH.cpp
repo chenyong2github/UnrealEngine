@@ -98,7 +98,7 @@ public:
 	//
 	virtual void SetStreamPreferences(const FStreamPreferences& Preferences) override;
 	virtual EReadyState GetReadyState() override;
-	virtual void PrepareForPlay(const FParamDict& Options) override;
+	virtual void PrepareForPlay() override;
 	virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
 	virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
 	virtual IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
@@ -114,7 +114,13 @@ private:
 	TSharedPtrTS<FManifestDASHInternal> GetCurrentManifest() const;
 
 	TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationFromAdaptationByMaxBandwidth(TWeakPtrTS<IPlaybackAssetAdaptationSet> InAdaptationSet, int32 NotExceedingBandwidth);
-	IManifest::FResult GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, bool bForRetry);
+	enum class ENextSegType
+	{
+		SamePeriodNext,
+		SamePeriodRetry,
+		NextPeriod
+	};
+	IManifest::FResult GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, ENextSegType InNextType);
 
 	IPlayerSessionServices* PlayerSessionServices = nullptr;
 	EReadyState ReadyState = EReadyState::NotReady;
@@ -146,7 +152,6 @@ FManifestDASH::FManifestDASH(IPlayerSessionServices* InSessionServices, TSharedP
 	: PlayerSessionServices(InSessionServices)
 	, CurrentManifest(InManifest)
 {
-	bHaveCurrentMetadata = false;
 }
 
 FManifestDASH::~FManifestDASH()
@@ -207,6 +212,15 @@ FTimeValue FManifestDASH::GetDefaultStartTime() const
 	return Manifest.IsValid() ? Manifest->GetDefaultStartTime() : FTimeValue();
 }
 
+void FManifestDASH::ClearDefaultStartTime()
+{
+	TSharedPtrTS<FManifestDASHInternal> Manifest(CurrentManifest);
+	if (Manifest.IsValid())
+	{
+		Manifest->ClearDefaultStartTime();
+	}
+}
+
 int64 FManifestDASH::GetDefaultStartingBitrate() const
 {
 	return 2 * 1000 * 1000;
@@ -223,59 +237,15 @@ FTimeValue FManifestDASH::GetMinBufferTime() const
 	return FTimeValue();
 }
 
-void FManifestDASH::GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const
+void FManifestDASH::GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const
 {
-	if (!bHaveCurrentMetadata)
+	TSharedPtrTS<FManifestDASHInternal> Manifest(CurrentManifest);
+	if (Manifest.IsValid() && Manifest->GetPeriods().Num())
 	{
-		bHaveCurrentMetadata = true;
-		TSharedPtrTS<FManifestDASHInternal> Manifest(CurrentManifest);
-		if (Manifest.IsValid() && Manifest->GetPeriods().Num())
-		{
-			Manifest->PreparePeriodAdaptationSets(Manifest->GetPeriods()[0], false);
-			const TArray<TSharedPtrTS<FManifestDASHInternal::FAdaptationSet>>& AdaptationSets = Manifest->GetPeriods()[0]->GetAdaptationSets();
-			for(int32 nA=0; nA<AdaptationSets.Num(); ++nA)
-			{
-				FStreamMetadata sm;
-				sm.CodecInformation = AdaptationSets[nA]->GetCodec();
-				sm.PlaylistID = Manifest->GetPeriods()[0]->GetID();
-				sm.Bandwidth = AdaptationSets[nA]->GetMaxBandwidth();
-				sm.StreamUniqueID = 0;
-				sm.LanguageCode = AdaptationSets[nA]->GetLanguage();
-				switch(AdaptationSets[nA]->GetCodec().GetStreamType())
-				{
-					case EStreamType::Video:
-					{
-						CurrentMetadataVideo.Emplace(MoveTemp(sm));
-						break;
-					}
-					case EStreamType::Audio:
-					{
-						CurrentMetadataAudio.Emplace(MoveTemp(sm));
-						break;
-					}
-					case EStreamType::Subtitle:
-					{
-						CurrentMetadataSubtitle.Emplace(MoveTemp(sm));
-						break;
-					}
-				}
-			}
-		}
-	}
-
-	// At present we return metadata from the first period only as every period can have totally different
-	// number of streams and even codecs. There is no commonality between periods.
-	if (StreamType == EStreamType::Video)
-	{
-		OutMetadata = CurrentMetadataVideo;
-	}
-	else if (StreamType == EStreamType::Audio)
-	{
-		OutMetadata = CurrentMetadataAudio;
-	}
-	else if (StreamType == EStreamType::Subtitle)
-	{
-		OutMetadata = CurrentMetadataSubtitle;
+		// At present we return metadata from the first period only as every period can have totally different
+		// number of streams and even codecs. There is no commonality between periods.
+		Manifest->PreparePeriodAdaptationSets(Manifest->GetPeriods()[0], false);
+		Manifest->GetPeriods()[0]->GetMetaData(OutMetadata, StreamType);
 	}
 }
 
@@ -297,75 +267,95 @@ IManifest::FResult FManifestDASH::FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutP
 		return IManifest::FResult(IManifest::FResult::EType::NotLoaded);
 	}
 
+	const TArray<TSharedPtrTS<FManifestDASHInternal::FPeriod>>& Periods = Manifest->GetPeriods();
+	TSharedPtrTS<FManifestDASHInternal::FPeriod> SelectedPeriod;
+	if (Periods.Num() == 0)
+	{
+		return IManifest::FResult(IManifest::FResult::EType::TryAgainLater).RetryAfterMilliseconds(1000);
+	}
+
 	FTimeValue StartTime = StartPosition.Time;
 
 	// All time values we communicate to the outside - and therefor get from the outside - are offset by the availabilityStartTime.
 	StartTime -= Manifest->GetAnchorTime();
 
+	// Quick out if the time falls outside the presentation.
+	FTimeValue TotalEndTime = Manifest->GetLastPeriodEndTime();
+	if (StartTime >= TotalEndTime)
+	{
+		return IManifest::FResult(IManifest::FResult::EType::PastEOS);
+	}
+	// If the time to search for is before the start of the first period we use the first period!
+	else if (StartTime < Periods[0]->GetStart())
+	{
+		LogMessage(PlayerSessionServices, IInfoLog::ELevel::Verbose, FString::Printf(TEXT("Start time is before the start of the first period. Using first period!")));
+		SelectedPeriod = Periods[0];
+	}
+
 	// Find the period into which the start time falls.
-	TSharedPtrTS<FManifestDASHInternal::FPeriod> SelectedPeriod;
-	const TArray<TSharedPtrTS<FManifestDASHInternal::FPeriod>>& Periods = Manifest->GetPeriods();
 	for(int32 nPeriod=0; !SelectedPeriod.IsValid() && nPeriod<Periods.Num(); ++nPeriod)
 	{
 		if (!Periods[nPeriod]->GetIsEarlyPeriod())
 		{
-			if (StartTime >= Periods[nPeriod]->GetStart())
+			FTimeValue PeriodStartTime = Periods[nPeriod]->GetStart();
+			FTimeValue PeriodEndTime = Periods[nPeriod]->GetEnd();
+			// When the period end time is not valid it must be the last period of a Live presentation
+			if (!PeriodEndTime.IsValid())
 			{
-				FTimeValue PeriodEndTime = Periods[nPeriod]->GetEnd();
-				// When the period end time is not valid it must be the last period of a Live presentation
-				if (!PeriodEndTime.IsValid())
+				PeriodEndTime.SetToPositiveInfinity();
+			}
+			// Does the time fall into this period?
+			if (StartTime >= PeriodStartTime && StartTime < PeriodEndTime)
+			{
+				FTimeValue DiffToNextPeriod = nPeriod + 1 < Periods.Num() && !Periods[nPeriod+1]->GetIsEarlyPeriod() ? Periods[nPeriod + 1]->GetStart() - StartTime : FTimeValue::GetPositiveInfinity();
+				if (!DiffToNextPeriod.IsValid())
 				{
-					PeriodEndTime.SetToPositiveInfinity();
+					DiffToNextPeriod = FTimeValue::GetPositiveInfinity();
 				}
-				// Does the time fall into this period?
-				if (StartTime < PeriodEndTime)
+				FTimeValue DiffToStart = StartTime - PeriodStartTime;
+				switch(SearchType)
 				{
-					FTimeValue DiffToNextPeriod = nPeriod + 1 < Periods.Num() && !Periods[nPeriod+1]->GetIsEarlyPeriod() ? Periods[nPeriod + 1]->GetStart() - StartTime : FTimeValue::GetPositiveInfinity();
-					FTimeValue DiffToEnd = PeriodEndTime - StartTime;
-					switch(SearchType)
+					case ESearchType::Closest:
 					{
-						case ESearchType::Closest:
+						// If there is a following period whose start is closer to the current position than the start of this period and the position
+						// is within a short duration to the next we jump ahead to the next.
+						if (DiffToNextPeriod < DiffToStart && DiffToNextPeriod.GetAsMilliseconds() < 1000)
 						{
-							// Closest only looks at the distance to the following period. It will never take us to the preceeding period since it is unlikely
-							// the intention (for closest) is to start playback at the end of a period only to transition into this one.
-							if (DiffToEnd.IsValid() && DiffToNextPeriod <= DiffToEnd && nPeriod + 1 < Periods.Num())
-							{
-								SelectedPeriod = Periods[nPeriod + 1];
-							}
-							else
-							{
-								SelectedPeriod = Periods[nPeriod];
-							}
-							break;
+							SelectedPeriod = Periods[nPeriod + 1];
 						}
-						case ESearchType::Before:
-						case ESearchType::Same:
-						case ESearchType::After:
+						else
 						{
-							// Before, Same and After have no meaning when looking for a period. The period the start time falls into is the one to use.
 							SelectedPeriod = Periods[nPeriod];
-							break;
 						}
-						case ESearchType::StrictlyAfter:
-						{
-							if (DiffToNextPeriod.IsValid() && !DiffToNextPeriod.IsInfinity())
-							{
-								SelectedPeriod = Periods[nPeriod + 1];
-							}
-							break;
-						}
-						case ESearchType::StrictlyBefore:
-						{
-							if (nPeriod)
-							{
-								SelectedPeriod = Periods[nPeriod - 1];
-							}
-							break;
-						}
+						break;
 					}
-					// Time fell into this period. We have either found a candidate or not. We're done either way.
-					break;
+					case ESearchType::Before:
+					case ESearchType::Same:
+					case ESearchType::After:
+					{
+						// Before, Same and After have no meaning when looking for a period. The period the start time falls into is the one to use.
+						SelectedPeriod = Periods[nPeriod];
+						break;
+					}
+					case ESearchType::StrictlyAfter:
+					{
+						if (!DiffToNextPeriod.IsInfinity())
+						{
+							SelectedPeriod = Periods[nPeriod + 1];
+						}
+						break;
+					}
+					case ESearchType::StrictlyBefore:
+					{
+						if (nPeriod)
+						{
+							SelectedPeriod = Periods[nPeriod - 1];
+						}
+						break;
+					}
 				}
+				// Time fell into this period. We have either found a candidate or not. We're done either way.
+				break;
 			}
 		}
 	}
@@ -401,7 +391,23 @@ IManifest::FResult FManifestDASH::FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutP
 			return IManifest::FResult(IManifest::FResult::EType::TryAgainLater).RetryAfterMilliseconds(100);
 		}
 	}
-	return IManifest::FResult();
+	// Ok, we made sure to use the first period if the start time is less than that of the first one.
+	// Coming here can only mean that no period was found which can only means that the time is past the last one.
+	// Which means that the duration of the last period is actually less than what MPD@mediaPresentationDuration was saying.
+	// So, in a nutshell, we have reached the end.
+	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
+}
+
+IManifest::FResult FManifestDASH::FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> InCurrentSegment)
+{
+	const FStreamSegmentRequestFMP4DASH* CurrentRequest = static_cast<const FStreamSegmentRequestFMP4DASH*>(InCurrentSegment.Get());
+	if (CurrentRequest)
+	{
+		FPlayStartPosition SearchTime;
+		SearchTime.Time = CurrentRequest->AST + CurrentRequest->PeriodStart + FTimeValue(CurrentRequest->Segment.Time - CurrentRequest->Segment.PTO, CurrentRequest->Segment.Timescale);
+		return FindPlayPeriod(OutPlayPeriod, SearchTime, IManifest::ESearchType::StrictlyAfter);
+	}
+	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
 }
 
 
@@ -431,45 +437,41 @@ IManifest::IPlayPeriod::EReadyState FDASHPlayPeriod::GetReadyState()
 	return ReadyState;
 }
 
-void FDASHPlayPeriod::PrepareForPlay(const FParamDict& Options)
+void FDASHPlayPeriod::PrepareForPlay()
 {
 	TSharedPtrTS<FManifestDASHInternal> Manifest = GetCurrentManifest();
 	TSharedPtrTS<FManifestDASHInternal::FPeriod> Period = Manifest.IsValid() ? Manifest->GetPeriodByUniqueID(PeriodID) : nullptr;
-	if (!Period.IsValid())
+	if (Period.IsValid())
 	{
-		LogMessage(PlayerSessionServices, IInfoLog::ELevel::Verbose, FString::Printf(TEXT("Period in PrepareToPlay() is not or no longer valid. Must reselect.")));
-		ReadyState = EReadyState::MustReselect;
-		return;
-	}
-
-	// Prepare the adaptation sets and periods.
-	Manifest->PreparePeriodAdaptationSets(Period, false);
+		// Prepare the adaptation sets and periods.
+		Manifest->PreparePeriodAdaptationSets(Period, false);
 	
-	// We need to select one adaptation set per stream type we wish to play.
-	int32 NumVideoAdaptationSets = Period->GetNumberOfAdaptationSets(EStreamType::Video);
-	if (NumVideoAdaptationSets > 0)
-	{
-		// For now pick the first one!
-		TSharedPtrTS<IPlaybackAssetAdaptationSet> VideoAS = Period->GetAdaptationSetByTypeAndIndex(EStreamType::Video, 0);
-		ActiveVideoAdaptationSetID = VideoAS->GetUniqueIdentifier();
+		// We need to select one adaptation set per stream type we wish to play.
+		int32 NumVideoAdaptationSets = Period->GetNumberOfAdaptationSets(EStreamType::Video);
+		if (NumVideoAdaptationSets > 0)
+		{
+			// For now pick the first one!
+			TSharedPtrTS<IPlaybackAssetAdaptationSet> VideoAS = Period->GetAdaptationSetByTypeAndIndex(EStreamType::Video, 0);
+			ActiveVideoAdaptationSetID = VideoAS->GetUniqueIdentifier();
 
-		TSharedPtrTS<IPlaybackAssetRepresentation> VideoRepr = GetRepresentationFromAdaptationByMaxBandwidth(VideoAS, 2*1000*1000);
-		ActiveVideoRepresentationID = VideoRepr->GetUniqueIdentifier();
+			TSharedPtrTS<IPlaybackAssetRepresentation> VideoRepr = GetRepresentationFromAdaptationByMaxBandwidth(VideoAS, 2*1000*1000);
+			ActiveVideoRepresentationID = VideoRepr->GetUniqueIdentifier();
+		}
+
+		int32 NumAudioAdaptationSets = Period->GetNumberOfAdaptationSets(EStreamType::Audio);
+		if (NumAudioAdaptationSets > 0)
+		{
+			// For now pick the first one!
+			TSharedPtrTS<IPlaybackAssetAdaptationSet> AudioAS = Period->GetAdaptationSetByTypeAndIndex(EStreamType::Audio, 0);
+			ActiveAudioAdaptationSetID = AudioAS->GetUniqueIdentifier();
+
+			TSharedPtrTS<IPlaybackAssetRepresentation> AudioRepr = GetRepresentationFromAdaptationByMaxBandwidth(AudioAS, 128 * 1000);
+			ActiveAudioRepresentationID = AudioRepr->GetUniqueIdentifier();
+		}
+
+	//	ReadyState = EReadyState::Preparing;
+		ReadyState = EReadyState::IsReady;
 	}
-
-	int32 NumAudioAdaptationSets = Period->GetNumberOfAdaptationSets(EStreamType::Audio);
-	if (NumAudioAdaptationSets > 0)
-	{
-		// For now pick the first one!
-		TSharedPtrTS<IPlaybackAssetAdaptationSet> AudioAS = Period->GetAdaptationSetByTypeAndIndex(EStreamType::Audio, 0);
-		ActiveAudioAdaptationSetID = AudioAS->GetUniqueIdentifier();
-
-		TSharedPtrTS<IPlaybackAssetRepresentation> AudioRepr = GetRepresentationFromAdaptationByMaxBandwidth(AudioAS, 128 * 1000);
-		ActiveAudioRepresentationID = AudioRepr->GetUniqueIdentifier();
-	}
-
-//	ReadyState = EReadyState::Preparing;
-	ReadyState = EReadyState::IsReady;
 }
 
 TSharedPtrTS<ITimelineMediaAsset> FDASHPlayPeriod::GetMediaAsset() const
@@ -585,6 +587,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 			{
 				SearchOpt.PeriodDuration = Manifest->GetLastPeriodEndTime() - AST;
 			}
+			SearchOpt.bHasFollowingPeriod = Period->GetHasFollowingPeriod();
 			SearchOpt.SearchType = SearchType;
 			FManifestDASHInternal::FRepresentation::ESearchResult SearchResult = Repr->FindSegment(PlayerSessionServices, SegmentInfo, RemoteElementLoadRequests, SearchOpt);
 			if (SearchResult == FManifestDASHInternal::FRepresentation::ESearchResult::NeedElement)
@@ -646,7 +649,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 					// This is wasteful and prevents fast startup, so we set the start time to the beginning of the segment.
 					SegmentInfo.MediaLocalFirstAUTime = SegmentInfo.Time;
 
-					StartTime = Period->GetStart() + FTimeValue().SetFromND(SegmentInfo.Time - SegmentInfo.PTO, SegmentInfo.Timescale);
+					StartTime = FTimeValue().SetFromND(SegmentInfo.Time - SegmentInfo.PTO, SegmentInfo.Timescale);
 					SearchType = IManifest::ESearchType::Before;
 				}
 
@@ -714,7 +717,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 }
 
 
-IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, bool bForRetry)
+IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, ENextSegType InNextType)
 {
 	TSharedPtrTS<const FStreamSegmentRequestFMP4DASH> Current = StaticCastSharedPtr<const FStreamSegmentRequestFMP4DASH>(InCurrentSegment);
 	if (Current->bIsInitialStartRequest)
@@ -755,7 +758,7 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 	FManifestDASHInternal::FSegmentInformation SegmentInfo;
 	FManifestDASHInternal::FSegmentSearchOption SearchOpt;
 	TArray<TWeakPtrTS<FMPDLoadRequestDASH>> RemoteElementLoadRequests;
-	if (!bForRetry)
+	if (InNextType == ENextSegType::SamePeriodNext)
 	{
 		// Set up the search time as the time three quarters into the current segment.
 		// This is to make sure the time is sufficiently large that it won't be affected by rounding errors in timescale conversions.
@@ -763,10 +766,16 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 		SearchOpt.PeriodDuration = Period->GetDuration();
 		SearchOpt.SearchType = IManifest::ESearchType::After;
 	}
-	else
+	else if (InNextType == ENextSegType::SamePeriodRetry)
 	{
 		// Use the same period local time for the retry representation as was used to locate the current segment.
 		SearchOpt.PeriodLocalTime.SetFromND(Current->Segment.Time - Current->Segment.PTO, Current->Segment.Timescale);
+		SearchOpt.PeriodDuration = Period->GetDuration();
+		SearchOpt.SearchType = IManifest::ESearchType::Closest;
+	}
+	else //if (InNextType == ENextSegType::NextPeriod)
+	{
+		SearchOpt.PeriodLocalTime.SetToZero();
 		SearchOpt.PeriodDuration = Period->GetDuration();
 		SearchOpt.SearchType = IManifest::ESearchType::Closest;
 	}
@@ -777,6 +786,7 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 	{
 		SearchOpt.PeriodDuration = Manifest->GetLastPeriodEndTime() - AST;
 	}
+	SearchOpt.bHasFollowingPeriod = Period->GetHasFollowingPeriod();
 
 	FManifestDASHInternal::FRepresentation::ESearchResult SearchResult = Repr->FindSegment(PlayerSessionServices, SegmentInfo, RemoteElementLoadRequests, SearchOpt);
 	if (SearchResult == FManifestDASHInternal::FRepresentation::ESearchResult::NeedElement)
@@ -843,16 +853,19 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 		{
 			SegmentRequest->bInsertFillerData = true;
 		}
-		// Because we are searching for the next segment we do not want any first access units to be truncated.
-		// We keep the current media local AU time for the case where with <SegmentTemplate> addressing we get greatly varying
-		// segment durations from the fixed value (up to +/- 50% variation are allowed!) and the current segment did not actually
-		// have any access units we wanted to have! In that case it is possible that this new segment would also have some initial
-		// access units outside the time we want. By retaining the initial value this is addressed.
-		// We do need to translate the value between potentially different timescales and potentially different local media times.
-		SegmentInfo.MediaLocalFirstAUTime = FTimeFraction(Current->Segment.MediaLocalFirstAUTime - Current->Segment.PTO, Current->Segment.Timescale).GetAsTimebase(SegmentInfo.Timescale) + SegmentInfo.PTO;
-		SegmentRequest->Segment = MoveTemp(SegmentInfo);
+		
+		if (InNextType != ENextSegType::NextPeriod)
+		{
+			// Because we are searching for the next segment we do not want any first access units to be truncated.
+			// We keep the current media local AU time for the case where with <SegmentTemplate> addressing we get greatly varying
+			// segment durations from the fixed value (up to +/- 50% variation are allowed!) and the current segment did not actually
+			// have any access units we wanted to have! In that case it is possible that this new segment would also have some initial
+			// access units outside the time we want. By retaining the initial value this is addressed.
+			// We do need to translate the value between potentially different timescales and potentially different local media times.
+			SegmentInfo.MediaLocalFirstAUTime = FTimeFraction(Current->Segment.MediaLocalFirstAUTime - Current->Segment.PTO, Current->Segment.Timescale).GetAsTimebase(SegmentInfo.Timescale) + SegmentInfo.PTO;
+		}
 		// For a retry request we have to increate the retry count to give up after n failed attempts.
-		if (bForRetry)
+		if (InNextType == ENextSegType::SamePeriodRetry)
 		{
 			SegmentRequest->NumOverallRetries = Current->NumOverallRetries + 1;
 		}
@@ -864,6 +877,7 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 			SegmentRequest->bWarnedAboutTimescale = Current->bWarnedAboutTimescale;
 		}
 
+		SegmentRequest->Segment = MoveTemp(SegmentInfo);
 		OutSegment = MoveTemp(SegmentRequest);
 		return IManifest::FResult(IManifest::FResult::EType::Found);
 	}
@@ -883,11 +897,21 @@ IManifest::FResult FDASHPlayPeriod::GetNextSegment(TSharedPtrTS<IStreamSegment>&
 	// Did the stream reader see a 'lmsg' brand on this segment?
 	// If so then this stream has ended and there will not be a next segment.
 	const FStreamSegmentRequestFMP4DASH* CurrentRequest = static_cast<const FStreamSegmentRequestFMP4DASH*>(InCurrentSegment.Get());
-	if (CurrentRequest->Segment.bSawLMSG)
+
+	// Check if we moved across a period.
+	if (CurrentRequest->Period->GetUniqueIdentifier().Equals(PeriodID))
 	{
-		return IManifest::FResult(IManifest::FResult::EType::PastEOS);
+		if (CurrentRequest->Segment.bSawLMSG)
+		{
+			return IManifest::FResult(IManifest::FResult::EType::PastEOS);
+		}
+		return GetNextOrRetrySegment(OutSegment, InCurrentSegment, ENextSegType::SamePeriodNext);
 	}
-	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, false);
+	else
+	{
+		// Moved into a new period. This here is the new period.
+		return GetNextOrRetrySegment(OutSegment, InCurrentSegment, ENextSegType::NextPeriod);
+	}
 }
 
 IManifest::FResult FDASHPlayPeriod::GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, bool bReplaceWithFillerData)
@@ -908,13 +932,45 @@ IManifest::FResult FDASHPlayPeriod::GetRetrySegment(TSharedPtrTS<IStreamSegment>
 		OutSegment = NewRequest;
 		return IManifest::FResult(IManifest::FResult::EType::Found);
 	}
-	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, true);
+	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, ENextSegType::SamePeriodRetry);
 }
 
 
 IManifest::FResult FDASHPlayPeriod::GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, FPlayerLoopState& InOutLoopState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
 {
-	return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage("Looping is not currently supported!"));
+	if (InFinishedSegments.Num())
+	{
+		// Go over all finished segments and get the largest next expected timestamp from all of them.
+		FTimeValue LargestNextExpectedTimestamp(FTimeValue::GetZero());
+		for(auto It = InFinishedSegments.CreateConstIterator(); It; ++It)
+		{
+			const FStreamSegmentRequestFMP4DASH* FinishedRequest = static_cast<const FStreamSegmentRequestFMP4DASH*>(It->Value.Get());
+			if (FinishedRequest && FinishedRequest->NextLargestExpectedTimestamp > LargestNextExpectedTimestamp)
+			{
+				LargestNextExpectedTimestamp = FinishedRequest->NextLargestExpectedTimestamp;
+			}
+		}
+		IManifest::FResult Result = GetStartingSegment(OutSegment, StartPosition, SearchType);
+		if (Result.GetType() == IManifest::FResult::EType::Found)
+		{
+			FStreamSegmentRequestFMP4DASH* LoopRequest = static_cast<FStreamSegmentRequestFMP4DASH*>(OutSegment.Get());
+			InOutLoopState.bLoopEnabled = true;
+			InOutLoopState.LoopBasetime = LargestNextExpectedTimestamp;	// This is the absolute playback time at which the loop will occur
+			++InOutLoopState.LoopCount;
+			LoopRequest->PlayerLoopState = InOutLoopState;
+			// We have to subtract all the values that are added to the access units from the loop base time
+			// to avoid adding them twice.
+			LoopRequest->PlayerLoopState.LoopBasetime -= LoopRequest->PeriodStart + LoopRequest->AST + LoopRequest->AdditionalAdjustmentTime;			
+			// Set the loop state in the dependent streams as well.
+			for(int32 nDep=0, nDepMax=LoopRequest->DependentStreams.Num(); nDep<nDepMax; ++nDep)
+			{
+				LoopRequest->DependentStreams[nDep]->PlayerLoopState = LoopRequest->PlayerLoopState;
+			}
+			return Result;
+		}
+	}
+	// Return past EOS when we can't loop to indicate we're really done now.
+	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
 }
 
 
@@ -1710,6 +1766,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		OutSegmentInfo.MediaLocalLastAUTime = MediaLocalPeriodEnd;
 		OutSegmentInfo.Timescale = SidxTimescale;
 		OutSegmentInfo.ATO = ATO;
+		OutSegmentInfo.bIsLastInPeriod = CurrentT + CurrentD >= MediaLocalPeriodEnd;
 		if (!PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentBase))
 		{
 			bIsUsable = false;
@@ -1861,6 +1918,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	OutSegmentInfo.MediaLocalLastAUTime = MediaLocalPeriodDuration + PTO;
 	OutSegmentInfo.Timescale = MPDTimescale;
 	OutSegmentInfo.bMayBeMissing = SegmentNum + 1 >= MaxSegmentsInPeriod;
+	OutSegmentInfo.bIsLastInPeriod = OutSegmentInfo.bMayBeMissing && InSearchOptions.bHasFollowingPeriod;
 	OutSegmentInfo.ATO = ATO;
 	if (!PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentTemplate))
 	{
@@ -2180,6 +2238,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		OutSegmentInfo.MediaLocalLastAUTime = MediaLocalPeriodEnd;
 		OutSegmentInfo.Timescale = MPDTimescale;
 		OutSegmentInfo.bMayBeMissing = CurrentT + CurrentD >= MediaLocalPeriodEnd;
+		OutSegmentInfo.bIsLastInPeriod = OutSegmentInfo.bMayBeMissing && InSearchOptions.bHasFollowingPeriod;
 		if (bIsCurrentlyAGap)
 		{
 			OutSegmentInfo.bMayBeMissing = true;
