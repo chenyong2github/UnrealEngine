@@ -1666,6 +1666,18 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 	}
 }
 
+void UGeometryCollectionComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
+{
+	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
+
+#if WITH_CHAOS
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->SetWorldTransform(GetComponentTransform());
+	}
+#endif
+}
+
 void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::TickComponent()"), this);

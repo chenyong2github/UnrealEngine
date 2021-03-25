@@ -332,6 +332,7 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 	, CollisionParticlesPerObjectFraction(CollisionParticlesPerObjectFractionDefault)
 
 	, GameThreadCollection(GameThreadCollectionIn)
+	, bIsPhysicsThreadWorldTransformDirty(false)
 {
 	// We rely on a guarded buffer.
 	check(BufferMode == Chaos::EMultiBufferMode::TripleGuarded);
@@ -372,6 +373,8 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 	{
 		InitFunc(Parameters);
 	}
+	// compatibility requirement to make sure we at least initialize GameThreadPerFrameData properly
+	GameThreadPerFrameData.SetWorldTransform(Parameters.WorldTransform);
 
 	//
 	// Collision vertices down sampling validation.  
@@ -1430,6 +1433,59 @@ void FGeometryCollectionPhysicsProxy::BufferGameState()
 	//
 	// There is currently no per advance updates to the GeometryCollection
 	//
+}
+
+
+void FGeometryCollectionPhysicsProxy::SetWorldTransform(const FTransform& WorldTransform)
+{
+	check(IsInGameThread());
+	GameThreadPerFrameData.SetWorldTransform(WorldTransform);
+}
+
+void FGeometryCollectionPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSolver* InSolver)
+{
+	// CONTEXT: GAMETHREAD
+	// this is running on GAMETHREAD before the PhysicsThread code runs for this frame
+	bIsPhysicsThreadWorldTransformDirty = GameThreadPerFrameData.GetIsWorldTransformDirty();
+	if (bIsPhysicsThreadWorldTransformDirty)
+	{
+		Parameters.WorldTransform = GameThreadPerFrameData.GetWorldTransform();
+		GameThreadPerFrameData.ResetIsWorldTransformDirty();
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::PushToPhysicsState()
+{
+	// CONTEXT: PHYSICSTHREAD
+	// because the aattached actor can be dynamic, we need to update the kinematic particles properly
+	if (bIsPhysicsThreadWorldTransformDirty)
+	{
+		const FTransform& ActorToWorld = Parameters.WorldTransform;
+
+		int32 NumTransformGroupElements = PhysicsThreadCollection.NumElements(FGeometryCollection::TransformGroup);
+		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransformGroupElements; ++TransformGroupIndex)
+		{
+			Chaos::FPBDRigidClusteredParticleHandle* Handle = SolverParticleHandles[TransformGroupIndex];
+			if (!Handle)
+			{
+				continue;
+			}
+			const Chaos::EObjectStateType ObjectState = Handle->ObjectState();
+			switch (ObjectState)
+			{
+			case Chaos::EObjectStateType::Kinematic:
+			{
+				FTransform LocalTransform = PhysicsThreadCollection.Transform[TransformGroupIndex];
+				FTransform WorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;;
+
+				Handle->SetX(WorldTransform.GetTranslation());
+				Handle->SetR(WorldTransform.GetRotation().GetNormalized());
+				Handle->SetP(Handle->X());
+				Handle->SetQ(Handle->R());
+			}
+			}
+		}
+	}
 }
 
 void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolver* CurrentSolver, Chaos::FDirtyGeometryCollectionData& BufferData)

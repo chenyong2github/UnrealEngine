@@ -601,6 +601,8 @@ public:
 	virtual bool ShouldCreatePhysicsState() const override;
 	virtual bool HasValidPhysicsState() const override;
 
+	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport = ETeleportType::None) override;
+
 	// Mirrored from the proxy on a sync
 	//TManagedArray<int32> RigidBodyIds;
 	TArray<bool> DisabledFlags;

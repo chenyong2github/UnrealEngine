@@ -124,6 +124,12 @@ public:
 	/** Push physics state into the \c PhysToGameInterchange. */
 	void BufferPhysicsResults(Chaos::FPBDRigidsSolver* CurrentSolver, Chaos::FDirtyGeometryCollectionData& BufferData);
 
+	/** Push data from the game thread to the physics thread */
+	void PushStateOnGameThread(Chaos::FPBDRigidsSolver* InSolver);
+
+	/** apply the state changes on the physics thread */
+	void PushToPhysicsState();
+	
 	/** Does nothing as \c BufferPhysicsResults() already did this. */
 	void FlipBuffer();
 	
@@ -173,6 +179,9 @@ public:
 	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) {}
 
 	bool IsGTCollectionDirty() const { return GameThreadCollection.IsDirty(); }
+
+	// set the world transform ( this needs to be called on the game thread ) 
+	void SetWorldTransform(const FTransform& WorldTransform);
 
 	const TArray<FClusterHandle*> GetParticles() const
 	{
@@ -318,6 +327,10 @@ private:
 	// is a deep copy from the GameThreadCollection. 
 	FGeometryDynamicCollection PhysicsThreadCollection;
 	FGeometryDynamicCollection& GameThreadCollection;
+
+	// this data flows from Game thread to physics thread
+	FGeometryCollectioPerFrameData GameThreadPerFrameData;
+	bool bIsPhysicsThreadWorldTransformDirty;
 
 	// Currently this is using triple buffers for game-physics and 
 	// physics-game thread communication, but not for any reason other than this 

@@ -89,6 +89,31 @@ public:
 };
 
 
+class FGeometryCollectioPerFrameData
+{
+public:
+	FGeometryCollectioPerFrameData()
+		: IsWorldTransformDirty(false) {}
+
+	const FTransform& GetWorldTransform() const { return WorldTransform; }
+
+	void SetWorldTransform(const FTransform& InWorldTransform)
+	{
+		if (!WorldTransform.Equals(InWorldTransform))
+		{
+			WorldTransform = InWorldTransform;
+			IsWorldTransformDirty = true;
+		}
+	}
+
+	bool GetIsWorldTransformDirty() const { return IsWorldTransformDirty; }
+	void ResetIsWorldTransformDirty() { IsWorldTransformDirty = false; }
+
+private:
+	FTransform WorldTransform;
+	bool IsWorldTransformDirty;
+};
+
 /**
  * Buffer structure for communicating simulation state between game and physics
  * threads.

@@ -813,7 +813,8 @@ namespace Chaos
 			}
 			case EPhysicsProxyType::GeometryCollectionType:
 			{
-				// Not invalid but doesn't currently use the remote data process
+				auto Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(Dirty.Proxy);
+				Proxy->PushStateOnGameThread(this);
 				break;
 			}
 			case EPhysicsProxyType::JointConstraintType:
@@ -913,6 +914,8 @@ namespace Chaos
 			
 				case EPhysicsProxyType::GeometryCollectionType:
 				{
+					auto Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(Dirty.Proxy);
+					Proxy->PushToPhysicsState();
 					// Currently no push needed for geometry collections and they handle the particle creation internally
 					// #TODO This skips the rewind data push so GC will not be rewindable until resolved.
 					Dirty.Proxy->ResetDirtyIdx();
