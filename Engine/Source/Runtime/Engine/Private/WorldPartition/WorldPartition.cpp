@@ -32,9 +32,7 @@
 #include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
-#include "WorldPartition/WorldPartitionEditorSpatialHash.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
-#include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "Modules/ModuleManager.h"
 #include "GameDelegates.h"
@@ -135,6 +133,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, WorldPartitionEditor(nullptr)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
+	, bIsPIE(false)
 #endif
 	, InitState(EWorldPartitionInitState::Uninitialized)
 	, InstanceTransform(FTransform::Identity)
@@ -151,6 +150,9 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 {
+	check(!bIsPIE);
+	bIsPIE = true;
+
 	// Gather all modified/newly created actors for PIE so they can be duplicated when streaming their cell
 	for (AActor* Actor : World->PersistentLevel->Actors)
 	{
@@ -163,6 +165,12 @@ void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 	check(IsMainWorldPartition());
 
 	OnBeginPlay(EWorldPartitionStreamingMode::PIE);
+}
+
+void UWorldPartition::OnPrePIEEnded(bool bWasSimulatingInEditor)
+{
+	check(bIsPIE);
+	bIsPIE = false;
 }
 
 void UWorldPartition::OnBeginPlay(EWorldPartitionStreamingMode Mode)
@@ -223,9 +231,9 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		if (!EditorHash)
 		{
-			UWorldPartitionEditorSpatialHash* EditorSpatialHash = NewObject<UWorldPartitionEditorSpatialHash>(this, NAME_None, RF_Transactional);
-			EditorSpatialHash->SetDefaultValues();
-			EditorHash = EditorSpatialHash;
+			UClass* EditorHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionEditorSpatialHash"));
+			EditorHash = NewObject<UWorldPartitionEditorHash>(this, EditorHashClass);
+			EditorHash->SetDefaultValues();
 		}
 
 		EditorHash->Initialize();
@@ -233,9 +241,9 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	if (!RuntimeHash)
 	{
-		UWorldPartitionRuntimeSpatialHash* RuntimeSpatialHash = NewObject<UWorldPartitionRuntimeSpatialHash>(this);
-		RuntimeSpatialHash->SetDefaultValues();
-		RuntimeHash = RuntimeSpatialHash;
+		UClass* RuntimeHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionRuntimeSpatialHash"));
+		RuntimeHash = NewObject<UWorldPartitionRuntimeHash>(this, RuntimeHashClass);
+		RuntimeHash->SetDefaultValues();
 	}
 
 	if (bEditorOnly || IsRunningGame())
@@ -497,6 +505,7 @@ void UWorldPartition::RegisterDelegates()
 	if (GEditor && !IsTemplate())
 	{
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
+		FEditorDelegates::PrePIEEnded.AddUObject(this, &UWorldPartition::OnPrePIEEnded);
 		FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UWorldPartition::OnEndPlay);
 	}
 }
@@ -507,6 +516,7 @@ void UWorldPartition::UnregisterDelegates()
 	if (GEditor && !IsTemplate())
 	{
 		FEditorDelegates::PreBeginPIE.RemoveAll(this);
+		FEditorDelegates::PrePIEEnded.RemoveAll(this);
 		FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
 	}
 }

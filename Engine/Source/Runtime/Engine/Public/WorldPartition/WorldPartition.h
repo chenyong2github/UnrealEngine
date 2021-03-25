@@ -95,6 +95,7 @@ private:
 
 	// PIE/Game Methods
 	void OnPreBeginPIE(bool bStartSimulate);
+	void OnPrePIEEnded(bool bWasSimulatingInEditor);
 	void OnBeginPlay(EWorldPartitionStreamingMode Mode);
 	void OnEndPlay();
 
@@ -196,6 +197,7 @@ public:
 #if WITH_EDITOR
 	bool bForceGarbageCollection;
 	bool bForceGarbageCollectionPurge;
+	bool bIsPIE;
 #endif
 
 #if WITH_EDITORONLY_DATA

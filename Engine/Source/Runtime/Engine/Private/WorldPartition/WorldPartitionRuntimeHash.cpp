@@ -80,22 +80,28 @@ void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContaine
 {
 	// Build the actor desc view map
 	OutActorDescViewMap.Empty();
+
+	const bool bIsPIE = GetOuterUWorldPartition()->bIsPIE;
+
 	for (UActorDescContainer::TConstIterator<> ActorDescIt(Container); ActorDescIt; ++ActorDescIt)
 	{
-		if (AActor* Actor = ActorDescIt->GetActor())
+		if (bIsPIE)
 		{
-			// Don't include deleted, unsaved actors
-			if (Actor->IsPendingKill())
+			if (AActor* Actor = ActorDescIt->GetActor())
 			{
-				continue;
-			}
+				// Don't include deleted, unsaved actors
+				if (Actor->IsPendingKill())
+				{
+					continue;
+				}
 
-			// Handle dirty, unsaved actors
-			if (Actor->GetPackage()->IsDirty())
-			{
-				FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(Actor);
-				OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
-				continue;
+				// Handle dirty, unsaved actors
+				if (Actor->GetPackage()->IsDirty())
+				{
+					FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(Actor);
+					OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
+					continue;
+				}
 			}
 		}
 
@@ -103,15 +109,18 @@ void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContaine
 		OutActorDescViewMap.Emplace(ActorDescIt->GetGuid(), *ActorDescIt);
 	}
 
-	// Append new unsaved actors for the persistent level
-	if (Container->GetContainerPackage() == GetWorld()->PersistentLevel->GetPackage()->GetLoadedPath().GetPackageFName())
+	if (bIsPIE)
 	{
-		for (auto& ActorPair : GetWorld()->PersistentLevel->ActorsModifiedForPIE)
+		// Append new unsaved actors for the persistent level
+		if (Container->GetContainerPackage() == GetWorld()->PersistentLevel->GetPackage()->GetLoadedPath().GetPackageFName())
 		{
-			if (ActorPair.Value->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated))
+			for (auto& ActorPair : GetWorld()->PersistentLevel->ActorsModifiedForPIE)
 			{
-				FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(ActorPair.Value);
-				OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
+				if (ActorPair.Value->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated))
+				{
+					FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(ActorPair.Value);
+					OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
+				}
 			}
 		}
 	}
