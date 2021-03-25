@@ -370,7 +370,7 @@ namespace UnrealBuildTool
 				Result += " -F \"" + Path.GetDirectoryName(Path.GetFullPath(FrameworkName)) + "\"";
 				FrameworkName = Path.GetFileNameWithoutExtension(FrameworkName);
 			}
-			Result += " " + Arg + " \"\"" + FrameworkName + "\"\"";
+			Result += " " + Arg + " \"" + FrameworkName + "\"";
 			return Result;
 		}
 
@@ -764,7 +764,7 @@ namespace UnrealBuildTool
 			Action LinkAction = Graph.CreateAction(ActionType.Link);
 
 			LinkAction.WorkingDirectory = GetMacDevSrcRoot();
-			LinkAction.CommandPath = BuildHostPlatform.Current.Shell;
+			LinkAction.CommandPath = new FileReference("/usr/bin/env");
 			LinkAction.CommandDescription = "Link";
 			LinkAction.CommandVersion = GetFullClangVersion();
 
@@ -839,7 +839,7 @@ namespace UnrealBuildTool
 					}
 					else  if (string.IsNullOrEmpty(Path.GetDirectoryName(AdditionalLibrary)) && string.IsNullOrEmpty(Path.GetExtension(AdditionalLibrary)))
 					{
-						LinkCommand += string.Format(" -l{0}", AdditionalLibrary);
+						LinkCommand += string.Format(" -l\"{0}\"", AdditionalLibrary);
 					}
 					else
 					{
@@ -922,7 +922,7 @@ namespace UnrealBuildTool
 				{
 					InstallName = string.Format("{0}/{1}", DylibsPath, Path.GetFileName(OutputFile.AbsolutePath));
 				}
-				LinkCommand += string.Format(" -install_name {0}", InstallName);
+				LinkCommand += string.Format(" -install_name \"{0}\"", InstallName);
 			}
 
 			if (!bIsBuildingLibrary)
@@ -965,7 +965,7 @@ namespace UnrealBuildTool
 			// Add the additional arguments specified by the environment.
 			LinkCommand += LinkEnvironment.AdditionalArguments;
 
-			LinkAction.CommandArguments = "-c '" + LinkCommand + "'";
+			LinkAction.CommandArguments = "-- " + LinkCommand;
 
 			// Only execute linking on the local Mac.
 			LinkAction.bCanExecuteRemotely = false;

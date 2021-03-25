@@ -22,7 +22,7 @@ fi
 
 source "$BASE_PATH/SetupEnvironment.sh" -dotnet "$BASE_PATH"
 if [ -f "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" ]; then
-  dotnet msbuild /restore /target:build /property:Configuration=Development /nologo $BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj /verbosity:quiet
+  dotnet msbuild /restore /target:build /property:Configuration=Development /nologo "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" /verbosity:quiet
 
   if [ $? -ne 0 ]; then
     echo GenerateProjectFiles ERROR: Failed to build UnrealBuildTool
@@ -30,5 +30,16 @@ if [ -f "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csp
   fi
 fi
 
+if [ $# -lt 1 ]; then
+	# Create an empty string argument for UBT; otherwise we see an index out-of-range error.
+	QuotedArgs="\"\""
+else
+	# Apply quote-escape to all arguments
+	QuotedArgs="$(printf " %q" "$@")"
+
+	# Trim leading whitespace
+	QuotedArgs="${QuotedArgs#"${QuotedArgs%%[![:space:]]*}"}"
+fi
+
 # pass all parameters to UBT
-dotnet "$BASE_PATH/../../../Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll" -projectfiles "$@"
+dotnet "$BASE_PATH/../../../Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll" -projectfiles "${QuotedArgs}"
