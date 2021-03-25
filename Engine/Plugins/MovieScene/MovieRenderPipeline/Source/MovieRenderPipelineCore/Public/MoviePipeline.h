@@ -4,6 +4,7 @@
 #include "UObject/Object.h"
 #include "Engine/EngineCustomTimeStep.h"
 #include "MovieRenderPipelineDataTypes.h"
+#include "MoviePipelineBlueprintLibrary.h"
 #if WITH_EDITOR
 #include "MovieSceneExportMetadata.h"
 #endif
@@ -140,10 +141,8 @@ public:
 	template<typename SettingType>
 	SettingType* FindOrAddSettingForShot(const UMoviePipelineExecutorShot* InShot) const
 	{
-		return (SettingType*)FindOrAddSettingForShot(SettingType::StaticClass(), InShot);
+		return (SettingType*)UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(SettingType::StaticClass(), GetPipelineMasterConfig(), InShot);
 	}
-
-	UMoviePipelineSetting* FindOrAddSettingForShot(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const;
 
 	template<typename SettingType>
 	TArray<SettingType*> FindSettingsForShot(const UMoviePipelineExecutorShot* InShot) const

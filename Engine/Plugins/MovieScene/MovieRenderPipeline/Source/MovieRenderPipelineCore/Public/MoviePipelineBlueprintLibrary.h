@@ -10,6 +10,7 @@
 // Forward Declare
 class UMoviePipeline;
 class UMovieSceneSequence;
+class UMoviePipelineSetting;
 
 UCLASS(meta = (ScriptName = "MoviePipelineLibrary"))
 class MOVIERENDERPIPELINECORE_API UMoviePipelineBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -118,4 +119,13 @@ public:
 	/** If version number is manually specifies, returns that, otherwise search the Output Directory for the highest version already existing an increments it by one. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	static int32 ResolveVersionNumber(const UMoviePipeline* InMoviePipeline);
+
+	/** In case of Overscan percentage being higher than 0 we render additional pixels. This function returns the resolution with overscan taken into account. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static FIntPoint GetEffectiveOutputResolution(UMoviePipelineMasterConfig* InMasterConfig, UMoviePipelineExecutorShot* InPipelineExecutorShot);
+
+	/** Allows access to a setting of provided type for specific shot. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static UMoviePipelineSetting* FindOrGetDefaultSettingForShot(TSubclassOf<UMoviePipelineSetting> InSettingType, const UMoviePipelineMasterConfig* InMasterConfig, const UMoviePipelineExecutorShot* InShot);
+
 };

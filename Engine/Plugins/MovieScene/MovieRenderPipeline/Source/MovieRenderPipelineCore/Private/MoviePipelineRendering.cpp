@@ -13,6 +13,7 @@
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineConfigBase.h"
 #include "MoviePipelineMasterConfig.h"
+#include "MoviePipelineBlueprintLibrary.h"
 #include "Math/Halton.h"
 #include "ImageWriteTask.h"
 #include "ImageWriteQueue.h"
@@ -58,11 +59,12 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 
 
 	FIntPoint BackbufferTileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
-	
+	FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipelineMasterConfig(), InShot);
+
 	// Figure out how big each sub-region (tile) is.
 	FIntPoint BackbufferResolution = FIntPoint(
-		FMath::CeilToInt(OutputSettings->OutputResolution.X / HighResSettings->TileCount),
-		FMath::CeilToInt(OutputSettings->OutputResolution.Y / HighResSettings->TileCount));
+		FMath::CeilToInt(OutputResolution.X / HighResSettings->TileCount),
+		FMath::CeilToInt(OutputResolution.Y / HighResSettings->TileCount));
 
 	// Then increase each sub-region by the overlap amount.
 	BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
@@ -168,7 +170,7 @@ void UMoviePipeline::RenderFrame()
 
 	FIntPoint TileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
 	FIntPoint OriginalTileCount = TileCount;
-	FIntPoint OutputResolution = OutputSettings->OutputResolution;
+	FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipelineMasterConfig(), ActiveShotList[CurrentShotIndex]);
 
 	int32 NumSpatialSamples = AntiAliasingSettings->SpatialSampleCount;
 	int32 NumTemporalSamples = AntiAliasingSettings->TemporalSampleCount;
@@ -343,7 +345,7 @@ void UMoviePipeline::RenderFrame()
 					SpatialShiftY = r * FMath::Sin(Theta);
 				}
 
-				FIntPoint BackbufferResolution = FIntPoint(FMath::CeilToInt(OutputSettings->OutputResolution.X / OriginalTileCount.X), FMath::CeilToInt(OutputSettings->OutputResolution.Y / OriginalTileCount.Y));
+				FIntPoint BackbufferResolution = FIntPoint(FMath::CeilToInt(OutputResolution.X / OriginalTileCount.X), FMath::CeilToInt(OutputResolution.Y / OriginalTileCount.Y));
 				FIntPoint TileResolution = BackbufferResolution;
 
 				// Apply size padding.
@@ -383,7 +385,7 @@ void UMoviePipeline::RenderFrame()
 					// Note that when bAllowSpatialJitter is false, SpatialShiftX/Y will always be zero.
 					SampleState.OverlappedSubpixelShift = FVector2D(0.5f - SpatialShiftX, 0.5f - SpatialShiftY);
 				}
-
+				SampleState.OverscanPercentage = FMath::Clamp(CameraSettings->OverscanPercentage, 0.0f, 1.0f);
 				SampleState.WeightFunctionX.InitHelper(SampleState.OverlappedPad.X, SampleState.TileSize.X, SampleState.OverlappedPad.X);
 				SampleState.WeightFunctionY.InitHelper(SampleState.OverlappedPad.Y, SampleState.TileSize.Y, SampleState.OverlappedPad.Y);
 

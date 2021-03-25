@@ -1451,31 +1451,6 @@ UMoviePipelineMasterConfig* UMoviePipeline::GetPipelineMasterConfig() const
 	return CurrentJob->GetConfiguration(); 
 }
 
-UMoviePipelineSetting* UMoviePipeline::FindOrAddSettingForShot(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
-{
-	// Check to see if this setting is in the shot override, if it is we'll use the shot version of that.
-	if (InShot->GetShotOverrideConfiguration())
-	{
-		UMoviePipelineSetting* Setting = InShot->GetShotOverrideConfiguration()->FindSettingByClass(InSetting);
-		if (Setting)
-		{
-			// If they specified the setting at all, respect the enabled setting. If it's not enabled, we return the
-			// default instead which is the same as if they hadn't added the setting at all.
-			return Setting->IsEnabled() ? Setting : InSetting->GetDefaultObject<UMoviePipelineSetting>();
-		}
-	}
-
-	// If they didn't have a shot override, or the setting wasn't enabled, we'll check the master config.
-	UMoviePipelineSetting* Setting = GetPipelineMasterConfig()->FindSettingByClass(InSetting);
-	if (Setting)
-	{
-		return Setting->IsEnabled() ? Setting : InSetting->GetDefaultObject<UMoviePipelineSetting>();
-	}
-
-	// If no one overrode it, then we return the default.
-	return InSetting->GetDefaultObject<UMoviePipelineSetting>();
-}
-
 TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettingsForShot(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
 {
 	TArray<UMoviePipelineSetting*> FoundSettings;

@@ -18,7 +18,9 @@
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "MovieSceneTimeHelpers.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineSetting.h"
 #include "MoviePipelineOutputSetting.h"
+#include "MoviePipelineCameraSetting.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
 
@@ -651,4 +653,53 @@ int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(const UMoviePipeline*
 	}
 
 	return 0;
+}
+
+FIntPoint UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(UMoviePipelineMasterConfig* InMasterConfig, UMoviePipelineExecutorShot* InPipelineExecutorShot)
+{
+	if (InMasterConfig && InPipelineExecutorShot)
+	{
+		UMoviePipelineOutputSetting* OutputSetting = InMasterConfig->FindSetting<UMoviePipelineOutputSetting>();
+		const UMoviePipelineCameraSetting* CameraSetting = Cast<const UMoviePipelineCameraSetting>(UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(UMoviePipelineCameraSetting::StaticClass(), InMasterConfig, InPipelineExecutorShot));
+		check(OutputSetting);
+		check(CameraSetting);
+		FIntPoint EffectiveResolution(OutputSetting->OutputResolution);
+		float ClampedOverscanPercentage = FMath::Clamp(CameraSetting->OverscanPercentage, 0.0f, 1.0f);
+		if (ClampedOverscanPercentage > 0.f)
+		{
+			float Scale = 1.f + ClampedOverscanPercentage;
+			EffectiveResolution.X = FMath::CeilToInt(((float)EffectiveResolution.X) * Scale);
+			EffectiveResolution.Y = FMath::CeilToInt(((float)EffectiveResolution.Y) * Scale);
+		}
+
+		return EffectiveResolution;
+	}
+
+	return FIntPoint();
+}
+
+
+UMoviePipelineSetting* UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(TSubclassOf<UMoviePipelineSetting> InSettingType, const UMoviePipelineMasterConfig* InMasterConfig, const UMoviePipelineExecutorShot* InShot)
+{
+	// Check to see if this setting is in the shot override, if it is we'll use the shot version of that.
+	if (InShot->GetShotOverrideConfiguration())
+	{
+		UMoviePipelineSetting* Setting = InShot->GetShotOverrideConfiguration()->FindSettingByClass(InSettingType);
+		if (Setting)
+		{
+			// If they specified the setting at all, respect the enabled setting. If it's not enabled, we return the
+			// default instead which is the same as if they hadn't added the setting at all.
+			return Setting->IsEnabled() ? Setting : InSettingType->GetDefaultObject<UMoviePipelineSetting>();
+		}
+	}
+
+	// If they didn't have a shot override, or the setting wasn't enabled, we'll check the master config.
+	UMoviePipelineSetting* Setting = InMasterConfig->FindSettingByClass(InSettingType);
+	if (Setting)
+	{
+		return Setting->IsEnabled() ? Setting : InSettingType->GetDefaultObject<UMoviePipelineSetting>();
+	}
+
+	// If no one overrode it, then we return the default.
+	return InSettingType->GetDefaultObject<UMoviePipelineSetting>();
 }
