@@ -476,8 +476,8 @@ static bool ParseWorkspaceInformation(const TArray<FString>& InInfoMessages, int
 {
 	bool bResult = true;
 
-	// Get workspace status, in the form "cs:41@rep:UE4PlasticPlugin@repserver:localhost:8087" (disabled by the "--nostatus" flag)
-	//                                or "cs:41@rep:UE4PlasticPlugin@repserver:SRombauts@cloud" (when connected directly to the cloud)
+	// Get workspace status, in the form "cs:41@rep:UEPlasticPlugin@repserver:localhost:8087" (disabled by the "--nostatus" flag)
+	//                                or "cs:41@rep:UEPlasticPlugin@repserver:SRombauts@cloud" (when connected directly to the cloud)
 	if (InInfoMessages.Num() > 0)
 	{
 		static const FString ChangesetPrefix(TEXT("cs:"));
@@ -498,7 +498,7 @@ static bool ParseWorkspaceInformation(const TArray<FString>& InInfoMessages, int
 			bResult = false;
 		}
 	}
-	// Get the branch name, in the form "Branch /main@UE4PlasticPluginDev" (enabled by the "--wkconfig" flag)
+	// Get the branch name, in the form "Branch /main@UEPlasticPluginDev" (enabled by the "--wkconfig" flag)
 	if (InInfoMessages.Num() > 1)
 	{
 		OutBranchName = InInfoMessages[1];
@@ -883,7 +883,7 @@ static bool RunStatus(const TArray<FString>& InFiles, const EConcurrency::Type I
 }
 
 // Parse the fileinfo output format "{RevisionChangeset};{RevisionHeadChangeset};{RepSpec};{LockedBy};{LockedWhere}"
-// for example "40;41;repo@server:port;srombauts;UE4PlasticPluginDev"
+// for example "40;41;repo@server:port;srombauts;UEPlasticPluginDev"
 class FPlasticFileinfoParser
 {
 public:
@@ -1057,9 +1057,9 @@ bool RunCheckMergeStatus(const TArray<FString>& InFiles, TArray<FString>& OutErr
 			// @todo: temporary debug logs
 			UE_LOG(LogSourceControl, Log, TEXT("RunCheckMergeStatus: %s:\n%s"), *MergeProgressFilename, *MergeProgressContent);
 			// Content is in one line, looking like the following:
-			// Target: mount:56e62dd7-241f-41e9-8c6b-dd4ca4513e62#/#UE4MergeTest@localhost:8087 merged from: Merge 4
-			// Target: mount:56e62dd7-241f-41e9-8c6b-dd4ca4513e62#/#UE4MergeTest@localhost:8087 merged from: Cherrypicking 3
-			// Target: mount:56e62dd7-241f-41e9-8c6b-dd4ca4513e62#/#UE4MergeTest@localhost:8087 merged from: IntervalCherrypick 2 4
+			// Target: mount:56e62dd7-241f-41e9-8c6b-dd4ca4513e62#/#UEMergeTest@localhost:8087 merged from: Merge 4
+			// Target: mount:56e62dd7-241f-41e9-8c6b-dd4ca4513e62#/#UEMergeTest@localhost:8087 merged from: Cherrypicking 3
+			// Target: mount:56e62dd7-241f-41e9-8c6b-dd4ca4513e62#/#UEMergeTest@localhost:8087 merged from: IntervalCherrypick 2 4
 			// 1) Extract the word after "merged from: "
 			static const FString MergeFromString(TEXT("merged from: "));
 			const int32 MergeFromIndex = MergeProgressContent.Find(MergeFromString, ESearchCase::CaseSensitive);

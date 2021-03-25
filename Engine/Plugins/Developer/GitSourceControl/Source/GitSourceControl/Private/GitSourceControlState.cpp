@@ -228,7 +228,7 @@ bool FGitSourceControlState::IsModified() const
 	// so for a clean "check-in" (commit) checked-out files unmodified should be removed from the changeset (the index)
 	// http://stackoverflow.com/questions/12357971/what-does-revert-unchanged-files-mean-in-perforce
 	//
-	// Thus, before check-in UE4 Editor call RevertUnchangedFiles() in PromptForCheckin() and CheckinFiles().
+	// Thus, before check-in UE Editor call RevertUnchangedFiles() in PromptForCheckin() and CheckinFiles().
 	//
 	// So here we must take care to enumerate all states that need to be commited,
 	// all other will be discarded :

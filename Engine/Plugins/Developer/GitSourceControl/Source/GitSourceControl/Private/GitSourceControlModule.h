@@ -9,12 +9,12 @@
 
 /**
 
-UE4GitPlugin is a simple Git Source Control Plugin for Unreal Engine
+UEGitPlugin is a simple Git Source Control Plugin for Unreal Engine
 
 Written and contributed by Sebastien Rombauts (sebastien.rombauts@gmail.com)
 
 ### Supported features
-- initialize a new Git local repository ('git init') to manage your UE4 Game Project.
+- initialize a new Git local repository ('git init') to manage your UE Game Project.
 - create an appropriate .gitignore file as part as initialization
 - can also make the initial commit
 - display status icons to show modified/added/deleted/untracked files

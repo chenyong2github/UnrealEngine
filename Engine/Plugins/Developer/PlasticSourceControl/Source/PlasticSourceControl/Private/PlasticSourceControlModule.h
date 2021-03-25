@@ -9,7 +9,7 @@
 #include "PlasticSourceControlProvider.h"
 
 /**
- * UE4PlasticPlugin is a simple Plastic SCM Source Control Plugin for Unreal Engine 4
+ * UEPlasticPlugin is a simple Plastic SCM Source Control Plugin for Unreal Engine
  *
  * Written and contributed by Sebastien Rombauts (sebastien.rombauts@gmail.com)
  */

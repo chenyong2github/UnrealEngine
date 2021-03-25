@@ -38,9 +38,7 @@
 #include "UnrealWidget.h"
 
 namespace {
-	// Value from UE3
 	static const float AnimationEditorViewport_RotateSpeed = 0.02f;
-	// Value from UE3
 	static const float AnimationEditorViewport_TranslateSpeed = 0.25f;
 	// follow camera feature
 	static const float FollowCamera_InterpSpeed = 4.f;

@@ -1381,7 +1381,7 @@ int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, boo
 		if (IsInternalBuild)
 		{
 			// We assume a constant size for the build machine base path, so strip either the root or game path from the start
-			// (depending on whether the project is part of the main UE4 source tree or located elsewhere)
+			// (depending on whether the project is part of the main UE source tree or located elsewhere)
 			FString CookDirWithoutBasePath = AbsoluteCookPath;
 			if (CookDirWithoutBasePath.StartsWith(AbsoluteRootPath, ESearchCase::CaseSensitive))
 			{
@@ -1392,7 +1392,7 @@ int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, boo
 				CookDirWithoutBasePath.RemoveFromStart(AbsoluteCookPath, ESearchCase::CaseSensitive);
 			}
 			
-			FString AbsoluteBuildMachineCookPathToAsset = FString(TEXT("D:/BuildFarm/buildmachine_++depot+UE4-Releases+4.10")) / CookDirWithoutBasePath / AssetPathWithinCookDir;
+			FString AbsoluteBuildMachineCookPathToAsset = FString(TEXT("D:/BuildFarm/buildmachine_++depot+UE-Releases+XX.XX")) / CookDirWithoutBasePath / AssetPathWithinCookDir;
 
 			// only add game name padding to project plugins so that they can ported to other projects
 			if (bIsPluginAsset && bIsProjectAsset)			{
@@ -1423,7 +1423,7 @@ bool AssetViewUtils::IsValidPackageForCooking(const FString& PackageName, FText&
 		// See TTP# 332328:
 		// The following checks are done mostly to prevent / alleviate the problems that "long" paths are causing with the BuildFarm and cooked builds.
 		// The BuildFarm uses a verbose path to encode extra information to provide more information when things fail, however this makes the path limitation a problem.
-		//	- We assume a base path of D:/BuildFarm/buildmachine_++depot+UE4-Releases+4.10/
+		//	- We assume a base path of length: D:/BuildFarm/buildmachine_++depot+UE-Releases+XX.XX/
 		//	- We assume the game name is 20 characters (the maximum allowed) to make sure that content can be ported between projects
 		//	- We calculate the cooked game path relative to the game root (eg, Showcases/Infiltrator/Saved/Cooked/Windows/Infiltrator)
 		//	- We calculate the asset path relative to (and including) the Content directory (eg, Content/Environment/Infil1/Infil1_Underground/Infrastructure/Model/SM_Infil1_Tunnel_Ceiling_Pipes_1xEntryCurveOuter_Double.uasset)
