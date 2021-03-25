@@ -443,11 +443,11 @@ public:
 
 	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level) override
 	{
-		if (Level == EToolMessageLevel::UserNotification)
+		if (Level == EToolMessageLevel::UserNotification || Level == EToolMessageLevel::UserMessage)
 		{
 			ToolsContext->PostToolNotificationMessage(Message);
 		}
-		if (Level == EToolMessageLevel::UserWarning)
+		else if (Level == EToolMessageLevel::UserWarning || Level == EToolMessageLevel::UserError)
 		{
 			ToolsContext->PostToolWarningMessage(Message);
 		}
