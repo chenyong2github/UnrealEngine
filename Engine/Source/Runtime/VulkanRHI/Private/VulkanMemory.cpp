@@ -5200,25 +5200,24 @@ const VkPhysicalDeviceMemoryProperties& FDeviceMemoryManager::GetMemoryPropertie
 }
 
 
-void FStagingBuffer::Evict(FVulkanDevice& Device_)
+void FStagingBuffer::Evict(FVulkanDevice& InDevice)
 {
 	checkNoEntry(); //stagingbuffers are always in system memory so this should not happen
 }
-void FStagingBuffer::Move(FVulkanDevice& Device_, FVulkanCommandListContext& Context, FVulkanAllocation& Allocation_)
+void FStagingBuffer::Move(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& InAllocation)
 {
 	checkNoEntry();//stagingbuffers are always in system memory so this should not happen
 }
-void FVulkanRingBuffer::Evict(FVulkanDevice& Device_)
+void FVulkanRingBuffer::Evict(FVulkanDevice& InDevice)
 {
 	checkNoEntry(); //stagingbuffers are always in system memory so this should not happen
 }
-void FVulkanRingBuffer::Move(FVulkanDevice& Device_, FVulkanCommandListContext& Context, FVulkanAllocation& Allocation_)
+void FVulkanRingBuffer::Move(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& InAllocation)
 {
 	checkNoEntry();//stagingbuffers are always in system memory so this should not happen
 }
 
-
-void FVulkanEvictable::OnFullDefrag(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 NewOffset)
+void FVulkanEvictable::OnFullDefrag(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, uint32 NewOffset)
 {
 	checkNoEntry();
 }
