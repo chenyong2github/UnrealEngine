@@ -92,7 +92,8 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 	bool bSupport16BitPageTable = true;
 	for (int32 Index = 0; Index < UniquePageTableLayers.Num(); ++Index)
 	{
-		if (!UniquePageTableLayers[Index].PhysicalSpace->DoesSupport16BitPageTable())
+		const FVirtualTexturePhysicalSpace* PhysicalSpace = UniquePageTableLayers[Index].PhysicalSpace;
+		if (PhysicalSpace && !PhysicalSpace->DoesSupport16BitPageTable())
 		{
 			bSupport16BitPageTable = false;
 			break;
