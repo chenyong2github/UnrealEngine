@@ -9,7 +9,6 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
 
-#include "AssetRegistryModule.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneChannelEditorData.h"
 #include "Evaluation/Blending/MovieSceneBlendType.h"
@@ -160,9 +159,7 @@ void UMovieSceneDMXLibrarySection::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
-		// Wait for all assets being loaded, only then data can be updated from the library and entities used in this section
-		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry")).Get();
-		AssetRegistry.OnFilesLoaded().AddUObject(this, &UMovieSceneDMXLibrarySection::UpdateChannelProxy, false);
+		UpdateChannelProxy();
 	}
 }
 
