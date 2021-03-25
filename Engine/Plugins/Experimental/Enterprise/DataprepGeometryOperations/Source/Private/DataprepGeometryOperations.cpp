@@ -488,6 +488,8 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 
 	TArray<UObject*> ModifiedStaticMeshes;
 
+	TArray<UStaticMeshComponent*> CutawayStaticMeshes;
+
 	// Cut static meshes
 	
 	if (StaticMeshesSet.Num() > 0)
@@ -514,7 +516,7 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 			}
 		}
 
-		PerformCutting(false, StaticMeshes, CutPlaneTransforms, ReferencingComponentsToUpdate, ModifiedStaticMeshes);
+		PerformCutting(false, StaticMeshes, CutPlaneTransforms, ReferencingComponentsToUpdate, ModifiedStaticMeshes, CutawayStaticMeshes);
 	}
 
 	// Cut static mesh components
@@ -539,8 +541,47 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 			}
 		}
 
-		PerformCutting(true, StaticMeshes, CutPlaneTransforms, ReferencingComponentsToUpdate, ModifiedStaticMeshes);
+		PerformCutting(true, StaticMeshes, CutPlaneTransforms, ReferencingComponentsToUpdate, ModifiedStaticMeshes, CutawayStaticMeshes);
 	}
+
+	// Remove actors that have no valid static mesh as a result of the cutting
+	TSet<UObject*> ActorsToRemove;
+	for (UStaticMeshComponent* CutoffComponent : CutawayStaticMeshes)
+	{
+		if (AActor* Owner = CutoffComponent->GetOwner())
+		{
+			TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
+			Owner->GetComponents<UStaticMeshComponent>(ComponentArray, true);
+
+			bool bMeshActorIsValid = false;
+
+			for(UStaticMeshComponent* MeshComponent : ComponentArray)
+			{
+				if (!MeshComponent || MeshComponent == CutoffComponent)
+				{
+					continue; // We know this component does not have a mesh
+				}
+
+				if (MeshComponent->GetStaticMesh() && MeshComponent->GetStaticMesh()->GetSourceModels().Num() > 0)
+				{
+					bMeshActorIsValid = true;
+					break;
+				}
+			}
+
+			if (!bMeshActorIsValid)
+			{
+				ActorsToRemove.Add(Owner);
+			}
+			else
+			{
+				CutoffComponent->DestroyComponent();
+			}
+		}
+	}
+
+	DeleteObjects(ActorsToRemove.Array());
+
 	if (ModifiedStaticMeshes.Num() > 0)
 	{
 		AssetsModified(MoveTemp(ModifiedStaticMeshes));
@@ -576,7 +617,8 @@ void UDataprepPlaneCutOperation::PerformCutting(
 	TArray<UStaticMesh*>& InStaticMeshes, 
 	const TArray<FTransform>& InCutPlaneTransforms, 
 	TArray<TArray<UStaticMeshComponent*>>& InReferencingComponentsToUpdate,
-	TArray<UObject*>& OutModifiedStaticMeshes)
+	TArray<UObject*>& OutModifiedStaticMeshes, 
+	TArray<UStaticMeshComponent*>& OutCutawayMeshes)
 {
 	TArray<TUniquePtr<FDynamicMesh3>> Results;
 	Results.SetNum(InStaticMeshes.Num());
@@ -603,6 +645,7 @@ void UDataprepPlaneCutOperation::PerformCutting(
 			{
 				Component->SetStaticMesh(nullptr);
 				Component->MarkRenderStateDirty();
+				OutCutawayMeshes.Add(Component);
 			}
 			continue;
 		}

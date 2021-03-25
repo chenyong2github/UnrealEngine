@@ -253,7 +253,8 @@ private:
 		TArray<UStaticMesh*>& InStaticMeshes, 
 		const TArray<FTransform>& InCutPlaneTransforms, 
 		TArray<TArray<UStaticMeshComponent*>>& InReferencingComponentsToUpdate,
-		TArray<UObject*>& OutModifiedStaticMeshes);
+		TArray<UObject*>& OutModifiedStaticMeshes,
+		TArray<UStaticMeshComponent*>& OutCutawayMeshes);
 
 	// Borrowed from UPlaneCutOperatorFactory::MakeNewOperator
 	TUniquePtr<FDynamicMeshOperator> MakeNewOperator(
