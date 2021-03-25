@@ -822,6 +822,12 @@ void FD3D12Adapter::InitializeDevices()
 						GRHISupportsRayTracingPSOAdditions = true;
 					}
 				}
+				else if (D3D12Caps5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED 
+					&& FModuleManager::Get().IsModuleLoaded("RenderDocPlugin")
+					&& !FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
+				{
+					UE_LOG(LogD3D12RHI, Warning, TEXT("Ray Tracing is disabled because the RenderDoc plugin is currently not compatible with D3D12 ray tracing."));
+				}
 			}
 #endif // D3D12_RHI_RAYTRACING
 		}
