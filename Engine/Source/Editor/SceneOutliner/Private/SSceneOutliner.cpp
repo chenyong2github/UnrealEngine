@@ -1669,6 +1669,10 @@ void SSceneOutliner::OnItemLabelChanged(FSceneOutlinerTreeItemPtr ChangedItem)
 			Refresh();
 		}
 	}
+	else if (FSceneOutlinerTreeItemPtr* PendingItem = PendingTreeItemMap.Find(ChangedItem->GetID()))
+	{
+		(*PendingItem)->OnLabelChanged();
+	}
 	else
 	{
 		// Attempt to add the item if we didn't find it - perhaps it now matches the filter?
