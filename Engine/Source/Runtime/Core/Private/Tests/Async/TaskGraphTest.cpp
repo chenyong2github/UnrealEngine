@@ -14,6 +14,7 @@
 #include "Containers/CircularQueue.h"
 #include "Containers/Queue.h"
 #include "Tests/Benchmark.h"
+#include "HAL/Thread.h"
 
 #include <atomic>
 
