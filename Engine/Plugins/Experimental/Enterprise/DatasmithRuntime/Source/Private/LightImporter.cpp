@@ -19,7 +19,15 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/Blueprint.h"
+#include "Engine/DirectionalLight.h"
+#include "Engine/Light.h"
+#include "Engine/PointLight.h"
+#include "Engine/SkyLight.h"
+#include "Engine/SpotLight.h"
 #include "Engine/TextureLightProfile.h"
+#include "Engine/World.h"
+
+#include "Lightmass/LightmassPortal.h"
 #include "Math/Quat.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -29,15 +37,24 @@ namespace DatasmithRuntime
 	extern const FString TexturePrefix;
 	extern const FString MaterialPrefix;
 	extern const FString MeshPrefix;
-	
+
+	/** Helper method to set up the properties common to all types of light components */
+	void SetupLightComponent(FActorData& ActorData, IDatasmithLightActorElement* LightElement);
+
 	USceneComponent* ImportAreaLightComponent(FActorData& ActorData, IDatasmithAreaLightElement* AreaLightElement, USceneComponent* Parent);
 
-	USceneComponent* CreateSceneComponent(FActorData& ActorData, UClass* Class, USceneComponent* Parent);
+	USceneComponent* CreateComponent(FActorData& ActorData, UClass* Class, USceneComponent* Parent);
 
 	template<typename T>
-	T* CreateSceneComponent(FActorData& ActorData, USceneComponent* Parent)
+	T* CreateComponent(FActorData& ActorData, USceneComponent* Parent)
 	{
-		return Cast<T>(CreateSceneComponent(ActorData, T::StaticClass(), Parent));
+		return Cast<T>(CreateComponent(ActorData, T::StaticClass(), Parent));
+	}
+
+	template<typename T>
+	T* CreateActor(UWorld* World)
+	{
+		return Cast<T>(World->SpawnActor(T::StaticClass(), nullptr, nullptr));
 	}
 
 	bool FSceneImporter::ProcessLightActorData(FActorData& ActorData, IDatasmithLightActorElement* LightActorElement)
@@ -128,7 +145,7 @@ namespace DatasmithRuntime
 
 		IDatasmithLightActorElement* LightElement = static_cast<IDatasmithLightActorElement*>(Elements[ActorId].Get());
 
-		USceneComponent* LightComponent = nullptr;
+		USceneComponent* LightComponent = ActorData.GetObject<USceneComponent>();
 
 		if ( LightElement->IsA(EDatasmithElementType::AreaLight) )
 		{
@@ -137,87 +154,126 @@ namespace DatasmithRuntime
 		}
 		else if ( LightElement->IsA( EDatasmithElementType::LightmassPortal ) )
 		{
-			// #ue_datasmithruntime: What happens on update?
-			LightComponent = CreateSceneComponent< ULightmassPortalComponent >(ActorData, RootComponent.Get());
-
-			LightComponent->SetRelativeTransform(ActorData.WorldTransform);
+			if (LightComponent == nullptr)
+			{
+				if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && !LightElement->IsAComponent())
+				{
+					ALightmassPortal* Actor = CreateActor<ALightmassPortal>(RootComponent->GetOwner()->GetWorld());
+					LightComponent = Actor->GetPortalComponent();
+				}
+				else
+				{
+					LightComponent = CreateComponent< ULightmassPortalComponent >(ActorData, RootComponent.Get());
+				}
+			}
 		}
 		else if ( LightElement->IsA( EDatasmithElementType::DirectionalLight ) )
 		{
-			UDirectionalLightComponent* DirectionalLightComponent = CreateSceneComponent< UDirectionalLightComponent >(ActorData, RootComponent.Get());
-
-			SetupLightComponent( ActorData, DirectionalLightComponent, LightElement );
-
-			LightComponent = DirectionalLightComponent;
+			if (LightComponent == nullptr)
+			{
+				if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && !LightElement->IsAComponent())
+				{
+					ADirectionalLight* Actor = CreateActor<ADirectionalLight>(RootComponent->GetOwner()->GetWorld());
+					LightComponent = Actor->GetLightComponent();
+				}
+				else
+				{
+					LightComponent = CreateComponent< UDirectionalLightComponent >(ActorData, RootComponent.Get());
+				}
+			}
 		}
-		else if ( LightElement->IsA( EDatasmithElementType::SpotLight ) || LightElement->IsA( EDatasmithElementType::PointLight ) )
+		else if ( LightElement->IsA( EDatasmithElementType::SpotLight ) )
 		{
+			USpotLightComponent* SpotLightComponent = Cast<USpotLightComponent>(LightComponent);
 
-			if ( LightElement->IsA( EDatasmithElementType::SpotLight ) )
+			if (SpotLightComponent == nullptr)
 			{
-				USpotLightComponent* SpotLightComponent = CreateSceneComponent< USpotLightComponent >(ActorData, RootComponent.Get());
-
-				if (SpotLightComponent)
+				if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && !LightElement->IsAComponent())
 				{
-					IDatasmithSpotLightElement* SpotLightElement = static_cast<IDatasmithSpotLightElement*>(LightElement);
-
-					SpotLightComponent->InnerConeAngle = SpotLightElement->GetInnerConeAngle();
-					SpotLightComponent->OuterConeAngle = SpotLightElement->GetOuterConeAngle();
-
-					SetupLightComponent( ActorData, SpotLightComponent, LightElement );
+					ASpotLight* Actor = CreateActor<ASpotLight>(RootComponent->GetOwner()->GetWorld());
+					SpotLightComponent = Cast<USpotLightComponent>(Actor->GetLightComponent());
 				}
-
-				LightComponent = SpotLightComponent;
+				else
+				{
+					SpotLightComponent = CreateComponent< USpotLightComponent >(ActorData, RootComponent.Get());
+				}
 			}
-			else if ( LightElement->IsA( EDatasmithElementType::PointLight ) )
+
+			if (SpotLightComponent)
 			{
-				UPointLightComponent* PointLightComponent = CreateSceneComponent< UPointLightComponent >(ActorData, RootComponent.Get());
+				IDatasmithSpotLightElement* SpotLightElement = static_cast<IDatasmithSpotLightElement*>(LightElement);
 
-				if (PointLightComponent)
-				{
-					IDatasmithPointLightElement* PointLightElement = static_cast<IDatasmithPointLightElement*>(LightElement);
-
-					switch ( PointLightElement->GetIntensityUnits() )
-					{
-					case EDatasmithLightUnits::Candelas:
-						PointLightComponent->IntensityUnits = ELightUnits::Candelas;
-						break;
-					case EDatasmithLightUnits::Lumens:
-						PointLightComponent->IntensityUnits = ELightUnits::Lumens;
-						break;
-					default:
-						PointLightComponent->IntensityUnits = ELightUnits::Unitless;
-						break;
-					}
-
-					if ( PointLightElement->GetSourceRadius() > 0.f )
-					{
-						PointLightComponent->SourceRadius = PointLightElement->GetSourceRadius();
-					}
-
-					if ( PointLightElement->GetSourceLength() > 0.f )
-					{
-						PointLightComponent->SourceLength = PointLightElement->GetSourceLength();
-					}
-
-					if ( PointLightElement->GetAttenuationRadius() > 0.f )
-					{
-						PointLightComponent->AttenuationRadius = PointLightElement->GetAttenuationRadius();
-					}
-
-					SetupLightComponent( ActorData, PointLightComponent, LightElement );
-				}
-
-				LightComponent = PointLightComponent;
+				SpotLightComponent->InnerConeAngle = SpotLightElement->GetInnerConeAngle();
+				SpotLightComponent->OuterConeAngle = SpotLightElement->GetOuterConeAngle();
 			}
+
+			LightComponent = SpotLightComponent;
 		}
+		else if ( LightElement->IsA( EDatasmithElementType::PointLight ) )
+		{
+			UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>(LightComponent);
+
+			if (PointLightComponent == nullptr)
+			{
+				if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && !LightElement->IsAComponent())
+				{
+					APointLight* Actor = CreateActor<APointLight>(RootComponent->GetOwner()->GetWorld());
+					PointLightComponent = Cast<UPointLightComponent>(Actor->GetLightComponent());
+				}
+				else
+				{
+					PointLightComponent = CreateComponent< UPointLightComponent >(ActorData, RootComponent.Get());
+				}
+			}
+
+			if (PointLightComponent)
+			{
+				IDatasmithPointLightElement* PointLightElement = static_cast<IDatasmithPointLightElement*>(LightElement);
+
+				switch ( PointLightElement->GetIntensityUnits() )
+				{
+				case EDatasmithLightUnits::Candelas:
+					PointLightComponent->IntensityUnits = ELightUnits::Candelas;
+					break;
+				case EDatasmithLightUnits::Lumens:
+					PointLightComponent->IntensityUnits = ELightUnits::Lumens;
+					break;
+				default:
+					PointLightComponent->IntensityUnits = ELightUnits::Unitless;
+					break;
+				}
+
+				if ( PointLightElement->GetSourceRadius() > 0.f )
+				{
+					PointLightComponent->SourceRadius = PointLightElement->GetSourceRadius();
+				}
+
+				if ( PointLightElement->GetSourceLength() > 0.f )
+				{
+					PointLightComponent->SourceLength = PointLightElement->GetSourceLength();
+				}
+
+				if ( PointLightElement->GetAttenuationRadius() > 0.f )
+				{
+					PointLightComponent->AttenuationRadius = PointLightElement->GetAttenuationRadius();
+				}
+			}
+
+			LightComponent = PointLightComponent;
+		}
+
+		ActorData.Object = LightComponent;
+
+		SetupLightComponent( ActorData, LightElement );
+
+		FinalizeComponent(ActorData);
 
 		ActorData.AddState(EAssetState::Completed);
 
 		return LightComponent ? EActionResult::Succeeded : EActionResult::Failed;
 	}
 
-	USceneComponent* CreateSceneComponent(FActorData& ActorData, UClass* Class, USceneComponent* Parent)
+	USceneComponent* CreateComponent(FActorData& ActorData, UClass* Class, USceneComponent* Parent)
 	{
 		USceneComponent* SceneComponent = ActorData.GetObject<USceneComponent>();
 
@@ -274,8 +330,6 @@ namespace DatasmithRuntime
 
 	USceneComponent* ImportAreaLightComponent( FActorData& ActorData, IDatasmithAreaLightElement* AreaLightElement, USceneComponent* Parent )
 	{
-		USceneComponent* SceneComponent = nullptr;
-
 		FSoftObjectPath LightShapeBlueprintRef = FSoftObjectPath( TEXT("/DatasmithContent/Datasmith/DatasmithArealight.DatasmithArealight") );
 		UBlueprint* LightShapeBlueprint = Cast< UBlueprint >( LightShapeBlueprintRef.TryLoad() );
 
@@ -285,13 +339,11 @@ namespace DatasmithRuntime
 
 			if (ChildActorComponent == nullptr)
 			{
-				ChildActorComponent = CreateSceneComponent< UChildActorComponent >(ActorData, Parent);
+				ChildActorComponent = CreateComponent< UChildActorComponent >(ActorData, Parent);
 
 				ChildActorComponent->SetChildActorClass( TSubclassOf< AActor > ( LightShapeBlueprint->GeneratedClass ) );
 				ChildActorComponent->CreateChildActor();
 			}
-
-			ChildActorComponent->SetRelativeTransform(ActorData.WorldTransform);
 
 			ADatasmithAreaLightActor* LightShapeActor = Cast< ADatasmithAreaLightActor >( ChildActorComponent->GetChildActor() );
 
@@ -341,71 +393,54 @@ namespace DatasmithRuntime
 
 				LightShapeActor->RerunConstructionScripts();
 
-				SceneComponent = ChildActorComponent;
+				return ChildActorComponent;
 			}
 		}
 
-		return SceneComponent;
+		return nullptr;
 	}
 
-	void FSceneImporter::SetupLightComponent( FActorData& ActorData, ULightComponent* LightComponent, IDatasmithLightActorElement* LightElement )
+	void SetupLightComponent( FActorData& ActorData, IDatasmithLightActorElement* LightElement )
 	{
-		if ( !LightComponent )
+		if ( ULightComponent* LightComponent = ActorData.GetObject<ULightComponent>() )
 		{
-			return;
-		}
+			// Light component is using its visibility property to indicate if it is active or not
+			LightElement->SetVisibility(LightElement->IsEnabled());
 
-		LightComponent->SetVisibility(LightElement->IsEnabled());
-		LightComponent->Intensity = LightElement->GetIntensity();
-		LightComponent->CastShadows = true;
-		LightComponent->LightColor = LightElement->GetColor().ToFColor( true );
-		LightComponent->bUseTemperature = LightElement->GetUseTemperature();
-		LightComponent->Temperature = LightElement->GetTemperature();
+			LightComponent->Intensity = LightElement->GetIntensity();
+			LightComponent->CastShadows = true;
+			LightComponent->LightColor = LightElement->GetColor().ToFColor( true );
+			LightComponent->bUseTemperature = LightElement->GetUseTemperature();
+			LightComponent->Temperature = LightElement->GetTemperature();
 
-		// #ue_datasmithruntime: material function not supported yet
-		//if ( LightElement->GetLightFunctionMaterial().IsValid() )
-		//{
-		//	FString BaseName = LightElement->GetLightFunctionMaterial()->GetName();
-		//	FString MaterialName = FPaths::Combine( MaterialsFolderPath, BaseName + TEXT(".") + BaseName );
-		//	UMaterialInterface* Material = Cast< UMaterialInterface >( FSoftObjectPath( *MaterialName ).TryLoad() );
+			// #ue_datasmithruntime: material function not supported yet
+			//if ( LightElement->GetLightFunctionMaterial().IsValid() )
+			//{
+			//	FString BaseName = LightElement->GetLightFunctionMaterial()->GetName();
+			//	FString MaterialName = FPaths::Combine( MaterialsFolderPath, BaseName + TEXT(".") + BaseName );
+			//	UMaterialInterface* Material = Cast< UMaterialInterface >( FSoftObjectPath( *MaterialName ).TryLoad() );
 
-		//	if ( Material )
-		//	{
-		//		LightComponent->LightFunctionMaterial = Material;
-		//	}
-		//}
+			//	if ( Material )
+			//	{
+			//		LightComponent->LightFunctionMaterial = Material;
+			//	}
+			//}
 
-		if (UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>(LightComponent))
-		{
-			if ( LightElement->GetUseIes() ) // For IES lights that are not area lights, the IES rotation should be baked into the light transform
+			if (UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>(LightComponent))
 			{
-				PointLightComponent->bUseIESBrightness = LightElement->GetUseIesBrightness();
-				PointLightComponent->IESBrightnessScale = LightElement->GetIesBrightnessScale();
+				if ( LightElement->GetUseIes() ) // For IES lights that are not area lights, the IES rotation should be baked into the light transform
+				{
+					PointLightComponent->bUseIESBrightness = LightElement->GetUseIesBrightness();
+					PointLightComponent->IESBrightnessScale = LightElement->GetIesBrightnessScale();
 
-				LightElement->SetRotation( LightElement->GetRotation() * LightElement->GetIesRotation() );
+					const FQuat Rotation = LightElement->GetRotation() * LightElement->GetIesRotation();
 
-				// Compute parent transform
-				FTransform ParentTransform = ActorData.RelativeTransform.Inverse() * ActorData.WorldTransform;
-
-				// Update relative transform
-				ActorData.RelativeTransform = LightElement->GetRelativeTransform();
-
-				// Update world transform
-				ActorData.WorldTransform = ActorData.RelativeTransform * ParentTransform;
+					ActorData.WorldTransform = FTransform( Rotation, LightElement->GetTranslation(), LightElement->GetScale() );
+				}
 			}
-		}
 
-		LightComponent->UpdateColorAndBrightness();
-
-		LightComponent->SetRelativeTransform(ActorData.WorldTransform);
-
-		if (LightElement->GetTagsCount() > 0)
-		{
-			LightComponent->ComponentTags.Reserve(LightElement->GetTagsCount());
-			for (int32 Index = 0; Index < LightElement->GetTagsCount(); ++Index)
-			{
-				LightComponent->ComponentTags.Add(LightElement->GetTag(Index));
-			}
+			LightComponent->UpdateColorAndBrightness();
 		}
 	}
+
 } // End of namespace DatasmithRuntime

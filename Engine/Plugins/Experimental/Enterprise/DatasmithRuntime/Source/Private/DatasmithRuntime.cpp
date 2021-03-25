@@ -80,7 +80,8 @@ ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 	{
 	}
 
-	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DatasmithRuntimeComponent"));
+	RootComponent = NewObject< USceneComponent >( this, USceneComponent::StaticClass(), TEXT("DatasmithRuntimeComponent"), RF_Transactional );
+	AddInstanceComponent( RootComponent );
 	RootComponent->SetMobility(EComponentMobility::Movable);
 	RootComponent->Bounds = DefaultBounds;
 
@@ -88,7 +89,7 @@ ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 	PrimaryActorTick.bStartWithTickEnabled = true;
 	PrimaryActorTick.TickInterval = 0.1f;
 
-	TessellationOptions = FDatasmithTessellationOptions(0.3f, 0.0f, 30.0f, EDatasmithCADStitchingTechnique::StitchingSew);
+	ImportOptions.TessellationOptions = FDatasmithTessellationOptions(0.3f, 0.0f, 30.0f, EDatasmithCADStitchingTechnique::StitchingSew);
 }
 
 void ADatasmithRuntimeActor::Tick(float DeltaTime)
@@ -174,11 +175,10 @@ void ADatasmithRuntimeActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ADatasmithRuntimeActor::OnOpenDelta(/*int32 ElementsCount*/)
 {
-	// Should not happen
-	if (bReceivingStarted)
+	// Block the DirectLink thread, if we are still processing the previous delta
+	while (bReceivingStarted)
 	{
-		ensure(false);
-		return;
+		FPlatformProcess::SleepNoStats(0.1f);
 	}
 
 	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnOpenDelta"));
@@ -228,7 +228,7 @@ FString ADatasmithRuntimeActor::GetSourceName()
 	return DirectLinkHelper->GetSourceName();
 }
 
-bool ADatasmithRuntimeActor::OpenConnectionWIndex(int32 SourceIndex)
+bool ADatasmithRuntimeActor::OpenConnectionWithIndex(int32 SourceIndex)
 {
 	using namespace DatasmithRuntime;
 
@@ -304,7 +304,7 @@ void ADatasmithRuntimeActor::SetScene(TSharedPtr<IDatasmithScene> SceneElement)
 
 		bBuilding = true;
 		LoadedScene = SceneElement->GetName();
-		SceneImporter->StartImport( SceneElement.ToSharedRef() );
+		SceneImporter->StartImport( SceneElement.ToSharedRef(), ImportOptions );
 	}
 }
 
@@ -423,6 +423,8 @@ namespace DatasmithRuntime
 		FDatasmithSceneSource Source;
 		Source.SetSourceFile(FilePath);
 
+		RuntimeActor->ExternalFile.Empty();
+
 		FDatasmithTranslatableSceneSource TranslatableSceneSource(Source);
 		if (!TranslatableSceneSource.IsTranslatable())
 		{
@@ -448,7 +450,7 @@ namespace DatasmithRuntime
 		if (FTranslationThread::AllOptions.Num() > 0)
 		{
 			DefaultTessellation = *FTranslationThread::TessellationOptions;
-			*FTranslationThread::TessellationOptions = RuntimeActor->TessellationOptions;
+			*FTranslationThread::TessellationOptions = RuntimeActor->ImportOptions.TessellationOptions;
 
 			Translator->SetSceneImportOptions(FTranslationThread::AllOptions);
 		}
@@ -477,6 +479,7 @@ namespace DatasmithRuntime
 
 		RuntimeActor->TranslationResult.SceneElement = SceneElement;
 		RuntimeActor->TranslationResult.Translator = Translator;
+		RuntimeActor->ExternalFile = FilePath;
 
 		RuntimeActor->OnCloseDelta();
 
