@@ -699,7 +699,8 @@ public:
 	 */
 	FORCEINLINE const FStaticMeshLODResources* GetCurrentFirstLOD(int32 MinLODIdx) const
 	{
-		return &LODResources[GetCurrentFirstLODIdx(MinLODIdx)];
+		const int32 LODIdx = GetCurrentFirstLODIdx(MinLODIdx);
+		return LODResources.IsValidIndex(LODIdx) ? &LODResources[LODIdx] : nullptr;
 	}
 
 private:
