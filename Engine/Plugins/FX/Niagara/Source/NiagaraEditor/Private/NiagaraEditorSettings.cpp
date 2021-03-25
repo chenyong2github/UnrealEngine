@@ -227,7 +227,6 @@ TArray<float> UNiagaraEditorSettings::GetPlaybackSpeeds() const
 {
 	if(!CachedPlaybackSpeeds.IsSet())
 	{
-		UE_LOG(LogNiagaraEditor, Warning, TEXT("BUILD"));
 		BuildCachedPlaybackSpeeds();
 	}
 
