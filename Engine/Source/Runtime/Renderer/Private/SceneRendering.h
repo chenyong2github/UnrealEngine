@@ -1350,6 +1350,8 @@ public:
 	TUniformBufferRef<FViewUniformShaderParameters> VolumetricRenderTargetViewUniformBuffer;
 	// The effective cloud shadow target this frame independently of the fact that a view can have a state (primary view) or not (sky light reflection capture)
 	FRDGTextureRef VolumetricCloudShadowRenderTarget[NUM_ATMOSPHERE_LIGHTS] = {};
+	// We need to extract that RDG resource because the RHI must be accessed to setup FDeferredLightPS 
+	TRefCountPtr<IPooledRenderTarget> VolumetricCloudShadowExtractedRenderTarget[NUM_ATMOSPHERE_LIGHTS] = {};
 
 	/** Used when there is no view state, buffers reallocate every frame. */
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResourcesStorage;

@@ -785,7 +785,7 @@ public:
 					VolumetricCloudShadowmapTexture,
 					VolumetricCloudShadowmapTextureSampler,
 					TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
-					View.VolumetricCloudShadowRenderTarget[LightIndex]->GetRHI());
+					View.VolumetricCloudShadowExtractedRenderTarget[LightIndex]->GetShaderResourceRHI());
 
 				if (bLight0CloudPerPixelTransmittance)
 				{
