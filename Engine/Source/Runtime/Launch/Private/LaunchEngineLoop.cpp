@@ -5576,6 +5576,9 @@ bool FEngineLoop::AppInit( )
 		FConfigCacheIni::InitializeConfigSystem();
 	}
 
+	// Apply config driven presets
+	FTraceAuxiliary::InitializePresets(FCommandLine::Get());
+
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::IniSystemReady);
 
 	// Load "asap" plugin modules

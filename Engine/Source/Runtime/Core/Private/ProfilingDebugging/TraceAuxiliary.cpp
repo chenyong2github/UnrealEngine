@@ -35,6 +35,10 @@
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
+const TCHAR* GDefaultChannels = TEXT("cpu,gpu,frame,log,bookmark");
+const TCHAR* GMemoryChannels = TEXT("memtag,memalloc,callstack,module");
+
+////////////////////////////////////////////////////////////////////////////////
 enum class ETraceConnectType
 {
 	Network,
@@ -99,7 +103,17 @@ void FTraceAuxiliaryImpl::AddChannels(const TCHAR* ChannelList, bool bResolvePre
 		if (bResolvePresets)
 		{
 			FString Value;
-			if (GConfig->GetString(TEXT("Trace.ChannelPresets"), Name, Value, GEngineIni))
+			// Check against hard coded presets
+			if(FCString::Stricmp(Name, TEXT("default")) == 0)
+			{
+				AddChannels(GDefaultChannels, false);
+			}
+			else if(FCString::Stricmp(Name, TEXT("memory"))== 0)
+			{
+				AddChannels(GMemoryChannels, false);
+			}
+			// Check against data driven presets (if available)
+			else if (GConfig && GConfig->GetString(TEXT("Trace.ChannelPresets"), Name, Value, GEngineIni))
 			{
 				AddChannels(*Value, false);
 				return;
@@ -161,13 +175,7 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 	// some defaults for the user. Less futzing.
 	if (!Channels.Num())
 	{
-		FString Value;
-		if (!GConfig->GetString(TEXT("Trace.ChannelPresets"), TEXT("Default"), Value, GEngineIni))
-		{
-			Value = TEXT("cpu,frame,log,bookmark,gpu");
-		}
-
-		AddChannels(*Value);
+		AddChannels(GDefaultChannels);
 	}
 
 	EnableChannels();
@@ -475,6 +483,21 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 
 	UE::Trace::ThreadRegister(TEXT("GameThread"), FPlatformTLS::GetCurrentThreadId(), -1);
 #endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliary::InitializePresets(const TCHAR* CommandLine)
+{
+#if UE_TRACE_ENABLED
+	// Second pass over trace arguments, this time to allow config defined presets
+	// to be applied.
+	FString Parameter;
+	if (FParse::Value(CommandLine, TEXT("-trace="), Parameter, false))
+	{
+		GTraceAuxiliary.AddChannels(*Parameter);
+		GTraceAuxiliary.EnableChannels();
+	}
+#endif 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
