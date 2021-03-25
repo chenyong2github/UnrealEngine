@@ -520,6 +520,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.RecomputeNormals);
 		ToolbarBuilder.AddToolBarButton(Commands.Resample);
+		ToolbarBuilder.AddToolBarButton(Commands.ConvertToMesh);
 	}
 	else if (PaletteIndex == TEXT("Properties"))
 	{

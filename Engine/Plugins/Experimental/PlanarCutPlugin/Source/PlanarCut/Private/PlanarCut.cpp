@@ -35,6 +35,7 @@
 #include "Engine/EngineTypes.h"
 #include "StaticMeshOperations.h"
 #include "MeshDescriptionToDynamicMesh.h"
+#include "DynamicMeshToMeshDescription.h"
 
 #include "Algo/Rotate.h"
 
@@ -151,17 +152,8 @@ namespace UE
 				Vs->GetValue(VID, V);
 			}
 
-			void ComputeTangents(FDynamicMesh3& Mesh, bool bOnlyOddMaterials, const TArrayView<const int32>& WhichMaterials, bool bRecomputeNormals = true)
+			void InitializeOverlayToPerVertexUVs(FDynamicMesh3& Mesh)
 			{
-				FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals();
-				FMeshNormals::InitializeOverlayToPerVertexNormals(Normals, !bRecomputeNormals);
-				if (bRecomputeNormals)
-				{
-					FMeshNormals::QuickRecomputeOverlayNormals(Mesh);
-				}
-
-				// Copy per-vertex UVs to a UV overlay, because that's what the tangents code uses
-				// (TODO: consider making a tangent computation path that uses vertex normals / UVs)
 				FDynamicMeshUVOverlay* UVs = Mesh.Attributes()->PrimaryUV();
 				UVs->ClearElements();
 				TArray<int> VertToUVMap;
@@ -180,6 +172,49 @@ namespace UE
 					Tri.C = VertToUVMap[Tri.C];
 					UVs->SetTriangle(TID, Tri);
 				}
+			}
+
+			void InitializeOverlayToPerVertexTangents(FDynamicMesh3& Mesh)
+			{
+				Mesh.Attributes()->EnableTangents();
+				FDynamicMeshNormalOverlay* TangentOverlays[2] = { Mesh.Attributes()->PrimaryTangents(), Mesh.Attributes()->PrimaryBiTangents() };
+				TangentOverlays[0]->ClearElements();
+				TangentOverlays[1]->ClearElements();
+				TArray<int> VertToTangentMap;
+				VertToTangentMap.SetNumUninitialized(Mesh.MaxVertexID());
+				for (int VID : Mesh.VertexIndicesItr())
+				{
+					FVector3f Tangents[2];
+					UE::PlanarCutInternals::AugmentDynamicMesh::GetTangent(Mesh, VID, Tangents[0], Tangents[1]);
+					int TID = TangentOverlays[0]->AppendElement(Tangents[0]);
+					int TID2 = TangentOverlays[1]->AppendElement(Tangents[1]);
+					check(TID == TID2);
+					VertToTangentMap[VID] = TID;
+				}
+				for (int TID : Mesh.TriangleIndicesItr())
+				{
+					FIndex3i Tri = Mesh.GetTriangle(TID);
+					Tri.A = VertToTangentMap[Tri.A];
+					Tri.B = VertToTangentMap[Tri.B];
+					Tri.C = VertToTangentMap[Tri.C];
+					TangentOverlays[0]->SetTriangle(TID, Tri);
+					TangentOverlays[1]->SetTriangle(TID, Tri);
+				}
+			}
+
+			void ComputeTangents(FDynamicMesh3& Mesh, bool bOnlyOddMaterials, const TArrayView<const int32>& WhichMaterials, bool bRecomputeNormals = true)
+			{
+				FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals();
+				FMeshNormals::InitializeOverlayToPerVertexNormals(Normals, !bRecomputeNormals);
+				if (bRecomputeNormals)
+				{
+					FMeshNormals::QuickRecomputeOverlayNormals(Mesh);
+				}
+
+				// Copy per-vertex UVs to a UV overlay, because that's what the tangents code uses
+				// (TODO: consider making a tangent computation path that uses vertex normals / UVs)
+				InitializeOverlayToPerVertexUVs(Mesh);
+				FDynamicMeshUVOverlay* UVs = Mesh.Attributes()->PrimaryUV();
 
 				FComputeTangentsOptions Options;
 				Options.bAngleWeighted = true;
@@ -2989,5 +3024,68 @@ int32 AddCollisionSampleVertices(double CollisionSampleSpacing, FGeometryCollect
 
 	// TODO: This function does not create any new bones, so we could change it to not return anything
 	return INDEX_NONE;
+}
+
+
+
+void ConvertToMeshDescription(
+	FMeshDescription& MeshOut,
+	FTransform& TransformOut,
+	bool bCenterPivot,
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices
+)
+{
+	FTransform CellsToWorld = FTransform::Identity;
+	TransformOut = FTransform::Identity;
+
+	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CellsToWorld);
+	
+	FDynamicMesh3 CombinedMesh;
+	UE::PlanarCutInternals::AugmentDynamicMesh::Augment(CombinedMesh);
+	CombinedMesh.Attributes()->EnableTangents();
+
+	int32 NumMeshes = MeshCollection.Meshes.Num();
+	for (int32 MeshIdx = 0; MeshIdx < NumMeshes; MeshIdx++)
+	{
+		FDynamicMesh3& Mesh = MeshCollection.Meshes[MeshIdx].AugMesh;
+		const FTransform& ToCollection = MeshCollection.Meshes[MeshIdx].ToCollection;
+
+		// transform from the local geometry to the collection space
+		// unless it's just one mesh that we're going to center later anyway
+		if (!bCenterPivot || NumMeshes > 1)
+		{
+			MeshTransforms::ApplyTransform(Mesh, (FTransform3d)ToCollection);
+		}
+
+		FMeshNormals::InitializeOverlayToPerVertexNormals(Mesh.Attributes()->PrimaryNormals(), true);
+		UE::PlanarCutInternals::AugmentDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh);
+		UE::PlanarCutInternals::AugmentDynamicMesh::InitializeOverlayToPerVertexTangents(Mesh);
+
+		FMergeCoincidentMeshEdges EdgeMerge(&Mesh);
+		EdgeMerge.Apply();
+		
+		if (MeshIdx > 0)
+		{
+			FDynamicMeshEditor MeshAppender(&CombinedMesh);
+			FMeshIndexMappings IndexMaps_Unused;
+			MeshAppender.AppendMesh(&Mesh, IndexMaps_Unused);
+		}
+		else
+		{
+			CombinedMesh = Mesh;
+		}
+	}
+
+	if (bCenterPivot)
+	{
+		FAxisAlignedBox3d Bounds = CombinedMesh.GetCachedBounds();
+		FVector3d Translate = -Bounds.Center();
+		MeshTransforms::Translate(CombinedMesh, Translate);
+		TransformOut = FTransform((FVector)-Translate);
+	}
+
+	FDynamicMeshToMeshDescription Converter;
+	Converter.Convert(&CombinedMesh, MeshOut, true);
 }
 

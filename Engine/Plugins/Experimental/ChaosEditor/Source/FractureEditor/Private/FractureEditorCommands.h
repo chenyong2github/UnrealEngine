@@ -62,6 +62,7 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		// Cleanup Commands
 		TSharedPtr< FUICommandInfo > RecomputeNormals;
 		TSharedPtr< FUICommandInfo > Resample;
+		TSharedPtr< FUICommandInfo > ConvertToMesh;
 
 		// Property Commands
 		TSharedPtr< FUICommandInfo > SetInitialDynamicState;

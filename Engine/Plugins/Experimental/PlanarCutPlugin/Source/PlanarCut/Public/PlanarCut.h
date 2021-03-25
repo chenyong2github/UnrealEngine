@@ -231,7 +231,7 @@ void PLANARCUT_API RecomputeNormalsAndTangents(bool bOnlyTangents, FGeometryColl
 int32 PLANARCUT_API AddCollisionSampleVertices(double TargetSpacing, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices = TArrayView<const int32>());
 
 /**
- * Cut multiple Geometry groups inside a GeometryCollection with Planes, and add each cut cell back to the GeometryCollection as a new child of their source Geometry.  For geometries that would not be cut, nothing is added.
+ * Cut multiple Geometry groups inside a GeometryCollection with a mesh, and add each cut cell back to the GeometryCollection as a new child of their source Geometry.  For geometries that would not be cut, nothing is added.
  * 
  * @param CuttingMesh				Mesh to be used to cut the geometry collection
  * @param CuttingMeshTransform		Position of cutting mesh
@@ -253,4 +253,20 @@ int32 PLANARCUT_API CutWithMesh(
 	bool bSetDefaultInternalMaterialsFromCollection = true
 );
 
+/**
+ * Convert chosen Geometry groups inside a GeometryCollection to a single Mesh Description.
+ *
+ * @param OutputMesh				Mesh to be filled with the geometry collection geometry
+ * @param TransformOut				Transform taking output mesh geometry to local space of geometry collection
+ * @param bCenterPivot				Whether to center the geometry at the origin
+ * @param Collection				The collection to be converted
+ * @param TransformIndices			Which transform groups inside the collection to convert
+ */
+void PLANARCUT_API ConvertToMeshDescription(
+	FMeshDescription& OutputMesh,
+	FTransform& TransformOut,
+	bool bCenterPivot,
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices
+);
 
