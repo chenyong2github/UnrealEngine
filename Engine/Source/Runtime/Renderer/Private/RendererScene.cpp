@@ -102,6 +102,16 @@ TAutoConsoleVariable<int32> CVarEarlyZPass(
 	TEXT("  x: use built in heuristic (default is 3)"),
 	ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarMobileEarlyZPass(
+	TEXT("r.Mobile.EarlyZPass"),
+	0,
+	TEXT("Whether to use a depth only pass to initialize Z culling for the mobile base pass.\n")
+	TEXT("  0: off\n")
+	TEXT("  1: all opaque \n"),
+	ECVF_Scalability
+);
+
+
 static TAutoConsoleVariable<int32> CVarBasePassWriteDepthEvenWithFullPrepass(
 	TEXT("r.BasePassWriteDepthEvenWithFullPrepass"),
 	0,
@@ -687,12 +697,15 @@ static void UpdateEarlyZPassModeCVarSinkFunction()
 {
 	static int32 CachedEarlyZPass = CVarEarlyZPass.GetValueOnGameThread();
 	static int32 CachedBasePassWriteDepthEvenWithFullPrepass = CVarBasePassWriteDepthEvenWithFullPrepass.GetValueOnGameThread();
+	static int32 CachedMobileEarlyZPass = CVarMobileEarlyZPass.GetValueOnGameThread();
 
 	const int32 EarlyZPass = CVarEarlyZPass.GetValueOnGameThread();
 	const int32 BasePassWriteDepthEvenWithFullPrepass = CVarBasePassWriteDepthEvenWithFullPrepass.GetValueOnGameThread();
+	const int32 MobileEarlyZPass = CVarMobileEarlyZPass.GetValueOnGameThread();
 
 	if (EarlyZPass != CachedEarlyZPass
-		|| BasePassWriteDepthEvenWithFullPrepass != CachedBasePassWriteDepthEvenWithFullPrepass)
+		|| BasePassWriteDepthEvenWithFullPrepass != CachedBasePassWriteDepthEvenWithFullPrepass
+		|| MobileEarlyZPass != CachedMobileEarlyZPass)
 	{
 		for (TObjectIterator<UWorld> It; It; ++It)
 		{
@@ -706,6 +719,7 @@ static void UpdateEarlyZPassModeCVarSinkFunction()
 
 		CachedEarlyZPass = EarlyZPass;
 		CachedBasePassWriteDepthEvenWithFullPrepass = BasePassWriteDepthEvenWithFullPrepass;
+		CachedMobileEarlyZPass = MobileEarlyZPass;
 	}
 }
 
@@ -3361,6 +3375,12 @@ void FScene::UpdateEarlyZPassMode()
 		}
 
 		if (IsMobileDistanceFieldEnabled(GetShaderPlatform()) || IsMobileAmbientOcclusionEnabled(GetShaderPlatform()))
+		{
+			EarlyZPassMode = DDM_AllOpaque;
+		}
+
+		bool bMobileForceFullDepthPrepass = CVarMobileEarlyZPass.GetValueOnAnyThread() == 1;
+		if (bMobileForceFullDepthPrepass)
 		{
 			EarlyZPassMode = DDM_AllOpaque;
 		}

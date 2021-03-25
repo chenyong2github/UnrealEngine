@@ -588,6 +588,7 @@ void FMobileSceneRenderer::RenderFullDepthPrepass(FRDGBuilder& GraphBuilder, FSc
 {
 	FRenderTargetBindingSlots BasePassRenderTargets;
 	BasePassRenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+	BasePassRenderTargets.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -610,6 +611,10 @@ void FMobileSceneRenderer::RenderFullDepthPrepass(FRDGBuilder& GraphBuilder, FSc
 			[this, PassParameters, &View](FRHICommandListImmediate& RHICmdList)
 			{
 				RenderPrePass(RHICmdList, View, &PassParameters->InstanceCullingDrawParamsDepth);
+
+				// Issue occlusion queries
+				RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
+				RenderOcclusion(RHICmdList, View);
 			});
 	}
 }
@@ -762,6 +767,25 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bIsFullDepthPrepassEnabled)
 	{
 		RenderFullDepthPrepass(GraphBuilder, SceneTextures);
+
+		SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::SceneDepth;
+		SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures.MobileSetupMode);
+
+		if (bRequiresDistanceFieldShadowingPass)
+		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderSDFShadowing);
+			RenderMobileSDFShadowing(GraphBuilder, SceneTextures.Depth.Resolve, Scene, Views, VisibleLightInfos);
+		}
+
+		if (bShouldRenderHZB)
+		{
+			RenderHZB(GraphBuilder, SceneTextures.Depth.Resolve);
+		}
+
+		if (bRequiresAmbientOcclusionPass)
+		{
+			RenderAmbientOcclusion(GraphBuilder, SceneTextures.Depth.Resolve, SceneTextures.ScreenSpaceAO);
+		}
 	}
 
 	if (bDeferredShading)
@@ -810,22 +834,6 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 			}
 		);
-	}
-
-	if (bRequiresDistanceFieldShadowingPass)
-	{
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderSDFShadowing);
-		RenderMobileSDFShadowing(GraphBuilder, SceneTextures.Depth.Resolve, Scene, Views, VisibleLightInfos);
-	}
-
-	if (bShouldRenderHZB)
-	{
-		RenderHZB(GraphBuilder, SceneTextures.Depth.Resolve);
-	}
-
-	if (bRequiresAmbientOcclusionPass)
-	{
-		RenderAmbientOcclusion(GraphBuilder, SceneTextures.Depth.Resolve, SceneTextures.ScreenSpaceAO);
 	}
 
 	if (bRequiresPixelProjectedPlanarRelfectionPass)
@@ -927,7 +935,10 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, FRDGTextureR
 	BasePassRenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, bIsFullDepthPrepassEnabled ? ERenderTargetLoadAction::ELoad: ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 	BasePassRenderTargets.ShadingRateTexture = (!MainView.bIsSceneCapture && !MainView.bIsReflectionCapture) ? SceneTextures.ShadingRate : nullptr;
 	BasePassRenderTargets.SubpassHint = ESubpassHint::DepthReadSubpass;
-	BasePassRenderTargets.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
+	if (!bIsFullDepthPrepassEnabled)
+	{
+		BasePassRenderTargets.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
+	}
 
 	//if the scenecolor isn't multiview but the app is, need to render as a single-view multiview due to shaders
 	BasePassRenderTargets.MultiViewCount = MainView.bIsMobileMultiViewEnabled ? 2 : (bIsMultiViewApplication ? 1 : 0);
@@ -1212,9 +1223,12 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const FSort
 	TArrayView<FRDGTextureRef> BasePassTexturesView = MakeArrayView(ColorTargets);
 
 	FRenderTargetBindingSlots BasePassRenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ENoAction, BasePassTexturesView);
-	BasePassRenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+	BasePassRenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, bIsFullDepthPrepassEnabled ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 	BasePassRenderTargets.SubpassHint = ESubpassHint::DeferredShadingSubpass;
-	BasePassRenderTargets.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
+	if (!bIsFullDepthPrepassEnabled)
+	{
+		BasePassRenderTargets.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
+	}
 	BasePassRenderTargets.ShadingRateTexture = nullptr;
 	BasePassRenderTargets.MultiViewCount = 0;
 

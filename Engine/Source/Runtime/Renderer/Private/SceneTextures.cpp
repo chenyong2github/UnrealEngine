@@ -1109,9 +1109,12 @@ void SetupMobileSceneTextureUniformParameters(
 			}
 		}
 
-		if (HasBeenProduced(SceneTextures->Color.Resolve) && !EnumHasAnyFlags(SceneTextures->Depth.Resolve->Desc.Flags, TexCreate_Memoryless))
+		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneDepth))
 		{
-			SceneTextureParameters.SceneDepthTexture = SceneTextures->Depth.Resolve;
+			if ((HasBeenProduced(SceneTextures->Depth.Resolve) && !EnumHasAnyFlags(SceneTextures->Depth.Resolve->Desc.Flags, TexCreate_Memoryless)))
+			{
+				SceneTextureParameters.SceneDepthTexture = SceneTextures->Depth.Resolve;
+			}
 		}
 
 		if (SceneTextures->Config.bIsUsingGBuffers)
