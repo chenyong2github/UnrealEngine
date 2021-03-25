@@ -14,6 +14,7 @@
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
 #include "Renderer/Private/ScenePrivate.h"
+#include "IXRTrackingSystem.h"
 
 DECLARE_CYCLE_STAT(TEXT("Generate Mesh Vertex Data [GT]"), STAT_NiagaraGenMeshVertexData, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Meshes [RT]"), STAT_NiagaraRenderMeshes, STATGROUP_Niagara);
@@ -436,7 +437,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					const FViewMatrices& ViewMatrices = GetViewMatrices(*View, SortInfo.ViewOrigin);
 					SortInfo.ViewDirection = ViewMatrices.GetViewMatrix().GetColumn(2);
 
-					if (View->StereoPass != eSSP_FULL)
+					if (View->StereoPass != eSSP_FULL && GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetHMDDevice() != nullptr))
 					{
 						// For VR, do distance culling and sorting from a central eye position to prevent differences between views
 						const uint32 PairedViewIdx = (ViewIndex & 1) ? (ViewIndex - 1) : (ViewIndex + 1);
