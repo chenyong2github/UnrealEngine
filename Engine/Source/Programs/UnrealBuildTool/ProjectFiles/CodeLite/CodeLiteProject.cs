@@ -59,7 +59,7 @@ namespace UnrealBuildTool
 			//
 			// Build the working directory of the UnrealEditor executable.
 			//
-			string UE4EditorWorkingDirectory = Path.Combine(EngineRootDirectory, "Binaries", ProjectPlatformName);
+			string UnrealEngineEditorWorkingDirectory = Path.Combine(EngineRootDirectory, "Binaries", ProjectPlatformName);
 
 			//
 			// Create the folder where the project files goes if it does not exist
@@ -345,7 +345,7 @@ namespace UnrealBuildTool
 							CodeLiteConfigurationGeneral.Add(GeneralExecutableToRunArguments);
 						}
 					if (TargetName.Equals ("UnrealGame")) {
-							XAttribute GeneralExecutableWorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
+							XAttribute GeneralExecutableWorkingDirectory = new XAttribute("WorkingDirectory", UnrealEngineEditorWorkingDirectory);
 							CodeLiteConfigurationGeneral.Add(GeneralExecutableWorkingDirectory);
 						} else {
 							XAttribute GeneralExecutableWorkingDirectory = new XAttribute("WorkingDirectory", GameWorkingDirectory);
@@ -360,22 +360,22 @@ namespace UnrealBuildTool
 							XAttribute CommandArguments = new XAttribute("CommandArguments", commandArguments);
 							CodeLiteConfigurationGeneral.Add(CommandArguments);
 						}
-						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
+						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UnrealEngineEditorWorkingDirectory);
 						CodeLiteConfigurationGeneral.Add(WorkingDirectory);
 					} 
 					else if (ProjectTargetType == TargetType.Program) 
 					{
-						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
+						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UnrealEngineEditorWorkingDirectory);
 						CodeLiteConfigurationGeneral.Add(WorkingDirectory);
 					} 
 					else if (ProjectTargetType == TargetType.Client) 
 					{
-						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
+						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UnrealEngineEditorWorkingDirectory);
 						CodeLiteConfigurationGeneral.Add(WorkingDirectory);
 					}
 					else if (ProjectTargetType == TargetType.Server) 
 					{
-						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
+						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UnrealEngineEditorWorkingDirectory);
 						CodeLiteConfigurationGeneral.Add(WorkingDirectory);
 					}
 					CodeLiteConfigurationGeneral.Add(GeneralExecutableToRun);

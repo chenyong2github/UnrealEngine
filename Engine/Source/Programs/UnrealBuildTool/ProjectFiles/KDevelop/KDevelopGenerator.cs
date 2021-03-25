@@ -262,7 +262,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Adds the include directory to the list, after converting it to an absolute path to UE4 root directory.
+		/// Adds the include directory to the list, after converting it to an absolute path to UnrealEngine root directory.
 		/// </summary>
 		/// <param name="FileContent">File content.</param>
 		private void WriteIncludeSection(ref StringBuilder FileContent)
@@ -331,7 +331,7 @@ namespace UnrealBuildTool
 						FullPath = Path.Combine(UnrealEngineRootPath, FullPath);
 					}
 
-					if (!FullPath.Contains("FortniteGame/") && !FullPath.Contains("ThirdParty/")) // @todo: skipping Fortnite header paths to shorten clang command line for building UE4XcodeHelper
+					if (!FullPath.Contains("FortniteGame/") && !FullPath.Contains("ThirdParty/")) // @todo: skipping Fortnite header paths to shorten clang command line for building
 					{
 						SystemIncludeDirectories.Add(String.Format("{0}", FullPath));
 						IncludeIndex++;
