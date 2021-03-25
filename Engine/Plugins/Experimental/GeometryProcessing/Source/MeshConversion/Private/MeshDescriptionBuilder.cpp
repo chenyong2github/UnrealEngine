@@ -172,12 +172,11 @@ void FMeshDescriptionBuilder::SetInstanceTangentSpace(const FVertexInstanceID& I
 
 	if (InstanceTangents.IsValid())
 	{
-		FVector4 TangentExtended;  
-		TangentExtended.X = Tangent.X; 
-		TangentExtended.Y = Tangent.Y; 
-		TangentExtended.Z = Tangent.Z; 
-		TangentExtended.W =  Sign;
-		InstanceTangents.Set(InstanceID, TangentExtended);
+		InstanceTangents.Set(InstanceID, Tangent);
+	}
+	if (InstanceBiTangentSign.IsValid())
+	{
+		InstanceBiTangentSign.Set(InstanceID, Sign);
 	}
 
 

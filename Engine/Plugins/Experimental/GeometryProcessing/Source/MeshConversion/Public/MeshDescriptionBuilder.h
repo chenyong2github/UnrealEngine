@@ -64,7 +64,7 @@ public:
 	/** Set the Normal of a vertex instance*/
 	void SetInstanceNormal(const FVertexInstanceID& InstanceID, const FVector& Normal);
 
-	/** Set the full tangent space of a vertex instance, this is stored as a vec3 normal and a vec4 tangent */
+	/** Set the full tangent space of a vertex instance, this is stored as a vec3 normal, vec3 tangent, and a bitangent sign */
 	void SetInstanceTangentSpace(const FVertexInstanceID& InstanceID, const FVector& Normal, const FVector& Tangent, float Sign);
 
 	/** Set the Color of a vertex instance*/
