@@ -63,16 +63,18 @@ protected:
 class FBufferOwnerOuterView final : public FBufferOwner
 {
 public:
-	inline FBufferOwnerOuterView(void* Data, uint64 Size, FSharedBuffer InOuterBuffer)
+	inline FBufferOwnerOuterView(void* Data, uint64 Size, FSharedBuffer&& InOuterBuffer)
 		: FBufferOwner(Data, Size)
 		, OuterBuffer(MoveTemp(InOuterBuffer))
 	{
-		check(OuterBuffer.GetView().Contains(MakeMemoryView(Data, Size)));
-		SetIsMaterialized();
-		if (OuterBuffer.IsOwned())
-		{
-			SetIsOwned();
-		}
+		Initialize();
+	}
+
+	inline FBufferOwnerOuterView(void* Data, uint64 Size, const FSharedBuffer& InOuterBuffer)
+		: FBufferOwner(Data, Size)
+		, OuterBuffer(InOuterBuffer)
+	{
+		Initialize();
 	}
 
 protected:
@@ -82,6 +84,16 @@ protected:
 	}
 
 private:
+	inline void Initialize()
+	{
+		check(OuterBuffer.GetView().Contains(MakeMemoryView(GetData(), GetSize())));
+		SetIsMaterialized();
+		if (OuterBuffer.IsOwned())
+		{
+			SetIsOwned();
+		}
+	}
+
 	FSharedBuffer OuterBuffer;
 };
 
@@ -116,7 +128,7 @@ FUniqueBuffer FUniqueBuffer::MakeView(void* Data, uint64 Size)
 	return FUniqueBuffer(new BufferOwnerPrivate::FBufferOwnerView(Data, Size));
 }
 
-FUniqueBuffer FUniqueBuffer::MakeUnique(FSharedBuffer Buffer)
+FUniqueBuffer FUniqueBuffer::MakeUnique(FSharedBuffer&& Buffer)
 {
 	OwnerPtrType ExistingOwner = ToPrivateOwnerPtr(MoveTemp(Buffer));
 	if (!ExistingOwner || (ExistingOwner->IsOwned() && ExistingOwner->GetTotalRefCount() == 1))
@@ -169,7 +181,7 @@ FSharedBuffer FSharedBuffer::MakeView(FMemoryView View)
 	return MakeView(View.GetData(), View.GetSize());
 }
 
-FSharedBuffer FSharedBuffer::MakeView(FMemoryView View, FSharedBuffer OuterBuffer)
+FSharedBuffer FSharedBuffer::MakeView(FMemoryView View, FSharedBuffer&& OuterBuffer)
 {
 	if (OuterBuffer.IsNull())
 	{
@@ -183,14 +195,33 @@ FSharedBuffer FSharedBuffer::MakeView(FMemoryView View, FSharedBuffer OuterBuffe
 		const_cast<void*>(View.GetData()), View.GetSize(), MoveTemp(OuterBuffer)));
 }
 
+FSharedBuffer FSharedBuffer::MakeView(FMemoryView View, const FSharedBuffer& OuterBuffer)
+{
+	if (OuterBuffer.IsNull())
+	{
+		return MakeView(View);
+	}
+	if (View == OuterBuffer.GetView())
+	{
+		return OuterBuffer;
+	}
+	return FSharedBuffer(new BufferOwnerPrivate::FBufferOwnerOuterView(
+		const_cast<void*>(View.GetData()), View.GetSize(), OuterBuffer));
+}
+
 FSharedBuffer FSharedBuffer::MakeView(const void* Data, uint64 Size)
 {
 	return FSharedBuffer(new BufferOwnerPrivate::FBufferOwnerView(const_cast<void*>(Data), Size));
 }
 
-FSharedBuffer FSharedBuffer::MakeView(const void* Data, uint64 Size, FSharedBuffer OuterBuffer)
+FSharedBuffer FSharedBuffer::MakeView(const void* Data, uint64 Size, FSharedBuffer&& OuterBuffer)
 {
 	return MakeView(MakeMemoryView(Data, Size), MoveTemp(OuterBuffer));
+}
+
+FSharedBuffer FSharedBuffer::MakeView(const void* Data, uint64 Size, const FSharedBuffer& OuterBuffer)
+{
+	return MakeView(MakeMemoryView(Data, Size), OuterBuffer);
 }
 
 FSharedBuffer::FSharedBuffer(FBufferOwner* InOwner)

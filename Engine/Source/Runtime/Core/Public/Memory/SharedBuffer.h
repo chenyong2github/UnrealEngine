@@ -235,7 +235,7 @@ public:
 	 * Steals the buffer owner from the shared buffer if this is the last reference to it, otherwise
 	 * clones the shared buffer to guarantee unique ownership. An non-owned buffer is always cloned.
 	 */
-	UE_NODISCARD CORE_API static FUniqueBuffer MakeUnique(FSharedBuffer Buffer);
+	UE_NODISCARD CORE_API static FUniqueBuffer MakeUnique(FSharedBuffer&& Buffer);
 
 	/** Construct a null unique buffer. */
 	FUniqueBuffer() = default;
@@ -279,7 +279,7 @@ public:
 	UE_NODISCARD inline bool IsOwned() const { return !Owner || Owner->IsOwned(); }
 
 	/** Returns a buffer that is owned, by cloning if not owned. */
-	CORE_API FUniqueBuffer MakeOwned() &&;
+	UE_NODISCARD CORE_API FUniqueBuffer MakeOwned() &&;
 
 	/** Returns true if the referenced buffer has been materialized. */
 	UE_NODISCARD inline bool IsMaterialized() const { return !Owner || Owner->IsMaterialized(); }
@@ -321,8 +321,10 @@ public:
 	UE_NODISCARD CORE_API static FSharedBuffer MakeView(const void* Data, uint64 Size);
 
 	/** Make a view of the input within its outer buffer. Ownership matches OuterBuffer. */
-	UE_NODISCARD CORE_API static FSharedBuffer MakeView(FMemoryView View, FSharedBuffer OuterBuffer);
-	UE_NODISCARD CORE_API static FSharedBuffer MakeView(const void* Data, uint64 Size, FSharedBuffer OuterBuffer);
+	UE_NODISCARD CORE_API static FSharedBuffer MakeView(FMemoryView View, FSharedBuffer&& OuterBuffer);
+	UE_NODISCARD CORE_API static FSharedBuffer MakeView(FMemoryView View, const FSharedBuffer& OuterBuffer);
+	UE_NODISCARD CORE_API static FSharedBuffer MakeView(const void* Data, uint64 Size, FSharedBuffer&& OuterBuffer);
+	UE_NODISCARD CORE_API static FSharedBuffer MakeView(const void* Data, uint64 Size, const FSharedBuffer& OuterBuffer);
 
 	/**
 	 * Make an owned buffer by taking ownership of the input.
@@ -388,8 +390,8 @@ public:
 	UE_NODISCARD inline bool IsOwned() const { return !Owner || Owner->IsOwned(); }
 
 	/** Returns a buffer that is owned, by cloning if not owned. */
-	CORE_API FSharedBuffer MakeOwned() const &;
-	CORE_API FSharedBuffer MakeOwned() &&;
+	UE_NODISCARD CORE_API FSharedBuffer MakeOwned() const &;
+	UE_NODISCARD CORE_API FSharedBuffer MakeOwned() &&;
 
 	/** Returns true if the referenced buffer has been materialized. */
 	UE_NODISCARD inline bool IsMaterialized() const { return !Owner || Owner->IsMaterialized(); }
@@ -838,7 +840,7 @@ private:
 
 /** Construct a shared buffer by taking ownership of an array. */
 template <typename T, typename Allocator>
-UE_NODISCARD FSharedBuffer MakeSharedBufferFromArray(TArray<T, Allocator>&& Array)
+UE_NODISCARD inline FSharedBuffer MakeSharedBufferFromArray(TArray<T, Allocator>&& Array)
 {
 	return FSharedBuffer(new BufferOwnerPrivate::TBufferOwnerTArray<T, Allocator>(MoveTemp(Array)));
 }

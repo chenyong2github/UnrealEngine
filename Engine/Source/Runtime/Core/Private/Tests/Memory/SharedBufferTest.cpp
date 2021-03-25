@@ -191,7 +191,7 @@ bool FUniqueBufferTest::RunTest(const FString& Parameters)
 	}
 	{
 		FSharedBuffer Shared = FSharedBuffer::Clone(MakeMemoryView<uint8>({1, 2, 3, 4}));
-		FUniqueBuffer Buffer = FUniqueBuffer::MakeUnique(Shared);
+		FUniqueBuffer Buffer = FUniqueBuffer::MakeUnique(FSharedBuffer(Shared));
 		TestTrue(TEXT("FUniqueBuffer::MakeUnique(Shared).IsOwned()"), Buffer.IsOwned());
 		TestEqual(TEXT("FUniqueBuffer::MakeUnique(Shared).GetSize()"), Buffer.GetSize(), Shared.GetSize());
 		TestNotEqual(TEXT("FUniqueBuffer::MakeUnique(Shared).GetData()"), const_cast<const void*>(Buffer.GetData()), Shared.GetData());
