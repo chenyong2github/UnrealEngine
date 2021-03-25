@@ -1207,6 +1207,71 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 #endif
 }
 
+
+void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
+{
+	FStaticMeshSceneProxy::CreateRenderThreadResources();
+
+#if GPUCULL_TODO
+	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
+	{
+		bSupportsInstanceDataBuffer = true;
+		// TODO: can the PerInstanceRenderData ever not be valid here?
+		if (ensure(InstancedRenderData.PerInstanceRenderData.IsValid()))
+		{
+			const FStaticMeshInstanceBuffer& InstanceBuffer = InstancedRenderData.PerInstanceRenderData->InstanceBuffer;
+			ensureMsgf(InstanceBuffer.RequireCPUAccess, TEXT("GPU-Scene instance culling requires CPU access to instance data for setup."));
+
+			// This happens when this is actually a HISM and the data is not present in the component (which is true for landscape grass
+			// which manages its own setup.
+			if (Instances.Num() == 0)
+			{
+				Instances.SetNum(InstanceBuffer.GetNumInstances());
+			}
+
+			// NOTE: we set up partial data in the construction of ISM proxy (yep, awful but the equally awful way the InstanceBuffer is maintained means complete data is not available)
+			if (Instances.Num() == InstanceBuffer.GetNumInstances())
+			{
+				FVector4 InstanceTransformVec[3];
+				FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
+				FVector4 InstanceOrigin = FVector::ZeroVector;
+
+				for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+				{
+					InstanceBuffer.GetInstanceShaderValues(
+						InstanceIndex,
+						InstanceTransformVec,
+						InstanceLightMapAndShadowMapUVBias,
+						InstanceOrigin
+					);
+
+					FMatrix LocalToPrimitiveTransform;
+					LocalToPrimitiveTransform.M[0][0] = InstanceTransformVec[0][0];
+					LocalToPrimitiveTransform.M[0][1] = InstanceTransformVec[0][1];
+					LocalToPrimitiveTransform.M[0][2] = InstanceTransformVec[0][2];
+					LocalToPrimitiveTransform.M[0][3] = 0.f;
+					LocalToPrimitiveTransform.M[1][0] = InstanceTransformVec[1][0];
+					LocalToPrimitiveTransform.M[1][1] = InstanceTransformVec[1][1];
+					LocalToPrimitiveTransform.M[1][2] = InstanceTransformVec[1][2];
+					LocalToPrimitiveTransform.M[1][3] = 0.f;
+					LocalToPrimitiveTransform.M[2][0] = InstanceTransformVec[2][0];
+					LocalToPrimitiveTransform.M[2][1] = InstanceTransformVec[2][1];
+					LocalToPrimitiveTransform.M[2][2] = InstanceTransformVec[2][2];
+					LocalToPrimitiveTransform.M[2][3] = 0.f;
+					LocalToPrimitiveTransform.M[3][0] = InstanceOrigin.X;
+					LocalToPrimitiveTransform.M[3][1] = InstanceOrigin.Y;
+					LocalToPrimitiveTransform.M[3][2] = InstanceOrigin.Z;
+					LocalToPrimitiveTransform.M[3][3] = 1.f;
+
+					SetupPrimitiveInstance(Instances[InstanceIndex], LocalToPrimitiveTransform, StaticMeshBounds, InstanceLightMapAndShadowMapUVBias, /*PerInstanceRandom */InstanceOrigin.W);
+				}
+			}
+		}
+	}
+#endif
+}
+
+
 void FInstancedStaticMeshSceneProxy::DestroyRenderThreadResources()
 {
 	InstancedRenderData.ReleaseResources(&GetScene(), StaticMesh);

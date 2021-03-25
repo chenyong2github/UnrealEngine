@@ -894,42 +894,6 @@ public:
 		, CaptureTag(0)
 #endif
 	{
-#if GPUCULL_TODO
-		if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
-		{
-			if (InstancedRenderData.PerInstanceRenderData.IsValid() && InstancedRenderData.PerInstanceRenderData->InstanceBuffer_GameThread.IsValid())
-			{
-				const FStaticMeshInstanceData& StaticMeshInstanceData = *InstancedRenderData.PerInstanceRenderData->InstanceBuffer_GameThread;
-
-					Instances.SetNum(StaticMeshInstanceData.GetNumInstances());
-					if (Instances.Num() == 0 && ClusterTree.Num() != 0)
-					{
-						UE_LOG(LogTemp, Display, TEXT("Instances.Num() == 0 && ClusterTree.Num() != 0"));
-					}
-
-				for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
-				{
-					FMatrix InstanceTransform;
-					StaticMeshInstanceData.GetInstanceTransform(InstanceIndex, InstanceTransform);
-					InstanceTransform.M[3][3] = 1.0f;
-
-					FPrimitiveInstance& Instance = Instances[InstanceIndex];
-					Instance.PrimitiveId = ~uint32(0);
-					Instance.InstanceToLocal = InstanceTransform;
-					Instance.LocalToInstance = InstanceTransform.Inverse();
-					// Filled in during GPU-Scene update...
-					Instance.LocalToWorld.SetIdentity();
-					Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
-					Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
-				}
-			}
-			else
-			{
-				ensure(ClusterTree.Num() == 0);
-			}
-		}
-#endif // GPUCULL_TODO
-
 		SetupOcclusion(InComponent);
 	}
 

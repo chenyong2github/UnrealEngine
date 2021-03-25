@@ -47,6 +47,23 @@ struct FPrimitiveInstance
 	uint32 Flags;
 };
 
+/**
+ * Use to initialize the required fields in an FPrimitiveInstance, much of the data is derived at upload time and need not be set (should be refactored).
+ */
+FORCEINLINE void SetupPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance,
+	const FMatrix& LocalToPrimitive /* Transform from the mesh-local space to the primitive/component local space, AKA the instance transform. */,
+	const FBoxSphereBounds& LocalInstanceBounds /* Local bounds of the instanced mesh. */,
+	const FVector4 &LightMapAndShadowMapUVBias,
+	float PerInstanceRandom,
+	const FNaniteInfo &NaniteInfo = FNaniteInfo())
+{
+	PrimitiveInstance.InstanceToLocal = LocalToPrimitive;
+	PrimitiveInstance.RenderBounds = LocalInstanceBounds;
+	PrimitiveInstance.LightMapAndShadowMapUVBias = LightMapAndShadowMapUVBias;
+	PrimitiveInstance.PerInstanceRandom = PerInstanceRandom;
+	PrimitiveInstance.NaniteInfo = NaniteInfo;
+}
+
 /** 
  * The uniform shader parameters associated with a primitive instance.
  * Note: Must match FInstanceSceneData in shaders.
