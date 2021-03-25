@@ -23,7 +23,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Containers/HashTable.h"
 #include "Containers/List.h"
-#include "Misc/Blake3.h"
+#include "Hash/Blake3.h"
 
 class FShaderCompileJob;
 class FShaderPipelineCompileJob;
