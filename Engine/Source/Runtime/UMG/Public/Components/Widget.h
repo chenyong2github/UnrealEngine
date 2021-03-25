@@ -892,7 +892,7 @@ public:
 	// Begin UObject
 	virtual UWorld* GetWorld() const override;
 	virtual void FinishDestroy() override;
-	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	//UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	// End UObject

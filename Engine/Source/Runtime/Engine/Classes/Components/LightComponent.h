@@ -393,7 +393,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
-	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	//UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;

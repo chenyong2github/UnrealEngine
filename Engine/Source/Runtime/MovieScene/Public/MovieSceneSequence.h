@@ -209,7 +209,7 @@ public:
 public:
 
 	MOVIESCENE_API virtual void PostLoad() override;
-	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	//UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	MOVIESCENE_API virtual void PreSave(const ITargetPlatform* TargetPlatform) override;
 	MOVIESCENE_API virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	MOVIESCENE_API virtual void BeginDestroy() override;
