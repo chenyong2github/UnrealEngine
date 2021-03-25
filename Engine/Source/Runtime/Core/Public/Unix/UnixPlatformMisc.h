@@ -139,6 +139,8 @@ struct CORE_API FUnixPlatformMisc : public FGenericPlatformMisc
 
 	static bool SetStoredValues(const FString& InStoreId, const FString& InSectionName, const TMap<FString, FString>& InKeyValues);
 
+	static int32 NumberOfWorkerThreadsToSpawn();
+
 #if STATS || ENABLE_STATNAMEDEVENTS
 	static void BeginNamedEventFrame();
 	static void BeginNamedEvent(const struct FColor& Color, const TCHAR* Text);

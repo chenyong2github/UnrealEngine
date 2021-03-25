@@ -1114,3 +1114,28 @@ bool FUnixPlatformMisc::SetStoredValues(const FString& InStoreId, const FString&
 	ConfigFile.Dirty = true;
 	return ConfigFile.Write(ConfigPath);
 }
+
+int32 FUnixPlatformMisc::NumberOfWorkerThreadsToSpawn()
+{
+	static int32 MaxServerWorkerThreads = 4;
+
+	extern CORE_API int32 GUseNewTaskBackend;
+	int32 MaxWorkerThreads = GUseNewTaskBackend ? INT32_MAX : 26;
+
+	int32 NumberOfCores = FPlatformMisc::NumberOfCores();
+	int32 NumberOfCoresIncludingHyperthreads = FPlatformMisc::NumberOfCoresIncludingHyperthreads();
+	int32 NumberOfThreads = 0;
+
+	if (NumberOfCoresIncludingHyperthreads > NumberOfCores)
+	{
+		NumberOfThreads = NumberOfCoresIncludingHyperthreads - 2;
+	}
+	else
+	{
+		NumberOfThreads = NumberOfCores - 1;
+	}
+
+	int32 MaxWorkerThreadsWanted = IsRunningDedicatedServer() ? MaxServerWorkerThreads : MaxWorkerThreads;
+	// need to spawn at least one worker thread (see FTaskGraphImplementation)
+	return FMath::Max(FMath::Min(NumberOfThreads, MaxWorkerThreadsWanted), 2);
+}
