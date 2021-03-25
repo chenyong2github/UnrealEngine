@@ -2961,8 +2961,7 @@ void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
 					ISMC->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 					ISMC->SetCastShadow(false);
 					ISMC->SetMobility(EComponentMobility::Stationary);
-
-					ISMC->SetupAttachment(ActorOwner->GetRootComponent());
+					ISMC->SetupAttachment(this);
 					ISMC->RegisterComponent();
 					ActorOwner->AddInstanceComponent(ISMC);
 

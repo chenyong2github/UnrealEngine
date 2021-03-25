@@ -154,7 +154,7 @@ void IChaosCachingEditorPlugin::OnCreateCacheManager()
 
 			if(UPrimitiveComponent* PrimitiveComp = Cast<UPrimitiveComponent>(Component))
 			{
-				Chaos::FComponentCacheAdapter* BestFitAdapter = Chaos::FAdapterUtil::GetBestAdapterForClass(PrimitiveComp->GetClass());
+				Chaos::FComponentCacheAdapter* BestFitAdapter = Chaos::FAdapterUtil::GetBestAdapterForClass(PrimitiveComp->GetClass(), false);
 
 				// Can't be observed
 				if(!BestFitAdapter)
