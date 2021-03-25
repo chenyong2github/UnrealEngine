@@ -156,8 +156,7 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 		}
 		else
 		{
-			PyUtil::ReThrowPythonError();
-			*(bool*)RESULT_PARAM = false;
+			*(bool*)RESULT_PARAM = PyUtil::ReThrowPythonError();
 		}
 	}
 #else	// WITH_PYTHON

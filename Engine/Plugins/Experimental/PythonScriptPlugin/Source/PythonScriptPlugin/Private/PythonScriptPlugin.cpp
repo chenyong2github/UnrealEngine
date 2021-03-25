@@ -1132,7 +1132,7 @@ void FPythonScriptPlugin::ImportUnrealModule(const TCHAR* InModuleName)
 	}
 	else
 	{
-		PyUtil::LogPythonError(/*bInteractive*/true);
+		PyUtil::LogPythonError(nullptr, /*bInteractive*/true);
 	}
 }
 
@@ -1200,9 +1200,8 @@ bool FPythonScriptPlugin::RunString(FPythonCommandEx& InOutPythonCommand)
 		{
 			InOutPythonCommand.CommandResult = PyUtil::PyObjectToUEStringRepr(PyResult);
 		}
-		else
+		else if (PyUtil::LogPythonError(&InOutPythonCommand.CommandResult))
 		{
-			InOutPythonCommand.CommandResult = PyUtil::LogPythonError();
 			return false;
 		}
 	}
@@ -1296,9 +1295,8 @@ bool FPythonScriptPlugin::RunFile(const TCHAR* InFile, const TCHAR* InArgs, FPyt
 		{
 			InOutPythonCommand.CommandResult = PyUtil::PyObjectToUEStringRepr(PyResult);
 		}
-		else
+		else if (PyUtil::LogPythonError(&InOutPythonCommand.CommandResult))
 		{
-			InOutPythonCommand.CommandResult = PyUtil::LogPythonError();
 			return false;
 		}
 	}
