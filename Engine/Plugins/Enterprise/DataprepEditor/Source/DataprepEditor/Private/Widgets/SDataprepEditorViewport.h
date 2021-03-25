@@ -258,7 +258,7 @@ private:
 	 * Applies the selection material on all selected mesh components.
 	 * If none is selected, applies current rendering material
 	 */
-	void UpdateSelection();
+	void UpdateSelection(bool bNotify = true);
 
 	/** Initialize the materials used for the different rendering options */
 	void InitializeDefaultMaterials();

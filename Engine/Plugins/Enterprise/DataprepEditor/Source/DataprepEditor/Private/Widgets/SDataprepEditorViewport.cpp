@@ -960,7 +960,7 @@ void SDataprepEditorViewport::SelectActors(const TArray< AActor* >& SelectedActo
 
 	SelectedPreviewComponents.Append( MoveTemp( NewSelectedPreviewComponents ) );
 
-	UpdateSelection();
+	UpdateSelection(false);
 }
 
 void SDataprepEditorViewport::SetActorVisibility(AActor* SceneActor, bool bInVisibility)
@@ -977,7 +977,7 @@ void SDataprepEditorViewport::SetActorVisibility(AActor* SceneActor, bool bInVis
 	}
 }
 
-void SDataprepEditorViewport::UpdateSelection()
+void SDataprepEditorViewport::UpdateSelection(bool bNotify)
 {
 	TSharedPtr<FDataprepEditor> DataprepEditorPtr = DataprepEditor.Pin();
 
@@ -1005,7 +1005,7 @@ void SDataprepEditorViewport::UpdateSelection()
 		SelectedActors.Emplace(SceneMeshComponent->GetOwner());
 	}
 
-	if(DataprepEditorPtr.IsValid())
+	if(DataprepEditorPtr.IsValid() && bNotify)
 	{
 		DataprepEditorPtr->SetWorldObjectsSelection( MoveTemp(SelectedActors), FDataprepEditor::EWorldSelectionFrom::Viewport );
 	}
