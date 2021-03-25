@@ -30,13 +30,13 @@ public:
 	 * Creates a new group from the current selection removing the actors from any existing groups they are already in
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Grouping")
-	virtual void GroupSelected();
+	virtual AGroupActor* GroupSelected();
 
 	/**
 	 * Creates a new group from the provided list of actors removing the actors from any existing groups they are already in
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Grouping")
-	virtual void GroupActors(const TArray<AActor*>& ActorsToGroup);
+	virtual AGroupActor* GroupActors(const TArray<AActor*>& ActorsToGroup);
 
 	/**
 	 * Disbands any groups in the current selection, does not attempt to maintain any hierarchy

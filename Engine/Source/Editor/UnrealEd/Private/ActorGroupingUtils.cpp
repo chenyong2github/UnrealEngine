@@ -22,7 +22,7 @@ UActorGroupingUtils* UActorGroupingUtils::Get()
 	return GEditor->GetActorGroupingUtils();
 }
 
-void UActorGroupingUtils::GroupSelected()
+AGroupActor* UActorGroupingUtils::GroupSelected()
 {
 	if (IsGroupingActive())
 	{
@@ -34,12 +34,21 @@ void UActorGroupingUtils::GroupSelected()
 
 		if (ActorsToAdd.Num() > 0)
 		{
-			GroupActors(ActorsToAdd);
+			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "Group_Selected", "Group Selected"));
+
+			AGroupActor* GroupActor = GroupActors(ActorsToAdd);
+			if (GroupActor)
+			{
+				GEditor->SelectActor(GroupActor, /*bIsSelected*/true, /*bNotify*/false);
+			}
+			return GroupActor;
 		}
 	}
+
+	return nullptr;
 }
 
-void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
+AGroupActor* UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 {
 	if(IsGroupingActive())
 	{
@@ -106,6 +115,8 @@ void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 					SpawnedGroupActor->SetFolderPath(FolderPath);
 					SpawnedGroupActor->CenterGroupLocation();
 					SpawnedGroupActor->Lock();
+
+					return SpawnedGroupActor;
 				}
 			}
 		}
@@ -117,6 +128,8 @@ void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 			FSlateNotificationManager::Get().AddNotification(Info);
 		}
 	}
+
+	return nullptr;
 }
 
 void UActorGroupingUtils::UngroupSelected()
@@ -133,6 +146,8 @@ void UActorGroupingUtils::UngroupSelected()
 
 		if (ActorsToUngroup.Num())
 		{
+			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "Ungroup_Selected", "Ungroup Selected"));
+
 			UngroupActors(ActorsToUngroup);
 		}
 	}
