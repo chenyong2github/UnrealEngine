@@ -877,12 +877,12 @@ function createEdgeRow(nodeData, edgeData, includeActions) {
 	}
 
 	// Last Change Column 
-	const cell = renderLastChangeCell_Common(nodeData.bot, nodeData.def.name, edgeData.last_cl, edgeAPIOp, operationArgs, edgeData.display_name)
+	let catchupText = null
 	if (edgeData.num_changes_remaining > 1) {
-		const kind = edgeData.lastGoodCL ? 'gate' : 'head'
-		cell.prop('title', `Revisions behind ${kind}: ${edgeData.num_changes_remaining}`)
+		catchupText = `pending: ${edgeData.num_changes_remaining}`
 	}
-	columnArray.push(cell)
+	columnArray.push(renderLastChangeCell_Common(nodeData.bot, nodeData.def.name, edgeData.last_cl, edgeAPIOp,
+														operationArgs, catchupText, edgeData.display_name))
 	postRenderLastChangeCell_Edge(columnArray[columnArray.length - 1], edgeData)
 
 	return columnArray
@@ -1542,10 +1542,14 @@ function renderActionsCell_Edge(actionCell, nodeData, edgeData, conflict=null) {
 }
 
 // Helper function to create last change cell
-function renderLastChangeCell_Common(botname, nodename, lastCl, operationFunction, operationArgs, edgename=null) {
+function renderLastChangeCell_Common(botname, nodename, lastCl, operationFunction, operationArgs, catchupText=null, edgename=null) {
 	const lastChangeCell = $('<div>').addClass('lastchangecell')
 
 	const swarmLink = $(makeClLink(lastCl)).appendTo(lastChangeCell)
+	if (catchupText) {
+		lastChangeCell.append($('<div>').addClass('catchup').text(catchupText))
+	}
+
 	// On shift+click, we can set the CL instead
 	swarmLink.click(function(evt) {
 		if (evt.shiftKey)
