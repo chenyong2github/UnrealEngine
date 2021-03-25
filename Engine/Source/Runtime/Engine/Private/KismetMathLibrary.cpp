@@ -345,39 +345,62 @@ float UKismetMathLibrary::Ease(float A, float B, float Alpha, TEnumAsByte<EEasin
 	return Lerp(A, B, EaseAlpha(Alpha, EasingFunc, BlendExp, Steps));
 }
 
-float ComputeDamping(float Mass, float Stiffness, float CriticalDampingFactor)
-{
-	return 2 * FMath::Sqrt(Mass * Stiffness) * CriticalDampingFactor;
-}
-
 template <typename T>
-T GenericSpringInterp(T Current, T Target, T& PrevError, T& Velocity, float Stiffness, float CriticalDamping, float DeltaTime, float Mass)
+void GenericSpringInterp(T& Current, const T Target, T& PrevTarget, bool& bPrevTargetValid, T& Velocity,
+                         float Stiffness, float CriticalDamping, float DeltaTime,
+                         float TargetVelocityAmount, float Mass, bool bApproximate)
 {
 	if (DeltaTime > SMALL_NUMBER)
 	{
 		if (!FMath::IsNearlyZero(Mass))
 		{
-			const float Damping = ComputeDamping(Mass, Stiffness, CriticalDamping);
-			const T Error = Target - Current;
-			const T ErrorDeriv = (Error - PrevError);	//ignore divide by delta time since we multiply later anyway
-			Velocity += (Error * Stiffness * DeltaTime + ErrorDeriv * Damping) / Mass;
-			PrevError = Error;
-
-			const T NewValue = Current + Velocity * DeltaTime;
-			return NewValue;
-		}
-		else
-		{
-			return Target;
+			// Note that old target was stored in PrevTarget
+			T TargetVel = bPrevTargetValid ? (Target - PrevTarget) * (TargetVelocityAmount / DeltaTime) : T(0.f);
+			const float Omega = FMath::Sqrt(Stiffness / Mass);
+			const float SmoothingTime = 2.0f / Omega;
+			T NewValue = Current;
+			if (bApproximate)
+			{
+				FMath::SpringDamperSmoothingApprox(Current, Velocity, Target, TargetVel, DeltaTime, SmoothingTime, CriticalDamping);
+			}
+			else
+			{
+				FMath::SpringDamperSmoothing(Current, Velocity, Target, TargetVel, DeltaTime, SmoothingTime, CriticalDamping);
+			}
+			PrevTarget = Target;
+			bPrevTargetValid = true;
 		}
 	}
-
-	return Current;
 }
 
-float UKismetMathLibrary::FloatSpringInterp(float Current, float Target, FFloatSpringState& SpringState, float Stiffness, float CriticalDamping, float DeltaTime, float Mass)
+float UKismetMathLibrary::FloatSpringInterp(float Current, float Target, FFloatSpringState& SpringState,
+                                            float Stiffness, float CriticalDamping, float DeltaTime,
+                                            float Mass, float TargetVelocityAmount, 
+                                            bool bClamp, float MinValue, float MaxValue,
+                                            bool bApproximate)
 {
-	return GenericSpringInterp(Current, Target, SpringState.PrevError, SpringState.Velocity, Stiffness, CriticalDamping, DeltaTime, Mass);
+	GenericSpringInterp(Current, Target, SpringState.PrevTarget, SpringState.bPrevTargetValid, SpringState.Velocity, Stiffness, CriticalDamping,
+	                    DeltaTime, TargetVelocityAmount, Mass, bApproximate);
+	if (bClamp)
+	{
+		if (Current < MinValue)
+		{
+			Current = MinValue;
+			if (SpringState.Velocity < 0.0f)
+			{
+				SpringState.Velocity = 0.0f;
+			}
+		}
+		else if (Current > MaxValue)
+		{
+			Current = MaxValue;
+			if (SpringState.Velocity > 0.0f)
+			{
+				SpringState.Velocity = 0.0f;
+			}
+		}
+	}
+	return Current;
 }
 
 FVector  UKismetMathLibrary::RotateAngleAxis(FVector InVect, float AngleDeg, FVector Axis)
@@ -390,9 +413,37 @@ FVector UKismetMathLibrary::VEase(FVector A, FVector B, float Alpha, TEnumAsByte
 	return VLerp(A, B, EaseAlpha(Alpha, EasingFunc, BlendExp, Steps));
 }
 
-FVector UKismetMathLibrary::VectorSpringInterp(FVector Current, FVector Target, FVectorSpringState& SpringState, float Stiffness, float CriticalDamping, float DeltaTime, float Mass)
+FVector UKismetMathLibrary::VectorSpringInterp(FVector Current, FVector Target, FVectorSpringState& SpringState,
+                                               float Stiffness, float CriticalDamping, float DeltaTime,
+                                               float Mass, float TargetVelocityAmount, 
+                                               bool bClamp, FVector MinValue, FVector MaxValue,
+                                               bool bApproximate)
 {
-	return GenericSpringInterp(Current, Target, SpringState.PrevError, SpringState.Velocity, Stiffness, CriticalDamping, DeltaTime, Mass);
+	GenericSpringInterp(Current, Target, SpringState.PrevTarget, SpringState.bPrevTargetValid, SpringState.Velocity, Stiffness,
+	                    CriticalDamping, DeltaTime, TargetVelocityAmount, Mass, bApproximate);
+	if (bClamp)
+	{
+		for (int Index = 0 ; Index != 3 ; ++Index)
+		{
+			if (Current[Index] < MinValue[Index])
+			{
+				Current[Index] = MinValue[Index];
+				if (SpringState.Velocity[Index] < 0.0f)
+				{
+					SpringState.Velocity[Index] = 0.0f;
+				}
+			}
+			else if (Current[Index] > MaxValue[Index])
+			{
+				Current[Index] = MaxValue[Index];
+				if (SpringState.Velocity[Index] > 0.0f)
+				{
+					SpringState.Velocity[Index] = 0.0f;
+				}
+			}
+		}
+	}
+	return Current;
 }
 
 void UKismetMathLibrary::ResetFloatSpringState(FFloatSpringState& SpringState)

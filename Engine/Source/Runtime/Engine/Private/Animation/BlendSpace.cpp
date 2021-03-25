@@ -1518,7 +1518,7 @@ static void SmoothWeight(float& Output, float& OutputRate, float Input, float In
 	{
 		Output = Input;
 		OutputRate = InputRate;
-		FMath::CriticallyDampedSmoothing(Output, OutputRate, Target, DeltaTime, SmoothingTimeFromSpeed(Speed));
+		FMath::CriticallyDampedSmoothing(Output, OutputRate, Target, 0.0f, DeltaTime, SmoothingTimeFromSpeed(Speed));
 	}
 	else
 	{

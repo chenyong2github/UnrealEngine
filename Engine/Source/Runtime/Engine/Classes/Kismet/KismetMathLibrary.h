@@ -111,19 +111,21 @@ struct ENGINE_API FFloatSpringState
 {
 	GENERATED_BODY()
 
-	float PrevError;
+	float PrevTarget;
 	float Velocity;
+	bool  bPrevTargetValid;
 
 	FFloatSpringState()
-	: PrevError(0.f)
+	: PrevTarget(0.f)
 	, Velocity(0.f)
+	, bPrevTargetValid(false)
 	{
-
 	}
 
 	void Reset()
 	{
-		PrevError = Velocity = 0.f;
+		PrevTarget = Velocity = 0.f;
+		bPrevTargetValid = false;
 	}
 };
 
@@ -132,19 +134,21 @@ struct ENGINE_API FVectorSpringState
 {
 	GENERATED_BODY()
 
-	FVector PrevError;
+	FVector PrevTarget;
 	FVector Velocity;
+	bool    bPrevTargetValid;
 
 	FVectorSpringState()
-	: PrevError(FVector::ZeroVector)
+	: PrevTarget(FVector::ZeroVector)
 	, Velocity(FVector::ZeroVector)
+	, bPrevTargetValid(false)
 	{
-
 	}
 
 	void Reset()
 	{
-		PrevError = Velocity = FVector::ZeroVector;
+		PrevTarget = Velocity = FVector::ZeroVector;
+		bPrevTargetValid = false;
 	}
 };
 
@@ -1735,17 +1739,27 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static FVector VInterpTo_Constant(FVector Current, FVector Target, float DeltaTime, float InterpSpeed);
 
 	/**
-	* Uses a simple spring model to interpolate a vector from Current to Target.
-	*
-	* @param Current				Current value
-	* @param Target					Target value
-	* @param SpringState			Data related to spring model (velocity, error, etc..) - Create a unique variable per spring
-	* @param Stiffness				How stiff the spring model is (more stiffness means more oscillation around the target value)
-	* @param CriticalDampingFactor	How much damping to apply to the spring (0 means no damping, 1 means critically damped which means no oscillation)
-	* @param Mass					Multiplier that acts like mass on a spring
-	*/
-	UFUNCTION(BlueprintCallable,  meta = (ScriptMethod = "InterpSpringTo", Keywords = "position"), Category = "Math|Interpolation")
-	static FVector VectorSpringInterp(FVector Current, FVector Target, UPARAM(ref) FVectorSpringState& SpringState, float Stiffness, float CriticalDampingFactor, float DeltaTime, float Mass = 1.f);
+	 * Uses a simple spring model to interpolate a vector from Current to Target.
+	 *
+	 * @param Current               Current value
+	 * @param Target                Target value
+	 * @param SpringState           Data related to spring model (velocity, error, etc..) - Create a unique variable per spring
+	 * @param Stiffness             How stiff the spring model is (more stiffness means more oscillation around the target value)
+	 * @param CriticalDampingFactor How much damping to apply to the spring (0 means no damping, 1 means critically damped which means no oscillation)
+	 * @param DeltaTime             Time difference since the last update
+	 * @param Mass                  Multiplier that acts like mass on a spring
+	 * @param TargetVelocityAmount  If 1 then the target velocity will be calculated and used, which results following the target more closely/without lag. Values down to zero (recommended when using this to smooth data) will progressively disable this effect.
+	 * @param bClamp                Whether to use the Min/Max values to clamp the motion
+	 * @param MinValue              Clamps the minimum output value and cancels the velocity if it reaches this limit
+	 * @param MaxValue              Clamps the maximum output value and cancels the velocity if it reaches this limit
+	 * @param bApproximate          Use an approximate/fast implementation. Will be suitable for all cases unless the delta time is very large or high accuracy is needed.
+	 */
+	UFUNCTION(BlueprintCallable,  meta = (ScriptMethod = "InterpSpringTo", Keywords = "position", AdvancedDisplay = "8"), Category = "Math|Interpolation")
+	static FVector VectorSpringInterp(FVector Current, FVector Target, UPARAM(ref) FVectorSpringState& SpringState,
+	                                  float Stiffness, float CriticalDampingFactor, float DeltaTime,
+	                                  float Mass = 1.f, float TargetVelocityAmount = 1.f, 
+	                                  bool bClamp = false, FVector MinValue = FVector(-1.f), FVector MaxValue = FVector(1.f),
+	                                  bool bApproximate = true);
 
 	/**
 	 * Gets the reciprocal of this vector, avoiding division by zero.
@@ -3827,15 +3841,25 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	/**
 	 * Uses a simple spring model to interpolate a float from Current to Target.
 	 *
-	 * @param Current				Current value
-	 * @param Target				Target value
-	 * @param SpringState			Data related to spring model (velocity, error, etc..) - Create a unique variable per spring
-	 * @param Stiffness				How stiff the spring model is (more stiffness means more oscillation around the target value)
-	 * @param CriticalDampingFactor	How much damping to apply to the spring (0 means no damping, 1 means critically damped which means no oscillation)
-	 * @param Mass					Multiplier that acts like mass on a spring
+	 * @param Current               Current value
+	 * @param Target                Target value
+	 * @param SpringState           Data related to spring model (velocity, error, etc..) - Create a unique variable per spring
+	 * @param Stiffness             How stiff the spring model is (more stiffness means more oscillation around the target value)
+	 * @param CriticalDampingFactor How much damping to apply to the spring (0 means no damping, 1 means critically damped which means no oscillation)
+	 * @param DeltaTime             Time difference since the last update
+	 * @param Mass                  Multiplier that acts like mass on a spring
+	 * @param TargetVelocityAmount  If 1 then the target velocity will be calculated and used, which results following the target more closely/without lag. Values down to zero (recommended when using this to smooth data) will progressively disable this effect.
+	 * @param bClamp                Whether to use the Min/Max values to clamp the motion
+	 * @param MinValue              Clamps the minimum output value and cancels the velocity if it reaches this limit
+	 * @param MaxValue              Clamps the maximum output value and cancels the velocity if it reaches this limit
+	 * @param bApproximate          Use an approximate/fast implementation. Will be suitable for all cases unless the delta time is very large or high accuracy is needed.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation")
-	static float FloatSpringInterp(float Current, float Target, UPARAM(ref) FFloatSpringState& SpringState, float Stiffness, float CriticalDampingFactor, float DeltaTime, float Mass = 1.f);
+	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation", meta=(AdvancedDisplay = "8"))
+	static float FloatSpringInterp(float Current, float Target, UPARAM(ref) FFloatSpringState& SpringState,
+	                               float Stiffness, float CriticalDampingFactor, float DeltaTime,
+	                               float Mass = 1.f, float TargetVelocityAmount = 1.f, 
+	                               bool bClamp = false, float MinValue = -1.f, float MaxValue = 1.f,
+	                               bool bApproximate = true);
 
 	/** Resets the state of a given spring */
 	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation")

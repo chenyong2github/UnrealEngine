@@ -48,8 +48,8 @@ struct FInterpolationParameter
 
 	/**
 	 * Damping ratio - only used when the type is set to SpringDamper. A value of 1 will move quickly and
-	 * smoothly to the target, without overshooting. Values below 1 can be used to encourage some overshoot,
-	 * which can make pose transitions look more natural.
+	 * smoothly to the target, without overshooting. Values as low as 0 can be used to encourage some overshoot,
+	 * and values around 0.7 can make pose transitions look more natural.
 	 */
 	UPROPERTY(EditAnywhere, Category=Parameter, meta = (ClampMin = "0", EditCondition = "InterpolationType == EFilterInterpolationType::BSIT_SpringDamper && InterpolationTime > 0"))
 	float DampingRatio = 1.f;
