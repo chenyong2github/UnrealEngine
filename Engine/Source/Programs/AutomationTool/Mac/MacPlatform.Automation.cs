@@ -73,19 +73,15 @@ public class MacPlatform : Platform
 		return "Mac";
 	}
 
-	protected bool CanBuildToolForAllArchitectures(UE4Build.BuildTarget InTarget, ProjectParams InParams)
+	/// <summary>
+	/// Returns true if UAT can build this target for all Mac architectures
+	/// </summary>
+	/// <param name="InTarget"></param>
+	/// <param name="InParams"></param>
+	/// <returns></returns>
+	protected bool CanBuildTargetForAllArchitectures(UE4Build.BuildTarget InTarget, ProjectParams InParams)
 	{
-		string[] WhitelistedTargets = { "UnrealHeaderTool", /*"ShaderCompileWorker",*/ "UnrealPak" };
-
-		// These targets are known to work.
-		if (WhitelistedTargets.Contains(InTarget.TargetName))
-		{
-			return true;
-		}
-
-
-		// Editor does not work, and other tools are less interesting at this time
-		return false;
+		return MacExports.TargetsWhitelistedForAppleSilicon.Contains(InTarget.TargetName, StringComparer.OrdinalIgnoreCase);
 	}
 
 	/// <summary>
@@ -150,7 +146,7 @@ public class MacPlatform : Platform
 			else
 			{
 				// We build tools for the local architecture if possible
-				if (CanBuildToolForAllArchitectures(Target, Params) || LocalArchitecture == MacExports.IntelArchitecture)
+				if (CanBuildTargetForAllArchitectures(Target, Params) || LocalArchitecture == MacExports.IntelArchitecture)
 				{
 					UBTArchitectureParam = LocalArchitecture;
 					Log.TraceInformation("Building {0} as {1} for host", Target.TargetName, UBTArchitectureParam);

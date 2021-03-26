@@ -37,6 +37,53 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Default to building for Intel for the time being. Targets can be whitelisted below, and
+		/// projects can be set to universal to override this.
+		/// </summary>
+		public static string DefaultArchitecture
+		{
+			get
+			{
+				return IntelArchitecture;
+			}
+		}
+
+		/// <summary>
+		/// Returns the current list of default targets that are known to build for Apple Silicon. Individual projects will
+		/// use the Project setting.
+		/// </summary>
+		/// <returns></returns>
+		static public IEnumerable<string> TargetsWhitelistedForAppleSilicon
+		{
+			get
+			{
+				return new[] { 
+					"BenchmarkTool",
+					"BlankProgram",
+					"BuildPatchTool",
+					"UE4Client",
+					"UE4Game", 
+					"UE4Server",
+					"UnrealHeaderTool", 
+					"UnrealPak"
+				};
+			}
+		}
+
+		/// <summary>
+		/// Returns the current list of types that currently have no chance of building for Apple Silicon regardless
+		/// of what their project says
+		/// </summary>
+		/// <returns></returns>
+		static public IEnumerable<TargetType> TargetTypesBlacklistedForAppleSilicon
+		{
+			get
+			{
+				return new[] { TargetType.Editor };
+			}
+		}
+
+		/// <summary>
 		/// Cached result for AppleArch check
 		/// </summary>
 		private static bool? IsRunningOnAppleArchitectureVar;

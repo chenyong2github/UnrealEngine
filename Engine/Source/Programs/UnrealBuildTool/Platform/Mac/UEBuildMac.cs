@@ -201,8 +201,8 @@ namespace UnrealBuildTool
 		public override string GetDefaultArchitecture(FileReference ProjectFile)
 		{
 			// by default use Intel.
-			return MacExports.IntelArchitecture;
-		}
+			return MacExports.DefaultArchitecture;
+		}		
 
 		/// <summary>
 		/// Determines if the given name is a build product for a target.
