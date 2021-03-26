@@ -158,7 +158,6 @@ float SampleDOM_PCSS(
 	float4 InLayerDepths,
 	Texture2D<float> FrontDepthTexture,
 	Texture2D<float4> DomTexture,
-	SamplerState LinearSampler,
 	float ApexAngleInDegree,
 	float2 Jitter) // [0,1]
 {

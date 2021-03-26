@@ -15,25 +15,17 @@
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"
 
-#define PERMUTATION_TRANSMITTANCE_DEEP_SHADOW 0
-#define PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL 1
-
-
-#if SHADER_TRANSMITTANCE
-
-#if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL
-	#if PERMUTATION_TRAVERSAL == 1
-		#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
+// Need to match FDeepShadowData::MaxMacroGroupCount in HairRendering.h
+#if SHADER_TRANSMITTANCE_DEEPSHADOW || SHADER_TRANSMITTANCE_VOXEL
+	#define MAX_HAIR_MACROGROUP_COUNT 16 
+	#if PERMUTATION_GROUP_SIZE == 64
+		#define TRANSMITTANCE_GROUP_SIZE 64
+	#elif PERMUTATION_GROUP_SIZE == 32
+		#define TRANSMITTANCE_GROUP_SIZE 32
 	#else
-		#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR
-	#endif
-	#define VOXEL_TRAVERSAL_DEBUG 0
-	#include "HairStrandsVoxelPageTraversal.ush"
-	#if VOXEL_TRAVERSAL_DEBUG
-	#include "../ShaderPrintCommon.ush"
+		#error Unknown group size	
 	#endif
 #endif
-
 
 float3 ToWorldPosition(float2 UV, float Depth)
 {
@@ -44,9 +36,10 @@ float3 ToWorldPosition(float2 UV, float Depth)
 	return WorldPosition;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Deep shadow
 
-// Need to match FDeepShadowData::MaxMacroGroupCount in HairRendering.h
-#define MAX_HAIR_MACROGROUP_COUNT 16 
+#if SHADER_TRANSMITTANCE_DEEPSHADOW
 
 StructuredBuffer<FDeepShadowTransform> DeepShadow_WorldToLightTransformBuffer;
 uint				DeepShadow_bIsGPUDriven;
@@ -67,23 +60,8 @@ int4				DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[MAX_HAIR_MACROGROUP_COUNT];
 Texture2D<float>	DeepShadow_FrontDepthTexture;
 Texture2D<float4>	DeepShadow_DomTexture;
 
-Texture2D<float4> 	RayMarchMaskTexture;
-
-Buffer<uint4>				IndirectArgsBuffer;
-
-Texture3D<float4>			HairLUTTexture;
-SamplerState				LinearSampler;
-RWBuffer<uint>				OutputColor;
-
-#if PERMUTATION_GROUP_SIZE == 0
-	#define TRANSMITTANCE_GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 1
-	#define TRANSMITTANCE_GROUP_SIZE 32
-#else
-	#error Unknown group size	
-#endif
-
-#if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_DEEP_SHADOW
+Buffer<uint4>		IndirectArgsBuffer;
+RWBuffer<uint>		OutTransmittanceMask;
 
 #if 0
 // Sample deep shadow with PCF kernel and doing transmittance evaluation for each sample
@@ -194,7 +172,7 @@ FHairTransmittanceMask ComputeTransmittance(
 		// Compute the number of hair count between light & shading point
 		if (Settings.TransmittanceKernelType == 4)
 		{
-			//Out = SampleDOM_PCF_Accurate(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
+			//Out = SampleDOM_PCF_Accurate(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture, GBuffer, SinLightAngle, HairLUTTexture);
 			Out.HairCount = 0;
 			Out.Visibility = 1;
 		}
@@ -203,7 +181,7 @@ FHairTransmittanceMask ComputeTransmittance(
 			float HairCount = 0;
 			if (Settings.TransmittanceKernelType == 3)
 			{
-				HairCount = SampleDOM_PCSS(LightSpacePosition.xyz, Settings.DeepShadowResolution, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture, LinearSampler, Settings.TransmittanceKernelApertureInDegree, Settings.Random.xy);
+				HairCount = SampleDOM_PCSS(LightSpacePosition.xyz, Settings.DeepShadowResolution, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture, Settings.TransmittanceKernelApertureInDegree, Settings.Random.xy);
 			}
 			else if (Settings.TransmittanceKernelType == 2)
 			{
@@ -251,7 +229,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		if ((LightChannelMask & Sample.LightChannelMask) == 0)
 		{
-			OutputColor[LocalOffset] = InitNullPackedHairTransmittanceMask();
+			OutTransmittanceMask[LocalOffset] = InitNullPackedHairTransmittanceMask();
 			return;
 		}
 
@@ -284,14 +262,27 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const float3 WorldPosition = ToWorldPosition(UV, SceneDepth);
 		const FHairTransmittanceMask TransmittanceMask = ComputeTransmittance(WorldPosition, Settings, DeepShadow_LayerDepths, DeepShadow_FrontDepthTexture, DeepShadow_DomTexture);
 
-		OutputColor[LocalOffset] = PackTransmittanceMask(TransmittanceMask);
+		OutTransmittanceMask[LocalOffset] = PackTransmittanceMask(TransmittanceMask);
 	}
 }
+#endif // #if SHADER_TRANSMITTANCE_DEEPSHADOW
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Voxel volume
+
+#if SHADER_TRANSMITTANCE_VOXEL
+
+#if PERMUTATION_TRAVERSAL == 1
+	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
+#else
+	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR
 #endif
 
-#if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL
+#define VOXEL_TRAVERSAL_DEBUG 0
+#include "HairStrandsVoxelPageTraversal.ush"
 
 #if VOXEL_TRAVERSAL_DEBUG
+#include "../ShaderPrintCommon.ush"
 void PrintInfo(uint Index, uint2 PixelCoord, FHairTransmittanceMask TransmittanceMask)
 {
 	#if 0
@@ -333,7 +324,15 @@ void PrintInfo(uint Index, uint2 PixelCoord, FHairTransmittanceMask Transmittanc
 	Pos = ShaderPrintNewline(Pos);
 	#endif
 }
-#endif
+#endif // VOXEL_TRAVERSAL_DEBUG
+
+float3				LightDirection;
+uint				LightChannelMask;
+float4				LightPosition;
+float				LightRadius;
+Texture2D<float4> 	RayMarchMaskTexture;
+Buffer<uint4>		IndirectArgsBuffer;
+RWBuffer<uint>		OutTransmittanceMask;
 
 FHairTransmittanceMask ComputeTransmittanceVoxel(
 	const uint2 PixelCoord,
@@ -432,7 +431,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		// This pixel is already fully shadowed opaque. (RayMarchMaskTexture is computed using the closest sample as of today)
 		const FHairTransmittanceMask DefaultMask = InitHairTransmittanceMask();
-		OutputColor[LocalOffset] = PackTransmittanceMask(DefaultMask);
+		OutTransmittanceMask[LocalOffset] = PackTransmittanceMask(DefaultMask);
 		return;
 	}
 
@@ -447,7 +446,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		if ((LightChannelMask & Sample.LightChannelMask) == 0)
 		{
-			OutputColor[LocalOffset] = InitNullPackedHairTransmittanceMask();
+			OutTransmittanceMask[LocalOffset] = InitNullPackedHairTransmittanceMask();
 			return;
 		}
 
@@ -481,12 +480,11 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		}
 		#endif	
 
-		OutputColor[LocalOffset] = PackTransmittanceMask(Out);
+		OutTransmittanceMask[LocalOffset] = PackTransmittanceMask(Out);
 	}
 }
-#endif
 
-#endif // SHADER_TRANSMITTANCE
+#endif // SHADER_TRANSMITTANCE_VOXEL
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
