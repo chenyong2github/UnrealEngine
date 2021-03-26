@@ -11,6 +11,7 @@
 let robomergeUser
 
 window.showNodeLastChanges = false
+window.allowNodeReconsiders = false
 
 // Common mutex variable around displaying error messages
 let clearer = null
@@ -1248,32 +1249,20 @@ function renderActionsCell_Common(actionCell, data, operationFunction, operation
 	}
 	const botname = operationArgs[0]
 	const branchNameForAPI = operationArgs[1]
+	const optEdgeName = operationArgs[2]
 	const dataDisplayName = getDisplayName(data)
 	const dataFullName = `${botname}:${dataDisplayName}`
 
 	// Start collecting available actions in our button group
-	let buttonGroup = $('<div class="btn-group">').appendTo(actionCell)
-	// Ensure we don't do a refresh of the branch list while displaying a dropdown
-	buttonGroup.on('show.bs.dropdown', function() {
-		// Check to see if we have our mutex function
-		if (typeof pauseAutoRefresh === 'function') {
-			pauseAutoRefresh()
-		}
-	})
-	buttonGroup.on('hidden.bs.dropdown', function() {
-		// Check to see if we have our mutex function
-		if (typeof resumeAutoRefresh === 'function') {
-			resumeAutoRefresh()
-		}
-	})
+
 
 
 	// Keep track if we have an individual action button forming our default option for a given NodeBot ---
 	// this controls how we render the dropdown menu
-	let actionButton = null
+	let specificActionButton = null
 	// If manually paused, the default option should be to unpause it
 	if (data.is_paused) {
-		actionButton = createActionButton(
+		specificActionButton = createActionButton(
 			`Unpause`,
 			function() {
 				operationFunction(...operationArgs, '/unpause', function(success) {
@@ -1324,7 +1313,7 @@ function renderActionsCell_Common(actionCell, data, operationFunction, operation
 
 		// Acknowledge
 		if (!data.blockage.acknowledger) {
-			actionButton = createActionButton(
+			specificActionButton = createActionButton(
 				[$('<i class="fas fa-exclamation-triangle" style="color:yellow">'), '&nbsp;', "Acknowledge"],
 				ackFunc,
 				'Take ownership of this blockage'
@@ -1332,7 +1321,7 @@ function renderActionsCell_Common(actionCell, data, operationFunction, operation
 		} 
 		// Unackowledge
 		else if (robomergeUser && data.blockage.acknowledger === robomergeUser.userName) {
-			actionButton = createActionButton(
+			specificActionButton = createActionButton(
 				[$('<i class="fas fa-eject" style="color:red">'), '&nbsp;', "Unacknowledge"],
 				unackFunc,
 				'Relinguish control over this conflict'
@@ -1340,35 +1329,16 @@ function renderActionsCell_Common(actionCell, data, operationFunction, operation
 		}
 		// Take ownership
 		else {
-			actionButton = createActionButton(
+			specificActionButton = createActionButton(
 				[$('<i class="fas fa-hands-helping" style="color:white">'), '&nbsp;', "Take Ownership"],
 				ackFunc,
 				`Take ownership of this blockage over ${data.blockage.acknowledger}`
 			)
 		}
 	}
-	// If the node isn't Paused or Blocked, our action button needn't have an actual function, just provide the dropdown
-	
-	// Create dropdown menu button
-	let actionsDropdownButton = $('<button class="btn dropdown-toggle" data-toggle="dropdown">')
-	// If there is already a button, we will append this no-text button to the end of it
-	if (actionButton) {
-		buttonGroup.append(actionButton)
-		actionsDropdownButton.addClass('btn-primary-alt') // This is our own take on the primary button
-		actionsDropdownButton.addClass('dropdown-toggle-split')
-	}
-	// If we have no conflicts, simply label our non-emergency actions
-	else {
-		// If we have no conflicts, simply label our non-emergency actions
-		actionsDropdownButton.text("Actions\n")
-		actionsDropdownButton.addClass('btn btn-secondary-alt') // This is our own take on the secondary  button
-	}
-	actionsDropdownButton.appendTo(buttonGroup)
 
-	// Start collecting dropdown options
-	let optionsList = $('<div class="dropdown-menu">').appendTo(buttonGroup)
-
-	
+	// collect actions that should be added to a drop-down, if any
+	const dropdownEntries = []
 	if (data.is_blocked) {
 		// If this object has a conflict, report it
 		if (conflict) {
@@ -1409,8 +1379,8 @@ function renderActionsCell_Common(actionCell, data, operationFunction, operation
 				stompOption.attr('data-original-title', `Stomp not available for ${conflict.kind.toLowerCase()}.`)
 			}
 
-			optionsList.append(shelfOption)
-			optionsList.append(stompOption)
+			dropdownEntries.push(shelfOption)
+			dropdownEntries.push(stompOption)
 		}
 
 		// Exposing this section in the case of a blockage but no conflict
@@ -1426,9 +1396,9 @@ function renderActionsCell_Common(actionCell, data, operationFunction, operation
 				updateBranchList(botname)
 			})
 		},  `Resume Robomerge monitoring of ${dataDisplayName} and retry ${data.blockage.change}`)
-		optionsList.append(retryOption)
+		dropdownEntries.push(retryOption)
 		
-		optionsList.append('<div class="dropdown-divider">')
+		dropdownEntries.push('<div class="dropdown-divider">')
 	}
 
 	if (!data.is_paused) {
@@ -1456,35 +1426,83 @@ function renderActionsCell_Common(actionCell, data, operationFunction, operation
 				})
 			}
 		},  `Pause Robomerge monitoring of ${dataDisplayName}`)	
-		optionsList.append(pauseOption)
+		dropdownEntries.push(pauseOption)
 	}
 
-	// Add Reconsider action
-	const reconsiderOption = createActionOption(`Reconsider...`, function() {
-		let data = promptFor({
-			cl: `Enter the CL to reconsider (should be a CL from ${dataDisplayName}):`
-		});
-		if (data) {
-			// Ensure they entered a CL
-			if (isNaN(parseInt(data.cl))) {
-				displayErrorMessage("Please provide a valid changelist number to reconsider.")
-				return
-			}
-
-			operationFunction(...operationArgs, "/reconsider?" + toQuery(data), function(success) {
-				if (success) {
-					displaySuccessfulMessage(`Reconsidering ${data.cl} in ${dataFullName}...`)
-				} else {
-					displayErrorMessage(`Error reconsidering ${data.cl}, please check logs.`)
-					$('#helpButton').trigger('click')
-				}
-				updateBranchList(botname)
+	if (optEdgeName || window.allowNodeReconsiders) {
+		// Add Reconsider action
+		const reconsiderOption = createActionOption(`Reconsider...`, function() {
+			let data = promptFor({
+				cl: `Enter the CL to reconsider (should be a CL from ${dataDisplayName}):`
 			});
-		}
-	}, `Manually submit a CL to Robomerge to process (should be a CL from ${dataDisplayName})`)
-	optionsList.append(reconsiderOption)
+			if (data) {
+				// Ensure they entered a CL
+				if (isNaN(parseInt(data.cl))) {
+					displayErrorMessage("Please provide a valid changelist number to reconsider.")
+					return
+				}
 
-	return actionCell
+				operationFunction(...operationArgs, "/reconsider?" + toQuery(data), function(success) {
+					if (success) {
+						displaySuccessfulMessage(`Reconsidering ${data.cl} in ${dataFullName}...`)
+					} else {
+						displayErrorMessage(`Error reconsidering ${data.cl}, please check logs.`)
+						$('#helpButton').trigger('click')
+					}
+					updateBranchList(botname)
+				});
+			}
+		}, `Manually submit a CL to Robomerge to process (should be a CL from ${dataDisplayName})`)
+		dropdownEntries.push(reconsiderOption)
+	}
+
+	// if no available actions, we're done
+	if (!specificActionButton && dropdownEntries.length === 0) {
+		return
+	}
+
+	const buttonGroup = $('<div class="btn-group">').appendTo(actionCell)
+	// Ensure we don't do a refresh of the branch list while displaying a dropdown
+	buttonGroup.on('show.bs.dropdown', function() {
+		// Check to see if we have our mutex function
+		if (typeof pauseAutoRefresh === 'function') {
+			pauseAutoRefresh()
+		}
+	})
+	buttonGroup.on('hidden.bs.dropdown', function() {
+		// Check to see if we have our mutex function
+		if (typeof resumeAutoRefresh === 'function') {
+			resumeAutoRefresh()
+		}
+	})
+
+	if (specificActionButton) {
+		buttonGroup.append(specificActionButton)
+	}
+
+	if (dropdownEntries.length > 0) {
+		// Create dropdown menu button
+		const actionsDropdownButton = $('<button class="btn dropdown-toggle" data-toggle="dropdown">')
+		// If there is already a button, we will append this no-text button to the end of it
+
+		if (specificActionButton) {
+			actionsDropdownButton.addClass('btn-primary-alt') // This is our own take on the primary button
+			actionsDropdownButton.addClass('dropdown-toggle-split')
+		}
+		else {
+			// If we have no conflicts, simply label our non-emergency actions
+			actionsDropdownButton.text('Actions\n')
+			actionsDropdownButton.addClass('btn btn-secondary-alt') // This is our own take on the secondary  button
+		}
+		actionsDropdownButton.appendTo(buttonGroup)
+
+		const optionsList = $('<div class="dropdown-menu">').appendTo(buttonGroup)
+		for (const entry of dropdownEntries) {
+			optionsList.append(entry)
+		}
+	}
+
+	return
 }
 
 function renderActionsCell_Edge(actionCell, nodeData, edgeData, conflict=null) {
