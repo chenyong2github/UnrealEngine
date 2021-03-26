@@ -19,6 +19,7 @@
 #include "EngineUtils.h"
 #include "Components/BrushComponent.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITOR
 #include "IContentBrowserSingleton.h"
@@ -27,7 +28,6 @@
 #include "Editor.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Misc/MessageDialog.h"
-#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectGlobals.h"
 #endif
 
