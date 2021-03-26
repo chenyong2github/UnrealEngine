@@ -211,9 +211,6 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	// Manually enable Async BVH build for D3D12 RHI
 	GRHISupportsRayTracingAsyncBuildAccelerationStructure = true;
 
-	// Allow high-level code to allocate ray tracing buffers
-	GRHISupportsRayTracingExplicitMemoryManagement = true;
-
 	GRHISupportsPipelineFileCache = PLATFORM_WINDOWS;
 }
 

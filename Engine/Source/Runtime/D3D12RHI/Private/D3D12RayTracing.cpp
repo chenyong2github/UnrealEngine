@@ -3291,28 +3291,22 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 	// Get maximum buffer sizes for all GPUs in the system
 	SizeInfo = RHICalcRayTracingSceneSize(BuildInputs.NumDescs, BuildFlags);
 
-	bExplicitMemoryManagement = Initializer.bExplicitMemoryManagement;
+	for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
+	{	
+		AccelerationStructureBuffers[GPUIndex] = CreateRayTracingBuffer(Adapter, GPUIndex, SizeInfo.ResultSize, ERayTracingBufferType::AccelerationStructure, DebugName);
 
-	// #yuriy_todo: this will be removed once all RHIs are moved to explicit buffer management. Leaving here for reference.
-	if (!Initializer.bExplicitMemoryManagement)
-	{
-		for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
-		{	
-			AccelerationStructureBuffers[GPUIndex] = CreateRayTracingBuffer(Adapter, GPUIndex, SizeInfo.ResultSize, ERayTracingBufferType::AccelerationStructure, DebugName);
-
-			INC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
-			INC_MEMORY_STAT_BY(STAT_D3D12RayTracingTLASMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
+		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
+		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingTLASMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
 	
-			FD3D12ShaderResourceView* View = FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(ShaderResourceView.GetReference(), GPUIndex);
+		FD3D12ShaderResourceView* View = FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(ShaderResourceView.GetReference(), GPUIndex);
 
-			D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
-			SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
-			SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-			SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			SRVDesc.RaytracingAccelerationStructure.Location = AccelerationStructureBuffers[GPUIndex]->ResourceLocation.GetGPUVirtualAddress();
+		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+		SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
+		SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		SRVDesc.RaytracingAccelerationStructure.Location = AccelerationStructureBuffers[GPUIndex]->ResourceLocation.GetGPUVirtualAddress();
 
-			View->Initialize(SRVDesc, AccelerationStructureBuffers[GPUIndex], 4, 0);
-		}
+		View->Initialize(SRVDesc, AccelerationStructureBuffers[GPUIndex], 4, 0);
 	}
 };
 
@@ -3340,7 +3334,6 @@ FD3D12RayTracingScene::~FD3D12RayTracingScene()
 
 void FD3D12RayTracingScene::BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOffset)
 {
-	checkf(bExplicitMemoryManagement, TEXT("BindBuffer API can only be used when the scene is created in explicit memory management mode."));
 	check(SizeInfo.ResultSize + InBufferOffset <= InBuffer->GetSize());
 
 	for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
@@ -3369,8 +3362,6 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 	static const FName ScratchBufferName("BuildScratchTLAS");
 	ScratchBuffer = CreateRayTracingBuffer(Adapter, GPUIndex, PrebuildInfo.ScratchDataSizeInBytes, ERayTracingBufferType::Scratch, ScratchBufferName);
-
-	FD3D12ShaderResourceView* AccelerationStructureView = CommandContext.RetrieveObject<FD3D12ShaderResourceView>(ShaderResourceView.GetReference());
 
 	// Create and fill instance buffer
 
@@ -3503,6 +3494,9 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	}
 
 	TRefCountPtr<FD3D12Buffer>& AccelerationStructureBuffer = AccelerationStructureBuffers[GPUIndex];
+	checkf(AccelerationStructureBuffer.IsValid(), 
+		TEXT("Acceleration structure buffer must be set for this scene using RHIBindAccelerationStructureMemory() before build command is issued."));
+
 	AccelerationStructureBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
 	ScratchBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
 

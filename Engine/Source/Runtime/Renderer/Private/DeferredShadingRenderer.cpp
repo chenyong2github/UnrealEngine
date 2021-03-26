@@ -1261,15 +1261,12 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
 		PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
 
-		if (GRHISupportsRayTracingExplicitMemoryManagement)
-		{
-			// #yuriy_todo: allocate these using RDG transient resources!
-			FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingSceneSize(NumTotalInstances, ERayTracingAccelerationStructureFlags::FastTrace);
-			check(SizeInfo.ResultSize < ~0u);
-			FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingSceneBuffer"));
-			View.RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, CreateInfo);
-			View.RayTracingSceneSRV = RHICreateShaderResourceView(View.RayTracingSceneBuffer);
-		}
+		// #yuriy_todo: allocate these using RDG transient resources!
+		FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingSceneSize(NumTotalInstances, ERayTracingAccelerationStructureFlags::FastTrace);
+		check(SizeInfo.ResultSize < ~0u);
+		FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingSceneBuffer"));
+		View.RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, CreateInfo);
+		View.RayTracingSceneSRV = RHICreateShaderResourceView(View.RayTracingSceneBuffer);
 
 		View.CreateRayTracingSceneTask = FFunctionGraphTask::CreateAndDispatchWhenReady([
 			NumTotalInstances,
@@ -1284,7 +1281,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 			SceneInitializer.Instances = Instances;
 			SceneInitializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
 			SceneInitializer.NumMissShaderSlots = RAY_TRACING_NUM_MISS_SHADER_SLOTS;
-			SceneInitializer.bExplicitMemoryManagement = GRHISupportsRayTracingExplicitMemoryManagement;
 
 			ResultScene = RHICreateRayTracingScene(SceneInitializer);
 
@@ -1339,12 +1335,10 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 			{
 				FViewInfo& View = Views[ViewIndex];
 				FRHIRayTracingScene* RayTracingScene = View.GetRayTracingSceneChecked();
-				if (GRHISupportsRayTracingExplicitMemoryManagement)
-				{
-					check(View.RayTracingSceneBuffer.IsValid());
-					check(View.RayTracingSceneSRV.IsValid());
-					RHIAsyncCmdList.BindAccelerationStructureMemory(RayTracingScene, View.RayTracingSceneBuffer, 0);
-				}
+
+				check(View.RayTracingSceneBuffer.IsValid());
+				check(View.RayTracingSceneSRV.IsValid());
+				RHIAsyncCmdList.BindAccelerationStructureMemory(RayTracingScene, View.RayTracingSceneBuffer, 0);
 
 				RHIAsyncCmdList.BuildAccelerationStructure(RayTracingScene);
 			}
@@ -1372,12 +1366,9 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 					FViewInfo& View = Views[ViewIndex];
 					FRHIRayTracingScene* RayTracingScene = View.GetRayTracingSceneChecked();
 
-					if (GRHISupportsRayTracingExplicitMemoryManagement)
-					{
-						check(View.RayTracingSceneBuffer.IsValid());
-						check(View.RayTracingSceneSRV.IsValid());
-						RHICmdList.BindAccelerationStructureMemory(RayTracingScene, View.RayTracingSceneBuffer, 0);
-					}
+					check(View.RayTracingSceneBuffer.IsValid());
+					check(View.RayTracingSceneSRV.IsValid());
+					RHICmdList.BindAccelerationStructureMemory(RayTracingScene, View.RayTracingSceneBuffer, 0);
 
 					RHICmdList.BuildAccelerationStructure(RayTracingScene);
 				}

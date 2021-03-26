@@ -1033,15 +1033,8 @@ FRHIRayTracingScene* FViewInfo::GetRayTracingSceneChecked() const
 }
 FRHIShaderResourceView* FViewInfo::GetRayTracingSceneViewChecked() const
 {
-	FRHIShaderResourceView* Result = nullptr;
-	if (GRHISupportsRayTracingExplicitMemoryManagement)
-	{
-		Result = RayTracingSceneSRV.GetReference();
-	}
-	else
-	{
-		Result = GetRayTracingSceneChecked()->GetShaderResourceView();
-	}
+	FRHIShaderResourceView* Result = RayTracingSceneSRV.GetReference();
+
 	checkf(Result, TEXT("Ray tracing scene SRV is expected to be created at this point."));
 	return Result;
 }

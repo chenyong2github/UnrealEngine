@@ -927,7 +927,6 @@ bool GRHISupportsRayTracing = false;
 bool GRHISupportsRayTracingPSOAdditions = false;
 bool GRHISupportsRayTracingDispatchIndirect = false;
 bool GRHISupportsRayTracingAsyncBuildAccelerationStructure = false;
-bool GRHISupportsRayTracingExplicitMemoryManagement = false;
 bool GRHISupportsRayTracingAMDHitToken = false;
 bool GRHISupportsWaveOperations = false;
 int32 GRHIMinimumWaveSize = 4; // Minimum supported value in SM 6.0

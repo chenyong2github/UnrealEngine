@@ -157,8 +157,6 @@ public:
 
 	uint64 LastCommandListID = 0;
 
-	bool bExplicitMemoryManagement = false;
-
 	FName DebugName;
 };
 

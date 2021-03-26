@@ -250,13 +250,6 @@ struct FRayTracingSceneInitializer
 	// Currently only single-frame lifetime is supported.
 	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
 
-	// If this is enabled, the RHI will not create the acceleration structure result buffer and SRV automatically.
-	// User must create and manage those explicitly in high-level rendering code.
-	// Buffer must be created with BUF_AccelerationStructure usage.
-	// Buffer must be bound to the acceleration structure using RHIBindAccelerationStructureMemory command before 
-	// the acceleration structure is used for any other GPU command.
-	// This can only be used if GRHISupportsRayTracingExplicitMemoryManagement is true.
-	bool bExplicitMemoryManagement = false;
 
 	FName DebugName;
 };
