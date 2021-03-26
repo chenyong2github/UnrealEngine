@@ -2352,7 +2352,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// or composite the off screen buffer over the scene.
 	if (bVolumetricRenderTargetRequired)
 	{
-		ComposeVolumetricRenderTargetOverScene(GraphBuilder, SceneColorTexture.Target, SceneDepthTexture.Target, bShouldRenderSingleLayerWater, SceneWithoutWaterTextures);
+		ComposeVolumetricRenderTargetOverScene(GraphBuilder, SceneColorTexture.Target, bShouldRenderSingleLayerWater, SceneWithoutWaterTextures, SceneTextures);
 	}
 
 	FRendererModule& RendererModule = static_cast<FRendererModule&>(GetRendererModule());
@@ -2548,7 +2548,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), false, true, SceneColorTexture, SceneDepthTexture, false);
 		ReconstructVolumetricRenderTarget(GraphBuilder, false);
-		ComposeVolumetricRenderTargetOverSceneForVisualization(GraphBuilder, SceneColorTexture.Target);
+		ComposeVolumetricRenderTargetOverSceneForVisualization(GraphBuilder, SceneColorTexture.Target, SceneTextures);
 		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), true, false, SceneColorTexture, SceneDepthTexture, false);
 		AddServiceLocalQueuePass(GraphBuilder);
 	}

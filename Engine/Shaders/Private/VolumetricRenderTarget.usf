@@ -304,6 +304,8 @@ void ReconstructVolumetricRenderTargetPS(
 
 #ifdef SHADER_COMPOSE_VOLUMETRICRT
 
+#include "SceneTexturesCommon.ush"
+
 SamplerState LinearTextureSampler;
 
 Texture2D<float4> VolumetricTexture;
@@ -409,7 +411,7 @@ void ComposeVolumetricRTOverScenePS(
 
 	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, ClipPosition.z, 1.0)), 1.0).xyz;
 #else
-	float PixelDeviceZ = SceneDepthTexture.Load(uint3(SVPos.xy, 0)).r;
+	float PixelDeviceZ = SceneTexturesStruct.SceneDepthTexture.Load(uint3(SVPos.xy, 0)).r;
 	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, PixelDeviceZ, 1.0)), 1.0).xyz;
 #endif 
 
@@ -578,6 +580,10 @@ void ComposeVolumetricRTOverScenePS(
 
 #endif
 
+	// We only want to run the special "cloud over water" code path on actual water pixels, otherwise depth threshold can cause visual issues.
+	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
+	const bool bIsWaterPixel = ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
+
 	uint2 VolumeCoord0 = max(0, int2(VolumeCoordUInt) + int2(0, 0));
 	uint2 VolumeCoord1 = max(0, int2(VolumeCoordUInt) + int2(OffsetX, 0));
 	uint2 VolumeCoord2 = max(0, int2(VolumeCoordUInt) + int2(OffsetX, OffsetY));
@@ -614,42 +620,46 @@ void ComposeVolumetricRTOverScenePS(
 		float4 VolumeRGBT2 = SafeLoadVolumetricTexture(VolumeCoord2);
 		float4 VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeCoord3);
 
-		const float ConsideredFarWaterDistanceKm = 1.0f;				// We only apply the fix for pixel that are further than 1km
-		const float NotRenderedPixelDistanceKm = 500.0f;				// We assume pixel have a depth greater than that such distant depth pixel
-		if (any(Depth4 > NotRenderedPixelDistanceKm)					// Some pixels have non rendered pixel...
-			&& !all(Depth4 > NotRenderedPixelDistanceKm)				// ...but not all (in this case we want to fall back to bilinear filtering).
-			&& PixelDistanceFromViewKm > ConsideredFarWaterDistanceKm)	// Only treat this way pixel that are far enough to not mix up close object with far water.
+		if (bIsWaterPixel)
 		{
-			// This is a special case / hack added for to fix some visual issues encoutnered with water as of today.
-			// Water is render after checker boarded minmax depth is taken for cloud rendering (because clouds also needs to be rendered within the water pass).
-			// As such, the reconstructure fails a taking a matching color for a matching depth (cloud depth = 1000km but water is closer, less than 2 kilometers).
-			// This does not handle all the cases but fixes current issues with the water system.
-			// ==> this code can be removed when we automatically fix up edges of objects to have sharp silhouette under strong conflicting motion.
-			const float AcceptanceOffsetKm = 0.001f;
-			if (VolumeFrontDepth0.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
+			// Only do the following is the pixel is water
+			const float ConsideredFarWaterDistanceKm = 1.0f;				// We only apply the fix for pixel that are further than 1km
+			const float NotRenderedPixelDistanceKm = 500.0f;				// We assume pixel have a depth greater than that such distant depth pixel
+			if (any(Depth4 > NotRenderedPixelDistanceKm)					// Some pixels have non rendered pixel...
+				&& !all(Depth4 > NotRenderedPixelDistanceKm)				// ...but not all (in this case we want to fall back to bilinear filtering).
+				&& PixelDistanceFromViewKm > ConsideredFarWaterDistanceKm)	// Only treat this way pixel that are far enough to not mix up close object with far water.
 			{
-				DataAcc += VolumeRGBT0;
-				ValidSampleCount++;
+				// This is a special case / hack added for to fix some visual issues encoutnered with water as of today.
+				// Water is render after checker boarded minmax depth is taken for cloud rendering (because clouds also needs to be rendered within the water pass).
+				// As such, the reconstructure fails a taking a matching color for a matching depth (cloud depth = 1000km but water is closer, less than 2 kilometers).
+				// This does not handle all the cases but fixes current issues with the water system.
+				// ==> this code can be removed when we automatically fix up edges of objects to have sharp silhouette under strong conflicting motion.
+				const float AcceptanceOffsetKm = 0.001f;
+				if (VolumeFrontDepth0.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
+				{
+					DataAcc += VolumeRGBT0;
+					ValidSampleCount++;
+				}
+				if (VolumeFrontDepth1.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
+				{
+					DataAcc += VolumeRGBT1;
+					ValidSampleCount++;
+				}
+				if (VolumeFrontDepth2.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
+				{
+					DataAcc += VolumeRGBT2;
+					ValidSampleCount++;
+				}
+				if (VolumeFrontDepth3.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
+				{
+					DataAcc += VolumeRGBT3;
+					ValidSampleCount++;
+				}
+				//DataAcc = float4(1.0, 1.0, 0, 0); 
 			}
-			if (VolumeFrontDepth1.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
-			{
-				DataAcc += VolumeRGBT1;
-				ValidSampleCount++;
-			}
-			if (VolumeFrontDepth2.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
-			{
-				DataAcc += VolumeRGBT2;
-				ValidSampleCount++;
-			}
-			if (VolumeFrontDepth3.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
-			{
-				DataAcc += VolumeRGBT3;
-				ValidSampleCount++;
-			}
-			//DataAcc = float4(1.0, 1.0, 0, 0); 
 		}
 
-		if(ValidSampleCount == 0 && bAllCloudSamplesInFrontOfWater)
+		if(!bIsWaterPixel || bIsWaterPixel && ValidSampleCount == 0 && bAllCloudSamplesInFrontOfWater) // if not water, do not do this test!
 		{
 			// Depth discontinuities edges
 			float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
