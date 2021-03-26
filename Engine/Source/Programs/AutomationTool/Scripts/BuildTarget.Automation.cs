@@ -113,7 +113,7 @@ namespace AutomationTool
 				}
 			}
 
-			IEnumerable<string> BuildTargets = TargetList.Select(T => ProjectTargetFromTarget(T, ProjectFile)).ToArray();			
+			IEnumerable<string> BuildTargets = TargetList.Select(T => ProjectTargetFromTarget(T, ProjectFile, PlatformList, ConfigurationList)).ToArray();			
 
 			bool ContainsEditor = BuildTargets.Where(T => T.EndsWith("Editor", StringComparison.OrdinalIgnoreCase)).Any();
 			bool SingleBuild = BuildTargets.Count() == 1 && PlatformList.Count() == 1 && ConfigurationList.Count() == 1;
@@ -204,9 +204,9 @@ namespace AutomationTool
 			return ExitCode.Success;
 		}
 
-		public string ProjectTargetFromTarget(string InTargetName, FileReference InProjectFile)
+		public string ProjectTargetFromTarget(string InTargetName, FileReference InProjectFile, IEnumerable<UnrealTargetPlatform> InPlatformList, IEnumerable<UnrealTargetConfiguration> InConfigurationList)
 		{
-			ProjectProperties Properties = InProjectFile != null ? ProjectUtils.GetProjectProperties(InProjectFile) : null;
+			ProjectProperties Properties = InProjectFile != null ? ProjectUtils.GetProjectProperties(InProjectFile, InPlatformList.ToList(), InConfigurationList.ToList()) : null;
 
 			string ProjectTarget = null;
 
