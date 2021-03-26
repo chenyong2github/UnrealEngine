@@ -109,3 +109,9 @@ private:
 };
 
 DEFINE_ACTORDESC_TYPE(AWorldPartitionHLOD, FHLODActorDesc);
+
+UCLASS()
+class UWorldPartitionRuntimeHLODCellData : public UWorldPartitionRuntimeCellData
+{
+	GENERATED_UCLASS_BODY()
+};

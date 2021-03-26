@@ -10,6 +10,7 @@
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/HLOD/HLODActor.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -18,11 +19,20 @@
 #include "DrawDebugHelpers.h"
 #include "DisplayDebugHelpers.h"
 #include "RenderUtils.h"
+#include "Algo/RemoveIf.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "LevelEditorViewport.h"
 #endif
+
+int32 GWorldPartitionShowHLODs = 1;
+static FAutoConsoleVariableRef CVarWorldPartitionShowHLODs(
+	TEXT("wp.Runtime.HLOD"),
+	GWorldPartitionShowHLODs,
+	TEXT("Turn on/off loading & rendering of world partition HLODs."),
+	ECVF_Scalability
+);
 
 UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer) 
@@ -145,6 +155,23 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			WorldPartition->RuntimeHash->GetStreamingCells(StreamingSources, ActivateStreamingCells, LoadStreamingCells);
 			// Activation superseeds Loading
 			LoadStreamingCells = LoadStreamingCells.Difference(ActivateStreamingCells);
+		}
+
+		if (!GWorldPartitionShowHLODs)
+		{
+			// Remove all HLOD cells from the Activate & Load cells
+			auto RemoveHLODCells = [](TSet<const UWorldPartitionRuntimeCell*>& Cells)
+			{
+				for (auto It = Cells.CreateIterator(); It; ++It)
+				{
+					if ((*It)->HasCellData<UWorldPartitionRuntimeHLODCellData>())
+					{
+						It.RemoveCurrent();
+					}
+				}
+			};
+			RemoveHLODCells(ActivateStreamingCells);
+			RemoveHLODCells(LoadStreamingCells);
 		}
 
 		// Determine cells to load/unload

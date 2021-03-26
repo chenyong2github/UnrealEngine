@@ -134,6 +134,7 @@ class UWorldPartitionRuntimeCell : public UObject
 
 	const UWorldPartitionRuntimeCellData* GetCellData(const TSubclassOf<UWorldPartitionRuntimeCellData> InCellDataClass) const;
 	template <class T> inline const T* GetCellData() const { return Cast<const T>(GetCellData(T::StaticClass())); }
+	template <class T> inline bool HasCellData() const { return GetCellData<T>() != nullptr; }
 
 protected:
 	UPROPERTY()
