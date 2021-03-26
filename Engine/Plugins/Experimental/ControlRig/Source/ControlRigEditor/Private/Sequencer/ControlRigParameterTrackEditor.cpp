@@ -932,18 +932,24 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 						BakeSettings->bReduceKeys, BakeSettings->Tolerance);
 
 					//Turn Off Any Skeletal Animation Tracks
-					UMovieSceneSkeletalAnimationTrack* SkelTrack = Cast<UMovieSceneSkeletalAnimationTrack>(OwnerMovieScene->FindTrack(UMovieSceneSkeletalAnimationTrack::StaticClass(), ObjectBinding, NAME_None));
-					if (SkelTrack)
+					const FMovieSceneBinding* Binding = OwnerMovieScene->FindBinding(ObjectBinding);
+					if (Binding)
 					{
-						SkelTrack->Modify();
-						//can't just turn off the track so need to mute the sections
-						const TArray<UMovieSceneSection*>& Sections = SkelTrack->GetAllSections();
-						for (UMovieSceneSection* Section : Sections)
+						for (UMovieSceneTrack* MovieSceneTrack : Binding->GetTracks())
 						{
-							if (Section)
+							if (UMovieSceneSkeletalAnimationTrack* SkelTrack = Cast<UMovieSceneSkeletalAnimationTrack>(MovieSceneTrack))
 							{
-								Section->TryModify();
-								Section->SetIsActive(false);
+								SkelTrack->Modify();
+								//can't just turn off the track so need to mute the sections
+								const TArray<UMovieSceneSection*>& Sections = SkelTrack->GetAllSections();
+								for (UMovieSceneSection* Section : Sections)
+								{
+									if (Section)
+									{
+										Section->TryModify();
+										Section->SetIsActive(false);
+									}
+								}
 							}
 						}
 					}
