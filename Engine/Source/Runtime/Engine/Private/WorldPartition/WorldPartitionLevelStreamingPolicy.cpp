@@ -212,6 +212,14 @@ void UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping()
 		for (const FWorldPartitionRuntimeCellObjectMapping& CellObjectMap : StreamingCell->GetPackages())
 		{
 			ActorToCellRemapping.Add(CellObjectMap.Path, StreamingCell->GetFName());
+
+			FString SubObjectName;
+			FString SubObjectContext;
+			verify(CellObjectMap.Path.ToString().Split(TEXT("."), &SubObjectContext, &SubObjectName));
+
+			int32 DotPos = SubObjectName.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+			check(DotPos != INDEX_NONE);
+			ActorToCellRemappingForPIE.Add(*SubObjectName.Right(SubObjectName.Len() - DotPos - 1), StreamingCell->GetFName());
 		}
 	}
 }
@@ -274,4 +282,21 @@ void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& O
 	}
 }
 
+UObject* UWorldPartitionLevelStreamingPolicy::GetSubObject(const TCHAR* SubObjectPath)
+{
+	FString SrcPath = UWorld::RemovePIEPrefix(SubObjectPath);
+
+	if (FName* CellName = ActorToCellRemappingForPIE.Find(FName(*SrcPath)))
+	{
+		if (UWorldPartitionRuntimeLevelStreamingCell* Cell = (UWorldPartitionRuntimeLevelStreamingCell*)StaticFindObject(UWorldPartitionRuntimeLevelStreamingCell::StaticClass(), GetOuterUWorldPartition(), *(CellName->ToString())))
+		{
+			if (UWorldPartitionLevelStreamingDynamic* LevelStraming = Cell->GetLevelStreaming())
+			{
+				return StaticFindObject(UObject::StaticClass(), LevelStraming->GetRuntimeLevel(), SubObjectPath);
+			}
+		}
+	}
+
+	return nullptr;
+}
 #endif

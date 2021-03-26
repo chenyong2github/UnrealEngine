@@ -39,6 +39,7 @@ public:
 	virtual void PrepareActorToCellRemapping() {}
 	virtual void ClearActorToCellRemapping() {}
 	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) {}
+	virtual UObject* GetSubObject(const TCHAR* SubObjectPath) { return nullptr; }
 #endif
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const { return StreamingSources; }

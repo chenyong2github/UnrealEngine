@@ -31,6 +31,7 @@ public:
 	virtual void PrepareActorToCellRemapping() override;
 	virtual void ClearActorToCellRemapping() override;
 	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) override;
+	virtual UObject* GetSubObject(const TCHAR* SubObjectPath) override;
 	static FString GetCellPackagePath(const FName& InCellName, const UWorld* InWorld);
 #endif
 
@@ -42,5 +43,6 @@ private:
 
 #if WITH_EDITOR
 	TMap<FName, FName> ActorToCellRemapping;
+	TMap<FName, FName> ActorToCellRemappingForPIE;
 #endif
 };

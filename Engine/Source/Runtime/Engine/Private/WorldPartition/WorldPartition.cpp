@@ -916,20 +916,31 @@ void UWorldPartition::BeginDestroy()
 #if WITH_EDITOR
 bool UWorldPartition::LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence)
 {
-	for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	if (GetWorld()->IsGameWorld())
 	{
-		FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
-
-		if (FString(ActorDesc->ActorPath.ToString()).EndsWith(SubObjectPath))
+		if (UObject* SubObject = StreamingPolicy->GetSubObject(SubObjectPath))
 		{
-			if (!bOnlyTestExistence)
-			{
-				LoadedSubobjects.Emplace(this, ActorDesc->GetGuid());
-			}
-
-			OutObject = ActorDescIterator->GetActor();
-
+			OutObject = bOnlyTestExistence ? nullptr : SubObject;
 			return true;
+		}
+	}
+	else
+	{
+		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+		{
+			FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
+
+			if (FString(ActorDesc->ActorPath.ToString()).EndsWith(SubObjectPath))
+			{
+				if (!bOnlyTestExistence)
+				{
+					LoadedSubobjects.Emplace(this, ActorDesc->GetGuid());
+				}
+
+				OutObject = ActorDescIterator->GetActor();
+
+				return true;
+			}
 		}
 	}
 

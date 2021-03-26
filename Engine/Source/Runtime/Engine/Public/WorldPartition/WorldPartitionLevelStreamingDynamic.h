@@ -41,6 +41,8 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 	virtual bool RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoadRequests, EReqLevelBlock BlockPolicy) override;
 	virtual void BeginDestroy() override;
 
+	ULevel* GetRuntimeLevel() const { return RuntimeLevel; }
+
 private:
 	void CreateRuntimeLevel();
 	bool IssueLoadRequests();
