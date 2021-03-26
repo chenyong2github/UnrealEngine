@@ -23,6 +23,7 @@
 #if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Generated/Material.ush"
+#include "VolumetricCloudMaterialPixelCommon.ush"
 
 #if !SHADER_RENDERVIEW_CS
 #include "/Engine/Generated/VertexFactory.ush"
@@ -145,8 +146,6 @@ void MainVS(
 // Common structures and functions
 ////////////////////////////////////////////////////////////
 
-#if CLOUD_LAYER_PIXEL_SHADER
-
 float3 HUEtoRGB(in float H)
 {
 	float R = abs(H * 6 - 3) - 1;
@@ -190,55 +189,6 @@ bool RayIntersectSphereSolution(float3 RayOrigin, float3 RayDirection, float4 Sp
 
 	return false;
 }
-
-struct FCloudLayerParameters
-{
-	float3 CloudLayerCenter;
-	float PlanetRadius;
-	float BottomRadius;
-	float TopRadius;
-	float ToNormAltitude;
-};
-
-FCloudLayerParameters GetCloudLayerParams()
-{
-	FCloudLayerParameters CloudLayerParams;
-	CloudLayerParams.CloudLayerCenter = RenderVolumetricCloudParameters.CloudLayerCenterKm * KILOMETER_TO_CENTIMETER;
-	CloudLayerParams.PlanetRadius = RenderVolumetricCloudParameters.PlanetRadiusKm * KILOMETER_TO_CENTIMETER;
-	CloudLayerParams.BottomRadius = RenderVolumetricCloudParameters.BottomRadiusKm * KILOMETER_TO_CENTIMETER;
-	CloudLayerParams.TopRadius = RenderVolumetricCloudParameters.TopRadiusKm * KILOMETER_TO_CENTIMETER;
-	CloudLayerParams.ToNormAltitude = 1.0 / (CloudLayerParams.TopRadius - CloudLayerParams.BottomRadius);
-	return CloudLayerParams;
-}
-
-#define TRACING_SHADOW_DISTANCE_OFF	0.0f
-
-// Function to update the material parameter structure for an evaluation
-void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters, 
-	float3 AbsoluteWorldPosition, in ViewState InputView, in FCloudLayerParameters CloudLayerParams,
-	in float ShadowSampleDistance)
-{
-	MaterialParameters.AbsoluteWorldPosition = AbsoluteWorldPosition;
-	MaterialParameters.WorldPosition_CamRelative = MaterialParameters.AbsoluteWorldPosition + InputView.PreViewTranslation.xyz;
-	//MaterialParameters.WorldPosition_NoOffsets;				// TODO
-	//MaterialParameters.WorldPosition_NoOffsets_CamRelative;	// TODO
-	MaterialParameters.CameraVector = normalize(InputView.WorldCameraOrigin - MaterialParameters.AbsoluteWorldPosition);
-
-	float CloudSampleAltitude = length(MaterialParameters.AbsoluteWorldPosition - CloudLayerParams.CloudLayerCenter);
-	MaterialParameters.CloudSampleAltitude = CloudSampleAltitude - CloudLayerParams.PlanetRadius;
-	MaterialParameters.CloudSampleAltitudeInLayer = CloudSampleAltitude - CloudLayerParams.BottomRadius;
-	MaterialParameters.CloudSampleNormAltitudeInLayer = saturate(MaterialParameters.CloudSampleAltitudeInLayer * CloudLayerParams.ToNormAltitude);
-
-	const float DefaultConservativeDensity = 1.0f;
-	MaterialParameters.VolumeSampleConservativeDensity = DefaultConservativeDensity;								// Defaults to "medium is potentially present" in case it is not fed by the user.
-#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-	MaterialParameters.VolumeSampleConservativeDensity = GetVolumetricAdvancedMaterialOutput6(MaterialParameters);	// Evaluate conservative density
-#endif
-
-	MaterialParameters.ShadowSampleDistance = ShadowSampleDistance;
-}
-
-#endif // CLOUD_LAYER_PIXEL_SHADER
 
 
 
@@ -614,7 +564,9 @@ bool TraceClouds(
 	ParticipatingMediaPhaseContext PMPC = SetupParticipatingMediaPhaseContext(IsotropicPhase(), IsotropicPhase(), MsPhaseFactor);
 #endif
 
-	FCloudLayerParameters CloudLayerParams = GetCloudLayerParams();
+	FCloudLayerParameters CloudLayerParams = GetCloudLayerParams(
+		RenderVolumetricCloudParameters.CloudLayerCenterKm, RenderVolumetricCloudParameters.PlanetRadiusKm, 
+		RenderVolumetricCloudParameters.BottomRadiusKm, RenderVolumetricCloudParameters.TopRadiusKm);
 
 	const float3 PlanetSurfaceNormal = float3(0.0f, 0.0f, 1.0f);	// Ambient contribution from the clouds is only done on a plane above the planet, e.g. do not support space view yet
 	const float3 GroundBrdfNdotL = saturate(dot(Light0Direction, PlanetSurfaceNormal)) * (RenderVolumetricCloudParameters.GroundAlbedo.rgb / PI); // Assuming pure Lambert diffuse surface.
@@ -1357,7 +1309,10 @@ void MainPS(
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
 
-	FCloudLayerParameters CloudLayerParams = GetCloudLayerParams();
+
+	FCloudLayerParameters CloudLayerParams = GetCloudLayerParams(
+		RenderVolumetricCloudParameters.CloudLayerCenterKm, RenderVolumetricCloudParameters.PlanetRadiusKm,
+		RenderVolumetricCloudParameters.BottomRadiusKm, RenderVolumetricCloudParameters.TopRadiusKm);
 	float2 UV = float2(SvPosition.xy * TraceContext.TracingPixelScaleOffset.xy + TraceContext.TracingPixelScaleOffset.zw) * TraceContext.SizeInvSize.zw;
 
 	const float NearZDepth = 1.0f; // using FReversedZOrthoMatrix
