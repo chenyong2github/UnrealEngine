@@ -34,10 +34,10 @@ FAutoConsoleVariableRef GVarLumenReflectionDownsampleFactor(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenReflectionTraceCards = 1;
-FAutoConsoleVariableRef GVarLumenReflectionTraceCards(
-	TEXT("r.Lumen.Reflections.TraceCards"),
-	GLumenReflectionTraceCards,
+int32 GLumenReflectionTraceMeshSDFs = 1;
+FAutoConsoleVariableRef GVarLumenReflectionTraceMeshSDFs(
+	TEXT("r.Lumen.Reflections.TraceMeshSDFs"),
+	GLumenReflectionTraceMeshSDFs,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
@@ -605,7 +605,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		GraphBuilder, 
 		Scene,
 		View, 
-		GLumenReflectionTraceCards != 0,
+		GLumenReflectionTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(),
 		SceneTextures,
 		TracingInputs,
 		ReflectionTracingParameters,

@@ -149,10 +149,10 @@ class FSetupReflectionCompactedTracesIndirectArgsCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FSetupReflectionCompactedTracesIndirectArgsCS, "/Engine/Private/Lumen/LumenReflectionTracing.usf", "SetupCompactedTracesIndirectArgsCS", SF_Compute);
 
-class FReflectionTraceCardsCS : public FGlobalShader
+class FReflectionTraceMeshSDFsCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FReflectionTraceCardsCS)
-	SHADER_USE_PARAMETER_STRUCT(FReflectionTraceCardsCS, FGlobalShader)
+	DECLARE_GLOBAL_SHADER(FReflectionTraceMeshSDFsCS)
+	SHADER_USE_PARAMETER_STRUCT(FReflectionTraceMeshSDFsCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
@@ -177,7 +177,7 @@ class FReflectionTraceCardsCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FReflectionTraceCardsCS, "/Engine/Private/Lumen/LumenReflectionTracing.usf", "ReflectionTraceCardsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FReflectionTraceMeshSDFsCS, "/Engine/Private/Lumen/LumenReflectionTracing.usf", "ReflectionTraceMeshSDFsCS", SF_Compute);
 
 
 class FReflectionTraceVoxelsCS : public FGlobalShader
@@ -283,7 +283,7 @@ void SetupIndirectTracingParametersForReflections(FLumenIndirectTracingParameter
 	OutParameters.MinTraceDistance = 0.0f;
 	OutParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance();
 	extern FLumenGatherCvarState GLumenGatherCvars;
-	OutParameters.MaxCardTraceDistance = FMath::Clamp(GLumenGatherCvars.CardTraceDistance, OutParameters.MinTraceDistance, OutParameters.MaxTraceDistance);
+	OutParameters.MaxMeshSDFTraceDistance = FMath::Clamp(GLumenGatherCvars.MeshSDFTraceDistance, OutParameters.MinTraceDistance, OutParameters.MaxTraceDistance);
 	OutParameters.SurfaceBias = FMath::Clamp(GLumenGatherCvars.SurfaceBias, .01f, 100.0f);
 	OutParameters.CardInterpolateInfluenceRadius = 10.0f;
 	OutParameters.DiffuseConeHalfAngle = 0.0f;
@@ -296,7 +296,7 @@ void TraceReflections(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	bool bTraceCards,
+	bool bTraceMeshSDFs,
 	const FSceneTextures& SceneTextures,
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
@@ -407,7 +407,7 @@ void TraceReflections(
 			0);
 	}
 	
-	if (bTraceCards)
+	if (bTraceMeshSDFs)
 	{
 		if (Lumen::UseHardwareRayTracedReflections())
 		{
@@ -450,10 +450,10 @@ void TraceReflections(
 					ReflectionTracingParameters,
 					ReflectionTileParameters,
 					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
-					IndirectTracingParameters.MaxCardTraceDistance);
+					IndirectTracingParameters.MaxMeshSDFTraceDistance);
 
 				{
-					FReflectionTraceCardsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceCardsCS::FParameters>();
+					FReflectionTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceMeshSDFsCS::FParameters>();
 					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 					PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 					PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
@@ -461,8 +461,8 @@ void TraceReflections(
 					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 					PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
-					FReflectionTraceCardsCS::FPermutationDomain PermutationVector;
-					auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceCardsCS>(PermutationVector);
+					FReflectionTraceMeshSDFsCS::FPermutationDomain PermutationVector;
+					auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceMeshSDFsCS>(PermutationVector);
 
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,

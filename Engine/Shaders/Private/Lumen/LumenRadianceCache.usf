@@ -756,7 +756,7 @@ float VoxelStepFactor;
 float MinSampleRadius;
 float MinTraceDistance;
 float MaxTraceDistance;
-float MaxCardTraceDistance;
+float MaxMeshSDFTraceDistance;
 
 FConeTraceResult TraceForProbeTexel(FConeTraceInput TraceInput)
 {
@@ -840,7 +840,7 @@ void TraceFromProbesCS(
 
 			bool bContinueCardTracing = false;
 
-			TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(FinalMinTraceDistance, FinalMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
+			TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(FinalMinTraceDistance, FinalMaxTraceDistance, MaxMeshSDFTraceDistance, bContinueCardTracing);
 
 			FConeTraceResult TraceResult = TraceForProbeTexel(TraceInput);
 

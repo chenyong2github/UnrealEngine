@@ -21,8 +21,8 @@ FLumenGatherCvarState GLumenGatherCvars;
 
 FLumenGatherCvarState::FLumenGatherCvarState()
 {
-	TraceCards = 1;
-	CardTraceDistance = 180.0f;
+	TraceMeshSDFs = 1;
+	MeshSDFTraceDistance = 180.0f;
 	SurfaceBias = 5.0f;
 	VoxelTracingMode = 0;
 }
@@ -35,16 +35,9 @@ FAutoConsoleVariableRef CVarLumenGlobalIllumination(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-FAutoConsoleVariableRef GVarLumenDiffuseTraceCards(
-	TEXT("r.Lumen.DiffuseIndirect.TraceCards"),
-	GLumenGatherCvars.TraceCards,
-	TEXT("."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-FAutoConsoleVariableRef GVarLumenDiffuseMaxCardTraceDistance(
-	TEXT("r.Lumen.DiffuseIndirect.MaxCardTraceDistance"),
-	GLumenGatherCvars.CardTraceDistance,
+FAutoConsoleVariableRef GVarLumenDiffuseMaxMeshSDFTraceDistance(
+	TEXT("r.Lumen.DiffuseIndirect.MaxMeshSDFTraceDistance"),
+	GLumenGatherCvars.MeshSDFTraceDistance,
 	TEXT("Max trace distance for the diffuse indirect card rays."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
@@ -108,7 +101,15 @@ float GLumenMaxTraceDistance = 10000.0f;
 FAutoConsoleVariableRef CVarLumenMaxTraceDistance(
 	TEXT("r.Lumen.MaxTraceDistance"),
 	GLumenMaxTraceDistance,
-	TEXT("Max tracing distance for voxel cone tracing."),
+	TEXT("Max tracing distance for all tracing methods and Lumen features."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenTraceMeshSDFs = 1;
+FAutoConsoleVariableRef CVarLumenTraceMeshSDFs(
+	TEXT("r.Lumen.TraceMeshSDFs"),
+	GLumenTraceMeshSDFs,
+	TEXT("Whether Lumen should trace against Mesh Signed Distance fields.  When enabled, Lumen's Software Tracing will be more accurate, but scenes with high instance density (overlapping meshes) will have high tracing costs.  When disabled, lower resolution Global Signed Distance Field will be used instead."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -143,6 +144,11 @@ FAutoConsoleVariableRef CVarCardGridDistributionZScale(
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
+
+bool Lumen::UseMeshSDFTracing()
+{
+	return GLumenTraceMeshSDFs != 0;
+}
 
 float Lumen::GetMaxTraceDistance()
 {
@@ -218,7 +224,7 @@ void SetupLumenDiffuseTracingParameters(FLumenIndirectTracingParameters& OutPara
 	OutParameters.MinSampleRadius = FMath::Clamp(GLumenDiffuseMinSampleRadius, .01f, 100.0f);
 	OutParameters.MinTraceDistance = FMath::Clamp(GLumenDiffuseMinTraceDistance, .01f, 1000.0f);
 	OutParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance();
-	OutParameters.MaxCardTraceDistance = FMath::Clamp(GLumenGatherCvars.CardTraceDistance, OutParameters.MinTraceDistance, OutParameters.MaxTraceDistance);
+	OutParameters.MaxMeshSDFTraceDistance = FMath::Clamp(GLumenGatherCvars.MeshSDFTraceDistance, OutParameters.MinTraceDistance, OutParameters.MaxTraceDistance);
 	OutParameters.SurfaceBias = FMath::Clamp(GLumenGatherCvars.SurfaceBias, .01f, 100.0f);
 	OutParameters.CardInterpolateInfluenceRadius = FMath::Clamp(GLumenDiffuseCardInterpolateInfluenceRadius, .01f, 1000.0f);
 	//@todo - remove
@@ -273,7 +279,7 @@ void CullForCardTracing(
 	CullMeshSDFObjectsToViewGrid(
 		View,
 		Scene,
-		IndirectTracingParameters.MaxCardTraceDistance,
+		IndirectTracingParameters.MaxMeshSDFTraceDistance,
 		IndirectTracingParameters.CardTraceEndDistanceFromCamera,
 		GCardFroxelGridPixelSize,
 		CardGridSizeZ,

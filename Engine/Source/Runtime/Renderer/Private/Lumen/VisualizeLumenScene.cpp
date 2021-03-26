@@ -42,18 +42,18 @@ FAutoConsoleVariableRef CVarLumenVisualizeStats(
 	ECVF_RenderThreadSafe
 );
 
-int32 GVisualizeLumenSceneTraceCards = 1;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneTraceCards(
-	TEXT("r.Lumen.Visualize.TraceCards"),
-	GVisualizeLumenSceneTraceCards,
-	TEXT("Whether to use card tracing for lumen scene visualization."),
+int32 GVisualizeLumenSceneTraceMeshSDFs = 1;
+FAutoConsoleVariableRef CVarVisualizeLumenSceneTraceMeshSDFs(
+	TEXT("r.Lumen.Visualize.TraceMeshSDFs"),
+	GVisualizeLumenSceneTraceMeshSDFs,
+	TEXT("Whether to use Mesh SDF tracing for lumen scene visualization."),
 	ECVF_RenderThreadSafe
 );
 
-float GVisualizeLumenSceneMaxCardTraceDistance = -1.0f;
+float GVisualizeLumenSceneMaxMeshSDFTraceDistance = -1.0f;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneCardMaxTraceDistance(
-	TEXT("r.Lumen.Visualize.MaxCardTraceDistance"),
-	GVisualizeLumenSceneMaxCardTraceDistance,
+	TEXT("r.Lumen.Visualize.MaxMeshSDFTraceDistance"),
+	GVisualizeLumenSceneMaxMeshSDFTraceDistance,
 	TEXT("Max trace distance for Lumen scene visualization rays. Values below 0 will automatically derrive this from cone angle."),
 	ECVF_RenderThreadSafe
 );
@@ -178,8 +178,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeLumenSceneParameters, )
 	SHADER_PARAMETER(float, VoxelStepFactor)
 	SHADER_PARAMETER(float, MinTraceDistance)
 	SHADER_PARAMETER(float, MaxTraceDistance)
-	SHADER_PARAMETER(float, MaxCardTraceDistanceForVoxelTracing)
-	SHADER_PARAMETER(float, MaxCardTraceDistance)
+	SHADER_PARAMETER(float, MaxMeshSDFTraceDistanceForVoxelTracing)
+	SHADER_PARAMETER(float, MaxMeshSDFTraceDistance)
 	SHADER_PARAMETER(float, CardInterpolateInfluenceRadius)
 	SHADER_PARAMETER(int, VisualizeClipmapIndex)
 	SHADER_PARAMETER(int, VisualizeVoxelFaceIndex)
@@ -200,10 +200,10 @@ class FVisualizeLumenSceneCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWSceneColor)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FTraceCards : SHADER_PERMUTATION_BOOL("TRACE_CARDS");
+	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("TRACE_CARDS");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 
-	using FPermutationDomain = TShaderPermutationDomain<FTraceCards, FRadianceCache>;
+	using FPermutationDomain = TShaderPermutationDomain<FTraceMeshSDFs, FRadianceCache>;
 
 public:
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -347,18 +347,18 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 		VisualizeParameters.VisualizeVoxelFaceIndex = FMath::Clamp(GVisualizeLumenSceneVoxelFaceIndex, -1, 5);
 		VisualizeParameters.CardInterpolateInfluenceRadius = GVisualizeLumenSceneCardInterpolateInfluenceRadius;
 
-		float MaxCardTraceDistance = GVisualizeLumenSceneMaxCardTraceDistance;
+		float MaxMeshSDFTraceDistance = GVisualizeLumenSceneMaxMeshSDFTraceDistance;
 
-		if (MaxCardTraceDistance <= 0)
+		if (MaxMeshSDFTraceDistance <= 0)
 		{
-			MaxCardTraceDistance = FMath::Clamp<float>(
+			MaxMeshSDFTraceDistance = FMath::Clamp<float>(
 				TracingInputs.ClipmapVoxelSizeAndRadius[0].W / FMath::Max(VisualizeParameters.TanPreviewConeAngle, 0.001f),
 				VisualizeParameters.MinTraceDistance,
 				VisualizeParameters.MaxTraceDistance);
 		}
 
-		VisualizeParameters.MaxCardTraceDistanceForVoxelTracing = FMath::Clamp(MaxCardTraceDistance, VisualizeParameters.MinTraceDistance, VisualizeParameters.MaxTraceDistance);
-		VisualizeParameters.MaxCardTraceDistance = FMath::Clamp(MaxCardTraceDistance, VisualizeParameters.MinTraceDistance, VisualizeParameters.MaxTraceDistance);
+		VisualizeParameters.MaxMeshSDFTraceDistanceForVoxelTracing = FMath::Clamp(MaxMeshSDFTraceDistance, VisualizeParameters.MinTraceDistance, VisualizeParameters.MaxTraceDistance);
+		VisualizeParameters.MaxMeshSDFTraceDistance = FMath::Clamp(MaxMeshSDFTraceDistance, VisualizeParameters.MinTraceDistance, VisualizeParameters.MaxTraceDistance);
 
 		if (bVisualizeScene)
 		{
@@ -371,7 +371,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				IndirectTracingParameters.CardInterpolateInfluenceRadius = VisualizeParameters.CardInterpolateInfluenceRadius;
 				IndirectTracingParameters.MinTraceDistance = VisualizeParameters.MinTraceDistance;
 				IndirectTracingParameters.MaxTraceDistance = VisualizeParameters.MaxTraceDistance;
-				IndirectTracingParameters.MaxCardTraceDistance = VisualizeParameters.MaxCardTraceDistance;
+				IndirectTracingParameters.MaxMeshSDFTraceDistance = VisualizeParameters.MaxMeshSDFTraceDistance;
 				LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
 				LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, RadianceCacheParameters);
 				
@@ -396,7 +396,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				MeshSDFGridParameters.CullGridSize = CullGridSize;
 
 				{
-					const float CardTraceEndDistanceFromCamera = VisualizeParameters.MaxCardTraceDistance;
+					const float CardTraceEndDistanceFromCamera = VisualizeParameters.MaxMeshSDFTraceDistance;
 
 					CullMeshSDFObjectsToViewGrid(
 						View,
@@ -419,10 +419,10 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, PassParameters->RadianceCacheParameters);
 				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 
-				bool bTraceCards = GVisualizeLumenSceneTraceCards != 0 && MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0;
+				bool bTraceMeshSDFs = GVisualizeLumenSceneTraceMeshSDFs != 0 && MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0;
 
 				FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FVisualizeLumenSceneCS::FTraceCards>(bTraceCards);
+				PermutationVector.Set<FVisualizeLumenSceneCS::FTraceMeshSDFs>(bTraceMeshSDFs);
 				PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenScreenProbeGather::UseRadianceCache(View));
 				PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 

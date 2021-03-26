@@ -34,7 +34,7 @@ float DiffuseConeHalfAngle;
 float MinSampleRadius;
 float MinTraceDistance;
 float MaxTraceDistance;
-float MaxCardTraceDistance;
+float MaxMeshSDFTraceDistance;
 float SurfaceBias;
 
 
@@ -130,7 +130,7 @@ void TraceRay(
 		//@todo - derive from card texel size
 		TraceInput.CardInterpolateDepthVisibilityRadius = 10;
 
-		FinalMaxTraceDistance = min(FinalMaxTraceDistance, MaxCardTraceDistance);
+		FinalMaxTraceDistance = min(FinalMaxTraceDistance, MaxMeshSDFTraceDistance);
 	}
 	#endif
 
@@ -148,7 +148,7 @@ void TraceRay(
 	TraceInput.VoxelTraceStartDistance = FinalMaxTraceDistance;
 #else
 	bool bContinueCardTracing = (DIM_LUMEN_TRACING_PERMUTATION == LUMEN_TRACING_VOXELS_AFTER_CARDS);
-	float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(MinTraceDistance, FinalMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
+	float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(MinTraceDistance, FinalMaxTraceDistance, MaxMeshSDFTraceDistance, bContinueCardTracing);
 	TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
 #endif
 		

@@ -32,7 +32,7 @@ SamplerState TranslucencyGIHistorySampler;
 
 float ConeHalfAngle;
 float MaxTraceDistance;
-float MaxCardTraceDistance;
+float MaxMeshSDFTraceDistance;
 uint NumCones;
 float4 ConeDirections[64];
 float StepFactor;
@@ -85,7 +85,7 @@ void TranslucencyLightingCS(
 		float SceneDepth;
 		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, FrameJitterOffset.xyz, SceneDepth);
 
-		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(0, MaxTraceDistance, MaxCardTraceDistance, false) * VoxelTraceStartDistanceScale;
+		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(0, MaxTraceDistance, MaxMeshSDFTraceDistance, false) * VoxelTraceStartDistanceScale;
 
 		FTwoBandSHVectorRGB Lighting = (FTwoBandSHVectorRGB)0;
 

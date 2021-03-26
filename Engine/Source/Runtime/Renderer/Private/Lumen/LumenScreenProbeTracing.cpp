@@ -180,10 +180,10 @@ class FSetupCompactedTracesIndirectArgsCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FSetupCompactedTracesIndirectArgsCS, "/Engine/Private/Lumen/LumenScreenProbeTracing.usf", "SetupCompactedTracesIndirectArgsCS", SF_Compute);
 
-class FScreenProbeTraceCardsCS : public FGlobalShader
+class FScreenProbeTraceMeshSDFsCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FScreenProbeTraceCardsCS)
-	SHADER_USE_PARAMETER_STRUCT(FScreenProbeTraceCardsCS, FGlobalShader)
+	DECLARE_GLOBAL_SHADER(FScreenProbeTraceMeshSDFsCS)
+	SHADER_USE_PARAMETER_STRUCT(FScreenProbeTraceMeshSDFsCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
@@ -210,7 +210,7 @@ class FScreenProbeTraceCardsCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FScreenProbeTraceCardsCS, "/Engine/Private/Lumen/LumenScreenProbeTracing.usf", "ScreenProbeTraceCardsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FScreenProbeTraceMeshSDFsCS, "/Engine/Private/Lumen/LumenScreenProbeTracing.usf", "ScreenProbeTraceMeshSDFsCS", SF_Compute);
 
 
 class FScreenProbeTraceVoxelsCS : public FGlobalShader
@@ -523,7 +523,7 @@ void TraceScreenProbes(
 	FRDGBuilder& GraphBuilder, 
 	const FScene* Scene,
 	const FViewInfo& View, 
-	bool bTraceCards,
+	bool bTraceMeshSDFs,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
 	FRDGTextureRef LightingChannelsTexture,
@@ -604,7 +604,7 @@ void TraceScreenProbes(
 	}
 
 	
-	if (bTraceCards)
+	if (bTraceMeshSDFs)
 	{
 		if (Lumen::UseHardwareRayTracedScreenProbeGather())
 		{
@@ -641,10 +641,10 @@ void TraceScreenProbes(
 					View,
 					ScreenProbeParameters,
 					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
-					IndirectTracingParameters.MaxCardTraceDistance);
+					IndirectTracingParameters.MaxMeshSDFTraceDistance);
 
 				{
-					FScreenProbeTraceCardsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceCardsCS::FParameters>();
+					FScreenProbeTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceMeshSDFsCS::FParameters>();
 					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 					PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 					PassParameters->ScreenProbeParameters = ScreenProbeParameters;
@@ -652,9 +652,9 @@ void TraceScreenProbes(
 					PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
 					PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
-					FScreenProbeTraceCardsCS::FPermutationDomain PermutationVector;
-					PermutationVector.Set< FScreenProbeTraceCardsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
-					auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceCardsCS>(PermutationVector);
+					FScreenProbeTraceMeshSDFsCS::FPermutationDomain PermutationVector;
+					PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
+					auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceMeshSDFsCS>(PermutationVector);
 
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,

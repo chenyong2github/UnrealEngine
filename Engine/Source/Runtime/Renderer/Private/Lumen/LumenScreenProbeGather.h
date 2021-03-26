@@ -113,7 +113,7 @@ extern void TraceScreenProbes(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	bool bTraceCards,
+	bool bTraceMeshSDFs,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
 	FRDGTextureRef LightingChannelsTexture,

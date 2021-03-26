@@ -56,20 +56,6 @@ static TAutoConsoleVariable<int32> CVarDistField(
 	TEXT("Enabling will increase mesh build times and memory usage.  Changing this value will cause a rebuild of all static meshes."),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarCompressDistField(
-	TEXT("r.DistanceFieldBuild.Compress"),
-	0,	
-	TEXT("Whether to store mesh distance fields compressed in memory, which reduces how much memory they take, but also causes serious hitches when making new levels visible.  Only enable if your project does not stream levels in-game.\n")
-	TEXT("Changing this regenerates all mesh distance fields."),
-	ECVF_ReadOnly);
-
-static TAutoConsoleVariable<int32> CVarEightBitDistField(
-	TEXT("r.DistanceFieldBuild.EightBit"),
-	0,	
-	TEXT("Whether to store mesh distance fields in an 8 bit fixed point format instead of 16 bit floating point.  \n")
-	TEXT("8 bit uses half the memory, but introduces artifacts for large meshes or thin meshes."),
-	ECVF_ReadOnly);
-
 static TAutoConsoleVariable<int32> CVarDistFieldRes(
 	TEXT("r.DistanceFields.MaxPerMeshResolution"),
 	512,	
@@ -146,17 +132,9 @@ FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 	const float VoxelDensity = CVarDensity->GetValueOnAnyThread();
 	const FString VoxelDensityString = VoxelDensity == .1f ? TEXT("") : FString::Printf(TEXT("_%.3f"), VoxelDensity);
 
-	static const auto CVarCompress = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.Compress"));
-	const bool bCompress = CVarCompress->GetValueOnAnyThread() != 0;
-	const FString CompressString = bCompress ? TEXT("") : TEXT("_uc");
-
-	static const auto CVarEightBit = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.EightBit"));
-	const bool bEightBitFixedPoint = CVarEightBit->GetValueOnAnyThread() != 0;
-	const FString FormatString = bEightBitFixedPoint ? TEXT("_8u") : TEXT("");
-
 	return FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("DIST"),
-		*FString::Printf(TEXT("%s_%s%s%s%s%s"), *InMeshKey, DISTANCEFIELD_DERIVEDDATA_VER, *PerMeshMaxString, *VoxelDensityString, *CompressString, *FormatString),
+		*FString::Printf(TEXT("%s_%s%s%s"), *InMeshKey, DISTANCEFIELD_DERIVEDDATA_VER, *PerMeshMaxString, *VoxelDensityString),
 		TEXT(""));
 }
 

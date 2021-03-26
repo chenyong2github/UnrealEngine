@@ -466,6 +466,7 @@ void RenderDirectLightIntoLumenCards(
 		&& LumenLightType == ELumenLightType::Directional 
 		&& DoesPlatformSupportDistanceFieldShadowing(View.GetShaderPlatform())
 		&& GLumenDirectLightingOffscreenShadowingTraceMeshSDFs != 0
+		&& Lumen::UseMeshSDFTracing()
 		&& ObjectBufferParameters.NumSceneObjects > 0;
 
 	int32 VirtualShadowMapId = -1;

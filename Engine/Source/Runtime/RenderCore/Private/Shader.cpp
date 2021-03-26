@@ -1742,14 +1742,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += TEXT("_EZPMM");
 		}
 	}
-
-	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.EightBit"));
-		if (CVar && CVar->GetValueOnAnyThread() > 0)
-		{
-			KeyString += TEXT("_8u");
-		}
-	}
 	
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GPUSkin.Limit2BoneInfluences"));

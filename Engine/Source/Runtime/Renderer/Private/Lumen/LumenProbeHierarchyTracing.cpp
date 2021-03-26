@@ -13,10 +13,10 @@
 #include "IndirectLightRendering.h"
 #include "LumenRadianceCache.h"
 
-int32 GLumenProbeHierarchyTraceCards = 1;
-FAutoConsoleVariableRef GVarLumenProbeHierarchyTraceCards(
-	TEXT("r.Lumen.ProbeHierarchy.TraceCards"),
-	GLumenProbeHierarchyTraceCards,
+int32 GLumenProbeHierarchyTraceMeshSDFs = 1;
+FAutoConsoleVariableRef GVarLumenProbeHierarchyTraceMeshSDFs(
+	TEXT("r.Lumen.ProbeHierarchy.TraceMeshSDFs"),
+	GLumenProbeHierarchyTraceMeshSDFs,
 	TEXT("."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
@@ -112,10 +112,10 @@ class FLumenVoxelTraceProbeCS : public FGlobalShader
 
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FTraceDistantScene : SHADER_PERMUTATION_BOOL("PROBE_HIERARCHY_TRACE_DISTANT_SCENE");
-	class FTraceCards : SHADER_PERMUTATION_BOOL("DIFFUSE_TRACE_CARDS");
+	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("DIFFUSE_TRACE_CARDS");
 
 	using FPermutationDomain = TShaderPermutationDomain<
-		FDynamicSkyLight, FTraceDistantScene, FTraceCards,
+		FDynamicSkyLight, FTraceDistantScene, FTraceMeshSDFs,
 		LumenProbeHierarchy::FProbeTracingPermutationDim>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -264,9 +264,9 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			FIntVector(1, 1, 1));
 	}
 
-	const bool bTraceCards = GLumenProbeHierarchyTraceCards != 0;
+	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing();
 
-	if (bTraceCards)
+	if (bTraceMeshSDFs)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Card ProbeTracing");
 
@@ -278,7 +278,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			GraphBuilder,
 			Scene,
 			View,
-			DiffuseTracingParametersForCulling.IndirectTracingParameters.MaxCardTraceDistance,
+			DiffuseTracingParametersForCulling.IndirectTracingParameters.MaxMeshSDFTraceDistance,
 			DiffuseTracingParametersForCulling.IndirectTracingParameters.CardTraceEndDistanceFromCamera,
 			HierarchyParameters,
 			EmitProbeParameters,
@@ -342,7 +342,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 
 			FLumenVoxelTraceProbeCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, ViewFamily) && bLastLevel);
-			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceCards>(bTraceCards);
+			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceMeshSDFs>(bTraceMeshSDFs);
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceDistantScene >(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 			PermutationVector.Set<LumenProbeHierarchy::FProbeTracingPermutationDim>(
 				LumenProbeHierarchy::GetProbeTracingPermutation(PassParameters->LevelParameters));
@@ -398,7 +398,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 			FIntVector(ProbeOcclusionParameters.DispatchCount, 1, 1));
 	}
 
-	const bool bTraceCards = GLumenProbeHierarchyTraceCards != 0;
+	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing();
 
 	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
 
@@ -430,7 +430,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 		DiffuseTracingParameters.DownsampledNormal = nullptr;
 		DiffuseTracingParameters.DownsampledDepth = nullptr;
 
-		if (bTraceCards)
+		if (bTraceMeshSDFs)
 		{
 			CullForCardTracing(
 				GraphBuilder,
@@ -451,7 +451,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 		}
 
 		// Trace cards
-		if (bTraceCards)
+		if (bTraceMeshSDFs)
 		{
 			FLumenTraceProbeOcclusionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenTraceProbeOcclusionCS::FParameters>();
 			*PassParameters = ReferencePassParameters;
@@ -497,7 +497,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 			SetupLumenDiffuseTracingParameters(/* out */ PassParameters->IndirectTracingParameters);
 
 			FLumenTraceProbeOcclusionCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenTraceProbeOcclusionCS::FLumenTracingPermutationDim>(bTraceCards ? Lumen::ETracingPermutation::VoxelsAfterCards : Lumen::ETracingPermutation::Voxels);
+			PermutationVector.Set<FLumenTraceProbeOcclusionCS::FLumenTracingPermutationDim>(bTraceMeshSDFs ? Lumen::ETracingPermutation::VoxelsAfterCards : Lumen::ETracingPermutation::Voxels);
 			PermutationVector.Set<FLumenTraceProbeOcclusionCS::FTileClassificationDim>(TileClassification);
 			PermutationVector = FLumenTraceProbeOcclusionCS::RemapPermutation(PermutationVector);
 

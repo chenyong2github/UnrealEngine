@@ -24,8 +24,8 @@ float VisualizeStepFactor;
 float VoxelStepFactor;
 float MinTraceDistance;
 float MaxTraceDistance;
-float MaxCardTraceDistanceForVoxelTracing;
-float MaxCardTraceDistance;
+float MaxMeshSDFTraceDistanceForVoxelTracing;
+float MaxMeshSDFTraceDistance;
 int VisualizeClipmapIndex;
 int VisualizeVoxelFaceIndex;
 float CardInterpolateInfluenceRadius;
@@ -70,7 +70,7 @@ void VisualizeQuadsCS(
 	bContinueCardTracing = true;
 #endif
 
-	TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(MinTraceDistance, TraceDistance, MaxCardTraceDistance, bContinueCardTracing);
+	TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(MinTraceDistance, TraceDistance, MaxMeshSDFTraceDistance, bContinueCardTracing);
 
 #if RADIANCE_CACHE
 	TraceInput.VoxelTraceStartDistance = min(TraceInput.VoxelTraceStartDistance, TraceDistance);

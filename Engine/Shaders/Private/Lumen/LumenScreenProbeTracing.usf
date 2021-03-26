@@ -309,9 +309,9 @@ float MinTraceDistance;
 float SurfaceBias;
 float CardInterpolateInfluenceRadius;
 float CardTraceEndDistanceFromCamera;
-float MaxCardTraceDistance;
+float MaxMeshSDFTraceDistance;
 
-void TraceCards(
+void TraceMeshSDFs(
 	uint2 ScreenProbeAtlasCoord,
 	uint2 TraceTexelCoord,
 	uint ScreenProbeIndex,
@@ -343,7 +343,7 @@ void TraceCards(
 			FConeTraceInput TraceInput;
 			TraceInput.Setup(SamplePosition, WorldConeDirection, ConeHalfAngle, MinSampleRadius, max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2), MaxTraceDistance, StepFactor);
 			TraceInput.VoxelStepFactor = VoxelStepFactor;
-			TraceInput.VoxelTraceStartDistance = MaxCardTraceDistance;
+			TraceInput.VoxelTraceStartDistance = MaxMeshSDFTraceDistance;
 
 			uint CardGridCellIndex = ComputeCardGridCellIndex(ScreenProbeScreenPosition, SceneDepth);
 			TraceInput.NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
@@ -389,7 +389,7 @@ void TraceCards(
 }
 
 [numthreads(PROBE_THREADGROUP_SIZE_1D, 1, 1)]
-void ScreenProbeTraceCardsCS(
+void ScreenProbeTraceMeshSDFsCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
@@ -402,7 +402,7 @@ void ScreenProbeTraceCardsCS(
 		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId.x], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
 
 		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
-		TraceCards(ScreenProbeAtlasCoord, TraceTexelCoord, ScreenProbeIndex, TraceHitDistance);
+		TraceMeshSDFs(ScreenProbeAtlasCoord, TraceTexelCoord, ScreenProbeIndex, TraceHitDistance);
 	}
 }
 

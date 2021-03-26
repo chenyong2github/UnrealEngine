@@ -16,15 +16,15 @@ public:
 
 	FLumenGatherCvarState();
 
-	int32 TraceCards;
-	float CardTraceDistance;
+	int32 TraceMeshSDFs;
+	float MeshSDFTraceDistance;
 	float SurfaceBias;
 	int32 VoxelTracingMode;
 
 	inline bool operator==(const FLumenGatherCvarState& Rhs)
 	{
-		return TraceCards == Rhs.TraceCards &&
-			CardTraceDistance == Rhs.CardTraceDistance &&
+		return TraceMeshSDFs == Rhs.TraceMeshSDFs &&
+			MeshSDFTraceDistance == Rhs.MeshSDFTraceDistance &&
 			SurfaceBias == Rhs.SurfaceBias &&
 			VoxelTracingMode == Rhs.VoxelTracingMode;
 	}

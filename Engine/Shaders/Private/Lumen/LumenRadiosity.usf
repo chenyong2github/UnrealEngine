@@ -35,7 +35,7 @@ float StepFactor;
 float MaxTraceDistance;
 float VoxelStepFactor;
 float MinTraceDistance;
-float MaxCardTraceDistance;
+float MaxMeshSDFTraceDistance;
 float TanConeAngle;
 float MinSampleRadius;
 float SurfaceBias;
@@ -229,7 +229,7 @@ float3 RadiosityTraceFromTexel(float2 AtlasUV, int2 AtlasCoord, uint ProbeIndex,
 		//@todo - derive bias from texel world size
 		WorldPosition += WorldNormal * SurfaceBias;
 
-		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(MinTraceDistance, MaxTraceDistance, MaxCardTraceDistance, false);
+		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(MinTraceDistance, MaxTraceDistance, MaxMeshSDFTraceDistance, false);
 
 		for (uint ConeIndex = ConeStartIndex; ConeIndex < ConeEndIndex; ConeIndex++)
 		{

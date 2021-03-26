@@ -160,6 +160,16 @@ namespace EShaderCompressionFormat
 	};
 }
 
+UENUM()
+namespace ELumenSoftwareTracingMode
+{
+	enum Type
+	{
+		DetailTracing = 1 UMETA(DisplayName = "Detail Tracing", ToolTip = "When using Software Ray Tracing, Lumen will trace against individual mesh's Distance Fields for highest quality.  Cost can be high in scenes with many overlapping instances."),
+		GlobalTracing = 0 UMETA(DisplayName = "Global Tracing", ToolTip = "When using Software Ray Tracing, Lumen will trace against the Global Distance Field for fastest traces."),
+	};
+}
+
 /**
  * Rendering settings.
  */
@@ -340,16 +350,17 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip = "Whether to reduce lightmap mixing with reflection captures for very smooth surfaces.  This is useful to make sure reflection captures match SSR / planar reflections in brightness."))
 	uint32 ReflectionEnvironmentLightmapMixBasedOnRoughness : 1;
 
-	UPROPERTY(config, EditAnywhere, Category=Lighting, meta=(
-		ConsoleVariable="r.AllowStaticLighting",
-		ToolTip="Whether to allow any static lighting to be generated and used, like lightmaps and shadowmaps. Games that only use dynamic lighting should set this to 0 to save some static lighting overhead. Disabling allows Material AO and Material BentNormal to work with Lumen Global Illumination.  Changing this setting requires restarting the editor.",
-		ConfigRestartRequired=true))
-	uint32 bAllowStaticLighting:1;
+	UPROPERTY(config, EditAnywhere, Category = Lumen, meta = (
+		EditCondition = "bEnableRayTracing",
+		ConsoleVariable = "r.Lumen.HardwareRayTracing", DisplayName = "Use Hardware Ray Tracing when available",
+		ToolTip = "Uses Hardware Ray Tracing for Lumen features, when supported by the video card + RHI + Operating System. Lumen will fall back to Software Ray Tracing otherwise. Note: Hardware ray tracing has significant scene update costs for scenes with more than 10k instances."))
+	uint32 bUseHardwareRayTracingForLumen : 1;
 
-	UPROPERTY(config, EditAnywhere, Category=Lighting, meta=(
-		ConsoleVariable="r.NormalMapsForStaticLighting",
-		ToolTip="Whether to allow any static lighting to use normal maps for lighting computations."))
-	uint32 bUseNormalMapsForStaticLighting:1;
+	UPROPERTY(config, EditAnywhere, Category=Lumen, meta=(
+		EditCondition = "bGenerateMeshDistanceFields",
+		ConsoleVariable="r.Lumen.TraceMeshSDFs", DisplayName = "Software Ray Tracing Mode",
+		ToolTip="Controls which tracing method Lumen uses when using Software Ray Tracing."))
+	TEnumAsByte<ELumenSoftwareTracingMode::Type> LumenSoftwareTracingMode;
 
 	/**
 	"Ray Tracing settings."
@@ -359,11 +370,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip = "Support Hardware Ray Tracing features.  Requires 'Support Compute Skincache' before project is allowed to set this.",
 		ConfigRestartRequired = true))
 		uint32 bEnableRayTracing : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
-		ConsoleVariable = "r.Lumen.HardwareRayTracing", DisplayName = "Use Hardware Ray Tracing for Lumen",
-		ToolTip = "Uses Hardware Ray Tracing for Lumen features, when available. Lumen will fall back to Software Ray Tracing otherwise. Note: Hardware ray tracing has significant scene update costs for scenes with more than 10k instances."))
-		uint32 bUseHardwareRayTracingForLumen : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
 		ConsoleVariable = "r.RayTracing.Shadows", DisplayName = "Ray Tracing Shadows",
@@ -390,19 +396,16 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired=true))
 	float DistanceFieldVoxelDensity;
 
-	UPROPERTY(config, EditAnywhere, Category=SoftwareRayTracing, meta=(
-		EditCondition = "bGenerateMeshDistanceFields",
-		ConsoleVariable="r.DistanceFieldBuild.EightBit",
-		ToolTip="Whether to store mesh distance fields in an 8 bit fixed point format instead of 16 bit floating point.  8 bit uses half the memory, but introduces artifacts for large meshes or thin meshes.  Changing this setting requires restarting the editor.",
+	UPROPERTY(config, EditAnywhere, Category=MiscLighting, meta=(
+		ConsoleVariable="r.AllowStaticLighting",
+		ToolTip="Whether to allow any static lighting to be generated and used, like lightmaps and shadowmaps. Games that only use dynamic lighting should set this to 0 to save some static lighting overhead. Disabling allows Material AO and Material BentNormal to work with Lumen Global Illumination.  Changing this setting requires restarting the editor.",
 		ConfigRestartRequired=true))
-	uint32 bEightBitMeshDistanceFields:1;
+	uint32 bAllowStaticLighting:1;
 
-	UPROPERTY(config, EditAnywhere, Category=SoftwareRayTracing, meta=(
-		EditCondition = "bGenerateMeshDistanceFields",
-		ConsoleVariable="r.DistanceFieldBuild.Compress",
-		ToolTip="Whether to store mesh distance fields compressed in memory, which reduces how much memory they take, but also causes serious hitches when making new levels visible.  Only enable if your project does not stream levels in-game.  Changing this setting requires restarting the editor.",
-		ConfigRestartRequired=true))
-	uint32 bCompressMeshDistanceFields:1;
+	UPROPERTY(config, EditAnywhere, Category=MiscLighting, meta=(
+		ConsoleVariable="r.NormalMapsForStaticLighting",
+		ToolTip="Whether to allow any static lighting to use normal maps for lighting computations."))
+	uint32 bUseNormalMapsForStaticLighting:1;
 
 	UPROPERTY(config, EditAnywhere, Category=ForwardRenderer, meta=(
 		ConsoleVariable="r.ForwardShading",
@@ -562,7 +565,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 	uint32 bEarlyZPassOnlyMaterialMasking : 1;
 
-	UPROPERTY(config, EditAnywhere, Category=Lighting, meta=(
+	UPROPERTY(config, EditAnywhere, Category=MiscLighting, meta=(
 		ConsoleVariable="r.DBuffer",DisplayName="DBuffer Decals",
 		ToolTip="Whether to accumulate decal properties to a buffer before the base pass.  DBuffer decals correctly affect lightmap and sky lighting, unlike regular deferred decals.  DBuffer enabled forces a full prepass.  Changing this setting requires restarting the editor.",
 		ConfigRestartRequired=true))

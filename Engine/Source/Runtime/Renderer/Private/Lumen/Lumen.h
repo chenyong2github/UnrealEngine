@@ -18,6 +18,7 @@ namespace Lumen
 	};
 
 	float GetDistanceSceneNaniteLODScaleFactor();
+	bool UseMeshSDFTracing();
 	float GetMaxTraceDistance();
 	bool UseIrradianceAtlas(const FViewInfo& View);
 	bool UseIndirectIrradianceAtlas(const FViewInfo& View);

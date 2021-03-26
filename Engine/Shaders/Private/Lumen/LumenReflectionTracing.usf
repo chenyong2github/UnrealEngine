@@ -202,9 +202,9 @@ uint ComputeCardGridCellIndex(uint2 PixelPos, float SceneDepth)
 
 float SurfaceBias;
 float CardTraceEndDistanceFromCamera;
-float MaxCardTraceDistance;
+float MaxMeshSDFTraceDistance;
 
-void TraceCards(
+void TraceMeshSDFs(
 	uint2 ReflectionTracingCoord,
 	float TraceHitDistance)
 {
@@ -220,7 +220,7 @@ void TraceCards(
 	FConeTraceInput TraceInput;
 	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, TraceHitDistance, MaxTraceDistance, 1.0f);
 	TraceInput.VoxelStepFactor = 1.0f;
-	TraceInput.VoxelTraceStartDistance = MaxCardTraceDistance;
+	TraceInput.VoxelTraceStartDistance = MaxMeshSDFTraceDistance;
 
 	uint CardGridCellIndex = ComputeCardGridCellIndex(ReflectionTracingCoord * ReflectionDownsampleFactor, SceneDepth);
 	TraceInput.NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
@@ -241,7 +241,7 @@ void TraceCards(
 
 	float DistanceFromViewpoint = length(View.WorldCameraOrigin - WorldPosition);
 	float DistanceFade = saturate(4 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 3);
-	DistanceFade = max(DistanceFade, saturate((OpaqueHitDistance - MaxCardTraceDistance * .7f) / (MaxCardTraceDistance * .3f)));
+	DistanceFade = max(DistanceFade, saturate((OpaqueHitDistance - MaxMeshSDFTraceDistance * .7f) / (MaxMeshSDFTraceDistance * .3f)));
 
 	Transparency = lerp(Transparency, 1, DistanceFade);
 
@@ -269,7 +269,7 @@ void TraceCards(
 }
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
-void ReflectionTraceCardsCS(uint DispatchThreadId : SV_DispatchThreadID)
+void ReflectionTraceMeshSDFsCS(uint DispatchThreadId : SV_DispatchThreadID)
 {
 	if (DispatchThreadId < CompactedTraceTexelAllocator[0])
 	{
@@ -277,7 +277,7 @@ void ReflectionTraceCardsCS(uint DispatchThreadId : SV_DispatchThreadID)
 		float TraceHitDistance;
 		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ReflectionTracingCoord, TraceHitDistance);
 
-		TraceCards(ReflectionTracingCoord, TraceHitDistance);
+		TraceMeshSDFs(ReflectionTracingCoord, TraceHitDistance);
 	}
 }
 

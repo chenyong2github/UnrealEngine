@@ -1280,7 +1280,7 @@ float ComputeSquaredDistanceBetweenAABBs(float3 CenterA, float3 ExtentA, float3 
 	return dot(AxisDistances, AxisDistances);
 }
 
-float CalculateVoxelTraceStartDistance(float MinTraceDistance, float MaxTraceDistance, float MaxCardTraceDistance, bool bContinueCardTracing)
+float CalculateVoxelTraceStartDistance(float MinTraceDistance, float MaxTraceDistance, float MaxMeshSDFTraceDistance, bool bContinueCardTracing)
 {
 	float VoxelTraceStartDistance = MaxTraceDistance;
 
@@ -1290,7 +1290,7 @@ float CalculateVoxelTraceStartDistance(float MinTraceDistance, float MaxTraceDis
 
 		if (bContinueCardTracing)
 		{
-			VoxelTraceStartDistance = max(VoxelTraceStartDistance, MaxCardTraceDistance);
+			VoxelTraceStartDistance = max(VoxelTraceStartDistance, MaxMeshSDFTraceDistance);
 		}
 	}
 

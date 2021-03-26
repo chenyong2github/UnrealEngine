@@ -67,7 +67,7 @@ float TanDiffuseConeHalfAngle;
 float MinSampleRadius;
 float MinTraceDistance;
 float MaxTraceDistance;
-float MaxCardTraceDistance;
+float MaxMeshSDFTraceDistance;
 float CardInterpolateInfluenceRadius;
 
 [numthreads(PROBE_TRACING_LANE_COUNT, 1, 1)]
@@ -112,7 +112,7 @@ void CardTraceProbeCS(
 			FinalMinTraceDistance, FinalMaxTraceDistance,
 			EffectiveStepFactor);
 		TraceInput.VoxelStepFactor = VoxelStepFactor;
-		TraceInput.VoxelTraceStartDistance = min(MaxCardTraceDistance, ProbeTMax);
+		TraceInput.VoxelTraceStartDistance = min(MaxMeshSDFTraceDistance, ProbeTMax);
 
 		uint CardGridCellIndex = ProbeTracingCtx.ProbeIndex;
 
@@ -195,7 +195,7 @@ void VoxelTraceProbeCS(
 
 		bool bContinueCardTracing = (DIFFUSE_TRACE_CARDS != 0);
 
-		TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(FinalMinTraceDistance, FinalMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
+		TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(FinalMinTraceDistance, FinalMaxTraceDistance, MaxMeshSDFTraceDistance, bContinueCardTracing);
 		
 		FConeTraceResult TraceResult;
 		TraceResult = (FConeTraceResult)0;

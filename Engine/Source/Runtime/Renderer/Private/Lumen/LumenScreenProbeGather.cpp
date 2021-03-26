@@ -25,6 +25,13 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGather(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+FAutoConsoleVariableRef CVarLumenScreenProbeGatherTraceMeshSDFs(
+	TEXT("r.Lumen.ScreenProbeGather.TraceMeshSDFs"),
+	GLumenGatherCvars.TraceMeshSDFs,
+	TEXT("Whether to trace against Mesh Signed Distance fields for Lumen's Screen Probe Gather."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenScreenProbeGatherAdaptiveProbeMinDownsampleFactor = 4;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherAdaptiveProbeMinDownsampleFactor(
 	TEXT("r.Lumen.ScreenProbeGather.AdaptiveProbeMinDownsampleFactor"),
@@ -1144,7 +1151,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		GraphBuilder, 
 		Scene,
 		View, 
-		GLumenGatherCvars.TraceCards != 0,
+		GLumenGatherCvars.TraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(),
 		SceneTextures.UniformBuffer,
 		PrevSceneColorMip,
 		LightingChannelsTexture,
