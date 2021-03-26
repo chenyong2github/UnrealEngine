@@ -471,11 +471,6 @@ void FLumenSceneData::AddMeshCards(int32 LumenPrimitiveIndex, int32 LumenInstanc
 			BuildMeshCardsDataForMergedInstances(PrimitiveSceneInfo, MeshCardsBuildData);
 
 			LumenPrimitiveInstance.MeshCardsIndex = AddMeshCardsFromBuildData(LocalToWorld, MeshCardsBuildData, LumenPrimitive.CardResolutionScale);
-
-			for (int32 DFInstanceIndex = 0; DFInstanceIndex < PrimitiveSceneInfo->DistanceFieldInstanceIndices.Num(); ++DFInstanceIndex)
-			{
-				DFObjectIndicesToUpdateInBuffer.Add(PrimitiveSceneInfo->DistanceFieldInstanceIndices[DFInstanceIndex]);
-			}
 		}
 		else
 		{
@@ -488,10 +483,14 @@ void FLumenSceneData::AddMeshCards(int32 LumenPrimitiveIndex, int32 LumenInstanc
 			const FMeshCardsBuildData& MeshCardsBuildData = CardRepresentationData->MeshCardsBuildData;
 
 			LumenPrimitiveInstance.MeshCardsIndex = AddMeshCardsFromBuildData(LocalToWorld, MeshCardsBuildData, LumenPrimitive.CardResolutionScale);
+		}
 
-			if (LumenInstanceIndex < PrimitiveSceneInfo->DistanceFieldInstanceIndices.Num())
+		for (int32 IndexInList = 0; IndexInList < PrimitiveSceneInfo->DistanceFieldInstanceIndices.Num(); ++IndexInList)
+		{
+			const int32 DFInstanceIndex = PrimitiveSceneInfo->DistanceFieldInstanceIndices[IndexInList];
+			if (DFInstanceIndex >= 0)
 			{
-				DFObjectIndicesToUpdateInBuffer.Add(PrimitiveSceneInfo->DistanceFieldInstanceIndices[LumenInstanceIndex]);
+				DFObjectIndicesToUpdateInBuffer.Add(DFInstanceIndex);
 			}
 		}
 
