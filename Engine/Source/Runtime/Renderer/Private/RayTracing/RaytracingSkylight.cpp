@@ -502,11 +502,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 
 		const bool bUseHairLighting = 
 			HairStrands::HasViewHairStrandsData(View) && 
-			View.HairStrandsViewData.VirtualVoxelResources.IsValid() &&
+			HairStrands::HasViewHairStrandsVoxelData(View) &&
 			CVarRayTracingSkyLightEnableHairVoxel.GetValueOnRenderThread() > 0;
 		if (bUseHairLighting)
 		{
-			PassParameters->VirtualVoxel = View.HairStrandsViewData.VirtualVoxelResources.UniformBuffer;
+			PassParameters->VirtualVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 		}
 
 		FRayTracingSkyLightRGS::FPermutationDomain PermutationVector;

@@ -1077,25 +1077,6 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 	check(OutSortedLights.AttenuationLightStart >= OutSortedLights.ClusteredSupportedEnd);
 }
 
-static FHairStrandsOcclusionResources GetHairStrandsResources(FRDGBuilder& GraphBuilder, const FViewInfo& View)
-{
-	FHairStrandsOcclusionResources Out;
-	if (HairStrands::HasViewHairStrandsData(View))
-	{
-		if (FRDGTextureRef Texture = View.HairStrandsViewData.VisibilityData.CategorizationTexture)
-		{
-			Out.CategorizationTexture = Texture;
-		}
-		if (FRDGTextureRef Texture = View.HairStrandsViewData.VisibilityData.LightChannelMaskTexture)
-		{
-			Out.LightChannelMaskTexture = Texture;
-		}
-
-		Out.VoxelResources = &View.HairStrandsViewData.VirtualVoxelResources;
-	}
-	return Out;
-}
-
 /** Shader parameters to use when creating a RenderLight(...) pass. */
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderLightParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
@@ -1568,8 +1549,6 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 								FRDGTextureUAV* RayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayTracingShadowMaskTexture));
 								FRDGTextureUAV* RayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
-								FHairStrandsOcclusionResources HairResources = GetHairStrandsResources(GraphBuilder, View);
-								HairResources.bUseHairVoxel = !BatchLightSceneInfo.Proxy->CastsHairStrandsDeepShadow();
 								{
 									RDG_EVENT_SCOPE(GraphBuilder, "%s", *BatchLightNameWithLevel);
 
@@ -1582,7 +1561,6 @@ void FDeferredShadingSceneRenderer::RenderLights(
 										BatchLightSceneInfo,
 										BatchRayTracingConfig,
 										DenoiserRequirements,
-										&HairResources,
 										LightingChannelsTexture,
 										RayTracingShadowMaskUAV,
 										RayHitDistanceUAV,
@@ -1731,9 +1709,6 @@ void FDeferredShadingSceneRenderer::RenderLights(
 								DenoiserRequirements = DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
 							}
 
-							FHairStrandsOcclusionResources HairResources = GetHairStrandsResources(GraphBuilder, View);
-							HairResources.bUseHairVoxel = !bUseHairDeepShadow;
-
 							RenderRayTracingShadows(
 								GraphBuilder,
 								SceneTextureParameters,
@@ -1741,7 +1716,6 @@ void FDeferredShadingSceneRenderer::RenderLights(
 								LightSceneInfo,
 								RayTracingConfig,
 								DenoiserRequirements,
-								&HairResources,
 								LightingChannelsTexture,
 								RayTracingShadowMaskUAV,
 								RayHitDistanceUAV,

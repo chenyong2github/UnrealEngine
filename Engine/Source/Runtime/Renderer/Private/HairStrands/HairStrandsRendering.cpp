@@ -126,9 +126,21 @@ TRDGUniformBufferRef<FHairStrandsViewUniformParameters> BindHairStrandsViewUnifo
 	return View.HairStrandsViewData.UniformBuffer;
 }
 
+TRDGUniformBufferRef<FVirtualVoxelParameters> BindHairStrandsVoxelUniformParameters(const FViewInfo& View)
+{
+	// Voxel uniform buffer exist only if the view has hair strands data
+	check(View.HairStrandsViewData.bIsValid && View.HairStrandsViewData.VirtualVoxelResources.IsValid());
+	return View.HairStrandsViewData.VirtualVoxelResources.UniformBuffer;
+}
+
 bool HasViewHairStrandsData(const FViewInfo& View)
 {
 	return View.HairStrandsViewData.bIsValid;
+}
+
+bool HasViewHairStrandsVoxelData(const FViewInfo& View)
+{
+	return View.HairStrandsViewData.bIsValid && View.HairStrandsViewData.VirtualVoxelResources.IsValid();
 }
 
 bool HasViewHairStrandsData(const TArrayView<FViewInfo>& Views)

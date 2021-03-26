@@ -341,6 +341,8 @@ namespace HairStrands
 {
 	TRDGUniformBufferRef<FHairStrandsViewUniformParameters> CreateDefaultHairStrandsViewUniformBuffer(FRDGBuilder& GraphBuilder, FViewInfo& View);
 	TRDGUniformBufferRef<FHairStrandsViewUniformParameters> BindHairStrandsViewUniformParameters(const FViewInfo& View);
+	TRDGUniformBufferRef<FVirtualVoxelParameters> BindHairStrandsVoxelUniformParameters(const FViewInfo& View);
 	bool HasViewHairStrandsData(const FViewInfo& View);
 	bool HasViewHairStrandsData(const TArrayView<FViewInfo>& Views);
+	bool HasViewHairStrandsVoxelData(const FViewInfo& View);
 }

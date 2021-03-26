@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
 #include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 
 #include "../Common.ush"
@@ -52,7 +53,6 @@ uint bAcceptFirstHit;
 #include "../HairStrands/HairStrandsRaytracing.ush"
 uint				bUseHairVoxel;
 float				HairOcclusionThreshold;
-Texture2D<uint4>	HairCategorizationTexture;
 Texture2D<uint>		HairLightChannelMaskTexture;
 
 void NeedTraceHair(
@@ -60,7 +60,7 @@ void NeedTraceHair(
 	inout bool bTraceHairRay,
 	inout float HairDeviceZ)
 {
-	const FCategorizationData Categorization = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord, 0)));
+	const FCategorizationData Categorization = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelCoord, 0)));
 	bTraceHairRay = false;
 	HairDeviceZ = 0;
 	if (Categorization.PixelCoverage > 0)

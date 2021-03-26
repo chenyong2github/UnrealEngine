@@ -21,12 +21,3 @@ void VoxelizeHairStrands(
 	const class FScene* Scene,
 	FViewInfo& View,
 	FInstanceCullingManager& InstanceCullingManager);
-
-
-struct FHairStrandsOcclusionResources
-{
-	FRDGTextureRef CategorizationTexture = nullptr;
-	FRDGTextureRef LightChannelMaskTexture = nullptr;
-	const FHairStrandsVoxelResources* VoxelResources = nullptr;
-	bool bUseHairVoxel = false;
-};
