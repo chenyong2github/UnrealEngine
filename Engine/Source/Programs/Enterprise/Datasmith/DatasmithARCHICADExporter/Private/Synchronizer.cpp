@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Synchronizer.h"
+#include "SceneValidator.h"
 
 #include "DatasmithDirectLink.h"
 #include "DatasmithSceneExporter.h"
@@ -72,6 +73,57 @@ void FSynchronizer::Reset(const utf8_t* InReason)
 	}
 }
 
+// Delete the database (Usualy because document has changed)
+void FSynchronizer::ProjectOpen()
+{
+	if (SyncDatabase != nullptr)
+	{
+		UE_AC_DebugF("FSynchronizer::ProjectOpen - Previous project hasn't been closed before ???");
+		Reset("Project Open");
+	}
+
+	// Create a new synchronization database
+	GS::UniString ProjectPath;
+	GS::UniString ProjectName;
+	GetProjectPathAndName(&ProjectPath, &ProjectName);
+	SyncDatabase =
+		new FSyncDatabase(GSStringToUE(ProjectPath), GSStringToUE(ProjectName), GSStringToUE(GetAddonDataDirectory()));
+
+	// Announce it to potential receivers
+#if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
+	TSharedRef< IDatasmithScene > ToBuildWith_4_26(SyncDatabase->GetScene());
+	DatasmithDirectLink.InitializeForScene(ToBuildWith_4_26);
+#else
+	DatasmithDirectLink.InitializeForScene(SyncDatabase->GetScene());
+#endif
+}
+
+// Inform that current project has been save (maybe name changed)
+void FSynchronizer::ProjectSave()
+{
+	if (SyncDatabase != nullptr)
+	{
+		GS::UniString ProjectPath;
+		GetProjectPathAndName(&ProjectPath, nullptr);
+
+		FString SanitizedName(FDatasmithUtils::SanitizeObjectName(GSStringToUE(ProjectPath)));
+		if (FCString::Strcmp(*SanitizedName, SyncDatabase->GetScene()->GetName()) == 0)
+		{
+			// Name is the same
+			return;
+		}
+
+		UE_AC_TraceF("FSynchronizer::ProjectSave - Project saved under a new name");
+		Reset("Project Renamed"); // There's no way to change to rename DirecLink connection
+	}
+	else
+	{
+		UE_AC_DebugF("FSynchronizer::ProjectSave - Project hasn't been open before ???");
+	}
+
+	ProjectOpen();
+}
+
 // Inform that the project has been closed
 void FSynchronizer::ProjectClosed()
 {
@@ -92,10 +144,14 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 	// Insure we have a sync database and a snapshot scene
 	if (SyncDatabase == nullptr)
 	{
-		SyncDatabase = new FSyncDatabase(GSStringToUE(GetProjectName()), GSStringToUE(GetAddonDataDirectory()));
+		GS::UniString ProjectPath;
+		GS::UniString ProjectName;
+		GetProjectPathAndName(&ProjectPath, &ProjectName);
+		SyncDatabase = new FSyncDatabase(GSStringToUE(ProjectPath), GSStringToUE(ProjectName),
+										 GSStringToUE(GetAddonDataDirectory()));
 
 #if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
-		TSharedRef< IDatasmithScene >	ToBuildWith_4_26(SyncDatabase->GetScene());
+		TSharedRef< IDatasmithScene > ToBuildWith_4_26(SyncDatabase->GetScene());
 		DatasmithDirectLink.InitializeForScene(ToBuildWith_4_26);
 #else
 		DatasmithDirectLink.InitializeForScene(SyncDatabase->GetScene());
@@ -110,11 +166,14 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 
 	SyncContext.NewPhase(kDebugSaveScene);
 	DumpScene(SyncDatabase->GetScene());
+	FSceneValidator Validator(SyncDatabase->GetScene());
+	Validator.CheckElementsName();
+	Validator.PrintReports(FSceneValidator::kVerbose);
 
 	SyncContext.NewPhase(kSyncSnapshot);
 
 #if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
-	TSharedRef< IDatasmithScene >	ToBuildWith_4_26(SyncDatabase->GetScene());
+	TSharedRef< IDatasmithScene > ToBuildWith_4_26(SyncDatabase->GetScene());
 	DatasmithDirectLink.UpdateScene(ToBuildWith_4_26);
 #else
 	DatasmithDirectLink.UpdateScene(SyncDatabase->GetScene());
@@ -123,7 +182,7 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 	SyncContext.Stats.Print();
 }
 
-GS::UniString FSynchronizer::GetProjectName()
+void FSynchronizer::GetProjectPathAndName(GS::UniString* OutPath, GS::UniString* OutName)
 {
 	API_ProjectInfo ProjectInfo;
 	Zap(&ProjectInfo);
@@ -132,10 +191,18 @@ GS::UniString FSynchronizer::GetProjectName()
 	{
 		if (ProjectInfo.location != nullptr)
 		{
-			IO::Name ProjectName;
-			ProjectInfo.location->GetLastLocalName(&ProjectName);
-			ProjectName.DeleteExtension();
-			return ProjectName.ToString();
+			if (OutPath != nullptr)
+			{
+				ProjectInfo.location->ToPath(OutPath);
+			}
+			if (OutName != nullptr)
+			{
+				IO::Name ProjectName;
+				ProjectInfo.location->GetLastLocalName(&ProjectName);
+				ProjectName.DeleteExtension();
+				*OutName = ProjectName.ToString();
+			}
+			return;
 		}
 		else
 		{
@@ -148,7 +215,15 @@ GS::UniString FSynchronizer::GetProjectName()
 		UE_AC_DebugF("CIdentity::GetFromProjectInfo - Error(%d) when accessing project info\n", GSErr);
 	}
 
-	return "Nameless";
+	if (OutPath != nullptr)
+	{
+		*OutPath = "Nameless";
+	}
+
+	if (OutName != nullptr)
+	{
+		*OutName = "Nameless";
+	}
 }
 
 void FSynchronizer::DumpScene(const TSharedRef< IDatasmithScene >& InScene)
@@ -165,8 +240,7 @@ void FSynchronizer::DumpScene(const TSharedRef< IDatasmithScene >& InScene)
 	{
 		sceneName = TEXT("Unnamed");
 	}
-	// FString FolderPath(FPaths::Combine(FGenericPlatformProcess::UserDir(), *(FString("Dump ") + sceneName)));
-	FString FolderPath(FPaths::Combine(GSStringToUE(GetAddonDataDirectory()), *(FString("Dump ") + sceneName)));
+	FString FolderPath(FPaths::Combine(GSStringToUE(GetAddonDataDirectory()), *(FString("Dumps ") + sceneName)));
 
 	// If we change scene, we delete and recreate the folder
 	static int	   NbDumps = 0;
@@ -180,7 +254,7 @@ void FSynchronizer::DumpScene(const TSharedRef< IDatasmithScene >& InScene)
 	}
 
 	// Create dump file (starting from 0)
-	FString ArchiveName = FPaths::Combine(*FolderPath, *FString::Printf(TEXT("%s-%d.xml"), *sceneName, NbDumps++));
+	FString ArchiveName = FPaths::Combine(*FolderPath, *FString::Printf(TEXT("Dump %d.xml"), NbDumps++));
 	UE_AC_TraceF("Dump scene ---> %s\n", TCHAR_TO_UTF8(*ArchiveName));
 	TUniquePtr< FArchive > archive(IFileManager::Get().CreateFileWriter(*ArchiveName));
 	if (archive.IsValid())

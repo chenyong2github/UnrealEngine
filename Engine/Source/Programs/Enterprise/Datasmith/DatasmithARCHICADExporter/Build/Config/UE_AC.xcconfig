@@ -29,8 +29,8 @@ REZ_SEARCH_PATHS = RO "$(AC_SDK_PATH)/Support/Inc" "$(AC_SDK_PATH)/Support/Modul
 
 AC_FRAMEWORKS = -framework DG -framework GSModeler -framework GSRoot -framework GSUtils -framework GSZLib -framework GX -framework GXImage -framework GXImageBase -framework InputOutput -framework UD -framework VBAttributes -framework VectorImage -framework ObjectDatabase -framework Geometry
 
-DATASMITH_DYLIB[config=Release] = DatasmithSDK.dylib
-DATASMITH_DYLIB[config=Debug] = DatasmithSDK-Mac-Debug.dylib
+DATASMITH_DYLIB[config=Release] = DatasmithUE4ArchiCAD.dylib
+DATASMITH_DYLIB[config=Debug] = DatasmithUE4ArchiCAD-Mac-Debug.dylib
 
 OTHER_LDFLAGS = -lACAP_STAT $(AC_FRAMEWORKS) ./Dylibs/$DATASMITH_DYLIB
 

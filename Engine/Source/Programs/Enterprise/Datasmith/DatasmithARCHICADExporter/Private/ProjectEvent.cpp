@@ -86,24 +86,19 @@ GSErrCode FProjectEvent::Event(API_NotifyEventID NotifID, Int32 Param)
 			}
 			break;
 		case APINotify_NewAndReset:
-			if (Synchronizer != nullptr)
-			{
-				Synchronizer->Reset("APINotify_NewAndReset");
-			}
+			FSynchronizer::Get().ProjectOpen();
 			break;
 		case APINotify_Open:
-			if (Synchronizer != nullptr)
-			{
-				Synchronizer->Reset("APINotify_Open");
-			}
+			FSynchronizer::Get().ProjectOpen();
 			break;
 		case APINotify_Close:
 			if (Synchronizer != nullptr)
 			{
-				Synchronizer->ProjectClosed();
+				Synchronizer->Reset("APINotify_Close");
 			}
 			break;
 		case APINotify_Save:
+			FSynchronizer::Get().ProjectSave();
 			break;
 		case APINotify_Quit:
 			if (Synchronizer != nullptr)

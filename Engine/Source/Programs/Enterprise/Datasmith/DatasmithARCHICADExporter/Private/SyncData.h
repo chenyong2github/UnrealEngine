@@ -243,6 +243,9 @@ class FSyncData::FElement : public FSyncData::FActor
   protected:
 	virtual void Process(FProcessInfo* IOProcessInfo) override;
 
+	// Delete this sync data
+	virtual void DeleteMe(FSyncDatabase* IOSyncDatabase) override;
+
 	// Create/Update mesh of this element
 	bool CreateMesh(FElementID* IOElementID, const ModelerAPI::Transformation& InLocalToWorld);
 

@@ -23,8 +23,8 @@ BEGIN_NAMESPACE_UE_AC
 #endif
 
 // Constructor
-FSyncDatabase::FSyncDatabase(const TCHAR* InSceneLabel, const TCHAR* InAssetsPath)
-	: Scene(FDatasmithSceneFactory::CreateScene(*FDatasmithUtils::SanitizeObjectName(InSceneLabel)))
+FSyncDatabase::FSyncDatabase(const TCHAR* InSceneName, const TCHAR* InSceneLabel, const TCHAR* InAssetsPath)
+	: Scene(FDatasmithSceneFactory::CreateScene(*FDatasmithUtils::SanitizeObjectName(InSceneName)))
 	, AssetsFolderPath(InAssetsPath)
 	, MaterialsDatabase(new FMaterialsDatabase())
 	, TexturesCache(new FTexturesCache())
@@ -164,6 +164,49 @@ const FString& FSyncDatabase::GetLayerName(short InLayerIndex)
 		found = LayerIndex2Name.find(InLayerIndex);
 	}
 	return found->second;
+}
+
+// Set the mesh in the handle and take care of mesh life cycle.
+bool FSyncDatabase::SetMesh(TSharedPtr< IDatasmithMeshElement >*	   Handle,
+							const TSharedPtr< IDatasmithMeshElement >& InMesh)
+{
+	if (Handle->IsValid())
+	{
+		if (InMesh.IsValid() && FCString::Strcmp(Handle->Get()->GetName(), InMesh->GetName()) == 0)
+		{
+			return false; // No change : Same name (hash) --> Same mesh
+		}
+
+		FMapHashToMeshInfo::iterator Older = HashToMeshInfo.find(Handle->Get()->GetName());
+		UE_AC_Assert(Older != HashToMeshInfo.end());
+		if (--Older->second.Count == 0)
+		{
+			Scene->RemoveMesh(Older->second.Mesh);
+			HashToMeshInfo.erase(Older);
+		}
+		Handle->Reset();
+	}
+	else
+	{
+		if (!InMesh.IsValid())
+		{
+			return false; // No change : No mesh before and no mesh after
+		}
+	}
+
+	if (InMesh.IsValid())
+	{
+		FMeshInfo& MeshInfo = HashToMeshInfo[InMesh->GetName()];
+		if (!MeshInfo.Mesh.IsValid())
+		{
+			MeshInfo.Mesh = InMesh;
+			Scene->AddMesh(InMesh);
+		}
+		++MeshInfo.Count;
+		*Handle = InMesh;
+	}
+
+	return true;
 }
 
 // SetSceneInfo

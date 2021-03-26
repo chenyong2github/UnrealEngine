@@ -151,6 +151,10 @@ void FDatasmithHashTools::HashQuat(const FQuat& InQuat, float InTolerance)
 
 void FDatasmithHashTools::ComputeDatasmithMeshHash(const FDatasmithMesh& Mesh)
 {
+	// If Datasmith change something to format on disk, we will increment this value to force new hash value
+	const uint32 DatasmithMeshVersion = 0;
+	TUpdate(DatasmithMeshVersion);
+
 	int32 VerticesCount = Mesh.GetVerticesCount();
 	TUpdate(VerticesCount);
 	for (int32 IdxVertice = 0; IdxVertice < VerticesCount; ++IdxVertice)

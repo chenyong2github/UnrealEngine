@@ -53,13 +53,13 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IntDir>$(UEIntermediateDir)\DatasmithArchiCADExporter23\</IntDir>
-    <OutDir>$(EngineDir)\Binaries\Win64\DatasmithArchiCADExporter\ArchiCAD23\</OutDir>
+    <OutDir>$(EnginePath)\Binaries\Win64\DatasmithArchiCADExporter\ArchiCAD23\</OutDir>
     <TargetExt>.apx</TargetExt>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IntDir>$(UEIntermediateDir)\DatasmithArchiCADExporter23\</IntDir>
-    <OutDir>$(EngineDir)\Binaries\Win64\DatasmithArchiCADExporter\ArchiCAD23\</OutDir>
+    <OutDir>$(EnginePath)\Binaries\Win64\DatasmithArchiCADExporter\ArchiCAD23\</OutDir>
     <TargetExt>.apx</TargetExt>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
@@ -97,7 +97,7 @@
     <Link>
       <OutputFile>$(OutDir)$(ProjectName)-Debug.apx</OutputFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>$(OutDir)$(ProjectName).pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName)-Debug.pdb</ProgramDatabaseFile>
       <SubSystem>NotSet</SubSystem>
       <EntryPointSymbol>DllMainEntry</EntryPointSymbol>
       <TargetMachine>MachineX64</TargetMachine>
@@ -109,14 +109,22 @@
     </Link>
     <PostBuildEvent>
       <Command>echo Copying files
-copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.dll $(OutDir) /Y
-copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb $(OutDir) /Y
 
-copy $(OutDir)$(ProjectName).apx D:\Temp\DatasmithARCHICAD23Exporter /Y
-copy $(OutDir)DatasmithUE4ArchiCAD.dll D:\Temp\DatasmithARCHICAD23Exporter /Y
+copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.dll" $(OutDir) /Y
+copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb" $(OutDir) /Y
 
-copy $(OutDir)$(TargetName).pdb D:\Temp\DatasmithARCHICAD23Exporter /Y
-copy $(OutDir)DatasmithUE4ArchiCAD.pdb D:\Temp\DatasmithARCHICAD23Exporter /Y
+set INSTALLDIR=$(HOMEDRIVE)$(HOMEPATH)\Desktop\$(TargetName)
+
+rd /S /Q "%INSTALLDIR%" 2&gt;NUL
+mkdir "%INSTALLDIR%"
+
+IF $(ConfigurationName) == Debug set SUFFIX=-Debug
+
+copy "$(OutDir)$(TargetName)%SUFFIX%.apx" "%INSTALLDIR%" /Y
+copy "$(OutDir)DatasmithUE4ArchiCAD.dll" "%INSTALLDIR%" /Y
+
+copy "$(OutDir)$(TargetName)%SUFFIX%.pdb" "%INSTALLDIR%" /Y
+copy "$(OutDir)DatasmithUE4ArchiCAD.pdb" "%INSTALLDIR%" /Y
 </Command>
     </PostBuildEvent>
     <PreBuildEvent>
@@ -164,14 +172,22 @@ popd
     </Link>
     <PostBuildEvent>
       <Command>echo Copying files
-copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.dll $(OutDir) /Y
-copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb $(OutDir) /Y
 
-copy $(OutDir)$(ProjectName).apx D:\Temp\DatasmithARCHICAD23Exporter /Y
-copy $(OutDir)DatasmithUE4ArchiCAD.dll D:\Temp\DatasmithARCHICAD23Exporter /Y
+copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.dll" $(OutDir) /Y
+copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb" $(OutDir) /Y
 
-copy $(OutDir)$(TargetName).pdb D:\Temp\DatasmithARCHICAD23Exporter /Y
-copy $(OutDir)DatasmithUE4ArchiCAD.pdb D:\Temp\DatasmithARCHICAD23Exporter /Y
+set INSTALLDIR=$(HOMEDRIVE)$(HOMEPATH)\Desktop\$(TargetName)
+
+rd /S /Q "%INSTALLDIR%" 2&gt;NUL
+mkdir "%INSTALLDIR%"
+
+IF $(ConfigurationName) == Debug set SUFFIX=-Debug
+
+copy "$(OutDir)$(TargetName)%SUFFIX%.apx" "%INSTALLDIR%" /Y
+copy "$(OutDir)DatasmithUE4ArchiCAD.dll" "%INSTALLDIR%" /Y
+
+copy "$(OutDir)$(TargetName)%SUFFIX%.pdb" "%INSTALLDIR%" /Y
+copy "$(OutDir)DatasmithUE4ArchiCAD.pdb" "%INSTALLDIR%" /Y
 </Command>
     </PostBuildEvent>
     <PreBuildEvent>
@@ -247,6 +263,7 @@ copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb $
     <ClInclude Include="..\..\Private\Pasteboard.h" />
     <ClInclude Include="..\..\Private\ProjectEvent.h" />
     <ClInclude Include="..\..\Private\SaverReader.h" />
+    <ClInclude Include="..\..\Private\SceneValidator.h" />
     <ClInclude Include="..\..\Private\ShellOpenDocument.h" />
     <ClInclude Include="..\..\Private\StatsCounter.h" />
     <ClInclude Include="..\..\Private\Synchronizer.h" />
@@ -287,6 +304,7 @@ copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb $
     <ClCompile Include="..\..\Private\Pasteboard.cpp" />
     <ClCompile Include="..\..\Private\Preferences.cpp" />
     <ClCompile Include="..\..\Private\ProjectEvent.cpp" />
+    <ClCompile Include="..\..\Private\SceneValidator.cpp" />
     <ClCompile Include="..\..\Private\Synchronizer.cpp" />
     <ClCompile Include="..\..\Private\TAssValueName.cpp" />
     <ClCompile Include="..\..\Private\LocalizeTools.cpp" />

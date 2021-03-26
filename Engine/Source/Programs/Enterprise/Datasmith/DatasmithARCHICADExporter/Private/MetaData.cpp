@@ -18,8 +18,8 @@ inline bool IsEqual(const TSharedPtr< IDatasmithKeyValueProperty >& InProperty1,
 		return !InProperty2.IsValid();
 	}
 	return InProperty1->GetPropertyType() == InProperty2->GetPropertyType() &&
-	FCString::Strcmp(InProperty1->GetName(), InProperty2->GetName()) == 0 &&
-	FCString::Strcmp(InProperty1->GetValue(), InProperty2->GetValue()) == 0;
+		   FCString::Strcmp(InProperty1->GetName(), InProperty2->GetName()) == 0 &&
+		   FCString::Strcmp(InProperty1->GetValue(), InProperty2->GetValue()) == 0;
 }
 
 inline bool IsEqual(const TSharedPtr< IDatasmithMetaDataElement >& InMetaData1,
@@ -59,8 +59,8 @@ FMetaData::FMetaData(const GS::Guid& InElementId)
 }
 
 FMetaData::FMetaData(const GS::Guid& InElementId, const TSharedPtr< IDatasmithActorElement >& InActorElement)
-: ElementId(InElementId)
-, MetaData(FDatasmithSceneFactory::CreateMetaData(TEXT("")))
+	: ElementId(InElementId)
+	, MetaData(FDatasmithSceneFactory::CreateMetaData(TEXT("")))
 {
 	UE_AC_Assert(InActorElement.IsValid());
 	UE_AC_Assert(FCString::Strcmp(GSStringToUE(ElementId.ToUniString()), InActorElement->GetName()) == 0);
@@ -89,7 +89,7 @@ void FMetaData::SetOrUpdate(TSharedPtr< IDatasmithMetaDataElement >* IOPtr, IDat
 			{
 				const TSharedPtr< IDatasmithKeyValueProperty >& Property = MetaData->GetProperty(IndexProperty);
 				TSharedRef< IDatasmithKeyValueProperty >		NewProperty =
-				FDatasmithSceneFactory::CreateKeyValueProperty(Property->GetName());
+					FDatasmithSceneFactory::CreateKeyValueProperty(Property->GetName());
 				NewProperty->SetPropertyType(Property->GetPropertyType());
 				NewProperty->SetValue(Property->GetValue());
 				CurrentMetaData->AddProperty(NewProperty);

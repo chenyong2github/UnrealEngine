@@ -97,6 +97,12 @@ API_Guid String2API_Guid(const GS::UniString& InString);
 // Combine 2 guid in one
 API_Guid CombineGuid(const API_Guid& InGuid1, const API_Guid& InGuid2);
 
+// Class for mapping by name
+struct FCompareName
+{
+	bool operator()(const TCHAR* InName1, const TCHAR* InName2) const { return FCString::Strcmp(InName1, InName2) < 0; }
+};
+
 // Stack class to auto dispose memo handles
 class FAutoMemo
 {

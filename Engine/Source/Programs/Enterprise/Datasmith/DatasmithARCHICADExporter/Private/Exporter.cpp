@@ -33,60 +33,44 @@ FExporter::~FExporter() {}
 // Export the AC model in the specified file
 void FExporter::DoExport(const ModelerAPI::Model& InModel, const API_IOParams& IOParams)
 {
-	// The exporter
-	FDatasmithSceneExporter SceneExporter;
-	SceneExporter.PreExport();
-
 	// Archicad, to secure document, do save in a scratch file. And exchange it on success
 	// But Datasmith need to save in the real file.
-	FString LabelString(GSStringToUE(IOParams.saveFileIOName->GetBase()));
+	// We exchange for Datasmith, we do export, we exchange before returning to AC that will exchange again.
 
-	SceneExporter.SetName(*LabelString);
+	// RealFileLocation
+	bool		 bDoExchange = false;
+	IO::Location RealFileLocation(*IOParams.fileLoc);
+	if (IOParams.saveFileIOName != nullptr && !IOParams.saveFileIOName->IsEmpty())
+	{
+		bDoExchange = true;
+		RealFileLocation.SetLastLocalName(*IOParams.saveFileIOName);
+	}
 
+	// Temporarly exchange files (Old vs Scratch)
 	IO::Location FileLocation(*IOParams.fileLoc);
 	FileLocation.DeleteLastLocalName();
-	SceneExporter.SetOutputPath(GSStringToUE(FileLocation.ToDisplayText()));
-
-	// Setup our progression
-	bool		 OutUserCancelled = false;
-	FProgression Progression(kStrListProgression, kExportTitle, kNbPhases, FProgression::kThrowOnCancel,
-							 &OutUserCancelled);
-
-	FSyncDatabase SyncDatabase(*LabelString, SceneExporter.GetAssetsOutputPath());
-
-	FSyncContext SyncContext(InModel, SyncDatabase, &Progression);
-
-	TSharedRef< IDatasmithScene > Scene = SyncDatabase.GetScene();
-
-	SyncDatabase.SetSceneInfo();
-	SyncDatabase.Synchronize(SyncContext);
-
-	SyncContext.NewPhase(kExportSaving);
-
-	/* Archicad, to secure document, do save in a scratch file. And exchange it on success
-	 * But Datasmith require to save in the real file. So we have to swap twice. */
-	UE_AC_TraceF("FileLocation=%s\n", FileLocation.ToDisplayText().ToUtf8());
 	IO::Folder parentFolder(FileLocation);
 	IO::Name   ScratchName;
 	IOParams.fileLoc->GetLastLocalName(&ScratchName);
-	if (!IOParams.saveFileIOName->IsEmpty())
+	if (bDoExchange)
 	{
 		GSErrCode GSErr = parentFolder.Exchange(ScratchName, *IOParams.saveFileIOName, IO::AccessDeniedIsError);
 		if (GSErr != NoError)
 		{
-			UE_AC_DebugF("FExporter::DoExport - Exchange 1 returned error %d", GSErr);
+			UE_AC_DebugF("FExporter::DoExport - Exchange 1 returned error %s\n", GetErrorName(GSErr));
 		}
 	}
 
-	// Datasmith do the save
-	SceneExporter.Export(Scene);
-	SyncContext.Stats.Print();
+	DoExport(InModel, RealFileLocation);
 
-	// Swap so that Archicad will re-swap just after.
-	GSErrCode GSErr = parentFolder.Exchange(ScratchName, *IOParams.saveFileIOName, IO::AccessDeniedIsError);
-	if (GSErr != NoError)
+	// Exchange files because Archicad will re-exchange just after.
+	if (bDoExchange)
 	{
-		UE_AC_DebugF("FExporter::DoExport - Exchange 2 returned error %d", GSErr);
+		GSErrCode GSErr = parentFolder.Exchange(ScratchName, *IOParams.saveFileIOName, IO::AccessDeniedIsError);
+		if (GSErr != NoError)
+		{
+			UE_AC_DebugF("FExporter::DoExport - Exchange 2 returned error %s\n", GetErrorName(GSErr));
+		}
 	}
 }
 
@@ -97,8 +81,7 @@ void FExporter::DoExport(const ModelerAPI::Model& InModel, const IO::Location& I
 	FDatasmithSceneExporter SceneExporter;
 	SceneExporter.PreExport();
 
-	// Archicad, to secure document, do save in a scratch file. And exchange it on success
-	// But Datasmith need to save in the real file.
+	// Get the name without extension
 	IO::Name FileName;
 	InDestFile.GetLastLocalName(&FileName);
 	FString LabelString(GSStringToUE(FileName.GetBase()));
@@ -106,6 +89,7 @@ void FExporter::DoExport(const ModelerAPI::Model& InModel, const IO::Location& I
 	SceneExporter.SetName(*LabelString);
 
 	IO::Location FileLocation(InDestFile);
+	FString		 FilePath(GSStringToUE(FileLocation.ToDisplayText()));
 	FileLocation.DeleteLastLocalName();
 	SceneExporter.SetOutputPath(GSStringToUE(FileLocation.ToDisplayText()));
 
@@ -114,7 +98,7 @@ void FExporter::DoExport(const ModelerAPI::Model& InModel, const IO::Location& I
 	FProgression Progression(kStrListProgression, kExportTitle, kNbPhases, FProgression::kThrowOnCancel,
 							 &OutUserCancelled);
 
-	FSyncDatabase SyncDatabase(*LabelString, SceneExporter.GetAssetsOutputPath());
+	FSyncDatabase SyncDatabase(*FilePath, *LabelString, SceneExporter.GetAssetsOutputPath());
 
 	FSyncContext SyncContext(InModel, SyncDatabase, &Progression);
 

@@ -120,6 +120,9 @@
     <ClCompile Include="..\..\Private\GeometryUtil.cpp">
       <Filter>Private</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Private\SceneValidator.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Private\WarningsDisabler.h">
@@ -236,6 +239,9 @@
     <ClInclude Include="..\..\Private\GeometryUtil.h">
       <Filter>Private</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Private\SceneValidator.h">
+      <Filter>Private</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="$(ACSDKPATH)\Support\Modules\DGLib\Win\DGImp.lib">
@@ -283,7 +289,7 @@
     <Library Include="$(ACSDKPATH)\Support\Modules\GXImageBase\Win\GXImageBaseImp.LIB">
       <Filter>Libraries</Filter>
     </Library>
-    <Library Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STAT.lib">
+    <Library Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STATD.lib">
       <Filter>Libraries</Filter>
     </Library>
   </ItemGroup>

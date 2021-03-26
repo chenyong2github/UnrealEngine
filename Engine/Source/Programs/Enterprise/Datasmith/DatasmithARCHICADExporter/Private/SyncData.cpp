@@ -74,6 +74,7 @@ void FSyncData::CleanAfterScan(FSyncDatabase* IOSyncDatabase)
 	}
 }
 
+// Delete this sync data
 void FSyncData::DeleteMe(FSyncDatabase* IOSyncDatabase)
 {
 	SetParent(nullptr);
@@ -171,6 +172,7 @@ FSyncData::FScene::FScene()
 {
 }
 
+// Delete this sync data
 void FSyncData::FScene::DeleteMe(FSyncDatabase* IOSyncDatabase)
 {
 	if (SceneInfoMetaData.IsValid())
@@ -290,8 +292,8 @@ void FSyncData::FScene::UpdateInfo(FProcessInfo* IOProcessInfo)
 			InfoMetaData.AddStringProperty(TEXT("TimeZoneOffset"), GS::ValueToUniString(placeInfo.timeZoneOffset));
 
 			GSTime		 gstime;
-			GSTimeRecord timeRecord(placeInfo.year, placeInfo.month, 0, placeInfo.day, placeInfo.hour,
-									placeInfo.minute, placeInfo.second, 0);
+			GSTimeRecord timeRecord(placeInfo.year, placeInfo.month, 0, placeInfo.day, placeInfo.hour, placeInfo.minute,
+									placeInfo.second, 0);
 			TIGetGSTime(&timeRecord, &gstime, TI_LOCAL_TIME);
 			InfoMetaData.AddStringProperty(TEXT("LocalDateTime"),
 										   TIGetTimeString(gstime, TI_LONG_DATE_FORMAT | TI_SHORT_TIME_FORMAT));
@@ -323,6 +325,7 @@ FSyncData::FActor::FActor(const GS::Guid& InGuid)
 {
 }
 
+// Delete this sync data
 void FSyncData::FActor::DeleteMe(FSyncDatabase* IOSyncDatabase)
 {
 	IOSyncDatabase->GetScene()->RemoveMetaData(MetaData);
@@ -623,6 +626,13 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 	}
 }
 
+// Delete this sync data
+void FSyncData::FElement::DeleteMe(FSyncDatabase* IOSyncDatabase)
+{
+	IOSyncDatabase->SetMesh(&MeshElement, TSharedPtr< IDatasmithMeshElement >());
+	FSyncData::FActor::DeleteMe(IOSyncDatabase);
+}
+
 inline Geometry::Transformation3D Convert(const ModelerAPI::Transformation& InMatrix)
 {
 	Geometry::Matrix33 M33;
@@ -660,37 +670,13 @@ bool FSyncData::FElement::CreateMesh(FElementID* IOElementID, const ModelerAPI::
 	{
 		FElement2StaticMesh Element2StaticMesh(IOElementID->SyncContext, World2Local);
 		Element2StaticMesh.AddElementGeometry(IOElementID->Element3D);
-		if (!Element2StaticMesh.HasGeometry())
+		if (Element2StaticMesh.HasGeometry())
 		{
-			if (MeshElement.IsValid())
-			{
-				UE_AC_VerboseF("FSyncData::FElement::CreateMesh - Mew mesh is empty %s\n",
-							   IOElementID->Element3D.GetElemGuid().ToUniString().ToUtf8());
-				IOElementID->SyncContext.GetScene().RemoveMesh(MeshElement);
-				MeshElement.Reset();
-				return true; // No more mesh
-			}
-			return false; // Mesh hasn't changed
+			Mesh = Element2StaticMesh.CreateMesh();
 		}
-		Mesh = Element2StaticMesh.CreateMesh();
 	}
 
-	// If we already had a mesh before
-	if (MeshElement.IsValid())
-	{
-		if (FCString::Strcmp(MeshElement->GetName(), Mesh->GetName()) == 0)
-		{
-			return false; // Mesh hasn't changed
-		}
-
-		UE_AC_VerboseF("FSyncData::FElement::CreateMesh - Updating Mesh %s -> %s\n",
-					   TCHAR_TO_UTF8(MeshElement->GetName()), TCHAR_TO_UTF8(Mesh->GetName()));
-		IOElementID->SyncContext.GetScene().RemoveMesh(MeshElement.ToSharedRef());
-	}
-
-	MeshElement = Mesh;
-	IOElementID->SyncContext.GetScene().AddMesh(MeshElement);
-	return true;
+	return IOElementID->SyncContext.GetSyncDatabase().SetMesh(&MeshElement, Mesh);
 }
 
 // Rebuild the meta data of this element

@@ -19,7 +19,7 @@ class FSyncDatabase
 {
   public:
 	// Constructor
-	FSyncDatabase(const TCHAR* InSceneLabel, const TCHAR* InAssetsPath);
+	FSyncDatabase(const TCHAR* InSceneName, const TCHAR* InSceneLabel, const TCHAR* InAssetsPath);
 
 	// Destructor
 	~FSyncDatabase();
@@ -49,14 +49,14 @@ class FSyncDatabase
 	void CleanAfterScan();
 
 	// Get existing sync data for the specified guid
+	// If null, you must create it.
 	FSyncData*& GetSyncData(const GS::Guid& InGuid);
 
+	// Return scene sync data (Create it if not present)
 	FSyncData& GetSceneSyncData();
 
+	// Return layer sync data (Create it if not present)
 	FSyncData& GetLayerSyncData(short InLayer);
-
-	// Set a new sync data for the specified guid
-	//	void SetSyncData(const GS::Guid& InGuid, FSyncData* InSyncData);
 
 	// Delete obsolete syncdata (and it's Datasmith Element)
 	void DeleteSyncData(const GS::Guid& InGuid);
@@ -64,9 +64,24 @@ class FSyncDatabase
 	// Return the name of the specified layer
 	const FString& GetLayerName(short InLayerIndex);
 
+	// Set the mesh in the handle and take care of mesh life cycle.
+	bool SetMesh(TSharedPtr< IDatasmithMeshElement >* Handle, const TSharedPtr< IDatasmithMeshElement >& InMesh);
+
   private:
 	typedef std::map< GS::Guid, FSyncData* > FMapGuid2SyncData;
 	typedef std::map< short, FString >		 FMapLayerIndex2Name;
+
+	// To take care of mesh life cycle.
+	class FMeshInfo
+	{
+	  public:
+		TSharedPtr< IDatasmithMeshElement > Mesh; // The mesh
+		uint32								Count = 0; // Number of actors using this mesh
+
+		FMeshInfo() {}
+	};
+	// Map mesh by their hash name.
+	typedef std::map< const TCHAR*, FMeshInfo, FCompareName > FMapHashToMeshInfo;
 
 	// Scan all elements, to determine if they need to be synchronized
 	UInt32 ScanElements(const FSyncContext& InSyncContext);
@@ -94,6 +109,9 @@ class FSyncDatabase
 
 	// Map layer index to it's name
 	FMapLayerIndex2Name LayerIndex2Name;
+
+	// Map mesh name (hash) to mesh info
+	FMapHashToMeshInfo HashToMeshInfo;
 };
 
 END_NAMESPACE_UE_AC

@@ -1,50 +1,56 @@
 #!/bin/sh
 
-projectPath=`dirname "$0"`/..
+ConfigPath=`dirname "$0"`
+projectPath=$ConfigPath/..
 
-relativeEnginePath=$projectPath/../../../../../../Engine
-enginePath=`python -c "import os; print(os.path.realpath('$relativeEnginePath'))"`
+RelativeEnginePath=$projectPath/../../../../../../../Engine
+EnginePath=`python -c "import os; print(os.path.realpath('$RelativeEnginePath'))"`
 
 if [ -z ${UE_SDKS_ROOT+x} ]; then
     echo "UE_SDKS_ROOT is unset";
     exit;
 fi
 
-if [ ! -f "$projectPath/SDKsRoot.xcconfig" ]; then
-    echo "Create SDKsRoot.xcconfig"
-    echo UESDKRoot = $UE_SDKS_ROOT > "$projectPath/Config/SDKsRoot.xcconfig"
-    echo UE_Engine = $enginePath >> "$projectPath/Config/SDKsRoot.xcconfig"
+if [ ! -f "$ConfigPath/SDKsRoot.xcconfig" ]; then
+    echo "Create $ConfigPath/SDKsRoot.xcconfig"
+    echo UESDKRoot = $UE_SDKS_ROOT > "$ConfigPath/SDKsRoot.xcconfig"
+    echo UE_Engine = $EnginePath >> "$ConfigPath/SDKsRoot.xcconfig"
 fi
 
-dylibsDir=$projectPath/Dylibs
+OurDylibFolder=$projectPath/Dylibs
 
-mkdir -p "$dylibsDir"
+mkdir -p "$OurDylibFolder"
 
 dylibLibFreeImage=libfreeimage-3.18.0.dylib
 
-if [[ "$enginePath/Binaries/ThirdParty/FreeImage/Mac/$dylibLibFreeImage" -nt "$dylibsDir/$dylibLibFreeImage" ]]; then
-  unlink "$dylibsDir/$dylibLibFreeImage"
+if [[ "$EnginePath/Binaries/ThirdParty/FreeImage/Mac/$dylibLibFreeImage" -nt "$OurDylibFolder/$dylibLibFreeImage" ]]; then
+	if [ -f "$OurDylibFolder/$dylibLibFreeImage" ]; then
+		unlink "$OurDylibFolder/$dylibLibFreeImage"
+	fi
 fi
-if [ ! -f "$dylibsDir/$dylibLibFreeImage" ]; then
+if [ ! -f "$OurDylibFolder/$dylibLibFreeImage" ]; then
     echo "Copy $dylibLibFreeImage"
-    cp "$enginePath/Binaries/ThirdParty/FreeImage/Mac/$dylibLibFreeImage" "$dylibsDir"
-    install_name_tool -id @loader_path/$dylibLibFreeImage "$dylibsDir/$dylibLibFreeImage"
+    cp "$EnginePath/Binaries/ThirdParty/FreeImage/Mac/$dylibLibFreeImage" "$OurDylibFolder"
+	chmod +w "$OurDylibFolder/$dylibLibFreeImage"
+    install_name_tool -id @loader_path/$dylibLibFreeImage "$OurDylibFolder/$dylibLibFreeImage"
 fi
 
 SetUpDll() {
-	dylibDatasmithSDK=$1
+	DylibName=$1
+	OriginalDylibPath="$EnginePath/Binaries/Mac/DatasmithUE4ArchiCAD/$DylibName"
 
-	if [[ "$enginePath/Binaries/Mac/DatasmithSDK/$dylibDatasmithSDK" -nt "$dylibsDir/$dylibDatasmithSDK" ]]; then
-	  unlink "$dylibsDir/$dylibDatasmithSDK"
+	if [[ "$OriginalDylibPath" -nt "$OurDylibFolder/$DylibName" ]]; then
+	if [ -f "$OurDylibFolder/$DylibName" ]; then
+	  unlink "$OurDylibFolder/$DylibName"
 	fi
-	if [ ! -f "$dylibsDir/$dylibDatasmithSDK" ]; then
-		echo "Copy $dylibDatasmithSDK"
-		cp "$enginePath/Binaries/Mac/DatasmithSDK/$dylibDatasmithSDK" "$dylibsDir"
-
-		install_name_tool -id @loader_path/$dylibDatasmithSDK "$dylibsDir/$dylibDatasmithSDK"
-		install_name_tool -change @rpath/$dylibLibFreeImage @loader_path/$dylibLibFreeImage "$dylibsDir/$dylibDatasmithSDK"
+	fi
+	if [ ! -f "$OurDylibFolder/$DylibName" ]; then
+		echo "Copy $DylibName"
+		cp "$OriginalDylibPath" "$OurDylibFolder"
+		install_name_tool -id @loader_path/$DylibName "$OurDylibFolder/$DylibName"
+		install_name_tool -change @rpath/$dylibLibFreeImage @loader_path/$dylibLibFreeImage "$OurDylibFolder/$DylibName"
 	fi
 }
 
-SetUpDll DatasmithSDK.dylib
-SetUpDll DatasmithSDK-Mac-Debug.dylib
+SetUpDll DatasmithUE4ArchiCAD.dylib
+SetUpDll DatasmithUE4ArchiCAD-Mac-Debug.dylib
