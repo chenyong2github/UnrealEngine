@@ -15,6 +15,10 @@
 #include "RayTracingInstance.h"
 #include "Renderer/Private/ScenePrivate.h"
 
+#ifdef HMD_MODULE_INCLUDED
+	#include "IXRTrackingSystem.h"
+#endif
+
 DECLARE_CYCLE_STAT(TEXT("Generate Mesh Vertex Data [GT]"), STAT_NiagaraGenMeshVertexData, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Meshes [RT]"), STAT_NiagaraRenderMeshes, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Meshes - Allocate GPU Data [RT]"), STAT_NiagaraRenderMeshes_AllocateGPUData, STATGROUP_Niagara);
@@ -436,7 +440,12 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					const FViewMatrices& ViewMatrices = GetViewMatrices(*View, SortInfo.ViewOrigin);
 					SortInfo.ViewDirection = ViewMatrices.GetViewMatrix().GetColumn(2);
 
-					if (View->StereoPass != eSSP_FULL)
+
+#ifdef HMD_MODULE_INCLUDED
+					if (View->StereoPass != eSSP_FULL && GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetHMDDevice() != nullptr))
+#else
+					if (View->StereoPass != eSSP_FULL && Views.Num() > 1)
+#endif
 					{
 						// For VR, do distance culling and sorting from a central eye position to prevent differences between views
 						const uint32 PairedViewIdx = (ViewIndex & 1) ? (ViewIndex - 1) : (ViewIndex + 1);
