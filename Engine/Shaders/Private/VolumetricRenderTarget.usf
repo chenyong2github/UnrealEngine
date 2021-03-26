@@ -594,10 +594,11 @@ void ComposeVolumetricRTOverScenePS(
 	float2 VolumeFrontDepth2 = SafeLoadVolumetricDepthTexture(VolumeCoord2);
 	float2 VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture(VolumeCoord3);
 
-	// Check that all cloud medium sample are in front of the surface we are upsampling over to make sure simple bilinear upsampling will work.
+	// Check that cloud medium sample are in front of the surface we are upsampling over water to make sure we will have valid sample.
 	// This is especially needed when upsampling cloud over water surface where depth is not matching the depth for which clouds have been traced for.
 	// If samples are behind, we assume clouds should not be visible (it will be a harsh transition for now)
 	const bool bAllCloudSamplesInFrontOfWater = all(float4(VolumeFrontDepth0.x, VolumeFrontDepth1.x, VolumeFrontDepth2.x, VolumeFrontDepth3.x) < PixelDistanceFromViewKm);
+	const bool bAnyCloudSamplesInFrontOfWater = any(float4(VolumeFrontDepth0.x, VolumeFrontDepth1.x, VolumeFrontDepth2.x, VolumeFrontDepth3.x) < PixelDistanceFromViewKm);
 
 	// clamp to the maximum of the read depth to avoid no depth matching
 	PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y),max(VolumeFrontDepth2.y, VolumeFrontDepth3.y)));
@@ -655,11 +656,11 @@ void ComposeVolumetricRTOverScenePS(
 					DataAcc += VolumeRGBT3;
 					ValidSampleCount++;
 				}
-				//DataAcc = float4(1.0, 1.0, 0, 0); 
+				//DataAcc = float4(0.0, 0.0, 1.0, 0); 
 			}
 		}
 
-		if(!bIsWaterPixel || bIsWaterPixel && ValidSampleCount == 0 && bAllCloudSamplesInFrontOfWater) // if not water, do not do this test!
+		if(!bIsWaterPixel || bIsWaterPixel && ValidSampleCount == 0 && bAnyCloudSamplesInFrontOfWater)
 		{
 			// Depth discontinuities edges
 			float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
@@ -680,7 +681,7 @@ void ComposeVolumetricRTOverScenePS(
 	}
 
 
-	if (UvOffsetScale > 0.0 && bAllCloudSamplesInFrontOfWater)
+	if (UvOffsetScale > 0.0 && !bIsWaterPixel) // we are going to fetch far sample so let's skip water pixel because depth cannot be trusted and used in this case.
 	{
 		// Add some jittered samples to hide upsampling and noise through TAA filtering
 		// We use only Offset0 to save ALU and go faster. Variation across pixels is enough noise for taa to soften it out.
