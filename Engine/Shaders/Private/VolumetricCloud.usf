@@ -449,13 +449,15 @@ bool TraceClouds(
 	// Skip tracing if the depth buffer is in front of the cloud layer front interface. If inside the layer, clamp the tracing to the depth buffer
 	//
 
-	if (TDepthBuffer < TMin)
+	const bool bDoDepthInteresectionAndTest = RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 2;
+
+	if (bDoDepthInteresectionAndTest && TDepthBuffer < TMin)
 	{
 		//OutColor0 = float4(1.0f, 1.0f, 0.0f, 1.0f);
 		return false;
 	}
 
-	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 2)
+	if (bDoDepthInteresectionAndTest)
 	{
 		// Only trace up to the closest between the cloud layer far distance and the depth buffer 
 		TMax = min(TMax, TDepthBuffer);
