@@ -46,9 +46,6 @@ public class OpenXR : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			PublicSystemLibraryPaths.Add("/usr/lib/x86_64-linux-gnu/");
-			PublicSystemLibraryPaths.Add("/usr/lib/");
-			PublicSystemLibraryPaths.Add("/usr/local/lib/");
 			PublicSystemLibraries.Add("openxr_loader");
 		}
 	}
