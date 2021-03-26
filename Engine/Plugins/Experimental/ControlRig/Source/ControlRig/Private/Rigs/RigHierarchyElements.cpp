@@ -13,7 +13,7 @@ void FRigBaseElement::Serialize(FArchive& Ar, URigHierarchy* Hierarchy, ESeriali
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
-	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
 		Save(Ar, Hierarchy, SerializationPhase);
 	}

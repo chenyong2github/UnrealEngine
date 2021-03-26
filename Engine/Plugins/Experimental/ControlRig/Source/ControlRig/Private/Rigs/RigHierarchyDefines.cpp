@@ -9,7 +9,7 @@
 
 void FRigElementKey::Serialize(FArchive& Ar)
 {
-	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
 		Save(Ar);
 	}
