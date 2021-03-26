@@ -974,6 +974,35 @@ public:
 	/** Creates UMapBuildDataRegistry entries for legacy lightmaps from components loaded for this level. */
 	ENGINE_API void HandleLegacyMapBuildData();
 
+	/**
+	 * Get the package name for this actor
+	 * @param InActorPath the fully qualified actor path, in the format: 'Outermost.Outer.Name'
+	 * @return the package name
+	 */
+	static ENGINE_API FString GetActorPackageName(UPackage* InLevelPackage, const FString& InActorPath);
+
+	/**
+	 * Get the folder containing the external actors for this level path
+	 * @param InLevelPackageName The package name to get the external actors path of
+	 * @param InPackageShortName Optional short name to use instead of the package short name
+	 * @return the folder
+	 */
+	static ENGINE_API FString GetExternalActorsPath(const FString& InLevelPackageName, const FString& InPackageShortName = FString());
+
+	/**
+	 * Get the folder containing the external actors for this level
+	 * @param InLevelPackage The package to get the external actors path of
+	 * @param InPackageShortName Optional short name to use instead of the package short name
+	 * @return the folder
+	 */
+	static ENGINE_API FString GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName = FString());
+
+	/**
+	 * Get the folder name from which all external actors paths are created
+	 * @return folder name
+	 */
+	static ENGINE_API const TCHAR* GetExternalActorsFolderName();
+
 #if WITH_EDITOR
 	/** Returns true if the level uses external actors mode. */
 	ENGINE_API bool IsUsingExternalActors() const;
@@ -1002,29 +1031,7 @@ public:
 	 * @return Array of packages associated with this level
 	 */
 	ENGINE_API TArray<UPackage*> GetLoadedExternalActorPackages() const;
-
-	/**
-	 * Get the folder containing the external actors for this level path
-	 * @param InLevelPackageName The package name to get the external actors path of
-	 * @param InPackageShortName Optional short name to use instead of the package short name
-	 * @return the folder
-	 */
-	static ENGINE_API FString GetExternalActorsPath(const FString& InLevelPackageName, const FString& InPackageShortName = FString());
-
-	/**
-	 * Get the folder containing the external actors for this level
-	 * @param InLevelPackage The package to get the external actors path of
-	 * @param InPackageShortName Optional short name to use instead of the package short name
-	 * @return the folder
-	 */
-	static ENGINE_API FString GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName = FString());
-
-	/**
-	 * Get the folder name from which all external actors paths are created
-	 * @return folder name
-	 */
-	static ENGINE_API const TCHAR* GetExternalActorsFolderName();
-		
+				
 	/**
 	 * Create an package for this actor
 	 * @param InActorPath the fully qualified actor path, in the format: 'Outermost.Outer.Name'

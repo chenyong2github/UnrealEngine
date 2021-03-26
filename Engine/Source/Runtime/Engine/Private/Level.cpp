@@ -50,6 +50,7 @@ Level.cpp: Level-related functions
 #include "Engine/LevelBounds.h"
 #include "Async/ParallelFor.h"
 #include "UnrealEngine.h"
+#include "Misc/ArchiveMD5.h"
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -57,7 +58,6 @@ Level.cpp: Level-related functions
 #include "AssetRegistryModule.h"
 #include "IAssetRegistry.h"
 #include "AssetData.h"
-#include "Misc/ArchiveMD5.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "Engine/LevelStreaming.h"
@@ -2301,6 +2301,87 @@ bool ULevel::HasAnyActorsOfType(UClass *SearchType)
 	return false;
 }
 
+FString ULevel::GetActorPackageName(UPackage* InLevelPackage, const FString& InActorPath)
+{
+	// Convert the actor path to lowercase to make sure we get the same hash for case insensitive file systems
+	FString ActorPath = InActorPath.ToLower();
+
+	FArchiveMD5 ArMD5;
+	ArMD5 << ActorPath;
+
+	FMD5Hash MD5Hash;
+	ArMD5.GetHash(MD5Hash);
+
+	FGuid PackageGuid;
+	check(MD5Hash.GetSize() == sizeof(FGuid));
+	FMemory::Memcpy(&PackageGuid, MD5Hash.GetBytes(), sizeof(FGuid));
+	check(PackageGuid.IsValid());
+
+	FString GuidBase36 = PackageGuid.ToString(EGuidFormats::Base36Encoded);
+	check(GuidBase36.Len());
+
+	FString BaseDir = GetExternalActorsPath(InLevelPackage);
+
+	TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ActorPackageName;
+	ActorPackageName.Append(BaseDir);
+	ActorPackageName.Append(TEXT("/"));
+	ActorPackageName.Append(*GuidBase36, 2);
+	ActorPackageName.Append(TEXT("/"));
+	ActorPackageName.Append(*GuidBase36 + 2, 2);
+	ActorPackageName.Append(TEXT("/"));
+	ActorPackageName.Append(*GuidBase36 + 4);
+	return ActorPackageName.ToString();
+}
+
+FString ULevel::GetExternalActorsPath(const FString& InLevelPackageName, const FString& InPackageShortName)
+{
+	// Strip the temp prefix if found
+	FString ExternalActorsPath;
+
+	auto TrySplitLongPackageName = [&InPackageShortName](const FString& InLevelPackageName, FString& OutExternalActorsPath)
+	{
+		FString MountPoint, PackagePath, ShortName;
+		if (FPackageName::SplitLongPackageName(InLevelPackageName, MountPoint, PackagePath, ShortName))
+		{
+			OutExternalActorsPath = FString::Printf(TEXT("%s%s/%s%s"), *MountPoint, GetExternalActorsFolderName(), *PackagePath, InPackageShortName.IsEmpty() ? *ShortName : *InPackageShortName);
+			return true;
+		}
+		return false;
+	};
+
+	// This if exists only to support the Fortnite Foundation level streaming which prefix a valid package with /Temp (/Temp/Game/...)
+	// Unsaved worlds also have a /Temp prefix but no other mount point in their paths and they should fallback to not stripping the prefix. (first call to SplitLongPackageName will fail and second will succeed)
+	if (InLevelPackageName.StartsWith(TEXT("/Temp")))
+	{
+		FString BaseLevelPackageName = InLevelPackageName.Mid(5);
+		if (TrySplitLongPackageName(BaseLevelPackageName, ExternalActorsPath))
+		{
+			return ExternalActorsPath;
+		}
+	}
+
+	if (TrySplitLongPackageName(InLevelPackageName, ExternalActorsPath))
+	{
+		return ExternalActorsPath;
+	}
+
+	return FString();
+}
+
+FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName)
+{
+	check(InLevelPackage);
+
+	// We can't use the Package->FileName here because it might be a duplicated a package
+	// We can't use the package short name directly in some cases either (PIE, instanced load) as it may contain pie prefix or not reflect the real actor location
+	return GetExternalActorsPath(InLevelPackage->GetName(), InPackageShortName);
+}
+
+const TCHAR* ULevel::GetExternalActorsFolderName()
+{
+	return TEXT("__ExternalActors__");
+}
+
 #if WITH_EDITOR
 
 bool ULevel::IsUsingExternalActors() const
@@ -2364,11 +2445,6 @@ TArray<FString> ULevel::GetOnDiskExternalActorPackages() const
 	return ActorPackageNames;
 }
 
-const TCHAR* ULevel::GetExternalActorsFolderName()
-{
-	return TEXT("__ExternalActors__");
-}
-
 TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
 {
 	TSet<UPackage*> ActorPackages;
@@ -2393,81 +2469,9 @@ TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
 	return ActorPackages.Array();
 }
 
-FString ULevel::GetExternalActorsPath(const FString& InLevelPackageName, const FString& InPackageShortName)
-{
-	// Strip the temp prefix if found
-	FString ExternalActorsPath;
-	
-	auto TrySplitLongPackageName = [&InPackageShortName](const FString& InLevelPackageName, FString& OutExternalActorsPath)
-	{
-		FString MountPoint, PackagePath, ShortName;
-		if (FPackageName::SplitLongPackageName(InLevelPackageName, MountPoint, PackagePath, ShortName))
-		{
-			OutExternalActorsPath = FString::Printf(TEXT("%s%s/%s%s"), *MountPoint, GetExternalActorsFolderName(), *PackagePath, InPackageShortName.IsEmpty() ? *ShortName : *InPackageShortName);
-			return true;
-		}
-		return false;
-	};
-	
-	// This if exists only to support the Fortnite Foundation level streaming which prefix a valid package with /Temp (/Temp/Game/...)
-	// Unsaved worlds also have a /Temp prefix but no other mount point in their paths and they should fallback to not stripping the prefix. (first call to SplitLongPackageName will fail and second will succeed)
-	if (InLevelPackageName.StartsWith(TEXT("/Temp")))
-	{
-		FString BaseLevelPackageName = InLevelPackageName.Mid(5);
-		if (TrySplitLongPackageName(BaseLevelPackageName, ExternalActorsPath))
-		{
-			return ExternalActorsPath;
-		}
-	}
-
-	if (TrySplitLongPackageName(InLevelPackageName, ExternalActorsPath))
-	{
-		return ExternalActorsPath;
-	}
-
-	return FString();
-}
-
-FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName)
-{
-	check(InLevelPackage);
-
-	// We can't use the Package->FileName here because it might be a duplicated a package
-	// We can't use the package short name directly in some cases either (PIE, instanced load) as it may contain pie prefix or not reflect the real actor location
-	return GetExternalActorsPath(InLevelPackage->GetName(), InPackageShortName);
-}
-
 UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, const FString& InActorPath)
 {
-	// Convert the actor path to lowercase to make sure we get the same hash for case insensitive file systems
-	FString ActorPath = InActorPath.ToLower();
-
-	FArchiveMD5 ArMD5;
-	ArMD5 << ActorPath;
-
-	FMD5Hash MD5Hash;
-	ArMD5.GetHash(MD5Hash);
-
-	FGuid PackageGuid;
-	check(MD5Hash.GetSize() == sizeof(FGuid));
-	FMemory::Memcpy(&PackageGuid, MD5Hash.GetBytes(), sizeof(FGuid));
-	check(PackageGuid.IsValid());
-
-	FString GuidBase36 = PackageGuid.ToString(EGuidFormats::Base36Encoded);
-	check(GuidBase36.Len());
-
-	FString BaseDir = GetExternalActorsPath(InLevelPackage);
-
-	TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ActorPackageName;
-	ActorPackageName.Append(BaseDir);
-	ActorPackageName.Append(TEXT("/"));
-	ActorPackageName.Append(*GuidBase36, 2);
-	ActorPackageName.Append(TEXT("/"));
-	ActorPackageName.Append(*GuidBase36 + 2, 2);
-	ActorPackageName.Append(TEXT("/"));
-	ActorPackageName.Append(*GuidBase36 + 4);
-
-	UPackage* ActorPackage = CreatePackage(*ActorPackageName);
+	UPackage* ActorPackage = CreatePackage(*GetActorPackageName(InLevelPackage, InActorPath));
 	ActorPackage->SetPackageFlags(PKG_EditorOnly | PKG_ContainsMapData);
 	return ActorPackage;
 }

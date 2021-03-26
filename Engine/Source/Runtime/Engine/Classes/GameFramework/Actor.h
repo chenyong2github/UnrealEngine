@@ -1853,6 +1853,11 @@ public:
 	virtual void PreSave(const ITargetPlatform* TargetPlatform) override;
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
+	/** Used to check if Actor is the main actor of a package (currently Child Actors are not) */
+	bool IsMainPackageActor() const;
+
+	static AActor* FindActorInPackage(UPackage* InPackage);
+
 #if WITH_EDITOR
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;

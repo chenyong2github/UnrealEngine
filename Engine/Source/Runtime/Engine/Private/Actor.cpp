@@ -376,7 +376,7 @@ bool AActor::IsAsset() const
 {
 	// External actors are considered assets, to allow using the asset logic for save dialogs, etc.
 	// Also, they return true even if pending kill, in order to show up as deleted in these dialogs.
-	return IsPackageExternal() && !GetPackage()->HasAnyFlags(RF_Transient) && !IsChildActor() && !HasAnyFlags(RF_Transient | RF_ClassDefaultObject);
+	return IsPackageExternal() && !GetPackage()->HasAnyFlags(RF_Transient) && !HasAnyFlags(RF_Transient | RF_ClassDefaultObject) && IsMainPackageActor();
 }
 
 bool AActor::PreSaveRoot(const TCHAR* InFilename)
@@ -1120,6 +1120,29 @@ float AActor::GetActorTickInterval() const
 	return PrimaryActorTick.TickInterval;
 }
 
+bool AActor::IsMainPackageActor() const
+{
+	check(IsPackageExternal());
+	return GetExternalPackage()->GetFName().ToString() == ULevel::GetActorPackageName(GetLevel()->GetPackage(), GetPathName());
+}
+
+AActor* AActor::FindActorInPackage(UPackage* InPackage)
+{
+	AActor* Actor = nullptr;
+	ForEachObjectWithPackage(InPackage, [&Actor](UObject* Object)
+	{
+		if (AActor* CurrentActor = Cast<AActor>(Object))
+		{
+			if (CurrentActor->IsMainPackageActor())
+			{
+				Actor = CurrentActor;
+			}
+		}
+		return !Actor;
+	}, false);
+	return Actor;
+}
+
 bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags )
 {
 	const bool bRenameTest = ((Flags & REN_Test) != 0);
@@ -1128,12 +1151,18 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 #if WITH_EDITOR
 	// if we have an external actor and the actor is changing name/outer, we will want to update its package
 	const bool bExternalActor = IsPackageExternal();
-
+	bool bShouldSetPackageExternal = false;
 	if (!bRenameTest && bExternalActor)
 	{
 		if (ULevel* MyLevel = GetLevel())
 		{
-			SetPackageExternal(false, MyLevel->IsUsingExternalActors());
+			bShouldSetPackageExternal = bChangingOuters || IsMainPackageActor();
+			// If we are changing outers always change the external package because the outer chain as an impact on the filename
+			// but if we are not changing outers only change the external flag if the actor is the main actor in a package. (this is to avoid Child Actors creating packages)
+			if (bShouldSetPackageExternal)
+			{
+				SetPackageExternal(false, MyLevel->IsUsingExternalActors());
+			}
 		}
 	}
 #endif
@@ -1162,7 +1191,7 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 	const bool bSuccess = Super::Rename( InName, NewOuter, Flags );
 
 #if WITH_EDITOR
-	if (!bRenameTest && bExternalActor)
+	if (bShouldSetPackageExternal)
 	{
 		if (ULevel* MyLevel = GetLevel())
 		{

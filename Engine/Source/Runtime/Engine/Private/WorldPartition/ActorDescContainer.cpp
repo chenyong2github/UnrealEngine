@@ -140,7 +140,7 @@ TUniquePtr<FWorldPartitionActorDesc> UActorDescContainer::GetActorDescriptor(con
 
 bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
 {
-	if (Actor && Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel))
+	if (Actor && Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel) && Actor->IsMainPackageActor())
 	{
 		// Only handle assets that belongs to our level
 		auto RemoveAfterFirstDot = [](const FString& InValue)
@@ -167,6 +167,7 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object)
 	{
 		if (ShouldHandleActorEvent(Actor))
 		{
+			check(!Actor->IsPendingKill());
 			if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindRef(Actor->GetActorGuid()))
 			{
 				// Pin the actor handle on the actor to prevent unloading it when unhashing
@@ -201,8 +202,7 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object)
 
 void UActorDescContainer::OnPackageDeleted(UPackage* Package)
 {
-	AActor* Actor = nullptr;
-	ForEachObjectWithPackage(Package, [&Actor](UObject* Object)	{ Actor = Cast<AActor>(Object);	return !Actor; }, false);
+	AActor* Actor = AActor::FindActorInPackage(Package);
 
 	if (ShouldHandleActorEvent(Actor))
 	{
