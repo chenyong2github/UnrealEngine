@@ -205,7 +205,10 @@ FTimespan FWmfMediaTracks::GetDuration() const
 
 	UINT64 PresentationDuration = 0;
 	PresentationDescriptor->GetUINT64(MF_PD_DURATION, &PresentationDuration);
-	
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	// The duration reported here for HAP videos can be larger than they really are be by this amount.
+	PresentationDuration -= 10000;
+#endif
 	return FTimespan(PresentationDuration);
 }
 
