@@ -56,6 +56,12 @@ namespace UnrealEditor
 		public string GameInstanceLostTimerSeconds = string.Empty;
 
 		/// <summary>
+		/// Disable distribution of shader builds (but use worker processes still)
+		/// </summary>
+		[AutoParam]
+		public bool NoShaderDistrib = false;
+
+		/// <summary>
 		/// Applies these options to the provided app config
 		/// </summary>
 		/// <param name="AppConfig"></param>
@@ -89,6 +95,11 @@ namespace UnrealEditor
 			if (GameInstanceLostTimerSeconds != string.Empty)
 			{
 				AppConfig.CommandLineParams.Add(string.Format("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:GameInstanceLostTimerSeconds={0}", GameInstanceLostTimerSeconds));
+			}
+
+			if (NoShaderDistrib)
+			{
+				AppConfig.CommandLineParams.Add("-noxgeshadercompile");
 			}
 		}
 	}
