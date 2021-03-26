@@ -2772,7 +2772,8 @@ FRasterContext InitRasterContext(
 	bool bClearTarget,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,
 	uint32 NumRects,
-	FRDGTextureRef ExternalDepthBuffer )
+	FRDGTextureRef ExternalDepthBuffer
+)
 {
 	// If an external depth buffer is provided, it must match the context size
 	check( ExternalDepthBuffer == nullptr || ExternalDepthBuffer->Desc.Extent == TextureSize );
