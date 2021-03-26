@@ -11,10 +11,9 @@ namespace UnrealBuildTool.Rules
 		{
 			bUseRTTI = true;
 
-			// XXX
-			OptimizeCode = CodeOptimization.Never;
-			bUseUnity = false;
-			PCHUsage = PCHUsageMode.NoPCHs;
+			// OptimizeCode = CodeOptimization.Never;
+			// bUseUnity = false;
+			// PCHUsage = PCHUsageMode.NoPCHs;
 
 
 			PrivateDependencyModuleNames.AddRange(
@@ -55,21 +54,22 @@ namespace UnrealBuildTool.Rules
 					PublicDelayLoadDLLs.Add("SketchUpAPI.dll");
 
 					PrivateIncludePaths.Add(Path.Combine(SketchUpSDKLocation, "samples", "common", "ThirdParty", "ruby", "include", "win32_x64"));
-					PublicAdditionalLibraries.Add(Path.Combine(SketchUpSDKLocation, "samples", "common", "ThirdParty", "ruby", "lib", "win", "x64", "x64-msvcrt-ruby250.lib"));
+					PublicAdditionalLibraries.Add(Path.Combine(SketchUpSDKLocation, "samples", "common", "ThirdParty", "ruby", "lib", "win", "x64", GetRubyLibName()));
 				}
 
 				if (!Directory.Exists(SketchUpSDKLocation))
                 {
-					// System.Console.WriteLine("SketchUp SDK directory doesn't exist: '" + SketchUpSDKLocation + "'");
+					System.Console.WriteLine("SketchUp SDK directory doesn't exist: '" + SketchUpSDKLocation + "'");
 				}
 			}
 		}
 
 		public abstract string GetSketchUpSDKFolder();
 		public abstract string GetSketchUpEnvVar();
+		public abstract string GetRubyLibName();
 	}
 
-	[SupportedPlatforms("Win64")]
+	[SupportedPlatforms("Win64", "Mac")]
 	public class DatasmithSketchUpRuby2020 : DatasmithSketchUpRubyBase
 	{
 		public DatasmithSketchUpRuby2020(ReadOnlyTargetRules Target)
@@ -86,6 +86,10 @@ namespace UnrealBuildTool.Rules
 		public override string GetSketchUpEnvVar()
 		{
 			return "SKP_SDK_2020";
+		}
+		public override string GetRubyLibName()
+        {
+			return "x64-msvcrt-ruby250.lib";
 		}
 	}
 }

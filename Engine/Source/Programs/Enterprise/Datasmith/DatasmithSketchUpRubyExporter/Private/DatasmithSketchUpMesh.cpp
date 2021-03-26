@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DatasmithSketchUpCommon.h"
+#include "DatasmithSketchUpMesh.h"
 #include "DatasmithSketchUpUtils.h"
 
-#include "DatasmithSketchUpMesh.h"
 #include "DatasmithSketchUpExportContext.h"
 
 // SketchUp to Datasmith exporter classes.

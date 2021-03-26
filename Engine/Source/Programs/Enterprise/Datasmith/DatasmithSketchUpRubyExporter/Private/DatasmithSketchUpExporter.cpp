@@ -20,16 +20,21 @@
 
 #include "DatasmithSketchUpSDKBegins.h"
 #include <SketchUpAPI/sketchup.h>
+// SketchUp prior to 2020.2 doesn't have api to convert SU entities between Ruby and C 
+#ifndef SKP_SDK_2019
 #include <SketchUpAPI/application/ruby_api.h>
+#endif
 #include "DatasmithSketchUpSDKCeases.h"
 
 #pragma warning(push)
-// disable: "__GNUC__' is not defined as a preprocessor macro, replacing"
+// disable(SU2020): "__GNUC__' is not defined as a preprocessor macro, replacing"
 #pragma warning(disable: 4668)
-// disable: macro name '_INTEGRAL_MAX_BITS' is reserved, '#define' ignored
+// disable(SU2020): macro name '_INTEGRAL_MAX_BITS' is reserved, '#define' ignored
 #pragma warning(disable: 4117)
-// disable: 'DEPRECATED' : macro redefinition; 'ASSUME': macro redefinition
+// disable(SU2020): 'DEPRECATED' : macro redefinition; 'ASSUME': macro redefinition
 #pragma warning(disable: 4005)
+// disable(SU2021): 'reinterpret_cast': unsafe conversion from 'ruby::backward::cxxanyargs::void_type (__cdecl *)' to 'rb_gvar_setter_t (__cdecl *)'	
+#pragma warning(disable: 4191)
 #include <ruby.h>
 #pragma warning(pop)
 
@@ -392,6 +397,12 @@ public:
 			return true;
 		}
 
+		// Try Material
+		if (Context.Materials.RemoveMaterial(EntityId))
+		{
+			return true;
+		}
+
 		return false;
 	}
 
@@ -419,6 +430,10 @@ public:
 			{
 				// todo: unexpected
 			}
+		}
+		case SURefType_Material:
+		{
+			Context.Materials.InvalidateMaterial(SUMaterialFromEntity(Entity));
 		}
 		default:
 		{
@@ -568,6 +583,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene_no_clea
 	return Qtrue;
 }
 
+#ifndef SKP_SDK_2019
 VALUE DatasmithSketchUpDirectLinkExporter_on_component_instance_changed(VALUE self, VALUE ruby_entity)
 {
 	// Converting args
@@ -627,6 +643,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added(VALUE self, VALUE ruby
 
 	return Qtrue;
 }
+#endif
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_entity_removed(VALUE self, VALUE ruby_entity_id)
 {
@@ -673,8 +690,9 @@ VALUE open_directlink_ui() {
 	return Qfalse;
 }
 
+
 // todo: hardcoded init module function name
-extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby2020()
+extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby()
 {
 	VALUE EpicGames = rb_define_module("EpicGames");
 	VALUE Datasmith = rb_define_module_under(EpicGames, "DatasmithBackend");
@@ -688,9 +706,13 @@ extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby2020()
 
 	rb_define_singleton_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "new", ToRuby(DatasmithSketchUpDirectLinkExporter_new), 3);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "start", ToRuby(DatasmithSketchUpDirectLinkExporter_start), 0);
+
+#ifndef SKP_SDK_2019
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_component_instance_changed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_component_instance_changed), 1);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_modified", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_modified), 1);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_added", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_added), 2);
+#endif
+
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_removed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_removed), 1);
 
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "update", ToRuby(DatasmithSketchUpDirectLinkExporter_update), 0);

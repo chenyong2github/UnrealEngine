@@ -152,6 +152,9 @@ namespace DatasmithSketchUp
 		);
 
 		TSharedPtr<FMaterial> CreateMaterial(SUMaterialRef SMaterialDefinitionRef);
+		void InvalidateMaterial(SUMaterialRef SMaterialDefinitionRef);
+		bool RemoveMaterial(FEntityIDType EntityId);
+
 
 		TSharedPtr<DatasmithSketchUp::FMaterial>* Find(FMaterialIDType MaterialID)
 		{

@@ -2,8 +2,16 @@
 
 #pragma once
 
+#include "DatasmithSketchUpCommon.h"
+
+// Datasmith SDK.
+#include "Containers/UnrealString.h"
+
+class IDatasmithTextureElement;
+
 namespace DatasmithSketchUp
 {
+	class FExportContext;
 	class FTexture;
 	class FTextureImageFile;
 

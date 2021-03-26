@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "DatasmithSketchUpCamera.h"
+
 #include "DatasmithSketchUpCommon.h"
 #include "DatasmithSketchUpUtils.h"
-#include "DatasmithSketchUpCamera.h"
 
 #include "DatasmithSketchUpString.h"
 #include "DatasmithSketchUpExportContext.h"

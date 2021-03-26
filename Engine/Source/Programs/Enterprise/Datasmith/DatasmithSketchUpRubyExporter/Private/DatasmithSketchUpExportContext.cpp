@@ -440,3 +440,28 @@ TSharedPtr<FMaterial> FMaterialCollection::CreateMaterial(SUMaterialRef Material
 	MaterialDefinitionMap.Emplace(DatasmithSketchUpUtils::GetMaterialID(MaterialDefinitionRef), Material);
 	return Material;
 }
+
+void FMaterialCollection::InvalidateMaterial(SUMaterialRef MaterialDefinitionRef)
+{
+	FMaterialIDType MateriadId = DatasmithSketchUpUtils::GetMaterialID(MaterialDefinitionRef);
+
+	if (TSharedPtr<FMaterial>* Ptr = MaterialDefinitionMap.Find(MateriadId))
+	{
+		FMaterial& Material = **Ptr;
+
+		Material.Update(Context);
+		return;
+	}
+	CreateMaterial(MaterialDefinitionRef);
+}
+
+bool FMaterialCollection::RemoveMaterial(FEntityIDType EntityId)
+{
+	TSharedPtr<FMaterial> Material;
+	if (MaterialDefinitionMap.RemoveAndCopyValue(EntityId, Material))
+	{
+		Material->Remove(Context);
+		return true;
+	}
+	return false;
+}

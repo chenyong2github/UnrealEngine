@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "DatasmithSketchUpTexture.h"
+
 #include "DatasmithSketchUpCommon.h"
 #include "DatasmithSketchUpUtils.h"
 #include "DatasmithSketchUpExportContext.h"
 #include "DatasmithSketchUpString.h"
 
-#include "DatasmithSketchUpTexture.h"
 
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
