@@ -42,9 +42,13 @@ namespace AutomationTool
 				EditorArgs = ProjectFile.FullName;
 			}
 
+			// filter out any -project argument since we want it to be the first un-prefixed argument to the editor 
 			IEnumerable<string> ParamList = this.Params
-												.Where(P => P.StartsWith("project=", StringComparison.OrdinalIgnoreCase) == false)
-												.Select(P => "-" + P);
+												.Where(P => P.StartsWith("project=", StringComparison.OrdinalIgnoreCase) == false);
+
+
+			ParamList = new[] { EditorArgs }.Concat(ParamList);
+	
 
 			bool bLaunched = RunUntrackedProcess(EditorPath, string.Join(" ", ParamList));
 
