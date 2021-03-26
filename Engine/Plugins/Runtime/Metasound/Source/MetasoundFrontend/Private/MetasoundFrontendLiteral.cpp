@@ -224,82 +224,91 @@ void FMetasoundFrontendLiteral::SetFromLiteral(const Metasound::FLiteral& InLite
 	switch (InLiteral.GetType())
 	{
 		case ELiteralType::None:
-
+		{
 			Set(FMetasoundFrontendLiteral::FDefault{});
-
-			break;
+		}
+		break;
 
 		case ELiteralType::Boolean:
-
+		{
 			Set(InLiteral.Value.Get<bool>());
-
-			break;
+		}
+		break;
 
 		case ELiteralType::Float:
-
+		{
 			Set(InLiteral.Value.Get<float>());
-
-			break;
+		}
+		break;
 
 		case ELiteralType::Integer:
-		
+		{
 			Set(InLiteral.Value.Get<int32>());
-	
-			break;
+		}
+		break;
 
 		case ELiteralType::String:
-		
+		{
 			Set(InLiteral.Value.Get<FString>());
-		
-			break;
+		}
+		break;
 
 		case ELiteralType::UObjectProxy:
+		{
+			// Only error if attempting to retrieve valid UObject from ProxyDataPtr
+			// as this function can safely is used to initialize from defaults (which
+			// is valid as a null proxy can safely correspond to a null UObject ptr).
+			if (InLiteral.Value.Get<Audio::IProxyDataPtr>().IsValid())
 			{
 				UE_LOG(LogMetasound, Error, TEXT("Cannot set UObjectProxy from Metasound::FLiteral"));
-				Set(static_cast<UObject*>(nullptr));
 			}
-
-			break;
+			Set(static_cast<UObject*>(nullptr));
+		}
+		break;
 
 		case ELiteralType::NoneArray:
-			{
-				int32 Num = InLiteral.Value.Get<TArray<FLiteral::FNone>>().Num(); 
-				Set(FMetasoundFrontendLiteral::FDefaultArray{ Num });
-			}
-
-			break;
+		{
+			int32 Num = InLiteral.Value.Get<TArray<FLiteral::FNone>>().Num(); 
+			Set(FMetasoundFrontendLiteral::FDefaultArray{ Num });
+		}
+		break;
 
 		case ELiteralType::BooleanArray:
-
+		{
 			Set(InLiteral.Value.Get<TArray<bool>>());
-
-			break;
+		}
+		break;
 
 		case ELiteralType::IntegerArray:
-
+		{
 			Set(InLiteral.Value.Get<TArray<int32>>());
-
-			break;
+		}
+		break;
 
 		case ELiteralType::FloatArray:
-
+		{
 			Set(InLiteral.Value.Get<TArray<float>>());
-
-			break;
+		}
+		break;
 
 		case ELiteralType::StringArray:
-
+		{
 			Set(InLiteral.Value.Get<TArray<FString>>());
-
-			break;
+		}
+		break;
 
 		case ELiteralType::UObjectProxyArray:
+		{
+			// Only error if attempting to retrieve valid UObject from ProxyDataPtr
+			// as this function can safely is used to initialize from defaults (which
+			// is valid as a null proxy can safely correspond to a null UObject ptr).
+			if (!InLiteral.Value.Get<TArray<Audio::IProxyDataPtr>>().IsEmpty())
 			{
 				UE_LOG(LogMetasound, Error, TEXT("Cannot set UObjectProxy from Metasound::FLiteral"));
-				Set(TArray<UObject*>());
 			}
-
-			break;
+			Set(TArray<UObject*>());
+		}
+		break;
 
 		case ELiteralType::Invalid:
 		default:

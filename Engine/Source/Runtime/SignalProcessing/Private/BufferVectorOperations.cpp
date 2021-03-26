@@ -75,8 +75,6 @@ namespace Audio
 
 	void BufferMultiplyByConstant(const FAlignedFloatBuffer& InFloatBuffer, float InValue, FAlignedFloatBuffer& OutFloatBuffer)
 	{
-		check(InFloatBuffer.Num() >= 4);
-
 		// Prepare output buffer
 		OutFloatBuffer.Reset();
 		OutFloatBuffer.AddUninitialized(InFloatBuffer.Num());
@@ -94,15 +92,13 @@ namespace Audio
 
 	void BufferMultiplyByConstant(const float* RESTRICT InFloatBuffer, float InValue, float* RESTRICT OutFloatBuffer, const int32 InNumSamples)
 	{
-		check(InNumSamples >= 4);
-		RestrictedPtrAliasCheck(InFloatBuffer, OutFloatBuffer, InNumSamples);
-
 #if !AUDIO_USE_SIMD
 		for (int32 i = 0; i < InNumSamples; ++i)
 		{
 			OutFloatBuffer[i] = InValue * InFloatBuffer[i];
 		}
 #else
+		RestrictedPtrAliasCheck(InFloatBuffer, OutFloatBuffer, InNumSamples);
 
 		// Can only SIMD on multiple of 4 buffers, we'll do normal multiples on last bit
 		const int32 NumSamplesRemaining = InNumSamples % 4;
