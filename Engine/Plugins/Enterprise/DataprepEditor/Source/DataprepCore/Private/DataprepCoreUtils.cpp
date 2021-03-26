@@ -735,8 +735,11 @@ void FDataprepCoreUtils::DeleteTemporaryFolders(const FString& BaseTemporaryPath
 
 			if(Package->GetName().StartsWith( BaseTemporaryPath ))
 			{
-				// Remove package path from asset registry
-				AssetRegistry.RemovePath(Package->GetPathName());
+				if (AssetRegistry.PathExists(Package->GetPathName()))
+				{
+					// Remove package path from asset registry
+					AssetRegistry.RemovePath(Package->GetPathName());
+				}
 
 				ObjectsToDelete.Add( Package );
 			}

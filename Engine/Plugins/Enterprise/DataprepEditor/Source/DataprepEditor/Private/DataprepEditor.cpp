@@ -302,6 +302,8 @@ FDataprepEditor::FDataprepEditor()
 
 FDataprepEditor::~FDataprepEditor()
 {
+	ResetBuildWorld();
+
 	if( DataprepAssetInterfacePtr.IsValid() )
 	{
 		DataprepAssetInterfacePtr->GetOnChanged().RemoveAll( this );
