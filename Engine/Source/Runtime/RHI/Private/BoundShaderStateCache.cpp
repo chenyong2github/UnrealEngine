@@ -49,13 +49,11 @@ FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
 	FRHIVertexDeclaration* VertexDeclaration,
 	FRHIVertexShader* VertexShader,
 	FRHIPixelShader* PixelShader,
-	FRHIHullShader* HullShader,
-	FRHIDomainShader* DomainShader,
 	FRHIGeometryShader* GeometryShader,
 	FRHIBoundShaderState* InBoundShaderState,
 	bool bAddToSingleThreadedCache)
 	: BoundShaderState(InBoundShaderState)
-	, Key(VertexDeclaration, VertexShader, PixelShader, HullShader, DomainShader, GeometryShader)
+	, Key(VertexDeclaration, VertexShader, PixelShader, GeometryShader)
 	, bAddedToSingleThreadedCache(bAddToSingleThreadedCache)
 {
 	if (bAddToSingleThreadedCache)
@@ -93,8 +91,6 @@ FCachedBoundShaderStateLink* GetCachedBoundShaderState(
 	FRHIVertexDeclaration* VertexDeclaration,
 	FRHIVertexShader* VertexShader,
 	FRHIPixelShader* PixelShader,
-	FRHIHullShader* HullShader,
-	FRHIDomainShader* DomainShader,
 	FRHIGeometryShader* GeometryShader,
 	FRHIMeshShader* MeshShader,
 	FRHIAmplificationShader* AmplificationShader
@@ -111,7 +107,7 @@ FCachedBoundShaderStateLink* GetCachedBoundShaderState(
 	{
 		// Find the existing bound shader state in the cache.
 		return GetBoundShaderStateCache().FindRef(
-			FBoundShaderStateLookupKey(VertexDeclaration, VertexShader, PixelShader, HullShader, DomainShader, GeometryShader)
+			FBoundShaderStateLookupKey(VertexDeclaration, VertexShader, PixelShader, GeometryShader)
 		);
 	}
 }
@@ -133,8 +129,6 @@ FBoundShaderStateRHIRef GetCachedBoundShaderState_Threadsafe(
 	FRHIVertexDeclaration* VertexDeclaration,
 	FRHIVertexShader* VertexShader,
 	FRHIPixelShader* PixelShader,
-	FRHIHullShader* HullShader,
-	FRHIDomainShader* DomainShader,
 	FRHIGeometryShader* GeometryShader,
 	FRHIMeshShader* MeshShader,
 	FRHIAmplificationShader* AmplificationShader
@@ -153,7 +147,7 @@ FBoundShaderStateRHIRef GetCachedBoundShaderState_Threadsafe(
 	else
 	{
 		CachedBoundShaderStateLink = GetBoundShaderStateCache_Threadsafe().FindRef(
-			FBoundShaderStateLookupKey(VertexDeclaration, VertexShader, PixelShader, HullShader, DomainShader, GeometryShader)
+			FBoundShaderStateLookupKey(VertexDeclaration, VertexShader, PixelShader, GeometryShader)
 		);
 	}
 	

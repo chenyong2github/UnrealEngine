@@ -954,8 +954,6 @@ public:
 			RHICreateBoundShaderState_internal(
 				PsoInit.BoundShaderState.VertexDeclarationRHI,
 				PsoInit.BoundShaderState.VertexShaderRHI,
-				TESSELLATION_SHADER(PsoInit.BoundShaderState.HullShaderRHI),
-				TESSELLATION_SHADER(PsoInit.BoundShaderState.DomainShaderRHI),
 				PsoInit.BoundShaderState.PixelShaderRHI,
 				GEOMETRY_SHADER(PsoInit.BoundShaderState.GeometryShaderRHI),
 				PsoInit.bFromPSOFileCache
@@ -973,8 +971,6 @@ public:
 		if (bApplyAdditionalState)
 		{
 			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.VertexShaderRHI, ResourceCast(PsoInit.BoundShaderState.VertexShaderRHI));
-			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.HullShaderRHI, ResourceCast(PsoInit.BoundShaderState.HullShaderRHI));
-			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.DomainShaderRHI, ResourceCast(PsoInit.BoundShaderState.DomainShaderRHI));
 			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.GeometryShaderRHI, ResourceCast(PsoInit.BoundShaderState.GeometryShaderRHI));
 			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.PixelShaderRHI, ResourceCast(PsoInit.BoundShaderState.PixelShaderRHI));
 		}
@@ -986,8 +982,6 @@ public:
 	FBoundShaderStateRHIRef RHICreateBoundShaderState_internal(
 		FRHIVertexDeclaration* VertexDeclarationRHI,
 		FRHIVertexShader* VertexShaderRHI,
-		FRHIHullShader* HullShaderRHI,
-		FRHIDomainShader* DomainShaderRHI,
 		FRHIPixelShader* PixelShaderRHI,
 		FRHIGeometryShader* GeometryShaderRHI,
 		bool FromPSOFileCache
@@ -998,8 +992,6 @@ public:
 		RHITHREAD_GLCOMMAND_PROLOGUE()
 			return RHICreateBoundShaderState_OnThisThread(VertexDeclarationRHI,
 				VertexShaderRHI,
-				HullShaderRHI,
-				DomainShaderRHI,
 				PixelShaderRHI,
 				GeometryShaderRHI,
 				FromPSOFileCache);
@@ -1009,8 +1001,6 @@ public:
 	virtual FBoundShaderStateRHIRef RHICreateBoundShaderState(
 		FRHIVertexDeclaration* VertexDeclarationRHI,
 		FRHIVertexShader* VertexShaderRHI,
-		FRHIHullShader* HullShaderRHI,
-		FRHIDomainShader* DomainShaderRHI,
 		FRHIPixelShader* PixelShaderRHI,
 		FRHIGeometryShader* GeometryShaderRHI
 	) final override
@@ -1018,8 +1008,6 @@ public:
 		return RHICreateBoundShaderState_internal(
 			VertexDeclarationRHI,
 			VertexShaderRHI,
-			HullShaderRHI,
-			DomainShaderRHI,
 			PixelShaderRHI,
 			GeometryShaderRHI,
 			false);
@@ -1027,7 +1015,7 @@ public:
 
 	class FOpenGLLinkedProgram* GetLinkedComputeProgram(FRHIComputeShader* ComputeShaderRHI);
 
-	FBoundShaderStateRHIRef RHICreateBoundShaderState_OnThisThread(FRHIVertexDeclaration* VertexDeclaration, FRHIVertexShader* VertexShader, FRHIHullShader* HullShader, FRHIDomainShader* DomainShader, FRHIPixelShader* PixelShader, FRHIGeometryShader* GeometryShader, bool FromPSOFileCache);
+	FBoundShaderStateRHIRef RHICreateBoundShaderState_OnThisThread(FRHIVertexDeclaration* VertexDeclaration, FRHIVertexShader* VertexShader, FRHIPixelShader* PixelShader, FRHIGeometryShader* GeometryShader, bool FromPSOFileCache);
 	void RHIPerFrameRHIFlushComplete();
 
 	FOpenGLGPUProfiler& GetGPUProfilingData() {

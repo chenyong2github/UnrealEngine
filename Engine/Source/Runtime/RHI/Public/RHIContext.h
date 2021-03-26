@@ -776,8 +776,6 @@ public:
 FORCEINLINE FBoundShaderStateRHIRef RHICreateBoundShaderState(
 	FRHIVertexDeclaration* VertexDeclaration,
 	FRHIVertexShader* VertexShader,
-	FRHIHullShader* HullShader,
-	FRHIDomainShader* DomainShader,
 	FRHIPixelShader* PixelShader,
 	FRHIGeometryShader* GeometryShader
 );
@@ -814,8 +812,6 @@ public:
 			RHICreateBoundShaderState(
 				PsoInit.BoundShaderState.VertexDeclarationRHI,
 				PsoInit.BoundShaderState.VertexShaderRHI,
-				PsoInit.BoundShaderState.HullShaderRHI,
-				PsoInit.BoundShaderState.DomainShaderRHI,
 				PsoInit.BoundShaderState.PixelShaderRHI,
 				PsoInit.BoundShaderState.GeometryShaderRHI
 			).GetReference()

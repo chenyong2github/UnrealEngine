@@ -3130,8 +3130,6 @@ static FCriticalSection GProgramBinaryCacheCS;
 FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThread(
 	FRHIVertexDeclaration* VertexDeclarationRHI,
 	FRHIVertexShader* VertexShaderRHI,
-	FRHIHullShader* HullShaderRHI,
-	FRHIDomainShader* DomainShaderRHI,
 	FRHIPixelShader* PixelShaderRHI,
 	FRHIGeometryShader* GeometryShaderRHI,
 	bool bFromPSOFileCache
@@ -3151,12 +3149,10 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 		PixelShaderRHI = TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
 	}
 
-	auto CreateConfig = [VertexShaderRHI, HullShaderRHI, DomainShaderRHI, PixelShaderRHI, GeometryShaderRHI]()
+	auto CreateConfig = [VertexShaderRHI, PixelShaderRHI, GeometryShaderRHI]()
 	{
 		FOpenGLVertexShader* VertexShader = ResourceCast(VertexShaderRHI);
 		FOpenGLPixelShader* PixelShader = ResourceCast(PixelShaderRHI);
-		FOpenGLHullShader* HullShader = ResourceCast(HullShaderRHI);
-		FOpenGLDomainShader* DomainShader = ResourceCast(DomainShaderRHI);
 		FOpenGLGeometryShader* GeometryShader = ResourceCast(GeometryShaderRHI);
 
 		FOpenGLLinkedProgramConfiguration Config;
@@ -3169,39 +3165,14 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 		Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].Resource = VertexShader->Resource;
 		Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_VERTEX] = VertexShaderRHI->GetHash();
 
-		if (FOpenGL::SupportsTessellation())
-		{
-			if (HullShader)
-			{
-				check(VertexShader);
-				BindShaderStage(Config, CrossCompiler::SHADER_STAGE_HULL, HullShader, HullShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_VERTEX, VertexShader);
-			}
-			if (DomainShader)
-			{
-				check(HullShader);
-				BindShaderStage(Config, CrossCompiler::SHADER_STAGE_DOMAIN, DomainShader, DomainShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_HULL, HullShader);
-			}
-		}
-
 		if (GeometryShader)
 		{
-			check(DomainShader || VertexShader);
-			if (DomainShader)
-			{
-				BindShaderStage(Config, CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShader, GeometryShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_DOMAIN, DomainShader);
-			}
-			else
-			{
-				BindShaderStage(Config, CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShader, GeometryShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_VERTEX, VertexShader);
-			}
+			check(VertexShader);
+			BindShaderStage(Config, CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShader, GeometryShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_VERTEX, VertexShader);
 		}
 
-		check(DomainShader || GeometryShader || VertexShader);
-		if (DomainShader)
-		{
-			BindShaderStage(Config, CrossCompiler::SHADER_STAGE_PIXEL, PixelShader, PixelShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_DOMAIN, DomainShader);
-		}
-		else if (GeometryShader)
+		check(GeometryShader || VertexShader);
+		if (GeometryShader)
 		{
 			BindShaderStage(Config, CrossCompiler::SHADER_STAGE_PIXEL, PixelShader, PixelShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShader);
 		}
@@ -3217,8 +3188,6 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 		VertexDeclarationRHI,
 		VertexShaderRHI,
 		PixelShaderRHI,
-		HullShaderRHI,
-		DomainShaderRHI,
 		GeometryShaderRHI
 		);
 
@@ -3293,8 +3262,6 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 			{
 				FOpenGLVertexShader* VertexShader = ResourceCast(VertexShaderRHI);
 				FOpenGLPixelShader* PixelShader = ResourceCast(PixelShaderRHI);
-				FOpenGLHullShader* HullShader = ResourceCast(HullShaderRHI);
-				FOpenGLDomainShader* DomainShader = ResourceCast(DomainShaderRHI);
 				FOpenGLGeometryShader* GeometryShader = ResourceCast(GeometryShaderRHI);
 		
 				// Make sure we have OpenGL context set up, and invalidate the parameters cache and current program (as we'll link a new one soon)
@@ -3320,17 +3287,6 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 					{
 						UE_LOG(LogRHI, Error, TEXT("Geometry Shader:\n%s"), ANSI_TO_TCHAR(GeometryShader->GlslCode.GetData()));
 					}
-					if (FOpenGL::SupportsTessellation())
-					{
-						if (HullShader)
-						{
-							UE_LOG(LogRHI, Error, TEXT("Hull Shader:\n%s"), ANSI_TO_TCHAR(HullShader->GlslCode.GetData()));
-						}
-						if (DomainShader)
-						{
-							UE_LOG(LogRHI, Error, TEXT("Domain Shader:\n%s"), ANSI_TO_TCHAR(DomainShader->GlslCode.GetData()));
-						}
-					}
 #endif //DEBUG_GL_SHADERS
 					FName LinkFailurePanic = bFromPSOFileCache ? FName("FailedProgramLinkDuringPrecompile") : FName("FailedProgramLink");
 					RHIGetPanicDelegate().ExecuteIfBound(LinkFailurePanic);
@@ -3355,9 +3311,7 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 			VertexDeclarationRHI,
 			VertexShaderRHI,
 			PixelShaderRHI,
-			GeometryShaderRHI,
-			HullShaderRHI,
-			DomainShaderRHI
+			GeometryShaderRHI
 			);
 
 		return BoundShaderState;
@@ -3555,20 +3509,16 @@ FOpenGLBoundShaderState::FOpenGLBoundShaderState(
 	FRHIVertexDeclaration* InVertexDeclarationRHI,
 	FRHIVertexShader* InVertexShaderRHI,
 	FRHIPixelShader* InPixelShaderRHI,
-	FRHIGeometryShader* InGeometryShaderRHI,
-	FRHIHullShader* InHullShaderRHI,
-	FRHIDomainShader* InDomainShaderRHI
+	FRHIGeometryShader* InGeometryShaderRHI
 	)
 	:	CacheLink(InVertexDeclarationRHI, InVertexShaderRHI, InPixelShaderRHI,
-		InHullShaderRHI, InDomainShaderRHI,	InGeometryShaderRHI, this)
+		InGeometryShaderRHI, this)
 {
 	FOpenGLVertexDeclaration* InVertexDeclaration = FOpenGLDynamicRHI::ResourceCast(InVertexDeclarationRHI);
 	VertexDeclaration = InVertexDeclaration;
 	VertexShaderProxy = static_cast<FOpenGLVertexShaderProxy*>(InVertexShaderRHI);
 	PixelShaderProxy = static_cast<FOpenGLPixelShaderProxy*>(InPixelShaderRHI);
 	GeometryShaderProxy = static_cast<FOpenGLGeometryShaderProxy*>(InGeometryShaderRHI);
-	HullShaderProxy = static_cast<FOpenGLHullShaderProxy*>(InHullShaderRHI);
-	DomainShaderProxy = static_cast<FOpenGLDomainShaderProxy*>(InDomainShaderRHI);
 
 	LinkedProgram = InLinkedProgram;
 

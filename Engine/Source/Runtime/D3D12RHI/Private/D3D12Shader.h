@@ -198,8 +198,6 @@ public:
 		FRHIVertexDeclaration* InVertexDeclarationRHI,
 		FRHIVertexShader* InVertexShaderRHI,
 		FRHIPixelShader* InPixelShaderRHI,
-		FRHIHullShader* InHullShaderRHI,
-		FRHIDomainShader* InDomainShaderRHI,
 		FRHIGeometryShader* InGeometryShaderRHI,
 		FD3D12Adapter* InAdapter
 	);

@@ -1170,9 +1170,7 @@ public:
 		FRHIVertexDeclaration* InVertexDeclarationRHI,
 		FRHIVertexShader* InVertexShaderRHI,
 		FRHIPixelShader* InPixelShaderRHI,
-		FRHIGeometryShader* InGeometryShaderRHI,
-		FRHIHullShader* InHullShaderRHI,
-		FRHIDomainShader* InDomainShaderRHI
+		FRHIGeometryShader* InGeometryShaderRHI
 		);
 
 	const TBitArray<>& GetTextureNeeds(int32& OutMaxTextureStageUsed);

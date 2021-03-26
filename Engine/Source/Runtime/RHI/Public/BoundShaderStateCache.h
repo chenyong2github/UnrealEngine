@@ -21,15 +21,11 @@ public:
 		FRHIVertexDeclaration* InVertexDeclaration,
 		FRHIVertexShader* InVertexShader,
 		FRHIPixelShader* InPixelShader,
-		FRHIHullShader* InHullShader = nullptr,
-		FRHIDomainShader* InDomainShader = nullptr,
 		FRHIGeometryShader* InGeometryShader = nullptr
 		)
 		: VertexDeclaration(InVertexDeclaration)
 		, VertexShader(InVertexShader)
 		, PixelShader(InPixelShader)
-		, HullShader(InHullShader)
-		, DomainShader(InDomainShader)
 		, GeometryShader(InGeometryShader)
 	{}
 
@@ -51,8 +47,8 @@ public:
 	FORCEINLINE FRHIMeshShader*     GetMeshShader() const   { return MeshShader; }
 	FORCEINLINE FRHIAmplificationShader*   GetAmplificationShader() const   { return AmplificationShader; }
 	FORCEINLINE FRHIPixelShader*    GetPixelShader() const    { return PixelShader; }
-	FORCEINLINE FRHIHullShader*     GetHullShader() const     { return HullShader; }
-	FORCEINLINE FRHIDomainShader*   GetDomainShader() const   { return DomainShader; }
+	FORCEINLINE FRHIHullShader*     GetHullShader() const     { return nullptr; }
+	FORCEINLINE FRHIDomainShader*   GetDomainShader() const   { return nullptr; }
 	FORCEINLINE FRHIGeometryShader* GetGeometryShader() const { return GeometryShader; }
 
 	/**
@@ -80,10 +76,6 @@ private:
 	FAmplificationShaderRHIRef AmplificationShader;
 	/** ps for this combination */
 	FPixelShaderRHIRef PixelShader;
-	/** hs for this combination */
-	FHullShaderRHIRef HullShader;
-	/** ds for this combination */
-	FDomainShaderRHIRef DomainShader;
 	/** gs for this combination */
 	FGeometryShaderRHIRef GeometryShader;
 
@@ -105,8 +97,6 @@ public:
 		, MeshShader(Key.MeshShader.GetReference())
 		, AmplificationShader(Key.AmplificationShader.GetReference())
 		, PixelShader(Key.PixelShader.GetReference())
-		, HullShader(Key.HullShader.GetReference())
-		, DomainShader(Key.DomainShader.GetReference())
 		, GeometryShader(Key.GeometryShader.GetReference())
 	{}
 
@@ -114,15 +104,11 @@ public:
 		FRHIVertexDeclaration* InVertexDeclaration,
 		FRHIVertexShader* InVertexShader,
 		FRHIPixelShader* InPixelShader,
-		FRHIHullShader* InHullShader = nullptr,
-		FRHIDomainShader* InDomainShader = nullptr,
 		FRHIGeometryShader* InGeometryShader = nullptr
 	)
 		: VertexDeclaration(InVertexDeclaration)
 		, VertexShader(InVertexShader)
 		, PixelShader(InPixelShader)
-		, HullShader(InHullShader)
-		, DomainShader(InDomainShader)
 		, GeometryShader(InGeometryShader)
 	{}
 
@@ -148,8 +134,6 @@ public:
 			A.MeshShader == B.MeshShader &&
 			A.AmplificationShader == B.AmplificationShader &&
 			A.PixelShader == B.PixelShader &&
-			A.HullShader == B.HullShader &&
-			A.DomainShader == B.DomainShader &&
 			A.GeometryShader == B.GeometryShader;
 	}
 
@@ -165,8 +149,6 @@ public:
 			GetTypeHash(Key.MeshShader) ^
 			GetTypeHash(Key.AmplificationShader) ^
 			GetTypeHash(Key.PixelShader) ^
-			GetTypeHash(Key.HullShader) ^
-			GetTypeHash(Key.DomainShader) ^
 			GetTypeHash(Key.GeometryShader);
 	}
 
@@ -176,8 +158,6 @@ private:
 	const FRHIMeshShader* MeshShader = nullptr;
 	const FRHIAmplificationShader* AmplificationShader = nullptr;
 	const FRHIPixelShader* PixelShader = nullptr;
-	const FRHIHullShader* HullShader = nullptr;
-	const FRHIDomainShader* DomainShader = nullptr;
 	const FRHIGeometryShader* GeometryShader = nullptr;
 };
 
@@ -210,8 +190,6 @@ public:
 		FRHIVertexDeclaration* VertexDeclaration,
 		FRHIVertexShader* VertexShader,
 		FRHIPixelShader* PixelShader,
-		FRHIHullShader* HullShader,
-		FRHIDomainShader* DomainShader,
 		FRHIGeometryShader* GeometryShader,
 		FRHIBoundShaderState* InBoundShaderState,
 		bool bAddToSingleThreadedCache = true
@@ -259,8 +237,6 @@ extern RHI_API FCachedBoundShaderStateLink* GetCachedBoundShaderState(
 	FRHIVertexDeclaration* VertexDeclaration,
 	FRHIVertexShader* VertexShader,
 	FRHIPixelShader* PixelShader,
-	FRHIHullShader* HullShader = nullptr,
-	FRHIDomainShader* DomainShader = nullptr,
 	FRHIGeometryShader* GeometryShader = nullptr,
 	FRHIMeshShader* MeshShader = nullptr,
 	FRHIAmplificationShader* AmplificationShader = nullptr
@@ -287,12 +263,10 @@ public:
 		FRHIVertexDeclaration* VertexDeclaration,
 		FRHIVertexShader* VertexShader,
 		FRHIPixelShader* PixelShader,
-		FRHIHullShader* HullShader,
-		FRHIDomainShader* DomainShader,
 		FRHIGeometryShader* GeometryShader,
 		FRHIBoundShaderState* InBoundShaderState
 		)
-		: FCachedBoundShaderStateLink(VertexDeclaration, VertexShader, PixelShader, HullShader, DomainShader, GeometryShader, InBoundShaderState, false)
+		: FCachedBoundShaderStateLink(VertexDeclaration, VertexShader, PixelShader, GeometryShader, InBoundShaderState, false)
 	{
 	}
 
@@ -319,8 +293,6 @@ extern RHI_API FBoundShaderStateRHIRef GetCachedBoundShaderState_Threadsafe(
 	FRHIVertexDeclaration* VertexDeclaration,
 	FRHIVertexShader* VertexShader,
 	FRHIPixelShader* PixelShader,
-	FRHIHullShader* HullShader = nullptr,
-	FRHIDomainShader* DomainShader = nullptr,
 	FRHIGeometryShader* GeometryShader = nullptr,
 	FRHIMeshShader* MeshShader = nullptr,
 	FRHIAmplificationShader* AmplificationShader = nullptr

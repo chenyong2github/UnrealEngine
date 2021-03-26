@@ -341,20 +341,16 @@ FD3D11BoundShaderState::FD3D11BoundShaderState(
 	FRHIVertexDeclaration* InVertexDeclarationRHI,
 	FRHIVertexShader* InVertexShaderRHI,
 	FRHIPixelShader* InPixelShaderRHI,
-	FRHIHullShader* InHullShaderRHI,
-	FRHIDomainShader* InDomainShaderRHI,
 	FRHIGeometryShader* InGeometryShaderRHI,
 	ID3D11Device* Direct3DDevice
 	):
-	CacheLink(InVertexDeclarationRHI,InVertexShaderRHI,InPixelShaderRHI,InHullShaderRHI,InDomainShaderRHI,InGeometryShaderRHI,this)
+	CacheLink(InVertexDeclarationRHI,InVertexShaderRHI,InPixelShaderRHI,InGeometryShaderRHI,this)
 {
 	INC_DWORD_STAT(STAT_D3D11NumBoundShaderState);
 
 	FD3D11VertexDeclaration* InVertexDeclaration = FD3D11DynamicRHI::ResourceCast(InVertexDeclarationRHI);
 	FD3D11VertexShader* InVertexShader = FD3D11DynamicRHI::ResourceCast(InVertexShaderRHI);
 	FD3D11PixelShader* InPixelShader = FD3D11DynamicRHI::ResourceCast(InPixelShaderRHI);
-	FD3D11HullShader* InHullShader = FD3D11DynamicRHI::ResourceCast(InHullShaderRHI);
-	FD3D11DomainShader* InDomainShader = FD3D11DynamicRHI::ResourceCast(InDomainShaderRHI);
 	FD3D11GeometryShader* InGeometryShader = FD3D11DynamicRHI::ResourceCast(InGeometryShaderRHI);
 
 	// Create an input layout for this combination of vertex declaration and vertex shader.
@@ -385,15 +381,11 @@ FD3D11BoundShaderState::FD3D11BoundShaderState(
 
 	VertexShader = InVertexShader->Resource;
 	PixelShader = InPixelShader ? InPixelShader->Resource : nullptr;
-	HullShader = InHullShader ? InHullShader->Resource : nullptr;
-	DomainShader = InDomainShader ? InDomainShader->Resource : nullptr;
 	GeometryShader = InGeometryShader ? InGeometryShader->Resource : nullptr;
 
 	FMemory::Memzero(&bShaderNeedsGlobalConstantBuffer,sizeof(bShaderNeedsGlobalConstantBuffer));
 
 	bShaderNeedsGlobalConstantBuffer[SF_Vertex] = InVertexShader->bShaderNeedsGlobalConstantBuffer;
-	bShaderNeedsGlobalConstantBuffer[SF_Hull] = InHullShader ? InHullShader->bShaderNeedsGlobalConstantBuffer : false;
-	bShaderNeedsGlobalConstantBuffer[SF_Domain] = InDomainShader ? InDomainShader->bShaderNeedsGlobalConstantBuffer : false;
 	bShaderNeedsGlobalConstantBuffer[SF_Pixel] = InPixelShader ? InPixelShader->bShaderNeedsGlobalConstantBuffer : false;
 	bShaderNeedsGlobalConstantBuffer[SF_Geometry] = InGeometryShader ? InGeometryShader->bShaderNeedsGlobalConstantBuffer : false;
 
@@ -418,8 +410,6 @@ FD3D11BoundShaderState::~FD3D11BoundShaderState()
 FBoundShaderStateRHIRef FD3D11DynamicRHI::RHICreateBoundShaderState(
 	FRHIVertexDeclaration* VertexDeclarationRHI,
 	FRHIVertexShader* VertexShaderRHI,
-	FRHIHullShader* HullShaderRHI,
-	FRHIDomainShader* DomainShaderRHI,
 	FRHIPixelShader* PixelShaderRHI,
 	FRHIGeometryShader* GeometryShaderRHI
 	)
@@ -435,8 +425,6 @@ FBoundShaderStateRHIRef FD3D11DynamicRHI::RHICreateBoundShaderState(
 		VertexDeclarationRHI,
 		VertexShaderRHI,
 		PixelShaderRHI,
-		HullShaderRHI,
-		DomainShaderRHI,
 		GeometryShaderRHI
 		);
 	if(CachedBoundShaderStateLink)
@@ -447,6 +435,6 @@ FBoundShaderStateRHIRef FD3D11DynamicRHI::RHICreateBoundShaderState(
 	else
 	{
 		SCOPE_CYCLE_COUNTER(STAT_D3D11NewBoundShaderStateTime);
-		return new FD3D11BoundShaderState(VertexDeclarationRHI,VertexShaderRHI,PixelShaderRHI,HullShaderRHI,DomainShaderRHI,GeometryShaderRHI,Direct3DDevice);
+		return new FD3D11BoundShaderState(VertexDeclarationRHI,VertexShaderRHI,PixelShaderRHI,GeometryShaderRHI,Direct3DDevice);
 	}
 }

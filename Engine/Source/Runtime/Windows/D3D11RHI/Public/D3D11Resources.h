@@ -135,8 +135,6 @@ public:
 		FRHIVertexDeclaration* InVertexDeclarationRHI,
 		FRHIVertexShader* InVertexShaderRHI,
 		FRHIPixelShader* InPixelShaderRHI,
-		FRHIHullShader* InHullShaderRHI,
-		FRHIDomainShader* InDomainShaderRHI,
 		FRHIGeometryShader* InGeometryShaderRHI,
 		ID3D11Device* Direct3DDevice
 		);

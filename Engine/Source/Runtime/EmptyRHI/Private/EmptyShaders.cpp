@@ -64,24 +64,18 @@ FEmptyBoundShaderState::FEmptyBoundShaderState(
 			FRHIVertexDeclaration* InVertexDeclarationRHI,
 			FRHIVertexShader* InVertexShaderRHI,
 			FRHIPixelShader* InPixelShaderRHI,
-			FRHIHullShader* InHullShaderRHI,
-	FRHIDomainShader* InDomainShaderRHI,
 	FRHIGeometryShader* InGeometryShaderRHI)
-	:	CacheLink(InVertexDeclarationRHI,InVertexShaderRHI,InPixelShaderRHI,InHullShaderRHI,InDomainShaderRHI,InGeometryShaderRHI,this)
+	:	CacheLink(InVertexDeclarationRHI,InVertexShaderRHI,InPixelShaderRHI,InGeometryShaderRHI,this)
 {
 	FEmptyVertexDeclaration* InVertexDeclaration = FEmptyDynamicRHI::ResourceCast(InVertexDeclarationRHI);
 	FEmptyVertexShader* InVertexShader = FEmptyDynamicRHI::ResourceCast(InVertexShaderRHI);
 	FEmptyPixelShader* InPixelShader = FEmptyDynamicRHI::ResourceCast(InPixelShaderRHI);
-	FEmptyHullShader* InHullShader = FEmptyDynamicRHI::ResourceCast(InHullShaderRHI);
-	FEmptyDomainShader* InDomainShader = FEmptyDynamicRHI::ResourceCast(InDomainShaderRHI);
 	FEmptyGeometryShader* InGeometryShader = FEmptyDynamicRHI::ResourceCast(InGeometryShaderRHI);
 
 	// cache everything
 	VertexDeclaration = InVertexDeclaration;
 	VertexShader = InVertexShader;
 	PixelShader = InPixelShader;
-	HullShader = InHullShader;
-	DomainShader = InDomainShader;
 	GeometryShader = InGeometryShader;
 }
 
@@ -93,8 +87,6 @@ FEmptyBoundShaderState::~FEmptyBoundShaderState()
 FBoundShaderStateRHIRef FEmptyDynamicRHI::RHICreateBoundShaderState(
 	FRHIVertexDeclaration* VertexDeclarationRHI,
 	FRHIVertexShader* VertexShaderRHI,
-	FRHIHullShader* HullShaderRHI,
-	FRHIDomainShader* DomainShaderRHI,
 	FRHIPixelShader* PixelShaderRHI,
 	FRHIGeometryShader* GeometryShaderRHI
 	)
@@ -105,8 +97,6 @@ FBoundShaderStateRHIRef FEmptyDynamicRHI::RHICreateBoundShaderState(
 		VertexDeclarationRHI,
 		VertexShaderRHI,
 		PixelShaderRHI,
-		HullShaderRHI,
-		DomainShaderRHI,
 		GeometryShaderRHI
 		);
 
@@ -117,6 +107,6 @@ FBoundShaderStateRHIRef FEmptyDynamicRHI::RHICreateBoundShaderState(
 	}
 	else
 	{
-		return new FEmptyBoundShaderState(VertexDeclarationRHI,VertexShaderRHI,PixelShaderRHI,HullShaderRHI,DomainShaderRHI,GeometryShaderRHI);
+		return new FEmptyBoundShaderState(VertexDeclarationRHI,VertexShaderRHI,PixelShaderRHI,GeometryShaderRHI);
 	}
 }

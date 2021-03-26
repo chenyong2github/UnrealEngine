@@ -438,12 +438,10 @@ FD3D12BoundShaderState::FD3D12BoundShaderState(
 	FRHIVertexDeclaration* InVertexDeclarationRHI,
 	FRHIVertexShader* InVertexShaderRHI,
 	FRHIPixelShader* InPixelShaderRHI,
-	FRHIHullShader* InHullShaderRHI,
-	FRHIDomainShader* InDomainShaderRHI,
 	FRHIGeometryShader* InGeometryShaderRHI,
 	FD3D12Adapter* InAdapter
 	) :
-	CacheLink(InVertexDeclarationRHI, InVertexShaderRHI, InPixelShaderRHI, InHullShaderRHI, InDomainShaderRHI, InGeometryShaderRHI, this)
+	CacheLink(InVertexDeclarationRHI, InVertexShaderRHI, InPixelShaderRHI, InGeometryShaderRHI, this)
 {
 	INC_DWORD_STAT(STAT_D3D12NumBoundShaderState);
 
@@ -507,8 +505,6 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::DX12CreateBoundShaderState(const FBoun
 		BoundShaderStateInput.VertexDeclarationRHI,
 		BoundShaderStateInput.VertexShaderRHI,
 		BoundShaderStateInput.PixelShaderRHI,
-		BoundShaderStateInput.HullShaderRHI,
-		BoundShaderStateInput.DomainShaderRHI,
 		BoundShaderStateInput.GeometryShaderRHI,
 		BoundShaderStateInput.MeshShaderRHI,
 		BoundShaderStateInput.AmplificationShaderRHI
@@ -525,8 +521,6 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::DX12CreateBoundShaderState(const FBoun
 		BoundShaderStateInput.VertexDeclarationRHI,
 		BoundShaderStateInput.VertexShaderRHI,
 		BoundShaderStateInput.PixelShaderRHI,
-		BoundShaderStateInput.HullShaderRHI,
-		BoundShaderStateInput.DomainShaderRHI,
 		BoundShaderStateInput.GeometryShaderRHI,
 		BoundShaderStateInput.MeshShaderRHI,
 		BoundShaderStateInput.AmplificationShaderRHI
@@ -557,8 +551,6 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::DX12CreateBoundShaderState(const FBoun
 				BoundShaderStateInput.VertexDeclarationRHI,
 				BoundShaderStateInput.VertexShaderRHI,
 				BoundShaderStateInput.PixelShaderRHI,
-				BoundShaderStateInput.HullShaderRHI,
-				BoundShaderStateInput.DomainShaderRHI,
 				BoundShaderStateInput.GeometryShaderRHI,
 				&GetAdapter());
 		}
@@ -578,8 +570,6 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::DX12CreateBoundShaderState(const FBoun
 FBoundShaderStateRHIRef FD3D12DynamicRHI::RHICreateBoundShaderState(
 	FRHIVertexDeclaration* VertexDeclarationRHI,
 	FRHIVertexShader* VertexShaderRHI,
-	FRHIHullShader* HullShaderRHI,
-	FRHIDomainShader* DomainShaderRHI,
 	FRHIPixelShader* PixelShaderRHI,
 	FRHIGeometryShader* GeometryShaderRHI
 	)
@@ -589,7 +579,5 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::RHICreateBoundShaderState(
 		, GeometryShaderRHI
 #endif
 	);
-	Inputs.HullShaderRHI = HullShaderRHI;
-	Inputs.DomainShaderRHI = DomainShaderRHI;
 	return DX12CreateBoundShaderState(Inputs);
 }
