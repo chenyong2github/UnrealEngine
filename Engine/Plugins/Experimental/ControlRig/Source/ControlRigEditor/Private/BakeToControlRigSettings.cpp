@@ -5,6 +5,6 @@
 UBakeToControlRigSettings::UBakeToControlRigSettings(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 {
-	bReduceKeys = true;
-	Tolerance = 0.1;
+	bReduceKeys = false;
+	Tolerance = 0.001f;
 }
