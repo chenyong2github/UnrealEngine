@@ -105,6 +105,13 @@ namespace UnrealBuildTool
 							{
 								foreach(DirectoryReference SubDirectory in DirectoryLookupCache.EnumerateDirectories(BaseDirectory))
 								{
+									// Ignore system directories (specifically for Mac, since temporary folders are created here)
+									string DirectoryName = SubDirectory.GetDirectoryName();
+									if (DirectoryName.StartsWith(".", StringComparison.Ordinal))
+									{
+										continue;
+									}
+
 									foreach(FileReference File in DirectoryLookupCache.EnumerateFiles(SubDirectory))
 									{
 										if(File.HasExtension(".uproject"))
