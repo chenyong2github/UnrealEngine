@@ -25,7 +25,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, HairSampleOffset)						// Offset & count, for accessing pixel's samples, based on screen pixel position
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, HairSampleCount)						// Total count of hair sample, in sample space
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedHairSample>, HairSampleData)// Sample data (coverage, tangent, base color, ...), in sample space // HAIRSTRANDS_TODO: change this to be a uint4 so that we don't have to include the type for generated contant buffer
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, HairSampleCoords)			// Screen pixel coordinate of each sample, in sample space
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, HairSampleCoords)					// Screen pixel coordinate of each sample, in sample space
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -57,6 +57,8 @@ struct FHairStrandsVisibilityData
 	FRDGBufferRef	NodeCoord = nullptr;
 	FRDGBufferRef	NodeIndirectArg = nullptr;
 	uint32			NodeGroupSize = 0;
+
+	const static EPixelFormat NodeCoordFormat = PF_R16G16_UINT;
 
 	// Hair lighting is accumulated within this buffer
 	// Allocated conservatively

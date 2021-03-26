@@ -324,8 +324,7 @@ void DeferredLightPixelMain(
 		return;
 	}
 
-	const uint PackedCoord = HairStrands.HairSampleCoords[SampleIndex];
-	const uint2 PixelCoord = uint2((PackedCoord & 0xFFFF), ((PackedCoord >> 16) & 0xFFFF));
+	const uint2 PixelCoord = HairStrands.HairSampleCoords[SampleIndex];
 	const float2 UV = (PixelCoord + float2(0.5f, 0.5f)) / float2(View.BufferSizeAndInvSize.xy);
 	const float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 	

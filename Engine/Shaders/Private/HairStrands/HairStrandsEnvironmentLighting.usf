@@ -4,6 +4,7 @@
 	ReflectionEnvironmentComputeShaders - functionality to apply local cubemaps.
 =============================================================================*/
 
+#include "HairStrandsVisibilityCommonStruct.ush"
 #include "HairStrandsVoxelPageCommonStruct.ush" 
 
 #include "../Common.ush"
@@ -93,8 +94,6 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 		EyeIndex);
 }
 
-StructuredBuffer<FPackedHairSample> HairVisibilityNodeData;
-
 Texture3D<float4>			HairScatteringLUTTexture;
 Texture3D<float4>			HairEnergyLUTTexture;
 SamplerState 				HairLUTSampler; 
@@ -156,8 +155,6 @@ uint bHairUseViewHairCount;
 Texture2D<float> HairCountTexture;
 
 uint  MultipleScatterSampleCount;
-uint  HairComponents;
-float HairDualScatteringRoughnessOverride;
 float TransmissionDensityScaleFactor;
 
 float Voxel_TanConeAngle;
@@ -242,7 +239,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	float3 AvgDualScattering = 0;
 	const float MaxSearchDistance = HairDistanceThreshold; // in cm
 	#if ADHOC_SAMPLING_MS || ADHOC_SAMPLING_R || ADHOC_SAMPLING_TT || ADHOC_SAMPLING_TRT
-	if ((HairComponents & HAIR_COMPONENT_R) || (HairComponents & HAIR_COMPONENT_TRT) || (HairComponents & HAIR_COMPONENT_TT))
+	if ((View.HairComponents & HAIR_COMPONENT_R) || (View.HairComponents & HAIR_COMPONENT_TRT) || (View.HairComponents & HAIR_COMPONENT_TT))
 	{
 		#if PERMUTATION_SAMPLESET == 0
 		// Poisson disk position http://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
@@ -284,7 +281,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			const float SinLightAngle = dot(SampleL, T);
 			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
 
-			const uint ScatteringComponent = (HairComponents & HAIR_COMPONENT_R) | (HairComponents & HAIR_COMPONENT_TRT) | HAIR_COMPONENT_LS | HAIR_COMPONENT_GS;// | HAIR_MULTISCATTER;
+			const uint ScatteringComponent = (View.HairComponents & HAIR_COMPONENT_R) | (View.HairComponents & HAIR_COMPONENT_TRT) | HAIR_COMPONENT_LS | HAIR_COMPONENT_GS;// | HAIR_MULTISCATTER;
 			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, SampleL, GBuffer, InitHairTransmittanceMask(Result.HairCount, Result.Visibility), HairScatteringLUTTexture, HairLUTSampler, ScatteringComponent);
 
 			const float Area = 0.2;
@@ -327,7 +324,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	// MS ==============================================================================
 	float3 ColorMS = 0;
 	#if ADHOC_SAMPLING_MS
-	if ((HairComponents & HAIR_COMPONENT_R) || (HairComponents & HAIR_COMPONENT_TRT) || (HairComponents & HAIR_COMPONENT_TT))
+	if ((View.HairComponents & HAIR_COMPONENT_R) || (View.HairComponents & HAIR_COMPONENT_TRT) || (View.HairComponents & HAIR_COMPONENT_TT))
 	{
 		float3 N = UnoccludedN;
 		float3 R = 2 * dot(V, N) * N - V;
@@ -368,7 +365,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	// R ==============================================================================
 	float3 ColorR = 0;
 	#if ADHOC_SAMPLING_R || ADHOC_SAMPLING_TRT
-	if ((HairComponents & HAIR_COMPONENT_R) || (HairComponents & HAIR_COMPONENT_TRT))
+	if ((View.HairComponents & HAIR_COMPONENT_R) || (View.HairComponents & HAIR_COMPONENT_TRT))
 	{
 		float3 R = 0;
 		{
@@ -428,7 +425,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			FHairTransmittanceData TransmittanceData = InitHairStrandsTransmittanceData();
 			TransmittanceData.OpaqueVisibility = Visibility;
 			TransmittanceData.GlobalScattering = Transmittance;
-			TransmittanceData.ScatteringComponent = (HairComponents & HAIR_COMPONENT_R) | (HairComponents & HAIR_COMPONENT_TRT) | HAIR_COMPONENT_MULTISCATTER;
+			TransmittanceData.ScatteringComponent = (View.HairComponents & HAIR_COMPONENT_R) | (View.HairComponents & HAIR_COMPONENT_TRT) | HAIR_COMPONENT_MULTISCATTER;
 
 			const float Area = 0.2;
 			const float BackLit = 0;
@@ -445,7 +442,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	// TT ==============================================================================
 	float3 ColorTT = 0;
 	#if ADHOC_SAMPLING_TT
-	if (HairComponents & HAIR_COMPONENT_TT)
+	if (View.HairComponents & HAIR_COMPONENT_TT)
 	{
 		const float3 L = -V;
 		const float SinLightAngle = dot(L, T);
@@ -597,7 +594,7 @@ float3 ReflectionEnvironmentUniformSampling(
 			InitHairTransmittanceMask(Result.HairCount, Result.Visibility),
 			HairScatteringLUTTexture,
 			HairLUTSampler,
-			HairComponents);	
+			View.HairComponents);	
 
 		const float Area = 0;
 		const float Backlit = 1;
@@ -651,7 +648,7 @@ float3 ReflectionEnvironmentSH(
 		InitHairTransmittanceMask(),
 		HairScatteringLUTTexture,
 		HairLUTSampler,
-		HairComponents);
+		View.HairComponents);
 
 	bool bEvalMultiScatter = true;
 	float3 f_s = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 1, 0.2, uint2(0, 0));
@@ -702,7 +699,6 @@ float3 ReflectionEnvironmentSH(
 
 #if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SCENECOLOR
 Texture2D<float4> SceneColorTexture;
-Texture2D<uint4> HairCategorizationTexture;
 
 float3 ComputeThinTransmission(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint PrimitiveId)
 {
@@ -713,7 +709,7 @@ float3 ComputeThinTransmission(FGBufferData GBuffer, float2 ScreenPosition, floa
 	const float3 V = -CameraToPixel;
 	const float3 T = GBuffer.WorldNormal;
 
-	const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelPosition, 0)));
+	const FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelPosition, 0)));
 	const float PixelCoverage = min(CatData.PixelCoverage, 1);
 	
 	// The scene color is attenuated propertionnaly to the hair coverage. In order to retrieve the actual lighting buffer 
@@ -735,20 +731,17 @@ float3 ComputeThinTransmission(FGBufferData GBuffer, float2 ScreenPosition, floa
 
 #if LIGHTING_VS
 
-int2 MaxViewportResolution;
-Texture2D<uint> HairVisibilityNodeCount;
-
 void MainVS(
 	in uint InVertexId : SV_VertexID,
 	out float4 OutPosition : SV_POSITION,
 	nointerpolation out uint OutNodeCount : DISPATCH_NODECOUNT,
 	nointerpolation out uint2 OutResolution : DISPATCH_RESOLUTION)
 {
-	OutNodeCount = HairVisibilityNodeCount.Load(uint3(0, 0, 0));
+	OutNodeCount = HairStrands.HairSampleCount.Load(uint3(0, 0, 0));
 	OutResolution.x = ceil(sqrt(OutNodeCount));
 	OutResolution.y = OutResolution.x;
 
-	const float2 ClipCoord = ((OutResolution + 0.5f) / float2(MaxViewportResolution)) * 2;
+	const float2 ClipCoord = ((OutResolution + 0.5f) / float2(HairStrands.HairSampleViewportResolution)) * 2;
 
 	const float2 UV = float2(InVertexId & 1, InVertexId >> 1);
 	const float2 Pos = float2(-UV.x, UV.y) * 4 + float2(-1, +1) + float2(ClipCoord.x, -ClipCoord.y);
@@ -759,9 +752,7 @@ void MainVS(
 
 #if LIGHTING_PS
 
-uint MaxVisibilityNodeCount;
-StructuredBuffer<uint>	HairVisibilityNodeCoord;
-Buffer<uint4>			IndirectArgsBuffer;
+Buffer<uint4> IndirectArgsBuffer;
 
 void MainPS(
 	float4 SVPos : SV_POSITION,
@@ -773,23 +764,21 @@ void MainPS(
 
 	const uint2 InCoord = uint2(SVPos.xy);
 	const uint LocalOffset = InCoord.x + InCoord.y * Resolution.x;
+	const uint MaxVisibilityNodeCount = HairStrands.HairSampleCount.Load(uint3(0, 0, 0));
 	if (LocalOffset >= NodeCount)
 	{
 		return;
 	}
 
-	const uint PackedCoord = HairVisibilityNodeCoord[LocalOffset];
-	const uint2 PixelCoord = uint2((PackedCoord & 0xFFFF), ((PackedCoord >> 16) & 0xFFFF));
+	const uint2 PixelCoord = HairStrands.HairSampleCoords[LocalOffset];
 	const float2 SvPosition = PixelCoord + float2(0.5f, 0.5f);
 
 	const float2 UV = (PixelCoord + float2(0.5f, 0.5f)) / float2(View.BufferSizeAndInvSize.xy);
 	const float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
-	if (LocalOffset > MaxVisibilityNodeCount)
-		return;
 
-	const FPackedHairSample PackedSample = HairVisibilityNodeData[LocalOffset];
-	const FHairSample Sample = UnpackHairSample(PackedSample);
+
+	const FHairSample Sample = UnpackHairSample(HairStrands.HairSampleData[LocalOffset]);
 
 	FGBufferData GBuffer = (FGBufferData)0;
 	GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
@@ -800,7 +789,7 @@ void MainPS(
 	GBuffer.Metallic = 0; // Scattering;
 	GBuffer.Depth = ConvertFromDeviceZ(Sample.Depth);
 	GBuffer.GBufferAO = 1;
-	GBuffer.CustomData = float4(HairDualScatteringRoughnessOverride, 0, Sample.Backlit, 0);
+	GBuffer.CustomData = float4(HairStrands.HairDualScatteringRoughnessOverride, 0, Sample.Backlit, 0);
 	GBuffer.IndirectIrradiance = 1000000;
 
 #if PERMUTATION_DEBUG

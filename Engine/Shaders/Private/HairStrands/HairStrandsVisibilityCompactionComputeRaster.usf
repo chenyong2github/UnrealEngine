@@ -45,7 +45,7 @@ float CoverageThreshold;
 RWTexture2D<uint> 				OutCompactNodeCounter;
 RWTexture2D<uint> 				OutCompactNodeIndex;
 RWStructuredBuffer<FNodeVis> 	OutCompactNodeData;
-RWStructuredBuffer<uint> 		OutCompactNodeCoord;
+RWBuffer<uint2>					OutCompactNodeCoord;
 RWTexture2D<uint4> 				OutCategorizationTexture;
 
 groupshared uint AllocationNodeCount;
@@ -205,7 +205,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 				const uint StoreIndex = NodeDesc.Offset + OutIndex;
 				OutCompactNodeData[StoreIndex] = OutNodeVis;
-				OutCompactNodeCoord[StoreIndex] = (PixelCoord.x & 0xFFFF) | ((PixelCoord.y & 0xFFFF) << 16);
+				OutCompactNodeCoord[StoreIndex] = PixelCoord;
 			}
 
 			NodeDesc.Count = NodeDesc.Count;

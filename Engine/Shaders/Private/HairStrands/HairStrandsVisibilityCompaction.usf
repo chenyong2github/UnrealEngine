@@ -29,7 +29,7 @@ RWTexture2D<uint> OutCompactNodeIndex;
 #else
 	RWStructuredBuffer<FPackedHairSample> OutCompactNodeData;
 #endif
-RWStructuredBuffer<uint> OutCompactNodeCoord;
+RWBuffer<uint2> OutCompactNodeCoord;
 RWTexture2D<uint4> OutCategorizationTexture;
 
 #ifndef PERMUTATION_VELOCITY
@@ -210,7 +210,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 			// TODOAGREGATE if last, Create FPackedHairSample from aggregated  data
 			OutCompactNodeData[OffsetInStorage + j] = OutNodeData;
-			OutCompactNodeCoord[OffsetInStorage + j] = (PixelCoord.x & 0xFFFF) | ((PixelCoord.y & 0xFFFF) << 16);
+			OutCompactNodeCoord[OffsetInStorage + j] = PixelCoord;
 
 
 		#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
@@ -490,7 +490,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 				const uint StoreIndex = NodeDesc.Offset + OutIndex;
 				OutCompactNodeData[StoreIndex] = OutNodeVis;
-				OutCompactNodeCoord[StoreIndex] = (PixelCoord.x & 0xFFFF) | ((PixelCoord.y & 0xFFFF) << 16);
+				OutCompactNodeCoord[StoreIndex] = PixelCoord;
 			}
 
 			NodeDesc.Count = NodeDesc.Count;
@@ -780,7 +780,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 				const uint StoreIndex = NodeDesc.Offset + OutIndex;
 				OutCompactNodeData[StoreIndex] = OutNodeData;
-				OutCompactNodeCoord[StoreIndex] = (PixelCoord.x & 0xFFFF) | ((PixelCoord.y & 0xFFFF) << 16);
+				OutCompactNodeCoord[StoreIndex] = PixelCoord;
 			}
 
 			#if PERMUTATION_VIEWTRANSMITTANCE == 1

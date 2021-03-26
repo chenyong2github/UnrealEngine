@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HairStrandsVisibilityCommonStruct.ush"
 #include "HairStrandsVoxelPageCommonStruct.ush"
 #include "HairStrandsDeepShadowCommonStruct.ush"
-
 #include "../Common.ush"
 #include "../CommonViewUniformBuffer.ush"
 #include "../SceneTextureParameters.ush"
@@ -55,7 +55,6 @@ uint2				DeepShadow_Resolution;
 float4x4			DeepShadow_CPUWorldToLightTransforms[MAX_HAIR_MACROGROUP_COUNT];
 float3				LightDirection;
 uint				LightChannelMask;
-uint				MaxVisibilityNodeCount;
 float4				LightPosition;
 float				DeepShadow_DepthBiasScale;
 float				DeepShadow_DensityScale;
@@ -70,8 +69,6 @@ Texture2D<float4>	DeepShadow_DomTexture;
 
 Texture2D<float4> 	RayMarchMaskTexture;
 
-StructuredBuffer<FPackedHairSample> HairVisibilityNodeData;
-StructuredBuffer<uint>		HairVisibilityNodeCoord;
 Buffer<uint4>				IndirectArgsBuffer;
 
 Texture3D<float4>			HairLUTTexture;
@@ -238,20 +235,19 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	// Note: Use a fixed group count width (HAIR_VISIBILITY_GROUP_COUNT_WIDTH) for avoiding loading the indirect args (to avoid dep. memory fetch)
 	const uint LocalOffset = DispatchThreadId.x + DispatchThreadId.y * TRANSMITTANCE_GROUP_SIZE * HAIR_VISIBILITY_GROUP_COUNT_WIDTH;
 
+	const uint MaxVisibilityNodeCount = HairStrands.HairSampleCount.Load(uint3(0, 0, 0));
 	if (LocalOffset >= MaxVisibilityNodeCount)
 	{
 		return;
 	}
 
-	const uint PackedCoord	 = HairVisibilityNodeCoord[LocalOffset];
-	const uint2 PixelCoord	 = uint2((PackedCoord & 0xFFFF), ((PackedCoord>>16) & 0xFFFF));
+	const uint2 PixelCoord = HairStrands.HairSampleCoords[LocalOffset];
 
 	const float2 UV = (PixelCoord + float2(0.5f, 0.5f)) / float2(View.BufferSizeAndInvSize.xy);
 	const float3 TransmittanceRandom = float3(InterleavedGradientNoise(PixelCoord, 1), InterleavedGradientNoise(PixelCoord, 2), InterleavedGradientNoise(PixelCoord, 3));
 
 	{
-		const FPackedHairSample NodeData = HairVisibilityNodeData[LocalOffset];
-		const FHairSample Sample = UnpackHairSample(NodeData);
+		const FHairSample Sample = UnpackHairSample(HairStrands.HairSampleData[LocalOffset]);
 
 		if ((LightChannelMask & Sample.LightChannelMask) == 0)
 		{
@@ -425,14 +421,13 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint LocalOffset = DispatchThreadId.x + DispatchThreadId.y * TRANSMITTANCE_GROUP_SIZE * HAIR_VISIBILITY_GROUP_COUNT_WIDTH;
 
+	const uint MaxVisibilityNodeCount = HairStrands.HairSampleCount.Load(uint3(0, 0, 0));
 	if (LocalOffset >= MaxVisibilityNodeCount)
 	{
 		return;
 	}
 
-	const uint PackedCoord = HairVisibilityNodeCoord[LocalOffset];
-	const uint2 PixelCoord = uint2((PackedCoord & 0xFFFF), ((PackedCoord >> 16) & 0xFFFF));
-
+	const uint2 PixelCoord = HairStrands.HairSampleCoords[LocalOffset];
 	if (RayMarchMaskTexture.Load(uint3(PixelCoord, 0)).r == 0.0f)
 	{
 		// This pixel is already fully shadowed opaque. (RayMarchMaskTexture is computed using the closest sample as of today)
@@ -448,8 +443,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	#endif	
 	const float2 UV = (PixelCoord.xy + float2(0.5f, 0.5f)) / float2(View.BufferSizeAndInvSize.xy);
 	{
-		const FPackedHairSample NodeData = HairVisibilityNodeData[LocalOffset];
-		const FHairSample Sample = UnpackHairSample(NodeData);
+		const FHairSample Sample = UnpackHairSample(HairStrands.HairSampleData[LocalOffset]);
 
 		if ((LightChannelMask & Sample.LightChannelMask) == 0)
 		{
