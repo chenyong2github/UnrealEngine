@@ -261,7 +261,6 @@ struct FCloudLayerParameters
 	float ToNormAltitude;
 };
 
-#define KILOMETER_TO_CENTIMETER	100000.0f
 FCloudLayerParameters GetCloudLayerParams()
 {
 	FCloudLayerParameters CloudLayerParams;

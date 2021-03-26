@@ -10,10 +10,7 @@
 #define D_VOLUMETRIC_CLOUD_COMMON
 
 
-#define CENTIMETER_TO_METER		0.01f
-#define KILOMETER_TO_CENTIMETER	100000.0f
-#define KILOMETER_TO_METERS  	1000.0f
-#define CENTIMETER_TO_KILOMETER	(1.0f / KILOMETER_TO_CENTIMETER)
+#include "Common.ush"
 
 
 // Uv in [0,1]
@@ -57,7 +54,7 @@ float GetCloudVolumetricShadow(in float3 WorldSpace, in float4x4 CloudShadowmapW
 	const float MeanExtinction = CloudShadowData.g;		// unit 1/m
 	const float MaxOpticalDepth = CloudShadowData.b;	// unitless
 	const float SampleDepthKm = saturate(1.0f - CloudShadowSampleZ) * ShadowmapFarDepthKm;
-	OutOpticalDepth = MeanExtinction * (max(0.0f, SampleDepthKm - ShadowFrontDepthKm) * KILOMETER_TO_METERS);
+	OutOpticalDepth = MeanExtinction * (max(0.0f, SampleDepthKm - ShadowFrontDepthKm) * KILOMETER_TO_METER);
 	OutOpticalDepth = min(MaxOpticalDepth, OutOpticalDepth);
 	const float CloudShadowFactor = saturate(exp(-OutOpticalDepth));
 	return CloudShadowFactor;
