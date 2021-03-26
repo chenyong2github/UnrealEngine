@@ -518,7 +518,7 @@ void UProceduralMeshComponent::PostLoad()
 
 	if (ProcMeshBodySetup && IsTemplate())
 	{
-		ProcMeshBodySetup->SetFlags(RF_Public);
+		ProcMeshBodySetup->SetFlags(RF_Public | RF_ArchetypeObject);
 	}
 }
 
@@ -957,7 +957,7 @@ bool UProceduralMeshComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) 
 UBodySetup* UProceduralMeshComponent::CreateBodySetupHelper()
 {
 	// The body setup in a template needs to be public since the property is Tnstanced and thus is the archetype of the instance meaning there is a direct reference
-	UBodySetup* NewBodySetup = NewObject<UBodySetup>(this, NAME_None, (IsTemplate() ? RF_Public : RF_NoFlags));
+	UBodySetup* NewBodySetup = NewObject<UBodySetup>(this, NAME_None, (IsTemplate() ? RF_Public | RF_ArchetypeObject : RF_NoFlags));
 	NewBodySetup->BodySetupGuid = FGuid::NewGuid();
 
 	NewBodySetup->bGenerateMirroredCollision = false;
