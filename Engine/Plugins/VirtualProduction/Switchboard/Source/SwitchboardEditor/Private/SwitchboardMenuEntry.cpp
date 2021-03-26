@@ -215,10 +215,9 @@ struct FSwitchboardMenuEntryImpl
 			PythonExeName = TEXT("python");
 #endif
 
-			PythonInterpreter = GetDefault<USwitchboardEditorSettings>()->SwitchboardPath.Path;
-			PythonInterpreter /= FString(TEXT(".thirdparty")) / FString(TEXT("python"));
-			PythonInterpreter /= FString(TEXT("current")) / PythonExeName;
-			if (!FPaths::FileExists(PythonInterpreter)) // python will not exist in thirdparty (yet) if SB was never run
+			PythonInterpreter = FPaths::EngineDir() / TEXT("Extras") / TEXT("ThirdPartyNotUE") /
+				TEXT("SwitchboardThirdParty") / TEXT("Python") / TEXT("current") / PythonExeName;
+			if (!FPaths::FileExists(PythonInterpreter)) // python will not exist in ThirdPartyNotUE (yet) if SB was never run
 			{
 				// so we fall back onto the interpreter that ships with the engine
 				PythonInterpreter = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() + FString(TEXT("Binaries")));
