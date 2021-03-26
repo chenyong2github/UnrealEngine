@@ -14,6 +14,7 @@
 #include "SpriteIndexBuffer.h"
 #include "StaticMeshResources.h"
 #include "MeshPassProcessor.inl"
+#include "VolumetricCloudRendering.h"
 
 int32 GVolumetricFogVoxelizationSlicesPerGSPass = 8;
 FAutoConsoleVariableRef CVarVolumetricFogVoxelizationSlicesPerPass(
@@ -42,7 +43,8 @@ TRDGUniformBufferRef<FVoxelizeVolumePassUniformParameters> CreateVoxelizeVolumeP
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	const FVolumetricFogIntegrationParameterData& IntegrationData,
-	FVector2D Jitter)
+	FVector2D Jitter,
+	const FVolumetricCloudRenderSceneInfo* CloudInfo)
 {
 	auto* Parameters = GraphBuilder.AllocParameters<FVoxelizeVolumePassUniformParameters>();
 	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::None, Parameters->SceneTextures);
@@ -54,6 +56,23 @@ TRDGUniformBufferRef<FVoxelizeVolumePassUniformParameters> CreateVoxelizeVolumeP
 	Parameters->FrameJitterOffset0 = IntegrationData.FrameJitterOffsetValues[0];
 
 	SetupVolumetricFogGlobalData(View, Parameters->VolumetricFog);
+
+	if (CloudInfo)
+	{
+		const FVolumetricCloudCommonShaderParameters& CloudGlobalShaderParams = CloudInfo->GetVolumetricCloudCommonShaderParameters();
+		Parameters->RenderVolumetricCloudParametersCloudLayerCenterKm = CloudGlobalShaderParams.CloudLayerCenterKm;
+		Parameters->RenderVolumetricCloudParametersPlanetRadiusKm = CloudGlobalShaderParams.PlanetRadiusKm;
+		Parameters->RenderVolumetricCloudParametersBottomRadiusKm = CloudGlobalShaderParams.BottomRadiusKm;
+		Parameters->RenderVolumetricCloudParametersTopRadiusKm = CloudGlobalShaderParams.TopRadiusKm;
+	}
+	else
+	{
+		Parameters->RenderVolumetricCloudParametersCloudLayerCenterKm = FVector::ZeroVector;
+		Parameters->RenderVolumetricCloudParametersPlanetRadiusKm = 0.001f;
+		Parameters->RenderVolumetricCloudParametersBottomRadiusKm = 0.5f;
+		Parameters->RenderVolumetricCloudParametersTopRadiusKm = 1.0f;
+	}
+
 	return GraphBuilder.CreateUniformBuffer(Parameters);
 }
 
@@ -354,6 +373,7 @@ public:
 		{
 			OutEnvironment.SetDefine(TEXT("VOXELIZE_SHAPE_MODE"), TEXT("OBJECT_BOX_MODE"));
 		}
+		OutEnvironment.SetDefine(TEXT("CLOUD_LAYER_PIXEL_SHADER"), TEXT("1")); // This is to enable cloud data on the MaterialParameter structure.
 	}
 };
 
@@ -559,7 +579,7 @@ void FDeferredShadingSceneRenderer::VoxelizeFogVolumePrimitives(
 			IntegrationData.FrameJitterOffsetValues[0].Y / VolumetricFogGridSize.Y);
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FVoxelizeVolumePassParameters>();
-		PassParameters->Pass = CreateVoxelizeVolumePassUniformBuffer(GraphBuilder, View, IntegrationData, Jitter);
+		PassParameters->Pass = CreateVoxelizeVolumePassUniformBuffer(GraphBuilder, View, IntegrationData, Jitter, Scene->GetVolumetricCloudSceneInfo());
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(IntegrationData.VBufferA, ERenderTargetLoadAction::ELoad);
 		PassParameters->RenderTargets[1] = FRenderTargetBinding(IntegrationData.VBufferB, ERenderTargetLoadAction::ELoad);
 
@@ -582,8 +602,6 @@ void FDeferredShadingSceneRenderer::VoxelizeFogVolumePrimitives(
 
 			Scene->UniformBuffers.VoxelizeVolumeViewUniformBuffer.UpdateUniformBufferImmediate(ViewVoxelizeParameters);
 
-			FMeshPassProcessorRenderState DrawRenderState(View);
-			DrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.VoxelizeVolumeViewUniformBuffer);
 
 			DrawDynamicMeshPass(View, RHICmdList,
 				[&View, VolumetricFogDistance, &RHICmdList, &VolumetricFogGridSize, &GridZParams](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)

@@ -245,6 +245,64 @@ float ComputeVolumeShapeMasking(float3 WorldPosition, uint PrimitiveId, FVertexF
 	return ValidRegionMask;
 }
 
+
+
+////////////////////////////////////////////////////////////
+// The following code is sopied from VolumetricCloud. It will be made common in Stratship where we can shared the VolumetricCloud common UB as in a static slot.
+// Right now this is broken in UE4 with RDG so code is simplied copied and adapted to volumetric fog here.  
+////////////////////////////////////////////////////////////
+
+struct FCloudLayerParameters
+{
+	float3 CloudLayerCenter;
+	float PlanetRadius;
+	float BottomRadius;
+	float TopRadius;
+	float ToNormAltitude;
+};
+
+#define KILOMETER_TO_CENTIMETER	100000.0f
+FCloudLayerParameters GetCloudLayerParams()
+{
+	FCloudLayerParameters CloudLayerParams;
+	CloudLayerParams.CloudLayerCenter = VoxelizeVolumePass.RenderVolumetricCloudParametersCloudLayerCenterKm * KILOMETER_TO_CENTIMETER;
+	CloudLayerParams.PlanetRadius = VoxelizeVolumePass.RenderVolumetricCloudParametersPlanetRadiusKm * KILOMETER_TO_CENTIMETER;
+	CloudLayerParams.BottomRadius = VoxelizeVolumePass.RenderVolumetricCloudParametersBottomRadiusKm * KILOMETER_TO_CENTIMETER;
+	CloudLayerParams.TopRadius = VoxelizeVolumePass.RenderVolumetricCloudParametersTopRadiusKm * KILOMETER_TO_CENTIMETER;
+	CloudLayerParams.ToNormAltitude = 1.0 / (CloudLayerParams.TopRadius - CloudLayerParams.BottomRadius);
+	return CloudLayerParams;
+}
+
+#define TRACING_SHADOW_DISTANCE_OFF	0.0f
+
+#if CLOUD_LAYER_PIXEL_SHADER
+// Function to update the material parameter structure for an evaluation
+void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
+	float3 AbsoluteWorldPosition, in ViewState InputView, in FCloudLayerParameters CloudLayerParams,
+	in float ShadowSampleDistance)
+{
+	MaterialParameters.AbsoluteWorldPosition = AbsoluteWorldPosition;
+	MaterialParameters.WorldPosition_CamRelative = MaterialParameters.AbsoluteWorldPosition + InputView.PreViewTranslation.xyz;
+	//MaterialParameters.WorldPosition_NoOffsets;				// TODO
+	//MaterialParameters.WorldPosition_NoOffsets_CamRelative;	// TODO
+	MaterialParameters.CameraVector = normalize(InputView.WorldCameraOrigin - MaterialParameters.AbsoluteWorldPosition);
+
+	float CloudSampleAltitude = length(MaterialParameters.AbsoluteWorldPosition - CloudLayerParams.CloudLayerCenter);
+	MaterialParameters.CloudSampleAltitude = CloudSampleAltitude - CloudLayerParams.PlanetRadius;
+	MaterialParameters.CloudSampleAltitudeInLayer = CloudSampleAltitude - CloudLayerParams.BottomRadius;
+	MaterialParameters.CloudSampleNormAltitudeInLayer = saturate(MaterialParameters.CloudSampleAltitudeInLayer * CloudLayerParams.ToNormAltitude);
+
+	const float DefaultConservativeDensity = 1.0f;
+	MaterialParameters.VolumeSampleConservativeDensity = DefaultConservativeDensity; // Defaults to "medium is potentially present" in case it is not fed by the user.
+
+	MaterialParameters.ShadowSampleDistance = ShadowSampleDistance;
+}
+#endif
+
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+
 void VoxelizePS(
 	FVoxelizeVolumePrimitiveGSToPS Interpolants,
 	out float4 OutVBufferA : SV_Target0,
@@ -258,6 +316,16 @@ void VoxelizePS(
 	float ValidRegionMask = 1;
 
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants.FactoryInterpolants, SvPosition);
+
+#if CLOUD_LAYER_PIXEL_SHADER
+	FCloudLayerParameters CloudLayerParams = GetCloudLayerParams();
+	const float NotShadowSample = 0.0f;
+	float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+	float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
+	float3 AbsoluteWorldPosition = TranslatedWorldPosition.xyz - ResolvedView.PreViewTranslation.xyz;
+	UpdateMaterialCloudParam(MaterialParameters, AbsoluteWorldPosition, ResolvedView, CloudLayerParams, NotShadowSample);
+#endif
+
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
 

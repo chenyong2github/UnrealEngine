@@ -11,6 +11,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVoxelizeVolumePassUniformParameters, )
 	SHADER_PARAMETER(FMatrix, ViewToVolumeClip)
 	SHADER_PARAMETER(FVector4, FrameJitterOffset0)
 	SHADER_PARAMETER_STRUCT(FVolumetricFogGlobalData, VolumetricFog)
+	SHADER_PARAMETER(FVector, RenderVolumetricCloudParametersCloudLayerCenterKm)
+	SHADER_PARAMETER(float, RenderVolumetricCloudParametersPlanetRadiusKm)
+	SHADER_PARAMETER(float, RenderVolumetricCloudParametersBottomRadiusKm)
+	SHADER_PARAMETER(float, RenderVolumetricCloudParametersTopRadiusKm)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 extern FVector VolumetricFogTemporalRandom(uint32 FrameNumber);
