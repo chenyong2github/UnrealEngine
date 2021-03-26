@@ -1015,6 +1015,146 @@ void FRDGBuilder::Compile()
 		}
 	}
 
+	// Traverses passes on the graphics pipe and merges raster passes with the same render targets into a single RHI render pass.
+	if (GRDGMergeRenderPasses && RasterPassCount > 0)
+	{
+		SCOPED_NAMED_EVENT(FRDGBuilder_Compile_RenderPassMerge, FColor::Emerald);
+
+		TArray<FRDGPassHandle, FRDGArrayAllocator> PassesToMerge;
+		FRDGPass* PrevPass = nullptr;
+		const FRenderTargetBindingSlots* PrevRenderTargets = nullptr;
+
+		const auto CommitMerge = [&]
+		{
+			if (PassesToMerge.Num())
+			{
+				const FRDGPassHandle FirstPassHandle = PassesToMerge[0];
+				const FRDGPassHandle LastPassHandle = PassesToMerge.Last();
+
+				// Given an interval of passes to merge into a single render pass: [B, X, X, X, X, E]
+				//
+				// The begin pass (B) and end (E) passes will call {Begin, End}RenderPass, respectively. Also,
+				// begin will handle all prologue barriers for the entire merged interval, and end will handle all
+				// epilogue barriers. This avoids transitioning of resources within the render pass and batches the
+				// transitions more efficiently. This assumes we have filtered out dependencies between passes from
+				// the merge set, which is done during traversal.
+
+				// (B) First pass in the merge sequence.
+				{
+					FRDGPass* Pass = Passes[FirstPassHandle];
+					Pass->bSkipRenderPassEnd = 1;
+					Pass->EpilogueBarrierPass = LastPassHandle;
+				}
+
+				// (X) Intermediate passes.
+				for (int32 PassIndex = 1, PassCount = PassesToMerge.Num() - 1; PassIndex < PassCount; ++PassIndex)
+				{
+					const FRDGPassHandle PassHandle = PassesToMerge[PassIndex];
+					FRDGPass* Pass = Passes[PassHandle];
+					Pass->bSkipRenderPassBegin = 1;
+					Pass->bSkipRenderPassEnd = 1;
+					Pass->PrologueBarrierPass = FirstPassHandle;
+					Pass->EpilogueBarrierPass = LastPassHandle;
+				}
+
+				// (E) Last pass in the merge sequence.
+				{
+					FRDGPass* Pass = Passes[LastPassHandle];
+					Pass->bSkipRenderPassBegin = 1;
+					Pass->PrologueBarrierPass = FirstPassHandle;
+				}
+
+#if STATS
+				GRDGStatRenderPassMergeCount += PassesToMerge.Num();
+#endif
+			}
+			PassesToMerge.Reset();
+			PrevPass = nullptr;
+			PrevRenderTargets = nullptr;
+		};
+
+		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
+		{
+			if (PassesToCull[PassHandle] || PassesWithEmptyParameters[PassHandle])
+			{
+				continue;
+			}
+
+			if (PassesOnRaster[PassHandle])
+			{
+				FRDGPass* NextPass = Passes[PassHandle];
+
+				// A pass where the user controls the render pass can't merge with other passes
+				if (EnumHasAnyFlags(NextPass->GetFlags(), ERDGPassFlags::SkipRenderPass))
+				{
+					CommitMerge();
+					continue;
+				}
+
+				// A pass which writes to resources outside of the render pass introduces new dependencies which break merging.
+				if (!NextPass->bRenderPassOnlyWrites)
+				{
+					CommitMerge();
+					continue;
+				}
+
+				// A graphics fork pass can't merge with a previous raster pass.
+				if (NextPass->bGraphicsFork)
+				{
+					CommitMerge();
+				}
+
+				const FRenderTargetBindingSlots& RenderTargets = NextPass->GetParameters().GetRenderTargets();
+
+				if (PrevPass)
+				{
+					check(PrevRenderTargets);
+
+					if (PrevRenderTargets->CanMergeBefore(RenderTargets)
+#if WITH_MGPU
+						&& PrevPass->GPUMask == NextPass->GPUMask
+#endif
+						)
+					{
+						if (!PassesToMerge.Num())
+						{
+							PassesToMerge.Add(PrevPass->GetHandle());
+						}
+						PassesToMerge.Add(PassHandle);
+					}
+					else
+					{
+						CommitMerge();
+					}
+				}
+
+				PrevPass = NextPass;
+				PrevRenderTargets = &RenderTargets;
+			}
+			else if (!PassesOnAsyncCompute[PassHandle])
+			{
+				// A non-raster pass on the graphics pipe will invalidate the render target merge.
+				CommitMerge();
+			}
+		}
+
+		CommitMerge();
+	}
+
+	for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
+	{
+		if (PassesToCull[PassHandle] || PassesWithEmptyParameters[PassHandle] || PassesOnAsyncCompute[PassHandle])
+		{
+			continue;
+		}
+
+		FRDGPass* Pass = Passes[PassHandle];
+		FRDGPass* PrologueBarrierPass = GetPrologueBarrierPass(PassHandle);
+		FRDGPass* EpilogueBarrierPass = GetEpilogueBarrierPass(PassHandle);
+		PrologueBarrierPass->ResourcesToBegin.Add(Pass);
+		EpilogueBarrierPass->ResourcesToEnd.Add(Pass);
+	}
+
 	if (AsyncComputePassCount > 0)
 	{
 		SCOPED_NAMED_EVENT(FRDGBuilder_Compile_AsyncCompute, FColor::Emerald);
@@ -1200,146 +1340,6 @@ void FRDGBuilder::Compile()
 			InsertAsyncToGraphicsComputeJoin(PrevAsyncComputePass, EpiloguePass);
 			PrevAsyncComputePass->bAsyncComputeEndExecute = 1;
 		}
-	}
-
-	// Traverses passes on the graphics pipe and merges raster passes with the same render targets into a single RHI render pass.
-	if (GRDGMergeRenderPasses && RasterPassCount > 0)
-	{
-		SCOPED_NAMED_EVENT(FRDGBuilder_Compile_RenderPassMerge, FColor::Emerald);
-
-		TArray<FRDGPassHandle, FRDGArrayAllocator> PassesToMerge;
-		FRDGPass* PrevPass = nullptr;
-		const FRenderTargetBindingSlots* PrevRenderTargets = nullptr;
-
-		const auto CommitMerge = [&]
-		{
-			if (PassesToMerge.Num())
-			{
-				const FRDGPassHandle FirstPassHandle = PassesToMerge[0];
-				const FRDGPassHandle LastPassHandle = PassesToMerge.Last();
-
-				// Given an interval of passes to merge into a single render pass: [B, X, X, X, X, E]
-				//
-				// The begin pass (B) and end (E) passes will call {Begin, End}RenderPass, respectively. Also,
-				// begin will handle all prologue barriers for the entire merged interval, and end will handle all
-				// epilogue barriers. This avoids transitioning of resources within the render pass and batches the
-				// transitions more efficiently. This assumes we have filtered out dependencies between passes from
-				// the merge set, which is done during traversal.
-
-				// (B) First pass in the merge sequence.
-				{
-					FRDGPass* Pass = Passes[FirstPassHandle];
-					Pass->bSkipRenderPassEnd = 1;
-					Pass->EpilogueBarrierPass = LastPassHandle;
-				}
-
-				// (X) Intermediate passes.
-				for (int32 PassIndex = 1, PassCount = PassesToMerge.Num() - 1; PassIndex < PassCount; ++PassIndex)
-				{
-					const FRDGPassHandle PassHandle = PassesToMerge[PassIndex];
-					FRDGPass* Pass = Passes[PassHandle];
-					Pass->bSkipRenderPassBegin = 1;
-					Pass->bSkipRenderPassEnd = 1;
-					Pass->PrologueBarrierPass = FirstPassHandle;
-					Pass->EpilogueBarrierPass = LastPassHandle;
-				}
-
-				// (E) Last pass in the merge sequence.
-				{
-					FRDGPass* Pass = Passes[LastPassHandle];
-					Pass->bSkipRenderPassBegin = 1;
-					Pass->PrologueBarrierPass = FirstPassHandle;
-				}
-
-			#if STATS
-				GRDGStatRenderPassMergeCount += PassesToMerge.Num();
-			#endif
-			}
-			PassesToMerge.Reset();
-			PrevPass = nullptr;
-			PrevRenderTargets = nullptr;
-		};
-
-		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
-		{
-			if (PassesToCull[PassHandle] || PassesWithEmptyParameters[PassHandle])
-			{
-				continue;
-			}
-
-			if (PassesOnRaster[PassHandle])
-			{
-				FRDGPass* NextPass = Passes[PassHandle];
-
-				// A pass where the user controls the render pass can't merge with other passes
-				if (EnumHasAnyFlags(NextPass->GetFlags(), ERDGPassFlags::SkipRenderPass))
-				{
-					CommitMerge();
-					continue;
-				}
-
-				// A pass which writes to resources outside of the render pass introduces new dependencies which break merging.
-				if (!NextPass->bRenderPassOnlyWrites)
-				{
-					CommitMerge();
-					continue;
-				}
-
-				// A graphics fork pass can't merge with a previous raster pass.
-				if (NextPass->bGraphicsFork)
-				{
-					CommitMerge();
-				}
-
-				const FRenderTargetBindingSlots& RenderTargets = NextPass->GetParameters().GetRenderTargets();
-
-				if (PrevPass)
-				{
-					check(PrevRenderTargets);
-
-					if (PrevRenderTargets->CanMergeBefore(RenderTargets)
-					#if WITH_MGPU
-						&& PrevPass->GPUMask == NextPass->GPUMask
-					#endif
-						)
-					{
-						if (!PassesToMerge.Num())
-						{
-							PassesToMerge.Add(PrevPass->GetHandle());
-						}
-						PassesToMerge.Add(PassHandle);
-					}
-					else
-					{
-						CommitMerge();
-					}
-				}
-
-				PrevPass = NextPass;
-				PrevRenderTargets = &RenderTargets;
-			}
-			else if (!PassesOnAsyncCompute[PassHandle])
-			{
-				// A non-raster pass on the graphics pipe will invalidate the render target merge.
-				CommitMerge();
-			}
-		}
-
-		CommitMerge();
-	}
-
-	for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
-	{
-		if (PassesToCull[PassHandle] || PassesWithEmptyParameters[PassHandle] || PassesOnAsyncCompute[PassHandle])
-		{
-			continue;
-		}
-
-		FRDGPass* Pass = Passes[PassHandle];
-		FRDGPass* PrologueBarrierPass = GetPrologueBarrierPass(PassHandle);
-		FRDGPass* EpilogueBarrierPass = GetEpilogueBarrierPass(PassHandle);
-		PrologueBarrierPass->ResourcesToBegin.Add(Pass);
-		EpilogueBarrierPass->ResourcesToEnd.Add(Pass);
 	}
 }
 
