@@ -358,6 +358,7 @@ namespace Chaos
 			{
 				TArrayCollection::AddArray(&MGeometryParticleHandle);
 				TArrayCollection::AddArray(&MGeometryParticle);
+				TArrayCollection::AddArray(&MPhysicsProxy);
 			}
 
 		}
@@ -371,6 +372,7 @@ namespace Chaos
 			, MDynamicGeometry(MoveTemp(Other.MDynamicGeometry))
 			, MGeometryParticleHandle(MoveTemp(Other.MGeometryParticleHandle))
 			, MGeometryParticle(MoveTemp(Other.MGeometryParticle))
+			, MPhysicsProxy(MoveTemp(Other.MPhysicsProxy))
 			, MShapesArray(MoveTemp(Other.MShapesArray))
 			, ImplicitShapeMap(MoveTemp(Other.ImplicitShapeMap))
 			, MLocalBounds(MoveTemp(Other.MLocalBounds))
@@ -414,6 +416,7 @@ namespace Chaos
 			{
 				TArrayCollection::AddArray(&MGeometryParticleHandle);
 				TArrayCollection::AddArray(&MGeometryParticle);
+				TArrayCollection::AddArray(&MPhysicsProxy);
 			}
 		}
 
@@ -450,6 +453,7 @@ namespace Chaos
 			{
 				TArrayCollection::AddArray(&MGeometryParticleHandle);
 				TArrayCollection::AddArray(&MGeometryParticle);
+				TArrayCollection::AddArray(&MPhysicsProxy);
 			}
 		}
 
@@ -585,6 +589,13 @@ namespace Chaos
 		
 		CHAOS_API TGeometryParticle<T, d>* GTGeometryParticle(const int32 Index) const { return MGeometryParticle[Index]; }
 		CHAOS_API TGeometryParticle<T, d>*& GTGeometryParticle(const int32 Index) { return MGeometryParticle[Index]; }
+
+		CHAOS_API const IPhysicsProxyBase* PhysicsProxy(const int32 Index) const { return MPhysicsProxy[Index];  }
+		CHAOS_API IPhysicsProxyBase* PhysicsProxy(const int32 Index) { return MPhysicsProxy[Index]; }
+		CHAOS_API void SetPhysicsProxy(const int32 Index, IPhysicsProxyBase* InPhysicsProxy)
+		{
+			MPhysicsProxy[Index] = InPhysicsProxy;
+		}
 
 		CHAOS_API FWeakParticleHandle& WeakParticleHandle(const int32 Index)
 		{
@@ -739,6 +750,7 @@ public:
 		TArrayCollectionArray<TUniquePtr<FImplicitObject>> MDynamicGeometry;
 		TArrayCollectionArray<TSerializablePtr<TGeometryParticleHandle<T, d>>> MGeometryParticleHandle;
 		TArrayCollectionArray<TGeometryParticle<T, d>*> MGeometryParticle;
+		TArrayCollectionArray<IPhysicsProxyBase*> MPhysicsProxy;
 		TArrayCollectionArray<FShapesArray> MShapesArray;
 		TArrayCollectionArray<TMap<const FImplicitObject*, int32>> ImplicitShapeMap;
 		TArrayCollectionArray<TAABB<T,d>> MLocalBounds;

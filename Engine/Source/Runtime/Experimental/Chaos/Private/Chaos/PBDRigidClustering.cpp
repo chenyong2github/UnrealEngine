@@ -791,7 +791,6 @@ namespace Chaos
 						const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
 						FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 						ClusterBreak.Particle = Child;
-						ClusterBreak.ParticleProxy = nullptr;
 						ClusterBreak.Location = Child->X();
 						ClusterBreak.Velocity = Child->V();
 						ClusterBreak.AngularVelocity = Child->W();
@@ -1060,7 +1059,6 @@ namespace Chaos
 						const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
 						FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 						ClusterBreak.Particle = Child;
-						ClusterBreak.ParticleProxy = nullptr;
 						ClusterBreak.Location = Child->X();
 						ClusterBreak.Velocity = Child->V();
 						ClusterBreak.AngularVelocity = Child->W();
@@ -1370,7 +1368,6 @@ namespace Chaos
 							int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
 							FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 							ClusterBreak.Particle = ClusteredParticle;
-							ClusterBreak.ParticleProxy = nullptr;
 							ClusterBreak.Location = ClusteredParticle->X();
 							ClusterBreak.Velocity = ClusteredParticle->V();
 							ClusterBreak.AngularVelocity = ClusteredParticle->W();
@@ -1989,7 +1986,6 @@ namespace Chaos
 			const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
 			FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 			ClusterBreak.Particle = Particle;
-			ClusterBreak.ParticleProxy = nullptr;
 			ClusterBreak.Location = Particle->X();
 			ClusterBreak.Velocity = Particle->V();
 			ClusterBreak.AngularVelocity = Particle->W();

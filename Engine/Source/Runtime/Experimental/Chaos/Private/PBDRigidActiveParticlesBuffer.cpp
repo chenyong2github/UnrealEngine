@@ -33,25 +33,20 @@ namespace Chaos
 		{
 			if (ActiveParticle.Handle())	//can this be null?
 			{
-				if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(ActiveParticle.Handle()))//can this be null?
+				IPhysicsProxyBase* Proxy = ActiveParticle.Handle()->PhysicsProxy();
+				
+				if(Proxy != nullptr)	//can this be null?
 				{
-					for(IPhysicsProxyBase* Proxy : *Proxies)
+					if(Proxy->GetType() == EPhysicsProxyType::SingleParticleProxy)
 					{
-						if(Proxy != nullptr)	//can this be null?
-						{
-							if(Proxy->GetType() == EPhysicsProxyType::SingleParticleProxy)
-							{
-								ensure(Proxies->Num() == 1);	//single rigid should only have one proxy
-								ActiveGameThreadParticles.Add(static_cast<FSingleParticlePhysicsProxy*>(Proxy));
-							}
-							else
-							{
-								//must be a geometry collection
-								PhysicsParticleProxies.Add(Proxy);
-							}
-						}
+						ActiveGameThreadParticles.Add(static_cast<FSingleParticlePhysicsProxy*>(Proxy));
 					}
-				}
+					else
+					{
+						//must be a geometry collection
+						PhysicsParticleProxies.Add(Proxy);
+					}
+				}	
 			}
 		}
 	}

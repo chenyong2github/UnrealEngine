@@ -275,7 +275,7 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 								int32 CollisionIdx = Chaos::FEventManager::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
 
 								Chaos::FCollidingData const& CollisionDataItem = CollisionData[CollisionIdx];
-								IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.ParticleProxy : CollisionDataItem.LevelsetProxy;
+								IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.Particle->PhysicsProxy() : CollisionDataItem.Levelset->PhysicsProxy();
 
 								{
 									bool bNewEntry = false;
@@ -385,18 +385,18 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 		{
 			for (Chaos::FBreakingData const& BreakingDataItem : BreakingData)
 			{	
-				if (BreakingDataItem.Particle && (BreakingDataItem.ParticleProxy))
+				if (BreakingDataItem.Particle)
 				{
-					UPrimitiveComponent* const PrimComp = Cast<UPrimitiveComponent>(BreakingDataItem.ParticleProxy->GetOwner());
+					UPrimitiveComponent* const PrimComp = Cast<UPrimitiveComponent>(BreakingDataItem.Particle->PhysicsProxy()->GetOwner());
 					if (PrimComp && BreakEventRegistrations.Contains(PrimComp))
 					{
 						// queue them up so we can release the physics data before trigging BP events
 						FChaosBreakEvent& BreakEvent = PendingBreakEvents.AddZeroed_GetRef();
-							BreakEvent.Component = PrimComp;
-							BreakEvent.Location = BreakingDataItem.Location;
-							BreakEvent.Velocity = BreakingDataItem.Velocity;
-							BreakEvent.AngularVelocity = BreakingDataItem.AngularVelocity;
-							BreakEvent.Mass = BreakingDataItem.Mass;
+						BreakEvent.Component = PrimComp;
+						BreakEvent.Location = BreakingDataItem.Location;
+						BreakEvent.Velocity = BreakingDataItem.Velocity;
+						BreakEvent.AngularVelocity = BreakingDataItem.AngularVelocity;
+						BreakEvent.Mass = BreakingDataItem.Mass;
 					}
 				}
 			}

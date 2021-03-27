@@ -108,6 +108,7 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	, MInternalCluster(MoveTemp(Other.MInternalCluster))
 	, MMultiChildProxyId(MoveTemp(Other.MMultiChildProxyId))
 	, MMultiChildProxyData(MoveTemp(Other.MMultiChildProxyData))
+	, MPhysicsProxies(MoveTemp(Other.MPhysicsProxies))
 	, MCollisionImpulses(MoveTemp(Other.MCollisionImpulses))
 	, MStrains(MoveTemp(Other.MStrains))
 	, MConnectivityEdges(MoveTemp(Other.MConnectivityEdges))
@@ -137,6 +138,9 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 
 	const auto& MultiChildProxyData(int32 Idx) const { return MMultiChildProxyData[Idx]; }
 	auto& MultiChildProxyData(int32 Idx) { return MMultiChildProxyData[Idx]; }
+
+	const auto& PhysicsProxies(int32 Idx) const { return MPhysicsProxies[Idx]; }
+	auto& PhysicsProxies(int32 Idx) { return MPhysicsProxies[Idx]; }
 
 	const auto& CollisionImpulses(int32 Idx) const { return MCollisionImpulses[Idx]; }
 	auto& CollisionImpulses(int32 Idx) { return MCollisionImpulses[Idx]; }
@@ -187,6 +191,7 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 		  TArrayCollection::AddArray(&MChildrenSpatial);
 		  TArrayCollection::AddArray(&MMultiChildProxyId);
 		  TArrayCollection::AddArray(&MMultiChildProxyData);
+		  TArrayCollection::AddArray(&MPhysicsProxies);
 		  TArrayCollection::AddArray(&MCollisionImpulses);
 		  TArrayCollection::AddArray(&MStrains);
 		  TArrayCollection::AddArray(&MConnectivityEdges);
@@ -199,6 +204,9 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	  TArrayCollectionArray<TUniquePtr<FImplicitObjectUnionClustered>> MChildrenSpatial;
 	  TArrayCollectionArray<FMultiChildProxyId> MMultiChildProxyId;
 	  TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<T, d>>> MMultiChildProxyData;
+
+	  // Multiple proxy pointers required for internal clusters
+	  TArrayCollectionArray<TSet<IPhysicsProxyBase*>> MPhysicsProxies;
 
 	  // Collision Impulses
 	  TArrayCollectionArray<T> MCollisionImpulses;

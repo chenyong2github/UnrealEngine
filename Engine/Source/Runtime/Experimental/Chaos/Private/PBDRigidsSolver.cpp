@@ -362,14 +362,14 @@ namespace Chaos
 		MEvolution->AddConstraintRule(&SuspensionConstraintRule);
 
 		MEvolution->SetInternalParticleInitilizationFunction(
-			[this](const Chaos::FGeometryParticleHandle* OldParticle, const Chaos::FGeometryParticleHandle* NewParticle) {
-				if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(OldParticle))
+			[this](const Chaos::FGeometryParticleHandle* OldParticle, Chaos::FGeometryParticleHandle* NewParticle) 
+			{
+				IPhysicsProxyBase* Proxy = const_cast<IPhysicsProxyBase*>(OldParticle->PhysicsProxy());
+				if (Chaos::FPBDRigidClusteredParticleHandle* NewClusteredParticle = NewParticle->CastToClustered())
 				{
-					for (IPhysicsProxyBase* Proxy : *Proxies)
-					{
-						this->AddParticleToProxy(NewParticle, Proxy);
-					}
+					NewClusteredParticle->AddPhysicsProxy(Proxy);
 				}
+				NewParticle->SetPhysicsProxy(Proxy);
 			});
 		
 		JointConstraints.SetUpdateVelocityInApplyConstraints(true);
@@ -451,33 +451,22 @@ namespace Chaos
 		{
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("FPBDRigidsSolver::UnregisterObject() ~ Dequeue"));
 
-				// Generally need to remove stale events for particles that no longer exist
-				GetEventManager()->template ClearEvents<FCollisionEventData>(EEventType::Collision, [Proxy]
-				(FCollisionEventData& EventDataInOut)
+			// Generally need to remove stale events for particles that no longer exist
+			GetEventManager()->template ClearEvents<FCollisionEventData>(EEventType::Collision, [Proxy]
+			(FCollisionEventData& EventDataInOut)
+			{
+				Chaos::FCollisionDataArray const& CollisionData = EventDataInOut.CollisionData.AllCollisionsArray;
+				if (CollisionData.Num() > 0)
 				{
-					Chaos::FCollisionDataArray const& CollisionData = EventDataInOut.CollisionData.AllCollisionsArray;
-					if (CollisionData.Num() > 0)
+					check(Proxy);
+					TArray<int32> const* const CollisionIndices = EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Find(Proxy);
+					if (CollisionIndices)
 					{
-						check(Proxy);
-						TArray<int32> const* const CollisionIndices = EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Find(Proxy);
-						if (CollisionIndices)
-						{
-							for (int32 EncodedCollisionIdx : *CollisionIndices)
-							{
-								bool bSwapOrder;
-								int32 CollisionIdx = Chaos::FEventManager::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
-
-								// invalidate but don't delete from array, as this would mean we'd need to reindex PhysicsProxyToIndicesMap to maintain the other collisions lookup
-								Chaos::FCollidingData& CollisionDataItem = EventDataInOut.CollisionData.AllCollisionsArray[CollisionIdx];
-								CollisionDataItem.ParticleProxy = nullptr;
-								CollisionDataItem.LevelsetProxy = nullptr;
-							}
-
-							EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Remove(Proxy);
-						}
+						EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Remove(Proxy);
 					}
+				}
 
-				});
+			});
 
 			// Get the physics thread-handle from the proxy, and then delete the proxy.
 			//
@@ -498,12 +487,6 @@ namespace Chaos
 				{
 					RewindData->RemoveParticle(Handle->UniqueIdx());
 				}
-  
-				if(LogCorruptMap)
-				{
-					UE_LOG(LogChaos, Warning, TEXT("UnregisterObject this:%llx, Handle:%llx &MParticleToProxy:%llx, MParticleToProxy.Num():%d"), this, Handle, &MParticleToProxy, MParticleToProxy.Num());
-				}
-				MParticleToProxy.Remove(Handle);
   
 				// Use the handle to destroy the particle data
 				GetEvolution()->DestroyParticle(Handle);
@@ -545,11 +528,6 @@ namespace Chaos
 
 		EnqueueCommandImmediate([InProxy, this]()
 			{
-				const TArray<Chaos::FPBDRigidClusteredParticleHandle*>& ParticleHandles = InProxy->GetSolverParticleHandles();
-				for (const Chaos::FPBDRigidClusteredParticleHandle* ParticleHandle : ParticleHandles)
-				{
-					RemoveParticleToProxy(ParticleHandle);
-				}
 				GeometryCollectionPhysicsProxies_Internal.RemoveSingle(InProxy);
 				InProxy->SyncBeforeDestroy();
 				InProxy->OnRemoveFromSolver(this);
@@ -878,7 +856,7 @@ namespace Chaos
 			if(bIsNew)
 			{
 				auto Handle = Proxy->GetHandle_LowLevel();
-				AddParticleToProxy(Handle,Proxy);
+				Handle->SetPhysicsProxy(Proxy);
 				GetEvolution()->CreateParticle(Handle);
 				Proxy->SetInitialized(true);
 			}
@@ -1108,36 +1086,45 @@ namespace Chaos
 
 			for (Chaos::TPBDRigidParticleHandleImp<FReal, 3, false>& DirtyParticle : DirtyParticles)
 			{
-				if( const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(DirtyParticle.Handle()))
+				IPhysicsProxyBase* Proxy = DirtyParticle.Handle()->PhysicsProxy();
+				if(Proxy != nullptr)
 				{
-					for (IPhysicsProxyBase* Proxy : *Proxies)
+					switch(DirtyParticle.GetParticleType())
 					{
-							if(Proxy != nullptr)
-						{
-								switch(DirtyParticle.GetParticleType())
+						case Chaos::EParticleType::Rigid:
 							{
-							case Chaos::EParticleType::Rigid:
-								{
-									PullData->DirtyRigids.AddDefaulted();
-									((FSingleParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults(PullData->DirtyRigids.Last());
-									break;
-								}
-							case Chaos::EParticleType::Kinematic:
-							case Chaos::EParticleType::Static:
-								ensure(false);
+								PullData->DirtyRigids.AddDefaulted();
+								((FSingleParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults(PullData->DirtyRigids.Last());
 								break;
-							case Chaos::EParticleType::GeometryCollection:
-								ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
-								break;
-							case Chaos::EParticleType::Clustered:
-								ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
-								break;
-							default:
-								check(false);
 							}
-						}
+						case Chaos::EParticleType::Kinematic:
+						case Chaos::EParticleType::Static:
+							ensure(false);
+							break;
+						case Chaos::EParticleType::GeometryCollection:
+							ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
+							break;
+						case Chaos::EParticleType::Clustered:
+							if (auto ClusterParticle = DirtyParticle.CastToClustered())
+							{
+								if (ClusterParticle->InternalCluster())
+								{
+									const TSet<IPhysicsProxyBase*> Proxies = ClusterParticle->PhysicsProxies();
+									for (IPhysicsProxyBase* ClusterProxy : Proxies)
+									{
+										ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(ClusterProxy));
+									}
+								}
+								else
+								{
+									ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
+								}
+							}
+							break;
+						default:
+							check(false);
 					}
-				}
+				}	
 			}
 		}
 

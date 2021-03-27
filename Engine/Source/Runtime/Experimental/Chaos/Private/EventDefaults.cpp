@@ -67,64 +67,53 @@ namespace Chaos
 				const FReal MinDeltaVelocityForHitEvents = FChaosSolversModule::GetModule()->GetSettingsProvider().GetMinDeltaVelocityForHitEvents();
 				for (const Chaos::FPBDCollisionConstraintHandle * ContactHandle : CollisionRule.GetConstConstraintHandles())
 				{
+					if (NumValidCollisions >= CollisionRule.NumConstraints())
+					{
+						break;
+					}
+
 					if (ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePoint ||
 						ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePointSwept)
 					{
 						const FRigidBodyPointContactConstraint& Constraint = (ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePoint) ?
 							ContactHandle->GetPointContact() :
 							*ContactHandle->GetSweptPointContact().As<FRigidBodyPointContactConstraint>();
-
-						// Since Clustered GCs can be unioned the particleIndex representing the union 
-						// is not associated with a PhysicsProxy
-						if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(Constraint.Particle[0]->Handle()))
+						
+						if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 						{
-							for (IPhysicsProxyBase* Proxy : *Proxies)
+							FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
+							FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
+							FKinematicGeometryParticleHandle* Body0 = Particle0->CastToKinematicParticle();
+
+							// presently when a rigidbody or kinematic hits static geometry then Body1 is null
+							FKinematicGeometryParticleHandle* Body1 = Particle1->CastToKinematicParticle();
+
+							const FImplicitObject* Implicit0 = Constraint.Manifold.Implicit[0];
+							const FImplicitObject* Implicit1 = Constraint.Manifold.Implicit[1];
+
+							const FPerShapeData* Shape0 = Particle0->GetImplicitShape(Implicit0);
+							const FPerShapeData* Shape1 = Particle1->GetImplicitShape(Implicit1);
+
+							// If we don't have a filter - allow the notify, otherwise obey the filter flag
+							const bool bFilter0Notify = Shape0 ? Shape0->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
+							const bool bFilter1Notify = Shape1 ? Shape1->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
+
+							if(!bFilter0Notify && !bFilter1Notify)
 							{
-								if (NumValidCollisions >= CollisionRule.NumConstraints())
+								// No need to notify - engine didn't request notifications for either shape.
+								continue;
+							}
+
+							if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
+							{
+								if (ensure(!Constraint.GetLocation().ContainsNaN() &&
+									!Constraint.GetNormal().ContainsNaN()) &&
+									!Body0->V().ContainsNaN() &&
+									!Body0->W().ContainsNaN() &&
+									(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
 								{
-									break;
-								}
-
-								if (Proxy != nullptr)
-								{
-									if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
-									{
-										FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
-										FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
-										FKinematicGeometryParticleHandle* Body0 = Particle0->CastToKinematicParticle();
-
-										// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-										FKinematicGeometryParticleHandle* Body1 = Particle1->CastToKinematicParticle();
-
-										const FImplicitObject* Implicit0 = Constraint.Manifold.Implicit[0];
-										const FImplicitObject* Implicit1 = Constraint.Manifold.Implicit[1];
-
-										const FPerShapeData* Shape0 = Particle0->GetImplicitShape(Implicit0);
-										const FPerShapeData* Shape1 = Particle1->GetImplicitShape(Implicit1);
-
-										// If we don't have a filter - allow the notify, otherwise obey the filter flag
-										const bool bFilter0Notify = Shape0 ? Shape0->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
-										const bool bFilter1Notify = Shape1 ? Shape1->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
-
-										if(!bFilter0Notify && !bFilter1Notify)
-										{
-											// No need to notify - engine didn't request notifications for either shape.
-											continue;
-										}
-
-										if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
-										{
-											if (ensure(!Constraint.GetLocation().ContainsNaN() &&
-												!Constraint.GetNormal().ContainsNaN()) &&
-												!Body0->V().ContainsNaN() &&
-												!Body0->W().ContainsNaN() &&
-												(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
-											{
-												ValidCollisionHandles[NumValidCollisions] = ContactHandle;
-												NumValidCollisions++;
-											}
-										}
-									}
+									ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+									NumValidCollisions++;
 								}
 							}
 						}
@@ -152,10 +141,8 @@ namespace Chaos
 							Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
 							Data.Normal = Constraint.GetNormal();
 							Data.PenetrationDepth = Constraint.GetPhi();
-							Data.ParticleProxy = Solver->GetProxies(Particle0->Handle()) && Solver->GetProxies(Particle0->Handle())->Array().Num() ? 
-								Solver->GetProxies(Particle0->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
-							Data.LevelsetProxy = Solver->GetProxies(Particle1->Handle()) && Solver->GetProxies(Particle0->Handle())->Array().Num() ? 
-								Solver->GetProxies(Particle1->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
+							Data.Particle = Particle0;
+							Data.Levelset = Particle1;
 
 							if (FPBDRigidParticleHandle * Rigid0 = Particle0->CastToRigidParticle())
 							{
@@ -184,8 +171,8 @@ namespace Chaos
 								Data.Mass2 = PBDRigid1->M();
 							}
 
-							IPhysicsProxyBase* const PhysicsProxy = Data.ParticleProxy;
-							IPhysicsProxyBase* const OtherPhysicsProxy = Data.LevelsetProxy;
+							IPhysicsProxyBase* const PhysicsProxy = Particle0->PhysicsProxy();
+							IPhysicsProxyBase* const OtherPhysicsProxy = Particle1->PhysicsProxy();
 							//Data.Material1 = nullptr; // #todo: provide UPhysicalMaterial for Particle
 							//Data.Material2 = nullptr; // #todo: provide UPhysicalMaterial for Levelset
 
@@ -280,8 +267,6 @@ namespace Chaos
 							BreakingData.AngularVelocity = PBDRigid->W();
 							BreakingData.Mass = PBDRigid->M();
 							BreakingData.Particle = PBDRigid;
-							BreakingData.ParticleProxy = Solver->GetProxies(PBDRigid->Handle()) && Solver->GetProxies(PBDRigid->Handle())->Array().Num() ?
-								Solver->GetProxies(PBDRigid->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
 							
 							if(PBDRigid->Geometry()->HasBoundingBox())
 							{
@@ -296,7 +281,7 @@ namespace Chaos
 								BreakingDataArrayItem = BreakingData;
 
 								// Add to AllBreakingIndicesByPhysicsProxy
-								AllBreakingIndicesByPhysicsProxy.FindOrAdd(BreakingData.ParticleProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
+								AllBreakingIndicesByPhysicsProxy.FindOrAdd(BreakingData.Particle->PhysicsProxy()).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
 
 #if 0 // #todo
 								// If AllBreakingsArray[Idx].ParticleIndex is a cluster store an index for a mesh in this cluster
@@ -409,19 +394,13 @@ namespace Chaos
 			{
 				if(SleepData.Particle)
 				{
-					if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(SleepData.Particle))
+					FGeometryParticle* Particle = SleepData.Particle->GTGeometryParticle();
+					if (Particle && SleepData.Particle->PhysicsProxy())
 					{
-						for (IPhysicsProxyBase* Proxy : *Proxies)
-						{
-							FGeometryParticle* Particle = SleepData.Particle->GTGeometryParticle();
-							if (Particle != nullptr && Proxy != nullptr)
-							{
-								int32 NewIdx = EventSleepDataArray.Add(FSleepingData());
-								FSleepingData& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
-								SleepingDataArrayItem.Particle = Particle;
-								SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
-							}
-						}
+						int32 NewIdx = EventSleepDataArray.Add(FSleepingData());
+						FSleepingData& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
+						SleepingDataArrayItem.Particle = Particle;
+						SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
 					}
 				}
 			}

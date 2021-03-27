@@ -22,8 +22,8 @@ namespace Chaos
 			, Normal(FVec3((FReal)0.0))
 			, Velocity1(FVec3((FReal)0.0))
 			, Velocity2(FVec3((FReal)0.0))
-		    , DeltaVelocity1(FVec3((FReal)0.0))
-		    , DeltaVelocity2(FVec3((FReal)0.0))
+			, DeltaVelocity1(FVec3((FReal)0.0))
+			, DeltaVelocity2(FVec3((FReal)0.0))
 			, AngularVelocity1(FVec3((FReal)0.0))
 			, AngularVelocity2(FVec3((FReal)0.0))
 			, Mass1((FReal)0.0)
@@ -31,14 +31,12 @@ namespace Chaos
 			, PenetrationDepth((FReal)0.0)
 			, Particle(nullptr)
 			, Levelset(nullptr)
-			, ParticleProxy(nullptr)
-		    , LevelsetProxy(nullptr)
 		{}
 
 		FCollidingData(FVec3 InLocation, FVec3 InAccumulatedImpulse, FVec3 InNormal, FVec3 InVelocity1, FVec3 InVelocity2, FVec3 InDeltaVelocity1, FVec3 InDeltaVelocity2
-		, FVec3 InAngularVelocity1, FVec3 InAngularVelocity2, FReal InMass1, FReal InMass2, FReal InPenetrationDepth, FGeometryParticle* InParticle
-		, FGeometryParticle* InLevelset, IPhysicsProxyBase* InParticleProxy, IPhysicsProxyBase* InLevelsetProxy)
-		    : Location(InLocation)
+			, FVec3 InAngularVelocity1, FVec3 InAngularVelocity2, FReal InMass1,FReal InMass2,  FReal InPenetrationDepth, FGeometryParticleHandle* InParticle
+			, FGeometryParticleHandle* InLevelset)
+			: Location(InLocation)
 			, AccumulatedImpulse(InAccumulatedImpulse)
 			, Normal(InNormal)
 			, Velocity1(InVelocity1)
@@ -52,11 +50,7 @@ namespace Chaos
 			, PenetrationDepth(InPenetrationDepth)
 			, Particle(InParticle)
 			, Levelset(InLevelset)
-			, ParticleProxy(InParticleProxy)
-		    , LevelsetProxy(InLevelsetProxy)
 		{}
-
-		bool IsValid() { return (ParticleProxy && LevelsetProxy); }
 
 		FVec3 Location;
 		FVec3 AccumulatedImpulse;
@@ -66,10 +60,8 @@ namespace Chaos
 		FVec3 AngularVelocity1, AngularVelocity2;
 		FReal Mass1, Mass2;
 		FReal PenetrationDepth;
-		FGeometryParticle* Particle;
-		FGeometryParticle* Levelset;
-		IPhysicsProxyBase* ParticleProxy;
-		IPhysicsProxyBase* LevelsetProxy;
+		FGeometryParticleHandle* Particle;
+		FGeometryParticleHandle* Levelset;
 	};
 
 	/*
@@ -89,8 +81,6 @@ namespace Chaos
 			, Mass2((FReal)0.0)
 			, Particle(nullptr)
 			, Levelset(nullptr)
-		    , ParticleProxy(nullptr)
-		    , LevelsetProxy(nullptr)
 			, BoundingboxVolume((FReal)-1.0)
 			, BoundingboxExtentMin((FReal)-1.0)
 			, BoundingboxExtentMax((FReal)-1.0)
@@ -99,8 +89,7 @@ namespace Chaos
 
 		FCollidingDataExt(
 		    FVec3 InLocation, FVec3 InAccumulatedImpulse, FVec3 InNormal, FVec3 InVelocity1, FVec3 InVelocity2
-			, FVec3 InAngularVelocity1, FVec3 InAngularVelocity2, FReal InMass1, FReal InMass2, FGeometryParticle* InParticle
-			, FGeometryParticle* InLevelset, IPhysicsProxyBase* InParticleProxy, IPhysicsProxyBase* InLevelsetProxy
+			, FVec3 InAngularVelocity1, FVec3 InAngularVelocity2, FReal InMass1, FReal InMass2, FGeometryParticleHandle* InParticle, FGeometryParticleHandle* InLevelset
 			, FReal InBoundingboxVolume, FReal InBoundingboxExtentMin, FReal InBoundingboxExtentMax, int32 InSurfaceType)
 			: Location(InLocation)
 			, AccumulatedImpulse(InAccumulatedImpulse)
@@ -113,8 +102,6 @@ namespace Chaos
 			, Mass2(InMass2)
 			, Particle(InParticle)
 			, Levelset(InLevelset)
-		    , ParticleProxy(InParticleProxy)
-		    , LevelsetProxy(InLevelsetProxy)
 			, BoundingboxVolume(InBoundingboxVolume)
 			, BoundingboxExtentMin(InBoundingboxExtentMin)
 			, BoundingboxExtentMax(InBoundingboxExtentMax)
@@ -133,8 +120,6 @@ namespace Chaos
 			, Mass2(InCollisionData.Mass2)
 			, Particle(InCollisionData.Particle)
 			, Levelset(InCollisionData.Levelset)
-		    , ParticleProxy(InCollisionData.ParticleProxy)
-		    , LevelsetProxy(InCollisionData.LevelsetProxy)
 			, BoundingboxVolume((FReal)-1.0)
 			, BoundingboxExtentMin((FReal)-1.0)
 			, BoundingboxExtentMax((FReal)-1.0)
@@ -148,10 +133,8 @@ namespace Chaos
 		FVec3 Velocity1, Velocity2;
 		FVec3 AngularVelocity1, AngularVelocity2;
 		FReal Mass1, Mass2;
-		FGeometryParticle* Particle;
-		FGeometryParticle* Levelset;
-		IPhysicsProxyBase* ParticleProxy;
-		IPhysicsProxyBase* LevelsetProxy;
+		FGeometryParticleHandle* Particle;
+		FGeometryParticleHandle* Levelset;
 		FReal BoundingboxVolume;
 		FReal BoundingboxExtentMin, BoundingboxExtentMax;
 		int32 SurfaceType;
@@ -164,7 +147,6 @@ namespace Chaos
 	{
 		FBreakingData()
 			: Particle(nullptr)
-		    , ParticleProxy(nullptr)
 			, Location(FVec3((FReal)0.0))
 			, Velocity(FVec3((FReal)0.0))
 			, AngularVelocity(FVec3((FReal)0.0))
@@ -173,7 +155,6 @@ namespace Chaos
 		{}
 
 		FGeometryParticleHandle* Particle;
-		IPhysicsProxyBase* ParticleProxy;
 		FVec3 Location;
 		FVec3 Velocity;
 		FVec3 AngularVelocity;
@@ -192,7 +173,6 @@ namespace Chaos
 			, AngularVelocity(FVec3((FReal)0.0))
 			, Mass((FReal)0.0)
 		    , Particle(nullptr)
-		    , ParticleProxy(nullptr)
 			, BoundingboxVolume((FReal)-1.0)
 			, BoundingboxExtentMin((FReal)-1.0)
 			, BoundingboxExtentMax((FReal)-1.0)
@@ -204,7 +184,6 @@ namespace Chaos
 			, FVec3 InAngularVelocity
 			, FReal InMass
 			, FGeometryParticleHandle* InParticle
-			, IPhysicsProxyBase* InParticleProxy
 			, FReal InBoundingboxVolume
 			, FReal InBoundingboxExtentMin
 			, FReal InBoundingboxExtentMax
@@ -214,7 +193,6 @@ namespace Chaos
 			, AngularVelocity(InAngularVelocity)
 			, Mass(InMass)
 		    , Particle(InParticle)
-		    , ParticleProxy(InParticleProxy)
 			, BoundingboxVolume(InBoundingboxVolume)
 			, BoundingboxExtentMin(InBoundingboxExtentMin)
 			, BoundingboxExtentMax(InBoundingboxExtentMax)
@@ -227,7 +205,6 @@ namespace Chaos
 			, AngularVelocity(InBreakingData.AngularVelocity)
 			, Mass(InBreakingData.Mass)
 		    , Particle(InBreakingData.Particle)
-		    , ParticleProxy(InBreakingData.ParticleProxy)
 			, BoundingboxVolume((FReal)-1.0)
 			, BoundingboxExtentMin((FReal)-1.0)
 			, BoundingboxExtentMax((FReal)-1.0)
@@ -240,7 +217,6 @@ namespace Chaos
 		FVec3 AngularVelocity;
 		FReal Mass;
 		FGeometryParticleHandle* Particle;
-		IPhysicsProxyBase* ParticleProxy;
 		FReal BoundingboxVolume;
 		FReal BoundingboxExtentMin, BoundingboxExtentMax;
 		int32 SurfaceType;
@@ -268,18 +244,16 @@ namespace Chaos
 			, AngularVelocity(FVec3((FReal)0.0))
 			, Mass((FReal)0.0)
 			, Particle(nullptr)
-		    , ParticleProxy(nullptr)
 			, BoundingBox(FAABB3(FVec3((FReal)0.0), FVec3((FReal)0.0)))
 		{}
 
 		FTrailingData(FVec3 InLocation, FVec3 InVelocity, FVec3 InAngularVelocity, FReal InMass
-			, FGeometryParticleHandle* InParticle, IPhysicsProxyBase* InParticleProxy, Chaos::FAABB3& InBoundingBox)
+			, FGeometryParticleHandle* InParticle, Chaos::TAABB<FReal, 3>& InBoundingBox)
 			: Location(InLocation)
 			, Velocity(InVelocity)
 			, AngularVelocity(InAngularVelocity)
 			, Mass(InMass)
 			, Particle(InParticle)
-		    , ParticleProxy(InParticleProxy)
 			, BoundingBox(InBoundingBox)
 		{}
 
@@ -288,7 +262,6 @@ namespace Chaos
 		FVec3 AngularVelocity;
 		FReal Mass;
 		FGeometryParticleHandle* Particle;
-		IPhysicsProxyBase* ParticleProxy;
 		Chaos::FAABB3 BoundingBox;
 
 		friend inline uint32 GetTypeHash(const FTrailingData& Other)
@@ -324,7 +297,6 @@ namespace Chaos
 			, FVec3 InAngularVelocity
 			, FReal InMass
 			, FGeometryParticleHandle* InParticle
-			, IPhysicsProxyBase* InParticleProxy
 			, FReal InBoundingboxVolume
 			, FReal InBoundingboxExtentMin
 			, FReal InBoundingboxExtentMax
@@ -334,7 +306,6 @@ namespace Chaos
 			, AngularVelocity(InAngularVelocity)
 			, Mass(InMass)
 			, Particle(InParticle)
-		    , ParticleProxy(InParticleProxy)
 			, BoundingboxVolume(InBoundingboxVolume)
 			, BoundingboxExtentMin(InBoundingboxExtentMin)
 			, BoundingboxExtentMax(InBoundingboxExtentMax)
@@ -347,7 +318,6 @@ namespace Chaos
 			, AngularVelocity(InTrailingData.AngularVelocity)
 			, Mass(InTrailingData.Mass)
 			, Particle(InTrailingData.Particle)
-		    , ParticleProxy(InTrailingData.ParticleProxy)
 			, BoundingboxVolume((FReal)-1.0)
 			, BoundingboxExtentMin((FReal)-1.0)
 			, BoundingboxExtentMax((FReal)-1.0)
@@ -359,7 +329,6 @@ namespace Chaos
 		FVec3 AngularVelocity;
 		FReal Mass;
 		FGeometryParticleHandle* Particle;
-		IPhysicsProxyBase* ParticleProxy;
 		//	int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
 								 // It is important to be able to get extra data from the component
 		FReal BoundingboxVolume;

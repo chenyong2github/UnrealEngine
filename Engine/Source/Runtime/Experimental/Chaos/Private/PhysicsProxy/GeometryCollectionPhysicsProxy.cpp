@@ -662,7 +662,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 
 				Chaos::TPBDGeometryCollectionParticleHandle<float, 3>* Handle = Handles[NextIdx++];
 
-				RigidsSolver->AddParticleToProxy(Handle, this);
+				Handle->SetPhysicsProxy(this);
 
 				SolverParticleHandles[Idx] = Handle;
 				HandleToTransformGroupIndex.Add(Handle, Idx);
@@ -877,7 +877,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 					SolverClusterHandles[TransformGroupIndex] = Handle;
 					SolverParticleHandles[TransformGroupIndex] = Handle;
 					HandleToTransformGroupIndex.Add(Handle, TransformGroupIndex);
-					RigidsSolver->AddParticleToProxy(Handle, this);
+					Handle->SetPhysicsProxy(this);
 
 					RigidsSolver->GetEvolution()->DirtyParticle(*Handle);
 				}
@@ -1342,7 +1342,6 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver
 	{
 		if (FClusterHandle* Handle = SolverParticleHandles[i])
 		{
-			RBDSolver->RemoveParticleToProxy(Handle);
 			if (FClusterHandle* ParentCluster = Evolution->GetRigidClustering().DestroyClusterParticle(Handle))
 			{
 				if (ParentCluster->InternalCluster())
