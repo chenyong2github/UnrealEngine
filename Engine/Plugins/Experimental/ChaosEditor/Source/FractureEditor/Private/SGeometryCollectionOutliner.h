@@ -22,6 +22,7 @@
 class FGeometryCollection;
 class FGeometryCollectionTreeItem;
 class FGeometryCollectionTreeItemBone;
+class SGeometryCollectionOutliner;
 
 typedef TArray<TSharedPtr<FGeometryCollectionTreeItem>> FGeometryCollectionTreeItemList;
 typedef TSharedPtr<FGeometryCollectionTreeItem> FGeometryCollectionTreeItemPtr;
@@ -64,6 +65,9 @@ public:
 	
 	virtual void OnDragEnter(FDragDropEvent const& InDragDropEvent) {};
 	virtual void OnDragLeave(FDragDropEvent const& InDragDropEvent);
+
+	//void MakeDynamicStateMenu(UToolMenu* Menu, SGeometryCollectionOutliner& Outliner);
+	void GenerateContextMenu(UToolMenu* Menu, SGeometryCollectionOutliner& Outliner);
 };
 
 class FGeometryCollectionTreeItemComponent : public FGeometryCollectionTreeItem
@@ -158,10 +162,13 @@ public:
 
 	TSharedRef<ITableRow> MakeTreeRowWidget(FGeometryCollectionTreeItemPtr InInfo, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnGetChildren(TSharedPtr<FGeometryCollectionTreeItem> InInfo, TArray< TSharedPtr<FGeometryCollectionTreeItem> >& OutChildren);
+	TSharedPtr<SWidget> OnOpenContextMenu();
 
 	void UpdateGeometryCollection();
 	void SetComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents);
 	void SetBoneSelection(UGeometryCollectionComponent* RootComponent, const TArray<int32>& InSelection, bool bClearCurrentSelection);
+
+	void SetInitialDynamicState(int32 InDynamicState);
 
 	void ExpandAll();
 	void ExpandRecursive(TSharedPtr<FGeometryCollectionTreeItem> TreeItem, bool bInExpansionState) const;
