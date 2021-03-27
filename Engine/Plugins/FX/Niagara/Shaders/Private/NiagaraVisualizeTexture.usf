@@ -6,18 +6,26 @@
 
 #include "/Engine/Private/Common.ush"
 
-Texture2D		Texture2DObject;
-Texture2DArray	Texture2DArrayObject;
-Texture3D		Texture3DObject;
+#if TEXTURE_INTEGER
+	Texture2D<int4>			Texture2DObject;
+	Texture2DArray<int4>	Texture2DArrayObject;
+	Texture3D<int4>			Texture3DObject;
+#else
+	Texture2D<float4>		Texture2DObject;
+	Texture2DArray<float4>	Texture2DArrayObject;
+	Texture3D<float4>		Texture3DObject;
+#endif
 SamplerState	TextureSampler;
 
-int4			NumTextureAttributes;		// Number of attributes the texture holds in each dimension
+int4		NumTextureAttributes;		// Number of attributes the texture holds in each dimension
 int			NumAttributesToVisualize;	// Number of valid attributes to visualize, up to 4
-int4			AttributesToVisualize;		// Indicies of each attribute to visualize
-uint3			TextureDimensions;		// Dimensions of the texture
-uint			DebugFlags;
-uint			TickCounter;
-uint			TextureSlice;
+int4		AttributesToVisualize;		// Indicies of each attribute to visualize
+uint3		TextureDimensions;			// Dimensions of the texture
+float4		PerChannelScale;
+float4		PerChannelBias;
+uint		DebugFlags;
+uint		TickCounter;
+uint		TextureSlice;
 
 float4 ContainsNaNInf(float4 Color)
 {
@@ -47,7 +55,12 @@ float2 GetAttributeUV(float2 UV, int AttributeIndex)
 
 float ReadAttribute2D(float2 UV, int AttributeIndex)
 {
-	return Texture2DSample(Texture2DObject, TextureSampler, GetAttributeUV(UV, AttributeIndex)).r;
+#if TEXTURE_INTEGER
+	int3 LoadLocation = int3(GetAttributeUV(UV, AttributeIndex) * TextureDimensions.xy, 0);
+	return Texture2DObject.Load(LoadLocation).r;
+#else
+	return Texture2DObject.Sample(TextureSampler, GetAttributeUV(UV, AttributeIndex)).r;
+#endif
 }
 
 float3 GetAttributeUVW(float2 UV, int AttributeIndex)
@@ -70,7 +83,12 @@ float3 GetAttributeUVW(float2 UV, int AttributeIndex)
 
 float ReadAttribute3D(float2 UV, int AttributeIndex)
 {
+#if TEXTURE_INTEGER
+	int4 LoadLocation = int4(GetAttributeUVW(UV, AttributeIndex) * TextureDimensions.xyz, 0);
+	return Texture3DObject.Load(LoadLocation).r;
+#else
 	return Texture3DObject.SampleLevel(TextureSampler, GetAttributeUVW(UV, AttributeIndex), 0).r;
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -114,13 +132,23 @@ void Main(
 	}
 	else
 	{
-		Color = Texture2DSample(Texture2DObject, TextureSampler, Input.UV);
+	#if TEXTURE_INTEGER
+		int3 LoadLocation = int3(Input.UV * TextureDimensions.xy, 0);
+		Color = Texture2DObject.Load(LoadLocation);
+	#else
+		Color = Texture2DObject.Sample(TextureSampler, Input.UV);
+	#endif
 	}
 // Texture 2D Array
 #elif TEXTURE_TYPE == 1
 	float4 Color = float4(0,0,0,1);
 	{
-		Color = Texture2DArraySample(Texture2DArrayObject, TextureSampler, float3(Input.UV, TextureSlice));
+	#if TEXTURE_INTEGER
+		int4 LoadLocation = int4(Input.UV * TextureDimensions.xy, TextureSlice, 0);
+		Color = Texture2DArrayObject.Load(LoadLocation);
+	#else
+		Color = Texture2DArrayObject.Sample(TextureSampler, float3(Input.UV, TextureSlice));
+	#endif
 	}
 // Texture 3D
 #elif TEXTURE_TYPE == 2
@@ -158,8 +186,14 @@ void Main(
 	else
 	{
 		float W = (float(TextureSlice) + 0.5f) / float(TextureDimensions.z);
-		Color = Texture3DSample(Texture3DObject, TextureSampler, float3(Input.UV, W));
+	#if TEXTURE_INTEGER
+		int4 LoadLocation = int4(float3(Input.UV, W) * TextureDimensions.xyz, 0);
+		Color = Texture3DObject.Load(LoadLocation);
+	#else
+		Color = Texture3DObject.Sample(TextureSampler, float3(Input.UV, W));
+	#endif
 	}
 #endif
+	Color = (Color * PerChannelScale) - PerChannelBias;
 	OutColor = ContainsNaNInf(Color);
 }
