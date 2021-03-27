@@ -33,4 +33,48 @@ namespace UE { namespace Tasks
 			}
 		}
 	}
+
+	// Maintains pipe callstack. Due to busy waiting tasks from multiple pipes can be executed nested.
+	class FPipeCallStack
+	{
+	public:
+		static void Push(const FPipe& Pipe)
+		{
+			CallStack.Add(&Pipe);
+		}
+
+		static void Pop(const FPipe& Pipe)
+		{
+			check(CallStack.Last() == &Pipe);
+			CallStack.Pop(/*bAllowShrinking=*/ false);
+		}
+
+		// returns true if a task from the given pipe is being being executed on the top of the stack.
+		// the method deliberately doesn't look deeper because even if the pipe is there and technically it's safe to assume
+		// accessing a resource protected by a pipe is thread-safe, logically it's a bug because it's an accidental condition
+		static bool IsOnTop(const FPipe& Pipe)
+		{
+			return CallStack.Num() != 0 && CallStack.Last() == &Pipe;
+		}
+
+	private:
+		static thread_local TArray<const FPipe*> CallStack;
+	};
+
+	thread_local TArray<const FPipe*> FPipeCallStack::CallStack;
+
+	void FPipe::ExecutionStarted()
+	{
+		FPipeCallStack::Push(*this);
+	}
+
+	void FPipe::ExecutionFinished()
+	{
+		FPipeCallStack::Pop(*this);
+	}
+
+	bool FPipe::IsInContext() const
+	{
+		return FPipeCallStack::IsOnTop(*this);
+	}
 }}

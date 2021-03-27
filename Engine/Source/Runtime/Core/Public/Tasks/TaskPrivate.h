@@ -72,9 +72,9 @@ namespace UE { namespace Tasks
 						Deleter = Forward<DeleterType>(Deleter)
 					]() mutable
 					{
+						StartPipeExecution();
 						Invoke(TaskBody);
-						// finalisation
-						UnblockPipe();
+						FinishPipeExecution();
 						FTaskBase* Subsequent = CloseAndReturnSubsequent();
 						if (Subsequent != nullptr)
 						{
@@ -197,7 +197,8 @@ namespace UE { namespace Tasks
 			}
 
 			CORE_API bool PushIntoPipe();
-			CORE_API void UnblockPipe();
+			CORE_API void StartPipeExecution();
+			CORE_API void FinishPipeExecution();
 
 			// after being executed the task checks if it has a subsequent to launch. it's the only time the task will do this check so
 			// it "closes" itself and setting a subsequent fill fail after that.

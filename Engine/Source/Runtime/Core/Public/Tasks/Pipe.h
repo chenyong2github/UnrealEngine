@@ -38,6 +38,13 @@ namespace UE { namespace Tasks
 			return LastTask.load(std::memory_order_relaxed) != nullptr;
 		}
 
+		// waits until the pipe is empty (its last task is executed)
+		// should be used only after no more tasks are launched in the pipe, e.g. preparing for the pipe destruction
+		void WaitUntilEmpty()
+		{
+			LowLevelTasks::FScheduler::Get().BusyWaitUntil([this] { return !HasWork(); });
+		}
+
 		// launches a task in the pipe
 		// @param InDebugName helps to identify the task in debugger and profiler
 		// @param TaskBody a callable with no parameters whose return value is ignored, usually a lambda but can be also a functor object 
@@ -55,6 +62,10 @@ namespace UE { namespace Tasks
 			return TTask<FResult>{ Task };
 		}
 
+		// checks if pipe's task is being executed by the current thread. Allows to check if accessing a resource protected by a pipe
+		// is thread-safe
+		bool IsInContext() const;
+
 	private:
 		friend class Private::FTaskBase;
 
@@ -64,6 +75,10 @@ namespace UE { namespace Tasks
 		// pipe holds a "weak" reference to a task. the task must be cleared from the pipe when its execution finished before its completion, 
 		// otherwise the next piped task can try to add itself as a subsequent to already destroyed task
 		void ClearTask(Private::FTaskBase& Task);
+
+		// notifications about pipe's task execution
+		void ExecutionStarted();
+		void ExecutionFinished();
 
 	private:
 		std::atomic<Private::FTaskBase*> LastTask{ nullptr }; // the last task that 

@@ -10,11 +10,20 @@ namespace UE { namespace Tasks { namespace Private
 		return GetPipe()->PushIntoPipe(*this);
 	}
 
-	void FTaskBase::UnblockPipe()
+	void FTaskBase::StartPipeExecution()
+	{
+		if (GetPipe() != nullptr)
+		{
+			GetPipe()->ExecutionStarted();
+		}
+	}
+
+	void FTaskBase::FinishPipeExecution()
 	{
 		if (GetPipe() != nullptr)
 		{
 			check(bPushedIntoPipe);
+			GetPipe()->ExecutionFinished();
 			GetPipe()->ClearTask(*this);
 		}
 	}
