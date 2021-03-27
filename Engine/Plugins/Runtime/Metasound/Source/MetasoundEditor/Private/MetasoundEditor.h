@@ -27,25 +27,30 @@
 
 
 // Forward Declarations
-class IDetailsView;
-class IToolkitHost;
+class FTabManager;
 class SDockableTab;
 class SGraphEditor;
 class SMetasoundPalette;
 class FSlateRect;
-class FTabManager;
+class IDetailsView;
+class IToolkitHost;
 class SVerticalBox;
 class UEdGraphNode;
 class UMetasound;
+class UMetasoundEditorGraph;
 
 struct FGraphActionNode;
 struct FMeterResults;
 struct FPropertyChangedEvent;
 
+
 namespace Metasound
 {
 	namespace Editor
 	{
+		// Forward Declarations
+		class FMetasoundGraphNodeSchemaAction;
+
 		/* Enums to use when grouping the members in the list panel. Enum order dictates visible order. */
 		enum class ENodeSection : uint8
 		{
@@ -141,6 +146,8 @@ namespace Metasound
 
 			/** Deletes from the Metasound Menu (i.e. input or output) if in focus, or the currently selected nodes if the graph editor is in focus. */
 			void DeleteSelected();
+
+			void DeleteInterfaceItem(TSharedPtr<FMetasoundGraphNodeSchemaAction> ActionToDelete, UMetasoundEditorGraph* Graph);
 
 			/** Delete the currently selected nodes */
 			void DeleteSelectedNodes();

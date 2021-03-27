@@ -469,18 +469,25 @@ namespace Metasound
 						if (UClass* Class = FrontendRegistry->GetLiteralUClassForDataType(TypeName))
 						{
 							FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
 							FARFilter Filter;
 							Filter.bRecursiveClasses = false;
 							Filter.ObjectPaths.Add(FName(*InInputPin.DefaultValue));
 							Filter.ClassNames.Add(Class->GetFName());
+
 							TArray<FAssetData> AssetData;
 							AssetRegistryModule.Get().GetAssets(Filter, AssetData);
-
-							if (AssetData.Num() > 0)
+							if (!AssetData.IsEmpty())
 							{
 								OutDefaultLiteral.Set(AssetData[0].GetAsset());
+								bObjectFound = true;
 							}
 						}
+					}
+					
+					if (!bObjectFound)
+					{
+						OutDefaultLiteral.Set(static_cast<UObject*>(nullptr));
 					}
 				}
 				break;
