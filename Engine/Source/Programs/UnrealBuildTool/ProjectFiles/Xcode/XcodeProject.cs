@@ -1103,7 +1103,6 @@ namespace UnrealBuildTool
 
 				string IOSRunTimeDevices = null;
 				string TVOSRunTimeDevices = null;
-				IEnumerable<string> ValidArchs = bSupportMac ? SupportedMacArchitectures : new[] {""};
 				string SupportedPlatforms = bSupportMac ? "macosx" : "";
 
 				bool bAutomaticSigning = false;
@@ -1122,7 +1121,6 @@ namespace UnrealBuildTool
 					IOSProvisioningData ProvisioningData = IOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					IOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					IOSRunTimeDevices = ProjectSettings.RuntimeDevices;
-					ValidArchs = ValidArchs.Union(this.SupportedIOSArchitectures);
 					SupportedPlatforms += " iphoneos";
 					bAutomaticSigning = ProjectSettings.bAutomaticSigning;
 					if (!bAutomaticSigning)
@@ -1141,7 +1139,6 @@ namespace UnrealBuildTool
 					TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					TVOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					TVOSRunTimeDevices = ProjectSettings.RuntimeDevices;
-					ValidArchs = ValidArchs.Union(this.SupportedIOSArchitectures);
 					SupportedPlatforms += " appletvos";
 					if (!bAutomaticSigning)
 					{
@@ -1152,7 +1149,6 @@ namespace UnrealBuildTool
 					TVOS_BUNDLE = ProjectSettings.BundleIdentifier;
                 }
 
-				Content.Append("\t\t\t\tVALID_ARCHS = \"" + string.Join(" ", ValidArchs) + "\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tSUPPORTED_PLATFORMS = \"" + SupportedPlatforms.Trim() + "\";" + ProjectFileGenerator.NewLine);
 				if (bAutomaticSigning)
 				{
@@ -1160,6 +1156,7 @@ namespace UnrealBuildTool
 				}
 				if (IOSRunTimeVersion != null)
 				{
+					Content.Append("\t\t\t\t\"VALID_ARCHS[sdk=iphoneos*]\" = \"" + string.Join(" ", this.SupportedIOSArchitectures) + "\";" + ProjectFileGenerator.NewLine);
 					Content.Append("\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = " + IOSRunTimeVersion + ";" + ProjectFileGenerator.NewLine);
 					Content.Append("\t\t\t\t\"PRODUCT_NAME[sdk=iphoneos*]\" = \"" + TargetName + "\";" + ProjectFileGenerator.NewLine); // @todo: change to Path.GetFileName(Config.IOSExecutablePath) when we stop using payload
 					Content.Append("\t\t\t\t\"TARGETED_DEVICE_FAMILY[sdk=iphoneos*]\" = \"" + IOSRunTimeDevices + "\";" + ProjectFileGenerator.NewLine);
@@ -1180,6 +1177,7 @@ namespace UnrealBuildTool
 				}
                 if (TVOSRunTimeVersion != null)
 				{
+					Content.Append("\t\t\t\t\"VALID_ARCHS[sdk=appletvos*]\" = \"" + string.Join(" ", this.SupportedIOSArchitectures) + "\";" + ProjectFileGenerator.NewLine);
 					Content.Append("\t\t\t\tTVOS_DEPLOYMENT_TARGET = " + TVOSRunTimeVersion + ";" + ProjectFileGenerator.NewLine);
 					Content.Append("\t\t\t\t\"PRODUCT_NAME[sdk=appletvos*]\" = \"" + TargetName + "\";" + ProjectFileGenerator.NewLine); // @todo: change to Path.GetFileName(Config.TVOSExecutablePath) when we stop using payload
 					Content.Append("\t\t\t\t\"TARGETED_DEVICE_FAMILY[sdk=appletvos*]\" = \"" + TVOSRunTimeDevices + "\";" + ProjectFileGenerator.NewLine);
@@ -1200,9 +1198,10 @@ namespace UnrealBuildTool
 				}
 				if (bSupportMac)
 				{
+					Content.Append("\t\t\t\t\"VALID_ARCHS[sdk=macosx*]\" = \"" + string.Join(" ", SupportedMacArchitectures) + "\";" + ProjectFileGenerator.NewLine);
 					Content.Append("\t\t\t\t\"PRODUCT_NAME[sdk=macosx*]\" = \"" + MacExecutableFileName + "\";" + ProjectFileGenerator.NewLine);
-                Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=macosx*]\" = \"" + MacExecutableDir + "\";" + ProjectFileGenerator.NewLine);
-				Content.Append("\t\t\t\t\"SDKROOT[sdk=macosx]\" = macosx;" + ProjectFileGenerator.NewLine);
+					Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=macosx*]\" = \"" + MacExecutableDir + "\";" + ProjectFileGenerator.NewLine);
+					Content.Append("\t\t\t\t\"SDKROOT[sdk=macosx]\" = macosx;" + ProjectFileGenerator.NewLine);
 				}
 
 				if (bIsUE4Game || bIsUE4Client)
