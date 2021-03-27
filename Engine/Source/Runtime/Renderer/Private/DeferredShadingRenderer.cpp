@@ -441,11 +441,7 @@ static void RenderOpaqueFX(
 			FXSystem->SetSceneTexturesUniformBuffer(ExtractUBPassParameters->SceneTextures->GetRHIRef());
 		});
 
-		FXSystem->PostRenderOpaque(
-			GraphBuilder,
-			Views[0].ViewUniformBuffer,
-			Views[0].AllowGPUParticleUpdate()
-		);
+		FXSystem->PostRenderOpaque(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
 
 		// Clear the scene textures UB pointer on the FX system.
 		AddPass(GraphBuilder, [FXSystem](FRHICommandList&)
@@ -1924,7 +1920,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_FXPreRender));
-		FXSystem->PreRender(GraphBuilder, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
+		FXSystem->PreRender(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
 		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 		{
 			GPUSortManager->OnPreRender(GraphBuilder);

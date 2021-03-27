@@ -732,7 +732,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Notify the FX system that the scene is about to be rendered.
 	if (FXSystem && ViewFamily.EngineShowFlags.Particles)
 	{
-		FXSystem->PreRender(GraphBuilder, Views[0].ViewUniformBuffer, NULL, !Views[0].bIsPlanarReflection);
+		FXSystem->PreRender(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
 		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 		{
 			GPUSortManager->OnPreRender(GraphBuilder);
@@ -817,11 +817,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (FXSystem && Views.IsValidIndex(0))
 	{
-		FXSystem->PostRenderOpaque(
-			GraphBuilder,
-			Views[0].ViewUniformBuffer,
-			Views[0].AllowGPUParticleUpdate()
-		);
+		FXSystem->PostRenderOpaque(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
 		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 		{
 			GPUSortManager->OnPostRenderOpaque(GraphBuilder);

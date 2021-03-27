@@ -1,29 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEmitterInstanceBatcher.h"
-#include "NiagaraScriptExecutionContext.h"
-#include "RHI.h"
-#include "RHIGPUReadback.h"
-#include "NiagaraStats.h"
-#include "NiagaraShader.h"
-#include "NiagaraSortingGPU.h"
-#include "NiagaraWorldManager.h"
-#include "NiagaraShaderParticleID.h"
-#include "NiagaraRenderer.h"
+
+#include "Async/Async.h"
+#include "CanvasTypes.h"
+#include "ClearQuad.h"
+#include "Engine/Canvas.h"
+#include "GPUSort.h"
 #include "NiagaraDataInterfaceRW.h"
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
 #include "NiagaraGpuReadbackManager.h"
-#include "ShaderParameterUtils.h"
-#include "SceneUtils.h"
-#include "ClearQuad.h"
-#include "Async/Async.h"
-#include "GPUSort.h"
-#include "CanvasTypes.h"
-#include "Engine/Canvas.h"
+#include "NiagaraRenderer.h"
+#include "NiagaraScriptExecutionContext.h"
+#include "NiagaraShader.h"
+#include "NiagaraShaderParticleID.h"
+#include "NiagaraSortingGPU.h"
+#include "NiagaraStats.h"
+#include "NiagaraWorldManager.h"
+#include "RHI.h"
+#include "RHIGPUReadback.h"
 #include "Runtime/Renderer/Private/SceneRendering.h"
 #include "Runtime/Renderer/Private/PostProcess/SceneRenderTargets.h"
+#include "SceneUtils.h"
+#include "ShaderParameterUtils.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Dispatch Setup"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Emitter Dispatch [RT]"), STAT_NiagaraGPUSimTick_RT, STATGROUP_Niagara);
@@ -458,6 +459,8 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 
 			// Make a temporary ViewInfo
 			//-TODO: We could gather some more information here perhaps?
+			FMemMark Mark(FMemStack::Get());
+
 			FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
 				.SetWorldTimes(0, 0, 0)
 				.SetGammaCorrection(1.0f));
@@ -470,21 +473,33 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 			ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
 			ViewInitOptions.ProjectionMatrix = FMatrix::Identity;
 
-			FViewInfo View(ViewInitOptions);
-			View.ViewRect = View.UnscaledViewRect;
-			View.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
+			FViewInfo* DummyView = nullptr;
+
+			if (RHICmdList.Bypass())
+			{
+				DummyView = new(FMemStack::Get().Alloc(sizeof(FViewInfo), alignof(FViewInfo))) FViewInfo(ViewInitOptions);
+			}
+			else
+			{
+				DummyView = new(RHICmdList.Alloc(sizeof(FViewInfo), alignof(FViewInfo))) FViewInfo(ViewInitOptions);
+			}
+
+			DummyView->ViewRect = DummyView->UnscaledViewRect;
+			DummyView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
 			FBox UnusedVolumeBounds[TVC_MAX];
-			View.SetupUniformBufferParameters(UnusedVolumeBounds, TVC_MAX, *View.CachedViewUniformShaderParameters);
+			DummyView->SetupUniformBufferParameters(UnusedVolumeBounds, TVC_MAX, *DummyView->CachedViewUniformShaderParameters);
 
-			View.ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+			DummyView->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*DummyView->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 
+			TConstArrayView<FViewInfo> DummyViews = MakeArrayView(DummyView, 1);
+			const bool AllowGPUParticleUpdate = false;
+			
 			// Execute all ticks that we can support without invalid simulations
-			FMemMark MemMark(FMemStack::Get());
 			FRDGBuilder GraphBuilder(RHICmdList);
 			PreInitViews(GraphBuilder, true);
-			PostInitViews(GraphBuilder, View.ViewUniformBuffer, true);
-			PostRenderOpaque(GraphBuilder, View.ViewUniformBuffer, true);
+			PostInitViews(GraphBuilder, DummyViews, AllowGPUParticleUpdate);
+			PostRenderOpaque(GraphBuilder, DummyViews, AllowGPUParticleUpdate);
 			GraphBuilder.Execute();
 			break;
 		}
@@ -1497,12 +1512,16 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRDGBuilder& GraphBuilder, bool
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::PostInitViews(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
+void NiagaraEmitterInstanceBatcher::PostInitViews(FRDGBuilder& GraphBuilder, TArrayView<const class FViewInfo> Views, bool bAllowGPUParticleUpdate)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 
+	bAllowGPUParticleUpdate = bAllowGPUParticleUpdate && GetReferenceAllowGPUUpdate(Views);
+
 	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
+		FRHIUniformBuffer* ViewUniformBuffer = GetReferenceViewUniformBuffer(Views);
+
 		AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Niagara::PostInitViews"),
@@ -1515,9 +1534,12 @@ void NiagaraEmitterInstanceBatcher::PostInitViews(FRDGBuilder& GraphBuilder, FRH
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
+void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
+
+	bAllowGPUParticleUpdate = bAllowGPUParticleUpdate && GetReferenceAllowGPUUpdate(Views);
+	FRHIUniformBuffer* ViewUniformBuffer = GetReferenceViewUniformBuffer(Views);
 
 	AddPass(
 		GraphBuilder,
@@ -1629,7 +1651,7 @@ bool NiagaraEmitterInstanceBatcher::RequiresEarlyViewUniformBuffer() const
 	return NumTicksThatRequireEarlyViewData > 0;
 }
 
-void NiagaraEmitterInstanceBatcher::PreRender(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleUpdate)
+void NiagaraEmitterInstanceBatcher::PreRender(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate)
 {
 	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
@@ -1638,7 +1660,8 @@ void NiagaraEmitterInstanceBatcher::PreRender(FRDGBuilder& GraphBuilder, FRHIUni
 
 	LLM_SCOPE(ELLMTag::Niagara);
 
-	GlobalDistanceFieldParams = GlobalDistanceFieldParameterData ? *GlobalDistanceFieldParameterData : FGlobalDistanceFieldParameterData();
+	const FGlobalDistanceFieldParameterData* ViewGlobalDistanceFieldParams = GetReferenceGlobalDistanceFieldData(Views);
+	GlobalDistanceFieldParams = ViewGlobalDistanceFieldParams ? *ViewGlobalDistanceFieldParams : FGlobalDistanceFieldParameterData();
 }
 
 void NiagaraEmitterInstanceBatcher::OnDestroy()

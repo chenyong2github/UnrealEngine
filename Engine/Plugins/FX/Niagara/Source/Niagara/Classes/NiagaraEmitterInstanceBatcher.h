@@ -8,21 +8,21 @@ the same VectorVM byte code / compute shader code
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NiagaraCommon.h"
-#include "RendererInterface.h"
-#include "NiagaraParameters.h"
-#include "NiagaraEmitter.h"
-#include "Tickable.h"
-#include "Modules/ModuleManager.h"
-#include "RHIResources.h"
 #include "FXSystem.h"
-#include "NiagaraRendererProperties.h"
+#include "Modules/ModuleManager.h"
 #include "ParticleResources.h"
-#include "Runtime/Engine/Private/Particles/ParticleSortingGPU.h"
-#include "NiagaraGPUSortInfo.h"
-#include "NiagaraScriptExecutionContext.h"
+#include "NiagaraCommon.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraGPUInstanceCountManager.h"
 #include "NiagaraGPUProfiler.h"
+#include "NiagaraGPUSortInfo.h"
+#include "NiagaraParameters.h"
+#include "NiagaraRendererProperties.h"
+#include "NiagaraScriptExecutionContext.h"
+#include "RendererInterface.h"
+#include "RHIResources.h"
+#include "Runtime/Engine/Private/Particles/ParticleSortingGPU.h"
+#include "Tickable.h"
 
 class FGPUSortManager;
 class FNiagaraGpuComputeDebug;
@@ -73,20 +73,17 @@ public:
 	virtual void AddVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void RemoveVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void UpdateVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
-	virtual void PreInitViews(class FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate) override;
-	virtual void PostInitViews(class FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate) override;
+	virtual void PreInitViews(FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate) override;
+	virtual void PostInitViews(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate) override;
 	virtual bool UsesGlobalDistanceField() const override;
 	virtual bool UsesDepthBuffer() const override;
 	virtual bool RequiresEarlyViewUniformBuffer() const override;
-	virtual void PreRender(class FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleUpdate) override;
+	virtual void PreRender(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate) override;
 	virtual void OnDestroy() override; // Called on the gamethread to delete the batcher on the renderthread.
 
 	virtual void Tick(float DeltaTime) override;
 
-	virtual void PostRenderOpaque(
-		class FRDGBuilder& GraphBuilder,
-		FRHIUniformBuffer* ViewUniformBuffer,
-		bool bAllowGPUParticleUpdate) override;
+	virtual void PostRenderOpaque(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate) override;
 
 	/**
 	 * Process and respond to a build up of excessive ticks inside the batcher.
