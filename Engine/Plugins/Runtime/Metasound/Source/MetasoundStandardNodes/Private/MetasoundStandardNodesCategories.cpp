@@ -12,6 +12,7 @@ namespace Metasound
 		const FText Filters = { LOCTEXT("Metasound_FiltersCategory", "Filters") };
 		const FText TriggerUtils = { LOCTEXT("Metasound_TriggerUtilsCategory", "Trigger Utilities") };
 		const FText RandomUtils = { LOCTEXT("Metasound_RandomUtilsCategory", "Random Utilities") };
+		const FText Conversions  = { LOCTEXT("Metasound_ConversionsCategory", "Conversions") };
 	}
 }
 
