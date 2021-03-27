@@ -981,12 +981,7 @@ namespace UnrealBuildTool
 		IEnumerable<string> GetSupportedMacArchitectures(XcodeBuildConfig Config, FileReference InProjectFile)
 		{
 			// All architectures supported
-			IEnumerable<string> AllArchitectures = new[] { MacExports.IntelArchitecture, MacExports.AppleArchitecture};
-
-			// Default architectures for this target that will be overridden below. If the user has a source code build
-			// Then we enable arm64 build targets for anything not blacklisted
-			IEnumerable<string> TargetArchitectures =
-				UnrealBuildTool.IsEngineInstalled() ? new[] { MacExports.IntelArchitecture } : AllArchitectures;
+			IEnumerable<string> AllArchitectures = new[] { MacExports.IntelArchitecture, MacExports.AppleArchitecture};			
 
 			// Add a way on the command line of forcing a project file with all architectures (there isn't a good way to let this be
 			// set and checked where we can access it).
@@ -1002,6 +997,9 @@ namespace UnrealBuildTool
 			// First time seeing this target?
 			if (!CachedMacProjectArcitectures.ContainsKey(TargetName))
 			{
+				// Default to Intel
+				IEnumerable<string> TargetArchitectures = new[] { MacExports.IntelArchitecture };
+
 				// These targets are known to work so are whitelisted
 				bool IsWhiteListed = MacExports.TargetsWhitelistedForAppleSilicon.Contains(TargetName, StringComparer.OrdinalIgnoreCase);
 
@@ -1020,8 +1018,18 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					if (InProjectFile != null)
+					// if no project file then this is a non-whitelisted tool/program. Default to Intel for installed builds because we know all of that works. 
+					if (InProjectFile == null)
 					{
+						// For misc tools we default to Intel for installed builds because we know all of that works. 
+						TargetArchitectures = UnrealBuildTool.IsEngineInstalled() ? new[] { MacExports.IntelArchitecture } : AllArchitectures;
+					}
+					else
+					{
+						// For project targets we default to Intel then check the project settings. Note the editor target will have
+						// been blacklisted above already.
+						TargetArchitectures = new[] { MacExports.IntelArchitecture };
+
 						// Look at the project engine config to see if it has specified a default editor target
 						FileReference EngineIniFile = FileReference.Combine(InProjectFile.Directory, "Config", "DefaultEngine.ini");
 
