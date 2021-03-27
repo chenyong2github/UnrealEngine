@@ -132,10 +132,10 @@ FAutoConsoleVariableRef CVarNaniteMinPixelsPerEdgeHW(
 	TEXT("")
 );
 
-int32 GNaniteDebugOverdrawScale = 15; // % of contribution per pixel evaluation (up to 100%)
-FAutoConsoleVariableRef CVarNaniteDebugOverdrawScale(
-	TEXT("r.Nanite.DebugOverdrawScale"),
-	GNaniteDebugOverdrawScale,
+int32 GNaniteVisualizeOverdrawScale = 15; // % of contribution per pixel evaluation (up to 100%)
+FAutoConsoleVariableRef CVarNaniteVisualizeOverdrawScale(
+	TEXT("r.Nanite.Visualize.OverdrawScale"),
+	GNaniteVisualizeOverdrawScale,
 	TEXT("")
 );
 
@@ -144,7 +144,7 @@ FAutoConsoleVariableRef CVarNaniteDebugOverdrawScale(
 //  0: Force composition with scene depth off
 //  1: Force composition with scene depth on
 int32 GNaniteVisualizeComposite = -1;
-FAutoConsoleVariableRef CVarNaniteDebugSceneComposite(
+FAutoConsoleVariableRef CVarNaniteVisualizeComposite(
 	TEXT("r.Nanite.Visualize.Composite"),
 	GNaniteVisualizeComposite,
 	TEXT("")
@@ -341,7 +341,7 @@ static FIntVector4 GetVisualizeConfig(int32 ModeID, bool bCompositeScene, bool b
 {
 	if (ModeID != INDEX_NONE)
 	{
-		return FIntVector4(ModeID, GNaniteDebugOverdrawScale, bCompositeScene ? 1 : 0, bEdgeDetect ? 1 : 0);
+		return FIntVector4(ModeID, GNaniteVisualizeOverdrawScale, bCompositeScene ? 1 : 0, bEdgeDetect ? 1 : 0);
 	}
 	
 	return FIntVector4(INDEX_NONE, 0, 0, 0);
@@ -760,11 +760,11 @@ class FMicropolyRasterizeCS : public FNaniteShader
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL( "HAS_PREV_DRAW_DATA");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
-	class FDebugVisualizeDim : SHADER_PERMUTATION_BOOL("DEBUG_VISUALIZE");
+	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
-	using FPermutationDomain = TShaderPermutationDomain<FAddClusterOffset, FMultiViewDim, FHasPrevDrawData, FRasterTechniqueDim, FDebugVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FAddClusterOffset, FMultiViewDim, FHasPrevDrawData, FRasterTechniqueDim, FVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -781,9 +781,9 @@ class FMicropolyRasterizeCS : public FNaniteShader
 			return false;
 
 		if (PermutationVector.Get<FRasterTechniqueDim>() == (int32)Nanite::ERasterTechnique::DepthOnly &&
-			PermutationVector.Get<FDebugVisualizeDim>() )
+			PermutationVector.Get<FVisualizeDim>() )
 		{
-			// Debug not supported with depth only
+			// Visualization not supported with depth only
 			return false;
 		}
 
@@ -831,11 +831,11 @@ class FHWRasterizeVS : public FNaniteShader
 	class FPrimShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER_CULL");
 	class FAutoShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_AUTO_SHADER_CULL");
 	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL("HAS_PREV_DRAW_DATA");
-	class FDebugVisualizeDim : SHADER_PERMUTATION_BOOL("DEBUG_VISUALIZE");
+	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
-	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FAddClusterOffset, FMultiViewDim, FPrimShaderDim, FPrimShaderCullDim, FAutoShaderCullDim, FHasPrevDrawData, FDebugVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FAddClusterOffset, FMultiViewDim, FPrimShaderDim, FPrimShaderCullDim, FAutoShaderCullDim, FHasPrevDrawData, FVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -865,9 +865,9 @@ class FHWRasterizeVS : public FNaniteShader
 		}
 
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::DepthOnly) &&
-			PermutationVector.Get<FDebugVisualizeDim>())
+			PermutationVector.Get<FVisualizeDim>())
 		{
-			// Debug not supported with depth only
+			// Visualization not supported with depth only
 			return false;
 		}
 
@@ -952,12 +952,12 @@ class FHWRasterizePS : public FNaniteShader
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
 	class FPrimShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER_CULL");
-	class FDebugVisualizeDim : SHADER_PERMUTATION_BOOL("DEBUG_VISUALIZE");
+	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 
-	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FPrimShaderDim, FPrimShaderCullDim, FDebugVisualizeDim, FVirtualTextureTargetDim, FClusterPerPageDim, FNearClipDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FPrimShaderDim, FPrimShaderCullDim, FVisualizeDim, FVirtualTextureTargetDim, FClusterPerPageDim, FNearClipDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizePassParameters, Common)
@@ -990,9 +990,9 @@ class FHWRasterizePS : public FNaniteShader
 		}
 
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::DepthOnly) &&
-			PermutationVector.Get<FDebugVisualizeDim>())
+			PermutationVector.Get<FVisualizeDim>())
 		{
-			// Debug not supported with depth only
+			// Visualization not supported with depth only
 			return false;
 		}
 
@@ -1423,7 +1423,7 @@ class FNaniteVisualizeCS : public FNaniteShader
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FNaniteVisualizeCS, "/Engine/Private/Nanite/DebugVisualize.usf", "VisualizeCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FNaniteVisualizeCS, "/Engine/Private/Nanite/Visualize.usf", "VisualizeCS", SF_Compute);
 
 class FDepthExportCS : public FNaniteShader
 {
@@ -2688,7 +2688,7 @@ void AddPass_Rasterize(
 		PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderCullDim>(bUsePrimitiveShaderCulling);
 		PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
 		PermutationVectorVS.Set<FHWRasterizeVS::FHasPrevDrawData>(bHavePrevDrawData);
-		PermutationVectorVS.Set<FHWRasterizeVS::FDebugVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
+		PermutationVectorVS.Set<FHWRasterizeVS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
 		PermutationVectorVS.Set<FHWRasterizeVS::FNearClipDim>(bNearClip);
 		PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 		PermutationVectorVS.Set<FHWRasterizeVS::FClusterPerPageDim>( GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
@@ -2698,7 +2698,7 @@ void AddPass_Rasterize(
 		PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>(bMultiView);
 		PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
 		PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderCullDim>(bUsePrimitiveShaderCulling);
-		PermutationVectorPS.Set<FHWRasterizePS::FDebugVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
+		PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
 		PermutationVectorPS.Set<FHWRasterizePS::FNearClipDim>(bNearClip);
 		PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 		PermutationVectorPS.Set<FHWRasterizePS::FClusterPerPageDim>( GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
@@ -2746,7 +2746,7 @@ void AddPass_Rasterize(
 		PermutationVectorCS.Set<FMicropolyRasterizeCS::FMultiViewDim>(bMultiView);
 		PermutationVectorCS.Set<FMicropolyRasterizeCS::FHasPrevDrawData>(bHavePrevDrawData);
 		PermutationVectorCS.Set<FMicropolyRasterizeCS::FRasterTechniqueDim>(int32(Technique));
-		PermutationVectorCS.Set<FMicropolyRasterizeCS::FDebugVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
+		PermutationVectorCS.Set<FMicropolyRasterizeCS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
 		PermutationVectorCS.Set<FMicropolyRasterizeCS::FNearClipDim>(bNearClip);
 		PermutationVectorCS.Set<FMicropolyRasterizeCS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 		PermutationVectorCS.Set<FMicropolyRasterizeCS::FClusterPerPageDim>(GNaniteClusterPerPage&& VirtualShadowMapArray != nullptr);
@@ -4267,15 +4267,15 @@ void DrawVisualization(
 
 		FRDGBufferRef VisibleClustersSWHW = RasterResults.VisibleClustersSWHW;
 
-		FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2D(
+		FRDGTextureDesc VisualizeOutputDesc = FRDGTextureDesc::Create2D(
 			View.ViewRect.Max,
 			PF_A32B32G32R32F,
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV);
 
-		FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(DebugOutputDesc, TEXT("Nanite.Debug"));
+		FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(VisualizeOutputDesc, TEXT("Nanite.Visualize"));
 
-		FDebugVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugVisualizeCS::FParameters>();
+		FNaniteVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteVisualizeCS::FParameters>();
 
 		PassParameters->View					= View.ViewUniformBuffer;
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
@@ -4300,7 +4300,7 @@ void DrawVisualization(
 #endif
 		PassParameters->DebugOutput				= GraphBuilder.CreateUAV(DebugOutput);
 
-		auto ComputeShader = View.ShaderMap->GetShader<FDebugVisualizeCS>();
+		auto ComputeShader = View.ShaderMap->GetShader<FNaniteVisualizeCS>();
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Visualization"),
@@ -4380,7 +4380,7 @@ void AddVisualizationPasses(
 	const FNaniteVisualizationData& VisualizationData = GetNaniteVisualizationData();
 
 	// We only support debug visualization on the first view (at the moment)
-	if (Scene && Views.Num() > 0 && VisualizationData.IsActive())
+	if (Scene && Views.Num() > 0 && VisualizationData.IsActive() && EngineShowFlags.VisualizeNanite)
 	{
 		// These should always match 1:1
 		if (ensure(Views.Num() == Results.Num()))

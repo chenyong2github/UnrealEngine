@@ -65,7 +65,7 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 				uint PixelValue = RootClusterCode + TriIndex;
 				WritePixel( OutVisBuffer64, PixelValue, NaniteView.ViewRect.xy + PixelPos, DeviceZ, NaniteView, false );
 
-				#if 0//DEBUG_VISUALIZE
+				#if 0//VISUALIZE
 					WritePixel( OutDbgBuffer64, 0, PixelPos, DeviceZ, NaniteView, false );
 					InterlockedAdd(OutDbgBuffer32[ PixelPos ], 1);
 				#endif

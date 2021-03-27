@@ -29,7 +29,7 @@
 RWTexture2D<uint>						OutDepthBuffer;
 COHERENCY_FLAG RWTexture2D<UlongType>	OutVisBuffer64;
 
-#if DEBUG_VISUALIZE
+#if VISUALIZE
 COHERENCY_FLAG RWTexture2D<UlongType>	OutDbgBuffer64;
 RWTexture2D<uint>						OutDbgBuffer32;
 #endif

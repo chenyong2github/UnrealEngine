@@ -1629,7 +1629,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				// When activating the view modes from the command line, automatically enable the VisualizeNanite show flag for convenience.
 				ViewFamily.EngineShowFlags.SetVisualizeNanite(true);
 			}
-			bVisualizeNanite = NaniteVisualization.IsActive();
+			bVisualizeNanite = NaniteVisualization.IsActive() && ViewFamily.EngineShowFlags.VisualizeNanite;
 		}
 	}
 
