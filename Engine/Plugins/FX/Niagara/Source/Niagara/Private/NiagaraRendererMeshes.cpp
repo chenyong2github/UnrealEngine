@@ -664,7 +664,8 @@ void FNiagaraRendererMeshes::InitializeSortInfo(
 	if (View.StereoPass != eSSP_FULL && GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetHMDDevice() != nullptr))
 #else
 	if (View.StereoPass != eSSP_FULL && AllViewsInFamily.Num() > 1)
-#endif	{
+#endif	
+	{
 		// For VR, do distance culling and sorting from a central eye position to prevent differences between views
 		const uint32 PairedViewIdx = (ViewIndex & 1) ? (ViewIndex - 1) : (ViewIndex + 1);
 		if (AllViewsInFamily.IsValidIndex(PairedViewIdx))
