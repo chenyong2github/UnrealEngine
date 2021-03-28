@@ -171,18 +171,21 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	class FSMRTAdaptiveRayCountDim	: SHADER_PERMUTATION_BOOL("SMRT_ADAPTIVE_RAY_COUNT");
 	class FTwoPhysicalTexturesDim	: SHADER_PERMUTATION_BOOL("TWO_PHYSICAL_TEXTURES");
 	class FOnePassProjectionDim		: SHADER_PERMUTATION_BOOL("ONE_PASS_PROJECTION");
+	class FHairStrandsDim			: SHADER_PERMUTATION_BOOL("HAS_HAIR_STRANDS");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FDirectionalLightDim,
 		FOnePassProjectionDim,
 		FSMRTAdaptiveRayCountDim,
-		FTwoPhysicalTexturesDim	>;
+		FTwoPhysicalTexturesDim,
+		FHairStrandsDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)		
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(FIntVector4, ProjectionRect)
 		SHADER_PARAMETER(float, ContactShadowLength)
 		SHADER_PARAMETER(float, NormalOffsetWorld)
@@ -249,6 +252,9 @@ static void RenderVirtualShadowMapProjectionCommon(
 	const FLightSceneProxy* LightProxy = nullptr,
 	int32 VirtualShadowMapId = INDEX_NONE)
 {
+	// Use hair strands data (i.e., hair voxel tracing) only for Gbuffer input for casting hair shadow onto opaque geometry.
+	const bool bHasHairStrandsData = InputType == EVirtualShadowMapProjectionInputType::GBuffer && HairStrands::HasViewHairStrandsData(View);
+
 	FVirtualShadowMapProjectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FVirtualShadowMapProjectionCS::FParameters >();
 	PassParameters->SamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
@@ -259,6 +265,10 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->NormalOffsetWorld = CVarNormalOffsetWorld.GetValueOnRenderThread();
 	PassParameters->InputType = uint32(InputType);
 	PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
+	if (bHasHairStrandsData)
+	{
+		PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
+	}
 
 	bool bDirectionalLight = false;
 	bool bOnePassProjection = LightProxy == nullptr;
@@ -302,7 +312,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FOnePassProjectionDim >( bOnePassProjection );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTAdaptiveRayCountDim >( bAdaptiveRayCount );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FTwoPhysicalTexturesDim >( GVirtualShadowMapAtomicWrites == 0 );
-
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FHairStrandsDim >(bHasHairStrandsData ? 1 : 0);
 	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >( PermutationVector );
 	ClearUnusedGraphResources( ComputeShader, PassParameters );
 	ValidateShaderParameters( ComputeShader, *PassParameters );
@@ -310,7 +320,9 @@ static void RenderVirtualShadowMapProjectionCommon(
 	const FIntPoint GroupCount = FIntPoint::DivideAndRoundUp( ProjectionRect.Size(), 8 );
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		bAdaptiveRayCount ? RDG_EVENT_NAME("VirtualShadowMapProjection") : RDG_EVENT_NAME("VirtualShadowMapProjection_StaticRayCount"),
+		RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%s,Input:%s)", 
+			bAdaptiveRayCount ? TEXT("Adaptive") : TEXT("Static"), 
+			(InputType == EVirtualShadowMapProjectionInputType::HairStrands) ? TEXT("HairStrands") : TEXT("GBuffer")),
 		ComputeShader,
 		PassParameters,
 		FIntVector( GroupCount.X, GroupCount.Y, 1 )

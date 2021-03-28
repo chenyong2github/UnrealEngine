@@ -6,6 +6,7 @@
 
 #define SUPPORT_CONTACT_SHADOWS 1
 #include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 #include "../SceneTexturesCommon.ush"
 #include "../DeferredShadingCommon.ush"
@@ -20,6 +21,13 @@
 #include "ProjectionCommon.ush"
 #include "ProjectionDirectional.ush"
 #include "ProjectionSpot.ush"
+
+#if HAS_HAIR_STRANDS
+#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
+#define VOXEL_TRAVERSAL_DEBUG 0
+#include "../HairStrands/HairStrandsVoxelPageCommon.ush"
+#include "../HairStrands/HairStrandsVoxelPageTraversal.ush"
+#endif
 
 #ifndef DIRECTIONAL_LIGHT
 #define DIRECTIONAL_LIGHT 0
@@ -159,6 +167,15 @@ FLightShaderParameters ConvertFromLocal( const FLocalLightData LightData )
 	return Light;
 }
 
+float4 ComputeRandom4(uint2 PixelPosition)
+{
+	const uint InSeed = View.StateFrameIndexMod8;
+	const uint2 Seed0 = Rand3DPCG16(int3(PixelPosition, InSeed)).xy;
+	const uint2 Seed1 = Rand3DPCG16(int3(PixelPosition + 17, InSeed)).xy;
+	return float4(
+		Hammersley16(InSeed, 8, Seed0),
+		Hammersley16(InSeed, 8, Seed1));
+}
 
 int4 ProjectionRect;
 float ContactShadowLength;
@@ -288,6 +305,67 @@ FProjectLightResult ProjectLight(
 				HitDistance = ContactShadowHitDistance;
 			}
 		}
+
+		// Hair strands voxel traversal to apply hair shadow on top of opaque geometry
+		#if HAS_HAIR_STRANDS
+		if (ShadowFactor > 0)
+		{		
+			#if DIRECTIONAL_LIGHT
+			const float VoxelShadowMaxDistance = 1000.0; // 100m shadow distance
+			const float3 LightPosition = Light.Direction * VoxelShadowMaxDistance + WorldPosition;
+			#else
+			const float3 LightPosition = Light.Position;
+			#endif
+
+			// Depth bias
+			// Origin is shifted 2 voxels away towards the light + a constant bias of the size of the voxel
+			float3 OriginPosition = WorldPosition;
+			const float4 Random = ComputeRandom4(PixelPos);
+			{
+				const float PositionBiasScale = 0.5f;
+				const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Shadow * L + PositionBiasScale * (Random.xyz * 2 - 1));
+				OriginPosition += DepthBias;
+			}
+
+			const float DistanceThreshold = 100000.0f;
+			const float CoverageThreshold = 0.995f; // When Coverage is high, we do not trace shadow on opaque since hair/fur is covering the background.
+
+			FVirtualVoxelCommonDesc CommonDesc;
+			CommonDesc.PageCountResolution		= VirtualVoxel.PageCountResolution;
+			CommonDesc.VoxelWorldSize			= VirtualVoxel.VoxelWorldSize;
+			CommonDesc.PageTextureResolution	= VirtualVoxel.PageTextureResolution;
+			CommonDesc.PageResolution			= VirtualVoxel.PageResolution;
+
+			FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
+			TraversalSettings.DensityScale		= VirtualVoxel.DensityScale_Shadow;
+			TraversalSettings.CountThreshold	= 1;
+			TraversalSettings.DistanceThreshold = DistanceThreshold;
+			TraversalSettings.bDebugEnabled		= false;
+			TraversalSettings.SteppingScale		= VirtualVoxel.SteppingScale_Shadow;
+			TraversalSettings.Random			= Random.xyz;
+			TraversalSettings.PixelRadius		= SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
+
+			const uint VoxelDescCount = VirtualVoxel.NodeDescCount;
+			for (uint VoxelDescIt=0; VoxelDescIt<VoxelDescCount; ++VoxelDescIt)
+			{
+				const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[VoxelDescIt];
+				const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+
+				FHairTraversalResult Result = InitHairTraversalResult();
+				Result = ComputeHairCountVirtualVoxel(
+					OriginPosition,
+					LightPosition,
+					CommonDesc,
+					NodeDesc,
+					VirtualVoxel.PageIndexBuffer,
+					VirtualVoxel.PageIndexOccupancyBuffer,
+					VirtualVoxel.PageTexture,
+					TraversalSettings);
+
+				ShadowFactor = min(ShadowFactor, saturate(1 - Result.HairCount));
+			}
+		}
+		#endif
 	}
 
 	FProjectLightResult Result;
@@ -337,7 +415,7 @@ void VirtualShadowMapProjection(
 	const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid( GridLinearIndex, EyeIndex );
 
 	// We can only handle 10 lights in our output encoding right now, so no purpose in computing more
-	const uint LightCount = min( 10, CulledLightGridData.NumLocalLights );
+	const uint LightCount = min(GetShadowMaskMaxLightCount(), CulledLightGridData.NumLocalLights );
 
 	uint ShadowMask = 0xffffffff;
 
@@ -363,7 +441,7 @@ void VirtualShadowMapProjection(
 				GBufferNormal,
 				Noise);
 
-			ShadowMask ^= ( ~uint( round( Result.ShadowFactor * 7.0 ) ) & 7 ) << (Index*3);
+			PackShadowMask(ShadowMask, Result.ShadowFactor, Index);
 		}
 	}
 

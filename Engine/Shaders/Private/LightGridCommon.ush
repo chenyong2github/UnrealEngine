@@ -234,9 +234,9 @@ uint GetShadowMaskMaxLightCount()
 	return 10;
 }
 
-uint PackShadowMask(float InShadowFactor, uint InLightIndex)
+void PackShadowMask(inout uint OutShadowMask, float InShadowFactor, uint InLightIndex)
 {
-	return (~uint(round(InShadowFactor * 7.0)) & 7u) << (InLightIndex * 3u);
+	OutShadowMask ^= (~uint(round(InShadowFactor * 7.0)) & 7u) << (InLightIndex * 3u);
 }
 
 float UnpackShadowMask(uint InShadowMask, uint InLightIndex)
