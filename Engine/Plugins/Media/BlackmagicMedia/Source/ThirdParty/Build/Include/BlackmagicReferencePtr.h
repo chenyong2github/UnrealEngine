@@ -2,10 +2,10 @@
 
 #pragma once
 
-#ifdef UE4BLACKMAGICDESIGN_EXPORTS
-#define UE4BLACKMAGICDESIGN_REFPTR_API __declspec(dllexport)
+#ifdef UEBLACKMAGICDESIGN_EXPORTS
+#define UEBLACKMAGICDESIGN_REFPTR_API __declspec(dllexport)
 #else
-#define UE4BLACKMAGICDESIGN_REFPTR_API __declspec(dllimport)
+#define UEBLACKMAGICDESIGN_REFPTR_API __declspec(dllimport)
 #endif
 
 namespace BlackmagicDesign

@@ -104,7 +104,7 @@ void USceneCapturer::InitCaptureComponent(USceneCaptureComponent2D* CaptureCompo
 	CaptureComponent->TextureTarget->TargetGamma = 2.2f;
 	CaptureComponent->RegisterComponentWithWorld( GetWorld() ); //GWorld
 
-	// UE4 cannot serialize an array of subobject pointers, so add these objects to the root
+	// Unreal Engine cannot serialize an array of subobject pointers, so add these objects to the root
 	CaptureComponent->AddToRoot();
 }
 
@@ -298,7 +298,7 @@ USceneCapturer::USceneCapturer()
     UnprojectedAtlasWidth  = NumberOfHorizontalSteps * StripWidth;
     UnprojectedAtlasHeight = NumberOfVerticalSteps   * StripHeight;
 
-    //NOTE: ikrimae: Ensure that the main gameview is > CaptureWidth x CaptureHeight. Bug in UE4 that won't re-alloc scene render targets to the correct size
+    //NOTE: ikrimae: Ensure that the main gameview is > CaptureWidth x CaptureHeight. Bug in Unreal Engine that won't re-alloc scene render targets to the correct size
     //               when the scenecapture component > current window render target. https://answers.unrealengine.com/questions/80531/scene-capture-2d-max-resolution.html
     //TODO: ikrimae: Ensure that r.SceneRenderTargetResizeMethod=2
     FSystemResolution::RequestResolutionChange(CaptureWidth, CaptureHeight, EWindowMode::Windowed);
@@ -444,13 +444,13 @@ void USceneCapturer::Reset()
 		LeftEyeCaptureComponent->SetVisibility( false );
 		LeftEyeCaptureComponent->SetHiddenInGame( true );
 		
-		// UE4 cannot serialize an array of subobject pointers, so work around the GC problems
+		// Unreal Engine cannot serialize an array of subobject pointers, so work around the GC problems
 		LeftEyeCaptureComponent->RemoveFromRoot();
 
 		RightEyeCaptureComponent->SetVisibility( false );
 		RightEyeCaptureComponent->SetHiddenInGame( true );
 		
-		// UE4 cannot serialize an array of subobject pointers, so work around the GC problems
+		// Unreal Engine cannot serialize an array of subobject pointers, so work around the GC problems
 		RightEyeCaptureComponent->RemoveFromRoot();
 	}
 

@@ -44,7 +44,7 @@ void AStereoCapturePawn::UpdateStereoAtlas(UObject* WorldContextObject, struct F
     StereoPanoramaManager->PanoramicScreenshot(0, 0, CopyAtlasToTexDelegate, World);
 
     //TODO: ikrimae: Not cool b/c we're passing memory ownership to the LatentActionManager but at the same time we need a reference to this action to update when it's done
-    //               Got to dig deeper into UE4 to see proper way
+    //               Got to dig deeper into Unreal Engine to see proper way
     StereoCaptureDoneAction = new FStereoCaptureDoneAction(LatentInfo);
 
 
