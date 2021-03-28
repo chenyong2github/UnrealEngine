@@ -92,7 +92,7 @@ public:
 
 	/** Enabling this will greatly improve runtime performance at a cost of quadrupling VRAM use */
 	UPROPERTY(config, EditAnywhere, Category=Performance)
-	bool bUseStaticBuffers;
+	bool bUseFastRendering;
 
 	/** Affects the size of per-thread data for the meshing algorithm. */
 	UPROPERTY(config, EditAnywhere, Category=Collision)

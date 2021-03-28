@@ -568,7 +568,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NodeProcessing);
 
-		const bool bUseStaticBuffers = GetDefault<ULidarPointCloudSettings>()->bUseStaticBuffers;
+		const bool bUseStaticBuffers = GetDefault<ULidarPointCloudSettings>()->bUseFastRendering;
 
 		for (int32 i = 0; i < SelectedNodesData.Num(); ++i)
 		{
