@@ -673,7 +673,7 @@ namespace UnrealBuildTool
 		/// <param name="Architecture">The architecture being built</param>
 		/// <param name="ProjectFile">Project file for the target being built</param>
 		/// <returns>Name of the target for the given type</returns>
-		public string GetTargetNameByType(TargetType Type, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, FileReference ProjectFile)
+		public string GetTargetNameByType(TargetType Type, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, FileReference? ProjectFile)
 		{
 			// Create all the targets in this assembly 
 			List<string> Matches = new List<string>();

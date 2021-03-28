@@ -35,8 +35,15 @@ namespace UnrealBuildTool
 		public HashSet<string> OnlyModuleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
+		/// Lists of files to compile
+		/// </summary>
+		[CommandLine("-FileList=")]
+		public List<FileReference> FileLists = new List<FileReference>(); 
+
+		/// <summary>
 		/// Individual file(s) to compile
 		/// </summary>
+		[CommandLine("-File=")]
 		[CommandLine("-SingleFile=")]
 		public List<FileReference> SpecificFilesToCompile = new List<FileReference>();
 
@@ -100,6 +107,19 @@ namespace UnrealBuildTool
 			{
 				// Apply the arguments to this object
 				Arguments.ApplyTo(this);
+
+				// Read the file lists
+				foreach (FileReference FileList in FileLists)
+				{
+					string[] Files = FileReference.ReadAllLines(FileList);
+					foreach (string File in Files)
+					{
+						if (!String.IsNullOrWhiteSpace(File))
+						{
+							SpecificFilesToCompile.Add(new FileReference(File));
+						}
+					}
+				}
 
 				// Parse all the hot-reload module names
 				foreach(string ModuleWithSuffix in Arguments.GetValues("-ModuleWithSuffix="))
@@ -337,7 +357,7 @@ namespace UnrealBuildTool
 
 							if (ProjectFile == null)
 							{
-								throw new BuildException("-TargetType=... requires a project file to be specified");
+								TargetNames.Add(RulesCompiler.CreateEngineRulesAssembly(bUsePrecompiled, bSkipRulesCompile).GetTargetNameByType(TargetType, Platform, Configuration, Architecture, null));
 							}
 							else
 							{
@@ -401,27 +421,6 @@ namespace UnrealBuildTool
 
 			ProjectFile = null;
 			return false;
-		}
-
-		/// <summary>
-		/// Parse a single argument value, of the form -Foo=Bar
-		/// </summary>
-		/// <param name="Argument">The argument to parse</param>
-		/// <param name="Prefix">The argument prefix, eg. "-Foo="</param>
-		/// <param name="Value">Receives the value of the argument</param>
-		/// <returns>True if the argument could be parsed, false otherwise</returns>
-		private static bool ParseArgumentValue(string Argument, string Prefix, [NotNullWhen(true)] out string? Value)
-		{
-			if(Argument.StartsWith(Prefix, StringComparison.InvariantCultureIgnoreCase))
-			{
-				Value = Argument.Substring(Prefix.Length);
-				return true;
-			}
-			else
-			{
-				Value = null;
-				return false;
-			}
 		}
 
 		/// <summary>
