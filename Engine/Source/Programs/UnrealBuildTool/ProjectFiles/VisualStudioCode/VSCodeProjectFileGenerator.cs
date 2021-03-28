@@ -34,7 +34,7 @@ namespace UnrealBuildTool
 	class VSCodeProjectFileGenerator : ProjectFileGenerator
 	{
 		private DirectoryReference VSCodeDir;
-		private UnrealTargetPlatform HostPlatform;
+		private UnrealTargetPlatform HostPlatform { get; } = BuildHostPlatform.Current.Platform;
 		private bool bForeignProject;
 		private DirectoryReference UE4ProjectRoot;
 		private bool bBuildingForDotNetCore;
@@ -256,7 +256,6 @@ namespace UnrealBuildTool
 
 			UE4ProjectRoot = UnrealBuildTool.RootDirectory;
 			bForeignProject = !VSCodeDir.IsUnderDirectory(UE4ProjectRoot);
-			HostPlatform = BuildHostPlatform.Current.Platform;
 
 			List<ProjectFile> Projects;
 
@@ -341,25 +340,47 @@ namespace UnrealBuildTool
 					}
 
 					StringBuilder CommandBuilder = new StringBuilder();
-					// Technically the command should include the compiler to use, but we only generate these for intellisense and thus the compiler is not needed
-					// And resolving the compiler when it would not be used is a waste of effort.
-					//CommandBuilder.AppendFormat("\"{0}\"", ClangPath.FullName);
+					if (HostPlatform == UnrealTargetPlatform.Win64)
+					{
+						foreach (FileReference ForceIncludeFile in ForceIncludePaths)
+						{
+							CommandBuilder.AppendFormat("/FI\"{0}\"{1}", ForceIncludeFile.FullName, Environment.NewLine);
+						}
+						foreach (string Definition in ModuleCompileEnvironment.Definitions)
+						{
+							CommandBuilder.AppendFormat("/D\"{0}\"{1}", Definition, Environment.NewLine);
+						}
+						foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.UserIncludePaths)
+						{
+							CommandBuilder.AppendFormat("/I\"{0}\"{1}", IncludePath, Environment.NewLine);
+						}
+						foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.SystemIncludePaths)
+						{
+							CommandBuilder.AppendFormat("/I\"{0}\"{1}", IncludePath, Environment.NewLine);
+						}
+					}
+					else
+					{
+						// Technically the command should include the compiler to use, but we only generate these for intellisense and thus the compiler is not needed
+						// And resolving the compiler when it would not be used is a waste of effort.
+						//CommandBuilder.AppendFormat("\"{0}\"", ClangPath.FullName);
 
-					foreach (FileReference ForceIncludeFile in ForceIncludePaths)
-					{
-						CommandBuilder.AppendFormat("-include \"{0}\"{1}", ForceIncludeFile.FullName, Environment.NewLine);
-					}
-					foreach (string Definition in ModuleCompileEnvironment.Definitions)
-					{
-						CommandBuilder.AppendFormat("-D\"{0}\"{1}", Definition, Environment.NewLine);
-					}
-					foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.UserIncludePaths)
-					{
-						CommandBuilder.AppendFormat("-I\"{0}\"{1}", IncludePath, Environment.NewLine);
-					}
-					foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.SystemIncludePaths)
-					{
-						CommandBuilder.AppendFormat("-I\"{0}\"{1}", IncludePath, Environment.NewLine);
+						foreach (FileReference ForceIncludeFile in ForceIncludePaths)
+						{
+							CommandBuilder.AppendFormat("-include \"{0}\"{1}", ForceIncludeFile.FullName, Environment.NewLine);
+						}
+						foreach (string Definition in ModuleCompileEnvironment.Definitions)
+						{
+							CommandBuilder.AppendFormat("-D\"{0}\"{1}", Definition, Environment.NewLine);
+						}
+						foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.UserIncludePaths)
+						{
+							CommandBuilder.AppendFormat("-I\"{0}\"{1}", IncludePath, Environment.NewLine);
+						}
+						foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.SystemIncludePaths)
+						{
+							CommandBuilder.AppendFormat("-I\"{0}\"{1}", IncludePath, Environment.NewLine);
+						}
 					}
 
 					ModuleDirectoryToCompileCommand.Add(Module.ModuleDirectory, CommandBuilder.ToString());
