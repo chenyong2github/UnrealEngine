@@ -207,6 +207,11 @@ private:
 		{
 			return FStyleColors::Select;
 		}
+		// robk - hack bandaid fix
+		if (StackEntry->IsFinalized())
+		{
+			return DisabledBackgroundColor;
+		}
 		TSharedRef<FNiagaraSystemViewModel> SystemViewModel = StackEntry->GetSystemViewModel();
 		if (SystemViewModel->GetSystem().GetIsolateEnabled())
 		{
