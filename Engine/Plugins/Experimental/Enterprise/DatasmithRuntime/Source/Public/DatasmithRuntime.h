@@ -40,12 +40,6 @@ struct FUpdateContext
 
 namespace DatasmithRuntime
 {
-	struct FTranslationResult
-	{
-		TSharedPtr<IDatasmithScene>      SceneElement;
-		TSharedPtr<IDatasmithTranslator> Translator;
-	};
-
 	class FTranslationJob
 	{
 	public:
@@ -208,7 +202,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
 	bool LoadFile(const FString& FilePath);
 
-	void SetScene(TSharedPtr<IDatasmithScene> SceneElement);
+	void SetScene(TSharedPtr<IDatasmithScene> InSceneElement) { SceneElement = InSceneElement; }
+
+	void ApplyNewScene();
 
 	virtual void OnImportEnd();
 
@@ -223,7 +219,8 @@ private:
 
 	TSharedPtr<DatasmithRuntime::FDestinationProxy> DirectLinkHelper;
 
-	DatasmithRuntime::FTranslationResult TranslationResult;
+	TSharedPtr<IDatasmithScene>      SceneElement;
+	TSharedPtr<IDatasmithTranslator> Translator;
 
 	std::atomic_bool bNewScene;
 	std::atomic_bool bReceivingStarted;

@@ -150,6 +150,7 @@ namespace DatasmithRuntime
 		AssetDataList.Empty( AssetElementCount );
 		ActorDataList.Empty( ActorElementCount );
 		Elements.Empty( AssetElementCount + ActorElementCount );
+		DependencyList.Empty(SceneElement->GetMeshesCount());
 
 		AssetElementMapping.Empty( AssetElementCount );
 
@@ -307,6 +308,7 @@ namespace DatasmithRuntime
 			AssetDataList.Empty();
 			TextureDataList.Empty();
 			ActorDataList.Empty();
+			DependencyList.Empty();
 
 			bGarbageCollect |= FAssetRegistry::CleanUp();
 
@@ -758,6 +760,32 @@ namespace DatasmithRuntime
 
 					ActorData.SetState(EAssetState::Unknown);
 				}
+			}
+			else if (DependencyList.Contains(ElementPtr->GetNodeId()))
+			{
+				ProcessDependency(ElementPtr);
+			}
+		}
+	}
+
+	void FSceneImporter::ProcessDependency(const TSharedPtr<IDatasmithElement>& Element)
+	{
+		FSceneGraphId ElementId = Element->GetNodeId();
+		FReferencer Referencer = DependencyList[ElementId];
+
+		if (Element->IsA(EDatasmithElementType::MaterialId))
+		{
+			const IDatasmithMaterialIDElement* MaterialIDElement = static_cast<const IDatasmithMaterialIDElement*>(Element.Get());
+
+			if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
+			{
+				FActionTaskFunction AssignMaterialFunc = [this](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
+				{
+					return this->AssignMaterial(Referencer, Cast<UMaterialInstanceDynamic>(Object));
+				};
+
+				AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, MoveTemp(Referencer) });
+				TasksToComplete |= EWorkerTask::MaterialAssign;
 			}
 		}
 	}

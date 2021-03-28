@@ -159,6 +159,8 @@ namespace DatasmithRuntime
 
 						ProcessMaterialData(MaterialData);
 
+						DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Mesh, MeshData.ElementId, (uint16)Index });
+
 						AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Mesh, MeshData.ElementId, (uint16)Index } });
 						TasksToComplete |= EWorkerTask::MaterialAssign;
 					}
@@ -276,10 +278,8 @@ namespace DatasmithRuntime
 				{
 					ProcessMaterialData(AssetDataList[*MaterialElementIdPtr]);
 
-					for (int32 Index = 0; Index < StaticMaterials.Num(); ++Index)
-					{
-						AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)Index } });
-					}
+					DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Actor, ActorData.ElementId, 0xffff });
+					AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, 0xffff } });
 
 					TasksToComplete |= EWorkerTask::MaterialAssign;
 				}
@@ -300,6 +300,8 @@ namespace DatasmithRuntime
 						if (StaticMaterials.Num() > 0 && SlotMapping.Contains(MaterialSlotName))
 						{
 							const int32 MaterialIndex = SlotMapping[MaterialSlotName];
+
+							DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Actor, ActorData.ElementId, (uint16)MaterialIndex });
 
 							AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)MaterialIndex } });
 							TasksToComplete |= EWorkerTask::MaterialAssign;
@@ -616,7 +618,7 @@ namespace DatasmithRuntime
 			return EActionResult::Succeeded;
 		}
 
-		IDatasmithMeshActorElement* MeshActorElement = static_cast<IDatasmithMeshActorElement*>(Elements[ActorData.ElementId].Get());
+		IDatasmithMeshActorElement* MeshActorElement = static_cast<IDatasmithMeshActorElement*>(Elements[ActorId].Get());
 		UStaticMeshComponent* MeshComponent = ActorData.GetObject<UStaticMeshComponent>();
 
 		if (MeshComponent == nullptr)
@@ -693,10 +695,8 @@ namespace DatasmithRuntime
 
 					if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
 					{
-						for (int32 Index = 0; Index < StaticMaterials.Num(); ++Index)
-						{
-							AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)Index } });
-						}
+						DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Actor, ActorData.ElementId, 0xffff });
+						AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, 0xffff } });
 
 						TasksToComplete |= EWorkerTask::MaterialAssign;
 					}
@@ -727,6 +727,8 @@ namespace DatasmithRuntime
 							if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
 							{
 								const int32 MaterialIndex = SlotMapping[MaterialSlotName];
+
+								DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Actor, ActorData.ElementId, (uint16)Index });
 
 								AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)MaterialIndex } });
 								TasksToComplete |= EWorkerTask::MaterialAssign;
@@ -791,14 +793,23 @@ namespace DatasmithRuntime
 			{
 				TArray< FStaticMaterial >& StaticMaterials = StaticMesh->GetStaticMaterials();
 
-				if (!StaticMaterials.IsValidIndex(Referencer.Slot))
+				if (Referencer.Slot == 0xffff)
+				{
+					for (FStaticMaterial& StaticMaterial : StaticMaterials)
+					{
+						StaticMaterial.MaterialInterface = Material;
+					}
+				}
+				else if (!StaticMaterials.IsValidIndex(Referencer.Slot))
 				{
 					ensure(false);
 					ActionCounter.Increment();
 					return EActionResult::Failed;
 				}
-
-				StaticMaterials[Referencer.Slot].MaterialInterface = Material;
+				else
+				{
+					StaticMaterials[Referencer.Slot].MaterialInterface = Material;
+				}
 
 #ifdef ASSET_DEBUG
 				Material->ClearFlags(RF_Public);
@@ -819,8 +830,6 @@ namespace DatasmithRuntime
 		{
 			FActorData& ActorData = ActorDataList[Referencer.GetId()];
 
-			const TCHAR* ActorLabel = Elements[ActorData.ElementId]->GetLabel();
-
 			if (!ActorData.HasState(EAssetState::Completed))
 			{
 				return EActionResult::Retry;
@@ -829,14 +838,23 @@ namespace DatasmithRuntime
 			// Static mesh can be null if creation failed
 			if (UStaticMeshComponent* MeshComponent = ActorData.GetObject<UStaticMeshComponent>())
 			{
-				if ((int32)Referencer.Slot >= MeshComponent->GetNumMaterials())
+				if (Referencer.Slot == 0xffff)
+				{
+					for (int32 Index = 0; Index < MeshComponent->GetNumMaterials(); ++Index)
+					{
+						MeshComponent->SetMaterial(Index, Material);
+					}
+				}
+				else if ((int32)Referencer.Slot >= MeshComponent->GetNumMaterials())
 				{
 					ensure(false);
 					ActionCounter.Increment();
 					return EActionResult::Failed;
 				}
-
-				MeshComponent->SetMaterial(Referencer.Slot, Material);
+				else
+				{
+					MeshComponent->SetMaterial(Referencer.Slot, Material);
+				}
 
 				// Force rebuilding of render data for mesh component
 				MeshComponent->MarkRenderStateDirty();

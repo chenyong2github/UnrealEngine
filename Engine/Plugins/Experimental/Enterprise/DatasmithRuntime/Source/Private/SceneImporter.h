@@ -594,6 +594,9 @@ namespace DatasmithRuntime
 
 		void FinalizeComponent(FActorData& ActorData);
 
+		/** Calls when an element on which an asset or actor depends on has changed */
+		void ProcessDependency(const TSharedPtr<IDatasmithElement>& Element);
+
 		/** Add a new task to the given queue */
 		void AddToQueue(int32 WhichQueue, FActionTask&& ActionTask)
 		{
@@ -650,13 +653,16 @@ namespace DatasmithRuntime
 		/** Mapping between Datasmith texture element's identifiers and their associated FActorData object */
 		TMap< FSceneGraphId, FTextureData > TextureDataList;
 
+		/** Mapping between Datasmith asset elements and their dependent elements */
+		TMap< FSceneGraphId, FReferencer > DependencyList;
+
 		/** Set of Datasmith mesh element's identifiers to process */
 		TSet< FSceneGraphId > MeshElementSet;
 
 		/** Set of Datasmith material element's identifiers to process */
 		TSet< FSceneGraphId > MaterialElementSet;
 
-		/** Set of Datasmith material element's identifiers to process */
+		/** Set of Datasmith texture element's identifiers to process */
 		TSet< FSceneGraphId > TextureElementSet;
 
 		/** Mapping between Datasmith mesh element's identifiers and their lightmap weights */

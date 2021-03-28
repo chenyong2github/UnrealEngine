@@ -94,7 +94,7 @@ ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 
 void ADatasmithRuntimeActor::Tick(float DeltaTime)
 {
-	if (bReceivingStarted && bReceivingEnded)
+	if (SceneElement.IsValid() && bReceivingStarted && bReceivingEnded)
 	{
 		UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::Tick - Process scene's changes"));
 		if (!bImportingScene)
@@ -102,7 +102,7 @@ void ADatasmithRuntimeActor::Tick(float DeltaTime)
 			// Prevent any other DatasmithRuntime actors to import concurrently
 			bImportingScene = true;
 
-			if (TranslationResult.SceneElement.IsValid() && TranslationResult.Translator.IsValid())
+			if (Translator.IsValid())
 			{
 
 #if WITH_EDITOR
@@ -118,27 +118,24 @@ void ADatasmithRuntimeActor::Tick(float DeltaTime)
 					CVar->Set(EnableCADCache);
 				}
 #endif
-				SceneImporter->SetTranslator(TranslationResult.Translator);
-				SetScene(TranslationResult.SceneElement);
-
-				TranslationResult.SceneElement.Reset();
-				TranslationResult.Translator.Reset();
+				SceneImporter->SetTranslator(Translator);
+				ApplyNewScene();
 			}
 			else if (bNewScene == true)
 			{
-				SetScene(DirectLinkHelper->GetScene());
+				ApplyNewScene();
 			}
 			else
 			{
 				EnableSelector(true);
 				bBuilding = true;
 
-				DumpDatasmithScene(DirectLinkHelper->GetScene().ToSharedRef(), TEXT("IncrementalUpdate"));
-
-				SceneImporter->IncrementalUpdate(DirectLinkHelper->GetScene().ToSharedRef(), UpdateContext);
+				SceneImporter->IncrementalUpdate(SceneElement.ToSharedRef(), UpdateContext);
 				UpdateContext.Additions.Empty();
 				UpdateContext.Deletions.Empty();
 				UpdateContext.Updates.Empty();
+
+				SceneElement.Reset();
 			}
 
 			bReceivingStarted = false;
@@ -169,6 +166,8 @@ void ADatasmithRuntimeActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	// Delete scene importer
 	SceneImporter.Reset();
+	SceneElement.Reset();
+	Translator.Reset();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -176,14 +175,17 @@ void ADatasmithRuntimeActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ADatasmithRuntimeActor::OnOpenDelta(/*int32 ElementsCount*/)
 {
 	// Block the DirectLink thread, if we are still processing the previous delta
-	while (bReceivingStarted)
+	while (bReceivingStarted || bImportingScene)
 	{
 		FPlatformProcess::SleepNoStats(0.1f);
 	}
 
 	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnOpenDelta"));
 	bNewScene = false;
-	bReceivingStarted = DirectLinkHelper.IsValid();
+	if (bReceivingStarted = DirectLinkHelper.IsValid())
+	{
+		SceneElement = DirectLinkHelper->GetScene();
+	}
 	bReceivingEnded = false;
 	ElementDeltaStep = /*ElementsCount > 0 ? 1.f / (float)ElementsCount : 0.f*/0.f;
 }
@@ -292,20 +294,21 @@ void ADatasmithRuntimeActor::OnCloseDelta()
 	bReceivingEnded = DirectLinkHelper.IsValid();
 }
 
-void ADatasmithRuntimeActor::SetScene(TSharedPtr<IDatasmithScene> SceneElement)
+void ADatasmithRuntimeActor::ApplyNewScene()
 {
-	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::SetScene"));
-	if (SceneElement.IsValid())
-	{
-		TRACE_BOOKMARK(TEXT("Load started - %s"), *SceneElement->GetName());
-		Reset();
+	TRACE_BOOKMARK(TEXT("Load started - %s"), *SceneElement->GetName());
 
-		EnableSelector(true);
+	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::ApplyNewScene"));
 
-		bBuilding = true;
-		LoadedScene = SceneElement->GetName();
-		SceneImporter->StartImport( SceneElement.ToSharedRef(), ImportOptions );
-	}
+	Reset();
+
+	EnableSelector(true);
+
+	bBuilding = true;
+	LoadedScene = SceneElement->GetName();
+	SceneImporter->StartImport( SceneElement.ToSharedRef(), ImportOptions );
+
+	SceneElement.Reset();
 }
 
 void ADatasmithRuntimeActor::Reset()
@@ -335,8 +338,7 @@ void ADatasmithRuntimeActor::Reset()
 
 void ADatasmithRuntimeActor::OnImportEnd()
 {
-	TranslationResult.SceneElement.Reset();
-	TranslationResult.Translator.Reset();
+	Translator.Reset();
 
 	EnableSelector(false);
 
@@ -370,6 +372,13 @@ bool ADatasmithRuntimeActor::LoadFile(const FString& FilePath)
 	if( !FPaths::FileExists( FilePath ) )
 	{
 		return false;
+	}
+
+	// Wait for any ongoing import to complete
+	// #ue_datasmithruntime: To do add code to interrupt 
+	while (bReceivingStarted || bImportingScene)
+	{
+		FPlatformProcess::SleepNoStats(0.1f);
 	}
 
 #if WITH_EDITOR
@@ -477,8 +486,8 @@ namespace DatasmithRuntime
 
 		DirectLink::BuildIndexForScene(&SceneElement.Get());
 
-		RuntimeActor->TranslationResult.SceneElement = SceneElement;
-		RuntimeActor->TranslationResult.Translator = Translator;
+		RuntimeActor->SceneElement = SceneElement;
+		RuntimeActor->Translator = Translator;
 		RuntimeActor->ExternalFile = FilePath;
 
 		RuntimeActor->OnCloseDelta();
