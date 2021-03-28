@@ -224,3 +224,22 @@ float4 UnpackShadowMapChannelMask(uint ShadowMapChannelMaskPacked)
 {
 	return float4((ShadowMapChannelMaskPacked & 1) ? 1.0f : 0.0f, (ShadowMapChannelMaskPacked & 2) ? 1.0f : 0.0f, (ShadowMapChannelMaskPacked & 4) ? 1.0f : 0.0f, (ShadowMapChannelMaskPacked & 8) ? 1.0f : 0.0f);
 }
+
+/**
+ * Helper to pack/unpack the shadow mask for cluster shading and virtual shadow map
+ * This packing encode up to 10 lights into a 32bits uint
+ */
+uint GetShadowMaskMaxLightCount()
+{
+	return 10;
+}
+
+uint PackShadowMask(float InShadowFactor, uint InLightIndex)
+{
+	return (~uint(round(InShadowFactor * 7.0)) & 7u) << (InLightIndex * 3u);
+}
+
+float UnpackShadowMask(uint InShadowMask, uint InLightIndex)
+{
+	return ((InShadowMask >> (InLightIndex * 3u)) & 7u) / 7.0;
+}

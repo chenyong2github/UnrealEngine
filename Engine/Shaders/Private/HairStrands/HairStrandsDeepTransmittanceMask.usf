@@ -15,6 +15,12 @@
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"
 
+#define DEBUG_ENABLE 0
+#if DEBUG_ENABLE
+	#include "../ShaderDrawDebug.ush"
+	#include "../ShaderPrintCommon.ush"
+#endif //DEBUG_ENABLE
+
 // Need to match FDeepShadowData::MaxMacroGroupCount in HairRendering.h
 #if SHADER_TRANSMITTANCE_DEEPSHADOW || SHADER_TRANSMITTANCE_VOXEL
 	#define MAX_HAIR_MACROGROUP_COUNT 16 
@@ -211,25 +217,25 @@ FHairTransmittanceMask ComputeTransmittance(
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	// Note: Use a fixed group count width (HAIR_VISIBILITY_GROUP_COUNT_WIDTH) for avoiding loading the indirect args (to avoid dep. memory fetch)
-	const uint LocalOffset = DispatchThreadId.x + DispatchThreadId.y * TRANSMITTANCE_GROUP_SIZE * HAIR_VISIBILITY_GROUP_COUNT_WIDTH;
+	const uint SampleIndex = DispatchThreadId.x + DispatchThreadId.y * TRANSMITTANCE_GROUP_SIZE * HAIR_VISIBILITY_GROUP_COUNT_WIDTH;
 
 	const uint MaxVisibilityNodeCount = HairStrands.HairSampleCount.Load(uint3(0, 0, 0));
-	if (LocalOffset >= MaxVisibilityNodeCount)
+	if (SampleIndex >= MaxVisibilityNodeCount)
 	{
 		return;
 	}
 
-	const uint2 PixelCoord = HairStrands.HairSampleCoords[LocalOffset];
+	const uint2 PixelCoord = HairStrands.HairSampleCoords[SampleIndex];
 
 	const float2 UV = (PixelCoord + float2(0.5f, 0.5f)) / float2(View.BufferSizeAndInvSize.xy);
 	const float3 TransmittanceRandom = float3(InterleavedGradientNoise(PixelCoord, 1), InterleavedGradientNoise(PixelCoord, 2), InterleavedGradientNoise(PixelCoord, 3));
 
 	{
-		const FHairSample Sample = UnpackHairSample(HairStrands.HairSampleData[LocalOffset]);
+		const FHairSample Sample = UnpackHairSample(HairStrands.HairSampleData[SampleIndex]);
 
 		if ((LightChannelMask & Sample.LightChannelMask) == 0)
 		{
-			OutTransmittanceMask[LocalOffset] = InitNullPackedHairTransmittanceMask();
+			OutTransmittanceMask[SampleIndex] = InitNullPackedHairTransmittanceMask();
 			return;
 		}
 
@@ -262,7 +268,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const float3 WorldPosition = ToWorldPosition(UV, SceneDepth);
 		const FHairTransmittanceMask TransmittanceMask = ComputeTransmittance(WorldPosition, Settings, DeepShadow_LayerDepths, DeepShadow_FrontDepthTexture, DeepShadow_DomTexture);
 
-		OutTransmittanceMask[LocalOffset] = PackTransmittanceMask(TransmittanceMask);
+		OutTransmittanceMask[SampleIndex] = PackTransmittanceMask(TransmittanceMask);
 	}
 }
 #endif // #if SHADER_TRANSMITTANCE_DEEPSHADOW
@@ -280,6 +286,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 #define VOXEL_TRAVERSAL_DEBUG 0
 #include "HairStrandsVoxelPageTraversal.ush"
+#include "../LightGridCommon.ush"
 
 #if VOXEL_TRAVERSAL_DEBUG
 #include "../ShaderPrintCommon.ush"
@@ -330,7 +337,11 @@ float3				LightDirection;
 uint				LightChannelMask;
 float4				LightPosition;
 float				LightRadius;
+#if PERMUTATION_ONE_PASS
+Texture2D<uint> 	ShadowMaskBitsTexture;
+#else
 Texture2D<float4> 	RayMarchMaskTexture;
+#endif
 Buffer<uint4>		IndirectArgsBuffer;
 RWBuffer<uint>		OutTransmittanceMask;
 
@@ -417,21 +428,103 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 
 [numthreads(TRANSMITTANCE_GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+#if PERMUTATION_ONE_PASS
 {
-	const uint LocalOffset = DispatchThreadId.x + DispatchThreadId.y * TRANSMITTANCE_GROUP_SIZE * HAIR_VISIBILITY_GROUP_COUNT_WIDTH;
+	const uint SampleIndex = DispatchThreadId.x + DispatchThreadId.y * TRANSMITTANCE_GROUP_SIZE * HAIR_VISIBILITY_GROUP_COUNT_WIDTH;
 
 	const uint MaxVisibilityNodeCount = HairStrands.HairSampleCount.Load(uint3(0, 0, 0));
-	if (LocalOffset >= MaxVisibilityNodeCount)
+	if (SampleIndex >= MaxVisibilityNodeCount)
 	{
 		return;
 	}
 
-	const uint2 PixelCoord = HairStrands.HairSampleCoords[LocalOffset];
+	const FHairSample Sample	= UnpackHairSample(HairStrands.HairSampleData[SampleIndex]);
+	const uint MacroGroupIndex	= clamp(Sample.MacroGroupId, 0, MAX_HAIR_MACROGROUP_COUNT - 1);
+	const float SceneDepth		= ConvertFromDeviceZ(Sample.Depth);
+	const uint2 PixelCoord		= HairStrands.HairSampleCoords[SampleIndex];
+	const float2 UV				= (PixelCoord.xy + float2(0.5f, 0.5f)) / float2(View.BufferSizeAndInvSize.xy);
+	const float3 WorldPosition	= ToWorldPosition(UV, SceneDepth);
+	const float PixelRadius		= SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
+
+	const uint PackedShadowMask = ~ShadowMaskBitsTexture[PixelCoord];
+	const float3 Random = GetHairVoxelJitter(PixelCoord.xy, View.StateFrameIndexMod8);
+
+	const uint2 LocalPixelPos = PixelCoord;
+
+	const uint EyeIndex = 0; // TODO: Instanced stereo
+	const uint GridLinearIndex = ComputeLightGridCellIndex(LocalPixelPos, SceneDepth, EyeIndex);
+	const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridLinearIndex, EyeIndex);
+
+	const uint LightCount = min(GetShadowMaskMaxLightCount(), CulledLightGridData.NumLocalLights);
+
+	LOOP
+	for (uint LightIndex = 0; LightIndex < LightCount; ++LightIndex)
+	{
+		const uint OutputIndex = SampleIndex + MaxVisibilityNodeCount * LightIndex;
+
+		// TODO: Add early out when the shadow mask bits are zero
+		#if 0
+		if (UnpackShadowMask(PackedShadowMask, LightIndex) == 0)
+		{
+			OutTransmittanceMask[OutputIndex] = PackTransmittanceMask(InitHairTransmittanceMask());
+			continue;
+		}
+		#endif
+
+		// TODO: add support for light channel
+		#if 0
+		if ((LightChannelMask & Sample.LightChannelMask) == 0)
+		{
+			OutTransmittanceMask[OutputIndex] = InitNullPackedHairTransmittanceMask();
+			continue;
+		}
+		#endif	
+
+		// The Virtual Shadow Remap stores directional lights first
+		const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + LightIndex, EyeIndex);
+		const float3 LightPosition		= LightData.LightPositionAndInvRadius.xyz;
+		const float3 LightDirection		= LightData.LightDirectionAndShadowMask.xyz; // Direction light only
+		const bool bIsLocalLight		= true;
+
+		FTransmittanceSettings Settings;
+		Settings.LightDirection				= normalize(LightPosition - WorldPosition);
+		Settings.LightPosition				= float4(LightPosition, bIsLocalLight ? 1 : 0);
+		Settings.DeepShadowDensityScale		= 0;	// Use virtual voxel struct value
+		Settings.DeepShadowDepthBiasScale	= 0;	// Use virtual voxel struct value
+		Settings.Random						= Random;
+
+	#if DEBUG_ENABLE
+		const bool bDebugEnabled = PixelCoord.x == GetCursorPos().x && PixelCoord.y == GetCursorPos().y;
+	#else
+		const bool bDebugEnabled = false;
+	#endif
+		const FHairTransmittanceMask Out = ComputeTransmittanceVoxel(
+			PixelCoord, 
+			PixelRadius, 
+			WorldPosition, 
+			MacroGroupIndex, 
+			Settings, 
+			bDebugEnabled);
+
+		OutTransmittanceMask[OutputIndex] = PackTransmittanceMask(Out);
+	}
+}
+#else // PERMUTATION_ONE_PASS
+{
+	const uint SampleIndex = DispatchThreadId.x + DispatchThreadId.y * TRANSMITTANCE_GROUP_SIZE * HAIR_VISIBILITY_GROUP_COUNT_WIDTH;
+
+	const uint MaxVisibilityNodeCount = HairStrands.HairSampleCount.Load(uint3(0, 0, 0));
+	if (SampleIndex >= MaxVisibilityNodeCount)
+	{
+		return;
+	}
+
+	const uint2 PixelCoord = HairStrands.HairSampleCoords[SampleIndex];
 	if (RayMarchMaskTexture.Load(uint3(PixelCoord, 0)).r == 0.0f)
 	{
 		// This pixel is already fully shadowed opaque. (RayMarchMaskTexture is computed using the closest sample as of today)
 		const FHairTransmittanceMask DefaultMask = InitHairTransmittanceMask();
-		OutTransmittanceMask[LocalOffset] = PackTransmittanceMask(DefaultMask);
+		OutTransmittanceMask[SampleIndex] = PackTransmittanceMask(DefaultMask);
 		return;
 	}
 
@@ -442,11 +535,10 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	#endif	
 	const float2 UV = (PixelCoord.xy + float2(0.5f, 0.5f)) / float2(View.BufferSizeAndInvSize.xy);
 	{
-		const FHairSample Sample = UnpackHairSample(HairStrands.HairSampleData[LocalOffset]);
-
+		const FHairSample Sample = UnpackHairSample(HairStrands.HairSampleData[SampleIndex]);
 		if ((LightChannelMask & Sample.LightChannelMask) == 0)
 		{
-			OutTransmittanceMask[LocalOffset] = InitNullPackedHairTransmittanceMask();
+			OutTransmittanceMask[SampleIndex] = InitNullPackedHairTransmittanceMask();
 			return;
 		}
 
@@ -469,21 +561,20 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
 		const float3 WorldPosition = ToWorldPosition(UV, SceneDepth);
 
-		const float PixelRadius = SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
-	
+		const float PixelRadius = SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;	
 		const FHairTransmittanceMask Out = ComputeTransmittanceVoxel(PixelCoord, PixelRadius, WorldPosition, MacroGroupIndex, Settings, bDebugEnabled);
 
 		#if VOXEL_TRAVERSAL_DEBUG
 		if (bDebugEnabled)
 		{
-			PrintInfo(LocalOffset, PixelCoord, Out);
+			PrintInfo(SampleIndex, PixelCoord, Out);
 		}
 		#endif	
 
-		OutTransmittanceMask[LocalOffset] = PackTransmittanceMask(Out);
+		OutTransmittanceMask[SampleIndex] = PackTransmittanceMask(Out);
 	}
 }
-
+#endif // PERMUTATION_ONE_PASS
 #endif // SHADER_TRANSMITTANCE_VOXEL
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

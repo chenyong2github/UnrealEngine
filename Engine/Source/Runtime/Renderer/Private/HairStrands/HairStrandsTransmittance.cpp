@@ -54,6 +54,12 @@ static float GetDeepShadowDensityScale() { return FMath::Max(0.0f, GDeepShadowDe
 static float GetDeepShadowDepthBiasScale() { return FMath::Max(0.0f, GDeepShadowDepthBiasScale); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+enum class EHairTransmittancePassType : uint8
+{
+	PerLight,
+	OnePass
+};
+
 static bool HasDeepShadowData(const FLightSceneInfo* LightSceneInfo, const FHairStrandsMacroGroupDatas& InDatas)
 {
 	for (const FHairStrandsMacroGroupData& MacroGroupData : InDatas)
@@ -168,11 +174,13 @@ class FHairStrandsVoxelTransmittanceMaskCS : public FGlobalShader
 	class FTransmittanceGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FSuperSampling : SHADER_PERMUTATION_INT("PERMUTATION_SUPERSAMPLING", 2);
 	class FTraversal : SHADER_PERMUTATION_INT("PERMUTATION_TRAVERSAL", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FTransmittanceGroupSize, FSuperSampling, FTraversal>;
+	class FOnePass : SHADER_PERMUTATION_BOOL("PERMUTATION_ONE_PASS");
+	using FPermutationDomain = TShaderPermutationDomain<FTransmittanceGroupSize, FSuperSampling, FTraversal, FOnePass>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, VirtualVoxel)
 
@@ -181,9 +189,11 @@ class FHairStrandsVoxelTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER(FVector4, LightPosition)
 		SHADER_PARAMETER(uint32, LightChannelMask)
 
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ShadowMaskBitsTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayMarchMaskTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutTransmittanceMask)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
 
 		RDG_BUFFER_ACCESS(IndirectArgsBuffer, ERHIAccess::IndirectArgs)
 
@@ -198,6 +208,7 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_TRANSMITTANCE_VOXEL"), 1);
 	}
 };
@@ -209,32 +220,51 @@ static FRDGBufferRef AddHairStrandsVoxelTransmittanceMaskPass(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
+	const EHairTransmittancePassType PassType,
 	const FHairStrandsTransmittanceLightParams& Params,
 	const uint32 NodeGroupSize,
 	FRDGBufferRef IndirectArgsBuffer,
-	FRDGTextureRef ScreenShadowMaskSubPixelTexture)
+	FRDGTextureRef ShadowMaskTexture)
 {
 	check(HairStrands::HasViewHairStrandsVoxelData(View));
 	check(NodeGroupSize == 64 || NodeGroupSize == 32);
 
-	FRDGBufferRef OutBuffer = CreateHairStrandsTransmittanceMaskBuffer(GraphBuilder, View.HairStrandsViewData.VisibilityData.MaxNodeCount);
+	const uint32 MaxLightPerPass = 10u; // HAIR_TODO: Need to match the virtual shadow mask bits encoding
+	const uint32 AverageLightPerPixel = PassType == EHairTransmittancePassType::OnePass ? MaxLightPerPass : 1u;
+	FRDGBufferRef OutBuffer = CreateHairStrandsTransmittanceMaskBuffer(GraphBuilder, View.HairStrandsViewData.VisibilityData.MaxNodeCount * AverageLightPerPixel);
 
 	FHairStrandsVoxelTransmittanceMaskCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsVoxelTransmittanceMaskCS::FParameters>();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->SceneTextures = SceneTextures;
 	Parameters->OutTransmittanceMask = GraphBuilder.CreateUAV(OutBuffer, FHairStrandsTransmittanceMaskData::Format);
+	if (PassType == EHairTransmittancePassType::OnePass)
+	{
+		Parameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+		Parameters->RayMarchMaskTexture = nullptr;
+		Parameters->ShadowMaskBitsTexture = ShadowMaskTexture;
+	}
+	else
+	{
+		Parameters->LightDirection = Params.LightDirection;
+		Parameters->LightPosition = Params.LightPosition;
+		Parameters->LightRadius = Params.LightRadius;
+		Parameters->RayMarchMaskTexture = ShadowMaskTexture ? ShadowMaskTexture : GSystemTextures.GetWhiteDummy(GraphBuilder);
+		Parameters->ShadowMaskBitsTexture = nullptr;
+	}
+
 	Parameters->LightChannelMask = Params.LightChannelMask;
-	Parameters->LightDirection = Params.LightDirection;
-	Parameters->LightPosition = Params.LightPosition;
-	Parameters->LightRadius = Params.LightRadius;
 	Parameters->IndirectArgsBuffer = IndirectArgsBuffer;
 	Parameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
-	Parameters->RayMarchMaskTexture = ScreenShadowMaskSubPixelTexture ? ScreenShadowMaskSubPixelTexture : GSystemTextures.GetWhiteDummy(GraphBuilder);
 	Parameters->VirtualVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
 	{
 		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
+	}
+
+	if (ShaderPrint::IsSupported(View) && ShaderPrint::IsEnabled())
+	{
+		ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintUniformBuffer);
 	}
 
 	const bool bIsSuperSampled = GHairStrandsTransmittanceSuperSampling > 0;
@@ -244,11 +274,11 @@ static FRDGBufferRef AddHairStrandsVoxelTransmittanceMaskPass(
 	PermutationVector.Set<FHairStrandsVoxelTransmittanceMaskCS::FTransmittanceGroupSize>(NodeGroupSize);
 	PermutationVector.Set<FHairStrandsVoxelTransmittanceMaskCS::FSuperSampling>(bIsSuperSampled ? 1 : 0);
 	PermutationVector.Set<FHairStrandsVoxelTransmittanceMaskCS::FTraversal>(bIsMipTraversal ? 1 : 0);
-
+	PermutationVector.Set<FHairStrandsVoxelTransmittanceMaskCS::FOnePass>(PassType == EHairTransmittancePassType::OnePass);
 	TShaderMapRef<FHairStrandsVoxelTransmittanceMaskCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsTransmittanceMask(Voxel)"),
+		RDG_EVENT_NAME("HairStrandsTransmittanceMask(Voxel,%s)", PassType == EHairTransmittancePassType::OnePass ? TEXT("OnePass") : TEXT("PerLight")),
 		ComputeShader,
 		Parameters,
 		IndirectArgsBuffer,
@@ -701,12 +731,8 @@ static FHairStrandsTransmittanceMaskData InternalRenderHairStrandsTransmittanceM
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsTransmittanceMask");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsTransmittanceMask);
 
-	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder, View);
-
 	// Note: GbufferB.a store the shading model on the 4 lower bits (MATERIAL_SHADINGMODEL_HAIR)
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
-
-	FRDGTextureRef HairLUTTexture = InHairLUT.Textures[HairLUTType_DualScattering];
 
 	bool bHasFoundLight = false;
 	if (!IsHairStrandsForVoxelTransmittanceAndShadowEnable())
@@ -776,12 +802,45 @@ static FHairStrandsTransmittanceMaskData InternalRenderHairStrandsTransmittanceM
 			GraphBuilder,
 			SceneTextures,
 			View,
+			EHairTransmittancePassType::PerLight,
 			Params,
 			VisibilityData.NodeGroupSize,
 			VisibilityData.NodeIndirectArg,
 			ScreenShadowMaskSubPixelTexture);
 	}
 
+	return Out;
+}
+	
+FHairStrandsTransmittanceMaskData RenderHairStrandsOnePassTransmittanceMask(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View, 
+	FRDGTextureRef ShadowMaskBits)
+{
+	FHairStrandsTransmittanceMaskData Out;
+	if (HairStrands::HasViewHairStrandsData(View) && View.HairStrandsViewData.MacroGroupDatas.Num() > 0)
+	{
+		DECLARE_GPU_STAT(HairStrandsOnePassTransmittanceMask);
+		RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsTransmittanceMask(OnePass)");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsOnePassTransmittanceMask);
+
+		if (HairStrands::HasViewHairStrandsVoxelData(View))
+		{
+			// Note: GbufferB.a store the shading model on the 4 lower bits (MATERIAL_SHADINGMODEL_HAIR)
+			FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+			FHairStrandsTransmittanceLightParams DummyParams;
+
+			Out.TransmittanceMask = AddHairStrandsVoxelTransmittanceMaskPass(
+				GraphBuilder,
+				SceneTextures,
+				View,
+				EHairTransmittancePassType::OnePass,
+				DummyParams,
+				View.HairStrandsViewData.VisibilityData.NodeGroupSize,
+				View.HairStrandsViewData.VisibilityData.NodeIndirectArg,
+				ShadowMaskBits);
+		}
+	}
 	return Out;
 }
 

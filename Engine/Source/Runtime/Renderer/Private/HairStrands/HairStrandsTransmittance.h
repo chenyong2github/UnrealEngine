@@ -26,9 +26,15 @@ void RenderHairStrandsShadowMask(
 	const FLightSceneInfo* LightSceneInfo,
 	FRDGTextureRef ScreenShadowMaskTexture); 
 
-/// Write hair transmittance onto screen shadow mask
+/// Output hair transmittance per hair sample for a given light
 FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const class FLightSceneInfo* LightSceneInfo,
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture);
+
+/// Output hair transmittance per hair sample for all lights using the forward cluster lights
+FHairStrandsTransmittanceMaskData RenderHairStrandsOnePassTransmittanceMask(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FRDGTextureRef ShadowMaskBits);
