@@ -40,11 +40,12 @@ namespace P4VUtils
 
 	class Program
 	{
-		public static IReadOnlyDictionary<string, Command> Commands { get; } = new Dictionary<string, Command>
+		public static IReadOnlyDictionary<string, Command> Commands { get; } = new Dictionary<string, Command>(StringComparer.OrdinalIgnoreCase)
 		{
+			["cherrypick"] = new CherryPickCommand(),
+			["compile"] = new CompileCommand(),
 			["converttoedit"] = new ConvertToEditCommand(),
 			["describe"] = new DescribeCommand(),
-			["cherrypick"] = new CherryPickCommand(),
 			["edigrate"] = new EdigrateCommand(),
 			["preflight"] = new PreflightCommand(),
 			["preflightandsubmit"] = new PreflightAndSubmitCommand(),

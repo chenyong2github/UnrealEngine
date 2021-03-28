@@ -554,7 +554,10 @@ namespace EpicGames.Perforce
 			{
 				Arguments.Append(" -O");
 			}
-			Arguments.AppendFormat(" {0}", ChangeNumber);
+			if (ChangeNumber != -1)
+			{
+				Arguments.AppendFormat(" {0}", ChangeNumber);
+			}
 
 			return SingleResponseCommandAsync<ChangeRecord>(Arguments.ToString(), null, CancellationToken);
 		}
