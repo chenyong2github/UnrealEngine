@@ -177,9 +177,12 @@ half3x3 CalcTangentToLocal(uint MetaData)
 
 	if (bUseCameraFacing)
 	{
+		// In this mode, [0] and [1] are only really used for scaling
 		TangentToLocal[0] = ViewRightVector;
 		TangentToLocal[1] = ViewUpVector;
-		TangentToLocal[2] = cross(TangentToLocal[0], TangentToLocal[1]);
+
+		// Hardcoded to have the lighting behave more correctly
+		TangentToLocal[2] = float3(0, 0, 1);
 	}
 	else
 	{
@@ -188,9 +191,12 @@ half3x3 CalcTangentToLocal(uint MetaData)
 		// Force camera facing
 		if (dot(Normal, Normal) < 0.1f)
 		{
+			// In this mode, [0] and [1] are only really used for scaling
 			TangentToLocal[0] = ViewRightVector;
 			TangentToLocal[1] = ViewUpVector;
-			TangentToLocal[2] = cross(TangentToLocal[0], TangentToLocal[1]);
+
+			// Hardcoded to have the lighting behave more correctly
+			TangentToLocal[2] = float3(0, 0, 1);
 		}
 		else
 		{
