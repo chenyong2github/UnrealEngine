@@ -1494,7 +1494,8 @@ FBoxSphereBounds UGroomComponent::CalcBounds(const FTransform& InLocalToWorld) c
 	}
 	else
 	{
-		return FBoxSphereBounds(EForceInit::ForceInitToZero);
+		FBoxSphereBounds LocalBounds(EForceInit::ForceInitToZero);
+		return FBoxSphereBounds(LocalBounds.TransformBy(InLocalToWorld));
 	}
 }
 
