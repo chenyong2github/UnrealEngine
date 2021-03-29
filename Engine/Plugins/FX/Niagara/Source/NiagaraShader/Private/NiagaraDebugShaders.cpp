@@ -36,9 +36,10 @@ public:
 	DECLARE_SHADER_TYPE(FNiagaraVisualizeTexturePS, Global);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraVisualizeTexturePS, FGlobalShader);
 
+	class FIntegerTexture : SHADER_PERMUTATION_BOOL("TEXTURE_INTEGER");
 	class FTextureType : SHADER_PERMUTATION_INT("TEXTURE_TYPE", 3);
 
-	using FPermutationDomain = TShaderPermutationDomain<FTextureType>;
+	using FPermutationDomain = TShaderPermutationDomain<FIntegerTexture, FTextureType>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -47,10 +48,12 @@ public:
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntVector4,		NumTextureAttributes)
+		SHADER_PARAMETER(FIntVector4,	NumTextureAttributes)
 		SHADER_PARAMETER(int32,			NumAttributesToVisualize)
 		SHADER_PARAMETER(FIntVector4,	AttributesToVisualize)
 		SHADER_PARAMETER(FIntVector,	TextureDimensions)
+		SHADER_PARAMETER(FVector4,		PerChannelScale)
+		SHADER_PARAMETER(FVector4,		PerChannelBias)
 		SHADER_PARAMETER(uint32,		DebugFlags)
 		SHADER_PARAMETER(uint32,		TickCounter)
 		SHADER_PARAMETER(uint32,		TextureSlice)
@@ -262,7 +265,8 @@ void NiagaraDebugShaders::DrawDebugLines(
 void NiagaraDebugShaders::VisualizeTexture(
 	class FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassRenderTarget& Output,
 	const FIntPoint& Location, const int32& DisplayHeight,
-	const FIntVector4& InAttributesToVisualize, FRHITexture* Texture, const FIntVector4& NumTextureAttributes, uint32 TickCounter
+	const FIntVector4& InAttributesToVisualize, FRHITexture* Texture, const FIntVector4& NumTextureAttributes, uint32 TickCounter,
+	const FVector2D& PreviewDisplayRange
 )
 {
 	FIntVector TextureSize = Texture->GetSizeXYZ();
@@ -330,6 +334,21 @@ void NiagaraDebugShaders::VisualizeTexture(
 		return;
 	}
 
+	switch (Texture->GetFormat())
+	{
+		case PF_R32_UINT:
+		case PF_R32_SINT:
+		case PF_R16_UINT:
+		case PF_R16_SINT:
+		case PF_R16G16B16A16_UINT:
+		case PF_R16G16B16A16_SINT:
+			PermutationVector.Set<FNiagaraVisualizeTexturePS::FIntegerTexture>(true);
+			break;
+		default:
+			PermutationVector.Set<FNiagaraVisualizeTexturePS::FIntegerTexture>(false);
+			break;
+	}
+
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 	TShaderMapRef<FNiagaraVisualizeTexturePS> PixelShader(ShaderMap, PermutationVector);
@@ -347,6 +366,10 @@ void NiagaraDebugShaders::VisualizeTexture(
 	const int32 AvailableWidth = RenderTargetSize.X - Location.X;
 	const int32 SlicesWidth = FMath::Clamp(FMath::DivideAndRoundDown(AvailableWidth, DisplaySize.X + 1), 1, TextureSize.Z);
 
+	const float DisplayScale = PreviewDisplayRange.Y - PreviewDisplayRange.X;
+	const FVector4 PerChannelScale(DisplayScale > 0.0f ? (1.0f / DisplayScale) : 1.0f);
+	const FVector4 PerChannelBias(-PreviewDisplayRange.X);
+
 	for (int32 iSlice = 0; iSlice < SlicesWidth; ++iSlice)
 	{
 		FNiagaraVisualizeTexturePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraVisualizeTexturePS::FParameters>();
@@ -355,6 +378,8 @@ void NiagaraDebugShaders::VisualizeTexture(
 			PassParameters->NumAttributesToVisualize = NumAttributesToVisualizeValue;
 			PassParameters->AttributesToVisualize = AttributesToVisualize;
 			PassParameters->TextureDimensions = TextureSize;
+			PassParameters->PerChannelScale = PerChannelScale;
+			PassParameters->PerChannelBias = PerChannelBias;
 			PassParameters->DebugFlags = GNiagaraGpuComputeDebug_ShowNaNInf != 0 ? 1 : 0;
 			PassParameters->TickCounter = TickCounter;
 			PassParameters->TextureSlice = iSlice;
