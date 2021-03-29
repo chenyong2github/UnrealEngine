@@ -282,11 +282,6 @@ bool ULegacyEdModeWrapper::PostConvertMouseMovement(FEditorViewportClient* InVie
 	return LegacyEditorMode->PostConvertMouseMovement(InViewportClient);
 }
 
-void ULegacyEdModeWrapper::DrawBrackets(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
-{
-	LegacyEditorMode->DrawBrackets(ViewportClient, Viewport, View, Canvas);
-}
-
 bool ULegacyEdModeWrapper::ShouldDrawBrushWireframe(AActor* InActor) const
 {
 	return LegacyEditorMode->ShouldDrawBrushWireframe(InActor);

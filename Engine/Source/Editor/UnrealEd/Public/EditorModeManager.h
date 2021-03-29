@@ -129,6 +129,8 @@ public:
 
 	UEdMode* GetActiveScriptableMode(FEditorModeID InID) const;
 
+	virtual UTexture2D* GetVertexTexture() const;
+
 	/**
 	 * Returns true if the current mode is not the specified ModeID.  Also optionally warns the user.
 	 *
@@ -535,6 +537,24 @@ protected:
 	 **/
 	void OnEditorSelectionChanged(UObject* NewSelection);
 	void OnEditorSelectNone();
+
+	virtual void DrawBrackets(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas);
+
+	void ForEachEdMode(TFunctionRef<bool(UEdMode*)> InCalllback) const;
+
+	template <class InterfaceToCastTo>
+	void ForEachEdMode(TFunctionRef<bool(InterfaceToCastTo*)> InCallback) const
+	{
+		ForEachEdMode([InCallback](UEdMode* Mode)
+		{
+			if (InterfaceToCastTo* CastedMode = Cast<InterfaceToCastTo>(Mode))
+			{
+				return InCallback(CastedMode);
+			}
+
+			return true;
+		});
+	}
 
 	/** List of default modes for this tool.  These must all be compatible with each other. */
 	TArray<FEditorModeID> DefaultModeIDs;

@@ -345,13 +345,16 @@ UTypedElementCommonActions* SStandaloneAssetEditorToolkitHost::GetCommonActions(
 
 FReply SStandaloneAssetEditorToolkitHost::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
 {
-	// Check to see if any of the actions for the level editor can be processed by the current event
+	// Check to see if any of the actions for the toolkits can be processed by the current event
 	// If we are in debug mode do not process commands
 	if (FSlateApplication::Get().IsNormalExecution())
 	{
-		if (HostedAssetEditorToolkit->ProcessCommandBindings(InKeyEvent))
+		for (TSharedPtr<IToolkit>& HostedToolkit : HostedToolkits)
 		{
-			return FReply::Handled();
+			if (HostedToolkit->ProcessCommandBindings(InKeyEvent))
+			{
+				return FReply::Handled();
+			}
 		}
 	}
 

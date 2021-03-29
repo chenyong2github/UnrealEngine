@@ -32,14 +32,14 @@ public:
 	{
 		return false;
 	}
+
 private:
 	void ActorSelectionChangeNotify() override;
 	void Enter() override;
 	void Exit() override;
-	bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event) override;
+	void ModeTick(float DeltaTime) override;
 
 	bool IsCompatibleWith(FEditorModeID OtherModeID) const override { return true; }
-	void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
 
 	void RecreateGizmo();
 	void DestroyGizmo();

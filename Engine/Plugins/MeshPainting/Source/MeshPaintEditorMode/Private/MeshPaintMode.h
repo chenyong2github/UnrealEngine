@@ -14,6 +14,7 @@
 #include "IMeshPaintComponentAdapter.h"
 #include "MeshPaintHelpers.h"
 #include "MeshVertexPaintingTool.h"
+#include "Tools/LegacyEdModeInterfaces.h"
 #include "MeshPaintMode.generated.h"
 
 class UMeshVertexPaintingToolProperties;
@@ -28,7 +29,7 @@ class UMeshToolManager;
  * Mesh paint Mode.  Extends editor viewports with the ability to paint data on meshes
  */
 UCLASS()
-class UMeshPaintMode : public UEdMode
+class UMeshPaintMode : public UEdMode, public ILegacyEdModeViewportInterface
 {
 public:
 	GENERATED_BODY()

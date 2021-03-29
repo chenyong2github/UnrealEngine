@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Tools/UEdMode.h"
+#include "Tools/LegacyEdModeWidgetHelpers.h"
 #include "ISequencer.h"
 
 #include "TrailHierarchy.h"
@@ -71,7 +71,7 @@ public:
 };
 
 UCLASS()
-class UMotionTrailEditorMode : public UEdMode
+class UMotionTrailEditorMode : public UBaseLegacyWidgetEdMode
 {
 	GENERATED_BODY()
 public:
@@ -91,13 +91,10 @@ public:
 	
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
-	
-	bool UsesToolkits() const override;
 
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const override;
 	virtual void ActivateDefaultTool() override;
 
-	virtual class FEdMode* AsLegacyMode() override;
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override;
 	// End of UEdMode interface
 

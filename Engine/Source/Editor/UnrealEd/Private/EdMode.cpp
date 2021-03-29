@@ -105,27 +105,6 @@ bool FEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewpor
 	{
 		return true;
 	}
-	else
-	{
-		// Next pass input to the mode toolkit
-		if (Toolkit.IsValid() && ((Event == IE_Pressed) || (Event == IE_Repeat)))
-		{
-			if (Toolkit->GetToolkitCommands()->ProcessCommandBindings(Key, FSlateApplication::Get().GetModifierKeys(), (Event == IE_Repeat)))
-			{
-				return true;
-			}
-		}
-
-		// Finally, pass input up to selected actors if not in a tool mode
-		TArray<AActor*> SelectedActors;
-		Owner->GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors);
-
-		for (TArray<AActor*>::TIterator It(SelectedActors); It; ++It)
-		{
-			// Tell the object we've had a key press
-			(*It)->EditorKeyPressed(Key, Event);
-		}
-	}
 
 	return false;
 }
@@ -290,130 +269,17 @@ void FEdMode::Render(const FSceneView* View,FViewport* Viewport,FPrimitiveDrawIn
 
 void FEdMode::DrawHUD(FEditorViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View,FCanvas* Canvas)
 {
-	// Render the drag tool.
-	ViewportClient->RenderDragTool( View, Canvas );
-
 	// Let the current mode tool draw a HUD if it wants to
-	FModeTool* tool = GetCurrentTool();
-	if( tool )
+	FModeTool* Tool = GetCurrentTool();
+	if( Tool )
 	{
-		tool->DrawHUD( ViewportClient, Viewport, View, Canvas );
-	}
-
-	if (ViewportClient->IsPerspective() && GetDefault<ULevelEditorViewportSettings>()->bHighlightWithBrackets)
-	{
-		DrawBrackets( ViewportClient, Viewport, View, Canvas );
+		Tool->DrawHUD( ViewportClient, Viewport, View, Canvas );
 	}
 
 	// If this viewport doesn't show mode widgets or the mode itself doesn't want them, leave.
-	if( !(ViewportClient->EngineShowFlags.ModeWidgets) || !ShowModeWidgets() )
+	if (ShowModeWidgets())
 	{
-		return;
-	}
-
-	// Clear Hit proxies
-	const bool bIsHitTesting = Canvas->IsHitTesting();
-	if ( !bIsHitTesting )
-	{
-		Canvas->SetHitProxy(NULL);
-	}
-
-	// Draw vertices for selected BSP brushes and static meshes if the large vertices show flag is set.
-	if ( !ViewportClient->bDrawVertices )
-	{
-		return;
-	}
-
-	const bool bLargeVertices		= View->Family->EngineShowFlags.LargeVertices;
-	const bool bShowBrushes			= View->Family->EngineShowFlags.Brushes;
-	const bool bShowBSP				= View->Family->EngineShowFlags.BSP;
-	const bool bShowBuilderBrush	= View->Family->EngineShowFlags.BuilderBrush != 0;
-
-	UTexture2D* VertexTexture = GetVertexTexture();
-	const float TextureSizeX		= VertexTexture->GetSizeX() * ( bLargeVertices ? 1.0f : 0.5f );
-	const float TextureSizeY		= VertexTexture->GetSizeY() * ( bLargeVertices ? 1.0f : 0.5f );
-
-	// Temporaries.
-	TArray<FVector> Vertices;
-
-	for ( FSelectionIterator It( *Owner->GetSelectedActors() ) ; It ; ++It )
-	{
-		AActor* SelectedActor = static_cast<AActor*>( *It );
-		checkSlow( SelectedActor->IsA(AActor::StaticClass()) );
-
-		if( bLargeVertices )
-		{
-			FCanvasItemTestbed::bTestState = !FCanvasItemTestbed::bTestState;
-
-			// Static mesh vertices
-			AStaticMeshActor* Actor = Cast<AStaticMeshActor>( SelectedActor );
-			if( Actor && Actor->GetStaticMeshComponent() && Actor->GetStaticMeshComponent()->GetStaticMesh()
-				&& Actor->GetStaticMeshComponent()->GetStaticMesh()->GetRenderData())
-			{
-				FTransform ActorToWorld = Actor->ActorToWorld();
-				Vertices.Empty();
-				const FPositionVertexBuffer& VertexBuffer = Actor->GetStaticMeshComponent()->GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.PositionVertexBuffer;
-				for( uint32 i = 0 ; i < VertexBuffer.GetNumVertices() ; i++ )
-				{
-					Vertices.AddUnique( ActorToWorld.TransformPosition( VertexBuffer.VertexPosition(i) ) );
-				}
-
-				const float InvDpiScale = 1.0f / Canvas->GetDPIScale();
-
-				FCanvasTileItem TileItem( FVector2D( 0.0f, 0.0f ), FVector2D( 0.0f, 0.0f ), FLinearColor::White );
-				TileItem.BlendMode = SE_BLEND_Translucent;
-				for( int32 VertexIndex = 0 ; VertexIndex < Vertices.Num() ; ++VertexIndex )
-				{				
-					const FVector& Vertex = Vertices[VertexIndex];
-					FVector2D PixelLocation;
-					if(View->ScreenToPixel(View->WorldToScreen(Vertex),PixelLocation))
-					{
-						PixelLocation *= InvDpiScale;
-
-						const bool bOutside =
-							PixelLocation.X < 0.0f || PixelLocation.X > View->UnscaledViewRect.Width()*InvDpiScale ||
-							PixelLocation.Y < 0.0f || PixelLocation.Y > View->UnscaledViewRect.Height()*InvDpiScale;
-						if( !bOutside )
-						{
-							const float X = PixelLocation.X - (TextureSizeX/2);
-							const float Y = PixelLocation.Y - (TextureSizeY/2);
-							if( bIsHitTesting ) 
-							{
-								Canvas->SetHitProxy( new HStaticMeshVert(Actor,Vertex) );
-							}
-							TileItem.Texture = VertexTexture->Resource;
-							
-							TileItem.Size = FVector2D( TextureSizeX, TextureSizeY );
-							Canvas->DrawItem( TileItem, FVector2D( X, Y ) );							
-							if( bIsHitTesting )
-							{
-								Canvas->SetHitProxy( NULL );
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	FLegacyEdModeWidgetHelper::DrawHUD(ViewportClient, Viewport, View, Canvas);
-}
-
-void FEdMode::DrawBrackets( FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas )
-{
-	USelection& SelectedActors = *Owner->GetSelectedActors();
-	for( int32 CurSelectedActorIndex = 0; CurSelectedActorIndex < SelectedActors.Num(); ++CurSelectedActorIndex )
-	{
-		AActor* SelectedActor = Cast<AActor>( SelectedActors.GetSelectedObject(CurSelectedActorIndex ) );
-		if( SelectedActor != NULL )
-		{
-			// Draw a bracket for selected "paintable" static mesh actors
-			const bool bIsValidActor = ( Cast< AStaticMeshActor >( SelectedActor ) != NULL );
-
-			const FLinearColor SelectedActorBoxColor( 0.6f, 0.6f, 1.0f );
-			const bool bDrawBracket = bIsValidActor;
-			ViewportClient->DrawActorScreenSpaceBoundingBox( Canvas, View, Viewport, SelectedActor, SelectedActorBoxColor, bDrawBracket );
-		}
+		FLegacyEdModeWidgetHelper::DrawHUD(ViewportClient, Viewport, View, Canvas);
 	}
 }
 

@@ -128,7 +128,7 @@ protected:
 //   2. Transition your native FEdMode to a UObject, by inheriting from this class
 //   3. Override CreateWidgetHelper function to return a SharedRef to the class you created in step 1.
 UCLASS(Abstract)
-class UNREALED_API UBaseLegacyWidgetEdMode : public UEdMode, public ILegacyEdModeWidgetInterface
+class UNREALED_API UBaseLegacyWidgetEdMode : public UEdMode, public ILegacyEdModeWidgetInterface, public ILegacyEdModeViewportInterface
 {
 	GENERATED_BODY()
 

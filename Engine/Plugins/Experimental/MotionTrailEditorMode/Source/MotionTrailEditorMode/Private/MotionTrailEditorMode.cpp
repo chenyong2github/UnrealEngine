@@ -154,11 +154,6 @@ void UMotionTrailEditorMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 	Super::DrawHUD(ViewportClient, Viewport, View, Canvas);
 }
 
-bool UMotionTrailEditorMode::UsesToolkits() const
-{
-	return true;
-}
-
 TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> UMotionTrailEditorMode::GetModeCommands() const
 {
 	const TMap<FName, TArray<TSharedPtr<FUICommandInfo>>>& Commands = UE::MotionTrailEditor::FMotionTrailEditorModeCommands::Get().GetCommands();
@@ -212,26 +207,6 @@ void UMotionTrailEditorMode::RefreshNonDefaultToolset()
 void UMotionTrailEditorMode::ActivateDefaultTool()
 {
 	ToolsContext->StartTool(UMotionTrailEditorMode::DefaultToolName);
-}
-
-FEdMode* UMotionTrailEditorMode::AsLegacyMode()
-{
-	class FMotionTrailEditorMode : public FEdMode
-	{
-	public:
-		FMotionTrailEditorMode()
-			: FEdMode()
-		{
-			Owner = &GLevelEditorModeTools();
-		}
-
-		virtual ~FMotionTrailEditorMode() {};
-		virtual bool UsesTransformWidget() const { return true; }
-	};
-
-	static TUniquePtr<FMotionTrailEditorMode> LegacyEdMode = MakeUnique<FMotionTrailEditorMode>();
-
-	return LegacyEdMode.Get();
 }
 
 bool UMotionTrailEditorMode::IsCompatibleWith(FEditorModeID OtherModeID) const

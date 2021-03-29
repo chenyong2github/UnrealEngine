@@ -771,7 +771,7 @@ void UBaseLegacyWidgetEdMode::Initialize()
 	WidgetHelper->Owner = this->Owner;
 	WidgetHelper->ParentModeInterface = this;
 
-	UEdMode::Initialize();
+	Super::Initialize();
 }
 
 TSharedRef<FLegacyEdModeWidgetHelper> UBaseLegacyWidgetEdMode::CreateWidgetHelper()
@@ -786,7 +786,7 @@ bool UBaseLegacyWidgetEdMode::InputDelta(FEditorViewportClient* InViewportClient
 		return true;
 	}
 
-	return UEdMode::InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
+	return ILegacyEdModeViewportInterface::InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
 }
 
 bool UBaseLegacyWidgetEdMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
@@ -796,21 +796,21 @@ bool UBaseLegacyWidgetEdMode::HandleClick(FEditorViewportClient* InViewportClien
 		return true;
 	}
 
-	return UEdMode::HandleClick(InViewportClient, HitProxy, Click);
+	return ILegacyEdModeViewportInterface::HandleClick(InViewportClient, HitProxy, Click);
 }
 
 void UBaseLegacyWidgetEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	WidgetHelper->Render(View, Viewport, PDI);
 
-	UEdMode::Render(View, Viewport, PDI);
+	ILegacyEdModeWidgetInterface::Render(View, Viewport, PDI);
 }
 
 void UBaseLegacyWidgetEdMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
 	WidgetHelper->DrawHUD(ViewportClient, Viewport, View, Canvas);
 
-	UEdMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
+	ILegacyEdModeWidgetInterface::DrawHUD(ViewportClient, Viewport, View, Canvas);
 }
 
 bool UBaseLegacyWidgetEdMode::AllowWidgetMove()

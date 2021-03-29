@@ -3,9 +3,12 @@
 #pragma once
 
 #include "UnrealWidgetFwd.h"
+#include "Engine/EngineBaseTypes.h"
+#include "InputCoreTypes.h"
 #include "Math/Axis.h"
 #include "Math/Vector.h"
 #include "UObject/Interface.h"
+#include "Editor.h"
 
 #include "LegacyEdModeInterfaces.generated.h"
 
@@ -17,6 +20,11 @@ struct FBox;
 struct FMatrix;
 class FSceneView;
 class FPrimitiveDrawInterface;
+class FViewport;
+class HHitProxy;
+struct FViewportClick;
+class FCanvas;
+class UTexture2D;
 
 UINTERFACE(NotBlueprintable, MinimalAPI)
 class ULegacyEdModeSelectInterface : public UInterface
@@ -109,8 +117,9 @@ public:
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) = 0;
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) = 0;
 
-	/** @return True if this mode allows the viewport to use a drag tool */
-	virtual bool AllowsViewportDragTool() const = 0;
+	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) {}
+	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) {}
+	virtual UTexture2D* GetVertexTexture() { return GEditor->DefaultBSPVertexTexture; }
 };
 
 UINTERFACE(NotBlueprintable, MinimalAPI)
@@ -148,4 +157,63 @@ class UNREALED_API ILegacyEdModeDrawHelperInterface
 
 public:
 	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) = 0;
+};
+
+UINTERFACE(NotBlueprintable, MinimalAPI)
+class ULegacyEdModeViewportInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class UNREALED_API ILegacyEdModeViewportInterface
+{
+	GENERATED_BODY()
+
+public:
+	virtual bool MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y) { return false; }
+
+	virtual bool MouseLeave(FEditorViewportClient* ViewportClient, FViewport* Viewport) { return false; }
+
+	virtual bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y) { return false; }
+
+	virtual bool ReceivedFocus(FEditorViewportClient* ViewportClient, FViewport* Viewport) { return false; }
+
+	virtual bool LostFocus(FEditorViewportClient* ViewportClient, FViewport* Viewport) { return false; }
+
+	/**
+	 * Called when the mouse is moved while a window input capture is in effect
+	 *
+	 * @param	InViewportClient	Level editor viewport client that captured the mouse input
+	 * @param	InViewport			Viewport that captured the mouse input
+	 * @param	InMouseX			New mouse cursor X coordinate
+	 * @param	InMouseY			New mouse cursor Y coordinate
+	 *
+	 * @return	true if input was handled
+	 */
+	virtual bool CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY) { return false; }
+
+	/** Process all captured mouse moves that occurred during the current frame */
+	virtual bool ProcessCapturedMouseMoves(FEditorViewportClient* InViewportClient, FViewport* InViewport, const TArrayView<FIntPoint>& CapturedMouseMoves) { return false; }
+
+	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event) { return false; }
+	virtual bool InputAxis(FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime) { return false; }
+	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) { return false; }
+	virtual bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) { return false; }
+	virtual bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) { return false; }
+
+	/** Called before mouse movement is converted to drag/rot */
+	virtual bool PreConvertMouseMovement(FEditorViewportClient* InViewportClient) { return false; }
+
+	/** Called after mouse movement is converted to drag/rot */
+	virtual bool PostConvertMouseMovement(FEditorViewportClient* InViewportClient) { return false; }
+
+	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) { return false; }
+
+	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) {}
+
+	/** @return True if this mode allows the viewport to use a drag tool */
+	virtual bool AllowsViewportDragTool() const { return false; }
+
+	/** If the Edmode is handling its own mouse deltas, it can disable the MouseDeltaTacker */
+	virtual bool DisallowMouseDeltaTracking() const { return false; }
 };

@@ -194,7 +194,7 @@ bool UModelingToolsEditorMode::ShouldDrawWidget() const
 
 void UModelingToolsEditorMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
-	UEdMode::Tick(ViewportClient, DeltaTime);
+	Super::Tick(ViewportClient, DeltaTime);
 
 	if (Toolkit.IsValid())
 	{

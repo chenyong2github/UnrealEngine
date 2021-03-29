@@ -23,7 +23,7 @@ class FViewport;
 class UPrimitiveComponent;
 
 UCLASS()
-class UNREALED_API ULegacyEdModeWrapper final : public UEdMode, public ILegacyEdModeWidgetInterface, public ILegacyEdModeToolInterface, public ILegacyEdModeSelectInterface, public ILegacyEdModeDrawHelperInterface
+class UNREALED_API ULegacyEdModeWrapper final : public UEdMode, public ILegacyEdModeWidgetInterface, public ILegacyEdModeToolInterface, public ILegacyEdModeSelectInterface, public ILegacyEdModeDrawHelperInterface, public ILegacyEdModeViewportInterface
 {
 	GENERATED_BODY()
 
@@ -84,7 +84,6 @@ public:
 	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
 	virtual bool PreConvertMouseMovement(FEditorViewportClient* InViewportClient) override;
 	virtual bool PostConvertMouseMovement(FEditorViewportClient* InViewportClient) override;
-	virtual void DrawBrackets(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
 
 	virtual bool ShouldDrawBrushWireframe(AActor* InActor) const override;
 	virtual void Enter() override;

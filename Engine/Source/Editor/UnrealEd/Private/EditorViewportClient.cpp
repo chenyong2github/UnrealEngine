@@ -3722,6 +3722,10 @@ void FEditorViewportClient::DrawCanvas(FViewport& InViewport, FSceneView& View, 
 	// Information string
 	Canvas.DrawShadowedString(4, 4, *ModeTools->InfoString, GEngine->GetSmallFont(), FColor::White);
 
+	// Render the marquee drag tool
+	RenderDragTool(&View, &Canvas);
+
+	// Draw any HUD from modes
 	ModeTools->DrawHUD(this, &InViewport, &View, &Canvas);
 }
 

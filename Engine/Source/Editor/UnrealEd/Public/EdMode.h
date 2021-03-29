@@ -232,11 +232,6 @@ public:
 	 */
 	virtual bool HandleDragDuplicate() { return false; }
 
-	/**
-	 * Called when the mode wants to draw brackets around selected objects
-	 */
-	virtual void DrawBrackets( FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas );
-
 	/** True if this mode uses a toolkit mode (eventually they all should) */
 	virtual bool UsesToolkits() const;
 

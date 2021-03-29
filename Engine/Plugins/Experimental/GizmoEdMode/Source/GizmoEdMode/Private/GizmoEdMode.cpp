@@ -9,6 +9,7 @@
 #include "BaseGizmos/TransformGizmo.h"
 #include "UnrealWidgetFwd.h"
 #include "Utils.h"
+#include "Stats/Stats2.h"
 
 #define LOCTEXT_NAMESPACE "FGizmoEdMode"
 
@@ -85,14 +86,10 @@ void UGizmoEdMode::Exit()
 	Super::Exit();
 }
 
-bool UGizmoEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
+void UGizmoEdMode::ModeTick(float DeltaTime)
 {
-	return ToolsContext->InputKey(ViewportClient, Viewport, Key, Event);
-}
+	Super::ModeTick(DeltaTime);
 
-void UGizmoEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
-{
-	Super::Tick(ViewportClient, DeltaTime);
 	if ( bNeedInitialGizmos )
 	{
 		RecreateGizmo();
