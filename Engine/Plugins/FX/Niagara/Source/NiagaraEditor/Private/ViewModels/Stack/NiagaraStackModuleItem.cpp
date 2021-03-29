@@ -1135,7 +1135,7 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 			Copy(OldClipboardContent);
 		}
 		FunctionCallNode->FunctionScript = ModuleScript;
-		FunctionCallNode->SelectedScriptVersion = ModuleScript ? ModuleScript->GetExposedVersion().VersionGuid : FGuid();
+		FunctionCallNode->SelectedScriptVersion = ModuleScript && ModuleScript->IsVersioningEnabled() ? ModuleScript->GetExposedVersion().VersionGuid : FGuid();
 		
 		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
 		RefreshChildren();

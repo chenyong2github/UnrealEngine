@@ -1190,7 +1190,7 @@ void FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(UEdGraphPin& O
 	FGraphNodeCreator<UNiagaraNodeFunctionCall> FunctionCallNodeCreator(*Graph);
 	UNiagaraNodeFunctionCall* FunctionCallNode = FunctionCallNodeCreator.CreateNode();
 	FunctionCallNode->FunctionScript = DynamicInput;
-	FunctionCallNode->SelectedScriptVersion = DynamicInput ? DynamicInput->GetExposedVersion().VersionGuid : FGuid();
+	FunctionCallNode->SelectedScriptVersion = DynamicInput && DynamicInput->IsVersioningEnabled() ? DynamicInput->GetExposedVersion().VersionGuid : FGuid();
 	FunctionCallNodeCreator.Finalize();
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
@@ -1454,7 +1454,7 @@ UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(UN
 	FGraphNodeCreator<UNiagaraNodeFunctionCall> ModuleNodeCreator(*Graph);
 	UNiagaraNodeFunctionCall* NewModuleNode = ModuleNodeCreator.CreateNode();
 	NewModuleNode->FunctionScript = ModuleScript;
-	NewModuleNode->SelectedScriptVersion = ModuleScript ? ModuleScript->GetExposedVersion().VersionGuid : FGuid();
+	NewModuleNode->SelectedScriptVersion = ModuleScript && ModuleScript->IsVersioningEnabled() ? ModuleScript->GetExposedVersion().VersionGuid : FGuid();
 	ModuleNodeCreator.Finalize();
 
 	if (NewModuleNode->FunctionScript == nullptr)

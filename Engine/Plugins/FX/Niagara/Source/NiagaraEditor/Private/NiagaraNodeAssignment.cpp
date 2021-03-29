@@ -245,7 +245,6 @@ void UNiagaraNodeAssignment::GenerateScript()
 	{
 		FunctionScript = NewObject<UNiagaraScript>(this, FName(*(TRANSLATOR_SET_VARIABLES_UNDERSCORE_STR + NodeGuid.ToString())), RF_Transactional);
 		FunctionScript->CheckVersionDataAvailable();
-		SelectedScriptVersion = FunctionScript->GetExposedVersion().VersionGuid;
 		FunctionScript->SetUsage(ENiagaraScriptUsage::Module);
 		GetScriptData()->Description = LOCTEXT("AssignmentNodeDesc", "Sets one or more variables in the stack.");
 		InitializeScript(FunctionScript);

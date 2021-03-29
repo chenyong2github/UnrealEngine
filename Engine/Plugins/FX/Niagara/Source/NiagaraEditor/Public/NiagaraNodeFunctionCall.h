@@ -81,7 +81,7 @@ public:
 	TArray<FNiagaraPropagatedVariable> PropagatedStaticSwitchParameters;
 
 	/** Can be used by the ui after a version change to display change notes */
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FGuid PreviousScriptVersion;
 
 	bool ScriptIsValid() const;
@@ -180,6 +180,10 @@ protected:
 	/** Adjusted every time that we compile this script. Lets us know that we might differ from any cached versions.*/
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	FGuid CachedChangeId;
+
+	/** If a script version we reference goes away we select a fallback version, but save the original version to generate warnings. */
+	UPROPERTY()
+	FGuid InvalidScriptVersionReference;
 
 	UPROPERTY()
 	FString FunctionDisplayName;

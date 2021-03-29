@@ -1934,7 +1934,7 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		}
 
 		InputValues.DynamicNode->FunctionScript = DynamicInputScript;
-		InputValues.DynamicNode->SelectedScriptVersion = DynamicInputScript ? DynamicInputScript->GetExposedVersion().VersionGuid : FGuid();
+		InputValues.DynamicNode->SelectedScriptVersion = DynamicInputScript && DynamicInputScript->IsVersioningEnabled() ? DynamicInputScript->GetExposedVersion().VersionGuid : FGuid();
 
 		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
 		RefreshChildren();
