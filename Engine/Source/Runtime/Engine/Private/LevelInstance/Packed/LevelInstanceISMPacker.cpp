@@ -26,9 +26,12 @@ void FLevelInstanceISMPacker::GetPackClusters(FPackedLevelInstanceBuilderContext
 
 	for(UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
 	{
-		FLevelInstancePackerClusterID ClusterID(MakeUnique<FLevelInstanceISMPackerCluster>(GetID(), StaticMeshComponent));
+		if (InContext.ShouldPackComponent(StaticMeshComponent))
+		{
+			FLevelInstancePackerClusterID ClusterID(MakeUnique<FLevelInstanceISMPackerCluster>(GetID(), StaticMeshComponent));
 
-		InContext.FindOrAddCluster(MoveTemp(ClusterID), StaticMeshComponent);
+			InContext.FindOrAddCluster(MoveTemp(ClusterID), StaticMeshComponent);
+		}
 	}
 }
 

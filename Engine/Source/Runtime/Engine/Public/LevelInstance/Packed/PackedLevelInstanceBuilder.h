@@ -88,6 +88,7 @@ public:
 	const FTransform& GetLevelTransform() const { return LevelTransform; }
 	const FVector GetPivotOffset() const { return PivotOffset; }
 
+	bool ShouldPackComponent(UActorComponent* InActorComponent) const;
 private:
 	const TMap<FLevelInstancePackerID, TUniquePtr<ILevelInstancePacker>>& Packers;
 	const TSet<UClass*>& ClassDiscards;

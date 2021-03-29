@@ -38,11 +38,14 @@
 
 void FPackedLevelInstanceBuilderContext::ClusterLevelActor(AActor* InActor)
 {
-	PerActorClusteredComponents.FindOrAdd(InActor);
-
-	for (const auto& Pair : Packers)
+	if (!ActorDiscards.Contains(InActor))
 	{
-		Pair.Value->GetPackClusters(*this, InActor);
+		PerActorClusteredComponents.FindOrAdd(InActor);
+
+		for (const auto& Pair : Packers)
+		{
+			Pair.Value->GetPackClusters(*this, InActor);
+		}
 	}
 }
 
@@ -147,8 +150,6 @@ TSharedPtr<FPackedLevelInstanceBuilder> FPackedLevelInstanceBuilder::CreateDefau
 		Builder->ClassDiscards.Add(ChaosDebugClass);
 	}
 
-	Builder->ClassDiscards.Add(AWorldSettings::StaticClass());
-	
 	// Root Components that are SceneComponents (not child class of)
 	Builder->ClassDiscards.Add(USceneComponent::StaticClass());
 	
@@ -184,7 +185,8 @@ bool FPackedLevelInstanceBuilder::PackActor(APackedLevelInstance* InPackedLevelI
 
 	ULevelStreaming* SourceLevelStreaming = ULevelStreaming::FindStreamingLevel(SourceLevel);
 	AWorldSettings* WorldSettings = SourceLevel->GetWorldSettings();
-	
+	Context.DiscardActor(WorldSettings);
+
 	Context.SetLevelTransform(SourceLevelStreaming->LevelTransform);
 	Context.SetPivotOffset(WorldSettings->LevelInstancePivotOffset);
 	
@@ -209,6 +211,11 @@ bool FPackedLevelInstanceBuilder::PackActor(APackedLevelInstance* InPackedLevelI
 			
 	Context.Report(LevelInstanceLog);
 	return true;
+}
+
+bool FPackedLevelInstanceBuilderContext::ShouldPackComponent(UActorComponent* ActorComponent) const
+{
+	return ActorComponent && !ActorComponent->IsVisualizationComponent();
 }
 
 void FPackedLevelInstanceBuilderContext::Report(FMessageLog& LevelInstanceLog) const
@@ -244,7 +251,7 @@ void FPackedLevelInstanceBuilderContext::Report(FMessageLog& LevelInstanceLog) c
 		uint32 WarningCount = 0;
 		for (UActorComponent* Component : NotClusteredComponents)
 		{
-			if (Component == nullptr)
+			if (!ShouldPackComponent(Component))
 			{
 				continue;
 			}
