@@ -57,6 +57,7 @@ void FBlueprintEditorCommands::RegisterCommands()
 	UI_COMMAND( DisableAllBreakpoints, "Disable All Breakpoints", "Disable all breakpoints", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( ClearAllBreakpoints, "Delete All Breakpoints", "Delete all breakpoints", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::F9) );
 	UI_COMMAND(	ClearAllWatches, "Delete All Watches", "Delete all watches", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( OpenBlueprintDebugger, "Blueprint Debugger", "Open the Blueprint Debugger tab.", EUserInterfaceActionType::Button, FInputChord() );
 
 	// New documents
 	UI_COMMAND( AddNewVariable, "Variable", "Adds a new variable to this blueprint.", EUserInterfaceActionType::Button, FInputChord() );

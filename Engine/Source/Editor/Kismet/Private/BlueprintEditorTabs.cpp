@@ -13,6 +13,7 @@ const FName FBlueprintEditorTabs::ConstructionScriptEditorID( TEXT( "Constructio
 const FName FBlueprintEditorTabs::SCSViewportID( TEXT( "SCSViewport" ) );
 const FName FBlueprintEditorTabs::MyBlueprintID( TEXT( "MyBlueprint" ) );
 const FName FBlueprintEditorTabs::ReplaceNodeReferencesID( TEXT( "ReplaceNodeReferences" ) );
+const FName FBlueprintEditorTabs::BlueprintDebuggerID( TEXT( "BlueprintDebugger" ) );
 
 const FName FBlueprintEditorTabs::GraphEditorID( TEXT( "GraphEditor" ) );
 const FName FBlueprintEditorTabs::TimelineEditorID( TEXT( "TimelineEditor" ) );

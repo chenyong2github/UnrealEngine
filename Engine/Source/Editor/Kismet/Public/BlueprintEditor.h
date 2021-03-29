@@ -779,6 +779,10 @@ protected:
 	bool HasAnyDisabledBreakpoints() const;
 	bool HasAnyWatches() const;
 
+	/** Spawns a new blueprint debugger tab */
+	void OpenBlueprintDebugger();
+	bool CanOpenBlueprintDebugger() const;
+
 	// Utility helper to get the currently hovered pin in the currently visible graph, or NULL if there isn't one
 	UEdGraphPin* GetCurrentlySelectedPin() const;
 

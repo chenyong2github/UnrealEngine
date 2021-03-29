@@ -165,6 +165,16 @@ void FKismet2Menu::FillViewMenu(UToolMenu* InMenu)
 void FKismet2Menu::FillDebugMenu(UToolMenu* InMenu)
 {
 	{
+		FToolMenuSection& Section = InMenu->AddSection("BlueprintDebugger", LOCTEXT("BlueprintDebugger_Heading", "Blueprint Debugger"));
+		Section.AddMenuEntry(
+			FBlueprintEditorCommands::Get().OpenBlueprintDebugger,
+			/* InLabelOverride = */ LOCTEXT("BpDebuggerTitle", "Blueprint Debugger"),
+			/* InTooltipOverride = */ LOCTEXT("BpDebuggerTooltip","Open the Blueprint Debugger."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "BlueprintDebugger.TabIcon")
+		);
+	}
+	
+	{
 		FToolMenuSection& Section = InMenu->AddSection("DebugBreakpoints", LOCTEXT("DebugMenu_BreakpointHeading", "Breakpoints"));
 		Section.AddMenuEntry( FBlueprintEditorCommands::Get().DisableAllBreakpoints );
 		Section.AddMenuEntry( FBlueprintEditorCommands::Get().EnableAllBreakpoints );

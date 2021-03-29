@@ -14,6 +14,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "BlueprintEditorTabs.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintDebugger"
 
@@ -64,14 +65,12 @@ private:
 	FBlueprintDebuggerImpl& operator=(FBlueprintDebuggerImpl&&);
 };
 
-const FName DebuggerAppName = FName(TEXT("DebuggerApp"));
-
 FBlueprintDebuggerImpl::FBlueprintDebuggerImpl()
 {
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
 
 	FBlueprintDebuggerCommands::Register();
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(DebuggerAppName, FOnSpawnTab::CreateRaw(this, &FBlueprintDebuggerImpl::CreateBluprintDebuggerTab))
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FBlueprintEditorTabs::BlueprintDebuggerID, FOnSpawnTab::CreateRaw(this, &FBlueprintDebuggerImpl::CreateBluprintDebuggerTab))
 		.SetDisplayName(NSLOCTEXT("BlueprintDebugger", "TabTitle", "Blueprint Debugger"))
 		.SetTooltipText(NSLOCTEXT("BlueprintDebugger", "TooltipText", "Open the Blueprint Debugger tab."))
 		.SetGroup(MenuStructure.GetDeveloperToolsDebugCategory())
@@ -82,14 +81,14 @@ FBlueprintDebuggerImpl::~FBlueprintDebuggerImpl()
 {
 	if (FSlateApplication::IsInitialized())
 	{
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(DebuggerAppName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FBlueprintEditorTabs::BlueprintDebuggerID);
 	}
 
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
 
 	if (DebuggingToolsTabManager.IsValid())
 	{
-		FGlobalTabmanager::Get()->UnregisterTabSpawner(DebuggerAppName);
+		FGlobalTabmanager::Get()->UnregisterTabSpawner(FBlueprintEditorTabs::BlueprintDebuggerID);
 		BlueprintDebuggerLayout = TSharedPtr<FTabManager::FLayout>();
 		DebuggingToolsTabManager = TSharedPtr<FTabManager>();
 	}

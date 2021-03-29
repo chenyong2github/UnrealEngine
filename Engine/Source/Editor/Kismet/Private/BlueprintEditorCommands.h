@@ -58,7 +58,8 @@ public:
 	TSharedPtr< FUICommandInfo > DisableAllBreakpoints;
 	TSharedPtr< FUICommandInfo > ClearAllBreakpoints;
 	TSharedPtr< FUICommandInfo > ClearAllWatches;
-
+	TSharedPtr< FUICommandInfo > OpenBlueprintDebugger;
+	
 	// New documents
 	TSharedPtr< FUICommandInfo > AddNewVariable;
 	TSharedPtr< FUICommandInfo > AddNewLocalVariable;
