@@ -11,7 +11,6 @@
 #include "Animation/BlendSpace.h"
 #include "AnimationEditorPreviewScene.h"
 #include "Animation/AnimData/AnimDataModel.h"
-#include "Animation/AnimData/AnimDataController.h"
 #include "Animation/AnimSequenceHelpers.h"
 
 #define LOCTEXT_NAMESPACE "AnimationScrubPanel"
@@ -590,8 +589,8 @@ void SAnimationScrubPanel::OnReZeroAnimSequence(int32 FrameIndex)
 					RawTrack.PosKeys[i] += ApplyTranslation;
 				}
 
-				UAnimDataController* Controller = AnimSequence->GetController();
-				Controller->SetBoneTrackKeys(AnimationTrack.Name, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
+				IAnimationDataController& Controller = AnimSequence->GetController();
+				Controller.SetBoneTrackKeys(AnimationTrack.Name, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
 
 				AnimSequence->MarkPackageDirty();
 			}

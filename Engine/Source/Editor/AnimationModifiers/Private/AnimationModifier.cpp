@@ -52,10 +52,10 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 		PreviouslyAppliedModifier->OnRevert(CurrentAnimSequence);
 	}
 
-	UAnimDataController* Controller = CurrentAnimSequence->GetController();
+	IAnimationDataController& Controller = CurrentAnimSequence->GetController();
 
 	{
-		UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ApplyModifierBracket", "Applying Animation Modifier"));
+		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ApplyModifierBracket", "Applying Animation Modifier"));
 		/** Reverting and applying, populates the log with possible warnings and or errors to notify the user about */
 		OnApply(CurrentAnimSequence);
 	}
@@ -136,10 +136,10 @@ void UAnimationModifier::RevertFromAnimationSequence(class UAnimSequence* InAnim
 
 		PreviouslyAppliedModifier->Modify();
 
-		UAnimDataController* Controller = CurrentAnimSequence->GetController();
+		IAnimationDataController& Controller = CurrentAnimSequence->GetController();
 
 		{
-			UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RevertModifierBracket", "Reverting Animation Modifier"));
+			IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RevertModifierBracket", "Reverting Animation Modifier"));
 			PreviouslyAppliedModifier->OnRevert(CurrentAnimSequence);
 		}
 

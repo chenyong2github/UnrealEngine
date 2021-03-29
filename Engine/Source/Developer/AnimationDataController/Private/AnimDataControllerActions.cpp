@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Animation/AnimData/AnimDataControllerActions.h"
-#include "Animation/AnimData/AnimDataController.h"
+#include "AnimDataControllerActions.h"
+#include "AnimDataController.h"
 
 #include "Animation/AnimData/AnimDataModel.h"
 #include "UObject/StrongObjectPtr.h"

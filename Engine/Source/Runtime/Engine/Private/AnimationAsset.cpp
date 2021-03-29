@@ -11,7 +11,6 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/PoseAsset.h"
 #include "Animation/AnimSequenceHelpers.h"
-#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "AnimationAsset"
 
@@ -409,7 +408,7 @@ bool UAnimationAsset::ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpace
 				// raw animation data itself.
 				if (UAnimSequence* Sequence = Cast<UAnimSequence>(AnimAsset))
 				{
-					Sequence->GetController()->OpenBracket(LOCTEXT("ReplaceSkeleton_Bracket", "Replacing USkeleton"));
+					Sequence->GetController().OpenBracket(LOCTEXT("ReplaceSkeleton_Bracket", "Replacing USkeleton"));
 				}
 
 				// these two are different functions for now
@@ -422,7 +421,7 @@ bool UAnimationAsset::ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpace
 			{
 				if (UAnimSequence* Seq = Cast<UAnimSequence>(AnimAsset))
 				{
-					Seq->GetController()->CloseBracket();
+					Seq->GetController().CloseBracket();
 				}
 			}
 		}
@@ -433,14 +432,14 @@ bool UAnimationAsset::ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpace
 			// raw animation data itself.
 			if (Seq)
 			{
-				Seq->GetController()->OpenBracket(LOCTEXT("ReplaceSkeleton_Bracket", "Replacing USkeleton"));
+				Seq->GetController().OpenBracket(LOCTEXT("ReplaceSkeleton_Bracket", "Replacing USkeleton"));
 			}
   
 			RemapTracksToNewSkeleton(NewSkeleton, bConvertSpaces);
 
 			if (Seq)
 			{
-				Seq->GetController()->CloseBracket();
+				Seq->GetController().CloseBracket();
 			}
 		}
 

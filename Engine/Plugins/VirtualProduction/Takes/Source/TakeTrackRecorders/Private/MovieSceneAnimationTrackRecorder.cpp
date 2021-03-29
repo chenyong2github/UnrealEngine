@@ -15,7 +15,6 @@
 #include "Engine/Engine.h"
 #include "LevelSequence.h"
 #include "UObject/UObjectBaseUtility.h"
-#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneAnimationTrackRecorder"
 
@@ -367,20 +366,20 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 
 								AnimSequence->DeleteNotifyTrackData();
 
-								UAnimDataController* Controller = AnimSequence->GetController();
+								IAnimationDataController& Controller = AnimSequence->GetController();
 								{
-									UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("LoadRecordedFile_Bracket", "Loading recorded animation file"));
+									IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("LoadRecordedFile_Bracket", "Loading recorded animation file"));
 
-									Controller->ResetModel();
+									Controller.ResetModel();
 
 									const float FloatDenominator = 1000.0f;
 									const float Numerator = FloatDenominator / Header.IntervalTime;
-									Controller->SetFrameRate(FFrameRate(Numerator, FloatDenominator));
+									Controller.SetFrameRate(FFrameRate(Numerator, FloatDenominator));
 
 									int32 MaxNumberOfKeys = 0;
 									for (int32 TrackIndex = 0; TrackIndex < Header.AnimationTrackNames.Num(); ++TrackIndex)
 									{
-										Controller->AddBoneTrack(Header.AnimationTrackNames[TrackIndex]);
+										Controller.AddBoneTrack(Header.AnimationTrackNames[TrackIndex]);
 
 										TArray<FVector> PosKeys;
 										TArray<FQuat> RotKeys;
@@ -399,11 +398,11 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 										MaxNumberOfKeys = FMath::Max(MaxNumberOfKeys, RotKeys.Num());
 										MaxNumberOfKeys = FMath::Max(MaxNumberOfKeys, ScaleKeys.Num());
 
-										Controller->SetBoneTrackKeys(Header.AnimationTrackNames[TrackIndex], PosKeys, RotKeys, ScaleKeys);
+										Controller.SetBoneTrackKeys(Header.AnimationTrackNames[TrackIndex], PosKeys, RotKeys, ScaleKeys);
 									}
 
-									Controller->SetPlayLength((MaxNumberOfKeys > 1) ? (MaxNumberOfKeys - 1) * Header.IntervalTime : MINIMUM_ANIMATION_LENGTH);
-									Controller->NotifyPopulated();
+									Controller.SetPlayLength((MaxNumberOfKeys > 1) ? (MaxNumberOfKeys - 1) * Header.IntervalTime : MINIMUM_ANIMATION_LENGTH);
+									Controller.NotifyPopulated();
 								}
 
 								AnimSequence->MarkPackageDirty();

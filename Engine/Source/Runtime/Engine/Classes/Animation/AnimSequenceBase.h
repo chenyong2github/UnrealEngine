@@ -14,6 +14,7 @@
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimData/AnimDataModelNotifyCollector.h"
+#include "Animation/AnimData/IAnimationDataController.h"
 
 #include "AnimSequenceBase.generated.h"
 
@@ -280,8 +281,7 @@ public:
 	UAnimDataModel* GetDataModel() const;
 
 	/** Returns the transient UAnimDataController set to operate on DataModel */
-	UAnimDataController* GetController();
-
+	IAnimationDataController& GetController();
 protected:
 	/** Populates the UAnimDataModel object according to any pre-existing data. (overrides expect to populate the model according to their data) */
 	virtual void PopulateModel();
@@ -310,7 +310,7 @@ protected:
 
 	/** UAnimDataController instance set to operate on DataModel */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, DuplicateTransient, Category = "Animation Model")
-	TObjectPtr<UAnimDataController> Controller;
+	TScriptInterface<IAnimationDataController> Controller;
 	
 	/** Helper object that keeps track of any controller brackets, and all unique notify types that are broadcasted during it */
 	UE::Anim::FAnimDataModelNotifyCollector NotifyCollector;

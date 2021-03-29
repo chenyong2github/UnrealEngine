@@ -2,26 +2,14 @@
 
 #pragma once
 
-
 #include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
-#include "Animation/AnimData/AnimDataModel.h"
-#include "Animation/AnimCurveTypes.h"
-#include "Algo/Transform.h"
+#include "UObject/Interface.h"
+#include "CurveIdentifier.h"
+#include "IAnimationDataController.generated.h"
 
-#if WITH_EDITOR
-#include "ChangeTransactor.h"
-#endif // WITH_EDITOR
+class UAssetUserData;
 
-#include "AnimDataController.generated.h"
-
-#if WITH_EDITOR
-
-#endif // WITH_EDITOR
-
-struct FAnimationCurveIdentifier;
-struct FAnimationAttributeIdentifier;
-static const int32 DefaultCurveFlags = EAnimAssetCurveFlags::AACF_Editable;
+class UAnimDataModel;
 
 namespace UE {
 namespace Anim {
@@ -35,54 +23,66 @@ namespace Anim {
  * payload containing information relevant to the mutation. These notifies should be relied upon to update any dependent views 
  * or generated (derived) data.
  */
-UCLASS(BlueprintType)
-class ENGINE_API UAnimDataController : public UObject
+UINTERFACE(BlueprintType, meta=(CannotImplementInterfaceInBlueprint))
+class ENGINE_API UAnimationDataController : public UInterface
 {
 	GENERATED_BODY()
+};
 
+class ENGINE_API IAnimationDataController
+{
 public:
-	UAnimDataController() 
-#if WITH_EDITOR
-	: BracketDepth(0) 
-#endif // WITH_EDITOR
-	{}
+	GENERATED_BODY()
 
 #if WITH_EDITOR
 	/** RAII helper to define a scoped-based bracket, opens and closes a controller bracket automatically */
-	struct FScopedBracket
+    struct FScopedBracket
 	{
-		FScopedBracket(UAnimDataController* InController, const FText& InDescription)
-			: Controller(InController)
+		FScopedBracket(IAnimationDataController* InController, const FText& InDescription)
+            : Controller(*InController)
 		{
-			Controller->OpenBracket(InDescription);
+			Controller.OpenBracket(InDescription);
 		}
 
+		FScopedBracket(IAnimationDataController& InController, const FText& InDescription)
+            : Controller(InController)
+		{
+			Controller.OpenBracket(InDescription);
+		}
+		
+		FScopedBracket(TScriptInterface<IAnimationDataController>& InController, const FText& InDescription)
+            : Controller(*InController)
+		{
+			Controller.OpenBracket(InDescription);
+		}
+		
 		~FScopedBracket()
 		{
-			Controller->CloseBracket();
+			Controller.CloseBracket();
 		}
-
-		UAnimDataController* Controller;
+	private:
+		IAnimationDataController& Controller;
 	};
+#endif // WITH_EDITOR
 
 	/**
 	* Sets the AnimDataModel instance this controller is supposed to be targeting
 	*
 	* @param	InModel		UAnimDataModel instance to target
 	*/
-	UFUNCTION(BlueprintCallable, Category=AnimationData)
-	void SetModel(UAnimDataModel* InModel);
+	UFUNCTION(BlueprintCallable, Category = AnimationData)
+	virtual void SetModel(UAnimDataModel* InModel) = 0;
 
 	/**
 	* @return		The AnimDataModel instance this controller is currently targeting
 	*/
-	UFUNCTION(BlueprintPure, Category = AnimationData)
-	UAnimDataModel* GetModel() { return Model; }
+	UFUNCTION(BlueprintCallable, Category = AnimationData)
+	virtual UAnimDataModel* GetModel() = 0;
 
 	/**
 	* @return		The AnimDataModel instance this controller is currently targeting
 	*/
-	const UAnimDataModel* const GetModel() const;
+	virtual const UAnimDataModel* const GetModel() const = 0;
 
 	/**
 	* Opens an interaction bracket, used for combining a set of controller actions. Broadcasts a EAnimDataModelNotifyType::BracketOpened notify,
@@ -92,7 +92,7 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	void OpenBracket(const FText& InTitle, bool bShouldTransact = true);
+	virtual void OpenBracket(const FText& InTitle, bool bShouldTransact = true) = 0;
 
 	/**
 	* Closes a previously opened interaction bracket, used for combining a set of controller actions. Broadcasts a EAnimDataModelNotifyType::BracketClosed notify.
@@ -101,7 +101,7 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	void CloseBracket(bool bShouldTransact = true);
+	virtual void CloseBracket(bool bShouldTransact = true) = 0;
 
 	/**
 	* Sets the total play-able length in seconds. Broadcasts a EAnimDataModelNotifyType::SequenceLengthChanged notify if successful.
@@ -111,7 +111,7 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	void SetPlayLength(float Length, bool bShouldTransact = true);
+	virtual void SetPlayLength(float Length, bool bShouldTransact = true) = 0;
 
 	/*** Sets the total play-able length in seconds. Broadcasts a EAnimDataModelNotifyType::SequenceLengthChanged notify if successful.
 	* T0 and T1 are expected to represent the window of time that was either added or removed. E.g. for insertion T0 indicates the time
@@ -123,7 +123,7 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	void ResizePlayLength(float NewLength, float T0, float T1, bool bShouldTransact = true);
+	virtual void ResizePlayLength(float NewLength, float T0, float T1, bool bShouldTransact = true) = 0;
 
 	/**
 	* Sets the total play-able length in seconds and resizes curves. Broadcasts EAnimDataModelNotifyType::SequenceLengthChanged
@@ -138,7 +138,7 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	void Resize(float Length, float T0, float T1, bool bShouldTransact = true);
+	virtual void Resize(float Length, float T0, float T1, bool bShouldTransact = true) = 0;
 
 	/**
 	* Sets the frame rate according to which the bone animation is expected to be sampled. Broadcasts a EAnimDataModelNotifyType::FrameRateChanged notify if successful.
@@ -148,7 +148,7 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	void SetFrameRate(FFrameRate FrameRate, bool bShouldTransact = true);
+	virtual void SetFrameRate(FFrameRate FrameRate, bool bShouldTransact = true) = 0;
 
 	/**
 	* Adds a new bone animation track for the provided name. Broadcasts a EAnimDataModelNotifyType::TrackAdded notify if successful.
@@ -159,7 +159,7 @@ public:
 	* @return	The index at which the bone track was added, INDEX_NONE if adding it failed
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	int32 AddBoneTrack(FName BoneName, bool bShouldTransact = true);
+	virtual int32 AddBoneTrack(FName BoneName, bool bShouldTransact = true) = 0;
 
 	/**
 	* Inserts a new bone animation track for the provided name, at the provided index. Broadcasts a EAnimDataModelNotifyType::TrackAdded notify if successful.
@@ -172,7 +172,7 @@ public:
 	* @return	The index at which the bone track was inserted, INDEX_NONE if the insertion failed
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	int32 InsertBoneTrack(FName BoneName, int32 DesiredIndex, bool bShouldTransact = true);
+	virtual int32 InsertBoneTrack(FName BoneName, int32 DesiredIndex, bool bShouldTransact = true) = 0;
 
 	/**
 	* Removes an existing bone animation track with the provided name. Broadcasts a EAnimDataModelNotifyType::TrackRemoved notify if successful.
@@ -183,7 +183,7 @@ public:
 	* @return	Whether or not the removal was successful
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	bool RemoveBoneTrack(FName BoneName, bool bShouldTransact = true);
+	virtual bool RemoveBoneTrack(FName BoneName, bool bShouldTransact = true) = 0;
 
 	/**
 	* Removes all existing Bone Animation tracks. Broadcasts a EAnimDataModelNotifyType::TrackRemoved for each removed track, wrapped within BracketOpened/BracketClosed notifies.
@@ -191,7 +191,7 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	void RemoveAllBoneTracks(bool bShouldTransact = true);
+	virtual void RemoveAllBoneTracks(bool bShouldTransact = true) = 0;
 
 	/**
 	* Removes an existing bone animation track with the provided name. Broadcasts a EAnimDataModelNotifyType::TrackChanged notify if successful.
@@ -206,7 +206,7 @@ public:
 	* @return	Whether or not the keys were successfully set
 	*/
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	bool SetBoneTrackKeys(FName BoneName, const TArray<FVector>& PositionalKeys, const TArray<FQuat>& RotationalKeys, const TArray<FVector>& ScalingKeys, bool bShouldTransact = true);
+	virtual bool SetBoneTrackKeys(FName BoneName, const TArray<FVector>& PositionalKeys, const TArray<FQuat>& RotationalKeys, const TArray<FVector>& ScalingKeys, bool bShouldTransact = true) = 0;
 	
 	/**
 	* Adds a new curve with the provided information. Broadcasts a EAnimDataModelNotifyType::CurveAdded notify if successful.
@@ -218,7 +218,7 @@ public:
 	* @return	Whether or not the curve was successfully added
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool AddCurve(const FAnimationCurveIdentifier& CurveId, int32 CurveFlags = 0x00000004, bool bShouldTransact = true);
+	virtual bool AddCurve(const FAnimationCurveIdentifier& CurveId, int32 CurveFlags = 0x00000004, bool bShouldTransact = true) = 0;
 
 	/**
 	* Duplicated the curve with the identifier. Broadcasts a EAnimDataModelNotifyType::CurveAdded notify if successful.
@@ -230,7 +230,7 @@ public:
 	* @return	Whether or not the curve was successfully duplicated
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool DuplicateCurve(const FAnimationCurveIdentifier& CopyCurveId, const FAnimationCurveIdentifier& NewCurveId, bool bShouldTransact = true);
+	virtual bool DuplicateCurve(const FAnimationCurveIdentifier& CopyCurveId, const FAnimationCurveIdentifier& NewCurveId, bool bShouldTransact = true) = 0;
 	
 
 	/**
@@ -242,7 +242,7 @@ public:
 	* @return	Whether or not the curve was successfully removed
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool RemoveCurve(const FAnimationCurveIdentifier& CurveId, bool bShouldTransact = true);
+	virtual bool RemoveCurve(const FAnimationCurveIdentifier& CurveId, bool bShouldTransact = true) = 0;
 
 	/**
 	* Removes all the curves of the provided type. Broadcasts a EAnimDataModelNotifyType::CurveRemoved for each removed curve, wrapped within BracketOpened/BracketClosed notifies.
@@ -251,7 +251,7 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	void RemoveAllCurvesOfType(ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact = true);
+	virtual void RemoveAllCurvesOfType(ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact = true) = 0;
 
 	/**
 	* Set an individual flag for the curve with provided identifier. Broadcasts a EAnimDataModelNotifyType::CurveFlagsChanged notify if successful.
@@ -264,7 +264,7 @@ public:
 	* @return	Whether or not the flag state was successfully set
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool SetCurveFlag(const FAnimationCurveIdentifier& CurveId, EAnimAssetCurveFlags Flag, bool bState = true, bool bShouldTransact = true);
+	virtual bool SetCurveFlag(const FAnimationCurveIdentifier& CurveId, EAnimAssetCurveFlags Flag, bool bState = true, bool bShouldTransact = true) = 0;
 
 	/**
 	* Replace the flags for the curve with provided identifier. Broadcasts a EAnimDataModelNotifyType::CurveFlagsChanged notify if successful.
@@ -276,7 +276,7 @@ public:
 	* @return	Whether or not the flag mask was successfully set
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool SetCurveFlags(const FAnimationCurveIdentifier& CurveId, int32 Flags, bool bShouldTransact = true);
+	virtual bool SetCurveFlags(const FAnimationCurveIdentifier& CurveId, int32 Flags, bool bShouldTransact = true) = 0;
 
 	/**
 	* Replace the keys for the transform curve with provided identifier. Broadcasts a EAnimDataModelNotifyType::CurveChanged notify if successful.
@@ -289,7 +289,7 @@ public:
 	* @return	Whether or not the transform curve keys were successfully set
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool SetTransformCurveKeys(const FAnimationCurveIdentifier& CurveId, const TArray<FTransform>& TransformValues, const TArray<float>& TimeKeys, bool bShouldTransact = true);
+	virtual bool SetTransformCurveKeys(const FAnimationCurveIdentifier& CurveId, const TArray<FTransform>& TransformValues, const TArray<float>& TimeKeys, bool bShouldTransact = true) = 0;
 		
 	/**
 	* Sets a single key for the transform curve with provided identifier. Broadcasts a EAnimDataModelNotifyType::CurveChanged notify if successful.
@@ -303,7 +303,7 @@ public:
 	* @return	Whether or not the transform curve key was successfully set
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool SetTransformCurveKey(const FAnimationCurveIdentifier& CurveId, float Time, const FTransform& Value, bool bShouldTransact = true);
+	virtual bool SetTransformCurveKey(const FAnimationCurveIdentifier& CurveId, float Time, const FTransform& Value, bool bShouldTransact = true) = 0;
 
 	/**
 	* Removes a single key for the transform curve with provided identifier. Broadcasts a EAnimDataModelNotifyType::CurveChanged notify if successful.
@@ -315,7 +315,7 @@ public:
 	* @return	Whether or not the transform curve key was successfully removed
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool RemoveTransformCurveKey(const FAnimationCurveIdentifier& CurveId, float Time, bool bShouldTransact = true);
+	virtual bool RemoveTransformCurveKey(const FAnimationCurveIdentifier& CurveId, float Time, bool bShouldTransact = true) = 0;
 
 	/**
 	* Renames the curve with provided identifier. Broadcasts a EAnimDataModelNotifyType::CurveRenamed notify if successful.
@@ -327,7 +327,7 @@ public:
 	* @return	Whether or not the curve was successfully renamed
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool RenameCurve(const FAnimationCurveIdentifier& CurveToRenameId, const FAnimationCurveIdentifier& NewCurveId, bool bShouldTransact = true);
+	virtual bool RenameCurve(const FAnimationCurveIdentifier& CurveToRenameId, const FAnimationCurveIdentifier& NewCurveId, bool bShouldTransact = true) = 0;
 
 	/**
 	* Changes the color of the curve with provided identifier. Broadcasts a EAnimDataModelNotifyType::CurveRenamed notify if successful.
@@ -340,7 +340,7 @@ public:
 	* @return	Whether or not the curve color was successfully changed
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool SetCurveColor(const FAnimationCurveIdentifier& CurveId, FLinearColor Color, bool bShouldTransact = true);
+	virtual bool SetCurveColor(const FAnimationCurveIdentifier& CurveId, FLinearColor Color, bool bShouldTransact = true) = 0;
 	
 	/**
 	* Scales the curve with provided identifier. Broadcasts a EAnimDataModelNotifyType::CurveScaled notify if successful.
@@ -353,7 +353,7 @@ public:
 	* @return	Whether or not scaling the curve was successful
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool ScaleCurve(const FAnimationCurveIdentifier& CurveId, float Origin, float Factor, bool bShouldTransact = true);
+	virtual bool ScaleCurve(const FAnimationCurveIdentifier& CurveId, float Origin, float Factor, bool bShouldTransact = true) = 0;
 
 	/**
 	* Sets a single key for the curve with provided identifier and name. Broadcasts a EAnimDataModelNotifyType::CurveChanged notify if successful.
@@ -366,7 +366,7 @@ public:
 	* @return	Whether or not the curve key was successfully set
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool SetCurveKey(const FAnimationCurveIdentifier& CurveId, const FRichCurveKey& Key, bool bShouldTransact = true);
+	virtual bool SetCurveKey(const FAnimationCurveIdentifier& CurveId, const FRichCurveKey& Key, bool bShouldTransact = true) = 0;
 	
 	/**
 	* Remove a single key from the curve with provided identifier and name. Broadcasts a EAnimDataModelNotifyType::CurveChanged notify if successful.
@@ -378,7 +378,7 @@ public:
 	* @return	Whether or not the curve key was successfully removed
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool RemoveCurveKey(const FAnimationCurveIdentifier& CurveId, float Time, bool bShouldTransact = true);
+	virtual bool RemoveCurveKey(const FAnimationCurveIdentifier& CurveId, float Time, bool bShouldTransact = true) = 0;
 
 	/**
 	* Replace the keys for the curve with provided identifier and name. Broadcasts a EAnimDataModelNotifyType::CurveChanged notify if successful.
@@ -387,11 +387,10 @@ public:
 	* @param	CurveKeys			Keys with which the existing keys are to be replaced
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*
-	* @return	Whether or not replacing curve keys was successful
+	* @return	Whether or not replacing curve keys was succesful
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool SetCurveKeys(const FAnimationCurveIdentifier& CurveId, const TArray<FRichCurveKey>& CurveKeys, bool bShouldTransact = true);
-
+	virtual bool SetCurveKeys(const FAnimationCurveIdentifier& CurveId, const TArray<FRichCurveKey>& CurveKeys, bool bShouldTransact = true) = 0;
 
 	/**
 	* Updates the display name values for any stored curve, with the names being retrieved from the provided skeleton. Broadcasts a EAnimDataModelNotifyType::CurveRenamed for each to-be-updated curve name, wrapped within BracketOpened/BracketClosed notifies.
@@ -401,7 +400,7 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	void UpdateCurveNamesFromSkeleton(const USkeleton* Skeleton, ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact = true);
+	virtual void UpdateCurveNamesFromSkeleton(const USkeleton* Skeleton, ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact = true) = 0;
 
 	/**
 	* Updates the curve names with the provided skeleton, if a display name is not found it will be added thus modifying the skeleton. Broadcasts a EAnimDataModelNotifyType::CurveRenamed for each curve name for which the UID was different or if it was added as a new smartname, wrapped within BracketOpened/BracketClosed notifies.
@@ -411,7 +410,7 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
-	void FindOrAddCurveNamesOnSkeleton(USkeleton* Skeleton, ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact = true);
+	virtual void FindOrAddCurveNamesOnSkeleton(USkeleton* Skeleton, ERawCurveTrackTypes SupportedCurveType, bool bShouldTransact = true) = 0;
 
 	/**
 	* Removes any bone track for which the name was not found in the provided skeleton. Broadcasts a EAnimDataModelNotifyType::TrackRemoved for each track which was not found in the skeleton, wrapped within BracketOpened/BracketClosed notifies.
@@ -419,7 +418,7 @@ public:
 	* @param	Skeleton			Skeleton to retrieve the display name values from
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
-	bool RemoveBoneTracksMissingFromSkeleton(const USkeleton* Skeleton, bool bShouldTransact = true);
+	virtual bool RemoveBoneTracksMissingFromSkeleton(const USkeleton* Skeleton, bool bShouldTransact = true) = 0;
 
 	/**
 	* Removes any bone attribute for which the name was not found in the provided skeleton. Broadcasts a EAnimDataModelNotifyType::AttributeRemoved for each attribute which was not found in the skeleton, wrapped within BracketOpened/BracketClosed notifies.
@@ -433,7 +432,7 @@ public:
 	/**
 	* Broadcast a EAnimDataModelNotifyType::Populated notify.
 	*/
-	void NotifyPopulated();	
+	virtual void NotifyPopulated() = 0;	
 
 	/**
 	* Resets all data stored in the model, broadcasts a EAnimDataModelNotifyType::Reset and wraps all actions within BracketOpened/BracketClosed notifies.
@@ -443,8 +442,8 @@ public:
 	*	- Frame rate to 30fps, broadcasts a EAnimDataModelNotifyType::FrameRateChanged
 	*
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
-	*/
-	void ResetModel(bool bShouldTransact = true);
+	*/	
+	virtual void ResetModel(bool bShouldTransact = true) = 0;
 
 	/**
 	* Adds a new attribute with the provided information. Broadcasts a EAnimDataModelNotifyType::AttributeAdded notify if successful.
@@ -584,61 +583,10 @@ public:
 	bool DuplicateAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, const FAnimationAttributeIdentifier& NewAttributeIdentifier, bool bShouldTransact = true);
 protected:
 	/** Functionality used by FOpenBracketAction and FCloseBracketAction to broadcast their equivalent notifies without actually opening a bracket. */
-	void NotifyBracketOpen();
-	void NotifyBracketClosed();
+	virtual void NotifyBracketOpen() = 0;
+	virtual void NotifyBracketClosed() = 0;
 
 private:
-	/** Internal functionality for setting Attribute curve key(s) */
-	bool SetAttributeKey_Internal(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, const void* KeyValue, const UScriptStruct* TypeStruct, bool bShouldTransact = true);
-	bool SetAttributeKeys_Internal(const FAnimationAttributeIdentifier& AttributeIdentifier, TArrayView<const float> Times, TArrayView<const void*> KeyValues, const UScriptStruct* TypeStruct, bool bShouldTransact = true);
-
-	/** Returns whether or not the supplied curve type is supported by the controller functionality */
-	const bool IsSupportedCurveType(ERawCurveTrackTypes CurveType) const;
-	/** Returns the string representation of the provided curve enum type value */
-	FString GetCurveTypeValueName(ERawCurveTrackTypes InType) const;
-	
-	/** Resizes the curve/attribute data stored on the model according to the provided new length and time at which to insert or remove time */
-	void ResizeCurves(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact = true);
-	void ResizeAttributes(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact = true);
-
-	/** Ensures that a valid model is currently targeted */
-	void ValidateModel() const;
-
-	/** Verifies whether or not the Model's outer object is (or is derived from) the specified UClass */
-	bool CheckOuterClass(UClass* InClass) const;
-
-	/** Helper functionality to output script-based warnings and errors */
-	void ReportWarning(const FText& InMessage) const;
-	void ReportError(const FText& InMessage) const;
-
-	template <typename FmtType, typename... Types>
-	void ReportWarningf(const FmtType& Fmt, Types... Args) const
-	{	
-		ReportWarning(FText::Format(Fmt, Args...));
-	}
-
-	template <typename FmtType, typename... Types>
-	void ReportErrorf(const FmtType& Fmt, Types... Args) const
-	{
-		ReportError(FText::Format(Fmt, Args...));
-	}
-#endif // WITH_EDITOR
-
-private: 
-#if WITH_EDITOR
-	/** Current depth of outstanding brackets, assumed to remain positive */
-	int32 BracketDepth;
-
-	/** Transactor used to store Change based undo/redo action in the engines transaction buffer */
-	UE::FChangeTransactor ChangeTransactor;	
-#endif // WITH_EDITOR
-
-#if WITH_EDITORONLY_DATA
-	/** Current UAnimDataModel instance targeted by this controller */
-	UPROPERTY(transient)
-	TObjectPtr<UAnimDataModel> Model;
-#endif // WITH_EDITORONLY_DATA
-
 	friend class FAnimDataControllerTestBase;
 	friend UE::Anim::FOpenBracketAction;
 	friend UE::Anim::FCloseBracketAction;

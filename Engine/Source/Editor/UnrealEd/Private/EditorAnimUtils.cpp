@@ -19,7 +19,6 @@
 #include "ContentBrowserModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
-#include "Animation/AnimData/AnimDataController.h"
 #include "AnimationBlueprintLibrary.h"
 
 #define LOCTEXT_NAMESPACE "EditorAnimUtils"
@@ -257,8 +256,8 @@ namespace EditorAnimUtils
 
 					// clear transform curves since those curves won't work in new skeleton
 					// since we're deleting curves, mark this rebake flag off
-					UAnimDataController* Controller = AnimSequenceToRetarget->GetController();
-					Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);
+					IAnimationDataController& Controller = AnimSequenceToRetarget->GetController();
+					Controller.RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);
 
 					// I can't copy transform curves yet because transform curves need retargeting. 
 					//EditorAnimUtils::CopyAnimCurves(OldSkeleton, NewSkeleton, AssetToRetarget, USkeleton::AnimTrackCurveMappingName, FRawCurveTracks::TransformType);

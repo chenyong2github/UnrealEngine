@@ -13,7 +13,10 @@
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimSequenceHelpers.h"
 #include "Animation/AnimData/AnimDataModel.h"
-#include "Animation/AnimData/AnimDataController.h"
+
+#if WITH_EDITOR
+#include "IAnimationDataControllerModule.h"
+#endif // WITH_EDITOR
 
 #include "UObject/UE5MainStreamObjectVersion.h"
 
@@ -45,7 +48,7 @@ void UAnimSequenceBase::SetSequenceLength(float NewLength)
 {
 #if WITH_EDITOR
 	// Editor time we update the source data
-	GetController()->SetPlayLength(NewLength);
+	Controller->SetPlayLength(NewLength);
 #else 
 	// In case this is called during runtime, update the sequence length directly. Current use-case is runtime created Montages.
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1126,25 +1129,20 @@ UAnimDataModel* UAnimSequenceBase::GetDataModel() const
 	return DataModel;
 }
 
-UAnimDataController* UAnimSequenceBase::GetController()
+IAnimationDataController& UAnimSequenceBase::GetController()
 {
 	ValidateModel();
 
-	if (HasAllFlags(EObjectFlags::RF_ClassDefaultObject))
+	if(Controller == nullptr)
 	{
-		return nullptr;
-	}
-
-	if (Controller == nullptr)
-	{
-		Controller = NewObject<UAnimDataController>(GetTransientPackage());		
-	}
-
-	if (Controller->GetModel() != DataModel)
-	{
+		IAnimationDataControllerModule& ControllerModule = FModuleManager::Get().LoadModuleChecked<IAnimationDataControllerModule>("AnimationDataController");
+		Controller = ControllerModule.GetController();
 		Controller->SetModel(DataModel);
 	}
-	return Controller;
+
+	ensure(Controller->GetModel() == DataModel);
+
+	return *Controller;
 }
 
 void UAnimSequenceBase::PopulateModel()
@@ -1158,12 +1156,12 @@ void UAnimSequenceBase::PopulateModel()
 	const FRawCurveTracks CurveData = RawCurveData;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		
-	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("UAnimSequenceBase::PopulateModel_Bracket", "Generating Animation Model Data for Animation Sequence Base"));
+	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("UAnimSequenceBase::PopulateModel_Bracket", "Generating Animation Model Data for Animation Sequence Base"));
 	Controller->SetPlayLength(PlayLength);
 	Controller->SetFrameRate(FrameRate);
 
 	USkeleton* TargetSkeleton = GetSkeleton();	
-	UE::Anim::CopyCurveDataToModel(CurveData, TargetSkeleton, Controller);	
+	UE::Anim::CopyCurveDataToModel(CurveData, TargetSkeleton,  *Controller);	
 }
 
 void UAnimSequenceBase::ValidateModel() const
@@ -1180,7 +1178,7 @@ void UAnimSequenceBase::CopyDataModel(const UAnimDataModel* ModelToDuplicate)
 	}
 
 	DataModel = DuplicateObject(ModelToDuplicate, this);
-	GetController()->SetModel(DataModel);
+	Controller->SetModel(DataModel);
 	DataModel->GetModifiedEvent().AddUObject(this, &UAnimSequenceBase::OnModelModified);
 }
 
@@ -1190,8 +1188,6 @@ void UAnimSequenceBase::CreateModel()
 	{
 		DataModel = CreateDefaultSubobject<UAnimDataModel>(FName(TEXT("AnimationDataModel")));
 	}
-
-	GetController()->SetModel(DataModel);
 	
 	DataModel->GetModifiedEvent().RemoveAll(this);
 	DataModel->GetModifiedEvent().AddUObject(this, &UAnimSequenceBase::OnModelModified);

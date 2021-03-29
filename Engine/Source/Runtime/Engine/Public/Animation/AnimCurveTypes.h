@@ -157,7 +157,7 @@ private:
 };
 
 USTRUCT(BlueprintType)
-struct FFloatCurve : public FAnimCurveBase
+struct ENGINE_API FFloatCurve : public FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -174,14 +174,14 @@ struct FFloatCurve : public FAnimCurveBase
 
 	// we don't want to have = operator. This only copies curves, but leaving naming and everything else intact. 
 	void CopyCurve(const FFloatCurve& SourceCurve);
-	ENGINE_API float Evaluate(float CurrentTime) const;
-	ENGINE_API void UpdateOrAddKey(float NewKey, float CurrentTime);
-	ENGINE_API void GetKeys(TArray<float>& OutTimes, TArray<float>& OutValues) const;
+	float Evaluate(float CurrentTime) const;
+	void UpdateOrAddKey(float NewKey, float CurrentTime);
+	void GetKeys(TArray<float>& OutTimes, TArray<float>& OutValues) const;
 	void Resize(float NewLength, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
 };
 
 USTRUCT()
-struct FVectorCurve : public FAnimCurveBase
+struct ENGINE_API FVectorCurve : public FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -206,16 +206,16 @@ struct FVectorCurve : public FAnimCurveBase
 
 	// we don't want to have = operator. This only copies curves, but leaving naming and everything else intact. 
 	void CopyCurve(const FVectorCurve& SourceCurve);
-	ENGINE_API FVector Evaluate(float CurrentTime, float BlendWeight) const;
-	ENGINE_API void UpdateOrAddKey(const FVector& NewKey, float CurrentTime);
-	ENGINE_API void GetKeys(TArray<float>& OutTimes, TArray<FVector>& OutValues) const;
+	FVector Evaluate(float CurrentTime, float BlendWeight) const;
+	void UpdateOrAddKey(const FVector& NewKey, float CurrentTime);
+	void GetKeys(TArray<float>& OutTimes, TArray<FVector>& OutValues) const;
 	bool DoesContainKey() const { return (FloatCurves[0].GetNumKeys() > 0 || FloatCurves[1].GetNumKeys() > 0 || FloatCurves[2].GetNumKeys() > 0);}
 	void Resize(float NewLength, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
 	int32 GetNumKeys() const;
 };
 
 USTRUCT(BlueprintType)
-struct FTransformCurve: public FAnimCurveBase
+struct ENGINE_API FTransformCurve: public FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -242,9 +242,9 @@ struct FTransformCurve: public FAnimCurveBase
 
 	// we don't want to have = operator. This only copies curves, but leaving naming and everything else intact. 
 	void CopyCurve(const FTransformCurve& SourceCurve);
-	ENGINE_API FTransform Evaluate(float CurrentTime, float BlendWeight) const;
-	ENGINE_API void UpdateOrAddKey(const FTransform& NewKey, float CurrentTime);
-	ENGINE_API void GetKeys(TArray<float>& OutTimes, TArray<FTransform>& OutValues) const;
+	FTransform Evaluate(float CurrentTime, float BlendWeight) const;
+	void UpdateOrAddKey(const FTransform& NewKey, float CurrentTime);
+	void GetKeys(TArray<float>& OutTimes, TArray<FTransform>& OutValues) const;
 	void Resize(float NewLength, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
 	
 	const FVectorCurve* GetVectorCurveByIndex(int32 Index) const;

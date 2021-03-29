@@ -431,14 +431,14 @@ namespace SkelDataConversionImpl
 
 
 		const UAnimDataModel* DataModel = Sequence->GetDataModel();
-		UAnimDataController* Controller = Sequence->GetController();
+		IAnimationDataController& Controller = Sequence->GetController();
 
 		FAnimationCurveIdentifier CurveId(NewName, ERawCurveTrackTypes::RCT_Float);
 		const FFloatCurve* Curve = DataModel->FindFloatCurve(CurveId);
 		if ( !Curve )
 		{
 			// If curve doesn't exist, add one
-			Controller->AddCurve(CurveId, AACF_DefaultCurve);
+			Controller.AddCurve(CurveId, AACF_DefaultCurve);
 			Curve = DataModel->FindFloatCurve(CurveId);
 		}
 		else
@@ -452,14 +452,14 @@ namespace SkelDataConversionImpl
 				);
 			}
 
-			Controller->SetCurveFlags(CurveId, Curve->GetCurveTypeFlags() | AACF_DefaultCurve);
+			Controller.SetCurveFlags(CurveId, Curve->GetCurveTypeFlags() | AACF_DefaultCurve);
 		}
 
-		Controller->UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float);
+		Controller.UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float);
 
 		if ( Curve )
 		{
-			Controller->SetCurveKeys(CurveId, SourceData.GetConstRefOfKeys());
+			Controller.SetCurveKeys(CurveId, SourceData.GetConstRefOfKeys());
 		}
 		else
 		{
@@ -1684,11 +1684,11 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 
 
 	const UAnimDataModel* DataModel = OutSkeletalAnimationAsset->GetDataModel();
-	UAnimDataController* Controller = OutSkeletalAnimationAsset->GetController();
+	IAnimationDataController& Controller = OutSkeletalAnimationAsset->GetController();
 
-	Controller->OpenBracket(LOCTEXT("ImportUSDAnimData_Bracket", "Importing USD Animation Data"));
+	Controller.OpenBracket(LOCTEXT("ImportUSDAnimData_Bracket", "Importing USD Animation Data"));
 
-	Controller->ResetModel();
+	Controller.ResetModel();
 
 	// Bake the animation for each frame.
 	// An alternative route would be to convert the time samples into TransformCurves, add them to UAnimSequence::RawCurveData,
@@ -1731,8 +1731,8 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 
 		for ( int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex )
 		{
-			Controller->AddBoneTrack(BoneInfo[BoneIndex].Name);
-			Controller->SetBoneTrackKeys(BoneInfo[BoneIndex].Name, JointTracks[BoneIndex].PosKeys, JointTracks[BoneIndex].RotKeys, JointTracks[BoneIndex].ScaleKeys);
+			Controller.AddBoneTrack(BoneInfo[BoneIndex].Name);
+			Controller.SetBoneTrackKeys(BoneInfo[BoneIndex].Name, JointTracks[BoneIndex].PosKeys, JointTracks[BoneIndex].RotKeys, JointTracks[BoneIndex].ScaleKeys);
 		}
 	}
 
@@ -1919,9 +1919,9 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 	OutSkeletalAnimationAsset->ImportFileFramerate = Stage.Get()->GetFramesPerSecond();
 	OutSkeletalAnimationAsset->ImportResampleFramerate = FramesPerSecond;
 
-	Controller->SetPlayLength(SequenceLengthSeconds);
-	Controller->SetFrameRate(FFrameRate(FramesPerSecond, 1));
-	Controller->CloseBracket();
+	Controller.SetPlayLength(SequenceLengthSeconds);
+	Controller.SetFrameRate(FFrameRate(FramesPerSecond, 1));
+	Controller.CloseBracket();
 
 	OutSkeletalAnimationAsset->PostEditChange();
 	OutSkeletalAnimationAsset->MarkPackageDirty();

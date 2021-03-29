@@ -17,7 +17,6 @@
 #include "Editor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
-#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "SAnimSequenceCurveEditor"
 
@@ -65,7 +64,7 @@ const FRichCurve& FRichCurveEditorModelNamed::GetReadOnlyRichCurve() const
 
 void FRichCurveEditorModelNamed::CurveHasChanged()
 {
-	UAnimDataController* Controller = AnimSequence->GetController();
+	IAnimationDataController& Controller = AnimSequence->GetController();
 
 	switch (Type)
 	{
@@ -77,7 +76,7 @@ void FRichCurveEditorModelNamed::CurveHasChanged()
 		case ERawCurveTrackTypes::RCT_Transform:
 		case ERawCurveTrackTypes::RCT_Float:
 		{
-			Controller->SetCurveKeys(CurveId, CachedCurve.GetConstRefOfKeys());
+			Controller.SetCurveKeys(CurveId, CachedCurve.GetConstRefOfKeys());
 			break;
 		}
 	}

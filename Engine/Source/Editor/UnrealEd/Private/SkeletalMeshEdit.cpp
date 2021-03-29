@@ -36,7 +36,6 @@
 #include "ComponentReregisterContext.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "FbxAnimUtils.h"
-#include "Animation/AnimData/AnimDataController.h"
 #include "Animation/AnimSequenceHelpers.h"
 #include "Animation/BuiltInAttributeTypes.h"
 
@@ -1312,25 +1311,25 @@ bool UnFbx::FFbxImporter::ImportCurveToAnimSequence(class UAnimSequence * Target
 
 
 		UAnimDataModel* DataModel = TargetSequence->GetDataModel();
-		UAnimDataController* Controller = TargetSequence->GetController();
+		IAnimationDataController& Controller = TargetSequence->GetController();
 
 		const FFloatCurve* TargetCurve = DataModel->FindFloatCurve(FloatCurveId);
 		if (TargetCurve == nullptr)
 		{
 			// Need to add the curve first
-			Controller->AddCurve(FloatCurveId, AACF_DefaultCurve | CurveFlags);
+			Controller.AddCurve(FloatCurveId, AACF_DefaultCurve | CurveFlags);
 			TargetCurve = DataModel->FindFloatCurve(FloatCurveId);
 		}
 		else
 		{
 			// Need to update any of the flags
-			Controller->SetCurveFlags(FloatCurveId, CurveFlags | TargetCurve->GetCurveTypeFlags());
+			Controller.SetCurveFlags(FloatCurveId, CurveFlags | TargetCurve->GetCurveTypeFlags());
 		}
 		
 		// Should be valid at this point
 		ensure(TargetCurve);
 
-		Controller->UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float);
+		Controller.UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float);
 
 		FRichCurve RichCurve;
 		if (ImportCurve(FbxCurve, RichCurve, AnimTimeSpan, ValueScale))
@@ -1341,7 +1340,7 @@ bool UnFbx::FFbxImporter::ImportCurveToAnimSequence(class UAnimSequence * Target
 			}
 
 			// Set actual keys on curve within the model
-			Controller->SetCurveKeys(FloatCurveId, RichCurve.GetConstRefOfKeys());
+			Controller.SetCurveKeys(FloatCurveId, RichCurve.GetConstRefOfKeys());
 
 			return true;
 		}
@@ -1493,14 +1492,14 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 	FbxTime SequenceLength = AnimTimeSpan.GetDuration();
 	float PreviousSequenceLength = DestSeq->GetPlayLength();
 
-	UAnimDataController* Controller = DestSeq->GetController();
-	Controller->OpenBracket(LOCTEXT("ImportAnimation_Bracket", "Importing Animation"));
+	IAnimationDataController& Controller = DestSeq->GetController();
+	Controller.OpenBracket(LOCTEXT("ImportAnimation_Bracket", "Importing Animation"));
 
 	//This destroy all previously imported animation raw data
-	Controller->RemoveAllBoneTracks();
+	Controller.RemoveAllBoneTracks();
 
 	// if you have one pose(thus 0.f duration), it still contains animation, so we'll need to consider that as MINIMUM_ANIMATION_LENGTH time length
-	Controller->SetPlayLength(FGenericPlatformMath::Max<float>(SequenceLength.GetSecondDouble(), MINIMUM_ANIMATION_LENGTH));
+	Controller.SetPlayLength(FGenericPlatformMath::Max<float>(SequenceLength.GetSecondDouble(), MINIMUM_ANIMATION_LENGTH));
 	if(PreviousSequenceLength > MINIMUM_ANIMATION_LENGTH && DestSeq->GetDataModel()->GetNumberOfFloatCurves() > 0)
 	{
 		// The sequence already existed when we began the import. We need to scale the key times for all curves to match the new 
@@ -1511,7 +1510,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 			for (const FFloatCurve& Curve : DestSeq->GetDataModel()->GetFloatCurves())
 			{
 				const FAnimationCurveIdentifier CurveId(Curve.Name, ERawCurveTrackTypes::RCT_Float);
-				Controller->ScaleCurve(CurveId, 0.f, ScaleFactor);
+				Controller.ScaleCurve(CurveId, 0.f, ScaleFactor);
 			}
 		}
 	}
@@ -1538,7 +1537,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 		for (auto CurveName : CurveSmartNamesToRemove)
 		{
 			const FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
-			Controller->RemoveCurve(CurveId);
+			Controller.RemoveCurve(CurveId);
 		}
 	}
 
@@ -1610,7 +1609,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 	}
 	else if (CurveAttributeKeyCount > 0)
 	{
-		Controller->SetFrameRate(FFrameRate(ResampleRate, 1));
+		Controller.SetFrameRate(FFrameRate(ResampleRate, 1));
 	}
 
 	// Import bone metadata to AnimSequence
@@ -1619,8 +1618,8 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 		ImportNodeCustomProperties(DestSeq, SkeletonNode, true);
 	}
 
-	Controller->NotifyPopulated();
-	Controller->CloseBracket();
+	Controller.NotifyPopulated();
+	Controller.CloseBracket();
 
 	// Reregister skeletal mesh components so they reflect the updated animation
 	for (TObjectIterator<USkeletalMeshComponent> Iter; Iter; ++Iter)
@@ -1847,8 +1846,8 @@ void UnFbx::FFbxImporter::ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImport
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 
 	UAnimDataModel* DataModel = DestSeq->GetDataModel();
-	UAnimDataController* Controller = DestSeq->GetController();	
-	Controller->SetFrameRate(FFrameRate(ResampleRate, 1));
+	IAnimationDataController& Controller = DestSeq->GetController();	
+	Controller.SetFrameRate(FFrameRate(ResampleRate, 1));
 
 	for (int32 SourceTrackIdx = 0; SourceTrackIdx < AnimImportSettings.FbxRawBoneNames.Num(); ++SourceTrackIdx)
 	{
@@ -1967,8 +1966,8 @@ void UnFbx::FFbxImporter::ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImport
 			if (bSuccess)
 			{
 				//add new track
-				Controller->AddBoneTrack(BoneName);
-				Controller->SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
+				Controller.AddBoneTrack(BoneName);
+				Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
 				const int32 TrackIndex = DestSeq->GetDataModel()->GetBoneTrackIndexByName(BoneName);
 
 				NewDebugData.SetTrackData(TrackIndex, BoneTreeIndex, BoneName);

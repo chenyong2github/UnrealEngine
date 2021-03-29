@@ -83,7 +83,7 @@ namespace Anim {
 	* @param	Skeleton			Skeleton to use for verifying and or add the curve names
 	* @param	Controller			Controller to use for adding curve data to a model
 	*/
-	ENGINE_API void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Skeleton, UAnimDataController* Controller);
+	ENGINE_API void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Skeleton, IAnimationDataController& Controller);
 
 	/**
 	* Copies over any individual curve from FRawCurveTracks to a UAnimDataModel instance targeted by the provided controller.

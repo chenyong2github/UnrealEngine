@@ -14,7 +14,6 @@
 #include "Animation/AnimMontage.h"
 #include "SAnimOutlinerItem.h"
 #include "Preferences/PersonaOptions.h"
-#include "Animation/AnimData/AnimDataController.h"
 #include "SListViewSelectorDropdownMenu.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_Notifies"
@@ -82,8 +81,8 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curves::GenerateContainerWidgetForOutline
 void FAnimTimelineTrack_Curves::DeleteAllCurves()
 {
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-	UAnimDataController* Controller = AnimSequenceBase->GetController();
-	Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Float);
+	IAnimationDataController& Controller = AnimSequenceBase->GetController();
+	Controller.RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Float);
 }
 
 TSharedRef<SWidget> FAnimTimelineTrack_Curves::BuildCurvesSubMenu()
@@ -413,12 +412,12 @@ void FAnimTimelineTrack_Curves::AddMetadataEntry(USkeleton::AnimCurveUID Uid)
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 	ensureAlways(AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, Uid, NewName));
 
-	UAnimDataController* Controller = AnimSequenceBase->GetController();
-	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddCurveMetadata", "Add Curve Metadata"));
+	IAnimationDataController& Controller = AnimSequenceBase->GetController();
+	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddCurveMetadata", "Add Curve Metadata"));
 
 	const FAnimationCurveIdentifier MetadataCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
-	Controller->AddCurve(MetadataCurveId, AACF_Metadata);
-	Controller->SetCurveKeys(MetadataCurveId, { FRichCurveKey(0.f, 1.f) });	
+	Controller.AddCurve(MetadataCurveId, AACF_Metadata);
+	Controller.SetCurveKeys(MetadataCurveId, { FRichCurveKey(0.f, 1.f) });	
 }
 
 void FAnimTimelineTrack_Curves::CreateNewMetadataEntryClicked()
@@ -507,9 +506,9 @@ void FAnimTimelineTrack_Curves::AddVariableCurve(USkeleton::AnimCurveUID CurveUi
 	FSmartName NewName;
 	ensureAlways(Skeleton->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveUid, NewName));
 
-	UAnimDataController* Controller = AnimSequenceBase->GetController();
+	IAnimationDataController& Controller = AnimSequenceBase->GetController();
 	const FAnimationCurveIdentifier FloatCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
-	Controller->AddCurve(FloatCurveId);
+	Controller.AddCurve(FloatCurveId);
 }
 
 void FAnimTimelineTrack_Curves::HandleShowCurvePoints()

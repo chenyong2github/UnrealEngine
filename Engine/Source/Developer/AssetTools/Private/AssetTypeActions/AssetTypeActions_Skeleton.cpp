@@ -905,18 +905,18 @@ void FAssetTypeActions_Skeleton::RetargetSkeleton(TArray<FAssetToRemapSkeleton>&
 			{
 				if ( UAnimationAsset* AnimAsset = Cast<UAnimationAsset>(Asset) )
 				{
-					TUniquePtr<UAnimDataController::FScopedBracket> ScopedBracket;
+					TUniquePtr<IAnimationDataController::FScopedBracket> ScopedBracket;
 
 					if (UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(AnimAsset))
 					{
-						UAnimDataController* Controller = SequenceBase->GetController();
-						ScopedBracket = MakeUnique<UAnimDataController::FScopedBracket>(Controller, LOCTEXT("FAssetTypeActions_Skeleton_Bracket", "Retargeting Skeleton"));
+						IAnimationDataController& Controller = SequenceBase->GetController();
+						ScopedBracket = MakeUnique<IAnimationDataController::FScopedBracket>(Controller, LOCTEXT("FAssetTypeActions_Skeleton_Bracket", "Retargeting Skeleton"));
 
-						Controller->FindOrAddCurveNamesOnSkeleton(NewSkeleton, ERawCurveTrackTypes::RCT_Float);
+						Controller.FindOrAddCurveNamesOnSkeleton(NewSkeleton, ERawCurveTrackTypes::RCT_Float);
 						
 						if (UAnimSequence* Sequence = Cast<UAnimSequence>(SequenceBase))
 						{
-							Controller->FindOrAddCurveNamesOnSkeleton(NewSkeleton, ERawCurveTrackTypes::RCT_Transform);
+							Controller.FindOrAddCurveNamesOnSkeleton(NewSkeleton, ERawCurveTrackTypes::RCT_Transform);
 						}
 					}
 					

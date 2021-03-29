@@ -30,7 +30,6 @@
 #include "Engine/DataAsset.h"
 #include "Animation/PreviewCollectionInterface.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "Animation/AnimData/AnimDataController.h"
 
 const FString FEditableSkeleton::SocketCopyPasteHeader = TEXT("SocketCopyPasteBuffer");
 
@@ -321,10 +320,10 @@ void FEditableSkeleton::RenameSmartname(const FName InContainerName, SmartName::
 
 					if (SequenceBase->GetDataModel()->FindFloatCurve(CurveId))
 					{
-						UAnimDataController* Controller = SequenceBase->GetController();
+						IAnimationDataController& Controller = SequenceBase->GetController();
 
 						FAnimationCurveIdentifier NewCurveId(FSmartName(InNewName, InNameUid), ERawCurveTrackTypes::RCT_Float);
-						Controller->RenameCurve(CurveId, NewCurveId);
+						Controller.RenameCurve(CurveId, NewCurveId);
 						if (UAnimSequence* Seq = Cast<UAnimSequence>(SequenceBase))
 						{
 							SequencesToRecompress.Add(Seq);
@@ -481,15 +480,15 @@ void FEditableSkeleton::RemoveSmartnamesAndFixupAnimations(const FName& InContai
 					USkeleton* MySkeleton = Sequence->GetSkeleton();
 					Sequence->Modify(true);
 
-					UAnimDataController* Controller = Sequence->GetController();
-					UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("DeleteCurvesNotOnSkeletonBracket", "Deleting curves that no longer exist on Skeleton"));
+					IAnimationDataController& Controller = Sequence->GetController();
+					IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("DeleteCurvesNotOnSkeletonBracket", "Deleting curves that no longer exist on Skeleton"));
 					for (FName Name : InNames)
 					{
 						FSmartName CurveToDelete;
 						if (MySkeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, Name, CurveToDelete))
 						{
 							const FAnimationCurveIdentifier CurveId(CurveToDelete, ERawCurveTrackTypes::RCT_Float);
-							Controller->RemoveCurve(CurveId);
+							Controller.RemoveCurve(CurveId);
 						}
 					}
 				}

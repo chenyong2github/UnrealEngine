@@ -15,7 +15,7 @@ namespace UE {
 	The operations are targeted a specific UObject, which is used as the 'transactional' object. The transactions themselves 
 	are initiated using the ITransactor API using GEngine as the instance.
 */
-struct ENGINE_API FChangeTransactor
+struct FChangeTransactor
 {
 	FChangeTransactor() : TransactionObject(nullptr), PendingTransactionIndex(INDEX_NONE), TransactedChanges(0) {}
 	FChangeTransactor(UObject* InTransactionObject) : TransactionObject(InTransactionObject), PendingTransactionIndex(INDEX_NONE), TransactedChanges(0) {}

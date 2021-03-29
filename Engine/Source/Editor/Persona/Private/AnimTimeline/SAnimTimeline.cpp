@@ -33,7 +33,6 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "SAnimTimelineTransportControls.h"
 #include "Animation/AnimSequence.h"
-#include "Animation/AnimData/AnimDataController.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Runtime/Engine/Classes/Animation/AnimSequenceHelpers.h"
 
@@ -600,8 +599,8 @@ void SAnimTimeline::OnReZeroAnimSequence(int32 FrameIndex)
 					RawTrack.PosKeys[i] += ApplyTranslation;
 				}
 
-				UAnimDataController* Controller = AnimSequence->GetController();
-				Controller->SetBoneTrackKeys(AnimationTrack.Name, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
+				IAnimationDataController& Controller = AnimSequence->GetController();
+				Controller.SetBoneTrackKeys(AnimationTrack.Name, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
 
 				AnimSequence->MarkPackageDirty();
 			}

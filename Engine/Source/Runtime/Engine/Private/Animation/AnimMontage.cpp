@@ -19,7 +19,6 @@
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Engine/Engine.h"
 #include "Animation/AnimTrace.h"
-#include "Animation/AnimData/AnimDataController.h"
 
 DEFINE_LOG_CATEGORY(LogAnimMontage);
 

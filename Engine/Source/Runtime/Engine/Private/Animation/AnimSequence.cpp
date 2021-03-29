@@ -57,7 +57,6 @@
 #include "HAL/FileManager.h"
 
 #if WITH_EDITOR
-#include "Animation/AnimData/AnimDataController.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/BuiltInAttributeTypes.h"
 #endif // WITH_EDITOR
@@ -1880,7 +1879,7 @@ bool UAnimSequence::InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame,
 	const int32 NumFramesToInsert = EndFrame-StartFrame;
 	if ((CopyFrame>=0 && CopyFrame< DataModel->GetNumberOfKeys()) && (StartFrame >= 0 && StartFrame <= DataModel->GetNumberOfKeys()) && NumFramesToInsert > 0)
 	{
-		UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("InsertFramesToRawAnimData", "Inserting Frames into Animation Track Data"));
+		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("InsertFramesToRawAnimData", "Inserting Frames into Animation Track Data"));
 		UE::Anim::AnimationData::DuplicateKeys(this, StartFrame, NumFramesToInsert, CopyFrame);
 
 		UE_LOG(LogAnimation, Log, TEXT("\tPlay Length: %f, Number of Keys: %d"), GetPlayLength(), DataModel->GetNumberOfKeys());
@@ -2859,8 +2858,7 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 
 	ValidateModel();
 
-	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemapTrackToNewSkeleton_Bracket", "Remapping Bone Animation tracks to new Skeleton"));
-	
+	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemapTrackToNewSkeleton_Bracket", "Remapping Bone Animation tracks to new Skeleton"));
 	Controller->UpdateAttributesFromSkeleton(NewSkeleton);
 
 	// @Todo : currently additive will work fine since we don't bake anything except when we extract
@@ -3335,7 +3333,7 @@ void UAnimSequence::RemoveNaNTracks()
 		}
 	}
 
-	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveNaNTracks_Bracket", "Removing track(s) containing NaN key data"));	
+	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveNaNTracks_Bracket", "Removing track(s) containing NaN key data"));	
 	for (const FName& TrackName : TracksToRemove)
 	{
 		Controller->RemoveBoneTrack(TrackName);
@@ -3352,7 +3350,7 @@ void UAnimSequence::RemoveAllTracks()
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	ValidateModel();
-	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveAllTracks_Bracket", "Removing all Bone Animation and Transform Curve Tracks"));
+	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveAllTracks_Bracket", "Removing all Bone Animation and Transform Curve Tracks"));
 	Controller->RemoveAllBoneTracks();
 
 	// clear all transform tracks
@@ -3478,7 +3476,7 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bIn
 
 	FFrameRate NewFrameRate = FFrameRate((NewLength / NewNumFrames), 1);
 
-	GetController()->Resize(NewLength, T0, T1);
+	Controller->Resize(NewLength, T0, T1);
 
 	ensure(DataModel->GetNumberOfKeys() == NewNumFrames);
 }
@@ -3885,7 +3883,7 @@ bool UAnimSequence::ConvertRiggingDataToAnimationData(FAnimSequenceTrackContaine
 	{
 		ValidateModel();
 
-		UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ConvertRiggingDataToAnimationData_Bracket", "Converting Rigging Data to Animation Data"));
+		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ConvertRiggingDataToAnimationData_Bracket", "Converting Rigging Data to Animation Data"));
 
 		TArray< TArray<FTransform> > AnimationDataInComponentSpace;
 		int32 NumBones = GetSpaceBasedAnimationData(AnimationDataInComponentSpace, &RiggingAnimationData);
@@ -4128,7 +4126,7 @@ void UAnimSequence::AddKeyToSequence(float Time, const FName& BoneName, const FT
 
 	ValidateModel();
 
-	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddKeyToSequence_Bracket", "Adding key to sequence"));
+	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddKeyToSequence_Bracket", "Adding key to sequence"));
 	FAnimationCurveIdentifier TransformCurveId(NewCurveName, ERawCurveTrackTypes::RCT_Transform);
 	Controller->AddCurve(TransformCurveId, AACF_DriveTrack | AACF_Editable);
 
@@ -4166,7 +4164,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMesh* Mesh)
 		ValidateModel();
 		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
 
-		UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CreateAnimationSkeletalMesh_Bracket", "Creating Animation Sequence based up Skeletal Mesh"));
+		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CreateAnimationSkeletalMesh_Bracket", "Creating Animation Sequence based up Skeletal Mesh"));
 		ResetAnimation();
 
 		Controller->SetPlayLength(MINIMUM_ANIMATION_LENGTH);
@@ -4203,7 +4201,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMeshComponent* MeshComponent)
 		ValidateModel();
 		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
 
-		UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CreateAnimationSkeletalMeshComponent_Bracket", "Creating Animation Sequence based up Skeletal Mesh Component"));
+		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CreateAnimationSkeletalMeshComponent_Bracket", "Creating Animation Sequence based up Skeletal Mesh Component"));
 		ResetAnimation();
 
 		Controller->SetPlayLength(MINIMUM_ANIMATION_LENGTH);
@@ -5492,7 +5490,7 @@ void UAnimSequence::PopulateModel()
 	Controller->SetFrameRate(FrameRate);
 
 	USkeleton* TargetSkeleton = GetSkeleton();
-	UE::Anim::CopyCurveDataToModel(CurveData, TargetSkeleton, Controller);
+	UE::Anim::CopyCurveDataToModel(CurveData, TargetSkeleton, *Controller);
 	
 	const int32 NumTracks = SequenceTracks.Num();
 	for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)

@@ -20,7 +20,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "AnimModel_AnimSequenceBase.h"
 #include "SAnimOutlinerItem.h"
-#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_FloatCurve"
 
@@ -156,10 +155,10 @@ void FAnimTimelineTrack_FloatCurve::ConvertCurveToMetaData()
 	IAnimationEditor::FCurveEditInfo EditInfo(CurveName, ERawCurveTrackTypes::RCT_Float, 0);
 	StaticCastSharedRef<FAnimModel_AnimSequenceBase>(GetModel())->OnStopEditingCurves.ExecuteIfBound(TArray<IAnimationEditor::FCurveEditInfo>({ EditInfo }));
 
-	UAnimDataController* Controller = AnimSequenceBase->GetController();
-	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ConvertCurveToMetaData_Bracket", "Converting curve to metadata"));
-	Controller->SetCurveFlag(CurveId, AACF_Metadata, true);
-	Controller->SetCurveKeys(CurveId, { FRichCurveKey(0.f, 1.f) });	
+	IAnimationDataController& Controller = AnimSequenceBase->GetController();
+	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ConvertCurveToMetaData_Bracket", "Converting curve to metadata"));
+	Controller.SetCurveFlag(CurveId, AACF_Metadata, true);
+	Controller.SetCurveKeys(CurveId, { FRichCurveKey(0.f, 1.f) });	
 
 	ZoomToFit();
 }
@@ -168,9 +167,9 @@ void FAnimTimelineTrack_FloatCurve::ConvertMetaDataToCurve()
 {
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 
-	UAnimDataController* Controller = AnimSequenceBase->GetController();
-	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CurvePanel_ConvertMetaDataToCurve", "Convert metadata to curve"));
-	Controller->SetCurveFlag(CurveId, AACF_Metadata, false);	
+	IAnimationDataController& Controller = AnimSequenceBase->GetController();
+	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CurvePanel_ConvertMetaDataToCurve", "Convert metadata to curve"));
+	Controller.SetCurveFlag(CurveId, AACF_Metadata, false);	
 }
 
 void FAnimTimelineTrack_FloatCurve::RemoveCurve()
@@ -188,8 +187,8 @@ void FAnimTimelineTrack_FloatCurve::RemoveCurve()
 
 			AnimSequenceBase->Modify(true);
 
-			UAnimDataController* Controller = AnimSequenceBase->GetController();
-			Controller->RemoveCurve(CurveId);
+			IAnimationDataController& Controller = AnimSequenceBase->GetController();
+			Controller.RemoveCurve(CurveId);
 
 			AnimSequenceBase->PostEditChange();
 		}
@@ -258,12 +257,12 @@ void FAnimTimelineTrack_FloatCurve::OnCommitCurveName(const FText& InText, EText
 				}
 			}
 
-			UAnimDataController* Controller = AnimSequenceBase->GetController();
-			UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CurveEditor_RenameCurve", "Renaming Curve"));
+			IAnimationDataController& Controller = AnimSequenceBase->GetController();
+			IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CurveEditor_RenameCurve", "Renaming Curve"));
           
 			FAnimationCurveIdentifier NewCurveId(NewSmartName, ERawCurveTrackTypes::RCT_Float);
-			Controller->RenameCurve(CurveId, NewCurveId);
-			Controller->RemoveBoneTracksMissingFromSkeleton(AnimSequenceBase->GetSkeleton());           
+			Controller.RenameCurve(CurveId, NewCurveId);
+			Controller.RemoveBoneTracksMissingFromSkeleton(AnimSequenceBase->GetSkeleton());           
 		}
 	}
 }
@@ -320,7 +319,7 @@ void FAnimTimelineTrack_FloatCurve::AddCurveTrackButton(TSharedPtr<SHorizontalBo
 	auto SetValue = [this](FLinearColor InNewColor)
 	{
 		UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-		AnimSequenceBase->GetController()->SetCurveColor(CurveId, InNewColor);
+		AnimSequenceBase->GetController().SetCurveColor(CurveId, InNewColor);
 
 		// Set display curves too
 		for(const TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveEditor->GetCurves())
@@ -340,12 +339,12 @@ void FAnimTimelineTrack_FloatCurve::AddCurveTrackButton(TSharedPtr<SHorizontalBo
 			.OnInteractivePickBegin_Lambda([this]()
 			{
 				UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-				AnimSequenceBase->GetController()->OpenBracket(LOCTEXT("EditCurveColor_Bracket", "Editing Curve Color"));				
+				AnimSequenceBase->GetController().OpenBracket(LOCTEXT("EditCurveColor_Bracket", "Editing Curve Color"));				
 			})
 			.OnInteractivePickEnd_Lambda([this]()
 			{
 				UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-				AnimSequenceBase->GetController()->CloseBracket();
+				AnimSequenceBase->GetController().CloseBracket();
 			});
 	};
 

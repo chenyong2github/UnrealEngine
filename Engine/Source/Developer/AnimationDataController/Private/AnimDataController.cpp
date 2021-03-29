@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Animation/AnimData/AnimDataController.h"
-#include "Animation/AnimData/AnimDataControllerActions.h"
+#include "AnimDataController.h"
+#include "AnimDataControllerActions.h"
 
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimData/CurveIdentifier.h"
@@ -58,10 +58,10 @@ namespace Anim {
 	}
 
 #define CONDITIONAL_BRACKET(Text) \
-	TUniquePtr<UAnimDataController::FScopedBracket> Transaction; \
+	TUniquePtr<IAnimationDataController::FScopedBracket> Transaction; \
 	if (UE::Anim::CanTransactChanges() && bShouldTransact) \
 	{ \
-		Transaction = MakeUnique<UAnimDataController::FScopedBracket>(this, Text); \
+		Transaction = MakeUnique<IAnimationDataController::FScopedBracket>(this, Text); \
 	}
 
 #define CONDITIONAL_ACTION(ActionClass, ...) \
@@ -80,11 +80,6 @@ void UAnimDataController::SetModel(UAnimDataModel* InModel)
 	Model = InModel;
 	
 	ChangeTransactor.SetTransactionObject(InModel);
-}
-
-const UAnimDataModel* const UAnimDataController::GetModel() const
-{
-	return Model;
 }
 
 void UAnimDataController::OpenBracket(const FText& InTitle, bool bShouldTransact /*= true*/)

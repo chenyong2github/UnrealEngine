@@ -230,6 +230,9 @@ public class Engine : ModuleRules
 			PrivateIncludePathModuleNames.Add("MeshUtilitiesCommon");
 
 			DynamicallyLoadedModuleNames.Add("MeshUtilities");
+			
+			PublicIncludePathModuleNames.Add("AnimationDataController");
+			DynamicallyLoadedModuleNames.Add("AnimationDataController");
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {

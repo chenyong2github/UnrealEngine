@@ -6,8 +6,7 @@
 
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimationPoseData.h"
-#include "Animation/AttributesRuntime.h"
-#include "Animation/AnimData/AnimDataController.h"
+#include "Animation/CustomAttributesRuntime.h"
 
 UAnimComposite::UAnimComposite(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

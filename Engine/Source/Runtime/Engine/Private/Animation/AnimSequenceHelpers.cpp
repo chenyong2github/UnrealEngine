@@ -308,7 +308,7 @@ void GetBoneTransformFromModel(const UAnimDataModel* Model, FTransform& OutTrans
 	}
 }
 
-void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Skeleton, UAnimDataController* Controller)
+void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Skeleton, IAnimationDataController& Controller)
 {
 	// Populate float curve data
 	for (const FFloatCurve& FloatCurve : CurveData.FloatCurves)
@@ -316,8 +316,8 @@ void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Ske
 		const FAnimationCurveIdentifier CurveId = UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, FloatCurve.Name.DisplayName, ERawCurveTrackTypes::RCT_Float);
 		if (CurveId.IsValid())
 		{
-			Controller->AddCurve(CurveId, FloatCurve.GetCurveTypeFlags());
-			Controller->SetCurveKeys(CurveId, FloatCurve.FloatCurve.GetConstRefOfKeys());
+			Controller.AddCurve(CurveId, FloatCurve.GetCurveTypeFlags());
+			Controller.SetCurveKeys(CurveId, FloatCurve.FloatCurve.GetConstRefOfKeys());
 		}
 	}
 
@@ -327,7 +327,7 @@ void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Ske
 		const FAnimationCurveIdentifier CurveId = UAnimationCurveIdentifierExtensions::FindCurveIdentifier(Skeleton, TransformCurve.Name.DisplayName, ERawCurveTrackTypes::RCT_Transform);
 		if (CurveId.IsValid())
 		{
-			Controller->AddCurve(CurveId, TransformCurve.GetCurveTypeFlags());
+			Controller.AddCurve(CurveId, TransformCurve.GetCurveTypeFlags());
 
 			// Set each individual channel rich curve keys, to account for any custom tangents etc.
 			for (int32 SubCurveIndex = 0; SubCurveIndex < 3; ++SubCurveIndex)
@@ -339,7 +339,7 @@ void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Ske
 					const EVectorCurveChannel Axis = (EVectorCurveChannel)ChannelIndex;
 					FAnimationCurveIdentifier TargetCurveIdentifier = CurveId;
 					UAnimationCurveIdentifierExtensions::GetTransformChildCurveIdentifier(TargetCurveIdentifier, Channel, Axis);
-					Controller->SetCurveKeys(TargetCurveIdentifier, VectorCurve->FloatCurves[ChannelIndex].GetConstRefOfKeys());
+					Controller.SetCurveKeys(TargetCurveIdentifier, VectorCurve->FloatCurves[ChannelIndex].GetConstRefOfKeys());
 				}
 			}
 		}
@@ -707,7 +707,7 @@ void Compression::SanitizeRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack)
 bool AnimationData::AddLoopingInterpolation(UAnimSequence* InSequence)
 {
 	const UAnimDataModel* DataModel = InSequence->GetDataModel();
-	UAnimDataController* Controller = InSequence->GetController();
+	IAnimationDataController& Controller = InSequence->GetController();
 
 	const int32 NumTracks = DataModel->GetNumBoneTracks();
 	const int32 NumKeys = DataModel->GetNumberOfKeys();
@@ -725,7 +725,7 @@ bool AnimationData::AddLoopingInterpolation(UAnimSequence* InSequence)
 			}
 		};
 		
-		UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddLoopingInterpolation_Bracket", "Adding looping interpolation"));
+		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddLoopingInterpolation_Bracket", "Adding looping interpolation"));
 
 		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
 		for (const FBoneAnimationTrack& AnimationTrack : BoneAnimationTracks)
@@ -739,11 +739,11 @@ bool AnimationData::AddLoopingInterpolation(UAnimSequence* InSequence)
 			auto ScaleKeys = AnimationTrack.InternalTrackData.ScaleKeys;
 			LoopKeyData(ScaleKeys);
 
-			Controller->SetBoneTrackKeys(AnimationTrack.Name, PositionalKeys, RotationalKeys, ScaleKeys);
+			Controller.SetBoneTrackKeys(AnimationTrack.Name, PositionalKeys, RotationalKeys, ScaleKeys);
 		}
 
 		const float Interval = DataModel->GetFrameRate().AsInterval();
-		Controller->SetPlayLength(Interval + DataModel->GetPlayLength());
+		Controller.SetPlayLength(Interval + DataModel->GetPlayLength());
 
 		return true;
 	}
@@ -754,7 +754,7 @@ bool AnimationData::AddLoopingInterpolation(UAnimSequence* InSequence)
 bool AnimationData::Trim(UAnimSequence* InSequence, float TrimStart, float TrimEnd)
 {
 	const UAnimDataModel* DataModel = InSequence->GetDataModel();
-	UAnimDataController* Controller = InSequence->GetController();
+	IAnimationDataController& Controller = InSequence->GetController();
 
 	const int32 NumTracks = DataModel->GetNumBoneTracks();
 	const int32 NumKeys = DataModel->GetNumberOfKeys();
@@ -778,7 +778,7 @@ bool AnimationData::Trim(UAnimSequence* InSequence, float TrimStart, float TrimE
 		const int32 StartTrimKeyIndex = StartFrameTrim.Value + 1;
 		const int32 NumTrimmedFrames = EndFrameTrim.Value - StartFrameTrim.Value;
 		
-		UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("TrimRawAnimation_Bracket", "Trimming Animation Track Data"));
+		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("TrimRawAnimation_Bracket", "Trimming Animation Track Data"));
 		RemoveKeys(InSequence, StartTrimKeyIndex, NumTrimmedFrames);
 		
 		return true;
@@ -790,7 +790,7 @@ bool AnimationData::Trim(UAnimSequence* InSequence, float TrimStart, float TrimE
 void AnimationData::DuplicateKeys(UAnimSequence* InSequence, int32 StartKeyIndex, int32 NumDuplicates, int32 SourceKeyIndex /*= INDEX_NONE */)
 {
 	const UAnimDataModel* Model = InSequence->GetDataModel();
-	UAnimDataController* Controller = InSequence->GetController();
+	IAnimationDataController& Controller = InSequence->GetController();
 
 	const int32 NumberOfKeys = Model->GetNumberOfKeys();
 	const FFrameRate& FrameRate = Model->GetFrameRate();
@@ -801,7 +801,7 @@ void AnimationData::DuplicateKeys(UAnimSequence* InSequence, int32 StartKeyIndex
 		const int32 CopyKeyIndex = SourceKeyIndex == INDEX_NONE ? StartKeyIndex : SourceKeyIndex;
 		if (CopyKeyIndex >= 0 && CopyKeyIndex < NumberOfKeys)
 		{
-			UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("DuplicateKeys_Bracket", "Inserting Duplicate Animation Track Keys"));
+			IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("DuplicateKeys_Bracket", "Inserting Duplicate Animation Track Keys"));
 
 			const int32 NumFramesToInsert = NumDuplicates;
 			const int32 EndFrameIndex = StartKeyIndex + NumDuplicates;
@@ -829,7 +829,7 @@ void AnimationData::DuplicateKeys(UAnimSequence* InSequence, int32 StartKeyIndex
 				InsertFrames(TrackData.RotKeys);
 				InsertFrames(TrackData.ScaleKeys);
 
-				Controller->SetBoneTrackKeys(AnimationTrack.Name, TrackData.PosKeys, TrackData.RotKeys, TrackData.ScaleKeys);
+				Controller.SetBoneTrackKeys(AnimationTrack.Name, TrackData.PosKeys, TrackData.RotKeys, TrackData.ScaleKeys);
 			}
 
 			// The number of keys has changed, which means that the sequence length and number of frames should be updated as well
@@ -841,7 +841,7 @@ void AnimationData::DuplicateKeys(UAnimSequence* InSequence, int32 StartKeyIndex
 			const float InsertedTime = FrameRate.AsInterval() * NumDuplicates;
 
 			// Notify will happen with time slice that was inserted
-			Controller->Resize(NewSequenceLength, StartTime, StartTime + InsertedTime);
+			Controller.Resize(NewSequenceLength, StartTime, StartTime + InsertedTime);
 		}
 	}
 }
@@ -849,7 +849,7 @@ void AnimationData::DuplicateKeys(UAnimSequence* InSequence, int32 StartKeyIndex
 void AnimationData::RemoveKeys(UAnimSequence* InSequence, int32 StartKeyIndex, int32 NumKeysToRemove)
 {
 	const UAnimDataModel* Model = InSequence->GetDataModel();
-	UAnimDataController* Controller = InSequence->GetController();
+	IAnimationDataController& Controller = InSequence->GetController();
 
 	const int32 NumberOfKeys = Model->GetNumberOfKeys();
 	const FFrameRate& FrameRate = Model->GetFrameRate();
@@ -857,7 +857,7 @@ void AnimationData::RemoveKeys(UAnimSequence* InSequence, int32 StartKeyIndex, i
 	const int32 EndKeyIndex = StartKeyIndex + NumKeysToRemove;
 	if (StartKeyIndex >= 0 && StartKeyIndex < NumberOfKeys && NumKeysToRemove > 0 && EndKeyIndex <= NumberOfKeys)
 	{
-		UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveKeys_Bracket", "Removing Animation Track Keys"));
+		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveKeys_Bracket", "Removing Animation Track Keys"));
 
 		auto ShrinkKeys = [&](auto& KeyData)
 		{
@@ -880,7 +880,7 @@ void AnimationData::RemoveKeys(UAnimSequence* InSequence, int32 StartKeyIndex, i
 			ShrinkKeys(TrackData.RotKeys);
 			ShrinkKeys(TrackData.ScaleKeys);
 			
-			Controller->SetBoneTrackKeys(AnimationTrack.Name, TrackData.PosKeys, TrackData.RotKeys, TrackData.ScaleKeys);
+			Controller.SetBoneTrackKeys(AnimationTrack.Name, TrackData.PosKeys, TrackData.RotKeys, TrackData.ScaleKeys);
 		}
 
 		const int32 NewNumberOfFrames = FMath::Max(NewNumberOfKeys - 1, 0);
@@ -891,7 +891,7 @@ void AnimationData::RemoveKeys(UAnimSequence* InSequence, int32 StartKeyIndex, i
 		const float EndTime = StartFrameTime + RemovedTime;
 
 		// Notify will happen with time slice that was removed
-		Controller->Resize(NewSequenceLength, StartFrameTime, EndTime);
+		Controller.Resize(NewSequenceLength, StartFrameTime, EndTime);
 	}
 }
 

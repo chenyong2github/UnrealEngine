@@ -12,7 +12,6 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
 #include "AnimModel_AnimSequenceBase.h"
-#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_TransformCurve"
 
@@ -143,8 +142,8 @@ void FAnimTimelineTrack_TransformCurve::DeleteTrack()
 			BaseModel->OnStopEditingCurves.ExecuteIfBound(CurveEditInfo);
 
 
-			UAnimDataController* Controller = AnimSequenceBase->GetController();
-			Controller->RemoveCurve(CurveId);
+			IAnimationDataController& Controller = AnimSequenceBase->GetController();
+			Controller.RemoveCurve(CurveId);
 
 			if (GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)
 			{
@@ -165,8 +164,8 @@ void FAnimTimelineTrack_TransformCurve::ToggleEnabled()
 {
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 
-	UAnimDataController* Controller = AnimSequenceBase->GetController();
-	Controller->SetCurveFlag(CurveId, AACF_Disabled, !IsEnabled());
+	IAnimationDataController& Controller = AnimSequenceBase->GetController();
+	Controller.SetCurveFlag(CurveId, AACF_Disabled, !IsEnabled());
 
 	// need to update curves, otherwise they're not disabled
 	if (GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)

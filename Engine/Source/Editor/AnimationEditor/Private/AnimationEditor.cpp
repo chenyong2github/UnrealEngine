@@ -663,11 +663,11 @@ void FAnimationEditor::OnRemoveBoneTrack()
 		UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimationAsset);
 		if (AnimSequence)
 		{
-			UAnimDataController* Controller = AnimSequence->GetController();
-			UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("OnRemoveBoneTrack_Bracket", "Removing all Bone Animation and Transform Curve Tracks"));
+			IAnimationDataController& Controller = AnimSequence->GetController();
+			IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("OnRemoveBoneTrack_Bracket", "Removing all Bone Animation and Transform Curve Tracks"));
 
-			Controller->RemoveAllBoneTracks();
-			Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);			
+			Controller.RemoveAllBoneTracks();
+			Controller.RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);			
 		}
 	}
 }

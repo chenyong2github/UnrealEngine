@@ -17,7 +17,6 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimSequenceHelpers.h"
-#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "AnimationBlueprintLibrary"
 
@@ -1265,10 +1264,10 @@ void UAnimationBlueprintLibrary::RemoveAllCurveData(UAnimSequence* AnimationSequ
 {
 	if (AnimationSequence)
 	{
-		UAnimDataController* Controller = AnimationSequence->GetController();
+		IAnimationDataController& Controller = AnimationSequence->GetController();
 
-		Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Float);
-		Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);
+		Controller.RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Float);
+		Controller.RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);
 	}
 	else
 	{
@@ -1393,27 +1392,27 @@ void UAnimationBlueprintLibrary::AddVectorCurveKeys(UAnimSequence* AnimationSequ
 	}
 }
 
-static void SetControllerCurveKeys(UAnimDataController* Controller, FSmartName SmartName, const TArray<float>& Times, const TArray<float>& Values)
+static void SetControllerCurveKeys(IAnimationDataController& Controller, FSmartName SmartName, const TArray<float>& Times, const TArray<float>& Values)
 {
 	const int32 NumKeys = Values.Num();
 	const FAnimationCurveIdentifier CurveId(SmartName, ERawCurveTrackTypes::RCT_Float);
 	for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 	{
-		Controller->SetCurveKey(CurveId, { Times[KeyIndex], Values[KeyIndex] });
+		Controller.SetCurveKey(CurveId, { Times[KeyIndex], Values[KeyIndex] });
 	}
 }
 
-static void SetControllerCurveKeys(UAnimDataController* Controller, FSmartName SmartName, const TArray<float>& Times, const TArray<FTransform>& Values)
+static void SetControllerCurveKeys(IAnimationDataController& Controller, FSmartName SmartName, const TArray<float>& Times, const TArray<FTransform>& Values)
 {
 	const int32 NumKeys = Values.Num();
 	const FAnimationCurveIdentifier CurveId(SmartName, ERawCurveTrackTypes::RCT_Transform);
 	for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 	{
-		Controller->SetTransformCurveKey(CurveId, Times[KeyIndex], Values[KeyIndex]);
+		Controller.SetTransformCurveKey(CurveId, Times[KeyIndex], Values[KeyIndex]);
 	}
 }
 	
-static void SetControllerCurveKeys(UAnimDataController* Controller, FSmartName CurveId, const TArray<float>& Times, const TArray<FVector>& Values)
+static void SetControllerCurveKeys(IAnimationDataController& Controller, FSmartName CurveId, const TArray<float>& Times, const TArray<FVector>& Values)
 {
 	ensure(false);
 }
@@ -1435,7 +1434,7 @@ void UAnimationBlueprintLibrary::AddCurveKeysInternal(UAnimSequence* AnimationSe
 		const CurveClass* Curve = static_cast<const CurveClass*>(AnimationSequence->GetDataModel()->FindCurve(CurveId));
 		if (Curve)
 		{
-			UAnimDataController* Controller = AnimationSequence->GetController();
+			IAnimationDataController& Controller = AnimationSequence->GetController();
 			SetControllerCurveKeys(Controller, CurveSmartName, Times, KeyData);
 		}
 	}
@@ -1454,8 +1453,8 @@ bool UAnimationBlueprintLibrary::AddCurveInternal(UAnimSequence* AnimationSequen
 	const FAnimCurveBase* ExistingCurve = AnimationSequence->GetDataModel()->FindCurve(CurveId);
 	if (ExistingCurve == nullptr)
 	{
-		UAnimDataController* Controller = AnimationSequence->GetController();
-		Controller->AddCurve(CurveId, CurveFlags);
+		IAnimationDataController& Controller = AnimationSequence->GetController();
+		Controller.AddCurve(CurveId, CurveFlags);
 		bCurveAdded = AnimationSequence->GetDataModel()->FindCurve(CurveId) != nullptr;	
 	}
 	else
@@ -1478,10 +1477,10 @@ bool UAnimationBlueprintLibrary::RemoveCurveInternal(UAnimSequence* AnimationSeq
 		checkf(Skeleton != nullptr, TEXT("Invalid Skeleton ptr"));
 		if (Skeleton->GetSmartNameByUID(ContainerName, UID, SmartCurveName))
 		{
-			UAnimDataController* Controller = AnimationSequence->GetController();
+			IAnimationDataController& Controller = AnimationSequence->GetController();
 
 			const FAnimationCurveIdentifier CurveId(SmartCurveName, ContainerName == USkeleton::AnimTrackCurveMappingName ? ERawCurveTrackTypes::RCT_Transform : ERawCurveTrackTypes::RCT_Float);
-			bRemoved = Controller->RemoveCurve(CurveId);
+			bRemoved = Controller.RemoveCurve(CurveId);
 
 			if (bRemoveNameFromSkeleton)
 			{
@@ -1583,9 +1582,9 @@ void UAnimationBlueprintLibrary::GetTransformationKeys(UAnimSequence* AnimationS
 
 void UAnimationBlueprintLibrary::CopyAnimationCurveNamesToSkeleton(USkeleton* OldSkeleton, USkeleton* NewSkeleton, UAnimSequenceBase* SequenceBase, ERawCurveTrackTypes CurveType)
 {
-	UAnimDataController* Controller = SequenceBase->GetController();
-	Controller->UpdateCurveNamesFromSkeleton(OldSkeleton, CurveType);
-	Controller->FindOrAddCurveNamesOnSkeleton(NewSkeleton, CurveType);	
+	IAnimationDataController& Controller = SequenceBase->GetController();
+	Controller.UpdateCurveNamesFromSkeleton(OldSkeleton, CurveType);
+	Controller.FindOrAddCurveNamesOnSkeleton(NewSkeleton, CurveType);	
 }
 
 template <typename DataType, typename CurveClass, ERawCurveTrackTypes CurveType>
@@ -2220,12 +2219,12 @@ void UAnimationBlueprintLibrary::RemoveBoneAnimation(UAnimSequence* AnimationSeq
 				}
 			}
 
-			UAnimDataController* Controller = AnimationSequence->GetController();
+			IAnimationDataController& Controller = AnimationSequence->GetController();
 
-			UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveBoneAnimation_Bracket", "Removing Bone Animation Track"));
+			IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveBoneAnimation_Bracket", "Removing Bone Animation Track"));
 			for (const FName& TrackName : TracksToRemove)
 			{
-				Controller->RemoveBoneTrack(TrackName);
+				Controller.RemoveBoneTrack(TrackName);
 			}
 		}
 		else
@@ -2240,10 +2239,10 @@ void UAnimationBlueprintLibrary::RemoveAllBoneAnimation(UAnimSequence* Animation
 {
 	if (AnimationSequence)
 	{
-		UAnimDataController* Controller = AnimationSequence->GetController();
-		UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveAllBoneAnimation_Bracket", "Removing all Bone Animation and Transform Curve Tracks"));
-		Controller->RemoveAllBoneTracks();
-		Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);		
+		IAnimationDataController& Controller = AnimationSequence->GetController();
+		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveAllBoneAnimation_Bracket", "Removing all Bone Animation and Transform Curve Tracks"));
+		Controller.RemoveAllBoneTracks();
+		Controller.RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);		
 	}
 }
 
