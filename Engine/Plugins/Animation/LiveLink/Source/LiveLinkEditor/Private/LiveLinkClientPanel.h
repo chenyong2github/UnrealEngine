@@ -63,11 +63,17 @@ private:
 	// Callback when property changes on source settings
 	void OnPropertyChanged(const FPropertyChangedEvent& InEvent);
 
+	// Remove source command handlers
 	void HandleRemoveSource();
 	bool CanRemoveSource();
 
+	// Remove all sources command handlers
 	void HandleRemoveAllSources();
 	bool HasSource() const;
+
+	// Remove subject command handlers
+	bool CanRemoveSubject() const;
+	void HandleRemoveSubject();
 
 	// Registered with the client and called when client's sources change
 	void OnSourcesChangedHandler();
@@ -98,11 +104,14 @@ private:
 	void GetChildrenForInfo(FLiveLinkSubjectUIEntryPtr InInfo, TArray< FLiveLinkSubjectUIEntryPtr >& OutChildren);
 	void RebuildSubjectList();
 
-	// Handler for the source listselection changing
+	// Handler for the source list selection changing
 	void OnSourceListSelectionChanged(FLiveLinkSourceUIEntryPtr Entry, ESelectInfo::Type SelectionType) const;
 
 	// Handler for the subject tree selection changing
 	void OnSubjectTreeSelectionChanged(FLiveLinkSubjectUIEntryPtr BoneInfo, ESelectInfo::Type SelectInfo);
+
+	// Handler for the subject tree context menu opening
+	TSharedPtr<SWidget> OnOpenVirtualSubjectContextMenu();
 
 	// Source list widget
 	TSharedPtr<SLiveLinkSourceListView> SourceListView;

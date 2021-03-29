@@ -57,6 +57,30 @@ namespace SubjectTreeUI
 	static const FName ActionsColumnName(TEXT("Action"));
 };
 
+namespace
+{
+	/** Base class for live link list/tree views, handles removing list element by pressing delete. */
+	template <typename ListType, typename ListElementType>
+	class SLiveLinkListView : public ListType
+	{
+	public:
+		virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
+		{
+			if (InKeyEvent.GetKey() == EKeys::Delete || InKeyEvent.GetKey() == EKeys::BackSpace)
+			{
+				TArray<ListElementType> SelectedItem = ListType::GetSelectedItems();
+				for (ListElementType Item : SelectedItem)
+				{
+					Item->RemoveFromClient();
+				}
+				return FReply::Handled();
+			}
+
+			return FReply::Unhandled();
+		}
+	};
+}
+
 // Structure that defines a single entry in the source UI
 struct FLiveLinkSourceUIEntry
 {
@@ -353,33 +377,12 @@ private:
 	FLiveLinkSourceUIEntryPtr EntryPtr;
 };
 
-class SLiveLinkSourceListView : public SListView<FLiveLinkSourceUIEntryPtr>
+class SLiveLinkSourceListView : public SLiveLinkListView<SListView<FLiveLinkSourceUIEntryPtr>, FLiveLinkSourceUIEntryPtr>
 {
-public:
-	void Construct(FArguments Args, FLiveLinkClient* InLiveLinkClient)
-	{
-		LiveLinkClient = InLiveLinkClient;
-		SListView<FLiveLinkSourceUIEntryPtr>::Construct(Args);
-	}
+};
 
-public:
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
-	{
-		if (InKeyEvent.GetKey() == EKeys::Delete || InKeyEvent.GetKey() == EKeys::BackSpace)
-		{
-			TArray<FLiveLinkSourceUIEntryPtr> SelectedItem = GetSelectedItems();
-			for (FLiveLinkSourceUIEntryPtr Item : SelectedItem)
-			{
-				LiveLinkClient->RemoveSource(Item->GetGuid());
-			}
-			return FReply::Handled();
-		}
-
-		return FReply::Unhandled();
-	}
-
-private:
-	FLiveLinkClient * LiveLinkClient;
+class SLiveLinkSubjectsTreeView : public SLiveLinkListView<STreeView<FLiveLinkSubjectUIEntryPtr>, FLiveLinkSubjectUIEntryPtr>
+{
 };
 
 SLiveLinkClientPanel::~SLiveLinkClientPanel()
@@ -426,11 +429,12 @@ void SLiveLinkClientPanel::Construct(const FArguments& Args, FLiveLinkClient* In
 	SettingsDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	SettingsDetailsView->OnFinishedChangingProperties().AddSP(this, &SLiveLinkClientPanel::OnPropertyChanged);
 
-	SAssignNew(SubjectsTreeView, STreeView<FLiveLinkSubjectUIEntryPtr>)
+	SAssignNew(SubjectsTreeView, SLiveLinkSubjectsTreeView)
 		.TreeItemsSource(&SubjectData)
 		.OnGenerateRow(this, &SLiveLinkClientPanel::MakeTreeRowWidget)
 		.OnGetChildren(this, &SLiveLinkClientPanel::GetChildrenForInfo)
 		.OnSelectionChanged(this, &SLiveLinkClientPanel::OnSubjectTreeSelectionChanged)
+		.OnContextMenuOpening(this, &SLiveLinkClientPanel::OnOpenVirtualSubjectContextMenu)
 		.SelectionMode(ESelectionMode::Single)
 		.HeaderRow
 		(
@@ -504,7 +508,7 @@ void SLiveLinkClientPanel::Construct(const FArguments& Args, FLiveLinkClient* In
 							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 							.Padding(FMargin(4.0f, 4.0f))
 							[
-								SAssignNew(SourceListView, SLiveLinkSourceListView, Client)
+								SAssignNew(SourceListView, SLiveLinkSourceListView)
 								.ListItemsSource(&SourceData)
 								.SelectionMode(ESelectionMode::Single)
 								.OnGenerateRow(this, &SLiveLinkClientPanel::MakeSourceListViewWidget)
@@ -639,6 +643,11 @@ void SLiveLinkClientPanel::BindCommands()
 	CommandList->MapAction(FLiveLinkClientCommands::Get().RemoveAllSources,
 		FExecuteAction::CreateSP(this, &SLiveLinkClientPanel::HandleRemoveAllSources),
 		FCanExecuteAction::CreateSP(this, &SLiveLinkClientPanel::HasSource)
+	);
+
+	CommandList->MapAction(FLiveLinkClientCommands::Get().RemoveSubject,
+	FExecuteAction::CreateSP(this, &SLiveLinkClientPanel::HandleRemoveSubject),
+		FCanExecuteAction::CreateSP(this, &SLiveLinkClientPanel::CanRemoveSubject)
 	);
 }
 
@@ -778,6 +787,23 @@ void SLiveLinkClientPanel::OnSubjectTreeSelectionChanged(FLiveLinkSubjectUIEntry
 	}
 }
 
+TSharedPtr<SWidget> SLiveLinkClientPanel::OnOpenVirtualSubjectContextMenu()
+{
+	constexpr bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
+
+	MenuBuilder.BeginSection(TEXT("Remove"));
+	{
+		if (CanRemoveSubject())
+		{
+			MenuBuilder.AddMenuEntry(FLiveLinkClientCommands::Get().RemoveSubject);
+		}
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
 void SLiveLinkClientPanel::RebuildSubjectList()
 {
 	TArray<FLiveLinkSubjectKey> SavedSelection;
@@ -875,6 +901,23 @@ bool SLiveLinkClientPanel::HasSource() const
 void SLiveLinkClientPanel::HandleRemoveAllSources()
 {
 	Client->RemoveAllSources();
+}
+
+bool SLiveLinkClientPanel::CanRemoveSubject() const
+{
+	TArray<FLiveLinkSubjectUIEntryPtr> Selected;
+	SubjectsTreeView->GetSelectedItems(Selected);
+	return Selected.Num() > 0 && Selected[0] && Selected[0]->IsVirtualSubject();
+}
+
+void SLiveLinkClientPanel::HandleRemoveSubject()
+{
+	TArray<FLiveLinkSubjectUIEntryPtr> Selected;
+	SubjectsTreeView->GetSelectedItems(Selected);
+	if (Selected.Num() > 0 && Selected[0])
+	{
+		Selected[0]->RemoveFromClient();
+	}
 }
 
 void SLiveLinkClientPanel::OnSourcesChangedHandler()
