@@ -1114,6 +1114,11 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 			{
 				FNiagaraComputeInstanceData& InstanceData = Tick->GetInstanceData()[i];
 				FNiagaraComputeExecutionContext* ExecContext = InstanceData.Context;
+
+				//Ensure we clear the temp tick count value in every emitter tick that we've processed.
+				//Can't do later in the final tick as that may not contain *all* emitter ticks.
+				ExecContext->TicksThisFrame = 0;
+
 				if ((ExecContext == nullptr) || !ExecContext->GPUScript_RT->IsShaderMapComplete_RenderThread())
 				{
 					continue;
@@ -1314,14 +1319,6 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 				{
 					// Reset to default as it will no longer be used.
 					SharedContext->ScratchIndex = INDEX_NONE;
-
-					//Reset per instance data also
-					for (uint32 i = 0; i < Tick->Count; ++i)
-					{
-						FNiagaraComputeInstanceData& InstanceData = Tick->GetInstanceData()[i];
-						FNiagaraComputeExecutionContext* ExecContext = InstanceData.Context;
-						ExecContext->TicksThisFrame = 0;
-					}
 				}
 				else
 				{
