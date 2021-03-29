@@ -88,7 +88,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	}
 
 	// Don't read packages that were saved with an package version newer than the current one.
-	if( (PackageFileSummary.GetFileVersionUE4() > GPackageFileUE4Version) || (PackageFileSummary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUE4Version) )
+	if( (PackageFileSummary.GetFileVersionUE4() > GPackageFileUEVersion) || (PackageFileSummary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUEVersion) )
 	{
 		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s is too new"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::VersionTooNew);

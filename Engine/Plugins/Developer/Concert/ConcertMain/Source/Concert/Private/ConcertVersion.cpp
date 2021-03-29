@@ -49,8 +49,8 @@ bool ValidateVersion(const int32 InCurrent, const int32 InOther, const FText InV
 
 void FConcertFileVersionInfo::Initialize()
 {
-	FileVersionUE4 = GPackageFileUE4Version;
-	FileVersionLicenseeUE4 = GPackageFileLicenseeUE4Version;
+	FileVersionUE4 = GPackageFileUEVersion;
+	FileVersionLicenseeUE4 = GPackageFileLicenseeUEVersion;
 }
 
 bool FConcertFileVersionInfo::Validate(const FConcertFileVersionInfo& InOther, const EConcertVersionValidationMode InValidationMode, FText* OutFailureReason) const

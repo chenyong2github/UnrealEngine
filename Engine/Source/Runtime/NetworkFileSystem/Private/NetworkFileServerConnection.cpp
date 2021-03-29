@@ -997,7 +997,7 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 		}
 		else
 		{
-			//@todo: This assumes the game is located in the UE4 Root directory
+			//@todo: This assumes the game is located in the Unreal Root directory
 			SandboxDirectory = FPaths::Combine(*FPaths::GetRelativePathToRoot(), *GameName, TEXT("Saved"), TEXT("Cooked"), *ConnectedPlatformName);
 		}
 	}
@@ -1096,10 +1096,10 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 
 	// report the package version information
 	// The downside of this is that ALL cooked data will get tossed on package version changes
-	int32 PackageFileUE4Version = GPackageFileUE4Version;
-	Out << PackageFileUE4Version;
-	int32 PackageFileLicenseeUE4Version = GPackageFileLicenseeUE4Version;
-	Out << PackageFileLicenseeUE4Version;
+	int32 PackageFileUnrealVersion = GPackageFileUEVersion;
+	Out << PackageFileUnrealVersion;
+	int32 PackageFileLicenseeUnrealVersion = GPackageFileLicenseeUEVersion;
+	Out << PackageFileLicenseeUnrealVersion;
 
 	// Send *our* engine and game dirs
 	Out << LocalEngineDir;

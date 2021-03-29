@@ -47,8 +47,8 @@ void UPackage::PostInitProperties()
 	MetaData = nullptr;
 	PersistentGuid = FGuid::NewGuid();
 #endif
-	LinkerPackageVersion = GPackageFileUE4Version;
-	LinkerLicenseeVersion = GPackageFileLicenseeUE4Version;
+	LinkerPackageVersion = GPackageFileUEVersion;
+	LinkerLicenseeVersion = GPackageFileLicenseeUEVersion;
 	PIEInstanceID = INDEX_NONE;
 #if WITH_EDITORONLY_DATA
 	bIsCookedForEditor = false;

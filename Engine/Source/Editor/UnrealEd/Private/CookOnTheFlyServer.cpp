@@ -4586,8 +4586,8 @@ void GetAdditionalCurrentIniVersionStrings( const ITargetPlatform* TargetPlatfor
 		IniVersionMap.Add(CustomVersionString, CustomVersionValue);
 	}
 
-	FString UE4Ver = FString::Printf(TEXT("PackageFileVersions:%d"), GPackageFileUE4Version);
-	FString UE4Value = FString::Printf(TEXT("%d"), GPackageFileLicenseeUE4Version);
+	FString UE4Ver = FString::Printf(TEXT("PackageFileVersions:%d"), GPackageFileUEVersion);
+	FString UE4Value = FString::Printf(TEXT("%d"), GPackageFileLicenseeUEVersion);
 	IniVersionMap.Add(UE4Ver, UE4Value);
 
 	/*FString UE4EngineVersionCompatibleName = TEXT("EngineVersionCompatibleWith");

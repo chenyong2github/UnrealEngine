@@ -11,7 +11,7 @@
  * Returns the UE4 version of the linker for this object.
  *
  * @return	the UE4 version of the engine's package file when this object
- *			was last saved, or GPackageFileUE4Version (current version) if
+ *			was last saved, or GPackageFileUEVersion (current version) if
  *			this object does not have a linker, which indicates that
  *			a) this object is a native only class, or
  *			b) this object's linker has been detached, in which case it is already fully loaded
@@ -45,7 +45,7 @@ int32 UObjectBaseUtility::GetLinkerUE4Version() const
 	else
 	{
 		// We don't have a linker associated as we e.g. might have been saved or had loaders reset, ...
-		return GPackageFileUE4Version;
+		return GPackageFileUEVersion;
 	}
 }
 
@@ -118,6 +118,6 @@ int32 UObjectBaseUtility::GetLinkerLicenseeUE4Version() const
 	else
 	{
 		// We don't have a linker associated as we e.g. might have been saved or had loaders reset, ...
-		return GPackageFileLicenseeUE4Version;
+		return GPackageFileLicenseeUEVersion;
 	}
 }

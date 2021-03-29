@@ -141,8 +141,8 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 #endif
 					// this file is unversioned, remember that, then use current versions
 					Sum.bUnversioned = true;
-					Sum.FileVersionUE4 = GPackageFileUE4Version;
-					Sum.FileVersionLicenseeUE4 = GPackageFileLicenseeUE4Version;
+					Sum.FileVersionUE4 = GPackageFileUEVersion;
+					Sum.FileVersionLicenseeUE4 = GPackageFileLicenseeUEVersion;
 					Sum.CustomVersionContainer = FCurrentCustomVersions::GetAll();
 				}
 			}
@@ -209,7 +209,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		Record << SA_VALUE(TEXT("ImportCount"), Sum.ImportCount) << SA_VALUE(TEXT("ImportOffset"), Sum.ImportOffset);
 		Record << SA_VALUE(TEXT("DependsOffset"), Sum.DependsOffset);
 
-		if (BaseArchive.IsLoading() && (Sum.FileVersionUE4 < VER_UE4_OLDEST_LOADABLE_PACKAGE || Sum.FileVersionUE4 > GPackageFileUE4Version))
+		if (BaseArchive.IsLoading() && (Sum.FileVersionUE4 < VER_UE4_OLDEST_LOADABLE_PACKAGE || Sum.FileVersionUE4 > GPackageFileUEVersion))
 		{
 			return; // we can't safely load more than this because the below was different in older files.
 		}

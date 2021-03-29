@@ -5298,8 +5298,8 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 		LinkerRoot->SetCanBeImportedFlag(Desc.CanBeImported());
 		LinkerRoot->SetPackageId(Desc.DiskPackageId);
 		LinkerRoot->SetPackageFlagsTo(PackageSummary->PackageFlags | PKG_Cooked);
-		LinkerRoot->LinkerPackageVersion = GPackageFileUE4Version;
-		LinkerRoot->LinkerLicenseeVersion = GPackageFileLicenseeUE4Version;
+		LinkerRoot->LinkerPackageVersion = GPackageFileUEVersion;
+		LinkerRoot->LinkerLicenseeVersion = GPackageFileLicenseeUEVersion;
 		// LinkerRoot->LinkerCustomVersion = PackageSummaryVersions; // only if (!bCustomVersionIsLatest)
 #if WITH_IOSTORE_IN_EDITOR
 		LinkerRoot->bIsCookedForEditor = !!(PackageSummary->PackageFlags & PKG_FilterEditorOnly);
@@ -5314,8 +5314,8 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 		check(LinkerRoot->CanBeImported() == Desc.CanBeImported());
 		check(LinkerRoot->GetPackageId() == Desc.DiskPackageId);
 		check(LinkerRoot->GetPackageFlags() == (PackageSummary->PackageFlags | PKG_Cooked));
-		check(LinkerRoot->LinkerPackageVersion == GPackageFileUE4Version);
-		check(LinkerRoot->LinkerLicenseeVersion == GPackageFileLicenseeUE4Version);
+		check(LinkerRoot->LinkerPackageVersion == GPackageFileUEVersion);
+		check(LinkerRoot->LinkerLicenseeVersion == GPackageFileLicenseeUEVersion);
 		check(LinkerRoot->HasAnyFlags(RF_WasLoaded));
 	}
 

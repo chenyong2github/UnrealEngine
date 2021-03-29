@@ -198,7 +198,7 @@ int CommonUnixMain(int argc, char *argv[], int (*RealMain)(const TCHAR * Command
 	if (UE_BUILD_SHIPPING)
 	{
 		// only printed in shipping
-		printf("%s %d %d\n", StringCast<ANSICHAR>(*FEngineVersion::Current().ToString()).Get(), GPackageFileUE4Version, GPackageFileLicenseeUE4Version);
+		printf("%s %d %d\n", StringCast<ANSICHAR>(*FEngineVersion::Current().ToString()).Get(), GPackageFileUEVersion, GPackageFileLicenseeUEVersion);
 	}
 
 	int ErrorLevel = 0;

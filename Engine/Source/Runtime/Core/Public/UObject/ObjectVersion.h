@@ -666,5 +666,11 @@ enum EUnrealEngineObjectLicenseeUE4Version
 
 // Version access.
 
-extern const CORE_API int32			GPackageFileUE4Version;			// UE4 Version Number.
-extern const CORE_API int32			GPackageFileLicenseeUE4Version;	// Licensee Version Number.
+UE_DEPRECATED(5.0, "Use GPackageFileUEVersion instead")
+extern const CORE_API int32			GPackageFileUE4Version;				// Unreal Version Number.
+
+UE_DEPRECATED(5.0, "Use GPackageFileLicenseeUEVersion instead")
+extern const CORE_API int32			GPackageFileLicenseeUE4Version;		// Licensee Version Number.
+
+extern const CORE_API int32			GPackageFileUEVersion;			// Unreal Version Number.
+extern const CORE_API int32			GPackageFileLicenseeUEVersion;	// Licensee Version Number.

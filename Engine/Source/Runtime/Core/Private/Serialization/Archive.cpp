@@ -150,8 +150,8 @@ void FArchiveState::Reset()
 #if DEVIRTUALIZE_FLinkerLoad_Serialize
 	ActiveFPLB->Reset();
 #endif
-	ArUE4Ver							= GPackageFileUE4Version;
-	ArLicenseeUE4Ver					= GPackageFileLicenseeUE4Version;
+	ArUE4Ver							= GPackageFileUEVersion;
+	ArLicenseeUE4Ver					= GPackageFileLicenseeUEVersion;
 	ArEngineVer							= FEngineVersion::Current();
 	ArEngineNetVer						= FNetworkVersion::GetEngineNetworkProtocolVersion();
 	ArGameNetVer						= FNetworkVersion::GetGameNetworkProtocolVersion();

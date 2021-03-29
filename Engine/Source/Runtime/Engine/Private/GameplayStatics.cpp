@@ -106,7 +106,7 @@ FSaveGameHeader::FSaveGameHeader()
 FSaveGameHeader::FSaveGameHeader(TSubclassOf<USaveGame> ObjectType)
 	: FileTypeTag(UE_SAVEGAME_FILE_TYPE_TAG)
 	, SaveGameFileVersion(FSaveGameFileVersion::LatestVersion)
-	, PackageFileUE4Version(GPackageFileUE4Version)
+	, PackageFileUE4Version(GPackageFileUEVersion)
 	, SavedEngineVersion(FEngineVersion::Current())
 	, CustomVersionFormat(static_cast<int32>(ECustomVersionSerializationFormat::Latest))
 	, CustomVersions(FCurrentCustomVersions::GetAll())
@@ -144,7 +144,7 @@ void FSaveGameHeader::Read(FMemoryReader& MemoryReader)
 		// Note for 4.8 and beyond: if you get a crash loading a pre-4.8 version of your savegame file and 
 		// you don't want to delete it, try uncommenting these lines and changing them to use the version 
 		// information from your previous build. Then load and resave your savegame file.
-		//MemoryReader.SetUE4Ver(MyPreviousUE4Version);				// @see GPackageFileUE4Version
+		//MemoryReader.SetUE4Ver(MyPreviousUE4Version);				// @see GPackageFileUEVersion
 		//MemoryReader.SetEngineVer(MyPreviousEngineVersion);		// @see FEngineVersion::Current()
 	}
 	else

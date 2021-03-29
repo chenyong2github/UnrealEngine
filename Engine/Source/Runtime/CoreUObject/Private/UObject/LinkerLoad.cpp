@@ -991,8 +991,8 @@ bool FLinkerLoad::IsTimeLimitExceeded( const TCHAR* CurrentTask, int32 Granulari
 void FLinkerLoad::ResetStatusInfo()
 {
 	// Set status info.
-	this->SetUE4Ver(GPackageFileUE4Version);
-	this->SetLicenseeUE4Ver(GPackageFileLicenseeUE4Version);
+	this->SetUE4Ver(GPackageFileUEVersion);
+	this->SetLicenseeUE4Ver(GPackageFileLicenseeUEVersion);
 	this->SetEngineVer(FEngineVersion::Current());
 	this->SetIsLoading(true);
 	this->SetIsPersistent(true);
@@ -1290,10 +1290,10 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 	}
 
 	// Don't load packages that were saved with package version newer than the current one.
-	if ((Summary.GetFileVersionUE4() > GPackageFileUE4Version) || (Summary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUE4Version))
+	if ((Summary.GetFileVersionUE4() > GPackageFileUEVersion) || (Summary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUEVersion))
 	{
 		UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s) PackageVersion %i, MaxExpected %i : LicenseePackageVersion %i, MaxExpected %i."),
-			*GetDebugName(), Summary.GetFileVersionUE4(), GPackageFileUE4Version, Summary.GetFileVersionLicenseeUE4(), GPackageFileLicenseeUE4Version);
+			*GetDebugName(), Summary.GetFileVersionUE4(), GPackageFileUEVersion, Summary.GetFileVersionLicenseeUE4(), GPackageFileLicenseeUEVersion);
 		return LINKER_Failed;
 	}
 
