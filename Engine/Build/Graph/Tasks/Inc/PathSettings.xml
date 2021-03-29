@@ -11,13 +11,13 @@
 
 		This script should be included after CommonProperties.xml where build strings are defines.
 
-		InOption: PublishPackages - Enabled/Disable publishing of builds to build storage
+		InOption: PublishBuilds - Enabled/Disable publishing of builds to build storage
 		
 		InProperty: ProjectName
 		InProperty: EscapedBranch
 
-		OutOption: PublishPackages - Publish packages from the build
-		OutOption: PublishStagedContent - Publish staged content from the build
+		OutOption: PublishBuilds - Publish output from builds to a network share
+		OutOption: PublishHashedStagingData - Publish staged content with hashes for quick syncing
 		OutOption: PublishReports - Publish reports from the build
 
 		OutProperty: ProjectOutputDirectory - Local path to package builds to
@@ -27,10 +27,10 @@
 	-->
 
 	<!-- Publish packaged builds to the network ?-->
-	<Option Name="PublishPackages" DefaultValue="$(IsBuildMachine)" Description="Publish packaged builds to the builds folder on the network"/>
+	<Option Name="PublishBuilds" DefaultValue="$(IsBuildMachine)" Description="Publish packaged builds to the builds folder on the network"/>
 
-	<!-- Publish staged content to the network-->
-	<Option Name="PublishStagedContent" DefaultValue="false" Description="When publishing builds, also include the staged content"/>
+	<!-- Publish a hashed staging data that developers can quickly sync to -->
+	<Option Name="PublishHashedStagingData" DefaultValue="false" Restrict="true|false" Description="Create hashes for syncing via Unsync" />
 
 	<!-- Publish automation reports to the network-->
 	<Option Name="PublishReports" DefaultValue="$(IsBuildMachine)" Description="Publish packaged builds to the builds folder on the netwok"/>
@@ -64,11 +64,12 @@
 	<Do If="'$(NetworkReportRootOverride)' != ''" >
 		<Property Name="NetworkReportRoot" Value="$(NetworkReportRootOverride)"/>
 	</Do>
+	<!-- End network overrides -->
 
 	<!-- Declare the network outout path. Build machines need to write to the network for tests so use temp by default, but the publish path if that's being used -->
 	<Property Name="NetworkOutputDirectory" Value="" />
 	<Property Name="NetworkOutputDirectory" Value="$(NetworkTempRoot)" If="$(IsBuildMachine)"/>
-	<Property Name="NetworkOutputDirectory" Value="$(NetworkPublishRoot)" If="$(PublishPackages) or $(PublishStagedContent)"/>
+	<Property Name="NetworkOutputDirectory" Value="$(NetworkPublishRoot)" If="$(PublishBuilds) or $(PublishHashedStagingData)"/>
 	<Property Name="NetworkOutputDirectory" Value="$(NetworkOutputDirectory)/$(EscapedBranch)/$(BuildName)" If="'$(NetworkOutputDirectory)' != ''"/>
 
 	<!-- Automation can publish reports to a folder that is mapped to a website -->

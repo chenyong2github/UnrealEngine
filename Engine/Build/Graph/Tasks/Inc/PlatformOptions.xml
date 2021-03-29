@@ -37,14 +37,19 @@
 <Option Name="PackageConfigurations" DefaultValue="$(TargetConfigurations)" Description="Configuration to package"/>
 <Option Name="TestConfigurations" DefaultValue="$(PackageConfigurations)" Description="Configuration to test"/>
 
+<!-- No means of reliably running these tests atm -->
+<Option Name="PlatformsToSkipTests" DefaultValue="HoloLens+IOS+Linux+Lumin+Stadia+TVOS" Restrict=".*" Description="List of platforms that tests won't be run on" />
+
 <!-- Support explicit flags for horde but hide them otherwise as the option list is overwhelming..-->
 <Do If="$(ShowExplicitFlags)" >
 	<Option Name="WithWin64Editor" DefaultValue="false" Description="Build and test Win64 Editor"/>
 	<Option Name="WithMacEditor" DefaultValue="false" Description="Build and test Mac Editor"/>
+	<Option Name="WithLinuxEditor" DefaultValue="false" Description="Build and test Linux Editor"/>
 
 	<Option Name="WithAndroid" DefaultValue="false" Description="Build and test Android"/>
 	<Option Name="WithHoloLens" DefaultValue="false" Description="Build and test HoloLens"/>
 	<Option Name="WithIOS" DefaultValue="false" Description="Build and test IOS"/>
+	<Option Name="WithLinux" DefaultValue="false" Description="Build and test Linux"/>
 	<Option Name="WithLumin" DefaultValue="false" Description="Build and test Lumin"/>
 	<Option Name="WithMac" DefaultValue="false" Description="Build and test Mac"/>
 	<Option Name="WithPS4" DefaultValue="false" Description="Build and test PS4"/>
@@ -61,6 +66,7 @@
 		<Property Name="EditorPlatforms" Value="" />
 		<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Win64+" If="$(WithWin64Editor)" />
 		<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Mac+" If="$(WithMacEditor)" />
+		<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Linux+" If="$(WithLinuxEditor)" />
 	</Do>
 
 	<Do If="'$(TargetPlatforms)' == ''" >
@@ -68,6 +74,7 @@
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Android+" If="$(WithAndroid)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)HoloLens+" If="$(WithHoloLens)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)IOS+" If="$(WithIOS)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Linux+" If="$(WithLinux)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Lumin+" If="$(WithLumin)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Mac+" If="$(WithMac)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS4+" If="$(WithPS4)" />
@@ -124,7 +131,7 @@
 </ForEach>
 
 <!-- PS5 packaging isn't supported by Gauntlet yet :( )-->
-<Property Name="PlatformsToSkipPackaging" Value="PS5" />
+<Property Name="PlatformsToSkipPackaging" Value="Win64+Linux+PS5" />
 
 <!-- These platforms can't run from loose staged content-->
 <Property Name="PlatformsThatRequirePackaging" Value="Android+iOS" />
