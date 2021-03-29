@@ -29,7 +29,6 @@ enum ETypeAdvanceAnim
 struct FAnimationPoseData;
 struct FAnimDataModelNotifPayload;
 class UAnimDataModel;
-class UAnimDataController;
 enum class EAnimDataModelNotifyType : uint8;
 
 UCLASS(abstract, BlueprintType)

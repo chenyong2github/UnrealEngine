@@ -537,8 +537,8 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 	TArray<FString> Slates(&Slate, 1);
 	TArray<float> SlateTimes(&Times[0], 1);
 
-	UAnimDataController* Controller = AnimSequence->GetController();
-	UAnimDataController::FScopedBracket(Controller, LOCTEXT("AddTimeCodeAttributesBracket", "Adding Time Code attributes"));
+	IAnimationDataController& Controller = AnimSequence->GetController();
+	IAnimationDataController::FScopedBracket(Controller, LOCTEXT("AddTimeCodeAttributesBracket", "Adding Time Code attributes"));
 
 	for (int32 BoneIndex = 0; BoneIndex < SpaceBases->Num(); ++BoneIndex)
 	{

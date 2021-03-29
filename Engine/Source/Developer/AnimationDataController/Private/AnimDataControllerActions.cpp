@@ -425,7 +425,7 @@ TUniquePtr<FChange> FAddAtributeAction::ExecuteInternal(UAnimDataModel* Model, U
 	});
 
 	Controller->AddAttribute(AttributeId, false);
-	Controller->SetAttributeKeys(AttributeId, MakeArrayView(Times), MakeArrayView(VoidValues), false);
+	Controller->SetAttributeKeys(AttributeId, MakeArrayView(Times), MakeArrayView(VoidValues), AttributeId.GetType(), false);
 
 	return MakeUnique<FRemoveAtributeAction>(AttributeId);
 }
@@ -452,7 +452,7 @@ FString FRemoveAtributeAction::ToStringInternal() const
 
 TUniquePtr<FChange> FAddAtributeKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
 {
-	Controller->SetAttributeKey(AttributeId, Key.Time, Key.GetValuePtr<void>(), false);
+	Controller->SetAttributeKey(AttributeId, Key.Time, Key.GetValuePtr<void>(), AttributeId.GetType(), false);
 
 	return MakeUnique<FRemoveAtributeKeyAction>(AttributeId, Key.Time);
 }
@@ -470,7 +470,7 @@ TUniquePtr<FChange> FSetAtributeKeyAction::ExecuteInternal(UAnimDataModel* Model
 	ensure(Handle != FKeyHandle::Invalid());
 
 	FAttributeKey CurrentKey = Attribute.Curve.GetKey(Handle);
-	Controller->SetAttributeKey(AttributeId, Key.Time, Key.GetValuePtr<void>(), false);
+	Controller->SetAttributeKey(AttributeId, Key.Time, Key.GetValuePtr<void>(), AttributeId.GetType(), false);
 
 	return MakeUnique<FSetAtributeKeyAction>(AttributeId, CurrentKey);
 }
@@ -520,7 +520,7 @@ TUniquePtr<FChange> FSetAtributeKeysAction::ExecuteInternal(UAnimDataModel* Mode
 		return Key.Time;
 	});
 
-	Controller->SetAttributeKeys(AttributeId, MakeArrayView(Times), MakeArrayView(VoidValues), false);
+	Controller->SetAttributeKeys(AttributeId, MakeArrayView(Times), MakeArrayView(VoidValues), AttributeId.GetType(), false);
 
 	return InverseAction;
 }

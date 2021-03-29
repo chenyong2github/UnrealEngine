@@ -4701,7 +4701,7 @@ void UAnimSequence::RemoveCustomAttribute(const FName& BoneName, const FName& At
 
 	if (IdentifiersToRemove.Num())
 	{
-		UAnimDataController::FScopedBracket Bracket(Controller, LOCTEXT("RemoveCustomAttributeDeprecated", "Removing Custom Attributes by Bone and Name"));
+		IAnimationDataController::FScopedBracket Bracket(Controller, LOCTEXT("RemoveCustomAttributeDeprecated", "Removing Custom Attributes by Bone and Name"));
 		for (const FAnimationAttributeIdentifier& AttributeIdentifier : IdentifiersToRemove)
 		{
 			Controller->RemoveAttribute(AttributeIdentifier);
@@ -4814,7 +4814,7 @@ void UAnimSequence::MoveAttributesToModel()
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (TargetSkeleton && PerBoneCustomAttributeData.Num())
 	{
-		UAnimDataController::FScopedBracket Bracket(Controller, LOCTEXT("MoveAttributesToModel", "Moving legacy Custom Attributes to Model"));
+		IAnimationDataController::FScopedBracket Bracket(Controller, LOCTEXT("MoveAttributesToModel", "Moving legacy Custom Attributes to Model"));
 
 		for (const FCustomAttributePerBoneData& PerBoneData : PerBoneCustomAttributeData)
 		{

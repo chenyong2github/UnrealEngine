@@ -5,10 +5,12 @@
 #include "CoreTypes.h"
 #include "UObject/Interface.h"
 #include "CurveIdentifier.h"
+#include "AttributeIdentifier.h"
+#include "Algo/Transform.h"
+
 #include "IAnimationDataController.generated.h"
 
 class UAssetUserData;
-
 class UAnimDataModel;
 
 namespace UE {
@@ -387,7 +389,7 @@ public:
 	* @param	CurveKeys			Keys with which the existing keys are to be replaced
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*
-	* @return	Whether or not replacing curve keys was succesful
+	* @return	Whether or not replacing curve keys was successful
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
 	virtual bool SetCurveKeys(const FAnimationCurveIdentifier& CurveId, const TArray<FRichCurveKey>& CurveKeys, bool bShouldTransact = true) = 0;
@@ -427,7 +429,7 @@ public:
 	* @param	Skeleton			Skeleton to retrieve the bone information from
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
-	void UpdateAttributesFromSkeleton(const USkeleton* Skeleton, bool bShouldTransact = true);
+	virtual void UpdateAttributesFromSkeleton(const USkeleton* Skeleton, bool bShouldTransact = true) = 0;
 
 	/**
 	* Broadcast a EAnimDataModelNotifyType::Populated notify.
@@ -442,7 +444,7 @@ public:
 	*	- Frame rate to 30fps, broadcasts a EAnimDataModelNotifyType::FrameRateChanged
 	*
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
-	*/	
+	*/
 	virtual void ResetModel(bool bShouldTransact = true) = 0;
 
 	/**
@@ -453,8 +455,8 @@ public:
 	*
 	* @return	Whether or not the attribute was successfully added
 	*/
-	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool AddAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, bool bShouldTransact = true);
+	UFUNCTION(BlueprintCallable, Category = AttributeData)
+	virtual bool AddAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, bool bShouldTransact = true) = 0;
 
 	/**
 	* Removes an attribute, if found, with the provided information. Broadcasts a EAnimDataModelNotifyType::AttributeRemoved notify if successful.
@@ -464,8 +466,8 @@ public:
 	*
 	* @return	Whether or not the attribute was successfully removed
 	*/
-	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool RemoveAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, bool bShouldTransact = true);
+	UFUNCTION(BlueprintCallable, Category = AttributeData)
+	virtual bool RemoveAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, bool bShouldTransact = true) = 0;
 
 	/**
 	* Removes all attributes for the specified bone name, if any. Broadcasts a EAnimDataModelNotifyType::AttributeRemoved notify for each removed attribute.
@@ -475,8 +477,8 @@ public:
 	*
 	* @return	Total number of removes attributes
 	*/
-	UFUNCTION(BlueprintCallable, Category = CurveData)
-	int32 RemoveAllAttributesForBone(const FName& BoneName, bool bShouldTransact = true);
+	UFUNCTION(BlueprintCallable, Category = AttributeData)
+	virtual int32 RemoveAllAttributesForBone(const FName& BoneName, bool bShouldTransact = true) = 0;
 
 	/**
 	* Removes all stored attributes. Broadcasts a EAnimDataModelNotifyType::AttributeRemoved notify for each removed attribute.
@@ -485,8 +487,8 @@ public:
 	*
 	* @return	Total number of removes attributes
 	*/
-	UFUNCTION(BlueprintCallable, Category = CurveData)
-	int32 RemoveAllAttributes(bool bShouldTransact = true);	
+	UFUNCTION(BlueprintCallable, Category = AttributeData)
+	virtual int32 RemoveAllAttributes(bool bShouldTransact = true) = 0;	
 
 	/**
 	* Sets a single key for the attribute with provided identifier. Broadcasts a EAnimDataModelNotifyType::AttributeChanged notify if successful.
@@ -502,7 +504,7 @@ public:
 	template<typename AttributeType>
 	bool SetTypedAttributeKey(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, AttributeType& KeyValue, bool bShouldTransact = true)
 	{
-		return SetAttributeKey_Internal(AttributeIdentifier, Time, (const void*)&KeyValue, AttributeType::StaticStruct(), bShouldTransact);
+		return SetAttributeKey(AttributeIdentifier, Time, (const void*)&KeyValue, AttributeType::StaticStruct(), bShouldTransact);
 	}
 
 	/**
@@ -516,10 +518,7 @@ public:
 	*
 	* @return	Whether or not the key was successfully set
 	*/
-	bool SetAttributeKey(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, const void* KeyValue, bool bShouldTransact = true)
-	{
-		return SetAttributeKey_Internal(AttributeIdentifier, Time, KeyValue, AttributeIdentifier.GetType(), bShouldTransact);
-	}
+	virtual bool SetAttributeKey(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, const void* KeyValue, const UScriptStruct* TypeStruct, bool bShouldTransact = true) = 0;
 	
 	/**
 	* Replace the keys for the attribute with provided identifier. Broadcasts a EAnimDataModelNotifyType::AttributeChanged notify if successful.
@@ -531,10 +530,7 @@ public:
 	*
 	* @return	Whether or not replacing the attribute keys was successful
 	*/
-	bool SetAttributeKeys(const FAnimationAttributeIdentifier& AttributeIdentifier, TArrayView<const float> Times, TArrayView<const void*> KeyValues, bool bShouldTransact = true)
-	{
-		return SetAttributeKeys_Internal(AttributeIdentifier, Times, KeyValues, AttributeIdentifier.GetType(), bShouldTransact);
-	}
+	virtual bool SetAttributeKeys(const FAnimationAttributeIdentifier& AttributeIdentifier, TArrayView<const float> Times, TArrayView<const void*> KeyValues, const UScriptStruct* TypeStruct, bool bShouldTransact = true) = 0;
 
 	/**
 	* Replace the keys for the attribute with provided identifier. Broadcasts a EAnimDataModelNotifyType::AttributeChanged notify if successful.
@@ -548,14 +544,14 @@ public:
 	*/
 	template<typename AttributeType>
 	bool SetTypedAttributeKeys(const FAnimationAttributeIdentifier& AttributeIdentifier, TArrayView<const float> Times, TArrayView<AttributeType> KeyValues, bool bShouldTransact = true)
-	{		
+	{
 		TArray<const void*> KeyValuePtrs;
 		Algo::Transform(KeyValues, KeyValuePtrs, [](const AttributeType& Value)
 		{
 			return (const void*)&Value;
 		});
 
-		return SetAttributeKeys_Internal(AttributeIdentifier, Times, MakeArrayView(KeyValuePtrs), AttributeType::StaticStruct(), bShouldTransact);
+		return SetAttributeKeys(AttributeIdentifier, Times, MakeArrayView(KeyValuePtrs), AttributeType::StaticStruct(), bShouldTransact);
 	}
 
 	/**
@@ -567,8 +563,8 @@ public:
 	*
 	* @return	Whether or not the attribute key was successfully removed
 	*/
-	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool RemoveAttributeKey(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, bool bShouldTransact = true);
+	UFUNCTION(BlueprintCallable, Category = AttributeData)
+	virtual bool RemoveAttributeKey(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, bool bShouldTransact = true) = 0;
 
 	/**
 	* Duplicated the attribute (curve) with the identifier. Broadcasts a EAnimDataModelNotifyType::AttributeAdded notify if successful.
@@ -579,8 +575,8 @@ public:
 	*
 	* @return	Whether or not the attribute was successfully duplicated
 	*/
-	UFUNCTION(BlueprintCallable, Category = CurveData)
-	bool DuplicateAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, const FAnimationAttributeIdentifier& NewAttributeIdentifier, bool bShouldTransact = true);
+	UFUNCTION(BlueprintCallable, Category = AttributeData)
+	virtual bool DuplicateAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, const FAnimationAttributeIdentifier& NewAttributeIdentifier, bool bShouldTransact = true) = 0;
 protected:
 	/** Functionality used by FOpenBracketAction and FCloseBracketAction to broadcast their equivalent notifies without actually opening a bracket. */
 	virtual void NotifyBracketOpen() = 0;

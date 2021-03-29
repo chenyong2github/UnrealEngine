@@ -7,7 +7,6 @@
 #include "Animation/AttributeTraits.h"
 #include "AnimationRuntime.h"
 
-#include "Animation/AnimData/AnimDataController.h"
 #include "Algo/Transform.h"
 
 #include "BuiltInAttributeTypes.generated.h"
@@ -173,8 +172,8 @@ namespace UE
 		{
 			const FAnimationAttributeIdentifier Identifier = UAnimationAttributeIdentifierExtensions::CreateAttributeIdentifier(AnimSequenceBase, AttributeName, BoneName, AttributeType::StaticStruct());
 
-			UAnimDataController* Controller = AnimSequenceBase->GetController();
-			if (Controller->AddAttribute(Identifier))
+			IAnimationDataController& Controller = AnimSequenceBase->GetController();
+			if (Controller.AddAttribute(Identifier))
 			{
 				TArray<AttributeType> AttributeValues; 
 				Algo::Transform(Values, AttributeValues, [](const ValueType& Value)
@@ -184,7 +183,7 @@ namespace UE
 					return Attribute;
 				});
 
-				return Controller->SetTypedAttributeKeys<AttributeType>(Identifier, Keys, MakeArrayView(AttributeValues));
+				return Controller.SetTypedAttributeKeys<AttributeType>(Identifier, Keys, MakeArrayView(AttributeValues));
 			}
 
 			return false;

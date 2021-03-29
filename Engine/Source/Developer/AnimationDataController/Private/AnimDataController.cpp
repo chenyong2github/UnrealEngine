@@ -1552,7 +1552,7 @@ void UAnimDataController::ResizeAttributes(float NewLength, bool bInserted, floa
 			Values.Add(Keys[KeyIndex].GetValuePtr<void>());
 		}
 		
-		SetAttributeKeys(Attribute.Identifier, Times, Values, bShouldTransact);
+		SetAttributeKeys(Attribute.Identifier, Times, Values, Attribute.Curve.GetScriptStruct(), bShouldTransact);
 	}
 }
 

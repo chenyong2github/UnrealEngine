@@ -1543,7 +1543,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 
 	if (ImportOptions->bDeleteExistingNonCurveCustomAttributes)
 	{
-		Controller->RemoveAllAttributes();
+		Controller.RemoveAllAttributes();
 	}
 	
 	const bool bReimportWarnings = GetDefault<UEditorPerProjectUserSettings>()->bAnimationReimportWarnings;
