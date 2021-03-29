@@ -156,7 +156,7 @@ namespace Chaos
 			{
 				if (CollisionDataArray->IsValidIndex(Index))
 				{
-					const TCollisionData<float, 3>& CollisionData = (*CollisionDataArray)[Index];
+					const FCollidingData& CollisionData = (*CollisionDataArray)[Index];
 					if (const TPBDRigidParticleHandle<FReal, 3>* Rigid = CollisionData.Levelset->CastToRigidParticle())
 					{
 						int32 TransformIndex = Proxy->GetTransformGroupIndexFromHandle(Rigid);
@@ -176,7 +176,7 @@ namespace Chaos
 			{
 				if (TrailingDataArray->IsValidIndex(Index))
 				{
-					const TTrailingData<float, 3>& TrailingData = (*TrailingDataArray)[Index];
+					const FTrailingData& TrailingData = (*TrailingDataArray)[Index];
 					if (const TPBDRigidParticleHandle<FReal, 3>*Rigid = TrailingData.Particle->CastToRigidParticle())
 					{
 						int32 TransformIndex = Proxy->GetTransformGroupIndexFromHandle(Rigid);
@@ -373,7 +373,7 @@ namespace Chaos
 								continue;
 							}
 
-							TTrailingData<float, 3> CachedTrail;
+							FTrailingData CachedTrail;
 							CachedTrail.Particle = Particle;
 							CachedTrail.Location = Event->Location;
 							CachedTrail.Velocity = Event->Velocity;
@@ -419,7 +419,7 @@ namespace Chaos
 								continue;
 							}
 
-							TCollisionData<float, 3> CachedCollision;
+							FCollidingData CachedCollision;
 							CachedCollision.Location = Event->Location;
 							CachedCollision.AccumulatedImpulse = Event->AccumulatedImpulse;
 							CachedCollision.Normal = Event->Normal;

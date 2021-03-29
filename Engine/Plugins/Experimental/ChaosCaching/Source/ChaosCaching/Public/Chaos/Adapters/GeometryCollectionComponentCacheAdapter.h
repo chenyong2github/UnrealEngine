@@ -105,7 +105,7 @@ struct FCollisionEvent : public FCacheEventBase
 		, PenetrationDepth(0.0f)
 	{}
 
-	FCollisionEvent(int32 InIndex, const Chaos::TCollisionData<float, 3>& InData)
+	FCollisionEvent(int32 InIndex, const Chaos::FCollidingData& InData)
 		: Index(InIndex)
 		, Location(InData.Location)
 		, AccumulatedImpulse(InData.AccumulatedImpulse)
@@ -177,7 +177,7 @@ struct FTrailingEvent : public FCacheEventBase
 		, BoundingBoxMax(0.0f, 0.0f, 0.0f)
 	{ }
 
-	FTrailingEvent(int32 InIndex, const Chaos::TTrailingData<float, 3>& InData)
+	FTrailingEvent(int32 InIndex, const Chaos::FTrailingData& InData)
 		: Index(InIndex)
 		, Location(InData.Location)
 		, Velocity(InData.Velocity)
