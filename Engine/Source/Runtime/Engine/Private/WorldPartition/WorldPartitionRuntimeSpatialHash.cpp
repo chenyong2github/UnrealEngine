@@ -461,6 +461,11 @@ void UWorldPartitionRuntimeSpatialHash::PreSave(FObjectPreSaveContext ObjectSave
 	}
 }
 
+FString UWorldPartitionRuntimeSpatialHash::GetCellCoordString(const FIntVector& InCellGlobalCoord)
+{
+	return FString::Printf(TEXT("L%d_X%d_Y%d"), InCellGlobalCoord.Z, InCellGlobalCoord.X, InCellGlobalCoord.Y);
+}
+
 #if WITH_EDITOR
 void UWorldPartitionRuntimeSpatialHash::DrawPreview() const
 {
@@ -599,11 +604,6 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 	}
 
 	return true;
-}
-
-FString UWorldPartitionRuntimeSpatialHash::GetCellCoordString(const FIntVector& InCellGlobalCoord)
-{
-	return FString::Printf(TEXT("L%d_X%d_Y%d"), InCellGlobalCoord.Z, InCellGlobalCoord.X, InCellGlobalCoord.Y);
 }
 
 FName UWorldPartitionRuntimeSpatialHash::GetCellName(UWorldPartition* WorldPartition, FName InGridName, const FIntVector& InCellGlobalCoord, const FDataLayersID& InDataLayerID)
