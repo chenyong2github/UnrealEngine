@@ -60,7 +60,7 @@ struct FDecalRenderingCommon
 	
 	static EDecalBlendMode ComputeFinalDecalBlendMode(EShaderPlatform Platform, EDecalBlendMode DecalBlendMode, bool bUseNormal)
 	{
-		const bool bShouldConvertToDBuffer = !IsUsingGBuffers(Platform) && !IsSimpleForwardShadingEnabled(Platform) && IsUsingDBuffers(Platform);
+		const bool bShouldConvertToDBuffer = !IsUsingGBuffers(Platform) && !IsSimpleForwardShadingEnabled(Platform) && IsUsingDBuffers(Platform) && !IsMobilePlatform(Platform);
 
 		if (bShouldConvertToDBuffer)
 		{
