@@ -831,7 +831,7 @@ TSharedPtr<FTabManager::FLayoutNode> SDockingTabStack::GatherPersistentLayout() 
 void SDockingTabStack::ClearReservedSpace()
 {
 	bShowingTitleBarArea = false;
-	(*TitleBarSlot).Padding(0);
+	(*TitleBarSlot).Padding(0.f);
 }
 
 void SDockingTabStack::ReserveSpaceForWindowChrome(EChromeElement Element, bool bIncludePaddingForMenuBar, bool bOnlyMinorTabs)
@@ -842,9 +842,9 @@ void SDockingTabStack::ReserveSpaceForWindowChrome(EChromeElement Element, bool 
 	#else
 		static const float TopPaddingForMenuBar = 27.0f;
 		static const float LeftPaddingForIcon = FSlateApplication::Get().GetAppIcon()->GetImageSize().X;
-		const FMargin ControlsPadding = FMargin(8, bIncludePaddingForMenuBar ? TopPaddingForMenuBar : 5, 0, 0);
+		const FMargin ControlsPadding = FMargin(8.f, bIncludePaddingForMenuBar ? TopPaddingForMenuBar : 5.f, 0.f, 0.f);
 		// If we are including top padding for the menu bar we do not need to pad the left side since we will be below the left icon
-		const FMargin IconPadding = FMargin(bIncludePaddingForMenuBar ? LeftPaddingForIcon + 12 : 25, bOnlyMinorTabs ? 5 : 0, 0, 0);
+		const FMargin IconPadding = FMargin(bIncludePaddingForMenuBar ? LeftPaddingForIcon + 12.f : 25.f, bOnlyMinorTabs ? 5.f : 0.f, 0.f, 0.f);
 	#endif
 
 	bShowingTitleBarArea = true;

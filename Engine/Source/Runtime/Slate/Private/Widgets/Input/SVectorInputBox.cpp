@@ -61,7 +61,7 @@ void SVectorInputBox::ConstructX(const FArguments& InArgs, TSharedRef<SHorizonta
 		.Delta(InArgs._SpinDelta)
 		.OnBeginSliderMovement(InArgs._OnBeginSliderMovement)
 		.OnEndSliderMovement(InArgs._OnEndSliderMovement)
-		.LabelPadding(FMargin(3))
+		.LabelPadding(FMargin(3.f))
 		.LabelLocation(SNumericEntryBox<float>::ELabelLocation::Inside)
 		.Label()
 		[

@@ -99,7 +99,7 @@ void SClippingHorizontalBox::AddWrapButton()
 		SNew( SComboButton )
 		.HasDownArrow( false )
 		.ButtonStyle(&ToolBarStyle.ButtonStyle)
-		.ContentPadding( 0 )
+		.ContentPadding( 0.f )
 		.ToolTipText( NSLOCTEXT("Slate", "ExpandToolbar", "Click to expand toolbar") )
 		.OnGetMenuContent( OnWrapButtonClicked )
 		.Cursor( EMouseCursor::Default )
@@ -113,7 +113,7 @@ void SClippingHorizontalBox::AddWrapButton()
 	// Add the wrap button
 	AddSlot()
 	.AutoWidth()
-	.Padding( 0 )
+	.Padding( 0.f )
 	[
 		WrapButton.ToSharedRef()
 	];

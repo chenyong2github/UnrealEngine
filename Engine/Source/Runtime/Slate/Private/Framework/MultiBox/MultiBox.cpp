@@ -704,7 +704,7 @@ void SMultiBoxWidget::AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHoriz
 				Slot.AutoWidth();
 			}
 
-			Slot.Padding(0);
+			Slot.Padding(0.f);
 			Slot
 			[
 				FinalWidgetWithHook

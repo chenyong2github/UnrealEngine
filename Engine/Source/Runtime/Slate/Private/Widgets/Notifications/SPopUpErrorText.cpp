@@ -8,7 +8,7 @@ void SPopupErrorText::Construct( const FArguments& InArgs )
 	SComboButton::Construct( SComboButton::FArguments()
 		.ComboButtonStyle( FCoreStyle::Get(), "MessageLogListingComboButton" )
 		.HasDownArrow(false)
-		.ContentPadding(0)
+		.ContentPadding(0.f)
 		.IsFocusable(false)
 		.ButtonContent()
 		[

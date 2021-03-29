@@ -16,7 +16,7 @@ void SCustomToolbarPreviewWidget::BuildMultiBlockWidget(const ISlateStyle* Style
 	ChildSlot
 	[
 		SNew( SBorder )
-		.Padding(0)
+		.Padding(0.f)
 		.BorderImage( FCoreStyle::Get().GetBrush("NoBorder") )
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)

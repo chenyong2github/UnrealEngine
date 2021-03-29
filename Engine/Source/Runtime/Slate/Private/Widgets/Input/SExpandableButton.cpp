@@ -53,7 +53,7 @@ void SExpandableButton::Construct(const FArguments& InArgs)
 				.Visibility( this, &SExpandableButton::GetCollapsedVisibility )
 				.OnClicked( InArgs._OnExpansionClicked )
 				.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
-				.ContentPadding( 0 )
+				.ContentPadding( 0.f )
 				[
 					CollapsedButtonContent
 				]
@@ -66,7 +66,7 @@ void SExpandableButton::Construct(const FArguments& InArgs)
 				SNew(SButton)
 				.Visibility( this, &SExpandableButton::GetExpandedVisibility )
 				.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
-				.ContentPadding( 0 )
+				.ContentPadding( 0.f )
 				.VAlign(VAlign_Center)
 				[
 					ExpandedButtonContent
@@ -90,7 +90,7 @@ void SExpandableButton::Construct(const FArguments& InArgs)
 				// Close expansion button
 				SNew(SButton)
 				.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
-				.ContentPadding( 0 )
+				.ContentPadding( 0.f )
 				.Visibility( this, &SExpandableButton::GetExpandedVisibility )
 				.OnClicked(InArgs._OnCloseClicked)
 				[

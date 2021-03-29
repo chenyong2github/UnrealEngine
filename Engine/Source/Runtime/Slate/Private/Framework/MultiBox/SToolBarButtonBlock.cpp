@@ -261,7 +261,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 		[
 			// Create a button
 			SNew(SButton)
-			.ContentPadding(0)
+			.ContentPadding(0.f)
 			// Use the tool bar item style for this button
 			.ButtonStyle(&ButtonStyle)
 			.IsEnabled(this, &SToolBarButtonBlock::IsEnabled)

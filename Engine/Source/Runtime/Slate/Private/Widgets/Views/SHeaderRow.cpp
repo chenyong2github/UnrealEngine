@@ -459,7 +459,7 @@ void SHeaderRow::Construct( const FArguments& InArgs )
 	}
 
 	SBorder::Construct( SBorder::FArguments()
-		.Padding( 0 )
+		.Padding( 0.f )
 		.BorderImage( &Style->BackgroundBrush )
 		.ForegroundColor( Style->ForegroundColor )
 	);

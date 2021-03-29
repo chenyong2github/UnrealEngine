@@ -284,7 +284,7 @@ bool SMenuAnchor::IsOpenViaCreatedWindow() const
 void SMenuAnchor::SetContent(TSharedRef<SWidget> InContent)
 {
 	Children[0]
-	.Padding(0)
+	.Padding(0.f)
 	[
 		InContent
 	];

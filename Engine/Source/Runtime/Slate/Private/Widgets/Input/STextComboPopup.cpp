@@ -19,7 +19,7 @@ void STextComboPopup::Construct( const FArguments& InArgs )
 	[
 		SNew(SBorder)
 		. BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
-		. Padding(10)
+		. Padding(10.f)
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()

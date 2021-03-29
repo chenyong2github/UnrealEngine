@@ -193,7 +193,7 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 	[
 		SAssignNew(ComboButtonWidget, SComboButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TagName))
-		.ContentPadding(0)
+		.ContentPadding(0.f)
 		.ComboButtonStyle(ComboStyle)
 		.ButtonStyle(&ButtonStyle)
 		.ToolTipText(ToolBarComboButtonBlock->ToolTip)
