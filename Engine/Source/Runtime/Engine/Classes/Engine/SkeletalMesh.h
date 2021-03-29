@@ -2234,6 +2234,11 @@ public:
 	*/
 	void RemoveLegacyClothingSections();
 
+	/*
+	* Handle some common preparation steps between async post load and async build
+	*/
+	void PrepareForAsyncCompilation();
+
 	/** Returns false if there is currently an async task running */
 	bool IsAsyncTaskComplete() const;
 
