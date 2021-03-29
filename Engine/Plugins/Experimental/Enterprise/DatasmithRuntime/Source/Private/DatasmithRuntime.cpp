@@ -182,7 +182,8 @@ void ADatasmithRuntimeActor::OnOpenDelta(/*int32 ElementsCount*/)
 
 	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnOpenDelta"));
 	bNewScene = false;
-	if (bReceivingStarted = DirectLinkHelper.IsValid())
+	bReceivingStarted = DirectLinkHelper.IsValid();
+	if (bReceivingStarted)
 	{
 		SceneElement = DirectLinkHelper->GetScene();
 	}
