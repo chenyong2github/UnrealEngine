@@ -646,7 +646,6 @@ bool SStatusBar::UpdateProgressNotification(FProgressNotificationHandle InHandle
 {
 	if (FStatusBarProgress* Progress = FindProgressNotification(InHandle))
 	{
-		Progress->TotalWorkDone = FMath::Clamp(TotalWorkDone, 0, Progress->TotalWorkToDo);
 		if (!UpdatedDisplayText.IsEmpty())
 		{
 			Progress->DisplayText = UpdatedDisplayText;
@@ -656,6 +655,8 @@ bool SStatusBar::UpdateProgressNotification(FProgressNotificationHandle InHandle
 		{
 			Progress->TotalWorkToDo = UpdatedTotalWorkToDo;
 		}
+
+		Progress->TotalWorkDone = FMath::Clamp(TotalWorkDone, 0, Progress->TotalWorkToDo);
 
 		UpdateProgressStatus();
 
