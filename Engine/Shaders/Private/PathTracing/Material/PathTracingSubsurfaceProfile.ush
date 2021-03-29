@@ -90,6 +90,7 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 
 	// Randomly choose to sample diffuse or specular
 	float3 L = 0, H = 0;
+	float OutRoughness = 0;
 	if (RandSample.x < LobeCdf.x)
 	{
 		RandSample.x /= LobeCdf.x;
@@ -100,6 +101,7 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 
 		L = Result.xyz;
 		H = normalize(L + V);
+		OutRoughness = 1.0;
 	}
 	else if (RandSample.x < LobeCdf.y)
 	{
@@ -116,6 +118,7 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 			// invalid output direction, exit early
 			return NullMaterialSample();
 		}
+		OutRoughness = DualRoughnessData.x;
 	}
 	else
 	{
@@ -132,6 +135,7 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 			// invalid output direction, exit early
 			return NullMaterialSample();
 		}
+		OutRoughness = DualRoughnessData.y;
 	}
 
 	// With a valid direction in hand -- now evaluate the BxDF (taking advantage of already computed terms)
@@ -153,5 +157,5 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 	AddLobeWithMIS(OutWeight, OutPdf, (    DualRoughnessData.z) * F * GGXResult1.x, GGXResult1.y, LobeProb.z);
 
 	// transform to world space
-	return CreateMaterialSample(normalize(mul(L, Basis)), OutWeight, OutPdf, 1.0);
+	return CreateMaterialSample(normalize(mul(L, Basis)), OutWeight, OutPdf, 1.0, OutRoughness);
 }

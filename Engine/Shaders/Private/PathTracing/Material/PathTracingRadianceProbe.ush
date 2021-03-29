@@ -123,7 +123,7 @@ FMaterialSample RadianceProbe_SampleMaterial(
 	// As the name suggests, radiance probe has a combined throughput (Pdf * Weight) == 1
 	float OutWeight = (OutPdf > 0.0f) ? (1.0f / OutPdf) : 0;
 
-	return CreateMaterialSample(OutDirection, OutWeight, OutPdf, 1.0);
+	return CreateMaterialSample(OutDirection, OutWeight, OutPdf, 1.0, 1.0);
 }
 
 float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
@@ -277,7 +277,7 @@ FMaterialSample RadianceProbe_SampleMaterial(
 
 	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
 
-	return CreateMaterialSample(TangentToWorld(SampledValue.xyz, N_World), 1.0, SampledValue.w, 1.0);
+	return CreateMaterialSample(TangentToWorld(SampledValue.xyz, N_World), 1.0, SampledValue.w, 1.0, 1.0);
 }
 
 float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)

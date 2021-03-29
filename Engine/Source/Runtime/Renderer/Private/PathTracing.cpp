@@ -97,6 +97,13 @@ TAutoConsoleVariable<int32> CVarPathTracingApproximateCaustics(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingSkipEmissive(
+	TEXT("r.PathTracing.SkipEmissive"),
+	0,
+	TEXT("When non-zero, the path tracer will skip emissive results after the first bounce. (default = 0 (off))"),
+	ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<int32> CVarPathTracingEnableCameraBackfaceCulling(
 	TEXT("r.PathTracing.EnableCameraBackfaceCulling"),
 	1,
@@ -166,10 +173,10 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	}
 	else
 	{
+		PathTracingData.SkipDirectLighting = true;
 		if (View.Family->EngineShowFlags.GlobalIllumination)
 		{
 			// skip direct lighting, but still do the full bounces
-			PathTracingData.SkipDirectLighting = true;
 		}
 		else
 		{
@@ -188,6 +195,7 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.ApproximateCaustics = CVarPathTracingApproximateCaustics.GetValueOnRenderThread();
 	PathTracingData.EnableCameraBackfaceCulling = CVarPathTracingEnableCameraBackfaceCulling.GetValueOnRenderThread();
 	PathTracingData.CoherentSampling = CVarPathTracingCoherentSampling.GetValueOnRenderThread();
+	PathTracingData.SkipEmissive = CVarPathTracingSkipEmissive.GetValueOnRenderThread();
 	float FilterWidth = CVarPathTracingFilterWidth.GetValueOnRenderThread();
 	if (FilterWidth < 0)
 	{
@@ -277,6 +285,14 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	{
 		NeedInvalidation = true;
 		PreviousSkipDirectLighting = PathTracingData.SkipDirectLighting;
+	}
+
+	// Changing skip emissive requires starting over
+	static uint32 PreviousSkipEmissive = PathTracingData.SkipEmissive;
+	if (PreviousSkipEmissive != PathTracingData.SkipEmissive)
+	{
+		NeedInvalidation = true;
+		PreviousSkipEmissive = PathTracingData.SkipEmissive;
 	}
 
 	// Changing coherent sampling requires starting over
@@ -912,6 +928,11 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		PassParameters->PathTracingData = CreateUniformBufferImmediate(PathTracingData, EUniformBufferUsage::UniformBuffer_SingleFrame);
 		// upload sky/lights data
 		SetLightParameters(GraphBuilder, PassParameters, Scene, View, UseMISCompensation);
+		if (PathTracingData.SkipDirectLighting)
+		{
+			PassParameters->SceneVisibleLightCount = 0;
+		}
+
 		PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
 

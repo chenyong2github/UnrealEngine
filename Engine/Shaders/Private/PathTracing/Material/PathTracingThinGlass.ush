@@ -149,7 +149,7 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 		OutWeight *= Result.Reflected / ProbR;
 		OutPdf *= ProbR;
 		float3 OutDirection = normalize(mul(L, Basis));
-		return CreateMaterialSample(OutDirection, OutWeight, OutPdf, 1.0);
+		return CreateMaterialSample(OutDirection, OutWeight, OutPdf, 1.0, Payload.Roughness);
 	}
 	else
 	{
@@ -157,6 +157,6 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 		OutWeight *= Result.Transmitted / (1.0 - ProbR);
 		OutPdf *= 1.0 - ProbR;
 		float3 OutDirection = normalize(mul(float3(L.xy, -L.z), Basis)); // flip reflection to other side
-		return CreateMaterialSample(OutDirection, OutWeight, OutPdf, -1.0);
+		return CreateMaterialSample(OutDirection, OutWeight, OutPdf, -1.0, Payload.Roughness);
 	}
 }
