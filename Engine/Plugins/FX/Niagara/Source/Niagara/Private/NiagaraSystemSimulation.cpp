@@ -430,7 +430,7 @@ struct FNiagaraSystemInstanceFinalizeTask
 			}
 		}
 #if DO_CHECK
-		checkf(DebugCounter.load() == 0, TEXT("Finalize batch is complete but counter is %d when it should be zero"), DebugCounter.load());
+		ensureMsgf(DebugCounter.load() == 0, TEXT("Finalize batch is complete but counter is %d when it should be zero"), DebugCounter.load());
 #endif
 	}
 
