@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "CoreFwd.h"
+#include "Containers/StringFwd.h"
 #include "HAL/PlatformCrt.h"
 #include "Misc/CompressionFlags.h"
 #include "Misc/EnumClassFlags.h"
@@ -846,6 +847,14 @@ public:
 	 * E.g. on Linux/Unix platforms, replaces ~ with user home directory, so ~/.config becomes /home/joe/.config (or /Users/Joe/.config)
 	 */
 	static void NormalizePath(FString& InPath)
+	{
+	}
+
+	/**
+	 * Platform-specific normalization of path
+	 * E.g. on Linux/Unix platforms, replaces ~ with user home directory, so ~/.config becomes /home/joe/.config (or /Users/Joe/.config)
+	 */
+	static void NormalizePath(FStringBuilderBase& InPath)
 	{
 	}
 

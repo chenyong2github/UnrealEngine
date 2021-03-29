@@ -46,6 +46,7 @@ struct CORE_API FUnixPlatformMisc : public FGenericPlatformMisc
 	static const TCHAR* GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error);
 
 	static void NormalizePath(FString& InPath);
+	static void NormalizePath(FStringBuilderBase& InPath);
 
 	static const TCHAR* GetPathVarDelimiter()
 	{

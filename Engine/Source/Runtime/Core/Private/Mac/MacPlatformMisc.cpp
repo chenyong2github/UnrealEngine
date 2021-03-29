@@ -23,6 +23,7 @@
 #include "HAL/ThreadManager.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Misc/StringBuilder.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/CoreDelegates.h"
 #include "Internationalization/Internationalization.h"
@@ -780,6 +781,15 @@ void FMacPlatformMisc::NormalizePath(FString& InPath)
 	if (InPath.StartsWith(TEXT("~"), ESearchCase::CaseSensitive))	// case sensitive is quicker, and our substring doesn't care
 	{
 		InPath = InPath.Replace(TEXT("~"), FPlatformProcess::UserHomeDir(), ESearchCase::CaseSensitive);
+	}
+}
+
+void FMacPlatformMisc::NormalizePath(FStringBuilderBase& InPath)
+{
+	// only expand if path starts with ~, e.g. ~/ should be expanded, /~ should not
+	if (FStringView(InPath).StartsWith('~'))
+	{
+		InPath.ReplaceAt(0, 1, FPlatformProcess::UserHomeDir());
 	}
 }
 

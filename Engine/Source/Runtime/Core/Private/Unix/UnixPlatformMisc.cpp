@@ -13,6 +13,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "Misc/DateTime.h"
+#include "Misc/StringBuilder.h"
 #include "HAL/PlatformTime.h"
 #include "Containers/StringConv.h"
 #include "Logging/LogMacros.h"
@@ -83,6 +84,15 @@ void FUnixPlatformMisc::NormalizePath(FString& InPath)
 	if (InPath.StartsWith(TEXT("~"), ESearchCase::CaseSensitive))	// case sensitive is quicker, and our substring doesn't care
 	{
 		InPath = InPath.Replace(TEXT("~"), FPlatformProcess::UserHomeDir(), ESearchCase::CaseSensitive);
+	}
+}
+
+void FUnixPlatformMisc::NormalizePath(FStringBuilderBase& InPath)
+{
+	// only expand if path starts with ~, e.g. ~/ should be expanded, /~ should not
+	if (FStringView(InPath).StartsWith('~'))
+	{
+		InPath.ReplaceAt(0, 1, FPlatformProcess::UserHomeDir());
 	}
 }
 
