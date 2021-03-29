@@ -536,6 +536,12 @@ FGameplayTagBlueprintPropertyMap::FGameplayTagBlueprintPropertyMap()
 {
 }
 
+FGameplayTagBlueprintPropertyMap::FGameplayTagBlueprintPropertyMap(const FGameplayTagBlueprintPropertyMap& Other)
+{
+	ensureMsgf(Other.CachedOwner.IsExplicitlyNull(), TEXT("FGameplayTagBlueprintPropertyMap cannot be used inside an array or other container that is copied after register!"));
+	PropertyMappings = Other.PropertyMappings;
+}
+
 FGameplayTagBlueprintPropertyMap::~FGameplayTagBlueprintPropertyMap()
 {
 	Unregister();
@@ -610,7 +616,7 @@ void FGameplayTagBlueprintPropertyMap::Initialize(UObject* Owner, UAbilitySystem
 	CachedOwner = Owner;
 	CachedASC = ASC;
 
-	FOnGameplayEffectTagCountChanged::FDelegate Delegate = FOnGameplayEffectTagCountChanged::FDelegate::CreateRaw(this, &FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback);
+	FOnGameplayEffectTagCountChanged::FDelegate Delegate = FOnGameplayEffectTagCountChanged::FDelegate::CreateRaw(this, &FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback, CachedOwner);
 
 	// Process array starting at the end so we can remove invalid entries.
 	for (int32 MappingIndex = (PropertyMappings.Num() - 1); MappingIndex >= 0; --MappingIndex)
@@ -656,8 +662,15 @@ void FGameplayTagBlueprintPropertyMap::Unregister()
 	CachedASC = nullptr;
 }
 
-void FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback(const FGameplayTag Tag, int32 NewCount)
+void FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback(const FGameplayTag Tag, int32 NewCount, TWeakObjectPtr<UObject> RegisteredOwner)
 {
+	// If the index and serial don't match with registered owner, the memory might be trashed so abort
+	if (!ensure(RegisteredOwner.HasSameIndexAndSerialNumber(CachedOwner)))
+	{
+		ABILITY_LOG(Error, TEXT("FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback called with corrupted Owner!"));
+		return;
+	}
+
 	UObject* Owner = CachedOwner.Get();
 	if (!Owner)
 	{
@@ -683,6 +696,44 @@ void FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback(const FGameplayT
 		else if (const FFloatProperty* FloatProperty = CastField<const FFloatProperty>(Mapping->PropertyToEdit.Get()))
 		{
 			FloatProperty->SetPropertyValue_InContainer(Owner, (float)NewCount);
+		}
+	}
+}
+
+void FGameplayTagBlueprintPropertyMap::ApplyCurrentTags()
+{
+	UObject* Owner = CachedOwner.Get();
+	if (!Owner)
+	{
+		ABILITY_LOG(Warning, TEXT("FGameplayTagBlueprintPropertyMap::ApplyCurrentTags called with an invalid Owner."));
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = CachedASC.Get();
+	if (!ASC)
+	{
+		ABILITY_LOG(Warning, TEXT("FGameplayTagBlueprintPropertyMap::ApplyCurrentTags called with an invalid AbilitySystemComponent."));
+		return;
+	}
+
+	for (FGameplayTagBlueprintPropertyMapping& Mapping : PropertyMappings)
+	{
+		if (Mapping.PropertyToEdit.Get() && Mapping.TagToMap.IsValid())
+		{
+			int32 NewCount = ASC->GetTagCount(Mapping.TagToMap);
+			
+			if (const FBoolProperty* BoolProperty = CastField<const FBoolProperty>(Mapping.PropertyToEdit.Get()))
+			{
+				BoolProperty->SetPropertyValue_InContainer(Owner, NewCount > 0);
+			}
+			else if (const FIntProperty* IntProperty = CastField<const FIntProperty>(Mapping.PropertyToEdit.Get()))
+			{
+				IntProperty->SetPropertyValue_InContainer(Owner, NewCount);
+			}
+			else if (const FFloatProperty* FloatProperty = CastField<const FFloatProperty>(Mapping.PropertyToEdit.Get()))
+			{
+				FloatProperty->SetPropertyValue_InContainer(Owner, (float)NewCount);
+			}
 		}
 	}
 }

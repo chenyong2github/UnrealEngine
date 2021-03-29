@@ -1388,6 +1388,16 @@ struct GAMEPLAYABILITIES_API FGameplayTagBlueprintPropertyMapping
 
 public:
 
+	FGameplayTagBlueprintPropertyMapping() {}
+	FGameplayTagBlueprintPropertyMapping(const FGameplayTagBlueprintPropertyMapping& Other)
+	{
+		// Don't copy handle
+		TagToMap = Other.TagToMap;
+		PropertyToEdit = Other.PropertyToEdit;
+		PropertyName = Other.PropertyName;
+		PropertyGuid = Other.PropertyGuid;
+	}
+
 	/** Gameplay tag being counted. */
 	UPROPERTY(EditAnywhere, Category = GameplayTagBlueprintProperty)
 	FGameplayTag TagToMap;
@@ -1412,7 +1422,7 @@ public:
 /**
  * Struct used to manage gameplay tag blueprint property mappings.
  * It registers the properties with delegates on an ability system component.
- * This struct should not be used in containers (such as TArray) since it uses a raw pointer
+ * This struct can not be used in containers (such as TArray) since it uses a raw pointer
  * to bind the delegate and it's address could change causing an invalid binding.
  */
 USTRUCT()
@@ -1423,10 +1433,14 @@ struct GAMEPLAYABILITIES_API FGameplayTagBlueprintPropertyMap
 public:
 
 	FGameplayTagBlueprintPropertyMap();
+	FGameplayTagBlueprintPropertyMap(const FGameplayTagBlueprintPropertyMap& Other);
 	~FGameplayTagBlueprintPropertyMap();
 
 	/** Call this to initialize and bind the properties with the ability system component. */
 	void Initialize(UObject* Owner, class UAbilitySystemComponent* ASC);
+
+	/** Call to manually apply the current tag state, can handle cases where callbacks were skipped */
+	void ApplyCurrentTags();
 
 #if WITH_EDITOR
 	/** This can optionally be called in the owner's IsDataValid() for data validation. */
@@ -1437,7 +1451,7 @@ protected:
 
 	void Unregister();
 
-	void GameplayTagEventCallback(const FGameplayTag Tag, int32 NewCount);
+	void GameplayTagEventCallback(const FGameplayTag Tag, int32 NewCount, TWeakObjectPtr<UObject> RegisteredOwner);
 
 	bool IsPropertyTypeValid(const FProperty* Property) const;
 
