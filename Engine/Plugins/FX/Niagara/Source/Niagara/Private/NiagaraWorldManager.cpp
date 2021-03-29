@@ -665,7 +665,7 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 				}
 				else
 				{
-					SimulationsWithPostActorWork[i]->WaitForSystemTickComplete();
+					SimulationsWithPostActorWork[i]->WaitForConcurrentTickComplete();
 				}
 			}
 
@@ -705,7 +705,7 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 				FNiagaraSystemSimulation* Sim = &SystemSim.Value.Get();
 				if (Sim->IsValid())
 				{
-					Sim->WaitForSystemTickComplete();
+					Sim->WaitForConcurrentTickComplete();
 				}
 			}
 		}

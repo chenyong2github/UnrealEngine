@@ -103,13 +103,11 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, bPendingSpawn(false)
 	, bPaused(false)
 	, bDataInterfacesHaveTickPrereqs(false)
-	, bNeedsFinalize(false)
 	, bDataInterfacesInitialized(false)
 	, bAlreadyBound(false)
 	, bLODDistanceIsValid(false)
 	, bPooled(bInPooled)
 	, bHasSimulationReset(false)
-	, bAsyncWorkInProgress(false)
 	, CachedDeltaSeconds(0.0f)
 	, RequestedExecutionState(ENiagaraExecutionState::Complete)
 	, ActualExecutionState(ENiagaraExecutionState::Complete)
@@ -203,7 +201,7 @@ void FNiagaraSystemInstance::SetEmitterEnable(FName EmitterName, bool bNewEnable
 void FNiagaraSystemInstance::Init(bool bInForceSolo)
 {
 	// We warn if async is not complete here as we should never wait
-	WaitForAsyncTickAndFinalize(true);
+	WaitForConcurrentTickAndFinalize(true);
 
 	bForceSolo = bInForceSolo;
 	ActualExecutionState = ENiagaraExecutionState::Inactive;
@@ -319,7 +317,7 @@ bool FNiagaraSystemInstance::RequestCapture(const FGuid& RequestId)
 	}
 
 	// Wait for any async operations, can complete the system
-	WaitForAsyncTickAndFinalize();
+	WaitForConcurrentTickAndFinalize();
 	if (IsComplete())
 	{
 		return false;
@@ -363,13 +361,13 @@ bool FNiagaraSystemInstance::RequestCapture(const FGuid& RequestId)
 
 void FNiagaraSystemInstance::FinishCapture()
 {
-	// Wait for any async operations, can complete the system
-	WaitForAsyncTickAndFinalize();
-
 	if (!CurrentCapture.IsValid())
 	{
 		return;
 	}
+
+	// Wait for any async operations, can complete the system
+	WaitForConcurrentTickAndFinalize();
 
 	SetSolo(bWasSoloPriorToCaptureRequest);
 	CurrentCapture.Reset();
@@ -379,7 +377,7 @@ void FNiagaraSystemInstance::FinishCapture()
 bool FNiagaraSystemInstance::QueryCaptureResults(const FGuid& RequestId, TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>& OutCaptureResults)
 {
 	// Wait for any async operations, can complete the system
-	WaitForAsyncTickAndFinalize();
+	WaitForConcurrentTickAndFinalize();
 
 	if (CurrentCaptureGuid.IsValid() && RequestId == *CurrentCaptureGuid.Get())
 	{
@@ -462,7 +460,7 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 	}
 
 	// Wait for any async operations
-	WaitForAsyncTickDoNotFinalize();
+	WaitForConcurrentTickDoNotFinalize();
 
 	UNiagaraSystem* System = GetSystem();
 	if (bInSolo)
@@ -487,7 +485,10 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 	}
 
 	// Execute any pending finalize
-	FinalizeTick_GameThread();
+	if (FinalizeRef.IsPending())
+	{
+		FinalizeTick_GameThread();
+	}
 }
 
 void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
@@ -563,14 +564,14 @@ void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
 	UNiagaraSystem* System = GetSystem();
 	if (System && System->IsValid() && IsReadyToRun())
 	{
-		if (GNiagaraAllowDeferredReset && (bAsyncWorkInProgress || bNeedsFinalize) && SystemInstanceIndex != INDEX_NONE)
+		if (GNiagaraAllowDeferredReset && SystemInstanceIndex != INDEX_NONE && FinalizeRef.IsPending() )
 		{
 			DeferredResetMode = InResetMode;
 		}
 		else
 		{
 			// Wait for any async operations, can complete the system
-			WaitForAsyncTickAndFinalize();
+			WaitForConcurrentTickAndFinalize();
 
 			DeferredResetMode = EResetMode::None;
 			Reset(InResetMode);			
@@ -592,7 +593,7 @@ void FNiagaraSystemInstance::Deactivate(bool bImmediate)
 	if (bImmediate)
 	{
 		// Wait for any async operations, can complete the system
-		WaitForAsyncTickAndFinalize();
+		WaitForConcurrentTickAndFinalize();
 
 		if (!IsComplete())
 		{
@@ -719,7 +720,7 @@ void FNiagaraSystemInstance::SetPaused(bool bInPaused)
 	}
 
 	// Wait for any async operations, can complete the system
-	WaitForAsyncTickAndFinalize();
+	WaitForConcurrentTickAndFinalize();
 
 	if (SystemInstanceIndex != INDEX_NONE)
 	{
@@ -756,7 +757,7 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 	}
 
 	// Wait for any async operations, can complete the system
-	WaitForAsyncTickAndFinalize();
+	WaitForConcurrentTickAndFinalize();
 
 	//////////////////////////////////////////////////////////////////////////
 	//-TOFIX: Workaround FORT-315375 GT / RT Race
@@ -770,7 +771,6 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 	if (SystemSimulation.IsValid())
 	{
 		SystemSimulation->RemoveInstance(this);
-		bNeedsFinalize = false;
 	}
 	else
 	{
@@ -863,8 +863,7 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 	check(SystemInstanceIndex == INDEX_NONE);
 	ensure(bPendingSpawn == false);
 	ensure(bPaused == false);
-	ensure(bAsyncWorkInProgress == false);
-	ensure(bNeedsFinalize == false);
+	ensure(!FinalizeRef.IsPending());
 
 	Age = 0;
 	TickCount = 0;
@@ -924,7 +923,7 @@ void FNiagaraSystemInstance::AdvanceSimulation(int32 TickCountToSimulate, float 
 	if (TickCountToSimulate > 0 && !IsPaused())
 	{
 		// Wait for any async operations, can complete the system
-		WaitForAsyncTickAndFinalize();
+		WaitForConcurrentTickAndFinalize();
 		if (IsComplete())
 		{
 			return;
@@ -996,8 +995,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	check(SystemInstanceIndex == INDEX_NONE);
 	ensure(bPendingSpawn == false);
 	ensure(bPaused == false);
-	ensure(bAsyncWorkInProgress == false);
-	ensure(bNeedsFinalize == false);
+	ensure(!FinalizeRef.IsPending());
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemReinit);
 
@@ -1113,13 +1111,15 @@ FNiagaraSystemInstance::~FNiagaraSystemInstance()
 void FNiagaraSystemInstance::Cleanup()
 {
 	// We should have no sync operations pending but we will be safe and wait
-	WaitForAsyncTickDoNotFinalize();
+	WaitForConcurrentTickDoNotFinalize(true);
 
 	if (SystemInstanceIndex != INDEX_NONE)
 	{
 		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSim = GetSystemSimulation();
 		SystemSim->RemoveInstance(this);
 	}
+
+	check(!FinalizeRef.IsPending());
 
 	DestroyDataInterfaceInstanceData();
 
@@ -1316,7 +1316,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	}
 
 	// Wait for any async operations, can complete the system
-	WaitForAsyncTickAndFinalize(true);
+	WaitForConcurrentTickAndFinalize(true);
 
 	if (OverrideParameters != nullptr)
 	{
@@ -2023,49 +2023,43 @@ void FNiagaraSystemInstance::ManualTick(float DeltaSeconds, const FGraphEventRef
 	check(bSolo);
 
 	SystemSim->Tick_GameThread(DeltaSeconds, MyCompletionGraphEvent);
-
 }
 
-void FNiagaraSystemInstance::WaitForAsyncTickDoNotFinalize(bool bEnsureComplete)
+void FNiagaraSystemInstance::WaitForConcurrentTickDoNotFinalize(bool bEnsureComplete)
 {
-	if (bAsyncWorkInProgress == false)
+	check(IsInGameThread());
+
+	// Wait for any concurrent ticking for our task
+	if (ConcurrentTickGraphEvent && !ConcurrentTickGraphEvent->IsComplete())
 	{
-		return;
-	}
+		ensureAlwaysMsgf(!bEnsureComplete, TEXT("FNiagaraSystemInstance::WaitForConcurrentTickDoNotFinalize - Async Work not complete and is expected to be. %s"), *GetSystem()->GetPathName());
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemWaitForAsyncTick);
 
-	ensureAlwaysMsgf(!bEnsureComplete, TEXT("Niagara System Async Task should be complete by now. %s"), *GetSystem()->GetPathName());
-	ensureAlwaysMsgf(IsInGameThread(), TEXT("NiagaraSystemInstance::WaitForAsyncTick() call is assuming execution on GT but is not on GT. %s"), *GetSystem()->GetPathName());
+		const uint64 StartCycles = FPlatformTime::Cycles64();
+		const double WarnSeconds = 5.0;
+		const uint64 WarnCycles = StartCycles + uint64(WarnSeconds / FPlatformTime::GetSecondsPerCycle64());
 
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemWaitForAsyncTick);
-
-	const uint64 StartCycles = FPlatformTime::Cycles64();
-	const double WarnSeconds = 5.0;
-	const uint64 WarnCycles = StartCycles + uint64(WarnSeconds / FPlatformTime::GetSecondsPerCycle64());
-	bool bDoWarning = true;
-
-	while ( bAsyncWorkInProgress )
-	{
-		FPlatformProcess::SleepNoStats(0.001f);
-		if ( bDoWarning && (FPlatformTime::Cycles64() > WarnCycles) )
+		do
 		{
-			bDoWarning = false;
-			UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has stalled GT for %g seconds and is not complete, this may result in a deadlock. Component(%s) System(%s)"), WarnSeconds, *GetFullNameSafe(AttachComponent.Get()), *GetFullNameSafe(GetSystem()));
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTickGraphEvent, ENamedThreads::GameThread);
+		} while (ConcurrentTickGraphEvent && !ConcurrentTickGraphEvent->IsComplete());
+
+		const double StallTimeMS = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartCycles);
+		if (StallTimeMS > GWaitForAsyncStallWarnThresholdMS)
+		{
+			//-TODO: This should be put back to a warning once EngineTests no longer cause it show up.  The reason it's triggered is because we pause in latent actions right after a TG running Niagara sims.
+			UE_LOG(LogNiagara, Log, TEXT("Niagara Effect stalled GT for %g ms. Component(%s) System(%s)"), StallTimeMS, *GetFullNameSafe(AttachComponent.Get()), *GetFullNameSafe(GetSystem()));
 		}
 	}
-
-	const double StallTimeMS = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartCycles);
-	if (StallTimeMS > GWaitForAsyncStallWarnThresholdMS)
-	{
-		//-TODO: This should be put back to a warning once EngineTests no longer cause it show up.  The reason it's triggered is because we pause in latent actions right after a TG running Niagara sims.
-		UE_LOG(LogNiagara, Log, TEXT("Niagara Effect stalled GT for %g ms. Component(%s) System(%s)"), StallTimeMS, *GetFullNameSafe(AttachComponent.Get()), *GetFullNameSafe(GetSystem()));
-	}
+	ConcurrentTickGraphEvent = nullptr;
 }
 
-void FNiagaraSystemInstance::WaitForAsyncTickAndFinalize(bool bEnsureComplete)
+void FNiagaraSystemInstance::WaitForConcurrentTickAndFinalize(bool bEnsureComplete)
 {
-	if (bAsyncWorkInProgress)
+	WaitForConcurrentTickDoNotFinalize(bEnsureComplete);
+
+	if (FinalizeRef.IsPending())
 	{
-		WaitForAsyncTickDoNotFinalize(bEnsureComplete);
 		FinalizeTick_GameThread();
 	}
 }
@@ -2103,14 +2097,13 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	FScopeCycleCounter SystemStat(System->GetStatID(true, false));
 
 	// We should have no pending async operations, but wait to be safe
-	WaitForAsyncTickAndFinalize(true);
+	WaitForConcurrentTickAndFinalize(true);
 	if (IsComplete())
 	{
 		return;
 	}
 
 	CachedDeltaSeconds = DeltaSeconds;
-	bNeedsFinalize = true;
 
 	TickInstanceParameters_GameThread(DeltaSeconds);
 
@@ -2119,11 +2112,6 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	Age += DeltaSeconds;
 	TickCount += 1;
 	
-	if ( !IsComplete() )
-	{
-		BeginAsyncWork();
-	}
-
 #if WITH_EDITOR
 	// We need to tick the rapid iteration parameters when in the editor
 	for (auto& EmitterInstance : Emitters)
@@ -2154,7 +2142,6 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 
 	if (IsComplete() || System == nullptr || CachedDeltaSeconds < SMALL_NUMBER)
 	{
-		bAsyncWorkInProgress = false;
 		return;
 	}
 
@@ -2179,7 +2166,6 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 
 	if ( !bHasTickingEmitters )
 	{
-		bAsyncWorkInProgress = false;
 		return;
 	}
 
@@ -2263,8 +2249,6 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	{
 		GenerateAndSubmitGPUTick();
 	}
-
-	bAsyncWorkInProgress = false;
 }
 
 void FNiagaraSystemInstance::OnSimulationDestroyed()
@@ -2279,8 +2263,13 @@ void FNiagaraSystemInstance::OnSimulationDestroyed()
 	}
 }
 
-bool FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded)
+void FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded)
 {
+	// Ensure concurrent work is complete and clear the finalize ref
+	check(ConcurrentTickGraphEvent == nullptr || ConcurrentTickGraphEvent->IsComplete());
+	ConcurrentTickGraphEvent = nullptr;
+	FinalizeRef.ConditionalClear();
+
 	//////////////////////////////////////////////////////////////////////////
 	//-TOFIX: Workaround FORT-315375 GT / RT Race
 	if ( bRequestMaterialRecache )
@@ -2290,54 +2279,45 @@ bool FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeede
 	}
 	//////////////////////////////////////////////////////////////////////////
 
-	if (bNeedsFinalize)//We can come in here twice in one tick if the GT calls WaitForAsync() while there is a GT finalize task in the queue.
+	FNiagaraCrashReporterScope CRScope(this);
+
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_FinalizeGT);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
+	LLM_SCOPE(ELLMTag::Niagara);
+
+	//Temporarily force FX to update their own LODDistance on frames where it is not provided by the scalability manager.
+	//TODO: Lots of FX wont need an accurate per frame value so implement a good way for FX to opt into this. FORT-248457
+	bLODDistanceIsValid = false;
+
+	if (!HandleCompletion())
 	{
-		FNiagaraCrashReporterScope CRScope(this);
+		//Post tick our interfaces.
+		TickDataInterfaces(CachedDeltaSeconds, true);
 
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_FinalizeGT);
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
-		LLM_SCOPE(ELLMTag::Niagara);
-
-		//Temporarily force FX to update their own LODDistance on frames where it is not provided by the scalability manager.
-		//TODO: Lots of FX wont need an accurate per frame value so implement a good way for FX to opt into this. FORT-248457
-		bLODDistanceIsValid = false;
-
-		bNeedsFinalize = false;
-		if (!HandleCompletion())
+		//Enqueue a GPU tick for this sim if we have to do this from the GameThread.
+		//If we're batching our tick passing we may still need to enqueue here if not called from the regular finalize task. The caller will tell us with bEnqueueGPUTickIfNeeded.
+		FNiagaraSystemSimulation* Sim = SystemSimulation.Get();
+		check(Sim);
+		ENiagaraGPUTickHandlingMode Mode = Sim->GetGPUTickHandlingMode();
+		if (Mode == ENiagaraGPUTickHandlingMode::GameThread || (Mode == ENiagaraGPUTickHandlingMode::GameThreadBatched && bEnqueueGPUTickIfNeeded))
 		{
-			//Post tick our interfaces.
-			TickDataInterfaces(CachedDeltaSeconds, true);
-
-			//Enqueue a GPU tick for this sim if we have to do this from the GameThread.
-			//If we're batching our tick passing we may still need to enqueue here if not called from the regular finalize task. The caller will tell us with bEnqueueGPUTickIfNeeded.
-			FNiagaraSystemSimulation* Sim = SystemSimulation.Get();
-			check(Sim);
-			ENiagaraGPUTickHandlingMode Mode = Sim->GetGPUTickHandlingMode();
-			if (Mode == ENiagaraGPUTickHandlingMode::GameThread || (Mode == ENiagaraGPUTickHandlingMode::GameThreadBatched && bEnqueueGPUTickIfNeeded))
-			{
-				GenerateAndSubmitGPUTick();
-			}
+			GenerateAndSubmitGPUTick();
 		}
-
-		if (DeferredResetMode != EResetMode::None)
-		{
-			const EResetMode ResetMode = DeferredResetMode;
-			DeferredResetMode = EResetMode::None;
-
-			Reset(ResetMode);
-		}
-
-		if (OnPostTickDelegate.IsBound())
-		{
-			OnPostTickDelegate.Execute();
-		}
-
-		return true;
 	}
 
-	//Tell the caller we didn't actually finalize the system.
-	return false;
+	if (DeferredResetMode != EResetMode::None)
+	{
+		const EResetMode ResetMode = DeferredResetMode;
+		DeferredResetMode = EResetMode::None;
+
+		Reset(ResetMode);
+	}
+
+	if (OnPostTickDelegate.IsBound())
+	{
+		OnPostTickDelegate.Execute();
+	}
 }
 
 void FNiagaraSystemInstance::GenerateAndSubmitGPUTick()

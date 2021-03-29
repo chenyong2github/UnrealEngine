@@ -206,17 +206,12 @@ protected:
 
 struct FNiagaraSystemSimulationTickContext
 {
-private:
-	FNiagaraSystemSimulationTickContext(TArray<FNiagaraSystemInstance*>& InInstances, FNiagaraDataSet& InDataSet)
-		: Instances(InInstances)
-		, DataSet(InDataSet)
-	{
-	}
+public:
+	FNiagaraSystemSimulationTickContext(class FNiagaraSystemSimulation* InOwner, TArray<FNiagaraSystemInstance*>& InInstances, FNiagaraDataSet& InDataSet, float InDeltaSeconds, int32 InSpawnNum, bool bAllowAsync);
+
+	bool IsRunningAsync() const { return bRunningAsync; }
 
 public:
-	static FNiagaraSystemSimulationTickContext MakeContextForTicking(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, const FGraphEventRef& MyCompletionGraphEvent);
-	static FNiagaraSystemSimulationTickContext MakeContextForSpawning(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, bool bAllowAsync);
-
 	class FNiagaraSystemSimulation*		Owner;
 	UNiagaraSystem*						System;
 	UWorld*								World;
@@ -229,11 +224,9 @@ public:
 
 	int									EffectsQuality;
 
-	FGraphEventRef						MyCompletionGraphEvent;
-	FGraphEventArray*					FinalizeEvents;
-
-	bool								bTickAsync;
-	bool								bTickInstancesAsync;
+	bool								bRunningAsync = false;
+	FGraphEventArray					BeforeInstancesTickGraphEvents;
+	FGraphEventArray*					CompletionEvents = nullptr;
 };
 
 /** Simulation performing all system and emitter scripts for a instances of a UNiagaraSystem in a world. */
@@ -268,9 +261,9 @@ public:
 
 	/** Promote instances that have ticked during */
 
-	/** Wait for system simulation tick to complete.  If bEnsureComplete is true we will trigger an ensure if it is not complete. */
-	void WaitForSystemTickComplete(bool bEnsureComplete = false);
-	/** Wait for instances tick to complete.  If bEnsureComplete is true we will trigger an ensure if it is not complete. */
+	/** Wait for system simulation concurrent tick to complete.  If bEnsureComplete is true we will trigger an ensure if it is not complete. */
+	void WaitForConcurrentTickComplete(bool bEnsureComplete = false);
+	/** Wait for system instances concurrent tick to complete.  If bEnsureComplete is true we will trigger an ensure if it is not complete. */
 	void WaitForInstancesTickComplete(bool bEnsureComplete = false);
 
 	void RemoveInstance(FNiagaraSystemInstance* Instance);
@@ -420,8 +413,10 @@ protected:
 	/** Current tick batch we're filling ready for processing, potentially in an async task. */
 	FNiagaraSystemTickBatch TickBatch;
 
-	/** Current task that is executing */
-	FGraphEventRef SystemTickGraphEvent;
+	/** Event to track the system simulation async tick is complete. */
+	FGraphEventRef ConcurrentTickGraphEvent;
+	/** Event to track all work is complete, i.e. System Concurrent, Instance Concurrent, Finalize */
+	FGraphEventRef AllWorkCompleteGraphEvent;
 
 	mutable FString CrashReporterTag;
 

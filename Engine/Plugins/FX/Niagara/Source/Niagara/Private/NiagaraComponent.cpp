@@ -1719,7 +1719,7 @@ void UNiagaraComponent::OnEndOfFrameUpdateDuringTick()
 	Super::OnEndOfFrameUpdateDuringTick();
 	if ( SystemInstance )
 	{
-		SystemInstance->WaitForAsyncTickAndFinalize();
+		SystemInstance->WaitForConcurrentTickAndFinalize();
 	}
 }
 
