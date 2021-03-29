@@ -114,6 +114,7 @@ namespace Chaos
 		FTrailingEventData() {}
 
 		FAllTrailingData TrailingData;
+		FIndicesByPhysicsProxy PhysicsProxyToTrailingIndices;
 	};
 
 	struct FSleepingEventData

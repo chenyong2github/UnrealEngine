@@ -40,12 +40,16 @@ namespace Chaos
 			FCollisionDataArray& AllCollisionsDataArray = CollisionEventData.CollisionData.AllCollisionsArray;
 			TMap<IPhysicsProxyBase*, TArray<int32>>& AllCollisionsIndicesByPhysicsProxy = CollisionEventData.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap;
 
-			AllCollisionsDataArray.Reset();
-			AllCollisionsIndicesByPhysicsProxy.Reset();
+			
+			if (CollisionEventData.CollisionData.TimeCreated != Solver->MTime)
+			{
+				AllCollisionsDataArray.Reset();
+				AllCollisionsIndicesByPhysicsProxy.Reset();
 
-			CollisionEventData.CollisionData.TimeCreated = Solver->MTime;
-			CollisionEventData.PhysicsProxyToCollisionIndices.TimeCreated = Solver->MTime;
-
+				CollisionEventData.CollisionData.TimeCreated = Solver->MTime;
+				CollisionEventData.PhysicsProxyToCollisionIndices.TimeCreated = Solver->MTime;
+			}
+			
 			const auto* Evolution = Solver->GetEvolution();
 
 			const FPBDCollisionConstraints& CollisionRule = Evolution->GetCollisionConstraints();
@@ -318,35 +322,45 @@ namespace Chaos
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
 			const TMap<uint32, TUniquePtr<TArray<uint32>>>& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
 #endif
-			auto& AllTrailingsDataArray = TrailingEventData.TrailingData.AllTrailingsArray;
+			FTrailingDataArray& AllTrailingsDataArray = TrailingEventData.TrailingData.AllTrailingsArray;
+			TMap<IPhysicsProxyBase*, TArray<int32>>& AllTrailingIndicesByPhysicsProxy = TrailingEventData.PhysicsProxyToTrailingIndices.PhysicsProxyToIndicesMap;
 
-			AllTrailingsDataArray.Reset();
+			if (TrailingEventData.TrailingData.TimeCreated != Solver->MTime)
+			{
+				AllTrailingsDataArray.Reset();
+				AllTrailingIndicesByPhysicsProxy.Reset();
 
-			TrailingEventData.TrailingData.TimeCreated = Solver->MTime;
+				TrailingEventData.TrailingData.TimeCreated = Solver->MTime;
+				TrailingEventData.PhysicsProxyToTrailingIndices.TimeCreated = Solver->MTime;
+			}
 
-			for (auto& ActiveParticle : Evolution->GetParticles().GetActiveParticlesView())
+			const TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& ActiveParticlesArray = Evolution->GetParticles().GetActiveParticlesArray();
+
+			for (TPBDRigidParticleHandle<Chaos::FReal, 3>* ActiveParticle : ActiveParticlesArray)
 			{
 
-				if (ensure(FMath::IsFinite(ActiveParticle.InvM())))
+				if (ensure(FMath::IsFinite(ActiveParticle->InvM())))
 				{
-					if (ActiveParticle.InvM() != 0.f &&
-						ActiveParticle.Geometry() &&
-						ActiveParticle.Geometry()->HasBoundingBox())
+					if (ActiveParticle->InvM() != 0.f &&
+						ActiveParticle->Geometry() &&
+						ActiveParticle->Geometry()->HasBoundingBox())
 					{
-						if (ensure(!ActiveParticle.X().ContainsNaN() &&
-							!ActiveParticle.V().ContainsNaN() &&
-							!ActiveParticle.W().ContainsNaN() &&
-							FMath::IsFinite(ActiveParticle.M())))
+						if (ensure(!ActiveParticle->X().ContainsNaN() &&
+							!ActiveParticle->V().ContainsNaN() &&
+							!ActiveParticle->W().ContainsNaN() &&
+							FMath::IsFinite(ActiveParticle->M())))
 						{
 							FTrailingData TrailingData;
-							TrailingData.Location = ActiveParticle.X();
-							TrailingData.Velocity = ActiveParticle.V();
-							TrailingData.AngularVelocity = ActiveParticle.W();
-							TrailingData.Mass = ActiveParticle.M();
-							TrailingData.Particle = nullptr; // #todo: provide a particle
-							if (ActiveParticle.Geometry()->HasBoundingBox())
+							TrailingData.Location = ActiveParticle->X();
+							TrailingData.Velocity = ActiveParticle->V();
+							TrailingData.AngularVelocity = ActiveParticle->W();
+							TrailingData.Mass = ActiveParticle->M();
+
+							TrailingData.Particle = ActiveParticle;
+							
+							if (ActiveParticle->Geometry()->HasBoundingBox())
 							{
-								TrailingData.BoundingBox = ActiveParticle.Geometry()->BoundingBox();
+								TrailingData.BoundingBox = ActiveParticle->Geometry()->BoundingBox();
 							}
 
 							const FSolverTrailingEventFilter* SolverTrailingEventFilter = Solver->GetEventFilters()->GetTrailingFilter();
@@ -355,6 +369,9 @@ namespace Chaos
 								int32 NewIdx = AllTrailingsDataArray.Add(FTrailingData());
 								FTrailingData& TrailingDataArrayItem = AllTrailingsDataArray[NewIdx];
 								TrailingDataArrayItem = TrailingData;
+
+								// Add to AllTrailingIndicesByPhysicsProxy
+								AllTrailingIndicesByPhysicsProxy.FindOrAdd(TrailingData.Particle->PhysicsProxy()).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
 
 								// If IdxParticle is a cluster store an index for a mesh in this cluster
 #if 0

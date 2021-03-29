@@ -48,8 +48,7 @@ struct FBreakingEvent : public FCacheEventBase
 		, Mass(1.0f)
 		, BoundingBoxMin(0.0f, 0.0f, 0.0f)
 		, BoundingBoxMax(0.0f, 0.0f, 0.0f)
-	{
-	}
+	{ }
 
 	FBreakingEvent(int32 InIndex, const Chaos::FBreakingData& InData)
 		: Index(InIndex)
@@ -59,8 +58,7 @@ struct FBreakingEvent : public FCacheEventBase
 		, Mass(InData.Mass)
 		, BoundingBoxMin(InData.BoundingBox.Min())
 		, BoundingBoxMax(InData.BoundingBox.Max())
-	{
-	}
+	{ }
 
 	UPROPERTY()
 	int32 Index;
@@ -84,20 +82,151 @@ struct FBreakingEvent : public FCacheEventBase
 	FVector BoundingBoxMax;
 };
 
+USTRUCT()
+struct FCollisionEvent : public FCacheEventBase
+{
+	GENERATED_BODY()
+
+	static FName EventName;
+
+	FCollisionEvent()
+		: Index(INDEX_NONE)
+		, Location(0.0f, 0.0f, 0.0f)
+		, AccumulatedImpulse(0.0f, 0.0f, 0.0f)
+		, Normal(0.0f, 0.0f, 1.0f)
+		, Velocity1(0.0f, 0.0f, 0.0f)
+		, Velocity2(0.0f, 0.0f, 0.0f)
+		, DeltaVelocity1(0.0f, 0.0f, 0.0f)
+		, DeltaVelocity2(0.0f, 0.0f, 0.0f)
+		, AngularVelocity1(0.0f, 0.0f, 0.0f)
+		, AngularVelocity2(0.0f, 0.0f, 0.0f)
+		, Mass1(1.0f)
+		, Mass2(1.0f)
+		, PenetrationDepth(0.0f)
+	{}
+
+	FCollisionEvent(int32 InIndex, const Chaos::TCollisionData<float, 3>& InData)
+		: Index(InIndex)
+		, Location(InData.Location)
+		, AccumulatedImpulse(InData.AccumulatedImpulse)
+		, Normal(InData.Normal)
+		, Velocity1(InData.Velocity1)
+		, Velocity2(InData.Velocity2)
+		, DeltaVelocity1(InData.DeltaVelocity1)
+		, DeltaVelocity2(InData.DeltaVelocity2)
+		, AngularVelocity1(InData.AngularVelocity1)
+		, AngularVelocity2(InData.AngularVelocity2)
+		, Mass1(InData.Mass1)
+		, Mass2(InData.Mass2)
+		, PenetrationDepth(InData.PenetrationDepth)
+	{}
+
+	UPROPERTY()
+	int32 Index; 
+		
+	UPROPERTY()
+	FVector Location;
+	
+	UPROPERTY()
+	FVector AccumulatedImpulse;
+	
+	UPROPERTY()
+	FVector Normal;
+	
+	UPROPERTY()
+	FVector Velocity1;
+	
+	UPROPERTY()
+	FVector Velocity2;
+	
+	UPROPERTY()
+	FVector DeltaVelocity1;
+	
+	UPROPERTY()
+	FVector DeltaVelocity2;
+	
+	UPROPERTY()
+	FVector AngularVelocity1;
+	
+	UPROPERTY()
+	FVector AngularVelocity2;
+	
+	UPROPERTY()
+	float Mass1;
+	
+	UPROPERTY()
+	float Mass2;
+	
+	UPROPERTY()
+	float PenetrationDepth;
+};
+
+USTRUCT()
+struct FTrailingEvent : public FCacheEventBase
+{
+	GENERATED_BODY()
+
+		static FName EventName;
+
+	FTrailingEvent()
+		: Index(INDEX_NONE)
+		, Location(0.0f, 0.0f, 0.0f)
+		, Velocity(0.0f, 0.0f, 0.0f)
+		, AngularVelocity(0.0f, 0.0f, 0.0f)
+		, BoundingBoxMin(0.0f, 0.0f, 0.0f)
+		, BoundingBoxMax(0.0f, 0.0f, 0.0f)
+	{ }
+
+	FTrailingEvent(int32 InIndex, const Chaos::TTrailingData<float, 3>& InData)
+		: Index(InIndex)
+		, Location(InData.Location)
+		, Velocity(InData.Velocity)
+		, AngularVelocity(InData.AngularVelocity)
+		, BoundingBoxMin(InData.BoundingBox.Min())
+		, BoundingBoxMax(InData.BoundingBox.Max())
+	{ }
+
+	UPROPERTY()
+		int32 Index;
+
+	UPROPERTY()
+		FVector Location;
+
+	UPROPERTY()
+		FVector Velocity;
+
+	UPROPERTY()
+		FVector AngularVelocity;
+
+	UPROPERTY()
+		FVector BoundingBoxMin;
+
+	UPROPERTY()
+		FVector BoundingBoxMax;
+};
+
 
 class UChaosCache;
 class UPrimitiveComponent;
 
 namespace Chaos
 {
+	struct FCachedEventData
+	{
+		FCachedEventData()
+			: ProxyBreakingDataIndices(nullptr)
+			, ProxyCollisionDataIndices(nullptr)
+			, ProxyTrailingDataIndices(nullptr)
+		{}
+
+		const TArray<int32>* ProxyBreakingDataIndices;
+		const TArray<int32>* ProxyCollisionDataIndices;
+		const TArray<int32>* ProxyTrailingDataIndices;
+	};
+	
 	class FGeometryCollectionCacheAdapter : public FComponentCacheAdapter
 	{
 	public:
-		FGeometryCollectionCacheAdapter()
-			: ProxyKey(nullptr)
-			, BreakingDataArray(nullptr)
-			, ProxyBreakingDataIndices(nullptr)
-		{}
 
 		virtual ~FGeometryCollectionCacheAdapter() = default;
 
@@ -121,11 +250,15 @@ namespace Chaos
 
 	protected:
 		void HandleBreakingEvents(const Chaos::FBreakingEventData& Event);
+		void HandleCollisionEvents(const Chaos::FCollisionEventData& Event);
+		void HandleTrailingEvents(const Chaos::FTrailingEventData& Event);
 	
 	private:
-		const IPhysicsProxyBase* ProxyKey;
-		const Chaos::FBreakingDataArray* BreakingDataArray;
-		const TArray<int32>* ProxyBreakingDataIndices;
+		TMap<IPhysicsProxyBase*, FCachedEventData> CachedData;
+		const FBreakingDataArray* BreakingDataArray;
+		const FCollisionDataArray* CollisionDataArray;
+		const FTrailingDataArray* TrailingDataArray;
+
 
 	};
 }    // namespace Chaos
