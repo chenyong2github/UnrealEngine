@@ -910,6 +910,7 @@ ULevelEditorViewportSettings::ULevelEditorViewportSettings( const FObjectInitial
 	MeasuringToolUnits = MeasureUnits_Centimeters;
 	bAllowArcballRotate = false;
 	bAllowScreenRotate = false;
+	MouseSensitivty = .2f;
 	// Set a default preview mesh
 	PreviewMeshes.Add(FSoftObjectPath("/Engine/EditorMeshes/ColorCalibrator/SM_ColorCalibrator.SM_ColorCalibrator"));
 	LastInViewportMenuLocation = FVector2D(EForceInit::ForceInitToZero);
@@ -920,6 +921,9 @@ void ULevelEditorViewportSettings::PostInitProperties()
 	Super::PostInitProperties();
 	UBillboardComponent::SetEditorScale(BillboardScale);
 	UArrowComponent::SetEditorScale(BillboardScale);
+
+	// Make sure the mouse sensitivity is not set below a valid value somehow. This can cause weird viewport interactions.
+	MouseSensitivty = FMath::Max(MouseSensitivty, .01f);
 }
 
 void ULevelEditorViewportSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent )
