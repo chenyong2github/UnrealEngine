@@ -1338,6 +1338,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 				check(View.RayTracingSceneSRV.IsValid());
 				RHIAsyncCmdList.BindAccelerationStructureMemory(RayTracingScene, View.RayTracingSceneBuffer, 0);
 
+				SCOPED_DRAW_EVENT(RHIAsyncCmdList, RayTracingScene);
 				RHIAsyncCmdList.BuildAccelerationStructure(RayTracingScene);
 			}
 
