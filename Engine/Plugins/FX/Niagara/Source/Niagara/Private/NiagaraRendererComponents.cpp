@@ -150,16 +150,20 @@ struct FNiagaraRendererComponentsOnObjectsReplacedHelper
 	FNiagaraRendererComponentsOnObjectsReplacedHelper(FNiagaraRendererComponents* InOwner)
 		: Owner(InOwner)
 	{
-		check(GEditor);
-		check(IsInGameThread());
-		GEditor->OnObjectsReplaced().AddRaw(this, &FNiagaraRendererComponentsOnObjectsReplacedHelper::OnObjectsReplacedCallback);
+		if ( GEditor )
+		{
+			check(IsInGameThread());
+			GEditor->OnObjectsReplaced().AddRaw(this, &FNiagaraRendererComponentsOnObjectsReplacedHelper::OnObjectsReplacedCallback);
+		}
 	}
 
 	~FNiagaraRendererComponentsOnObjectsReplacedHelper()
 	{
-		check(GEditor);
-		check(IsInGameThread());
-		GEditor->OnObjectsReplaced().RemoveAll(this);
+		if ( GEditor )
+		{
+			check(IsInGameThread());
+			GEditor->OnObjectsReplaced().RemoveAll(this);
+		}
 	}
 
 	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap)
