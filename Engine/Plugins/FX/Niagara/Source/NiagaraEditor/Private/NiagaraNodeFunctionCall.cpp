@@ -182,6 +182,10 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 		if (ScriptAssetData.IsValid())
 		{
 			FunctionScript = Cast<UNiagaraScript>(ScriptAssetData.GetAsset());
+			if (FunctionScript && FunctionScript->IsVersioningEnabled())
+			{
+				SelectedScriptVersion = FunctionScript->GetExposedVersion().VersionGuid;
+			}
 		}
 	}
 
