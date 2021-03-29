@@ -534,7 +534,7 @@ STDMETHODIMP FWmfMediaStreamSink::Flush()
 		return MF_E_SHUTDOWN;
 	}
 
-	UE_LOG(LogWmfMedia, Verbose, TEXT("StreamSink %p: Flushing samples & markers"), this);
+	UE_LOG(LogWmfMedia, Verbose, TEXT("StreamSink %p: Flushing samples & markers Rate:%f"), this, ClockRate);
 
 #if WMFMEDIA_PLAYER_VERSION == 1
 	while (SampleQueue.Num())
@@ -554,6 +554,12 @@ STDMETHODIMP FWmfMediaStreamSink::Flush()
 		QueueEvent(MEStreamSinkMarker, GUID_NULL, E_ABORT, QueuedSample.MarkerContext);
 		PropVariantClear(QueuedSample.MarkerContext);
 		delete QueuedSample.MarkerContext;
+	}
+
+	// If the rate is 0 then get rid of the old samples, otherwise they might linger and we don't want them.
+	if (ClockRate == 0.0f)
+	{
+		VideoSampleQueue->RequestFlush();
 	}
 
 	return S_OK;
