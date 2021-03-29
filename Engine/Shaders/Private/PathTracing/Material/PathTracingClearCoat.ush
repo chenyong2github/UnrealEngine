@@ -140,6 +140,7 @@ FMaterialSample ClearCoat_SampleMaterial(
 
 	// choose between coat and bottom layer
 	float3 OutDirection = 0;
+	float OutRoughness = 0;
 	if (RandSample.x < CoatSelectionPdf)
 	{
 		RandSample.x /= CoatSelectionPdf;
@@ -162,6 +163,7 @@ FMaterialSample ClearCoat_SampleMaterial(
 		}
 		// reflect and transform
 		OutDirection = mul(L, Basis);
+		OutRoughness = Roughness;
 	}
 	else
 	{
@@ -172,16 +174,20 @@ FMaterialSample ClearCoat_SampleMaterial(
 		float3 Weight = 0;
 		float Pdf = 0;
 		Payload.WorldNormal = GetClearCoatBottomNormal(Payload);
-		OutDirection = DefaultLit_SampleMaterial(RayDirection, Payload, RandSample).Direction;
+		FMaterialSample InnerSample = DefaultLit_SampleMaterial(RayDirection, Payload, RandSample);
 		Payload.WorldNormal = N_World;
+
+		OutDirection = InnerSample.Direction;
+		OutRoughness = InnerSample.Roughness;
 #else
 		float3 Nb = GetClearCoatBottomNormal(Payload);
 		OutDirection = TangentToWorld(CosineSampleHemisphere(RandSample.xy).xyz, Nb);
+		OutRoughness = 1.0;
 #endif
 	}
 
 	// defer to eval for now to get proper MIS mix of both events
 	// TODO: could use temporary results above to inline Eval logic here
 	FMaterialEval Result = ClearCoat_EvalMaterial(RayDirection, OutDirection, Payload);
-	return CreateMaterialSample(OutDirection, Result.Weight, Result.Pdf, 1.0);
+	return CreateMaterialSample(OutDirection, Result.Weight, Result.Pdf, 1.0, OutRoughness);
 }

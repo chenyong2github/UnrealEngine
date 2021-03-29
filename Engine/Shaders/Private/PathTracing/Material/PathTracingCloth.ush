@@ -88,6 +88,7 @@ FMaterialSample Cloth_SampleMaterial(
 
 	// Randomly choose to sample diffuse, specular or cloth lobe
 	float3 L = 0, H = 0;
+	float OutRoughness = 0;
 	if (RandSample.x < LobeSelectionPdf)
 	{
 		RandSample.x /= LobeSelectionPdf;
@@ -101,6 +102,7 @@ FMaterialSample Cloth_SampleMaterial(
 
 		L = Result.xyz;
 		H = normalize(L + V);
+		OutRoughness = 1.0;
 	}
 	else
 	{
@@ -117,6 +119,7 @@ FMaterialSample Cloth_SampleMaterial(
 			// invalid output direction, exit early
 			return NullMaterialSample();
 		}
+		OutRoughness = Payload.Roughness;
 	}
 
 	// With a valid direction in hand -- now evaluate the BxDF (taking advantage of already computed terms)
@@ -146,5 +149,5 @@ FMaterialSample Cloth_SampleMaterial(
 	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, 1 - LobeSelectionPdf);
 
 	// transform to world space
-	return CreateMaterialSample(normalize(mul(L, Basis)), OutWeight, OutPdf, 1.0);
+	return CreateMaterialSample(normalize(mul(L, Basis)), OutWeight, OutPdf, 1.0, OutRoughness);
 }

@@ -36,7 +36,7 @@ FMaterialSample TwoSidedFoliage_SampleMaterial(
 
 		float4 SampledValue = CosineSampleHemisphere(RandSample.yz);
 
-		return CreateMaterialSample(TangentToWorld(SampledValue.xyz, -N), SubsurfaceColor / TransmissionSelectionPdf, TransmissionSelectionPdf * SampledValue.w, -1.0);
+		return CreateMaterialSample(TangentToWorld(SampledValue.xyz, -N), SubsurfaceColor / TransmissionSelectionPdf, TransmissionSelectionPdf * SampledValue.w, -1.0, 1.0);
 	}
 	else
 	{

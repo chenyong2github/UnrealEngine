@@ -78,6 +78,7 @@ FMaterialSample DefaultLit_SampleMaterial(
 	
 	// Randomly choose to sample diffuse or specular
 	float3 L = 0, H = 0;
+	float OutRoughness = 0;
 	if (RandSample.x < LobeSelectionPdf)
 	{
 		RandSample.x /= LobeSelectionPdf;
@@ -88,12 +89,12 @@ FMaterialSample DefaultLit_SampleMaterial(
 
 		L = Result.xyz;
 		H = normalize(L + V);
+		OutRoughness = 1.0;
 	}
 	else
 	{
 		RandSample.x -= LobeSelectionPdf;
 		RandSample.x /= (1.0 - LobeSelectionPdf);
-
 
 		// #dxr_todo: Evaluate UniformSampleDiskConcentric
 		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
@@ -104,6 +105,7 @@ FMaterialSample DefaultLit_SampleMaterial(
 			// invalid output direction, exit early
 			return NullMaterialSample();
 		}
+		OutRoughness = Payload.Roughness;
 	}
 
 	// With a valid direction in hand -- now evaluate the BxDF (taking advantage of already computed terms)
@@ -125,5 +127,5 @@ FMaterialSample DefaultLit_SampleMaterial(
 	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, 1.0 - LobeSelectionPdf);
 
 	// transform to world space
-	return CreateMaterialSample(normalize(mul(L, Basis)), OutWeight, OutPdf, 1.0);
+	return CreateMaterialSample(normalize(mul(L, Basis)), OutWeight, OutPdf, 1.0, OutRoughness);
 }

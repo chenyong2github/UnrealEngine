@@ -516,7 +516,11 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		Radiance = 0.5 + 0.3 * cos(2 * PI * ((StrongIntegerHash(RandPixel.x + StrongIntegerHash(RandPixel.y)) & 0xFFFFFF) * 5.96046447754e-08 + float3(0.0, 0.333, 0.6666)));
 		break;
 #endif
-		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, Bounce == 0, Bounce == PathTracingData.MaxBounces, PathTracingData.SkipDirectLighting == 0 || Bounce > 1, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
+		const bool bIsCameraRay = Bounce == 0;
+		const bool bIsLastBounce = Bounce == PathTracingData.MaxBounces;
+		const bool bIncludeEmissive = (PathTracingData.SkipDirectLighting == 0 || Bounce > 1) &&
+									  (PathTracingData.SkipEmissive       == 0 || bIsCameraRay);
+		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, bIsCameraRay, bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
 
 		if (Payload.IsMiss())
 		{
@@ -529,11 +533,11 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 		if (PathTracingData.ApproximateCaustics)
 		{
-			// modify the path roughness as well as the payload roughness to minimize difficult caustics
+			// modify the payload roughness to minimize difficult caustics
 			// This is inspired by a trick used in the Arnold renderer:
 			//   https://cgg.mff.cuni.cz/~jaroslav/gicourse2010/giai2010-02-marcos_fajardo-slides.pdf (slide 39)
 			//   https://www.arnoldrenderer.com/research/Arnold_TOG2018.pdf (section 4.2)
-			AdjustPathAndMaterialRoughness(Payload, PathRoughness);
+			AdjustMaterialRoughness(Payload, PathRoughness);
 		}
 
 		// Processing the random walk will (stochastically) move the shading point elsewhere on the surface of the object
@@ -592,7 +596,9 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 						LightRay.TMax = LightSample.Distance;
 						ApplyPositionBias(LightRay, SignedPositionBias * Payload.WorldNormal, PathTracingData.MaxNormalBias);
 
-						LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, LaunchIndex, PathRoughness);
+						float AvgRoughness = PathTracingData.ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
+
+						LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, LaunchIndex, AvgRoughness);
 					}
 
 					// #dxr_todo: Is it cheaper to fire the ray first? Or eval the material first?
@@ -669,13 +675,18 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		Ray.TMax = POSITIVE_INFINITY;
 		ApplyPositionBias(Ray, MaterialSample.PositionBiasSign * Payload.WorldNormal, PathTracingData.MaxNormalBias);
 
+		if (PathTracingData.ApproximateCaustics)
+		{
+			// enlarge roughness based on the chosen lobe roughness
+			PathRoughness = max(PathRoughness, MaterialSample.Roughness);
+		}
+
 		// If we are using Material sampling for lights
 		if (MISMode != 1 && bDoLightLoop)
 		{
 			// Check which lights can be seen by the material ray and trace a dedicated shadow ray
 			// While it would be possible to just loop around and use the indirect ray to do this, it would prevent the application
 			// of shadow ray specific logic for transparent shadows or various per light tricks like shadow casting
-			float PreviousCdfValue = 0.0;
 			const bool bUseMIS = MISMode == 2 && LightPickingCdfSum > 0;
 			for (uint LightId = 0; LightId < SceneLightCount; ++LightId)
 			{
@@ -695,8 +706,8 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 				float3 LightContrib = PathThroughput * LightResult.Radiance;
 				if (bUseMIS)
 				{
+					float PreviousCdfValue = LightId > 0 ? LightPickingCdf[LightId - 1] : 0.0;
 					float LightPickPdf =  (LightPickingCdf[LightId] - PreviousCdfValue) / LightPickingCdfSum;
-					PreviousCdfValue = LightPickingCdf[LightId];
 
 					LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf * LightPickPdf);
 				}

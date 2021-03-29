@@ -49,6 +49,12 @@ float GetClearCoatRoughness(FMaterialClosestHitPayload HitInfo)
 	return max(HitInfo.CustomData.y, 0.02);
 }
 
+float SetClearCoatRoughness(inout FMaterialClosestHitPayload HitInfo, float Roughness)
+{
+	return HitInfo.CustomData.y = Roughness;
+}
+
+
 float3 GetClearCoatBottomNormal(FMaterialClosestHitPayload HitInfo)
 {
 #ifdef PATH_TRACING
@@ -197,6 +203,7 @@ struct FMaterialSample
 	float3 Weight;
 	float Pdf;
 	float PositionBiasSign;
+	float Roughness;
 };
 
 FMaterialSample NullMaterialSample()
@@ -205,13 +212,14 @@ FMaterialSample NullMaterialSample()
 	return (FMaterialSample)0;
 }
 
-FMaterialSample CreateMaterialSample(float3 Direction, float3 Weight, float Pdf, float PositionBiasSign)
+FMaterialSample CreateMaterialSample(float3 Direction, float3 Weight, float Pdf, float PositionBiasSign, float Roughness)
 {
 	FMaterialSample Result;
 	Result.Direction = Direction;
 	Result.Weight = Weight;
 	Result.Pdf = Pdf;
 	Result.PositionBiasSign = PositionBiasSign;
+	Result.Roughness = Roughness;
 	return Result;
 }
 

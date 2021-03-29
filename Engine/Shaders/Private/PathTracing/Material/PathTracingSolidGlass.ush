@@ -48,14 +48,14 @@ FMaterialSample RoughGlass_SampleMaterial(
 		const float2 GGXResult = GGXEvalRefraction(L, V, H, Alpha, Eta);
 
 		// transform to world space
-		return CreateMaterialSample(normalize(mul(L, Basis)), GGXResult.x, F * GGXResult.y, -1.0);
+		return CreateMaterialSample(normalize(mul(L, Basis)), GGXResult.x, F * GGXResult.y, -1.0, Payload.Roughness);
 	}
 	else
 	{
 		const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
 
 		// transform to world space
-		return CreateMaterialSample(normalize(mul(L, Basis)), GGXResult.x, F * GGXResult.y, 1.0);
+		return CreateMaterialSample(normalize(mul(L, Basis)), GGXResult.x, F * GGXResult.y, 1.0, Payload.Roughness);
 	}
 }
 

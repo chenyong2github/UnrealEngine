@@ -31,7 +31,7 @@ FMaterialSample SpecularRefraction_SampleMaterial(
 	}
 
 	// Throughput is 1 since we pick reflect/refract according to the fresnel term
-	return CreateMaterialSample(OutDirection, 1.0, POSITIVE_INFINITY, BiasSign);
+	return CreateMaterialSample(OutDirection, 1.0, POSITIVE_INFINITY, BiasSign, 0.0);
 } 
 
 FMaterialEval SpecularTransmission_EvalMaterial()

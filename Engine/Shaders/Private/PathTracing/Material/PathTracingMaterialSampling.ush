@@ -167,10 +167,9 @@ float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
 	return Albedo;
 }
 
-void AdjustPathAndMaterialRoughness(inout FMaterialClosestHitPayload Payload, inout float PathRoughness)
+void AdjustMaterialRoughness(inout FMaterialClosestHitPayload Payload, float PathRoughness)
 {
 	// boost material roughness according to what we've seen so far
-	float CoatRoughness = Payload.Roughness;
 	switch (Payload.ShadingModelID)
 	{
 		case SHADINGMODELID_UNLIT:
@@ -178,7 +177,7 @@ void AdjustPathAndMaterialRoughness(inout FMaterialClosestHitPayload Payload, in
 			return;
 		case SHADINGMODELID_CLEAR_COAT:
 			// clamp coat roughness
-			CoatRoughness = Payload.CustomData.y = max(GetClearCoatRoughness(Payload), PathRoughness);
+			SetClearCoatRoughness(Payload, max(GetClearCoatRoughness(Payload), PathRoughness));
 			// fallthrough
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 		case SHADINGMODELID_DEFAULT_LIT:
@@ -201,11 +200,30 @@ void AdjustPathAndMaterialRoughness(inout FMaterialClosestHitPayload Payload, in
 			Payload.Roughness = 1.0;
 			break;
 	}
-	// now set the path roughness going forward
-	const float GlassPercent = (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Payload.Ior != 1.0) ? 1 - Payload.Opacity : 0.0;
-	PathRoughness = lerp(1.0 /* diffuse lobe */, max(CoatRoughness, Payload.Roughness), Payload.Metallic);
-	PathRoughness = lerp(PathRoughness, Payload.Roughness, GlassPercent);
 }
+
+// returns an average roughness for the whole material (for the path roughness of shadow rays from this material)
+float GetAverageRoughness(FMaterialClosestHitPayload Payload)
+{
+	const float GlassPercent = (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Payload.Ior != 1.0) ? 1 - Payload.Opacity : 0.0;
+	float Roughness = Payload.Roughness;
+	switch (Payload.ShadingModelID)
+	{
+		case SHADINGMODELID_CLEAR_COAT:
+			Roughness = max(Roughness, GetClearCoatRoughness(Payload)); 
+			break;
+		case SHADINGMODELID_SUBSURFACE_PROFILE:
+		{
+			float3 DualRoughnessData = GetDualRoughnessSpecular(Payload);
+			Roughness = max(DualRoughnessData.x, DualRoughnessData.y);
+			break;
+		}
+	}
+	float AvgRoughness = lerp(1.0 /* diffuse lobe */, Roughness, Payload.Metallic);
+	AvgRoughness = lerp(AvgRoughness, Payload.Roughness, GlassPercent);
+	return AvgRoughness;
+}
+
 
 FMaterialClosestHitPayload UnpackPathTracingPayload(FPackedMaterialClosestHitPayload PackedInput, RayDesc Ray)
 {
@@ -227,6 +245,22 @@ FMaterialClosestHitPayload UnpackPathTracingPayload(FPackedMaterialClosestHitPay
 
 			// Reset opacity to avoid special cases elsewhere
 			HitPayload.Opacity = 1;
+			
+			// fallthrough to case below to avoid over-bright SSS
+		}
+		case SHADINGMODELID_TWOSIDED_FOLIAGE:
+		{
+			float3 Front = HitPayload.DiffuseColor;
+			float3 Back = GetSubsurfaceColor(HitPayload);
+			float3 Sum = Front + Back;
+			float S = max(Sum.x, max(Sum.y, Sum.z));
+			if (S > 1)
+			{
+				// nudge the material back to something physically plausible
+				// NOTE: we ignore spec here since it should be accounted for by the brdf model itself
+				HitPayload.DiffuseColor = Front / S;
+				SetSubsurfaceColor(HitPayload, Back / S);
+			}
 			break;
 		}
 		case SHADINGMODELID_SUBSURFACE_PROFILE:
