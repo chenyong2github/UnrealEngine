@@ -178,7 +178,7 @@ FString FCodeLiteSourceCodeAccessor::GetSolutionPath() const
 		
 		if (!FUProjectDictionary::GetDefault().IsForeignProject(CachedSolutionPath))
 		{
-			CachedSolutionPath = FPaths::Combine(FPaths::RootDir(), TEXT("UE4.workspace"));
+			CachedSolutionPath = FPaths::Combine(FPaths::RootDir(), TEXT("UnrealEditor.workspace"));
 		}
 		else
 		{
