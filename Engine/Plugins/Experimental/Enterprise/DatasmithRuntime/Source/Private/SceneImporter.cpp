@@ -1410,6 +1410,10 @@ namespace DatasmithRuntime
 	void FSceneImporter::FinalizeComponent(FActorData& ActorData)
 	{
 		USceneComponent* SceneComponent = ActorData.GetObject<USceneComponent>();
+		if (!SceneComponent)
+		{
+			return;
+		}
 
 		if (SceneComponent->IsRegistered())
 		{
@@ -1432,13 +1436,13 @@ namespace DatasmithRuntime
 		if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && ParentId != DirectLink::InvalidId)
 		{
 			// If hierarchy building is required, wait for parent component to be created if applicable
-			if (ActorDataList[ParentId].GetObject() == nullptr)
+			if (ActorDataList[ParentId].GetObject<USceneComponent>() == nullptr)
 			{
 				FActionTaskFunction FinalizeComponentFunc = [this,ParentId](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
 				{
 					FActorData& ActorData = ActorDataList[Referencer.GetId()];
 
-					if (ActorDataList[ParentId].GetObject() == nullptr)
+					if (ActorDataList[ParentId].GetObject<USceneComponent>() == nullptr)
 					{
 						return EActionResult::Retry;
 					}
@@ -1461,7 +1465,6 @@ namespace DatasmithRuntime
 
 		const IDatasmithActorElement* ActorElement = static_cast<IDatasmithActorElement*>(Elements[ActorData.ElementId].Get());
 
-		//SceneComponent->SetRelativeTransform( ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None ? ActorData.RelativeTransform : ActorData.WorldTransform );
 		SceneComponent->SetWorldTransform( ActorData.WorldTransform );
 		SceneComponent->SetVisibility(ActorElement->GetVisibility());
 		SceneComponent->SetMobility( EComponentMobility::Movable );
@@ -1480,7 +1483,7 @@ namespace DatasmithRuntime
 
 		if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None)
 		{
-			if (ActorElement->IsAComponent() && SceneComponent->GetOwner() != ParentComponent->GetOwner())
+			if (ActorElement->IsAComponent() && ParentComponent && SceneComponent->GetOwner() != ParentComponent->GetOwner())
 			{
 				FName UniqueName = MakeUniqueObjectName(ParentComponent->GetOwner(), SceneComponent->GetClass(), ActorElement->GetLabel());
 				SceneComponent->Rename(*UniqueName.ToString(), ParentComponent->GetOwner(), REN_NonTransactional | REN_DontCreateRedirectors);
