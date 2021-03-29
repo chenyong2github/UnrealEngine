@@ -21,9 +21,12 @@ public:
 	virtual FRHIBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) override final;
 	virtual void DeallocateMemory(FRHITexture* InTexture) override final;
 	virtual void DeallocateMemory(FRHIBuffer* InBuffer) override final;
-	virtual void Freeze() override final;
+	virtual void Freeze(FRHICommandListImmediate&) override final;
 
 private:
+
+	friend class FValidationContext;
+	void InitBarrierTracking();
 
 	// Actual RHI transient allocator which will get all functions forwarded
 	IRHITransientResourceAllocator* RHIAllocator = nullptr;
@@ -40,9 +43,18 @@ private:
 			Buffer,
 		};
 
-		FString DebugName;
-		EType ResourceType;
-		bool bMemoryAllocated;
+		const TCHAR* DebugName = nullptr;
+		EType ResourceType = EType::Texture;
+		bool bMemoryAllocated = false;
+		bool bReinitializeBarrierTracking = false;
+
+		struct FTexture
+		{
+			ETextureCreateFlags Flags = TexCreate_None;
+			EPixelFormat Format = PF_Unknown;
+			uint16 ArraySize = 0;
+			uint8 NumMips = 0;
+		} Texture;
 	};
 	TMap<FRHIResource*, AllocatedResourceData> AllocatedResourceMap;
 };

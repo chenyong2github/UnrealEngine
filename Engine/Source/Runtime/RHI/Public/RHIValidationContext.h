@@ -1050,6 +1050,11 @@ public:
 		PlatformContext->Tracker = &State.TrackerInstance;
 	}
 
+	inline void FlushValidationOps()
+	{
+		RHIValidation::FTracker::ReplayOpQueue(ERHIPipeline::Graphics, Tracker->Finalize());
+	}
+
 protected:
 	struct FState
 	{

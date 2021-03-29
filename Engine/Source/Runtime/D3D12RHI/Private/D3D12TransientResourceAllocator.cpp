@@ -731,7 +731,7 @@ void FD3D12TransientResourceAllocator::DeallocateMemory(FD3D12BaseShaderResource
 }
 
 
-void FD3D12TransientResourceAllocator::Freeze()
+void FD3D12TransientResourceAllocator::Freeze(FRHICommandListImmediate&)
 {
 	// all memory should have been freed again - so release back to the manager
 	// can already be reused by the next transient allocator

@@ -377,7 +377,7 @@ void FRHICommandClearUAVUint::Execute(FRHICommandListBase& CmdList)
 void FRHICommandReleaseTransientResourceAllocator::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(ReleaseTransientResourceAllocator);
-	INTERNAL_DECORATOR_COMPUTE(RHIReleaseTransientResourceAllocator)(Allocator);
+	INTERNAL_DECORATOR(RHIReleaseTransientResourceAllocator)(Allocator);
 }
 
 void FRHICommandCopyToResolveTarget::Execute(FRHICommandListBase& CmdList)

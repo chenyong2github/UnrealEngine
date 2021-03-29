@@ -194,11 +194,6 @@ public:
 	*/
 	virtual void RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values) = 0;
 
-	/**
-	* Release the transient allocator and all internal resources when the command list is done executing
-	*/
-	virtual void RHIReleaseTransientResourceAllocator(IRHITransientResourceAllocator* InAllocator) {}
-
 	virtual void RHIBeginUAVOverlap() {}
 	virtual void RHIEndUAVOverlap() {}
 
@@ -663,6 +658,11 @@ public:
 		checkNoEntry();
 	}
 #endif
+
+	/**
+	* Release the transient allocator and all internal resources when the command list is done executing
+	*/
+	virtual void RHIReleaseTransientResourceAllocator(IRHITransientResourceAllocator* InAllocator) {}
 
 	virtual void RHIClearRayTracingBindings(FRHIRayTracingScene* Scene)
 	{

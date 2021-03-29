@@ -2494,16 +2494,6 @@ public:
 		ALLOC_COMMAND(FRHICommandClearUAVUint)(UnorderedAccessViewRHI, Values);
 	}
 
-	FORCEINLINE_DEBUGGABLE void ReleaseTransientResourceAllocator(IRHITransientResourceAllocator* InAllocator)
-	{
-		if (Bypass())
-		{
-			GetComputeContext().RHIReleaseTransientResourceAllocator(InAllocator);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandReleaseTransientResourceAllocator)(InAllocator);
-	}
-
 	FORCEINLINE_DEBUGGABLE void BeginTransitions(TArrayView<const FRHITransition*> Transitions)
 	{
 		if (Bypass())
@@ -4490,6 +4480,16 @@ public:
 		return GDynamicRHI->RHICreateRenderQuery_RenderThread(*this, QueryType);
 	}
 
+	FORCEINLINE_DEBUGGABLE void ReleaseTransientResourceAllocator(IRHITransientResourceAllocator* InAllocator)
+	{
+		check(InAllocator);
+		if (Bypass())
+		{
+			GetContext().RHIReleaseTransientResourceAllocator(InAllocator);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandReleaseTransientResourceAllocator)(InAllocator);
+	}
 
 	FORCEINLINE void AcquireTransientResource_RenderThread(FRHITexture* Texture)
 	{

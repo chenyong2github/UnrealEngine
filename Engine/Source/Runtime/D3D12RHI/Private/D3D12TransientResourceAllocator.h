@@ -190,7 +190,7 @@ public:
 	virtual FRHIBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) override;
 	virtual void DeallocateMemory(FRHITexture* InTexture) override;
 	virtual void DeallocateMemory(FRHIBuffer* InBuffer) override;
-	virtual void Freeze() override;
+	virtual void Freeze(FRHICommandListImmediate&) override;
 
 	// Override deallocation function - memory possibly already freed during DeallocateMemory
 	virtual void DeallocateResource(FD3D12ResourceLocation& ResourceLocation) override;

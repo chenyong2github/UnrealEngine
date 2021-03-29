@@ -3121,8 +3121,9 @@ struct FRHIBufferCreateInfo
 	   The allocator manages the lifetime of all the created resources and will take care of destroying
 	   all the resources when the allocator itself is destroyed.	   
 **/
-struct RHI_API IRHITransientResourceAllocator
+class RHI_API IRHITransientResourceAllocator
 {
+public:
 	// Virtual destructor
 	virtual ~IRHITransientResourceAllocator() {}
 
@@ -3135,5 +3136,5 @@ struct RHI_API IRHITransientResourceAllocator
 	virtual void DeallocateMemory(FRHIBuffer* InBuffer) = 0;
 
 	// Freeze allocator for now creation and validates that all resources have their memory deallocated
-	virtual void Freeze() = 0;
+	virtual void Freeze(class FRHICommandListImmediate& RHICmdList) = 0;
 };

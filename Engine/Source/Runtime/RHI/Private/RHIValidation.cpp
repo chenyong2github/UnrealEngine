@@ -1406,7 +1406,7 @@ FValidationTransientResourceAllocator::~FValidationTransientResourceAllocator()
 				const AllocatedResourceData& ResourceData = It->Value;
 				if (RHIResource->GetRefCount() > 1)
 				{
-					ErrorMessage += FString::Printf(TEXT("         %s (%s) - Refcount: %d\n"), *ResourceData.DebugName, ResourceData.ResourceType == AllocatedResourceData::EType::Texture ? TEXT("Texture") : TEXT("DataBuffer"), RHIResource->GetRefCount());
+					ErrorMessage += FString::Printf(TEXT("         %s (%s) - Refcount: %d\n"), ResourceData.DebugName, ResourceData.ResourceType == AllocatedResourceData::EType::Texture ? TEXT("Texture") : TEXT("DataBuffer"), RHIResource->GetRefCount());
 				}
 			}
 			ErrorMessage += FString::Printf(TRANSIENT_RESOURCE_LOG_SUFFIX);
@@ -1425,14 +1425,27 @@ FRHITexture* FValidationTransientResourceAllocator::CreateTexture(const FRHIText
 
 	FRHITexture* RHITexture = RHIAllocator->CreateTexture(InCreateInfo, InDebugName);
 
-	// Setup for resource tracking
-	RHITexture->InitBarrierTracking(InCreateInfo.NumMips, InCreateInfo.ArraySize, InCreateInfo.Format, InCreateInfo.Flags, ERHIAccess::Discard, InDebugName);
+	bool bReinitializeTrackerResource = true;
+
+	if (RHIValidation::FResource* Resource = RHITexture->GetTrackerResource())
+	{
+		if (!Resource->IsBarrierTrackingInitialized())
+		{
+			RHITexture->InitBarrierTracking(InCreateInfo.NumMips, InCreateInfo.ArraySize, InCreateInfo.Format, InCreateInfo.Flags, ERHIAccess::Discard, InDebugName);
+			bReinitializeTrackerResource = false;
+		}
+	}
 
 	// Store allocation data
 	AllocatedResourceData ResourceData;
 	ResourceData.DebugName = InDebugName;
 	ResourceData.ResourceType = AllocatedResourceData::EType::Texture;
 	ResourceData.bMemoryAllocated = true;
+	ResourceData.bReinitializeBarrierTracking = bReinitializeTrackerResource;
+	ResourceData.Texture.Flags = InCreateInfo.Flags;
+	ResourceData.Texture.Format = InCreateInfo.Format;
+	ResourceData.Texture.ArraySize = InCreateInfo.ArraySize;
+	ResourceData.Texture.NumMips = InCreateInfo.NumMips;
 	AllocatedResourceMap.Add(RHITexture, ResourceData);
 
 	return RHITexture;
@@ -1442,17 +1455,23 @@ FRHIBuffer* FValidationTransientResourceAllocator::CreateBuffer(const FRHIBuffer
 {
 	check(!bFrozen);
 	checkf(!EnumHasAnyFlags(InCreateInfo.Usage, BUF_Transient), TEXT("Attempted to create transient buffer %s using legacy BUF_Transient flag."), InDebugName);
-
+	
 	FRHIBuffer* RHIBuffer = RHIAllocator->CreateBuffer(InCreateInfo, InDebugName);
 
-	// Setup for resource tracking
-	RHIBuffer->InitBarrierTracking(ERHIAccess::Discard, InDebugName);
-	
+	bool bReinitializeTrackerResource = true;
+
+	if (!RHIBuffer->IsBarrierTrackingInitialized())
+	{
+		RHIBuffer->InitBarrierTracking(ERHIAccess::Discard, InDebugName);
+		bReinitializeTrackerResource = false;
+	}
+
 	// Store allocation data
 	AllocatedResourceData ResourceData;
 	ResourceData.DebugName = InDebugName;
 	ResourceData.ResourceType = AllocatedResourceData::EType::Buffer;
 	ResourceData.bMemoryAllocated = true;
+	ResourceData.bReinitializeBarrierTracking = bReinitializeTrackerResource;
 	AllocatedResourceMap.Add(RHIBuffer, ResourceData);
 
 	return RHIBuffer;
@@ -1482,7 +1501,7 @@ void FValidationTransientResourceAllocator::DeallocateMemory(FRHIBuffer* InBuffe
 	ResourceData->bMemoryAllocated = false;
 }
 
-void FValidationTransientResourceAllocator::Freeze()
+void FValidationTransientResourceAllocator::Freeze(FRHICommandListImmediate& RHICmdList)
 {
 	check(!bFrozen);
 
@@ -1506,16 +1525,56 @@ void FValidationTransientResourceAllocator::Freeze()
 			const AllocatedResourceData& ResourceData = It->Value;
 			if (ResourceData.bMemoryAllocated)
 			{
-				ErrorMessage += FString::Printf(TEXT("         %s (%s)\n"), *ResourceData.DebugName, ResourceData.ResourceType == AllocatedResourceData::EType::Texture ? TEXT("Texture") : TEXT("DataBuffer"));
+				ErrorMessage += FString::Printf(TEXT("         %s (%s)\n"), ResourceData.DebugName, ResourceData.ResourceType == AllocatedResourceData::EType::Texture ? TEXT("Texture") : TEXT("DataBuffer"));
 			}
 		}
 		ErrorMessage += FString::Printf(TRANSIENT_RESOURCE_LOG_SUFFIX);
 		FValidationRHI::ReportValidationFailure(*ErrorMessage);
 	}
 
+	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
+	{
+		// Tracking will be re-initialized, so we need to flush any remaining references.
+		static_cast<FValidationContext&>(InRHICmdList.GetContext()).FlushValidationOps();
+
+		InitBarrierTracking();
+	});
+
 	bFrozen = true;
 
-	RHIAllocator->Freeze();
+	RHIAllocator->Freeze(RHICmdList);
+}
+
+void FValidationTransientResourceAllocator::InitBarrierTracking()
+{
+	// Barrier tracking initialization has to happen on the RHI thread, because RHI resources are pooled and reused.
+
+	for (const auto& Entry : AllocatedResourceMap)
+	{
+		FRHIResource* Resource = Entry.Key;
+		const AllocatedResourceData& ResourceData = Entry.Value;
+
+		if (!ResourceData.bReinitializeBarrierTracking)
+		{
+			continue;
+		}
+
+		switch (ResourceData.ResourceType)
+		{
+		case AllocatedResourceData::EType::Texture:
+		{
+			FRHITexture* Texture = static_cast<FRHITexture*>(Resource);
+			Texture->InitBarrierTracking(ResourceData.Texture.NumMips, ResourceData.Texture.ArraySize, ResourceData.Texture.Format, ResourceData.Texture.Flags, ERHIAccess::Discard, ResourceData.DebugName);
+		}
+		break;
+		case AllocatedResourceData::EType::Buffer:
+		{
+			FRHIBuffer* Buffer = static_cast<FRHIBuffer*>(Resource);
+			Buffer->InitBarrierTracking(ERHIAccess::Discard, ResourceData.DebugName);
+		}
+		break;
+		}
+	}
 }
 
 #endif	// ENABLE_RHI_VALIDATION
