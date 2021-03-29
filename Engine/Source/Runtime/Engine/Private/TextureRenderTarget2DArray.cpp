@@ -255,6 +255,11 @@ void FTextureRenderTarget2DArrayResource::InitDynamicRHI()
 			);
 		}
 
+		if ((TexCreateFlags & TexCreate_UAV) != 0)
+		{
+			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTarget2DArrayRHI);
+		}
+
 		TextureRHI = Texture2DArrayRHI;
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 

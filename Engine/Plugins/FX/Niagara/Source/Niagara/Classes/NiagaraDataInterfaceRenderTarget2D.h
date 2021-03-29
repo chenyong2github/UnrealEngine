@@ -49,8 +49,8 @@ struct FRenderTarget2DRWInstanceData_RenderThread
 	bool bWasWrittenTo = false;
 
 	FSamplerStateRHIRef SamplerStateRHI;
-	FTextureReferenceRHIRef TextureReferenceRHI;
-	FUnorderedAccessViewRHIRef UAV;
+	FTexture2DRHIRef TextureRHI;
+	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
 #endif

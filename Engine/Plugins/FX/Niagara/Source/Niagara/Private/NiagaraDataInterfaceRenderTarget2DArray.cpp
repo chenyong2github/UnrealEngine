@@ -4,7 +4,10 @@
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
 #include "TextureResource.h"
+#include "TextureRenderTarget2DArrayResource.h"
 #include "Engine/Texture2DArray.h"
+#include "Engine/TextureRenderTarget2DArray.h"
+
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
@@ -12,7 +15,6 @@
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
-#include "Engine/TextureRenderTarget2DArray.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2DArray"
 
@@ -74,23 +76,12 @@ public:
 	
 		if ( OutputParam.IsUAVBound())
 		{
-			FRHIUnorderedAccessView* OutputUAV = nullptr;
-
-			if (FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture())
+			FRHIUnorderedAccessView* OutputUAV = ProxyData->UnorderedAccessViewRHI;
+			if (OutputUAV)
 			{
-				// Note: Because we control the render target it should not changed underneath us without queueing a request to recreate the UAV.  If that assumption changes we would need to track the UAV.
-				ERHIAccess InitialState = ERHIAccess::SRVMask;
-				if (!ProxyData->UAV.IsValid())
-				{
-					ProxyData->UAV = RHICreateUnorderedAccessView(TextureRHI, 0);
-					InitialState = ERHIAccess::Unknown;
-				}
-
-				OutputUAV = ProxyData->UAV;
-				RHICmdList.Transition(FRHITransitionInfo(OutputUAV, InitialState, ERHIAccess::UAVCompute));
+				RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			}
-
-			if (OutputUAV == nullptr)
+			else
 			{
 				OutputUAV = Context.Batcher->GetEmptyRWTextureFromPool(RHICmdList, EPixelFormat::PF_A16B16G16R16);
 			}
@@ -100,7 +91,13 @@ public:
 
 		if (InputParam.IsBound())
 		{
-			FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture();
+			FRHITexture* TextureRHI = ProxyData->TextureRHI;
+			if (!ensureMsgf(!OutputParam.IsUAVBound(), TEXT("NiagaraDIRenderTarget2DArray(%s) is bound as both read & write, read will be ignored."), *Context.DataInterface->SourceDIName.ToString()))
+			{
+				//-TODO: Feedback to the user that read & write is bound
+				TextureRHI = nullptr;
+			}
+
 			if (TextureRHI == nullptr)
 			{
 				TextureRHI = GBlackTexture->TextureRHI;
@@ -131,7 +128,7 @@ public:
 			FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy*>(Context.DataInterface);
 			if (FRenderTarget2DArrayRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID))
 			{
-				if (FRHIUnorderedAccessView* OutputUAV = ProxyData->UAV)
+				if (FRHIUnorderedAccessView* OutputUAV = ProxyData->UnorderedAccessViewRHI)
 				{
 					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 				}
@@ -528,7 +525,7 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::InitPerInstanceData(void* PerInst
 	// Push Updates to Proxy.
 	FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy>();
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
-		[RT_Proxy, RT_InstanceID = SystemInstance->GetId(), RT_InstanceData = *InstanceData, RT_TargetTexture = InstanceData->TargetTexture](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy, RT_InstanceID=SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_TargetTexture=InstanceData->TargetTexture ? InstanceData->TargetTexture->GameThread_GetRenderTargetResource() : nullptr](FRHICommandListImmediate& RHICmdList)
 		{
 			check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(RT_InstanceID));
 			FRenderTarget2DArrayRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(RT_InstanceID);
@@ -537,9 +534,15 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::InitPerInstanceData(void* PerInst
 #if WITH_EDITORONLY_DATA
 			TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
 #endif
-			TargetData->SamplerStateRHI = RT_TargetTexture->Resource && RT_TargetTexture->Resource->SamplerStateRHI ? RT_TargetTexture->Resource->SamplerStateRHI : nullptr;
-			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
-			TargetData->UAV.SafeRelease();
+			if (RT_TargetTexture)
+			{
+				if (FTextureRenderTarget2DArrayResource* Resource2DArray = RT_TargetTexture->GetTextureRenderTarget2DArrayResource())
+				{
+					TargetData->SamplerStateRHI = Resource2DArray->SamplerStateRHI;
+					TargetData->TextureRHI = Resource2DArray->GetTextureRHI();
+					TargetData->UnorderedAccessViewRHI = Resource2DArray->GetUnorderedAccessViewRHI();
+				}
+			}
 		}
 	);
 	return true;
@@ -705,7 +708,7 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 		FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy>();
 		ENQUEUE_RENDER_COMMAND(FUpdateData)
 		(
-			[RT_Proxy, RT_InstanceID=SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_TargetTexture=InstanceData->TargetTexture](FRHICommandListImmediate& RHICmdList)
+			[RT_Proxy, RT_InstanceID=SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_TargetTexture=InstanceData->TargetTexture ? InstanceData->TargetTexture->GameThread_GetRenderTargetResource() : nullptr](FRHICommandListImmediate& RHICmdList)
 			{
 				FRenderTarget2DArrayRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(RT_InstanceID);
 				if (ensureMsgf(TargetData != nullptr, TEXT("InstanceData was not found for %llu"), RT_InstanceID))
@@ -714,9 +717,18 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 #if WITH_EDITORONLY_DATA
 					TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
 #endif
-					TargetData->SamplerStateRHI = RT_TargetTexture->Resource && RT_TargetTexture->Resource->SamplerStateRHI ? RT_TargetTexture->Resource->SamplerStateRHI : nullptr;
-					TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
-					TargetData->UAV.SafeRelease();
+					TargetData->SamplerStateRHI.SafeRelease();
+					TargetData->TextureRHI.SafeRelease();
+					TargetData->UnorderedAccessViewRHI.SafeRelease();
+					if (RT_TargetTexture)
+					{
+						if (FTextureRenderTarget2DArrayResource* Resource2DArray = RT_TargetTexture->GetTextureRenderTarget2DArrayResource())
+						{
+							TargetData->SamplerStateRHI = Resource2DArray->SamplerStateRHI;
+							TargetData->TextureRHI = Resource2DArray->GetTextureRHI();
+							TargetData->UnorderedAccessViewRHI = Resource2DArray->GetUnorderedAccessViewRHI();
+						}
+					}
 				}
 			}
 		);
@@ -730,11 +742,11 @@ void FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy::PostSimulate(FRHIComman
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	FRenderTarget2DArrayRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
-	if (ProxyData && ProxyData->bPreviewTexture && ProxyData->TextureReferenceRHI.IsValid())
+	if (ProxyData && ProxyData->bPreviewTexture)
 	{
 		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.Batcher->GetGpuComputeDebug())
 		{
-			if (FRHITexture* RHITexture = ProxyData->TextureReferenceRHI->GetReferencedTexture())
+			if (FRHITexture* RHITexture = ProxyData->TextureRHI)
 			{
 				GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, RHITexture);
 			}

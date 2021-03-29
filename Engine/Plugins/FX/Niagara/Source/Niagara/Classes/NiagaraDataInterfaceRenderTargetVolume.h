@@ -41,8 +41,8 @@ struct FRenderTargetVolumeRWInstanceData_RenderThread
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	
 	FSamplerStateRHIRef SamplerStateRHI;
-	FTextureReferenceRHIRef TextureReferenceRHI;
-	FUnorderedAccessViewRHIRef UAV;
+	FTexture3DRHIRef TextureRHI;
+	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
 #endif
