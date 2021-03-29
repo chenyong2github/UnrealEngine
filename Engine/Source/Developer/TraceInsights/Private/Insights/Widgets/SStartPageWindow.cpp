@@ -591,7 +591,7 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 					SNew(SBox)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
 						.Padding(8.0f)
 						[
 							ConstructSessionsPanel()
@@ -607,7 +607,7 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 					SNew(SBox)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
 						.Padding(8.0f)
 						[
 							ConstructTraceStoreDirectoryPanel()
@@ -624,7 +624,7 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 					.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
 					[
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
 						.Padding(8.0f)
 						[
 							ConstructConnectPanel()
@@ -643,7 +643,7 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 				.Visibility(this, &SStartPageWindow::SplashScreenOverlay_Visibility)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+					.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
 					.BorderBackgroundColor(this, &SStartPageWindow::SplashScreenOverlay_ColorAndOpacity)
 					.Padding(0.0f)
 					.HAlign(HAlign_Fill)
@@ -1873,7 +1873,7 @@ void SStartPageWindow::OpenSettings()
 	(*OverlaySettingsSlot)
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+		.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
 		.Padding(8.0f)
 		[
 			SNew(SInsightsSettings)

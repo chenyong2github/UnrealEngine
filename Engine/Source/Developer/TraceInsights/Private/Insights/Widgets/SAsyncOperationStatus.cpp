@@ -2,7 +2,6 @@
 
 #include "SAsyncOperationStatus.h"
 
-#include "EditorStyleSet.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -29,7 +28,7 @@ void SAsyncOperationStatus::Construct(const FArguments& InArgs, TSharedRef<IAsyn
 		.Visibility(this, &SAsyncOperationStatus::GetContentVisibility)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+			.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
 			.BorderBackgroundColor(this, &SAsyncOperationStatus::GetBackgroundColorAndOpacity)
 			.Padding(FMargin(16.0f, 8.0f, 16.0f, 8.0f))
 			.HAlign(HAlign_Fill)

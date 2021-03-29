@@ -2,12 +2,12 @@
 
 #include "STimingProfilerWindow.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Docking/LayoutService.h"
 #include "SlateOptMacros.h"
+#include "Styling/CoreStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -595,7 +595,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 				[
 					SNew(SBorder)
 						.Visibility(this, &STimingProfilerWindow::IsSessionOverlayVisible)
-						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
 						.Padding(8.0f)
 						[
 							SNew(STextBlock)

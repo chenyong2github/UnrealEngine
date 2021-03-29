@@ -2,11 +2,11 @@
 
 #include "SLoadingProfilerWindow.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
+#include "Styling/CoreStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -643,7 +643,7 @@ void SLoadingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRe
 				[
 					SNew(SBorder)
 						.Visibility(this, &SLoadingProfilerWindow::IsSessionOverlayVisible)
-						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
 						.Padding(8.0f)
 						[
 							SNew(STextBlock)

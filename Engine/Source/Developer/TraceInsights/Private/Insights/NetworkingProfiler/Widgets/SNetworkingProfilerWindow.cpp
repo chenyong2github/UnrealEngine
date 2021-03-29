@@ -2,11 +2,11 @@
 
 #include "SNetworkingProfilerWindow.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
+#include "Styling/CoreStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -349,7 +349,7 @@ void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TShare
 				[
 					SNew(SBorder)
 						.Visibility(this, &SNetworkingProfilerWindow::IsSessionOverlayVisible)
-						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+						.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
 						.Padding(8.0f)
 						[
 							SNew(STextBlock)
