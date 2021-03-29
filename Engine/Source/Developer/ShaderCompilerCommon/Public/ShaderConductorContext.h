@@ -98,6 +98,9 @@ namespace CrossCompiler
 		/** Compiles the specified HLSL shader source code to SPIR-V. */
 		bool CompileHlslToSpirv(const FShaderConductorOptions& Options, TArray<uint32>& OutSpirv);
 
+		/** Performs the specified optimization passes (e.g. "-O" or "--strip-reflect") on the SPIR-V module. */
+		bool OptimizeSpirv(TArray<uint32>& Spirv, const ANSICHAR* const * OptConfigs, int32 OptConfigCount);
+
 		/** Compiles the specified SPIR-V shader binary code to high level source code (Metal or GLSL). */
 		bool CompileSpirvToSource(const FShaderConductorOptions& Options, const FShaderConductorTarget& Target, const void* InSpirv, uint32 InSpirvByteSize, FString& OutSource);
 

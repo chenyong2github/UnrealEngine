@@ -64,6 +64,10 @@ Pass::Status StripReflectInfoPass::Process() {
         reinterpret_cast<const char*>(&inst.GetInOperand(0).words[0]);
     if (0 == std::strcmp(ext_name, "SPV_GOOGLE_hlsl_functionality1")) {
       to_remove.push_back(&inst);
+    // UE Change Begin: Remove all GOOGLE reflection extensions in this pass
+    } else if (0 == std::strcmp(ext_name, "SPV_GOOGLE_user_type")) {
+      to_remove.push_back(&inst);
+    // UE Change End: Remove all GOOGLE reflection extensions in this pass
     } else if (!other_uses_for_decorate_string &&
                0 == std::strcmp(ext_name, "SPV_GOOGLE_decorate_string")) {
       to_remove.push_back(&inst);

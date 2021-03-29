@@ -83,6 +83,9 @@ target_link_libraries(${LIB_NAME}
         spirv-cross-msl
         spirv-cross-util
         SPIRV-Tools
+		# UE Change Begin: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
+        SPIRV-Tools-opt
+		# UE Change End: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
 )
 
 add_dependencies(${LIB_NAME} spirv-cross-core spirv-cross-glsl spirv-cross-hlsl spirv-cross-msl)

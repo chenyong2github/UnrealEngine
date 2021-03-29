@@ -582,6 +582,43 @@ namespace CrossCompiler
 		return bSucceeded;
 	}
 
+	bool FShaderConductorContext::OptimizeSpirv(TArray<uint32>& Spirv, const ANSICHAR* const* OptConfigs, int32 OptConfigCount)
+	{
+		// Ignore this call if no optimization configurations were specified
+		if (OptConfigCount > 0)
+		{
+			check(OptConfigs != nullptr);
+
+			// Convert input SPIR-V module to Blob instance for ShaderConductor interface
+			ShaderConductor::Compiler::ResultDesc SpirvInput;
+			SpirvInput.target = ShaderConductor::Blob(Spirv.GetData(), Spirv.Num() * sizeof(uint32));
+			SpirvInput.isText = false;
+			SpirvInput.hasError = false;
+
+			// Run optimization passes through ShaderConductor
+			ShaderConductor::Compiler::ResultDesc SpirvOutput = ShaderConductor::Compiler::Optimize(SpirvInput, OptConfigs, static_cast<uint32_t>(OptConfigCount));
+			if (!SpirvOutput.hasError && SpirvOutput.target.Size() > 0)
+			{
+				// Convert Blob instance back to our SPIR-V module
+				Spirv = TArray<uint32>(reinterpret_cast<const uint32*>(SpirvOutput.target.Data()), SpirvOutput.target.Size() / 4);
+			}
+			else
+			{
+				// Extract errors
+				if (SpirvOutput.errorWarningMsg.Size() > 0)
+				{
+					FString ErrorString;
+					if (ConvertScBlobToFString(&SpirvOutput.errorWarningMsg, ErrorString))
+					{
+						Errors.Add(*ErrorString);
+					}
+				}
+				return false;
+			}
+		}
+		return true;
+	}
+
 	bool FShaderConductorContext::CompileSpirvToSource(const FShaderConductorOptions& Options, const FShaderConductorTarget& Target, const void* InSpirv, uint32 InSpirvByteSize, FString& OutSource)
 	{
 		return CompileSpirvToSourceBuffer(

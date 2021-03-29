@@ -43,6 +43,10 @@
 // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
 #include <llvm/Support/ErrorHandling.h>
 
+// UE Change Begin: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
+#include <spirv-tools/optimizer.hpp>
+// UE Change End: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
+
 #include <spirv-tools/libspirv.h>
 #include <spirv.hpp>
 #include <spirv_cross.hpp>
@@ -807,7 +811,18 @@ namespace
             {
                 std::wstring argUTF16;
                 Unicode::UTF8ToUTF16String(options.DXCArgs[arg], &argUTF16);
-                dxcArgStrings.push_back(argUTF16);
+                if (argUTF16.compare(0, 8, L"-Oconfig") == 0)
+                {
+					// Replace previous '-O' argument with the custom configuration
+                    auto dxcOptArgIter = std::find_if(dxcArgStrings.begin(), dxcArgStrings.end(),
+                                                      [](const std::wstring& entry) { return entry.compare(0, 2, L"-O") == 0; });
+                    if (dxcOptArgIter != dxcArgStrings.end())
+                        *dxcOptArgIter = argUTF16;
+                    else
+                        dxcArgStrings.push_back(argUTF16);
+                }
+                else
+                    dxcArgStrings.push_back(argUTF16);
             }
             // UE Change End: Support for specifying direct arguments to DXC
             break;
@@ -1505,6 +1520,51 @@ namespace ShaderConductor
         return RewriteHlsl(source, options);
     }
     // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
+
+	// UE Change Begin: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
+    Compiler::ResultDesc Compiler::Optimize(const ResultDesc& binaryResult, const char* const* optConfigs, uint32_t numOptConfigs)
+	{
+        Compiler::ResultDesc result;
+        result.isText = false;
+        result.hasError = false;
+
+        spvtools::Optimizer optimizer(SPV_ENV_UNIVERSAL_1_3);
+
+		std::string messages;
+        optimizer.SetMessageConsumer([&messages](spv_message_level_t /*level*/, const char* /*filename*/,
+                                                 const spv_position_t& /*position*/, const char* msg) { messages += msg; });
+
+        // Register optimization passes specified by configuration arguments
+        spvtools::OptimizerOptions options;
+        options.set_run_validator(false);
+
+        for (uint32_t optConfigIndex = 0; optConfigIndex < numOptConfigs; ++optConfigIndex)
+        {
+            if (!optimizer.RegisterPassFromFlag(optConfigs[optConfigIndex]))
+            {
+                result.hasError = true;
+                result.errorWarningMsg = Blob(messages.data(), static_cast<uint32_t>(messages.size() * sizeof(char)));
+                return result;
+            }
+        }
+
+        // Convert SPIR-V module to STL vector for the SPIRV-Tools interface and run optimization passes
+        const uint32_t* SpirvModuleData = reinterpret_cast<const uint32_t*>(binaryResult.target.Data());
+        std::vector<uint32_t> SpirvModule(SpirvModuleData, SpirvModuleData + binaryResult.target.Size() / 4);
+
+        if (optimizer.Run(SpirvModule.data(), SpirvModule.size(), &SpirvModule, options))
+        {
+            result.target = Blob(SpirvModule.data(), static_cast<uint32_t>(SpirvModule.size() * sizeof(uint32_t)));
+        }
+        else
+        {
+            result.hasError = true;
+            result.errorWarningMsg = Blob(messages.data(), static_cast<uint32_t>(messages.size() * sizeof(char)));
+        }
+
+        return result;
+    }
+    // UE Change End: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
 
     bool Compiler::LinkSupport()
     {
