@@ -346,6 +346,9 @@ private:
 	/** Max number of thumbnails in the pool */
 	uint32 NumInPool;
 
+	/** Shaders are still building */
+	bool bWereShadersCompilingLastFrame = false;
+
 	/** Max number of dynamic thumbnails to update per frame */
 	uint32 MaxRealTimeThumbnailsPerFrame;
 
