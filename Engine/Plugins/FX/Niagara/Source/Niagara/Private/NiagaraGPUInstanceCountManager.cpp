@@ -377,6 +377,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterIn
 				FMemory::Memcpy(TaskBufferData + ArgGenSize, InstanceCountClearTasks.GetData(), InstanceCountClearSize);
 				RHIUnlockVertexBuffer(TaskInfosBuffer.Buffer);
 			}
+			FNiagaraUAVPoolAccessScope UAVPoolAccessScope(Batcher);
 
 			FRHIShaderResourceView* CulledCountsSRV;
 
@@ -419,7 +420,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterIn
 				}
 				else
 				{
-					ArgsUAV = Batcher.GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, false);
+					ArgsUAV = Batcher.GetEmptyRWBufferFromPool(RHICmdList, PF_R32_UINT);
 				}
 
 				const bool bIsLastDispatch = DispatchIdx == (NumDispatches - 1);

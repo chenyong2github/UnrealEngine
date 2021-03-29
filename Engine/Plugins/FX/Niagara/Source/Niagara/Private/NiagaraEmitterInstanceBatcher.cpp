@@ -34,6 +34,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("# GPU Sorted Particles"), STAT_NiagaraGPUSorted
 DECLARE_DWORD_COUNTER_STAT(TEXT("# GPU Sorted Buffers"), STAT_NiagaraGPUSortedBuffers, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Readback latency (frames)"), STAT_NiagaraReadbackLatency, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("# GPU Dispatches"), STAT_NiagaraGPUDispatches, STATGROUP_Niagara);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("# DummyUAVs"), STAT_NiagaraDummyUAVPool, STATGROUP_Niagara);
 
 DECLARE_GPU_STAT_NAMED(NiagaraGPU, TEXT("Niagara"));
 DECLARE_GPU_STAT_NAMED(NiagaraGPUSimulation, TEXT("Niagara GPU Simulation"));
@@ -148,6 +149,21 @@ namespace NiagaraEmitterInstanceBatcherLocal
 
 		const bool bIsSpawnStage = Context->SpawnStages.Contains(StageIndex);
 		return Tick->bNeedsReset == bIsSpawnStage;
+	}
+}
+
+FNiagaraUAVPoolAccessScope::FNiagaraUAVPoolAccessScope(NiagaraEmitterInstanceBatcher& InBatcher)
+	: Batcher(InBatcher)
+{
+	++Batcher.DummyUAVAccessCounter;
+}
+
+FNiagaraUAVPoolAccessScope::~FNiagaraUAVPoolAccessScope()
+{
+	--Batcher.DummyUAVAccessCounter;
+	if (Batcher.DummyUAVAccessCounter == 0)
+	{
+		Batcher.ResetEmptyUAVPools();
 	}
 }
 
@@ -1679,6 +1695,8 @@ void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& R
 	}
 	else
 	{
+		// Note: We don't care that the buffer will be allowed to be reused
+		FNiagaraUAVPoolAccessScope UAVPoolAccessScope(*this);
 		Params.OutCulledParticleCounts = GetEmptyRWBufferFromPool(RHICmdList, PF_R32_UINT);
 	}
 
@@ -1865,6 +1883,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 		SimulationStageIndex,
 		Shader->GetNumInstructions()
 	);
+	FNiagaraUAVPoolAccessScope UAVPoolAccessScope(*this);
 
 	const TArray<FNiagaraDataInterfaceProxy*>& DataInterfaceProxies = Instance->DataInterfaceProxies;
 
@@ -1987,9 +2006,6 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	FNiagaraDataBuffer::UnsetShaderParams(RHICmdList, Shader.GetShader());
 	Shader->InstanceCountsParam.UnsetUAV(RHICmdList, ComputeShader);
 
-	ResetEmptyUAVPools(RHICmdList);
-
-
 	// Optionally submit commands to the GPU
 	// This can be used to avoid accidental TDR detection in the editor especially when issuing multiple ticks in the same frame
 	if (GNiagaraGpuSubmitCommandHint > 0)
@@ -2046,8 +2062,16 @@ void NiagaraEmitterInstanceBatcher::DummyUAV::Init(FRHICommandList& RHICmdList, 
 	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 }
 
+NiagaraEmitterInstanceBatcher::DummyUAVPool::~DummyUAVPool()
+{
+	UE_CLOG(NextFreeIndex != 0, LogNiagara, Warning, TEXT("DummyUAVPool is potentially in use during destruction."));
+	DEC_DWORD_STAT_BY(STAT_NiagaraDummyUAVPool, UAVs.Num());
+}
+
 FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture) const
 {
+	checkf(DummyUAVAccessCounter != 0, TEXT("Accessing Niagara's UAV Pool while not within a scope, this could result in a memory leak!"));
+
 	TMap<EPixelFormat, DummyUAVPool>& UAVMap = IsTexture ? DummyTexturePool : DummyBufferPool;
 	DummyUAVPool& Pool = UAVMap.FindOrAdd(Format);
 	checkSlow(Pool.NextFreeIndex <= Pool.UAVs.Num());
@@ -2058,6 +2082,8 @@ FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyUAVFromPool(FRHI
 		// Dispatches which use dummy UAVs are allowed to overlap, since we don't care about the contents of these buffers.
 		// We never need to calll EndUAVOverlap() on these.
 		RHICmdList.BeginUAVOverlap(NewUAV.UAV);
+
+		INC_DWORD_STAT(STAT_NiagaraDummyUAVPool);
 	}
 
 	FRHIUnorderedAccessView* UAV = Pool.UAVs[Pool.NextFreeIndex].UAV;
@@ -2073,7 +2099,7 @@ void NiagaraEmitterInstanceBatcher::ResetEmptyUAVPool(TMap<EPixelFormat, DummyUA
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::ResetEmptyUAVPools(FRHICommandList& RHICmdList)
+void NiagaraEmitterInstanceBatcher::ResetEmptyUAVPools()
 {
 	ResetEmptyUAVPool(DummyBufferPool);
 	ResetEmptyUAVPool(DummyTexturePool);
