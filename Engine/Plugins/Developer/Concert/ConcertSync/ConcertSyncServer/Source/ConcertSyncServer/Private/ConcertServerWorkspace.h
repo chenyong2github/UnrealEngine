@@ -30,6 +30,23 @@ public:
 	~FConcertServerWorkspace();
 
 private:
+	/**
+	 * Get the sync event for a transaction activity in the session database.
+	 *
+	 * @param InSyncActivityId			The ID of the activity to send the sync event for.
+	 * @param InNumRemainingSyncEvents	The number of items left in the sync queue.
+	 * @param InLiveOnly				True if the bulk of the transaction data should only be sent if this transaction is live.
+	 * Returns the transaction activity event for the given activity id.
+	 */
+	TOptional<FConcertWorkspaceSyncActivityEvent> SyncTransactionActivityEvent(const int64 InSyncActivityId, const int32 InNumRemainingSyncEvents, const bool InLiveOnly = true) const;
+
+	/**
+	 * Get the sync event for a package activity in the session database.
+	 *
+	 * @param InSyncActivityId			The ID of the activity to send the sync event for.
+	 * @param InHeadOnly				True if we are only interested in the head revision
+	 * Returns the package activity event for the given activity id.
+	 */
 	TOptional<FConcertWorkspaceSyncActivityEvent> MakeSyncActivityEvent(const int64 InSyncActivityId, const bool bInHeadOnly = true) const;
 
 	/** Bind the workspace to this session. */

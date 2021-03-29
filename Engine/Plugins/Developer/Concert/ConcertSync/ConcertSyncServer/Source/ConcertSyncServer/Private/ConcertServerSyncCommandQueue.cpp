@@ -4,6 +4,11 @@
 #include "ConcertLogGlobal.h"
 #include "HAL/PlatformTime.h"
 
+FConcertServerSyncCommandQueue::FConcertServerSyncCommandQueue()
+{
+	RegisterEndpoint(GlobalGuid);
+}
+
 void FConcertServerSyncCommandQueue::RegisterEndpoint(const FGuid& InEndpointId)
 {
 	QueuedSyncCommands.FindOrAdd(InEndpointId);
@@ -18,6 +23,11 @@ void FConcertServerSyncCommandQueue::SetCommandProcessingMethod(const FGuid& InE
 {
 	FEndpointSyncCommandQueue& EndpointSyncQueue = QueuedSyncCommands.FindChecked(InEndpointId);
 	EndpointSyncQueue.ProcessingMethod = InProcessingMethod;
+}
+
+void FConcertServerSyncCommandQueue::QueueCommand(const FSyncCommand& InCommand)
+{
+	QueueCommand(TArrayView<const FGuid>(&GlobalGuid, 1), InCommand);
 }
 
 void FConcertServerSyncCommandQueue::QueueCommand(const FGuid& InEndpointId, const FSyncCommand& InCommand)

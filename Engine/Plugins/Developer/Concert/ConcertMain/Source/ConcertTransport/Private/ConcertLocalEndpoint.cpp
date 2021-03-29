@@ -214,7 +214,7 @@ void FConcertLocalEndpoint::InternalQueueResponse(const TSharedRef<IConcertRespo
 	}
 }
 
-void FConcertLocalEndpoint::InternalQueueEvent(const TSharedRef<IConcertEvent>& Event, const FGuid& Endpoint, EConcertMessageFlags Flags, const TMap<FName, FString>& Annotations)
+void FConcertLocalEndpoint::InternalQueueEvent(const TSharedRef<IConcertEvent>& Event, const FGuid& Endpoint, EConcertMessageFlags Flags)
 {
 	// Fill sending info
 	SetMessageSendingInfo(Event);
@@ -238,7 +238,7 @@ void FConcertLocalEndpoint::InternalQueueEvent(const TSharedRef<IConcertEvent>& 
 		}
 	}
 
-	SendMessage(Event, RemoteEndpoint.ToSharedRef(), Event->GetCreationDate(), Annotations);
+	SendMessage(Event, RemoteEndpoint.ToSharedRef(), Event->GetCreationDate(), Flags);
 }
 
 void FConcertLocalEndpoint::InternalPublishEvent(const TSharedRef<IConcertEvent>& Event)
@@ -430,7 +430,7 @@ void FConcertLocalEndpoint::PublishMessage(const TSharedRef<IConcertMessage>& Me
 	);
 }
 
-void FConcertLocalEndpoint::SendMessage(const TSharedRef<IConcertMessage>& Message, const FConcertRemoteEndpointRef& RemoteEndpoint, const FDateTime& UtcNow, const TMap<FName, FString>& Annotations)
+void FConcertLocalEndpoint::SendMessage(const TSharedRef<IConcertMessage>& Message, const FConcertRemoteEndpointRef& RemoteEndpoint, const FDateTime& UtcNow, EConcertMessageFlags Flags)
 {
 	if (!MessageEndpoint.IsValid())
 	{
@@ -447,7 +447,7 @@ void FConcertLocalEndpoint::SendMessage(const TSharedRef<IConcertMessage>& Messa
 		Message->ConstructMessage(), // Should be deleted by MessageBus
 		Message->GetMessageType(),
 		Message->IsReliable() ? EMessageFlags::Reliable : EMessageFlags::None,
-		Annotations, 
+		Message->GetAnnotations(),
 		nullptr, // No Attachment
 		TArrayBuilder<FMessageAddress>().Add(RemoteEndpoint->GetAddress()),
 		FTimespan::Zero(), // No Delay
