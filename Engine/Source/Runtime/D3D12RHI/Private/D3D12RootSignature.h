@@ -11,7 +11,6 @@ enum ERootParameterKeys
 	PS_CBVs,
 	PS_RootCBVs,
 	PS_Samplers,
-	PS_UAVs,
 	VS_SRVs,
 	VS_CBVs,
 	VS_RootCBVs,
@@ -32,12 +31,10 @@ enum ERootParameterKeys
 	MS_CBVs,
 	MS_RootCBVs,
 	MS_Samplers,
-	MS_UAVs,
 	AS_SRVs,
 	AS_CBVs,
 	AS_RootCBVs,
 	AS_Samplers,
-	AS_UAVs,
 	ALL_SRVs,
 	ALL_CBVs,
 	ALL_RootCBVs,
@@ -205,20 +202,8 @@ public:
 
 	inline uint32 UAVRDTBindSlot(EShaderFrequency ShaderStage) const
 	{
-		check(ShaderStage == SF_Pixel || ShaderStage == SF_Mesh || ShaderStage == SF_Amplification || ShaderStage == SF_Compute);
-
-		switch (ShaderStage)
-		{
-		case SF_Pixel: return BindSlotMap[PS_UAVs];
-		case SF_Mesh: return BindSlotMap[MS_UAVs];
-		case SF_Amplification: return BindSlotMap[AS_UAVs];
-
-		case SF_Compute:
-		case SF_NumFrequencies: return BindSlotMap[ALL_UAVs];
-
-		default: check(false);
-			return UINT_MAX;
-		}
+		check(ShaderStage == SF_Pixel || ShaderStage == SF_Compute);
+		return BindSlotMap[ALL_UAVs];
 	}
 
 	inline bool HasUAVs() const { return bHasUAVs; }
@@ -361,21 +346,9 @@ private:
 
 	inline void SetUAVRDTBindSlot(EShaderFrequency SF, uint8 RootParameterIndex)
 	{
-		check(SF == SF_Pixel || SF == SF_Mesh || SF == SF_Amplification || SF == SF_Compute || SF == SF_NumFrequencies);
+		check(SF == SF_Pixel || SF == SF_Compute || SF == SF_NumFrequencies);
 
-		uint8* pBindSlot = nullptr;
-		switch (SF)
-		{
-		case SF_Pixel: pBindSlot = &BindSlotMap[PS_UAVs]; break;
-		case SF_Mesh: pBindSlot = &BindSlotMap[MS_UAVs]; break;
-		case SF_Amplification: pBindSlot = &BindSlotMap[AS_UAVs]; break;
-
-		case SF_Compute:
-		case SF_NumFrequencies: pBindSlot = &BindSlotMap[ALL_UAVs]; break;
-
-		default: check(false);
-			return;
-		}
+		uint8* pBindSlot = &BindSlotMap[ALL_UAVs];
 
 		check(*pBindSlot == 0xFF);
 		*pBindSlot = RootParameterIndex;
