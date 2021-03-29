@@ -5,6 +5,13 @@
 
 #define LOCTEXT_NAMESPACE "MovieSceneMediaSection"
 
+namespace
+{
+	FFrameNumber GetStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, FFrameNumber StartOffset, FFrameNumber StartFrame)
+	{
+		return StartOffset + TrimTime.Time.FrameNumber - StartFrame;
+	}
+}
 
 /* UMovieSceneMediaSection interface
  *****************************************************************************/
@@ -28,11 +35,6 @@ void UMovieSceneMediaSection::PostInitProperties()
 
 	// media tracks have some preroll by default to precache frames
 	SetPreRollFrames( (0.5 * TickResolution).RoundToFrame().Value );
-}
-
-FFrameNumber GetStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, FFrameNumber StartOffset, FFrameNumber StartFrame)
-{
-	return StartOffset + TrimTime.Time.FrameNumber - StartFrame;
 }
 
 void UMovieSceneMediaSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys)
