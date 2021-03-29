@@ -15,6 +15,7 @@ class UEdGraphPin;
 class UEdGraphSchema_K2;
 class UK2Node_CustomEvent;
 class UK2Node_TemporaryVariable;
+class UK2Node_CallFunction;
 
 /** struct to remap pins for Async Tasks.
  * a single K2 node is shared by many proxy classes.
@@ -46,7 +47,7 @@ class BLUEPRINTGRAPH_API UK2Node_BaseAsyncTask : public UK2Node
 	// End of UEdGraphNode interface
 
 	// UK2Node interface
-	virtual void ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
+	virtual void ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	virtual FName GetCornerIcon() const override;
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
@@ -62,6 +63,19 @@ protected:
 	/** Determines what the possible redirect pin names are **/
 	virtual void GetRedirectPinNames(const UEdGraphPin& Pin, TArray<FString>& RedirectPinNames) const;
 
+	/**
+	 * If a the DefaultToSelf pin exists then it needs an actual connection to get properly casted
+	 * during compilation.
+	 *
+	 * @param CompilerContext			The current compiler context used during expansion
+	 * @param SourceGraph				The graph to place the expanded self node on
+	 * @param IntermediateProxyNode		The spawned intermediate proxy node that has a DefaultToSelfPin
+	 *
+	 * @return	True if a successful connection was made to an intermediate node
+	 *			or if one was not necessary. False if a connection was failed.
+	 */
+	bool ExpandDefaultToSelfPin(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UK2Node_CallFunction* IntermediateProxyNode);
+	
 protected:
 	// The name of the function to call to create a proxy object
 	UPROPERTY()
