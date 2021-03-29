@@ -831,7 +831,7 @@ void Main(
 												#endif
 												Color);
 
-		if (NumDynamicPointLights > 1)
+		if (MAX_DYNAMIC_POINT_LIGHTS > 1 && NumDynamicPointLights > 1)
 		{
 			AccumulateLightingOfDynamicPointLight(MaterialParameters, 
 													ShadingModelContext,
@@ -848,7 +848,7 @@ void Main(
 													#endif
 													Color);
 
-			if (NumDynamicPointLights > 2)
+			if (MAX_DYNAMIC_POINT_LIGHTS > 2 && NumDynamicPointLights > 2)
 			{
 				AccumulateLightingOfDynamicPointLight(MaterialParameters, 
 														ShadingModelContext,
@@ -865,7 +865,7 @@ void Main(
 														#endif
 														Color);
 
-				if (NumDynamicPointLights > 3)
+				if (MAX_DYNAMIC_POINT_LIGHTS > 3 && NumDynamicPointLights > 3)
 				{
 					AccumulateLightingOfDynamicPointLight(MaterialParameters, 
 															ShadingModelContext,
