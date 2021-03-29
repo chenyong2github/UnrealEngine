@@ -319,6 +319,32 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		Mesh = nullptr; // Disallow usage of this mesh to prevent issues on cooked builds
 	}
 
+	TRefCountPtr<const FStaticMeshLODResources> LODData;
+	if (Mesh != nullptr)
+	{
+		// Check if any valid LODs are found. If not, we won't use this mesh
+		MinLOD = Mesh->GetMinLOD().GetValue();
+		if ( GNDIStaticMesh_UseInlineLODsOnly )
+		{
+			MinLOD = Mesh->GetNumLODs() - Mesh->GetRenderData()->NumInlinedLODs;
+		}
+
+		FStaticMeshRenderData* RenderData = Mesh->GetRenderData();
+		if (RenderData)
+		{
+			CachedLODIdx = RenderData->GetCurrentFirstLODIdx(MinLOD);
+			if (RenderData->LODResources.IsValidIndex(CachedLODIdx))
+			{
+				LODData = &RenderData->LODResources[CachedLODIdx];
+			}
+		}
+
+		if (!LODData.IsValid())
+		{
+			Mesh = nullptr;
+		}
+	}
+
 	StaticMesh = Mesh;
 	bMeshValid = Mesh != nullptr;
 	
@@ -332,22 +358,14 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		}
 #endif
 
-	    MinLOD = Mesh->GetMinLOD().GetValue();
-		if ( GNDIStaticMesh_UseInlineLODsOnly )
-		{
-			MinLOD = Mesh->GetNumLODs() - Mesh->GetRenderData()->NumInlinedLODs;
-		}
-	    CachedLODIdx = Mesh->GetRenderData()->GetCurrentFirstLODIdx(MinLOD);
-
 		bMeshAllowsCpuAccess = Mesh->bAllowCPUAccess;
 		bIsCpuUniformlyDistributedSampling = Mesh->bSupportUniformlyDistributedSampling;
 		bIsGpuUniformlyDistributedSampling = bIsCpuUniformlyDistributedSampling && Mesh->bSupportGpuUniformlyDistributedSampling;
 
 		//Init the instance filter
-		TRefCountPtr<const FStaticMeshLODResources> Res = GetCurrentFirstLOD();
-		for (int32 i = 0; i < Res->Sections.Num(); ++i)
+		for (int32 i = 0; i < LODData->Sections.Num(); ++i)
 		{
-			if (Interface->SectionFilter.AllowedMaterialSlots.Num() == 0 || Interface->SectionFilter.AllowedMaterialSlots.Contains(Res->Sections[i].MaterialIndex))
+			if (Interface->SectionFilter.AllowedMaterialSlots.Num() == 0 || Interface->SectionFilter.AllowedMaterialSlots.Contains(LODData->Sections[i].MaterialIndex))
 			{
 				ValidSections.Add(i);
 			}
@@ -355,10 +373,10 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 
 		if (GetValidSections().Num() == 0)
 		{
-			UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface has a section filter preventing any spawning. Failed InitPerInstanceData - %s"), *Interface->GetFullName());
+			UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface either has no current LODs or has a section filter preventing any spawning - %s"), *Interface->GetFullName());
 		}
 
-		Sampler.Init(Res, this);
+		Sampler.Init(LODData, this);
 
 		// Init socket information
 		const int32 NumMeshSockets = Mesh->Sockets.Num();
@@ -1239,14 +1257,16 @@ struct TTypedMeshAccessorBinder
 	static void Bind(UNiagaraDataInterface* Interface, const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 	{
 		FNDIStaticMesh_InstanceData* InstData = (FNDIStaticMesh_InstanceData*)InstanceData;
-		if (!InstData->bMeshValid)
+		check(InstData);
+
+		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		if (!InstData->bMeshValid || !Res.IsValid())
 		{
 			NextBinder::template Bind<ParamTypes..., TNullMeshVertexAccessor>(Interface, BindingInfo, InstanceData, OutFunc);
 			return;
 		}
 
 		UNiagaraDataInterfaceStaticMesh* MeshInterface = CastChecked<UNiagaraDataInterfaceStaticMesh>(Interface);
-		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
 		if (Res->VertexBuffers.StaticMeshVertexBuffer.GetUseHighPrecisionTangentBasis())			
 		{
 			if (Res->VertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
@@ -1487,15 +1507,14 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 	if (bSuccess)
 	{
 		FStaticMeshGpuSpawnBuffer* MeshGpuSpawnBuffer = nullptr;
-		TRefCountPtr<const FStaticMeshLODResources> GpuMeshLODResource;
-		if (Inst->bMeshValid && IsUsedWithGPUEmitter(SystemInstance))
+		TRefCountPtr<const FStaticMeshLODResources> GpuMeshLODResource = Inst->GetCurrentFirstLOD();
+		if (Inst->bMeshValid && GpuMeshLODResource.IsValid() && IsUsedWithGPUEmitter(SystemInstance))
 		{
 			// Always allocate when bAllowCPUAccess (index buffer can only have SRV created in this case as of today)
 			// We do not know if this interface is allocated for CPU or GPU so we allocate for both case... TODO: have some cached data created in case a GPU version is needed?
 			ensure(Inst->StaticMesh->bAllowCPUAccess); // this should have been verified in Init()
 
 			MeshGpuSpawnBuffer = new FStaticMeshGpuSpawnBuffer;
-			GpuMeshLODResource = Inst->GetCurrentFirstLOD();
 			MeshGpuSpawnBuffer->Initialise(GpuMeshLODResource, *this, Inst);
 		}
 
@@ -3397,7 +3416,7 @@ bool FDynamicVertexColorFilterData::Init(FNDIStaticMesh_InstanceData* Owner)
 	check(Owner->bMeshValid);
 
 	TRefCountPtr<const FStaticMeshLODResources> Res = Owner->GetCurrentFirstLOD();
-	if (Res->VertexBuffers.ColorVertexBuffer.GetNumVertices() == 0)
+	if (!Res.IsValid() || Res->VertexBuffers.ColorVertexBuffer.GetNumVertices() == 0)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("Cannot initialize vertex color filter data for a mesh with no color data - %s"), *GetFullNameSafe(Owner->StaticMesh.Get()));
 		return false;
