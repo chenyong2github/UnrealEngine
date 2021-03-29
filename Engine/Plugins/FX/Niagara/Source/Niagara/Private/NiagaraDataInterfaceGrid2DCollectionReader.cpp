@@ -203,6 +203,7 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::Equals(const UNiagaraDataInter
 	return OtherTyped != nullptr && OtherTyped->EmitterName == EmitterName && OtherTyped->DIName == DIName;		
 }
 
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceGrid2DCollectionReader::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
@@ -263,6 +264,7 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::GetFunctionHLSL(const FNiagara
 	}
 	return false;
 }
+#endif
 
 bool UNiagaraDataInterfaceGrid2DCollectionReader::CopyToInternal(UNiagaraDataInterface* Destination) const
 {

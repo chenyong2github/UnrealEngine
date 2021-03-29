@@ -701,6 +701,7 @@ void UNiagaraDataInterfaceDebugDraw::GetVMExternalFunction(const FVMExternalFunc
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceDebugDraw::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	if (!Super::AppendCompileHash(InVisitor))
@@ -769,6 +770,7 @@ bool UNiagaraDataInterfaceDebugDraw::GetFunctionHLSL(const FNiagaraDataInterface
 
 	return false;
 }
+#endif
 
 bool UNiagaraDataInterfaceDebugDraw::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {

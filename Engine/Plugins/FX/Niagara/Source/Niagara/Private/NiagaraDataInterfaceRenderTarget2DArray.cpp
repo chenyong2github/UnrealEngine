@@ -382,7 +382,7 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::CopyToInternal(UNiagaraDataInterf
 	return true;
 }
 
-
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceRenderTarget2DArray::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
@@ -483,6 +483,7 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::GetFunctionHLSL(const FNiagaraDat
 
 	return false;
 }
+#endif
 
 bool UNiagaraDataInterfaceRenderTarget2DArray::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {

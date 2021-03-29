@@ -3402,6 +3402,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetTrailingData(FVectorVMContext& Co
 //----------------------------------------------------------------------------
 // GPU sim functionality
 //
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceChaosDestruction::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 
@@ -3841,6 +3842,7 @@ bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FNiagaraDataIn
 
 	return false;
 }
+#endif
 
 template<typename T>
 void LoadGPUBufferFromArray(FDynamicReadBuffer& Buffer,

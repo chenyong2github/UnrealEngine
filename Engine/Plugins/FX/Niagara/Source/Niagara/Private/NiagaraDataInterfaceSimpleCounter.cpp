@@ -85,16 +85,6 @@ void UNiagaraDataInterfaceSimpleCounter::GetFunctions(TArray<FNiagaraFunctionSig
 	OutFunctions.Add(Sig2);
 }
 
-bool UNiagaraDataInterfaceSimpleCounter::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
-{
-	return false;
-}
-
-void UNiagaraDataInterfaceSimpleCounter::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
-{
-}
-
-
 void UNiagaraDataInterfaceSimpleCounter::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	CounterInstanceData *InstData = (CounterInstanceData *)InstanceData;

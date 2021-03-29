@@ -374,6 +374,7 @@ void UNiagaraDataInterfaceGrid2DCollection::PostInitProperties()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceGrid2DCollection::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	if (!Super::AppendCompileHash(InVisitor))
@@ -383,6 +384,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::AppendCompileHash(FNiagaraCompileHas
 	InVisitor->UpdatePOD(TEXT("UNiagaraDataInterfaceGrid2DCollectionVersion"), (int32)FNiagaraGridCollection2DDIFunctionVersion::LatestVersion);
 	return true;
 }
+#endif
 
 #if WITH_EDITOR	
 void UNiagaraDataInterfaceGrid2DCollection::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
@@ -1086,6 +1088,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::Equals(const UNiagaraDataInterface* 
 		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
 
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
@@ -1541,6 +1544,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	return false;
 }
+#endif
+
 #if WITH_EDITOR
 bool UNiagaraDataInterfaceGrid2DCollection::GenerateIterationSourceNamespaceReadAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, const FNiagaraVariable& IterationSourceVar, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bInSetToDefaults, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const
 {

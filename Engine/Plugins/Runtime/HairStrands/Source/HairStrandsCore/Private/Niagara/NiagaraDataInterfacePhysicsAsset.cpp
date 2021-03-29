@@ -1090,6 +1090,7 @@ void UNiagaraDataInterfacePhysicsAsset::GetProjectionPoint(FVectorVMContext& Con
 {
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	FNDIPhysicsAssetParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
@@ -1241,6 +1242,7 @@ void UNiagaraDataInterfacePhysicsAsset::GetParameterDefinitionHLSL(const FNiagar
 {
 	OutHLSL += TEXT("DIPHYSICSASSET_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
+#endif
 
 void UNiagaraDataInterfacePhysicsAsset::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {

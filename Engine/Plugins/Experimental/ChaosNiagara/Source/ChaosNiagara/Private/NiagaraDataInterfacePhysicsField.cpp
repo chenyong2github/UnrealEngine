@@ -711,6 +711,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsScalarField(FVectorVMContex
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfacePhysicsField::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	FNDIPhysicsFieldParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
@@ -795,6 +796,7 @@ void UNiagaraDataInterfacePhysicsField::GetParameterDefinitionHLSL(const FNiagar
 {
 	OutHLSL += TEXT("DIPhysicsField_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
+#endif
 
 void UNiagaraDataInterfacePhysicsField::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {

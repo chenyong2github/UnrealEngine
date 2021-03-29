@@ -64,11 +64,7 @@ void UNiagaraDataInterfaceOcclusion::GetFunctions(TArray<FNiagaraFunctionSignatu
 	OutFunctions.Add(Sig);
 }
 
-void UNiagaraDataInterfaceOcclusion::GetCommonHLSL(FString& OutHLSL)
-{
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceOcclusion.ush\"\n");
-}
-
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceOcclusion::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	if (!Super::AppendCompileHash(InVisitor))
@@ -77,6 +73,11 @@ bool UNiagaraDataInterfaceOcclusion::AppendCompileHash(FNiagaraCompileHashVisito
 	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceOcclusion.ush")), EShaderPlatform::SP_PCD3D_SM5);
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceOcclusionHLSLSource"), Hash.ToString());
 	return true;
+}
+
+void UNiagaraDataInterfaceOcclusion::GetCommonHLSL(FString& OutHLSL)
+{
+	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceOcclusion.ush\"\n");
 }
 
 bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
@@ -108,6 +109,7 @@ bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterface
 	}
 	return false;
 }
+#endif
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceOcclusion, QueryOcclusionFactorGPU);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceOcclusion, QueryOcclusionFactorCircleGPU);

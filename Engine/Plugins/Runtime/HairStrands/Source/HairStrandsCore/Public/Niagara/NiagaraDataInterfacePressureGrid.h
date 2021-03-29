@@ -25,10 +25,12 @@ public:
 	virtual bool HasPreSimulateTick() const override { return true; }
 
 	/** GPU simulation  functionality */
+#if WITH_EDITORONLY_DATA
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+#endif
 
 	/** Build the velocity field */
 	void BuildDistanceField(FVectorVMContext& Context);

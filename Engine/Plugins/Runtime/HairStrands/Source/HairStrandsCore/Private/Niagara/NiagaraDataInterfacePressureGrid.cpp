@@ -292,6 +292,7 @@ void UNiagaraDataInterfacePressureGrid::UpdateDeformationGradient(FVectorVMConte
 	// @todo : implement function for cpu 
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	if (Super::GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL))
@@ -433,6 +434,7 @@ void UNiagaraDataInterfacePressureGrid::GetParameterDefinitionHLSL(const FNiagar
 {
 	OutHLSL += TEXT("DIVelocityGrid_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
+#endif
 
 //------------------------------------------------------------------------------------------------------------
 

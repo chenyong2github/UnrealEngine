@@ -2611,6 +2611,7 @@ void UNiagaraDataInterfaceStaticMesh::SetDefaultMeshFromBlueprints(UStaticMesh* 
 	DefaultMesh = MeshToUse;
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	FNDIStaticMeshParametersName ParamNames;
@@ -3370,6 +3371,7 @@ void UNiagaraDataInterfaceStaticMesh::GetParameterDefinitionHLSL(const FNiagaraD
 	OutHLSL += TEXT("Buffer<uint> ") + ParamNames.FilteredAndUnfilteredSocketsName + TEXT(";\n");
 	OutHLSL += TEXT("int3 ") + ParamNames.NumSocketsAndFilteredName + TEXT(";\n");
 }
+#endif
 
 void UNiagaraDataInterfaceStaticMesh::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {

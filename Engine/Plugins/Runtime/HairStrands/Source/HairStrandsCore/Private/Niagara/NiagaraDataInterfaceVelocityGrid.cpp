@@ -518,6 +518,7 @@ void UNiagaraDataInterfaceVelocityGrid::UpdateGridTransform(FVectorVMContext& Co
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceVelocityGrid::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	FNDIVelocityGridParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
@@ -573,6 +574,7 @@ void UNiagaraDataInterfaceVelocityGrid::GetParameterDefinitionHLSL(const FNiagar
 {
 	OutHLSL += TEXT("DIVelocityGrid_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
+#endif
 
 void UNiagaraDataInterfaceVelocityGrid::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {

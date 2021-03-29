@@ -3144,6 +3144,7 @@ void UNiagaraDataInterfaceHairStrands::HasGlobalInterpolation(FVectorVMContext& 
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	FNDIHairStrandsParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
@@ -3903,6 +3904,7 @@ void UNiagaraDataInterfaceHairStrands::GetParameterDefinitionHLSL(const FNiagara
 {
 	OutHLSL += TEXT("DIHAIRSTRANDS_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
+#endif
 
 void UNiagaraDataInterfaceHairStrands::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {

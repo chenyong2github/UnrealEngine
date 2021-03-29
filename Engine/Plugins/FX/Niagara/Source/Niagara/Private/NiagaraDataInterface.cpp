@@ -32,11 +32,12 @@ UNiagaraDataInterface::~UNiagaraDataInterface()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterface::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
-
 	return true;
 }
+#endif
 
 void UNiagaraDataInterface::GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraDataInterface*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const
 {

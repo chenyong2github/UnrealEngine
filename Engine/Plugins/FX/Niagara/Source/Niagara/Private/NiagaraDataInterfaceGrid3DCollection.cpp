@@ -320,6 +320,7 @@ void UNiagaraDataInterfaceGrid3DCollection::PostInitProperties()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceGrid3DCollection::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	if (!Super::AppendCompileHash(InVisitor))
@@ -329,6 +330,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::AppendCompileHash(FNiagaraCompileHas
 	InVisitor->UpdatePOD(TEXT("UNiagaraDataInterfaceGrid3DCollectionVersion"), (int32)FNiagaraGridCollection3DDIFunctionVersion::LatestVersion);
 	return true;
 }
+#endif
 
 #if WITH_EDITOR	
 void UNiagaraDataInterfaceGrid3DCollection::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
@@ -978,6 +980,27 @@ bool UNiagaraDataInterfaceGrid3DCollection::Equals(const UNiagaraDataInterface* 
 		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
 
+bool UNiagaraDataInterfaceGrid3DCollection::CopyToInternal(UNiagaraDataInterface* Destination) const
+{
+	if (!Super::CopyToInternal(Destination))
+	{
+		return false;
+	}
+
+	UNiagaraDataInterfaceGrid3DCollection* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid3DCollection>(Destination);
+	OtherTyped->NumAttributes = NumAttributes;
+	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
+	OtherTyped->OverrideBufferFormat = OverrideBufferFormat;
+	OtherTyped->bOverrideFormat = bOverrideFormat;
+#if WITH_EDITORONLY_DATA
+	OtherTyped->bPreviewGrid = bPreviewGrid;
+	OtherTyped->PreviewAttribute = PreviewAttribute;
+#endif
+
+	return true;
+}
+
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceGrid3DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
@@ -1008,128 +1031,6 @@ void UNiagaraDataInterfaceGrid3DCollection::GetParameterDefinitionHLSL(const FNi
 		{ TEXT("NumAttributesName"), UNiagaraDataInterfaceRWBase::NumAttributesName + ParamInfo.DataInterfaceHLSLSymbol},
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
-}
-
-#if 0
-bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
-{
-	bool ParentRet = Super::GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL);
-	if (ParentRet)
-	{
-		return true;
-	} 
-	else if (FunctionInfo.DefinitionName == GetValueFunctionName)
-	{
-		static const TCHAR *FormatBounds = TEXT(R"(
-			void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, int In_AttributeIndex, out float Out_Val)
-			{
-				int TileIndexX = In_AttributeIndex % {NumTiles}.x;
-				int TileIndexY = (In_AttributeIndex / {NumTiles}.x) % {NumTiles}.y;
-				int TileIndexZ = In_AttributeIndex / ({NumTiles}.x * {NumTiles}.y);
-
-				Out_Val = {Grid}.Load(int4(In_IndexX + TileIndexX * {NumCellsName}.x, In_IndexY + TileIndexY * {NumCellsName}.y, In_IndexZ + TileIndexZ * {NumCellsName}.z, 0));
-			}
-		)");
-		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
-		};
-		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == SetValueFunctionName)
-	{
-		static const TCHAR *FormatBounds = TEXT(R"(
-			void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, int In_AttributeIndex, float In_Value, out int val)
-			{			
-				int TileIndexX = In_AttributeIndex % {NumTiles}.x;
-				int TileIndexY = (In_AttributeIndex / {NumTiles}.x) % {NumTiles}.y;
-				int TileIndexZ = In_AttributeIndex / ({NumTiles}.x * {NumTiles}.y);
-
-				val = 0;
-				RW{OutputGrid}[int3(In_IndexX + TileIndexX * {NumCellsName}.x, In_IndexY + TileIndexY * {NumCellsName}.y, In_IndexZ + TileIndexZ * {NumCellsName}.z)] = In_Value;
-			}
-		)");
-		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("OutputGrid"), OutputGridName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("NumTiles"), NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
-
-		};
-		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == SampleGridFunctionName)
-	{
-		static const TCHAR *FormatBounds = TEXT(R"(
-			void {FunctionName}(float In_UnitX, float In_UnitY, float In_UnitZ, int In_AttributeIndex, out float Out_Val)
-			{
-				int TileIndexX = In_AttributeIndex % {NumTiles}.x;
-				int TileIndexY = (In_AttributeIndex / {NumTiles}.x) % {NumTiles}.y;
-				int TileIndexZ = In_AttributeIndex / ({NumTiles}.x * {NumTiles}.y);		
-
-				float3 UVW =
-				{
-					In_UnitX / {NumTiles}.x + 1.0*TileIndexX/{NumTiles}.x,
-					In_UnitY / {NumTiles}.y + 1.0*TileIndexY/{NumTiles}.y,
-					In_UnitZ / {NumTiles}.z + 1.0*TileIndexZ/{NumTiles}.y
-				};
-				float3 TileMin =
-				{
-					(TileIndexX * {NumCellsName}.x + 0.5) / ({NumTiles}.x * {NumCellsName}.x),
-					(TileIndexY * {NumCellsName}.y + 0.5) / ({NumTiles}.y * {NumCellsName}.y),
-					(TileIndexZ * {NumCellsName}.z + 0.5) / ({NumTiles}.z * {NumCellsName}.z)
-				};
-				float3 TileMax =
-				{
-					((TileIndexX + 1) * {NumCellsName}.x - 0.5) / ({NumTiles}.x * {NumCellsName}.x),
-					((TileIndexY + 1) * {NumCellsName}.y - 0.5) / ({NumTiles}.y * {NumCellsName}.y),
-					((TileIndexZ + 1) * {NumCellsName}.z - 0.5) / ({NumTiles}.z * {NumCellsName}.z)
-				};
-				UVW = clamp(UVW, TileMin, TileMax);
-
-				Out_Val = {Grid}.SampleLevel({SamplerName}, UVW, 0);
-			}
-		)");
-		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("SamplerName"), SamplerName + ParamInfo.DataInterfaceHLSLSymbol },
-			{TEXT("NumTiles"), NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
-		};
-		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
-		return true;
-	}
-	return false;
-}
-
-#endif
-
-bool UNiagaraDataInterfaceGrid3DCollection::CopyToInternal(UNiagaraDataInterface* Destination) const
-{
-	if (!Super::CopyToInternal(Destination))
-	{
-		return false;
-	}
-
-	UNiagaraDataInterfaceGrid3DCollection* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid3DCollection>(Destination);
-	OtherTyped->NumAttributes = NumAttributes;
-	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
-	OtherTyped->OverrideBufferFormat = OverrideBufferFormat;
-	OtherTyped->bOverrideFormat = bOverrideFormat;
-#if WITH_EDITORONLY_DATA
-	OtherTyped->bPreviewGrid = bPreviewGrid;
-	OtherTyped->PreviewAttribute = PreviewAttribute;
-#endif
-
-	return true;
 }
 
 void UNiagaraDataInterfaceGrid3DCollection::WriteSetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL)
@@ -1565,6 +1466,8 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	return false;
 }
+#endif
+
 #if WITH_EDITOR
 bool UNiagaraDataInterfaceGrid3DCollection::GenerateIterationSourceNamespaceReadAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, const FNiagaraVariable& IterationSourceVar, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bInSetToDefaults, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const
 {

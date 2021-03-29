@@ -424,6 +424,7 @@ void UNiagaraDataInterfaceCurlNoise::SampleNoiseField(FVectorVMContext& Context)
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceCurlNoise::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	static const TCHAR *FormatSample = TEXT(R"(
@@ -451,6 +452,7 @@ void UNiagaraDataInterfaceCurlNoise::GetParameterDefinitionHLSL(const FNiagaraDa
 	ArgsDeclarations.Add(TEXT("OffsetFromSeedName"), OffsetFromSeedBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
+#endif
 
 void UNiagaraDataInterfaceCurlNoise::PushToRenderThreadImpl()
 {

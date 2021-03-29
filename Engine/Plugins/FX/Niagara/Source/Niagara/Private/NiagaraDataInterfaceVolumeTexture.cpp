@@ -180,6 +180,7 @@ void UNiagaraDataInterfaceVolumeTexture::SampleVolumeTexture(FVectorVMContext& C
 
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceVolumeTexture::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	if (FunctionInfo.DefinitionName == SampleVolumeTextureName)
@@ -210,7 +211,7 @@ void UNiagaraDataInterfaceVolumeTexture::GetParameterDefinitionHLSL(const FNiaga
 	OutHLSL += TEXT("SamplerState ") + HLSLSamplerName + TEXT(";\n");
 	OutHLSL += TEXT("float3 ") + DimensionsBaseName + ParamInfo.DataInterfaceHLSLSymbol + TEXT(";\n");
 }
-
+#endif
 
 struct FNiagaraDataInterfaceParametersCS_VolumeTexture : public FNiagaraDataInterfaceParametersCS
 {

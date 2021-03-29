@@ -241,6 +241,7 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceVectorField::GetErrors()
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
 
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceVectorField::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	static const TCHAR *FormatDeclarations = TEXT(R"(
@@ -327,6 +328,7 @@ bool UNiagaraDataInterfaceVectorField::GetFunctionHLSL(const FNiagaraDataInterfa
 	}
 	return false;
 }
+#endif
 
 void FNiagaraDataInterfaceParametersCS_VectorField::Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 {

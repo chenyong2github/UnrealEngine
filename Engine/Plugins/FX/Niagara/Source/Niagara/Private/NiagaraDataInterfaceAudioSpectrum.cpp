@@ -644,6 +644,7 @@ void UNiagaraDataInterfaceAudioSpectrum::GetVMExternalFunction(const FVMExternal
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceAudioSpectrum::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	bool ParentRet = Super::GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL);
@@ -712,6 +713,25 @@ bool UNiagaraDataInterfaceAudioSpectrum::GetFunctionHLSL(const FNiagaraDataInter
 	}
 }
 
+void UNiagaraDataInterfaceAudioSpectrum::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+{
+	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
+
+	static const TCHAR* FormatDeclarations = TEXT(R"(				
+		Buffer<float> {GetSpectrumName};
+		int {NumChannelsName};
+		int {ResolutionName};
+
+	)");
+	TMap<FString, FStringFormatArg> ArgsDeclarations = {
+		{ TEXT("GetSpectrumName"),    FStringFormatArg(GetSpectrumName + ParamInfo.DataInterfaceHLSLSymbol) },
+		{ TEXT("NumChannelsName"),    FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol) },
+		{ TEXT("ResolutionName"),     FStringFormatArg(ResolutionName + ParamInfo.DataInterfaceHLSLSymbol) },
+	};
+	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
+}
+#endif
+
 bool UNiagaraDataInterfaceAudioSpectrum::Equals(const UNiagaraDataInterface* Other) const
 {
 	bool bIsEqual = Super::Equals(Other);
@@ -724,24 +744,6 @@ bool UNiagaraDataInterfaceAudioSpectrum::Equals(const UNiagaraDataInterface* Oth
 	bIsEqual &= OtherSpectrum->NoiseFloorDb == NoiseFloorDb;
 
 	return bIsEqual;
-}
-
-void UNiagaraDataInterfaceAudioSpectrum::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
-{
-	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
-
-	static const TCHAR *FormatDeclarations = TEXT(R"(				
-		Buffer<float> {GetSpectrumName};
-		int {NumChannelsName};
-		int {ResolutionName};
-
-	)");
-	TMap<FString, FStringFormatArg> ArgsDeclarations = {
-		{ TEXT("GetSpectrumName"),    FStringFormatArg(GetSpectrumName + ParamInfo.DataInterfaceHLSLSymbol) },
-		{ TEXT("NumChannelsName"),    FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol) },
-		{ TEXT("ResolutionName"),     FStringFormatArg(ResolutionName  + ParamInfo.DataInterfaceHLSLSymbol) },
-	};
-	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
 
 struct FNiagaraDataInterfaceParametersCS_AudioSpectrum : public FNiagaraDataInterfaceParametersCS

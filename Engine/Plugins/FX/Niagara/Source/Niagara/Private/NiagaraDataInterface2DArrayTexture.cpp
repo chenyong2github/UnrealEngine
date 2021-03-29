@@ -134,6 +134,7 @@ void UNiagaraDataInterface2DArrayTexture::GetTextureDimensions(FVectorVMContext&
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterface2DArrayTexture::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	if (FunctionInfo.DefinitionName == SampleTextureName)
@@ -164,6 +165,7 @@ void UNiagaraDataInterface2DArrayTexture::GetParameterDefinitionHLSL(const FNiag
 	OutHLSL += TEXT("SamplerState ") + HLSLSamplerName + TEXT(";\n");
 	OutHLSL += TEXT("float3 ") + DimensionsBaseName + ParamInfo.DataInterfaceHLSLSymbol + TEXT(";\n");
 }
+#endif
 
 struct FNiagaraDataInterfaceParametersCS_2DArrayTexture : public FNiagaraDataInterfaceParametersCS
 {
