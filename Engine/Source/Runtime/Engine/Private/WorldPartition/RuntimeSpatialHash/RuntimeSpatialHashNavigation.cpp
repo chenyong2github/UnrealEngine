@@ -52,7 +52,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 
 	const FSquare2DGridHelper::FGridLevel& GridLevelHelper = GridHelper.Levels[GridLevel];
 
-	GridLevelHelper.ForEachCells([GridLevel, &GridLevelHelper, RuntimeGrid, WorldPartition, &ActorCount, World, NavSystem, &ValidNavigationDataChunkActors, this](const FIntVector2& CellCoord)
+	GridLevelHelper.ForEachCells([GridLevel, &GridHelper, &GridLevelHelper, RuntimeGrid, WorldPartition, &ActorCount, World, NavSystem, &ValidNavigationDataChunkActors, this](const FIntVector2& CellCoord)
 		{
 			FBox2D CellBounds;
 			GridLevelHelper.GetCellBounds(CellCoord, CellBounds);
@@ -94,7 +94,9 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 				UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, VeryVerbose, TEXT("Setting ChunkActorBounds to %s"), *ChunkActorBounds.ToString());
 				DataChunkActor->SetDataChunkActorBounds(ChunkActorBounds);
 
-				const FName CellName = GetCellName(RuntimeGrid.GridName, GridLevel, CellCoord.X, CellCoord.Y, GridCellDataChunk->GetDataLayersID());
+				FIntVector CellGlobalCoord;
+				verify(GridHelper.GetCellGlobalCoords(FIntVector(CellCoord.X, CellCoord.Y, GridLevel), CellGlobalCoord));
+				const FName CellName = GetCellName(RuntimeGrid.GridName, CellGlobalCoord, GridCellDataChunk->GetDataLayersID());
 				DataChunkActor->SetActorLabel(FString::Printf(TEXT("NavDataChunkActor_%s_%s"), *GetName(), *CellName.ToString()));
 
 				// Set target grid

@@ -405,6 +405,28 @@ struct FSquare2DGridHelper
 		return false;
 	}
 
+	/**
+	 * Returns the cell global coordinates
+	 *
+	 * @return true if the specified coord was valid
+	 */
+	inline bool GetCellGlobalCoords(const FIntVector& InCoords, FIntVector& OutGlobalCoords) const
+	{
+		if (Levels.IsValidIndex(InCoords.Z))
+		{
+			const FGridLevel& GridLevel = Levels[InCoords.Z];
+			if (GridLevel.IsValidCoords(FIntVector2(InCoords.X, InCoords.Y)))
+			{
+				int32 CoordOffset = Levels[InCoords.Z].GridSize >> 1;
+				OutGlobalCoords = InCoords;
+				OutGlobalCoords.X -= CoordOffset;
+				OutGlobalCoords.Y -= CoordOffset;
+				return true;
+			}
+		}
+		return false;
+	}
+
 #if WITH_EDITOR
 	// Runs a function on all cells
 	void ForEachCells(TFunctionRef<void(const FSquare2DGridHelper::FGridLevel::FGridCell&)> InOperation) const;
