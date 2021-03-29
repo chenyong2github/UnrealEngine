@@ -56,7 +56,7 @@ public partial class Project : CommandUtils
 				String COTFCommandLine = Params.RunCommandline;
 				if (Params.IterativeCooking)
 				{
-					COTFCommandLine += " -iterate -iteratehash";
+					COTFCommandLine += " -iterate";
 				}
 
 				if (Params.HasDDCGraph)
@@ -165,7 +165,7 @@ public partial class Project : CommandUtils
                 }
                 if (Params.IterativeCooking)
                 {
-                    CommandletParams += " -iterate -iterateshash";
+                    CommandletParams += " -iterate";
                 }
 				if ( Params.HasIterateSharedCookedBuild)
 				{
