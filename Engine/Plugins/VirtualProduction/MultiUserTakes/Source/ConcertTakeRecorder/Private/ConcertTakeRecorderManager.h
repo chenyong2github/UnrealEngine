@@ -78,11 +78,6 @@ private:
 	ECheckBoxState IsTakeSyncChecked() const;
 	void HandleTakeSyncCheckBox(ECheckBoxState State) const;
 	EVisibility HandleTakeSyncButtonVisibility() const;
-	FText GetWarningText() const;
-	EVisibility HandleTakeSyncWarningVisibility() const;
-
-	void OnObjectModified(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
-	void CacheTakeSyncFolderFiltered();
 
 	void UpdateSessionClientList();
 	void DisconnectFromSession();
@@ -101,13 +96,6 @@ private:
 
 	/** Weak pointer to the client session with which to send events. May be null or stale. */
 	TWeakPtr<IConcertClientSession> WeakSession;
-
-	/**
-	 * Whether the take sync folder is filtered from multi user transactions.
-	 * If not filtered, take sync cannot be activated since multi-user would try to synchronize
-	 * the takes generated from every clients' Take Recorder.
-	 */
-	bool bTakeSyncFolderFiltered = false;
 
 	/**
 	 * Used to prevent sending out events that were just received by this client.
