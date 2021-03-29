@@ -536,7 +536,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->VolumeMin = VolumeMin;
 					PassParameters->VolumeSize = VolumeSize;
 					PassParameters->IndirectionTextureDim = IndirectionTextureDimensions;
-					PassParameters->TLAS = Scene->RayTracingScene->GetShaderResourceView();
+					PassParameters->TLAS = Scene->RayTracingSceneSRV;
 					PassParameters->BrickRequests = BrickRequests.SRV;
 					PassParameters->NumTotalBricks = NumTotalBricks;
 					PassParameters->BrickBatchOffset = BrickBatchOffset;

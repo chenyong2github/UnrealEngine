@@ -87,6 +87,9 @@ public:
 	void BackgroundTick();
 
 	FRayTracingSceneRHIRef RayTracingScene;
+	FShaderResourceViewRHIRef RayTracingSceneSRV;
+	FBufferRHIRef RayTracingSceneBuffer;
+
 	FRayTracingPipelineState* RayTracingPipelineState;
 	TSharedPtr<FViewInfo> ReferenceView;
 
