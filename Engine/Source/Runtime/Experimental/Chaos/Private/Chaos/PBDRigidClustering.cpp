@@ -416,14 +416,14 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::CreateClusterParticle"), STAT_CreateClusterParticle, STATGROUP_Chaos);
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	Chaos::FPBDRigidClusteredParticleHandle* TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::CreateClusterParticle(const int32 ClusterGroupIndex, TArray<Chaos::FPBDRigidParticleHandle*>&& Children, const FClusterCreationParameters& Parameters, TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry, const FRigidTransform3* ForceMassOrientation)
+	Chaos::FPBDRigidClusteredParticleHandle* TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::CreateClusterParticle(const int32 ClusterGroupIndex, TArray<Chaos::FPBDRigidParticleHandle*>&& Children, const FClusterCreationParameters& Parameters, TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry, const FRigidTransform3* ForceMassOrientation, const FUniqueIdx* ExistingIndex)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CreateClusterParticle);
 
 		Chaos::FPBDRigidClusteredParticleHandle* NewParticle = Parameters.ClusterParticleHandle;
 		if (!NewParticle)
 		{
-			NewParticle = MEvolution.CreateClusteredParticles(1)[0]; // calls Evolution.DirtyParticle()
+			NewParticle = MEvolution.CreateClusteredParticles(1, ExistingIndex)[0]; // calls Evolution.DirtyParticle()
 		}
 
 		// Must do this so that the constraint graph knows about this particle 
