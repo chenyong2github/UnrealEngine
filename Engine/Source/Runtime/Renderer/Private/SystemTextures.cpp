@@ -109,7 +109,6 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 			RHICmdList.CopyToResolveTarget(BlackDummy->GetRenderTargetItem().TargetableTexture, BlackDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 		}
 	
-
 		// Create a texture that is a single UInt32 value set to 0
 		{
 			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1,1), PF_R32_UINT, FClearValueBinding::Transparent, TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
@@ -122,6 +121,20 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearZeroUIntDummy"));
 			RHICmdList.EndRenderPass();
 			RHICmdList.CopyToResolveTarget(ZeroUIntDummy->GetRenderTargetItem().TargetableTexture, ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+		}
+
+		// Create a texture that is a single 4xUInt16 (UShort) value set to 0
+		{
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_R16G16B16A16_UINT, FClearValueBinding::Transparent, TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
+			Desc.AutoWritable = false;
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ZeroUShort4Dummy, TEXT("ZeroUShort4Dummy"), ERenderTargetTransience::NonTransient);
+
+			RHICmdList.Transition(FRHITransitionInfo(ZeroUShort4Dummy->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::RTV));
+
+			FRHIRenderPassInfo RPInfo(ZeroUShort4Dummy->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
+			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearZeroUShort4Dummy"));
+			RHICmdList.EndRenderPass();
+			RHICmdList.CopyToResolveTarget(ZeroUShort4Dummy->GetRenderTargetItem().TargetableTexture, ZeroUShort4Dummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 		}
 
 		// Create a BlackAlphaOneDummy texture
@@ -806,6 +819,7 @@ void FSystemTextures::ReleaseDynamicRHI()
 	DefaultNormal8Bit.SafeRelease();
 	VolumetricBlackDummy.SafeRelease();
 	ZeroUIntDummy.SafeRelease();
+	ZeroUShort4Dummy.SafeRelease();
 	MidGreyDummy.SafeRelease();
 	StencilDummy.SafeRelease();
 	StencilDummySRV.SafeRelease();
@@ -870,5 +884,10 @@ FRDGTextureRef FSystemTextures::GetVolumetricBlackDummy(FRDGBuilder& GraphBuilde
 FRDGTextureRef FSystemTextures::GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const
 {
 	return GraphBuilder.RegisterExternalTexture(ZeroUIntDummy, TEXT("ZeroUIntDummy"));
+}
+
+FRDGTextureRef FSystemTextures::GetZeroUShort4Dummy(FRDGBuilder& GraphBuilder) const
+{
+	return GraphBuilder.RegisterExternalTexture(ZeroUShort4Dummy, TEXT("ZeroUShort4Dummy"));
 }
 
