@@ -365,6 +365,9 @@ struct FNiagaraSystemInstanceFinalizeTask
 		: SystemSimulation(InSystemSimulation)
 		, Batch(InBatch)
 	{
+#if DO_CHECK
+		DebugCounter = 0;
+#endif
 		for ( int32 i=0; i < Batch.Num(); ++i )
 		{
 			FNiagaraSystemInstanceFinalizeRef FinalizeRef(&Batch[i]);
