@@ -554,10 +554,13 @@ FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuf
 FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer, uint32 InStartOffsetBytes, uint32 InNumElements)
 	: BufferInitializer({ InBuffer, InStartOffsetBytes, InNumElements, PF_Unknown }), Type(EType::StructuredBufferSRV)
 {
-	check(InStartOffsetBytes % InBuffer->GetStride() == 0);
+	const uint32 Stride = (InBuffer->GetUsage() & BUF_AccelerationStructure) 
+		? 1 // Acceleration structure buffers don't have a stride as they are opaque and not indexable
+		: InBuffer->GetStride();
+
+	check(InStartOffsetBytes % Stride == 0);
 	if (!BufferInitializer.IsWholeResource())
 	{
-		const uint32 Stride = BufferInitializer.Buffer->GetStride();
 		check((BufferInitializer.NumElements * Stride + BufferInitializer.StartOffsetBytes) <= BufferInitializer.Buffer->GetSize());
 	}
 

@@ -96,6 +96,8 @@ public:
 	void BindBuffer(FRHIBuffer* Buffer, uint32 BufferOffset);
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext);
 
+	FShaderResourceViewRHIRef ShaderResourceView;
+
 	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
 	uint32 BufferOffset = 0;
 

@@ -1561,13 +1561,7 @@ class FRHIRayTracingGeometry : public FRHIRayTracingAccelerationStructure {};
 typedef TRefCountPtr<FRHIRayTracingGeometry>     FRayTracingGeometryRHIRef;
 
 /** Top level ray tracing acceleration structure (contains instances of meshes). */
-class FRHIRayTracingScene : public FRHIRayTracingAccelerationStructure
-{
-public:
-	FRHIShaderResourceView* GetShaderResourceView() { return ShaderResourceView; }
-protected:
-	FShaderResourceViewRHIRef ShaderResourceView;
-};
+class FRHIRayTracingScene : public FRHIRayTracingAccelerationStructure {};
 
 typedef TRefCountPtr<FRHIRayTracingScene>        FRayTracingSceneRHIRef;
 
