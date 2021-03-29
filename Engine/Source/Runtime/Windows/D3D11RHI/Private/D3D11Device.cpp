@@ -641,7 +641,7 @@ void* FD3D11DynamicRHI::RHIGetNativeInstance()
 
 static bool CanFormatBeDisplayed(const FD3D11DynamicRHI* InD3DRHI, EPixelFormat InPixelFormat)
 {
-	const DXGI_FORMAT DxgiFormat = GetRenderTargetFormat(InPixelFormat);
+	const DXGI_FORMAT DxgiFormat = FD3D11Viewport::GetRenderTargetFormat(InPixelFormat);
 
 	UINT FormatSupport = 0;
 	const HRESULT FormatSupportResult = InD3DRHI->GetDevice()->CheckFormatSupport(DxgiFormat, &FormatSupport);

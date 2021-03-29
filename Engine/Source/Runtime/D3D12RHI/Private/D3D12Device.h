@@ -130,7 +130,7 @@ public:
 
 	void BlockUntilIdle();
 
-	FORCEINLINE FD3DGPUProfiler& GetGPUProfiler() { return GPUProfilingData; }
+	FORCEINLINE D3D12RHI::FD3DGPUProfiler& GetGPUProfiler() { return GPUProfilingData; }
 
 protected:
 
@@ -213,7 +213,7 @@ protected:
 	FD3D12TimedIntervalQueryTracker* BackBufferWriteBarrierTracker = nullptr;
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
-	FD3DGPUProfiler GPUProfilingData;
+	D3D12RHI::FD3DGPUProfiler GPUProfilingData;
 };
 template <typename TDesc> 
 void TD3D12ViewDescriptorHandle<TDesc>::AllocateDescriptorSlot()

@@ -220,10 +220,10 @@ FXRSwapChainPtr CreateSwapchain_D3D11(XrSession InSession, uint8 Format, uint32 
 	{
 		// We need to convert typeless to typed formats to create a swapchain
 		DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[InFormat].PlatformFormat;
-		PlatformFormat = FindDepthStencilDXGIFormat(PlatformFormat);
+		PlatformFormat = ::FindDepthStencilDXGIFormat(PlatformFormat);
 
 		// UE4 renders a gamma-corrected image so we need to use an sRGB format if available
-		PlatformFormat = FindShaderResourceDXGIFormat(PlatformFormat, true);
+		PlatformFormat = ::FindShaderResourceDXGIFormat(PlatformFormat, true);
 		return PlatformFormat;
 	};
 
@@ -258,10 +258,10 @@ FXRSwapChainPtr CreateSwapchain_D3D12(XrSession InSession, uint8 Format, uint32 
 	{
 		// We need to convert typeless to typed formats to create a swapchain
 		DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[InFormat].PlatformFormat;
-		PlatformFormat = FindDepthStencilDXGIFormat_D3D12(PlatformFormat);
+		PlatformFormat = D3D12RHI::FindDepthStencilDXGIFormat(PlatformFormat);
 
 		// UE4 renders a gamma-corrected image so we need to use an sRGB format if available
-		PlatformFormat = FindShaderResourceDXGIFormat_D3D12(PlatformFormat, true);
+		PlatformFormat = D3D12RHI::FindShaderResourceDXGIFormat(PlatformFormat, true);
 		return PlatformFormat;
 	};
 
