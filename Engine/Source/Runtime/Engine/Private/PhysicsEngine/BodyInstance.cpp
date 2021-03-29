@@ -1593,7 +1593,7 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 	}
 
 
-	// @TODO UE4: Release spring body here
+	// @TODO: Release spring body here
 
 	CurrentSceneState = BodyInstanceSceneState::NotAdded;
 	BodySetup = NULL;

@@ -645,7 +645,7 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 								// if uniform, we'll use BoneTranform
 								if(MeshScale3D.IsUniform())
 								{
-									// @todo UE4 should we update scale when it's simulated?
+									// @todo should we update scale when it's simulated?
 									BodyInst->UpdateBodyScale(BoneTransform.GetScale3D());
 								}
 								else
