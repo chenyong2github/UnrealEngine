@@ -13,25 +13,6 @@ StructuredBuffer<uint> ShadowHZBPageTable;
 // Rectangles bounding allocated pages for each mip level
 StructuredBuffer<uint4> PageRectBounds;
 
-// TODO: this surely needs some special handling of cases that contain the near plane etc.
-void TransformBoundingBox2D(float3 BoundsIn[2], float4x4 Transform, inout float2 BoundsOut[2])
-{
-	// Screen rect from bounds
-	UNROLL 
-		for (int i = 0; i < 8; ++i)
-		{
-			float3 PointSrc = float3(
-				BoundsIn[(i >> 0) & 1].x,
-				BoundsIn[(i >> 1) & 1].y,
-				BoundsIn[(i >> 2) & 1].z);
-
-			float4 TransformedPoint = mul(float4(PointSrc, 1.0f), Transform);
-			float3 PointScreen = TransformedPoint.xyz / TransformedPoint.w;
-
-			BoundsOut[0] = min(BoundsOut[0], PointScreen.xy);
-			BoundsOut[1] = max(BoundsOut[1], PointScreen.xy);
-		}
-}
 
 // Note: the pixel 'screen' rect in FScreenRect is calculated using only the viewport _size_ as HZB uses a zero-offset buffer.
 // However, the page table is with respect to the entire virtual SM so we need to offset here.

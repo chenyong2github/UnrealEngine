@@ -278,6 +278,79 @@ void InstanceCull(
 	}
 }
 
+struct FCompactedViewInfo
+{
+	uint StartOffset;
+	uint NumValidViews;
+};
+
+RWStructuredBuffer< FPackedNaniteView > CompactedViewsOut;
+RWStructuredBuffer< FCompactedViewInfo > CompactedViewInfoOut;
+RWStructuredBuffer< uint > CompactedViewsAllocationOut;
+
+
+[numthreads(64, 1, 1)]
+void CompactViewsVSM_CS(uint PrimaryViewId : SV_DispatchThreadID)
+{
+	if (PrimaryViewId >= NumPrimaryViews)
+	{
+		return;
+	}
+
+	FNaniteView PrimaryNaniteView = GetNaniteView(PrimaryViewId);
+	uint NumValidViews = 0U;
+	{
+		for (uint TargetMipLevel = 0; TargetMipLevel < (uint)PrimaryNaniteView.TargetNumMipLevels; TargetMipLevel++)
+		{
+			uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
+			FNaniteView MipView = GetNaniteView(MipViewId);
+
+			uint4 RectPages = PageRectBounds[MipView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + MipView.TargetMipLevel];
+
+			// Always keep the primary view
+			if (all(RectPages.zw >= RectPages.xy))
+			{
+				NumValidViews += 1U;
+			}
+		}
+	}
+
+	// Neither primary nor mip views have valid pages
+	if (NumValidViews == 0U)
+	{
+		return;
+	}
+
+	uint CompactedOutputOffset = 0;
+	InterlockedAdd(CompactedViewsAllocationOut[1], NumValidViews, CompactedOutputOffset);
+
+	FCompactedViewInfo CompactedViewInfo;
+	CompactedViewInfo.StartOffset = CompactedOutputOffset;
+	CompactedViewInfo.NumValidViews = NumValidViews;
+
+	uint InfoOutputOffset = 0;
+	InterlockedAdd(CompactedViewsAllocationOut[0], 1, InfoOutputOffset);
+	CompactedViewInfoOut[InfoOutputOffset] = CompactedViewInfo;
+
+	for (uint TargetMipLevel = 0; TargetMipLevel < (uint)PrimaryNaniteView.TargetNumMipLevels; TargetMipLevel++)
+	{
+		uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
+		FNaniteView MipView = GetNaniteView(MipViewId);
+
+		uint4 RectPages = PageRectBounds[MipView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + MipView.TargetMipLevel];
+
+		if (all(RectPages.zw >= RectPages.xy))
+		{
+			CompactedViewsOut[CompactedOutputOffset] = InViews[MipViewId];
+			CompactedOutputOffset += 1U;
+		}
+	}
+}
+
+
+StructuredBuffer< FCompactedViewInfo > CompactedViewInfo;
+StructuredBuffer< uint > CompactedViewsAllocation;
+
 [numthreads(64, 1, 1)]
 void InstanceCullVSM(
 	uint DispatchIndex : SV_DispatchThreadID,
@@ -316,13 +389,22 @@ void InstanceCullVSM(
 	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
 
 	// Loop over each of the views
+#if USE_COMPACTED_VIEWS
+	uint NumCompactedPrimaryViews = CompactedViewsAllocation[0];
+	for (uint CompactedViewInfoIndex = 0; CompactedViewInfoIndex < NumCompactedPrimaryViews; ++CompactedViewInfoIndex)
+	{
+		FCompactedViewInfo ViewInfo = CompactedViewInfo[CompactedViewInfoIndex];
+		uint PrimaryViewId = ViewInfo.StartOffset;
+#else // USE_COMPACTED_VIEWS
 	for (uint PrimaryViewId = 0; PrimaryViewId < NumPrimaryViews; ++PrimaryViewId)
 	{
-		uint VisibleMipsMask = 0;
+#endif // USE_COMPACTED_VIEWS
+		uint VisibleMipsMask = 0U;
 
 		{
 			FNaniteView NaniteView = GetNaniteView( PrimaryViewId );
-			const uint2 TargetViewSize = uint2( NaniteView.ViewSizeAndInvSize.xy );
+			// NOTE: With view compaction, the "primary view" may be any of the mip levels
+			// const uint2 TargetViewSize = uint2( NaniteView.ViewSizeAndInvSize.xy );
 			
 			float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
 			LocalToTranslatedWorld[ 3 ].xyz += NaniteView.PreViewTranslation.xyz;
@@ -332,45 +414,55 @@ void InstanceCullVSM(
 
 			const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
 			
+#if USE_COMPACTED_VIEWS
+			for (uint MipViewInfoIndex = 0; MipViewInfoIndex < ViewInfo.NumValidViews; ++MipViewInfoIndex)
+			{
+				uint MipViewId = ViewInfo.StartOffset + MipViewInfoIndex;
+#else // USE_COMPACTED_VIEWS
 			for(uint TargetMipLevel = 0; TargetMipLevel < (uint)NaniteView.TargetNumMipLevels; TargetMipLevel++)
 			{
 				uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
-				float2 ViewSize = GetNaniteView(MipViewId).ViewSizeAndInvSize.xy;
-				FNaniteView NaniteView = GetNaniteView(MipViewId);
+#endif // USE_COMPACTED_VIEWS
+				FNaniteView MipView = GetNaniteView(MipViewId);
+				float2 ViewSize = MipView.ViewSizeAndInvSize.xy;
 
 				// TODO: minor optimization possible, but need to duplicate setup from CullRasterize for virtual targets
 				//float2 ViewSize = float2( ( TargetViewSize + ( 1u << TargetMipLevel ) - 1u ) >> TargetMipLevel );
 
-				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
+				FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4 );
 
 				bool bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
 		
 				BRANCH
 				if( bVisible && !Cull.bCrossesNearPlane )
 				{
-					bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, TargetMipLevel, NaniteView.ViewRect.xy, Rect, bHasMoved );
+					bVisible = OverlapsAnyValidPage(MipView.TargetLayerIndex, MipView.TargetMipLevel, MipView.ViewRect.xy, Rect, bHasMoved );
 				}
 
 				BRANCH
 				if( bViewHZB && bVisible )
 				{
 					float4x4 LocalToPrevTranslatedWorld = InstanceData.LocalToWorld;
-					LocalToPrevTranslatedWorld[ 3 ].xyz += NaniteView.PrevPreViewTranslation.xyz;
-					float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, NaniteView.PrevTranslatedWorldToClip);
+					LocalToPrevTranslatedWorld[ 3 ].xyz += MipView.PrevPreViewTranslation.xyz;
+					float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, MipView.PrevTranslatedWorldToClip);
 
 					FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, bNearClip, bSkipBoxCullFrustum);
 				
 					BRANCH
 					if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
 					{
-						FScreenRect PrevRect = GetScreenRect( NaniteView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
-						bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, TargetMipLevel, PrevRect );
+						FScreenRect PrevRect = GetScreenRect(MipView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
+						bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB(MipView.TargetPrevLayerIndex, MipView.TargetMipLevel, PrevRect );
 					}
 				}
 
 				if( bVisible )
 				{
+#if USE_COMPACTED_VIEWS
+					VisibleMipsMask |= ( 1u << MipViewInfoIndex);
+#else // USE_COMPACTED_VIEWS
 					VisibleMipsMask |= ( 1u << TargetMipLevel );
+#endif // USE_COMPACTED_VIEWS
 				}
 			}
 		}
@@ -396,10 +488,15 @@ void InstanceCullVSM(
 		// Iteration count is equal to the maximum lane output count.
 		while( VisibleMipsMask && NodeOffset < MaxNodes)
 		{
+#if USE_COMPACTED_VIEWS
+			uint MipViewInfoIndex = firstbitlow( VisibleMipsMask );	// Jump to next set bit.
+			uint MipViewId = ViewInfo.StartOffset + MipViewInfoIndex;
+#else // !USE_COMPACTED_VIEWS
 			uint TargetMipLevel = firstbitlow( VisibleMipsMask );	// Jump to next set bit.
+			uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
+#endif // USE_COMPACTED_VIEWS
 			VisibleMipsMask &= VisibleMipsMask - 1u;				// Remove bottom bit.
 
-			uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
 
 			FCandidateNode Node;
 			Node.Flags = CULLING_FLAG_TEST_LOD;

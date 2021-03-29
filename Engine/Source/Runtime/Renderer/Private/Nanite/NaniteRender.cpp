@@ -268,6 +268,12 @@ static FAutoConsoleVariableRef CVarNaniteDisocclusionHack(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarCompactVSMViews(
+	TEXT("r.Nanite.CompactVSMViews"),
+	1,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
 extern int32 GLumenFastCameraMode;
 
 namespace ShaderPrint
@@ -364,6 +370,13 @@ struct FNaniteStats
 	uint32 NumLargePageRectClusters;
 };
 
+struct FCompactedViewInfo
+{
+	uint32 StartOffset;
+	uint32 NumValidViews;
+};
+
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, "Nanite");
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
@@ -409,6 +422,8 @@ BEGIN_SHADER_PARAMETER_STRUCT( FCullingParameters, )
 	SHADER_PARAMETER_SAMPLER( SamplerState,		HZBSampler )
 	
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedView >, InViews)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FCompactedViewInfo >, CompactedViewInfo)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, CompactedViewsAllocation)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT( FGPUSceneParameters, )
@@ -539,6 +554,43 @@ class FInstanceCull_CS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FInstanceCull_CS, "/Engine/Private/Nanite/InstanceCulling.usf", "InstanceCull", SF_Compute);
 
+
+class FCompactViewsVSM_CS : public FNaniteShader
+{
+	DECLARE_GLOBAL_SHADER(FCompactViewsVSM_CS);
+	SHADER_USE_PARAMETER_STRUCT(FCompactViewsVSM_CS, FNaniteShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+
+		// Get data from GPUSceneParameters rather than View.
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
+		OutEnvironment.SetDefine(TEXT("CULLING_PASS"), CULLING_PASS_NO_OCCLUSION);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FCullingParameters, CullingParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FPackedNaniteView >, CompactedViewsOut)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FCompactedViewInfo >, CompactedViewInfoOut)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, CompactedViewsAllocationOut)
+		//SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, PageRectBounds)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualTargetParameters, VirtualShadowMap)
+		END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FCompactViewsVSM_CS, "/Engine/Private/Nanite/InstanceCulling.usf", "CompactViewsVSM_CS", SF_Compute);
+
+
 class FInstanceCullVSM_CS : public FNaniteShader
 {
 	DECLARE_GLOBAL_SHADER( FInstanceCullVSM_CS );
@@ -546,7 +598,9 @@ class FInstanceCullVSM_CS : public FNaniteShader
 
 	class FNearClipDim : SHADER_PERMUTATION_BOOL( "NEAR_CLIP" );
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL( "DEBUG_FLAGS" );
-	using FPermutationDomain = TShaderPermutationDomain<FNearClipDim, FDebugFlagsDim>;
+	class FUseCompactedViewsDim : SHADER_PERMUTATION_BOOL( "USE_COMPACTED_VIEWS" );
+
+	using FPermutationDomain = TShaderPermutationDomain<FNearClipDim, FDebugFlagsDim, FUseCompactedViewsDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -2371,6 +2425,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		FInstanceCullVSM_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FInstanceCullVSM_CS::FNearClipDim>(RasterState.bNearClip);
 		PermutationVector.Set<FInstanceCullVSM_CS::FDebugFlagsDim>(GNaniteDebugFlags != 0);
+		PermutationVector.Set<FInstanceCullVSM_CS::FUseCompactedViewsDim>(CVarCompactVSMViews.GetValueOnRenderThread() != 0);
 
 		auto ComputeShader = CullingContext.ShaderMap->GetShader<FInstanceCullVSM_CS>(PermutationVector);
 
@@ -2977,7 +3032,7 @@ void CullRasterize(
 	check(CullingContext.DrawPassIndex == 0 || CullingContext.bSupportsMultiplePasses);
 
 	//check(Views.Num() == 1 || !CullingContext.PrevHZB);	// HZB not supported with multi-view, yet
-	check(Views.Num() > 0 && Views.Num() <= MAX_VIEWS_PER_CULL_RASTERIZE_PASS);
+	ensure(Views.Num() > 0 && Views.Num() <= MAX_VIEWS_PER_CULL_RASTERIZE_PASS);
 
 	{
 		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
@@ -3041,6 +3096,8 @@ void CullRasterize(
 		CullingParameters.MaxVisibleClusters	= Nanite::FGlobalResources::GetMaxVisibleClusters();
 		CullingParameters.RenderFlags	= CullingContext.RenderFlags;
 		CullingParameters.DebugFlags	= CullingContext.DebugFlags;
+		CullingParameters.CompactedViewInfo = nullptr;
+		CullingParameters.CompactedViewsAllocation = nullptr;
 	}
 
 	FVirtualTargetParameters VirtualTargetParameters;
@@ -3067,6 +3124,48 @@ void CullRasterize(
 	GPUSceneParameters.GPUScenePrimitiveSceneData = Scene.GPUScene.PrimitiveBuffer.SRV;
 	GPUSceneParameters.GPUSceneFrameNumber = Scene.GPUScene.GetSceneFrameNumber();
 	
+	if (VirtualShadowMapArray && CVarCompactVSMViews.GetValueOnRenderThread() != 0)
+	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteInstanceCullVSM);
+
+		// Compact the views to remove needless (empty) mip views - need to do on GPU as that is where we know what mips have pages.
+		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
+		FRDGBufferRef CompactedViews = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedView), ViewsBufferElements), TEXT("Shadow.Virtual.CompactedViews"));
+		FRDGBufferRef CompactedViewInfo = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FCompactedViewInfo), Views.Num()), TEXT("Shadow.Virtual.CompactedViewInfo"));
+		// just an atomic counter that needs to be zero
+		// NOTE: must be static since we're passing a reference to RDG
+		const static uint32 TheZeros[2] = { 0U, 0U };
+		FRDGBufferRef CompactedViewsAllocation = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.CompactedViewsAllocation"), sizeof(uint32), 2, TheZeros, sizeof(TheZeros), ERDGInitialDataFlags::NoCopy);
+		{
+			FCompactViewsVSM_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCompactViewsVSM_CS::FParameters >();
+
+			PassParameters->GPUSceneParameters = GPUSceneParameters;
+			PassParameters->CullingParameters = CullingParameters;
+			PassParameters->VirtualShadowMap = VirtualTargetParameters;
+
+
+			PassParameters->CompactedViewsOut = GraphBuilder.CreateUAV(CompactedViews);
+			PassParameters->CompactedViewInfoOut = GraphBuilder.CreateUAV(CompactedViewInfo);
+			PassParameters->CompactedViewsAllocationOut = GraphBuilder.CreateUAV(CompactedViewsAllocation);
+
+			check(CullingContext.ViewsBuffer);
+			auto ComputeShader = CullingContext.ShaderMap->GetShader<FCompactViewsVSM_CS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("CompactViewsVSM"),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(NumPrimaryViews, 64)
+			);
+		}
+
+		// Override the view info with the compacted info.
+		CullingParameters.InViews = GraphBuilder.CreateSRV(CompactedViews);
+		CullingContext.ViewsBuffer = CompactedViews;
+		CullingParameters.CompactedViewInfo = GraphBuilder.CreateSRV(CompactedViewInfo);
+		CullingParameters.CompactedViewsAllocation = GraphBuilder.CreateSRV(CompactedViewsAllocation);
+	}
 	{
 		FInitArgs_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitArgs_CS::FParameters >();
 
