@@ -39,6 +39,7 @@ struct FNiagaraSkelMeshDIFunctionVersion
 		RemoveUvSetFromMapping = 5,
 		AddedEnabledUvMapping = 6,
 		AddedValidConnectivity = 7,
+		AddedInputBardCoordToGetFilteredTriangleAt = 8,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -2464,14 +2465,16 @@ bool UNiagaraDataInterfaceSkeletalMesh::CanEditChange(const FProperty* InPropert
 
 void UNiagaraDataInterfaceSkeletalMesh::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	const int32 FirstFunction = OutFunctions.Num();
+
 	GetTriangleSamplingFunctions(OutFunctions);
 	GetVertexSamplingFunctions(OutFunctions);
 	GetSkeletonSamplingFunctions(OutFunctions);
 
 #if WITH_EDITORONLY_DATA
-	for (FNiagaraFunctionSignature& Function : OutFunctions)
+	for ( int i=FirstFunction; i < OutFunctions.Num(); ++i )
 	{
-		Function.FunctionVersion = FNiagaraSkelMeshDIFunctionVersion::LatestVersion;
+		OutFunctions[i].FunctionVersion = FNiagaraSkelMeshDIFunctionVersion::LatestVersion;
 	}
 #endif
 }
@@ -3361,6 +3364,15 @@ bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSign
 			|| (FunctionSignature.Name == FSkeletalMeshInterfaceHelper::GetTriangleNeighborName))
 		{
 			FunctionSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid")));
+			bWasChanged = true;
+		}
+	}
+
+	if (FunctionSignature.FunctionVersion < FNiagaraSkelMeshDIFunctionVersion::AddedInputBardCoordToGetFilteredTriangleAt)
+	{
+		if ( FunctionSignature.Name == FSkeletalMeshInterfaceHelper::GetFilteredTriangleAtName )
+		{
+			FunctionSignature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("BaryCoord"))).SetValue(FVector(1.0f / 3.0f));
 			bWasChanged = true;
 		}
 	}
