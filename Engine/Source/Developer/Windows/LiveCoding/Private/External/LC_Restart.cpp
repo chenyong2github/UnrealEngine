@@ -60,7 +60,7 @@ void restart::Execute(lpp::RestartBehaviour behaviour, unsigned int exitCode)
 
 	switch (behaviour)
 	{
-		// BEGIN EPIC MODS - Use UE4 codepath for termination to ensure logs are flushed and session analytics are sent
+		// BEGIN EPIC MODS - Use UE codepath for termination to ensure logs are flushed and session analytics are sent
 		case lpp::LPP_RESTART_BEHAVIOR_REQUEST_EXIT:
 			FPlatformMisc::RequestExit(true);
 			break;

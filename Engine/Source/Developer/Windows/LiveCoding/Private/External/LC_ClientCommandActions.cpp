@@ -109,7 +109,7 @@ bool actions::CallHooks::Execute(const CommandType* command, const DuplexPipe* p
 }
 
 
-// BEGIN EPIC MOD - Support for UE4 debug visualizers
+// BEGIN EPIC MOD - Support for UE debug visualizers
 extern uint8** GNameBlocksDebug;
 
 class FChunkedFixedUObjectArray;
@@ -129,7 +129,7 @@ bool actions::LoadPatch::Execute(const CommandType* command, const DuplexPipe* p
 	// load library into this process
 	HMODULE module = ::LoadLibraryW(command->path);
 
-	// BEGIN EPIC MOD - Support for UE4 debug visualizers
+	// BEGIN EPIC MOD - Support for UE debug visualizers
 	if (module != nullptr)
 	{
 		typedef void InitNatvisHelpersFunc(uint8** NameTable, FChunkedFixedUObjectArray* ObjectArray);

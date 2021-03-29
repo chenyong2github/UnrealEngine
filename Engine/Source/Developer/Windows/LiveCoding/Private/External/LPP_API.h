@@ -224,7 +224,7 @@ LPP_API int lppWantsRestart(HMODULE livePP)
 
 enum RestartBehaviour
 {
-	// BEGIN EPIC MODS - Use UE4 codepath for termination to ensure logs are flushed and session analytics are sent
+	// BEGIN EPIC MODS - Use UE codepath for termination to ensure logs are flushed and session analytics are sent
 	LPP_RESTART_BEHAVIOR_REQUEST_EXIT,				// FPlatforMisc::RequestExit(true)
 	// END EPIC MODS
 	LPP_RESTART_BEHAVIOUR_DEFAULT_EXIT,				// ExitProcess()
