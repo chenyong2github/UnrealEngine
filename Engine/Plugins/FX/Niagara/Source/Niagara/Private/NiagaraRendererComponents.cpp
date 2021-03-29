@@ -217,10 +217,19 @@ FNiagaraRendererComponents::~FNiagaraRendererComponents()
 
 void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
 {
+#if WITH_EDITORONLY_DATA
+	// Release replace handler
+	if (OnObjectsReplacedHandler)
+	{
+		OnObjectsReplacedHandler->Release();
+		OnObjectsReplacedHandler = nullptr;
+	}
+#endif
+
 	// Rendering resources are being destroyed, but the component pool and their owner actor must be destroyed on the game thread
 	AsyncTask(
 		ENamedThreads::GameThread,
-		[this, Pool_GT = MoveTemp(ComponentPool), Owner_GT = MoveTemp(SpawnedOwner)]()
+		[Pool_GT = MoveTemp(ComponentPool), Owner_GT = MoveTemp(SpawnedOwner)]()
 		{
 			// we do not reset ParticlesWithComponents here because it's possible the render state is destroyed without destroying the renderer. In this case we want to know which particles
 			// had spawned some components previously 
@@ -234,19 +243,11 @@ void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
 
 			if (AActor* OwnerActor = Owner_GT.Get())
 			{
-				SpawnedOwner.Reset();
 				OwnerActor->Destroy();
 			}
-
-#if WITH_EDITORONLY_DATA
-			if (OnObjectsReplacedHandler)
-			{
-				OnObjectsReplacedHandler->Release();
-				OnObjectsReplacedHandler = nullptr;
-			}
-#endif
 		}
 	);
+	SpawnedOwner.Reset();
 }
 
 /** Update render data buffer from attributes */
