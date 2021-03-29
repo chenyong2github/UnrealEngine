@@ -170,7 +170,8 @@ namespace ObjectTools
 			{
 				if( ObjectPackage != GetTransientPackage()
 					&& (ObjectPackage->HasAnyPackageFlags(PKG_PlayInEditor) == false)
-					&& !Obj->IsPendingKill() )
+					&& !Obj->IsPendingKill() 
+					&& !Obj->IsA<AActor>())
 				{
 					bIsSupported = true;
 				}
