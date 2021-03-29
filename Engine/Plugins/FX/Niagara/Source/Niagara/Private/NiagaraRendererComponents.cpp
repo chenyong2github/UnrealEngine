@@ -144,6 +144,47 @@ void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uin
 
 //////////////////////////////////////////////////////////////////////////
 
+#if WITH_EDITORONLY_DATA
+struct FNiagaraRendererComponentsOnObjectsReplacedHelper
+{
+	FNiagaraRendererComponentsOnObjectsReplacedHelper(FNiagaraRendererComponents* InOwner)
+		: Owner(InOwner)
+	{
+		check(GEditor);
+		check(IsInGameThread());
+		GEditor->OnObjectsReplaced().AddRaw(this, &FNiagaraRendererComponentsOnObjectsReplacedHelper::OnObjectsReplacedCallback);
+	}
+
+	~FNiagaraRendererComponentsOnObjectsReplacedHelper()
+	{
+		check(GEditor);
+		check(IsInGameThread());
+		GEditor->OnObjectsReplaced().RemoveAll(this);
+	}
+
+	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap)
+	{
+		FScopeLock ThreadGuard(&CallbackLock);
+		if ( Owner != nullptr )
+		{
+			Owner->OnObjectsReplacedCallback(ReplacementsMap);
+		}
+	}
+
+	void Release()
+	{
+		FScopeLock ThreadGuard(&CallbackLock);
+		Owner = nullptr;
+		AsyncTask(ENamedThreads::GameThread, [Object=this]() { delete Object; });
+	}
+
+	FCriticalSection CallbackLock;
+	FNiagaraRendererComponents* Owner = nullptr;
+};
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+
 FNiagaraRendererComponents::FNiagaraRendererComponents(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
 {
@@ -155,8 +196,7 @@ FNiagaraRendererComponents::FNiagaraRendererComponents(ERHIFeatureLevel::Type Fe
 #if WITH_EDITORONLY_DATA
 	if (GEditor)
 	{
-		// for the component renderer we need to listen for class changes so we can clean up old component renderer instances
-		GEditor->OnObjectsReplaced().AddRaw(this, &FNiagaraRendererComponents::OnObjectsReplacedCallback);
+		OnObjectsReplacedHandler = new FNiagaraRendererComponentsOnObjectsReplacedHelper(this);
 	}
 #endif
 }
@@ -167,9 +207,10 @@ FNiagaraRendererComponents::~FNiagaraRendererComponents()
 	check(ComponentPool.Num() == 0);
 
 #if WITH_EDITORONLY_DATA
-	if (GEditor)
+	if ( OnObjectsReplacedHandler )
 	{
-		GEditor->OnObjectsReplaced().RemoveAll(this);
+		OnObjectsReplacedHandler->Release();
+		OnObjectsReplacedHandler = nullptr;
 	}
 #endif
 }
@@ -198,10 +239,10 @@ void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
 			}
 
 #if WITH_EDITORONLY_DATA
-			// TODO: This has the potential to race, as renderers are destroyed on the render thread, but it should be a rarity
-			if (GEditor)
+			if (OnObjectsReplacedHandler)
 			{
-				GEditor->OnObjectsReplaced().RemoveAll(this);
+				OnObjectsReplacedHandler->Release();
+				OnObjectsReplacedHandler = nullptr;
 			}
 #endif
 		}
