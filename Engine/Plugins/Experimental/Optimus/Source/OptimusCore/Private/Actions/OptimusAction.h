@@ -54,6 +54,18 @@ private:
 	FString Title;
 };
 
+// Mark FOptimusAction as pure virtual, so that the UObject machinery won't attempt to instantiate it.
+template<>
+struct TStructOpsTypeTraits<FOptimusAction> :
+TStructOpsTypeTraitsBase2<FOptimusAction>
+{
+	enum
+	{
+		WithPureVirtual = true,
+    };
+};
+
+
 USTRUCT()
 struct FOptimusCompoundAction :
 	public FOptimusAction

@@ -193,7 +193,7 @@ private:
 
 
 // A base action for adding/removing nodes.
-USTRUCT(Atomic)
+USTRUCT()
 struct FOptimusNodeGraphAction_AddRemoveLink :
 	public FOptimusAction
 {
@@ -216,6 +216,19 @@ protected:
 	// The path of the output input on the node to connect/disconnect to/from.
 	FString NodeInputPinPath;
 };
+
+// Mark FOptimusNodeGraphAction_AddRemoveLink as pure virtual, so that the UObject machinery
+// won't attempt to instantiate it.
+template<>
+struct TStructOpsTypeTraits<FOptimusNodeGraphAction_AddRemoveLink> :
+	TStructOpsTypeTraitsBase2<FOptimusNodeGraphAction_AddRemoveLink>
+{
+	enum
+	{
+		WithPureVirtual = true,
+    };
+};
+
 
 
 USTRUCT()

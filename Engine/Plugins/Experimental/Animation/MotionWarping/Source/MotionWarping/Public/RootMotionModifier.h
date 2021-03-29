@@ -155,6 +155,18 @@ private:
 
 };
 
+// Mark FRootMotionModifier as pure virtual, so that the UObject machinery won't attempt to instantiate it.
+template<>
+struct TStructOpsTypeTraits<FRootMotionModifier> :
+	TStructOpsTypeTraitsBase2<FRootMotionModifier>
+{
+	enum
+	{
+		WithPureVirtual = true,
+    };
+};
+
+
 /** Blueprint wrapper around the config properties of a root motion modifier */
 UCLASS(abstract, BlueprintType, EditInlineNew)
 class MOTIONWARPING_API URootMotionModifierConfig : public UObject
