@@ -408,9 +408,21 @@ public class DeploymentContext //: ProjectParams
 			DebugStageDirectory = InSeparateDebugStageDirectory? DirectoryReference.Combine(BaseStageDirectory, FinalCookPlatform + "Debug") : StageDirectory;
 		}
 
-		if(BaseArchiveDirectory != null)
+		if (BaseArchiveDirectory != null)
 		{
-			ArchiveDirectory = DirectoryReference.Combine(BaseArchiveDirectory, FinalCookPlatform);
+			// If the user specifies a path that contains the platform or cooked platform names, don't append to it.
+			// This allows more control for scripts respect to putting packages in things like <path>/PS4/Development/Pkg.pkg, <path>/PS4/Test/Pkg.pkg
+			string PlatformName = StageTargetPlatform.GetStagePlatforms().FirstOrDefault().ToString();
+			IEnumerable<string> PathComponents = new DirectoryInfo(BaseArchiveDirectory.FullName).FullName.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+
+			if (!PathComponents.Any(C => C.StartsWith(FinalCookPlatform, StringComparison.OrdinalIgnoreCase) || C.StartsWith(PlatformName, StringComparison.OrdinalIgnoreCase)))
+			{
+				ArchiveDirectory = DirectoryReference.Combine(BaseArchiveDirectory, FinalCookPlatform);
+			}
+			else
+			{
+				ArchiveDirectory = BaseArchiveDirectory;
+			}
 		}
 
 		if (!FileReference.Exists(RawProjectPath))
