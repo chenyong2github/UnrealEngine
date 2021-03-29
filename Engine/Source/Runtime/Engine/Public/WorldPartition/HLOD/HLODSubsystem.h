@@ -50,5 +50,5 @@ private:
 		}
 	};
 
-	TMap<UWorldPartition*, TMap<FName, FCellHLODMapping>> CellsHLODMapping;
+	TMap<FName, FCellHLODMapping> CellsHLODMapping;
 };
