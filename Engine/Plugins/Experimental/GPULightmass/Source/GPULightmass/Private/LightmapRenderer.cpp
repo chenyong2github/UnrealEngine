@@ -851,7 +851,7 @@ void FSceneRenderState::SetupRayTracingScene()
 
 		SCOPED_DRAW_EVENTF(RHICmdList, GPULightmassUpdateRayTracingScene, TEXT("GPULightmass UpdateRayTracingScene %d Instances"), StaticMeshInstanceRenderStates.Elements.Num());
 
-		TArray<FRayTracingGeometryInstance> RayTracingGeometryInstances;
+		TArray<FRayTracingGeometryInstance, SceneRenderingAllocator>& RayTracingGeometryInstances = View.RayTracingGeometryInstances;
 		RayTracingGeometryInstances.Append(CachedRayTracingScene->RayTracingGeometryInstances);
 
 		int32 LandscapeStartOffset = RayTracingGeometryInstances.Num();
@@ -1812,6 +1812,13 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 				if (SampleIndex % AAvsGIMultiplier == 0)
 				{
+					TArray<int32>& PendingGIRenderPassIndices = *GraphBuilder.AllocObject<TArray<int32>>();
+
+					for (auto& Tile : PendingGITileRequests)
+					{
+						PendingGIRenderPassIndices.Add(Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex);
+					}
+
 					for (int ScratchLayerIndex = 0; ScratchLayerIndex < 3; ScratchLayerIndex++)
 					{
 						RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
@@ -1852,10 +1859,12 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 								RDG_EVENT_NAME("LightmapGBuffer"),
 								PassParameters,
 								ERDGPassFlags::Raster,
-								[this, ReferenceView = Scene->ReferenceView, &PendingGITileRequests, GPUIndex, AAvsGIMultiplier](FRHICommandList& RHICmdList)
+								[this, ReferenceView = Scene->ReferenceView, &PendingGITileRequests, &PendingGIRenderPassIndices, GPUIndex, AAvsGIMultiplier](FRHICommandList& RHICmdList)
 							{
-								for (const FLightmapTileRequest& Tile : PendingGITileRequests)
+								for (int32 Index = 0; Index < PendingGITileRequests.Num(); Index++)
 								{
+									const FLightmapTileRequest& Tile = PendingGITileRequests[Index];
+
 									if (Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, Scene->Settings->GISamples)) continue;
 									uint32 AssignedGPUIndex = (Tile.RenderState->DistributionPrefixSum + Tile.RenderState->RetrieveTileStateIndex(Tile.VirtualCoordinates)) % GNumExplicitGPUsForRendering;
 									if (AssignedGPUIndex != GPUIndex) continue;
@@ -1884,7 +1893,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 											View = ReferenceView.Get(),
 											MeshBatches,
 											VirtualTexturePhysicalTileCoordinateScaleAndBias,
-											RenderPassIndex = Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex / AAvsGIMultiplier,
+											RenderPassIndex = PendingGIRenderPassIndices[Index] / AAvsGIMultiplier,
 											ScratchTilePoolOffset = ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch) * GPreviewLightmapPhysicalTileSize
 										](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 									{

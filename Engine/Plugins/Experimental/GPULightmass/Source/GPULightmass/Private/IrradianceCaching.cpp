@@ -15,34 +15,37 @@ FIrradianceCache::FIrradianceCache(int32 Quality, float Spacing, float CornerRej
 {
 	uint32 IrradianceCacheTotalBytes = 0;
 
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
 	{
-		TResourceArray<FIrradianceCacheRecord> AABBMinMax;
-		AABBMinMax.AddZeroed(IrradianceCacheMaxSize);
-		FRHIResourceCreateInfo CreateInfo(TEXT("FIrradianceCache"), &AABBMinMax);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FIrradianceCache"));
 		IrradianceCacheRecords = RHICreateStructuredBuffer(sizeof(FIrradianceCacheRecord), sizeof(FIrradianceCacheRecord) * IrradianceCacheMaxSize, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
 		IrradianceCacheRecordsUAV = RHICreateUnorderedAccessView(IrradianceCacheRecords, false, false);
 
 		IrradianceCacheTotalBytes += sizeof(FIrradianceCacheRecord) * IrradianceCacheMaxSize;
+
+		RHICmdList.ClearUAVUint(IrradianceCacheRecordsUAV, FUintVector4(0, 0, 0, 0));
 	}
 
 	int32 HashTableSize = IrradianceCacheMaxSize * 4;
 
 	{
 		{
-			TResourceArray<uint32> EmptyHashTable;
-			EmptyHashTable.AddZeroed(HashTableSize);
-			HashTable.Initialize(TEXT("ICHashTable"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, &EmptyHashTable);
-			HashToIndex.Initialize(TEXT("ICHashToIndex"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, &EmptyHashTable);
-			IndexToHash.Initialize(TEXT("ICIndexToHash"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, &EmptyHashTable);
+			HashTable.Initialize(TEXT("ICHashTable"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource);
+			HashToIndex.Initialize(TEXT("ICHashToIndex"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource);
+			IndexToHash.Initialize(TEXT("ICIndexToHash"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource);
 
 			IrradianceCacheTotalBytes += HashTable.NumBytes;
 			IrradianceCacheTotalBytes += HashToIndex.NumBytes;
 			IrradianceCacheTotalBytes += IndexToHash.NumBytes;
+
+			RHICmdList.ClearUAVUint(HashTable.UAV, FUintVector4(0, 0, 0, 0));
+			RHICmdList.ClearUAVUint(HashToIndex.UAV, FUintVector4(0, 0, 0, 0));
+			RHICmdList.ClearUAVUint(IndexToHash.UAV, FUintVector4(0, 0, 0, 0));
 		}
 		{
-			TResourceArray<uint32> ZeroRecordAllocator;
-			ZeroRecordAllocator.AddZeroed(1);
-			RecordAllocator.Initialize(TEXT("ICAllocator"), sizeof(uint32), 1, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, &ZeroRecordAllocator);
+			RecordAllocator.Initialize(TEXT("ICAllocator"), sizeof(uint32), 1, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource);
+			RHICmdList.ClearUAVUint(RecordAllocator.UAV, FUintVector4(0, 0, 0, 0));
 
 			IrradianceCacheTotalBytes += 4;
 		}
