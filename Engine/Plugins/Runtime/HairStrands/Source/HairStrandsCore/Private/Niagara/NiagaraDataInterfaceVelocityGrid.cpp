@@ -284,6 +284,7 @@ bool UNiagaraDataInterfaceVelocityGrid::Equals(const UNiagaraDataInterface* Othe
 	return (OtherTyped->GridSize == GridSize);
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceVelocityGrid::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	if (!Super::AppendCompileHash(InVisitor))
@@ -293,6 +294,7 @@ bool UNiagaraDataInterfaceVelocityGrid::AppendCompileHash(FNiagaraCompileHashVis
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceVelocityGridHLSLSource"), Hash.ToString());
 	return true;
 }
+#endif
 
 void UNiagaraDataInterfaceVelocityGrid::PostInitProperties()
 {
