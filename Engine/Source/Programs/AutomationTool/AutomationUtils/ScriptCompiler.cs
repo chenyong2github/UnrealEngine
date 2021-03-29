@@ -461,6 +461,8 @@ namespace AutomationTool
 				try
 				{
 					AssemblyUtils.AddFileToAssemblyCache(AssemblyLocation.FullName);
+					// Add a resolver for the Assembly directory, so that its dependencies may be found alongside it
+					AssemblyUtils.InstallRecursiveAssemblyResolver(AssemblyLocation.Directory.FullName);
 					Assembly Assembly = AppDomain.CurrentDomain.Load(AssemblyName.GetAssemblyName(AssemblyLocation.FullName));
 					Assemblies.Add(Assembly);
 				}
