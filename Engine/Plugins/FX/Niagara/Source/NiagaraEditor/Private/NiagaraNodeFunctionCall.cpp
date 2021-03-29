@@ -98,6 +98,8 @@ void UNiagaraNodeFunctionCall::PostLoad()
 		}
 	}
 
+	UpdatePinTooltips();
+
 	// Clean up invalid old references to propagated parameters
 	CleanupPropagatedSwitchValues();
 	
@@ -243,7 +245,7 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 			UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Input.GetType()), Input.GetName());
 			NewPin->bNotConnectable = true;
 			NewPin->bDefaultValueIsIgnored = FindPropagatedVariable(Input) != nullptr;
-
+			
 			FString PinDefaultValue;
 			TOptional<FNiagaraVariableMetaData> MetaData = Graph->GetMetaData(Input);
 			if (MetaData.IsSet())
@@ -287,6 +289,7 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 		{
 			UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Input.GetType()), Input.GetName());
 			NewPin->bDefaultValueIsIgnored = false;
+			NewPin->PinToolTip = Signature.InputDescriptions.Contains(Input) ? Signature.InputDescriptions[Input].ToString() : FString();
 			FString PinDefaultValue;
 			if (Schema->TryGetPinDefaultValueFromNiagaraVariable(Input, PinDefaultValue))
 			{
@@ -305,6 +308,7 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 		{
 			UEdGraphPin* NewPin = CreatePin(EGPD_Output, Schema->TypeDefinitionToPinType(Output.GetType()), Output.GetName());
 			NewPin->bDefaultValueIsIgnored = true;
+			NewPin->PinToolTip = Signature.OutputDescriptions.Contains(Output) ? Signature.OutputDescriptions[Output].ToString() : FString();
 		}
 
 		if (AllowDynamicPins())
@@ -978,6 +982,56 @@ void UNiagaraNodeFunctionCall::FixupFunctionScriptVersion()
 		SelectedScriptVersion = FGuid();
 		InvalidScriptVersionReference = FGuid();
 		PreviousScriptVersion = FGuid();
+	}
+}
+
+void UNiagaraNodeFunctionCall::UpdatePinTooltips()
+{
+	if (!Signature.IsValid())
+	{
+		return;
+	}
+
+	// if it's a DI function we grab the newest tooltips first
+	if ((Signature.Inputs.Num() > 0) && Signature.Inputs[0].GetType().IsDataInterface())
+	{
+		UNiagaraDataInterface* CDO = CastChecked<UNiagaraDataInterface>(Signature.Inputs[0].GetType().GetClass()->GetDefaultObject());
+		TArray<FNiagaraFunctionSignature> AllSignatures;
+		CDO->GetFunctions(AllSignatures);
+		for (const FNiagaraFunctionSignature& DISignature : AllSignatures)
+		{
+			if (Signature.Name != DISignature.Name)
+			{
+				continue;
+			}
+			Signature.Description = DISignature.Description;
+			Signature.InputDescriptions = DISignature.InputDescriptions;
+			Signature.OutputDescriptions = DISignature.OutputDescriptions;
+		}
+	}
+
+	// update input pin tooltips
+	TArray<UEdGraphPin*> InputPins;
+	GetInputPins(InputPins);
+	if (Signature.Inputs.Num() == InputPins.Num())
+	{
+		for (int i = 0; i < InputPins.Num(); i++)
+		{
+			FNiagaraVariable& Input = Signature.Inputs[i];
+			InputPins[i]->PinToolTip = Signature.InputDescriptions.Contains(Input) ? Signature.InputDescriptions[Input].ToString() : FString();
+		}
+	}
+
+	// update output pin tooltips
+	TArray<UEdGraphPin*> OutputPins;
+	GetOutputPins(OutputPins);
+	if (Signature.Outputs.Num() == OutputPins.Num())
+	{
+		for (int i = 0; i < OutputPins.Num(); i++)
+		{
+			FNiagaraVariable& Output = Signature.Outputs[i];
+			OutputPins[i]->PinToolTip = Signature.OutputDescriptions.Contains(Output) ? Signature.OutputDescriptions[Output].ToString() : FString();
+		}
 	}
 }
 

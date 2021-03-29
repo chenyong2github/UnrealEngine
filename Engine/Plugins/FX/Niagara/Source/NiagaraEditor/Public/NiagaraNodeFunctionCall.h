@@ -177,6 +177,8 @@ protected:
 
 	void FixupFunctionScriptVersion();
 
+	void UpdatePinTooltips();
+
 	/** Adjusted every time that we compile this script. Lets us know that we might differ from any cached versions.*/
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	FGuid CachedChangeId;
