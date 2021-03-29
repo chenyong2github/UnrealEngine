@@ -84,7 +84,6 @@ public:
 
 	virtual void NotifyChange(UClass* New, UClass* Old) override
 	{
-		bGotClassChange |= Old != nullptr && Old != New;
 	}
 
 	virtual void NotifyChange(UEnum* New, UEnum* Old) override
@@ -93,13 +92,13 @@ public:
 
 	virtual void NotifyChange(UScriptStruct* New, UScriptStruct* Old) override
 	{
-		bGotClassChange |= Old != nullptr && Old != New;
 	}
 
-	virtual void Reinstance()
+	virtual bool GetEnableReinstancing(bool bHasChanged) const
 	{
-		if (bGotClassChange)
+		if (bHasChanged && !bEnabledMessage)
 		{
+			bEnabledMessage = true;
 			static const TCHAR* Message = TEXT("Object structure changes detected.  LiveCoding re-instancing isn't supported in builds without the editor");
 			UE_LOG(LogLiveCoding, Error, TEXT("%s"), Message);
 #if WITH_ENGINE
@@ -109,11 +108,16 @@ public:
 			}
 #endif
 		}
+		return false;
+	}
+
+	virtual void Reinstance()
+	{
 	}
 
 private:
 	FLiveCodingModule& LiveCodingModule;
-	bool bGotClassChange = false;
+	mutable bool bEnabledMessage = false;
 };
 #endif
 
@@ -616,7 +620,10 @@ void FLiveCodingModule::BeginReload()
 		if (!GLiveCodingModule->Reload.IsValid())
 		{
 #if WITH_EDITOR
+			bool bEnableReinstancing = true;
+			GConfig->GetBool(TEXT("LiveCoding"), TEXT("bEnableReinstancing"), bEnableReinstancing, GEngineIni);
 			GLiveCodingModule->Reload.Reset(new FReload(EActiveReloadType::LiveCoding, TEXT("LIVECODING"), *GLog));
+			GLiveCodingModule->Reload->SetEnableReinstancing(bEnableReinstancing);
 #else
 			GLiveCodingModule->Reload.Reset(new FNullReload(*GLiveCodingModule));
 #endif

@@ -85,19 +85,30 @@ public:
 		InInfo.ReloadVersionInfo = InVersion;
 		TType* OldSingleton = ExistingInfo ? (*ExistingInfo)->InnerSingleton : nullptr;
 
+		bool bAdd = true;
 		if (ExistingInfo)
 		{
-			if (!bHasChanged && *ExistingInfo != &InInfo)
+			if (IReload* Reload = GetActiveReloadInterface())
 			{
-				CopyExistingSingletons(InInfo, **ExistingInfo);
+				bAdd = Reload->GetEnableReinstancing(bHasChanged);
 			}
-			*ExistingInfo = &InInfo;
+			if (bAdd)
+			{
+				if (!bHasChanged && *ExistingInfo != &InInfo)
+				{
+					CopyExistingSingletons(InInfo, **ExistingInfo);
+				}
+				*ExistingInfo = &InInfo;
+			}
 		}
 		else
 		{
 			InfoMap.Add(Key, &InInfo);
 		}
-		Registrations.Add(FRegistrant{ InOuterRegister, InInnerRegister, InPackageName, &InInfo, OldSingleton, DeprecatedFieldInfo, bHasChanged });
+		if (bAdd)
+		{
+			Registrations.Add(FRegistrant{ InOuterRegister, InInnerRegister, InPackageName, &InInfo, OldSingleton, DeprecatedFieldInfo, bHasChanged });
+		}
 		return ExistingInfo != nullptr;
 #else
 		Registrations.Add(FRegistrant{ InOuterRegister, InInnerRegister, InPackageName, &InInfo, DeprecatedFieldInfo });

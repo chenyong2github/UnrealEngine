@@ -2513,11 +2513,18 @@ void UScriptStruct::DeferCppStructOps(FName Target, ICppStructOps* InCppStructOp
 
 	if (UScriptStruct::ICppStructOps* ExistingOps = DeferredStructOps.FindRef(Target))
 	{
-		if (!IsReloadActive()) // in reload, we will just leak these...they may be in use.
+		IReload* Reload = GetActiveReloadInterface();
+		if (Reload == nullptr)
 		{
 			check(ExistingOps != InCppStructOps); // if it was equal, then we would be re-adding a now stale pointer to the map
 			delete ExistingOps;
 		}
+		else if (!Reload->GetEnableReinstancing(false))
+		{
+			delete InCppStructOps;
+			return;
+		}
+		// in reload, we will just leak these...they may be in use.
 	}
 	DeferredStructOps.Add(Target,InCppStructOps);
 }

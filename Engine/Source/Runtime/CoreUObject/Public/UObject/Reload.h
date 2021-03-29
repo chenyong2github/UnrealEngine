@@ -31,6 +31,10 @@ public:
 	 */
 	virtual const TCHAR* GetPrefix() const = 0;
 
+	/**
+	 * Return if re-instancing is to be allowed
+	 */
+	virtual bool GetEnableReinstancing(bool bHasChanged) const = 0;
 
 	/**
 	 * Invoke when a duplicate function has been detected.

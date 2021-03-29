@@ -34,6 +34,7 @@ public:
 	// IReload interface 
 	virtual EActiveReloadType GetType() const override { return Type; }
 	virtual const TCHAR* GetPrefix() const override { return Prefix; };
+	virtual bool GetEnableReinstancing(bool bHasChanged) const override;
 	virtual void NotifyFunctionRemap(FNativeFuncPtr NewFunctionPointer, FNativeFuncPtr OldFunctionPointer) override;
 	virtual void NotifyChange(UClass* New, UClass* Old) override;
 	virtual void NotifyChange(UEnum* New, UEnum* Old) override;
@@ -56,6 +57,14 @@ public:
 	void SetSendReloadCompleteNotification(bool bSend)
 	{
 		bSendReloadComplete = bSend;
+	}
+
+	/**
+	 * Enable/Disable the support for reinstancing
+	 */
+	void SetEnableReinstancing(bool bInEnableReinstancing)
+	{
+		bEnableReinstancing = bInEnableReinstancing;
 	}
 
 private:
@@ -130,9 +139,13 @@ private:
 	/** If true, send reload complete notification */
 	bool bSendReloadComplete = true;
 
+	/** If true, reinstancing is enabled */
+	bool bEnableReinstancing = true;
+
 	ReinstanceStats ClassStats;
 	ReinstanceStats EnumStats;
 	ReinstanceStats StructStats;
 	int32 NumFunctionsRemapped = 0;
 	int32 NumScriptStructsRemapped = 0;
+	mutable bool bEnabledMessage = false;
 };
