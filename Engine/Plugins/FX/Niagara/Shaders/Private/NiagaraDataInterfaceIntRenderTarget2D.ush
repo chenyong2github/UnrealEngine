@@ -1,0 +1,74 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+float4				TextureSizeAndInvSize_{ParameterName};
+RWTexture2D<int>	RWTextureUAV_{ParameterName};
+
+void GetValue_{ParameterName}(int X, int Y, out int CurrValue)
+{
+	CurrValue = RWTextureUAV_{ParameterName}[int2(X, Y)];
+}
+
+void SetValue_{ParameterName}_UEImpureCall(int X, int Y, int Value)
+{
+	RWTextureUAV_{ParameterName}[int2(X, Y)] = Value;
+}
+
+void AtomicAdd_{ParameterName}_UEImpureCall(in bool bExecute, int X, int Y, int Amount, out int CurrValue, out int PrevValue)
+{
+	if ( bExecute )
+	{
+		InterlockedAdd(RWTextureUAV_{ParameterName}[int2(X, Y)], Amount, PrevValue);
+		CurrValue = PrevValue + Amount;
+	}
+	else
+	{
+		PrevValue = RWTextureUAV_{ParameterName}[int2(X, Y)];
+		CurrValue = PrevValue;
+	}
+}
+
+void AtomicMax_{ParameterName}_UEImpureCall(in bool bExecute, int X, int Y, int InValue, out int CurrValue, out int PrevValue)
+{
+	if ( bExecute )
+	{
+		InterlockedMax(RWTextureUAV_{ParameterName}[int2(X, Y)], InValue, PrevValue);
+		CurrValue = max(PrevValue, InValue);
+	}
+	else
+	{
+		PrevValue = RWTextureUAV_{ParameterName}[int2(X, Y)];
+		CurrValue = PrevValue;
+	}
+}
+
+void AtomicMin_{ParameterName}_UEImpureCall(in bool bExecute, int X, int Y, int InValue, out int CurrValue, out int PrevValue)
+{
+	if ( bExecute )
+	{
+		InterlockedMin(RWTextureUAV_{ParameterName}[int2(X, Y)], InValue, PrevValue);
+		CurrValue = min(PrevValue, InValue);
+	}
+	else
+	{
+		PrevValue = RWTextureUAV_{ParameterName}[int2(X, Y)];
+		CurrValue = PrevValue;
+	}
+}
+
+void GetRenderTargetSize_{ParameterName}(out int Width, out int Height)
+{
+	Width = int(TextureSizeAndInvSize_{ParameterName}.x);
+	Height = int(TextureSizeAndInvSize_{ParameterName}.y);
+}
+
+void LinearToIndex_{ParameterName}(int Linear, out int X, out int Y)
+{
+	X = Linear % int(TextureSizeAndInvSize_{ParameterName}.x);
+	Y = Linear / int(TextureSizeAndInvSize_{ParameterName}.x);
+}
+
+void LinearToUV_{ParameterName}(int Linear, out float2 UV)
+{
+	UV.x = (float(Linear % int(TextureSizeAndInvSize_{ParameterName}.x)) + 0.5f) * TextureSizeAndInvSize_{ParameterName}.z;
+	UV.y = (float(Linear / int(TextureSizeAndInvSize_{ParameterName}.x)) + 0.5f) * TextureSizeAndInvSize_{ParameterName}.w;
+}
