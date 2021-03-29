@@ -198,6 +198,10 @@ TSharedRef<SWidget> FNiagaraFunctionCallNodeDetails::OnGetVersionMenuContent()
 	TArray<FNiagaraAssetVersion> AssetVersions = Node->FunctionScript->GetAllAvailableVersions();
 	for (FNiagaraAssetVersion& Version : AssetVersions)
 	{
+		if (!Version.bIsVisibleInVersionSelector)
+		{
+			continue;
+		}
 		FVersionedNiagaraScriptData* ScriptData = Node->FunctionScript->GetScriptData(Version.VersionGuid);
 		
 		FText Tooltip = LOCTEXT("NiagaraFunctionCallNodeSelectVersion", "Select this script version to use by the function call node");

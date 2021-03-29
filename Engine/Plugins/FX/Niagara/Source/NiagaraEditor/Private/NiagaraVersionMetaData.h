@@ -29,6 +29,11 @@ public:
 	UPROPERTY(EditAnywhere, Category="Version Details", meta = (MultiLine = true))
 	FText ChangeDescription;
 
+	/** If false then this version is not visible in the version selector dropdown menu of the stack. This is useful to hide work in progress versions without removing the module from the search menu.
+	 *  The exposed version is always visible to users. */
+	UPROPERTY(EditAnywhere, Category="Version Details", meta=(EditCondition="!bIsExposedVersion"))
+	bool bIsVisibleInVersionSelector = true;
+
 	/** Internal version guid, mainly useful for debugging version conflicts. */
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category="Version Details")
 	FGuid VersionGuid;

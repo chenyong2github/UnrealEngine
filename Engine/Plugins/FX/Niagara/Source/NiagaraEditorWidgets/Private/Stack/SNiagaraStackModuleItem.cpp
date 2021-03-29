@@ -314,6 +314,10 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::GetVersionSelectorDropdownMenu()
 	TArray<FNiagaraAssetVersion> AssetVersions = Script->GetAllAvailableVersions();
 	for (FNiagaraAssetVersion& Version : AssetVersions)
 	{
+		if (!Version.bIsVisibleInVersionSelector)
+        {
+        	continue;
+        }
 		FVersionedNiagaraScriptData* ScriptData = Script->GetScriptData(Version.VersionGuid);
 		bool bIsSelected = ModuleItem->GetModuleNode().SelectedScriptVersion == Version.VersionGuid;
 		

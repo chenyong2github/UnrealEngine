@@ -175,10 +175,18 @@ void SNiagaraScriptVersionWidget::NotifyPostChange(const FPropertyChangedEvent& 
 	check(ScriptData);
 	
 	ScriptData->VersionChangeDescription = VersionMetadata->ChangeDescription;
+	
 
 	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraVersionMetaData, bIsExposedVersion) && VersionMetadata->bIsExposedVersion)
 	{
 		ExecuteExposeAction(ScriptData->Version);
+	}
+
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraVersionMetaData, bIsVisibleInVersionSelector))
+	{
+		ScriptData->Version.bIsVisibleInVersionSelector = VersionMetadata->bIsVisibleInVersionSelector;
+		VersionListWidget->RefreshAllActions(true);
+		VersionInListSelected(ScriptData->Version);
 	}
 
 	OnVersionDataChanged.ExecuteIfBound();
@@ -367,6 +375,7 @@ void SNiagaraScriptVersionWidget::VersionInListSelected(FNiagaraAssetVersion InS
 	VersionMetadata->VersionGuid = InSelectedVersion.VersionGuid;
 	VersionMetadata->ChangeDescription = ScriptData->VersionChangeDescription;
 	VersionMetadata->bIsExposedVersion = InSelectedVersion == Script->GetExposedVersion();
+	VersionMetadata->bIsVisibleInVersionSelector = InSelectedVersion.bIsVisibleInVersionSelector;
 	//TODO MV: add python script stuff
 
 	VersionSettingsDetails->SetObject(VersionMetadata, true);

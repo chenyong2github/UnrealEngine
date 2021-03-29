@@ -294,10 +294,14 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::GetVersionSelectorDropdownM
 	TArray<FNiagaraAssetVersion> AssetVersions = Script->GetAllAvailableVersions();
 	for (FNiagaraAssetVersion& Version : AssetVersions)
 	{
+		if (!Version.bIsVisibleInVersionSelector)
+    	{
+    		continue;
+    	}
 		FVersionedNiagaraScriptData* ScriptData = Script->GetScriptData(Version.VersionGuid);
 		bool bIsSelected = FunctionInput->GetDynamicInputNode()->SelectedScriptVersion == Version.VersionGuid;
 		
-		FText Tooltip = LOCTEXT("NiagaraSelectVersion_Tooltip", "Select this version to use for the module");
+		FText Tooltip = LOCTEXT("NiagaraSelectVersion_Tooltip", "Select this version to use for the dynamic input");
 		if (!ScriptData->VersionChangeDescription.IsEmpty())
 		{
 			Tooltip = FText::Format(LOCTEXT("NiagaraSelectVersionChangelist_Tooltip", "Select this version to use for the dynamic input. Change description for this version:\n{0}"), ScriptData->VersionChangeDescription);

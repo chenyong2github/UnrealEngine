@@ -302,6 +302,7 @@ void UNiagaraScript::ExposeVersion(const FGuid& VersionGuid)
 		if (Data.Version.VersionGuid == VersionGuid)
 		{
 			ExposedVersion = VersionGuid;
+			Data.Version.bIsVisibleInVersionSelector = true;
 			return;
 		}
 	}

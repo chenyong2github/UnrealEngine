@@ -174,6 +174,10 @@ struct FNiagaraAssetVersion
 	/** The guid is used to keep track of specific asset version references. The minor and major versions do not provide enough uniqueness to guard against collisions when e.g. the same version was created in different branches. */
 	UPROPERTY(VisibleAnywhere, Category = "Version Control", meta=(IgnoreForMemberInitializationTest))
 	FGuid VersionGuid = FGuid::NewGuid();
+	
+	/** If false then this version is not visible in the version selector dropdown menu of the stack. */
+	UPROPERTY()
+	bool bIsVisibleInVersionSelector = true;
 
 	bool operator==(const FNiagaraAssetVersion& Other) const { return VersionGuid == Other.VersionGuid; }
 	bool operator!=(const FNiagaraAssetVersion& Other) const { return !(*this == Other); }
