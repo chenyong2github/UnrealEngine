@@ -79,7 +79,7 @@ static TAutoConsoleVariable<float> CVarSMRTMaxRayAngleFromLight(
 
 static TAutoConsoleVariable<int32> CVarSMRTRayCountDirectional(
 	TEXT( "r.Shadow.Virtual.SMRT.RayCountDirectional" ),
-	0,
+	7,
 	TEXT( "Ray count for shadow map tracing of directional lights. 0 = disabled." ),
 	ECVF_RenderThreadSafe
 );

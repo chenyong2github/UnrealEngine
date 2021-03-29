@@ -190,7 +190,7 @@ static TAutoConsoleVariable<float> CVarShadowMaxSlopeScaleDepthBias(
 
 static TAutoConsoleVariable<int32> CVarVirtualSmDenoiserDirectional(
 	TEXT("r.Shadow.Virtual.Denoiser.EnableDirectional"),
-	1,
+	0,
 	TEXT("Apply denoiser to directional light virtual shadow maps."),
 	ECVF_RenderThreadSafe);
 FForwardScreenSpaceShadowMaskTextureMobileOutputs GScreenSpaceShadowMaskTextureMobileOutputs;
