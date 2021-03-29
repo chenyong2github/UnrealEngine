@@ -331,12 +331,20 @@ void FWindowsPlatformStackWalkExt::GetModuleInfoDetailed()
 		CrashModule->Patch = HIWORD( VersionInfo.dwProductVersionLS );
 		CrashModule->Revision = LOWORD( VersionInfo.dwProductVersionLS );
 
+		// NOTE: The function below was commented because in some occasions (unknown reason), it triggered a search for modules on the user disk,
+		//       scanning all projects assets for each module, taking an unacceptable long time in very large projects. This could be observed with
+		//       SysInternal ProcessMonitor. The original intent for calling ReloadWide() is unknown, but normally, this function is meant
+		//       to control when the modules are reloaded, for example if the .pdb were about to be deleted, we would want to reload and cache the
+		//       symbols before losing them. Since we configured the debug engine with SYMOPT_DEFERRED_LOADS to only load symbols if needed,
+		//       reloading them all here looks counter-productive. Commenting it did not show any obvious side effects other than fixing the
+		//       very long module search time issue.
 		// Ensure all the images are synced - need the full path here
-		Symbol->ReloadWide( *CrashModule->Name );
+		//Symbol->ReloadWide( *CrashModule->Name );
 	}
 
 	CrashInfo.Modules.Sort( FSortModulesByName() );
 }
+
 bool FWindowsPlatformStackWalkExt::IsOffsetWithinModules( uint64 Offset )
 {
 	for( int ModuleIndex = 0; ModuleIndex < CrashInfo.Modules.Num(); ModuleIndex++ )
