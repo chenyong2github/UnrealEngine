@@ -178,6 +178,20 @@ public:
 		InternalDrawViewFacingCircle((FVector)Position, Radius, Steps, Color, LineThicknessIn, bDepthTestedIn);
 	}
 
+	/** Draw a world-space X facing the viewer at the given position. */
+	template<typename PointType>
+	void DrawViewFacingX(const PointType& Position, float Width)
+	{
+		InternalDrawViewFacingX((FVector)Position, Width, LineColor, LineThickness, bDepthTested);
+	}
+
+	/** Draw a world-space X facing the viewer at the given position. */
+	template<typename PointType>
+	void DrawViewFacingX(const PointType& Position, float Width, const FLinearColor& Color, float LineThicknessIn, bool bDepthTestedIn)
+	{
+		InternalDrawViewFacingX((FVector)Position, Width, Color, LineThicknessIn, bDepthTestedIn);
+	}
+
 	/** Draw a 3D cylinder, parameterized the same as the 3D circle but extruded by Height */
 	template<typename PointType>
 	void DrawWireCylinder(const PointType& Position, const PointType& Normal, float Radius, float Height, int Steps, const FLinearColor& Color, float LineThicknessIn, bool bDepthTestedIn)
@@ -247,6 +261,7 @@ protected:
 	virtual void InternalDrawWireBox(const FBox& Box, const FLinearColor& Color, float LineThickness, bool bDepthTested);
 	// actually does the square drawing
 	virtual void InternalDrawSquare(const FVector& Center, const FVector& SideA, const FVector& SideB, const FLinearColor& Color, float LineThickness, bool bDepthTested);
-
+	// actually does the X drawing
+	virtual void InternalDrawViewFacingX(const FVector& Position, float Width, const FLinearColor& Color, float LineThickness, bool bDepthTested);
 
 };

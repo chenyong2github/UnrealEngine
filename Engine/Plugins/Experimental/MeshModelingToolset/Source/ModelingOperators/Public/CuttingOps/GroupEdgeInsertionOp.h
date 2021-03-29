@@ -39,6 +39,9 @@ public:
 	// Edge ID's in the ResultMesh that together make up the new group edge.
 	TSet<int32> Eids; 
 
+	// Triangle ID's in the OriginalMesh that got changed or deleted in the operation.
+	TSharedPtr<TSet<int32>, ESPMode::ThreadSafe> ChangedTids;
+
 	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> ResultTopology;
 	bool bSucceeded = false;
 

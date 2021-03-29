@@ -194,3 +194,22 @@ void FToolDataVisualizer::InternalDrawViewFacingCircle(const FVector& Position, 
 		(bDepthTestedIn) ? SDPG_World : SDPG_Foreground,
 		LineThicknessIn * PDISizeScale, DepthBias, true);
 }
+
+void FToolDataVisualizer::InternalDrawViewFacingX(const FVector& Position, float Width, const FLinearColor& Color, float LineThicknessIn, bool bDepthTestedIn)
+{
+	checkf(bHaveCameraState, TEXT("To call this function, you must first call the version of BeginFrame that takes the CameraState"));
+	
+	FVector WorldPosition = TransformP(Position);
+
+	FVector UpOffset = CameraState.Up() * Width / 2;
+	FVector RightOffset = CameraState.Right() * Width / 2;
+	InternalDrawTransformedLine(
+		WorldPosition - UpOffset - RightOffset, 
+		WorldPosition + UpOffset + RightOffset, 
+		Color, LineThicknessIn, bDepthTestedIn);
+
+	InternalDrawTransformedLine(
+		WorldPosition + UpOffset - RightOffset,
+		WorldPosition - UpOffset + RightOffset,
+		Color, LineThicknessIn, bDepthTestedIn);
+}

@@ -36,6 +36,7 @@ void FGroupEdgeInsertionOp::CalculateResult(FProgressCancel* Progress)
 	ResultTopology = MakeShared<FGroupTopology, ESPMode::ThreadSafe>();
 	*ResultTopology = *OriginalTopology;
 	ResultTopology->RetargetOnClonedMesh(ResultMesh.Get());
+	ChangedTids = MakeShared<TSet<int32>, ESPMode::ThreadSafe>();
 
 	if (bShowingBaseMesh || (Progress && Progress->Cancelled()))
 	{
@@ -53,5 +54,9 @@ void FGroupEdgeInsertionOp::CalculateResult(FProgressCancel* Progress)
 	Params.GroupID = CommonGroupID;
 	Params.GroupBoundaryIndex = CommonBoundaryIndex;
 
-	bSucceeded = Inserter.InsertGroupEdge(Params, &Eids, Progress);
+	FGroupEdgeInserter::FOptionalOutputParams OptionalOut;
+	OptionalOut.NewEidsOut = &Eids;
+	OptionalOut.ChangedTidsOut = ChangedTids.Get();
+
+	bSucceeded = Inserter.InsertGroupEdge(Params, OptionalOut, Progress);
 }

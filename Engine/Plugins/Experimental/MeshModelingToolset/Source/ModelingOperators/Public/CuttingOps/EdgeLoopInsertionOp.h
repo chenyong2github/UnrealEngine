@@ -19,8 +19,8 @@ public:
 	virtual ~FEdgeLoopInsertionOp() {}
 
 	// Inputs:
-	TSharedPtr<const FDynamicMesh3> OriginalMesh;
-	TSharedPtr<const FGroupTopology> OriginalTopology;
+	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<const FGroupTopology, ESPMode::ThreadSafe> OriginalTopology;
 	FGroupEdgeInserter::EInsertionMode Mode;
 	double VertexTolerance; // TODO: Add some defaults
 	int32 GroupEdgeID = FDynamicMesh3::InvalidID;
@@ -29,8 +29,17 @@ public:
 	int32 StartCornerID = FDynamicMesh3::InvalidID;
 
 	// Outputs:
-	TSet<int32> LoopEids; // These are edge ID's in the ResultMesh.
-	TSharedPtr<FGroupTopology> ResultTopology;
+	// Edge IDs in the ResultMesh corresponding to the loop.
+	TSet<int32> LoopEids; 
+
+	// IDs of triangles in the OriginalMesh that were changed or deleted.
+	TSharedPtr<TSet<int32>, ESPMode::ThreadSafe> ChangedTids;
+
+	// IDs of group edges in OriginalTopology that surround non-quad-like regions
+	// that stopped the loop.
+	TSet<int32> ProblemGroupEdgeIDs;
+
+	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> ResultTopology;
 	bool bSucceeded = false;
 
 	void SetTransform(const FTransform& Transform);

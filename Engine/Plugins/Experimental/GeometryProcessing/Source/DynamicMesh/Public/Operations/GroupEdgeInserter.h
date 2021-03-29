@@ -66,7 +66,31 @@ public:
 		EInsertionMode Mode = EInsertionMode::Retriangulate;
 	};
 
-	bool InsertEdgeLoops(const FEdgeLoopInsertionParams& Params, TSet<int32>* NewEidsOut = nullptr, FProgressCancel* Progress = nullptr);
+	struct FOptionalOutputParams
+	{
+		// Some compilers (clang, at least) have issues with using a nested class with default initializers
+		// and a default constructor as default argument in a function, hence this constructor.
+		FOptionalOutputParams(){};
+
+		/**
+		 * Edge IDs of the edges composing the newly inserted group edges.
+		 */
+		TSet<int32>* NewEidsOut = nullptr;
+		
+		/** 
+		 * Any triangle IDs whose triangles were deleted or changed by the operation (but not newly
+		 * created tids). Useful for setting up undo. 
+		 */
+		TSet<int32>* ChangedTidsOut = nullptr;
+
+		/**
+		 * In loop insertion, the group edge IDs in the original topology that surround non-quad-like
+		 * groups that stopped the loop.
+		 */
+		TSet<int32>* ProblemGroupEdgeIDsOut = nullptr;
+	};
+
+	bool InsertEdgeLoops(const FEdgeLoopInsertionParams& Params, FOptionalOutputParams OptionalOut = FOptionalOutputParams(), FProgressCancel* Progress = nullptr);
 
 
 	/** Point along a group edge that is used as a start/endpoint for an inserted group edge. */
@@ -117,7 +141,7 @@ public:
 		EInsertionMode Mode = EInsertionMode::Retriangulate;
 	};
 
-	bool InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet<int32>* NewEidsOut = nullptr, FProgressCancel* Progress = nullptr);
+	bool InsertGroupEdge(FGroupEdgeInsertionParams& Params, FOptionalOutputParams OptionalOut = FOptionalOutputParams(), FProgressCancel* Progress = nullptr);
 
 };
 

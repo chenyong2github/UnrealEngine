@@ -225,11 +225,18 @@ void FDynamicMesh3::Copy(const FDynamicMesh3& copy, bool bNormals, bool bColors,
 	Edges         = copy.Edges;
 	EdgeRefCounts = copy.EdgeRefCounts;
 
-	DiscardAttributes();
+	// Note that we populate our existing AttributeSet when possible rather than building a
+	// new one. For the common case of updating a mesh from its preview copy, it seems reasonable
+	// for a client to be able to hold on to the AttributeSet pointer without expecting it to
+	// get reset by the Copy() call.
 	if (bAttributes && copy.HasAttributes())
 	{
-		EnableAttributes();
+		EnableAttributes(); // does nothing if already enabled
 		AttributeSet->Copy(*copy.AttributeSet);
+	}
+	else
+	{
+		DiscardAttributes();
 	}
 
 	Timestamp = FMath::Max(Timestamp + 1, copy.Timestamp);

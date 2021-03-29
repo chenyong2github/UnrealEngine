@@ -26,15 +26,18 @@ using namespace UE::Geometry;
 namespace GroupEdgeInserterLocals {
 
 bool GetEdgeLoopOpposingEdgeAndCorner(const FGroupTopology& Topology, int32 GroupID, int32 GroupEdgeIDIn,
-	int32 CornerIDIn, int32& GroupEdgeIDOut, int32& CornerIDOut, int32& BoundaryIndexOut);
+	int32 CornerIDIn, int32& GroupEdgeIDOut, int32& CornerIDOut, int32& BoundaryIndexOut, 
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut);
 bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertionParams& Params,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartEndpoints,
 	int32 NextGroupID, int32 NextEdgeID, int32 NextCornerID, int32 NextBoundaryID,
-	TSet<int32>& AlteredGroups, int32& NumInserted, TSet<int32>* NewEidsOut, FProgressCancel* Progress);
+	TSet<int32>& AlteredGroups, int32& NumInserted, FGroupEdgeInserter::FOptionalOutputParams& OptionalOut,
+	FProgressCancel* Progress);
 void InsertNewVertexEndpoints(
 	const FGroupEdgeInserter::FEdgeLoopInsertionParams& Params,
 	int32 GroupEdgeID, int32 StartCornerID,
-	TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPointsOut);
+	TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPointsOut, 
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut);
 void ConvertProportionsToArcLengths(
 	const FGroupTopology& Topology, int32 GroupEdgeID,
 	const TArray<double>& ProportionsIn,
@@ -44,16 +47,20 @@ bool ConnectEndpoints(
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	TSet<int32>* NewEidsOut, int32& NumGroupsCreated, FProgressCancel* Progress);
+	int32& NumGroupsCreated, FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, 
+	FProgressCancel* Progress);
 bool ConnectMultipleUsingRetriangulation(
 	FDynamicMesh3& Mesh, const FGroupTopology& Topology, int32 GroupID,
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray <FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	TSet<int32>* ConnectionEidsOut, int32& NumGroupsCreated, FProgressCancel* Progress);
+	int32& NumGroupsCreated, FGroupEdgeInserter::FOptionalOutputParams& OptionalOut,
+	FProgressCancel* Progress);
 bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& Topology, int32 GroupID,
 	const FGroupTopology::FGroupBoundary& GroupBoundary, TArray<int32>& BoundaryVerticesOut,
-	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& BoundaryVidUVMapsOut, FProgressCancel* Progress);
+	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& BoundaryVidUVMapsOut, 
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut,
+	FProgressCancel* Progress);
 void AppendInclusiveRangeWrapAround(const TArray<int32>& InputArray, TArray<int32>& OutputArray,
 	int32 StartIndex, int32 InclusiveEndIndex);
 bool RetriangulateLoop(FDynamicMesh3& Mesh, const TArray<int32>& LoopVertices,
@@ -64,13 +71,15 @@ bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray <FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	double VertexTolerance, TSet<int32>* ConnectionEidsOut,
-	int32& NumGroupsCreated, FProgressCancel* Progress);
+	double VertexTolerance, int32& NumGroupsCreated, 
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, FProgressCancel* Progress);
 bool EmbedPlaneCutPath(FDynamicMesh3& Mesh, int32 GroupID,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint,
-	double VertexTolerance, TSet<int32>& PathEidsOut, FProgressCancel* Progress);
-bool CreateNewGroups(FDynamicMesh3& Mesh, TSet<int32>& PathEids, int32 OriginalGroupID, int32& NumGroupsCreated, FProgressCancel* Progress);
+	double VertexTolerance, TSet<int32>& PathEidsOut, 
+	TSet<int32>* ChangedTrisOut, FProgressCancel* Progress);
+bool CreateNewGroups(FDynamicMesh3& Mesh, TSet<int32>& PathEids, int32 OriginalGroupID, int32& NumGroupsCreated, 
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, FProgressCancel* Progress);
 bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint, const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint,
 	TArray<TPair<FMeshSurfacePoint, int>>& OutputPath, double VertexCutTolerance, FProgressCancel* Progress);
@@ -79,12 +88,12 @@ bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topolo
 	int32 GroupID, int32 BoundaryIndex,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint,
-	TSet<int32>* NewEidsOut, FProgressCancel* Progress);
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, FProgressCancel* Progress);
 }
 using namespace GroupEdgeInserterLocals;
 
 /** Inserts an edge loop into a mesh, where an edge loop is a sequence of (group) edges across quads. */
-bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params, TSet<int32>* NewEidsOut, FProgressCancel* Progress)
+bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params, FOptionalOutputParams OptionalOut, FProgressCancel* Progress)
 {
 	if (Progress && Progress->Cancelled())
 	{
@@ -105,12 +114,12 @@ bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params,
 	int32 ForwardGroupID = GroupEdge.Groups.A;
 	int32 ForwardEdgeID, ForwardCornerID, ForwardBoundaryIndex;
 	bool bHaveForwardEdge = GetEdgeLoopOpposingEdgeAndCorner(*Params.Topology, ForwardGroupID,
-		Params.GroupEdgeID, Params.StartCornerID, ForwardEdgeID, ForwardCornerID, ForwardBoundaryIndex);
+		Params.GroupEdgeID, Params.StartCornerID, ForwardEdgeID, ForwardCornerID, ForwardBoundaryIndex, OptionalOut);
 
 	int32 BackwardGroupID = GroupEdge.Groups.B;
 	int32 BackwardEdgeID, BackwardCornerID, BackwardBoundaryIndex;
 	bool bHaveBackwardEdge = GetEdgeLoopOpposingEdgeAndCorner(*Params.Topology, BackwardGroupID,
-		Params.GroupEdgeID, Params.StartCornerID, BackwardEdgeID, BackwardCornerID, BackwardBoundaryIndex);
+		Params.GroupEdgeID, Params.StartCornerID, BackwardEdgeID, BackwardCornerID, BackwardBoundaryIndex, OptionalOut);
 
 	if (!bHaveForwardEdge && !bHaveBackwardEdge)
 	{
@@ -130,7 +139,7 @@ bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params,
 	// Although we have code that can insert new edges at edge endpoints, it is cleaner to do splits for all the loops
 	// down an edge ahead of time to make vertex endpoints, in part because if we don't, a split can change the eid
 	// of the next endpoint.
-	InsertNewVertexEndpoints(Params, Params.GroupEdgeID, Params.StartCornerID, StartEndpoints);
+	InsertNewVertexEndpoints(Params, Params.GroupEdgeID, Params.StartCornerID, StartEndpoints, OptionalOut);
 
 	if (StartEndpoints.Num() == 0 || (Progress && Progress->Cancelled()))
 	{
@@ -144,13 +153,13 @@ bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params,
 	if (bHaveForwardEdge)
 	{
 		bSuccess = InsertEdgeLoopEdgesInDirection(Params, StartEndpoints, ForwardGroupID, ForwardEdgeID,
-			ForwardCornerID, ForwardBoundaryIndex, AlteredGroups, TotalNumInserted, NewEidsOut, Progress);
+			ForwardCornerID, ForwardBoundaryIndex, AlteredGroups, TotalNumInserted, OptionalOut, Progress);
 	}
 	if (bHaveBackwardEdge)
 	{
 		int32 NumInserted = 0;
 		bSuccess = InsertEdgeLoopEdgesInDirection(Params, StartEndpoints, BackwardGroupID, BackwardEdgeID,
-			BackwardCornerID, BackwardBoundaryIndex, AlteredGroups, NumInserted, NewEidsOut, Progress) && bSuccess;
+			BackwardCornerID, BackwardBoundaryIndex, AlteredGroups, NumInserted, OptionalOut, Progress) && bSuccess;
 		TotalNumInserted += NumInserted;
 	}
 
@@ -169,10 +178,14 @@ namespace GroupEdgeInserterLocals {
  * finds the id of the opposite (i.e., destination) group edge. Additionally, gives the corner ID  attached
  * to the provided one. Safe to call with an FDynamicMesh3::InvalidID parameters (will return false)
  *
+ * If OptionalOut.ProblemGroupEdgeIDsOut is not null, will add the boundaries of a non-quad component to
+ * that set if the component turns out not to be valid due to not being quad-like.
+ * 
  * @returns true if a satisfactory edge was found.
  */
 bool GetEdgeLoopOpposingEdgeAndCorner(const FGroupTopology& Topology, int32 GroupID, int32 GroupEdgeIDIn,
-	int32 CornerIDIn, int32& GroupEdgeIDOut, int32& CornerIDOut, int32& BoundaryIndexOut)
+	int32 CornerIDIn, int32& GroupEdgeIDOut, int32& CornerIDOut, int32& BoundaryIndexOut, 
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut)
 {
 	GroupEdgeIDOut = FDynamicMesh3::InvalidID;
 	CornerIDOut = FDynamicMesh3::InvalidID;
@@ -193,6 +206,10 @@ bool GetEdgeLoopOpposingEdgeAndCorner(const FGroupTopology& Topology, int32 Grou
 		{
 			if (Boundary.GroupEdges.Num() != 4)
 			{
+				if (OptionalOut.ProblemGroupEdgeIDsOut)
+				{
+					OptionalOut.ProblemGroupEdgeIDsOut->Append(Boundary.GroupEdges);
+				}
 				return false;
 			}
 
@@ -235,7 +252,8 @@ bool GetEdgeLoopOpposingEdgeAndCorner(const FGroupTopology& Topology, int32 Grou
 bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertionParams& Params,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartEndpoints,
 	int32 NextGroupID, int32 NextEdgeID, int32 NextCornerID, int32 NextBoundaryIndex,
-	TSet<int32>& AlteredGroups, int32& NumInserted, TSet<int32>* NewEidsOut, FProgressCancel* Progress)
+	TSet<int32>& AlteredGroups, int32& NumInserted, FGroupEdgeInserter::FOptionalOutputParams& OptionalOut,
+	FProgressCancel* Progress)
 {
 	NumInserted = 0;
 	if (AlteredGroups.Contains(NextGroupID) || StartEndpoints.Num() == 0)
@@ -267,14 +285,14 @@ bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertion
 		{
 			int32 NumGroupsCreated;
 			bSuccess = ConnectEndpoints(Params, NextGroupID, Boundary, *CurrentEndpoints, StartEndpoints, 
-				NewEidsOut, NumGroupsCreated, Progress);
+				NumGroupsCreated, OptionalOut, Progress);
 			AlteredGroups.Add(NextGroupID);
 			NumInserted += (NumGroupsCreated > 1 ? 1 : 0);
 			break;
 		}
 
 		// Otherwise, create next endpoints
-		InsertNewVertexEndpoints(Params, NextEdgeID, NextCornerID, *NextEndpoints);
+		InsertNewVertexEndpoints(Params, NextEdgeID, NextCornerID, *NextEndpoints, OptionalOut);
 
 		if (NextEndpoints->Num() == 0)
 		{
@@ -286,7 +304,7 @@ bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertion
 		// Connect up the endpoints
 		int32 NumGroupsCreated;
 		bSuccess = ConnectEndpoints(Params, NextGroupID, Boundary, *CurrentEndpoints, *NextEndpoints, 
-			NewEidsOut, NumGroupsCreated, Progress);
+			NumGroupsCreated, OptionalOut, Progress);
 		AlteredGroups.Add(NextGroupID);
 		NumInserted += (NumGroupsCreated > 1 ? 1 : 0);
 
@@ -302,7 +320,7 @@ bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertion
 		}
 		NextGroupID = Params.Topology->Edges[NextEdgeID].OtherGroupID(NextGroupID);
 		bHaveNextGroup = GetEdgeLoopOpposingEdgeAndCorner(*Params.Topology, NextGroupID, NextEdgeID, NextCornerID,
-			NextEdgeID, NextCornerID, NextBoundaryIndex); // outputs
+			NextEdgeID, NextCornerID, NextBoundaryIndex, OptionalOut); // outputs
 
 		Swap(CurrentEndpoints, NextEndpoints);
 	}
@@ -323,7 +341,8 @@ bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertion
 void InsertNewVertexEndpoints(
 	const FGroupEdgeInserter::FEdgeLoopInsertionParams& Params,
 	int32 GroupEdgeID, int32 StartCornerID,
-	TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPointsOut)
+	TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPointsOut,
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut)
 {
 	EndPointsOut.Reset();
 	if (Params.SortedInputLengths->Num() == 0)
@@ -446,6 +465,16 @@ void InsertNewVertexEndpoints(
 			FDynamicMesh3::FEdgeSplitInfo EdgeSplitInfo;
 			Params.Mesh->SplitEdge(CurrentEid, EdgeSplitInfo, SplitT);
 
+			// Record the changed triangles
+			if (OptionalOut.ChangedTidsOut)
+			{
+				OptionalOut.ChangedTidsOut->Add(EdgeSplitInfo.OriginalTriangles.A);
+				if (EdgeSplitInfo.OriginalTriangles.B != FDynamicMesh3::InvalidID)
+				{
+					OptionalOut.ChangedTidsOut->Add(EdgeSplitInfo.OriginalTriangles.B);
+				}
+			}
+
 			// Update our position given that we're at a new vertex.
 			CurrentVid = EdgeSplitInfo.NewVertex;
 			CurrentArcLength = TargetLength;
@@ -485,18 +514,19 @@ bool ConnectEndpoints(
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	TSet<int32>* NewEidsOut, int32& NumGroupsCreated, FProgressCancel* Progress)
+	int32& NumGroupsCreated, FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, 
+	FProgressCancel* Progress)
 {
 	if (Params.Mode == FGroupEdgeInserter::EInsertionMode::Retriangulate)
 	{
 		return ConnectMultipleUsingRetriangulation(*Params.Mesh, *Params.Topology, GroupID, 
-			GroupBoundary, StartPoints, EndPoints, NewEidsOut, NumGroupsCreated, Progress);
+			GroupBoundary, StartPoints, EndPoints, NumGroupsCreated, OptionalOut, Progress);
 	}
 	else if (Params.Mode == FGroupEdgeInserter::EInsertionMode::PlaneCut)
 	{
 		return ConnectMultipleUsingPlaneCut(*Params.Mesh, *Params.Topology, GroupID,
-			GroupBoundary, StartPoints, EndPoints, Params.VertexTolerance, NewEidsOut, 
-			NumGroupsCreated, Progress);
+			GroupBoundary, StartPoints, EndPoints, Params.VertexTolerance,
+			NumGroupsCreated, OptionalOut, Progress);
 	}
 	else
 	{
@@ -529,7 +559,8 @@ bool ConnectMultipleUsingRetriangulation(
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray <FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	TSet<int32>* ConnectionEidsOut, int32& NumGroupsCreated, FProgressCancel* Progress)
+	int32& NumGroupsCreated, FGroupEdgeInserter::FOptionalOutputParams& OptionalOut,
+	FProgressCancel* Progress)
 {
 	NumGroupsCreated = 0;
 	if (Progress && Progress->Cancelled())
@@ -546,7 +577,7 @@ bool ConnectMultipleUsingRetriangulation(
 	TArray<int32> BoundaryVertices;
 	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>> VidUVMaps;
 	bool bSuccess = DeleteGroupTrianglesAndGetLoop(Mesh, Topology, GroupID, GroupBoundary, 
-		BoundaryVertices, VidUVMaps, Progress);
+		BoundaryVertices, VidUVMaps, OptionalOut, Progress);
 
 	if (!bSuccess || (Progress && Progress->Cancelled()))
 	{
@@ -658,11 +689,11 @@ bool ConnectMultipleUsingRetriangulation(
 		NumGroupsCreated += (bSuccess ? 1 : 0);
 	}
 
-	if (ConnectionEidsOut)
+	if (OptionalOut.NewEidsOut)
 	{
 		for (int32 i = 0; i < NumNewEdges; ++i)
 		{
-			ConnectionEidsOut->Add(Mesh.FindEdge(StartPoints[i].ElementID, EndPoints[i].ElementID));
+			OptionalOut.NewEidsOut->Add(Mesh.FindEdge(StartPoints[i].ElementID, EndPoints[i].ElementID));
 		}
 	}
 
@@ -675,7 +706,8 @@ bool ConnectMultipleUsingRetriangulation(
  */
 bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& Topology, int32 GroupID,
 	const FGroupTopology::FGroupBoundary& GroupBoundary, TArray<int32>& BoundaryVerticesOut,
-	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& BoundaryVidUVMapsOut,	FProgressCancel* Progress)
+	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& BoundaryVidUVMapsOut, 
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, FProgressCancel* Progress)
 {
 	if (Progress && Progress->Cancelled())
 	{
@@ -737,6 +769,11 @@ bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& T
 	if (Progress && Progress->Cancelled())
 	{
 		return false;
+	}
+
+	if (OptionalOut.ChangedTidsOut)
+	{
+		OptionalOut.ChangedTidsOut->Append(Component.Indices);
 	}
 
 	// When deleting, we don't we don't want to remove isolated verts on the boundary,
@@ -823,8 +860,9 @@ bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray <FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	double VertexTolerance, TSet<int32>* ConnectionEidsOut, 
-	int32& NumGroupsCreated, FProgressCancel* Progress)
+	double VertexTolerance, int32& NumGroupsCreated, 
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, 
+	FProgressCancel* Progress)
 {
 	NumGroupsCreated = 0;
 	if (Progress && Progress->Cancelled())
@@ -837,7 +875,7 @@ bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 	for (int32 i = 0; i < NumEdgesToInsert; ++i)
 	{
 		bool bSuccess = EmbedPlaneCutPath(Mesh, GroupID, StartPoints[i], EndPoints[i], 
-			VertexTolerance, PathsEids, Progress);
+			VertexTolerance, PathsEids, OptionalOut.ChangedTidsOut, Progress);
 
 		if (!bSuccess || (Progress && Progress->Cancelled()))
 		{
@@ -845,12 +883,12 @@ bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 		}
 	}
 
-	if (ConnectionEidsOut)
+	if (OptionalOut.NewEidsOut)
 	{
-		*ConnectionEidsOut = ConnectionEidsOut->Union(PathsEids);
+		*OptionalOut.NewEidsOut = OptionalOut.NewEidsOut->Union(PathsEids);
 	}
 
-	bool bSuccess = CreateNewGroups(Mesh, PathsEids, GroupID, NumGroupsCreated, Progress);
+	bool bSuccess = CreateNewGroups(Mesh, PathsEids, GroupID, NumGroupsCreated, OptionalOut, Progress);
 	return bSuccess;
 }
 
@@ -861,7 +899,8 @@ bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 bool EmbedPlaneCutPath(FDynamicMesh3& Mesh, int32 GroupID,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint,
-	double VertexTolerance, TSet<int32>& PathEidsOut, FProgressCancel* Progress)
+	double VertexTolerance, TSet<int32>& PathEidsOut, 
+	TSet<int32>* ChangedTrisOut, FProgressCancel* Progress)
 {
 	if (Progress && Progress->Cancelled())
 	{
@@ -877,6 +916,24 @@ bool EmbedPlaneCutPath(FDynamicMesh3& Mesh, int32 GroupID,
 		return false;
 	}
 	check(CutPath.Num() >= 2);
+
+	// Save triangles that will change
+	if (ChangedTrisOut)
+	{
+		for (int32 i = 0; i < CutPath.Num(); ++i)
+		{
+			FMeshSurfacePoint& Point = CutPath[i].Key;
+			if (Point.PointType == ESurfacePointType::Edge)
+			{
+				FIndex2i EdgeTris = Mesh.GetEdgeT(Point.ElementID);
+				ChangedTrisOut->Add(EdgeTris.A);
+				if (EdgeTris.B != FDynamicMesh3::InvalidID)
+				{
+					ChangedTrisOut->Add(EdgeTris.B);
+				}
+			}
+		}
+	}
 
 	// Embed the path.
 	FMeshSurfacePath PathEmbedder(&Mesh);
@@ -900,7 +957,8 @@ bool EmbedPlaneCutPath(FDynamicMesh3& Mesh, int32 GroupID,
 /**
  * Uses the given path edge ID's to split a group into new groups.
  */
-bool CreateNewGroups(FDynamicMesh3& Mesh, TSet<int32>& PathEids, int32 OriginalGroup, int32& NumGroupsCreated, FProgressCancel* Progress)
+bool CreateNewGroups(FDynamicMesh3& Mesh, TSet<int32>& PathEids, int32 OriginalGroup, int32& NumGroupsCreated, 
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, FProgressCancel* Progress)
 {
 	NumGroupsCreated = 0;
 
@@ -949,6 +1007,11 @@ bool CreateNewGroups(FDynamicMesh3& Mesh, TSet<int32>& PathEids, int32 OriginalG
 	{
 		FMeshConnectedComponents::FComponent& Component = ConnectedComponents.GetComponent(i);
 
+		if (OptionalOut.ChangedTidsOut)
+		{
+			OptionalOut.ChangedTidsOut->Append(Component.Indices);
+		}
+
 		int32 NewGroupID = Mesh.AllocateTriangleGroup();
 		for (int Tid : Component.Indices)
 		{
@@ -963,7 +1026,7 @@ bool CreateNewGroups(FDynamicMesh3& Mesh, TSet<int32>& PathEids, int32 OriginalG
 }//end namespace GroupEdgeInserterLocals
 
 /** Inserts a group edge into a given group. */
-bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet<int32>* NewEidsOut, FProgressCancel* Progress)
+bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, FGroupEdgeInserter::FOptionalOutputParams OptionalOut, FProgressCancel* Progress)
 {
 	if (Progress && Progress->Cancelled())
 	{
@@ -987,17 +1050,17 @@ bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet
 	if (Params.Mode == EInsertionMode::PlaneCut)
 	{
 		TSet<int32> TempNewEids;
-		TSet<int32>* NewEids = NewEidsOut ? NewEidsOut : &TempNewEids;
+		TSet<int32>* NewEids = OptionalOut.NewEidsOut ? OptionalOut.NewEidsOut : &TempNewEids;
 
-		bool bSuccess = EmbedPlaneCutPath(*Params.Mesh, Params.GroupID, 
-			Params.StartPoint, Params.EndPoint, Params.VertexTolerance, *NewEids, Progress);
+		bool bSuccess = EmbedPlaneCutPath(*Params.Mesh, Params.GroupID, Params.StartPoint,
+			Params.EndPoint, Params.VertexTolerance, *NewEids, OptionalOut.ChangedTidsOut, Progress);
 		if (!bSuccess || (Progress && Progress->Cancelled()))
 		{
 			return false;
 		}
 		
 		int32 NumGroupsCreated;
-		bSuccess = CreateNewGroups(*Params.Mesh, *NewEids, Params.GroupID, NumGroupsCreated, Progress);
+		bSuccess = CreateNewGroups(*Params.Mesh, *NewEids, Params.GroupID, NumGroupsCreated, OptionalOut, Progress);
 		if (!bSuccess || (Progress && Progress->Cancelled()))
 		{
 			return false;
@@ -1007,7 +1070,7 @@ bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet
 	{
 		bool bSuccess = InsertSingleWithRetriangulation(*Params.Mesh, *Params.Topology, 
 			Params.GroupID, Params.GroupBoundaryIndex, Params.StartPoint, Params.EndPoint, 
-			NewEidsOut, Progress);
+			OptionalOut, Progress);
 		if (!bSuccess || (Progress && Progress->Cancelled()))
 		{
 			return false;
@@ -1030,7 +1093,7 @@ bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topolo
 	int32 GroupID, int32 BoundaryIndex,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint, 
-	TSet<int32>* NewEidsOut, FProgressCancel* Progress)
+	FGroupEdgeInserter::FOptionalOutputParams& OptionalOut, FProgressCancel* Progress)
 {
 	if (Progress && Progress->Cancelled())
 	{
@@ -1065,7 +1128,7 @@ bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topolo
 	TArray<int32> BoundaryVertices;
 	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>> VidUVMaps;
 	bool bSuccess = DeleteGroupTrianglesAndGetLoop(Mesh, Topology, GroupID, Group->Boundaries[BoundaryIndex], 
-		BoundaryVertices, VidUVMaps, Progress);
+		BoundaryVertices, VidUVMaps, OptionalOut, Progress);
 	if (!bSuccess || (Progress && Progress->Cancelled()))
 	{
 		return false;
@@ -1097,9 +1160,9 @@ bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topolo
 	}
 	bSuccess = RetriangulateLoop(Mesh, LoopVids, Mesh.AllocateTriangleGroup(), VidUVMaps);
 
-	if (NewEidsOut)
+	if (OptionalOut.NewEidsOut)
 	{
-		NewEidsOut->Add(Mesh.FindEdge(StartVid, EndVid));
+		OptionalOut.NewEidsOut->Add(Mesh.FindEdge(StartVid, EndVid));
 	}
 
 	return bSuccess;

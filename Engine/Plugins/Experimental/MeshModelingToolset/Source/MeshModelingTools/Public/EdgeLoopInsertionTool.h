@@ -17,7 +17,7 @@
 
 #include "EdgeLoopInsertionTool.generated.h"
 
-class UDynamicMeshReplacementChangeTarget;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMeshChange);
 
 UCLASS()
 class MESHMODELINGTOOLS_API UEdgeLoopInsertionToolBuilder : public USingleSelectionMeshEditingToolBuilder
@@ -93,6 +93,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop)
 	bool bWireframe = true;
 
+	/** When true, non-quad-like groups that stop the loop will be highlighted, with X's marking the corners. */
+	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop)
+	bool bHighlightProblemGroups = true;
+
 	/** How close a new loop edge needs to pass next to an existing vertex to use that vertex rather than creating a new one. */
 	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop, AdvancedDisplay)
 	double VertexTolerance = 0.001;
@@ -119,7 +123,7 @@ class MESHMODELINGTOOLS_API UEdgeLoopInsertionTool : public USingleSelectionMesh
 public:
 
 	friend class UEdgeLoopInsertionOperatorFactory;
-	friend class FEdgeLoopInsertionChangeBookend;
+	friend class FEdgeLoopInsertionChange;
 
 	UEdgeLoopInsertionTool() {};
 
@@ -150,12 +154,16 @@ protected:
 	UPROPERTY()
 	UEdgeLoopInsertionProperties* Settings = nullptr;
 
-	TSharedPtr<FDynamicMesh3> CurrentMesh;
-	TSharedPtr<FGroupTopology> CurrentTopology;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentMesh;
+	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> CurrentTopology;
 	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
 	FGroupTopologySelector TopologySelector;
 
 	TArray<TPair<FVector3d, FVector3d>> PreviewEdges;
+
+	// Used to highlight problematic topology (non-quad groups) when it stops a loop.
+	TArray<TPair<FVector3d, FVector3d>> ProblemTopologyEdges;
+	TArray<FVector3d> ProblemTopologyVerts;
 
 	FViewCameraState CameraState;
 
@@ -164,7 +172,9 @@ protected:
 
 	FToolDataVisualizer ExistingEdgesRenderer;
 	FToolDataVisualizer PreviewEdgeRenderer;
+	FToolDataVisualizer ProblemTopologyRenderer;
 	FGroupTopologySelector::FSelectionSettings TopologySelectorSettings;
+	float ProblemVertTickWidth = 8;
 
 	void SetupPreview();
 
@@ -187,7 +197,8 @@ protected:
 
 	// Copied over on op completion
 	bool bLastComputeSucceeded = false;
-	TSharedPtr<FGroupTopology> LatestOpTopologyResult;
+	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> LatestOpTopologyResult;
+	TSharedPtr<TSet<int32>, ESPMode::ThreadSafe> LatestOpChangedTids;
 
 	// Used to expire undo/redo changes on op shutdown.
 	int32 CurrentChangeStamp = 0;
@@ -205,16 +216,15 @@ protected:
 };
 
 /**
- * This change object is a bit of a hack: if it is emitted on both sides of the associated
- * ComponentTarget change, it will reload the current mesh and topology from the target
- * on Undo/Redo, thereby propagating it to the tool.
+ * Wraps a FDynamicMeshChange so that it can be expired and so that other data
+ * structures in the tool can be updated.
  */
-class MESHMODELINGTOOLS_API FEdgeLoopInsertionChangeBookend : public FToolCommandChange
+class MESHMODELINGTOOLS_API FEdgeLoopInsertionChange : public FToolCommandChange
 {
 public:
-	FEdgeLoopInsertionChangeBookend(int32 CurrentChangeStamp, bool bBeforeChangeIn)
-		: ChangeStamp(CurrentChangeStamp) 
-		, bBeforeChange(bBeforeChangeIn)
+	FEdgeLoopInsertionChange(TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChangeIn, int32 CurrentChangeStamp)
+		: MeshChange(MoveTemp(MeshChangeIn))
+		, ChangeStamp(CurrentChangeStamp)
 	{};
 
 	virtual void Apply(UObject* Object) override;
@@ -225,10 +235,10 @@ public:
 	}
 	virtual FString ToString() const override
 	{
-		return TEXT("FEdgeLoopInsertionChangeBookend");
+		return TEXT("FEdgeLoopInsertionChange");
 	}
 
 protected:
+	TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChange;
 	int32 ChangeStamp;
-	bool bBeforeChange;
 };

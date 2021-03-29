@@ -202,7 +202,11 @@ public:
 	/** Initialize mesh from the output of a MeshShapeGenerator (assumes Generate() was already called) */
 	void Copy(const FMeshShapeGenerator* Generator);
 
-	/** Copy input mesh while compacting, i.e. removing unused vertices/triangles/edges */
+	/** 
+	 * Copy input mesh while compacting, i.e. removing unused vertices/triangles/edges. 
+	 * Note that it is currently unsafe to hold on to the attribute set pointer (returned from Attributes())
+	 * across the CompactCopy call, as the latter may rebuild an entirely new attribute set.
+	 */
 	void CompactCopy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true,
 	                 bool bAttributes = true, FCompactMaps* CompactInfo = nullptr);
 

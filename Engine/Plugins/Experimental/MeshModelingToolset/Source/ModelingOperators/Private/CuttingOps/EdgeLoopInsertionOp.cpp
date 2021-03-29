@@ -32,9 +32,12 @@ void FEdgeLoopInsertionOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	ResultMesh->Copy(*OriginalMesh, true, true, true, true);
-	ResultTopology = MakeShared<FGroupTopology>();
+	ResultTopology = MakeShared<FGroupTopology, ESPMode::ThreadSafe>();
 	*ResultTopology = *OriginalTopology;
 	ResultTopology->RetargetOnClonedMesh(ResultMesh.Get());
+	ChangedTids = MakeShared<TSet<int32>, ESPMode::ThreadSafe>();
+	LoopEids.Reset();
+	ProblemGroupEdgeIDs.Reset();
 
 	if (Progress && Progress->Cancelled())
 	{
@@ -54,6 +57,10 @@ void FEdgeLoopInsertionOp::CalculateResult(FProgressCancel* Progress)
 		Params.VertexTolerance = VertexTolerance;
 
 		FGroupEdgeInserter Inserter;
-		bSucceeded = Inserter.InsertEdgeLoops(Params, &LoopEids, Progress);
+		FGroupEdgeInserter::FOptionalOutputParams OptionalOut;
+		OptionalOut.NewEidsOut = &LoopEids;
+		OptionalOut.ChangedTidsOut = ChangedTids.Get();
+		OptionalOut.ProblemGroupEdgeIDsOut = &ProblemGroupEdgeIDs;
+		bSucceeded = Inserter.InsertEdgeLoops(Params, OptionalOut, Progress);
 	}
 }

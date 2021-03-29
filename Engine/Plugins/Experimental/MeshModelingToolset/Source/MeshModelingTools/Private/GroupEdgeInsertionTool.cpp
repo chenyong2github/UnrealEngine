@@ -5,6 +5,7 @@
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "CuttingOps/GroupEdgeInsertionOp.h"
+#include "DynamicMeshChangeTracker.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "InteractiveToolManager.h"
 #include "MeshDescriptionToDynamicMesh.h"
@@ -145,12 +146,14 @@ void UGroupEdgeInsertionTool::SetupPreview()
 
 		bLastComputeSucceeded = Op->bSucceeded;
 		LatestOpTopologyResult.Reset();
+		LatestOpChangedTids.Reset();
 
 		PreviewEdges.Reset();
 		if (bLastComputeSucceeded)
 		{
 			Op->GetEdgeLocations(PreviewEdges);
 			LatestOpTopologyResult = Op->ResultTopology;
+			LatestOpChangedTids = Op->ChangedTids;
 		}
 		else
 		{
@@ -180,9 +183,22 @@ void UGroupEdgeInsertionTool::SetupPreview()
 
 void UGroupEdgeInsertionTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	// Set visibility before committing so that it doesn't get saved as false.
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
+
+	if (ShutdownType == EToolShutdownType::Accept)
+	{
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("GroupEdgeInsertionToolTransactionName", "Group Edge Insert Tool"));
+		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+		{
+			FDynamicMeshToMeshDescription Converter;
+			Converter.Convert(CurrentMesh.Get(), *CommitParams.MeshDescriptionOut);
+		});
+		GetToolManager()->EndUndoTransaction();
+	}
+
 	Settings->SaveProperties(this);
 	Preview->Shutdown();
-	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 	CurrentMesh.Reset();
 	CurrentTopology.Reset();
 	ExpireChanges();
@@ -198,18 +214,9 @@ void UGroupEdgeInsertionTool::OnTick(float DeltaTime)
 		{
 			if (bLastComputeSucceeded)
 			{
-				// Apply the insertion
-				GetToolManager()->BeginUndoTransaction(LOCTEXT("GroupEdgeInsertionTransactionName", "Group Edge Insertion"));
-
-				GetToolManager()->EmitObjectChange(this, MakeUnique<FGroupEdgeInsertionChangeBookend>(CurrentChangeStamp, true), LOCTEXT("GroupEdgeInsertion", "Group Edge Insertion"));
-				Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-					{
-						FDynamicMeshToMeshDescription Converter;
-						Converter.Convert(Preview->PreviewMesh->GetMesh(), *CommitParams.MeshDescriptionOut);
-					});
-				GetToolManager()->EmitObjectChange(this, MakeUnique<FGroupEdgeInsertionChangeBookend>(CurrentChangeStamp, false), LOCTEXT("GroupEdgeInsertion", "Group Edge Insertion"));
-
-				GetToolManager()->EndUndoTransaction();
+				FDynamicMeshChangeTracker ChangeTracker(CurrentMesh.Get());
+				ChangeTracker.BeginChange();
+				ChangeTracker.SaveTriangles(*LatestOpChangedTids, true /*bSaveVertices*/);
 
 				// Update current mesh and topology
 				CurrentMesh->Copy(*Preview->PreviewMesh->GetMesh(), true, true, true, true);
@@ -217,6 +224,12 @@ void UGroupEdgeInsertionTool::OnTick(float DeltaTime)
 				CurrentTopology->RetargetOnClonedMesh(CurrentMesh.Get());
 				MeshSpatial.Build();
 				TopologySelector.Invalidate(true, true);
+
+				// Emit transaction
+				GetToolManager()->BeginUndoTransaction(LOCTEXT("GroupEdgeInsertionTransactionName", "Group Edge Insertion"));
+				GetToolManager()->EmitObjectChange(this, MakeUnique<FGroupEdgeInsertionChange>(ChangeTracker.EndChange(), CurrentChangeStamp),
+					LOCTEXT("GroupEdgeInsertion", "GroupEdge Insertion"));
+				GetToolManager()->EndUndoTransaction();
 
 				ToolState = EToolState::GettingStart;
 			}
@@ -816,47 +829,24 @@ void FGroupEdgeInsertionFirstPointChange::Revert(UObject* Object)
 	bHaveDoneUndo = true;
 }
 
-void FGroupEdgeInsertionChangeBookend::Revert(UObject* Object)
+void FGroupEdgeInsertionChange::Apply(UObject* Object)
 {
-	if (bBeforeChange)
-	{
-		// Load from the component, which has been updated
-		UGroupEdgeInsertionTool* Tool = Cast<UGroupEdgeInsertionTool>(Object);
-		Tool->CurrentMesh->Clear();
-		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(Cast<IMeshDescriptionProvider>(Tool->Target)->GetMeshDescription(), *Tool->CurrentMesh);
-		Tool->CurrentTopology->RebuildTopology();
-		Tool->MeshSpatial.Build();
-		Tool->TopologySelector.Invalidate(true, true);
-
-		Tool->ClearPreview(false, true);
-
-		check(Tool->ToolState == UGroupEdgeInsertionTool::EToolState::GettingStart);
-		// If we were doing full undo/redo of the start point insertions, instead of just
-		// letting the user back out of their latest one, then we would set the state
-		// to GettingEnd here. Instead we go all the way back to GettingStart.
-	}
+	UGroupEdgeInsertionTool* Tool = Cast<UGroupEdgeInsertionTool>(Object);
+	MeshChange->Apply(Tool->CurrentMesh.Get(), false);
+	Tool->MeshSpatial.Build();
+	Tool->TopologySelector.Invalidate(true, true);
+	Tool->CurrentTopology->RebuildTopology();
+	Tool->ClearPreview(true, true);
 }
 
-void FGroupEdgeInsertionChangeBookend::Apply(UObject* Object)
+void FGroupEdgeInsertionChange::Revert(UObject* Object)
 {
-	if (!bBeforeChange)
-	{
-		// Load from the component, which has been updated
-		UGroupEdgeInsertionTool* Tool = Cast<UGroupEdgeInsertionTool>(Object);
-		Tool->CurrentMesh->Clear();
-		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(Cast<IMeshDescriptionProvider>(Tool->Target)->GetMeshDescription(), *Tool->CurrentMesh);
-		Tool->CurrentTopology->RebuildTopology();
-		Tool->MeshSpatial.Build();
-		Tool->TopologySelector.Invalidate(true, true);
-
-		Tool->ClearPreview();
-
-		// Since we always go all the way back to GettingStart on revert, we would expect
-		// this to be the state on redo.
-		check(Tool->ToolState == UGroupEdgeInsertionTool::EToolState::GettingStart);
-	}
+	UGroupEdgeInsertionTool* Tool = Cast<UGroupEdgeInsertionTool>(Object);
+	MeshChange->Apply(Tool->CurrentMesh.Get(), true);
+	Tool->MeshSpatial.Build();
+	Tool->TopologySelector.Invalidate(true, true);
+	Tool->CurrentTopology->RebuildTopology();
+	Tool->ClearPreview(true, true);
 }
 
 #undef LOCTEXT_NAMESPACE

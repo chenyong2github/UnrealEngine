@@ -18,7 +18,7 @@
 
 #include "GroupEdgeInsertionTool.generated.h"
 
-class UDynamicMeshReplacementChangeTarget;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMeshChange);
 
 using UE::Geometry::FGroupEdgeInserter;
 using UE::Geometry::FDynamicMesh3;
@@ -92,7 +92,7 @@ public:
 
 	friend class UGroupEdgeInsertionOperatorFactory;
 	friend class FGroupEdgeInsertionFirstPointChange;
-	friend class FGroupEdgeInsertionChangeBookend;
+	friend class FGroupEdgeInsertionChange;
 
 	UGroupEdgeInsertionTool() {};
 
@@ -155,9 +155,11 @@ protected:
 
 	// State control:
 	EToolState ToolState = EToolState::GettingStart;
+
 	bool bShowingBaseMesh = false;
 	bool bLastComputeSucceeded = false;
 	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> LatestOpTopologyResult;
+	TSharedPtr<TSet<int32>, ESPMode::ThreadSafe> LatestOpChangedTids;
 
 	int32 CurrentChangeStamp = 0;
 
@@ -216,17 +218,15 @@ protected:
 };
 
 /**
- * This should get emitted on either side of the ComponentTarget that occurs when a second
- * point is successfully picked so that the tool can reload the current mesh from the changed
- * target.
- * TODO: This is a hack similar to FEdgeLoopInsertionChangeBookend but it works. Is there a cleaner way?
+ * Wraps a FDynamicMeshChange so that it can be expired and so that other data
+ * structures in the tool can be updated.
  */
-class MESHMODELINGTOOLS_API FGroupEdgeInsertionChangeBookend : public FToolCommandChange
+class MESHMODELINGTOOLS_API FGroupEdgeInsertionChange : public FToolCommandChange
 {
 public:
-	FGroupEdgeInsertionChangeBookend(int32 CurrentChangeStamp, bool bBeforeChangeIn)
-		: ChangeStamp(CurrentChangeStamp)
-		, bBeforeChange(bBeforeChangeIn)
+	FGroupEdgeInsertionChange(TUniquePtr<FDynamicMeshChange> MeshChangeIn, int32 CurrentChangeStamp)
+		: MeshChange(MoveTemp(MeshChangeIn))
+		, ChangeStamp(CurrentChangeStamp)
 	{};
 
 	virtual void Apply(UObject* Object) override;
@@ -237,11 +237,10 @@ public:
 	}
 	virtual FString ToString() const override
 	{
-		return TEXT("FGroupEdgeInsertionChangeBookend");
+		return TEXT("FGroupEdgeInsertionChange");
 	}
 
 protected:
+	TUniquePtr<FDynamicMeshChange> MeshChange;
 	int32 ChangeStamp;
-	bool bBeforeChange;
 };
-

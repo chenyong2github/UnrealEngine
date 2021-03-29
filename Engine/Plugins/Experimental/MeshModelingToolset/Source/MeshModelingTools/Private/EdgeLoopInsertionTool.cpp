@@ -6,6 +6,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "CuttingOps/EdgeLoopInsertionOp.h"
 #include "DynamicMeshToMeshDescription.h"
+#include "DynamicMeshChangeTracker.h"
 #include "InteractiveToolManager.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Operations/GroupEdgeInserter.h"
@@ -102,10 +103,10 @@ void UEdgeLoopInsertionTool::Setup()
 		EToolMessageLevel::UserNotification);
 
 	// Initialize the mesh that we'll be operating on
-	CurrentMesh = MakeShared<FDynamicMesh3>();
+	CurrentMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *CurrentMesh);
-	CurrentTopology = MakeShared<FGroupTopology>(CurrentMesh.Get(), true);
+	CurrentTopology = MakeShared<FGroupTopology, ESPMode::ThreadSafe>(CurrentMesh.Get(), true);
 	MeshSpatial.SetMesh(CurrentMesh.Get(), true);
 
 	// Set up properties
@@ -123,11 +124,18 @@ void UEdgeLoopInsertionTool::Setup()
 
 	SetupPreview();
 
-	// These draw the group edges and the loops to be inserted
+	// Draws the old group topology
 	ExistingEdgesRenderer.LineColor = FLinearColor::Red;
 	ExistingEdgesRenderer.LineThickness = 2.0;
+
+	// Draws the new group edges that are added
 	PreviewEdgeRenderer.LineColor = FLinearColor::Green;
 	PreviewEdgeRenderer.LineThickness = 2.0;
+
+	// Highlights non-quad groups that stop the loop;
+	ProblemTopologyRenderer.LineColor = FLinearColor::Red;
+	ProblemTopologyRenderer.LineThickness = 3.0;
+	ProblemTopologyRenderer.DepthBias = 1.0;
 
 	// Set up the topology selector, which we use to select the edges where we insert the loops
 	TopologySelector.Initialize(CurrentMesh.Get(), CurrentTopology.Get());
@@ -156,20 +164,43 @@ void UEdgeLoopInsertionTool::SetupPreview()
 	Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 
 	// Whenever we get a new result from the op, we need to extract the preview edges so that
-	// we can draw them if we want to.
+	// we can draw them if we want to, and the additional outputs we need (changed triangles and
+	// topology).
 	Preview->OnOpCompleted.AddLambda([this](const FDynamicMeshOperator* UncastOp) {
 		const FEdgeLoopInsertionOp* Op = static_cast<const FEdgeLoopInsertionOp*>(UncastOp);
 
 		bLastComputeSucceeded = Op->bSucceeded;
 		LatestOpTopologyResult.Reset();
 		PreviewEdges.Reset();
+		LatestOpChangedTids.Reset();
 
 		if (bLastComputeSucceeded)
 		{
 			Op->GetLoopEdgeLocations(PreviewEdges);
 			LatestOpTopologyResult = Op->ResultTopology;
+			LatestOpChangedTids = Op->ChangedTids;
+		}
+
+		// Regardless of success, extract things for highlighting any non-quads that stopped our loop.
+		ProblemTopologyEdges.Reset();
+		ProblemTopologyVerts.Reset();
+		for (int32 GroupEdgeID : Op->ProblemGroupEdgeIDs)
+		{
+			for (int32 Eid : CurrentTopology->GetGroupEdgeEdges(GroupEdgeID))
+			{
+				TPair<FVector3d, FVector3d> Endpoints;
+				CurrentMesh->GetEdgeV(Eid, Endpoints.Key, Endpoints.Value);
+				ProblemTopologyEdges.Add(MoveTemp(Endpoints));
+			}
+			FGroupTopology::FGroupEdge& GroupEdge = CurrentTopology->Edges[GroupEdgeID];
+			if (GroupEdge.EndpointCorners.A != FDynamicMesh3::InvalidID)
+			{
+				ProblemTopologyVerts.AddUnique(CurrentMesh->GetVertex(CurrentTopology->Corners[GroupEdge.EndpointCorners.A].VertexID));
+				ProblemTopologyVerts.AddUnique(CurrentMesh->GetVertex(CurrentTopology->Corners[GroupEdge.EndpointCorners.B].VertexID));
+			}
 		}
 		});
+
 	// In case of failure, we want to hide the broken preview, since we wouldn't accept it on
 	// a click. Note that this can't be fired OnOpCompleted because the preview is updated
 	// with the op result after that callback, which would undo the reset. The preview edge
@@ -194,9 +225,22 @@ void UEdgeLoopInsertionTool::SetupPreview()
 
 void UEdgeLoopInsertionTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	// Set visibility before committing so that it doesn't get saved as false.
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
+
+	if (ShutdownType == EToolShutdownType::Accept)
+	{
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("EdgeLoopInsertionToolTransactionName", "Edge Loop Tool"));
+		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+		{
+			FDynamicMeshToMeshDescription Converter;
+			Converter.Convert(CurrentMesh.Get(), *CommitParams.MeshDescriptionOut);
+		});
+		GetToolManager()->EndUndoTransaction();
+	}
+
 	Settings->SaveProperties(this);
 	Preview->Shutdown();
-	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 	CurrentMesh.Reset();
 	CurrentTopology.Reset();
 	ExpireChanges();
@@ -212,18 +256,9 @@ void UEdgeLoopInsertionTool::OnTick(float DeltaTime)
 		{
 			if (bLastComputeSucceeded)
 			{
-				// Apply the insertion
-				GetToolManager()->BeginUndoTransaction(LOCTEXT("EdgeLoopInsertionTransactionName", "Edge Loop Insertion"));
-
-				GetToolManager()->EmitObjectChange(this, MakeUnique<FEdgeLoopInsertionChangeBookend>(CurrentChangeStamp, true), LOCTEXT("EdgeLoopInsertion", "Edge Loop Insertion"));
-				Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-					{
-						FDynamicMeshToMeshDescription Converter;
-						Converter.Convert(Preview->PreviewMesh->GetMesh(), *CommitParams.MeshDescriptionOut);
-					});
-				GetToolManager()->EmitObjectChange(this, MakeUnique<FEdgeLoopInsertionChangeBookend>(CurrentChangeStamp, false), LOCTEXT("EdgeLoopInsertion", "Edge Loop Insertion"));
-
-				GetToolManager()->EndUndoTransaction();
+				FDynamicMeshChangeTracker ChangeTracker(CurrentMesh.Get());
+				ChangeTracker.BeginChange();
+				ChangeTracker.SaveTriangles(*LatestOpChangedTids, true /*bSaveVertices*/);
 
 				// Update current mesh and topology
 				CurrentMesh->Copy(*Preview->PreviewMesh->GetMesh(), true, true, true, true);
@@ -231,9 +266,18 @@ void UEdgeLoopInsertionTool::OnTick(float DeltaTime)
 				CurrentTopology->RetargetOnClonedMesh(CurrentMesh.Get());
 				MeshSpatial.Build();
 				TopologySelector.Invalidate(true, true);
+
+				// Emit transaction
+				GetToolManager()->BeginUndoTransaction(LOCTEXT("EdgeLoopInsertionTransactionName", "Edge Loop Insertion"));
+				GetToolManager()->EmitObjectChange(this, MakeUnique<FEdgeLoopInsertionChange>(ChangeTracker.EndChange(), CurrentChangeStamp), 
+					LOCTEXT("EdgeLoopInsertion", "Edge Loop Insertion"));
+				GetToolManager()->EndUndoTransaction();
 			}
 
 			PreviewEdges.Reset();
+			ProblemTopologyEdges.Reset();
+			ProblemTopologyVerts.Reset();
+
 			bWaitingForInsertionCompletion = false;
 		}
 	}
@@ -267,6 +311,22 @@ void UEdgeLoopInsertionTool::Render(IToolsContextRenderAPI* RenderAPI)
 		PreviewEdgeRenderer.DrawLine(EdgeVerts.Key, EdgeVerts.Value);
 	}
 	PreviewEdgeRenderer.EndFrame();
+
+	if (Settings->bHighlightProblemGroups)
+	{
+		// Highlight any non-quad groups that stopped the loop.
+		ProblemTopologyRenderer.BeginFrame(RenderAPI, RenderCameraState);
+		ProblemTopologyRenderer.SetTransform(Preview->PreviewMesh->GetTransform());
+		for (TPair<FVector3d, FVector3d>& EdgeVerts : ProblemTopologyEdges)
+		{
+			ProblemTopologyRenderer.DrawLine(EdgeVerts.Key, EdgeVerts.Value);
+		}
+		for (FVector3d& Vert : ProblemTopologyVerts)
+		{
+			ProblemTopologyRenderer.DrawViewFacingX(Vert, ProblemVertTickWidth);
+		}
+		ProblemTopologyRenderer.EndFrame();
+	}
 }
 
 bool UEdgeLoopInsertionTool::CanAccept() const
@@ -487,34 +547,24 @@ void UEdgeLoopInsertionTool::OnClicked(const FInputDeviceRay& ClickPos)
 
 // Undo/redo support
 
-void FEdgeLoopInsertionChangeBookend::Apply(UObject* Object)
+void FEdgeLoopInsertionChange::Apply(UObject* Object)
 {
-	if (!bBeforeChange)
-	{
-		UEdgeLoopInsertionTool* Tool = Cast<UEdgeLoopInsertionTool>(Object);
-		Tool->CurrentMesh->Clear();
-		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(Cast<IMeshDescriptionProvider>(Tool->Target)->GetMeshDescription(), *Tool->CurrentMesh);
-		Tool->CurrentTopology->RebuildTopology();
-		Tool->MeshSpatial.Build();
-		Tool->TopologySelector.Invalidate(true, true);
-		Tool->ClearPreview();
-	}
+	UEdgeLoopInsertionTool* Tool = Cast<UEdgeLoopInsertionTool>(Object);
+	MeshChange->Apply(Tool->CurrentMesh.Get(), false);
+	Tool->MeshSpatial.Build();
+	Tool->TopologySelector.Invalidate(true, true);
+	Tool->CurrentTopology->RebuildTopology();
+	Tool->ClearPreview();
 }
 
-void FEdgeLoopInsertionChangeBookend::Revert(UObject* Object)
+void FEdgeLoopInsertionChange::Revert(UObject* Object)
 {
-	if (bBeforeChange)
-	{
-		UEdgeLoopInsertionTool* Tool = Cast<UEdgeLoopInsertionTool>(Object);
-		Tool->CurrentMesh->Clear();
-		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(Cast<IMeshDescriptionProvider>(Tool->Target)->GetMeshDescription(), *Tool->CurrentMesh);
-		Tool->CurrentTopology->RebuildTopology();
-		Tool->MeshSpatial.Build();
-		Tool->TopologySelector.Invalidate(true, true);
-		Tool->ClearPreview();
-	}
+	UEdgeLoopInsertionTool* Tool = Cast<UEdgeLoopInsertionTool>(Object);
+	MeshChange->Apply(Tool->CurrentMesh.Get(), true);
+	Tool->MeshSpatial.Build();
+	Tool->TopologySelector.Invalidate(true, true);
+	Tool->CurrentTopology->RebuildTopology();
+	Tool->ClearPreview();
 }
 
 #undef LOCTEXT_NAMESPACE
