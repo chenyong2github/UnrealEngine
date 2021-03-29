@@ -6,7 +6,6 @@
 #include "Input/Reply.h"
 #include "IDetailCustomization.h"
 
-class FMobilityCustomization;
 class IDetailLayoutBuilder;
 
 class FDatasmithAreaLightActorDetailsPanel : public IDetailCustomization
@@ -20,7 +19,4 @@ public:
 	// IDetailCustomization interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 	// End of IDetailCustomization interface
-
-private:
-	TSharedPtr<FMobilityCustomization> MobilityCustomization;
 };

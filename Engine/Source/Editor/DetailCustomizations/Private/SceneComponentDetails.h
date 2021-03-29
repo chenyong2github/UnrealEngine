@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 
-class FMobilityCustomization;
 class IDetailLayoutBuilder;
 
 class FSceneComponentDetails : public IDetailCustomization
@@ -19,6 +18,4 @@ public:
 	
 private:
 	void MakeTransformDetails( IDetailLayoutBuilder& DetailBuilder );
-
-	TSharedPtr<FMobilityCustomization> MobilityCustomization;
 };

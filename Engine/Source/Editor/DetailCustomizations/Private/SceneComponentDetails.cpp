@@ -212,8 +212,7 @@ void FSceneComponentDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuild
 		}
 	}
 
-	MobilityCustomization = MakeShareable(new FMobilityCustomization);
-	MobilityCustomization->CreateMobilityCustomization(TransformCategory, MobilityHandle, RestrictedMobilityBits, bAnySelectedIsLight);
+	TransformCategory.AddCustomBuilder(MakeShared<FMobilityCustomization>(MobilityHandle, RestrictedMobilityBits, bAnySelectedIsLight));
 
 	// Only display bHiddenInGame if the property is being flattened in to an Actor.
 	// Details panel for BP component will have the base class be the Actor due to how the SKismetInspector works, but in that case we

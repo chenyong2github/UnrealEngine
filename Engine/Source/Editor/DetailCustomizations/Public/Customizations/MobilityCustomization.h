@@ -4,13 +4,14 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Styling/SlateColor.h"
+#include "IDetailCustomNodeBuilder.h"
 
 class IDetailCategoryBuilder;
 class IPropertyHandle;
 enum class ECheckBoxState : uint8;
 
 // Helper class to create a Mobility customization for the specified Property in the specified CategoryBuilder.
-class DETAILCUSTOMIZATIONS_API FMobilityCustomization : public TSharedFromThis<FMobilityCustomization>
+class DETAILCUSTOMIZATIONS_API FMobilityCustomization : public IDetailCustomNodeBuilder, public TSharedFromThis<FMobilityCustomization>
 {
 public:
 	enum
@@ -20,10 +21,11 @@ public:
 		MovableMobilityBitMask = (1u << EComponentMobility::Movable),
 	};
 
-	FMobilityCustomization()
-	{}
+	FMobilityCustomization(TSharedPtr<IPropertyHandle> InMobilityHandle, uint8 InRestrictedMobilityBits, bool InForLight);
 
-	void CreateMobilityCustomization(IDetailCategoryBuilder& InCategoryBuilder, TSharedPtr<IPropertyHandle> InMobilityHandle, uint8 InRestrictedMobilityBits, bool bForLight);
+	virtual void GenerateHeaderRowContent(FDetailWidgetRow& WidgetRow) override;
+	virtual FName GetName() const override;
+	virtual TSharedPtr<IPropertyHandle> GetPropertyHandle() const override { return MobilityHandle; }
 
 private:
 
@@ -33,4 +35,6 @@ private:
 	FText GetMobilityToolTip() const;
 	
 	TSharedPtr<IPropertyHandle> MobilityHandle;
+	bool bForLight;
+	uint8 RestrictedMobilityBits;
 };

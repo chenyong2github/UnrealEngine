@@ -39,8 +39,7 @@ void FDatasmithAreaLightActorDetailsPanel::CustomizeDetails(IDetailLayoutBuilder
 	TSharedPtr<IPropertyHandle> MobilityHandle = DetailBuilder.GetProperty("Mobility");
 
 	uint8 RestrictedMobilityBits = 0u;
-	MobilityCustomization = MakeShareable(new FMobilityCustomization);
-	MobilityCustomization->CreateMobilityCustomization(TransformCategory, MobilityHandle, RestrictedMobilityBits, true /* bForLight */);
+	TransformCategory.AddCustomBuilder(MakeShared<FMobilityCustomization>(MobilityHandle, RestrictedMobilityBits, true /* bForLight */));
 }
 
 #undef LOCTEXT_NAMESPACE

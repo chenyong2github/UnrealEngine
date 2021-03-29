@@ -6,7 +6,6 @@
 #include "IDetailCustomization.h"
 
 class FEdModeFoliage;
-class FMobilityCustomization;
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
 class IDetailPropertyRow;
@@ -55,5 +54,4 @@ private:
 
 	TSharedPtr<IPropertyHandle> Scaling;
 	TSharedPtr<IPropertyHandle> ReapplyScaling;
-	TSharedPtr<FMobilityCustomization> MobilityCustomization;
 };

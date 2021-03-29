@@ -9,23 +9,35 @@
 #include "EditorStyleSet.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
-#include "DetailCategoryBuilder.h"
 #include "Widgets/Input/SSegmentedControl.h"
 
-#define LOCTEXT_NAMESPACE "MobilityCustomization"
+#define LOCTEXT_NAMESPACE "MobilityCustomization" 
 
-void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder& Category, TSharedPtr<IPropertyHandle> InMobilityHandle, uint8 RestrictedMobilityBits, bool bForLight)
+FMobilityCustomization::FMobilityCustomization(TSharedPtr<IPropertyHandle> InMobilityHandle, uint8 InRestrictedMobilityBits, bool InForLight)
 {
 	MobilityHandle = InMobilityHandle;
+	RestrictedMobilityBits = InRestrictedMobilityBits;
+	bForLight = InForLight;
+}
 
+FName FMobilityCustomization::GetName() const
+{
+	const FProperty* Property = MobilityHandle->GetProperty();
+	if (Property != nullptr)
+	{
+		return Property->GetFName();
+	}
+	return NAME_None;
+}
+
+void FMobilityCustomization::GenerateHeaderRowContent(FDetailWidgetRow& WidgetRow)
+{
 	TSharedRef<SSegmentedControl<EComponentMobility::Type>> ButtonOptionsPanel =
 		SNew(SSegmentedControl<EComponentMobility::Type>)
 		.Value(this, &FMobilityCustomization::GetActiveMobility)
 		.OnValueChanged(this, &FMobilityCustomization::OnMobilityChanged);
 		
-	IDetailPropertyRow& MobilityRow = Category.AddProperty(MobilityHandle);
-	MobilityRow.CustomWidget()
+	WidgetRow
 	.NameContent()
 	[
 		SNew(STextBlock)
