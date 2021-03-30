@@ -600,6 +600,7 @@ Buffer<uint> ClusterIdBuffer;
 Buffer<uint> ClusterIndexOffsetBuffer;
 Buffer<uint> ClusterIndexCountBuffer;
 
+Buffer<uint> HairStrandsVF_CullingIndirectBuffer;
 Buffer<float4> RenderDeformedOffsetBuffer;
 
 RWBuffer<int> OutClusterAABBBuffer; 	// Cluster data packed as {uint3 AABBMin, uint3 AABBMax}
@@ -624,6 +625,8 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 	const uint IndexOffset = ClusterIndexOffsetBuffer[ClusterFetchIndex];
 	const uint IndexCount  = ClusterIndexCountBuffer[ClusterFetchIndex];
 
+	const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
+
 	int3 ClusterAABBMin = 9999999.0f;
 	int3 ClusterAABBMax =-9999999.0f;
 
@@ -636,8 +639,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 		if (ThreadReadOffset < IndexCount)
 		{
 			const float3 OutHairPositionOffset = RenderDeformedOffsetBuffer[0].xyz;
-
-			const uint VertexIndex = ClusterVertexIdBuffer[IndexOffset + ThreadReadOffset];
+			const uint VertexIndex = clamp(ClusterVertexIdBuffer[IndexOffset + ThreadReadOffset], 0, VertexCountAfterCulling-1);
 			const FHairControlPoint CP = UnpackHairControlPoint(RenderDeformedPositionBuffer[VertexIndex], OutHairPositionOffset, 1, 1);
 
 			if (all(IsFinite(CP.Position)))
