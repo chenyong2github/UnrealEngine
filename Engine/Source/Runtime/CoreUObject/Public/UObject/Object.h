@@ -211,7 +211,7 @@ public:
 	{
 	}
 
-	//UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual bool PreSaveRoot(const TCHAR* Filename);
 
 	/**
@@ -223,7 +223,7 @@ public:
 	 */
 	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext);
 
-	//UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveContext instead.")
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveContext instead.")
 	virtual void PostSaveRoot(bool bCleanupIsRequired);
 
 	/**
@@ -234,7 +234,7 @@ public:
 	 */
 	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext);
 
-	//UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
 
 	/**

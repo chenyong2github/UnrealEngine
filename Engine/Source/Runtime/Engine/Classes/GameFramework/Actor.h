@@ -1843,14 +1843,16 @@ public:
 	virtual bool IsEditorOnly() const override;
 	virtual bool IsAsset() const override;
 
-	//UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveRootContext instead.")
 	virtual bool PreSaveRoot(const TCHAR* InFilename) override;
-	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
-	//UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveContext instead.")
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveRootContext instead.")
 	virtual void PostSaveRoot(bool bCleanupIsRequired) override;
-	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
-	//UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void PreSave(const ITargetPlatform* TargetPlatform) override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
+	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 	/** Used to check if Actor is the main actor of a package (currently Child Actors are not) */

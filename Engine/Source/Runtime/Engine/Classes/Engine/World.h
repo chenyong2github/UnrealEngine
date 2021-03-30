@@ -2605,11 +2605,13 @@ public:
 	virtual bool IsReadyForFinishDestroy() override;
 	virtual void PostLoad() override;
 	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) override;
-	//UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveRootContext instead.")
 	virtual bool PreSaveRoot(const TCHAR* InFilename) override;
-	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
-	//UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveContext instead.")
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveRootContext instead.")
 	virtual void PostSaveRoot(bool bCleanupIsRequired) override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
 	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
 	virtual UWorld* GetWorld() const override;
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;

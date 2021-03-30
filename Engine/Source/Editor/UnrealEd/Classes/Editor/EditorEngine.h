@@ -2201,9 +2201,9 @@ public:
 	virtual bool InitializePhysicsSceneForSaveIfNecessary(UWorld* World, bool &bOutForceInitialized);
 	void CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, bool bForceInitialized);
 
-	//UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual void OnPreSaveWorld(uint32 SaveFlags, UWorld* World);
-	//UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveContext instead.")
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveContext instead.")
 	virtual void OnPostSaveWorld(uint32 SaveFlags, UWorld* World, uint32 OriginalPackageFlags, bool bSuccess);
 
 	/** Invoked before a UWorld is saved to update editor systems */
