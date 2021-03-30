@@ -1307,8 +1307,22 @@ bool NeedsPatchAttributeBuffer(EHairStrandsDebugMode DebugMode)
 	return DebugMode == EHairStrandsDebugMode::RenderHairStrands || DebugMode == EHairStrandsDebugMode::RenderVisCluster;
 }
 
+static void ConvertHairStrandsVFParameters(
+	FRDGBuilder* GraphBuilder,
+	FRDGImportedBuffer& Buffer,
+	FShaderResourceViewRHIRef& BufferRHISRV,
+	FRDGExternalBuffer& ExternalBuffer)
+{
+	if (GraphBuilder)
+	{
+		Buffer = Register(*GraphBuilder, ExternalBuffer, ERDGImportedBufferFlags::CreateSRV);
+	}
+	BufferRHISRV = ExternalBuffer.SRV;
+}
+#define CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutName, ExternalBuffer) ConvertHairStrandsVFParameters(GraphBuilder, OutName, OutName##RHISRV, ExternalBuffer);
+
 // Compute/Update the hair strands description which will be used for rendering (VF) / voxelization & co.
-FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(FHairGroupInstance* Instance)
+static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVertexInputData(FRDGBuilder* GraphBuilder, FHairGroupInstance* Instance)
 {
 	FHairGroupPublicData::FVertexFactoryInput OutVFInput;
 	if (!Instance || Instance->GeometryType != EHairGeometryType::Strands)
@@ -1324,19 +1338,16 @@ FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(FHai
 	// 1. Guides
 	if (DebugMode == EHairStrandsDebugMode::SimHairStrands)
 	{
-
-		OutVFInput.Strands.PositionBuffer = Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Current).SRV;
-		OutVFInput.Strands.PrevPositionBuffer = Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Previous).SRV;
-		OutVFInput.Strands.TangentBuffer = Instance->Guides.DeformedResource->TangentBuffer.SRV;
-		OutVFInput.Strands.AttributeBuffer = Instance->Guides.RestResource->AttributeBuffer.SRV;
-		OutVFInput.Strands.MaterialBuffer = Instance->Guides.RestResource->MaterialBuffer.SRV;
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PositionBuffer,			Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Current));
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PrevPositionBuffer,		Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Previous));
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.TangentBuffer,			Instance->Guides.DeformedResource->TangentBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.AttributeBuffer,			Instance->Guides.RestResource->AttributeBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.MaterialBuffer,			Instance->Guides.RestResource->MaterialBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PositionOffsetBuffer,		Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current));
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PrevPositionOffsetBuffer,	Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Previous));
 
 		OutVFInput.Strands.PositionOffset = Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current);
 		OutVFInput.Strands.PrevPositionOffset = Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous);
-
-		OutVFInput.Strands.PositionOffsetBuffer = Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current).SRV;
-		OutVFInput.Strands.PrevPositionOffsetBuffer = Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Previous).SRV;
-
 		OutVFInput.Strands.VertexCount = Instance->Guides.RestResource->GetVertexCount();
 		OutVFInput.Strands.HairRadius = (GStrandHairWidth > 0 ? GStrandHairWidth : Instance->Strands.Modifier.HairWidth) * 0.5f;
 		OutVFInput.Strands.HairLength = Instance->Strands.Modifier.HairLength;
@@ -1347,15 +1358,13 @@ FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(FHai
 	// 2. Render Strands with deformation
 	else if (bSupportDeformation)
 	{
-
-		OutVFInput.Strands.PositionBuffer = Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Current).SRV;
-		OutVFInput.Strands.PrevPositionBuffer = Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Previous).SRV;
-		OutVFInput.Strands.TangentBuffer = Instance->Strands.DeformedResource->TangentBuffer.SRV;
-		OutVFInput.Strands.AttributeBuffer = bDebugModePatchedAttributeBuffer ? Instance->Strands.DebugAttributeBuffer.SRV : Instance->Strands.RestResource->AttributeBuffer.SRV;
-		OutVFInput.Strands.MaterialBuffer = Instance->Strands.RestResource->MaterialBuffer.SRV;
-
-		OutVFInput.Strands.PositionOffsetBuffer = Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current).SRV;
-		OutVFInput.Strands.PrevPositionOffsetBuffer = Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Previous).SRV;
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PositionBuffer,			Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Current));
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PrevPositionBuffer,		Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Previous));
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.TangentBuffer,			Instance->Strands.DeformedResource->TangentBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.AttributeBuffer,			bDebugModePatchedAttributeBuffer ? Instance->Strands.DebugAttributeBuffer : Instance->Strands.RestResource->AttributeBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.MaterialBuffer,			Instance->Strands.RestResource->MaterialBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PositionOffsetBuffer,		Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current));
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PrevPositionOffsetBuffer,	Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Previous));
 
 		OutVFInput.Strands.PositionOffset = Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current);
 		OutVFInput.Strands.PrevPositionOffset = Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous);
@@ -1369,15 +1378,13 @@ FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(FHai
 	// 3. Render Strands in rest position: used when there are no skinning (rigid binding or no binding), no simulation, and no RBF
 	else
 	{
-
-		OutVFInput.Strands.PositionBuffer = Instance->Strands.RestResource->PositionBuffer.SRV;
-		OutVFInput.Strands.PrevPositionBuffer = Instance->Strands.RestResource->PositionBuffer.SRV;
-		OutVFInput.Strands.TangentBuffer = Instance->Strands.RestResource->TangentBuffer.SRV;
-		OutVFInput.Strands.AttributeBuffer = Instance->Strands.RestResource->AttributeBuffer.SRV;
-		OutVFInput.Strands.MaterialBuffer = Instance->Strands.RestResource->MaterialBuffer.SRV;
-
-		OutVFInput.Strands.PositionOffsetBuffer = Instance->Strands.RestResource->PositionOffsetBuffer.SRV;
-		OutVFInput.Strands.PrevPositionOffsetBuffer = Instance->Strands.RestResource->PositionOffsetBuffer.SRV;
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PositionBuffer,			Instance->Strands.RestResource->PositionBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PrevPositionBuffer,		Instance->Strands.RestResource->PositionBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.TangentBuffer,			Instance->Strands.RestResource->TangentBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.AttributeBuffer,			Instance->Strands.RestResource->AttributeBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.MaterialBuffer,			Instance->Strands.RestResource->MaterialBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PositionOffsetBuffer,		Instance->Strands.RestResource->PositionOffsetBuffer);
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PrevPositionOffsetBuffer, Instance->Strands.RestResource->PositionOffsetBuffer);
 
 		OutVFInput.Strands.PositionOffset = Instance->Strands.RestResource->PositionOffset;
 		OutVFInput.Strands.PrevPositionOffset = Instance->Strands.RestResource->PositionOffset;
@@ -1390,6 +1397,11 @@ FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(FHai
 	}
 
 	return OutVFInput;
+}
+
+FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(FHairGroupInstance* Instance)
+{
+	return InternalComputeHairStrandsVertexInputData(nullptr, Instance);
 }
 
 void AddBufferTransitionToReadablePass(FRDGBuilder& GraphBuilder, FRHIUnorderedAccessView* UAV)
@@ -1448,7 +1460,7 @@ void ComputeHairStrandsInterpolation(
 				RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current)),
 				Register(GraphBuilder, Instance->Guides.DeformedResource->TangentBuffer, ERDGImportedBufferFlags::CreateUAV));
 
-			Instance->HairGroupPublicData->VFInput = ComputeHairStrandsVertexInputData(Instance);
+			Instance->HairGroupPublicData->VFInput = InternalComputeHairStrandsVertexInputData(&GraphBuilder, Instance);
 		}
 		else
 		{
@@ -1537,7 +1549,7 @@ void ComputeHairStrandsInterpolation(
 			}
 
 			// 2.1 Update the VF input with the update resources
-			Instance->HairGroupPublicData->VFInput = ComputeHairStrandsVertexInputData(Instance);
+			Instance->HairGroupPublicData->VFInput = InternalComputeHairStrandsVertexInputData(&GraphBuilder, Instance);
 
 			// 3. Compute cluster AABBs (used for LODing and voxelization)
 			FHairStrandClusterData::FHairGroup& HairGroupCluster = InClusterData->HairGroups[Instance->HairGroupPublicData->ClusterDataIndex];
@@ -1601,7 +1613,7 @@ void ComputeHairStrandsInterpolation(
 		}
 
 		// Sanity check
-		check(Instance->HairGroupPublicData->VFInput.Strands.PositionBuffer);
+		check(Instance->HairGroupPublicData->VFInput.Strands.PositionBuffer.Buffer);
 	}
 	else if (InstanceGeometryType == EHairGeometryType::Cards)
 	{	

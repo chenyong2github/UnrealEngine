@@ -4,7 +4,7 @@
 #include "../Common.ush"
 
 #include "HairStrandsVertexFactoryCommon.ush"
-#include "HairStrandsVoxelPageCommon.ush"
+#include "HairStrandsVoxelPageCommon.ush" 
 
 ///////////////////////////////////////////////////////////////////////////
 uint			DispatchCountX;

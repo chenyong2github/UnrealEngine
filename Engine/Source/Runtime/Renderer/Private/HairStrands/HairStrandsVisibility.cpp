@@ -2993,6 +2993,45 @@ static FRDGTextureRef AddHairHairCountToTransmittancePass(
 	return OutputTexture;
 }
 
+// Transit resources used during the MeshDraw passes
+static void AddMeshDrawTransitionPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& ViewInfo,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas)
+{
+	for (const FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
+	{
+		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
+		{
+			FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
+			check(HairGroupPublicData);
+
+			FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
+			ConvertToUntrackedBuffer(GraphBuilder, VFInput.Strands.PositionBuffer.Buffer,			ERHIAccess::SRVMask);
+			ConvertToUntrackedBuffer(GraphBuilder, VFInput.Strands.PrevPositionBuffer.Buffer,		ERHIAccess::SRVMask);
+			ConvertToUntrackedBuffer(GraphBuilder, VFInput.Strands.TangentBuffer.Buffer,			ERHIAccess::SRVMask);
+			ConvertToUntrackedBuffer(GraphBuilder, VFInput.Strands.AttributeBuffer.Buffer,			ERHIAccess::SRVMask);
+			ConvertToUntrackedBuffer(GraphBuilder, VFInput.Strands.MaterialBuffer.Buffer,			ERHIAccess::SRVMask);
+			ConvertToUntrackedBuffer(GraphBuilder, VFInput.Strands.PositionOffsetBuffer.Buffer,		ERHIAccess::SRVMask);
+			ConvertToUntrackedBuffer(GraphBuilder, VFInput.Strands.PrevPositionOffsetBuffer.Buffer,	ERHIAccess::SRVMask);
+
+			FRDGBufferRef CulledVertexIdBuffer = Register(GraphBuilder, HairGroupPublicData->CulledVertexIdBuffer, ERDGImportedBufferFlags::None).Buffer;
+			FRDGBufferRef CulledVertexRadiusScaleBuffer = Register(GraphBuilder, HairGroupPublicData->CulledVertexRadiusScaleBuffer, ERDGImportedBufferFlags::None).Buffer;
+			FRDGBufferRef DrawIndirectBuffer = Register(GraphBuilder, HairGroupPublicData->DrawIndirectBuffer, ERDGImportedBufferFlags::None).Buffer;
+			ConvertToUntrackedBuffer(GraphBuilder, CulledVertexIdBuffer, ERHIAccess::SRVMask);
+			ConvertToUntrackedBuffer(GraphBuilder, CulledVertexRadiusScaleBuffer, ERHIAccess::SRVMask);
+			ConvertToUntrackedBuffer(GraphBuilder, DrawIndirectBuffer, ERHIAccess::IndirectArgs);
+
+			VFInput.Strands.PositionBuffer				= FRDGImportedBuffer();
+			VFInput.Strands.PrevPositionBuffer			= FRDGImportedBuffer();
+			VFInput.Strands.TangentBuffer				= FRDGImportedBuffer();
+			VFInput.Strands.AttributeBuffer				= FRDGImportedBuffer();
+			VFInput.Strands.MaterialBuffer				= FRDGImportedBuffer();
+			VFInput.Strands.PositionOffsetBuffer		= FRDGImportedBuffer();
+			VFInput.Strands.PrevPositionOffsetBuffer	= FRDGImportedBuffer();
+		}
+	}
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FVisiblityRasterComputeCS : public FGlobalShader
@@ -3020,8 +3059,8 @@ class FVisiblityRasterComputeCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, HairStrandsVF_bUseStableRasterization)
 		SHADER_PARAMETER(uint32, HairStrandsVF_VertexCount)
 		SHADER_PARAMETER(FMatrix, HairStrandsVF_LocalToWorldPrimitiveTransform)
-		SHADER_PARAMETER_SRV(Buffer, HairStrandsVF_PositionBuffer)
-		SHADER_PARAMETER_SRV(Buffer, HairStrandsVF_PositionOffsetBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionOffsetBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndirectBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndexBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingRadiusScaleBuffer)
@@ -3199,8 +3238,8 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			check(HairGroupPublicData);
 
 			const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
-			PassParameters->HairStrandsVF_PositionBuffer	= VFInput.Strands.PositionBuffer;
-			PassParameters->HairStrandsVF_PositionOffsetBuffer = VFInput.Strands.PositionOffsetBuffer;
+			PassParameters->HairStrandsVF_PositionBuffer	= VFInput.Strands.PositionBuffer.SRV;
+			PassParameters->HairStrandsVF_PositionOffsetBuffer = VFInput.Strands.PositionOffsetBuffer.SRV;
 			PassParameters->HairStrandsVF_VertexCount		= VFInput.Strands.VertexCount;
 			PassParameters->HairStrandsVF_Radius			= VFInput.Strands.HairRadius;
 			PassParameters->HairStrandsVF_Length			= VFInput.Strands.HairLength;
@@ -3279,6 +3318,12 @@ void RenderHairStrandsVisibilityBuffer(
 			FRDGTextureRef CompactNodeIndex = nullptr;
 			FRDGBufferRef  CompactNodeData = nullptr;
 			FRDGTextureRef NodeCounter = nullptr;
+
+			if (RenderMode != HairVisibilityRenderMode_ComputeRaster)
+			{
+				AddMeshDrawTransitionPass(GraphBuilder, View, MacroGroupDatas);
+			}
+
 			if (RenderMode == HairVisibilityRenderMode_ComputeRaster)
 			{
 				FRasterComputeOutput RasterOutput = AddVisibilityComputeRasterPass(

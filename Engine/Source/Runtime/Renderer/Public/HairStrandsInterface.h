@@ -31,9 +31,9 @@ ENUM_CLASS_FLAGS(ERDGImportedBufferFlags);
 
 struct RENDERER_API FRDGExternalBuffer
 {
-	TRefCountPtr<FRDGPooledBuffer> Buffer;
-	FShaderResourceViewRHIRef SRV;
-	FUnorderedAccessViewRHIRef UAV;
+	TRefCountPtr<FRDGPooledBuffer> Buffer = nullptr;
+	FShaderResourceViewRHIRef SRV = nullptr;
+	FUnorderedAccessViewRHIRef UAV = nullptr;
 	EPixelFormat Format = PF_Unknown;
 	void Release();
 };
@@ -214,17 +214,24 @@ public:
 	{
 		struct FStrands
 		{
-			FShaderResourceViewRHIRef PositionBuffer = nullptr;
-			FShaderResourceViewRHIRef PrevPositionBuffer = nullptr;
-			FShaderResourceViewRHIRef TangentBuffer = nullptr;
-			FShaderResourceViewRHIRef MaterialBuffer = nullptr;
-			FShaderResourceViewRHIRef AttributeBuffer = nullptr;
+			FRDGImportedBuffer PositionBuffer;
+			FRDGImportedBuffer PrevPositionBuffer;
+			FRDGImportedBuffer TangentBuffer;
+			FRDGImportedBuffer MaterialBuffer;
+			FRDGImportedBuffer AttributeBuffer;
+			FRDGImportedBuffer PositionOffsetBuffer;
+			FRDGImportedBuffer PrevPositionOffsetBuffer;
+
+			FShaderResourceViewRHIRef PositionBufferRHISRV				= nullptr;
+			FShaderResourceViewRHIRef PrevPositionBufferRHISRV			= nullptr;
+			FShaderResourceViewRHIRef TangentBufferRHISRV				= nullptr;
+			FShaderResourceViewRHIRef MaterialBufferRHISRV				= nullptr;
+			FShaderResourceViewRHIRef AttributeBufferRHISRV				= nullptr;
+			FShaderResourceViewRHIRef PositionOffsetBufferRHISRV		= nullptr;
+			FShaderResourceViewRHIRef PrevPositionOffsetBufferRHISRV	= nullptr;
 
 			FVector PositionOffset = FVector::ZeroVector;
 			FVector PrevPositionOffset = FVector::ZeroVector;
-
-			FShaderResourceViewRHIRef PositionOffsetBuffer = nullptr;
-			FShaderResourceViewRHIRef PrevPositionOffsetBuffer = nullptr;
 
 			uint32 VertexCount = 0;
 			float HairRadius = 0;
