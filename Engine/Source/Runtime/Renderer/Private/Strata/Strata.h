@@ -16,13 +16,13 @@ struct FMinimalSceneTextures;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataOpaquePassUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
-	SHADER_PARAMETER_UAV(RWByteAddressBuffer, MaterialLobesBufferUAV)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, MaterialLobesBufferUAV)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(FVector2D, GGXEnergyLUTScaleBias)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialLobesBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, MaterialLobesBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ClassificationTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TopLayerNormalTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, SSSTexture)
@@ -36,19 +36,28 @@ struct FStrataSceneData
 	uint32 MaxBytesPerPixel;
 
 	// Resources allocated and updated each frame
-	FRWByteAddressBuffer MaterialLobesBuffer;					// This should be a RDG resource
+
+	FRDGBufferRef MaterialLobesBuffer;
+	FRDGBufferUAVRef MaterialLobesBufferUAV;
+	FRDGBufferSRVRef MaterialLobesBufferSRV;
+	FRDGBufferRef ClassificationTileListBuffer;
+	FRDGBufferUAVRef ClassificationTileListBufferUAV;
+	FRDGBufferSRVRef ClassificationTileListBufferSRV;
+	FRDGBufferRef ClassificationTileIndirectBuffer;
+	FRDGBufferUAVRef ClassificationTileIndirectBufferUAV;
+	FRDGBufferSRVRef ClassificationTileIndirectBufferSRV;
+
 	FRDGTextureRef ClassificationTexture;
 	FRDGTextureRef TopLayerNormalTexture;
-	FRDGTextureRef SSSTexture;	
+	FRDGTextureRef SSSTexture;
+
+	TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters;
 
 	// Resources computed once for multiple frames
+
 	TRefCountPtr<IPooledRenderTarget> GGXEnergyLUT3DTexture;
 	TRefCountPtr<IPooledRenderTarget> GGXEnergyLUT2DTexture;
 
-	TRefCountPtr<FRDGPooledBuffer> ClassificationTileListBuffer;
-	TRefCountPtr<FRDGPooledBuffer> ClassificationTileIndirectBuffer;
-
-	TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters;
 
 	FStrataSceneData()
 	{
@@ -67,9 +76,7 @@ bool IsClassificationEnabled();
 
 void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder);
 
-void AddStrataClearMaterialBufferPass(FRDGBuilder& GraphBuilder, FUnorderedAccessViewRHIRef MaterialLobesBufferUAV, uint32 MaxBytesPerPixel, FIntPoint TiledViewBufferResolution);
-
-void BindStrataBasePassUniformParameters(const FViewInfo& View, FStrataOpaquePassUniformParameters& OutStrataUniformParameters);
+void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FStrataOpaquePassUniformParameters& OutStrataUniformParameters);
 
 TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(const FViewInfo& View);
 

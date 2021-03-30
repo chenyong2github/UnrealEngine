@@ -603,7 +603,7 @@ TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUnifo
 	SetupDistortionParams(BasePassParameters.DistortionParams, View);
 
 	// Strata
-	Strata::BindStrataBasePassUniformParameters(View, BasePassParameters.Strata);
+	Strata::BindStrataBasePassUniformParameters(GraphBuilder, View, BasePassParameters.Strata);
 
 	// Misc
 	BasePassParameters.EyeAdaptationTexture = SystemTextures.White;
