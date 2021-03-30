@@ -658,19 +658,18 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 
 static void CalculateQuantizedPositions(TArray< FCluster >& Clusters, const FBounds& MeshBounds)
 {
-	// Quantize cluster positions to 10:10:10 cluster-local coordinates.
-	const float FLOAT_UINT32_MAX = 4294967040.0f;	// Largest float value smaller than MAX_uint32: 1.11111111111111111111111b * 2^31
-
+	// Quantize cluster positions to cluster-local coordinates.
 	auto QuantizeUInt = [](FUIntVector V, uint32 Shift)
 	{
 		// Round to nearest
-		uint32 RoundingOffset = Shift ? (1 << (Shift - 1u)) : 0;
+		uint32 RoundingOffset = Shift ? (1u << (Shift - 1u)) : 0;
 		V.X = uint32(FMath::Min(uint64(V.X) + RoundingOffset, 0xFFFFFFFFull)) >> Shift;
 		V.Y = uint32(FMath::Min(uint64(V.Y) + RoundingOffset, 0xFFFFFFFFull)) >> Shift;
 		V.Z = uint32(FMath::Min(uint64(V.Z) + RoundingOffset, 0xFFFFFFFFull)) >> Shift;
 		return V;
 	};
 
+	const uint32 MaxQuantizedValue = 0x80000000u;	// Max value should be exactly representable at all quantization levels.
 	const uint32 NumClusters = Clusters.Num();
 
 	uint32 NumTotalTriangles = 0;
@@ -680,7 +679,6 @@ static void CalculateQuantizedPositions(TArray< FCluster >& Clusters, const FBou
 		NumTotalTriangles += Cluster.NumTris;
 		NumTotalVertices += Cluster.NumVerts;
 	}
-
 
 	// Quantize to UINT
 	struct FUIntPosition
@@ -715,9 +713,9 @@ static void CalculateQuantizedPositions(TArray< FCluster >& Clusters, const FBou
 				FVector UnitPosition = ( Cluster.GetPosition(i) - MeshBounds.Min ) / ( MeshBounds.Max - MeshBounds.Min );
 
 				uint32 VertexIndex = VertexOffset + i;
-				UIntPositions[ VertexIndex ].Position.X = (uint32)FMath::Clamp( (double)UnitPosition.X * (double)MAX_uint32 + 0.5, 0.0, (double)MAX_uint32 );
-				UIntPositions[ VertexIndex ].Position.Y = (uint32)FMath::Clamp( (double)UnitPosition.Y * (double)MAX_uint32 + 0.5, 0.0, (double)MAX_uint32 );
-				UIntPositions[ VertexIndex ].Position.Z = (uint32)FMath::Clamp( (double)UnitPosition.Z * (double)MAX_uint32 + 0.5, 0.0, (double)MAX_uint32 );
+				UIntPositions[ VertexIndex ].Position.X = (uint32)FMath::Clamp( (double)UnitPosition.X * (double)MaxQuantizedValue + 0.5, 0.0, (double)MaxQuantizedValue);
+				UIntPositions[ VertexIndex ].Position.Y = (uint32)FMath::Clamp( (double)UnitPosition.Y * (double)MaxQuantizedValue + 0.5, 0.0, (double)MaxQuantizedValue);
+				UIntPositions[ VertexIndex ].Position.Z = (uint32)FMath::Clamp( (double)UnitPosition.Z * (double)MaxQuantizedValue + 0.5, 0.0, (double)MaxQuantizedValue);
 
 				UIntClusterMax.X = FMath::Max( UIntClusterMax.X, UIntPositions[ VertexIndex ].Position.X );
 				UIntClusterMax.Y = FMath::Max( UIntClusterMax.Y, UIntPositions[ VertexIndex ].Position.Y );
@@ -826,7 +824,7 @@ static void CalculateQuantizedPositions(TArray< FCluster >& Clusters, const FBou
 		}
 	}
 
-	FVector MeshBoundsScale = (MeshBounds.Max - MeshBounds.Min) / FLOAT_UINT32_MAX;
+	FVector MeshBoundsScale = (MeshBounds.Max - MeshBounds.Min) / MaxQuantizedValue;
 
 	ParallelFor( NumClusters,
 		[&]( uint32 ClusterIndex )
