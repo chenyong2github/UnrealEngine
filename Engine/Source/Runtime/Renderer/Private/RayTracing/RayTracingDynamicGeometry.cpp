@@ -181,6 +181,14 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 
 	for (const FMeshBatch& MeshBatch : UpdateParams.MeshBatches)
 	{
+		if (!ensureMsgf(IsSupportedDynamicVertexFactoryType(MeshBatch.VertexFactory->GetType()),
+			TEXT("FRayTracingDynamicGeometryConverterCS doesn't support %s. Skipping rendering of %s.  This can happen when the skinning cache runs out of space and falls back to GPUSkinVertexFactory."),
+			MeshBatch.VertexFactory->GetType()->GetName()),
+			*PrimitiveSceneProxy->GetOwnerName().ToString())
+		{
+			continue;
+		}
+
 		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), FallbackMaterialRenderProxyPtr);
 		auto* MaterialInterface = Material.GetMaterialInterface();
