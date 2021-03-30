@@ -26,8 +26,8 @@ const FName FStatConstants::NAME_ThreadGroup = FStatConstants::ThreadGroupName;
 const FName FStatConstants::RAW_SecondsPerCycle = FStatNameAndInfo( GET_STATFNAME( STAT_SecondsPerCycle ), true ).GetRawName();
 const FName FStatConstants::NAME_NoCategory = FName(TEXT("STATCAT_None"));
 
-const FString FStatConstants::StatsFileExtension = TEXT( ".ue4stats" );
-const FString FStatConstants::StatsFileRawExtension = TEXT( ".ue4statsraw" );
+const FString FStatConstants::StatsFileExtension = TEXT( ".uestats" );
+const FString FStatConstants::StatsFileRawExtension = TEXT( ".uestatsraw" );
 
 const FString FStatConstants::ThreadNameMarker = TEXT( "Thread_" );
 

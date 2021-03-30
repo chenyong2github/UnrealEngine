@@ -941,7 +941,7 @@ struct FStatsReader
 	}
 };
 
-/** Struct used to read from ue4stats/ue4statsraw files, initializes all metadata and starts a process of reading the file asynchronously. */
+/** Struct used to read from uestats/uestatsraw files, initializes all metadata and starts a process of reading the file asynchronously. */
 struct CORE_API FStatsReadFile
 {
 	friend class FAsyncStatsFile;

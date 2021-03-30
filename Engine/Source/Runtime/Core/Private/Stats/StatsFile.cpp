@@ -226,7 +226,7 @@ void IStatsWriteFile::Start( const FString& InFilename )
 
 	if (FPaths::GetExtension(Filename).IsEmpty())
 	{
-		Filename += TEXT(".ue4stats");
+		Filename += TEXT(".uestats");
 	}
 
 	const FString Path = FPaths::GetPath( Filename );

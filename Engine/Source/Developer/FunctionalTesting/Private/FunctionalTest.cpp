@@ -1433,7 +1433,7 @@ void UAutomationPerformaceHelper::BeginStatsFile(const FString& RecordName)
 	if (UWorld* World = GetWorld())
 	{
 		FString MapName = World->GetMapName();
-		FString Cmd = FString::Printf(TEXT("Stat StartFile %s-%s/%s.ue4stats"), *MapName, *StartOfTestingTime, *RecordName);
+		FString Cmd = FString::Printf(TEXT("Stat StartFile %s-%s/%s.uestats"), *MapName, *StartOfTestingTime, *RecordName);
 		GEngine->Exec(World, *Cmd);
 	}
 }

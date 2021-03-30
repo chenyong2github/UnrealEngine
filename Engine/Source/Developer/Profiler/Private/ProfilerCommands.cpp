@@ -202,7 +202,7 @@ void FProfilerActionManager::ProfilerManager_Load_Execute()
 			LOCTEXT("ProfilerManager_LoadFile_Desc", "Open profiler capture file...").ToString(),
 			ProfilingDirectory, 
 			TEXT(""), 
-			LOCTEXT("ProfilerManager_Load_FileFilter", "Stats files (*.ue4stats)|*.ue4stats|Raw Stats files (*.ue4statsraw)|*.ue4statsraw").ToString(), 
+			LOCTEXT("ProfilerManager_Load_FileFilter", "Stats files (*.uestats)|*.uestats;*.ue4stats|Raw Stats files (*.uestatsraw)|*.uestatsraw;*.ue4statsraw").ToString(), 
 			EFileDialogFlags::None,
 			OutFiles
 		);
@@ -250,7 +250,7 @@ void FProfilerActionManager::ProfilerManager_LoadMultiple_Execute()
 		if (!OutFolder.IsEmpty())
 		{
 			TArray<FString> FoundFiles;
-			FFileManagerGeneric::Get().FindFiles(FoundFiles, *OutFolder, TEXT(".ue4stats"));
+			FFileManagerGeneric::Get().FindFiles(FoundFiles, *OutFolder, TEXT(".uestats"));
 			for (FString &FilePath : FoundFiles)
 			{
 				const TCHAR* PathDelimiter = FPlatformMisc::GetDefaultPathSeparator();

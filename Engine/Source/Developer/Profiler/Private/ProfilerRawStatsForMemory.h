@@ -322,7 +322,7 @@ public:
 	}
 
 	/**
-	 * @return Platform's name based on the loaded ue4statsraw file.
+	 * @return Platform's name based on the loaded uestatsraw file.
 	 */
 	const FString& GetPlatformName() const
 	{
