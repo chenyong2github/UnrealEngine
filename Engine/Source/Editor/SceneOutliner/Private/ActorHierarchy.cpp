@@ -31,6 +31,12 @@ TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, co
 	GEngine->OnLevelActorFolderChanged().AddRaw(Hierarchy, &FActorHierarchy::OnLevelActorFolderChanged);
 	GEngine->OnLevelActorListChanged().AddRaw(Hierarchy, &FActorHierarchy::OnLevelActorListChanged);
 
+	if (World.IsValid() && World->PersistentLevel)
+	{
+		World->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddRaw(Hierarchy, &FActorHierarchy::OnLoadedActorAdded);
+		World->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.AddRaw(Hierarchy, &FActorHierarchy::OnLoadedActorRemoved);
+	}
+
 	FWorldDelegates::LevelAddedToWorld.AddRaw(Hierarchy, &FActorHierarchy::OnLevelAdded);
 	FWorldDelegates::LevelRemovedFromWorld.AddRaw(Hierarchy, &FActorHierarchy::OnLevelRemoved);
 
@@ -58,6 +64,12 @@ FActorHierarchy::~FActorHierarchy()
 		GEngine->OnLevelActorAttached().RemoveAll(this);
 		GEngine->OnLevelActorFolderChanged().RemoveAll(this);
 		GEngine->OnLevelActorListChanged().RemoveAll(this);
+	}
+
+	if (RepresentingWorld.IsValid() && RepresentingWorld->PersistentLevel)
+	{
+		RepresentingWorld->PersistentLevel->OnLoadedActorAddedToLevelEvent.RemoveAll(this);
+		RepresentingWorld->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.RemoveAll(this);
 	}
 
 	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
@@ -493,6 +505,35 @@ void FActorHierarchy::OnLevelActorDetached(AActor* InActor, const AActor* InPare
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Moved;
 		EventData.ItemIDs.Add(InActor);
 		HierarchyChangedEvent.Broadcast(EventData);
+	}
+}
+
+void FActorHierarchy::OnLoadedActorAdded(AActor& InActor)
+{
+	OnLevelActorAdded(&InActor);
+
+	FSceneOutlinerHierarchyChangedData EventData;
+	EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
+	EventData.ItemIDs.Add(InActor.GetActorGuid());
+	HierarchyChangedEvent.Broadcast(EventData);
+}
+
+void FActorHierarchy::OnLoadedActorRemoved(AActor& InActor)
+{
+	OnLevelActorDeleted(&InActor);
+
+	if (bShowingUnloadedActors)
+	{
+		if (UWorldPartition* WorldPartition = RepresentingWorld->GetWorldPartition())
+		{		
+			if (FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(InActor.GetActorGuid()))
+			{
+				FSceneOutlinerHierarchyChangedData EventData;
+				EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
+				EventData.Items.Add(Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc, WorldPartition)));
+				HierarchyChangedEvent.Broadcast(EventData);
+			}
+		}
 	}
 }
 

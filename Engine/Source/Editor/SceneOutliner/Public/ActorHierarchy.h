@@ -41,6 +41,9 @@ private:
 
 	void OnLevelActorFolderChanged(const AActor* InActor, FName OldPath);
 
+	void OnLoadedActorAdded(AActor& InActor);
+	void OnLoadedActorRemoved(AActor& InActor);
+	
 	void OnComponentsUpdated();
 
 	void OnLevelActorListChanged();
