@@ -76,6 +76,7 @@ protected:
 	FText GetBrushText(int32 InBrushIndex) const;
 	FSlateColor GetBrushTextColor(int32 InBrushIndex) const;
 	ALandscapeBlueprintBrushBase* GetBrush(int32 InBrushIndex) const;
+	TArray<ALandscapeBlueprintBrushBase*> GetBrushes() const;
 
 	// Drag/Drop handling
 	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot);

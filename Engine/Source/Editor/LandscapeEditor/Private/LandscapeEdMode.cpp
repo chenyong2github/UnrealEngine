@@ -4413,7 +4413,7 @@ void FEdModeLandscape::AddBrushToCurrentLayer(ALandscapeBlueprintBrushBase* InBr
 	RefreshDetailPanel();
 }
 
-void FEdModeLandscape::RemoveBrushFromCurrentLayer(ALandscapeBlueprintBrushBase* InBrush)
+void FEdModeLandscape::RemoveBrushFromCurrentLayer(int32 InBrushIndex)
 {
 	ALandscape* Landscape = GetLandscape();
 
@@ -4422,11 +4422,11 @@ void FEdModeLandscape::RemoveBrushFromCurrentLayer(ALandscapeBlueprintBrushBase*
 		return;
 	}
 
-	Landscape->RemoveBrushFromLayer(GetCurrentLayerIndex(), InBrush);
+	Landscape->RemoveBrushFromLayer(GetCurrentLayerIndex(), InBrushIndex);
 	RefreshDetailPanel();
 }
 
-ALandscapeBlueprintBrushBase* FEdModeLandscape::GetBrushForCurrentLayer(int8 InBrushIndex) const
+ALandscapeBlueprintBrushBase* FEdModeLandscape::GetBrushForCurrentLayer(int32 InBrushIndex) const
 {
 	if (ALandscape* Landscape = GetLandscape())
 	{

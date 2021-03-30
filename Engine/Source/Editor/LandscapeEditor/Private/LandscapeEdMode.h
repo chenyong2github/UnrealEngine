@@ -574,8 +574,8 @@ public:
 	bool CanEditLayer(FText* Reason = nullptr, FLandscapeLayer* InLayer = nullptr);
 
 	void AddBrushToCurrentLayer(class ALandscapeBlueprintBrushBase* InBrush);
-	void RemoveBrushFromCurrentLayer(class ALandscapeBlueprintBrushBase* InBrush);
-	class ALandscapeBlueprintBrushBase* GetBrushForCurrentLayer(int8 BrushIndex) const;
+	void RemoveBrushFromCurrentLayer(int32 InBrushIndex);
+	class ALandscapeBlueprintBrushBase* GetBrushForCurrentLayer(int32 InBrushIndex) const;
 	TArray<class ALandscapeBlueprintBrushBase*> GetBrushesForCurrentLayer();
 	
 	void ShowOnlySelectedBrush(class ALandscapeBlueprintBrushBase* InBrush);
