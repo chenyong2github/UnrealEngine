@@ -94,6 +94,8 @@ public:
 	~FD3D12RayTracingScene();
 
 	void BindBuffer(FRHIBuffer* Buffer, uint32 BufferOffset);
+	void ReleaseBuffer();
+
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext);
 
 	FShaderResourceViewRHIRef ShaderResourceView;
