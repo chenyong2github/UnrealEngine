@@ -556,11 +556,13 @@ STDMETHODIMP FWmfMediaStreamSink::Flush()
 		delete QueuedSample.MarkerContext;
 	}
 
+#if WMFMEDIA_PLAYER_VERSION >= 2
 	// If the rate is 0 then get rid of the old samples, otherwise they might linger and we don't want them.
 	if (ClockRate == 0.0f)
 	{
 		VideoSampleQueue->RequestFlush();
 	}
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 
 	return S_OK;
 }
