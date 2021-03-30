@@ -2710,15 +2710,15 @@ namespace AutomationTool
 
 		static readonly string[] TimestampServersSHA1 =
 		{
-			"http://timestamp.globalsign.com/scripts/timstamp.dll",
-			"http://timestamp.comodoca.com/authenticode"
+			"http://timestamp.comodoca.com/authenticode",
+			"http://timestamp.globalsign.com/scripts/timstamp.dll"
 		};
 
 		static readonly string[] TimestampServersSHA256 =
 		{
 			"http://sha256timestamp.ws.symantec.com/sha256/timestamp",
-			"http://rfc3161timestamp.globalsign.com/advanced",
-			"http://timestamp.comodoca.com/?td=sha256"
+			"http://timestamp.comodoca.com/?td=sha256",
+			"http://rfc3161timestamp.globalsign.com/advanced"
 		};
 
 		public static void Sign(FileReference File, SignatureType SignatureType)
