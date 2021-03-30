@@ -2106,10 +2106,15 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	const FAnimationCurveData& CurveData = DataModel->GetCurveData();
 	const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
 
+	ControlRig->SetBoneInitialTransformsFromRefSkeleton(Skeleton->GetReferenceSkeleton());
+	ControlRig->RequestSetup();
+
 	for (int32 Index = 0; Index < NumberOfFrames; ++Index)
 	{
 		const float SequenceSecond = AnimSequence->GetTimeAtFrame(Index);
 		FFrameNumber FrameNumber = StartFrame + (FrameRateInFrameNumber * Index);
+
+		ControlRig->GetHierarchy()->ResetPoseToInitial();
 
 		for (const FFloatCurve& Curve : CurveData.FloatCurves)
 		{
