@@ -633,7 +633,7 @@ void FNiagaraScriptToolkit::ExtendToolbar()
 
 FSlateIcon FNiagaraScriptToolkit::GetCompileStatusImage() const
 {
-	ENiagaraScriptCompileStatus Status = ScriptViewModel->GetLatestCompileStatus();
+	ENiagaraScriptCompileStatus Status = ScriptViewModel->GetLatestCompileStatus(EditedNiagaraScript.Version);
 
 	switch (Status)
 	{
@@ -671,7 +671,7 @@ TStatId FNiagaraScriptToolkit::GetStatId() const
 
 FText FNiagaraScriptToolkit::GetCompileStatusTooltip() const
 {
-	ENiagaraScriptCompileStatus Status = ScriptViewModel->GetLatestCompileStatus();
+	ENiagaraScriptCompileStatus Status = ScriptViewModel->GetLatestCompileStatus(EditedNiagaraScript.Version);
 	return FNiagaraEditorUtilities::StatusToText(Status);
 }
 

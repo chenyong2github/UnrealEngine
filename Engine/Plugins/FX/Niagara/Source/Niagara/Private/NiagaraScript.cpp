@@ -581,6 +581,19 @@ bool UNiagaraScript::HasIdsRequiredForShaderCaching() const
 	return CachedScriptVMId.CompilerVersionID.IsValid() && CachedScriptVMId.BaseScriptCompileHash.IsValid();
 }
 
+FNiagaraVMExecutableDataId& UNiagaraScript::GetLastGeneratedVMId(const FGuid& VersionGuid) const
+{
+	if (IsVersioningEnabled())
+	{
+		const FVersionedNiagaraScriptData* ScriptData = GetScriptData(VersionGuid.IsValid() ? VersionGuid : ExposedVersion);
+		if (ScriptData)
+		{
+			return ScriptData->LastGeneratedVMId;
+		}
+	}
+	return VersionData[0].LastGeneratedVMId;
+}
+
 FString UNiagaraScript::BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataId& CompileId)
 {
 	enum { UE_NIAGARA_COMPILATION_DERIVEDDATA_VER = 2 };
@@ -592,19 +605,19 @@ FString UNiagaraScript::BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataI
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("NiagaraScriptDerivedData"), NIAGARASCRIPT_DERIVEDDATA_VER, *KeyString);
 }
 
-FString UNiagaraScript::GetNiagaraDDCKeyString()
+FString UNiagaraScript::GetNiagaraDDCKeyString(const FGuid& ScriptVersion)
 {
-	return BuildNiagaraDDCKeyString(LastGeneratedVMId);
+	return BuildNiagaraDDCKeyString(GetLastGeneratedVMId(ScriptVersion));
 }
 
-void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) const
+void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGuid VersionGuid) const
 {
 	Id = FNiagaraVMExecutableDataId();
 
 	Id.bUsesRapidIterationParams = true;
 	Id.bInterpolatedSpawn = false;
 	Id.bRequiresPersistentIDs = false;
-	Id.ScriptVersionID = ExposedVersion;
+	Id.ScriptVersionID = IsVersioningEnabled() ? (VersionGuid.IsValid() ? VersionGuid : ExposedVersion) : FGuid();
 	
 	ENiagaraSimTarget SimTargetToBuild = ENiagaraSimTarget::CPUSim;
 	// Ideally we wouldn't want to do this but rather than push the data down
@@ -847,7 +860,8 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	{
 		ScriptData->Source->ComputeVMCompilationId(Id, Usage, UsageId);
 	}
-	
+
+	FNiagaraVMExecutableDataId& LastGeneratedVMId = GetLastGeneratedVMId(VersionGuid);
 	if (GNiagaraDumpKeyGen == 1 && Id != LastGeneratedVMId)
 	{
 		TArray<FString> OutputByLines;
@@ -863,7 +877,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	}
 
 	LastGeneratedVMId = Id;
-
 }
 #endif
 
@@ -1648,8 +1661,7 @@ bool UNiagaraScript::AreScriptAndSourceSynchronized(const FGuid& VersionGuid) co
 	if (ScriptData && ScriptData->Source)
 	{
 		FNiagaraVMExecutableDataId NewId;
-		ComputeVMCompilationId(NewId);
-		NewId.ScriptVersionID = IsVersioningEnabled() ? VersionGuid : ExposedVersion;
+		ComputeVMCompilationId(NewId, VersionGuid);
 		bool bSynchronized = (NewId.IsValid() && NewId == CachedScriptVMId);
 		if (!bSynchronized && NewId.IsValid() && CachedScriptVMId.IsValid() && CachedScriptVM.IsValid())
 		{
@@ -2014,6 +2026,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 	FVersionedNiagaraScriptData* ScriptData = GetScriptData(ScriptVersion);
 	if (ScriptData && (!AreScriptAndSourceSynchronized(ScriptVersion) || bForceCompile))
 	{
+		FNiagaraVMExecutableDataId& LastGeneratedVMId = GetLastGeneratedVMId(ScriptVersion);
 		if (IsCompilable() == false)
 		{
 			CachedScriptVM.LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Unknown;
@@ -2038,7 +2051,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 		}
 
 		// check the ddc first
-		if (GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(), OutData, GetPathName()))
+		if (GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(ScriptVersion), OutData, GetPathName()))
 		{
 			FNiagaraVMExecutableData ExeData;
 			if (BinaryToExecData(this, OutData, ExeData))
@@ -2062,7 +2075,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 			if (ExecToBinaryData(this, OutData, *ExeData))
 			{
 				COOK_STAT(Timer.AddMiss(OutData.Num()));
-				GetDerivedDataCacheRef().Put(*GetNiagaraDDCKeyString(), OutData, GetPathName());
+				GetDerivedDataCacheRef().Put(*GetNiagaraDDCKeyString(ScriptVersion), OutData, GetPathName());
 			}
 		}
 		ActiveCompileRoots.Empty();
@@ -2078,6 +2091,7 @@ bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiag
 	COOK_STAT(auto Timer = NiagaraScriptCookStats::UsageStats.TimeSyncWork());
 	COOK_STAT(Timer.TrackCyclesOnly());
 
+	FNiagaraVMExecutableDataId& LastGeneratedVMId = GetLastGeneratedVMId();
 	OutCompileId = LastGeneratedVMId;
 
 	FVersionedNiagaraScriptData* ScriptData = GetScriptData(LastGeneratedVMId.ScriptVersionID);
@@ -2596,7 +2610,7 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 bool UNiagaraScript::SynchronizeExecutablesWithMaster(const UNiagaraScript* Script, const TMap<FString, FString>& RenameMap)
 {
 	FNiagaraVMExecutableDataId Id;
-	ComputeVMCompilationId(Id);
+	ComputeVMCompilationId(Id, FGuid());
 
 #if 1 // TODO Shaun... turn this on...
 	if (Id == Script->GetVMExecutableDataCompilationId())
@@ -2640,7 +2654,7 @@ void UNiagaraScript::InvalidateCompileResults(const FString& Reason)
 	CachedScriptVM.Reset();
 	ScriptResource->Invalidate();
 	CachedScriptVMId.Invalidate();
-	LastGeneratedVMId.Invalidate();
+	GetLastGeneratedVMId().Invalidate();
 	CachedDefaultDataInterfaces.Reset();
 }
 

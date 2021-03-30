@@ -56,7 +56,7 @@ public:
 	void CompileStandaloneScript(bool bForceCompile = false);
 
 	/** Get the latest status of this view-model's script compilation.*/
-	virtual ENiagaraScriptCompileStatus GetLatestCompileStatus();
+	virtual ENiagaraScriptCompileStatus GetLatestCompileStatus(FGuid VersionGuid = FGuid());
 
 	/** Refreshes the nodes in the script graph, updating the pins to match external changes. */
 	void RefreshNodes();
@@ -125,7 +125,7 @@ protected:
 
 	TArray<TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>::Handle> RegisteredHandles;
 
-	bool IsGraphDirty() const;
+	bool IsGraphDirty(FGuid VersionGuid) const;
 
 	TArray<ENiagaraScriptCompileStatus> CompileStatuses;
 	TArray<FString> CompileErrors;

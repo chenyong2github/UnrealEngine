@@ -664,7 +664,7 @@ void FNiagaraEditorUtilities::GatherChangeIds(UNiagaraEmitter& Emitter, TMap<FGu
 			if (bWriteToLogDir)
 			{
 				FNiagaraVMExecutableDataId Id;
-				Script->ComputeVMCompilationId(Id);
+				Script->ComputeVMCompilationId(Id, FGuid());
 				FString KeyString;
 				Id.AppendKeyString(KeyString);
 

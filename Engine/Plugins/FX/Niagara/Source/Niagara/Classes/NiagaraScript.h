@@ -494,6 +494,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Script, DisplayName = "Script Metadata", meta = (ToolTip = "Script Metadata"))
 	TMap<FName, FString> ScriptMetaData;
+	
+	/** Adjusted every time ComputeVMCompilationId is called.*/
+	UPROPERTY()
+	mutable FNiagaraVMExecutableDataId LastGeneratedVMId;
 
 	TArray<ENiagaraParameterScope> GetUnsupportedParameterScopes() const;
 	TArray<ENiagaraScriptUsage> GetSupportedUsageContexts() const;
@@ -682,13 +686,13 @@ public:
 	NIAGARA_API static const FName NiagaraCustomVersionTagName;
 #endif
 
-	NIAGARA_API void ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) const;
+	NIAGARA_API void ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGuid VersionGuid) const;
 	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const
 	{
 #if WITH_EDITORONLY_DATA
 		if (!IsCooked)
 		{
-			return LastGeneratedVMId;
+			return GetLastGeneratedVMId();
 		}
 #endif
 		return CachedScriptVMId;
@@ -874,7 +878,7 @@ public:
 	static FString BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataId& CompileId);
 
 	/** Creates a string key for the derived data cache */
-	FString GetNiagaraDDCKeyString();
+	FString GetNiagaraDDCKeyString(const FGuid& ScriptVersion);
 
 	/** Callback issued whenever a VM script compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnScriptCompiled& OnVMScriptCompiled();
@@ -988,9 +992,7 @@ private:
 	FNiagaraVMExecutableDataId CachedScriptVMId;
 
 #if WITH_EDITORONLY_DATA
-	/** Adjusted every time ComputeVMCompilationId is called.*/
-	UPROPERTY()
-	mutable FNiagaraVMExecutableDataId LastGeneratedVMId;
+	FNiagaraVMExecutableDataId& GetLastGeneratedVMId(const FGuid& VersionGuid = FGuid()) const;
 #endif
 
 	TUniquePtr<FNiagaraShaderScript> ScriptResource;

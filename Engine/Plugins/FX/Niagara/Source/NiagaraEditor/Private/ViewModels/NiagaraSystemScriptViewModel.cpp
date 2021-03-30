@@ -146,7 +146,7 @@ void FNiagaraSystemScriptViewModel::CompileSystem(bool bForce)
 	System->RequestCompile(bForce);
 }
 
-ENiagaraScriptCompileStatus FNiagaraSystemScriptViewModel::GetLatestCompileStatus()
+ENiagaraScriptCompileStatus FNiagaraSystemScriptViewModel::GetLatestCompileStatus(FGuid VersionGuid)
 {
 	TArray<UNiagaraScript*> SystemScripts;
 	SystemScripts.Add(System->GetSystemSpawnScript());
@@ -168,7 +168,7 @@ ENiagaraScriptCompileStatus FNiagaraSystemScriptViewModel::GetLatestCompileStatu
 			continue;
 		}
 
-		if (SystemScripts[i]->IsCompilable() && !SystemScripts[i]->AreScriptAndSourceSynchronized())
+		if (SystemScripts[i]->IsCompilable() && !SystemScripts[i]->AreScriptAndSourceSynchronized(VersionGuid))
 		{
 			bDirty = true;
 			break;

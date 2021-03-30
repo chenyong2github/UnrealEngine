@@ -65,7 +65,7 @@ void FNiagaraScriptViewModel::OnGPUScriptCompiled(UNiagaraScript*, const FGuid&)
 	// Do nothing in base implementation
 }
 
-bool FNiagaraScriptViewModel::IsGraphDirty() const
+bool FNiagaraScriptViewModel::IsGraphDirty(FGuid VersionGuid) const
 {
 	for (int32 i = 0; i < Scripts.Num(); i++)
 	{
@@ -74,7 +74,7 @@ bool FNiagaraScriptViewModel::IsGraphDirty() const
 			continue;
 		}
 
-		if (Scripts[i].Script->IsCompilable() && !Scripts[i].Script->AreScriptAndSourceSynchronized())
+		if (Scripts[i].Script->IsCompilable() && !Scripts[i].Script->AreScriptAndSourceSynchronized(VersionGuid))
 		{
 			return true;
 		}
@@ -415,9 +415,9 @@ void FNiagaraScriptViewModel::CompileStandaloneScript(bool bForceCompile)
 }
 
 
-ENiagaraScriptCompileStatus FNiagaraScriptViewModel::GetLatestCompileStatus()
+ENiagaraScriptCompileStatus FNiagaraScriptViewModel::GetLatestCompileStatus(FGuid VersionGuid)
 {
-	if (GraphViewModel->GetGraph() && IsGraphDirty())
+	if (GraphViewModel->GetGraph() && IsGraphDirty(VersionGuid))
 	{
 		return ENiagaraScriptCompileStatus::NCS_Dirty;
 	}
