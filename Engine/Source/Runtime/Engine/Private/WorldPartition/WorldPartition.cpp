@@ -186,7 +186,7 @@ void UWorldPartition::OnEndPlay()
 	FlushStreaming();
 	RuntimeHash->OnEndPlay();
 
-	GetStreamingPolicy()->ClearActorToCellRemapping();
+	StreamingPolicy = nullptr;
 
 	World->PersistentLevel->ActorsModifiedForPIE.Empty();
 }
@@ -229,6 +229,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	bool bEditorOnly = !World->IsGameWorld();
 	if (bEditorOnly)
 	{
+		check(!StreamingPolicy);
+
 		if (!EditorHash)
 		{
 			UClass* EditorHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionEditorSpatialHash"));
@@ -357,7 +359,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		{
 			OnBeginPlay(EWorldPartitionStreamingMode::EditorStandalone);
 		}
-		GetStreamingPolicy()->PrepareActorToCellRemapping();
+
 		// Apply remapping of Persistent Level's SoftObjectPaths
 		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
 	}
@@ -548,7 +550,7 @@ const TArray<FWorldPartitionStreamingSource>& UWorldPartition::GetStreamingSourc
 {
 	if (GetWorld()->IsGameWorld())
 	{
-		return GetStreamingPolicy()->GetStreamingSources();
+		return StreamingPolicy->GetStreamingSources();
 	}
 
 	static TArray<FWorldPartitionStreamingSource> EmptyStreamingSources;
@@ -913,49 +915,48 @@ void UWorldPartition::BeginDestroy()
 #endif
 }
 
-#if WITH_EDITOR
-bool UWorldPartition::LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence)
+bool UWorldPartition::ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists)
 {
-	if (GetWorld()->IsGameWorld())
+	if (GetWorld())
 	{
-		if (UObject* SubObject = StreamingPolicy->GetSubObject(SubObjectPath))
+		if (GetWorld()->IsGameWorld())
 		{
-			OutObject = bOnlyTestExistence ? nullptr : SubObject;
-			return true;
-		}
-	}
-	else
-	{
-		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
-		{
-			FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
-
-			if (FString(ActorDesc->ActorPath.ToString()).EndsWith(SubObjectPath))
+			if (StreamingPolicy)
 			{
-				if (!bOnlyTestExistence)
+				if (UObject* SubObject = StreamingPolicy->GetSubObject(SubObjectPath))
 				{
-					LoadedSubobjects.Emplace(this, ActorDesc->GetGuid());
+					OutObject = SubObject;
+					return true;
 				}
-
-				OutObject = ActorDescIterator->GetActor();
-
-				return true;
+				else
+				{
+					OutObject = nullptr;
+				}
 			}
 		}
+#if WITH_EDITOR
+		else
+		{
+			for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+			{
+				FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
+
+				if (FString(ActorDesc->ActorPath.ToString()).EndsWith(SubObjectPath))
+				{
+					if (bLoadIfExists)
+					{
+						LoadedSubobjects.Emplace(this, ActorDesc->GetGuid());
+					}
+
+					OutObject = ActorDescIterator->GetActor();
+					return true;
+				}
+			}
+		}
+#endif
 	}
 
 	return false;
-}
-#endif
-
-UWorldPartitionStreamingPolicy* UWorldPartition::GetStreamingPolicy() const
-{
-	check(GetWorld());
-	if (!StreamingPolicy && GetWorld())
-	{
-		StreamingPolicy = NewObject<UWorldPartitionStreamingPolicy>(const_cast<UWorldPartition*>(this), GetWorld()->GetWorldSettings()->WorldPartitionStreamingPolicyClass.Get());
-	}
-	return StreamingPolicy;
 }
 
 void UWorldPartition::Tick(float DeltaSeconds)
@@ -980,7 +981,7 @@ void UWorldPartition::UpdateStreamingState()
 {
 	if (GetWorld()->IsGameWorld())
 	{
-		GetStreamingPolicy()->UpdateStreamingState();
+		StreamingPolicy->UpdateStreamingState();
 	}
 }
 
@@ -988,7 +989,7 @@ class ULevel* UWorldPartition::GetPreferredLoadedLevelToAddToWorld() const
 {
 	if (GetWorld()->IsGameWorld())
 	{
-		return GetStreamingPolicy()->GetPreferredLoadedLevelToAddToWorld();
+		return StreamingPolicy->GetPreferredLoadedLevelToAddToWorld();
 	}
 	return nullptr;
 }
@@ -997,7 +998,7 @@ bool UWorldPartition::IsStreamingCompleted(EWorldPartitionRuntimeCellState Query
 {
 	if (GetWorld()->IsGameWorld())
 	{
-		return GetStreamingPolicy()->IsStreamingCompleted(QueryState, QuerySources, bExactState);
+		return StreamingPolicy->IsStreamingCompleted(QueryState, QuerySources, bExactState);
 	}
 
 	return false;
@@ -1011,19 +1012,19 @@ bool UWorldPartition::CanDrawRuntimeHash() const
 FVector2D UWorldPartition::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
 {
 	check(CanDrawRuntimeHash());
-	return GetStreamingPolicy()->GetDrawRuntimeHash2DDesiredFootprint(CanvasSize);
+	return StreamingPolicy->GetDrawRuntimeHash2DDesiredFootprint(CanvasSize);
 }
 
 void UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize)
 {
 	check(CanDrawRuntimeHash());
-	GetStreamingPolicy()->DrawRuntimeHash2D(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
+	StreamingPolicy->DrawRuntimeHash2D(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
 }
 
 void UWorldPartition::DrawRuntimeHash3D()
 {
 	check(CanDrawRuntimeHash());
-	GetStreamingPolicy()->DrawRuntimeHash3D();
+	StreamingPolicy->DrawRuntimeHash3D();
 }
 
 #if WITH_EDITOR
@@ -1034,15 +1035,15 @@ void UWorldPartition::DrawRuntimeHashPreview()
 
 bool UWorldPartition::GenerateStreaming(EWorldPartitionStreamingMode Mode, TArray<FString>* OutPackagesToGenerate)
 {
+	check(!StreamingPolicy);
+	StreamingPolicy = NewObject<UWorldPartitionStreamingPolicy>(const_cast<UWorldPartition*>(this), GetWorld()->GetWorldSettings()->WorldPartitionStreamingPolicyClass.Get());
+
 	check(RuntimeHash);
-	bool Result = RuntimeHash->GenerateRuntimeStreaming(Mode, GetStreamingPolicy(), OutPackagesToGenerate);
-	if (Mode == EWorldPartitionStreamingMode::Cook)
-	{
-		// For Cook, prepare actor to cell remapping
-		GetStreamingPolicy()->PrepareActorToCellRemapping();
-		// Apply remapping of Persistent Level's SoftObjectPaths
-		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
-	}
+	bool Result = RuntimeHash->GenerateRuntimeStreaming(Mode, StreamingPolicy, OutPackagesToGenerate);
+
+	// Prepare actor to cell remapping
+	StreamingPolicy->PrepareActorToCellRemapping();
+
 	return Result;
 }
 
@@ -1158,7 +1159,7 @@ void UWorldPartition::CheckForErrors() const
 
 void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
 {
-	GetStreamingPolicy()->RemapSoftObjectPath(ObjectPath);
+	StreamingPolicy->RemapSoftObjectPath(ObjectPath);
 }
 
 FBox UWorldPartition::GetWorldBounds() const

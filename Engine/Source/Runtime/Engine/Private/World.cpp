@@ -8063,8 +8063,9 @@ bool UWorld::IsNameStableForNetworking() const
 {
 	return bIsNameStableForNetworking || Super::IsNameStableForNetworking();
 }
+#endif
 
-bool UWorld::LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence)
+bool UWorld::ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists)
 {
 	FString SubObjectName;
 	FString SubObjectContext;	
@@ -8072,14 +8073,13 @@ bool UWorld::LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool
 	{
 		if (UObject* SubObject = StaticFindObject(nullptr, this, *SubObjectContext))
 		{
-			return SubObject->LoadSubobject(*SubObjectName, OutObject, bOnlyTestExistence);
+			return SubObject->ResolveSubobject(*SubObjectName, OutObject, bLoadIfExists);
 		}
 	}
 
 	OutObject = nullptr;
 	return false;
 }
-#endif
 
 FPrimaryAssetId UWorld::GetPrimaryAssetId() const
 {

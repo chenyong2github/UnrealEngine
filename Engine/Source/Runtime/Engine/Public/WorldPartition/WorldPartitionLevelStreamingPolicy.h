@@ -31,9 +31,10 @@ public:
 	virtual void PrepareActorToCellRemapping() override;
 	virtual void ClearActorToCellRemapping() override;
 	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) override;
-	virtual UObject* GetSubObject(const TCHAR* SubObjectPath) override;
 	static FString GetCellPackagePath(const FName& InCellName, const UWorld* InWorld);
 #endif
+
+	virtual UObject* GetSubObject(const TCHAR* SubObjectPath) override;
 
 private:
 	void SetCellsStateToLoaded(const TSet<const UWorldPartitionRuntimeCell*>& ToLoadCells);
@@ -41,8 +42,11 @@ private:
 	void SetCellsStateToUnloaded(const TSet<const UWorldPartitionRuntimeCell*>& ToUnloadCells);
 	int32 GetCellLoadingCount() const;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
 	TMap<FName, FName> ActorToCellRemapping;
-	TMap<FName, FName> ActorToCellRemappingForPIE;
 #endif
+
+	UPROPERTY()
+	TMap<FName, FName> SubObjectsToCellRemapping;
 };

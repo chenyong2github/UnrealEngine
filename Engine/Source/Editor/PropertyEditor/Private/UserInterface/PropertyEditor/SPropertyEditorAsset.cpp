@@ -709,7 +709,7 @@ SPropertyEditorAsset::EActorReferenceState SPropertyEditorAsset::GetActorReferen
 				if (World && World->GetWorldPartition())
 				{
 					UObject* Object = nullptr;
-					if (World->LoadSubobject(*Value.ObjectPath.GetSubPathString(), Object, /*bOnlyTestExistence*/true))
+					if (World->ResolveSubobject(*Value.ObjectPath.GetSubPathString(), Object, /*bLoadIfExists*/false))
 					{
 						return EActorReferenceState::Exists;
 					}

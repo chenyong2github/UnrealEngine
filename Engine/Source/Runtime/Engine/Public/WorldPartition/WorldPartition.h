@@ -124,12 +124,12 @@ private:
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
 	// UActorPartitionSubsystem interface-
 
-#if WITH_EDITOR
 public:
 	//~ Begin UObject Interface
-	virtual bool LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence) override;
+	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
 	//~ End UObject Interface
 
+#if WITH_EDITOR
 	FName GetWorldPartitionEditorName();
 
 	void LoadEditorCells(const FBox& Box);
@@ -214,7 +214,7 @@ private:
 	EWorldPartitionInitState InitState;
 	FTransform InstanceTransform;
 
-	UPROPERTY(Transient, DuplicateTransient)
+	UPROPERTY()
 	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;
 
 	TArray<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
@@ -239,6 +239,5 @@ private:
 	void ApplyActorTransform(AActor* Actor, const FTransform& InTransform);
 #endif
 
-	UWorldPartitionStreamingPolicy* GetStreamingPolicy() const;
 	friend class UWorldPartitionStreamingPolicy;
 };

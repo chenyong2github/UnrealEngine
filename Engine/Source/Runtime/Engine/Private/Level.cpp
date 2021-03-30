@@ -2657,23 +2657,6 @@ bool ULevel::CanEditChange(const FProperty* PropertyThatWillChange) const
 	return Super::CanEditChange(PropertyThatWillChange);
 }
 
-bool ULevel::LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence)
-{
-	OutObject = StaticFindObject(nullptr, this, SubObjectPath);
-
-	if (!OutObject)
-	{
-		if (UWorldPartition* WorldPartition = GetWorldPartition())
-		{
-			return WorldPartition->LoadSubobject(SubObjectPath, OutObject, bOnlyTestExistence);
-		}
-
-		return false;
-	}
-
-	return true;
-}
-
 void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> InCustomFixupFunction)
 {
 	struct FSoftPathPIEFixupSerializer : public FArchiveUObject
@@ -2708,6 +2691,23 @@ void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftOb
 }
 
 #endif	//WITH_EDITOR
+
+bool ULevel::ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists)
+{
+	OutObject = StaticFindObject(nullptr, this, SubObjectPath);
+
+	if (!OutObject)
+	{
+		if (UWorldPartition* WorldPartition = GetWorldPartition())
+		{
+			return WorldPartition->ResolveSubobject(SubObjectPath, OutObject, bLoadIfExists);
+		}
+
+		return false;
+	}
+
+	return true;
+}
 
 bool ULevel::IsPersistentLevel() const
 {

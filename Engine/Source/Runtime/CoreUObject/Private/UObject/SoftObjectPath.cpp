@@ -435,14 +435,12 @@ UObject* FSoftObjectPath::TryLoad(FUObjectSerializeContext* InLoadContext) const
 			// This probably loaded the top-level object, so re-resolve ourselves
 			LoadedObject = ResolveObject();
 
-#if WITH_EDITOR
 			// If the the top-level object exists but we can't find the object, defer the loading to the top-level container object in case
 			// it knows how to load that specific object.
 			if (!LoadedObject && TopLevelObject)
 			{
-				TopLevelObject->LoadSubobject(*SubPathString, LoadedObject);
+				TopLevelObject->ResolveSubobject(*SubPathString, LoadedObject, /*bLoadIfExists*/true);
 			}
-#endif
 		}
 		else
 		{
@@ -524,6 +522,20 @@ UObject* FSoftObjectPath::ResolveObjectInternal() const
 UObject* FSoftObjectPath::ResolveObjectInternal(const TCHAR* PathString) const
 {
 	UObject* FoundObject = FindObject<UObject>(nullptr, PathString);
+
+	if (!FoundObject && IsSubobject())
+	{
+		// Try to resolve through the top level object
+		FSoftObjectPath TopLevelPath = FSoftObjectPath(AssetPathName, FString());
+		UObject* TopLevelObject = TopLevelPath.ResolveObject();
+
+		// If the the top-level object exists but we can't find the object, defer the resolving to the top-level container object in case
+		// it knows how to load that specific object.
+		if (TopLevelObject)
+		{
+			TopLevelObject->ResolveSubobject(*SubPathString, FoundObject, /*bLoadIfExists*/false);
+		}
+	}
 
 #if WITH_EDITOR
 	// Look at core redirects if we didn't find the object

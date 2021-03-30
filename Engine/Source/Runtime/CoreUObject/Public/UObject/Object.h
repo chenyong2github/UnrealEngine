@@ -268,6 +268,7 @@ public:
 	 * Called when the object was loaded from another class via active class redirects.
 	 */
 	virtual void LoadedFromAnotherClass(const FName& OldClassName) {}
+#endif
 
 	/**
 	 * Called to defer loading a subobject to its top-level container object. Usefull with the package override
@@ -276,13 +277,12 @@ public:
 	 * 
  	 * @param	SubObjectPath		object path to handle, relative to the current implementer
 	 * @param	OutObject			receives the loaded object, or existing loaded object if bOnlyTestExistence is true and object is already loaded
-	 * @param	bOnlyTestExistence	if true, don't load the object, just return true if it exists
+	 * @param	bLoadIfExists		if true, load the object if it exists
 	 * 
-	 * @return true if the object loaded or exists, depending on bOnlyTestExistence
+	 * @return true if the object loaded or exists, depending on bLoadIfExists
 * 
 	 */
-	virtual bool LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence = false) { return false; }
-#endif
+	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) { return false; }
 
 	/**
 	 * Called before calling PostLoad() in FAsyncPackage::PostLoadObjects(). This is the safeguard to prevent PostLoad() from stalling the main thread.
