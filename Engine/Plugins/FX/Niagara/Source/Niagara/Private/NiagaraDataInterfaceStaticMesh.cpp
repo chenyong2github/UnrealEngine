@@ -1259,8 +1259,13 @@ struct TTypedMeshAccessorBinder
 		FNDIStaticMesh_InstanceData* InstData = (FNDIStaticMesh_InstanceData*)InstanceData;
 		check(InstData);
 
-		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
-		if (!InstData->bMeshValid || !Res.IsValid())
+		TRefCountPtr<const FStaticMeshLODResources> Res;
+		if (InstData->bMeshValid)
+		{
+			Res = InstData->GetCurrentFirstLOD();
+		}
+		
+		if (!Res.IsValid())
 		{
 			NextBinder::template Bind<ParamTypes..., TNullMeshVertexAccessor>(Interface, BindingInfo, InstanceData, OutFunc);
 			return;
@@ -1507,8 +1512,13 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 	if (bSuccess)
 	{
 		FStaticMeshGpuSpawnBuffer* MeshGpuSpawnBuffer = nullptr;
-		TRefCountPtr<const FStaticMeshLODResources> GpuMeshLODResource = Inst->GetCurrentFirstLOD();
-		if (Inst->bMeshValid && GpuMeshLODResource.IsValid() && IsUsedWithGPUEmitter(SystemInstance))
+		TRefCountPtr<const FStaticMeshLODResources> GpuMeshLODResource;
+		if (Inst->bMeshValid)
+		{
+			GpuMeshLODResource = Inst->GetCurrentFirstLOD();
+		}
+
+		if (GpuMeshLODResource.IsValid() && IsUsedWithGPUEmitter(SystemInstance))
 		{
 			// Always allocate when bAllowCPUAccess (index buffer can only have SRV created in this case as of today)
 			// We do not know if this interface is allocated for CPU or GPU so we allocate for both case... TODO: have some cached data created in case a GPU version is needed?
@@ -1813,7 +1823,6 @@ void UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeInvalid>(FVectorV
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSection(Context);
 
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		*OutSection.GetDestAndAdvance() = -1;
