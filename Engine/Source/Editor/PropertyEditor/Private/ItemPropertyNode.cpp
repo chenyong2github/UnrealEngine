@@ -119,18 +119,15 @@ uint8* FItemPropertyNode::GetValueAddress(uint8* StartAddress, bool bIsSparseDat
  */
 void FItemPropertyNode::InitExpansionFlags (void)
 {
-	
 	FProperty* MyProperty = GetProperty();
 
-	FReadAddressList Addresses;
-
 	bool bExpandableType = CastField<FStructProperty>(MyProperty) 
-		|| ( ( CastField<FArrayProperty>(MyProperty) || CastField<FSetProperty>(MyProperty) || CastField<FMapProperty>(MyProperty) ) && GetReadAddress(false,Addresses) );
+		|| (CastField<FArrayProperty>(MyProperty) || CastField<FSetProperty>(MyProperty) || CastField<FMapProperty>(MyProperty));
 
 	if(	bExpandableType
 		|| HasNodeFlags(EPropertyNodeFlags::EditInlineNew)
 		|| HasNodeFlags(EPropertyNodeFlags::ShowInnerObjectProperties)
-		||	( MyProperty->ArrayDim > 1 && ArrayIndex == -1 ) )
+		|| ( MyProperty->ArrayDim > 1 && ArrayIndex == -1 ) )
 	{
 		SetNodeFlags(EPropertyNodeFlags::CanBeExpanded, true);
 	}
