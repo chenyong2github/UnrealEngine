@@ -82,7 +82,7 @@ void UMeshVertexPaintingTool::Setup()
 	RecalculateBrushRadius(); 
 
 	BrushStampIndicator->LineColor = FLinearColor::Green;
-	// Set up selection mechanic to find and select edges
+
 	SelectionMechanic = NewObject<UMeshPaintSelectionMechanic>(this);
 	SelectionMechanic->Setup(this);
 }
@@ -125,7 +125,7 @@ void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 		{
 			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshPaintingSubsystem->GetAdapterForComponent(Cast<UMeshComponent>(CurrentComponent));
 
-			if (MeshAdapter->IsValid() && MeshAdapter->SupportsVertexPaint())
+			if (MeshAdapter && MeshAdapter->SupportsVertexPaint())
 			{
 				const FMatrix ComponentToWorldMatrix = MeshAdapter->GetComponentToWorldMatrix();
 				FViewCameraState CameraState;
@@ -302,8 +302,8 @@ bool UMeshVertexPaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVec
 			for (auto TestComponent : MeshPaintingSubsystem->GetPaintableMeshComponents())
 			{
 				const FBox ComponentBounds = TestComponent->Bounds.GetBox();
-
-				if (MeshPaintingSubsystem->GetComponentToAdapterMap().Contains(TestComponent->GetFName()) && ComponentBounds.Intersect(BrushBounds))
+				TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshPaintingSubsystem->GetAdapterForComponent(TestComponent);
+				if (MeshAdapter && ComponentBounds.Intersect(BrushBounds))
 				{
 					// OK, this mesh potentially overlaps the brush!
 					HoveredComponents.FindOrAdd(TestComponent).Add(i);
@@ -454,7 +454,9 @@ FInputRayHit UMeshVertexPaintingTool::CanBeginClickDragSequence(const FInputDevi
 	bCachedClickRay = false;
 	if (!HitTest(PressPos.WorldRay, OutHit))
 	{
-		if (SelectionMechanic->IsHitByClick(PressPos).bHit)
+		UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>();
+		const bool bFallbackClick = MeshPaintingSubsystem->GetSelectedMeshComponents().Num() > 0;
+		if (SelectionMechanic->IsHitByClick(PressPos, bFallbackClick).bHit)
 		{
 			bCachedClickRay = true;
 			PendingClickRay = PressPos.WorldRay;

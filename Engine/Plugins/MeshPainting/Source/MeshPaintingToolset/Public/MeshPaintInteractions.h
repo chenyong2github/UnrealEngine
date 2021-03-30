@@ -33,7 +33,7 @@ class MESHPAINTINGTOOLSET_API UMeshPaintSelectionMechanic : public UInteractionM
 	GENERATED_BODY()
 
 public:
-	FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos);
+	FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos, bool bIsFallbackClick = false);
 	void OnClicked(const FInputDeviceRay& ClickPos);
 	void SetAddToSelectionSet(const bool bInNewSelectionType)
 	{

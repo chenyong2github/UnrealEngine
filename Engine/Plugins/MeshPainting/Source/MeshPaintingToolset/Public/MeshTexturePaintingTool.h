@@ -96,7 +96,7 @@ public:
 
 
 UCLASS()
-class MESHPAINTINGTOOLSET_API UMeshTexturePaintingTool : public UBaseBrushTool
+class MESHPAINTINGTOOLSET_API UMeshTexturePaintingTool : public UBaseBrushTool, public IMeshPaintSelectionInterface
 {
 	GENERATED_BODY()
 
@@ -110,6 +110,8 @@ public:
 	virtual bool HasCancel() const override { return false; }
 	virtual bool HasAccept() const override;
 	virtual bool CanAccept() const override;
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 	virtual void OnBeginDrag(const FRay& Ray) override;
 	virtual void OnUpdateDrag(const FRay& Ray) override;
 	virtual void OnEndDrag(const FRay& Ray) override;
@@ -135,6 +137,11 @@ public:
 
 	bool ShouldFilterTextureAsset(const FAssetData& AssetData) const;
 	void PaintTextureChanged(const FAssetData& AssetData);
+	virtual bool IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) const override;
+	virtual bool AllowsMultiselect() const override
+	{
+		return false;
+	}
 
 protected:
 	virtual void SetAdditionalPaintParameters(FMeshPaintParameters& InPaintParameters) {};
@@ -158,6 +165,12 @@ protected:
 	bool bStampPending;
 	bool bInDrag;
 	FRay PendingStampRay;
+	FRay PendingClickRay;
+	FVector2D PendingClickScreenPosition;
+	bool bCachedClickRay;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMeshPaintSelectionMechanic> SelectionMechanic;
 
 private:
 	bool PaintInternal(const TArrayView<TPair<FVector, FVector>>& Rays, EMeshPaintModeAction PaintAction, float PaintStrength);

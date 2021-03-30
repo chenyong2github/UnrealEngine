@@ -955,18 +955,21 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 					InputState.Mouse.Left.SetStates(
 						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
 					CurrentMouseState.Mouse.Left.bDown = (Event == IE_Pressed);
+					CurrentMouseState.Mouse.Left.bReleased = (Event == IE_Released);
 				}
 				else if (bIsMiddleMouse)
 				{
 					InputState.Mouse.Middle.SetStates(
 						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
 					CurrentMouseState.Mouse.Middle.bDown = (Event == IE_Pressed);
+					CurrentMouseState.Mouse.Middle.bReleased = (Event == IE_Released);
 				}
 				else
 				{
 					InputState.Mouse.Right.SetStates(
 						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
 					CurrentMouseState.Mouse.Right.bDown = (Event == IE_Pressed);
+					CurrentMouseState.Mouse.Right.bReleased = (Event == IE_Released);
 				}
 				if (InputRouter->PostInputEvent(InputState))
 				{

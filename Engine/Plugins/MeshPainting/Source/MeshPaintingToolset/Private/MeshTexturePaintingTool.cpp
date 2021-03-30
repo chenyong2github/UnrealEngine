@@ -73,10 +73,20 @@ void UMeshTexturePaintingTool::Setup()
 	bStampPending = false;
 	BrushProperties->RestoreProperties(this);
 
+	// Needed after restoring properties because the brush radius may be an output
+	// property based on selection, so we shouldn't use the last stored value there.
+	// We wouldn't have this problem if we restore properties before getting
+	// BrushRelativeSizeRange, but that happens in the Super::Setup() call earlier.
+	RecalculateBrushRadius();
+
+	BrushStampIndicator->LineColor = FLinearColor::Green;
 
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTexturePaintTool", "The Texture Weight Painting mode enables you to paint on textures and access available properties while doing so ."),
 		EToolMessageLevel::UserNotification);
+
+	SelectionMechanic = NewObject<UMeshPaintSelectionMechanic>(this);
+	SelectionMechanic->Setup(this);
 
 }
 
@@ -482,6 +492,31 @@ bool UMeshTexturePaintingTool::CanAccept() const
 	return false;
 }
 
+FInputRayHit UMeshTexturePaintingTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+{
+	FHitResult OutHit;
+	bCachedClickRay = false;
+	if (!HitTest(PressPos.WorldRay, OutHit))
+	{
+		UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>();
+		const bool bFallbackClick = MeshPaintingSubsystem->GetSelectedMeshComponents().Num() > 0;
+		if (SelectionMechanic->IsHitByClick(PressPos, bFallbackClick).bHit)
+		{
+			bCachedClickRay = true;
+			PendingClickRay = PressPos.WorldRay;
+			PendingClickScreenPosition = PressPos.ScreenPosition;
+			return FInputRayHit(0.0);
+		}
+	}
+	return Super::CanBeginClickDragSequence(PressPos);
+}
+
+void UMeshTexturePaintingTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
+{
+	Super::OnUpdateModifierState(ModifierID, bIsOn);
+	SelectionMechanic->SetAddToSelectionSet(bShiftToggle);
+}
+
 void UMeshTexturePaintingTool::OnBeginDrag(const FRay& Ray)
 {
 	Super::OnBeginDrag(Ray);
@@ -493,6 +528,14 @@ void UMeshTexturePaintingTool::OnBeginDrag(const FRay& Ray)
 		// apply initial stamp
 		PendingStampRay = Ray;
 		bStampPending = true;
+	}
+	else if (bCachedClickRay)
+	{
+		FInputDeviceRay InputDeviceRay = FInputDeviceRay(PendingClickRay, PendingClickScreenPosition);
+		SelectionMechanic->SetAddToSelectionSet(bShiftToggle);
+		SelectionMechanic->OnClicked(InputDeviceRay);
+		bCachedClickRay = false;
+		RecalculateBrushRadius();
 	}
 }
 
@@ -1295,4 +1338,10 @@ void UMeshTexturePaintingTool::PaintTextureChanged(const FAssetData& AssetData)
 		}
 	}
 }
+
+bool UMeshTexturePaintingTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) const
+{
+	return MeshAdapter.IsValid() ? MeshAdapter->SupportsTexturePaint() : false;
+}
+
 #undef LOCTEXT_NAMESPACE

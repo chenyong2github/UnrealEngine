@@ -243,6 +243,11 @@ void UMeshPaintMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime
 	}
 }
 
+bool UMeshPaintMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
+{
+	return true;
+}
+
 TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> UMeshPaintMode::GetModeCommands() const
 {
 	return FMeshPaintEditorModeCommands::GetCommands();
@@ -425,6 +430,11 @@ void UMeshPaintMode::CheckSelectionForTexturePaintCompat(const TArray<UMeshCompo
 	}
 
 	GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->SetSelectionHasMaterialValidForTexturePaint(bCurrentSelectionSupportsTexturePaint);
+	if (!bCurrentSelectionSupportsTexturePaint && GetToolManager()->GetActiveTool(EToolSide::Mouse)->IsA<UMeshTexturePaintingTool>())
+	{
+		ToolsContext->EndTool(EToolShutdownType::Accept);
+		ToolsContext->StartTool(TextureSelectToolName);
+	}
 }
 
 void UMeshPaintMode::UpdateOnMaterialChange(bool bInvalidateHitProxies)

@@ -45,6 +45,7 @@ public:
 	virtual void Exit() override;
 	virtual void CreateToolkit() override;
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
+	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
 	static FName MeshPaintMode_Color;
 	static FName MeshPaintMode_Texture;
 	static FName MeshPaintMode_Weights;

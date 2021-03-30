@@ -19,13 +19,26 @@
 
 #define LOCTEXT_NAMESPACE "MeshSelection"
 
-FInputRayHit UMeshPaintSelectionMechanic::IsHitByClick(const FInputDeviceRay& ClickPos)
+FInputRayHit UMeshPaintSelectionMechanic::IsHitByClick(const FInputDeviceRay& ClickPos, bool bIsFallbackClick)
 {
 	IMeshPaintSelectionInterface* Interface = Cast<IMeshPaintSelectionInterface>(GetParentTool());
 	if (!bAddToSelectionSet || !Interface->AllowsMultiselect())
 	{
 		CachedClickedComponents.Empty();
 		CachedClickedActors.Empty();
+	}
+
+	// for fallback clicks, assume we must be adding to our selection set
+	if (bIsFallbackClick)
+	{
+		if (Interface->AllowsMultiselect() && bAddToSelectionSet)
+		{
+			return FindClickedComponentsAndCacheAdapters(ClickPos) ? FInputRayHit(0.0f) : FInputRayHit();
+		}
+		else
+		{
+			return FInputRayHit();
+		}
 	}
 	return FindClickedComponentsAndCacheAdapters(ClickPos) ? FInputRayHit(0.0f) : FInputRayHit();
 }
@@ -53,7 +66,8 @@ void UMeshPaintSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 
 			FSelectedOjectsChangeList NewSelection;
 			// TODO add CTRL handling
-			NewSelection.ModificationType = bAddToSelectionSet ? ESelectedObjectsModificationType::Add : ESelectedObjectsModificationType::Replace;
+			const bool bShouldAddToSelection = bAddToSelectionSet && Interface->AllowsMultiselect();
+			NewSelection.ModificationType = bShouldAddToSelection ? ESelectedObjectsModificationType::Add : ESelectedObjectsModificationType::Replace;
 			NewSelection.Actors.Append(CachedClickedActors);
 			GetParentTool()->GetToolManager()->RequestSelectionChange(NewSelection);
 			GetParentTool()->GetToolManager()->EndUndoTransaction();
@@ -78,7 +92,7 @@ bool UMeshPaintSelectionMechanic::FindClickedComponentsAndCacheAdapters(const FI
 		{
 			if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(HitProxy->GetElementHandle()))
 			{
-				if (AActor* Actor = ObjectInterface.GetObjectAs<AActor>())
+				if (AActor* Actor = ObjectInterface.GetObjectAs<UActorComponent>()->GetOwner())
 				{
 					TArray<UActorComponent*> CandidateComponents = Actor->K2_GetComponentsByClass(UMeshComponent::StaticClass());
 					for (UActorComponent* CandidateComponent : CandidateComponents)

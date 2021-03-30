@@ -242,9 +242,8 @@ public:
 	}
 
 	/** Map of geometry adapters for each selected mesh component */
-	TMap<FName, TSharedPtr<IMeshPaintComponentAdapter>> GetComponentToAdapterMap() const;
-	TSharedPtr<IMeshPaintComponentAdapter> GetAdapterForComponent(const UMeshComponent* InComponent);
-	void AddToComponentToAdapterMap(UMeshComponent* InComponent, TSharedPtr<IMeshPaintComponentAdapter> InAdapter);
+	TSharedPtr<IMeshPaintComponentAdapter> GetAdapterForComponent(const UMeshComponent* InComponent) const;
+	void AddToComponentToAdapterMap(const UMeshComponent* InComponent, const TSharedPtr<IMeshPaintComponentAdapter> InAdapter);
 
 	TArray<UMeshComponent*> GetSelectedMeshComponents() const;
 	void AddSelectedMeshComponents(const TArray<UMeshComponent*>& InComponents);

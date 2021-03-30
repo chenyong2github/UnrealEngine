@@ -1396,21 +1396,39 @@ void UMeshPaintingSubsystem::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapt
 		}
 	}
 }
-TMap<FName, TSharedPtr<IMeshPaintComponentAdapter>> UMeshPaintingSubsystem::GetComponentToAdapterMap() const
-{
-	return ComponentToAdapterMap;
-}
 
-TSharedPtr<IMeshPaintComponentAdapter> UMeshPaintingSubsystem::GetAdapterForComponent(const UMeshComponent* InComponent)
+TSharedPtr<IMeshPaintComponentAdapter> UMeshPaintingSubsystem::GetAdapterForComponent(const UMeshComponent* InComponent) const
 {
-	FName ComponentName = InComponent->GetFName();
-	TSharedPtr<IMeshPaintComponentAdapter>* MeshAdapterPtr = ComponentToAdapterMap.Find(ComponentName);
+	FString ComponentActorString;
+	
+	if (const UStaticMeshComponent* InStaticMeshComponent = Cast<UStaticMeshComponent>(InComponent))
+	{
+		ComponentActorString = InStaticMeshComponent->GetStaticMesh()->GetName();
+	}
+	else if (const USkeletalMeshComponent* InSkeletalMeshComponent = Cast<USkeletalMeshComponent>(InComponent))
+	{
+		ComponentActorString = InSkeletalMeshComponent->SkeletalMesh->GetName();
+	} 
+	ComponentActorString += TEXT("_") + InComponent->GetOwner()->GetName();
+	const FName ComponentActorName = FName(ComponentActorString);
+	const TSharedPtr<IMeshPaintComponentAdapter>* MeshAdapterPtr = ComponentToAdapterMap.Find(ComponentActorName);
 	return MeshAdapterPtr ? *MeshAdapterPtr : TSharedPtr<IMeshPaintComponentAdapter>();
 }
 
-void UMeshPaintingSubsystem::AddToComponentToAdapterMap(UMeshComponent* InComponent, TSharedPtr<IMeshPaintComponentAdapter> InAdapter)
+void UMeshPaintingSubsystem::AddToComponentToAdapterMap(const UMeshComponent* InComponent, const TSharedPtr<IMeshPaintComponentAdapter> InAdapter) 
 {
-	ComponentToAdapterMap.Add(InComponent->GetFName(), InAdapter);
+	FString ComponentActorString;
+	if (const UStaticMeshComponent* InStaticMeshComponent = Cast<UStaticMeshComponent>(InComponent))
+	{
+		ComponentActorString = InStaticMeshComponent->GetStaticMesh()->GetName();
+	}
+	else if (const USkeletalMeshComponent* InSkeletalMeshComponent = Cast<USkeletalMeshComponent>(InComponent))
+	{
+		ComponentActorString = InSkeletalMeshComponent->SkeletalMesh->GetName();
+	}
+	ComponentActorString += TEXT("_") + InComponent->GetOwner()->GetName();
+	const FName ComponentActorName = FName(ComponentActorString);
+	ComponentToAdapterMap.Add(ComponentActorName, InAdapter);
 }
 
 TArray<UMeshComponent*> UMeshPaintingSubsystem::GetSelectedMeshComponents() const
@@ -1498,7 +1516,7 @@ bool UMeshPaintingSubsystem::FindHitResult(const FRay Ray, FHitResult& BestTrace
 			}
 		}
 	}
-	return true;
+	return BestTraceResult.Distance != FLT_MAX;
 }
 
 bool UMeshPaintingSubsystem::SelectionContainsValidAdapters() const
