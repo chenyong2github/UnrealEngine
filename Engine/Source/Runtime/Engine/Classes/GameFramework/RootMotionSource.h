@@ -552,7 +552,7 @@ struct ENGINE_API FRootMotionSource_MoveToForce : public FRootMotionSource
 	UPROPERTY()
 	TObjectPtr<UCurveVector> PathOffsetCurve;
 
-	FVector GetPathOffsetInWorldSpace(float MoveFraction) const;
+	FVector GetPathOffsetInWorldSpace(const float MoveFraction) const;
 
 	virtual FRootMotionSource* Clone() const override;
 
@@ -624,7 +624,7 @@ struct ENGINE_API FRootMotionSource_MoveToDynamicForce : public FRootMotionSourc
 
 	void SetTargetLocation(FVector NewTargetLocation);
 
-	FVector GetPathOffsetInWorldSpace(float MoveFraction) const;
+	FVector GetPathOffsetInWorldSpace(const float MoveFraction) const;
 
 	virtual FRootMotionSource* Clone() const override;
 
