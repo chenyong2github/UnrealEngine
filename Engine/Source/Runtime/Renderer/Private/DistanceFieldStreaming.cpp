@@ -404,6 +404,7 @@ void FDistanceFieldSceneData::AsyncUpdate(FDistanceFieldAsyncUpdateParameters Up
 
 	for (FDistanceFieldReadRequest& ReadRequest : UpdateParameters.NewReadRequests)
 	{
+		check(ReadRequest.BulkSize > 0);
 		ReadRequest.ReadOutputDataPtr = (uint8*)FMemory::Malloc(ReadRequest.BulkSize);
 		const bool bIODispatcher = ReadRequest.BulkData->IsUsingIODispatcher();
 
@@ -420,7 +421,7 @@ void FDistanceFieldSceneData::AsyncUpdate(FDistanceFieldAsyncUpdateParameters Up
 		{
 			// Compatibility path without IODispatcher
 			ReadRequest.AsyncHandle = ReadRequest.BulkData->OpenAsyncReadHandle();
-			ReadRequest.AsyncRequest = ReadRequest.AsyncHandle->ReadRequest(ReadRequest.BulkOffset, ReadRequest.BulkSize, AIOP_Normal, nullptr, ReadRequest.ReadOutputDataPtr);
+			ReadRequest.AsyncRequest = ReadRequest.AsyncHandle->ReadRequest(ReadRequest.BulkData->GetBulkDataOffsetInFile() + ReadRequest.BulkOffset, ReadRequest.BulkSize, AIOP_Low, nullptr, ReadRequest.ReadOutputDataPtr);
 		}
 	}
 
@@ -542,6 +543,7 @@ void FDistanceFieldSceneData::ProcessStreamingRequestsFromGPU(
 							ReadRequest.BulkData = &AssetState.BuiltData->StreamableMips;
 							ReadRequest.BulkOffset = MipBuiltData.BulkOffset;
 							ReadRequest.BulkSize = MipBuiltData.BulkSize;
+							check(ReadRequest.BulkSize > 0);
 							NewReadRequests.Add(MoveTemp(ReadRequest));
 
 							NumAllocatedDistanceFieldBricks += MipBuiltData.NumDistanceFieldBricks;

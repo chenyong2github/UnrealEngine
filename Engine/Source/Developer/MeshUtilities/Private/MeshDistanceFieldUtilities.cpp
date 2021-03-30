@@ -481,6 +481,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 				OutMip.BulkOffset = StreamableMipData.Num();
 				StreamableMipData.AddUninitialized(MipDataBytes);
 				OutMip.BulkSize = StreamableMipData.Num() - OutMip.BulkOffset;
+				checkf(OutMip.BulkSize > 0, TEXT("BulkSize was 0 for %s with %ux%ux%u indirection"), *MeshName, IndirectionDimensions.X, IndirectionDimensions.Y, IndirectionDimensions.Z);
 
 				FPlatformMemory::Memcpy(&StreamableMipData[OutMip.BulkOffset], IndirectionTable.GetData(), IndirectionTableBytes);
 
