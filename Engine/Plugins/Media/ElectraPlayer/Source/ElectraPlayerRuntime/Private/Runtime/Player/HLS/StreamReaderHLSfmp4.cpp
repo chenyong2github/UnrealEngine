@@ -57,6 +57,11 @@ uint32 FStreamSegmentRequestHLSfmp4::GetPlaybackSequenceID() const
 	return CurrentPlaybackSequenceID;
 }
 
+void FStreamSegmentRequestHLSfmp4::SetExecutionDelay(const FTimeValue& ExecutionDelay)
+{
+	// No-op for HLS.
+}
+
 EStreamType FStreamSegmentRequestHLSfmp4::GetType() const
 {
 	return StreamType;

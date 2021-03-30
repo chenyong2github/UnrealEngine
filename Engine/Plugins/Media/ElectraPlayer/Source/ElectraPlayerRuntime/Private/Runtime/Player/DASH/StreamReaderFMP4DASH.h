@@ -20,6 +20,7 @@ public:
 	virtual void SetPlaybackSequenceID(uint32 PlaybackSequenceID) override;
 	virtual uint32 GetPlaybackSequenceID() const override;
 
+	virtual void SetExecutionDelay(const FTimeValue& ExecutionDelay) override;
 
 	virtual EStreamType GetType() const override;
 
@@ -51,6 +52,7 @@ public:
 	// UTC wallclock times during which this segment can be fetched;
 	FTimeValue												ASAST;
 	FTimeValue												SAET;
+	FTimeValue												DownloadDelayTime;
 
 	// Internal work variables
 	FPlayerLoopState										PlayerLoopState;

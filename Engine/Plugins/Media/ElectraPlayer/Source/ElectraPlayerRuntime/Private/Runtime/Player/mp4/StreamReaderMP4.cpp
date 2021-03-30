@@ -57,6 +57,11 @@ EStreamType FStreamSegmentRequestMP4::GetType() const
 	return  PrimaryStreamType;
 }
 
+void FStreamSegmentRequestMP4::SetExecutionDelay(const FTimeValue& ExecutionDelay)
+{
+	// No op for mp4.
+}
+
 void FStreamSegmentRequestMP4::GetDependentStreams(TArray<FDependentStreams>& OutDependentStreams) const
 {
 	// Those are not "real" dependent streams in that they are multiplexed and do not need to be fetched from
@@ -415,7 +420,6 @@ void FStreamReaderMP4::WorkerThread()
 				if (!st.StreamSourceInfo.IsValid())
 				{
 					auto meta = MakeShared<FStreamSourceInfo, ESPMode::ThreadSafe>();
-					meta->NumericTrackID = tkid;
 
 					// Check if this track is in the list of selected tracks.
 					const FPlaylistTrackMetadata* SelectedTrackMetadata = SelectedTrackMap.Find(tkid);

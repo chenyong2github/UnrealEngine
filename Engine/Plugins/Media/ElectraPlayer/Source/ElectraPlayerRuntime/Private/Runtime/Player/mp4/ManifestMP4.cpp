@@ -110,35 +110,16 @@ int64 FManifestMP4Internal::GetDefaultStartingBitrate() const
 
 //-----------------------------------------------------------------------------
 /**
- * Returns stream metadata.
+ * Returns track metadata.
  *
  * @param OutMetadata
  * @param StreamType
  */
-void FManifestMP4Internal::GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const
+void FManifestMP4Internal::GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const
 {
 	if (MediaAsset.IsValid())
 	{
-		for(int32 i=0, iMax = MediaAsset->GetNumberOfAdaptationSets(StreamType); i<iMax; ++i)
-		{
-			TSharedPtrTS<IPlaybackAssetAdaptationSet> AdaptSet = MediaAsset->GetAdaptationSetByTypeAndIndex(StreamType, i);
-			if (AdaptSet.IsValid())
-			{
-				for(int32 j=0, jMax=AdaptSet->GetNumberOfRepresentations(); j<jMax; ++j)
-				{
-					TSharedPtrTS<FRepresentationMP4> Repr = StaticCastSharedPtr<FRepresentationMP4>(AdaptSet->GetRepresentationByIndex(j));
-					if (Repr.IsValid())
-					{
-						FStreamMetadata& meta = OutMetadata.AddDefaulted_GetRef();
-						meta.CodecInformation = Repr->GetCodecInformation();
-						LexFromString(meta.StreamUniqueID, *Repr->GetUniqueIdentifier());
-						meta.PlaylistID 	  = FString(TEXT("mp4"));
-						meta.Bandwidth  	  = Repr->GetBitrate();
-						meta.LanguageCode     = AdaptSet->GetLanguage();
-					}
-				}
-			}
-		}
+		MediaAsset->GetMetaData(OutMetadata, StreamType);
 	}
 }
 
@@ -190,6 +171,12 @@ IManifest::FResult FManifestMP4Internal::FindPlayPeriod(TSharedPtrTS<IPlayPeriod
 	// FIXME: We could however check if the start position falls into the duration of the asset. Not sure why it wouldn't or why we would want to do that.
 	OutPlayPeriod = MakeSharedTS<FPlayPeriodMP4>(MediaAsset);
 	return IManifest::FResult(IManifest::FResult::EType::Found);
+}
+
+IManifest::FResult FManifestMP4Internal::FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment)
+{
+	// There is no following period.
+	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
 }
 
 
@@ -247,12 +234,9 @@ IManifest::IPlayPeriod::EReadyState FManifestMP4Internal::FPlayPeriodMP4::GetRea
  * Prepares the playback period for playback.
  * With an mp4 file we are actually always ready for playback, but we say we're not
  * one time to get here with any possible options.
- *
- * @param InOptions
  */
-void FManifestMP4Internal::FPlayPeriodMP4::PrepareForPlay(const FParamDict& InOptions)
+void FManifestMP4Internal::FPlayPeriodMP4::PrepareForPlay()
 {
-	Options = InOptions;
 	bIsReady = true;
 }
 

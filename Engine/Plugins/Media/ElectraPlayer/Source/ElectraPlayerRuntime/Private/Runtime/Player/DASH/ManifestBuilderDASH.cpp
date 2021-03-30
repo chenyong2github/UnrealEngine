@@ -43,10 +43,6 @@
 
 namespace Electra
 {
-#ifdef LOG_DASHINT_CTORDTOR
-DECLARE_LOG_CATEGORY_EXTERN(LogElectraDASHMPD, Log, All);
-DEFINE_LOG_CATEGORY(LogElectraDASHMPD);
-#endif
 
 namespace
 {
@@ -1065,6 +1061,13 @@ FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload()
 			{
 				return CreateErrorAndLog(PlayerSessionServices, FString::Printf(TEXT("Early available period \"%s\" must not be followed by a regular period (\"%s\")"), *Periods.Last()->ID, *p->ID), ERRCODE_DASH_MPD_BUILDER_EARLY_PERIODS_MUST_BE_LAST);
 			}
+
+			// If there are previous periods then these are now clearly followed by another period, namely this one.
+			if (Periods.Num())
+			{
+				Periods.Last()->bHasFollowingPeriod = true;
+			}
+
 			// If the previous period did not have a duration to calculate the end time with we set
 			// its end time to the start time of this period.
 			if (Periods.Num() && !Periods.Last()->End.IsValid())
@@ -1407,7 +1410,7 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 						Representation->CodecInfo.SetAspectRatio(FStreamCodecInformation::FAspectRatio(MPDAdaptationSet->GetSAR().GetNumerator(), MPDAdaptationSet->GetSAR().GetDenominator()));
 					}
 
-					// Update the audio codec in the adaptation set with that of the highest bandwidth.
+					// Update the video codec in the adaptation set with that of the highest bandwidth.
 					if (MPDRepresentation->GetBandwidth() > AdaptationSet->MaxBandwidth)
 					{
 						AdaptationSet->MaxBandwidth = (int32) MPDRepresentation->GetBandwidth();
@@ -2101,50 +2104,11 @@ FTimeValue FManifestDASHInternal::GetDefaultStartTime() const
 	return FromTo.Start;
 }
 
-
-#ifdef LOG_DASHINT_CTORDTOR
-FManifestDASHInternal::~FManifestDASHInternal()
+void FManifestDASHInternal::ClearDefaultStartTime()
 {
-	UE_LOG(LogElectraDASHMPD, Log, TEXT("~FManifestDASHInternal(%p)"), this);
+	URLFragmentComponents.Empty();
 }
 
-FManifestDASHInternal::FManifestDASHInternal()
-{
-	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal(%p)"), this);
-}
-
-FManifestDASHInternal::FPeriod::FPeriod()
-{
-	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::FPeriod(%p)"), this);
-}
-
-FManifestDASHInternal::FPeriod::~FPeriod()
-{
-	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::~FPeriod(%p)"), this);
-}
-
-FManifestDASHInternal::FAdaptationSet::FAdaptationSet()
-{
-	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::FAdaptationSet(%p)"), this);
-}
-
-FManifestDASHInternal::FAdaptationSet::~FAdaptationSet()
-{
-	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::~FAdaptationSet(%p)"), this);
-}
-
-FManifestDASHInternal::FRepresentation::FRepresentation()
-{
-	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::FRepresentation(%p)"), this);
-}
-
-FManifestDASHInternal::FRepresentation::~FRepresentation()
-{
-	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::~FRepresentation(%p)"), this);
-}
-
-
-#endif
 
 
 } // namespace Electra

@@ -23,13 +23,15 @@ public:
 	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override;
 	virtual FTimeValue GetDuration() const override;
 	virtual FTimeValue GetDefaultStartTime() const override;
+	virtual void ClearDefaultStartTime() override;
 	virtual int64 GetDefaultStartingBitrate() const override;
 	virtual FTimeValue GetMinBufferTime() const override;
-	virtual void GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const override;
+	virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const override;
 	virtual void UpdateDynamicRefetchCounter() override;
 	virtual IStreamReader *CreateStreamReaderHandler() override;
 
 	virtual FResult FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
+	virtual FResult FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
 
 private:
 	FManifestHLS(IPlayerSessionServices* SessionServices, IPlaylistReaderHLS* PlaylistReader, TSharedPtrTS<FManifestHLSInternal> Manifest);

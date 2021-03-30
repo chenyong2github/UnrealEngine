@@ -56,13 +56,16 @@ public:
 	{ return MediaAsset.IsValid() ? MediaAsset->GetDuration() : FTimeValue(); }
 	virtual FTimeValue GetDefaultStartTime() const override
 	{ return FTimeValue::GetInvalid(); }
+	virtual void ClearDefaultStartTime() override
+	{ }
 	virtual int64 GetDefaultStartingBitrate() const override;
-	virtual void GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const override;
+	virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const override;
 	virtual FTimeValue GetMinBufferTime() const override;
 	virtual void UpdateDynamicRefetchCounter() override;
 
 	virtual IStreamReader* CreateStreamReaderHandler() override;
 	virtual FResult FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
+	virtual FResult FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
 
 
 	class FRepresentationMP4 : public IPlaybackAssetRepresentation
@@ -184,6 +187,38 @@ public:
 			return TSharedPtrTS<IPlaybackAssetAdaptationSet>();
 		}
 
+		virtual void GetMetaData(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const override
+		{
+			for(int32 i=0, iMax=GetNumberOfAdaptationSets(StreamType); i<iMax; ++i)
+			{
+				TSharedPtrTS<FAdaptationSetMP4> AdaptSet = StaticCastSharedPtr<FAdaptationSetMP4>(GetAdaptationSetByTypeAndIndex(StreamType, i));
+				if (AdaptSet.IsValid())
+				{
+					FTrackMetadata tm;
+					tm.TrackID = AdaptSet->GetUniqueIdentifier();
+					tm.Language = AdaptSet->GetLanguage();
+
+					for(int32 j=0, jMax=AdaptSet->GetNumberOfRepresentations(); j<jMax; ++j)
+					{
+						TSharedPtrTS<FRepresentationMP4> Repr = StaticCastSharedPtr<FRepresentationMP4>(AdaptSet->GetRepresentationByIndex(j));
+						if (Repr.IsValid())
+						{
+							FStreamMetadata sd;
+							sd.Bandwidth = Repr->GetBitrate();
+							sd.CodecInformation = Repr->GetCodecInformation();
+							sd.ID = Repr->GetUniqueIdentifier();
+							// There is only 1 "stream" per "track" so we can set the highest bitrate and codec info the same as the track.
+							tm.HighestBandwidth = sd.Bandwidth;
+							tm.HighestBandwidthCodec = sd.CodecInformation;
+
+							tm.StreamDetails.Emplace(MoveTemp(sd));
+						}
+					}
+					OutMetadata.Emplace(MoveTemp(tm));
+				}
+			}
+		}
+
 
 		void LimitSegmentDownloadSize(TSharedPtrTS<IStreamSegment>& InOutSegment, TSharedPtr<IParserISO14496_12::IAllTrackIterator, ESPMode::ThreadSafe> AllTrackIterator);
 
@@ -216,7 +251,7 @@ public:
 		virtual ~FPlayPeriodMP4();
 		virtual void SetStreamPreferences(const FStreamPreferences& Preferences) override;
 		virtual EReadyState GetReadyState() override;
-		virtual void PrepareForPlay(const FParamDict& Options) override;
+		virtual void PrepareForPlay() override;
 		virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
 		virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
 		virtual FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;

@@ -130,6 +130,7 @@ private:
 	virtual void ReportOpenSource(const FString& URL) override;
 	virtual void ReportReceivedMasterPlaylist(const FString& EffectiveURL) override;
 	virtual void ReportReceivedPlaylists() override;
+	virtual void ReportTracksChanged() override;
 	virtual void ReportPlaylistDownload(const Metrics::FPlaylistDownloadStats& PlaylistDownloadStats) override;
 	virtual void ReportBufferingStart(Metrics::EBufferingReason BufferingReason) override;
 	virtual void ReportBufferingEnd(Metrics::EBufferingReason BufferingReason) override;
@@ -161,7 +162,7 @@ private:
 	void MediaStateOnSeekFinished();
 	void MediaStateOnError();
 
-	TSharedPtr<FStreamMetadata, ESPMode::ThreadSafe> GetTrackStreamMetadata(EPlayerTrackType TrackType, int32 TrackIndex) const;
+	TSharedPtr<FTrackMetadata, ESPMode::ThreadSafe> GetTrackStreamMetadata(EPlayerTrackType TrackType, int32 TrackIndex) const;
 
 	// Delegate to talk back to adapter host
 	TWeakPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe>	AdapterDelegate;

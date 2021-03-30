@@ -44,6 +44,7 @@ namespace Electra
 		 */
 		virtual uint32 GetPlaybackSequenceID() const = 0;
 
+		virtual void SetExecutionDelay(const FTimeValue& ExecutionDelay) = 0;
 
 		virtual EStreamType GetType() const = 0;
 
@@ -224,14 +225,19 @@ namespace Electra
 		 * If the presentation has no preferred start time an invalid value is returned.
 		 */
 		virtual FTimeValue GetDefaultStartTime() const = 0;
+		
+		/**
+		 * Clears the internal default start time so it will not be used again.
+		 */
+		virtual void ClearDefaultStartTime() = 0;
 
 
 
 		//! Returns the bitrate of the default stream (usually the first one specified).
 		virtual int64 GetDefaultStartingBitrate() const = 0;
 
-		//! Returns stream metadata. For period based presentations the streams can be different per period in which case the metadata of the first period is returned.
-		virtual void GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const = 0;
+		//! Returns track metadata. For period based presentations the streams can be different per period in which case the metadata of the first period is returned.
+		virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const = 0;
 
 		//
 		virtual FTimeValue GetMinBufferTime() const = 0;
@@ -266,10 +272,9 @@ namespace Electra
 				NotReady,
 				Preparing,
 				IsReady,
-				MustReselect						//!< Player must forget this Play Period and reselect it through FindPlayPeriod(). Needed if the timeline got altered.
 			};
 			virtual EReadyState GetReadyState() = 0;
-			virtual void PrepareForPlay(const FParamDict& Options) = 0;
+			virtual void PrepareForPlay() = 0;
 
 			/**
 			 * Returns the media asset for this play period.
@@ -362,7 +367,11 @@ namespace Electra
 			virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) = 0;
 		};
 
+		//! Finds the playback period the specified start time falls into.
 		virtual FResult FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, const FPlayStartPosition& StartPosition, ESearchType SearchType) = 0;
+
+		//! Locates the period following the given segment.
+		virtual FResult FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment) = 0;
 	};
 
 

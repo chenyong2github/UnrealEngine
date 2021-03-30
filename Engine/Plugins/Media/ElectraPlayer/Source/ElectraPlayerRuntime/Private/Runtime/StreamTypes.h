@@ -416,6 +416,36 @@ namespace Electra
 			// We do not compare frame rate here as we are interested in values that may require a decoder reconfiguration.
 			return Codec != Other.Codec || Resolution != Other.Resolution || ProfileLevel != Other.ProfileLevel || AspectRatio != Other.AspectRatio;
 		}
+
+		bool Equals(const FStreamCodecInformation& Other) const
+		{
+			if (StreamType == Other.StreamType && Codec == Other.Codec && CodecSpecifier.Equals(Other.CodecSpecifier) && StreamLanguageCode.Equals(Other.StreamLanguageCode))
+			{
+				if (StreamType == EStreamType::Video)
+				{
+					return Resolution == Other.Resolution &&
+						   Crop == Other.Crop &&
+						   AspectRatio == Other.AspectRatio &&
+						   FrameRate == Other.FrameRate &&
+						   ProfileLevel == Other.ProfileLevel;
+				}
+				else if (StreamType == EStreamType::Audio)
+				{
+					return SampleRate == Other.SampleRate &&
+						   NumChannels == Other.NumChannels &&
+						   ChannelConfiguration == Other.ChannelConfiguration &&
+						   AudioDecodingComplexity == Other.AudioDecodingComplexity &&
+						   AudioAccessibility == Other.AudioAccessibility &&
+						   NumberOfAudioObjects == Other.NumberOfAudioObjects;
+				}
+				else if (StreamType == EStreamType::Subtitle)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
 	private:
 		struct FProfileLevel
 		{
@@ -475,14 +505,45 @@ namespace Electra
 	struct FStreamMetadata
 	{
 		FStreamCodecInformation		CodecInformation;					//!< Stream codec information
-		FString						PlaylistID;							//!< URL or some other ID of the playlist (FIXME: this is mostly for HLS)
+		FString						ID;									//!< ID of this stream
 		int32						Bandwidth;							//!< Bandwidth required for this stream in bits per second
-		uint32						StreamUniqueID;						//!< Uniquely identifies this stream
-		FString						LanguageCode;
-		// TODO: additional information
+		bool Equals(const FStreamMetadata& Other) const
+		{
+			return ID == Other.ID && Bandwidth == Other.Bandwidth && CodecInformation.Equals(Other.CodecInformation);
+		}
 	};
 
-
+	/**
+	 * Metadata per track type.
+	 */
+	struct FTrackMetadata
+	{
+		FString TrackID;
+		FString Role;
+		FString Language;
+		TArray<FStreamMetadata> StreamDetails;
+		FStreamCodecInformation HighestBandwidthCodec;
+		int32 HighestBandwidth = 0;
+		bool Equals(const FTrackMetadata& Other) const
+		{
+			bool bEquals = TrackID.Equals(Other.TrackID) && Role.Equals(Other.Role) && Language.Equals(Other.Language);
+			if (bEquals)
+			{
+				if (StreamDetails.Num() == Other.StreamDetails.Num())
+				{
+					for(int32 i=0; i<StreamDetails.Num(); ++i)
+					{
+						if (!StreamDetails[i].Equals(Other.StreamDetails[i]))
+						{
+							return false;
+						}
+					}
+					return true;
+				}
+			}
+			return false;
+		}
+	};
 
 
 	/**

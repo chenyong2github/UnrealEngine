@@ -528,8 +528,8 @@ namespace Electra
 		static const IParserISO14496_12::FBoxType kBox_gmhd = MAKE_BOX_ATOM('g', 'm', 'h', 'd');
 		static const IParserISO14496_12::FBoxType kBox_dinf = MAKE_BOX_ATOM('d', 'i', 'n', 'f');
 		static const IParserISO14496_12::FBoxType kBox_dref = MAKE_BOX_ATOM('d', 'r', 'e', 'f');
-		static const IParserISO14496_12::FBoxType kBox_url = MAKE_BOX_ATOM('u', 'r', 'l', ' ');
-		static const IParserISO14496_12::FBoxType kBox_urn = MAKE_BOX_ATOM('u', 'r', 'n', ' ');
+		static const IParserISO14496_12::FBoxType kBox_url  = MAKE_BOX_ATOM('u', 'r', 'l', ' ');
+		static const IParserISO14496_12::FBoxType kBox_urn  = MAKE_BOX_ATOM('u', 'r', 'n', ' ');
 		static const IParserISO14496_12::FBoxType kBox_tref = MAKE_BOX_ATOM('t', 'r', 'e', 'f');
 		static const IParserISO14496_12::FBoxType kBox_stbl = MAKE_BOX_ATOM('s', 't', 'b', 'l');
 		static const IParserISO14496_12::FBoxType kBox_stsd = MAKE_BOX_ATOM('s', 't', 's', 'd');
@@ -559,6 +559,26 @@ namespace Electra
 		static const IParserISO14496_12::FBoxType kBox_tfhd = MAKE_BOX_ATOM('t', 'f', 'h', 'd');
 		static const IParserISO14496_12::FBoxType kBox_tfdt = MAKE_BOX_ATOM('t', 'f', 'd', 't');
 		static const IParserISO14496_12::FBoxType kBox_trun = MAKE_BOX_ATOM('t', 'r', 'u', 'n');
+		static const IParserISO14496_12::FBoxType kBox_trep = MAKE_BOX_ATOM('t', 'r', 'e', 'p');
+		static const IParserISO14496_12::FBoxType kBox_colr = MAKE_BOX_ATOM('c', 'o', 'l', 'r');
+		static const IParserISO14496_12::FBoxType kBox_elng = MAKE_BOX_ATOM('e', 'l', 'n', 'g');
+		static const IParserISO14496_12::FBoxType kBox_prft = MAKE_BOX_ATOM('p', 'r', 'f', 't');
+		static const IParserISO14496_12::FBoxType kBox_emsg = MAKE_BOX_ATOM('e', 'm', 's', 'g');
+		static const IParserISO14496_12::FBoxType kBox_sbgp = MAKE_BOX_ATOM('s', 'b', 'g', 'p');
+		static const IParserISO14496_12::FBoxType kBox_sgpd = MAKE_BOX_ATOM('s', 'g', 'p', 'd');
+		static const IParserISO14496_12::FBoxType kBox_saiz = MAKE_BOX_ATOM('s', 'a', 'i', 'z');
+		static const IParserISO14496_12::FBoxType kBox_saio = MAKE_BOX_ATOM('s', 'a', 'i', 'o');
+
+		/**
+		 * Encryption related boxes
+		 */
+		static const IParserISO14496_12::FBoxType kBox_pssh = MAKE_BOX_ATOM('p', 's', 's', 'h');
+		static const IParserISO14496_12::FBoxType kBox_senc = MAKE_BOX_ATOM('s', 'e', 'n', 'c');
+		static const IParserISO14496_12::FBoxType kBox_tenc = MAKE_BOX_ATOM('t', 'e', 'n', 'c');
+		static const IParserISO14496_12::FBoxType kBox_sinf = MAKE_BOX_ATOM('s', 'i', 'n', 'f');
+		static const IParserISO14496_12::FBoxType kBox_frma = MAKE_BOX_ATOM('f', 'r', 'm', 'a');
+		static const IParserISO14496_12::FBoxType kBox_schm = MAKE_BOX_ATOM('s', 'c', 'h', 'm');
+		static const IParserISO14496_12::FBoxType kBox_schi = MAKE_BOX_ATOM('s', 'c', 'h', 'i');
 
 		/**
 		 * Track handler types
@@ -578,6 +598,7 @@ namespace Electra
 		static const IParserISO14496_12::FBoxType kSample_avc1 = MAKE_BOX_ATOM('a', 'v', 'c', '1');
 		static const IParserISO14496_12::FBoxType kSample_mp4a = MAKE_BOX_ATOM('m', 'p', '4', 'a');
 		static const IParserISO14496_12::FBoxType kSample_stpp = MAKE_BOX_ATOM('s', 't', 'p', 'p');
+		static const IParserISO14496_12::FBoxType kSample_sbtt = MAKE_BOX_ATOM('s', 'b', 't', 't');
 		static const IParserISO14496_12::FBoxType kSample_enca = MAKE_BOX_ATOM('e', 'n', 'c', 'a');
 		static const IParserISO14496_12::FBoxType kSample_encv = MAKE_BOX_ATOM('e', 'n', 'c', 'v');
 
@@ -2044,6 +2065,163 @@ namespace Electra
 
 
 	/**
+	 * 'elng' box.
+	 * ISO/IEC 14496-12:2015 - 8.4.6 - Extended language tag (within 'mdia' box)
+	 */
+	class FMP4BoxELNG : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxELNG(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+		{
+		}
+
+		virtual ~FMP4BoxELNG()
+		{
+		}
+
+	private:
+		FMP4BoxELNG() = delete;
+		FMP4BoxELNG(const FMP4BoxELNG&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(ExtendedLanguage, BytesRemaining));
+			return Error;
+		}
+
+	private:
+		FString ExtendedLanguage;
+	};
+
+
+	/**
+	 * 'prft' box.
+	 * ISO/IEC 14496-12:2015 - 8.16.5 - Producer Reference Time Box
+	 */
+	class FMP4BoxPRFT : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxPRFT(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, ReferenceTrackID(0), MediaTime(0)
+		{
+		}
+
+		virtual ~FMP4BoxPRFT()
+		{
+		}
+
+	private:
+		FMP4BoxPRFT() = delete;
+		FMP4BoxPRFT(const FMP4BoxPRFT&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(ReferenceTrackID));		// reference_track_ID
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(NtpTimestamp));			// ntp_timestamp
+			// Which version of the box is this?
+			if (Version == 0)
+			{
+				uint32 Value32 = 0;
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));			// media_time
+				MediaTime = Value32;
+			}
+			else
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(MediaTime));			// media_time
+			}
+			return Error;
+		}
+
+	private:
+		uint32 ReferenceTrackID;
+		uint64 NtpTimestamp;
+		uint64 MediaTime;
+	};
+
+
+	/**
+	 * 'emsg' box.
+	 * ISO/IEC 23009-1:2019 - 5.10.3.3 Event Message Box
+	 */
+	class FMP4BoxEMSG : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxEMSG(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, Timescale(0), PresentationTimeDelta(0), PresentationTime(0), EventDuration(0), ID(0)
+		{
+		}
+
+		virtual ~FMP4BoxEMSG()
+		{
+		}
+
+	private:
+		FMP4BoxEMSG() = delete;
+		FMP4BoxEMSG(const FMP4BoxEMSG&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+			// Which version of the box is this?
+			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+			if (Version == 0)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(SchemeIdUri, BytesRemaining));						// scheme_id_uri
+				BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(Value, BytesRemaining));							// value
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Timescale));												// timescale
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(PresentationTimeDelta));									// presentation_time_delta
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(EventDuration));											// event_duration
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(ID));														// id
+			}
+			else if (Version == 1)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Timescale));												// timescale
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(PresentationTime));										// presentation_time
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(EventDuration));											// event_duration
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(ID));														// id
+				BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(SchemeIdUri, BytesRemaining));						// scheme_id_uri
+				BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(Value, BytesRemaining));							// value
+			}
+			else
+			{
+				return UEMEDIA_ERROR_FORMAT_ERROR;
+			}
+			BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+			if (BytesRemaining)
+			{
+				MessageData.AddUninitialized(BytesRemaining);
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(MessageData.GetData(), BytesRemaining));				// message_data
+			}
+			return Error;
+		}
+	private:
+		TArray<uint8> MessageData;
+		FString SchemeIdUri;
+		FString Value;
+		uint32 Timescale;
+		uint32 PresentationTimeDelta;
+		uint64 PresentationTime;
+		uint32 EventDuration;
+		uint32 ID;
+	};
+
+
+	/**
 	 * 'stsd' box.
 	 * ISO/IEC 14496-12:2014 - 8.5.2 - Sample Description Box
 	 */
@@ -3095,6 +3273,345 @@ namespace Electra
 
 
 
+	/**
+	 * 'pssh' box. ISO/IEC 23001-7:2016 - 8.1 - Protection system specific header box
+	 */
+	class FMP4BoxPSSH : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxPSSH(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+		{
+		}
+
+		virtual ~FMP4BoxPSSH()
+		{
+		}
+
+	private:
+		FMP4BoxPSSH() = delete;
+		FMP4BoxPSSH(const FMP4BoxPSSH&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+
+			SystemID.AddUninitialized(16);
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(SystemID.GetData(), 16));		// SystemID
+			if (Version > 0)
+			{
+				uint32 KID_count = 0;
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(KID_count));						// KID_count
+				for(uint32 i=0; i<KID_count; ++i)
+				{
+					TArray<uint8>& kid = KIDs.AddDefaulted_GetRef();
+					kid.AddUninitialized(16);
+					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(kid.GetData(), 16));		// KID
+				}
+			}
+			uint32 DataSize = 0;
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(DataSize));							// DataSize
+			if (DataSize)
+			{
+				Data.AddUninitialized(DataSize);
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(Data.GetData(), DataSize));	// Data
+			}
+			return Error;
+		}
+
+	private:
+		TArray<uint8>			SystemID;
+		TArray<TArray<uint8>>	KIDs;
+		TArray<uint8>			Data;
+	};
+
+
+	/**
+	 * 'sinf' box. ISO/IEC 14496-12:2015 - 8.12.1 Protection Scheme Information Box
+	 */
+	class FMP4BoxSINF : public FMP4BoxBasic
+	{
+	public:
+		FMP4BoxSINF(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxBasic(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+		{
+		}
+
+		virtual ~FMP4BoxSINF()
+		{
+		}
+
+	private:
+		FMP4BoxSINF() = delete;
+		FMP4BoxSINF(const FMP4BoxSINF&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			// Now that we parse this box we clear its leaf status. We call back into the generic box reader
+			// for which this flag must be clear to continue with the next boxes.
+			bIsLeafBox = false;
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this));
+			return Error;
+		}
+	};
+
+
+	/**
+	 * 'frma' box. ISO/IEC 14496-12:2015 - 8.12.2 Original Format Box
+	 */
+	class FMP4BoxFRMA : public FMP4BoxBasic
+	{
+	public:
+		FMP4BoxFRMA(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxBasic(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, DataFormat(0)
+		{
+		}
+
+		virtual ~FMP4BoxFRMA()
+		{
+		}
+
+	private:
+		FMP4BoxFRMA() = delete;
+		FMP4BoxFRMA(const FMP4BoxFRMA&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(DataFormat));						// data_format
+			return Error;
+		}
+
+	private:
+		uint32 DataFormat;
+	};
+
+
+	/**
+	 * 'schm' box. ISO/IEC 14496-12:2015 - 8.12.5 Scheme Type Box
+	 */
+	class FMP4BoxSCHM : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxSCHM(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, SchemeType(0), SchemeVersion(0)
+		{
+		}
+
+		virtual ~FMP4BoxSCHM()
+		{
+		}
+
+	private:
+		FMP4BoxSCHM() = delete;
+		FMP4BoxSCHM(const FMP4BoxSCHM&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(SchemeType));									// scheme_type
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(SchemeVersion));								// scheme_version
+			if ((Flags & 1) != 0)
+			{
+				uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+				if (BytesRemaining)
+				{
+					RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(SchemeURI, BytesRemaining));	// scheme_uri
+				}
+			}
+			return Error;
+		}
+
+	private:
+		uint32 SchemeType;
+		uint32 SchemeVersion;
+		FString SchemeURI;
+	};
+
+
+	/**
+	 * 'tenc' box. ISO/IEC 23001-7:2016 - 8.2 Track Encryption box
+	 */
+	class FMP4BoxTENC : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxTENC(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, DefaultCryptByteBlock(0), DefaultSkipByteBlock(0), DefaultIsProtected(0), DefaultPerSampleIVSize(0)
+		{
+		}
+
+		virtual ~FMP4BoxTENC()
+		{
+		}
+
+	private:
+		FMP4BoxTENC() = delete;
+		FMP4BoxTENC(const FMP4BoxTENC&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+
+			uint8 Value8 = 0;
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value8));									// reserved
+			if (Version == 0)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value8));								// reserved
+			}
+			else
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value8));
+				DefaultCryptByteBlock = Value8 >> 4;											// default_crypt_byte_block
+				DefaultSkipByteBlock = Value8 & 0x0f;											// default_skip_byte_block
+			}
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(DefaultIsProtected));						// default_isProtected
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(DefaultPerSampleIVSize));					// default_Per_Sample_IV_Size
+			DefaultKID.AddUninitialized(16);
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(DefaultKID.GetData(), 16));			// default_KID
+			if (DefaultIsProtected == 1 && DefaultPerSampleIVSize == 0)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value8));								// default_constant_IV_size
+				DefaultConstantIV.AddUninitialized(Value8);
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(DefaultConstantIV.GetData(), Value8));// default_constant_IV
+			}
+			return Error;
+		}
+
+	private:
+		uint8	DefaultCryptByteBlock;
+		uint8	DefaultSkipByteBlock;
+		uint8	DefaultIsProtected;
+		uint8	DefaultPerSampleIVSize;
+		TArray<uint8> DefaultKID;
+		TArray<uint8> DefaultConstantIV;
+	};
+
+
+	/**
+	 * 'saiz' box. ISO/IEC 14496-12:2015 - 8.7.8 Sample Auxiliary Information Sizes Box
+	 */
+	class FMP4BoxSAIZ : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxSAIZ(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, AuxInfoType(0), AuxInfoTypeParameter(0), DefaultSampleInfoSize(0)
+		{
+		}
+
+		virtual ~FMP4BoxSAIZ()
+		{
+		}
+
+	private:
+		FMP4BoxSAIZ() = delete;
+		FMP4BoxSAIZ(const FMP4BoxSAIZ&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+
+			if ((Flags & 1) != 0)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(AuxInfoType));						// aux_info_type
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(AuxInfoTypeParameter));				// aux_info_type_parameter
+			}
+
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(DefaultSampleInfoSize));					// default_sample_info_size
+			uint32 SampleCount = 0;
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(SampleCount));							// sample_count
+			if (DefaultSampleInfoSize == 0 && SampleCount != 0)
+			{
+				SampleInfoSize.AddUninitialized(SampleCount);
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(SampleInfoSize.GetData(), SampleCount));// sample_info_size
+			}
+			return Error;
+		}
+
+	private:
+		uint32	AuxInfoType;
+		uint32	AuxInfoTypeParameter;
+		uint8	DefaultSampleInfoSize;
+		TArray<uint8> SampleInfoSize;
+	};
+
+
+	/**
+	 * 'saio' box. ISO/IEC 14496-12:2015 - 8.7.9 Sample Auxiliary Information Offsets Box
+	 */
+	class FMP4BoxSAIO : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxSAIO(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, AuxInfoType(0), AuxInfoTypeParameter(0), DefaultSampleInfoSize(0)
+		{
+		}
+
+		virtual ~FMP4BoxSAIO()
+		{
+		}
+
+	private:
+		FMP4BoxSAIO() = delete;
+		FMP4BoxSAIO(const FMP4BoxSAIO&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+
+			if ((Flags & 1) != 0)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(AuxInfoType));						// aux_info_type
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(AuxInfoTypeParameter));				// aux_info_type_parameter
+			}
+			uint32 EntryCount = 0;
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(EntryCount));								// entry_count
+			if (EntryCount)
+			{
+				Offsets.AddUninitialized(EntryCount);
+				if (Version == 0)
+				{
+					uint32 Value32 = 0;
+					uint64* Offs = Offsets.GetData();
+					for(uint32 i=0; i<EntryCount; ++i)
+					{
+						RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));					// offset
+						*Offs++ = Value32;
+					}
+				}
+				else
+				{
+					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(Offsets.GetData(), EntryCount));// offset
+				}
+			}
+			return Error;
+		}
+
+	private:
+		uint32	AuxInfoType;
+		uint32	AuxInfoTypeParameter;
+		uint8	DefaultSampleInfoSize;
+		TArray<uint64> Offsets;
+	};
+
 
 
 
@@ -3257,6 +3774,7 @@ namespace Electra
 						case FMP4Box::kBox_dinf:
 						case FMP4Box::kBox_stbl:
 						case FMP4Box::kBox_mvex:
+						case FMP4Box::kBox_schi:
 							NextBox = new FMP4BoxBasic(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, false);
 							break;
 						case FMP4Box::kBox_trak:
@@ -3328,6 +3846,15 @@ namespace Electra
 						case FMP4Box::kBox_pasp:
 							NextBox = new FMP4BoxPASP(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
+						case FMP4Box::kBox_elng:
+							NextBox = new FMP4BoxELNG(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
+						case FMP4Box::kBox_prft:
+							NextBox = new FMP4BoxPRFT(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
+						case FMP4Box::kBox_emsg:
+							NextBox = new FMP4BoxEMSG(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
 						case FMP4Box::kBox_iods:
 						case FMP4Box::kBox_esds:
 							NextBox = new FMP4BoxESDS(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
@@ -3369,9 +3896,18 @@ namespace Electra
 						case FMP4Box::kBox_trun:
 							NextBox = new FMP4BoxTRUN(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
-						case FMP4Box::kBox_tref:	// We ignore the 'tref' box for now.
-						case FMP4Box::kBox_sdtp:	// We ignore the 'sdtp' box for now.
-						case FMP4Box::kBox_gmhd:	// We ignore the 'gmhd' box for now.
+						case FMP4Box::kBox_saiz:
+							NextBox = new FMP4BoxSAIZ(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
+						case FMP4Box::kBox_saio:
+							NextBox = new FMP4BoxSAIO(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
+						// Boxes we ignore for now.
+						case FMP4Box::kBox_tref:
+						case FMP4Box::kBox_colr:
+						case FMP4Box::kBox_trep:
+						case FMP4Box::kBox_sdtp:
+						case FMP4Box::kBox_gmhd:
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
 						case FMP4Box::kBox_skip:
@@ -3388,6 +3924,23 @@ namespace Electra
 							// Here we could check if we know the UUID of the box and then handle it specially.
 								// if (memcmp(BoxUUID, ...., 16) == 0)
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
+
+						// Encryption related boxes.
+						case FMP4Box::kBox_pssh:
+							NextBox = new FMP4BoxPSSH(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
+						case FMP4Box::kBox_sinf:
+							NextBox = new FMP4BoxSINF(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);		// 'sinf' is not a true leaf box, but its elements are a list that must be parsed.
+							break;
+						case FMP4Box::kBox_frma:
+							NextBox = new FMP4BoxFRMA(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
+						case FMP4Box::kBox_schm:
+							NextBox = new FMP4BoxSCHM(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
+						case FMP4Box::kBox_tenc:
+							NextBox = new FMP4BoxTENC(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
 
 						default:

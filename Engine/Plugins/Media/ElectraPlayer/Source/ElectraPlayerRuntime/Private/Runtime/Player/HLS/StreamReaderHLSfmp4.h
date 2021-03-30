@@ -22,6 +22,7 @@ public:
 	virtual void SetPlaybackSequenceID(uint32 PlaybackSequenceID) override;
 	virtual uint32 GetPlaybackSequenceID() const override;
 
+	virtual void SetExecutionDelay(const FTimeValue& ExecutionDelay) override;
 
 	virtual EStreamType GetType() const override;
 

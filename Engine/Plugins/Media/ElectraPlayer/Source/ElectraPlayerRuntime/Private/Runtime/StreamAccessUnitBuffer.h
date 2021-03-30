@@ -32,13 +32,11 @@ namespace Electra
 
 	struct FStreamSourceInfo
 	{
-		FStreamSourceInfo() : NumericTrackID(0) {}
 		FString		Language;
 		FString		Role;
 		FString		PeriodID;
 		FString		AdaptationSetID;
 		FString		RepresentationID;
-		uint32		NumericTrackID;
 	};
 
 	struct FAccessUnit
@@ -544,9 +542,9 @@ namespace Electra
 		~FMultiTrackAccessUnitBuffer();
 		void CapacitySet(const FAccessUnitBuffer::FConfiguration& Config);
 		void AutoselectFirstTrack();
-		void SelectTrackByID(int32 TrackID);
+		void SelectTrackByID(const FString& TrackID);
 		void Deselect();
-		//int32 GetSelectedTrackID() const;
+		//FString GetSelectedTrackID() const;
 		bool Push(FAccessUnit*& AU);
 		void PushEndOfDataFor(TSharedPtr<const FStreamSourceInfo, ESPMode::ThreadSafe> InStreamSourceInfo);
 		void PushEndOfDataAll();
@@ -588,12 +586,12 @@ namespace Electra
 		TSharedPtr<FAccessUnitBuffer, ESPMode::ThreadSafe> GetSelectedTrackBuffer();
 		TSharedPtr<const FAccessUnitBuffer, ESPMode::ThreadSafe> GetSelectedTrackBuffer() const;
 
-		mutable FMediaCriticalSection						AccessLock;
+		mutable FMediaCriticalSection			AccessLock;
 		FAccessUnitBuffer::FConfiguration		PrimaryBufferConfiguration;			//!< Configuration of the primary (active) buffer. All other buffers are unbounded to ensure no stalling of the demuxer.
 		FAccessUnitBufferPtr					EmptyBuffer;						//!< An empty buffer
-		int32									ActiveOutputID;						//!< Track ID of the buffer that is feeding the decoder.
-		int32									LastPoppedBufferID;					//!< Buffer ID from which an AU was popped last.
-		TMap<uint32, FAccessUnitBufferPtr>		TrackBuffers;						//!< Map of track buffers. One per track ID.
+		FString									ActiveOutputID;						//!< Track ID of the buffer that is feeding the decoder.
+		FString									LastPoppedBufferID;					//!< Buffer ID from which an AU was popped last.
+		TMap<FString, FAccessUnitBufferPtr>		TrackBuffers;						//!< Map of track buffers. One per track ID.
 		FTimeValue								LastPoppedDTS;
 		FTimeValue								LastPoppedPTS;
 		bool									bAutoselectFirstTrack;

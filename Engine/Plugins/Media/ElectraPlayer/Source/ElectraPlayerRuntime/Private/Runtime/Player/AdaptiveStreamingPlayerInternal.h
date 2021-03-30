@@ -22,7 +22,9 @@
 #define INTERR_ALL_STREAMS_HAVE_FAILED			1
 #define INTERR_UNSUPPORTED_FORMAT				2
 #define INTERR_COULD_NOT_LOCATE_START_SEGMENT	3
+#define INTERR_COULD_NOT_LOCATE_START_PERIOD	4
 #define INTERR_FRAGMENT_NOT_AVAILABLE			0x101
+#define INTERR_FRAGMENT_READER_REQUEST			0x102
 #define INTERR_CREATE_FRAGMENT_READER			0x103
 #define INTERR_REBUFFER_SHALL_THROW_ERROR		0x200
 
@@ -182,8 +184,8 @@ struct FPlaybackState
 	bool									bIsBuffering;
 	bool									bIsPlaying;
 	bool									bIsPaused;
-	TArray<FStreamMetadata>					VideoStreams;
-	TArray<FStreamMetadata>					AudioStreams;
+	TArray<FTrackMetadata>					VideoTracks;
+	TArray<FTrackMetadata>					AudioTracks;
 	TArray<FTimespan>						SeekablePositions;
 
 
@@ -315,17 +317,36 @@ struct FPlaybackState
 		bIsPlaying = bInIsPlaying;
 	}
 
-	void SetStreamMetadata(const TArray<FStreamMetadata> &InVideoStreams, const TArray<FStreamMetadata>& InAudioStreams)
+	bool SetTrackMetadata(const TArray<FTrackMetadata> &InVideoTracks, const TArray<FTrackMetadata>& InAudioTracks)
 	{
 		FMediaCriticalSection::ScopedLock lock(Lock);
-		VideoStreams = InVideoStreams;
-		AudioStreams = InAudioStreams;
+
+		auto ChangedTrackMetadata = [](const TArray<FTrackMetadata> &These, const TArray<FTrackMetadata>& Other) -> bool
+		{
+			if (These.Num() == Other.Num())
+			{
+				for(int32 i=0; i<These.Num(); ++i)
+				{
+					if (!These[i].Equals(Other[i]))
+					{
+						return true;
+					}
+				}
+				return false;
+			}
+			return true;
+		};
+
+		bool bChanged = ChangedTrackMetadata(VideoTracks, InVideoTracks) || ChangedTrackMetadata(AudioTracks, InAudioTracks);
+		VideoTracks = InVideoTracks;
+		AudioTracks = InAudioTracks;
+		return bChanged;
 	}
-	void GetStreamMetadata(TArray<FStreamMetadata> &OutVideoStreams, TArray<FStreamMetadata>& OutAudioStreams) const
+	void GetTrackMetadata(TArray<FTrackMetadata> &OutVideoTracks, TArray<FTrackMetadata>& OutAudioTracks) const
 	{
 		FMediaCriticalSection::ScopedLock lock(Lock);
-		OutVideoStreams = VideoStreams;
-		OutAudioStreams = AudioStreams;
+		OutVideoTracks = VideoTracks;
+		OutAudioTracks = AudioTracks;
 	}
 
 	void SetLoopState(const FPlayerLoopState& InLoopState)
@@ -358,6 +379,7 @@ struct FMetricEvent
 		OpenSource,
 		ReceivedMasterPlaylist,
 		ReceivedPlaylists,
+		TracksChanged,
 		BufferingStart,
 		BufferingEnd,
 		Bandwidth,
@@ -443,6 +465,12 @@ struct FMetricEvent
 	{
 		TSharedPtrTS<FMetricEvent> Evt = MakeSharedTS<FMetricEvent>();
 		Evt->Type = EType::ReceivedPlaylists;
+		return Evt;
+	}
+	static TSharedPtrTS<FMetricEvent> ReportTracksChanged()
+	{
+		TSharedPtrTS<FMetricEvent> Evt = MakeSharedTS<FMetricEvent>();
+		Evt->Type = EType::TracksChanged;
 		return Evt;
 	}
 	static TSharedPtrTS<FMetricEvent> ReportBufferingStart(Metrics::EBufferingReason BufferingReason)
@@ -663,12 +691,12 @@ public:
 	virtual bool IsPaused() const override;
 
 	virtual void GetLoopState(FPlayerLoopState& OutLoopState) const override;
-	virtual void GetStreamMetadata(TArray<FStreamMetadata>& OutStreamMetadata, EStreamType StreamType) const override;
+	virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutTrackMetadata, EStreamType StreamType) const override;
 
 	virtual void SetBitrateCeiling(int32 highestSelectableBitrate) override;
 	virtual void SetMaxResolution(int32 MaxWidth, int32 MaxHeight) override;
 
-	virtual void SelectTrackByMetadata(EStreamType StreamType, const FStreamMetadata& StreamMetadata) override;
+	virtual void SelectTrackByMetadata(EStreamType StreamType, const FTrackMetadata& StreamMetadata) override;
 	virtual void DeselectTrack(EStreamType StreamType) override;
 
 #if PLATFORM_ANDROID
@@ -988,7 +1016,7 @@ private:
 				struct FMetadataTrackSelection
 				{
 					EStreamType										StreamType;
-					FStreamMetadata									StreamMetadata;
+					FTrackMetadata									TrackMetadata;
 				};
 
 				FLoadManifest				ManifestToLoad;
@@ -1088,12 +1116,12 @@ private:
 			Msg.Data.Resolution.Height = Height;
 			WorkMessages.SendMessage(Msg);
 		}
-		void SendTrackSelectByMetadataMessage(EStreamType StreamType, const FStreamMetadata& StreamMetadata)
+		void SendTrackSelectByMetadataMessage(EStreamType StreamType, const FTrackMetadata& TrackMetadata)
 		{
 			FMessage Msg;
 			Msg.Type = FMessage::EType::SelectTrackByMetadata;
 			Msg.Data.TrackSelection.StreamType = StreamType;
-			Msg.Data.TrackSelection.StreamMetadata = StreamMetadata;
+			Msg.Data.TrackSelection.TrackMetadata = TrackMetadata;
 			WorkMessages.SendMessage(Msg);
 		}
 		void SendTrackDeselectMessage(EStreamType StreamType)
@@ -1109,55 +1137,15 @@ private:
 		bool											bStarted;
 	};
 
-
-	void InternalLoadManifest(const FString& URL, const FString& MimeType);
-	bool SelectManifest();
-	void UpdateManifest();
-
-	void VideoDecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats);
-	void VideoDecoderOutputReady(const IDecoderOutputBufferListener::FDecodeReadyStats& currentReadyStats);
-
-	void AudioDecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats);
-	void AudioDecoderOutputReady(const IDecoderOutputBufferListener::FDecodeReadyStats& currentReadyStats);
-
-
-
-	void WorkerThreadFN();
-	void StartWorkerThread();
-	void StopWorkerThread();
-
-	int32 CreateRenderers();
-	void DestroyRenderers();
-
-	int32 CreateInitialDecoder(EStreamType type);
-	void DestroyDecoders();
-	bool FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, int32 MaxWidth, int32 MaxHeight);
-	void UpdateStreamResolutionLimit();
-
-	// AU memory / generic stream reader memory
-	void* AUAllocate(IAccessUnitMemoryProvider::EDataType type, SIZE_T size, SIZE_T alignment) override;
-	void AUDeallocate(IAccessUnitMemoryProvider::EDataType type, void *pAddr) override;
-
-	// Stream reader events
-	void OnFragmentOpen(TSharedPtrTS<IStreamSegment> pRequest) override;
-	bool OnFragmentAccessUnitReceived(FAccessUnit* pAccessUnit) override;
-	void OnFragmentReachedEOS(EStreamType InStreamType, TSharedPtr<const FStreamSourceInfo, ESPMode::ThreadSafe> InStreamSourceInfo) override;
-	void OnFragmentClose(TSharedPtrTS<IStreamSegment> pRequest) override;
-
-
-
-
-
 	struct FPendingStartRequest
 	{
-		FPlayStartPosition				StartAt;
-		IManifest::ESearchType			SearchType;
-		FTimeValue						RetryAtTime;
-		TMediaOptionalValue<int32>		InitialBandwidth;
+		FPlayStartPosition										StartAt;
+		IManifest::ESearchType									SearchType;
+		FTimeValue												RetryAtTime;
+		TMediaOptionalValue<int32>								InitialBandwidth;
+		bool													bForLooping = false;
+		TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>	FinishedRequests;
 	};
-
-
-
 
 	struct FBufferStats
 	{
@@ -1171,44 +1159,6 @@ private:
 		IAccessUnitBufferListener::FBufferStats				DecoderInputBuffer;
 		IDecoderOutputBufferListener::FDecodeReadyStats		DecoderOutputBuffer;
 	};
-	void UpdateDiagnostics();
-
-
-	void HandleNewBufferedData();
-	void HandleNewOutputData();
-	void HandleSessionMessage(TSharedPtrTS<IPlayerMessage> SessionMessage);
-	void HandlePlayStateChanges();
-	void HandlePendingMediaSegmentRequests();
-	void HandleDeselectedBuffers();
-	void HandleDecoderChanges();
-	void HandleMetadataChanges();
-
-	void CheckForStreamEnd();
-
-	void CheckForErrors();
-
-	void FeedDecoder(EStreamType Type, FMultiTrackAccessUnitBuffer& FromMultistreamBuffer, IAccessUnitBufferInterface* Decoder);
-
-	bool InternalStartAt(const FSeekParam& NewPosition);
-	void InternalPause();
-	void InternalResume();
-	void InternalRebuffer();
-	void InternalStop(bool bHoldCurrentFrame);
-	void InternalClose();
-	void InternalSetLoop(const FLoopParam& LoopParam);
-
-
-	void DispatchEvent(TSharedPtrTS<FMetricEvent> Event);
-	void DispatchEventAndWait(TSharedPtrTS<FMetricEvent> Event);
-	void DispatchBufferingEvent(bool bBegin, EPlayerState Reason);
-	void DispatchSegmentDownloadedEvent(TSharedPtrTS<IStreamSegment> Request);
-	void DispatchBufferUtilizationEvent(EStreamType BufferType);
-
-	void UpdateDataAvailabilityState(Metrics::FDataAvailabilityChange& DataAvailabilityState, Metrics::FDataAvailabilityChange::EAvailability NewAvailability);
-
-	void StartRendering();
-	void StopRendering();
-
 
 	struct FPrerollVars
 	{
@@ -1263,6 +1213,109 @@ private:
 		FRenderState		Audio;
 	};
 
+	struct FStreamBitrateInfo
+	{
+		FStreamBitrateInfo()
+		{
+			Clear();
+		}
+		void Clear()
+		{
+			Bitrate 	 = 0;
+			QualityLevel = 0;
+		}
+		int32			Bitrate;
+		int32			QualityLevel;
+	};
+
+	struct FPendingSegmentRequest
+	{
+		TSharedPtrTS<IStreamSegment>			Request;
+		FTimeValue								AtTime;
+		TSharedPtrTS<IManifest::IPlayPeriod>	Period;			//!< Set if transitioning between periods. This is the new period that needs to be readied.
+	};
+
+	struct FUpcomingPeriod
+	{
+		TSharedPtrTS<ITimelineMediaAsset>		Period;
+		FString									ID;
+		FTimeRange								TimeRange;
+	};
+
+
+	void InternalLoadManifest(const FString& URL, const FString& MimeType);
+	bool SelectManifest();
+	void UpdateManifest();
+
+	void VideoDecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats);
+	void VideoDecoderOutputReady(const IDecoderOutputBufferListener::FDecodeReadyStats& currentReadyStats);
+
+	void AudioDecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats);
+	void AudioDecoderOutputReady(const IDecoderOutputBufferListener::FDecodeReadyStats& currentReadyStats);
+
+
+
+	void WorkerThreadFN();
+	void StartWorkerThread();
+	void StopWorkerThread();
+
+	int32 CreateRenderers();
+	void DestroyRenderers();
+
+	int32 CreateInitialDecoder(EStreamType type);
+	void DestroyDecoders();
+	bool FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, int32 MaxWidth, int32 MaxHeight);
+	void UpdateStreamResolutionLimit();
+	void AddUpcomingPeriod(TSharedPtrTS<IManifest::IPlayPeriod> InUpcomingPeriod);
+
+	// AU memory / generic stream reader memory
+	void* AUAllocate(IAccessUnitMemoryProvider::EDataType type, SIZE_T size, SIZE_T alignment) override;
+	void AUDeallocate(IAccessUnitMemoryProvider::EDataType type, void *pAddr) override;
+
+	// Stream reader events
+	void OnFragmentOpen(TSharedPtrTS<IStreamSegment> pRequest) override;
+	bool OnFragmentAccessUnitReceived(FAccessUnit* pAccessUnit) override;
+	void OnFragmentReachedEOS(EStreamType InStreamType, TSharedPtr<const FStreamSourceInfo, ESPMode::ThreadSafe> InStreamSourceInfo) override;
+	void OnFragmentClose(TSharedPtrTS<IStreamSegment> pRequest) override;
+
+	void UpdateDiagnostics();
+	void HandleNewBufferedData();
+	void HandleNewOutputData();
+	void HandleSessionMessage(TSharedPtrTS<IPlayerMessage> SessionMessage);
+	void HandlePlayStateChanges();
+	void HandlePendingMediaSegmentRequests();
+	void HandleDeselectedBuffers();
+	void HandleDecoderChanges();
+	void HandleMetadataChanges();
+
+	void CheckForStreamEnd();
+
+	void CheckForErrors();
+
+	void FeedDecoder(EStreamType Type, FMultiTrackAccessUnitBuffer& FromMultistreamBuffer, IAccessUnitBufferInterface* Decoder);
+
+	bool InternalStartAt(const FSeekParam& NewPosition);
+	void InternalPause();
+	void InternalResume();
+	void InternalRebuffer();
+	void InternalStop(bool bHoldCurrentFrame);
+	void InternalClose();
+	void InternalSetLoop(const FLoopParam& LoopParam);
+	void InternalSetPlaybackEnded();
+
+	void DispatchEvent(TSharedPtrTS<FMetricEvent> Event);
+	void DispatchEventAndWait(TSharedPtrTS<FMetricEvent> Event);
+	void DispatchBufferingEvent(bool bBegin, EPlayerState Reason);
+	void DispatchSegmentDownloadedEvent(TSharedPtrTS<IStreamSegment> Request);
+	void DispatchBufferUtilizationEvent(EStreamType BufferType);
+
+	void UpdateDataAvailabilityState(Metrics::FDataAvailabilityChange& DataAvailabilityState, Metrics::FDataAvailabilityChange::EAvailability NewAvailability);
+
+	void StartRendering();
+	void StopRendering();
+
+	FTimeValue GetCurrentPlayTime();
+
 
 	//
 	// Member variables
@@ -1305,9 +1358,9 @@ private:
 	Metrics::FDataAvailabilityChange									DataAvailabilityStateAud;
 	Metrics::FDataAvailabilityChange									DataAvailabilityStateTxt;
 
-	TSharedPtr<FStreamMetadata, ESPMode::ThreadSafe>					InitialStreamSelectionVid;
-	TSharedPtr<FStreamMetadata, ESPMode::ThreadSafe>					InitialStreamSelectionAud;
-	TSharedPtr<FStreamMetadata, ESPMode::ThreadSafe>					InitialStreamSelectionTxt;
+	TSharedPtr<FTrackMetadata, ESPMode::ThreadSafe>						InitialTrackSelectionVid;
+	TSharedPtr<FTrackMetadata, ESPMode::ThreadSafe>						InitialTrackSelectionAud;
+	TSharedPtr<FTrackMetadata, ESPMode::ThreadSafe>						InitialTrackSelectionTxt;
 
 	EPlayerState														CurrentState;
 	EPipelineState														PipelineState;
@@ -1329,22 +1382,8 @@ private:
 	int32																VideoResolutionLimitWidth;
 	int32																VideoResolutionLimitHeight;
 	int32																MaxVideoTextureResolutionLimitHeight;
-	struct FStreamBitrateInfo
-	{
-		FStreamBitrateInfo()
-		{
-			Clear();
-		}
-		void Clear()
-		{
-			Bitrate 	 = 0;
-			QualityLevel = 0;
-		}
-		int32			Bitrate;
-		int32			QualityLevel;
-	};
-	FStreamBitrateInfo													CurrentVideoStreamBitrate;
 
+	FStreamBitrateInfo													CurrentVideoStreamBitrate;
 
 	bool																bShouldBePaused;
 	bool																bShouldBePlaying;
@@ -1354,18 +1393,16 @@ private:
 	FLoopParam															CurrentLoopParam;
 	TMediaQueueDynamicNoLock<FPlayerLoopState>							NextLoopStates;
 
-	struct FPendingSegmentRequest
-	{
-		TSharedPtrTS<IStreamSegment>		Request;
-		FTimeValue							AtTime;
-		TMediaOptionalValue<IAdaptiveStreamSelector::ESegmentAction> PreviousEvalResult;
-	};
-
-	TSharedPtrTS<IManifest::IPlayPeriod>								CurrentPlayPeriod;
+	TArray<FUpcomingPeriod>												UpcomingPeriods;
+	TSharedPtrTS<IManifest::IPlayPeriod>								InitialPlayPeriod;
+	TSharedPtrTS<IManifest::IPlayPeriod>								CurrentPlayPeriodVideo;
+	TSharedPtrTS<IManifest::IPlayPeriod>								CurrentPlayPeriodAudio;
+	TSharedPtrTS<IManifest::IPlayPeriod>								CurrentPlayPeriodText;
 	TSharedPtrTS<FPendingStartRequest>									PendingStartRequest;
 	TSharedPtrTS<IStreamSegment>										PendingFirstSegmentRequest;
 	TQueue<FPendingSegmentRequest>										NextPendingSegmentRequests;
 	TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>				CompletedSegmentRequests;
+	bool																bFirstSegmentRequestIsForLooping;
 
 	uint32																CurrentPlaybackSequenceID;
 

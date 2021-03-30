@@ -27,7 +27,7 @@ public:
 	virtual void SetStreamPreferences(const FStreamPreferences& Preferences) override;
 
 	virtual EReadyState GetReadyState() override;
-	virtual void PrepareForPlay(const FParamDict& Options) override;
+	virtual void PrepareForPlay() override;
 
 	// TODO: need to provide metadata (duration, streams, languages, etc.)
 
@@ -150,6 +150,9 @@ FTimeValue FManifestHLS::GetDefaultStartTime() const
 {
 	return FTimeValue::GetInvalid();
 }
+void FManifestHLS::ClearDefaultStartTime()
+{
+}
 
 
 
@@ -169,21 +172,21 @@ int64 FManifestHLS::GetDefaultStartingBitrate() const
 }
 
 /**
- * Returns stream metadata. For period based presentations the streams can be different per period in which case the metadata of the first period is returned.
+ * Returns track metadata. For period based presentations the streams can be different per period in which case the metadata of the first period is returned.
  *
  * @param OutMetadata
  * @param StreamType
  */
-void FManifestHLS::GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const
+void FManifestHLS::GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const
 {
 	FManifestHLSInternal::ScopedLockPlaylists lock(InternalManifest);
 	switch(StreamType)
 	{
 		case EStreamType::Video:
-			OutMetadata = InternalManifest->StreamMetadataVideo;
+			OutMetadata = InternalManifest->TrackMetadataVideo;
 			break;
 		case EStreamType::Audio:
-			OutMetadata = InternalManifest->StreamMetadataAudio;
+			OutMetadata = InternalManifest->TrackMetadataAudio;
 			break;
 		case EStreamType::Subtitle:
 			OutMetadata.Empty();
@@ -230,6 +233,12 @@ IManifest::FResult FManifestHLS::FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPl
 	TSharedPtrTS<FPlayPeriodHLS> Period(new FPlayPeriodHLS(SessionServices, PlaylistReader, InternalManifest));
 	OutPlayPeriod = Period;
 	return IManifest::FResult(IManifest::FResult::EType::Found);
+}
+
+IManifest::FResult FManifestHLS::FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment)
+{
+	// There is no following period.
+	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
 }
 
 
@@ -305,10 +314,8 @@ IManifest::IPlayPeriod::EReadyState FPlayPeriodHLS::GetReadyState()
 
 /**
  * Prepares the period for playback.
- *
- * @param Options
  */
-void FPlayPeriodHLS::PrepareForPlay(const FParamDict& Options)
+void FPlayPeriodHLS::PrepareForPlay()
 {
 	// For now we just go with the streams for which we loaded the playlists initially.
 	// FIXME: in the future, based on preferences and options, select the streams we want.

@@ -114,6 +114,13 @@ namespace Electra
 		 * @return Shared pointer to the requested adaptation set.
 		 */
 		virtual TSharedPtrTS<IPlaybackAssetAdaptationSet> GetAdaptationSetByTypeAndIndex(EStreamType OfStreamType, int32 AdaptationSetIndex) const = 0;
+
+
+		/**
+		 * Returns "track" metadata for the specified type of stream. This is essentially the adaptation sets per type with their
+		 * individual representations.
+		 */
+		virtual void GetMetaData(TArray<FTrackMetadata>& OutMetadata, EStreamType OfStreamType) const = 0;
 	};
 
 

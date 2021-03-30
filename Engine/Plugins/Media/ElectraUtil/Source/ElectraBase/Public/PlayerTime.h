@@ -561,6 +561,17 @@ public:
 
 	FTimeFraction& SetFromFloatString(const FString& In);
 
+
+	bool operator == (const FTimeFraction& rhs) const
+	{
+		return bIsValid == rhs.bIsValid && Numerator == rhs.Numerator && Denominator == rhs.Denominator;
+	}
+
+	bool operator != (const FTimeFraction& rhs) const
+	{
+		return !(*this == rhs);
+	}
+
 private:
 	int64	Numerator;
 	uint32	Denominator;

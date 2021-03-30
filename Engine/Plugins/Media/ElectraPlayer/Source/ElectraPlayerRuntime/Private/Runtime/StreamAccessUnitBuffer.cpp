@@ -11,8 +11,6 @@ namespace Electra
 	FMultiTrackAccessUnitBuffer::FMultiTrackAccessUnitBuffer()
 	{
 		EmptyBuffer = CreateNewBuffer();
-		ActiveOutputID = -1;
-		LastPoppedBufferID = -1;
 		LastPoppedDTS.SetToInvalid();
 		LastPoppedPTS.SetToInvalid();
 		bAutoselectFirstTrack = false;
@@ -42,10 +40,10 @@ namespace Electra
 
 	bool FMultiTrackAccessUnitBuffer::Push(FAccessUnit*& AU)
 	{
-		uint32 TrackID = 0;
+		FString TrackID;
 		if (AU->StreamSourceInfo.IsValid())
 		{
-			TrackID = AU->StreamSourceInfo->NumericTrackID;
+			TrackID = AU->StreamSourceInfo->AdaptationSetID;
 		}
 		// Do we have a buffer for this track ID yet?
 		AccessLock.Lock();
@@ -58,7 +56,7 @@ namespace Electra
 		if (bAutoselectFirstTrack)
 		{
 			bAutoselectFirstTrack = false;
-			ActiveOutputID = (int32)TrackID;
+			ActiveOutputID = TrackID;
 		}
 
 		// Pushing data to either buffer means that there is data and we are not at EOD here any more.
@@ -66,7 +64,7 @@ namespace Electra
 		bEndOfData = false;
 		AccessLock.Unlock();
 		// If this is the active buffer or no active buffer has been set yet we use the configured buffer limit in pushing.
-		const FAccessUnitBuffer::FConfiguration* PushConfig = ActiveOutputID == -1 || ActiveOutputID == (int32)TrackID ? &PrimaryBufferConfiguration : nullptr;
+		const FAccessUnitBuffer::FConfiguration* PushConfig = ActiveOutputID.IsEmpty() || ActiveOutputID.Equals(TrackID) ? &PrimaryBufferConfiguration : nullptr;
 		bool bWasPushed = TrackBuffer->Push(AU, PushConfig);
 		bLastPushWasBlocked = TrackBuffer->WasLastPushBlocked();
 		return bWasPushed;
@@ -74,10 +72,10 @@ namespace Electra
 
 	void FMultiTrackAccessUnitBuffer::PushEndOfDataFor(TSharedPtr<const FStreamSourceInfo, ESPMode::ThreadSafe> InStreamSourceInfo)
 	{
-		uint32 TrackID = 0;
+		FString TrackID;
 		if (InStreamSourceInfo.IsValid())
 		{
-			TrackID = InStreamSourceInfo->NumericTrackID;
+			TrackID = InStreamSourceInfo->AdaptationSetID;
 		}
 		// Do we have a buffer for this track ID yet?
 		AccessLock.Lock();
@@ -90,7 +88,7 @@ namespace Electra
 		if (bAutoselectFirstTrack)
 		{
 			bAutoselectFirstTrack = false;
-			ActiveOutputID = (int32)TrackID;
+			ActiveOutputID = TrackID;
 		}
 
 		AccessLock.Unlock();
@@ -120,7 +118,7 @@ namespace Electra
 		LastPoppedPTS.SetToInvalid();
 		bEndOfData = false;
 		bLastPushWasBlocked = false;
-		LastPoppedBufferID = -1;
+		LastPoppedBufferID.Empty();
 	}
 
 	void FMultiTrackAccessUnitBuffer::PurgeAll()
@@ -132,7 +130,7 @@ namespace Electra
 		LastPoppedPTS.SetToInvalid();
 		bEndOfData = false;
 		bLastPushWasBlocked = false;
-		LastPoppedBufferID = -1;
+		LastPoppedBufferID.Empty();
 	}
 
 	void FMultiTrackAccessUnitBuffer::AutoselectFirstTrack()
@@ -143,7 +141,7 @@ namespace Electra
 	}
 
 
-	void FMultiTrackAccessUnitBuffer::SelectTrackByID(int32 TrackID)
+	void FMultiTrackAccessUnitBuffer::SelectTrackByID(const FString& TrackID)
 	{
 		FMediaCriticalSection::ScopedLock lock(AccessLock);
 		if (TrackID != ActiveOutputID)
@@ -179,7 +177,7 @@ namespace Electra
 	{
 		FAccessUnitBufferPtr TrackBuffer;
 		AccessLock.Lock();
-		if (ActiveOutputID != -1 && TrackBuffers.Contains(ActiveOutputID))
+		if (TrackBuffers.Contains(ActiveOutputID))
 		{
 			TrackBuffer = TrackBuffers[ActiveOutputID];
 		}
@@ -195,7 +193,7 @@ namespace Electra
 	{
 		FAccessUnitBufferPtr TrackBuffer;
 		AccessLock.Lock();
-		if (ActiveOutputID != -1 && TrackBuffers.Contains(ActiveOutputID))
+		if (TrackBuffers.Contains(ActiveOutputID))
 		{
 			TrackBuffer = TrackBuffers[ActiveOutputID];
 		}
@@ -228,7 +226,7 @@ namespace Electra
 			if (bDidPop && OutAU)
 			{
 				// Did we just pop from a different buffer than last time?
-				if (LastPoppedBufferID != -1 && LastPoppedBufferID != ActiveOutputID)
+				if (LastPoppedBufferID != ActiveOutputID)
 				{
 					// FIXME: We may need to discard everything that is not tagged as a sync sample to ensure proper stream switching.
 					OutAU->bTrackChangeDiscontinuity = true;
