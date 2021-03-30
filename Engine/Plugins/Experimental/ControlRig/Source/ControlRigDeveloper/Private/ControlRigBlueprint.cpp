@@ -294,7 +294,7 @@ void UControlRigBlueprint::RecompileVM()
 		InitContext.Hierarchy = &CDO->Hierarchy;
 
 		FRigUnitContext UpdateContext = InitContext;
-		InitContext.State = EControlRigState::Update;
+		UpdateContext.State = EControlRigState::Update;
 
 		void* InitContextPtr = &InitContext;
 		void* UpdateContextPtr = &UpdateContext;
