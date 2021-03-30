@@ -1589,6 +1589,10 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 				ActiveHistoryForFunctionCalls.EndUsage();
 				InstanceWrite = FDataSetAccessInfo(); // Reset after building the output..
 				AddBodyComment(TEXT("//End Spawn Script!\n\n"));
+
+				AddBodyComment(TEXT("//Handle resetting previous values at the end of spawn so that they match outputs! (Needed for motion blur/etc)"));
+				AddBodyChunk(TEXT("HandlePreviousValuesForSpawn(Context);"));
+				
 				BuildMissingDefaults();
 			}
 
@@ -1897,6 +1901,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		}
 
 		DefineInterpolatedParametersFunction(HlslOutput);
+		DefinePreviousParametersFunction(HlslOutput, DataSetVariables, DataSetReads, DataSetWrites);
 
 		// define functions for reading and writing all secondary data sets
 		DefineDataSetReadFunction(HlslOutput, CompilationOutput.ScriptData.ReadDataSets);
@@ -2415,6 +2420,38 @@ void FHlslNiagaraTranslator::GatherComponentsForDataSetAccess(UScriptStruct* Str
 			}
 		}
 	}
+}
+
+void FHlslNiagaraTranslator::DefinePreviousParametersFunction(FString& HlslOutputString, TArray<TArray<FNiagaraVariable>>& DataSetVariables, TMap<FNiagaraDataSetID, int32>& DataSetReads, TMap<FNiagaraDataSetID, int32>& DataSetWrites)
+{
+	HlslOutputString +=
+		TEXT("#if (((SimulationStageIndex >= 0) && (SimulationStageIndex < 1))) // MapSpawn\n")
+		TEXT("void HandlePreviousValuesForSpawn(inout FSimulationContext Context)\n{\n");
+	if (UNiagaraScript::IsParticleSpawnScript(CompileOptions.TargetUsage) || UNiagaraScript::IsGPUScript(CompileOptions.TargetUsage))
+	{
+		TArray<FNiagaraDataSetID> ReadDataSetIDs;
+		TArray<FNiagaraDataSetID> WriteDataSetIDs;
+
+		DataSetReads.GetKeys(ReadDataSetIDs);
+		DataSetWrites.GetKeys(WriteDataSetIDs);
+
+		for (int32 DataSetIndex = 0; DataSetIndex < DataSetWrites.Num(); ++DataSetIndex)
+		{
+			const FNiagaraDataSetID DataSetID = ReadDataSetIDs[DataSetIndex];
+			const TArray<FNiagaraVariable>& NiagaraVariables = DataSetVariables[DataSetWrites[DataSetID]];
+			for (const FNiagaraVariable& Var : NiagaraVariables)
+			{
+				if (FNiagaraParameterMapHistory::IsPreviousValue(Var))
+				{
+					FString CurMap = TranslationStages[0].PassNamespace;
+					FString Value = FString::Printf(TEXT("Context.%s.%s = Context.%s.%s;\n"), *CurMap, *GetSanitizedSymbolName(Var.GetName().ToString()),
+						*CurMap, *GetSanitizedSymbolName(FNiagaraParameterMapHistory::GetSourceForPreviousValue(Var).GetName().ToString()));
+					HlslOutputString += Value + TEXT("\n");
+				}
+			}
+		}
+	}
+	HlslOutputString += TEXT("}\n#endif\n\n");
 }
 
 void FHlslNiagaraTranslator::DefineInterpolatedParametersFunction(FString &HlslOutputString)
