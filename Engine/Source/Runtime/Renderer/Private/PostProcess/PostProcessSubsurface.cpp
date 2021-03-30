@@ -992,7 +992,7 @@ void AddSubsurfaceViewPass(
 			PassParameters->RWBurleyGroupBuffer = GraphBuilder.CreateUAV(BurleyGroupBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->RWSeparableGroupBuffer = GraphBuilder.CreateUAV(SeparableGroupBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->SubsurfaceUniformParameters = UniformBuffer;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
 			SHADER::FPermutationDomain ComputeShaderPermutationVector;
 			ComputeShaderPermutationVector.Set<SHADER::FDimensionHalfRes>(bHalfRes);
@@ -1096,7 +1096,7 @@ void AddSubsurfaceViewPass(
 				PassParameters->SubsurfaceSampler0 = SubsurfaceSamplerState;
 				PassParameters->GroupBuffer = GraphBuilder.CreateSRV(SubsurfaceBufferUsage[SubsurfaceTypeIndex], EPixelFormat::PF_R32_UINT);
 				PassParameters->IndirectDispatchArgsBuffer = SubsurfaceBufferArgs[SubsurfaceTypeIndex];
-				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
 				if (SubsurfacePassFunction == SHADER::ESubsurfacePass::PassOne && SubsurfaceType == SHADER::ESubsurfaceType::BURLEY)
 				{
@@ -1156,7 +1156,7 @@ void AddSubsurfaceViewPass(
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTextureOutput, SceneColorTextureLoadAction);
 		PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SceneColorTexture, SceneViewportParameters);
 		PassParameters->SubsurfaceSampler0 = BilinearBorderSampler;
-		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
 		// Scattering output target is only used when scattering is enabled.
 		if (SubsurfaceMode != ESubsurfaceMode::Bypass)
@@ -1292,7 +1292,7 @@ FScreenPassTexture AddVisualizeSubsurfacePass(FRDGBuilder& GraphBuilder, const F
 	PassParameters->SubsurfaceInput0.Viewport = GetScreenPassTextureViewportParameters(InputViewport);
 	PassParameters->SubsurfaceSampler0 = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->MiniFontTexture = GetMiniFontTexture();
-	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
 	TShaderMapRef<FSubsurfaceVisualizePS> PixelShader(View.ShaderMap);
 

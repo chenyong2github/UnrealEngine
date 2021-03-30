@@ -567,7 +567,7 @@ FScreenPassTexture AddAmbientOcclusionSetupPass(
 	PassParameters->SSAOParameters = GetSSAOShaderParameters(View, InputViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::SSAO);
 	PassParameters->ThresholdInverse = ThresholdInverseValue;
 	PassParameters->InputExtentInverse = FVector2D(1.0f) / FVector2D(InputViewport.Extent);
-	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
 	TShaderMapRef<FAmbientOcclusionSetupPS> PixelShader(View.ShaderMap);
@@ -847,7 +847,7 @@ FScreenPassTexture AddAmbientOcclusionPass(
 		// Compute Shader Path
 		FAmbientOcclusionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FAmbientOcclusionCS::FParameters>();
 		PassParameters->SharedParameters = MoveTemp(SharedParameters);
-		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 		PassParameters->OutTexture = GraphBuilder.CreateUAV(Output.Texture);
 
 		FAmbientOcclusionCS::FPermutationDomain PermutationVector;
@@ -927,7 +927,7 @@ FScreenPassTexture AddAmbientOcclusionPass(
 		// Pixel Shader Path
 		FAmbientOcclusionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FAmbientOcclusionPS::FParameters>();
 		PassParameters->SharedParameters = MoveTemp(SharedParameters);
-		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 		if (bDepthBoundsTestEnabled)
 		{
@@ -1137,7 +1137,7 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchIntegratePass(
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneTextures = CommonParameters.SceneTexturesUniformBuffer;
 	PassParameters->HZBParameters = GetHZBParameters(View, HZBInput, SceneViewport.Extent, EAOTechnique::GTAO);
-	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 	PassParameters->SSAOParameters = GetSSAOShaderParameters(View, SceneViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::GTAO);
 	PassParameters->GTAOParameters = GetGTAOShaderParameters(View, OutputViewport.Extent);
 
@@ -1229,7 +1229,7 @@ FScreenPassTexture AddGTAOInnerIntegratePass(
 
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneTextures = CommonParameters.SceneTexturesUniformBuffer;
-	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 	PassParameters->SSAOParameters = GetSSAOShaderParameters(View, InputViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::GTAO);
 	PassParameters->GTAOParameters = GetGTAOShaderParameters(View, OutputViewport.Extent);
 
@@ -1311,7 +1311,7 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchPass(
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneTextures = CommonParameters.SceneTexturesUniformBuffer;
 	PassParameters->HZBParameters = GetHZBParameters(View, HZBInput, SceneViewport.Extent, EAOTechnique::GTAO);
-	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 	PassParameters->SSAOParameters = GetSSAOShaderParameters(View, SceneViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::GTAO);
 	PassParameters->GTAOParameters = GetGTAOShaderParameters(View, OutputViewport.Extent);
 

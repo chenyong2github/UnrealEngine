@@ -411,7 +411,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			Parameters.ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 			if (Strata::IsStrataEnabled())
 			{
-				Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View);
+				Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 			}
 		};
 

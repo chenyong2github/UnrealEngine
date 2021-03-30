@@ -266,12 +266,12 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 	}
 }
 
-void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FStrataOpaquePassUniformParameters& OutStrataUniformParameters)
+void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, FStrataSceneData* StrataSceneData, FStrataOpaquePassUniformParameters& OutStrataUniformParameters)
 {
-	if (View.StrataSceneData)
+	if (StrataSceneData)
 	{
-		OutStrataUniformParameters.MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
-		OutStrataUniformParameters.MaterialLobesBufferUAV = View.StrataSceneData->MaterialLobesBufferUAV;
+		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
+		OutStrataUniformParameters.MaterialLobesBufferUAV = StrataSceneData->MaterialLobesBufferUAV;
 	}
 	else
 	{
@@ -280,12 +280,11 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, const FViewI
 	}
 }
 
-TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(const FViewInfo& View)
+TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(FStrataSceneData* StrataSceneData)
 {
-	// We must always have a strata uniform buffer foreach view even when strata is not enabled.
-	check(View.StrataSceneData != nullptr);
-	check(View.StrataSceneData->StrataGlobalUniformParameters != nullptr);
-	return View.StrataSceneData->StrataGlobalUniformParameters;
+	check(StrataSceneData);
+	check(StrataSceneData->StrataGlobalUniformParameters != nullptr);
+	return StrataSceneData->StrataGlobalUniformParameters;
 }
 
 ////////////////////////////////////////////////////////////////////////// 
@@ -342,7 +341,7 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 	{
 		FVisualizeMaterialPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeMaterialPS::FParameters>();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 		PassParameters->MiniFontTexture = GetMiniFontTexture();
 		PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder);
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
@@ -863,7 +862,7 @@ static void AddStrataFurnacePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 	TShaderMapRef<FStrataFurnaceTestPassPS> PixelShader(View.ShaderMap);
 	FStrataFurnaceTestPassPS::FParameters* Parameters = GraphBuilder.AllocParameters<FStrataFurnaceTestPassPS::FParameters>();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	Parameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+	Parameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 	Parameters->SceneType = FMath::Clamp(CVarStrataFurnaceTest.GetValueOnAnyThread(), 1, 4);
 	Parameters->IntegratorType = FMath::Clamp(CVarStrataFurnaceTestIntegratorType.GetValueOnAnyThread(), 0, 2);
 	Parameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;

@@ -1227,7 +1227,7 @@ static void AddSkyReflectionPass(
 		}
 		PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 
-		PassParameters->Strata =  Strata::BindStrataGlobalUniformParameters(View);
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 	}
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);

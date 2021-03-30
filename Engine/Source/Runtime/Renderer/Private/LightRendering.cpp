@@ -586,7 +586,7 @@ private:
 		FRenderLightParams* RenderLightParams)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataUniformBuffer = Strata::BindStrataGlobalUniformParameters(View);
+		TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataUniformBuffer = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 		FGlobalShader::SetParameters<FStrataGlobalUniformParameters>(RHICmdList, ShaderRHI, StrataUniformBuffer->GetRHIRef());
 
 		if(LightAttenuationTexture.IsBound())
@@ -1102,7 +1102,7 @@ void GetRenderLightParameters(
 {
 	Parameters.SceneTextures = SceneTexturesUniformBuffer;
 	Parameters.HairStrands = HairStrandsUniformBuffer;
-	Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View);
+	Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 	Parameters.ShadowMaskTexture = ShadowMaskTexture;
 	Parameters.LightingChannelsTexture = LightingChannelsTexture;
 	Parameters.CloudShadowAO = CloudShadowAOParameters;
@@ -2560,10 +2560,7 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 
 	FSimpleLightsStandardDeferredParameters* PassParameters = GraphBuilder.AllocParameters<FSimpleLightsStandardDeferredParameters>();
 	PassParameters->SceneTextures = SceneTextures.UniformBuffer;
-	if (Views.Num() > 0)
-	{
-		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(Views[0]);
-	}
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(&Scene->StrataSceneData);
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 

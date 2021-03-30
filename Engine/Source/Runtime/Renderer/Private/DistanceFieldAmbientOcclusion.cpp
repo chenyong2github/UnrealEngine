@@ -381,7 +381,7 @@ void ComputeDistanceFieldNormal(
 			auto* PassParameters = GraphBuilder.AllocParameters<FComputeDistanceFieldNormalCS::FParameters>();
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 			PassParameters->RWDistanceFieldNormal = GraphBuilder.CreateUAV(DistanceFieldNormal);
 
 			TShaderMapRef<FComputeDistanceFieldNormalCS> ComputeShader(View.ShaderMap);
@@ -411,7 +411,7 @@ void ComputeDistanceFieldNormal(
 			auto* PassParameters = GraphBuilder.AllocParameters<FComputeDistanceFieldNormalPS::FParameters>();
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(DistanceFieldNormal, ViewIndex == 0 ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 
 			GraphBuilder.AddPass(
