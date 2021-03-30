@@ -246,28 +246,6 @@ const uint64 FIOSPlatformAffinity::GetTaskGraphThreadMask()
 	return Mask;
 }
 
-const uint64 FIOSPlatformAffinity::GetStatsThreadMask()
-{
-	static int Mask = 0;
-	if (Mask == 0)
-	{
-		switch (FPlatformMisc::NumberOfCores())
-		{
-		case 2:
-			Mask = MAKEAFFINITYMASK1(0);
-			break;
-		case 3:
-			Mask = MAKEAFFINITYMASK1(2);
-			break;
-		default:
-			Mask = FGenericPlatformAffinity::GetStatsThreadMask();
-			break;
-		}
-	}
-
-	return Mask;
-}
-
 const uint64 FIOSPlatformAffinity::GetNoAffinityMask()
 {
 	static int Mask = 0;
