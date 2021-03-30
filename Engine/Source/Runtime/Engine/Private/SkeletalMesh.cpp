@@ -1744,7 +1744,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 	if ( !StripFlags.IsEditorDataStripped() )
 	{
 		// Backwards compat for old SourceData member
-		// Doing a <= check here as no asset from UE4 streams could ever have been saved at exactly 11, but a stray no-op vesion increment was added
+		// Doing a <= check here as no asset from UE streams could ever have been saved at exactly 11, but a stray no-op vesion increment was added
 		// in Fortnite/Main meaning some assets there were at exactly version 11. Doing a <= allows us to properly apply this version even to those assets
 		if (Ar.IsLoading() && Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) <= FSkeletalMeshCustomVersion::RemoveSourceData)
 		{
