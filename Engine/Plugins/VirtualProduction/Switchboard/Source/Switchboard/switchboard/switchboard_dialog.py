@@ -46,6 +46,7 @@ class SwitchboardDialog(QtCore.QObject):
         fontDB.addApplicationFont(os.path.join(ENGINE_PATH, 'Content/Slate/Fonts/Roboto-Regular.ttf'))
         fontDB.addApplicationFont(os.path.join(ENGINE_PATH, 'Content/Slate/Fonts/DroidSansMono.ttf'))
 
+        self.logger_autoscroll = True
         ConsoleStream.stderr().message_written.connect(self._console_pipe)
 
         # Set the UI object
@@ -155,6 +156,8 @@ class SwitchboardDialog(QtCore.QObject):
         self.window.project_cl_combo_box.currentTextChanged.connect(self._set_project_changelist)
         self.window.engine_cl_combo_box.currentTextChanged.connect(self._set_engine_changelist)
         self.window.logger_level_comboBox.currentTextChanged.connect(self.logger_level_comboBox_currentTextChanged)
+        self.window.logger_autoscroll_checkbox.stateChanged.connect(self.logger_autoscroll_stateChanged)
+        self.window.logger_wrap_checkbox.stateChanged.connect(self.logger_wrap_stateChanged)
         self.window.record_button.released.connect(self.record_button_released)
         self.window.sync_all_button.clicked.connect(self.sync_all_button_clicked)
         self.window.build_all_button.clicked.connect(self.build_all_button_clicked)
@@ -170,6 +173,10 @@ class SwitchboardDialog(QtCore.QObject):
         #self.transport_queue_menu.aboutToShow.connect(self.transport_queue_menu_about_to_show)
         #self.window.transport_queue_push_button.setMenu(self.transport_queue_menu)
 
+        # Log pane
+        self.window.logger_autoscroll_checkbox.setCheckState(QtCore.Qt.Checked if self.logger_autoscroll else QtCore.Qt.Unchecked)
+        self.window.base_console.horizontalScrollBar().sliderPressed.connect(lambda: self.window.logger_autoscroll_checkbox.setCheckState(QtCore.Qt.Unchecked))
+        self.window.base_console.verticalScrollBar().sliderPressed.connect(lambda: self.window.logger_autoscroll_checkbox.setCheckState(QtCore.Qt.Unchecked))
         # entries will be removed from the log window after the number of maximumBlockCount entries has been reached
         self.window.base_console.document().setMaximumBlockCount(1000)
 
@@ -1096,9 +1103,12 @@ class SwitchboardDialog(QtCore.QObject):
         """
         self.window.base_console.appendHtml(msg)
 
-        # Only moving to StartOfLine/Down or End often causes the cursor to be stuck in the middle or the end of a line
-        # when the lines are longer than the widget. This combination keeps the cursor at the bottom left corner in all cases.
-        self.window.base_console.moveCursor(QtGui.QTextCursor.Down)
+        if self.logger_autoscroll:
+            self.logger_scroll_to_end()
+
+    def logger_scroll_to_end(self):
+        # This combination keeps the cursor at the bottom left corner in all cases.
+        self.window.base_console.moveCursor(QtGui.QTextCursor.End)
         self.window.base_console.moveCursor(QtGui.QTextCursor.StartOfLine)
 
     # Allow user to change logging level
@@ -1113,6 +1123,22 @@ class SwitchboardDialog(QtCore.QObject):
             LOGGER.setLevel(logging.DEBUG)
         else:
             LOGGER.setLevel(logging.INFO)
+
+    def logger_autoscroll_stateChanged(self, value):
+        if value == QtCore.Qt.Checked:
+            self.logger_autoscroll = True
+            self.logger_scroll_to_end()
+        else:
+            self.logger_autoscroll = False
+
+    def logger_wrap_stateChanged(self, value):
+        if value == QtCore.Qt.Checked:
+            self.window.base_console.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
+        else:
+            self.window.base_console.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
+
+        if self.logger_autoscroll:
+            self.logger_scroll_to_end()
 
     # Update UI with latest CLs
     def p4_refresh_project_cl(self):
