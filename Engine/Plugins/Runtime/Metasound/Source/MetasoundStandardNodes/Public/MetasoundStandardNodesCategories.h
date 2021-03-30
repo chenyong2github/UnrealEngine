@@ -13,5 +13,7 @@ namespace Metasound
 		extern const FText TriggerUtils;
 		extern const FText RandomUtils;
 		extern const FText Conversions;
+		extern const FText DebugUtils;
+		extern const FText Io;
 	}
 }

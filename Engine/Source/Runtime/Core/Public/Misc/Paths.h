@@ -276,6 +276,13 @@ public:
 	 * @return Video capture directory
 	 */
 	static FString VideoCaptureDir();
+
+	/**
+	 * Returns the directory the engine uses to output user requested audio capture files.
+	 *
+	 * @return Audio capture directory
+	 */
+	static FString AudioCaptureDir();
 	
 	/**
 	 * Returns the directory the engine uses to output logs. This currently can't 

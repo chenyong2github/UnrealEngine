@@ -417,6 +417,11 @@ FString FPaths::VideoCaptureDir()
 	return FPaths::ProjectSavedDir() + TEXT("VideoCaptures/");
 }
 
+FString FPaths::AudioCaptureDir()
+{
+	return FPaths::ProjectSavedDir() + TEXT("AudioCaptures/");
+}
+
 FString FPaths::ProjectLogDir()
 {
 #if PLATFORM_PS4

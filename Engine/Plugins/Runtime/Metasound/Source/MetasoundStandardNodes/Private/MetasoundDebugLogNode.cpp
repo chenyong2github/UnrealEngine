@@ -3,6 +3,7 @@
 #include "MetasoundDebugLogNode.h"
 
 #include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundStandardNodesCategories.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -22,7 +23,7 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{LOCTEXT("DebugLogCategory", "Debug")},
+				{ StandardNodes::DebugUtils },
 				{TEXT("DebugLog")},
 				FNodeDisplayStyle{}
 			};
