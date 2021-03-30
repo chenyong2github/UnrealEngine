@@ -329,14 +329,14 @@ bool FCurveEditor::ShouldAutoFrame() const
 void FCurveEditor::BindCommands()
 {
 	UCurveEditorSettings* CurveSettings = Settings;
-
+		
 	CommandList->MapAction(FGenericCommands::Get().Undo,   FExecuteAction::CreateLambda([]{ GEditor->UndoTransaction(); }));
 	CommandList->MapAction(FGenericCommands::Get().Redo,   FExecuteAction::CreateLambda([]{ GEditor->RedoTransaction(); }));
 	CommandList->MapAction(FGenericCommands::Get().Delete, FExecuteAction::CreateSP(this, &FCurveEditor::DeleteSelection));
 
 	CommandList->MapAction(FGenericCommands::Get().Cut, FExecuteAction::CreateSP(this, &FCurveEditor::CutSelection));
 	CommandList->MapAction(FGenericCommands::Get().Copy, FExecuteAction::CreateSP(this, &FCurveEditor::CopySelection));
-	CommandList->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FCurveEditor::PasteKeys));
+	CommandList->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FCurveEditor::PasteKeys, TSet<FCurveModelID>()));
 
 	CommandList->MapAction(FCurveEditorCommands::Get().ZoomToFit, FExecuteAction::CreateSP(this, &FCurveEditor::ZoomToFit, EAxisList::All));
 
@@ -1054,7 +1054,7 @@ void FCurveEditor::ImportCopyBufferFromText(const FString& TextToImport, /*out*/
 	TempPackage->RemoveFromRoot();
 }
 
-void FCurveEditor::PasteKeys()
+void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
 {
 	// Grab the text to paste from the clipboard
 	FString TextToImport;
@@ -1066,6 +1066,25 @@ void FCurveEditor::PasteKeys()
 	if (ImportedCopyBuffers.Num() == 0)
 	{
 		return;
+	}
+
+	// Determine whether all the copied keys are from the same curve, if yes, they can all be pasted to the target curves without name matching
+	bool bAllCopiedCurvesLongNameEqual = true;
+	FString AllCopiedCurvesLongName;
+	for (UCurveEditorCopyBuffer* CopyBuffer : ImportedCopyBuffers)
+	{
+		for (UCurveEditorCopyableCurveKeys* CopyableCurveKeys : CopyBuffer->Curves)
+		{
+			if (AllCopiedCurvesLongName.IsEmpty())
+			{
+				AllCopiedCurvesLongName = CopyableCurveKeys->LongDisplayName;
+			}
+			else if (CopyableCurveKeys->LongDisplayName != AllCopiedCurvesLongName)
+			{
+				bAllCopiedCurvesLongNameEqual = false;
+				break;
+			}			
+		}
 	}
 
 	bool bSelectionNeedsLongNames = false;
@@ -1093,16 +1112,67 @@ void FCurveEditor::PasteKeys()
 		}
 	}
 
-	TArray<FCurveEditorTreeItemID> NodesToSearch;
-	if (GetTreeSelection().GetKeys(NodesToSearch) == 0)
+	if (CurveModelIDs.Num() == 0)
 	{
-		// If no curves are selected, paste to the entire tree using fully qualifed long names
-		bSelectionNeedsLongNames = true;
-		if (Tree.GetAllItems().GetKeys(NodesToSearch) == 0)
+		TOptional<FCurveModelID> HoveredID;
+		if (WeakPanel.IsValid())
 		{
-			// If we don't have any curves to paste in to, exit now
-			return;
+			for (const TSharedPtr<SCurveEditorView> View : WeakPanel.Pin()->GetViews())
+			{
+				if (View.IsValid() && View->GetHoveredCurve().IsSet())
+				{
+					HoveredID = View->GetHoveredCurve().GetValue();
+					break;
+				}
+			}
 		}
+	
+		if (HoveredID.IsSet())
+		{
+			CurveModelIDs.Add(HoveredID.GetValue());
+		}
+		else
+		{
+			TArray<FCurveEditorTreeItemID> NodesToSearch;
+
+			// Try nodes with selected keys
+			GetTreeSelection().GetKeys(NodesToSearch);
+
+			// Try selected nodes
+			if (NodesToSearch.Num() == 0)
+			{
+				for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& Pair : GetTreeSelection())
+				{
+					NodesToSearch.Add(Pair.Key);
+				}
+			}
+
+			// If no curves are selected, paste to the entire tree using fully qualified long names
+			if (NodesToSearch.Num() == 0)
+			{
+				bSelectionNeedsLongNames = true;
+				bAllCopiedCurvesLongNameEqual = false;
+				if (Tree.GetAllItems().GetKeys(NodesToSearch) == 0)
+				{
+					// If we don't have any curves to paste in to, exit now
+					return;
+				}
+			}
+
+			for (const FCurveEditorTreeItemID& TreeItemID: NodesToSearch)
+			{
+				FCurveEditorTreeItem& TreeItem = GetTreeItem(TreeItemID);
+				for (const FCurveModelID& CurveModelID : TreeItem.GetCurves())
+				{
+					CurveModelIDs.Add(CurveModelID);
+				}
+			}
+		}
+	}
+	
+	if (CurveModelIDs.Num() == 0)
+	{
+		return;
 	}
 
 	FScopedTransaction Transaction(LOCTEXT("PasteKeys", "Paste Keys"));
@@ -1150,18 +1220,18 @@ void FCurveEditor::PasteKeys()
 			}
 		}
 
-		for (const FCurveEditorTreeItemID& TreeItemID: NodesToSearch)
+		for (FCurveModelID CurveID : CurveModelIDs)
 		{
-			FCurveEditorTreeItem& TreeItem = GetTreeItem(TreeItemID);
-			for (const FCurveModelID& CurveModelID : TreeItem.GetCurves())
+			FCurveModel* Curve = FindCurve(CurveID);
+			if (Curve)
 			{
-				FCurveModel* Curve = FindCurve(CurveModelID);
 				const FString CurveLongDisplayName = Curve->GetLongDisplayName().ToString();
 				const FString CurveIntentionName = Curve->GetIntentionName();
 
 				for (UCurveEditorCopyableCurveKeys* CopyableCurveKeys : CopyBuffer->Curves)
 				{
-					if ((!bUseLongDisplayName && CurveIntentionName.Equals(CopyableCurveKeys->IntentionName))
+					if (bAllCopiedCurvesLongNameEqual ||
+						(!bUseLongDisplayName && CurveIntentionName.Equals(CopyableCurveKeys->IntentionName))
 						|| (bUseLongDisplayName && CurveLongDisplayName.Equals(CopyableCurveKeys->LongDisplayName)))
 					{
 						for (int32 Index = 0; Index < CopyableCurveKeys->KeyPositions.Num(); ++Index)
@@ -1175,7 +1245,7 @@ void FCurveEditor::PasteKeys()
 							TOptional<FKeyHandle> KeyHandle = Curve->AddKey(KeyPosition, CopyableCurveKeys->KeyAttributes[Index]);
 							if (KeyHandle.IsSet())
 							{
-								Selection.Add(FCurvePointHandle(CurveModelID, ECurvePointType::Key, KeyHandle.GetValue()));
+								Selection.Add(FCurvePointHandle(CurveID, ECurvePointType::Key, KeyHandle.GetValue()));
 							}
 						}
 					}

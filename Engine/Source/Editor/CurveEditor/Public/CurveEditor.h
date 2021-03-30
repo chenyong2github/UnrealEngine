@@ -412,7 +412,7 @@ public:
 	/**
 	 * Paste keys
 	 */
-	void PasteKeys();
+	void PasteKeys(TSet<FCurveModelID> CurveModelIDs);
 
 	/**
 	 * Delete the currently selected keys

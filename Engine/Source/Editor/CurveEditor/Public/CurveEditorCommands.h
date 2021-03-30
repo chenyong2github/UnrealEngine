@@ -67,6 +67,7 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleShowCurveEditorCurveToolTips;
 
 	TSharedPtr<FUICommandInfo> AddKeyHovered;
+	TSharedPtr<FUICommandInfo> PasteKeysHovered;
 
 	TSharedPtr<FUICommandInfo> AddKeyToAllCurves;
 

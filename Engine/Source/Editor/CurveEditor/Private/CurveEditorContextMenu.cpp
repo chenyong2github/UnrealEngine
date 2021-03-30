@@ -95,7 +95,10 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 				if (!HoveredCurve->IsReadOnly())
 				{
 					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().AddKeyHovered);
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().PasteKeysHovered);
 
+					MenuBuilder.AddMenuSeparator();
+					
 					MenuBuilder.AddSubMenu(LOCTEXT("PreExtrapText", "Pre-Extrap"), FText(), FNewMenuDelegate::CreateLambda(
 						[](FMenuBuilder& SubMenu)
 						{

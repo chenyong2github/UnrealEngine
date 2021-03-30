@@ -1211,6 +1211,7 @@ void SInteractiveCurveEditorView::RebindContextualActions(FVector2D InMousePosit
 	TSharedPtr<FUICommandList> CommandList = CurveEditorPanel->GetCommands();
 
 	CommandList->UnmapAction(FCurveEditorCommands::Get().AddKeyHovered);
+	CommandList->UnmapAction(FCurveEditorCommands::Get().PasteKeysHovered);
 	CommandList->UnmapAction(FCurveEditorCommands::Get().AddKeyToAllCurves);
 
 	CommandList->UnmapAction(FCurveEditorCommands::Get().BufferVisibleCurves);
@@ -1224,6 +1225,7 @@ void SInteractiveCurveEditorView::RebindContextualActions(FVector2D InMousePosit
 		HoveredCurveSet.Add(HoveredCurve.GetValue());
 
 		CommandList->MapAction(FCurveEditorCommands::Get().AddKeyHovered, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::AddKeyAtMousePosition, HoveredCurveSet));
+		CommandList->MapAction(FCurveEditorCommands::Get().PasteKeysHovered, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::PasteKeys, HoveredCurveSet));
 
 		// Buffer the curve they have highlighted instead of all of them.
 		CommandList->MapAction(FCurveEditorCommands::Get().BufferVisibleCurves, FExecuteAction::CreateSP(this, &SInteractiveCurveEditorView::BufferCurve, HoveredCurve.GetValue()));
@@ -1428,6 +1430,17 @@ void SInteractiveCurveEditorView::AddKeyAtTime(const TSet<FCurveModelID>& ToCurv
 	{
 		Transaction.Cancel();
 	}
+}
+
+void SInteractiveCurveEditorView::PasteKeys(TSet<FCurveModelID> ToCurves)
+{
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (!CurveEditor.IsValid())
+	{
+		return;
+	}
+
+	CurveEditor->PasteKeys(ToCurves);
 }
 
 void SInteractiveCurveEditorView::OnCurveEditorToolChanged(FCurveEditorToolID InToolId)
