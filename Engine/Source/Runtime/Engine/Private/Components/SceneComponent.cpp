@@ -3325,7 +3325,12 @@ void USceneComponent::PostEditComponentMove(bool bFinished)
 	{
 		// Snapshot the transaction buffer for this component if we've not finished moving yet
 		// This allows listeners to be notified of intermediate changes of state
-		SnapshotTransactionBuffer(this);
+		static const FProperty* MovementProperties[] = {
+			USceneComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeLocation)),
+			USceneComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeRotation)),
+			USceneComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USceneComponent, RelativeScale3D)),
+		};
+		SnapshotTransactionBuffer(this, MakeArrayView(MovementProperties));
 	}
 
 	{

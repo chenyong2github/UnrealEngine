@@ -227,13 +227,6 @@ void AActor::PostEditMove(bool bFinished)
 	{
 		FNavigationSystem::OnPostEditActorMove(*this);
 	}
-
-	if (!bFinished)
-	{
-		// Snapshot the transaction buffer for this actor if we've not finished moving yet
-		// This allows listeners to be notified of intermediate changes of state
-		SnapshotTransactionBuffer(this);
-	}
 }
 
 bool AActor::ReregisterComponentsWhenModified() const
