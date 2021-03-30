@@ -74,12 +74,16 @@ namespace UnrealBuildTool.Rules
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
             }
 
-            if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+			{
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+			}
+
+			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
             {
                 PrivateDependencyModuleNames.AddRange(new string[] {
                     "OpenGLDrv",
