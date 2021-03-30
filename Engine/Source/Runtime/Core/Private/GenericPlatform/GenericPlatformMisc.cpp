@@ -872,37 +872,50 @@ void FGenericPlatformMisc::AddAdditionalRootDirectory(const FString& RootDir)
 	RootDirectories.Add(NewRootDirectory);
 }
 
+static void MakeEngineDir(FString& OutEngineDir)
+{
+	// See if we are a root-level project
+	FString DefaultEngineDir = TEXT("../../../Engine/");
+#if PLATFORM_DESKTOP
+#if !defined(DISABLE_CWD_CHANGES) || DISABLE_CWD_CHANGES == 0
+	FPlatformProcess::SetCurrentWorkingDirectoryToBaseDir();
+#endif
+
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+	const TCHAR* BaseDir = FPlatformProcess::BaseDir();
+
+	//@todo. Need to have a define specific for this scenario??
+	FString DirToTry = BaseDir / DefaultEngineDir / TEXT("Binaries");
+	if (PlatformFile.DirectoryExists(*DirToTry))
+	{
+		OutEngineDir = MoveTemp(DefaultEngineDir);
+		return;
+	}
+
+	if (GForeignEngineDir)
+	{
+		DirToTry = FString(GForeignEngineDir) / TEXT("Binaries");
+		if (PlatformFile.DirectoryExists(*DirToTry))
+		{
+			OutEngineDir = GForeignEngineDir;
+			return;
+		}
+	}
+
+	// Temporary work-around for legacy dependency on ../../../ (re Lightmass)
+	UE_LOG(LogGenericPlatformMisc, Warning, TEXT("Failed to determine engine directory: Defaulting to %s"), *OutEngineDir);
+#endif
+
+	OutEngineDir = MoveTemp(DefaultEngineDir);
+}
+
 const TCHAR* FGenericPlatformMisc::EngineDir()
 {
 	FString& EngineDirectory = TLazySingleton<FStaticData>::Get().EngineDirectory;
 	if (EngineDirectory.Len() == 0)
 	{
-		// See if we are a root-level project
-		FString DefaultEngineDir = TEXT("../../../Engine/");
-#if PLATFORM_DESKTOP
-#if !defined(DISABLE_CWD_CHANGES) || DISABLE_CWD_CHANGES == 0
-		FPlatformProcess::SetCurrentWorkingDirectoryToBaseDir();
-#endif
-
-		//@todo. Need to have a define specific for this scenario??
-		if (FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FPlatformProcess::BaseDir() / DefaultEngineDir / TEXT("Binaries"))))
-		{
-			EngineDirectory = DefaultEngineDir;
-		}
-		else if (GForeignEngineDir != NULL && FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FString(GForeignEngineDir) / TEXT("Binaries"))))
-		{
-			EngineDirectory = GForeignEngineDir;
-		}
-
-		if (EngineDirectory.Len() == 0)
-		{
-			// Temporary work-around for legacy dependency on ../../../ (re Lightmass)
-			EngineDirectory = DefaultEngineDir;
-			UE_LOG(LogGenericPlatformMisc, Warning, TEXT("Failed to determine engine directory: Defaulting to %s"), *EngineDirectory);
-		}
-#else
-		EngineDirectory = DefaultEngineDir;
-#endif
+		MakeEngineDir(EngineDirectory);
 	}
 	return *EngineDirectory;
 }
