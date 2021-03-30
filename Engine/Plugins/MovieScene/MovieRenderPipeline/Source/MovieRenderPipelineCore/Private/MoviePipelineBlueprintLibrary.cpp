@@ -404,9 +404,12 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 			{
 				ExistingShot = NewObject<UMoviePipelineExecutorShot>(InJob);
 
-				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Generated new ShotInfo for Inner: %s Outer: %s (No existing shot found in the job)."), *CameraCutSection->GetPathName(), *InSection->GetPathName());
+				if (InSection)
+				{
+					UE_LOG(LogMovieRenderPipeline, Log, TEXT("Generated new ShotInfo for Inner: %s Outer: %s (No existing shot found in the job)."), *CameraCutSection->GetPathName(), *InSection->GetPathName());
+				}
 			}
-			else
+			else if (InSection)
 			{
 				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Reusing existing ShotInfo for Inner: %s Outer: %s."), *CameraCutSection->GetPathName(), *InSection->GetPathName());
 			}
