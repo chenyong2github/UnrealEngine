@@ -274,6 +274,7 @@ namespace UnrealBuildTool
 		/// Whether the output from this target can be publicly distributed, even if it has dependencies on modules that are in folders
 		/// with special restrictions (eg. CarefullyRedist, NotForLicensees, NoRedist).
 		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bLegalToDistributeBinary = false;
 
 		/// <summary>
