@@ -406,10 +406,12 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 							State |= Resource->GetReadableState();
 						}
 					}
+#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
 					else if (Info.AccessAfter == ERHIAccess::ShadingRateSource)
 					{
 						State |= D3D12_RESOURCE_STATE_SHADING_RATE_SOURCE;
 					}
+#endif
 				}
 
 				if (State == D3D12_RESOURCE_STATE_COMMON)
