@@ -1794,7 +1794,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 		FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargetArray), RenderTargetArray, ERenderTargetActions::Load_Store);
 		TransitionRenderPassTargets(RHICmdList, RPInfo);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderTranslucencyDepths"));
 		{
 			for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
 			{
@@ -1802,10 +1801,11 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 				
 				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
+				RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderTranslucencyDepths"));
 				ProjectedShadowInfo->RenderTranslucencyDepths(RHICmdList, this);
+				RHICmdList.EndRenderPass();
 			}
 		}
-		RHICmdList.EndRenderPass();
 
 		RHICmdList.Transition(FRHITransitionInfo(ColorTarget0.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		RHICmdList.Transition(FRHITransitionInfo(ColorTarget1.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
