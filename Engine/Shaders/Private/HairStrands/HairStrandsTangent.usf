@@ -44,7 +44,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	if (HairStrandsVF_bIsCullingEnable)
 	{
 		const int FetchIndex = DispatchThreadId.x + DispatchThreadId.y * GROUP_SIZE * GROUP_COUNT_X;
-		const int VertexCountAfterCulling = clamp(HairStrandsVF_CullingIndirectBuffer[3], 0, MaxVertexCount);
+		const int VertexCountAfterCulling = clamp((int)HairStrandsVF_CullingIndirectBuffer[3], 0, MaxVertexCount);
 		bValid = false;
 		if (FetchIndex < VertexCountAfterCulling)
 		{
