@@ -443,7 +443,7 @@ void DISKelMesh_GetFilteredTriangleCount(in FDISkelMeshContext DIContext, out in
 	OutCount = DIContext.MeshNumSamplingRegionTriangles;
 }
 
-void DISKelMesh_GetFilteredTriangleAt(in FDISkelMeshContext DIContext, int FilteredIndex, out int OutTriangle, out float3 OutBaryCoord)
+void DISKelMesh_GetFilteredTriangleAt(in FDISkelMeshContext DIContext, int FilteredIndex, out int OutTriangle)
 {
 	if ( DIContext.MeshNumSamplingRegionTriangles > 0 )
 	{
@@ -454,7 +454,6 @@ void DISKelMesh_GetFilteredTriangleAt(in FDISkelMeshContext DIContext, int Filte
 	{
 		OutTriangle = 0;
 	}
-	OutBaryCoord = 1.0f / 3.0f;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

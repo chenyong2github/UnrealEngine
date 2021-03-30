@@ -3006,7 +3006,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredTriangleAtName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (int FilteredIndex, out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_GetFilteredTriangleAt(DIContext, FilteredIndex, OutCoord.Tri, OutCoord.BaryCoord); }");
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (int FilteredIndex, in float3 BaryCoord, out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_GetFilteredTriangleAt(DIContext, FilteredIndex, OutCoord.Tri); OutCoord.BaryCoord = BaryCoord; }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
