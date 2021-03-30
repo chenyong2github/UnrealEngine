@@ -9,6 +9,7 @@
 #include "WorldPartition/WorldPartition.h"
 
 class FWorldPartitionActorDesc;
+class UToolMenu;
 
 /** A tree item that represents an actor in the world */
 struct SCENEOUTLINER_API FActorDescTreeItem : ISceneOutlinerTreeItem
@@ -21,6 +22,9 @@ struct SCENEOUTLINER_API FActorDescTreeItem : ISceneOutlinerTreeItem
 			, Container(InContainer)
 		{
 		}
+
+		bool IsValid() const { return Container.IsValid(); }
+		
 		const FWorldPartitionActorDesc* GetActorDesc() const
 		{
 			return Container.IsValid() ? ActorDesc : nullptr;
@@ -62,8 +66,11 @@ public:
 	virtual FString GetDisplayString() const override;
 	virtual bool CanInteract() const override;
 	virtual TSharedRef<SWidget> GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow) override;
+	virtual void GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner) override;
 	virtual void OnVisibilityChanged(const bool bNewVisibility) override;
 	virtual bool HasVisibilityInfo() const override { return true; }
 	virtual bool GetVisibility() const override;
 	/* End ISceneOutlinerTreeItem Implementation */
+private:
+	void FocusActorBounds() const;	
 };

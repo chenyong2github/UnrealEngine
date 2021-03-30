@@ -18,6 +18,8 @@
 #include "ISceneOutlinerMode.h"
 #include "Logging/MessageLog.h"
 #include "SSocketChooser.h"
+#include "ToolMenus.h"
+#include "LevelEditorViewport.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorDescTreeItem"
 
@@ -28,7 +30,7 @@ struct SActorDescTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidg
 	SLATE_BEGIN_ARGS(SActorDescTreeLabel) {}
 	SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, FActorDescTreeItem& ActorDescItem, ISceneOutliner& SceneOutliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
+	void Construct(const FArguments& InArgs, FActorDescTreeItem& ActorDescItem, ISceneOutliner& SceneOutliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 	{
 		WeakSceneOutliner = StaticCastSharedRef<ISceneOutliner>(SceneOutliner.AsShared());
 
@@ -45,16 +47,16 @@ struct SActorDescTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidg
 			[
 				SAssignNew(InlineTextBlock, SInlineEditableTextBlock)
 				.Text(this, &SActorDescTreeLabel::GetDisplayText)
-			.ToolTipText(this, &SActorDescTreeLabel::GetTooltipText)
-			.HighlightText(HighlightText)
-			.ColorAndOpacity(this, &SActorDescTreeLabel::GetForegroundColor)
-			.OnTextCommitted(this, &SActorDescTreeLabel::OnLabelCommitted)
-			.OnVerifyTextChanged(this, &SActorDescTreeLabel::OnVerifyItemLabelChanged)
-			.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FSceneOutlinerTreeItemPtr>::IsSelectedExclusively))
-			.IsReadOnly_Lambda([Item = ActorDescItem.AsShared(), this]()
-		{
-			return !CanExecuteRenameRequest(Item.Get());
-		})
+				.ToolTipText(this, &SActorDescTreeLabel::GetTooltipText)
+				.HighlightText(HighlightText)
+				.ColorAndOpacity(this, &SActorDescTreeLabel::GetForegroundColor)
+				.OnTextCommitted(this, &SActorDescTreeLabel::OnLabelCommitted)
+				.OnVerifyTextChanged(this, &SActorDescTreeLabel::OnVerifyItemLabelChanged)
+				.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FSceneOutlinerTreeItemPtr>::IsSelectedExclusively))
+				.IsReadOnly_Lambda([Item = ActorDescItem.AsShared(), this]()
+			{
+				return !CanExecuteRenameRequest(Item.Get());
+			})
 			]
 
 		+ SHorizontalBox::Slot()
@@ -64,8 +66,8 @@ struct SActorDescTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidg
 			[
 				SNew(STextBlock)
 				.Text(this, &SActorDescTreeLabel::GetTypeText)
-			.Visibility(this, &SActorDescTreeLabel::GetTypeTextVisibility)
-			.HighlightText(HighlightText)
+				.Visibility(this, &SActorDescTreeLabel::GetTypeTextVisibility)
+				.HighlightText(HighlightText)
 			];
 
 		if (WeakSceneOutliner.Pin()->GetMode()->IsInteractive())
@@ -78,28 +80,28 @@ struct SActorDescTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidg
 				SNew(SHorizontalBox)
 
 				+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(FSceneOutlinerDefaultTreeItemMetrics::IconPadding())
-			[
-				SNew(SBox)
-				.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
-			.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
-			[
-				SNew(SImage)
-				.Image(this, &SActorDescTreeLabel::GetIcon)
-			.ToolTipText(this, &SActorDescTreeLabel::GetIconTooltip)
-			.ColorAndOpacity(FSlateColor::UseForeground())
-			]
-			]
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(FSceneOutlinerDefaultTreeItemMetrics::IconPadding())
+				[
+					SNew(SBox)
+					.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+					.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+					[
+						SNew(SImage)
+						.Image(this, &SActorDescTreeLabel::GetIcon)
+					.ToolTipText(this, &SActorDescTreeLabel::GetIconTooltip)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+				]
 
-		+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.VAlign(VAlign_Center)
-			.Padding(0.0f, 0.0f)
-			[
-				MainContent
-			]
+			+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				.Padding(0.0f, 0.0f)
+				[
+					MainContent
+				]
 			];
 	}
 
@@ -229,12 +231,29 @@ FString FActorDescTreeItem::GetDisplayString() const
 
 bool FActorDescTreeItem::CanInteract() const
 {
-	return false;
+	return ActorDescHandle.IsValid();
 }
 
 TSharedRef<SWidget> FActorDescTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 {
 	return SNew(SActorDescTreeLabel, *this, Outliner, InRow);
+}
+
+void FActorDescTreeItem::FocusActorBounds() const
+{
+	if (FWorldPartitionActorDesc const* ActorDesc = ActorDescHandle.GetActorDesc())
+	{
+		if (FLevelEditorViewportClient* LevelViewportClient = GCurrentLevelEditingViewportClient)
+		{
+			LevelViewportClient->FocusViewportOnBox(ActorDesc->GetBounds(), false);
+		}	
+	}
+}
+
+void FActorDescTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner&)
+{
+	FToolMenuSection& Section = Menu->AddSection("Section");
+	Section.AddMenuEntry("FocusActorBounds", LOCTEXT("FocusActorBounds", "Focus Actor Bounds"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateSP(this, &FActorDescTreeItem::FocusActorBounds)));
 }
 
 void FActorDescTreeItem::OnVisibilityChanged(const bool bNewVisibility)
