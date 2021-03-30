@@ -15,6 +15,7 @@ namespace DatasmithRhino.DirectLink
 		public DatasmithRhinoExportContext ExportContext { get; private set; } = null;
 		public DatasmithRhinoChangeListener ChangeListener { get; private set; } = new DatasmithRhinoChangeListener();
 		public bool bInitialized { get; private set; } = false;
+		public bool bLiveLinkActive { get; private set; } = false;
 
 		public void Initialize()
 		{
@@ -66,6 +67,7 @@ namespace DatasmithRhino.DirectLink
 				RhinoDoc.EndOpenDocument -= OnEndOpenDocument;
 				RhinoDoc.BeginOpenDocument -= OnBeginOpenDocument;
 				RhinoDoc.NewDocument -= OnNewDocument;
+				SetLiveLink(false);
 
 				FDatasmithFacadeDirectLink.Shutdown();
 				bInitialized = false;
@@ -102,6 +104,39 @@ namespace DatasmithRhino.DirectLink
 			return false;
 		}
 
+		public Rhino.Commands.Result SetLiveLink(bool bActive)
+		{
+			if (bActive && !bLiveLinkActive)
+			{
+				if (ExportContext.RhinoDocument != null)
+				{
+					RhinoApp.Idle += OnRhinoIdle;
+					bLiveLinkActive = true;
+
+					return Synchronize(ExportContext.RhinoDocument);
+				}
+				else
+				{
+					return Rhino.Commands.Result.Failure;
+				}
+			}
+			else if(!bActive && bLiveLinkActive)
+			{
+				RhinoApp.Idle -= OnRhinoIdle;
+				bLiveLinkActive = false;
+			}
+
+			return Rhino.Commands.Result.Success;
+		}
+
+		private void OnRhinoIdle(object Sender, EventArgs e)
+		{
+			if (ExportContext.RhinoDocument != null && ExportContext.bIsDirty)
+			{
+				Synchronize(ExportContext.RhinoDocument);
+			}
+		}
+
 		private string GetEngineDirWindows()
 		{
 			string RhinoEngineDir = null;
@@ -132,6 +167,7 @@ namespace DatasmithRhino.DirectLink
 				// Before opening a new document we need to stop listening to changes in the scene.
 				// Otherwise we'll be updating cache of the old scene with the new document.
 				ChangeListener.StopListening();
+				SetLiveLink(false);
 			}
 		}
 
@@ -149,6 +185,7 @@ namespace DatasmithRhino.DirectLink
 			{
 				SetupDirectLinkScene(Args.Document);
 				ChangeListener.StopListening();
+				SetLiveLink(false);
 			}
 		}
 

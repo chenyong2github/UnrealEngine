@@ -619,6 +619,7 @@ namespace DatasmithRhino
 		public RhinoDoc RhinoDocument { get => ExportOptions.RhinoDocument; }
 		public DatasmithRhinoExportOptions ExportOptions { get; private set; }
 		public bool bIsParsed { get; private set; } = false;
+		public bool bIsDirty { get; private set; } = true;
 		private bool bExportedOnce = false;
 		public bool bIsInWorksession {
 			get {
@@ -688,6 +689,7 @@ namespace DatasmithRhino
 					ParseAllRhinoMeshes();
 
 					bIsParsed = true;
+					bIsDirty = true;
 				}
 				catch (DatasmithExportCancelledException CancelException)
 				{
@@ -739,7 +741,7 @@ namespace DatasmithRhino
 			DummyLayerIndex = -1;
 		}
 
-	public DatasmithMaterialInfo GetMaterialInfoFromMaterialIndex(int MaterialIndex)
+		public DatasmithMaterialInfo GetMaterialInfoFromMaterialIndex(int MaterialIndex)
 		{
 			if(MaterialIndexToMaterialHashDictionary.TryGetValue(MaterialIndex, out string MaterialHash))
 			{
@@ -806,6 +808,7 @@ namespace DatasmithRhino
 			}
 			
 			bExportedOnce = true;
+			bIsDirty = false;
 		}
 
 		/// <summary>
@@ -865,6 +868,8 @@ namespace DatasmithRhino
 					ModifyActor(DescendantRhinoObject, bReparent);
 				}
 			}
+
+			bIsDirty = true;
 		}
 
 		/// <summary>
@@ -903,6 +908,8 @@ namespace DatasmithRhino
 				}
 				AddOrModifyMeshesFromRhinoObjects(CollectedMeshObjects);
 			}
+
+			bIsDirty = true;
 		}
 
 		private void UndeleteActor(DatasmithActorInfo ActorInfo)
@@ -929,6 +936,8 @@ namespace DatasmithRhino
 				//Undelete is always used during an undo, and undo often use "undelete" to restore an actor state (instead of calling modify).
 				ModifyActor(RhinoModelComponent, /*bReparent=*/false);
 			}
+
+			bIsDirty = true;
 		}
 
 		/// <summary>
@@ -961,6 +970,8 @@ namespace DatasmithRhino
 					ActorInfo.ApplyModifiedStatus();
 				}
 			}
+
+			bIsDirty = true;
 		}
 
 		/// <summary>
@@ -1031,6 +1042,8 @@ namespace DatasmithRhino
 				RhinoObject[] RhinoObjects = { InRhinoObject };
 				AddOrModifyMeshesFromRhinoObjects(RhinoObjects);
 			}
+
+			bIsDirty = true;
 		}
 
 		private void UpdateHiddenFlagsRecursively(DatasmithActorInfo ActorInfo, HashSet<RhinoObject> OutNewObjects)
@@ -1115,6 +1128,8 @@ namespace DatasmithRhino
 					}
 				}
 			}
+
+			bIsDirty = true;
 		}
 
 		public void UpdateChildActorsMaterialIndex(DatasmithActorInfo ActorInfo)
@@ -1145,6 +1160,8 @@ namespace DatasmithRhino
 					}
 				}
 			}
+
+			bIsDirty = true;
 		}
 		
 		private void ParseRhinoHierarchy()
@@ -1463,6 +1480,8 @@ namespace DatasmithRhino
 						// Add newly created meshes.
 						AddOrModifyMeshesFromRhinoObjects(ObjectsNeedingMeshParsing);
 					}
+
+					bIsDirty = true;
 				}
 			}
 		}
@@ -1650,6 +1669,8 @@ namespace DatasmithRhino
 							}
 						}
 					}
+
+					bIsDirty = true;
 				}
 				else
 				{
@@ -1681,6 +1702,8 @@ namespace DatasmithRhino
 						}
 					}
 				}
+
+				bIsDirty = true;
 			}
 		}
 
@@ -1785,6 +1808,8 @@ namespace DatasmithRhino
 				default:
 					break;
 			}
+
+			bIsDirty = true;
 		}
 
 		private void ParseGroupNames()
@@ -1839,6 +1864,7 @@ namespace DatasmithRhino
 		public void ParseRhinoCameras()
 		{
 			HashSet<string> ViewsToRemove = new HashSet<string>(NamedViewNameToCameraInfo.Keys);
+			bool bHasChanged = false;
 
 			foreach (ViewInfo NamedView in RhinoDocument.NamedViews)
 			{
@@ -1853,6 +1879,7 @@ namespace DatasmithRhino
 					{
 						DatasmithActorCameraInfo DiffInfo = GenerateActorCameraInfo(NamedView, NamedViewHash);
 						ExistingCameraInfo.ApplyDiffs(DiffInfo);
+						bHasChanged = true;
 					}
 				}
 				else
@@ -1862,17 +1889,21 @@ namespace DatasmithRhino
 
 					NamedViewNameToCameraInfo.Add(NamedView.Name, CameraInfo);
 					SceneRoot.AddChild(CameraInfo);
+					bHasChanged = true;
 				}
 			}
 
 			// Mark for removal all the named views that were not
 			foreach (string ViewToRemoveName in ViewsToRemove)
 			{
-				if(NamedViewNameToCameraInfo.TryGetValue(ViewToRemoveName, out DatasmithActorCameraInfo ViewToRemove))
+				if (NamedViewNameToCameraInfo.TryGetValue(ViewToRemoveName, out DatasmithActorCameraInfo ViewToRemove))
 				{
 					ViewToRemove.ApplyDeletedStatus();
 				}
+				bHasChanged = true;
 			}
+
+			bIsDirty |= bHasChanged;
 		}
 
 		private DatasmithActorCameraInfo GenerateActorCameraInfo(ViewInfo NamedView, string NamedViewHash)
