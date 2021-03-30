@@ -877,6 +877,8 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 										const FMatrix& PrevInstanceToLocal = UploadInfo.bHasPrevInstanceTransform ? PrimitiveInstance.PrevInstanceToLocal : PrimitiveInstance.InstanceToLocal;
 										PrimitiveInstance.PrevLocalToWorld = PrevInstanceToLocal * UploadInfo.PreviousPrimitiveLocalToWorld;
 										PrimitiveInstance.LastUpdateSceneFrameNumber = SceneFrameNumber;
+										// TODO: This should be propagated from the Primitive, or not exist?
+										PrimitiveInstance.Flags = 0;
 
 										{
 											// Remove shear
@@ -1086,7 +1088,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 		return false;
 	}
 
-	/*FORCEINLINE*/ bool GetLightMapInfo(int32 ItemIndex, FLightMapUploadInfo& UploadInfo) const
+	FORCEINLINE bool GetLightMapInfo(int32 ItemIndex, FLightMapUploadInfo& UploadInfo) const
 	{
 		return false;
 	}

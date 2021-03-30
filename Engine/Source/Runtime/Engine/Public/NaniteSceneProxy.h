@@ -169,7 +169,6 @@ protected:
 	//       Null and !Opaque are assigned default material unlike the component material relevance.
 	FMaterialRelevance MaterialRelevance;
 
-	uint32 bCastShadow : 1;
 	uint32 bReverseCulling : 1;
 	uint32 bHasMaterialErrors : 1;
 
