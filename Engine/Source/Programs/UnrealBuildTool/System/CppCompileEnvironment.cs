@@ -50,7 +50,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Use the default standard version
 		/// </summary>
-		Default = Cpp14,
+		Default = Cpp17,
 	}
 
 	/// <summary>
