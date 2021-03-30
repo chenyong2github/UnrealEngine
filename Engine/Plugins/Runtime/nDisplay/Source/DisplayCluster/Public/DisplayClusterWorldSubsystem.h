@@ -5,7 +5,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
-#include "Subsystems/EngineSubsystem.h"
+#include "Subsystems/WorldSubsystem.h"
 #include "Engine/EngineBaseTypes.h"
 
 #include "DisplayClusterWorldSubsystem.generated.h"
