@@ -959,7 +959,7 @@ void FMaintenance::DeleteOldLogs()
 		}
 	}
 
-	// Remove all legacy UE4 crash contexts (regardless of age and purge settings, these are deprecated)
+	// Remove all legacy crash contexts (regardless of age and purge settings, these are deprecated)
 	TArray<FString> Directories;
 	IFileManager::Get().FindFiles(Directories, *FString::Printf(TEXT("%s/UE4CC*"), *FPaths::ProjectLogDir()), false, true);
 

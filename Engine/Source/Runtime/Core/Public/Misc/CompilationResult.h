@@ -8,7 +8,7 @@
  * Enumerates possible results of a compilation operation.
  *
  * This enum has to be compatible with the one defined in the
- * UE4\Engine\Source\Programs\UnrealBuildTool\System\ExternalExecution.cs file
+ * Engine\Source\Programs\UnrealBuildTool\System\ExternalExecution.cs file
  * to keep communication between UHT, UBT and Editor compiling processes valid.
  */
 namespace ECompilationResult

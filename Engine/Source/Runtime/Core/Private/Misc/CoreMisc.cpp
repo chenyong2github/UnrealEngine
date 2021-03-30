@@ -82,7 +82,7 @@ bool FStaticSelfRegisteringExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutpu
 }
 
 
-			// Remove old UE4 crash contexts
+// Remove old crash contexts
 
 
 /*-----------------------------------------------------------------------------

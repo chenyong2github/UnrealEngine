@@ -186,7 +186,7 @@ bool FGuid::ParseExact(const FString& GuidString, EGuidFormats Format, FGuid& Ou
 			return false;
 		}
 
-		// Replace the characters we replaced going out (but not the padding, UE4 discards it immediately)
+		// Replace the characters we replaced going out (but not the padding, UE discards it immediately)
 		FString GuidCopy = GuidString;
 		GuidCopy.ReplaceCharInline(TEXT('-'), TEXT('+'), ESearchCase::CaseSensitive);
 		GuidCopy.ReplaceCharInline(TEXT('_'), TEXT('/'), ESearchCase::CaseSensitive);

@@ -984,7 +984,7 @@ void FAsyncSHAVerify::DoWork()
  */
 
 /* *** NEVER CHECK THE BELOW IN SET TO 1!!! *** */
-#define DISABLE_AUTHENTICATION_FOR_DEV 1    // UE4 - for now, we _will_ check this in with 1 because we are not generating shipping images at the moment.
+#define DISABLE_AUTHENTICATION_FOR_DEV 1    // UE - for now, we _will_ check this in with 1 because we are not generating shipping images at the moment.
 /* *** NEVER CHECK THE ABOVE IN SET TO 1!!! *** */
 
 void appOnFailSHAVerification(const TCHAR* FailedPathname, bool bFailedDueToMissingHash)

@@ -102,7 +102,7 @@ public:
 	}
 
 	/**
-	 * Gets the name of the application, i.e. "UE4" or "Rocket".
+	 * Gets the name of the application, i.e. "UE" or "Rocket".
 	 *
 	 * @todo need better application name discovery. this is quite horrible and may not work on future platforms.
 	 * @return Application name string.
@@ -405,7 +405,7 @@ public:
 	/**
 	 * Checks whether the engine components of this application have been installed.
 	 *
-	 * In binary UE4 releases, the engine can be installed while the game is not. The game IsInstalled()
+	 * In binary Unreal Engine releases, the engine can be installed while the game is not. The game IsInstalled()
 	 * setting will take precedence over this flag.
 	 *
 	 * To override, pass -engineinstalled or -enginenotinstalled on the command line.

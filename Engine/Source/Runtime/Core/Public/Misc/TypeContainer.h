@@ -38,7 +38,7 @@ enum class ETypeContainerScope
  * being locked to a particular type of class. When passed into class constructors or
  * methods, type containers can facilitate the Inversion of Control (IoC) pattern.
  *
- * Since UE4 neither uses run-time type information nor pre-processes plain old C++ classes,
+ * Since UE neither uses run-time type information nor pre-processes plain old C++ classes,
  * type names need to be exposed using the Expose_TNameOf macro in order to make them
  * registrable with type containers, i.e. Expose_TNameOf(FMyClass).
  *

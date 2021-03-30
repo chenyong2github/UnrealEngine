@@ -28,7 +28,7 @@ class CORE_API FEmbeddedDelegates
 {
 public:
 
-	// delegate for calling between native wrapper app and embedded ue4
+	// delegate for calling between native wrapper app and embedded ue
 	DECLARE_MULTICAST_DELEGATE_OneParam(FEmbeddedCommunicationParamsDelegate, const FEmbeddedCallParamsHelper&);
 
 	// calling in from native wrapper to engine
@@ -66,7 +66,7 @@ class CORE_API FEmbeddedCommunication
 {
 public:
 
-	// called early in UE4 lifecycle - RunOnGameThread can be called before this is called
+	// called early in UE lifecycle - RunOnGameThread can be called before this is called
 	static void Init();
 
 	// force some ticking to happen - used to process messages during otherwise blocking operations like boot
@@ -81,7 +81,7 @@ public:
 	// called from game thread to pull off
 	static bool TickGameThread(float DeltaTime);
 	
-	// tell UE4 to stay awake (or allow it to sleep when nothing to do). Repeated calls with the same Requester are
+	// tell UE to stay awake (or allow it to sleep when nothing to do). Repeated calls with the same Requester are
 	// allowed, but bNeedsRendering must match
 	static void KeepAwake(FName Requester, bool bNeedsRendering);
 	static void AllowSleep(FName Requester);
@@ -105,7 +105,7 @@ public:
 class FEmbeddedKeepAwake
 {
 public:
-	// tell UE4 to stay awake (or allow it to sleep when nothing to do). Repeated calls with the same Requester are
+	// tell UE to stay awake (or allow it to sleep when nothing to do). Repeated calls with the same Requester are
 	// allowed, but bNeedsRendering must match
 	FEmbeddedKeepAwake(FName InRequester, bool bInNeedsRendering)
 		: Requester(InRequester)

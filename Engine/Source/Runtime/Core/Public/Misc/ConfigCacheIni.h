@@ -429,7 +429,7 @@ public:
 #endif // ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 	
 	CORE_API FConfigFile();
-	FConfigFile( int32 ) {}	// @todo UE4 DLL: Workaround for instantiated TMap template during DLLExport (TMap::FindRef)
+	FConfigFile( int32 ) {}	// @todo UE-DLL: Workaround for instantiated TMap template during DLLExport (TMap::FindRef)
 	CORE_API ~FConfigFile();
 	
 	// looks for a section by name, and creates an empty one if it can't be found
