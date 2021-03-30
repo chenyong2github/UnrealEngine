@@ -132,7 +132,7 @@ void FDataRegistryEditorToolkit::CreateAndRegisterPropertiesTab(const TSharedRef
 
 void FDataRegistryEditorToolkit::InitDataRegistryEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDataRegistry* Registry)
 {
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_CompositeDataRegistryEditor_temp_Layout")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_DataRegistryEditor_Layout")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
@@ -153,13 +153,6 @@ void FDataRegistryEditorToolkit::InitDataRegistryEditor(const EToolkitMode::Type
 			(
 				FTabManager::NewSplitter()
 				->SetOrientation(Orient_Vertical)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.1f)
-					->SetHideTabWell(true)
-					->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-				)
 				->Split
 				(
 					FTabManager::NewStack()
@@ -634,20 +627,8 @@ void FDataRegistryEditorToolkit::PostRegenerateMenusAndToolbars()
 				.ForegroundColor(FSlateColor::UseForeground())
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Browse"))
+					.Image(FEditorStyle::GetBrush("Icons.Search"))
 				]
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(0.0f, 0.0f, 8.0f, 0.0f)
-			[
-				SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
-				.Visibility(!UDS ? EVisibility::Visible : EVisibility::Collapsed)
-				.OnNavigate(this, &FDataRegistryEditorToolkit::OnNavigateToDataRegistryRowCode)
-				.Text(FText::FromString(GetNameSafe(DataRegistry->GetItemStruct())))
-				.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()))
 			];
 	
 		SetMenuOverlay(MenuOverlayBox);
@@ -674,16 +655,10 @@ void FDataRegistryEditorToolkit::OnEditDataTableStructClicked()
 	if (DataRegistry && DataRegistry->GetItemStruct())
 	{
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(DataRegistry->GetItemStruct()->GetPathName());
-		FSourceCodeNavigation::NavigateToStruct(DataRegistry->GetItemStruct());
-	}
-}
-
-void FDataRegistryEditorToolkit::OnNavigateToDataRegistryRowCode()
-{
-	const UDataRegistry* DataRegistry = GetDataRegistry();
-	if (DataRegistry && FSourceCodeNavigation::CanNavigateToStruct(DataRegistry->GetItemStruct()))
-	{
-		FSourceCodeNavigation::NavigateToStruct(DataRegistry->GetItemStruct());
+		if (FSourceCodeNavigation::CanNavigateToStruct(DataRegistry->GetItemStruct()))
+		{
+			FSourceCodeNavigation::NavigateToStruct(DataRegistry->GetItemStruct());
+		}
 	}
 }
 

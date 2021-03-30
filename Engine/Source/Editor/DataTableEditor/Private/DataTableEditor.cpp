@@ -487,13 +487,15 @@ void FDataTableEditor::OnEditDataTableStructClicked()
 	const UDataTable* DataTable = GetDataTable();
 	if (DataTable)
 	{
-
 		const UScriptStruct* ScriptStruct = DataTable->GetRowStruct();
 
 		if (ScriptStruct)
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ScriptStruct->GetPathName());
-			FSourceCodeNavigation::NavigateToStruct(ScriptStruct);
+			if (FSourceCodeNavigation::CanNavigateToStruct(ScriptStruct))
+			{
+				FSourceCodeNavigation::NavigateToStruct(ScriptStruct);
+			}
 		}
 	}
 }
@@ -969,18 +971,6 @@ void FDataTableEditor::PostRegenerateMenusAndToolbars()
 					SNew(SImage)
 					.Image(FEditorStyle::GetBrush("Icons.Search"))
 				]
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(0.0f, 0.0f, 8.0f, 0.0f)
-			[
-				SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
-				.Visibility(!UDS ? EVisibility::Visible : EVisibility::Collapsed)
-				.OnNavigate(this, &FDataTableEditor::OnNavigateToDataTableRowCode)
-				.Text(FText::FromName(DataTable->GetRowStructName()))
-				.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()))
 			];
 	
 		SetMenuOverlay(MenuOverlayBox);
@@ -998,15 +988,6 @@ FReply FDataTableEditor::OnFindRowInContentBrowserClicked()
 	}
 
 	return FReply::Handled();
-}
-
-void FDataTableEditor::OnNavigateToDataTableRowCode()
-{
-	const UDataTable* DataTable = GetDataTable();
-	if (DataTable && FSourceCodeNavigation::CanNavigateToStruct(DataTable->GetRowStruct()))
-	{
-		FSourceCodeNavigation::NavigateToStruct(DataTable->GetRowStruct());
-	}
 }
 
 void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, const bool bUpdateEvenIfValid)

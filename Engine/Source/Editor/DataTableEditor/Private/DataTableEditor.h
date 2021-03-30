@@ -97,8 +97,6 @@ protected:
 
 	FReply OnFindRowInContentBrowserClicked();
 
-	void OnNavigateToDataTableRowCode();
-
 	FText GetCellText(FDataTableEditorRowListViewDataPtr InRowDataPointer, int32 ColumnIndex) const;
 	FText GetCellToolTipText(FDataTableEditorRowListViewDataPtr InRowDataPointer, int32 ColumnIndex) const;
 
