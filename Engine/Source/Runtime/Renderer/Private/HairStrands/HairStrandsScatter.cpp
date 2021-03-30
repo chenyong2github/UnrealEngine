@@ -124,10 +124,8 @@ class FHairScatterPS : public FGlobalShader
 		SHADER_PARAMETER(uint32, Debug)
 		SHADER_PARAMETER(uint32, SampleCount)
 		SHADER_PARAMETER(uint32, HairComponents)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, HairLUTTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, HairEnergyLUTTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutputColor)
-		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisibilityNodeIndex)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, VisibilityNodeData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffusionInputTexture)
@@ -157,7 +155,6 @@ static FRDGTextureRef AddScatterPass(
 		return nullptr;
 
 	const FIntPoint Resolution = OutSceneColorTexture->Desc.Extent;
-	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder, View);
 
 	float PixelRadiusAtDepth1 = 0;
 	{
@@ -181,9 +178,7 @@ static FRDGTextureRef AddScatterPass(
 	Parameters->VisibilityNodeData = GraphBuilder.CreateSRV(InVisibilityNodeData);
 	Parameters->CategorizationTexture = InCategorizationTexture;
 	Parameters->DiffusionInputTexture = InDiffusionInput;
-	Parameters->HairLUTTexture = InHairLUT.Textures[HairLUTType_DualScattering];
-	Parameters->HairEnergyLUTTexture = InHairLUT.Textures[HairLUTType_MeanEnergy];
-	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	Parameters->HairEnergyLUTTexture = GetHairLUT(GraphBuilder, View, HairLUTType_MeanEnergy);
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->VirtualVoxel = VoxelResources.UniformBuffer;
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))

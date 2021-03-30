@@ -20,10 +20,5 @@ enum FHairLUTType
 	HairLUTTypeCount
 };
 
-struct FHairLUT
-{
-	FRDGTextureRef Textures[HairLUTTypeCount] = { nullptr, nullptr, nullptr };
-};
-
 /// Returns Hair LUTs. LUTs are generated on demand.
-FHairLUT GetHairLUT(FRDGBuilder& GraphBuilder, const FViewInfo& View);
+FRDGTextureRef GetHairLUT(FRDGBuilder& GraphBuilder, const FViewInfo& View, FHairLUTType Type);

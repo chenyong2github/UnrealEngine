@@ -53,9 +53,7 @@ Texture2D<uint4>  			CategorizationTexture;
 Texture2D<uint> 			VisibilityNodeIndex;
 StructuredBuffer<FPackedHairSample> VisibilityNodeData;
 
-Texture3D<float4>			HairLUTTexture;
 Texture3D<float4>			HairEnergyLUTTexture;
-SamplerState 				LinearSampler;
 
 FHairTransmittanceMask ComputeTransmittanceVoxel(
 	const uint2 PixelCoord,
@@ -272,7 +270,7 @@ void MainPS(
 
 				{
 					// Compute the transmittance based on precompute Hair transmittance LUT
-					FHairAverageScattering AverageScattering = SampleHairLUT(HairLUTTexture, LinearSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
+					FHairAverageScattering AverageScattering = SampleHairLUT(View.HairScatteringLUTTexture, View.HairScatteringLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
 					TransmittanceData.A_front = AverageScattering.A_front;
 					TransmittanceData.A_back  = AverageScattering.A_back;
 				}
@@ -300,10 +298,10 @@ void MainPS(
 				TransmittanceData.ScatteringComponent = HairComponents | HAIR_COMPONENT_MULTISCATTER;
 
 				// Compute the transmittance based on precompute Hair transmittance LUT
-				FHairAverageEnergy Energy	= SampleHairEnergyLUT(HairEnergyLUTTexture, LinearSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
+				FHairAverageEnergy Energy	= SampleHairEnergyLUT(HairEnergyLUTTexture, View.HairScatteringLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
 				const float3 TotalEnergy	= Energy.A_R + Energy.A_TT + Energy.A_TRT;
 	
-				FHairAverageEnergy SampleEnergy = SampleHairEnergyLUT(HairEnergyLUTTexture, LinearSampler, SampleGBuffer.BaseColor, SampleGBuffer.Roughness, SampleSinLightAngle);
+				FHairAverageEnergy SampleEnergy = SampleHairEnergyLUT(HairEnergyLUTTexture, View.HairScatteringLUTSampler, SampleGBuffer.BaseColor, SampleGBuffer.Roughness, SampleSinLightAngle);
 				const float3 SampleTotalEnergy = SampleEnergy.A_R + SampleEnergy.A_TT + SampleEnergy.A_TRT;
 
 				TransmittanceData.LocalScattering = TotalEnergy * SampleTotalEnergy;
@@ -321,7 +319,7 @@ void MainPS(
 			}
 			#endif
 
-			const float3 Transmittance = GetHairTransmittanceOnly(InitHairTransmittanceMask(TransmittanceMask.HairCount, TransmittanceMask.Visibility), GBuffer, SampleSinLightAngle, HairLUTTexture, LinearSampler);
+			const float3 Transmittance = GetHairTransmittanceOnly(InitHairTransmittanceMask(TransmittanceMask.HairCount, TransmittanceMask.Visibility), GBuffer, SampleSinLightAngle, View.HairScatteringLUTTexture, View.HairScatteringLUTSampler);
 
 			const float Area = 0;
 			const float3 TransmittedLight = Transmittance * TransmittanceMask.Visibility * SampleColor.xyz;

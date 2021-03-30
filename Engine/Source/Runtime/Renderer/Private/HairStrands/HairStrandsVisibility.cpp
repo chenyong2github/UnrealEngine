@@ -2965,7 +2965,6 @@ IMPLEMENT_GLOBAL_SHADER(FHairCountToCoverageCS, "/Engine/Private/HairStrands/Hai
 static FRDGTextureRef AddHairHairCountToTransmittancePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& ViewInfo,
-	const FHairLUT& HairLUT,
 	const FRDGTextureRef HairCountTexture)
 {
 	const FIntPoint OutputResolution = HairCountTexture->Desc.Extent;
@@ -2975,7 +2974,7 @@ static FRDGTextureRef AddHairHairCountToTransmittancePass(
 
 	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(OutputResolution, PF_R32_FLOAT, FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f)), TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable);
 	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.VisibilityTexture"));
-	FRDGTextureRef HairCoverageLUT = HairLUT.Textures[HairLUTType_Coverage];
+	FRDGTextureRef HairCoverageLUT = GetHairLUT(GraphBuilder, ViewInfo, HairLUTType_Coverage);
 
 	FHairCountToCoverageCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairCountToCoverageCS::FParameters>();
 	PassParameters->LUT_HairCount = HairCoverageLUT->Desc.Extent.X;
@@ -3261,8 +3260,6 @@ void RenderHairStrandsVisibilityBuffer(
 	{
 		
 		{
-			FHairLUT HairLUT = GetHairLUT(GraphBuilder, View);
-
 			FHairStrandsVisibilityData& VisibilityData = View.HairStrandsViewData.VisibilityData;
 			VisibilityData.NodeGroupSize = GetVendorOptimalGroupSize1D();
 			VisibilityData.MaxSampleCount = GetMaxSamplePerPixel();
@@ -3298,7 +3295,6 @@ void RenderHairStrandsVisibilityBuffer(
 					ViewTransmittance.TransmittanceTexture = AddHairHairCountToTransmittancePass(
 						GraphBuilder,
 						View,
-						HairLUT,
 						RasterOutput.HairCountTexture);
 
 					ViewTransmittance.HairCountTextureUint = RasterOutput.HairCountTexture;
@@ -3447,7 +3443,6 @@ void RenderHairStrandsVisibilityBuffer(
 						ViewTransmittance.TransmittanceTexture = AddHairHairCountToTransmittancePass(
 							GraphBuilder,
 							View,
-							HairLUT,
 							ViewTransmittance.HairCountTexture);
 					}
 

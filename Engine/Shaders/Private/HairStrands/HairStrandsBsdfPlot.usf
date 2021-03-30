@@ -258,7 +258,7 @@ void MainPS(
 				const float SinLightAngle = dot(L, T);
 
 				// Compute the transmittance based on precompute Hair transmittance LUT
-				FHairAverageScattering AverageScattering = SampleHairLUT(HairScatteringLUTTexture, HairLUTSampler, P.BaseColor, P.Roughness, SinLightAngle);
+				FHairAverageScattering AverageScattering = SampleHairLUT(View.HairScatteringLUTTexture, View.HairScatteringLUTSampler, P.BaseColor, P.Roughness, SinLightAngle);
 
 				TransmittanceData = ComputeDualScatteringTerms(
 					InitHairTransmittanceMask(),

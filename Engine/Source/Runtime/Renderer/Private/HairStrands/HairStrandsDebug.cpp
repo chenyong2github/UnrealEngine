@@ -811,9 +811,6 @@ class FHairStrandsPlotSamplePS : public FGlobalShader
 		SHADER_PARAMETER(uint32, HairComponents)
 		SHADER_PARAMETER(float, Exposure)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, HairScatteringLUTTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, HairLUTSampler)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -838,8 +835,6 @@ static void AddPlotSamplePass(
 
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
 	FHairStrandsPlotSamplePS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsPlotSamplePS::FParameters>();
-	
-	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder, View);
 
 	FHairStrandsDebugData::SetParameters(GraphBuilder, DebugData, Parameters->DebugData);
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
@@ -848,8 +843,6 @@ static void AddPlotSamplePass(
 	Parameters->MaxResolution = OutputTexture->Desc.Extent;
 	Parameters->HairComponents = ToBitfield(GetHairComponents());
 	Parameters->Exposure = GHairStrandsDebugPlotBsdfExposure;
-	Parameters->HairScatteringLUTTexture = InHairLUT.Textures[HairLUTType_DualScattering];
-	Parameters->HairLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
 
 	const FIntPoint OutputResolution = SceneTextures.SceneDepthTexture->Desc.Extent;

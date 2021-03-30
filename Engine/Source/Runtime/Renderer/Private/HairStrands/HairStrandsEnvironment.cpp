@@ -240,8 +240,6 @@ public:
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairEnergyLUTTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairScatteringLUTTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, HairLUTSampler)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutLightingBuffer)
 
@@ -321,10 +319,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	FHairEnvironmentLightingPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FHairEnvironmentLightingPS::FParameters>();
 	FHairEnvironmentLighting::FParameters* PassParameters = &ParametersPS->Common;
 
-	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder, View);
-	PassParameters->HairEnergyLUTTexture = InHairLUT.Textures[HairLUTType_MeanEnergy];
-	PassParameters->HairScatteringLUTTexture = InHairLUT.Textures[HairLUTType_DualScattering];
-	PassParameters->HairLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->HairEnergyLUTTexture = GetHairLUT(GraphBuilder, View, HairLUTType_MeanEnergy);
 
 	EHairLightingIntegrationType IntegrationType = EHairLightingIntegrationType::AdHoc;
 	const bool bUseSceneColor = SceneColorTexture != nullptr;

@@ -36,12 +36,6 @@ uint MaxNodeCount;
 uint SamplerPerPixel;
 float CoverageThreshold;
 
-//float LUT_HairCount;
-//float LUT_HairRadiusCount;
-//
-//SamplerState					LinearSampler;
-//Texture2D<float>				HairCoverageLUT;
-
 RWTexture2D<uint> 				OutCompactNodeCounter;
 RWTexture2D<uint> 				OutCompactNodeIndex;
 RWStructuredBuffer<FNodeVis> 	OutCompactNodeData;

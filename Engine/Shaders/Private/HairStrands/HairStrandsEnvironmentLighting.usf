@@ -94,9 +94,7 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 		EyeIndex);
 }
 
-Texture3D<float4>			HairScatteringLUTTexture;
 Texture3D<float4>			HairEnergyLUTTexture;
-SamplerState 				HairLUTSampler; 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Debug info
@@ -282,7 +280,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
 
 			const uint ScatteringComponent = (View.HairComponents & HAIR_COMPONENT_R) | (View.HairComponents & HAIR_COMPONENT_TRT) | HAIR_COMPONENT_LS | HAIR_COMPONENT_GS;// | HAIR_MULTISCATTER;
-			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, SampleL, GBuffer, InitHairTransmittanceMask(Result.HairCount, Result.Visibility), HairScatteringLUTTexture, HairLUTSampler, ScatteringComponent);
+			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, SampleL, GBuffer, InitHairTransmittanceMask(Result.HairCount, Result.Visibility), View.HairScatteringLUTTexture, View.HairScatteringLUTSampler, ScatteringComponent);
 
 			const float Area = 0.2;
 			const float BackLit = 1;
@@ -351,7 +349,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		#if 0
 		{
 			const float SinViewAngle = dot(T, R);
-			FHairAverageEnergy Energy = SampleHairEnergyLUT(HairEnergyLUTTexture, HairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinViewAngle);
+			FHairAverageEnergy Energy = SampleHairEnergyLUT(HairEnergyLUTTexture, View.HairScatteringLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinViewAngle);
 			ColorMS.rgb *= Energy.A_R + Energy.A_TT + Energy.A_TRT;
 		}
 		#endif	
@@ -406,7 +404,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 
 			// Compute the number of hair count between light & shading point
 			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
-			Transmittance = GetHairTransmittanceOnly(InitHairTransmittanceMask(Result.HairCount, Result.Visibility), GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
+			Transmittance = GetHairTransmittanceOnly(InitHairTransmittanceMask(Result.HairCount, Result.Visibility), GBuffer, SinLightAngle, View.HairScatteringLUTTexture, View.HairScatteringLUTSampler);
 			Visibility = Result.Visibility;
 		}
 
@@ -414,7 +412,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		// Directional albedo
 		#if 0
 		{
-			FHairAverageEnergy Energy = SampleHairEnergyLUT(HairEnergyLUTTexture, HairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinViewAngle);
+			FHairAverageEnergy Energy = SampleHairEnergyLUT(HairEnergyLUTTexture, View.HairScatteringLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinViewAngle);
 			ColorR.rgb *= (Energy.A_TRT + Energy.A_R) * Transmittance.xyz * Visibility;
 		}
 		#endif
@@ -473,7 +471,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			{
 				Result = InternalComputeHairCountVoxel(MacroGroupId, SampleWorldPosition, SampleLightPosition, TransmissionDensityScaleFactor, 0, DistanceThresholdTT, PixelRadius, false, bDebugEnabled);
 			}
-			Transmittance = GetHairTransmittanceOnly(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
+			Transmittance = GetHairTransmittanceOnly(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, View.HairScatteringLUTTexture, View.HairScatteringLUTSampler);
 			Visibility = Result.Visibility;
 		}
 
@@ -482,7 +480,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		{
 			Error the Transmittance.w does not contain the correct hair count when we hit opaque geometry: TODO
 			const uint HairComponent = HAIR_COMPONENT_TT | HAIR_COMPONENT_LS | HAIR_COMPONENT_GS;
-			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, L, GBuffer, Transmittance, HairScatteringLUTTexture, HairLUTSampler, HairComponent);
+			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, L, GBuffer, Transmittance, View.HairScatteringLUTTexture, View.HairScatteringLUTSampler, HairComponent);
 			const float Area = 0.2;
 			ColorTT.rgb *= HairShading(GBuffer, L, V, T, 1, TransmittanceData, 1, Area, uint2(0, 0)) * Visibility;
 		}
@@ -492,7 +490,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		#if 1
 		{
 			const float Backlit = GBuffer.CustomData.z;
-			FHairAverageEnergy Energy = SampleHairEnergyLUT(HairEnergyLUTTexture, HairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinViewAngle);
+			FHairAverageEnergy Energy = SampleHairEnergyLUT(HairEnergyLUTTexture, View.HairScatteringLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinViewAngle);
 			ColorTT.rgb *= Energy.A_TT * Transmittance * Visibility * Backlit;
 		}
 		#endif	
@@ -592,8 +590,8 @@ float3 ReflectionEnvironmentUniformSampling(
 			SampleL,
 			GBuffer,
 			InitHairTransmittanceMask(Result.HairCount, Result.Visibility),
-			HairScatteringLUTTexture,
-			HairLUTSampler,
+			View.HairScatteringLUTTexture, 
+			View.HairScatteringLUTSampler,
 			View.HairComponents);	
 
 		const float Area = 0;
@@ -646,8 +644,8 @@ float3 ReflectionEnvironmentSH(
 		L,
 		GBuffer,
 		InitHairTransmittanceMask(),
-		HairScatteringLUTTexture,
-		HairLUTSampler,
+		View.HairScatteringLUTTexture, 
+		View.HairScatteringLUTSampler,
 		View.HairComponents);
 
 	bool bEvalMultiScatter = true;
@@ -719,7 +717,7 @@ float3 ComputeThinTransmission(FGBufferData GBuffer, float2 ScreenPosition, floa
 
 	// The pre-exposure is not applied onto the output as the SceneColorTexture value are already preexposed.
 	const float SinViewAngle = dot(T, V);
-	const FHairAverageScattering Energy = SampleHairLUT(HairScatteringLUTTexture, HairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinViewAngle);
+	const FHairAverageScattering Energy = SampleHairLUT(View.HairScatteringLUTTexture, View.HairScatteringLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinViewAngle);
 	float3 Color = Energy.A_front * Luminance.xyz * PixelCoverage;
 
 	return -min(-Color, 0.0);
