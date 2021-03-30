@@ -14,7 +14,7 @@ namespace Metasound
 		const FText RandomUtils = { LOCTEXT("Metasound_RandomUtilsCategory", "Random Utilities") };
 		const FText Conversions  = { LOCTEXT("Metasound_ConversionsCategory", "Conversions") };
 		const FText DebugUtils = { LOCTEXT("Metasound_DebugUtilsCategory", "Debug Utilities") };
-		const FText Io = { LOCTEXT("Metasound_IoCategory", "File IO") };
+		const FText Io = { LOCTEXT("Metasound_IoCategory", "External IO") };
 	}
 }
 
