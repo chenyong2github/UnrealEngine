@@ -16,6 +16,7 @@ struct FRawCurveTracks;
 struct FRawAnimSequenceTrack;
 struct FBoneAnimationTrack;
 struct FRawAnimSequenceTrack;
+class IAnimationDataController;
 
 enum class EAnimInterpolationType : uint8;
 

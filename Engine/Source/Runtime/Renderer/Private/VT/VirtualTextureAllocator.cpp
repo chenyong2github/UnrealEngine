@@ -3,6 +3,9 @@
 #include "VirtualTextureAllocator.h"
 #include "AllocatedVirtualTexture.h"
 #include "VirtualTexturing.h"
+#include "Modules/ModuleManager.h"
+#include "IImageWrapperModule.h"
+#include "Misc/Paths.h"
 
 #if WITH_EDITOR
 #include "IImageWrapper.h"

@@ -6,6 +6,7 @@
 #include "Kismet2/Kismet2NameValidators.h"
 #include "AnimationStateMachineGraph.h"
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "AnimStateNode.h"
 
 #define LOCTEXT_NAMESPACE "AnimStateAliasNode"

@@ -19,6 +19,7 @@ class FGPUSpriteResources;
 struct FParticleEmitterInstance;
 class FRHIUniformBuffer;
 class UVectorFieldComponent;
+class FGlobalDistanceFieldParameterData;
 
 /*-----------------------------------------------------------------------------
 	Forward declarations.

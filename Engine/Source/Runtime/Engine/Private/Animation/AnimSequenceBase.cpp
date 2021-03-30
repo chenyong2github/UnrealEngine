@@ -13,6 +13,7 @@
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimSequenceHelpers.h"
 #include "Animation/AnimData/AnimDataModel.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
 #include "IAnimationDataControllerModule.h"
