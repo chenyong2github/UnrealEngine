@@ -181,6 +181,19 @@ bool FFXSystemSet::RequiresEarlyViewUniformBuffer() const
 	return false;
 }
 
+bool FFXSystemSet::RequiresRayTracingScene() const
+{
+	for (FFXSystemInterface* FXSystem : FXSystems)
+	{
+		check(FXSystem);
+		if (FXSystem->RequiresRayTracingScene())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void FFXSystemSet::PreRender(class FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleSceneUpdate)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)

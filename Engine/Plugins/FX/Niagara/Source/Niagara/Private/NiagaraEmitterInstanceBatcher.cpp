@@ -12,6 +12,7 @@
 #include "NiagaraGpuComputeDebug.h"
 #endif
 #include "NiagaraGpuReadbackManager.h"
+#include "NiagaraRayTracingHelper.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraShader.h"
@@ -123,7 +124,7 @@ namespace NiagaraEmitterInstanceBatcherLocal
 
 	static ETickStage CalculateTickStage(const FNiagaraGPUSystemTick& Tick)
 	{
-		if (!GNiagaraAllowTickBeforeRender || Tick.bRequiresDistanceFieldData || Tick.bRequiresDepthBuffer)
+		if (!GNiagaraAllowTickBeforeRender || Tick.bRequiresDistanceFieldData || Tick.bRequiresDepthBuffer || Tick.bRequiresRayTracingScene)
 		{
 			return ETickStage::PostOpaqueRender;
 		}
@@ -205,6 +206,10 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 	EmitterCBufferLayout->UBLayout.ConstantBufferSize = sizeof(FNiagaraEmitterParameters);
 	EmitterCBufferLayout->UBLayout.ComputeHash();
 
+#if RHI_RAYTRACING
+	RayTracingHelper.Reset(new FNiagaraRayTracingHelper(InShaderPlatform));
+#endif
+
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	GpuComputeDebugPtr.Reset(new FNiagaraGpuComputeDebug(FeatureLevel));
 #endif
@@ -253,10 +258,12 @@ void NiagaraEmitterInstanceBatcher::InstanceDeallocated_RenderThread(const FNiag
 			ensure(NumTicksThatRequireDistanceFieldData >= (Tick.bRequiresDistanceFieldData ? 1u : 0u));
 			ensure(NumTicksThatRequireDepthBuffer >= (Tick.bRequiresDepthBuffer ? 1u : 0u));
 			ensure(NumTicksThatRequireEarlyViewData >= (Tick.bRequiresEarlyViewData ? 1u : 0u));
+			ensure(NumTicksThatRequireRayTracingScene >= (Tick.bRequiresRayTracingScene ? 1u : 0u));
 
 			NumTicksThatRequireDistanceFieldData -= Tick.bRequiresDistanceFieldData ? 1 : 0;
 			NumTicksThatRequireDepthBuffer -= Tick.bRequiresDepthBuffer ? 1 : 0;
 			NumTicksThatRequireEarlyViewData -= Tick.bRequiresEarlyViewData ? 1 : 0;
+			NumTicksThatRequireRayTracingScene -= Tick.bRequiresRayTracingScene ? 1 : 0;
 
 			//-OPT: Since we can't RemoveAtSwap (due to ordering issues) if may be better to not remove and flag as dead
 			Tick.Destroy();
@@ -397,6 +404,7 @@ void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSyste
 	NumTicksThatRequireDistanceFieldData += Tick.bRequiresDistanceFieldData ? 1 : 0;
 	NumTicksThatRequireDepthBuffer += Tick.bRequiresDepthBuffer ? 1 : 0;
 	NumTicksThatRequireEarlyViewData += Tick.bRequiresEarlyViewData ? 1 : 0;
+	NumTicksThatRequireRayTracingScene += Tick.bRequiresRayTracingScene ? 1 : 0;
 }
 
 void NiagaraEmitterInstanceBatcher::ReleaseInstanceCounts_RenderThread(FNiagaraComputeExecutionContext* ExecContext, FNiagaraDataSet* DataSet)
@@ -522,6 +530,7 @@ void NiagaraEmitterInstanceBatcher::FinishDispatches()
 	NumTicksThatRequireDistanceFieldData = 0;
 	NumTicksThatRequireDepthBuffer = 0;
 	NumTicksThatRequireEarlyViewData = 0;
+	NumTicksThatRequireRayTracingScene = 0;
 
 	for (int32 iTickStage=0; iTickStage < (int)ETickStage::Max; ++iTickStage)
 	{
@@ -1539,15 +1548,20 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, 
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	bAllowGPUParticleUpdate = bAllowGPUParticleUpdate && GetReferenceAllowGPUUpdate(Views);
-	FRHIUniformBuffer* ViewUniformBuffer = GetReferenceViewUniformBuffer(Views);
 
 	AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("Niagara::PostRenderOpaque"),
-		[this, ViewUniformBuffer, bAllowGPUParticleUpdate](FRHICommandListImmediate& RHICmdList)
+		[this, Views, bAllowGPUParticleUpdate](FRHICommandListImmediate& RHICmdList)
 		{
 			if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 			{
+#if RHI_RAYTRACING
+				BuildRayTracingSceneInfo(RHICmdList, Views);
+#endif
+
+				FRHIUniformBuffer* ViewUniformBuffer = GetReferenceViewUniformBuffer(Views);
+
 				BuildTickStagePasses(RHICmdList, ETickStage::PostOpaqueRender);
 
 				// Setup new readback since if there is no pending request, there is no risk of having invalid data read (offset being allocated after the readback was sent).
@@ -1559,6 +1573,10 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, 
 				FinishDispatches();
 
 				ProcessDebugReadbacks(RHICmdList, false);
+
+#if RHI_RAYTRACING
+				ResetRayTracingSceneInfo();
+#endif
 			}
 
 			if (!GPUInstanceCounterManager.HasPendingGPUReadback())
@@ -1649,6 +1667,13 @@ bool NiagaraEmitterInstanceBatcher::RequiresEarlyViewUniformBuffer() const
 	checkSlow(Ticks_RT.ContainsByPredicate([](const FNiagaraGPUSystemTick& Tick) { return Tick.bRequiresEarlyViewData; }) == NumTicksThatRequireEarlyViewData > 0);
 
 	return NumTicksThatRequireEarlyViewData > 0;
+}
+
+bool NiagaraEmitterInstanceBatcher::RequiresRayTracingScene() const
+{
+	checkSlow(Ticks_RT.ContainsByPredicate([](const FNiagaraGPUSystemTick& Tick) { return Tick.bRequiresRayTracingScene; }) == NumTicksThatRequireRayTracingScene > 0);
+
+	return NumTicksThatRequireRayTracingScene > 0;
 }
 
 void NiagaraEmitterInstanceBatcher::PreRender(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate)
@@ -1782,6 +1807,37 @@ void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& R
 
 	RHICmdList.EndUAVOverlap(MakeArrayView(OverlapUAVs, NumOverlapUAVs));
 }
+
+#if RHI_RAYTRACING
+void NiagaraEmitterInstanceBatcher::BuildRayTracingSceneInfo(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views)
+{
+	if (NumTicksThatRequireRayTracingScene > 0)
+	{
+		RayTracingHelper->BuildRayTracingSceneInfo(RHICmdList, Views);
+	}
+	else
+	{
+		RayTracingHelper->Reset();
+	}
+}
+
+void NiagaraEmitterInstanceBatcher::ResetRayTracingSceneInfo()
+{
+	RayTracingHelper->Reset();
+}
+
+void NiagaraEmitterInstanceBatcher::IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, FRHIShaderResourceView* RayTraceRequests, FRHIUnorderedAccessView* RayTraceResults) const
+{
+	check(NumTicksThatRequireRayTracingScene > 0);
+
+	RayTracingHelper->IssueRayTraces(RHICmdList, RayTraceCounts, RayTraceRequests, RayTraceResults);
+}
+
+bool NiagaraEmitterInstanceBatcher::HasRayTracingScene() const
+{
+	return NumTicksThatRequireRayTracingScene && RayTracingHelper->IsValid();
+}
+#endif
 
 /* Set shader parameters for data interfaces
  */

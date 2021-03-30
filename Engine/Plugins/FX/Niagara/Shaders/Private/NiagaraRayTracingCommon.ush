@@ -1,0 +1,12 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "/Engine/Private/RayTracing/RayTracingCommon.ush"
+
+// payload structure for Niagara ray traces
+struct FNiagaraRayTracingPayload : FMinimalPayload
+{
+	float3 WorldPosition;
+	float3 WorldNormal;
+};

@@ -1,0 +1,127 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "/Engine/Private/RayTracing/RayTracingCommon.ush"
+#include "NiagaraRayTracingCommon.ush"
+
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+int											MaxRayTraceCount;
+RWStructuredBuffer<FBasicRayData>			RWRayRequests;
+StructuredBuffer<FNiagaraRayTracingPayload>	IntersectionResults;
+#endif
+
+void DICollisionQuery_SceneDepth(float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
+{
+	Out_SceneDepth = -1;
+	Out_WorldPos = float3(0.0, 0.0, 0.0);
+	Out_WorldNormal = float3(0.0, 0.0, 1.0);
+	Out_IsInsideView = true;
+	Out_CameraPosWorld.xyz = View.WorldCameraOrigin.xyz;
+
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+	float4 SamplePosition = float4(In_SamplePos + View.PreViewTranslation, 1);
+	float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
+	float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
+	// Check if the sample is inside the view.
+	if (all(abs(ScreenPosition.xy) <= float2(1, 1)))
+	{
+		// Sample the depth buffer to get a world position near the sample position.
+		float2 ScreenUV = ScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+		float SceneDepth = CalcSceneDepth(ScreenUV);
+		Out_SceneDepth = SceneDepth;
+		// Reconstruct world position.
+		Out_WorldPos = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
+		// Sample the normal buffer
+		Out_WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
+	}
+	else
+	{
+		Out_IsInsideView = false;
+	}
+#endif
+}
+
+void DICollisionQuery_CustomDepth(float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
+{
+	Out_SceneDepth = -1;
+	Out_WorldPos = float3(0.0, 0.0, 0.0);
+	Out_WorldNormal = float3(0.0, 0.0, 1.0);
+	Out_IsInsideView = true;
+	Out_CameraPosWorld.xyz = View.WorldCameraOrigin.xyz;
+
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+	float4 SamplePosition = float4(In_SamplePos + View.PreViewTranslation, 1);
+	float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
+	float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
+	// Check if the sample is inside the view.
+	if (all(abs(ScreenPosition.xy) <= float2(1, 1)))
+	{
+		// Sample the depth buffer to get a world position near the sample position.
+		float2 ScreenUV = ScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+		float SceneDepth = ConvertFromDeviceZ(Texture2DSampleLevel(SceneTexturesStruct.CustomDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, ScreenUV, 0).r);
+		Out_SceneDepth = SceneDepth;
+		// Reconstruct world position.
+		Out_WorldPos = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
+		// Sample the normal buffer
+		Out_WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
+	}
+	else
+	{
+		Out_IsInsideView = false;
+	}
+#endif
+}
+
+void DICollisionQuery_DistanceField(float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient, out bool Out_IsDistanceFieldValid)
+{
+#if PLATFORM_SUPPORTS_DISTANCE_FIELDS && (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
+	Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(In_SamplePos);
+	Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);
+	Out_IsDistanceFieldValid = MaxGlobalDFAOConeDistance > 0 && !(Out_DistanceToNearestSurface > 0 && all(Out_FieldGradient == float3(0,0,0)));
+#else
+	Out_DistanceToNearestSurface = 0;
+	Out_FieldGradient = (float3)0;
+	Out_IsDistanceFieldValid = false;
+#endif
+}
+
+void DICollisionQuery_IssueAsyncRayTrace(int In_QueryID, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out bool Out_IsQueryValid)
+{
+	Out_IsQueryValid = false;
+
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+	if (In_QueryID >= 0 && In_QueryID < MaxRayTraceCount)
+	{
+		float3 Trace = In_TraceEnd - In_TraceStart;
+		float TraceLength = length(Trace);
+
+		RWRayRequests[In_QueryID].Origin = In_TraceStart;
+		RWRayRequests[In_QueryID].Mask = 0xFF; // In_TraceChannel - for now we'll ignore the TraceChannel till we can mark up the environment
+		RWRayRequests[In_QueryID].Direction = normalize(Trace);
+		RWRayRequests[In_QueryID].TFar = TraceLength;
+		Out_IsQueryValid = true;
+	}
+#endif
+}
+
+void DICollisionQuery_ReadAsyncRayTrace(int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
+{
+	Out_CollisionValid = false;
+	Out_CollisionDistance = 0.0f;
+	Out_CollisionPosWorld = float3(0.0f, 0.0f, 0.0f);
+	Out_CollisionNormal = float3(0.0f, 0.0f, 0.0f);
+
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+	if (In_PreviousFrameQueryID >= 0 && In_PreviousFrameQueryID < MaxRayTraceCount)
+	{
+		Out_CollisionValid = IntersectionResults[In_PreviousFrameQueryID].IsHit();
+		if (Out_CollisionValid)
+		{
+			Out_CollisionDistance = IntersectionResults[In_PreviousFrameQueryID].HitT;
+			Out_CollisionPosWorld = IntersectionResults[In_PreviousFrameQueryID].WorldPosition;
+			Out_CollisionNormal = IntersectionResults[In_PreviousFrameQueryID].WorldNormal;
+		}
+	}
+#endif
+}

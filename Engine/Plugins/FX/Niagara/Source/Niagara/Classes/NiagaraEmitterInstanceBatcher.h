@@ -27,6 +27,7 @@ the same VectorVM byte code / compute shader code
 class FGPUSortManager;
 class FNiagaraGpuComputeDebug;
 class FNiagaraGpuReadbackManager;
+class FNiagaraRayTracingHelper;
 
 enum class ETickStage
 {
@@ -78,6 +79,7 @@ public:
 	virtual bool UsesGlobalDistanceField() const override;
 	virtual bool UsesDepthBuffer() const override;
 	virtual bool RequiresEarlyViewUniformBuffer() const override;
+	virtual bool RequiresRayTracingScene() const override;
 	virtual void PreRender(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, bool bAllowGPUParticleUpdate) override;
 	virtual void OnDestroy() override; // Called on the gamethread to delete the batcher on the renderthread.
 
@@ -165,6 +167,11 @@ public:
 #endif
 	FNiagaraGpuReadbackManager* GetGpuReadbackManager() const { return GpuReadbackManagerPtr.Get(); }
 
+#if RHI_RAYTRACING
+	void IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, FRHIShaderResourceView* RayTraceRequests, FRHIUnorderedAccessView* RayTraceResults) const;
+	bool HasRayTracingScene() const;
+#endif
+
 private:
 	using FEmitterInstanceList = TArray<FNiagaraComputeInstanceData*>;
 
@@ -217,6 +224,11 @@ private:
 	 */
 	void GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV);
 
+#if RHI_RAYTRACING
+	void BuildRayTracingSceneInfo(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views);
+	void ResetRayTracingSceneInfo();
+#endif
+
 	inline uint32 UnpackEmitterDispatchCount(uint8* PackedData)
 	{
 		return *(uint32*)PackedData;
@@ -246,6 +258,11 @@ private:
 	TRefCountPtr<FGPUSortManager> GPUSortManager;
 	/** All sort tasks registered in AddSortedGPUSimulation(). Holds all the data required in GenerateSortKeys(). */
 	TArray<FNiagaraGPUSortInfo> SimulationsToSort;
+
+#if RHI_RAYTRACING
+	// helper object which is valid during PostRenderOpaque if DataInterfaces are present that require a RayTrace scene
+	TUniquePtr<FNiagaraRayTracingHelper> RayTracingHelper;
+#endif
 
 	// GPU emitter instance count buffer. Contains the actual particle / instance count generate in the GPU tick.
 	FNiagaraGPUInstanceCountManager GPUInstanceCounterManager;
@@ -299,6 +316,7 @@ private:
 	uint32 NumTicksThatRequireDistanceFieldData = 0;
 	uint32 NumTicksThatRequireDepthBuffer = 0;
 	uint32 NumTicksThatRequireEarlyViewData = 0;
+	uint32 NumTicksThatRequireRayTracingScene = 0;
 
 	int32 TotalDispatchesThisFrame = 0;
 

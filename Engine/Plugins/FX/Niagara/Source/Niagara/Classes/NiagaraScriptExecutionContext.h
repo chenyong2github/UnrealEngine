@@ -528,6 +528,7 @@ public:
 	bool bRequiresDepthBuffer = false;
 	bool bRequiresEarlyViewData = false;
 	bool bRequiresViewUniformBuffer = false;
+	bool bRequiresRayTracingScene = false;
 	bool bNeedsReset = false;
 	bool bIsFinalTick = false;
 };

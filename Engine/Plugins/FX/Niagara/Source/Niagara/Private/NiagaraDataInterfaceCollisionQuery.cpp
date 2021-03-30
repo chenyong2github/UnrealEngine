@@ -1,13 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceCollisionQuery.h"
-#include "NiagaraTypes.h"
-#include "NiagaraWorldManager.h"
-#include "ShaderParameterUtils.h"
+
 #include "GlobalDistanceFieldParameters.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraRayTracingHelper.h"
+#include "NiagaraStats.h"
+#include "NiagaraTypes.h"
+#include "NiagaraWorldManager.h"
+#include "RayTracingInstanceUtils.h"
+#include "RenderResource.h"
 #include "Shader.h"
+#include "ShaderCore.h"
+#include "ShaderParameterUtils.h"
 
 FCriticalSection UNiagaraDataInterfaceCollisionQuery::CriticalSection;
 
@@ -25,9 +31,100 @@ struct FNiagaraCollisionDIFunctionVersion
 	};
 };
 
+struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfaceProxy
+{
+#if RHI_RAYTRACING
+	FRWBufferStructured RayTraceRequests;
+	FRWBufferStructured RayTraceIntersections;
+
+	int32 MaxRayTraceCount = 0;
+#endif
+
+	virtual ~FNiagaraDataIntefaceProxyCollisionQuery()
+	{
+#if RHI_RAYTRACING
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceRequests.NumBytes);
+		RayTraceRequests.Release();
+
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.NumBytes);
+		RayTraceIntersections.Release();
+#endif
+	}
+
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
+	{
+		return 0;
+	}
+
+	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override
+	{
+#if RHI_RAYTRACING
+		if (MaxRayTraceCount > 0 && Context.Batcher->HasRayTracingScene())
+		{
+			{
+				FRHITransitionInfo PreTransitions[] =
+				{
+					FRHITransitionInfo(RayTraceRequests.UAV, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
+					FRHITransitionInfo(RayTraceIntersections.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask)
+				};
+				RHICmdList.Transition(PreTransitions);
+			}
+
+			Context.Batcher->IssueRayTraces(RHICmdList, FIntPoint(MaxRayTraceCount, 1), RayTraceRequests.SRV, RayTraceIntersections.UAV);
+
+			{
+				FRHITransitionInfo PostTransitions[] =
+				{
+					FRHITransitionInfo(RayTraceRequests.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask),
+					FRHITransitionInfo(RayTraceIntersections.UAV, ERHIAccess::UAVMask, ERHIAccess::SRVMask)
+				};
+				RHICmdList.Transition(PostTransitions);
+			}
+		}
+#endif
+	}
+
+	void RenderThreadInitialize(int32 InMaxRayTraceRequests)
+	{
+#if RHI_RAYTRACING
+		MaxRayTraceCount = 0;
+
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceRequests.NumBytes);
+		RayTraceRequests.Release();
+
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.NumBytes);
+		RayTraceIntersections.Release();
+
+		if (IsRayTracingEnabled() && InMaxRayTraceRequests > 0)
+		{
+			MaxRayTraceCount = 16 * FMath::DivideAndRoundUp(InMaxRayTraceRequests, 16);
+
+			RayTraceRequests.Initialize(
+				TEXT("NiagaraRayTraceRequests"),
+				sizeof(FBasicRayData),
+				MaxRayTraceCount,
+				BUF_Static);
+			INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceRequests.NumBytes);
+
+			RayTraceIntersections.Initialize(
+				TEXT("NiagaraRayTraceIntersections"),
+				sizeof(FNiagaraRayTracingPayload),
+				MaxRayTraceCount,
+				BUF_Static,
+				false /*bUseUavCounter*/,
+				false /*bAppendBuffer*/,
+				ERHIAccess::SRVMask);
+			INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.NumBytes);
+		}
+#endif
+	}
+};
+
 const FName UNiagaraDataInterfaceCollisionQuery::SceneDepthName(TEXT("QuerySceneDepthGPU"));
 const FName UNiagaraDataInterfaceCollisionQuery::CustomDepthName(TEXT("QueryCustomDepthGPU"));
 const FName UNiagaraDataInterfaceCollisionQuery::DistanceFieldName(TEXT("QueryMeshDistanceFieldGPU"));
+const FName UNiagaraDataInterfaceCollisionQuery::IssueAsyncRayTraceName(TEXT("IssueAsyncRayTraceGpu"));
+const FName UNiagaraDataInterfaceCollisionQuery::ReadAsyncRayTraceName(TEXT("ReadAsyncRayTraceGpu"));
 const FName UNiagaraDataInterfaceCollisionQuery::SyncTraceName(TEXT("PerformCollisionQuerySyncCPU"));
 const FName UNiagaraDataInterfaceCollisionQuery::AsyncTraceName(TEXT("PerformCollisionQueryAsyncCPU"));
 
@@ -203,6 +300,41 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	SigMeshField.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsDistanceFieldValid")));
     OutFunctions.Add(SigMeshField);
 
+	{
+		FNiagaraFunctionSignature& IssueRayTrace = OutFunctions.AddDefaulted_GetRef();
+		IssueRayTrace.Name = UNiagaraDataInterfaceCollisionQuery::IssueAsyncRayTraceName;
+		IssueRayTrace.bRequiresExecPin = true;
+		IssueRayTrace.bMemberFunction = true;
+		IssueRayTrace.bRequiresContext = false;
+		IssueRayTrace.bSupportsCPU = false;
+#if WITH_EDITORONLY_DATA
+		IssueRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+#endif
+		IssueRayTrace.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
+		IssueRayTrace.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("QueryID")));
+		IssueRayTrace.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceStartWorld")));
+		IssueRayTrace.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceEndWorld")));
+		IssueRayTrace.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("TraceChannel")));
+		IssueRayTrace.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsQueryValid")));
+	}
+
+	{
+		FNiagaraFunctionSignature& ReadRayTrace = OutFunctions.AddDefaulted_GetRef();
+		ReadRayTrace.Name = UNiagaraDataInterfaceCollisionQuery::ReadAsyncRayTraceName;
+		ReadRayTrace.bMemberFunction = true;
+		ReadRayTrace.bRequiresContext = false;
+		ReadRayTrace.bSupportsCPU = false;
+#if WITH_EDITORONLY_DATA
+		ReadRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+#endif
+		ReadRayTrace.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
+		ReadRayTrace.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("PreviousFrameQueryID")));
+		ReadRayTrace.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("CollisionValid")));
+		ReadRayTrace.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionDistance")));
+		ReadRayTrace.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionPosWorld")));
+		ReadRayTrace.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionNormal")));
+	}
+
 	FNiagaraFunctionSignature SigCpuSync;
 	SigCpuSync.Name = UNiagaraDataInterfaceCollisionQuery::SyncTraceName;
 	SigCpuSync.bMemberFunction = true;
@@ -257,68 +389,70 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 // 
 bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
+	TMap<FString, FStringFormatArg> Args;
+	Args.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
 
-	if (FunctionInfo.DefinitionName == SceneDepthName || FunctionInfo.DefinitionName == CustomDepthName)
+	if (FunctionInfo.DefinitionName == SceneDepthName)
 	{
-		static const FString SceneDepthSampleExpr = TEXT("CalcSceneDepth(ScreenUV)");
-		static const FString CustomDepthSampleExpr = TEXT("ConvertFromDeviceZ(Texture2DSampleLevel(SceneTexturesStruct.CustomDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, ScreenUV, 0).r)");
-		const FStringFormatOrderedArguments Args = {
-			FunctionInfo.InstanceName,
-			FunctionInfo.DefinitionName == SceneDepthName ? SceneDepthSampleExpr : CustomDepthSampleExpr
-		};
-
-		OutHLSL += FString::Format(TEXT(R"(
-			void {0}(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
-			{				
-				Out_SceneDepth = -1;
-				Out_WorldPos = float3(0.0, 0.0, 0.0);
-				Out_WorldNormal = float3(0.0, 0.0, 1.0);
-				Out_IsInsideView = true;
-				Out_CameraPosWorld.xyz = View.WorldCameraOrigin.xyz;
-
-			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-				float4 SamplePosition = float4(In_SamplePos + View.PreViewTranslation, 1);
-				float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
-				float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
-				// Check if the sample is inside the view.
-				if (all(abs(ScreenPosition.xy) <= float2(1, 1)))
-				{
-					// Sample the depth buffer to get a world position near the sample position.
-					float2 ScreenUV = ScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
-					float SceneDepth = {1};
-					Out_SceneDepth = SceneDepth;
-					// Reconstruct world position.
-					Out_WorldPos = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
-					// Sample the normal buffer
-					Out_WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
-				}
-				else
-				{
-					Out_IsInsideView = false;
-				}
-			#endif
+		static const TCHAR* FormatSample = TEXT(R"(
+			void {FunctionName}(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
+			{
+				DICollisionQuery_SceneDepth(In_SamplePos, Out_SceneDepth, Out_CameraPosWorld, Out_IsInsideView, Out_WorldPos, Out_WorldNormal);
 			}
-		)"), Args);
-		return true;
+		)");
+
+		OutHLSL += FString::Format(FormatSample, Args);
+	}
+	else if (FunctionInfo.DefinitionName == CustomDepthName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+			void {FunctionName}(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
+			{
+				DICollisionQuery_CustomDepth(In_SamplePos, Out_SceneDepth, Out_CameraPosWorld, Out_IsInsideView, Out_WorldPos, Out_WorldNormal);
+			}
+		)");
+
+		OutHLSL += FString::Format(FormatSample, Args);
 	}
 	else if (FunctionInfo.DefinitionName == DistanceFieldName)
 	{
-		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient, out bool Out_IsDistanceFieldValid) \n{\n");
-		OutHLSL += TEXT("\
-			#if PLATFORM_SUPPORTS_DISTANCE_FIELDS && (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)\n\
-			Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(In_SamplePos);\n\
-			Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);\n\
-			Out_IsDistanceFieldValid = MaxGlobalDFAOConeDistance > 0 && !(Out_DistanceToNearestSurface > 0 && Out_FieldGradient == float3(0,0,0));\n\
-			#else\n\
-			Out_DistanceToNearestSurface = 0;\n\
-			Out_FieldGradient = (float3)0;\n\
-			Out_IsDistanceFieldValid = false;\n\
-			#endif\n\
-			}\n\n");
-		return true;
+		static const TCHAR* FormatSample = TEXT(R"(
+			void {FunctionName}(in float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient, out bool Out_IsDistanceFieldValid)
+			{
+				DICollisionQuery_DistanceField(In_SamplePos, Out_DistanceToNearestSurface, Out_FieldGradient, Out_IsDistanceFieldValid);
+			}
+		)");
+
+		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT(" \n{\n");
+	}
+	else if (FunctionInfo.DefinitionName == IssueAsyncRayTraceName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+			void {FunctionName}(int In_QueryID, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out bool Out_IsQueryValid)
+			{
+				DICollisionQuery_IssueAsyncRayTrace(In_QueryID, In_TraceStart, In_TraceEnd, In_TraceChannel, Out_IsQueryValid);
+			}
+		)");
+
+		OutHLSL += FString::Format(FormatSample, Args);
+	}
+	else if (FunctionInfo.DefinitionName == ReadAsyncRayTraceName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+			void {FunctionName}(int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
+			{
+				DICollisionQuery_ReadAsyncRayTrace(In_PreviousFrameQueryID, Out_CollisionValid, Out_CollisionDistance, Out_CollisionPosWorld, Out_CollisionNormal);
+			}
+		)");
+
+		OutHLSL += FString::Format(FormatSample, Args);
+	}
+	else
+	{
+		return false;
 	}
 
-	return false;
+	return true;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -385,6 +519,11 @@ void UNiagaraDataInterfaceCollisionQuery::ValidateFunction(const FNiagaraFunctio
 }
 #endif
 
+bool UNiagaraDataInterfaceCollisionQuery::RequiresRayTracingScene() const
+{
+	return IsRayTracingEnabled() && MaxRayTraceCount > 0;
+}
+
 void UNiagaraDataInterfaceCollisionQuery::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	// we don't need to add these to hlsl, as they're already in common.ush
@@ -421,6 +560,11 @@ void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExterna
 	}
 }
 
+void UNiagaraDataInterfaceCollisionQuery::GetCommonHLSL(FString& OutHlsl)
+{
+	OutHlsl += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCollisionQuery.ush\"\n");
+}
+
 bool UNiagaraDataInterfaceCollisionQuery::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	if (!Super::AppendCompileHash(InVisitor))
@@ -429,6 +573,9 @@ bool UNiagaraDataInterfaceCollisionQuery::AppendCompileHash(FNiagaraCompileHashV
 	}
 	bool bDistanceFieldEnabled = IsDistanceFieldEnabled();
 	InVisitor->UpdatePOD(TEXT("NiagaraCollisionDI_DistanceField"), bDistanceFieldEnabled);
+
+	FSHAHash Hash = GetShaderFileHash(TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCollisionQuery.ush"), EShaderPlatform::SP_PCD3D_SM5);
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceCollisionQueryHlslSource"), Hash.ToString());
 	return true;
 }
 
@@ -659,6 +806,59 @@ bool UNiagaraDataInterfaceCollisionQuery::PerInstanceTickPostSimulate(void* PerI
 	return false;
 }
 
+bool UNiagaraDataInterfaceCollisionQuery::Equals(const UNiagaraDataInterface* Other) const
+{
+	if (!Super::Equals(Other))
+	{
+		return false;
+	}
+
+	const UNiagaraDataInterfaceCollisionQuery* OtherTyped = CastChecked<const UNiagaraDataInterfaceCollisionQuery>(Other);
+	return OtherTyped->MaxRayTraceCount == MaxRayTraceCount;
+}
+
+bool UNiagaraDataInterfaceCollisionQuery::CopyToInternal(UNiagaraDataInterface* Destination) const
+{
+	if (!Super::CopyToInternal(Destination))
+	{
+		return false;
+	}
+
+	UNiagaraDataInterfaceCollisionQuery* OtherTyped = CastChecked<UNiagaraDataInterfaceCollisionQuery>(Destination);
+	OtherTyped->MaxRayTraceCount = MaxRayTraceCount;
+	OtherTyped->MarkRenderDataDirty();
+	return true;
+}
+
+void UNiagaraDataInterfaceCollisionQuery::PushToRenderThreadImpl()
+{
+	if (!GSupportsResourceView)
+	{
+		return;
+	}
+
+	FNiagaraDataIntefaceProxyCollisionQuery* RT_Proxy = GetProxyAs<FNiagaraDataIntefaceProxyCollisionQuery>();
+
+	// Push Updates to Proxy, first release any resources
+	ENQUEUE_RENDER_COMMAND(FUpdateDI)(
+		[RT_Proxy, RT_MaxRayTraceRequests = MaxRayTraceCount](FRHICommandListImmediate& RHICmdList)
+		{
+			RT_Proxy->RenderThreadInitialize(RT_MaxRayTraceRequests);
+		});
+}
+
+#if WITH_EDITOR
+void UNiagaraDataInterfaceCollisionQuery::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceCollisionQuery, MaxRayTraceCount))
+	{
+		MarkRenderDataDirty();
+	}
+}
+#endif
+
 //////////////////////////////////////////////////////////////////////////
 
 struct FNiagaraDataInterfaceParametersCS_CollisionQuery : public FNiagaraDataInterfaceParametersCS
@@ -669,12 +869,18 @@ public:
 	{
 		PassUniformBuffer.Bind(ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		GlobalDistanceFieldParameters.Bind(ParameterMap);
+#if RHI_RAYTRACING
+		MaxRayTraceCountParam.Bind(ParameterMap, TEXT("MaxRayTraceCount"));
+		RayRequestsParam.Bind(ParameterMap, TEXT("RayRequests"));
+		IntersectionResultsParam.Bind(ParameterMap, TEXT("IntersectionResults"));
+#endif
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
+		FNiagaraDataIntefaceProxyCollisionQuery* QueryDI = (FNiagaraDataIntefaceProxyCollisionQuery*)Context.DataInterface;
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		
 		//-Note: Scene textures will not exist in the Mobile rendering path
@@ -685,14 +891,47 @@ public:
 		if (GlobalDistanceFieldParameters.IsBound() && Context.Batcher)
 		{
 			GlobalDistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, Context.Batcher->GetGlobalDistanceFieldParameters());
-		}		
+		}
+
+#if RHI_RAYTRACING
+		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxRayTraceCountParam, QueryDI->MaxRayTraceCount);
+
+		if (RayRequestsParam.IsUAVBound())
+		{
+			RHICmdList.SetUAVParameter(ComputeShaderRHI, RayRequestsParam.GetUAVIndex(), QueryDI->RayTraceRequests.UAV);
+		}
+
+		if (IntersectionResultsParam.IsBound())
+		{
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, IntersectionResultsParam, QueryDI->RayTraceIntersections.SRV);
+		}
+#endif
 	}
+
+#if RHI_RAYTRACING
+	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
+	{
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
+		FNiagaraDataIntefaceProxyCollisionQuery* QueryDI = (FNiagaraDataIntefaceProxyCollisionQuery*)Context.DataInterface;
+
+		if (RayRequestsParam.IsUAVBound())
+		{
+			RayRequestsParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
+		}
+	}
+#endif
 
 private:
 	/** The SceneDepthTexture parameter for depth buffer collision. */
 	LAYOUT_FIELD(FShaderUniformBufferParameter, PassUniformBuffer);
 
 	LAYOUT_FIELD(FGlobalDistanceFieldParameters, GlobalDistanceFieldParameters);
+
+#if RHI_RAYTRACING
+	LAYOUT_FIELD(FShaderParameter, MaxRayTraceCountParam);
+	LAYOUT_FIELD(FRWShaderParameter, RayRequestsParam);
+	LAYOUT_FIELD(FShaderResourceParameter, IntersectionResultsParam);
+#endif
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CollisionQuery);

@@ -583,6 +583,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	bRequiresDepthBuffer = InSystemInstance->RequiresDepthBuffer();
 	bRequiresEarlyViewData = InSystemInstance->RequiresEarlyViewData();
 	bRequiresViewUniformBuffer = InSystemInstance->RequiresViewUniformBuffer();
+	bRequiresRayTracingScene = InSystemInstance->RequiresRayTracingScene();
  
 	uint32 DataSizeForGPU = InSystemInstance->GPUDataInterfaceInstanceDataSize;
 

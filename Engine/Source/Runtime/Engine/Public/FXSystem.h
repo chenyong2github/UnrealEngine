@@ -243,6 +243,8 @@ public:
 
 	virtual bool RequiresEarlyViewUniformBuffer() const = 0;
 
+	virtual bool RequiresRayTracingScene() const = 0;
+
 	/**
 	 * Notification from the renderer that it is about to draw FX belonging to
 	 * this system.

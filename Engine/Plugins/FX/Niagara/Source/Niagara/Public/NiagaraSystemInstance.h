@@ -111,6 +111,7 @@ public:
 	bool RequiresDepthBuffer() const;
 	bool RequiresEarlyViewData() const;
 	bool RequiresViewUniformBuffer() const;
+	bool RequiresRayTracingScene() const;
 
 	/** Requests the the simulation be reset on the next tick. */
 	void Reset(EResetMode Mode);

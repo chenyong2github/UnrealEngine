@@ -4614,6 +4614,11 @@ bool FFXSystem::RequiresEarlyViewUniformBufferInternal() const
 	return false;
 }
 
+bool FFXSystem::RequiresRayTracingSceneInternal() const
+{
+	return false;
+}
+
 void FFXSystem::PrepareGPUSimulation(FRHICommandListImmediate& RHICmdList)
 {
 	// Grab resources.

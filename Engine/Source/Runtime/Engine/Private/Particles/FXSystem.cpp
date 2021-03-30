@@ -447,6 +447,16 @@ bool FFXSystem::RequiresEarlyViewUniformBuffer() const
 	return false;
 }
 
+bool FFXSystem::RequiresRayTracingScene() const
+{
+	if (RHISupportsGPUParticles())
+	{
+		return RequiresRayTracingSceneInternal();
+	}
+
+	return false;
+}
+
 DECLARE_CYCLE_STAT(TEXT("FXPreRender_Prepare"), STAT_CLM_FXPreRender_Prepare, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("FXPreRender_Simulate"), STAT_CLM_FXPreRender_Simulate, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("FXPreRender_Finalize"), STAT_CLM_FXPreRender_Finalize, STATGROUP_CommandListMarkers);

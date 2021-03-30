@@ -29,10 +29,16 @@ public:
 
 	DECLARE_NIAGARA_DI_PARAMETER();
 
+	UPROPERTY(EditAnywhere, Category = "Ray Trace")
+	int32 MaxRayTraceCount = 0;
+
 	FNiagaraSystemInstance *SystemInstance;
 
 	//UObject Interface
 	virtual void PostInitProperties() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	//UObject Interface End
 
 	/** Initializes the per instance data for this interface. Returns false if there was some error and the simulation should be disabled. */
@@ -45,11 +51,12 @@ public:
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize() const override { return sizeof(CQDIPerInstanceData); }
 	
+	virtual void GetCommonHLSL(FString& OutHlsl) override;
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraDataInterface*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const override;
-
+	virtual void PushToRenderThreadImpl() override;
 
 	// VM functions
 	void PerformQuerySyncCPU(FVectorVMContext& Context);
@@ -60,6 +67,7 @@ public:
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 	virtual bool RequiresDistanceFieldData() const override { return true; }
 	virtual bool RequiresDepthBuffer() const override { return true; }
+	virtual bool RequiresRayTracingScene() const override;
 
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
@@ -73,6 +81,12 @@ public:
 	
 	virtual bool HasPreSimulateTick() const override{ return true; }
 	virtual bool HasPostSimulateTick() const override { return true; }
+
+	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+
+protected:
+	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+
 private:
 
 	static FCriticalSection CriticalSection;
@@ -81,16 +95,8 @@ private:
 	const static FName SceneDepthName;
 	const static FName CustomDepthName;
 	const static FName DistanceFieldName;
+	const static FName IssueAsyncRayTraceName;
+	const static FName ReadAsyncRayTraceName;
 	const static FName SyncTraceName;
 	const static FName AsyncTraceName;
-};
-
-struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfaceProxy
-{
-	// There's nothing in this proxy. It just reads from scene textures.
-
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
-	{
-		return 0;
-	}
 };
