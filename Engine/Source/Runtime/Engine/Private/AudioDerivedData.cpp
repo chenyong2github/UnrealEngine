@@ -804,7 +804,7 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 {
 	if (Chunks.Num() == 0)
 	{
-		UE_LOG(LogAudioDerivedData, Warning, TEXT("No streamed audio chunks found!"));
+		UE_LOG(LogAudioDerivedData, Display, TEXT("No streamed audio chunks found!"));
 		return 0;
 	}
 
