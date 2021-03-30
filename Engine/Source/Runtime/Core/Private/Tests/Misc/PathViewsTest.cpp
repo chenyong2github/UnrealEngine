@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Misc/PathViews.h"
-
+#include "PathTests.h"
 #include "Containers/StringView.h"
+#include "Misc/PathViews.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/StringBuilder.h"
 
@@ -28,6 +28,20 @@ protected:
 		return bValue ? TEXT("true") : TEXT("false");
 	}
 };
+
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPathViewsCollapseDirectoriesTest, FPathViewsTest, "System.Core.Misc.PathViews.CollapseDirectories", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FPathViewsCollapseDirectoriesTest::RunTest(const FString& InParameters)
+{
+	TestCollapseRelativeDirectories<FPathViews, TStringBuilder<64>>(*this);
+	return true;
+}
+
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPathViewsRemoveDuplicateSlashesTest, FPathViewsTest, "System.Core.Misc.PathViews.RemoveDuplicateSlashes", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FPathViewsRemoveDuplicateSlashesTest::RunTest(const FString& InParameters)
+{
+	TestRemoveDuplicateSlashes<FPathViews, TStringBuilder<64>>(*this);
+	return true;
+}
 
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPathViewsGetCleanFilenameTest, FPathViewsTest, "System.Core.Misc.PathViews.GetCleanFilename", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FPathViewsGetCleanFilenameTest::RunTest(const FString& InParameters)
@@ -646,6 +660,35 @@ bool FPathViewsAppendPathTest::RunTest(const FString& InParameters)
 		RunAppendTest(Prefix, TEXT("C:/A/B"), TEXT("C:/A/B"));
 		RunAppendTest(Prefix, TEXT("C:\\A\\B"), TEXT("C:\\A\\B"));
 	}
+
+	return true;
+}
+
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPathViewsToAbsoluteTest, FPathViewsTest, "System.Core.Misc.PathViews.ToAbsolute", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FPathViewsToAbsoluteTest::RunTest(const FString& InParameters)
+{
+	using namespace PathTest;
+
+	for (FTestPair Pair : ExpectedRelativeToAbsolutePaths)
+	{
+		TStringBuilder<64> ActualAppend;
+		FPathViews::ToAbsolutePath(BaseDir, Pair.Input, ActualAppend);
+		TestEqual(TEXT("ToAbsolutePath"), ActualAppend.ToView(), Pair.Expected);
+
+		TStringBuilder<64> ActualInline;
+		ActualInline << Pair.Input;
+		FPathViews::ToAbsolutePathInline(BaseDir, ActualInline);	
+		TestEqual(TEXT("ToAbsolutePathInline"), ActualInline.ToView(), Pair.Expected);
+		
+		constexpr FStringView Original = TEXT("\\\\la/./.././la////"_SV);
+		TStringBuilder<64> ActualNondestructive;
+		ActualNondestructive << Original;
+		FPathViews::ToAbsolutePath(BaseDir, Pair.Input, ActualNondestructive);
+		TestEqual(TEXT("ToAbsolutePath non-destructive append"), ActualNondestructive.ToView().Left(Original.Len()), Original);
+		TestEqual(TEXT("ToAbsolutePath non-destructive append"), ActualNondestructive.ToView().RightChop(Original.Len()), Pair.Expected);
+	}
+
+
 
 	return true;
 }

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "PathTests.h"
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Containers/UnrealString.h"
@@ -12,89 +13,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathTests, "System.Core.Misc.Paths", EAutomati
 
 bool FPathTests::RunTest( const FString& Parameters )
 {
-	// Directory collapsing
-	{
-		auto RunCollapseRelativeDirectoriesTest = [this](const TCHAR* InPath, const TCHAR* InResult)
-		{
-			// Run test
-			FString CollapsedPath = InPath;
-			const bool bValid = FPaths::CollapseRelativeDirectories(CollapsedPath);
-
-			if (InResult)
-			{
-				// If we're looking for a result, make sure it was returned correctly
-				if (!bValid || CollapsedPath != InResult)
-				{
-					AddError(FString::Printf(TEXT("Path '%s' failed to collapse correctly (got '%s', expected '%s')."), InPath, *CollapsedPath, InResult));
-				}
-			}
-			else
-			{
-				// Otherwise, make sure it failed
-				if (bValid)
-				{
-					AddError(FString::Printf(TEXT("Path '%s' collapsed unexpectedly."), InPath));
-				}
-			}
-		};
-
-		RunCollapseRelativeDirectoriesTest(TEXT(".."),                                                   NULL);
-		RunCollapseRelativeDirectoriesTest(TEXT("/.."),                                                  NULL);
-		RunCollapseRelativeDirectoriesTest(TEXT("./"),                                                   TEXT(""));
-		RunCollapseRelativeDirectoriesTest(TEXT("./file.txt"),                                           TEXT("file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("/."),                                                   TEXT("/."));
-		RunCollapseRelativeDirectoriesTest(TEXT("Folder"),                                               TEXT("Folder"));
-		RunCollapseRelativeDirectoriesTest(TEXT("/Folder"),                                              TEXT("/Folder"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder"),                                            TEXT("C:/Folder"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder/.."),                                         TEXT("C:"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder/../"),                                        TEXT("C:/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder/../file.txt"),                                TEXT("C:/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("Folder/.."),                                            TEXT(""));
-		RunCollapseRelativeDirectoriesTest(TEXT("Folder/../"),                                           TEXT("/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("Folder/../file.txt"),                                   TEXT("/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("/Folder/.."),                                           TEXT(""));
-		RunCollapseRelativeDirectoriesTest(TEXT("/Folder/../"),                                          TEXT("/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("/Folder/../file.txt"),                                  TEXT("/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("Folder/../.."),                                         NULL);
-		RunCollapseRelativeDirectoriesTest(TEXT("Folder/../../"),                                        NULL);
-		RunCollapseRelativeDirectoriesTest(TEXT("Folder/../../file.txt"),                                NULL);
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/.."),                                                NULL);
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/."),                                                 TEXT("C:/."));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/./"),                                                TEXT("C:/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/./file.txt"),                                        TEXT("C:/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/../Folder2"),                                TEXT("C:/Folder2"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/../Folder2/"),                               TEXT("C:/Folder2/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/../Folder2/file.txt"),                       TEXT("C:/Folder2/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/../Folder2/../.."),                          NULL);
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/../Folder2/../Folder3"),                     TEXT("C:/Folder3"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/../Folder2/../Folder3/"),                    TEXT("C:/Folder3/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/../Folder2/../Folder3/file.txt"),            TEXT("C:/Folder3/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/../../Folder3"),                     TEXT("C:/Folder3"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/../../Folder3/"),                    TEXT("C:/Folder3/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/../../Folder3/file.txt"),            TEXT("C:/Folder3/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/../../Folder3/../Folder4"),          TEXT("C:/Folder4"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/../../Folder3/../Folder4/"),         TEXT("C:/Folder4/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/../../Folder3/../Folder4/file.txt"), TEXT("C:/Folder4/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/../Folder3/../../Folder4"),          TEXT("C:/Folder4"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/../Folder3/../../Folder4/"),         TEXT("C:/Folder4/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/../Folder3/../../Folder4/file.txt"), TEXT("C:/Folder4/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/.././../Folder4"),                   TEXT("C:/Folder4"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/.././../Folder4/"),                  TEXT("C:/Folder4/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/Folder2/.././../Folder4/file.txt"),          TEXT("C:/Folder4/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/A/B/.././../C"),                                     TEXT("C:/C"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/A/B/.././../C/"),                                    TEXT("C:/C/"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/A/B/.././../C/file.txt"),                            TEXT("C:/C/file.txt"));
-		RunCollapseRelativeDirectoriesTest(TEXT(".svn"),                                                 TEXT(".svn"));
-		RunCollapseRelativeDirectoriesTest(TEXT("/.svn"),                                                TEXT("/.svn"));
-		RunCollapseRelativeDirectoriesTest(TEXT("./Folder/.svn"),                                        TEXT("Folder/.svn"));
-		RunCollapseRelativeDirectoriesTest(TEXT("./.svn/../.svn"),                                       TEXT(".svn"));
-		RunCollapseRelativeDirectoriesTest(TEXT(".svn/./.svn/.././../.svn"),                             TEXT("/.svn"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/./Folder2/..Folder3"),						 TEXT("C:/Folder1/Folder2/..Folder3"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/./Folder2/..Folder3/Folder4"),				 TEXT("C:/Folder1/Folder2/..Folder3/Folder4"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/./Folder2/..Folder3/..Folder4"),			 TEXT("C:/Folder1/Folder2/..Folder3/..Folder4"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/./Folder2/..Folder3/Folder4/../Folder5"),	 TEXT("C:/Folder1/Folder2/..Folder3/Folder5"));
-		RunCollapseRelativeDirectoriesTest(TEXT("C:/Folder1/..Folder2/Folder3/..Folder4/../Folder5"),	 TEXT("C:/Folder1/..Folder2/Folder3/Folder5"));
-	}
+	TestCollapseRelativeDirectories<FPaths, FString>(*this);
 
 	// Extension texts
 	{
@@ -184,34 +103,17 @@ bool FPathTests::RunTest( const FString& Parameters )
 		RunIsUnderDirectoryTest(TEXT("C:/Folder/Subdir/"),	TEXT("C:/Folder/"), true);
 	}
 
-	// RemoveDuplicateSlashes
-	{
-		auto RunRemoveDuplicateSlashesTest = [this](const TCHAR* InPath, const TCHAR* InExpectedResult)
-		{
-			FString ReplacementPath(InPath);
-			const FString ExpectedResult(InExpectedResult);
-			FPaths::RemoveDuplicateSlashes(ReplacementPath);
-			if (!ReplacementPath.Equals(ExpectedResult, ESearchCase::CaseSensitive))
-			{
-				AddError(FString::Printf(TEXT("FPaths::RemoveDuplicateSlashes('%s') != '%s'."), InPath, InExpectedResult));
-			}
-			else if (ReplacementPath.GetCharArray().Num() != 0 && ReplacementPath.GetCharArray().Num() != ExpectedResult.Len() + 1)
-			{
-				AddError(FString::Printf(TEXT("FPaths::RemoveDuplicateSlashes('%s') returned a result with extra space still allocated after the null terminator."), InPath));
-			}
-		};
+	TestRemoveDuplicateSlashes<FPaths, FString>(*this);
 
-		RunRemoveDuplicateSlashesTest(TEXT(""), TEXT(""));
-		RunRemoveDuplicateSlashesTest(TEXT("C:/Folder/File.txt"), TEXT("C:/Folder/File.txt"));
-		RunRemoveDuplicateSlashesTest(TEXT("C:/Folder/File/"), TEXT("C:/Folder/File/"));
-		RunRemoveDuplicateSlashesTest(TEXT("/"), TEXT("/"));
-		RunRemoveDuplicateSlashesTest(TEXT("//"), TEXT("/"));
-		RunRemoveDuplicateSlashesTest(TEXT("////"), TEXT("/"));
-		RunRemoveDuplicateSlashesTest(TEXT("/Folder/File"), TEXT("/Folder/File"));
-		RunRemoveDuplicateSlashesTest(TEXT("//Folder/File"), TEXT("/Folder/File")); // Don't use on //UNC paths; it will be stripped!
-		RunRemoveDuplicateSlashesTest(TEXT("/////Folder//////File/////"), TEXT("/Folder/File/"));
-		RunRemoveDuplicateSlashesTest(TEXT("\\\\Folder\\\\File\\\\"), TEXT("\\\\Folder\\\\File\\\\")); // It doesn't strip backslash, and we rely on that in some places
-		RunRemoveDuplicateSlashesTest(TEXT("//\\\\//Folder//\\\\//File//\\\\//"), TEXT("/\\\\/Folder/\\\\/File/\\\\/"));
+	// ConvertRelativePathToFull
+	{
+		using namespace PathTest;
+
+		for (FTestPair Pair : ExpectedRelativeToAbsolutePaths)
+		{
+			FString Actual = FPaths::ConvertRelativePathToFull(FString(BaseDir), FString(Pair.Input));
+			TestEqual(TEXT("ConvertRelativePathToFull"), FStringView(Actual), Pair.Expected);
+		}
 	}
 
 	return true;

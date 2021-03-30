@@ -4,10 +4,13 @@
 
 #include "Algo/Find.h"
 #include "Algo/FindLast.h"
+#include "Algo/Replace.h"
 #include "Containers/UnrealString.h"
 #include "Containers/StringView.h"
+#include "HAL/PlatformProcess.h"
 #include "Misc/Char.h"
 #include "Misc/StringBuilder.h"
+#include "String/Find.h"
 #include "String/ParseTokens.h"
 #include "Templates/Function.h"
 
@@ -406,6 +409,190 @@ bool FPathViews::IsRelativePath(FStringView InPath)
 		// InPath == SomethingOrNothing
 		return true;
 	}
+}
+
+static void NormalizeAndCollapseDirectories(FStringBuilderBase& InOutPath)
+{
+	FPathViews::NormalizeFilename(InOutPath);
+	FPathViews::CollapseRelativeDirectories(InOutPath);
+
+	if (InOutPath.Len() == 0)
+	{
+		// Empty path is not absolute, and '/' is the best guess across all the platforms.
+		// This substituion is not valid for Windows of course; however CollapseRelativeDirectories() will not produce an empty
+		// absolute path on Windows as it takes care not to remove the drive letter.
+		InOutPath << '/';
+	}
+}
+
+void FPathViews::ToAbsolutePathInline(FStringView BasePath, FStringBuilderBase& InOutPath)
+{
+	check(BasePath.Len() > 0);
+
+	if (IsRelativePath(InOutPath))
+	{
+		if (BasePath.EndsWith('/') || BasePath.EndsWith('\\'))
+		{
+			InOutPath.Prepend(BasePath);
+		}
+		else
+		{
+			TStringBuilder<128> BaseWithSlash;
+			BaseWithSlash << BasePath << '/';
+			InOutPath.Prepend(BaseWithSlash);
+		}
+	}
+
+	NormalizeAndCollapseDirectories(InOutPath);
+}
+
+void FPathViews::ToAbsolutePathInline(FStringBuilderBase& InOutPath)
+{
+	ToAbsolutePathInline(FStringView(FPlatformProcess::BaseDir()), InOutPath);
+}
+
+void FPathViews::ToAbsolutePath(FStringView BasePath, FStringView InPath, FStringBuilderBase& OutPath)
+{
+	if (int32 OriginalLen = OutPath.Len())
+	{
+		// Use temporary to avoid normalizing existing string builder contents
+		TStringBuilder<256> AbsolutePath;
+		ToAbsolutePath(BasePath, InPath, AbsolutePath);
+		OutPath.Append(AbsolutePath);
+	}
+	else
+	{
+		if (IsRelativePath(InPath))
+		{
+			OutPath << BasePath;
+		}
+
+		FPathViews::Append(OutPath, InPath);
+
+		NormalizeAndCollapseDirectories(OutPath);
+	}
+}
+
+void FPathViews::ToAbsolutePath(FStringView InPath, FStringBuilderBase& OutPath)
+{
+	ToAbsolutePath(FStringView(FPlatformProcess::BaseDir()), InPath, OutPath);
+}
+
+void FPathViews::NormalizeFilename(FStringBuilderBase& InOutPath)
+{
+	Algo::Replace(MakeArrayView(InOutPath), '\\', '/');
+	FPlatformMisc::NormalizePath(InOutPath);
+}
+
+static bool ShouldRemoveTrailingSlash(FStringView Dir)
+{
+	return Dir.EndsWith('/') && !Dir.EndsWith(TEXT("//"_SV), ESearchCase::CaseSensitive) && !Dir.EndsWith(TEXT(":/"_SV), ESearchCase::CaseSensitive);
+}
+
+void FPathViews::NormalizeDirectoryName(FStringBuilderBase& InOutPath)
+{
+	Algo::Replace(MakeArrayView(InOutPath), '\\', '/');
+	InOutPath.RemoveSuffix(ShouldRemoveTrailingSlash(InOutPath.ToView()) ? 1 : 0);
+	FPlatformMisc::NormalizePath(InOutPath);
+}
+
+static int32 FindNext(FStringView View, int32 FromIdx, FStringView Search)
+{
+	int32 RelativeIdx = UE::String::FindFirst(View.RightChop(FromIdx), Search);
+	return RelativeIdx == INDEX_NONE ? INDEX_NONE : RelativeIdx + FromIdx;
+}
+
+static bool Contains(FStringView Str, TCHAR Char)
+{
+	int32 Dummy;
+	return Str.FindChar(Char, Dummy);
+}
+
+static void RemoveAll(FStringBuilderBase& String, FStringView Substring)
+{
+	int32 Pos = String.Len();
+	while (true)
+	{
+		Pos = UE::String::FindLast(String.ToView().Left(Pos), Substring);
+		
+		if (Pos == INDEX_NONE)
+		{
+			break;
+		}
+
+		String.RemoveAt(Pos, Substring.Len());
+	}
+}
+
+bool FPathViews::CollapseRelativeDirectories(FStringBuilderBase& InOutPath)
+{
+	while (InOutPath.Len())
+	{
+		FStringView Path = InOutPath.ToView();
+
+		// Consider paths which start with .. or /.. as invalid
+		constexpr FStringView ParentDir = TEXT("/.."_SV);
+		if (Path.StartsWith(TEXT(".."_SV)) || Path.StartsWith(ParentDir))
+		{
+			return false;
+		}
+	
+		int32 Index = UE::String::FindFirst(Path, ParentDir);
+
+		// Ignore folders beginning with dots
+		while (Index != INDEX_NONE && Index + ParentDir.Len() < Path.Len() && Path[Index + ParentDir.Len()] != '/')
+		{
+			Index = FindNext(Path, Index + ParentDir.Len(), ParentDir);
+		}
+
+		// If there are no "/.."s left then we're done
+		if (Index == INDEX_NONE)
+		{
+			break;
+		}
+
+		// Find previous directory, stop if we've found a directory that isn't "/./"
+		int32 PreviousSeparatorIndex = Index;
+		while (Path.Left(PreviousSeparatorIndex).FindLastChar('/', /* Out */ PreviousSeparatorIndex) &&
+				Path.Mid(PreviousSeparatorIndex + 1, 2) == TEXT("./"_SV));
+
+		PreviousSeparatorIndex = FMath::Max(0, PreviousSeparatorIndex);
+		
+		// If we're attempting to remove the drive letter, that's illegal
+		int32 RemoveLen = Index - PreviousSeparatorIndex + ParentDir.Len();
+		if (Contains(Path.Mid(PreviousSeparatorIndex, RemoveLen), ':'))
+		{
+			return false;
+		}
+
+		InOutPath.RemoveAt(PreviousSeparatorIndex, RemoveLen);
+	}
+
+	RemoveAll(InOutPath, TEXT("./"_SV));
+
+	return true;
+}
+
+void FPathViews::RemoveDuplicateSlashes(FStringBuilderBase& InOutPath)
+{
+	int32 DoubleSlashIdx = UE::String::FindFirst(InOutPath.ToView(), TEXT("//"_SV));
+	if (DoubleSlashIdx == INDEX_NONE)
+	{
+		return;
+	}
+
+	TCHAR* WriteIt = InOutPath.GetData() + DoubleSlashIdx + 1;
+	TCHAR* ReadIt = WriteIt + 1;
+	for (TCHAR* End = InOutPath.GetData() + InOutPath.Len(), LastChar = '/'; ReadIt != End; LastChar = *ReadIt++)
+	{
+		if ((*ReadIt != '/') | (LastChar != '/'))
+		{
+			*WriteIt++ = *ReadIt;
+		}
+	}
+
+	*WriteIt = '\0';
+	InOutPath.RemoveSuffix(int32(ReadIt - WriteIt));
 }
 
 void FPathViews::SplitFirstComponent(FStringView InPath, FStringView& OutFirstComponent, FStringView& OutRemainder)

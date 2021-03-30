@@ -280,6 +280,30 @@ public:
 	 */
 	static bool IsRelativePath(FStringView InPath);
 
+	/** Convert to absolute using process BaseDir(), normalize and append. FPaths::ConvertRelativePathToFull() equivalent. */
+	static void ToAbsolutePath(FStringView InPath, FStringBuilderBase& OutPath);
+	
+	/** Convert to absolute using explicit BasePath, normalize and append. FPaths::ConvertRelativePathToFull() equivalent. */
+	static void ToAbsolutePath(FStringView BasePath, FStringView InPath, FStringBuilderBase& OutPath);
+	
+	/** Convert to absolute using process BaseDir() and normalize inlined. FPaths::ConvertRelativePathToFull() equivalent. */
+	static void ToAbsolutePathInline(FStringBuilderBase& InOutPath);
+	
+	/** Convert to absolute using explicit BasePath and normalize inlined. FPaths::ConvertRelativePathToFull() equivalent. */
+	static void ToAbsolutePathInline(FStringView BasePath, FStringBuilderBase& InOutPath);
+
+	/** Convert \\ to / and do platform-specific normalization */
+	static void NormalizeFilename(FStringBuilderBase& InOutPath);
+
+	/** Normalize and remove trailing slash unless the preceding character is '/' or ':' */
+	static void NormalizeDirectoryName(FStringBuilderBase& InOutPath);
+
+	/** Collapses redundant paths like "/./" and "SkipDir/..". FPaths::CollapseRelativeDirectories() equivalent. */
+	static bool CollapseRelativeDirectories(FStringBuilderBase& InOutPath);
+
+	/** Removes duplicate forward slashes, e.g. "a/b//c////f.e" -> "a/b/c/f.e" */
+	static void RemoveDuplicateSlashes(FStringBuilderBase& InOutPath);
+
 	/**
 	 * Split the given absolute or relative path into its topmost directory and the relative path from that directory.
 	 * Directory elements of . and .. are currently not interpreted and are treated as literal characters.
