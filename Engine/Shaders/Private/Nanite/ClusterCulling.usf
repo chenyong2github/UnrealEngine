@@ -654,6 +654,8 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		{
 			FFrustumCullData PrevCull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum );
 			
+			bWasOccluded = true;
+
 			BRANCH
 			if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
 			{
@@ -1019,6 +1021,73 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 	}
 }
 
+void WriteRasterizerArgsSWHW(RWBuffer<uint> RasterizerArgsSWHW, uint NumClustersSW, uint NumClustersHW)
+{
+
+	RasterizerArgsSWHW[0] = NumClustersSW;
+	RasterizerArgsSWHW[1] = 1;
+	RasterizerArgsSWHW[2] = 1;
+	RasterizerArgsSWHW[3] = 0;
+
+	if (RenderFlags & RENDER_FLAG_PRIMITIVE_SHADER)
+	{
+		RasterizerArgsSWHW[4] = NumClustersHW;				// VertexCountPerInstance
+		RasterizerArgsSWHW[5] = 1;							// InstanceCount
+	}
+	else
+	{
+		RasterizerArgsSWHW[4] = MAX_CLUSTER_TRIANGLES * 3;	// VertexCountPerInstance
+		RasterizerArgsSWHW[5] = NumClustersHW;				// InstanceCount
+	}
+
+}
+
+// Make sure the indirect args we give to the rasterizer are not out of bounds and that the SW/HW ranges are not overlapping.
+Buffer<uint>				InRasterizerArgsSWHW;
+RWBuffer<uint>				OutSafeRasterizerArgsSWHW;
+
+[numthreads(1, 1, 1)]
+void CalculateSafeRasterizerArgs()
+{
+#if HAS_PREV_DRAW_DATA
+	const uint2 TotalPrevDrawClusters = InTotalPrevDrawClusters[0];
+	int ClusterOffsetSW = TotalPrevDrawClusters.x;
+	int ClusterOffsetHW = TotalPrevDrawClusters.y;
+#else
+	int ClusterOffsetSW = 0;
+	int ClusterOffsetHW = 0;
+#endif
+
+	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
+
+#if IS_POST_PASS
+	ClusterOffsetSW += OffsetClustersArgsSWHW[0];
+	ClusterOffsetHW += OffsetClustersArgsSWHW[HWClusterCounterIndex];
+#endif
+
+	int NumClustersSW = InRasterizerArgsSWHW[0];
+	int NumClustersHW = InRasterizerArgsSWHW[HWClusterCounterIndex];
+
+	const int TotalClustersSW = ClusterOffsetSW + NumClustersSW;
+	const int TotalClustersHW = ClusterOffsetHW + NumClustersHW;
+
+	if (TotalClustersSW + TotalClustersHW > MaxVisibleClusters)
+	{
+		// Total number of visible clusters don't fit.
+		// Trim away the overlapping range from the SW/HW ranges.
+		
+		// TODO: Write status back to CPU so we can warn the user when this happens and r.Nanite.MaxVisibleClusters needs to be adjusted higher.	
+
+		const int MaxClustersSW = max((int)MaxVisibleClusters - NumClustersHW, 0);
+		const int MaxClustersHW = max((int)MaxVisibleClusters - NumClustersSW, 0);
+
+		NumClustersSW = min(NumClustersSW, MaxClustersSW);
+		NumClustersHW = min(NumClustersHW, MaxClustersHW);
+	}
+
+	WriteRasterizerArgsSWHW(OutSafeRasterizerArgsSWHW, NumClustersSW, NumClustersHW);
+}
+
 RWByteAddressBuffer		OutCandidateNodesAndClusters;
 uint					InitIsPostPass;
 
@@ -1068,24 +1137,8 @@ void InitArgs()
 	}
 
 	DrawnClusterCounts += uint2(InOutMainPassRasterizeArgsSWHW[0], InOutMainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
-	InOutMainPassRasterizeArgsSWHW[ 0 ] = 0;
-	InOutMainPassRasterizeArgsSWHW[ 1 ] = 1;
-	InOutMainPassRasterizeArgsSWHW[ 2 ] = 1;
-	InOutMainPassRasterizeArgsSWHW[ 3 ] = 0;
-
-	if (RenderFlags & RENDER_FLAG_PRIMITIVE_SHADER)
-	{
-		InOutMainPassRasterizeArgsSWHW[ 4 ] = 0;							// VertexCountPerInstance
-		InOutMainPassRasterizeArgsSWHW[ 5 ] = 1;							// InstanceCount
-	}
-	else
-	{
-		InOutMainPassRasterizeArgsSWHW[ 4 ] = MAX_CLUSTER_TRIANGLES * 3;	// VertexCountPerInstance
-		InOutMainPassRasterizeArgsSWHW[ 5 ] = 0;							// InstanceCount
-	}
-
-	InOutMainPassRasterizeArgsSWHW[ 6 ] = 0;
-	InOutMainPassRasterizeArgsSWHW[ 7 ] = 0;
+	WriteRasterizerArgsSWHW(InOutMainPassRasterizeArgsSWHW, 0, 0);
+	
 
 #if OCCLUSION_CULLING
 	OutOccludedInstancesArgs[0] = 0;
@@ -1094,25 +1147,7 @@ void InitArgs()
 	OutOccludedInstancesArgs[3] = 0;
 
 	DrawnClusterCounts += uint2(InOutPostPassRasterizeArgsSWHW[0], InOutPostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
-	InOutPostPassRasterizeArgsSWHW[0] = 0;
-	InOutPostPassRasterizeArgsSWHW[1] = 1;
-	InOutPostPassRasterizeArgsSWHW[2] = 1;
-	InOutPostPassRasterizeArgsSWHW[3] = 0;
-
-	if (RenderFlags & RENDER_FLAG_PRIMITIVE_SHADER)
-	{
-		InOutPostPassRasterizeArgsSWHW[4] = 0;							// VertexCountPerInstance 
-		InOutPostPassRasterizeArgsSWHW[5] = 1;							// InstanceCount
-	}
-	else
-	{
-		InOutPostPassRasterizeArgsSWHW[4] = MAX_CLUSTER_TRIANGLES * 3;	// VertexCountPerInstance 
-		InOutPostPassRasterizeArgsSWHW[5] = 0;							// InstanceCount
-	}
-
-	InOutPostPassRasterizeArgsSWHW[6] = 0;								// StartVertexLocation
-	InOutPostPassRasterizeArgsSWHW[7] = 0;								// StartInstanceLocation
-
+	WriteRasterizerArgsSWHW(InOutPostPassRasterizeArgsSWHW, 0, 0);
 #endif
 
 #if DRAW_PASS_INDEX == 1

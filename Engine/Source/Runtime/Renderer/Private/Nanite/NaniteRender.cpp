@@ -782,6 +782,33 @@ class FInitArgs_CS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FInitArgs_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "InitArgs", SF_Compute);
 
+class FCalculateSafeRasterizerArgs_CS : public FNaniteShader
+{
+	DECLARE_GLOBAL_SHADER(FCalculateSafeRasterizerArgs_CS);
+	SHADER_USE_PARAMETER_STRUCT(FCalculateSafeRasterizerArgs_CS, FNaniteShader);
+
+	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL("HAS_PREV_DRAW_DATA");
+	class FIsPostPass : SHADER_PERMUTATION_BOOL("IS_POST_PASS");
+	using FPermutationDomain = TShaderPermutationDomain<FHasPrevDrawData, FIsPostPass>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FUintVector2 >,	InTotalPrevDrawClusters)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer< uint >,						OffsetClustersArgsSWHW)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer< uint >,						InRasterizerArgsSWHW)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer< uint >,					OutSafeRasterizerArgsSWHW)
+
+		SHADER_PARAMETER(uint32,											MaxVisibleClusters)
+		SHADER_PARAMETER(uint32,											RenderFlags)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FCalculateSafeRasterizerArgs_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "CalculateSafeRasterizerArgs", SF_Compute);
+
+
 BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
 	SHADER_PARAMETER_STRUCT_INCLUDE( FRasterParameters, RasterParameters )
@@ -2338,6 +2365,7 @@ FCullingContext InitCullingContext(
 #endif
 
 	CullingContext.MainRasterizeArgsSWHW		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.MainRasterizeArgsSWHW"));
+	CullingContext.SafeMainRasterizeArgsSWHW	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.SafeMainRasterizeArgsSWHW"));
 	
 	if( CullingContext.bTwoPassOcclusion )
 	{
@@ -2353,6 +2381,7 @@ FCullingContext InitCullingContext(
 
 		CullingContext.OccludedInstancesArgs	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("Nanite.OccludedInstancesArgs"));
 		CullingContext.PostRasterizeArgsSWHW	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.PostRasterizeArgsSWHW"));
+		CullingContext.SafePostRasterizeArgsSWHW= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.SafePostRasterizeArgsSWHW"));
 	}
 
 	CullingContext.StreamingRequests = GraphBuilder.RegisterExternalBuffer(Nanite::GStreamingManager.GetStreamingRequestsBuffer()); 
@@ -2598,6 +2627,47 @@ void AddPass_InstanceHierarchyAndClusterCull(
 			ComputeShader,
 			PassParameters,
 			FIntVector(GRHIPersistentThreadGroupCount, 1, 1)
+		);
+	}
+
+	{
+		FCalculateSafeRasterizerArgs_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCalculateSafeRasterizerArgs_CS::FParameters >();
+
+		const bool bPrevDrawData	= (CullingContext.RenderFlags & RENDER_FLAG_HAVE_PREV_DRAW_DATA) != 0;
+		const bool bPostPass		= (CullingPass == CULLING_PASS_OCCLUSION_POST) != 0;
+
+		if (bPrevDrawData)
+		{
+			PassParameters->InTotalPrevDrawClusters		= GraphBuilder.CreateSRV(CullingContext.TotalPrevDrawClustersBuffer);
+		}
+		
+		if (bPostPass)
+		{
+			PassParameters->OffsetClustersArgsSWHW		= GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
+			PassParameters->InRasterizerArgsSWHW		= GraphBuilder.CreateSRV(CullingContext.PostRasterizeArgsSWHW);
+			PassParameters->OutSafeRasterizerArgsSWHW	= GraphBuilder.CreateUAV(CullingContext.SafePostRasterizeArgsSWHW);
+		}
+		else
+		{
+			PassParameters->InRasterizerArgsSWHW		= GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
+			PassParameters->OutSafeRasterizerArgsSWHW	= GraphBuilder.CreateUAV(CullingContext.SafeMainRasterizeArgsSWHW);
+		}
+		
+		PassParameters->MaxVisibleClusters				= Nanite::FGlobalResources::GetMaxVisibleClusters();
+		PassParameters->RenderFlags						= CullingContext.RenderFlags;
+		
+		FCalculateSafeRasterizerArgs_CS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FCalculateSafeRasterizerArgs_CS::FHasPrevDrawData>(bPrevDrawData);
+		PermutationVector.Set<FCalculateSafeRasterizerArgs_CS::FIsPostPass>(bPostPass);
+
+		auto ComputeShader = CullingContext.ShaderMap->GetShader< FCalculateSafeRasterizerArgs_CS >(PermutationVector);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			bPostPass ? RDG_EVENT_NAME("Post Pass: CalculateSafeRasterizerArgs") : RDG_EVENT_NAME("Main Pass: CalculateSafeRasterizerArgs"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1)
 		);
 	}
 }
@@ -3241,7 +3311,7 @@ void CullRasterize(
 		CullingContext.ViewsBuffer,
 		CullingContext.VisibleClustersSWHW,
 		nullptr,
-		CullingContext.MainRasterizeArgsSWHW,
+		CullingContext.SafeMainRasterizeArgsSWHW,
 		CullingContext.TotalPrevDrawClustersBuffer,
 		GPUSceneParameters,
 		true,
@@ -3319,7 +3389,7 @@ void CullRasterize(
 			CullingContext.ViewsBuffer,
 			CullingContext.VisibleClustersSWHW,
 			CullingContext.MainRasterizeArgsSWHW,
-			CullingContext.PostRasterizeArgsSWHW,
+			CullingContext.SafePostRasterizeArgsSWHW,
 			CullingContext.TotalPrevDrawClustersBuffer,
 			GPUSceneParameters,
 			false,
