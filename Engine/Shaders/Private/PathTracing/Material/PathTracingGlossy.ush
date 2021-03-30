@@ -39,21 +39,6 @@ float3x3 GetGGXBasis(float Roughness, float3 WorldNormal, out float2 Alpha)
 	return GetTangentBasis(WorldNormal);
 }
 
-float3 GGXHelper(float3 L, float3 V, float3 H, float2 Alpha)
-{
-	// TODO: Can this be further simplified / unified with other GGX routines?
-	const float CosThetaM4 = Pow2(H.z);
-	const float TanThetaM2 = (Pow2(H.x / Alpha.x) + Pow2(H.y / Alpha.y)) / Pow2(H.z);
-	const float D = 1 / (PI * Pow2(1 + TanThetaM2) * Alpha.x * Alpha.y * CosThetaM4);
-	const float Lambda_o = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(L.x * Alpha.x) + Pow2(L.y * Alpha.y)) / Pow2(L.z)));
-	const float Lambda_i = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(V.x * Alpha.x) + Pow2(V.y * Alpha.y)) / Pow2(V.z)));
-	const float G2 = 1 / (Lambda_i + Lambda_o + 1);
-	const float G1 = 1 / (Lambda_i + 1);
-
-	return float3(D, G2, G1);
-}
-
-
 // Compute GGX lobe Weight and Pdf (without Fresnel term) given a set of vectors in local space (Z up)
 float2 GGXEvalReflection(float3 L, float3 V, float3 H, float2 Alpha)
 {
@@ -62,13 +47,13 @@ float2 GGXEvalReflection(float3 L, float3 V, float3 H, float2 Alpha)
 
 	if (NoL > 0 && NoV > 0)
 	{
-		const float3 Result = GGXHelper(L, V, H, Alpha);
-		const float D = Result.x;
-		const float G2 = Result.y;
-		const float G1 = Result.z;
-
-		const float Weight = G2 / G1;
-		const float Pdf = (G1 * D * 0.25f) / NoV;
+		const float D = D_GGXaniso(Alpha.x, Alpha.y, H.z, H.x, H.y);
+		// See implementation in Vis_SmithJointAniso for G2/(4*NoV*NoL)
+		// We can simplify a bit further since we need both the weight G2/G1 and the pdf
+		const float LenL = length(float3(L.x * Alpha.x, L.y * Alpha.y, NoL));
+		const float LenV = length(float3(V.x * Alpha.x, V.y * Alpha.y, NoV));
+		const float Weight = NoL * (LenV + NoV) / (NoV * LenL + NoL * LenV);
+		const float Pdf = 0.5 * D * rcp(LenV + NoV);
 
 		return float2(Weight, Pdf);
 	}
@@ -85,17 +70,17 @@ float2 GGXEvalRefraction(float3 L, float3 V, float3 H, float2 Alpha, float Eta)
 	// This checks that V and L point in opposite sides 
 	if (NoL > 0 && NoV > 0)
 	{
-		const float3 Result = GGXHelper(L, V, H, Alpha);
-		const float D = Result.x;
-		const float G2 = Result.y;
-		const float G1 = Result.z;
+		const float D = D_GGXaniso(Alpha.x, Alpha.y, H.z, H.x, H.y);
 
 		const float VoH = dot(V, H);
 		const float LoH = dot(L, H);
 		const float3 Ht = (Eta * L + V);
 
-		const float Weight = G2 / G1;
-		const float Pdf = (abs(LoH * VoH) * (Eta * Eta) * (G1 * D)) / (dot(Ht, Ht) * NoV);
+		// Same as logic above, only the pdf math differs slightly
+		const float LenL = length(float3(L.x * Alpha.x, L.y * Alpha.y, NoL));
+		const float LenV = length(float3(V.x * Alpha.x, V.y * Alpha.y, NoV));
+		const float Weight = NoL * (LenV + NoV) / (NoV * LenL + NoL * LenV);
+		const float Pdf = (abs(LoH * VoH) * (Eta * Eta) * (2.0 * D)) / (dot(Ht, Ht) * (LenV + NoV));
 
 		return float2(Weight, Pdf);
 	}
