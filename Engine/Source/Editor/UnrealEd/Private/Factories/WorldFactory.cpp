@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/WorldFactory.h"
+#include "Modules/ModuleManager.h"
 #include "Editor.h"
 #include "UObject/Package.h"
 #include "ThumbnailRendering/WorldThumbnailInfo.h"
