@@ -1131,11 +1131,15 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 				FNiagaraComputeInstanceData& InstanceData = Tick->GetInstanceData()[i];
 				FNiagaraComputeExecutionContext* ExecContext = InstanceData.Context;
 
+				if ( ExecContext == nullptr )
+				{
+					continue;
+				}
+
 				//Ensure we clear the temp tick count value in every emitter tick that we've processed.
 				//Can't do later in the final tick as that may not contain *all* emitter ticks.
 				ExecContext->TicksThisFrame = 0;
-
-				if ((ExecContext == nullptr) || !ExecContext->GPUScript_RT->IsShaderMapComplete_RenderThread())
+				if ( !ExecContext->GPUScript_RT->IsShaderMapComplete_RenderThread() )
 				{
 					continue;
 				}
@@ -2066,6 +2070,16 @@ NiagaraEmitterInstanceBatcher::DummyUAVPool::~DummyUAVPool()
 {
 	UE_CLOG(NextFreeIndex != 0, LogNiagara, Warning, TEXT("DummyUAVPool is potentially in use during destruction."));
 	DEC_DWORD_STAT_BY(STAT_NiagaraDummyUAVPool, UAVs.Num());
+}
+
+FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyRWBufferFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const
+{
+	return GetEmptyUAVFromPool(RHICmdList, Format, false);
+}
+
+FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyRWTextureFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const
+{
+	return GetEmptyUAVFromPool(RHICmdList, Format, true);
 }
 
 FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture) const
