@@ -152,8 +152,14 @@ struct FNiagaraRendererComponentsOnObjectsReplacedHelper
 	{
 		if ( GEditor )
 		{
-			check(IsInGameThread());
-			GEditor->OnObjectsReplaced().AddRaw(this, &FNiagaraRendererComponentsOnObjectsReplacedHelper::OnObjectsReplacedCallback);
+			if ( IsInGameThread() )
+			{
+				GEditor->OnObjectsReplaced().AddRaw(this, &FNiagaraRendererComponentsOnObjectsReplacedHelper::OnObjectsReplacedCallback);
+			}
+			else
+			{
+				AsyncTask(ENamedThreads::GameThread, [Object = this]() { GEditor->OnObjectsReplaced().AddRaw(Object, &FNiagaraRendererComponentsOnObjectsReplacedHelper::OnObjectsReplacedCallback); });
+			}
 		}
 	}
 
