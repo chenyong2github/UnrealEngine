@@ -90,10 +90,11 @@ namespace ChaosTest {
 			Box1->Geometry().Get(),
 			nullptr,
 			FRigidTransform3(),
+			FLT_MAX,
 			EContactShapesType::BoxBox, true);
 
 		// Detect collisions
-		Collisions::Update(Constraint, Delta.Size(), 1/30.0f);
+		Collisions::Update(Constraint, 1/30.0f);
 
 		EXPECT_NEAR(Constraint.Manifold.Phi, ExpectedPhi, Tolerance);
 		EXPECT_NEAR(Constraint.Manifold.Normal.X, ExpectedNormal.X, Tolerance);
@@ -194,10 +195,11 @@ namespace ChaosTest {
 			Box1->Geometry().Get(),
 			nullptr,
 			FRigidTransform3(),
+			FLT_MAX,
 			EContactShapesType::GenericConvexConvex, true);
 
 		// Detect collisions
-		Collisions::Update(Constraint, Delta.Size(), 1 / 30.0f);
+		Collisions::Update(Constraint, 1 / 30.0f);
 
 		EXPECT_NEAR(Constraint.Manifold.Phi, ExpectedPhi, Tolerance);
 		EXPECT_NEAR(Constraint.Manifold.Normal.X, ExpectedNormal.X, Tolerance);

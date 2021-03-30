@@ -2225,7 +2225,7 @@ namespace ChaosTest {
 				}
 
 				TickSolverHelper(Solver);
-				EXPECT_LE(Dynamic.X()[2], 10);
+				EXPECT_LE(Dynamic.X()[2], 10 + KINDA_SMALL_NUMBER);
 
 #if REWIND_DESYNC
 				//kinematic desync will be known at end of frame because the simulation doesn't write results (so we know right away it's a desync)

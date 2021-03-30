@@ -21,14 +21,15 @@ namespace Chaos
 
 	// @todo(chaos): TEMP - use convex-convex collisio detection for box-box until TBox::GetClosestEdgePosition is implemented for that path (without plane hint)
 	bool bChaos_Collision_Manifold_BoxAsConvex = true;
-	FAutoConsoleVariableRef CVarChaosCollisioConvexManifodlBoxAsConvex(TEXT("p.Chaos.Collision.Manifold.BoxAsConvex"), bChaos_Collision_Manifold_BoxAsConvex, TEXT(""));
+	FAutoConsoleVariableRef CVarChaosCollisioConvexManifoldBoxAsConvex(TEXT("p.Chaos.Collision.Manifold.BoxAsConvex"), bChaos_Collision_Manifold_BoxAsConvex, TEXT(""));
+
 
 	namespace Collisions
 	{
 		// Forward delarations we need from CollisionRestitution.cpp
 
-		FContactPoint BoxBoxContactPoint(const FImplicitBox3& Box1, const FImplicitBox3& Box2, const FRigidTransform3& Box1TM, const FRigidTransform3& Box2TM, const FReal CullDistance, const FReal ShapePadding);
-		FContactPoint GenericConvexConvexContactPoint(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FReal CullDistance, const FReal ShapePadding);
+		FContactPoint BoxBoxContactPoint(const FImplicitBox3& Box1, const FImplicitBox3& Box2, const FRigidTransform3& Box1TM, const FRigidTransform3& Box2TM, const FReal ShapePadding);
+		FContactPoint GenericConvexConvexContactPoint(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FReal ShapePadding);
 
 		//////////////////////////
 		// Box Box
@@ -109,13 +110,12 @@ namespace Chaos
 			const FRigidTransform3& Box1Transform, //world
 			const FImplicitBox3& Box2,
 			const FRigidTransform3& Box2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint)
 		{
 			if (bChaos_Collision_Manifold_BoxAsConvex)
 			{
-				ConstructConvexConvexOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullDistance, Dt, Constraint);
+				ConstructConvexConvexOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, Dt, Constraint);
 				return;
 			}
 
@@ -131,7 +131,7 @@ namespace Chaos
 			uint32 ContactPointCount = 0;
 
 			// Use GJK only once
-			FContactPoint GJKContactPoint = BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2Transform, CullDistance, Constraint.Manifold.RestitutionPadding);
+			FContactPoint GJKContactPoint = BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2Transform, Constraint.Manifold.RestitutionPadding);
 
 			FRigidTransform3 Box1TransformCenter = Box1Transform;
 			Box1TransformCenter.SetTranslation(Box1Transform.TransformPositionNoScale(Box1.GetCenter()));
@@ -527,7 +527,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const ConvexImplicitType2& Convex2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint)
 		{
@@ -540,8 +539,10 @@ namespace Chaos
 			ensure(Convex2Transform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// Find the deepest penetration. This is used to determine the planes and points to use for the manifold
-			FContactPoint GJKContactPoint = GenericConvexConvexContactPoint(Convex1, Convex1Transform, Convex2, Convex2Transform, CullDistance, Constraint.Manifold.RestitutionPadding);
-			if (GJKContactPoint.Phi > CullDistance)
+			FContactPoint GJKContactPoint = GenericConvexConvexContactPoint(Convex1, Convex1Transform, Convex2, Convex2Transform, Constraint.Manifold.RestitutionPadding);
+
+			// @todo(chaos): this is not a good culling test - make it better. The separation from GJK can be larger than the real separation because of the margins (rounded corners)
+			if (GJKContactPoint.Phi > Constraint.GetCullDistance())
 			{
 				return;
 			}
@@ -678,7 +679,7 @@ namespace Chaos
 					MaxContactPointCount);
 			}
 			
-			// Reduce number of contacts to a maximum of 4
+			// Reduce number of contacts to the maximum allowed
 			if (ContactPointCount > 4)
 			{
 				FRotation3 RotateSeperationToZ = FRotation3::FromRotatedVector(RefPlaneNormal, FVec3(0.0f, 0.0f, 1.0f));
@@ -731,7 +732,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const FImplicitBox3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -741,7 +741,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const FImplicitConvex3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -751,7 +750,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const FImplicitBox3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -761,7 +759,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -771,7 +768,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const FImplicitBox3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -781,7 +777,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const TImplicitObjectScaled<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -791,7 +786,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const FImplicitBox3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -801,7 +795,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const FImplicitConvex3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -811,7 +804,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const FImplicitConvex3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -821,7 +813,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const FImplicitConvex3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -831,7 +822,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -841,7 +831,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const TImplicitObjectScaled<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -851,7 +840,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -861,7 +849,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -871,7 +858,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const TImplicitObjectScaled<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -881,7 +867,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const TImplicitObjectScaled<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 	}

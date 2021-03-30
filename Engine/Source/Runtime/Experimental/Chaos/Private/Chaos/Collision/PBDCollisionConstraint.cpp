@@ -158,27 +158,35 @@ namespace Chaos
 
 	void FRigidBodyPointContactConstraint::AddIncrementalManifoldContact(const FContactPoint& ContactPoint, const FReal Dt)
 	{
-		int32 ManifoldPointIndex = INDEX_NONE;
 		if (bUseManifold)
 		{
 			// See if the manifold point already exists
-			ManifoldPointIndex = FindManifoldPoint(ContactPoint);
+			int32 ManifoldPointIndex = FindManifoldPoint(ContactPoint);
+			if (ManifoldPointIndex >= 0)
+			{
+				// This contact point is already in the manifold - update the state
+				UpdateManifoldPoint(ManifoldPointIndex, ContactPoint, Dt);
+			}
+			else
+			{
+				// This is a new manifold point - capture the state and generate initial properties
+				AddManifoldPoint(ContactPoint, Dt);
+			}
+
 		}
-		else if (ManifoldPoints.Num() > 0)
+		else 
 		{
 			// We are not using manifolds - reuse the first and only point
-			ManifoldPointIndex = 0;
-		}
+			if (ManifoldPoints.Num() == 0)
+			{
+				ManifoldPoints.Add(ContactPoint);
+			}
+			else
+			{
+				ManifoldPoints[0] = ContactPoint;
+			}
 
-		if (ManifoldPointIndex >= 0)
-		{
-			// This contact point is already in the manifold - update the state
-			UpdateManifoldPoint(ManifoldPointIndex, ContactPoint, Dt);
-		}
-		else
-		{
-			// This is a new manifold point - capture the state and generate initial properties
-			ManifoldPointIndex = AddManifoldPoint(ContactPoint, Dt);
+			InitManifoldPoint(ManifoldPoints[0], Dt);
 		}
 
 		// Copy currently active point
@@ -208,40 +216,29 @@ namespace Chaos
 		// @todo(chaos): support static friction position correction for non-manifold contacts (spheres, point clouds, etc)
 		ManifoldPoint.bPotentialRestingContact = bUseManifold;
 
+		// Update the derived contact state (CoM relative data)
+		UpdateManifoldPointFromContact(ManifoldPoint);
+
+		// World-space contact state used below
+		// @todo(chaos): some of this should already be known - optimize
+		const FRigidTransform3 WorldCoMTransform0 = FParticleUtilities::GetCoMWorldTransform(Particle0);
+		const FRigidTransform3 WorldCoMTransform1 = FParticleUtilities::GetCoMWorldTransform(Particle1);
+		FVec3 WorldContactLocation, WorldContactNormal;
+		FReal WorldContactPhi;
+		GetWorldSpaceManifoldPoint(ManifoldPoint, WorldCoMTransform0.GetLocation(), WorldCoMTransform0.GetRotation(), WorldCoMTransform1.GetLocation(), WorldCoMTransform1.GetRotation(), WorldContactLocation, WorldContactNormal, WorldContactPhi);
+
 		// Calculate and store the data required for static friction and restitution in PushOut
-		//	- contact point on second shape at previous location (to enforce static friction)
-		//	- initial and previous separations (for restitution)
-		// @todo(chaos): we shouldn't have to recalculate local space positions - they were available in collision update
-		check(ManifoldPoint.ContactPoint.ContactNormalOwnerIndex >= 0);
-		check(ManifoldPoint.ContactPoint.ContactNormalOwnerIndex < 2);
-		const FRigidTransform3& PlaneTransform = ImplicitTransform[ManifoldPoint.ContactPoint.ContactNormalOwnerIndex];
-		const FVec3 LocalContactPoint0 = ImplicitTransform[0].TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[0]);	// Particle Space on body 0
-		const FVec3 LocalContactPoint1 = ImplicitTransform[1].TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[1]);	// Particle Space on body 1
-		const FVec3 LocalContactNormal = PlaneTransform.TransformNormalNoScale(ManifoldPoint.ContactPoint.ShapeContactNormal);				// Particle Space on Plane owner
-
-		const FRotation3& PlaneRotationOfMass = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Particle0->RotationOfMass() : Particle1->RotationOfMass();
-		const FVec3 CoMContactPoint0 = Particle0->RotationOfMass().Inverse() * (LocalContactPoint0 - Particle0->CenterOfMass());	// CoM Space on Body 0
-		const FVec3 CoMContactPoint1 = Particle1->RotationOfMass().Inverse() * (LocalContactPoint1 - Particle1->CenterOfMass());	// CoM Space on Body 1
-		const FVec3 CoMContactNormal = PlaneRotationOfMass.Inverse() * LocalContactNormal;											// CoM Space on Planer owner
-		ManifoldPoint.CoMContactPoints[0] = CoMContactPoint0;
-		ManifoldPoint.CoMContactPoints[1] = CoMContactPoint1;
-		ManifoldPoint.CoMContactNormal = CoMContactNormal;
-
-		// Calculate the initial contact velocity for use in restitution
 		// We use PreV and PreW to support incremental manifold generation. In this case, manifold points
 		// can be added after we have already run some solver iterations, which gives us an incorrect initial
 		// velocity if we just use V and W (one-shots will work the same either way since V=PreV on first pass)
-		const FRigidTransform3 WorldCoMTransform0 = FParticleUtilities::GetCoMWorldTransform(Particle0);
-		const FRigidTransform3 WorldCoMTransform1 = FParticleUtilities::GetCoMWorldTransform(Particle1);
-		const FVec3 WorldContactVel0 = Particle0->PreV() + FVec3::CrossProduct(Particle0->PreW(), WorldCoMTransform0.GetRotation() * CoMContactPoint0);
-		const FVec3 WorldContactVel1 = Particle1->PreV() + FVec3::CrossProduct(Particle1->PreW(), WorldCoMTransform1.GetRotation() * CoMContactPoint1);
-		const FVec3 WorldContactNormal = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? WorldCoMTransform0.GetRotation() * CoMContactNormal : WorldCoMTransform1.GetRotation() * CoMContactNormal;
+		const FVec3 WorldContactVel0 = Particle0->PreV() + FVec3::CrossProduct(Particle0->PreW(), WorldCoMTransform0.GetRotation() * ManifoldPoint.CoMContactPoints[0]);
+		const FVec3 WorldContactVel1 = Particle1->PreV() + FVec3::CrossProduct(Particle1->PreW(), WorldCoMTransform1.GetRotation() * ManifoldPoint.CoMContactPoints[1]);
 		const FReal WorldContactVelNorm = FVec3::DotProduct(WorldContactVel0 - WorldContactVel1, WorldContactNormal);
 		ManifoldPoint.InitialContactVelocity = WorldContactVelNorm;
 
 		// Store the initial penetration depth for use with restitution with PBD
 		// NOTE: This is incorrect if we are updating the point each iteration (which we are for incremental manifolds but not one-shots - see UpdateManifoldPoint)
-		ManifoldPoint.InitialPhi = ManifoldPoint.ContactPoint.Phi;
+		ManifoldPoint.InitialPhi = WorldContactPhi;
 	}
 
 	void FRigidBodyPointContactConstraint::CalculatePrevCoMContactPoints(
@@ -263,7 +260,7 @@ namespace Chaos
 				PrevCoMTransform.AddToTranslation(-Dt * ParticleHandle->V());
 				PrevCoMTransform.SetRotation(FRotation3::IntegrateRotationWithAngularVelocity(PrevCoMTransform.GetRotation(), -ParticleHandle->W(), Dt));
 			}
-			return PrevCoMTransform;
+			return PrevCoMTransform; 
 		};
 
 		const FRigidTransform3 PrevCoMTransform0 = CalculatePrevCoMTransform(Particle0);
@@ -305,7 +302,30 @@ namespace Chaos
 		// otherwise the PrevLocalContactPoint1 we calculated is not longer for the correct point.
 		FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
 		ManifoldPoint.ContactPoint = ContactPoint;
-		InitManifoldPoint(ManifoldPoint, Dt);
+		UpdateManifoldPointFromContact(ManifoldPoint);
+	}
+
+	// Update the derived contact state (CoM relative data)
+	// @todo(chaos): we shouldn't have to recalculate local space positions - they were available in collision update
+	void FRigidBodyPointContactConstraint::UpdateManifoldPointFromContact(FManifoldPoint& ManifoldPoint)
+	{
+		TConstGenericParticleHandle<FReal, 3> Particle0 = Particle[0];
+		TConstGenericParticleHandle<FReal, 3> Particle1 = Particle[1];
+
+		check(ManifoldPoint.ContactPoint.ContactNormalOwnerIndex >= 0);
+		check(ManifoldPoint.ContactPoint.ContactNormalOwnerIndex < 2);
+		const FRigidTransform3& PlaneTransform = ImplicitTransform[ManifoldPoint.ContactPoint.ContactNormalOwnerIndex];
+		const FVec3 LocalContactPoint0 = ImplicitTransform[0].TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[0]);	// Particle Space on body 0
+		const FVec3 LocalContactPoint1 = ImplicitTransform[1].TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[1]);	// Particle Space on body 1
+		const FVec3 LocalContactNormal = PlaneTransform.TransformNormalNoScale(ManifoldPoint.ContactPoint.ShapeContactNormal);				// Particle Space on Plane owner
+
+		const FRotation3& PlaneRotationOfMass = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Particle0->RotationOfMass() : Particle1->RotationOfMass();
+		const FVec3 CoMContactPoint0 = Particle0->RotationOfMass().Inverse() * (LocalContactPoint0 - Particle0->CenterOfMass());	// CoM Space on Body 0
+		const FVec3 CoMContactPoint1 = Particle1->RotationOfMass().Inverse() * (LocalContactPoint1 - Particle1->CenterOfMass());	// CoM Space on Body 1
+		const FVec3 CoMContactNormal = PlaneRotationOfMass.Inverse() * LocalContactNormal;											// CoM Space on Planer owner
+		ManifoldPoint.CoMContactPoints[0] = CoMContactPoint0;
+		ManifoldPoint.CoMContactPoints[1] = CoMContactPoint1;
+		ManifoldPoint.CoMContactNormal = CoMContactNormal;
 	}
 
 	void FRigidBodyPointContactConstraint::SetActiveContactPoint(const FContactPoint& ContactPoint)
@@ -316,6 +336,30 @@ namespace Chaos
 		Manifold.Phi = ContactPoint.Phi;
 	}
 
+	void FRigidBodyPointContactConstraint::GetWorldSpaceManifoldPoint(
+		const FManifoldPoint& ManifoldPoint,
+		const FVec3& P0,			// World-Space CoM
+		const FRotation3& Q0,		// World-Space CoM
+		const FVec3& P1,			// World-Space CoM
+		const FRotation3& Q1,		// World-Space CoM
+		FVec3& OutContactLocation,
+		FVec3& OutContactNormal,
+		FReal& OutContactPhi)
+	{
+		const FReal Margin0 = ManifoldPoint.ContactPoint.ShapeMargins[0];
+		const FReal Margin1 = ManifoldPoint.ContactPoint.ShapeMargins[1];
+		const FRotation3& PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Q0 : Q1;
+
+		const FVec3 ContactNormal = PlaneQ.RotateVector(ManifoldPoint.CoMContactNormal);
+		const FVec3 ContactPos0 = P0 + Q0.RotateVector(ManifoldPoint.CoMContactPoints[0]) - Margin0 * ContactNormal;
+		const FVec3 ContactPos1 = P1 + Q1.RotateVector(ManifoldPoint.CoMContactPoints[1]) + Margin1 * ContactNormal;
+
+		OutContactLocation = 0.5f * (ContactPos0 + ContactPos1);
+		OutContactNormal = ContactNormal;
+		OutContactPhi = FVec3::DotProduct(ContactPos0 - ContactPos1, ContactNormal);
+	}
+
+
 	FManifoldPoint& FRigidBodyPointContactConstraint::SetActiveManifoldPoint(
 		int32 ManifoldPointIndex,
 		const FVec3& P0,
@@ -325,18 +369,10 @@ namespace Chaos
 	{
 		FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
 
-		const FReal Margin0 = ManifoldPoint.ContactPoint.ShapeMargins[0];
-		const FReal Margin1 = ManifoldPoint.ContactPoint.ShapeMargins[1];
-		const FRotation3& PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Q0 : Q1;
-
-		// Update the world-space point state based on current particle transforms
-		const FVec3 ContactNormal = PlaneQ.RotateVector(ManifoldPoint.CoMContactNormal);
-		const FVec3 ContactPos0 = P0 + Q0.RotateVector(ManifoldPoint.CoMContactPoints[0]) - Margin0 * ContactNormal;
-		const FVec3 ContactPos1 = P1 + Q1.RotateVector(ManifoldPoint.CoMContactPoints[1]) + Margin1 * ContactNormal;
-		ManifoldPoint.ContactPoint.Location = 0.5f * (ContactPos0 + ContactPos1);
-		ManifoldPoint.ContactPoint.Normal = ContactNormal;
-		ManifoldPoint.ContactPoint.Phi = FVec3::DotProduct(ContactPos0 - ContactPos1, ContactNormal);
+		// Update the world-space state in the manifold point
+		GetWorldSpaceManifoldPoint(ManifoldPoint, P0, Q0, P1, Q1, ManifoldPoint.ContactPoint.Location, ManifoldPoint.ContactPoint.Normal, ManifoldPoint.ContactPoint.Phi);
 	
+		// Copy the world-space state into the active contact
 		SetActiveContactPoint(ManifoldPoint.ContactPoint);
 
 		return ManifoldPoint;

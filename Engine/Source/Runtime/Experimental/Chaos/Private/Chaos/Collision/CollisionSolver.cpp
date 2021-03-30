@@ -24,27 +24,51 @@ namespace Chaos
 		extern int32 Chaos_Collision_UseShockPropagation;
 		extern FRealSingle Chaos_Collision_CollisionClipTolerance;
 
+		bool bChaos_Manifold_Apply_AllowNegativeIncrementalImpulse = true;
+		FAutoConsoleVariableRef CVarChaos_Manifold_NegativeApply(TEXT("p.Chaos.Collision.Manifold.Apply.NegativeIncrementalImpulse"), bChaos_Manifold_Apply_AllowNegativeIncrementalImpulse, TEXT(""));
+
 		bool Chaos_Manifold_PushOut_NegativePushOut = false;
 		bool Chaos_Manifold_PushOut_StaticFriction = true;
 		bool Chaos_Manifold_PushOut_Restitution = false;
 		bool Chaos_Manifold_PushOut_PositionCorrection = true;
 		int32 Chaos_Manifold_PushOut_VelocityCorrection = 2;
+		float Chaos_Manifold_PushOut_DistanceFactor = 0.0f;
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_NegativePushOut(TEXT("p.Chaos.Collision.Manifold.PushOut.NegativePushOut"), Chaos_Manifold_PushOut_NegativePushOut, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_StaticFriction(TEXT("p.Chaos.Collision.Manifold.PushOut.StaticFriction"), Chaos_Manifold_PushOut_StaticFriction, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_Restitution(TEXT("p.Chaos.Collision.Manifold.PushOut.Restitution"), Chaos_Manifold_PushOut_Restitution, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_PositionCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.PositionCorrection"), Chaos_Manifold_PushOut_PositionCorrection, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_VelocityCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.VelocityCorrectionMode"), Chaos_Manifold_PushOut_VelocityCorrection, TEXT("0 = No Velocity Correction; 1 = Normal Velocity Correction; 2 = Normal + Tangential Velocity Correction"));
+		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_DistanceFactor(TEXT("p.Chaos.Collision.Manifold.PushOut.DistanceFactor"), Chaos_Manifold_PushOut_DistanceFactor, TEXT(""));
 
-		FRealSingle Chaos_Manifold_MinPushOutStiffness = 0.25f;
-		FRealSingle Chaos_Manifold_MaxPushOutStiffness = 0.5f;
-		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MinStiffness(TEXT("p.Chaos.Collision.Manifold.MinPushOutStiffness"), Chaos_Manifold_MinPushOutStiffness, TEXT(""));
-		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MaxStiffness(TEXT("p.Chaos.Collision.Manifold.MaxPushOutStiffness"), Chaos_Manifold_MaxPushOutStiffness, TEXT(""));
+		// Note: Velocity solve requires full stiffness for restitution to work correctly so the max stiffness should be 1
+		FRealSingle Chaos_Manifold_Apply_MinStiffness = 0.25f;
+		FRealSingle Chaos_Manifold_Apply_MaxStiffness = 1.0f;
+		FAutoConsoleVariableRef CVarChaos_Manifold_Apply_MinStiffness(TEXT("p.Chaos.Collision.Manifold.Apply.MinStiffness"), Chaos_Manifold_Apply_MinStiffness, TEXT(""));
+		FAutoConsoleVariableRef CVarChaos_Manifold_Apply_MaxStiffness(TEXT("p.Chaos.Collision.Manifold.Apply.MaxStiffness"), Chaos_Manifold_Apply_MaxStiffness, TEXT(""));
 
-		FRealSingle Chaos_Manifold_ImpulseTolerance = 1.e-4f;
-		FAutoConsoleVariableRef CVarChaos_Manifold_ImpulseTolerance(TEXT("p.Chaos.Collision.Manifold.ImpulseTolerance"), Chaos_Manifold_ImpulseTolerance, TEXT(""));
+		FRealSingle Chaos_Manifold_PushOut_MinStiffness = 0.25f;
+		FRealSingle Chaos_Manifold_PushOut_MaxStiffness = 0.5f;
+		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MinStiffness(TEXT("p.Chaos.Collision.Manifold.PushOut.MinStiffness"), Chaos_Manifold_PushOut_MinStiffness, TEXT(""));
+		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MaxStiffness(TEXT("p.Chaos.Collision.Manifold.PushOut.MaxStiffness"), Chaos_Manifold_PushOut_MaxStiffness, TEXT(""));
 
-		FRealSingle Chaos_Manifold_PositionTolerance = 1.e-4f;
-		FAutoConsoleVariableRef CVarChaos_Manifold_PositionTolerance(TEXT("p.Chaos.Collision.Manifold.PositionTolerance"), Chaos_Manifold_PositionTolerance, TEXT(""));
+		FRealSingle Chaos_Manifold_Apply_ImpulseTolerance = 1.e-4f;
+		FAutoConsoleVariableRef CVarChaos_Manifold_Apply_ImpulseTolerance(TEXT("p.Chaos.Collision.Manifold.Apply.ImpulseTolerance"), Chaos_Manifold_Apply_ImpulseTolerance, TEXT(""));
+
+		float Chaos_Manifold_PushOut_PositionTolerance = 1.e-4f;
+		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_PositionTolerance(TEXT("p.Chaos.Collision.Manifold.PushOut.PositionTolerance"), Chaos_Manifold_PushOut_PositionTolerance, TEXT(""));
+
+
+		inline FReal GetApplyStiffness(int32 It, int32 NumIts)
+		{
+			const FReal Interpolant = (FReal)(It + 1) / (FReal)NumIts;
+			return FMath::Lerp(Chaos_Manifold_Apply_MinStiffness, Chaos_Manifold_Apply_MaxStiffness, Interpolant);
+		}
+
+		inline FReal GetPushOutStiffness(int32 It, int32 NumIts)
+		{
+			const FReal Interpolant = (FReal)(It + 1) / (FReal)NumIts;
+			return FMath::Lerp(Chaos_Manifold_PushOut_MinStiffness, Chaos_Manifold_PushOut_MaxStiffness, Interpolant);
+		}
 
 
 		// Calculate the impulse to drive normal contact velocity to zero (or positive for restitution), ignoring friction
@@ -78,7 +102,9 @@ namespace Chaos
 			const FReal ContactPhi = ManifoldPoint.ContactPoint.Phi;
 
 			// Reject non-contact points unless the point has previously been processed - we may want to undo some of the previous work
-			if ((ContactPhi > Chaos_Collision_CollisionClipTolerance) && !ManifoldPoint.bActive)
+			// The tolerance is so that we catch collisions that were resolved last frame, but resulted in slightly positive separations. However,
+			// it also means we are effectively padding objects by this amount.
+			if ((ContactPhi > Chaos_Collision_CollisionClipTolerance) && (ManifoldPoint.InitialPhi > Chaos_Collision_CollisionClipTolerance) && !ManifoldPoint.bActive)
 			{
 				return;
 			}
@@ -89,7 +115,8 @@ namespace Chaos
 			const FReal ContactVelocityNormalLen = FVec3::DotProduct(ContactVelocity, ContactNormal);
 
 			// Reject contacts moving apart unless the point has previously been processed, in which case we may want to undo some of the previous work
-			if ((ContactVelocityNormalLen > 0.0f) && !ManifoldPoint.bActive)
+			const bool bAllowNegativeImpulse = ManifoldPoint.bActive && bChaos_Manifold_Apply_AllowNegativeIncrementalImpulse;
+			if ((ContactVelocityNormalLen > 0.0f) && !bAllowNegativeImpulse)
 			{
 				return;
 			}
@@ -149,7 +176,7 @@ namespace Chaos
 			ManifoldPoint.NetImpulse = NetImpulse;
 
 			// If we applied any additional impulse, we need to go again next iteration
-			const FReal ImpulseTolerance = Chaos_Manifold_ImpulseTolerance * Chaos_Manifold_ImpulseTolerance;
+			const FReal ImpulseTolerance = Chaos_Manifold_Apply_ImpulseTolerance * Chaos_Manifold_Apply_ImpulseTolerance;
 			*IterationParameters.NeedsAnotherIteration |= (Impulse.SizeSquared() > ImpulseTolerance);
 		}
 
@@ -252,7 +279,7 @@ namespace Chaos
 			ManifoldPoint.NetImpulse = NetImpulse;
 
 			// If we applied any additional impulse, we need to go again next iteration
-			const FReal ImpulseTolerance = Chaos_Manifold_ImpulseTolerance * Chaos_Manifold_ImpulseTolerance;
+			const FReal ImpulseTolerance = Chaos_Manifold_Apply_ImpulseTolerance * Chaos_Manifold_Apply_ImpulseTolerance;
 			*IterationParameters.NeedsAnotherIteration |= (Impulse.SizeSquared() > ImpulseTolerance);
 		}
 
@@ -289,7 +316,7 @@ namespace Chaos
 			const FRotation3& PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Q0 : Q1;
 			const FVec3 ContactNormal = PlaneQ * ManifoldPoint.CoMContactNormal;
 
-			const bool bApplyStaticFriction = (ManifoldPoint.bInsideStaticFrictionCone && ManifoldPoint.bPotentialRestingContact && Chaos_Manifold_PushOut_StaticFriction);
+			const bool bApplyStaticFriction = (ManifoldPoint.bActive && ManifoldPoint.bInsideStaticFrictionCone && ManifoldPoint.bPotentialRestingContact && Chaos_Manifold_PushOut_StaticFriction);
 			FVec3 LocalContactPoint0 = ManifoldPoint.CoMContactPoints[0];
 			FVec3 LocalContactPoint1 = ManifoldPoint.CoMContactPoints[1];
 
@@ -310,17 +337,33 @@ namespace Chaos
 
 			// Net error we need to correct, including lateral movement to correct for friction
 			FVec3 ContactError = (P1 + RelativeContactPoint1) - (P0 + RelativeContactPoint0);
+
+			// The max rest distance for PBD object is the distance it can move in one frame from rest along the contact normal (i.e., position delta from gravity)
+			if ((Chaos_Manifold_PushOut_DistanceFactor > 0.0f) && (ContactNormal.Z > 0.0f))
+			{
+				// @todo(chaos): pass gravity into the solver if we use this feature. Otherwise remove it.
+				const FReal GravityNegZ = 980.0f;
+				const FReal MaxRestDistance = GravityNegZ * IterationParameters.Dt * IterationParameters.Dt;
+				ContactError += (Chaos_Manifold_PushOut_DistanceFactor * MaxRestDistance * ContactNormal.Z) * ContactNormal;
+			}
+
 			FReal ContactErrorNormal = FVec3::DotProduct(ContactError, ContactNormal);
 
 			// Don't allow objects to be pulled together, but we may still have to correct static friction drift
 			// @todo(chaos): allow undoing of previously added normal pushout
 			if ((ContactErrorNormal < 0.0f) && !Chaos_Manifold_PushOut_NegativePushOut)
 			{
+				// If we have no static friction and no normal separation to enforce, we have nothing to do
+				if (!bApplyStaticFriction)
+				{
+					return;
+				}
+
 				ContactError = ContactError - ContactErrorNormal * ContactNormal;
 				ContactErrorNormal = 0.0f;
 			}
 
-			if (ContactError.SizeSquared() < Chaos_Manifold_PositionTolerance * Chaos_Manifold_PositionTolerance)
+			if (ContactError.SizeSquared() < Chaos_Manifold_PushOut_PositionTolerance * Chaos_Manifold_PushOut_PositionTolerance)
 			{
 				return;
 			}
@@ -541,8 +584,7 @@ namespace Chaos
 
 			Constraint.AccumulatedImpulse = FVec3(0);
 
-			// Velocity solve requires full stiffness for restitution to work correctly
-			const FReal Stiffness = 1.0f;
+			const FReal Stiffness = GetApplyStiffness(IterationParameters.Iteration, IterationParameters.NumIterations);
 
 			// Iterate over the manifold and accumulate velocity corrections - we will apply them after the loop
 			TArrayView<FManifoldPoint> ManifoldPoints = Constraint.GetManifoldPoints();
@@ -671,8 +713,7 @@ namespace Chaos
 			}
 
 			// Gradually increase position correction through iterations (optional based on cvars)
-			const FReal Interpolant = (FReal)(IterationParameters.Iteration + 1) / (FReal)IterationParameters.NumIterations;
-			const FReal Stiffness = FMath::Lerp(Chaos_Manifold_MinPushOutStiffness, Chaos_Manifold_MaxPushOutStiffness, Interpolant);
+			const FReal Stiffness = GetPushOutStiffness(IterationParameters.Iteration, IterationParameters.NumIterations);
 
 			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
 			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
@@ -690,7 +731,17 @@ namespace Chaos
 				{
 					FManifoldPoint& ManifoldPoint = Constraint.SetActiveManifoldPoint(PointIndex, P0, Q0, P1, Q1);
 
-					if (ManifoldPoint.bActive || (ManifoldPoint.ContactPoint.Phi < 0.0f))
+					// The distance we should pushout to
+					FReal PushOutSeparation = 0.0f;
+					if ((Chaos_Manifold_PushOut_DistanceFactor > 0.0f) && (ManifoldPoint.ContactPoint.Normal.Z > 0.0f))
+					{
+						// @todo(chaos): pass gravity into the solver if we use this feature. Otherwise remove it.
+						const FReal GravityNegZ = 980.0f;
+						const FReal MaxRestDistance = GravityNegZ * IterationParameters.Dt * IterationParameters.Dt;
+						PushOutSeparation = (Chaos_Manifold_PushOut_DistanceFactor * MaxRestDistance * ManifoldPoint.ContactPoint.Normal.Z);
+					}
+
+					if (ManifoldPoint.bActive || (ManifoldPoint.ContactPoint.Phi < PushOutSeparation))
 					{
 						ApplyManifoldPushOutCorrection(
 							Stiffness,

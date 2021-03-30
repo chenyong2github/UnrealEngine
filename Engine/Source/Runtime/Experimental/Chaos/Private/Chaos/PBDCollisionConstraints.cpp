@@ -72,9 +72,6 @@ namespace Chaos
 	FRealSingle CollisionRestitutionThresholdOverride = -1.0f;
 	FAutoConsoleVariableRef CVarDefaultCollisionRestitutionThreshold(TEXT("p.CollisionRestitutionThreshold"), CollisionRestitutionThresholdOverride, TEXT("Collision restitution threshold override if >= 0 (units of acceleration)"));
 
-	FRealSingle CollisionCullDistanceOverride = -1.0f;
-	FAutoConsoleVariableRef CVarDefaultCollisionCullDistance(TEXT("p.CollisionCullDistance"), CollisionCullDistanceOverride, TEXT("Collision culling distance override if >= 0"));
-
 	int32 CollisionCanAlwaysDisableContacts = 0;
 	FAutoConsoleVariableRef CVarCollisionCanAlwaysDisableContacts(TEXT("p.CollisionCanAlwaysDisableContacts"), CollisionCanAlwaysDisableContacts, TEXT("Collision culling will always be able to permanently disable contacts"));
 
@@ -103,7 +100,6 @@ namespace Chaos
 		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& InPerParticlePhysicsMaterials,
 		const int32 InApplyPairIterations /*= 1*/,
 		const int32 InApplyPushOutPairIterations /*= 1*/,
-		const FReal InCullDistance /*= (FReal)0*/,
 		const FReal InRestitutionThreshold /*= (FReal)0*/)
 		: bInAppendOperation(false)
 		, Particles(InParticles)
@@ -114,7 +110,6 @@ namespace Chaos
 		, MPerParticlePhysicsMaterials(InPerParticlePhysicsMaterials)
 		, MApplyPairIterations(InApplyPairIterations)
 		, MApplyPushOutPairIterations(InApplyPushOutPairIterations)
-		, MCullDistance(InCullDistance)
 		, RestitutionThreshold(InRestitutionThreshold)	// @todo(chaos): expose as property
 		, bUseCCD(false)
 		, bEnableCollisions(true)
@@ -483,14 +478,6 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdatePointConstraints);
 
-		// Make sure the cull distance is enough if we switched to Accumulated Impulse clipping		
-		// @todo(chaos): remove this - it should be handled in physics settings
-		const int MinCullDistanceForImpulseClipping = 5;
-		if (Collisions::Chaos_Collision_UseAccumulatedImpulseClipSolve && MCullDistance < MinCullDistanceForImpulseClipping)
-		{
-			MCullDistance = MinCullDistanceForImpulseClipping;
-		}
-
 		// @todo(chaos): parallelism needs to be optional
 
 		//PhysicsParallelFor(Handles.Num(), [&](int32 ConstraintHandleIndex)
@@ -507,8 +494,8 @@ namespace Chaos
 
 		for (FRigidBodyPointContactConstraint& Contact : Constraints.SinglePointConstraints)
 		{
-			Collisions::Update(Contact, MCullDistance, Dt);
-			if (Contact.GetPhi() < MCullDistance)
+			Collisions::Update(Contact, Dt);
+			if (Contact.GetPhi() < Contact.GetCullDistance())
 			{
 				Contact.Timestamp = LifespanCounter;
 			}
@@ -518,7 +505,6 @@ namespace Chaos
 	Collisions::FContactParticleParameters FPBDCollisionConstraints::GetContactParticleParameters(const FReal Dt)
 	{
 		return { 
-			(CollisionCullDistanceOverride >= 0.0f) ? CollisionCullDistanceOverride : MCullDistance,
 			(CollisionRestitutionThresholdOverride >= 0.0f) ? CollisionRestitutionThresholdOverride * Dt : RestitutionThreshold * Dt,
 			CollisionCanAlwaysDisableContacts ? true : (CollisionCanNeverDisableContacts ? false : bCanDisableContacts),
 			&MCollided,

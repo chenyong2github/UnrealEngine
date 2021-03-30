@@ -45,7 +45,7 @@ namespace Chaos
 	// Use GJK (point to convex) to calculate separation.
 	// Fall back to plane testing if penetrating by more than Radius.
 	template<typename T_CONVEX>
-	FContactPoint ConvexSphereContactPointImpl(const T_CONVEX& Convex, const FRigidTransform3& ConvexTransform, const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, FReal CullDistance)
+	FContactPoint ConvexSphereContactPointImpl(const T_CONVEX& Convex, const FRigidTransform3& ConvexTransform, const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform)
 	{
 		FContactPoint ContactPoint;
 		if (Convex.NumPlanes() > 0)
@@ -94,58 +94,58 @@ namespace Chaos
 	}
 
 	template<typename T_CONVEX>
-	FContactPoint SphereConvexContactPointImpl(const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, const T_CONVEX& Convex, const FRigidTransform3& ConvexTransform, FReal CullDistance)
+	FContactPoint SphereConvexContactPointImpl(const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, const T_CONVEX& Convex, const FRigidTransform3& ConvexTransform)
 	{
-		return ConvexSphereContactPointImpl(Convex, ConvexTransform, Sphere, SphereTransform, CullDistance).SwapShapes();
+		return ConvexSphereContactPointImpl(Convex, ConvexTransform, Sphere, SphereTransform).SwapShapes();
 	}
 
-	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, const FImplicitConvex3& Convex, const FRigidTransform3& ConvexTransform, FReal CullDistance)
+	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, const FImplicitConvex3& Convex, const FRigidTransform3& ConvexTransform)
 	{
-		return SphereConvexContactPointImpl(Sphere, SphereTransform, Convex, ConvexTransform, CullDistance);
+		return SphereConvexContactPointImpl(Sphere, SphereTransform, Convex, ConvexTransform);
 	}
 
-	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, const TImplicitObjectInstanced<FImplicitConvex3>& Convex, const FRigidTransform3& ConvexTransform, FReal CullDistance)
+	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, const TImplicitObjectInstanced<FImplicitConvex3>& Convex, const FRigidTransform3& ConvexTransform)
 	{
-		return SphereConvexContactPointImpl(Sphere, SphereTransform, Convex, ConvexTransform, CullDistance);
+		return SphereConvexContactPointImpl(Sphere, SphereTransform, Convex, ConvexTransform);
 	}
 
-	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, const TImplicitObjectScaled<FImplicitConvex3>& Convex, const FRigidTransform3& ConvexTransform, FReal CullDistance)
+	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, const TImplicitObjectScaled<FImplicitConvex3>& Convex, const FRigidTransform3& ConvexTransform)
 	{
-		return SphereConvexContactPointImpl(Sphere, SphereTransform, Convex, ConvexTransform, CullDistance);
-	}
-
-
-
-	FContactPoint ConvexSphereContactPoint(const FImplicitConvex3& Convex, const FRigidTransform3& ConvexTransform, const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, FReal CullDistance)
-	{
-		return ConvexSphereContactPointImpl(Convex, ConvexTransform, Sphere, SphereTransform, CullDistance);
-	}
-
-	FContactPoint ConvexSphereContactPoint(const TImplicitObjectInstanced<FImplicitConvex3>& Convex, const FRigidTransform3& ConvexTransform, const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, FReal CullDistance)
-	{
-		return ConvexSphereContactPointImpl(Convex, ConvexTransform, Sphere, SphereTransform, CullDistance);
-	}
-
-	FContactPoint ConvexSphereContactPoint(const TImplicitObjectScaled<FImplicitConvex3>& Convex, const FRigidTransform3& ConvexTransform, const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, FReal CullDistance)
-	{
-		return ConvexSphereContactPointImpl(Convex, ConvexTransform, Sphere, SphereTransform, CullDistance);
+		return SphereConvexContactPointImpl(Sphere, SphereTransform, Convex, ConvexTransform);
 	}
 
 
 
-	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, const FImplicitObject& Object, const FRigidTransform3& ConvexTransform, FReal CullDistance)
+	FContactPoint ConvexSphereContactPoint(const FImplicitConvex3& Convex, const FRigidTransform3& ConvexTransform, const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform)
+	{
+		return ConvexSphereContactPointImpl(Convex, ConvexTransform, Sphere, SphereTransform);
+	}
+
+	FContactPoint ConvexSphereContactPoint(const TImplicitObjectInstanced<FImplicitConvex3>& Convex, const FRigidTransform3& ConvexTransform, const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform)
+	{
+		return ConvexSphereContactPointImpl(Convex, ConvexTransform, Sphere, SphereTransform);
+	}
+
+	FContactPoint ConvexSphereContactPoint(const TImplicitObjectScaled<FImplicitConvex3>& Convex, const FRigidTransform3& ConvexTransform, const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform)
+	{
+		return ConvexSphereContactPointImpl(Convex, ConvexTransform, Sphere, SphereTransform);
+	}
+
+
+
+	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const FRigidTransform3& SphereTransform, const FImplicitObject& Object, const FRigidTransform3& ConvexTransform)
 	{
 		if (const TImplicitObjectInstanced<FImplicitConvex3>* InstancedConvex = Object.template GetObject<const TImplicitObjectInstanced<FImplicitConvex3>>())
 		{
-			return SphereConvexContactPoint(Sphere, SphereTransform, *InstancedConvex, ConvexTransform, CullDistance);
+			return SphereConvexContactPoint(Sphere, SphereTransform, *InstancedConvex, ConvexTransform);
 		}
 		else if (const TImplicitObjectScaled<FImplicitConvex3>* ScaledConvex = Object.template GetObject<const TImplicitObjectScaled<FImplicitConvex3>>())
 		{
-			return SphereConvexContactPoint(Sphere, SphereTransform, *ScaledConvex, ConvexTransform, CullDistance);
+			return SphereConvexContactPoint(Sphere, SphereTransform, *ScaledConvex, ConvexTransform);
 		}
 		else if (const FImplicitConvex3* Convex = Object.template GetObject<const FImplicitConvex3>())
 		{
-			return SphereConvexContactPoint(Sphere, SphereTransform, *Convex, ConvexTransform, CullDistance);
+			return SphereConvexContactPoint(Sphere, SphereTransform, *Convex, ConvexTransform);
 		}
 		return FContactPoint();
 	}

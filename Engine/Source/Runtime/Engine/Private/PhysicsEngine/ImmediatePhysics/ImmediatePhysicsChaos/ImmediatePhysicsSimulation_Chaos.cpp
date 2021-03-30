@@ -789,7 +789,6 @@ namespace ImmediatePhysics_Chaos
 			Implementation->Collisions.SetCollisionsEnabled(ChaosImmediate_Collision_Enabled != 0);
 			Implementation->CollisionsRule.SetPriority(ChaosImmediate_Collision_Priority);
 
-			Implementation->Collisions.SetCullDistance(ChaosImmediate_Collision_CullDistance);
 			Implementation->BroadPhase.SetCullDustance(ChaosImmediate_Collision_CullDistance);
 			Implementation->Evolution.SetBoundsExtension(ChaosImmediate_Evolution_BoundsExtension);
 

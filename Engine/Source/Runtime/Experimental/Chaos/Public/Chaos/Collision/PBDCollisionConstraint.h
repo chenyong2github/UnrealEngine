@@ -251,6 +251,7 @@ namespace Chaos
 
 		FRigidBodyPointContactConstraint() 
 			: Base(Base::FType::SinglePoint)
+			, CullDistance(FLT_MAX)
 			, bUseManifold(false)
 		{}
 
@@ -263,13 +264,18 @@ namespace Chaos
 			const FImplicitObject* Implicit1, 
 			const FBVHParticles* Simplicial1, 
 			const FRigidTransform3& Transform1,
+			const FReal InCullDistance,
 			const EContactShapesType ShapesType,
 			const bool bInUseManifold)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial0, Transform1, Base::FType::SinglePoint, ShapesType)
+			, CullDistance(InCullDistance)
 			, bUseManifold(bInUseManifold)
 		{}
 
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
+
+		FReal GetCullDistance() const { return CullDistance; }
+		void SetCullDistance(FReal InCullDistance) { CullDistance = InCullDistance; }
 
 		bool GetUseManifold() const { return bUseManifold; }
 
@@ -307,9 +313,11 @@ namespace Chaos
 			const FImplicitObject* Implicit1, 
 			const FBVHParticles* Simplicial1,
 			const FRigidTransform3& Transform1,
-			typename Base::FType InType, 
+			const FReal InCullDistance,
+			typename Base::FType InType,
 			const EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial1, Transform1, InType, ShapesType)
+			, CullDistance(InCullDistance)
 			, bUseManifold(false)
 		{}
 
@@ -318,11 +326,14 @@ namespace Chaos
 		int32 AddManifoldPoint(const FContactPoint& ContactPoint, const FReal Dt);
 		void InitManifoldPoint(FManifoldPoint& ManifoldPoint, FReal Dt);
 		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint, const FReal Dt);
+		void UpdateManifoldPointFromContact(FManifoldPoint& ManifoldPoint);
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
+		void GetWorldSpaceManifoldPoint(const FManifoldPoint& ManifoldPoint, const FVec3& P0, const FRotation3& Q0, const FVec3& P1, const FRotation3& Q1, FVec3& OutContactLocation, FVec3& OutContactNormal, FReal& OutContactPhi);
 
 		// @todo(chaos): Switching this to inline allocator does not help, but maybe a physics scratchpad would
 		//TArray<FManifoldPoint, TInlineAllocator<4>> ManifoldPoints;
 		TArray<FManifoldPoint> ManifoldPoints;
+		FReal CullDistance;
 		bool bUseManifold;
 	};
 
@@ -346,8 +357,9 @@ namespace Chaos
 			const FImplicitObject* Implicit1, 
 			const FBVHParticles* Simplicial1, 
 			const FRigidTransform3& Transform1,
+			const FReal InCullDistance,
 			EContactShapesType ShapesType)
-			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial1, Transform1, Base::FType::SinglePointSwept, ShapesType)
+			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial1, Transform1, InCullDistance, Base::FType::SinglePointSwept, ShapesType)
 			, TimeOfImpact(0)
 		{}
 
