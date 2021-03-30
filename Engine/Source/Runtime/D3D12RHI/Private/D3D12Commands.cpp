@@ -406,6 +406,10 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 							State |= Resource->GetReadableState();
 						}
 					}
+					else if (Info.AccessAfter == ERHIAccess::ShadingRateSource)
+					{
+						State |= D3D12_RESOURCE_STATE_SHADING_RATE_SOURCE;
+					}
 				}
 
 				if (State == D3D12_RESOURCE_STATE_COMMON)
@@ -1190,8 +1194,8 @@ void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 		{
 			CommandListHandle.GraphicsCommandList5()->RSSetShadingRateImage(nullptr);
 		}
-		CommandListHandle.GraphicsCommandList5()->RSSetShadingRate(VRSShadingRate, VRSCombiners);
 	}
+	CommandListHandle.GraphicsCommandList5()->RSSetShadingRate(VRSShadingRate, VRSCombiners);
 #endif
 }
 

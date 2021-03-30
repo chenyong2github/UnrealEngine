@@ -2579,7 +2579,6 @@ struct FRHIRenderPassInfo
 	FResolveParams ResolveParameters;
 
 	// Some RHIs can use a texture to control the sampling and/or shading resolution of different areas 
-	// (@todo: This implementation is specific to fixed foveated rendering, and will be updated or replaced as a more general pathway comes online)
 	FTextureRHIRef ShadingRateTexture = nullptr;
 	EVRSRateCombiner ShadingRateTextureCombiner = VRSRB_Passthrough;
 

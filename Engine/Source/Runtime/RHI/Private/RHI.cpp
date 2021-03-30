@@ -142,6 +142,7 @@ FString GetRHIAccessName(ERHIAccess Access)
 			case ERHIAccess::CopyDest:            return TEXT("CopyDest");
 			case ERHIAccess::ResolveDst:          return TEXT("ResolveDst");
 			case ERHIAccess::DSVWrite:            return TEXT("DSVWrite");
+			case ERHIAccess::ShadingRateSource:	  return TEXT("ShadingRateSource");
 			}
 		});
 	}

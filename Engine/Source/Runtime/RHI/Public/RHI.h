@@ -759,6 +759,9 @@ enum class ERHIAccess
 	ResolveDst          = 1 << 13,
 	DSVWrite            = 1 << 14,
 
+	// Custom (special) states:
+	ShadingRateSource	= 1 << 15,
+
 	Last = DSVWrite,
 	None = Unknown,
 	Mask = (Last << 1) - 1,
