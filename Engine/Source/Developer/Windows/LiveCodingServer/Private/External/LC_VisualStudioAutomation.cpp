@@ -4,7 +4,7 @@
 #include "LC_COMThread.h"
 #include "LC_StringUtil.h"
 #include "LC_Logging.h"
-#include "Windows/COMPointer.h"
+#include "Microsoft/COMPointer.h"
 
 #if WITH_VISUALSTUDIO_DTE
 

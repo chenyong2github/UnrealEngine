@@ -13,7 +13,7 @@
 #include "IMediaView.h"
 #include "Misc/Timespan.h"
 #include "Templates/SharedPointer.h"
-#include "Windows/COMPointer.h"
+#include "Microsoft/COMPointer.h"
 
 #include "IMfMediaSourceReaderSink.h"
 

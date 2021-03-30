@@ -16,7 +16,7 @@
 
 #include "RenderUtils.h"
 
-#include "Windows/COMPointer.h"
+#include "Microsoft/COMPointer.h"
 
 /**
  * Texture sample for hardware video decoding.

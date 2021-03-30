@@ -9,7 +9,7 @@
 
 #if PIX_PLUGIN_ENABLED
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include "Windows/ComPointer.h"
+#include "Microsoft/COMPointer.h"
 #include <dxgi1_3.h>
 #endif
 

@@ -11,7 +11,7 @@
 #include "MediaObjectPool.h"
 #include "MediaSampleQueue.h"
 #include "Misc/Timespan.h"
-#include "Windows/COMPointer.h"
+#include "Microsoft/COMPointer.h"
 
 #include "MfMediaSample.h"
 #include "MfMediaUtils.h"

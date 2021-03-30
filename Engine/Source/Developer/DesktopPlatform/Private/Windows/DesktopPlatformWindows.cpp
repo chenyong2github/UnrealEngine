@@ -4,7 +4,7 @@
 #include "DesktopPlatformPrivate.h"
 #include "Misc/FeedbackContextMarkup.h"
 #include "WindowsNativeFeedbackContext.h"
-#include "Windows/COMPointer.h"
+#include "Microsoft/COMPointer.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
 #include "HAL/FileManager.h"

@@ -43,7 +43,7 @@
 #include <AppxPackaging.h>
 #endif
 
-#include "Windows/ComPointer.h"
+#include "Microsoft/COMPointer.h"
 
 #if WITH_ENGINE
 #include "Engine/World.h"
