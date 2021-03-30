@@ -1879,7 +1879,7 @@ namespace GameplayTagsManager
 	UObject.
 -----------------------------------------------------------------------------*/
 
-namespace UE4
+namespace UE
 {
 	/**
 	 * Controls how calls to LoadConfig() should be propagated
@@ -1914,6 +1914,18 @@ namespace UE4
 		 */
 		LCPF_PersistentFlags		=	LCPF_ReloadingConfigData,
 	};
+}
+
+namespace UE4
+{
+	using ELoadConfigPropagationFlags UE_DEPRECATED(5.0, "Use UE namespace instead of UE4") = UE::ELoadConfigPropagationFlags;
+
+	UE_DEPRECATED(5.0, "Use UE namespace instead of UE4") static constexpr UE::ELoadConfigPropagationFlags LCPF_None							= UE::ELoadConfigPropagationFlags::LCPF_None;
+	UE_DEPRECATED(5.0, "Use UE namespace instead of UE4") static constexpr UE::ELoadConfigPropagationFlags LCPF_ReadParentSections				= UE::ELoadConfigPropagationFlags::LCPF_ReadParentSections;
+	UE_DEPRECATED(5.0, "Use UE namespace instead of UE4") static constexpr UE::ELoadConfigPropagationFlags LCPF_PropagateToChildDefaultObjects	= UE::ELoadConfigPropagationFlags::LCPF_PropagateToChildDefaultObjects;
+	UE_DEPRECATED(5.0, "Use UE namespace instead of UE4") static constexpr UE::ELoadConfigPropagationFlags LCPF_PropagateToInstances			= UE::ELoadConfigPropagationFlags::LCPF_PropagateToInstances;
+	UE_DEPRECATED(5.0, "Use UE namespace instead of UE4") static constexpr UE::ELoadConfigPropagationFlags LCPF_ReloadingConfigData				= UE::ELoadConfigPropagationFlags::LCPF_ReloadingConfigData;
+	UE_DEPRECATED(5.0, "Use UE namespace instead of UE4") static constexpr UE::ELoadConfigPropagationFlags LCPF_PersistentFlags					= UE::ELoadConfigPropagationFlags::LCPF_PersistentFlags;
 }
 
 

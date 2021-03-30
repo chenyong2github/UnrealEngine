@@ -157,7 +157,7 @@ bool FSettingsSection::Import( const FString& Filename )
 
 	if (SettingsObject.IsValid())
 	{
-		SettingsObject->LoadConfig(SettingsObject->GetClass(), *Filename, UE4::LCPF_PropagateToInstances);
+		SettingsObject->LoadConfig(SettingsObject->GetClass(), *Filename, UE::LCPF_PropagateToInstances);
 
 		return true;
 	}
@@ -182,7 +182,7 @@ bool FSettingsSection::ResetDefaults()
 
 		FConfigCacheIni::LoadGlobalIniFile(ConfigName, *FPaths::GetBaseFilename(ConfigName), nullptr, true);
 
-		SettingsObject->ReloadConfig(nullptr, nullptr, UE4::LCPF_PropagateToInstances|UE4::LCPF_PropagateToChildDefaultObjects);
+		SettingsObject->ReloadConfig(nullptr, nullptr, UE::LCPF_PropagateToInstances|UE::LCPF_PropagateToChildDefaultObjects);
 
 		return true;
 	}
@@ -250,7 +250,7 @@ bool FSettingsSection::SaveDefaults()
 	if (SettingsObject.IsValid())
 	{
 		SettingsObject->UpdateDefaultConfigFile();
-		SettingsObject->ReloadConfig(nullptr, nullptr, UE4::LCPF_PropagateToInstances);
+		SettingsObject->ReloadConfig(nullptr, nullptr, UE::LCPF_PropagateToInstances);
 
 		return true;			
 	}
