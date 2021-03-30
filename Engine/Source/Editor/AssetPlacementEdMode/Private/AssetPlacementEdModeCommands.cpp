@@ -9,7 +9,7 @@ FAssetPlacementEdModeCommands::FAssetPlacementEdModeCommands()
 	: TCommands<FAssetPlacementEdModeCommands>("AssetPlacementEdMode",
 		LOCTEXT("AssetPlacementEdModeCommands", "AssetPlacement Editor Mode Commands"),
 		NAME_None,
-		FAssetPlacementEdModeStyle::GetStyleSetName())
+		FAssetPlacementEdModeStyle::Get().GetStyleSetName())
 {
 }
 

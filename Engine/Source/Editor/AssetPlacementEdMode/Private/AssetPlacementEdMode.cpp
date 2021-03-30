@@ -40,7 +40,7 @@ UAssetPlacementEdMode::UAssetPlacementEdMode()
 	TAttribute<bool> IsEnabledAttr = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([]() -> bool { return GetDefault<ULevelEditorMiscSettings>()->bEnableAssetPlacementMode; }));
 	Info = FEditorModeInfo(UAssetPlacementEdMode::AssetPlacementEdModeID,
 		LOCTEXT("AssetPlacementEdModeName", "Placement"),
-		FSlateIcon(FAssetPlacementEdModeStyle::GetStyleSetName(), "PlacementBrowser.ShowAllContent"),
+		FSlateIcon(FAssetPlacementEdModeStyle::Get().GetStyleSetName(), "LevelEditor.AssetPlacementEdMode"),
 		MoveTemp(IsEnabledAttr));
 }
 

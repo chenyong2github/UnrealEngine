@@ -3,27 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-class FSlateStyleSet;
-class ISlateStyle;
+#include "Styling/SlateStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 
 class FAssetPlacementEdModeStyle
+	: public FSlateStyleSet
 {
 public:
-	~FAssetPlacementEdModeStyle();
+	virtual const FName& GetStyleSetName() const override;
 
-	static void Initialize();
-
+	static const FAssetPlacementEdModeStyle& Get();
 	static void Shutdown();
-
-	static FName GetStyleSetName();
-	static const ISlateStyle& Get();
+	
+	~FAssetPlacementEdModeStyle();
 
 private:
 	FAssetPlacementEdModeStyle();
 
-	void SetupCustomStyle();
-
-	TSharedPtr<FSlateStyleSet> StyleSet;
-	static TSharedPtr<FAssetPlacementEdModeStyle> AssetPlacementEdModeStyle;
+	static FName StyleName;
+	static TUniquePtr<FAssetPlacementEdModeStyle> Inst;
 };

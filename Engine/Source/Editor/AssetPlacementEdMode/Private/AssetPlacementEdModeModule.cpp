@@ -11,7 +11,7 @@ IMPLEMENT_MODULE( FAssetPlacementEdMode, AssetPlacementEdMode );
 
 void FAssetPlacementEdMode::StartupModule()
 {
-	FAssetPlacementEdModeStyle::Initialize();
+	FAssetPlacementEdModeStyle::Get();
 	FAssetPlacementEdModeCommands::Register();
 }
 
