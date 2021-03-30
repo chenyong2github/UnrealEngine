@@ -517,6 +517,19 @@ UObject* USoundFactory::CreateObject
 		// Store the current file path and timestamp for re-import purposes
 		Sound->AssetImportData->Update(CurrentFilename);
 
+		// Setup the cue points
+		Sound->CuePoints.Reset(WaveInfo.WaveCues.Num());
+
+		for (FWaveCue& WaveCue : WaveInfo.WaveCues)
+		{
+			FSoundWaveCuePoint NewCuePoint;
+			NewCuePoint.CuePointID = (int32)WaveCue.CuePointID;
+			NewCuePoint.FrameLength = (int32)WaveCue.SampleLength;
+			NewCuePoint.FramePosition = (int32)WaveCue.Position;
+			NewCuePoint.Label = WaveCue.Label;
+			Sound->CuePoints.Add(NewCuePoint);
+		}
+
 		// Compressed data is now out of date.
 		const bool bRebuildStreamingChunks = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
 		Sound->InvalidateCompressedData(true /* bFreeResources */, bRebuildStreamingChunks);

@@ -807,9 +807,18 @@ public:
 #endif //ENABLE_AUDIO_DEBUG
 };
 
-/*-----------------------------------------------------------------------------
-	FWaveModInfo. 
------------------------------------------------------------------------------*/
+// Data representing a cue in a wave file
+struct FWaveCue
+{
+	// Unique identifying gvalue for the cue
+	uint32 CuePointID = 0;
+	// Sample offset associated with the cue point
+	uint32 Position = 0;
+	// Cue label
+	FString Label;
+	// If this is a region, it will have a duration (sample length)
+	uint32 SampleLength = 0;
+};
 
 //
 // Structure for in-memory interpretation and modification of WAVE sound structures.
@@ -834,6 +843,9 @@ public:
 	const uint8*  WaveDataEnd;
 
 	uint32  NewDataSize;
+
+	// List of cues parsed from the wave file
+	TArray<FWaveCue> WaveCues;
 
 	// Constructor.
 	FWaveModInfo()

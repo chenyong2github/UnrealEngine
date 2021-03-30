@@ -277,6 +277,29 @@ enum class ESoundWaveFFTSize : uint8
 	VeryLarge_2048,
 };
 
+// Struct defining a cue point in a sound wave asset
+USTRUCT()
+struct FSoundWaveCuePoint
+{
+	GENERATED_USTRUCT_BODY()
+
+	// Unique identifier for the wave cue point
+	UPROPERTY(Category = Info, VisibleAnywhere)
+	int32 CuePointID = 0;
+
+	// The label for the cue point
+	UPROPERTY(Category = Info, VisibleAnywhere)
+	FString Label;
+
+	// The frame position of the cue point
+	UPROPERTY(Category = Info, VisibleAnywhere)
+	int32 FramePosition = 0;
+
+	// The frame length of the cue point (non-zero if it's a region)
+	UPROPERTY(Category = Info, VisibleAnywhere)
+	int32 FrameLength = 0;
+};
+
 struct ISoundWaveClient
 {
 	ISoundWaveClient() {}
@@ -313,6 +336,8 @@ public:
 	uint32 GetNumChannels() const { return NumChannels; }
 	uint32 GetNumChunks() const;
 	uint32 GetSizeOfChunk(uint32 ChunkIndex) const;
+	int32 GetNumFrames() const { return NumFrames; }
+	float GetDuration() const { return Duration; }
 
 	void ReleaseCompressedAudio();
 
@@ -353,6 +378,8 @@ private:
 	float SampleRate;
 	uint32 NumChannels;
 	uint32 NumChunks;
+	float Duration;
+	int32 NumFrames;
 	FAudioChunkHandle FirstChunk;
 	ESoundWaveLoadingBehavior LoadingBehavior;
 
@@ -378,35 +405,35 @@ class ENGINE_API USoundWave : public USoundBase, public IAudioProxyDataFactory
 public:
 	/** Platform agnostic compression quality. 1..100 with 1 being best compression and 100 being best quality. */
 	UPROPERTY(EditAnywhere, Category = "Format|Quality", meta = (DisplayName = "Compression", ClampMin = "1", ClampMax = "100"), AssetRegistrySearchable)
-		int32 CompressionQuality;
+	int32 CompressionQuality;
 
 	/** Priority of this sound when streaming (lower priority streams may not always play) */
 	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (ClampMin = 0))
-		int32 StreamingPriority;
+	int32 StreamingPriority;
 
 	/** Quality of sample rate conversion for platforms that opt into resampling during cook. The sample rate for each enumeration is definable per platform in platform target settings. */
 	UPROPERTY(EditAnywhere, Category = "Format|Quality")
-		ESoundwaveSampleRateSettings SampleRateQuality;
+	ESoundwaveSampleRateSettings SampleRateQuality;
 
 	/** Type of buffer this wave uses. Set once on load */
 	TEnumAsByte<EDecompressionType> DecompressionType;
 
 	UPROPERTY(EditAnywhere, Category = Sound, meta = (DisplayName = "Group"))
-		TEnumAsByte<ESoundGroup> SoundGroup;
+	TEnumAsByte<ESoundGroup> SoundGroup;
 
 	/** If set, when played directly (not through a sound cue) the wave will be played looping. */
 	UPROPERTY(EditAnywhere, Category = Sound, AssetRegistrySearchable)
-		uint8 bLooping : 1;
+	uint8 bLooping : 1;
 
 	/** Whether this sound can be streamed to avoid increased memory usage. If using Stream Caching, use Loading Behavior instead to control memory usage. */
 	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (DisplayName = "Force Streaming"))
-		uint8 bStreaming : 1;
+	uint8 bStreaming : 1;
 
 	/** Whether this sound supports seeking. This requires recooking with a codec which supports seekability and streaming. */
 	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (DisplayName = "Seekable", EditCondition = "bStreaming"))
-		uint8 bSeekableStreaming : 1;
+	uint8 bSeekableStreaming : 1;
 
-// Loading behavior members are lazily initialized in const getters
+	// Loading behavior members are lazily initialized in const getters
 	/** Specifies how and when compressed audio data is loaded for asset if stream caching is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Loading", meta = (DisplayName = "Loading Behavior Override"))
 	mutable ESoundWaveLoadingBehavior LoadingBehavior;
@@ -431,26 +458,26 @@ public:
 
 	/** If set to true if this sound is considered to contain mature/adult content. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles, AssetRegistrySearchable)
-		uint8 bMature : 1;
+	uint8 bMature : 1;
 
 	/** If set to true will disable automatic generation of line breaks - use if the subtitles have been split manually. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
-		uint8 bManualWordWrap : 1;
+	uint8 bManualWordWrap : 1;
 
 	/** If set to true the subtitles display as a sequence of single lines as opposed to multiline. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
-		uint8 bSingleLine : 1;
+	uint8 bSingleLine : 1;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-		uint8 bVirtualizeWhenSilent_DEPRECATED : 1;
+	uint8 bVirtualizeWhenSilent_DEPRECATED : 1;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Whether or not this source is ambisonics file format. If set, sound always uses the
 	  * 'Master Ambisonics Submix' as set in the 'Audio' category of Project Settings'
 	  * and ignores submix if provided locally or in the referenced SoundClass. */
 	UPROPERTY(EditAnywhere, Category = Format)
-		uint8 bIsAmbisonics : 1;
+	uint8 bIsAmbisonics : 1;
 
 	/** Whether this SoundWave was decompressed from OGG. */
 	uint8 bDecompressedFromOgg : 1;
@@ -494,50 +521,50 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Specify a sound to use for the baked analysis. Will default to this USoundWave if not set. */
 	UPROPERTY(EditAnywhere, Category = "Analysis")
-		TObjectPtr<USoundWave> OverrideSoundToUseForAnalysis;
+	TObjectPtr<USoundWave> OverrideSoundToUseForAnalysis;
 
 	/**
 		Whether or not we should treat the sound wave used for analysis (this or the override) as looping while performing analysis.
 		A looping sound may include the end of the file for inclusion in analysis for envelope and FFT analysis.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Analysis")
-		uint8 TreatFileAsLoopingForAnalysis : 1;
+	uint8 TreatFileAsLoopingForAnalysis : 1;
 
 	/** Whether or not to enable cook-time baked FFT analysis. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|FFT")
-		uint8 bEnableBakedFFTAnalysis : 1;
+	uint8 bEnableBakedFFTAnalysis : 1;
 
 	/** Whether or not to enable cook-time amplitude envelope analysis. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|Envelope")
-		uint8 bEnableAmplitudeEnvelopeAnalysis : 1;
+	uint8 bEnableAmplitudeEnvelopeAnalysis : 1;
 
 	/** The FFT window size to use for fft analysis. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|FFT", meta = (EditCondition = "bEnableBakedFFTAnalysis"))
-		ESoundWaveFFTSize FFTSize;
+	ESoundWaveFFTSize FFTSize;
 
 	/** How many audio frames analyze at a time. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|FFT", meta = (EditCondition = "bEnableBakedFFTAnalysis", ClampMin = "512", UIMin = "512"))
-		int32 FFTAnalysisFrameSize;
+	int32 FFTAnalysisFrameSize;
 
 	/** Attack time in milliseconds of the spectral envelope follower. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|FFT", meta = (EditCondition = "bEnableBakedFFTAnalysis", ClampMin = "0", UIMin = "0"))
-		int32 FFTAnalysisAttackTime;
+	int32 FFTAnalysisAttackTime;
 
 	/** Release time in milliseconds of the spectral envelope follower. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|FFT", meta = (EditCondition = "bEnableBakedFFTAnalysis", ClampMin = "0", UIMin = "0"))
-		int32 FFTAnalysisReleaseTime;
+	int32 FFTAnalysisReleaseTime;
 
 	/** How many audio frames to average a new envelope value. Larger values use less memory for audio envelope data but will result in lower envelope accuracy. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|Envelope", meta = (EditCondition = "bEnableAmplitudeEnvelopeAnalysis", ClampMin = "512", UIMin = "512"))
-		int32 EnvelopeFollowerFrameSize;
+	int32 EnvelopeFollowerFrameSize;
 
 	/** The attack time in milliseconds. Describes how quickly the envelope analyzer responds to increasing amplitudes. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|Envelope", meta = (EditCondition = "bEnableAmplitudeEnvelopeAnalysis", ClampMin = "0", UIMin = "0"))
-		int32 EnvelopeFollowerAttackTime;
+	int32 EnvelopeFollowerAttackTime;
 
 	/** The release time in milliseconds. Describes how quickly the envelope analyzer responds to decreasing amplitudes. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|Envelope", meta = (EditCondition = "bEnableAmplitudeEnvelopeAnalysis", ClampMin = "0", UIMin = "0"))
-		int32 EnvelopeFollowerReleaseTime;
+	int32 EnvelopeFollowerReleaseTime;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Modulation Settings */
@@ -546,15 +573,15 @@ public:
 
 	/** The frequencies (in hz) to analyze when doing baked FFT analysis. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|FFT", meta = (EditCondition = "bEnableBakedFFTAnalysis"))
-		TArray<float> FrequenciesToAnalyze;
+	TArray<float> FrequenciesToAnalyze;
 
 	/** The cooked spectral time data. */
 	UPROPERTY()
-		TArray<FSoundWaveSpectralTimeData> CookedSpectralTimeData;
+	TArray<FSoundWaveSpectralTimeData> CookedSpectralTimeData;
 
 	/** The cooked cooked envelope data. */
 	UPROPERTY()
-		TArray<FSoundWaveEnvelopeTimeData> CookedEnvelopeTimeData;
+	TArray<FSoundWaveEnvelopeTimeData> CookedEnvelopeTimeData;
 
 	/** Helper function to get interpolated cooked FFT data for a given time value. */
 	bool GetInterpolatedCookedFFTDataForTime(float InTime, uint32& InOutLastIndex, TArray<FSoundWaveSpectralData>& OutData, bool bLoop);
@@ -589,7 +616,7 @@ public:
 
 	/** Use this to override how much audio data is loaded when this USoundWave is loaded. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Loading")
-		int32 InitialChunkSize;
+	int32 InitialChunkSize;
 
 private:
 
@@ -617,32 +644,36 @@ public:
 
 	/** A localized version of the text that is actually spoken phonetically in the audio. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
-		FString SpokenText;
+	FString SpokenText;
 
 	/** The priority of the subtitle. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
-		float SubtitlePriority;
+	float SubtitlePriority;
 
 	/** Playback volume of sound 0 to 1 - Default is 1.0. */
 	UPROPERTY(Category = Sound, meta = (ClampMin = "0.0"), EditAnywhere)
-		float Volume;
+	float Volume;
 
 	/** Playback pitch for sound. */
 	UPROPERTY(Category = Sound, meta = (ClampMin = "0.125", ClampMax = "4.0"), EditAnywhere)
-		float Pitch;
+	float Pitch;
 
 	/** Number of channels of multichannel data; 1 or 2 for regular mono and stereo files */
 	UPROPERTY(Category = Info, AssetRegistrySearchable, VisibleAnywhere)
-		int32 NumChannels;
+	int32 NumChannels;
+
+	/** Cue point data */
+	UPROPERTY(Category = Info, VisibleAnywhere)
+	TArray<FSoundWaveCuePoint> CuePoints;
 
 #if WITH_EDITORONLY_DATA
 	/** Offsets into the bulk data for the source wav data */
 	UPROPERTY()
-		TArray<int32> ChannelOffsets;
+	TArray<int32> ChannelOffsets;
 
 	/** Sizes of the bulk data for the source wav data */
 	UPROPERTY()
-		TArray<int32> ChannelSizes;
+	TArray<int32> ChannelSizes;
 
 #endif // WITH_EDITORONLY_DATA
 
@@ -650,7 +681,7 @@ protected:
 
 	/** Cached sample rate for displaying in the tools */
 	UPROPERTY(Category = Info, AssetRegistrySearchable, VisibleAnywhere)
-		int32 SampleRate;
+	int32 SampleRate;
 
 public:
 
@@ -668,23 +699,24 @@ public:
 	 * as the contents of the subtitle is commonly identical to what is spoken.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
-		TArray<struct FSubtitleCue> Subtitles;
+	TArray<struct FSubtitleCue> Subtitles;
 
 #if WITH_EDITORONLY_DATA
 	/** Provides contextual information for the sound to the translator. */
 	UPROPERTY(EditAnywhere, Category = Subtitles)
-		FString Comment;
+	FString Comment;
 
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-		FString SourceFilePath_DEPRECATED;
+	FString SourceFilePath_DEPRECATED;
+	
 	UPROPERTY()
-		FString SourceFileTimestamp_DEPRECATED;
+	FString SourceFileTimestamp_DEPRECATED;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = ImportSettings)
-		TObjectPtr<class UAssetImportData> AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 #endif // WITH_EDITORONLY_DATA
 
@@ -692,11 +724,11 @@ protected:
 
 	/** Curves associated with this sound wave */
 	UPROPERTY(EditAnywhere, Category = SoundWave, AdvancedDisplay)
-		TObjectPtr<class UCurveTable> Curves;
+	TObjectPtr<class UCurveTable> Curves;
 
 	/** Hold a reference to our internal curve so we can switch back to it if we want to */
 	UPROPERTY()
-		TObjectPtr<class UCurveTable> InternalCurves;
+	TObjectPtr<class UCurveTable> InternalCurves;
 
 	/** Potential strong handle to the first chunk of audio data. Can be released via ReleaseCompressedAudioData. */
 	FAudioChunkHandle FirstChunk;

@@ -1110,12 +1110,6 @@ FString FWaveInstance::GetName() const
 }
 
 
-/*-----------------------------------------------------------------------------
-	WaveModInfo implementation - downsampling of wave files.
------------------------------------------------------------------------------*/
-
-//  Macros to convert 4 bytes to a Riff-style ID uint32.
-//  Todo: make these endian independent !!!
 
 #define UE_MAKEFOURCC(ch0, ch1, ch2, ch3)\
 	((uint32)(uint8)(ch0) | ((uint32)(uint8)(ch1) << 8) |\
@@ -1153,6 +1147,62 @@ struct FRiffFormatChunk
 	uint16   nBlockAlign;       // Block size of data = Channels times BYTES per sample.
 	uint16   wBitsPerSample;    // Number of bits per sample of mono data.
 	uint16   cbSize;            // The count in bytes of the size of extra information (after cbSize).
+};
+
+// ChunkID: 'cue ' 
+// A cue chunk specifies one or more sample offsets which are often used to mark noteworthy sections of audio. For example, 
+// the beginning and end of a verse in a song may have cue points to make them easier to find. The cue chunk is optional and 
+// if included, a single cue chunk should specify all cue points for the "WAVE" chunk. 
+// No more than one cue chunk is allowed in a "WAVE" chunk.
+struct FRiffCueChunk
+{
+	uint32 ChunkID;			// 'cue '
+	uint32 ChunkDataSize;	// Depends on the number of cue points
+	uint32 NumCuePoints;	// Number of cue points in the list
+};
+
+struct FRiffCuePointChunk
+{
+	uint32 CueID;			// Unique ID value for the cue point
+	uint32 Position;		// Play order position
+	uint32 DataChunkID;		// RIFF ID of corresponding data chunk
+	uint32 ChunkStart;		// Byte offset of data chunk
+	uint32 BlockStart;		// Byte offset of sample of first channel
+	uint32 SampleOffset;	// Byte offset to sample byte of first channel
+};
+
+struct FRiffListChunk
+{
+	uint32 ChunkID;			// 'list'
+	uint32 ChunkDataSize;	// Depends on contained text
+	uint32 TypeID;			// always 'adtl'
+};
+
+struct FRiffLabelChunk
+{
+	uint32 ChunkID;			// 'labl'
+	uint32 ChunkDataSize;	// depends on contained text
+	uint32 CuePointID;		// Cue Point ID associated with the label
+};
+
+struct FRiffNoteChunk
+{
+	uint32 ChunkID;			// 'note'
+	uint32 ChunkDataSize;	// Depends on size of contained text
+	uint32 CuePointID;		// ID associated with the note
+};
+
+struct FRiffLabeledTextChunk
+{
+	uint32 ChunkID;			// 'ltxt'
+	uint32 ChunkDataSize;	// Depends on contained text
+	uint32 CuePointID;		// ID associated with the labeled text
+	uint32 SampleLength;	// Defines how many samples from the cue point the region or section spans
+	uint32 PurposeID;		// Unused: Specifies what the text is used for. 'scrp' means script text. 'capt' means close-caption.
+	uint16 Country;			// Unused 
+	uint16 Language;		// Unused
+	uint16 Dialect;			// Unused 
+	uint16 CodePage;		// Unused
 };
 
 // FExtendedFormatChunk subformat GUID.
@@ -1204,48 +1254,49 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 {
 	FRiffFormatChunk* FmtChunk;
 	FExtendedFormatChunk* FmtChunkEx = nullptr;
-	FRiffWaveHeaderChunk* RiffHdr = (FRiffWaveHeaderChunk* )WaveData;
+	FRiffWaveHeaderChunk* RiffHdr = (FRiffWaveHeaderChunk*)WaveData;
 	WaveDataEnd = WaveData + WaveDataSize;
 
-	if( WaveDataSize == 0 )
+	if (WaveDataSize == 0)
 	{
-		return( false );
+		return false;
 	}
 
 	// Verify we've got a real 'WAVE' header.
 #if PLATFORM_LITTLE_ENDIAN
-	if( RiffHdr->wID != UE_mmioFOURCC( 'W','A','V','E' ) )
+	if (RiffHdr->wID != UE_mmioFOURCC('W','A','V','E'))
 	{
 		if (ErrorReason) *ErrorReason = TEXT("Invalid WAVE file.");
-		return( false );
+		return false;
 	}
 #else
-	if( ( RiffHdr->wID != ( UE_mmioFOURCC( 'W','A','V','E' ) ) ) &&
-	     ( RiffHdr->wID != ( UE_mmioFOURCC( 'E','V','A','W' ) ) ) )
+	if ((RiffHdr->wID != (UE_mmioFOURCC('W','A','V','E'))) &&
+	     (RiffHdr->wID != (UE_mmioFOURCC('E','V','A','W'))))
 	{
 		ErrorReason = TEXT("Invalid WAVE file.")
-		return( false );
+			return false;
 	}
 
-	bool AlreadySwapped = ( RiffHdr->wID == ( UE_mmioFOURCC('W','A','V','E' ) ) );
-	if( !AlreadySwapped )
+	bool AlreadySwapped = (RiffHdr->wID == (UE_mmioFOURCC('W','A','V','E')));
+	if (!AlreadySwapped)
 	{
-		RiffHdr->rID = INTEL_ORDER32( RiffHdr->rID );
-		RiffHdr->ChunkLen = INTEL_ORDER32( RiffHdr->ChunkLen );
-		RiffHdr->wID = INTEL_ORDER32( RiffHdr->wID );
+		RiffHdr->rID = INTEL_ORDER32(RiffHdr->rID);
+		RiffHdr->ChunkLen = INTEL_ORDER32(RiffHdr->ChunkLen);
+		RiffHdr->wID = INTEL_ORDER32(RiffHdr->wID);
 	}
 #endif
 
-	FRiffChunkOld* RiffChunk = ( FRiffChunkOld* )&WaveData[3 * 4];
+	FRiffChunkOld* RiffChunkStart = (FRiffChunkOld*)&WaveData[3 * 4];
+	FRiffChunkOld* RiffChunk = RiffChunkStart;
 	pMasterSize = &RiffHdr->ChunkLen;
 
 	// Look for the 'fmt ' chunk.
-	while( ( ( ( uint8* )RiffChunk + 8 ) < WaveDataEnd ) && ( INTEL_ORDER32( RiffChunk->ChunkID ) != UE_mmioFOURCC( 'f','m','t',' ' ) ) )
+	while ((((uint8*)RiffChunk + 8) < WaveDataEnd) && (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('f','m','t',' ')))
 	{
-		RiffChunk = ( FRiffChunkOld* )( ( uint8* )RiffChunk + Pad16Bit( INTEL_ORDER32( RiffChunk->ChunkLen ) ) + 8 );
+		RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + Pad16Bit(INTEL_ORDER32(RiffChunk->ChunkLen)) + 8);
 	}
 
-	if( INTEL_ORDER32( RiffChunk->ChunkID ) != UE_mmioFOURCC( 'f','m','t',' ' ) )
+	if (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('f','m','t',' '))
 	{
 		#if !PLATFORM_LITTLE_ENDIAN  // swap them back just in case.
 			if( !AlreadySwapped )
@@ -1259,16 +1310,16 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 		return( false );
 	}
 
-	FmtChunk = ( FRiffFormatChunk* )( ( uint8* )RiffChunk + 8 );
+	FmtChunk = (FRiffFormatChunk*)((uint8*)RiffChunk + 8);
 #if !PLATFORM_LITTLE_ENDIAN
-	if( !AlreadySwapped )
+	if (!AlreadySwapped)
 	{
-		FmtChunk->wFormatTag = INTEL_ORDER16( FmtChunk->wFormatTag );
-		FmtChunk->nChannels = INTEL_ORDER16( FmtChunk->nChannels );
-		FmtChunk->nSamplesPerSec = INTEL_ORDER32( FmtChunk->nSamplesPerSec );
-		FmtChunk->nAvgBytesPerSec = INTEL_ORDER32( FmtChunk->nAvgBytesPerSec );
-		FmtChunk->nBlockAlign = INTEL_ORDER16( FmtChunk->nBlockAlign );
-		FmtChunk->wBitsPerSample = INTEL_ORDER16( FmtChunk->wBitsPerSample );
+		FmtChunk->wFormatTag = INTEL_ORDER16(FmtChunk->wFormatTag);
+		FmtChunk->nChannels = INTEL_ORDER16(FmtChunk->nChannels);
+		FmtChunk->nSamplesPerSec = INTEL_ORDER32(FmtChunk->nSamplesPerSec);
+		FmtChunk->nAvgBytesPerSec = INTEL_ORDER32(FmtChunk->nAvgBytesPerSec);
+		FmtChunk->nBlockAlign = INTEL_ORDER16(FmtChunk->nBlockAlign);
+		FmtChunk->wBitsPerSample = INTEL_ORDER16(FmtChunk->wBitsPerSample);
 	}
 #endif
 	pBitsPerSample = &FmtChunk->wBitsPerSample;
@@ -1278,7 +1329,7 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 	pChannels = &FmtChunk->nChannels;
 	pFormatTag = &FmtChunk->wFormatTag;
 
-	if(OutFormatHeader != NULL)
+	if (OutFormatHeader != NULL)
 	{
 		*OutFormatHeader = FmtChunk;
 	}
@@ -1333,29 +1384,29 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 		pFormatTag = reinterpret_cast<uint16*>(&FmtChunkEx->SubFormat.Data1);
 	}
 
-	// re-initalize the RiffChunk pointer
-	RiffChunk = ( FRiffChunkOld* )&WaveData[3 * 4];
+	// re-initialize the RiffChunk pointer
+	RiffChunk = RiffChunkStart;
 
 	// Look for the 'data' chunk.
-	while( ( ( ( uint8* )RiffChunk + 8 ) <= WaveDataEnd ) && ( INTEL_ORDER32( RiffChunk->ChunkID ) != UE_mmioFOURCC( 'd','a','t','a' ) ) )
+	while ((((uint8*)RiffChunk + 8 ) <= WaveDataEnd ) && (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('d','a','t','a')))
 	{
-		RiffChunk = ( FRiffChunkOld* )( ( uint8* )RiffChunk + Pad16Bit( INTEL_ORDER32( RiffChunk->ChunkLen ) ) + 8 );
+		RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + Pad16Bit(INTEL_ORDER32(RiffChunk->ChunkLen)) + 8);
 	}
 
-	if( INTEL_ORDER32( RiffChunk->ChunkID ) != UE_mmioFOURCC( 'd','a','t','a' ) )
+	if (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('d','a','t','a'))
 	{
 		#if !PLATFORM_LITTLE_ENDIAN  // swap them back just in case.
-			if( !AlreadySwapped )
+			if (!AlreadySwapped)
 			{
-				RiffHdr->rID = INTEL_ORDER32( RiffHdr->rID );
-				RiffHdr->ChunkLen = INTEL_ORDER32( RiffHdr->ChunkLen );
-				RiffHdr->wID = INTEL_ORDER32( RiffHdr->wID );
-				FmtChunk->wFormatTag = INTEL_ORDER16( FmtChunk->wFormatTag );
-				FmtChunk->nChannels = INTEL_ORDER16( FmtChunk->nChannels );
-				FmtChunk->nSamplesPerSec = INTEL_ORDER32( FmtChunk->nSamplesPerSec );
-				FmtChunk->nAvgBytesPerSec = INTEL_ORDER32( FmtChunk->nAvgBytesPerSec );
-				FmtChunk->nBlockAlign = INTEL_ORDER16( FmtChunk->nBlockAlign );
-				FmtChunk->wBitsPerSample = INTEL_ORDER16( FmtChunk->wBitsPerSample );
+				RiffHdr->rID = INTEL_ORDER32(RiffHdr->rID);
+				RiffHdr->ChunkLen = INTEL_ORDER32(RiffHdr->ChunkLen);
+				RiffHdr->wID = INTEL_ORDER32(RiffHdr->wID);
+				FmtChunk->wFormatTag = INTEL_ORDER16(FmtChunk->wFormatTag);
+				FmtChunk->nChannels = INTEL_ORDER16(FmtChunk->nChannels);
+				FmtChunk->nSamplesPerSec = INTEL_ORDER32(FmtChunk->nSamplesPerSec);
+				FmtChunk->nAvgBytesPerSec = INTEL_ORDER32(FmtChunk->nAvgBytesPerSec);
+				FmtChunk->nBlockAlign = INTEL_ORDER16(FmtChunk->nBlockAlign);
+				FmtChunk->wBitsPerSample = INTEL_ORDER16(FmtChunk->wBitsPerSample);
 				if (FmtChunkEx != nullptr)
 				{
 					FmtChunkEx->Samples.wValidBitsPerSample = INTEL_ORDER16(FmtChunkEx->Samples.wValidBitsPerSample);
@@ -1367,67 +1418,67 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 			}
 		#endif
 		if (ErrorReason) *ErrorReason = TEXT("Invalid WAVE file.");
-		return( false );
+		return false;
 	}
 
 #if !PLATFORM_LITTLE_ENDIAN  // swap them back just in case.
-	if( AlreadySwapped ) // swap back into Intel order for chunk search...
+	if (AlreadySwapped) // swap back into Intel order for chunk search...
 	{
-		RiffChunk->ChunkLen = INTEL_ORDER32( RiffChunk->ChunkLen );
+		RiffChunk->ChunkLen = INTEL_ORDER32(RiffChunk->ChunkLen);
 	}
 #endif
 
-	SampleDataStart = ( uint8* )RiffChunk + 8;
+	SampleDataStart = (uint8*)RiffChunk + 8;
 	pWaveDataSize = &RiffChunk->ChunkLen;
 	SampleDataSize = INTEL_ORDER32( RiffChunk->ChunkLen );
 	SampleDataEnd = SampleDataStart + SampleDataSize;
 
-	if( !InHeaderDataOnly && ( uint8* )SampleDataEnd > ( uint8* )WaveDataEnd )
+	if (!InHeaderDataOnly && (uint8*)SampleDataEnd > (uint8*)WaveDataEnd)
 	{
 		UE_LOG(LogAudio, Warning, TEXT( "Wave data chunk is too big!" ) );
 
 		// Fix it up by clamping data chunk.
-		SampleDataEnd = ( uint8* )WaveDataEnd;
+		SampleDataEnd = (uint8*)WaveDataEnd;
 		SampleDataSize = SampleDataEnd - SampleDataStart;
 		RiffChunk->ChunkLen = INTEL_ORDER32( SampleDataSize );
 	}
 
-	if (   *pFormatTag != 0x0001 // WAVE_FORMAT_PCM
+	if (*pFormatTag != 0x0001 // WAVE_FORMAT_PCM
 		&& *pFormatTag != 0x0002 // WAVE_FORMAT_ADPCM
 		&& *pFormatTag != 0x0011) // WAVE_FORMAT_DVI_ADPCM
 	{
 		ReportImportFailure();
 		if (ErrorReason) *ErrorReason = TEXT("Unsupported wave file format.  Only PCM, ADPCM, and DVI ADPCM can be imported.");
-		return( false );
+		return false;
 	}
 
-	if(!InHeaderDataOnly)
+	if (!InHeaderDataOnly)
 	{
-		if( ( uint8* )SampleDataEnd > ( uint8* )WaveDataEnd )
+		if ((uint8*)SampleDataEnd > (uint8*)WaveDataEnd)
 		{
-			UE_LOG(LogAudio, Warning, TEXT( "Wave data chunk is too big!" ) );
+			UE_LOG(LogAudio, Warning, TEXT("Wave data chunk is too big!" ));
 
 			// Fix it up by clamping data chunk.
-			SampleDataEnd = ( uint8* )WaveDataEnd;
+			SampleDataEnd = (uint8*)WaveDataEnd;
 			SampleDataSize = SampleDataEnd - SampleDataStart;
-			RiffChunk->ChunkLen = INTEL_ORDER32( SampleDataSize );
+			RiffChunk->ChunkLen = INTEL_ORDER32(SampleDataSize);
 		}
 
 		NewDataSize = SampleDataSize;
 
 		#if !PLATFORM_LITTLE_ENDIAN
-		if( !AlreadySwapped )
+		if (!AlreadySwapped)
 		{
-			if( FmtChunk->wBitsPerSample == 16 )
+			if (FmtChunk->wBitsPerSample == 16)
 			{
-				for( uint16* i = ( uint16* )SampleDataStart; i < ( uint16* )SampleDataEnd; i++ )
+				for (uint16* i = (uint16*)SampleDataStart; i < (uint16*)SampleDataEnd; i++)
 				{
-					*i = INTEL_ORDER16( *i );
+					*i = INTEL_ORDER16(*i);
 				}
 			}
-			else if( FmtChunk->wBitsPerSample == 32 )
+			else if (FmtChunk->wBitsPerSample == 32)
 			{
-				for( uint32* i = ( uint32* )SampleDataStart; i < ( uint32* )SampleDataEnd; i++ )
+				for (uint32* i = (uint32*)SampleDataStart; i < (uint32*)SampleDataEnd; i++)
 				{
 					*i = INTEL_ORDER32( *i );
 				}
@@ -1438,10 +1489,95 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 
 	// Couldn't byte swap this before, since it'd throw off the chunk search.
 #if !PLATFORM_LITTLE_ENDIAN
-	*pWaveDataSize = INTEL_ORDER32( *pWaveDataSize );
+	*pWaveDataSize = INTEL_ORDER32(*pWaveDataSize);
 #endif
 
-	return( true );
+	// Look for the cue chunks
+	RiffChunk = RiffChunkStart;
+
+	// Look for the 'cue ' chunk.
+	while ((((uint8*)RiffChunk + 8) <= WaveDataEnd) && (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('c', 'u', 'e', ' ')))
+	{
+		RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + Pad16Bit(INTEL_ORDER32(RiffChunk->ChunkLen)) + 8);
+	}
+
+	// Cue chunks are optional
+	if (INTEL_ORDER32(RiffChunk->ChunkID) == UE_mmioFOURCC('c', 'u', 'e', ' '))
+	{
+		FRiffCueChunk* CueChunk = (FRiffCueChunk*)((uint8*)RiffChunk);
+
+		WaveCues.Reset(CueChunk->NumCuePoints);
+
+		// Get to the first cue point chunk
+		FRiffCuePointChunk* CuePointChunks = (FRiffCuePointChunk*)((uint8*)RiffChunk + sizeof(FRiffCueChunk));
+		for (uint32 CuePointId = 0; CuePointId < CueChunk->NumCuePoints; ++CuePointId)
+		{		
+			FWaveCue NewCue;
+			NewCue.CuePointID = CuePointChunks[CuePointId].CueID;
+			NewCue.Position = CuePointChunks[CuePointId].Position;
+			WaveCues.Add(NewCue);
+		
+		}
+		
+		// Now look for labl chunk for labels for cues
+		RiffChunk = RiffChunkStart;
+
+		// Look for the 'list' chunk.
+		while ((((uint8*)RiffChunk + 8) <= WaveDataEnd) && (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('L', 'I', 'S', 'T')))
+		{
+			RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + Pad16Bit(INTEL_ORDER32(RiffChunk->ChunkLen)) + 8);
+		}
+
+		// Label chunks are also optional
+		if (INTEL_ORDER32(RiffChunk->ChunkID) == UE_mmioFOURCC('L', 'I', 'S', 'T'))
+		{
+			FRiffListChunk* ListChunk = (FRiffListChunk*)((uint8*)RiffChunk);
+			
+			RiffChunk = (FRiffChunkOld*)(ListChunk + 1);
+			const uint8* ListChunkEnd = (uint8*)RiffChunk + ListChunk->ChunkDataSize + 4;
+			while (((uint8*)RiffChunk + 8) <= ListChunkEnd)
+			{
+				// Labeled Text Chunk
+				// This information is often displayed in marked regions of a waveform in digital audio editors.
+				if (INTEL_ORDER32(RiffChunk->ChunkID) == UE_mmioFOURCC('l', 't', 'x', 't'))
+				{
+					FRiffLabeledTextChunk* LabeledTextChunk = (FRiffLabeledTextChunk*)((uint8*)RiffChunk);
+					for (FWaveCue& WaveCue : WaveCues)
+					{
+						if (WaveCue.CuePointID == LabeledTextChunk->CuePointID)
+						{
+							WaveCue.SampleLength = LabeledTextChunk->SampleLength;
+							break;
+						}
+					}
+				}
+				// Labeled Chunk
+				else if (INTEL_ORDER32(RiffChunk->ChunkID) == UE_mmioFOURCC('l', 'a', 'b', 'l'))
+				{
+					FRiffLabelChunk* LabelChunk = (FRiffLabelChunk*)((uint8*)RiffChunk);
+
+					for (FWaveCue& WaveCue : WaveCues)
+					{
+						if (WaveCue.CuePointID == LabelChunk->CuePointID)
+						{
+							char* LabelCharText = (char*)(LabelChunk + 1);
+							while (*LabelCharText != '\0')
+							{
+								WaveCue.Label.AppendChar(*LabelCharText);
+								++LabelCharText;
+							}
+							WaveCue.Label.AppendChar('\0');
+							break;
+						}
+					}
+				}
+				RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + Pad16Bit(INTEL_ORDER32(RiffChunk->ChunkLen)) + 8);
+			}
+		}
+	}
+
+
+	return true;
 }
 
 bool FWaveModInfo::ReadWaveHeader(const uint8* RawWaveData, int32 Size, int32 Offset )
