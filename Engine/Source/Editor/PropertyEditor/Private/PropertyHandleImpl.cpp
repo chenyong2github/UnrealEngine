@@ -4004,8 +4004,9 @@ FPropertyAccess::Result FPropertyHandleObject::SetValueFromFormattedString(const
 			}
 		}
 
-		// Parsing passed but object is null, we want to set it to null explicitly
-		FPropertyHandleBase::SetValueFromFormattedString(InValue, Flags);
+		// Parsing passed and QualifiedObject !nullptr and bSupportedObject is true and so we should set the value or
+		// Parsing passed but QualifiedObject is nullptr and we want to set it to null explicitly
+		return FPropertyHandleBase::SetValueFromFormattedString(InValue, Flags);
 	}
 
 	// Failed parsing, it's either invalid format or a nonexistent object
