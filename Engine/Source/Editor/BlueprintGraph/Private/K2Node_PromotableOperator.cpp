@@ -850,6 +850,21 @@ void UK2Node_PromotableOperator::EvaluatePinsFromChange(UEdGraphPin* ChangedPin,
 		return;
 	}
 
+	// If the newest connection to this this pin is a different type,
+	// then we need to break all other type connections that are not the same
+	if(ChangedPin->LinkedTo.Num() > 1)
+	{
+		const FEdGraphPinType& MostRecentConnection = ChangedPin->LinkedTo.Last()->PinType;
+		for(int32 i = ChangedPin->LinkedTo.Num() - 1; i >= 0; --i)
+		{
+			UEdGraphPin* Link = ChangedPin->LinkedTo[i];
+			if(Link->PinType != MostRecentConnection)
+			{
+				ChangedPin->BreakLinkTo(Link);				
+			}
+		}
+	}
+	
 	// Gather all pins and their links so we can determine the highest type
 	TArray<UEdGraphPin*> PinsToConsider;
 	GetPinsToConsider(PinsToConsider);

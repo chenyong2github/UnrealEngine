@@ -2736,8 +2736,6 @@ bool UEdGraphSchema_K2::CreatePromotedConnection(UEdGraphPin* PinA, UEdGraphPin*
 	PinA->Modify();
 	PinB->Modify();
 
-	PinB->BreakAllPinLinks(true);
-
 	PinA->MakeLinkTo(PinB);
 
 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(PinA->GetOwningNode());
