@@ -1309,7 +1309,7 @@ void FSlateUser::UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewToo
 
 		// How long since the tooltip was summoned?
 		const double PlatformSeconds = FPlatformTime::Seconds();
-		const float TimeSinceSummon = PlatformSeconds - TooltipSummonDelay - ActiveTooltipInfo.SummonTime;
+		const float TimeSinceSummon = (float)(PlatformSeconds - TooltipSummonDelay - ActiveTooltipInfo.SummonTime);
 		const float TooltipOpacity = FMath::Clamp<float>(TimeSinceSummon / TooltipIntroDuration, 0.0f, 1.0f);
 
 		// Update window opacity

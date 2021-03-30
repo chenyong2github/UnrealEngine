@@ -254,11 +254,11 @@ FVector2D STextBlock::ComputeDesiredSize(float LayoutScaleMultiplier) const
 	{
 		const FVector2D LocalShadowOffset = GetShadowOffset();
 
-		const float LocalOutlineSize = GetFont().OutlineSettings.OutlineSize;
+		const int32 LocalOutlineSize = GetFont().OutlineSettings.OutlineSize;
 
 		// Account for the outline width impacting both size of the text by multiplying by 2
 		// Outline size in Y is accounted for in MaxHeight calculation in Measure()
-		const FVector2D ComputedOutlineSize(LocalOutlineSize * 2, LocalOutlineSize);
+		const FVector2D ComputedOutlineSize((float)(LocalOutlineSize * 2), (float)LocalOutlineSize);
 		const FVector2D TextSize = FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(GetText(), GetFont()) + ComputedOutlineSize + LocalShadowOffset;
 
 		CachedSimpleDesiredSize = FVector2D(FMath::Max(MinDesiredWidth.Get(0.0f), TextSize.X), TextSize.Y);

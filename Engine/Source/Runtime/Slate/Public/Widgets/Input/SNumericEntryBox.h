@@ -72,7 +72,7 @@ public:
 		, _Label()
 		, _LabelVAlign( VAlign_Fill )
 		, _LabelLocation(ELabelLocation::Outside)
-		, _LabelPadding(FMargin(3,0) )
+		, _LabelPadding(FMargin(3.f,0.f) )
 		, _BorderForegroundColor(FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("NumericEntrySpinBox").ForegroundColor)
 		, _BorderBackgroundColor(FLinearColor::White)
 		, _UndeterminedString( SNumericEntryBox<NumericType>::DefaultUndeterminedString )
@@ -80,13 +80,13 @@ public:
 		, _ShiftMouseMovePixelPerDelta(1)
 		, _SupportDynamicSliderMaxValue(false)
 		, _SupportDynamicSliderMinValue(false)
-		, _Delta(0)
+		, _Delta(NumericType(0))
 		, _MinValue(TNumericLimits<NumericType>::Lowest())
 		, _MaxValue(TNumericLimits<NumericType>::Max())
-		, _MinSliderValue(0)				
-		, _MaxSliderValue(100)
+		, _MinSliderValue(NumericType(0))				
+		, _MaxSliderValue(NumericType(100))
 		, _SliderExponent(1.f)
-		, _MinDesiredValueWidth(0)		
+		, _MinDesiredValueWidth(0.f)
 	{}		
 
 		/** Style to use for the editable text box within this widget */
@@ -274,7 +274,7 @@ public:
 				.BorderImage(this, &SNumericEntryBox<NumericType>::GetBorderImage)
 				.BorderBackgroundColor(InArgs._BorderBackgroundColor)
 				.ForegroundColor(InArgs._BorderForegroundColor)
-				.Padding(0)
+				.Padding(0.f)
 				[
 					Overlay
 				]
@@ -299,7 +299,7 @@ public:
 					.BorderImage(this, &SNumericEntryBox<NumericType>::GetBorderImage)
 					.BorderBackgroundColor(InArgs._BorderBackgroundColor)
 					.ForegroundColor(InArgs._BorderForegroundColor)
-					.Padding(0)
+					.Padding(0.f)
 					[
 						Overlay
 					]
@@ -318,7 +318,7 @@ public:
 			.ForegroundColor(ForegroundColor)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
-			.Padding(FMargin(1, 0, 6, 0))
+			.Padding(FMargin(1.f, 0.f, 6.f, 0.f))
 			[
 				SNew(STextBlock)
 				.Text(LabelText)

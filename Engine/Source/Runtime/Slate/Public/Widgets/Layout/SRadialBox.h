@@ -99,9 +99,13 @@ public:
 	void SetUseAllottedWidth(bool bInUseAllottedWidth);
 
 	/** Mods the angle so it's between 0-360 */
+	UE_DEPRECATED(5.0, "NormalizeAngle is deprecated. You should use the FRotator::NormalizeAxis.")
 	int32 NormalizeAngle(int32 Angle) const;
 
 private:
+
+	/** Mods the angle so it's between 0-360 */
+	float InternalNormalizeAngle(float Angle) const;
 
 	/** How wide this panel should appear to be. */
 	TAttribute<float> PreferredWidth;

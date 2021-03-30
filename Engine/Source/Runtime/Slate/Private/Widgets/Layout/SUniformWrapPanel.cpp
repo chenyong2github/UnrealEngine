@@ -86,7 +86,7 @@ void SUniformWrapPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FA
 
 				if (row == (NumRows - 1))
 				{
-					float NumLastRowColumns = NumVisibleChildren % AdjNumColumns != 0 ? NumVisibleChildren % AdjNumColumns : AdjNumColumns;
+					int32 NumLastRowColumns = (NumVisibleChildren % AdjNumColumns != 0) ? NumVisibleChildren % AdjNumColumns : AdjNumColumns;
 					if (HAlign.Get() == HAlign_Right)
 					{
 						LeftSlop = FMath::FloorToFloat(AllottedGeometry.GetLocalSize().X - (CellSize.X * NumLastRowColumns));

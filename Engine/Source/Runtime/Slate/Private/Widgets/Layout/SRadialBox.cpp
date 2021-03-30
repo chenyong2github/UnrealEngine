@@ -40,7 +40,7 @@ void SRadialBox::Construct( const FArguments& InArgs )
 	bUseAllottedWidth = InArgs._UseAllottedWidth;
 	StartingAngle = InArgs._StartingAngle;
 	bDistributeItemsEvenly = InArgs._bDistributeItemsEvenly;
-	SectorCentralAngle = NormalizeAngle(InArgs._SectorCentralAngle);
+	SectorCentralAngle = InternalNormalizeAngle(InArgs._SectorCentralAngle);
 	AngleBetweenItems = InArgs._AngleBetweenItems;
 
 	for ( int32 ChildIndex=0; ChildIndex < InArgs.Slots.Num(); ++ChildIndex )
@@ -177,4 +177,10 @@ int32 SRadialBox::NormalizeAngle(int32 Angle) const
 {
 	int32 NormalizedAngle = Angle % 360;
 	return NormalizedAngle < 0 ? NormalizedAngle + 360 : NormalizedAngle;
+}
+
+float SRadialBox::InternalNormalizeAngle(float Angle) const
+{
+	float NormalizedAngle = FMath::Fmod(Angle, 360.f);
+	return NormalizedAngle < 0.f ? NormalizedAngle + 360.f : NormalizedAngle;
 }

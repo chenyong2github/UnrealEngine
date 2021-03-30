@@ -227,8 +227,8 @@ TSharedRef<FTabManager::FLayoutNode> FTabManager::FLayout::NewFromString_Helper(
 			{
 				FVector2D WindowSize;
 
-				WindowSize.X = JsonObject->GetNumberField( TEXT("WindowSize_X") );
-				WindowSize.Y = JsonObject->GetNumberField( TEXT("WindowSize_Y") );
+				WindowSize.X = (float)JsonObject->GetNumberField( TEXT("WindowSize_X") );
+				WindowSize.Y = (float)JsonObject->GetNumberField( TEXT("WindowSize_Y") );
 
 				NewArea = FTabManager::NewArea( WindowSize );
 			}
@@ -239,11 +239,11 @@ TSharedRef<FTabManager::FLayoutNode> FTabManager::FLayout::NewFromString_Helper(
 				FVector2D WindowPosition = FVector2D::ZeroVector;
 				FVector2D WindowSize;
 
-				WindowPosition.X = JsonObject->GetNumberField( TEXT("WindowPosition_X") );
-				WindowPosition.Y = JsonObject->GetNumberField( TEXT("WindowPosition_Y") );
+				WindowPosition.X = (float)JsonObject->GetNumberField( TEXT("WindowPosition_X") );
+				WindowPosition.Y = (float)JsonObject->GetNumberField( TEXT("WindowPosition_Y") );
 
-				WindowSize.X = JsonObject->GetNumberField( TEXT("WindowSize_X") );
-				WindowSize.Y = JsonObject->GetNumberField( TEXT("WindowSize_Y") );
+				WindowSize.X = (float)JsonObject->GetNumberField( TEXT("WindowSize_X") );
+				WindowSize.Y = (float)JsonObject->GetNumberField( TEXT("WindowSize_Y") );
 
 				bool bIsMaximized = JsonObject->GetBoolField(TEXT("bIsMaximized"));
 
@@ -253,7 +253,7 @@ TSharedRef<FTabManager::FLayoutNode> FTabManager::FLayout::NewFromString_Helper(
 			break;
 		}
 		
-		NewArea->SetSizeCoefficient( JsonObject->GetNumberField( TEXT("SizeCoefficient") ) );
+		NewArea->SetSizeCoefficient((float)JsonObject->GetNumberField( TEXT("SizeCoefficient") ) );
 		NewArea->SetOrientation( local::OrientationFromString( JsonObject->GetStringField(TEXT("Orientation")) ) );
 
 		TArray< TSharedPtr<FJsonValue> > ChildNodeValues = JsonObject->GetArrayField(TEXT("nodes"));
@@ -267,7 +267,7 @@ TSharedRef<FTabManager::FLayoutNode> FTabManager::FLayout::NewFromString_Helper(
 	else if ( NodeType == TEXT("Splitter") )
 	{
 		TSharedRef<FTabManager::FSplitter> NewSplitter =  FTabManager::NewSplitter();
-		NewSplitter->SetSizeCoefficient( JsonObject->GetNumberField(TEXT("SizeCoefficient")) );
+		NewSplitter->SetSizeCoefficient((float)JsonObject->GetNumberField(TEXT("SizeCoefficient")) );
 		NewSplitter->SetOrientation( local::OrientationFromString( JsonObject->GetStringField(TEXT("Orientation")) ) );
 		TArray< TSharedPtr<FJsonValue> > ChildNodeValues = JsonObject->GetArrayField(TEXT("nodes"));
 		for( int32 ChildIndex=0; ChildIndex < ChildNodeValues.Num(); ++ChildIndex )
@@ -279,7 +279,7 @@ TSharedRef<FTabManager::FLayoutNode> FTabManager::FLayout::NewFromString_Helper(
 	else if ( NodeType == TEXT("Stack") )
 	{
 		TSharedRef<FTabManager::FStack> NewStack = FTabManager::NewStack();
-		NewStack->SetSizeCoefficient( JsonObject->GetNumberField(TEXT("SizeCoefficient")) );
+		NewStack->SetSizeCoefficient((float)JsonObject->GetNumberField(TEXT("SizeCoefficient")) );
 		NewStack->SetHideTabWell( JsonObject->GetBoolField(TEXT("HideTabWell")) );
 
 		if(JsonObject->HasField(TEXT("ForegroundTab")))
@@ -297,7 +297,7 @@ TSharedRef<FTabManager::FLayoutNode> FTabManager::FLayout::NewFromString_Helper(
 			TabId = FGlobalTabmanager::Get()->GetTabTypeForPotentiallyLegacyTab(TabId);
 
 			FString SidebarLocation;
-			double SidebarSizeCoefficient = .15f;
+			float SidebarSizeCoefficient = .15f;
 			if (TabAsJson->TryGetStringField(TEXT("SidebarLocation"), SidebarLocation))
 			{
 				TabAsJson->TryGetNumberField(TEXT("SidebarCoeff"), SidebarSizeCoefficient);
@@ -326,7 +326,7 @@ TSharedPtr<FTabManager::FLayout> FTabManager::FLayout::NewFromString( const FStr
 	{
 		const FString LayoutName = JsonObject->GetStringField(TEXT("Name"));
 		TSharedRef<FTabManager::FLayout> NewLayout = FTabManager::NewLayout( *LayoutName );
-		int32 PrimaryAreaIndex = FMath::TruncToInt( JsonObject->GetNumberField(TEXT("PrimaryAreaIndex")) );
+		int32 PrimaryAreaIndex = FMath::TruncToInt((float)JsonObject->GetNumberField(TEXT("PrimaryAreaIndex")) );
 
 		TArray< TSharedPtr<FJsonValue> > Areas = JsonObject->GetArrayField(TEXT("Areas"));
 		for(int32 AreaIndex=0; AreaIndex < Areas.Num(); ++AreaIndex)

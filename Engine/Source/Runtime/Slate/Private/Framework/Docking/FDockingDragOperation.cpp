@@ -101,16 +101,16 @@ FSlateRect FDockingDragOperation::GetPreviewAreaForDirection ( const FSlateRect&
 	switch( DockingDirection )
 	{
 		case SDockingNode::LeftOf:
-			TargetRect.Right = TargetRect.Left + Size.X * 0.5;
+			TargetRect.Right = TargetRect.Left + Size.X * 0.5f;
 		break;
 		case SDockingNode::Above:
-			TargetRect.Bottom = TargetRect.Top + Size.Y * 0.5;
+			TargetRect.Bottom = TargetRect.Top + Size.Y * 0.5f;
 		break;
 		case SDockingNode::RightOf:
-			TargetRect.Left = TargetRect.Left + Size.X * 0.5;
+			TargetRect.Left = TargetRect.Left + Size.X * 0.5f;
 		break;
 		case SDockingNode::Below:
-			TargetRect.Top = TargetRect.Top + Size.Y * 0.5;
+			TargetRect.Top = TargetRect.Top + Size.Y * 0.5f;
 		break;
 		case SDockingNode::Center:
 		break;
