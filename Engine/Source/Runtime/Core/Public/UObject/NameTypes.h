@@ -791,7 +791,7 @@ public:
 		: FName(NoInit)
 	{
 		TStringView<CharType> View = Forward<CharRangeType>(Name);
-		*this = FName(View.Len(), View.GetData());
+		*this = FName(View.Len(), View.GetData(), FindType);
 	}
 
 	/**
@@ -815,7 +815,7 @@ public:
 		: FName(NoInit)
 	{
 		TStringView<CharType> View = Forward<CharRangeType>(Name);
-		*this = FName(View.Len(), View.GetData(), InNumber);
+		*this = FName(View.Len(), View.GetData(), InNumber, FindType);
 	}
 
 	/**
