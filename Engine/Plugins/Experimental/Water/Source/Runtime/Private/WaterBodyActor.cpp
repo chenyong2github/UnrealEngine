@@ -1373,7 +1373,19 @@ void AWaterBody::PostLoad()
 		static_assert(sizeof(WaterHeightmapSettings) == sizeof(TerrainCarvingSettings_DEPRECATED), "Both old and old water heightmap settings struct should be exactly similar");
 		FMemory::Memcpy((void*)&WaterHeightmapSettings, (void*)&TerrainCarvingSettings_DEPRECATED, sizeof(WaterHeightmapSettings));
 	}
-#endif
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
+	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if (WaterWaves && (WaterWaves->GetOuter() != this))
+		{
+			WaterWaves->ClearFlags(RF_Public);
+			// At one point, WaterWaves's outer was the level. We need them to be outered by the water body : 
+			WaterWaves->Rename(nullptr, this, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
+		}
+	}
+#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 	RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */true);
