@@ -45,7 +45,7 @@ namespace DatasmithRhino.Commands
 			if (DirectLinkManager != null)
 			{
 				bool bLiveLinkToggledValue = !DirectLinkManager.bLiveLinkActive;
-				CommandResult = DirectLinkManager.SetLinkLink(bLiveLinkToggledValue);
+				CommandResult = DirectLinkManager.SetLiveLink(bLiveLinkToggledValue);
 
 				if (CommandResult == Result.Success)
 				{
