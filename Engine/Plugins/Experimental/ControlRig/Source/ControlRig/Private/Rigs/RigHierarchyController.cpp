@@ -688,6 +688,8 @@ FString URigHierarchyController::ExportToText(TArray<FRigElementKey> InKeys) con
 		return FString();
 	}
 
+	Hierarchy->ComputeAllTransforms();
+
 	// sort the keys by traversal order
 	TArray<FRigElementKey> Keys = Hierarchy->SortKeys(InKeys);
 
@@ -1326,6 +1328,14 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 			TransformElement->Pose.MarkDirty(ERigTransformType::CurrentGlobal);
 			TransformElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
 		}
+	}
+
+	if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InChild))
+	{
+		Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
+		Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal);
+		Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentLocal);
+		Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialLocal);
 	}
 
 	if(FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InChild))

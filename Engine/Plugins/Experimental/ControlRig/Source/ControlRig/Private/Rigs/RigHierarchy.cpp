@@ -55,6 +55,10 @@ void URigHierarchy::Save(FArchive& Ar)
 		}
 	}
 
+	// make sure all parts of pose are valid.
+	// this ensures cache validity.
+	ComputeAllTransforms();
+
 	int32 ElementCount = Elements.Num();
 	Ar << ElementCount;
 
@@ -216,19 +220,6 @@ void URigHierarchy::Load(FArchive& Ar)
 				bContinue = false;
 			}
 		});
-	}
-
-	// load all parts of the hierarchy pose
-	// this ensures cache validity
-	for(int32 ElementIndex = 0; ElementIndex < ElementCount; ElementIndex++)
-	{
-		if(FRigTransformElement* TransformElement = Get<FRigTransformElement>(ElementIndex))
-		{
-			GetTransform(TransformElement, ERigTransformType::InitialLocal);
-			GetTransform(TransformElement, ERigTransformType::InitialGlobal);
-			GetTransform(TransformElement, ERigTransformType::CurrentLocal);
-			GetTransform(TransformElement, ERigTransformType::CurrentGlobal);
-		}
 	}
 }
 
@@ -2043,5 +2034,25 @@ bool URigHierarchy::ApplyTransformFromStack(const FTransformStackEntry& InEntry,
 #endif
 
 	return false;
+}
+
+void URigHierarchy::ComputeAllTransforms()
+{
+	for(int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+	{
+		for(int32 TransformTypeIndex = 0; TransformTypeIndex < (int32) ERigTransformType::NumTransformTypes; TransformTypeIndex++)
+		{
+			const ERigTransformType::Type TransformType = (ERigTransformType::Type)TransformTypeIndex; 
+			if(FRigTransformElement* TransformElement = Get<FRigTransformElement>(ElementIndex))
+			{
+				GetTransform(TransformElement, TransformType);
+			}
+			if(FRigControlElement* ControlElement = Get<FRigControlElement>(ElementIndex))
+			{
+				GetControlOffsetTransform(ControlElement, TransformType);
+				GetControlGizmoTransform(ControlElement, TransformType);
+			}
+		}
+	}
 }
 

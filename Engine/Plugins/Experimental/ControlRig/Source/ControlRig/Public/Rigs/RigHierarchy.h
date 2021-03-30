@@ -2155,6 +2155,11 @@ private:
 	bool ApplyTransformFromStack(const FTransformStackEntry& InEntry, bool bUndo);
 
 	/**
+	 * Computes all parts of the pose
+	 */
+	void ComputeAllTransforms();
+
+	/**
 	 * Manages merging transform actions into one during an interaction
 	 */
 	bool bIsInteracting;

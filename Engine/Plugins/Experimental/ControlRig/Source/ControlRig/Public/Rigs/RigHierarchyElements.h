@@ -31,7 +31,8 @@ namespace ERigTransformType
 		InitialLocal,
         CurrentLocal,
         InitialGlobal,
-        CurrentGlobal
+        CurrentGlobal,
+		NumTransformTypes
 	};
 
 	FORCEINLINE ERigTransformType::Type SwapCurrentAndInitial(const Type InTransformType)
