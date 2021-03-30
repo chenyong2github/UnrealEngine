@@ -163,9 +163,7 @@ void HZBBuildCS(
 
 	uint2 SrcPixelCoord = (DispatchThreadId << 1) + PixelViewPortMinMax.xy;
 #if VIS_BUFFER_FORMAT == 1
-	// TODO: Combine with SceneDepth if complete prepass.
-	//DeviceZ = max(DeviceZ, Gather4VisZ(BufferUV, SrcPixelCoord));
-	DeviceZ = Gather4VisZ(BufferUV, SrcPixelCoord);
+	DeviceZ = max(DeviceZ, Gather4VisZ(BufferUV, SrcPixelCoord));
 #elif VIS_BUFFER_FORMAT == 2
 	DeviceZ = Gather4VisZ(BufferUV, SrcPixelCoord);
 #endif
