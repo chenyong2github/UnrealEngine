@@ -76,5 +76,7 @@ public:
 	virtual void Destroyed() override;
 
 	virtual void PushDeferredLayersContentUpdate();
+
+	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
 #endif
 };
