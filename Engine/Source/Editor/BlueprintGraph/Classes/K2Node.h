@@ -222,7 +222,7 @@ public:
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput = nullptr) const { return false; }
 
 	/** Returns whether this node can have breakpoints placed on it in the debugger */
-	virtual bool CanPlaceBreakpoints() const { return !IsNodePure(); }
+	BLUEPRINTGRAPH_API virtual bool CanPlaceBreakpoints() const;
 
 	/** Return whether to draw this node as an entry */
 	virtual bool DrawNodeAsEntry() const { return false; }

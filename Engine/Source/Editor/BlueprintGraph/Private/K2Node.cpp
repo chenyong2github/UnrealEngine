@@ -608,6 +608,30 @@ void UK2Node::JumpToDefinition() const
 	}
 }
 
+bool UK2Node::CanPlaceBreakpoints() const
+{
+	// Pure nodes have no execs and therefore cannot have breakpoints placed on them
+	if(IsNodePure())
+	{
+		return false;
+	}
+
+	// If this node is within a macro or interface blueprint then it cannot have breakpoints
+	// added to it as they will get expanded during compilation and never get hit. 
+	if(const UEdGraph* Graph = GetGraph())
+	{
+		if (const UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Graph))
+		{
+			return
+				!(Blueprint->BlueprintType == BPTYPE_MacroLibrary ||
+				Blueprint->BlueprintType == BPTYPE_Interface ||
+				Blueprint->MacroGraphs.Contains(Graph));
+		}
+	}
+	
+	return true;
+}
+
 void UK2Node::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins)
 {
 	AllocateDefaultPins();
