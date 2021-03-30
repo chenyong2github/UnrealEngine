@@ -42,7 +42,7 @@ public:
 	bool bUseCompression;
 
 	/** How many threads should the AvidDNx Encoders use to encode frames? */
-	UPROPERTY(EditAnywhere, meta=(UIMin=1, MinValue=1), BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(EditAnywhere, meta=(UIMin=1, ClampMin=1), BlueprintReadWrite, Category = "Settings")
 	int32 NumberOfEncodingThreads;
 
 protected:

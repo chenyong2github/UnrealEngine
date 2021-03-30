@@ -67,7 +67,7 @@ public:
 	int32 HandleFrameCount;
 
 	/** Render every Nth frame. ie: Setting this value to 2 renders every other frame. Game Thread is still evaluated on 'skipped' frames for accuracy between renders of different OutputFrameSteps. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "1", MinValue = "1"), Category = "Frames")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "1", ClampMin = "1"), Category = "Frames")
 	int32 OutputFrameStep;
 
 	/** If true, override the Playback Range start/end bounds with the bounds specified below.*/
@@ -84,7 +84,7 @@ public:
 
 public:
 	/** The value to use for the version token if versions are not automatically incremented. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "!bAutoVersion", UIMin = 1, UIMax = 10), Category = "Versioning")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "!bAutoVersion", UIMin = 1, UIMax = 10, ClampMin = 1), Category = "Versioning")
 	int32 VersionNumber;
 
 	/** If true, version tokens will automatically be incremented with each local render. If false, the custom version number below will be used. */
@@ -93,7 +93,7 @@ public:
 
 public:
 	/** How many digits should all output frame numbers be padded to? MySequence_1.png -> MySequence_0001.png. Useful for software that struggles to recognize frame ranges when non-padded. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "1", MinValue = "1", UIMax = "5"), AdvancedDisplay, Category = "File Output")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "1", UIMax = "5", ClampMin = "1"), AdvancedDisplay, Category = "File Output")
 	int32 ZeroPadFrameNumbers;
 
 	/** 

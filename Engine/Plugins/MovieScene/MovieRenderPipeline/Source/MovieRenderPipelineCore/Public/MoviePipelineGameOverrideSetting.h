@@ -84,7 +84,7 @@ public:
 	int32 ShadowDistanceScale;
 
 	/** Cull shadow casters if they are too small, value is the minimal screen space bounding sphere radius */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (EditCondition = bUseHighQualityShadows, UIMin=0.001))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (EditCondition = bUseHighQualityShadows, UIMin=0.001, ClampMin=0.001))
 	float ShadowRadiusThreshold;
 
 	/** Should we override the View Distance Scale? Can be used in situations where MaxDrawDistance has been set before for in-game performance. */

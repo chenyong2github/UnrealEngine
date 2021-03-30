@@ -52,7 +52,7 @@ public:
 	bool bOverrideMaximumEncodingThreads;
 
 	/** What is the maximum number of threads the encoder should use to encode frames with? Zero means auto-determine based on hardware. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(UIMin=0, MinValue=0, EditCondition="bOverrideMaximumEncodingThreads"), Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(UIMin=0, ClampMin=0, EditCondition="bOverrideMaximumEncodingThreads"), Category = "Settings")
 	int32 MaxNumberOfEncodingThreads;
 
 protected:
