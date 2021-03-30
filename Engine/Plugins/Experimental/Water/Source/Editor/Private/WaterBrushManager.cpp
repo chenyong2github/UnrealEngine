@@ -516,13 +516,15 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 
 	for (int32 MIDIndex = 0; MIDIndex < NumSplineMids; ++MIDIndex)
 	{
+		USplineMeshComponent* SplineMeshComponent = SplineMeshComponents[MIDIndex];
+		check(SplineMeshComponent != nullptr);
 		if (bClearMIDs)
 		{
-			SplineMeshComponents[MIDIndex]->SetMaterial(0, nullptr);
+			SplineMeshComponent->SetMaterial(0, nullptr);
 		}
 		else
 		{
-			check(MIDIndex < SplineMeshComponents.Num());
+			RiverSplineMIDs.IsValidIndex(MIDIndex);
 			RiverSplineMIDs[MIDIndex] = FWaterUtils::GetOrCreateTransientMID(RiverSplineMIDs[MIDIndex], TEXT("RiverSplineMID"), RenderRiverSplineDepthMaterial);
 			UMaterialInstanceDynamic* TempMID = RiverSplineMIDs[MIDIndex];
 			if (TempMID != nullptr)
@@ -533,7 +535,7 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 				TempMID->SetScalarParameterValue(FName(TEXT("VelA")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex, FName(TEXT("WaterVelocityScalar"))));
 				TempMID->SetScalarParameterValue(FName(TEXT("VelB")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex + 1, FName(TEXT("WaterVelocityScalar"))));
 
-				SplineMeshComponents[MIDIndex]->SetMaterial(0, TempMID);
+				SplineMeshComponent->SetMaterial(0, TempMID);
 			}
 			else
 			{

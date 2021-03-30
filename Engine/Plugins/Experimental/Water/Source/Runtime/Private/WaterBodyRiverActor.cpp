@@ -9,7 +9,7 @@
 #include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/StaticMesh.h"
-#include "Algo/Transform.h"
+#include "Algo/ForEach.h"
 
 #if WITH_CHAOS
 // for working around Chaos issue
@@ -103,7 +103,13 @@ TArray<UPrimitiveComponent*> AWaterBodyRiver::GetBrushRenderableComponents() con
 	{
 		const TArray<USplineMeshComponent*>& SplineMeshComponents = RiverGenerator->GetSplineMeshComponents();
 		BrushRenderableComponents.Reserve(SplineMeshComponents.Num());
-		Algo::Transform(SplineMeshComponents, BrushRenderableComponents, [](USplineMeshComponent* PrimitiveComponent) { return StaticCast<UPrimitiveComponent*>(PrimitiveComponent); });
+		Algo::ForEach(SplineMeshComponents, [&BrushRenderableComponents](USplineMeshComponent* Comp)
+		{
+			if (Comp != nullptr)
+			{
+				BrushRenderableComponents.Add(StaticCast<UPrimitiveComponent*>(Comp));
+			}
+		});
 	}
 	return BrushRenderableComponents;
 }
@@ -169,7 +175,7 @@ void URiverGenerator::OnUpdateBody(bool bWithExclusionVolumes)
 	{
 		const int32 NumSplinePoints = WaterSplineComp->GetNumberOfSplinePoints();
 		const int32 NumberOfMeshComponentsNeeded = WaterSplineComp->IsClosedLoop() ? NumSplinePoints : NumSplinePoints - 1;
-		if (NumSplinePoints > 1 && SplineMeshComponents.Num() != NumberOfMeshComponentsNeeded)
+		if (SplineMeshComponents.Num() != NumberOfMeshComponentsNeeded)
 		{
 			GenerateMeshes();
 		}
@@ -201,7 +207,7 @@ TArray<UPrimitiveComponent*> URiverGenerator::GetCollisionComponents() const
 	Result.Reserve(SplineMeshComponents.Num());
 	for (USplineMeshComponent* Comp : SplineMeshComponents)
 	{
-		if (Comp->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
+		if ((Comp != nullptr) && (Comp->GetCollisionEnabled() != ECollisionEnabled::NoCollision))
 		{
 			Result.Add(Comp);
 		}
