@@ -895,7 +895,13 @@ struct std::tuple_size<TTuple<ArgTypes...>>
 {
 };
 template <std::size_t N, typename... ArgTypes>
+#if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION < 9000
+// libc++ 8.0 and older incorrectly defined std::tuple_element as class, whereas the standard
+// says it should be a struct.
+class std::tuple_element<N, TTuple<ArgTypes...>>
+#else
 struct std::tuple_element<N, TTuple<ArgTypes...>>
+#endif
 {
 public:
 	using type = typename TTupleElement<N, TTuple<ArgTypes...>>::Type;
