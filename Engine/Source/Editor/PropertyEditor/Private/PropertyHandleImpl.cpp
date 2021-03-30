@@ -1960,6 +1960,9 @@ void FPropertyValueImpl::DuplicateChild( TSharedPtr<FPropertyNode> ChildNodeToDu
 
 		TArray< TMap<FString, int32> > ArrayIndicesPerObject;
 
+		FScriptArrayHelper ArrayHelper(ArrayProperty, Addr);
+		FPropertyNode::DuplicateArrayEntry(NodeProperty, ArrayHelper, Index);
+
 		if (Obj)
 		{
 			if (IsTemplate(Obj) && !FApp::IsGame())
@@ -1968,48 +1971,6 @@ void FPropertyValueImpl::DuplicateChild( TSharedPtr<FPropertyNode> ChildNodeToDu
 			}
 
 			TopLevelObjects.Add(Obj);
-		}
-
-		FScriptArrayHelper	ArrayHelper(ArrayProperty, Addr);
-		ArrayHelper.InsertValues(Index);
-
-		void* SrcAddress = ArrayHelper.GetRawPtr(Index + 1);
-		void* DestAddress = ArrayHelper.GetRawPtr(Index);
-
-		check(SrcAddress && DestAddress);
-
-		// Copy the selected item's value to the new item.
-		NodeProperty->CopyCompleteValue(DestAddress, SrcAddress);
-
-		if (FObjectProperty* ObjProp = CastField<FObjectProperty>(NodeProperty))
-		{
-			UObject* CurrentObject = ObjProp->GetObjectPropertyValue(DestAddress);
-
-			// For DefaultSubObjects and ArchetypeObjects we need to do a deep copy instead of a shallow copy
-			if (CurrentObject && CurrentObject->HasAnyFlags(RF_DefaultSubObject | RF_ArchetypeObject))
-			{
-				// Make a deep copy and assign it into the array.
-				UObject* DuplicatedObject = DuplicateObject(CurrentObject, CurrentObject->GetOuter());
-				ObjProp->SetObjectPropertyValue(SrcAddress, DuplicatedObject);
-			}
-		}
-		
-		// Find the object that owns the array and instance any subobjects
-		if (FObjectPropertyNode* ObjectPropertyNode = ChildNodePtr->FindObjectItemParent())
-		{
-			UObject* ArrayOwner = nullptr;
-			for (TPropObjectIterator Itor(ObjectPropertyNode->ObjectIterator()); Itor && !ArrayOwner; ++Itor)
-			{
-				ArrayOwner = Itor->Get();
-			}
-			if (ArrayOwner)
-			{
-				ArrayOwner->InstanceSubobjectTemplates();
-			}
-		}
-
-		if(Obj)
-		{
 
 			ArrayIndicesPerObject.Add(TMap<FString, int32>());
 			FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[0], ChildNodePtr);
