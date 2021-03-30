@@ -38,6 +38,7 @@ class UMaterialFunctionInterface : public UObject
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UObject Interface.
+	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//~ End UObject Interface.
