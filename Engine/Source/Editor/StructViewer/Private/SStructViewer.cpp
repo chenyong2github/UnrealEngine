@@ -983,14 +983,20 @@ void FStructHierarchy::AddAsset(const FAssetData& InAddedAssetData)
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	if (!AssetRegistryModule.Get().IsLoadingAssets())
 	{
-		// Make sure that the node does not already exist. There is a bit of double adding going on at times and this prevents it.
-		if (!FindNodeByStructPath(InAddedAssetData.ObjectPath))
-		{
-			// User defined structs are always root level structs
-			StructRootNode->AddChild(MakeShared<FStructViewerNodeData>(InAddedAssetData));
+		// Only handle structs
+		UClass* AssetClass = InAddedAssetData.GetClass();
 
-			// All Viewers must repopulate.
-			PopulateStructViewerDelegate.Broadcast();
+		if (AssetClass && AssetClass->IsChildOf(UScriptStruct::StaticClass()))
+		{
+			// Make sure that the node does not already exist. There is a bit of double adding going on at times and this prevents it.
+			if (!FindNodeByStructPath(InAddedAssetData.ObjectPath))
+			{
+				// User defined structs are always root level structs
+				StructRootNode->AddChild(MakeShared<FStructViewerNodeData>(InAddedAssetData));
+
+				// All Viewers must repopulate.
+				PopulateStructViewerDelegate.Broadcast();
+			}
 		}
 	}
 }
