@@ -50,9 +50,12 @@ void FLevelInstanceRecursivePacker::PackActors(FPackedLevelInstanceBuilderContex
 	FLevelInstanceRecursivePackerCluster* LevelInstanceCluster = (FLevelInstanceRecursivePackerCluster*)InClusterID.GetData();
 	check(LevelInstanceCluster);
 
-	if (LevelInstanceCluster->LevelInstance->IsLevelInstancePathValid())
+	if (LevelInstanceCluster->LevelInstance->IsA<APackedLevelInstance>())
 	{
-		InPackingActor->PackDependencies.AddUnique(LevelInstanceCluster->LevelInstance->GetWorldAsset());
+		if (UBlueprint* GeneratedBy = Cast<UBlueprint>(LevelInstanceCluster->LevelInstance->GetClass()->ClassGeneratedBy))
+		{
+			InPackingActor->PackedBPDependencies.AddUnique(GeneratedBy);
+		}
 	}
 }
 

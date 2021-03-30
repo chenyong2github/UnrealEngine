@@ -79,7 +79,7 @@ public:
 	bool bRerunConstructionScripts;
 
 	UPROPERTY()
-	TArray<TSoftObjectPtr<UWorld>> PackDependencies;
+	TArray<TSoftObjectPtr<UBlueprint>> PackedBPDependencies;
 
 private:
 	UPROPERTY(NonTransactional)

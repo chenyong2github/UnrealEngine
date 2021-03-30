@@ -316,12 +316,12 @@ ALevelInstance* FPackedLevelInstanceBuilder::CreateTransientLevelInstanceForPack
 bool FPackedLevelInstanceBuilder::PackActor(APackedLevelInstance* InActor, TSoftObjectPtr<UWorld> InWorldAsset)
 {
 	ALevelInstance* TransientLevelInstance = CreateTransientLevelInstanceForPacking(InWorldAsset, InActor->GetActorLocation(), InActor->GetActorRotation());
-
-	bool bResult = PackActor(InActor, TransientLevelInstance);
-
-	TransientLevelInstance->GetWorld()->DestroyActor(TransientLevelInstance);
-
-	return bResult;
+	ON_SCOPE_EXIT
+	{
+		TransientLevelInstance->GetWorld()->DestroyActor(TransientLevelInstance);
+	};
+	
+	return PackActor(InActor, TransientLevelInstance);
 }
 
 void FPackedLevelInstanceBuilder::UpdateBlueprint(UBlueprint* Blueprint, bool bInSilentUpdate)
@@ -425,11 +425,17 @@ bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevel
 	// Avoid running construction script while dragging an instance of that BP for performance reasons
 	BP->bRunConstructionScriptOnDrag = false;
 	APackedLevelInstance* CDO = CastChecked<APackedLevelInstance>(BP->GeneratedClass->GetDefaultObject());
-	CDO->SetWorldAsset(InActor->GetWorldAsset());
-	
-	// match root component mobility to source actor
-	USceneComponent* Root = CDO->GetRootComponent();
-	Root->SetMobility(InActor->GetRootComponent()->Mobility);
+	auto PropagatePropertiesToActor = [InActor](APackedLevelInstance* TargetActor)
+	{
+		TargetActor->Modify(false);
+		TargetActor->SetWorldAsset(InActor->GetWorldAsset());
+		TargetActor->PackedBPDependencies = InActor->PackedBPDependencies;
+
+		// match root component mobility to source actor
+		USceneComponent* Root = TargetActor->GetRootComponent();
+		Root->SetMobility(InActor->GetRootComponent()->Mobility);
+	};
+	PropagatePropertiesToActor(CDO);
 		
 	// Prep AddComponentsToBlueprintParam
 	FKismetEditorUtilities::FAddComponentsToBlueprintParams AddCompToBPParams;
@@ -439,6 +445,13 @@ bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevel
 	// Add Components
 	TArray<UActorComponent*> PackedComponents;
 	InActor->GetPackedComponents(PackedComponents);
+	
+	// To avoid any delta serialization happening on those generated components, we make them non editable.
+	for (UActorComponent* PackedComponent : PackedComponents)
+	{
+		PackedComponent->bEditableWhenInherited = false;
+	}
+
 	FKismetEditorUtilities::AddComponentsToBlueprint(BP, PackedComponents, AddCompToBPParams);
 	// If we are packing the actors BP then destroy packed components as they are now part of the BPs construction script
 	if (UBlueprint* GeneratedBy = Cast<UBlueprint>(InActor->GetClass()->ClassGeneratedBy))
@@ -446,6 +459,18 @@ bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevel
 		InActor->DestroyPackedComponents();
 	}
 
+	// Propagate properties before BP Compilation so that they are considered default (no delta)
+	if (BP->GeneratedClass)
+	{
+		TArray<UObject*> ObjectsOfClass;
+		GetObjectsOfClass(BP->GeneratedClass, ObjectsOfClass, true, RF_ClassDefaultObject | RF_ArchetypeObject, EInternalObjectFlags::PendingKill);
+		for (UObject* ObjectOfClass : ObjectsOfClass)
+		{
+			APackedLevelInstance* PackedLevelInstance = CastChecked<APackedLevelInstance>(ObjectOfClass);
+			PropagatePropertiesToActor(PackedLevelInstance);
+		}
+	}
+			
 	// Synchronous compile
 	FKismetEditorUtilities::CompileBlueprint(BP, EBlueprintCompileOptions::SkipGarbageCollection);
 

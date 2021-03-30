@@ -390,24 +390,47 @@ void ULevelInstanceSubsystem::PackLevelInstances()
 		return;
 	}
 
+	// Add Dependencies first so that we pack the LevelInstances in the proper order (depth first)
+	TFunction<void(APackedLevelInstance*, TArray<UBlueprint*>&, TArray<APackedLevelInstance*>&)> GatherDepencenciesRecursive = [&GatherDepencenciesRecursive](APackedLevelInstance* PackedLevelInstance, TArray<UBlueprint*>& BPsToPack, TArray<APackedLevelInstance*>& ToPack)
+	{
+		// Early out on already processed BPs or non BP Packed LIs.
+		UBlueprint* Blueprint = Cast<UBlueprint>(PackedLevelInstance->GetClass()->ClassGeneratedBy);
+		if ((Blueprint && BPsToPack.Contains(Blueprint)) || ToPack.Contains(PackedLevelInstance))
+		{
+			return;
+		}
+		
+		// Recursive deps
+		for (const TSoftObjectPtr<UBlueprint>& Dependency : PackedLevelInstance->PackedBPDependencies)
+		{
+			if (UBlueprint* LoadedDependency = Dependency.LoadSynchronous())
+			{
+				if (APackedLevelInstance* CDO = Cast<APackedLevelInstance>(LoadedDependency->GeneratedClass ? LoadedDependency->GeneratedClass->GetDefaultObject() : nullptr))
+				{
+					GatherDepencenciesRecursive(CDO, BPsToPack, ToPack);
+				}
+			}
+		}
+
+		// Add after dependencies
+		if (Blueprint)
+		{
+			BPsToPack.Add(Blueprint);
+		}
+		else
+		{
+			ToPack.Add(PackedLevelInstance);
+		}
+	};
+
 	TArray<APackedLevelInstance*> PackedLevelInstancesToUpdate;
-	TSet<UBlueprint*> BlueprintsToUpdate;
+	TArray<UBlueprint*> BlueprintsToUpdate;
 	for (TObjectIterator<UWorld> It(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill); It; ++It)
 	{
 		UWorld* CurrentWorld = *It;
-		for (TActorIterator<ALevelInstance> LevelInstanceIt(GetWorld()); LevelInstanceIt; ++LevelInstanceIt)
+		for (TActorIterator<APackedLevelInstance> LevelInstanceIt(GetWorld()); LevelInstanceIt; ++LevelInstanceIt)
 		{
-			if (APackedLevelInstance* PackedLevelInstance = Cast<APackedLevelInstance>(*LevelInstanceIt))
-			{
-				if (UBlueprint* Blueprint = Cast<UBlueprint>(PackedLevelInstance->GetClass()->ClassGeneratedBy))
-				{
-					BlueprintsToUpdate.Add(Blueprint);
-				}
-				else
-				{
-					PackedLevelInstancesToUpdate.Add(PackedLevelInstance);
-				}
-			}
+			GatherDepencenciesRecursive(*LevelInstanceIt, BlueprintsToUpdate, PackedLevelInstancesToUpdate);
 		}
 	}
 
@@ -416,7 +439,9 @@ void ULevelInstanceSubsystem::PackLevelInstances()
 	{
 		return;
 	}
-		
+	
+	GEditor->SelectNone(true, true);
+
 	FScopedSlowTask SlowTask(Count, (LOCTEXT("LevelInstance_PackLevelInstances", "Packing Level Instances")));
 	SlowTask.MakeDialog();
 		
@@ -424,21 +449,21 @@ void ULevelInstanceSubsystem::PackLevelInstances()
 	{
 		if (SlowTask.CompletedWork < SlowTask.TotalAmountOfWork)
 		{
-			SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("LevelInstance_PackLevelInstancesProgress", "Packing Level Instance {0} of {1})"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
+			SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("LevelInstance_PackLevelInstancesProgress", "Packing Level Instance {0} of {1}"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
 		}
 	};
-
-	for (APackedLevelInstance* PackedLevelInstance : PackedLevelInstancesToUpdate)
-	{
-		PackedLevelInstance->OnWorldAssetChanged();
-		UpdateProgress();
-	}
 
 	TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
 	const bool bSilentUpdate = true;
 	for (UBlueprint* Blueprint : BlueprintsToUpdate)
 	{
 		Builder->UpdateBlueprint(Blueprint, bSilentUpdate);
+		UpdateProgress();
+	}
+
+	for (APackedLevelInstance* PackedLevelInstance : PackedLevelInstancesToUpdate)
+	{
+		PackedLevelInstance->OnWorldAssetChanged();
 		UpdateProgress();
 	}
 }
