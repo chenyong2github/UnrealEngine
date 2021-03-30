@@ -513,10 +513,33 @@ public:
 		return RegisteredPresetMap.GenerateValueArray(OutPresets);
 	}
 
+	virtual const TMap<FName, FEntityMetadataInitializer>& GetDefaultMetadataInitializers() const
+	{
+		return DefaultMetadataInitializers;
+	}
+	
+	virtual bool RegisterDefaultEntityMetadata(FName MetadataKey, FEntityMetadataInitializer MetadataInitializer) override
+	{
+		if (!DefaultMetadataInitializers.Contains(MetadataKey))
+		{
+			DefaultMetadataInitializers.FindOrAdd(MetadataKey) = MoveTemp(MetadataInitializer);
+			return true;
+		}
+		return false;
+	}
+
+	virtual void UnregisterDefaultEntityMetadata(FName MetadataKey) override
+	{
+		DefaultMetadataInitializers.Remove(MetadataKey);
+	}
+
 private:
 	
 	/** Map of all preset assets */
 	TMap<FName, TSoftObjectPtr<URemoteControlPreset>> RegisteredPresetMap;
+
+	/** Map of registered default metadata initializers. */
+	TMap<FName, FEntityMetadataInitializer> DefaultMetadataInitializers;
 
 	/** Delegate for preset registration */
 	FOnPresetRegistered OnPresetRegisteredDelegate;

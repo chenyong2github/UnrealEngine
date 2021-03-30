@@ -42,10 +42,10 @@ namespace RemoteControlEntityCustomizationUtils
 
 FRemoteControlEntityCustomization::FRemoteControlEntityCustomization()
 {
-	MetadataCustomizations.Add(FName("Min"), FOnCustomizeMetadata::CreateRaw(this, &FRemoteControlEntityCustomization::CreateRangeWidget));
+	MetadataCustomizations.Add(FName("Min"), FOnCustomizeMetadataEntry::CreateRaw(this, &FRemoteControlEntityCustomization::CreateRangeWidget));
 	
 	// Hide the Max metadata since it is handled by Min.
-	MetadataCustomizations.Add(FName("Max"), FOnCustomizeMetadata::CreateLambda([](IDetailLayoutBuilder&, IDetailCategoryBuilder&){}));
+	MetadataCustomizations.Add(FName("Max"), FOnCustomizeMetadataEntry::CreateLambda([](URemoteControlPreset*, const FGuid&, IDetailLayoutBuilder&, IDetailCategoryBuilder&){}));
 }
 
 void FRemoteControlEntityCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -80,7 +80,7 @@ TSharedRef<IDetailCustomization> FRemoteControlEntityCustomization::MakeInstance
 	return MakeShared<FRemoteControlEntityCustomization>();
 }
 
-void FRemoteControlEntityCustomization::CreateRangeWidget(IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder)
+void FRemoteControlEntityCustomization::CreateRangeWidget(URemoteControlPreset* Preset, const FGuid& DisplayedEntityId, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder)
 {
 	const FSlateFontInfo FontInfo = LayoutBuilder.GetDetailFont();
 	FText ToolTipText = LOCTEXT("ToolTip", "Maximum and minimum values hints for external applications.");
@@ -190,17 +190,24 @@ void FRemoteControlEntityCustomization::GeneratePropertyRows(IDetailLayoutBuilde
 				AddPropertyRow(TEXT("FieldName"), FieldName.ToString(), /*bReadOnly=*/true);
 			}
 
-			// Add Entity metadata rows.
-			for (const TPair<FName, FString>& Entry : Entity->UserMetadata)
+			if (URemoteControlPreset* Preset = Entity->GetOwner())
 			{
-				if (FOnCustomizeMetadata* Handler = MetadataCustomizations.Find(Entry.Key))
+				// Add Entity metadata rows.
+				for (const TPair<FName, FString>& Entry : Entity->UserMetadata)
 				{
-					Handler->ExecuteIfBound(DetailBuilder, CategoryBuilder);
-				}
-				else
-				{
-					// Fallback on a default representation. 
-					AddPropertyRow(Entry.Key.ToString(), Entry.Value, /*bReadOnly=*/false);
+					if (FOnCustomizeMetadataEntry* Handler = MetadataCustomizations.Find(Entry.Key))
+					{
+						Handler->ExecuteIfBound(Preset, Entity->GetId(), DetailBuilder, CategoryBuilder);
+					}
+					else if (const FOnCustomizeMetadataEntry* ExternalHandler = FRemoteControlUIModule::Get().GetEntityMetadataCustomizations().Find(Entry.Key))
+					{
+						ExternalHandler->ExecuteIfBound(Preset, Entity->GetId(), DetailBuilder, CategoryBuilder);
+					}
+					else
+					{
+						// Fallback on a default representation. 
+						AddPropertyRow(Entry.Key.ToString(), Entry.Value, /*bReadOnly=*/false);
+					}
 				}
 			}
 		}

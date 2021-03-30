@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "PropertyHandle.h"
+#include "RemoteControlUIModule.h"
 
 struct FRemoteControlEntity;
 class FStructOnScope;
@@ -26,7 +27,7 @@ public:
 
 private:
 	/** Create a widget that handles modifying the min and max properties. */
-	void CreateRangeWidget(IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder);
+	void CreateRangeWidget(URemoteControlPreset* Preset, const FGuid& DisplayedEntityId, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder);
 
 	/** Handler called upon modifying the metadata of an exposed entity. */
 	void OnMetadataKeyCommitted(const FText& Text, ETextCommit::Type Type, FName MetadataKey);
@@ -47,7 +48,6 @@ private:
 	/** Entity currently being displayed. */
 	TSharedPtr<FStructOnScope> DisplayedEntity;
 	
-	DECLARE_DELEGATE_TwoParams(FOnCustomizeMetadata, IDetailLayoutBuilder&, IDetailCategoryBuilder&);
-	/** Dispatch table for metadata items. */
-	TMap<FName, FOnCustomizeMetadata> MetadataCustomizations;
+	/** Map of metadata key to initializer delegate. */
+	TMap<FName, FOnCustomizeMetadataEntry> MetadataCustomizations;
 };

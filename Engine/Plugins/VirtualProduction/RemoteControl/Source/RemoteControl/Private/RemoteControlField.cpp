@@ -228,9 +228,31 @@ bool FRemoteControlProperty::IsBound() const
 void FRemoteControlProperty::InitializeMetadata()
 {
 #if WITH_EDITOR
+	auto SupportsMinMax = [] (FProperty* Property)
+	{
+		if (!Property)
+		{
+			return false;
+		}
+
+		if (Property->IsA<FNumericProperty>())
+		{
+			return !(Property->IsA<FByteProperty>() && CastFieldChecked<FByteProperty>(Property)->IsEnum());
+		}
+
+		if (Property->IsA<FStructProperty>())
+		{
+			UStruct* Struct = CastFieldChecked<FStructProperty>(Property)->Struct;
+			return Struct->IsChildOf(TBaseStructure<FVector>::Get())
+				|| Struct->IsChildOf(TBaseStructure<FRotator>::Get());
+		}
+
+		return false;
+	};
+	
 	if (FProperty* Property = GetProperty())
 	{
-		if (Property->IsA<FNumericProperty>())
+		if (SupportsMinMax(Property))
 		{
 			const FString& UIMin = Property->GetMetaData(TEXT("UIMin"));
 			const FString& UIMax = Property->GetMetaData(TEXT("UIMax"));

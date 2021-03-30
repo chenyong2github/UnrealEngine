@@ -98,7 +98,6 @@ struct FRCPropertyDescription
 		//Write the type name
 		Type = ValueProperty->GetCPPType();
 
-
 #if WITH_EDITOR
 		Metadata = Property->GetMetaDataMap() ? RemoteControlModels::SanitizeMetadata(*Property->GetMetaDataMap()) : TMap<FName, FString>();
 		Description = Property->GetMetaData("ToolTip");
@@ -191,12 +190,15 @@ struct FRCFunctionDescription
 		}
 	}
 	
+	/** Name of the function. */
 	UPROPERTY()
 	FString Name;
 	
+	/** Description for the function. */
 	UPROPERTY()
 	FString Description;
 	
+	/** The function's arguments. */
 	UPROPERTY()
 	TArray<FRCPropertyDescription> Arguments;
 };
@@ -213,13 +215,20 @@ struct FRCExposedPropertyDescription
 	{
 		checkSlow(InUnderlyingProperty);
 		UnderlyingProperty = InUnderlyingProperty;
+		Metadata = RCProperty.UserMetadata;
 	}
-	
+
+	/** The label displayed in the remote control panel for this exposed property. */
 	UPROPERTY()
 	FName DisplayName;
-	
+
+	/** The underlying exposed property. */
 	UPROPERTY()
 	FRCPropertyDescription UnderlyingProperty;
+
+	/** Metadata specific to this exposed property. */
+	UPROPERTY()
+	TMap<FName, FString> Metadata;
 };
 
 
@@ -235,10 +244,12 @@ struct FRCExposedFunctionDescription
 		, UnderlyingFunction(Function.Function)
 	{
 	}
-	
+
+	/** The label displayed in the remote control panel for this exposed property. */
 	UPROPERTY()
 	FName DisplayName;
 	
+	/** The underlying exposed function. */
 	UPROPERTY()
 	FRCFunctionDescription UnderlyingFunction;
 };
@@ -263,12 +274,15 @@ struct FRCActorDescription
 		Class = InActor->GetClass()->GetName();
 	}
 
+	/** The label of the actor. */
 	UPROPERTY()
 	FString Name;
 
+	/** The object path of the actor. */
 	UPROPERTY()
 	FString Path;
 
+	/** The class of the actor. */
 	UPROPERTY()
 	FString Class;
 };
@@ -289,9 +303,11 @@ struct FRCExposedActorDescription
 		}
 	}
 
+	/** The label displayed in the remote control panel for this exposed actor. */
 	UPROPERTY()
 	FName DisplayName;
 
+	/** The underlying exposed actor. */
 	UPROPERTY()
 	FRCActorDescription UnderlyingActor;
 };

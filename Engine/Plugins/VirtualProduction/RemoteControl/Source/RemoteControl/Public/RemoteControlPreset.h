@@ -805,6 +805,12 @@ private:
 
 	/** Handler called upon an entity being modified. */
 	void OnEntityModified(const FGuid& EntityId);
+
+	/** Initialize entities metadata based on the module's externally registered initializers. */
+	void InitializeEntitiesMetadata();
+	
+	/** Initialize an entity's metadata based on the module's externally registered initializers. */
+	void InitializeEntityMetadata(const TSharedPtr<FRemoteControlEntity>& Entity);
 	
 private:
 	/** Preset unique ID */

@@ -634,6 +634,8 @@ void URemoteControlPreset::PostLoad()
 	CacheFieldLayoutData();
 
 	RebindingManager->Rebind(this);
+
+	InitializeEntitiesMetadata();
 }
 
 void URemoteControlPreset::BeginDestroy()
@@ -745,6 +747,8 @@ TWeakPtr<FRemoteControlFunction> URemoteControlPreset::ExposeFunction(UObject* O
 TSharedPtr<FRemoteControlEntity> URemoteControlPreset::Expose(FRemoteControlEntity&& Entity, UScriptStruct* EntityType, const FGuid& GroupId)
 {
 	TSharedPtr<FRemoteControlEntity> RCEntity = Registry->AddExposedEntity(MoveTemp(Entity), EntityType);
+	InitializeEntityMetadata(RCEntity);
+	
 	RCEntity->OnEntityModifiedDelegate.BindUObject(this, &URemoteControlPreset::OnEntityModified);
 	FRemoteControlPresetGroup* Group = Layout.GetGroup(GroupId);
 	if (!Group)
@@ -756,6 +760,7 @@ TSharedPtr<FRemoteControlEntity> URemoteControlPreset::Expose(FRemoteControlEnti
 	CachedData.LayoutGroupId = Group->Id;
 
 	Layout.AddField(Group->Id, RCEntity->GetId());
+	
 	OnEntityExposed().Broadcast(this, RCEntity->GetId());
 
 	return RCEntity;
@@ -825,6 +830,35 @@ void URemoteControlPreset::OnEntityModified(const FGuid& EntityId)
 	PerFrameUpdatedEntities.Add(EntityId);
 }
 
+void URemoteControlPreset::InitializeEntitiesMetadata()
+{
+	for (const TSharedPtr<FRemoteControlEntity>& Entity : Registry->GetExposedEntities())
+	{
+		InitializeEntityMetadata(Entity);
+	}
+}
+
+void URemoteControlPreset::InitializeEntityMetadata(const TSharedPtr<FRemoteControlEntity>& Entity)
+{
+	if (!Entity)
+	{
+		return;
+	}
+    	
+    const TMap<FName, FEntityMetadataInitializer>& Initializers = IRemoteControlModule::Get().GetDefaultMetadataInitializers();
+    for (const TPair<FName, FEntityMetadataInitializer>& Entry : Initializers)
+    {
+    	if (Entry.Value.IsBound())
+    	{
+    		// Don't reset the metadata entry if already present.
+    		if (!Entity->UserMetadata.Contains(Entry.Key))
+    		{
+    			Entity->UserMetadata.Add(Entry.Key, Entry.Value.Execute(this, Entity->GetId()));
+    		}
+    	}
+    }
+}
+
 TOptional<FRemoteControlFunction> URemoteControlPreset::GetFunction(FName FunctionLabel) const
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -842,7 +876,6 @@ TOptional<FRemoteControlFunction> URemoteControlPreset::GetFunction(FGuid Functi
 
 	return OptionalFunction;
 }
-
 
 TOptional<FRemoteControlProperty> URemoteControlPreset::GetProperty(FName PropertyLabel) const
 {

@@ -17,6 +17,13 @@ class URemoteControlPreset;
 struct FExposedProperty;
 
 /**
+ * Delegate called to initialize an exposed entity metadata entry registered with the RegisterDefaultEntityMetadata method.
+ * Use RemoteControlPreset::GetExposedEntity to retrieve the entity that will contain the metadata.
+ * The delegate return value will be put into metadata map for the metadata key that was used when registering the default metadata entry.
+ */
+DECLARE_DELEGATE_RetVal_TwoParams(FString /*Value*/, FEntityMetadataInitializer, URemoteControlPreset* /*Preset*/, const FGuid& /*EntityId*/);
+
+/**
  * Reference to a function in a UObject
  */
 struct FRCCallReference
@@ -254,4 +261,24 @@ public:
 	 * Get all the presets currently registered with the module.
 	 */
 	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) = 0;
+
+	/**
+	 * Get the map of registered default entity metadata initializers. 
+	 */
+	virtual const TMap<FName, FEntityMetadataInitializer>& GetDefaultMetadataInitializers() const = 0;
+	
+	/**
+	 * Register a default entity metadata which will show up in an entity's detail panel.
+	 * The initializer will be called upon an entity being exposed or when a preset is loaded in
+	 * order to update all existing entities that don't have that metadata key.
+	 * @param MetadataKey The desired metadata key.
+	 * @param MetadataInitializer The delegate to call to handle initializing the metadata.
+	 */
+	virtual bool RegisterDefaultEntityMetadata(FName MetadataKey, FEntityMetadataInitializer MetadataInitializer) = 0;
+
+	/**
+	 * Unregister a default entity metadata.
+	 * @param MetadataKey The metadata entry to unregister.
+	 */
+	virtual void UnregisterDefaultEntityMetadata(FName MetadataKey) = 0;
 };
