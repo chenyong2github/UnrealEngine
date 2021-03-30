@@ -282,7 +282,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				[
 					SNew(STransformViewportToolBar)
 					.Viewport(ViewportRef)
-					.CommandList(LevelEditorModule.GetGlobalLevelEditorActions())
+					.CommandList(ViewportRef->GetCommandList())
 					.Extenders(LevelEditorModule.GetToolBarExtensibilityManager()->GetAllExtenders())
 					.Visibility(ViewportRef, &SLevelViewport::GetTransformToolbarVisibility)
 				]

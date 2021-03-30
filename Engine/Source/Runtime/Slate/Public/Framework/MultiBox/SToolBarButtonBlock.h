@@ -11,6 +11,7 @@
 #include "Framework/Commands/UICommandInfo.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBox.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 class SBorder;
 
@@ -56,6 +57,9 @@ public:
 	virtual void CreateMenuEntry(class FMenuBuilder& MenuBuilder) const override;
 	virtual bool HasIcon() const override;
 
+	/** Set optional delegate to customize when a menu appears instead of the widget, such as in toolbars */
+	void SetCustomMenuDelegate( FNewMenuDelegate& InOnFillMenuDelegate);
+
 private:
 
 	/** FMultiBlock private interface */
@@ -86,6 +90,9 @@ private:
 
 	/** Whether this toolbar should always use small icons, regardless of the current settings */
 	bool bForceSmallIcons;
+
+	/** Optional delegate to customize when a menu appears instead of the widget, such as in toolbars */
+	FNewMenuDelegate CustomMenuDelegate;
 };
 
 

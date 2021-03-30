@@ -50,6 +50,9 @@ private:
 	FSlateIcon GetLocalToWorldIcon() const;
 	FSlateIcon GetSurfaceSnappingIcon() const;
 
+	/** Callback to toggle between local and world space */
+	FReply OnCycleCoordinateSystem();
+
 	/** Camera speed menu construction callback */
 	TSharedRef<SWidget> FillCameraSpeedMenu();
 

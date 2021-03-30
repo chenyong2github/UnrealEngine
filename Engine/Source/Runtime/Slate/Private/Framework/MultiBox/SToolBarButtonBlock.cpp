@@ -38,20 +38,39 @@ FToolBarButtonBlock::FToolBarButtonBlock( const TAttribute<FText>& InLabel, cons
 {
 }
 
+void FToolBarButtonBlock::SetCustomMenuDelegate( FNewMenuDelegate& InCustomMenuDelegate )
+{
+	CustomMenuDelegate = InCustomMenuDelegate;	
+}
+
 void FToolBarButtonBlock::CreateMenuEntry(FMenuBuilder& MenuBuilder) const
 {
+	// Setup Command Context 
 	TSharedPtr<const FUICommandInfo> MenuEntryAction = GetAction();
 	TSharedPtr<const FUICommandList> MenuEntryActionList = GetActionList();
-	if (MenuEntryAction.IsValid() && MenuEntryActionList.IsValid())
-	{
+	bool bHasValidCommand = MenuEntryAction.IsValid() && MenuEntryActionList.IsValid();
+	if (bHasValidCommand) 
+	{	
 		MenuBuilder.PushCommandList(MenuEntryActionList.ToSharedRef());
+	}
+
+	if ( CustomMenuDelegate.IsBound() )
+	{
+		CustomMenuDelegate.Execute(MenuBuilder);
+	}
+	else if (bHasValidCommand)
+	{
 		MenuBuilder.AddMenuEntry(MenuEntryAction);
-		MenuBuilder.PopCommandList();
 	}
 	else if ( LabelOverride.IsSet() )
 	{
 		const FUIAction& DirectAction = GetDirectActions();
 		MenuBuilder.AddMenuEntry( LabelOverride.Get(), ToolTipOverride.Get(), IconOverride.Get(), DirectAction );
+	}
+
+	if (bHasValidCommand) 
+	{	
+		MenuBuilder.PopCommandList();
 	}
 }
 

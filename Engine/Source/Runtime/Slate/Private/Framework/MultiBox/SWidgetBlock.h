@@ -6,6 +6,8 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/MultiBox/MultiBox.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+
 
 /**
  * Arbitrary Widget MultiBlock
@@ -28,6 +30,8 @@ public:
 	/** FMultiBlock interface */
 	virtual void CreateMenuEntry(class FMenuBuilder& MenuBuilder) const override;
 
+	/** Set optional delegate to customize when a menu appears instead of the widget, such as in toolbars */
+	void SetCustomMenuDelegate( FNewMenuDelegate& InOnFillMenuDelegate);
 
 private:
 
@@ -50,6 +54,9 @@ private:
 
 	/** Hortizontal aligment for this widget in its parent container. Note: only applies to toolbars */
 	EHorizontalAlignment HorizontalAlignment;
+
+	/** Optional delegate to customize when a menu appears instead of the widget, such as in toolbars */
+	FNewMenuDelegate CustomMenuDelegate;
 };
 
 

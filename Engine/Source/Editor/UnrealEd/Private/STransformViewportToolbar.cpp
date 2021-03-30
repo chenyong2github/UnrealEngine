@@ -32,6 +32,7 @@
 #include "LevelEditorActions.h"
 #include "Styling/ToolBarStyle.h"
 #include "SEditorViewportToolBarMenu.h"
+#include "SEditorViewportToolBarButton.h"
 #include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "TransformToolBar"
@@ -93,7 +94,7 @@ TSharedRef<SWidget> STransformViewportToolBar::GenerateSurfaceSnappingMenu()
 					return Settings.bSnapRotation;
 					})),
 				NAME_None,
-			EUserInterfaceActionType::RadioButton);
+			EUserInterfaceActionType::Check);
 
 
 		MenuBuilder.AddWidget(
@@ -210,12 +211,20 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 		ToolbarBuilder.SetIsFocusable( true );
 
 		ToolbarBuilder.AddToolBarButton( FEditorViewportCommands::Get().CycleTransformGizmoCoordSystem,
-										NAME_None,
-										TAttribute<FText>(),
-										TAttribute<FText>(),
-										TAttribute<FSlateIcon>(this, &STransformViewportToolBar::GetLocalToWorldIcon),
-										FName(TEXT("CycleTransformGizmoCoordSystem"))
-										);
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			TAttribute<FSlateIcon>(this, &STransformViewportToolBar::GetLocalToWorldIcon),
+			FName(TEXT("CycleTransformGizmoCoordSystem")),
+
+			// explictly specify what this widget should look like as a menu item
+			FNewMenuDelegate::CreateLambda( []( FMenuBuilder& InMenuBuilder )
+			{
+				InMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().RelativeCoordinateSystem_World);
+				InMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().RelativeCoordinateSystem_Local);
+			}
+		));
+
 	}
 
 	ToolbarBuilder.EndSection();
@@ -223,56 +232,101 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 	ToolbarBuilder.BeginSection("LocationGridSnap");
 	{
 		static FName SurfaceSnapName = FName(TEXT("SurfaceSnap"));
-		ToolbarBuilder.AddWidget( MakeSurfaceSnappingButton(), SurfaceSnapName );
+		ToolbarBuilder.AddWidget( MakeSurfaceSnappingButton(), SurfaceSnapName, false, HAlign_Fill, 
+			FNewMenuDelegate::CreateLambda( [this]( FMenuBuilder& InMenuBuilder )
+			{
+				InMenuBuilder.AddWrapperSubMenu(
+					LOCTEXT("SnapToSurfaceMenuSettings", "Surface Snap Settings"),
+					LOCTEXT("SnapToSurfaceMenuSettings_Tooltip", "Snap To Surface Settings"),
+					FOnGetContent::CreateSP(this, &STransformViewportToolBar::GenerateSurfaceSnappingMenu),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.ToggleSurfaceSnapping")
+				);
+			}
+		));
 
 		ToolbarBuilder.AddSeparator();
 
 		// Grab the existing UICommand 
-		FUICommandInfo* Command = FEditorViewportCommands::Get().LocationGridSnap.Get();
+		TSharedPtr<FUICommandInfo> Command = FEditorViewportCommands::Get().LocationGridSnap;
 
 		static FName PositionSnapName = FName(TEXT("PositionSnap"));
 
 		// Setup a GridSnapSetting with the UICommand
-		ToolbarBuilder.AddWidget(	SNew(SViewportToolBarComboMenu)
-									.Style(ToolBarStyle)
-									.IsChecked(this, &STransformViewportToolBar::IsLocationGridSnapChecked)
-									.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleLocationGridSnap)
-									.Label(this, &STransformViewportToolBar::GetLocationGridLabel)
-									.OnGetMenuContent(this, &STransformViewportToolBar::FillLocationGridSnapMenu)
-									.ToggleButtonToolTip(Command->GetDescription())
-									.MenuButtonToolTip(LOCTEXT("LocationGridSnap_ToolTip", "Set the Position Grid Snap value"))
-									.Icon(Command->GetIcon())
-									.ParentToolBar(SharedThis(this))
-									,PositionSnapName );
+		ToolbarBuilder.AddWidget(	
+			SNew(SViewportToolBarComboMenu)
+				.Style(ToolBarStyle)
+				.IsChecked(this, &STransformViewportToolBar::IsLocationGridSnapChecked)
+				.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleLocationGridSnap)
+				.Label(this, &STransformViewportToolBar::GetLocationGridLabel)
+				.OnGetMenuContent(this, &STransformViewportToolBar::FillLocationGridSnapMenu)
+				.ToggleButtonToolTip(Command->GetDescription())
+				.MenuButtonToolTip(LOCTEXT("LocationGridSnap_ToolTip", "Set the Position Grid Snap value"))
+				.Icon(Command->GetIcon())
+				.ParentToolBar(SharedThis(this)),
+			PositionSnapName, 
+			false, 
+			HAlign_Fill, 
+
+			// explictly specify what this widget should look like as a menu item
+			FNewMenuDelegate::CreateLambda( [this, Command]( FMenuBuilder& InMenuBuilder )
+			{
+				// TODO - debug why can't just use the Command / mapping isn't working 
+				InMenuBuilder.AddMenuEntry(Command);
+
+				InMenuBuilder.AddWrapperSubMenu(
+					LOCTEXT("GridSnapMenuSettings", "Grid Snap Settings"),
+					LOCTEXT("GridSnapMenuSettings_ToolTip", "Set the Position Grid Snap value"),
+					FOnGetContent::CreateSP(this, &STransformViewportToolBar::FillLocationGridSnapMenu),
+					FSlateIcon(Command->GetIcon())
+				);
+			}
+		));
 	}
 	ToolbarBuilder.EndSection();
 
 	ToolbarBuilder.BeginSection("RotationGridSnap");
 	{
 		// Grab the existing UICommand 
-		FUICommandInfo* Command = FEditorViewportCommands::Get().RotationGridSnap.Get();
+		TSharedPtr<FUICommandInfo> Command = FEditorViewportCommands::Get().RotationGridSnap;
 
 		static FName RotationSnapName = FName(TEXT("RotationSnap"));
 
 		// Setup a GridSnapSetting with the UICommand
-		ToolbarBuilder.AddWidget(	SNew(SViewportToolBarComboMenu)
-									.Style(ToolBarStyle)
-									.IsChecked(this, &STransformViewportToolBar::IsRotationGridSnapChecked)
-									.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleRotationGridSnap)
-									.Label(this, &STransformViewportToolBar::GetRotationGridLabel)
-									.OnGetMenuContent(this, &STransformViewportToolBar::FillRotationGridSnapMenu)
-									.ToggleButtonToolTip(Command->GetDescription())
-									.MenuButtonToolTip(LOCTEXT("RotationGridSnap_ToolTip", "Set the Rotation Grid Snap value"))
-									.Icon(Command->GetIcon())
-									.ParentToolBar(SharedThis(this))
-									, RotationSnapName );
+		ToolbarBuilder.AddWidget(	
+			SNew(SViewportToolBarComboMenu)
+				.Style(ToolBarStyle)
+				.IsChecked(this, &STransformViewportToolBar::IsRotationGridSnapChecked)
+				.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleRotationGridSnap)
+				.Label(this, &STransformViewportToolBar::GetRotationGridLabel)
+				.OnGetMenuContent(this, &STransformViewportToolBar::FillRotationGridSnapMenu)
+				.ToggleButtonToolTip(Command->GetDescription())
+				.MenuButtonToolTip(LOCTEXT("RotationGridSnap_ToolTip", "Set the Rotation Grid Snap value"))
+				.Icon(Command->GetIcon())
+				.ParentToolBar(SharedThis(this)),
+			RotationSnapName,
+			false, 
+			HAlign_Fill, 
+
+			// explictly specify what this widget should look like as a menu item
+			FNewMenuDelegate::CreateLambda( [this, Command]( FMenuBuilder& InMenuBuilder )
+			{
+				InMenuBuilder.AddMenuEntry(Command);
+
+				InMenuBuilder.AddWrapperSubMenu(
+					LOCTEXT("RotationGridSnapMenuSettings", "Rotation Snap Settings"),
+					LOCTEXT("RotationGridSnapMenuSettings_ToolTip", "Adjust the Grid Settings for Rotation Snap"),
+					FOnGetContent::CreateSP(this, &STransformViewportToolBar::FillRotationGridSnapMenu),
+					FSlateIcon(Command->GetIcon())
+				);
+			}
+		));
 	}
 	ToolbarBuilder.EndSection();
 
 	ToolbarBuilder.BeginSection("Layer2DSnap");
 	{
 		// Grab the existing UICommand 
-		FUICommandInfo* Command = FEditorViewportCommands::Get().Layer2DSnap.Get();
+		TSharedPtr<FUICommandInfo> Command = FEditorViewportCommands::Get().Layer2DSnap;
 
 		static FName Layer2DSnapName = FName(TEXT("Layer2DSnap"));
 
@@ -290,7 +344,28 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 			.ParentToolBar(SharedThis(this))
 			.MinDesiredButtonWidth(88.0f);
 
-		ToolbarBuilder.AddWidget(SnapLayerPickerWidget, Layer2DSnapName);
+		ToolbarBuilder.AddWidget(
+			SnapLayerPickerWidget, 
+			Layer2DSnapName,
+			false, 
+			HAlign_Fill, 
+
+			// explictly specify what this widget should look like as a menu item
+			FNewMenuDelegate::CreateLambda( [this, Command]( FMenuBuilder& InMenuBuilder )
+			{
+				if (IsLayer2DSnapVisible() == EVisibility::Visible)
+				{
+					InMenuBuilder.AddMenuEntry(Command);
+
+					InMenuBuilder.AddWrapperSubMenu(
+						LOCTEXT("Layer2DSnapMenuSettings", "Layer 2D Snap Settings"),
+						LOCTEXT("Layer2DSnapMenuSettings_ToolTip", "Adjust the Grid Settings for Layer 2D Snap"),
+						FOnGetContent::CreateSP(this, &STransformViewportToolBar::FillLayer2DSnapMenu),
+						FSlateIcon(Command->GetIcon())
+					);
+				}
+			}
+		));
 	}
 	ToolbarBuilder.EndSection();
 
@@ -299,37 +374,73 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 	ToolbarBuilder.BeginSection("ScaleGridSnap");
 	{
 		// Grab the existing UICommand 
-		FUICommandInfo* Command = FEditorViewportCommands::Get().ScaleGridSnap.Get();
+		TSharedPtr<FUICommandInfo> Command = FEditorViewportCommands::Get().ScaleGridSnap;
 
 		static FName ScaleSnapName = FName(TEXT("ScaleSnap"));
 
 		// Setup a GridSnapSetting with the UICommand
-		ToolbarBuilder.AddWidget(	SNew(SViewportToolBarComboMenu)
-									.Cursor( EMouseCursor::Default )
-									.Style(ToolBarStyle)
-									.IsChecked(this,&STransformViewportToolBar::IsScaleGridSnapChecked)
-									.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleScaleGridSnap)
-									.Label(this ,&STransformViewportToolBar::GetScaleGridLabel)
-									.OnGetMenuContent(this, &STransformViewportToolBar::FillScaleGridSnapMenu)
-									.ToggleButtonToolTip(Command->GetDescription())
-									.MenuButtonToolTip(LOCTEXT("ScaleGridSnap_ToolTip", "Set scaling options"))
-									.Icon(Command->GetIcon())
-									.ParentToolBar(SharedThis(this))
-									, ScaleSnapName );
+		ToolbarBuilder.AddWidget(	
+			SNew(SViewportToolBarComboMenu)
+				.Cursor( EMouseCursor::Default )
+				.Style(ToolBarStyle)
+				.IsChecked(this,&STransformViewportToolBar::IsScaleGridSnapChecked)
+				.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleScaleGridSnap)
+				.Label(this ,&STransformViewportToolBar::GetScaleGridLabel)
+				.OnGetMenuContent(this, &STransformViewportToolBar::FillScaleGridSnapMenu)
+				.ToggleButtonToolTip(Command->GetDescription())
+				.MenuButtonToolTip(LOCTEXT("ScaleGridSnap_ToolTip", "Set scaling options"))
+				.Icon(Command->GetIcon())
+				.ParentToolBar(SharedThis(this)),
+			ScaleSnapName,
+			false, 
+			HAlign_Fill, 
+
+			// explictly specify what this widget should look like as a menu item
+			FNewMenuDelegate::CreateLambda( [this, Command]( FMenuBuilder& InMenuBuilder )
+			{
+				InMenuBuilder.AddMenuEntry(Command);
+
+				InMenuBuilder.AddWrapperSubMenu(
+					LOCTEXT("ScaleGridSnapMenuSettings", "Scale Snap Settings"),
+					LOCTEXT("ScaleGridSnapMenuSettings_ToolTip", "Adjust the Grid Settings for Scale Snap"),
+					FOnGetContent::CreateSP(this, &STransformViewportToolBar::FillScaleGridSnapMenu),
+					FSlateIcon(Command->GetIcon())
+				);
+			}
+		));
 	}
 	ToolbarBuilder.EndSection();
 
 	ToolbarBuilder.BeginSection("CameraSpeed");
 	{
+		static FName CameraSpeedName = FName(TEXT("CameraSpeed"));
+
 		// Camera speed 
 		ToolbarBuilder.AddWidget(	
 			SNew(SEditorViewportToolbarMenu)
-			.ParentToolBar(SharedThis(this))
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("CameraSpeedButton")))
-			.ToolTipText(LOCTEXT("CameraSpeed_ToolTip", "Camera Speed"))
-			.LabelIcon(FAppStyle::Get().GetBrush("EditorViewport.CamSpeedSetting"))
-			.Label(this, &STransformViewportToolBar::GetCameraSpeedLabel)
-			.OnGetMenuContent(this, &STransformViewportToolBar::FillCameraSpeedMenu));
+				.ParentToolBar(SharedThis(this))
+				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("CameraSpeedButton")))
+				.ToolTipText(LOCTEXT("CameraSpeed_ToolTip", "Camera Speed"))
+				.LabelIcon(FAppStyle::Get().GetBrush("EditorViewport.CamSpeedSetting"))
+				.Label(this, &STransformViewportToolBar::GetCameraSpeedLabel)
+				.OnGetMenuContent(this, &STransformViewportToolBar::FillCameraSpeedMenu),
+			CameraSpeedName,
+			false,
+			HAlign_Fill,
+
+			// explictly specify what this widget should look like as a menu item
+			FNewMenuDelegate::CreateLambda( [this]( FMenuBuilder& InMenuBuilder )
+			{
+				InMenuBuilder.AddWrapperSubMenu(
+					LOCTEXT("CameraSpeedMenuSettings", "Camera Speed Settings"),
+					LOCTEXT("CameraSpeedMenuSettings_ToolTip", "Adjust the camera navigation speed"),
+					FOnGetContent::CreateSP(this, &STransformViewportToolBar::FillCameraSpeedMenu),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.CamSpeedSetting")
+				);
+			}
+		));
+
+
 	}
 	ToolbarBuilder.EndSection();
 
@@ -405,6 +516,16 @@ TSharedRef<SWidget> STransformViewportToolBar::FillCameraSpeedMenu()
 	];
 
 	return ReturnWidget;
+}
+
+FReply STransformViewportToolBar::OnCycleCoordinateSystem()
+{
+	if( Viewport.IsValid() )
+	{
+		Viewport.Pin()->OnCycleCoordinateSystem();
+	}
+
+	return FReply::Handled();
 }
 
 FSlateIcon STransformViewportToolBar::GetLocalToWorldIcon() const

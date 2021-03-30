@@ -21,10 +21,23 @@ FWidgetBlock::FWidgetBlock( TSharedRef<SWidget> InContent, const FText& InLabel,
 }
 
 
+void FWidgetBlock::SetCustomMenuDelegate( FNewMenuDelegate& InCustomMenuDelegate )
+{
+	CustomMenuDelegate = InCustomMenuDelegate;	
+}
+
+
 void FWidgetBlock::CreateMenuEntry(FMenuBuilder& MenuBuilder) const
 {
-	FText EntryLabel = (!Label.IsEmpty()) ? Label : NSLOCTEXT("WidgetBlock", "CustomControl", "Custom Control");
-	MenuBuilder.AddWidget(ContentWidget, FText::GetEmpty(), true);
+	if ( CustomMenuDelegate.IsBound() )
+	{
+		CustomMenuDelegate.Execute(MenuBuilder);
+	}
+	else
+	{
+		FText EntryLabel = (!Label.IsEmpty()) ? Label : NSLOCTEXT("WidgetBlock", "CustomControl", "Custom Control");
+		MenuBuilder.AddWidget(ContentWidget, FText::GetEmpty(), true);
+	}
 }
 
 

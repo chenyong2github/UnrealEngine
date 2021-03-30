@@ -73,6 +73,11 @@ public:
 	 * @return true if the specified coordinate system the active one active
 	 */
 	virtual bool IsCoordSystemActive( ECoordSystem CoordSystem ) const;
+
+	/**
+	 * Cycles between world and local coordinate systems
+	 */
+	virtual void OnCycleCoordinateSystem();
 	
 	/** @return The viewport command list */
 	const TSharedPtr<FUICommandList> GetCommandList() const { return CommandList; }
@@ -224,11 +229,6 @@ protected:
 	 * Moves between widget modes
 	 */
 	virtual void OnCycleWidgetMode();
-
-	/**
-	 * Cycles between world and local coordinate systems
-	 */
-	virtual void OnCycleCoordinateSystem();
 
 	/**
 	 * Called when the user wants to focus the viewport to the current selection

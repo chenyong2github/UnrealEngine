@@ -1098,7 +1098,7 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 
 TSharedRef<SWidget> SMultiBoxWidget::OnWrapButtonClicked()
 {
-	FMenuBuilder MenuBuilder(true, NULL, TSharedPtr<FExtender>(), false, GetStyleSet());
+	FMenuBuilder MenuBuilder(true, MultiBox->GetLastCommandList(), TSharedPtr<FExtender>(), false, GetStyleSet());
 	{ 
 		const TArray< TSharedRef< const FMultiBlock > >& Blocks = MultiBox->GetBlocks();
 		for (int32 BlockIdx = ClippedHorizontalBox->GetClippedIndex(); BlockIdx < Blocks.Num(); ++BlockIdx)

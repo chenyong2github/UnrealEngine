@@ -397,6 +397,9 @@ public:
 	/* Whether the MultiBox has a search widget */
 	bool bHasSearchWidget;
 
+	/* Returns the last command list used */
+	const TSharedPtr<const FUICommandList> GetLastCommandList() const { return CommandLists.Last(); }
+
 private:
 	
 	/**
