@@ -1313,7 +1313,7 @@ void UTextRenderComponent::PostLoad()
 {
 	// Try and fix up assets created before the vertical alignment fix was implemented. Because we didn't flag that
 	// fix with its own version, use the version number closest to that CL
-	if (GetLinkerUE4Version() < VER_UE4_PACKAGE_REQUIRES_LOCALIZATION_GATHER_FLAGGING)
+	if (GetLinkerUEVersion() < VER_UE4_PACKAGE_REQUIRES_LOCALIZATION_GATHER_FLAGGING)
 	{
 		const float Offset = CalculateVerticalAlignmentOffset(*Text.ToString(), Font, XScale, YScale, HorizSpacingAdjust, VertSpacingAdjust, VerticalAlignment);
 		const FTransform RelativeTransform = GetRelativeTransform();
@@ -1324,12 +1324,12 @@ void UTextRenderComponent::PostLoad()
 		SetRelativeTransform(CorrectionLeft * RelativeTransform * CorrectionRight);
 	}
 
-	if (GetLinkerUE4Version() < VER_UE4_ADD_TEXT_COMPONENT_VERTICAL_ALIGNMENT)
+	if (GetLinkerUEVersion() < VER_UE4_ADD_TEXT_COMPONENT_VERTICAL_ALIGNMENT)
 	{
 		VerticalAlignment = EVRTA_QuadTop;
 	}
 
-	if( GetLinkerUE4Version() < VER_UE4_TEXT_RENDER_COMPONENTS_WORLD_SPACE_SIZING )
+	if( GetLinkerUEVersion() < VER_UE4_TEXT_RENDER_COMPONENTS_WORLD_SPACE_SIZING )
 	{
 		if( Font )
 		{

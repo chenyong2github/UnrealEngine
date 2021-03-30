@@ -24,7 +24,7 @@ void APhysicsVolume::LoadedFromAnotherClass(const FName& OldClassName)
 {
 	Super::LoadedFromAnotherClass(OldClassName);
 
-	if(GetLinkerUE4Version() < VER_UE4_REMOVE_DYNAMIC_VOLUME_CLASSES)
+	if(GetLinkerUEVersion() < VER_UE4_REMOVE_DYNAMIC_VOLUME_CLASSES)
 	{
 		static FName DynamicPhysicsVolume_NAME(TEXT("DynamicPhysicsVolume"));
 

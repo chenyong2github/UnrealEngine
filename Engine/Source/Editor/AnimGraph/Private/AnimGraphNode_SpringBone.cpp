@@ -16,7 +16,7 @@ void UAnimGraphNode_SpringBone::PostLoad()
 {
 	Super::PostLoad();
 
-	if (GetLinkerUE4Version() < VER_UE4_REPLACE_SPRING_NOZ_PROPERTY)
+	if (GetLinkerUEVersion() < VER_UE4_REPLACE_SPRING_NOZ_PROPERTY)
 	{
 		//Fix up z translation from old NoZSpring property
 		Node.bTranslateZ = !Node.bNoZSpring_DEPRECATED;

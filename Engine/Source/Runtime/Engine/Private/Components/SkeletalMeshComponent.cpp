@@ -1068,7 +1068,7 @@ void USkeletalMeshComponent::LoadedFromAnotherClass(const FName& OldClassName)
 {
 	Super::LoadedFromAnotherClass(OldClassName);
 
-	if(GetLinkerUE4Version() < VER_UE4_REMOVE_SINGLENODEINSTANCE)
+	if(GetLinkerUEVersion() < VER_UE4_REMOVE_SINGLENODEINSTANCE)
 	{
 		static FName SingleAnimSkeletalComponent_NAME(TEXT("SingleAnimSkeletalComponent"));
 

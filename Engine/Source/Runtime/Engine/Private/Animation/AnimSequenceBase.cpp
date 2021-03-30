@@ -110,7 +110,7 @@ void UAnimSequenceBase::PostLoad()
 	// Convert Notifies to new data
 	if( GIsEditor && Notifies.Num() > 0 )
 	{
-		if(GetLinkerUE4Version() < VER_UE4_CLEAR_NOTIFY_TRIGGERS)
+		if(GetLinkerUEVersion() < VER_UE4_CLEAR_NOTIFY_TRIGGERS)
 		{
 			for(FAnimNotifyEvent Notify : Notifies)
 			{

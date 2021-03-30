@@ -207,9 +207,9 @@ void USoundBase::PostLoad()
 		bOutputToBusOnly_DEPRECATED = false;
 	}
 
-	const int32 LinkerUE4Version = GetLinkerUE4Version();
+	const int32 LinkerUEVersion = GetLinkerUEVersion();
 
-	if (LinkerUE4Version < VER_UE4_SOUND_CONCURRENCY_PACKAGE)
+	if (LinkerUEVersion < VER_UE4_SOUND_CONCURRENCY_PACKAGE)
 	{
 		bOverrideConcurrency = true;
 		ConcurrencyOverrides.bLimitToOwner = false;

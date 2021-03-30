@@ -2205,7 +2205,7 @@ void UParticleModuleLocationSkelVertSurface::PostLoad()
 
 	NormalCheckTolerance = ((1.0f-(NormalCheckToleranceDegrees/180.0f))*2.0f)-1.0f;
 
-	if (GetLinkerUE4Version() < VER_UE4_FIX_SKEL_VERT_ORIENT_MESH_PARTICLES)
+	if (GetLinkerUEVersion() < VER_UE4_FIX_SKEL_VERT_ORIENT_MESH_PARTICLES)
 	{
 		//The code to actually do this hasn't been present ever in UE4 so I'm disabling it for old emitters.
 		//I expect that some users will have this set to true and it will alter the behavior of their emitters under their feet.

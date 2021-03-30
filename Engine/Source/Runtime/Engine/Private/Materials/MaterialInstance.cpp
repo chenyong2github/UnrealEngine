@@ -1154,7 +1154,7 @@ bool UMaterialInstance::GetRefractionSettings(float& OutBiasValue) const
 	bool bFoundAValue = false;
 
 	FMaterialParameterInfo ParamInfo;
-	if( GetLinkerUE4Version() >= VER_UE4_REFRACTION_BIAS_TO_REFRACTION_DEPTH_BIAS )
+	if( GetLinkerUEVersion() >= VER_UE4_REFRACTION_BIAS_TO_REFRACTION_DEPTH_BIAS )
 	{
 		static FName NAME_RefractionDepthBias(TEXT("RefractionDepthBias"));
 		ParamInfo.Name = NAME_RefractionDepthBias;

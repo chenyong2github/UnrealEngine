@@ -841,7 +841,7 @@ void UAnimSequence::PostLoad()
 
 	// I have to do this first thing in here
 	// so that remove all NaNs before even being read
-	if(GetLinkerUE4Version() < VER_UE4_ANIMATION_REMOVE_NANS)
+	if(GetLinkerUEVersion() < VER_UE4_ANIMATION_REMOVE_NANS)
 	{
 		RemoveNaNTracks();
 	}

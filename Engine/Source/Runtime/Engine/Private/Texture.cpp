@@ -445,7 +445,7 @@ void UTexture::Serialize(FArchive& Ar)
 		Source.BulkData.Serialize(Ar, this);
 	}
 
-	if ( GetLinkerUE4Version() < VER_UE4_TEXTURE_LEGACY_GAMMA )
+	if ( GetLinkerUEVersion() < VER_UE4_TEXTURE_LEGACY_GAMMA )
 	{
 		bUseLegacyGamma = true;
 	}

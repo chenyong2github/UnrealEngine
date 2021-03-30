@@ -447,7 +447,7 @@ void UBodySetup::CreatePhysicsMeshes()
 	
 	// fix up invalid transform to use identity
 	// this can be here because BodySetup isn't blueprintable
-	if ( GetLinkerUE4Version() < VER_UE4_FIXUP_BODYSETUP_INVALID_CONVEX_TRANSFORM )
+	if ( GetLinkerUEVersion() < VER_UE4_FIXUP_BODYSETUP_INVALID_CONVEX_TRANSFORM )
 	{
 		for (int32 i=0; i<AggGeom.ConvexElems.Num(); ++i)
 		{
@@ -1196,7 +1196,7 @@ void UBodySetup::PostLoad()
 	}
 
 #if WITH_EDITORONLY_DATA
-	if ( GetLinkerUE4Version() < VER_UE4_BUILD_SCALE_VECTOR )
+	if ( GetLinkerUEVersion() < VER_UE4_BUILD_SCALE_VECTOR )
 	{
 		BuildScale3D = FVector( BuildScale_DEPRECATED );
 	}
@@ -1204,7 +1204,7 @@ void UBodySetup::PostLoad()
 
 	DefaultInstance.FixupData(this);
 
-	if ( GetLinkerUE4Version() < VER_UE4_REFACTOR_PHYSICS_BLENDING )
+	if ( GetLinkerUEVersion() < VER_UE4_REFACTOR_PHYSICS_BLENDING )
 	{
 		if ( bAlwaysFullAnimWeight_DEPRECATED )
 		{
@@ -1220,7 +1220,7 @@ void UBodySetup::PostLoad()
 		}
 	}
 
-	if ( GetLinkerUE4Version() < VER_UE4_BODYSETUP_COLLISION_CONVERSION )
+	if ( GetLinkerUEVersion() < VER_UE4_BODYSETUP_COLLISION_CONVERSION )
 	{
 		if ( DefaultInstance.GetCollisionEnabled() == ECollisionEnabled::NoCollision )
 		{

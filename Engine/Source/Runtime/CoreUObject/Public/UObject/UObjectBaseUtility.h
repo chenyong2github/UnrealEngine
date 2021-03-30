@@ -616,7 +616,12 @@ public:
 	 *			a) this object is a native only class, or
 	 *			b) this object's linker has been detached, in which case it is already fully loaded
 	 */
-	int32 GetLinkerUE4Version() const;
+	int32 GetLinkerUEVersion() const;
+
+
+	UE_DEPRECATED(5.0, "Use GetLinkerUEVersion instead")
+	inline int32 GetLinkerUE4Version() const { return GetLinkerUEVersion(); }
+
 
 	/**
 	 * Returns the licensee version of the linker for this object.
@@ -627,7 +632,11 @@ public:
 	 *			a) this object is a native only class, or
 	 *			b) this object's linker has been detached, in which case it is already fully loaded
 	 */
-	int32 GetLinkerLicenseeUE4Version() const;
+	int32 GetLinkerLicenseeUEVersion() const;
+
+	UE_DEPRECATED(5.0, "Use GetLinkerLicenseeUEVersion instead")
+	inline int32 GetLinkerLicenseeUE4Version() const { return GetLinkerLicenseeUEVersion(); }
+
 
 	/**
 	 * Returns the custom version of the linker for this object corresponding to the given custom version key.

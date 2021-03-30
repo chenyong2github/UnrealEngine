@@ -49,7 +49,7 @@ void UMaterialExpressionLandscapeLayerWeight::PostLoad()
 {
 	Super::PostLoad();
 
-	if (GetLinkerUE4Version() < VER_UE4_FIXUP_TERRAIN_LAYER_NODES)
+	if (GetLinkerUEVersion() < VER_UE4_FIXUP_TERRAIN_LAYER_NODES)
 	{
 		UpdateParameterGuid(true, true);
 	}

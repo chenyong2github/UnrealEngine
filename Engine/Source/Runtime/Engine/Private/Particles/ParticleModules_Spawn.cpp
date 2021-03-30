@@ -73,7 +73,7 @@ void UParticleModuleSpawn::PostLoad()
 {
 	Super::PostLoad();
 
-	if (GetLinkerUE4Version() < VER_UE4_GLOBAL_EMITTER_SPAWN_RATE_SCALE && Rate.Distribution)
+	if (GetLinkerUEVersion() < VER_UE4_GLOBAL_EMITTER_SPAWN_RATE_SCALE && Rate.Distribution)
 	{
 		Rate.Distribution->ConditionalPostLoad();//Ensure the distribution is loaded.
 		if (Rate.Distribution->IsA(UDistributionFloatConstant::StaticClass()) && Rate.GetValue() <= 1.0f)

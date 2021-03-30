@@ -1621,7 +1621,7 @@ void ULandscapeSplineControlPoint::PostLoad()
 		}
 	}
 
-	if (GetLinkerUE4Version() < VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES)
+	if (GetLinkerUEVersion() < VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES)
 	{
 		// Fix collision profile
 		if (LocalMeshComponent != nullptr) // ForeignMeshComponents didn't exist yet
@@ -2434,7 +2434,7 @@ void ULandscapeSplineSegment::PostLoad()
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		if (GetLinkerUE4Version() < VER_UE4_ADDED_LANDSCAPE_SPLINE_EDITOR_MESH &&
+		if (GetLinkerUEVersion() < VER_UE4_ADDED_LANDSCAPE_SPLINE_EDITOR_MESH &&
 			LocalMeshComponents.Num() == 0) // ForeignMeshComponents didn't exist yet
 		{
 			UpdateSplinePoints();
@@ -2469,7 +2469,7 @@ void ULandscapeSplineSegment::PostLoad()
 		}
 	}
 
-	if (GetLinkerUE4Version() < VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES)
+	if (GetLinkerUEVersion() < VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES)
 	{
 		// Fix collision profile
 		for (auto& LocalMeshComponent : LocalMeshComponents) // ForeignMeshComponents didn't exist yet

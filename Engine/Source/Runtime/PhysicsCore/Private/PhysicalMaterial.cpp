@@ -76,7 +76,7 @@ void UPhysicalMaterial::PostLoad()
 	Super::PostLoad();
 
 	// we're removing physical material property, so convert to Material type
-	if (GetLinkerUE4Version() < VER_UE4_REMOVE_PHYSICALMATERIALPROPERTY)
+	if (GetLinkerUEVersion() < VER_UE4_REMOVE_PHYSICALMATERIALPROPERTY)
 	{
 		if (PhysicalMaterialProperty_DEPRECATED)
 		{

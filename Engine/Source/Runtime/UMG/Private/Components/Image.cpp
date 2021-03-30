@@ -27,7 +27,7 @@ void UImage::PostLoad()
 {
 	Super::PostLoad();
 
-	if ( GetLinkerUE4Version() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS && Image_DEPRECATED != nullptr )
+	if ( GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS && Image_DEPRECATED != nullptr )
 	{
 		Brush = Image_DEPRECATED->Brush;
 		Image_DEPRECATED = nullptr;
@@ -106,14 +106,14 @@ void UImage::SetBrush(const FSlateBrush& InBrush)
 
 void UImage::SetBrushSize(FVector2D DesiredSize)
 {
-	if(Brush.ImageSize != DesiredSize)
-	{
-		Brush.ImageSize = DesiredSize;
+	SetDesiredSizeOverride(DesiredSize);
+}
 
-		if (MyImage.IsValid())
-		{
-			MyImage->SetImage(&Brush);
-		}
+void UImage::SetDesiredSizeOverride(FVector2D DesiredSize)
+{
+	if (MyImage.IsValid())
+	{
+		MyImage->SetDesiredSizeOverride(DesiredSize);
 	}
 }
 

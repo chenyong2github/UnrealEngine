@@ -16,7 +16,7 @@
  *			a) this object is a native only class, or
  *			b) this object's linker has been detached, in which case it is already fully loaded
  */
-int32 UObjectBaseUtility::GetLinkerUE4Version() const
+int32 UObjectBaseUtility::GetLinkerUEVersion() const
 {
 	FLinkerLoad* Loader = GetLinker();
 
@@ -90,7 +90,7 @@ int32 UObjectBaseUtility::GetLinkerCustomVersion(FGuid CustomVersionKey) const
  *			a) this object is a native only class, or
  *			b) this object's linker has been detached, in which case it is already fully loaded
  */
-int32 UObjectBaseUtility::GetLinkerLicenseeUE4Version() const
+int32 UObjectBaseUtility::GetLinkerLicenseeUEVersion() const
 {
 	FLinkerLoad* Loader = GetLinker();
 

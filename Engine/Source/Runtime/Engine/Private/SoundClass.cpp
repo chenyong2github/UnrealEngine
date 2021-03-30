@@ -66,7 +66,7 @@ void USoundClass::PostLoad()
 #if WITH_EDITORONLY_DATA
 	for (int32 ChildIndex = ChildClasses.Num()-1; ChildIndex >= 0; ChildIndex--)
 	{
-		if (ChildClasses[ChildIndex] != NULL && ChildClasses[ChildIndex]->GetLinkerUE4Version() < VER_UE4_SOUND_CLASS_GRAPH_EDITOR)
+		if (ChildClasses[ChildIndex] != NULL && ChildClasses[ChildIndex]->GetLinkerUEVersion() < VER_UE4_SOUND_CLASS_GRAPH_EDITOR)
 		{
 			// first come, first served
 			if (ChildClasses[ChildIndex]->ParentClass == nullptr)

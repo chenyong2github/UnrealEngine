@@ -285,7 +285,7 @@ void ASkeletalMeshActor::LoadedFromAnotherClass(const FName& OldClassName)
 {
 	Super::LoadedFromAnotherClass(OldClassName);
 
-	if (GetLinkerUE4Version() < VER_UE4_REMOVE_SKELETALPHYSICSACTOR)
+	if (GetLinkerUEVersion() < VER_UE4_REMOVE_SKELETALPHYSICSACTOR)
 	{
 		static FName SkeletalPhysicsActor_NAME(TEXT("SkeletalPhysicsActor"));
 		static FName KAsset_NAME(TEXT("KAsset"));

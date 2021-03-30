@@ -666,7 +666,7 @@ void UEdGraphNode::PostLoad()
 	}
 
 	// Duplicating a Blueprint needs to have a new Node Guid generated, which was not occuring before this version
-	if(GetLinkerUE4Version() < VER_UE4_POST_DUPLICATE_NODE_GUID)
+	if(GetLinkerUEVersion() < VER_UE4_POST_DUPLICATE_NODE_GUID)
 	{
 		UE_LOG(LogBlueprint, Warning, TEXT("Node '%s' missing NodeGuid because of upgrade from old package version, this can cause deterministic cooking issues please resave package."), *GetPathName());
 
@@ -674,7 +674,7 @@ void UEdGraphNode::PostLoad()
 		CreateNewGuid();
 	}
 	// Moving to the new style comments requires conversion to preserve previous state
-	if(GetLinkerUE4Version() < VER_UE4_GRAPH_INTERACTIVE_COMMENTBUBBLES)
+	if(GetLinkerUEVersion() < VER_UE4_GRAPH_INTERACTIVE_COMMENTBUBBLES)
 	{
 		bCommentBubbleVisible = !NodeComment.IsEmpty();
 	}

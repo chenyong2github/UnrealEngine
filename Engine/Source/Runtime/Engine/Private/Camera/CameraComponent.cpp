@@ -149,7 +149,7 @@ void UCameraComponent::PostLoad()
 {
 	Super::PostLoad();
 
-	const int32 LinkerUE4Ver = GetLinkerUE4Version();
+	const int32 LinkerUE4Ver = GetLinkerUEVersion();
 
 	if (LinkerUE4Ver < VER_UE4_RENAME_CAMERA_COMPONENT_VIEW_ROTATION)
 	{

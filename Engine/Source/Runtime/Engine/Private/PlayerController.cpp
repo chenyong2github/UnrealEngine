@@ -883,7 +883,7 @@ void APlayerController::PostLoad()
 {
 	Super::PostLoad();
 
-	if (GetLinkerUE4Version() < VER_UE4_SPLIT_TOUCH_AND_CLICK_ENABLES)
+	if (GetLinkerUEVersion() < VER_UE4_SPLIT_TOUCH_AND_CLICK_ENABLES)
 	{
 		bEnableTouchEvents = bEnableClickEvents;
 	}

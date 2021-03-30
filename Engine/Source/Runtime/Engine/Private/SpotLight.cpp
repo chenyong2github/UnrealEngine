@@ -63,7 +63,7 @@ void ASpotLight::LoadedFromAnotherClass(const FName& OldClassName)
 {
 	Super::LoadedFromAnotherClass(OldClassName);
 
-	if(GetLinkerUE4Version() < VER_UE4_REMOVE_LIGHT_MOBILITY_CLASSES)
+	if(GetLinkerUEVersion() < VER_UE4_REMOVE_LIGHT_MOBILITY_CLASSES)
 	{
 		static FName SpotLightStatic_NAME(TEXT("SpotLightStatic"));
 		static FName SpotLightMovable_NAME(TEXT("SpotLightMovable"));

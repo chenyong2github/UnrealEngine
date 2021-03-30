@@ -581,7 +581,7 @@ void ULightComponent::PostLoad()
 	PreviewShadowMapChannel = INDEX_NONE;
 	Intensity = FMath::Max(0.0f, Intensity);
 
-	if (GetLinkerUE4Version() < VER_UE4_LIGHTCOMPONENT_USE_IES_TEXTURE_MULTIPLIER_ON_NON_IES_BRIGHTNESS)
+	if (GetLinkerUEVersion() < VER_UE4_LIGHTCOMPONENT_USE_IES_TEXTURE_MULTIPLIER_ON_NON_IES_BRIGHTNESS)
 	{
 		if(IESTexture)
 		{

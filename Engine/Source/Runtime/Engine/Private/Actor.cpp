@@ -844,7 +844,7 @@ void AActor::PostLoad()
 		Owner->Children.Add(this);
 	}
 
-	if (GetLinkerUE4Version() < VER_UE4_PRIVATE_REMOTE_ROLE)
+	if (GetLinkerUEVersion() < VER_UE4_PRIVATE_REMOTE_ROLE)
 	{
 		bReplicates = (RemoteRole != ROLE_None);
 	}

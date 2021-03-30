@@ -300,7 +300,7 @@ void UModelComponent::PostLoad()
 	}
 
 	// Stop existing ModelComponents from generating mirrored collision mesh
-	if ((GetLinkerUE4Version() < VER_UE4_NO_MIRROR_BRUSH_MODEL_COLLISION) && (ModelBodySetup != NULL))
+	if ((GetLinkerUEVersion() < VER_UE4_NO_MIRROR_BRUSH_MODEL_COLLISION) && (ModelBodySetup != NULL))
 	{
 		ModelBodySetup->bGenerateMirroredCollision = false;
 	}

@@ -858,7 +858,7 @@ void UWidgetBlueprint::PostLoad()
 		Widget->ConnectEditorData();
 	});
 
-	if( GetLinkerUE4Version() < VER_UE4_FIXUP_WIDGET_ANIMATION_CLASS )
+	if( GetLinkerUEVersion() < VER_UE4_FIXUP_WIDGET_ANIMATION_CLASS )
 	{
 		// Fixup widget animations.
 		for( auto& OldAnim : AnimationData_DEPRECATED )
@@ -881,7 +881,7 @@ void UWidgetBlueprint::PostLoad()
 		AnimationData_DEPRECATED.Empty();
 	}
 
-	if ( GetLinkerUE4Version() < VER_UE4_RENAME_WIDGET_VISIBILITY )
+	if ( GetLinkerUEVersion() < VER_UE4_RENAME_WIDGET_VISIBILITY )
 	{
 		static const FName Visiblity(TEXT("Visiblity"));
 		static const FName Visibility(TEXT("Visibility"));

@@ -113,7 +113,7 @@ void UBlueprintGeneratedClass::PostLoad()
 			});
 		}
 
-		if (GetLinkerUE4Version() < VER_UE4_CLASS_NOTPLACEABLE_ADDED)
+		if (GetLinkerUEVersion() < VER_UE4_CLASS_NOTPLACEABLE_ADDED)
 		{
 			// Make sure the placeable flag is correct for all blueprints
 			UBlueprint* Blueprint = Cast<UBlueprint>(ClassGeneratedBy);

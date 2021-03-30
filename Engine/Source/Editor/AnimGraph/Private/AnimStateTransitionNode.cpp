@@ -112,7 +112,7 @@ void UAnimStateTransitionNode::PostLoad()
 		FAnimStateTransitionNodeSharedCrossfadeHelper().MakeSureGuidExists(this);
 	}
 
-	if(GetLinkerUE4Version() < VER_UE4_ADDED_NON_LINEAR_TRANSITION_BLENDS)
+	if(GetLinkerUEVersion() < VER_UE4_ADDED_NON_LINEAR_TRANSITION_BLENDS)
 	{
 		switch(CrossfadeMode_DEPRECATED)
 		{

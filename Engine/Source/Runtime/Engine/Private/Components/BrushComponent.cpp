@@ -506,7 +506,7 @@ void UBrushComponent::PostLoad()
 	Super::PostLoad();
 
 	// Stop existing BrushComponents from generating mirrored collision mesh
-	if ((GetLinkerUE4Version() < VER_UE4_NO_MIRROR_BRUSH_MODEL_COLLISION) && (BrushBodySetup != NULL))
+	if ((GetLinkerUEVersion() < VER_UE4_NO_MIRROR_BRUSH_MODEL_COLLISION) && (BrushBodySetup != NULL))
 	{
 		BrushBodySetup->bGenerateMirroredCollision = false;
 	}

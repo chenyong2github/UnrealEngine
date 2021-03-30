@@ -84,7 +84,7 @@ void AStaticMeshActor::LoadedFromAnotherClass(const FName& OldClassName)
 {
 	Super::LoadedFromAnotherClass(OldClassName);
 
-	if(GetLinkerUE4Version() < VER_UE4_REMOVE_STATICMESH_MOBILITY_CLASSES)
+	if(GetLinkerUEVersion() < VER_UE4_REMOVE_STATICMESH_MOBILITY_CLASSES)
 	{
 		static FName InterpActor_NAME(TEXT("InterpActor"));
 		static FName PhysicsActor_NAME(TEXT("PhysicsActor"));

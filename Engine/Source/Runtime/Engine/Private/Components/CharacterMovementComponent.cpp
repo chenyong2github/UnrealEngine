@@ -575,7 +575,7 @@ void UCharacterMovementComponent::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
-	const int32 LinkerUE4Ver = GetLinkerUE4Version();
+	const int32 LinkerUE4Ver = GetLinkerUEVersion();
 
 	if (LinkerUE4Ver < VER_UE4_CHARACTER_MOVEMENT_DECELERATION)
 	{
