@@ -78,7 +78,7 @@ namespace UnrealBuildTool.Rules
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
             }
 
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 			}
