@@ -159,6 +159,7 @@ bool FMallocMimalloc::GetAllocationSize(void *Original, SIZE_T &SizeOut)
 
 void FMallocMimalloc::Trim(bool bTrimThreadCaches)
 {
+	mi_collect(bTrimThreadCaches);
 }
 
 #endif
