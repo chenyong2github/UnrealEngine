@@ -208,7 +208,7 @@ void FSerializedUATProcess::CancelQueue()
 		{
 			FSerializedUATProcess* Delete = Travel;
 			Travel = Travel->NextProcessToRun;
-			delete Travel;
+			delete Delete;
 		}
 
 
