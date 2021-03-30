@@ -54,7 +54,7 @@ struct FExistingSkelMeshData
 	TArray<FTransform>						ExistingRetargetBasePose;
 	USkeletalMeshLODSettings*				ExistingLODSettings;
 	TSubclassOf<UAnimInstance>				ExistingPostProcessAnimBlueprint;
-	
+	TSoftObjectPtr<UObject>					ExistingDefaultAnimatingRig;
 	//////////////////////////////////////////////////////////////////////////
 
 	bool									bExistingUseFullPrecisionUVs;

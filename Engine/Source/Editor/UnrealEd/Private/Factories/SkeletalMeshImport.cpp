@@ -477,6 +477,7 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshHelper::SaveExistingSkelMeshData(U
 	ExistingMeshDataPtr->ExistingThumbnailInfo = SourceSkeletalMesh->GetThumbnailInfo();
 	ExistingMeshDataPtr->ExistingClothingAssets = SourceSkeletalMesh->GetMeshClothingAssets();
 	ExistingMeshDataPtr->ExistingSamplingInfo = SourceSkeletalMesh->GetSamplingInfo();
+	ExistingMeshDataPtr->ExistingDefaultAnimatingRig = SourceSkeletalMesh->DefaultAnimatingRig;
 
 	if (ExistingMeshDataPtr->UseMaterialNameSlotWorkflow)
 	{
@@ -964,6 +965,7 @@ void SkeletalMeshHelper::RestoreExistingSkelMeshData(TSharedPtr<const FExistingS
 		SkeletalMesh->SetShadowPhysicsAsset(MeshData->ExistingShadowPhysicsAsset);
 		SkeletalMesh->SetSkeleton(MeshData->ExistingSkeleton);
 		SkeletalMesh->SetPostProcessAnimBlueprint(MeshData->ExistingPostProcessAnimBlueprint);
+		SkeletalMesh->DefaultAnimatingRig = MeshData->ExistingDefaultAnimatingRig;
 
 		// Copy mirror table.
 		SkeletalMesh->ImportMirrorTable(MeshData->ExistingMirrorTable);
