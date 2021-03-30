@@ -169,7 +169,7 @@ namespace
 			FVector2f Delta = (NewElement - OppositeVertexPosition);
 			if (Delta.Length() > 0.0)
 			{
-				NewElement += KINDA_SMALL_NUMBER * Delta.Normalized();
+				NewElement += KINDA_SMALL_NUMBER * UE::Geometry::Normalized(Delta);
 			}
 			else
 			{
