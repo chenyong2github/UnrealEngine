@@ -30,8 +30,9 @@ namespace Metasound
 
 	struct FMetasoundGeneratorData
 	{
+		FOperatorSettings OperatorSettings;
 		TUniquePtr<Metasound::IOperator> GraphOperator;
-		TArrayView<TDataReadReference<FAudioBuffer>> OutputBuffers;
+		TArray<TDataReadReference<FAudioBuffer>> OutputBuffers;
 		FTriggerWriteRef TriggerOnPlayRef;
 		FTriggerReadRef TriggerOnFinishRef;
 	};
@@ -41,11 +42,11 @@ namespace Metasound
 	class FAsyncMetaSoundBuilder : public FNonAbandonableTask
 	{
 	public:
-		FAsyncMetaSoundBuilder(FMetasoundGeneratorInitParams&& InInitParams);
+		FAsyncMetaSoundBuilder(FMetasoundGenerator* InGenerator, FMetasoundGeneratorInitParams&& InInitParams, bool bInTriggerGenerator);
+
 		~FAsyncMetaSoundBuilder() = default;
 
 		void DoWork();
-		bool SetDataOnGenerator(FMetasoundGenerator& InGenerator);
 
 		FORCEINLINE TStatId GetStatId() const
 		{
@@ -53,20 +54,16 @@ namespace Metasound
 		}
 
 	private:
-		FMetasoundGeneratorInitParams InitParams;
-		TUniquePtr<IOperator> GraphOperator;
-		TArrayView<FAudioBufferReadRef> OutputBuffers;
-		FTriggerWriteRef PlayTrigger;
-		FTriggerReadRef FinishTrigger;
-		bool bSuccess;
-	};
 
+		FMetasoundGenerator* Generator;
+		FMetasoundGeneratorInitParams InitParams;
+		bool bTriggerGenerator;
+	};
 
 	/** FMetasoundGenerator generates audio from a given metasound IOperator
 	 * which produces a multichannel audio output.
 	 */
-	class METASOUNDGENERATOR_API FMetasoundGenerator : public ISoundGenerator, 
-														public FTickableGameObject
+	class METASOUNDGENERATOR_API FMetasoundGenerator : public ISoundGenerator
 	{
 	public:
 		using FOperatorUniquePtr = TUniquePtr<Metasound::IOperator>;
@@ -80,15 +77,6 @@ namespace Metasound
 		FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams);
 
 		virtual ~FMetasoundGenerator();
-
-		//~ Begin FTickableGameObject
-		virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Conditional; }
-		virtual bool IsTickableWhenPaused() const override { return true; }
-		virtual bool IsTickableInEditor() const override { return true; }
-		virtual bool IsTickable() const override;
-		virtual void Tick(float DeltaTime) override;
-		virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(MetasoundGenerator, STATGROUP_Tickables); }
-		//~ End FTickableGameObject
 
 		/** Set the value of a graph's input data using the assignment operator.
 		 *
@@ -137,17 +125,6 @@ namespace Metasound
 			}
 		}
 
-		/** Update the current graph operator with a new graph operator. The number of channels
-		 * of InGraphOutputAudioRef must match the existing number of channels reported by
-		 * GetNumChannels() in order for this function to successfully replace the graph operator.
-		 *
-		 * @param InGraphOperator - Unique pointer to the IOperator which executes the entire graph.
-		 * @param InGraphOutputAudioRef - Read reference to the audio buffer filled by the InGraphOperator.
-		 *
-		 * @return Returns true if the graph operator was successfully swapped. False otherwise.
-		 */
-//		bool UpdateGraphOperator(FMetasoundGeneratorInitParams&& InParams);
-
 		/** Return the number of audio channels. */
 		int32 GetNumChannels() const;
 
@@ -156,10 +133,21 @@ namespace Metasound
 		int32 GetDesiredNumSamplesToRenderPerCallback() const override;
 		bool IsFinished() const override;
 		//~ End FSoundGenerator
+		
+		/** Update the current graph operator with a new graph operator. The number of channels
+		 * of InGraphOutputAudioRef must match the existing number of channels reported by
+		 * GetNumChannels() in order for this function to successfully replace the graph operator.
+		 *
+		 * @param InData - Metasound data of built graph.
+		 * @param bTriggerGraph - If true, "OnPlay" will be triggered on the new graph.
+		 */
+		void SetPendingGraph(FMetasoundGeneratorData&& InData, bool bTriggerGraph);
+
 
 	private:
+		void UpdateGraphIfPending();
 		// Internal set graph after checking compatibility.
-		void SetGraph(FMetasoundGeneratorData&& InData);
+		void SetGraph(TUniquePtr<FMetasoundGeneratorData>&& InData, bool bTriggerGraph);
 
 		// Fill OutAudio with data in InBuffer, up to maximum number of samples.
 		// Returns the number of samples used.
@@ -171,7 +159,6 @@ namespace Metasound
 		FExecuter RootExecuter;
 
 		bool bIsGraphBuilding;
-		bool bIsPlaying;
 		bool bIsFinished;
 
 		int32 NumChannels;
@@ -193,7 +180,10 @@ namespace Metasound
 		typedef FAsyncTask<FAsyncMetaSoundBuilder> FBuilderTask;
 		TUniquePtr<FBuilderTask> BuilderTask;
 
-		friend class FAsyncMetaSoundBuilder;
+		FCriticalSection PendingGraphMutex;
+		TUniquePtr<FMetasoundGeneratorData> PendingGraphData;
+		bool bPendingGraphTrigger;
+		bool bIsNewGraphPending;
 	};
 }
 

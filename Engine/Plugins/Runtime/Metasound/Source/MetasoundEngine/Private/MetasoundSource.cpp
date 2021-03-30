@@ -10,6 +10,7 @@
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
+#include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundGenerator.h"
 #include "MetasoundInstanceTransmitter.h"
 #include "MetasoundLog.h"
@@ -185,19 +186,11 @@ bool UMetasoundSource::GetReceiveNodeMetadataForDataType(const FName& InTypeName
 {
 	using namespace Metasound;
 
-	FFrontendQuery Query;
+	TArray<FMetasoundFrontendClass> ReceiverNodeClasses = Metasound::Frontend::ISearchEngine::Get().FindClassesWithClassName(FReceiveNodeNames::GetClassNameForDataType(InTypeName));
 
-	Query.AddStep<FGenerateAllAvailableNodeClasses>()
-		.AddStep<FFilterClassesByClassName>(FReceiveNodeNames::GetClassNameForDataType(InTypeName));
-	
-	FFrontendQuerySelectionView Result = Query.ExecuteQuery();
-
-	TArrayView<const FFrontendQueryEntry* const> Selection = Result.GetSelection();
-
-	if (Selection.Num() > 0)
+	if (ReceiverNodeClasses.Num() > 0)
 	{
-		check(Selection[0]->Value.IsType<FMetasoundFrontendClass>());
-		OutMetadata = Selection[0]->Value.Get<FMetasoundFrontendClass>().Metadata;
+		OutMetadata = ReceiverNodeClasses[0].Metadata;
 		return true;
 	}
 
@@ -327,7 +320,23 @@ TArray<FString> UMetasoundSource::GetTransmittableInputVertexNames() const
 			FDataTypeRegistryInfo TypeInfo;
 			if (Frontend::GetTraitsForDataType(ClassInput->TypeName, TypeInfo))
 			{
-				return TypeInfo.bIsTransmittable;
+				if (TypeInfo.bIsTransmittable)
+				{
+					// TODO: Currently values set directly on node pins are represented
+					// as input nodes in the graph. They should not be used for transmission
+					// as the number of input nodes increases quickly as more nodes
+					// are added to a graph. Connecting these input nodes to the 
+					// transmission system is relatively expensive. These undesirable input nodes are
+					// filtered out by ignoring input nodes which are not "Visible". 
+					Frontend::FConstNodeHandle InputNode = RootGraph->GetNodeWithID(ClassInput->NodeID);
+					if (InputNode->IsValid())
+					{
+						if (EMetasoundFrontendNodeStyleDisplayVisibility::Visible == InputNode->GetNodeStyle().Display.Visibility)
+						{
+							return true;
+						}
+					}
+				}
 			}
 		}
 		return false;

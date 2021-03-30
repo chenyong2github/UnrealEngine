@@ -5,12 +5,28 @@
 #include "CoreMinimal.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendRegistryTransaction.h"
 
 namespace Metasound
 {
 	void FGenerateAllAvailableNodeClasses::Generate(TArray<FFrontendQueryEntry>& OutEntries) const
 	{
 		const TArray<Frontend::FNodeClassInfo> ClassInfos = Frontend::GetAllAvailableNodeClasses();
+
+		for (const Frontend::FNodeClassInfo& ClassInfo : ClassInfos)
+		{
+			OutEntries.Emplace(TInPlaceType<FMetasoundFrontendClass>(), Frontend::GenerateClassDescription(ClassInfo));
+		}
+	}
+
+	FGenerateNewlyAvailableNodeClasses::FGenerateNewlyAvailableNodeClasses()
+	: CurrentTransactionID(Frontend::GetOriginRegistryTransactionID())
+	{
+	}
+
+	void FGenerateNewlyAvailableNodeClasses::Generate(TArray<FFrontendQueryEntry>& OutEntries) const
+	{
+		const TArray<Frontend::FNodeClassInfo> ClassInfos = Frontend::GetNodeClassesRegisteredSince(CurrentTransactionID, &CurrentTransactionID);
 
 		for (const Frontend::FNodeClassInfo& ClassInfo : ClassInfos)
 		{

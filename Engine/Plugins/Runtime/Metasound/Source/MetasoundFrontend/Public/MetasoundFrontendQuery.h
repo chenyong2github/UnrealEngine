@@ -86,6 +86,9 @@ namespace Metasound
 		TArrayView<const FFrontendQueryEntry * const> GetSelection() const;
 
 		/** Add entries to both storage and current selection. */
+		void AppendToStorageAndSelection(const FFrontendQuerySelection& InSelection);
+
+		/** Add entries to both storage and current selection. */
 		void AppendToStorageAndSelection(TArrayView<const FFrontendQueryEntry> InEntries);
 
 		/** Add entries to both storage and current selection. */
@@ -120,7 +123,7 @@ namespace Metasound
 		/** The FFrontendQuerySelectionView is constructed with an existing
 		 * FFrontendQuerySelection.
 		 */
-		FFrontendQuerySelectionView(TUniquePtr<FFrontendQuerySelection>&& InResult);
+		FFrontendQuerySelectionView(TSharedRef<const FFrontendQuerySelection, ESPMode::ThreadSafe> InResult);
 
 		/** Get all the stored results. */
 		TArrayView<const FFrontendQueryEntry> GetStorage() const;
@@ -129,7 +132,7 @@ namespace Metasound
 		TArrayView<const FFrontendQueryEntry* const> GetSelection() const;
 
 	private:
-		TUniquePtr<FFrontendQuerySelection> Result;
+		TSharedRef<const FFrontendQuerySelection, ESPMode::ThreadSafe> Result;
 	};
 
 	/** Interface for an individual step in a query */
@@ -261,7 +264,10 @@ namespace Metasound
 		using FSortFunction = FFrontendQueryStep::FSortFunction;
 		using FLimitFunction = FFrontendQueryStep::FLimitFunction;
 
-		FFrontendQuery() = default;
+		FFrontendQuery();
+
+		FFrontendQuery(const FFrontendQuery&) = delete;
+		FFrontendQuery& operator=(const FFrontendQuery&) = delete;
 
 		/** Return all steps in a query. */
 		const TArray<TUniquePtr<FFrontendQueryStep>>& GetSteps() const;
@@ -293,9 +299,20 @@ namespace Metasound
 		/** Calls all steps in the query and returns the selection. */
 		FFrontendQuerySelectionView ExecuteQuery();
 
+		/** Resets the query result by removing all entries. */
+		FFrontendQuerySelectionView Reset();
+
+		/** Executes the query again and appends the results to the existing results. */
+		FFrontendQuerySelectionView ExecuteQueryAndAppend();
+
+		/** Returns the current result. */
+		FFrontendQuerySelectionView GetSelection() const;
+
 	private:
 
-		TUniquePtr<FFrontendQuerySelection> Result;
+		void Execute(FFrontendQuerySelection& OutSelection);
+
+		TSharedRef<FFrontendQuerySelection, ESPMode::ThreadSafe> Result;
 
 		TArray<TUniquePtr<FFrontendQueryStep>> Steps;
 	};

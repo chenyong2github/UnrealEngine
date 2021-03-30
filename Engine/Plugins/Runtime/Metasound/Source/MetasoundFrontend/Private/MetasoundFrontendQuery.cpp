@@ -370,6 +370,33 @@ namespace Metasound
 		return MakeArrayView(Selection);
 	}
 
+	void FFrontendQuerySelection::AppendToStorageAndSelection(const FFrontendQuerySelection& InSelection)
+	{
+		TArrayView<const FFrontendQueryEntry* const> InEntries = InSelection.GetSelection();
+			
+		int32 StorageIndex = Storage.Num();
+		int32 SelectionIndex = Selection.Num();
+
+		for (const FFrontendQueryEntry* Entry : InEntries)
+		{
+			Storage.Add(*Entry);
+		}
+
+		const int32 Num = Storage.Num() - StorageIndex;
+
+		if (Num > 0)
+		{
+			Selection.AddZeroed(Num);
+
+			for (int32 i = 0; i < Num; i++)
+			{
+				Selection[SelectionIndex] = &Storage[StorageIndex];
+				SelectionIndex++;
+				StorageIndex++;
+			}
+		}
+	}
+
 	void FFrontendQuerySelection::AppendToStorageAndSelection(TArrayView<const FFrontendQueryEntry> InEntries)
 	{
 		const int32 Num = InEntries.Num();
@@ -428,13 +455,9 @@ namespace Metasound
 
 
 
-	FFrontendQuerySelectionView::FFrontendQuerySelectionView(TUniquePtr<FFrontendQuerySelection>&& InResult)
-	:	Result(MoveTemp(InResult))
+	FFrontendQuerySelectionView::FFrontendQuerySelectionView(TSharedRef<const FFrontendQuerySelection, ESPMode::ThreadSafe> InResult)
+	:	Result(InResult)
 	{
-		if (!Result.IsValid())
-		{
-			Result = MakeUnique<FFrontendQuerySelection>();
-		}
 	}
 
 	TArrayView<const FFrontendQueryEntry> FFrontendQuerySelectionView::GetStorage() const
@@ -525,6 +548,11 @@ namespace Metasound
 		}
 	}
 
+	FFrontendQuery::FFrontendQuery()
+	: Result(MakeShared<FFrontendQuerySelection, ESPMode::ThreadSafe>())
+	{
+	}
+
 	const TArray<TUniquePtr<FFrontendQueryStep>>& FFrontendQuery::GetSteps() const
 	{
 		return Steps;
@@ -573,8 +601,38 @@ namespace Metasound
 
 	FFrontendQuerySelectionView FFrontendQuery::ExecuteQuery()
 	{
-		Result = MakeUnique<FFrontendQuerySelection>();
+		Reset();
 
+		Execute(*Result);
+
+		return FFrontendQuerySelectionView(Result);
+	}
+
+	FFrontendQuerySelectionView FFrontendQuery::Reset()
+	{
+		Result->ResetStorageAndSelection();
+		
+		return FFrontendQuerySelectionView(Result);
+	}
+
+	FFrontendQuerySelectionView FFrontendQuery::ExecuteQueryAndAppend()
+	{
+		FFrontendQuerySelection NewSelection;
+
+		Execute(NewSelection);
+
+		Result->AppendToStorageAndSelection(NewSelection);
+
+		return FFrontendQuerySelectionView(Result);
+	}
+
+	FFrontendQuerySelectionView FFrontendQuery::GetSelection() const
+	{
+		return FFrontendQuerySelectionView(Result);
+	}
+
+	void FFrontendQuery::Execute(FFrontendQuerySelection& OutSelection)
+	{
 		for (int32 StepIndex = 0; StepIndex < Steps.Num(); StepIndex++)
 		{
 			if (!Steps[StepIndex].IsValid())
@@ -582,10 +640,8 @@ namespace Metasound
 				continue;
 			}
 
-			Steps[StepIndex]->ExecuteStep(*Result);
+			Steps[StepIndex]->ExecuteStep(OutSelection);
 		}
-
-		return FFrontendQuerySelectionView(MoveTemp(Result));
 	}
 }
 

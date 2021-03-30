@@ -238,7 +238,7 @@ namespace Metasound
 
 		Metasound::Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(InClass.Metadata);
 
-		return FMetasoundFrontendRegistryContainer::Get()->ConstructExternalNode(Key.NodeClassFullName, Key.NodeHash, InitData);
+		return FMetasoundFrontendRegistryContainer::Get()->ConstructExternalNode(Key, InitData);
 	}
 
 

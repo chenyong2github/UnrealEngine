@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+
 #include "MetasoundFrontend.h"
 
 #include "HAL/FileManager.h"
@@ -9,6 +10,7 @@
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendGraph.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundFrontendRegistryTransaction.h"
 #include "MetasoundJsonBackend.h"
 #include "MetasoundOperatorBuilder.h"
 #include "MetasoundPrimitives.h"
@@ -30,23 +32,39 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		TArray<FNodeClassInfo> GetAllAvailableNodeClasses()
+		TArray<FNodeClassInfo> GetAllAvailableNodeClasses(FRegistryTransactionID* OutCurrentRegistryTransactionID)
 		{
-			TArray<FNodeClassInfo> OutClasses;
-
-			auto& Registry = GetExternalNodeRegistry();
-			for (auto& NodeClassTuple : Registry)
+			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+			if (ensure(nullptr != Registry))
 			{
-				FNodeClassInfo ClassInfo;
-				ClassInfo.NodeType = EMetasoundFrontendClassType::External;
-				ClassInfo.LookupKey = NodeClassTuple.Key;
-
-				OutClasses.Add(ClassInfo);
+				return Registry->GetAllAvailableNodeClasses(OutCurrentRegistryTransactionID);
 			}
-
-			return OutClasses;
+			else
+			{
+				if (nullptr != OutCurrentRegistryTransactionID)
+				{
+					*OutCurrentRegistryTransactionID = GetOriginRegistryTransactionID();
+				}
+				return TArray<FNodeClassInfo>();
+			}
 		}
 
+		TArray<FNodeClassInfo> GetNodeClassesRegisteredSince(FRegistryTransactionID InTransactionID, FRegistryTransactionID* OutCurrentTransactionID)
+		{
+			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+			if (ensure(nullptr != Registry))
+			{
+				return Registry->GetNodeClassesRegisteredSince(InTransactionID, OutCurrentTransactionID);
+			}
+			else
+			{
+				if (nullptr != OutCurrentTransactionID)
+				{
+					*OutCurrentTransactionID = GetOriginRegistryTransactionID();
+				}
+				return TArray<FNodeClassInfo>();
+			}
+		}
 
 		// gets all metadata (name, description, author, what to say if it's missing) for a given node.
 		FMetasoundFrontendClassMetadata GenerateClassMetadata(const FNodeClassInfo& InInfo)
@@ -131,18 +149,19 @@ namespace Metasound
 			return ClassDescription;
 		}
 
-		FMetasoundFrontendClass GenerateClassDescription(const FNodeClassInfo& InInfo)
+		FMetasoundFrontendClass GenerateClassDescription(const FNodeClassInfo& InNodeInfo)
 		{
-			auto& Registry = GetExternalNodeRegistry();
-			if (Registry.Contains(InInfo.LookupKey))
+			FMetasoundFrontendClass OutClass;
+
+			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+
+			if (ensure(nullptr != Registry))
 			{
-				return Registry[InInfo.LookupKey].CreateFrontendClass();
+				bool bSuccess = Registry->FindFrontendClassFromRegistered(InNodeInfo, OutClass);
+				ensureAlwaysMsgf(bSuccess, TEXT("Cannot generate description of unregistered node [NodeClassName:%s]"), *InNodeInfo.LookupKey.NodeClassFullName.ToString());
 			}
-			else
-			{
-				ensureAlwaysMsgf(false, TEXT("Cannot generate description of unregistered node [NodeClassName:%s]"), *InInfo.LookupKey.NodeClassFullName.ToString());
-				return FMetasoundFrontendClass();
-			}
+
+			return OutClass;
 		}
 
 		TArray<FName> GetAllAvailableDataTypes()
@@ -190,7 +209,11 @@ class FMetasoundFrontendModule : public IModuleInterface
 {
 	virtual void StartupModule() override
 	{
-		Metasound::Frontend::RegisterPendingNodes();
+		FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+		if (ensure(nullptr != Registry))
+		{
+			Registry->RegisterPendingNodes();
+		}
 	}
 };
 

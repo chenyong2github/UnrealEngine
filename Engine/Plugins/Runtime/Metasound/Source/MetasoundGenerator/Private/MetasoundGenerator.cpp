@@ -12,11 +12,11 @@
 
 namespace Metasound
 {
-	FAsyncMetaSoundBuilder::FAsyncMetaSoundBuilder(FMetasoundGeneratorInitParams&& InInitParams)
-		: InitParams(MoveTemp(InInitParams))
-		, PlayTrigger(FTriggerWriteRef::CreateNew(InInitParams.OperatorSettings))
-		, FinishTrigger(FTriggerReadRef::CreateNew(InInitParams.OperatorSettings))
-		, bSuccess(false)
+
+	FAsyncMetaSoundBuilder::FAsyncMetaSoundBuilder(FMetasoundGenerator* InGenerator, FMetasoundGeneratorInitParams&& InInitParams, bool bInTriggerGenerator)
+		: Generator(InGenerator)
+		, InitParams(MoveTemp(InInitParams))
+		, bTriggerGenerator(bInTriggerGenerator)
 	{
 	}
 
@@ -28,7 +28,7 @@ namespace Metasound
 		ensureAlways(RootGraph->IsValid());
 
 		TArray<IOperatorBuilder::FBuildErrorPtr> BuildErrors;
-		GraphOperator = RootGraph->BuildOperator(InitParams.OperatorSettings, InitParams.Environment, BuildErrors);
+		TUniquePtr<IOperator> GraphOperator = RootGraph->BuildOperator(InitParams.OperatorSettings, InitParams.Environment, BuildErrors);
 
 		// Log build errors
 		for (const IOperatorBuilder::FBuildErrorPtr& Error : BuildErrors)
@@ -42,10 +42,10 @@ namespace Metasound
 		if (!GraphOperator.IsValid())
 		{
 			UE_LOG(LogMetasound, Error, TEXT("Failed to build Metasound operator from graph in MetasoundSource [%s]"), *InitParams.MetaSoundName);
-			bSuccess = false;
 		}
 		else
 		{
+			TArray<FAudioBufferReadRef> OutputBuffers;
 			FDataReferenceCollection Outputs = GraphOperator->GetOutputs();
 
 			// Get output audio buffers.
@@ -68,33 +68,24 @@ namespace Metasound
 
 			// References must be cached before moving the operator to the InitParams
 			FDataReferenceCollection Inputs = GraphOperator->GetInputs();
-			PlayTrigger = Inputs.GetDataWriteReferenceOrConstruct<FTrigger>(InitParams.InputName, InitParams.OperatorSettings, false);
-			FinishTrigger = Outputs.GetDataReadReferenceOrConstruct<FTrigger>(InitParams.IsFinishedOutputName, InitParams.OperatorSettings, false);
-			bSuccess = true;
-		}
-	}
+			FTriggerWriteRef PlayTrigger = Inputs.GetDataWriteReferenceOrConstruct<FTrigger>(InitParams.InputName, InitParams.OperatorSettings, false);
+			FTriggerReadRef FinishTrigger = Outputs.GetDataReadReferenceOrConstruct<FTrigger>(InitParams.IsFinishedOutputName, InitParams.OperatorSettings, false);
 
-	bool FAsyncMetaSoundBuilder::SetDataOnGenerator(FMetasoundGenerator& InGenerator)
-	{
-		if (bSuccess)
-		{
-			FMetasoundGeneratorData GeneratorData =
+			FMetasoundGeneratorData GeneratorData
 			{
+				InitParams.OperatorSettings,
 				MoveTemp(GraphOperator),
-				OutputBuffers,
+				MoveTemp(OutputBuffers),
 				MoveTemp(PlayTrigger),
 				MoveTemp(FinishTrigger)
 			};
 
-			InGenerator.SetGraph(MoveTemp(GeneratorData));
+			Generator->SetPendingGraph(MoveTemp(GeneratorData), bTriggerGenerator);
 		}
-		return bSuccess;
 	}
 
 	FMetasoundGenerator::FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams)
-		: bIsGraphBuilding(true)
-		, bIsPlaying(false)
-		, bIsFinished(false)
+		: bIsFinished(false)
 		, NumChannels(0)
 		, NumFramesPerExecute(0)
 		, NumSamplesPerExecute(0)
@@ -104,8 +95,14 @@ namespace Metasound
 		NumChannels = InParams.NumOutputChannels;
 		NumFramesPerExecute = InParams.OperatorSettings.GetNumFramesPerBlock();
 		NumSamplesPerExecute = NumChannels * NumFramesPerExecute;
-		BuilderTask = MakeUnique<FBuilderTask>(MoveTemp(InParams));
-		BuilderTask->StartBackgroundTask(GBackgroundPriorityThreadPool);
+
+		BuilderTask = MakeUnique<FBuilderTask>(this, MoveTemp(InParams), true /* bTriggerGenerator */);
+
+		BuilderTask->StartSynchronousTask();
+		BuilderTask = nullptr;
+		UpdateGraphIfPending();
+
+		//BuilderTask->StartBackgroundTask(GBackgroundPriorityThreadPool);
 	}
 
 	FMetasoundGenerator::~FMetasoundGenerator()
@@ -117,47 +114,68 @@ namespace Metasound
 		}
 	}
 
-	bool FMetasoundGenerator::IsTickable() const
+	void FMetasoundGenerator::SetPendingGraph(FMetasoundGeneratorData&& InData, bool bTriggerGraph)
 	{
-		return bIsGraphBuilding;
-	}
-
-	void FMetasoundGenerator::Tick(float DeltaTime)
-	{
-		if (BuilderTask->IsDone())
-		{	
-			FAsyncMetaSoundBuilder& Builder = BuilderTask->GetTask();
-			if (Builder.SetDataOnGenerator(*this))
-			{
-				// We're done building our graph now
-				bIsGraphBuilding = false;
-			}
-			else
-			{
-				// Failed to load/generate the graph, kill the metasound
-				bIsFinished = true;
-			}
-
-			BuilderTask = nullptr;
+		FScopeLock SetPendingGraphLock(&PendingGraphMutex);
+		{
+			PendingGraphData = MakeUnique<FMetasoundGeneratorData>(MoveTemp(InData));
+			bPendingGraphTrigger = bTriggerGraph;
+			bIsNewGraphPending = true;
 		}
 	}
 
-	void FMetasoundGenerator::SetGraph(FMetasoundGeneratorData&& InData)
+	void FMetasoundGenerator::UpdateGraphIfPending()
 	{
+		FScopeLock GraphLock(&PendingGraphMutex);
+		if (bIsNewGraphPending)
+		{
+			SetGraph(MoveTemp(PendingGraphData), bPendingGraphTrigger);
+			bIsNewGraphPending = false;
+		}
+	}
+
+	void FMetasoundGenerator::SetGraph(TUniquePtr<FMetasoundGeneratorData>&& InData, bool bTriggerGraph)
+	{
+		if (!InData.IsValid())
+		{
+			return;
+		}
+
 		InterleavedAudioBuffer.Reset();
 
 		GraphOutputAudio.Reset();
-		if (InData.OutputBuffers.Num() > 0)
+		if (InData->OutputBuffers.Num() == NumChannels)
 		{
-			GraphOutputAudio.Append(InData.OutputBuffers.GetData(), InData.OutputBuffers.Num());
+			if (InData->OutputBuffers.Num() > 0)
+			{
+				GraphOutputAudio.Append(InData->OutputBuffers.GetData(), InData->OutputBuffers.Num());
+			}
+		}
+		else
+		{
+			int32 FoundNumChannels = InData->OutputBuffers.Num();
+
+			UE_LOG(LogMetasound, Warning, TEXT("Metasound generator expected %d number of channels, found %d"), NumChannels, FoundNumChannels);
+
+			int32 NumChannelsToCopy = FMath::Min(FoundNumChannels, NumChannels);
+			int32 NumChannelsToCreate = NumChannels - NumChannelsToCopy;
+
+			if (NumChannelsToCopy > 0)
+			{
+				GraphOutputAudio.Append(InData->OutputBuffers.GetData(), NumChannelsToCopy);
+			}
+			for (int32 i = 0; i < NumChannelsToCreate; i++)
+			{
+				GraphOutputAudio.Add(TDataReadReference<FAudioBuffer>::CreateNew(InData->OperatorSettings));
+			}
 		}
 
-		OnPlayTriggerRef = InData.TriggerOnPlayRef;
-		OnFinishedTriggerRef = InData.TriggerOnFinishRef;
+		OnPlayTriggerRef = InData->TriggerOnPlayRef;
+		OnFinishedTriggerRef = InData->TriggerOnFinishRef;
 
 		// The graph operator and graph audio output contain all the values needed
 		// by the sound generator.
-		RootExecuter.SetOperator(MoveTemp(InData.GraphOperator));
+		RootExecuter.SetOperator(MoveTemp(InData->GraphOperator));
 
 
 		// Query the graph output to get the number of output audio channels.
@@ -168,6 +186,11 @@ namespace Metasound
 		{
 			// Preallocate interleaved buffer as it is necessary for any audio generation calls.
 			InterleavedAudioBuffer.AddUninitialized(NumSamplesPerExecute);
+		}
+
+		if (bTriggerGraph)
+		{
+			OnPlayTriggerRef->TriggerFrame(0);
 		}
 	}
 
@@ -183,17 +206,13 @@ namespace Metasound
 			return 0;
 		}
 
+		UpdateGraphIfPending();
+
 		// Output silent audio if we're still building a graph
-		if (bIsGraphBuilding || NumSamplesPerExecute < 1)
+		if (RootExecuter.IsNoOp() || NumSamplesPerExecute < 1)
 		{
 			FMemory::Memset(OutAudio, 0, sizeof(float) * NumSamplesRemaining);
 			return NumSamplesRemaining;
-		}
-
-		if (!bIsPlaying)
-		{
-			OnPlayTriggerRef->TriggerFrame(0);
-			bIsPlaying = true;
 		}
 
 		// If we have any audio left in the internal overflow buffer from 
@@ -204,7 +223,6 @@ namespace Metasound
 		{
 			NumSamplesRemaining -= NumSamplesWritten;
 			OverflowBuffer.RemoveAtSwap(0 /* Index */, NumSamplesWritten /* Count */, false /* bAllowShrinking */);
-
 		}
 
 		while (NumSamplesRemaining > 0)

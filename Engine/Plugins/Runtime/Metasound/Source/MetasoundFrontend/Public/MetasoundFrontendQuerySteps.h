@@ -9,11 +9,25 @@
 
 namespace Metasound
 {
+	/** Generates all registered node classes */
 	class METASOUNDFRONTEND_API FGenerateAllAvailableNodeClasses : public IFrontendQueryGenerateStep
 	{
 	public:
 
 		void Generate(TArray<FFrontendQueryEntry>& OutEntries) const override;
+	};
+
+	/** Generates node classes that have been newly registered since last call
+	 * to this FGenerateNewlyAvailableClasses::Generate()
+	 */
+	class METASOUNDFRONTEND_API FGenerateNewlyAvailableNodeClasses : public IFrontendQueryGenerateStep
+	{
+	public:
+		FGenerateNewlyAvailableNodeClasses();
+		void Generate(TArray<FFrontendQueryEntry>& OutEntries) const override;
+
+	private:
+		mutable Frontend::FRegistryTransactionID CurrentTransactionID;
 	};
 
 	class METASOUNDFRONTEND_API FFilterClassesByInputVertexDataType : public IFrontendQueryFilterStep

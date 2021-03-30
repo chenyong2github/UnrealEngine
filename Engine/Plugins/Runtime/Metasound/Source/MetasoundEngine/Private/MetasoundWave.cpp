@@ -94,8 +94,11 @@ namespace Audio
 				bDecoderHasLooped = DecodeResult == Audio::IDecoder::EDecodeResult::Looped;
 
 				// perform linear pitch shift into OutputCircularBuffer
-				const TArrayView<float> BufferToPitchShift(PostSrcBuffer.GetData(), NumResamplerOutputFrames * NumChannels);
-				PitchShifter.ProcessAudio(BufferToPitchShift, OutputCircularBuffer);
+				if (NumResamplerOutputFrames > 0)
+				{
+					const TArrayView<float> BufferToPitchShift(PostSrcBuffer.GetData(), NumResamplerOutputFrames * NumChannels);
+					PitchShifter.ProcessAudio(BufferToPitchShift, OutputCircularBuffer);
+				}
 			}
 		}
 

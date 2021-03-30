@@ -14,6 +14,11 @@
 
 namespace Metasound
 {
+	namespace Frontend
+	{
+		using FRegistryTransactionID = int32;
+	}
+
 	// This struct is passed to FInputNodeConstructorCallback and FOutputNodeConstructorCallback.
 	struct FInputNodeConstructorParams
 	{
@@ -116,6 +121,7 @@ namespace Metasound
 
 	namespace Frontend
 	{
+
 		struct METASOUNDFRONTEND_API FNodeRegistryKey
 		{
 			// The class name for the node.
@@ -133,6 +139,18 @@ namespace Metasound
 			{
 				return InKey.NodeHash;
 			}
+		};
+
+		// Struct with the basics of a node class' information,
+		// used to look up that node from our node browser functions,
+		// and also used in FGraphHandle::AddNewNode.
+		struct METASOUNDFRONTEND_API FNodeClassInfo
+		{
+			// The type for this node.
+			EMetasoundFrontendClassType NodeType = EMetasoundFrontendClassType::Invalid;
+
+			// The lookup key used for the internal node registry.
+			FNodeRegistryKey LookupKey;
 		};
 
 
@@ -262,6 +280,8 @@ namespace Metasound
  */
 class METASOUNDFRONTEND_API FMetasoundFrontendRegistryContainer
 {
+
+public:
 	using FConverterNodeRegistryKey = ::Metasound::Frontend::FConverterNodeRegistryKey;
 	using FConverterNodeRegistryValue = ::Metasound::Frontend::FConverterNodeRegistryValue;
 	using FConverterNodeInfo = ::Metasound::Frontend::FConverterNodeInfo;
@@ -274,66 +294,9 @@ class METASOUNDFRONTEND_API FMetasoundFrontendRegistryContainer
 	using FNodeClassMetadata = Metasound::FNodeClassMetadata;
 	using IEnumDataTypeInterface = Metasound::Frontend::IEnumDataTypeInterface;
 
-public:
+
 	static FMetasoundFrontendRegistryContainer* Get();
 	static void ShutdownMetasoundFrontend();
-
-	FMetasoundFrontendRegistryContainer(const FMetasoundFrontendRegistryContainer&) = delete;
-
-	// This is called on module startup. This invokes any registration commands enqueued by our registration macros.
-	void RegisterPendingNodes();
-
-
-	bool EnqueueInitCommand(TUniqueFunction<void()>&& InFunc);
-
-	TMap<FNodeRegistryKey, FNodeRegistryElement>& GetExternalNodeRegistry();
-
-	TUniquePtr<Metasound::INode> ConstructInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams);
-	TUniquePtr<Metasound::INode> ConstructOutputNode(const FName& InOutputType, const Metasound::FOutputNodeConstructorParams& InParams);
-
-	Metasound::FLiteral GenerateLiteralForUObject(const FName& InDataType, UObject* InObject);
-	Metasound::FLiteral GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray);
-
-	// Create a new instance of a C++ implemented node from the registry.
-	TUniquePtr<Metasound::INode> ConstructExternalNode(const FName& InNodeType, uint32 InNodeHash, const Metasound::FNodeInitData& InInitData);
-
-	// Returns a list of possible nodes to use to convert from FromDataType to ToDataType.
-	// Returns an empty array if none are available.
-	TArray<FConverterNodeInfo> GetPossibleConverterNodes(const FName& FromDataType, const FName& ToDataType);
-
-	// Get the desired kind of literal for a given data type. Returns EConstructorArgType::Invalid if the data type couldn't be found.
-	Metasound::ELiteralType GetDesiredLiteralTypeForDataType(FName InDataType) const;
-
-	UClass* GetLiteralUClassForDataType(FName InDataType) const;
-
-	template<typename ArgType>
-	bool DoesDataTypeSupportLiteralType(FName InDataType) const
-	{
-		return DoesDataTypeSupportLiteralType(InDataType, Metasound::TLiteralTypeInfo<ArgType>::GetLiteralArgTypeEnum());
-	}
-
-	// Get whether we can build a literal of this specific type for InDataType.
-	bool DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralType InLiteralType) const;
-
-	bool RegisterDataType(const FDataTypeRegistryInfo& InDataInfo, const FDataTypeConstructorCallbacks& InCallbacks);
-
-	bool RegisterEnumDataInterface(FName InDataType, TSharedPtr<IEnumDataTypeInterface>&& InInterface);
-
-	/** Register external node with the frontend.
-	 *
-	 * @param InCreateNode - Function for creating node from FNodeInitData.
-	 * @param InCreateDescription - Function for creating a FMetasoundFrontendClass.
-	 *
-	 * @return True on success.
-	 */
-	bool RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundFrontendClassFunction&& InCreateDescription);
-
-	bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo);
-
-	bool IsNodeRegistered(const FNodeRegistryKey& InKey) const
-	{
-		return ExternalNodeRegistry.Contains(InKey);
-	}
 
 	static FNodeRegistryKey GetRegistryKey(const FNodeClassMetadata& InNodeMetadata);
 	static FNodeRegistryKey GetRegistryKey(const FMetasoundFrontendClassMetadata& InNodeMetadata);
@@ -342,48 +305,89 @@ public:
 	static bool GetInputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata);
 	static bool GetOutputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata);
 
+
+	FMetasoundFrontendRegistryContainer() = default;
+	virtual ~FMetasoundFrontendRegistryContainer() = default;
+
+	FMetasoundFrontendRegistryContainer(const FMetasoundFrontendRegistryContainer&) = delete;
+	FMetasoundFrontendRegistryContainer& operator=(const FMetasoundFrontendRegistryContainer&) = delete;
+
+	// Enqueu and command for registering a node or data type.
+	// The command queue will be processed on module init or when calling `RegisterPendingNodes()`
+	virtual bool EnqueueInitCommand(TUniqueFunction<void()>&& InFunc) = 0;
+
+	// This is called on module startup. This invokes any registration commands enqueued by our registration macros.
+	virtual void RegisterPendingNodes() = 0;
+
+	/** Register external node with the frontend.
+	 *
+	 * @param InCreateNode - Function for creating node from FNodeInitData.
+	 * @param InCreateDescription - Function for creating a FMetasoundFrontendClass.
+	 *
+	 * @return True on success.
+	 */
+	virtual bool RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundFrontendClassFunction&& InCreateDescription) = 0;
+	virtual bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo) = 0;
+	virtual bool IsNodeRegistered(const FNodeRegistryKey& InKey) const = 0;
+
+
+	/** Return all node classes registered. */
+	virtual TArray<Metasound::Frontend::FNodeClassInfo> GetAllAvailableNodeClasses(Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const = 0;
+
+	/** Return node classes registered since a given transaction id. */
+	virtual TArray<Metasound::Frontend::FNodeClassInfo> GetNodeClassesRegisteredSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const = 0;
+
 	// Return any data types that can be used as a metasound input type or output type.
-	TArray<FName> GetAllValidDataTypes();
+	virtual TArray<FName> GetAllValidDataTypes() = 0;
+
+	// Query for MetaSound Frontend document objects.
+	virtual bool FindFrontendClassFromRegistered(const Metasound::Frontend::FNodeClassInfo& InClassInfo, FMetasoundFrontendClass& OutClass) = 0;
+	virtual bool FindFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass) = 0;
+	virtual bool FindInputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata) = 0;
+	virtual bool FindOutputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata) = 0;
+
+	// Create a new instance of a C++ implemented node from the registry.
+	virtual TUniquePtr<Metasound::INode> ConstructInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams) = 0;
+	virtual TUniquePtr<Metasound::INode> ConstructOutputNode(const FName& InOutputType, const Metasound::FOutputNodeConstructorParams& InParams) = 0;
+	virtual TUniquePtr<Metasound::INode> ConstructExternalNode(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey, const Metasound::FNodeInitData& InInitData) = 0;
+
+	// Returns a list of possible nodes to use to convert from FromDataType to ToDataType.
+	// Returns an empty array if none are available.
+	virtual TArray<FConverterNodeInfo> GetPossibleConverterNodes(const FName& FromDataType, const FName& ToDataType) = 0;
+
+
+
+	virtual bool RegisterDataType(const FDataTypeRegistryInfo& InDataInfo, const FDataTypeConstructorCallbacks& InCallbacks) = 0;
+
+	virtual bool RegisterEnumDataInterface(FName InDataType, TSharedPtr<IEnumDataTypeInterface>&& InInterface) = 0;
+
+	// Get the desired kind of literal for a given data type. Returns EConstructorArgType::Invalid if the data type couldn't be found.
+	virtual Metasound::ELiteralType GetDesiredLiteralTypeForDataType(FName InDataType) const = 0;
+
+	template<typename ArgType>
+	bool DoesDataTypeSupportLiteralType(FName InDataType) const
+	{
+		return DoesDataTypeSupportLiteralType(InDataType, Metasound::TLiteralTypeInfo<ArgType>::GetLiteralArgTypeEnum());
+	}
+
+	virtual UClass* GetLiteralUClassForDataType(FName InDataType) const = 0;
+	virtual Metasound::FLiteral GenerateLiteralForUObject(const FName& InDataType, UObject* InObject) = 0;
+	virtual Metasound::FLiteral GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray) = 0;
+
+	// Get whether we can build a literal of this specific type for InDataType.
+	virtual bool DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralType InLiteralType) const = 0;
+
 
 	// Get info about a specific data type (what kind of literals we can use, etc.)
 	// @returns false if InDataType wasn't found in the registry. 
-	bool GetInfoForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo);
+	virtual bool GetInfoForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo) = 0;
 
-	TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> GetEnumInterfaceForDataType(FName InDataType) const;
+	virtual TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> GetEnumInterfaceForDataType(FName InDataType) const = 0;
 
-	TSharedPtr<Metasound::IDataChannel, ESPMode::ThreadSafe> CreateDataChannelForDataType(const FName& InDataType, const Metasound::FOperatorSettings& InOperatorSettings) const;
+	virtual TSharedPtr<Metasound::IDataChannel, ESPMode::ThreadSafe> CreateDataChannelForDataType(const FName& InDataType, const Metasound::FOperatorSettings& InOperatorSettings) const = 0;
 
 private:
-	FMetasoundFrontendRegistryContainer();
-
 	static FMetasoundFrontendRegistryContainer* LazySingleton;
-
-	// This buffer is used to enqueue nodes and datatypes to register when the module has been initialized,
-	// in order to avoid bad behavior with ensures, logs, etc. on static initialization.
-	// The bad news is that TInlineAllocator is the safest allocator to use on static init.
-	// The good news is that none of these lambdas typically have captures, so this should have low memory overhead.
-	static constexpr int32 MaxNumNodesAndDatatypesToInitialize = 8192;
-	TArray<TUniqueFunction<void()>, TInlineAllocator<MaxNumNodesAndDatatypesToInitialize>> LazyInitCommands;
-	
-	FCriticalSection LazyInitCommandCritSection;
-
-	// Registry in which we keep all information about nodes implemented in C++.
-	TMap<FNodeRegistryKey, FNodeRegistryElement> ExternalNodeRegistry;
-
-	// Registry in which we keep lists of possible nodes to use to convert between two datatypes
-	TMap<FConverterNodeRegistryKey, FConverterNodeRegistryValue> ConverterNodeRegistry;
-
-	struct FDataTypeRegistryElement
-	{
-		Metasound::FDataTypeConstructorCallbacks Callbacks;
-
-		Metasound::FDataTypeRegistryInfo Info;
-
-		TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> EnumInterface;
-	};
-
-	TMap<FName, FDataTypeRegistryElement> DataTypeRegistry;
-	TMap<FNodeRegistryKey, FDataTypeRegistryElement> DataTypeNodeRegistry;
 };
 
 

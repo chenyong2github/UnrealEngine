@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
+ 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "MetasoundGraph.h"
-#include "MetasoundFrontendBaseClasses.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundBuilderInterface.h"
 #include "UObject/WeakObjectPtrTemplates.h"
@@ -16,21 +16,14 @@ namespace Metasound
 {	
 	namespace Frontend
 	{
+		using FRegistryTransactionID = int32;
 
-		// Struct with the basics of a node class' information,
-		// used to look up that node from our node browser functions,
-		// and also used in FGraphHandle::AddNewNode.
-		struct METASOUNDFRONTEND_API FNodeClassInfo
-		{
-			// The type for this node.
-			EMetasoundFrontendClassType NodeType = EMetasoundFrontendClassType::Invalid;
-
-			// The lookup key used for the internal node registry.
-			FNodeRegistryKey LookupKey;
-		};
+		METASOUNDFRONTEND_API FRegistryTransactionID GetCurrentRegistryTransactionID();
 
 		// Get all available nodes of any type.
-		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllAvailableNodeClasses();
+		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllAvailableNodeClasses(FRegistryTransactionID* OutCurrentTransactionID=nullptr);
+
+		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetNodeClassesRegisteredSince(FRegistryTransactionID InTransactionID, FRegistryTransactionID* OutCurrentTransactionID=nullptr);
 
 		/** Returns all metadata (name, description, author, what to say if it's missing) for a given node.
 		 *
@@ -54,7 +47,7 @@ namespace Metasound
 		 *
 		 * @return Class description for external node.
 		 */
-		METASOUNDFRONTEND_API FMetasoundFrontendClass GenerateClassDescription(const FNodeClassInfo& InInfo);
+		METASOUNDFRONTEND_API FMetasoundFrontendClass GenerateClassDescription(const Metasound::Frontend::FNodeClassInfo& InInfo);
 
 		/** Generates a new FMetasoundFrontendClass from Node init data
 		 *
