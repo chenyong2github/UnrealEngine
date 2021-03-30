@@ -1,85 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundArrayRandomNode.h"
+#include "CoreMinimal.h"
+#include "Internationalization/Text.h"
+#include "MetasoundBuilderInterface.h"
+#include "MetasoundDataFactory.h"
+#include "MetasoundExecutableOperator.h"
+#include "MetasoundFacade.h"
+#include "MetasoundLog.h"
+#include "MetasoundNodeInterface.h"
+#include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundOperatorInterface.h"
+#include "MetasoundPrimitives.h"
+#include "MetasoundTrigger.h"
+#include "Containers/CircularQueue.h"
+#include "MetasoundArrayNodes.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundFrontend"
+#include <type_traits>
+
+#define LOCTEXT_NAMESPACE "MetasoundFrontend_RandomArrayGet"
 
 namespace Metasound
 {
-	namespace ArrayNodeRandomGetVertexNames
+	FArrayRandomGet::FArrayRandomGet(int32 InSeed, int32 InMaxIndex, const TArray<float>& InWeights, int32 InNoRepeatOrder)
 	{
-		const FString& GetInputTriggerNextName()
-		{
-			static const FString Name = TEXT("Next");
-			return Name;
-		}
-
-		const FString& GetInputTriggerResetName()
-		{
-			static const FString Name = TEXT("Reset");
-			return Name;
-		}
-
-		const FString& GetInputRandomArrayName()
-		{
-			static const FString Name = TEXT("In Array");
-			return Name;
-		}
-
-		const FString& GetInputWeightsName()
-		{
-			static const FString Name = TEXT("Weights");
-			return Name;
-		}
-
-		const FString& GetInputSeedName()
-		{
-			static const FString Name = TEXT("Seed");
-			return Name;
-		}
-
-		const FString& GetInputNoRepeatOrderName()
-		{
-			static const FString Name = TEXT("No Repeats");
-			return Name;
-		}
-
-		const FString& GetInputEnableSharedStateName()
-		{
-			static const FString Name = TEXT("Enable Shared State");
-			return Name;
-		}
-
-		const FString& GetOutputTriggerOnNextName()
-		{
-			static const FString Name = TEXT("On Next");
-			return Name;
-		}
-
-		const FString& GetOutputTriggerOnResetName()
-		{
-			static const FString Name = TEXT("On Reset");
-			return Name;
-		}
-
-		const FString& GetOutputValueName()
-		{
-			static const FString Name = TEXT("Value");
-			return Name;
-		}
+		Init(InSeed, InMaxIndex, InWeights, InNoRepeatOrder);
 	}
 
-	FArrayRandomGet::FArrayRandomGet(int32 InSeed, int32 InMaxIndex, int32 InNoRepeatOrder)
-	{
-		Init(InSeed, InMaxIndex, InNoRepeatOrder);
-	}
-
-	void FArrayRandomGet::Init(int32 InSeed, int32 InMaxIndex, int32 InNoRepeatOrder)
+	void FArrayRandomGet::Init(int32 InSeed, int32 InMaxIndex, const TArray<float>& InWeights, int32 InNoRepeatOrder)
 	{
 		SetSeed(InSeed);
 		MaxIndex = InMaxIndex;
 		SetNoRepeatOrder(InNoRepeatOrder);
 		check(!InNoRepeatOrder || !PreviousIndicesQueue->IsFull());
+		RandomWeights = InWeights;
 	}
 
 	void FArrayRandomGet::SetSeed(int32 InSeed)
@@ -109,15 +63,18 @@ namespace Metasound
 		}
 	}
 
+	void FArrayRandomGet::SetRandomWeights(const TArray<float>& InRandomWeights)
+	{
+		RandomWeights = InRandomWeights;
+	}
+
 	void FArrayRandomGet::ResetSeed()
 	{
 		RandomStream.Reset();
 	}
 
-	// Returns the next random weighted value in the array indices. 
-	int32 FArrayRandomGet::NextValue()
+	float FArrayRandomGet::ComputeTotalWeight()
 	{
-		// First compute the total size of the weights
 		float TotalWeight = 0.0f;
 		if (RandomWeights.Num() > 0)
 		{
@@ -134,11 +91,32 @@ namespace Metasound
 				TotalWeight += RandomWeights[i % RandomWeights.Num()];
 			}
 		}
-		else
+		return TotalWeight;
+	}
+
+	// Returns the next random weighted value in the array indices. 
+	int32 FArrayRandomGet::NextValue()
+	{
+		// First compute the total size of the weights
+		float TotalWeight = ComputeTotalWeight();
+		bool bNoWeights = false;
+		if (TotalWeight == 0.0f)
 		{
-			// If we don't have a random weights array, everything is equal weight so we only need to consider the total number of un-picked indices
-			TotalWeight = (float)(FMath::Max(MaxIndex - PreviousIndices.Num(), 1));
+			// Reset the previous indices if we ran out of choices left after weighting
+			if (PreviousIndices.Num() > 0)
+			{
+				PreviousIndices.Reset();
+				PreviousIndicesQueue->Empty();
+				TotalWeight = ComputeTotalWeight();
+			}
+			else
+			{
+				// If we don't have a random weights array, everything is equal weight so we only need to consider the total number of un-picked indices
+				TotalWeight = (float)(FMath::Max(MaxIndex - PreviousIndices.Num(), 1));
+				bNoWeights = true;
+			}
 		}
+
 
 		// Make a random choice based on the total weight
 		float Choice = RandomStream.FRandRange(0.0f, TotalWeight);
@@ -154,13 +132,13 @@ namespace Metasound
 			}
 
 			float NextTotalWeight = TotalWeight;
-			if (RandomWeights.Num() > 0)
+			if (bNoWeights)
 			{
-				NextTotalWeight += RandomWeights[i % RandomWeights.Num()];
+				NextTotalWeight += 1.0f;
 			}
 			else
 			{
-				NextTotalWeight += 1.0f;
+				NextTotalWeight += RandomWeights[i % RandomWeights.Num()];
 			}
 
 			if (Choice >= TotalWeight && Choice < NextTotalWeight)
@@ -203,13 +181,13 @@ namespace Metasound
 		return RGM;
 	}
 
-	void FSharedStateRandomGetManager::InitSharedState(uint32 InSharedStateId, int32 InSeed, int32 InNumElements, int32 InNoRepeatOrder)
+	void FSharedStateRandomGetManager::InitSharedState(uint32 InSharedStateId, int32 InSeed, int32 InNumElements, const TArray<float>& InWeights, int32 InNoRepeatOrder)
 	{
 		FScopeLock Lock(&CritSect);
 
 		if (!RandomGets.Contains(InSharedStateId))
 		{
-			RandomGets.Add(InSharedStateId, MakeUnique<FArrayRandomGet>(InSeed, InNumElements, InNoRepeatOrder));
+			RandomGets.Add(InSharedStateId, MakeUnique<FArrayRandomGet>(InSeed, InNumElements, InWeights, InNoRepeatOrder));
 		}
 	}
 
