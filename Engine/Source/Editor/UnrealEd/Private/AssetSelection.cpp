@@ -666,14 +666,15 @@ namespace AssetUtil
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 				IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-				for (int Index = 0; Index < DroppedAssetStrings.Num(); Index++)
+				for (const FString& DroppedAssetString : DroppedAssetStrings)
 				{
-					// Truncate each string so that it doesn't exceed the maximum allowed length of characters to be converted to an FName
-					FString TruncatedString = DroppedAssetStrings[ Index ].Left( NAME_SIZE );
-					FAssetData AssetData = AssetRegistry.GetAssetByObjectPath( FName( *TruncatedString ) );
-					if ( AssetData.IsValid() )
+					if (DroppedAssetString.Len() < NAME_SIZE && FName::IsValidXName(DroppedAssetString, INVALID_OBJECTNAME_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS))
 					{
-						DroppedAssetData.Add( AssetData );
+						FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*DroppedAssetString));
+						if (AssetData.IsValid())
+						{
+							DroppedAssetData.Add(AssetData);
+						}
 					}
 				}
 			}
