@@ -207,43 +207,50 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushContextMenuOpening(int32 InBrushIndex)
 {
-	if (ALandscapeBlueprintBrushBase* CurrentBrush = GetBrush(InBrushIndex))
+	// Don't use GetBrush here as it will return nullptr if the layer contains a nullptr brush, and we still want to allow the Remove context menu when this happens : 
+	TArray<ALandscapeBlueprintBrushBase*> CurrentBrushes = GetBrushes();
+	if (CurrentBrushes.IsValidIndex(InBrushIndex))
 	{
+		ALandscapeBlueprintBrushBase* CurrentBrush = CurrentBrushes[InBrushIndex];
+
 		FMenuBuilder MenuBuilder(true, NULL);
 		MenuBuilder.BeginSection("LandscapeEditorBrushActions", LOCTEXT("LandscapeEditorBrushActions.Heading", "Brushes"));
 		{
 			TSharedRef<FLandscapeEditorCustomNodeBuilder_LayersBrushStack> SharedThis = AsShared();
 
-			// Show only selected
-			FUIAction ShowOnlySelectedAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
+			if (CurrentBrush != nullptr)
 			{
-				const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushShowOnlySelectedTransaction", "Show Only Selected Brush"));
-				GetEditorMode()->ShowOnlySelectedBrush(CurrentBrush);
-			}));
-			MenuBuilder.AddMenuEntry(LOCTEXT("LandscapeBrushShowOnlySelected", "Show Only Selected"), LOCTEXT("LandscapeBrushShowOnlySelectedToolTip", "Hides all other brushes from the same layer"), FSlateIcon(), ShowOnlySelectedAction);
+				// Show only selected
+				FUIAction ShowOnlySelectedAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
+				{
+					const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushShowOnlySelectedTransaction", "Show Only Selected Brush"));
+					GetEditorMode()->ShowOnlySelectedBrush(CurrentBrush);
+				}));
+				MenuBuilder.AddMenuEntry(LOCTEXT("LandscapeBrushShowOnlySelected", "Show Only Selected"), LOCTEXT("LandscapeBrushShowOnlySelectedToolTip", "Hides all other brushes from the same layer"), FSlateIcon(), ShowOnlySelectedAction);
 
-			// Hide selected
-			FUIAction ShowHideSelectedAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
-			{
-				SharedThis->OnToggleVisibility(CurrentBrush);
-			}));
+				// Hide selected
+				FUIAction ShowHideSelectedAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
+				{
+					SharedThis->OnToggleVisibility(CurrentBrush);
+				}));
 
-			FText MenuText = CurrentBrush->IsVisible() ? LOCTEXT("LandscapeBrushHideSelected", "Hide Selected") : LOCTEXT("LandscapeBrushShowSelected", "Show Selected");
-			MenuBuilder.AddMenuEntry(MenuText, LOCTEXT("LandscapeBrushToggleVisiblityToolTip", "Toggle brush visiblity"), FSlateIcon(), ShowHideSelectedAction);
+				FText MenuText = CurrentBrush->IsVisible() ? LOCTEXT("LandscapeBrushHideSelected", "Hide Selected") : LOCTEXT("LandscapeBrushShowSelected", "Show Selected");
+				MenuBuilder.AddMenuEntry(MenuText, LOCTEXT("LandscapeBrushToggleVisiblityToolTip", "Toggle brush visiblity"), FSlateIcon(), ShowHideSelectedAction);
 
-			MenuBuilder.AddMenuSeparator();
+				MenuBuilder.AddMenuSeparator();
 
-			// Duplicate Brush
-			FUIAction DuplicateAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
-			{
-				const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushDuplicateTransaction", "Duplicate Brush"));
-				GetEditorMode()->DuplicateBrush(CurrentBrush);
-			}));
-			MenuBuilder.AddMenuEntry(LOCTEXT("LandscapeBrushDuplicate", "Duplicate"), LOCTEXT("LandscapeBrushDuplicateToolTip", "Duplicate brush"), FSlateIcon(), DuplicateAction);
+				// Duplicate Brush
+				FUIAction DuplicateAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
+				{
+					const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushDuplicateTransaction", "Duplicate Brush"));
+					GetEditorMode()->DuplicateBrush(CurrentBrush);
+				}));
+				MenuBuilder.AddMenuEntry(LOCTEXT("LandscapeBrushDuplicate", "Duplicate"), LOCTEXT("LandscapeBrushDuplicateToolTip", "Duplicate brush"), FSlateIcon(), DuplicateAction);
+			}
 
 			// Add Brush
-			const TArray<ALandscapeBlueprintBrushBase*>& Brushes = GetEditorMode()->GetBrushList();
-			TArray<ALandscapeBlueprintBrushBase*> FilteredBrushes = Brushes.FilterByPredicate([](ALandscapeBlueprintBrushBase* Brush) { return Brush->GetOwningLandscape() == nullptr; });
+			const TArray<ALandscapeBlueprintBrushBase*>& AllBrushes = GetEditorMode()->GetBrushList();
+			TArray<ALandscapeBlueprintBrushBase*> FilteredBrushes = AllBrushes.FilterByPredicate([](ALandscapeBlueprintBrushBase* Brush) { return Brush->GetOwningLandscape() == nullptr; });
 			if (FilteredBrushes.Num())
 			{
 				MenuBuilder.AddSubMenu(
@@ -256,10 +263,10 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushC
 			}
 
 			// Remove Brush
-			FUIAction RemoveAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
+			FUIAction RemoveAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InBrushIndex]
 			{ 
 				const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushRemoveTransaction", "Remove Brush"));
-				GetEditorMode()->RemoveBrushFromCurrentLayer(CurrentBrush);
+				GetEditorMode()->RemoveBrushFromCurrentLayer(InBrushIndex);
 			}));
 			MenuBuilder.AddMenuEntry(LOCTEXT("LandscapeBrushRemove", "Remove"), LOCTEXT("LandscapeBrushRemoveToolTip", "Remove brush from selected edit layer"), FSlateIcon(), RemoveAction);
 		}
@@ -407,6 +414,16 @@ ALandscapeBlueprintBrushBase* FLandscapeEditorCustomNodeBuilder_LayersBrushStack
 	}
 
 	return nullptr;
+}
+
+TArray<ALandscapeBlueprintBrushBase*> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetBrushes() const
+{
+	if (FEdModeLandscape* LandscapeEdMode = GetEditorMode())
+	{
+		return LandscapeEdMode->GetBrushesForCurrentLayer();
+	}
+
+	return TArray<ALandscapeBlueprintBrushBase*>();
 }
 
 FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot)

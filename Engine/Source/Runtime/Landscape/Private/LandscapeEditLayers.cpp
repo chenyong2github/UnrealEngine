@@ -6615,21 +6615,47 @@ void ALandscape::RemoveBrush(ALandscapeBlueprintBrushBase* InBrush)
 
 void ALandscape::RemoveBrushFromLayer(int32 InLayerIndex, ALandscapeBlueprintBrushBase* InBrush)
 {
+	int32 BrushIndex = GetBrushIndexForLayer(InLayerIndex, InBrush);
+	if (BrushIndex != INDEX_NONE)
+	{
+		RemoveBrushFromLayer(InLayerIndex, BrushIndex);
+	}
+}
+
+void ALandscape::RemoveBrushFromLayer(int32 InLayerIndex, int32 InBrushIndex)
+{
+	if (FLandscapeLayer* Layer = GetLayer(InLayerIndex))
+	{
+		if (Layer->Brushes.IsValidIndex(InBrushIndex))
+		{
+			Modify();
+			ALandscapeBlueprintBrushBase* Brush = Layer->Brushes[InBrushIndex].GetBrush();
+			Layer->Brushes.RemoveAt(InBrushIndex);
+			if (Brush != nullptr)
+			{
+				Brush->SetOwningLandscape(nullptr);
+			}
+			RequestLayersContentUpdateForceAll();
+		}
+	}
+}
+
+int32 ALandscape::GetBrushIndexForLayer(int32 InLayerIndex, ALandscapeBlueprintBrushBase* InBrush)
+{
 	if (FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
 		for (int32 i = 0; i < Layer->Brushes.Num(); ++i)
 		{
 			if (Layer->Brushes[i].GetBrush() == InBrush)
 			{
-				Modify();
-				Layer->Brushes.RemoveAt(i);
-				InBrush->SetOwningLandscape(nullptr);
-				RequestLayersContentUpdateForceAll();
-				break;
+				return i;
 			}
 		}
 	}
+
+	return INDEX_NONE;
 }
+
 
 void ALandscape::OnBlueprintBrushChanged()
 {
@@ -6666,7 +6692,7 @@ void ALandscape::OnLayerInfoSplineFalloffModulationChanged(ULandscapeLayerInfoOb
 	}
 }
 
-ALandscapeBlueprintBrushBase* ALandscape::GetBrushForLayer(int32 InLayerIndex, int8 InBrushIndex) const
+ALandscapeBlueprintBrushBase* ALandscape::GetBrushForLayer(int32 InLayerIndex, int32 InBrushIndex) const
 {
 	if (const FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
