@@ -1968,7 +1968,7 @@ protected:
 		FRDGTextureRef SceneDepthTexture);
 
 	/** Initialise volumetric cloud resources.*/
-	void InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder);
+	void InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, bool bShouldRenderVolumetricCloud);
 
 	/** Render volumetric cloud. */
 	bool RenderVolumetricCloud(
