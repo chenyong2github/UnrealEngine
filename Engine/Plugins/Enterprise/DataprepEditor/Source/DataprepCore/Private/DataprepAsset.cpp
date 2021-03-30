@@ -197,9 +197,12 @@ void UDataprepAsset::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 {
 	UDataprepAssetInterface::PostDuplicate(DuplicateMode);
 
-	// Make sure the output level does not override the one from the original
-	FText OutReason;
-	Output->SetLevelName(GetName() + "_MAP", OutReason);
+	if (Output)
+	{
+		// Make sure the output level does not override the one from the original
+		FText OutReason;
+		Output->SetLevelName(GetName() + "_MAP", OutReason);
+	}
 }
 
 const UDataprepActionAsset* UDataprepAsset::GetAction(int32 Index) const
