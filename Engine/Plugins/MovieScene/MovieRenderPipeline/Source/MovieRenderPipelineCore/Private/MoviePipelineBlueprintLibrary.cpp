@@ -403,6 +403,12 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 			if (!ExistingShot)
 			{
 				ExistingShot = NewObject<UMoviePipelineExecutorShot>(InJob);
+
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Generated new ShotInfo for Inner: %s Outer: %s (No existing shot found in the job)."), *CameraCutSection->GetPathName(), *InSection->GetPathName());
+			}
+			else
+			{
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Reusing existing ShotInfo for Inner: %s Outer: %s."), *CameraCutSection->GetPathName(), *InSection->GetPathName());
 			}
 
 			// It shouldn't be a duplicate but if it is then the rendering fails later so 
@@ -517,7 +523,7 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 	}
 }
 
-void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob)
+void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob, bool& bShotsChanged)
 {
 	if (!ensureMsgf(InSequence && InJob, TEXT("Cannot generate shot list for null sequence/job.")))
 	{
@@ -575,10 +581,13 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 		CreateExecutorShotsFromMovieScene(InSequence->GetMovieScene(), InSequence->GetMovieScene()->GetPlaybackRange(), FMovieSceneSequenceTransform(), InJob, nullptr, false, /*Out*/ NewShots);
 	}
 
-
 	// Now that we've read the job's shot mask we will clear it and replace it with only things still valid.
-	InJob->ShotInfo.Reset();
-	InJob->ShotInfo = NewShots;
+	if (InJob->ShotInfo != NewShots)
+	{
+		InJob->ShotInfo.Reset();
+		InJob->ShotInfo = NewShots;
+		bShotsChanged = true;
+	}
 }
 
 int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(const UMoviePipeline* InMoviePipeline)

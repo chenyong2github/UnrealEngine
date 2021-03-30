@@ -114,7 +114,8 @@ void UMoviePipelineExecutorJob::SetSequence(FSoftObjectPath InSequence)
 		return;
 	}
 
-	UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(LoadedSequence, this);
+	bool bShotsChanged = false;
+	UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(LoadedSequence, this, bShotsChanged);
 	
 	if (UMoviePipelineQueue* OwningQueue = GetTypedOuter<UMoviePipelineQueue>())
 	{

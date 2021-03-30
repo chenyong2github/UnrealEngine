@@ -842,7 +842,8 @@ void UMoviePipeline::BuildShotListFromSequence()
 {
 	// Synchronize our shot list with our target sequence. New shots will be added and outdated shots removed.
 	// Shots that are already in the list will be updated but their enable flag will be respected.
-	UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(TargetSequence, GetCurrentJob());
+	bool bShotsChanged = false;
+	UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(TargetSequence, GetCurrentJob(), bShotsChanged);
 	int32 ShotIndex = 0;
 
 	// Find any duplicate shot names and append a number to keep them unique
