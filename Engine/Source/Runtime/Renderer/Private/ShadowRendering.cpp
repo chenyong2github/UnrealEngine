@@ -2149,6 +2149,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	RenderShadowProjections(GraphBuilder, SceneTextures, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, LightSceneInfo, bProjectingForForwardShading);
 
 	// Perform injection on translucent lighting volume
+	// Translucent volume is only used for direct lighting, so don't inject the lights if that is disabled
+	if (ViewFamily.EngineShowFlags.DirectLighting)
 	{
 		const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& ShadowMaps = VisibleLightInfo.ShadowsToProject;
 	

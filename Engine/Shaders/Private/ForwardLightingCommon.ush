@@ -268,6 +268,13 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 
 #endif
 
+	// Zero out direct lighting if show flag is disabled
+	if (ForwardLightData.DirectLightingShowFlag == 0)
+	{
+		DirectLighting.DiffuseLighting = 0.0f;
+		DirectLighting.SpecularLighting = 0.0f;
+	}
+
 	return DirectLighting;
 }
 
@@ -331,6 +338,12 @@ float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 WorldPos
 		float3 SpecularColor = 0;
 		float Roughness = 1.0f;
 		DirectLighting += GetSimpleDynamicLighting(WorldPosition, CameraVector, WorldNormal, 1, DiffuseColor, SpecularColor, Roughness, LightData);
+	}
+
+	// Zero out direct lighting if show flag is disabled
+	if (ForwardLightData.DirectLightingShowFlag == 0)
+	{
+		DirectLighting = 0.0f;
 	}
 
 	return DirectLighting;

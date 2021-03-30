@@ -712,6 +712,7 @@ const int32 GMaxForwardShadowCascades = 4;
 	SHADER_PARAMETER(uint32, ClusteredDeferredSupportedEndIndex) \
 	SHADER_PARAMETER(FVector4, DirectionalLightStaticShadowBufferSize) \
 	SHADER_PARAMETER(FMatrix, DirectionalLightWorldToStaticShadow) \
+	SHADER_PARAMETER(uint32, DirectLightingShowFlag) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightShadowmapAtlas) \
 	SHADER_PARAMETER_SAMPLER(SamplerState, ShadowmapSampler) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightStaticShadowmap) \

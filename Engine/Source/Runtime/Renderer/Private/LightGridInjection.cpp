@@ -551,6 +551,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 		ForwardLightData.LightGridPixelSizeShift = FMath::FloorLog2(GLightGridPixelSize);
 		ForwardLightData.SimpleLightsEndIndex = SimpleLightsEnd;
 		ForwardLightData.ClusteredDeferredSupportedEndIndex = ClusteredSupportedEnd;
+		ForwardLightData.DirectLightingShowFlag = ViewFamily.EngineShowFlags.DirectLighting ? 1 : 0;
 
 		// Clamp far plane to something reasonable
 		float FarPlane = FMath::Min(FMath::Max(FurthestLight, View.FurthestReflectionCaptureDistance), (float)HALF_WORLD_MAX / 5.0f);
@@ -773,8 +774,7 @@ void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder&
 	}
 	
 	const bool bCullLightsToGrid = GLightCullingQuality
-		&& (ViewFamily.EngineShowFlags.DirectLighting
-			&& (IsForwardShadingEnabled(ShaderPlatform) || bAnyViewUsesForwardLighting || IsRayTracingEnabled() || ShouldUseClusteredDeferredShading() || bAnyViewUsesLumen || ViewFamily.EngineShowFlags.VisualizeMeshDistanceFields || VirtualShadowMapArray.IsEnabled()));
+		&& (IsForwardShadingEnabled(ShaderPlatform) || bAnyViewUsesForwardLighting || IsRayTracingEnabled() || ShouldUseClusteredDeferredShading() || bAnyViewUsesLumen || ViewFamily.EngineShowFlags.VisualizeMeshDistanceFields || VirtualShadowMapArray.IsEnabled());
 
 	// Store this flag if lights are injected in the grids, check with 'AreLightsInLightGrid()'
 	bAreLightsInLightGrid = bCullLightsToGrid;
