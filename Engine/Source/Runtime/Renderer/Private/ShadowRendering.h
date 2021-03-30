@@ -1507,8 +1507,8 @@ public:
 
 		if (StrataGlobalParameters.IsBound())
 		{
-			TUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters = Strata::BindStrataGlobalUniformParameters(View);
-			SetUniformBufferParameter(RHICmdList, ShaderRHI, StrataGlobalParameters, StrataGlobalUniformParameters);
+			TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataUniformBuffer = Strata::BindStrataGlobalUniformParameters(View);
+			SetUniformBufferParameter(RHICmdList, ShaderRHI, StrataGlobalParameters, StrataUniformBuffer->GetRHIRef());
 		}
 
 		{

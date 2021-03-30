@@ -586,7 +586,8 @@ private:
 		FRenderLightParams* RenderLightParams)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		FGlobalShader::SetParameters<FStrataGlobalUniformParameters>(RHICmdList, ShaderRHI, Strata::BindStrataGlobalUniformParameters(View));
+		TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataUniformBuffer = Strata::BindStrataGlobalUniformParameters(View);
+		FGlobalShader::SetParameters<FStrataGlobalUniformParameters>(RHICmdList, ShaderRHI, StrataUniformBuffer->GetRHIRef());
 
 		if(LightAttenuationTexture.IsBound())
 		{
@@ -1081,6 +1082,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderLightParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumetricCloudShadowAOParameters, CloudShadowAO)
 	RDG_TEXTURE_ACCESS(ShadowMaskTexture, ERHIAccess::SRVGraphics)
 	RDG_TEXTURE_ACCESS(LightingChannelsTexture, ERHIAccess::SRVGraphics)
@@ -1088,6 +1090,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRenderLightParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 void GetRenderLightParameters(
+	const FViewInfo& View,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
@@ -1099,6 +1102,7 @@ void GetRenderLightParameters(
 {
 	Parameters.SceneTextures = SceneTexturesUniformBuffer;
 	Parameters.HairStrands = HairStrandsUniformBuffer;
+	Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View);
 	Parameters.ShadowMaskTexture = ShadowMaskTexture;
 	Parameters.LightingChannelsTexture = LightingChannelsTexture;
 	Parameters.CloudShadowAO = CloudShadowAOParameters;
@@ -1113,6 +1117,7 @@ void GetRenderLightParameters(
 FHairStrandsTransmittanceMaskData CreateDummyHairStrandsTransmittanceMaskData(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap);
 
 void GetRenderLightParameters(
+	const FViewInfo& View,
 	const FMinimalSceneTextures& SceneTextures,
 	const FHairStrandsViewData& HairViewData,
 	FRDGTextureRef ShadowMaskTexture,
@@ -1120,7 +1125,7 @@ void GetRenderLightParameters(
 	const FVolumetricCloudShadowAOParameters& CloudShadowAOParameters,
 	FRenderLightParameters& Parameters)
 {
-	GetRenderLightParameters(SceneTextures.Color.Target, SceneTextures.Depth.Target, SceneTextures.UniformBuffer, HairViewData.UniformBuffer, ShadowMaskTexture, LightingChannelsTexture, CloudShadowAOParameters, Parameters);
+	GetRenderLightParameters(View, SceneTextures.Color.Target, SceneTextures.Depth.Target, SceneTextures.UniformBuffer, HairViewData.UniformBuffer, ShadowMaskTexture, LightingChannelsTexture, CloudShadowAOParameters, Parameters);
 }
 
 void FDeferredShadingSceneRenderer::RenderLights(
@@ -1236,7 +1241,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				{
 					const FViewInfo& View = Views[ViewIndex];
 					FRenderLightParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightParameters>();
-					GetRenderLightParameters(SceneTextures, View.HairStrandsViewData, nullptr, LightingChannelsTexture, {}, *PassParameters);
+					GetRenderLightParameters(View, SceneTextures, View.HairStrandsViewData, nullptr, LightingChannelsTexture, {}, *PassParameters);
 
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("StandardDeferredLighting"),
@@ -1955,7 +1960,7 @@ void FDeferredShadingSceneRenderer::RenderStationaryLightOverlap(
 	if (Scene->bIsEditorScene)
 	{
 		FRenderLightParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightParameters>();
-		GetRenderLightParameters(SceneTextures, Views[0].HairStrandsViewData, nullptr, LightingChannelsTexture, {}, *PassParameters);
+		GetRenderLightParameters(Views[0], SceneTextures, Views[0].HairStrandsViewData, nullptr, LightingChannelsTexture, {}, *PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("StationaryLightOverlap"),
@@ -2334,7 +2339,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 		const FViewInfo& View = Views[ViewIndex];
 
 		FRenderLightParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightParameters>();
-		GetRenderLightParameters(SceneTextures, View.HairStrandsViewData, ScreenShadowMaskTexture, LightingChannelsTexture, GetCloudShadowAOParameters(GraphBuilder, View, CloudInfo), *PassParameters);
+		GetRenderLightParameters(View, SceneTextures, View.HairStrandsViewData, ScreenShadowMaskTexture, LightingChannelsTexture, GetCloudShadowAOParameters(GraphBuilder, View, CloudInfo), *PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("StandardDeferredLighting"),
@@ -2402,6 +2407,7 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 
 		FRenderLightForHairParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightForHairParameters>();
 		GetRenderLightParameters(
+			View,
 			HairVisibilityData.SampleLightingBuffer, 
 			nullptr, 
 			SceneTexturesUniformBuffer, 

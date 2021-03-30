@@ -9,7 +9,10 @@
 #define TILE_SIZE 8
 #define GROUP_THREAD_COUNT (TILE_SIZE*TILE_SIZE)
 
-#if SHADER_CATEGORIZATION 
+#if SHADER_CATEGORIZATION
+
+uint MaxBytesPerPixel;
+ByteAddressBuffer MaterialLobesBuffer;
 
 // Note: 
 // This code is partial copy of PackStrataOut in Strata.ush. 
@@ -140,8 +143,8 @@ void MainPS(
 	FStrataSubsurfaceData SSSData				= (FStrataSubsurfaceData)0;
 	FStrataTopLayerData TopLayerData			= (FStrataTopLayerData)0;
 
-	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
+	FStrataPixelHeader Header = UnpackStrataHeaderIn(MaterialLobesBuffer, StrataAddressing);
 
 	ClassificationData.bIsStrataMaterial = Header.BSDFCount > 0;
 	ClassificationData.MaterialAO = 1.0;
@@ -160,7 +163,7 @@ void MainPS(
 		float TopLayerRoughnessAverageCount = 0.0f;
 		for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 		{
-			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, StrataAddressing);
+			const FStrataBSDF BSDF = UnpackStrataBSDFIn(MaterialLobesBuffer, StrataAddressing);
 			ComputePostProcessBSDFData(Header, BSDF, StrataAddressing, V, ClassificationData, SSSData, TopLayerData, TopLayerRoughness, TopLayerRoughnessAverageCount);
 		}
 

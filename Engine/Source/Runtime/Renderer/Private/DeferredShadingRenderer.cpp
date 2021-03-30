@@ -2245,12 +2245,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		Scene->AllocateAndCaptureFrameSkyEnvMap(GraphBuilder, *this, MainView, bShouldRenderSkyAtmosphere, bShouldRenderVolumetricCloud, InstanceCullingManager);
 	}
 
-	// Strata initialisation
+	// Strata initialisation is always run even when not enabled.
 	const bool bStrataEnabled = Strata::IsStrataEnabled();
-	if (bStrataEnabled)
-	{		
-		Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
-	}
+	Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
 
 	if (GetCustomDepthPassLocation() == ECustomDepthPassLocation::BeforeBasePass)
 	{

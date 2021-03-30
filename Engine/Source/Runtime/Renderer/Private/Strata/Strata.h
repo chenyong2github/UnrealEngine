@@ -23,9 +23,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(FVector2D, GGXEnergyLUTScaleBias)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialLobesBuffer)
-	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, ClassificationTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, TopLayerNormalTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D<uint2>, SSSTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ClassificationTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TopLayerNormalTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, SSSTexture)
 	SHADER_PARAMETER_TEXTURE(Texture3D<float2>, GGXEnergyLUT3DTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GGXEnergyLUT2DTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GGXEnergyLUTSampler)
@@ -34,21 +34,28 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 struct FStrataSceneData
 {
 	uint32 MaxBytesPerPixel;
+
+	// Resources allocated and updated each frame
 	FRWByteAddressBuffer MaterialLobesBuffer;					// This should be a RDG resource
-	TRefCountPtr<IPooledRenderTarget> ClassificationTexture;	// This should be a RDG resource
-	TRefCountPtr<IPooledRenderTarget> TopLayerNormalTexture;	// This should be a RDG resource
+	FRDGTextureRef ClassificationTexture;
+	FRDGTextureRef TopLayerNormalTexture;
+	FRDGTextureRef SSSTexture;	
+
+	// Resources computed once for multiple frames
 	TRefCountPtr<IPooledRenderTarget> GGXEnergyLUT3DTexture;
 	TRefCountPtr<IPooledRenderTarget> GGXEnergyLUT2DTexture;
-	TRefCountPtr<IPooledRenderTarget> SSSTexture;				// This should be a RDG resource
 
 	TRefCountPtr<FRDGPooledBuffer> ClassificationTileListBuffer;
 	TRefCountPtr<FRDGPooledBuffer> ClassificationTileIndirectBuffer;
 
-	TUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters;
+	TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters;
 
 	FStrataSceneData()
 	{
+		Reset();
 	}
+
+	void Reset();
 };
 
 namespace Strata
@@ -64,7 +71,7 @@ void AddStrataClearMaterialBufferPass(FRDGBuilder& GraphBuilder, FUnorderedAcces
 
 void BindStrataBasePassUniformParameters(const FViewInfo& View, FStrataOpaquePassUniformParameters& OutStrataUniformParameters);
 
-TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(const FViewInfo& View);
+TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(const FViewInfo& View);
 
 void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const TArray<FViewInfo>& Views);
 
