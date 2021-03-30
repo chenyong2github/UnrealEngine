@@ -17,6 +17,7 @@
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Templates/UniquePtr.h"
+#include "Shader/ShaderTypes.h"
 #if WITH_CHAOS
 #include "Physics/PhysicsInterfaceCore.h"
 #endif
@@ -272,6 +273,15 @@ struct FVector2MaterialInput : public FMaterialInput
 #endif
 };
 #endif
+
+struct FMaterialInputDescription
+{
+	FExpressionInput* Input = nullptr;
+	UE::Shader::EValueType Type = UE::Shader::EValueType::Void;
+	UE::Shader::FValue ConstantValue;
+	bool bUseConstant = false;
+	bool bHidden = false;
+};
 
 USTRUCT()
 struct FParameterGroupData
@@ -1668,6 +1678,8 @@ public:
 	*									or NULL if an invalid property was requested (some properties have been removed from UI, those return NULL).
 	*/
 	ENGINE_API FExpressionInput* GetExpressionInputForProperty(EMaterialProperty InProperty);
+
+	ENGINE_API bool GetExpressionInputDescription(EMaterialProperty InProperty, FMaterialInputDescription& OutDescription);
 #endif
 
 #if WITH_EDITORONLY_DATA

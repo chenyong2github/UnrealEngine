@@ -385,6 +385,22 @@ inline FValue BinaryOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs
 } // namespace Shader
 } // namespace UE
 
+bool UE::Shader::operator==(const FValue& Lhs, const FValue& Rhs)
+{
+	if (Lhs.ComponentType != Rhs.ComponentType || Lhs.NumComponents != Rhs.NumComponents)
+	{
+		return false;
+	}
+	for (int32 i = 0u; i < Lhs.NumComponents; ++i)
+	{
+		if (Lhs.Component[i].Packed != Rhs.Component[i].Packed)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 UE::Shader::FValue UE::Shader::Abs(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpAbs(), Value);

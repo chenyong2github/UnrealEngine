@@ -273,12 +273,9 @@ void UE::HLSLTree::FExpressionDefaultMaterialAttributes::EmitCode(FEmitContext& 
 
 void UE::HLSLTree::FExpressionSetMaterialAttribute::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	const EMaterialProperty Property = FMaterialAttributeDefinitionMap::GetProperty(AttributeID);
 	const FString PropertyName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
-	const EMaterialValueType PropertyType = FMaterialAttributeDefinitionMap::GetValueType(AttributeID);
-	const EShaderFrequency Frequency = FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID);
 
-	const FEmitValue&AttributresRef = Context.AcquireValue(AttributesExpression);
+	const FEmitValue& AttributresRef = Context.AcquireValue(AttributesExpression);
 	const FEmitValue&ValueRef = Context.AcquireValue(ValueExpression);
 
 	OutResult.EvaluationType = EExpressionEvaluationType::Shader;

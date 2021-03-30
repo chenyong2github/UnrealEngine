@@ -5640,39 +5640,114 @@ void UMaterial::GetReferencedTexturesAndOverrides(TSet<const UTexture*>& InOutTe
 
 FExpressionInput* UMaterial::GetExpressionInputForProperty(EMaterialProperty InProperty)
 {
-	switch (InProperty)
+	FMaterialInputDescription Description;
+	if (GetExpressionInputDescription(InProperty, Description))
 	{
-		case MP_EmissiveColor:			return &EmissiveColor;
-		case MP_Opacity:				return &Opacity;
-		case MP_OpacityMask:			return &OpacityMask;
-		case MP_BaseColor:				return &BaseColor;
-		case MP_Metallic:				return &Metallic;
-		case MP_Specular:				return &Specular;
-		case MP_Roughness:				return &Roughness;
-		case MP_Anisotropy:				return &Anisotropy;
-		case MP_Normal:					return &Normal;
-		case MP_Tangent:				return &Tangent;
-		case MP_WorldPositionOffset:	return &WorldPositionOffset;
-		case MP_WorldDisplacement:		return &WorldDisplacement;
-		case MP_TessellationMultiplier:	return &TessellationMultiplier;
-		case MP_SubsurfaceColor:		return &SubsurfaceColor;
-		case MP_CustomData0:			return &ClearCoat;
-		case MP_CustomData1:			return &ClearCoatRoughness;
-		case MP_AmbientOcclusion:		return &AmbientOcclusion;
-		case MP_Refraction:				return &Refraction;
-		case MP_MaterialAttributes:		return &MaterialAttributes;
-		case MP_PixelDepthOffset:		return &PixelDepthOffset;
-		case MP_ShadingModel:			return &ShadingModelFromMaterialExpression;
-		case MP_FrontMaterial:			return &FrontMaterial;
+		if (!Description.bHidden)
+		{
+			return Description.Input;
+		}
 	}
-
-	if (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7)
-	{
-		return &CustomizedUVs[InProperty - MP_CustomizedUVs0];
-	}
-
 	return nullptr;
 }
+
+static void SetMaterialInputDescription(FColorMaterialInput& Input, bool bHidden, FMaterialInputDescription& OutDescription)
+{
+	OutDescription.Type = UE::Shader::EValueType::Float3;
+	OutDescription.Input = &Input;
+	OutDescription.bUseConstant = Input.UseConstant;
+	OutDescription.bHidden = bHidden;
+	const FLinearColor ConstantColor(Input.Constant);
+	OutDescription.ConstantValue = UE::Shader::FValue(ConstantColor.R, ConstantColor.G, ConstantColor.B);
+}
+
+static void SetMaterialInputDescription(FVectorMaterialInput& Input, bool bHidden, FMaterialInputDescription& OutDescription)
+{
+	OutDescription.Type = UE::Shader::EValueType::Float3;
+	OutDescription.Input = &Input;
+	OutDescription.bUseConstant = Input.UseConstant;
+	OutDescription.bHidden = bHidden;
+	OutDescription.ConstantValue = Input.Constant;
+}
+
+static void SetMaterialInputDescription(FVector2MaterialInput& Input, bool bHidden, FMaterialInputDescription& OutDescription)
+{
+	OutDescription.Type = UE::Shader::EValueType::Float2;
+	OutDescription.Input = &Input;
+	OutDescription.bUseConstant = Input.UseConstant;
+	OutDescription.bHidden = bHidden;
+	OutDescription.ConstantValue = Input.Constant;
+}
+
+static void SetMaterialInputDescription(FScalarMaterialInput& Input, bool bHidden, FMaterialInputDescription& OutDescription)
+{
+	OutDescription.Type = UE::Shader::EValueType::Float1;
+	OutDescription.Input = &Input;
+	OutDescription.bUseConstant = Input.UseConstant;
+	OutDescription.bHidden = bHidden;
+	OutDescription.ConstantValue = Input.Constant;
+}
+
+static void SetMaterialInputDescription(FShadingModelMaterialInput& Input, bool bHidden, FMaterialInputDescription& OutDescription)
+{
+	OutDescription.Type = UE::Shader::EValueType::Void;
+	OutDescription.Input = &Input;
+	OutDescription.bUseConstant = false;
+	OutDescription.bHidden = bHidden;
+}
+
+static void SetMaterialInputDescription(FMaterialAttributesInput& Input, bool bHidden, FMaterialInputDescription& OutDescription)
+{
+	OutDescription.Type = UE::Shader::EValueType::MaterialAttributes;
+	OutDescription.Input = &Input;
+	OutDescription.bUseConstant = false;
+	OutDescription.bHidden = bHidden;
+}
+
+static void SetMaterialInputDescription(FStrataMaterialInput& Input, bool bHidden, FMaterialInputDescription& OutDescription)
+{
+	OutDescription.Type = UE::Shader::EValueType::Void;
+	OutDescription.Input = &Input;
+	OutDescription.bUseConstant = false;
+	OutDescription.bHidden = bHidden;
+}
+
+bool UMaterial::GetExpressionInputDescription(EMaterialProperty InProperty, FMaterialInputDescription& OutDescription)
+{
+	switch (InProperty)
+	{
+	case MP_EmissiveColor: SetMaterialInputDescription(EmissiveColor, false, OutDescription); return true;
+	case MP_Opacity: SetMaterialInputDescription(Opacity, false, OutDescription); return true;
+	case MP_OpacityMask: SetMaterialInputDescription(OpacityMask, false, OutDescription); return true;
+	case MP_BaseColor: SetMaterialInputDescription(BaseColor, false, OutDescription); return true;
+	case MP_Metallic: SetMaterialInputDescription(Metallic, false, OutDescription); return true;
+	case MP_Specular: SetMaterialInputDescription(Specular, false, OutDescription); return true;
+	case MP_Roughness: SetMaterialInputDescription(Roughness, false, OutDescription); return true;
+	case MP_Anisotropy: SetMaterialInputDescription(Anisotropy, false, OutDescription); return true;
+	case MP_Normal: SetMaterialInputDescription(Normal, false, OutDescription); return true;
+	case MP_Tangent: SetMaterialInputDescription(Tangent, false, OutDescription); return true;
+	case MP_WorldPositionOffset: SetMaterialInputDescription(WorldPositionOffset, false, OutDescription); return true;
+	case MP_WorldDisplacement: SetMaterialInputDescription(WorldDisplacement, false, OutDescription); return true;
+	case MP_TessellationMultiplier: SetMaterialInputDescription(TessellationMultiplier, false, OutDescription); return true;
+	case MP_SubsurfaceColor: SetMaterialInputDescription(SubsurfaceColor, false, OutDescription); return true;
+	case MP_CustomData0: SetMaterialInputDescription(ClearCoat, false, OutDescription); return true;
+	case MP_CustomData1: SetMaterialInputDescription(ClearCoatRoughness, false, OutDescription); return true;
+	case MP_AmbientOcclusion: SetMaterialInputDescription(AmbientOcclusion, false, OutDescription); return true;
+	case MP_Refraction: SetMaterialInputDescription(Refraction, false, OutDescription); return true;
+	case MP_MaterialAttributes: SetMaterialInputDescription(MaterialAttributes, false, OutDescription); return true;
+	case MP_PixelDepthOffset: SetMaterialInputDescription(PixelDepthOffset, false, OutDescription); return true;
+	case MP_ShadingModel: SetMaterialInputDescription(ShadingModelFromMaterialExpression, false, OutDescription); return true;
+	case MP_FrontMaterial: SetMaterialInputDescription(FrontMaterial, false, OutDescription); return true;
+	default:
+		if (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7)
+		{
+			SetMaterialInputDescription(CustomizedUVs[InProperty - MP_CustomizedUVs0], false, OutDescription);
+			return true;
+		}
+		return false;
+	}
+}
+
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA

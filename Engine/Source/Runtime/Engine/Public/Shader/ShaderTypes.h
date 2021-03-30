@@ -115,6 +115,19 @@ struct FValue
 		Component[3].Float = Value.A;
 	}
 
+	inline FValue(const FVector2D& Value) : ComponentType(EValueComponentType::Float), NumComponents(2)
+	{
+		Component[0].Float = Value.X;
+		Component[1].Float = Value.Y;
+	}
+
+	inline FValue(const FVector& Value) : ComponentType(EValueComponentType::Float), NumComponents(3)
+	{
+		Component[0].Float = Value.X;
+		Component[1].Float = Value.Y;
+		Component[2].Float = Value.Z;
+	}
+
 	inline FValue(const FVector4& Value) : ComponentType(EValueComponentType::Float), NumComponents(4)
 	{
 		Component[0].Float = Value.X;
@@ -143,6 +156,9 @@ struct FValue
 	int8 NumComponents;
 	FValueComponent Component[4];
 };
+
+ENGINE_API bool operator==(const FValue& Lhs, const FValue& Rhs);
+inline bool operator!=(const FValue& Lhs, const FValue& Rhs) { return !operator==(Lhs, Rhs); }
 
 ENGINE_API FValue Abs(const FValue& Value);
 ENGINE_API FValue Saturate(const FValue& Value);
