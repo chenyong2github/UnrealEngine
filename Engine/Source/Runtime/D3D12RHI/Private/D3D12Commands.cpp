@@ -1184,20 +1184,23 @@ void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 	}
 
 #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
-	if (GRHISupportsAttachmentVariableRateShading && CommandListHandle.GraphicsCommandList5() && RenderTargetsInfo.ShadingRateTexture != nullptr)
+	if (GRHISupportsAttachmentVariableRateShading && CommandListHandle.GraphicsCommandList5())
 	{
-		VRSCombiners[1] = ConvertShadingRateCombiner(RenderTargetsInfo.ShadingRateTextureCombiner); // Combiner 1 is used to mix rates from a texture and the previous combiner
 		if (RenderTargetsInfo.ShadingRateTexture != nullptr)
 		{
-			FD3D12Resource* Resource = RetrieveTextureBase(RenderTargetsInfo.ShadingRateTexture)->GetResource();
-			CommandListHandle.GraphicsCommandList5()->RSSetShadingRateImage(Resource->GetResource());
+			VRSCombiners[1] = ConvertShadingRateCombiner(RenderTargetsInfo.ShadingRateTextureCombiner); // Combiner 1 is used to mix rates from a texture and the previous combiner
+			if (RenderTargetsInfo.ShadingRateTexture != nullptr)
+			{
+				FD3D12Resource* Resource = RetrieveTextureBase(RenderTargetsInfo.ShadingRateTexture)->GetResource();
+				CommandListHandle.GraphicsCommandList5()->RSSetShadingRateImage(Resource->GetResource());
+			}
+			else
+			{
+				CommandListHandle.GraphicsCommandList5()->RSSetShadingRateImage(nullptr);
+			}
 		}
-		else
-		{
-			CommandListHandle.GraphicsCommandList5()->RSSetShadingRateImage(nullptr);
-		}
+		CommandListHandle.GraphicsCommandList5()->RSSetShadingRate(VRSShadingRate, VRSCombiners);
 	}
-	CommandListHandle.GraphicsCommandList5()->RSSetShadingRate(VRSShadingRate, VRSCombiners);
 #endif
 }
 
