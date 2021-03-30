@@ -1210,3 +1210,8 @@ ERHIFeatureLevel::Type GetSceneTextureFeatureLevel()
 {
 	return FSceneTexturesConfig::Get().FeatureLevel;
 }
+
+void CreateSystemTextures(FRDGBuilder& GraphBuilder)
+{
+	FRDGSystemTextures::Create(GraphBuilder);
+}

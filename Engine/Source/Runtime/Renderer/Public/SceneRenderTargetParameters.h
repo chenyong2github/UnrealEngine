@@ -202,6 +202,9 @@ extern RENDERER_API ERHIFeatureLevel::Type GetSceneTextureFeatureLevel();
  */
 extern RENDERER_API void ResetSceneTextureExtentHistory();
 
+/** Registers system textures into RDG. */
+extern RENDERER_API void CreateSystemTextures(FRDGBuilder& GraphBuilder);
+
 ///////////////////////////////////////////////////////////////////////////
 // Deprecated APIs
 

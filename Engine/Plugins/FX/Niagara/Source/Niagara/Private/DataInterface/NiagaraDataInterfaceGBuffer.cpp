@@ -98,7 +98,6 @@ struct FNiagaraDataInterfaceParametersCS_GBuffer : public FNiagaraDataInterfaceP
 public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		PassUniformBuffer.Bind(ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		VelocityTextureParam.Bind(ParameterMap, TEXT("NDIGBuffer_VelocityTexture"));
 		VelocityTextureSamplerParam.Bind(ParameterMap, TEXT("NDIGBuffer_VelocityTextureSampler"));
 	}
@@ -108,18 +107,12 @@ public:
 		check(IsInRenderingThread());
 		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
-		//-Note: Scene textures will not exist in the Mobile rendering path
-		TUniformBufferRef<FSceneTextureUniformParameters> SceneTextureUniformParams = GNiagaraViewDataManager.GetSceneTextureUniformParameters();
-		check(!PassUniformBuffer.IsBound() || SceneTextureUniformParams);
-		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, PassUniformBuffer, SceneTextureUniformParams);
-
 		FRHISamplerState* VelocitySamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		FRHITexture* VelocityTexture = GNiagaraViewDataManager.GetSceneVelocityTexture() ? GNiagaraViewDataManager.GetSceneVelocityTexture() : GBlackTexture->TextureRHI;
 		SetTextureParameter(RHICmdList, ComputeShaderRHI, VelocityTextureParam, VelocityTextureSamplerParam, VelocitySamplerState, VelocityTexture);
 	}
 
 private:
-	LAYOUT_FIELD(FShaderUniformBufferParameter, PassUniformBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, VelocityTextureParam);
 	LAYOUT_FIELD(FShaderResourceParameter, VelocityTextureSamplerParam);
 };
