@@ -654,8 +654,6 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		{
 			FFrustumCullData PrevCull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum );
 			
-			bWasOccluded = true;
-
 			BRANCH
 			if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
 			{
