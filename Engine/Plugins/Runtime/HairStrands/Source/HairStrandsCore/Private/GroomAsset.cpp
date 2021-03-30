@@ -1976,7 +1976,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 					GroupData.Guides.Data.RenderData = LOD.Guides.Data.RenderData;
 				}
 
-				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.Data.RenderData, LOD.Guides.Data.BoundingBox.GetCenter());
+				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.Data.RenderData, LOD.Guides.Data.BoundingBox.GetCenter(), EHairStrandsResourcesType::Cards);
 				BeginInitResource(LOD.Guides.RestResource);
 
 				LOD.Guides.InterpolationResource = new FHairStrandsInterpolationResource(LOD.Guides.InterpolationData.RenderData, GroupData.Guides.Data);
@@ -2190,7 +2190,7 @@ void UGroomAsset::AllocateGuidesResources(uint32 GroupIndex)
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
 		if (GroupData.Guides.HasValidData())
 		{
-			GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.Data.RenderData, GroupData.Guides.Data.BoundingBox.GetCenter());
+			GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.Data.RenderData, GroupData.Guides.Data.BoundingBox.GetCenter(), EHairStrandsResourcesType::Guides);
 			BeginInitResource(GroupData.Guides.RestResource);
 		}
 	}
@@ -2227,7 +2227,7 @@ void UGroomAsset::InitStrandsResources()
 
 		if (GroupData.Strands.HasValidData())
 		{
-			GroupData.Strands.RestResource = new FHairStrandsRestResource(GroupData.Strands.Data.RenderData, GroupData.Strands.Data.BoundingBox.GetCenter());
+			GroupData.Strands.RestResource = new FHairStrandsRestResource(GroupData.Strands.Data.RenderData, GroupData.Strands.Data.BoundingBox.GetCenter(), EHairStrandsResourcesType::Strands);
 			BeginInitResource(GroupData.Strands.RestResource);
 
 			if (GroupData.Strands.ClusterCullingData.IsValid())
@@ -2329,7 +2329,7 @@ void UGroomAsset::InitCardsResources()
 				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationData.RenderData);
 				BeginInitResource(LOD.InterpolationResource);
 
-				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.Data.RenderData, LOD.Guides.Data.BoundingBox.GetCenter());
+				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.Data.RenderData, LOD.Guides.Data.BoundingBox.GetCenter(), EHairStrandsResourcesType::Cards);
 				BeginInitResource(LOD.Guides.RestResource);
 
 				LOD.Guides.InterpolationResource = new FHairStrandsInterpolationResource(LOD.Guides.InterpolationData.RenderData, GroupData.Guides.Data);

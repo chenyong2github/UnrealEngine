@@ -16,12 +16,19 @@ inline uint32 GetBufferTotalNumBytes(const FRDGExternalBuffer& In)
 	return In.Buffer ? In.Buffer->Desc.GetTotalNumBytes() : 0;
 }
 
+enum class EHairStrandsResourcesType : uint8
+{
+	Guides,		// Guides used for simulation
+	Strands,	// Rendering strands 
+	Cards		// Guides used for deforming the cards geometry (which is different from the simulation guides)
+};
+
 /* Render buffers for root deformation for dynamic meshes */
 struct FHairStrandsRestRootResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsRestRootResource(const FHairStrandsRootData& RootData);
-	FHairStrandsRestRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples);
+	FHairStrandsRestRootResource(const FHairStrandsRootData& RootData, EHairStrandsResourcesType CurveType);
+	FHairStrandsRestRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples, EHairStrandsResourcesType CurveType);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -91,14 +98,17 @@ struct FHairStrandsRestRootResource : public FRenderResource
 
 	/* Store CPU data for root info & root binding */
 	FHairStrandsRootData RootData;
+
+	/* Type of curves */
+	const EHairStrandsResourcesType CurveType;
 };
 
 /* Render buffers for root deformation for dynamic meshes */
 struct FHairStrandsDeformedRootResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsDeformedRootResource();
-	FHairStrandsDeformedRootResource(const FHairStrandsRestRootResource* InRestResources);
+	FHairStrandsDeformedRootResource(EHairStrandsResourcesType CurveType);
+	FHairStrandsDeformedRootResource(const FHairStrandsRestRootResource* InRestResources, EHairStrandsResourcesType CurveType);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -156,13 +166,16 @@ struct FHairStrandsDeformedRootResource : public FRenderResource
 
 	/* Last update MeshLODIndex */
 	int32 MeshLODIndex = -1;
+
+	/* Type of curves */
+	const EHairStrandsResourcesType CurveType;
 };
 
 /* Render buffers that will be used for rendering */
 struct FHairStrandsRestResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, const FVector& PositionOffset);
+	FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, const FVector& PositionOffset, EHairStrandsResourcesType CurveType);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -208,13 +221,16 @@ struct FHairStrandsRestResource : public FRenderResource
 	/* Reference to the hair strands render data */
 	const FHairStrandsDatas::FRenderData& RenderData;
 
+	/* Type of curves */
+	const EHairStrandsResourcesType CurveType;
+
 	inline uint32 GetVertexCount() const { return RenderData.Positions.Num() / FHairStrandsPositionFormat::ComponentCount; }
 };
 
 struct FHairStrandsDeformedResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInitializeData, const FVector& InDefaultOffset);
+	FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInitializeData, const FVector& InDefaultOffset, EHairStrandsResourcesType CurveType);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -258,6 +274,9 @@ struct FHairStrandsDeformedResource : public FRenderResource
 
 	/* Whether the underlying resource is dynamic not (single or double buffer allocated) */
 	FVector DefaultOffset = FVector::ZeroVector;
+
+	/* Type of curves */
+	const EHairStrandsResourcesType CurveType;
 
 	enum EFrameType
 	{

@@ -91,7 +91,7 @@ void UGroomBindingAsset::InitResource()
 		Resource.SimRootResources = nullptr;
 		if (Data.SimRootData.IsValid())
 		{
-			Resource.SimRootResources = new FHairStrandsRestRootResource(Data.SimRootData);
+			Resource.SimRootResources = new FHairStrandsRestRootResource(Data.SimRootData, EHairStrandsResourcesType::Guides);
 			BeginInitResource(Resource.SimRootResources);
 		}
 
@@ -99,7 +99,7 @@ void UGroomBindingAsset::InitResource()
 		Resource.RenRootResources = nullptr;
 		if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands) && Data.RenRootData.IsValid())
 		{
-			Resource.RenRootResources = new FHairStrandsRestRootResource(Data.RenRootData);
+			Resource.RenRootResources = new FHairStrandsRestRootResource(Data.RenRootData, EHairStrandsResourcesType::Strands);
 			BeginInitResource(Resource.RenRootResources);
 		}
 
@@ -113,7 +113,7 @@ void UGroomBindingAsset::InitResource()
 				Resource.CardsRootResources[CardsLODIt] = nullptr;
 				if (Data.CardsRootData[CardsLODIt].IsValid())
 				{
-					Resource.CardsRootResources[CardsLODIt] = new FHairStrandsRestRootResource(Data.CardsRootData[CardsLODIt]);
+					Resource.CardsRootResources[CardsLODIt] = new FHairStrandsRestRootResource(Data.CardsRootData[CardsLODIt], EHairStrandsResourcesType::Cards);
 					BeginInitResource(Resource.CardsRootResources[CardsLODIt]);
 				}
 			}
