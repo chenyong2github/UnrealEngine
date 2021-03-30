@@ -62,6 +62,9 @@ public:
 	/** Starts a scoped event specific to the profiler. */
 	virtual void StartScopedEvent(const struct FColor& Color, const TCHAR* Text) {};
 
+	/** Starts a scoped event specific to the profiler. Default implementation for backward compabitility. */
+	virtual void StartScopedEvent(const struct FColor& Color, const ANSICHAR* Text) { StartScopedEvent(Color, ANSI_TO_TCHAR(Text)); };
+
 	/** Ends a scoped event specific to the profiler. */
 	virtual void EndScopedEvent() {};
 
@@ -165,6 +168,40 @@ public:
 		StopScopedTimer();
 	}
 
+};
+
+class FExternalProfilerTrace
+{
+public:
+	/** Starts a scoped event specific to the profiler. */
+	FORCEINLINE static void StartScopedEvent(const struct FColor& Color, const TCHAR* Text)
+	{
+		FExternalProfiler* Profiler = FActiveExternalProfilerBase::GetActiveProfiler();
+		if (Profiler)
+		{
+			Profiler->StartScopedEvent(Color, Text);
+		}
+	}
+
+	/** Starts a scoped event specific to the profiler. */
+	FORCEINLINE static void StartScopedEvent(const struct FColor& Color, const ANSICHAR* Text)
+	{
+		FExternalProfiler* Profiler = FActiveExternalProfilerBase::GetActiveProfiler();
+		if (Profiler)
+		{
+			Profiler->StartScopedEvent(Color, Text);
+		}
+	}
+
+	/** Ends a scoped event specific to the profiler. */
+	FORCEINLINE static void EndScopedEvent()
+	{
+		FExternalProfiler* Profiler = FActiveExternalProfilerBase::GetActiveProfiler();
+		if (Profiler)
+		{
+			Profiler->EndScopedEvent();
+		}
+	}
 };
 
 #define SCOPE_PROFILER_INCLUDER(X) FExternalProfilerIncluder ExternalProfilerIncluder_##X;

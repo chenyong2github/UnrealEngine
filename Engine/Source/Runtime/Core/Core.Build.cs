@@ -63,8 +63,7 @@ public class Core : ModuleRules
 				"IntelVTune"
 				);
 
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"mimalloc");
+			PrivateDependencyModuleNames.Add("mimalloc");
 
 			if (Target.WindowsPlatform.bUseBundledDbgHelp)
 			{
@@ -214,6 +213,31 @@ public class Core : ModuleRules
 			else
 			{
 				PublicDefinitions.Add("WITH_SUPERLUMINAL_PROFILER=0");
+			}
+		}
+
+		// Detect if the Concurrency Viewer Extension is installed
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		{
+			bool VSCVDefined = false;
+			string VisualStudioInstallation = Target.WindowsPlatform.IDEDir;
+			if (VisualStudioInstallation != null && VisualStudioInstallation != string.Empty && Directory.Exists(VisualStudioInstallation))
+			{
+				string SubFolderName = @"Common7\IDE\Extensions\jcn3iwfw.vp2\SDK\Native\Inc";
+				string IncludeDirectory = Path.Combine(VisualStudioInstallation, SubFolderName);
+
+				if (File.Exists(Path.Combine(IncludeDirectory, "cvmarkers.h"))
+					&& Target.Configuration != UnrealTargetConfiguration.Shipping)
+				{
+					PrivateIncludePaths.Add(IncludeDirectory);
+					PublicDefinitions.Add("WITH_CONCURRENCYVIEWER_PROFILER=1");
+					VSCVDefined = true;
+				}
+			}
+
+			if (!VSCVDefined)
+			{
+				PublicDefinitions.Add("WITH_CONCURRENCYVIEWER_PROFILER=0");
 			}
 		}
 

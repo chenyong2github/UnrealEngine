@@ -43,17 +43,17 @@ FName FExternalProfiler::GetFeatureName()
 
 bool FActiveExternalProfilerBase::bDidInitialize = false;
 
-FExternalProfiler* FActiveExternalProfilerBase::ActiveProfiler = NULL;
+FExternalProfiler* FActiveExternalProfilerBase::ActiveProfiler = nullptr;
 
 FExternalProfiler* FActiveExternalProfilerBase::InitActiveProfiler()
 {
 	// Create profiler on demand.
-	if (ActiveProfiler == NULL && !bDidInitialize)
+	if (ActiveProfiler == nullptr && !bDidInitialize && FCommandLine::IsInitialized())
 	{
 		const FName FeatureName = FExternalProfiler::GetFeatureName();
-		TArray<FExternalProfiler*> AvailbleProfilers = IModularFeatures::Get().GetModularFeatureImplementations<FExternalProfiler>(FeatureName);
+		TArray<FExternalProfiler*> AvailableProfilers = IModularFeatures::Get().GetModularFeatureImplementations<FExternalProfiler>(FeatureName);
 
-		for (FExternalProfiler* CurProfiler : AvailbleProfilers)
+		for (FExternalProfiler* CurProfiler : AvailableProfilers)
 		{
 			check(CurProfiler != nullptr);
 
@@ -61,12 +61,6 @@ FExternalProfiler* FActiveExternalProfilerBase::InitActiveProfiler()
 			// Logging disabled here as it can cause a stack overflow whilst flushing logs during EnginePreInit
 			UE_LOG(LogExternalProfiler, Log, TEXT("Found external profiler: %s"), CurProfiler->GetProfilerName());
 #endif
-
-			// Default to the first profiler we have if none were specified on the command-line
-			if (ActiveProfiler == NULL)
-			{
-				ActiveProfiler = CurProfiler;
-			}
 
 			// Check to see if the profiler was specified on the command-line (e.g., "-VTune")
 			if (FParse::Param(FCommandLine::Get(), CurProfiler->GetProfilerName()))
@@ -77,7 +71,7 @@ FExternalProfiler* FActiveExternalProfilerBase::InitActiveProfiler()
 
 #if 0
 		// Logging disabled here as it can cause a stack overflow whilst flushing logs during EnginePreInit
-		if (ActiveProfiler != NULL)
+		if (ActiveProfiler != nullptr)
 		{
 			UE_LOG(LogExternalProfiler, Log, TEXT("Using external profiler: %s"), ActiveProfiler->GetProfilerName());
 		}

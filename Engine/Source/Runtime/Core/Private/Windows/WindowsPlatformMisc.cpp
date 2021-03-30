@@ -828,11 +828,7 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #elif UE_EXTERNAL_PROFILING_ENABLED
-	FExternalProfiler* Profiler = FActiveExternalProfilerBase::GetActiveProfiler();
-	if (Profiler)
-	{
-		Profiler->StartScopedEvent(Color, Text);
-	}
+	FExternalProfilerTrace::StartScopedEvent(Color, Text);
 #endif
 }
 
@@ -841,11 +837,7 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANS
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #elif UE_EXTERNAL_PROFILING_ENABLED
-	FExternalProfiler* Profiler = FActiveExternalProfilerBase::GetActiveProfiler();
-	if (Profiler)
-	{
-		Profiler->StartScopedEvent(Color, ANSI_TO_TCHAR(Text));
-	}
+	FExternalProfilerTrace::StartScopedEvent(Color, Text);
 #endif
 }
 
@@ -854,11 +846,7 @@ void FWindowsPlatformMisc::EndNamedEvent()
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PopEvent();
 #elif UE_EXTERNAL_PROFILING_ENABLED
-	FExternalProfiler* Profiler = FActiveExternalProfilerBase::GetActiveProfiler();
-	if (Profiler)
-	{
-		Profiler->EndScopedEvent();
-	}
+	FExternalProfilerTrace::EndScopedEvent();
 #endif
 }
 #endif // STATS || ENABLE_STATNAMEDEVENTS

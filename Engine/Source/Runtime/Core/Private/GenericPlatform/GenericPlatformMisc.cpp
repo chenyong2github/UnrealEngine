@@ -498,38 +498,21 @@ void FGenericPlatformMisc::RaiseException(uint32 ExceptionCode)
 void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANSICHAR* Text)
 {
 #if UE_EXTERNAL_PROFILING_ENABLED
-	//If there's an external profiler attached, trigger its scoped event.
-	FExternalProfiler* CurrentProfiler = FActiveExternalProfilerBase::GetActiveProfiler();
-	if (CurrentProfiler != NULL)
-	{
-		CurrentProfiler->StartScopedEvent(Color, ANSI_TO_TCHAR(Text));
-	}
+	FExternalProfilerTrace::StartScopedEvent(Color, Text);
 #endif
 }
 
 void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR* Text)
 {
 #if UE_EXTERNAL_PROFILING_ENABLED
-	//If there's an external profiler attached, trigger its scoped event.
-	FExternalProfiler* CurrentProfiler = FActiveExternalProfilerBase::GetActiveProfiler();
-
-	if (CurrentProfiler != NULL)
-	{
-		CurrentProfiler->StartScopedEvent(Color, Text);
-	}
+	FExternalProfilerTrace::StartScopedEvent(Color, Text);
 #endif
 }
 
 void FGenericPlatformMisc::EndNamedEvent()
 {
 #if UE_EXTERNAL_PROFILING_ENABLED
-	//If there's an external profiler attached, trigger its scoped event.
-	FExternalProfiler* CurrentProfiler = FActiveExternalProfilerBase::GetActiveProfiler();
-
-	if (CurrentProfiler != NULL)
-	{
-		CurrentProfiler->EndScopedEvent();
-	}
+	FExternalProfilerTrace::EndScopedEvent();
 #endif
 }
 
