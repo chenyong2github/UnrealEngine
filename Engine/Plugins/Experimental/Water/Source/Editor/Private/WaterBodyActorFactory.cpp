@@ -114,7 +114,7 @@ void UWaterBodyOceanActorFactory::PostSpawnActor(UObject* Asset, AActor* NewActo
 	AWaterBodyOcean* WaterBodyOcean = CastChecked<AWaterBodyOcean>(NewActor);
 	if (const UWaterWavesBase* DefaultWaterWaves = GetDefault<UWaterEditorSettings>()->WaterBodyOceanDefaults.WaterWaves)
 	{
-		UWaterWavesBase* WaterWaves = DuplicateObject(DefaultWaterWaves, NewActor->GetOuter(), MakeUniqueObjectName(NewActor->GetOuter(), DefaultWaterWaves->GetClass(), TEXT("OceanWaterWaves")));
+		UWaterWavesBase* WaterWaves = DuplicateObject(DefaultWaterWaves, NewActor, MakeUniqueObjectName(NewActor, DefaultWaterWaves->GetClass(), TEXT("OceanWaterWaves")));
 		WaterBodyOcean->SetWaterWaves(WaterWaves);
 	}
 
@@ -149,7 +149,7 @@ void UWaterBodyLakeActorFactory::PostSpawnActor(UObject* Asset, AActor* NewActor
 	AWaterBodyLake* WaterBodyLake = CastChecked<AWaterBodyLake>(NewActor);
 	if (const UWaterWavesBase* DefaultWaterWaves = GetDefault<UWaterEditorSettings>()->WaterBodyLakeDefaults.WaterWaves)
 	{
-		UWaterWavesBase* WaterWaves = DuplicateObject(DefaultWaterWaves, NewActor->GetOuter(), MakeUniqueObjectName(NewActor->GetOuter(), DefaultWaterWaves->GetClass(), TEXT("LakeWaterWaves")));
+		UWaterWavesBase* WaterWaves = DuplicateObject(DefaultWaterWaves, NewActor, MakeUniqueObjectName(NewActor, DefaultWaterWaves->GetClass(), TEXT("LakeWaterWaves")));
 		WaterBodyLake->SetWaterWaves(WaterWaves);
 	}
 
