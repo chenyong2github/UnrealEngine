@@ -1712,14 +1712,21 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	ensure(Operand.IsValid());
 
 	// Get all possible pins that lead to the same operand
-	TArray<const URigVMPin*> VirtualPins;
-	Pin->GetExposedPinChain(VirtualPins);
-	for (const URigVMPin* VirtualPin : VirtualPins)
+
+	if(Settings.ASTSettings.bFoldAssignments)
 	{
-		FString VirtualPinHash = GetPinHash(VirtualPin, InVarExpr, bIsDebugValue);
-		WorkData.PinPathToOperand->Add(VirtualPinHash, Operand);	
+		TArray<const URigVMPin*> VirtualPins;
+		Pin->GetExposedPinChain(VirtualPins);
+		for (const URigVMPin* VirtualPin : VirtualPins)
+		{
+			FString VirtualPinHash = GetPinHash(VirtualPin, InVarExpr, bIsDebugValue);
+			WorkData.PinPathToOperand->Add(VirtualPinHash, Operand);	
+		}
 	}
-	
+	else
+	{
+		WorkData.PinPathToOperand->Add(Hash, Operand);
+	}
 	WorkData.ExprToOperand.Add(InVarExpr, Operand);
 
 	return Operand;
