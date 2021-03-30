@@ -164,6 +164,10 @@ namespace UnrealBuildTool
 		{
 			get
 			{
+				if (ResponseFile != null)
+				{
+					yield return ResponseFile;
+				}
 				if (SourceFile != null)
 				{
 					yield return SourceFile;
