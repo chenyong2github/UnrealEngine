@@ -372,6 +372,8 @@ FReply SEnvironmentLightingViewer::OnButtonCreateAtmosphericLight(uint32 Index)
 #if WITH_EDITORONLY_DATA
 	DirectionalLight->GetComponent()->bUsedAsAtmosphereSunLight = 1;
 	DirectionalLight->GetComponent()->AtmosphereSunLightIndex = Index;
+	// The render proxy is create right after AddActor, so we need to mark the render state as dirty again to get the new values set on the render side too.
+	DirectionalLight->MarkComponentsRenderStateDirty();
 #endif
 
 	return FReply::Handled();
