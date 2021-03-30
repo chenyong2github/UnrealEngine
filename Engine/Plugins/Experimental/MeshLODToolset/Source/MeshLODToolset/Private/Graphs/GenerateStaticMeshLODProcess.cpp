@@ -133,6 +133,11 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 	{
 		SourceMaterials[mi].SourceMaterial = Materials[mi];
 
+		UMaterialInterface* MaterialInterface = Materials[mi].MaterialInterface;
+		if (MaterialInterface == nullptr)
+		{
+			continue;
+		}
 
 		// detect hard-coded (non-parameter) texture samples
 		{
@@ -182,12 +187,6 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 					Progress->AddWarning(WarningText, FProgressCancel::EMessageLevel::UserWarning);
 				}
 			}
-		}
-
-		UMaterialInterface* MaterialInterface = Materials[mi].MaterialInterface;
-		if (MaterialInterface == nullptr)
-		{
-			continue;
 		}
 
 		SourceMaterials[mi].bHasNormalMap = false;
