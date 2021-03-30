@@ -723,8 +723,8 @@ protected:
 	 */
 	void SetBlockOnTimeRangeInternal(const TRange<FTimespan>& TimeRange);
 
-	/** Flush all media sample sinks. */
-	void FlushSinks();
+	/** Flush all media sample sinks & player plugin. */
+	void Flush(bool bExcludePlayer = false);
 
 	/**
 	 * Get details about the specified audio track format.
@@ -834,20 +834,51 @@ private:
 
 private:
 
-	/** The time range to block on sample fetching. */
-	TRange<FMediaTimeStamp> BlockOnRange;
+	class FBlockOnRange
+	{
+	public:
+		FBlockOnRange(FMediaPlayerFacade* InFacade) : Facade(InFacade) { Reset(); }
 
-	/** Last user provided BlockOnRange value */
-	TRange<FTimespan> LastBlockOnRange;
+		void SetRange(const TRange<FTimespan> & NewRange);
 
-	/** Facade's copy of the last value passed into SetBlockOnRange(); used in case evaluation must be delayed */
-	TRange<FTimespan> BlockOnTimeRange;
+		const TRange<FMediaTimeStamp> & GetRange() const;
+
+		void Flush();
+
+		void Reset()
+		{
+			BlockOnRange = TRange<FMediaTimeStamp>::Empty();
+			CurrentTimeRange = TRange<FTimespan>::Empty();
+			LastBlockOnRange = TRange<FTimespan>::Empty();
+			RangeIsDirty = false;
+			OnBlockSeqIndex = 0;
+		}
+
+	private:
+		/** The hosting player facade */
+		FMediaPlayerFacade* Facade;
+
+		/** The last user set time range to block on */
+		TRange<FTimespan> CurrentTimeRange;
+
+		/** The time range to block on sample fetching. */
+		mutable TRange<FMediaTimeStamp> BlockOnRange;
+
+		/** Last user provided BlockOnRange value */
+		mutable TRange<FTimespan> LastBlockOnRange;
+
+		/** Flag to indicate if internal range is valid or not */
+		mutable bool RangeIsDirty;
+
+		/** Sequence index used during blocked playback processing */
+		mutable int64 OnBlockSeqIndex;
+	};
+
+	FBlockOnRange BlockOnRange;
+
 
 	/** Flag to indicate block on range feature as disabled for the current playback session due to previous timeout */
 	bool BlockOnRangeDisabled;
-
-	/** Sequence index used during blocked playback processing */
-	int64 OnBlockSeqIndex;
 
 	/** Media sample cache. */
 	FMediaSampleCache* Cache;
