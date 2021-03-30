@@ -496,7 +496,7 @@ void FD3D12StateCacheBase::ApplyState()
 	uint32 NumViews = 0;
 	for (uint32 iTries = 0; iTries < 2; ++iTries)
 	{
-		const UAVSlotMask CurrentShaderUAVRegisterMask = ((UAVSlotMask)1 << PipelineState.Common.CurrentShaderUAVCounts[UAVStage]) - (UAVSlotMask)1;
+		const UAVSlotMask CurrentShaderUAVRegisterMask = BitMask<UAVSlotMask>(PipelineState.Common.CurrentShaderUAVCounts[UAVStage]);
 		CurrentShaderDirtyUAVSlots = CurrentShaderUAVRegisterMask & PipelineState.Common.UAVCache.DirtySlotMask[UAVStage];
 		if (CurrentShaderDirtyUAVSlots)
 		{
@@ -668,7 +668,7 @@ void FD3D12StateCacheBase::ApplySamplers(const FD3D12RootSignature* const pRootS
 		for (uint32 Stage = StartStage; Stage < EndStage; ++Stage)
 		{
 			// Note this code assumes the starting register is index 0.
-			const SamplerSlotMask CurrentShaderSamplerRegisterMask = ((SamplerSlotMask)1 << PipelineState.Common.CurrentShaderSamplerCounts[Stage]) - (SamplerSlotMask)1;
+			const SamplerSlotMask CurrentShaderSamplerRegisterMask = BitMask<SamplerSlotMask>(PipelineState.Common.CurrentShaderSamplerCounts[Stage]);
 			CurrentShaderDirtySamplerSlots[Stage] = CurrentShaderSamplerRegisterMask & Cache.DirtySlotMask[Stage];
 			if (CurrentShaderDirtySamplerSlots[Stage])
 			{
@@ -731,7 +731,7 @@ void FD3D12StateCacheBase::ApplySamplers(const FD3D12RootSignature* const pRootS
 					// We changed the descriptor table, so all resources bound to slots outside of the table's range are now dirty.
 					// If a shader needs to use resources bound to these slots later, we need to set the descriptor table again to ensure those
 					// descriptors are valid.
-					const SamplerSlotMask OutsideCurrentTableRegisterMask = ~(((SamplerSlotMask)1 << Table.Key.Count) - (SamplerSlotMask)1);
+					const SamplerSlotMask OutsideCurrentTableRegisterMask = ~BitMask<SamplerSlotMask>(Table.Key.Count);
 					Cache.Dirty(static_cast<EShaderFrequency>(Stage), OutsideCurrentTableRegisterMask);
 				}
 				else
