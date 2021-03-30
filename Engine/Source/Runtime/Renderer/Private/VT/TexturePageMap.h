@@ -41,6 +41,8 @@ union FPhysicalSpaceIDAndAddress
 		uint16 pAddress;
 	};
 };
+FORCEINLINE bool operator==(const FPhysicalSpaceIDAndAddress& Lhs, const FPhysicalSpaceIDAndAddress& Rhs) { return Lhs.Packed == Rhs.Packed; }
+FORCEINLINE bool operator!=(const FPhysicalSpaceIDAndAddress& Lhs, const FPhysicalSpaceIDAndAddress& Rhs) { return Lhs.Packed != Rhs.Packed; }
 
 struct FMappedTexturePage
 {
