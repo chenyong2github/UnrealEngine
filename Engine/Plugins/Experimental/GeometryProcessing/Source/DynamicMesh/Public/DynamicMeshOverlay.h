@@ -222,6 +222,11 @@ public:
 	/** Allocate a new element with the given value */
 	int AppendElement(const RealType* Value);
 
+	void SetParentVertex(int ElementIndex, int ParentVertexIndex)
+	{
+		ParentVertices[ElementIndex] = ParentVertexIndex;
+	}
+
 	/** Initialize the triangle list to the given size, and set all triangles to InvalidID */
 	void InitializeTriangles(int MaxTriangleID);
 	/** Set the triangle to the given Element index tuple, and increment element reference counts */

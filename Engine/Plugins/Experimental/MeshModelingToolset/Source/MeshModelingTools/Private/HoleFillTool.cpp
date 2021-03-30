@@ -101,6 +101,7 @@ TUniquePtr<FDynamicMeshOperator> UHoleFillOperatorFactory::MakeNewOperator()
 	FillOp->FillType = FillTool->Properties->FillType;
 
 	FillOp->FillOptions.bRemoveIsolatedTriangles = FillTool->Properties->bRemoveIsolatedTriangles;
+	FillOp->FillOptions.bQuickFillSmallHoles = FillTool->Properties->bQuickFillSmallHoles;
 
 	// Smooth fill properties
 	FillOp->SmoothFillOptions = FillTool->SmoothHoleFillProperties->ToSmoothFillOptions();

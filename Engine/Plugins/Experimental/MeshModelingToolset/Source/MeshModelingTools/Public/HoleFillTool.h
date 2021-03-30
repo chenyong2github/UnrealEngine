@@ -120,6 +120,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bRemoveIsolatedTriangles = false;
 
+	/** Identify and quickly fill single-triangle holes */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bQuickFillSmallHoles = false;
+
 };
 
 

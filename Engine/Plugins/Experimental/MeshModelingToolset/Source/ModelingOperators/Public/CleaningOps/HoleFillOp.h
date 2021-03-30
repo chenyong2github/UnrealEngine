@@ -35,7 +35,11 @@ namespace Geometry
 
 struct FFillOptions
 {
+	/** Clean up triangles that have no neighbors */
 	bool bRemoveIsolatedTriangles = false;
+
+	/** Identify and quickly fill single-triangle holes */
+	bool bQuickFillSmallHoles = false;
 };
 
 class MODELINGOPERATORS_API FHoleFillOp : public FDynamicMeshOperator
@@ -60,6 +64,8 @@ public:
 	// FDynamicMeshOperator implementation
 	void CalculateResult(FProgressCancel* Progress) override;
 
+	TArray<int> TriangleUVIsland;
+	bool FillSingleTriangleHole(const FEdgeLoop& Loop, int32& NewGroupID);
 };
 
 } // end namespace UE::Geometry
