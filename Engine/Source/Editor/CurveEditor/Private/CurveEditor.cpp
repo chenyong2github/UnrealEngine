@@ -1117,7 +1117,7 @@ void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
 		TOptional<FCurveModelID> HoveredID;
 		if (WeakPanel.IsValid())
 		{
-			for (const TSharedPtr<SCurveEditorView> View : WeakPanel.Pin()->GetViews())
+			for (TSharedPtr<SCurveEditorView> View : WeakPanel.Pin()->GetViews())
 			{
 				if (View.IsValid() && View->GetHoveredCurve().IsSet())
 				{
