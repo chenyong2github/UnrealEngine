@@ -29,6 +29,11 @@ struct SCENEOUTLINER_API FActorDescTreeItem : ISceneOutlinerTreeItem
 		{
 			return Container.IsValid() ? ActorDesc : nullptr;
 		}
+
+		TWeakObjectPtr<UActorDescContainer> GetActorDescContainer() const
+		{
+			return Container;
+		}
 	private:
 		const FWorldPartitionActorDesc* ActorDesc;
 		TWeakObjectPtr<UActorDescContainer> Container;
