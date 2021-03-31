@@ -210,17 +210,21 @@ struct FRCExposedPropertyDescription
 
 	FRCExposedPropertyDescription() = default;
 	
-	FRCExposedPropertyDescription(const FRemoteControlProperty& RCProperty, const FProperty* InUnderlyingProperty)
+	FRCExposedPropertyDescription(const FRemoteControlProperty& RCProperty)
 		: DisplayName(RCProperty.GetLabel())
 	{
-		checkSlow(InUnderlyingProperty);
-		UnderlyingProperty = InUnderlyingProperty;
-		Metadata = RCProperty.UserMetadata;
+		UnderlyingProperty = RCProperty.GetProperty();
+		Metadata = RCProperty.GetMetadata();
+		Id = RCProperty.GetId().ToString();
 	}
 
 	/** The label displayed in the remote control panel for this exposed property. */
 	UPROPERTY()
 	FName DisplayName;
+
+	/** Unique identifier for the exposed property. */
+	UPROPERTY()
+	FString Id;
 
 	/** The underlying exposed property. */
 	UPROPERTY()
@@ -241,6 +245,7 @@ struct FRCExposedFunctionDescription
 
 	FRCExposedFunctionDescription(const FRemoteControlFunction& Function)
 		: DisplayName(Function.GetLabel())
+		, Id(Function.GetId().ToString())
 		, UnderlyingFunction(Function.Function)
 	{
 	}
@@ -248,6 +253,10 @@ struct FRCExposedFunctionDescription
 	/** The label displayed in the remote control panel for this exposed property. */
 	UPROPERTY()
 	FName DisplayName;
+
+	/** Unique identifier for the exposed function. */
+	UPROPERTY()
+	FString Id;
 	
 	/** The underlying exposed function. */
 	UPROPERTY()
@@ -270,7 +279,6 @@ struct FRCActorDescription
 		Name = InActor->GetName();
 #endif
 		Path = InActor->GetPathName();
-
 		Class = InActor->GetClass()->GetName();
 	}
 
@@ -301,11 +309,17 @@ struct FRCExposedActorDescription
 		{
 			UnderlyingActor = FRCActorDescription{ Actor };
 		}
+
+		Id = InExposedActor.GetId().ToString();
 	}
 
 	/** The label displayed in the remote control panel for this exposed actor. */
 	UPROPERTY()
 	FName DisplayName;
+	
+	/** Unique identifier for the exposed actor. */
+    UPROPERTY()
+    FString Id;
 
 	/** The underlying exposed actor. */
 	UPROPERTY()
@@ -360,7 +374,7 @@ private:
 		{
 			if (FProperty* Property = RCProperty->GetProperty())
 			{
-				ExposedProperties.Emplace(*RCProperty, Property);	
+				ExposedProperties.Emplace(*RCProperty);	
 			}
 		}
 		else if (TSharedPtr<const FRemoteControlFunction> RCFunction = Preset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())

@@ -281,7 +281,7 @@ void FRCWebInterfaceCustomizations::CustomizeWidgetMetadata(URemoteControlPreset
 	check(Preset);
 	TWeakPtr<FRemoteControlEntity> WeakEntity = Preset->GetExposedEntity<FRemoteControlEntity>(DisplayedEntityId);
 	EntityBeingDisplayed = WeakEntity;
-	FString InitialContent = EntityBeingDisplayed.IsValid() ? EntityBeingDisplayed.Pin()->UserMetadata.FindChecked(RCWebInterface::MetadataKeyName_Widget) : TEXT("");
+	FString InitialContent = EntityBeingDisplayed.IsValid() ? EntityBeingDisplayed.Pin()->GetMetadata().FindChecked(RCWebInterface::MetadataKeyName_Widget) : TEXT("");
 
 	WidgetTypes.Reset();
 	Algo::Transform(RCWebInterface::GetSupportedWidgets(Preset, DisplayedEntityId), WidgetTypes, [](const FString& InWidget) { return MakeShared<FString>(InWidget);} );
@@ -317,7 +317,7 @@ void FRCWebInterfaceCustomizations::CustomizeWidgetMetadata(URemoteControlPreset
 				FText EntryText = FText::GetEmpty();
 				if (TSharedPtr<FRemoteControlEntity> Entity = WeakEntity.Pin())
 				{
-					if (FString* WidgetEntry = Entity->UserMetadata.Find(RCWebInterface::MetadataKeyName_Widget))
+					if (const FString* WidgetEntry = Entity->GetMetadata().Find(RCWebInterface::MetadataKeyName_Widget))
 					{
 						EntryText = FText::FromString(*WidgetEntry);
 					}
@@ -338,7 +338,7 @@ void FRCWebInterfaceCustomizations::OnWidgetSelectionChanged(TSharedPtr<FString>
 			{
 				FScopedTransaction Transaction(LOCTEXT("ModifyEntityMetadata", "Modify exposed entity metadata"));
 				Owner->Modify();
-				Entity->UserMetadata.FindChecked(RCWebInterface::MetadataKeyName_Widget) = *InItem;
+				Entity->SetMetadataValue(RCWebInterface::MetadataKeyName_Widget, *InItem);
 			}
 		}
 	}

@@ -811,6 +811,9 @@ private:
 	
 	/** Initialize an entity's metadata based on the module's externally registered initializers. */
 	void InitializeEntityMetadata(const TSharedPtr<FRemoteControlEntity>& Entity);
+
+	/** Register delegates for all exposed entities. */
+	void RegisterEntityDelegates();
 	
 private:
 	/** Preset unique ID */

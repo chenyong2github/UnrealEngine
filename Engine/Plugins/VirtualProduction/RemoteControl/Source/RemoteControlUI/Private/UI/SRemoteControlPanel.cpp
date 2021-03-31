@@ -211,7 +211,7 @@ bool SRemoteControlPanel::IsExposed(const TSharedPtr<IPropertyHandle>& PropertyH
 
 		for (const TSharedPtr<FRemoteControlProperty>& Property : PotentialMatches)
 		{
-			if (Property->ResolveFieldOwners().Contains(OuterObject))
+			if (Property->GetBoundObjects().Contains(OuterObject))
 			{
 				bFoundPropForObject = true;
 				break;
@@ -339,7 +339,7 @@ void SRemoteControlPanel::Unexpose(const TSharedPtr<IPropertyHandle>& Handle)
 
 	for (const TSharedPtr<FRemoteControlProperty>& Property : PotentialMatches)
 	{
-		TArray<UObject*> PropertyOwners = Property->ResolveFieldOwners();
+		TArray<UObject*> PropertyOwners = Property->GetBoundObjects();
 		if (PropertyOwners.Num() != OuterObjects.Num())
 		{
 			continue;

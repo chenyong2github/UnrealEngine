@@ -6,8 +6,30 @@
 #include "RemoteControlField.h"
 #include "RemoteControlModels.h"
 #include "RemoteControlPreset.h"
+#include "RemoteControlRoute.h"
+
 
 #include "RemoteControlResponse.generated.h"
+
+USTRUCT()
+struct FAPIInfoResponse
+{
+	GENERATED_BODY()
+	
+	FAPIInfoResponse() = default;
+
+	FAPIInfoResponse(const TArray<FRemoteControlRoute>& InRoutes)
+	{
+		HttpRoutes.Append(InRoutes);
+	}
+
+private:
+	/**
+	 * Descriptions for all the routes that make up the remote control API.
+	 */
+	UPROPERTY()
+	TArray<FRemoteControlRouteDescription> HttpRoutes;
+};
 
 USTRUCT()
 struct FListPresetsResponse
@@ -126,6 +148,7 @@ struct FGetMetadataFieldResponse
 		: Value(MoveTemp(InValue))
 	{}
 
+	/** The metadata value for a given key. */
 	UPROPERTY()
 	FString Value;
 };

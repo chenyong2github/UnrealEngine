@@ -17,6 +17,28 @@ TArray<UObject*> FRemoteControlEntity::GetBoundObjects() const
 	return ResolvedObjects.FilterByPredicate([](const UObject* Object){ return !!Object; });
 }
 
+const TArray<TWeakObjectPtr<URemoteControlBinding>>& FRemoteControlEntity::GetBindings() const
+{
+	return Bindings;
+}
+
+const TMap<FName, FString>& FRemoteControlEntity::GetMetadata() const
+{
+	return UserMetadata;
+}
+
+void FRemoteControlEntity::RemoveMetadataEntry(FName Key)
+{
+	UserMetadata.Remove(Key);
+	OnEntityModifiedDelegate.ExecuteIfBound(Id);
+}
+
+void FRemoteControlEntity::SetMetadataValue(FName Key, FString Value)
+{
+	UserMetadata.FindOrAdd(Key) = Value;
+	OnEntityModifiedDelegate.ExecuteIfBound(Id);
+}
+
 void FRemoteControlEntity::BindObject(UObject* InObjectToBind)
 {
 	if (Bindings.Num() && InObjectToBind)

@@ -467,7 +467,7 @@ TOptional<FExposedProperty> FRemoteControlTarget::ResolveExposedProperty(FGuid P
 
 	if (TOptional<FRemoteControlProperty> RCProperty = GetProperty(PropertyId))
 	{
-		TArray<UObject*> FieldOwners = RCProperty->ResolveFieldOwners(ResolveBoundObjects());
+		TArray<UObject*> FieldOwners = RCProperty->GetBoundObjects();
 		if (FieldOwners.Num() && FieldOwners[0])
 		{
 			//Always resolve exposed property. We might have been pointing to an array element that has been deleted
@@ -636,6 +636,8 @@ void URemoteControlPreset::PostLoad()
 	RebindingManager->Rebind(this);
 
 	InitializeEntitiesMetadata();
+
+	RegisterEntityDelegates();
 }
 
 void URemoteControlPreset::BeginDestroy()
@@ -859,6 +861,14 @@ void URemoteControlPreset::InitializeEntityMetadata(const TSharedPtr<FRemoteCont
     }
 }
 
+void URemoteControlPreset::RegisterEntityDelegates()
+{
+	for (const TSharedPtr<FRemoteControlEntity>& Entity : Registry->GetExposedEntities())
+	{
+		Entity->OnEntityModifiedDelegate.BindUObject(this, &URemoteControlPreset::OnEntityModified);
+	}
+}
+
 TOptional<FRemoteControlFunction> URemoteControlPreset::GetFunction(FName FunctionLabel) const
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -906,7 +916,7 @@ TOptional<FExposedProperty> URemoteControlPreset::ResolveExposedProperty(FName P
 	if (TSharedPtr<FRemoteControlProperty> RCProp = Registry->GetExposedEntity<FRemoteControlProperty>(GetExposedEntityId(PropertyLabel)))
 	{
 		OptionalExposedProperty = FExposedProperty();
-		OptionalExposedProperty->OwnerObjects = RCProp->ResolveFieldOwners();
+		OptionalExposedProperty->OwnerObjects = RCProp->GetBoundObjects();
 		OptionalExposedProperty->Property = RCProp->GetProperty();
 	}
 
@@ -920,7 +930,7 @@ TOptional<FExposedFunction> URemoteControlPreset::ResolveExposedFunction(FName F
 	{
 		OptionalExposedFunction = FExposedFunction();
 		OptionalExposedFunction->DefaultParameters = RCProp->FunctionArguments;
-		OptionalExposedFunction->OwnerObjects = RCProp->ResolveFieldOwners();
+		OptionalExposedFunction->OwnerObjects = RCProp->GetBoundObjects();
 		OptionalExposedFunction->Function = RCProp->Function;
 	}
 
@@ -1002,7 +1012,7 @@ TArray<UObject*> URemoteControlPreset::ResolvedBoundObjects(FName FieldLabel)
 
 	if (TSharedPtr<FRemoteControlField> Field = Registry->GetExposedEntity<FRemoteControlField>(GetExposedEntityId(FieldLabel)))
 	{
-		Objects = Field->ResolveFieldOwners();
+		Objects = Field->GetBoundObjects();
 	}
 
 	return Objects;
@@ -1064,7 +1074,7 @@ void URemoteControlPreset::ConvertFieldsToRemoveComponentChain()
 			{
 				if (Property.ComponentHierarchy_DEPRECATED.Num())
 				{
-					TArray<UObject*> TargetObjects = Property.ResolveFieldOwners(Target.ResolveBoundObjects());
+					TArray<UObject*> TargetObjects = Property.GetBoundObjects();
 					for (UObject* TargetObject : TargetObjects)
 					{
 						ObjectAndProperties.FindOrAdd(TargetObject).Add(Property);

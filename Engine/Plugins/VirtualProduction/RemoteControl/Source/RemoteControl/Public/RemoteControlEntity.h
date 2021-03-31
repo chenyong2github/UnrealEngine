@@ -50,6 +50,26 @@ struct REMOTECONTROL_API FRemoteControlEntity
 	TArray<UObject*> GetBoundObjects() const;
 
 	/**
+	 * Get the unresolved bindings of this exposed entity.
+	 */
+	const TArray<TWeakObjectPtr<URemoteControlBinding>>& GetBindings() const;
+
+	/**
+	 * Get the entity's metadata.
+	 */
+	const TMap<FName, FString>& GetMetadata() const;
+
+	/**
+	 * Remove a metadata entry.
+	 */
+	void RemoveMetadataEntry(FName Key);
+
+	/**
+	 * Find or add a value in the entity's metadata map.
+	 */
+	void SetMetadataValue(FName Key, FString Value);
+
+	/**
 	 * Change the object this exposed entity is currently pointing to.
 	 * @Note You should call CanBindObject before calling this method.
 	 */
@@ -84,11 +104,11 @@ struct REMOTECONTROL_API FRemoteControlEntity
 	bool operator==(FGuid InEntityId) const;
 	friend uint32 REMOTECONTROL_API GetTypeHash(const FRemoteControlEntity& InEntity);
 
-public:
+protected:
 	/**
 	 * User specified metadata for this entity.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RemoteControlEntity")
+	UPROPERTY()
 	TMap<FName, FString> UserMetadata;
 
 	/**
@@ -96,7 +116,6 @@ public:
 	 */
 	UPROPERTY()
 	TArray<TWeakObjectPtr<URemoteControlBinding>> Bindings;
-	
 
 protected:
 	FRemoteControlEntity(URemoteControlPreset* InPreset, FName InLabel, const TArray<URemoteControlBinding*>& InBindings);

@@ -60,7 +60,12 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateInvalidWidget()
 			]
 			.MenuContent()
 			[
-				SceneOutlinerModule.CreateSceneOutliner(Options, FOnActorPicked::CreateRaw(this, &SRCPanelExposedEntity::OnActorSelected))
+				SNew(SBox)
+				.MaxDesiredHeight(400.0f)
+				.WidthOverride(300.0f)
+				[
+					SceneOutlinerModule.CreateSceneOutliner(Options, FOnActorPicked::CreateRaw(this, &SRCPanelExposedEntity::OnActorSelected))
+				]
 			]
 		];
 }

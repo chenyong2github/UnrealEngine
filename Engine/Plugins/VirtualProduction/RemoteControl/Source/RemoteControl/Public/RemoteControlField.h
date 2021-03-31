@@ -33,14 +33,9 @@ struct REMOTECONTROL_API FRemoteControlField : public FRemoteControlEntity
 	 * @param SectionObjects The top level objects of the section.
 	 * @return The list of UObjects that own the exposed field.
 	 */
+	UE_DEPRECATED(4.27, "Please use GetBoundObjects.")
 	TArray<UObject*> ResolveFieldOwners(const TArray<UObject*>& SectionObjects) const;
 
-	/**
-	 * Resolve the field's owners using this field's remote control bindings.
-	 * @return The list of UObjects that own the exposed field.
-	 */
-	TArray<UObject*> ResolveFieldOwners() const;
-	
 	//~ Begin FRemoteControlEntity interface
 	virtual void BindObject(UObject* InObjectToBind) override;
 	virtual bool CanBindObject(const UObject* InObjectToBind) const override;

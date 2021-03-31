@@ -31,13 +31,13 @@ namespace RemoteControlTest
 		Test.TestTrue(TEXT("Resolved data is valid"), ResolvedData.ContainerAddress && ResolvedData.Field && ResolvedData.Struct);
 
 		Test.TestTrue(TEXT("Resolved property must be valid"), !!RCProp.GetProperty());
-		Test.TestTrue(TEXT("Resolved property's owner objects must be valid"), RCProp.ResolveFieldOwners().Num() > 0);
+		Test.TestTrue(TEXT("Resolved property's owner objects must be valid"), RCProp.GetBoundObjects().Num() > 0);
 
 		Test.TestEqual(TEXT("Resolved property must be equal to the original property."), Property, RCProp.GetProperty());
 
-		if (RCProp.ResolveFieldOwners().Num())
+		if (RCProp.GetBoundObjects().Num())
 		{
-			Test.TestEqual(TEXT("Resolved property's owner objects must be valid"), TestObject, Cast<URemoteControlTestObject>(RCProp.ResolveFieldOwners()[0]));
+			Test.TestEqual(TEXT("Resolved property's owner objects must be valid"), TestObject, Cast<URemoteControlTestObject>(RCProp.GetBoundObjects()[0]));
 		}
 	}
 

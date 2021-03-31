@@ -36,24 +36,6 @@ TArray<UObject*> FRemoteControlField::ResolveFieldOwners(const TArray<UObject*>&
 	return ResolvedObjects;
 }
 
-TArray<UObject*> FRemoteControlField::ResolveFieldOwners() const
-{
-	TArray<UObject*> Objects;
-	Objects.Reserve(Bindings.Num());
-	for (const TWeakObjectPtr<URemoteControlBinding>& Obj : Bindings)
-	{
-		if (Obj.IsValid())
-		{
-			if (UObject* ResolvedObject = Obj->Resolve())
-			{
-				Objects.Add(ResolvedObject);	
-			}
-		}
-	}
-	
-	return Objects;
-}
-
 void FRemoteControlField::BindObject(UObject* InObjectToBind)
 {
 	if (!InObjectToBind)
@@ -183,7 +165,7 @@ FProperty* FRemoteControlProperty::GetProperty() const
 {
 	// Make a copy in order to preserve constness.
 	FRCFieldPathInfo FieldPathCopy = FieldPathInfo;
-	TArray<UObject*> Objects = ResolveFieldOwners();
+	TArray<UObject*> Objects = GetBoundObjects();
 	if (Objects.Num() && FieldPathCopy.Resolve(Objects[0]))
 	{
 		FRCFieldResolvedData Data = FieldPathCopy.GetResolvedData();

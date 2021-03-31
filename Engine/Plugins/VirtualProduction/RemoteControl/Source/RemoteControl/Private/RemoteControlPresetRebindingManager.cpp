@@ -154,15 +154,15 @@ UObject* FNameBasedRebindingPolicy::FindMatch(const FFindBindingForEntityArgs& A
 	UObject* const* Match = nullptr;
 	
 	// Do a slow search comparing object names with the name of the binding.
-	if (Args.Entity->Bindings.Num() && Args.Entity->Bindings[0].IsValid())
+	if (Args.Entity->GetBindings().Num() && Args.Entity->GetBindings()[0].IsValid())
 	{
 		const TSet<UObject*>* ObjectsBoundToEntity = Args.ExistingEntityMatches.Find(Args.Entity->GetUnderlyingEntityIdentifier());
 
 		// Strip digits from the end of the object name to increase chances of finding a match
-		int32 LastCharIndex = Args.Entity->Bindings[0]->Name.FindLastCharByPredicate([](TCHAR InChar) { return FChar::IsAlpha(InChar); } );
+		int32 LastCharIndex = Args.Entity->GetBindings()[0]->Name.FindLastCharByPredicate([](TCHAR InChar) { return FChar::IsAlpha(InChar); } );
 		if (LastCharIndex != INDEX_NONE && LastCharIndex >0)
 		{
-			FStringView NameWithoutDigits = FStringView{ Args.Entity->Bindings[0]->Name };
+			FStringView NameWithoutDigits = FStringView{ Args.Entity->GetBindings()[0]->Name };
 			NameWithoutDigits.LeftInline(LastCharIndex);
 			Match = Args.PotentialMatches.FindByPredicate(
 	            [ObjectsBoundToEntity, &NameWithoutDigits](UObject* InObject)

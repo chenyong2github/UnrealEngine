@@ -215,7 +215,7 @@ void SRCPanelExposedField::Refresh()
 	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 	{
 		CachedLabel = Field->GetLabel();
-		RowGenerator->SetObjects(Field->ResolveFieldOwners());
+		RowGenerator->SetObjects(Field->GetBoundObjects());
 		ChildSlot.AttachWidget(ConstructWidget());
 	}
 }
@@ -224,7 +224,7 @@ void SRCPanelExposedField::GetBoundObjects(TSet<UObject*>& OutBoundObjects) cons
 {
 	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 	{
-		OutBoundObjects.Append(Field->ResolveFieldOwners());
+		OutBoundObjects.Append(Field->GetBoundObjects());
 	}
 }
 
@@ -372,7 +372,7 @@ void SRCPanelExposedField::ConstructPropertyWidget()
 	{
 		if (TSharedPtr<FRemoteControlProperty> Property = RCPreset->GetExposedEntity<FRemoteControlProperty>(FieldId).Pin())
 		{
-			RowGenerator->SetObjects(Property->ResolveFieldOwners());
+			RowGenerator->SetObjects(Property->GetBoundObjects());
 		}
 	}
 
@@ -394,7 +394,7 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 
 	if (TSharedPtr<FRemoteControlFunction> RCFunction = RCPreset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
 	{
-		if (RCFunction->Function && RCFunction->ResolveFieldOwners().Num())
+		if (RCFunction->Function && RCFunction->GetBoundObjects().Num())
 		{
 			RowGenerator->SetStructure(RCFunction->FunctionArguments);
 			
@@ -457,7 +457,7 @@ FReply SRCPanelExposedField::OnClickFunctionButton()
 	{
 		if (TSharedPtr<FRemoteControlFunction> Function = RCPreset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
 		{
-			for (UObject* Object : Function->ResolveFieldOwners())
+			for (UObject* Object : Function->GetBoundObjects())
 			{
 				if (Function->FunctionArguments && Function->FunctionArguments->IsValid())
 				{

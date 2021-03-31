@@ -130,7 +130,7 @@ void FRemoteControlEntityCustomization::OnMetadataKeyCommitted(const FText& Text
 		check(Entity->GetOwner());
 		FScopedTransaction Transaction(LOCTEXT("ModifiedMetadataTransaction", "Modified exposed entity metadata."));
 		Entity->GetOwner()->Modify();
-		Entity->UserMetadata.FindOrAdd(MetadataKey) = Text.ToString();
+		Entity->SetMetadataValue(MetadataKey, Text.ToString());
 	}
 }
 
@@ -160,7 +160,7 @@ FText FRemoteControlEntityCustomization::GetMetadataValue(FName Key) const
 	
 	if (const FRemoteControlEntity* Entity = GetEntityPtr())
 	{
-		if (const FString* FoundValue = Entity->UserMetadata.Find(Key))
+		if (const FString* FoundValue = Entity->GetMetadata().Find(Key))
 		{
 			Value = FText::FromString(*FoundValue);
 		}
@@ -193,7 +193,7 @@ void FRemoteControlEntityCustomization::GeneratePropertyRows(IDetailLayoutBuilde
 			if (URemoteControlPreset* Preset = Entity->GetOwner())
 			{
 				// Add Entity metadata rows.
-				for (const TPair<FName, FString>& Entry : Entity->UserMetadata)
+				for (const TPair<FName, FString>& Entry : Entity->GetMetadata())
 				{
 					if (FOnCustomizeMetadataEntry* Handler = MetadataCustomizations.Find(Entry.Key))
 					{
