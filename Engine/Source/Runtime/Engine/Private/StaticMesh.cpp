@@ -2585,7 +2585,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 		TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshRenderData::Cache);
 
 		COOK_STAT(auto Timer = StaticMeshCookStats::UsageStats.TimeSyncWork());
-		int32 T0 = FPlatformTime::Cycles();
+		double T0 = FPlatformTime::Seconds();
 		int32 NumLODs = Owner->GetNumSourceModels();
 		const FStaticMeshLODGroup& LODGroup = LODSettings.GetLODGroup(Owner->LODGroup);
 		const FString KeySuffix = BuildStaticMeshDerivedDataKeySuffix(TargetPlatform, Owner, LODGroup);
@@ -2675,9 +2675,9 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 				GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, Owner->GetPathName());
 			}
 
-			int32 T1 = FPlatformTime::Cycles();
+			double T1 = FPlatformTime::Seconds();
 			UE_LOG(LogStaticMesh,Log,TEXT("Built static mesh [%.2fs] %s"),
-				FPlatformTime::ToMilliseconds(T1-T0) / 1000.0f,
+				T1-T0,
 				*Owner->GetPathName()
 				);
 			FPlatformAtomics::InterlockedAdd(&StaticMeshDerivedDataTimings::BuildCycles, T1 - T0);
