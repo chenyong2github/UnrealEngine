@@ -99,6 +99,7 @@
 #include "AssetTypeActions/AssetTypeActions_SlateBrush.h"
 #include "AssetTypeActions/AssetTypeActions_SlateWidgetStyle.h"
 #include "AssetTypeActions/AssetTypeActions_StaticMesh.h"
+#include "AssetTypeActions/AssetTypeActions_SubUVAnimation.h"
 #include "AssetTypeActions/AssetTypeActions_Texture2D.h"
 #include "AssetTypeActions/AssetTypeActions_Texture2DArray.h"
 #include "AssetTypeActions/AssetTypeActions_TextureCube.h"
@@ -271,6 +272,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MirrorDataTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ObjectLibrary));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ParticleSystem));
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SubUVAnimation));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicalMaterial));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicalMaterialMask));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicsAsset));
