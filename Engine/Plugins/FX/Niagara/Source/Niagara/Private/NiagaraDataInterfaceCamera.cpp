@@ -6,7 +6,6 @@
 #include "Internationalization/Internationalization.h"
 #include "NiagaraSystemInstance.h"
 #include "GameFramework/PlayerController.h"
-#include "ShaderParameterUtils.h"
 
 #if WITH_EDITORONLY_DATA
 #include "EditorViewportClient.h"
@@ -14,6 +13,18 @@
 #endif
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCamera"
+
+struct FNiagaraCameraDIFunctionVersion
+{
+	enum Type
+	{
+		InitialVersion = 0,
+        AddedPreViewTranslation = 1,
+
+        VersionPlusOne,
+        LatestVersion = VersionPlusOne - 1
+    };
+};
 
 const FName UNiagaraDataInterfaceCamera::GetViewPropertiesName(TEXT("GetViewPropertiesGPU"));
 const FName UNiagaraDataInterfaceCamera::GetClipSpaceTransformsName(TEXT("GetClipSpaceTransformsGPU"));
@@ -104,113 +115,121 @@ void UNiagaraDataInterfaceCamera::GetFunctions(TArray<FNiagaraFunctionSignature>
 	FNiagaraFunctionSignature Sig;
 	Sig.Name = GetViewPropertiesName;
 #if WITH_EDITORONLY_DATA
-	Sig.Description = NSLOCTEXT("Niagara", "GetViewPropertiesDescription", "This function returns the properties of the current view. Only valid for gpu particles.");
+	Sig.Description = LOCTEXT("GetViewPropertiesDescription", "This function returns the properties of the current view. Only valid for gpu particles.");
+	Sig.FunctionVersion = FNiagaraCameraDIFunctionVersion::LatestVersion;
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
 	Sig.bSupportsCPU = false;
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("View Position World")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("View Forward Vector")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("View Up Vector")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("View Right Vector")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), TEXT("View Size And Inverse Size")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Screen To View Space")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Temporal AA Jitter (Current Frame)")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Temporal AA Jitter (Previous Frame)")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("View Position World")), LOCTEXT("ViewPositionWorldDescription", "The camera position in world space."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("View Forward Vector")), LOCTEXT("ViewForwardVectorDescription", "The world space direction that the camera is pointing."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("View Up Vector")), LOCTEXT("ViewUpVectorDescription", "The camera's up direction in world space."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("View Right Vector")), LOCTEXT("ViewRightVectorDescription", "The camera's right direction in world space."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), TEXT("View Size And Inverse Size")), LOCTEXT("ViewSizeAndInverseSizeDescription", "Returns a vec4 - the x and y values are width and height of the view; the z and w values are the inverse width and height."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Screen To View Space")), LOCTEXT("ScreenToViewSpaceDescription", "Can be used to map standard viewport UV to an unprojected viewpos.\nExample usage:\nViewPos.x =  ViewportUV.x * ScreenToViewSpace.x + ScreenToViewSpace.z;\nViewPos.y =  ViewportUV.y * ScreenToViewSpace.y + ScreenToViewSpace.w;"));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Temporal AA Jitter (Current Frame)")), LOCTEXT("TemporalAACurrentDescription", "Returns the movement of the current frame view due to AA jittering"));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Temporal AA Jitter (Previous Frame)")), LOCTEXT("TemporalAAPreviousDescription", "Returns the movement of the previous frame view due to AA jittering"));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("PreViewTranslation")), LOCTEXT("PreViewTranslationDescription", "Returns the translation to apply for the various 'Translated XX to XX' transforms."));
 	OutFunctions.Add(Sig);
 
 
 	Sig = FNiagaraFunctionSignature();
 	Sig.Name = GetClipSpaceTransformsName;
 #if WITH_EDITORONLY_DATA
-	Sig.Description = NSLOCTEXT("Niagara", "GetClipSpaceTransformsDescription", "This function returns the clip transforms for the current view. Only valid for gpu particles.");
+	Sig.Description = LOCTEXT("GetClipSpaceTransformsDescription", "This function returns the clip transforms for the current view. Only valid for gpu particles.");
+	Sig.FunctionVersion = FNiagaraCameraDIFunctionVersion::LatestVersion;
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
 	Sig.bSupportsCPU = false;
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("World To Clip Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Translated World To Clip Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Clip To World Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Clip To View Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Clip To Translated World Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Screen To World Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Screen To Translated World Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Clip To Previous Clip Transform")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("World To Clip Transform")), LOCTEXT("WorldToClipTransformDescription", "Transforms a world space position to clip space"));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Translated World To Clip Transform")), LOCTEXT("TranslatedWorldToClipTransformDescription", "Same as world to clip transform, but the camera position is at the origin when camera translation is enabled.\nThis allows for more precision of the transform when dealing with big coordinates.\nTo use this transform, you first need to subtract PreViewTranslation from your transform target."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Clip To World Transform")), LOCTEXT("ClipToWorldTransformDescription", "Transforms a clip space position to world space"));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Clip To View Transform")), LOCTEXT("ClipToViewTransformDescription", "Transforms a clip space position to view space"));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Clip To Translated World Transform")), LOCTEXT("ClipToTranslatedWorldTransformDescription", "The inverse of the translated world to clip transform. When camera translation is enabled, the transform is such that the camera position is at the origin.\nThis allows for more precision of the transform when dealing with big coordinates.\nTo get the actual world space position, you need to add PreViewTranslation to the transform result."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Screen To World Transform")), LOCTEXT("ScreenToWorldTransformDescription", "Converts a screen space position a world position.\nExample combining the transform with scene depth:\nfloat3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), ScreenToWorld).xyz;"));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Screen To Translated World Transform")), LOCTEXT("ScreenToTranslatedWorldTransformDescription", "Same as the screen to world transform, but with the assumption that the camera is at the origin.\nThis allows for more precision of the transform when dealing with big coordinates.\nTo get the actual world space position, you need to add PreViewTranslation to the transform result."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Clip To Previous Clip Transform")), LOCTEXT("ClipToPreviousClipTransformDescription", "Transforms from a current clip space position to last frame's clip space position.\nThis can be used to calculate for example post process velocity."));
 	OutFunctions.Add(Sig);
 
 
 	Sig = FNiagaraFunctionSignature();
 	Sig.Name = GetViewSpaceTransformsName;
 #if WITH_EDITORONLY_DATA
-	Sig.Description = NSLOCTEXT("Niagara", "GetViewSpaceTransformsDescription", "This function returns the relevant transforms for the current view. Only valid for gpu particles.");
+	Sig.Description = LOCTEXT("GetViewSpaceTransformsDescription", "This function returns the relevant transforms for the current view. Only valid for gpu particles.");
+	Sig.FunctionVersion = FNiagaraCameraDIFunctionVersion::LatestVersion;
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
 	Sig.bSupportsCPU = false;
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Translated World To View Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("View To Translated World Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Translated World To Camera View Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Camera View To Translated World Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("View To Clip Transform")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("View To ClipNoAA Transform")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Translated World To View Transform")), LOCTEXT("TranslatedWorldToViewTransformDescription", "Transforms a position from world to view, but the view position is assumed to be at the origin.\nThis allows for more precision of the transform when dealing with big coordinates.\nTo use this transform, you first need to subtract PreViewTranslation from your transform target."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("View To Translated World Transform")), LOCTEXT("ViewToTranslatedWorldTransformDescription", "The inverse of the translated world to view transform. When camera translation is enabled, the transform is such that the camera position is at the origin.\nThis allows for more precision of the transform when dealing with big coordinates.\nTo get the actual world space position, you need to add PreViewTranslation to the transform result."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Translated World To Camera View Transform")), LOCTEXT("TranslatedWorldToCameraTransformDescription", "Same as 'Translated World To View', but transforms to the camera position instead of the view position."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Camera View To Translated World Transform")), LOCTEXT("CameraToTranslatedWorldTransformDescription", "Same as 'View To Translated World', but transforms from the camera position instead of the view position."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("View To Clip Transform")), LOCTEXT("ViewToClipTransformDescription", "Transforms a view space position to clip space"));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("View To ClipNoAA Transform")), LOCTEXT("ViewToClipNoAATransformDescription", "Transforms a view space position to clip space without the temporal AA jittering"));
 	OutFunctions.Add(Sig);
 
 
 	Sig = FNiagaraFunctionSignature();
 	Sig.Name = GetFieldOfViewName;
 #if WITH_EDITORONLY_DATA
-	Sig.Description = NSLOCTEXT("Niagara", "GetNiagaraFOVDescription", "This function returns the field of view angle (in degrees) for the active camera. For gpu particles this returns the x axis fov.");
+	Sig.Description = LOCTEXT("GetNiagaraFOVDescription", "This function returns the field of view angle (in degrees) for the active camera. For gpu particles this returns the x axis fov.");
+	Sig.FunctionVersion = FNiagaraCameraDIFunctionVersion::LatestVersion;
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Field Of View Angle")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Field Of View Angle")), LOCTEXT("FieldOfViewAngleDescription", "Return the camera's field of view in degrees."));
 	OutFunctions.Add(Sig);
 
 
 	Sig = FNiagaraFunctionSignature();
 	Sig.Name = GetCameraPropertiesName;
 #if WITH_EDITORONLY_DATA
-	Sig.Description = NSLOCTEXT("Niagara", "GetCameraPositionDescription", "This function returns the position of the currently active camera.");
+	Sig.Description = LOCTEXT("GetCameraPositionDescription", "This function returns the position of the currently active camera.");
+	Sig.FunctionVersion = FNiagaraCameraDIFunctionVersion::LatestVersion;
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Camera Position World")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Forward Vector World")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Up Vector World")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Right Vector World")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Camera Position World")), LOCTEXT("CameraPositionWorldDescription", "The camera position in world space."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Forward Vector World")), LOCTEXT("ForwardVectorWorldDescription", "The world space direction that the camera is pointing."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Up Vector World")), LOCTEXT("UpVectorWorldDescription", "The camera's up direction in world space."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Right Vector World")), LOCTEXT("RightVectorWorldDescription", "The camera's right direction in world space."));
 	OutFunctions.Add(Sig);
 
 	Sig = FNiagaraFunctionSignature();
 	Sig.Name = QueryClosestName;
 #if WITH_EDITORONLY_DATA
-	Sig.Description = NSLOCTEXT("Niagara", "QueryClosestDescription", "This function checks the previously calculated distance of each particle and then returns true for the closest particles and false for the other ones.");
+	Sig.Description = LOCTEXT("QueryClosestDescription", "This function checks the previously calculated distance of each particle and then returns true for the closest particles and false for the other ones.\nThis function needs to be paired with CalculateParticleDistancesCPU to work correctly.");
+	Sig.FunctionVersion = FNiagaraCameraDIFunctionVersion::LatestVersion;
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
 	Sig.bSupportsGPU = false;
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), TEXT("Particle ID")));
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Max Valid Results")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Is Closest")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), TEXT("Particle ID")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Max Valid Results")), LOCTEXT("MaxValidResultsDescription", "The max number of particles closest to the camera that this function should return true for.\nFor example, if there are 30 particles and Max Valid Results is set to 10, then this functions returns true for the 10 closest particles."));
+	Sig.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Is Closest")), LOCTEXT("IsClosestDescription", "Returns true if the given particle ID is one of the closest n particles based on last frame's calculation."));
 	OutFunctions.Add(Sig);
 
 	Sig = FNiagaraFunctionSignature();
 	Sig.Name = CalculateDistancesName;
 #if WITH_EDITORONLY_DATA
-	Sig.Description = NSLOCTEXT("Niagara", "CalculateDistancesDescription", "This function compares the particle position against the camera position and stores the result to be queried in the next frame.");
+	Sig.Description = LOCTEXT("CalculateDistancesDescription", "This function compares the particle position against the camera position and stores the result to be queried in the next frame.\nThe results can then be queried with QueryClosestParticlesCPU.");
+	Sig.FunctionVersion = FNiagaraCameraDIFunctionVersion::LatestVersion;
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
 	Sig.bSupportsGPU = false;
 	Sig.bRequiresExecPin = true;
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), TEXT("Particle ID")));
-	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Particle Position World")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Camera interface")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), TEXT("Particle ID")));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Particle Position World")));
 	OutFunctions.Add(Sig);
 }
 
@@ -223,7 +242,7 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 	if (FunctionInfo.DefinitionName == GetViewPropertiesName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-			void {FunctionName}(out float3 Out_ViewPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector, out float4 Out_ViewSizeAndInverseSize, out float4 Out_ScreenToViewSpace, out float2 Out_Current_TAAJitter, out float2 Out_Previous_TAAJitter)
+			void {FunctionName}(out float3 Out_ViewPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector, out float4 Out_ViewSizeAndInverseSize, out float4 Out_ScreenToViewSpace, out float2 Out_Current_TAAJitter, out float2 Out_Previous_TAAJitter, out float3 Out_PreViewTranslation)
 			{
 				Out_ViewPositionWorld.xyz = View.WorldViewOrigin.xyz;
 				Out_ViewForwardVector.xyz = View.ViewForward.xyz;
@@ -233,6 +252,7 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 				Out_ScreenToViewSpace = View.ScreenToViewSpace;
 				Out_Current_TAAJitter = View.TemporalAAJitter.xy;
 				Out_Previous_TAAJitter = View.TemporalAAJitter.zw;
+				Out_PreViewTranslation = View.PreViewTranslation;
 			} 
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -300,6 +320,26 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		return true;
 	}
 	return false;
+}
+
+bool UNiagaraDataInterfaceCamera::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	bool bWasChanged = false;
+
+	// Early out for version matching
+	if (FunctionSignature.FunctionVersion == FNiagaraCameraDIFunctionVersion::LatestVersion)
+	{
+		return bWasChanged;
+	}
+
+	// Added a new output to the gpu properties
+	if (FunctionSignature.FunctionVersion < FNiagaraCameraDIFunctionVersion::AddedPreViewTranslation && FunctionSignature.Name == GetViewPropertiesName)
+	{
+		FunctionSignature.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("PreViewTranslation")), LOCTEXT("PreViewTranslationDescription", "Returns the translation to apply for the various 'Translated XX to XX' transforms."));
+		bWasChanged = true;
+	}
+
+	return bWasChanged;
 }
 #endif
 
