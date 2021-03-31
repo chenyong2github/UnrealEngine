@@ -1229,34 +1229,37 @@ namespace PropertyEditorHelpers
 		}
 	}
 
-	const TCHAR* GetPropertyOptionsMetaDataKey(const FProperty* Property)
+	FName GetPropertyOptionsMetaDataKey(const FProperty* Property)
 	{
 		// Only string and name properties can have options
 		if (Property->IsA(FStrProperty::StaticClass()) || Property->IsA(FNameProperty::StaticClass()))
 		{
 			const FProperty* OwnerProperty = Property->GetOwnerProperty();
-			if (OwnerProperty->HasMetaData(TEXT("GetOptions")))
+			static const FName GetOptionsName("GetOptions");
+			if (OwnerProperty->HasMetaData(GetOptionsName))
 			{
-				return TEXT("GetOptions");
+				return GetOptionsName;
 			}
 
 			// Map properties can have separate options for keys and values
 			const FMapProperty* MapProperty = CastField<FMapProperty>(OwnerProperty);
 			if (MapProperty)
 			{
-				if (MapProperty->HasMetaData(TEXT("GetKeyOptions")) && MapProperty->GetKeyProperty() == Property)
+				static const FName GetKeyOptionsName("GetKeyOptions");
+				if (MapProperty->HasMetaData(GetKeyOptionsName) && MapProperty->GetKeyProperty() == Property)
 				{
-					return TEXT("GetKeyOptions");
+					return GetKeyOptionsName;
 				}
 
-				if (MapProperty->HasMetaData(TEXT("GetValueOptions")) && MapProperty->GetValueProperty() == Property)
+				static const FName GetValueOptionsName("GetValueOptions");
+				if (MapProperty->HasMetaData(GetValueOptionsName) && MapProperty->GetValueProperty() == Property)
 				{
-					return TEXT("GetValueOptions");
+					return GetValueOptionsName;
 				}
 			}
 		}
 
-		return nullptr;
+		return NAME_None;
 	}
 }
 

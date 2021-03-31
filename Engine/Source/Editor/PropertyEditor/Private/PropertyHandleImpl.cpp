@@ -2910,7 +2910,9 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 			}
 		}
 	}
-	else if (const TCHAR* MetaDataKey = PropertyEditorHelpers::GetPropertyOptionsMetaDataKey(Property))
+
+	FName MetaDataKey = PropertyEditorHelpers::GetPropertyOptionsMetaDataKey(Property);
+	if (!MetaDataKey.IsNone())
 	{
 		const FString GetOptionsFunctionName = Property->GetOwnerProperty()->GetMetaData(MetaDataKey);
 		if (!GetOptionsFunctionName.IsEmpty())
