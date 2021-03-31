@@ -776,7 +776,7 @@ enum class ERHIAccess
 	ReadOnlyExclusiveMask = CPURead | Present | IndirectArgs | VertexOrIndexBuffer | SRVGraphics | SRVCompute | CopySrc | ResolveSrc,
 
 	// A mask of all bits representing read-only states which may be combined with other write states.
-	ReadOnlyMask = ReadOnlyExclusiveMask | DSVRead,
+	ReadOnlyMask = ReadOnlyExclusiveMask | DSVRead | ShadingRateSource,
 
 	// A mask of all bits representing readable states which may also include writable states.
 	ReadableMask = ReadOnlyMask | UAVMask,
