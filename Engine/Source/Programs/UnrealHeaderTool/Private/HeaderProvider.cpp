@@ -13,7 +13,7 @@ FHeaderProvider::FHeaderProvider(EHeaderProviderSourceType InType, FString&& InI
 
 }
 
-FUnrealSourceFile* FHeaderProvider::Resolve()
+FUnrealSourceFile* FHeaderProvider::Resolve(const FUnrealSourceFile& ParentSourceFile)
 {
 	if (Type != EHeaderProviderSourceType::Resolved)
 	{
@@ -23,6 +23,15 @@ FUnrealSourceFile* FHeaderProvider::Resolve()
 			if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(IdName))
 			{
 				Cache = &(*Source)->GetUnrealSourceFile();
+
+				// There is an edge case with interfaces.  If you define the UMyInterface and IMyInterface in the same
+				// source file as a class that implements the interface, a HeaderProvider for IMyInterface is added 
+				// at the pre-parse time that later (incorrectly) resolves to UMyInterface.  This results in
+				// the include file thinking that it includes itself.
+				if (Cache == &ParentSourceFile)
+				{
+					Cache = nullptr;
+				}
 			}
 		}
 		else if (const TSharedRef<FUnrealSourceFile>* Source = GUnrealSourceFilesMap.Find(Id))

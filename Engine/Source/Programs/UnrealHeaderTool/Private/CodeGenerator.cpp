@@ -5758,7 +5758,7 @@ void GetSourceFilesInDependencyOrderRecursive(TArray<FUnrealSourceFile*>& OutTes
 	VisitedSet.Add(SourceFile);
 	for (FHeaderProvider& Include : SourceFile->GetIncludes())
 	{
-		if (FUnrealSourceFile* IncludeFile = Include.Resolve())
+		if (FUnrealSourceFile* IncludeFile = Include.Resolve(*SourceFile))
 		{
 			GetSourceFilesInDependencyOrderRecursive(OutTest, Package, IncludeFile, VisitedSet, bCheckDependenciesOnly, Ignore);
 		}

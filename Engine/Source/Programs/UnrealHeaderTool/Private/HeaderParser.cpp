@@ -8811,7 +8811,7 @@ ECompilationResult::Type FHeaderParser::ParseHeaders(FClasses& AllClasses, FHead
 			continue;
 		}
 
-		if (FUnrealSourceFile* DepFile = Include.Resolve())
+		if (FUnrealSourceFile* DepFile = Include.Resolve(*SourceFile))
 		{
 			SourceFilesRequired.Add(DepFile);
 		}
