@@ -1362,12 +1362,33 @@ bool FetchPythonError(FString& OutError)
 		return false;
 	}
 
-	if (PyExceptionType == PyExc_SystemExit)
+	if (PyExceptionType == PyExc_SystemExit && PyExceptionValue)
 	{
-		// Trap and discard SystemExit, as it is designed to make the interpreter process exit (which doesn't make sense for an embedded interpreter)
-		// If someone wants to actually exit the editor itself, then there is another Unreal API function to let them do that
-		PyErr_Clear();
-		return false;
+		auto IsZeroExitCode = [](PyObject* PyCodeObj)
+		{
+			if (!PyCodeObj || PyCodeObj == Py_None)
+			{
+				// None implies a zero error code
+				return true;
+			}
+
+			int32 ExitCode = 0;
+			if (PyConversion::Nativize(PyCodeObj, ExitCode, PyConversion::ESetErrorState::No))
+			{
+				return ExitCode == 0;
+			}
+
+			return false;
+		};
+
+		PySystemExitObject* PySysExit = (PySystemExitObject*)PyExceptionValue.Get();
+		if (IsZeroExitCode(PySysExit->code))
+		{
+			// Trap and discard SystemExit with an exit code of zero, as it is designed to make the interpreter process exit (which doesn't make sense for an embedded interpreter)
+			// If someone wants to actually exit the editor itself, then there is another Unreal API function to let them do that
+			PyErr_Clear();
+			return false;
+		}
 	}
 
 	if (PyExceptionTraceback)
