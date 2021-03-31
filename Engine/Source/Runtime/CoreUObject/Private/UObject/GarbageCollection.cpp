@@ -1232,6 +1232,16 @@ public:
 							ObjectItem->SetFlags(EInternalObjectFlags::Unreachable);
 						}
 					}
+					// Cluster objects 
+					else if (bWithClusters && ObjectItem->GetOwnerIndex() > 0)
+					{
+						// treat cluster objects with FastKeepFlags the same way as if they are in the root set
+						if (ObjectItem->HasAnyFlags(FastKeepFlags))
+						{
+							KeepClusterRefsList.Push(ObjectItem);
+							LocalObjectsToSerialize.Add(Object);
+						}
+					}
 				}
 			}
 
