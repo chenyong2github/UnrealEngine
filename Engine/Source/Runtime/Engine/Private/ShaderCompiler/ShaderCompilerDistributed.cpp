@@ -50,9 +50,9 @@ public:
 FShaderCompileDistributedThreadRunnable_Interface::FShaderCompileDistributedThreadRunnable_Interface(class FShaderCompilingManager* InManager, IDistributedBuildController& InController)
 	: FShaderCompileThreadRunnableBase(InManager)
 	, NumDispatchedJobs(0)
-	, CachedController(InController)
 	, LastTimeTaskCompleted(FPlatformTime::Seconds())
 	, bIsHung(false)
+	, CachedController(InController)
 {
 }
 
