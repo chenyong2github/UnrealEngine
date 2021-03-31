@@ -40,16 +40,10 @@ const FEventNode* FEventNode::FIter::GetNext()
 ////////////////////////////////////////////////////////////////////////////////
 FEventNode::FIter FEventNode::ReadNew()
 {
-	FEventNode* EventList = AtomicLoadRelaxed(&GNewEventList);
+	FEventNode* EventList = AtomicExchangeAcquire(&GNewEventList, (FEventNode*)nullptr);
 	if (EventList == nullptr)
 	{
 		return {};
-	}
-
-	while (!AtomicCompareExchangeAcquire(&GNewEventList, (FEventNode*)nullptr, EventList))
-	{
-		PlatformYield();
-		EventList = AtomicLoadRelaxed(&GNewEventList);
 	}
 
 	if (GEventListHead == nullptr)
@@ -187,15 +181,7 @@ void FEventNode::OnConnect()
 		return;
 	}
 
-	for (;; PlatformYield())
-	{
-		FEventNode* Node = AtomicLoadRelaxed(&GNewEventList);
-		if (AtomicCompareExchangeRelaxed(&GNewEventList, GEventListHead, Node))
-		{
-			GEventListTail->Next = Node;
-			break;
-		}
-	}
+	GEventListTail->Next = AtomicExchangeAcquire(&GNewEventList, GEventListHead);
 
 	GEventListHead = GEventListTail = nullptr;
 }
