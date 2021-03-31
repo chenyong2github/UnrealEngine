@@ -1400,10 +1400,10 @@ public:
 	FLumenTranslucencyGIVolume LumenTranslucencyGIVolume;
 
 #if RHI_RAYTRACING
-	RENDERER_API bool HasRayTracingScene() const;
-	RENDERER_API FRHIRayTracingScene* GetRayTracingScene() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
-	RENDERER_API FRHIRayTracingScene* GetRayTracingSceneChecked() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
-	RENDERER_API FRHIShaderResourceView* GetRayTracingSceneViewChecked() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
+	bool HasRayTracingScene() const;
+	FRHIRayTracingScene* GetRayTracingScene() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
+	FRHIRayTracingScene* GetRayTracingSceneChecked() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
+	FRHIShaderResourceView* GetRayTracingSceneViewChecked() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
 
 	// Primary pipeline state object to be used with the ray tracing scene for this view.
 	// Material shaders are only available when using this pipeline.

@@ -40,18 +40,18 @@ public:
 
 	// Returns true if RHI ray tracing scene has been created or asynchronous creation has been kicked.
 	// i.e. returns true after BeginCreate() and before Reset().
-	bool IsCreated() const;
+	RENDERER_API bool IsCreated() const;
 
 	// Waits for the async creation task if it's active and then returns RayTracingSceneRHI object (may return null).
-	FRHIRayTracingScene* GetRHIRayTracingScene() const;
+	RENDERER_API  FRHIRayTracingScene* GetRHIRayTracingScene() const;
 
 	// Similar to GetRayTracingScene, but checks that ray tracing scene RHI object is valid.
-	FRHIRayTracingScene* GetRHIRayTracingSceneChecked() const;
+	RENDERER_API  FRHIRayTracingScene* GetRHIRayTracingSceneChecked() const;
 
 	// Returns Buffer and SRV for this ray tracing scene.
 	// Valid to call immediately after BeginCreate() and does not block.
-	FRHIShaderResourceView* GetShaderResourceViewChecked() const;
-	FRHIBuffer* GetBufferChecked() const;
+	RENDERER_API FRHIShaderResourceView* GetShaderResourceViewChecked() const;
+	RENDERER_API FRHIBuffer* GetBufferChecked() const;
 
 public:
 

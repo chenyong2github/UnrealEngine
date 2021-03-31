@@ -6,6 +6,8 @@
 
 #include "GlobalShader.h"
 #include "MeshPassProcessor.h"
+#include "Renderer/Private/RayTracing/RayTracingScene.h"
+#include "Renderer/Private/ScenePrivate.h"
 #include "Renderer/Private/SceneRendering.h"
 #include "ShaderParameterStruct.h"
 
@@ -158,11 +160,15 @@ static void BindNiagaraRayTracingMeshCommands(
 
 void FNiagaraRayTracingHelper::BuildRayTracingSceneInfo(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views)
 {
+	check(Views.Num() > 0);
+
 	const FViewInfo& ReferenceView = Views[0];
-	if (ReferenceView.HasRayTracingScene())
+	const FScene* RenderScene = (ReferenceView.Family && ReferenceView.Family->Scene) ? ReferenceView.Family->Scene->GetRenderScene() : nullptr;
+
+	if (RenderScene && RenderScene->RayTracingScene.IsCreated())
 	{
-		RayTracingScene = ReferenceView.GetRayTracingSceneChecked();
-		RayTracingSceneView = ReferenceView.GetRayTracingSceneViewChecked();
+		RayTracingScene = RenderScene->RayTracingScene.GetRHIRayTracingSceneChecked();
+		RayTracingSceneView = RenderScene->RayTracingScene.GetShaderResourceViewChecked();
 		ViewUniformBuffer = ReferenceView.ViewUniformBuffer;
 
 		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ShaderPlatform);

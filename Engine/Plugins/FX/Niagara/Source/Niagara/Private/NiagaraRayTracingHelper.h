@@ -3,6 +3,8 @@
 
 #include "CoreMinimal.h"
 
+#include "RHIDefinitions.h"
+
 #if RHI_RAYTRACING
 
 class FViewInfo;
