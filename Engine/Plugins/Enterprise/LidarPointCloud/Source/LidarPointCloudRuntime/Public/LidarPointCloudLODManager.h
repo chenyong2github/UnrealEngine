@@ -10,6 +10,7 @@
 
 class ULidarPointCloud;
 class ULidarPointCloudComponent;
+class FLidarPointCloudOctree;
 struct FLidarPointCloudTraversalOctree;
 struct FLidarPointCloudTraversalOctreeNode;
 
