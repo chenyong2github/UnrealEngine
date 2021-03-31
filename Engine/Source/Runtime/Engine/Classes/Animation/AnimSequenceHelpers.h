@@ -10,6 +10,7 @@
 class UAnimSequence;
 class UAnimDataModel;
 class UAnimDataController;
+class IAnimationDataController;
 class FName;
 struct FCompactPose;
 struct FRawCurveTracks;

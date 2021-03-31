@@ -2,6 +2,7 @@
 
 #include "Animation/AnimSequenceHelpers.h"
 #include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/IAnimationDataController.h"
 
 #include "UObject/NameTypes.h"
 

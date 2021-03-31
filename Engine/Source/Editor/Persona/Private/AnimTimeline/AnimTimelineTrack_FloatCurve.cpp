@@ -21,6 +21,7 @@
 #include "AnimModel_AnimSequenceBase.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "SAnimOutlinerItem.h"
+#include "Animation/AnimData/AnimDataModel.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_FloatCurve"
 

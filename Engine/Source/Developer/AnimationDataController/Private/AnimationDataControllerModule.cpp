@@ -2,7 +2,7 @@
 
 #include "IAnimationDataControllerModule.h"
 #include "AnimDataController.h"
-#include "UObject/StrongObjectPtr.h"
+#include "Modules/ModuleManager.h"
 
 class FAnimationDataControllerModule : public IAnimationDataControllerModule
 {

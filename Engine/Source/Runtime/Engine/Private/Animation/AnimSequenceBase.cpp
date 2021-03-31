@@ -17,6 +17,7 @@
 
 #if WITH_EDITOR
 #include "IAnimationDataControllerModule.h"
+#include "Modules/ModuleManager.h"
 #endif // WITH_EDITOR
 
 #include "UObject/UE5MainStreamObjectVersion.h"
