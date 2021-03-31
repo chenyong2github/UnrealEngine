@@ -66,6 +66,7 @@
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
+#include "RayTracing/RayTracingScene.h"
 #include "FXSystem.h"
 #include "Lumen/Lumen.h"
 
@@ -1007,23 +1008,25 @@ FViewInfo::~FViewInfo()
 #if RHI_RAYTRACING
 bool FViewInfo::HasRayTracingScene() const
 {
-	return CreateRayTracingSceneTask.IsValid() || RayTracingSceneRHI.IsValid();
+	check(Family);
+	FScene* Scene = Family->Scene ? Family->Scene->GetRenderScene() : nullptr;
+	if (Scene)
+	{
+		return Scene->RayTracingScene.IsCreated();
+	}
+	return false;
 }
 FRHIRayTracingScene* FViewInfo::GetRayTracingScene() const
 {
-	if (CreateRayTracingSceneTask.IsValid())
+	check(Family);
+	if (Family->Scene)
 	{
-		// #dxr_todo: This is temporarily here, until dependency on scene during RDG setup is removed.
-		// Then the wait would only need to happen during RDG execution.
-
-		TRACE_CPUPROFILER_EVENT_SCOPE(WaitForCreateRayTracingScene);
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(CreateRayTracingSceneTask, ENamedThreads::GetRenderThread_Local());
+		if (FScene* Scene = Family->Scene->GetRenderScene())
+		{
+			return Scene->RayTracingScene.GetRHIRayTracingScene();
+		}
 	}
-
-	checkf(!CreateRayTracingSceneTask.IsValid() || CreateRayTracingSceneTask->IsComplete(),
-		TEXT("Ray tracing scene creation task is expected to be waited upon and ready when we get here."));
-
-	return RayTracingSceneRHI.GetReference();
+	return nullptr;
 }
 FRHIRayTracingScene* FViewInfo::GetRayTracingSceneChecked() const
 {
@@ -1033,8 +1036,15 @@ FRHIRayTracingScene* FViewInfo::GetRayTracingSceneChecked() const
 }
 FRHIShaderResourceView* FViewInfo::GetRayTracingSceneViewChecked() const
 {
-	FRHIShaderResourceView* Result = RayTracingSceneSRV.GetReference();
-
+	FRHIShaderResourceView* Result = nullptr;
+	check(Family);
+	if (Family->Scene)
+	{
+		if (FScene* Scene = Family->Scene->GetRenderScene())
+		{
+			Result = Scene->RayTracingScene.GetShaderResourceViewChecked();
+		}
+	}
 	checkf(Result, TEXT("Ray tracing scene SRV is expected to be created at this point."));
 	return Result;
 }

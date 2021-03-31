@@ -37,6 +37,7 @@
 #include "GPUScene.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "RayTracing/RayTracingLighting.h"
+#include "RayTracing/RayTracingScene.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "SceneTextureParameters.h"
 #include "ScreenSpaceDenoise.h"
@@ -462,9 +463,9 @@ static void RenderOpaqueFX(
 
 #if RHI_RAYTRACING
 
-bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandListImmediate& RHICmdList)
+bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FRayTracingScene& RayTracingScene)
 {
-	if (!IsRayTracingEnabled() || Views.Num() == 0)
+	if (!IsRayTracingEnabled())
 	{
 		return false;
 	}
@@ -489,39 +490,28 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 
 	FGPUScenePrimitiveCollector DummyDynamicPrimitiveCollector;
 
-	TArray<FRayTracingInstance> RayTracingInstances;
+	RayTracingCollector.AddViewMeshArrays(
+		&View,
+		&View.RayTracedDynamicMeshElements,
+		&View.SimpleElementCollector,
+		&DummyDynamicPrimitiveCollector,
+		ViewFamily.GetFeatureLevel(),
+		&DynamicIndexBufferForInitViews,
+		&DynamicVertexBufferForInitViews,
+		&DynamicReadBufferForInitViews
+		);
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		FViewInfo& View = Views[ViewIndex];
-		View.RayTracingGeometryInstances.Reserve(Scene->Primitives.Num());
-
-		RayTracingCollector.AddViewMeshArrays(
-			&View,
-			&View.RayTracedDynamicMeshElements,
-			&View.SimpleElementCollector,
-			&DummyDynamicPrimitiveCollector,
-			ViewFamily.GetFeatureLevel(),
-			&DynamicIndexBufferForInitViews,
-			&DynamicVertexBufferForInitViews,
-			&DynamicReadBufferForInitViews
-			);
-
-		View.DynamicRayTracingMeshCommandStorage.RayTracingMeshCommands.Reserve(Scene->Primitives.Num());
-		View.VisibleRayTracingMeshCommands.Reserve(Scene->Primitives.Num());
-	}
-
-	const int8 ReferenceViewIndex = 0;
-	FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+	View.DynamicRayTracingMeshCommandStorage.RayTracingMeshCommands.Reserve(Scene->Primitives.Num());
+	View.VisibleRayTracingMeshCommands.Reserve(Scene->Primitives.Num());
 
 	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
 
 	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
 	{
-		Extension->BeginRenderView(&ReferenceView);
+		Extension->BeginRenderView(&View);
 	}
 
-	ReferenceView.RayTracingMeshResourceCollector = MakeUnique<FRayTracingMeshResourceCollector>(
+	View.RayTracingMeshResourceCollector = MakeUnique<FRayTracingMeshResourceCollector>(
 		Scene->GetFeatureLevel(),
 		&DynamicIndexBufferForInitViews,
 		&DynamicVertexBufferForInitViews,
@@ -530,13 +520,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 	FRayTracingMaterialGatheringContext MaterialGatheringContext
 	{
 		Scene,
-		&ReferenceView,
+		&View,
 		ViewFamily,
 		RHICmdList,
-		*ReferenceView.RayTracingMeshResourceCollector
+		*View.RayTracingMeshResourceCollector
 	};
 
-	float CurrentWorldTime = ReferenceView.Family->CurrentWorldTime;
+	const float CurrentWorldTime = View.Family->CurrentWorldTime;
 
 	struct FRelevantPrimitive
 	{
@@ -544,10 +534,9 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		TArrayView<const int32> CachedRayTracingMeshCommandIndices;
 		uint64 StateHash = 0;
 		int32 PrimitiveIndex = -1;
-		int8 ViewIndex = -1;
 		int8 LODIndex = -1;
-		uint8 RayTracedMeshElementsMask = 0;
 		uint8 InstanceMask = 0;
+		bool bStatic = false;
 		bool bAllSegmentsOpaque = true;
 		bool bAnySegmentsCastShadow = false;
 		bool bAnySegmentsDecal = false;
@@ -577,8 +566,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		const float CullingRadius = CVarRayTracingCullingRadius.GetValueOnRenderThread();
 		const float CullAngleThreshold = CVarRayTracingCullingAngle.GetValueOnRenderThread();
 		const float AngleThresholdRatio = FMath::Tan(CullAngleThreshold * PI / 180.0f);
-		const FVector ViewOrigin = ReferenceView.ViewMatrices.GetViewOrigin();
-		const FVector ViewDirection = ReferenceView.GetViewDirection();
+		const FVector ViewOrigin = View.ViewMatrices.GetViewOrigin();
+		const FVector ViewDirection = View.GetViewDirection();
 		const bool bCullAllObjects = CullInRayTracing == 2;
 
 		for (int PrimitiveIndex = 0; PrimitiveIndex < Scene->PrimitiveSceneProxies.Num(); PrimitiveIndex++)
@@ -631,69 +620,63 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						if (bAngleIsSmallEnoughToCull)
 						{
 							continue;
-						}					
+						}
 					}
 				}
 			}
 
-			bool bIsDynamic = false;
+			if (!View.State)
+			{
+				continue;
+			}
+
+			if (View.bIsReflectionCapture)
+			{
+				continue;
+			}
+
+			if (View.HiddenPrimitives.Contains(SceneInfo->PrimitiveComponentId))
+			{
+				continue;
+			}
+
+			if (View.ShowOnlyPrimitives.IsSet() && !View.ShowOnlyPrimitives->Contains(SceneInfo->PrimitiveComponentId))
+			{
+				continue;
+			}
+
+			// #dxr_todo: ray tracing in scene captures should re-use the persistent RT scene. (UE-112448)
+			bool bShouldRayTraceSceneCapture = GRayTracingSceneCaptures > 0
+				|| (GRayTracingSceneCaptures == -1 && View.bSceneCaptureUsesRayTracing);
+
+			if (View.bIsSceneCapture && (!bShouldRayTraceSceneCapture || !SceneInfo->bIsVisibleInReflectionCaptures))
+			{
+				continue;
+			}
+				
+			// Check if the primitive has been distance culled already during frustum culling
+			if (View.DistanceCullingPrimitiveMap[PrimitiveIndex])
+			{
+				continue;
+			}
+
+			//#dxr_todo UE-68621  The Raytracing code path does not support ShowFlags since data moved to the SceneInfo. 
+			//Touching the SceneProxy to determine this would simply cost too much
+			static const auto RayTracingStaticMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.StaticMeshes"));
 
 			FRelevantPrimitive Item;
 			Item.PrimitiveIndex = PrimitiveIndex;
 
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+			if (SceneInfo->bIsRayTracingStaticRelevant 
+				&& View.Family->EngineShowFlags.StaticMeshes 
+				&& RayTracingStaticMeshesCVar && RayTracingStaticMeshesCVar->GetValueOnRenderThread() > 0)
 			{
-				FViewInfo& View = Views[ViewIndex];
-				if (!View.State)// || View.RayTracingRenderMode == ERayTracingRenderMode::Disabled)
-				{
-					continue;
-				}
-
-				if (View.bIsReflectionCapture)
-				{
-					continue;
-				}
-
-				if (View.HiddenPrimitives.Contains(SceneInfo->PrimitiveComponentId))
-				{
-					continue;
-				}
-
-				if (View.ShowOnlyPrimitives.IsSet() && !View.ShowOnlyPrimitives->Contains(SceneInfo->PrimitiveComponentId))
-				{
-					continue;
-				}
-
-				bool bShouldRayTraceSceneCapture = GRayTracingSceneCaptures > 0 || (GRayTracingSceneCaptures == -1 && View.bSceneCaptureUsesRayTracing);
-				if (View.bIsSceneCapture && (!bShouldRayTraceSceneCapture || !SceneInfo->bIsVisibleInReflectionCaptures))
-				{
-					continue;
-				}
-				
-				// Check if the primitive has been distance culled already during frustum culling
-				if (View.DistanceCullingPrimitiveMap[PrimitiveIndex])
-				{
-					continue;
-				}
-
-				//#dxr_todo UE-68621  The Raytracing code path does not support ShowFlags since data moved to the SceneInfo. 
-				//Touching the SceneProxy to determine this would simply cost too much
-				static const auto RayTracingStaticMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.StaticMeshes"));
-
-				if (SceneInfo->bIsRayTracingStaticRelevant && View.Family->EngineShowFlags.StaticMeshes && RayTracingStaticMeshesCVar && RayTracingStaticMeshesCVar->GetValueOnRenderThread() > 0)
-				{
-					Item.ViewIndex = ViewIndex;
-					RelevantPrimitives.Add(Item);
-				}
-				else if (View.Family->EngineShowFlags.SkeletalMeshes)
-				{
-					Item.RayTracedMeshElementsMask |= 1 << ViewIndex;
-				}
+				Item.bStatic = true;
+				RelevantPrimitives.Add(Item);
 			}
-
-			if (Item.RayTracedMeshElementsMask)
+			else if (View.Family->EngineShowFlags.SkeletalMeshes)
 			{
-				Item.ViewIndex = ReferenceViewIndex;
+				Item.bStatic = false;
 				RelevantPrimitives.Add(Item);
 			}
 		}
@@ -722,7 +705,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			LODTaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
 			[	Items = RelevantPrimitives.GetData() + FirstTaskItemIndex,
 				NumItems = FMath::Min(ItemsPerTask, NumTotalItems - FirstTaskItemIndex),
-				Views = Views.GetData(),
+				&View,
 				Scene = this->Scene,
 				LODScaleCVarValue,
 				ForcedLODLevel
@@ -733,15 +716,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 				for (uint32 i = 0; i < NumItems; ++i)
 				{
 					FRelevantPrimitive& RelevantPrimitive = Items[i];
-					if (RelevantPrimitive.RayTracedMeshElementsMask)
+					if (!RelevantPrimitive.bStatic)
 					{
 						continue; // skip dynamic primitives
 					}
 
 					const int32 PrimitiveIndex = RelevantPrimitive.PrimitiveIndex;
 					const FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
-					const int32 ViewIndex = RelevantPrimitive.ViewIndex;
-					const FViewInfo& View = Views[ViewIndex];
 
 					const FPrimitiveBounds& Bounds = Scene->PrimitiveBounds[PrimitiveIndex];
 					const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo = Scene->Primitives[PrimitiveIndex];
@@ -809,13 +790,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 
 		Scene->GetRayTracingDynamicGeometryCollection()->BeginUpdate();
 
-		ReferenceView.RayTracingGeometryInstances.Reserve(RelevantPrimitives.Num());
-
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			Views[ViewIndex].RayTracingGeometryInstances.Reserve(RelevantPrimitives.Num());
-		}
-
 		struct FRayTracingMeshBatchWorkItem
 		{
 			const FPrimitiveSceneProxy* SceneProxy = nullptr;
@@ -851,21 +825,19 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		uint32 NumPendingMeshBatches = 0;
 		const uint32 RayTracingParallelMeshBatchSize = GRayTracingParallelMeshBatchSize;
 
-		auto KickRayTracingMeshBatchTask = [&ReferenceView, &MeshBatchTaskHead, &MeshBatchTaskPage, &NumPendingMeshBatches, Scene = this->Scene]()
+		auto KickRayTracingMeshBatchTask = [&View, &MeshBatchTaskHead, &MeshBatchTaskPage, &NumPendingMeshBatches, Scene = this->Scene]()
 		{
 			if (MeshBatchTaskHead)
 			{
 				FDynamicRayTracingMeshCommandStorage* TaskDynamicCommandStorage = new(FMemStack::Get()) FDynamicRayTracingMeshCommandStorage;
-				ReferenceView.DynamicRayTracingMeshCommandStoragePerTask.Add(TaskDynamicCommandStorage);
+				View.DynamicRayTracingMeshCommandStoragePerTask.Add(TaskDynamicCommandStorage);
 
 				FRayTracingMeshCommandOneFrameArray* TaskVisibleCommands = new(FMemStack::Get()) FRayTracingMeshCommandOneFrameArray;
 				TaskVisibleCommands->Reserve(NumPendingMeshBatches);
-				ReferenceView.VisibleRayTracingMeshCommandsPerTask.Add(TaskVisibleCommands);
+				View.VisibleRayTracingMeshCommandsPerTask.Add(TaskVisibleCommands);
 
-				const FViewInfo* ReferenceViewPtr = &ReferenceView;
-
-				ReferenceView.AddRayTracingMeshBatchTaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
-					[TaskDataHead = MeshBatchTaskHead, ReferenceViewPtr, Scene, TaskDynamicCommandStorage, TaskVisibleCommands]()
+				View.AddRayTracingMeshBatchTaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
+					[TaskDataHead = MeshBatchTaskHead, &View, Scene, TaskDynamicCommandStorage, TaskVisibleCommands]()
 				{
 					FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
 					TRACE_CPUPROFILER_EVENT_SCOPE(RayTracingMeshBatchTask);
@@ -884,7 +856,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 									*TaskDynamicCommandStorage, *TaskVisibleCommands,
 									SegmentIndex, WorkItem.InstanceIndex);
 								FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
-								FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, ReferenceViewPtr, PassDrawRenderState);
+								FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &View, PassDrawRenderState);
 								RayTracingMeshProcessor.AddMeshBatch(MeshBatch, 1, WorkItem.SceneProxy);
 							}
 						}
@@ -901,12 +873,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			NumPendingMeshBatches = 0;
 		};
 
+		// Local temporary array of instances used for GetDynamicRayTracingInstances()
+		TArray<FRayTracingInstance> TempRayTracingInstances;
 
 		for (const FRelevantPrimitive& RelevantPrimitive : RelevantPrimitives)
 		{
-			const uint8 RayTracedMeshElementsMask = RelevantPrimitive.RayTracedMeshElementsMask;
-
-			if (RayTracedMeshElementsMask == 0)
+			if (RelevantPrimitive.bStatic)
 			{
 				continue;
 			}
@@ -915,14 +887,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
 
 			FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
-			RayTracingInstances.Reset();
-			SceneProxy->GetDynamicRayTracingInstances(MaterialGatheringContext, RayTracingInstances);
+			TempRayTracingInstances.Reset();
+			SceneProxy->GetDynamicRayTracingInstances(MaterialGatheringContext, TempRayTracingInstances);
 
 			for (auto DynamicRayTracingGeometryUpdate : MaterialGatheringContext.DynamicRayTracingGeometriesToUpdate)
 			{
 				Scene->GetRayTracingDynamicGeometryCollection()->AddDynamicMeshBatchForGeometryUpdate(
 					Scene,
-					&ReferenceView,
+					&View,
 					SceneProxy,
 					DynamicRayTracingGeometryUpdate,
 					PrimitiveIndex
@@ -931,21 +903,15 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 
 			MaterialGatheringContext.DynamicRayTracingGeometriesToUpdate.Reset();
 
-			if (RayTracingInstances.Num() > 0)
+			if (TempRayTracingInstances.Num() > 0)
 			{
-				for (FRayTracingInstance& Instance : RayTracingInstances)
+				for (FRayTracingInstance& Instance : TempRayTracingInstances)
 				{
 					// If geometry still has pending build request then add to list which requires a force build
 					if (Instance.Geometry->HasPendingBuildRequest())
 					{
-						ReferenceView.ForceBuildRayTracingGeometries.Add(Instance.Geometry);
+						RayTracingScene.GeometriesToBuild.Add(Instance.Geometry);
 					}
-
-					FRayTracingGeometryInstance RayTracingInstance = { Instance.Geometry->RayTracingGeometryRHI };
-					RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
-					RayTracingInstance.Mask = Instance.Mask;
-					RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
-					RayTracingInstance.bDoubleSided = Instance.bDoubleSided;
 
 					// Thin geometries like hair don't have material, as they only support shadow at the moment.
 					if (!ensureMsgf(Instance.GetMaterials().Num() == Instance.Geometry->Initializer.Segments.Num() ||
@@ -958,6 +924,15 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					{
 						continue;
 					}
+
+					const uint32 InstanceIndex = RayTracingScene.Instances.Num();
+
+					FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances.AddDefaulted_GetRef();
+					RayTracingInstance.GeometryRHI = Instance.Geometry->RayTracingGeometryRHI;
+					RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
+					RayTracingInstance.Mask = Instance.Mask;
+					RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
+					RayTracingInstance.bDoubleSided = Instance.bDoubleSided;
 
 					if (Instance.InstanceGPUTransformsSRV.IsValid())
 					{
@@ -984,24 +959,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						}
 					}
 
-					for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ViewIndex++)
-					{
-						Views[ViewIndex].RayTracingGeometryInstances.Add(RayTracingInstance);
-					}
-
-					uint32 InstanceIndex = ReferenceView.RayTracingGeometryInstances.AddDefaulted();
-					Swap(ReferenceView.RayTracingGeometryInstances.Last(), RayTracingInstance);
-
-#if DO_CHECK
+				#if DO_CHECK
 					if (Instance.Geometry->DynamicGeometrySharedBufferGenerationID != FRayTracingGeometry::NonSharedVertexBuffers)
 					{
-						ReferenceView.RayTracingGeometriesForValidation.Add(Instance.Geometry);
-						for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ViewIndex++)
-						{
-							Views[ViewIndex].RayTracingGeometriesForValidation.Add(Instance.Geometry);
-						}
+						RayTracingScene.GeometriesToValidate.Add(Instance.Geometry);
 					}
-#endif // DO_CHECK
+				#endif // DO_CHECK
 
 					if (bParallelMeshBatchSetup)
 					{
@@ -1047,9 +1010,9 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						for (int32 SegmentIndex = 0; SegmentIndex < InstanceMaterials.Num(); SegmentIndex++)
 						{
 							const FMeshBatch& MeshBatch = InstanceMaterials[SegmentIndex];
-							FDynamicRayTracingMeshCommandContext CommandContext(ReferenceView.DynamicRayTracingMeshCommandStorage, ReferenceView.VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
+							FDynamicRayTracingMeshCommandContext CommandContext(View.DynamicRayTracingMeshCommandStorage, View.VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
 							FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
-							FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &ReferenceView, PassDrawRenderState);
+							FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &View, PassDrawRenderState);
 							RayTracingMeshProcessor.AddMeshBatch(MeshBatch, 1, SceneProxy);
 						}
 					}
@@ -1057,7 +1020,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 
 				if (CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance.GetValueOnRenderThread() > 0.0f)
 				{
-					if (FVector::Distance(SceneProxy->GetActorPosition(), ReferenceView.ViewMatrices.GetViewOrigin()) < CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance.GetValueOnRenderThread())
+					if (FVector::Distance(SceneProxy->GetActorPosition(), View.ViewMatrices.GetViewOrigin()) < CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance.GetValueOnRenderThread())
 					{
 						// Update LastRenderTime for components so that visibility based ticking (like skeletal meshes) can get updated
 						// We are only doing this for dynamic geometries now
@@ -1092,11 +1055,9 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		{
 			const int32 PrimitiveIndex = RelevantPrimitive.PrimitiveIndex;
 			const FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
-			const int32 ViewIndex = RelevantPrimitive.ViewIndex;
-			FViewInfo& View = Views[ViewIndex];
 			const int8 LODIndex = RelevantPrimitive.LODIndex;
 
-			if (LODIndex < 0 || RelevantPrimitive.RayTracedMeshElementsMask != 0)
+			if (LODIndex < 0 || !RelevantPrimitive.bStatic)
 			{
 				continue; // skip dynamic primitives and other 
 			}
@@ -1107,7 +1068,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			}
 
 			// location if this is a new entry
-			const int32 NewInstanceIndex = View.RayTracingGeometryInstances.Num();
+			const int32 NewInstanceIndex = RayTracingScene.Instances.Num();
 			const uint64 InstanceKey = RelevantPrimitive.InstancingKey();
 
 			const int32 Index = bAutoInstance ? InstanceSet.FindOrAdd(InstanceKey, NewInstanceIndex) : NewInstanceIndex;
@@ -1115,7 +1076,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			if (Index != NewInstanceIndex)
 			{
 				// reusing a previous entry, just append to the instance list
-				FRayTracingGeometryInstance& RayTracingInstance = View.RayTracingGeometryInstances[Index];
+				FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances[Index];
 				RayTracingInstance.NumTransforms++;
 				RayTracingInstance.Transforms.Add(Scene->PrimitiveTransforms[PrimitiveIndex]);
 				RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
@@ -1140,7 +1101,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					}
 				}
 
-				FRayTracingGeometryInstance& RayTracingInstance = View.RayTracingGeometryInstances.Emplace_GetRef();
+				FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances.AddDefaulted_GetRef();
 				RayTracingInstance.NumTransforms = 1;
 				RayTracingInstance.Transforms.SetNumUninitialized(1);
 				RayTracingInstance.UserData.SetNumUninitialized(1);
@@ -1156,6 +1117,16 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 	}
 
 	return true;
+}
+
+static void DeduplicateRayGenerationShaders(TArray< FRHIRayTracingShader*>& RayGenShaders)
+{
+	TSet<FRHIRayTracingShader*> UniqueRayGenShaders;
+	for (FRHIRayTracingShader* Shader : RayGenShaders)
+	{
+		UniqueRayGenShaders.Add(Shader);
+	}
+	RayGenShaders = UniqueRayGenShaders.Array();
 }
 
 bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder)
@@ -1199,11 +1170,14 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	GRayTracingGeometryManager.ProcessBuildRequests(GraphBuilder.RHICmdList);
 
-	FViewInfo& ReferenceView = Views[0];
-	if (ReferenceView.ForceBuildRayTracingGeometries.Num() > 0)
+	const int32 ReferenceViewIndex = 0;
+	FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+	FRayTracingScene& RayTracingScene = Scene->RayTracingScene;
+
+	if (RayTracingScene.GeometriesToBuild.Num() > 0)
 	{
 		// Force update all the collected geometries (use stack allocator?)
-		GRayTracingGeometryManager.ForceBuildIfPending(GraphBuilder.RHICmdList, ReferenceView.ForceBuildRayTracingGeometries);
+		GRayTracingGeometryManager.ForceBuildIfPending(GraphBuilder.RHICmdList, RayTracingScene.GeometriesToBuild);
 	}
 	
 	if (ReferenceView.AddRayTracingMeshBatchTaskList.Num() > 0)
@@ -1222,29 +1196,25 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
+#ifdef DO_CHECK
+	// Validate all the ray tracing geometries lifetimes
+	int64 SharedBufferGenerationID = (int64)Scene->GetRayTracingDynamicGeometryCollection()->GetSharedBufferGenerationID();
+	for (const FRayTracingGeometry* Geometry : RayTracingScene.GeometriesToValidate)
+	{
+		checkf(Geometry->DynamicGeometrySharedBufferGenerationID == FRayTracingGeometry::NonSharedVertexBuffers 
+			|| Geometry->DynamicGeometrySharedBufferGenerationID == SharedBufferGenerationID,
+			TEXT("GenerationID %lld, but expected to be %lld or %lld"), 
+			Geometry->DynamicGeometrySharedBufferGenerationID, SharedBufferGenerationID, FRayTracingGeometry::NonSharedVertexBuffers);
+	}
+#endif // DO_CHECK
+
+	// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. register each effect at startup and just loop over them automatically to gather all required shaders
+	TArray<FRHIRayTracingShader*> RayGenShaders;
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		FViewInfo& View = Views[ViewIndex];
 
-		uint32 NumTotalInstances = 0;
-		for (const FRayTracingGeometryInstance& Instance : View.RayTracingGeometryInstances)
-		{
-			ensure(Instance.NumTransforms >= uint32(Instance.GetTransforms().Num()));
-			NumTotalInstances += Instance.NumTransforms;
-		}
-		SET_DWORD_STAT(STAT_RayTracingInstances, NumTotalInstances);
-
-#ifdef DO_CHECK
-		// Validate all the ray tracing geometries lifetimes
-		int64 SharedBufferGenerationID = (int64)Scene->GetRayTracingDynamicGeometryCollection()->GetSharedBufferGenerationID();
-		for (const FRayTracingGeometry* Geometry : View.RayTracingGeometriesForValidation)
-		{
-			check(Geometry->DynamicGeometrySharedBufferGenerationID == FRayTracingGeometry::NonSharedVertexBuffers || Geometry->DynamicGeometrySharedBufferGenerationID == SharedBufferGenerationID);
-		}
-#endif // DO_CHECK
-
-		// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. register each effect at startup and just loop over them automatically to gather all required shaders
-		TArray<FRHIRayTracingShader*> RayGenShaders;
 		PrepareRayTracingReflections(View, *Scene, RayGenShaders);
 		PrepareSingleLayerWaterRayTracingReflections(View, *Scene, RayGenShaders);
 		PrepareRayTracingShadows(View, RayGenShaders);
@@ -1258,56 +1228,48 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		PrepareLumenHardwareRayTracingScreenProbeGather(View, RayGenShaders);
 		PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
 		PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
-
-		// #yuriy_todo: allocate these using RDG transient resources!
-		FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingSceneSize(NumTotalInstances, ERayTracingAccelerationStructureFlags::FastTrace);
-		check(SizeInfo.ResultSize < ~0u);
-		FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingSceneBuffer"));
-		View.RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, CreateInfo);
-		View.RayTracingSceneSRV = RHICreateShaderResourceView(View.RayTracingSceneBuffer);
-
-		View.CreateRayTracingSceneTask = FFunctionGraphTask::CreateAndDispatchWhenReady([
-			NumTotalInstances,
-			&ResultScene = View.RayTracingSceneRHI,
-			&ResultBuffer = View.RayTracingSceneBuffer,
-			Instances = MakeArrayView(View.RayTracingGeometryInstances)]()
-		{
-			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
-
-			FRayTracingSceneInitializer SceneInitializer;
-			SceneInitializer.DebugName = FName(TEXT("FDeferredShadingSceneRenderer.Views[].RayTracingScene"));
-			SceneInitializer.Instances = Instances;
-			SceneInitializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
-			SceneInitializer.NumMissShaderSlots = RAY_TRACING_NUM_MISS_SHADER_SLOTS;
-
-			ResultScene = RHICreateRayTracingScene(SceneInitializer);
-
-		}, TStatId(), nullptr, ENamedThreads::AnyThread);
-
-		if (RayGenShaders.Num())
-		{
-			auto DefaultHitShader = View.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
-
-			View.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(GraphBuilder.RHICmdList, View,
-				RayGenShaders,
-				DefaultHitShader
-			);
-		}
-
-		// Initialize common resources used for lighting in ray tracing effects
-
-		View.RayTracingSubSurfaceProfileTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList);
-		if (!View.RayTracingSubSurfaceProfileTexture)
-		{
-			View.RayTracingSubSurfaceProfileTexture = GSystemTextures.BlackDummy;
-		}
-
-		View.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(View.RayTracingSubSurfaceProfileTexture->GetRenderTargetItem().ShaderResourceTexture, 0);
-
-		View.RayTracingLightData = CreateRayTracingLightData(GraphBuilder.RHICmdList, Scene->Lights, View,
-			EUniformBufferUsage::UniformBuffer_SingleFrame);
 	}
 
+	DeduplicateRayGenerationShaders(RayGenShaders);
+
+	RayTracingScene.BeginCreate();
+
+	if (RayGenShaders.Num())
+	{
+		auto DefaultHitShader = ReferenceView.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
+
+		ReferenceView.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(GraphBuilder.RHICmdList, ReferenceView,
+			RayGenShaders,
+			DefaultHitShader
+		);
+	}
+
+	// Initialize common resources used for lighting in ray tracing effects
+
+	ReferenceView.RayTracingSubSurfaceProfileTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList);
+	if (!ReferenceView.RayTracingSubSurfaceProfileTexture)
+	{
+		ReferenceView.RayTracingSubSurfaceProfileTexture = GSystemTextures.BlackDummy;
+	}
+
+	ReferenceView.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSubSurfaceProfileTexture->GetRenderTargetItem().ShaderResourceTexture, 0);
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+
+		View.RayTracingLightData = CreateRayTracingLightData(GraphBuilder.RHICmdList,
+			Scene->Lights, View, EUniformBufferUsage::UniformBuffer_SingleFrame);
+
+		// Send common ray tracing resources from reference view to all others.
+		if (ViewIndex != ReferenceViewIndex)
+		{
+			View.RayTracingSubSurfaceProfileTexture = ReferenceView.RayTracingSubSurfaceProfileTexture;
+			View.RayTracingSubSurfaceProfileSRV = ReferenceView.RayTracingSubSurfaceProfileSRV;
+			View.RayTracingLightData = ReferenceView.RayTracingLightData;
+			View.RayTracingMaterialPipeline = ReferenceView.RayTracingMaterialPipeline;
+		}
+	}
 
 	const bool bRayTracingAsyncBuild = CVarRayTracingAsyncBuild.GetValueOnRenderThread() != 0;
 
@@ -1329,18 +1291,12 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 			Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHIAsyncCmdList);
 
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-			{
-				FViewInfo& View = Views[ViewIndex];
-				FRHIRayTracingScene* RayTracingScene = View.GetRayTracingSceneChecked();
+			FRHIRayTracingScene* RayTracingSceneRHI = Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
 
-				check(View.RayTracingSceneBuffer.IsValid());
-				check(View.RayTracingSceneSRV.IsValid());
-				RHIAsyncCmdList.BindAccelerationStructureMemory(RayTracingScene, View.RayTracingSceneBuffer, 0);
+			RHIAsyncCmdList.BindAccelerationStructureMemory(RayTracingSceneRHI, Scene->RayTracingScene.GetBufferChecked(), 0);
 
-				SCOPED_DRAW_EVENT(RHIAsyncCmdList, RayTracingScene);
-				RHIAsyncCmdList.BuildAccelerationStructure(RayTracingScene);
-			}
+			SCOPED_DRAW_EVENT(RHIAsyncCmdList, RayTracingScene);
+			RHIAsyncCmdList.BuildAccelerationStructure(RayTracingSceneRHI);
 
 			RHIAsyncCmdList.BeginTransition(RayTracingDynamicGeometryUpdateEndTransition);
 			FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHIAsyncCmdList);
@@ -1360,17 +1316,11 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 			RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingScene);
 			AddPass(GraphBuilder, RDG_EVENT_NAME("RayTracingScene"), [this](FRHICommandList& RHICmdList)
 			{
-				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-				{
-					FViewInfo& View = Views[ViewIndex];
-					FRHIRayTracingScene* RayTracingScene = View.GetRayTracingSceneChecked();
+				FRHIRayTracingScene* RayTracingSceneRHI = Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
 
-					check(View.RayTracingSceneBuffer.IsValid());
-					check(View.RayTracingSceneSRV.IsValid());
-					RHICmdList.BindAccelerationStructureMemory(RayTracingScene, View.RayTracingSceneBuffer, 0);
+				RHICmdList.BindAccelerationStructureMemory(RayTracingSceneRHI, Scene->RayTracingScene.GetBufferChecked(), 0);
 
-					RHICmdList.BuildAccelerationStructure(RayTracingScene);
-				}
+				RHICmdList.BuildAccelerationStructure(RayTracingSceneRHI);
 
 				// Submit potentially expensive BVH build commands to the GPU as soon as possible.
 				// Avoids a GPU bubble in some CPU-limited cases.
@@ -1387,21 +1337,25 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	return true;
 }
 
-static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views)
+static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views, FRayTracingScene &RayTracingScene)
 {
-	AddPass(GraphBuilder, [Views](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, [Views, &RayTracingScene](FRHICommandListImmediate& RHICmdList)
 	{
+		if (RayTracingScene.IsCreated())
+		{
+			RHICmdList.ClearRayTracingBindings(RayTracingScene.GetRHIRayTracingScene());
+
+			// If we did not end up rendering anything this frame, then release all ray tracing scene resources.
+			if (RayTracingScene.Instances.Num() == 0)
+			{
+				RayTracingScene.ResetAndReleaseResources();
+			}
+		}
+
 		// Release resources that were bound to the ray tracing scene to allow them to be immediately recycled.
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
 			FViewInfo& View = Views[ViewIndex];
-			checkf(!View.CreateRayTracingSceneTask.IsValid() || View.CreateRayTracingSceneTask->IsComplete(), 
-				TEXT("Ray tracing scene creation task is expected to be waited upon and ready when we get here."));
-			if (View.RayTracingSceneRHI)
-			{
-				RHICmdList.ClearRayTracingBindings(View.RayTracingSceneRHI);
-				View.RayTracingSceneRHI.SafeRelease();
-			}
 
 			// Release common lighting resources
 			View.RayTracingSubSurfaceProfileSRV.SafeRelease();
@@ -1438,100 +1392,113 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 	AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
 	{
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+		const int32 ReferenceViewIndex = 0;
+		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+
+		check(ReferenceView.RayTracingMaterialPipeline || ReferenceView.RayTracingMaterialBindings.Num() == 0);
+
+		if (ReferenceView.RayTracingMaterialPipeline && ReferenceView.RayTracingMaterialBindings.Num())
 		{
-			FViewInfo& View = Views[ViewIndex];
-			if (!View.RayTracingMaterialPipeline)
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ReferenceView.RayTracingMaterialBindingsTask, ENamedThreads::GetRenderThread_Local());
+
+			// Gather bindings from all chunks and submit them all as a single batch to allow RHI to bind all shader parameters in parallel.
+
+			uint32 NumTotalBindings = 0;
+
+			for (FRayTracingLocalShaderBindingWriter* BindingWriter : ReferenceView.RayTracingMaterialBindings)
 			{
-				check(View.RayTracingMaterialBindings.Num() == 0);
-				continue;
+				const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk();
+				while (Chunk)
+				{
+					NumTotalBindings += Chunk->Num;
+					Chunk = Chunk->Next;
+				}
 			}
 
-			if (View.RayTracingMaterialBindings.Num())
+			const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
+			FRayTracingLocalShaderBindings* MergedBindings = (FRayTracingLocalShaderBindings*)(RHICmdList.Bypass()
+				? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
+				: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
+
+			uint32 MergedBindingIndex = 0;
+			for (FRayTracingLocalShaderBindingWriter* BindingWriter : ReferenceView.RayTracingMaterialBindings)
 			{
-				FTaskGraphInterface::Get().WaitUntilTaskCompletes(View.RayTracingMaterialBindingsTask, ENamedThreads::GetRenderThread_Local());
-
-				// Gather bindings from all chunks and submit them all as a single batch to allow RHI to bind all shader parameters in parallel.
-
-				uint32 NumTotalBindings = 0;
-
-				for (FRayTracingLocalShaderBindingWriter* BindingWriter : View.RayTracingMaterialBindings)
+				const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk();
+				while (Chunk)
 				{
-					const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk();
-					while (Chunk)
+					const uint32 Num = Chunk->Num;
+					for (uint32_t i = 0; i < Num; ++i)
 					{
-						NumTotalBindings += Chunk->Num;
-						Chunk = Chunk->Next;
+						MergedBindings[MergedBindingIndex] = Chunk->Bindings[i];
+						MergedBindingIndex++;
 					}
+					Chunk = Chunk->Next;
 				}
+			}
 
-				const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
-				FRayTracingLocalShaderBindings* MergedBindings = (FRayTracingLocalShaderBindings*)(RHICmdList.Bypass()
-					? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
-					: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
+			Scene->RayTracingScene.WaitForTasks();
 
-				uint32 MergedBindingIndex = 0;
-				for (FRayTracingLocalShaderBindingWriter* BindingWriter : View.RayTracingMaterialBindings)
-				{
-					const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk();
-					while (Chunk)
-					{
-						const uint32 Num = Chunk->Num;
-						for (uint32_t i = 0; i < Num; ++i)
-						{
-							MergedBindings[MergedBindingIndex] = Chunk->Bindings[i];
-							MergedBindingIndex++;
-						}
-						Chunk = Chunk->Next;
-					}
-				}
+			const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
+			RHICmdList.SetRayTracingHitGroups(
+				ReferenceView.GetRayTracingSceneChecked(),
+				ReferenceView.RayTracingMaterialPipeline,
+				NumTotalBindings, MergedBindings,
+				bCopyDataToInlineStorage);
 
-				checkf(!View.CreateRayTracingSceneTask.IsValid() || View.CreateRayTracingSceneTask->IsComplete(),
-					TEXT("Ray tracing scene creation task is expected to be waited upon and ready when we get here."));
 
-				const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
-				RHICmdList.SetRayTracingHitGroups(
-					View.GetRayTracingSceneChecked(),
-					View.RayTracingMaterialPipeline,
-					NumTotalBindings, MergedBindings,
-					bCopyDataToInlineStorage);
-
-				TArray<FRHIRayTracingShader*> DeferredMaterialRayGenShaders;
-
+			TArray<FRHIRayTracingShader*> DeferredMaterialRayGenShaders;
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+			{
+				FViewInfo& View = Views[ViewIndex];
 				PrepareRayTracingReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
 				PrepareRayTracingDeferredReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
 				PrepareRayTracingGlobalIlluminationDeferredMaterial(View, DeferredMaterialRayGenShaders);
 				PrepareLumenHardwareRayTracingReflectionsDeferredMaterial(View, DeferredMaterialRayGenShaders);
 				PrepareLumenHardwareRayTracingScreenProbeGatherDeferredMaterial(View, DeferredMaterialRayGenShaders);
 				PrepareLumenHardwareRayTracingVisualizeDeferredMaterial(View, DeferredMaterialRayGenShaders);
+			}
+			DeduplicateRayGenerationShaders(DeferredMaterialRayGenShaders);
 
-				if (DeferredMaterialRayGenShaders.Num())
-				{
-					View.RayTracingMaterialGatherPipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, View, DeferredMaterialRayGenShaders);
-				}
+			if (DeferredMaterialRayGenShaders.Num())
+			{
+				ReferenceView.RayTracingMaterialGatherPipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, ReferenceView, DeferredMaterialRayGenShaders);
+			}
 
-				// Add Lumen hardware ray tracing materials
-				TArray<FRHIRayTracingShader*> LumenHardwareRayTracingRayGenShaders;
+			// Add Lumen hardware ray tracing materials
+			TArray<FRHIRayTracingShader*> LumenHardwareRayTracingRayGenShaders;
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+			{
+				FViewInfo& View = Views[ViewIndex];
 				PrepareLumenHardwareRayTracingVisualizeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
 				PrepareLumenHardwareRayTracingReflectionsLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
 				PrepareLumenHardwareRayTracingScreenProbeGatherLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-				if (LumenHardwareRayTracingRayGenShaders.Num())
-				{
-					View.LumenHardwareRayTracingMaterialPipeline = BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, View, LumenHardwareRayTracingRayGenShaders);
-				}
+			}
+			DeduplicateRayGenerationShaders(DeferredMaterialRayGenShaders);
 
-				// Move the ray tracing binding container ownership to the command list, so that memory will be
-				// released on the RHI thread timeline, after the commands that reference it are processed.
-				RHICmdList.EnqueueLambda([Ptrs = MoveTemp(View.RayTracingMaterialBindings)](FRHICommandListImmediate&)
-				{
-					for (auto Ptr : Ptrs)
-					{
-						delete Ptr;
-					}
-				});
+			if (LumenHardwareRayTracingRayGenShaders.Num())
+			{
+				ReferenceView.LumenHardwareRayTracingMaterialPipeline = BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, ReferenceView, LumenHardwareRayTracingRayGenShaders);
 			}
 
-			SetupRayTracingLightingMissShader(RHICmdList, View);
+			// Move the ray tracing binding container ownership to the command list, so that memory will be
+			// released on the RHI thread timeline, after the commands that reference it are processed.
+			RHICmdList.EnqueueLambda([Ptrs = MoveTemp(ReferenceView.RayTracingMaterialBindings)](FRHICommandListImmediate&)
+			{
+				for (auto Ptr : Ptrs)
+				{
+					delete Ptr;
+				}
+			});
+
+			// Send ray tracing resources from reference view to all others.
+			for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ++ViewIndex)
+			{
+				FViewInfo& View = Views[ViewIndex];
+				View.RayTracingMaterialGatherPipeline = ReferenceView.RayTracingMaterialGatherPipeline;
+				View.LumenHardwareRayTracingMaterialPipeline = ReferenceView.LumenHardwareRayTracingMaterialPipeline;
+			}
+
+			SetupRayTracingLightingMissShader(RHICmdList, ReferenceView);
 		}
 
 		if (RayTracingDynamicGeometryUpdateEndTransition)
@@ -1540,11 +1507,8 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 			RayTracingDynamicGeometryUpdateEndTransition = nullptr;
 		}
 
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-		{
-			FRHIRayTracingScene* RayTracingScene = Views[ViewIndex].GetRayTracingSceneChecked();
-			RHICmdList.Transition(FRHITransitionInfo(RayTracingScene, ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
-		}
+		FRHIRayTracingScene* RayTracingScene = ReferenceView.GetRayTracingSceneChecked();
+		RHICmdList.Transition(FRHITransitionInfo(RayTracingScene, ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
 	});
 }
 
@@ -1767,14 +1731,24 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 #if RHI_RAYTRACING
-	// Gather mesh instances, shaders, resources, parameters, etc. and build ray tracing acceleration structure
-	GatherRayTracingWorldInstances(GraphBuilder.RHICmdList);
 
-	if (Views[0].RayTracingRenderMode != ERayTracingRenderMode::PathTracing)
+	// Gather mesh instances, shaders, resources, parameters, etc. and build ray tracing acceleration structure
+
+	FRayTracingScene& RayTracingScene = Scene->RayTracingScene;
+	RayTracingScene.Reset(); // Resets the internal arrays, but does not release any resources.
+
+	const int32 ReferenceViewIndex = 0;
+	FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+
+	// Prepare the scene for rendering this frame.
+	GatherRayTracingWorldInstancesForView(GraphBuilder.RHICmdList, ReferenceView, RayTracingScene);
+
+	if (ReferenceView.RayTracingRenderMode != ERayTracingRenderMode::PathTracing)
 	{
 		extern ENGINE_API float GAveragePathTracedMRays;
 		GAveragePathTracedMRays = 0.0f;
 	}
+
 #endif // RHI_RAYTRACING
 
 	{
@@ -2943,7 +2917,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 
 #if RHI_RAYTRACING
-	ReleaseRaytracingResources(GraphBuilder, Views);
+	ReleaseRaytracingResources(GraphBuilder, Views, Scene->RayTracingScene);
 #endif //  RHI_RAYTRACING
 
 #if WITH_MGPU

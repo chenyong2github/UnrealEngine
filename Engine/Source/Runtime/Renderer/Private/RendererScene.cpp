@@ -62,6 +62,7 @@
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 #if RHI_RAYTRACING
 #include "RayTracingDynamicGeometryCollection.h"
+#include "RayTracing/RayTracingScene.h"
 #endif
 #include "RHIGPUReadback.h"
 
@@ -1146,14 +1147,13 @@ FScene::~FScene()
 	}
 
 #if RHI_RAYTRACING
-	if (RayTracingDynamicGeometryCollection)
-	{
-		delete RayTracingDynamicGeometryCollection;
-		RayTracingDynamicGeometryCollection = nullptr;
-	}
+
+	delete RayTracingDynamicGeometryCollection;
+	RayTracingDynamicGeometryCollection = nullptr;
 
 	BeginReleaseResource(&HaltonPrimesResource);
-#endif
+
+#endif // RHI_RAYTRACING
 
 	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("Leaking %d FPrimitiveSceneInfo instances."), RemovedPrimitiveSceneInfos.Num()); // Ensure UpdateAllPrimitiveSceneInfos() is called before destruction.
 }

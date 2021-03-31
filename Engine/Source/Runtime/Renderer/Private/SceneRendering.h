@@ -1215,7 +1215,7 @@ public:
 
 	TStaticArray<FParallelMeshDrawCommandPass, EMeshPass::Num> ParallelMeshDrawCommandPasses;
 	
-#if RHI_RAYTRACING
+#if RHI_RAYTRACING // #yuriy_todo: Move to FRayTracingScene, as this is only valid for View[0]
 	TUniquePtr<FRayTracingMeshResourceCollector> RayTracingMeshResourceCollector;
 	FRayTracingMeshCommandOneFrameArray VisibleRayTracingMeshCommands;
 	FDynamicRayTracingMeshCommandStorage DynamicRayTracingMeshCommandStorage;
@@ -1400,26 +1400,10 @@ public:
 	FLumenTranslucencyGIVolume LumenTranslucencyGIVolume;
 
 #if RHI_RAYTRACING
-	TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;
-
-	// Geometries which still have a pending build request but are used this frame and require a force build
-	TArray<const FRayTracingGeometry*> ForceBuildRayTracingGeometries;
-
-#ifdef DO_CHECK
-	// Keep track of all used RT Geometries which are used to validate the vertex buffer data (see FRayTracingGeometry::DynamicGeometrySharedBufferGenerationID)
-	TSet<const FRayTracingGeometry*> RayTracingGeometriesForValidation;
-#endif
-
-	// Ray tracing scene specific to this view
-	FRayTracingSceneRHIRef RayTracingSceneRHI;
-	FShaderResourceViewRHIRef RayTracingSceneSRV; // #yuriy_todo: move this to RDG transient buffer system
-	FBufferRHIRef RayTracingSceneBuffer; // #yuriy_todo: move this to RDG transient buffer system
-	FGraphEventRef CreateRayTracingSceneTask;
-
 	RENDERER_API bool HasRayTracingScene() const;
-	RENDERER_API FRHIRayTracingScene* GetRayTracingScene() const;
-	RENDERER_API FRHIRayTracingScene* GetRayTracingSceneChecked() const;
-	RENDERER_API FRHIShaderResourceView* GetRayTracingSceneViewChecked() const;
+	RENDERER_API FRHIRayTracingScene* GetRayTracingScene() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
+	RENDERER_API FRHIRayTracingScene* GetRayTracingSceneChecked() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
+	RENDERER_API FRHIShaderResourceView* GetRayTracingSceneViewChecked() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
 
 	// Primary pipeline state object to be used with the ray tracing scene for this view.
 	// Material shaders are only available when using this pipeline.

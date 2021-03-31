@@ -51,6 +51,7 @@
 #include "RayTracing/RaytracingOptions.h"
 #if RHI_RAYTRACING
 #include "RayTracing/RayTracingIESLightProfiles.h"
+#include "RayTracing/RayTracingScene.h"
 #include "Halton.h"
 #endif
 #include "Nanite/NaniteRender.h"
@@ -2723,6 +2724,11 @@ public:
 	FVolumetricLightmapSceneData VolumetricLightmapSceneData;
 	
 	FGPUScene GPUScene;
+
+#if RHI_RAYTRACING
+	/** Persistently-allocated ray tracing scene data. */
+	FRayTracingScene RayTracingScene;
+#endif // RHI_RAYTRACING
 
 	/** Distance field object scene data. */
 	FDistanceFieldSceneData DistanceFieldSceneData;

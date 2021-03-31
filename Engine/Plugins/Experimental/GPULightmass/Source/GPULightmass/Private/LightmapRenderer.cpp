@@ -851,7 +851,7 @@ void FSceneRenderState::SetupRayTracingScene()
 
 		SCOPED_DRAW_EVENTF(RHICmdList, GPULightmassUpdateRayTracingScene, TEXT("GPULightmass UpdateRayTracingScene %d Instances"), StaticMeshInstanceRenderStates.Elements.Num());
 
-		TArray<FRayTracingGeometryInstance, SceneRenderingAllocator>& RayTracingGeometryInstances = View.RayTracingGeometryInstances;
+		TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;
 		RayTracingGeometryInstances.Append(CachedRayTracingScene->RayTracingGeometryInstances);
 
 		int32 LandscapeStartOffset = RayTracingGeometryInstances.Num();
@@ -945,7 +945,7 @@ void FSceneRenderState::SetupRayTracingScene()
 			RayTracingScene = RHICreateRayTracingScene(Initializer);
 
 			uint32 NumTotalInstances = 0;
-			for (const FRayTracingGeometryInstance& Instance : View.RayTracingGeometryInstances)
+			for (const FRayTracingGeometryInstance& Instance : RayTracingGeometryInstances)
 			{
 				ensure(Instance.NumTransforms >= uint32(Instance.GetTransforms().Num()));
 				NumTotalInstances += Instance.NumTransforms;
