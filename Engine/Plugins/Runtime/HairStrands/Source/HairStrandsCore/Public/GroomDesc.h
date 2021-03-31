@@ -36,12 +36,6 @@ struct FHairGroupDesc
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool HairTipScale_Override = false;
 
-	/** Normalized hair clip scale, i.e. at which normalized length hair will be clipped. 1 means no clipping. 0 means hairs are fully clipped */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", AdvancedDisplay, meta = (editcondition = "HairClipScale_Override", ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", SliderExponent = 1))
-	float HairClipScale = 1.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	bool HairClipScale_Override = false;
-
 	/** Override the hair shadow density factor (unit less). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom", AdvancedDisplay, meta = (editcondition = "HairShadowDensity_Override", ClampMin = "0.0001", UIMin = "0.001", UIMax = "10.0", SliderExponent = 6))
 	float HairShadowDensity = 1.0f;

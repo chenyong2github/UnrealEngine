@@ -48,8 +48,7 @@ float OutHairRadius;
 float MaxOutHairRadius;
 float HairRadiusRootScale;
 float HairRadiusTipScale;
-float HairLengthClip;
-uint  HairLengthClipEnable;
+uint  HairScalingEnable;
 
 Buffer<uint4>  RenderRestPosePositionBuffer;
 Buffer<uint4>  SimRestPosePositionBuffer;
@@ -179,10 +178,9 @@ float3 ComputeRotateGeometryOffset(uint GuideIndex, float GuideVertexWeight,
 }
 
 // Compute the new hair width and return if the current vertex is valid (true), or if it needs to be clipped (false)
-bool ScaleAndClip(uint ControlPointId, inout uint InPackedAlpha)
+void ScaleStrand(uint ControlPointId, inout uint InPackedAlpha)
 {
-	bool bIsValid = true;
-	if (HairLengthClipEnable)
+	if (HairScalingEnable)
 	{
 		// Instead of doing the actual interpolation we could rely on dithering as an optimization
 		const FHairAttributes Attributes0 = DecodeHairAttribute(AttributeBuffer[ControlPointId]);
@@ -191,17 +189,12 @@ bool ScaleAndClip(uint ControlPointId, inout uint InPackedAlpha)
 		// todo: Move all these computations into shared function which can be shared with the hair VF
 		const float InNormVertexRadius = ((InPackedAlpha & 0x00FC) >> 2) / 63.f;
 		//const float InVertexRadius = InNormVertexRadius * InHairRadius;
-		const float InVertexLength = ((InPackedAlpha & 0xFF00) >> 8) / 255.f * InHairLength;
 
 		const float OutVertexRadius = OutHairRadius * InNormVertexRadius * lerp(HairRadiusRootScale, HairRadiusTipScale, U);
 		const uint PackedVertexRadius = (uint(saturate(OutVertexRadius / MaxOutHairRadius) * 63.f) & 0x3F) << 2;
 
 		InPackedAlpha = (InPackedAlpha & 0xFF03) | PackedVertexRadius;
-
-		bIsValid = InVertexLength <= HairLengthClip;
 	}
-	
-	return bIsValid;
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
@@ -285,8 +278,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			}
 			#endif
 
-			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
-			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
+			ScaleStrand(VertexIndex, PackedRestPosition.w);
+			WorldVertexPosition = ControlPoint + CurrOffset;
 
 			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
 			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
@@ -337,8 +330,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			ControlPoint = ToTriangle(ControlPoint,RootBarycentric,RestTriangle);
 			ControlPoint = ToWorld(ControlPoint,RootBarycentric,DeformedTriangle) + CurrOffset;
 
-			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
-			WorldVertexPosition = bIsValid ? ControlPoint : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
+			ScaleStrand(VertexIndex, PackedRestPosition.w);
+			WorldVertexPosition = ControlPoint;
 
 			#if PERMUTATION_DEBUG == 1 && ALLOW_DEBUG_RENDERING
 			{
@@ -411,8 +404,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 			ControlPoint += RootBarycentric.x * DeformedTriangle.P0 + RootBarycentric.y * DeformedTriangle.P1 + RootBarycentric.z * DeformedTriangle.P2;
 
-			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
-			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
+			ScaleStrand(VertexIndex, PackedRestPosition.w);
+			WorldVertexPosition = ControlPoint + CurrOffset;
 
 			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
 			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
@@ -462,8 +455,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 			ControlPoint =  RootBarycentric.x * DeformedTriangle.P0 + RootBarycentric.y * DeformedTriangle.P1 + RootBarycentric.z * DeformedTriangle.P2;
 
-			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
-			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
+			ScaleStrand(VertexIndex, PackedRestPosition.w);
+			WorldVertexPosition = ControlPoint + CurrOffset;
 
 			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
 			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
@@ -510,8 +503,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			}
 			#endif
 
-			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
-			WorldVertexPosition = bIsValid ? CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
+			ScaleStrand(VertexIndex, PackedRestPosition.w);
+			WorldVertexPosition = CurrOffset;
 
 			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
 			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;

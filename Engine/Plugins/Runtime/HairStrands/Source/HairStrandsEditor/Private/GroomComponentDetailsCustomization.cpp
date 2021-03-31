@@ -108,10 +108,6 @@ void FGroomComponentDetailsCustomization::OnResetToDefault(int32 GroupIndex, TSh
 	{
 		GroomComponentPtr->GroomGroupsDesc[GroupIndex].HairTipScale = Default.HairTipScale;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairClipScale))
-	{
-		GroomComponentPtr->GroomGroupsDesc[GroupIndex].HairClipScale = Default.HairClipScale;
-	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairShadowDensity))
 	{
 		GroomComponentPtr->GroomGroupsDesc[GroupIndex].HairShadowDensity = Default.HairShadowDensity;

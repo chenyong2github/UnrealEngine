@@ -7,7 +7,6 @@ FHairGeometrySettings::FHairGeometrySettings()
 	HairWidth = 0.01;
 	HairRootScale = 1;
 	HairTipScale = 1;
-	HairClipScale = 1;
 }
 
 FHairShadowSettings::FHairShadowSettings()
@@ -36,8 +35,7 @@ bool FHairGeometrySettings::operator==(const FHairGeometrySettings& A) const
 	return
 		HairWidth == A.HairWidth &&
 		HairRootScale == A.HairRootScale &&
-		HairTipScale == A.HairTipScale &&
-		HairClipScale == A.HairClipScale;
+		HairTipScale == A.HairTipScale;
 }
 
 bool FHairShadowSettings::operator==(const FHairShadowSettings& A) const
