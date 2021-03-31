@@ -92,6 +92,7 @@ public:
 	static int32 NumberOfCores();
 	static int32 NumberOfCoresIncludingHyperthreads();
 	static bool SupportsLocalCaching();
+	static void CreateGuid(struct FGuid& Result);
 	static void SetCrashHandler(void (* CrashHandler)(const FGenericCrashContext& Context));
 	// NOTE: THIS FUNCTION IS DEFINED IN ANDROIDOPENGL.CPP
 	static void GetValidTargetPlatforms(class TArray<class FString>& TargetPlatformNames);
