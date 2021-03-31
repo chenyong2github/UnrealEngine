@@ -800,32 +800,26 @@ static SpvReflectResult ParseNodes(Parser* p_parser)
       }
       break;
 
-      case SpvOpEntryPoint: {
-        ++(p_parser->entry_point_count);
-		// UE Change Begin
-        CHECKED_READU32(p_parser, p_node->word_offset + 1, p_node->target_id);
-		// UE Change End
-      }
-      break;
+	  case SpvOpEntryPoint:
+	  {
+		++(p_parser->entry_point_count);
+		CHECKED_READU32(p_parser, p_node->word_offset + 2, p_node->target_id);
+	  }
+	  break;
 
-      case SpvOpName:
-	  // UE Change Begin
-      {
-        CHECKED_READU32(p_parser, p_node->word_offset + 1, p_node->target_id);
-        p_node->name = (const char*)(p_parser->spirv_code + p_node->word_offset + 2);
-      }
-	  // UE Change End
-      case SpvOpMemberName:
-      {
-		// UE Change Begin
-        //uint32_t member_offset = (p_node->op == SpvOpMemberName) ? 1 : 0;
-        //uint32_t name_start = p_node->word_offset + member_offset + 2;
-        //p_node->name = (const char*)(p_parser->spirv_code + name_start);
-        //CHECKED_READU32(p_parser, p_node->word_offset + 1, p_node->type_id);
-        p_node->name = (const char*)(p_parser->spirv_code + p_node->word_offset + 3);
-		// UE Change End
-      }
-      break;
+	  case SpvOpName:
+	  {
+		CHECKED_READU32(p_parser, p_node->word_offset + 1, p_node->target_id);
+		p_node->name = (const char*)(p_parser->spirv_code + p_node->word_offset + 2);
+	  }
+	  break;
+
+	  case SpvOpMemberName:
+	  {
+		//CHECKED_READU32(p_parser, p_node->word_offset + 1, p_node->type_id);
+		p_node->name = (const char*)(p_parser->spirv_code + p_node->word_offset + 3);
+	  }
+	  break;
 
       case SpvOpTypeStruct:
       {
