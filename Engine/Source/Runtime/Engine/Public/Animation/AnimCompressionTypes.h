@@ -195,6 +195,7 @@ public:
 
 	FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping);
 
+	FCompressibleAnimData(const FCompressibleAnimData&);
 	FCompressibleAnimData& operator=(const FCompressibleAnimData&);
 
 	UAnimCurveCompressionSettings* CurveCompressionSettings;
@@ -410,7 +411,8 @@ struct ENGINE_API ICompressedAnimData
 
 	ICompressedAnimData() = default;
 	ICompressedAnimData(const ICompressedAnimData&);
-
+	ICompressedAnimData& operator=(const ICompressedAnimData&);
+	
 	/* Virtual interface codecs must implement */
 	virtual ~ICompressedAnimData() {}
 

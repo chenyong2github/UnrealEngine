@@ -155,7 +155,8 @@ namespace ENodeCreateAction
 // FBlueprintEditor
 
 /** Main Kismet asset editor */
-class KISMET_API FBlueprintEditor : public IBlueprintEditor, public FGCObject, public FNotifyHook, public FTickableEditorObject, public FEditorUndoClient
+class KISMET_API FBlueprintEditor : public IBlueprintEditor, public FGCObject, public FNotifyHook, public 
+FTickableEditorObject, public FEditorUndoClient, public FNoncopyable
 {
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSetPinVisibility, SGraphEditor::EPinVisibility);
 

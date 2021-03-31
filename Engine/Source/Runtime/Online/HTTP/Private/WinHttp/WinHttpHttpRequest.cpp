@@ -258,11 +258,11 @@ bool FWinHttpHttpRequest::ProcessRequest()
 			return;
 		}
 
-		FWinHttpHttpRequestData& RequestData = StrongThis->RequestData;
+		FWinHttpHttpRequestData& LocalRequestData = StrongThis->RequestData;
 
 		// Create connection object
-		TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Connection = FWinHttpConnectionHttp::CreateHttpConnection(*SessionPtr, RequestData.Verb, RequestData.Url, RequestData.Headers, RequestData.Payload);
-		if (!Connection.IsValid())
+		TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> LocalConnection = FWinHttpConnectionHttp::CreateHttpConnection(*SessionPtr, LocalRequestData.Verb, LocalRequestData.Url, LocalRequestData.Headers, LocalRequestData.Payload);
+		if (!LocalConnection.IsValid())
 		{
 			UE_LOG(LogHttp, Warning, TEXT("Unable to create WinHttp Connection, failing request"));
 			StrongThis->FinishRequestOnGameThread();
@@ -271,13 +271,13 @@ bool FWinHttpHttpRequest::ProcessRequest()
 
 		// Bind listeners
 		TSharedRef<FWinHttpHttpRequest, ESPMode::ThreadSafe> StrongThisRef = StrongThis.ToSharedRef();
-		Connection->SetDataTransferredHandler(FWinHttpConnectionHttpOnDataTransferred::CreateThreadSafeSP(StrongThisRef, &FWinHttpHttpRequest::HandleDataTransferred));
-		Connection->SetHeaderReceivedHandler(FWinHttpConnectionHttpOnHeaderReceived::CreateThreadSafeSP(StrongThisRef, &FWinHttpHttpRequest::HandleHeaderReceived));
-		Connection->SetRequestCompletedHandler(FWinHttpConnectionHttpOnRequestComplete::CreateThreadSafeSP(StrongThisRef, &FWinHttpHttpRequest::HandleRequestComplete));
+		LocalConnection->SetDataTransferredHandler(FWinHttpConnectionHttpOnDataTransferred::CreateThreadSafeSP(StrongThisRef, &FWinHttpHttpRequest::HandleDataTransferred));
+		LocalConnection->SetHeaderReceivedHandler(FWinHttpConnectionHttpOnHeaderReceived::CreateThreadSafeSP(StrongThisRef, &FWinHttpHttpRequest::HandleHeaderReceived));
+		LocalConnection->SetRequestCompletedHandler(FWinHttpConnectionHttpOnRequestComplete::CreateThreadSafeSP(StrongThisRef, &FWinHttpHttpRequest::HandleRequestComplete));
 
 		// Start request!
 		StrongThisRef->RequestStartTimeSeconds = FPlatformTime::Seconds();
-		if (!Connection->StartRequest())
+		if (!LocalConnection->StartRequest())
 		{
 			UE_LOG(LogHttp, Warning, TEXT("Unable to start WinHttp Connection, failing request"));
 			StrongThisRef->FinishRequestOnGameThread();
@@ -285,7 +285,7 @@ bool FWinHttpHttpRequest::ProcessRequest()
 		}
 
 		// Save object
-		StrongThisRef->Connection = MoveTemp(Connection);
+		StrongThisRef->Connection = MoveTemp(LocalConnection);
 	}));
 
 	// Store our request so it doesn't die if the requester doesn't store it (common use case)

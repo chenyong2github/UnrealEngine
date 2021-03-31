@@ -702,13 +702,13 @@ struct FS3DerivedDataBackend::FRootManifest
 	FString SecretKey;
 	TArray<FString> Keys;
 
-	bool Load(const FString& RootManifestPath)
+	bool Load(const FString& InRootManifestPath)
 	{
 		// Read the root manifest from disk
 		FString RootManifestText;
-		if (!FFileHelper::LoadFileToString(RootManifestText, *RootManifestPath))
+		if (!FFileHelper::LoadFileToString(RootManifestText, *InRootManifestPath))
 		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Unable to read manifest from %s"), *RootManifestPath);
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Unable to read manifest from %s"), *InRootManifestPath);
 			return false;
 		}
 
@@ -716,19 +716,19 @@ struct FS3DerivedDataBackend::FRootManifest
 		TSharedPtr<FJsonObject> RootManifestObject;
 		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(RootManifestText), RootManifestObject) || !RootManifestObject.IsValid())
 		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Unable to parse manifest from %s"), *RootManifestPath);
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Unable to parse manifest from %s"), *InRootManifestPath);
 			return false;
 		}
 
 		// Read the access and secret keys
 		if (!RootManifestObject->TryGetStringField(TEXT("AccessKey"), AccessKey))
 		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Root manifest %s does not specify AccessKey"), *RootManifestPath);
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Root manifest %s does not specify AccessKey"), *InRootManifestPath);
 			return false;
 		}
 		if (!RootManifestObject->TryGetStringField(TEXT("SecretKey"), SecretKey))
 		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Root manifest %s does not specify SecretKey"), *RootManifestPath);
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Root manifest %s does not specify SecretKey"), *InRootManifestPath);
 			return false;
 		}
 
@@ -736,7 +736,7 @@ struct FS3DerivedDataBackend::FRootManifest
 		const TArray<TSharedPtr<FJsonValue>>* RootEntriesArray;
 		if (!RootManifestObject->TryGetArrayField(TEXT("Entries"), RootEntriesArray))
 		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Root manifest from %s is missing entries array"), *RootManifestPath);
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Root manifest from %s is missing entries array"), *InRootManifestPath);
 			return false;
 		}
 		for (const TSharedPtr<FJsonValue>& Value : *RootEntriesArray)
