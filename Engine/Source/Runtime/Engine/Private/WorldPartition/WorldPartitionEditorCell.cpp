@@ -42,7 +42,7 @@ void UWorldPartitionEditorCell::AddActor(const FGuid& Source, const FWorldPartit
 
 	if (!bIsAlreadyInSet)
 	{	
-		if (ActorHandle.IsLoaded())
+		if (ActorHandle.IsLoaded() && !IsRunningCommandlet())
 		{
 			LoadedActors.Add(FActorReference(Source, ActorHandle), &bIsAlreadyInSet);
 			check(!bIsAlreadyInSet);
