@@ -127,7 +127,6 @@ void UEdMode::Exit()
 			ToolsContext->ToolManager->UnregisterToolType(RegisteredTool.Value);
 		}
 
-		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 		Toolkit.Reset();
 	}
 	RegisteredTools.SetNum(0);
@@ -153,6 +152,16 @@ UWorld* UEdMode::GetWorld() const
 class FEditorModeTools* UEdMode::GetModeManager() const
 {
 	return Owner;
+}
+
+void UEdMode::RequestDeletion()
+{
+	bPendingDeletion = true;
+	
+	if (UsesToolkits() && Toolkit)
+	{
+		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
+	}
 }
 
 AActor* UEdMode::GetFirstSelectedActorInstance() const

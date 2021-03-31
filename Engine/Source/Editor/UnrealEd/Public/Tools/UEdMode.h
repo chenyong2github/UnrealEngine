@@ -166,7 +166,7 @@ public:
 public:
 
 	/** Request that this mode be deleted at the next convenient opportunity (FEditorModeTools::Tick) */
-	void RequestDeletion() { bPendingDeletion = true; }
+	void RequestDeletion();
 
 	/** returns true if this mode is to be deleted at the next convenient opportunity (FEditorModeTools::Tick) */
 	bool IsPendingDeletion() const { return bPendingDeletion; }

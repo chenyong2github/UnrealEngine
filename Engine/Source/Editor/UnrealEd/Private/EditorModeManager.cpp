@@ -646,12 +646,7 @@ void FEditorModeTools::DeactivateScriptableModeAtIndex(int32 InIndex)
 	UEdMode* Mode = ActiveScriptableModes[InIndex];
 	ActiveScriptableModes.RemoveAt(InIndex);
 
-	Mode->Exit();
-
-	const bool bIsEnteringMode = false;
-	BroadcastEditorModeIDChanged(Mode->GetID(), bIsEnteringMode);
-
-	// Remove the toolbar widget
+	// Remove the toolbar widget to remove any toolkit references that may get removed when the mode exits.
 	ActiveToolBarRows.RemoveAll(
 		[&Mode](FEdModeToolbarRow& Row)
 		{
@@ -660,6 +655,11 @@ void FEditorModeTools::DeactivateScriptableModeAtIndex(int32 InIndex)
 	);
 
 	RebuildModeToolBar();
+
+	Mode->Exit();
+
+	const bool bIsEnteringMode = false;
+	BroadcastEditorModeIDChanged(Mode->GetID(), bIsEnteringMode);
 
 	RecycledScriptableModes.Add(Mode->GetID(), Mode);
 }
@@ -804,7 +804,7 @@ void FEditorModeTools::RebuildModeToolBar()
 
 void FEditorModeTools::SpawnOrUpdateModeToolbar()
 {
-	if(ShouldShowModeToolbar())
+	if (ShouldShowModeToolbar())
 	{
 		if (ModeToolbarTab.IsValid())
 		{
@@ -1029,12 +1029,11 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 	// Ask the mode to build the toolbar.
 	TSharedPtr<FUICommandList> CommandList;
 	const TSharedPtr<FModeToolkit> Toolkit = ScriptableMode->GetToolkit().Pin();
-	if (Toolkit.IsValid())
+	if (Toolkit && !Toolkit->HasIntegratedToolPalettes())
 	{
 		CommandList = Toolkit->GetToolkitCommands();
 
 		// Also build the toolkit here 
-		int32 PaletteCount = 0;
 		TArray<FName> PaletteNames;
 		Toolkit->GetToolPaletteNames(PaletteNames);
 		for (auto Palette : PaletteNames)
@@ -1042,16 +1041,11 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 			FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), false);
 			ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 			Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
-
 			ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
-			PaletteCount++;
-		}
-
-		if (!Toolkit->HasIntegratedToolPalettes() && PaletteCount > 0)
-		{
-			SpawnOrUpdateModeToolbar();
 		}
 	}
+
+	SpawnOrUpdateModeToolbar();
 
 	RecycledScriptableModes.Remove(InID);
 
