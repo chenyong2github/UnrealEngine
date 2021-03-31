@@ -452,8 +452,8 @@ void FAssetSearchManager::HandlePackageSaved(const FString& PackageFilename, UPa
 {
 	check(IsInGameThread());
 
-	// Ignore package operations fired by the cooker (cook on the fly).
-	if (GIsCookerLoadingPackage)
+	// Only execute if this is a user save
+	if (ObjectSaveContext.IsProceduralSave())
 	{
 		return;
 	}

@@ -313,7 +313,7 @@ void FDataValidationModule::OnPackageSaved(const FString& PackageFileName, UPack
 	UEditorValidatorSubsystem* EditorValidationSubsystem = GEditor->GetEditorSubsystem<UEditorValidatorSubsystem>();
 	if (EditorValidationSubsystem && Package)
 	{
-		EditorValidationSubsystem->ValidateSavedPackage(Package->GetFName());
+		EditorValidationSubsystem->ValidateSavedPackage(Package->GetFName(), ObjectSaveContext.IsProceduralSave());
 	}
 }
 

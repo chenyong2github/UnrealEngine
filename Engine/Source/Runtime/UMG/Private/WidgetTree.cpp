@@ -249,11 +249,11 @@ void UWidgetTree::PreSave(const class ITargetPlatform* TargetPlatform)
 
 void UWidgetTree::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
-	if (!ObjectSaveContext.IsCooking())
+	if (!ObjectSaveContext.IsCooking()) // AllWidgets is not used in cooked builds
 	{
 #if WITH_EDITORONLY_DATA
+		// Update AllWidgets array used during serialization to match the current state of the WidgetTree
 		AllWidgets.Empty();
-
 		GetAllWidgets(AllWidgets);
 #endif
 	}

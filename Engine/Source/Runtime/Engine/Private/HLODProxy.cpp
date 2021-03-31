@@ -171,7 +171,7 @@ void UHLODProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 	// Always rebuild key on save here.
 	// We don't do this while cooking as keys rely on platform derived data which is context-dependent during cook
-	if (!GIsCookerLoadingPackage)
+	if (!ObjectSaveContext.IsCooking())
 	{
 		if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
 		{

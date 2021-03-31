@@ -327,14 +327,18 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 
 void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList) const
 {
+	ValidateOnSave(AssetDataList, false /* bProceduralSave */);
+}
+
+void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList, bool bProceduralSave) const
+{
 	// Only validate if enabled and not auto saving
 	if (!GetDefault<UDataValidationSettings>()->bValidateOnSave || GEditor->IsAutosaving())
 	{
 		return;
 	}
 
-	bool bIsCooking = GIsCookerLoadingPackage;
-	if ((!bValidateAssetsWhileSavingForCook && bIsCooking))
+	if ((!bValidateAssetsWhileSavingForCook && bProceduralSave))
 	{
 		return;
 	}
@@ -352,15 +356,19 @@ void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList)
 
 void UEditorValidatorSubsystem::ValidateSavedPackage(FName PackageName)
 {
+	ValidateSavedPackage(PackageName, false /* bProceduralSave */);
+}
+
+void UEditorValidatorSubsystem::ValidateSavedPackage(FName PackageName, bool bProceduralSave)
+{
 	// Only validate if enabled and not auto saving
 	if (!GetDefault<UDataValidationSettings>()->bValidateOnSave || GEditor->IsAutosaving())
 	{
 		return;
 	}
 
-	// For performance reasons, don't validate when cooking by default. Assumption is we validated when saving previously. 
-	bool bIsCooking = GIsCookerLoadingPackage;
-	if ((!bValidateAssetsWhileSavingForCook && bIsCooking))
+	// For performance reasons, don't validate when making a procedural save by default. Assumption is we validated when saving previously. 
+	if ((!bValidateAssetsWhileSavingForCook && bProceduralSave))
 	{
 		return;
 	}
@@ -409,7 +417,8 @@ void UEditorValidatorSubsystem::ValidateAllSavedPackages()
 	TArray<FAssetData> Assets;
 	AssetRegistry.GetAssets(Filter, Assets);
 
-	ValidateOnSave(MoveTemp(Assets));
+	bool bProceduralSave = false; // The optional suppression for ProceduralSaves was checked before adding to SavedPackagesToValidate
+	ValidateOnSave(MoveTemp(Assets), bProceduralSave);
 
 	SavedPackagesToValidate.Empty();
 }

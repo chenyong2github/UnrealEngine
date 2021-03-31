@@ -126,10 +126,9 @@ bool& FConcertClientPackageBridge::GetIgnoreLocalDiscardRef()
 
 void FConcertClientPackageBridge::HandlePackagePreSave(UPackage* Package, FObjectPreSaveContext ObjectSaveContext)
 {
-	// Ignore package operations fired by the cooker (cook on the fly).
-	if (GIsCookerLoadingPackage)
+	// Only execute if this is a user save
+	if (ObjectSaveContext.IsProceduralSave())
 	{
-		check(IsInGameThread()); // We expect the cooker to call us on the game thread otherwise, we can have concurrency issues.
 		return;
 	}
 
@@ -166,10 +165,9 @@ void FConcertClientPackageBridge::HandlePackagePreSave(UPackage* Package, FObjec
 
 void FConcertClientPackageBridge::HandlePackageSaved(const FString& PackageFilename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
 {
-	// Ignore package operations fired by the cooker (cook on the fly).
-	if (GIsCookerLoadingPackage)
+	// Only execute if this is a user save
+	if (ObjectSaveContext.IsProceduralSave())
 	{
-		check(IsInGameThread()); // We expect the cooker to call us on the game thread otherwise, we can have concurrency issues.
 		return;
 	}
 

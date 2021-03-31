@@ -2800,7 +2800,7 @@ void ALandscape::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	Super::PreSave(ObjectSaveContext);
 	//ULandscapeInfo* Info = GetLandscapeInfo();
-	//if (GIsEditor && Info && !IsRunningCommandlet())
+	//if (GIsEditor && Info && !ObjectSaveContext.IsProceduralSave())
 	//{
 	//	for (TSet<ALandscapeProxy*>::TIterator It(Info->Proxies); It; ++It)
 	//	{

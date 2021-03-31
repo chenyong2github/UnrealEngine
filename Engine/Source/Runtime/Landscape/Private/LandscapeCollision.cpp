@@ -2490,7 +2490,7 @@ void ULandscapeHeightfieldCollisionComponent::PreSave(FObjectPreSaveContext Obje
 {
 	Super::PreSave(ObjectSaveContext);
 
-	if (!IsRunningCommandlet())
+	if (!ObjectSaveContext.IsProceduralSave())
 	{
 #if WITH_EDITOR
 		ALandscapeProxy* Proxy = GetLandscapeProxy();

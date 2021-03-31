@@ -1211,7 +1211,7 @@ void UWorld::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext)
 
 #if WITH_EDITOR
 	// if we are cooking this world, convert its persistent level to internal actors before doing so
-	if (GIsCookerLoadingPackage)
+	if (ObjectSaveContext.IsCooking())
 	{
 		PersistentLevel->DetachAttachAllActorsPackages(/*bReattach*/false);
 	}
@@ -1248,7 +1248,7 @@ void UWorld::PostSaveRoot( FObjectPostSaveRootContext ObjectSaveContext )
 #if WITH_EDITOR
 	// if we are cooking this world, convert its persistent level back its proper loading strategy if needed
 	// NOTE: can't use bCleanupIsRequired since we don't want to unregister component if they were registered...
-	if (GIsCookerLoadingPackage)
+	if (ObjectSaveContext.IsCooking())
 	{
 		PersistentLevel->DetachAttachAllActorsPackages(/*bReattach*/true);
 	}

@@ -1397,7 +1397,7 @@ void ALODActor::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 	// Always rebuild key on save here.
 	// We don't do this while cooking as keys rely on platform derived data which is context-dependent during cook
-	if(!GIsCookerLoadingPackage)
+	if(!ObjectSaveContext.IsCooking())
 	{
 		const bool bMustUndoLevelTransform = false; // In the save process, the level transform is already removed
 		Key = UHLODProxy::GenerateKeyForActor(this, bMustUndoLevelTransform);

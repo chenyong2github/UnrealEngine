@@ -87,15 +87,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Asset Validation")
 	virtual int32 ValidateAssets(TArray<FAssetData> AssetDataList, bool bSkipExcludedDirectories = true, bool bShowIfNoFailures = true) const;
 
-	/**
-	 * Called to validate from an interactive save
-	 */
+	UE_DEPRECATED(5.0, "Use version that takes bProceduralSave instead")
 	virtual void ValidateOnSave(TArray<FAssetData> AssetDataList) const;
 
 	/**
-	 * Schedule a validation of a saved package, this will activate next frame by default so it can combine them
+	 * Called to validate from an interactive save
+	 * 
+	 * @param AssetDataList List of Assets to validate
+	 * @param bProceduralSave True iff this is e.g. a save from the editor, false if it is a procedural change from e.g. cooking
 	 */
+	virtual void ValidateOnSave(TArray<FAssetData> AssetDataList, bool bProceduralSave) const;
+
+	UE_DEPRECATED(5.0, "Use version that takes bProceduralSave instead")
 	virtual void ValidateSavedPackage(FName PackageName);
+
+	/**
+	 * Schedule a validation of a saved package, this will activate next frame by default so it can combine them
+	 *
+	 * @param PackageName Package to validate
+	 * @param bProceduralSave True iff this is e.g. a save from the editor, false if it is a procedural change from e.g. cooking
+	 */
+	virtual void ValidateSavedPackage(FName PackageName, bool bProceduralSave);
 
 protected:
 	void CleanupValidators();

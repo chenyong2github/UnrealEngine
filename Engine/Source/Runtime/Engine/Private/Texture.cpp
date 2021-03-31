@@ -598,7 +598,7 @@ void UTexture::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		UpdateResource();
 	}
 
-	if (!GEngine->IsAutosaving() && !ObjectSaveContext.IsCooking())
+	if (!GEngine->IsAutosaving() && !ObjectSaveContext.IsProceduralSave())
 	{
 		GWarn->StatusUpdate(0, 0, FText::Format(NSLOCTEXT("UnrealEd", "SavingPackage_CompressingSourceArt", "Compressing source art for texture:  {0}"), FText::FromString(GetName())));
 		Source.Compress();

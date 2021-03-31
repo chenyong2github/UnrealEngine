@@ -672,8 +672,8 @@ void FEdModeLandscape::Exit()
 
 void FEdModeLandscape::OnPreSaveWorld(const class UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)
 {
-	// Avoid doing this during cooking to keep determinism and we don't want to do this on GameWorlds.
-	if (!InWorld->IsGameWorld() && !GIsCookerLoadingPackage)
+	// Avoid doing this during procedural saves to keep determinism and we don't want to do this on GameWorlds.
+	if (!InWorld->IsGameWorld() && !ObjectSaveContext.IsProceduralSave())
 	{
 		ULandscapeInfoMap& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld);
 		for (const TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)

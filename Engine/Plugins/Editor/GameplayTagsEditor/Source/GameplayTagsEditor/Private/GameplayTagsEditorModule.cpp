@@ -149,7 +149,7 @@ public:
 
 	void OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
 	{
-		if (GIsEditor && !IsRunningCommandlet())
+		if (GIsEditor && !ObjectSaveContext.IsProceduralSave())
 		{
 			UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 

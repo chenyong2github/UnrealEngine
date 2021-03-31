@@ -901,7 +901,7 @@ void UPoseAsset::PreSave(const ITargetPlatform* TargetPlatform)
 void UPoseAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 #if WITH_EDITOR
-	if (!ObjectSaveContext.IsCooking())
+	if (!ObjectSaveContext.IsProceduralSave())
 	{
 		UpdateRetargetSourceAsset();
 	}

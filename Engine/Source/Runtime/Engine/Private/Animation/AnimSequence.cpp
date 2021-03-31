@@ -816,7 +816,7 @@ void UAnimSequence::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 	WaitOnExistingCompression(); // Wait on updated data
 
-	if (!ObjectSaveContext.IsCooking())
+	if (!ObjectSaveContext.IsProceduralSave())
 	{
 		UpdateRetargetSourceAsset();
 	}

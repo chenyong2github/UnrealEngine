@@ -169,7 +169,7 @@ bool UHLODEngineSubsystem::CleanupHLOD(ALODActor* InLODActor)
 void UHLODEngineSubsystem::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)
 {
 	// When cooking, make sure that the LODActors are not transient
-	if (InWorld && InWorld->PersistentLevel && GIsCookerLoadingPackage)
+	if (InWorld && InWorld->PersistentLevel && ObjectSaveContext.IsCooking())
 	{
 		for (TActorIterator<ALODActor> It(InWorld); It; ++It)
 		{
