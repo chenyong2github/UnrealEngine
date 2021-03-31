@@ -314,8 +314,6 @@ bool UWorldPartitionHLODsBuilder::SetupHLODActors(bool bCreateOnly)
 				TArray<TArray<FString>> BuildersFiles;
 				BuildersFiles.SetNum(BuilderCount);
 
-				TArray<FString> FilesToSubmit;
-
 				for (const FString& ModifiedFile : ModifiedFiles)
 				{
 					int32* Idx = FilesToBuilderMap.Find(ModifiedFile);
@@ -325,7 +323,8 @@ bool UWorldPartitionHLODsBuilder::SetupHLODActors(bool bCreateOnly)
 					}
 					else
 					{
-						FilesToSubmit.Add(ModifiedFile);
+						// Add general files to the last builder
+						BuildersFiles.Last().Add(ModifiedFile);
 					}
 				}
 
@@ -339,12 +338,6 @@ bool UWorldPartitionHLODsBuilder::SetupHLODActors(bool bCreateOnly)
 					{
 						return false;
 					}
-				}
-
-				// Copy files that won't be handled by builders but must be submitted in the last step
-				if (!CopyFilesToWorkingDir(GetToSubmitFolderName(), FilesToSubmit, BuildProducts))
-				{
-					return false;
 				}
 
 				// The build manifest must also be included as a build product to be available in the next steps
