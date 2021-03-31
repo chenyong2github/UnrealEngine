@@ -7,7 +7,6 @@
 #include "HAL/CriticalSection.h"
 #include "HAL/MemoryBase.h"
 #include "Misc/ScopeRWLock.h"
-#include "Containers/CircularQueue.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/MemoryTrace.h"
