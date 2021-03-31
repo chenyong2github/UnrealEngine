@@ -1137,7 +1137,7 @@ IAnimationDataController& UAnimSequenceBase::GetController()
 
 	if(Controller == nullptr)
 	{
-		IAnimationDataControllerModule& ControllerModule = FModuleManager::Get().LoadModuleChecked<IAnimationDataControllerModule>("AnimationDataController");
+		IAnimationDataControllerModule& ControllerModule = FModuleManager::Get().GetModuleChecked<IAnimationDataControllerModule>("AnimationDataController");
 		Controller = ControllerModule.GetController();
 		Controller->SetModel(DataModel);
 	}
