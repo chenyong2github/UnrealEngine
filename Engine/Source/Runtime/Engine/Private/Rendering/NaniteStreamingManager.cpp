@@ -95,6 +95,25 @@ DEFINE_LOG_CATEGORY(LogNaniteStreaming);
 namespace Nanite
 {
 
+// Round up to smallest value greater than or equal to x of the form k*2^s where k < 2^NumSignificantBits.
+// This is the same as RoundUpToPowerOfTwo when NumSignificantBits=1.
+// For larger values of NumSignificantBits each po2 bucket is subdivided into 2^(NumSignificantBits-1) linear steps.
+// This gives more steps while still maintaining an overall exponential structure and keeps numbers nice and round (in the po2 sense).
+
+// Example:
+// Representable values for different values of NumSignificantBits.
+// 1: ..., 16, 32, 64, 128, 256, 512, ...
+// 2: ..., 16, 24, 32,  48,  64,  96, ...
+// 3: ..., 16, 20, 24,  28,  32,  40, ...
+static uint32 RoundUpToSignificantBits(uint32 x, uint32 NumSignificantBits)
+{
+	check(NumSignificantBits <= 32);
+
+	const int32_t Shift = FMath::Max((int32)FMath::CeilLogTwo(x) - (int32)NumSignificantBits, 0);
+	const uint32 Mask = (1u << Shift) - 1u;
+	return (x + Mask) & ~Mask;
+}
+
 class FTranscodePageToGPU_CS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FTranscodePageToGPU_CS);
@@ -1085,7 +1104,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 
 	check( MaxStreamingPages <= MAX_GPU_PAGES );
 	uint32 MaxRootPages = MAX_GPU_PAGES - MaxStreamingPages;
-	uint32 NumAllocatedRootPages = FMath::Clamp( FMath::RoundUpToPowerOfTwo( RootPages.Allocator.GetMaxSize() ), (uint32)GNaniteStreamingNumInitialRootPages, MaxRootPages );
+	uint32 NumAllocatedRootPages = FMath::Clamp( RoundUpToSignificantBits( RootPages.Allocator.GetMaxSize(), 2 ), (uint32)GNaniteStreamingNumInitialRootPages, MaxRootPages );
 	check( NumAllocatedRootPages >= (uint32)RootPages.Allocator.GetMaxSize() );	// Root pages just don't fit!
 	
 	uint32 WidthInTiles = 12;
