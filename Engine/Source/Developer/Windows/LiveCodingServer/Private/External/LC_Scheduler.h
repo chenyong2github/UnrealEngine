@@ -13,19 +13,21 @@ namespace scheduler
 	void Startup(void);
 	void Shutdown(void);
 
+	// BEGIN EPIC MOD
 	// creates a new task from any function
 	template <typename F>
-	Task<typename std::result_of<F()>::type>* CreateTask(F&& function)
+	Task<std::invoke_result_t<F>>* CreateTask(F&& function)
 	{
-		return new Task<typename std::result_of<F()>::type>(function);
+		return new Task<std::invoke_result_t<F()>>(function);
 	}
 
 	// creates a new task from any function as child of a parent task
 	template <typename F>
-	Task<typename std::result_of<F()>::type>* CreateTask(TaskBase* parent, F&& function)
+	Task<std::invoke_result_t<F>>* CreateTask(TaskBase* parent, F&& function)
 	{
-		return new Task<typename std::result_of<F()>::type>(parent, function);
+		return new Task<std::invoke_result_t<F>>(parent, function);
 	}
+	// END EPIC MOD
 
 	// creates an empty task
 	TaskBase* CreateEmptyTask(void);

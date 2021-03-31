@@ -27,10 +27,14 @@ public:
 	~COMThread(void);
 
 	// helper function that runs any given function in the internal COM thread and waits until execution has finished
+	// BEGIN EPIC MOD
 	template <typename F, typename... Args>
-	inline typename std::result_of<F(Args...)>::type CallInThread(F ptrToFunction, Args&&... args)
+	inline std::invoke_result_t<F, Args...> CallInThread(F ptrToFunction, Args&&... args)
+	// END EPIC MOD
 	{
-		typedef typename std::result_of<F(Args...)>::type ReturnValue;
+		// BEGIN EPIC MOD
+		typedef std::invoke_result_t<F, Args...> ReturnValue;
+		// END EPIC MOD
 
 		// a helper lambda that calls the given functions with the provided arguments.
 		// because this lambda needs to capture, it cannot be converted to a function pointer implicitly,

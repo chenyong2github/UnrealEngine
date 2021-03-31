@@ -5,6 +5,7 @@
 // BEGIN EPIC MOD
 #include "CoreTypes.h"
 #include "Windows/WindowsHWrapper.h"
+#include <atomic>
 // END EPIC MOD
 
 #define LC_FILE									__FILE__
@@ -23,7 +24,7 @@
 #define LC_RESTRICT								__restrict
 #define LC_UNUSED(_value)						(void)(_value)
 
-#define LC_COMPILER_FENCE						::_ReadWriteBarrier()
 // BEGIN EPIC MOD
-#define LC_MEMORY_FENCE							::_mm_sfence()
+#define LC_COMPILER_FENCE						std::atomic_signal_fence(std::memory_order_acq_rel)
+#define LC_MEMORY_FENCE							std::atomic_thread_fence(std::memory_order_acq_rel)
 // END EPIC MOD
