@@ -15,6 +15,7 @@
 // If the textures are atlased or something like that in the future it should be ok to turn on.
 #define USE_SOURCE_TEXTURE 0
 
+#include "HairStrands/HairStrandsVisibilityCommonStruct.ush" 
 #include "Common.ush"
 #include "DeferredShadingCommon.ush"  
 #include "BRDF.ush"
@@ -22,6 +23,12 @@
 #include "LightGridCommon.ush"
 #include "DeferredLightingCommon.ush"
 
+#if USE_HAIR_LIGHTING == 1
+	#include "HairStrands/HairStrandsCommon.ush"
+	#include "HairStrands/HairStrandsVisibilityCommon.ush"
+	#include "HairStrands/HairStrandsDeepTransmittanceCommon.ush"
+	#include "HairStrands/HairStrandsDeepTransmittanceDualScattering.ush" 
+#endif // USE_HAIR_LIGHTING
 
 // Causes the shader to run one pass over the light list per shading model, which cuts down peak register pressure.
 // Moves some overhead out of the inner loop (testing for shading model) which ought to be a good thing also.
@@ -32,11 +39,16 @@
 
 Texture2D< uint > ShadowMaskBits;
 
+#if USE_HAIR_LIGHTING
+uint				HairTransmittanceBufferMaxCount;
+Buffer<uint>		HairTransmittanceBuffer;
+#endif
+
 /**
  * Adds local lighting using the light grid, does not apply directional lights, as they are done elsewhere.
  * Does not support dynamic shadows, as these require the per-light shadow mask.
  */
-float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, float3 WorldPosition, float3 CameraVector, FScreenSpaceData ScreenSpaceData, float2 ScreenUV, uint EyeIndex, float Dither, uint FirstNonSimpleLightIndex)
+float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, float3 WorldPosition, float3 CameraVector, FScreenSpaceData ScreenSpaceData, float2 ScreenUV, uint EyeIndex, float Dither, uint FirstNonSimpleLightIndex, uint SampleIndex=0, uint TotalSampleCount=0, uint2 PixelCoord=0)
 {
 	float4 DirectLighting = 0;
 
@@ -114,10 +126,51 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 		LightData.ShadowedBits = 1;
 		// Be careful with the shift here as the shift amount is mod 32, so >>32 is a noop rather than zero
 		// We treat lights past the 10th as unshadowed
-		if (LocalLightListIndex < 10)
+		if (LocalLightListIndex < GetShadowMaskMaxLightCount())
 		{
-			LightAttenuation = ( ( ShadowMask >> (LocalLightListIndex * 3) ) & 7 ) / 7.0;
+			LightAttenuation = UnpackShadowMask(ShadowMask, LocalLightListIndex);
 		}
+
+		LightData.HairTransmittance = InitHairTransmittanceData();
+
+		#if USE_HAIR_LIGHTING
+		LightAttenuation = 1.0f; // TODO: use shadow mask bits (e.g., subpixel shadow mask)
+		if (LightAttenuation.x > 0)
+		{
+			float3 L = float3(0, 0, 1);
+			if (LightData.bRadialLight)
+				L = normalize(LightData.Position - WorldPosition);
+			else
+				L = LightData.Direction;
+
+			const float3 V = normalize(-CameraVector);
+
+			// Fetch precomputed transmittance
+			FHairTransmittanceMask TransmittanceMask = InitHairTransmittanceMask();
+			if (LocalLightListIndex < GetShadowMaskMaxLightCount())
+			{
+				const uint TransmittanceSampleIndex = SampleIndex + LocalLightListIndex * TotalSampleCount;
+				const uint TransmittanceSampleMaxCount = TotalSampleCount * GetShadowMaskMaxLightCount();
+				if (TransmittanceSampleIndex < TransmittanceSampleMaxCount)
+				{
+					TransmittanceMask = UnpackTransmittanceMask(HairTransmittanceBuffer[TransmittanceSampleIndex]);		
+				}
+			}
+
+			// Apply dual scattering
+			LightData.HairTransmittance = GetHairTransmittance(
+				V,
+				L,
+				ScreenSpaceData.GBuffer,
+				TransmittanceMask,
+				View.HairScatteringLUTTexture,
+				View.HairScatteringLUTSampler,
+				View.HairComponents);
+
+			// This shouldn't be needed any more as the virtual shadow map should offer enough spatial precision
+			LightAttenuation = min(LightAttenuation, LightData.HairTransmittance.OpaqueVisibility.xxxx);
+		}
+		#endif
 
 #if 1
 		FRectTexture RectTexture = InitRectTexture(ForwardLightData.DummyRectLightSourceTexture);
@@ -165,8 +218,7 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 
 #endif // USE_PASS_PER_SHADING_MODEL
 
-
-
+#if !USE_HAIR_LIGHTING
 void ClusteredShadingPixelShader(
 	in noperspective float4 UVAndScreenPos : TEXCOORD0,
 	in float4 SvPosition : SV_Position,
@@ -292,4 +344,81 @@ void ClusteredShadingPixelShader(
 #endif
 	OutColor = CompositedLighting;
 }
+#else // USE_HAIR_LIGHTING
+void ClusteredShadingPixelShader(
+	in float4 SvPosition: SV_Position,
+	nointerpolation in uint TotalSampleCount : DISPATCH_NODECOUNT,
+	nointerpolation in uint2 Resolution : DISPATCH_RESOLUTION,
+	out float4 OutColor : SV_Target0)
+{
+	OutColor = 0;
+
+	const uint EyeIndex = 0;
+
+	const uint2 InCoord = uint2(SvPosition.xy);
+	const uint SampleIndex = InCoord.x + InCoord.y * Resolution.x;
+	if (SampleIndex >= TotalSampleCount)
+	{
+		return;
+	}
+
+	const uint2 PixelCoord = HairStrands.HairSampleCoords[SampleIndex];
+	const float2 ScreenUV  = (PixelCoord + float2(0.5f, 0.5f)) / float2(View.BufferSizeAndInvSize.xy);
+	const float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+
+	const FPackedHairSample PackedSample = HairStrands.HairSampleData[SampleIndex];
+	const FHairSample Sample = UnpackHairSample(PackedSample);
+
+	const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
+	
+	const float2 LocalPosition = PixelCoord - View.ViewRectMin.xy;
+	FScreenSpaceData ScreenSpaceData = (FScreenSpaceData)0;
+	{
+		// HAIR_TODO: make a HairSampleToGbuffer helper function
+		ScreenSpaceData.AmbientOcclusion = 1;
+		ScreenSpaceData.GBuffer.WorldNormal = Sample.Tangent;
+		ScreenSpaceData.GBuffer.BaseColor = Sample.BaseColor;
+		ScreenSpaceData.GBuffer.Roughness = Sample.Roughness;
+		ScreenSpaceData.GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
+		ScreenSpaceData.GBuffer.DiffuseColor = 0;
+		ScreenSpaceData.GBuffer.SpecularColor = 0;
+		ScreenSpaceData.GBuffer.Specular = Sample.Specular;
+		ScreenSpaceData.GBuffer.Metallic = 0;
+		ScreenSpaceData.GBuffer.Depth = SceneDepth;
+		ScreenSpaceData.GBuffer.GBufferAO = 1;
+		ScreenSpaceData.GBuffer.CustomData = float4(HairStrands.HairDualScatteringRoughnessOverride, 0, Sample.Backlit, 0);
+		ScreenSpaceData.GBuffer.IndirectIrradiance = 0;
+		ScreenSpaceData.GBuffer.PrecomputedShadowFactors = 1;
+		ScreenSpaceData.GBuffer.PerObjectGBufferData = 0;
+	}
+
+	// TODO: This is how it was in TiledDeferred
+	//const float Dither = 0.5f;
+	// BUT: this is how it is in trad. deferred, assumed better:
+	const float Dither = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
+
+	const uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), SceneDepth);
+	const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridIndex, EyeIndex);
+	// NOTE: this early out helps with the case where there are no lights in the grid cell.
+	if (CulledLightGridData.NumLocalLights == 0)
+	{		
+		return;
+	}
+
+	const float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	const float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
+
+	float4 CompositedLighting = 0;
+	uint FirstNonSimpleLightIndex = 0;
+	CompositedLighting += GetLightGridLocalLighting(CulledLightGridData, WorldPosition, CameraVector, ScreenSpaceData, ScreenUV, 0, Dither, FirstNonSimpleLightIndex, SampleIndex, TotalSampleCount, PixelCoord);
+#if USE_PREEXPOSURE && !VISUALIZE_LIGHT_CULLING
+	CompositedLighting *= View.PreExposure;
+#endif
+
+	// Weight hair sample with its coverage
+	const float LocalCoverage = From8bitCoverage(Sample.Coverage8bit);
+	OutColor.rgb = CompositedLighting.xyz * LocalCoverage;
+	OutColor.a = LocalCoverage;
+}
+#endif // USE_HAIR_LIGHTING
 

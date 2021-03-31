@@ -1183,16 +1183,28 @@ void FDeferredShadingSceneRenderer::RenderLights(
 			if (ShouldUseClusteredDeferredShading() && AreLightsInLightGrid())
 			{
 				FRDGTextureRef ShadowMaskBits = nullptr;
+				FRDGTextureRef HairStrandsShadowMaskBits = nullptr;
 				if( VirtualShadowMapArray.IsAllocated() && CVarVirtualShadowOnePassProjection.GetValueOnRenderThread() )
 				{
 					// TODO: This needs to move into the view loop in clustered deferred shading pass
-					for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
+					for (const FViewInfo& View : Views)
 					{
 						ShadowMaskBits = RenderVirtualShadowMapProjectionOnePass(
 							GraphBuilder,
 							SceneTextures,
-							Views[ ViewIndex ],
-							VirtualShadowMapArray );
+							View,
+							VirtualShadowMapArray,
+							EVirtualShadowMapProjectionInputType::GBuffer);
+
+						if (HairStrands::HasViewHairStrandsData(View))
+						{
+							HairStrandsShadowMaskBits = RenderVirtualShadowMapProjectionOnePass(
+							GraphBuilder,
+							SceneTextures,
+							View,
+							VirtualShadowMapArray,
+							EVirtualShadowMapProjectionInputType::HairStrands);
+						}
 					}
 				}
 				else
@@ -1206,7 +1218,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				// Tell the trad. deferred that the simple lights are spoken for.
 				bRenderSimpleLightsStandardDeferred = false;
 
-				AddClusteredDeferredShadingPass(GraphBuilder, SceneTextures, SortedLightSet, ShadowMaskBits);
+				AddClusteredDeferredShadingPass(GraphBuilder, SceneTextures, SortedLightSet, ShadowMaskBits, HairStrandsShadowMaskBits);
 			}
 			else if (CanUseTiledDeferred())
 			{

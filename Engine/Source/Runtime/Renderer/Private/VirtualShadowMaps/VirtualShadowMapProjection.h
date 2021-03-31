@@ -41,7 +41,8 @@ FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View,
-	FVirtualShadowMapArray& VirtualShadowMapArray );
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	EVirtualShadowMapProjectionInputType InputType);
 
 void CompositeVirtualShadowMapMask(
 	FRDGBuilder& GraphBuilder,

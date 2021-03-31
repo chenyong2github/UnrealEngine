@@ -570,7 +570,8 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
 		const FSortedLightSetSceneInfo& SortedLightsSet,
-		FRDGTextureRef ShadowMaskBits);
+		FRDGTextureRef ShadowMaskBits,
+		FRDGTextureRef HairStrandsShadowMaskBits);
 
 	/** Renders the lights in SortedLights in the range [TiledDeferredLightsStart, TiledDeferredLightsEnd) using tiled deferred shading. */
 	void RenderTiledDeferredLighting(
