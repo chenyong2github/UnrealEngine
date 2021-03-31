@@ -151,6 +151,13 @@ bool FPlugin::UpdateDescriptor(const FPluginDescriptor& NewDescriptor, FText& Ou
 	}
 
 	Descriptor = NewDescriptor;
+
+	IPluginManager& PluginManager = IPluginManager::Get();
+	if (PluginManager.OnPluginEdited().IsBound())
+	{
+		PluginManager.OnPluginEdited().Broadcast(*this);
+	}
+
 	return true;
 }
 
@@ -1764,6 +1771,11 @@ IPluginManager::FNewPluginMountedEvent& FPluginManager::OnNewPluginCreated()
 IPluginManager::FNewPluginMountedEvent& FPluginManager::OnNewPluginMounted()
 {
 	return NewPluginMountedEvent;
+}
+
+IPluginManager::FNewPluginMountedEvent& FPluginManager::OnPluginEdited()
+{
+	return PluginEditedEvent;
 }
 
 void FPluginManager::MountNewlyCreatedPlugin(const FString& PluginName)

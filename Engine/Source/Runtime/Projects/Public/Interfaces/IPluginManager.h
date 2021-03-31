@@ -335,13 +335,20 @@ public:
 	 */
 	DECLARE_EVENT_OneParam(IPluginManager, FNewPluginMountedEvent, IPlugin&);
 
-
+	/**
+	 * Event signature for being notified that a new plugin has been created
+	 */
 	virtual FNewPluginMountedEvent& OnNewPluginCreated() = 0;
 
 	/**
-	 * Gets an array of plugins that loaded their own content pak file
+	 * Event for being notified that a new plugin has been mounted
 	 */
 	virtual FNewPluginMountedEvent& OnNewPluginMounted() = 0;
+
+	/**
+	 * Event for being notified that a plugin has been edited
+	 */
+	virtual FNewPluginMountedEvent& OnPluginEdited() = 0;
 
 	/**
 	 * Marks a newly created plugin as enabled, mounts its content and tries to load its modules
