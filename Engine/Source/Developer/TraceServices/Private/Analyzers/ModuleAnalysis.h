@@ -19,7 +19,7 @@ public:
 	virtual bool 	OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
 private:
-	uint64			GetRealBaseAddress(uint32 EventBase);
+	uint64			GetRealBaseAddress(uint32 EventBase) const;
 
 	IAnalysisSession& Session;
 	IModuleAnalysisProvider* Provider;
