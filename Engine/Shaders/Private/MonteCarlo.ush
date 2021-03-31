@@ -341,17 +341,30 @@ float4 ImportanceSampleGGX( float2 E, float a2 )
 	return float4( H, PDF );
 }
 
+float VisibleGGXPDF(float3 V, float3 H, float a2)
+{
+	float NoV = V.z;
+	float NoH = H.z;
+	float VoH = dot(V, H);
+
+	float d = (NoH * a2 - NoH) * NoH + 1;
+	float D = a2 / (PI*d*d);
+
+	float PDF = 2 * VoH * D / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
+	return PDF;
+}
+
 float VisibleGGXPDF_aniso(float3 V, float3 H, float2 Alpha)
 {
 	float NoV = V.z;
 	float NoH = H.z;
 	float VoH = dot(V, H);
-	float CosThetaM4 = Pow2(NoH);
-	float TanThetaM2 = (Pow2(H.x / Alpha.x) + Pow2(H.y / Alpha.y)) / Pow2(NoH);
-	float D = 1 / (PI * Pow2(1 + TanThetaM2) * Alpha.x * Alpha.y * CosThetaM4);
-	float Lambda_i = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(V.x * Alpha.x) + Pow2(V.y * Alpha.y)) / Pow2(V.z)));
-	float G1 = 1 / (Lambda_i + 1);
-	float Pdf = (G1 * D * VoH) / NoV;
+	float a2 = Alpha.x * Alpha.y;
+	float3 Hs = float3(Alpha.y * H.x, Alpha.x * H.y, a2 * NoH);
+	float S = dot(Hs, Hs);
+	float D = (1.0f / PI) * a2 * Square(a2 / S);
+	float LenV = length(float3(V.x * Alpha.x, V.y * Alpha.y, NoV));
+	float Pdf = (2 * D * VoH) / (NoV + LenV);
 	return Pdf;
 }
 
@@ -366,15 +379,11 @@ float4 ImportanceSampleVisibleGGX( float2 DiskE, float a2, float3 V )
 	// stretch
 	float3 Vh = normalize( float3( a * V.xy, V.z ) );
 
-	// Orthonormal basis
-	// Tangent0 is orthogonal to N.
-	#if 1 // Stable tangent basis based on V.
-		float3 Tangent0 = (V.z < 0.9999) ? normalize( cross( float3(0, 0, 1), V ) ) : float3(1, 0, 0);
-		float3 Tangent1 = normalize(cross( Vh, Tangent0 ));
-	#else
-		float3 Tangent0 = (Vh.z < 0.9999) ? normalize( cross( float3(0, 0, 1), Vh ) ) : float3(1, 0, 0);
-		float3 Tangent1 = cross( Vh, Tangent0 );
-	#endif
+	// Stable tangent basis based on V
+	// Tangent0 is orthogonal to N
+	float LenSq = Vh.x * Vh.x + Vh.y * Vh.y;
+	float3 Tangent0 = LenSq > 0 ? float3(-Vh.y, Vh.x, 0) * rsqrt(LenSq) : float3(1, 0, 0);
+	float3 Tangent1 = cross(Vh, Tangent0);
 
 	float2 p = DiskE;
 	float s = 0.5 + 0.5 * Vh.z;
@@ -388,18 +397,7 @@ float4 ImportanceSampleVisibleGGX( float2 DiskE, float a2, float3 V )
 	// unstretch
 	H = normalize( float3( a * H.xy, max(0.0, H.z) ) );
 
-	float NoV = V.z;
-	float NoH = H.z;
-	float VoH = dot(V, H);
-
-	float d = (NoH * a2 - NoH) * NoH + 1;
-	float D = a2 / (PI*d*d);
-
-	float G_SmithV = 2 * NoV / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
-
-	float PDF = G_SmithV * VoH * D / NoV;
-
-	return float4(H, PDF);
+	return float4(H, VisibleGGXPDF(V, H, a2));
 }
 
 // [ Heitz 2018, "Sampling the GGX Distribution of Visible Normals" ]
@@ -412,8 +410,9 @@ float4 ImportanceSampleVisibleGGX_aniso(float2 DiskE, float2 Alpha, float3 V)
 	float3 Vh = normalize(float3(Alpha * V.xy, V.z));
 
 	// Stable tangent basis based on V
-	float3 Tx = (V.z < 0.9999) ? normalize(float3(-V.y, V.x, 0)) : float3(1, 0, 0);
-	float3 Ty = normalize(cross(Vh, Tx));
+	float LenSq = Vh.x * Vh.x + Vh.y * Vh.y;
+	float3 Tx = LenSq > 0 ? float3(-Vh.y, Vh.x, 0) * rsqrt(LenSq) : float3(1, 0, 0);
+	float3 Ty = cross(Vh, Tx);
 
 	float2 p = DiskE;
 	float s = 0.5 + 0.5 * Vh.z;
