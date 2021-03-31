@@ -1187,7 +1187,6 @@ public:
 
 	// FlushType: Flush Immediate
 	virtual bool RHIEnqueueDecompress(uint8_t* SrcBuffer, uint8_t* DestBuffer, int CompressedSize, void* ErrorCodeBuffer) { return false; }
-	virtual bool RHIEnqueueCompress(uint8_t* SrcBuffer, uint8_t* DestBuffer, int UnCompressedSize, void* ErrorCodeBuffer) { return false; }
 
 	/**
 	*	Retrieve available screen resolutions.
