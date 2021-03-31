@@ -156,7 +156,7 @@ uint GetRelativeMaterialIndex(FCluster InCluster, uint InTriIndex)
 	else
 	{
 		uint TableOffset = InCluster.PageBaseAddress + InCluster.MaterialTableOffset * 4;
-		for (uint TableEntry = 0; TableEntry < InCluster.MaterialTableLength; ++TableEntry)
+		LOOP for (uint TableEntry = 0; TableEntry < InCluster.MaterialTableLength; ++TableEntry)
 		{
 			uint EncodedRange = ClusterPageData.Load(TableOffset);
 			TableOffset += 4;
@@ -166,11 +166,11 @@ uint GetRelativeMaterialIndex(FCluster InCluster, uint InTriIndex)
 			// uint32 MaterialIndex :  6; // max  64 materials
 			// uint32 Padding       : 10;
 
-			const uint TriStart = (EncodedRange & 0x000000FF);
-			const uint TriLength = (EncodedRange & 0x0000FF00) >> 8;
+			const uint TriStart  = BitFieldExtractU32(EncodedRange, 8, 0);
+			const uint TriLength = BitFieldExtractU32(EncodedRange, 8, 8);
 			if (InTriIndex >= TriStart && InTriIndex < (TriStart + TriLength))
 			{
-				MaterialIndex = (EncodedRange & 0x003F0000) >> 16;
+				MaterialIndex = BitFieldExtractU32(EncodedRange, 16, 16);
 				break;
 			}
 		}

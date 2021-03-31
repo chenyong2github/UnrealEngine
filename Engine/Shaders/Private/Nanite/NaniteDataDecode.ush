@@ -480,6 +480,7 @@ FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint Clus
 	// uint BufferLength    : 6;  // max 64 ranges (num minus one)
 	// uint Padding         : 7;  // always 127 for slow path. corresponds to Material1Length=127 in fast path
 
+	BRANCH
 	if (MaterialEncoding < 0xFE000000u)
 	{
 		// Fast inline path
