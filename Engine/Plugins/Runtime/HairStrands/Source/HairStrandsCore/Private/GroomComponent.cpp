@@ -1641,6 +1641,20 @@ FHairStrandsRestRootResource* UGroomComponent::GetGuideStrandsRestRootResource(u
 	return HairGroupInstances[GroupIndex]->Guides.RestRootResource;
 }
 
+const FTransform& UGroomComponent::GetGuideStrandsLocalToWorld(uint32 GroupIndex) const
+{
+	if (GroupIndex >= uint32(HairGroupInstances.Num()))
+	{
+		return FTransform::Identity;
+	}
+
+	if (!HairGroupInstances[GroupIndex]->Guides.IsValid())
+	{
+		return FTransform::Identity;
+	}
+	return HairGroupInstances[GroupIndex]->LocalToWorld;
+}
+
 FHairStrandsDeformedRootResource* UGroomComponent::GetGuideStrandsDeformedRootResource(uint32 GroupIndex)
 {
 	if (GroupIndex >= uint32(HairGroupInstances.Num()))

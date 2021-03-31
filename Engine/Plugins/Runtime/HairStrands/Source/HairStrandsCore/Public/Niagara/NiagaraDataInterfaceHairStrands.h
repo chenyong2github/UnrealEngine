@@ -97,7 +97,7 @@ struct FNDIHairStrandsData
 	void Release();
 
 	/** Update the buffers */
-	void Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsDatas* HairStrandsDatas, UGroomAsset* GroomAsset, const int32 GroupIndex);
+	void Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsDatas* HairStrandsDatas, UGroomAsset* GroomAsset, const int32 GroupIndex, const FTransform& LocalToWorld);
 
 	inline void ResetDatas()
 	{
@@ -362,7 +362,8 @@ public:
 		FHairStrandsRestRootResource*& OutStrandsRestRootResource, 
 		FHairStrandsDeformedRootResource*& OutStrandsDeformedRootResource,
 		UGroomAsset*& OutGroomAsset,
-		int32& OutGroupIndex);
+		int32& OutGroupIndex,
+		FTransform& OutLocalToWorld);
 
 	/** Get the number of strands */
 	void GetNumStrands(FVectorVMContext& Context);
