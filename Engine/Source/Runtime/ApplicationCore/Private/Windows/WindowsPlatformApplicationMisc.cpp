@@ -90,7 +90,7 @@ bool FWindowsPlatformApplicationMisc::IsThisApplicationForeground()
 
 int32 FWindowsPlatformApplicationMisc::GetAppIcon()
 {
-	return IDICON_UE4Game;
+	return IDICON_UEGame;
 }
 
 static void WinPumpMessages()

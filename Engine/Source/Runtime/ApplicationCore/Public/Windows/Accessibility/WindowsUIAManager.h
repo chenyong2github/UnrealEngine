@@ -16,7 +16,7 @@ class IAccessibleWidget;
 class FVariant;
 
 /**
- * Manager for Windows implementation of UE4's accessibility API, utilizing Microsoft's UI Automation API. It provides a
+ * Manager for Windows implementation of UE's accessibility API, utilizing Microsoft's UI Automation API. It provides a
  * central location for message passing to/from the WindowsApplication, AccessibleMessageHandler, and Windows UIA Providers.
  *
  * This class only accepts and returns references, so callers should ensure their objects are valid before using it.
