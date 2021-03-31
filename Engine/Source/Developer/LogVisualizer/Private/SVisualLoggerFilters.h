@@ -10,14 +10,13 @@
 
 class FMenuBuilder;
 class SComboButton;
-class SFilterWidget;
+class SVisualLoggerFilterWidget;
 class SWrapBox;
 struct FVisualLoggerDBRow;
 
 /**
 * A list of filters currently applied to an asset view.
 */
-class SFilterWidget;
 class SVisualLoggerFilters : public SVisualLoggerBaseWidget
 {
 public:
@@ -58,7 +57,7 @@ protected:
 protected:
 	/** The horizontal box which contains all the filters */
 	TSharedPtr<SWrapBox> FilterBox;
-	TArray<TSharedRef<SFilterWidget> > Filters;
+	TArray<TSharedRef<SVisualLoggerFilterWidget>> Filters;
 	TSharedPtr<SComboButton> GraphsFilterCombo;
 
 	FString GraphsSearchString;

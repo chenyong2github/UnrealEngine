@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SFilterWidget.h"
+#include "SVisualLoggerFilterWidget.h"
 #include "Misc/OutputDeviceHelper.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
@@ -10,9 +10,9 @@
 #include "LogVisualizerSettings.h"
 #include "LogVisualizerStyle.h"
 
-#define LOCTEXT_NAMESPACE "SFilterWidget"
+#define LOCTEXT_NAMESPACE "SVisualLoggerFilterWidget"
 /** Constructs this widget with InArgs */
-void SFilterWidget::Construct(const FArguments& InArgs)
+void SVisualLoggerFilterWidget::Construct(const FArguments& InArgs)
 {
 	OnFilterChanged = InArgs._OnFilterChanged;
 	OnRequestRemove = InArgs._OnRequestRemove;
@@ -36,30 +36,30 @@ void SFilterWidget::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Padding(2)
-			.BorderBackgroundColor(this, &SFilterWidget::GetBorderBackgroundColor)
+			.BorderBackgroundColor(this, &SVisualLoggerFilterWidget::GetBorderBackgroundColor)
 			.BorderImage(FLogVisualizerStyle::Get().GetBrush("ContentBrowser.FilterButtonBorder"))
 			[
-				SAssignNew(ToggleButtonPtr, SFilterCheckBox)
+				SAssignNew(ToggleButtonPtr, SVisualLoggerFilterCheckBox)
 				.Style(FLogVisualizerStyle::Get(), "ContentBrowser.FilterButton")
-				.ToolTipText(this, &SFilterWidget::GetTooltipString)
-				.Padding(this, &SFilterWidget::GetFilterNamePadding)
-				.IsChecked(this, &SFilterWidget::IsChecked)
-				.OnCheckStateChanged(this, &SFilterWidget::FilterToggled)
-				.OnGetMenuContent(this, &SFilterWidget::GetRightClickMenuContent)
-				.ForegroundColor(this, &SFilterWidget::GetFilterForegroundColor)
+				.ToolTipText(this, &SVisualLoggerFilterWidget::GetTooltipString)
+				.Padding(this, &SVisualLoggerFilterWidget::GetFilterNamePadding)
+				.IsChecked(this, &SVisualLoggerFilterWidget::IsChecked)
+				.OnCheckStateChanged(this, &SVisualLoggerFilterWidget::FilterToggled)
+				.OnGetMenuContent(this, &SVisualLoggerFilterWidget::GetRightClickMenuContent)
+				.ForegroundColor(this, &SVisualLoggerFilterWidget::GetFilterForegroundColor)
 				[
 					SNew(STextBlock)
-					.ColorAndOpacity(this, &SFilterWidget::GetFilterNameColorAndOpacity)
-					.Text(this, &SFilterWidget::GetCaptionString)
+					.ColorAndOpacity(this, &SVisualLoggerFilterWidget::GetFilterNameColorAndOpacity)
+					.Text(this, &SVisualLoggerFilterWidget::GetCaptionString)
 				]
 			]
 		];
 
-	ToggleButtonPtr->SetOnFilterDoubleClicked(FOnClicked::CreateSP(this, &SFilterWidget::FilterDoubleClicked));
-	ToggleButtonPtr->SetOnFilterMiddleButtonClicked(FOnClicked::CreateSP(this, &SFilterWidget::FilterMiddleButtonClicked));
+	ToggleButtonPtr->SetOnFilterDoubleClicked(FOnClicked::CreateSP(this, &SVisualLoggerFilterWidget::FilterDoubleClicked));
+	ToggleButtonPtr->SetOnFilterMiddleButtonClicked(FOnClicked::CreateSP(this, &SVisualLoggerFilterWidget::FilterMiddleButtonClicked));
 }
 
-FText SFilterWidget::GetCaptionString() const
+FText SVisualLoggerFilterWidget::GetCaptionString() const
 {
 	FString CaptionString;
 	FCategoryFilter& CategoryFilter = FVisualLoggerFilters::Get().GetCategoryByName(GetFilterNameAsString());
@@ -81,7 +81,7 @@ FText SFilterWidget::GetCaptionString() const
 	return CachedCaptionString;
 }
 
-FText SFilterWidget::GetTooltipString() const
+FText SVisualLoggerFilterWidget::GetTooltipString() const
 {
 	if (bWasEnabledLastTime != IsEnabled())
 	{
@@ -101,7 +101,7 @@ FText SFilterWidget::GetTooltipString() const
 	return CachedTooltipString;
 }
 
-TSharedRef<SWidget> SFilterWidget::GetRightClickMenuContent()
+TSharedRef<SWidget> SVisualLoggerFilterWidget::GetRightClickMenuContent()
 {
 	FMenuBuilder MenuBuilder(true, NULL);
 
@@ -117,7 +117,7 @@ TSharedRef<SWidget> SFilterWidget::GetRightClickMenuContent()
 					FText::Format(LOCTEXT("UseVerbosity", "Use: {0}"), FText::FromString(VerbosityStr)),
 					LOCTEXT("UseVerbosityTooltip", "Applay verbosity to selected flter."),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateSP(this, &SFilterWidget::SetVerbosityFilter, Index))
+					FUIAction(FExecuteAction::CreateSP(this, &SVisualLoggerFilterWidget::SetVerbosityFilter, Index))
 					);
 			}
 		}
@@ -128,26 +128,26 @@ TSharedRef<SWidget> SFilterWidget::GetRightClickMenuContent()
 			LOCTEXT("DisableAllButThis", "Disable all but this"),
 			LOCTEXT("HideAllButThisTooltip", "Disable all other categories"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SFilterWidget::DisableAllButThis))
+			FUIAction(FExecuteAction::CreateSP(this, &SVisualLoggerFilterWidget::DisableAllButThis))
 			);
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("EnableAll", "Enable all categories"),
 			LOCTEXT("EnableAllTooltip", "Enable all categories"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SFilterWidget::EnableAllCategories))
+			FUIAction(FExecuteAction::CreateSP(this, &SVisualLoggerFilterWidget::EnableAllCategories))
 			);
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }
 
-bool SFilterWidget::IsEnabled() const 
+bool SVisualLoggerFilterWidget::IsEnabled() const 
 { 
 	FCategoryFilter& CategoryFilter = FVisualLoggerFilters::Get().GetCategoryByName(GetFilterNameAsString());
 	return CategoryFilter.Enabled;
 }
 
-void SFilterWidget::SetEnabled(bool InEnabled)
+void SVisualLoggerFilterWidget::SetEnabled(bool InEnabled)
 {
 	FCategoryFilter& CategoryFilter = FVisualLoggerFilters::Get().GetCategoryByName(GetFilterNameAsString());
 	if (InEnabled != CategoryFilter.Enabled)
@@ -157,25 +157,25 @@ void SFilterWidget::SetEnabled(bool InEnabled)
 	}
 }
 
-void SFilterWidget::FilterToggled(ECheckBoxState NewState)
+void SVisualLoggerFilterWidget::FilterToggled(ECheckBoxState NewState)
 {
 	SetEnabled(NewState == ECheckBoxState::Checked);
 }
 
-void SFilterWidget::SetVerbosityFilter(int32 SelectedVerbosityIndex)
+void SVisualLoggerFilterWidget::SetVerbosityFilter(int32 SelectedVerbosityIndex)
 {
 	FCategoryFilter& CategoryFilter = FVisualLoggerFilters::Get().GetCategoryByName(GetFilterNameAsString());
 	CategoryFilter.LogVerbosity = (ELogVerbosity::Type)SelectedVerbosityIndex;
 	OnFilterChanged.ExecuteIfBound();
 }
 
-void SFilterWidget::DisableAllButThis()
+void SVisualLoggerFilterWidget::DisableAllButThis()
 {
 	FVisualLoggerFilters::Get().DeactivateAllButThis(GetFilterNameAsString());
 	OnFilterChanged.ExecuteIfBound();
 }
 
-void SFilterWidget::EnableAllCategories()
+void SVisualLoggerFilterWidget::EnableAllCategories()
 {
 	FVisualLoggerFilters::Get().EnableAllCategories();
 	OnFilterChanged.ExecuteIfBound();

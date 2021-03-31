@@ -9,20 +9,18 @@
 #include "Layout/Margin.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Developer/LogVisualizer/Private/SFilterCheckBox.h"
-
-class SFilterCheckBox;
+#include "SVisualLoggerFilterCheckBox.h"
 
 /**
 * A single filter in the filter list. Can be removed by clicking the remove button on it.
 */
-class SFilterWidget : public SCompoundWidget
+class SVisualLoggerFilterWidget : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FOnFilterRequest, const TSharedRef<SFilterWidget>&);
+	DECLARE_DELEGATE_OneParam(FOnFilterRequest, const TSharedRef<SVisualLoggerFilterWidget>&);
 	DECLARE_DELEGATE(FOnSimpleRequest);
 
-	SLATE_BEGIN_ARGS(SFilterWidget){}
+	SLATE_BEGIN_ARGS(SVisualLoggerFilterWidget){}
 		/** If this is an front end filter, this is the filter object */
 	SLATE_ARGUMENT(FName, FilterName)
 		/** Color selected for filter*/
@@ -102,14 +100,14 @@ private:
 
 	void RemoveFilter()
 	{
-		TSharedRef<SFilterWidget> Self = SharedThis(this);
+		TSharedRef<SVisualLoggerFilterWidget> Self = SharedThis(this);
 		OnRequestRemove.ExecuteIfBound(Self);
 	}
 
 	/** Enables only this filter from the filter list */
 	void EnableOnly()
 	{
-		TSharedRef<SFilterWidget> Self = SharedThis(this);
+		TSharedRef<SVisualLoggerFilterWidget> Self = SharedThis(this);
 		OnRequestEnableOnly.ExecuteIfBound(Self);
 	}
 
@@ -161,7 +159,7 @@ private:
 	FLinearColor ColorCategory;
 
 	/** The button to toggle the filter on or off */
-	TSharedPtr<SFilterCheckBox> ToggleButtonPtr;
+	TSharedPtr<SVisualLoggerFilterCheckBox> ToggleButtonPtr;
 
 	/** The color of the checkbox for this filter */
 	FLinearColor FilterColor;

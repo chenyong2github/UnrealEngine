@@ -7,7 +7,7 @@
 #include "Widgets/Input/SCheckBox.h"
 
 /** A class for check boxes in the filter list. If you double click a filter check box, you will enable it and disable all others */
-class SFilterCheckBox : public SCheckBox
+class SVisualLoggerFilterCheckBox : public SCheckBox
 {
 public:
 	void SetOnFilterDoubleClicked(const FOnClicked& NewFilterDoubleClicked)

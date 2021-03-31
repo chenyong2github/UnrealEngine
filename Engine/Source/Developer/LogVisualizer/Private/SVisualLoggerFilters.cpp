@@ -11,7 +11,7 @@
 #include "LogVisualizerSettings.h"
 #include "VisualLoggerDatabase.h"
 #include "LogVisualizerStyle.h"
-#include "SFilterWidget.h"
+#include "SVisualLoggerFilterWidget.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "LogVisualizerPublic.h"
 
@@ -327,7 +327,7 @@ void SVisualLoggerFilters::AddFilterCategory(FString InName, ELogVerbosity::Type
 	}
 	else
 	{
-		for (TSharedRef<SFilterWidget>& CurrentFilter : Filters)
+		for (TSharedRef<SVisualLoggerFilterWidget>& CurrentFilter : Filters)
 		{
 			if (CurrentFilter->GetFilterNameAsString() == InName)
 			{
@@ -336,11 +336,11 @@ void SVisualLoggerFilters::AddFilterCategory(FString InName, ELogVerbosity::Type
 		}
 
 		const FLinearColor Color = FLogVisualizer::Get().GetColorForCategory(InName);
-		TSharedRef<SFilterWidget> NewFilter =
-			SNew(SFilterWidget)
+		TSharedRef<SVisualLoggerFilterWidget> NewFilter =
+			SNew(SVisualLoggerFilterWidget)
 			.FilterName(*InName)
 			.ColorCategory(Color)
-			.OnFilterChanged(SFilterWidget::FOnSimpleRequest::CreateRaw(this, &SVisualLoggerFilters::OnFiltersChanged));
+			.OnFilterChanged(SVisualLoggerFilterWidget::FOnSimpleRequest::CreateRaw(this, &SVisualLoggerFilters::OnFiltersChanged));
 
 		Filters.Add(NewFilter);
 		FilterBox->AddSlot()
@@ -380,7 +380,7 @@ void SVisualLoggerFilters::OnFilterCategoryRemoved(FString InName)
 	}
 	else
 	{
-		for (TSharedRef<SFilterWidget> CurrentFilter : Filters)
+		for (TSharedRef<SVisualLoggerFilterWidget> CurrentFilter : Filters)
 		{
 			if (CurrentFilter->GetFilterNameAsString() == InName)
 			{
@@ -395,7 +395,7 @@ void SVisualLoggerFilters::OnFilterCategoryRemoved(FString InName)
 void SVisualLoggerFilters::OnFiltersChanged()
 {
 	TArray<FString> EnabledFilters;
-	for (TSharedRef<SFilterWidget> CurrentFilter : Filters)
+	for (TSharedRef<SVisualLoggerFilterWidget> CurrentFilter : Filters)
 	{
 		if (CurrentFilter->IsEnabled())
 		{
@@ -426,7 +426,7 @@ void SVisualLoggerFilters::OnItemsSelectionChanged(const FVisualLoggerDBRow& Cha
 
 	for (int32 Index = 0; Index < Filters.Num(); ++Index)
 	{
-		SFilterWidget& Filter = Filters[Index].Get();
+		SVisualLoggerFilterWidget& Filter = Filters[Index].Get();
 		Filter.SetBorderBackgroundColor(FLinearColor(0.2f, 0.2f, 0.2f, 0.2f));
 		for (const FVisualLoggerCategoryVerbosityPair& Category : Categories)
 		{
