@@ -3,7 +3,7 @@
 
 #include "Solvers/TransformSolver.h"
 #include "IKRigDataTypes.h"
-
+#include "IKRigSkeleton.h"
 
 UTransformSolver::UTransformSolver()
 {
@@ -20,8 +20,8 @@ void UTransformSolver::Solve(
 	const FIKRigGoalContainer& Goals,
 	FControlRigDrawInterface* InOutDrawInterface)
 {
-	FIKRigGoal Goal;
-	if (!GetGoalForEffector(Effector, Goals, Goal))
+	FIKRigGoal OutGoal;
+	if (!Goals.GetGoalByName(Effector.Goal, OutGoal))
 	{
 		return;
 	}
@@ -30,18 +30,18 @@ void UTransformSolver::Solve(
 
 	if (bEnablePosition)
 	{
-		CurrentTransform.SetLocation(Goal.Position);
+		CurrentTransform.SetLocation(OutGoal.Position);
 	}
 	
 	if (bEnableRotation)
 	{
-		CurrentTransform.SetRotation(Goal.Rotation);
+		CurrentTransform.SetRotation(OutGoal.Rotation.Quaternion());
 	}
 
 	IKRigSkeleton.PropagateGlobalPoseBelowBone(BoneIndex);
 }
 
-void UTransformSolver::CollectGoalNames(TSet<FName>& OutGoals) const
+void UTransformSolver::CollectGoalNames(TSet<FIKRigEffectorGoal>& OutGoals) const
 {
-	OutGoals.Add(Effector.Goal);
+	OutGoals.Add(Effector);
 }

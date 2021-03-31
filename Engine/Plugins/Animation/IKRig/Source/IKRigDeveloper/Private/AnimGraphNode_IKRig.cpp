@@ -30,9 +30,6 @@ FText UAnimGraphNode_IKRig::GetNodeTitle(ENodeTitleType::Type TitleType) const
 void UAnimGraphNode_IKRig::CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNode)
 {
 	FAnimNode_IKRig* IKRigNode = static_cast<FAnimNode_IKRig*>(InPreviewNode);
-
-	// copies Pin values from the internal node to get data which are not compiled yet
-	//Fabrik->EffectorTransform = Node.EffectorTransform;
 }
 
 FEditorModeID UAnimGraphNode_IKRig::GetEditorMode() const
@@ -58,8 +55,9 @@ void UAnimGraphNode_IKRig::CustomizePinData(UEdGraphPin* Pin, FName SourceProper
 {
 	Super::CustomizePinData(Pin, SourcePropertyName, ArrayIndex);
 
-	FString PinString = Pin->PinName.ToString();
-	FString GoalPinString = GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_IKRig, GoalTransforms);
+	// set names of GoalTransform pins to names of goals
+	const FString PinString = Pin->PinName.ToString();
+	const FString GoalPinString = GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_IKRig, Goals);
 	const int32 GoalStringLen = GoalPinString.Len();
 	if (PinString.Len() > GoalStringLen && PinString.Left(GoalStringLen) == GoalPinString)
 	{

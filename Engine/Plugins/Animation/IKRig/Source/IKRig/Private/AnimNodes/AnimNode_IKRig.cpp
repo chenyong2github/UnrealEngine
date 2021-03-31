@@ -3,6 +3,8 @@
 #include "AnimNodes/AnimNode_IKRig.h"
 #include "IKRigProcessor.h"
 #include "IKRigDefinition.h"
+#include "IKRigSolver.h"
+#include "ActorComponents/IKRigInterface.h"
 #include "Drawing/ControlRigDrawInterface.h"
 #include "Animation/AnimInstanceProxy.h"
 
@@ -20,7 +22,7 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	FPoseContext SourcePose(Output);
 
-	if (Source.GetLinkNode())
+	if (Source.GetLinkNode() && !bStartFromRefPose)
 	{
 		Source.Evaluate(SourcePose);
 	}
@@ -66,15 +68,15 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 	}
 
 	// update goal transforms before solve
-	for (int32 GoalIndex = 0; GoalIndex < GoalNames.Num(); ++GoalIndex)
+	for (const FIKRigGoal& Goal : Goals)
 	{
-		if (ensure(GoalTransforms.IsValidIndex(GoalIndex)))
-		{
-			IKRigProcessor->SetGoalTransform(
-				GoalNames[GoalIndex], 
-				GoalTransforms[GoalIndex].GetLocation(),
-				GoalTransforms[GoalIndex].GetRotation());
-		}
+		IKRigProcessor->SetIKGoal(Goal);
+	}
+
+	// goals from goal creator components will override any goals that were manually set (they take precedence)
+	for (const TPair<FName, FIKRigGoal>& GoalPair : GoalsFromGoalCreators)
+	{
+		IKRigProcessor->SetIKGoal(GoalPair.Value);
 	}
 
 	// run stack of solvers, updates global transforms with new pose
@@ -93,8 +95,6 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 		}
 	}
 
-	Output.Pose.NormalizeRotations();
-
 	// draw the interface
 	QueueDrawInterface(Output.AnimInstanceProxy, Output.AnimInstanceProxy->GetComponentTransform());
 }
@@ -102,8 +102,23 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 void FAnimNode_IKRig::GatherDebugData(FNodeDebugData& DebugData)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	// alpha later?
-	Source.GatherDebugData(DebugData.BranchFlow(1.f));
+
+	DebugData.AddDebugItem(FString::Printf(TEXT("%s IK Rig evaluated with %d Goals."), *DebugData.GetNodeName(this), Goals.Num()));
+		
+	for (const TPair<FName, FIKRigGoal>& GoalPair : GoalsFromGoalCreators)
+	{
+		DebugData.AddDebugItem(FString::Printf(TEXT("Goal supplied by actor component: %s"), *GoalPair.Value.ToString()));
+	}
+
+	for (const FIKRigGoal& Goal : Goals)
+	{
+		if (GoalsFromGoalCreators.Contains(Goal.Name))
+		{
+			continue;
+		}
+		
+		DebugData.AddDebugItem(FString::Printf(TEXT("Goal supplied by node pin: %s"), *Goal.ToString()));
+	}
 }
 
 void FAnimNode_IKRig::Initialize_AnyThread(const FAnimationInitializeContext& Context)
@@ -115,10 +130,24 @@ void FAnimNode_IKRig::Initialize_AnyThread(const FAnimationInitializeContext& Co
 	{
 		return;
 	}
-	
+
+	// cache list of goal creator components on the actor
+	GoalCreators.Reset();
+	USkeletalMeshComponent* SkelMeshComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
+	AActor* OwningActor = SkelMeshComponent->GetOwner();
+	TArray<UActorComponent*> GoalCreatorComponents =  OwningActor->GetComponentsByInterface( UIKGoalCreatorInterface::StaticClass() );
+	for (UActorComponent* GoalCreatorComponent : GoalCreatorComponents)
+	{
+		IIKGoalCreatorInterface* GoalCreator = Cast<IIKGoalCreatorInterface>(GoalCreatorComponent);
+		if (!ensureMsgf(GoalCreator, TEXT("Goal creator component failed cast to IIKGoalCreatorInterface.")))
+		{
+			continue;
+		}
+		GoalCreators.Add(GoalCreator);
+	}
+
+	// initialize the IK Rig
 	IKRigProcessor->Initialize(RigDefinitionAsset);
-	GoalNames.Reset();
-	IKRigProcessor->GetGoalNames(GoalNames);
 }
 
 void FAnimNode_IKRig::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
@@ -132,6 +161,22 @@ void FAnimNode_IKRig::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy
 	}
 }
 
+void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
+{
+	// pull all the goals out of any goal creators on the owning actor
+	// this is done on the main thread because we're talking to actor components here
+	GoalsFromGoalCreators.Empty();
+	for (IIKGoalCreatorInterface* GoalCreator : GoalCreators)
+	{
+		TMap<FName, FIKRigGoal> OutGoals;
+		GoalCreator->GetIKGoals_Implementation(OutGoals);
+		for (const TPair<FName, FIKRigGoal>& GoalPair : OutGoals)
+		{
+			GoalsFromGoalCreators.Add(GoalPair);
+		}
+	}
+}
+
 bool FAnimNode_IKRig::RebuildGoalList()
 {
 	if (!RigDefinitionAsset)
@@ -139,12 +184,16 @@ bool FAnimNode_IKRig::RebuildGoalList()
 		return false;
 	}
 	
-	TArray<FName> SolverGoals;
-	RigDefinitionAsset->GetGoalNamesFromSolvers(SolverGoals);
-	const int32 GoalNum = SolverGoals.Num();
-	if (GoalTransforms.Num() != GoalNum)
+	TArray<FIKRigEffectorGoal> AllGoalNamesInIKRig;
+	RigDefinitionAsset->GetGoalNamesFromSolvers(AllGoalNamesInIKRig);
+	const int32 NumGoalsInRig = AllGoalNamesInIKRig.Num();
+	if (Goals.Num() != NumGoalsInRig)
 	{
-		GoalTransforms.SetNum(GoalNum);
+		Goals.SetNum(NumGoalsInRig);
+		for (int32 i=0; i<NumGoalsInRig; ++i)
+		{
+			Goals[i].Name = AllGoalNamesInIKRig[i].Goal;
+		}
 		return true;
 	}
 
@@ -155,11 +204,11 @@ FName FAnimNode_IKRig::GetGoalName(int32 Index) const
 {
 	if (RigDefinitionAsset)
 	{
-		TArray<FName> Names;
+		TArray<FIKRigEffectorGoal> Names;
 		RigDefinitionAsset->GetGoalNamesFromSolvers(Names);
 		if (Names.IsValidIndex(Index))
 		{
-			return Names[Index];
+			return Names[Index].Goal;
 		}
 	}
 
@@ -203,7 +252,7 @@ void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Co
 	}
 }
 
-void FAnimNode_IKRig::QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FTransform& ComponentToWorld)
+void FAnimNode_IKRig::QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FTransform& ComponentToWorld) const
 {
 	check (IKRigProcessor);
 	check (AnimProxy);

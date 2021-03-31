@@ -252,7 +252,7 @@ public:
 private:
 
 	UPROPERTY(Transient)
-	UIKRigProcessor* IKRig = nullptr;
+	UIKRigProcessor* IKRigProcessor = nullptr;
 	
 	TArray<FRetargetChainPairFK> ChainPairsFK;
 	

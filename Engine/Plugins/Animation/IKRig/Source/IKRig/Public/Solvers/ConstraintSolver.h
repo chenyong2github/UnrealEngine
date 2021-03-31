@@ -18,6 +18,6 @@ public:
 		FIKRigSkeleton& IKRigSkeleton,
 		const FIKRigGoalContainer& Goals,
 		FControlRigDrawInterface* InOutDrawInterface) override;
-	virtual void CollectGoalNames(TSet<FName>& OutGoals) const override;
+	virtual void CollectGoalNames(TSet<FIKRigEffectorGoal>& OutGoals) const override;
 };
 

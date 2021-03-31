@@ -4,40 +4,72 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "IKRigDataTypes.generated.h"
 
+struct FIKRigEffectorGoal;
 struct FIKRigHierarchy;
 
-USTRUCT()
+
+USTRUCT(Blueprintable)
 struct IKRIG_API FIKRigGoal
 {
 	GENERATED_BODY()
-
-	FIKRigGoal()
-	: Position(ForceInitToZero),
-	Rotation(ForceInitToZero)
-	{
-		Name = NAME_None;
-	}
 	
-	FIKRigGoal(const FName& GoalName)
-	: Position(ForceInitToZero),
-	Rotation(ForceInitToZero)
-	{
-		Name = GoalName;
-	}
-
-	UPROPERTY(VisibleAnywhere, Category = FIKRigGoal)
+	/** Name of the IK Goal. Must correspond to the name of a Goal in the target IKRig asset. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FIKRigGoal)
 	FName Name;
 
-	UPROPERTY(EditAnywhere, Category = FIKRigGoal)
+	/** Position of the IK goal in Component Space of target actor component. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FIKRigGoal)
 	FVector Position;
 
-	UPROPERTY(EditAnywhere, Category = FIKRigGoal)
-	FQuat Rotation;
+	/** Rotation of the IK goal in Component Space of target actor component. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FIKRigGoal)
+	FRotator Rotation;
+
+	/** Range 0-1. Smoothly blends the Goal position from the input pose (0.0) to the Goal position (1.0). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FIKRigGoal, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float PositionAlpha;
+
+	/** Range 0-1. Smoothly blends the Goal rotation from the input pose (0.0) to the Goal rotation (1.0). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FIKRigGoal, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float RotationAlpha;
+
+	FIKRigGoal()
+    : Name(NAME_None),
+	Position(ForceInitToZero),
+    Rotation(FRotator::ZeroRotator),
+    PositionAlpha(1.f),
+    RotationAlpha(0.0f){}
+	
+	FIKRigGoal(const FName& GoalName)
+    : Name(GoalName),
+	Position(ForceInitToZero),
+    Rotation(FRotator::ZeroRotator),
+    PositionAlpha(1.f),
+    RotationAlpha(0.0f){}
+
+	FIKRigGoal(
+        const FName& Name,
+        const FVector& Position,
+        const FQuat& Rotation,
+        const float PositionAlpha,
+        const float RotationAlpha)
+        : Name(Name),
+          Position(Position),
+          Rotation(Rotation.Rotator()),
+          PositionAlpha(PositionAlpha),
+          RotationAlpha(RotationAlpha){}
+
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("Name=%s, Pos=(%s, Alpha=%3.3f), Rot=(%s, Alpha=%3.3f)"),
+			*Name.ToString(), *Position.ToString(), PositionAlpha, *Rotation.ToString(), RotationAlpha);
+	}
 };
 
 inline uint32 GetTypeHash(FIKRigGoal ObjectRef) { return GetTypeHash(ObjectRef.Name); }
@@ -47,51 +79,19 @@ struct IKRIG_API FIKRigGoalContainer
 {
 	GENERATED_BODY()
 
-	void InitializeGoalsFromNames(const TArray<FName>& InGoalNames)
-	{
-		Goals.Reserve(InGoalNames.Num());
-		for (const FName& Name : InGoalNames)
-		{
-			Goals.Emplace(Name, Name);
-		}
-	}
+public:
+	
+	/** Pre-load all the names of goals (optional, you can just call SetIKGoal to add as needed) */
+	void InitializeGoalsFromNames(const TArray<FIKRigEffectorGoal>& InGoalNames);
 
-	void SetGoalTransform(
-		const FName& GoalName,
-		const FVector& InPosition,
-		const FQuat& InRotation)
-	{
-		FIKRigGoal* Goal = Goals.Find(GoalName);
-		if (Goal)
-		{
-			Goal->Position = InPosition;
-			Goal->Rotation = InRotation;
-		}
-	}
+	/** Set an IK goal to go to a specific location and rotation (in component space) blended by alpha.
+	 * Will ADD the goal if none exist with the input name. */
+	void SetIKGoal(const FIKRigGoal& InGoal);
 
-	bool GetGoalByName(const FName& InGoalName, FIKRigGoal& OutGoal) const
-	{
-		const FIKRigGoal* Goal = Goals.Find(InGoalName);
-		if (Goal)
-		{
-			OutGoal = *Goal;
-			return true;
-		}
+	/** Get an IK goal with the given name. Returns false if no goal is found in the container with the name. */
+	bool GetGoalByName(const FName& InGoalName, FIKRigGoal& OutGoal) const;
 
-		return false;
-	}
-
-	void GetNames(TArray<FName>& OutNames) const
-	{
-		Goals.GenerateKeyArray(OutNames);
-	}
-
-	FORCEINLINE int GetNumGoals() const
-	{
-		return Goals.Num();
-	}
-
-private:
-
+	/** Keys are IK Rig Goal names. Values are the Goal data structures.
+	 * These are consumed by an IKRig asset to drive effectors. */
 	TMap<FName, FIKRigGoal> Goals;
 };

@@ -9,6 +9,7 @@
 
 #include "IKRigDefinition.generated.h"
 
+struct FIKRigEffectorGoal;
 class UIKRigSolver;
 
 USTRUCT(Blueprintable)
@@ -91,10 +92,13 @@ public:
 	FRetargetDefinition RetargetDefinition;
 
 	/** get a list of all goal names used in the solvers */
-	void GetGoalNamesFromSolvers(TArray<FName>& OutGoalNames) const;
+	void GetGoalNamesFromSolvers(TArray<FIKRigEffectorGoal>& OutGoalNames) const;
+
+	/** get bone associated with a given goal */
+	FName GetBoneNameForGoal(FName GoalName) const;
 
 private:
-
+	
 	friend class UIKRigController;
 };
 

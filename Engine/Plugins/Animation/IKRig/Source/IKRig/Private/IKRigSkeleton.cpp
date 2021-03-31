@@ -113,3 +113,11 @@ void FIKRigSkeleton::PropagateGlobalPoseBelowBone(const int32 StartBoneIndex)
 		UpdateLocalTransformFromGlobal(BoneIndex);
 	}
 }
+
+void FIKRigSkeleton::NormalizeRotations(TArray<FTransform>& Transforms)
+{
+	for (FTransform& Transform : Transforms)
+	{
+		Transform.NormalizeRotation();
+	}
+}

@@ -14,21 +14,36 @@ struct IKRIG_API FIKRigSkeleton
 
 	UPROPERTY(VisibleAnywhere, Category = Skeleton)
 	TArray<FName> BoneNames;
+	
 	UPROPERTY(VisibleAnywhere, Category = Skeleton)
 	TArray<int32> ParentIndices;
+	
 	UPROPERTY(VisibleAnywhere, Category = Skeleton)
 	TArray<FTransform> CurrentPoseGlobal;
+	
 	UPROPERTY(VisibleAnywhere, Category = Skeleton)
 	TArray<FTransform> CurrentPoseLocal;
+	
 	UPROPERTY(VisibleAnywhere, Category = Skeleton)
 	TArray<FTransform> RefPoseGlobal;
 
 	void Initialize(const FReferenceSkeleton& RefSkeleton);
+	
 	int32 GetBoneIndexFromName(const FName InName) const;
+	
 	int32 GetParentIndex(const int32 BoneIndex) const;
+	
 	void UpdateAllGlobalTransformFromLocal();
+	
 	void UpdateAllLocalTransformFromGlobal();
+	
 	void UpdateGlobalTransformFromLocal(const int32 BoneIndex);
+	
 	void UpdateLocalTransformFromGlobal(const int32 BoneIndex);
+	
 	void PropagateGlobalPoseBelowBone(const int32 BoneIndex);
+
+	//static void NormalizeRotations(TArray<FTransform>& Transforms);
+	static void NormalizeRotations(TArray<FTransform>& Transforms);
 };
+

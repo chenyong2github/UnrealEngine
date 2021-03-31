@@ -40,7 +40,7 @@ public:
 
 	//** goals */
 	void RenameGoal(const FName& OldName, const FName& NewName) const;
-	void GetGoalNames(TArray<FName>& OutGoals) const;
+	void GetGoalNames(TArray<FIKRigEffectorGoal>& OutGoals) const;
 	DECLARE_MULTICAST_DELEGATE(FGoalModified);
 	FGoalModified OnGoalModified;
 

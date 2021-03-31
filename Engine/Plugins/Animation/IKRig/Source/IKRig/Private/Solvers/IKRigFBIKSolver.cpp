@@ -2,6 +2,7 @@
 
 #include "Solvers/IKRigFBIKSolver.h"
 #include "IKRigDataTypes.h"
+#include "IKRigSkeleton.h"
 #include "FBIKConstraint.h"
 #include "JacobianIK.h"
 #include "FBIKUtil.h"
@@ -280,10 +281,10 @@ void UIKRigFBIKSolver::Solve(
 					const FFBIKRigEffector& CurEffector = Effectors[EffectorIndex];
 					const FVector CurrentLinkLocation = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
 					const FQuat CurrentLinkRotation = LinkData[EffectorLinkIndex].GetTransform().GetRotation();
-					FIKRigGoal Goal;
-					ensure(GetGoalForEffector(CurEffector.Target, Goals, Goal));
-					EffectorTarget->Position = Goal.Position; // FMath::Lerp(CurrentLinkLocation, EffectorLocation, RigTarget.PositionTarget.);
-					EffectorTarget->Rotation = Goal.Rotation; // FMath::Lerp(CurrentLinkRotation, EffectorRotation, CurEffector.RotationAlpha);
+					FIKRigGoal OutGoal;
+					ensure(Goals.GetGoalByName(CurEffector.Target.Goal, OutGoal));
+					EffectorTarget->Position = OutGoal.Position; // FMath::Lerp(CurrentLinkLocation, EffectorLocation, RigTarget.PositionTarget.);
+					EffectorTarget->Rotation = OutGoal.Rotation.Quaternion(); // FMath::Lerp(CurrentLinkRotation, EffectorRotation, CurEffector.RotationAlpha);
 					EffectorTarget->InitialPositionDistance = (EffectorTarget->Position - CurrentLinkLocation).Size();
 					EffectorTarget->InitialRotationDistance = (FBIKUtil::GetScaledRotationAxis(EffectorTarget->Rotation) - FBIKUtil::GetScaledRotationAxis(CurrentLinkRotation)).Size();
 
@@ -566,10 +567,10 @@ void UIKRigFBIKSolver::Solve(
 	}
 }
 
-void UIKRigFBIKSolver::CollectGoalNames(TSet<FName>& OutGoals) const
+void UIKRigFBIKSolver::CollectGoalNames(TSet<FIKRigEffectorGoal>& OutGoals) const
 {
 	for (const FFBIKRigEffector& Effector: Effectors)
 	{
-		OutGoals.Add(Effector.Target.Goal);
+		OutGoals.Add(Effector.Target);
 	}
 }

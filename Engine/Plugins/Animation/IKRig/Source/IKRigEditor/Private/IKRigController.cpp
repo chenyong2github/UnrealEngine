@@ -149,7 +149,7 @@ UIKRigBoneSetting* UIKRigController::AddBoneSetting(TSubclassOf<UIKRigBoneSettin
 // GOALS
 //
 
-void UIKRigController::GetGoalNames(TArray<FName>& OutGoals) const
+void UIKRigController::GetGoalNames(TArray<FIKRigEffectorGoal>& OutGoals) const
 {
 	if (!IKRigDefinition)
 	{

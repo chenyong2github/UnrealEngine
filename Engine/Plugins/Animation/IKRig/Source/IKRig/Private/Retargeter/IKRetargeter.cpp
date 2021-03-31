@@ -783,21 +783,21 @@ bool UIKRetargeter::InitializeBoneChainPairs()
 bool UIKRetargeter::InitializeIKRig(UObject* Outer)
 {
 	// make a new IKRigProcessor if we haven't already
-	if (!IKRig)
+	if (!IKRigProcessor)
 	{
-		IKRig = UIKRigProcessor::MakeNewIKRigProcessor(Outer);
+		IKRigProcessor = UIKRigProcessor::MakeNewIKRigProcessor(Outer);
 	}
 	
 	// initialize IK Rig runtime processor
-	IKRig->Initialize(TargetIKRigAsset);
-	if (!IKRig->IsInitialized())
+	IKRigProcessor->Initialize(TargetIKRigAsset);
+	if (!IKRigProcessor->IsInitialized())
 	{
 		return false;
 	}
 
 	// validate that all IK bone chains have an associated Goal
 	TArray<FName> GoalNames;
-	IKRig->GetGoalNames(GoalNames);
+	IKRigProcessor->GetGoalContainer().Goals.GenerateKeyArray(GoalNames);
 	for (FRetargetChainPairIK& ChainPair : ChainPairsIK)
 	{
 		// does the IK rig have the IK goal this bone chain requires?
@@ -876,13 +876,19 @@ void UIKRetargeter::RunIKRetarget(
 		FDecodedIKChain OutIKGoal;
 		ChainPair.IKDecoder.DecodePose(ChainPair.IKEncoder.EncodedResult, OutGlobalPose, OutIKGoal);
 		// set the goal transform on the IK Rig
-		IKRig->SetGoalTransform(ChainPair.IKGoalName, OutIKGoal.EndEffectorPosition, OutIKGoal.EndEffectorRotation);
+		FIKRigGoal Goal = FIKRigGoal(
+			ChainPair.IKGoalName,
+			OutIKGoal.EndEffectorPosition,
+			OutIKGoal.EndEffectorRotation,
+			1.0f,
+			1.0f);
+		IKRigProcessor->SetIKGoal(Goal);
 	}
 
 	// copy input pose to start IK solve from
-	IKRig->SetInputPoseGlobal(OutGlobalPose);
+	IKRigProcessor->SetInputPoseGlobal(OutGlobalPose);
 	// run IK solve
-	IKRig->Solve();
+	IKRigProcessor->Solve();
 	// copy results of solve
-	IKRig->CopyOutputGlobalPoseToArray(OutGlobalPose);
+	IKRigProcessor->CopyOutputGlobalPoseToArray(OutGlobalPose);
 }

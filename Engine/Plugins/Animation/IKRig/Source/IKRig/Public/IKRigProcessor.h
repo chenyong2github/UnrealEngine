@@ -14,6 +14,15 @@
 class UIKRigDefinition;
 class UIKRigSolver;
 
+USTRUCT()
+struct FGoalBone
+{
+	GENERATED_BODY()
+	
+	FName BoneName;
+	int32 BoneIndex;
+};
+
 UCLASS(BlueprintType)
 class IKRIG_API UIKRigProcessor : public UObject
 {
@@ -22,12 +31,14 @@ class IKRIG_API UIKRigProcessor : public UObject
 public:
 
 	/** the runtime for an IKRig to convert an input pose into
-	*   a solved output pose given the goal transforms:
+	*   a solved output pose given a set of IK Rig Goals:
+	*   
 	* 1. Create a new IKRigProcessor once using MakeNewIKRigProcessor()
 	* 2. Initialize() with an IKRigDefinition asset
-	* 3. each tick, call SetGoalTransform() and update GlobalBoneTransforms
+	* 3. each tick, call SetIKGoal() and SetInputPoseGlobal()
 	* 4. Call Solve()
-	* 5. Copy back output transforms...
+	* 5. Copy output transforms with CopyOutputGlobalPoseToArray()
+	* 
 	*/
 
 	static UIKRigProcessor* MakeNewIKRigProcessor(UObject* Outer);
@@ -41,38 +52,46 @@ public:
 	// This is the general sequence of function calls to run a typical IK solve:
 	// 
 	
-	/** set all transforms in global space */
+	/** Set all bone transforms in global space. This is the pose the IK solve will start from */
 	void SetInputPoseGlobal(const TArray<FTransform>& InGlobalBoneTransforms);
 
-	/** optionally can be called before Solve() to use the reference pose as start pose */
+	/** Optionally can be called before Solve() to use the reference pose as start pose */
 	void SetInputPoseToRefPose();
 
-	/** set goal transform by name */
-	void SetGoalTransform(const FName& GoalName, const FVector& Position, const FQuat& Rotation);
+	/** Set a named IK goal to go to a specific location and rotation (assumed in component space) blended by separate position/rotation alpha (0-1)*/
+	void SetIKGoal(
+		const FName& GoalName,
+		const FVector& Position,
+		const FQuat& Rotation,
+		const float PositionAlpha,
+		const float RotationAlpha);
 
-	/** run entire stack of solvers */
+	/** Set a named IK goal to go to a specific location and rotation (assumed in component space) blended by separate position/rotation alpha (0-1)*/
+	void SetIKGoal(const FIKRigGoal& Goal);
+
+	/** Run entire stack of solvers */
 	void Solve();
 
-	/** get the results after calling Solve() */
+	/** Get the results after calling Solve() */
 	void CopyOutputGlobalPoseToArray(TArray<FTransform>& OutputPoseGlobal) const;
 
 	//
 	// END UPDATE SEQUENCE FUNCTIONS
 	//
 
-	/** get all goal names in the solver stack */
-	void GetGoalNames(TArray<FName>& OutGoalNames) const;
-
-	/** total number of goals in solver stack */
-	int GetNumGoals() const;
-
 	bool IsInitialized() const { return bInitialized; };
 
-	/** interface for debug drawing */
+	/** Get interface for debug drawing. */
 	const FControlRigDrawInterface& GetDrawInterface() const { return DrawInterface; }
 
-	/** get access to the internal skeleton data */
+	/** Get access to the internal goal data (read only) */
+	const FIKRigGoalContainer& GetGoalContainer() const;
+	
+	/** Get access to the internal skeleton data */
 	FIKRigSkeleton& GetSkeleton();
+
+	/** Get bone for goal */
+	bool GetBoneForGoal(FName GoalName, FGoalBone& OutBone) const;
 	
 private:
 
@@ -89,7 +108,10 @@ private:
 
 	/** the named transforms that solvers use as end effectors */
 	UPROPERTY(transient)
-	FIKRigGoalContainer Goals;
+	FIKRigGoalContainer GoalContainer;
+
+	/** map of goal names to bone names/indices */
+	TMap<FName, FGoalBone> GoalBones;
 
 	/** storage for hierarchy and bone transforms */
 	UPROPERTY(transient)

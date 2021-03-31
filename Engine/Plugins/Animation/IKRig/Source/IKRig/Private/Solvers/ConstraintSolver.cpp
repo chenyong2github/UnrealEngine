@@ -30,7 +30,7 @@ void UIKRigConstraintSolver::Solve(
 	}*/
 }
 
-void UIKRigConstraintSolver::CollectGoalNames(TSet<FName>& OutGoals) const
+void UIKRigConstraintSolver::CollectGoalNames(TSet<FIKRigEffectorGoal>& OutGoals) const
 {
 
 }
