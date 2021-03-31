@@ -1608,9 +1608,16 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 			NewScriptVariable->Variable = NewParameter;
 			NewScriptVariable->DefaultMode = (*OldScriptVariable)->DefaultMode;
 			NewScriptVariable->DefaultBinding = (*OldScriptVariable)->DefaultBinding;
+			MetaData.CreateNewGuid();
+			NewScriptVariable->Metadata = MetaData;
 			VariableToScriptVariable.Add(NewParameter, NewScriptVariable);
 		}
-		VariableToScriptVariable.Remove(Parameter);
+
+		const FNiagaraGraphParameterReferenceCollection* ReferenceCollection = GetParameterReferenceMap().Find(Parameter);
+		if (ReferenceCollection && ReferenceCollection->ParameterReferences.Num() <= 1)
+		{
+			VariableToScriptVariable.Remove(Parameter);
+		}
 	}
 	// Either set the new meta-data or use the existing meta-data.
 	if (!NewScriptVariableFound)

@@ -883,7 +883,7 @@ void UNiagaraStackFunctionInput::RefreshValues()
 			}
 
 			// we check if variable guid is already available in the parameter store and update it if that's not the case
-			if (InputMetaData.IsSet() && !SourceScript->RapidIterationParameters.ParameterGuidMapping.Contains(RapidIterationParameter))
+			if (InputMetaData.IsSet())
 			{
 				SourceScript->RapidIterationParameters.ParameterGuidMapping.Add(RapidIterationParameter, InputMetaData->GetVariableGuid());
 			}
