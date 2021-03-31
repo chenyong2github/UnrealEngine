@@ -42,14 +42,6 @@ float3 InSimHairPositionOffset;
 int2 HairStrandsCullIndex;
 float4x4 LocalToWorldMatrix;
 
-float InHairLength;
-float InHairRadius;
-float OutHairRadius;
-float MaxOutHairRadius;
-float HairRadiusRootScale;
-float HairRadiusTipScale;
-uint  HairScalingEnable;
-
 Buffer<uint4>  RenderRestPosePositionBuffer;
 Buffer<uint4>  SimRestPosePositionBuffer;
 Buffer<uint4>  DeformedSimPositionBuffer;
@@ -177,26 +169,6 @@ float3 ComputeRotateGeometryOffset(uint GuideIndex, float GuideVertexWeight,
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
 }
 
-// Compute the new hair width and return if the current vertex is valid (true), or if it needs to be clipped (false)
-void ScaleStrand(uint ControlPointId, inout uint InPackedAlpha)
-{
-	if (HairScalingEnable)
-	{
-		// Instead of doing the actual interpolation we could rely on dithering as an optimization
-		const FHairAttributes Attributes0 = DecodeHairAttribute(AttributeBuffer[ControlPointId]);
-		const float U = Attributes0.UCoord;
-
-		// todo: Move all these computations into shared function which can be shared with the hair VF
-		const float InNormVertexRadius = ((InPackedAlpha & 0x00FC) >> 2) / 63.f;
-		//const float InVertexRadius = InNormVertexRadius * InHairRadius;
-
-		const float OutVertexRadius = OutHairRadius * InNormVertexRadius * lerp(HairRadiusRootScale, HairRadiusTipScale, U);
-		const uint PackedVertexRadius = (uint(saturate(OutVertexRadius / MaxOutHairRadius) * 63.f) & 0x3F) << 2;
-
-		InPackedAlpha = (InPackedAlpha & 0xFF03) | PackedVertexRadius;
-	}
-}
-
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -257,7 +229,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == INTERPOLATION_RIGID
 		{
 			float3 CurrOffset = 0;
-			uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
+			const uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
 			float3 ControlPoint = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
 
 			#if PERMUTATION_SIMULATION == 1
@@ -278,7 +250,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			}
 			#endif
 
-			ScaleStrand(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = ControlPoint + CurrOffset;
 
 			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
@@ -290,7 +261,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		// Apply dynamic mesh deformation (translation / rotation)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == INTERPOLATION_SKINNING_OFFSET
 		{
-			uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
+			const uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
 			const float3 RestControlPoint = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
 			float3 ControlPoint = RestControlPoint;
 
@@ -330,7 +301,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			ControlPoint = ToTriangle(ControlPoint,RootBarycentric,RestTriangle);
 			ControlPoint = ToWorld(ControlPoint,RootBarycentric,DeformedTriangle) + CurrOffset;
 
-			ScaleStrand(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = ControlPoint;
 
 			#if PERMUTATION_DEBUG == 1 && ALLOW_DEBUG_RENDERING
@@ -371,7 +341,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		// 3. Linear blend skinning (translation)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == INTERPOLATION_SKINNING_TRANSLATION
 		{
-			uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
+			const uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
 			const float3 RestControlPoint = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
 			float3 ControlPoint = RestControlPoint;
 
@@ -404,7 +374,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 			ControlPoint += RootBarycentric.x * DeformedTriangle.P0 + RootBarycentric.y * DeformedTriangle.P1 + RootBarycentric.z * DeformedTriangle.P2;
 
-			ScaleStrand(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = ControlPoint + CurrOffset;
 
 			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
@@ -415,7 +384,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		// 4. Linear blend skinning (rotation)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == INTERPOLATION_SKINNING_ROTATION
 		{
-			uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
+			const uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
 			const float3 RestControlPoint = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
 			float3 ControlPoint = RestControlPoint;
 
@@ -455,7 +424,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 			ControlPoint =  RootBarycentric.x * DeformedTriangle.P0 + RootBarycentric.y * DeformedTriangle.P1 + RootBarycentric.z * DeformedTriangle.P2;
 
-			ScaleStrand(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = ControlPoint + CurrOffset;
 
 			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
@@ -466,7 +434,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		// 5. Linear blend skinning (translation + rotation)
 		#if PERMUTATION_DYNAMIC_GEOMETRY == INTERPOLATION_SKINNING_TRANSLATION_AND_ROTATION
 		{
-			uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
+			const uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
 			const float3 RestControlPoint = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
 			float3 ControlPoint = RestControlPoint;
 
@@ -503,7 +471,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			}
 			#endif
 
-			ScaleStrand(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = CurrOffset;
 
 			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
@@ -633,7 +600,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 		{
 			const float3 OutHairPositionOffset = RenderDeformedOffsetBuffer[0].xyz;
 			const uint VertexIndex = clamp(ClusterVertexIdBuffer[IndexOffset + ThreadReadOffset], 0u, VertexCountAfterCulling-1);
-			const FHairControlPoint CP = UnpackHairControlPoint(RenderDeformedPositionBuffer[VertexIndex], OutHairPositionOffset, 1, 1);
+			const FHairControlPoint CP = UnpackHairControlPoint(RenderDeformedPositionBuffer[VertexIndex], OutHairPositionOffset, 1, 1, 1);
 
 			if (all(IsFinite(CP.Position)))
 			{

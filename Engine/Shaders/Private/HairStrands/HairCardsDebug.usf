@@ -157,8 +157,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		Color	 = float4(1, 0, 1, 1);
 	}
 
-	const FHairControlPoint P0 = UnpackHairControlPoint(PackedP0, Offset, 1, 1);
-	const FHairControlPoint P1 = UnpackHairControlPoint(PackedP1, Offset, 1, 1);
+	const FHairControlPoint P0 = UnpackHairControlPoint(PackedP0, Offset, 1, 1, 1);
+	const FHairControlPoint P1 = UnpackHairControlPoint(PackedP1, Offset, 1, 1, 1);
 
 	if (P1.Type != HAIR_CONTROLPOINT_START)
 	{

@@ -3055,6 +3055,8 @@ class FVisiblityRasterComputeCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, HairStrandsVF_bIsCullingEnable)
 		SHADER_PARAMETER(float, HairStrandsVF_Density)
 		SHADER_PARAMETER(float, HairStrandsVF_Radius)
+		SHADER_PARAMETER(float, HairStrandsVF_RootScale)
+		SHADER_PARAMETER(float, HairStrandsVF_TipScale)
 		SHADER_PARAMETER(float, HairStrandsVF_Length)
 		SHADER_PARAMETER(uint32, HairStrandsVF_bUseStableRasterization)
 		SHADER_PARAMETER(uint32, HairStrandsVF_VertexCount)
@@ -3242,6 +3244,8 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			PassParameters->HairStrandsVF_PositionOffsetBuffer = VFInput.Strands.PositionOffsetBuffer.SRV;
 			PassParameters->HairStrandsVF_VertexCount		= VFInput.Strands.VertexCount;
 			PassParameters->HairStrandsVF_Radius			= VFInput.Strands.HairRadius;
+			PassParameters->HairStrandsVF_RootScale			= VFInput.Strands.HairRootScale;
+			PassParameters->HairStrandsVF_TipScale			= VFInput.Strands.HairTipScale;
 			PassParameters->HairStrandsVF_Length			= VFInput.Strands.HairLength;
 			PassParameters->HairStrandsVF_bUseStableRasterization = VFInput.Strands.bUseStableRasterization ? 1 : 0;
 			PassParameters->HairStrandsVF_Density			= VFInput.Strands.HairDensity;

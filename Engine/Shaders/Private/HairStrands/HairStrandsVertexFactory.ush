@@ -195,7 +195,8 @@ FHairControlPoint GetVertexPosition(const FVertexInfo VertexInfo, bool bInvalidJ
 		PackedData, 
 		PositionOffset,
 		HairStrandsVF_Radius * VertexInfo.LodRadiusScale, 
-		HairStrandsVF_Length);
+		HairStrandsVF_RootScale,
+		HairStrandsVF_TipScale);
 	
 	// Create a degenerated quad the end of each strand to cut between each strands
 	// #hair_todo: This is not efficient for short strand like fur for instance. Need to revisit that at some point
@@ -216,11 +217,6 @@ float GetWorldStrandRadius(FVertexFactoryInput Input)
 	return GetVertexPosition(Input).WorldRadius;
 }
 
-float GetWorldStrandLength(FVertexFactoryInput Input)
-{
-	return GetVertexPosition(Input).WorldLength;
-}
-
 float3 GetVertexPreviousPosition(FVertexFactoryInput Input, bool bInvalidJointVertex = true)
 {
 	const float3 PreviousPositionOffset = HairStrandsVF_PreviousPositionOffsetBuffer[0].xyz;
@@ -231,7 +227,8 @@ float3 GetVertexPreviousPosition(FVertexFactoryInput Input, bool bInvalidJointVe
 		PackedData,
 		PreviousPositionOffset,
 		HairStrandsVF_Radius * VertexInfo.LodRadiusScale,
-		HairStrandsVF_Length);
+		HairStrandsVF_RootScale,
+		HairStrandsVF_TipScale);
 
 	// Create a degenerated quad the end of each strand to cut between each strands
 	// #hair_todo: This is not efficient for short strand like fur for instance. Need to revisit that at some point
@@ -363,7 +360,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.HairPrimitiveId	= GetHairPrimitiveId(Input);
 	Intermediates.HairPrimitiveUV	= GetSegmentUVCoord(Input);
 	Intermediates.HairDensity		= HairStrandsVF_Density;
-	Intermediates.HairDimensions	= float2(GetWorldStrandLength(Input), GetWorldStrandRadius(Input));
+	Intermediates.HairDimensions	= float2(0.f, GetWorldStrandRadius(Input));
 
 	float TangentSign;
 	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);

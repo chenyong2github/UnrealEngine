@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush" 
+#include "HairStrandsVertexFactoryCommon.ush"
 
 uint VertexCount;
 uint DispatchCountX;
 
-float3 StrandHairWorldOffset;
-float StrandHairRadius;
+float HairStrandsVF_HairRadius;
+float HairStrandsVF_HairRootScale;
+float HairStrandsVF_HairTipScale;
 
 Buffer<float4>	 PositionOffsetBuffer;
 Buffer<uint4> 	 PositionBuffer;
@@ -28,27 +30,18 @@ Buffer<uint>	HairStrandsVF_CullingIndirectBufferArgs;
 	#error Unknown group size	
 #endif
 
-struct FControlPoint
+FHairControlPoint GetControlPoint(uint ControlPointId)
 {
-	float3 Position;
-	float PointType;
-	float WorldRadius;
-};
+	FHairControlPoint Out = (FHairControlPoint)0;
 
-FControlPoint GetControlPoint(uint Index)
-{
-	FControlPoint Out = (FControlPoint)0;
-
-	if (Index < VertexCount)
+	if (ControlPointId < VertexCount)
 	{
-		const uint4 PackedData = PositionBuffer[Index];
-		const uint PackedAlpha = asuint(PackedData.a);
-
-		const float3 OutPositionOffset = PositionOffsetBuffer[0].xyz;
-
-		Out.Position 	= f16tof32(PackedData.xyz) + OutPositionOffset;
-		Out.PointType 	= PackedAlpha & 0x3;
-		Out.WorldRadius	= StrandHairRadius * float((PackedAlpha & 0x00FC) >> 2) / 63.0f;
+		Out = UnpackHairControlPoint(
+			PositionBuffer[ControlPointId],
+			PositionOffsetBuffer[0].xyz,
+			HairStrandsVF_HairRadius,
+			HairStrandsVF_HairRootScale,
+			HairStrandsVF_HairTipScale);
 	}
 
 	return Out;
@@ -114,17 +107,17 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 #endif
 
-	FControlPoint P0 = GetControlPoint(VertexIndex0);
+	FHairControlPoint P0 = GetControlPoint(VertexIndex0);
 
 	// Point at the end of a strand is filled with invalid position. The positions/triangle are 
 	// ignored by DXR during BVH building
-	if (P0.PointType == 2)
+	if (P0.Type == 2)
 	{
 		SetInvalidSegment(VertexIndex0);
 		return;
 	}
 
-	FControlPoint P1 = GetControlPoint(VertexIndex1);
+	FHairControlPoint P1 = GetControlPoint(VertexIndex1);
 
 	const float3 Tangent = normalize(P1.Position - P0.Position);
 	float3 B = float3(0,0,-1);

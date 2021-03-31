@@ -15,14 +15,14 @@ struct FPackedHairVertex
 	FFloat16 X, Y, Z;
 	uint8 ControlPointType : 2;
 	uint8 NormalizedRadius : 6;
-	uint8 NormalizedLength;
+	uint8 UCoord;
 };
 
 struct FPackedHairAttributeVertex
 {
 	uint8 RootU;
 	uint8 RootV;
-	uint8 UCoord;
+	uint8 NormalizedLength;
 	uint8 Seed;
 
 	uint8 IndexU;

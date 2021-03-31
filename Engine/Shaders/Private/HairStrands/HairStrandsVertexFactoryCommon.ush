@@ -13,7 +13,7 @@ struct FHairControlPoint
 {
 	float3 Position;
 	float  WorldRadius;
-	float  WorldLength;
+	float  UCoord;
 	uint   Type;
 };
 
@@ -21,17 +21,20 @@ FHairControlPoint UnpackHairControlPoint(
 	uint4 InPackedData,
 	float3 InVF_PositionOffset,
 	float InVF_Radius,
-	float InVF_Length)
+	float InVF_RootScale,
+	float InVF_TipScale)
 {
 	const uint PackedAlpha	= asuint(InPackedData.a);
 
 	FHairControlPoint Out = (FHairControlPoint)0;
 	Out.Position	= f16tof32(InPackedData.xyz) + InVF_PositionOffset;
-	Out.WorldRadius	= ((PackedAlpha & 0x00FC) >> 2) / 63.f * InVF_Radius;
-	Out.WorldLength	= ((PackedAlpha & 0xFF00) >> 8) / 255.f * InVF_Length;
+	Out.UCoord		= ((PackedAlpha & 0xFF00) >> 8) / 255.f;
+	Out.WorldRadius	= ((PackedAlpha & 0x00FC) >> 2) / 63.f;
 	Out.Type		= PackedAlpha & 0x3;
 
-	return Out;
+	Out.WorldRadius *= InVF_Radius * lerp(InVF_RootScale, InVF_TipScale, Out.UCoord);
+
+	return Out;	
 }
 
 bool IsValidHairStrandsSegment(const FHairControlPoint CP0, const FHairControlPoint CP1)
@@ -45,11 +48,11 @@ bool IsValidHairStrandsSegment(const FHairControlPoint CP0, const FHairControlPo
 struct FHairAttributes
 {
 	float2 RootUV;
-	float	Seed;
-	float	UCoord;
+	float Seed;
+	float WorldLength;
 };
 
-FHairAttributes DecodeHairAttribute(uint4 Attributes)
+FHairAttributes DecodeHairAttribute(uint4 Attributes, float InVF_Length)
 {
 	float2 RootUV, RootIndex;
 	RootUV.x = float(Attributes.x & 0xFF) / 255.f;
@@ -59,7 +62,7 @@ FHairAttributes DecodeHairAttribute(uint4 Attributes)
 
 	FHairAttributes Out;
 	Out.RootUV = RootUV + RootIndex;
-	Out.UCoord = (Attributes.y & 0xFF) / 255.f;
+	Out.WorldLength = (Attributes.y & 0xFF) / 255.f * InVF_Length;
 	Out.Seed = ((Attributes.y >> 8) & 0xFF) / 255.f;
 	return Out;
 }

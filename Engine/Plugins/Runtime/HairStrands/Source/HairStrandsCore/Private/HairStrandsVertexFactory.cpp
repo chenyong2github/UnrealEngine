@@ -61,6 +61,8 @@ inline FRHIShaderResourceView* GetPreviousPositionOffsetSRV(const FHairGroupPubl
 inline bool  UseStableRasterization(const FHairGroupPublicData::FVertexFactoryInput& VFInput)					{ return VFInput.Strands.bUseStableRasterization; };
 inline bool  UseScatterSceneLighting(const FHairGroupPublicData::FVertexFactoryInput& VFInput)					{ return VFInput.Strands.bScatterSceneLighting; };
 inline float GetMaxStrandRadius(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairRadius; };
+inline float GetStrandRootScale(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairRootScale; };
+inline float GetStrandTipScale(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairTipScale; };
 inline float GetMaxStrandLength(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairLength; };
 inline float GetHairDensity(const FHairGroupPublicData::FVertexFactoryInput& VFInput)							{ return VFInput.Strands.HairDensity; };
 
@@ -74,9 +76,11 @@ class FHairStrandsVertexFactoryShaderParameters : public FVertexFactoryShaderPar
 public:
 
 	LAYOUT_FIELD(FShaderParameter, Radius);
+	LAYOUT_FIELD(FShaderParameter, RootScale);
+	LAYOUT_FIELD(FShaderParameter, TipScale);
 	LAYOUT_FIELD(FShaderParameter, Length);
 	LAYOUT_FIELD(FShaderParameter, RadiusAtDepth1_Primary);	// unused
-	LAYOUT_FIELD(FShaderParameter, RadiusAtDepth1_Velocity);	// unused
+	LAYOUT_FIELD(FShaderParameter, RadiusAtDepth1_Velocity);// unused
 	LAYOUT_FIELD(FShaderParameter, Density);
 	LAYOUT_FIELD(FShaderParameter, Culling);
 	LAYOUT_FIELD(FShaderParameter, StableRasterization);
@@ -96,6 +100,8 @@ public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		Radius.Bind(ParameterMap, TEXT("HairStrandsVF_Radius"));
+		RootScale.Bind(ParameterMap, TEXT("HairStrandsVF_RootScale"));
+		TipScale.Bind(ParameterMap, TEXT("HairStrandsVF_TipScale"));
 		Length.Bind(ParameterMap, TEXT("HairStrandsVF_Length"));
 		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));
 		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));	
@@ -141,6 +147,8 @@ public:
 		VFS_BindParam(ShaderBindings, MaterialBuffer, GetMaterialSRV(VFInput));
 		VFS_BindParam(ShaderBindings, TangentBuffer, GetTangentSRV(VFInput));
 		VFS_BindParam(ShaderBindings, Radius, GetMaxStrandRadius(VFInput));
+		VFS_BindParam(ShaderBindings, RootScale, GetStrandRootScale(VFInput));
+		VFS_BindParam(ShaderBindings, TipScale, GetStrandTipScale(VFInput));
 		VFS_BindParam(ShaderBindings, Length, GetMaxStrandLength(VFInput));
 		VFS_BindParam(ShaderBindings, PositionOffsetBuffer, GetPositionOffsetSRV(VFInput));
 		VFS_BindParam(ShaderBindings, PreviousPositionOffsetBuffer, GetPreviousPositionOffsetSRV(VFInput));

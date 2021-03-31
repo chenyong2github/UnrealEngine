@@ -13,7 +13,8 @@ uint			FrameIdMod8;
 uint			MacroGroupId;
 uint			HairStrandsVF_bIsCullingEnable;
 float			HairStrandsVF_Radius;
-float			HairStrandsVF_Length;
+float			HairStrandsVF_RootScale;
+float			HairStrandsVF_TipScale;
 float			HairStrandsVF_Density;
 float3			HairStrandsVF_PositionOffset;
 uint			HairStrandsVF_VertexCount;
@@ -103,7 +104,8 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 		HairStrandsVF_PositionBuffer[VertexIndex0],
 		PositionOffset,
 		HairStrandsVF_Radius * LodRadiusScale0,
-		HairStrandsVF_Length);
+		HairStrandsVF_RootScale,
+		HairStrandsVF_TipScale);
 
 	if (CP0.Type == HAIR_CONTROLPOINT_END)
 		return;
@@ -112,7 +114,8 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 		HairStrandsVF_PositionBuffer[VertexIndex1],
 		PositionOffset,
 		HairStrandsVF_Radius * LodRadiusScale1,
-		HairStrandsVF_Length);
+		HairStrandsVF_RootScale,
+		HairStrandsVF_TipScale);
 
 	const float DiameterToRadius = 0.5f;
 	const float3 WP0 = mul(float4(CP0.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;

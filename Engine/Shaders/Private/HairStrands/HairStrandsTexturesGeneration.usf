@@ -134,6 +134,9 @@ bool Trace(
 {
 	bool bIsValid = false;
 
+	const float InVF_RootScale = 1.0f;
+	const float InVF_TipScale = 1.0f;
+
 	const float3 WP0 = InRayO;
 	const float3 WP1 = InRayO + InRayD * InMaxDistance;
 
@@ -261,8 +264,8 @@ bool Trace(
 						const uint4 PackedCP_P0 = InVF_PositionBuffer[P0];
 						const uint4 PackedCP_P1 = InVF_PositionBuffer[P1];
 
-						const FHairControlPoint CP_Curr = UnpackHairControlPoint(PackedCP_P0, InVF_PositionOffset, InVF_Radius, InVF_Length);
-						const FHairControlPoint CP_Next = UnpackHairControlPoint(PackedCP_P1, InVF_PositionOffset, InVF_Radius, InVF_Length);
+						const FHairControlPoint CP_Curr = UnpackHairControlPoint(PackedCP_P0, InVF_PositionOffset, InVF_Radius, InVF_RootScale, InVF_TipScale);
+						const FHairControlPoint CP_Next = UnpackHairControlPoint(PackedCP_P1, InVF_PositionOffset, InVF_Radius, InVF_RootScale, InVF_TipScale);
 
 						const float3 Tangent = ComputeTangent(CP_Curr, CP_Next);
 
@@ -279,12 +282,12 @@ bool Trace(
 							OutDepth = Distance;
 
 
-							const FHairAttributes Attributes0 = DecodeHairAttribute(InVF_AttributeBuffer[P0]);
-							const FHairAttributes Attributes1 = DecodeHairAttribute(InVF_AttributeBuffer[P1]);
+							const FHairAttributes Attributes0 = DecodeHairAttribute(InVF_AttributeBuffer[P0], InVF_Length);
+							const FHairAttributes Attributes1 = DecodeHairAttribute(InVF_AttributeBuffer[P1], InVF_Length);
 
 							OutSeed		= Attributes0.Seed;
 							OutRootUV	= Attributes0.RootUV;
-							OutU		= lerp(Attributes0.UCoord, Attributes1.UCoord, VertexU);
+							OutU		= lerp(CP_Curr.UCoord, CP_Next.UCoord, VertexU);
 
 							bIsValid = true;
 

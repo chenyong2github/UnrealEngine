@@ -30,6 +30,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Serialize the folder path of actor descs
 		WorldPartitionActorDescSerializeActorFolderPath,
 
+		// Change hair strands vertex format
+		HairStrandsVertexFormatChange,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -9,6 +9,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 float  HairStrandsVF_Radius;
+float  HairStrandsVF_RootScale;
+float  HairStrandsVF_TipScale;
 float  HairStrandsVF_Length;
 
 Buffer<uint4>  HairStrandsVF_PositionBuffer;
@@ -31,13 +33,13 @@ FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 Vert
 	const uint VertexId1 = HairPrimitiveId+1;
 
 	// Instead of doing the actual interpolation we could rely on dithering as an optimization
-	const FHairAttributes Attributes0 = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[VertexId0]);
-	const FHairAttributes Attributes1 = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[VertexId1]);
+	const FHairAttributes Attributes0 = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[VertexId0], HairStrandsVF_Length);
+	const FHairAttributes Attributes1 = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[VertexId1], HairStrandsVF_Length);
 
-	const uint4 PackedData = HairStrandsVF_PositionBuffer[VertexId0];
-	const uint PackedAlpha = asuint(PackedData.a);
-	const float WorldRadius = ((PackedAlpha & 0x00FC) >> 2) / 63.f * HairStrandsVF_Radius;
-	const float WorldLength = ((PackedAlpha & 0xFF00) >> 8) / 255.f * HairStrandsVF_Length;
+	const FHairControlPoint ControlPoint0 = UnpackHairControlPoint(HairStrandsVF_PositionBuffer[VertexId0], float3(0, 0 ,0), HairStrandsVF_Radius, HairStrandsVF_RootScale, HairStrandsVF_TipScale);
+	const FHairControlPoint ControlPoint1 = UnpackHairControlPoint(HairStrandsVF_PositionBuffer[VertexId1], float3(0, 0, 0), HairStrandsVF_Radius, HairStrandsVF_RootScale, HairStrandsVF_TipScale);
+	const float WorldLength = lerp(Attributes0.WorldLength, Attributes1.WorldLength, VertexUV.x);
+	const float WorldRadius = lerp(ControlPoint0.WorldRadius, ControlPoint1.WorldRadius, VertexUV.x);
 
 	FHairVertexAttributes Out;
 	// Constant along the strand
@@ -46,8 +48,8 @@ FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 Vert
 	Out.HairRootUV		= Attributes0.RootUV;
 
 	// Varying along the strand
+	Out.HairUV.x		= lerp(ControlPoint0.UCoord, ControlPoint1.UCoord, VertexUV.x);
 	Out.HairUV.y		= VertexUV.y;
-	Out.HairUV.x		= lerp(Attributes0.UCoord, Attributes1.UCoord, VertexUV.x);
 
 	// Instead of doing the actual interpolation we could rely on dithering as an optimization
 	const float4 Material0 = HairStrandsVF_MaterialBuffer[VertexId0];

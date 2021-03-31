@@ -2,6 +2,7 @@
 
 #include "HairStrandsDatas.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 
 void FHairStrandsInterpolationDatas::SetNum(const uint32 NumCurves)
 {
@@ -66,7 +67,7 @@ FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex)
 	Ar << Vertex.Y;
 	Ar << Vertex.Z;
 
-	Ar << Vertex.NormalizedLength;
+	Ar << Vertex.UCoord;
 
 	if (Ar.IsLoading())
 	{
@@ -89,7 +90,7 @@ FArchive& operator<<(FArchive& Ar, FPackedHairAttributeVertex& Vertex)
 
 	Ar << Vertex.RootU;
 	Ar << Vertex.RootV;
-	Ar << Vertex.UCoord;
+	Ar << Vertex.NormalizedLength;
 	Ar << Vertex.Seed;
 
 	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion1)
@@ -234,9 +235,25 @@ void FHairStrandsCurves::Serialize(FArchive& Ar)
 void FHairStrandsDatas::FRenderData::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	Ar << Positions;
 	Ar << Attributes;
+
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::HairStrandsVertexFormatChange && Ar.IsLoading())
+	{
+		check(Positions.Num() == Attributes.Num());
+		const uint32 VertexCount = Positions.Num();
+		for (uint32 VertexIt = 0; VertexIt < VertexCount; ++VertexIt)
+		{
+			// Prior to FUE5ReleaseStreamObjectVersion::HairStrandsVertexFormatChange, UCoord and NormalizedLength were swapped
+			const uint8 UCoord = Attributes[VertexIt].NormalizedLength;
+			const uint8 NormalizedLength = Positions[VertexIt].UCoord;
+			Attributes[VertexIt].NormalizedLength = NormalizedLength;
+			Positions[VertexIt].UCoord = UCoord;
+		}
+	}
+
 	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion2)
 	{
 		Ar << Materials;

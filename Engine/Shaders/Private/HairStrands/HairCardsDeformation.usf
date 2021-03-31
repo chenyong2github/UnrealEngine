@@ -64,7 +64,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		return;
 
 	const float GuideRadius = 1;
-	const float GuideLength = 1;
+	const float GuideRootScale = 1;
+	const float GuideTipScale = 1;
 	const float3 GuideDeformedPositionOffset = GuideDeformedPositionOffsetBuffer[0].xyz;
 
 #if PERMUTATION_DYNAMIC_GEOMETRY == 0
@@ -80,25 +81,29 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		GuideRestPositionBuffer[GuideIndex0],
 		GuideRestPositionOffset,
 		GuideRadius,
-		GuideLength);
+		GuideRootScale,
+		GuideTipScale);
 
 	const FHairControlPoint RestGuideP1 = UnpackHairControlPoint(
 		GuideRestPositionBuffer[GuideIndex1],
 		GuideRestPositionOffset,
 		GuideRadius,
-		GuideLength);
+		GuideRootScale,
+		GuideTipScale);
 
 	const FHairControlPoint DeformedGuideP0 = UnpackHairControlPoint(
 		GuideDeformedPositionBuffer[GuideIndex0],
 		GuideDeformedPositionOffset,
 		GuideRadius,
-		GuideLength);
+		GuideRootScale,
+		GuideTipScale);
 
 	const FHairControlPoint DeformedGuideP1 = UnpackHairControlPoint(
 		GuideDeformedPositionBuffer[GuideIndex1],
 		GuideDeformedPositionOffset,
 		GuideRadius,
-		GuideLength);
+		GuideRootScale,
+		GuideTipScale);
 
 	const float3 RestGuidePosition		= lerp(RestGuideP0.Position, RestGuideP1.Position, GuideLerp);
 	const float3 DeformedGuidePosition	= lerp(DeformedGuideP0.Position, DeformedGuideP1.Position, GuideLerp);
