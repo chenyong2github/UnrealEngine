@@ -56,15 +56,13 @@ static FHairGroupDesc GetGroomGroupsDesc(const UGroomAsset* Asset, UGroomCompone
 	}
 
 	FHairGroupDesc O = Component->GroomGroupsDesc[GroupIndex];
-	O.HairCount  = Asset->HairGroupsData[GroupIndex].Strands.Data.GetNumCurves();
-	O.GuideCount = Asset->HairGroupsData[GroupIndex].Guides.Data.GetNumCurves();
 	O.HairLength = Asset->HairGroupsData[GroupIndex].Strands.Data.StrandsCurves.MaxLength;
 	O.LODBias 	 = Asset->EffectiveLODBias[GroupIndex] > 0 ? FMath::Max(O.LODBias, Asset->EffectiveLODBias[GroupIndex]) : O.LODBias;
 
 	if (!O.HairWidth_Override)					{ O.HairWidth					= Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairWidth;					}
 	if (!O.HairRootScale_Override)				{ O.HairRootScale				= Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairRootScale;				}
 	if (!O.HairTipScale_Override)				{ O.HairTipScale				= Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairTipScale;					}
-	if (!O.HairClipLength_Override)				{ O.HairClipLength				= Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairClipScale * O.HairLength;	}
+	if (!O.HairClipScale_Override)				{ O.HairClipScale				= Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairClipScale;				}
 	if (!O.bSupportVoxelization_Override)		{ O.bSupportVoxelization		= Asset->HairGroupsRendering[GroupIndex].ShadowSettings.bVoxelize;						}
 	if (!O.HairShadowDensity_Override)			{ O.HairShadowDensity			= Asset->HairGroupsRendering[GroupIndex].ShadowSettings.HairShadowDensity;				}
 	if (!O.HairRaytracingRadiusScale_Override)	{ O.HairRaytracingRadiusScale	= Asset->HairGroupsRendering[GroupIndex].ShadowSettings.HairRaytracingRadiusScale;		}
@@ -993,11 +991,6 @@ void UGroomComponent::UpdateHairGroupsDesc()
 	{
 		GroomGroupsDesc.Init(FHairGroupDesc(), GroupCount);
 	}
-
-	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
-	{
-		GroomGroupsDesc[GroupIt] = GetGroomGroupsDesc(GroomAsset, this, GroupIt);
-	}
 }
 
 void UGroomComponent::ReleaseHairSimulation()
@@ -1198,8 +1191,8 @@ void UGroomComponent::SetHairLengthScale(float Scale)
 	Scale = FMath::Clamp(Scale, 0.f, 1.f);
 	for (FHairGroupDesc& HairDesc : GroomGroupsDesc)
 	{
-		HairDesc.HairClipLength = Scale * HairDesc.HairLength;
-		HairDesc.HairClipLength_Override = true;
+		HairDesc.HairClipScale = Scale;
+		HairDesc.HairClipScale_Override = true;
 	}
 	UpdateHairGroupsDescAndInvalidateRenderState();
 }
@@ -2664,10 +2657,9 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 #endif
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairWidth) || 
-		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairLength) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairRootScale) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairTipScale) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairClipLength) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairClipScale) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairShadowDensity) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairRaytracingRadiusScale) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, LODBias) ||

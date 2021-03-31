@@ -533,6 +533,7 @@ void UGroomAsset::UpdateHairGroupsInfo()
 		Info.NumGuides = Data.Guides.Data.GetNumCurves();
 		Info.NumCurveVertices = Data.Strands.Data.GetNumPoints();
 		Info.NumGuideVertices = Data.Guides.Data.GetNumPoints();
+		Info.MaxCurveLength = Data.Strands.Data.StrandsCurves.MaxLength;
 		if (bForceReset)
 		{
 			Info.bIsVisible = true;

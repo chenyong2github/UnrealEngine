@@ -31,6 +31,4 @@ private:
 	void CustomizeDescGroupProperties(IDetailLayoutBuilder& DetailLayout, IDetailCategoryBuilder& StrandsGroupFilesCategory);
 	void OnGenerateElementForHairGroup(TSharedRef<IPropertyHandle> StructProperty, int32 GroupIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout);
 	void OnResetToDefault(int32 GroupIndex, TSharedPtr<IPropertyHandle> ChildHandle);
-	void OnValueChanged(int32 GroupIndex, TSharedPtr<IPropertyHandle> ChildHandle);
-	void SetOverride(int32 GroupIndex, TSharedPtr<IPropertyHandle> ChildHandle, bool bValue);
 };
