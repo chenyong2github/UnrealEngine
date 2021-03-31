@@ -21,6 +21,7 @@
 // Insights
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
@@ -93,6 +94,7 @@ STimersView::~STimersView()
 	if (FInsightsManager::Get().IsValid())
 	{
 		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
+		FInsightsManager::Get()->GetSessionAnalysisCompletedEvent().RemoveAll(this);
 	}
 
 	FTimersViewCommands::Unregister();
@@ -135,9 +137,9 @@ void STimersView::Construct(const FArguments& InArgs)
 
 				// Search box
 				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
 				[
 					SAssignNew(SearchBox, SSearchBox)
 					.HintText(LOCTEXT("SearchBoxHint", "Search timers or groups"))
@@ -146,11 +148,38 @@ void STimersView::Construct(const FArguments& InArgs)
 					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group."))
 				]
 
+				// Filter by type (Gpu)
+				+ SHorizontalBox::Slot()
+				.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					GetToggleButtonForTimerType(ETimerNodeType::GpuScope)
+				]
+
+				// Filter by type (Compute)
+				//+ SHorizontalBox::Slot()
+				//.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+				//.AutoWidth()
+				//.VAlign(VAlign_Center)
+				//[
+				//	GetToggleButtonForTimerType(ETimerNodeType::ComputeScope)
+				//]
+
+				// Filter by type (Cpu)
+				+ SHorizontalBox::Slot()
+				.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					GetToggleButtonForTimerType(ETimerNodeType::CpuScope)
+				]
+
 				// Filter out timers with zero instance count
 				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.AutoWidth()
+				.VAlign(VAlign_Center)
 				[
 					SNew(SCheckBox)
 					.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
@@ -175,7 +204,8 @@ void STimersView::Construct(const FArguments& InArgs)
 				SNew(SHorizontalBox)
 
 				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
+				.AutoWidth()
+				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
@@ -183,48 +213,22 @@ void STimersView::Construct(const FArguments& InArgs)
 				]
 
 				+ SHorizontalBox::Slot()
-				.FillWidth(2.0f)
+				.AutoWidth()
 				.VAlign(VAlign_Center)
 				[
-					SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<ETimerGroupingMode>>)
-					.ToolTipText(this, &STimersView::GroupBy_GetSelectedTooltipText)
-					.OptionsSource(&GroupByOptionsSource)
-					.OnSelectionChanged(this, &STimersView::GroupBy_OnSelectionChanged)
-					.OnGenerateWidget(this, &STimersView::GroupBy_OnGenerateWidget)
+					SNew(SBox)
+					.MinDesiredWidth(128.0f)
 					[
-						SNew(STextBlock)
-						.Text(this, &STimersView::GroupBy_GetSelectedText)
+						SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<ETimerGroupingMode>>)
+						.ToolTipText(this, &STimersView::GroupBy_GetSelectedTooltipText)
+						.OptionsSource(&GroupByOptionsSource)
+						.OnSelectionChanged(this, &STimersView::GroupBy_OnSelectionChanged)
+						.OnGenerateWidget(this, &STimersView::GroupBy_OnGenerateWidget)
+						[
+							SNew(STextBlock)
+							.Text(this, &STimersView::GroupBy_GetSelectedText)
+						]
 					]
-				]
-			]
-
-			// Check boxes for: GpuScope, ComputeScope, CpuScope
-			+ SVerticalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f)
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-				.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
-				.FillWidth(1.0f)
-				[
-					GetToggleButtonForTimerType(ETimerNodeType::GpuScope)
-				]
-
-				//+ SHorizontalBox::Slot()
-				//.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
-				//.FillWidth(1.0f)
-				//[
-				//	GetToggleButtonForTimerType(ETimerNodeType::ComputeScope)
-				//]
-
-				+ SHorizontalBox::Slot()
-				.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
-				.FillWidth(1.0f)
-				[
-					GetToggleButtonForTimerType(ETimerNodeType::CpuScope)
 				]
 			]
 		]
@@ -232,7 +236,7 @@ void STimersView::Construct(const FArguments& InArgs)
 		// Tree view
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 		[
 			SNew(SHorizontalBox)
 
@@ -289,6 +293,25 @@ void STimersView::Construct(const FArguments& InArgs)
 				]
 			]
 		]
+
+		// Status bar
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
+		.Padding(0.0f)
+		[
+			SNew(SBorder)
+			.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(FLinearColor(0.05f, 0.1f, 0.2f, 1.0f))
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(4.0f, 1.0f, 4.0f, 1.0f))
+				.Text(LOCTEXT("EmptyAggregationNote", "-- Select a time region to update the aggregated statistics! --"))
+				.ColorAndOpacity(FLinearColor(1.0f, 0.75f, 0.5f, 1.0f))
+				.Visibility_Lambda([this]() { return Aggregator->IsEmptyTimeInterval() && !Aggregator->IsRunning() ? EVisibility::Visible : EVisibility::Collapsed; })
+			]
+		]
 	];
 
 	InitializeAndShowHeaderColumns();
@@ -306,6 +329,7 @@ void STimersView::Construct(const FArguments& InArgs)
 
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &STimersView::InsightsManager_OnSessionChanged);
+	FInsightsManager::Get()->GetSessionAnalysisCompletedEvent().AddSP(this, &STimersView::InsightsManager_OnSessionAnalysisCompleted);
 
 	// Update the Session (i.e. when analysis session was already started).
 	InsightsManager_OnSessionChanged();
@@ -741,6 +765,31 @@ void STimersView::InsightsManager_OnSessionChanged()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimersView::InsightsManager_OnSessionAnalysisCompleted()
+{
+	if (Aggregator->IsEmptyTimeInterval() && !Aggregator->IsRunning())
+	{
+		TSharedPtr<FInsightsManager> InsightsManager = FInsightsManager::Get();
+		InsightsManager->UpdateSessionDuration();
+		const double SessionDuration = InsightsManager->GetSessionDuration();
+
+		constexpr double Delta = 0.0; // session padding
+
+		Aggregator->Cancel();
+		Aggregator->SetTimeInterval(0.0 - Delta, SessionDuration + Delta);
+		Aggregator->Start();
+
+		if (ColumnBeingSorted == NAME_None)
+		{
+			// Restore sorting...
+			SetSortModeForColumn(GetDefaultColumnBeingSorted(), GetDefaultColumnSortMode());
+			TreeView_Refresh();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimersView::UpdateTree()
 {
 	FStopwatch Stopwatch;
@@ -889,8 +938,8 @@ TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeTyp
 {
 	return SNew(SCheckBox)
 		.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+		.Padding(FMargin(4.0f, 2.0f, 4.0f, 2.0f))
 		.HAlign(HAlign_Center)
-		.Padding(2.0f)
 		.OnCheckStateChanged(this, &STimersView::FilterByTimerType_OnCheckStateChanged, NodeType)
 		.IsChecked(this, &STimersView::FilterByTimerType_IsChecked, NodeType)
 		.ToolTipText(TimerNodeTypeHelper::ToDescription(NodeType))
@@ -898,6 +947,7 @@ TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeTyp
 			SNew(SHorizontalBox)
 
 			//+ SHorizontalBox::Slot()
+			//.Padding(0.0f, 0.0f, 2.0f, 0.0f)
 			//.AutoWidth()
 			//.VAlign(VAlign_Center)
 			//[
@@ -906,7 +956,6 @@ TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeTyp
 			//]
 
 			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)

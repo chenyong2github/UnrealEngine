@@ -622,12 +622,14 @@ void FTimingViewDrawHelper::DrawTimingEventHighlight(double StartTime, double En
 
 	const int32 LayerId = ReservedLayerId + ToInt32(EDrawLayer::EventHighlight);
 
+	constexpr float BorderOffset = 1.0f;
+
 	if (Mode == EDrawEventMode::Hovered)
 	{
 		const FLinearColor Color(1.0f, 1.0f, 0.0f, 1.0f); // yellow
 
 		// Draw border around the timing event box.
-		DrawContext.DrawBox(LayerId, EventX1 - 2.0f, Y - 2.0f, EventW + 4.0f, Layout.EventH + 4.0f, HoveredEventBorderBrush, Color);
+		DrawContext.DrawBox(LayerId, EventX1 - BorderOffset, Y - BorderOffset, EventW + 2 * BorderOffset, Layout.EventH + 2 * BorderOffset, HoveredEventBorderBrush, Color);
 	}
 	else // EDrawEventMode::Selected or EDrawEventMode::SelectedAndHovered
 	{
@@ -639,7 +641,7 @@ void FTimingViewDrawHelper::DrawTimingEventHighlight(double StartTime, double En
 		const FLinearColor Color(S, S, Blue, 1.0f);
 
 		// Draw border around the timing event box.
-		DrawContext.DrawBox(LayerId, EventX1 - 2.0f, Y - 2.0f, EventW + 4.0f, Layout.EventH + 4.0f, SelectedEventBorderBrush, Color);
+		DrawContext.DrawBox(LayerId, EventX1 - BorderOffset, Y - BorderOffset, EventW + 2 * BorderOffset, Layout.EventH + 2 * BorderOffset, SelectedEventBorderBrush, Color);
 	}
 }
 

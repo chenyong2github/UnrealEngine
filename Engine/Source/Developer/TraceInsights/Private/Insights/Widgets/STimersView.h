@@ -96,8 +96,11 @@ private:
 	void FinishAggregation();
 	void ApplyAggregation(TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>* AggregatedStatsTable);
 
-	/** Called when the analysis session has changed. */
+	/** Called when the session has changed. */
 	void InsightsManager_OnSessionChanged();
+
+	/** Called when the analysis was completed. */
+	void InsightsManager_OnSessionAnalysisCompleted();
 
 	/**
 	 * Populates OutSearchStrings with the strings that should be used in searching.

@@ -52,6 +52,7 @@ public:
 
 	double GetIntervalStartTime() const { return IntervalStartTime; }
 	double GetIntervalEndTime() const { return IntervalEndTime; }
+	bool IsEmptyTimeInterval() const { return IntervalStartTime >= IntervalEndTime; }
 
 	void SetTimeInterval(double InStartTime, double InEndTime)
 	{

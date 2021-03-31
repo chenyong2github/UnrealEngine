@@ -21,6 +21,7 @@
 // Insights
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
@@ -93,6 +94,7 @@ SStatsView::~SStatsView()
 	if (FInsightsManager::Get().IsValid())
 	{
 		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
+		FInsightsManager::Get()->GetSessionAnalysisCompletedEvent().RemoveAll(this);
 	}
 
 	FStatsViewCommands::Unregister();
@@ -135,9 +137,9 @@ void SStatsView::Construct(const FArguments& InArgs)
 
 				// Search box
 				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
 				[
 					SAssignNew(SearchBox, SSearchBox)
 					.HintText(LOCTEXT("SearchBoxHint", "Search stats counters or groups"))
@@ -146,11 +148,29 @@ void SStatsView::Construct(const FArguments& InArgs)
 					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search stats counter or group."))
 				]
 
+				// Filter by type (Int64)
+				+ SHorizontalBox::Slot()
+				.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					GetToggleButtonForDataType(EStatsNodeDataType::Int64)
+				]
+
+				// Filter by type (Double)
+				+ SHorizontalBox::Slot()
+				.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					GetToggleButtonForDataType(EStatsNodeDataType::Double)
+				]
+
 				// Filter out counters with zero instance count
 				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.AutoWidth()
+				.VAlign(VAlign_Center)
 				[
 					SNew(SCheckBox)
 					.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
@@ -175,7 +195,8 @@ void SStatsView::Construct(const FArguments& InArgs)
 				SNew(SHorizontalBox)
 
 				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
+				.AutoWidth()
+				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
@@ -183,41 +204,22 @@ void SStatsView::Construct(const FArguments& InArgs)
 				]
 
 				+ SHorizontalBox::Slot()
-				.FillWidth(2.0f)
+				.AutoWidth()
 				.VAlign(VAlign_Center)
 				[
-					SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<EStatsGroupingMode>>)
-					.ToolTipText(this, &SStatsView::GroupBy_GetSelectedTooltipText)
-					.OptionsSource(&GroupByOptionsSource)
-					.OnSelectionChanged(this, &SStatsView::GroupBy_OnSelectionChanged)
-					.OnGenerateWidget(this, &SStatsView::GroupBy_OnGenerateWidget)
+					SNew(SBox)
+					.MinDesiredWidth(128.0f)
 					[
-						SNew(STextBlock)
-						.Text(this, &SStatsView::GroupBy_GetSelectedText)
+						SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<EStatsGroupingMode>>)
+						.ToolTipText(this, &SStatsView::GroupBy_GetSelectedTooltipText)
+						.OptionsSource(&GroupByOptionsSource)
+						.OnSelectionChanged(this, &SStatsView::GroupBy_OnSelectionChanged)
+						.OnGenerateWidget(this, &SStatsView::GroupBy_OnGenerateWidget)
+						[
+							SNew(STextBlock)
+							.Text(this, &SStatsView::GroupBy_GetSelectedText)
+						]
 					]
-				]
-			]
-
-			// Check boxes for: Int64, Float
-			+ SVerticalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f)
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-				.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
-				.FillWidth(1.0f)
-				[
-					GetToggleButtonForDataType(EStatsNodeDataType::Int64)
-				]
-
-				+ SHorizontalBox::Slot()
-				.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
-				.FillWidth(1.0f)
-				[
-					GetToggleButtonForDataType(EStatsNodeDataType::Double)
 				]
 			]
 		]
@@ -225,7 +227,7 @@ void SStatsView::Construct(const FArguments& InArgs)
 		// Tree view
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 		[
 			SNew(SHorizontalBox)
 
@@ -282,6 +284,25 @@ void SStatsView::Construct(const FArguments& InArgs)
 				]
 			]
 		]
+
+		// Status bar
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
+		.Padding(0.0f)
+		[
+			SNew(SBorder)
+			.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(FLinearColor(0.05f, 0.1f, 0.2f, 1.0f))
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(4.0f, 1.0f, 4.0f, 1.0f))
+				.Text(LOCTEXT("EmptyAggregationNote", "-- Select a time region to update the aggregated statistics! --"))
+				.ColorAndOpacity(FLinearColor(1.0f, 0.75f, 0.5f, 1.0f))
+				.Visibility_Lambda([this]() { return Aggregator->IsEmptyTimeInterval() && !Aggregator->IsRunning() ? EVisibility::Visible : EVisibility::Collapsed; })
+			]
+		]
 	];
 
 	InitializeAndShowHeaderColumns();
@@ -299,6 +320,7 @@ void SStatsView::Construct(const FArguments& InArgs)
 
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &SStatsView::InsightsManager_OnSessionChanged);
+	FInsightsManager::Get()->GetSessionAnalysisCompletedEvent().AddSP(this, &SStatsView::InsightsManager_OnSessionAnalysisCompleted);
 
 	// Update the Session (i.e. when analysis session was already started).
 	InsightsManager_OnSessionChanged();
@@ -702,6 +724,31 @@ void SStatsView::InsightsManager_OnSessionChanged()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SStatsView::InsightsManager_OnSessionAnalysisCompleted()
+{
+	if (Aggregator->IsEmptyTimeInterval() && !Aggregator->IsRunning())
+	{
+		TSharedPtr<FInsightsManager> InsightsManager = FInsightsManager::Get();
+		InsightsManager->UpdateSessionDuration();
+		const double SessionDuration = InsightsManager->GetSessionDuration();
+
+		constexpr double Delta = 0.0; // session padding
+
+		Aggregator->Cancel();
+		Aggregator->SetTimeInterval(0.0 - Delta, SessionDuration + Delta);
+		Aggregator->Start();
+
+		if (ColumnBeingSorted == NAME_None)
+		{
+			// Restore sorting...
+			SetSortModeForColumn(GetDefaultColumnBeingSorted(), GetDefaultColumnSortMode());
+			TreeView_Refresh();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SStatsView::UpdateTree()
 {
 	FStopwatch Stopwatch;
@@ -890,8 +937,8 @@ TSharedRef<SWidget> SStatsView::GetToggleButtonForNodeType(const EStatsNodeType 
 {
 	return SNew(SCheckBox)
 		.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+		.Padding(FMargin(4.0f, 2.0f, 4.0f, 2.0f))
 		.HAlign(HAlign_Center)
-		.Padding(2.0f)
 		.OnCheckStateChanged(this, &SStatsView::FilterByStatsType_OnCheckStateChanged, NodeType)
 		.IsChecked(this, &SStatsView::FilterByStatsType_IsChecked, NodeType)
 		.ToolTipText(StatsNodeTypeHelper::ToDescription(NodeType))
@@ -901,13 +948,13 @@ TSharedRef<SWidget> SStatsView::GetToggleButtonForNodeType(const EStatsNodeType 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 2.0f, 0.0f)
 			[
 				SNew(SImage)
 				.Image(StatsNodeTypeHelper::GetIcon(NodeType))
 			]
 
 			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
@@ -922,8 +969,8 @@ TSharedRef<SWidget> SStatsView::GetToggleButtonForDataType(const EStatsNodeDataT
 {
 	return SNew(SCheckBox)
 		.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+		.Padding(FMargin(4.0f, 2.0f, 4.0f, 2.0f))
 		.HAlign(HAlign_Center)
-		.Padding(2.0f)
 		.OnCheckStateChanged(this, &SStatsView::FilterByStatsDataType_OnCheckStateChanged, DataType)
 		.IsChecked(this, &SStatsView::FilterByStatsDataType_IsChecked, DataType)
 		.ToolTipText(StatsNodeDataTypeHelper::ToDescription(DataType))
@@ -931,6 +978,7 @@ TSharedRef<SWidget> SStatsView::GetToggleButtonForDataType(const EStatsNodeDataT
 			SNew(SHorizontalBox)
 
 			//+ SHorizontalBox::Slot()
+			//.Padding(0.0f, 0.0f, 2.0f, 0.0f)
 			//.AutoWidth()
 			//.VAlign(VAlign_Center)
 			//[
@@ -939,7 +987,6 @@ TSharedRef<SWidget> SStatsView::GetToggleButtonForDataType(const EStatsNodeDataT
 			//]
 
 			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
