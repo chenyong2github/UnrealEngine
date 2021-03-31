@@ -283,7 +283,7 @@ void UAssetPlacementEdMode::ClearSelection()
 
 bool UAssetPlacementEdMode::HasAnyAssetsInPalette() const
 {
-	return (SettingsObjectAsPlacementSettings->PaletteItems.Num() > 0);
+	return SettingsObjectAsPlacementSettings.IsValid() ? (SettingsObjectAsPlacementSettings->PaletteItems.Num() > 0) : false;
 }
 
 bool UAssetPlacementEdMode::HasActiveSelection() const
