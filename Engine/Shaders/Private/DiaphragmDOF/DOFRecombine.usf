@@ -148,7 +148,7 @@ Texture2D SceneDepthTexture;
 Texture2D SceneSeparateCoc;
 
 Texture2D SceneSeparateTranslucency;
-SamplerState SceneSeparateTranslucencySampler;
+Texture2D SceneSeparateTranslucencyModulateColor;
 
 float4 ConvolutionInputSize;
 
@@ -1083,18 +1083,27 @@ void RecombineMainCS(
 		NearestDepthNeighborUpsamplingResult UpsampleResult = NearestDepthNeighborUpsampling(PixelPos, BufferUV, SeparateTranslucencyTextureLowResExtentInverse);
 
 		float4 SeparateTranslucencyColor = 0;
+		float4 SeparateTranslucencyModulateColor = 0;
 		if (UpsampleResult.bUsePointSampler)
 		{
 			SeparateTranslucencyColor = SceneSeparateTranslucency.SampleLevel(GlobalPointClampedSampler, UpsampleResult.UV, 0);
+			SeparateTranslucencyModulateColor = SceneSeparateTranslucencyModulateColor.SampleLevel(GlobalPointClampedSampler, UpsampleResult.UV, 0);
 		}
 		else
 		{
 			SeparateTranslucencyColor = SceneSeparateTranslucency.SampleLevel(GlobalBilinearClampedSampler, UpsampleResult.UV, 0);
+			SeparateTranslucencyModulateColor = SceneSeparateTranslucencyModulateColor.SampleLevel(GlobalBilinearClampedSampler, UpsampleResult.UV, 0);
 		}
-		float SeparateTranslucency = SeparateTranslucencyColor.a;
-		SeparateTranslucencyColor.a = 1 - SeparateTranslucencyColor.a;
+		float SeparateTranslucencyBackgroundVisibility = SeparateTranslucencyColor.a;
+		float GreyScaleModulateColorBackgroundVisibility = dot(SeparateTranslucencyModulateColor.rgb, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
 
-		OutputFinalSceneColor = OutputFinalSceneColor * SeparateTranslucency + SeparateTranslucencyColor;
+		// This matches what is done in ComposeSeparateTranslucency.usf
+		OutputFinalSceneColor.rgb = OutputFinalSceneColor.rgb * SeparateTranslucencyBackgroundVisibility * SeparateTranslucencyModulateColor.rgb + SeparateTranslucencyColor.rgb;
+		// Also stores BackgroundVisibility (=transmittance) in alpha
+		OutputFinalSceneColor.a = SeparateTranslucencyBackgroundVisibility * GreyScaleModulateColorBackgroundVisibility;
+
+		// Convert from visibility to coverage to comply with the following process
+		OutputFinalSceneColor.a = 1.0f - OutputFinalSceneColor.a;
 	}
 
 	// Convert alpha channel from opacity back to translucency.
