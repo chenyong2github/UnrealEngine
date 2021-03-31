@@ -212,7 +212,8 @@ float3 CalculateRayTracedLighting(
 	int LightingMode
 )
 {
-	float3 Radiance = 0;
+	// Apply emissive material
+	float3 Radiance = Payload.GetRadiance() * Payload.GetOpacity();
 
 	bool bAccurateHit = false;
 	float3 RayHitWorldNormal = Payload.GetWorldNormal();
@@ -220,7 +221,7 @@ float3 CalculateRayTracedLighting(
 	float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
 	if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
 	{
-		Radiance = CalculateDirectLighting(Ray, Context, Payload, RayHitWorldPosition, RayHitWorldNormal);
+		Radiance += CalculateDirectLighting(Ray, Context, Payload, RayHitWorldPosition, RayHitWorldNormal);
 	}
 
 	if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
