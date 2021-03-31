@@ -80,6 +80,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
 	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution256;
 
+	UPROPERTY(EditAnywhere, Category = MapSettings)
+	bool bUseWorldSpace = false;
+
+	UPROPERTY(EditAnywhere, Category = MapSettings)
+	float Thickness = 3.0;
+
 	/** Which UV layer to use to create the map */
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (GetOptions = GetUVLayerNamesFunc))
 	FString UVLayer;
@@ -88,9 +94,6 @@ public:
 	TArray<FString> GetUVLayerNamesFunc();
 	UPROPERTY(meta = (TransientToolProperty))
 	TArray<FString> UVLayerNamesList;
-
-	UPROPERTY(EditAnywhere, Category = MapSettings)
-	bool bUseWorldSpace = false;
 
 	UPROPERTY(VisibleAnywhere, Category = MapSettings, meta = (TransientToolProperty))
 	TArray<UTexture2D*> Result;
@@ -368,10 +371,11 @@ protected:
 		FImageDimensions Dimensions;
 		int32 UVLayer;
 		int32 DetailTimestamp;
+		float Thickness;
 
 		bool operator==(const FBakeCacheSettings& Other) const
 		{
-			return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer && DetailTimestamp == Other.DetailTimestamp;
+			return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer && DetailTimestamp == Other.DetailTimestamp && Thickness == Other.Thickness;
 		}
 	};
 	FBakeCacheSettings CachedBakeCacheSettings;
