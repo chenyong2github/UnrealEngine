@@ -676,6 +676,7 @@ void FDetailPropertyRow::SetWidgetRowProperties(FDetailWidgetRow& Row) const
 
 	Row.EditCondition(EditConditionValue, OnEditConditionValueChanged);
 	Row.CustomResetToDefault = CustomResetToDefault;
+	Row.PropertyHandles.Add(GetPropertyHandle());
 
 	// set custom actions and reset to default
 	if (CustomPropertyWidget.IsValid())

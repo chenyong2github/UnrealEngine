@@ -243,7 +243,7 @@ public:
 	virtual ~IDetailPropertyRow(){}
 
 	/** @return the property handle for the property on this row */
-	virtual TSharedPtr<IPropertyHandle> GetPropertyHandle() = 0;
+	virtual TSharedPtr<IPropertyHandle> GetPropertyHandle() const = 0;
 
 	/**
 	 * Sets the localized display name of the property

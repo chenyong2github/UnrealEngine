@@ -26,7 +26,7 @@ public:
 	FDetailPropertyRow(TSharedPtr<FPropertyNode> InPropertyNode, TSharedRef<FDetailCategoryImpl> InParentCategory, TSharedPtr<FComplexPropertyNode> InExternalRootNode = nullptr);
 
 	/** IDetailPropertyRow interface */
-	virtual TSharedPtr<IPropertyHandle> GetPropertyHandle() override { return PropertyHandle; }
+	virtual TSharedPtr<IPropertyHandle> GetPropertyHandle() const override { return PropertyHandle; }
 	virtual IDetailPropertyRow& DisplayName( const FText& InDisplayName ) override;
 	virtual IDetailPropertyRow& ToolTip( const FText& InToolTip ) override;
 	virtual IDetailPropertyRow& ShowPropertyButtons( bool bInShowPropertyButtons ) override;
