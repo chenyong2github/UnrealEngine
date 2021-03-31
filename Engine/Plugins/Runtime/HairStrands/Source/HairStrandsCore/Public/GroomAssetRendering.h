@@ -30,8 +30,8 @@ struct HAIRSTRANDSCORE_API FHairGeometrySettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", AdvancedDisplay, meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "2.0", SliderExponent = 6))
 	float HairTipScale;
 
-	/** Normalized hair clip length, i.e. at which length hair will be clipped. 1 means no clipping. 0 means hairs are fully clipped */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", SliderExponent = 1))
+	/** DEPRECATED: HairClipScale is deprecated and will be removed in next releases. Normalized hair clip length, i.e. at which length hair will be clipped. 1 means no clipping. 0 means hairs are fully clipped */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", AdvancedDisplay, meta = (DisplayName = "Hair Clip Scale (DEPRECATED)", DeprecatedProperty, ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", SliderExponent = 1))
 	float HairClipScale;
 
 	bool operator==(const FHairGeometrySettings& A) const;
