@@ -696,6 +696,16 @@ namespace HoloLens.Automation
 			}
 		}
 
+		private List<string> GetContainerFileExtensions()
+		{
+			return new List<string> { "*.pak", "*.ucas", "*.utoc" };
+		}
+
+		private bool IsUsingContainers(ProjectParams Params)
+		{
+			return (Params.UsePak(this) || (Params.IoStore && !Params.SkipIoStore));
+		}
+
 		private void PackagePakFiles(ProjectParams Params, DeploymentContext SC, string OutputNameBase)
 		{
 			string IntermediateDirectory = Path.Combine(SC.ProjectRoot.FullName, "Intermediate", "Deploy", "neutral");
@@ -710,9 +720,12 @@ namespace HoloLens.Automation
 
 			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputName + Extension);
 
-			if(Params.UsePak(this))
+			if(IsUsingContainers(Params))
 			{
-				FillMapfile(SC.StageDirectory, SC.StageDirectory.FullName, "*.pak", AppXRecipeBuiltFiles);
+				foreach (string ContainerExtension in GetContainerFileExtensions())
+				{
+					FillMapfile(SC.StageDirectory, SC.StageDirectory.FullName, ContainerExtension, AppXRecipeBuiltFiles);
+				}
 			}
 			else
 			{
@@ -759,9 +772,12 @@ namespace HoloLens.Automation
 
 					string OutputAppX = Path.Combine(SC.StageDirectory.FullName, Product.Path.GetFileNameWithoutExtension() + Extension);
 
-					if (Params.UsePak(this))
+					if(IsUsingContainers(Params))
 					{
-						FillMapfile(SC.StageDirectory, SC.StageDirectory.FullName, "*.pak", AppXRecipeBuiltFiles);
+						foreach (string ContainerExtension in GetContainerFileExtensions())
+						{
+							FillMapfile(SC.StageDirectory, SC.StageDirectory.FullName, ContainerExtension, AppXRecipeBuiltFiles);
+						}
 					}
 					else
 					{
@@ -825,9 +841,12 @@ namespace HoloLens.Automation
 
 				string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputName + Extension);
 
-				if (Params.UsePak(this) && !Params.Run)
+				if (IsUsingContainers(Params) && !Params.Run)
 				{
-					FillMapfile(SC.StageDirectory, SC.StageDirectory.FullName, "*.pak", Dict);
+					foreach (string ContainerExtension in GetContainerFileExtensions())
+					{
+						FillMapfile(SC.StageDirectory, SC.StageDirectory.FullName, ContainerExtension, Dict);
+					}
 				}
 				else
 				{

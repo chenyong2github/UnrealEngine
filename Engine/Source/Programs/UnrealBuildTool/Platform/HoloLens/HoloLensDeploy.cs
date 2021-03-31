@@ -212,25 +212,6 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		private static void FillMapfile(string DirectoryName, string SearchPath, string Mask, StringBuilder AppXRecipeBuiltFiles)
-		{
-			string StageDir = DirectoryName;
-			if (!StageDir.EndsWith("\\") && !StageDir.EndsWith("/"))
-			{
-				StageDir += Path.DirectorySeparatorChar;
-			}
-			Uri StageDirUri = new Uri(StageDir);
-			foreach (var pf in Directory.GetFiles(SearchPath, Mask, SearchOption.AllDirectories))
-			{
-				var FileUri = new Uri(pf);
-				var relativeUri = StageDirUri.MakeRelativeUri(FileUri);
-				var relativePath = Uri.UnescapeDataString(relativeUri.ToString());
-				var newPath = relativePath.Replace('/', Path.DirectorySeparatorChar);
-
-				AppXRecipeBuiltFiles.AppendLine(String.Format("\"{0}\"\t\"{1}\"", pf, newPath));
-			}
-		}
-
 		private void MakePackage(TargetReceipt Receipt, TargetReceipt NewReceipt, WindowsArchitecture Architecture, List<string> UpdatedFiles)
 		{
 			string OutputName = String.Format("{0}_{1}_{2}_{3}", Receipt.TargetName, Receipt.Platform, Receipt.Configuration, WindowsExports.GetArchitectureSubpath(Architecture));
