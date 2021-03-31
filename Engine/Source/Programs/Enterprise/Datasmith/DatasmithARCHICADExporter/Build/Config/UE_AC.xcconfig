@@ -2,7 +2,7 @@
 
 #include? "SDKsRoot.xcconfig"
 
-AC_SDK_PATH = $(UESDKRoot)/HostMac/macOS/Archicad/23
+AC_SDK_PATH = $(UESDKRoot)/HostMac/macOS/Archicad/$(AC_VERSION)
 
 AC_INCLUDES_PATH = "$(AC_SDK_PATH)/Support/Inc" "$(AC_SDK_PATH)/Support/Modules/GSRoot/STL/imp" "$(AC_SDK_PATH)/Support/Modules/GSRoot" "$(AC_SDK_PATH)/Support/Modules/InputOutput"/** "$(AC_SDK_PATH)/Support/Modules/GSModelDevLib"/** "$(AC_SDK_PATH)/Support/Modules/GSUtils"/** "$(AC_SDK_PATH)/Support/Modules/GSModeler"/** "$(AC_SDK_PATH)/Support/Modules/Model3D"/** "$(AC_SDK_PATH)/Support/Modules/MPIInterfaceDevLib"/** "$(AC_SDK_PATH)/Support/Modules/Geometry"/** "$(AC_SDK_PATH)/Support/Modules/DGLib"/** "$(AC_SDK_PATH)/Support/Modules/GDL"/** "$(AC_SDK_PATH)/Support/Modules/GXImage"/** "$(AC_SDK_PATH)/Support/Modules/GX"/** "$(AC_SDK_PATH)/Support/Modules/DGGraphix"/** "$(AC_SDK_PATH)/Support/Modules/Graphix"/** "$(AC_SDK_PATH)/Support/Modules/TextEngine"/** "$(AC_SDK_PATH)/Support/Modules/GXImageBase"/** "$(AC_SDK_PATH)/Support/Modules/PointCloudManager" "$(AC_SDK_PATH)/Support/Modules/PointCloud" "$(AC_SDK_PATH)/Support/Modules/Pattern" "$(AC_SDK_PATH)/Support/Modules/Brep" "$(AC_SDK_PATH)/Support/Modules/VBAttributes" "$(AC_SDK_PATH)/Support/Modules/GSModeler2D" "$(AC_SDK_PATH)/Support/Modules/ObjectDatabase" "$(AC_SDK_PATH)/Support/Modules/UDLib" "$(UE_Engine)/Binaries/Mac/DatasmithSDK"
 
@@ -11,12 +11,12 @@ UE_Project = $(UE_Engine)/Source/Runtime/Projects/Public
 
 UE_INCLUDES_PATH = "$(UE_Engine)/Binaries/Mac/DatasmithSDK/Public" "$(UE_Core)" "$(UE_Core)/Internationalization" "$(UE_Core)/Async" "$(UE_Core)/Concurrency" "$(UE_Core)/Containers" "$(UE_Core)/Delegates" "$(UE_Core)/GenericPlatform" "$(UE_Core)/HAL" "$(UE_Core)/Logging" "$(UE_Core)/Math" "$(UE_Core)/Misc" "$(UE_Core)/Modules" "$(UE_Core)/Modules\Boilerplate" "$(UE_Core)/ProfilingDebugging" "$(UE_Core)/Serialization" "$(UE_Core)/Serialization\Csv" "$(UE_Core)/Stats" "$(UE_Core)/Templates" "$(UE_Core)/UObject" "$(UE_Project)/Public" "$(UE_Project)/Interfaces" "$(UE_Engine)/Source/Runtime/TraceLog/Public"  "$(UE_Engine)/Source/Runtime/Launch/Resources"
 
-USER_HEADER_SEARCH_PATHS = "." $(AC_INCLUDES_PATH) $(UE_INCLUDES_PATH) $(UE_INCLUDES_PATH)
+USER_HEADER_SEARCH_PATHS = "." $(AC_INCLUDES_PATH) $(UE_INCLUDES_PATH)
 
 VMajor = 1
 VMinor = 0
 VRevision = 0
-VBetaOrRevision = . // b for beta or . for revision
+VBetaOrRevision = b // b for beta or . for revision
 VAddOn = $(VMajor).$(VMinor)$(VBetaOrRevision)$(VRevision)
 
 CurrentYear = 2021

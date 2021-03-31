@@ -20,7 +20,12 @@ DISABLE_SDK_WARNINGS_END
 #include "FileManager.h"
 #include "Paths.h"
 #include "FileSystem.hpp"
+
+DISABLE_SDK_WARNINGS_START
+
 #include "DGFileDialog.hpp"
+
+DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
 

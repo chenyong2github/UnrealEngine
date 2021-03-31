@@ -32,7 +32,7 @@ fi
 DevIdApplication="Developer ID Application: $DevAppId"
 DevIdInstaller="Developer ID Installer: $DevInsId"
 
-for i in {23..23}
+for i in {23..24}
 do
 	/usr/bin/codesign --force --deep --sign "$DevIdApplication" --timestamp=none "../../../../../../../../Engine/Binaries/Mac/DatasmithArchiCADExporter/DatasmithARCHICAD${i}Exporter.bundle"
 done

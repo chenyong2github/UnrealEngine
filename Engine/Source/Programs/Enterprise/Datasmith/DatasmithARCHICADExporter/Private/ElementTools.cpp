@@ -9,15 +9,8 @@ BEGIN_NAMESPACE_UE_AC
 template <>
 FAssValueName::SAssValueName TAssEnumName< API_ElemVariationID >::AssEnumName[] = {
 	ValueName(APIVarId_Generic),
-	ValueName(APIVarId_LabelWall2),
-	ValueName(APIVarId_LabelColumn),
-	ValueName(APIVarId_LabelBeam),
-	ValueName(APIVarId_LabelWind),
-	ValueName(APIVarId_LabelDoor),
-	ValueName(APIVarId_LabelSkylight),
-	ValueName(APIVarId_LabelSymb),
-	ValueName(APIVarId_LabelLight),
-	ValueName(APIVarId_LabelMorph),
+
+#if AC_VERSION < 25
 	ValueName(APIVarId_LabelVirtSy),
 	ValueName(APIVarId_LabelCeil),
 	ValueName(APIVarId_LabelRoof),
@@ -27,8 +20,18 @@ FAssValueName::SAssValueName TAssEnumName< API_ElemVariationID >::AssEnumName[] 
 	ValueName(APIVarId_LabelCurtainWall),
 	ValueName(APIVarId_LabelCWPanel),
 	ValueName(APIVarId_LabelCWFrame),
+	ValueName(APIVarId_LabelWall2),
+	ValueName(APIVarId_LabelColumn),
+	ValueName(APIVarId_LabelBeam),
+	ValueName(APIVarId_LabelWind),
+	ValueName(APIVarId_LabelDoor),
+	ValueName(APIVarId_LabelSkylight),
+	ValueName(APIVarId_LabelSymb),
+	ValueName(APIVarId_LabelLight),
+	ValueName(APIVarId_LabelMorph),
 	ValueName(APIVarId_LabelCWAccessory),
 	ValueName(APIVarId_LabelCWJunction),
+#endif
 
 	ValueName(APIVarId_SymbStair),
 	ValueName(APIVarId_WallEnd),

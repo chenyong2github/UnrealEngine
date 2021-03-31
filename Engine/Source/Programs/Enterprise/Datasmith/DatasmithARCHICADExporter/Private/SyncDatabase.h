@@ -81,7 +81,7 @@ class FSyncDatabase
 		FMeshInfo() {}
 	};
 	// Map mesh by their hash name.
-	typedef std::map< const TCHAR*, FMeshInfo, FCompareName > FMapHashToMeshInfo;
+	typedef std::map< FString, FMeshInfo > FMapHashToMeshInfo;
 
 	// Scan all elements, to determine if they need to be synchronized
 	UInt32 ScanElements(const FSyncContext& InSyncContext);

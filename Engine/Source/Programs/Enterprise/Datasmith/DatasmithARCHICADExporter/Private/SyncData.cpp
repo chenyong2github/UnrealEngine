@@ -661,8 +661,11 @@ bool FSyncData::FElement::CreateMesh(FElementID* IOElementID, const ModelerAPI::
 	UE_AC_TestPtr(IOElementID);
 
 	Geometry::Transformation3D Local2World = Convert(InLocalToWorld);
-	Geometry::Transformation3D World2Local(Local2World.GetInverse());
-
+#if AC_VERSION < 24
+	Geometry::Transformation3D World2Local = Local2World.GetInverse();
+#else
+	Geometry::Transformation3D World2Local = Local2World.GetInverse().Get(Geometry::Transformation3D());
+#endif
 	TSharedPtr< IDatasmithMeshElement > PreviousMesh;
 
 	// Create the mesh

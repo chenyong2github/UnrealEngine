@@ -360,6 +360,7 @@ void FMetaData::ExportProperties()
 						}
 						break;
 					}
+#if AC_VERSION < 25
 				case API_PropertySingleChoiceEnumerationCollectionType:
 					PropertyValue = GetPropertyValueString(Property.value.singleEnumVariant.displayVariant);
 					AddMetaDataProperty(Property.definition.valueType, PropertyKey, PropertyValue);
@@ -375,6 +376,7 @@ void FMetaData::ExportProperties()
 						}
 						break;
 					}
+#endif
 				case API_PropertyUndefinedCollectionType:
 					PropertyValue = StringUndefined;
 					break;

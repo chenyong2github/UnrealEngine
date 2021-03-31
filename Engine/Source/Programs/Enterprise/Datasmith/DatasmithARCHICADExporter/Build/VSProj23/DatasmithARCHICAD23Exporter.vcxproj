@@ -105,7 +105,6 @@
       </ImportLibrary>
       <LinkDLL>true</LinkDLL>
       <AdditionalOptions>/export:GetExportedFuncAddrs,%401 /export:SetImportedFuncAddrs,%402 %(AdditionalOptions)</AdditionalOptions>
-      <DelayLoadDLLs>DbgHelp.dll</DelayLoadDLLs>
     </Link>
     <PostBuildEvent>
       <Command>echo Copying files
@@ -168,7 +167,6 @@ popd
       </ImportLibrary>
       <LinkDLL>true</LinkDLL>
       <AdditionalOptions>/export:GetExportedFuncAddrs,%401 /export:SetImportedFuncAddrs,%402 %(AdditionalOptions)</AdditionalOptions>
-      <DelayLoadDLLs>DbgHelp.dll;DatasmithUE4ArchiCAD.dll</DelayLoadDLLs>
     </Link>
     <PostBuildEvent>
       <Command>echo Copying files
@@ -231,7 +229,6 @@ popd
       </ImportLibrary>
       <LinkDLL>true</LinkDLL>
       <AdditionalOptions>/export:GetExportedFuncAddrs,%401 /export:SetImportedFuncAddrs,%402 %(AdditionalOptions)</AdditionalOptions>
-      <DelayLoadDLLs>DbgHelp.dll</DelayLoadDLLs>
     </Link>
     <PostBuildEvent>
       <Command>echo Copying files
@@ -323,53 +320,58 @@ copy $(EngineDir)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb $
     <ClCompile Include="..\..\Private\TexturesCache.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\Resources\RINT\$(ProjectName).grc">
+    <CustomBuild Include="..\..\Resources\RINT\DatasmithARCHICADExporter.grc">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DDEBUG /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName).grc.rc2.i" "..\..\Resources\RINT\$(ProjectName).grc"
-        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName).grc.rc2.i" -D _DEBUG -o "$(OutDir)\RO\$(ProjectName).grc.rc2"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">set FileName=DatasmithARCHICADExporter
+cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DDEBUG /DWINDOWS /Fi"$(OutDir)\RO\%FileName%.grc.rc2.i" "..\..\Resources\RINT\%FileName%.grc"
+        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\%FileName%.grc.rc2.i" -D _DEBUG -o "$(OutDir)\RO\%FileName%.grc.rc2" -w 2</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling the localized GRC file...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName).grc.rc2.i" "..\..\Resources\RINT\$(ProjectName).grc"
-        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName).grc.rc2.i" -o "$(OutDir)\RO\$(ProjectName).grc.rc2"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\DatasmithARCHICADExporter.grc.rc2;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">set FileName=DatasmithARCHICADExporter
+cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RINT\%FileName%.grc"
+"$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO%FileName%.grc.rc2.i" -o "$(OutDir)\RO%FileName%.grc.rc2" -w 2</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName).grc.rc2.i" "..\..\Resources\RINT\$(ProjectName).grc"
         "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName).grc.rc2.i" -o "$(OutDir)\RO\$(ProjectName).grc.rc2"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the localized GRC file...</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">Compiling the localized GRC file...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\RO\DatasmithARCHICADExporter.grc.rc2;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\Resources\RFIX\$(ProjectName)Fix.grc">
+    <CustomBuild Include="..\..\Resources\RFIX\DatasmithARCHICADExporterFix.grc">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DDEBUG /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" "..\..\Resources\RFIX\$(ProjectName)Fix.grc"
-        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -D _DEBUG -o "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">set FileName=DatasmithARCHICADExporterFix
+cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DDEBUG /DWINDOWS /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RFIX\%FileName%.grc"
+"$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -D _DEBUG -i "$(OutDir)RO\%FileName%.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)RO\%FileName%.grc.rc2" -w 2</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling the non-localized GRC file...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" "..\..\Resources\RFIX\$(ProjectName)Fix.grc"
-        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\$(SolutionName)Fix.grc.rc2;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">set FileName=DatasmithARCHICADExporterFix
+cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RFIX\%FileName%.grc"
+"$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)RO\%FileName%.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)RO\%FileName%.grc.rc2" -w 2
+</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" "..\..\Resources\RFIX\$(ProjectName)Fix.grc"
         "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)\RO\$(ProjectName)Fix.grc.rc2"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the non-localized GRC file...</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">Compiling the non-localized GRC file...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\RO\$(SolutionName)Fix.grc.rc2;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\Resources\RFIX.WIN\$(ProjectName).rc2">
+    <CustomBuild Include="..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2">
       <FileType>RC</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /d _DEBUG /fo"$(OutDir)$(ProjectName).res" "..\..\Resources\RFIX.WIN\$(ProjectName).rc2"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /d _DEBUG /fo"$(OutDir)$(SolutionName).res" "..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling the RC2 file...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)$(ProjectName).res;%(Outputs)</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /fo"$(OutDir)$(ProjectName).res" "..\..\Resources\RFIX.WIN\$(ProjectName).rc2"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)$(SolutionName).res;%(Outputs)</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)RO\$(SolutionName).grc.rc2;$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /fo"$(OutDir)$(SolutionName).res" "..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /fo"$(OutDir)$(ProjectName).res" "..\..\Resources\RFIX.WIN\$(ProjectName).rc2"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the RC2 file...</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">Compiling the RC2 file...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)$(ProjectName).res;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)$(SolutionName).res;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">$(OutDir)$(ProjectName).res;%(Outputs)</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;$(OutDir)\RO\ElemIcons.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)RO\$(SolutionName).grc.rc2;$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release23|x64'">$(OutDir)\RO\$(ProjectName).grc.rc2;$(OutDir)\RO\$(ProjectName)Fix.grc.rc2;$(OutDir)\RO\ElemIcons.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
   </ItemGroup>

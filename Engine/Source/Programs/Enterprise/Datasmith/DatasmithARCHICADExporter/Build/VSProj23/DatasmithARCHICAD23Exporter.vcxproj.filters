@@ -289,18 +289,18 @@
     <Library Include="$(ACSDKPATH)\Support\Modules\GXImageBase\Win\GXImageBaseImp.LIB">
       <Filter>Libraries</Filter>
     </Library>
-    <Library Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STATD.lib">
+    <Library Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STAT.lib">
       <Filter>Libraries</Filter>
     </Library>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\Resources\RFIX\$(ProjectName)Fix.grc">
+    <CustomBuild Include="..\..\Resources\RFIX\DatasmithARCHICADExporterFix.grc">
       <Filter>Resources</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Resources\RFIX.WIN\$(ProjectName).rc2">
+    <CustomBuild Include="..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2">
       <Filter>Resources</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Resources\RINT\$(ProjectName).grc">
+    <CustomBuild Include="..\..\Resources\RINT\DatasmithARCHICADExporter.grc">
       <Filter>Resources</Filter>
     </CustomBuild>
   </ItemGroup>

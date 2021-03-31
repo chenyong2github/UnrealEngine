@@ -17,7 +17,8 @@
 	__pragma(warning(disable: 26450)) \
 	__pragma(warning(disable: 4459)) \
 	__pragma(warning(disable: 4005)) \
-	__pragma(warning(disable: 5038))
+	__pragma(warning(disable: 5038)) \
+	__pragma(warning(disable: 4275))
 
 #define DISABLE_SDK_WARNINGS_END \
 	__pragma(warning(pop))

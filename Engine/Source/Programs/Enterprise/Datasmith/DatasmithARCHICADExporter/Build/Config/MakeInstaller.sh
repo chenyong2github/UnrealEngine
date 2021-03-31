@@ -14,11 +14,11 @@ xcodebuild -workspace "$UE4RootPath/UE4.xcworkspace" -scheme DatasmithSDK -confi
 
 "$ScriptPath/setupdylibs.sh"
 
-echo "Clean DatasmithARCHICAD23Exporter"
-xcodebuild -project "$ScriptPath/../DatasmithARCHICADExporter.xcodeproj" -scheme DatasmithARCHICAD23Exporter -configuration Release clean -quiet
+#echo "Clean DatasmithARCHICADExporter"
+#xcodebuild -project "$ScriptPath/../DatasmithARCHICADExporter.xcodeproj" -scheme BuildAllAddOns -configuration Release clean -quiet
 
-echo "Build DatasmithARCHICAD23Exporter"
-xcodebuild -project "$ScriptPath/../DatasmithARCHICADExporter.xcodeproj" -scheme DatasmithARCHICAD23Exporter -configuration Release build -quiet
+echo "Build DatasmithARCHICADExporter"
+xcodebuild -project "$ScriptPath/../DatasmithARCHICADExporter.xcodeproj" -scheme BuildAllAddOns -configuration Release build -quiet
 
 "$ScriptPath/../../Installer/MacOS/SignAndBuild.sh" "$1"
 
