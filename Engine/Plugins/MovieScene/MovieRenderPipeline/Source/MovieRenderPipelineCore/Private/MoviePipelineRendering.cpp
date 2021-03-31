@@ -478,14 +478,14 @@ void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample
 
 void UMoviePipeline::FlushAsyncEngineSystems()
 {
-	// Flush Level Streaming. This solves the problem where levels that are not controlled
+	// Flush Block until Level Streaming completes. This solves the problem where levels that are not controlled
 	// by the Sequencer Level Visibility track are marked for Async Load by a gameplay system.
 	// This will register any new actors/components that were spawned during this frame. This needs 
 	// to be done before the shader compiler is flushed so that we compile shaders for any newly
 	// spawned component materials.
 	if (GetWorld())
 	{
-		GetWorld()->FlushLevelStreaming(EFlushLevelStreamingType::Full);
+		GetWorld()->BlockTillLevelStreamingCompleted();
 	}
 
 	// Now we can flush the shader compiler. ToDo: This should probably happen right before SendAllEndOfFrameUpdates() is normally called
