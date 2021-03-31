@@ -4,11 +4,11 @@
 #import <Foundation/Foundation.h>
 #import <XCTest/XCTest.h>
 
-@interface UE4CmdLineRun : XCTestCase
+@interface UECmdLineRun : XCTestCase
 
 @end
 
-@implementation UE4CmdLineRun
+@implementation UECmdLineRun
 
 - (void)setUp
 {
