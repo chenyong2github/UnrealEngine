@@ -31,6 +31,7 @@
 #include "Engine/NetDriver.h"
 #include "Engine/PackageMapClient.h"
 #include "Serialization/LoadTimeTrace.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 DEFINE_LOG_CATEGORY(LogLevelStreaming);
 
@@ -1928,13 +1929,15 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance(UObject* World
 		return nullptr;
 	}
 
-	// Check whether requested map exists, this could be very slow if LevelName is a short package name
-	FString LongPackageName;
-	bOutSuccess = FPackageName::SearchForPackageOnDisk(LevelName, &LongPackageName);
+	// Check whether requested map exists
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	FName ExistingPackageName = AssetRegistry.GetFirstPackageByName(LevelName);
+	bOutSuccess = !ExistingPackageName.IsNone();
 	if (!bOutSuccess)
 	{
 		return nullptr;
 	}
+	FString LongPackageName = ExistingPackageName.ToString();
 
 	return LoadLevelInstance_Internal(World, LongPackageName, FTransform(Rotation, Location), bOutSuccess, OptionalLevelNameOverride, OptionalLevelStreamingClass);
 }

@@ -789,6 +789,51 @@ bool FAssetRegistryState::EnumerateAllAssets(const TSet<FName>& PackageNamesToSk
 	return true;
 }
 
+void FAssetRegistryState::GetPackagesByName(FStringView PackageName, TArray<FName>& OutPackageNames) const
+{
+	// Note that we use CachedAssetsByPackageName rather than CachedPackageData because CachedPackageData
+	// is often stripped out of the runtime AssetRegistry
+	if (!FPackageName::IsShortPackageName(PackageName))
+	{
+		FName PackageFName(PackageName);
+		if (CachedAssetsByPackageName.Contains(PackageFName))
+		{
+			OutPackageNames.Add(PackageFName);
+		}
+	}
+	else
+	{
+		TStringBuilder<128> PackageNameStr;
+		for (const TPair<FName, TArray<FAssetData*>>& It : CachedAssetsByPackageName)
+		{
+			It.Key.ToString(PackageNameStr);
+			FStringView ExistingBaseName = FPathViews::GetBaseFilename(PackageNameStr);
+			if (ExistingBaseName.Equals(PackageName, ESearchCase::IgnoreCase))
+			{
+				OutPackageNames.Add(It.Key);
+			}
+		}
+	}
+}
+
+FName FAssetRegistryState::GetFirstPackageByName(FStringView PackageName) const
+{
+	TArray<FName> LongPackageNames;
+	GetPackagesByName(PackageName, LongPackageNames);
+	if (LongPackageNames.Num() == 0)
+	{
+		return NAME_None;
+	}
+	if (LongPackageNames.Num() > 1)
+	{
+		LongPackageNames.Sort(FNameLexicalLess());
+		UE_LOG(LogAssetRegistry, Warning, TEXT("GetFirstPackageByName('%.*s') is returning '%s', but it also found '%s'%s."),
+			PackageName.Len(), PackageName.GetData(), *LongPackageNames[0].ToString(), *LongPackageNames[1].ToString(),
+			(LongPackageNames.Num() > 2 ? *FString::Printf(TEXT(" and %d others"), LongPackageNames.Num() - 2) : TEXT("")));
+	}
+	return LongPackageNames[0];
+}
+
 bool FAssetRegistryState::GetDependencies(const FAssetIdentifier& AssetIdentifier,
 										  TArray<FAssetIdentifier>& OutDependencies,
 										  EAssetRegistryDependencyType::Type InDependencyType) const

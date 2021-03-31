@@ -1206,6 +1206,16 @@ bool UAssetRegistryImpl::EnumerateAllAssets(TFunctionRef<bool(const FAssetData&)
 	return true;
 }
 
+void UAssetRegistryImpl::GetPackagesByName(FStringView PackageName, TArray<FName>& OutPackageNames) const
+{
+	State.GetPackagesByName(PackageName, OutPackageNames);
+}
+
+FName UAssetRegistryImpl::GetFirstPackageByName(FStringView PackageName) const
+{
+	return State.GetFirstPackageByName(PackageName);
+}
+
 bool UAssetRegistryImpl::GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS

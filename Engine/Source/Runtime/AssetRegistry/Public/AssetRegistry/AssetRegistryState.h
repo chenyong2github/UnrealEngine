@@ -153,6 +153,25 @@ public:
 	 */
 	bool EnumerateAllAssets(const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback, bool bARFiltering = false) const;
 
+	/**
+	 * Gets the LongPackageNames for all packages with the given PackageName.
+	 * Call to check existence of a LongPackageName or find all packages with a ShortPackageName.
+	 *
+	 * @param PackageName Name of the package to find, may be a LongPackageName or ShortPackageName.
+	 * @param OutPackageNames All discovered matching LongPackageNames are appended to this array.
+	 */
+	void GetPackagesByName(FStringView PackageName, TArray<FName>& OutPackageNames) const;
+
+	/**
+	 * Returns the first LongPackageName found for the given PackageName.
+	 * Issues a warning and returns the first (sorted lexically) if there is more than one.
+	 * Call to check existence of a LongPackageName or find a package with a ShortPackageName.
+	 *
+	 * @param PackageName Name of the package to find, may be a LongPackageName or ShortPackageName.
+	 * @return The first LongPackageName of the matching package, or NAME_None if not found.
+	 */
+	FName GetFirstPackageByName(FStringView PackageName) const;
+
 	UE_DEPRECATED(4.26, "Use GetDependencies that takes a UE::AssetRegistry::EDependencyCategory instead")
 	bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const;
 	/**

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/BitArray.h"
+#include "Containers/StringFwd.h"
 #include "AssetRegistry/AssetData.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "UObject/Interface.h"
@@ -207,6 +208,25 @@ public:
 	 * @param Callback function to call for each asset data enumerated
 	 */
 	virtual bool EnumerateAllAssets(TFunctionRef<bool(const FAssetData&)> Callback, bool bIncludeOnlyOnDiskAssets = false) const = 0;
+
+	/**
+	 * Gets the LongPackageName for all packages with the given PackageName.
+	 * Call to check existence of a LongPackageName or find all packages with a ShortPackageName.
+	 * 
+	 * @param PackageName Name of the package to find, may be a LongPackageName or ShortPackageName.
+	 * @param OutPackageNames All discovered matching LongPackageNames are appended to this array.
+	 */
+	virtual void GetPackagesByName(FStringView PackageName, TArray<FName>& OutPackageNames) const = 0;
+
+	/**
+	 * Returns the first LongPackageName found for the given PackageName.
+	 * Issues a warning and returns the first (sorted lexically) if there is more than one.
+	 * Call to check existence of a LongPackageName or find a package with a ShortPackageName.
+	 *
+	 * @param PackageName Name of the package to find, may be a LongPackageName or ShortPackageName.
+	 * @return The first LongPackageName of the matching package, or NAME_None if not found.
+	 */
+	virtual FName GetFirstPackageByName(FStringView PackageName) const = 0;
 
 	UE_DEPRECATED(4.26, "Use GetDependencies that takes a UE::AssetRegistry::EDependencyCategory instead")
 	virtual bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const = 0;

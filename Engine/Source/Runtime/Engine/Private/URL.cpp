@@ -492,10 +492,12 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 
 				if (!bFoundMap)
 				{
-					// Fall back to incredibly slow disk scan for the package
-					if (FPackageName::SearchForPackageOnDisk(URLStr + FPackageName::GetMapPackageExtension(), &MapFullName))
+					// Fall back to a slow AssetRegistry scan for the package
+					IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+					FName ExistingPackageName = AssetRegistry.GetFirstPackageByName(URLStr);
+					if (!ExistingPackageName.IsNone())
 					{
-						Map = MapFullName;
+						ExistingPackageName.ToString(Map);
 						bFoundMap = true;
 					}
 				}
