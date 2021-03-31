@@ -56,7 +56,35 @@ void FMeshDescriptionAdapter::getIndexSpacePoint(size_t FaceNumber, size_t Corne
 	pos = Transform.worldToIndex(openvdb::Vec3d(Position.X, Position.Y, Position.Z));
 };
 
+void FMeshDescriptionArrayAdapter::SetupInstances(int32 MeshCount, TFunctionRef<const FInstancedMeshMergeData* (uint32 Index)> GetMeshFunction)
+{
+	InstancesTransformArray.Reserve(MeshCount);
+	InstancesAdjointTArray.Reserve(MeshCount);
+
+	for (int32 MeshIdx = 0; MeshIdx < MeshCount; ++MeshIdx)
+	{
+		const FInstancedMeshMergeData* InstancedMeshMergeData = GetMeshFunction(MeshIdx);
+
+		InstancesTransformArray.Add(InstancedMeshMergeData->InstanceTransforms);
+
+		// Cache transpose adjoint matrices
+		TArray<FMatrix>& AdjointTArray = InstancesAdjointTArray.Emplace_GetRef();
+		for (const FTransform& InstanceTransform : InstancedMeshMergeData->InstanceTransforms)
+		{
+			FMatrix Matrix = InstanceTransform.ToMatrixWithScale();
+			FMatrix AdjointT = Matrix.TransposeAdjoint();
+			AdjointT.RemoveScaling();
+			AdjointTArray.Add(AdjointT);
+		}
+	}
+}
+
 void FMeshDescriptionArrayAdapter::Construct(int32 MeshCount, TFunctionRef<const FMeshMergeData* (uint32 Index)> GetMeshFunction)
+{
+	Construct(MeshCount, GetMeshFunction, [](uint32 Index) { return 1; });
+}
+
+void FMeshDescriptionArrayAdapter::Construct(int32 MeshCount, TFunctionRef<const FMeshMergeData* (uint32 Index)> GetMeshFunction, TFunctionRef<int32 (uint32 Index)> GetInstanceCountFunction)
 {
 	PointCount = 0;
 	PolyCount = 0;
@@ -75,6 +103,10 @@ void FMeshDescriptionArrayAdapter::Construct(int32 MeshCount, TFunctionRef<const
 	for (int32 MeshIdx = 0; MeshIdx < MeshCount; ++MeshIdx)
 	{
 		const FMeshMergeData* MergeData = GetMeshFunction(MeshIdx);
+
+		int32 InstanceCount = GetInstanceCountFunction(MeshIdx);
+		check(InstanceCount > 0);
+
 		FMeshDescription *RawMesh = MergeData->RawMesh;
 
 		// Sum up all the polys in this mesh.
@@ -93,8 +125,9 @@ void FMeshDescriptionArrayAdapter::Construct(int32 MeshCount, TFunctionRef<const
 				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 2));
 			}
 
-			PointCount += size_t(RawMesh->Vertices().Num());
-			PolyCount += MeshPolyCount;
+			PointCount += size_t(RawMesh->Vertices().Num() * InstanceCount);
+			PolyCount += MeshPolyCount * InstanceCount;
+
 			PolyOffsetArray.push_back(PolyCount);
 			RawMeshArray.push_back(RawMesh);
 			MergeDataArray.push_back(MergeData);
@@ -120,6 +153,15 @@ void FMeshDescriptionArrayAdapter::Construct(int32 MeshCount, TFunctionRef<const
 }
 
 // --- FMeshDescriptionArrayAdapter ----
+FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<const FInstancedMeshMergeData*>& InMergeDataPtrArray)
+{
+	// Make a default transform.
+	Transform = openvdb::math::Transform::createLinearTransform(1.);
+
+	SetupInstances(InMergeDataPtrArray.Num(), [&InMergeDataPtrArray](uint32 Index) { return InMergeDataPtrArray[Index]; });
+	Construct(InMergeDataPtrArray.Num(), [&InMergeDataPtrArray](uint32 Index) { return InMergeDataPtrArray[Index]; }, [&InMergeDataPtrArray](uint32 Index) { return InMergeDataPtrArray[Index]->InstanceTransforms.Num(); });
+}
+
 FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<const FMeshMergeData*>& InMergeDataPtrArray)
 {
 	// Make a default transform.
@@ -136,6 +178,15 @@ FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<FMeshMer
 	Construct(InMergeDataArray.Num(), [&InMergeDataArray](uint32 Index) { return &InMergeDataArray[Index]; });
 }
 
+FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<FInstancedMeshMergeData>& InMergeDataArray)
+{
+	// Make a default transform.
+	Transform = openvdb::math::Transform::createLinearTransform(1.);
+
+	SetupInstances(InMergeDataArray.Num(), [&InMergeDataArray](uint32 Index) { return &InMergeDataArray[Index]; });
+	Construct(InMergeDataArray.Num(), [&InMergeDataArray](uint32 Index) { return &InMergeDataArray[Index]; }, [&InMergeDataArray](uint32 Index) { return InMergeDataArray[Index].InstanceTransforms.Num(); });
+}
+
 FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const TArray<FMeshMergeData>& InMergeDataArray, const openvdb::math::Transform::Ptr InTransform)
 	: Transform(InTransform)
 {
@@ -148,6 +199,8 @@ FMeshDescriptionArrayAdapter::FMeshDescriptionArrayAdapter(const FMeshDescriptio
 	RawMeshArray = other.RawMeshArray;
 	PolyOffsetArray = other.PolyOffsetArray;
 	MergeDataArray = other.MergeDataArray;
+	InstancesTransformArray = other.InstancesTransformArray;
+	InstancesAdjointTArray = other.InstancesAdjointTArray;
 
 	RawMeshArrayData.SetNumUninitialized(RawMeshArray.size());
 
@@ -178,12 +231,12 @@ FMeshDescriptionArrayAdapter::~FMeshDescriptionArrayAdapter()
 	PolyOffsetArray.clear();
 }
 
-void FMeshDescriptionArrayAdapter::getWorldSpacePoint(size_t FaceNumber, size_t CornerNumber, openvdb::Vec3d& pos) const
+void FMeshDescriptionArrayAdapter::GetWorldSpacePoint(size_t FaceNumber, size_t CornerNumber, openvdb::Vec3d& pos) const
 {
-	int32 MeshIdx, LocalFaceNumber;
+	int32 MeshIdx, InstanceIdx, LocalFaceNumber;
 
 	const FMeshDescriptionAttributesGetter* AttributesGetter = nullptr;
-	const FMeshDescription& RawMesh = GetRawMesh(FaceNumber, MeshIdx, LocalFaceNumber, &AttributesGetter);
+	const FMeshDescription& RawMesh = GetRawMesh(FaceNumber, MeshIdx, InstanceIdx, LocalFaceNumber, &AttributesGetter);
 	check(AttributesGetter);
 
 	const auto& IndexBuffer = IndexBufferArray[MeshIdx];
@@ -191,13 +244,19 @@ void FMeshDescriptionArrayAdapter::getWorldSpacePoint(size_t FaceNumber, size_t 
 	const FVertexInstanceID VertexInstanceID = IndexBuffer[3 * LocalFaceNumber + int32(CornerNumber)];
 	// float3 position 
 	FVector Position = AttributesGetter->VertexPositions[RawMesh.GetVertexInstanceVertex(VertexInstanceID)];
+
+	if (InstanceIdx != INDEX_NONE)
+	{
+		Position = InstancesTransformArray[MeshIdx][InstanceIdx].TransformPosition(Position);
+	}
+
 	pos = openvdb::Vec3d(Position.X, Position.Y, Position.Z);
 };
 
 void FMeshDescriptionArrayAdapter::getIndexSpacePoint(size_t FaceNumber, size_t CornerNumber, openvdb::Vec3d& pos) const
 {
 	openvdb::Vec3d Position;
-	getWorldSpacePoint(FaceNumber, CornerNumber, Position);
+	GetWorldSpacePoint(FaceNumber, CornerNumber, Position);
 	pos = Transform->worldToIndex(Position);
 
 };
@@ -232,16 +291,17 @@ void FMeshDescriptionArrayAdapter::UpdateMaterialsID()
 	}
 }
 
-FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(const size_t FaceNumber, int32& OutMeshIdx, int32& OutLocalFaceNumber, const ERawPolyValues RawPolyValues ) const
+FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(const size_t FaceNumber, int32& OutMeshIdx, int32& OutInstanceIdx, int32& OutLocalFaceNumber, const ERawPolyValues RawPolyValues ) const
 {
 	checkSlow(FaceNumber < PolyCount);
 
-	int32 MeshIdx, LocalFaceNumber;
+	int32 MeshIdx, InstanceIdx, LocalFaceNumber;
 
 	const FMeshDescriptionAttributesGetter* AttributesGetter = nullptr;
-	const FMeshDescription& RawMesh = GetRawMesh(FaceNumber, MeshIdx, LocalFaceNumber, &AttributesGetter);
+	const FMeshDescription& RawMesh = GetRawMesh(FaceNumber, MeshIdx, InstanceIdx, LocalFaceNumber, &AttributesGetter);
 	check(AttributesGetter);
 	OutMeshIdx = MeshIdx;
+	OutInstanceIdx = InstanceIdx;
 	OutLocalFaceNumber = LocalFaceNumber;
 
 	checkSlow(LocalFaceNumber < AttributesGetter->TriangleCount);
@@ -251,6 +311,9 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 	FPolygonID PolygonID(LocalFaceNumber);
 	RawPoly.FaceMaterialIndex = RawMesh.GetPolygonPolygonGroup(PolygonID).GetValue();
 	RawPoly.FaceSmoothingMask = AttributesGetter->FaceSmoothingMasks[LocalFaceNumber];
+
+	const bool bIsMirrored = InstanceIdx != INDEX_NONE ? InstancesTransformArray[MeshIdx][InstanceIdx].GetDeterminant() < 0.f : false;
+	const float MulBy = bIsMirrored ? -1.f : 1.f;
 
 	for (const FTriangleID TriangleID : RawMesh.GetPolygonTriangles(PolygonID))
 	{
@@ -262,6 +325,14 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 			{
 				RawPoly.VertexPositions[i] = AttributesGetter->VertexPositions[RawMesh.GetVertexInstanceVertex(VertexInstanceIDs[i])];
 			}
+
+			if (InstanceIdx != INDEX_NONE)
+			{
+				for (int32 i = 0; i < 3; ++i)
+				{
+					RawPoly.VertexPositions[i] = InstancesTransformArray[MeshIdx][InstanceIdx].TransformPosition(RawPoly.VertexPositions[i]);
+				}
+			}
 		}
 
 		if ((RawPolyValues & ERawPolyValues::WedgeTangents) == ERawPolyValues::WedgeTangents)
@@ -271,6 +342,16 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 				RawPoly.WedgeTangentX[i] = AttributesGetter->VertexInstanceTangents[VertexInstanceIDs[i]];
 				RawPoly.WedgeTangentY[i] = FVector::CrossProduct(AttributesGetter->VertexInstanceNormals[VertexInstanceIDs[i]], AttributesGetter->VertexInstanceTangents[VertexInstanceIDs[i]]).GetSafeNormal() * AttributesGetter->VertexInstanceBinormalSigns[VertexInstanceIDs[i]];
 				RawPoly.WedgeTangentZ[i] = AttributesGetter->VertexInstanceNormals[VertexInstanceIDs[i]];
+			}
+
+			if (InstanceIdx != INDEX_NONE)
+			{
+				for (int32 i = 0; i < 3; ++i)
+				{
+					RawPoly.WedgeTangentX[i] = InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentX[i]) * MulBy;
+					RawPoly.WedgeTangentY[i] = InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentY[i]) * MulBy;
+					RawPoly.WedgeTangentZ[i] = InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentZ[i]) * MulBy;
+				}
 			}
 		}
 
@@ -307,13 +388,13 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 
 FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(const size_t FaceNumber, const ERawPolyValues RawPolyValues) const
 {
-	int32 IgnoreMeshId, IgnoreLocalFaceNumber;
-	return GetRawPoly(FaceNumber, IgnoreMeshId, IgnoreLocalFaceNumber, RawPolyValues);
+	int32 IgnoreMeshId, IgnoreInstanceIdx, IgnoreLocalFaceNumber;
+	return GetRawPoly(FaceNumber, IgnoreMeshId, IgnoreInstanceIdx, IgnoreLocalFaceNumber, RawPolyValues);
 }
 
 // protected functions
 
-const FMeshDescription& FMeshDescriptionArrayAdapter::GetRawMesh(const size_t FaceNumber, int32& MeshIdx, int32& LocalFaceNumber, const FMeshDescriptionAttributesGetter** OutAttributesGetter) const
+const FMeshDescription& FMeshDescriptionArrayAdapter::GetRawMesh(const size_t FaceNumber, int32& MeshIdx, int32& InstanceIdx, int32& LocalFaceNumber, const FMeshDescriptionAttributesGetter** OutAttributesGetter) const
 {
 	// Binary Search into poly offset will help a lot for big meshes
 	auto it = std::upper_bound(PolyOffsetArray.begin(), PolyOffsetArray.end(), FaceNumber);
@@ -321,6 +402,18 @@ const FMeshDescription& FMeshDescriptionArrayAdapter::GetRawMesh(const size_t Fa
 
 	// Offset the face number to get the correct index into this mesh.
 	LocalFaceNumber = int32(FaceNumber) - PolyOffsetArray[MeshIdx];
+
+	int32 InstanceCount = !InstancesTransformArray.IsEmpty() ? InstancesTransformArray[MeshIdx].Num() : INDEX_NONE;
+	if (InstanceCount != INDEX_NONE)
+	{
+		int32 NumFacesPerInstance = RawMeshArrayData[MeshIdx].TriangleCount;
+		InstanceIdx = LocalFaceNumber / NumFacesPerInstance;
+		LocalFaceNumber = LocalFaceNumber % NumFacesPerInstance;
+	}
+	else
+	{
+		InstanceIdx = INDEX_NONE;
+	}
 
 	const FMeshDescription* MeshDescription = RawMeshArray[MeshIdx];
 
@@ -342,7 +435,7 @@ void FMeshDescriptionArrayAdapter::ComputeAABB(ProxyLOD::FBBox& InOutBBox)
 			// loop over verts
 			for (int32 v = 0; v < 3; ++v)
 			{
-				this->getWorldSpacePoint(f, v, Pos);
+				this->GetWorldSpacePoint(f, v, Pos);
 
 				TargetBBox.expand(Pos);
 			}

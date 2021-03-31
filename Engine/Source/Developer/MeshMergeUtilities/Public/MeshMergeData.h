@@ -43,6 +43,11 @@ struct FMeshMergeData
 	FString DebugJobName;
 };
 
+struct FInstancedMeshMergeData : public FMeshMergeData
+{
+	TArray<FTransform> InstanceTransforms;
+};
+
 /** Structure for encapsulating per LOD mesh merging data */
 struct FRawMeshExt
 {

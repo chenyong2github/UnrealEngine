@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 struct FMeshMergeData;
+struct FInstancedMeshMergeData;
 struct FMeshDescription;
 
 class PROXYLODMESHREDUCTION_API IProxyLODVolume
@@ -32,6 +33,7 @@ public:
 
 	/** Create OpenVDB volume from input geometry */
 	static TUniquePtr<IProxyLODVolume> CreateSDFVolumeFromMeshArray(const TArray<FMeshMergeData>& Geometry, float Step);
+	static TUniquePtr<IProxyLODVolume> CreateSDFVolumeFromMeshArray(const TArray<FInstancedMeshMergeData>& Geometry, float Step);
 
 	virtual ~IProxyLODVolume() {}
 

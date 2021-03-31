@@ -138,9 +138,10 @@ class FVoxelizeMeshMerging : public IMeshMerging
 {
 public:
 
-	typedef TArray<FMeshMergeData>    FMeshMergeDataArray;
-	typedef TArray<FFlattenMaterial>  FFlattenMaterialArray;
-	typedef openvdb::math::Transform  OpenVDBTransform;
+	typedef TArray<FMeshMergeData>			FMeshMergeDataArray;
+	typedef TArray<FInstancedMeshMergeData> FInstancedMeshMergeDataArray;
+	typedef TArray<FFlattenMaterial>		FFlattenMaterialArray;
+	typedef openvdb::math::Transform		OpenVDBTransform;
 
 	FVoxelizeMeshMerging();
 
@@ -153,6 +154,11 @@ public:
 		                  const FMeshProxySettings& InProxySettings,
 		                  const FFlattenMaterialArray& InputMaterials,
 		                  const FGuid InJobGUID) override;
+
+	virtual void ProxyLOD(const FInstancedMeshMergeDataArray& InData,
+		const FMeshProxySettings& InProxySettings,
+		const FFlattenMaterialArray& InputMaterials,
+		const FGuid InJobGUID) override;
 
 	virtual void AggregateLOD() override
 	{};
@@ -170,6 +176,7 @@ public:
 
 
 private:
+	void ProxyLOD(FMeshDescriptionArrayAdapter& InSrcGeometryAdapter, FMeshDescriptionArrayAdapter& InClippingGeometryAdapter, const FMeshProxySettings& InProxySettings, const FFlattenMaterialArray& InputMaterials, const FGuid InJobGUID);
 
 	// Restore default parameters
 	void RestoreDefaultParameters();
@@ -628,11 +635,6 @@ static ProxyLOD::ENormalComputationMethod GetNormalComputationMethod(const FMesh
 
 void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMeshProxySettings& InProxySettings, const FFlattenMaterialArray& InputMaterials, const FGuid InJobGUID)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVoxelizeMeshMerging::ProxyLOD)
-	// Update any pipeline controlling parameters.
-
-	CaptureCVars();
-
 	// Split the input meshes into two groups.  The main geometry and clipping geometry.
 	// NB: only use pointers to avoid potentially copying a TArray of UV data.
 
@@ -641,7 +643,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 
 	for (int32 i = 0; i < InData.Num(); ++i)
 	{
-		const FMeshMergeData&  MeshMergeData = InData[i];
+		const FMeshMergeData& MeshMergeData = InData[i];
 		if (MeshMergeData.bIsClippingMesh)
 		{
 			InClippingGeometry.Add(&MeshMergeData);
@@ -652,7 +654,49 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 		}
 	}
 
-	if (InGeometry.Num() == 0)
+	// Create an adapter to make the data appear as a single mesh as required by the voxelization code.
+	FMeshDescriptionArrayAdapter SrcGeometryAdapter(InGeometry);
+	FMeshDescriptionArrayAdapter ClippingGeometryAdapter(InClippingGeometry);
+
+	ProxyLOD(SrcGeometryAdapter, ClippingGeometryAdapter, InProxySettings, InputMaterials, InJobGUID);
+}
+
+void FVoxelizeMeshMerging::ProxyLOD(const FInstancedMeshMergeDataArray& InData, const FMeshProxySettings& InProxySettings, const FFlattenMaterialArray& InputMaterials, const FGuid InJobGUID)
+{
+	// Split the input meshes into two groups.  The main geometry and clipping geometry.
+	// NB: only use pointers to avoid potentially copying a TArray of UV data.
+
+	TArray<const FInstancedMeshMergeData*> InGeometry;
+	TArray<const FInstancedMeshMergeData*> InClippingGeometry;
+
+	for (int32 i = 0; i < InData.Num(); ++i)
+	{
+		const FInstancedMeshMergeData& MeshMergeData = InData[i];
+		if (MeshMergeData.bIsClippingMesh)
+		{
+			InClippingGeometry.Add(&MeshMergeData);
+		}
+		else
+		{
+			InGeometry.Add(&MeshMergeData);
+		}
+	}
+
+	// Create an adapter to make the data appear as a single mesh as required by the voxelization code.
+	FMeshDescriptionArrayAdapter SrcGeometryAdapter(InGeometry);
+	FMeshDescriptionArrayAdapter ClippingGeometryAdapter(InClippingGeometry);
+
+	ProxyLOD(SrcGeometryAdapter, ClippingGeometryAdapter, InProxySettings, InputMaterials, InJobGUID);
+}
+
+void FVoxelizeMeshMerging::ProxyLOD(FMeshDescriptionArrayAdapter& InSrcGeometryAdapter, FMeshDescriptionArrayAdapter& InClippingGeometryAdapter, const FMeshProxySettings& InProxySettings, const FFlattenMaterialArray& InputMaterials, const FGuid InJobGUID)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVoxelizeMeshMerging::ProxyLOD)
+	// Update any pipeline controlling parameters.
+
+	CaptureCVars();
+
+	if (InSrcGeometryAdapter.polygonCount() == 0)
 	{
 		UE_LOG(LogProxyLODMeshReduction, Warning, TEXT("No static meshes input, no output mesh will be generated."));
 
@@ -685,13 +729,8 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ComputeSimplifiedMesh)
 
-		// Create an adapter to make the data appear as a single mesh as required by the voxelization code.
-
-		FMeshDescriptionArrayAdapter SrcGeometryAdapter(InGeometry);
-		FMeshDescriptionArrayAdapter ClippingGeometryAdapter(InClippingGeometry);
-
 		{
-			const auto& BBox = SrcGeometryAdapter.GetBBox();
+			const auto& BBox = InSrcGeometryAdapter.GetBBox();
 
 			if (!BBox.hasVolume())
 			{
@@ -713,20 +752,20 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 			// The transform defines resolution of the voxel grid.
 
 			OpenVDBTransform::Ptr XForm = ComputeResolution(InProxySettings, BBoxMajorAxisLength(BBox) );
-			SrcGeometryAdapter.SetTransform(XForm);
-			ClippingGeometryAdapter.SetTransform(XForm);
+			InSrcGeometryAdapter.SetTransform(XForm);
+			InClippingGeometryAdapter.SetTransform(XForm);
 		}
 
-		const double VoxelSize = SrcGeometryAdapter.GetTransform().voxelSize()[0];
+		const double VoxelSize = InSrcGeometryAdapter.GetTransform().voxelSize()[0];
 
 		// Prepare kDOPTree asynchronously ahead of time so it's ready when we need it
 		ProxyLOD::FkDOPTree  kDOPTree;
 		ProxyLOD::FTaskGroup kDOPTaskGroup;
 
 		kDOPTaskGroup.Run(
-			[&kDOPTree, &SrcGeometryAdapter]()
+			[&kDOPTree, &InSrcGeometryAdapter]()
 			{
-				ProxyLOD::BuildkDOPTree(SrcGeometryAdapter, kDOPTree);
+				ProxyLOD::BuildkDOPTree(InSrcGeometryAdapter, kDOPTree);
 			}
 		);
 
@@ -775,15 +814,15 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 
 				// 1) Voxelize - this can potentially run out of memory when very large objecs (or very small voxel sizes) are used.
 				
-				const bool bSuccess = ProxyLOD::MeshArrayToSDFVolume(SrcGeometryAdapter, SDFVolume, SrcPolyIndexGrid.get());
-				const bool bHasClipping = (InClippingGeometry.Num() != 0);
+				const bool bSuccess = ProxyLOD::MeshArrayToSDFVolume(InSrcGeometryAdapter, SDFVolume, SrcPolyIndexGrid.get());
+				const bool bHasClipping = InClippingGeometryAdapter.polygonCount() != 0;
 
 				if (bSuccess && bHasClipping)
 				{
 					// Voxelize the clipping geometry.
 
 					openvdb::FloatGrid::Ptr SDFClipping;
-					ProxyLOD::MeshArrayToSDFVolume(ClippingGeometryAdapter, SDFClipping);
+					ProxyLOD::MeshArrayToSDFVolume(InClippingGeometryAdapter, SDFClipping);
 
 					// CSG difference that removes the clipping region from the SDFvolume, leaving a watertight SDF
 
@@ -832,7 +871,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 
 				// 3) Create an object that allows for closest poly queries against the source mesh.
 
-				SrcGeometryPolyField = FClosestPolyField::create(SrcGeometryAdapter, SrcPolyIndexGrid);
+				SrcGeometryPolyField = FClosestPolyField::create(InSrcGeometryAdapter, SrcPolyIndexGrid);
 
 				// Let the SDFVolume go out of scope, no longer needed.
 			}
@@ -959,7 +998,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 					}
 				}
 			);
-			SrcGeometryAdapter.UpdateMaterialsID();
+			InSrcGeometryAdapter.UpdateMaterialsID();
 		}
 		else
 		{
@@ -1067,7 +1106,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 				// distance between polygons in the simplified geometry and polygons in the source geometry.
 				const bool bOverrideRayDist = InProxySettings.bOverrideTransferDistance;
 				double RequestedMaxRay = (bOverrideRayDist) ? InProxySettings.MaxRayCastDist : 6. * VoxelSize;
-				const double BBoxMajorAxisLength = SrcGeometryAdapter.GetBBox().extents()[SrcGeometryAdapter.GetBBox().maxExtent()];
+				const double BBoxMajorAxisLength = InSrcGeometryAdapter.GetBBox().extents()[InSrcGeometryAdapter.GetBBox().maxExtent()];
 				const double MaxRayLength = FMath::Max(VoxelSize, FMath::Min(RequestedMaxRay, BBoxMajorAxisLength));
 
 				UE_LOG(LogProxyLODMeshReduction, Log, TEXT("Material Distance %f used to discover textures."), float(MaxRayLength));
@@ -1079,7 +1118,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 				kDOPTaskGroup.Wait();
 
 				ProxyLOD::FSrcDataGrid::Ptr SuperSampledCorrespondenceGrid =
-					ProxyLOD::CreateCorrespondence(SrcGeometryAdapter, kDOPTree, VertexDataMesh, *DstSuperSampledUVGrid, this->RayHitOrder, MaxRayLength);
+					ProxyLOD::CreateCorrespondence(InSrcGeometryAdapter, kDOPTree, VertexDataMesh, *DstSuperSampledUVGrid, this->RayHitOrder, MaxRayLength);
 
 				// just for testing, this should force it to save in world space
 				const bool bUseWorldSpaceNormals = (!this->bUseTangentSpace);
@@ -1094,7 +1133,7 @@ void FVoxelizeMeshMerging::ProxyLOD(const FMeshMergeDataArray& InData, const FMe
 				// --- to generate flattened materials for the simplified geometry                       ---
 				// Compute the baked-down maps
 
-				ProxyLOD::MapFlattenMaterials(OutRawMesh, SrcGeometryAdapter, *SuperSampledCorrespondenceGrid, *DstSuperSampledUVGrid, *DstUVGrid, *BakedMaterials, UnresolvedGeometryColor, OutMaterial);
+				ProxyLOD::MapFlattenMaterials(OutRawMesh, InSrcGeometryAdapter, *SuperSampledCorrespondenceGrid, *DstSuperSampledUVGrid, *DstUVGrid, *BakedMaterials, UnresolvedGeometryColor, OutMaterial);
 
 				// Transfer the vertex colors unless we want to display the Charts as vertex colors for debugging
 

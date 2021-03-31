@@ -99,6 +99,10 @@ public:
 		const TArray<struct FFlattenMaterial>& InputMaterials,
 		const FGuid InJobGUID) {}
 	
+	virtual void ProxyLOD(const TArray<struct FInstancedMeshMergeData>& InData,
+		const struct FMeshProxySettings& InProxySettings,
+		const TArray<struct FFlattenMaterial>& InputMaterials,
+		const FGuid InJobGUID) {}
 
 	virtual void AggregateLOD() {}
 

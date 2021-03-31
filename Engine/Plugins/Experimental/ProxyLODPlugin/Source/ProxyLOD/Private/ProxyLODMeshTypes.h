@@ -272,11 +272,36 @@ ENUM_CLASS_FLAGS(ERawPolyValues);
 class FMeshDescriptionArrayAdapter
 {
 public:
+	// OpenVDB MeshDataAdapter Interface
+	
+	// Total number of polygons managed by this class.
+	size_t polygonCount() const
+	{
+		return PolyCount;
+	}
 
+	// Total number of points (positions) managed by this class
+	size_t pointCount() const
+	{
+		return PointCount;
+	}
+
+	// Vertex count for polygon n: currently FMeshDescription is just triangles.
+	size_t vertexCount(size_t n) const
+	{
+		return 3;
+	}
+
+	// Return position pos in local grid index space for polygon (face number) n and vertex (conrner number) v
+	void getIndexSpacePoint(size_t FaceNumber, size_t CornerNumber, openvdb::Vec3d& pos) const;
+
+public:
 	FMeshDescriptionArrayAdapter(const TArray<FMeshMergeData>& InMergeDataArray, const openvdb::math::Transform::Ptr InTransform);
 	FMeshDescriptionArrayAdapter(const TArray<const FMeshMergeData*>& InMergeDataPtrArray);
+	FMeshDescriptionArrayAdapter(const TArray<const FInstancedMeshMergeData*>& InMergeDataPtrArray);
 	FMeshDescriptionArrayAdapter(const TArray<FMeshMergeData>& InMergeDataArray);
-
+	FMeshDescriptionArrayAdapter(const TArray<FInstancedMeshMergeData>& InMergeDataArray);
+	
 	// copy constructor 
 	FMeshDescriptionArrayAdapter(const FMeshDescriptionArrayAdapter& other);
 
@@ -284,12 +309,7 @@ public:
 	~FMeshDescriptionArrayAdapter();
 	
 	// Return position for polygon (face number) n and vertex (corner number) v
-	void getWorldSpacePoint(size_t FaceNumber, size_t CornerNumber, openvdb::Vec3d& pos) const;
-
-
-	// Return position pos in local grid index space for polygon (face number) n and vertex (conrner number) v
-	void getIndexSpacePoint(size_t FaceNumber, size_t CornerNumber, openvdb::Vec3d& pos) const;
-	
+	void GetWorldSpacePoint(size_t FaceNumber, size_t CornerNumber, openvdb::Vec3d& pos) const;
 
 	// Access to the FMeshMergeData data elements in the array.
 	const FMeshMergeData& GetMeshMergeData(uint32 Idx) const;
@@ -356,12 +376,13 @@ public:
 	* 
 	* @param FaceNumber          The triangle Id when treating all the meshes as a single mesh
 	* @param OutMeshIdx          The Id of the actual mesh that owns this poly
+	* @param OutInstanceIdx      The instance index, if any, or INDEX_NONE
 	* @param OutLocalFaceNumber  The Id within that mesh of this poly
 	* @param RawPolyValues       Reduce computations by specifying which values will be used from FRawPoly.
 	*
 	* @return  A copy of the raw mesh data associated with this poly.
 	*/
-	FMeshDescriptionArrayAdapter::FRawPoly GetRawPoly(const size_t FaceNumber, int32& OutMeshIdx, int32& OutLocalFaceNumber, const ERawPolyValues RawPolyValues = ERawPolyValues::All ) const;
+	FMeshDescriptionArrayAdapter::FRawPoly GetRawPoly(const size_t FaceNumber, int32& OutMeshIdx, int32& OutInstanceIdx, int32& OutLocalFaceNumber, const ERawPolyValues RawPolyValues = ERawPolyValues::All ) const;
 	
 	/**
 	* Returns a copy of the data associated with this poly in the form of a struct.
@@ -372,30 +393,6 @@ public:
 	* @return  A copy of the raw mesh data associated with this poly.
 	*/
 	FMeshDescriptionArrayAdapter::FRawPoly GetRawPoly(const size_t FaceNumber, const ERawPolyValues RawPolyValues = ERawPolyValues::All ) const;
-
-	/**
-	* Total number of polygons managed by this class.
-	*/
-	size_t polygonCount() const 
-	{ 
-		return PolyCount; 
-	}
-
-	/** 
-	* Total number of points (positions) managed by this class
-	*/
-	size_t pointCount() const 
-	{ 
-		return PointCount; 
-	}
-
-	/**
-	* Vertex count for polygon n: currently FMeshDescription is just triangles.
-	*/
-	size_t vertexCount(size_t n) const 
-	{ 
-		return 3; 
-	}
 
 	/**
 	* The transform used to map between the physical space of the mesh and the voxel space.
@@ -418,9 +415,12 @@ public:
 	}
 
 protected:
-	void Construct(int32 MeshCount, TFunctionRef<const FMeshMergeData* (uint32 Index)> GetMeshFunction);
+	void SetupInstances(int32 MeshCount, TFunctionRef<const FInstancedMeshMergeData* (uint32 Index)> GetMeshFunction);
 
-	const FMeshDescription& GetRawMesh(const size_t FaceNumber, int32& MeshIdx, int32& LocalFaceNumber, const FMeshDescriptionAttributesGetter** OutAttributesGetter) const;
+	void Construct(int32 MeshCount, TFunctionRef<const FMeshMergeData* (uint32 Index)> GetMeshFunction);
+	void Construct(int32 MeshCount, TFunctionRef<const FMeshMergeData* (uint32 Index)> GetMeshFunction, TFunctionRef<int32(uint32 Index)> GetInstanceCountFunction);
+
+	const FMeshDescription& GetRawMesh(const size_t FaceNumber, int32& MeshIdx, int32& InstanceIdx, int32& LocalFaceNumber, const FMeshDescriptionAttributesGetter** OutAttributesGetter) const;
 
 	void ComputeAABB(ProxyLOD::FBBox& InOutBBox);
 protected:
@@ -434,6 +434,8 @@ protected:
 
 	std::vector<size_t>                      PolyOffsetArray;
 	std::vector<FMeshDescription*>           RawMeshArray;
+	TArray<TArray<FTransform>>               InstancesTransformArray;
+	TArray<TArray<FMatrix>>                  InstancesAdjointTArray;
 
 	// Use TArray because we need SetNumUninitialized
 	TArray<FMeshDescriptionAttributesGetter> RawMeshArrayData;

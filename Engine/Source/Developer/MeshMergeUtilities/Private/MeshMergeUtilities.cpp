@@ -1208,7 +1208,13 @@ static void ScaleTextureCoordinatesToBox(const FBox2D& Box, TArray<FVector2D>& I
 
 typedef TFunctionRef<int32(const UStaticMeshComponent*)> FGetMeshLODFunc;
 
-static TArray<FMeshDescription*> GatherGeometry(const TArray<UStaticMeshComponent*>& InStaticMeshComponents, const FMeshProxySettings& InMeshProxySettings, TArray<FProxyMeshDescriptor>& InDescriptors, const TArray<TArray<int32>>& InMeshesToMergePerDescriptor, const TArray<int32>& InMeshesToMeshDescriptor, FGetMeshLODFunc InGetMeshLODFunc, int32& OutSummedLightmapPixels)
+struct FInstancedMeshDescriptionData
+{
+	FMeshDescription* MeshDescription;
+	TArray<FTransform> InstancesTransforms;
+};
+
+static TArray<FInstancedMeshDescriptionData> GatherGeometry(const TArray<UStaticMeshComponent*>& InStaticMeshComponents, const FMeshProxySettings& InMeshProxySettings, TArray<FProxyMeshDescriptor>& InDescriptors, const TArray<TArray<int32>>& InMeshesToMergePerDescriptor, const TArray<int32>& InMeshesToMeshDescriptor, FGetMeshLODFunc InGetMeshLODFunc, int32& OutSummedLightmapPixels)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeUtilities::GatherGeometry);
 
@@ -1217,7 +1223,7 @@ static TArray<FMeshDescription*> GatherGeometry(const TArray<UStaticMeshComponen
 
 	TAtomic<int32>  SummedLightmapPixels(0);
 
-	TArray<FMeshDescription*> MeshesDescriptions;
+	TArray<FInstancedMeshDescriptionData> MeshesDescriptions;
 	MeshesDescriptions.SetNum(InDescriptors.Num());
 
 	// If grouping by identical meshes, prepare each mesh description along with their flattened UVs
@@ -1255,14 +1261,22 @@ static TArray<FMeshDescription*> GatherGeometry(const TArray<UStaticMeshComponen
 			else
 			{
 				MeshDescription = InDescriptors[InMeshesToMeshDescriptor[Index]].GetMeshDescription();
-				FStaticMeshOperations::ApplyTransform(MeshDescription, StaticMeshComponent->GetComponentTransform());
+
+				if (!InMeshProxySettings.bGroupIdenticalMeshesForBaking)
+				{
+					FStaticMeshOperations::ApplyTransform(MeshDescription, StaticMeshComponent->GetComponentTransform());
+				}
 			}
 
 			// If the component is an ISMC then we need to duplicate the vertex data
 			int32 NumInstances = 1;
 			if (const UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent))
 			{
-				FMeshMergeHelpers::ExpandInstances(InstancedStaticMeshComponent, MeshDescription);
+				if (!InMeshProxySettings.bGroupIdenticalMeshesForBaking)
+				{
+					FMeshMergeHelpers::ExpandInstances(InstancedStaticMeshComponent, MeshDescription);
+				}
+
 				NumInstances = InstancedStaticMeshComponent->PerInstanceSMData.Num();
 			}
 
@@ -1282,22 +1296,60 @@ static TArray<FMeshDescription*> GatherGeometry(const TArray<UStaticMeshComponen
 			AppendSettings.bMergeUVChannels[ChannelIdx] = true;
 		}
 
-		ParallelFor(InDescriptors.Num(), [&MeshesDescriptions, &InMeshesToMergePerDescriptor, &TempDescriptionData, &AppendSettings, &InMeshProxySettings](uint32 Index)
+		ParallelFor(InDescriptors.Num(), [&MeshesDescriptions, &InMeshesToMergePerDescriptor, &InStaticMeshComponents, &TempDescriptionData, &AppendSettings, &InMeshProxySettings](uint32 Index)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(AppendMeshes);
 			FMeshDescription* TargetMeshDescription = new FMeshDescription();
 			FStaticMeshAttributes(*TargetMeshDescription).Register();
 
-			TArray<const FMeshDescription*> SourceMeshDescriptions;
-			SourceMeshDescriptions.Reserve(InMeshesToMergePerDescriptor[Index].Num());
-			for (int32 TempIdx : InMeshesToMergePerDescriptor[Index])
+			// When using this option, do not expand the instances, but rather send their transforms to the ProxyLOD tool
+			if (InMeshProxySettings.bGroupIdenticalMeshesForBaking)
 			{
-				SourceMeshDescriptions.Add(&TempDescriptionData[TempIdx]);
+				TArray<FTransform> InstancesTransforms;
+
+				for (int32 Idx : InMeshesToMergePerDescriptor[Index])
+				{
+					UStaticMeshComponent* StaticMeshComponent = InStaticMeshComponents[Idx];
+
+					if (InMeshProxySettings.bGroupIdenticalMeshesForBaking)
+					{
+						FTransform ComponentTransform = StaticMeshComponent->GetComponentTransform();
+						FTransform ComponentTransformInv = ComponentTransform.Inverse();
+
+						if (const UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent))
+						{
+							for (const FInstancedStaticMeshInstanceData& InstanceData : InstancedStaticMeshComponent->PerInstanceSMData)
+							{
+								InstancesTransforms.Add(FTransform(InstanceData.Transform) * ComponentTransform);
+							}
+						}
+						else
+						{
+							InstancesTransforms.Add(ComponentTransform);
+						}
+					}
+				}
+
+				if (!InMeshesToMergePerDescriptor[Index].IsEmpty())
+				{
+					*TargetMeshDescription = TempDescriptionData[InMeshesToMergePerDescriptor[Index][0]];
+				}
+
+				MeshesDescriptions[Index].InstancesTransforms = MoveTemp(InstancesTransforms);
+			}
+			else
+			{
+				TArray<const FMeshDescription*> SourceMeshDescriptions;
+				SourceMeshDescriptions.Reserve(InMeshesToMergePerDescriptor[Index].Num());
+				for (int32 TempIdx : InMeshesToMergePerDescriptor[Index])
+				{
+					SourceMeshDescriptions.Add(&TempDescriptionData[TempIdx]);
+				}
+
+				FStaticMeshOperations::AppendMeshDescriptions(SourceMeshDescriptions, *TargetMeshDescription, AppendSettings);
 			}
 
-			FStaticMeshOperations::AppendMeshDescriptions(SourceMeshDescriptions, *TargetMeshDescription, AppendSettings);
-
-			MeshesDescriptions[Index] = TargetMeshDescription;
+			MeshesDescriptions[Index].MeshDescription = TargetMeshDescription;
 		}, EParallelForFlags::Unbalanced);
 	}
 
@@ -1306,11 +1358,11 @@ static TArray<FMeshDescription*> GatherGeometry(const TArray<UStaticMeshComponen
 	return MeshesDescriptions;
 }
 
-TArray<FMeshData> PrepareBakingMeshes(const struct FMeshProxySettings& InMeshProxySettings, const TArray<FProxyMeshDescriptor>& InDescriptors, TArray<FMeshDescription*> InMeshDescriptions)
+TArray<FMeshData> PrepareBakingMeshes(const struct FMeshProxySettings& InMeshProxySettings, const TArray<FProxyMeshDescriptor>& InDescriptors, TArray<FInstancedMeshDescriptionData> InMeshDescriptionData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(PrepareBakingMeshes)
 
-	check(InDescriptors.Num() == InMeshDescriptions.Num());
+	check(InDescriptors.Num() == InMeshDescriptionData.Num());
 
 	TArray<FMeshData> MeshData;
 	MeshData.SetNum(InDescriptors.Num());
@@ -1319,7 +1371,7 @@ TArray<FMeshData> PrepareBakingMeshes(const struct FMeshProxySettings& InMeshPro
 	for (int32 MeshIndex = 0; MeshIndex < InDescriptors.Num(); MeshIndex++)
 	{
 		FMeshData& MeshSettings = MeshData[MeshIndex];
-		FMeshDescription& MeshDescription = *InMeshDescriptions[MeshIndex];
+		FMeshDescription& MeshDescription = *InMeshDescriptionData[MeshIndex].MeshDescription;
 		const FProxyMeshDescriptor& MeshDescriptor = InDescriptors[MeshIndex];
 
 		if (!InMeshProxySettings.bGroupIdenticalMeshesForBaking)
@@ -1333,7 +1385,7 @@ TArray<FMeshData> PrepareBakingMeshes(const struct FMeshProxySettings& InMeshPro
 	}
 
 	// Parallel step
-	ParallelFor(InDescriptors.Num(), [&MeshData, &InDescriptors, &InMeshDescriptions, &InMeshProxySettings](uint32 MeshIndex)
+	ParallelFor(InDescriptors.Num(), [&MeshData, &InDescriptors, &InMeshDescriptionData, &InMeshProxySettings](uint32 MeshIndex)
 	{
 		const FProxyMeshDescriptor& MeshDescriptor = InDescriptors[MeshIndex];
 
@@ -1349,7 +1401,7 @@ TArray<FMeshData> PrepareBakingMeshes(const struct FMeshProxySettings& InMeshPro
 		}
 		else
 		{
-			FMeshDescription& MeshDescription = *InMeshDescriptions[MeshIndex];
+			FMeshDescription& MeshDescription = *InMeshDescriptionData[MeshIndex].MeshDescription;
 			MeshSettings.MeshDescription = &MeshDescription;
 
 			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(MeshDescription).GetVertexInstanceUVs();
@@ -1579,7 +1631,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 	int32 SummedLightmapPixels;
 	
-	TArray<FMeshDescription*> MeshDescriptionData = GatherGeometry(StaticMeshComponents, InMeshProxySettings, MeshDescriptors, MeshesToMergePerDescriptor, MeshToMeshDescriptor, SelectLODFunc, SummedLightmapPixels);
+	TArray<FInstancedMeshDescriptionData> MeshDescriptionData = GatherGeometry(StaticMeshComponents, InMeshProxySettings, MeshDescriptors, MeshesToMergePerDescriptor, MeshToMeshDescriptor, SelectLODFunc, SummedLightmapPixels);
 	TArray<FMeshData> MeshBakingData = PrepareBakingMeshes(InMeshProxySettings, MeshDescriptors, MeshDescriptionData);
 
 	TArray<UMaterialInterface*> UniqueMaterials;
@@ -1747,7 +1799,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 			// Now have the baked out material data, need to have a map or actually remap the raw mesh data to baked material indices
 			for (int32 MeshIndex = 0; MeshIndex < MeshDescriptionData.Num(); ++MeshIndex)
 			{
-				FMeshDescription& MeshDescription = *MeshDescriptionData[MeshIndex];
+				FMeshDescription& MeshDescription = *MeshDescriptionData[MeshIndex].MeshDescription;
 
 				TArray<TPair<uint32, uint32>> SectionAndOutputIndices;
 				OutputMaterialsMap.MultiFind(MeshIndex, SectionAndOutputIndices);
@@ -1806,16 +1858,17 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	// Add this proxy job to map	
 	Processor->AddProxyJob(InGuid, Data);
 
-	TArray<FMeshMergeData> MergeDataEntries;
+	TArray<FInstancedMeshMergeData> MergeDataEntries;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MergeDataPreparation)
 
 		for (int32 Index = 0; Index < MeshDescriptionData.Num(); ++Index)
 		{
-			FMeshMergeData MergeData;
+			FInstancedMeshMergeData MergeData;
 			MergeData.SourceStaticMesh = MeshDescriptors[Index].GetStaticMesh();
-			MergeData.RawMesh = MeshDescriptionData[Index];
+			MergeData.RawMesh = MeshDescriptionData[Index].MeshDescription;
 			MergeData.bIsClippingMesh = false;
+			MergeData.InstanceTransforms = MeshDescriptionData[Index].InstancesTransforms;
 
 			FMeshMergeHelpers::CalculateTextureCoordinateBoundsForMesh(*MergeData.RawMesh, MergeData.TexCoordBounds);
 
@@ -1850,7 +1903,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 		// Populate landscape clipping geometry
 		for (FMeshDescription* RawMesh : CullingRawMeshes)
 		{
-			FMeshMergeData ClipData;
+			FInstancedMeshMergeData ClipData;
 			ClipData.bIsClippingMesh = true;
 			ClipData.RawMesh = RawMesh;
 			MergeDataEntries.Add(ClipData);
@@ -1913,7 +1966,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 		MeshDescriptionData.Num(),
 		[&MeshDescriptionData](int32 Index)
 		{
-			delete MeshDescriptionData[Index];
+			delete MeshDescriptionData[Index].MeshDescription;
 		}
 	);
 }

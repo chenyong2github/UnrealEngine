@@ -24,8 +24,8 @@ namespace
 	float EvaluateHit(const FVector& HitPoint, const uint32 SrcPolyId, const FMeshDescriptionArrayAdapter& MeshAdapter,
 		ProxyLOD::FSrcMeshData& HitPayload, TestFunctorType& TestFunctor)
 	{
-		int32 MeshId; int32 LocalFaceNumber;
-		const FMeshDescriptionArrayAdapter::FRawPoly SrcPoly = MeshAdapter.GetRawPoly(SrcPolyId, MeshId, LocalFaceNumber, ERawPolyValues::WedgeTexCoords | ERawPolyValues::VertexPositions | ERawPolyValues::WedgeTangents);
+		int32 MeshId, InstanceIdx, LocalFaceNumber;
+		const FMeshDescriptionArrayAdapter::FRawPoly SrcPoly = MeshAdapter.GetRawPoly(SrcPolyId, MeshId, InstanceIdx, LocalFaceNumber, ERawPolyValues::WedgeTexCoords | ERawPolyValues::VertexPositions | ERawPolyValues::WedgeTangents);
 		int32 MaterialIdx = SrcPoly.FaceMaterialIndex;
 
 		FVector2D UVs[3];
@@ -1070,8 +1070,8 @@ namespace
 
 			auto ComputeSrcTangentSpace = [&SrcMeshAdapter](const int32 TriangleId, const ProxyLOD::DArray3d& BarycentricCoords, FTangentSpace& TangentSpace)
 			{
-				int32 MeshId; int32 LocalFaceNumber;
-				const FMeshDescriptionArrayAdapter::FRawPoly SrcPoly = SrcMeshAdapter.GetRawPoly(TriangleId, MeshId, LocalFaceNumber, ERawPolyValues::WedgeTangents);
+				int32 MeshId, InstanceIdx, LocalFaceNumber;
+				const FMeshDescriptionArrayAdapter::FRawPoly SrcPoly = SrcMeshAdapter.GetRawPoly(TriangleId, MeshId, InstanceIdx, LocalFaceNumber, ERawPolyValues::WedgeTangents);
 
 				// Get the tangent space:  We try to compute this in a way that is consistent with LocalVertexFactory.usf (CalcTangentToLocal).
 

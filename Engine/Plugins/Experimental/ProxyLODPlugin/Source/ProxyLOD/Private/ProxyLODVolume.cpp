@@ -41,22 +41,13 @@ public:
 	bool Initialize(const TArray<FMeshMergeData>& Geometry, float Accuracy)
 	{
 		FMeshDescriptionArrayAdapter SrcGeometryAdapter(Geometry);
-		OpenVDBTransform::Ptr XForm = OpenVDBTransform::createLinearTransform(Accuracy);
-		SrcGeometryAdapter.SetTransform(XForm);
+		return Initialize(SrcGeometryAdapter, Accuracy);
+	}
 
-		VoxelSize = SrcGeometryAdapter.GetTransform().voxelSize()[0];
-
-		SrcPolyIndexGrid = openvdb::Int32Grid::create();
-
-		if (!ProxyLOD::MeshArrayToSDFVolume(SrcGeometryAdapter, SDFVolume, SrcPolyIndexGrid.get()))
-		{
-			SrcPolyIndexGrid.reset();
-			return false;
-		}
-
-		Sampler.reset(new openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::PointSampler>(*SDFVolume));
-
-		return true;
+	bool Initialize(const TArray<FInstancedMeshMergeData>& Geometry, float Accuracy)
+	{
+		FMeshDescriptionArrayAdapter SrcGeometryAdapter(Geometry);
+		return Initialize(SrcGeometryAdapter, Accuracy);
 	}
 
 	virtual double GetVoxelSize() const override
@@ -128,6 +119,26 @@ public:
 	}
 
 private:
+	bool Initialize(FMeshDescriptionArrayAdapter& InSrcGeometryAdapter, float Accuracy)
+	{
+		OpenVDBTransform::Ptr XForm = OpenVDBTransform::createLinearTransform(Accuracy);
+		InSrcGeometryAdapter.SetTransform(XForm);
+
+		VoxelSize = InSrcGeometryAdapter.GetTransform().voxelSize()[0];
+
+		SrcPolyIndexGrid = openvdb::Int32Grid::create();
+
+		if (!ProxyLOD::MeshArrayToSDFVolume(InSrcGeometryAdapter, SDFVolume, SrcPolyIndexGrid.get()))
+		{
+			SrcPolyIndexGrid.reset();
+			return false;
+		}
+
+		Sampler.reset(new openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::PointSampler>(*SDFVolume));
+
+		return true;
+	}
+
 	openvdb::FloatGrid::Ptr SDFVolume;
 	openvdb::Int32Grid::Ptr SrcPolyIndexGrid;
 	openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::PointSampler>::Ptr Sampler;
@@ -151,6 +162,17 @@ TUniquePtr<IProxyLODVolume> IProxyLODVolume::CreateSDFVolumeFromMeshArray(const 
 	return Volume;
 }
 
+TUniquePtr<IProxyLODVolume> IProxyLODVolume::CreateSDFVolumeFromMeshArray(const TArray<FInstancedMeshMergeData>& Geometry, float Step)
+{
+	TUniquePtr<FProxyLODVolumeImpl> Volume = MakeUnique<FProxyLODVolumeImpl>();
+
+	if (Volume == nullptr || !Volume->Initialize(Geometry, Step))
+	{
+		return nullptr;
+	}
+
+	return Volume;
+}
 
 class FPolygonSoup
 {
