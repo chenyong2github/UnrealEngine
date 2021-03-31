@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CrossCompilerCommon.h"
 
 
 // Forward declaration from <spirv_reflect.h>
 struct SpvReflectInterfaceVariable;
+struct SpvReflectBlockVariable;
 
 // Cross compiler support/common functionality
 namespace CrossCompiler
@@ -20,7 +22,8 @@ namespace CrossCompiler
 		void WriteOutputAttribute(const SpvReflectInterfaceVariable& Attribute);
 		void WriteOutputAttribute(const TCHAR* AttributeName, const TCHAR* TypeSpecifier, int32 Location, bool bLocationPrefix, bool bLocationSuffix);
 		void WriteUniformBlock(const TCHAR* ResourceName, uint32 BindingIndex);
-		void WritePackedGlobal(const TCHAR* ResourceName, const TCHAR* TypeSpecifier, uint32 ByteOffset, uint32 ByteSize);
+		void WritePackedGlobal(const TCHAR* ResourceName, EPackedTypeName PackedType, uint32 ByteOffset, uint32 ByteSize);
+		void WritePackedGlobal(const SpvReflectBlockVariable& Variable);
 		void WritePackedUB(uint32 BindingIndex);
 		void WritePackedUBField(const TCHAR* ResourceName, uint32 ByteOffset, uint32 ByteSize);
 		void WritePackedUBGlobalCopy(uint32 SourceCB, uint32 SourceOffset, uint32 DestCBIndex, uint32 DestCBPrecision, uint32 DestOffset, uint32 Size, bool bGroupFlattenedUBs = false);

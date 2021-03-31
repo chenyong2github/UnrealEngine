@@ -352,11 +352,43 @@ namespace CrossCompiler
 		MetaDataPrintf(Strings.UniformBlocks, TEXT("%s(%u)"), ResourceName, BindingIndex);
 	}
 
-	void FHlslccHeaderWriter::WritePackedGlobal(const TCHAR* ResourceName, const TCHAR* TypeSpecifier, uint32 ByteOffset, uint32 ByteSize)
+	static EPackedTypeName EncodePackedGlobalType(const SpvReflectTypeDescription& TypeDescription)
 	{
-		checkf(ByteOffset % 4 == 0, TEXT("field offset in @PackedGlobals shader meta data must be a multiple of 4, but got %u"), ByteOffset);
-		checkf(ByteSize % 4 == 0, TEXT("field size in @PackedGlobals shader meta data must be a multiple of 4, but got %u"), ByteSize);
-		MetaDataPrintf(Strings.PackedGlobals, TEXT("%s(%s:%u,%u)"), ResourceName, TypeSpecifier, ByteOffset / 4, ByteSize / 4);
+		const SpvReflectTypeFlags ScalarTypeFlagsBitmask =
+		(
+			SPV_REFLECT_TYPE_FLAG_VOID	|
+			SPV_REFLECT_TYPE_FLAG_BOOL	|
+			SPV_REFLECT_TYPE_FLAG_INT	|
+			SPV_REFLECT_TYPE_FLAG_FLOAT
+		);
+		const SpvReflectTypeFlags TypeFlags = TypeDescription.type_flags;
+		const SpvReflectTypeFlags MaskedType = TypeFlags & ScalarTypeFlagsBitmask;
+
+		switch (MaskedType)
+		{
+		case SPV_REFLECT_TYPE_FLAG_BOOL:
+		case SPV_REFLECT_TYPE_FLAG_INT:
+			return (TypeDescription.traits.numeric.scalar.signedness ? EPackedTypeName::Int : EPackedTypeName::Uint);
+		case SPV_REFLECT_TYPE_FLAG_FLOAT:
+			return EPackedTypeName::HighP;
+		default:
+			checkf(false, TEXT("unsupported component type %d"), MaskedType);
+			return EPackedTypeName::LowP;
+		}
+	}
+
+	void FHlslccHeaderWriter::WritePackedGlobal(const TCHAR* ResourceName, EPackedTypeName PackedType, uint32 ByteOffset, uint32 ByteSize)
+	{
+		// PackedType must be one of 'h','m','l','i','u'.
+		checkf(ByteOffset % 4 == 0, TEXT("field offset of \"%s\" in @PackedGlobals shader meta data must be a multiple of 4, but got %u"), ResourceName, ByteOffset);
+		checkf(ByteSize % 4 == 0, TEXT("field size of \"%s\" in @PackedGlobals shader meta data must be a multiple of 4, but got %u"), ResourceName, ByteSize);
+		MetaDataPrintf(Strings.PackedGlobals, TEXT("%s(%c:%u,%u)"), ResourceName, TCHAR(PackedType), ByteOffset / 4, ByteSize / 4);
+	}
+
+	void FHlslccHeaderWriter::WritePackedGlobal(const SpvReflectBlockVariable& Variable)
+	{
+		const EPackedTypeName PackedType = EncodePackedGlobalType(*(Variable.type_description));
+		WritePackedGlobal(ANSI_TO_TCHAR(Variable.name), PackedType, Variable.absolute_offset, Variable.size);// padded_size);
 	}
 
 	void FHlslccHeaderWriter::WritePackedUB(uint32 BindingIndex)

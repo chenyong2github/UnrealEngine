@@ -1596,8 +1596,7 @@ static bool CompileToGlslWithShaderConductor(
 				{
 					for (uint32 i = 0; i < Binding->block.member_count; i++)
 					{
-						SpvReflectBlockVariable& member = Binding->block.members[i];
-						CCHeaderWriter.WritePackedGlobal(UTF8_TO_TCHAR(member.name), TEXT("h"), member.absolute_offset, member.size);
+						CCHeaderWriter.WritePackedGlobal(Binding->block.members[i]);
 					}
 				}
 				else
@@ -1686,7 +1685,7 @@ static bool CompileToGlslWithShaderConductor(
 
 							uint32& Offset = GlobalOffsets.FindOrAdd(TypeQualifier);
 
-							CCHeaderWriter.WritePackedGlobal(*MemberName, *TypeQualifier, member.absolute_offset, member.size);
+							CCHeaderWriter.WritePackedGlobal(member);
 
 							bool const bArray = type.traits.array.dims_count > 0;
 

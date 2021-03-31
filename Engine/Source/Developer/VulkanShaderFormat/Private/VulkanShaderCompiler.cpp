@@ -2256,7 +2256,6 @@ static void BuildShaderOutputFromSpirv(
 	for (const SpvReflectDescriptorBinding* Binding : Bindings.UniformBuffers)
 	{
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
-		const uint32 SizePerComponent = sizeof(float);
 
 		if (ResourceName == UBOGlobalsNameSpv)
 		{
@@ -2276,8 +2275,7 @@ static void BuildShaderOutputFromSpirv(
 			for (uint32 MemberIndex = 0; MemberIndex < Binding->block.member_count; ++MemberIndex)
 			{
 				const SpvReflectBlockVariable* Member = &(Binding->block.members[MemberIndex]);
-				const FString MemberName(ANSI_TO_TCHAR(Member->name));
-				CCHeaderWriter.WritePackedGlobal(*MemberName, TEXT("h"), Member->absolute_offset, Member->size);
+				CCHeaderWriter.WritePackedGlobal(ANSI_TO_TCHAR(Member->name), CrossCompiler::EPackedTypeName::HighP, Member->absolute_offset, Member->size);
 			}
 
 			// Stop after we found $Globals uniform buffer
@@ -2288,7 +2286,6 @@ static void BuildShaderOutputFromSpirv(
 	for (const SpvReflectDescriptorBinding* Binding : Bindings.UniformBuffers)
 	{
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
-		const uint32 SizePerComponent = sizeof(float);
 
 		if (ResourceName != UBOGlobalsNameSpv)
 		{
