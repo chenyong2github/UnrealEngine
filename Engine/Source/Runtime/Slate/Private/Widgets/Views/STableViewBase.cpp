@@ -257,7 +257,7 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 
 			if (bEnableAnimatedScrolling)
 			{
-				CurrentScrollOffset = FMath::FInterpTo(CurrentScrollOffset, TargetScrollOffset, InDeltaTime, 12.f);
+				CurrentScrollOffset = FMath::FInterpTo(CurrentScrollOffset, TargetScrollOffset, (double)InDeltaTime, 12.0);
 				if (FMath::IsNearlyEqual(CurrentScrollOffset, TargetScrollOffset, 0.01))
 				{
 					CurrentScrollOffset = TargetScrollOffset;

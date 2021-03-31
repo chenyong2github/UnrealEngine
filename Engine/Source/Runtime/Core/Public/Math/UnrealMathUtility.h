@@ -1133,6 +1133,9 @@ public:
 	/** Interpolate float from Current to Target. Scaled by distance to Target, so it has a strong start speed and ease out. */
 	static CORE_API float FInterpTo( float Current, float Target, float DeltaTime, float InterpSpeed );
 
+	/** Interpolate double from Current to Target. Scaled by distance to Target, so it has a strong start speed and ease out. */
+	static CORE_API double FInterpTo(double Current, double Target, double DeltaTime, double InterpSpeed);
+
 	/** Interpolate Linear Color from Current to Target. Scaled by distance to Target, so it has a strong start speed and ease out. */
 	static CORE_API FLinearColor CInterpTo(const FLinearColor& Current, const FLinearColor& Target, float DeltaTime, float InterpSpeed);
 

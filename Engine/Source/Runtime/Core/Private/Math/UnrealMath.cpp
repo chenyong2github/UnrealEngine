@@ -2488,6 +2488,29 @@ CORE_API float FMath::FInterpTo( float Current, float Target, float DeltaTime, f
 	return Current + DeltaMove;
 }
 
+CORE_API double FMath::FInterpTo( double Current, double Target, double DeltaTime, double InterpSpeed )
+{
+	// If no interp speed, jump to target value
+	if( InterpSpeed <= 0.0 )
+	{
+		return Target;
+	}
+
+	// Distance to reach
+	const double Dist = Target - Current;
+
+	// If distance is too small, just set the desired location
+	if( FMath::Square(Dist) < SMALL_NUMBER )
+	{
+		return Target;
+	}
+
+	// Delta Move, Clamp so we do not over shoot.
+	const double DeltaMove = Dist * FMath::Clamp<double>(DeltaTime * InterpSpeed, 0.0, 1.0);
+
+	return Current + DeltaMove;
+}
+
 CORE_API float FMath::FInterpConstantTo( float Current, float Target, float DeltaTime, float InterpSpeed )
 {
 	const float Dist = Target - Current;
