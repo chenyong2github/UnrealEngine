@@ -32,7 +32,7 @@
 
 class FText;
 
-/** Maximum size of name. */
+/** Maximum size of name, including the null terminator. */
 enum {NAME_SIZE	= 1024};
 
 /** Opaque id to a deduplicated name */

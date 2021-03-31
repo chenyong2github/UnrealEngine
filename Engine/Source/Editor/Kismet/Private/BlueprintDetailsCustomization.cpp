@@ -4366,7 +4366,7 @@ bool FBaseBlueprintGraphActionDetails::OnVerifyPinRename(UK2Node_EditablePinBase
 		return true;
 	}
 
-	if (InNewName.Len() > NAME_SIZE)
+	if (InNewName.Len() >= NAME_SIZE)
 	{
 		OutErrorMessage = FText::Format( LOCTEXT("PinNameTooLong", "The name you entered is too long. Names must be less than {0} characters"), FText::AsNumber( NAME_SIZE ) );
 		return false;

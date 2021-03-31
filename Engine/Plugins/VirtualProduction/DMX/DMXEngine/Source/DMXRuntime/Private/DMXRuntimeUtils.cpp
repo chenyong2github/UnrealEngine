@@ -89,9 +89,9 @@ FString FDMXRuntimeUtils::GenerateUniqueNameForImportFunction(TMap<FString, uint
 		int32 CountLength = *CountPointer > 0 ? (int32)FGenericPlatformMath::LogX(10.0f, *CountPointer) + 2 : 2;
 
 		// If the length of the final string will be too long, cut off the end so we can fit the number
-		if (CountLength + BaseName.Len() > NAME_SIZE)
+		if (CountLength + BaseName.Len() >= NAME_SIZE)
 		{
-			BaseName = BaseName.Left(NAME_SIZE - CountLength);
+			BaseName = BaseName.Left(NAME_SIZE - CountLength - 1);
 		}
 		
 		if (*CountPointer > 0)

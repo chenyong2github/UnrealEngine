@@ -125,7 +125,7 @@ void SPropertyEditorText::OnTextCommitted( const FText& NewText, ETextCommit::Ty
 
 static FText ValidateNameLength( const FText& Text )
 {
-	if( Text.ToString().Len() > NAME_SIZE )
+	if( Text.ToString().Len() >= NAME_SIZE )
 	{
 		static FText ErrorString = FText::Format( LOCTEXT("NamePropertySizeTooLongError", "Name properties may only be a maximum of {0} characters"), FText::AsNumber( NAME_SIZE ) );
 		return ErrorString;

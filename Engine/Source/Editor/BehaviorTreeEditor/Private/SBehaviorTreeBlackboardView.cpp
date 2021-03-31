@@ -193,9 +193,9 @@ private:
 		
 		const FString AsString = *NewText.ToString();
 
-		if (AsString.Len() > NAME_SIZE)
+		if (AsString.Len() >= NAME_SIZE)
 		{
-			UE_LOG(LogBlackboardEditor, Error, TEXT("%s is not a valid Blackboard key name. Needs to be shorter than 1024 characters."), *NewText.ToString());
+			UE_LOG(LogBlackboardEditor, Error, TEXT("%s is not a valid Blackboard key name. Needs to be shorter than %d characters."), *NewText.ToString(), NAME_SIZE);
 			return;
 		}
 

@@ -1378,7 +1378,7 @@ const TCHAR* DebugFName(FNameEntryId Index)
 const TCHAR* DebugFName(int32 Index, int32 Number)
 {
 	// Hardcoded static array. This function is only used inside the debugger so it should be fine to return it.
-	static TCHAR TempName[NAME_SIZE];
+	static TCHAR TempName[FName::StringBufferSize];
 	FCString::Strcpy(TempName, *FName::SafeString(DebugCastNameEntryId(Index), Number));
 	return TempName;
 }
@@ -1392,7 +1392,7 @@ const TCHAR* DebugFName(int32 Index, int32 Number)
 const TCHAR* DebugFName(FName& Name)
 {
 	// Hardcoded static array. This function is only used inside the debugger so it should be fine to return it.
-	static TCHAR TempName[NAME_SIZE];
+	static TCHAR TempName[FName::StringBufferSize];
 	FCString::Strcpy(TempName, *FName::SafeString(Name.GetDisplayIndex(), Name.GetNumber()));
 	return TempName;
 }
@@ -2902,7 +2902,7 @@ struct FSerializedNameHeader
 	FSerializedNameHeader(uint32 Len, bool bIsUtf16)
 	{
 		static_assert(NAME_SIZE < 0x8000u, "");
-		check(Len <= NAME_SIZE);
+		check(Len < NAME_SIZE);
 
 		Data[0] = uint8(bIsUtf16) << 7 | static_cast<uint8>(Len >> 8);
 		Data[1] = static_cast<uint8>(Len);

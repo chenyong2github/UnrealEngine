@@ -249,7 +249,7 @@ public:
 	/** Callback for the SInlineEditableTextBlock to verify the text before commit */
 	bool OnVerifyTextChanged(const FText& InText, FText& OutErrorMessage)
 	{
-		if(InText.ToString().Len() > NAME_SIZE)
+		if(InText.ToString().Len() >= NAME_SIZE)
 		{
 			OutErrorMessage = LOCTEXT("CategoryNameTooLong_Error", "Name too long!");
 			return false;

@@ -246,7 +246,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 		// certain properties have requirements on the size of string values that can be imported.  Search for strings that are too large.
 		for (const FString& Value : InValues)
 		{
-			if (Value.Len() > NAME_SIZE)
+			if (Value.Len() >= NAME_SIZE)
 			{
 				Result = FPropertyAccess::Fail;
 				break;
