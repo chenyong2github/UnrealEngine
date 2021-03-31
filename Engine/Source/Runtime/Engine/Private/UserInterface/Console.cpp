@@ -292,7 +292,7 @@ void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
 
 						for (const FAssetData& Asset : Assets)
 						{
-							if (!!(Asset.PackageFlags & PKG_ContainsMap))
+							if (!!(Asset.PackageFlags & PKG_ContainsMap) && Asset.IsUAsset())
 							{
 								OutPackages.Emplace(Asset.AssetName.ToString());
 							}
