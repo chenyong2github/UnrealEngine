@@ -166,7 +166,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	FLinearColor AtmosphereSunDiskColorScale;
 
 	/**
-	 * Whether to apply atmosphere transmittance per pixel on opaque meshes, instead of using the light global transmittance.
+	 * Whether to apply atmosphere transmittance per pixel on opaque meshes, instead of using the light global transmittance. Note: VolumetricCloud per pixel transmittance option is selectable on the VolumetricCloud component itself.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay)
 	uint32 bPerPixelAtmosphereTransmittance : 1;
