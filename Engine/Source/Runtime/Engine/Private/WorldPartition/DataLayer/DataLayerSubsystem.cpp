@@ -53,6 +53,22 @@ void UDataLayerSubsystem::PostInitialize()
 {
 	Super::PostInitialize();
 
+	if (GetWorld()->IsGameWorld())
+	{
+		// Initialize Dynamically loaded Data Layers state
+		if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
+		{
+			WorldDataLayers->ForEachDataLayer([this](class UDataLayer* DataLayer)
+			{
+				if (DataLayer && DataLayer->IsDynamicallyLoaded())
+				{
+					SetDataLayerState(DataLayer, DataLayer->GetInitialState());
+				}
+				return true;
+			});
+		}
+	}
+
 	if (GetWorld()->IsGameWorld() && (GetWorld()->GetNetMode() != NM_DedicatedServer))
 	{
 		DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UDataLayerSubsystem::Draw));
