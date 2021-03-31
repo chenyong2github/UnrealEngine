@@ -1853,6 +1853,7 @@ struct FDistanceFieldReadRequest
 	FSetElementId AssetSetId;
 	int32 ReversedMipIndex = 0;
 	int32 NumDistanceFieldBricks = 0;
+	uint64 BuiltDataId = 0;
 
 	// Used when BulkData is nullptr
 	const uint8* AlwaysLoadedDataPtr = nullptr;

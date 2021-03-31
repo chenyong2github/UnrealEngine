@@ -222,6 +222,17 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDeriv
 
 #endif
 
+uint64 NextDistanceFieldVolumeDataId = 1;
+
+FDistanceFieldVolumeData::FDistanceFieldVolumeData() :
+	LocalSpaceMeshBounds(ForceInit),
+	bMostlyTwoSided(false),
+	bAsyncBuilding(false)
+{
+	Id = NextDistanceFieldVolumeDataId;
+	NextDistanceFieldVolumeDataId++;
+}
+
 void FDistanceFieldVolumeData::Serialize(FArchive& Ar, UObject* Owner)
 {
 	// Note: this is derived data, no need for versioning (bump the DDC guid)

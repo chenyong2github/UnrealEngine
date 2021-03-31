@@ -256,14 +256,12 @@ public:
 	// Remaining mips are streamed
 	FByteBulkData StreamableMips;
 
+	uint64 Id;
+
 	// For stats
 	FName AssetName;
 
-	FDistanceFieldVolumeData() :
-		LocalSpaceMeshBounds(ForceInit),
-		bMostlyTwoSided(false),
-		bAsyncBuilding(false)
-	{}
+	FDistanceFieldVolumeData();
 
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
 	{
@@ -291,6 +289,8 @@ public:
 #endif
 
 	void Serialize(FArchive& Ar, UObject* Owner);
+
+	uint64 GetId() const { return Id; }
 };
 
 class FAsyncDistanceFieldTask;
