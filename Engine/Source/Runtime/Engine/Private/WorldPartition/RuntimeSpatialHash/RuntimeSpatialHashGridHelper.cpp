@@ -219,11 +219,9 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		{
 			if (ActorCluster->Actors.Num() > 1)
 			{
-				static UEnum* ActorGridPlacementEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EActorGridPlacement"));
-
 				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered %d actors (%s%s%s), generated shared BV of [%d x %d] (meters)"),
 					ActorCluster->Actors.Num(),
-					*ActorGridPlacementEnum->GetNameStringByValue((int64)GridPlacement),
+					*StaticEnum<EActorGridPlacement>()->GetNameStringByValue((int64)GridPlacement),
 					bAlwaysLoadedPromotedCluster ? TEXT(":PromotedCluster") : TEXT(""),
 					bAlwaysLoadedPromotedOutOfGrid ? TEXT(":PromotedOutOfGrid") : TEXT(""),
 					(int)(0.01f * ClusterInstance->Bounds.GetSize().X),

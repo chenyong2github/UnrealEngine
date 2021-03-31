@@ -153,6 +153,8 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 		}
 	});
 
+	UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Verbose, TEXT("Building HLODs for grid %s..."), *RuntimeGrid.GridName.ToString());
+
 	FScopedSlowTask SlowTask(NbCellsToProcess, FText::FromString(FString::Printf(TEXT("Building HLODs for grid %s..."), *RuntimeGrid.GridName.ToString())));
 	SlowTask.MakeDialog();
 
@@ -168,15 +170,18 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 		PartitionedActors.GetCellBounds(CellCoord, CellBounds2D);
 		FBox CellBounds = FBox(FVector(CellBounds2D.Min, WorldBounds.Min.Z), FVector(CellBounds2D.Max, WorldBounds.Max.Z));
 
+		FIntVector CellGlobalCoord;
+		verify(PartitionedActors.GetCellGlobalCoords(CellCoord, CellGlobalCoord));
+
 		for (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk& GridCellDataChunk : GridCell.GetDataChunks())
 		{
 			const bool bShouldGenerateHLODs = ShouldGenerateHLODs(GridCell, GridCellDataChunk);
 			if (bShouldGenerateHLODs)
 			{
 				SlowTask.EnterProgressFrame(1);
-				FIntVector CellGlobalCoord;
-				verify(PartitionedActors.GetCellGlobalCoords(CellCoord, CellGlobalCoord));
 				FName CellName = UWorldPartitionRuntimeSpatialHash::GetCellName(WorldPartition, RuntimeGrid.GridName, CellGlobalCoord, GridCellDataChunk.GetDataLayersID());
+
+				UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Verbose, TEXT("Creating HLOD for cell %s at %s..."), *CellName.ToString(), *CellCoord.ToString());
 
 				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*CellName.ToString());
 
@@ -233,6 +238,12 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 					for (AWorldPartitionHLOD* CellHLODActor : CellHLODActors)
 					{
 						check(WorldPartition->GetActorDesc(CellHLODActor->GetActorGuid()));
+
+						UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Verbose, TEXT("Created HLOD actor %s - %s, for cell %s, represented actors:"), *CellHLODActor->GetName(), *CellHLODActor->GetActorGuid().ToString(), *CellName.ToString());
+						for (const auto& SubActorGuid : CellHLODActor->GetSubActors())
+						{
+							UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Verbose, TEXT("\t\t%s - %s"), *WorldPartition->GetActorDesc(SubActorGuid)->GetActorLabel().ToString(), *SubActorGuid.ToString());
+						}
 					}
 
 					// Update newly created HLOD actors
