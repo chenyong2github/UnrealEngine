@@ -161,14 +161,12 @@
 	#ifdef _WIN64
 		#ifndef PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
 			#define PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING \
-				__pragma(pack(push)) \
-				__pragma(pack(16))
+				__pragma(pack(push, 16))
 		#endif // PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
 	#else // _WIN64
 		#ifndef PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
 			#define PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING \
-				__pragma(pack(push)) \
-				__pragma(pack(8))
+				__pragma(pack(push, 8))
 		#endif // PRAGMA_PUSH_PLATFORM_DEFAULT_PACKING
 	#endif // _WIN64
 	

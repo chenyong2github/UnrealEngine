@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// Disable the warning that the pack size is changed in this header.
-#ifdef __clang__
-	#pragma clang diagnostic push
-	#pragma clang diagnostic ignored "-Wpragma-pack"
-#else	// __clang__
+// Disable the warning that the pack size is changed in this header. We do this globally for
+// clang, since the mechanism of using a sub-header to modify packing generates a -Wpragma-pack
+// warning about modifying packing alignemnt in a header.
+#if !defined(__clang__)
 	#pragma warning(disable:4103)
 #endif	// __clang__
 

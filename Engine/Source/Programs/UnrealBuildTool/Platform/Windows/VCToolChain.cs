@@ -719,6 +719,10 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add(" -Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef"));
 				}
+				
+				// This is disabled because clang explicitly warns about changing pack alignment in a header and not
+				// restoring it afterwards, which is something we do with the Pre/PostWindowsApi.h headers.
+				Arguments.Add("-Wno-pragma-pack");
 
 				// @todo clang: Kind of a shame to turn these off.  We'd like to catch unused variables, but it is tricky with how our assertion macros work.
 				Arguments.Add("-Wno-inconsistent-missing-override");
