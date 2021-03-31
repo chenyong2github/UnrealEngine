@@ -804,7 +804,7 @@ void FAssetRegistryState::GetPackagesByName(FStringView PackageName, TArray<FNam
 	else
 	{
 		TStringBuilder<128> PackageNameStr;
-		for (const TPair<FName, TArray<FAssetData*>>& It : CachedAssetsByPackageName)
+		for (const auto& It : CachedAssetsByPackageName)
 		{
 			It.Key.ToString(PackageNameStr);
 			FStringView ExistingBaseName = FPathViews::GetBaseFilename(PackageNameStr);
