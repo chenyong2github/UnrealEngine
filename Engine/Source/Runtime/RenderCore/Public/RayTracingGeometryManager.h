@@ -46,7 +46,7 @@ private:
 		EAccelerationStructureBuildMode BuildMode;
 	};
 
-	void SetupBuildParams(const BuildRequest& InBuildRequest, TArray<FAccelerationStructureBuildParams>& InBuildParams);
+	void SetupBuildParams(const BuildRequest& InBuildRequest, TArray<FRayTracingGeometryBuildParams>& InBuildParams);
 
 	FCriticalSection RequestCS;
 
@@ -54,7 +54,7 @@ private:
 
 	// Working array with all active build build params in the RHI
 	TArray<BuildRequest> SortedRequests;
-	TArray<FAccelerationStructureBuildParams> BuildParams;	
+	TArray<FRayTracingGeometryBuildParams> BuildParams;
 };
 
 extern RENDERCORE_API FRayTracingGeometryManager GRayTracingGeometryManager;

@@ -25,7 +25,7 @@ public:
 
 private:
 	TArray<struct FMeshComputeDispatchCommand> DispatchCommands;
-	TArray<FAccelerationStructureBuildParams> BuildParams;
+	TArray<FRayTracingGeometryBuildParams> BuildParams;
 	TArray<FRayTracingGeometrySegment> Segments;
 
 	struct FVertexPositionBuffer

@@ -543,7 +543,7 @@ void FRHICommandBindAccelerationStructureMemory::Execute(FRHICommandListBase& Cm
 void FRHICommandBuildAccelerationStructure::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BuildAccelerationStructure);
-	INTERNAL_DECORATOR_COMPUTE(RHIBuildAccelerationStructure)(Scene);
+	INTERNAL_DECORATOR_COMPUTE(RHIBuildAccelerationStructure)(SceneBuildParams);
 }
 
 void FRHICommandClearRayTracingBindings::Execute(FRHICommandListBase& CmdList)

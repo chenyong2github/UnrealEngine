@@ -303,7 +303,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		Geometry.RayTracingGeometryRHI = RHICreateRayTracingGeometry(Geometry.Initializer);
 	}
 
-	FAccelerationStructureBuildParams Params;
+	FRayTracingGeometryBuildParams Params;
 	Params.Geometry = Geometry.RayTracingGeometryRHI;
 	Params.BuildMode = bRefit
 		? EAccelerationStructureBuildMode::Update
@@ -362,7 +362,7 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 
 				// Setup the array views on final allocated segments array
 				FRayTracingGeometrySegment* SegmentData = Segments.GetData();
-				for (FAccelerationStructureBuildParams& Param : BuildParams)
+				for (FRayTracingGeometryBuildParams& Param : BuildParams)
 				{
 					uint32 SegmentCount = Param.Segments.Num();
 					if (SegmentCount > 0)

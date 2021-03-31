@@ -101,8 +101,8 @@ public:
 	virtual void RHINextSubpass() final override;
 
 #if VULKAN_RHI_RAYTRACING
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params) final override;
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene) final override;
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params) final override;
+	virtual void RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams) final override;
 #endif
 
 	inline FVulkanCommandBufferManager* GetCommandBufferManager()

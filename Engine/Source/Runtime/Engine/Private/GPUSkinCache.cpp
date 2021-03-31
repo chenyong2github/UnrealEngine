@@ -821,14 +821,14 @@ void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RH
 				
 		// Track the amount of primitives which need to be build/updated in a single batch
 		uint64 PrimitivesToUpdates = 0;
-		TArray<FAccelerationStructureBuildParams> BatchedBuildParams;
+		TArray<FRayTracingGeometryBuildParams> BatchedBuildParams;
 		BatchedBuildParams.Reserve(RayTracingGeometriesToUpdate.Num());
 
 		// Iterate all the geometries which need an update
 		for (TMap<FRayTracingGeometry*, EAccelerationStructureBuildMode>::TRangedForIterator Iter = RayTracingGeometriesToUpdate.begin(); Iter != RayTracingGeometriesToUpdate.end(); ++Iter)
 		{
 			FRayTracingGeometry* RayTracingGeometry = Iter.Key();
-			FAccelerationStructureBuildParams BuildParams;
+			FRayTracingGeometryBuildParams BuildParams;
 			BuildParams.Geometry	= RayTracingGeometry->RayTracingGeometryRHI;
 			BuildParams.BuildMode   = Iter.Value();
 			BuildParams.Segments	= RayTracingGeometry->Initializer.Segments;

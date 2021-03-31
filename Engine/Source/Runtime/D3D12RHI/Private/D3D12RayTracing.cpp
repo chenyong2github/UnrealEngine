@@ -3593,11 +3593,11 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 	return CreatedShaderTable;
 }
 
-void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
+void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
 {
 	// Update geometry vertex buffers
 
-	for (const FAccelerationStructureBuildParams& P : Params)
+	for (const FRayTracingGeometryBuildParams& P : Params)
 	{
 		FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
 		Geometry->UnregisterAsRenameListener(GetGPUIndex());
@@ -3624,7 +3624,7 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 
 	// Transition all VBs and IBs to readable state
 
-	for (const FAccelerationStructureBuildParams& P : Params)
+	for (const FRayTracingGeometryBuildParams& P : Params)
 	{
 		FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
 		Geometry->TransitionBuffers(*this);
@@ -3634,7 +3634,7 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 
 	// Then do all work
 
-	for (const FAccelerationStructureBuildParams& P : Params)
+	for (const FRayTracingGeometryBuildParams& P : Params)
 	{
 		FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
 		Geometry->SetDirty(GetGPUMask(), true);
@@ -3650,9 +3650,9 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 	CommandListHandle.AddUAVBarrier();
 }
 
-void FD3D12CommandContext::RHIBuildAccelerationStructure(FRHIRayTracingScene* InScene)
+void FD3D12CommandContext::RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams)
 {
-	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
+	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(SceneBuildParams.Scene);
 	Scene->BuildAccelerationStructure(*this);
 }
 

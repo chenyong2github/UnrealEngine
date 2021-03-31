@@ -25,7 +25,8 @@ struct FViewportBounds;
 struct FRayTracingGeometryInstance;
 struct FRayTracingShaderBindings;
 struct FRayTracingGeometrySegment;
-struct FAccelerationStructureBuildParams;
+struct FRayTracingGeometryBuildParams;
+struct FRayTracingSceneBuildParams;
 struct FRayTracingLocalShaderBindings;
 enum class EAsyncComputeBudget;
 
@@ -304,18 +305,12 @@ public:
 		/* empty default implementation */
 	}
 
-
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
 	{
 		checkNoEntry();
 	}
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
-	{
-		checkNoEntry();
-	}
-
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene)
+	virtual void RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams)
 	{
 		checkNoEntry();
 	}
@@ -359,7 +354,7 @@ enum class EAccelerationStructureBuildMode
 	Update,
 };
 
-struct FAccelerationStructureBuildParams
+struct FRayTracingGeometryBuildParams
 {
 	FRayTracingGeometryRHIRef Geometry;
 	EAccelerationStructureBuildMode BuildMode = EAccelerationStructureBuildMode::Build;
@@ -367,6 +362,29 @@ struct FAccelerationStructureBuildParams
 	// Optional array of geometry segments that can be used to change per-segment vertex buffers.
 	// Only fields related to vertex buffer are used. If empty, then geometry vertex buffers are not changed.
 	TArrayView<const FRayTracingGeometrySegment> Segments;
+};
+
+struct FRayTracingSceneBuildParams
+{
+	// Scene to be built. May be null if explicit instance buffer is provided.
+	FRHIRayTracingScene* Scene = nullptr;
+
+	// Acceleration structure will be written to this buffer. The buffer must be in BVHWrite state.
+	FRHIBuffer* ResultBuffer = nullptr;
+	uint32 ResultBufferOffset = 0;
+
+	// Optional explicit build scratch buffer. Must be in UAV state.
+	// Scratch buffer will be created automatically if this is not provided.
+	FRHIBuffer* ScratchBuffer = nullptr;
+	uint32 ScratchBufferOffset = 0;
+
+	// Optional explicit buffer of native ray tracing instance descriptors. Must be in SRV state.
+	// Instance list will be taken from the scene if this is not provided.
+	FRHIBuffer* InstanceBuffer = nullptr;
+	uint32 InstanceBufferOffset = 0;
+
+	// Number of elements in the InstanceBuffer. Only used if InstanceBuffer is provided.
+	uint32 NumInstances = 0;
 };
 
 struct FCopyBufferRegionParams
@@ -669,23 +687,30 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
 	{
 		checkNoEntry();
 	}
 
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry) final override
+	void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
 	{
-		FAccelerationStructureBuildParams Params;
+		FRayTracingGeometryBuildParams Params;
 		Params.Geometry = Geometry;
 		Params.BuildMode = EAccelerationStructureBuildMode::Build;
 
 		RHIBuildAccelerationStructures(MakeArrayView(&Params, 1));
 	}
 
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene)
+	virtual void RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams)
 	{
 		checkNoEntry();
+	}
+
+	void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene)
+	{
+		FRayTracingSceneBuildParams Params;
+		Params.Scene = Scene;
+		RHIBuildAccelerationStructure(Params);
 	}
 
 	virtual void RHIRayTraceOcclusion(FRHIRayTracingScene* Scene,

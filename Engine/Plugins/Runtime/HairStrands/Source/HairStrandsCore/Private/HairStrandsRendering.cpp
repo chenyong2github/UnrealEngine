@@ -1103,7 +1103,7 @@ static void UpdateHairAccelerationStructure(FRHICommandList& RHICmdList, FRayTra
 {
 	SCOPED_DRAW_EVENT(RHICmdList, CommitHairRayTracingGeometryUpdates);
 
-	FAccelerationStructureBuildParams Params;
+	FRayTracingGeometryBuildParams Params;
 	Params.BuildMode = EAccelerationStructureBuildMode::Update;
 	Params.Geometry = RayTracingGeometry->RayTracingGeometryRHI;
 	Params.Segments = RayTracingGeometry->Initializer.Segments;

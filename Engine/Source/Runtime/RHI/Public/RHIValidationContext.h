@@ -947,17 +947,20 @@ public:
 		RHIContext->RHIClearRayTracingBindings(Scene);
 	}
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params) override final
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params) override final
 	{
 		// #yuriy_todo: explicit transitions and state validation for BLAS
 		RHIContext->RHIBuildAccelerationStructures(Params);
 	}
 
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene) override final
+	virtual void RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams) override final
 	{
 		// #yuriy_todo: validate all referenced BLAS states
-		Tracker->Assert(Scene->GetWholeResourceIdentity(), ERHIAccess::BVHWrite);
-		RHIContext->RHIBuildAccelerationStructure(Scene);
+		if (SceneBuildParams.Scene)
+		{
+			Tracker->Assert(SceneBuildParams.Scene->GetWholeResourceIdentity(), ERHIAccess::BVHWrite);
+		}
+		RHIContext->RHIBuildAccelerationStructure(SceneBuildParams);
 	}
 
 	virtual void RHIRayTraceOcclusion(FRHIRayTracingScene* Scene,

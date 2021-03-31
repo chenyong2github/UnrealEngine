@@ -497,9 +497,9 @@ FRayTracingGeometryRHIRef FVulkanDynamicRHI::RHICreateRayTracingGeometry(const F
 }
 
 // Todo: High level rhi call should have transitioned and verified vb and ib to read for each segment
-void FVulkanCommandListContext::RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
+void FVulkanCommandListContext::RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
 {
-	for (const FAccelerationStructureBuildParams& P : Params)
+	for (const FRayTracingGeometryBuildParams& P : Params)
 	{
 		FVulkanRayTracingGeometry* const Geometry = ResourceCast(P.Geometry.GetReference());
 
@@ -511,9 +511,9 @@ void FVulkanCommandListContext::RHIBuildAccelerationStructures(const TArrayView<
 	}
 }
 
-void FVulkanCommandListContext::RHIBuildAccelerationStructure(FRHIRayTracingScene* InScene)
+void FVulkanCommandListContext::RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams)
 {
-	FVulkanRayTracingScene* const Scene = ResourceCast(InScene);
+	FVulkanRayTracingScene* const Scene = ResourceCast(SceneBuildParams.Scene);
 	Scene->BuildAccelerationStructure(*this);
 }
 

@@ -2100,10 +2100,10 @@ struct FRHICommandBindAccelerationStructureMemory final : public FRHICommand<FRH
 
 struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHICommandBuildAccelerationStructure>
 {
-	FRHIRayTracingScene* Scene;
+	FRayTracingSceneBuildParams SceneBuildParams;
 
-	explicit FRHICommandBuildAccelerationStructure(FRHIRayTracingScene* InScene)
-		: Scene(InScene)
+	explicit FRHICommandBuildAccelerationStructure(const FRayTracingSceneBuildParams& InSceneBuildParams)
+		: SceneBuildParams(InSceneBuildParams)
 	{}
 
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -2122,9 +2122,9 @@ FRHICOMMAND_MACRO(FRHICommandClearRayTracingBindings)
 
 struct FRHICommandBuildAccelerationStructures final : public FRHICommand<FRHICommandBuildAccelerationStructures>
 {
-	const TArrayView<const FAccelerationStructureBuildParams> Params;
+	const TArrayView<const FRayTracingGeometryBuildParams> Params;
 
-	explicit FRHICommandBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> InParams)
+	explicit FRHICommandBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> InParams)
 		: Params(InParams)
 	{}
 
@@ -2799,13 +2799,13 @@ public:
 #if RHI_RAYTRACING
 	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
 	{
-		FAccelerationStructureBuildParams Params;
+		FRayTracingGeometryBuildParams Params;
 		Params.Geometry = Geometry;
 		Params.BuildMode = EAccelerationStructureBuildMode::Build;
 		BuildAccelerationStructures(MakeArrayView(&Params, 1));
 	}
 
-	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
+	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
 	{
 		if (Bypass())
 		{
@@ -2815,8 +2815,8 @@ public:
 		{
 			// Copy the params themselves as well their segment lists, if there are any.
 			// AllocArray() can't be used here directly, as we have to modify the params after copy.
-			size_t DataSize = sizeof(FAccelerationStructureBuildParams) * Params.Num();
-			FAccelerationStructureBuildParams* InlineParams = (FAccelerationStructureBuildParams*) Alloc(DataSize, alignof(FAccelerationStructureBuildParams));
+			size_t DataSize = sizeof(FRayTracingGeometryBuildParams) * Params.Num();
+			FRayTracingGeometryBuildParams* InlineParams = (FRayTracingGeometryBuildParams*) Alloc(DataSize, alignof(FRayTracingGeometryBuildParams));
 			FMemory::Memcpy(InlineParams, Params.GetData(), DataSize);
 			for (int32 i=0; i<Params.Num(); ++i)
 			{
@@ -2829,16 +2829,23 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingScene* Scene)
+	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams)
 	{
 		if (Bypass())
 		{
-			GetComputeContext().RHIBuildAccelerationStructure(Scene);
+			GetComputeContext().RHIBuildAccelerationStructure(SceneBuildParams);
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandBuildAccelerationStructure)(Scene);
+			ALLOC_COMMAND(FRHICommandBuildAccelerationStructure)(SceneBuildParams);
 		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingScene* Scene)
+	{
+		FRayTracingSceneBuildParams Params;
+		Params.Scene = Scene;
+		BuildAccelerationStructure(Params);
 	}
 
 	FORCEINLINE_DEBUGGABLE void BindAccelerationStructureMemory(FRHIRayTracingScene* Scene, FRHIBuffer* Buffer, uint32 BufferOffset)

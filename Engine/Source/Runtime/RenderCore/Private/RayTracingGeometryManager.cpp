@@ -165,10 +165,10 @@ void FRayTracingGeometryManager::ProcessBuildRequests(FRHIComputeCommandList& In
 	InCmdList.BuildAccelerationStructures(BuildParams);
 }
 
-void FRayTracingGeometryManager::SetupBuildParams(const BuildRequest& InBuildRequest, TArray<FAccelerationStructureBuildParams>& InBuildParams)
+void FRayTracingGeometryManager::SetupBuildParams(const BuildRequest& InBuildRequest, TArray<FRayTracingGeometryBuildParams>& InBuildParams)
 {
 	// Setup the actual build params
-	FAccelerationStructureBuildParams BuildParam;
+	FRayTracingGeometryBuildParams BuildParam;
 	BuildParam.Geometry = InBuildRequest.Owner->RayTracingGeometryRHI;
 	BuildParam.BuildMode = InBuildRequest.BuildMode;
 	InBuildParams.Add(BuildParam);
