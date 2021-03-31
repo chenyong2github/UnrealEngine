@@ -472,6 +472,36 @@ enum class ELidarPointCloudAsyncMode : uint8
 	Progress
 };
 
+UENUM(BlueprintType)
+enum class ELidarPointCloudScalingMethod : uint8
+{
+	/**
+	 * Points are scaled based on the estimated density of their containing node.
+	 * Recommended for assets with high variance of point densities, but may produce less fine detail overall.
+	 * Default method in 4.25 and 4.26
+	 */
+	PerNode,
+
+	/**
+	 * Similar to PerNode, but the density is calculated adaptively based on the current view.
+	 * Produces good amount of fine detail while being generally resistant to density variance.
+	 */
+	PerNodeAdaptive,
+
+	/**
+	 * Points are scaled based on their individual calculated depth.
+	 * Capable of resolving the highest amount of fine detail, but is the most susceptible to 
+	 * density changes across the dataset, and may result in patches of varying point sizes.
+	 */
+	PerPoint,
+
+	/**
+	 * Sprites will be rendered using screen-space scaling method.
+	 * In that mode, Point Size property will work as Screen Percentage.
+	 */
+	FixedScreenSize
+};
+
 /** Used to help track multiple buffer allocations */
 class FLidarPointCloudDataBuffer
 {
@@ -694,6 +724,7 @@ struct FLidarPointCloudComponentRenderParams
 
 	ELidarPointCloudColorationMode ColorSource;
 	ELidarPointCloudSpriteShape PointShape;
+	ELidarPointCloudScalingMethod ScalingMethod;
 
 	FVector4 Saturation;
 	FVector4 Contrast;

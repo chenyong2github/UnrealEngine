@@ -167,6 +167,8 @@ public:
 		// Skip material verification - async update could occasionally cause it to crash
 		bVerifyUsedMaterials = false;
 
+		TreeBuffer = new FLidarPointCloudRenderBuffer();
+
 		MaterialRelevance = Component->GetMaterialRelevance(GetScene().GetFeatureLevel());
 	}
 	virtual ~FLidarPointCloudSceneProxy()
@@ -301,13 +303,15 @@ public:
 
 		// Update shader parameters
 		UserDataElement.bEditorView = RenderData.RenderParams.bOwnedByEditor;
+		UserDataElement.ReversedVirtualDepthMultiplier = RenderData.VDMultiplier;
 		UserDataElement.VirtualDepth = RenderData.VDMultiplier * Node.VirtualDepth;
-		UserDataElement.SpriteSize = RenderData.RootCellSize / FMath::Pow(2.0f, UserDataElement.VirtualDepth);
-		UserDataElement.SpriteSizeMultiplier = (RenderData.RenderParams.PointSize + RenderData.RenderParams.GapFillingStrength * 0.005f) * RenderData.RenderParams.ComponentScale;
-		UserDataElement.bUseScreenSizeScaling = RenderData.RenderParams.bUseScreenSizeScaling;
+		UserDataElement.SpriteSizeMultiplier = bUsesSprites ? (RenderData.RenderParams.PointSize + RenderData.RenderParams.GapFillingStrength * 0.005f) * RenderData.RenderParams.ComponentScale : 0;
+		UserDataElement.bUseScreenSizeScaling = RenderData.RenderParams.ScalingMethod == ELidarPointCloudScalingMethod::FixedScreenSize;;
+		UserDataElement.bUsePerPointScaling = RenderData.RenderParams.ScalingMethod == ELidarPointCloudScalingMethod::PerPoint;
 		UserDataElement.bUseStaticBuffers = RenderData.bUseStaticBuffers;
+		UserDataElement.RootCellSize = RenderData.RootCellSize;
+		UserDataElement.RootExtent = FVector(RenderData.RenderParams.BoundsSize.GetAbsMax() * 0.5f);
 
-		UserDataElement.IndexDivisor = bUsesSprites ? 4 : 1;
 		UserDataElement.LocationOffset = RenderData.RenderParams.LocationOffset;
 		UserDataElement.ViewRightVector = InView->GetViewRight();
 		UserDataElement.ViewUpVector = InView->GetViewUp();
@@ -339,6 +343,7 @@ public:
 		}
 
 		UserDataElement.DataBuffer = Node.DataNode->GetDataCache() ? Node.DataNode->GetDataCache()->SRV : nullptr;
+		UserDataElement.TreeBuffer = TreeBuffer->SRV;
 
 		return UserDataElement;
 	}
@@ -353,7 +358,20 @@ public:
 		return reinterpret_cast<size_t>(&UniquePointer);
 	}
 
-	virtual void UpdateRenderData(const FLidarPointCloudProxyUpdateData& InRenderData) override { RenderData = InRenderData; }
+	virtual void UpdateRenderData(const FLidarPointCloudProxyUpdateData& InRenderData) override
+	{
+		RenderData = InRenderData;
+
+		const int32 NumTreeStructure = RenderData.TreeStructure.Num() > 0 ? RenderData.TreeStructure.Num() : 16;
+		TreeBuffer->Resize(NumTreeStructure);
+		uint8* DataPtr = (uint8*)RHILockVertexBuffer(TreeBuffer->Buffer, 0, NumTreeStructure * sizeof(uint32), RLM_WriteOnly);
+		FMemory::Memzero(DataPtr, NumTreeStructure * sizeof(uint32));
+		if (RenderData.TreeStructure.Num() > 0)
+		{
+			FMemory::Memcpy(DataPtr, RenderData.TreeStructure.GetData(), NumTreeStructure * sizeof(uint32));
+		}
+		RHIUnlockVertexBuffer(TreeBuffer->Buffer);
+	}
 
 public:
 	TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> ProxyWrapper;
@@ -361,6 +379,7 @@ public:
 private:
 	FLidarPointCloudProxyUpdateData RenderData;
 
+	FLidarPointCloudRenderBuffer* TreeBuffer;
 	FMaterialRelevance MaterialRelevance;
 	AActor* Owner;
 

@@ -62,15 +62,17 @@ public:
  */
 struct FLidarPointCloudBatchElementUserData
 {
+	FRHIShaderResourceView* TreeBuffer;
 	FRHIShaderResourceView* DataBuffer;
 	int32 bEditorView;
 	FVector SelectionColor;
-	int32 IndexDivisor;
 	FVector LocationOffset;
+	float RootCellSize;
+	FVector RootExtent;
+	int32 bUsePerPointScaling;
 	float VirtualDepth;
-	float SpriteSize;
-	int32 bUseLODColoration;
 	float SpriteSizeMultiplier;
+	float ReversedVirtualDepthMultiplier;
 	FVector ViewRightVector;
 	FVector ViewUpVector;
 	int32 bUseCameraFacing;
@@ -111,15 +113,17 @@ public:
 	void GetElementShaderBindings(const class FSceneInterface* Scene, const FSceneView* View, const FMeshMaterialShader* Shader, const EVertexInputStreamType InputStreamType, ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory, const FMeshBatchElement& BatchElement, class FMeshDrawSingleShaderBindings& ShaderBindings, FVertexInputStreamArray& VertexStreams) const;
 
+	LAYOUT_FIELD(FShaderResourceParameter, TreeBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, DataBuffer);
 	LAYOUT_FIELD(FShaderParameter, bEditorView);
 	LAYOUT_FIELD(FShaderParameter, SelectionColor);
-	LAYOUT_FIELD(FShaderParameter, IndexDivisor);
 	LAYOUT_FIELD(FShaderParameter, LocationOffset);
+	LAYOUT_FIELD(FShaderParameter, RootCellSize);
+	LAYOUT_FIELD(FShaderParameter, RootExtent);
+	LAYOUT_FIELD(FShaderParameter, bUsePerPointScaling);
 	LAYOUT_FIELD(FShaderParameter, VirtualDepth);
-	LAYOUT_FIELD(FShaderParameter, SpriteSize);
-	LAYOUT_FIELD(FShaderParameter, bUseLODColoration);
 	LAYOUT_FIELD(FShaderParameter, SpriteSizeMultiplier);
+	LAYOUT_FIELD(FShaderParameter, ReversedVirtualDepthMultiplier);
 	LAYOUT_FIELD(FShaderParameter, ViewRightVector);
 	LAYOUT_FIELD(FShaderParameter, ViewUpVector);
 	LAYOUT_FIELD(FShaderParameter, bUseCameraFacing);

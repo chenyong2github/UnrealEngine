@@ -278,6 +278,18 @@ FLidarPointCloudOctreeNode* FLidarPointCloudOctreeNode::GetChildNodeAtLocation(c
 	return nullptr;
 }
 
+uint8 FLidarPointCloudOctreeNode::GetChildrenBitmask() const
+{
+	uint8 Bitmask = 0;
+
+	for (FLidarPointCloudOctreeNode* Child : Children)
+	{
+		Bitmask |= 1 << Child->LocationInParent;
+	}
+
+	return Bitmask;
+}
+
 void FLidarPointCloudOctreeNode::InsertPoints(const FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
 {
 	const FLidarPointCloudOctree::FSharedLODData& LODData = Tree->SharedData[Depth];
@@ -2469,14 +2481,14 @@ void FLidarPointCloudTraversalOctreeNode::Build(FLidarPointCloudTraversalOctree*
 	}
 }
 
-void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const float& PointSizeBias)
+void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<float>& LevelWeights, const float& PointSizeBias)
 {
 	if (!IsAvailable())
 	{
+		VirtualDepth = 255;
 		return;
 	}
 
-	const TArray<float>& LevelWeights = Octree->LevelWeights;
 	const float& VDMultiplier = Octree->VirtualDepthMultiplier;
 
 	TQueue<const FLidarPointCloudTraversalOctreeNode*> Nodes;
@@ -2495,7 +2507,7 @@ void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const float& Poi
 			}
 		}
 
-		float LocalVDFactor = CurrentNode->Depth * CurrentNode->DataNode->GetNumPoints() * LevelWeights[CurrentNode->Depth];
+		float LocalVDFactor = CurrentNode->Depth * CurrentNode->DataNode->GetNumVisiblePoints() * LevelWeights[CurrentNode->Depth];
 
 		if (CurrentNode != this && PointSizeBias > 0)
 		{
@@ -2518,7 +2530,7 @@ void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const float& Poi
 			}
 		}
 
-		NumPoints += CurrentNode->DataNode->GetNumPoints() * LevelWeights[CurrentNode->Depth];
+		NumPoints += CurrentNode->DataNode->GetNumVisiblePoints() * LevelWeights[CurrentNode->Depth];
 	}
 
 	// Calculate the Virtual Depth
@@ -2579,6 +2591,68 @@ FLidarPointCloudTraversalOctree::FLidarPointCloudTraversalOctree(FLidarPointClou
 	Root.Build(this, &Octree->Root, LocalToWorld, Octree->Owner->GetLocationOffset().ToVector());
 
 	bValid = true;
+}
+
+void FLidarPointCloudTraversalOctree::CalculateVisibilityStructure(TArray<uint32>& OutData)
+{
+	FLidarPointCloudTraversalOctreeNode* CurrentNode = nullptr;
+	TQueue<FLidarPointCloudTraversalOctreeNode*> Nodes;
+	Nodes.Enqueue(&Root);
+
+	uint16 NumNodesInQueue = 1;
+
+	while (Nodes.Dequeue(CurrentNode))
+	{
+		uint32& Data = OutData[OutData.AddZeroed()];
+		Data |= (0x00FFFF00 & (NumNodesInQueue-- << 8));
+		Data |= 0xFF000000 & (CurrentNode->VirtualDepth << 24);
+
+		for (uint8 i = 0; i < 8; ++i)
+		{
+			for (FLidarPointCloudTraversalOctreeNode& Child : CurrentNode->Children)
+			{
+				if (Child.bSelected && Child.DataNode->LocationInParent == i)
+				{
+					Nodes.Enqueue(&Child);
+					Data |= 1 << i;
+					++NumNodesInQueue;
+				}
+			}
+		}
+	}
+}
+
+void FLidarPointCloudTraversalOctree::CalculateLevelWeightsForSelectedNodes(TArray<float>& OutLevelWeights)
+{
+	FLidarPointCloudTraversalOctreeNode* CurrentNode = nullptr;
+	TQueue<FLidarPointCloudTraversalOctreeNode*> Nodes;
+	Nodes.Enqueue(&Root);
+
+	OutLevelWeights.Empty();
+	OutLevelWeights.AddZeroed(NumLODs);
+	TArray<int64> PointCount;
+	PointCount.AddZeroed(NumLODs);
+	int64 NumPoints = 0;
+
+	while (Nodes.Dequeue(CurrentNode))
+	{
+		for (FLidarPointCloudTraversalOctreeNode& Child : CurrentNode->Children)
+		{
+			if (Child.bSelected)
+			{
+				Nodes.Enqueue(&Child);
+			}
+		}
+
+		const int32 NumPointsInNode = CurrentNode->DataNode->GetNumVisiblePoints();
+		PointCount[CurrentNode->Depth] += NumPointsInNode;
+		NumPoints += NumPointsInNode;
+	}
+
+	for (int32 i = 0; i < OutLevelWeights.Num(); i++)
+	{
+		OutLevelWeights[i] = NumPoints > 0 ? (float)PointCount[i] / NumPoints : 0;
+	}
 }
 
 FLidarPointCloudTraversalOctree::~FLidarPointCloudTraversalOctree()

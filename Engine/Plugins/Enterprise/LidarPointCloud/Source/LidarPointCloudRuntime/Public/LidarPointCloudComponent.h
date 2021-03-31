@@ -43,12 +43,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (ClampMin = "0.0"))
 	float PointSize;
 
-	/**
-	 * If enabled, sprites will be rendered using screen-space scaling method.
-	 * In that mode, Point Size property will work as Screen Percentage.
-	 */
+	/** Determines how the points will be scaled  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
-	bool bUseScreenSizeScaling;
+	ELidarPointCloudScalingMethod ScalingMethod;
 
 	/**
 	 * If set to > 0, it attempts to close gaps between points.

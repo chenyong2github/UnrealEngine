@@ -44,6 +44,8 @@ struct FLidarPointCloudProxyUpdateData
 	
 	bool bUseStaticBuffers;
 
+	TArray<uint32> TreeStructure;
+
 #if !(UE_BUILD_SHIPPING)
 	/** Stores bounds of selected nodes, used for debugging */
 	TArray<FBox> Bounds;

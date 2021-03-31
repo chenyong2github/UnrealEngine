@@ -10,28 +10,23 @@
 // First half is normal, second half has inverted V
 static float2 PrecomputedUV_Quad[8] = { float2(-0.5, -0.5), float2(0.5, -0.5), float2(0.5, 0.5), float2(-0.5, 0.5), float2(0, 1), float2(1, 1), float2(1, 0), float2(0, 0) };
 
-static float3 LODColors[] = {
-	float3(1, 1, 1), float3(1, 0, 0), float3(0, 1, 0), float3(0, 0, 1), float3(1, 1, 0), float3(1, 0, 1), float3(0, 1, 1),
-	float3(0.66, 0.66, 0.66), float3(0.66, 0, 0), float3(0, 0.66, 0), float3(0, 0, 0.66), float3(0.66, 0.66, 0), float3(0.66, 0, 0.66), float3(0, 0.66, 0.66),
-	float3(0.33, 0.33, 0.33), float3(0.33, 0, 0), float3(0, 0.33, 0), float3(0, 0, 0.33), float3(0.33, 0.33, 0), float3(0.33, 0, 0.33), float3(0, 0.33, 0.33)
-};
-
 // Used to detect if the instance is rendered inside the editor viewport
 uint bEditorView;
 
 // Selection
 half3 SelectionColor;
 
-// Used for instance handling
-uint IndexDivisor;
-
 // Alignment
 float3 LocationOffset;
 
-// Used for Sprite Size
+// Used for sprite size calculation
 float VirtualDepth;
-float SpriteSize;
 float SpriteSizeMultiplier;
+float RootCellSize;
+float3 RootExtent;
+uint bUsePerPointScaling;
+float ReversedVirtualDepthMultiplier;
+Buffer<float> TreeBuffer;
 
 // Needed for WPO calculations
 float3 ViewRightVector;
@@ -55,7 +50,6 @@ float IntensityInfluence;
 
 // Flags
 uint bUseCircle;
-uint bUseLODColoration;
 uint bUseColorOverride;
 uint bUseElevationColor;
 uint bUseClassification;
@@ -73,7 +67,6 @@ Buffer<float> DataBuffer;
 float4x4 ClippingVolume[16];
 uint NumClippingVolumes;
 uint bStartClipped;
-
 
 #if USE_INSTANCING
 	// Instanced stereo sets the eye index explicitly for instanced geometry
@@ -123,6 +116,7 @@ struct FVertexFactoryIntermediates
     half4 Color;
 	float3 Position;
 	half2 Scale;
+	float SpriteSize;
 };
 
 struct FPointCloudInstanceData
@@ -132,6 +126,7 @@ struct FPointCloudInstanceData
 	uint bSelected;
 	uint Classification;
 	half3x3 TangentToLocal;
+	float SpriteSize;
 };
 
 float3 ApplyClipping(float3 Position)
@@ -236,7 +231,54 @@ half3x3 CalcTangentToWorldNoScale(in half3x3 TangentToLocal)
 	return mul(TangentToLocal, LocalToWorld);
 }
 
-float3 ProcessPosition(float3 Position, half3x3 TangentToLocal, half2 Scale)
+float CalcSpriteSize(float3 Position)
+{
+	float VD = VirtualDepth;
+
+	if (bUsePerPointScaling)
+	{
+		VD = 0;
+		uint Idx = 0;
+		float3 NodeExtent = RootExtent;
+		float3 NodeCenter = LocationOffset;
+
+		while (true)
+		{
+			uint TreeBufferData = asuint(TreeBuffer[Idx]);
+			uint ChildrenBitmask = 0x000000FF & TreeBufferData;
+
+			float3 CenterRelativeLocation = Position - NodeCenter;
+			uint ChildNodeIndex = (CenterRelativeLocation.x > 0 ? 4 : 0) + (CenterRelativeLocation.y > 0 ? 2 : 0) + (CenterRelativeLocation.z > 0);
+
+			if ((ChildrenBitmask & (1 << ChildNodeIndex)) == 0)
+			{
+				break;
+			}
+
+			Idx += (0x0000FFFF & (TreeBufferData >> 8));
+			for (int i = 0; i < 8; i++)
+			{
+				if (i == ChildNodeIndex)
+				{
+					break;
+				}
+
+				if ((ChildrenBitmask & (1 << i)) != 0)
+				{
+					Idx++;
+				}
+			}
+
+			VD = (0x000000FF & (TreeBufferData >> 24)) * ReversedVirtualDepthMultiplier;
+			NodeCenter += NodeExtent * (float3((ChildNodeIndex & 4) == 4, (ChildNodeIndex & 2) == 2, (ChildNodeIndex & 1) == 1) - 0.5f);
+			NodeExtent *= 0.5f;
+		}
+	}
+	
+	return RootCellSize / pow(2.0f, VD);
+}
+
+float3 ProcessPosition(float3 Position, half3x3 TangentToLocal, half2 Scale, float SpriteSize)
 {
 	float Size = bUseScreenSizeScaling ? mul(float4(Position.xyz, 1), ResolvedView.TranslatedWorldToView).z * 0.01f : SpriteSize;
 	return Position + (TangentToLocal[0] * Scale.x + TangentToLocal[1] * Scale.y) * SpriteSizeMultiplier * Size;
@@ -247,14 +289,14 @@ float3 ProcessPosition(float3 Position, half2 Scale)
 	half3x3 TangentToLocal;
 	TangentToLocal[0] = ViewRightVector;
 	TangentToLocal[1] = ViewUpVector;
-	return ProcessPosition(Position, TangentToLocal, Scale);
+	return ProcessPosition(Position, TangentToLocal, Scale, CalcSpriteSize(Position));
 }
 
 FPointCloudInstanceData GetInstanceData(uint VertexId)
 {
 	FPointCloudInstanceData InstanceData = (FPointCloudInstanceData)0;
 
-	uint PointId = VertexId / IndexDivisor;
+	uint PointId = VertexId / 4;
 	uint Idx = PointId * 5;
 	InstanceData.Position = float3(DataBuffer[Idx], DataBuffer[Idx + 1], DataBuffer[Idx + 2]) + LocationOffset;
 	InstanceData.Color = asuint(DataBuffer[Idx + 3]);
@@ -271,6 +313,7 @@ FPointCloudInstanceData GetInstanceData(uint VertexId)
 	InstanceData.bSelected = bEditorView && (0x00000040 & MetaData);
 	InstanceData.TangentToLocal = CalcTangentToLocal(asuint(DataBuffer[Idx + 4]));
 	InstanceData.Position = ApplyClipping(InstanceData.Position);
+	InstanceData.SpriteSize = CalcSpriteSize(InstanceData.Position);
 
 	return InstanceData;
 }
@@ -283,6 +326,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	uint Classification;
 	half3 Color;
 	half Intensity;
+	float SpriteSize;
 
 	if (bUseStaticBuffers)
 	{
@@ -291,8 +335,11 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 		uint MetaData = 0x000000FF & (Input.MetaData >> 24);
 
-		Classification = 0x0000001F & (MetaData >> 1);
 		bSelected = bEditorView && (0x00000040 & MetaData);
+		Classification = 0x0000001F & (MetaData >> 1);
+
+		SpriteSize = CalcSpriteSize(Intermediates.Position);
+
 		Color = Input.Color.rgb;
 		Intensity = Input.Color.a;
 	}
@@ -303,10 +350,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		Intermediates.TangentToLocal = InstanceData.TangentToLocal;
 		bSelected = InstanceData.bSelected;
 		Classification = InstanceData.Classification;
+		SpriteSize = InstanceData.SpriteSize;
 		Color = half3(0x000000FF & (InstanceData.Color >> 16), 0x000000FF & (InstanceData.Color >> 8), 0x000000FF & InstanceData.Color) * 0.003921568627451;
 		Intensity = (0x000000FF & (InstanceData.Color >> 24)) * 0.003921568627451;
 	}
 
+	Intermediates.SpriteSize = SpriteSize;
 	Intermediates.Scale = PrecomputedUV_Quad[Input.VertexId % 4];
 	Intermediates.TangentToWorldSign = Primitive.InvNonUniformScaleAndDeterminantSign.w;
 	Intermediates.TangentToWorld = CalcTangentToWorldNoScale(Intermediates.TangentToLocal);
@@ -336,7 +385,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 			Color = clamp(Color, 0, 1);
 		}
 
-		Intermediates.Color = half4(lerp(Color, LODColors[min((int)VirtualDepth, 21)], bUseLODColoration), bUseCircle);
+		Intermediates.Color = half4(Color, bUseCircle);
 	}
 
 	return Intermediates;
@@ -363,7 +412,7 @@ half3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactory
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 	float4 WorldPosition = TransformLocalToTranslatedWorld(Intermediates.Position);
-	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, Intermediates.TangentToLocal, Intermediates.Scale);
+	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, Intermediates.TangentToLocal, Intermediates.Scale, Intermediates.SpriteSize);
 	return WorldPosition;
 }
 float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
@@ -378,7 +427,7 @@ float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
 	{
 		FPointCloudInstanceData InstanceData = GetInstanceData(Input.VertexId);
 		float4 WorldPosition = TransformLocalToTranslatedWorld(InstanceData.Position);
-		WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.TangentToLocal, PrecomputedUV_Quad[Input.VertexId % 4]);
+		WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.TangentToLocal, PrecomputedUV_Quad[Input.VertexId % 4], InstanceData.SpriteSize);
 		return WorldPosition;
 	}
 }
@@ -400,7 +449,7 @@ float4 VertexFactoryGetWorldPosition(FPositionAndNormalOnlyVertexFactoryInput In
 	{
 		FPointCloudInstanceData InstanceData = GetInstanceData(Input.VertexId);
 		float4 WorldPosition = TransformLocalToTranslatedWorld(InstanceData.Position, 0);
-		WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.TangentToLocal, PrecomputedUV_Quad[Input.VertexId % 4]);
+		WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.TangentToLocal, PrecomputedUV_Quad[Input.VertexId % 4], InstanceData.SpriteSize);
 		return WorldPosition;
 	}
 }

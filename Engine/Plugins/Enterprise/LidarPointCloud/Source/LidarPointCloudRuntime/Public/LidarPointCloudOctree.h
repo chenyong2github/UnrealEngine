@@ -145,6 +145,8 @@ public:
 	/** Returns a pointer to the node at the given location, or null if one doesn't exist yet. */
 	FLidarPointCloudOctreeNode* GetChildNodeAtLocation(const uint8& Location) const;
 
+	uint8 GetChildrenBitmask() const;
+
 	void UpdateNumVisiblePoints();
 
 	/** Attempts to insert given points to this node or passes it to the children, otherwise. */
@@ -162,6 +164,9 @@ public:
 
 	/** Returns true, if the node has its data loaded */
 	bool HasData() const { return bHasData; }
+
+	/** Returns true, if the node has its data loaded */
+	bool HasRenderData() const { return DataCache || VertexFactory; }
 
 	/**
 	 * Releases the BulkData
@@ -613,9 +618,9 @@ struct FLidarPointCloudTraversalOctreeNode
 	void Build(FLidarPointCloudTraversalOctree* TraversalOctree, FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset);
 
 	/** Calculates virtual depth of this node, to be used to estimate the best sprite size */
-	void CalculateVirtualDepth(const float& PointSizeBias);
+	void CalculateVirtualDepth(const TArray<float>& LevelWeights, const float& PointSizeBias);
 
-	FORCEINLINE bool IsAvailable() const { return bSelected && DataNode->HasData(); }
+	FORCEINLINE bool IsAvailable() const { return bSelected && DataNode->HasRenderData(); }
 };
 
 /** Used for node size sorting and node selection. */
@@ -679,6 +684,10 @@ struct FLidarPointCloudTraversalOctree
 	 * Returns number of selected nodes
 	 */
 	int32 GetVisibleNodes(TArray<FLidarPointCloudTraversalOctreeNodeSizeData>& NodeSizeData, const struct FLidarPointCloudViewData* ViewData, const int32& ProxyIndex, const FLidarPointCloudNodeSelectionParams& SelectionParams);
+
+	void CalculateVisibilityStructure(TArray<uint32>& OutData);
+
+	void CalculateLevelWeightsForSelectedNodes(TArray<float>& OutLevelWeights);
 
 	FVector GetCenter() const { return Root.Center; }
 	FVector GetExtent() const { return Extents[0]; }

@@ -20,7 +20,7 @@
 ULidarPointCloudComponent::ULidarPointCloudComponent()
 	: CustomMaterial(nullptr)
 	, PointSize(1.0f)
-	, bUseScreenSizeScaling(false)
+	, ScalingMethod(ELidarPointCloudScalingMethod::PerNodeAdaptive)
 	, GapFillingStrength(0)
 	, ColorSource(ELidarPointCloudColorationMode::Data)
 	, PointShape(ELidarPointCloudSpriteShape::Square)
@@ -264,9 +264,10 @@ void FLidarPointCloudComponentRenderParams::UpdateFromComponent(ULidarPointCloud
 
 	bOwnedByEditor = Component->IsOwnedByEditor();
 	bDrawNodeBounds = Component->bDrawNodeBounds;
-	bUseScreenSizeScaling = Component->bUseScreenSizeScaling;
 	bShouldRenderFacingNormals = Component->ShouldRenderFacingNormals();
 	bUseFrustumCulling = Component->bUseFrustumCulling;
+
+	ScalingMethod = Component->ScalingMethod;
 
 	ColorSource = Component->ColorSource;
 	PointShape = Component->GetPointShape();

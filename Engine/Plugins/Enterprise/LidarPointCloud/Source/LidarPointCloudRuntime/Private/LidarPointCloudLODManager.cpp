@@ -596,6 +596,18 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 #endif
 				const bool bCalculateVirtualDepth = RegisteredProxy.ComponentRenderParams.PointSize > 0;
 
+				TArray<float> LocalLevelWeights;
+				TArray<float>* LevelWeightsPtr = &RegisteredProxy.TraversalOctree->LevelWeights;
+				float PointSizeBias = RegisteredProxy.ComponentRenderParams.PointSizeBias;
+
+				// Only calculate if needed
+				if (bCalculateVirtualDepth && (RegisteredProxy.ComponentRenderParams.ScalingMethod == ELidarPointCloudScalingMethod::PerNodeAdaptive || RegisteredProxy.ComponentRenderParams.ScalingMethod == ELidarPointCloudScalingMethod::PerPoint))
+				{
+					RegisteredProxy.TraversalOctree->CalculateLevelWeightsForSelectedNodes(LocalLevelWeights);
+					LevelWeightsPtr = &LocalLevelWeights;
+					PointSizeBias = 0;
+				}
+
 				// Queue nodes to be streamed
 				TArray<FLidarPointCloudOctreeNode*>& NodesToStream = OctreeStreamingMap.FindOrAdd(RegisteredProxy.Octree);
 				NodesToStream.Reserve(NodesToStream.Num() + SelectedNodesData[i].Num());
@@ -605,15 +617,15 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 
 					if (Node->DataNode->HasData())
 					{
-						if (bCalculateVirtualDepth)
-						{
-							Node->CalculateVirtualDepth(RegisteredProxy.ComponentRenderParams.PointSizeBias);
-						}
-
+						// Only calculate if needed
+                        if (bCalculateVirtualDepth)
+                        {
+							Node->CalculateVirtualDepth(*LevelWeightsPtr, PointSizeBias);
+                        }
+						
 						const uint32 NumVisiblePoints = Node->DataNode->GetNumVisiblePoints();
 						UpdateData.NumElements += NumVisiblePoints;
 						UpdateData.SelectedNodes.Emplace(bCalculateVirtualDepth ? Node->VirtualDepth : 0, NumVisiblePoints, Node->DataNode);
-
 #if !(UE_BUILD_SHIPPING)
 						if (bDrawNodeBounds)
 						{
@@ -622,6 +634,12 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 						}
 #endif
 					}
+				}
+
+				// Only calculate if needed
+				if (bCalculateVirtualDepth && RegisteredProxy.ComponentRenderParams.ScalingMethod == ELidarPointCloudScalingMethod::PerPoint)
+				{
+					RegisteredProxy.TraversalOctree->CalculateVisibilityStructure(UpdateData.TreeStructure);
 				}
 
 				ProxyUpdateData.Add(UpdateData);
