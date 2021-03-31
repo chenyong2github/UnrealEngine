@@ -62,6 +62,7 @@ bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 			break;
 
 		case RouteId_ModuleLoad:
+			if (Provider != nullptr)
 			{
 				const uint64 Base = GetRealBaseAddress(Context.EventData.GetValue<uint32>("Base"));
 				const uint32 Size = Context.EventData.GetValue<uint32>("Size");
@@ -79,6 +80,7 @@ bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 			break;
 
 		case RouteId_ModuleUnload:
+			if (Provider != nullptr)
 			{
 				const uint32 Base = Context.EventData.GetValue<uint32>("Base");
 				if (Provider)

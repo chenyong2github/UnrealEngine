@@ -48,7 +48,8 @@ void FCallstacksProvider::AddCallstack(uint64 InCallstackId, const uint64* InFra
 #endif
 
 	// The module provider is created on the fly so we want to cache it 
-	// once it's available.
+	// once it's available. Note that the module provider is conditionally
+	// created so EditProvider() may return a null pointer.
 	if (!ModuleProvider)
 	{
 		ModuleProvider = Session.EditProvider<IModuleProvider>(FName("ModuleProvider"));
