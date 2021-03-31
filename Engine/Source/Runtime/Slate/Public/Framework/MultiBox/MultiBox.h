@@ -398,7 +398,7 @@ public:
 	bool bHasSearchWidget;
 
 	/* Returns the last command list used */
-	const TSharedPtr<const FUICommandList> GetLastCommandList() const { return CommandLists.Last(); }
+	const TSharedPtr<const FUICommandList> GetLastCommandList() const { return CommandLists.Num() > 0 ? CommandLists.Last() : nullptr; }
 
 private:
 	
