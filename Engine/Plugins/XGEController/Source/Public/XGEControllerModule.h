@@ -7,8 +7,11 @@
 
 class FXGEControllerModule : public IDistributedBuildController
 {
+	/** Whether this system can use XGE shader compilation. */
 	bool bSupported;
+	/** Whether the module was initialized. */
 	bool bModuleInitialized;
+	/** Whether the controller was successfully initialized. This is only possible when bSupported is true. */
 	bool bControllerInitialized;
 
 	FThreadSafeCounter NextFileID;
@@ -36,6 +39,7 @@ class FXGEControllerModule : public IDistributedBuildController
 	TFuture<void> WriteOutThreadFuture;
 	TFuture<void> ReadBackThreadFuture;
 
+	/** event for the thread that communicates with the XGE controller */
 	FEvent* WriteOutThreadEvent;
 
 	// We need two pipes, as the named pipe API does not support simultaneous read/write on two threads.

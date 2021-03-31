@@ -216,6 +216,14 @@ bool FXGEControllerModule::IsSupported()
 				XGEControllerVariables::Enabled = 0;
 			}
 
+			// check if build service is running - without this, the build will make no progress
+			const TCHAR* XGEBuildServiceExecutableName = TEXT("BuildService.exe");
+			if (!FPlatformProcess::IsApplicationRunning(XGEBuildServiceExecutableName))
+			{
+				UE_LOG(LogXGEController, Warning, TEXT("XGE's background service (%s) is not running - service is likely disabled on this machine."), XGEBuildServiceExecutableName);
+				XGEControllerVariables::Enabled = 0;
+			}
+
 			if (!PlatformFile.FileExists(*GetControlWorkerExePath()))
 			{
 				UE_LOG(LogXGEController, Warning, TEXT("XGEControlWorker.exe does not exist, XGE may be disabled in your Build Configuration, cannot use XGE."));
@@ -329,14 +337,20 @@ void FXGEControllerModule::WriteOutThreadProc()
 		bRestartWorker = false;
 
 		while (!AreTasksPending() && !bShutdown)
+		{
+			UE_LOG(LogXGEController, Verbose, TEXT("Waiting for new tasks."));
 			WriteOutThreadEvent->Wait();
+		}
 
 		if (bShutdown)
+		{
+			UE_LOG(LogXGEController, Verbose, TEXT("Shutting down communication with the XGE controller."));
 			return;
+		}
 
 		// To handle spaces in the engine path, we just pass the XGEController.exe filename to xgConsole,
 		// and set the working directory of xgConsole.exe to the engine binaries folder below.
-		FString XGConsoleArgs = FString::Printf(TEXT("/VIRTUALIZEDIRECTX /allowremote=\"%s\" /allowintercept=\"%s\" /title=\"Unreal Engine XGE Tasks\" /monitordirs=\"%s\" /command=\"%s -xgecontroller %s\""),
+		FString XGConsoleArgs = FString::Printf(TEXT("/VIRTUALIZEDIRECTX /allowremote=\"%s\" /avoidlocal=ON /allowintercept=\"%s\" /title=\"Unreal Engine XGE Tasks\" /monitordirs=\"%s\" /command=\"%s -xgecontroller %s\""),
 			XGE_INTERCEPT_EXE_NAMES,
 			XGE_CONTROL_WORKER_NAME,
 			*WorkingDirectory,
@@ -349,9 +363,11 @@ void FXGEControllerModule::WriteOutThreadProc()
 			UE_LOG(LogXGEController, Fatal, TEXT("Failed to create the output XGE named pipe."));
 		}
 
+		const int32 PriorityModifier = -1;	// below normal
 		// Start the controller process
 		uint32 XGConsoleProcID = 0;
-		BuildProcessHandle = FPlatformProcess::CreateProc(*XGConsolePath, *XGConsoleArgs, false, false, true, &XGConsoleProcID, 0, *ControlWorkerDirectory, nullptr);
+		UE_LOG(LogXGEController, Verbose, TEXT("Launching xgConsole"));
+		BuildProcessHandle = FPlatformProcess::CreateProc(*XGConsolePath, *XGConsoleArgs, false, false, true, &XGConsoleProcID, PriorityModifier, *ControlWorkerDirectory, nullptr);
 		if (!BuildProcessHandle.IsValid())
 		{
 			UE_LOG(LogXGEController, Fatal, TEXT("Failed to launch the XGE control worker process."));
@@ -360,8 +376,9 @@ void FXGEControllerModule::WriteOutThreadProc()
 		// If the engine crashes, we don't get a chance to kill the build process.
 		// Start up the build monitor process to monitor for engine crashes.
 		uint32 BuildMonitorProcessID;
+		UE_LOG(LogXGEController, Verbose, TEXT("Launching XGEController to fan out tasks"));
 		FString XGMonitorArgs = FString::Printf(TEXT("-xgemonitor %d %d"), FPlatformProcess::GetCurrentProcessId(), XGConsoleProcID);
-		FProcHandle BuildMonitorHandle = FPlatformProcess::CreateProc(*GetControlWorkerExePath(), *XGMonitorArgs, true, false, false, &BuildMonitorProcessID, 0, nullptr, nullptr);
+		FProcHandle BuildMonitorHandle = FPlatformProcess::CreateProc(*GetControlWorkerExePath(), *XGMonitorArgs, true, false, false, &BuildMonitorProcessID, PriorityModifier, nullptr, nullptr);
 		FPlatformProcess::CloseProc(BuildMonitorHandle);
 
 		// Wait for the controller to connect to the output pipe

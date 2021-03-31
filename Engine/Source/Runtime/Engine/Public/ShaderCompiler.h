@@ -749,6 +749,12 @@ class FShaderCompileDistributedThreadRunnable_Interface : public FShaderCompileT
 
 	TSparseArray<class FDistributedShaderCompilerTask*> DispatchedTasks;
 
+	/** Last time we received a task back. */
+	double LastTimeTaskCompleted;
+
+	/** Whether we consider this controller hung / out of order. */
+	bool bIsHung;
+
 public:
 	/** Initialization constructor. */
 	FShaderCompileDistributedThreadRunnable_Interface(class FShaderCompilingManager* InManager, class IDistributedBuildController& InController);

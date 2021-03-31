@@ -73,7 +73,7 @@
 DEFINE_LOG_CATEGORY(LogShaderCompilers);
 
 // Switch to Verbose after initial testing
-#define UE_SHADERCACHE_LOG_LEVEL		Verbose
+#define UE_SHADERCACHE_LOG_LEVEL		VeryVerbose
 
 int32 GShaderCompilerJobCache = 1;
 static FAutoConsoleVariableRef CVarShaderCompilerJobCache(
@@ -2922,11 +2922,6 @@ FShaderCompilingManager::FShaderCompilingManager() :
 		UE_LOG(LogShaderCompilers, Display, TEXT("Using %s for Shader Compilation."), *BuildDistributionController->GetName());
 		RemoteCompileThread = MakeUnique<FShaderCompileDistributedThreadRunnable_Interface>(this, *BuildDistributionController);
 	}
-	else if (bCanUseRemoteCompiling && FShaderCompileXGEThreadRunnable_XmlInterface::IsSupported())
-	{
-		UE_LOG(LogShaderCompilers, Display, TEXT("Using XGE Shader Compiler (XML Interface)."));
-		RemoteCompileThread = MakeUnique<FShaderCompileXGEThreadRunnable_XmlInterface>(this);
-	}
 	else
 #endif // PLATFORM_WINDOWS
 #if PLATFORM_DESKTOP
@@ -2943,7 +2938,7 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	if (RemoteCompileThread)
 	{
 		// Keep high priority jobs on the local machine, to avoid XGE latency
-		RemoteCompileThread->SetPriorityRange(EShaderCompileJobPriority::Low, EShaderCompileJobPriority::High);
+		RemoteCompileThread->SetPriorityRange(EShaderCompileJobPriority::Low, EShaderCompileJobPriority::Low);
 		LocalThread->SetPriorityRange(EShaderCompileJobPriority::Normal, EShaderCompileJobPriority::ForceLocal);
 		Threads.Add(MoveTemp(RemoteCompileThread));
 	}

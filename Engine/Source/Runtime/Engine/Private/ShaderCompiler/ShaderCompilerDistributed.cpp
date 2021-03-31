@@ -14,6 +14,14 @@ namespace DistributedShaderCompilerVariables
         TEXT("Minimum number of shaders to compile with XGE.\n")
         TEXT("Smaller number of shaders will compile locally."),
         ECVF_Default);
+
+	static int32 GDistributedControllerTimeout = 5 * 60;	// 
+	static FAutoConsoleVariableRef CVarDistributedControllerTimeout(
+		TEXT("r.ShaderCompiler.DistributedControllerTimeout"),
+		GDistributedControllerTimeout,
+		TEXT("Maximum number of seconds we expect to pass between getting distributed controller complete a task (this is used to detect problems with the distribution controllers).")
+	);
+
 }
 
 bool FShaderCompileDistributedThreadRunnable_Interface::IsSupported()
@@ -43,6 +51,8 @@ FShaderCompileDistributedThreadRunnable_Interface::FShaderCompileDistributedThre
 	: FShaderCompileThreadRunnableBase(InManager)
 	, NumDispatchedJobs(0)
 	, CachedController(InController)
+	, LastTimeTaskCompleted(FPlatformTime::Seconds())
+	, bIsHung(false)
 {
 }
 
@@ -157,28 +167,37 @@ TArray<FString> FShaderCompileDistributedThreadRunnable_Interface::GetDependency
 int32 FShaderCompileDistributedThreadRunnable_Interface::CompilingLoop()
 {
 	TArray<FShaderCommonCompileJobPtr> PendingJobs;
-	for (int32 PriorityIndex = MaxPriorityIndex; PriorityIndex >= MinPriorityIndex; --PriorityIndex)
+	if (LIKELY(!bIsHung))	// stop accepting jobs if we're hung
 	{
-		// Grab as many jobs from the job queue as we can
-		const EShaderCompileJobPriority Priority = (EShaderCompileJobPriority)PriorityIndex;
-		const int32 MinBatchSize = (Priority == EShaderCompileJobPriority::Low) ? 1 : DistributedShaderCompilerVariables::MinBatchSize;
-		const int32 NumJobs = Manager->AllJobs.GetPendingJobs(EShaderCompilerWorkerType::XGE, Priority, MinBatchSize, INT32_MAX, PendingJobs);
-		if (NumJobs > 0)
+		for (int32 PriorityIndex = MaxPriorityIndex; PriorityIndex >= MinPriorityIndex; --PriorityIndex)
 		{
-			UE_LOG(LogShaderCompilers, Display, TEXT("Started %d 'XGE' shader compile jobs with '%s' priority"),
-				NumJobs,
-				ShaderCompileJobPriorityToString((EShaderCompileJobPriority)PriorityIndex));
-		}
-		if (PendingJobs.Num() >= DistributedShaderCompilerVariables::MinBatchSize)
-		{
-			break;
+			// Grab as many jobs from the job queue as we can
+			const EShaderCompileJobPriority Priority = (EShaderCompileJobPriority)PriorityIndex;
+			const int32 MinBatchSize = (Priority == EShaderCompileJobPriority::Low) ? 1 : DistributedShaderCompilerVariables::MinBatchSize;
+			const int32 NumJobs = Manager->AllJobs.GetPendingJobs(EShaderCompilerWorkerType::XGE, Priority, MinBatchSize, INT32_MAX, PendingJobs);
+			if (NumJobs > 0)
+			{
+				UE_LOG(LogShaderCompilers, Display, TEXT("Started %d 'XGE' shader compile jobs with '%s' priority"),
+					NumJobs,
+					ShaderCompileJobPriorityToString((EShaderCompileJobPriority)PriorityIndex));
+			}
+			if (PendingJobs.Num() >= DistributedShaderCompilerVariables::MinBatchSize)
+			{
+				break;
+			}
 		}
 	}
 
 	if (PendingJobs.Num() > 0)
 	{
 		// Increase the batch size when more jobs are queued/in flight.
-		const uint32 JobsPerBatch = FMath::Max(1, FMath::FloorToInt(FMath::LogX(2.f, PendingJobs.Num() + NumDispatchedJobs)));
+
+		// Just to provide typical numbers: the number of total jobs is usually in tens of thousands at most, oftentimes in low thousands. Thus JobsPerBatch when calculated as a log2 rarely reaches the value of 16.
+		// Given that 
+		//   a) starting each XGE shader compile worker has an associated cost (it scans directories, loads multiple libraries and reads configs)
+		//   b) XGE is currently used for low priority, non time-critical jobs
+		// JobsPerBatch is now increased by a factor of 3 compared to original formula, to produce numbers in 3-48 range most of the time
+		const uint32 JobsPerBatch = FMath::Max(1, FMath::FloorToInt(3 * FMath::LogX(2.f, PendingJobs.Num() + NumDispatchedJobs)));
 		UE_LOG(LogShaderCompilers, Verbose, TEXT("Current jobs: %d, Batch size: %d, Num Already Dispatched: %d"), PendingJobs.Num(), JobsPerBatch, NumDispatchedJobs);
 
 
@@ -285,6 +304,7 @@ int32 FShaderCompileDistributedThreadRunnable_Interface::CompilingLoop()
 
 		FDistributedBuildTaskResult Result = Task->Future.Get();
 		NumDispatchedJobs -= Task->ShaderJobs.Num();
+		LastTimeTaskCompleted = FPlatformTime::Seconds();
 
 		if (Result.ReturnCode != 0)
 		{
@@ -351,6 +371,18 @@ int32 FShaderCompileDistributedThreadRunnable_Interface::CompilingLoop()
 
 	// Yield for a short while to stop this thread continuously polling the disk.
 	FPlatformProcess::Sleep(0.01f);
+
+	// normally we expect to have at least one task in 5 minutes, although there could be edge cases
+	double TimeSinceLastCompletedTask = FPlatformTime::Seconds() - LastTimeTaskCompleted;
+	if (TimeSinceLastCompletedTask > DistributedShaderCompilerVariables::GDistributedControllerTimeout)
+	{
+		if (!bIsHung)
+		{
+			UE_LOG(LogShaderCompilers, Error, TEXT("Distributed compilation controller didn't receive a completed task in %f seconds!"), TimeSinceLastCompletedTask);
+			bIsHung = true;
+			// TODO: resubmit the hung jobs
+		}
+	}
 
 	// Return true if there is more work to be done.
 	return Manager->AllJobs.GetNumOutstandingJobs() > 0;
