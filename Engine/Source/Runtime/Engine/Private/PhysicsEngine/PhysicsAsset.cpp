@@ -21,6 +21,9 @@
 
 #define LOCTEXT_NAMESPACE "PhysicsAsset"
 
+bool bUseRBANForDefaultPhysicsAssetSolverType = false;
+FAutoConsoleVariableRef CVarUseRBANForDefaultPhysicsAssetSolverType(TEXT("p.Chaos.UseRBANForDefaultPhysicsAssetSolverType"), bUseRBANForDefaultPhysicsAssetSolverType, TEXT("Boolean to use RBAN for default physics asset solver type (false by default)"));
+
 FSolverIterations::FSolverIterations()
 	: FixedTimeStep(0)
 	, SolverIterations(3)
@@ -39,6 +42,14 @@ FSolverIterations::FSolverIterations()
 UPhysicsAsset::UPhysicsAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	if(bUseRBANForDefaultPhysicsAssetSolverType)
+	{
+		SolverType = EPhysicsAssetSolverType::RBAN;
+	}
+	else
+	{
+		SolverType = EPhysicsAssetSolverType::World;
+	}
 }
 
 void UPhysicsAsset::UpdateBoundsBodiesArray()
