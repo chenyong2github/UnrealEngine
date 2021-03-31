@@ -10,7 +10,7 @@ public class TraceServices : ModuleRules
 			new string[] {
 				"Core",
 				"TraceAnalysis",
+				"SymsLib"
 			});
-
 	}
 }

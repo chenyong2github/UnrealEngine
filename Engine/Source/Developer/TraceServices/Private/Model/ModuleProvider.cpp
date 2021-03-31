@@ -4,12 +4,15 @@
 #include "Containers/Map.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Diagnostics.h"
-#include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include <atomic>
 
+// When set use the RAD Syms library, otherwise fall back to DbgHelp (on Windows)
+#define USE_SYMS_LIB 1
+
 // Symbol files implementations
-#include "PbdSymbols.inl"
+#include "SymslibResolver.h"
+#include "DbgHelpResolver.h"
 
 namespace TraceServices {
 
@@ -49,7 +52,7 @@ public:
 	
 	
 	//Analysis interface
-	void						OnModuleLoad(const FStringView& Module, uint64 Base, uint32 Size) override;
+	void						OnModuleLoad(const FStringView& Module, uint64 Base, uint32 Size, const uint8* Checksum, uint32 ChecksumSize) override;
 	void 						OnModuleUnload(uint64 Base) override;
 	void						OnAnalysisComplete() override;
 
@@ -90,7 +93,7 @@ const FResolvedSymbol* TModuleProvider<SymbolProvider>::GetSymbol(uint64 Address
 		}
 	}
 
-	FResolvedSymbol* ResolvedSymbol = nullptr;
+	FResolvedSymbol* ResolvedSymbol;
 	{
 		// Add a pending entry to our cache
 		FWriteScopeLock _(SymbolsLock);
@@ -118,7 +121,7 @@ void TModuleProvider<SymbolResolver>::GetStats(FStats* OutStats) const
 
 /////////////////////////////////////////////////////////////////////
 template<typename SymbolProvider>
-void TModuleProvider<SymbolProvider>::OnModuleLoad(const FStringView& Module, uint64 Base, uint32 Size)
+void TModuleProvider<SymbolProvider>::OnModuleLoad(const FStringView& Module, uint64 Base, uint32 Size, const uint8* ImageId, uint32 ImageIdSize)
 {
 	if (Module.Len() == 0)
 	{
@@ -128,13 +131,12 @@ void TModuleProvider<SymbolProvider>::OnModuleLoad(const FStringView& Module, ui
 	const TCHAR* Path = Session.StoreString(Module);
 	const TCHAR* Name = Session.StoreString(Module);
 
-	FModuleEntry* NewEntry = nullptr;
 	{
 		FWriteScopeLock _(ModulesLock);
-		NewEntry = &Modules.EmplaceBack(Name, Path, Base, Size, false);
+		Modules.EmplaceBack(Name, Path, Base, Size, false);
 	}
 
-	Resolver.QueueModuleLoad(Module, Base, Size);
+	Resolver.QueueModuleLoad(Module, Base, Size, ImageId, ImageIdSize);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -154,13 +156,18 @@ void TModuleProvider<SymbolResolver>::OnAnalysisComplete()
 /////////////////////////////////////////////////////////////////////
 IModuleAnalysisProvider* CreateModuleProvider(IAnalysisSession& InSession, const FAnsiStringView& InSymbolFormat)
 {
+	IModuleAnalysisProvider* Provider(nullptr);
 #if PLATFORM_WINDOWS
-	if (InSymbolFormat.Equals("pdb"))
+	if (!Provider && InSymbolFormat.Equals("pdb"))
 	{
-		return new TModuleProvider<FPdbSymbols>(InSession);
+		Provider = new TModuleProvider<FSymslibResolver>(InSession);
 	}
-#endif
-	return nullptr;
+	if (!Provider && InSymbolFormat.Equals("pdb"))
+	{
+		Provider = new TModuleProvider<FDbgHelpResolver>(InSession);
+	}
+#endif //PLATFORM_WINDOWS
+	return Provider;
 }
 
 } // namespace TraceServices

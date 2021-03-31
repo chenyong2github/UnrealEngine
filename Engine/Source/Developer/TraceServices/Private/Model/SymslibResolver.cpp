@@ -1,0 +1,379 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#if PLATFORM_WINDOWS
+#include "SymslibResolver.h"
+#include "Algo/Sort.h"
+#include "Async/MappedFileHandle.h"
+#include "Async/ParallelFor.h"
+#include "Containers/StringView.h"
+#include "HAL/PlatformFileManager.h"
+#include "Logging/LogMacros.h"
+#include "Misc/PathViews.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/ScopeRWLock.h"
+#include "Misc/StringBuilder.h"
+#include "TraceServices/Model/AnalysisSession.h"
+#include <atomic>
+
+#include "symslib.h"
+
+/////////////////////////////////////////////////////////////////////
+DEFINE_LOG_CATEGORY_STATIC(LogSymslib, Log, All);
+
+/////////////////////////////////////////////////////////////////////
+namespace TraceServices {
+
+/////////////////////////////////////////////////////////////////////
+
+static const TCHAR* GUnknownModuleTextSymsLib = TEXT("Unknown");
+
+/////////////////////////////////////////////////////////////////////
+FSymslibResolver::FSymslibResolver(IAnalysisSession& InSession)
+	: Modules(InSession.GetLinearAllocator(), 128)
+	, Session(InSession)
+{
+}
+
+FSymslibResolver::~FSymslibResolver()
+{
+}
+
+void FSymslibResolver::QueueModuleLoad(const FStringView& ModulePath, uint64 Base, uint32 Size, const uint8* ImageId, uint32 ImageIdSize)
+{
+	FWriteScopeLock _(ModulesLock);
+	const FStringView ModuleName = FPathViews::GetCleanFilename(ModulePath);
+	
+	// Add module
+	FModuleEntry* Entry = &Modules.PushBack();
+	Entry->Base = Base;
+	Entry->Size = Size;
+	Entry->Name = Session.StoreString(ModuleName); //Allows safe sharing to UI
+	Entry->Path = Session.StoreString(ModulePath);
+	Entry->Status = EModuleStatus::Pending;
+	Entry->ImageId = TArrayView<const uint8>(ImageId, ImageIdSize);
+
+	++ModulesDiscovered;
+	
+	// Queue up module to have symbols loaded
+	++TasksInFlight;
+	FFunctionGraphTask::CreateAndDispatchWhenReady([this, Entry] { LoadModuleTracked(Entry); --TasksInFlight;});
+
+	// Sort list according to base address
+	SortedModules.Add(Entry);
+	Algo::Sort(SortedModules, [](const FModuleEntry* Lhs, const FModuleEntry* Rhs) { return Lhs->Base < Rhs->Base; });
+}
+
+void FSymslibResolver::QueueSymbolResolve(uint64 Address, FResolvedSymbol* Symbol)
+{
+	FScopeLock _(&SymbolsQueueLock);
+	MaybeDispatchQueuedAddresses();
+	++SymbolsDiscovered;
+	ResolveQueue.Add(FQueuedAddress{Address, Symbol});
+}
+
+void FSymslibResolver::OnAnalysisComplete()
+{
+	// Dispatch any remaining requests
+	{
+		FScopeLock _(&SymbolsQueueLock);
+		DispatchQueuedAddresses();
+		ResolveQueue.Reset();
+	}
+
+	// Wait for outstanding batches to complete
+	uint32 OutstandingTasks = TasksInFlight.load(std::memory_order_acquire);
+	UE_LOG(LogSymslib, Display, TEXT("Waiting for %d outstanding tasks..."), OutstandingTasks);
+	do
+	{
+		OutstandingTasks = TasksInFlight.load(std::memory_order_acquire);
+		FPlatformProcess::Sleep(0.0);
+	} while(OutstandingTasks > 0);
+
+	// Release file handles. No tasks can be in running at this point.
+	for (auto File : FileHandlesAndRegions)
+	{
+		delete File.Get<1>();
+		delete File.Get<0>();
+	}
+}
+
+void FSymslibResolver::GetStats(IModuleProvider::FStats* OutStats) const
+{
+	OutStats->ModulesDiscovered = ModulesDiscovered.load();
+	OutStats->ModulesFailed = ModulesFailed.load();
+	OutStats->ModulesLoaded = ModulesLoaded.load();
+	OutStats->SymbolsDiscovered = SymbolsDiscovered.load();
+	OutStats->SymbolsFailed = SymbolsFailed.load();
+	OutStats->SymbolsResolved = SymbolsResolved.load();
+}
+
+
+/**
+ * Checks if there are no modules in flight and that the queue has reached 
+ * the threshold for dispatching. Note that is up to the caller to synchronize.
+ */
+void FSymslibResolver::MaybeDispatchQueuedAddresses()
+{
+	const bool bModulesInFlight = (ModulesDiscovered.load() - ModulesFailed.load() - ModulesLoaded.load()) > 0;
+	if (!bModulesInFlight && (ResolveQueue.Num() >= QueuedAddressLength))
+	{
+		DispatchQueuedAddresses();
+		ResolveQueue.Reset();
+	}
+}
+
+/**
+ * Dispatches the currently queued addresses to be resolved. Note that is up to the caller to synchronize.
+ */
+void FSymslibResolver::DispatchQueuedAddresses()
+{
+	//todo: This creates two copies of resolve queue!
+	TArray<FQueuedAddress> WorkingSet(ResolveQueue);
+	++TasksInFlight;
+	FFunctionGraphTask::CreateAndDispatchWhenReady([this, WorkingSet] {
+		ParallelFor(WorkingSet.Num(), [this, &WorkingSet](uint32 Index) {
+			const FQueuedAddress& ToResolve = WorkingSet[Index];
+			ResolveSymbolTracked(ToResolve.Address, ToResolve.Target);
+		});
+		--TasksInFlight;
+	});
+}
+
+FSymslibResolver::FModuleEntry* FSymslibResolver::GetModuleForAddress(uint64 Address)
+{
+	FReadScopeLock _(ModulesLock);
+	const int32 EntryIdx = Algo::LowerBoundBy(SortedModules, Address, [](const FModuleEntry* Entry) { return Entry->Base; }) - 1;
+	if (EntryIdx < 0 || EntryIdx >= SortedModules.Num())
+	{
+		return nullptr;
+	}
+	return SortedModules[EntryIdx];
+}
+
+void FSymslibResolver::UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Name, const TCHAR* FileAndLine)
+{
+	Symbol->Name = Name;
+	Symbol->FileAndLine = FileAndLine;
+	Symbol->Result.store(Result, std::memory_order_release);
+}
+
+void FSymslibResolver::LoadModuleTracked(FModuleEntry* Module)
+{
+	const EModuleStatus Status = LoadModule(Module);
+	if (Status == EModuleStatus::Loaded)
+	{
+		++ModulesLoaded;
+	}
+	else
+	{
+		++ModulesFailed;
+		Module->Status.store(Status);
+	}
+
+	//  Make the status visible
+	Module->Status.store(Status);
+
+	// If this is the last module in flight dispatch pending queries
+	{
+		FScopeLock _(&SymbolsQueueLock);
+		MaybeDispatchQueuedAddresses();
+	}
+}
+
+FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Module)
+{
+	IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
+
+	// Initialize the instance
+	Module->Instance = syms_init_ex(Module->Base);
+	SymsInstance* ModuleInstance = Module->Instance;
+	
+	if (!ModuleInstance)
+	{
+		UE_LOG(LogSymslib, Error, TEXT("Failed to initialize '%s'"), Module->Name);
+		return EModuleStatus::Failed;
+	}
+
+	if (!PlatformFile->FileExists(Module->Path))
+	{
+		UE_LOG(LogSymslib, Error, TEXT("File '%s' does not exist"), Module->Path);
+	}
+
+	// Map the image file to memory
+	IMappedFileHandle* ImageFileHandle = PlatformFile->OpenMapped(Module->Path);
+	if (ImageFileHandle == nullptr)
+	{
+		return EModuleStatus::Failed;
+	}
+	IMappedFileRegion* ImageFileRegion = ImageFileHandle->MapRegion(0, ImageFileHandle->GetFileSize());
+
+	// Track all open handles
+	TrackFileHandlesAndRegions(ImageFileHandle , ImageFileRegion);
+
+	// Load the image
+	SymsErrorCode Result = syms_load_image(ModuleInstance, (void*)ImageFileRegion->GetMappedPtr(), ImageFileRegion->GetMappedSize(), 0);
+
+	if (SYMS_RESULT_FAIL(Result))
+	{
+		UE_LOG(LogSymslib, Warning, TEXT("Failed to load '%s'"), Module->Path);
+		return EModuleStatus::Failed;
+	}
+
+	// Iterate and map all the debug files
+	const FStringView ModuleBasePath = FPathViews::GetPath(Module->Path);
+	TStringBuilder<256> DebugFilePath;
+	TArray<SymsFile> Files;
+
+	SymsDebugFileIter DebugFiles;
+	if (syms_debug_file_iter_init(&DebugFiles, ModuleInstance))
+	{
+		SymsString Path;
+		while (syms_debug_file_iter_next(&DebugFiles, &Path))
+		{
+			// Map the debug file
+			DebugFilePath.Reset();
+			FPathViews::Append(DebugFilePath, ModuleBasePath);
+			FPathViews::Append(DebugFilePath, ANSI_TO_TCHAR(Path.data));
+			
+			if (PlatformFile->FileExists(*DebugFilePath))
+			{
+				IMappedFileHandle* FileHandle = PlatformFile->OpenMapped(*DebugFilePath); 
+				IMappedFileRegion* FileRegion = FileHandle->MapRegion(0, FileHandle->GetFileSize());
+
+				Files.Push(SymsFile{
+					Path.data,
+					(void*)FileRegion->GetMappedPtr(),
+					(uint64)FileRegion->GetMappedSize()
+				});
+
+				TrackFileHandlesAndRegions(FileHandle, FileRegion);
+			}
+		}
+	}
+	
+	// Prepare to load the debug files
+	Result = syms_load_debug_info_ex(ModuleInstance, Files.GetData(), Files.Num(), SYMS_LOAD_DEBUG_INFO_FLAGS_DEFER_BUILD_MODULE);
+
+	if (SYMS_RESULT_FAIL(Result))
+	{
+		UE_LOG(LogSymslib, Warning, TEXT("Could not read debug files for '%s'"), Module->Path);
+		return EModuleStatus::Failed;
+	}
+
+	// Split up the work of actually loading debug info
+	const uint32 Count = syms_get_module_build_count(ModuleInstance);
+	// Each work item needs some memory
+	TArray<SymsArena*> Arenas;
+	for (uint32 i = 0; i < Count; ++i) { Arenas.Push(syms_borrow_memory(ModuleInstance)); }
+	
+	ParallelFor(Count, [ModuleInstance, Arenas](uint32 Index) {
+		syms_build_module(ModuleInstance, (SymsModID)Index, Arenas[Index]); 
+	});
+
+	// Check age of debug data
+	if (!Module->ImageId.IsEmpty() && ModuleInstance->img.type == SYMS_IMAGE_NT)
+	{
+		// For Pdbs checksum is a 16 byte guid and 8 byte unsigned integer for age
+		static_assert(sizeof(FGuid) == 16, "Expected 16 byte FGuid");
+		check(Module->ImageId.Num() == 20);
+		FGuid* ModuleGuid = (FGuid*) Module->ImageId.GetData();
+		uint32* ModuleAge = ((uint32*) Module->ImageId.GetData()) + 4;
+		SymsDebugInfoPdb* PdbInfo = (SymsDebugInfoPdb*)ModuleInstance->debug_info.impl;
+		FGuid* PdbGuid = (FGuid*)&PdbInfo->context.auth_guid;
+		const uint32 PdbAge = PdbInfo->context.age; 
+		if (*ModuleGuid != *PdbGuid || *ModuleAge != PdbAge)
+		{
+			UE_LOG(LogSymslib, Warning, TEXT("Symbols for '%s' does not match traced binary."), Module->Name);
+			return EModuleStatus::VersionMismatch;
+		}
+	}
+
+	const uint32 SymbolCount = syms_get_proc_count(ModuleInstance); // get symbol count
+	const uint32 LineCount = syms_get_line_count(ModuleInstance); // get line count
+	UE_LOG(LogSymslib, Display, TEXT("Loaded symbols for '%s', %u symbols and %u lines."), Module->Name, SymbolCount, LineCount);
+
+	return EModuleStatus::Loaded;
+}
+
+void FSymslibResolver::ResolveSymbolTracked(uint64 Address, FResolvedSymbol* Target)
+{
+	if (!ResolveSymbol(Address, Target))
+	{
+		++SymbolsFailed;
+	}
+	else
+	{
+		++SymbolsResolved;
+	}
+}
+
+bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target)
+{
+	FModuleEntry* Module = GetModuleForAddress(Address);
+	if (!Module)
+	{
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib);
+		return false;
+	}
+
+	EModuleStatus Status = Module->Status.load();
+	while (Status == EModuleStatus::Pending)
+	{
+		//todo: yield
+		Status = Module->Status.load();
+	}
+
+	switch (Status)
+	{
+	case EModuleStatus::Failed:
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, Module->Name, GUnknownModuleTextSymsLib);
+		return false;
+	case EModuleStatus::VersionMismatch:
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::Mismatch, Module->Name, GUnknownModuleTextSymsLib);
+		return false;
+	default:
+		break;
+	}
+
+	SymsProc Proc;
+	SymsSourceFileMap File;
+
+	// Find procedure and source file for address
+	if (!syms_proc_from_va(Module->Instance, Address, &Proc) || !syms_va_to_src(Module->Instance, Address, &File))
+	{
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, Module->Name, GUnknownModuleTextSymsLib); 
+		return false;
+	}
+
+	// Read the symbol name
+	ANSICHAR ProcedureName[1024];
+	syms_read_strref(Module->Instance, &Proc.name_ref, ProcedureName, sizeof(ProcedureName));
+
+	// Read the source location
+	ANSICHAR SourceFile[1024];
+	syms_read_strref(Module->Instance, &File.file.name, SourceFile, sizeof(SourceFile));
+
+	TStringBuilder<1024> SourceLocation;
+	SourceLocation << ANSI_TO_TCHAR(SourceFile) << TEXT("(") << File.line.ln << TEXT(")");
+
+	// Store the strings and update the target data
+	UpdateResolvedSymbol(
+		Target, 
+		ESymbolQueryResult::OK,
+		Session.StoreString(ANSI_TO_TCHAR(ProcedureName)), 
+		Session.StoreString(SourceLocation)
+	);
+
+	return true;
+}
+
+void FSymslibResolver::TrackFileHandlesAndRegions(IMappedFileHandle* FileHandle, IMappedFileRegion* FileRegion)
+{
+	FileHandlesAndRegions.Add(TTuple<IMappedFileHandle*, IMappedFileRegion*>(FileHandle, FileRegion));
+}
+
+/////////////////////////////////////////////////////////////////////
+
+} // namespace TraceServices
+
+#endif // PLATFORM_WINDOWS

@@ -40,6 +40,7 @@ void FModuleAnalyzer::OnAnalysisEnd()
 	}
 }
 
+
 ////////////////////////////////////////////////////////////////////////////////
 bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
@@ -64,16 +65,18 @@ bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 		case RouteId_ModuleLoad:
 			if (Provider != nullptr)
 			{
-				const uint64 Base = GetRealBaseAddress(Context.EventData.GetValue<uint32>("Base"));
-				const uint32 Size = Context.EventData.GetValue<uint32>("Size");
-
 				//todo: Use string store
 				FStringView ModuleName;
 				if (Context.EventData.GetString("Name", ModuleName))
 				{
+					const uint64 Base = GetRealBaseAddress(Context.EventData.GetValue<uint32>("Base"));
+					const uint32 Size = Context.EventData.GetValue<uint32>("Size");
+					const uint32 Age = Context.EventData.GetValue<uint32>("Age", 0);
+					const IAnalyzer::TArrayReader<uint8>& ImageId = Context.EventData.GetArray<uint8>("ImageId");
+
 					if (Provider)
 					{
-						Provider->OnModuleLoad(ModuleName, Base, Size);
+						Provider->OnModuleLoad(ModuleName, Base, Size, ImageId.GetData(), ImageId.Num());
 					}
 				}
 			}
