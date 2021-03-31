@@ -40,6 +40,11 @@ static TAutoConsoleVariable<int32> CVarVolumetricRenderTargetPreferAsyncCompute(
 	TEXT("Whether to prefer using async compute to generate volumetric cloud render targets."),
 	ECVF_SetByScalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarVolumetricRenderTargetReprojectionBoxConstraint(
+	TEXT("r.VolumetricRenderTarget.ReprojectionBoxConstraint"), 0,
+	TEXT("Whether reprojected data should be constrained to the new incoming cloud data neighborhod value."),
+	ECVF_SetByScalability | ECVF_RenderThreadSafe);
+
 
 static bool ShouldPipelineCompileVolumetricRenderTargetShaders(EShaderPlatform ShaderPlatform)
 {
@@ -406,7 +411,8 @@ class FReconstructVolumetricRenderTargetPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FReconstructVolumetricRenderTargetPS, FGlobalShader);
 
 	class FHistoryAvailable : SHADER_PERMUTATION_BOOL("PERMUTATION_HISTORY_AVAILABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FHistoryAvailable>;
+	class FReprojectionBoxConstraint : SHADER_PERMUTATION_BOOL("PERMUTATION_REPROJECTION_BOX_CONSTRAINT");
+	using FPermutationDomain = TShaderPermutationDomain<FHistoryAvailable, FReprojectionBoxConstraint>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -485,6 +491,7 @@ void ReconstructVolumetricRenderTarget(
 
 		FReconstructVolumetricRenderTargetPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FReconstructVolumetricRenderTargetPS::FHistoryAvailable>(VolumetricCloudRT.GetHistoryValid());
+		PermutationVector.Set<FReconstructVolumetricRenderTargetPS::FReprojectionBoxConstraint>(CVarVolumetricRenderTargetReprojectionBoxConstraint.GetValueOnAnyThread() > 0);
 		TShaderMapRef<FReconstructVolumetricRenderTargetPS> PixelShader(ViewInfo.ShaderMap, PermutationVector);
 
 		FReconstructVolumetricRenderTargetPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReconstructVolumetricRenderTargetPS::FParameters>();

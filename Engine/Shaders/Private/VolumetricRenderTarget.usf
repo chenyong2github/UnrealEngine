@@ -235,12 +235,12 @@ void ReconstructVolumetricRenderTargetPS(
 					//	RGBA = NewRGBA;
 					//	Depths = NewDepths;
 					//}
-					//RGBA += float4(0, 0.1 0, 0);
+					//RGBA += float4(0, 0.5, 0, 0);
 				}
-				else //if(ReconstructDepthZ < 0.000001f)
+				else // Because of the test on bUseNewSample above, we know here that we are only dealing with reprojected data  //if(ReconstructDepthZ < 0.000001f)
 				{
 					// TODO: To use this, we need to make sure we prioritise pixe lwith under represented depth.
-#if 0
+#if PERMUTATION_REPROJECTION_BOX_CONSTRAINT
 					// Make sure that history stay in the neightborhood color/transmittance/depth box after reprojection
 					float4 ColorAABBMin = 999999999.0f;
 					float4 ColorAABBMax = 0.0f;
@@ -267,6 +267,7 @@ void ReconstructVolumetricRenderTargetPS(
 						RGBA = clamp(RGBA, ColorAABBMin, ColorAABBMax);
 						Depths = clamp(Depths, DepthsAABBMin, DepthsAABBMax);
 					}
+					//RGBA += float4(0, 0.8, 0.8, 0);
 #endif
 				}
 
@@ -676,7 +677,8 @@ void ComposeVolumetricRTOverScenePS(
 			//DataAcc = float4(1.0, 1.0, 0, 0); 
 		}
 
-		if(ValidSampleCount == 0 && bAllCloudSamplesInFrontOfWater)
+		//if (ValidSampleCount == 0 && bAllCloudSamplesInFrontOfWater)
+		if(ValidSampleCount == 0) // The above is removed because it does not always work. We need to test if pixel is water. A change list for that is coming from UE4/Main soon.
 		{
 			// Depth discontinuities edges
 			float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
