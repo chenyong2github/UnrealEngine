@@ -104,7 +104,8 @@ public:
 	virtual void GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const override;
 
 	virtual const FName GetMessageTopic() const override { return FNiagaraMessageTopics::CompilerTopicName; };
-
+ 
+	const FNiagaraCompileEvent& GetCompileEvent() const { return CompileEvent; }
 private:
 	const FNiagaraCompileEvent CompileEvent;
 	const TArray<FNiagaraScriptNameAndAssetPath> ContextScriptNamesAndAssetPaths;

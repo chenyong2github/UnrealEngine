@@ -1904,7 +1904,7 @@ bool UNiagaraSystem::CompilationResultsValid(FNiagaraSystemCompileRequest& Compi
 				if (!bDependencyMet)
 				{
 					FNiagaraCompileEvent LinkerErrorEvent(
-						FNiagaraCompileEventSeverity::Error, Dependency.LinkerErrorMessage, Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids);
+						FNiagaraCompileEventSeverity::Error, Dependency.LinkerErrorMessage, FString(), false, Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids);
 					CompilePair.CompileResults->LastCompileEvents.Add(LinkerErrorEvent);
 					CompilePair.CompileResults->LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Error;
 				}

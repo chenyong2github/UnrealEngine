@@ -13,4 +13,8 @@ namespace FNiagaraMessageUtilities
 	FText MakePostCompileSummaryText(const FText& CompileObjectNameText, ENiagaraScriptCompileStatus LatestCompileStatus, const int32& WarningCount, const int32& ErrorCount);
 
 	UNiagaraStackEntry::FStackIssue MessageToStackIssue(TSharedRef<const INiagaraMessage> InMessage, FString InStackEditorDataKey);
+
+	void GetCompileMessageData(TSharedRef<const FNiagaraMessageCompileEvent> InMessage, bool& bOutDismissable, FText& OutShortDescription);
+
+	FText GetShortDescriptionFromSeverity(EStackIssueSeverity Severity);
 }

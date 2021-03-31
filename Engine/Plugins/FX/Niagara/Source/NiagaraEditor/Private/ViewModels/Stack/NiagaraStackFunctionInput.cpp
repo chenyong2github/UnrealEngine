@@ -1467,6 +1467,7 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 		FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetNiagaraGraph());
 	}
 
+	RefreshChildren();
 	RefreshValues();
 }
 
@@ -1722,7 +1723,12 @@ void UNiagaraStackFunctionInput::OnMessageManagerRefresh(const TArray<TSharedRef
 	{
 		for (TSharedRef<const INiagaraMessage> Message : NewMessages)
 		{
-			MessageManagerIssues.Add(FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey()));
+			FStackIssue Issue = FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey());
+			if (MessageManagerIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
+				{ return NewIssue.GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); }) == false)
+			{
+				MessageManagerIssues.Add(Issue);	
+			}
 		}
 	}
 }

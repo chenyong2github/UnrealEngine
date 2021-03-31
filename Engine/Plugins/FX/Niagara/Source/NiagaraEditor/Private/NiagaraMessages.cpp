@@ -335,8 +335,7 @@ bool FNiagaraMessageJobCompileEvent::RecursiveGetScriptNamesAndAssetPathsFromCon
 		checkf(false, TEXT("Matching node is not a function call or emitter node!"));
 	}
 	FText FailureReason = LOCTEXT("CompileEventMessageGenerator_CouldNotFindMatchingNodeGUID", "Failed to walk the entire context stack, is this compile event out of date ? Event: '{0}'");
-	FText::Format(FailureReason, FText::FromString(CompileEvent.Message));
-	OutFailureReason = FailureReason;
+	OutFailureReason = FText::Format(FailureReason, FText::FromString(CompileEvent.Message));
 	return false;
 }
 
