@@ -58,8 +58,6 @@ public:
 	// UObject Interface
 	virtual UWorld* GetWorld() const override;
 
-	// call these from your UEdMode functions of the same name
-
 	void Tick(FEditorViewportClient* ViewportClient, float DeltaTime);
 	void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
 	void DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas);
@@ -140,6 +138,9 @@ protected:
 	// Currently disabling anti-aliasing during active Tools because it causes PDI flickering
 	void SetEditorStateForTool();
 	void RestoreEditorState();
+
+	void OnToolEnded(UInteractiveToolManager* InToolManager, UInteractiveTool* InEndedTool);
+	void OnToolPostBuild(UInteractiveToolManager* InToolManager, EToolSide InSide, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& ToolState);
 
 	TOptional<FString> PendingToolToStart = {};
 	TOptional<EToolShutdownType> PendingToolShutdownType = {};

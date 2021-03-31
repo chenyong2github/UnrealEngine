@@ -53,6 +53,15 @@ void UInteractiveToolManager::Shutdown()
 	bIsActive = false;
 }
 
+void UInteractiveToolManager::DoPostBuild(EToolSide Side, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& InBuilderState)
+{
+	OnToolPostBuild.Broadcast(this, Side, InBuiltTool, InToolBuilder, InBuilderState);
+}
+
+void UInteractiveToolManager::DoPostSetup(EToolSide Side, UInteractiveTool* InInteractiveTool)
+{
+	OnToolPostSetup.Broadcast(this, Side, InInteractiveTool);
+}
 
 
 void UInteractiveToolManager::RegisterToolType(const FString& Identifier, UInteractiveToolBuilder* Builder)
@@ -182,8 +191,10 @@ bool UInteractiveToolManager::ActivateToolInternal(EToolSide Side)
 		return false;
 	}
 	ActiveLeftToolName = ActiveLeftBuilderName;
+	DoPostBuild(Side, ActiveLeftTool, ActiveLeftBuilder, InputState);
 
 	ActiveLeftTool->Setup();
+	DoPostSetup(Side, ActiveLeftTool);
 
 	// register new active input behaviors
 	InputRouter->RegisterSource(ActiveLeftTool);

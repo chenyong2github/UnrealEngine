@@ -562,10 +562,8 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 		}
 	});
 
-	ToolManager->OnToolEnded.AddLambda([this](UInteractiveToolManager*, UInteractiveTool*)
-	{
-		RestoreEditorState();
-	});
+	ToolManager->OnToolEnded.AddUObject(this, &UEdModeInteractiveToolsContext::OnToolEnded);
+	ToolManager->OnToolPostBuild.AddUObject(this, &UEdModeInteractiveToolsContext::OnToolPostBuild);
 
 	// if viewport clients change we will discard our overrides as we aren't sure what happened
 	ViewportClientListChangedHandle = GEditor->OnViewportClientListChanged().AddLambda([this]()
@@ -578,6 +576,12 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 
 void UEdModeInteractiveToolsContext::Shutdown()
 {
+	if (ToolManager)
+	{
+		ToolManager->OnToolPostBuild.RemoveAll(this);
+		ToolManager->OnToolEnded.RemoveAll(this);
+	}
+
 	if (FLevelEditorModule* LevelEditor = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor"))
 	{
 		LevelEditor->OnMapChanged().Remove(WorldTearDownDelegateHandle);
@@ -1235,4 +1239,14 @@ void UEdModeInteractiveToolsContext::RestoreEditorState()
 			}
 		}
 	}
+}
+
+void UEdModeInteractiveToolsContext::OnToolEnded(UInteractiveToolManager* InToolManager, UInteractiveTool* InEndedTool)
+{
+	RestoreEditorState();
+}
+
+void UEdModeInteractiveToolsContext::OnToolPostBuild(UInteractiveToolManager* InToolManager, EToolSide InSide, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& ToolState)
+{
+	// todo: Add any shared tool targets for the mode toolkit
 }

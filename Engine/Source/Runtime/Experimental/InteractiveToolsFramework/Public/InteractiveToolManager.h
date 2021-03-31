@@ -73,6 +73,12 @@ protected:
 	/** Shutdown the ToolManager. Called by UInteractiveToolsContext. */
 	virtual void Shutdown();
 
+	/** Called immediately after a tool is built. Broadcasts OnToolPostBuild. */
+	virtual void DoPostBuild(EToolSide Side, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& InBuilderState);
+	
+	/** Called immediately after a tool's Setup is called. Broadcasts OnToolPostSetup. */
+	virtual void DoPostSetup(EToolSide Side, UInteractiveTool* InInteractiveTool);
+
 public:
 
 
@@ -273,6 +279,12 @@ public:
 public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FToolManagerToolStartedSignature, UInteractiveToolManager*, UInteractiveTool*);
 	FToolManagerToolStartedSignature OnToolStarted;
+
+	DECLARE_MULTICAST_DELEGATE_FiveParams(FToolManagerToolPostBuildSignature, UInteractiveToolManager*, EToolSide, UInteractiveTool*, UInteractiveToolBuilder*, const FToolBuilderState&);
+	FToolManagerToolPostBuildSignature OnToolPostBuild;
+
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FToolManagerToolPostSetupSignature, UInteractiveToolManager*, EToolSide, UInteractiveTool*);
+	FToolManagerToolPostSetupSignature OnToolPostSetup;
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FToolManagerToolEndedSignature, UInteractiveToolManager*, UInteractiveTool*);
 	FToolManagerToolEndedSignature OnToolEnded;
