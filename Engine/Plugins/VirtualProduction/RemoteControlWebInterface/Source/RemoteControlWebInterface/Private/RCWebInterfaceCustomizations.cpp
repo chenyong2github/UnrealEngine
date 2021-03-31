@@ -20,6 +20,7 @@
 #include "RemoteControlEntity.h"
 #include "ScopedTransaction.h"
 #include "SSearchableComboBox.h"
+#include "UObject/TextProperty.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -47,7 +48,7 @@ namespace RCWebInterface
 			{
 				Widgets = { TEXT("Toggle") };
 			}
-			else if (Property->IsA<FTextProperty>() || Property->IsA<FNameProperty>())
+			else if (Property->IsA<FTextProperty>() || Property->IsA<FNameProperty>() || Property->IsA<FStrProperty>() )
 			{
 				Widgets = { TEXT("Text") };
 			}
