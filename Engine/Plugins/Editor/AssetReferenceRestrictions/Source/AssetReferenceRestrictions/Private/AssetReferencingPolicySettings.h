@@ -16,6 +16,10 @@ struct FARPDefaultPluginDomainRules
 	// (EngineContent is always visible, as is content from other plugins that are explicitly referenced)
 	UPROPERTY(EditAnywhere, Category=Settings, meta=(GetOptions="GetListOfDomains_NoPluginsOrEngine"))
 	TArray<FString> CanReferenceTheseDomains;
+
+	// Can content in the ProjectContent domain access plugin content automatically (for plugins that don't match a specific rule)?
+	UPROPERTY(config, EditAnywhere, Category = "Project Plugins")
+	bool bCanProjectAccessDefaultPlugins = true;
 };
 
 UENUM()
@@ -29,10 +33,6 @@ USTRUCT()
 struct FARPDomainDefinitionForMatchingPlugins
 {
 	GENERATED_BODY()
-
-	// Name of this rule template (used as a merge key in the ini)
-// 	UPROPERTY(EditAnywhere, Category=Settings)
-// 	FString TemplateName;
 
 	// The display name of this rule (used in error message when attempting to reference content incorrectly)
 	// The token {0} will be replaced with the plugin name
@@ -167,14 +167,13 @@ class UAssetReferencingPolicySettings : public UDeveloperSettings
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(config, EditAnywhere, Category="Engine Plugins")//, meta=(ShowOnlyInnerProperties)
+	// Settings/rules for engine plugins
+	UPROPERTY(config, EditAnywhere, Category="Engine Plugins")
 	FARPDomainSettingsForPlugins EnginePlugins;
 
-	UPROPERTY(config, EditAnywhere, Category="Project Plugins")//, meta=(ShowOnlyInnerProperties)
+	// Settings/rules for project plugins
+	UPROPERTY(config, EditAnywhere, Category="Project Plugins")
 	FARPDomainSettingsForPlugins ProjectPlugins;
-
-	UPROPERTY(config, EditAnywhere, Category="Project Plugins")//, meta=(ShowOnlyInnerProperties)
-	bool bCanProjectAccessDefaultProjectPlugins = true;
 
 	// The default rules for project content (if a more specific rule doesn't apply)
 	UPROPERTY(config, EditAnywhere, Category="Project Content")

@@ -116,6 +116,7 @@ FDomainDatabase::~FDomainDatabase()
 	IPluginManager& PluginManager = IPluginManager::Get();
 	PluginManager.OnNewPluginCreated().RemoveAll(this);
 	PluginManager.OnNewPluginMounted().RemoveAll(this);
+	PluginManager.OnPluginEdited().RemoveAll(this);
 }
 
 void FDomainDatabase::RebuildFromScratch()
@@ -217,6 +218,8 @@ void FDomainDatabase::Init()
 	IPluginManager& PluginManager = IPluginManager::Get();
 	PluginManager.OnNewPluginCreated().AddRaw(this, &FDomainDatabase::OnPluginCreatedOrMounted);
 	PluginManager.OnNewPluginMounted().AddRaw(this, &FDomainDatabase::OnPluginCreatedOrMounted);
+	PluginManager.OnPluginEdited().AddRaw(this, &FDomainDatabase::OnPluginCreatedOrMounted);
+	
 }
 
 void FDomainDatabase::MarkDirty()
@@ -326,7 +329,7 @@ void FDomainDatabase::BuildDomainFromPlugin(TSharedRef<IPlugin> Plugin)
 	{
 		AddDomainVisibilityList(Domain, DomainSettings.DefaultRule.CanReferenceTheseDomains);
 
-		if ((Plugin->GetLoadedFrom() == EPluginLoadedFrom::Project) && Settings->bCanProjectAccessDefaultProjectPlugins)
+		if (DomainSettings.DefaultRule.bCanProjectAccessDefaultPlugins)
 		{
 			GameDomain->DomainsVisibleFromHere.Add(Domain);
 		}
