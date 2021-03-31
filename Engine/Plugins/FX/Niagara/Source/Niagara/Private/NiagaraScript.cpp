@@ -765,7 +765,7 @@ TOptional<ENiagaraSimTarget> UNiagaraScript::GetSimTarget() const
 
 void UNiagaraScript::AsyncOptimizeByteCode()
 {
-	if ( !CachedScriptVM.IsValid() || (CachedScriptVM.OptimizedByteCode.Num() > 0) || (CachedScriptVM.ByteCode.Num() == 0) )
+	if ( !CachedScriptVMId.IsValid() || !CachedScriptVM.IsValid() || (CachedScriptVM.OptimizedByteCode.Num() > 0) || (CachedScriptVM.ByteCode.Num() == 0) )
 	{
 		return;
 	}
