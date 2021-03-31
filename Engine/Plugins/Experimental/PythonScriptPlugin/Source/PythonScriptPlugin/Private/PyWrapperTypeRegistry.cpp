@@ -1246,20 +1246,32 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 	const FString PythonClassName = PyGenUtil::GetClassPythonName(InClass);
 	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*PythonClassName);
 
-	for (TFieldIterator<const FField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
+	for (TFieldIterator<const FProperty> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
 	{
-		if (const FProperty* Prop = CastField<const FProperty>(*FieldIt))
-		{
-			GenerateWrappedProperty(Prop);
-			continue;
-		}
+		const FProperty* Prop = *FieldIt;
+		GenerateWrappedProperty(Prop);
 	}
-	for (TFieldIterator<const UField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper, EFieldIteratorFlags::IncludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); FieldIt; ++FieldIt)
+
+	for (TFieldIterator<const UFunction> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper, EFieldIteratorFlags::IncludeDeprecated); FieldIt; ++FieldIt)
 	{
-		if (const UFunction* Func = Cast<const UFunction>(*FieldIt))
+		const UFunction* Func = *FieldIt;
+		GenerateWrappedMethod(Func);
+	}
+
+	{
+		TArray<const UClass*> Interfaces = PyGenUtil::GetExportedInterfacesForClass(InClass);
+		for (const UClass* Interface : Interfaces)
 		{
-			GenerateWrappedMethod(Func);
-			continue;
+			for (TFieldIterator<const UFunction> FieldIt(Interface, EFieldIteratorFlags::ExcludeSuper, EFieldIteratorFlags::IncludeDeprecated); FieldIt; ++FieldIt)
+			{
+				const UFunction* Func = *FieldIt;
+				
+				// Skip the interface function if the current class already has a reflected function with this name
+				if (!InClass->FindFunctionByName(Func->GetFName(), EIncludeSuperFlag::ExcludeSuper))
+				{
+					GenerateWrappedMethod(Func);
+				}
+			}
 		}
 	}
 

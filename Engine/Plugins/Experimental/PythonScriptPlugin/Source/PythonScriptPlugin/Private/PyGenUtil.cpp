@@ -1475,25 +1475,21 @@ bool IsScriptExposedFunction(const UFunction* InFunc)
 
 bool HasScriptExposedFields(const UStruct* InStruct)
 {
-	for (TFieldIterator<const UField> FieldIt(InStruct); FieldIt; ++FieldIt)
+	for (TFieldIterator<const UFunction> FieldIt(InStruct); FieldIt; ++FieldIt)
 	{
-		if (const UFunction* Func = Cast<const UFunction>(*FieldIt))
+		const UFunction* Func = *FieldIt;
+		if (IsScriptExposedFunction(Func))
 		{
-			if (IsScriptExposedFunction(Func))
-			{
-				return true;
-			}
+			return true;
 		}
 	}
 
-	for (TFieldIterator<const FField> FieldIt(InStruct); FieldIt; ++FieldIt)
+	for (TFieldIterator<const FProperty> FieldIt(InStruct); FieldIt; ++FieldIt)
 	{
-		if (const FProperty* Prop = CastField<const FProperty>(*FieldIt))
+		const FProperty* Prop = *FieldIt;
+		if (IsScriptExposedProperty(Prop))
 		{
-			if (IsScriptExposedProperty(Prop))
-			{
-				return true;
-			}
+			return true;
 		}
 	}
 
@@ -1572,6 +1568,51 @@ bool IsDeprecatedFunction(const UFunction* InFunc, FString* OutDeprecationMessag
 	}
 
 	return false;
+}
+
+void GetExportedInterfacesForClass_Recursive(const UClass* InInterface, TSet<const UClass*>& InOutProcessedInterfaces, TArray<const UClass*>& InOutExportedInterfaces)
+{
+	check(InInterface->HasAnyClassFlags(CLASS_Interface));
+
+	{
+		bool bAlreadyProcessed = false;
+		InOutProcessedInterfaces.Add(InInterface, &bAlreadyProcessed);
+		if (bAlreadyProcessed)
+		{
+			return;
+		}
+	}
+
+	if (!ShouldExportClass(InInterface))
+	{
+		return;
+	}
+
+	InOutExportedInterfaces.Add(InInterface);
+
+	for (UClass* SuperClass = InInterface->GetSuperClass(); 
+		SuperClass && SuperClass->HasAnyClassFlags(CLASS_Interface); 
+		SuperClass = SuperClass->GetSuperClass()
+		)
+	{
+		GetExportedInterfacesForClass_Recursive(SuperClass, InOutProcessedInterfaces, InOutExportedInterfaces);
+	}
+
+	for (const FImplementedInterface& Interface : InInterface->Interfaces)
+	{
+		GetExportedInterfacesForClass_Recursive(Interface.Class, InOutProcessedInterfaces, InOutExportedInterfaces);
+	}
+}
+
+TArray<const UClass*> GetExportedInterfacesForClass(const UClass* InClass)
+{
+	TSet<const UClass*> ProcessedInterfaces;
+	TArray<const UClass*> ExportedInterfaces;
+	for (const FImplementedInterface& Interface : InClass->Interfaces)
+	{
+		GetExportedInterfacesForClass_Recursive(Interface.Class, ProcessedInterfaces, ExportedInterfaces);
+	}
+	return ExportedInterfaces;
 }
 
 bool ShouldExportClass(const UClass* InClass)

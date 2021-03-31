@@ -1037,6 +1037,9 @@ namespace PyGenUtil
 	/** Is the given function marked as deprecated? */
 	bool IsDeprecatedFunction(const UFunction* InFunc, FString* OutDeprecationMessage = nullptr);
 
+	/** Given a class, get all the interface classes related to it that should be included when exporting it to Python */
+	TArray<const UClass*> GetExportedInterfacesForClass(const UClass* InClass);
+
 	/** Should the given class be exported to Python? */
 	bool ShouldExportClass(const UClass* InClass);
 
