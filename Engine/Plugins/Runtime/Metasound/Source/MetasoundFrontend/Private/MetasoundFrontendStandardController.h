@@ -49,6 +49,7 @@ namespace Metasound
 			// Output metadata
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
+			const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
 
 			// Return info on containing node. 
 			FGuid GetOwningNodeID() const override;
@@ -111,10 +112,10 @@ namespace Metasound
 
 			bool IsValid() const override;
 
-			// Output metadata
+			// Input metadata
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
-
+			const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
 
 		protected:
 			FDocumentAccess ShareAccess() override;
@@ -158,6 +159,7 @@ namespace Metasound
 			// Output metadata
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
+			const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
 
 			FConnectability CanConnectTo(const IInputController& InController) const override;
 			bool Connect(IInputController& InController) override;
@@ -200,6 +202,7 @@ namespace Metasound
 			// Input metadata
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
+			const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
 
 			// Owning node info
 			FGuid GetOwningNodeID() const override;
@@ -264,6 +267,8 @@ namespace Metasound
 			// Input metadata
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
+			const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
+
 			const FMetasoundFrontendLiteral* GetDefaultLiteral() const override;
 
 		protected:
@@ -305,6 +310,7 @@ namespace Metasound
 			// Input metadata
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
+			const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
 
 			FConnectability CanConnectTo(const IOutputController& InController) const override;
 			bool Connect(IOutputController& InController) override;

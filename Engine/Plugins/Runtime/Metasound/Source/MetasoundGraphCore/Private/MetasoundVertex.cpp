@@ -58,12 +58,12 @@ namespace Metasound
 		return VertexModel->CreateDefaultLiteral();
 	}
 
-	const FText& FInputDataVertex::GetDescription() const
+	const FDataVertexMetadata& FInputDataVertex::GetMetadata() const
 	{
-		return VertexModel->Description;
+		return VertexModel->VertexMetadata;
 	}
 
-	bool FInputDataVertex::IsReferenceOfSameType(const IDataReference& InReference) const 
+	bool FInputDataVertex::IsReferenceOfSameType(const IDataReference& InReference) const
 	{
 		return VertexModel->IsReferenceOfSameType(InReference);
 	}
@@ -147,17 +147,17 @@ namespace Metasound
 		return VertexModel->DataTypeName;
 	}
 
-	const FText& FOutputDataVertex::GetDescription() const
+	const FDataVertexMetadata& FOutputDataVertex::GetMetadata() const
 	{
-		return VertexModel->Description;
+		return VertexModel->VertexMetadata;
 	}
 
-	bool FOutputDataVertex::IsReferenceOfSameType(const IDataReference& InReference) const 
+	bool FOutputDataVertex::IsReferenceOfSameType(const IDataReference& InReference) const
 	{
 		return VertexModel->IsReferenceOfSameType(InReference);
 	}
 
-	const FName& FOutputDataVertex::GetVertexTypeName() const 
+	const FName& FOutputDataVertex::GetVertexTypeName() const
 	{
 		return VertexModel->GetVertexTypeName();
 	}

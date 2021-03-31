@@ -1071,10 +1071,20 @@ namespace Metasound
 			{
 				NewPin->PinToolTip = InInputHandle->GetTooltip().ToString();
 				NewPin->PinType = EditorModule.FindDataType(InInputHandle->GetDataType()).PinType;
+				NewPin->bAdvancedView = InInputHandle->GetMetadata().bIsAdvancedDisplay;
+
+				if (NewPin->bAdvancedView)
+				{
+					if (InEditorNode.AdvancedPinDisplay == ENodeAdvancedPins::NoPins)
+					{
+						InEditorNode.AdvancedPinDisplay = ENodeAdvancedPins::Hidden;
+					}
+				}
 
 				FNodeHandle NodeHandle = InInputHandle->GetOwningNode();
 				FGraphBuilder::AddOrUpdateLiteralInput(InEditorNode.GetMetasoundChecked(), NodeHandle, *NewPin);
 			}
+
 
 			return NewPin;
 		}
@@ -1089,6 +1099,15 @@ namespace Metasound
 			{
 				NewPin->PinToolTip = InOutputHandle->GetTooltip().ToString();
 				NewPin->PinType = EditorModule.FindDataType(InOutputHandle->GetDataType()).PinType;
+				NewPin->bAdvancedView = InOutputHandle->GetMetadata().bIsAdvancedDisplay;
+
+				if (NewPin->bAdvancedView)
+				{
+					if (InEditorNode.AdvancedPinDisplay == ENodeAdvancedPins::NoPins)
+					{
+						InEditorNode.AdvancedPinDisplay = ENodeAdvancedPins::Hidden;
+					}
+				}
 			}
 
 			return NewPin;

@@ -513,8 +513,17 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
+		const FMetasoundFrontendVertexMetadata& FBaseOutputController::GetMetadata() const
+		{
+			if (ClassOutputPtr.IsValid())
+			{
+				return ClassOutputPtr->Metadata;
+			}
 
-		FDocumentAccess FBaseOutputController::ShareAccess() 
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
+		}
+
+		FDocumentAccess FBaseOutputController::ShareAccess()
 		{
 			FDocumentAccess Access;
 
@@ -581,6 +590,16 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
+		const FMetasoundFrontendVertexMetadata& FInputNodeOutputController::GetMetadata() const
+		{
+			if (OwningGraphClassInputPtr.IsValid())
+			{
+				return OwningGraphClassInputPtr->Metadata;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
+		}
+
 		FDocumentAccess FInputNodeOutputController::ShareAccess() 
 		{
 			FDocumentAccess Access = FBaseOutputController::ShareAccess();
@@ -631,6 +650,16 @@ namespace Metasound
 			}
 
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+		const FMetasoundFrontendVertexMetadata& FOutputNodeOutputController::GetMetadata() const
+		{
+			if (OwningGraphClassOutputPtr.IsValid())
+			{
+				return OwningGraphClassOutputPtr->Metadata;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
 		}
 
 		FConnectability FOutputNodeOutputController::CanConnectTo(const IInputController& InController) const 
@@ -723,6 +752,15 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
+		const FMetasoundFrontendVertexMetadata& FBaseInputController::GetMetadata() const
+		{
+			if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
+			{
+				return ClassInput->Metadata;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
+		}
 
 		bool FBaseInputController::IsConnected() const 
 		{
@@ -1009,7 +1047,17 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
-		const FMetasoundFrontendLiteral* FOutputNodeInputController::GetDefaultLiteral() const 
+		const FMetasoundFrontendVertexMetadata& FOutputNodeInputController::GetMetadata() const
+		{
+			if (OwningGraphClassOutputPtr.IsValid())
+			{
+				return OwningGraphClassOutputPtr->Metadata;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
+		}
+
+		const FMetasoundFrontendLiteral* FOutputNodeInputController::GetDefaultLiteral() const
 		{
 			return nullptr;
 		}
@@ -1064,6 +1112,16 @@ namespace Metasound
 			}
 			
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+		const FMetasoundFrontendVertexMetadata& FInputNodeInputController::GetMetadata() const
+		{
+			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
+			{
+				return OwningInput->Metadata;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
 		}
 
 		FConnectability FInputNodeInputController::CanConnectTo(const IOutputController& InController) const 

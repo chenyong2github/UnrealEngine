@@ -164,6 +164,9 @@ namespace Metasound
 			/** Returns the tooltip associated with this output. */
 			virtual const FText& GetTooltip() const = 0;
 
+			/** Returns all metadata associated with this output. */
+			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const = 0;
+
 			/** Returns the ID of the node which owns this output. */
 			virtual FGuid GetOwningNodeID() const = 0;
 			
@@ -234,6 +237,9 @@ namespace Metasound
 
 			/** Returns the data type name associated with this input. */
 			virtual const FText& GetTooltip() const = 0;
+
+			/** Returns all metadata associated with this input. */
+			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const = 0;
 
 			/** Returns the ID of the node which owns this output. */
 			virtual FGuid GetOwningNodeID() const = 0;

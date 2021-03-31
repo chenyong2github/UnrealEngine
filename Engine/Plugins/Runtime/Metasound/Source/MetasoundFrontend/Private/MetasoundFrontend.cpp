@@ -15,6 +15,7 @@
 #include "MetasoundOperatorBuilder.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundRouter.h"
+#include "MetasoundVertex.h"
 #include "Modules/ModuleManager.h"
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
@@ -93,14 +94,16 @@ namespace Metasound
 			TArray<int>& InputSortOrder = ClassInterface.InputStyle.DefaultSortOrder;
 			for (auto& InputTuple : InputInterface)
 			{
-				// TODO: lots to be added here. 
 				FMetasoundFrontendClassInput ClassInput;
 
 				ClassInput.Name = InputTuple.Value.GetVertexName();
 				ClassInput.TypeName = InputTuple.Value.GetDataTypeName();
 				ClassInput.VertexID = FGuid::NewGuid();
 				ClassInput.Metadata.DisplayName = FText::FromString(InputTuple.Value.GetVertexName());
-				ClassInput.Metadata.Description = InputTuple.Value.GetDescription();
+
+				const FDataVertexMetadata& VertexMetadata = InputTuple.Value.GetMetadata();
+				ClassInput.Metadata.Description = VertexMetadata.Description;
+				ClassInput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
 
 				FLiteral DefaultLiteral = InputTuple.Value.GetDefaultLiteral();
 				if (DefaultLiteral.GetType() != ELiteralType::Invalid)
@@ -108,7 +111,12 @@ namespace Metasound
 					ClassInput.DefaultLiteral.SetFromLiteral(DefaultLiteral);
 				}
 
-				const int32 OrderIndex = InputInterface.GetOrderIndex(InputTuple.Key);
+				// Advanced display items are pushed to bottom of sort order
+				int32 OrderIndex = InputInterface.GetOrderIndex(InputTuple.Key);
+				if (ClassInput.Metadata.bIsAdvancedDisplay)
+				{
+					OrderIndex += InputInterface.Num();
+				}
 				InputSortOrder.Add(OrderIndex);
 
 				ClassInterface.Inputs.Add(ClassInput);
@@ -118,16 +126,23 @@ namespace Metasound
 			TArray<int32>& OutputSortOrder = ClassInterface.InputStyle.DefaultSortOrder;
 			for (auto& OutputTuple : OutputInterface)
 			{
-				// TODO: lots to be added here. 
 				FMetasoundFrontendClassOutput ClassOutput;
 
 				ClassOutput.Name = OutputTuple.Value.GetVertexName();
 				ClassOutput.TypeName = OutputTuple.Value.GetDataTypeName();
 				ClassOutput.VertexID = FGuid::NewGuid();
 				ClassOutput.Metadata.DisplayName = FText::FromString(OutputTuple.Value.GetVertexName());
-				ClassOutput.Metadata.Description = OutputTuple.Value.GetDescription();
 
-				const int32 OrderIndex = OutputInterface.GetOrderIndex(OutputTuple.Key);
+				const FDataVertexMetadata& VertexMetadata = OutputTuple.Value.GetMetadata();
+				ClassOutput.Metadata.Description = VertexMetadata.Description;
+				ClassOutput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
+
+				// Advanced display items are pushed to bottom below non-advanced
+				int32 OrderIndex = OutputInterface.GetOrderIndex(OutputTuple.Key);
+				if (ClassOutput.Metadata.bIsAdvancedDisplay)
+				{
+					OrderIndex += OutputInterface.Num();
+				}
 				ClassInterface.OutputStyle.DefaultSortOrder.Add(OrderIndex);
 
 				ClassDescription.Interface.Outputs.Add(ClassOutput);
@@ -135,7 +150,6 @@ namespace Metasound
 
 			for (auto& EnvTuple : InNodeMetadata.DefaultInterface.GetEnvironmentInterface())
 			{
-				// TODO: lots to be added here. 
 				FMetasoundFrontendClassEnvironmentVariable EnvVar;
 
 				EnvVar.Name = EnvTuple.Value.GetVertexName();

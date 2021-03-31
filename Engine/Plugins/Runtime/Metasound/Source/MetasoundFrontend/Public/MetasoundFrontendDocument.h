@@ -473,14 +473,23 @@ struct FMetasoundFrontendInterfaceStyle
 	TArray<HandleType> SortDefaults(const TArray<HandleType>& InHandles) const
 	{
 		TArray<HandleType> SortedHandles = InHandles;
+
+		TMap<FGuid, int32> HandleIDToSortIndex;
 		for (int32 i = 0; i < DefaultSortOrder.Num(); ++i)
 		{
-			const int32 SortedIndex = DefaultSortOrder[i];
-			if (SortedHandles.IsValidIndex(SortedIndex) && InHandles.IsValidIndex(i))
+			if (ensure(InHandles.IsValidIndex(i)))
 			{
-				SortedHandles[SortedIndex] = InHandles[i];
+				const int32 SortIndex = DefaultSortOrder[i];
+				HandleIDToSortIndex.Add(InHandles[i]->GetID(), SortIndex);
 			}
 		}
+
+		SortedHandles.Sort([&](const HandleType& HandleA, const HandleType& HandleB)
+		{
+			const FGuid HandleAID = HandleA->GetID();
+			const FGuid HandleBID = HandleB->GetID();
+			return HandleIDToSortIndex[HandleAID] < HandleIDToSortIndex[HandleBID];
+		});
 
 		return SortedHandles;
 	}

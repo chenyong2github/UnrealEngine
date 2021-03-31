@@ -13,18 +13,21 @@
 namespace Metasound
 {
 	/** Key type for an FInputDataVertexColletion or 
-	 * FOutputDataVertexCollection. 
+	 * FOutputDataVertexCollection.
 	 */
-	typedef FString FVertexKey;
+	using FVertexKey = FString;
 
-	// Forward declare.
+	// Forward declarations
 	class FInputDataVertex;
-
-	// Forward declare.
 	class FOutputDataVertex;
-
-	// Forward declare
 	class FEnvironmentVertex;
+
+	// Vertex metadata
+	struct FDataVertexMetadata
+	{
+		FText Description;
+		bool bIsAdvancedDisplay = false;
+	};
 
 	/** FDataVertexModel
 	 *
@@ -45,12 +48,12 @@ namespace Metasound
 		 *
 		 * @InVertexName - Name of vertex.
 		 * @InDataTypeName - Name of data type.
-		 * @InDescription - Human readable vertex description.
+		 * @InMetadata - Metadata pertaining to given vertex.
 		 */
-		FDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FText& InDescription)
+		FDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata)
 		:	VertexName(InVertexName)
 		,	DataTypeName(InDataTypeName)
-		,	Description(InDescription)
+		,	VertexMetadata(InMetadata)
 		{
 		}
 
@@ -62,8 +65,8 @@ namespace Metasound
 		/** Type name of data. */
 		const FName DataTypeName;
 
-		/** Description of the vertex. */
-		const FText Description;
+		/** Metadata associated with vertex. */
+		const FDataVertexMetadata VertexMetadata;
 
 		/** Test if a IDataReference matches the DataType of this vertex model.
 		 *
@@ -122,14 +125,27 @@ namespace Metasound
 	public:
 
 		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FText& InDescription)
-			: FDataVertexModel(InVertexName, InDataTypeName, InDescription)
+			: FDataVertexModel(InVertexName, InDataTypeName, { InDescription })
+			, LiteralFactory(MakeUnique<TLiteralFactory<FLiteral::FNone>>(FLiteral::FNone{}))
+		{
+		}
+
+		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata)
+			: FDataVertexModel(InVertexName, InDataTypeName, InMetadata)
 			, LiteralFactory(MakeUnique<TLiteralFactory<FLiteral::FNone>>(FLiteral::FNone{}))
 		{
 		}
 
 		template<typename LiteralValueType>
 		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FText& InDescription, const LiteralValueType& InLiteralValue)
-			: FDataVertexModel(InVertexName, InDataTypeName, InDescription)
+			: FDataVertexModel(InVertexName, InDataTypeName, { InDescription })
+			, LiteralFactory(MakeUnique<TLiteralFactory<LiteralValueType>>(InLiteralValue))
+		{
+		}
+
+		template<typename LiteralValueType>
+		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, const LiteralValueType& InLiteralValue)
+			: FDataVertexModel(InVertexName, InDataTypeName, InMetadata)
 			, LiteralFactory(MakeUnique<TLiteralFactory<LiteralValueType>>(InLiteralValue))
 		{
 		}
@@ -208,7 +224,18 @@ namespace Metasound
 		 */
 		template<typename... ModelArgTypes>
 		TBaseVertexModel(const FString& InVertexName, const FText& InDescription, ModelArgTypes&&... ModelArgs)
-		:	VertexModelType(InVertexName, GetMetasoundDataTypeName<DataType>(), InDescription, Forward<ModelArgTypes>(ModelArgs)...)
+		:	VertexModelType(InVertexName, GetMetasoundDataTypeName<DataType>(), { InDescription }, Forward<ModelArgTypes>(ModelArgs)...)
+		{
+		}
+
+		/** TBaseVertexModel Constructor
+		 *
+		 * @InVertexName - Name of vertex.
+		 * @InVertexMetadata - Vertex metadata, used primarily for debugging or live edit.
+		 */
+		template<typename... ModelArgTypes>
+		TBaseVertexModel(const FString& InVertexName, const FDataVertexMetadata& InMetadata, ModelArgTypes&&... ModelArgs)
+		:	VertexModelType(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, Forward<ModelArgTypes>(ModelArgs)...)
 		{
 		}
 
@@ -267,6 +294,18 @@ namespace Metasound
 		template<typename LiteralValueType>
 		TInputDataVertexModel(const FString& InVertexName, const FText& InDescription, const LiteralValueType& InDefaultValue)
 		:	TBaseVertexModel<DataType, FInputDataVertexModel>(InVertexName, InDescription, InDefaultValue)
+		{
+		}
+
+		/** TInputDataVertexModel Constructor
+		 *
+		 * @InVertexName - Name of vertex.
+		 * @InDescription - Human readable vertex description.
+		 * @InDefaultValue - Default Value of vertex
+		 */
+		template<typename LiteralValueType>
+		TInputDataVertexModel(const FString& InVertexName, const FDataVertexMetadata& InMetadata)
+		:	TBaseVertexModel<DataType, FInputDataVertexModel>(InVertexName, InMetadata)
 		{
 		}
 
@@ -333,7 +372,7 @@ namespace Metasound
 			const FName& GetDataTypeName() const;
 
 			/** Description of the vertex. */
-			const FText& GetDescription() const;
+			const FDataVertexMetadata& GetMetadata() const;
 
 			/** Default value of the vertex. */
 			FLiteral GetDefaultLiteral() const;
@@ -382,7 +421,7 @@ namespace Metasound
 		/** Create a clone of this TOutputDataVertexModel*/
 		virtual TUniquePtr<FOutputDataVertexModel> Clone() const override
 		{
-			return MakeUnique<TOutputDataVertexModel<DataType>>(this->VertexName, this->Description);
+			return MakeUnique<TOutputDataVertexModel<DataType>>(this->VertexName, this->VertexMetadata);
 		}
 	};
 
@@ -426,8 +465,8 @@ namespace Metasound
 			/** Type name of data reference. */
 			const FName& GetDataTypeName() const;
 
-			/** Description of the vertex. */
-			const FText& GetDescription() const;
+			/** Metadata of the vertex. */
+			const FDataVertexMetadata& GetMetadata() const;
 
 			/** Test if a IDataReference matches the DataType of this vertex.
 			 *
