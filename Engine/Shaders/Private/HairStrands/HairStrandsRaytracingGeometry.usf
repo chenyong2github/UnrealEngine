@@ -8,6 +8,7 @@ uint DispatchCountX;
 float3 StrandHairWorldOffset;
 float StrandHairRadius;
 
+Buffer<float4>	 PositionOffsetBuffer;
 Buffer<uint4> 	 PositionBuffer;
 RWBuffer<float4> OutputPositionBuffer;
 
@@ -43,7 +44,9 @@ FControlPoint GetControlPoint(uint Index)
 		const uint4 PackedData = PositionBuffer[Index];
 		const uint PackedAlpha = asuint(PackedData.a);
 
-		Out.Position 	= f16tof32(PackedData.xyz) + StrandHairWorldOffset;
+		const float3 OutPositionOffset = PositionOffsetBuffer[0].xyz;
+
+		Out.Position 	= f16tof32(PackedData.xyz) + OutPositionOffset;
 		Out.PointType 	= PackedAlpha & 0x3;
 		Out.WorldRadius	= StrandHairRadius * float((PackedAlpha & 0x00FC) >> 2) / 63.0f;
 	}

@@ -1949,7 +1949,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			}
 			HairGroupInstance->Guides.RestResource = GroupData.Guides.RestResource;
 
-			HairGroupInstance->Guides.DeformedResource = new FHairStrandsDeformedResource(GroupData.Guides.Data.RenderData, true, true);
+			HairGroupInstance->Guides.DeformedResource = new FHairStrandsDeformedResource(GroupData.Guides.Data.RenderData, true, true, HairGroupInstance->Guides.RestResource->PositionOffset);
 			BeginInitResource(HairGroupInstance->Guides.DeformedResource);
 
 			HairGroupInstance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current)  = HairGroupInstance->Guides.RestResource->PositionOffset;
@@ -2020,7 +2020,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			}
 		
 			HairGroupInstance->Strands.RestResource = GroupData.Strands.RestResource;
-			HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.Data.RenderData, false, bDynamicResources);
+			HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.Data.RenderData, false, bDynamicResources, HairGroupInstance->Strands.RestResource->PositionOffset);
 			BeginInitResource(HairGroupInstance->Strands.DeformedResource);
 			HairGroupInstance->Strands.ClusterCullingResource = GroupData.Strands.ClusterCullingResource;
 
@@ -2109,7 +2109,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					}
 
 					InstanceLOD.Guides.RestResource = LOD.Guides.RestResource;
-					InstanceLOD.Guides.DeformedResource = new FHairStrandsDeformedResource(LOD.Guides.Data.RenderData, false, true);
+					InstanceLOD.Guides.DeformedResource = new FHairStrandsDeformedResource(LOD.Guides.Data.RenderData, false, true, InstanceLOD.Guides.RestResource->PositionOffset);
 					BeginInitResource(InstanceLOD.Guides.DeformedResource);
 
 					// Initialize deformed position relative position offset to the rest pose offset

@@ -83,6 +83,15 @@ struct FHairStrandsPositionFormat
 	static const EPixelFormat Format = PF_R16G16B16A16_UINT;
 };
 
+struct FHairStrandsPositionOffsetFormat
+{
+	typedef FVector4 Type;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_Float4;
+	static const EPixelFormat Format = PF_A32B32G32R32F;
+};
+
 struct FHairStrandsAttributeFormat
 {
 	typedef FPackedHairAttributeVertex Type;

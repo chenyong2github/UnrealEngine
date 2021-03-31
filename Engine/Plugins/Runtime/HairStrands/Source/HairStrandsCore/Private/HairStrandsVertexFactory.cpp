@@ -54,8 +54,8 @@ inline FRHIShaderResourceView* GetAttributeSRV(const FHairGroupPublicData::FVert
 inline FRHIShaderResourceView* GetMaterialSRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput)			{ return VFInput.Strands.MaterialBuffer; }
 inline FRHIShaderResourceView* GetTangentSRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput)			{ return VFInput.Strands.TangentBuffer; }
 
-inline const FVector& GetPositionOffset(const FHairGroupPublicData::FVertexFactoryInput& VFInput)				{ return VFInput.Strands.PositionOffset; }
-inline const FVector& GetPreviousPositionOffset(const FHairGroupPublicData::FVertexFactoryInput& VFInput)		{ return VFInput.Strands.PrevPositionOffset; }
+inline FRHIShaderResourceView* GetPositionOffsetSRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput) { return VFInput.Strands.PositionOffsetBuffer; };
+inline FRHIShaderResourceView* GetPreviousPositionOffsetSRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput) { return VFInput.Strands.PrevPositionOffsetBuffer; }
 
 inline bool  UseStableRasterization(const FHairGroupPublicData::FVertexFactoryInput& VFInput)					{ return VFInput.Strands.bUseStableRasterization; };
 inline bool  UseScatterSceneLighting(const FHairGroupPublicData::FVertexFactoryInput& VFInput)					{ return VFInput.Strands.bScatterSceneLighting; };
@@ -76,13 +76,13 @@ public:
 	LAYOUT_FIELD(FShaderParameter, Length);
 	LAYOUT_FIELD(FShaderParameter, RadiusAtDepth1_Primary);	// unused
 	LAYOUT_FIELD(FShaderParameter, RadiusAtDepth1_Velocity);	// unused
-	LAYOUT_FIELD(FShaderParameter, PositionOffset);
-	LAYOUT_FIELD(FShaderParameter, PreviousPositionOffset);
 	LAYOUT_FIELD(FShaderParameter, Density);
 	LAYOUT_FIELD(FShaderParameter, Culling);
 	LAYOUT_FIELD(FShaderParameter, StableRasterization);
 	LAYOUT_FIELD(FShaderParameter, ScatterSceneLighing);
 
+	LAYOUT_FIELD(FShaderResourceParameter, PositionOffsetBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, PreviousPositionOffsetBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, PositionBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, PreviousPositionBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, AttributeBuffer);
@@ -96,12 +96,14 @@ public:
 	{
 		Radius.Bind(ParameterMap, TEXT("HairStrandsVF_Radius"));
 		Length.Bind(ParameterMap, TEXT("HairStrandsVF_Length"));
-		PositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PositionOffset"));
-		PreviousPositionOffset.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionOffset"));
+		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));
 		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));	
 		Culling.Bind(ParameterMap, TEXT("HairStrandsVF_CullingEnable"));
 		StableRasterization.Bind(ParameterMap, TEXT("HairStrandsVF_bUseStableRasterization"));
 		ScatterSceneLighing.Bind(ParameterMap, TEXT("HairStrandsVF_bScatterSceneLighing"));
+
+		PositionOffsetBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PositionOffsetBuffer"));
+		PreviousPositionOffsetBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionOffsetBuffer"));
 
 		PositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PositionBuffer"));
 		PreviousPositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionBuffer"));
@@ -139,8 +141,8 @@ public:
 		VFS_BindParam(ShaderBindings, TangentBuffer, GetTangentSRV(VFInput));
 		VFS_BindParam(ShaderBindings, Radius, GetMaxStrandRadius(VFInput));
 		VFS_BindParam(ShaderBindings, Length, GetMaxStrandLength(VFInput));
-		VFS_BindParam(ShaderBindings, PositionOffset, GetPositionOffset(VFInput));
-		VFS_BindParam(ShaderBindings, PreviousPositionOffset, GetPreviousPositionOffset(VFInput));
+		VFS_BindParam(ShaderBindings, PositionOffsetBuffer, GetPositionOffsetSRV(VFInput));
+		VFS_BindParam(ShaderBindings, PreviousPositionOffsetBuffer, GetPreviousPositionOffsetSRV(VFInput));
 		VFS_BindParam(ShaderBindings, Density, GetHairDensity(VFInput));
 		VFS_BindParam(ShaderBindings, StableRasterization, UseStableRasterization(VFInput) ? 1u : 0u);
 		VFS_BindParam(ShaderBindings, ScatterSceneLighing, UseScatterSceneLighting(VFInput) ? 1u : 0u);

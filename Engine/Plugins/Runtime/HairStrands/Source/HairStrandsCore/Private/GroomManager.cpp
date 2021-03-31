@@ -210,6 +210,22 @@ static void RunInternalHairStrandsInterpolation(
 							MeshDataLOD, 
 							Instance->Strands.RestRootResource, 
 							Instance->Strands.DeformedRootResource);
+
+						AddHairStrandUpdatePositionOffsetPass(
+							GraphBuilder,
+							ShaderMap,
+							MeshLODIndex,
+							Instance->Strands.DeformedRootResource,
+							Instance->Strands.DeformedResource);
+					}
+					else if (Instance->Strands.HasValidData())
+					{
+						AddHairStrandUpdatePositionOffsetPass(
+							GraphBuilder,
+							ShaderMap,
+							MeshLODIndex,
+							nullptr,
+							Instance->Strands.DeformedResource);
 					}
 				}
 				else if (InstanceGeometryType == EHairGeometryType::Cards)
@@ -228,6 +244,22 @@ static void RunInternalHairStrandsInterpolation(
 								MeshDataLOD,
 								CardsInstance.Guides.RestRootResource,
 								CardsInstance.Guides.DeformedRootResource);
+
+							AddHairStrandUpdatePositionOffsetPass(
+								GraphBuilder,
+								ShaderMap,
+								MeshLODIndex,
+								CardsInstance.Guides.DeformedRootResource,
+								CardsInstance.Guides.DeformedResource);
+						}
+						else if (CardsInstance.Guides.IsValid())
+						{
+							AddHairStrandUpdatePositionOffsetPass(
+								GraphBuilder,
+								ShaderMap,
+								MeshLODIndex,
+								nullptr,
+								CardsInstance.Guides.DeformedResource);
 						}
 					}
 				}
@@ -269,6 +301,22 @@ static void RunInternalHairStrandsInterpolation(
 							Instance->Guides.RestRootResource,
 							Instance->Guides.DeformedRootResource);
 					}
+
+					AddHairStrandUpdatePositionOffsetPass(
+						GraphBuilder,
+						ShaderMap,
+						Instance->Debug.MeshLODIndex,
+						Instance->Guides.DeformedRootResource,
+						Instance->Guides.DeformedResource);
+				}
+				else if (Instance->Guides.IsValid())
+				{
+					AddHairStrandUpdatePositionOffsetPass(
+						GraphBuilder,
+						ShaderMap,
+						Instance->Debug.MeshLODIndex,
+						nullptr,
+						Instance->Guides.DeformedResource);
 				}
 			}
 		}

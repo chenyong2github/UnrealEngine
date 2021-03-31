@@ -33,8 +33,6 @@ uint DispatchCountX;
 uint HairDebugMode;
 float3 InRenderHairPositionOffset;
 float3 InSimHairPositionOffset;
-float3 OutRenderHairPositionOffset;
-float3 OutSimHairPositionOffset;
 int2 HairStrandsCullIndex;
 float4x4 LocalToWorldMatrix;
 
@@ -101,6 +99,9 @@ Buffer<float4>	 SimAttributeBuffer;
 RWBuffer<float4> OutRenderAttributeBuffer; 
 #endif
 
+Buffer<float4> OutSimHairPositionOffsetBuffer;
+Buffer<float4> OutRenHairPositionOffsetBuffer;
+
 #if PERMUTATION_GROUP_SIZE == 64
 	#define GROUP_SIZE 64
 #elif PERMUTATION_GROUP_SIZE == 32
@@ -109,8 +110,8 @@ RWBuffer<float4> OutRenderAttributeBuffer;
 	#error Unknown group size	
 #endif
 
-float3 ComputeStaticGeometryOffset(uint GuideIndex, float GuideVertexWeight)
-{	
+float3 ComputeStaticGeometryOffset(uint GuideIndex, float GuideVertexWeight, float3 OutSimHairPositionOffset)
+{
 	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
 
 	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutSimHairPositionOffset;
@@ -133,7 +134,8 @@ float3 ComputeDynamicGeometryOffset(
 	float GuideVertexWeight, 
 	FHairMeshTriangle RestTriangle, 
 	FHairMeshTriangle DeformedTriangle,
-	float3 RootBarycentric)
+	float3 RootBarycentric,
+	float3 OutSimHairPositionOffset)
 {
 	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
 	const float3 LocalRestGuidePoint = ToTriangle(RestGuidePoint, RootBarycentric, RestTriangle);
@@ -199,6 +201,9 @@ bool ScaleAndClip(uint ControlPointId, inout uint InPackedAlpha)
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
+	const float3 SimHairPositionOffset = OutSimHairPositionOffsetBuffer[0].xyz;
+	const float3 OutRenHairPositionOffset = OutRenHairPositionOffsetBuffer[0].xyz;
+
 	uint VertexIndex = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
 #if PERMUTATION_CULLING
 	if (HairStrandsVF_bIsCullingEnable)
@@ -267,8 +272,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				const uint GuideIndex0 = GuideVertexIndices[K];
 				const uint GuideIndex1 = GuideIndex0 + 1;
 
-				const float3 Offset0 = ComputeStaticGeometryOffset(GuideIndex0, GuideVertexWeights[K]);
-				const float3 Offset1 = ComputeStaticGeometryOffset(GuideIndex1, GuideVertexWeights[K]);
+				const float3 Offset0 = ComputeStaticGeometryOffset(GuideIndex0, GuideVertexWeights[K], SimHairPositionOffset);
+				const float3 Offset1 = ComputeStaticGeometryOffset(GuideIndex1, GuideVertexWeights[K], SimHairPositionOffset);
 
 				CurrOffset += lerp(Offset0, Offset1, GuideVertexLerps[K]);
 			}
@@ -277,7 +282,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenderHairPositionOffset), PackedRestPosition.w);
+			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
 			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
 		}
 		#endif	
@@ -310,8 +315,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
 				const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);
 
-				const float3 Offset0 = ComputeDynamicGeometryOffset(GuideIndex0, GuideVertexWeights[K], RestTriangle, DeformedTriangle, RootBarycentric);
-				const float3 Offset1 = ComputeDynamicGeometryOffset(GuideIndex1, GuideVertexWeights[K], RestTriangle, DeformedTriangle, RootBarycentric);
+				const float3 Offset0 = ComputeDynamicGeometryOffset(GuideIndex0, GuideVertexWeights[K], RestTriangle, DeformedTriangle, RootBarycentric, SimHairPositionOffset);
+				const float3 Offset1 = ComputeDynamicGeometryOffset(GuideIndex1, GuideVertexWeights[K], RestTriangle, DeformedTriangle, RootBarycentric, SimHairPositionOffset);
 
 				CurrOffset += VectorToWorld(lerp(Offset0, Offset1, GuideVertexLerps[K]),DeformedTriangle);
 			}
@@ -337,7 +342,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				if (bDebugEnabled && VertexIndex==0)
 				{	
 					AddCross(InRenderHairPositionOffset, 1.2, RestColor);
-					AddCross(OutRenderHairPositionOffset, 1, DeformedColor);
+					AddCross(OutRenHairPositionOffset, 1, DeformedColor);
 				}
 			
 				if (bDebugEnabled && VertexIndex >= 0 && VertexIndex < 64)
@@ -359,7 +364,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			}
 			#endif
 
-			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenderHairPositionOffset), PackedRestPosition.w);
+			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
 			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
 		}
 		#endif	
@@ -403,7 +408,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenderHairPositionOffset), PackedRestPosition.w);
+			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
 			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
 		}
 		#endif	
@@ -442,8 +447,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				
 				const float3 LocalPoint = VectorToTriangle(ControlPoint,RestTriangleG);
 
-				const float3 Offset0 = ComputeRotateGeometryOffset(GuideIndex0, 1.0, RestTriangleG, DeformedTriangleG);
-				const float3 Offset1 = ComputeRotateGeometryOffset(GuideIndex1, 1.0, RestTriangleG, DeformedTriangleG);
+				const float3 Offset0 = ComputeRotateGeometryOffset(GuideIndex0, 1.0, RestTriangleG, DeformedTriangleG/*, SimHairPositionOffset*/);
+				const float3 Offset1 = ComputeRotateGeometryOffset(GuideIndex1, 1.0, RestTriangleG, DeformedTriangleG/*, SimHairPositionOffset*/);
 
 				CurrOffset += GuideVertexWeights[K] * VectorToWorld(lerp(Offset0, Offset1, GuideVertexLerps[K])+LocalPoint,DeformedTriangleG);
 			}
@@ -454,7 +459,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenderHairPositionOffset), PackedRestPosition.w);
+			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
 			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
 		}
 		#endif
@@ -492,8 +497,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				
 				const float3 LocalPoint = ToTriangle(ControlPoint,RootBarycentricG,RestTriangleG);
 
-				const float3 Offset0 = ComputeDynamicGeometryOffset(GuideIndex0, 1.0, RestTriangleG, DeformedTriangleG, RootBarycentricG);
-				const float3 Offset1 = ComputeDynamicGeometryOffset(GuideIndex1, 1.0, RestTriangleG, DeformedTriangleG, RootBarycentricG);
+				const float3 Offset0 = ComputeDynamicGeometryOffset(GuideIndex0, 1.0, RestTriangleG, DeformedTriangleG, RootBarycentricG, SimHairPositionOffset);
+				const float3 Offset1 = ComputeDynamicGeometryOffset(GuideIndex1, 1.0, RestTriangleG, DeformedTriangleG, RootBarycentricG, SimHairPositionOffset);
 
 				CurrOffset += GuideVertexWeights[K] * ToWorld(lerp(Offset0, Offset1, GuideVertexLerps[K])+LocalPoint,RootBarycentricG,DeformedTriangleG);
 			}
@@ -502,7 +507,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = bIsValid ? CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenderHairPositionOffset), PackedRestPosition.w);
+			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
 			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
 		}
 		#endif
@@ -580,7 +585,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 uint DispatchCountX;
 uint ClusterCount;
-float3 OutHairPositionOffset;
+//float3 OutHairPositionOffset;
 float4x4 LocalToWorldMatrix;
 
 Buffer<uint4> RenderDeformedPositionBuffer;
@@ -589,6 +594,7 @@ Buffer<uint> ClusterIdBuffer;
 Buffer<uint> ClusterIndexOffsetBuffer;
 Buffer<uint> ClusterIndexCountBuffer;
 
+Buffer<float4> RenderDeformedOffsetBuffer;
 Buffer<uint> HairStrandsVF_CullingIndirectBuffer;
 
 RWBuffer<int> OutClusterAABBBuffer; 	// Cluster data packed as {uint3 AABBMin, uint3 AABBMax}
@@ -626,6 +632,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 
 		if (ThreadReadOffset < IndexCount)
 		{
+			const float3 OutHairPositionOffset = RenderDeformedOffsetBuffer[0];
 			const uint VertexIndex = clamp(ClusterVertexIdBuffer[IndexOffset + ThreadReadOffset], 0u, VertexCountAfterCulling-1);
 			const FHairControlPoint CP = UnpackHairControlPoint(RenderDeformedPositionBuffer[VertexIndex], OutHairPositionOffset, 1, 1);
 

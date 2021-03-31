@@ -13,6 +13,9 @@
 static int32 GHairProjectionMaxTrianglePerProjectionIteration = 8;
 static FAutoConsoleVariableRef CVarHairProjectionMaxTrianglePerProjectionIteration(TEXT("r.HairStrands.Projection.MaxTrianglePerIteration"), GHairProjectionMaxTrianglePerProjectionIteration, TEXT("Change the number of triangles which are iterated over during one projection iteration step. In kilo triangle (e.g., 8 == 8000 triangles). Default is 8."));
 
+static int32 GHairStrandsUseGPUPositionOffset = 1;
+static FAutoConsoleVariableRef CVarHairStrandsUseGPUPositionOffset(TEXT("r.HairStrands.UseGPUPositionOffset"), GHairStrandsUseGPUPositionOffset, TEXT("Use GPU position offset to improve hair strands position precision."));
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define MAX_HAIRSTRANDS_SECTION_COUNT 255
@@ -578,6 +581,7 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("MAX_SECTION_COUNT"), SectionArrayCount);
+		OutEnvironment.SetDefine(TEXT("SHADER_MESH_UPDATE"), SectionArrayCount);
 	}
 };
 
@@ -1753,4 +1757,71 @@ void AddComputeMipsPass(
 			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, GroupCount);
 		});
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FHairUpdatePositionOffsetCS : public FGlobalShader
+{
+public:
+private:
+	DECLARE_GLOBAL_SHADER(FHairUpdatePositionOffsetCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairUpdatePositionOffsetCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FVector, CPUPositionOffset)
+		SHADER_PARAMETER(uint32, bUseCPUOffset)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootTrianglePosition0Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutOffsetBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform);
+	}
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_OFFSET_UPDATE"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairUpdatePositionOffsetCS, "/Engine/Private/HairStrands/HairStrandsMeshUpdate.usf", "MainCS", SF_Compute);
+
+void AddHairStrandUpdatePositionOffsetPass(
+	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
+	const int32 LODIndex,
+	FHairStrandsDeformedRootResource* DeformedRootResources,
+	FHairStrandsDeformedResource* DeformedResources)
+{
+	if (LODIndex < 0 || DeformedResources == nullptr)
+	{
+		return;
+	}
+
+	FRDGImportedBuffer OutPositionOffsetBuffer    = Register(GraphBuilder, DeformedResources->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current), ERDGImportedBufferFlags::CreateUAV);
+	FRDGImportedBuffer RootTrianglePositionBuffer;
+	if (DeformedRootResources)
+	{
+		RootTrianglePositionBuffer = Register(GraphBuilder, DeformedRootResources->LODs[LODIndex].DeformedRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateSRV);
+	}
+
+	const uint32 OffsetIndex = DeformedResources->GetIndex(FHairStrandsDeformedResource::Current);
+	FHairUpdatePositionOffsetCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairUpdatePositionOffsetCS::FParameters>();
+	PassParameters->CPUPositionOffset = DeformedResources->PositionOffset[OffsetIndex];
+	PassParameters->bUseCPUOffset = (DeformedRootResources == nullptr || GHairStrandsUseGPUPositionOffset>0) ? 0 : 1;
+	PassParameters->RootTrianglePosition0Buffer = RootTrianglePositionBuffer.SRV;
+	PassParameters->OutOffsetBuffer = OutPositionOffsetBuffer.UAV;
+
+	TShaderMapRef<FHairUpdatePositionOffsetCS> ComputeShader(ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("HairStrandsUpdatePositionOffset"),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, 1));
+
+	GraphBuilder.SetBufferAccessFinal(OutPositionOffsetBuffer.Buffer, ERHIAccess::SRVMask);
 }
