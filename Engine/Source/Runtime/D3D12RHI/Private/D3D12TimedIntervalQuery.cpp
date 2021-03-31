@@ -214,7 +214,7 @@ FD3D12TimedIntervalQueryTracker::FD3D12TimedIntervalQueryTracker(FD3D12Device* D
 
 FD3D12TimedIntervalQueryTracker::~FD3D12TimedIntervalQueryTracker()
 {
-	ResolveBatches(1, true);	// time stamp frequency doesn't matter when we are just trying to clear the queue
+	PurgeOutstandingBatches();
 
 	if (QueryPool)
 	{
