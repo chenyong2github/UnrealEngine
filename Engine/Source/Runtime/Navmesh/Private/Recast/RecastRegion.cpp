@@ -1366,7 +1366,7 @@ bool rcBuildRegionsChunky(rcContext* ctx, rcCompactHeightfield& chf,
 	return true;
 }
 
-/// @UE4: rcBuildRegions is now split into two functions: gathering regions and merging them
+/// @UE: rcBuildRegions is now split into two functions: gathering regions and merging them
 ///       it allows reusing existing code for building layer set (flood fill based partitioning)
 ///		  
 ///		  spanBuf4 is temporary buffer, allocated and freed by caller (size = chf.spanCount * 4)

@@ -202,10 +202,10 @@ static unsigned short getHeight(const float fx, const float fy, const float fz,
 	unsigned short h = hp.data[ix+iz*hp.width];
 	if (h == DT_UNSET_PATCH_HEIGHT)
 	{
-		//@UE4 BEGIN
+		//@UE BEGIN
 		// setting fallback value in case proper height is not found
 		h = (unsigned short)floorf(fy/ch);
-		//@UE4 END
+		//@UE END
 
 		// Special case when data might be bad.
 		// Find nearest neighbour pixel which has valid height.
@@ -511,7 +511,7 @@ namespace TileCacheFunc
 					continue;
 				}
 				const float d = vdist2(c, &pts[u * 3]);
-				// UE4: increased tolerance of safe checks from 0.001f
+				// UE: increased tolerance of safe checks from 0.001f
 				// it was producing (rarely) overlapping edges
 				const float tol = 0.005f;
 				if (d > r*(1 + tol))

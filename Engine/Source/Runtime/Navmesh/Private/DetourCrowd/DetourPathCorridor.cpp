@@ -292,8 +292,8 @@ int dtPathCorridor::findCorners(float* cornerVerts, unsigned char* cornerFlags,
 		}
 	}
 
-	// UE4 BEGIN
-	// [UE4] fixed corner for early reach detection
+	// UE BEGIN
+	// [UE] fixed corner for early reach detection
 	if (m_hasNextExpectedCorner)
 	{
 		int foundIdx = -1;
@@ -343,7 +343,7 @@ int dtPathCorridor::findCorners(float* cornerVerts, unsigned char* cornerFlags,
 		}
 	}
 
-	// [UE4] Offset path points from corners
+	// [UE] Offset path points from corners
 	const dtNavMesh* nav = navquery->getAttachedNavMesh();
 	float v1[3], v2[3], dir[3];
 
@@ -393,7 +393,7 @@ int dtPathCorridor::findCorners(float* cornerVerts, unsigned char* cornerFlags,
 		}
 	}
 
-	// [UE4] Dynamic acceptance radius, depending on angle between first two segments of path
+	// [UE] Dynamic acceptance radius, depending on angle between first two segments of path
 	if (m_enableEarlyReach)
 	{
 		const bool bSame = dtVequal(m_prevMovePoint, cornerVerts);
@@ -440,7 +440,7 @@ int dtPathCorridor::findCorners(float* cornerVerts, unsigned char* cornerFlags,
 			}
 		}
 	}
-	// UE4 END
+	// UE END
 
 	return ncorners;
 }
@@ -478,7 +478,7 @@ bool dtPathCorridor::optimizePathVisibility(const float* next, const float pathO
 		return true;
 	
 	// Overshoot a little. This helps to optimize open fields in tiled meshes.
-	// UE4: changes to ray adjustment - make sure it's not going further than newDist
+	// UE: changes to ray adjustment - make sure it's not going further than newDist
 	float newDist = dtMin(dist+0.01f, pathOptimizationRange);
 	
 	// Adjust ray length.
@@ -524,8 +524,8 @@ bool dtPathCorridor::optimizePathTopology(dtNavMeshQuery* navquery, const dtQuer
 	
 	dtPolyRef res[MAX_RES];
 	int nres = 0;
-	const float costLimit = FLT_MAX; //@UE4
-	navquery->initSlicedFindPath(m_path[0], m_path[m_npath-1], m_pos, m_target, costLimit, filter); //@UE4
+	const float costLimit = FLT_MAX; //@UE
+	navquery->initSlicedFindPath(m_path[0], m_path[m_npath-1], m_pos, m_target, costLimit, filter); //@UE
 	navquery->updateSlicedFindPath(MAX_ITER, 0);
 	dtStatus status = navquery->finalizeSlicedFindPathPartial(m_path, m_npath, res, &nres, MAX_RES);
 	
@@ -670,7 +670,7 @@ bool dtPathCorridor::movePosition(const float* npos, dtNavMeshQuery* navquery, c
 	dtPolyRef visited[MAX_VISITED];
 	int nvisited = 0;
 
-	// [UE4: check status, it may fail due to runtime navmesh rebuild]
+	// [UE: check status, it may fail due to runtime navmesh rebuild]
 	const dtStatus status = navquery->moveAlongSurface(m_path[0], m_pos, npos, filter, result, visited, &nvisited, MAX_VISITED);
 	if (dtStatusFailed(status))
 	{

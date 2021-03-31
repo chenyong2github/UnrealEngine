@@ -56,7 +56,7 @@ public:
 	
 	void reset();
 
-	// [UE4: new sections: link removal, path corridor, direction]
+	// [UE: new sections: link removal, path corridor, direction]
 	void update(dtPolyRef ref, const float* pos, const float collisionQueryRange,
 		const bool bIgnoreAtEnd, const float* endPos,
 		const dtPolyRef* path, const int npath,

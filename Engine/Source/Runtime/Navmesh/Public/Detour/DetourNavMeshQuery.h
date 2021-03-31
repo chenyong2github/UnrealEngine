@@ -27,11 +27,11 @@
 #include "Detour/DetourNavMesh.h"
 #include "Detour/DetourCommon.h"
 
-//@UE4 BEGIN
+//@UE BEGIN
 #define WITH_FIXED_AREA_ENTERING_COST 1
 
 #define DT_UNWALKABLE_POLY_COST FLT_MAX
-//@UE4 END
+//@UE END
 
 // By default dtQueryFilter will use virtual calls.
 // On certain platforms indirect or virtual function call is expensive. The default
@@ -40,7 +40,7 @@
 // To avoid virtual calls create dtQueryFilter with inIsVirtual = false.
 
 // Special link filter is custom filter run only for offmesh links with assigned UserId
-// Used by smart navlinks in UE4
+// Used by smart navlinks in UE
 //
 struct NAVMESH_API dtQuerySpecialLinkFilter
 {
@@ -54,7 +54,7 @@ struct NAVMESH_API dtQuerySpecialLinkFilter
 	virtual void initialize() {}
 };
 
-// [UE4: moved all filter variables to struct, DO NOT mess with virtual functions here!]
+// [UE: moved all filter variables to struct, DO NOT mess with virtual functions here!]
 struct NAVMESH_API dtQueryFilterData
 {
 	float m_areaCost[DT_MAX_AREAS];		///< Cost per area type. (Used by default implementation.)
@@ -68,13 +68,13 @@ struct NAVMESH_API dtQueryFilterData
 	unsigned short m_excludeFlags;		///< Flags for polygons that should not be visited. (Used by default implementation.)
 
 	bool m_isBacktracking;
-	//@UE4 BEGIN
+	//@UE BEGIN
 	/// whether to ignore neighbour nodes that have already been visited.
 	/// FALSE by default but you might want to set it to true if using heuristic
 	/// scale much larger than 1 or experiencing cycles in our paths for any other
 	/// reason
 	bool m_shouldIgnoreClosedNodes;
-	//@UE4 END
+	//@UE END
 
 	dtQueryFilterData();
 	
@@ -196,7 +196,7 @@ public:
 	///  @param[in]		cost	The new cost of traversing the area.
 	inline void setAreaCost(const int i, const float cost) { data.m_areaCost[i] = cost; data.lowestAreaCost = dtMin(data.lowestAreaCost, cost); }
 
-//@UE4 BEGIN
+//@UE BEGIN
 	inline const float* getAllAreaCosts() const { return data.m_areaCost; }
 	
 #if WITH_FIXED_AREA_ENTERING_COST
@@ -244,7 +244,7 @@ public:
 	/// Retrieves information whether this filter allows reopening closed nodes
 	///  @returns should consider reopening nodes already on closed list
 	inline bool getShouldIgnoreClosedNodes() const { return data.m_shouldIgnoreClosedNodes; }
-//@UE4 END
+//@UE END
 
 	/// Returns the include flags for the filter.
 	/// Any polygons that include one or more of these flags will be
@@ -333,7 +333,7 @@ public:
 	/// @returns The status flags for the query.
 	dtStatus init(const dtNavMesh* nav, const int maxNodes, dtQuerySpecialLinkFilter* linkFilter = 0);
 
-	/// UE4: updates special link filter for this query
+	/// UE: updates special link filter for this query
 	void updateLinkFilter(dtQuerySpecialLinkFilter* linkFilter);
 	
 	/// @name Standard Pathfinding Functions
@@ -344,12 +344,12 @@ public:
 	///  @param[in]		endRef		The reference id of the end polygon.
 	///  @param[in]		startPos	A position within the start polygon. [(x, y, z)]
 	///  @param[in]		endPos		A position within the end polygon. [(x, y, z)]
-	///  @param[in]		costLimit	Cost limit of nodes allowed to be added to the open list	//@UE4
+	///  @param[in]		costLimit	Cost limit of nodes allowed to be added to the open list	//@UE
 	///  @param[in]		filter		The polygon filter to apply to the query.
 	///  @param[out]	result		Results for path corridor, fills in refs and costs for each poly from start to end
 	///	 @param[out]	totalCost			If provided will get filled will total cost of path
 	dtStatus findPath(dtPolyRef startRef, dtPolyRef endRef,
-					  const float* startPos, const float* endPos, const float costLimit, //@UE4
+					  const float* startPos, const float* endPos, const float costLimit, //@UE
 					  const dtQueryFilter* filter,
 					  dtQueryResult& result, float* totalCost) const;
 	
@@ -378,11 +378,11 @@ public:
 	///  @param[in]		endRef		The reference id of the end polygon.
 	///  @param[in]		startPos	A position within the start polygon. [(x, y, z)]
 	///  @param[in]		endPos		A position within the end polygon. [(x, y, z)]
-	///  @param[in]		costLimit	Cost limit of nodes allowed to be added to the open list	//@UE4
+	///  @param[in]		costLimit	Cost limit of nodes allowed to be added to the open list	//@UE
 	///  @param[in]		filter		The polygon filter to apply to the query.
 	/// @returns The status flags for the query.
 	dtStatus initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef,
-								const float* startPos, const float* endPos, const float costLimit, //@UE4
+								const float* startPos, const float* endPos, const float costLimit, //@UE
 								const dtQueryFilter* filter);
 
 	/// Updates an in-progress sliced path query.
@@ -450,7 +450,7 @@ public:
 								  dtPolyRef* resultRef, dtPolyRef* resultParent, float* resultCost,
 								  int* resultCount, const int maxResult) const;
 	
-	//@UE4 BEGIN
+	//@UE BEGIN
 	/// Finds the polygons along the navigation graph that are no more than given path length away from centerPos.
 	///  @param[in]		startRef		The reference id of the polygon where the search starts.
 	///  @param[in]		centerPos		The center of the search circle. [(x, y, z)]
@@ -504,7 +504,7 @@ public:
 	dtStatus findNearestContainingPoly(const float* center, const float* extents,
 									   const dtQueryFilter* filter,
 									   dtPolyRef* nearestRef, float* nearestPt) const;
-	//@UE4 END
+	//@UE END
 
 	/// Finds polygons that overlap the search box.
 	///  @param[in]		center		The center of the search box. [(x, y, z)]
@@ -534,7 +534,7 @@ public:
 									dtPolyRef* resultRef, dtPolyRef* resultParent,
 									int* resultCount, const int maxResult) const;
 
-	/// [UE4] Finds the wall segments in local neighbourhood
+	/// [UE] Finds the wall segments in local neighbourhood
 	dtStatus findWallsInNeighbourhood(dtPolyRef startRef, const float* centerPos, const float radius,
 									  const dtQueryFilter* filter, 
 									  dtPolyRef* neiRefs, int* neiCount, const int maxNei,
@@ -623,7 +623,7 @@ public:
 										 const dtQueryFilter* filter, float (*frand)(),
 										 dtPolyRef* randomRef, float* randomPt) const;
 
-	//@UE4 BEGIN
+	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 	/// Check if there is a path from start polygon to the end polygon using cluster graph
 	/// (cheap, does not care about link costs)
@@ -645,7 +645,7 @@ public:
 	/// @returns The status flags for the query.
 	dtStatus getPolyCluster(dtPolyRef polyRef, dtClusterRef& clusterRef) const;
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-//@UE4 END
+//@UE END
 	
 	/// Finds the closest point on the specified polygon.
 	///  @param[in]		ref			The reference id of the polygon.
@@ -734,7 +734,7 @@ private:
 	/// Returns projected point on polygon.
 	dtStatus projectedPointOnPolyInTile(const dtMeshTile* tile, const dtPoly* poly, const float* pos, float* projected) const;
 	
-	//@UE4 BEGIN
+	//@UE BEGIN
 	// exposing function to be able to generate navigation corridors as sequence of point pairs
 public:
 	/// Returns portal points between two polygons.
@@ -749,7 +749,7 @@ public:
 	dtStatus getEdgeMidPoint(dtPolyRef from, const dtPoly* fromPoly, const dtMeshTile* fromTile,
 							 dtPolyRef to, const dtPoly* toPoly, const dtMeshTile* toTile,
 							 float* mid) const;
-	//@UE4 END
+	//@UE END
 
 	// Appends vertex to a straight path
 	dtStatus appendVertex(const float* pos, const unsigned char flags, const dtPolyRef ref,
@@ -785,7 +785,7 @@ private:
 		float lastBestNodeCost;
 		dtPolyRef startRef, endRef;
 		float startPos[3], endPos[3];
-		float costLimit; 					//@UE4 ///< Cost limit of nodes allowed to be added to the open list
+		float costLimit; 					//@UE ///< Cost limit of nodes allowed to be added to the open list
 		const dtQueryFilter* filter;
 	};
 	dtQueryData m_query;				///< Sliced query state.

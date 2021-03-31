@@ -1152,7 +1152,7 @@ static dtStatus CollectRegionsMonotone(dtTileCacheAlloc* alloc, dtTileCacheLayer
 	// Allocate and init layer regions.
 	nregs = (int)regId;
 
-// @UE4 BEGIN: special handling of "no regions"
+// @UE BEGIN: special handling of "no regions"
 	if (nregs == 0)
 	{
 		regs = 0;
@@ -1160,7 +1160,7 @@ static dtStatus CollectRegionsMonotone(dtTileCacheAlloc* alloc, dtTileCacheLayer
 		// no issues occurred, everything was good. Just no regions. 
 		return DT_SUCCESS;
 	}
-// @UE4 END
+// @UE END
 
 	regs = (dtLayerMonotoneRegion*)alloc->alloc(sizeof(dtLayerMonotoneRegion) * nregs);
 	if (!regs)
@@ -1323,7 +1323,7 @@ static dtStatus CollectRegionsChunky(dtTileCacheAlloc* alloc, dtTileCacheLayer& 
 	// Allocate and init layer regions.
 	nregs = (int)regId;
 
-// @UE4 BEGIN: special handling of "no regions"
+// @UE BEGIN: special handling of "no regions"
 	if (nregs == 0)
 	{
 		regs = 0;
@@ -1331,7 +1331,7 @@ static dtStatus CollectRegionsChunky(dtTileCacheAlloc* alloc, dtTileCacheLayer& 
 		// no issues occurred, everything was good. Just no regions. 
 		return DT_SUCCESS;
 	}
-// @UE4 END
+// @UE END
 
 	regs = (dtLayerMonotoneRegion*)alloc->alloc(sizeof(dtLayerMonotoneRegion) * nregs);
 	if (!regs)

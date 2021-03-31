@@ -208,7 +208,7 @@ static int getNeighbours(const float* pos, const float height, const float range
 		if (distSqr > dtSqr(range))
 			continue;
 
-		// [UE4] add only when avoidance group allows it
+		// [UE] add only when avoidance group allows it
 		const bool bDontAvoid = (skip->params.groupsToIgnore & ag->params.avoidanceGroup) || !(skip->params.groupsToAvoid & ag->params.avoidanceGroup);
 		if (bDontAvoid)
 			continue;
@@ -401,7 +401,7 @@ bool dtCrowd::init(const int maxAgents, const float maxAgentRadius, dtNavMesh* n
 	if (!m_grid->init(m_maxAgents*4, maxAgentRadius*3))
 		return false;
 
-	// [UE4] moved avoidance query init to separate function
+	// [UE] moved avoidance query init to separate function
 
 	// Allocate temp buffer for merging paths.
 	m_maxPathResult = 256;
@@ -528,7 +528,7 @@ void dtCrowd::updateAgentParameters(const int idx, const dtCrowdAgentParams& par
 	m_agents[idx].params = params;
 }
 
-// [UE4] multiple filter support
+// [UE] multiple filter support
 bool dtCrowd::updateAgentFilter(const int idx, const dtQueryFilter* filter)
 {
 	if (idx < 0 || idx > m_maxAgents)
@@ -590,7 +590,7 @@ int dtCrowd::addAgent(const float* pos, const dtCrowdAgentParams& params, const 
 	
 	dtCrowdAgent* ag = &m_agents[idx];
 	
-	// [UE4] multiple filter support
+	// [UE] multiple filter support
 	const bool bStoredFilter = updateAgentFilter(idx, filter);
 	if (!bStoredFilter)
 	{
@@ -854,8 +854,8 @@ void dtCrowd::updateMoveRequest(const float /*dt*/)
 			// Quick seach towards the goal.
 			static const int MAX_ITER = 20;
 			m_navquery->updateLinkFilter(ag->params.linkFilter.Get());
-			const float costLimit = FLT_MAX; //@UE4
-			m_navquery->initSlicedFindPath(path[0], ag->targetRef, ag->npos, ag->targetPos, costLimit, &m_filters[ag->params.filter]); //@UE4
+			const float costLimit = FLT_MAX; //@UE
+			m_navquery->initSlicedFindPath(path[0], ag->targetRef, ag->npos, ag->targetPos, costLimit, &m_filters[ag->params.filter]); //@UE
 			m_navquery->updateSlicedFindPath(MAX_ITER, 0);
 			dtStatus status = 0;
 			if (ag->targetReplan) // && npath > 10)
@@ -921,9 +921,9 @@ void dtCrowd::updateMoveRequest(const float /*dt*/)
 	for (int i = 0; i < nqueue; ++i)
 	{
 		dtCrowdAgent* ag = queue[i];
-		const float costLimit = FLT_MAX; //@UE4
+		const float costLimit = FLT_MAX; //@UE
 		ag->targetPathqRef = m_pathq.request(ag->corridor.getLastPoly(), ag->targetRef,
-			ag->corridor.getTarget(), ag->targetPos, costLimit, &m_filters[ag->params.filter], ag->params.linkFilter); //@UE4
+			ag->corridor.getTarget(), ag->targetPos, costLimit, &m_filters[ag->params.filter], ag->params.linkFilter); //@UE
 		if (ag->targetPathqRef != DT_PATHQ_INVALID)
 			ag->targetState = DT_CROWDAGENT_TARGET_WAITING_FOR_PATH;
 	}
@@ -1096,7 +1096,7 @@ void dtCrowd::checkPathValidity(dtCrowdAgent** agents, const int nagents, const 
 		dtCrowdAgent* ag = agents[i];
 		bool replan = false;
 
-		// [UE4] try to place agent back on navmesh
+		// [UE] try to place agent back on navmesh
 		if (ag->state == DT_CROWDAGENT_STATE_INVALID)
 		{
 			ag->targetReplanTime += dt;
@@ -1150,7 +1150,7 @@ void dtCrowd::checkPathValidity(dtCrowdAgent** agents, const int nagents, const 
 				ag->boundary.reset();
 				ag->state = DT_CROWDAGENT_STATE_INVALID;
 
-				// [UE4] reset replan timer, it will be used to place agent back on navmesh
+				// [UE] reset replan timer, it will be used to place agent back on navmesh
 				ag->targetReplanTime = 0;
 				continue;
 			}
@@ -1284,7 +1284,7 @@ void dtCrowd::updateStepProximityData(const float dt, dtCrowdAgentDebugInfo* deb
 		{
 			const bool bIgnoreEdgesNearLastCorner = ag->ncorners && (ag->cornerFlags[ag->ncorners - 1] & (DT_STRAIGHTPATH_OFFMESH_CONNECTION | DT_STRAIGHTPATH_END));
 
-			// UE4: move dir for segment scoring
+			// UE: move dir for segment scoring
 			float moveDir[3] = { 0.0f };
 			if (ag->ncorners)
 			{
@@ -1324,7 +1324,7 @@ void dtCrowd::updateStepNextMovePoint(const float dt, dtCrowdAgentDebugInfo* deb
 		if (ag->targetState == DT_CROWDAGENT_TARGET_NONE || ag->targetState == DT_CROWDAGENT_TARGET_VELOCITY)
 			continue;
 
-		// UE4: corridor.earlyReach support
+		// UE: corridor.earlyReach support
 		const bool bAllowCuttingCorners = (ag->boundary.getSegmentCount() == 0);
 
 		// Find corners for steering
@@ -1400,7 +1400,7 @@ void dtCrowd::updateStepNextMovePoint(const float dt, dtCrowdAgentDebugInfo* deb
 			// Adjust the path over the off-mesh connection.
 			dtPolyRef refs[2];
 
-			// UE4: m_keepOffmeshConnections support
+			// UE: m_keepOffmeshConnections support
 			const bool bCanStart = m_keepOffmeshConnections ?
 				ag->corridor.canMoveOverOffmeshConnection(ag->cornerPolys[ag->ncorners - 1], refs, ag->npos, anim->startPos, anim->endPos, m_navquery) :
 				ag->corridor.moveOverOffmeshConnection(ag->cornerPolys[ag->ncorners - 1], refs, ag->npos, anim->startPos, anim->endPos, m_navquery);
@@ -1496,7 +1496,7 @@ void dtCrowd::updateStepSteering(const float dt, dtCrowdAgentDebugInfo*)
 				float sepDot = dtVdot(diff, dvel);
 				if (sepDot < m_separationDirFilter)
 				{
-					// [UE4]: clamp to right/left vector, depending on which side nei is
+					// [UE]: clamp to right/left vector, depending on which side nei is
 					float testDir[3] = { 0, 0, 0 };
 					dtVcross(testDir, dvel, diff);
 					const bool bRightSide = (testDir[1] > 0);
@@ -1704,7 +1704,7 @@ void dtCrowd::updateStepOffMeshAnim(const float dt, dtCrowdAgentDebugInfo*)
 			// Prepare agent for walking.
 			ag->state = DT_CROWDAGENT_STATE_WALKING;
 
-			// UE4: m_keepOffmeshConnections support
+			// UE: m_keepOffmeshConnections support
 			if (m_keepOffmeshConnections)
 			{
 				ag->corridor.pruneOffmeshConenction(anim->polyRef);
@@ -1738,7 +1738,7 @@ void dtCrowd::updateStepOffMeshVelocity(const float dt, dtCrowdAgentDebugInfo*)
 	float DirLink[3];
 	float DirToEnd[3];
 
-	// UE4 version of offmesh anims, updates velocity and checks distance instead of fixed time
+	// UE version of offmesh anims, updates velocity and checks distance instead of fixed time
 	for (int i = 0; i < m_numActiveAgents; ++i)
 	{
 		dtCrowdAgent* ag = m_activeAgents[i];
@@ -1766,7 +1766,7 @@ void dtCrowd::updateStepOffMeshVelocity(const float dt, dtCrowdAgentDebugInfo*)
 			// Prepare agent for walking.
 			ag->state = DT_CROWDAGENT_STATE_WALKING;
 
-			// UE4: m_keepOffmeshConnections support
+			// UE: m_keepOffmeshConnections support
 			if (m_keepOffmeshConnections)
 			{
 				ag->corridor.pruneOffmeshConenction(anim->polyRef);

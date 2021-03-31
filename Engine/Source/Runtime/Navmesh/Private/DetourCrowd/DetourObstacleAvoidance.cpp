@@ -269,7 +269,7 @@ void dtObstacleAvoidanceQuery::addCircle(const float* pos, const float rad,
 
 void dtObstacleAvoidanceQuery::addSegment(const float* p, const float* q, int flags)
 {
-	// [UE4] fixed condition below. Used to be strict > comparison
+	// [UE] fixed condition below. Used to be strict > comparison
 	if (m_nsegments >= m_maxSegments)
 		return;
 	
@@ -393,7 +393,7 @@ float dtObstacleAvoidanceQuery::processSample(const float* vcand, const float cs
 			}
 		}
 		
-		// UE4: when sample is too close to segment (navmesh wall) - disable it completely
+		// UE: when sample is too close to segment (navmesh wall) - disable it completely
 		if (htmin < TooCloseToSegmentDistPct)
 		{
 			return -1.0f;

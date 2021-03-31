@@ -222,7 +222,7 @@ void rcFilterWalkableLowHeightSpansSequences(rcContext* ctx, int walkableHeight,
 	int32 NumSpans;
 	memset(SpanList, 0, sizeof(SpanList));
 
-	// UE4: leave only single low span below valid one (null area doesn't count) or after leaving walkableHeight space between them
+	// UE: leave only single low span below valid one (null area doesn't count) or after leaving walkableHeight space between them
 
 	// Remove walkable flag from spans which do not have enough
 	// space above them for the agent to stand there.

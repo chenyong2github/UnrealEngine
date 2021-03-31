@@ -20,7 +20,7 @@
 //
 
 #include "DebugUtils/DebugDraw.h"
-#include "Recast/RecastAlloc.h" // UE4
+#include "Recast/RecastAlloc.h" // UE
 #define _USE_MATH_DEFINES
 
 
@@ -575,22 +575,22 @@ duDisplayList::duDisplayList(int cap) :
 
 duDisplayList::~duDisplayList()
 {
-	rcFree(m_pos); // UE4
-	rcFree(m_color); // UE4
+	rcFree(m_pos); // UE
+	rcFree(m_color); // UE
 }
 
 void duDisplayList::resize(int cap)
 {
-	float* newPos = (float*)rcAlloc(sizeof(float)*3*cap, RC_ALLOC_PERM); // UE4
+	float* newPos = (float*)rcAlloc(sizeof(float)*3*cap, RC_ALLOC_PERM); // UE
 	if (m_size)
 		memcpy(newPos, m_pos, sizeof(float)*3*m_size);
-	rcFree(m_pos); // UE4
+	rcFree(m_pos); // UE
 	m_pos = newPos;
 
-	unsigned int* newColor = (unsigned int*)rcAlloc(sizeof(unsigned int)*cap, RC_ALLOC_PERM); // UE4
+	unsigned int* newColor = (unsigned int*)rcAlloc(sizeof(unsigned int)*cap, RC_ALLOC_PERM); // UE
 	if (m_size)
 		memcpy(newColor, m_color, sizeof(unsigned int)*m_size);
-	rcFree(m_color); // UE4
+	rcFree(m_color); // UE
 	m_color = newColor;
 	
 	m_cap = cap;

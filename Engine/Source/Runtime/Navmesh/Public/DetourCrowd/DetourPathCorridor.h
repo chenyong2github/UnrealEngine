@@ -69,9 +69,9 @@ public:
 	///  @param[in]		maxCorners		The maximum number of corners the buffers can hold.
 	///  @param[in]		navquery		The query object used to build the corridor.
 	///  @param[in]		filter			The filter to apply to the operation.
-	///  @param[in]		pathOffsetDistance	[UE4] Radius for path offsetting
-	///  @param[in]		earlyReachDistance	[UE4] Radius for early reach detection
-	///  @param[in]		bAllowEarlyReach [UE4] Check if corner skipping for EarlyReachTest is available now
+	///  @param[in]		pathOffsetDistance	[UE] Radius for path offsetting
+	///  @param[in]		earlyReachDistance	[UE] Radius for early reach detection
+	///  @param[in]		bAllowEarlyReach [UE] Check if corner skipping for EarlyReachTest is available now
 	/// @return The number of corners returned in the corner buffers. [0 <= value <= @p maxCorners]
 	int findCorners(float* cornerVerts, unsigned char* cornerFlags,
 					dtPolyRef* cornerPolys, const int maxCorners,
@@ -96,12 +96,12 @@ public:
 								   float* startPos, float* endPos,
 								   dtNavMeshQuery* navquery);
 
-	/// [UE4] check if offmesh connection can be traversed, but don't modify corridor yet
+	/// [UE] check if offmesh connection can be traversed, but don't modify corridor yet
 	bool canMoveOverOffmeshConnection(dtPolyRef offMeshConRef, dtPolyRef* refs,
 		const float* agentPos, float* startPos, float* endPos,
 		dtNavMeshQuery* navquery) const;
 
-	/// [UE4] remove offmesh connection from corridor
+	/// [UE] remove offmesh connection from corridor
 	void pruneOffmeshConenction(dtPolyRef offMeshConRef);
 
 	bool fixPathStart(dtPolyRef safeRef, const float* safePos);

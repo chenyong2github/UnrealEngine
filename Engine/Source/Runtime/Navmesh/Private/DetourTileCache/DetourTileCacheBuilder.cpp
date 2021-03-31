@@ -47,7 +47,7 @@ void dtFreeTileCacheContourSet(dtTileCacheAlloc* alloc, dtTileCacheContourSet* c
 	alloc->free(cset);
 }
 
-//@UE4 BEGIN
+//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 dtTileCacheClusterSet* dtAllocTileCacheClusterSet(dtTileCacheAlloc* alloc)
 {
@@ -68,7 +68,7 @@ void dtFreeTileCacheClusterSet(dtTileCacheAlloc* alloc, dtTileCacheClusterSet* c
 	alloc->free(clusters);
 }
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-//@UE4 END
+//@UE END
 
 dtTileCachePolyMesh* dtAllocTileCachePolyMesh(dtTileCacheAlloc* alloc)
 {
@@ -717,11 +717,11 @@ dtStatus dtBuildTileCacheContours(dtTileCacheAlloc* alloc, dtTileCacheLayer& lay
 	const int walkableClimb, const float maxError,
 	const float cs, const float ch,
 	dtTileCacheContourSet& lcset
-	//@UE4 BEGIN
+	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 	, dtTileCacheClusterSet& clusters
 #endif //WITH_NAVMESH_CLUSTER_LINKS
-	//@UE4 END
+	//@UE END
 	)
 {
 	dtAssert(alloc);
@@ -940,7 +940,7 @@ dtStatus dtBuildTileCacheContours(dtTileCacheAlloc* alloc, dtTileCacheLayer& lay
 		}
 	}
 
-	//@UE4 BEGIN
+	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 	// Build clusters
 	clusters.nregs = layer.regCount ? (layer.regCount + 1) : 0;
@@ -1034,7 +1034,7 @@ dtStatus dtBuildTileCacheContours(dtTileCacheAlloc* alloc, dtTileCacheLayer& lay
 		}
 	}
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-	//@UE4 END
+	//@UE END
 
 	return DT_SUCCESS;
 }	
@@ -2001,7 +2001,7 @@ dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,
 	
 	mesh.nvp = MAX_VERTS_PER_POLY;
 	
-// @UE4 BEGIN: special handling of "no valid contours"
+// @UE BEGIN: special handling of "no valid contours"
 	if (maxVertices == 0)
 	{
 		// treating this as success because no issues arised
@@ -2010,7 +2010,7 @@ dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,
 		// by dtAllocTileCachePolyMesh
 		return DT_SUCCESS;
 	}
-// @UE4 END
+// @UE END
 
 	dtFixedArray<unsigned char> vflags(alloc, maxVertices);
 	if (!vflags)
@@ -2580,7 +2580,7 @@ dtStatus dtReplaceArea(dtTileCacheLayer& layer, const unsigned char areaId, cons
 	return DT_SUCCESS;
 }
 
-//@UE4 BEGIN
+//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 dtStatus dtBuildTileCacheClusters(dtTileCacheAlloc* alloc, dtTileCacheClusterSet& lclusters, dtTileCachePolyMesh& lmesh)
 {
@@ -2612,7 +2612,7 @@ dtStatus dtBuildTileCacheClusters(dtTileCacheAlloc* alloc, dtTileCacheClusterSet
 	return DT_SUCCESS;
 }
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-//@UE4 END
+//@UE END
 
 dtStatus dtBuildTileCacheLayer(dtTileCacheCompressor* comp,
 							   dtTileCacheLayerHeader* header,

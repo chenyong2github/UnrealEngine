@@ -883,7 +883,7 @@ static int findContourFromSet(const rcContourSet& cset, unsigned short reg)
 	return -1;
 }
 
-//@UE4 BEGIN
+//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 bool rcBuildClusters(rcContext* ctx, rcContourSet& cset, rcClusterSet& clusters)
 {
@@ -951,4 +951,4 @@ bool rcBuildClusters(rcContext* ctx, rcContourSet& cset, rcClusterSet& clusters)
 	return true;
 }
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-//@UE4 END
+//@UE END

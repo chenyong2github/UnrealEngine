@@ -63,7 +63,7 @@ inline bool overlapRange(const unsigned short amin, const unsigned short amax,
 
 static void fixLayerConnections(rcHeightfieldLayer* layer)
 {
-	// [UE4: break one directional connections, contour tracing gets stuck in infinite loop]
+	// [UE: break one directional connections, contour tracing gets stuck in infinite loop]
 	const int lw = layer->width;
 	const int lh = layer->height;
 
@@ -227,7 +227,7 @@ static bool CollectLayerRegionsMonotone(rcContext* ctx, rcCompactHeightfield& ch
 	// Allocate and init layer regions.
 	nregs = (int)regId;
 
-// @UE4 BEGIN: special handling of "no regions"
+// @UE BEGIN: special handling of "no regions"
 	if (nregs == 0)
 	{
 		regs = 0;
@@ -235,7 +235,7 @@ static bool CollectLayerRegionsMonotone(rcContext* ctx, rcCompactHeightfield& ch
 		// no issues occurred, everything was good. Just no regions. 
 		return true;
 	}
-// @UE4 END
+// @UE END
 
 	regs = (rcLayerRegionMonotone*)rcAlloc(sizeof(rcLayerRegionMonotone)*nregs, RC_ALLOC_TEMP);
 	if (!regs)
@@ -366,7 +366,7 @@ static bool CollectLayerRegionsChunky(rcContext* ctx, rcCompactHeightfield& chf,
 						if (sid == 0xffff)
 						{
 							sid = sweepId++;
-							// UE4: multiple spans per single X row may result in more sweeps than originally allocated
+							// UE: multiple spans per single X row may result in more sweeps than originally allocated
 							if (sweeps.resizeGrow(sid + 1))
 							{
 								sweeps[sid].nei = 0xffff;
@@ -443,7 +443,7 @@ static bool CollectLayerRegionsChunky(rcContext* ctx, rcCompactHeightfield& chf,
 	// Allocate and init layer regions.
 	nregs = (int)regId;
 
-// @UE4 BEGIN: special handling of "no regions"
+// @UE BEGIN: special handling of "no regions"
 	if (nregs == 0)
 	{
 		regs = 0;
@@ -451,7 +451,7 @@ static bool CollectLayerRegionsChunky(rcContext* ctx, rcCompactHeightfield& chf,
 		// no issues occurred, everything was good. Just no regions. 
 		return true;
 	}
-// @UE4 END
+// @UE END
 
 	regs = (rcLayerRegionMonotone*)rcAlloc(sizeof(rcLayerRegionMonotone)*nregs, RC_ALLOC_TEMP);
 	if (!regs)

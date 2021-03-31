@@ -441,7 +441,7 @@ struct rcContourSet
 	int borderSize;		///< The AABB border size used to generate the source data from which the contours were derived.
 };
 
-// @UE4 BEGIN
+// @UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 /// Represents group of clusters
 /// @ingroup recast
@@ -453,7 +453,7 @@ struct rcClusterSet
 	unsigned short* links;	///< Neighbor Ids per cluster [Size: sum of #nlinks]
 };
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-// @UE4 END 
+// @UE END 
  
 /// Represents a polygon mesh suitable for use in building a navigation mesh. 
 /// @ingroup recast
@@ -541,7 +541,7 @@ NAVMESH_API rcContourSet* rcAllocContourSet();
 ///  @see rcAllocContourSet
 NAVMESH_API void rcFreeContourSet(rcContourSet* cset);
 
-// @UE4 BEGIN
+// @UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 /// Allocates a cluster set object using the Recast allocator.
 ///  @return A cluster set that is ready for initialization, or null on failure.
@@ -555,7 +555,7 @@ NAVMESH_API rcClusterSet* rcAllocClusterSet();
 ///  @see rcAllocClusterSet
 NAVMESH_API void rcFreeClusterSet(rcClusterSet* clset);
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-// @UE4 END 
+// @UE END 
 
 /// Allocates a polygon mesh object using the Recast allocator.
 ///  @return A polygon mesh that is ready for initialization, or null on failure.
@@ -614,14 +614,14 @@ enum rcBuildContoursFlags
 	RC_CONTOUR_TESS_AREA_EDGES = 0x02,	///< Tessellate edges between areas during contour simplification.
 };
 
-// UE4
+// UE
 enum rcFilterLowAreaFlags
 {
 	RC_LOW_FILTER_SEED_SPANS = 0x01,	///< initial seeding on spans
 	RC_LOW_FILTER_POST_PROCESS = 0x02,	///< additional filtering at the end
 };
 
-// UE4
+// UE
 enum rcRasterizationFlags
 {
 	RC_PROJECT_TO_BOTTOM = 1 << 0,		///< Will create spans from the triangle surface to the bottom of the heightfield
@@ -933,12 +933,12 @@ NAVMESH_API void rcCacheSpans(rcContext* ctx, rcHeightfield& hf, rcSpanCache* ca
 ///  @param[in,out]	solid			An initialized heightfield.
 ///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag.
 ///  								[Limit: >= 0] [Units: vx]
-///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE4
-///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE4
+///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE
+///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE
 NAVMESH_API void rcRasterizeTriangle(rcContext* ctx, const float* v0, const float* v1, const float* v2,
 						 const unsigned char area, rcHeightfield& solid,
 						 const int flagMergeThr = 1, 
-						 const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE4
+						 const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE
 
 /// Rasterizes an indexed triangle mesh into the specified heightfield.
 ///  @ingroup recast
@@ -951,12 +951,12 @@ NAVMESH_API void rcRasterizeTriangle(rcContext* ctx, const float* v0, const floa
 ///  @param[in,out]	solid			An initialized heightfield.
 ///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag. 
 ///  								[Limit: >= 0] [Units: vx]
-///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE4
-///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE4
+///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE
+///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE
 NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int nv,
 						  const int* tris, const unsigned char* areas, const int nt,
 						  rcHeightfield& solid, const int flagMergeThr = 1, 
-						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE4
+						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE
 
 /// Rasterizes an indexed triangle mesh into the specified heightfield.
 ///  @ingroup recast
@@ -969,12 +969,12 @@ NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const 
 ///  @param[in,out]	solid			An initialized heightfield.
 ///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag. 
 ///  								[Limit: >= 0] [Units: vx]
-///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE4
-///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE4
+///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE
+///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE
 NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int nv,
 						  const unsigned short* tris, const unsigned char* areas, const int nt,
 						  rcHeightfield& solid, const int flagMergeThr = 1, 
-						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE4
+						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE
 
 /// Rasterizes triangles into the specified heightfield.
 ///  @ingroup recast
@@ -985,11 +985,11 @@ NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const 
 ///  @param[in,out]	solid			An initialized heightfield.
 ///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag. 
 ///  								[Limit: >= 0] [Units: vx]
-///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE4
-///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE4
+///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE
+///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE
 NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const unsigned char* areas, const int nt,
 						  rcHeightfield& solid, const int flagMergeThr = 1,
-						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE4
+						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE
 
 /// Marks non-walkable spans as walkable if their maximum is within @p walkableClimp of a walkable neighbor. 
 ///  @ingroup recast
@@ -1261,7 +1261,7 @@ inline int rcGetDirOffsetY(int dir)
 /// @see rcHeightfieldLayer, rcContourSet, rcPolyMesh, rcPolyMeshDetail
 /// @{
 
-// @UE4 BEGIN: renamed building layers to rcBuildHeightfieldLayersMonotone, added flood fill based implementation 
+// @UE BEGIN: renamed building layers to rcBuildHeightfieldLayersMonotone, added flood fill based implementation 
 
 /// Builds a layer set from the specified compact heightfield.
 ///  @ingroup recast
@@ -1307,7 +1307,7 @@ NAVMESH_API bool rcBuildHeightfieldLayersChunky(rcContext* ctx, rcCompactHeightf
 									const int chunkSize,
 									rcHeightfieldLayerSet& lset);
 
-// @UE4 END
+// @UE END
 
 /// Builds a contour set from the region outlines in the provided compact heightfield.
 ///  @ingroup recast
@@ -1324,7 +1324,7 @@ NAVMESH_API bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					 const float maxError, const int maxEdgeLen,
 					 rcContourSet& cset, const int flags = RC_CONTOUR_TESS_WALL_EDGES);
 
-//@UE4 BEGIN
+//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 /// Builds a cluster set from contours
 /// @ingroup recast
@@ -1333,7 +1333,7 @@ NAVMESH_API bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 /// @param[out]		clusters	Resulting cluster set
 NAVMESH_API bool rcBuildClusters(rcContext* ctx, rcContourSet& cset, rcClusterSet& clusters);
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-//@UE4 END
+//@UE END
 
 /// Builds a polygon mesh from the provided contours.
 ///  @ingroup recast

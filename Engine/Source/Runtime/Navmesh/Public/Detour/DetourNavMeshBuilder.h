@@ -75,7 +75,7 @@ struct dtNavMeshCreateParams
 	int polyCount;							///< Number of polygons in the mesh. [Limit: >= 1]
 	int nvp;								///< Number maximum number of vertices per polygon. [Limit: >= 3]
 
-	// @UE4 BEGIN
+	// @UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 	/// @}
 	/// @name Cluster Attributes
@@ -83,7 +83,7 @@ struct dtNavMeshCreateParams
 	unsigned short* polyClusters;			///< Cluster Id for each polygon [Size: #polyCount]
 	unsigned short clusterCount;			///< Number of unique clusters
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-	// @UE4 END
+	// @UE END
 
 	/// @}
 	/// @name Height Detail Attributes (Optional)
@@ -166,7 +166,7 @@ NAVMESH_API bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int dataSi
 ///  @param[in]		dataSize	The size of the data array.
 NAVMESH_API bool dtNavMeshDataSwapEndian(unsigned char* data, const int dataSize);
 
-// @UE4 BEGIN
+// @UE BEGIN
 /// Offset and rotate around center the data in the tile
 ///  @param[in,out]	data			Data of the tile mesh. (See: #dtCreateNavMeshData)
 ///  @param[in]		dataSize		Data size of the tile mesh.
@@ -186,7 +186,7 @@ NAVMESH_API bool dtTransformTileData(unsigned char* data, const int dataSize, co
 ///  @param[out]	deltaX			Offset X in tile coordinates.
 ///  @param[out]	deltaY			Offset Y in tile coordinates.
 NAVMESH_API void dtComputeTileOffsetFromRotation(const float* position, const float* rotationCenter, const float rotationDeg, const float tileWidth, const float tileHeight, int& deltaX, int& deltaY);
-// @UE4 END
+// @UE END
 
 #endif // DETOURNAVMESHBUILDER_H
 

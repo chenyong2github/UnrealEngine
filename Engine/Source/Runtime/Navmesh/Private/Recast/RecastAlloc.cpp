@@ -92,7 +92,7 @@ void rcIntArray::resize(int n)
 	m_size = n;
 }
 
-// @UE4 BEGIN: added contains()
+// @UE BEGIN: added contains()
 bool rcIntArray::contains(int v) const
 {
 	for (int i = 0; i < m_size; i++)
@@ -103,4 +103,4 @@ bool rcIntArray::contains(int v) const
 
 	return false;
 }
-// @UE4 END
+// @UE END

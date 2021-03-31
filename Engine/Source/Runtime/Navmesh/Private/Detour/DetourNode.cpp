@@ -58,9 +58,9 @@ dtNodePool::dtNodePool(int maxNodes, int hashSize) :
 	m_next(0),
 	m_maxNodes(maxNodes),
 	m_hashSize(hashSize),
-	//@UE4 BEGIN
+	//@UE BEGIN
 	m_maxRuntimeNodes(maxNodes),
-	//@UE4 END
+	//@UE END
 	m_nodeCount(0)
 {
 	dtAssert(dtNextPow2(m_hashSize) == (unsigned int)m_hashSize);
@@ -116,9 +116,9 @@ dtNode* dtNodePool::getNode(dtPolyRef id)
 		i = m_next[i];
 	}
 
-	//@UE4 BEGIN
+	//@UE BEGIN
 	if (m_nodeCount >= getMaxRuntimeNodes())
-	//@UE4 END
+	//@UE END
 		return 0;
 	
 	i = (dtNodeIndex)m_nodeCount;

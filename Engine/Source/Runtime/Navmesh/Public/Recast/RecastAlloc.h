@@ -105,9 +105,9 @@ public:
 	/// The current size of the integer array.
 	inline int size() const { return m_size; }
 
-	// @UE4 BEGIN: added contains()
+	// @UE BEGIN: added contains()
 	bool contains(int n) const;
-	// @UE4 END
+	// @UE END
 };
 
 /// A simple helper class used to delete an array when it goes out of scope.
@@ -132,7 +132,7 @@ public:
 	///  @return The root array pointer.
 	inline operator T*() { return ptr; }
 
-	/// UE4: resize and copy existing memory (n = element count), doesn't destruct elements!
+	/// UE: resize and copy existing memory (n = element count), doesn't destruct elements!
 	bool resizeGrow(int n);
 };
 

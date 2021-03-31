@@ -199,17 +199,17 @@ static unsigned short getHeight(const float fx, const float fy, const float fz,
 {
 	int ix = (int)floorf(fx*ics + 0.01f);
 	int iz = (int)floorf(fz*ics + 0.01f);
-	//@UE4 BEGIN: clamp in range 0..width-1 and 0..height-1 (breaks array addressing without -1)
+	//@UE BEGIN: clamp in range 0..width-1 and 0..height-1 (breaks array addressing without -1)
 	ix = rcClamp(ix-hp.xmin, 0, hp.width-1);
 	iz = rcClamp(iz-hp.ymin, 0, hp.height-1);
-	//@UE4 END
+	//@UE END
 	unsigned short h = hp.data[ix+iz*hp.width];
 	if (h == RC_UNSET_HEIGHT)
 	{
-		//@UE4 BEGIN
+		//@UE BEGIN
 		// setting fallback value in case proper height is not found
 		h = (unsigned short)floorf(fy/ch);
-		//@UE4 END
+		//@UE END
 
 		// Special case when data might be bad.
 		// Find nearest neighbour pixel which has valid height.

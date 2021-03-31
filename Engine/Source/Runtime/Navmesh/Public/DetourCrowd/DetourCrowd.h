@@ -51,7 +51,7 @@ static const int DT_CROWDAGENT_MAX_CORNERS = 4;
 ///		 dtCrowdAgentParams::obstacleAvoidanceType
 static const int DT_CROWD_MAX_OBSTAVOIDANCE_PARAMS = 8;
 
-/// UE4: The maximum number of unique filters used by crowd agents 
+/// UE: The maximum number of unique filters used by crowd agents 
 static const int DT_CROWD_MAX_FILTERS = 16;
 
 /// Provides neighbor data for agents managed by the crowd.
@@ -70,7 +70,7 @@ enum CrowdAgentState
 	DT_CROWDAGENT_STATE_INVALID,		///< The agent is not in a valid state.
 	DT_CROWDAGENT_STATE_WALKING,		///< The agent is traversing a normal navigation mesh polygon.
 	DT_CROWDAGENT_STATE_OFFMESH,		///< The agent is traversing an off-mesh connection.
-	DT_CROWDAGENT_STATE_WAITING,		///< [UE4] The agent is waiting for external movement to finish
+	DT_CROWDAGENT_STATE_WAITING,		///< [UE] The agent is waiting for external movement to finish
 };
 
 /// Configuration parameters for a crowd agent.
@@ -80,7 +80,7 @@ struct dtCrowdAgentParams
 	/// User defined data attached to the agent.
 	void* userData;
 
-	/// UE4: special link filter used by this agent
+	/// UE: special link filter used by this agent
 	TSharedPtr<dtQuerySpecialLinkFilter> linkFilter;
 
 	float radius;						///< Agent radius. [Limit: >= 0]
@@ -96,14 +96,14 @@ struct dtCrowdAgentParams
 	/// How aggresive the agent manager should be at avoiding collisions with this agent. [Limit: >= 0]
 	float separationWeight;
 
-	/// [UE4] Mutliplier for avoidance velocities
+	/// [UE] Mutliplier for avoidance velocities
 	float avoidanceQueryMultiplier;
 
-	/// [UE4] Groups flags attached to the agent
+	/// [UE] Groups flags attached to the agent
 	unsigned int avoidanceGroup;
-	/// [UE4] Avoid agents when they group is matching mask
+	/// [UE] Avoid agents when they group is matching mask
 	unsigned int groupsToAvoid;
-	/// [UE4] Don't avoid agents when they group is matching mask
+	/// [UE] Don't avoid agents when they group is matching mask
 	unsigned int groupsToIgnore;
 
 	/// Flags that impact steering behavior. (See: #UpdateFlags)
@@ -113,7 +113,7 @@ struct dtCrowdAgentParams
 	/// [Limits: 0 <= value <= #DT_CROWD_MAX_OBSTAVOIDANCE_PARAMS]
 	unsigned char obstacleAvoidanceType;	
 
-	/// UE4: Id of navigation filter used by this agent
+	/// UE: Id of navigation filter used by this agent
 	/// [Limits: 0 <= value <= #DT_CROWD_MAX_FILTERS]
 	unsigned char filter;
 };
@@ -204,12 +204,12 @@ enum UpdateFlags
 	DT_CROWD_SEPARATION				= 1 << 2,
 	DT_CROWD_OPTIMIZE_VIS			= 1 << 3,	///< Use #dtPathCorridor::optimizePathVisibility() to optimize the agent path.
 	DT_CROWD_OPTIMIZE_TOPO			= 1 << 4,	///< Use dtPathCorridor::optimizePathTopology() to optimize the agent path.
-	DT_CROWD_OPTIMIZE_VIS_MULTI		= 1 << 5,	///< [UE4] Multiple calls for optimizePathVisibility instead of checking last point
-	DT_CROWD_OFFSET_PATH			= 1 << 6,	///< [UE4] Offset path points from corners by agent radius
-	DT_CROWD_SLOWDOWN_AT_GOAL		= 1 << 7,	///< [UE4] Slowdown before reaching goal
+	DT_CROWD_OPTIMIZE_VIS_MULTI		= 1 << 5,	///< [UE] Multiple calls for optimizePathVisibility instead of checking last point
+	DT_CROWD_OFFSET_PATH			= 1 << 6,	///< [UE] Offset path points from corners by agent radius
+	DT_CROWD_SLOWDOWN_AT_GOAL		= 1 << 7,	///< [UE] Slowdown before reaching goal
 };
 
-// [UE4] Flags used by boundary segments (dtLocalBoundary::Segment)
+// [UE] Flags used by boundary segments (dtLocalBoundary::Segment)
 enum CrowdBoundaryFlags
 {
 	DT_CROWD_BOUNDARY_IGNORE = 1 << 0,
@@ -250,24 +250,24 @@ class NAVMESH_API dtCrowd
 	
 	float m_maxAgentRadius;
 
-	// [UE4] time between attempts to restore agents state
+	// [UE] time between attempts to restore agents state
 	float m_agentStateCheckInterval;
 
-	// [UE4] radius multiplier for offseting path around corners
+	// [UE] radius multiplier for offseting path around corners
 	float m_pathOffsetRadiusMultiplier;
 
-	// [UE4] separation filter
+	// [UE] separation filter
 	float m_separationDirFilter;
 
 	int m_velocitySampleCount;
 
 	dtNavMeshQuery* m_navquery;
 
-	// [UE4] if set, path visibility optimization can't leave current area type
+	// [UE] if set, path visibility optimization can't leave current area type
 	bool m_raycastSingleArea;
-	// [UE4] if set, offmesh connections won't be cut from corridor
+	// [UE] if set, offmesh connections won't be cut from corridor
 	bool m_keepOffmeshConnections;
-	// [UE4] if set, crowd agents will use early reach test
+	// [UE] if set, crowd agents will use early reach test
 	bool m_earlyReachTest;
 
 	void updateTopologyOptimization(dtCrowdAgent** agents, const int nagents, const float dt);
@@ -289,7 +289,7 @@ public:
 	/// @return True if the initialization succeeded.
 	bool init(const int maxAgents, const float maxAgentRadius, dtNavMesh* nav);
 
-	/// [UE4] Initializes the avoidance query.  
+	/// [UE] Initializes the avoidance query.  
 	///  @param[in]		maxNeighbors		The maximum number of processed neighbors
 	///  @param[in]		maxWalls			The maximum number of processed wall segments
 	///  @param[in]		maxCustomPatterns	The maximum number of custom sampling patterns
@@ -307,14 +307,14 @@ public:
 	/// @return The requested configuration.
 	const dtObstacleAvoidanceParams* getObstacleAvoidanceParams(const int idx) const;
 	
-	/// [UE4] Sets the shared avoidance sampling pattern for the specified index.
+	/// [UE] Sets the shared avoidance sampling pattern for the specified index.
 	///  @param[in]		idx			The index.
 	///  @param[in]		angles		radians from direction of desired velocity [Count: nsamples]
 	///  @param[in]		radii		normalized radii (0..1) for each sample [Count: nsamples]
 	///  @param[in]		nsamples	The number of samples
 	void setObstacleAvoidancePattern(int idx, const float* angles, const float* radii, int nsamples);
 
-	/// [UE4] Gets the shared avoidance sampling pattern for the specified index.
+	/// [UE] Gets the shared avoidance sampling pattern for the specified index.
 	///  @param[in]		idx			The index.
 	///  @param[in]		angles		radians from direction of desired velocity [Count: nsamples]
 	///  @param[in]		radii		normalized radii (0..1) for each sample [Count: nsamples]
@@ -334,7 +334,7 @@ public:
 	/// Adds a new agent to the crowd.
 	///  @param[in]		pos		The requested position of the agent. [(x, y, z)]
 	///  @param[in]		params	The configutation of the agent.
-	///  @param[in]		filter	[UE4] query filter used by agent
+	///  @param[in]		filter	[UE] query filter used by agent
 	/// @return The index of the agent in the agent pool. Or -1 if the agent could not be added.
 	int addAgent(const float* pos, const dtCrowdAgentParams& params, const dtQueryFilter* filter);
 
@@ -343,13 +343,13 @@ public:
 	///  @param[in]		params	The new agent configuration.
 	void updateAgentParameters(const int idx, const dtCrowdAgentParams& params);
 
-	/// [UE4] Updates the specified agent's query filter.
+	/// [UE] Updates the specified agent's query filter.
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	///  @param[in]		filter	The new filter.
 	/// @return True if the request was successfully submitted.
 	bool updateAgentFilter(const int idx, const dtQueryFilter* filter);
 
-	/// [UE4] Refresh state of agent, used after completing movement through offmesh links
+	/// [UE] Refresh state of agent, used after completing movement through offmesh links
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	///  @param[in]		repath	If set, agent will invalidate its path
 	void updateAgentState(const int idx, bool repath);
@@ -376,15 +376,15 @@ public:
 	/// @return True if the request was successfully reseted.
 	bool resetMoveTarget(const int idx);
 
-	/// [UE4] Switch to waiting state
+	/// [UE] Switch to waiting state
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	bool setAgentWaiting(const int idx);
 
-	/// [UE4] Switch to offmesh link state
+	/// [UE] Switch to offmesh link state
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	bool setAgentBackOnLink(const int idx);
 
-	/// [UE4] Resets agent's velocity
+	/// [UE] Resets agent's velocity
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	bool resetAgentVelocity(const int idx);
 
@@ -403,56 +403,56 @@ public:
 	///  @param[out]	debug	A debug object to load with debug information. [Opt]
 	void update(const float dt, dtCrowdAgentDebugInfo* debug);
 	
-	/// [UE4] Split update into several smaller components: path validity, path cache and path optimizations
+	/// [UE] Split update into several smaller components: path validity, path cache and path optimizations
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
 	void updateStepPaths(const float dt, dtCrowdAgentDebugInfo* debug);
 
-	/// [UE4] Split update into several smaller components: neighbors and boundaries
+	/// [UE] Split update into several smaller components: neighbors and boundaries
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
 	void updateStepProximityData(const float dt, dtCrowdAgentDebugInfo* debug);
 
-	/// [UE4] Split update into several smaller components: next corner for move, trigger offmesh links
+	/// [UE] Split update into several smaller components: next corner for move, trigger offmesh links
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
 	void updateStepNextMovePoint(const float dt, dtCrowdAgentDebugInfo* debug);
 
-	/// [UE4] Split update into several smaller components: steering
+	/// [UE] Split update into several smaller components: steering
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
 	void updateStepSteering(const float dt, dtCrowdAgentDebugInfo* debug);
 
-	/// [UE4] Split update into several smaller components: avoidance
+	/// [UE] Split update into several smaller components: avoidance
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
 	void updateStepAvoidance(const float dt, dtCrowdAgentDebugInfo* debug);
 
-	/// [UE4] Split update into several smaller components: integrate velocities and handle collisions
+	/// [UE] Split update into several smaller components: integrate velocities and handle collisions
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
 	void updateStepMove(const float dt, dtCrowdAgentDebugInfo* debug);
 
-	/// [UE4] Split update into several smaller components: corridor updates at new position
+	/// [UE] Split update into several smaller components: corridor updates at new position
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
 	void updateStepCorridor(const float dt, dtCrowdAgentDebugInfo* debug);
 
-	/// [UE4] Split update into several smaller components: offmesh anims
+	/// [UE] Split update into several smaller components: offmesh anims
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
 	void updateStepOffMeshAnim(const float dt, dtCrowdAgentDebugInfo* debug);
 
-	/// [UE4] Split update into several smaller components: offmesh link velocity (instead of playing animation)
+	/// [UE] Split update into several smaller components: offmesh link velocity (instead of playing animation)
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
 	void updateStepOffMeshVelocity(const float dt, dtCrowdAgentDebugInfo* debug);
 
-	/// [UE4] Set time between attempts to restore agents state
+	/// [UE] Set time between attempts to restore agents state
 	/// @param[in]		t		Time in seconds
 	void setAgentCheckInterval(const float t);
 
-	/// [UE4] Set agent corridor, works only just after requesting move target
+	/// [UE] Set agent corridor, works only just after requesting move target
 	/// when agent didn't start any pathfinding operations yet
 	/// Use with caution!
 	/// @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
@@ -460,36 +460,36 @@ public:
 	/// @param[in]		npath	The number of polygons in the path.
 	bool setAgentCorridor(const int idx, const dtPolyRef* path, const int npath);
 
-	/// [UE4] Set visibility optimization to use single area raycasts
+	/// [UE] Set visibility optimization to use single area raycasts
 	/// This will prevent from cutting through polys marked as different area
 	/// which could have been avoided in corridor's path
 	/// @param[in]		bEnable	New state of single area raycast mode
 	void setSingleAreaVisibilityOptimization(bool bEnable);
 
-	/// [UE4] Set offmesh connection pruning
+	/// [UE] Set offmesh connection pruning
 	/// This will allow removing offmesh connection poly ref from corridor
 	/// as soon as offmesh connection anim is triggered (default behavior)
 	void setPruneStartedOffmeshConnections(bool bRemoveFromCorridor);
 
-	/// [UE4]
+	/// [UE]
 	void setEarlyReachTestOptimization(bool bEnable);
 
-	/// [UE4] Set agent radius multiplier for offseting path from corners
+	/// [UE] Set agent radius multiplier for offseting path from corners
 	void setPathOffsetRadiusMultiplier(float RadiusMultiplier);
 
-	/// [UE4] Set separation filter param
+	/// [UE] Set separation filter param
 	void setSeparationFilter(float InFilter);
 
-	/// [UE4] Check if agent moved away from its path corridor
+	/// [UE] Check if agent moved away from its path corridor
 	bool isOutsideCorridor(const int idx) const;
 
 	/// Gets the filter used by the crowd.
-	///  @param[in]		idx		[UE4] The agent index. [Limits: 0 <= value < #getAgentCount()]
+	///  @param[in]		idx		[UE] The agent index. [Limits: 0 <= value < #getAgentCount()]
 	/// @return The filter used by the crowd.
 	const dtQueryFilter* getFilter(const int idx) const;
 
 	/// Gets the filter used by the crowd.
-	///  @param[in]		idx		[UE4] The agent index. [Limits: 0 <= value < #getAgentCount()]
+	///  @param[in]		idx		[UE] The agent index. [Limits: 0 <= value < #getAgentCount()]
 	/// @return The filter used by the crowd.
 	dtQueryFilter* getEditableFilter(const int idx);
 

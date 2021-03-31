@@ -90,13 +90,13 @@ struct NAVMESH_API dtObstacleAvoidanceParams
 	float weightSide;
 	float weightToi;
 	float horizTime;
-	unsigned char patternIdx;	///< [UE4] index of custom sampling pattern or 0xff for adaptive
+	unsigned char patternIdx;	///< [UE] index of custom sampling pattern or 0xff for adaptive
 	unsigned char adaptiveDivs;	///< adaptive
 	unsigned char adaptiveRings;	///< adaptive
 	unsigned char adaptiveDepth;	///< adaptive
 };
 
-// [UE4] custom sampling patterns
+// [UE] custom sampling patterns
 struct dtObstacleAvoidancePattern
 {
 	float angles[DT_MAX_CUSTOM_SAMPLES];	///< sample's angle (radians) from desired velocity direction
@@ -119,13 +119,13 @@ public:
 				   
 	void addSegment(const float* p, const float* q, int flags = 0);
 
-	// [UE4] store new sampling pattern
+	// [UE] store new sampling pattern
 	bool setCustomSamplingPattern(int idx, const float* angles, const float* radii, int nsamples);
 
-	// [UE4] get custom sampling pattern
+	// [UE] get custom sampling pattern
 	bool getCustomSamplingPattern(int idx, float* angles, float* radii, int* nsamples);
 
-	// [UE4] sample velocity using custom patterns
+	// [UE] sample velocity using custom patterns
 	int sampleVelocityCustom(const float* pos, const float rad,
 					 		 const float vmax, const float vmult,
 							 const float* vel, const float* dvel, float* nvel,
@@ -138,7 +138,7 @@ public:
 							   const dtObstacleAvoidanceParams* params, 
 							   dtObstacleAvoidanceDebugData* debug = 0);
 	
-	// [UE4] main sampling function
+	// [UE] main sampling function
 	inline int sampleVelocity(const float* pos, const float rad,
 		const float vmax, const float vmult,
 		const float* vel, const float* dvel, float* nvel,
@@ -156,7 +156,7 @@ public:
 	inline int getObstacleSegmentCount() const { return m_nsegments; }
 	const dtObstacleSegment* getObstacleSegment(const int i) { return &m_segments[i]; }
 
-	// [UE4] sampling pattern count accessors
+	// [UE] sampling pattern count accessors
 	inline int getCustomPatternCount() const { return m_maxPatterns; }
 
 private:

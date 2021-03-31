@@ -128,7 +128,7 @@ void dtLocalBoundary::update(dtPolyRef ref, const float* pos, const float collis
 	navquery->findLocalNeighbourhood(ref, pos, collisionQueryRange,
 									 filter, m_polys, 0, &m_npolys, MAX_LOCAL_POLYS);
 	
-	// [UE4] include direction to segment in score
+	// [UE] include direction to segment in score
 	float closestPt[3] = { 0.0f };
 	float dirToSeg[3] = { 0.0f };
 
@@ -148,17 +148,17 @@ void dtLocalBoundary::update(dtPolyRef ref, const float* pos, const float collis
 			if (distSqr > dtSqr(collisionQueryRange))
 				continue;
 
-			// [UE4] handle segments too far in Y (height diff)
+			// [UE] handle segments too far in Y (height diff)
 			const bool bOutsideHeightLimit = LocalBoundaryHelpers::IsOutsideHeightLimit(pos, s, s + 3, tseg);
 			if (bOutsideHeightLimit)
 			{
 				continue;
 			}
 
-			// [UE4] handle segments too close to requested position
+			// [UE] handle segments too close to requested position
 			const int segFlags = bIgnoreAtEnd ? LocalBoundaryHelpers::GetSegmentFlags(endPos, s, s + 3, collisionQueryRange) : 0;
 
-			// [UE4] include direction to segment in score
+			// [UE] include direction to segment in score
 			dtVlerp(closestPt, s, s + 3, tseg);
 			dtVsub(dirToSeg, closestPt, pos);
 			dtVnormalize(dirToSeg);

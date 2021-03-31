@@ -74,11 +74,11 @@ struct BuildContext
 		: layer(0)
 		, dfield(0)
 		, lcset(0)
-		//@UE4 BEGIN
+		//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 		, lclusters(0)
 #endif //WITH_NAVMESH_CLUSTER_LINKS
-		//@UE4 END
+		//@UE END
 		, lmesh(0)
 		, alloc(a)
 	{}
@@ -91,23 +91,23 @@ struct BuildContext
 		dfield = 0;
 		dtFreeTileCacheContourSet(alloc, lcset);
 		lcset = 0;
-		//@UE4 BEGIN
+		//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 		dtFreeTileCacheClusterSet(alloc, lclusters);
 		lclusters = 0;
 #endif //WITH_NAVMESH_CLUSTER_LINKS
-		//@UE4 END
+		//@UE END
 		dtFreeTileCachePolyMesh(alloc, lmesh);
 		lmesh = 0;
 	}
 	struct dtTileCacheLayer* layer;
 	struct dtTileCacheDistanceField* dfield;
 	struct dtTileCacheContourSet* lcset;
-	//@UE4 BEGIN
+	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 	struct dtTileCacheClusterSet* lclusters;
 #endif //WITH_NAVMESH_CLUSTER_LINKS
-	//@UE4 END
+	//@UE END
 	struct dtTileCachePolyMesh* lmesh;
 	struct dtTileCacheAlloc* alloc;
 };
@@ -700,7 +700,7 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
 	if (!bc.lcset)
 		return status;
 
-	//@UE4 BEGIN
+	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 	bc.lclusters = dtAllocTileCacheClusterSet(m_talloc);
 	if (!bc.lclusters)
@@ -712,7 +712,7 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
 	status = dtBuildTileCacheContours(m_talloc, *bc.layer, walkableClimbVx,
 									  m_params.maxSimplificationError, m_params.cs, m_params.ch, *bc.lcset);
 #endif //WITH_NAVMESH_CLUSTER_LINKS
-	//@UE4 END
+	//@UE END
 
 	if (dtStatusFailed(status))
 		return status;
@@ -728,13 +728,13 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
 	if (!bc.lmesh->npolys)
 		return DT_SUCCESS;
 
-	//@UE4 BEGIN
+	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 	status = dtBuildTileCacheClusters(m_talloc, *bc.lclusters, *bc.lmesh);
 	if (dtStatusFailed(status))
 		return status;
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-	//@UE4 END
+	//@UE END
 	
 	dtNavMeshCreateParams params;
 	memset(&params, 0, sizeof(params));
@@ -756,12 +756,12 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
 	params.buildBvTree = false;
 	dtVcopy(params.bmin, tile->header->bmin);
 	dtVcopy(params.bmax, tile->header->bmax);
-	//@UE4 BEGIN
+	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 	params.polyClusters = bc.lclusters->polyMap;
 	params.clusterCount = (unsigned short)bc.lclusters->nclusters;
 #endif //WITH_NAVMESH_CLUSTER_LINKS
-	//@UE4 END
+	//@UE END
 	
 	if (m_tmproc)
 	{

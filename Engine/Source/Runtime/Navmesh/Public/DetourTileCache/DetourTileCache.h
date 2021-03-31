@@ -82,14 +82,14 @@ struct dtTileCacheParams
 	float maxSimplificationError;
 	int maxTiles;
 	int maxObstacles;
-//@UE4 BEGIN
+//@UE BEGIN
 	float detailSampleDist;
 	float detailSampleMaxError;
 	int minRegionArea;
 	int mergeRegionArea;
 	int regionChunkSize;
 	int regionPartitioning;
-//@UE4 END
+//@UE END
 };
 
 struct NAVMESH_API dtTileCacheMeshProcess

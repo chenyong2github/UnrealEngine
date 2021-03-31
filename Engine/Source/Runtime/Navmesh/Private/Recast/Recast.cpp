@@ -154,7 +154,7 @@ void rcFreeContourSet(rcContourSet* cset)
 	rcFree(cset);
 }
 
-//@UE4 BEGIN
+//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 rcClusterSet* rcAllocClusterSet()
 {
@@ -172,7 +172,7 @@ void rcFreeClusterSet(rcClusterSet* clusters)
 	rcFree(clusters);
 }
 #endif // WITH_NAVMESH_CLUSTER_LINKS
-//@UE4 END
+//@UE END
 
 rcPolyMesh* rcAllocPolyMesh()
 {
@@ -416,14 +416,14 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 {
 	rcAssert(ctx);
 	
-// @UE4 BEGIN: early-out when no walkable spans 
+// @UE BEGIN: early-out when no walkable spans 
 	const int spanCount = rcGetHeightFieldSpanCount(ctx, hf);
 	if (spanCount == 0)
 	{
 		// no spans to speak of, bail out.
 		return false;
 	}
-// @UE4 END
+// @UE END
 	ctx->startTimer(RC_TIMER_BUILD_COMPACTHEIGHTFIELD);
 	
 	const int w = hf.width;

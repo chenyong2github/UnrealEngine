@@ -486,7 +486,7 @@ inline void dtSwapEndian(float* v)
 void dtRandomPointInConvexPoly(const float* pts, const int npts, float* areas,
 							   const float s, const float t, float* out);
 
-// @UE4 BEGIN
+// @UE BEGIN
 enum dtRotation
 {
 	DT_ROTATE_0, 
@@ -525,7 +525,7 @@ void dtRotate90(float* dest, const float* v, const float* center, const dtRotati
 ///  @param[in]		center	The center point. [(x, y, z)]
 ///  @param[in]		rot		The rotation enum value.
 void dtRotate90(unsigned short* dest, const unsigned short* v, const unsigned short* center, const dtRotation rot);
-// @UE4 END
+// @UE END
 
 /// @}
 

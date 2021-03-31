@@ -401,7 +401,7 @@ void dtRandomPointInConvexPoly(const float* pts, const int npts, float* areas,
 	out[2] = a*pa[2] + b*pb[2] + c*pc[2];
 }
 
-// @UE4 BEGIN
+// @UE BEGIN
 dtRotation dtSelectRotation(float rotationDeg)
 {
 	rotationDeg = fmodf(rotationDeg, 360.f);
@@ -494,7 +494,7 @@ void dtRotate90(unsigned short* dest, const unsigned short* v, const unsigned sh
 	dest[1] = v[1];
 	dest[2] = center[2] + newLocalPos[2];
 }
-// @UE4 END
+// @UE END
 
 inline float vperpXZ(const float* a, const float* b) { return a[0]*b[2] - a[2]*b[0]; }
 
