@@ -268,7 +268,7 @@ bool FAndroidOpenGLFramePacer::SwapBuffers(bool bLockToVsync)
 				);
 			}
 
-			float RefreshRate = AndroidThunkCpp_GetMetaDataFloat(TEXT("ue4.display.getRefreshRate"));
+			float RefreshRate = AndroidThunkCpp_GetMetaDataFloat(TEXT("unreal.display.getRefreshRate"));
 
 			UE_LOG(LogRHI, Log, TEXT("JNI Display getRefreshRate=%f"),
 				RefreshRate

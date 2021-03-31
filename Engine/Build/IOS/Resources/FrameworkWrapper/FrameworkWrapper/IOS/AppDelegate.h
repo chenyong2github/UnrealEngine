@@ -10,7 +10,7 @@
 
 #include "UnrealView.h"
 
-#if CAN_USE_UE4 && __cplusplus
+#if CAN_USE_UE && __cplusplus
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Weverything"
 
@@ -25,7 +25,7 @@
         - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions;
         - (void)applicationDidEnterBackground:(UIApplication *)application;
     @end
-#endif // CAN_USE_UE4
+#endif // CAN_USE_UE
 
 
 @interface AppDelegate : IOSAppDelegate <UIApplicationDelegate>

@@ -1604,9 +1604,9 @@ void FAndroidInputInterface::MouseButtonEvent(int32 deviceId, int32 buttonId, bo
 	FScopeLock Lock(&TouchInputCriticalSection);
 
 	MouseEventType EventType = buttonDown ? MouseEventType::MouseButtonDown : MouseEventType::MouseButtonUp;
-	EMouseButtons::Type UE4Button = (buttonId == 0) ? EMouseButtons::Left : (buttonId == 1) ? EMouseButtons::Right : EMouseButtons::Middle;
+	EMouseButtons::Type UnrealButton = (buttonId == 0) ? EMouseButtons::Left : (buttonId == 1) ? EMouseButtons::Right : EMouseButtons::Middle;
 	FAndroidInputInterface::MouseDataStack.Push(
-		MouseData{ EventType, UE4Button, 0, 0, 0, 0, 0.0f });
+		MouseData{ EventType, UnrealButton, 0, 0, 0, 0, 0.0f });
 }
 
 void FAndroidInputInterface::DeferMessage(const FDeferredAndroidMessage& DeferredMessage)

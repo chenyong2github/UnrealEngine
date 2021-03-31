@@ -16,7 +16,7 @@ TcpConsoleListener::TcpConsoleListener(const FIPv4Endpoint& InListenEndpoint)
 	, bStopping(false)
 	, Listener(nullptr)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[UE4] Console Listener created!\n"));
+	UE_LOG(LogTemp, Warning, TEXT("[UE] Console Listener created!\n"));
 	Thread = FRunnableThread::Create(this, TEXT("TcpConsoleListener"), 128 * 1024, TPri_Normal);
 }
 
@@ -54,7 +54,7 @@ void TcpConsoleListener::Exit()
 
 bool TcpConsoleListener::Init()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[UE4] TCP Listener created!\n"));
+	UE_LOG(LogTemp, Warning, TEXT("[UE] TCP Listener created!\n"));
 	Listener = new FTcpListener(ListenEndpoint);
 	Listener->OnConnectionAccepted().BindRaw(this, &TcpConsoleListener::HandleListenerConnectionAccepted);
 
@@ -82,7 +82,7 @@ uint32 TcpConsoleListener::Run()
 				memset(RecvBuffer, 0, CommandSize);
 				if (Connection->Recv(RecvBuffer, CommandSize, BytesRead))
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[UE4] Got TCP console command size %i '%s'"), BytesRead, *FString(UTF8_TO_TCHAR(RecvBuffer)));
+					UE_LOG(LogTemp, Warning, TEXT("[UE] Got TCP console command size %i '%s'"), BytesRead, *FString(UTF8_TO_TCHAR(RecvBuffer)));
 					EnqueueConsoleCommand(RecvBuffer);
 				}
 				else

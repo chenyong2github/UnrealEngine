@@ -336,13 +336,13 @@ static void MainThreadInit()
 
 	CGRect FullResolutionRect = MainFrame;
 
-	// embedded apps are embedded inside a UE4 view, so it's already made
+	// embedded apps are embedded inside a UE view, so it's already made
 #if BUILD_EMBEDDED_APP
 	// tell the embedded app that the .ini files are ready to be used, ie the View can be made if it was waiting to create the view
 	FEmbeddedCallParamsHelper Helper;
 	Helper.Command = TEXT("inisareready");
 	FEmbeddedDelegates::GetEmbeddedToNativeParamsDelegateForSubsystem(TEXT("native")).Broadcast(Helper);
-	// checkf(AppDelegate.IOSView != nil, TEXT("For embedded apps, the UE4EmbeddedView must have been created and set into the AppDelegate as IOSView"));
+	// checkf(AppDelegate.IOSView != nil, TEXT("For embedded apps, the UEEmbeddedView must have been created and set into the AppDelegate as IOSView"));
 #else
 	AppDelegate.IOSView = [[FIOSView alloc] initWithFrame:FullResolutionRect];
 	AppDelegate.IOSView.clearsContextBeforeDrawing = NO;

@@ -3,14 +3,14 @@
 #pragma once
 
 //=============================================================================================================================================================
-// This file defines constants used for versioning packages, modules, and various subsystems in UE4. In general, it should not be necessary to include this
+// This file defines constants used for versioning packages, modules, and various subsystems in UE. In general, it should not be necessary to include this
 // file and access these values directly - they are all wrapped behind the higher-level abstractions in FEngineVersion and the FApp class.
 //
-// The following concepts are used for versioning in UE4:
+// The following concepts are used for versioning in UE:
 //
 //  -  The *engine version* defines the explicit major/minor/patch version of the engine, plus the changelist and branch name that it was built from. The 
 //     changelist is assumed to be a monotonically increasing number in the current branch, and is used both as a unique identifier and to infer that one engine
-//     was later than another. Tagged property serialization in UE4 is tolerant to properties being added or removed, so we always want to prevent an older 
+//     was later than another. Tagged property serialization in UE is tolerant to properties being added or removed, so we always want to prevent an older 
 //     build of the engine loading assets created with a newer build, discarding properties which have recently been added, and silently losing data
 //     when the asset is saved out. The changelist allows ordering versions in such cases. The engine version is encapsulated by the FEngineVersion class, of 
 //     which there are two commonly referenced instances:
@@ -45,15 +45,15 @@
 //
 //  -  The *network version* and *replay version* are used for versioning the network and replay subsystems, and default to the compatible engine version.
 //
-//  -  The *engine association* in a .uproject file often takes the appearance of a version number for launcher-installed binary UE4 releases, but may be 
+//  -  The *engine association* in a .uproject file often takes the appearance of a version number for launcher-installed binary UE releases, but may be 
 //     other identifiers as well. See ProjectDescriptor.h for a description of how this technique works.
 //
 // Constants in this file are updated by AutomationTool and UnrealGameSync. Be careful when changing formatting for the submitted version of this file that 
 // these tools can still parse it.
 //=============================================================================================================================================================
 
-// These numbers define the banner UE4 version, and are the most significant numbers when ordering two engine versions (that is, a 4.12.* version is always 
-// newer than a 4.11.* version, regardless of the changelist that it was built with)
+// These numbers define the banner UE version, and are the most significant numbers when ordering two engine versions (that is, a 5.12.* version is always 
+// newer than a 5.11.* version, regardless of the changelist that it was built with)
 #define ENGINE_MAJOR_VERSION	5
 #define ENGINE_MINOR_VERSION	0
 #define ENGINE_PATCH_VERSION	0

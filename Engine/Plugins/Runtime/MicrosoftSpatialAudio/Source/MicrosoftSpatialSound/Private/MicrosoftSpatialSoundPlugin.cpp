@@ -326,7 +326,7 @@ uint32 FMicrosoftSpatialSound::Run()
 	{
 		if (!bWarnedMicrosoftSpatialSoundDynamicObjectCountIsZero && SAC->GetMaxDynamicObjects() == 0)
 		{
-			UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Microsoft Spatial Sound has zero MaxDynamicObjects.  No sounds can play!  You need to enable Spatial Sound (Windows Sonic for Headphones) in your PC audio settings then restart UE4."));
+			UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Microsoft Spatial Sound has zero MaxDynamicObjects.  No sounds can play!  You need to enable Spatial Sound (Windows Sonic for Headphones) in your PC audio settings then restart Unreal."));
 			bWarnedMicrosoftSpatialSoundDynamicObjectCountIsZero = true;
 		}
 
@@ -413,7 +413,7 @@ void FMicrosoftSpatialSoundModule::StartupModule()
 	{
 		UE_LOG(LogMicrosoftSpatialSound,
 			Warning,
-			TEXT("Microsoft Spatial Sound for UE4 currently only supports windows version '%d' or higher (Current version: '%d')"),
+			TEXT("Microsoft Spatial Sound for Unreal currently only supports windows version '%d' or higher (Current version: '%d')"),
 			MIN_WIN_10_VERSION_FOR_WMR_SPATSOUND,
 			CurrentVersionNumber);
 

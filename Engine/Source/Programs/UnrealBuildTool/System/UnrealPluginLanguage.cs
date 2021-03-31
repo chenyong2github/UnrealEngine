@@ -415,7 +415,7 @@ namespace UnrealBuildTool
 	 * 	<!-- optional additions to GameActivity onActivityResult in GameActivity.java -->
 	 * 	<gameActivityOnActivityResultAdditions>	</gameActivityOnActivityResultAdditions>
 	 * 	
-	 * 	<!-- optional libraries to load in GameActivity.java before libUE4.so -->
+	 * 	<!-- optional libraries to load in GameActivity.java before libUnreal.so -->
 	 * 	<soLoadLibrary>	</soLoadLibrary>
 	 * 	
 	 * 
@@ -3306,13 +3306,13 @@ namespace UnrealBuildTool
 
 			if(UserSettingsFolder != null)
 			{
-				// <AppData>/UE4/EngineConfig/User* ini
+				// <AppData>/Unreal/EngineConfig/User* ini
 				yield return FileReference.Combine(UserSettingsFolder, "Unreal Engine", "Engine", "Config", "User" + BaseIniName + ".ini");
 			}
 
 			if(PersonalFolder != null)
 			{
-				// <Documents>/UE4/EngineConfig/User* ini
+				// <Documents>/Unreal/EngineConfig/User* ini
 				yield return FileReference.Combine(PersonalFolder, "Unreal Engine", "Engine", "Config", "User" + BaseIniName + ".ini");
 			}
 

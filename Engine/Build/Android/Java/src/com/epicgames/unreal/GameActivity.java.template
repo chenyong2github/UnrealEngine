@@ -5553,7 +5553,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public int AndroidThunkJava_GetMetaDataInt(String key)
 	{
-		if (key.equals("ue4.http.proxy.proxyPort"))
+		if (key.equals("unreal.http.proxy.proxyPort"))
 		{
 			if (ANDROID_BUILD_VERSION >= 14)
 			{
@@ -5576,7 +5576,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			return VulkanLevel;
 		}
 		else
-		if (key.equals("ue4.getUsedMemory"))
+		if (key.equals("unreal.getUsedMemory"))
 		{
 			int ProcessMemory = 0;
 			synchronized(_activity)
@@ -5614,7 +5614,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public long AndroidThunkJava_GetMetaDataLong(String key)
 	{
-		if (key.equals("ue4.display.PresentationDeadlineNanos"))
+		if (key.equals("unreal.display.PresentationDeadlineNanos"))
 		{
 			if (android.os.Build.VERSION.SDK_INT >= 21)
 			{
@@ -5625,7 +5625,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			return -1;
 		}
 		else
-		if (key.equals("ue4.display.AppVsyncOffsetNanos"))
+		if (key.equals("unreal.display.AppVsyncOffsetNanos"))
 		{
 			if (android.os.Build.VERSION.SDK_INT >= 21)
 			{
@@ -5640,7 +5640,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public float AndroidThunkJava_GetMetaDataFloat(String key)
 	{
-		if (key.equals("ue4.display.getRefreshRate"))
+		if (key.equals("unreal.display.getRefreshRate"))
 		{
 			WindowManager windowManager = (WindowManager)getSystemService(WINDOW_SERVICE);
 			android.view.Display display = windowManager.getDefaultDisplay();
@@ -5658,7 +5658,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			return getProp(key.substring(8));
 		}
 		else
-		if (key.equals("ue4.http.proxy.proxyHost"))
+		if (key.equals("unreal.http.proxy.proxyHost"))
 		{
 			if (ANDROID_BUILD_VERSION >= 14)
 			{
@@ -5670,7 +5670,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			}
 		}
 		else
-		if (key.equals("ue4.displaymetrics.dpi"))
+		if (key.equals("unreal.displaymetrics.dpi"))
 		{
 			DisplayMetrics metrics = new DisplayMetrics();
 			if (android.os.Build.VERSION.SDK_INT >= 17)

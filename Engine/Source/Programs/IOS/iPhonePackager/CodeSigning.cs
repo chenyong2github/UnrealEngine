@@ -738,7 +738,7 @@ namespace iPhonePackager
 		/// Does the actual work of signing the application
 		///   Modifies the following files:
 		///	 Info.plist
-		///	 [Executable] (file name derived from CFBundleExecutable in the Info.plist, e.g., UDKGame)
+		///	 [Executable] (file name derived from CFBundleExecutable in the Info.plist, e.g., UnrealGame)
 		///	 _CodeSignature/CodeResources
 		///	 [ResourceRules] (file name derived from CFBundleResourceSpecification, e.g., CustomResourceRules.plist)
 		/// </summary>

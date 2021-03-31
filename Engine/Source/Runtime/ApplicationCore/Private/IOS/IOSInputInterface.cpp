@@ -663,7 +663,7 @@ void FIOSInputInterface::GetMovementData(FVector& Attitude, FVector& RotationRat
 			[CurrentAttitude multiplyByInverseOfAttitude : ReferenceAttitude];
 		}
 
-		// convert to UE3
+		// convert to Unreal coordinate system
 		Attitude = FVector(float(CurrentAttitude.pitch), float(CurrentAttitude.yaw), float(CurrentAttitude.roll));
 		RotationRate = FVector(float(CurrentRotationRate.x), float(CurrentRotationRate.y), float(CurrentRotationRate.z));
 		Gravity = FVector(float(CurrentGravity.x), float(CurrentGravity.y), float(CurrentGravity.z));

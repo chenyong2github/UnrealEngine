@@ -227,7 +227,7 @@ EScreenPhysicalAccuracy FAndroidApplicationMisc::ComputePhysicalScreenDensity(in
 
 #if USE_ANDROID_JNI
 	extern FString AndroidThunkCpp_GetMetaDataString(const FString& Key);
-	FString DPIStrings = AndroidThunkCpp_GetMetaDataString(TEXT("ue4.displaymetrics.dpi"));
+	FString DPIStrings = AndroidThunkCpp_GetMetaDataString(TEXT("unreal.displaymetrics.dpi"));
 	TArray<FString> DPIValues;
 	DPIStrings.ParseIntoArray(DPIValues, TEXT(","));
 

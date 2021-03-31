@@ -48,10 +48,10 @@ public:
 
 static CommandLineArguments GSavedCommandLine;
 
-@interface UE4AppDelegate : NSObject <NSApplicationDelegate>
+@interface UEAppDelegate : NSObject <NSApplicationDelegate>
 @end
 
-@implementation UE4AppDelegate
+@implementation UEAppDelegate
 
 //handler for the quit apple event used by the Dock menu
 - (void)handleQuitEvent:(NSAppleEventDescriptor*)Event withReplyEvent:(NSAppleEventDescriptor*)ReplyEvent
@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
 	// Launch the application.
 	SCOPED_AUTORELEASE_POOL;
 	[NSApplication sharedApplication];
-	[NSApp setDelegate:[UE4AppDelegate new]];
+	[NSApp setDelegate:[UEAppDelegate new]];
 	[NSApp run];
 	return 0;
 }

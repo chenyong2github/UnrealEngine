@@ -9,7 +9,7 @@
 
 #import "UnrealView.h"
 
-#if CAN_USE_UE4 && __cplusplus
+#if CAN_USE_UE && __cplusplus
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Weverything"
 
@@ -18,7 +18,7 @@
     #include "Misc/EmbeddedCommunication.h"
 
     #pragma clang diagnostic pop
-#endif // CAN_USE_UE4
+#endif // CAN_USE_UE
 
 
 @implementation UnrealContainerView
@@ -34,7 +34,7 @@ static UnrealContainerView* DelayedCreateContainer = nil;
 
 -(BOOL) IsUnrealUsable
 {
-#if CAN_USE_UE4
+#if CAN_USE_UE
 	// check memory amount, and running OS version, etc
 	return YES;
 #else
@@ -55,7 +55,7 @@ static UnrealContainerView* DelayedCreateContainer = nil;
     NW_LOG(@"DelayedCreateView start");
 
 	// @todo these views will never be released
-#if CAN_USE_UE4
+#if CAN_USE_UE
 	if ([DelayedCreateContainer IsUnrealUsable])
 	{
 		sharedUnrealView = [[FIOSView alloc] initWithFrame:DelayedCreateContainer.bounds];
@@ -88,7 +88,7 @@ static UnrealContainerView* DelayedCreateContainer = nil;
 {
     if (sharedUnrealView == nil)
 	{
-#if CAN_USE_UE4
+#if CAN_USE_UE
 		
 //       [self SetupEmbeddedToNativeCallback];
 
@@ -112,7 +112,7 @@ static UnrealContainerView* DelayedCreateContainer = nil;
 }
 
 
-#if CAN_USE_UE4
+#if CAN_USE_UE
 +(id)UE4ToGeneric:(const FEmbeddedCommunicationMap&)UE4Map
 {
 	// look for a special single entry { "json", "xxxx" } map
@@ -147,7 +147,7 @@ static UnrealContainerView* DelayedCreateContainer = nil;
 	// we have to copy the handler because it will go out of scope after this call (if it's a stack block) and can't be retained or anything
 	EmbeddedParamsCompletionType Handler = [InHandler copy];
 	
-#if CAN_USE_UE4
+#if CAN_USE_UE
 	FEmbeddedCallParamsHelper CallHelper;
 	__block FEmbeddedCallParamsHelper* BlockHelper = &CallHelper;
 	CallHelper.Command = Command;
@@ -279,14 +279,14 @@ static UnrealContainerView* DelayedCreateContainer = nil;
 
 +(void)SetEmbeddedObject:(void* _Nullable)Object ForName:(NSString* _Nonnull)Name
 {
-#if CAN_USE_UE4
+#if CAN_USE_UE
 	FEmbeddedDelegates::SetNamedObject(Name, Object);
 #endif
 }
 
 +(void)HandleTouchMessage:(NSDictionary*)Message
 {
-#if CAN_USE_UE4
+#if CAN_USE_UE
 
 	dispatch_async(dispatch_get_main_queue(), ^
 	   {
@@ -324,7 +324,7 @@ static UnrealContainerView* DelayedCreateContainer = nil;
 
 +(void)WakeUpUnreal
 {
-#if CAN_USE_UE4
+#if CAN_USE_UE
 	FEmbeddedCommunication::KeepAwake(TEXT("Native"), true);
 #endif
 
@@ -334,7 +334,7 @@ static UnrealContainerView* DelayedCreateContainer = nil;
 
 +(void)AllowUnrealToSleep
 {
-#if CAN_USE_UE4
+#if CAN_USE_UE
 	FEmbeddedCommunication::AllowSleep(TEXT("Native"));
 #endif
 

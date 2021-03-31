@@ -229,7 +229,7 @@ namespace iPhonePackager
 		/// </summary>
 		public static string GetIPAPath(string FileSuffix)
 		{
-			// Quash the default Epic_ so that stubs for UDK installers get named correctly and can be used
+			// Quash the default Epic_ so that stubs for Launcher installers get named correctly and can be used
 			string FilePrefix = (SigningPrefix == "Epic_") ? "" : SigningPrefix;
 
 			string Filename;
@@ -248,7 +248,7 @@ namespace iPhonePackager
 
 		public static string RemapIPAPath(string FileSuffix)
 		{
-			// Quash the default Epic_ so that stubs for UDK installers get named correctly and can be used
+			// Quash the default Epic_ so that stubs for Launcher installers get named correctly and can be used
 			string FilePrefix = (SigningPrefix == "Epic_") ? "" : SigningPrefix;
 
 			string Filename;

@@ -7,9 +7,9 @@
 //
 
 #if defined(__aarch64__)
-    #define CAN_USE_UE4 1
+    #define CAN_USE_UE 1
 #else
-    #define CAN_USE_UE4 0
+    #define CAN_USE_UE 0
 #endif
 
 #define NW_LOG NSLog

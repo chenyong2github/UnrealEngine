@@ -73,7 +73,7 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 	return 0;
 }
 
-@interface UE4AppDelegate : NSObject <NSApplicationDelegate, NSFileManagerDelegate>
+@interface UEAppDelegate : NSObject <NSApplicationDelegate, NSFileManagerDelegate>
 {
 #if WITH_EDITOR
 	NSString* Filename;
@@ -87,7 +87,7 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 
 @end
 
-@implementation UE4AppDelegate
+@implementation UEAppDelegate
 
 - (void)awakeFromNib
 {
@@ -408,7 +408,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 
 	SCOPED_AUTORELEASE_POOL;
 	[NSApplication sharedApplication];
-	[NSApp setDelegate:[UE4AppDelegate new]];
+	[NSApp setDelegate:[UEAppDelegate new]];
 	[NSApp run];
 	return GGuardedMainErrorLevel;
 }

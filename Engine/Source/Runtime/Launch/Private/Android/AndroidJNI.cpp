@@ -1492,7 +1492,7 @@ void AndroidThunkCpp_SetDesiredViewSize(int32 Width, int32 Height)
 
 	// also send info to native wrapper around embedded
 	FEmbeddedCallParamsHelper Helper;
-	Helper.Command = TEXT("setue4resolution");
+	Helper.Command = TEXT("setueresolution");
 	Helper.Parameters = { {TEXT("width"), LexToString(Width)}, {TEXT("height"), LexToString(Height)} };
 	FEmbeddedDelegates::GetEmbeddedToNativeParamsDelegateForSubsystem(TEXT("native")).Broadcast(Helper);
 

@@ -237,7 +237,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 #if BUILD_EMBEDDED_APP
 	if (CachedDelegate == nil)
 	{
-		UE_LOG(LogIOS, Fatal, TEXT("Currently, a native embedding UE4 must have the AppDelegate subclass from IOSAppDelegate."));
+		UE_LOG(LogIOS, Fatal, TEXT("Currently, a native app embedding Unreal must have the AppDelegate subclass from IOSAppDelegate."));
 
 		// if we are embedded, but CachedDelegate is nil, then that means the delegate was not an IOSAppDelegate subclass,
 		// so we need to do a switcheroo - but this is unlikely to work well

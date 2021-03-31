@@ -9,14 +9,14 @@
 #import "AppDelegate.h"
 #import "UnrealView.h"
 
-#if !CAN_USE_UE4 || !__cplusplus
+#if !CAN_USE_UE || !__cplusplus
     // Stub class to inherit from in a non-UE context
     @implementation IOSAppDelegate
         - (void)applicationWillEnterForeground:(UIApplication *)application {}
         - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions { return YES; }
         - (void)applicationDidEnterBackground:(UIApplication *)application {}
     @end
-#endif // !CAN_USE_UE4
+#endif // !CAN_USE_UE
 
 @implementation AppDelegate
 

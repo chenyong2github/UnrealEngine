@@ -32,8 +32,8 @@ TOptional<FString> FAndroidPlatformHttp::GetOperatingSystemProxyAddress()
 	extern int32 AndroidThunkCpp_GetMetaDataInt(const FString& Key);
 	extern FString AndroidThunkCpp_GetMetaDataString(const FString& Key);
 
-	FString ProxyHost = AndroidThunkCpp_GetMetaDataString(TEXT("ue4.http.proxy.proxyHost"));
-	int32 ProxyPort = AndroidThunkCpp_GetMetaDataInt(TEXT("ue4.http.proxy.proxyPort"));
+	FString ProxyHost = AndroidThunkCpp_GetMetaDataString(TEXT("unreal.http.proxy.proxyHost"));
+	int32 ProxyPort = AndroidThunkCpp_GetMetaDataInt(TEXT("unreal.http.proxy.proxyPort"));
 
 	if (ProxyPort != -1 && !ProxyHost.IsEmpty())
 	{

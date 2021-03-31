@@ -200,7 +200,7 @@ FPlatformMemoryStats FAndroidPlatformMemory::GetStats()
 	// note: Android 10 places impractical limits on the frequency of calls to getProcessMemoryInfo, revert to VmRSS for OS10+
 	if (GJavaVM && FAndroidMisc::GetAndroidBuildVersion() < 29) 
 	{
-		MemoryStats.UsedPhysical = static_cast<uint64>(AndroidThunkCpp_GetMetaDataInt(TEXT("ue4.getUsedMemory"))) * 1024ULL;
+		MemoryStats.UsedPhysical = static_cast<uint64>(AndroidThunkCpp_GetMetaDataInt(TEXT("unreal.getUsedMemory"))) * 1024ULL;
 	}
 #endif
 
@@ -214,7 +214,7 @@ uint64 FAndroidPlatformMemory::GetMemoryUsedFast()
 	// note: Android 10 places impractical limits on the frequency of calls to getProcessMemoryInfo, revert to VmRSS for OS10+
 	if (GJavaVM && FAndroidMisc::GetAndroidBuildVersion() < 29) 
 	{
-		return static_cast<uint64>(AndroidThunkCpp_GetMetaDataInt(TEXT("ue4.getUsedMemory"))) * 1024ULL;
+		return static_cast<uint64>(AndroidThunkCpp_GetMetaDataInt(TEXT("unreal.getUsedMemory"))) * 1024ULL;
 	}
 #endif
 
