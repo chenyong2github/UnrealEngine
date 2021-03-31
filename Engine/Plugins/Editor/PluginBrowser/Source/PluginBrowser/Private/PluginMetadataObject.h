@@ -24,7 +24,7 @@ public:
 	GENERATED_BODY()
 
 	/** Name of the dependency plugin */
-	UPROPERTY(EditAnywhere, Category = "Plugin Reference")
+	UPROPERTY(EditAnywhere, Category = "Plugin Reference", meta=(GetOptions=GetAvailablePluginDependencies))
 	FString Name;
 
 	/** Whether the dependency plugin is optional meaning it will be silently ignored if not present */
@@ -113,7 +113,7 @@ public:
 	bool bIsBetaVersion;
 
 	/** Plugins used by this plugin */
-	UPROPERTY(EditAnywhere, Category = Dependencies)
+	UPROPERTY(EditAnywhere, Category = Dependencies, meta=(TitleProperty=Name))
 	TArray<FPluginReferenceMetadata> Plugins;
 
 	/** Plugin this proxy object was constructed from */
@@ -131,6 +131,9 @@ public:
 	 * Copy the metadata fields into a plugin descriptor.
 	 */
 	void CopyIntoDescriptor(FPluginDescriptor& OutDescriptor) const;
+
+	UFUNCTION()
+	TArray<FString> GetAvailablePluginDependencies() const;
 };
 
 /**

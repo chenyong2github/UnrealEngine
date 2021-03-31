@@ -105,6 +105,41 @@ void UPluginMetadataObject::CopyIntoDescriptor(FPluginDescriptor& OutDescriptor)
 	}
 }
 
+TArray<FString> UPluginMetadataObject::GetAvailablePluginDependencies() const
+{
+	TArray<TSharedRef<IPlugin>> AllPlugins = IPluginManager::Get().GetDiscoveredPlugins();
+	TArray<FString> Result;
+	Result.Reserve(AllPlugins.Num());
+
+	const FString MyName = SourcePlugin.Pin()->GetName();
+
+	// This lists all plugins that don't directly depend on the plugin being edited (so a multi-hop chain would still cause a problem)
+	for (const TSharedRef<IPlugin>& Plugin : AllPlugins)
+	{
+		if (Plugin == SourcePlugin)
+		{
+			continue;
+		}
+
+		bool bDependsOnMe = false;
+		for (const FPluginReferenceDescriptor& Dependency : Plugin->GetDescriptor().Plugins)
+		{
+			if (Dependency.Name == MyName)
+			{
+				bDependsOnMe = true;
+				break;
+			}
+		}
+
+		if (!bDependsOnMe)
+		{
+			Result.Add(Plugin->GetName());
+		}
+	}
+
+	return Result;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TSharedRef<IDetailCustomization> FPluginMetadataCustomization::MakeInstance()
