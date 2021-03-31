@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-package com.epicgames.ue4;
+package com.epicgames.unreal;
 
 import java.util.Map;
 import java.util.HashSet;
