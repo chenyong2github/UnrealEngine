@@ -49,7 +49,7 @@ void RefineSurfacePtFromTriangleToSubElement(const FDynamicMesh3* Mesh, FVector3
 	double BestElementDistSq = 0;
 	for (int VertSubIdx = 0; VertSubIdx < 3; VertSubIdx++)
 	{
-		double DistSq = Pos.DistanceSquared(Mesh->GetVertex(TriVertIDs[VertSubIdx]));
+		double DistSq = DistanceSquared(Pos, Mesh->GetVertex(TriVertIDs[VertSubIdx]));
 		if (DistSq <= SnapElementThresholdSq && (BestSubIdx == -1 || DistSq < BestElementDistSq))
 		{
 			BestSubIdx = VertSubIdx;
@@ -361,7 +361,7 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 
 		for (int32 NewComputedPtIdx = InitialComputedPointsNum; NewComputedPtIdx < ComputedPointsAndSources.Num(); NewComputedPtIdx++)
 		{
-			double DistSq = EndPt.DistanceSquared(ComputedPointsAndSources[NewComputedPtIdx].Value.Position);
+			double DistSq = DistanceSquared(EndPt, ComputedPointsAndSources[NewComputedPtIdx].Value.Position);
 			// TODO: reject cases that move us backwards if !bAllowBackwardsSearch
 			bool bIsForward = ForwardsDirection.Dot(ComputedPointsAndSources[NewComputedPtIdx].Value.Position - StartPt) >= -BackwardsTolerance;
 			ensure(bAllowBackwardsSearch || bIsForward);

@@ -92,14 +92,14 @@ void TMeshSimplification<QuadricErrorType>::InitializeSeamQuadrics()
 		FVector3d nA = Mesh->GetTriNormal(edge.Tri.A);
 
 		// this constrains the point to a plane aligned with the edge and normal to the face
-		FSeamQuadricType& seamQuadric = seamQuadrics.Add(eid, CreateSeamQuadric(p0, p1, nA));
+		FSeamQuadricType& seamQuadric = seamQuadrics.Add(eid, CreateSeamQuadric<double>(p0, p1, nA));
 
 
 		// add the other side - this constrains the point to the line where the two planes intersect.
 		if (edge.Tri.B != FDynamicMesh3::InvalidID)
 		{
 			FVector3d nB = Mesh->GetTriNormal(edge.Tri.B);
-			seamQuadric.Add(CreateSeamQuadric(p0, p1, nB));
+			seamQuadric.Add(CreateSeamQuadric<double>(p0, p1, nB));
 		}
 
 		seamQuadric.Scale(EdgeWeight);
@@ -441,12 +441,12 @@ void TMeshSimplification<QuadricErrorType>::UpdateNeighborhood(const FDynamicMes
 				FVector3d nA = Mesh->GetTriNormal(ne.Tri.A);
 
 				// this constrains the point to a plane aligned with the edge and normal to the face
-				*seamQuadric = CreateSeamQuadric(p0, p1, nA);
+				*seamQuadric = CreateSeamQuadric<double>(p0, p1, nA);
 				// add the other side - this constrains the point to the line where the two planes intersect.
 				if (ne.Tri.B != FDynamicMesh3::InvalidID)
 				{
 					FVector3d nB = Mesh->GetTriNormal(ne.Tri.B);
-					seamQuadric->Add(CreateSeamQuadric(p0, p1, nB));
+					seamQuadric->Add(CreateSeamQuadric<double>(p0, p1, nB));
 				}
 
 				seamQuadric->Scale(EdgeWeight);
@@ -1083,7 +1083,7 @@ void TMeshSimplification<QuadricErrorType>::FastCollapsePass(double fMinEdgeLeng
 			}
 
 			Mesh->GetEdgeV(eid, va, vb);
-			if (va.DistanceSquared(vb) > min_sqr)
+			if (DistanceSquared(va, vb) > min_sqr)
 			{
 				continue;
 			}
@@ -1328,8 +1328,8 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 		
 		// [TODO] maybe skip Projection call when !bModeAllowsVertMovment.
 		vNewPos = GetProjectedCollapsePosition(iKeep, vNewPos);
-		double div = vA.Distance(vB);
-		collapse_t = (div < FMathd::ZeroTolerance) ? 0.5 : (vNewPos.Distance(Mesh->GetVertex(iKeep))) / div;
+		double div = Distance(vA, vB);
+		collapse_t = (div < FMathd::ZeroTolerance) ? 0.5 : (Distance(vNewPos, Mesh->GetVertex(iKeep))) / div;
 		collapse_t = VectorUtil::Clamp(collapse_t, 0.0, 1.0);
 
 		if (bMinimalVertexMode)
@@ -1564,10 +1564,10 @@ void TMeshSimplification<FAttrBasedQuadricErrord>::OnEdgeCollapse(int edgeID, in
 	FAttrBasedQuadricErrord& Quadric = EdgeQuadrics[edgeID].q;
 	FVector3d collapse_pt = EdgeQuadrics[edgeID].collapse_pt;
 
-	FVector3d UpdatedNormald;
+	FVector3<double> UpdatedNormald;
 	Quadric.ComputeAttributes(collapse_pt, UpdatedNormald);
 
-	FVector3f UpdatedNormal(UpdatedNormald.X, UpdatedNormald.Y, UpdatedNormald.Z);
+	FVector3f UpdatedNormal((float)UpdatedNormald.X, (float)UpdatedNormald.Y, (float)UpdatedNormald.Z);
 	Normalize(UpdatedNormal);
 
 	if (NormalOverlay != nullptr)

@@ -387,7 +387,7 @@ namespace MeshCut
 		void UpdateFromSplit(FPtOnMesh& Pt, int SplitVertex, const FIndex2i& SplitEdges)
 		{
 			// check if within tolerance of the new vtx
-			if (Pt.Pos.DistanceSquared(Mesh->GetVertex(SplitVertex)) < SnapToleranceSq)
+			if (DistanceSquared(Pt.Pos, Mesh->GetVertex(SplitVertex)) < SnapToleranceSq)
 			{
 				Pt.Type = EVertexType::Vertex;
 				Pt.ElemID = SplitVertex;
@@ -406,7 +406,7 @@ namespace MeshCut
 		void UpdateFromPoke(FPtOnMesh& Pt, int PokeVertex, const FIndex3i& PokeEdges, const FIndex3i& PokeTris)
 		{
 			// check if within tolerance of the new vtx
-			if (Pt.Pos.DistanceSquared(Mesh->GetVertex(PokeVertex)) < SnapToleranceSq)
+			if (DistanceSquared(Pt.Pos, Mesh->GetVertex(PokeVertex)) < SnapToleranceSq)
 			{
 				Pt.Type = EVertexType::Vertex;
 				Pt.ElemID = PokeVertex;

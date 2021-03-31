@@ -273,7 +273,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	// For the first computation, display a bounding box with the working material. Otherwise it looks like nothing
 	// is happening. And we don't want to copy over the potentially huge input mesh to be the preview mesh.
 	FGridBoxMeshGenerator MeshGen;
-	MeshGen.Box = FOrientedBox3d(Bounds.Origin, Bounds.BoxExtent);
+	MeshGen.Box = FOrientedBox3d((FVector3d)Bounds.Origin, (FVector3d)Bounds.BoxExtent);
 	MeshGen.Generate();
 	FDynamicMesh3 BoxMesh(&MeshGen);
 	PreviewWithBackgroundCompute->PreviewMesh->UpdatePreview(MoveTemp(BoxMesh));

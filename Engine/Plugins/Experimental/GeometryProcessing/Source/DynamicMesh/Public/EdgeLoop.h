@@ -164,7 +164,16 @@ public:
 	/**
 	 * Add the vertices of the loop to the Vertices array
 	 */
-	void GetVertices(TArray<FVector3d>& Vertices) const;
+	template<typename VecType>
+	void GetVertices(TArray<VecType>& VerticesOut) const
+	{
+		int NumV = Vertices.Num();
+		for (int i = 0; i < NumV; ++i)
+		{
+			VecType Pos = Mesh->GetVertex(Vertices[i]);
+			VerticesOut.Add(Pos);
+		}
+	}
 
 
 	/**

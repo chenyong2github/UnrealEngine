@@ -45,10 +45,10 @@ public:
 		for (int fi = 0; fi < 6; ++fi) 
 		{		
 			int NormalAxisIdx = IndexUtil::BoxFaceNormals[fi];
-			FVector3f FaceNormal = (FVector3f)(FMath::Sign(NormalAxisIdx) * Box.GetAxis(FMath::Abs(NormalAxisIdx) - 1));
+			FVector3f FaceNormal = (FVector3f)((double)FMath::Sign(NormalAxisIdx) * Box.GetAxis(FMath::Abs(NormalAxisIdx) - 1));
 
-			double FaceWidth = Vertices[IndexUtil::BoxFaces[fi][0]].Distance(Vertices[IndexUtil::BoxFaces[fi][1]]);
-			double FaceHeight = Vertices[IndexUtil::BoxFaces[fi][1]].Distance(Vertices[IndexUtil::BoxFaces[fi][2]]);
+			double FaceWidth = Distance(Vertices[IndexUtil::BoxFaces[fi][0]], Vertices[IndexUtil::BoxFaces[fi][1]]);
+			double FaceHeight = Distance(Vertices[IndexUtil::BoxFaces[fi][1]], Vertices[IndexUtil::BoxFaces[fi][2]]);
 			double WidthUVScale = FaceWidth * UVScale;
 			double HeightUVScale = FaceHeight * UVScale;
 

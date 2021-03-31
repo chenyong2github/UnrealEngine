@@ -302,7 +302,7 @@ bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormal
 
 				if (k > 0)
 				{
-					AccumUVTranslation += Mesh->GetVertex(BaseLoopV[k]).Distance(Mesh->GetVertex(BaseLoopV[k - 1]));
+					AccumUVTranslation += Distance(Mesh->GetVertex(BaseLoopV[k]), Mesh->GetVertex(BaseLoopV[k - 1]));
 				}
 
 				// translate horizontally such that vertical spans are adjacent in UV space (so textures tile/wrap properly)

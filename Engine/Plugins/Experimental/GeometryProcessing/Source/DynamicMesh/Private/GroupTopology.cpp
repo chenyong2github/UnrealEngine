@@ -314,7 +314,7 @@ double FGroupTopology::GetEdgeArcLength(int32 GroupEdgeID, TArray<double>* PerVe
 	double AccumLength = 0;
 	for (int32 k = 1; k < NumV; ++k)
 	{
-		AccumLength += Mesh->GetVertex(Vertices[k]).Distance(Mesh->GetVertex(Vertices[k-1]));
+		AccumLength += Distance(Mesh->GetVertex(Vertices[k]), Mesh->GetVertex(Vertices[k-1]));
 		if (PerVertexLengthsOut != nullptr)
 		{
 			(*PerVertexLengthsOut)[k] = AccumLength;
@@ -336,13 +336,13 @@ FVector3d FGroupTopology::GetEdgeMidpoint(int32 GroupEdgeID, double* ArcLengthOu
 		FVector3d A(Mesh->GetVertex(Vertices[0])), B(Mesh->GetVertex(Vertices[1]));
 		if (ArcLengthOut)
 		{
-			*ArcLengthOut = A.Distance(B);
+			*ArcLengthOut = Distance(A, B);
 		}
 		if (PerVertexLengthsOut)
 		{
 			(*PerVertexLengthsOut).SetNum(2);
 			(*PerVertexLengthsOut)[0] = 0;
-			(*PerVertexLengthsOut)[1] = A.Distance(B);
+			(*PerVertexLengthsOut)[1] = Distance(A, B);
 		}
 		return (A + B) * 0.5;
 	}
@@ -378,7 +378,7 @@ FVector3d FGroupTopology::GetEdgeMidpoint(int32 GroupEdgeID, double* ArcLengthOu
 	double AccumLength = 0;
 	for (int32 k = 1; k < NumV; ++k)
 	{
-		double NewLen = AccumLength + Mesh->GetVertex(Vertices[k]).Distance(Mesh->GetVertex(Vertices[k-1]));
+		double NewLen = AccumLength + Distance(Mesh->GetVertex(Vertices[k]), Mesh->GetVertex(Vertices[k-1]));
 		if ( NewLen > Len )
 		{
 			double t = (Len - AccumLength) / (NewLen - AccumLength);
@@ -625,7 +625,7 @@ bool FGroupTopology::GetGroupEdgeTangent(int GroupEdgeID, FVector3d& TangentOut)
 	const FGroupEdge& Edge = Edges[GroupEdgeID];
 	FVector3d StartPos = Mesh->GetVertex(Edge.Span.Vertices[0]);
 	FVector3d EndPos = Mesh->GetVertex(Edge.Span.Vertices[Edge.Span.Vertices.Num()-1]);
-	if (StartPos.DistanceSquared(EndPos) > 100 * FMathd::ZeroTolerance)
+	if (DistanceSquared(StartPos, EndPos) > 100 * FMathd::ZeroTolerance)
 	{
 		TangentOut = Normalized(EndPos - StartPos);
 		return true;

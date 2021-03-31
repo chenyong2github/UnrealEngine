@@ -87,7 +87,7 @@ protected:
 			int NumPathSegs = bLoop ? Path.Num() : Path.Num() - 1;
 			for (int PIdx = 0; PIdx < NumPathSegs; PIdx++)
 			{
-				double SegLen = Path[PIdx].Distance(Path[(PIdx + 1) % Path.Num()]);
+				double SegLen = Distance(Path[PIdx], Path[(PIdx + 1) % Path.Num()]);
 				TotalPathLength += SegLen;
 				PathPercentages.Add(TotalPathLength);
 			}
@@ -474,7 +474,7 @@ public:
 			{
 				if (Caps[CapIdx] == ECapType::FlatMidpointFan)
 				{
-					Vertices[CapVertStart[CapIdx]] = FVector3d::UnitZ() * Heights[CapIdx];
+					Vertices[CapVertStart[CapIdx]] = FVector3d::UnitZ() * (double)Heights[CapIdx];
 				}
 			}
 
@@ -674,7 +674,7 @@ public:
 		if (bUVScaleRelativeWorld)
 		{
 			double Perimeter = CrossSection.Perimeter();
-			double PathLen = TCurveUtil<double>::ArcLength(Path, bLoop);
+			double PathLen = UE::Geometry::CurveUtil::ArcLength<double, FVector3d>(Path, bLoop);
 			SectionScale.X = Perimeter / UnitUVInWorldCoordinates;
 			SectionScale.Y = PathLen / UnitUVInWorldCoordinates;
 			CapScale.X = CapScale.Y = 1.0f / UnitUVInWorldCoordinates;
@@ -691,7 +691,7 @@ public:
 		FFrame3d CrossSectionFrame = InitialFrame;
 		for (int PathIdx = 0; PathIdx < PathNum; ++PathIdx)
 		{
-			FVector3d Tangent = TCurveUtil<double>::Tangent(Path, PathIdx, bLoop);
+			FVector3d Tangent = UE::Geometry::CurveUtil::Tangent<double, FVector3d>(Path, PathIdx, bLoop);
 			CrossSectionFrame.AlignAxis(2, Tangent);
 			FVector3d C = Path[PathIdx];
 			FVector3d X = CrossSectionFrame.X();
@@ -701,17 +701,17 @@ public:
 				FVector2d XP = CrossSection[SubIdx];
 				FVector2d XN = XNormals[SubIdx];
 				Vertices[SubIdx + PathIdx * XNum] = C + X * XP.X + Y * XP.Y;
-				Normals[SubIdx + PathIdx * XNum] = FVector3f(X * XN.X + Y * XN.Y);
+				Normals[SubIdx + PathIdx * XNum] = (FVector3f)(X * XN.X + Y * XN.Y);
 			}
 		}
 		if (bCapped && !bLoop)
 		{
 			for (int CapIdx = 0; CapIdx < 2; CapIdx++)
 			{
-				FVector3f Normal(TCurveUtil<double>::Tangent(Path, CapIdx * (PathNum-1), bLoop) * (CapIdx * 2 - 1));
+				FVector3d Normal = CurveUtil::Tangent<double, FVector3d>(Path, CapIdx * (PathNum - 1), bLoop) * (double)(CapIdx * 2 - 1);
 				for (int SubIdx = 0; SubIdx < XNum; SubIdx++)
 				{
-					Normals[CapNormalStart[CapIdx] + SubIdx] = Normal;
+					Normals[CapNormalStart[CapIdx] + SubIdx] = (FVector3f)Normal;
 				}
 			}
 		}

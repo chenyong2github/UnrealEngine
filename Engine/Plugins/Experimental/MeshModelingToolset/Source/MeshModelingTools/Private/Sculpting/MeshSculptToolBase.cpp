@@ -495,8 +495,8 @@ void UMeshSculptToolBase::OnEndDrag(const FRay& Ray)
 
 FRay3d UMeshSculptToolBase::GetLocalRay(const FRay& WorldRay) const
 {
-	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition(WorldRay.Origin),
-		CurTargetTransform.InverseTransformVector(WorldRay.Direction));
+	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		CurTargetTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 	UE::Geometry::Normalize(LocalRay.Direction);
 	return LocalRay;
 }
@@ -512,7 +512,7 @@ retry_frame_update:
 	FFrame3d NewFrame = LastBrushFrameWorld;
 	NewFrame.Origin = NewPosition;
 	NewFrame.AlignAxis(2, NewNormal);
-	FVector3d CameraUp = CameraState.Up();
+	FVector3d CameraUp = (FVector3d)CameraState.Up();
 
 	if (FMathd::Abs(CameraUp.Dot(NewNormal)) < 0.98)
 	{
@@ -548,32 +548,35 @@ retry_frame_update:
 
 void UMeshSculptToolBase::AlignBrushToView()
 {
-	UpdateBrushFrameWorld(GetBrushFrameWorld().Origin, -CameraState.Forward());
+	UpdateBrushFrameWorld(GetBrushFrameWorld().Origin, -(FVector3d)CameraState.Forward());
 }
 
 
 
-void UMeshSculptToolBase::UpdateBrushTargetPlaneFromHit(const FRay& WorldRay, const FHitResult& Hit)
+void UMeshSculptToolBase::UpdateBrushTargetPlaneFromHit(const FRay& WorldRayIn, const FHitResult& Hit)
 {
+	FRay3d WorldRay(WorldRayIn);
 	FVector3d WorldPosWithBrushDepth = WorldRay.PointAt(Hit.Distance) + GetCurrentBrushDepth() * GetCurrentBrushRadius() * WorldRay.Direction;
 	ActiveBrushTargetPlaneWorld = FFrame3d(WorldPosWithBrushDepth, -WorldRay.Direction);
 }
 
-bool UMeshSculptToolBase::UpdateBrushPositionOnActivePlane(const FRay& WorldRay)
+bool UMeshSculptToolBase::UpdateBrushPositionOnActivePlane(const FRay& WorldRayIn)
 {
 	LastBrushTriangleID = IndexConstants::InvalidID;
 
+	FRay3d WorldRay(WorldRayIn);
 	FVector3d NewHitPosWorld;
 	ActiveBrushTargetPlaneWorld.RayPlaneIntersection(WorldRay.Origin, WorldRay.Direction, 2, NewHitPosWorld);
 	UpdateBrushFrameWorld(NewHitPosWorld, ActiveBrushTargetPlaneWorld.Z());
 	return true;
 }
 
-bool UMeshSculptToolBase::UpdateBrushPositionOnTargetMesh(const FRay& WorldRay, bool bFallbackToViewPlane)
+bool UMeshSculptToolBase::UpdateBrushPositionOnTargetMesh(const FRay& WorldRayIn, bool bFallbackToViewPlane)
 {
 	LastBrushTriangleID = IndexConstants::InvalidID;
 
-	FRay3d LocalRay = GetLocalRay(WorldRay);
+	FRay3d WorldRay(WorldRayIn);
+	FRay3d LocalRay = GetLocalRay(WorldRayIn);
 	int32 HitTID = FindHitTargetMeshTriangle(LocalRay);
 	if (HitTID != IndexConstants::InvalidID)
 	{
@@ -588,7 +591,7 @@ bool UMeshSculptToolBase::UpdateBrushPositionOnTargetMesh(const FRay& WorldRay, 
 
 	if (bFallbackToViewPlane)
 	{
-		FFrame3d BrushPlane(GetBrushFrameWorld().Origin, CameraState.Forward());
+		FFrame3d BrushPlane(GetBrushFrameWorld().Origin, (FVector3d)CameraState.Forward());
 		FVector3d NewHitPosWorld;
 		BrushPlane.RayPlaneIntersection(WorldRay.Origin, WorldRay.Direction, 2, NewHitPosWorld);
 		UpdateBrushFrameWorld(NewHitPosWorld, ActiveBrushTargetPlaneWorld.Z());
@@ -598,11 +601,12 @@ bool UMeshSculptToolBase::UpdateBrushPositionOnTargetMesh(const FRay& WorldRay, 
 	return false;
 }
 
-bool UMeshSculptToolBase::UpdateBrushPositionOnSculptMesh(const FRay& WorldRay, bool bFallbackToViewPlane)
+bool UMeshSculptToolBase::UpdateBrushPositionOnSculptMesh(const FRay& WorldRayIn, bool bFallbackToViewPlane)
 {
 	LastBrushTriangleID = IndexConstants::InvalidID;
 
-	FRay3d LocalRay = GetLocalRay(WorldRay);
+	FRay3d WorldRay(WorldRayIn);
+	FRay3d LocalRay = GetLocalRay(WorldRayIn);
 	int32 HitTID = FindHitSculptMeshTriangle(LocalRay);
 	if (HitTID != IndexConstants::InvalidID)
 	{
@@ -617,7 +621,7 @@ bool UMeshSculptToolBase::UpdateBrushPositionOnSculptMesh(const FRay& WorldRay, 
 
 	if (bFallbackToViewPlane)
 	{
-		FFrame3d BrushPlane(GetBrushFrameWorld().Origin, CameraState.Forward());
+		FFrame3d BrushPlane(GetBrushFrameWorld().Origin, (FVector3d)CameraState.Forward());
 		FVector3d NewHitPosWorld;
 		BrushPlane.RayPlaneIntersection(WorldRay.Origin, WorldRay.Direction, 2, NewHitPosWorld);
 		UpdateBrushFrameWorld(NewHitPosWorld, ActiveBrushTargetPlaneWorld.Z());
@@ -764,7 +768,7 @@ FFrame3d UMeshSculptToolBase::ComputeStampRegionPlane(const FFrame3d& StampFrame
 
 	if (bViewAligned)
 	{
-		AverageNormal = -CameraState.Forward();
+		AverageNormal = -(FVector3d)CameraState.Forward();
 	}
 
 	FFrame3d Result = FFrame3d(AveragePos, AverageNormal);
@@ -786,7 +790,7 @@ void UMeshSculptToolBase::UpdateStrokeReferencePlaneForROI(const FFrame3d& Stamp
 void UMeshSculptToolBase::UpdateStrokeReferencePlaneFromWorkPlane()
 {
 	StrokePlane = FFrame3d(
-		CurTargetTransform.InverseTransformPosition(GizmoProperties->Position),
+		CurTargetTransform.InverseTransformPosition((FVector3d)GizmoProperties->Position),
 		CurTargetTransform.GetRotation().Inverse() * (FQuaterniond)GizmoProperties->Rotation);
 }
 

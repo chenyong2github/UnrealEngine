@@ -44,19 +44,19 @@ void UE::Conversion::RenderBuffersToDynamicMesh(
 	for (int32 vi = 0; vi < NumVertices; ++vi)
 	{
 		FVector Position = PositionBuffer.VertexPosition(vi);
-		int32 vid = MeshOut.AppendVertex(Position);
+		int32 vid = MeshOut.AppendVertex(FVector3d(Position));
 		ensure(vid == vi);
 
 		FVector Normal = VertexBuffer.VertexTangentZ(vi);
-		int32 nid = Normals->AppendElement((FVector3f)Normal);
+		int32 nid = Normals->AppendElement(&Normal.X);
 		ensure(nid == vi);
 
 		FVector Tangent = VertexBuffer.VertexTangentX(vi);
-		int32 tid = Tangents->AppendElement((FVector3f)Tangent);
+		int32 tid = Tangents->AppendElement(&Tangent.X);
 		ensure(tid == vi);
 
 		FVector BiTangent = VertexBuffer.VertexTangentY(vi);
-		int32 bid = BiTangents->AppendElement((FVector3f)BiTangent);
+		int32 bid = BiTangents->AppendElement(&BiTangent.X);
 		ensure(bid == vi);
 
 		for (int32 ui = 0; ui < NumUVChannels; ++ui)

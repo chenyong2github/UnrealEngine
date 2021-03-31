@@ -153,7 +153,7 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 	bool bIsBoundaryEdge = (t1 == IndexConstants::InvalidID);
 	FVector3d vA(Mesh->GetVertex(a));
 	FVector3d vB(Mesh->GetVertex(b));
-	double edge_len_sqr = vA.DistanceSquared(vB);
+	double edge_len_sqr = DistanceSquared(vA, vB);
 
 	// check if we should collapse, and also find which vertex we should collapse to,
 	// in cases where we have constraints/etc
@@ -197,8 +197,8 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 		else
 		{
 			vNewPos = GetProjectedCollapsePosition(iKeep, vNewPos);
-			double div = vA.Distance(vB);
-			collapse_t = (div < FMathd::ZeroTolerance) ? 0.5 : (vNewPos.Distance(Mesh->GetVertex(iKeep))) / div;
+			double div = Distance(vA, vB);
+			collapse_t = (div < FMathd::ZeroTolerance) ? 0.5 : (Distance(vNewPos, Mesh->GetVertex(iKeep))) / div;
 			collapse_t = VectorUtil::Clamp(collapse_t, 0.0, 1.0);
 		}
 
@@ -276,8 +276,8 @@ abort_collapse:
 		}
 		else
 		{
-			double CurDistSqr = Mesh->GetVertex(a).DistanceSquared(Mesh->GetVertex(b));
-			double FlipDistSqr = Mesh->GetVertex(c).DistanceSquared(Mesh->GetVertex(d));
+			double CurDistSqr = DistanceSquared(Mesh->GetVertex(a), Mesh->GetVertex(b));
+			double FlipDistSqr = DistanceSquared(Mesh->GetVertex(c), Mesh->GetVertex(d));
 			bTryFlip = (FlipDistSqr < MinLengthFlipThresh*MinLengthFlipThresh * CurDistSqr);
 		}
 

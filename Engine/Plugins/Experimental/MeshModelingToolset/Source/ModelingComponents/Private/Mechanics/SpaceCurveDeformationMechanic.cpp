@@ -536,7 +536,7 @@ void USpaceCurveDeformationMechanic::UpdateGizmoLocation()
 			{
 				SharedOrigin += CurvePoints[PointID].Origin;
 			}
-			NewGizmoFrame = FFrame3d(SharedOrigin / SelectedPointIDs.Num());
+			NewGizmoFrame = FFrame3d(SharedOrigin / (double)SelectedPointIDs.Num());
 		}
 
 		//if (SelectedPointIDs.Num() > 1 && TransformProperties->TransformMode == ESpaceCurveControlPointTransformMode::Shared)

@@ -351,15 +351,15 @@ TUniquePtr<FDynamicMeshOperator> UPlaneCutOperatorFactory::MakeNewOperator()
 	FVector LocalOrigin = WorldToLocal.TransformPosition(CutTool->CutPlaneOrigin);
 	FVector WorldNormal = CutTool->CutPlaneOrientation.GetAxisZ();
 	UE::Geometry::FTransform3d W2LForNormal(WorldToLocal);
-	FVector LocalNormal = (FVector)W2LForNormal.TransformNormal(WorldNormal);
+	FVector LocalNormal = (FVector)W2LForNormal.TransformNormal((FVector3d)WorldNormal);
 	FVector BackTransformed = LocalToWorld.TransformVector(LocalNormal);
 	float NormalScaleFactor = FVector::DotProduct(BackTransformed, WorldNormal);
 	if (NormalScaleFactor >= FLT_MIN)
 	{
 		NormalScaleFactor = 1.0 / NormalScaleFactor;
 	}
-	CutOp->LocalPlaneOrigin = LocalOrigin;
-	CutOp->LocalPlaneNormal = LocalNormal;
+	CutOp->LocalPlaneOrigin = (FVector3d)LocalOrigin;
+	CutOp->LocalPlaneNormal = (FVector3d)LocalNormal;
 	CutOp->OriginalMesh = CutTool->MeshesToCut[ComponentIndex]->GetMesh();
 	CutOp->bKeepBothHalves = CutTool->BasicProperties->bKeepBothHalves;
 	CutOp->CutPlaneLocalThickness = CutTool->BasicProperties->SpacingBetweenHalves * NormalScaleFactor;
@@ -453,7 +453,7 @@ void UPlaneCutTool::SetCutPlaneFromWorldPos(const FVector& Position, const FVect
 {
 	CutPlaneOrigin = Position;
 
-	FFrame3f CutPlane(Position, Normal);
+	FFrame3f CutPlane((FVector3f)Position, (FVector3f)Normal);
 	CutPlaneOrientation = (FQuat)CutPlane.Rotation;
 
 	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());

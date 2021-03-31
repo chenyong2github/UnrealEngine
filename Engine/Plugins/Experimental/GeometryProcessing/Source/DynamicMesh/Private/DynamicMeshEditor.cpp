@@ -210,7 +210,7 @@ bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>
 			{
 				IndNext = (Ind + 1) % VertexIDs.Num();
 				FVector3d VNext = M->GetVertex(VertexIDs[IndNext]);
-				LenTotal += V.Distance(VNext);
+				LenTotal += Distance(V, VNext);
 				Ind = IndNext;
 				V = VNext;
 			}
@@ -238,7 +238,7 @@ bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>
 				
 				Tri.C = VertexIDs1[Walks[0]];
 				FVector3d NextV = Mesh->GetVertex(Tri.C);
-				LenAlong[0] += NextV.Distance(Vertex[0]);
+				LenAlong[0] += Distance(NextV, Vertex[0]);
 				Vertex[0] = NextV;
 			}
 			else
@@ -246,7 +246,7 @@ bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>
 				Walks[1] = (Walks[1] + 1) % VertexIDs2.Num();
 				Tri.C = VertexIDs2[Walks[1]];
 				FVector3d NextV = Mesh->GetVertex(Tri.C);
-				LenAlong[1] += NextV.Distance(Vertex[1]);
+				LenAlong[1] += Distance(NextV, Vertex[1]);
 				Vertex[1] = NextV;
 			}
 			if (bReverseOrientation)
@@ -1182,7 +1182,7 @@ void FDynamicMeshEditor::RescaleAttributeUVs(float UVScale, bool bWorldSpace, in
 			for (int j = 2, i = 0; i < 3; j = i++)
 			{
 				TotalEdgeUVLen += TriUVs[j].Distance(TriUVs[i]);
-				TotalEdgeLen += TriVs[j].Distance(TriVs[i]);
+				TotalEdgeLen += Distance(TriVs[j], TriVs[i]);
 			}
 		}
 		if (TotalEdgeUVLen > KINDA_SMALL_NUMBER)

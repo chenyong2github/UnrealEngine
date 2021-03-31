@@ -840,7 +840,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnSplitEdge(const FDynamicMesh3
 
 		// create new element at lerp position
 		NewElemID = AppendElement((RealType)0);
-		SetElementFromLerp(NewElemID, Triangle0[idx_base_a1], Triangle0[idx_base_b1], (RealType)splitInfo.SplitT);
+		SetElementFromLerp(NewElemID, Triangle0[idx_base_a1], Triangle0[idx_base_b1], (double)splitInfo.SplitT);
 
 		// rewrite triangle 0
 		ElementTriangles[3 * orig_t0 + idx_base_b1] = NewElemID;
@@ -876,7 +876,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnSplitEdge(const FDynamicMesh3
 		{
 			// create new element at lerp position
 			OtherNewElemID = AppendElement((RealType)0);
-			SetElementFromLerp(OtherNewElemID, Triangle1[idx_base_a2], Triangle1[idx_base_b2], (RealType)splitInfo.SplitT);
+			SetElementFromLerp(OtherNewElemID, Triangle1[idx_base_a2], Triangle1[idx_base_b2], (double)splitInfo.SplitT);
 		}
 
 		// rewrite triangle 1
@@ -1138,7 +1138,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 			}
 
 			// update value of kept element
-			SetElementFromLerp(kept_elemid[i], kept_elemid[i], removed_elemid[i], collapseInfo.CollapseT);
+			SetElementFromLerp(kept_elemid[i], kept_elemid[i], removed_elemid[i], (double)collapseInfo.CollapseT);
 		}
 	}
 
@@ -1194,7 +1194,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnPokeTriangle(const FDynamicMe
 
 	// create new element at barycentric position
 	int CenterElemID = AppendElement((RealType)0);
-	FVector3<RealType> BaryCoords((RealType)PokeInfo.BaryCoords.X, (RealType)PokeInfo.BaryCoords.Y, (RealType)PokeInfo.BaryCoords.Z);
+	FVector3<double> BaryCoords((double)PokeInfo.BaryCoords.X, (double)PokeInfo.BaryCoords.Y, (double)PokeInfo.BaryCoords.Z);
 	SetElementFromBary(CenterElemID, Triangle[0], Triangle[1], Triangle[2], BaryCoords);
 
 	// update orig triangle and two new ones. Winding orders here mirror FDynamicMesh3::PokeTriangle
@@ -1280,20 +1280,21 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnSplitVertex(const DynamicMesh
 
 
 template<typename RealType, int ElementSize>
-void TDynamicMeshOverlay<RealType, ElementSize>::SetElementFromLerp(int SetElement, int ElementA, int ElementB, RealType Alpha)
+void TDynamicMeshOverlay<RealType, ElementSize>::SetElementFromLerp(int SetElement, int ElementA, int ElementB, double Alpha)
 {
 	int IndexSet = ElementSize * SetElement;
 	int IndexA = ElementSize * ElementA;
 	int IndexB = ElementSize * ElementB;
-	RealType Beta = ((RealType)1 - Alpha);
+	double Beta = ((double)1 - Alpha);
 	for (int i = 0; i < ElementSize; ++i)
 	{
-		Elements[IndexSet+i] = Beta*Elements[IndexA+i] + Alpha*Elements[IndexB+i];
+		double LerpValue =  Beta*(double)Elements[IndexA+i] + Alpha*(double)Elements[IndexB+i];
+		Elements[IndexSet+i] = (RealType)LerpValue;
 	}
 }
 
 template<typename RealType, int ElementSize>
-void TDynamicMeshOverlay<RealType, ElementSize>::SetElementFromBary(int SetElement, int ElementA, int ElementB, int ElementC, const FVector3<RealType>& BaryCoords)
+void TDynamicMeshOverlay<RealType, ElementSize>::SetElementFromBary(int SetElement, int ElementA, int ElementB, int ElementC, const FVector3<double>& BaryCoords)
 {
 	int IndexSet = ElementSize * SetElement;
 	int IndexA = ElementSize * ElementA;
@@ -1301,8 +1302,8 @@ void TDynamicMeshOverlay<RealType, ElementSize>::SetElementFromBary(int SetEleme
 	int IndexC = ElementSize * ElementC;
 	for (int i = 0; i < ElementSize; ++i)
 	{
-		Elements[IndexSet + i] = 
-			BaryCoords.X*Elements[IndexA+i] + BaryCoords.Y*Elements[IndexB+i] + BaryCoords.Z*Elements[IndexC+i];
+		double BaryValue = BaryCoords.X*(double)Elements[IndexA+i] + BaryCoords.Y*(double)Elements[IndexB+i] + BaryCoords.Z*(double)Elements[IndexC+i];
+		Elements[IndexSet + i] = (RealType)BaryValue;			
 	}
 }
 

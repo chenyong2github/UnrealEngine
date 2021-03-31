@@ -303,9 +303,9 @@ namespace UE {
 			{
 				FIndex3i Tri = Mesh.GetTriangle(tid);
 				FVector3d Normal = Mesh.GetTriNormal(tid);
-				int32 e0 = Normals->AppendElement((FVector3f)Normal);
-				int32 e1 = Normals->AppendElement((FVector3f)Normal);
-				int32 e2 = Normals->AppendElement((FVector3f)Normal);
+				int32 e0 = Normals->AppendElement((FVector3<float>)Normal);
+				int32 e1 = Normals->AppendElement((FVector3<float>)Normal);
+				int32 e2 = Normals->AppendElement((FVector3<float>)Normal);
 				Normals->SetTriangle(tid, FIndex3i(e0, e1, e2));
 			}
 		}

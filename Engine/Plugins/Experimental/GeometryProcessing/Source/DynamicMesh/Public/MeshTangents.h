@@ -96,7 +96,7 @@ public:
 	 * @param TriangleID triangle index in mesh
 	 * @param TriVertIdx vertex index in range 0,1,2
 	 */
-	void GetPerTriangleTangent(int32 TriangleID, int32 TriVertIdx, FVector3<RealType>& TangentOut, FVector3<RealType>& BitangentOut) const
+	void GetPerTriangleTangent(int32 TriangleID, int32 TriVertIdx, UE::Core::TVector<RealType>& TangentOut, UE::Core::TVector<RealType>& BitangentOut) const
 	{
 		int32 k = TriangleID * 3 + TriVertIdx;
 		TangentOut = Tangents[k];
@@ -129,7 +129,10 @@ public:
 	 * @param TangentOut interpolated tangent
 	 * @param BitangentOut interpolated bitangent
 	 */
-	void GetInterpolatedTriangleTangent(int32 TriangleID, const FVector3<RealType>& BaryCoords, FVector3<RealType>& TangentOut, FVector3<RealType>& BitangentOut) const
+	void GetInterpolatedTriangleTangent(int32 TriangleID, 
+		const UE::Core::TVector<RealType>& BaryCoords,
+		UE::Core::TVector<RealType>& TangentOut,
+		UE::Core::TVector<RealType>& BitangentOut) const
 	{
 		int32 k = TriangleID * 3;
 		if (k >= 0 && (k+2) < Tangents.Num())

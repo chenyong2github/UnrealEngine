@@ -234,7 +234,7 @@ bool FMeshImageBakingCache::ValidateCache()
 			[Mesh, NormalOverlay, this](const FMeshUVSampleInfo& SampleInfo, FCorrespondenceSample& ValueOut)
 		{
 			//FVector3d BaseTriNormal = Mesh->GetTriNormal(SampleInfo.TriangleIndex);
-			NormalOverlay->GetTriBaryInterpolate<double>(SampleInfo.TriangleIndex, &SampleInfo.BaryCoords[0], &ValueOut.BaseNormal[0]);
+			NormalOverlay->GetTriBaryInterpolate<double>(SampleInfo.TriangleIndex, &SampleInfo.BaryCoords.X, &ValueOut.BaseNormal.X);
 			Normalize(ValueOut.BaseNormal);
 			FVector3d RayDir = ValueOut.BaseNormal;
 

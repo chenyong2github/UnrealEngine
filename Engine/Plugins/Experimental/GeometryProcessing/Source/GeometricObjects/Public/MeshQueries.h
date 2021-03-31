@@ -93,7 +93,7 @@ public:
 		int NumVertices = Mesh.VertexCount();
 		if (NumVertices > 0)
 		{
-			Centroid /= NumVertices;
+			Centroid /= (double)NumVertices;
 		}
 		return Centroid;
 	}
@@ -440,7 +440,7 @@ public:
 			{
 				FVector3d A, B;
 				Mesh.GetEdgeV(EdgeID, A, B);
-				double Length = A.Distance(B);
+				double Length = Distance(A, B);
 				if (Length < MinEdgeLength) { MinEdgeLength = Length; }
 				if (Length > MaxEdgeLength) { MaxEdgeLength = Length; }
 				AverageEdgeLength += Length;
@@ -481,7 +481,7 @@ public:
 			if (Mesh.IsEdge(EdgeID))
 			{
 				Mesh.GetEdgeV(EdgeID, A, B);
-				double Length = A.Distance(B);
+				double Length = Distance(A, B);
 				if (Length < MinEdgeLength) MinEdgeLength = Length;
 				if (Length > MaxEdgeLength) MaxEdgeLength = Length;
 				AverageEdgeLength += Length;

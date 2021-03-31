@@ -505,7 +505,7 @@ void FMeshPlaneCut::CollapseDegenerateEdges(const TSet<int>& OnCutEdges, const T
 					continue;
 				}
 				Mesh->GetEdgeV(EID, A, B);
-				if (A.DistanceSquared(B) > Tol2)
+				if (DistanceSquared(A, B) > Tol2)
 				{
 					continue;
 				}
@@ -616,7 +616,8 @@ bool FMeshPlaneCut::HoleFill(TFunction<TArray<FIndex3i>(const FGeneralPolygon2d&
 				LoopVertices.Add(Span.Vertices);
 			}
 		}
-		FPlanarHoleFiller Filler(Mesh, &LoopVertices, PlanarTriangulationFunc, PlaneOrigin, PlaneNormal*Boundary.NormalSign);
+		FVector3d SignedPlaneNormal = PlaneNormal*(double)Boundary.NormalSign;
+		FPlanarHoleFiller Filler(Mesh, &LoopVertices, PlanarTriangulationFunc, PlaneOrigin, SignedPlaneNormal);
 
 		int GID = ConstantGroupID >= 0 ? ConstantGroupID : Mesh->AllocateTriangleGroup();
 		bool bFullyFilledHole = Filler.Fill(GID);
@@ -625,9 +626,9 @@ bool FMeshPlaneCut::HoleFill(TFunction<TArray<FIndex3i>(const FGeneralPolygon2d&
 		if (Mesh->HasAttributes())
 		{
 			FDynamicMeshEditor Editor(Mesh);
-			Editor.SetTriangleNormals(Filler.NewTriangles, (FVector3f)(PlaneNormal*Boundary.NormalSign));
+			Editor.SetTriangleNormals(Filler.NewTriangles, (FVector3f)(SignedPlaneNormal));
 
-			FFrame3d ProjectionFrame(PlaneOrigin, PlaneNormal*Boundary.NormalSign);
+			FFrame3d ProjectionFrame(PlaneOrigin, SignedPlaneNormal);
 			for (int UVLayerIdx = 0, NumLayers = Mesh->Attributes()->NumUVLayers(); UVLayerIdx < NumLayers; UVLayerIdx++)
 			{
 				Editor.SetTriangleUVsFromProjection(Filler.NewTriangles, ProjectionFrame, UVScaleFactor, FVector2f::Zero(), true, UVLayerIdx);

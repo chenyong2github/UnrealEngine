@@ -368,10 +368,10 @@ void FHoleFillOp::CalculateResult(FProgressCancel* Progress)
 		NewGroupIDs.Add(NewGroupID);
 
 		// Compute a best-fit plane of the boundary vertices
-		TArray<FVector3d> VertexPositions;
+		TArray<FVector3<double>> VertexPositions;
 		Loop.GetVertices(VertexPositions);
-		FVector3d PlaneOrigin;
-		FVector3d PlaneNormal;
+		FVector3<double> PlaneOrigin;
+		FVector3<double> PlaneNormal;
 		PolygonTriangulation::ComputePolygonPlane<double>(VertexPositions, PlaneNormal, PlaneOrigin);
 		PlaneNormal *= -1.0;	// Previous function seems to orient the normal opposite to what's expected elsewhere
 

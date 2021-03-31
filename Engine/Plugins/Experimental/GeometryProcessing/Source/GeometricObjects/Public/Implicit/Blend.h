@@ -215,7 +215,7 @@ protected:
 			return;
 		}
 
-		TArray<FVector3d> Seeds;
+		TArray<FVector3<double>> Seeds;
 		for (const TriangleMeshType* Source : Sources)
 		{
 			for (int VID = 0; VID < Source->MaxVertexID(); VID++)

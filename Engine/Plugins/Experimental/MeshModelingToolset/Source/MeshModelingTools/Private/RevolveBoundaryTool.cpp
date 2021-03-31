@@ -52,7 +52,8 @@ TUniquePtr<FDynamicMeshOperator> URevolveBoundaryOperatorFactory::MakeNewOperato
 			{
 				int32 VertIndex = VertexIndices[i];
 
-				CurveSweepOp->ProfileCurve.Add(ToWorld.TransformPosition((FVector)RevolveBoundaryTool->OriginalMesh->GetVertex(VertIndex)));
+				FVector3d NewPos = (FVector3d)ToWorld.TransformPosition((FVector)RevolveBoundaryTool->OriginalMesh->GetVertex(VertIndex));
+				CurveSweepOp->ProfileCurve.Add(NewPos);
 			}
 			CurveSweepOp->bProfileCurveIsClosed = true;
 		}
@@ -177,11 +178,11 @@ void URevolveBoundaryTool::OnClicked(const FInputDeviceRay& ClickPos)
 			FVector3d VertexA, VertexB;
 			OriginalMesh->GetEdgeV(ClickedEid, VertexA, VertexB);
 			FTransform ToWorldTranform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
-			FLine3d EdgeLine = FLine3d::FromPoints(ToWorldTranform.TransformPosition((FVector)VertexA), 
-				ToWorldTranform.TransformPosition((FVector)VertexB));
+			FLine3d EdgeLine = FLine3d::FromPoints((FVector3d)ToWorldTranform.TransformPosition((FVector)VertexA), 
+				(FVector3d)ToWorldTranform.TransformPosition((FVector)VertexB));
 			
 			FFrame3d RevolutionAxisFrame;
-			RevolutionAxisFrame.Origin = EdgeLine.NearestPoint(HitResult.ImpactPoint);
+			RevolutionAxisFrame.Origin = EdgeLine.NearestPoint((FVector3d)HitResult.ImpactPoint);
 			RevolutionAxisFrame.AlignAxis(0, EdgeLine.Direction);
 
 			PlaneMechanic->SetPlaneWithoutBroadcast(RevolutionAxisFrame);
@@ -215,8 +216,8 @@ bool URevolveBoundaryTool::CanAccept() const
  */
 void URevolveBoundaryTool::UpdateRevolutionAxis()
 {
-	RevolutionAxisOrigin = Settings->AxisOrigin;
-	RevolutionAxisDirection = FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).RotateVector(FVector(1, 0, 0));
+	RevolutionAxisOrigin = (FVector3d)Settings->AxisOrigin;
+	RevolutionAxisDirection = (FVector3d)FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).RotateVector(FVector(1, 0, 0));
 	if (Preview)
 	{
 		Preview->InvalidateResult();

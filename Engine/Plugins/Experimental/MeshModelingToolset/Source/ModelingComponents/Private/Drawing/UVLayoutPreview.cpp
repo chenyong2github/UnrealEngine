@@ -149,7 +149,7 @@ void UUVLayoutPreview::UpdateUVMesh(const FDynamicMesh3* SourceMesh, int32 Sourc
 			{
 				NewUVTri[j] = NewUVOverlay->AppendElement(UVs[j]);
 				NewTri[j] = UVMesh.AppendVertex(FVector3d(UVs[j].X, UVs[j].Y, 0));
-				NewNormalTri[j] = NewNormalOverlay->AppendElement(FVector3f::UnitZ());
+				NewNormalTri[j] = NewNormalOverlay->AppendElement( FVector3<float>::UnitZ() );
 			}
 
 			FVector2f EdgeUV1 = UVs[1] - UVs[0];
@@ -192,7 +192,7 @@ void UUVLayoutPreview::UpdateUVMesh(const FDynamicMesh3* SourceMesh, int32 Sourc
 void UUVLayoutPreview::RecalculatePosition()
 {
 	FFrame3d ObjFrame;
-	ObjFrame.AlignAxis(2, -CameraState.Forward());
+	ObjFrame.AlignAxis(2, -(FVector3d)CameraState.Forward());
 	ObjFrame.ConstrainedAlignAxis(0, (FVector3d)CameraState.Right(), ObjFrame.Z());
 	ObjFrame.Origin = SourceObjectWorldBounds.Center(); // SourceObjectFrame.Origin;
 

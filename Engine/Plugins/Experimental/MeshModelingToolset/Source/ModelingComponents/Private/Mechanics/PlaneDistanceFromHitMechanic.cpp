@@ -82,7 +82,7 @@ void UPlaneDistanceFromHitMechanic::UpdateCurrentDistance(const FRay& WorldRay)
 			float WorldHitDist = WorldRay.GetParameter(WorldHitResult.ImpactPoint);
 			if (WorldHitDist < NearestHitDist)
 			{
-				NearestHitFrameWorld = FFrame3d(WorldHitResult.ImpactPoint, WorldHitResult.ImpactNormal);
+				NearestHitFrameWorld = FFrame3d((FVector3d)WorldHitResult.ImpactPoint, (FVector3d)WorldHitResult.ImpactNormal);
 				FVector3d HitPosLocal = PreviewHeightFrame.ToFramePoint(FVector3d(WorldHitResult.ImpactPoint));
 				NearestHitHeight = HitPosLocal.Z;
 				NearestHitDist = WorldHitDist;
@@ -166,10 +166,10 @@ void UPlaneDistanceFromHitMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 	FVector3d PreviewOrigin = PreviewHeightFrame.Origin;
 	FVector3d DrawPlaneNormal = PreviewHeightFrame.Z();
 
-	Renderer.DrawLine(
+	Renderer.DrawLine<FVector3d>(
 		PreviewOrigin - 1000*DrawPlaneNormal, PreviewOrigin + 1000*DrawPlaneNormal, AxisColor, 1.0, false);
-	Renderer.DrawLine(
-		PreviewOrigin + CurrentHeight*DrawPlaneNormal, CurrentHitPosFrameWorld.Origin, HeightPosColor, 1.0, false);
+	Renderer.DrawLine<FVector3d>(
+		PreviewOrigin + (double)CurrentHeight*DrawPlaneNormal, CurrentHitPosFrameWorld.Origin, HeightPosColor, 1.0, false);
 
 	Renderer.EndFrame();
 }

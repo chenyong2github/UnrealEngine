@@ -543,9 +543,9 @@ void UGroupEdgeInsertionTool::OnClicked(const FInputDeviceRay& ClickPos)
 bool UGroupEdgeInsertionTool::TopologyHitTest(const FRay& WorldRay, 
 	FVector3d& RayPositionOut, FRay3d* LocalRayOut)
 {
-	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
-	FRay3d LocalRay(LocalToWorld.InverseTransformPosition(WorldRay.Origin),
-		LocalToWorld.InverseTransformVector(WorldRay.Direction), false);
+	FTransform3d LocalToWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	FRay3d LocalRay(LocalToWorld.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		LocalToWorld.InverseTransformVector((FVector3d)WorldRay.Direction), false);
 
 	if (LocalRayOut)
 	{
@@ -557,7 +557,7 @@ bool UGroupEdgeInsertionTool::TopologyHitTest(const FRay& WorldRay,
 	if (TopologySelector.FindSelectedElement(TopologySelectorSettings,
 		LocalRay, Selection, Position, Normal))
 	{
-		RayPositionOut =  LocalToWorld.TransformPosition((FVector)Position);
+		RayPositionOut =  LocalToWorld.TransformPosition(Position);
 		return true;
 	}
 	return false;
@@ -572,9 +572,9 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 	PointOut.ElementID = FDynamicMesh3::InvalidID;
 
 	// Cast the ray to see what we hit.
-	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
-	FRay3d LocalRay(LocalToWorld.InverseTransformPosition(WorldRay.Origin),
-		LocalToWorld.InverseTransformVector(WorldRay.Direction), false);
+	FTransform3d LocalToWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	FRay3d LocalRay(LocalToWorld.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		LocalToWorld.InverseTransformVector((FVector3d)WorldRay.Direction), false);
 	if (LocalRayOut)
 	{
 		*LocalRayOut = LocalRay;
@@ -621,9 +621,9 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 		PointOut.Tangent = EdgeVector / EdgeLength;
 
 		FRay EdgeRay((FVector)StartVert, (FVector)PointOut.Tangent, true);
-		double DistDownEdge = EdgeRay.GetParameter((FVector)Position);
+		float DistDownEdge = EdgeRay.GetParameter((FVector)Position);
 
-		PositionOut = EdgeRay.PointAt(DistDownEdge);
+		PositionOut = (FVector3d)EdgeRay.PointAt(DistDownEdge);
 
 		// See if the point is at a vertex in the group edge span.
 		if (DistDownEdge <= Settings->VertexTolerance)

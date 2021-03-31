@@ -508,7 +508,7 @@ namespace DisplaceMeshToolLocals{
 				IntensityFunc,
 				Parameters.SineWaveFrequency,
 				Parameters.SineWavePhaseShift,
-				Parameters.SineWaveDirection,
+				(FVector3d)Parameters.SineWaveDirection,
 				DisplacedPositions);
 			break;
 		}

@@ -807,7 +807,7 @@ void UEditMeshPolygonsTool::ComputeUpdate_Gizmo()
 	FVector3d TranslationDelta = CurFrame.Origin - InitialGizmoFrame.Origin;
 	FQuaterniond RotateDelta = CurFrame.Rotation - InitialGizmoFrame.Rotation;
 	FVector3d CurScaleDelta = CurScale - InitialGizmoScale;
-	FVector3d LocalTranslation = WorldTransform.InverseTransformVector((FVector)TranslationDelta);
+	FVector3d LocalTranslation = WorldTransform.InverseTransformVector(TranslationDelta);
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	if (TranslationDelta.SquaredLength() > 0.0001 || RotateDelta.SquaredLength() > 0.0001 || CurScaleDelta.SquaredLength() > 0.0001)
@@ -1420,8 +1420,8 @@ void UEditMeshPolygonsTool::ApplyCutFaces()
 	FVector3d PlaneNormal;
 	if (CutProperties->Orientation == EPolyEditCutPlaneOrientation::ViewDirection)
 	{
-		FVector3d Direction0 = UE::Geometry::Normalized(Point0.Origin - CameraState.Position);
-		FVector3d Direction1 = UE::Geometry::Normalized(Point1.Origin - CameraState.Position);
+		FVector3d Direction0 = UE::Geometry::Normalized(Point0.Origin - (FVector3d)CameraState.Position);
+		FVector3d Direction1 = UE::Geometry::Normalized(Point1.Origin - (FVector3d)CameraState.Position);
 		PlaneNormal = Direction1.Cross(Direction0);
 	}
 	else
@@ -1551,7 +1551,7 @@ void UEditMeshPolygonsTool::ApplySetUVs()
 	FTransform3d ToLocalXForm(WorldTransform.Inverse());
 	PlanarFrame.Transform(ToLocalXForm);
 	ScalePt = ToLocalXForm.TransformPosition(ScalePt);
-	UVScale = ScalePt.Distance(PlanarFrame.Origin);
+	UVScale = Distance(ScalePt, PlanarFrame.Origin);
 
 	// track changes
 	FDynamicMeshChangeTracker ChangeTracker(Mesh);
@@ -1986,10 +1986,10 @@ void UEditMeshPolygonsTool::ApplyFillHole()
 				// Compute normals and UVs
 				if (Mesh->HasAttributes())
 				{
-					TArray<FVector3d> VertexPositions;
+					TArray<FVector3<double>> VertexPositions;
 					Loop.GetVertices(VertexPositions);
-					FVector3d PlaneOrigin;
-					FVector3d PlaneNormal;
+					FVector3<double> PlaneOrigin;
+					FVector3<double> PlaneNormal;
 					PolygonTriangulation::ComputePolygonPlane<double>(VertexPositions, PlaneNormal, PlaneOrigin);
 
 					FDynamicMeshEditor Editor(Mesh);

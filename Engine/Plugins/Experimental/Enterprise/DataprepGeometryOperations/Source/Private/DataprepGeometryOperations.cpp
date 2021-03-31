@@ -788,15 +788,15 @@ TUniquePtr<UE::Geometry::FDynamicMeshOperator> UDataprepPlaneCutOperation::MakeN
 	FTransform WorldToLocal = LocalToWorld.Inverse();
 	FVector LocalOrigin = WorldToLocal.TransformPosition(CutPlaneOrigin);
 	UE::Geometry::FTransform3d W2LForNormal(WorldToLocal);
-	FVector LocalNormal = (FVector)W2LForNormal.TransformNormal(WorldNormal);
+	FVector LocalNormal = (FVector)W2LForNormal.TransformNormal((FVector3d)WorldNormal);
 	FVector BackTransformed = LocalToWorld.TransformVector(LocalNormal);
 	float NormalScaleFactor = FVector::DotProduct(BackTransformed, WorldNormal);
 	if (NormalScaleFactor >= FLT_MIN)
 	{
 		NormalScaleFactor = 1.0 / NormalScaleFactor;
 	}
-	CutOp->LocalPlaneOrigin = LocalOrigin;
-	CutOp->LocalPlaneNormal = LocalNormal;
+	CutOp->LocalPlaneOrigin = (FVector3d)LocalOrigin;
+	CutOp->LocalPlaneNormal = (FVector3d)LocalNormal;
 	CutOp->OriginalMesh = InOriginalMesh;
 	CutOp->bKeepBothHalves = (CutPlaneKeepSide == EPlaneCutKeepSide::Both);
 	CutOp->CutPlaneLocalThickness = SpacingBetweenHalves * NormalScaleFactor;

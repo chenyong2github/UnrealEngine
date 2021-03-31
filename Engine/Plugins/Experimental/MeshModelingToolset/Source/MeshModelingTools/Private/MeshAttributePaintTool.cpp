@@ -346,14 +346,14 @@ bool UMeshAttributePaintTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 void UMeshAttributePaintTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray<int>& VertexROI)
 {
 	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-	FVector3d StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
+	FVector3d StampPosLocal = Transform.InverseTransformPosition((FVector3d)Stamp.WorldPosition);
 
 	float Radius = GetCurrentBrushRadiusLocal();
 	float RadiusSqr = Radius * Radius;
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
 	FAxisAlignedBox3d QueryBox(StampPosLocal, Radius);
 	VerticesOctree.RangeQuery(QueryBox,
-		[&](int32 VertexID) { return Mesh->GetVertex(VertexID).DistanceSquared(StampPosLocal) < RadiusSqr; },
+		[&](int32 VertexID) { return DistanceSquared(Mesh->GetVertex(VertexID), StampPosLocal) < RadiusSqr; },
 		VertexROI);
 }
 
@@ -422,7 +422,7 @@ void UMeshAttributePaintTool::UpdateVisibleAttribute()
 			for (int32 vid : Mesh.VertexIndicesItr())
 			{
 				float Value = AttribData.CurrentValues[vid];
-				FVector3f Color = ColorMapper->ToColor(Value);
+				FVector3f Color = ColorMapper->ToColor<FVector3f>(Value);
 				Mesh.SetVertexColor(vid, Color);
 			}
 		});
@@ -493,7 +493,7 @@ void UMeshAttributePaintTool::ApplyStamp(const FBrushStampData& Stamp)
 		{
 			int32 vid = ActionData.ROIVertices[k];
 			AttribData.CurrentValues[vid] = ActionData.ROIAfter[k];
-			FVector3f NewColor = ColorMapper->ToColor(ActionData.ROIAfter[k]);
+			FVector3f NewColor = ColorMapper->ToColor<FVector3f>(ActionData.ROIAfter[k]);
 			Mesh.SetVertexColor(vid, NewColor);
 		}
 	}, false);
@@ -504,7 +504,7 @@ void UMeshAttributePaintTool::ApplyStamp(const FBrushStampData& Stamp)
 void UMeshAttributePaintTool::ApplyStamp_Paint(const FBrushStampData& Stamp, FStampActionData& ActionData)
 {
 	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-	FVector3d StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
+	FVector3d StampPosLocal = Transform.InverseTransformPosition((FVector3d)Stamp.WorldPosition);
 
 	int32 NumVertices = ActionData.ROIVertices.Num();
 	ActionData.ROIBefore.SetNum(NumVertices);
@@ -525,13 +525,13 @@ void UMeshAttributePaintTool::ApplyStamp_Paint(const FBrushStampData& Stamp, FSt
 			for (int32 NbrVID : CurrentMesh->VtxVerticesItr(vid))
 			{
 				FVector3d NbrPos = CurrentMesh->GetVertex(NbrVID);
-				float Weight = FMathf::Clamp(1.0f / NbrPos.DistanceSquared(Position), 0.0001f, 1000.0f);
+				float Weight = FMathf::Clamp(1.0f / DistanceSquared(NbrPos, Position), 0.0001f, 1000.0f);
 				ValueSum += Weight * AttribData.CurrentValues[NbrVID];
 				WeightSum += Weight;
 			}
 			ValueSum /= WeightSum;
 
-			float Falloff = (float)CalculateBrushFalloff(Position.Distance(StampPosLocal));
+			float Falloff = (float)CalculateBrushFalloff(Distance(Position, StampPosLocal));
 			float NewValue = FMathf::Lerp(AttribData.CurrentValues[vid], ValueSum, SmoothSpeed*Falloff);
 
 			ActionData.ROIBefore[k] = AttribData.CurrentValues[vid];
@@ -547,7 +547,7 @@ void UMeshAttributePaintTool::ApplyStamp_Paint(const FBrushStampData& Stamp, FSt
 		{
 			int32 vid = ActionData.ROIVertices[k];
 			FVector3d Position = CurrentMesh->GetVertex(vid);
-			float Falloff = (float)CalculateBrushFalloff(Position.Distance(StampPosLocal));
+			float Falloff = (float)CalculateBrushFalloff(Distance(Position, StampPosLocal));
 			ActionData.ROIBefore[k] = AttribData.CurrentValues[vid];
 			ActionData.ROIAfter[k] = CurrentValueRange.Clamp(ActionData.ROIBefore[k] + UseStrength*Falloff);
 		}
@@ -704,7 +704,7 @@ void UMeshAttributePaintTool::ExternalUpdateValues(int32 AttribIndex, const TArr
 		{
 			for (int32 vid : VertexIndices)
 			{
-				FVector3f NewColor = ColorMapper->ToColor(AttribData.CurrentValues[vid]);
+				FVector3f NewColor = ColorMapper->ToColor<FVector3f>(AttribData.CurrentValues[vid]);
 				Mesh.SetVertexColor(vid, NewColor);
 			}
 		});

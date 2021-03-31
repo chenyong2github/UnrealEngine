@@ -51,7 +51,7 @@ void FMeshOcclusionMapBaker::Bake()
 			FIndex3i DetailTri = DetailMesh->GetTriangle(DetailTriID);
 			//FVector3d DetailTriNormal = DetailMesh.GetTriNormal(DetailTriID);
 			FVector3d DetailTriNormal;
-			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailTriNormal.X);
+			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailTriNormal.X);
 			Normalize(DetailTriNormal);
 
 			FVector3d DetailBaryCoords = SampleData.DetailBaryCoords;

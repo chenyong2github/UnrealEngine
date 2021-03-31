@@ -12,7 +12,7 @@ FBasePositionSnapSolver3::FBasePositionSnapSolver3()
 {
 	// initialize to sane values
 	SnapMetricFunc =
-		[](const FVector3d& A, const FVector3d& B) { return A.Distance(B); };
+		[](const FVector3d& A, const FVector3d& B) { return Distance(A, B); };
 	SnapMetricTolerance = 1.0;
 
 	Reset();

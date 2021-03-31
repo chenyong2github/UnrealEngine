@@ -32,7 +32,7 @@ class TIntrTriangle3Triangle3
 protected:
 	// Input
 	TTriangle3<Real> Triangle0, Triangle1;
-	double Tolerance = TMathUtil<Real>::ZeroTolerance;
+	Real Tolerance = TMathUtil<Real>::ZeroTolerance;
 
 	// If true, will return intersection polygons for co-planar triangles.
 	// This is somewhat expensive, default is false.
@@ -62,7 +62,7 @@ public:
 	/**
 	 * Store an externally-computed segment intersection result
 	 */
-	inline void SetResult(const FVector3d& A, const FVector3d& B)
+	inline void SetResult(const FVector3<Real>& A, const FVector3<Real>& B)
 	{
 		Result = EIntersectionResult::Intersects;
 		Type = EIntersectionType::Segment;
@@ -103,7 +103,7 @@ public:
 	{
 		return bReportCoplanarIntersection;
 	}
-	double GetTolerance() const
+	Real GetTolerance() const
 	{
 		return Tolerance;
 	}
@@ -122,7 +122,7 @@ public:
 		Result = EIntersectionResult::NotComputed;
 		bReportCoplanarIntersection = bReportCoplanarIntersectionIn;
 	}
-	void SetTolerance(double ToleranceIn)
+	void SetTolerance(Real ToleranceIn)
 	{
 		Result = EIntersectionResult::NotComputed;
 		Tolerance = ToleranceIn;
@@ -208,7 +208,7 @@ public:
 		// At this point, Triangle1 transversely intersects plane 0.  Compute the
 		// line segment of intersection.  Then test for intersection between this
 		// segment and triangle 0.
-		double t;
+		Real t;
 		FVector3<Real> intr0, intr1;
 		if (zero1 == 0)
 		{
@@ -259,8 +259,8 @@ public:
 		FVector3<Real> N0 = UnitCross(E0[0], E0[1]);
 
 		// Project Triangle1 onto normal line of Triangle0, test for separation.
-		double N0dT0V0 = N0.Dot(Triangle0.V[0]);
-		double min1, max1;
+		Real N0dT0V0 = N0.Dot(Triangle0.V[0]);
+		Real min1, max1;
 		ProjectOntoAxis(Triangle1, N0, min1, max1);
 		if (N0dT0V0 < min1 - Tolerance || N0dT0V0 > max1 + Tolerance)
 		{
@@ -277,7 +277,7 @@ public:
 		FVector3<Real> N1 = UnitCross(E1[0], E1[1]);
 
 		FVector3<Real> dir;
-		double min0, max0;
+		Real min0, max0;
 		int i0, i1;
 
 		FVector3<Real> N0xN1 = UnitCross(N0, N1);
@@ -287,7 +287,7 @@ public:
 
 			// Project Triangle0 onto normal line of Triangle1, test for
 			// separation.
-			double N1dT1V0 = N1.Dot(Triangle1.V[0]);
+			Real N1dT1V0 = N1.Dot(Triangle1.V[0]);
 			ProjectOntoAxis(Triangle0, N1, min0, max0);
 			if (N1dT1V0 < min0 - Tolerance || N1dT1V0 > max0 + Tolerance)
 			{
@@ -364,8 +364,8 @@ public:
 		FVector3<Real> N0 = UnitCross(E0[0], E0[1]);
 
 		// Project Triangle1 onto normal line of Triangle0, test for separation.
-		double N0dT0V0 = N0.Dot(Triangle0.V[0]);
-		double min1, max1;
+		Real N0dT0V0 = N0.Dot(Triangle0.V[0]);
+		Real min1, max1;
 		ProjectOntoAxis(Triangle1, N0, min1, max1);
 		if (N0dT0V0 < min1-Tolerance || N0dT0V0 > max1+Tolerance) {
 			return false;
@@ -381,7 +381,7 @@ public:
 		FVector3<Real> N1 = UnitCross(E1[0], E1[1]);
 
 		FVector3<Real> dir;
-		double min0, max0;
+		Real min0, max0;
 		int i0, i1;
 
 		FVector3<Real> N0xN1 = UnitCross(N0, N1);
@@ -390,7 +390,7 @@ public:
 
 			// Project Triangle0 onto normal line of Triangle1, test for
 			// separation.
-			double N1dT1V0 = N1.Dot(Triangle1.V[0]);
+			Real N1dT1V0 = N1.Dot(Triangle1.V[0]);
 			ProjectOntoAxis(Triangle0, N1, min0, max0);
 			if (N1dT1V0 < min0 - Tolerance || N1dT1V0 > max0 + Tolerance) {
 				return false;
@@ -437,11 +437,11 @@ public:
 
 
 
-	static void ProjectOntoAxis(const TTriangle3<Real>& triangle, const FVector3<Real>& axis, double& fmin, double& fmax)
+	static void ProjectOntoAxis(const TTriangle3<Real>& triangle, const FVector3<Real>& axis, Real& fmin, Real& fmax)
 	{
-		double dot0 = axis.Dot(triangle.V[0]);
-		double dot1 = axis.Dot(triangle.V[1]);
-		double dot2 = axis.Dot(triangle.V[2]);
+		Real dot0 = axis.Dot(triangle.V[0]);
+		Real dot1 = axis.Dot(triangle.V[1]);
+		Real dot2 = axis.Dot(triangle.V[2]);
 
 		fmin = dot0;
 		fmax = fmin;
@@ -522,8 +522,8 @@ public:
 		// Project the triangle and segment onto the coordinate plane most
 		// aligned with the plane normal.
 		int maxNormal = 0;
-		double fmax = FMath::Abs(plane.Normal.X);
-		double absMax = FMath::Abs(plane.Normal.Y);
+		Real fmax = FMath::Abs(plane.Normal.X);
+		Real absMax = FMath::Abs(plane.Normal.Y);
 		if (absMax > fmax)
 		{
 			maxNormal = 1;
@@ -599,39 +599,39 @@ public:
 			intr[0] = calc.Point0;
 		}
 
-		FVector3d* OutPts[2]{ &OutA, &OutB };
+		FVector3<Real>* OutPts[2]{ &OutA, &OutB };
 
 		// Unproject the segment of intersection.
 		if (maxNormal == 0)
 		{
-			double invNX = ((double)1) / plane.Normal.X;
+			Real invNX = ((Real)1) / plane.Normal.X;
 			for (i = 0; i < Quantity; ++i)
 			{
-				double y = intr[i].X;
-				double z = intr[i].Y;
-				double x = invNX * (plane.Constant - plane.Normal.Y * y - plane.Normal.Z * z);
+				Real y = intr[i].X;
+				Real z = intr[i].Y;
+				Real x = invNX * (plane.Constant - plane.Normal.Y * y - plane.Normal.Z * z);
 				*OutPts[i] = FVector3<Real>(x, y, z);
 			}
 		}
 		else if (maxNormal == 1)
 		{
-			double invNY = ((double)1) / plane.Normal.Y;
+			Real invNY = ((Real)1) / plane.Normal.Y;
 			for (i = 0; i < Quantity; ++i)
 			{
-				double x = intr[i].X;
-				double z = intr[i].Y;
-				double y = invNY * (plane.Constant - plane.Normal.X * x - plane.Normal.Z * z);
+				Real x = intr[i].X;
+				Real z = intr[i].Y;
+				Real y = invNY * (plane.Constant - plane.Normal.X * x - plane.Normal.Z * z);
 				*OutPts[i] = FVector3<Real>(x, y, z);
 			}
 		}
 		else
 		{
-			double invNZ = ((double)1) / plane.Normal.Z;
+			Real invNZ = ((Real)1) / plane.Normal.Z;
 			for (i = 0; i < Quantity; ++i)
 			{
-				double x = intr[i].X;
-				double y = intr[i].Y;
-				double z = invNZ * (plane.Constant - plane.Normal.X * x - plane.Normal.Y * y);
+				Real x = intr[i].X;
+				Real y = intr[i].Y;
+				Real z = invNZ * (plane.Constant - plane.Normal.X * x - plane.Normal.Y * y);
 				*OutPts[i] = FVector3<Real>(x, y, z);
 			}
 		}
@@ -707,8 +707,8 @@ protected:
 		// Project triangles onto coordinate plane most aligned with plane
 		// normal.
 		int maxNormal = 0;
-		double fmax = FMath::Abs(plane.Normal.X);
-		double absMax = FMath::Abs(plane.Normal.Y);
+		Real fmax = FMath::Abs(plane.Normal.X);
+		Real absMax = FMath::Abs(plane.Normal.Y);
 		if (absMax > fmax)
 		{
 			maxNormal = 1;
@@ -755,7 +755,7 @@ protected:
 		FVector2<Real> save;
 		FVector2<Real> edge0 = projTri0.V[1] - projTri0.V[0];
 		FVector2<Real> edge1 = projTri0.V[2] - projTri0.V[0];
-		if (DotPerp(edge0, edge1) < (double)0)
+		if (DotPerp(edge0, edge1) < (Real)0)
 		{
 			// Triangle is clockwise, reorder it.
 			save = projTri0.V[1];
@@ -765,7 +765,7 @@ protected:
 
 		edge0 = projTri1.V[1] - projTri1.V[0];
 		edge1 = projTri1.V[2] - projTri1.V[0];
-		if (DotPerp(edge0, edge1) < (double)0)
+		if (DotPerp(edge0, edge1) < (Real)0)
 		{
 			// Triangle is clockwise, reorder it.
 			save = projTri1.V[1];
@@ -783,34 +783,34 @@ protected:
 		Quantity = intr.Quantity;
 		if (maxNormal == 0)
 		{
-			double invNX = ((double)1) / plane.Normal.X;
+			Real invNX = ((Real)1) / plane.Normal.X;
 			for (i = 0; i < Quantity; i++)
 			{
-				double y = intr.Points[i].X;
-				double z = intr.Points[i].Y;
-				double x = invNX * (plane.Constant - plane.Normal.Y * y - plane.Normal.Z * z);
+				Real y = intr.Points[i].X;
+				Real z = intr.Points[i].Y;
+				Real x = invNX * (plane.Constant - plane.Normal.Y * y - plane.Normal.Z * z);
 				Points[i] = FVector3<Real>(x, y, z);
 			}
 		}
 		else if (maxNormal == 1)
 		{
-			double invNY = ((double)1) / plane.Normal.Y;
+			Real invNY = ((Real)1) / plane.Normal.Y;
 			for (i = 0; i < Quantity; i++)
 			{
-				double x = intr.Points[i].X;
-				double z = intr.Points[i].Y;
-				double y = invNY * (plane.Constant - plane.Normal.X * x - plane.Normal.Z * z);
+				Real x = intr.Points[i].X;
+				Real z = intr.Points[i].Y;
+				Real y = invNY * (plane.Constant - plane.Normal.X * x - plane.Normal.Z * z);
 				Points[i] = FVector3<Real>(x, y, z);
 			}
 		}
 		else
 		{
-			double invNZ = ((double)1) / plane.Normal.Z;
+			Real invNZ = ((Real)1) / plane.Normal.Z;
 			for (i = 0; i < Quantity; i++)
 			{
-				double x = intr.Points[i].X;
-				double y = intr.Points[i].Y;
-				double z = invNZ * (plane.Constant - plane.Normal.X * x - plane.Normal.Y * y);
+				Real x = intr.Points[i].X;
+				Real y = intr.Points[i].Y;
+				Real z = invNZ * (plane.Constant - plane.Normal.X * x - plane.Normal.Y * y);
 				Points[i] = FVector3<Real>(x, y, z);
 			}
 		}

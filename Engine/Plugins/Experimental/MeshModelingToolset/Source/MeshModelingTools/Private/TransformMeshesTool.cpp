@@ -324,7 +324,7 @@ void UTransformMeshesTool::OnClickPress(const FInputDeviceRay& PressPos)
 
 	if (TransformProps->SnapDragSource == ETransformMeshesSnapDragSource::ClickPoint)
 	{
-		StartDragFrameWorld = FFrame3d(PressPos.WorldRay.PointAt(HitPos.HitDepth), HitPos.HitNormal);
+		StartDragFrameWorld = FFrame3d((FVector3d)PressPos.WorldRay.PointAt(HitPos.HitDepth), (FVector3d)HitPos.HitNormal);
 	}
 	else
 	{
@@ -369,7 +369,7 @@ void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 		FVector TargetNormal = (-NormalSign) * Result.Normal;
 
 		FQuaterniond AlignRotation = (bRotate) ?
-			FQuaterniond(FVector3d::UnitZ(), TargetNormal) : FQuaterniond::Identity();
+			FQuaterniond(FVector3d::UnitZ(), (FVector3d)TargetNormal) : FQuaterniond::Identity();
 
 		FTransform NewTransform = StartDragTransform;
 		NewTransform.SetRotation((FQuat)AlignRotation);
@@ -386,7 +386,7 @@ void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 		FVector TargetNormal = NormalSign * Result.Normal;
 
 		FFrame3d FromFrameWorld = StartDragFrameWorld;
-		FFrame3d ToFrameWorld(HitPos, TargetNormal);
+		FFrame3d ToFrameWorld((FVector3d)HitPos, (FVector3d)TargetNormal);
 		FFrame3d ObjectFrameWorld(StartDragTransform);
 
 		FVector3d CenterShift = FromFrameWorld.Origin - ObjectFrameWorld.Origin;

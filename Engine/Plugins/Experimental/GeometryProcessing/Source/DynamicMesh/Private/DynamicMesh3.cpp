@@ -12,7 +12,7 @@ using namespace UE::Geometry;
 constexpr int       FDynamicMesh3::InvalidID;
 constexpr int       FDynamicMesh3::NonManifoldID;
 constexpr int       FDynamicMesh3::DuplicateTriangleID;
-constexpr FVector3d FDynamicMesh3::InvalidVertex;
+const FVector3d FDynamicMesh3::InvalidVertex = FVector3d(TNumericLimits<double>::Max(), 0.0, 0.0);
 constexpr FIndex3i  FDynamicMesh3::InvalidTriangle;
 constexpr FIndex2i  FDynamicMesh3::InvalidEdge;
 

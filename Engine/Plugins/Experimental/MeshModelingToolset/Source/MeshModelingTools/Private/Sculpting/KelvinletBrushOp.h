@@ -449,7 +449,7 @@ public:
 		// compute the displacement vector in the local frame of the stamp
 		FVector3d Dir = Stamp.LocalFrame.ToFrameVector(Stamp.LocalFrame.Origin - Stamp.PrevLocalFrame.Origin);
 
-		FMatrix3d ForceMatrix = CrossProductMatrix(Dir);
+		FMatrix3d ForceMatrix = UE::Geometry::CrossProductMatrix(Dir);
 		// make symmetric
 		ForceMatrix.Row0[1] = -ForceMatrix.Row0[1];
 		ForceMatrix.Row0[2] = -ForceMatrix.Row0[2];
@@ -586,7 +586,7 @@ public:
 		}
 		case EKelvinletBrushMode::PullKelvinlet:
 		{
-			const FVector& Dir = Properties.Direction;
+			FVector Dir = Properties.Direction;
 			FVector3d Force(Dir.X, Dir.Y, Dir.Z);
 
 			FLaplacianPullKelvinlet LaplacianPullKelvinlet(Force, Properties.Size, Properties.Mu, Properties.Nu);
@@ -600,7 +600,7 @@ public:
 		}
 		case EKelvinletBrushMode::SharpPullKelvinlet:
 		{
-			const FVector& Dir = Properties.Direction;
+			FVector Dir = Properties.Direction;
 			FVector3d Force(Dir.X, Dir.Y, Dir.Z);
 
 			FSharpLaplacianPullKelvinlet SharpLaplacianPullKelvinlet(Force, Properties.Size, Properties.Mu, Properties.Nu);
@@ -614,7 +614,7 @@ public:
 		}
 		case EKelvinletBrushMode::LaplacianPullKelvinlet:
 		{
-			const FVector& Dir = Properties.Direction;
+			FVector Dir = Properties.Direction;
 			FVector3d Force(Dir.X, Dir.Y, Dir.Z);
 			FLaplacianPullKelvinlet PullKelvinlet(Force, Properties.Size, Properties.Mu, Properties.Nu);
 			ApplyKelvinlet(PullKelvinlet, VertRIO, ROIPositionBuffer, TimeStep, NumSteps);
@@ -622,7 +622,7 @@ public:
 		}
 		case EKelvinletBrushMode::BiLaplacianPullKelvinlet:
 		{
-			const FVector& Dir = Properties.Direction;
+			FVector Dir = Properties.Direction;
 			FVector3d Force(Dir.X, Dir.Y, Dir.Z);
 			FBiLaplacianPullKelvinlet PullKelvinlet(Force, Properties.Size, Properties.Mu, Properties.Nu);
 			ApplyKelvinlet(PullKelvinlet, VertRIO, ROIPositionBuffer, TimeStep, NumSteps);
@@ -630,16 +630,16 @@ public:
 		}
 		case EKelvinletBrushMode::TwistKelvinlet:
 		{
-			const FVector3d& TwistAxis = Properties.Direction;
-			FTwistKelvinlet TwistKelvinlet(TwistAxis, Properties.Size, Properties.Mu, Properties.Nu);
+			FVector TwistAxis = Properties.Direction;
+			FTwistKelvinlet TwistKelvinlet((FVector3d)TwistAxis, Properties.Size, Properties.Mu, Properties.Nu);
 			ApplyKelvinlet(TwistKelvinlet, VertRIO, ROIPositionBuffer, TimeStep, NumSteps);
 			break;
 		}
 		case EKelvinletBrushMode::PinchKelvinlet:
 		{
-			const FVector& Dir = Properties.Direction;
+			FVector Dir = Properties.Direction;
 
-			FMatrix3d ForceMatrix = CrossProductMatrix(FVector3d(Dir.X, Dir.Y, Dir.Z));
+			FMatrix3d ForceMatrix = UE::Geometry::CrossProductMatrix(FVector3d(Dir.X, Dir.Y, Dir.Z));
 			// make symmetric
 			ForceMatrix.Row0[1] = -ForceMatrix.Row0[1];
 			ForceMatrix.Row0[2] = -ForceMatrix.Row0[2];
@@ -650,12 +650,12 @@ public:
 		}
 		case EKelvinletBrushMode::LaplacianTwistPullKelvinlet:
 		{
-			FVector3d TwistAxis = Properties.Direction;
+			FVector3d TwistAxis = (FVector3d)Properties.Direction;
 			UE::Geometry::Normalize(TwistAxis);
 			TwistAxis *= Properties.Speed;
 			FTwistKelvinlet TwistKelvinlet(TwistAxis, Properties.Size, Properties.Mu, Properties.Nu);
 
-			const FVector& Dir = Properties.Direction;
+			FVector Dir = Properties.Direction;
 			FVector3d Force(Dir.X, Dir.Y, Dir.Z);
 			FLaplacianPullKelvinlet PullKelvinlet(Force, Properties.Size, Properties.Mu, Properties.Nu);
 

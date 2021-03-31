@@ -346,9 +346,9 @@ FInputRayHit UEdgeLoopInsertionTool::HitTest(const FRay& WorldRay)
 	FInputRayHit Hit;
 
 	// See if we hit an edge
-	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
-	FRay3d LocalRay(LocalToWorld.InverseTransformPosition(WorldRay.Origin),
-		LocalToWorld.InverseTransformVector(WorldRay.Direction), false);
+	FTransform3d LocalToWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	FRay3d LocalRay(LocalToWorld.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		LocalToWorld.InverseTransformVector((FVector3d)WorldRay.Direction), false);
 	FGroupTopologySelection Selection;
 	FVector3d Position, Normal;
 	if (TopologySelector.FindSelectedElement(
@@ -371,9 +371,9 @@ FInputRayHit UEdgeLoopInsertionTool::HitTest(const FRay& WorldRay)
 bool UEdgeLoopInsertionTool::UpdateHoveredItem(const FRay& WorldRay)
 {
 	// Check that we hit an edge
-	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
-	FRay3d LocalRay(LocalToWorld.InverseTransformPosition(WorldRay.Origin),
-		LocalToWorld.InverseTransformVector(WorldRay.Direction), false);
+	FTransform3d LocalToWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	FRay3d LocalRay(LocalToWorld.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		LocalToWorld.InverseTransformVector((FVector3d)WorldRay.Direction), false);
 
 	FGroupTopologySelection Selection;
 	FVector3d Position, Normal;

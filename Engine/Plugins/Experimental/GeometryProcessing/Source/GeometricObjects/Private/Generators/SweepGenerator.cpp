@@ -319,8 +319,8 @@ FMeshShapeGenerator& FProfileSweepGenerator::Generate()
 					// The currently supported modes are to either always connect diagonally down, or connect the shorter diagonal.
 					// For comparing diagonals, we allow some percent difference to triangulate symmetric quads uniformly.
 					if (QuadSplitMethod == EProfileSweepQuadSplit::Uniform
-						|| Vertices[CurrentVert].DistanceSquared(Vertices[BottomRightVert])
-							/ Vertices[BottomVert].DistanceSquared(Vertices[RightVert]) <= (1 + DiagonalTolerance)*(1 + DiagonalTolerance))
+						|| DistanceSquared(Vertices[CurrentVert], Vertices[BottomRightVert])
+							/ DistanceSquared(Vertices[BottomVert], Vertices[RightVert]) <= (1 + DiagonalTolerance)*(1 + DiagonalTolerance))
 					{
 						FVector3d DiagonalDown = Normalized(Vertices[BottomRightVert] - Vertices[CurrentVert]);
 
@@ -444,7 +444,7 @@ void FProfileSweepGenerator::InitializeUvBuffer(const TArray<int32>& VertPositio
 		if (!bUVsSkipFullyWeldedEdges
 			|| !(WeldedVertices.Contains(ProfileIndex) && WeldedVertices.Contains(NextProfileIndex))) // check for welded-to-welded
 		{
-			CumulativeDistance += ProfileCurve[ProfileIndex].Distance(ProfileCurve[NextProfileIndex]);
+			CumulativeDistance += Distance(ProfileCurve[ProfileIndex], ProfileCurve[NextProfileIndex]);
 		}
 		Vs.Add(CumulativeDistance);
 	}
@@ -474,17 +474,18 @@ void FProfileSweepGenerator::InitializeUvBuffer(const TArray<int32>& VertPositio
 	// the profile vertices across sweep frames. We can divide by NumProfileVertices later, if we need to.
 	TArray<double> Distances;
 	Distances.SetNumZeroed(NumSweepSegments);
-	ParallelFor(NumSweepSegments, 
+	ParallelFor(NumSweepSegments,
 		[this, NumSweepPoints, NumProfilePoints, NumWelded, NumNonWelded, &VertPositionOffsets, &Distances]
-		(int SweepIndex)
+	(int SweepIndex)
 	{
 		int32 NextSweepIndex = (SweepIndex + 1) % NumSweepPoints;
 		for (int32 ProfileIndex = 0; ProfileIndex < NumProfilePoints; ++ProfileIndex)
 		{
 			if (!WeldedVertices.Contains(ProfileIndex))
 			{
-				Distances[SweepIndex] += Vertices[GetVertIndex(false, SweepIndex, ProfileIndex, NumWelded, NumNonWelded, VertPositionOffsets)].Distance(
-					Vertices[GetVertIndex(false, NextSweepIndex, ProfileIndex, NumWelded, NumNonWelded, VertPositionOffsets)]);
+				FVector3d A = Vertices[GetVertIndex(false, SweepIndex, ProfileIndex, NumWelded, NumNonWelded, VertPositionOffsets)];
+				FVector3d B = Vertices[GetVertIndex(false, NextSweepIndex, ProfileIndex, NumWelded, NumNonWelded, VertPositionOffsets)];
+				Distances[SweepIndex] += Distance(A, B);
 			}
 		}
 	});

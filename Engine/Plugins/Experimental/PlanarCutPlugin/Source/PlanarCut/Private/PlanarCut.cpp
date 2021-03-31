@@ -187,8 +187,8 @@ namespace UE
 				{
 					FVector3f Tangents[2];
 					UE::PlanarCutInternals::AugmentDynamicMesh::GetTangent(Mesh, VID, Tangents[0], Tangents[1]);
-					int TID = TangentOverlays[0]->AppendElement(Tangents[0]);
-					int TID2 = TangentOverlays[1]->AppendElement(Tangents[1]);
+					int TID = TangentOverlays[0]->AppendElement(&Tangents[0].X);
+					int TID2 = TangentOverlays[1]->AppendElement(&Tangents[1].X);
 					check(TID == TID2);
 					VertToTangentMap[VID] = TID;
 				}
@@ -223,8 +223,8 @@ namespace UE
 				FMeshTangentsf Tangents(&Mesh);
 				Tangents.ComputeTriVertexTangents(Normals, UVs, Options);
 
-				const TArray<FVector3f>& TanU = Tangents.GetTangents();
-				const TArray<FVector3f>& TanV = Tangents.GetBitangents();
+				const TArray<FVector3<float>>& TanU = Tangents.GetTangents();
+				const TArray<FVector3<float>>& TanV = Tangents.GetBitangents();
 				FDynamicMeshMaterialAttribute* MaterialIDs = Mesh.Attributes()->GetMaterialID();
 				for (int TID : Mesh.TriangleIndicesItr())
 				{
@@ -296,7 +296,7 @@ namespace UE
 						double MaxEdgeLenSq = 0;
 						for (int i = 2, j = 0; j < 3; i = j++)
 						{
-							double EdgeLenSq = Triangle.V[i].DistanceSquared(Triangle.V[j]);
+							double EdgeLenSq = DistanceSquared(Triangle.V[i], Triangle.V[j]);
 							if (EdgeLenSq > MaxEdgeLenSq)
 							{
 								MaxEdgeIdx = i;
@@ -346,7 +346,7 @@ namespace UE
 									}
 									TPair<int, double> VIDDist = KnownSamples[ComponentIdx].FindNearestInRadius(SamplePos, Spacing * .5, [&Mesh, SamplePos](int VID)
 										{
-											return Mesh.GetVertex(VID).DistanceSquared(SamplePos);
+											return DistanceSquared(Mesh.GetVertex(VID), SamplePos);
 										});
 									// No point within radius Spacing/2 -> Add a new sample
 									if (VIDDist.Key == -1)
@@ -530,8 +530,8 @@ struct FCellMeshes
 
 	void ApplyNoise(FDynamicMesh3& Mesh, FVector3d Normal, const FNoiseSettings& Settings, bool bProjectBoundariesToNormal = false)
 	{
-		float Amplitude = Settings.Amplitude;
-		float Frequency = Settings.Frequency;
+		double Amplitude = (double)Settings.Amplitude;
+		double Frequency = (double)Settings.Frequency;
 		int32 Octaves = Settings.Octaves;
 		FVector3d Z = Normal * Amplitude;
 
@@ -657,7 +657,7 @@ struct FCellMeshes
 			{
 				VertexCentroid += V;
 			}
-			VertexCentroid /= Mesh.VertexCount();
+			VertexCentroid /= (double)Mesh.VertexCount();
 			FAxisAlignedBox3d Bounds = Mesh.GetCachedBounds();
 			double BoundsSize = Bounds.MaxDim();
 			// currently just scale the meshes down so they leave half-a-grout worth of space on their longest axis
@@ -742,7 +742,7 @@ private:
 				PlaneVertInfo.Normal = Normal;
 				if (MeshIdx == 1 && OtherCell != OutsideCellIndex)
 				{
-					PlaneVertInfo.Normal *= -1;
+					PlaneVertInfo.Normal *= -1.0f;
 				}
 				VertStart[MeshIdx] = Meshes[MeshIdx]->MaxVertexID();
 				FVector2f MinUV(FMathf::MaxReal, FMathf::MaxReal);
@@ -1010,7 +1010,7 @@ private:
 						for (int T1SubIdx = 0; T1SubIdx < 3; T1SubIdx++)
 						{
 							FVector3d V1 = Mesh.GetVertex(Tri[1][T1SubIdx]);
-							if (V0.DistanceSquared(V1) < FMathd::ZeroTolerance)
+							if (DistanceSquared(V0, V1) < FMathd::ZeroTolerance)
 							{
 								MatchedVertices++;
 								break;
@@ -1033,7 +1033,7 @@ private:
 								MeshesVertices.FindPointsInBall(P, FMathd::ZeroTolerance, [this, P](FIndex2i IDs)
 									{
 										FVector3d Pos = CellMeshes[IDs.A].AugMesh.GetVertex(IDs.B);
-										return P.DistanceSquared(Pos);
+										return DistanceSquared(P, Pos);
 									}, Update.IDs);
 							}
 						}
@@ -1272,7 +1272,7 @@ private:
 					Meshes[Side]->ReverseOrientation(true);
 					Offset = ZRange.Min;
 				}
-				PlaneVertInfo.Normal = FVector3f(Plane.GetNormal()) * (-1 + Side * 2);
+				PlaneVertInfo.Normal = FVector3f(Plane.GetNormal()) * (-1.0f + (float)Side * 2.0f);
 				FVector3d OffsetVec = FVector3d(Plane.GetNormal()) * Offset;
 
 				for (int CornerIdx = 0; CornerIdx < 4; CornerIdx++)
@@ -1300,13 +1300,13 @@ private:
 		{
 			int GroutIdx = bOnlyGrout ? 0 : 2;
 			FDynamicMesh3* GroutMesh = &CellMeshes[GroutIdx].AugMesh;
-			FVector3d GroutOffset = Plane.GetNormal() * (Grout * .5);
+			FVector3d GroutOffset = (FVector3d)Plane.GetNormal() * (Grout * .5);
 			if (!bOnlyGrout)
 			{
 				for (int Side = 0; Side < 2; Side++)
 				{
 					// shift both sides out by Grout/2
-					MeshTransforms::Translate(*Meshes[Side], GroutOffset * (-1 + Side * 2));
+					MeshTransforms::Translate(*Meshes[Side], GroutOffset * (-1.0 + (double)Side * 2.0));
 				}
 			}
 
@@ -1412,11 +1412,11 @@ struct FDynamicMeshCollection
 				VertexInfo.Position = CollectionToLocal.TransformPosition(FVector3d(Collection->Vertex[Idx]));
 				VertexInfo.UV = FVector2f(Collection->UV[Idx]);
 				VertexInfo.Color = FVector3f(Collection->Color[Idx]);
-				VertexInfo.Normal = CollectionToLocal.TransformVectorNoScale(FVector3f(Collection->Normal[Idx]));
+				VertexInfo.Normal = (FVector3f)CollectionToLocal.TransformVectorNoScale(FVector3d(Collection->Normal[Idx]));
 				int VID = Mesh.AppendVertex(VertexInfo);
 				UE::PlanarCutInternals::AugmentDynamicMesh::SetTangent(Mesh, VID, VertexInfo.Normal,
-					CollectionToLocal.TransformVectorNoScale(FVector3f(Collection->TangentU[Idx])),
-					CollectionToLocal.TransformVectorNoScale(FVector3f(Collection->TangentV[Idx])));
+					(FVector3f)CollectionToLocal.TransformVectorNoScale(FVector3d(Collection->TangentU[Idx])),
+					(FVector3f)CollectionToLocal.TransformVectorNoScale(FVector3d(Collection->TangentV[Idx])));
 			}
 			FIntVector VertexOffset(VertexStart, VertexStart, VertexStart);
 			for (int32 Idx = Collection->FaceStart[GeometryIdx], N = Collection->FaceStart[GeometryIdx] + FaceCount; Idx < N; Idx++)
@@ -1433,8 +1433,8 @@ struct FDynamicMeshCollection
 						int32 SrcIdx = AddTri[SubIdx] + VertexStart;
 						UE::PlanarCutInternals::AugmentDynamicMesh::SetTangent(Mesh, NewVID,
 							Mesh.GetVertexNormal(NewVID), // TODO: we don't actually use the vertex normal; consider removing this arg from the function entirely
-							CollectionToLocal.TransformVectorNoScale(FVector3f(Collection->TangentU[SrcIdx])),
-							CollectionToLocal.TransformVectorNoScale(FVector3f(Collection->TangentV[SrcIdx])));
+							(FVector3f)CollectionToLocal.TransformVectorNoScale(FVector3d(Collection->TangentU[SrcIdx])),
+							(FVector3f)CollectionToLocal.TransformVectorNoScale(FVector3d(Collection->TangentV[SrcIdx])));
 						NewTri[SubIdx] = NewVID;
 					}
 					TID = Mesh.AppendTriangle(NewTri, 0);
@@ -1581,7 +1581,7 @@ struct FDynamicMeshCollection
 			{
 				TPair<int, double> Nearest = VerticesHashes[B]->FindNearestInRadius(V, FMathd::ZeroTolerance * 10, [&RefMesh, &V](int VID)
 					{
-						return RefMesh.GetVertex(VID).DistanceSquared(V);
+						return DistanceSquared(RefMesh.GetVertex(VID), V);
 					});
 				if (Nearest.Key != -1)
 				{
@@ -2026,7 +2026,7 @@ struct FDynamicMeshCollection
 		{
 			TPair<int, double> Nearest = VertHash[B]->FindNearestInRadius(V, FMathd::ZeroTolerance * 10, [&RefMesh, &V](int VID)
 				{
-					return RefMesh.GetVertex(VID).DistanceSquared(V);
+					return DistanceSquared(RefMesh.GetVertex(VID), V);
 				});
 			if (Nearest.Key != -1)
 			{
@@ -2048,7 +2048,7 @@ struct FDynamicMeshCollection
 		{
 			FVector3d Pt = Source.GetVertex(VID);
 			Neighbors.Reset();
-			VertHash.FindPointsInBall(Pt, SnapDistance, [&Source, Pt](int OtherVID) {return Pt.DistanceSquared(Source.GetVertex(OtherVID));}, Neighbors);
+			VertHash.FindPointsInBall(Pt, SnapDistance, [&Source, Pt](int OtherVID) {return DistanceSquared(Pt, Source.GetVertex(OtherVID));}, Neighbors);
 			for (int NbrVID : Neighbors)
 			{
 				VertComponents.UnionSequential(VID, NbrVID);

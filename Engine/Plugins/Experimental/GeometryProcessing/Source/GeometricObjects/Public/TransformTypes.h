@@ -31,24 +31,31 @@ public:
 		Scale3D = FVector3<RealType>::One();
 	}
 
-	TTransform3(const TQuaternion<RealType>& RotationIn, const FVector3<RealType>& TranslationIn, const FVector3<RealType>& ScaleIn)
+	TTransform3(const TQuaternion<RealType>& RotationIn, const UE::Core::TVector<RealType>& TranslationIn, const UE::Core::TVector<RealType>& ScaleIn)
 	{
 		Rotation = RotationIn;
 		Translation = TranslationIn;
 		Scale3D = ScaleIn;
 	}
 
-	explicit TTransform3(const TQuaternion<RealType>& RotationIn, const FVector3<RealType>& TranslationIn)
+	explicit TTransform3(const TQuaternion<RealType>& RotationIn, const UE::Core::TVector<RealType>& TranslationIn)
 	{
 		Rotation = RotationIn;
 		Translation = TranslationIn;
 		Scale3D = FVector3<RealType>::One();
 	}
 
-	explicit TTransform3(const FVector3<RealType>& TranslationIn)
+	explicit TTransform3(const UE::Core::TVector<RealType>& TranslationIn)
 	{
 		Rotation = TQuaternion<RealType>::Identity();
 		Translation = TranslationIn;
+		Scale3D = FVector3<RealType>::One();
+	}
+
+	explicit TTransform3(const FVector& TranslationIn)
+	{
+		Rotation = TQuaternion<RealType>::Identity();
+		Translation = FVector3<RealType>(TranslationIn);
 		Scale3D = FVector3<RealType>::One();
 	}
 
@@ -103,7 +110,7 @@ public:
 	/**
 	 * set Translation portion of transform
 	 */
-	void SetTranslation(const FVector3<RealType>& TranslationIn)
+	void SetTranslation(const UE::Core::TVector<RealType>& TranslationIn)
 	{
 		Translation = TranslationIn;
 	}
@@ -119,7 +126,7 @@ public:
 	/**
 	 * set Scale portion of transform
 	 */
-	void SetScale(const FVector3<RealType>& ScaleIn)
+	void SetScale(const UE::Core::TVector<RealType>& ScaleIn)
 	{
 		Scale3D = ScaleIn;
 	}
@@ -154,7 +161,7 @@ public:
 	/**
 	 * @return input vector with QS transformation applied, ie QS(V) = Rotate(Scale*V)
 	 */
-	FVector3<RealType> TransformVector(const FVector3<RealType>& V) const
+	FVector3<RealType> TransformVector(const UE::Core::TVector<RealType>& V) const
 	{
 		return Rotation * (Scale3D*V);
 	}
@@ -162,7 +169,7 @@ public:
 	/**
 	 * @return input vector with Q transformation applied, ie Q(V) = Rotate(V)
 	 */
-	FVector3<RealType> TransformVectorNoScale(const FVector3<RealType>& V) const
+	FVector3<RealType> TransformVectorNoScale(const UE::Core::TVector<RealType>& V) const
 	{
 		return Rotation * V;
 	}
@@ -172,7 +179,7 @@ public:
 	 * However 1/Scale requires special handling in case any component is near-zero.
 	 * @return input surface normal with transform applied.
 	 */
-	FVector3<RealType> TransformNormal(const FVector3<RealType>& Normal) const
+	FVector3<RealType> TransformNormal(const UE::Core::TVector<RealType>& Normal) const
 	{
 		// transform normal by a safe inverse scale + normalize, and a standard rotation
 		const FVector3<RealType>& S = Scale3D;
@@ -185,7 +192,7 @@ public:
 	/**
 	 * @return input vector with inverse-QST transformation applied, ie QSTinv(P) = InverseScale(InverseRotate(P - Translate))
 	 */
-	FVector3<RealType> InverseTransformPosition(const FVector3<RealType> &P) const
+	FVector3<RealType> InverseTransformPosition(const UE::Core::TVector<RealType> &P) const
 	{
 		return GetSafeScaleReciprocal(Scale3D) * Rotation.InverseMultiply(P - Translation);
 	}
@@ -193,7 +200,7 @@ public:
 	/**
 	 * @return input vector with inverse-QS transformation applied, ie QSinv(V) = InverseScale(InverseRotate(V))
 	 */
-	FVector3<RealType> InverseTransformVector(const FVector3<RealType> &V) const
+	FVector3<RealType> InverseTransformVector(const UE::Core::TVector<RealType> &V) const
 	{
 		return GetSafeScaleReciprocal(Scale3D) * Rotation.InverseMultiply(V);
 	}
@@ -202,7 +209,7 @@ public:
 	/**
 	 * @return input vector with inverse-Q transformation applied, ie Qinv(V) = InverseRotate(V)
 	 */
-	FVector3<RealType> InverseTransformVectorNoScale(const FVector3<RealType> &V) const
+	FVector3<RealType> InverseTransformVectorNoScale(const UE::Core::TVector<RealType> &V) const
 	{
 		return Rotation.InverseMultiply(V);
 	}
@@ -212,7 +219,7 @@ public:
 	 * Surface Normals are special, their inverse transform is InverseRotate( Normalize(Scale * Normal) ) )
 	 * @return input surface normal with inverse transform applied.
 	 */
-	FVector3<RealType> InverseTransformNormal(const FVector3<RealType>& Normal) const
+	FVector3<RealType> InverseTransformNormal(const UE::Core::TVector<RealType>& Normal) const
 	{
 		return InverseTransformVectorNoScale( Normalized(Scale3D*Normal) );
 	}
@@ -279,43 +286,43 @@ public:
 	// entire float transform to a double transform in order to apply to a double vector, which is the only
 	// case where this conversion is an issue
 
-	template<typename RealType2>
-	FVector3<RealType2> TransformPosition(const FVector3<RealType2>& P) const
+	template<typename RealType2, TEMPLATE_REQUIRES(std::is_same<RealType, RealType2>::value == false)>
+	FVector3<RealType2> TransformPosition(const UE::Core::TVector<RealType2>& P) const
 	{
 		return FVector3<RealType2>(TransformPosition(FVector3<RealType>(P)));
 	}
-	template<typename RealType2>
-	FVector3<RealType2> TransformVector(const FVector3<RealType2>& V) const
+	template<typename RealType2, TEMPLATE_REQUIRES(std::is_same<RealType, RealType2>::value == false)>
+	FVector3<RealType2> TransformVector(const UE::Core::TVector<RealType2>& V) const
 	{
 		return FVector3<RealType2>(TransformVector(FVector3<RealType>(V)));
 	}
-	template<typename RealType2>
-	FVector3<RealType2> TransformVectorNoScale(const FVector3<RealType2>& V) const
+	template<typename RealType2, TEMPLATE_REQUIRES(std::is_same<RealType, RealType2>::value == false)>
+	FVector3<RealType2> TransformVectorNoScale(const UE::Core::TVector<RealType2>& V) const
 	{
 		return FVector3<RealType2>(TransformVectorNoScale(FVector3<RealType>(V)));
 	}
-	template<typename RealType2>
-	FVector3<RealType2> TransformNormal(const FVector3<RealType2>& V) const
+	template<typename RealType2, TEMPLATE_REQUIRES(std::is_same<RealType, RealType2>::value == false)>
+	FVector3<RealType2> TransformNormal(const UE::Core::TVector<RealType2>& V) const
 	{
 		return FVector3<RealType2>(TransformNormal(FVector3<RealType>(V)));
 	}
-	template<typename RealType2>
-	FVector3<RealType2> InverseTransformPosition(const FVector3<RealType2>& P) const
+	template<typename RealType2, TEMPLATE_REQUIRES(std::is_same<RealType, RealType2>::value == false)>
+	FVector3<RealType2> InverseTransformPosition(const UE::Core::TVector<RealType2>& P) const
 	{
 		return FVector3<RealType2>(InverseTransformPosition(FVector3<RealType>(P)));
 	}
-	template<typename RealType2>
-	FVector3<RealType2> InverseTransformVector(const FVector3<RealType2>& V) const
+	template<typename RealType2, TEMPLATE_REQUIRES(std::is_same<RealType, RealType2>::value == false)>
+	FVector3<RealType2> InverseTransformVector(const UE::Core::TVector<RealType2>& V) const
 	{
 		return FVector3<RealType2>(InverseTransformVector(FVector3<RealType>(V)));
 	}
-	template<typename RealType2>
-	FVector3<RealType2> InverseTransformVectorNoScale(const FVector3<RealType2>& V) const
+	template<typename RealType2, TEMPLATE_REQUIRES(std::is_same<RealType, RealType2>::value == false)>
+	FVector3<RealType2> InverseTransformVectorNoScale(const UE::Core::TVector<RealType2>& V) const
 	{
 		return FVector3<RealType2>(InverseTransformVectorNoScale(FVector3<RealType>(V)));
 	}
-	template<typename RealType2>
-	FVector3<RealType2> InverseTransformNormal(const FVector3<RealType2>& V) const
+	template<typename RealType2, TEMPLATE_REQUIRES(std::is_same<RealType, RealType2>::value == false)>
+	FVector3<RealType2> InverseTransformNormal(const UE::Core::TVector<RealType2>& V) const
 	{
 		return FVector3<RealType2>(InverseTransformNormal(FVector3<RealType>(V)));
 	}

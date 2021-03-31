@@ -46,7 +46,8 @@ public:
 	 * @param FilterFunc Optional filter to include only a subset of the points in the output hull
 	 * @return true if hull was generated, false if points span < 2 dimensions
 	 */
-	bool Solve(TArrayView<const FVector3<RealType>> Points, TFunctionRef<bool(int32)> FilterFunc)
+	template<typename VectorType>
+	bool Solve(TArrayView<const VectorType> Points, TFunctionRef<bool(int32)> FilterFunc)
 	{
 		return Solve(Points.Num(), [&Points](int32 Idx)
 			{
@@ -63,7 +64,8 @@ public:
 	 * @param Points Array of points to consider
 	 * @return true if hull was generated, false if points span < 2 dimensions
 	 */
-	bool Solve(TArrayView<const FVector3<RealType>> Points)
+	template<typename VectorType>
+	bool Solve(TArrayView<const VectorType> Points)
 	{
 		return Solve(Points.Num(), [&Points](int32 Idx)
 			{
@@ -102,7 +104,8 @@ public:
 	 * @param Points Array of points to consider
 	 * @return Array of halfspaces
 	 */
-	TArray<THalfspace3<RealType>> GetAsHalfspaces(TArrayView<const FVector3<RealType>> Points) const
+	template<typename VectorType>
+	TArray<THalfspace3<RealType>> GetAsHalfspaces(TArrayView<const VectorType> Points) const
 	{
 		TArray<THalfspace3<RealType>> Halfspaces;
 		for (FIndex3i Tri : Hull)
@@ -121,7 +124,8 @@ public:
 	 * @param GetPointFunc Function providing array-style access into points
 	 * @return Array of halfspaces
 	 */
-	TArray<THalfspace3<RealType>> GetAsHalfspaces(TFunctionRef<FVector3<RealType>(int32)> GetPointFunc) const
+	template<typename VectorType>
+	TArray<THalfspace3<RealType>> GetAsHalfspaces(TFunctionRef<VectorType(int32)> GetPointFunc) const
 	{
 		TArray<THalfspace3<RealType>> Halfspaces;
 		for (FIndex3i Tri : Hull)

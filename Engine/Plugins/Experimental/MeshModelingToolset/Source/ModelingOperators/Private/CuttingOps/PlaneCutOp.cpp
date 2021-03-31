@@ -64,7 +64,7 @@ void FPlaneCutOp::CalculateResult(FProgressCancel* Progress)
 			{
 				SecondCutMaxID = FMath::Max(SecondCutMaxID, SubObjectAttrib->GetValue(TID));
 			}
-			Cut.PlaneOrigin += Cut.PlaneNormal * (2 * CutPlaneLocalThickness);
+			Cut.PlaneOrigin += Cut.PlaneNormal * (2.0 * CutPlaneLocalThickness);
 			Cut.CutWithoutDelete(true, 0, SubObjectAttrib, SecondCutMaxID + 1, false, true);
 
 			for (int TID : ResultMesh->TriangleIndicesItr())

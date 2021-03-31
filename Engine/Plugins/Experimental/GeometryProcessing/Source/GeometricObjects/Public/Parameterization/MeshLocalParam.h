@@ -374,7 +374,7 @@ protected:
 			{
 				FFrame3d NbrFrame(GetFrame(NbrNode->PointID));
 				FVector2d NbrUV = PropagateUV(NodePos, NbrNode->UV, NbrFrame, SeedFrame);
-				double Weight = 1.0 / (NodePos.DistanceSquared(NbrFrame.Origin) + TMathUtil<double>::ZeroTolerance);
+				double Weight = 1.0 / (DistanceSquared(NodePos,NbrFrame.Origin) + TMathUtil<double>::ZeroTolerance);
 				AverageUV += Weight * NbrUV;
 				WeightSum += Weight;
 				NbrCount++;
@@ -443,7 +443,7 @@ protected:
 				continue;
 			}
 
-			double NbrDist = ParentDist + ParentPos.Distance(GetPosition(NbrPointID));
+			double NbrDist = ParentDist + Distance(ParentPos, GetPosition(NbrPointID));
 			if (Queue.Contains(NbrPointID))
 			{
 				if (NbrDist < NbrNode->GraphDistance)

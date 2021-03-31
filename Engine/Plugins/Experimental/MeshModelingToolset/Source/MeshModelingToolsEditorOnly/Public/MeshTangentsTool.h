@@ -133,9 +133,9 @@ protected:
 		float MaxAngleDeg;
 		int32 TriangleID;
 		int32 TriVertIndex;
-		FVector3d VertexPos;
-		FVector3d MikktTangent, MikktBitangent;
-		FVector3d OtherTangent, OtherBitangent;
+		FVector3f VertexPos;
+		FVector3f MikktTangent, MikktBitangent;
+		FVector3f OtherTangent, OtherBitangent;
 	};
 	TArray<FMikktDeviation> Deviations;
 

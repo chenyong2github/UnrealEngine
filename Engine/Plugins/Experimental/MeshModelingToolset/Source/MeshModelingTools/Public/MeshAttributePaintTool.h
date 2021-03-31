@@ -33,6 +33,13 @@ public:
 			FMathf::Lerp(LowColor.B, HighColor.B, t),
 			1.0f);
 	}
+
+	template<typename VectorType>
+	VectorType ToColor(float Value)
+	{
+		FLinearColor Color = ToColor(Value);
+		return VectorType(Color.R, Color.G, Color.B);
+	}
 };
 
 

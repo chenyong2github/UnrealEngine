@@ -295,7 +295,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestDirectionalFilter,
 	{
 		double DistanceMoved = (InputMesh->GetVertex(VertexID) - FinalMesh->GetVertex(VertexID)).Length();
 		FVector3d VertexNormal = InputMeshNormals[VertexID];
-		double Dot = VertexNormal.Dot(Params.FilterDirection);
+		double Dot = VertexNormal.Dot((FVector3d)Params.FilterDirection);
 
 		if (Dot < -0.5)
 		{

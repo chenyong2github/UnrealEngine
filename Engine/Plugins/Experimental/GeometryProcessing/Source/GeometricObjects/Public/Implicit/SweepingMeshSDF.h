@@ -200,7 +200,7 @@ public:
 			ExactBandWidth = FMath::Max(ApproxMaxCellsPerDimension/2-1, 1);
 		}
 
-		float MaxDim = MaxElement(Bounds.Max - Bounds.Min + ExpandBounds * 2);
+		double MaxDim = MaxElement(Bounds.Max - Bounds.Min + ExpandBounds * 2.0);
 		if (!ensureMsgf(MaxDim / CellSize <= ApproxMaxCellsPerDimension - 2 * ExactBandWidth, TEXT("SDF resolution clamped to avoid excessive memory use")))
 		{
 			CellSize = MaxDim / (ApproxMaxCellsPerDimension - 2 * ExactBandWidth);
@@ -1182,7 +1182,7 @@ public:
 			s12 = 1;
 		}
 		// and find the distance
-		return x0.Distance(s12 * x1 + (1 - s12) * x2);
+		return Distance(x0, s12*x1 + (1.0 - s12)*x2);
 	}
 
 
@@ -1202,7 +1202,7 @@ public:
 			s12 = 1;
 		}
 		// and find the distance
-		return x0.Distance(s12 * x1 + (1 - s12) * x2);
+		return Distance(x0, s12*x1 + (1.0 - s12)*x2);
 	}
 
 
@@ -1223,7 +1223,7 @@ public:
 		float w12 = 1 - w23 - w31;
 		if (w23 >= 0 && w31 >= 0 && w12 >= 0) // if we're inside the triangle
 		{
-			return x0.Distance(w23 * x1 + w31 * x2 + w12 * x3);
+			return Distance(x0, w23*x1 + w31*x2 + w12*x3);
 		}
 		else // we have to clamp to one of the edges
 		{
@@ -1259,7 +1259,7 @@ public:
 		double w12 = 1 - w23 - w31;
 		if (w23 >= 0 && w31 >= 0 && w12 >= 0) // if we're inside the triangle
 		{
-			return x0.Distance(w23 * x1 + w31 * x2 + w12 * x3);
+			return Distance(x0, w23*x1 + w31*x2 + w12*x3);
 		}
 		else // we have to clamp to one of the edges
 		{

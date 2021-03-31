@@ -177,8 +177,8 @@ void UEditPivotTool::Precompute()
 
 		FMeshDescription* Mesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 		VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
-			ObjectBounds.Contain(Position);
-			WorldBounds.Contain(Transform.TransformPosition(Position));
+			ObjectBounds.Contain((FVector3d)Position);
+			WorldBounds.Contain(Transform.TransformPosition((FVector3d)Position));
 		});
 	}
 	else
@@ -191,8 +191,8 @@ void UEditPivotTool::Precompute()
 			UE::Geometry::FTransform3d CurTransform(TargetComponent->GetWorldTransform());
 			FMeshDescription* Mesh = TargetMeshProvider->GetMeshDescription();
 			VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
-				ObjectBounds.Contain(CurTransform.TransformPosition(Position));
-				WorldBounds.Contain(CurTransform.TransformPosition(Position));
+				ObjectBounds.Contain(CurTransform.TransformPosition((FVector3d)Position));
+				WorldBounds.Contain(CurTransform.TransformPosition((FVector3d)Position));
 			});
 		}
 	}
@@ -375,7 +375,7 @@ void UEditPivotTool::OnClickDrag(const FInputDeviceRay& DragPos)
 	FVector TargetNormal = (-NormalSign) * Result.Normal;
 
 	FQuaterniond AlignRotation = (bRotate) ?
-		FQuaterniond(FVector3d::UnitZ(), TargetNormal) : FQuaterniond::Identity();
+		FQuaterniond(FVector3d::UnitZ(), (FVector3d)TargetNormal) : FQuaterniond::Identity();
 
 	FTransform NewTransform = StartDragTransform;
 	NewTransform.SetRotation((FQuat)AlignRotation);

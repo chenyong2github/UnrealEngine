@@ -86,7 +86,7 @@ void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 			// As in PointSnapQuery, we convert our angle-based tolerance to one we can use in an ortho viewport (instead of
 			// dividing our field of view into 90 visual angle degrees, we divide the plane into 90 units).
 			float OrthoTolerance = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * CachedCameraState.OrthoWorldCoordinateWidth / 90.0;
-			return Position1.DistanceSquared(Position2) < OrthoTolerance * OrthoTolerance;
+			return DistanceSquared(Position1, Position2) < OrthoTolerance * OrthoTolerance;
 		}
 		else
 		{
@@ -302,9 +302,9 @@ void ULatticeControlPointsMechanic::GizmoTransformChanged(UTransformProxy* Proxy
 	FVector DeltaScale = Transform.GetScale3D() / GizmoStartScale;
 
 	FTransform3d DeltaTransform;
-	DeltaTransform.SetScale(DeltaScale);
-	DeltaTransform.SetRotation(DeltaRotation);
-	DeltaTransform.SetTranslation(Transform.GetTranslation());
+	DeltaTransform.SetScale((FVector3d)DeltaScale);
+	DeltaTransform.SetRotation((FQuaterniond)DeltaRotation);
+	DeltaTransform.SetTranslation((FVector3d)Transform.GetTranslation());
 
 	// If any deltas are non-zero
 	if (Displacement != FVector::ZeroVector || !DeltaRotation.EpsilonEqual(FQuaterniond::Identity(), SMALL_NUMBER) || DeltaScale != FVector::OneVector)
@@ -314,7 +314,7 @@ void ULatticeControlPointsMechanic::GizmoTransformChanged(UTransformProxy* Proxy
 			FVector3d PointPosition = SelectedPointStartPositions[PointID];
 
 			// Translate to origin, scale, rotate, and translate back (DeltaTransform has "translate back" baked in.)
-			PointPosition -= GizmoStartPosition;
+			PointPosition -= (FVector3d)GizmoStartPosition;
 			PointPosition = DeltaTransform.TransformPosition(PointPosition);
 
 			ControlPoints[PointID] = PointPosition;
@@ -473,7 +473,7 @@ void ULatticeControlPointsMechanic::UpdateGizmoLocation()
 		{
 			NewGizmoLocation += ControlPoints[PointID];
 		}
-		NewGizmoLocation /= SelectedPointIDs.Num();
+		NewGizmoLocation /= (double)SelectedPointIDs.Num();
 
 		PointTransformGizmo->SetVisibility(true);
 	}

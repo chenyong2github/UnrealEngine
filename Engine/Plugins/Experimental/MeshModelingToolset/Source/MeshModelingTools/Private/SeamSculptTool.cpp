@@ -192,7 +192,7 @@ bool USeamSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	bool bHit = UDynamicMeshBrushTool::OnUpdateHover(DevicePos);
 	if (bHit)
 	{
-		FVector3d LocalRayDir = MeshTransform.InverseTransformVector(DevicePos.WorldRay.Direction);
+		FVector3d LocalRayDir = MeshTransform.InverseTransformVector((FVector3d)DevicePos.WorldRay.Direction);
 		FVector3d LocalPos = MeshTransform.InverseTransformPosition((FVector3d)LastBrushStamp.WorldPosition);
 		double NearDistSqr;
 		int32 NewSnapVertex = PreviewMesh->GetSpatial()->FindNearestVertex(LocalPos, NearDistSqr);

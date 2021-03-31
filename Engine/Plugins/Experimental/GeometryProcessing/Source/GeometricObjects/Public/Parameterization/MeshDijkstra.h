@@ -330,7 +330,7 @@ private:
 				continue;
 			}
 
-			double NbrDist = ParentDist + ParentPos.Distance(GetPositionFunc(NbrPointID));
+			double NbrDist = ParentDist + Distance(ParentPos, GetPositionFunc(NbrPointID));
 			if (Queue.Contains(NbrPointID))
 			{
 				if (NbrDist < NbrNode->GraphDistance)

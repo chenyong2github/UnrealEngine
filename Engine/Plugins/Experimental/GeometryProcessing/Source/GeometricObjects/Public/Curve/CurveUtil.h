@@ -13,15 +13,14 @@ namespace UE
 {
 namespace Geometry
 {
+namespace CurveUtil
+{
 
 /**
  * Curve utility functions
  */
-template<typename RealType>
-struct TCurveUtil
-{
-
-	static FVector3<RealType> Tangent(const TArrayView<const FVector3<RealType>>& Vertices, int32 Idx, bool bLoop = false)
+	template<typename RealType, typename VectorType>
+	FVector3<RealType> Tangent(const TArrayView<const VectorType>& Vertices, int32 Idx, bool bLoop = false)
 	{
 		int32 EndIdx = Idx + 1;
 		int32 StartIdx = Idx - 1;
@@ -40,28 +39,30 @@ struct TCurveUtil
 	}
 
 
-	static RealType ArcLength(const TArrayView<const FVector3<RealType>>& Vertices, bool bLoop = false) {
+	template<typename RealType, typename VectorType>
+	static RealType ArcLength(const TArrayView<const VectorType>& Vertices, bool bLoop = false) {
 		RealType Sum = 0;
 		int32 NV = Vertices.Num();
 		for (int i = 1; i < NV; ++i)
 		{
-			Sum += Vertices[i].Distance(Vertices[i - 1]);
+			Sum += Distance(Vertices[i], Vertices[i-1]);
 		}
 		if (bLoop)
 		{
-			Sum += Vertices[NV - 1].Distance(Vertices[0]);
+			Sum += Distance(Vertices[NV-1], Vertices[0]);
 		}
 		return Sum;
 	}
 
-	static int FindNearestIndex(const TArrayView<const FVector3<RealType>>& Vertices, FVector3<RealType> V)
+	template<typename RealType, typename VectorType>
+	int FindNearestIndex(const TArrayView<const VectorType>& Vertices, const VectorType& V)
 	{
 		int iNearest = -1;
 		double dNear = TMathUtil<double>::MaxReal;
 		int N = Vertices.Num();
 		for ( int i = 0; i < N; ++i )
 		{
-			double dSqr = Vertices[i].DistanceSquared(V);
+			double dSqr = DistanceSquared(Vertices[i], V);
 			if (dSqr < dNear)
 			{
 				dNear = dSqr;
@@ -75,7 +76,8 @@ struct TCurveUtil
 	/**
 	 * smooth vertices in-place (will not produce a symmetric result, but does not require extra buffer)
 	 */
-	static void InPlaceSmooth(TArrayView<FVector3<RealType>> Vertices, int StartIdx, int EndIdx, double Alpha, int NumIterations, bool bClosed)
+	template<typename RealType, typename VectorType>
+	void InPlaceSmooth(TArrayView<VectorType> Vertices, int StartIdx, int EndIdx, double Alpha, int NumIterations, bool bClosed)
 	{
 		int N = Vertices.Num();
 		if ( bClosed )
@@ -116,7 +118,8 @@ struct TCurveUtil
 	/**
 	 * smooth set of vertices using extra buffer
 	 */
-	static void IterativeSmooth(TArrayView<FVector3<RealType>> Vertices, int StartIdx, int EndIdx, double Alpha, int NumIterations, bool bClosed)
+	template<typename RealType, typename VectorType>
+	void IterativeSmooth(TArrayView<VectorType> Vertices, int StartIdx, int EndIdx, double Alpha, int NumIterations, bool bClosed)
 	{
 		int N = Vertices.Num();
 		TArray<FVector3<RealType>> Buffer;
@@ -167,8 +170,8 @@ struct TCurveUtil
 			}
 		}
 	}
-};
 
 
+} // end namespace UE::Geometry::CurveUtil
 } // end namespace UE::Geometry
 } // end namespace UE

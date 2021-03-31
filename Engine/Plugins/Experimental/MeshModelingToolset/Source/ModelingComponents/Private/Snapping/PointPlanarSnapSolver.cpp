@@ -44,7 +44,7 @@ void FPointPlanarSnapSolver::UpdatePointHistory(const TArray<FVector>& Points)
 	int Num = Points.Num();
 	for (int k = 0; k < Num; ++k)
 	{
-		PointHistory.Add(Points[k]);
+		PointHistory.Add((FVector3d)Points[k]);
 	}
 	ResetGenerated();
 }
@@ -197,7 +197,7 @@ void FPointPlanarSnapSolver::GenerateLineIntersectionTargets()
 			FVector2d IntersectionPoint;
 			if (LinesInPlane[i].IntersectionPoint(LinesInPlane[j], IntersectionPoint))
 			{
-				Intersection.Position = Plane.FromFramePoint(FVector3d(IntersectionPoint));
+				Intersection.Position = Plane.FromFramePoint(FVector3d(IntersectionPoint.X, IntersectionPoint.Y, 0.0));
 
 				// Lines in plane are 1:1 with our OriginalLinePointers array, which has more info per line.
 				// Store the more important priority line in the snap target, and the second line in the 
@@ -252,7 +252,7 @@ void FPointPlanarSnapSolver::GenerateTargets(const FVector3d& PointIn)
 		int NumHistoryPts = PointHistory.Num();
 		for (int j = 0; j < NumHistoryPts - 1; ++j)
 		{
-			double SegLength = PointHistory[j].Distance(PointHistory[j + 1]);
+			double SegLength = Distance(PointHistory[j], PointHistory[j+1]);
 			for (int k = 0; k < NumSnapLines; ++k)
 			{
 				FSnapTargetPoint Target;

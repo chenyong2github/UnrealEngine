@@ -194,8 +194,8 @@ void UDrawAndRevolveTool::Setup()
 /** Uses the settings currently stored in the properties object to update the revolution axis. */
 void UDrawAndRevolveTool::UpdateRevolutionAxis()
 {
-	RevolutionAxisOrigin = Settings->DrawPlaneOrigin;
-	RevolutionAxisDirection = Settings->DrawPlaneOrientation.RotateVector(FVector(1,0,0));
+	RevolutionAxisOrigin = (FVector3d)Settings->DrawPlaneOrigin;
+	RevolutionAxisDirection = (FVector3d)Settings->DrawPlaneOrientation.RotateVector(FVector(1,0,0));
 
 	const int32 AXIS_SNAP_TARGET_ID = 1;
 	ControlPointsMechanic->RemoveSnapLine(AXIS_SNAP_TARGET_ID);

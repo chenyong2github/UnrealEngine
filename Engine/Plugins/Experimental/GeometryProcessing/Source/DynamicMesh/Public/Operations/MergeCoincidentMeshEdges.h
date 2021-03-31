@@ -64,8 +64,8 @@ protected:
 	// the vertices here so we try both combinations.
 	inline bool IsSameEdge(const FVector3d& a, const FVector3d& b, const FVector3d& c, const FVector3d& d) const
 	{
-		return (a.DistanceSquared(c) < MergeVtxDistSqr && b.DistanceSquared(d) < MergeVtxDistSqr) ||
-			(a.DistanceSquared(d) < MergeVtxDistSqr && b.DistanceSquared(c) < MergeVtxDistSqr);
+		return (DistanceSquared(a,c) < MergeVtxDistSqr && DistanceSquared(b,d) < MergeVtxDistSqr) ||
+			(DistanceSquared(a,d) < MergeVtxDistSqr && DistanceSquared(b,c) < MergeVtxDistSqr);
 	}
 };
 

@@ -73,7 +73,7 @@ bool FMeshSelfUnion::Compute()
 			for (int ChainSubIdx = ChainIdx + 1; ChainSubIdx + 1 < ChainEnd; ChainSubIdx++)
 			{
 				int VID[2]{ Cut.VertexChains[ChainSubIdx], Cut.VertexChains[ChainSubIdx + 1] };
-				if (Mesh->GetVertex(VID[0]).DistanceSquared(Mesh->GetVertex(VID[1])) < DegenerateEdgeTolSq)
+				if ( DistanceSquared(Mesh->GetVertex(VID[0]), Mesh->GetVertex(VID[1])) < DegenerateEdgeTolSq)
 				{
 					EIDs.Add(Mesh->FindEdge(VID[0], VID[1]));
 				}
@@ -90,7 +90,7 @@ bool FMeshSelfUnion::Compute()
 			}
 			FVector3d A, B;
 			Mesh->GetEdgeV(EID, A, B);
-			if (A.DistanceSquared(B) > DegenerateEdgeTolSq)
+			if (DistanceSquared(A, B) > DegenerateEdgeTolSq)
 			{
 				continue;
 			}
@@ -353,7 +353,7 @@ bool FMeshSelfUnion::Compute()
 				Pos, SnapTolerance,
 				[this, &Pos](int VID)
 				{
-					return Pos.DistanceSquared(Mesh->GetVertex(VID));
+					return DistanceSquared(Pos, Mesh->GetVertex(VID));
 				},
 				[&ExcludeVertices](int VID)
 				{
@@ -369,7 +369,7 @@ bool FMeshSelfUnion::Compute()
 				int* Match = FoundMatches.Find(NearestVID);
 				if (Match)
 				{
-					double OldDSq = Mesh->GetVertex(*Match).DistanceSquared(Mesh->GetVertex(NearestVID));
+					double OldDSq = DistanceSquared(Mesh->GetVertex(*Match), Mesh->GetVertex(NearestVID));
 					if (DSq < OldDSq) // new vertex is a better match than the old one
 					{
 						int OldVID = *Match; // copy old VID out of match before updating the TMap
@@ -407,7 +407,7 @@ bool FMeshSelfUnion::Compute()
 					FVector3d EdgePts[2];
 					Mesh->GetEdgeV(OtherEID, EdgePts[0], EdgePts[1]);
 					// only accept the match if it's not going to create a degenerate edge -- TODO: filter already-matched edges from the FindNearestEdge query!
-					if (EdgePts[0].DistanceSquared(Pos) > SnapToleranceSq && EdgePts[1].DistanceSquared(Pos) > SnapToleranceSq)
+					if (DistanceSquared(EdgePts[0], Pos) > SnapToleranceSq && DistanceSquared(EdgePts[1], Pos) > SnapToleranceSq)
 					{
 						FSegment3d Seg(EdgePts[0], EdgePts[1]);
 						double Along = Seg.ProjectUnitRange(Pos);
@@ -719,7 +719,7 @@ bool FMeshSelfUnion::MergeEdges(const TArray<int>& CutBoundaryEdges, const TMap<
 			FVector3d OA, OB;
 			Mesh->GetEdgeV(OtherEID, OA, OB);
 
-			if (OA.DistanceSquared(A) < SnapToleranceSq && OB.DistanceSquared(B) < SnapToleranceSq)
+			if (DistanceSquared(OA, A) < SnapToleranceSq && DistanceSquared(OB, B) < SnapToleranceSq)
 			{
 				FDynamicMesh3::FMergeEdgesInfo MergeInfo;
 				EMeshResult EdgeMergeResult = Mesh->MergeEdges(EID, OtherEID, MergeInfo);

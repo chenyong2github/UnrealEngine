@@ -89,7 +89,7 @@ void FMeshPropertyMapBaker::Bake()
 						if (DetailNormalOverlay->IsSetTriangle(DetailTriID))
 						{
 							FVector3d DetailNormal;
-							DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailNormal.X);
+							DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailNormal.X);
 							Normalize(DetailNormal);
 							Color = NormalToColor(DetailNormal);
 						}
@@ -100,7 +100,7 @@ void FMeshPropertyMapBaker::Bake()
 						if (DetailUVOverlay && DetailUVOverlay->IsSetTriangle(DetailTriID))
 						{
 							FVector2d DetailUV;
-							DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailUV.X);
+							DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
 							Color = UVToColor(DetailUV);
 						}
 					}

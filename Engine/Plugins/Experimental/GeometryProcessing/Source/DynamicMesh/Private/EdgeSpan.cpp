@@ -195,7 +195,7 @@ int FEdgeSpan::FindNearestVertexIndex(const FVector3d& QueryPoint) const
 	for (int i = 0; i < N; ++i)
 	{
 		FVector3d lv = Mesh->GetVertex(Vertices[i]);
-		double d2 = QueryPoint.DistanceSquared(lv);
+		double d2 = DistanceSquared(QueryPoint, lv);
 		if (d2 < fNearSqr)
 		{
 			fNearSqr = d2;

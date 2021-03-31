@@ -938,7 +938,7 @@ int32 UMeshGroupPaintTool::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
 
 		FViewCameraState StateOut;
 		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-		FVector3d LocalEyePosition(CurTargetTransform.InverseTransformPosition(StateOut.Position));
+		FVector3d LocalEyePosition(CurTargetTransform.InverseTransformPosition((FVector3d)StateOut.Position));
 		int HitTID = Octree.FindNearestHitObject(LocalRay,
 			[this, Mesh, &LocalEyePosition](int TriangleID) {
 			FVector3d Normal, Centroid;

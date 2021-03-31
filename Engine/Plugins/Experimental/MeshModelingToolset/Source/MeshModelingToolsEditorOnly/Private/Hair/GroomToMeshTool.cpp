@@ -481,7 +481,7 @@ TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateVoxelizat
 	//MarchingCubes.RootMode = ERootfindingModes::Bisection;
 	MarchingCubes.RootModeSteps = 4;
 
-	TArray<FVector3d> Seeds;
+	TArray<FVector3<double>> Seeds;
 	for (int32 k = 0; k < Lines.Num(); ++k)
 	{
 		Seeds.Add( Lines[k].Segment.EndPoint() + Lines[k].GetRadius()*Lines[k].Segment.Direction );

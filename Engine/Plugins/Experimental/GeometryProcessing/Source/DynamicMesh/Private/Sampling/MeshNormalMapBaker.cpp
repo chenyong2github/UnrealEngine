@@ -31,7 +31,7 @@ void FMeshNormalMapBaker::Bake()
 
 			// sample normal on detail mesh
 			FVector3d DetailNormal;
-			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailNormal.X);
+			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailNormal.X);
 			Normalize(DetailNormal);
 
 			// compute normal in tangent space
@@ -47,14 +47,14 @@ void FMeshNormalMapBaker::Bake()
 
 	NormalsBuilder = MakeUnique<TImageBuilder<FVector3f>>();
 	NormalsBuilder->SetDimensions(BakeCache->GetDimensions());
-	FVector3f DefaultMapNormal = (DefaultNormal + FVector3f::One()) * 0.5;
+	FVector3f DefaultMapNormal = (DefaultNormal + FVector3f::One()) * 0.5f;
 	NormalsBuilder->Clear(DefaultMapNormal);
 
 
 	BakeCache->EvaluateSamples([&](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)
 	{
 		FVector3f RelativeDetailNormal = NormalSampleFunction(Sample);
-		FVector3f MapNormal = (RelativeDetailNormal + FVector3f::One()) * 0.5;
+		FVector3f MapNormal = (RelativeDetailNormal + FVector3f::One()) * 0.5f;
 		NormalsBuilder->SetPixel(Coords, MapNormal);
 	});
 

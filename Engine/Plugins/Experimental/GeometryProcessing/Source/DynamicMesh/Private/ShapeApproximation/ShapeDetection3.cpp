@@ -80,7 +80,7 @@ bool UE::Geometry::IsSphereMesh(const FDynamicMesh3& Mesh, FSphere3d& SphereOut,
 		FVector3d A, B;
 		Mesh.GetEdgeV(EdgeID, A, B);
 
-		double HalfChordLen = A.Distance(B) * 0.5;
+		double HalfChordLen = Distance(A, B) * 0.5;
 		double MaxChordHeight = UseRadius - FMathd::Sqrt(UseRadius*UseRadius - HalfChordLen*HalfChordLen);   // "sagitta" height
 
 		double MidpointSignedDist = SphereOut.SignedDistance( (A+B)*0.5 );
@@ -248,7 +248,7 @@ bool UE::Geometry::IsCapsuleMesh(const FDynamicMesh3& Mesh, FCapsule3d& CapsuleO
 		FVector3d A, B;
 		Mesh.GetEdgeV(EdgeID, A, B);
 
-		double HalfChordLen = A.Distance(B) * 0.5;
+		double HalfChordLen = Distance(A, B) * 0.5;
 		double MaxChordHeight = UseRadius - FMathd::Sqrt(UseRadius * UseRadius - HalfChordLen * HalfChordLen);   // "sagitta" height
 
 		double MidpointSignedDist = CapsuleOut.SignedDistance( (A + B)*0.5 );

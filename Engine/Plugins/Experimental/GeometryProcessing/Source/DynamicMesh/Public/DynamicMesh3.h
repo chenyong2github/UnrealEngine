@@ -114,7 +114,7 @@ public:
 	/** DuplicateTriangleID is returned by AppendTriangle() to indicate that the added triangle already exists in the mesh, and was ignored because we do not support duplicate triangles */
 	constexpr static int DuplicateTriangleID = -3;
 
-	constexpr static FVector3d InvalidVertex{TNumericLimits<double>::Max(), 0.0, 0.0};
+	const static FVector3d InvalidVertex;
 	constexpr static FIndex3i InvalidTriangle{InvalidID, InvalidID, InvalidID};
 	constexpr static FIndex2i InvalidEdge{InvalidID, InvalidID};
 
@@ -602,7 +602,8 @@ public:
 	FIndex3i GetTriNeighbourTris(int TriangleID) const;
 
 	/** Get the three vertex positions of a triangle */
-	inline void GetTriVertices(int TriangleID, FVector3d& v0, FVector3d& v1, FVector3d& v2) const
+	template<typename VecType>
+	inline void GetTriVertices(int TriangleID, VecType& v0, VecType& v1, VecType& v2) const
 	{
 		const FIndex3i& Triangle = Triangles[TriangleID];
 		v0                       = Vertices[Triangle[0]];

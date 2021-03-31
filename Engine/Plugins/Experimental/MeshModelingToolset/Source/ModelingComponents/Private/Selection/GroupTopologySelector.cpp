@@ -22,7 +22,7 @@ FGroupTopologySelector::FGroupTopologySelector()
 {
 	// initialize to sane values
 	PointsWithinToleranceTest =
-		[](const FVector3d& A, const FVector3d& B, double TolScale) { return A.Distance(B) < (TolScale*1.0); };
+		[](const FVector3d& A, const FVector3d& B, double TolScale) { return Distance(A, B) < (TolScale*1.0); };
 	GetSpatial =
 		[]() { return nullptr; };
 }
@@ -599,7 +599,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 	FDynamicMeshAABBTree3* Spatial = GetSpatial();
 
 	// Needed for occlusion test, which happens in local space.
-	FVector3d LocalCameraOrigin = TargetTransform.InverseTransformPosition(CameraRectangle.CameraOrigin);
+	FVector3d LocalCameraOrigin = TargetTransform.InverseTransformPosition((FVector3d)CameraRectangle.CameraOrigin);
 	
 	// Corner selection takes priority over edges.
 	if (Settings.bEnableCornerHits)
@@ -629,7 +629,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 				}
 
 				// Check whether any of the component segments intersect the rectangle
-				const TArray<FVector3d>& Verts = Curve.GetVertices();
+				const TArray<FVector3<double>>& Verts = Curve.GetVertices();
 				FVector3d CurrentVert = TargetTransform.TransformPosition(Verts[0]);
 				for (int32 i = 1; i < Verts.Num(); ++i)
 				{
@@ -851,7 +851,7 @@ void FGroupTopologySelector::DrawSelection(const FGroupTopologySelection& Select
 		// Depending on whether we're in an orthographic view or not, we set the radius based on visual angle or based on ortho 
 		// viewport width (divided into 90 segments like the FOV is divided into 90 degrees).
 		float Radius = (CameraState->bIsOrthographic) ? CameraState->OrthoWorldCoordinateWidth * 0.5 / 90.0
-			: (float)ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(*CameraState, WorldPosition, 0.5);
+			: (float)ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(*CameraState, (FVector3d)WorldPosition, 0.5);
 		Renderer->DrawViewFacingCircle(Position, Radius, 16, UseColor, LineWidth, false);
 	}
 

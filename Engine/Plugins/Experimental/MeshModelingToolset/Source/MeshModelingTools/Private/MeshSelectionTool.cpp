@@ -386,8 +386,8 @@ TUniquePtr<FDynamicMeshOctree3>& UMeshSelectionTool::GetOctree()
 
 void UMeshSelectionTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray<int>& VertexROI)
 {
-	FTransform Transform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
-	FVector StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
+	FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	FVector3d StampPosLocal = Transform.InverseTransformPosition((FVector3d)Stamp.WorldPosition);
 
 	// TODO: need dynamic vertex hash table!
 	float Radius = GetCurrentBrushRadiusLocal();
@@ -408,8 +408,8 @@ void UMeshSelectionTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray
 
 void UMeshSelectionTool::CalculateTriangleROI(const FBrushStampData& Stamp, TArray<int>& TriangleROI)
 {
-	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-	FVector3d StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
+	FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	FVector3d StampPosLocal = Transform.InverseTransformPosition((FVector3d)Stamp.WorldPosition);
 
 	// always select first triangle
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();

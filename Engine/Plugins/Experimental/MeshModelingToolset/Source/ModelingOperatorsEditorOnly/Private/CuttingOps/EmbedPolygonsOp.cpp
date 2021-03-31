@@ -60,7 +60,7 @@ void CollapseDegenerateEdgesOnVertexPath(FDynamicMesh3& Mesh, TArray<int>& Verte
 				continue;
 			}
 			Mesh.GetEdgeV(EID, A, B);
-			double DSq = A.DistanceSquared(B);
+			double DSq = DistanceSquared(A,B);
 			if (DSq > Tol2)
 			{
 				continue;

@@ -107,7 +107,7 @@ public:
 			return *FoundIndex;
 		}
 
-		int32 NewIndex = NormalOverlay->AppendElement(Normal);
+		int32 NewIndex = NormalOverlay->AppendElement( &Normal.X );
 		UniqueVertexNormals.Add(VertNormal, NewIndex);
 		return NewIndex;
 	}
@@ -140,7 +140,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	for (const FVertexID VertexID : MeshIn->Vertices().GetElementIDs())
 	{
 		const FVector Position = VertexPositions.Get(VertexID);
-		int NewVertIdx = MeshOut.AppendVertex(Position);
+		int NewVertIdx = MeshOut.AppendVertex( (FVector3d)Position);
 		VertIDMap[NewVertIdx] = VertexID;
 	}
 
@@ -293,7 +293,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 				{
 					const FVertexID& TriangleVertID = TriangleVertexIDs[i];
 					const FVector Position = VertexPositions[TriangleVertID];
-					const int32 NewVertIdx = MeshOut.AppendVertex(Position);
+					const int32 NewVertIdx = MeshOut.AppendVertex( (FVector3d)Position );
 					VertexIDs[i] = NewVertIdx;
 					VertIDMap.SetNumUninitialized(NewVertIdx + 1);
 					VertIDMap[NewVertIdx] = TriangleVertID;
@@ -765,7 +765,7 @@ static void CopyTangents_Internal(const FMeshDescription* SourceMesh, const FDyn
 			FVector3<RealType> Bitangent = VectorUtil::Bitangent((FVector3<RealType>)Normal, (FVector3<RealType>)Tangent, (RealType)BitangentSign);
 			Tangent.Normalize();
 			UE::Geometry::Normalize(Bitangent);
-			TangentsOut->SetPerTriangleTangent(TriID, j, Tangent, Bitangent);
+			TangentsOut->SetPerTriangleTangent(TriID, j, (FVector3<RealType>)Tangent, (FVector3<RealType>)Bitangent);
 		}
 	}
 }

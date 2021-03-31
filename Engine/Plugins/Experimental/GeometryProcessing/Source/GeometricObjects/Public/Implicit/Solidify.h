@@ -130,7 +130,7 @@ public:
 			};
 		}
 
-		TArray<FVector3d> MCSeeds;
+		TArray<FVector3<double>> MCSeeds;
 		for ( int32 VertIdx : Source->VertexIndicesItr() )
 		{
 			MCSeeds.Add(Source->GetVertex(VertIdx));

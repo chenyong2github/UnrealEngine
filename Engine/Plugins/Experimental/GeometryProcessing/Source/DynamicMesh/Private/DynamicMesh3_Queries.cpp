@@ -859,7 +859,7 @@ FFrame3d FDynamicMesh3::GetTriFrame(int tID, int nEdge) const
 	FVector3d normal = edge2.Cross(edge1);
 	Normalize(normal);
 	FVector3d other  = normal.Cross(edge1);
-	FVector3d center = (TriVerts[0] + TriVerts[1] + TriVerts[2]) / 3;
+	FVector3d center = (TriVerts[0] + TriVerts[1] + TriVerts[2]) / 3.0;
 
 	return FFrame3d(center, edge1, other, normal);
 }

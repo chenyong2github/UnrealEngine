@@ -153,7 +153,7 @@ void UMeshSpaceDeformerTool::Setup()
 	// bounding box dimensions, after scaling them with the transform.
 	FAxisAlignedBox3d BBox = OriginalDynamicMesh->GetBounds();
 	FVector3d Dimensions = BBox.Max - BBox.Min;
-	MeshCenter = MeshTransform.TransformPosition((FVector)BBox.Center());
+	MeshCenter = (FVector3d)MeshTransform.TransformPosition((FVector)BBox.Center());
 
 	Dimensions = FVector3d(MeshTransform.GetScale3D().GetAbs()) * Dimensions;
 	double WorldMajorLength = 0;
@@ -463,7 +463,7 @@ void UMeshSpaceDeformerTool::UpdatePreview()
 
 void UMeshSpaceDeformerTool::SetGizmoFrameFromWorldPos(const FVector& Position, const FVector& Normal, bool bAlignNormal)
 {
-	GizmoFrame.Origin = Position;
+	GizmoFrame.Origin = (FVector3d)Position;
 	if (bAlignNormal)
 	{
 		// It's not clear whether aligning the Z axis to the normal is the right idea here. The Z axis
@@ -473,8 +473,8 @@ void UMeshSpaceDeformerTool::SetGizmoFrameFromWorldPos(const FVector& Position, 
 		// Still, it's hard to come up with a clean alternative.
 		FVector3d FrameZ(Normal);
 		FVector3d FrameY = UE::Geometry::Normalized(FrameZ.Cross(FVector3d::UnitZ())); // orthogonal to world Z and frame Z 
-		FVector3d FrameX = FrameY.Cross(Normal); // safe to not normalize because already orthogonal
-		GizmoFrame = FFrame3d(Position, FrameX, FrameY, Normal);
+		FVector3d FrameX = FrameY.Cross(FrameZ); // safe to not normalize because already orthogonal
+		GizmoFrame = FFrame3d((FVector3d)Position, FrameX, FrameY, FrameZ);
 	}
 
 	TransformGizmo->ReinitializeGizmoTransform(GizmoFrame.ToFTransform());

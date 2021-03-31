@@ -217,7 +217,7 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
 	if (ShapeSettings->PlaceMode == EMakeMeshPlacementType::GroundPlane)
 	{
-		FVector DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+		FVector3f DrawPlanePos = (FVector3f)FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 		bHit = true;
 		ShapeFrame = FFrame3f(DrawPlanePos);
 	}
@@ -228,18 +228,18 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 		bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPosWorldRay);
 		if (bHit)
 		{
-			FVector3f Normal = Result.ImpactNormal;
+			FVector3f Normal = (FVector3f)Result.ImpactNormal;
 			if (!ShapeSettings->bAlignShapeToPlacementSurface)
 			{
 				Normal = FVector3f::UnitZ();
 			}
-			ShapeFrame = FFrame3f(Result.ImpactPoint, Normal);
+			ShapeFrame = FFrame3f((FVector3f)Result.ImpactPoint, Normal);
 			ShapeFrame.ConstrainedAlignPerpAxes();
 		}
 		else
 		{
 			// fall back to ground plane if we don't have a scene hit
-			FVector DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+			FVector3f DrawPlanePos = (FVector3f)FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 			bHit = true;
 			ShapeFrame = FFrame3f(DrawPlanePos);
 		}
@@ -256,7 +256,7 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 		TArray<FSceneSnapQueryResult> Results;
 		if (GetToolManager()->GetContextQueriesAPI()->ExecuteSceneSnapQuery(Request, Results))
 		{
-			ShapeFrame.Origin = Results[0].Position;
+			ShapeFrame.Origin = (FVector3f)Results[0].Position;
 		}
 	}
 
@@ -489,7 +489,7 @@ void UAddTorusPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	FPolygon2d PathCircle = FPolygon2d::MakeCircle(TorusSettings->MajorRadius, TorusSettings->TubeSlices);
 	for (int Idx = 0; Idx < PathCircle.VertexCount(); Idx++)
 	{
-		Gen.Path.Add(PathCircle[Idx]);
+		Gen.Path.Add( FVector3d(PathCircle[Idx].X, PathCircle[Idx].Y, 0) );
 	}
 	Gen.bLoop = true;
 	Gen.bCapped = false;

@@ -346,7 +346,7 @@ public:
 			Pixel.X = FMathf::Clamp(Pixel.X, 0.0, 1.0);
 			Pixel.Y = FMathf::Clamp(Pixel.Y, 0.0, 1.0);
 			Pixel.Z = FMathf::Clamp(Pixel.Z, 0.0, 1.0);
-			FColor Texel = ((FLinearColor)Pixel).ToFColor(bSRGB);
+			FColor Texel = ToLinearColor(Pixel).ToFColor(bSRGB);
 			SetTexel(i, Texel);
 		}
 		return true;

@@ -31,7 +31,7 @@ void UDragAlignmentMechanic::Setup(UInteractiveTool* ParentToolIn)
 		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
 	{
 		bool bSuccess = false;
-		FVector3d QueryPoint = WorldRay.PointAt(1);
+		FVector3d QueryPoint = (FVector3d)WorldRay.PointAt(1);
 		FVector3d SnapPoint;
 		ToolSceneQueriesUtil::FSnapGeometry SnapGeometry;
 
@@ -170,7 +170,7 @@ void UDragAlignmentMechanic::OnGizmoTransformChanged(FTransform NewTransform)
 	// Ignore changes that weren't preceded by a successful query (likely programatic)
 	if (bWaitingOnProjectedResult) 
 	{
-		LastProjectedResult = NewTransform.GetLocation();
+		LastProjectedResult = (FVector3d)NewTransform.GetLocation();
 		bPreviewEndpointsValid = true;
 	}
 	bWaitingOnProjectedResult = false;
@@ -198,8 +198,8 @@ void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMes
 	MeshRayCast = [this, GetSpatialIn, TargetTransform, LinearDeformer](const FRay& WorldRay, FHitResult& HitResult, bool bUseFilter)
 	{
 		// Transform ray into local space
-		FRay3d LocalRay(TargetTransform.InverseTransformPosition(WorldRay.Origin),
-			TargetTransform.InverseTransformVector(WorldRay.Direction));
+		FRay3d LocalRay(TargetTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+			TargetTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 		UE::Geometry::Normalize(LocalRay.Direction);
 
 		FDynamicMeshAABBTree3* Spatial = GetSpatialIn();
@@ -224,7 +224,7 @@ void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMes
 
 		// See if we're close enough to one of the triangle's vertices to snap to it. We have
 		// to do this check in world space since scaling will affect things.
-		FVector3d WorldHitPoint = WorldRay.PointAt(RayTValue);
+		FVector3d WorldHitPoint = (FVector3d)WorldRay.PointAt(RayTValue);
 
 		FVector3d Vert1, Vert2, Vert3;
 		Mesh->GetTriVertices(HitTid, Vert1, Vert2, Vert3);
@@ -233,14 +233,14 @@ void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMes
 		Vert3 = TargetTransform.TransformPosition(Vert3);
 
 		FVector3d* ClosestVert = &Vert1;
-		double MinDistSquared = WorldHitPoint.DistanceSquared(Vert1);
-		double DistSquared = WorldHitPoint.DistanceSquared(Vert2);
+		double MinDistSquared = DistanceSquared(WorldHitPoint, Vert1);
+		double DistSquared = DistanceSquared(WorldHitPoint, Vert2);
 		if (DistSquared < MinDistSquared)
 		{
 			ClosestVert = &Vert2;
 			MinDistSquared = DistSquared;
 		}
-		DistSquared = WorldHitPoint.DistanceSquared(Vert3);
+		DistSquared = DistanceSquared(WorldHitPoint, Vert3);
 		if (DistSquared < MinDistSquared)
 		{
 			ClosestVert = &Vert3;
@@ -330,7 +330,7 @@ void UDragAlignmentMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 	if (LastHitResult.Item == TRIANGLE_HIT_TYPE_ID)
 	{
 		// We'll draw a circle with an X in it lying on the face we hit.
-		FFrame3d HitFrame = FFrame3d(LastHitResult.ImpactPoint, LastHitResult.ImpactNormal);
+		FFrame3d HitFrame = FFrame3d((FVector3d)LastHitResult.ImpactPoint, (FVector3d)LastHitResult.ImpactNormal);
 
 		float TickLength = (float)ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(CameraState, HitFrame.Origin, 0.8);
 		float TickThickness = 4 * PDIScale;
@@ -352,7 +352,7 @@ void UDragAlignmentMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 
 	// If the two endpoints are far enough apart, draw a line connecting them.
 	if (ToolSceneQueriesUtil::CalculateNormalizedViewVisualAngleD(
-		CameraState, LastHitResult.ImpactPoint, LastProjectedResult) > VisualAngleRenderThreshold)
+		CameraState, (FVector3d)LastHitResult.ImpactPoint, LastProjectedResult) > VisualAngleRenderThreshold)
 	{
 		PDI->DrawLine(LastHitResult.ImpactPoint, (FVector)LastProjectedResult, Color,
 			SDPG_Foreground, 0.5f * PDIScale, 0.0f, true);

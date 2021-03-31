@@ -81,8 +81,8 @@ public:
 			FVector3d MoveVec = Delta;
 
 			// pinch uses 1/x falloff
-			double Distance = OrigPos.Distance(NewSmoothBrushPosLocal);
-			double NormalizedDistance = (Distance / Stamp.Radius) + 0.0001;
+			double Dist = UE::Geometry::Distance(OrigPos, NewSmoothBrushPosLocal);
+			double NormalizedDistance = (Dist / Stamp.Radius) + 0.0001;
 			double LinearFalloff = FMathd::Clamp(1.0 - NormalizedDistance, 0.0, 1.0);
 			double InvFalloff = LinearFalloff * LinearFalloff * LinearFalloff;
 			double UseFalloff = FMathd::Lerp(LinearFalloff, InvFalloff, Stamp.Falloff);

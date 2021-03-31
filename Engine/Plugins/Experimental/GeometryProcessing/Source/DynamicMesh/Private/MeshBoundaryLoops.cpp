@@ -32,7 +32,7 @@ int FMeshBoundaryLoops::GetLongestLoopIndex() const
 		for (int32 k = 0; k < LoopNum; ++k)
 		{
 			FVector3d NextPos = Mesh->GetVertex(Loops[i].Vertices[(k+1)%LoopNum]);
-			LoopLen += Mesh->GetVertex(Loops[i].Vertices[k]).Distance(NextPos);
+			LoopLen += Distance(Mesh->GetVertex(Loops[i].Vertices[k]), NextPos);
 		}
 		if (LoopLen > LongestLoopLen)
 		{

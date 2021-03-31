@@ -354,7 +354,7 @@ bool UBspConversionTool::CombineThenConvert(FText*)
 	FVector3d NewPivot;
 	if (BrushForPivot)
 	{
-		NewPivot = BrushForPivot->GetTransform().GetLocation();
+		NewPivot = (FVector3d)BrushForPivot->GetTransform().GetLocation();
 	}
 	else
 	{
@@ -530,7 +530,7 @@ bool UBspConversionTool::ConvertThenCombine(FText *ErrorMessage)
 	// If there was only a single additive brush, we should keep its pivot in the original location.
 	if (BrushForPivot)
 	{
-		FVector3d BrushTranslation = BrushForPivot->GetTransform().GetLocation();
+		FVector3d BrushTranslation = (FVector3d)BrushForPivot->GetTransform().GetLocation();
 		MeshTransforms::Translate(*OutputMesh, OutputTransform->GetTranslation() - BrushTranslation);
 		OutputTransform->SetTranslation(BrushTranslation);
 	}

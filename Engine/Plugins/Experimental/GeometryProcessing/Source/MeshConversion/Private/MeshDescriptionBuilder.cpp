@@ -315,7 +315,7 @@ FBox FMeshDescriptionBuilder::ComputeBoundingBox() const
 	FAxisAlignedBox3f bounds = FAxisAlignedBox3f::Empty();
 	for ( FVertexID VertexID : MeshDescription->Vertices().GetElementIDs() )
 	{
-		bounds.Contain(VertexPositions.Get(VertexID));
+		bounds.Contain((FVector3f)VertexPositions.Get(VertexID));
 	}
 	return (FBox)bounds;
 }

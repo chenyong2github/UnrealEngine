@@ -177,7 +177,7 @@ void FRaySpatialSnapSolver::Draw(FToolDataVisualizer* Renderer, float LineLength
 			const FLine3d& Line = GetActiveSnapLine();
 			const FLinearColor* LineColor = (ColorMap == nullptr) ? nullptr : ColorMap->Find(ActiveSnapID);
 			FLinearColor UseColor = (LineColor == nullptr) ? Renderer->LineColor : *LineColor;
-			Renderer->DrawLine(Line.PointAt(0), GetActiveSnapToPoint(), UseColor, Renderer->LineThickness*0.5);
+			Renderer->DrawLine( (FVector3d)Line.PointAt(0), GetActiveSnapToPoint(), UseColor, Renderer->LineThickness*0.5);
 		}
 		Renderer->DrawPoint(GetActiveSnapToPoint());
 	}

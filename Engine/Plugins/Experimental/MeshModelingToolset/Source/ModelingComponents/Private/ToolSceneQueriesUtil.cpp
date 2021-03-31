@@ -40,7 +40,7 @@ bool ToolSceneQueriesUtil::PointSnapQuery(const FViewCameraState& CameraState, c
 		// where we divide the FOV into 90 visual angle degrees, we divide the plane into 90 segments and use the same tolerance.
 		double AngleThreshold = (VisualAngleThreshold <= 0) ? GetDefaultVisualAngleSnapThreshD() : VisualAngleThreshold;
 		double OrthoThreshold = AngleThreshold * CameraState.OrthoWorldCoordinateWidth / 90.0;
-		FVector3d ViewPlaneNormal = CameraState.Orientation.GetForwardVector();
+		FVector3d ViewPlaneNormal = (FVector3d)CameraState.Orientation.GetForwardVector();
 		FVector3d DistanceVector = Point1 - Point2;
 
 		// Project the vector into the plane and check its length
@@ -61,7 +61,7 @@ double ToolSceneQueriesUtil::PointSnapMetric(const FViewCameraState& CameraState
 	}
 	else
 	{
-		FVector3d ViewPlaneNormal = CameraState.Orientation.GetForwardVector();
+		FVector3d ViewPlaneNormal = (FVector3d)CameraState.Orientation.GetForwardVector();
 
 		// Get projected distance in the plane
 		FVector3d DistanceVector = Point1 - Point2;
@@ -109,9 +109,9 @@ double ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(const FViewCamer
 	FVector3d EyePos = (FVector3d)CameraState.Position;
 	FVector3d PointVec = Point - EyePos;
 	TargetVisualAngleDeg *= CameraState.GetFOVAngleNormalizationFactor();
-	FVector3d RotPointPos = EyePos + FQuaterniond(CameraState.Up(), TargetVisualAngleDeg, true)*PointVec;
+	FVector3d RotPointPos = EyePos + FQuaterniond((FVector3d)CameraState.Up(), TargetVisualAngleDeg, true)*PointVec;
 	double ActualAngleDeg = CalculateViewVisualAngleD(CameraState, Point, RotPointPos);
-	return Point.Distance(RotPointPos) * (TargetVisualAngleDeg/ActualAngleDeg);
+	return Distance(Point, RotPointPos) * (TargetVisualAngleDeg/ActualAngleDeg);
 }
 
 
@@ -120,9 +120,9 @@ bool ToolSceneQueriesUtil::IsPointVisible(const FViewCameraState& CameraState, c
 {
 	if (CameraState.bIsOrthographic == false)
 	{
-		FVector3d PointDir = (Point - CameraState.Position);
+		FVector3d PointDir = (Point - (FVector3d)CameraState.Position);
 		//@todo should use view frustum here!
-		if (PointDir.Dot(CameraState.Forward()) < 0.25)		// ballpark estimate
+		if (PointDir.Dot((FVector3d)CameraState.Forward()) < 0.25)		// ballpark estimate
 		{
 			return false;
 		}
@@ -181,16 +181,16 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(FFindSceneSnapPointParams& Params)
 	TArray<FSceneSnapQueryResult> Results;
 	if (QueryAPI->ExecuteSceneSnapQuery(Request, Results))
 	{
-		*Params.SnapPointOut = Results[0].Position;
+		*Params.SnapPointOut = (FVector3d)Results[0].Position;
 
 		if (Params.SnapGeometryOut != nullptr)
 		{
 			int iSnap = Results[0].TriSnapIndex;
-			Params.SnapGeometryOut->Points[0] = Results[0].TriVertices[iSnap];
+			Params.SnapGeometryOut->Points[0] = (FVector3d)Results[0].TriVertices[iSnap];
 			Params.SnapGeometryOut->PointCount = 1;
 			if (Results[0].TargetType == ESceneSnapQueryTargetType::MeshEdge)
 			{
-				Params.SnapGeometryOut->Points[1] = Results[0].TriVertices[(iSnap+1)%3];
+				Params.SnapGeometryOut->Points[1] = (FVector3d)Results[0].TriVertices[(iSnap+1)%3];
 				Params.SnapGeometryOut->PointCount = 2;
 			}
 		}
@@ -218,7 +218,7 @@ bool ToolSceneQueriesUtil::FindWorldGridSnapPoint(const UInteractiveTool* Tool, 
 	TArray<FSceneSnapQueryResult> Results;
 	if ( QueryAPI->ExecuteSceneSnapQuery(Request, Results) )
 	{
-		GridSnapPointOut = Results[0].Position;
+		GridSnapPointOut = (FVector3d)Results[0].Position;
 		return true;
 	};
 	return false;

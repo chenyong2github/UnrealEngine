@@ -22,7 +22,7 @@ void FMeshResampleImageBaker::Bake()
 		if (DetailMesh->IsTriangle(SampleData.DetailTriID) && DetailUVOverlay)
 		{
 			FVector2d DetailUV;
-			DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailUV.X);
+			DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
 
 			Color = SampleFunction(DetailUV);
 		}

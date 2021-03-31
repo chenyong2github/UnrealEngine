@@ -134,8 +134,8 @@ void UShapeSprayTool::OnUpdateDrag(const FRay& Ray)
 {
 	UDynamicMeshBrushTool::OnUpdateDrag(Ray);
 
-	FFrame3f WorldFrame(LastBrushStamp.WorldPosition, LastBrushStamp.WorldNormal);
-	FTransform Transform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
+	FFrame3f WorldFrame((FVector3f)LastBrushStamp.WorldPosition, (FVector3f)LastBrushStamp.WorldNormal);
+	FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 
 
 	FDynamicMesh3* Mesh = AccumMeshComponent->GetMesh();
@@ -163,8 +163,8 @@ void UShapeSprayTool::OnUpdateDrag(const FRay& Ray)
 			float ObjSize = (1.0f + (Random.GetFraction()-0.5f) ) *  (Settings->ObjectSize);
 
 			FFrame3d SurfFrame(
-				Transform.InverseTransformPosition(Hit.ImpactPoint),
-				Transform.InverseTransformVector(Hit.Normal));
+				Transform.InverseTransformPosition((FVector3d)Hit.ImpactPoint),
+				Transform.InverseTransformVector((FVector3d)Hit.Normal));
 			SplatShape(SurfFrame, ObjSize, Mesh);
 		}
 	}
@@ -176,7 +176,7 @@ void UShapeSprayTool::OnUpdateDrag(const FRay& Ray)
 
 void UShapeSprayTool::SplatShape(const FFrame3d& LocalFrame, double Scale, FDynamicMesh3* TargetMesh)
 {
-	FVector3f UseColor = (Settings->bRandomColor) ? FLinearColor::MakeRandomColor() : Settings->Color;
+	FLinearColor UseColor = (Settings->bRandomColor) ? FLinearColor::MakeRandomColor() : Settings->Color;
 	FQuaternionf Rotationf = (FQuaternionf)LocalFrame.Rotation;
 
 	VertexMap.Reset();
@@ -190,7 +190,7 @@ void UShapeSprayTool::SplatShape(const FFrame3d& LocalFrame, double Scale, FDyna
 		FVector3f Normal = Rotationf * ShapeMesh.GetVertexNormal(vid);
 		TargetMesh->SetVertexNormal(VertexMap[vid], Normal);
 
-		TargetMesh->SetVertexColor(VertexMap[vid], UseColor);
+		TargetMesh->SetVertexColor(VertexMap[vid], (FVector3<float>)UseColor);
 	}
 	for (int tid : ShapeMesh.TriangleIndicesItr())
 	{

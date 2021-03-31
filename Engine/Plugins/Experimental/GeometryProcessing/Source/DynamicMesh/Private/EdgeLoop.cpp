@@ -93,16 +93,6 @@ FAxisAlignedBox3d FEdgeLoop::GetBounds() const
 }
 
 
-void FEdgeLoop::GetVertices(TArray<FVector3d>& VerticesIn) const
-{
-	int NumV = Vertices.Num();
-	for (int i = 0; i < NumV; ++i)
-	{
-		VerticesIn.Add(Mesh->GetVertex(Vertices[i]));
-	}
-}
-
-
 bool FEdgeLoop::SetCorrectOrientation()
 {
 	int NumEdges = Edges.Num();
@@ -180,7 +170,7 @@ int FEdgeLoop::FindNearestVertexIndex(const FVector3d& QueryPoint) const
 	for (int i = 0; i < N; ++i)
 	{
 		FVector3d lv = Mesh->GetVertex(Vertices[i]);
-		double d2 = QueryPoint.DistanceSquared(lv);
+		double d2 = DistanceSquared(QueryPoint, lv);
 		if (d2 < fNearSqr)
 		{
 			fNearSqr = d2;

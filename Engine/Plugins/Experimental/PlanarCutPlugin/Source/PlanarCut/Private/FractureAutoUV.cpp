@@ -166,7 +166,7 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 		GlobalVertices.SetNum(Collection->Vertex.Num());
 		for (int32 Idx = 0; Idx < GlobalVertices.Num(); Idx++)
 		{
-			GlobalVertices[Idx] = GlobalTransformArray[Collection->BoneMap[Idx]].TransformPosition(Collection->Vertex[Idx]);
+			GlobalVertices[Idx] = (FVector3d)GlobalTransformArray[Collection->BoneMap[Idx]].TransformPosition(Collection->Vertex[Idx]);
 		}
 	}
 
@@ -235,7 +235,7 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 		return 0;
 	}
 
-	inline void GetTriVertices(int TID, FVector3d& V0, FVector3d& V1, FVector3d& V2) const
+	inline void GetTriVertices(int TID, UE::Core::TVector<double>& V0, UE::Core::TVector<double>& V1, UE::Core::TVector<double>& V2) const
 	{
 		FIntVector TriRaw = Collection->Indices[TID];
 
@@ -297,7 +297,7 @@ struct FGeomFlatUVMesh
 		return 0;
 	}
 
-	inline void GetTriVertices(int TID, FVector3d& V0, FVector3d& V1, FVector3d& V2) const
+	inline void GetTriVertices(int TID, UE::Core::TVector<double>& V0, UE::Core::TVector<double>& V1, UE::Core::TVector<double>& V2) const
 	{
 		FIntVector TriRaw = Collection->Indices[TID];
 

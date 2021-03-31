@@ -95,7 +95,7 @@ int FQueueRemesher::FastSplitIteration()
 		{
 			FIndex2i EdgeVertices = Mesh->GetEdgeV(eid);
 			int OtherVertex = (EdgeVertices.A == NewVertex) ? EdgeVertices.B : EdgeVertices.A;
-			if (Mesh->GetVertex(OtherVertex).DistanceSquared(NewVertexPosition) > MaxEdgeLengthSqr)
+			if (DistanceSquared(Mesh->GetVertex(OtherVertex), NewVertexPosition) > MaxEdgeLengthSqr)
 			{
 				QueueEdge(eid);
 			}
@@ -344,7 +344,7 @@ void FQueueRemesher::TrackedMoveVerticesParallel(TFunction<FVector3d(int, bool&)
 		{
 			const FVector3d& SmoothedPosition = TempPosBuffer[VertexA];
 			const FVector3d OtherVertexPosition = Mesh->GetVertex(VertexB);
-			const double NewEdgeLengthSqr = SmoothedPosition.DistanceSquared(OtherVertexPosition);
+			const double NewEdgeLengthSqr = DistanceSquared(SmoothedPosition, OtherVertexPosition);
 			if (NewEdgeLengthSqr < MinEdgeLength*MinEdgeLength || NewEdgeLengthSqr > MaxEdgeLength*MaxEdgeLength)
 			{
 				EdgeShouldBeQueuedBuffer[EdgeID] = true;
@@ -355,7 +355,7 @@ void FQueueRemesher::TrackedMoveVerticesParallel(TFunction<FVector3d(int, bool&)
 		{
 			const FVector3d& SmoothedPosition = TempPosBuffer[VertexB];
 			const FVector3d OtherVertexPosition = Mesh->GetVertex(VertexA);
-			const double NewEdgeLengthSqr = SmoothedPosition.DistanceSquared(OtherVertexPosition);
+			const double NewEdgeLengthSqr = DistanceSquared(SmoothedPosition, OtherVertexPosition);
 			if (NewEdgeLengthSqr < MinEdgeLength * MinEdgeLength || NewEdgeLengthSqr > MaxEdgeLength* MaxEdgeLength)
 			{
 				EdgeShouldBeQueuedBuffer[EdgeID] = true;
@@ -425,7 +425,7 @@ void FQueueRemesher::TrackedFullSmoothPass_Buffer(bool bParallel)
 				int OtherVertexID = (EdgeVertices.A == VertexID) ? EdgeVertices.B : EdgeVertices.A;
 				FVector3d OtherVertexPosition = Mesh->GetVertex(OtherVertexID);
 
-				double NewEdgeLength = SmoothedPosition.Distance(OtherVertexPosition);
+				double NewEdgeLength = Distance(SmoothedPosition, OtherVertexPosition);
 				if (NewEdgeLength < MinEdgeLength || NewEdgeLength > MaxEdgeLength)
 				{
 					QueueEdge(EdgeID);
@@ -509,7 +509,7 @@ void FQueueRemesher::TrackedFullProjectionPass(bool bParallel)
 				int OtherVertexID = (EdgeVertices.A == VertexID) ? EdgeVertices.B : EdgeVertices.A;
 				FVector3d OtherVertexPosition = Mesh->GetVertex(OtherVertexID);
 
-				double NewEdgeLength = ProjectedPosition.Distance(OtherVertexPosition);
+				double NewEdgeLength = Distance(ProjectedPosition, OtherVertexPosition);
 				if (NewEdgeLength < MinEdgeLength || NewEdgeLength > MaxEdgeLength)
 				{
 					QueueEdge(EdgeID);

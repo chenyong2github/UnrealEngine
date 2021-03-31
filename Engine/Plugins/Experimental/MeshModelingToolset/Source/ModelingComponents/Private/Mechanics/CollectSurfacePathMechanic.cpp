@@ -14,7 +14,7 @@ using namespace UE::Geometry;
 
 UCollectSurfacePathMechanic::UCollectSurfacePathMechanic()
 {
-	SpatialSnapPointsFunc = [this](FVector3d A, FVector3d B) { return A.DistanceSquared(B) < (ConstantSnapDistance * ConstantSnapDistance); };
+	SpatialSnapPointsFunc = [this](FVector3d A, FVector3d B) { return DistanceSquared(A, B) < (ConstantSnapDistance * ConstantSnapDistance); };
 
 	PathColor = LinearColors::DarkOrange3f();
 	PreviewColor = LinearColors::Green3f();

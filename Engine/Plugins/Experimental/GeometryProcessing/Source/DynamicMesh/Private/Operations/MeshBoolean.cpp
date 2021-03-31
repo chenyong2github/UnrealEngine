@@ -289,7 +289,7 @@ bool FMeshBoolean::Compute()
 				for (int ChainSubIdx = ChainIdx + 1; ChainSubIdx + 1 < ChainEnd; ChainSubIdx++)
 				{
 					int VID[2]{ Cut.VertexChains[MeshIdx][ChainSubIdx], Cut.VertexChains[MeshIdx][ChainSubIdx + 1] };
-					if (CutMesh[MeshIdx]->GetVertex(VID[0]).DistanceSquared(CutMesh[MeshIdx]->GetVertex(VID[1])) < DegenerateEdgeTolSq)
+					if (DistanceSquared(CutMesh[MeshIdx]->GetVertex(VID[0]), CutMesh[MeshIdx]->GetVertex(VID[1])) < DegenerateEdgeTolSq)
 					{
 						EIDs.Add(CutMesh[MeshIdx]->FindEdge(VID[0], VID[1]));
 					}
@@ -306,7 +306,7 @@ bool FMeshBoolean::Compute()
 				}
 				FVector3d A, B;
 				CutMesh[MeshIdx]->GetEdgeV(EID, A, B);
-				if (A.DistanceSquared(B) > DegenerateEdgeTolSq)
+				if (DistanceSquared(A,B) > DegenerateEdgeTolSq)
 				{
 					continue;
 				}
@@ -561,7 +561,7 @@ bool FMeshBoolean::Compute()
 				FVector3d Pos = CutMesh[MeshIdx]->GetVertex(BoundaryVID);
 				TPair<int, double> VIDDist = OtherMeshPointHash.FindNearestInRadius(Pos, SnapTolerance, [&Pos, &OtherMesh](int VID)
 					{
-						return Pos.DistanceSquared(OtherMesh.GetVertex(VID));
+						return DistanceSquared(Pos, OtherMesh.GetVertex(VID));
 					});
 				int NearestVID = VIDDist.Key; // ID of nearest vertex on other mesh
 				double DSq = VIDDist.Value;   // square distance to that vertex
@@ -572,7 +572,7 @@ bool FMeshBoolean::Compute()
 					int* Match = FoundMatches.Find(NearestVID);
 					if (Match)
 					{
-						double OldDSq = CutMesh[MeshIdx]->GetVertex(*Match).DistanceSquared(OtherMesh.GetVertex(NearestVID));
+						double OldDSq = DistanceSquared(CutMesh[MeshIdx]->GetVertex(*Match), OtherMesh.GetVertex(NearestVID));
 						if (DSq < OldDSq) // new vertex is a better match than the old one
 						{
 							int OldVID = *Match; // copy old VID out of match before updating the TMap
@@ -606,7 +606,7 @@ bool FMeshBoolean::Compute()
 						FVector3d EdgePts[2];
 						OtherMesh.GetEdgeV(OtherEID, EdgePts[0], EdgePts[1]);
 						// only accept the match if it's not going to create a degenerate edge -- TODO: filter already-matched edges from the FindNearestEdge query!
-						if (EdgePts[0].DistanceSquared(Pos) > SnapToleranceSq&& EdgePts[1].DistanceSquared(Pos) > SnapToleranceSq)
+						if (DistanceSquared(EdgePts[0], Pos) > SnapToleranceSq&& DistanceSquared(EdgePts[1], Pos) > SnapToleranceSq)
 						{
 							FSegment3d Seg(EdgePts[0], EdgePts[1]);
 							double Along = Seg.ProjectUnitRange(Pos);
@@ -876,7 +876,7 @@ bool FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 					FVector2f OtherUV = Mesh.GetVertexUV(OtherV);
 					FVector2f RemoveUV = Mesh.GetVertexUV(RemoveV);
 					FVector2f KeepUV = Mesh.GetVertexUV(KeepV);
-					if (Lerp(OtherUV, KeepUV, LerpT).DistanceSquared(RemoveUV) > UVEqualThresholdSq)
+					if ( Lerp(OtherUV, KeepUV, LerpT).DistanceSquared(RemoveUV) > UVEqualThresholdSq)
 					{
 						bHasBadEdge = true;
 						return;
@@ -1243,7 +1243,7 @@ bool FMeshBoolean::MergeEdges(const FMeshIndexMappings& IndexMaps, FDynamicMesh3
 				}
 				FVector3d A, B;
 				Result->GetEdgeV(EID, A, B);
-				if (OA.DistanceSquared(A) < SnapToleranceSq && OB.DistanceSquared(B) < SnapToleranceSq)
+				if (DistanceSquared(OA, A) < SnapToleranceSq && DistanceSquared(OB, B) < SnapToleranceSq)
 				{
 					FDynamicMesh3::FMergeEdgesInfo MergeInfo;
 					EMeshResult EdgeMergeResult = Result->MergeEdges(EID, OtherEID, MergeInfo);

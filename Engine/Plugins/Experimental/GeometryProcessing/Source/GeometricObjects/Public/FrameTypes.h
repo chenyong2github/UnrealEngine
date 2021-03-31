@@ -97,7 +97,7 @@ struct TFrame3
 	{
 		FVector Normal(Plane.X, Plane.Y, Plane.Z);
 		Origin = (RealType)Plane.W * FVector3<RealType>(Normal);
-		Rotation.SetFromTo(FVector3<RealType>::UnitZ(), Normal);
+		Rotation.SetFromTo(FVector3<RealType>::UnitZ(), (FVector3<RealType>)Normal);
 	}
 
 
@@ -427,7 +427,7 @@ struct TFrame3
 	 * @param HitPointOut intersection point, or FVector3::Max() if ray does not hit plane or is parallel to plane
 	 * @return true if ray intersects plane and HitPointOut is valid
 	 */
-	bool RayPlaneIntersection(const FVector3<RealType>& RayOrigin, const FVector3<RealType>& RayDirection, int PlaneNormalAxis, FVector3<RealType>& HitPointOut) const
+	bool RayPlaneIntersection(const FVector3<RealType>& RayOrigin, const FVector3<RealType>& RayDirection, int PlaneNormalAxis, UE::Core::TVector<RealType>& HitPointOut) const
 	{
 		FVector3<RealType> Normal = GetAxis(PlaneNormalAxis);
 		RealType PlaneD = -Origin.Dot(Normal);

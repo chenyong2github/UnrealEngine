@@ -49,6 +49,15 @@ public:
 	{
 	}
 
+	/**
+	 * Construct a single-segment polyline
+	 */
+	TPolyline3(const FVector3<T>& Point0, const FVector3<T>& Point1) : Timestamp(0)
+	{
+		Vertices.Add(Point0);
+		Vertices.Add(Point1);
+	}
+
 	/** @return the Timestamp for the polyline, which is updated every time the polyline is modified */
 	int GetTimestamp() const
 	{
@@ -143,6 +152,21 @@ public:
 	void AppendVertices(const TArray<FVector3<T>>& NewVertices)
 	{
 		Vertices.Append(NewVertices);
+		Timestamp++;
+	}
+
+	/**
+	 * Add a list of Vertices to the polyline
+	 */
+	template<typename VectorType>
+	void AppendVertices(const TArray<VectorType>& NewVertices)
+	{
+		int32 NumV = NewVertices.Num();
+		Vertices.Reserve(Vertices.Num() + NumV);
+		for (int32 k = 0; k < NumV; ++k)
+		{
+			Vertices.Append( (FVector3<T>)NewVertices[k] );
+		}
 		Timestamp++;
 	}
 

@@ -529,7 +529,7 @@ void FConstrainedMeshDeformerTask::ApplyAttenuation()
 		}
 	}
 
-	double ExtentLength = Min.Distance(Max);
+	double ExtentLength = Distance(Min, Max);
 
 	// Is this why the system has memory?
 	for (int32 SubVertexID = 0; SubVertexID < SubsetConstraintBuffer.Num(); ++SubVertexID)
@@ -537,9 +537,8 @@ void FConstrainedMeshDeformerTask::ApplyAttenuation()
 		if (!Handles.Contains(SubVertexID))
 		{
 			FDeformerVertexConstraintData& CData = SubsetConstraintBuffer[SubVertexID];
-			double T = CData.Position.Distance(FMath::ClosestPointOnSegment((FVector)CData.Position,
-			                                                                (FVector)MinHandles, (FVector)MaxHandles)) /
-			    ExtentLength;
+			FVector3d OtherPoint = (FVector3d)FMath::ClosestPointOnSegment((FVector)CData.Position, (FVector)MinHandles, (FVector)MaxHandles);
+			double T = Distance(CData.Position, OtherPoint) / ExtentLength;
 			CData.Weight = WeightAttenuationCurve.Eval(T) * LeastWeight;
 		}
 	}
@@ -1041,8 +1040,8 @@ FDynamicMeshAABBTree3& UDeformMeshPolygonsTool::GetSpatial()
 bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 {
 	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-	FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
-	                Transform.InverseTransformVector(WorldRay.Direction));
+	FRay3d LocalRay(Transform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+	                Transform.InverseTransformVector((FVector3d)WorldRay.Direction));
 	UE::Geometry::Normalize(LocalRay.Direction);
 
 	FGroupTopologySelection Selection;
@@ -1087,8 +1086,8 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 {
 	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-	FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
-	                Transform.InverseTransformVector(WorldRay.Direction));
+	FRay3d LocalRay(Transform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+	                Transform.InverseTransformVector((FVector3d)WorldRay.Direction));
 	UE::Geometry::Normalize(LocalRay.Direction);
 
 	HilightSelection.Clear();
@@ -1118,7 +1117,7 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 	UpdateActiveSurfaceFrame(HilightSelection);
 	UpdateQuickTransformer();
 
-	LastBrushPosLocal  = (FVector)Transform.InverseTransformPosition(LastHitPosWorld);
+	LastBrushPosLocal  = (FVector)Transform.InverseTransformPosition((FVector3d)LastHitPosWorld);
 	StartBrushPosLocal = LastBrushPosLocal;
 
 	// Record the requested deformation strategy - NB: will be forced to linear if there aren't any free points to solve.
@@ -1198,14 +1197,14 @@ void UDeformMeshPolygonsTool::UpdateActiveSurfaceFrame(FGroupTopologySelection& 
 	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 
 	// update surface frame
-	ActiveSurfaceFrame.Origin = StartHitPosWorld;
+	ActiveSurfaceFrame.Origin = (FVector3d)StartHitPosWorld;
 	if (HilightSelection.SelectedCornerIDs.Num() == 1)
 	{
 		// just keeping existing axes...we don't have enough info to do something smarter
 	}
 	else
 	{
-		ActiveSurfaceFrame.AlignAxis(2, StartHitNormalWorld);
+		ActiveSurfaceFrame.AlignAxis(2, (FVector3d)StartHitNormalWorld);
 		if (HilightSelection.SelectedEdgeIDs.Num() == 1)
 		{
 			FVector3d Tangent;
@@ -1242,7 +1241,7 @@ void UDeformMeshPolygonsTool::UpdateQuickTransformer()
 	}
 	else
 	{
-		GetActiveQuickTransformer()->SetActiveFrameFromWorldAxes(StartHitPosWorld);
+		GetActiveQuickTransformer()->SetActiveFrameFromWorldAxes((FVector3d)StartHitPosWorld);
 	}
 }
 
@@ -1302,8 +1301,8 @@ bool UDeformMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	if (ActiveVertexChange == nullptr)
 	{
 		UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-		FRay3d LocalRay(Transform.InverseTransformPosition(DevicePos.WorldRay.Origin),
-		                Transform.InverseTransformVector(DevicePos.WorldRay.Direction));
+		FRay3d LocalRay(Transform.InverseTransformPosition((FVector3d)DevicePos.WorldRay.Origin),
+		                Transform.InverseTransformVector((FVector3d)DevicePos.WorldRay.Direction));
 		UE::Geometry::Normalize(LocalRay.Direction);
 
 		HilightSelection.Clear();
@@ -1452,7 +1451,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 
 	FVector2d RotateStartVec = RotationStartFrame.ToPlaneUV(RotationStartPointWorld, 2);
 	UE::Geometry::Normalize(RotateStartVec);
-	FVector2d RotateToVec = RotationStartFrame.ToPlaneUV(NewHitPosWorld, 2);
+	FVector2d RotateToVec = RotationStartFrame.ToPlaneUV((FVector3d)NewHitPosWorld, 2);
 	UE::Geometry::Normalize(RotateToVec);
 	double AngleRad = UE::Geometry::SignedAngleR(RotateStartVec, RotateToVec);
 	FQuaterniond Rotation(Transform.InverseTransformVectorNoScale(RotationStartFrame.Z()), AngleRad, false);
@@ -1506,7 +1505,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 	}
 
 	FVector NewBrushPosLocal = Transform.InverseTransformPosition(NewHitPosWorld);
-	FVector3d NewMoveDelta   = NewBrushPosLocal - StartBrushPosLocal;
+	FVector3d NewMoveDelta   = (FVector3d)NewBrushPosLocal - (FVector3d)StartBrushPosLocal;
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	if (LastMoveDelta.SquaredLength() > 0.)

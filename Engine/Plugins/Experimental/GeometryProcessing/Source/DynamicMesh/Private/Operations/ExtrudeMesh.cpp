@@ -172,7 +172,7 @@ bool FExtrudeMesh::ApplyExtrude(FExtrusionInfo& Region, FMeshNormals* UseNormals
 
 					if (k > 0)
 					{
-						AccumUVTranslation += Mesh->GetVertex(BaseLoop.Vertices[k]).Distance(Mesh->GetVertex(BaseLoop.Vertices[k - 1]));
+						AccumUVTranslation += Distance(Mesh->GetVertex(BaseLoop.Vertices[k]), Mesh->GetVertex(BaseLoop.Vertices[k - 1]));
 					}
 
 					// translate horizontally such that vertical spans are adjacent in UV space (so textures tile/wrap properly)

@@ -87,7 +87,7 @@ void UCurveControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 			// As in PointSnapQuery, we convert our angle-based tolerance to one we can use in an ortho viewport (instead of
 			// dividing our field of view into 90 visual angle degrees, we divide the plane into 90 units).
 			float OrthoTolerance = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * CameraState.OrthoWorldCoordinateWidth / 90.0;
-			return Position1.DistanceSquared(Position2) < OrthoTolerance * OrthoTolerance;
+			return DistanceSquared(Position1, Position2) < OrthoTolerance * OrthoTolerance;
 		}
 		else
 		{
@@ -285,7 +285,7 @@ int32 UCurveControlPointsMechanic::InsertPointAt(int32 SequencePosition, const F
 			int32 PreviousSequencePosition = (SequencePosition + ControlPoints.Num() - 1) % ControlPoints.Num();
 			int32 PreviousID = ControlPoints.GetPointIDAt(PreviousSequencePosition);
 
-			FPolyline3d SegmentPolyline(TArray<FVector3d>{ControlPoints.GetPointCoordinates(PreviousID), NewPointCoordinates});
+			FPolyline3d SegmentPolyline(ControlPoints.GetPointCoordinates(PreviousID), NewPointCoordinates);
 
 			if (DrawnControlSegments->IsLineValid(PreviousID))
 			{
@@ -307,7 +307,7 @@ int32 UCurveControlPointsMechanic::InsertPointAt(int32 SequencePosition, const F
 			// Create a segment going to the next point
 			int32 NextSequencePosition = (SequencePosition + 1) % ControlPoints.Num();
 
-			FPolyline3d SegmentPolyline(TArray<FVector3d>{ControlPoints.GetPointCoordinatesAt(NextSequencePosition), NewPointCoordinates});
+			FPolyline3d SegmentPolyline(ControlPoints.GetPointCoordinatesAt(NextSequencePosition), NewPointCoordinates);
 			GeometrySet.AddCurve(NewPointID, SegmentPolyline);
 
 			FRenderableLine RenderableSegment((FVector)NewPointCoordinates, (FVector)ControlPoints.GetPointCoordinatesAt(NextSequencePosition),
@@ -349,7 +349,7 @@ void UCurveControlPointsMechanic::SetIsLoop(bool bIsLoopIn)
 		{
 			if (bIsLoopIn)
 			{
-				FPolyline3d SegmentPolyline(TArray<FVector3d>{ControlPoints.GetPointCoordinates(ControlPoints.Last()), ControlPoints.GetPointCoordinates(ControlPoints.First())});
+				FPolyline3d SegmentPolyline(ControlPoints.GetPointCoordinates(ControlPoints.Last()), ControlPoints.GetPointCoordinates(ControlPoints.First()));
 				GeometrySet.AddCurve(ControlPoints.Last(), SegmentPolyline);
 
 				FRenderableLine RenderableSegment((FVector)ControlPoints.GetPointCoordinates(ControlPoints.Last()),
@@ -450,7 +450,7 @@ void UCurveControlPointsMechanic::GizmoTransformChanged(UTransformProxy* Proxy, 
 		// Do snapping only if we have a single point selected.
 		if (SelectedPointIDs.Num() == 1 && (bSnappingEnabled ^ bSnapToggle))
 		{
-			FVector3d NewLocation = SelectedPointStartPositions[0] + Displacement;
+			FVector3d NewLocation = SelectedPointStartPositions[0] + (FVector3d)Displacement;
 			if (bSnappingEnabled ^ bSnapToggle)
 			{
 				SnapEngine.UpdateSnappedPoint(NewLocation);
@@ -471,7 +471,7 @@ void UCurveControlPointsMechanic::GizmoTransformChanged(UTransformProxy* Proxy, 
 		{
 			for (int32 i = 0; i < SelectedPointIDs.Num(); ++i)
 			{
-				UpdatePointLocation(SelectedPointIDs[i], SelectedPointStartPositions[i] + Displacement);
+				UpdatePointLocation(SelectedPointIDs[i], SelectedPointStartPositions[i] + (FVector3d)Displacement);
 			}
 			bPointsChanged = true;
 		}
@@ -527,7 +527,7 @@ void UCurveControlPointsMechanic::UpdatePointLocation(int32 PointID, const FVect
 		int32 PreviousSequencePosition = (SequencePosition + ControlPoints.Num() - 1) % ControlPoints.Num();
 		DrawnControlSegments->SetLineEnd(ControlPoints.GetPointIDAt(PreviousSequencePosition), (FVector)NewLocation);
 
-		FPolyline3d SegmentPolyline(TArray<FVector3d>{ControlPoints.GetPointCoordinatesAt(PreviousSequencePosition), NewLocation});
+		FPolyline3d SegmentPolyline(ControlPoints.GetPointCoordinatesAt(PreviousSequencePosition), NewLocation);
 		GeometrySet.UpdateCurve(ControlPoints.GetPointIDAt(PreviousSequencePosition), SegmentPolyline);
 	}
 
@@ -536,7 +536,7 @@ void UCurveControlPointsMechanic::UpdatePointLocation(int32 PointID, const FVect
 	{
 		DrawnControlSegments->SetLineStart(PointID, (FVector)NewLocation);
 
-		FPolyline3d SegmentPolyline(TArray<FVector3d>{NewLocation, ControlPoints.GetPointCoordinatesAt((SequencePosition + 1) % ControlPoints.Num())});
+		FPolyline3d SegmentPolyline(NewLocation, ControlPoints.GetPointCoordinatesAt((SequencePosition + 1) % ControlPoints.Num()));
 		GeometrySet.UpdateCurve(PointID, SegmentPolyline);
 	}
 }
@@ -553,7 +553,7 @@ bool UCurveControlPointsMechanic::HitTest(const FInputDeviceRay& ClickPos, FInpu
 		&& (SelectedPointIDs[0] == ControlPoints.First() || SelectedPointIDs[0] == ControlPoints.Last())))
 	{
 		FVector3d HitPoint;
-		bool bHit = DrawPlane.RayPlaneIntersection(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction, 2, HitPoint);
+		bool bHit = DrawPlane.RayPlaneIntersection((FVector3d)ClickPos.WorldRay.Origin, (FVector3d)ClickPos.WorldRay.Direction, 2, HitPoint);
 		if (bHit)
 		{
 			ResultOut = FInputRayHit(ClickPos.WorldRay.GetParameter((FVector)HitPoint));
@@ -592,7 +592,7 @@ void UCurveControlPointsMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 	if (bInteractiveInitializationMode)
 	{
 		FVector3d NewPointCoordinates;
-		if (!DrawPlane.RayPlaneIntersection(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction, 2, NewPointCoordinates))
+		if (!DrawPlane.RayPlaneIntersection((FVector3d)ClickPos.WorldRay.Origin, (FVector3d)ClickPos.WorldRay.Direction, 2, NewPointCoordinates))
 		{
 			// Missed the plane entirely (probably in ortho mode). Nothing to do.
 			return;
@@ -674,7 +674,7 @@ void UCurveControlPointsMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 
 			int32 NewPointID = -1;
 			FVector3d NewPointCoordinates;
-			DrawPlane.RayPlaneIntersection(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction, 2, NewPointCoordinates);
+			DrawPlane.RayPlaneIntersection((FVector3d)ClickPos.WorldRay.Origin, (FVector3d)ClickPos.WorldRay.Direction, 2, NewPointCoordinates);
 
 			if (bSnappingEnabled ^ bSnapToggle)
 			{
@@ -780,7 +780,7 @@ void UCurveControlPointsMechanic::UpdateGizmoLocation()
 		{
 			NewGizmoLocation += ControlPoints.GetPointCoordinates(PointID);
 		}
-		NewGizmoLocation /= SelectedPointIDs.Num();
+		NewGizmoLocation /= (double)SelectedPointIDs.Num();
 
 		PointTransformGizmo->ReinitializeGizmoTransform(FTransform((FQuat)DrawPlane.Rotation, (FVector)NewGizmoLocation));
 	}
@@ -922,7 +922,7 @@ bool UCurveControlPointsMechanic::OnUpdateHover(const FInputDeviceRay& DevicePos
 		(bInsertPointToggle && SelectedPointIDs.Num() == 1 && (SelectedPointIDs[0] == ControlPoints.First() || SelectedPointIDs[0] == ControlPoints.Last())))
 	{
 		FVector3d HitPoint;
-		if (!DrawPlane.RayPlaneIntersection(DevicePos.WorldRay.Origin, DevicePos.WorldRay.Direction, 2, HitPoint))
+		if (!DrawPlane.RayPlaneIntersection((FVector3d)DevicePos.WorldRay.Origin, (FVector3d)DevicePos.WorldRay.Direction, 2, HitPoint))
 		{
 			// We're probably looking in an ortho viewport and missing the plane. End the hover.
 			return false;
@@ -1081,7 +1081,7 @@ int32 UCurveControlPointsMechanic::DeletePoint(int32 PointID)
 			FVector3d NextPointCoordinates = ControlPoints.GetPointCoordinatesAt((SequencePosition + 1) % ControlPoints.Num());
 
 			DrawnControlSegments->SetLineEnd(PreviousPointID, (FVector)NextPointCoordinates);
-			FPolyline3d SegmentPolyline(TArray<FVector3d>{ControlPoints.GetPointCoordinates(PreviousPointID), NextPointCoordinates});
+			FPolyline3d SegmentPolyline(ControlPoints.GetPointCoordinates(PreviousPointID), NextPointCoordinates);
 			GeometrySet.UpdateCurve(PreviousPointID, SegmentPolyline);
 		}
 		else

@@ -19,11 +19,12 @@ public:
 	virtual ~FPlaneCutOp() {}
 
 	// inputs
-	FVector LocalPlaneOrigin, LocalPlaneNormal;
-	bool bFillCutHole, bFillSpans;
-	bool bKeepBothHalves;
-	float CutPlaneLocalThickness = 0; // plane thickness in the local space of the mesh
-	float UVScaleFactor;
+	FVector3d LocalPlaneOrigin, LocalPlaneNormal;
+	bool bFillCutHole = true;
+	bool bFillSpans = false;
+	bool bKeepBothHalves = false;
+	double CutPlaneLocalThickness = 0; // plane thickness in the local space of the mesh
+	double UVScaleFactor = 0;
 	static const FName ObjectIndexAttribute;
 	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 

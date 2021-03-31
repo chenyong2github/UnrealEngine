@@ -15,9 +15,9 @@ namespace UE
 		{
 			return [](const FSculptBrushStamp& Stamp, const FVector3d& Position)
 			{
-				double Distance = Position.Distance(Stamp.LocalFrame.Origin);
+				double Dist = Distance(Position, Stamp.LocalFrame.Origin);
 				double FalloffT = FMathd::Clamp(1.0 - Stamp.Falloff, 0.0, 1.0);
-				double UnitDistance = Distance / Stamp.Radius;
+				double UnitDistance = Dist / Stamp.Radius;
 				if (UnitDistance > FalloffT)
 				{
 					UnitDistance = FMathd::Clamp((UnitDistance - FalloffT) / (1.0 - FalloffT), 0.0, 1.0);
@@ -34,9 +34,9 @@ namespace UE
 		{
 			return [](const FSculptBrushStamp& Stamp, const FVector3d& Position)
 			{
-				double Distance = Position.Distance(Stamp.LocalFrame.Origin);
+				double Dist = Distance(Position, Stamp.LocalFrame.Origin);
 				double FalloffT = FMathd::Clamp(1.0 - Stamp.Falloff, 0.0, 1.0);
-				double UnitDistance = Distance / Stamp.Radius;
+				double UnitDistance = Dist / Stamp.Radius;
 				if (UnitDistance > FalloffT)
 				{
 					UnitDistance = FMathd::Clamp((UnitDistance - FalloffT) / (1.0 - FalloffT), 0.0, 1.0);
@@ -54,9 +54,9 @@ namespace UE
 		{
 			return [](const FSculptBrushStamp& Stamp, const FVector3d& Position)
 			{
-				double Distance = Position.Distance(Stamp.LocalFrame.Origin);
+				double Dist = Distance(Position, Stamp.LocalFrame.Origin);
 				double FalloffT = FMathd::Clamp(1.0 - Stamp.Falloff, 0.0, 1.0);
-				double UnitDistance = Distance / Stamp.Radius;
+				double UnitDistance = Dist / Stamp.Radius;
 				if (UnitDistance > FalloffT)
 				{
 					UnitDistance = FMathd::Clamp((UnitDistance - FalloffT) / (1.0 - FalloffT), 0.0, 1.0);
@@ -73,9 +73,9 @@ namespace UE
 		{
 			return [](const FSculptBrushStamp& Stamp, const FVector3d& Position)
 			{
-				double Distance = Position.Distance(Stamp.LocalFrame.Origin);
+				double Dist = Distance(Position, Stamp.LocalFrame.Origin);
 				double FalloffT = FMathd::Clamp(1.0 - Stamp.Falloff, 0.0, 1.0);
-				double UnitDistance = Distance / Stamp.Radius;
+				double UnitDistance = Dist / Stamp.Radius;
 				if (UnitDistance > FalloffT)
 				{
 					UnitDistance = FMathd::Clamp((UnitDistance - FalloffT) / (1.0 - FalloffT), 0.0, 1.0);

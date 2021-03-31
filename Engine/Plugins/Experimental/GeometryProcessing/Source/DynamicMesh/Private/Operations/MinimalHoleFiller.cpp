@@ -316,8 +316,8 @@ namespace
 		if (bDoFlip == false)
 		{
 			FIndex2i OpposingVertices = FillMesh->GetEdgeOpposingV(EdgeID);
-			double CurrentEdgeLength = FillMesh->GetVertex(EdgeVertices.A).Distance(FillMesh->GetVertex(EdgeVertices.B));
-			double FlipEdgeLength = FillMesh->GetVertex(OpposingVertices.A).Distance(FillMesh->GetVertex(OpposingVertices.B));
+			double CurrentEdgeLength = Distance(FillMesh->GetVertex(EdgeVertices.A), FillMesh->GetVertex(EdgeVertices.B));
+			double FlipEdgeLength = Distance(FillMesh->GetVertex(OpposingVertices.A), FillMesh->GetVertex(OpposingVertices.B));
 			if (FlipEdgeLength < CurrentEdgeLength)
 			{
 				if (CheckIfEdgeFlipCreatesFlip(*FillMesh, EdgeID) == false)

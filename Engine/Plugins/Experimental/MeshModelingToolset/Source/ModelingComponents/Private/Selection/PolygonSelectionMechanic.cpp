@@ -275,8 +275,8 @@ bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult
 
 bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, FGroupTopologySelection& OutSelection, bool bUseOrthoSettings)
 {
-	FRay3d LocalRay(TargetTransform.InverseTransformPosition(WorldRay.Origin),
-		TargetTransform.InverseTransformVector(WorldRay.Direction));
+	FRay3d LocalRay(TargetTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		TargetTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 	UE::Geometry::Normalize(LocalRay.Direction);
 
 	FVector3d LocalPosition, LocalNormal;
@@ -359,8 +359,8 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 {
 	checkf(DrawnTriangleSetComponent != nullptr, TEXT("Initialize() not called on UPolygonSelectionMechanic."));
 
-	FRay3d LocalRay(TargetTransform.InverseTransformPosition(WorldRay.Origin),
-		TargetTransform.InverseTransformVector(WorldRay.Direction));
+	FRay3d LocalRay(TargetTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		TargetTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 	UE::Geometry::Normalize(LocalRay.Direction);
 
 	HilightSelection.Clear();
@@ -438,8 +438,8 @@ bool UPolygonSelectionMechanic::HasSelection() const
 
 bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d& LocalHitPositionOut, FVector3d& LocalHitNormalOut)
 {
-	FRay3d LocalRay(TargetTransform.InverseTransformPosition(WorldRay.Origin),
-		TargetTransform.InverseTransformVector(WorldRay.Direction));
+	FRay3d LocalRay(TargetTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		TargetTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 	UE::Geometry::Normalize(LocalRay.Direction);
 
 	bool bSelectionModified = false;

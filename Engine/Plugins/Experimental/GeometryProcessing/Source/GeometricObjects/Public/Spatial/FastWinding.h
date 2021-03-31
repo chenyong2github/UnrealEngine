@@ -82,7 +82,7 @@ namespace FastTriWinding
 			Order2 += a * FMatrix3d(dcp, n);
 
 			// this is just for return value...
-			double maxdist = FMath::Max3(P0.DistanceSquared(P), P1.DistanceSquared(P), P2.DistanceSquared(P));
+			double maxdist = FMath::Max3(DistanceSquared(P0,P), DistanceSquared(P1,P), DistanceSquared(P2,P));
 			R = FMath::Max(R, sqrt(maxdist));
 		}
 	}
@@ -442,7 +442,7 @@ private:
 			return false;
 		}
 
-		double dist_qp = cacheInfo->Center.Distance(Q);
+		double dist_qp = Distance(cacheInfo->Center, Q);
 		if (dist_qp > FWNBeta * cacheInfo->R)
 		{
 			return true;

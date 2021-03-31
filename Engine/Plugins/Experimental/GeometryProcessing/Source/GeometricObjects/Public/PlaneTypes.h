@@ -20,14 +20,14 @@ struct TPlane3
 
 	TPlane3() {}
 
-	TPlane3(FVector3<RealType> Normal, double Constant) : Normal(Normal), Constant(Constant)
+	TPlane3(const UE::Core::TVector<RealType>& Normal, double Constant) : Normal(Normal), Constant(Constant)
 	{
 	}
 
 	/**
 	 * N is specified, c = Dot(N,P) where P is a point on the plane.
 	 */
-	TPlane3(const FVector3<RealType>& Normal, const FVector3<RealType>& Point) : Normal(Normal), Constant(Normal.Dot(Point))
+	TPlane3(const UE::Core::TVector<RealType>& Normal, const UE::Core::TVector<RealType>& Point) : Normal(Normal), Constant(Normal.Dot(Point))
 	{
 	}
 
@@ -35,7 +35,7 @@ struct TPlane3
 	 * N = Cross(P1-P0,P2-P0)/Length(Cross(P1-P0,P2-P0)), c = Dot(N,P0) where
 	 * P0, P1, P2 are points on the plane.
 	 */
-	TPlane3(const FVector3<RealType>& P0, const FVector3<RealType>& P1, const FVector3<RealType>& P2)
+	TPlane3(const UE::Core::TVector<RealType>& P0, const UE::Core::TVector<RealType>& P1, const UE::Core::TVector<RealType>& P2)
 	{
 		Normal = VectorUtil::Normal(P0, P1, P2);
 		Constant = Normal.Dot(P0);
@@ -49,7 +49,7 @@ struct TPlane3
 	 * the point is on the negative side, and zero if the point is on the
 	 * plane.
 	 */
-	double DistanceTo(const FVector3<RealType>& P) const
+	double DistanceTo(const UE::Core::TVector<RealType>& P) const
 	{
 		return Normal.Dot(P) - Constant;
 	}
@@ -60,7 +60,7 @@ struct TPlane3
 	 * function returns +1 when P is on the positive side, -1 when P is on the
 	 * the negative side, or 0 when P is on the plane.
 	 */
-	int WhichSide(const FVector3<RealType>& P) const
+	int WhichSide(const UE::Core::TVector<RealType>& P) const
 	{
 		double Distance = DistanceTo(P);
 		if (Distance < 0)
@@ -87,7 +87,10 @@ struct TPlane3
 	 * @param HitPointOut intersection point, or FVector3::MaxVector() if line is parallel to plane
 	 * @return true if Line intersects Plane and IntersectionPointOut is valid
 	 */
-	bool FindLineIntersection(const FVector3<RealType>& LineOrigin, const FVector3<RealType>& LineDirection, FVector3<RealType>& IntersectionPointOut) const
+	bool FindLineIntersection(
+		const UE::Core::TVector<RealType>& LineOrigin, 
+		const UE::Core::TVector<RealType>& LineDirection, 
+		UE::Core::TVector<RealType>& IntersectionPointOut) const
 	{
 		RealType NormalDot = LineDirection.Dot(Normal);
 		if ( TMathUtil<RealType>::Abs(NormalDot) < TMathUtil<RealType>::ZeroTolerance )
@@ -109,7 +112,7 @@ struct TPlane3
 	 * @param Point1 second point of segment
 	 * @return 0 if line is fully clipped, 1 if line is partially clipped, 2 if line is not clipped
 	 */
-	int ClipSegment(FVector3<RealType>& Point0, FVector3<RealType>& Point1)
+	int ClipSegment(UE::Core::TVector<RealType>& Point0, UE::Core::TVector<RealType>& Point1)
 	{
 		RealType Dist0 = DistanceTo(Point0);
 		RealType Dist1 = DistanceTo(Point1);

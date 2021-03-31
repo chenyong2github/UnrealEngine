@@ -66,7 +66,8 @@ struct FDynamicMeshUVMesh
 		return FVector3d(Elem.X, Elem.Y, 0);
 	}
 
-	inline void GetTriVertices(int32 TriangleIndex, FVector3d& V0, FVector3d& V1, FVector3d& V2) const
+	template<typename VecType>
+	inline void GetTriVertices(int32 TriangleIndex, VecType& V0, VecType& V1, VecType& V2) const
 	{
 		FIndex3i TriIndices = UV->GetTriangle(TriangleIndex);
 		V0 = GetVertex(TriIndices.A);

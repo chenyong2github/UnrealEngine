@@ -62,7 +62,7 @@ void UE::GroomQueries::ExtractAllHairCards(AGroomActor* GroomActor,
 			int32 NewVID = MeshOut.AppendVertex((FVector3d)CardGeo.Positions[k]);
 			MapV[k] = NewVID;
 
-			int32 NewNormID = Normals->AppendElement((FVector3f)CardGeo.Normals[k]);
+			int32 NewNormID = Normals->AppendElement(&CardGeo.Normals[k].X);
 			MapN[k] = NewNormID;
 
 			int32 NewUVID = UVs->AppendElement( FVector2f(CardGeo.UVs[k].X, CardGeo.UVs[k].Y) );

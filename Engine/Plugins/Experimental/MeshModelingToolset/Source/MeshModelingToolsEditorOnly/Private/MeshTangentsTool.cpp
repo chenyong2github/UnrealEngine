@@ -179,11 +179,11 @@ void UMeshTangentsTool::Render(IToolsContextRenderAPI* RenderAPI)
 			if (ErrorPt.MaxAngleDeg > Settings->AngleThreshDeg)
 			{
 				Visualizer.DrawPoint(ErrorPt.VertexPos, FLinearColor(0.95, 0.05, 0.05), 6 * Settings->LineThickness, false);
-				Visualizer.DrawLine(ErrorPt.VertexPos, ErrorPt.VertexPos + Settings->LineLength * ErrorPt.MikktTangent, FLinearColor(0.95, 0.05, 0.05), 2 * Settings->LineThickness, false);
-				Visualizer.DrawLine(ErrorPt.VertexPos, ErrorPt.VertexPos + Settings->LineLength * ErrorPt.MikktBitangent, FLinearColor(0.05, 0.95, 0.05), 2 * Settings->LineThickness, false);
+				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + Settings->LineLength * ErrorPt.MikktTangent, FLinearColor(0.95, 0.05, 0.05), 2 * Settings->LineThickness, false);
+				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + Settings->LineLength * ErrorPt.MikktBitangent, FLinearColor(0.05, 0.95, 0.05), 2 * Settings->LineThickness, false);
 
-				Visualizer.DrawLine(ErrorPt.VertexPos, ErrorPt.VertexPos + (1.1f*Settings->LineLength) * ErrorPt.OtherTangent, FLinearColor(0.95, 0.50, 0.05), Settings->LineThickness, false);
-				Visualizer.DrawLine(ErrorPt.VertexPos, ErrorPt.VertexPos + (1.1f*Settings->LineLength) * ErrorPt.OtherBitangent, FLinearColor(0.05, 0.95, 0.95), Settings->LineThickness, false);
+				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + (1.1f*Settings->LineLength) * ErrorPt.OtherTangent, FLinearColor(0.95, 0.50, 0.05), Settings->LineThickness, false);
+				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + (1.1f*Settings->LineLength) * ErrorPt.OtherBitangent, FLinearColor(0.05, 0.95, 0.95), Settings->LineThickness, false);
 			}
 		}
 		Visualizer.EndFrame();
@@ -311,19 +311,19 @@ void UMeshTangentsTool::OnTangentsUpdated(const TUniquePtr<FMeshTangentsd>& NewR
 				InputMesh->GetTriVertices(Index, Verts[0], Verts[1], Verts[2]);
 				for (int j = 0; j < 3; ++j)
 				{
-					FVector3d TangentMikkt, BitangentMikkt;
-					MikktTangents->GetPerTriangleTangent(Index, j, TangentMikkt, BitangentMikkt);
+					FVector3f TangentMikkt, BitangentMikkt;
+					MikktTangents->GetPerTriangleTangent<FVector3f, float>(Index, j, TangentMikkt, BitangentMikkt);
 					UE::Geometry::Normalize(TangentMikkt); UE::Geometry::Normalize(BitangentMikkt);
-					FVector3d TangentNew, BitangentNew;
-					NewTangents->GetPerTriangleTangent(Index, j, TangentNew, BitangentNew);
+					FVector3f TangentNew, BitangentNew;
+					NewTangents->GetPerTriangleTangent<FVector3f, float>(Index, j, TangentNew, BitangentNew);
 					UE::Geometry::Normalize(TangentNew); 
 					UE::Geometry::Normalize(BitangentNew);
 					ensure(UE::Geometry::IsNormalized(TangentMikkt) && UE::Geometry::IsNormalized(BitangentMikkt));
 					ensure(UE::Geometry::IsNormalized(TangentNew) && UE::Geometry::IsNormalized(BitangentNew));
-					double MaxAngleDeg = FMathd::Max(UE::Geometry::AngleD(TangentMikkt, TangentNew), UE::Geometry::AngleD(BitangentMikkt, BitangentNew));
-					if (MaxAngleDeg > 0.5)
+					float MaxAngleDeg = FMathf::Max(UE::Geometry::AngleD(TangentMikkt, TangentNew), UE::Geometry::AngleD(BitangentMikkt, BitangentNew));
+					if (MaxAngleDeg > 0.5f)
 					{
-						FMikktDeviation Deviation{ static_cast<float>(MaxAngleDeg), Index, j, Verts[j], TangentMikkt, BitangentMikkt, TangentNew, BitangentNew };
+						FMikktDeviation Deviation{ MaxAngleDeg, Index, j, (FVector3f)Verts[j], TangentMikkt, BitangentMikkt, TangentNew, BitangentNew };
 						Deviations.Add(Deviation);
 					}
 				}

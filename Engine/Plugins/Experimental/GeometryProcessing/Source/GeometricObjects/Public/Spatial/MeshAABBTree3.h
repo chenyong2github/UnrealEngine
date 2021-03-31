@@ -289,7 +289,7 @@ protected:
 				FIndex3i Triangle = Mesh->GetTriangle(ti);
 				for (int j = 0; j < 3; ++j) 
 				{
-					double VertexDistSqr = Mesh->GetVertex(Triangle[j]).DistanceSquared(P);
+					double VertexDistSqr = DistanceSquared(Mesh->GetVertex(Triangle[j]), P);
 					if (VertexDistSqr < NearestDistSqr) 
 					{
 						NearestDistSqr = VertexDistSqr;
@@ -719,7 +719,8 @@ public:
 		{
 			if (TransformF != nullptr)
 			{
-				TestMeshBounds = FAxisAlignedBox3d(TestMeshBounds, TransformF);
+				TestMeshBounds = FAxisAlignedBox3d(TestMeshBounds,
+					[&](const FVector3<double>& P) { return TransformF(P); });
 			}
 			if (box_box_intersect(RootIndex, TestMeshBounds) == false)
 			{
@@ -903,7 +904,8 @@ protected:
 		if (TransformF != nullptr)
 		{
 			FAxisAlignedBox3d box = GetBox(iBox);
-			return FAxisAlignedBox3d(box, TransformF);
+			return FAxisAlignedBox3d(box, 
+				[&](const FVector3<double>& P) { return TransformF(P); });
 		}
 		else
 		{

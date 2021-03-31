@@ -302,8 +302,8 @@ struct TAxisAlignedBox3
 	}
 	TAxisAlignedBox3(const FBox& Box)
 	{
-		Min = Box.Min;
-		Max = Box.Max;
+		Min = FVector3<RealType>(Box.Min);
+		Max = FVector3<RealType>(Box.Max);
 	}
 
 	/**

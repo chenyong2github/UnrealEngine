@@ -181,7 +181,7 @@ void UAddPatchTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClickPos)
 	bool bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPosWorldRay);
 	if (bHit)
 	{
-		ShapeFrame = FFrame3f(Result.ImpactPoint, Result.ImpactNormal);
+		ShapeFrame = FFrame3f((FVector3f)Result.ImpactPoint, (FVector3f)Result.ImpactNormal);
 		//ShapeFrame.ConstrainedAlignPerpAxes();
 	}
 
@@ -207,7 +207,7 @@ void UAddPatchTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClickPos)
 
 void UAddPatchTool::UpdatePreviewMesh()
 {
-	FVector Direction = FVector(0, 0, 1);
+	FVector3d Direction = FVector3d(0, 0, 1.0);
 	float WorldMaxHeight = WorldBounds.Max.Z;
 	float WorldMinHeight = WorldBounds.Min.Z;
 	float WorldHeight = WorldMaxHeight - WorldMinHeight;
@@ -235,10 +235,10 @@ void UAddPatchTool::UpdatePreviewMesh()
 		bool bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, RayStart, RayEnd);
 		if (bHit)
 		{
-			FVector3d HitPoint = Result.ImpactPoint + ShapeSettings->Shift * Direction;
+			FVector3d HitPoint = (FVector3d)Result.ImpactPoint + (double)ShapeSettings->Shift * Direction;
 			FVector HitPosWorld = (FVector)HitPoint;
 			FVector HitPosLocal = MoveTransform.InverseTransformPosition(HitPosWorld);
-			Projected.SetVertex(vid, HitPosLocal);
+			Projected.SetVertex(vid, (FVector3d)HitPosLocal);
 		}
 		else
 		{

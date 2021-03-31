@@ -125,7 +125,8 @@ void UPositionPlaneGizmo::OnBeginDrag(const FRay& Ray)
 {
 	bInTransformDrag = true;
 	FTransform CurTransform = CenterBallShape->GetTransform();
-	QuickTransformer.SetActiveFrameFromWorldNormal(CurTransform.GetTranslation(), CurTransform.GetRotation().GetAxisZ(), true);
+	QuickTransformer.SetActiveFrameFromWorldNormal(
+		(FVector3d)CurTransform.GetTranslation(), (FVector3d)CurTransform.GetRotation().GetAxisZ(), true);
 }
 
 
@@ -149,8 +150,8 @@ void UPositionPlaneGizmo::OnUpdateDrag(const FRay& Ray)
 		if (bHitWorld)
 		{
 			FFrame3f UpdatedFrame(CenterBallShape->GetTransform());
-			UpdatedFrame.AlignAxis(2, Result.ImpactNormal);
-			UpdatedFrame.Origin = Result.ImpactPoint;
+			UpdatedFrame.AlignAxis(2, (FVector3f)Result.ImpactNormal);
+			UpdatedFrame.Origin = (FVector3f)Result.ImpactPoint;
 			CenterBallShape->SetTransform(UpdatedFrame.ToFTransform());
 			PostUpdatedPosition();
 		}

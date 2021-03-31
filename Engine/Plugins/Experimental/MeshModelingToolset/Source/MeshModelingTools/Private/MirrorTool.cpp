@@ -247,7 +247,7 @@ void UMirrorTool::Setup()
 
 	// Set the initial mirror plane. We want the plane to start in the middle if we're doing a simple
 	// mirror (i.e., not appending, and not cropping). Otherwise, we want the plane to start to one side.
-	MirrorPlaneOrigin = CombinedBounds.GetCenter();
+	MirrorPlaneOrigin = (FVector3d)CombinedBounds.GetCenter();
 	MirrorPlaneNormal = FVector3d(0, -1, 0);
 	if (Settings->OperationMode == EMirrorOperationMode::MirrorAndAppend || Settings->bCropAlongMirrorPlaneFirst)
 	{
@@ -273,7 +273,7 @@ void UMirrorTool::Setup()
 	PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
 		bool bIgnoreNormal = (Settings->CtrlClickBehavior == EMirrorCtrlClickBehavior::Reposition);
-		PlaneMechanic->SetDrawPlaneFromWorldPos(Hit.ImpactPoint, Hit.ImpactNormal, bIgnoreNormal);
+		PlaneMechanic->SetDrawPlaneFromWorldPos((FVector3d)Hit.ImpactPoint, (FVector3d)Hit.ImpactNormal, bIgnoreNormal);
 	};
 	// Also include the original components in the ctrl+click hit testing even though we made them 
 	// invisible, since we want to be able to reposition the plane onto the original mesh.
@@ -515,7 +515,7 @@ void UMirrorTool::RequestAction(EMirrorToolAction ActionType)
 
 void UMirrorTool::ApplyAction(EMirrorToolAction ActionType)
 {
-	FVector3d ShiftedPlaneOrigin = CombinedBounds.GetCenter();
+	FVector3d ShiftedPlaneOrigin = (FVector3d)CombinedBounds.GetCenter();
 
 	if (ActionType == EMirrorToolAction::ShiftToCenter)
 	{
@@ -530,27 +530,27 @@ void UMirrorTool::ApplyAction(EMirrorToolAction ActionType)
 		{
 		case EMirrorToolAction::Left:
 			ShiftedPlaneOrigin.Y = CombinedBounds.Min.Y;
-			DirectionVector = FVector(0, -1, 0);
+			DirectionVector = FVector3d(0, -1.0, 0);
 			break;
 		case EMirrorToolAction::Right:
 			ShiftedPlaneOrigin.Y = CombinedBounds.Max.Y;
-			DirectionVector = FVector(0, 1, 0);
+			DirectionVector = FVector3d(0, 1.0, 0);
 			break;
 		case EMirrorToolAction::Up:
 			ShiftedPlaneOrigin.Z = CombinedBounds.Max.Z;
-			DirectionVector = FVector(0, 0, 1);
+			DirectionVector = FVector3d(0, 0, 1.0);
 			break;
 		case EMirrorToolAction::Down:
 			ShiftedPlaneOrigin.Z = CombinedBounds.Min.Z;
-			DirectionVector = FVector(0, 0, -1);
+			DirectionVector = FVector3d(0, 0, -1.0);
 			break;
 		case EMirrorToolAction::Forward:
 			ShiftedPlaneOrigin.X = CombinedBounds.Max.X;
-			DirectionVector = FVector(1, 0, 0);
+			DirectionVector = FVector3d(1.0, 0, 0);
 			break;
 		case EMirrorToolAction::Backward:
 			ShiftedPlaneOrigin.X = CombinedBounds.Min.X;
-			DirectionVector = FVector(-1, 0, 0);
+			DirectionVector = FVector3d(-1.0, 0, 0);
 			break;
 		}
 

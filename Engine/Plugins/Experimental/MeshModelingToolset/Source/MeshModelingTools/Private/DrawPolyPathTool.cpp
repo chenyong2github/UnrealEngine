@@ -468,7 +468,7 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 		int NextJ = (j + 1) % NumPoints;
 		int PrevJ = (j - 1 + NumPoints) % NumPoints;
 		FVector3d Prev(CurPathPoints[PrevJ].Origin), Next(CurPathPoints[NextJ].Origin), Cur(CurPathPoints[j].Origin);
-		ArcLengths[j] = ArcLengths[PrevJ] + Cur.Distance(Prev);
+		ArcLengths[j] = ArcLengths[PrevJ] + Distance(Cur, Prev);
 		FLine3d Line1(FLine3d::FromPoints(Prev, Cur)), Line2(FLine3d::FromPoints(Cur, Next));
 		Line1.Origin += DistOffsetDelta * PlaneNormal.Cross(Line1.Direction);
 		Line2.Origin += DistOffsetDelta * PlaneNormal.Cross(Line2.Direction);
@@ -480,10 +480,10 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 		}
 		else
 		{
-			FDistLine3Line3d Distance(Line1, Line2);
-			Distance.GetSquared();
-			FVector3d OffsetPoint = 0.5 * (Distance.Line1ClosestPoint + Distance.Line2ClosestPoint);
-			OffsetScaleFactors[j] = OffsetPoint.Distance(Cur) / DistOffsetDelta;
+			FDistLine3Line3d LineDist(Line1, Line2);
+			LineDist.GetSquared();
+			FVector3d OffsetPoint = 0.5 * (LineDist.Line1ClosestPoint + LineDist.Line2ClosestPoint);
+			OffsetScaleFactors[j] = Distance(OffsetPoint, Cur) / DistOffsetDelta;
 			FVector3d TangentDir = UE::Geometry::Normalized(OffsetPoint - Cur).Cross(PlaneNormal);
 			CurPathPoints[j].ConstrainedAlignAxis(0, TangentDir, PlaneNormal);
 		}

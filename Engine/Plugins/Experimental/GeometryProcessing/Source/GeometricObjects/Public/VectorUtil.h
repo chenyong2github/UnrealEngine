@@ -43,7 +43,7 @@ namespace VectorUtil
 	 * @return true if all components of V are finite
 	 */
 	template <typename RealType>
-	inline bool IsFinite(const FVector3<RealType>& V)
+	inline bool IsFinite(const UE::Core::TVector<RealType>& V)
 	{
 		return TMathUtil<RealType>::IsFinite(V.X) && TMathUtil<RealType>::IsFinite(V.Y) && TMathUtil<RealType>::IsFinite(V.Z);
 	}
@@ -62,7 +62,7 @@ namespace VectorUtil
 	 * @return normalized vector that is perpendicular to triangle V0,V1,V2  (triangle normal)
 	 */
 	template <typename RealType>
-	inline FVector3<RealType> Normal(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	inline FVector3<RealType> Normal(const UE::Core::TVector<RealType>& V0, const UE::Core::TVector<RealType>& V1, const UE::Core::TVector<RealType>& V2)
 	{
 		FVector3<RealType> edge1(V1 - V0);
 		FVector3<RealType> edge2(V2 - V0);
@@ -78,7 +78,7 @@ namespace VectorUtil
 	 * @return un-normalized direction that is parallel to normal of triangle V0,V1,V2
 	 */
 	template <typename RealType>
-	inline FVector3<RealType> NormalDirection(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	inline FVector3<RealType> NormalDirection(const UE::Core::TVector<RealType>& V0, const UE::Core::TVector<RealType>& V1, const UE::Core::TVector<RealType>& V2)
 	{
 		// Unreal has Left-Hand Coordinate System so we need to reverse this cross-product to get proper triangle normal
 		return (V2 - V0).Cross(V1 - V0);
@@ -89,7 +89,7 @@ namespace VectorUtil
 	 * @return area of 3D triangle V0,V1,V2
 	 */
 	template <typename RealType>
-	inline RealType Area(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	inline RealType Area(const UE::Core::TVector<RealType>& V0, const UE::Core::TVector<RealType>& V1, const UE::Core::TVector<RealType>& V2)
 	{
 		FVector3<RealType> Edge1(V1 - V0);
 		FVector3<RealType> Edge2(V2 - V0);
@@ -113,11 +113,11 @@ namespace VectorUtil
 	 * @return true if triangle V1,V2,V3 is obtuse
 	 */
 	template <typename RealType>
-	inline bool IsObtuse(const FVector3<RealType>& V1, const FVector3<RealType>& V2, const FVector3<RealType>& V3)
+	inline bool IsObtuse(const UE::Core::TVector<RealType>& V1, const UE::Core::TVector<RealType>& V2, const UE::Core::TVector<RealType>& V3)
 	{
-		RealType a2 = V1.DistanceSquared(V2);
-		RealType b2 = V1.DistanceSquared(V3);
-		RealType c2 = V2.DistanceSquared(V3);
+		RealType a2 = DistanceSquared(V1, V2);
+		RealType b2 = DistanceSquared(V1, V3);
+		RealType c2 = DistanceSquared(V2, V3);
 		return (a2 + b2 < c2) || (b2 + c2 < a2) || (c2 + a2 < b2);
 	}
 
@@ -126,7 +126,7 @@ namespace VectorUtil
 	 * @return triangle normal
 	 */
 	template <typename RealType>
-	inline FVector3<RealType> NormalArea(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2, RealType& AreaOut)
+	inline FVector3<RealType> NormalArea(const UE::Core::TVector<RealType>& V0, const UE::Core::TVector<RealType>& V1, const UE::Core::TVector<RealType>& V2, RealType& AreaOut)
 	{
 		FVector3<RealType> edge1(V1 - V0);
 		FVector3<RealType> edge2(V2 - V0);
@@ -153,7 +153,7 @@ namespace VectorUtil
 
 	/** @return true if all coordinates of V0 and V1 are within Epsilon of eachother */
 	template <typename RealType>
-	inline bool EpsilonEqual(const FVector3<RealType>& V0, const FVector3<RealType>& V1, RealType Epsilon)
+	inline bool EpsilonEqual(const UE::Core::TVector<RealType>& V0, const UE::Core::TVector<RealType>& V1, RealType Epsilon)
 	{
 		return EpsilonEqual(V0.X, V1.X, Epsilon) && EpsilonEqual(V0.Y, V1.Y, Epsilon) && EpsilonEqual(V0.Z, V1.Z, Epsilon);
 	}
@@ -178,7 +178,7 @@ namespace VectorUtil
 	 * Calculates two vectors perpendicular to input Normal, as efficiently as possible.
 	 */
 	template <typename RealType>
-	inline void MakePerpVectors(const FVector3<RealType>& Normal, FVector3<RealType>& OutPerp1, FVector3<RealType>& OutPerp2)
+	inline void MakePerpVectors(const UE::Core::TVector<RealType>& Normal, UE::Core::TVector<RealType>& OutPerp1, UE::Core::TVector<RealType>& OutPerp2)
 	{
 		// Duff et al method, from https://graphics.pixar.com/library/OrthonormalB/paper.pdf
 		if (Normal.Z < (RealType)0)
@@ -236,7 +236,7 @@ namespace VectorUtil
 	 * @return angle in degrees
 	 */
 	template <typename RealType>
-	inline RealType PlaneAngleSignedD(const FVector3<RealType>& VFrom, const FVector3<RealType>& VTo, const FVector3<RealType>& PlaneN)
+	inline RealType PlaneAngleSignedD(const UE::Core::TVector<RealType>& VFrom, const UE::Core::TVector<RealType>& VTo, const UE::Core::TVector<RealType>& PlaneN)
 	{
 		FVector3<RealType> vFrom = VFrom - VFrom.Dot(PlaneN) * PlaneN;
 		FVector3<RealType> vTo = VTo - VTo.Dot(PlaneN) * PlaneN;
@@ -256,7 +256,7 @@ namespace VectorUtil
 	 * @return positive value of tan(theta/2) where theta is angle between normalized vectors A and B
 	 */
 	template <typename RealType>
-	RealType VectorTanHalfAngle(const FVector3<RealType>& A, const FVector3<RealType>& B)
+	RealType VectorTanHalfAngle(const UE::Core::TVector<RealType>& A, const UE::Core::TVector<RealType>& B)
 	{
 		RealType cosAngle = A.Dot(B);
 		RealType sqr = ((RealType)1 - cosAngle) / ((RealType)1 + cosAngle);
@@ -270,7 +270,7 @@ namespace VectorUtil
 	 * @return cotangent of angle between V1 and V2, or zero if result would be unstable (eg infinity)
 	 */ 
 	template <typename RealType>
-	RealType VectorCot(const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	RealType VectorCot(const UE::Core::TVector<RealType>& V1, const UE::Core::TVector<RealType>& V2)
 	{
 		// formula from http://www.geometry.caltech.edu/pubs/DMSB_III.pdf
 		RealType fDot = V1.Dot(V2);
@@ -294,7 +294,7 @@ namespace VectorUtil
 	 * TODO: make robust to degenerate triangles?
 	 */
 	template <typename RealType>
-	FVector3<RealType> BarycentricCoords(const FVector3<RealType>& Point, const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	FVector3<RealType> BarycentricCoords(const UE::Core::TVector<RealType>& Point, const UE::Core::TVector<RealType>& V0, const UE::Core::TVector<RealType>& V1, const UE::Core::TVector<RealType>& V2)
 	{
 		FVector3<RealType> kV02 = V0 - V2;
 		FVector3<RealType> kV12 = V1 - V2;
@@ -341,7 +341,7 @@ namespace VectorUtil
 	 * @return solid angle at point P for triangle A,B,C
 	 */
 	template <typename RealType>
-	inline RealType TriSolidAngle(FVector3<RealType> A, FVector3<RealType> B, FVector3<RealType> C, const FVector3<RealType>& P)
+	inline RealType TriSolidAngle(UE::Core::TVector<RealType> A, UE::Core::TVector<RealType> B, UE::Core::TVector<RealType> C, const UE::Core::TVector<RealType>& P)
 	{
 		// Formula from https://igl.ethz.ch/projects/winding-number/
 		A -= P;
@@ -361,7 +361,7 @@ namespace VectorUtil
 	 * @return gradient (3D vector) lying in plane of triangle.
 	 */
 	template <typename RealType>
-	inline FVector3<RealType> TriGradient(FVector3<RealType> Vi, FVector3<RealType> Vj, FVector3<RealType> Vk, RealType fi, RealType fj, RealType fk)
+	inline FVector3<RealType> TriGradient(UE::Core::TVector<RealType> Vi, UE::Core::TVector<RealType> Vj, UE::Core::TVector<RealType> Vk, RealType fi, RealType fj, RealType fk)
 	{
 		// recenter (better for precision)
 		FVector3<RealType> Centroid = (Vi + Vj + Vk) / (RealType)3;
@@ -387,7 +387,7 @@ namespace VectorUtil
 	 * @return angle between vectors (A-CornerPt) and (B-CornerPt)
 	 */
 	template<typename RealType>
-	inline RealType OpeningAngleD(FVector3<RealType> A, FVector3<RealType> B, const FVector3<RealType>& P)
+	inline RealType OpeningAngleD(UE::Core::TVector<RealType> A, UE::Core::TVector<RealType> B, const UE::Core::TVector<RealType>& P)
 	{
 		A -= P; 
 		Normalize(A);
@@ -402,7 +402,7 @@ namespace VectorUtil
 	 * @return sign of Bitangent relative to Normal and Tangent
 	 */
 	template<typename RealType>
-	inline RealType BitangentSign(const FVector3<RealType>& NormalIn, const FVector3<RealType>& TangentIn, const FVector3<RealType>& BitangentIn)
+	inline RealType BitangentSign(const UE::Core::TVector<RealType>& NormalIn, const UE::Core::TVector<RealType>& TangentIn, const UE::Core::TVector<RealType>& BitangentIn)
 	{
 		// following math from RenderUtils.h::GetBasisDeterminantSign()
 		RealType Cross00 = BitangentIn.Y*NormalIn.Z - BitangentIn.Z*NormalIn.Y;
@@ -416,7 +416,7 @@ namespace VectorUtil
 	 * @return Bitangent vector based on given Normal, Tangent, and Sign value (+1/-1)
 	 */
 	template<typename RealType>
-	inline FVector3<RealType> Bitangent(const FVector3<RealType>& NormalIn, const FVector3<RealType>& TangentIn, RealType BitangentSign)
+	inline FVector3<RealType> Bitangent(const UE::Core::TVector<RealType>& NormalIn, const UE::Core::TVector<RealType>& TangentIn, RealType BitangentSign)
 	{
 		return BitangentSign * FVector3<RealType>(
 			NormalIn.Y*TangentIn.Z - NormalIn.Z*TangentIn.Y,
@@ -428,7 +428,7 @@ namespace VectorUtil
 	 * @return Tangent-Space vector based on given Normal and Bitangent
 	 */
 	template<typename RealType>
-	inline FVector3<RealType> TangentFromBitangent(const FVector3<RealType>& NormalIn, const FVector3<RealType>& BitangentIn)
+	inline FVector3<RealType> TangentFromBitangent(const UE::Core::TVector<RealType>& NormalIn, const UE::Core::TVector<RealType>& BitangentIn)
 	{
 		return BitangentIn.Cross(NormalIn);
 	}
@@ -437,7 +437,7 @@ namespace VectorUtil
 	 * @return Bitangent vector based on given Normal and Tangent
 	 */
 	template<typename RealType>
-	inline FVector3<RealType> BitangentFromTangent(const FVector3<RealType>& NormalIn, const FVector3<RealType>& TangentIn)
+	inline FVector3<RealType> BitangentFromTangent(const UE::Core::TVector<RealType>& NormalIn, const UE::Core::TVector<RealType>& TangentIn)
 	{
 		return NormalIn.Cross(TangentIn);
 	}
@@ -445,7 +445,7 @@ namespace VectorUtil
 	/// @return Aspect ratio of triangle 
 	inline double AspectRatio(const FVector3d& v1, const FVector3d& v2, const FVector3d& v3)
 	{
-		double a = v1.Distance(v2), b = v2.Distance(v3), c = v3.Distance(v1);
+		double a = Distance(v1, v2), b = Distance(v2, v3), c = Distance(v3, v1);
 		double s = (a + b + c) / 2.0;
 		return (a * b * c) / (8.0 * (s - a) * (s - b) * (s - c));
 	}

@@ -270,7 +270,7 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundaryConformal(const TArray<
 	{
 		for (int32 j = i + 1; j < LoopNum; ++j)
 		{
-			double DistSqr = Submesh.GetVertex(ConstrainLoop[i]).DistanceSquared(Submesh.GetVertex(ConstrainLoop[j]));
+			double DistSqr = DistanceSquared(Submesh.GetVertex(ConstrainLoop[i]), Submesh.GetVertex(ConstrainLoop[j]));
 			if (DistSqr > MaxDistSqr)
 			{
 				MaxDistSqr = DistSqr;

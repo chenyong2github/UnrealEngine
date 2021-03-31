@@ -52,7 +52,7 @@ static double CalculateAverageUVScale(const FDynamicMeshUVOverlay* UVOverlay, in
 			for (int32 j = 0; j < 3; ++j)
 			{
 				int32 jn = (j + 1) % 3;
-				double Len3D = Pos[j].Distance(Pos[jn]);
+				double Len3D = Distance(Pos[j], Pos[jn]);
 				double LenUV = UV[j].Distance(UV[jn]);
 				double Scale = LenUV / FMathd::Max(FMathf::ZeroTolerance, Len3D);
 				AverageScale += Scale;
@@ -128,11 +128,11 @@ bool FJoinMeshLoops::Apply()
 		{
 			int32 j = (i + 1) % NV;
 			AccumArcLen[i] = TotalArcLen;
-			RowWidth[i] = Mesh->GetVertex(LoopA[i]).Distance(Mesh->GetVertex(LoopB[i]));
+			RowWidth[i] = Distance(Mesh->GetVertex(LoopA[i]), Mesh->GetVertex(LoopB[i]));
 			AverageWidth += RowWidth[i];
 			FVector3d MidCur = (Mesh->GetVertex(LoopA[i]) + Mesh->GetVertex(LoopB[i])) * 0.5;
 			FVector3d MidNext = (Mesh->GetVertex(LoopA[j]) + Mesh->GetVertex(LoopB[j])) * 0.5;
-			TotalArcLen += MidCur.Distance(MidNext);
+			TotalArcLen += Distance(MidCur, MidNext);
 		}
 		AccumArcLen[NV] = TotalArcLen;
 		RowWidth[NV] = RowWidth[0];

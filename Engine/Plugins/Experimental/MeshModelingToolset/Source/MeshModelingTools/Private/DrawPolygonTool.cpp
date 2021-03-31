@@ -101,7 +101,7 @@ void UDrawPolygonTool::Setup()
 	FSelectClickedAction* SetPlaneAction = new FSelectClickedAction();
 	SetPlaneAction->World = this->TargetWorld;
 	SetPlaneAction->OnClickedPositionFunc = [this](const FHitResult& Hit) {
-		SetDrawPlaneFromWorldPos(Hit.ImpactPoint, Hit.ImpactNormal);
+		SetDrawPlaneFromWorldPos((FVector3d)Hit.ImpactPoint, (FVector3d)Hit.ImpactNormal);
 	};
 	SetPointInWorldConnector = SetPlaneAction;
 
@@ -349,10 +349,10 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 			// clip this line to the view plane because if it goes through the view plane the pixel-line-thickness
 			// calculation appears to fail
 			FLine3d DrawSnapLine = SnapEngine.GetActiveSnapLine();
-			FVector3d P0(DrawSnapLine.PointAt(-9999)), P1(DrawSnapLine.PointAt(9999));		// should be smarter here...
+			FVector3d P0(DrawSnapLine.PointAt(-99999.0)), P1(DrawSnapLine.PointAt(99999.0));		// should be smarter here...
 			if (RenderCameraState.bIsOrthographic == false)
 			{
-				UE::Geometry::FPlane3d CameraPlane(RenderCameraState.Forward(), RenderCameraState.Position + 1.0*RenderCameraState.Forward());
+				UE::Geometry::FPlane3d CameraPlane((FVector3d)RenderCameraState.Forward(), (FVector3d)RenderCameraState.Position + 1.0*(FVector3d)RenderCameraState.Forward());
 				CameraPlane.ClipSegment(P0, P1);
 			}
 			PDI->DrawLine((FVector)P0, (FVector)P1, SnapLineColor, SDPG_Foreground, 0.5 * PDIScale, 0.0f, true);
@@ -479,7 +479,7 @@ void UDrawPolygonTool::UpdatePreviewVertex(const FVector3d& PreviewVertexIn)
 	if (PolygonVertices.Num() > 0)
 	{
 		FVector3d LastVertex = PolygonVertices[PolygonVertices.Num() - 1];
-		SnapProperties->SegmentLength = LastVertex.Distance(PreviewVertex);
+		SnapProperties->SegmentLength = Distance(LastVertex, PreviewVertex);
 	}
 }
 
@@ -494,7 +494,7 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 
 	FFrame3d Frame(DrawPlaneOrigin, DrawPlaneOrientation);
 	FVector3d HitPos;
-	bool bHit = Frame.RayPlaneIntersection(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction, 2, HitPos);
+	bool bHit = Frame.RayPlaneIntersection((FVector3d)ClickPos.WorldRay.Origin, (FVector3d)ClickPos.WorldRay.Direction, 2, HitPos);
 	if (bHit == false)
 	{
 		return false;
@@ -558,8 +558,8 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 		if (bWorldHit)
 		{
 			bHaveSurfaceHit = true;
-			SurfaceHitPoint = Result.ImpactPoint;
-			FVector3d UseHitPos = Result.ImpactPoint + SnapProperties->HitNormalOffset*Result.Normal;
+			SurfaceHitPoint = (FVector3d)Result.ImpactPoint;
+			FVector3d UseHitPos = (FVector3d)Result.ImpactPoint + (double)SnapProperties->HitNormalOffset*(FVector3d)Result.Normal;
 			HitPos = Frame.ToPlane(UseHitPos, 2);
 			SurfaceOffsetPoint = UseHitPos;
 		}
@@ -702,7 +702,7 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 				PolygonVertices[j-SelfIntersectSegmentIdx] = PolygonVertices[j];
 			}
 			PolygonVertices.SetNum(PolygonVertices.Num() - SelfIntersectSegmentIdx);
-			PolygonVertices[0] = PreviewVertex = (FVector)SelfIntersectionPoint;
+			PolygonVertices[0] = PreviewVertex = (FVector3d)SelfIntersectionPoint;
 			bDonePolygon = true;
 		}
 	}
@@ -1080,7 +1080,7 @@ bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector3d>& Polygon, con
 	// add preview vertex
 	if (bIncludePreviewVtx)
 	{
-		if (PreviewVertex.Distance(Polygon[NumVerts - 1]) > 0.1)
+		if (Distance(PreviewVertex, Polygon[NumVerts-1]) > 0.1)
 		{
 			OuterPolygon.AppendVertex(WorldFrameOut.ToPlaneUV(PreviewVertex, 2));
 		}

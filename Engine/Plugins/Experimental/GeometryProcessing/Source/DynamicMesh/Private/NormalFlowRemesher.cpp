@@ -183,7 +183,7 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved)
 			continue;
 		}
 
-		MaxDistanceMoved = FMath::Max(MaxDistanceMoved, CurrentPosition.Distance(ProjectedPosition));
+		MaxDistanceMoved = FMath::Max(MaxDistanceMoved, Distance(CurrentPosition, ProjectedPosition));
 
 		TempFlagBuffer[VertexID] = true;
 		TempPosBuffer[VertexID] = ProjectedPosition;
@@ -194,7 +194,7 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved)
 			int OtherVertexID = (EdgeVertices.A == VertexID) ? EdgeVertices.B : EdgeVertices.A;
 			FVector3d OtherVertexPosition = Mesh->GetVertex(OtherVertexID);
 
-			double NewEdgeLength = ProjectedPosition.Distance(OtherVertexPosition);
+			double NewEdgeLength = Distance(ProjectedPosition, OtherVertexPosition);
 			if (NewEdgeLength < MinEdgeLength || NewEdgeLength > MaxEdgeLength)
 			{
 				QueueEdge(EdgeID);
