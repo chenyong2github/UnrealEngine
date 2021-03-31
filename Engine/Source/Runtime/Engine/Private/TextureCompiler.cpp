@@ -249,7 +249,7 @@ void FTextureCompilingManager::FinishCompilation(TArrayView<UTexture* const> InT
 
 	if (PendingTextures.Num())
 	{
-		class FCompilableTexture : public AsyncCompilationHelpers::ICompilable
+		class FCompilableTexture : public AsyncCompilationHelpers::TCompilableAsyncTask<FTextureAsyncCacheDerivedDataTask>
 		{
 		public:
 			FCompilableTexture(UTexture* InTexture)
@@ -257,8 +257,20 @@ void FTextureCompilingManager::FinishCompilation(TArrayView<UTexture* const> InT
 			{
 			}
 
+			FTextureAsyncCacheDerivedDataTask* GetAsyncTask() override
+			{
+				if (FTexturePlatformData** PlatformDataPtr = Texture->GetRunningPlatformData())
+				{
+					if (FTexturePlatformData* PlatformData = *PlatformDataPtr)
+					{
+						return PlatformData->AsyncTask;
+					}
+				}
+
+				return nullptr;
+			}
+
 			TStrongObjectPtr<UTexture> Texture;
-			void EnsureCompletion() override { Texture->FinishCachePlatformData(); }
 			FName GetName() override { return Texture->GetOutermost()->GetFName(); }
 		};
 

@@ -302,7 +302,7 @@ void FStaticMeshCompilingManager::FinishCompilation(TArrayView<UStaticMesh* cons
 
 	if (PendingStaticMeshes.Num())
 	{
-		class FCompilableStaticMesh : public AsyncCompilationHelpers::ICompilable
+		class FCompilableStaticMesh : public AsyncCompilationHelpers::TCompilableAsyncTask<FStaticMeshAsyncBuildTask>
 		{
 		public:
 			FCompilableStaticMesh(UStaticMesh* InStaticMesh)
@@ -310,8 +310,12 @@ void FStaticMeshCompilingManager::FinishCompilation(TArrayView<UStaticMesh* cons
 			{
 			}
 
+			FStaticMeshAsyncBuildTask* GetAsyncTask() override
+			{
+				return StaticMesh->AsyncTask.Get();
+			}
+
 			TStrongObjectPtr<UStaticMesh> StaticMesh;
-			void EnsureCompletion() override { if (StaticMesh->AsyncTask) { StaticMesh->AsyncTask->EnsureCompletion(); } }
 			FName GetName() override { return StaticMesh->GetOutermost()->GetFName(); }
 		};
 

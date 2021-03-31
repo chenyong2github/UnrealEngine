@@ -13,6 +13,7 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "HAL/IConsoleManager.h"
+#include "AssetCompilingManager.h"
 #include "HAL/PlatformStackWalk.h"
 #include "Hash/CityHash.h"
 #include "Misc/ScopeRWLock.h"
@@ -101,41 +102,12 @@ namespace AsyncCompilationHelpers
 			SlowTask->MakeDialogDelayed(1.0f, false /*bShowCancelButton*/, true /*bAllowInPIE*/);
 		}
 
-		struct FFinishTask : public IQueuedWork
-		{
-			ICompilable* Job = nullptr;
-			FEvent* Event;
-			FFinishTask() { Event = FPlatformProcess::GetSynchEventFromPool(true); }
-			~FFinishTask() { FPlatformProcess::ReturnSynchEventToPool(Event); }
-			void DoThreadedWork() override
-			{
-				FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread);
-				Job->EnsureCompletion();
-				Event->Trigger();
-			}
-
-			void Abandon() override { }
-
-			// Since we're specifically waiting on other tasks here, we can't be run inside a busywait
-			// without risking a deadlock.
-			//
-			// (i.e. T1 -> busywait -> picks T2 that then waits on T1 -> deadlock
-			//
-			// Imagine we're T2 and we're going to wait on T1 here... 
-			// if we get picked up on the same thread inside T1's busy wait, we'll deadlock.
-			//
-			// See FAsyncWorkEnsureCompletionBusyWaitDeadLockTest for a 100% repro case
-			EQueuedWorkFlags GetQueuedWorkFlags() const override { return EQueuedWorkFlags::DoNotRunInsideBusyWait; }
-		};
-
-		// Perform forced compilation on as many thread as possible in high priority since the game-thread is waiting
-		TArray<FFinishTask> PendingTasks;
-		PendingTasks.SetNum(Num);
-
+		// Reschedule everything to be executed at highest priority
+		// Important to keep using the asset compiling manager's thread pool to benefit from it's memory management and avoid OOM.
+		FQueuedThreadPool* AssetThreadPool = FAssetCompilingManager::Get().GetThreadPool();
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
-			PendingTasks[Index].Job = &Getter(Index);
-			GThreadPool->AddQueuedWork(&PendingTasks[Index], EQueuedWorkPriority::Highest);
+			Getter(Index).Reschedule(AssetThreadPool, EQueuedWorkPriority::Highest);
 		}
 
 		auto FormatProgress =
@@ -150,15 +122,15 @@ namespace AsyncCompilationHelpers
 		};
 
 		int32 NumDone = 0;
-		for (FFinishTask& PendingTask : PendingTasks)
+		for (int32 Index = 0; Index < Num; ++Index)
 		{
-			ICompilable* Job = PendingTask.Job;
+			ICompilable& Job = Getter(Index);
 
-			FText Progress = FormatProgress(NumDone++, Num, Job->GetName());
+			FText Progress = FormatProgress(NumDone++, Num, Job.GetName());
 
 			// Be nice with the game thread and tick the progress at 60 fps even when no progress is being made...
 			bool bLogSlowProgress = true;
-			while (!PendingTask.Event->Wait(16))
+			while (!Job.WaitCompletionWithTimeout(0.016))
 			{
 				if (SlowTask.IsSet())
 				{
@@ -176,7 +148,7 @@ namespace AsyncCompilationHelpers
 				SlowTask->EnterProgressFrame(1.0f, Progress);
 			}
 
-			PostCompileSingle(Job);
+			PostCompileSingle(&Job);
 		}
 
 		SaveStallStack(FPlatformTime::Cycles64() - StartTime);

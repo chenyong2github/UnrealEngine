@@ -270,7 +270,7 @@ void FSkeletalMeshCompilingManager::FinishCompilation(TArrayView<USkeletalMesh* 
 
 	if (PendingSkeletalMeshes.Num())
 	{
-		class FCompilableSkeletalMesh : public AsyncCompilationHelpers::ICompilable
+		class FCompilableSkeletalMesh : public AsyncCompilationHelpers::TCompilableAsyncTask<FSkeletalMeshAsyncBuildTask>
 		{
 		public:
 			FCompilableSkeletalMesh(USkeletalMesh* InSkeletalMesh)
@@ -278,8 +278,12 @@ void FSkeletalMeshCompilingManager::FinishCompilation(TArrayView<USkeletalMesh* 
 			{
 			}
 
+			FSkeletalMeshAsyncBuildTask* GetAsyncTask() override
+			{
+				return SkeletalMesh->AsyncTask.Get();
+			}
+
 			TStrongObjectPtr<USkeletalMesh> SkeletalMesh;
-			void EnsureCompletion() override { if (SkeletalMesh->AsyncTask) { SkeletalMesh->AsyncTask->EnsureCompletion(); } }
 			FName GetName() override { return SkeletalMesh->GetFName(); }
 		};
 

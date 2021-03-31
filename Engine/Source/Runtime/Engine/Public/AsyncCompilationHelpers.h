@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Misc/QueuedThreadPool.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAsyncCompilation, Log, All);
 
@@ -46,8 +47,40 @@ namespace AsyncCompilationHelpers
 	{
 	public:
 		inline virtual ~ICompilable() {};
-		virtual void EnsureCompletion() = 0;
+
+		/*
+		* Reschedules any async tasks to the given thread pool at the given priority.
+		*/
+		virtual void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority) = 0;
+
+		/*
+		* Returns true once async tasks are complete, false if timing out.
+		*/
+		virtual bool WaitCompletionWithTimeout(float TimeLimitSeconds) = 0;
 		virtual FName GetName() = 0;
+	};
+
+	template <typename AsyncTaskType>
+	class TCompilableAsyncTask : public ICompilable
+	{
+		virtual AsyncTaskType* GetAsyncTask() = 0;
+
+		void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority) override
+		{
+			if (AsyncTaskType* AsyncTask = GetAsyncTask())
+			{
+				AsyncTask->Reschedule(InThreadPool, InPriority);
+			}
+		}
+		
+		bool WaitCompletionWithTimeout(float TimeLimitSeconds)
+		{
+			if (AsyncTaskType* AsyncTask = GetAsyncTask())
+			{
+				return AsyncTask->WaitCompletionWithTimeout(TimeLimitSeconds);
+			}
+			return true;
+		}
 	};
 
 	void FinishCompilation(
