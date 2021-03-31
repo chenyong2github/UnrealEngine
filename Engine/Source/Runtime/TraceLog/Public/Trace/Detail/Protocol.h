@@ -34,6 +34,7 @@ enum ETransport : uint8
 	Raw			= 1,
 	Packet		= 2,
 	TidPacket	= 3,
+	Active		= TidPacket,
 };
 
 enum ETransportTid : uint32

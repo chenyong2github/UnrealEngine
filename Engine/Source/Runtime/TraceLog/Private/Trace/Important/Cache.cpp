@@ -4,6 +4,7 @@
 
 #if UE_TRACE_ENABLED
 
+#include "Trace/Detail/Protocol.h"
 #include "Trace/Trace.h"
 
 #include <memory.h>
@@ -158,6 +159,8 @@ void Writer_InitializeCache()
 
 	GCacheActiveBuffer = Writer_CacheCreateBuffer(GCacheBufferSize);
 	GCacheActiveBuffer->TailNext = &GCacheHeadBuffer;
+
+	static_assert(ETransport::Active == ETransport::TidPacket, "The important cache is transport aware");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
