@@ -567,7 +567,7 @@ void UControlRigBlueprint::RecompileVM()
 
 		if (CDO->VM->GetOuter() != CDO)
 		{
-			CDO->VM = NewObject<URigVM>(CDO, TEXT("VM"));
+			CDO->SetVM(NewObject<URigVM>(CDO, TEXT("VM")));
 		}
 
 		if (!HasAnyFlags(RF_Transient | RF_Transactional))

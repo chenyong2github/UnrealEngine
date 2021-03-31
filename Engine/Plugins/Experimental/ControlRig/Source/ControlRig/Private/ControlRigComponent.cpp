@@ -1039,7 +1039,7 @@ UControlRig* UControlRigComponent::SetupControlRigIfRequired()
 	if(ControlRigClass)
 	{
 		ControlRig = NewObject<UControlRig>(this, ControlRigClass);
-		ControlRig->VM = NewObject<URigVM>(ControlRig);
+		ControlRig->SetVM(NewObject<URigVM>(ControlRig));
 
 		SetControlRig(ControlRig);
 

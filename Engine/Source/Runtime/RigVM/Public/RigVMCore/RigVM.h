@@ -118,6 +118,9 @@ class RIGVM_API URigVM : public UObject
 
 public:
 
+	/** Bindable event for external objects to be notified when the VM reaches an Exit Operation */
+	DECLARE_EVENT(URigVM, FExecutionReachedExitEvent);
+	
 	URigVM();
 	virtual ~URigVM();
 
@@ -501,6 +504,8 @@ public:
 	FString GetOperandLabel(const FRigVMOperand & InOperand, TFunction<FString(const FString& RegisterName, const FString& RegisterOffsetName)> FormatFunction = nullptr) const;
 #endif
 
+	FExecutionReachedExitEvent& ExecutionReachedExit() { return OnExecutionReachedExit; }
+
 private:
 
 	void ResolveFunctionsIfRequired();
@@ -555,5 +560,7 @@ private:
 
 	void CopyDeferredVMIfRequired();
 
+	FExecutionReachedExitEvent OnExecutionReachedExit;
+	
 	friend class URigVMCompiler;
 };

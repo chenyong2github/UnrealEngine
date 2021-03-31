@@ -1339,6 +1339,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			}
 			case ERigVMOpCode::Exit:
 			{
+				ExecutionReachedExit().Broadcast();
 				return true;
 			}
 			case ERigVMOpCode::BeginBlock:

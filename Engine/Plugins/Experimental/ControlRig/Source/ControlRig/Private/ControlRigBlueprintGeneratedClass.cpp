@@ -51,11 +51,11 @@ void UControlRigBlueprintGeneratedClass::Serialize(FArchive& Ar)
 		{
 			if (CDO->VM == nullptr)
 			{
-				CDO->VM = NewObject<URigVM>(CDO, TEXT("VM"));
+				CDO->SetVM(NewObject<URigVM>(CDO, TEXT("VM")));
 			}
 			if (CDO->VM->GetOuter() != CDO)
 			{
-				CDO->VM = NewObject<URigVM>(CDO, TEXT("VM"));
+				CDO->SetVM(NewObject<URigVM>(CDO, TEXT("VM")));
 			}
 			CDO->VM->CopyFrom(VM);
 		}

@@ -74,6 +74,9 @@ private:
 	/** true if the rig itself should increase the AbsoluteTime */
 	bool bAccumulateTime;
 
+	/** Latest state being processed */
+	EControlRigState LatestExecutedState;
+
 public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
@@ -152,7 +155,7 @@ public:
 	template<class T>
 	FORCEINLINE void SetPublicVariableValue(const FName& InVariableName, const T& InValue)
 	{
-		GetPublicVariableByName(InVariableName).SetValue<T>();
+		GetPublicVariableByName(InVariableName).SetValue<T>(InValue);
 	}
 
 	template<class T>
@@ -246,6 +249,9 @@ public:
 	/** Sets the queue of events to run */
 	void SetEventQueue(const TArray<FName>& InEventNames);
 
+	/** Set the VM, and bind its commands */
+	void SetVM(URigVM* VM);
+	
 	URigVM* GetVM();
 
 	/** INodeMappingInterface implementation */
@@ -409,6 +415,8 @@ private:
 	
 	void HandleOnControlModified(UControlRig* Subject, FRigControlElement* Control, const FRigControlModifiedContext& Context);
 
+	void HandleExecutionReachedExit();
+	
 	TArray<FRigVMExternalVariable> GetExternalVariablesImpl(bool bFallbackToBlueprint) const;
 
 	FORCEINLINE FProperty* GetPublicVariableProperty(const FName& InVariableName) const

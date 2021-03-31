@@ -45,6 +45,7 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, AbsoluteTime(0.0f)
 	, FramesPerSecond(0.0f)
 	, bAccumulateTime(true)
+	, LatestExecutedState(EControlRigState::Invalid)
 #if WITH_EDITOR
 	, ControlRigLog(nullptr)
 	, bEnableControlRigLogging(true)
@@ -67,7 +68,7 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, InteractionBracket(0)
 	, InterRigSyncBracket(0)
 {
-	VM = ObjectInitializer.CreateDefaultSubobject<URigVM>(this, TEXT("VM"));
+	SetVM(ObjectInitializer.CreateDefaultSubobject<URigVM>(this, TEXT("VM")));
 	DynamicHierarchy = ObjectInitializer.CreateDefaultSubobject<URigHierarchy>(this, TEXT("DynamicHierarchy"));
 
 	EventQueue.Add(FRigUnit_BeginExecution::EventName);
@@ -81,6 +82,11 @@ void UControlRig::BeginDestroy()
 	PostSetupEvent.Clear();
 	ExecutedEvent.Clear();
 	SetInteractionRig(nullptr);
+
+	if (VM)
+	{
+		VM->ExecutionReachedExit().RemoveAll(this);
+	}
 }
 
 UWorld* UControlRig::GetWorld() const
@@ -406,7 +412,7 @@ void UControlRig::InstantiateVMFromCDO()
 
 	if (VM == nullptr || VM->GetOuter() != this)
 	{
-		VM = NewObject<URigVM>(this, TEXT("VM"));
+		SetVM(NewObject<URigVM>(this, TEXT("VM")));
 	}
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
@@ -430,6 +436,8 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Execute);
+	
+	LatestExecutedState = InState;
 
 	if (VM)
 	{
@@ -642,14 +650,6 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			if (InState == EControlRigState::Init)
 			{
 				ExecuteUnits(Context, FRigUnit_BeginExecution::EventName);
-			}
-
-			if (InState != EControlRigState::Init)
-			{
-				if (bAccumulateTime)
-				{
-					AbsoluteTime += DeltaTime;
-				}
 			}
 		}
 		else
@@ -961,6 +961,24 @@ void UControlRig::SetEventQueue(const TArray<FName>& InEventNames)
 	EventQueue = InEventNames;
 }
 
+void UControlRig::SetVM(URigVM* NewVM)
+{
+	if (VM)
+	{
+		VM->ExecutionReachedExit().RemoveAll(this);
+	}
+	
+	if (NewVM)
+	{
+		if (!NewVM->ExecutionReachedExit().IsBoundToObject(this))
+		{
+			NewVM->ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
+		}
+	}
+
+	VM = NewVM;
+}
+
 URigVM* UControlRig::GetVM()
 {
 	if (VM == nullptr)
@@ -1144,6 +1162,14 @@ void UControlRig::HandleOnControlModified(UControlRig* Subject, FRigControlEleme
 		const FRigControlValue Value = DynamicHierarchy->GetControlValue(Control, IsSetupModeEnabled() ? ERigControlValueType::Initial : ERigControlValueType::Current);
 		DynamicHierarchy->SetCurveValue(FRigElementKey(Control->GetName(), ERigElementType::Curve), Value.Get<float>());
 	}	
+}
+
+void UControlRig::HandleExecutionReachedExit()
+{
+	if (LatestExecutedState != EControlRigState::Init && bAccumulateTime)
+	{
+		AbsoluteTime += DeltaTime;
+	}
 }
 
 bool UControlRig::IsCurveControl(const FRigControlElement* InControlElement) const
