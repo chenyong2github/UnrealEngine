@@ -152,7 +152,7 @@ void UMetasoundEditorGraphNode::ReconstructNode()
 	// are lost.
 	// TODO: User will want to see dead pins as well for node definition changes. Label and color-code dead
 	// pins (ex. red), and leave dead connections for reference like BP.
-	Editor::FGraphBuilder::SynchronizeNodePins(*this, GetNodeHandle(), false /* bRemoveUnusedPins */);
+	Editor::FGraphBuilder::SynchronizeNodePins(*this, GetNodeHandle(), false /* bRemoveUnusedPins */, false /* bLogChanges */);
 }
 
 void UMetasoundEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)

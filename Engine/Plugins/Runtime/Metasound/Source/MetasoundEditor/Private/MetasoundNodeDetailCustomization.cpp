@@ -210,13 +210,13 @@ namespace Metasound
 						if (Prop->GetValue(IntValue) != FPropertyAccess::Success)
 						{
 							IntValue = Interface->GetDefaultValue();
-							UE_LOG(LogTemp, Warning, TEXT("Failed to read int Property '%s', defaulting."), *GetNameSafe(Prop->GetProperty()));
+							UE_LOG(LogMetasoundEditor, Warning, TEXT("Failed to read int Property '%s', defaulting."), *GetNameSafe(Prop->GetProperty()));
 						}
 						if (TOptional<IEnumDataTypeInterface::FGenericInt32Entry> Result = Interface->FindByValue(IntValue))
 						{
 							return Result->DisplayName.ToString();
 						}
-						UE_LOG(LogTemp, Warning, TEXT("Failed to resolve int value '%d' to a valid enum value for enum '%s'"),
+						UE_LOG(LogMetasoundEditor, Warning, TEXT("Failed to resolve int value '%d' to a valid enum value for enum '%s'"),
 							IntValue, *Interface->GetNamespace().ToString());
 
 						// Return default (should always succeed as we can't have empty Enums and we must have a default).
@@ -242,7 +242,7 @@ namespace Metasound
 						}
 						else
 						{
-							UE_LOG(LogTemp, Warning, TEXT("Failed to Set Valid Value for Property '%s' with Value of '%s', writing default."),
+							UE_LOG(LogMetasoundEditor, Warning, TEXT("Failed to Set Valid Value for Property '%s' with Value of '%s', writing default."),
 								*GetNameSafe(Prop->GetProperty()), *InSelected);
 
 							ensure(Prop->SetValue(Interface->GetDefaultValue()) == FPropertyAccess::Success);

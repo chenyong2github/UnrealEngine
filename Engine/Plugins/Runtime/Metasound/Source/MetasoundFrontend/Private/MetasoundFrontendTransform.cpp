@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundFrontendTransform.h"
+
+#include "MetasoundFrontendDocument.h"
+
 
 namespace Metasound
 {
@@ -22,21 +24,27 @@ namespace Metasound
 			// Go through each input and add or swap if something is missing.
 			for (const FMetasoundFrontendClassVertex& RequiredInput : RequiredInputs)
 			{
-				const FMetasoundFrontendClassInput* ClassInput = Graph->FindClassInputWithName(RequiredInput.Name).Get();
-
-				bool bIsMatching = false;
-				if (nullptr != ClassInput)
+				if (const FMetasoundFrontendClassInput* ClassInput = Graph->FindClassInputWithName(RequiredInput.Name).Get())
 				{
-					bIsMatching = FMetasoundFrontendClassVertex::IsFunctionalEquivalent(RequiredInput, *ClassInput);
-				}
+					if (!FMetasoundFrontendClassVertex::IsFunctionalEquivalent(RequiredInput, *ClassInput))
+					{
+						bDidEdit = true;
 
-				if (!bIsMatching)
+						// Cache off node locations to push to new node
+						FNodeHandle InputNode = Graph->GetInputNodeWithName(ClassInput->Name);
+						const TMap<FGuid, FVector2D> Locations = InputNode->GetNodeStyle().Display.Locations;
+
+						Graph->RemoveInputVertex(RequiredInput.Name);
+						InputNode = Graph->AddInputVertex(RequiredInput);
+
+						FMetasoundFrontendNodeStyle Style = InputNode->GetNodeStyle();
+						Style.Display.Locations = Locations;
+						InputNode->SetNodeStyle(Style);
+					}
+				}
+				else
 				{
 					bDidEdit = true;
-					if (nullptr != ClassInput)
-					{
-						Graph->RemoveInputVertex(RequiredInput.Name);
-					}
 					Graph->AddInputVertex(RequiredInput);
 				}
 			}
@@ -44,26 +52,32 @@ namespace Metasound
 			// Go through each output and add or swap if something is missing.
 			for (const FMetasoundFrontendClassVertex& RequiredOutput : RequiredOutputs)
 			{
-				const FMetasoundFrontendClassOutput* ClassOutput = Graph->FindClassOutputWithName(RequiredOutput.Name).Get();
-
-				bool bIsMatching = false;
-				if (nullptr != ClassOutput)
+				if (const FMetasoundFrontendClassOutput* ClassOutput = Graph->FindClassOutputWithName(RequiredOutput.Name).Get())
 				{
-					bIsMatching = FMetasoundFrontendClassVertex::IsFunctionalEquivalent(RequiredOutput, *ClassOutput);
-				}
+					if (!FMetasoundFrontendClassVertex::IsFunctionalEquivalent(RequiredOutput, *ClassOutput))
+					{
+						bDidEdit = true;
 
-				if (!bIsMatching)
+						// Cache off node locations to push to new node
+						FNodeHandle OutputNode = Graph->GetOutputNodeWithName(ClassOutput->Name);
+						const TMap<FGuid, FVector2D> Locations = OutputNode->GetNodeStyle().Display.Locations;
+
+						Graph->RemoveOutputVertex(RequiredOutput.Name);
+						OutputNode = Graph->AddOutputVertex(RequiredOutput);
+
+						FMetasoundFrontendNodeStyle Style = OutputNode->GetNodeStyle();
+						Style.Display.Locations = Locations;
+						OutputNode->SetNodeStyle(Style);
+					}
+				}
+				else
 				{
 					bDidEdit = true;
-					if (nullptr != ClassOutput)
-					{
-						Graph->RemoveOutputVertex(RequiredOutput.Name);
-					}
 					Graph->AddOutputVertex(RequiredOutput);
 				}
 			}
 
 			return bDidEdit;
 		}
-	}
-}
+	} // namespace Frontend
+} // namespace Metasound

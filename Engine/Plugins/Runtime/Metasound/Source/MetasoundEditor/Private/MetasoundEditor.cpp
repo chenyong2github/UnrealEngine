@@ -401,12 +401,16 @@ namespace Metasound
 			}
 
 			FSlateApplication::Get().DismissAllMenus();
+		}
 
-			if (Metasound)
-			{
-				UEdGraphPin::ResolveAllPinReferences();
-				Metasound::Editor::FGraphBuilder::SynchronizeGraph(*Metasound);
-			}
+		void FEditor::NotifyUserModifiedBySync()
+		{
+			FNotificationInfo Info(LOCTEXT("SynchronizationRequired", "Operation modified pin(s), connection(s), and/or node(s).  Please refer to graph."));
+			Info.bFireAndForget = true;
+			Info.bUseSuccessFailIcons = false;
+			Info.ExpireDuration = 5.0f;
+
+			MetasoundGraphEditor->AddNotification(Info, false /* bSuccess */);
 		}
 
 		void FEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
@@ -423,6 +427,7 @@ namespace Metasound
 					{
 						if (FGraphBuilder::SynchronizeGraph(*MetasoundObj))
 						{
+							NotifyUserModifiedBySync();
 							MetasoundObj->MarkPackageDirty();
 						}
 						MetasoundGraphEditor->NotifyGraphChanged();
@@ -1494,7 +1499,10 @@ namespace Metasound
 				MetasoundGraphEditor->SetNodeSelection(GraphNode, true);
 			}
 
-			FGraphBuilder::SynchronizeGraph(*Metasound);
+			if (FGraphBuilder::SynchronizeGraph(*Metasound))
+			{
+				NotifyUserModifiedBySync();
+			}
 
 			MetasoundGraphEditor->NotifyGraphChanged();
 			Metasound->MarkPackageDirty();

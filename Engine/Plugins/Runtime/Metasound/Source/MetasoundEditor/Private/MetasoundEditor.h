@@ -240,6 +240,8 @@ namespace Metasound
 		private:
 			void EditObjectSettings();
 
+			void NotifyUserModifiedBySync();
+
 			/** List of open tool panels; used to ensure only one exists at any one time */
 			TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
