@@ -2,7 +2,6 @@
 
 #include "CoreTechFileParser.h"
 
-#include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/FileManager.h"
 #include "Templates/TypeHash.h"
 
@@ -11,19 +10,6 @@ namespace CADLibrary
 	uint32 GetSceneFileHash(const uint32 InSGHash, const FImportParameters& ImportParam)
 	{
 		uint32 FileHash = HashCombine(InSGHash, GetTypeHash(ImportParam.StitchingTechnique));
-		return FileHash;
-	}
-
-	uint32 GetFileHash(FFileDescription& FileDescription)
-	{
-		FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.Path);
-
-		FDateTime ModificationTime = FileStatData.ModificationTime;
-
-		uint32 FileHash = GetTypeHash(FileDescription);
-		FileHash = HashCombine(FileHash, GetTypeHash(FileStatData.FileSize));
-		FileHash = HashCombine(FileHash, GetTypeHash(ModificationTime));
-
 		return FileHash;
 	}
 
@@ -122,7 +108,7 @@ namespace CADLibrary
 			return CTKIO_LoadFile(FileDescription, ImportParameters, CachePath, SceneGraphArchive, WarningMessages, BodyMeshes);
 		}
 
-		uint32 FileHash = GetFileHash(FileDescription);
+		uint32 FileHash = FileDescription.GetFileHash();
 		FString CTFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
 		FString CTFilePath = FPaths::Combine(CachePath, TEXT("cad"), CTFileName + TEXT(".ct"));
 

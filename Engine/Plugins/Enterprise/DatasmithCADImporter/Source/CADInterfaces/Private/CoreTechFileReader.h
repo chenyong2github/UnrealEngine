@@ -84,7 +84,6 @@ namespace CADLibrary
 		bool ReadBody(CT_OBJECT_ID NodeId, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash, bool bNeedRepair);
 
 		bool FindFile(FFileDescription& FileDescription);
-		uint32 GetFileHash();
 
 		uint32 GetMaterialNum();
 		void ReadMaterials();
