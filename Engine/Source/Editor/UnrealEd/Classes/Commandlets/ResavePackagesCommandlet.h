@@ -128,6 +128,7 @@ protected:
 	int32 PackagesConsideredForResave;
 	int32 PackagesResaved;
 	int32 PackagesDeleted;
+	int32 TotalPackagesForResave;
 
 	/** Only collect garbage after N packages */
 	int32 GarbageCollectionFrequency;
