@@ -35,7 +35,7 @@ public:
 	/**
 	 * Creates and initializes a new box with zero extent and marks it as invalid.
 	 *
-	 * @param EForceInit Force Init Enum.
+	 * Use enum value EForceInit::ForceInit to force box initialization.
 	 */
 	explicit FBox( EForceInit )
 	{
@@ -198,7 +198,7 @@ public:
 	/** 
 	 * Moves the center of bounding box to new destination.
 	 *
-	 * @param The destination point to move center of box to.
+	 * @param Destination The destination point to move center of box to.
 	 * @return A new bounding box.
 	 */
 	FORCEINLINE FBox MoveTo( const FVector& Destination ) const
@@ -221,14 +221,14 @@ public:
 	/**
 	 * Gets the center and extents of this box.
 	 *
-	 * @param center[out] Will contain the box center point.
-	 * @param Extents[out] Will contain the extent around the center.
+	 * @param Center [out] Will contain the box center point.
+	 * @param Extents [out] Will contain the extent around the center.
 	 * @see GetCenter, GetExtent, GetSize, GetVolume
 	 */
-	FORCEINLINE void GetCenterAndExtents( FVector& center, FVector& Extents ) const
+	FORCEINLINE void GetCenterAndExtents( FVector& Center, FVector& Extents ) const
 	{
 		Extents = GetExtent();
-		center = Min + Extents;
+		Center = Min + Extents;
 	}
 
 	/**
@@ -299,7 +299,7 @@ public:
 	 * @param Other The bounding box to intersect with.
 	 * @return true if the boxes intersect, false otherwise.
 	 */
-	FORCEINLINE bool Intersect( const FBox& other ) const;
+	FORCEINLINE bool Intersect( const FBox& Other ) const;
 
 	/**
 	 * Checks whether the given bounding box intersects this bounding box in the XY plane.
@@ -763,13 +763,13 @@ inline bool FMath::LineBoxIntersection
  *		if (SphereCenter(i) < BoxMin(i)) d2 += (SphereCenter(i) - BoxMin(i)) ^ 2
  *		else if (SphereCenter(i) > BoxMax(i)) d2 += (SphereCenter(i) - BoxMax(i)) ^ 2
  *
- * @param Sphere the center of the sphere being tested against the AABB
+ * @param SphereCenter the center of the sphere being tested against the AABB
  * @param RadiusSquared the size of the sphere being tested
  * @param AABB the box being tested against
  *
  * @return Whether the sphere/box intersect or not.
  */
-FORCEINLINE bool FMath::SphereAABBIntersection(const FVector& SphereCenter,const float RadiusSquared,const FBox& AABB)
+FORCEINLINE bool FMath::SphereAABBIntersection(const FVector& SphereCenter, const float RadiusSquared, const FBox& AABB)
 {
 	// Accumulates the distance as we iterate axis
 	float DistSquared = 0.f;

@@ -580,9 +580,10 @@ public:
 	/**
 	 * Parses a fully qualified or relative filename into its components (filename, path, extension).
 	 *
-	 * @param	Path		[out] receives the value of the path portion of the input string
-	 * @param	Filename	[out] receives the value of the filename portion of the input string
-	 * @param	Extension	[out] receives the value of the extension portion of the input string
+	 * @param	InPath			[in] Full filename path
+	 * @param	PathPart		[out] receives the value of the path portion of the input string
+	 * @param	FilenamePart	[out] receives the value of the filename portion of the input string
+	 * @param	ExtensionPart	[out] receives the value of the extension portion of the input string
 	 */
 	static void Split( const FString& InPath, FString& PathPart, FString& FilenamePart, FString& ExtensionPart );
 
