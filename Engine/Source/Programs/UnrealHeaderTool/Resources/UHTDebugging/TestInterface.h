@@ -28,4 +28,7 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	const UObject* SomeFunctionWithConstPointerReturnType() const;
+
+	UFUNCTION(BlueprintImplementableEvent)
+	int64 ReturnInt64();
 };

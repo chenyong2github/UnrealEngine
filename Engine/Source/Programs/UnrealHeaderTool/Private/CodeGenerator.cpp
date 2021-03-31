@@ -4603,9 +4603,7 @@ FString FNativeClassHeaderGenerator::GetNullParameterValue( FProperty* Prop, boo
 	{
 		return TEXT("false");
 	}
-	else if ( PropClass == FIntProperty::StaticClass()
-	||	PropClass == FFloatProperty::StaticClass()
-	||	PropClass == FDoubleProperty::StaticClass())
+	else if ( PropClass->IsChildOf(FNumericProperty::StaticClass()) )
 	{
 		return TEXT("0");
 	}
