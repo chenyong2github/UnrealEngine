@@ -65,7 +65,7 @@ namespace Metasound
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FWaveAsset, METASOUNDENGINE_API, FWaveAssetTypeInfo, FWaveAssetReadRef, FWaveAssetWriteRef)
 }
-
+ 
 namespace Audio
 {
 	// Forward declares
@@ -94,7 +94,7 @@ namespace Audio
 		bool Initialize(const InitParams& InInitParams, const FSoundWaveProxyPtr& InWave);
 
 		// returns number of samples written.   
-		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents = 0.0f, bool bIsLooping = false);
+		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, int32& OutNumFramesConsumed, float PitchShiftInCents = 0.0f, bool bIsLooping = false);
 
 		void SeekToTime(const float InSeconds);
 
@@ -124,6 +124,7 @@ namespace Audio
 		float MaxPitchShiftRatio{ 2.0f };
 
 		uint32 NumChannels{ 1 };
+		uint32 NumFrames{ 0 };
 		uint32 DecodeBlockSizeInFrames{ 64 };
 		uint32 DecodeBlockSizeInSamples{ 64 };
 		

@@ -334,6 +334,7 @@ public:
 
 	float GetSampleRate() const { return SampleRate; }
 	uint32 GetNumChannels() const { return NumChannels; }
+	const TArray<FSoundWaveCuePoint>& GetCuePoints() const { return CuePoints; }
 	uint32 GetNumChunks() const;
 	uint32 GetSizeOfChunk(uint32 ChunkIndex) const;
 	int32 GetNumFrames() const { return NumFrames; }
@@ -377,6 +378,7 @@ private:
 
 	float SampleRate;
 	uint32 NumChannels;
+	TArray<FSoundWaveCuePoint> CuePoints;
 	uint32 NumChunks;
 	float Duration;
 	int32 NumFrames;

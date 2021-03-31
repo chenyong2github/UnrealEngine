@@ -37,6 +37,7 @@ namespace Audio
 		StartTimeSeconds = InInitParams.StartTimeSeconds;
 
 		NumChannels = InWave->GetNumChannels();
+		NumFrames = InWave->GetNumFrames();
 		DecodeBlockSizeInFrames = 64;
 		DecodeBlockSizeInSamples = DecodeBlockSizeInFrames * NumChannels;
 
@@ -57,10 +58,11 @@ namespace Audio
 		return bSuccessful;
 	}
 
-
-	uint32 FSimpleDecoderWrapper::GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents, bool bIsLooping)
+	uint32 FSimpleDecoderWrapper::GenerateAudio(float* OutputDest, int32 NumOutputFrames, int32& OutNumFramesConsumed, float PitchShiftInCents, bool bIsLooping)
 	{
 		const uint32 NumOutputSamples = NumOutputFrames * NumChannels;
+
+		OutNumFramesConsumed = 0;
 
 		if (OutputCircularBuffer.Num() < NumOutputSamples)
 		{
@@ -86,12 +88,19 @@ namespace Audio
 				Audio::IDecoderOutput::FPushedAudioDetails Details;
 				const Audio::IDecoder::EDecodeResult  DecodeResult = Decoder->Decode(bIsLooping);
 				const int32 NumFramesDecoded = Output->PopAudio(PreSrcBuffer, Details) / NumChannels;
+				OutNumFramesConsumed += NumFramesDecoded;
 				int32 NumResamplerOutputFrames = 0;
 				int32 Error = Resampler.ProcessAudio(PreSrcBuffer.GetData(), NumFramesDecoded, bDecoderIsDone, PostSrcBuffer.GetData(), MaxNumResamplerOutputFramesPerBlock, NumResamplerOutputFrames);
 				ensure(Error == 0);
 
 				bDecoderIsDone = DecodeResult == Audio::IDecoder::EDecodeResult::Finished;
 				bDecoderHasLooped = DecodeResult == Audio::IDecoder::EDecodeResult::Looped;
+
+				if (!PostSrcBuffer.Num() || !NumResamplerOutputFrames)
+				{
+					continue;
+				}
+				int32 OutputFrames = FMath::Min((int32)PostSrcBuffer.Num(), (int32)(NumResamplerOutputFrames * NumChannels));
 
 				// perform linear pitch shift into OutputCircularBuffer
 				if (NumResamplerOutputFrames > 0)
