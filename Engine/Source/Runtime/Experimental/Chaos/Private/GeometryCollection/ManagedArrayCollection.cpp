@@ -247,12 +247,19 @@ void FManagedArrayCollection::ReorderElements(FName Group, const TArray<int32>& 
 	const int32 GroupSize = GroupInfo[Group].Size;
 	check(GroupSize == NewOrder.Num());
 
+	TArray<int32> InverseNewOrder;
+	InverseNewOrder.Init(-1, GroupSize);
+	for (int32 Idx = 0; Idx < GroupSize; ++Idx)
+	{
+		InverseNewOrder[NewOrder[Idx]] = Idx;
+	}
+
 	for (TTuple<FKeyType, FValueType>& Entry : Map)
 	{
 		// Reindex attributes dependent on the group being reordered
 		if (Entry.Value.GroupIndexDependency == Group)
 		{
-			Entry.Value.Value->ReindexFromLookup(NewOrder);
+			Entry.Value.Value->ReindexFromLookup(InverseNewOrder);
 		}
 
 		if (Entry.Key.Get<1>() == Group)

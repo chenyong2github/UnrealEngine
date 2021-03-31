@@ -306,10 +306,10 @@ void FMeshRefinerBase::SaveVertexTrianglesBeforeModify(int32 VertexID)
 {
 	if (ActiveChangeTracker)
 	{
-		for (int32 TriangleID : Mesh->VtxTrianglesItr(VertexID))
+		Mesh->EnumerateVertexTriangles(VertexID, [&](int32 TriangleID)
 		{
-			ActiveChangeTracker->SaveTriangle(TriangleID, true );
-		}
+			ActiveChangeTracker->SaveTriangle(TriangleID, true);
+		});
 	}
 }
 

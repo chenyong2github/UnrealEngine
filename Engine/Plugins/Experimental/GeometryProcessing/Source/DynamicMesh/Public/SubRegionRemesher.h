@@ -4,8 +4,10 @@
 
 #include "Remesher.h"
 #include "Util/BufferUtil.h"
+#include "Util/UniqueIndexSet.h"
 #include "DynamicMeshChangeTracker.h"
 #include "MeshWeights.h"
+#include "Async/ParallelFor.h"
 
 /**
  * FSubRegionRemesher is an extension of FRemesher that allows for constraining remeshing to
@@ -18,6 +20,13 @@
 class FSubRegionRemesher : public FRemesher
 {
 protected:
+
+	/**
+	 * Set of vertices in ROI. You add vertices here initially, then
+	 * we will update the list during each Remesh pass
+	 */
+	TSet<int> VertexROI;
+
 	// active set of edges we will consider for remeshing. This set is updated on 
 	// each edge flip/split/collapse, but is not used during the pass.
 	TSet<int> EdgeROI;
@@ -31,14 +40,21 @@ protected:
 	TArray<int> Edges;
 
 	// index of current edge in .Edges we are at in StartEdges/GetNextEdge modulo-iteration
-	int CurEdge;
+	int CurEdge = -1;
 
 	// set of triangles removed in last pass. Enable this by calling BeginTrackRemovedTrisInPass()
 	TSet<int> RemovedLastPassTris;
 
+	// temporary data structure used to quickly convert vertex set to edge set. Currenlty it is faster
+	// to construct this and then copy to a properly-sized TSet, than to incrementally build the TSet
+	FUniqueIndexSet InitialROIEdgeVertices;
+
+	// temporary data structure used to quickly convert vertex set to triangle set. Currenlty it is faster
+	// to construct this and then copy to a properly-sized TSet, than to incrementally build the TSet
+	FUniqueIndexSet InitialROITriangles;
+
 	// controls whether RemovedLastPass will be populated
 	bool bTrackRemoved = false;
-
 
 	// counters for making sure that UpdateROI has been called
 	uint32 LastUpdateROICounter = 0;
@@ -57,54 +73,92 @@ public:
 
 	virtual ~FSubRegionRemesher() {}
 
-	/**
-	 * Set of vertices in ROI. You add vertices here initially, then 
-	 * we will update the list during each Remesh pass
-	 */
-	TSet<int> VertexROI;
 
+	void Reset()
+	{
+		VertexROI.Reset();
+		EdgeROI.Reset();
+		TriangleROI.Reset();
+		Edges.Reset();
+		RemovedLastPassTris.Reset();
+		CurEdge = -1;
+		LastUpdateROICounter = LastRemeshPassCounter = 0;
+	}
+
+
+	void SetInitialVertexROI(const TSet<int>& Vertices)
+	{
+		VertexROI = Vertices;
+	}
+
+	void SetInitialVertexROI(TSet<int>&& Vertices)
+	{
+		VertexROI = MoveTemp(Vertices);
+	}
+
+	void SetInitialVertexROI(const TArray<int>& Vertices)
+	{
+		VertexROI.Reset();
+		VertexROI.Reserve(Vertices.Num());
+		for (int32 tid : Vertices)
+		{
+			VertexROI.Add(tid);
+		}
+	}
 
 	/**
 	 * Initialize edge-subregion ROI from the VertexROI member that has been externally initialized
 	 */
 	void InitializeFromVertexROI()
 	{
-		EdgeROI.Reset();
-		TriangleROI.Reset();
-
-		// to get active edge set
-		for (int VertIdx : VertexROI)
-		{
-			for (int eid : GetMesh()->VtxEdgesItr(VertIdx))
-			{
-				EdgeROI.Add(eid);
-			}
-		}
-		UpdateROI();
-
-		// there is quite a bit of overhead here...perhaps remesher could just save triangles
-		// itself before it touches them?
-
-		TArray<int> OneRingTris; OneRingTris.Reserve(32);
-
-		// figuring out unique verts means we don't do each vertex N~=valence times, 
-		// which saves a lot of one-ring iterations that are somewhat expensive...
-		TSet<int> Vertices;
 		const FDynamicMesh3* UseMesh = GetMesh();
-		for (int eid : EdgeROI)
+
 		{
-			FIndex2i EdgeVerts = UseMesh->GetEdgeV(eid);
-			Vertices.Add(EdgeVerts.A);
-			Vertices.Add(EdgeVerts.B);
-		}
-		for (int vid : Vertices)
-		{
-			OneRingTris.Reset();
-			UseMesh->GetVertexOneRingTriangles(vid, OneRingTris);
-			for (int tid : OneRingTris)
+			TRACE_CPUPROFILER_EVENT_SCOPE(InitializeFromVertexROI_1Init);
+			EdgeROI.Reset();
+			TriangleROI.Reset();
+			InitialROIEdgeVertices.Initialize(UseMesh->MaxVertexID());
+
+			Edges.Reset();
+			LastUpdateROICounter++;
+
+			// convert vertex ROI to set of one-ring edges. Note that this effectively does
+			// UpdateROI(), and if that function changes, this may need to be modified.
+			// New set of ROI vertices is also constructed simultaneously
+			for (int VertIdx : VertexROI)
 			{
-				TriangleROI.Add(tid);
+				InitialROIEdgeVertices.Add(VertIdx);
+				UseMesh->EnumerateVertexEdges(VertIdx, [this, UseMesh, VertIdx](int32 eid)
+				{
+					bool bNewEdge = false;
+					EdgeROI.Add(eid, &bNewEdge);
+					if (bNewEdge)
+					{
+						FIndex2i EdgeV = UseMesh->GetEdgeV(eid);
+						InitialROIEdgeVertices.Add((EdgeV.A == VertIdx) ? EdgeV.B : EdgeV.A);
+						Edges.Add(eid);
+					}
+				});
 			}
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(InitializeFromVertexROI_4Triangles);
+
+			// Convert new vertex ROI built above into new one-ring triangle ROI. 
+			// This conservatively guarantees that any triangle affected by a mesh edge op 
+			// (eg split/collapse/flip) is contained within this triangle set
+			InitialROITriangles.Initialize(UseMesh->MaxTriangleID());
+			for (int vid : InitialROIEdgeVertices)
+			{
+				UseMesh->EnumerateVertexEdges(vid, [this](int32 eid)
+				{
+					FIndex2i EdgeT = Mesh->GetEdgeT(eid);
+					InitialROITriangles.Add(EdgeT.A);
+					if (EdgeT.B != IndexConstants::InvalidID) InitialROITriangles.Add(EdgeT.B);
+				});
+			}
+			InitialROITriangles.Collect(TriangleROI);
 		}
 	}
 
@@ -134,10 +188,11 @@ public:
 	 */
 	void UpdateROI()
 	{
+		// note: if you change this function, you also need to change InitializeFromVertexROI() because it
+		// does this internally (or call this afterwards)
 		Edges.Reset();
 		for (int eid : EdgeROI)
 		{
-			//check(GetMesh()->IsEdge(eid));
 			Edges.Add(eid);
 		}
 		LastUpdateROICounter++;
@@ -190,6 +245,14 @@ public:
 	}
 
 	/**
+	 * @return 
+	 */
+	const TSet<int>& GetCurrentVertexROI() const
+	{
+		return VertexROI;
+	}
+
+	/**
 	 * @return set of triangles that contains edge ROI (note: may also contain additional triangles)
 	 */
 	const TSet<int>& GetCurrentTriangleROI() const
@@ -212,6 +275,20 @@ public:
 	const TArray<int>& GetCurrentEdgeArray() const
 	{
 		return Edges;
+	}
+
+
+
+	/**
+	 * Extract final triangle ROI. After calling this function, the ROI will be cleared, and must be re-initialized.
+	 * This can be used to avoid having to copy the TSet.
+	 * @return set of triangles that contains edge ROI (note: may also contain additional triangles)
+	 */
+	TSet<int>&& ExtractFinalTriangleROI()
+	{
+		return MoveTemp(TriangleROI);
+		EdgeROI.Reset();
+		VertexROI.Reset();
 	}
 
 
@@ -325,10 +402,10 @@ protected:
 
 	void AddVertexToTriangleROI(int VertexID)
 	{
-		for (int tid : GetMesh()->VtxTrianglesItr(VertexID))
+		GetMesh()->EnumerateVertexTriangles(VertexID, [this](int tid)
 		{
 			TriangleROI.Add(tid);
-		}
+		});
 	}
 
 	void AddEdgeToTriangleROI(int EdgeID)
@@ -353,32 +430,39 @@ protected:
 	// localized smoothing
 	// 
 	
-	TMap<int, FVector3d> SmoothedPositions;
+	TArray<int32> SmoothIndices;
+	TArray<FVector3d> SmoothedPositions;
 
 	virtual void FullSmoothPass_Buffer(bool bParallel) override
 	{
-		SmoothedPositions.Reset();
+		SmoothIndices.Reset();
+		SmoothIndices.Reserve(VertexROI.Num());
+		for (int32 vid : VertexROI)
+		{
+			SmoothIndices.Add(vid);
+		}
+		int32 NumVertices = SmoothIndices.Num();
+
+		SmoothedPositions.SetNum(NumVertices, false);
 
 		TFunction<FVector3d(const FDynamicMesh3&, int, double)> UseSmoothFunc = GetSmoothFunction();
-		auto SmoothAndUpdateFunc = [&](int vid)
+		
+		ParallelFor(NumVertices, [&](int32 i)
 		{
+			int32 VertIdx = SmoothIndices[i];
 			bool bModified = false;
-			FVector3d SmoothedPosition = ComputeSmoothedVertexPos(vid, UseSmoothFunc, bModified);
-			if (bModified)
+			SmoothedPositions[i] = ComputeSmoothedVertexPos(VertIdx, UseSmoothFunc, bModified);
+			SmoothIndices[i] = (bModified) ? SmoothIndices[i] : -1;
+		});
+
+		ParallelFor(NumVertices, [&](int32 i)
+		{
+			if (SmoothIndices[i] >= 0)
 			{
-				SmoothedPositions.Add(vid, SmoothedPosition);
+				Mesh->SetVertex_NoTimeStampUpdate(SmoothIndices[i], SmoothedPositions[i]);
 			}
-		};
-
-		for (int vid : VertexROI)
-		{
-			SmoothAndUpdateFunc(vid);
-		}
-
-		for (auto Pair : SmoothedPositions)
-		{
-			Mesh->SetVertex(Pair.Key, Pair.Value);
-		}
+		});
+		Mesh->IncrementTimeStamps(1, true, false);
 	}
 };
 

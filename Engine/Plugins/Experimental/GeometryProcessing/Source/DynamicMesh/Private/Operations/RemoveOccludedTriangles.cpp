@@ -73,7 +73,7 @@ namespace UE
 		bool DYNAMICMESH_API RemoveInternalTriangles(FDynamicMesh3& Mesh, bool bTestPerCompoment,
 			EOcclusionTriangleSampling SamplingMethod,
 			EOcclusionCalculationMode OcclusionMode,
-			int RandomSamplesPerTri, double WindingNumberThreshold)
+			int RandomSamplesPerTri, double WindingNumberThreshold, bool bTestOccludedByAny)
 		{
 			if (bTestPerCompoment)
 			{
@@ -96,7 +96,7 @@ namespace UE
 				TArrayView<FTransform3d> TransformsView(&Id, 1);
 				TArrayView<TMeshAABBTree3<FComponentMesh>*> SpatialsView(Spatials.GetData(), Spatials.Num());
 				TArrayView<TFastWindingTree<FComponentMesh>*> WindingsView(Windings.GetData(), Windings.Num());
-				return Remover.Apply(TransformsView, SpatialsView, WindingsView);
+				return Remover.Apply(TransformsView, SpatialsView, WindingsView, TArrayView<const FTransform3d>(), bTestOccludedByAny);
 			}
 			else
 			{

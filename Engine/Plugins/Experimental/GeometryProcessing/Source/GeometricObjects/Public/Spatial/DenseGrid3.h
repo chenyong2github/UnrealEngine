@@ -42,6 +42,12 @@ public:
 		return Dimensions.X * Dimensions.Y * Dimensions.Z;
 	}
 
+	bool IsValidIndex(const FVector3i& Index) const
+	{
+		return Index.X >= 0 && Index.Y >= 0 && Index.Z >= 0
+			&& Index.X < Dimensions.X && Index.Y < Dimensions.Y && Index.Z < Dimensions.Z;
+	}
+
 	const FVector3i& GetDimensions() const
 	{
 		return Dimensions;

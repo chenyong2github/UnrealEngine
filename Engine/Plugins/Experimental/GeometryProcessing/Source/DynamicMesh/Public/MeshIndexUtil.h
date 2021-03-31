@@ -9,6 +9,10 @@
  */
 namespace MeshIndexUtil
 {
+	//
+	// Do not add any more functions to this namespace. Use UE::MeshIndexUtil instead
+	//
+
 	/**
 	 * Find list of unique vertices that are contained in one or more triangles
 	 * @param Mesh input mesh
@@ -32,6 +36,23 @@ namespace UE
 {
 	namespace MeshIndexUtil
 	{
+		/**
+		 * Find list of unique vertices that are contained in one or more triangles
+		 * @param Mesh input mesh
+		 * @param TriangleIDs list of triangle IDs of Mesh
+		 * @param VertexIDsOut list of vertices contained by triangles
+		 */
+		DYNAMICMESH_API void TriangleToVertexIDs(const FDynamicMesh3* Mesh, const TArray<int>& TriangleIDs, TArray<int>& VertexIDsOut);
+
+
+		/**
+		 * Find all the triangles in all the one rings of a set of vertices
+		 * @param Mesh input mesh
+		 * @param VertexIDs list of Vertex IDs of Mesh
+		 * @param TriangleIDsOut list of triangle IDs where any vertex of triangle touches an element of VertexIDs
+		 */
+		DYNAMICMESH_API void VertexToTriangleOneRing(const FDynamicMesh3* Mesh, const TArray<int>& VertexIDs, TSet<int>& TriangleIDsOut);
+
 		/**
 		 * Walk around VertexID from FromTriangleID to next connected triangle if it exists, walking "away" from PrevTriangleID.
 		 * @param TrisConnectedFunc returns true if two triangles should be considered connected, to support breaking at seams/etc that are not in base mesh topology

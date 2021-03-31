@@ -93,6 +93,7 @@ public:
 	/** Set this overlay to contain the same arrays as the copy overlay */
 	void Copy(const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>& Copy)
 	{
+		TDynamicAttributeBase<ParentType>::CopyParentClassData(Copy);
 		AttribValues = Copy.AttribValues;
 	}
 
@@ -121,6 +122,7 @@ public:
 
 	void CompactCopy(const FCompactMaps& CompactMaps, const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>& ToCopy)
 	{
+		TDynamicAttributeBase<ParentType>::CopyParentClassData(ToCopy);
 		check(CompactMaps.MapV.Num() >= 0 && static_cast<size_t>(CompactMaps.MapV.Num()) <= AttribValues.Num() / AttribDimension);
 
 		AttribValueType Data[AttribDimension];
@@ -291,7 +293,7 @@ public:
 		{
 			return;
 		}
-		size_t NeededSize = size_t((VertexID+1) * AttribDimension);
+		size_t NeededSize = (size_t(VertexID)+1) * AttribDimension;
 		if (NeededSize > AttribValues.Num())
 		{
 			AttribValues.Resize(NeededSize, GetDefaultAttributeValue());
@@ -315,8 +317,14 @@ public:
 	void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo& MergeInfo) override
 	{
 		// just blend the attributes?
-		SetAttributeFromLerp(MergeInfo.KeptVerts.A, MergeInfo.KeptVerts.A, MergeInfo.RemovedVerts.A, .5);
-		SetAttributeFromLerp(MergeInfo.KeptVerts.B, MergeInfo.KeptVerts.B, MergeInfo.RemovedVerts.B, .5);
+		if (MergeInfo.RemovedVerts.A != FDynamicMesh3::InvalidID)
+		{
+			SetAttributeFromLerp(MergeInfo.KeptVerts.A, MergeInfo.KeptVerts.A, MergeInfo.RemovedVerts.A, .5);
+		}
+		if (MergeInfo.RemovedVerts.B != FDynamicMesh3::InvalidID)
+		{
+			SetAttributeFromLerp(MergeInfo.KeptVerts.B, MergeInfo.KeptVerts.B, MergeInfo.RemovedVerts.B, .5);
+		}
 	}
 
 	/** Update the overlay to reflect a vertex split in the parent */

@@ -124,7 +124,7 @@ public:
 	/**
 	 * @return the computed overlay normal at an element of the overlay (ie based on normals of triangles connected to this element)
 	 */
-	static FVector3d ComputeOverlayNormal(const FDynamicMesh3& Mesh, FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx);
+	static FVector3d ComputeOverlayNormal(const FDynamicMesh3& Mesh, const FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx);
 
 	/**
 	 * Initialize the given NormalOverlay with per-vertex normals, ie single overlay element for each mesh vertex.
@@ -137,6 +137,13 @@ public:
 	 * Initialize the given NormalOverlay with per-face normals, ie separate overlay element for each vertex of each triangle.
 	 */
 	static void InitializeOverlayToPerTriangleNormals(FDynamicMeshNormalOverlay* NormalOverlay);
+
+
+	static void InitializeOverlayTopologyFromOpeningAngle(const FDynamicMesh3* Mesh, FDynamicMeshNormalOverlay* NormalOverlay, 
+		double AngleThresholdDeg);
+
+	static void InitializeOverlayTopologyFromFaceGroups(const FDynamicMesh3* Mesh, FDynamicMeshNormalOverlay* NormalOverlay);
+
 
 	/**
 	 * Initialize the given Mesh with per-face normals, ie separate overlay element for each vertex of each triangle.
@@ -154,7 +161,8 @@ public:
 	 * Compute overlay normals for the given mesh
 	 * @param bInvert if true, normals are flipped
 	 */
-	static bool QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInvert = false);
+	static bool QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInvert = false, bool bWeightByArea = true, bool bWeightByAngle = true);
+
 
 protected:
 	/** Compute per-vertex normals using area-weighted averaging of one-ring triangle normals */

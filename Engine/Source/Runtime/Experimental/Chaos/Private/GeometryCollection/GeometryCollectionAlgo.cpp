@@ -745,14 +745,128 @@ namespace GeometryCollectionAlgo
 				NewSpaceIdx++;
 			}
 			GeometryCollection->FaceCount[GeometryIdx] += NumToAdd;
-			GeometryCollection->FaceStart[GeometryIdx] = NewStart;
 		}
 		GeometryCollection->ReorderElements(FGeometryCollection::FacesGroup, ShiftedOrder);
-		// fix face starts post-reorder (they will have been helpfully 'fixed' to point at their previous elements by the reorder call)
-		for (int32 GeometryIdx = 1; GeometryIdx < NumGeometries; GeometryIdx++)
+	}
+
+	void ResizeGeometries(FGeometryCollection* GeometryCollection, const TArray<int32>& FaceCounts, const TArray<int32>& VertexCounts)
+	{
+		check(GeometryCollection);
+		int32 NumGeometries = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup);
+		check(FaceCounts.Num() == NumGeometries);
+		check(VertexCounts.Num() == NumGeometries);
+
+		int32 NewNumFaces = 0, NewNumVertices = 0;
+		TArray<int32> UnusedFaces, UnusedVertices;
+
+		auto AddRange = [](TArray<int32>& OutArray, int32 StartIncl, int32 EndExcl)
 		{
-			GeometryCollection->FaceStart[GeometryIdx] = GeometryCollection->FaceStart[GeometryIdx - 1] + GeometryCollection->FaceCount[GeometryIdx - 1];
+			for (int32 Idx = StartIncl; Idx < EndExcl; Idx++)
+			{
+				OutArray.Add(Idx);
+			}
+		};
+
+		auto CountElements = [&AddRange](int32 OldTotal, const TArray<int32>& NewCounts, const TManagedArray<int32>& OldCounts, const TManagedArray<int32>& OldStarts, int32& OutTotal, TArray<int32>& OutUnused)
+		{
+			OutTotal = 0;
+			OutUnused.Reset();
+			for (int32 Idx = 0; Idx < NewCounts.Num(); Idx++)
+			{
+				OutTotal += NewCounts[Idx];
+				if (OldCounts[Idx] > NewCounts[Idx])
+				{
+					AddRange(OutUnused, OldStarts[Idx] + NewCounts[Idx], OldStarts[Idx] + OldCounts[Idx]);
+				}
+			}
+			if (OutTotal > OldTotal)
+			{
+				AddRange(OutUnused, OldTotal, OutTotal);
+			}
+		};
+
+		int32 OldNumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
+		int32 OldNumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
+		CountElements(OldNumFaces, FaceCounts, GeometryCollection->FaceCount, GeometryCollection->FaceStart, NewNumFaces, UnusedFaces);
+		CountElements(OldNumVertices, VertexCounts, GeometryCollection->VertexCount, GeometryCollection->VertexStart, NewNumVertices, UnusedVertices);
+
+		// add elements at the end if needed
+		if (NewNumFaces > OldNumFaces)
+		{
+			GeometryCollection->AddElements(NewNumFaces - OldNumFaces, FGeometryCollection::FacesGroup);
 		}
+		if (NewNumVertices > OldNumVertices)
+		{
+			GeometryCollection->AddElements(NewNumVertices - OldNumVertices, FGeometryCollection::VerticesGroup);
+		}
+		
+		int32 NumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
+		int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
+
+		auto ComputeNewOrder = [&AddRange](int32 Total, const TArray<int32>& NewCounts, const TManagedArray<int32>& OldCounts, const TManagedArray<int32>& OldStarts, TArray<int32>& Unused, TArray<int32>& OutNewOrder)
+		{
+			OutNewOrder.Reset();
+			OutNewOrder.Reserve(Total);
+			int32 UnusedIdx = 0;
+			for (int32 GeometryIdx = 0; GeometryIdx < OldStarts.Num(); GeometryIdx++)
+			{
+				if (NewCounts[GeometryIdx] < OldCounts[GeometryIdx]) // Geometry shrunk
+				{
+					AddRange(OutNewOrder, OldStarts[GeometryIdx], OldStarts[GeometryIdx] + NewCounts[GeometryIdx]);
+				}
+				else // Geometry grew
+				{
+					AddRange(OutNewOrder, OldStarts[GeometryIdx], OldStarts[GeometryIdx] + OldCounts[GeometryIdx]);
+					int32 GrowAmt = NewCounts[GeometryIdx] - OldCounts[GeometryIdx];
+					for (int32 Idx = 0; Idx < GrowAmt; Idx++)
+					{
+						OutNewOrder.Add(Unused[UnusedIdx++]);
+					}
+				}
+			}
+			while (OutNewOrder.Num() < Total)
+			{
+				OutNewOrder.Add(Unused[UnusedIdx++]);
+			}
+		};
+
+		TArray<int32> NewFaceOrder, NewVertexOrder;
+		ComputeNewOrder(NumFaces, FaceCounts, GeometryCollection->FaceCount, GeometryCollection->FaceStart, UnusedFaces, NewFaceOrder);
+		ComputeNewOrder(NumVertices, VertexCounts, GeometryCollection->VertexCount, GeometryCollection->VertexStart, UnusedVertices, NewVertexOrder);
+		GeometryCollection->ReorderElements(FGeometryCollection::VerticesGroup, NewVertexOrder);
+		GeometryCollection->ReorderElements(FGeometryCollection::FacesGroup, NewFaceOrder);
+
+		// fix face/vertex counts and vertex->transform (bone) map
+		for (int32 GeometryIdx = 0; GeometryIdx < NumGeometries; GeometryIdx++)
+		{
+			GeometryCollection->FaceCount[GeometryIdx] = FaceCounts[GeometryIdx];
+			GeometryCollection->VertexCount[GeometryIdx] = VertexCounts[GeometryIdx];
+			int32 VertexStart = GeometryCollection->VertexStart[GeometryIdx];
+			int32 VertexEnd = VertexStart + GeometryCollection->VertexCount[GeometryIdx];
+			for (int32 VertexIdx = VertexStart; VertexIdx < VertexEnd; VertexIdx++)
+			{
+				GeometryCollection->BoneMap[VertexIdx] = GeometryCollection->TransformIndex[GeometryIdx];
+			}
+		}
+
+		// remove trailing elements if needed
+		if (NewNumFaces < OldNumFaces)
+		{
+			TArray<int32> ToDelete;
+			AddRange(ToDelete, NewNumFaces, OldNumFaces);
+			GeometryCollection->RemoveElements(FGeometryCollection::FacesGroup, ToDelete);
+		}
+		if (NewNumVertices < OldNumVertices)
+		{
+			TArray<int32> ToDelete;
+			AddRange(ToDelete, NewNumVertices, OldNumVertices);
+			GeometryCollection->RemoveElements(FGeometryCollection::VerticesGroup, ToDelete);
+		}
+
+		// TODO: can remove these ensure()s after this has been tested some more
+		ensure(GeometryCollection->HasContiguousFaces());
+		ensure(GeometryCollection->HasContiguousVertices());
+		ensure(GeometryCollectionAlgo::HasValidGeometryReferences(GeometryCollection));
 	}
 
 	DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionClean, Verbose, All);

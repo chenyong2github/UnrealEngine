@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/ParallelFor.h"
 #include "BoxTypes.h"
 #include "RayTypes.h"
 #include "Polyline3.h"
@@ -35,7 +36,7 @@ public:
 	void UpdatePoint(int PointID, const FVector3d& Position);
 	/** Update the Polyline of previously-added CurveID */
 	void UpdateCurve(int CurveID, const FPolyline3d& Polyline);
-	
+
 	/**
 	 * FNearest is returned by nearest-point queries
 	 */
@@ -105,6 +106,100 @@ public:
 	bool CollectCurvesNearRay(const FRay3d& Ray, TArray<FNearest>& ResultsOut,
 		TFunction<bool(const FVector3d&, const FVector3d&)> PointWithinToleranceTest) const;
 
+	/**
+	 * Fills PointIDsOut with point IDs of points that satisfy the given predicate.
+	 *
+	 * @param Predicate A lambda or function that takes in a const FVector3d& and returns
+	 *  true when the point's ID should be added to PointIDsOut.
+	 * @param PointIDsOut Output list or set. Must have an Add(int) method.
+	 */
+	template <typename PredicateType, typename IntContainerType>
+	bool FindAllPointsSatisfying(PredicateType Predicate, IntContainerType& PointIDsOut) const
+	{
+		PointIDsOut.Reset();
+		for (const FPoint& Point : Points)
+		{
+			if (Invoke(Predicate, Point.Position))
+			{
+				PointIDsOut.Add(Point.ID);
+			}
+		}
+		return !PointIDsOut.IsEmpty();
+	}
+
+	/**
+	 * Like FindAllPointsSatisfying, but parallel, so predicate must be safe to call in parallel.
+	 */
+	template <typename PredicateType, typename IntContainerType>
+	bool ParallelFindAllPointsSatisfying(PredicateType Predicate, IntContainerType& PointIDsOut) const
+	{
+		TArray<bool> Flags;
+		Flags.SetNumZeroed(Points.Num());
+		ParallelFor(Points.Num(), [this, &Predicate, &Flags](int32 i)
+			{
+				if (Invoke(Predicate, Points[i].Position))
+				{
+					Flags[i] = true;
+				}
+			});
+
+		for (int32 i = 0; i < Points.Num(); ++i)
+		{
+			if (Flags[i])
+			{
+				PointIDsOut.Add(Points[i].ID);
+			}
+		}
+		return !PointIDsOut.IsEmpty();
+	}
+
+	/**
+	 * Fills CurveIDsOut with IDs of curves that satisfy the given predicate.
+	 *
+	 * @param Predicate A lambda or function that takes in a const FPolyline3d& and returns
+	 *  true when the curve's ID should be added to PointIDsOut.
+	 * @param CurveIDsOut Output list or set. Must have an Add(int) method.
+	 */
+	template <typename PredicateType, typename IntContainerType>
+	bool FindAllCurvesSatisfying(PredicateType Predicate, IntContainerType& CurveIDsOut) const
+	{
+		CurveIDsOut.Reset();
+		for (const FCurve& Curve : Curves)
+		{
+			if (Invoke(Predicate, Curve.Geometry))
+			{
+				CurveIDsOut.Add(Curve.ID);
+			}
+		}
+		return !CurveIDsOut.IsEmpty();
+	}
+
+	/**
+	 * Like FindAllCurvesSatisfying, but parallel, so predicate must be safe to call in parallel.
+	 */
+	template <typename PredicateType, typename IntContainerType>
+	bool ParallelFindAllCurvesSatisfying(PredicateType Predicate, IntContainerType& CurveIDsOut) const
+	{
+		TArray<bool> Flags;
+		Flags.SetNumZeroed(Curves.Num());
+		ParallelFor(Curves.Num(), [this, &Predicate, &Flags](int32 i)
+		{
+			if (Invoke(Predicate, Curves[i].Geometry))
+			{
+				Flags[i] = true;
+			}
+		});
+
+		for (int32 i = 0; i < Curves.Num(); ++i)
+		{
+			if (Flags[i])
+			{
+				CurveIDsOut.Add(Curves[i].ID);
+			}
+		}
+		return !CurveIDsOut.IsEmpty();
+	}
+
 protected:
 
 	struct FPoint
@@ -119,7 +214,7 @@ protected:
 	{
 		int ID;
 		FPolyline3d Geometry;
-		
+
 		FAxisAlignedBox3d Bounds;
 	};
 	TArray<FCurve> Curves;

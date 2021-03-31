@@ -12,7 +12,7 @@
 #include "MeshQueries.h"
 #include "Operations/MeshConvexHull.h"
 #include "Operations/MeshProjectionHull.h"
-
+#include "Util/ProgressCancel.h"
 
 
 void FMeshSimpleShapeApproximation::DetectAndCacheSimpleShapeType(const FDynamicMesh3* SourceMesh, FSourceMeshCache& CacheOut)
@@ -104,7 +104,9 @@ struct FSimpleShapeFitsResult
 
 
 static void ComputeSimpleShapeFits(const FDynamicMesh3& Mesh,
-	bool bSphere, bool bBox, bool bCapsule, bool bConvex, FSimpleShapeFitsResult& FitResult)
+									bool bSphere, bool bBox, bool bCapsule, bool bConvex, bool bUseExactComputationForBox, 
+								   FSimpleShapeFitsResult& FitResult,
+								   FProgressCancel* Progress = nullptr)
 {
 	TArray<int32> ToLinear, FromLinear;
 	if (bSphere || bBox || bCapsule)
@@ -122,7 +124,7 @@ static void ComputeSimpleShapeFits(const FDynamicMesh3& Mesh,
 	{
 		FMinVolumeBox3d MinBoxCalc;
 		bool bMinBoxOK = MinBoxCalc.Solve(FromLinear.Num(),
-			[&](int32 Index) { return Mesh.GetVertex(FromLinear[Index]); });
+			[&](int32 Index) { return Mesh.GetVertex(FromLinear[Index]); }, bUseExactComputationForBox, Progress);
 		if (bMinBoxOK && MinBoxCalc.IsSolutionAvailable())
 		{
 			FitResult.bHaveBox = true;
@@ -190,7 +192,7 @@ void FMeshSimpleShapeApproximation::Generate_AlignedBoxes(FSimpleShapeSet3d& Sha
 
 
 
-void FMeshSimpleShapeApproximation::Generate_OrientedBoxes(FSimpleShapeSet3d& ShapeSetOut)
+void FMeshSimpleShapeApproximation::Generate_OrientedBoxes(FSimpleShapeSet3d& ShapeSetOut, FProgressCancel* Progress)
 {
 	FCriticalSection GeometryLock;
 	ParallelFor(SourceMeshes.Num(), [&](int32 idx)
@@ -202,7 +204,12 @@ void FMeshSimpleShapeApproximation::Generate_OrientedBoxes(FSimpleShapeSet3d& Sh
 
 		const FDynamicMesh3& SourceMesh = *SourceMeshes[idx];
 		FSimpleShapeFitsResult FitResult;
-		ComputeSimpleShapeFits(SourceMesh, false, true, false, false, FitResult);
+		ComputeSimpleShapeFits(SourceMesh, false, true, false, false, bUseExactComputationForBox, FitResult, Progress);
+
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
 
 		if (FitResult.bHaveBox)
 		{
@@ -225,7 +232,7 @@ void FMeshSimpleShapeApproximation::Generate_MinimalSpheres(FSimpleShapeSet3d& S
 
 		const FDynamicMesh3& SourceMesh = *SourceMeshes[idx];
 		FSimpleShapeFitsResult FitResult;
-		ComputeSimpleShapeFits(SourceMesh, true, false, false, false, FitResult);
+		ComputeSimpleShapeFits(SourceMesh, true, false, false, false, bUseExactComputationForBox, FitResult);
 
 		if (FitResult.bHaveSphere)
 		{
@@ -248,7 +255,7 @@ void FMeshSimpleShapeApproximation::Generate_Capsules(FSimpleShapeSet3d& ShapeSe
 
 		const FDynamicMesh3& SourceMesh = *SourceMeshes[idx];
 		FSimpleShapeFitsResult FitResult;
-		ComputeSimpleShapeFits(SourceMesh, false, false, true, false, FitResult);
+		ComputeSimpleShapeFits(SourceMesh, false, false, true, false, bUseExactComputationForBox, FitResult);
 
 		if (FitResult.bHaveCapsule)
 		{
@@ -374,7 +381,7 @@ void FMeshSimpleShapeApproximation::Generate_MinVolume(FSimpleShapeSet3d& ShapeS
 		FOrientedBox3d AlignedBox = FOrientedBox3d(SourceMesh.GetBounds());
 
 		FSimpleShapeFitsResult FitResult;
-		ComputeSimpleShapeFits(SourceMesh, true, true, true, false, FitResult);
+		ComputeSimpleShapeFits(SourceMesh, true, true, true, false, bUseExactComputationForBox, FitResult);
 
 		double Volumes[4];
 		Volumes[0] = AlignedBox.Volume();

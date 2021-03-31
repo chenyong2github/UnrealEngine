@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
+#include "Containers/IndirectArray.h"
 
 /**
  * FMeshConnectedComponents calculates Connected Components of a Mesh, or sub-regions of a Mesh.
@@ -145,6 +146,24 @@ public:
 		TArray<int>& ResultROI,
 		TArray<int32>* QueueBuffer = nullptr, 
 		TSet<int32>* DoneBuffer = nullptr,
+		TFunctionRef<bool(int32, int32)> CanGrowPredicate = [](int32, int32) { return true; }
+	);
+
+
+	/**
+	 * Utility function to expand a triangle selection to all triangles considered "connected".
+	 * More efficient than using full FMeshConnectedComponents instance if ROI is small relative to Mesh size (or if temp buffers can be re-used)
+	 * This version computes an output TSet instead of output TArray, which is preferable in some cases.
+	 * @param Mesh Mesh to calculate on
+	 * @param InputROI input set of triangles
+	 * @param ResultROI output set of triangles connected to InputROI
+	 * @param QueueBuffer optional buffer used as internal Queue. If passed as nullptr, a TArray will be locally allocated
+	 * @param CanGrowPredicate determines whether two connected mesh triangles should be considered connected while growing
+	 */
+	static void GrowToConnectedTriangles(const FDynamicMesh3* Mesh,
+		const TArray<int>& InputROI,
+		TSet<int>& ResultROI,
+		TArray<int32>* QueueBuffer = nullptr,
 		TFunctionRef<bool(int32, int32)> CanGrowPredicate = [](int32, int32) { return true; }
 	);
 

@@ -45,7 +45,7 @@ public:
 	///
 	/// Inputs
 	///
-	TriangleMeshType* Source = nullptr;
+	const TriangleMeshType* Source = nullptr;
 	TMeshAABBTree3<TriangleMeshType>* SourceSpatial = nullptr;
 	EMorphologyOp MorphologyOp = EMorphologyOp::Dilate;
 
@@ -83,7 +83,7 @@ public:
 	bool Validate()
 	{
 		bool bValidMeshAndSpatial = Source != nullptr && SourceSpatial != nullptr && SourceSpatial->IsValid();
-		bool bValidParams = Distance > 0 && GridCellSize > 0 && MeshCellSize > 0;
+		bool bValidParams = Distance > 0 && GridCellSize > 0 && MeshCellSize > 0 && FMath::IsFinite(MeshCellSize);
 		return bValidMeshAndSpatial && bValidParams;
 	}
 

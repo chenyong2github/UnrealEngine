@@ -87,14 +87,16 @@ protected:
 
 	/**
 	 * Reorder elements given a new ordering. Sizes must match
+	 * @param NewOrder Mapping from indices in the new array -> indices in the old array
 	 */
 	virtual void Reorder(const TArray<int32>& NewOrder) = 0;
 
 	/** 
-	* Reindex given a lookup table
-	*/
+	 * Reindex given a lookup table
+	 * @param InverseNewOrder Mapping from indices into the old array -> indices in the new array
+	 */
 	//todo: this should really assert, but material is currently relying on both faces and vertices
-	virtual void ReindexFromLookup(const TArray<int32>& NewOrder) { }
+	virtual void ReindexFromLookup(const TArray<int32>& InverseNewOrder) { }
 
 	/**
 	* Init from a predefined Array
@@ -585,7 +587,7 @@ public:
 		}
 	}
 
-	virtual void ReindexFromLookup(const TArray<int32>& NewOrder) override
+	virtual void ReindexFromLookup(const TArray<int32>& InverseNewOrder) override
 	{
 		const int32 ArraySize = Num();
 		for (int32 Index = 0; Index < ArraySize; ++Index)
@@ -593,7 +595,7 @@ public:
 			int32& Mapping = this->operator[](Index);
 			if (Mapping >= 0)
 			{
-				Mapping = NewOrder[Mapping];
+				Mapping = InverseNewOrder[Mapping];
 			}
 		}
 	}
@@ -650,7 +652,7 @@ public:
 		}
 	}
 
-	virtual void ReindexFromLookup(const TArray<int32> & NewOrder) override
+	virtual void ReindexFromLookup(const TArray<int32> & InverseNewOrder) override
 	{
 
 		int32 ArraySize = Num();
@@ -663,7 +665,7 @@ public:
 
 			for (int32 StaleEntry : OldSet)
 			{
-				const int32 NewEntry = StaleEntry >= 0 ? NewOrder[StaleEntry] : StaleEntry;	//only remap if valid
+				const int32 NewEntry = StaleEntry >= 0 ? InverseNewOrder[StaleEntry] : StaleEntry;	//only remap if valid
 				NewSet.Add(NewEntry);
 			}
 		}
@@ -712,7 +714,7 @@ public:
 		}
 	}
 
-	virtual void ReindexFromLookup(const TArray<int32> & NewOrder) override
+	virtual void ReindexFromLookup(const TArray<int32> & InverseNewOrder) override
 	{
 		int32 ArraySize = Num();
 		for (int32 Index = 0; Index < ArraySize; Index++)
@@ -722,7 +724,7 @@ public:
 			{
 				if (RemapVal[i] >= 0)
 				{
-					RemapVal[i] = NewOrder[RemapVal[i]];
+					RemapVal[i] = InverseNewOrder[RemapVal[i]];
 				}
 			}
 		}

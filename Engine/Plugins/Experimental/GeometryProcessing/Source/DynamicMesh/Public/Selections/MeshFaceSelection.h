@@ -77,6 +77,10 @@ public:
 		return Selected.Contains(tid);
 	}
 
+	bool Contains(int tid) const
+	{
+		return Selected.Contains(tid);
+	}
 
 	void Select(int tid)
 	{
@@ -198,6 +202,36 @@ public:
 			if (Mesh->IsTriangle(tid) && Mesh->GetTriangleGroup(tid) == gid)
 			{
 				remove(tid);
+			}
+		}
+	}
+
+	/**
+	 * Find the elements in current selection that are not in SubtractSet, and store in DifferenceStorage
+	 */
+	template<typename EnumerableType, typename StorageType>
+	void SetDifference(const EnumerableType& SubtractSet, StorageType& DifferenceStorage) const
+	{
+		for ( int32 tid : Selected )
+		{
+			if (SubtractSet.Contains(tid) == false)
+			{
+				DifferenceStorage.Add(tid);
+			}
+		}
+	}
+
+	/**
+	 * Find the elements in current selection that are also in IntersectSet, and store in IntersectionStorage
+	 */
+	template<typename EnumerableType, typename StorageType>
+	void SetIntersection(const EnumerableType& IntersectSet, StorageType& IntersectionStorage) const
+	{
+		for (int32 tid : Selected)
+		{
+			if (IntersectSet.Contains(tid))
+			{
+				IntersectionStorage.Add(tid);
 			}
 		}
 	}
@@ -399,40 +433,59 @@ public:
 	 *  
 	 *  Return false from FilterF to prevent triangles from being deselected.
 	 */
-	void ContractBorderByOneRingNeighbours()
+	void ContractBorderByOneRingNeighbours(int NumRings = 1, bool bContractFromMeshBoundary = false, const TUniqueFunction<bool(int)>& FilterF = nullptr)
 	{
 		TArray<int> BorderVIDs;   // border vertices
-
-		// [TODO] border vertices are pushed onto the temp list multiple times.
-		// minor inefficiency, but maybe we could improve it?
-
-		// find set of vertices on border
-		for (int tid : Selected)
+		// TODO: track the border across removals if NumRings > 1, so we don't have to iterate over the whole selection each time
+		for (int RingIdx = 0; RingIdx < NumRings; ++RingIdx)
 		{
-			FIndex3i tri_v = Mesh->GetTriangle(tid);
-			for (int j = 0; j < 3; ++j)
+			BorderVIDs.Reset();
+
+			// [TODO] border vertices are pushed onto the temp list multiple times.
+			// minor inefficiency, but maybe we could improve it?
+
+			// find set of vertices on border
+			for (int TID : Selected)
 			{
-				int vid = tri_v[j];
-				for (int nbr_t : Mesh->VtxTrianglesItr(vid))
+				FIndex3i TriV = Mesh->GetTriangle(TID);
+				for (int Idx = 0; Idx < 3; ++Idx)
 				{
-					if (!IsSelected(nbr_t))
+					int VID = TriV[Idx];
+					int UnusedE1, UnusedE2; // Unused edge boundary indices, required to call GetVtxBoundaryEdges to test if vertex is on boundary
+					bool bIsBorder = bContractFromMeshBoundary && Mesh->GetVtxBoundaryEdges(VID, UnusedE1, UnusedE2) > 0;
+					if (!bIsBorder)
 					{
-						BorderVIDs.Add(vid);
-						break;
+						for (int NbrT : Mesh->VtxTrianglesItr(VID))
+						{
+							if (!IsSelected(NbrT))
+							{
+								bIsBorder = true;
+								break;
+							}
+						}
 					}
+					if (bIsBorder)
+					{
+						BorderVIDs.Add(VID);
+					}
+				}
+			}
+
+			for (int VID : BorderVIDs)
+			{
+				for (int NbrT : Mesh->VtxTrianglesItr(VID))
+				{
+					if (FilterF && !FilterF(NbrT))
+					{
+						continue;
+					}
+					Deselect(NbrT);
 				}
 			}
 		}
 
-		for (int vid : BorderVIDs)
-		{
-			for (int nbr_t : Mesh->VtxTrianglesItr(vid))
-			{
-				Deselect(nbr_t);
-			}
-		}
-
 	}
+
 
 
 

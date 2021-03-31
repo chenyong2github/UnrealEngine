@@ -9,6 +9,11 @@
 
 bool FSimpleHoleFiller::Fill(int GroupID)
 {
+	if (GroupID < 0 && Mesh->HasTriangleGroups())
+	{
+		GroupID = Mesh->AllocateTriangleGroup();
+	}
+
 	if (Loop.GetVertexCount() < 3)
 	{
 		return false;

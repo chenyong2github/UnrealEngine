@@ -57,6 +57,10 @@ public:
 	// Most of this parallelizes very well, makes a huge speed difference
 	bool bUseParallel = true;
 
+	// If the number of cells in any dimension may exceed this, CellSize will be automatically increased to keep cell count reasonable
+	int ApproxMaxCellsPerDimension = 4096;
+
+
 	// The narrow band is always computed exactly, and the full Grid is always signed.
 	// Can also fill in the rest of the full Grid with fast sweeping. This is 
 	// quite computationally intensive, though, and not parallelizable 
@@ -157,6 +161,23 @@ public:
 		return ExactCells > 1 && EdgesPerBand >= .25;
 	}
 
+	bool Validate(const FAxisAlignedBox3d& Bounds)
+	{
+		if (Bounds.IsEmpty() || !FMath::IsFinite(Bounds.MaxDim()))
+		{
+			return false;
+		}
+		if (CellSize <= 0 || !FMath::IsFinite(CellSize))
+		{
+			return false;
+		}
+		if (ApproxMaxCellsPerDimension < 5)
+		{
+			return false;
+		}
+		return true;
+	}
+
 	/**
 	 * Compute the SDF
 	 * @param Bounds Bounding box for the mesh data (passed as param it is usually already available, depending on TriangleMeshType and whether an AABB tree was provided)
@@ -164,6 +185,26 @@ public:
 	 */
 	bool Compute(FAxisAlignedBox3d Bounds)
 	{
+		if (!ensure(Validate(Bounds)))
+		{
+			return false;
+		}
+
+		if (!ensureMsgf(ExactBandWidth*2 < ApproxMaxCellsPerDimension, TEXT("Cannot request band wider than half the max cells per dimension")))
+		{
+			ExactBandWidth = FMath::Max(ApproxMaxCellsPerDimension/2-1, 1);
+		}
+
+		float MaxDim = (Bounds.Max - Bounds.Min + ExpandBounds * 2).MaxElement();
+		if (!ensureMsgf(MaxDim / CellSize <= ApproxMaxCellsPerDimension - 2 * ExactBandWidth, TEXT("SDF resolution clamped to avoid excessive memory use")))
+		{
+			CellSize = MaxDim / (ApproxMaxCellsPerDimension - 2 * ExactBandWidth);
+			if (!ensure(CellSize > 0 && FMath::IsFinite(CellSize)))
+			{
+				return false;
+			}
+		}
+
 		float fBufferWidth = ExactBandWidth * CellSize;
 		if (ComputeMode == EComputeModes::NarrowBand_SpatialFloodFill)
 		{

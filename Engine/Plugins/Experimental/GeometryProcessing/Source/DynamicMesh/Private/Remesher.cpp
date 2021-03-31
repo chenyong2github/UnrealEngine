@@ -58,26 +58,29 @@ void FRemesher::BasicRemeshPass()
 	// some new edges. Can't see how we could efficiently prevent this.
 	//
 	ProfileBeginOps();
-
-	int cur_eid = StartEdges();
-	bool done = false;
 	ModifiedEdgesLastPass = 0;
-	do 
 	{
-		if (Mesh->IsEdge(cur_eid)) 
+		int cur_eid = StartEdges();
+		bool done = false;
+		int IterationCount = 0;
+		TRACE_CPUPROFILER_EVENT_SCOPE(Remesher_EdgesPass);
+		do
 		{
-			EProcessResult result = ProcessEdge(cur_eid);
-			if (result == EProcessResult::Ok_Collapsed || result == EProcessResult::Ok_Flipped || result == EProcessResult::Ok_Split)
+			if (Mesh->IsEdge(cur_eid))
 			{
-				ModifiedEdgesLastPass++;
+				EProcessResult result = ProcessEdge(cur_eid);
+				if (result == EProcessResult::Ok_Collapsed || result == EProcessResult::Ok_Flipped || result == EProcessResult::Ok_Split)
+				{
+					ModifiedEdgesLastPass++;
+				}
 			}
-		}
-		if (Cancelled())        // expensive to check every iter?
-		{
-			return;
-		}
-		cur_eid = GetNextEdge(cur_eid, done);
-	} while (done == false);
+			if (IterationCount++ % 1000 == 0 && Cancelled())        // expensive to check every iter?
+			{
+				return;
+			}
+			cur_eid = GetNextEdge(cur_eid, done);
+		} while (done == false);
+	}
 	ProfileEndOps();
 
 	if (Cancelled())
@@ -88,6 +91,7 @@ void FRemesher::BasicRemeshPass()
 	ProfileBeginSmooth();
 	if (bEnableSmoothing && (SmoothSpeedT > 0 || CustomSmoothSpeedF) )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Remesher_SmoothingPass);
 		if (bEnableSmoothInPlace) 
 		{
 			//FullSmoothPass_InPlace(EnableParallelSmooth);
@@ -109,6 +113,7 @@ void FRemesher::BasicRemeshPass()
 	ProfileBeginProject();
 	if (ProjTarget != nullptr && ProjectionMode == ETargetProjectionMode::AfterRefinement)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Remesher_ProjectionPass);
 		FullProjectionPass(bEnableParallelProjection);
 		DoDebugChecks();
 	}
@@ -140,41 +145,36 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 	}
 
 	// look up verts and tris for this edge
-	if (Mesh->IsEdge(edgeID) == false)
-	{
-		return EProcessResult::Failed_NotAnEdge;
-	}
-	const FDynamicMesh3::FEdge Edge = Mesh->GetEdge(edgeID);
+	FDynamicMesh3::FEdge Edge(Mesh->GetEdge(edgeID));
 	int a = Edge.Vert[0], b = Edge.Vert[1];
 	int t0 = Edge.Tri[0], t1 = Edge.Tri[1];
 	bool bIsBoundaryEdge = (t1 == IndexConstants::InvalidID);
-
-	// look up 'other' verts c (from t0) and d (from t1, if it exists)
-	FIndex2i ov = Mesh->GetEdgeOpposingV(edgeID);
-	int c = ov[0], d = ov[1];
-
-	FVector3d vA = Mesh->GetVertex(a);
-	FVector3d vB = Mesh->GetVertex(b);
-	double edge_len_sqr = (vA - vB).SquaredLength();
-
-	ProfileBeginCollapse();
+	FVector3d vA(Mesh->GetVertex(a));
+	FVector3d vB(Mesh->GetVertex(b));
+	double edge_len_sqr = vA.DistanceSquared(vB);
 
 	// check if we should collapse, and also find which vertex we should collapse to,
 	// in cases where we have constraints/etc
 	int collapse_to = -1;
 	bool bCanCollapse = bEnableCollapses
 		&& constraint.CanCollapse()
-		&& edge_len_sqr < MinEdgeLength*MinEdgeLength
-		&& CanCollapseEdge(edgeID, a, b, c, d, t0, t1, collapse_to);
-
-	// optimization: if edge cd exists, we cannot collapse or flip. look that up here?
-	//  funcs will do it internally...
-	//  (or maybe we can collapse if cd exists? edge-collapse doesn't check for it explicitly...)
+		&& edge_len_sqr < MinEdgeLength* MinEdgeLength;
 
 	// if edge length is too short, we want to collapse it
 	bool bTriedCollapse = false;
 	if (bCanCollapse) 
 	{
+		// look up 'other' verts c (from t0) and d (from t1, if it exists)
+		FIndex2i ov = Mesh->GetEdgeOpposingV(edgeID);
+		int c = ov[0], d = ov[1];
+		if (CanCollapseEdge(edgeID, a, b, c, d, t0, t1, collapse_to) == false)
+		{
+			goto abort_collapse;
+		}
+		// optimization: if edge cd exists, we cannot collapse or flip. look that up here?
+		//  funcs will do it internally...
+		//  (or maybe we can collapse if cd exists? edge-collapse doesn't check for it explicitly...)
+
 		double collapse_t = 0.5;		// need to know t-value along edge to update lerpable attributes properly
 		FVector3d vNewPos = (vA + vB) * collapse_t;
 
@@ -241,13 +241,14 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 	}
 abort_collapse:
 
-	ProfileEndCollapse();
-	ProfileBeginFlip();
-
 	// if this is not a boundary edge, maybe we want to flip
 	bool bTriedFlip = false;
 	if (bEnableFlips && constraint.CanFlip() && bIsBoundaryEdge == false) 
 	{
+		// look up 'other' verts c (from t0) and d (from t1, if it exists)
+		FIndex2i ov = Mesh->GetEdgeOpposingV(edgeID);
+		int c = ov[0], d = ov[1];
+
 		// can we do this more efficiently somehow?
 		bool bTryFlip = false;
 		if (FlipMetric == EFlipMetric::OptimalValence)
@@ -303,9 +304,6 @@ abort_collapse:
 		}
 	}
 
-	ProfileEndFlip();
-	ProfileBeginSplit();
-
 	// if edge length is too long, we want to split it
 	bool bTriedSplit = false;
 	if (bEnableSplits && constraint.CanSplit() && edge_len_sqr > MaxEdgeLength*MaxEdgeLength) 
@@ -326,9 +324,6 @@ abort_collapse:
 			bTriedSplit = true;
 		}
 	}
-
-	ProfileEndSplit();
-
 
 	if (bTriedFlip || bTriedSplit || bTriedCollapse)
 	{

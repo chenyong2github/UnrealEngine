@@ -399,11 +399,16 @@ void FDynamicMeshAttributeSetChangeTracker::BeginChange()
 		Change->MaterialIDAttribChange.Emplace();
 	}
 
+	int NumPolygroupLayers = Attribs->NumPolygroupLayers();
+	if (NumPolygroupLayers > 0)
+	{
+		Change->PolygroupChanges.SetNum(NumPolygroupLayers);
+	}
+
 	for (int k = 0, NumRegAttrib = Attribs->NumRegisteredAttributes(); k < NumRegAttrib; k++)
 	{
 		Change->RegisteredAttributeChanges.Add(Attribs->GetRegisteredAttribute(k)->NewBlankChange());
 	}
-
 }
 
 
@@ -450,6 +455,12 @@ void FDynamicMeshAttributeSetChangeTracker::SaveInitialTriangle(int TriangleID)
 	if (Change->MaterialIDAttribChange.IsSet())
 	{
 		Change->MaterialIDAttribChange->SaveInitialTriangle(Attribs->GetMaterialID(), TriangleID);
+	}
+
+	int NumPolygroupLayers = Attribs->NumPolygroupLayers();
+	for (int k = 0; k < NumPolygroupLayers; ++k)
+	{
+		Change->PolygroupChanges[k].SaveInitialTriangle(Attribs->GetPolygroupLayer(k), TriangleID);
 	}
 
 	for (int k = 0, NumRegAttrib = Attribs->NumRegisteredAttributes(); k < NumRegAttrib; k++)
@@ -530,6 +541,12 @@ void FDynamicMeshAttributeSetChangeTracker::StoreAllFinalTriangles(const TArray<
 		Change->MaterialIDAttribChange->StoreAllFinalTriangles(Attribs->GetMaterialID(), TriangleIDs);
 	}
 
+	int NumPolygroupLayers = Attribs->NumPolygroupLayers();
+	for (int k = 0; k < NumPolygroupLayers; ++k)
+	{
+		Change->PolygroupChanges[k].StoreAllFinalTriangles(Attribs->GetPolygroupLayer(k), TriangleIDs);
+	}
+
 	for (int k = 0, NumRegAttrib = Attribs->NumRegisteredAttributes(); k < NumRegAttrib; k++)
 	{
 		Change->RegisteredAttributeChanges[k]->StoreAllFinalTriangles(Attribs->GetRegisteredAttribute(k), TriangleIDs);
@@ -572,6 +589,12 @@ bool FDynamicMeshAttributeChangeSet::Apply(FDynamicMeshAttributeSet* Attributes,
 	if (MaterialIDAttribChange.IsSet())
 	{
 		MaterialIDAttribChange->Apply(Attributes->GetMaterialID(), bRevert);
+	}
+
+	int NumPolygroupLayers = Attributes->NumPolygroupLayers();
+	for (int k = 0; k < NumPolygroupLayers; ++k)
+	{
+		PolygroupChanges[k].Apply(Attributes->GetPolygroupLayer(k), bRevert);
 	}
 
 	return true;

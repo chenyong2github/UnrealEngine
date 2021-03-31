@@ -591,6 +591,11 @@ void FMinimalHoleFiller::FlipToImproveAspectRatios()
 
 bool FMinimalHoleFiller::Fill(int32 GroupID)
 {
+	if (GroupID < 0 && Mesh->HasTriangleGroups())
+	{
+		GroupID = Mesh->AllocateTriangleGroup();
+	}
+
 	// do a simple fill
 	FSimpleHoleFiller Simplefill(Mesh, FillLoop);
 

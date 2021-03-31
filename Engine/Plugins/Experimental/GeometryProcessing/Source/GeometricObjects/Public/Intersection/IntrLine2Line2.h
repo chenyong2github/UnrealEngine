@@ -183,5 +183,5 @@ public:
 
 };
 
-typedef TIntrLine2Line2<double> FIntrLine2TLine2d;
+typedef TIntrLine2Line2<double> FIntrLine2Line2d;
 typedef TIntrLine2Line2<float> FIntrLine2Line2f;

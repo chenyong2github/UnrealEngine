@@ -13,9 +13,11 @@ struct TInterval1
 	RealType Min;
 	RealType Max;
 
-	TInterval1()
+	TInterval1() :
+		TInterval1(Empty())
 	{
 	}
+
 	TInterval1(const RealType& Min, const RealType& Max)
 	{
 		this->Min = Min;
@@ -186,7 +188,7 @@ struct TInterval1
 
 	inline bool IsEmpty() const
 	{
-		return Max > Min;
+		return Max < Min;
 	}
 
 	void Expand(RealType Radius)
@@ -208,20 +210,29 @@ struct TAxisAlignedBox3
 	FVector3<RealType> Min;
 	FVector3<RealType> Max;
 
-	TAxisAlignedBox3()
+	TAxisAlignedBox3() : 
+		TAxisAlignedBox3(TAxisAlignedBox3<RealType>::Empty())
 	{
 	}
+
 	TAxisAlignedBox3(const FVector3<RealType>& Min, const FVector3<RealType>& Max)
 	{
 		this->Min = Min;
 		this->Max = Max;
 	}
 
-	TAxisAlignedBox3(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	TAxisAlignedBox3(const FVector3<RealType>& A, const FVector3<RealType>& B, const FVector3<RealType>& C)
 	{
-		TMathUtil<RealType>::MinMax(V0.X, V1.X, V2.X, Min.X, Max.X);
-		TMathUtil<RealType>::MinMax(V0.Y, V1.Y, V2.Y, Min.Y, Max.Y);
-		TMathUtil<RealType>::MinMax(V0.Z, V1.Z, V2.Z, Min.Z, Max.Z);
+		// TMathUtil::MinMax could be used here, but it generates worse code because the Min3's below will be
+		// turned into SSE instructions by the optimizer, while MinMax will not
+		Min = FVector3<RealType>(
+			TMathUtil<RealType>::Min3(A.X, B.X, C.X),
+			TMathUtil<RealType>::Min3(A.Y, B.Y, C.Y),
+			TMathUtil<RealType>::Min3(A.Z, B.Z, C.Z));
+		Max = FVector3<RealType>(
+			TMathUtil<RealType>::Max3(A.X, B.X, C.X),
+			TMathUtil<RealType>::Max3(A.Y, B.Y, C.Y),
+			TMathUtil<RealType>::Max3(A.Z, B.Z, C.Z));
 	}
 
 	TAxisAlignedBox3(const TAxisAlignedBox3& OtherBox) = default;
@@ -361,9 +372,12 @@ struct TAxisAlignedBox3
 
 	void Contain(const TAxisAlignedBox3<RealType>& Other)
 	{
-		// todo: can be optimized
-		Contain(Other.Min);
-		Contain(Other.Max);
+		Min.X = Min.X < Other.Min.X ? Min.X : Other.Min.X;
+		Min.Y = Min.Y < Other.Min.Y ? Min.Y : Other.Min.Y;
+		Min.Z = Min.Z < Other.Min.Z ? Min.Z : Other.Min.Z;
+		Max.X = Max.X > Other.Max.X ? Max.X : Other.Max.X;
+		Max.Y = Max.Y > Other.Max.Y ? Max.Y : Other.Max.Y;
+		Max.Z = Max.Z > Other.Max.Z ? Max.Z : Other.Max.Z;
 	}
 
 	bool Contains(const FVector3<RealType>& V) const
@@ -470,7 +484,7 @@ struct TAxisAlignedBox3
 
 	inline bool IsEmpty() const
 	{
-		return Max.X > Min.X || Max.Y > Min.Y || Max.Z > Min.Z;
+		return Max.X < Min.X || Max.Y < Min.Y || Max.Z < Min.Z;
 	}
 
 	void Expand(RealType Radius)
@@ -490,9 +504,11 @@ struct TAxisAlignedBox2
 	FVector2<RealType> Min;
 	FVector2<RealType> Max;
 
-	TAxisAlignedBox2()
+	TAxisAlignedBox2() : 
+		TAxisAlignedBox2(Empty())
 	{
 	}
+
 	TAxisAlignedBox2(const FVector2<RealType>& Min, const FVector2<RealType>& Max)
 		: Min(Min), Max(Max)
 	{
@@ -594,9 +610,10 @@ struct TAxisAlignedBox2
 
 	inline void Contain(const TAxisAlignedBox2<RealType>& Other)
 	{
-		// todo: can be optimized
-		Contain(Other.Min);
-		Contain(Other.Max);
+		Min.X = Min.X < Other.Min.X ? Min.X : Other.Min.X;
+		Min.Y = Min.Y < Other.Min.Y ? Min.Y : Other.Min.Y;
+		Max.X = Max.X > Other.Max.X ? Max.X : Other.Max.X;
+		Max.Y = Max.Y > Other.Max.Y ? Max.Y : Other.Max.Y;
 	}
 
 	void Contain(const TArray<FVector2<RealType>>& Pts)
@@ -676,7 +693,7 @@ struct TAxisAlignedBox2
 
 	inline bool IsEmpty() const
 	{
-		return Max.X > Min.X || Max.Y > Min.Y;
+		return Max.X < Min.X || Max.Y < Min.Y;
 	}
 
 	void Expand(RealType Radius)

@@ -12,9 +12,7 @@ public class DynamicMesh : ModuleRules
 			new string[] {
 				"Core",
 				"GeometricObjects",
-				"GeometryAlgorithms",
-
-				"MeshUtilitiesCommon"		// currently required for FAllocator2D used in FDynamicMeshUVPacker
+				"GeometryAlgorithms"
 			}
 		);
 

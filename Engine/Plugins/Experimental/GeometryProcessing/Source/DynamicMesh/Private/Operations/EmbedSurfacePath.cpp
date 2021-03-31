@@ -140,13 +140,6 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 		Tri.V[2] = VertexToPosnFn(Mesh, TriVertIDs.C);
 	};
 
-	auto PtTriPlaneSignedDist = [](FVector3d Pt, const FTriangle3d& Tri)
-	{
-		FVector3d Normal = Tri.Normal();
-		Normal.Normalize(FMathd::Epsilon);
-		return (Pt - Tri.V[0]).Dot(Normal);
-	};
-
 	auto PtInsideTri = [](const FVector3d& BaryCoord, double BaryThreshold = FMathd::ZeroTolerance)
 	{
 		return BaryCoord[0] >= -BaryThreshold && BaryCoord[1] >= -BaryThreshold && BaryCoord[2] >= -BaryThreshold;

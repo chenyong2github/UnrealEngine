@@ -55,7 +55,7 @@ void UOctreeDynamicMeshComponent::InitializeMesh(FMeshDescription* MeshDescripti
 
 	FAxisAlignedBox3d MeshBounds = Mesh->GetCachedBounds();
 	Octree = MakeUnique<FDynamicMeshOctree3>();
-	Octree->RootDimension = MeshBounds.MaxDim() * 0.5;
+	Octree->RootDimension = MeshBounds.MaxDim() * 0.25;
 
 	Octree->Initialize(GetMesh());
 	
@@ -115,7 +115,7 @@ void UOctreeDynamicMeshComponent::ApplyTransform(const FTransform3d& Transform, 
 	{
 		FAxisAlignedBox3d MeshBounds = Mesh->GetCachedBounds();
 		Octree = MakeUnique<FDynamicMeshOctree3>();
-		Octree->RootDimension = MeshBounds.MaxDim() * 0.5;
+		Octree->RootDimension = MeshBounds.MaxDim() * 0.25;
 		Octree->Initialize(GetMesh());
 		OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
 	}
@@ -432,9 +432,11 @@ void UOctreeDynamicMeshComponent::ApplyChange(const FMeshReplacementChange* Chan
 	Mesh->Copy(*Change->GetMesh(bRevert));
 	Octree = MakeUnique<FDynamicMeshOctree3>();
 	Octree->Initialize(GetMesh());
+	
 	OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
 
-	//NotifyMeshUpdated();
+	// need to force proxy recreation because we changed the Octree pointer...
+	MarkRenderStateDirty();
 
 	OnMeshChanged.Broadcast();
 }

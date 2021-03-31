@@ -1,17 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DynamicMesh3.h"
+#include "Async/ParallelFor.h"
 
 
 FIndex2i FDynamicMesh3::GetEdgeOpposingV(int eID) const
 {
-	// [TODO] there was a comment here saying this does more work than necessary??
+	const FEdge& Edge = Edges[eID];
+	int a = Edge.Vert[0];
+	int b = Edge.Vert[1];
+
 	// ** it is important that verts returned maintain [c,d] order!!
-	const FEdge Edge = Edges[eID];
-	int c = IndexUtil::FindTriOtherVtx(Edge.Vert[0], Edge.Vert[1], Triangles, Edge.Tri[0]);
+	int c = IndexUtil::FindTriOtherVtxUnsafe(a, b, Triangles[Edge.Tri[0]]);
 	if (Edge.Tri[1] != InvalidID)
 	{
-		int d = IndexUtil::FindTriOtherVtx(Edge.Vert[0], Edge.Vert[1], Triangles, Edge.Tri[1]);
+		int d = IndexUtil::FindTriOtherVtxUnsafe(a, b, Triangles[Edge.Tri[1]]);
 		return FIndex2i(c, d);
 	}
 	else
@@ -329,8 +332,7 @@ FIndex2i FDynamicMesh3::GetOrientedBoundaryEdgeV(int eID) const
 
 bool FDynamicMesh3::IsGroupBoundaryEdge(int eID) const
 {
-	check(IsEdge(eID));
-	check(HasTriangleGroups());
+	if (!HasTriangleGroups()) return false;
 
 	const FEdge Edge = Edges[eID];
 	int et1 = Edge.Tri[1];
@@ -346,8 +348,7 @@ bool FDynamicMesh3::IsGroupBoundaryEdge(int eID) const
 
 bool FDynamicMesh3::IsGroupBoundaryVertex(int vID) const
 {
-	check(IsVertex(vID));
-	check(HasTriangleGroups());
+	if (!HasTriangleGroups()) return false;
 
 	int group_id = InvalidID;
 	for (int eID : VertexEdgeLists.Values(vID))
@@ -383,8 +384,7 @@ bool FDynamicMesh3::IsGroupBoundaryVertex(int vID) const
 
 bool FDynamicMesh3::IsGroupJunctionVertex(int vID) const
 {
-	check(IsVertex(vID));
-	check(HasTriangleGroups());
+	if (!HasTriangleGroups()) return false;
 
 	FIndex2i groups(InvalidID, InvalidID);
 	for (int eID : VertexEdgeLists.Values(vID))
@@ -421,10 +421,8 @@ bool FDynamicMesh3::IsGroupJunctionVertex(int vID) const
 
 bool FDynamicMesh3::GetVertexGroups(int vID, FIndex4i& groups) const
 {
-	check(IsVertex(vID));
-	check(HasTriangleGroups());
-
 	groups = FIndex4i(InvalidID, InvalidID, InvalidID, InvalidID);
+	if (!HasTriangleGroups()) return false;
 	int ng = 0;
 
 	for (int eID : VertexEdgeLists.Values(vID))
@@ -462,8 +460,7 @@ bool FDynamicMesh3::GetVertexGroups(int vID, FIndex4i& groups) const
 
 bool FDynamicMesh3::GetAllVertexGroups(int vID, TArray<int>& GroupsOut) const
 {
-	check(IsVertex(vID));
-	check(HasTriangleGroups());
+	if (!HasTriangleGroups()) return false;
 
 	for (int eID : VertexEdgeLists.Values(vID))
 	{
@@ -589,16 +586,49 @@ int FDynamicMesh3::FindTriangle(int a, int b, int c) const
 /**
  * Computes bounding box of all vertices.
  */
-FAxisAlignedBox3d FDynamicMesh3::GetBounds() const
+FAxisAlignedBox3d FDynamicMesh3::GetBounds(bool bParallel) const
 {
-	FVector3d MinVec = Vertices[*(VertexIndicesItr().begin())];
-	FVector3d MaxVec = MinVec;
-	for (int vi : VertexIndicesItr())
+	if (VertexCount() == 0)
 	{
-		MinVec = Min(MinVec, Vertices[vi]);
-		MaxVec = Max(MaxVec, Vertices[vi]);
+		return FAxisAlignedBox3d::Empty();
 	}
-	return FAxisAlignedBox3d(MinVec, MaxVec);
+
+	FAxisAlignedBox3d ResultBounds = FAxisAlignedBox3d::Empty();
+	int32 MaxVID = MaxVertexID();
+	if (bParallel == false || MaxVID < 50000)
+	{
+		FVector3d MinVec = Vertices[*(VertexIndicesItr().begin())];
+		FVector3d MaxVec = MinVec;
+		for (int vi : VertexIndicesItr())
+		{
+			MinVec = Min(MinVec, Vertices[vi]);
+			MaxVec = Max(MaxVec, Vertices[vi]);
+		}
+		return FAxisAlignedBox3d(MinVec, MaxVec);
+	}
+	else
+	{
+		constexpr int ChunkSize = 10000;
+		int32 NumChunks = (MaxVID / ChunkSize) + 1;
+		FCriticalSection BoundsLock;
+		ParallelFor(NumChunks, [&](int ci)
+		{
+			FAxisAlignedBox3d ChunkBounds = FAxisAlignedBox3d::Empty();
+			int Start = ci * ChunkSize;
+			for (int k = 0; k < ChunkSize; ++k)
+			{
+				int vid = Start + k;
+				if (IsVertex(vid))
+				{
+					ChunkBounds.Contain(Vertices[vid]);
+				}
+			}
+			BoundsLock.Lock();
+			ResultBounds.Contain(ChunkBounds);
+			BoundsLock.Unlock();
+		});
+	}
+	return ResultBounds;
 }
 
 
@@ -804,13 +834,14 @@ void FDynamicMesh3::GetTriBaryPoint(int tID, double bary0, double bary1, double 
 	}
 }
 
+
 FAxisAlignedBox3d FDynamicMesh3::GetTriBounds(int tID) const
 {
 	const FIndex3i& tIDs = Triangles[tID];
-	const FVector3d TriVerts[3]       = {Vertices[tIDs[0]], Vertices[tIDs[1]], Vertices[tIDs[2]]};
-	const FVector3d MinVec            = Min(Min(TriVerts[0], TriVerts[1]), TriVerts[2]);
-	const FVector3d MaxVec            = Max(Max(TriVerts[0], TriVerts[1]), TriVerts[2]);
-	return FAxisAlignedBox3d(MinVec, MaxVec);
+	const FVector3d& A = Vertices[tIDs.A];
+	const FVector3d& B = Vertices[tIDs.B];
+	const FVector3d& C = Vertices[tIDs.C];
+	return FAxisAlignedBox3d(A, B, C);
 }
 
 FFrame3d FDynamicMesh3::GetTriFrame(int tID, int nEdge) const

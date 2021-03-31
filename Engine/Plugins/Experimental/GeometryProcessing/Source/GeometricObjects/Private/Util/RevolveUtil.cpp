@@ -3,7 +3,7 @@
 #include "Util/RevolveUtil.h"
 
 void RevolveUtil::GenerateSweepCurve(const FVector3d& RevolutionAxisOrigin, const FVector3d& RevolutionAxisDirection, 
-	double DegreesOffset, double DegreesPerStep, int TotalNumFrames, bool bWeldFullRevolution, TArray<FFrame3d> &SweepCurveOut)
+	double DegreesOffset, double DegreesPerStep, double DownAxisOffset, int TotalNumFrames, TArray<FFrame3d> &SweepCurveOut)
 {
 	// For a revolve, we need to sweep along a circular path around the axis of rotation. While we could pick
 	// any arbitrary frame to create the curve, we choose the standard world frame since that is what the 
@@ -13,7 +13,7 @@ void RevolveUtil::GenerateSweepCurve(const FVector3d& RevolutionAxisOrigin, cons
 	{
 		// Revolve the origin frame relative the axis
 		FQuaterniond Rotation(RevolutionAxisDirection, DegreesOffset + DegreesPerStep * i, true);
-		FVector3d NewOrigin = Rotation * WorldOriginWrtAxisOrigin + RevolutionAxisOrigin;
+		FVector3d NewOrigin = Rotation * (WorldOriginWrtAxisOrigin + i * DownAxisOffset * RevolutionAxisDirection) + RevolutionAxisOrigin;
 		FFrame3d NewFrame(NewOrigin, Rotation);
 		SweepCurveOut.Add(NewFrame);
 	}

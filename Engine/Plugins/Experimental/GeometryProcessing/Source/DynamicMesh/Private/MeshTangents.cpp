@@ -149,6 +149,47 @@ void TMeshTangents<RealType>::ComputeTriangleTangents(const FDynamicMeshUVOverla
 
 
 
+template<typename RealType>
+bool TMeshTangents<RealType>::CopyToOverlays(FDynamicMesh3& MeshToSet)
+{
+	if (!MeshToSet.HasAttributes() || MeshToSet.Attributes()->NumNormalLayers() != 3)
+	{
+		return false;
+	}
+
+	// Set aliases to make iterating over tangents and bitangents easier
+	FDynamicMeshNormalOverlay* TangentOverlays[2] = { MeshToSet.Attributes()->PrimaryTangents(), MeshToSet.Attributes()->PrimaryBiTangents() };
+	TArray<FVector3<RealType>>* TangentValues[2] = { &Tangents, &Bitangents };
+	
+	for (int Idx = 0; Idx < 2; Idx++)
+	{
+		// Create overlay topology
+		TArray<FVector3<RealType>>& TV = *TangentValues[Idx];
+		TangentOverlays[Idx]->CreateFromPredicate([&MeshToSet, &TV](int ParentVertexIdx, int TriIDA, int TriIDB) -> bool
+		{
+			FIndex3i TriA = MeshToSet.GetTriangle(TriIDA);
+			FIndex3i TriB = MeshToSet.GetTriangle(TriIDB);
+			int SubA = TriA.IndexOf(ParentVertexIdx);
+			int SubB = TriB.IndexOf(ParentVertexIdx);
+			checkSlow(SubA > -1 && SubB > -1);
+			return TV[TriIDA * 3 + SubA].DistanceSquared(TV[TriIDB * 3 + SubB]) < TMathUtil<RealType>::ZeroTolerance;
+		}, 0);
+
+		// Write tangent values out for each wedge value
+		// Note: shared elements will be written to multiple times, and the last value written will be used
+		for (int TID : MeshToSet.TriangleIndicesItr())
+		{
+			FIndex3i ElTri = TangentOverlays[Idx]->GetTriangle(TID);
+			for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+			{
+				TangentOverlays[Idx]->SetElement(ElTri[SubIdx], (FVector3f)TV[TID * 3 + SubIdx]);
+			}
+		}
+	}
+	return true;
+}
+
+
 
 static FVector3d PlaneProjectionNormalized(const FVector3d& Vector, const FVector3d& PlaneNormal)
 {

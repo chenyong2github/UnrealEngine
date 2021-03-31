@@ -9,7 +9,7 @@
 /**
  * EEdgeRefineFlags indicate constraints on triangle mesh edges
  */
-enum class EEdgeRefineFlags
+enum class EEdgeRefineFlags 
 {
 	/** Edge is unconstrained */
 	NoConstraint = 0,
@@ -22,7 +22,11 @@ enum class EEdgeRefineFlags
 	/** Edge cannot be flipped, split, or collapsed */
 	FullyConstrained = NoFlip | NoSplit | NoCollapse,
 	/** Edge can only be split */
-	SplitsOnly = NoFlip | NoCollapse
+	SplitsOnly = NoFlip | NoCollapse,
+	/** Edge can only flip*/
+	FlipOnly = NoSplit | NoCollapse,
+	/** Edge can only collapse*/
+	CollapseOnly = NoFlip | NoSplit
 };
 
 
@@ -37,7 +41,7 @@ public:
 	/** Edge is associated with this projection target. */
 	IProjectionTarget * Target;
 
-	/** This ID is not a constraint, but can be used to find descendents of a constrained input edge after splits */
+	/** This ID is not a constraint, but can be used to find descendants of a constrained input edge after splits */
 	int TrackingSetID;
 
 	FEdgeConstraint()
@@ -70,19 +74,19 @@ public:
 	/** @return true if edge can be split */
 	bool CanSplit() const
 	{
-		return ((int)RefineFlags & (int)EEdgeRefineFlags::NoSplit) == 0;
+		return CanSplit(RefineFlags);
 	}
 
 	/** @return true if edge can be collapsed */
 	bool CanCollapse() const
 	{
-		return ((int)RefineFlags & (int)EEdgeRefineFlags::NoCollapse) == 0;
+		return CanCollapse(RefineFlags);
 	}
 
 	/** @return true if edge cannot be modified at all */
 	bool NoModifications() const
 	{
-		return ((int)RefineFlags & (int)EEdgeRefineFlags::FullyConstrained) == (int)EEdgeRefineFlags::FullyConstrained;
+		return NoModifications(RefineFlags);
 	}
 
 	/** @return true if edge is unconstrained */
@@ -102,6 +106,30 @@ public:
 
 	/** @return a fully constrained edge constraint */
 	static FEdgeConstraint FullyConstrained() { return FEdgeConstraint(EEdgeRefineFlags::FullyConstrained); }
+
+	/** @return true if flags permit flip */
+	static inline bool CanFlip(const EEdgeRefineFlags Flags)
+	{
+		return ((int)Flags & (int)EEdgeRefineFlags::NoFlip) == 0;
+	}
+
+	/** @return true if flags permit split */
+	static inline bool CanSplit(const EEdgeRefineFlags Flags)
+	{
+		return ((int)Flags & (int)EEdgeRefineFlags::NoSplit) == 0;
+	}
+
+	/** @return true if flags permit collapsed */
+	static inline bool CanCollapse(const EEdgeRefineFlags Flags)
+	{
+		return ((int)Flags & (int)EEdgeRefineFlags::NoCollapse) == 0;
+	}
+
+	/** @return true if flags permit no edge modification */
+	static inline bool NoModifications(const EEdgeRefineFlags Flags)
+	{
+		return ((int)Flags & (int)EEdgeRefineFlags::FullyConstrained) == (int)EEdgeRefineFlags::FullyConstrained;
+	}
 };
 
 

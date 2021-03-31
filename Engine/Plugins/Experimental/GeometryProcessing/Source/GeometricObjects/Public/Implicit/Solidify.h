@@ -16,7 +16,7 @@ class TImplicitSolidify
 {
 public:
 
-	TImplicitSolidify(TriangleMeshType* Source = nullptr, TMeshAABBTree3<TriangleMeshType>* SourceSpatial = nullptr, TFastWindingTree<TriangleMeshType>* SourceWinding = nullptr)
+	TImplicitSolidify(const TriangleMeshType* Source = nullptr, TMeshAABBTree3<TriangleMeshType>* SourceSpatial = nullptr, TFastWindingTree<TriangleMeshType>* SourceWinding = nullptr)
 		: Source(Source), SourceSpatial(SourceSpatial), SourceWinding(SourceWinding)
 	{
 	}
@@ -29,7 +29,7 @@ public:
 	/// Inputs
 	///
 
-	TriangleMeshType* Source = nullptr;
+	const TriangleMeshType* Source = nullptr;
 	TMeshAABBTree3<TriangleMeshType>* SourceSpatial = nullptr;
 	TFastWindingTree<TriangleMeshType>* SourceWinding = nullptr;
 
@@ -76,7 +76,7 @@ public:
 	{
 		bool bValidMeshAndSpatial = Source != nullptr && SourceSpatial != nullptr && SourceSpatial->IsValid();
 		bool bValidWinding = SourceWinding != nullptr;
-		bool bValidParams = SurfaceSearchSteps >= 0 && MeshCellSize > 0;
+		bool bValidParams = SurfaceSearchSteps >= 0 && MeshCellSize > 0 && FMath::IsFinite(MeshCellSize);
 		return bValidMeshAndSpatial && bValidWinding && bValidParams;
 	}
 

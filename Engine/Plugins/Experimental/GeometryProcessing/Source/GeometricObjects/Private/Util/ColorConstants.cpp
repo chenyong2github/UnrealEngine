@@ -14,5 +14,5 @@ FColor LinearColors::SelectFColor(int32 Index)
 		MediumAquamarine3b(), Thistle3b(), Wheat3b(),
 		LightSkyBlue3b(), LightPink3b(), MediumSpringGreen3b()
 	};
-	return (Index < 0) ? FColor::White : ColorMap[Index % (7 * 3)];
+	return (Index <= 0) ? White3b() : ColorMap[(Index-1) % (7*3)];
 }

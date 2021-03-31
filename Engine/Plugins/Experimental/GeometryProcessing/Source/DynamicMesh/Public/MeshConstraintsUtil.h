@@ -142,6 +142,30 @@ s	 * EdgeROI that are seams, as well as vertices incident to edges in EdgeROI th
 		}
 	}
 
+	/**
+	 * Constrain all attribute seams for all overlays of a mesh and different types of boundaries on the mesh
+	 * @param EdgeID the edge in Mesh to constrain
+	 * @param Mesh the mesh to constrain
+	 * @param MeshBoundaryConstraint the constraint policy for Mesh boundaries
+	 * @param GroupBoundaryConstraint the constraint policy for boundaries between polygon groups
+	 * @param MaterialBoundaryConstraint the constraint policy for boundaries between different materials
+	 * @param SeamEdgeConstraint  the constraint policy for attribute (e.g. uv, normals ) seams
+	 * @param bAllowSmoothing should we allow constrained vertices to be smoothed
+	 * @param EdgeConstraint [out] edge constraint to be updated
+	 * @param VertexConstraintA [out] vertex constraint to be updated on return
+	 * @param VertexConstraintB [out] vertex constraint to be updated on return
+	 * @return false if no constraint is needed for this edge
+	 */
+	static bool ConstrainEdgeBoundariesAndSeams(const int EdgeID,
+											    const FDynamicMesh3& Mesh,
+			                                    const EEdgeRefineFlags MeshBoundaryConstraint,
+			                                    const EEdgeRefineFlags GroupBoundaryConstraint,
+			                                    const EEdgeRefineFlags MaterialBoundaryConstraint,
+			                                    const EEdgeRefineFlags SeamEdgeConstraint,
+			                                    const bool bAllowSeamSmoothing,
+			                                    FEdgeConstraint& EdgeConstraint,
+			                                    FVertexConstraint& VertexConstraintA,
+			                                    FVertexConstraint& VertexConstraintB);
 
 
 private:

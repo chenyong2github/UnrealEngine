@@ -366,6 +366,42 @@ int FDynamicMesh3::GetComponentsFlags() const
 	return c;
 }
 
+void FDynamicMesh3::EnableMeshComponents(int MeshComponentsFlags)
+{
+	if (int(EMeshComponents::FaceGroups) & MeshComponentsFlags)
+	{
+		EnableTriangleGroups(0);
+	}
+	else
+	{
+		DiscardTriangleGroups();
+	}
+	if (int(EMeshComponents::VertexColors) & MeshComponentsFlags)
+	{
+		EnableVertexColors(FVector3f(1, 1, 1));
+	}
+	else
+	{
+		DiscardVertexColors();
+	}
+	if (int(EMeshComponents::VertexNormals) & MeshComponentsFlags)
+	{
+		EnableVertexNormals(FVector3f::UnitY());
+	}
+	else
+	{
+		DiscardVertexNormals();
+	}
+	if (int(EMeshComponents::VertexUVs) & MeshComponentsFlags)
+	{
+		EnableVertexUVs(FVector2f(0, 0));
+	}
+	else
+	{
+		DiscardVertexUVs();
+	}
+}
+
 void FDynamicMesh3::EnableVertexNormals(const FVector3f& InitialNormal)
 {
 	if (HasVertexNormals())

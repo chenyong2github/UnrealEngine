@@ -23,7 +23,7 @@ struct DYNAMICMESH_API FComputeTangentsOptions
  * tangent vectors for a FDynamicMesh.
  */
 template<typename RealType>
-class DYNAMICMESH_API TMeshTangents
+class TMeshTangents
 {
 protected:
 	/** Target Mesh */
@@ -126,10 +126,18 @@ public:
 	void GetInterpolatedTriangleTangent(int32 TriangleID, const FVector3<RealType>& BaryCoords, FVector3<RealType>& TangentOut, FVector3<RealType>& BitangentOut) const
 	{
 		int32 k = TriangleID * 3;
-		TangentOut = FVector3<RealType>::Blend3(Tangents[k], Tangents[k+1], Tangents[k+2], BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
-		TangentOut.Normalize();
-		BitangentOut = FVector3<RealType>::Blend3(Bitangents[k], Bitangents[k+1], Bitangents[k+2], BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
-		BitangentOut.Normalize();
+		if (k >= 0 && (k+2) < Tangents.Num())
+		{
+			TangentOut = FVector3<RealType>::Blend3(Tangents[k], Tangents[k+1], Tangents[k+2], BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
+			TangentOut.Normalize();
+			BitangentOut = FVector3<RealType>::Blend3(Bitangents[k], Bitangents[k+1], Bitangents[k+2], BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
+			BitangentOut.Normalize();
+		}
+		else
+		{
+			TangentOut = FVector3<RealType>::UnitX();
+			BitangentOut = FVector3<RealType>::UnitY();
+		}
 	}
 
 
@@ -164,6 +172,11 @@ public:
 	void ComputeTriangleTangents(const FDynamicMeshUVOverlay* UVOverlay, bool bOrthogonalize = true);
 
 
+	/**
+	 * Set Tangents on mesh overlays
+	 * @param MeshToSet Mesh to copy overlays to; does not need to be the same as the Mesh member of this class
+	 */
+	bool CopyToOverlays(FDynamicMesh3& MeshToSet);
 
 protected:
 	/**

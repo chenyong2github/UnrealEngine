@@ -307,3 +307,37 @@ void FMeshConnectedComponents::GrowToConnectedTriangles(const FDynamicMesh3* Mes
 		}
 	}
 }
+
+
+
+void FMeshConnectedComponents::GrowToConnectedTriangles(const FDynamicMesh3* Mesh,
+	const TArray<int>& InputROI, TSet<int>& ResultROI,
+	TArray<int32>* QueueBuffer,
+	TFunctionRef<bool(int32, int32)> CanGrowPredicate
+)
+{
+	TArray<int32> LocalQueue;
+	QueueBuffer = (QueueBuffer == nullptr) ? &LocalQueue : QueueBuffer;
+	QueueBuffer->Reset();
+	QueueBuffer->Insert(InputROI, 0);
+
+	ResultROI.Reset();
+	ResultROI.Append(InputROI);
+
+	while (QueueBuffer->Num() > 0)
+	{
+		int32 CurTri = QueueBuffer->Pop(false);
+		ResultROI.Add(CurTri);
+
+		FIndex3i NbrTris = Mesh->GetTriNeighbourTris(CurTri);
+		for (int j = 0; j < 3; ++j)
+		{
+			int32 tid = NbrTris[j];
+			if (tid != FDynamicMesh3::InvalidID && ResultROI.Contains(tid) == false && CanGrowPredicate(CurTri, tid))
+			{
+				QueueBuffer->Add(tid);
+				ResultROI.Add(tid);
+			}
+		}
+	}
+}

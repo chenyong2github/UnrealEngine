@@ -342,7 +342,7 @@ bool FDynamicMeshEditor::RemoveTriangles(const TArray<int>& Triangles, bool bRem
 
 
 
-int FDynamicMeshEditor::RemoveSmallComponents(double MinVolume, double MinArea)
+int FDynamicMeshEditor::RemoveSmallComponents(double MinVolume, double MinArea, int MinTriangleCount)
 {
 	FMeshConnectedComponents C(Mesh);
 	C.FindConnectedTriangles();
@@ -352,8 +352,13 @@ int FDynamicMeshEditor::RemoveSmallComponents(double MinVolume, double MinArea)
 	}
 	int Removed = 0;
 	for (FMeshConnectedComponents::FComponent& Comp : C) {
-		FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*Mesh, Comp.Indices);
-		if (VolArea.X < MinVolume || VolArea.Y < MinArea) {
+		bool bRemove = Comp.Indices.Num() < MinTriangleCount;
+		if (!bRemove)
+		{
+			FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*Mesh, Comp.Indices);
+			bRemove = VolArea.X < MinVolume || VolArea.Y < MinArea;
+		}
+		if (bRemove) {
 			RemoveTriangles(Comp.Indices, true);
 			Removed++;
 		}
@@ -1236,17 +1241,18 @@ void FDynamicMeshEditor::InvertTriangleNormals(const TArray<int>& Triangles)
 
 	if (Mesh->HasAttributes())
 	{
-		for (FDynamicMeshNormalOverlay* Normals : Mesh->Attributes()->GetAllNormalLayers())
+		for (int NormalLayerIndex = 0; NormalLayerIndex < Mesh->Attributes()->NumNormalLayers(); NormalLayerIndex++)
 		{
-			TBitArray<FDefaultBitArrayAllocator> DoneNormals(false, Normals->MaxElementID());
+			FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->GetNormalLayer(NormalLayerIndex);
+			TBitArray<FDefaultBitArrayAllocator> DoneNormals(false, NormalOverlay->MaxElementID());
 			for (int TriangleID : Triangles)
 			{
-				FIndex3i ElemTri = Normals->GetTriangle(TriangleID);
+				FIndex3i ElemTri = NormalOverlay->GetTriangle(TriangleID);
 				for (int j = 0; j < 3; ++j)
 				{
-					if (Normals->IsElement(ElemTri[j]) && DoneNormals[ElemTri[j]] == false)
+					if (NormalOverlay->IsElement(ElemTri[j]) && DoneNormals[ElemTri[j]] == false)
 					{
-						Normals->SetElement(ElemTri[j], -Normals->GetElement(ElemTri[j]));
+						NormalOverlay->SetElement(ElemTri[j], -NormalOverlay->GetElement(ElemTri[j]));
 						DoneNormals[ElemTri[j]] = true;
 					}
 				}
@@ -1308,6 +1314,12 @@ void FDynamicMeshEditor::CopyAttributes(int FromTriangleID, int ToTriangleID, FM
 	{
 		FDynamicMeshMaterialAttribute* MaterialIDs = Mesh->Attributes()->GetMaterialID();
 		MaterialIDs->SetValue(ToTriangleID, MaterialIDs->GetValue(FromTriangleID));
+	}
+
+	for (int PolygroupLayerIndex = 0; PolygroupLayerIndex < Mesh->Attributes()->NumPolygroupLayers(); PolygroupLayerIndex++)
+	{
+		FDynamicMeshPolygroupAttribute* Polygroup = Mesh->Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+		Polygroup->SetValue(ToTriangleID, Polygroup->GetValue(FromTriangleID));
 	}
 
 }
@@ -1410,6 +1422,12 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			Mesh->SetVertexNormal(NewVertID, Normal);
 		}
 
+		if (AppendMesh->HasVertexUVs() && Mesh->HasVertexUVs())
+		{
+			FVector2f UV = AppendMesh->GetVertexUV(VertID);
+			Mesh->SetVertexUV(NewVertID, UV);
+		}
+
 		if (AppendMesh->HasVertexColors() && Mesh->HasVertexColors())
 		{
 			FVector3f Color = AppendMesh->GetVertexColor(VertID);
@@ -1449,21 +1467,23 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 	}
 
 
-	// @todo support multiple UV/normal layer copying
 	// @todo can we have a template fn that does this?
 
 	if (AppendMesh->HasAttributes() && Mesh->HasAttributes())
 	{
-		const FDynamicMeshNormalOverlay* FromNormals = AppendMesh->Attributes()->PrimaryNormals();
-		FDynamicMeshNormalOverlay* ToNormals = Mesh->Attributes()->PrimaryNormals();
-		if (FromNormals != nullptr && ToNormals != nullptr)
-		{
-			FIndexMapi& NormalMap = IndexMapsOut.GetNormalMap(0);
-			NormalMap.Reserve(FromNormals->ElementCount());
-			AppendNormals(AppendMesh, FromNormals, ToNormals,
-				VertexMap, TriangleMap, NormalTransform, NormalMap);
+		int NumNormalLayers = FMath::Min(Mesh->Attributes()->NumNormalLayers(), AppendMesh->Attributes()->NumNormalLayers());
+		for (int NormalLayerIndex = 0; NormalLayerIndex < NumNormalLayers; NormalLayerIndex++)
+		{ 
+			const FDynamicMeshNormalOverlay* FromNormals = AppendMesh->Attributes()->GetNormalLayer(NormalLayerIndex);
+			FDynamicMeshNormalOverlay* ToNormals = Mesh->Attributes()->GetNormalLayer(NormalLayerIndex);
+			if (FromNormals != nullptr && ToNormals != nullptr)
+			{
+				FIndexMapi& NormalMap = IndexMapsOut.GetNormalMap(0);
+				NormalMap.Reserve(FromNormals->ElementCount());
+				AppendNormals(AppendMesh, FromNormals, ToNormals,
+					VertexMap, TriangleMap, NormalTransform, NormalMap);
+			}
 		}
-
 
 		int NumUVLayers = FMath::Min(Mesh->Attributes()->NumUVLayers(), AppendMesh->Attributes()->NumUVLayers());
 		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
@@ -1486,6 +1506,18 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			for (int TriID : AppendMesh->TriangleIndicesItr())
 			{
 				ToMaterialIDs->SetValue(TriangleMap.GetTo(TriID), FromMaterialIDs->GetValue(TriID));
+			}
+		}
+
+		int NumPolygroupLayers = FMath::Min(Mesh->Attributes()->NumPolygroupLayers(), AppendMesh->Attributes()->NumPolygroupLayers());
+		for (int PolygroupLayerIndex = 0; PolygroupLayerIndex < NumPolygroupLayers; PolygroupLayerIndex++)
+		{
+			// TODO: remap groups? this will be somewhat expensive...
+			const FDynamicMeshPolygroupAttribute* FromPolygroups = AppendMesh->Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+			FDynamicMeshPolygroupAttribute* ToPolygroups = Mesh->Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+			for (int TriID : AppendMesh->TriangleIndicesItr())
+			{
+				ToPolygroups->SetValue(TriangleMap.GetTo(TriID), FromPolygroups->GetValue(TriID));
 			}
 		}
 
@@ -1580,6 +1612,13 @@ void FDynamicMeshEditor::AppendUVs(const FDynamicMesh3* AppendMesh,
 
 // can these be replaced w/ template function?
 
+
+namespace UE
+{
+namespace DynamicMeshEditorInternals
+{
+
+
 // Utility function for ::AppendTriangles()
 static int AppendTriangleUVAttribute(const FDynamicMesh3* FromMesh, int FromElementID, FDynamicMesh3* ToMesh, int UVLayerIndex, FMeshIndexMappings& IndexMaps)
 {
@@ -1613,15 +1652,13 @@ static int AppendTriangleNormalAttribute(const FDynamicMesh3* FromMesh, int From
 
 
 // Utility function for ::AppendTriangles()
-static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, FDynamicMesh3* ToMesh, int ToTriangleID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut)
+static void AppendTriangleAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, FDynamicMesh3* ToMesh, int ToTriangleID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut)
 {
 	if (FromMesh->HasAttributes() == false || ToMesh->HasAttributes() == false)
 	{
 		return;
 	}
 
-	// todo: if we ever support multiple normal layers, copy them all
-	check(FromMesh->Attributes()->NumNormalLayers() == 1);
 
 	for (int UVLayerIndex = 0; UVLayerIndex < FMath::Min(FromMesh->Attributes()->NumUVLayers(), ToMesh->Attributes()->NumUVLayers()); UVLayerIndex++)
 	{
@@ -1642,10 +1679,10 @@ static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, 
 	}
 
 
-	const FDynamicMeshNormalOverlay* FromNormalOverlay = FromMesh->Attributes()->PrimaryNormals();
-	FDynamicMeshNormalOverlay* ToNormalOverlay = ToMesh->Attributes()->PrimaryNormals();
-
+	for (int NormalLayerIndex = 0; NormalLayerIndex < FMath::Min(FromMesh->Attributes()->NumNormalLayers(), ToMesh->Attributes()->NumNormalLayers()); NormalLayerIndex++)
 	{
+		const FDynamicMeshNormalOverlay* FromNormalOverlay = FromMesh->Attributes()->GetNormalLayer(NormalLayerIndex);
+		FDynamicMeshNormalOverlay* ToNormalOverlay = ToMesh->Attributes()->GetNormalLayer(NormalLayerIndex);
 		if (FromNormalOverlay->IsSetTriangle(FromTriangleID))
 		{
 			FIndex3i FromElemTri = FromNormalOverlay->GetTriangle(FromTriangleID);
@@ -1667,6 +1704,28 @@ static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, 
 		ToMaterialIDs->SetValue(ToTriangleID, FromMaterialIDs->GetValue(FromTriangleID));
 	}
 
+	int NumPolygroupLayers = FMath::Min(FromMesh->Attributes()->NumPolygroupLayers(), ToMesh->Attributes()->NumPolygroupLayers());
+	for (int PolygroupLayerIndex = 0; PolygroupLayerIndex < NumPolygroupLayers; PolygroupLayerIndex++)
+	{
+		// TODO: remap groups? this will be somewhat expensive...
+		const FDynamicMeshPolygroupAttribute* FromPolygroups = FromMesh->Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+		FDynamicMeshPolygroupAttribute* ToPolygroups = ToMesh->Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+		ToPolygroups->SetValue(ToTriangleID, FromPolygroups->GetValue(FromTriangleID));
+	}
+}
+
+
+
+// Utility function for ::AppendTriangles()
+static void AppendGenericAttributes(const FDynamicMesh3* FromMesh, FDynamicMesh3* ToMesh, FMeshIndexMappings& IndexMaps)
+{
+
+	if (FromMesh->HasAttributes() == false || ToMesh->HasAttributes() == false)
+	{
+		return;
+	}
+
+	// copy generic attributes after full IndexMaps have been created
 	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : FromMesh->Attributes()->GetAttachedAttributes())
 	{
 		if (ToMesh->Attributes()->HasAttachedAttribute(AttribPair.Key))
@@ -1679,11 +1738,12 @@ static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, 
 
 
 
-
-
+}} // namespace UE::DynamicMeshEditorInternals
 
 void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const TArrayView<const int>& SourceTriangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut, bool bComputeTriangleMap)
 {
+	using namespace UE::DynamicMeshEditorInternals;
+
 	ResultOut.Reset();
 	IndexMaps.Initialize(Mesh);
 
@@ -1736,15 +1796,20 @@ void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const 
 		}
 		ResultOut.NewTriangles.Add(NewTriangleID);
 
-		AppendAttributes(SourceMesh, SourceTriangleID, Mesh, NewTriangleID, IndexMaps, ResultOut);
+		AppendTriangleAttributes(SourceMesh, SourceTriangleID, Mesh, NewTriangleID, IndexMaps, ResultOut);
 
 		//Mesh->CheckValidity(true);
 	}
+ 
+	AppendGenericAttributes(SourceMesh, Mesh, IndexMaps);
+	
 }
 
 
 bool FDynamicMeshEditor::SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDynamicMesh3>& SplitMeshes, TFunctionRef<int(int)> TriIDToMeshID, int DeleteMeshID)
 {
+	using namespace UE::DynamicMeshEditorInternals;
+
 	TMap<int, int> MeshIDToIndex;
 	int NumMeshes = 0;
 	bool bAlsoDelete = false;
@@ -1772,6 +1837,7 @@ bool FDynamicMeshEditor::SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDyna
 	// enable matching attributes
 	for (FDynamicMesh3& M : SplitMeshes)
 	{
+		M.EnableMeshComponents(SourceMesh->GetComponentsFlags());
 		if (SourceMesh->HasAttributes())
 		{
 			M.EnableAttributes();
@@ -1825,7 +1891,12 @@ bool FDynamicMeshEditor::SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDyna
 
 		int NewTID = Mesh.AppendTriangle(NewTri, NewGID);
 		IndexMaps.SetTriangle(SourceTID, NewTID);
-		AppendAttributes(SourceMesh, SourceTID, &Mesh, NewTID, IndexMaps, UnusedInvalidResultAccumulator);
+		AppendTriangleAttributes(SourceMesh, SourceTID, &Mesh, NewTID, IndexMaps, UnusedInvalidResultAccumulator);
+	}
+
+	for (int Idx = 0; Idx < NumMeshes; Idx++)
+	{
+		AppendGenericAttributes(SourceMesh, &SplitMeshes[Idx], Mappings[Idx]);
 	}
 	
 	return true;

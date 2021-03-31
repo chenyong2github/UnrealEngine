@@ -12,22 +12,30 @@
 #include "MeshNormals.h"
 #include "NormalFlowRemesher.h"
 
-namespace
+TUniquePtr<FRemesher> FRemeshMeshOp::CreateRemesher(ERemeshType Type, FDynamicMesh3* TargetMesh)
 {
-	TUniquePtr<FRemesher> RemesherFactory(ERemeshType Type, FDynamicMesh3* TargetMesh)
+	switch(Type)
 	{
-		switch(Type)
-		{
-		case ERemeshType::Standard:
-			return MakeUnique<FQueueRemesher>(TargetMesh);
-		case ERemeshType::FullPass:
-			return MakeUnique<FRemesher>(TargetMesh);
-		case ERemeshType::NormalFlow:
-			return MakeUnique<FNormalFlowRemesher>(TargetMesh);
-		default:
-			check(!"Encountered unexpected Remesh Type");
-			return nullptr;
-		}
+	case ERemeshType::Standard:
+	{
+		TUniquePtr<FQueueRemesher> QueueRemesher = MakeUnique<FQueueRemesher>(TargetMesh);
+		QueueRemesher->MaxRemeshIterations = MaxRemeshIterations;
+		return QueueRemesher;
+	}
+	case ERemeshType::FullPass:
+	{
+		return MakeUnique<FRemesher>(TargetMesh);
+	}
+	case ERemeshType::NormalFlow:
+	{
+		TUniquePtr<FNormalFlowRemesher> NormalFlowRemesher = MakeUnique<FNormalFlowRemesher>(TargetMesh);
+		NormalFlowRemesher->MaxRemeshIterations = MaxRemeshIterations;
+		NormalFlowRemesher->NumExtraProjectionIterations = ExtraProjectionIterations;
+		return NormalFlowRemesher;
+	}
+	default:
+		checkf(false, TEXT("Encountered unexpected Remesh Type"));
+		return nullptr;
 	}
 
 }
@@ -39,7 +47,9 @@ void FRemeshMeshOp::SetTransform(const FTransform& Transform)
 
 void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	TRACE_CPUPROFILER_EVENT_SCOPE(RemeshMeshOp);
+
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -47,14 +57,14 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 	bool bDiscardAttributesImmediately = bDiscardAttributes && !bPreserveSharpEdges;
 	ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributesImmediately);
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
 
 	FDynamicMesh3* TargetMesh = ResultMesh.Get();
 
-	TUniquePtr<FRemesher> Remesher = RemesherFactory(RemeshType, TargetMesh);
+	TUniquePtr<FRemesher> Remesher = CreateRemesher(RemeshType, TargetMesh);
 
 	Remesher->bEnableSplits = bSplits;
 	Remesher->bEnableFlips = bFlips;
@@ -121,42 +131,48 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 		TargetMesh->DiscardAttributes();
 	}
 
-	if (RemeshType == ERemeshType::FullPass)
 	{
-		// Run a fixed number of iterations
-		for (int k = 0; k < RemeshIterations; ++k)
+		TRACE_CPUPROFILER_EVENT_SCOPE(RemeshMeshOp_Remesh);
+		if (RemeshType == ERemeshType::FullPass)
 		{
-			// If we are not uniform smoothing, then flips seem to often make things worse.
-			// Possibly this is because without the tangential flow, we won't get to the nice tris.
-			// In this case we are better off basically not flipping, and just letting collapses resolve things
-			// regular-valence polygons - things stay "stuck". 
-			// @todo try implementing edge-length flip criteria instead of valence-flip
-			if (bIsUniformSmooth == false)
+			// Run a fixed number of iterations
+			for (int k = 0; k < RemeshIterations; ++k)
 			{
-				bool bUseFlipsThisPass = (k % 2 == 0 && k < RemeshIterations / 2);
-				Remesher->bEnableFlips = bUseFlipsThisPass && bFlips;
-			}
+				// If we are not uniform smoothing, then flips seem to often make things worse.
+				// Possibly this is because without the tangential flow, we won't get to the nice tris.
+				// In this case we are better off basically not flipping, and just letting collapses resolve things
+				// regular-valence polygons - things stay "stuck". 
+				// @todo try implementing edge-length flip criteria instead of valence-flip
+				if (bIsUniformSmooth == false)
+				{
+					bool bUseFlipsThisPass = (k % 2 == 0 && k < RemeshIterations / 2);
+					Remesher->bEnableFlips = bUseFlipsThisPass && bFlips;
+				}
 
+				Remesher->BasicRemeshPass();
+			}
+		}
+		else if (RemeshType == ERemeshType::Standard || RemeshType == ERemeshType::NormalFlow)
+		{
+			// Run to convergence
 			Remesher->BasicRemeshPass();
 		}
-	}
-	else if (RemeshType == ERemeshType::Standard || RemeshType == ERemeshType::NormalFlow)
-	{
-		// Run to convergence
-		Remesher->BasicRemeshPass();
-	}
-	else 
-	{
-		check(!"Encountered unexpected Remesh Type");
+		else 
+		{
+			check(!"Encountered unexpected Remesh Type");
+		}
 	}
 
-	if (!TargetMesh->HasAttributes())
 	{
-		FMeshNormals::QuickComputeVertexNormals(*TargetMesh);
-	}
-	else
-	{
-		FMeshNormals::QuickRecomputeOverlayNormals(*TargetMesh);
+		TRACE_CPUPROFILER_EVENT_SCOPE(RemeshMeshOp_Normals);
+		if (!TargetMesh->HasAttributes())
+		{
+			FMeshNormals::QuickComputeVertexNormals(*TargetMesh);
+		}
+		else
+		{
+			FMeshNormals::QuickRecomputeOverlayNormals(*TargetMesh);
+		}
 	}
 
 }

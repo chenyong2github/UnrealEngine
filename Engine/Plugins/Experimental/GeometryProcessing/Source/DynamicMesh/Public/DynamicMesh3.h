@@ -483,6 +483,13 @@ public:
 		return Vertices[VertexID];
 	}
 
+	/** @return the vertex position */
+	inline const FVector3d& GetVertexRef(int VertexID) const
+	{
+		checkSlow(IsVertex(VertexID));
+		return Vertices[VertexID];
+	}
+
 	/** Set vertex position */
 	inline void SetVertex(int VertexID, const FVector3d& vNewPos)
 	{
@@ -554,8 +561,22 @@ public:
 		return Triangles[TriangleID];
 	}
 
+	/** Get triangle vertices */
+	inline const FIndex3i& GetTriangleRef(int TriangleID) const
+	{
+		checkSlow(IsTriangle(TriangleID));
+		return Triangles[TriangleID];
+	}
+
 	/** Get triangle edges */
 	inline FIndex3i GetTriEdges(int TriangleID) const
+	{
+		checkSlow(IsTriangle(TriangleID));
+		return TriangleEdges[TriangleID];
+	}
+
+	/** Get triangle edges */
+	inline const FIndex3i& GetTriEdgesRef(int TriangleID) const
 	{
 		checkSlow(IsTriangle(TriangleID));
 		return TriangleEdges[TriangleID];
@@ -588,6 +609,13 @@ public:
 
 	/** Get the vertices and triangles of an edge, returned as [v0,v1,t0,t1], where t1 may be InvalidID */
 	inline FEdge GetEdge(int EdgeID) const
+	{
+		checkSlow(IsEdge(EdgeID));
+		return Edges[EdgeID];
+	}
+
+	/** Get the vertices and triangles of an edge, returned as [v0,v1,t0,t1], where t1 may be InvalidID */
+	inline const FEdge& GetEdgeRef(int EdgeID) const
 	{
 		checkSlow(IsEdge(EdgeID));
 		return Edges[EdgeID];
@@ -627,6 +655,13 @@ public:
 	// Vertex and Triangle attribute arrays
 	//
 public:
+	/**
+	 * Enable requested set of mesh components (triangle groups and vertex normals/colors/UVs)
+	 * and discard any that are not requested
+	 * @param MeshComponentsFlags A 'bitwise or' of requested EMeshComponents flags
+	 */
+	void EnableMeshComponents(int MeshComponentsFlags);
+
 	void EnableVertexNormals(const FVector3f& InitialNormal);
 	void DiscardVertexNormals();
 
@@ -636,7 +671,7 @@ public:
 		{
 			return FVector3f::UnitY();
 		}
-		check(IsVertex(vID));
+		checkSlow(IsVertex(vID));
 		const TDynamicVector<FVector3f>& Normals = VertexNormals.GetValue();
 		return Normals[vID];
 	}
@@ -645,7 +680,7 @@ public:
 	{
 		if (HasVertexNormals())
 		{
-			check(IsVertex(vID));
+			checkSlow(IsVertex(vID));
 			TDynamicVector<FVector3f>& Normals = VertexNormals.GetValue();
 			Normals[vID]                       = vNewNormal;
 			UpdateTimeStamp(false, false);
@@ -662,7 +697,7 @@ public:
 		{
 			return FVector3f::One();
 		}
-		check(IsVertex(vID));
+		checkSlow(IsVertex(vID));
 
 		const TDynamicVector<FVector3f>& Colors = VertexColors.GetValue();
 		return Colors[vID];
@@ -672,7 +707,7 @@ public:
 	{
 		if (HasVertexColors())
 		{
-			check(IsVertex(vID));
+			checkSlow(IsVertex(vID));
 			TDynamicVector<FVector3f>& Colors = VertexColors.GetValue();
 			Colors[vID]                       = vNewColor;
 			UpdateTimeStamp(false, false);
@@ -688,7 +723,7 @@ public:
 		{
 			return FVector2f::Zero();
 		}
-		check(IsVertex(vID));
+		checkSlow(IsVertex(vID));
 		const TDynamicVector<FVector2f>& UVs = VertexUVs.GetValue();
 		return UVs[vID];
 	}
@@ -697,7 +732,7 @@ public:
 	{
 		if (HasVertexUVs())
 		{
-			check(IsVertex(vID));
+			checkSlow(IsVertex(vID));
 			TDynamicVector<FVector2f>& UVs = VertexUVs.GetValue();
 			UVs[vID]                       = vNewUV;
 			UpdateTimeStamp(false, false);
@@ -722,7 +757,7 @@ public:
 	{
 		if (HasTriangleGroups())
 		{
-			check(IsTriangle(tid));
+			checkSlow(IsTriangle(tid));
 			TriangleGroups.GetValue()[tid] = group_id;
 			GroupIDCounter                 = FMath::Max(GroupIDCounter, group_id + 1);
 			UpdateTimeStamp(false, false);
@@ -898,7 +933,7 @@ public:
 	//
 public:
 	/** Returns bounding box of all mesh vertices (including unreferenced vertices) */
-	FAxisAlignedBox3d GetBounds() const;
+	FAxisAlignedBox3d GetBounds(bool bParallel = false) const;
 
 	/** Returns GetBounds() and saves result, cache is invalidated and recomputed if topology has changed since last call */
 	FAxisAlignedBox3d GetCachedBounds();
@@ -1377,7 +1412,7 @@ protected:
 		}
 		if (bTopologyChange)
 		{
-			check(bShapeChange); // we consider topology change to be a shape change!
+			checkSlow(bShapeChange); // we consider topology change to be a shape change!
 			TopologyTimestamp++;
 		}
 	}

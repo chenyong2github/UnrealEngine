@@ -170,7 +170,7 @@ public:
 		{
 			int FaceIdxBase = FaceDimOrder[Dim]*2;
 
-			// UV-specific minor axes + flips; manually set to match default ue4 cube texture arrangement
+			// UV-specific minor axes + flips; manually set to match default UnrealEngine cube texture arrangement
 			int Minor1Flip[3] = { -1, 1, 1 };
 			int Minor2Flip[3] = { -1, -1, 1 };
 

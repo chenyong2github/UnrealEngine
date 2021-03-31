@@ -274,7 +274,7 @@ bool FSmoothHoleFiller::Fill(int32 GroupID)
 		{
 			Remesher = MakeUnique<FSubRegionRemesher>(&Mesh);
 			FMeshVertexSelection VertexSelection(&Mesh, TriangleSelection);	// All triangle vertices
-			Remesher->VertexROI = VertexSelection.AsSet();
+			Remesher->SetInitialVertexROI(VertexSelection.AsSet());
 			Remesher->InitializeFromVertexROI();
 		}
 
@@ -390,7 +390,7 @@ void FSmoothHoleFiller::SmoothAndRemesh(FMeshFaceSelection& TriangleSelection)
 	{
 		FSubRegionRemesher Remesher(&Mesh);
 		FMeshVertexSelection VertexSelection(&Mesh, TriangleSelection);
-		Remesher.VertexROI = VertexSelection.AsSet();
+		Remesher.SetInitialVertexROI(VertexSelection.AsSet());
 		Remesher.InitializeFromVertexROI();
 		Remesher.UpdateROI();
 

@@ -6,6 +6,7 @@
 #include "Spatial/SparseDynamicOctree3.h"
 #include "MeshQueries.h"
 #include "DynamicMesh3.h"
+#include "Async/ParallelFor.h"
 
 
 /**
@@ -57,9 +58,12 @@ public:
 	 */
 	void InsertTriangle(int32 TriangleID)
 	{
-		FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-		ModifiedBounds.Contain(Bounds);
-		InsertObject(TriangleID, Bounds);
+		if (Mesh->IsTriangle(TriangleID))
+		{
+			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+			ModifiedBounds.Contain(Bounds);
+			InsertObject(TriangleID, Bounds);
+		}
 	}
 
 	/**
@@ -70,9 +74,12 @@ public:
 		int N = Triangles.Num();
 		for (int i = 0; i < N; ++i)
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(Triangles[i]);
-			ModifiedBounds.Contain(Bounds);
-			InsertObject(Triangles[i], Bounds);
+			if (Mesh->IsTriangle(Triangles[i]))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(Triangles[i]);
+				ModifiedBounds.Contain(Bounds);
+				InsertObject(Triangles[i], Bounds);
+			}
 		}
 	}
 
@@ -83,9 +90,12 @@ public:
 	{
 		for (int TriangleID : Triangles)
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-			ModifiedBounds.Contain(Bounds);
-			InsertObject(TriangleID, Bounds);
+			if (Mesh->IsTriangle(TriangleID))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+				ModifiedBounds.Contain(Bounds);
+				InsertObject(TriangleID, Bounds);
+			}
 		}
 	}
 
@@ -95,35 +105,28 @@ public:
 	 */
 	bool RemoveTriangle(int32 TriangleID)
 	{
-		FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-		ModifiedBounds.Contain(Bounds);
-		return RemoveObject(TriangleID);
+		if (Mesh->IsTriangle(TriangleID))
+		{
+			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+			ModifiedBounds.Contain(Bounds);
+		}
+		return RemoveObject(TriangleID);		// will ignore if we do not contain this triangle
 	}
 
-	/**
-	 * Remove a list of triangles into the tree
-	 */
-	void RemoveTriangles(const TArray<int>& Triangles)
-	{
-		int N = Triangles.Num();
-		for ( int i = 0; i < N; ++i )
-		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(Triangles[i]);
-			ModifiedBounds.Contain(Bounds);
-			RemoveObject(Triangles[i]);
-		}
-	}
 
 	/**
 	 * Remove a set of triangles into the tree
 	 */
-	void RemoveTriangles(const TSet<int>& Triangles)
+	template<typename EnumerableType>
+	void RemoveTriangles(const EnumerableType& Triangles, bool bMarkModifiedBounds = true)
 	{
 		for (int TriangleID : Triangles)
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-			ModifiedBounds.Contain(Bounds);
-			RemoveObject(TriangleID);
+			if (RemoveObject(TriangleID) && bMarkModifiedBounds && Mesh->IsTriangle(TriangleID))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+				ModifiedBounds.Contain(Bounds);
+			}
 		}
 	}
 
@@ -131,15 +134,53 @@ public:
 	/**
 	 * Reinsert a set of triangles into the tree
 	 */
-	void ReinsertTriangles(const TSet<int>& Triangles)
+	template<typename EnumerableType>
+	void ReinsertTriangles(const EnumerableType& Triangles)
 	{
 		for (int TriangleID : Triangles)
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-			ModifiedBounds.Contain(Bounds);
-			ReinsertObject(TriangleID, Bounds);
+			if (Mesh->IsTriangle(TriangleID))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+				ModifiedBounds.Contain(Bounds);
+				ReinsertObject(TriangleID, Bounds);
+			}
+			else
+			{
+				RemoveObject(TriangleID);		// can only remove, will ignore if we do not contain this triangle
+			}
 		}
 	}
+
+
+	/**
+	 * Reinsert a set of triangles into the tree. Internally precomputes which triangles need
+	 * re-inserting, which can be done in parallel and generally saves time as some triangles can be skipped.
+	 */
+	void ReinsertTrianglesParallel(const TArray<int32>& Triangles, TArray<uint32>& TempBuffer, TArray<bool>& TempFlagBuffer)
+	{
+		int32 NumTriangles = Triangles.Num();
+		TempBuffer.SetNum(NumTriangles, false);
+		TempFlagBuffer.SetNum(NumTriangles, false);
+
+		// can check which triangles need reinsertion in parallel. This will also return which
+		// CellID the triangle is in, which saves time in the Reinsert function
+		ParallelFor(NumTriangles, [&](int k)
+		{
+			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(Triangles[k]);
+			TempFlagBuffer[k] = CheckIfObjectNeedsReinsert(Triangles[k], Bounds, TempBuffer[k]);
+		});
+
+		// now reinsert all necessary triangles
+		for (int32 k = 0; k < NumTriangles; ++k)
+		{
+			if (TempFlagBuffer[k])
+			{
+				ReinsertObject(Triangles[k], Mesh->GetTriBounds(Triangles[k]), TempBuffer[k]);
+			}
+		}
+	}
+
 
 
 	/**
@@ -147,19 +188,26 @@ public:
 	 */
 	void NotifyPendingModification(int TriangleID)
 	{
-		FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-		ModifiedBounds.Contain(Bounds);
+		if (Mesh->IsTriangle(TriangleID))
+		{
+			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+			ModifiedBounds.Contain(Bounds);
+		}
 	}
 
 	/**
 	 * Include the current bounds of a set of triangles in the ModifiedBounds box
 	 */
-	void NotifyPendingModification(const TSet<int>& Triangles)
+	template<typename EnumerableType>
+	void NotifyPendingModification(const EnumerableType& Triangles)
 	{
 		for (int TriangleID : Triangles)
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-			ModifiedBounds.Contain(Bounds);
+			if (Mesh->IsTriangle(TriangleID))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+				ModifiedBounds.Contain(Bounds);
+			}
 		}
 	}
 

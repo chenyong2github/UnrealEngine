@@ -11,6 +11,10 @@ void FMeshNormalMapBaker::Bake()
 	const FDynamicMeshNormalOverlay* DetailNormalOverlay = BakeCache->GetDetailNormals();
 	check(DetailNormalOverlay);
 
+	// make sure we have per-triangle tangents computed so that GetInterpolatedTriangleTangent() below works
+	int32 MaxTriID = BakeCache->GetBakeTargetMesh()->MaxTriangleID();
+	check( BaseMeshTangents->GetTangents().Num() >= 3*BakeCache->GetBakeTargetMesh()->MaxTriangleID());
+
 	auto NormalSampleFunction = [&](const FMeshImageBakingCache::FCorrespondenceSample& SampleData)
 	{
 		int32 DetailTriID = SampleData.DetailTriID;
@@ -41,6 +45,8 @@ void FMeshNormalMapBaker::Bake()
 
 	NormalsBuilder = MakeUnique<TImageBuilder<FVector3f>>();
 	NormalsBuilder->SetDimensions(BakeCache->GetDimensions());
+	FVector3f DefaultMapNormal = (DefaultNormal + FVector3f::One()) * 0.5;
+	NormalsBuilder->Clear(DefaultMapNormal);
 
 
 	BakeCache->EvaluateSamples([&](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)

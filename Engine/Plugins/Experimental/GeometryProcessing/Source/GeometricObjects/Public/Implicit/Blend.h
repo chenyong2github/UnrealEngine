@@ -40,6 +40,9 @@ public:
 	// size of the cells used when meshing the output (marching cubes' cube size)
 	double MeshCellSize = 1.0;
 
+	// if true, perform a smooth subtraction instead of a smooth union
+	bool bSubtract = false;
+
 	// Set cell sizes to hit the target voxel counts along the max dimension of the bounds
 	void SetCellSizesAndFalloff(FAxisAlignedBox3d Bounds, double BlendFalloffIn, int TargetInputVoxelCount, int TargetOutputVoxelCount)
 	{
@@ -78,7 +81,7 @@ public:
 			}
 		}
 
-		bool bValidParams = BlendPower > 0 && BlendFalloff > 0 && GridCellSize > 0 && MeshCellSize > 0;
+		bool bValidParams = BlendPower > 0 && BlendFalloff > 0 && GridCellSize > 0 && MeshCellSize > 0 && FMath::IsFinite(GridCellSize) && FMath::IsFinite(MeshCellSize);
 		return bHasSourcesWithBounds && bValidParams;
 	}
 
@@ -180,6 +183,7 @@ protected:
 
 		TSkeletalRicciNaryBlend3<TDistanceFieldToSkeletalField<TTriLinearGridInterpolant<TCachingMeshSDF<TriangleMeshType>>, double>, double> Blend;
 		Blend.BlendPower = BlendPower;
+		Blend.bSubtract = bSubtract;
 		Blend.Children.Reserve(Sources.Num());
 		TArray<TTriLinearGridInterpolant<TCachingMeshSDF<TriangleMeshType>>> Interpolants; Interpolants.Reserve(Sources.Num());
 		TArray<TDistanceFieldToSkeletalField<TTriLinearGridInterpolant<TCachingMeshSDF<TriangleMeshType>>, double>> SkeletalFields; SkeletalFields.Reserve(Sources.Num());
@@ -219,7 +223,7 @@ protected:
 			}
 		}
 
-		MarchingCubes.Implicit = [&Blend](const FVector3d& Pt) {return Blend.Value(Pt);};
+		MarchingCubes.Implicit = [&Blend](const FVector3d& Pt) {return Blend.Value(Pt);}; //-V1047 - This lambda is cleared before routine exit
 
 		MarchingCubes.GenerateContinuation(Seeds);
 

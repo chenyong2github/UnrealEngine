@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DynamicMesh3.h"
+#include "DynamicMeshAttributeSet.h"
 #include "EdgeSpan.h"
 #include "Util/IndexUtil.h"
 #include "Containers/BitArray.h"
@@ -96,6 +97,14 @@ struct DYNAMICMESH_API FGroupTopologySelection
 			&& SelectedGroupIDs.Includes(Selection.SelectedGroupIDs);
 	}
 
+	bool operator==(const FGroupTopologySelection& Selection) const
+	{
+		return SelectedCornerIDs.Num() == Selection.SelectedCornerIDs.Num()
+			&& SelectedEdgeIDs.Num() == Selection.SelectedEdgeIDs.Num()
+			&& SelectedGroupIDs.Num() == Selection.SelectedGroupIDs.Num()
+			&& Contains(Selection);
+	}
+
 	inline bool IsSelectedTriangle(const FDynamicMesh3* Mesh, const FGroupTopology* Topology, int32 TriangleID) const;
 
 
@@ -132,6 +141,8 @@ class DYNAMICMESH_API FGroupTopology
 public:
 	FGroupTopology() {}
 	FGroupTopology(const FDynamicMesh3* Mesh, bool bAutoBuild);
+	FGroupTopology(const FDynamicMesh3* Mesh, const FDynamicMeshPolygroupAttribute* GroupLayer, bool bAutoBuild);
+	
 
 	virtual ~FGroupTopology() {}
 
@@ -141,6 +152,11 @@ public:
 	 * longer be consistent.
 	 */
 	void RetargetOnClonedMesh(const FDynamicMesh3* Mesh);
+
+	const FDynamicMesh3* GetMesh() const 
+	{ 
+		return Mesh; 
+	}
 
 	/**
 	 * Build the group topology graph.
@@ -155,7 +171,7 @@ public:
 	 */
 	virtual int GetGroupID(int TriangleID) const
 	{
-		return Mesh->GetTriangleGroup(TriangleID);
+		return (GroupLayer != nullptr) ? GroupLayer->GetValue(TriangleID) : Mesh->GetTriangleGroup(TriangleID);
 	}
 
 
@@ -367,6 +383,7 @@ public:
 
 protected:
 	const FDynamicMesh3* Mesh = nullptr;
+	const FDynamicMeshPolygroupAttribute* GroupLayer = nullptr;
 
 	TArray<int> GroupIDToGroupIndexMap;		// allow fast lookup of index in .Groups, given GroupID
 	TBitArray<> CornerVerticesFlags;		// bit array of corners for fast testing in ExtractGroupEdges  (redundant w/ VertexIDToCornerIDMap?)

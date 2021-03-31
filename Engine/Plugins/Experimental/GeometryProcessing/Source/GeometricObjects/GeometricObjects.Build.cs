@@ -10,7 +10,9 @@ public class GeometricObjects : ModuleRules
 
         PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"Core"
+				"Core",
+
+				"MeshUtilitiesCommon"		// currently required for FAllocator2D used in FDynamicMeshUVPacker
 			}
 			);
 	}

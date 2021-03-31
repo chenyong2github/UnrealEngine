@@ -31,6 +31,13 @@ public:
 	THalfspace3(const FVector3<T>& PlaneNormalIn, const FVector3<T>& PlanePoint)
 		: Normal(PlaneNormalIn), Constant(Normal.Dot(PlanePoint)) {}
 
+	/** Construct a Halfspace from three points */
+	THalfspace3(const FVector3<T>& P0, const FVector3<T>& P1, const FVector3<T>& P2)
+	{
+		Normal = VectorUtil::Normal(P0, P1, P2);
+		Constant = Normal.Dot(P0);
+	}
+
 
 	/** @return true if Halfspace contains given Point */
 	bool Contains(const FVector3<T>& Point) const
