@@ -59,14 +59,6 @@ public:
 	void SetInputPoseToRefPose();
 
 	/** Set a named IK goal to go to a specific location and rotation (assumed in component space) blended by separate position/rotation alpha (0-1)*/
-	void SetIKGoal(
-		const FName& GoalName,
-		const FVector& Position,
-		const FQuat& Rotation,
-		const float PositionAlpha,
-		const float RotationAlpha);
-
-	/** Set a named IK goal to go to a specific location and rotation (assumed in component space) blended by separate position/rotation alpha (0-1)*/
 	void SetIKGoal(const FIKRigGoal& Goal);
 
 	/** Run entire stack of solvers */

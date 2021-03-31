@@ -130,7 +130,6 @@ void UIKRigProcessor::Solve()
 
 void UIKRigProcessor::CopyOutputGlobalPoseToArray(TArray<FTransform>& OutputPoseGlobal) const
 {
-	check(OutputPoseGlobal.Num() == Skeleton.CurrentPoseGlobal.Num());
 	OutputPoseGlobal = Skeleton.CurrentPoseGlobal;
 }
 
