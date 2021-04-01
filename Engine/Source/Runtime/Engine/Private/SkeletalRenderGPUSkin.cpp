@@ -1624,8 +1624,6 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::InitAPEXClothVertexFactorie
 	const TArray<FSkelMeshRenderSection>& Sections,
 	ERHIFeatureLevel::Type InFeatureLevel)
 {
-
-	bool bUseMultipleInfluences = (VertexBuffers.APEXClothVertexBuffer->GetNumVertices() > VertexBuffers.StaticVertexBuffers->PositionVertexBuffer.GetNumVertices());
 	bool bSupportsManualFetch = InFeatureLevel >= ERHIFeatureLevel::SM5 && RHISupportsManualVertexFetch(GetFeatureLevelShaderPlatform(InFeatureLevel));
 
 	// clear existing factories (resources assumed to have been released already)
@@ -1634,6 +1632,10 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::InitAPEXClothVertexFactorie
 	{
 		if (Sections[FactoryIdx].HasClothingData() && bSupportsManualFetch)
 		{
+			const uint32 NumClothWeights = Sections[FactoryIdx].ClothMappingData.Num();
+			const uint32 NumPositionVertices = Sections[FactoryIdx].NumVertices;
+			const bool bUseMultipleInfluences = (NumClothWeights > NumPositionVertices);
+
 			GPUSkinBoneInfluenceType BoneInfluenceType = VertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
 			if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
 			{

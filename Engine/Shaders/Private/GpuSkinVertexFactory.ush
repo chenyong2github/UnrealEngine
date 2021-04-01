@@ -154,11 +154,13 @@ Buffer<float4> GPUSkinApexCloth;
 
 void SetupClothVertex(uint VertexIndex, out FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VERTEX])
 {
-    VertexIndex = VertexIndex + GPUSkinApexClothStartIndexOffset.y - GPUSkinApexClothStartIndexOffset.x;
+	const uint MinVertexIndex = GPUSkinApexClothStartIndexOffset.x;
+	const uint ClothIndexOffset = GPUSkinApexClothStartIndexOffset.y;
+    VertexIndex = NUM_INFLUENCES_PER_VERTEX * (VertexIndex - MinVertexIndex) + ClothIndexOffset;
 
     for (int i = 0; i < NUM_INFLUENCES_PER_VERTEX; ++i )
     {
-        uint Offset = (NUM_INFLUENCES_PER_VERTEX * VertexIndex + i) * NUM_FLOAT4S_PER_VERTEX_INFLUENCE;
+        const uint Offset = (VertexIndex + i) * NUM_FLOAT4S_PER_VERTEX_INFLUENCE;
 
         ClothVertexInfluences[i].BaryCoordPos = GPUSkinApexCloth[Offset];
         ClothVertexInfluences[i].BaryCoordNormal = GPUSkinApexCloth[Offset + 1];
