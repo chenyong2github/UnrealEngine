@@ -834,7 +834,7 @@ void FCache::Put(
 
 	const auto PutPayload = [&Key, Context](const FPayload& Payload)
 	{
-		const FSharedBuffer Buffer = Payload.GetBuffer().GetCompressed();
+		const FSharedBuffer Buffer = Payload.GetBuffer().GetCompressed().Flatten();
 		check(Buffer && Buffer.GetSize() <= MAX_int32);
 		TConstArrayView<uint8> BufferView = MakeArrayView(
 			static_cast<const uint8*>(Buffer.GetData()),
@@ -974,7 +974,7 @@ void FCache::Get(
 		{
 			if (FIoHash::HashBuffer(MakeMemoryView(PayloadData)) == PayloadHash)
 			{
-				return FPayload(PayloadId, PayloadHash, FCompressedBuffer(MakeSharedBufferFromArray(MoveTemp(PayloadData))));
+				return FPayload(PayloadId, PayloadHash, FCompressedBuffer::FromCompressed(MakeSharedBufferFromArray(MoveTemp(PayloadData))));
 			}
 			else
 			{
@@ -1165,7 +1165,7 @@ void FCache::GetPayload(
 		return;
 	}
 
-	Payload = FPayload(Key.Id, FCompressedBuffer(MakeSharedBufferFromArray(MoveTemp(Data))));
+	Payload = FPayload(Key.Id, FCompressedBuffer::FromCompressed(MakeSharedBufferFromArray(MoveTemp(Data))));
 
 	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload cache hit for %s from '%.*s'"),
 		*WriteToString<96>(Key), Context.Len(), Context.GetData());

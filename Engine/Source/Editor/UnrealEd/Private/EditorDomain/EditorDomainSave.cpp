@@ -752,24 +752,28 @@ bool FEditorDomainSaveServer::TrySavePackage(const FPackagePath& PackagePath, FS
 		return false;
 	}
 
-	TArray64<uint8> TempBytes;
-	bool bBytesRead = FFileHelper::LoadFileToArray(TempBytes, *TempFilename);
-	IFileManager::Get().Delete(*TempFilename);
-	if (!bBytesRead)
+	FSharedBuffer PackageBuffer;
 	{
-		OutErrorMessage = FString::Printf(TEXT("Package %s could not be read from temporary file %s."),
-			*PackagePath.GetDebugName(), *TempFilename, Result.Result);
-		return false;
+		TArray64<uint8> TempBytes;
+		bool bBytesRead = FFileHelper::LoadFileToArray(TempBytes, *TempFilename);
+		IFileManager::Get().Delete(*TempFilename);
+		if (!bBytesRead)
+		{
+			OutErrorMessage = FString::Printf(TEXT("Package %s could not be read from temporary file %s."),
+				*PackagePath.GetDebugName(), *TempFilename, Result.Result);
+			return false;
+		}
+		PackageBuffer = MakeSharedBufferFromArray(MoveTemp(TempBytes));
 	}
 
 	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef().GetCache();
 	UE::DerivedData::FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetEditorDomainPackageKey(PackageDigest));
 	TCbWriter<256> MetaData;
 	MetaData.BeginObject();
-	MetaData << "FileSize" << TempBytes.Num();
+	MetaData << "FileSize" << PackageBuffer.GetSize();
 	MetaData.EndObject();
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
-	RecordBuilder.SetValue(FSharedBuffer::MakeView(TempBytes.GetData(), TempBytes.Num()));
+	RecordBuilder.SetValue(PackageBuffer);
 	UE::DerivedData::FCacheRecord Record = RecordBuilder.Build();
 	Cache.Put(MakeArrayView(&Record, 1), PackagePath.GetDebugName());
 	return true;
