@@ -117,24 +117,24 @@ bool FCategoryPropertyNode::GetQualifiedName( FString& PathPlusIndex, const bool
 {
 	bool bAddedAnything = false;
 
-	if( ParentNode && StopParent != ParentNode )
+	if (ParentNode && StopParent != ParentNode)
 	{
 		bAddedAnything = ParentNode->GetQualifiedName(PathPlusIndex, bWithArrayIndex, StopParent, bIgnoreCategories );
-		if( bAddedAnything )
+	}
+	
+	if (!bIgnoreCategories)
+	{
+		if (bAddedAnything)
 		{
 			PathPlusIndex += TEXT(".");
 		}
-	}
-	
-	if( !bIgnoreCategories )
-	{
-		bAddedAnything = true;
+
 		GetCategoryName().AppendString(PathPlusIndex);
+		bAddedAnything = true;
 	}
 
 	return bAddedAnything;
 }
-
 
 FString FCategoryPropertyNode::GetSubcategoryName() const 
 {

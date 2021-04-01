@@ -765,17 +765,18 @@ bool FObjectPropertyNode::IsSparseDataStruct(const UScriptStruct* Struct) const
 bool FObjectPropertyNode::GetQualifiedName(FString& PathPlusIndex, bool bWithArrayIndex, const FPropertyNode* StopParent, bool bIgnoreCategories ) const
 {
 	bool bAddedAnything = false;
-	if( ParentNode && ParentNode != StopParent )
+	if (ParentNode && ParentNode != StopParent)
 	{
 		bAddedAnything = ParentNode->GetQualifiedName(PathPlusIndex, bWithArrayIndex, StopParent, bIgnoreCategories);
-		if( bAddedAnything )
-		{
-			PathPlusIndex += TEXT(".");
-		}
 	}
 
-	bAddedAnything = true;
+	if (bAddedAnything)
+	{
+		PathPlusIndex += TEXT(".");
+	}
+
 	PathPlusIndex += TEXT("Object");
+	bAddedAnything = true;
 
 	return bAddedAnything;
 }
