@@ -74,8 +74,8 @@ void UMoviePipelineOutputSetting::GetFormatArguments(FMoviePipelineFormatArgs& I
 	{
 		FString Resolution = FString::Printf(TEXT("%d_%d"), OutputResolution.X, OutputResolution.Y);
 		InOutFormatArgs.FilenameArguments.Add(TEXT("output_resolution"), Resolution);
-		InOutFormatArgs.FilenameArguments.Add(TEXT("output_width"), OutputResolution.X);
-		InOutFormatArgs.FilenameArguments.Add(TEXT("output_height"), OutputResolution.Y);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("output_width"), FString::FromInt(OutputResolution.X));
+		InOutFormatArgs.FilenameArguments.Add(TEXT("output_height"), FString::FromInt(OutputResolution.Y));
 	}
 
 	if (bAutoVersion)

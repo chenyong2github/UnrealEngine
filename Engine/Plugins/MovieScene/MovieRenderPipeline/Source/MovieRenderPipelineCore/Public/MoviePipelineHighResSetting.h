@@ -56,10 +56,10 @@ public:
 	{
 		Super::GetFormatArguments(InOutFormatArgs);
 
-		InOutFormatArgs.FilenameArguments.Add(TEXT("tile_count"), TileCount);
-		InOutFormatArgs.FilenameArguments.Add(TEXT("overlap_percent"), OverlapRatio);
-		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/highres/tileCount"), TileCount);
-		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/highres/overlapPercent"), OverlapRatio);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("tile_count"), FString::FromInt(TileCount));
+		InOutFormatArgs.FilenameArguments.Add(TEXT("overlap_percent"), FString::SanitizeFloat(OverlapRatio));
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/highres/tileCount"), FString::FromInt(TileCount));
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/highres/overlapPercent"), FString::SanitizeFloat(OverlapRatio));
 	}
 
 #if WITH_EDITOR

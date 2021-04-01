@@ -62,7 +62,7 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 			UE::MoviePipeline::RemoveFrameNumberFormatStrings(FileNameFormatString, true);
 
 			// Create specific data that needs to override 
-			FStringFormatNamedArguments FormatOverrides;
+			TMap<FString, FString> FormatOverrides;
 			FormatOverrides.Add(TEXT("render_pass"), RenderPassData.Key.Name);
 			FormatOverrides.Add(TEXT("ext"), GetFilenameExtension());
 

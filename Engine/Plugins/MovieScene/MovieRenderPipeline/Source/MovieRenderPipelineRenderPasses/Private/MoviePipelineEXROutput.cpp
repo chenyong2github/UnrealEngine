@@ -359,7 +359,12 @@ void FEXRImageWriteTask::AddFileMetadata(Imf::Header& InHeader)
 	IOpenExrRTTIModule* OpenExrModule = FModuleManager::LoadModulePtr<IOpenExrRTTIModule>(RTTIExtensionModuleName);
 	if (OpenExrModule)
 	{
-		OpenExrModule->AddFileMetadata(FileMetadata, InHeader);
+		TMap<FString, FStringFormatArg> NewMap;
+		for (const TPair<FString, FString> Metadata : FileMetadata)
+		{
+			NewMap.Add(Metadata.Key, Metadata.Value);
+		}
+		OpenExrModule->AddFileMetadata(NewMap, InHeader);
 	}
 }
 
@@ -415,7 +420,7 @@ void UMoviePipelineImageSequenceOutput_EXR::OnReceiveImageDataImpl(FMoviePipelin
 			UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
 
 			// Create specific data that needs to override 
-			FStringFormatNamedArguments FormatOverrides;
+			TMap<FString, FString> FormatOverrides;
 			FormatOverrides.Add(TEXT("render_pass"), TEXT("")); // Render Passes are included inside the exr file by named layers.
 			FormatOverrides.Add(TEXT("ext"), Extension);
 

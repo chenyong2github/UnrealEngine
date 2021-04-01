@@ -38,6 +38,19 @@ public:
 	static UMovieSceneSequence* DuplicateSequence(UObject* Outer, UMovieSceneSequence* InSequence);
 
 	/**
+	* Resolves the provided InFormatString by converting {format_strings} into settings provided by the master config.
+	* @param	InFormatString		A format string (in the form of "{format_key1}_{format_key2}") to resolve.
+	* @param	InParams			The parameters to resolve the format string with. See FMoviePipelineFilenameResolveParams properties for details. 
+	*								Expected that you fill out all of the parameters so that they can be used to resolve strings, otherwise default
+	*								values may be used.
+	* @param	OutFinalPath		The final filepath based on a combination of the format string and the Resolve Params.
+	* @return	OutMergedFormatArgs	A merged set of Key/Value pairs for both Filename Arguments and Metadata that merges all the sources.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static void ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFilenameResolveParams& InParams, FString& OutFinalPath, FMoviePipelineFormatArgs& OutMergedFormatArgs);
+
+
+	/**
 	* Get the estimated amount of time remaining for the current pipeline. Based on looking at the total
 	* amount of samples to render vs. how many have been completed so far. Inaccurate when Time Dilation
 	* is used, and gets more accurate over the course of the render.

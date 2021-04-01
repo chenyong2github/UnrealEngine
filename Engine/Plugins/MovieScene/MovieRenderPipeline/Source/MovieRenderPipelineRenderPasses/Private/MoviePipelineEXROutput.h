@@ -57,7 +57,7 @@ public:
 	int32 Height;
 
 	/** A set of key/value pairs to write into the exr file as metadata. */
-	FStringFormatNamedArguments FileMetadata;
+	TMap<FString, FString> FileMetadata;
 
 	/** The image data to write. Supports multiple layers of different bitdepths. */
 	TArray<TUniquePtr<FImagePixelData>> Layers;

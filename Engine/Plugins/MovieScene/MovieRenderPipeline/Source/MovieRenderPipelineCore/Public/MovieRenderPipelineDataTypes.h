@@ -30,6 +30,7 @@ class FMoviePipelineOutputMerger;
 class FRenderTarget;
 class UMoviePipeline;
 struct FMoviePipelineFormatArgs;
+class UMoviePipelineExecutorShot;
 
 namespace Audio { class FMixerSubmix; }
 
@@ -599,7 +600,7 @@ public:
 	FTimecode EffectiveTimeCode;
 
 	/** Metadata to attach to the output file (if supported by the output container) */
-	FStringFormatNamedArguments FileMetadata;
+	TMap<FString, FString> FileMetadata;
 
 
 	int32 CurrentShotSourceFrameNumber;
@@ -634,24 +635,112 @@ public:
 	{
 		return GetTypeHash(OutputState.OutputFrameNumber);
 	}
-	void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs, const int32 InZeroPadCount, const int32 InFrameNumberOffset, const bool bForceRelFrameNumbers) const;
 };
 
+USTRUCT(BlueprintType)
 struct FMoviePipelineFormatArgs
 {
+	GENERATED_BODY()
+
 	FMoviePipelineFormatArgs()
 		: InJob(nullptr)
 	{
 	}
 
 	/** A set of Key/Value pairs for output filename format strings (without {}) and their values. */
-	FStringFormatNamedArguments FilenameArguments;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	TMap<FString, FString> FilenameArguments;
 
 	/** A set of Key/Value pairs for file metadata for file formats that support metadata. */
-	FStringFormatNamedArguments FileMetadata;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	TMap<FString, FString> FileMetadata;
 
 	/** Which job is this for? Some settings are specific to the level sequence being rendered. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	class UMoviePipelineExecutorJob* InJob;
+};
+
+USTRUCT(BlueprintType)
+struct FMoviePipelineFilenameResolveParams
+{
+	GENERATED_BODY()
+
+	FMoviePipelineFilenameResolveParams()
+		: FrameNumber(0)
+		, FrameNumberShot(0)
+		, FrameNumberRel(0)
+		, FrameNumberShotRel(0)
+		, ZeroPadFrameNumberCount(0)
+		, bForceRelativeFrameNumbers(false)
+		, InitializationVersion(0)
+		, Job(nullptr)
+		, ShotOverride(nullptr)
+		, AdditionalFrameNumberOffset(0)
+	{
+	}
+	
+	/** Frame Number for the Master (matching what you see in the Sequencer timeline. ie: If the Sequence PlaybackRange starts on 50, this value would be 50 on the first frame.*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 FrameNumber;
+	
+	/** Frame Number for the Shot (matching what you would see in Sequencer at the sub-sequence level. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 FrameNumberShot;
+	
+	/** Frame Number for the Master (relative to 0, not what you would see in the Sequencer timeline. ie: If sequence PlaybackRange starts on 50, this value would be 0 on the first frame. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 FrameNumberRel;
+	
+	/** Frame Number for the Shot (relative to 0, not what you would see in the Sequencer timeline. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 FrameNumberShotRel;
+	
+	/** Name used by the {camera_name} format tag. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FString CameraName;
+	
+	/** Name used by the {shot_name} format tag. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FString ShotName;
+
+	/** When converitng frame numbers to strings, how many digits should we pad them up to? ie: 5 => 0005 with a count of 4. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 ZeroPadFrameNumberCount;
+
+	/** If true, force format strings (like {frame_number}) to resolve using the relative version. Used when slow-mo is detected as frame numbers would overlap. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	bool bForceRelativeFrameNumbers;
+
+	/** 
+	* A map between "{format}" tokens and their values. These are applied after the auto-generated ones from the system,
+	* which allows the caller to override things like {.ext} depending or {render_pass} which have dummy names by default.
+	*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	TMap<FString, FString> FileNameFormatOverrides;
+
+	/** A key/value pair that maps metadata names to their values. Output is only supported in exr formats at the moment. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	TMap<FString, FString> FileMetadata;
+
+	/** The initialization time for this job. Used to resolve time-based format arguments. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FDateTime InitializationTime;
+
+	/** The version for this job. Used to resolve version format arguments. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 InitializationVersion;
+
+	/** Required. This is the job all of the settings should be pulled from.*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	UMoviePipelineExecutorJob* Job;
+
+	/** Optional. If specified, settings will be pulled from this shot (if overriden by the shot). If null, always use the master configuration in the job. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	UMoviePipelineExecutorShot* ShotOverride;
+
+	/** Additional offset added onto the offset provided by the Output Settings in the Job. Required for some internal things (FCPXML). */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 AdditionalFrameNumberOffset;
 };
 
 /**

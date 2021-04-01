@@ -189,21 +189,21 @@ void UMoviePipeline::RenderFrame()
 
 	// Add appropriate metadata here that is shared by all passes.
 	{
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/x"), FrameInfo.CurrViewLocation.X);
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/y"), FrameInfo.CurrViewLocation.Y);
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/z"), FrameInfo.CurrViewLocation.Z);
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/pitch"), FrameInfo.CurrViewRotation.Pitch);
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/yaw"), FrameInfo.CurrViewRotation.Yaw);
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/roll"), FrameInfo.CurrViewRotation.Roll);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/x"), FString::SanitizeFloat(FrameInfo.CurrViewLocation.X));
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/y"), FString::SanitizeFloat(FrameInfo.CurrViewLocation.Y));
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/z"), FString::SanitizeFloat(FrameInfo.CurrViewLocation.Z));
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/pitch"), FString::SanitizeFloat(FrameInfo.CurrViewRotation.Pitch));
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/yaw"), FString::SanitizeFloat(FrameInfo.CurrViewRotation.Yaw));
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/roll"), FString::SanitizeFloat(FrameInfo.CurrViewRotation.Roll));
 
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/x"), FrameInfo.PrevViewLocation.X);
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/y"), FrameInfo.PrevViewLocation.Y);
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/z"), FrameInfo.PrevViewLocation.Z);
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/pitch"), FrameInfo.PrevViewRotation.Pitch);
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/yaw"), FrameInfo.PrevViewRotation.Yaw);
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/roll"), FrameInfo.PrevViewRotation.Roll);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/x"), FString::SanitizeFloat(FrameInfo.PrevViewLocation.X));
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/y"), FString::SanitizeFloat(FrameInfo.PrevViewLocation.Y));
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/z"), FString::SanitizeFloat(FrameInfo.PrevViewLocation.Z));
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/pitch"), FString::SanitizeFloat(FrameInfo.PrevViewRotation.Pitch));
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/yaw"), FString::SanitizeFloat(FrameInfo.PrevViewRotation.Yaw));
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/roll"), FString::SanitizeFloat(FrameInfo.PrevViewRotation.Roll));
 
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/shutterAngle"), CachedOutputState.TimeData.MotionBlurFraction * 360.0f);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/shutterAngle"), FString::SanitizeFloat(CachedOutputState.TimeData.MotionBlurFraction * 360.0f));
 	}
 
 	if (CurrentCameraCut.State != EMovieRenderShotState::Rendering)

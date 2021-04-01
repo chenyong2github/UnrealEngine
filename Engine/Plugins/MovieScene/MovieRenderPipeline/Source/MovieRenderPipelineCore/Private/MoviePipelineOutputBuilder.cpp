@@ -83,7 +83,7 @@ void FMoviePipelineOutputMerger::OnCompleteRenderPassDataAvailable_AnyThread(TUn
 
 	// Merge the metadata from each output state. Metadata is part of the output state but gets forked when
 	// we submit different render passes, so we need to merge it again. Doesn't handle conflicts.
-	for (const TPair<FString, FStringFormatArg>& KVP : Payload->SampleState.OutputState.FileMetadata)
+	for (const TPair<FString, FString>& KVP : Payload->SampleState.OutputState.FileMetadata)
 	{
 		OutputFrame->FrameOutputState.FileMetadata.Add(KVP.Key, KVP.Value);
 	}

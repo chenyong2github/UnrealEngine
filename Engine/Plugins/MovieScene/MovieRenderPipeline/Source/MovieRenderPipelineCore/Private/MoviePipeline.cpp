@@ -1484,118 +1484,46 @@ TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettingsForShot(TSubclassOf<U
 	return FoundSettings;
 }
 
-static bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting)
+void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatString, const TMap<FString, FString>& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs, const FMoviePipelineFrameOutputState* InOutputState, const int32 InFrameNumberOffset) const
 {
-	// Check if there is space on the output disk.
-	bool bIsFreeSpace = true;
-
-	uint64 TotalNumberOfBytes, NumberOfFreeBytes;
-	if (FPlatformMisc::GetDiskTotalAndFreeSpace(InFilename, TotalNumberOfBytes, NumberOfFreeBytes))
-	{
-		bIsFreeSpace = NumberOfFreeBytes > 64 * 1024 * 1024; // 64mb minimum
-	}
-	// ToDO: Infinite loop possible.
-	return bIsFreeSpace && (bOverwriteExisting || IFileManager::Get().FileSize(InFilename) == -1);
-}
-
-void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatString, const FStringFormatNamedArguments& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs, const FMoviePipelineFrameOutputState* InOutputState, const int32 InFrameNumberOffset) const
-{
-	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
-	check(OutputSettings);
-
-	// Gather all the variables
-	OutFinalFormatArgs = FMoviePipelineFormatArgs();
-	OutFinalFormatArgs.InJob = CurrentJob;
-
-	// Copy the file metadata from our InOutputState
+	FMoviePipelineFilenameResolveParams Params;
 	if (InOutputState)
 	{
-		OutFinalFormatArgs.FileMetadata = InOutputState->FileMetadata;
+		Params.FrameNumber = InOutputState->SourceFrameNumber;
+		Params.FrameNumberShot = InOutputState->CurrentShotSourceFrameNumber;
+		Params.FrameNumberRel = InOutputState->OutputFrameNumber;
+		Params.FrameNumberShotRel = InOutputState->ShotOutputFrameNumber;
+		Params.ShotName = InOutputState->ShotName;
+		Params.CameraName = InOutputState->CameraName;
+		Params.FileMetadata = InOutputState->FileMetadata;
 	}
 
-	// Now get the settings from our config. This will expand the FileMetadata and assign the default values used in the UI.
-	GetPipelineMasterConfig()->GetFormatArguments(OutFinalFormatArgs, true);
+	UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	check(OutputSetting);
+
+	Params.ZeroPadFrameNumberCount = OutputSetting->ZeroPadFrameNumbers;
 
 	// Ensure they used relative frame numbers in the output so they get the right number of output frames.
 	bool bForceRelativeFrameNumbers = false;
 	if (InFormatString.Contains(TEXT("{frame")) && InOutputState && InOutputState->TimeData.IsTimeDilated() && !InFormatString.Contains(TEXT("_rel}")))
 	{
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Time Dilation was used but output format does not use relative time, forcing relative numbers."));
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Time Dilation was used but output format does not use relative time, forcing relative numbers. Change {frame_number} to {frame_number_rel} (or shot version) to remove this message."));
 		bForceRelativeFrameNumbers = true;
 	}
 
-	// From Output State
-	if (InOutputState)
+	Params.bForceRelativeFrameNumbers = bForceRelativeFrameNumbers;
+	Params.FileNameFormatOverrides = InFormatOverrides;
+	Params.InitializationTime = InitializationTime;
+	Params.InitializationVersion = InitializationVersion;
+	Params.Job = GetCurrentJob();
+	if (CurrentShotIndex < ActiveShotList.Num())
 	{
-		// Now that the settings have been added from the configuration, we overwrite them with the ones in the output state. This is required so that
-		// things like frame number resolve to the actual output state correctly.
-		InOutputState->GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset + InFrameNumberOffset, bForceRelativeFrameNumbers);
+		Params.ShotOverride = ActiveShotList[CurrentShotIndex];
 	}
 
-	// And from ourself
-	{
-		OutFinalFormatArgs.FilenameArguments.Add(TEXT("date"), InitializationTime.ToString(TEXT("%Y.%m.%d")));
-		OutFinalFormatArgs.FilenameArguments.Add(TEXT("time"), InitializationTime.ToString(TEXT("%H.%M.%S")));
+	Params.AdditionalFrameNumberOffset = InFrameNumberOffset;
 
-		FString VersionText = FString::Printf(TEXT("v%0*d"), 3, InitializationVersion);
-		
-		OutFinalFormatArgs.FilenameArguments.Add(TEXT("version"), VersionText);
-
-		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobDate"), InitializationTime.ToString(TEXT("%Y.%m.%d")));
-		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobTime"), InitializationTime.ToString(TEXT("%H.%M.%S")));
-		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobVersion"), InitializationVersion);
-		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobName"), CurrentJob->JobName);
-		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobAuthor"), CurrentJob->Author);
-
-		// By default, we don't want to show frame duplication numbers. If we need to start writing them,
-		// they need to come before the frame number (so that tools recognize them as a sequence).
-		OutFinalFormatArgs.FilenameArguments.Add(TEXT("file_dup"), FString());
-	}
-
-	// Overwrite the variables with overrides if needed. This allows different requesters to share the same variables (ie: filename extension, render pass name)
-	for (const TPair<FString, FStringFormatArg>& KVP : InFormatOverrides)
-	{
-		OutFinalFormatArgs.FilenameArguments.Add(KVP);
-	}
-
-	// No extension should be provided at this point, because we need to tack the extension onto the end after appending numbers (in the event of no overwrites)
-	// We don't convert this to a full filename because sometimes this function is used to resolve just filenames without directories, and we can't tell if the
-	// caller wants a full filepath or just a filename.
-	FString BaseFilename = FString::Format(*InFormatString, OutFinalFormatArgs.FilenameArguments);
-	FPaths::NormalizeFilename(BaseFilename);
-
-	// If we end with a "." character, remove it. The extension will put it back on. We can end up with this sometimes after resolving file format strings, ie:
-	// {sequence_name}.{frame_number} becomes {sequence_name}. for videos (which can't use frame_numbers).
-	BaseFilename.RemoveFromEnd(TEXT("."));
-
-	FString Extension = FString::Format(TEXT(".{ext}"), OutFinalFormatArgs.FilenameArguments);
-
-
-	FString ThisTry = BaseFilename + Extension;
-
-	if (CanWriteToFile(*ThisTry, OutputSettings->bOverrideExistingOutput))
-	{
-		OutFinalPath = ThisTry;
-		return;
-	}
-
-	int32 DuplicateIndex = 2;
-	while(true)
-	{
-		OutFinalFormatArgs.FilenameArguments.Add(TEXT("file_dup"), FString::Printf(TEXT("_(%d)"), DuplicateIndex));
-
-		// Re-resolve the format string now that we've reassigned frame_dup to a number.
-		ThisTry = FString::Format(*InFormatString, OutFinalFormatArgs.FilenameArguments) + Extension;
-
-		// If the file doesn't exist, we can use that, else, increment the index and try again
-		if (CanWriteToFile(*ThisTry, OutputSettings->bOverrideExistingOutput))
-		{
-			OutFinalPath = ThisTry;
-			return;
-		}
-
-		++DuplicateIndex;
-	}
+	UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(InFormatString, Params, OutFinalPath, OutFinalFormatArgs);
 }
 
 void UMoviePipeline::SetProgressWidgetVisible(bool bVisible)

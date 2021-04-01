@@ -171,7 +171,7 @@ public:
 	* @param	InFrameNumberOffset	(optional) Frame offset of the frame we want the filename for, if not the current frame
 	*								as specified in InOutputState
 	*/
-	void ResolveFilenameFormatArguments(const FString& InFormatString, const FStringFormatNamedArguments& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs, const FMoviePipelineFrameOutputState* InOutputState=nullptr, const int32 InFrameNumberOffset=0) const;
+	void ResolveFilenameFormatArguments(const FString& InFormatString, const TMap<FString, FString>& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs, const FMoviePipelineFrameOutputState* InOutputState=nullptr, const int32 InFrameNumberOffset=0) const;
 
 protected:
 	/**

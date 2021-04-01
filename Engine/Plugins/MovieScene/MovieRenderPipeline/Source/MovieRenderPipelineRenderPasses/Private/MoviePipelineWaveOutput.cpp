@@ -147,7 +147,7 @@ void UMoviePipelineWaveOutput::BeginFinalizeImpl()
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Audio Segment took %f seconds to convert to a sample buffer."), (FPlatformTime::Seconds() - StartTime));
 
 		// We don't provide an extension override because the FSoundWavePCMWriter API forces their own.
-		FStringFormatNamedArguments FormatOverrides;
+		TMap<FString, FString> FormatOverrides;
 		FormatOverrides.Add(TEXT("shot_name"), TEXT("Unsupported_Shot_Name_For_Output_File_BugIt"));
 		FormatOverrides.Add(TEXT("camera_name"), TEXT("Unsupported_Camera_Name_For_Output_File_BugIt"));
 		

@@ -45,9 +45,9 @@ void UMoviePipelineAntiAliasingSetting::GetFormatArguments(FMoviePipelineFormatA
 {
 	Super::GetFormatArguments(InOutFormatArgs);
 
-	InOutFormatArgs.FilenameArguments.Add(TEXT("ts_count"), TemporalSampleCount);
-	InOutFormatArgs.FilenameArguments.Add(TEXT("ss_count"), SpatialSampleCount);
+	InOutFormatArgs.FilenameArguments.Add(TEXT("ts_count"), FString::FromInt(TemporalSampleCount));
+	InOutFormatArgs.FilenameArguments.Add(TEXT("ss_count"), FString::FromInt(SpatialSampleCount));
 
-	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/aa/temporalSampleCount"), TemporalSampleCount);
-	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/aa/spatialSampleCount"), SpatialSampleCount);
+	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/aa/temporalSampleCount"), FString::FromInt(TemporalSampleCount));
+	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/aa/spatialSampleCount"), FString::FromInt(SpatialSampleCount));
 }

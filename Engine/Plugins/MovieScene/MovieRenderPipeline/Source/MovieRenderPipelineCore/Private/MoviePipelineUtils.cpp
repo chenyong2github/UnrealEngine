@@ -98,4 +98,22 @@ namespace MoviePipeline
 			}
 		}
 	}
+
+	void GetOutputStateFormatArgs(FMoviePipelineFormatArgs& InOutFinalFormatArgs, const FString FrameNumber, const FString FrameNumberShot, const FString FrameNumberRel, const FString FrameNumberShotRel, const FString CameraName, const FString ShotName)
+	{
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number"), FrameNumber);
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number_shot"), FrameNumberShot);
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number_rel"), FrameNumberRel);
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number_shot_rel"), FrameNumberShotRel);
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("camera_name"), CameraName);
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("shot_name"), ShotName);
+
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/sequenceFrameNumber"), FrameNumber);
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/shotFrameNumber"), FrameNumberShot);
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/sequenceFrameNumberRelative"), FrameNumberRel);
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/shotFrameNumberRelative"), FrameNumberShotRel);
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/cameraName"), CameraName);
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/shotName"), ShotName);
+	}
+
 }
