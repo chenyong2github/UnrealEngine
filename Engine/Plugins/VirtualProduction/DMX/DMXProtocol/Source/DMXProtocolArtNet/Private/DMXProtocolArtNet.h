@@ -50,10 +50,13 @@ public:
 
 private:
 	/** Returns the sender for specified endpoint or nullptr if none exists */
-	TSharedPtr<FDMXProtocolArtNetSender> FindExistingEndpointSender(const FString& IPAddress, EDMXCommunicationType CommunicationType) const;
+	TSharedPtr<FDMXProtocolArtNetSender> FindExistingBroadcastSender(const FString& NetworkInterfaceAddress) const;
+
+	/** Returns the sender for specified endpoint or nullptr if none exists */
+	TSharedPtr<FDMXProtocolArtNetSender> FindExistingUnicastSender(const FString& NetworkInterfaceAddress, const FString& DestinationAddress) const;
 
 	/** Returns the receiver for specified endpoint or nullptr if none exists */
-	TSharedPtr<FDMXProtocolArtNetReceiver> FindExistingEndpointReceiver(const FString& IPAddress, EDMXCommunicationType CommunicationType) const;
+	TSharedPtr<FDMXProtocolArtNetReceiver> FindExistingReceiver(const FString& IPAddress, EDMXCommunicationType CommunicationType) const;
 
 	/** Set of all DMX input ports currently in use */
 	TSet<FDMXInputPortSharedRef> CachedInputPorts;

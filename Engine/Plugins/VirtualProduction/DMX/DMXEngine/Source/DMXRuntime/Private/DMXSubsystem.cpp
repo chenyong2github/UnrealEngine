@@ -13,8 +13,6 @@
 #include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXInputPortReference.h"
-#include "Library/DMXOutputPortReference.h"
 
 #include "AssetData.h"
 #include "AssetRegistryModule.h"

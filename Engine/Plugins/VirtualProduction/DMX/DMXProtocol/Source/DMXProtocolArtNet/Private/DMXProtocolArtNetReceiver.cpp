@@ -2,6 +2,7 @@
 
 #include "DMXProtocolArtNetReceiver.h"
 
+#include "DMXProtocolLog.h"
 #include "DMXProtocolArtNet.h"
 #include "DMXProtocolArtNetConstants.h"
 #include "DMXStats.h"
@@ -28,6 +29,8 @@ FDMXProtocolArtNetReceiver::FDMXProtocolArtNetReceiver(const TSharedPtr<FDMXProt
 
 	FString ReceiverThreadName = FString(TEXT("ArtNetReceiver_")) + InEndpointInternetAddr->ToString(true);
 	Thread = FRunnableThread::Create(this, *ReceiverThreadName, 0, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
+
+	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Created Art-Net Receiver at %s"), *EndpointInternetAddr->ToString(false));
 }
 
 FDMXProtocolArtNetReceiver::~FDMXProtocolArtNetReceiver()
@@ -43,6 +46,8 @@ FDMXProtocolArtNetReceiver::~FDMXProtocolArtNetReceiver()
 		Thread->Kill(true);
 		delete Thread;
 	}
+
+	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed Art-Net Receiver at %s"), *EndpointInternetAddr->ToString(false));
 }
 
 TSharedPtr<FDMXProtocolArtNetReceiver> FDMXProtocolArtNetReceiver::TryCreate(const TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe>& ArtNetProtocol, const FString& IPAddress)
@@ -124,7 +129,7 @@ uint32 FDMXProtocolArtNetReceiver::Run()
 	
 	while (!bStopping)
 	{
-		Update(FTimespan::MaxValue());
+		Update(FTimespan::FromMilliseconds(1000.f));
 	}
 
 	return 0;

@@ -18,27 +18,23 @@ class FInternetAddr;
 /** 
  * Base class for a higher level abstraction of a DMX input or output. 
  * Higher level abstraction of a DMX input hiding networking specific and protocol specific complexity.
- *
- * Note: Protected memeber variables needs to be initialized in classes that implement this
  */
 class DMXPROTOCOL_API FDMXPort
 	: public TSharedFromThis<FDMXPort, ESPMode::ThreadSafe>
 {
 	// Friend Inputs so they can add and remove themselves to the port
 	friend FDMXRawListener;
-	friend FDMXTickedUniverseListener;
+
+protected:
+	/** Protected default constructor, child classes need to take care of member initialization */
+	FDMXPort()
+	{}
 
 	///////////////////////
 	// ~Begin DMXPort Interface declaration
 public:
 	/** Returns true if the port is successfully registered with its protocol */
 	virtual bool IsRegistered() const = 0;
-
-	/** Initializes the port, called from DMXPortManager */
-	virtual void Initialize(const FGuid& InPortGuid) = 0;
-
-	/** Updates the DMXPort from the PortConfig with corresponding Guid */
-	virtual void UpdateFromConfig() = 0;
 
 	/** Returns the Guid of the Port */
 	virtual const FGuid& GetPortGuid() const = 0;
@@ -86,7 +82,7 @@ public:
 
 	FORCEINLINE const FString& GetPortName() const { return PortName; }
 	
-	FORCEINLINE const FString& GetAddress() const { return Address; }
+	FORCEINLINE const FString& GetDeviceAddress() const { return DeviceAddress; }
 
 	FORCEINLINE const IDMXProtocolPtr& GetProtocol() const { return Protocol; }
 
@@ -119,8 +115,8 @@ protected:
 	/** The communication type of this port */
 	EDMXCommunicationType CommunicationType;
 
-	/** The IP address of this port */
-	FString Address;
+	/** The address of the device that handles communication, e.g. the network interface for art-net */
+	FString DeviceAddress;
 
 	/** The Local Start Universe */
 	int32 LocalUniverseStart;

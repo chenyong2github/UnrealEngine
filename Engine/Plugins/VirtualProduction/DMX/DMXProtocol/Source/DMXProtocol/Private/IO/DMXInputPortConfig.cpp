@@ -13,37 +13,49 @@
 
 FDMXInputPortConfig::FDMXInputPortConfig()
 	: CommunicationType(EDMXCommunicationType::InternalOnly)
-	, Address()
+	, DeviceAddress()
 	, LocalUniverseStart(1)
 	, NumUniverses(10)
 	, ExternUniverseStart(1)
-{}
-
-FGuid FDMXInputPortConfig::Initialize()
 {
-	if (!PortGuid.IsValid())
+	// May be called before the protocol module is loaded, at this point we only expect already sanetized structs
+	if (FModuleManager::Get().IsModuleLoaded("DMXProtocol"))
 	{
 		PortGuid = FGuid::NewGuid();
+
+		SanetizePortName();
+		SanetizeProtocolName();
+		SanetizeCommunicationType();
+
+		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
+		check(Protocol.IsValid());
 	}
-
-	SanetizePortName();
-	SanetizeProtocolName();
-	SanetizeCommunicationType();
-
-	IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
-	check(Protocol.IsValid());
-
-	return PortGuid;
 }
 
-bool FDMXInputPortConfig::IsInitialized() const
+FDMXInputPortConfig::FDMXInputPortConfig(const FGuid& InPortGuid)
+	: CommunicationType(EDMXCommunicationType::InternalOnly)
+	, DeviceAddress()
+	, LocalUniverseStart(1)
+	, NumUniverses(10)
+	, ExternUniverseStart(1)
+	, PortGuid(InPortGuid)
 {
-	return PortGuid.IsValid();
+	// May be called before the protocol module is loaded, at this point we only expect already sanetized structs
+	if (FModuleManager::Get().IsModuleLoaded("DMXProtocol"))
+	{
+		SanetizePortName();
+		SanetizeProtocolName();
+		SanetizeCommunicationType();
+
+		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
+		check(Protocol.IsValid());
+	}
 }
 
 const FGuid& FDMXInputPortConfig::GetPortGuid() const
 {
 	check(PortGuid.IsValid());
+
 	return PortGuid;
 }
 
@@ -75,13 +87,6 @@ void FDMXInputPortConfig::SanetizePortName()
 
 void FDMXInputPortConfig::SanetizeProtocolName()
 {
-	// This may be called during loading time, where the protocol module isn't lodaded yet.
-	// At this point only existing, already sanetized Port Configs are loaded.
-	if (ProtocolName != NAME_None)
-	{
-		return;
-	}
-
 	FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
 	const TMap<FName, IDMXProtocolFactory*>& Protocols = DMXProtocolModule.GetProtocolFactories();
 

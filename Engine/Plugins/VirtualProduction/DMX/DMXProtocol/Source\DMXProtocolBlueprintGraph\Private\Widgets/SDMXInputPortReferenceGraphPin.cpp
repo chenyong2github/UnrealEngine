@@ -4,7 +4,7 @@
 
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
-#include "Library/DMXInputPortReference.h"
+#include "IO/DMXInputPortReference.h"
 #include "Widgets/SDMXPortSelector.h"
 
 #include "ScopedTransaction.h"
@@ -70,7 +70,7 @@ void SDMXInputPortReferenceGraphPin::OnPortSelected() const
 		}();
 
 
-		FDMXInputPortReference PortReference(PortGuid);
+		FDMXInputPortReference PortReference(PortGuid, true);
 
 		SetPinValue(PortReference);
 	}

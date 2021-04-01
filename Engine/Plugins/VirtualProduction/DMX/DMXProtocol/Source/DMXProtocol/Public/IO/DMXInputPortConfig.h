@@ -25,13 +25,11 @@ struct DMXPROTOCOL_API FDMXInputPortConfig
 	GENERATED_BODY()
 
 public:
+	/** Constructs a default config with an invalid guid */
 	FDMXInputPortConfig();
 
-	/** Initializes properties that need initializataion. Returns the Port's Guid */
-	FGuid Initialize();
-
-	/** Returns true if the port is initialized */
-	bool IsInitialized() const;
+	/** Constructs a config from the guid */
+	explicit FDMXInputPortConfig(const FGuid& InPortGuid);
 
 	/** The name displayed wherever the port can be displayed */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
@@ -47,7 +45,7 @@ public:
 
 	/** The Network Interface Card's IP Adress, over which DMX is received */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Network Interface Card IP Address"))
-	FString Address; // Invariant of networking, may be a USB device in the future 
+	FString DeviceAddress; // Invariant of networking, may be a USB device in the future 
 
 	/** Local Start Universe */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")

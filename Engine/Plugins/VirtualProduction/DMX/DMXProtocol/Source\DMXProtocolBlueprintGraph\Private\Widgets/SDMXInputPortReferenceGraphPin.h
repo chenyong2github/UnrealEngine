@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Library/DMXInputPortReference.h"
+#include "IO/DMXInputPortReference.h"
 
 #include "CoreMinimal.h"
 #include "SGraphPin.h"
@@ -10,7 +10,7 @@
 class SDMXPortSelector;
 
 
-class DMXBLUEPRINTGRAPH_API SDMXInputPortReferenceGraphPin
+class DMXPROTOCOLBLUEPRINTGRAPH_API SDMXInputPortReferenceGraphPin
 	: public SGraphPin
 {
 public:

@@ -24,6 +24,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "DMXProtocolBlueprintGraph",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "DMXProtocolArtNet",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

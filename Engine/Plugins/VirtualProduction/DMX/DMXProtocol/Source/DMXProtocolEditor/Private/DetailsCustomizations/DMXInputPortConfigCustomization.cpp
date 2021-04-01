@@ -6,6 +6,7 @@
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolTypes.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "IO/DMXInputPort.h"
 #include "IO/DMXInputPortConfig.h"
 #include "IO/DMXPortManager.h"
 #include "Widgets/SDMXCommunicationTypeComboBox.h"
@@ -28,21 +29,18 @@ TSharedRef<IPropertyTypeCustomization> FDMXInputPortConfigCustomization::MakeIns
 	return MakeShared<FDMXInputPortConfigCustomization>();
 }
 
-void FDMXInputPortConfigCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FDMXInputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	FDMXPortConfigCustomizationBase::CustomizeHeader(StructPropertyHandle, HeaderRow, StructCustomizationUtils);
-}
+	FDMXPortConfigCustomizationBase::CustomizeChildren(InStructPropertyHandle, ChildBuilder, StructCustomizationUtils);
 
-void FDMXInputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
-{
-	FDMXPortConfigCustomizationBase::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
+	StructPropertyHandle = InStructPropertyHandle;
 
-	// Notify port manager about any property changes not handled in base	
-	FSimpleDelegate NotifyPortConfigChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXPortConfigCustomizationBase::NotifyEditorChangedPortConfig);
+	// Update corresponding port on property changes
+	FSimpleDelegate UpdatePortDelegate = FSimpleDelegate::CreateSP(this, &FDMXInputPortConfigCustomization::UpdatePort);
+	StructPropertyHandle->SetOnChildPropertyValueChanged(UpdatePortDelegate);
 
-	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, LocalUniverseStart))->SetOnPropertyValueChanged(NotifyPortConfigChangedDelegate);
-	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, NumUniverses))->SetOnPropertyValueChanged(NotifyPortConfigChangedDelegate);
-	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, ExternUniverseStart))->SetOnPropertyValueChanged(NotifyPortConfigChangedDelegate);
+	// Since base may make changes to data we want to update the port already
+	UpdatePort();
 }
 
 FName FDMXInputPortConfigCustomization::GetProtocolNamePropertyNameChecked() const
@@ -55,9 +53,9 @@ FName FDMXInputPortConfigCustomization::GetCommunicationTypePropertyNameChecked(
 	return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, CommunicationType);
 }
 
-FName FDMXInputPortConfigCustomization::GetAddressPropertyNameChecked() const
+FName FDMXInputPortConfigCustomization::GetDeviceAddressPropertyNameChecked() const
 {
-	return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, Address);
+	return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, DeviceAddress);
 }
 
 FName FDMXInputPortConfigCustomization::GetPortGuidPropertyNameChecked() const
@@ -68,6 +66,28 @@ FName FDMXInputPortConfigCustomization::GetPortGuidPropertyNameChecked() const
 const TArray<EDMXCommunicationType> FDMXInputPortConfigCustomization::GetSupportedCommunicationTypes() const
 {
 	return GetProtocolChecked()->GetInputPortCommunicationTypes();
+}
+
+void FDMXInputPortConfigCustomization::UpdatePort()
+{
+	check(StructPropertyHandle.IsValid());
+
+	TArray<void*> RawData;
+	StructPropertyHandle->AccessRawData(RawData);
+
+	// Multiediting is not supported, may fire if this is used in a blueprint way that would support it
+	if (ensureMsgf(RawData.Num() == 1, TEXT("Using port config in ways that would enable multiediting is not supported.")))
+	{
+		const FDMXInputPortConfig* PortConfigPtr = reinterpret_cast<FDMXInputPortConfig*>(RawData[0]);
+		if (ensure(PortConfigPtr))
+		{
+			FDMXInputPortSharedPtr InputPort = FDMXPortManager::Get().FindInputPortByGuid(PortConfigPtr->GetPortGuid());
+			if (ensure(InputPort.IsValid()))
+			{
+				InputPort->UpdateFromConfig(*PortConfigPtr);
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

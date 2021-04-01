@@ -127,11 +127,8 @@ private:
 	/** Returns the first valid port from the combo box source, or nullptr if there is no valid port */
 	TSharedPtr<FDMXPortSelectorItem> GetFirstPortInComboBoxSource() const;
 
-	/** Called when a port was edited in editor */
-	void EditorEditedPort(const FGuid& PortGuid);
-
-	/** Called when ports changed in editor */
-	void EditorChangedPorts();
+	/** Called when port configs in settings changed */
+	void OnPortConfigsChanged();
 
 	/** The combo box that holds all ports */
 	TSharedPtr<SComboBox<TSharedPtr<FDMXPortSelectorItem>>> PortNameComboBox;

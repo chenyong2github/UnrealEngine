@@ -2,8 +2,34 @@
 
 #include "DMXProtocolUtils.h"
 
+#include "IPAddress.h"
+#include "SocketSubsystem.h" 
 
 #define LOCTEXT_NAMESPACE "FDMXProtocolUtils"
+
+TArray<TSharedPtr<FString>> FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs()
+{
+	TArray<TSharedPtr<FString>> LocalNetworkInterfaceCardIPs;
+#if PLATFORM_WINDOWS
+	// Add the default route IP Address, only for windows
+	const FString DefaultRouteLocalAdapterAddress = TEXT("0.0.0.0");
+	LocalNetworkInterfaceCardIPs.Add(MakeShared<FString>(DefaultRouteLocalAdapterAddress));
+#endif 
+	// Add the local host IP address
+	const FString LocalHostIpAddress = TEXT("127.0.0.1");
+	LocalNetworkInterfaceCardIPs.Add(MakeShared<FString>(LocalHostIpAddress));
+
+	TArray<TSharedPtr<FInternetAddr>> Addresses;
+	ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalAdapterAddresses(Addresses);
+	bool bFoundLocalHost = false;
+	for (TSharedPtr<FInternetAddr> Address : Addresses)
+	{
+		// Add unique, so in ase the OS call returns with the local host or default route IP, we don't add it twice
+		LocalNetworkInterfaceCardIPs.AddUnique(MakeShared<FString>(Address->ToString(false)));
+	}
+
+	return LocalNetworkInterfaceCardIPs;
+}
 
 FString FDMXProtocolUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName)
 {

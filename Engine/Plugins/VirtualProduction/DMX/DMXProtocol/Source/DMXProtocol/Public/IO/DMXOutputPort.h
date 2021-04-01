@@ -12,6 +12,7 @@
 #include "Templates/SharedPointer.h"
 
 struct FDMXOutputPortConfig;
+class FDMXPortManager;
 class FDMXSignal;
 class IDMXSender;
 
@@ -23,34 +24,39 @@ class IDMXSender;
  *
  * To loopback outputs refer to DMXRawListener and DMXTickedUniverseListener.
  *
- * See DMXPortManager for an overview of the port system.
+ * Can only be constructed via DMXPortManger, see FDMXPortManager::CreateOutputPort and FDMXPortManager::CreateOutputPortFromConfig
  */
 class DMXPROTOCOL_API FDMXOutputPort
 	: public FDMXPort
 {
 	// Friend Raw Listener so it can add and remove themselves to the port
+	friend FDMXPortManager;
+
+	// Friend Raw Listener so it can add and remove themselves to the port
 	friend FDMXRawListener;
 
-public:
-	FDMXOutputPort();
+protected:
+	/** Creates an output port that is not tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
+	static FDMXOutputPortSharedRef Create();
 
+	/** Creates an output port tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
+	static FDMXOutputPortSharedRef CreateFromConfig(const FDMXOutputPortConfig& OutputPortConfig);
+
+public:
 	virtual ~FDMXOutputPort();
 
-	// ~Begin DMXPort Interface 
+	/** Updates the Port to use the config of the OutputPortConfig */
+	void UpdateFromConfig(const FDMXOutputPortConfig& OutputPortConfig);
 
 public:
+	// ~Begin DMXPort Interface 
+
 	/** Returns true if the port is successfully registered with its protocol */
 	virtual bool IsRegistered() const override;
 
-	/** Initializes the port, called from DMXPortManager */
-	virtual void Initialize(const FGuid& InPortGuid) override;
-
-	/** Updates the DMXPort from the PortConfig with corresponding Guid */
-	virtual void UpdateFromConfig() override;
-
 	/** Returns the Guid of the Port */
 	virtual const FGuid& GetPortGuid() const override;
-	
+
 protected:
 	/**
 	 * Adds a Input that receives all raw signals received on this port. Returns the new Input
@@ -100,6 +106,9 @@ public:
 	/** Returns true if send DMX is enabled */
 	FORCEINLINE bool IsSendDMXEnabled() const { return bSendDMXEnabled; }
 
+	/** Returns the Destination Address */
+	FORCEINLINE const FString& GetDestinationAddress() const { return DestinationAddress; }
+
 protected:
 	/** Called to set if DMX should be enabled */
 	void OnSetSendDMXEnabled(bool bEnabled);
@@ -116,6 +125,9 @@ protected:
 	/** According to DMXProtocolSettings, true if DMX should be received */
 	bool bReceiveDMXEnabled;
 	
+	/** The Destination Address to send to, can be irrelevant, e.g. for art-net broadcast */
+	FString DestinationAddress;
+
 	/** If true, the port should be input to the engine */
 	bool bLoopbackToEngine;
 
@@ -134,10 +146,6 @@ private:
 
 	/** True if the port is registered with it its protocol */
 	bool bRegistered;
-
-private:
-	/** Returns the port config with specified guid. Useful to find a port config by its port, as they share their guid */
-	const FDMXOutputPortConfig* FindOutputPortConfigChecked() const;
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;

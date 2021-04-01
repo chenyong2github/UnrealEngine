@@ -8,7 +8,6 @@
 
 class FDMXPort;
 class SDMXPortSelector;
-class UDMXLibrary;
 
 class SBorder;
 class IPropertyHandle;
@@ -32,12 +31,13 @@ protected:
 	/** Called to deduce if the child is an input (or an output) */
 	virtual bool IsInputPort() const = 0;
 
-	/** Called to get the port guid handle */
+	/** Called to get the PortGuid property handle */
 	virtual const TSharedPtr<IPropertyHandle>& GetPortGuidHandle() const = 0;
 
 private:
 	/** Called when a port was selected in the port selector */
 	void OnPortSelected();
+
 	/** Updates the info row */
 	void UpdateInfoRow();
 
@@ -52,9 +52,6 @@ private:
 
 	/** Helper function that gets the Guid of the edited port */
 	FGuid GetPortGuid() const;
-
-	/** Tries to get an outer library, if the port resides in one */
-	UDMXLibrary* GetOuterDMXLibrary() const;
 
 	/** Port selector widget */
 	TSharedPtr<SDMXPortSelector> PortSelector;

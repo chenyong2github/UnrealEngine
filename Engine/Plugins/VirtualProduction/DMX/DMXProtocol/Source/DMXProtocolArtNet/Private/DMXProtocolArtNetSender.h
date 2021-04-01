@@ -33,18 +33,32 @@ class DMXPROTOCOLARTNET_API FDMXProtocolArtNetSender
 {
 protected:
 	/** Constructor. Hidden on purpose, use Create instead. */
-	FDMXProtocolArtNetSender(const TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe>& InArtNetProtocol, FSocket& InSocket, TSharedRef<FInternetAddr> InEndpointInternetAddr, EDMXCommunicationType InCommunicationType);
+	FDMXProtocolArtNetSender(const TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe>& InArtNetProtocol, FSocket& InSocket, TSharedRef<FInternetAddr> InNetworkInternetAddr, TSharedRef<FInternetAddr> InDestinationInternetAddr);
 
 public:
 	/** Destructor */
 	virtual ~FDMXProtocolArtNetSender();
 
 	/**
-	 * Creates a new sender for the specified IP address. returns null if no sender can be created.
-	 * Note: Doesn't test if another sender on same IP already exists. Use HandlesOutputPort to test other instances.
+	 * Creates a new unicast sender for the specified IP address. Returns null if no sender can be created.
+	 * Note: Doesn't test if another sender on same IP already exists. Use EqualsEndpoint method to test other instances.
 	 * If another sender exists that handles IPAddress, reuse that instead.
+	 * 
+	 * @param ArtNetProtocol			The protocol instance that wants to create the sender
+	 * @param InNetworkInterfaceIP		The IP address of the network interface that is used to send data
+	 * @param InUnicastIP				The IP address to unicast to.
 	 */
-	static TSharedPtr<FDMXProtocolArtNetSender> TryCreate(const TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe>& ArtNetProtocol, const FString& IPAddress, EDMXCommunicationType InCommunicationType);
+	static TSharedPtr<FDMXProtocolArtNetSender> TryCreateUnicastSender(const TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe>& ArtNetProtocol, const FString& InNetworkInterfaceIP, const FString& InUnicastIP);
+
+	/**
+	 * Creates a new broadcast sender for the specified IP address. Returns null if no sender can be created.
+	 * Note: Doesn't test if another sender on same IP already exists. Use EqualsEndpoint method to test other instances.
+	 * If another sender exists that handles IPAddress, reuse that instead.
+	 *
+	 * @param ArtNetProtocol			The protocol instance that wants to create the sender
+	 * @param InNetworkInterfaceIP		The IP address of the network interface that is used to send data
+	 */
+	static TSharedPtr<FDMXProtocolArtNetSender> TryCreateBroadcastSender(const TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe>& ArtNetProtocol, const FString& InNetworkInterfaceIP);
 
 	// ~Begin IDMXSender Interface
 	virtual void SendDMXSignal(const FDMXSignalSharedRef& DMXSignal) override;
@@ -56,7 +70,7 @@ public:
 	bool IsCausingLoopback() const;
 
 	/** Returns true if the sender uses specified endpoint */
-	bool EqualsEndpoint(const FString& IPAddress, EDMXCommunicationType InCommunicationType) const;
+	bool EqualsEndpoint(const FString& NetworkInterfaceIP, const FString& DestinationIPAddress) const;
 
 	/** Assigns an output port to be handled by this sender */
 	void AssignOutputPort(const TSharedPtr<FDMXOutputPort, ESPMode::ThreadSafe>& OutputPort);
@@ -74,8 +88,11 @@ public:
 	FORCEINLINE const TSet<TSharedPtr<FDMXOutputPort, ESPMode::ThreadSafe>>& GetAssignedOutputPorts() const { return AssignedOutputPorts; }
 
 private:
-	/** Helper to Create an internet address from an IP address string. Returns the InternetAddr or nullptr if unsuccessful */
-	static TSharedPtr<FInternetAddr> CreateEndpointInternetAddr(const FString& IPAddress);
+	/** Helper to create an internet address from an IP address string. Returns the InternetAddr or nullptr if unsuccessful */
+	static TSharedPtr<FInternetAddr> CreateInternetAddr(const FString& IPAddress, int32 Port);
+
+	/** Helper to create a broadcast internet address. */
+	static TSharedRef<FInternetAddr> CreateBroadcastInternetAddr(int32 Port);
 
 	/** The Output ports the receiver uses */
 	TSet<TSharedPtr<FDMXOutputPort, ESPMode::ThreadSafe>> AssignedOutputPorts;
@@ -110,8 +127,11 @@ private:
 	/** Holds the network socket used to sender packages. */
 	FSocket* Socket;
 
-	/** The endpoint internet addr */
-	TSharedPtr<FInternetAddr> EndpointInternetAddr;
+	/** The network interface internet addr */
+	TSharedPtr<FInternetAddr> NetworkInterfaceInternetAddr;
+
+	/** The endpoint interface internet addr */
+	TSharedPtr<FInternetAddr> DestinationInternetAddr;
 
 	/** Communication type used for the network traffic */
 	EDMXCommunicationType CommunicationType;

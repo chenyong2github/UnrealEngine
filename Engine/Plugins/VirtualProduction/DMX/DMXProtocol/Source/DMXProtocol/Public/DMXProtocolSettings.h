@@ -15,11 +15,16 @@
 
 
 
-/**  DMX Project Settings */
-UCLASS(Config = Engine, DefaultConfig, NotPlaceable)
+/**  
+ * DMX Project Settings. 
+ * 
+ * Note: To handle Port changes in code please refer to FDMXPortManager.
+ */
+UCLASS(Config = Engine, DefaultConfig, Meta = (DisplayName = "DMX"))
 class DMXPROTOCOL_API UDMXProtocolSettings 
 	: public UObject
 {
+	DECLARE_MULTICAST_DELEGATE(FDMXOnPortConfigsChangedDelegate);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnSendDMXEnabled, bool /** bEnabled */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnReceiveDMXEnabled, bool /** bEnabled */);
 
@@ -29,17 +34,28 @@ public:
 public:
 	UDMXProtocolSettings();
 
+	// ~Begin UObject Interface
 	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 #endif // WITH_EDITOR
+	// ~End UObject Interface
 
-public:
-	/** Manual Interface IP Address */
-	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "InterfaceIPAddress is deprecated. Use Ports instead."))
-	FString InterfaceIPAddress_DEPRECATED;
+	/** Returns the input port matching the predicate, or nullptr if it cannot be found */
+	template <typename Predicate>
+	FDMXInputPortConfig* FindInputPortConfig(Predicate Pred)
+	{
+		return InputPortConfigs.FindByPredicate(Pred);
+	}
+
+	/** Returns the input port matching the predicate, or nullptr if it cannot be found */
+	template <typename Predicate>
+	FDMXOutputPortConfig* FindOutputPortConfig(Predicate Pred)
+	{
+		return OutputPortConfigs.FindByPredicate(Pred);
+	}
 
 	/** DMX Input Port Configs */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (DisplayName = "Input Ports"))
@@ -48,14 +64,6 @@ public:
 	/** DMX Output Port Configs */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (DisplayName = "Output Ports"))
 	TArray<FDMXOutputPortConfig> OutputPortConfigs;
-
-	/** Universe Remote Start for ArtNet */
-	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "GlobalArtNetUniverseOffset is deprecated. Use Ports instead."))
-	int32 GlobalArtNetUniverseOffset_DEPRECATED;
-
-	/** Universe Remote Start for sACN */
-	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "GlobalSACNUniverseOffset is deprecated. Use Ports instead."))
-	int32 GlobalSACNUniverseOffset_DEPRECATED;
 
 	/** Fixture Categories ENum */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Categories"))
@@ -72,6 +80,9 @@ public:
 	/** Rate at which DMX is received, in Hz from 1 to 1000. 44Hz is recommended */
 	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "ReceivingRefreshRate is deprecated without replacement. It would deter timestamps on the receivers. Instead use a per object rate where desired."))
 	uint32 ReceivingRefreshRate;
+
+	/** Broadcast when ports configs changed in project settings */
+	FDMXOnPortConfigsChangedDelegate OnPortConfigsChanged;
 
 	/** Broadcast when send DMX is enabled or disabled */
 	FDMXOnSendDMXEnabled OnSetSendDMXEnabled;
@@ -91,6 +102,9 @@ public:
 	/** Overrides if send DMX is enabled at runtime */
 	void OverrideReceiveDMXEnabled(bool bEnabled);
 
+	/** Updates ports from settings */
+	void UpdatePortsFromSettings();
+
 private:
 	/** Whether DMX is received from the network. Recalled whenever editor or game starts. */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
@@ -101,8 +115,27 @@ private:
 	bool bDefaultReceiveDMXEnabled;
 
 	/** Overrides the default bDefaultSendDMXEnabled value at runtime */
+	bool bOverrideSendDMXEnabled;
+
+	/** Overrides the default bDefaultReceiveDMXEnabled value at runtime */
 	bool bOverrideReceiveDMXEnabled;
 
-	/** Overrides the default bDefaultSendDMXEnabled value at runtime */
-	bool bOverrideSendDMXEnabled;
+
+	///////////////////
+	// DEPRECATED 4.27
+public:
+	/** DEPRECATED 4.27 */
+	UE_DEPRECATED(4.27, "Now in Port Configs to support many NICs")
+	UPROPERTY(Config, Meta = (DeprecatedProperty, DeprecationMessage = "InterfaceIPAddress is deprecated. Use Ports instead."))
+	FString InterfaceIPAddress_DEPRECATED;
+
+	/** DEPRECATED 4.27 */
+	UE_DEPRECATED(4.27, "Now in Port Configs to support many NICs")
+	UPROPERTY(Config, Meta = (DeprecatedProperty, DeprecationMessage = "GlobalArtNetUniverseOffset is deprecated. Use Ports instead."))
+	int32 GlobalArtNetUniverseOffset_DEPRECATED;
+
+	/** DEPRECATED 4.27 */
+	UE_DEPRECATED(4.27, "Now in Port Configs to support many NICs")
+	UPROPERTY(Config, Meta = (DeprecatedProperty, DeprecationMessage = "GlobalSACNUniverseOffset is deprecated. Use Ports instead."))
+	int32 GlobalSACNUniverseOffset_DEPRECATED;
 };

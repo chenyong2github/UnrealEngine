@@ -2,7 +2,7 @@
 
 #include "DMXInputPortReferenceCustomization.h"
 
-#include "Library/DMXInputPortReference.h"
+#include "IO/DMXInputPortReference.h"
 
 #include "PropertyHandle.h"
 
@@ -19,7 +19,7 @@ void FDMXInputPortReferenceCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 void FDMXInputPortReferenceCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	PortGuidHandle = StructPropertyHandle->GetChildHandle(FDMXInputPortReference::GetPortGuidPropertyName());
-	check(PortGuidHandle.IsValid() && PortGuidHandle->IsValidHandle());
+	check(PortGuidHandle.IsValid());
 
 	FDMXPortReferenceCustomizationBase::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
 }
@@ -28,3 +28,4 @@ const TSharedPtr<IPropertyHandle>& FDMXInputPortReferenceCustomization::GetPortG
 {
 	return PortGuidHandle;
 }
+

@@ -55,19 +55,9 @@ bool FDMXPort::IsValidPortSlow() const
 	TSharedPtr<FInternetAddr> IPInternetAddr = SocketSubsystem->CreateInternetAddr();
 
 	// Find if the port is valid
-	bool bValidPort = true;
-
-	bool bValidInternetAddress = false;
-	IPInternetAddr->SetIp(*Address, bValidInternetAddress);
-	if (!bValidInternetAddress)
-	{
-		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create DMX Port: Invalid IP Address %s in port %s."), *Address, *PortName);
-		return false;
-	}
-
 	if (!Protocol.IsValid())
 	{
-		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create DMX Port: Invalid Protocol %s in port %s."), *PortName);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create DMX Port: Invalid Protocol in port %s."), *PortName);
 		return false;
 	}
 

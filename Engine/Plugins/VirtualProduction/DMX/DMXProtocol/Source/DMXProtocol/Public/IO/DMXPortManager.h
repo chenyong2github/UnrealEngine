@@ -33,6 +33,9 @@ class FDMXOutputPort;
  * Get all input ports or all output ports available via the Port Managers GetInputPorts and GetOutputPorts methods.
  * Alternatively use the Editor-Only SDMXPortSelector widget to select a port from available ports.
  * 
+ * Note: Creating and destroying ports can only be done in Project settings. 
+ *		 Applications that want to offer dynamic ports should specify a fixed number of ports, e.g. 8, 16 ports and work with these at runtime.
+ * 
  *
  * 3. Receive DMX in your object:
  * ----------------------------------
@@ -60,25 +63,18 @@ class FDMXOutputPort;
  * -------------------------------
  * Use the DMXOutputPort's SendDMX method to output DMX
  *
- * Note: OutputPorts send DMX at a rate of 44Hz only, to comply with the DMX standard.
- *
  */
 class DMXPROTOCOL_API FDMXPortManager
 {
 	////////////////////////////////
 	// Commonly used methods
 
-#if WITH_EDITOR
-	DECLARE_MULTICAST_DELEGATE(FDMXEditorChangedPortArraysDelegate);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXEditorEditedPortDelegate, const FGuid& /** PortGuid */)
+	DECLARE_MULTICAST_DELEGATE(FDMXOnPortArraysChangedDelegate);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnPortChangedDelegate, const FGuid& /** PortGuid */)
 
 public:
-	/** Broadcast when port cgs array changed in Editor */
-	FDMXEditorChangedPortArraysDelegate EditorChangedPorts;
-
-	/** Broadcast when a port was edited in Editor, but ports arrays remain unchaned */
-	FDMXEditorEditedPortDelegate EditorEditedPort;
-#endif // WITH_EDITOR
+	/** Broadcast when port arrays or data changed */
+	FDMXOnPortArraysChangedDelegate OnPortsChanged;
 
 public:
 	static FDMXPortManager& Get();
@@ -87,8 +83,52 @@ public:
 
 	FORCEINLINE const TArray<FDMXOutputPortSharedRef>& GetOutputPorts() const { return OutputPorts; }
 
+	/** Adds a new input port */
+	FDMXInputPortSharedRef CreateInputPort();
+
+	/** 
+	 * Adds a new input port that corresponds to the input port config. 
+	 * Consumes (moves) the config and returns a copy that uses the port's guid.
+	 * This is to prevent from adding a config (with the same guid) twice.
+	 */
+	FDMXInputPortSharedRef GetOrCreateInputPortFromConfig(const FDMXInputPortConfig& InputPortConfig);
+
+	/** Removes the input port */
+	void RemoveInputPortChecked(const FGuid& PortGuid);
+
+	/** Adds a new output port */
+	FDMXOutputPortSharedRef CreateOutputPort();
+
+	/** 
+	 * Adds a new output port that corresponds to the input port config. 
+	 * Consumes (moves) the config and returns a copy that uses the port's guid 
+	 * This is to prevent from adding a config (with the same guid) twice.
+	 */
+	FDMXOutputPortSharedRef GetOrCreateOutputPortFromConfig(const FDMXOutputPortConfig& OutputPortConfig);
+
+	/** Removes the input port */
+	void RemoveOutputPortChecked(const FGuid& PortGuid);
+
+	/** Returns the port matching the port guid. Returns nullptr if the port doesn't exist. */
+	FDMXPortSharedPtr FindPortByGuid(const FGuid& PortGuid) const;
+
 	/** Returns the port matching the port guid, checked version. */
 	FDMXPortSharedRef FindPortByGuidChecked(const FGuid& PortGuid) const; 
+
+	/** Returns the input port matching the port guid. Returns nullptr if the port doesn't exist. */
+	FDMXInputPortSharedPtr FindInputPortByGuid(const FGuid& PortGuid) const;
+
+	/** Returns the input port matching the port guid, checkedversion.*/
+	FDMXInputPortSharedRef FindInputPortByGuidChecked(const FGuid& PortGuid) const;
+
+	/** Returns the output port matching the port guid. Returns nullptr if the port doesn't exist. */
+	FDMXOutputPortSharedPtr FindOutputPortByGuid(const FGuid& PortGuid) const;
+
+	/** Returns the output port matching the port guid, checked version. */
+	FDMXOutputPortSharedRef FindOutputPortByGuidChecked(const FGuid& PortGuid) const;
+
+	/** Updates ports from protocol settings, does not affect other ports added by the create port methods */
+	void UpdateFromProtocolSettings();
 
 private:
 	/** Array of input ports */
@@ -97,9 +137,11 @@ private:
 	/** Array of output ports */
 	TArray<FDMXOutputPortSharedRef> OutputPorts;
 
+	/** Array of Port Guids added from protocol settings */
+	TArray<FGuid> PortGuidsFromProtocolSettings;
 
 	////////////////////////////////////////////////////////////
-	// Initialization and consistency with UDMXProtocolSettings
+	// Initialization 
 public:
 	FDMXPortManager() = default;
 	virtual ~FDMXPortManager();
@@ -117,25 +159,4 @@ public:
 
 	/** Destroys the manager. */
 	static void ShutdownManager();
-
-#if WITH_EDITOR
-	/** Notifies the manager when a port changed, should be called when the ports changed */
-	void NotifyPortConfigChanged(const FGuid& PortGuid);
-
-	/** Notifies the manager when the port arrays changed, should be called when the ports changed */
-	void NotifyPortConfigArraysChanged();
-#endif // WITH_EDITOR
-
-private:
-	/** Non-static function to initialize the manager */
-	void StartupManagerInternal();
-
-	/** Non-static function to shut down the manager */
-	void ShutdownManagerInternal();
-
-	/** Sets up the input port and its config */
-	void SetupInputPort(FDMXInputPortConfig& MutablePortConfig);
-	
-	/** Sets up the output port and its config */
-	void SetupOutputPort(FDMXOutputPortConfig& MutablePortConfig);
 };

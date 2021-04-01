@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class DMXBlueprintGraph : ModuleRules
+public class DMXProtocolBlueprintGraph : ModuleRules
 {
-	public DMXBlueprintGraph(ReadOnlyTargetRules Target) : base(Target)
+	public DMXProtocolBlueprintGraph(ReadOnlyTargetRules Target) : base(Target)
     {
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -13,7 +13,6 @@ public class DMXBlueprintGraph : ModuleRules
 			{
 				"Core",
                 "DMXProtocol",
-				"DMXRuntime",
             }
 		);
 
@@ -39,7 +38,7 @@ public class DMXBlueprintGraph : ModuleRules
                 "Projects",
                 "BlueprintGraph",
                 "GraphEditor",
-                "DMXEditor",
+				"DMXProtocolEditor"
             }
 		);
 	}

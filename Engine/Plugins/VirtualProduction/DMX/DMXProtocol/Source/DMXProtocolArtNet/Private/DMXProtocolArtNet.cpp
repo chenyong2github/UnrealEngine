@@ -9,6 +9,8 @@
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
 
+#include "SocketSubsystem.h"
+
 
 const TArray<EDMXCommunicationType> FDMXProtocolArtNet::InputPortCommunicationTypes = TArray<EDMXCommunicationType>(
 	{ 
@@ -88,14 +90,14 @@ bool FDMXProtocolArtNet::RegisterInputPort(const FDMXInputPortSharedRef& InputPo
 	check(!InputPort->IsRegistered());
 	check(!CachedInputPorts.Contains(InputPort));
 
-	const FString& IPAddress = InputPort->GetAddress();
+	const FString& NetworkInterfaceAddress = InputPort->GetDeviceAddress();
 	const EDMXCommunicationType CommunicationType = InputPort->GetCommunicationType();
 
 	// Try to use an existing receiver or create a new one
-	TSharedPtr<FDMXProtocolArtNetReceiver> Receiver = FindExistingEndpointReceiver(IPAddress, CommunicationType);
+	TSharedPtr<FDMXProtocolArtNetReceiver> Receiver = FindExistingReceiver(NetworkInterfaceAddress, CommunicationType);
 	if (!Receiver.IsValid())
 	{
-		Receiver = FDMXProtocolArtNetReceiver::TryCreate(SharedThis(this), IPAddress);
+		Receiver = FDMXProtocolArtNetReceiver::TryCreate(SharedThis(this), NetworkInterfaceAddress);
 	}
 
 	if (!Receiver.IsValid())
@@ -144,14 +146,38 @@ TSharedPtr<IDMXSender> FDMXProtocolArtNet::RegisterOutputPort(const FDMXOutputPo
 	check(!OutputPort->IsRegistered());
 	check(!CachedOutputPorts.Contains(OutputPort));
 
-	const FString& IPAddress = OutputPort->GetAddress();
+	const FString& NetworkInterfaceAddress = OutputPort->GetDeviceAddress();
 	EDMXCommunicationType CommunicationType = OutputPort->GetCommunicationType();
 
 	// Try to use an existing receiver or create a new one
-	TSharedPtr<FDMXProtocolArtNetSender> Sender = FindExistingEndpointSender(IPAddress, CommunicationType);
+	TSharedPtr<FDMXProtocolArtNetSender> Sender;
 	if (!Sender.IsValid())
 	{
-		Sender = FDMXProtocolArtNetSender::TryCreate(SharedThis(this), IPAddress, CommunicationType);
+		if (CommunicationType == EDMXCommunicationType::Broadcast)
+		{
+			Sender = FindExistingBroadcastSender(NetworkInterfaceAddress);
+			
+			if (!Sender.IsValid())
+			{
+				Sender = FDMXProtocolArtNetSender::TryCreateBroadcastSender(SharedThis(this), NetworkInterfaceAddress);
+			}
+		}
+		else if (CommunicationType == EDMXCommunicationType::Unicast)
+		{
+			const FString& UnicastAddress = OutputPort->GetDestinationAddress();
+
+			Sender = FindExistingUnicastSender(NetworkInterfaceAddress, UnicastAddress);
+
+			if (!Sender.IsValid())
+			{
+				Sender = FDMXProtocolArtNetSender::TryCreateUnicastSender(SharedThis(this), NetworkInterfaceAddress, UnicastAddress);
+			}
+		}
+		else
+		{
+			// Invalid Communication Type
+			checkNoEntry();
+		}
 	}
 
 	if (!Sender.IsValid())
@@ -200,11 +226,19 @@ bool FDMXProtocolArtNet::IsCausingLoopback(EDMXCommunicationType InCommunication
 	return InCommunicationType == EDMXCommunicationType::Broadcast;
 }
 
-TSharedPtr<FDMXProtocolArtNetSender> FDMXProtocolArtNet::FindExistingEndpointSender(const FString& IPAddress, EDMXCommunicationType CommunicationType) const
+TSharedPtr<FDMXProtocolArtNetSender> FDMXProtocolArtNet::FindExistingBroadcastSender(const FString& NetworkInterfaceAddress) const
 {
+	// Find the broadcast address
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+
+	TSharedRef<FInternetAddr> InternetAddr = SocketSubsystem->CreateInternetAddr();
+	InternetAddr->SetBroadcastAddress();
+
+	FString BroadcastAddress = InternetAddr->ToString(false);
+
 	for (const TSharedPtr<FDMXProtocolArtNetSender>& Sender : Senders)
 	{
-		if (Sender->EqualsEndpoint(IPAddress, CommunicationType))
+		if (Sender->EqualsEndpoint(NetworkInterfaceAddress, BroadcastAddress))
 		{
 			return Sender;
 		}
@@ -213,7 +247,20 @@ TSharedPtr<FDMXProtocolArtNetSender> FDMXProtocolArtNet::FindExistingEndpointSen
 	return nullptr;
 }
 
-TSharedPtr<FDMXProtocolArtNetReceiver> FDMXProtocolArtNet::FindExistingEndpointReceiver(const FString& IPAddress, EDMXCommunicationType CommunicationType) const
+TSharedPtr<FDMXProtocolArtNetSender> FDMXProtocolArtNet::FindExistingUnicastSender(const FString& NetworkInterfaceAddress, const FString& DestinationAddress) const
+{
+	for (const TSharedPtr<FDMXProtocolArtNetSender>& Sender : Senders)
+	{
+		if (Sender->EqualsEndpoint(NetworkInterfaceAddress, DestinationAddress))
+		{
+			return Sender;
+		}
+	}
+
+	return nullptr;
+}
+
+TSharedPtr<FDMXProtocolArtNetReceiver> FDMXProtocolArtNet::FindExistingReceiver(const FString& IPAddress, EDMXCommunicationType CommunicationType) const
 {
 	for (const TSharedPtr<FDMXProtocolArtNetReceiver>& Receiver : Receivers)
 	{

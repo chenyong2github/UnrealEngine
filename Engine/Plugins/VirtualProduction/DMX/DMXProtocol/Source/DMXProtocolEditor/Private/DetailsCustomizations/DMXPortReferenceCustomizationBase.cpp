@@ -2,11 +2,10 @@
 
 #include "DMXPortReferenceCustomizationBase.h"
 
-#include "DMXEditorLog.h"
+#include "DMXProtocolLog.h"
 #include "DMXProtocolCommon.h"
 #include "ScopedTransaction.h" 
 #include "Interfaces/IDMXProtocol.h"
-#include "Library/DMXLibrary.h"
 #include "IO/DMXPortManager.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
@@ -17,8 +16,8 @@
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h" 
 #include "Misc/Guid.h" 
-#include "Widgets/Text/STextBlock.h" 
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Text/STextBlock.h" 
 
 
 #define LOCTEXT_NAMESPACE "DMXPortConfigCustomizationBase"
@@ -93,8 +92,8 @@ void FDMXPortReferenceCustomizationBase::CustomizeChildren(TSharedRef<IPropertyH
 			// b) This is an existing port reference, but the corresponding port config got deleted in settings
 
 			// Let the port remain invalid, but let users know
-			ErrorText = LOCTEXT("PortReferenceNoLongerValid", "The referenced Port got force deleted. Please select another port.");
-			UE_LOG(LogDMXEditor, Error, TEXT("A referenced Port got force deleted. Please review your libraries."));
+			ErrorText = LOCTEXT("PortReferenceNoLongerValid", "The referenced Port was deleted. Please select another port.");
+			UE_LOG(LogDMXProtocol, Error, TEXT("The referenced Port was deleted. Please review your libraries."));
 		}
 		else
 		{
@@ -302,59 +301,6 @@ void FDMXPortReferenceCustomizationBase::ApplySelectedPortGuid()
 	const TSharedPtr<IPropertyHandle>& PortGuidHandle = GetPortGuidHandle();
 	check(PortGuidHandle.IsValid() && PortGuidHandle->IsValidHandle());
 
-
-	// If the port resides in a DMX Library, raise a property changed event on the outer array to ease handling property changes
-	// Begin Library Porperty Change Section
-	struct FDMXScopedLibraryChangedHandler
-	{
-		FDMXScopedLibraryChangedHandler(UDMXLibrary* InLibrary, FProperty* InPortGuidProperty, bool bInputPort)
-			: Library(InLibrary)
-			, PortGuidProperty(InPortGuidProperty)
-			, PortArrayProperty(nullptr)
-		{
-			if (IsValid(Library))
-			{
-				PortArrayProperty = [this, bInputPort]() {
-					if (bInputPort)
-					{
-						return FindFProperty<FArrayProperty>(UDMXLibrary::StaticClass(), Library->GetInputPortReferencesPropertyName());
-					}
-
-					return FindFProperty<FArrayProperty>(UDMXLibrary::StaticClass(), Library->GetOutputPortReferencesPropertyName());
-				}();
-
-				PropertyChain.AddHead(PortArrayProperty);
-				PropertyChain.AddTail(PortGuidProperty);
-				PropertyChain.SetActiveMemberPropertyNode(PortArrayProperty);
-				PropertyChain.SetActivePropertyNode(PortGuidProperty);
-
-				Library->PreEditChange(PortArrayProperty);
-				Library->Modify();
-			}
-		}
-
-		~FDMXScopedLibraryChangedHandler()
-		{
-			if (IsValid(Library))
-			{
-				FPropertyChangedEvent PropertyChangedEvent(PortArrayProperty, EPropertyChangeType::ValueSet);
-				FPropertyChangedChainEvent PropertyChangedChainEvent(PropertyChain, PropertyChangedEvent);
-
-				Library->PostEditChangeChainProperty(PropertyChangedChainEvent);
-			}
-		}
-
-	private:
-		UDMXLibrary* Library;
-		FProperty* PortGuidProperty;
-		FArrayProperty* PortArrayProperty;
-		FEditPropertyChain PropertyChain;
-	};
-	
-	const FDMXScopedLibraryChangedHandler ScopedLibraryChangedHandler(GetOuterDMXLibrary(), PortGuidHandle->GetProperty(), IsInputPort());
-	// End Library Porperty Change Section
-
-
 	PortGuidHandle->NotifyPreChange();
 
 	TArray<void*> RawData;
@@ -389,22 +335,6 @@ FGuid FDMXPortReferenceCustomizationBase::GetPortGuid() const
 	}
 
 	return FGuid();
-}
-
-UDMXLibrary* FDMXPortReferenceCustomizationBase::GetOuterDMXLibrary() const
-{
-	const TSharedPtr<IPropertyHandle>& PortGuidHandle = GetPortGuidHandle();
-	check(PortGuidHandle.IsValid() && PortGuidHandle->IsValidHandle());
-
-	TArray<UObject*> OuterObjects;
-	PortGuidHandle->GetOuterObjects(OuterObjects);
-
-	if(OuterObjects.Num() == 1)
-	{
-		return Cast<UDMXLibrary>(OuterObjects[0]);
-	}
-
-	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

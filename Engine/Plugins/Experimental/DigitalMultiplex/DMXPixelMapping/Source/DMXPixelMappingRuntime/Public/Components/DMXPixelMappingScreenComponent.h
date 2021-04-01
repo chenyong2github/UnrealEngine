@@ -5,8 +5,8 @@
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
 
 #include "DMXProtocolTypes.h"
+#include "IO/DMXOutputPortReference.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "Library/DMXOutputPortReference.h"
 
 #include "DMXPixelMappingScreenComponent.generated.h"
 

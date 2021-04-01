@@ -7,6 +7,7 @@
 #include "DMXProtocolTypes.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXPortManager.h"
+#include "IO/DMXOutputPortConfig.h"
 #include "Widgets/SDMXCommunicationTypeComboBox.h"
 #include "Widgets/SDMXIPAddressEditWidget.h"
 #include "Widgets/SDMXProtocolNameComboBox.h"
@@ -53,7 +54,7 @@ void FDMXPortConfigCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHand
 	// Cache customized properties
 	ProtocolNameHandle = PropertyHandles.FindChecked(GetProtocolNamePropertyNameChecked());
 	CommunicationTypeHandle = PropertyHandles.FindChecked(GetCommunicationTypePropertyNameChecked());
-	AddressHandle = PropertyHandles.FindChecked(GetAddressPropertyNameChecked());
+	DeviceAddressHandle = PropertyHandles.FindChecked(GetDeviceAddressPropertyNameChecked());
 	PortGuidHandle = PropertyHandles.FindChecked(GetPortGuidPropertyNameChecked());
 
 	for (auto Iter(PropertyHandles.CreateConstIterator()); Iter; ++Iter)
@@ -75,9 +76,28 @@ void FDMXPortConfigCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHand
 		{
 			GenerateCommunicationTypeRow(PropertyRow);
 		}
-		else if (Iter.Value() == AddressHandle)
+		else if (Iter.Value() == DeviceAddressHandle)
 		{
 			GenerateIPAddressRow(PropertyRow);
+		}
+		if (Iter.Key() == GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, DestinationAddress))
+		{
+			// Customize the destination address for DMXOutputPortConfig only, instead of doing it in DMXOutputPortConfigCustomization.
+			// This is not beautiful code, but otherwise the whole customization with almost identical code would have to be moved to child classes.
+
+			// Bind to communication type changes, instead of directly using in the visibility attribute
+			// since the CommunicationTypeHandle may no longer be accessible when the getter is called.
+			FSimpleDelegate OnCommunicationTypeChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXPortConfigCustomizationBase::UpdateDestinationAddressVisibility);
+			CommunicationTypeHandle->SetOnPropertyValueChanged(OnCommunicationTypeChangedDelegate);
+
+			UpdateDestinationAddressVisibility();
+
+			TAttribute<EVisibility> DestinationAddressVisibilityAttribute =
+				TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]() {
+				return DestinationAddressVisibility;
+			}));
+
+			PropertyRow.Visibility(DestinationAddressVisibilityAttribute);
 		}
 	}
 }
@@ -102,9 +122,10 @@ FGuid FDMXPortConfigCustomizationBase::GetPortGuidChecked() const
 	TArray<void*> RawData;
 	PortGuidHandle->AccessRawData(RawData);
 
-	if (ensureMsgf(RawData.Num() == 1, TEXT("The port configs reside in an array, multi-editing is unexpected")))
+	// Multiediting is not supported, may fire if this is used in a blueprint way that would support it
+	if (ensureMsgf(RawData.Num() == 1, TEXT("Using port config in ways that would enable multiediting is not supported.")))
 	{
-		FGuid* PortGuidPtr = reinterpret_cast<FGuid*>(RawData[0]);
+		const FGuid* PortGuidPtr = reinterpret_cast<FGuid*>(RawData[0]);
 		if (ensureMsgf(PortGuidPtr, TEXT("Expected to be valid")))
 		{
 			check(PortGuidPtr->IsValid());
@@ -129,17 +150,12 @@ EDMXCommunicationType FDMXPortConfigCustomizationBase::GetCommunicationType() co
 
 FString FDMXPortConfigCustomizationBase::GetIPAddress() const
 {
-	check(AddressHandle.IsValid());
+	check(DeviceAddressHandle.IsValid());
 
 	FString IPAddress;
-	ensure(AddressHandle->GetValue(IPAddress) == FPropertyAccess::Success);
+	ensure(DeviceAddressHandle->GetValue(IPAddress) == FPropertyAccess::Success);
 
 	return IPAddress;
-}
-
-void FDMXPortConfigCustomizationBase::NotifyEditorChangedPortConfig()
-{
-	FDMXPortManager::Get().NotifyPortConfigChanged(GetPortGuidChecked());
 }
 
 void FDMXPortConfigCustomizationBase::GenerateProtocolNameRow(IDetailPropertyRow& PropertyRow)
@@ -196,17 +212,6 @@ void FDMXPortConfigCustomizationBase::GenerateCommunicationTypeRow(IDetailProper
 void FDMXPortConfigCustomizationBase::GenerateIPAddressRow(IDetailPropertyRow& PropertyRow)
 {
 	// Customizate the IPAddress property to show a combo box with available IP addresses
-
-	// Set the initial edit mode depending on the communication type
-	const EDMXCommunicationType CommunicationType = GetCommunicationType();
-	const EDMXIPEditWidgetMode IPEditWidgetMode = [CommunicationType](){
-		if (CommunicationType == EDMXCommunicationType::Unicast)
-		{
-			return EDMXIPEditWidgetMode::EditableTextBox;
-		}
-		return EDMXIPEditWidgetMode::LocalAdapterAddresses;
-	}();
-
 	FString InitialValue = GetIPAddress();
 
 	TSharedPtr<SWidget> NameWidget;
@@ -222,7 +227,6 @@ void FDMXPortConfigCustomizationBase::GenerateIPAddressRow(IDetailPropertyRow& P
 		.ValueContent()
 		[
 			SAssignNew(IPAddressEditWidget, SDMXIPAddressEditWidget)
-			.Mode(IPEditWidgetMode)
 			.InitialValue(InitialValue)
 			.OnIPAddressSelected(this, &FDMXPortConfigCustomizationBase::OnIPAddressSelected)
 		];
@@ -250,8 +254,6 @@ void FDMXPortConfigCustomizationBase::OnProtocolNameSelected()
 	ProtocolNameHandle->NotifyPreChange();
 	ProtocolNameHandle->SetValue(ProtocolName);
 	ProtocolNameHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-
-	NotifyEditorChangedPortConfig();
 }
 
 void FDMXPortConfigCustomizationBase::OnCommunicationTypeSelected()
@@ -264,38 +266,36 @@ void FDMXPortConfigCustomizationBase::OnCommunicationTypeSelected()
 
 	const FScopedTransaction Transaction(LOCTEXT("CommunicationTypeSelected", "DMX: Selected Communication Type"));
 	
-	AddressHandle->NotifyPreChange();
+	DeviceAddressHandle->NotifyPreChange();
 	CommunicationTypeHandle->SetValue(static_cast<uint8>(SelectedCommunicationType));
-	AddressHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-
-	// Set the IP Edit Mode depending on the Communication Type
-	const EDMXCommunicationType CommunicationType = GetCommunicationType();
-	if (CommunicationType == EDMXCommunicationType::Unicast)
-	{
-		IPAddressEditWidget->SetEditMode(EDMXIPEditWidgetMode::EditableTextBox);
-	}
-	else
-	{
-		IPAddressEditWidget->SetEditMode(EDMXIPEditWidgetMode::LocalAdapterAddresses);
-	}
-
-	NotifyEditorChangedPortConfig();
+	DeviceAddressHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
 void FDMXPortConfigCustomizationBase::OnIPAddressSelected()
 {
-	check(AddressHandle.IsValid());
+	check(DeviceAddressHandle.IsValid());
 	check(IPAddressEditWidget.IsValid());
 
 	TSharedPtr<FString> SelectedIP = IPAddressEditWidget->GetSelectedIPAddress();
 
 	const FScopedTransaction Transaction(LOCTEXT("CommunicationTypeSelected", "DMX: Selected IP Address"));
 	
-	AddressHandle->NotifyPreChange();
-	ensure(AddressHandle->SetValue(*SelectedIP) == FPropertyAccess::Success);	
-	AddressHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+	DeviceAddressHandle->NotifyPreChange();
+	ensure(DeviceAddressHandle->SetValue(*SelectedIP) == FPropertyAccess::Success);	
+	DeviceAddressHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+}
 
-	NotifyEditorChangedPortConfig();
+void FDMXPortConfigCustomizationBase::UpdateDestinationAddressVisibility()
+{
+	EDMXCommunicationType CommunicationType = GetCommunicationType();
+	if (CommunicationType == EDMXCommunicationType::Unicast)
+	{
+		DestinationAddressVisibility = EVisibility::Visible;
+	}
+	else
+	{
+		DestinationAddressVisibility = EVisibility::Collapsed;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

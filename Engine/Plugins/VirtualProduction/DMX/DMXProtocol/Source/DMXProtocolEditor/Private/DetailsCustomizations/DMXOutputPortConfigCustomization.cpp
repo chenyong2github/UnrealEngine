@@ -6,6 +6,7 @@
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolTypes.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "IO/DMXOutputPort.h"
 #include "IO/DMXOutputPortConfig.h"
 #include "IO/DMXPortManager.h"
 #include "Widgets/SDMXCommunicationTypeComboBox.h"
@@ -28,14 +29,11 @@ TSharedRef<IPropertyTypeCustomization> FDMXOutputPortConfigCustomization::MakeIn
 	return MakeShared<FDMXOutputPortConfigCustomization>();
 }
 
-void FDMXOutputPortConfigCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FDMXOutputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	FDMXPortConfigCustomizationBase::CustomizeHeader(StructPropertyHandle, HeaderRow, StructCustomizationUtils);
-}
+	FDMXPortConfigCustomizationBase::CustomizeChildren(InStructPropertyHandle, ChildBuilder, StructCustomizationUtils);
 
-void FDMXOutputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
-{
-	FDMXPortConfigCustomizationBase::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
+	StructPropertyHandle = InStructPropertyHandle;
 
 	// Handle property changes of the communication type, to set bLookbackToEngine according to if the protocol IsCausingLoopback 
 	LoopbackToEngineHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, bLoopbackToEngine));
@@ -43,14 +41,12 @@ void FDMXOutputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 	FSimpleDelegate OnCommunicationTypeChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXOutputPortConfigCustomization::OnCommunicationTypeChanged);
 	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, CommunicationType))->SetOnPropertyValueChanged(OnCommunicationTypeChangedDelegate);
 
-	// Notify port manager about any unhandled property changes
-	FSimpleDelegate NotifyPortConfigChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXPortConfigCustomizationBase::NotifyEditorChangedPortConfig);
-	
-	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, bLoopbackToEngine))->SetOnPropertyValueChanged(NotifyPortConfigChangedDelegate);
-	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, LocalUniverseStart))->SetOnPropertyValueChanged(NotifyPortConfigChangedDelegate);
-	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, NumUniverses))->SetOnPropertyValueChanged(NotifyPortConfigChangedDelegate);
-	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, ExternUniverseStart))->SetOnPropertyValueChanged(NotifyPortConfigChangedDelegate);
-	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, Priority))->SetOnPropertyValueChanged(NotifyPortConfigChangedDelegate);
+	// Update corresponding port on property changes
+	FSimpleDelegate UpdatePortDelegate = FSimpleDelegate::CreateSP(this, &FDMXOutputPortConfigCustomization::UpdatePort);
+	StructPropertyHandle->SetOnChildPropertyValueChanged(UpdatePortDelegate);
+
+	// Since base may make changes to data we want to update the port already
+	UpdatePort();
 }
 
 FName FDMXOutputPortConfigCustomization::GetProtocolNamePropertyNameChecked() const
@@ -63,9 +59,9 @@ FName FDMXOutputPortConfigCustomization::GetCommunicationTypePropertyNameChecked
 	return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, CommunicationType);
 }
 
-FName FDMXOutputPortConfigCustomization::GetAddressPropertyNameChecked() const
+FName FDMXOutputPortConfigCustomization::GetDeviceAddressPropertyNameChecked() const
 {
-	return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, Address);
+	return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, DeviceAddress);
 }
 
 FName FDMXOutputPortConfigCustomization::GetPortGuidPropertyNameChecked() const
@@ -76,6 +72,28 @@ FName FDMXOutputPortConfigCustomization::GetPortGuidPropertyNameChecked() const
 const TArray<EDMXCommunicationType> FDMXOutputPortConfigCustomization::GetSupportedCommunicationTypes() const
 {
 	return GetProtocolChecked()->GetOutputPortCommunicationTypes();
+}
+
+void FDMXOutputPortConfigCustomization::UpdatePort()
+{
+	check(StructPropertyHandle.IsValid());
+
+	TArray<void*> RawData;
+	StructPropertyHandle->AccessRawData(RawData);
+
+	// Multiediting is not supported, may fire if this is used in a blueprint way that would support it
+	if (ensureMsgf(RawData.Num() == 1, TEXT("Using port config in ways that would enable multiediting is not supported.")))
+	{
+		const FDMXOutputPortConfig* PortConfigPtr = reinterpret_cast<FDMXOutputPortConfig*>(RawData[0]);
+		if (ensure(PortConfigPtr))
+		{
+			FDMXOutputPortSharedPtr OutputPort = FDMXPortManager::Get().FindOutputPortByGuid(PortConfigPtr->GetPortGuid());
+			if (ensure(OutputPort.IsValid()))
+			{
+				OutputPort->UpdateFromConfig(*PortConfigPtr);
+			}
+		}
+	}
 }
 
 void FDMXOutputPortConfigCustomization::OnCommunicationTypeChanged()
