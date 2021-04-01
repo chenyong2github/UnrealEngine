@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "Styling/SlateStyles.h"
+#include "Styling/SlateTypes.h"
 
 class IDetailLayoutBuilder;
 
