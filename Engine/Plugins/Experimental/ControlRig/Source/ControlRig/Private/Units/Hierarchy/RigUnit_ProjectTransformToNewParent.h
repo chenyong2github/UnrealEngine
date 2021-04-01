@@ -13,7 +13,7 @@
  * the pelvis (initial), set the old parent to be the head (initial)
  * and set the new parent to the head as well (not-initial == current).
  */
-USTRUCT(meta=(DisplayName="Project to new Parent", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "ProjectTransformToNewParent,Relative,Reparent,Offset", Varying))
+USTRUCT(meta=(DisplayName="Project to new Parent", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "ProjectTransformToNewParent,Relative,Reparent,Offset", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_ProjectTransformToNewParent : public FRigUnit
 {
 	GENERATED_BODY()

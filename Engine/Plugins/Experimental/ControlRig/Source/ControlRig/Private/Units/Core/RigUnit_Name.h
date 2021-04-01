@@ -5,7 +5,7 @@
 #include "Units/RigUnit.h"
 #include "RigUnit_Name.generated.h"
 
-USTRUCT(meta=(Abstract, Category="Core|Name", NodeColor = "0.7 0.05 0.5"))
+USTRUCT(meta=(Abstract, Category="Core|Name", NodeColor = "0.462745, 1,0, 0.329412"))
 struct CONTROLRIG_API FRigUnit_NameBase : public FRigUnit
 {
 	GENERATED_BODY()

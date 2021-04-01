@@ -11,7 +11,7 @@ URigVMNode::URigVMNode()
 : UObject()
 , Position(FVector2D::ZeroVector)
 , Size(FVector2D::ZeroVector)
-, NodeColor(FLinearColor::Black)
+, NodeColor(FLinearColor::White)
 , GetSliceContextBracket(0)
 {
 

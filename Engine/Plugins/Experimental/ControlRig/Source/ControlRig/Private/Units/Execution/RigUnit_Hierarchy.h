@@ -6,7 +6,7 @@
 #include "ControlRigDefines.h" 
 #include "RigUnit_Hierarchy.generated.h"
 
-USTRUCT(meta = (Abstract, NodeColor = "0.7 0.05 0.5", Category = "Hierarchy"))
+USTRUCT(meta = (Abstract, NodeColor="0.462745, 1,0, 0.329412", Category = "Hierarchy"))
 struct CONTROLRIG_API FRigUnit_HierarchyBase : public FRigUnit
 {
 	GENERATED_BODY()
