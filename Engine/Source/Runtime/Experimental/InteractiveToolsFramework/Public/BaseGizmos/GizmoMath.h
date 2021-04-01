@@ -62,6 +62,46 @@ namespace GizmoMath
 		bool& bIntersectsOut, FVector& SphereIntersectionPointOut);
 
 	/**
+	 * @todo change FVector to a templated vector type specialized by RealType (double or float)
+	 * Find the intersection of the ray defined by RayOrigin and RayDirection
+	 * with the cylinder defined by CylinderCenter, CylinderAxis, CylinderRadius, and CylinderHeight.
+	 * Returns intersection success/failure in bOutIntersects and the hit depth parameter 
+	 * along the ray for the first intersection in OutHitDepth.
+	 */
+	template<typename RealType>
+	void INTERACTIVETOOLSFRAMEWORK_API RayCylinderIntersection(
+		const FVector& CylinderCenter, const FVector& CylinderAxis, RealType CylinderRadius, RealType CylinderHeight,
+		const FVector& RayOrigin, const FVector& RayDirection,
+		bool& bIntersectsOut, RealType& OutHitDepth);
+
+
+	/**
+	 * @todo change FVector to a templated vector type specialized by RealType (double or float)
+	 * Find the intersection of the ray defined by RayOrigin and RayDirection
+	 * with the cone defined by ConeCenter, ConeDirection, ConeCosAngle, and ConeHeight.
+	 * Where ConeCosAngle is the cosine of the cone opening angle, defined as the angle
+	 * at the apex between the cone's axis and slant edge.
+	 * Returns intersection success/failure in bOutIntersects and the hit depth parameter
+	 * along the ray for the first intersection in OutHitDepth.
+	 */
+	template <typename RealType>
+	void INTERACTIVETOOLSFRAMEWORK_API RayConeIntersection(
+		const FVector& ConeCenter, const FVector& ConeDirection, RealType ConeCosAngle, RealType ConeHeight,
+		const FVector& RayOrigin, const FVector& RayDirection,
+		bool& bIntersectsOut, RealType& OutHitDepth);
+
+	/**
+	 * Find the intersection of two floating point intervals in which
+	 * the interval inputs contain pairs of floats sorted in increasing order.
+	 * Returns the number of intersections intersection and intersection 
+	 * results in increasing order. 
+	 */
+	template <typename RealType>
+	void INTERACTIVETOOLSFRAMEWORK_API IntervalIntervalIntersection(
+		const RealType Interval0[2], const RealType Interval1[2],
+		int& OutNumIntersections, RealType& OutResult0, RealType& OutResult1);
+
+	/**
 	 * Find the closest point to QueryPoint that is on the circle
 	 * defined by CircleOrigin, CircleNormal, and CircleRadius.
 	 */
@@ -115,4 +155,12 @@ namespace GizmoMath
 	 * @return snapped/rounded value
 	 */
 	INTERACTIVETOOLSFRAMEWORK_API float SnapToIncrement(float Value, float Increment);
+
+	/**
+	 * @todo change FVector to a templated vector type specialized by RealType (double or float)
+	 * Compute vector orthogonal to V.
+	 * @return Orthogonal vector
+	 */
+	INTERACTIVETOOLSFRAMEWORK_API FVector GetOrthogonalVector(const FVector& V);
 }
+
