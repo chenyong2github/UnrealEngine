@@ -3,6 +3,7 @@
 #include "Element2StaticMesh.h"
 #include "Synchronizer.h"
 #include "DatasmithHashTools.h"
+#include "3DElement2String.h"
 
 #include "ConvexPolygon.hpp"
 #include "ModelElement.hpp"
@@ -328,6 +329,9 @@ void FElement2StaticMesh::InitPolygonMaterial()
 
 void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element& InModelElement)
 {
+#if 0
+	UE_AC_TraceF("Element\n%s\n", F3DElement2String::Element2String(InModelElement).c_str());
+#endif
 #if 0
 	static GS::Guid BreakGuid("0A0BFAC4-B753-1144-A733-1E73939B3ECB");
 	if (InModelElement.GetElemGuid() == BreakGuid)

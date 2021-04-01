@@ -434,8 +434,8 @@ utf8_string FElement2String::GetIFCPropertiesAsString(const API_Guid& InElementG
 // Tool:Return Components as a string
 utf8_string FElement2String::GetComponentsAsString(const API_Elem_Head& InElementHeader)
 {
-	utf8_string			   ComponentsString;
-	GSErrCode			   GSErr = NoError;
+	utf8_string ComponentsString;
+	GSErrCode	GSErr = NoError;
 
 #if AC_VERSION < 25
 	API_ComponentRefType** CompRefs = nullptr;
@@ -463,7 +463,7 @@ utf8_string FElement2String::GetComponentsAsString(const API_Elem_Head& InElemen
 						break;
 					case APIDBRef_Local:
 						GSErr =
-						ACAPI_ListData_GetLocal((*CompRefs)[IndexComponent].libIndex, &InElementHeader, &ListData);
+							ACAPI_ListData_GetLocal((*CompRefs)[IndexComponent].libIndex, &InElementHeader, &ListData);
 						break;
 				}
 				if (GSErr != NoError)
@@ -472,14 +472,14 @@ utf8_string FElement2String::GetComponentsAsString(const API_Elem_Head& InElemen
 				}
 
 				ComponentsString +=
-				Utf8StringFormat("\t\t\tKeycode/code: \"%s\"/\"%s\" quantity: %.2f\n", ListData.component.keycode,
-								 ListData.component.code, (*CompRefs)[IndexComponent].quantity);
+					Utf8StringFormat("\t\t\tKeycode/code: \"%s\"/\"%s\" quantity: %.2f\n", ListData.component.keycode,
+									 ListData.component.code, (*CompRefs)[IndexComponent].quantity);
 			}
 		}
 		BMKillHandle((GSHandle*)&CompRefs);
 	}
 #else
-	GS::Array<API_ElemComponentID>	Components;
+	GS::Array< API_ElemComponentID > Components;
 	GSErr = ACAPI_Element_GetComponents(InElementHeader.guid, Components);
 	USize NbComp = Components.GetSize();
 	if (GSErr == NoError)
@@ -492,15 +492,16 @@ utf8_string FElement2String::GetComponentsAsString(const API_Elem_Head& InElemen
 		{
 			API_ElemComponentID& Component = Components[IndexComponent];
 
-			GS::Array<API_PropertyDefinition> propertyDefinitions;
-			GSErr = ACAPI_ElemComponent_GetPropertyDefinitions(Component, API_PropertyDefinitionFilter_All, propertyDefinitions);
+			GS::Array< API_PropertyDefinition > propertyDefinitions;
+			GSErr = ACAPI_ElemComponent_GetPropertyDefinitions(Component, API_PropertyDefinitionFilter_All,
+															   propertyDefinitions);
 			if (GSErr != NoError)
 			{
 				UE_AC_DebugF("FElement2String::GetComponentsAsString - Error=%d getting property definitions\n", GSErr);
 				break;
 			}
 
-			GS::Array<API_Property> properties;
+			GS::Array< API_Property > properties;
 			GSErr = ACAPI_ElemComponent_GetPropertyValues(Component, propertyDefinitions, properties);
 			if (GSErr != NoError)
 			{
@@ -525,12 +526,13 @@ utf8_string FElement2String::GetComponentsAsString(const API_Elem_Head& InElemen
 					continue;
 				}
 
-				GS::UniString	PropertyValue;
+				GS::UniString PropertyValue;
 				GSErr = ACAPI_Property_GetPropertyValueString(Property, &PropertyValue);
 				if (GSErr == NoError)
 				{
-					ComponentsString += Utf8StringFormat("\t\t\tProperty Group:\"%s\" Definition:\"%s\" Value=\"%s\"\n", Group.name.ToUtf8(),
-														 Property.definition.name.ToUtf8(), PropertyValue.ToUtf8());
+					ComponentsString += Utf8StringFormat("\t\t\tProperty Group:\"%s\" Definition:\"%s\" Value=\"%s\"\n",
+														 Group.name.ToUtf8(), Property.definition.name.ToUtf8(),
+														 PropertyValue.ToUtf8());
 				}
 				else
 				{

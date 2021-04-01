@@ -13,7 +13,8 @@ class FMetaData
 
 	FMetaData(const GS::Guid& InElementId, const TSharedPtr< IDatasmithActorElement >& InActorElement);
 
-	void SetAssociatedElement(const GS::Guid& /* InElementId */, const TSharedPtr< IDatasmithActorElement >& InActorElement)
+	void SetAssociatedElement(const GS::Guid& /* InElementId */,
+							  const TSharedPtr< IDatasmithActorElement >& InActorElement)
 	{
 		MetaData->SetAssociatedElement(InActorElement);
 	}

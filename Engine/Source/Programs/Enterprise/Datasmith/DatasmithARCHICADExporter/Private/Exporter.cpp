@@ -17,12 +17,13 @@ DISABLE_SDK_WARNINGS_END
 #ifdef TicksPerSecond
 	#undef TicksPerSecond
 #endif
-#include "FileManager.h"
-#include "Paths.h"
-#include "FileSystem.hpp"
 
 DISABLE_SDK_WARNINGS_START
 
+#include "FileManager.h"
+#include "Paths.h"
+
+#include "FileSystem.hpp"
 #include "DGFileDialog.hpp"
 
 DISABLE_SDK_WARNINGS_END

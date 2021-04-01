@@ -69,7 +69,8 @@ const GS::UniString& FElementTools::TypeName(API_ElemTypeID InElementType)
 	if (TypeNames[InElementType] == nullptr)
 	{
 		TypeNames[InElementType] = std::make_unique< GS::UniString >();
-		GSErrCode	  GSErr = ACAPI_Goodies(APIAny_GetElemTypeNameID, (void*)(size_t)InElementType, TypeNames[InElementType].get());
+		GSErrCode GSErr =
+			ACAPI_Goodies(APIAny_GetElemTypeNameID, (void*)(size_t)InElementType, TypeNames[InElementType].get());
 		if (GSErr != NoError)
 		{
 			UE_AC_DebugF("CElement::TypeName - Error %d for type%d\n", GSErr, InElementType);
