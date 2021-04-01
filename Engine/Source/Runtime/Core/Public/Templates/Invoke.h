@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Traits/MemberFunctionPtrOuter.h"
 #include <type_traits>
 
 
@@ -49,15 +50,13 @@ FORCEINLINE auto Invoke(ReturnType ObjType::*pdm, CallableType&& Callable)
 	return UE::Core::Private::DereferenceIfNecessary<ObjType>(Forward<CallableType>(Callable)).*pdm;
 }
 
-template <typename ReturnType, typename ObjType, typename... PMFArgTypes, typename CallableType, typename... ArgTypes>
-FORCEINLINE auto Invoke(ReturnType (ObjType::*PtrMemFun)(PMFArgTypes...), CallableType&& Callable, ArgTypes&&... Args)
-	-> decltype((UE::Core::Private::DereferenceIfNecessary<ObjType>(Forward<CallableType>(Callable)).*PtrMemFun)(Forward<ArgTypes>(Args)...))
-{
-	return (UE::Core::Private::DereferenceIfNecessary<ObjType>(Forward<CallableType>(Callable)).*PtrMemFun)(Forward<ArgTypes>(Args)...);
-}
-
-template <typename ReturnType, typename ObjType, typename... PMFArgTypes, typename CallableType, typename... ArgTypes>
-FORCEINLINE auto Invoke(ReturnType (ObjType::*PtrMemFun)(PMFArgTypes...) const, CallableType&& Callable, ArgTypes&&... Args)
+template <
+	typename    PtrMemFunType,
+	typename    CallableType,
+	typename... ArgTypes,
+	typename    ObjType = TMemberFunctionPtrOuter_T<PtrMemFunType>
+>
+FORCEINLINE auto Invoke(PtrMemFunType PtrMemFun, CallableType&& Callable, ArgTypes&&... Args)
 	-> decltype((UE::Core::Private::DereferenceIfNecessary<ObjType>(Forward<CallableType>(Callable)).*PtrMemFun)(Forward<ArgTypes>(Args)...))
 {
 	return (UE::Core::Private::DereferenceIfNecessary<ObjType>(Forward<CallableType>(Callable)).*PtrMemFun)(Forward<ArgTypes>(Args)...);
