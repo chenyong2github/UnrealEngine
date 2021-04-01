@@ -211,6 +211,14 @@ FBox FWorldPartitionActorDesc::GetBounds() const
 	return FBox(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
 }
 
+FName FWorldPartitionActorDesc::GetActorName() const
+{
+	FString ActorName;
+	FString ActorContext;
+	verify(GetActorPath().ToString().Split(TEXT("."), &ActorContext, &ActorName, ESearchCase::CaseSensitive, ESearchDir::FromEnd));
+	return *ActorName;
+}
+
 UHLODLayer* FWorldPartitionActorDesc::GetHLODLayer() const
 {
 	return HLODLayer.IsNone() ? nullptr : Cast<UHLODLayer>(FSoftObjectPath(HLODLayer).TryLoad());

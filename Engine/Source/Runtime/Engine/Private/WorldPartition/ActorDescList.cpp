@@ -5,48 +5,50 @@
 #if WITH_EDITOR
 FWorldPartitionActorDesc* FActorDescList::AddActor(const AActor* InActor)
 {
-	TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(InActor->CreateActorDesc());
-	check(NewActorDesc->IsValid());
+	FWorldPartitionActorDesc* NewActorDesc = InActor->CreateActorDesc().Release();
+	check(NewActorDesc);
 
-	check(!Actors.Contains((*NewActorDesc)->GetGuid()));
-	Actors.Add((*NewActorDesc)->GetGuid(), NewActorDesc);
+	AddActorDescriptor(NewActorDesc);
 
-	return NewActorDesc->Get();
+	return NewActorDesc;
 }
 
 const FWorldPartitionActorDesc* FActorDescList::GetActorDesc(const FGuid& Guid) const
 {
-	const TUniquePtr<FWorldPartitionActorDesc>* const * ActorDesc = Actors.Find(Guid);
+	const TUniquePtr<FWorldPartitionActorDesc>* const * ActorDesc = ActorsByGuid.Find(Guid);
 	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
 }
 
 FWorldPartitionActorDesc* FActorDescList::GetActorDesc(const FGuid& Guid)
 {
-	TUniquePtr<FWorldPartitionActorDesc>** ActorDesc = Actors.Find(Guid);
+	TUniquePtr<FWorldPartitionActorDesc>** ActorDesc = ActorsByGuid.Find(Guid);
 	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
 }
 
 const FWorldPartitionActorDesc& FActorDescList::GetActorDescChecked(const FGuid& Guid) const
 {
-	const TUniquePtr<FWorldPartitionActorDesc>* const ActorDesc = Actors.FindChecked(Guid);
+	const TUniquePtr<FWorldPartitionActorDesc>* const ActorDesc = ActorsByGuid.FindChecked(Guid);
 	return *ActorDesc->Get();
 }
 
 FWorldPartitionActorDesc& FActorDescList::GetActorDescChecked(const FGuid& Guid)
 {
-	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc = Actors.FindChecked(Guid);
+	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc = ActorsByGuid.FindChecked(Guid);
 	return *ActorDesc->Get();
 }
 
 const FWorldPartitionActorDesc* FActorDescList::GetActorDesc(const FString& PackageName) const
 {
-	const FName PackageFName(*PackageName);
-	for (const TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
+	FString ActorName;
+	FString ActorContext;
+	if (!PackageName.Split(TEXT("."), &ActorContext, &ActorName, ESearchCase::CaseSensitive, ESearchDir::FromEnd))
 	{
-		if (ActorDescPtr && ActorDescPtr->GetActorPackage() == PackageFName)
-		{
-			return ActorDescPtr.Get();
-		}
+		ActorName = PackageName;
+	}
+
+	if (const TUniquePtr<FWorldPartitionActorDesc>* const* ActorDesc = ActorsByName.Find(*ActorName))
+	{
+		return (*ActorDesc)->Get();
 	}
 
 	return nullptr;
@@ -68,7 +70,28 @@ const FWorldPartitionActorDesc* FActorDescList::GetActorDesc(const FSoftObjectPa
 
 void FActorDescList::Empty()
 {
-	Actors.Empty();
+	ActorsByGuid.Empty();
+	ActorsByName.Empty();
 	ActorDescList.Empty();
+}
+
+void FActorDescList::AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
+{
+	check(ActorDesc);
+	TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(ActorDesc);
+	ActorsByGuid.Add(ActorDesc->GetGuid(), NewActorDesc);
+	ActorsByName.Add(*ActorDesc->GetActorName().ToString(), NewActorDesc);
+}
+
+void FActorDescList::RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
+{
+	check(ActorDesc);
+	verify(ActorsByGuid.Remove(ActorDesc->GetGuid()));
+	verify(ActorsByName.Remove(*ActorDesc->GetActorName().ToString()));
+}
+
+TUniquePtr<FWorldPartitionActorDesc>* FActorDescList::GetActorDescriptor(const FGuid& ActorGuid)
+{
+	return ActorsByGuid.FindRef(ActorGuid);
 }
 #endif

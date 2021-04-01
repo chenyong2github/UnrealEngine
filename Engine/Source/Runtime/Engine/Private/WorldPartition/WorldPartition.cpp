@@ -811,9 +811,9 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 	}
 }
 
-void UWorldPartition::OnActorDescAdded(const TUniquePtr<FWorldPartitionActorDesc>& NewActorDesc)
+void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 {
-	HashActorDesc(NewActorDesc.Get());
+	HashActorDesc(NewActorDesc);
 
 	NewActorDesc->OnRegister();
 
@@ -823,9 +823,9 @@ void UWorldPartition::OnActorDescAdded(const TUniquePtr<FWorldPartitionActorDesc
 	}
 }
 
-void UWorldPartition::OnActorDescRemoved(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc)
+void UWorldPartition::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
 {
-	UnhashActorDesc(ActorDesc.Get());
+	UnhashActorDesc(ActorDesc);
 	ActorDesc->OnUnregister();
 		
 	if (WorldPartitionEditor)
@@ -834,14 +834,14 @@ void UWorldPartition::OnActorDescRemoved(const TUniquePtr<FWorldPartitionActorDe
 	}
 }
 
-void UWorldPartition::OnActorDescUpdating(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc)
+void UWorldPartition::OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc)
 {
-	UnhashActorDesc(ActorDesc.Get());
+	UnhashActorDesc(ActorDesc);
 }
 
-void UWorldPartition::OnActorDescUpdated(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc)
+void UWorldPartition::OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc)
 {
-	HashActorDesc(ActorDesc.Get());
+	HashActorDesc(ActorDesc);
 
 	if (WorldPartitionEditor)
 	{

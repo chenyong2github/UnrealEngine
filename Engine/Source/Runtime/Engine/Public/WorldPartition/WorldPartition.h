@@ -100,10 +100,10 @@ private:
 	void OnEndPlay();
 
 	// UActorDescContainer events
-	virtual void OnActorDescAdded(const TUniquePtr<FWorldPartitionActorDesc>& NewActorDesc) override;
-	virtual void OnActorDescRemoved(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) override;
-	virtual void OnActorDescUpdating(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) override;
-	virtual void OnActorDescUpdated(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) override;
+	virtual void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc) override;
+	virtual void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc) override;
+	virtual void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc) override;
+	virtual void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc) override;
 
 	virtual void OnActorDescRegistered(const FWorldPartitionActorDesc&) override;
 	virtual void OnActorDescUnregistered(const FWorldPartitionActorDesc&) override;

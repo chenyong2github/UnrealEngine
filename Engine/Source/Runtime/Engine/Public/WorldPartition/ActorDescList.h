@@ -9,6 +9,8 @@
 class ENGINE_API FActorDescList
 {
 #if WITH_EDITOR
+	friend struct FWorldPartitionHandleUtils;
+
 public:
 	FActorDescList() {}
 
@@ -27,7 +29,7 @@ public:
 	const FWorldPartitionActorDesc* GetActorDesc(const FString& PackageName) const;
 	const FWorldPartitionActorDesc* GetActorDesc(const FSoftObjectPath& InActorPath) const;
 
-	int32 GetActorDescCount() const { return Actors.Num(); }
+	int32 GetActorDescCount() const { return ActorsByGuid.Num(); }
 
 	void Empty();
 
@@ -45,7 +47,7 @@ public:
 
 	public:
 		TBaseIterator(ListType InActorDescList, UClass* InActorClass)
-			: ActorsIterator(InActorDescList->Actors)
+			: ActorsIterator(InActorDescList->ActorsByGuid)
 			, ActorClass(InActorClass)
 		{
 			check(ActorClass->IsChildOf(ActorType::StaticClass()));
@@ -139,7 +141,14 @@ public:
 	};
 
 protected:
+	void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
+	void RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
+	TUniquePtr<FWorldPartitionActorDesc>* GetActorDescriptor(const FGuid& ActorGuid);
+
 	TChunkedArray<TUniquePtr<FWorldPartitionActorDesc>> ActorDescList;
-	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> Actors;
+
+private:
+	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> ActorsByGuid;
+	TMap<FName, TUniquePtr<FWorldPartitionActorDesc>*> ActorsByName;
 #endif
 };

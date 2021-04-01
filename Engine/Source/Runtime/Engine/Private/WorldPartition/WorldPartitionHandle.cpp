@@ -7,7 +7,7 @@
 #if WITH_EDITOR
 TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleUtils::GetActorDesc(UActorDescContainer* Container, const FGuid& ActorGuid)
 {
-	if (TUniquePtr<FWorldPartitionActorDesc>** ActorDescPtr = Container->Actors.Find(ActorGuid))
+	if (TUniquePtr<FWorldPartitionActorDesc>** ActorDescPtr = Container->ActorsByGuid.Find(ActorGuid))
 	{
 		return *ActorDescPtr;
 	}

@@ -73,6 +73,8 @@ public:
 	inline FName GetFolderPath() const { return FolderPath; }
 	FBox GetBounds() const;
 
+	FName GetActorName() const;
+
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 
 	bool operator==(const FWorldPartitionActorDesc& Other) const

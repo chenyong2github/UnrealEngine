@@ -43,12 +43,56 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, bool 
 		AssetRegistry.GetAssets(Filter, Assets);
 	}
 
+	auto GetActorDescriptor = [this](const FAssetData& InAssetData) -> TUniquePtr<FWorldPartitionActorDesc>
+	{
+		FString ActorClassName;
+		static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
+		if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorClassName))
+		{
+			FString ActorMetaDataStr;
+			static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
+			if (InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr))
+			{
+				bool bIsValidClass = true;
+				UClass* ActorClass = FindObject<UClass>(ANY_PACKAGE, *ActorClassName, true);
+
+				if (!ActorClass)
+				{
+					ActorClass = AActor::StaticClass();
+					bIsValidClass = false;
+				}
+
+				FWorldPartitionActorDescInitData ActorDescInitData;
+				ActorDescInitData.NativeClass = ActorClass;
+				ActorDescInitData.PackageName = InAssetData.PackageName;
+				ActorDescInitData.ActorPath = InAssetData.ObjectPath;
+				FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
+
+				TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::CreateClassActorDesc(ActorDescInitData.NativeClass));
+
+				NewActorDesc->Init(this, ActorDescInitData);
+			
+				//check(bIsValidClass || (NewActorDesc->GetActorIsEditorOnly() && IsRunningGame()));
+
+				if (!bIsValidClass)
+				{
+					return nullptr;
+				}
+
+				return NewActorDesc;
+			}
+		}
+
+		return nullptr;
+	};
+
 	for (const FAssetData& Asset : Assets)
 	{
-		TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(GetActorDescriptor(Asset));
-		if (NewActorDesc->IsValid())
+		TUniquePtr<FWorldPartitionActorDesc> ActorDesc = GetActorDescriptor(Asset);
+
+		if (ActorDesc.IsValid())
 		{
-			Actors.Add((*NewActorDesc)->GetGuid(), NewActorDesc);
+			AddActorDescriptor(ActorDesc.Release());
 		}
 	}
 
@@ -95,49 +139,6 @@ void UActorDescContainer::BeginDestroy()
 }
 
 #if WITH_EDITOR
-TUniquePtr<FWorldPartitionActorDesc> UActorDescContainer::GetActorDescriptor(const FAssetData& InAssetData)
-{
-	FString ActorClassName;
-	static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
-	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorClassName))
-	{
-		FString ActorMetaDataStr;
-		static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
-		if (InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr))
-		{
-			bool bIsValidClass = true;
-			UClass* ActorClass = FindObject<UClass>(ANY_PACKAGE, *ActorClassName, true);
-
-			if (!ActorClass)
-			{
-				ActorClass = AActor::StaticClass();
-				bIsValidClass = false;
-			}
-
-			FWorldPartitionActorDescInitData ActorDescInitData;
-			ActorDescInitData.NativeClass = ActorClass;
-			ActorDescInitData.PackageName = InAssetData.PackageName;
-			ActorDescInitData.ActorPath = InAssetData.ObjectPath;
-			FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
-
-			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::CreateClassActorDesc(ActorDescInitData.NativeClass));
-
-			NewActorDesc->Init(this, ActorDescInitData);
-			
-			//check(bIsValidClass || (NewActorDesc->GetActorIsEditorOnly() && IsRunningGame()));
-
-			if (!bIsValidClass)
-			{
-				return nullptr;
-			}
-
-			return NewActorDesc;
-		}
-	}
-
-	return nullptr;
-}
-
 bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
 {
 	if (Actor && Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel) && Actor->IsMainPackageActor())
@@ -168,7 +169,7 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object)
 		if (ShouldHandleActorEvent(Actor))
 		{
 			check(!Actor->IsPendingKill());
-			if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindRef(Actor->GetActorGuid()))
+			if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(Actor->GetActorGuid()))
 			{
 				// Pin the actor handle on the actor to prevent unloading it when unhashing
 				FWorldPartitionHandle ExistingActorHandle(ExistingActorDesc);
@@ -176,25 +177,19 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object)
 
 				TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(Actor->CreateActorDesc());
 
-				OnActorDescUpdating(*ExistingActorDesc);
+				OnActorDescUpdating(ExistingActorDesc->Get());
 
 				// Transfer any reference count from external sources
 				NewActorDesc->TransferRefCounts(ExistingActorDesc->Get());
 
 				*ExistingActorDesc = MoveTemp(NewActorDesc);
 
-				OnActorDescUpdated(*ExistingActorDesc);
+				OnActorDescUpdated(ExistingActorDesc->Get());
 			}
 			// New actor
 			else
 			{
-				TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(Actor->CreateActorDesc());
-				check(NewActorDesc->IsValid());
-
-				check(!Actors.Contains((*NewActorDesc)->GetGuid()));
-				Actors.Add((*NewActorDesc)->GetGuid(), NewActorDesc);
-
-				OnActorDescAdded(*NewActorDesc);
+				OnActorDescAdded(AddActor(Actor));
 			}
 		}
 	}
@@ -206,24 +201,24 @@ void UActorDescContainer::OnPackageDeleted(UPackage* Package)
 
 	if (ShouldHandleActorEvent(Actor))
 	{
-		if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindRef(Actor->GetActorGuid()))
+		if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(Actor->GetActorGuid()))
 		{
-			OnActorDescRemoved(*ExistingActorDesc);
-			Actors.Remove((*ExistingActorDesc)->GetGuid());
-			ExistingActorDesc->Release();
+			OnActorDescRemoved(ExistingActorDesc->Get());
+			RemoveActorDescriptor(ExistingActorDesc->Get());
+			ExistingActorDesc->Reset();
 		}
 	}
 }
 
 void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 {
-	if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindRef(ActorGuid))
+	if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(ActorGuid))
 	{
 		// This should never be called on already loaded actors
 		check(!(*ExistingActorDesc)->GetActor());
-		OnActorDescRemoved(*ExistingActorDesc);
-		Actors.Remove((*ExistingActorDesc)->GetGuid());
-		ExistingActorDesc->Release();
+		OnActorDescRemoved(ExistingActorDesc->Get());
+		RemoveActorDescriptor(ExistingActorDesc->Get());
+		ExistingActorDesc->Reset();
 	}
 }
 
