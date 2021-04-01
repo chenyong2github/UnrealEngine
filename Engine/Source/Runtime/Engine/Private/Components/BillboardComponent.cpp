@@ -64,9 +64,12 @@ public:
 		if(InComponent->Sprite)
 		{
 			Texture = InComponent->Sprite;
+
+			const float TextureWidth = FMath::Max<int32>((int32)Texture->GetSurfaceWidth() >> Texture->GetCachedLODBias(), 1);
+			const float TextureHeight = FMath::Max<int32>((int32)Texture->GetSurfaceHeight() >> Texture->GetCachedLODBias(), 1);
 			// Set UL and VL to the size of the texture if they are set to 0.0, otherwise use the given value
-			UL = InComponent->UL == 0.0f ? InComponent->Sprite->GetSurfaceWidth() : InComponent->UL;
-			VL = InComponent->VL == 0.0f ? InComponent->Sprite->GetSurfaceHeight() : InComponent->VL;	
+			UL = InComponent->UL == 0.0f ? TextureWidth : InComponent->UL;
+			VL = InComponent->VL == 0.0f ? TextureHeight : InComponent->VL;
 			SizeX = Scale * UL * SpriteScale * 0.25f;
 			SizeY = Scale * VL * SpriteScale * 0.25f;
 		}
