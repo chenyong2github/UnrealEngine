@@ -296,5 +296,5 @@ void FMeshImageBakingCache::EvaluateSamples(
 
 		SampleFunction(Coords, Sample);
 
-	}, bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
+	}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 }
