@@ -3984,7 +3984,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 							}
 							else
 							{
-								verify(InParent->Rename(*PackageUDIMName, nullptr, REN_DontCreateRedirectors));
+								verify(InParent->Rename(*PackageUDIMName, nullptr, REN_DontCreateRedirectors | REN_ForceNoResetLoaders));
 							}
 						}
 					}
