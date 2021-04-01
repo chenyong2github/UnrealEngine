@@ -390,10 +390,10 @@ public:
 	virtual void ResetLightColor(int32 ControllerId) override { }
 	virtual void SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property) override;
 
-protected:
-
 	/** Windows callback for message processing (forwards messages to the FWindowsApplication instance). */
 	static LRESULT CALLBACK AppWndProc(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam);
+
+protected:
 
 	/** Processes a single Windows message. */
 	int32 ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam );

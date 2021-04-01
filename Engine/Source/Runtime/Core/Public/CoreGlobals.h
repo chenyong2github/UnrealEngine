@@ -147,6 +147,26 @@ extern CORE_API bool GIsReinstancing;
 /** Helper function to flush resource streaming. */
 extern CORE_API void(*GFlushStreamingFunc)(void);
 
+/** The settings used by the UE-as-a-library feature. */
+struct FUELibraryOverrideSettings
+{
+	/** True if we were initialized via the UELibrary.  If this is false,
+	    none of the other field values should be acknowledged. */
+	bool bIsEmbedded = false;
+
+	/** The window handle to embed the engine into */
+	void* WindowHandle = nullptr;
+
+	/** The overridden width of the embedded viewport */
+	int32 WindowWidth = 0;
+
+	/** The overridden height of the embedded viewport */
+	int32 WindowHeight = 0;
+};
+
+/** Settings for when using UE as a library */
+extern CORE_API FUELibraryOverrideSettings GUELibraryOverrideSettings;
+
 extern CORE_API bool GIsRunningUnattendedScript;
 
 #if WITH_ENGINE

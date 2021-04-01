@@ -771,6 +771,17 @@ void HDRSettingChangedSinkCallback()
 
 void SystemResolutionSinkCallback()
 {
+	// In embedded mode, we want to use the window as it is currently sized,
+	// rather than pulling pre-existing sizes from the config.
+	if (GUELibraryOverrideSettings.bIsEmbedded)
+	{
+		GSystemResolution.ResX          = GUELibraryOverrideSettings.WindowWidth;
+		GSystemResolution.ResY          = GUELibraryOverrideSettings.WindowHeight;
+		GSystemResolution.WindowMode    = EWindowMode::Windowed;
+		GSystemResolution.bForceRefresh = false;
+		return;
+	}
+
 	auto ResString = CVarSystemResolution->GetString();
 
 	uint32 ResX, ResY;

@@ -110,7 +110,12 @@ int32 GuardedMain( const TCHAR* CmdLine )
 	{ 
 		~EngineLoopCleanupGuard()
 		{
-			EngineExit();
+			// Don't shut down the engine on scope exit when we are running embedded
+			// because the outer application will take care of that.
+			if (!GUELibraryOverrideSettings.bIsEmbedded)
+			{
+				EngineExit();
+			}
 		}
 	} CleanupGuard;
 
@@ -166,9 +171,14 @@ int32 GuardedMain( const TCHAR* CmdLine )
 	BootTimingPoint("Tick loop starting");
 	DumpBootTiming();
 
-	while( !IsEngineExitRequested() )
+	// Don't tick if we're running an embedded engine - we rely on the outer
+	// application ticking us instead.
+	if (!GUELibraryOverrideSettings.bIsEmbedded)
 	{
-		EngineTick();
+		while( !IsEngineExitRequested() )
+		{
+			EngineTick();
+		}
 	}
 
 	TRACE_BOOKMARK(TEXT("Tick loop end"));
