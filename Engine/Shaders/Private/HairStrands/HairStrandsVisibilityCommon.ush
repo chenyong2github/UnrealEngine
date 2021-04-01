@@ -3,11 +3,11 @@
 #pragma once
 
 // Render modes
-#define RENDER_MODE_MSAA 0
-#define RENDER_MODE_TRANSMITTANCE 1
-#define RENDER_MODE_PPLL 2
-#define RENDER_MODE_MSAA_VISIBILITY 3
-#define RENDER_MODE_TRANSMITTANCE_AND_HAIRCOUNT 4
+#define RENDER_MODE_TRANSMITTANCE 0
+#define RENDER_MODE_PPLL 1
+#define RENDER_MODE_MSAA_VISIBILITY 2
+#define RENDER_MODE_TRANSMITTANCE_AND_HAIRCOUNT 3
+#define RENDER_MODE_COMPUTE_RASTER 4
 
 #define INVALID_TILE_OFFSET ~0
 
@@ -453,68 +453,4 @@ float UnpackCoverageAndHairCount(uint InPacked)
 {
 	return float(InPacked) / 1000.f;
 }
-
- ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
- // Hair MSAA buffer 
-
-bool IsValidHairData(uint2 MRT0Data)
-{
-	const uint InvalidSample = GetInvalidHairPrimitiveId();// &0x0FFFFFFF; // PrimitiveId mask, see EncodeVisSample()
-	return MRT0Data.x != InvalidSample;
-}
-
-uint2 PackHairMRT0(uint PrimitiveId, uint MacroGroupId, uint Coverage8bit, float3 Tangent)
-{
-	uint2 Out;
-	Out.x =
-		((PrimitiveId & 0x0FFFFFFF)) |
-		((MacroGroupId & 0xF) << 28);
-
-	const float3 T = saturate(EncodeTangent(Tangent));
-	Out.y =
-		((0xFF & uint(T.x * 255))) |
-		((0xFF & uint(T.y * 255)) << 8) |
-		((0xFF & uint(T.z * 255)) << 16) |
-		(min(uint(0xFF), Coverage8bit) << 24);
-
-	return Out;
-}
-
-float4 PackHairMRT1(float3 BaseColor, float Roughness)
-{
-	return float4(sqrt(BaseColor), Roughness);
-}
-
-float4 PackHairMRT2(float Specular, uint LightChannelMask, float Backlit, bool bUseScatterSceneLighting)
-{
-	return float4(Specular, float(LightChannelMask) / 255.f, Backlit, bUseScatterSceneLighting? 1 : 0);
-}
-
-void UnpackHairMRT0(uint2 In, inout uint PrimitiveId, inout uint MacroGroupId, inout uint Coverage8bit, inout float3 Tangent)
-{
-	PrimitiveId  =  In.x & 0x0FFFFFFF;
-	MacroGroupId = (In.x >> 28) & 0xF;
-
-	Tangent = DecodeTangent(float3(
-		float((In.y) & 0xFF) / 255.f,
-		float((In.y >> 8) & 0xFF) / 255.f,
-		float((In.y >> 16) & 0xFF) / 255.f));
-	Coverage8bit = (In.y >> 24) & 0xFF;
-}
-
-void UnpackHairMRT1(float4 In, inout float3 BaseColor, inout float Roughness)
-{
-	// Cheap gamma encoding since this is encoded into 8bit target
-	BaseColor = In.xyz * In.xyz;
-	Roughness = In.w;
-}
-
-void UnpackHairMRT2(float4 In, inout float Specular, inout uint LightChannelMask, inout float Backlit, inout bool bUseScatterSceneLighting)
-{
-	Specular = In.x;
-	LightChannelMask = uint(In.y * 0xFF);
-	Backlit = In.z;
-	bUseScatterSceneLighting = In.w > 0;
-}
-
 

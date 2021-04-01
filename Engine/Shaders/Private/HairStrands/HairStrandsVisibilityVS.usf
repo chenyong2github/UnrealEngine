@@ -19,7 +19,7 @@ struct FHairVisibilityAccumulateVSToPS
 #if HAIR_RENDER_MODE != RENDER_MODE_MSAA_VISIBILITY
 	float WorldStrandRadius : TEXCOORD8;
 #endif
-#if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
+#if HAIR_RENDER_MODE == RENDER_MODE_PPLL
 	float4 PackedVelocityA : TEXCOORD9;
 	float4 PackedVelocityC : TEXCOORD12;
 #endif
@@ -77,7 +77,7 @@ void Main(
 	// The higher the velocity, the larger a strand becomes.
 	float VelocityScale = 0;
 	const FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo, ResolvedView.HairRenderInfoBits, bUseStableRasterization);
-	#if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
+	#if HAIR_RENDER_MODE == RENDER_MODE_PPLL
 	{
 		const float4 PrevWorldPosition	= VertexFactoryGetPreviousWorldPosition(Input, VFIntermediates);
 		const float4 ScreenPos			= mul(float4(WorldPositionRaw.xyz, 1), ResolvedView.TranslatedWorldToClip);
