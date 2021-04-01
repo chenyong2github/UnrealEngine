@@ -13,6 +13,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h" 
 #include "SAnimationModifierContentBrowserWindow.h"
+#include "ScopedTransaction.h" 
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
 

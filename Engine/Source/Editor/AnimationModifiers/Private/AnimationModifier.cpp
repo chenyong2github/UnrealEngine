@@ -5,6 +5,7 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "ModifierOutputFilter.h"
+#include "ScopedTransaction.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor/Transactor.h"
 #include "UObject/UObjectIterator.h"
