@@ -122,10 +122,10 @@ struct FBrushEffectSmoothBlending
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BrushEffects)
-	float InnerSmoothDistance;
+	float InnerSmoothDistance = 0.01f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BrushEffects)
-	float OuterSmoothDistance;
+	float OuterSmoothDistance = 0.01f;
 };
 
 USTRUCT(BlueprintType)
