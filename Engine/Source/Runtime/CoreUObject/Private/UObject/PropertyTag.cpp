@@ -245,6 +245,8 @@ void FPropertyTag::SerializeTaggedProperty(FStructuredArchive::FSlot Slot, FProp
 	const int32 EndOfProperty = UnderlyingArchive.Tell();
 	if (Size && (EndOfProperty - StartOfProperty != Size))
 	{
-		UnderlyingArchive.SetCriticalError();
+		UE_LOG(LogClass, Error, TEXT("Failed loading tagged %s. Read %dB, expected %dB."), *GetFullNameSafe(Property), EndOfProperty - StartOfProperty, Size);
+		UnderlyingArchive.Seek(StartOfProperty + Size);
+		Property->ClearValue(Value);
 	}
 }
