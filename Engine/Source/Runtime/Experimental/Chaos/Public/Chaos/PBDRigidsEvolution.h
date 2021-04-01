@@ -424,7 +424,15 @@ public:
 		EObjectStateType InitialState = Particle->ObjectState();
 
 		Particle->SetObjectStateLowLevel(ObjectState);
-		Particles.SetDynamicParticleSOA(Particle);
+
+		if (auto ClusteredParticle = Particle->CastToClustered())
+		{
+			Particles.SetClusteredParticleSOA(ClusteredParticle);
+		}
+		else
+		{
+			Particles.SetDynamicParticleSOA(Particle);
+		}
 
 		if (InitialState == EObjectStateType::Sleeping && InitialState != ObjectState && !Particle->Disabled())
 		{
@@ -524,7 +532,7 @@ public:
 		}
 	}
 
-	const auto& GetNonDisabledClusteredArray() const { return Particles.GetNonDisabledClusteredArray(); }
+	const TParticleView<FPBDRigidClusteredParticles>& GetNonDisabledClusteredView() const { return Particles.GetNonDisabledClusteredView(); }
 
 	CHAOS_API TSerializablePtr<FChaosPhysicsMaterial> GetPhysicsMaterial(const FGeometryParticleHandle* Particle) const { return Particle->AuxilaryValue(PhysicsMaterials); }
 	
@@ -694,11 +702,13 @@ public:
 			}
 			}
 			
-			// Set previous velocities if we can
+			// Set previous and positions and velocities if we can
 			// Note: At present kininematics are in fact rigid bodies
 			auto* Rigid = Particle.CastToRigidParticle();
 			if (Rigid)
 			{
+				Rigid->P() = Rigid->X();
+				Rigid->Q() = Rigid->R();
 				Rigid->PreV() = Rigid->V();
 				Rigid->PreW() = Rigid->W();
 			}

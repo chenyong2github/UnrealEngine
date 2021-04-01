@@ -1344,10 +1344,16 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BreakingModel);
 
+		//make copy because release cluster modifies active indices. We want to iterate over original active indices
+		TArray<FPBDRigidClusteredParticleHandle*> ClusteredParticlesToProcess;
+		for (auto& Particle : MEvolution.GetNonDisabledClusteredView())
+		{
+			ClusteredParticlesToProcess.Add(Particle.Handle()->CastToClustered());
+		}
+
 		TMap<FPBDRigidClusteredParticleHandle*, TSet<FPBDRigidParticleHandle*>> AllActivatedChildren;
 
-		auto NonDisabledClusteredParticles = MEvolution.GetNonDisabledClusteredArray(); //make copy because release cluster modifies active indices. We want to iterate over original active indices
-		for (Chaos::TPBDRigidClusteredParticleHandleImp<FReal, 3, true>* ClusteredParticle : NonDisabledClusteredParticles)
+		for (FPBDRigidClusteredParticleHandle* ClusteredParticle : ClusteredParticlesToProcess)
 		{
 			if (ClusteredParticle->ClusterIds().NumChildren)
 			{
@@ -1454,7 +1460,7 @@ namespace Chaos
 					}
 				}
 
-				ClusteredCurrentNode->SetObjectState(ObjectState);
+				MEvolution.SetParticleObjectState(ClusteredCurrentNode, ObjectState);
 			}
 		}
 	}

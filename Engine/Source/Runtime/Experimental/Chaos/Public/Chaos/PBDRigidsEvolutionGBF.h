@@ -61,7 +61,7 @@ namespace Chaos
 		using Base::EnableParticle;
 		using Base::DisableParticles;
 		using Base::NumIslands;
-		using Base::GetNonDisabledClusteredArray;
+		using Base::GetNonDisabledClusteredView;
 		using Base::DisableParticle;
 		using Base::PrepareIteration;
 		using Base::GetConstraintGraph;

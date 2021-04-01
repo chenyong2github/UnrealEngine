@@ -1460,7 +1460,7 @@ void FGeometryCollectionPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSol
 void FGeometryCollectionPhysicsProxy::PushToPhysicsState()
 {
 	// CONTEXT: PHYSICSTHREAD
-	// because the aattached actor can be dynamic, we need to update the kinematic particles properly
+	// because the attached actor can be dynamic, we need to update the kinematic particles properly
 	if (bIsPhysicsThreadWorldTransformDirty)
 	{
 		const FTransform& ActorToWorld = Parameters.WorldTransform;
@@ -1469,23 +1469,19 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState()
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransformGroupElements; ++TransformGroupIndex)
 		{
 			Chaos::FPBDRigidClusteredParticleHandle* Handle = SolverParticleHandles[TransformGroupIndex];
-			if (!Handle)
+			if (!Handle || Handle->Disabled())
 			{
 				continue;
 			}
 			const Chaos::EObjectStateType ObjectState = Handle->ObjectState();
-			switch (ObjectState)
+			if (ObjectState == Chaos::EObjectStateType::Kinematic)
 			{
-			case Chaos::EObjectStateType::Kinematic:
-			{
-				FTransform LocalTransform = PhysicsThreadCollection.Transform[TransformGroupIndex];
-				FTransform WorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;;
+				FTransform WorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;
 
-				Handle->SetX(WorldTransform.GetTranslation());
-				Handle->SetR(WorldTransform.GetRotation().GetNormalized());
-				Handle->SetP(Handle->X());
-				Handle->SetQ(Handle->R());
-			}
+				Chaos::TKinematicTarget<Chaos::FReal, 3> newKinematicTarget;
+				Chaos::FRigidTransform3 PreviousWorldTransform(Handle->X(), Handle->R());
+				newKinematicTarget.SetTargetMode(WorldTransform, PreviousWorldTransform);
+				Handle->SetKinematicTarget(newKinematicTarget);
 			}
 		}
 	}
