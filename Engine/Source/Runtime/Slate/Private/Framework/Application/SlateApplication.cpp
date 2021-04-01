@@ -1157,7 +1157,10 @@ static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 			WindowToPrepass->Resize(WindowToPrepass->GetDesiredSizeDesktopPixels());
 		}
 
-		for ( const TSharedRef<SWindow>& ChildWindow : WindowToPrepass->GetChildWindows() )
+		// Note: Iterate over copy since num children can change during resize above.
+		FMemMark Mark(FMemStack::Get());
+		TArray<TSharedRef<SWindow>, TMemStackAllocator<>> ChildWindows(WindowToPrepass->GetChildWindows());
+		for (const TSharedRef<SWindow>& ChildWindow : ChildWindows)
 		{
 			PrepassWindowAndChildren(ChildWindow);
 		}
