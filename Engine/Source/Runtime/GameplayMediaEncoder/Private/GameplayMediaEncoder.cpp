@@ -424,7 +424,8 @@ void FGameplayMediaEncoder::ProcessVideoFrame(const FTexture2DRHIRef& BackBuffer
 	}
 
 	AVEncoder::FBufferId BufferId;
-	if (!VideoEncoder->CopyTexture(BackBuffer, Now, Now - LastVideoInputTimestamp, BufferId))
+	if (!VideoEncoder->CopyTexture(BackBuffer, Now, Now - LastVideoInputTimestamp, BufferId,
+		FIntPoint(VideoEncoder->GetConfig().Width, VideoEncoder->GetConfig().Height)))
 	{
 		return;
 	}
