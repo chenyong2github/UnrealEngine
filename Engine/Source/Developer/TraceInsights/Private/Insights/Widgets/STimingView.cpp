@@ -2719,6 +2719,7 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 		MenuBuilder.EndSection();
 	}
 
+	if (SelectedTrack.IsValid() && SelectedTrack->Is<FTimingEventsTrack>())
 	{
 		MenuBuilder.BeginSection(TEXT("Event"), LOCTEXT("Event", "Event"));
 
