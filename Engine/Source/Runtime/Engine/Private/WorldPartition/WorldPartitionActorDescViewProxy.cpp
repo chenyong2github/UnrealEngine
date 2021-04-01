@@ -10,8 +10,11 @@ FWorldPartitionActorViewProxy::FWorldPartitionActorViewProxy(const FWorldPartiti
 {
 	if (AActor* Actor = ActorDesc->GetActor())
 	{
-		CachedActorDesc = Actor->CreateActorDesc();
-		ActorDesc = CachedActorDesc.Get();
+		if (Actor->GetPackage()->IsDirty())
+		{
+			CachedActorDesc = Actor->CreateActorDesc();
+			ActorDesc = CachedActorDesc.Get();
+		}
 	}
 }
 #endif

@@ -5,7 +5,7 @@
 
 #if WITH_EDITOR
 /**
- * A view on top of an actor desc, which reverts to the actor if its loaded.
+ * A view on top of an actor desc, which reverts to the actor if its loaded and dirty.
  */
 class FWorldPartitionActorViewProxy : public FWorldPartitionActorDescView
 {
