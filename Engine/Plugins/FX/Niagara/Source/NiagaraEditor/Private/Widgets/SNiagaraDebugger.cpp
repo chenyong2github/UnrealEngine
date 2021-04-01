@@ -277,7 +277,7 @@ namespace NiagaraOutlinerTab
 					NAME_None,
 					LOCTEXT("GatherOutlinerPerfData", "Perf"),
 					LOCTEXT("GatherOutlinerPerfDataTooltip", "Gather Performance data during outliner capture."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.Outliner.Capture"),
+					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.Outliner.CapturePerf"),
 					EUserInterfaceActionType::ToggleButton
 				);
 			}
