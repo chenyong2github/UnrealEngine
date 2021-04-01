@@ -1035,7 +1035,13 @@ void FMaterial::SetRenderingThreadShaderMap(TRefCountPtr<FMaterialShaderMap>& In
 	check(IsInRenderingThread());
 	RenderingThreadShaderMap = MoveTemp(InMaterialShaderMap);
 	bRenderingThreadShaderMapIsComplete = RenderingThreadShaderMap ? RenderingThreadShaderMap->IsComplete(this, true) : false;
-	RenderingThreadShaderMapSubmittedPriority = -1;
+	// if SM isn't complete, it is perhaps a partial update incorporating results from the already submitted compile jobs.
+	// Only reset the priority if the SM is complete, as otherwise we risk resubmitting the same jobs over and over again 
+	// as FMaterialRenderProxy::GetMaterialWithFallback will queue job submissions any time it sees an incomplete SM.
+	if (bRenderingThreadShaderMapIsComplete)
+	{
+		RenderingThreadShaderMapSubmittedPriority = -1;
+	}
 }
 
 void FMaterial::AddReferencedObjects(FReferenceCollector& Collector)
