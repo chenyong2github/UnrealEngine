@@ -77,5 +77,6 @@ public:
 	virtual bool GetVisibility() const override;
 	/* End ISceneOutlinerTreeItem Implementation */
 private:
-	void FocusActorBounds() const;	
+	void FocusActorBounds() const;
+	void LoadUnloadedActor() const;
 };
