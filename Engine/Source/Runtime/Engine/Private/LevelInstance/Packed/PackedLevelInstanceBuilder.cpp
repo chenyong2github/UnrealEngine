@@ -68,10 +68,10 @@ FPackedLevelInstanceBuilder::FPackedLevelInstanceBuilder()
 {
 }
 
-const FString& FPackedLevelInstanceBuilder::GetPackedBPSuffix()
+const FString& FPackedLevelInstanceBuilder::GetPackedBPPrefix()
 {
-	static FString BPSuffix = "_BP_Packed";
-	return BPSuffix;
+	static FString BPPrefix = "BPP_";
+	return BPPrefix;
 }
 
 UBlueprint* FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprintWithDialog(const FString& InAssetName, const FString& InPackagePath, bool bInCompile)
@@ -402,7 +402,7 @@ bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevel
 		LongPackageName.FindLastChar('/', LastSlashIndex);
 
 		FString PackagePath = LongPackageName.Mid(0, LastSlashIndex == INDEX_NONE ? MAX_int32 : LastSlashIndex);
-		FString AssetName = InActor->GetWorldAsset().GetAssetName() + GetPackedBPSuffix();
+		FString AssetName = GetPackedBPPrefix() + InActor->GetWorldAsset().GetAssetName();
 		const bool bCompile = false;
 
 		BP = CreatePackedLevelInstanceBlueprintWithDialog(AssetName, PackagePath, bCompile);

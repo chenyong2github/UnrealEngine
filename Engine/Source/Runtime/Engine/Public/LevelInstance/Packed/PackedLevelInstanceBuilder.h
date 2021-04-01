@@ -42,7 +42,7 @@ public:
 	/* Update existing Blueprint */
 	void UpdateBlueprint(UBlueprint* Blueprint, bool bSilentUpdate = false);
 
-	static const FString& GetPackedBPSuffix();
+	static const FString& GetPackedBPPrefix();
 	/* Creates a new APackedLevelInstance Blueprint using InPackagePath/InAssetName as hint for path. Prompts the user to input the final asset name. */
 	static UBlueprint* CreatePackedLevelInstanceBlueprintWithDialog(const FString& InAssetName, const FString& InPackagePath, bool bInCompile);
 	/* Creates a new APackedLevelInstance Blueprint using InPackagePath/InAssetName */
