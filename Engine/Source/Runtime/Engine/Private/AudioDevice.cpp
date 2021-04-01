@@ -5579,6 +5579,16 @@ void FAudioDevice::FCreateComponentParams::SetLocation(const FVector InLocation)
 	}
 }
 
+bool FAudioDevice::FCreateComponentParams::ShouldUseAttenuation() const
+{
+	if (AudioDevice)
+	{
+		return AudioDevice->ShouldUseAttenuation(World);
+	}
+
+	return true;
+}
+
 UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, UWorld* World, AActor* Actor, bool bPlay, bool bStopWhenOwnerDestroyed, const FVector* Location, USoundAttenuation* AttenuationSettings, USoundConcurrency* ConcurrencySettings)
 {
 	TUniquePtr<FCreateComponentParams> Params;

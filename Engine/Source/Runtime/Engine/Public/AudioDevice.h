@@ -699,6 +699,7 @@ public:
 		bool bStopWhenOwnerDestroyed;
 
 		void SetLocation(FVector Location);
+		bool ShouldUseAttenuation() const;
 
 	private:
 		UWorld* World;
