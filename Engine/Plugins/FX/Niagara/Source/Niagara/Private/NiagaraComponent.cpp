@@ -1503,7 +1503,7 @@ void UNiagaraComponent::OnEndOfFrameUpdateDuringTick()
 	Super::OnEndOfFrameUpdateDuringTick();
 	if (SystemInstanceController)
 	{
-		SystemInstanceController->WaitForConcurrentTickAndFinalize();
+		SystemInstanceController->WaitForAsyncTickAndFinalize();
 	}
 }
 
