@@ -95,6 +95,7 @@ namespace UnrealBuildTool.Rules
 				{
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+					AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
 				}
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");

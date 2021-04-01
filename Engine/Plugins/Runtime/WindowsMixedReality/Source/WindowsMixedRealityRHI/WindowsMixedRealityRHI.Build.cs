@@ -63,7 +63,13 @@ namespace UnrealBuildTool.Rules
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
 
-                if (Target.bBuildEditor == true)
+				if (Target.Platform != UnrealTargetPlatform.HoloLens)
+				{
+					AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+					AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+				}
+
+				if (Target.bBuildEditor == true)
                 {
 					PrivateDependencyModuleNames.Add("EditorFramework");
                     PrivateDependencyModuleNames.Add("UnrealEd");
