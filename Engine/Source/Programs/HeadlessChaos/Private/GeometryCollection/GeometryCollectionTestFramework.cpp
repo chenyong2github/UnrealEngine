@@ -119,8 +119,9 @@ namespace GeometryCollectionTest
 		const FIndex3i& EdgeVertices = FIndex3i(4, 4, 4),
 		const int NumberOfMaterials = 2)
 	{
+		using GeomVector = UE::Geometry::FVector3<double>;
 		FGridBoxMeshGenerator BoxGen;
-		BoxGen.Box = FOrientedBox3d(FVector(0), Extents); // box center, box dimensions
+		BoxGen.Box = FOrientedBox3d(GeomVector::Zero(), GeomVector(Extents)); // box center, box dimensions
 		BoxGen.EdgeVertices = EdgeVertices;
 		BoxGen.Generate();
 
