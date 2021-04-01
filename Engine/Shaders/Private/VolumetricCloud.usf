@@ -1176,7 +1176,7 @@ RWTextureCube<float4> OutCloudColorCube;
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	BRANCH
-	if (all(DispatchThreadId < OutputViewRect.zw))
+	if (all(DispatchThreadId < uint2(OutputViewRect.zw)))
 	{
 		float4 SvPosition = float4(DispatchThreadId.x + 0.5, DispatchThreadId.y + 0.5, 0.5, 1);
 		float4 OutColor0;
