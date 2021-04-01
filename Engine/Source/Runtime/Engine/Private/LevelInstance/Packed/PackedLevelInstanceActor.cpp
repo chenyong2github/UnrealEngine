@@ -50,14 +50,15 @@ void APackedLevelInstance::OnWorldAssetChanged()
 	}
 }
 
-void APackedLevelInstance::OnWorldAssetSaved()
+void APackedLevelInstance::OnWorldAssetSaved(bool bPromptForSave)
 {
 	TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
 	
 	if (UBlueprint* GeneratedBy = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
 	{
 		check(GeneratedBy == BlueprintAsset.Get());
-		Builder->UpdateBlueprint(GeneratedBy);
+		const bool bCheckoutAndSave = true;
+		Builder->UpdateBlueprint(GeneratedBy, bCheckoutAndSave, bPromptForSave);
 	}
 	else
 	{

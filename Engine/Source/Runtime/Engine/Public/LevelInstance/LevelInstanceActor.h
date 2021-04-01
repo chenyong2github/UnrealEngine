@@ -98,7 +98,7 @@ public:
 	AActor* FindEditorInstanceActor() const;
 
 	virtual void OnWorldAssetChanged() { UpdateLevelInstance(); }
-	virtual void OnWorldAssetSaved() {}
+	virtual void OnWorldAssetSaved(bool bPromptForSave) {}
 	virtual void OnEdit();
 	virtual void OnEditChild() {}
 	virtual void OnCommit();

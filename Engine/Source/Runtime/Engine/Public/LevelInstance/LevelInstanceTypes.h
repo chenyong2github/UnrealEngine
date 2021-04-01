@@ -46,4 +46,10 @@ struct FNewLevelInstanceParams
 
 	UPROPERTY()
 	TObjectPtr<UWorld> TemplateWorld = nullptr;
+		
+	UPROPERTY()
+	FString AssetPath = TEXT("");
+
+	UPROPERTY()
+	bool bPromptForSave = false;
 };

@@ -36,7 +36,7 @@ public:
 	static FName GetPackedComponentTag();
 
 	virtual void OnWorldAssetChanged() override;
-	virtual void OnWorldAssetSaved() override;
+	virtual void OnWorldAssetSaved(bool bPromptForSave) override;
 	virtual void OnCommit() override;
 	virtual void OnCommitChild(bool bChanged) override;
 	virtual void OnEdit() override;

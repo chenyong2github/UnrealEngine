@@ -17,6 +17,7 @@
 #include "Engine/SCS_Node.h"
 
 #include "Misc/ScopeExit.h"
+#include "Misc/Paths.h"
 #include "Logging/LogMacros.h"
 #include "Logging/MessageLog.h"
 
@@ -74,12 +75,12 @@ const FString& FPackedLevelInstanceBuilder::GetPackedBPPrefix()
 	return BPPrefix;
 }
 
-UBlueprint* FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprintWithDialog(const FString& InAssetName, const FString& InPackagePath, bool bInCompile)
+UBlueprint* FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprintWithDialog(TSoftObjectPtr<UBlueprint> InBlueprintAsset, TSoftObjectPtr<UWorld> InWorldAsset, bool bInCompile)
 {
 	FSaveAssetDialogConfig SaveAssetDialogConfig;
 	SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("SaveAssetDialogTitle", "Save Asset As");
-	SaveAssetDialogConfig.DefaultPath = InPackagePath;
-	SaveAssetDialogConfig.DefaultAssetName = InAssetName;
+	SaveAssetDialogConfig.DefaultPath = FPaths::GetPath(InBlueprintAsset.GetLongPackageName());
+	SaveAssetDialogConfig.DefaultAssetName = InBlueprintAsset.GetAssetName();
 	SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
@@ -93,18 +94,14 @@ UBlueprint* FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprintWithD
 		{
 			return BP;
 		}
-		
-		const FString SavePackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
-		const FString SavePackagePath = FPaths::GetPath(SavePackageName);
-		const FString SaveAssetName = FPaths::GetBaseFilename(SavePackageName);
-
-		return CreatePackedLevelInstanceBlueprint(SaveAssetName, SavePackagePath, bInCompile);
+				
+		return CreatePackedLevelInstanceBlueprint(ExistingBPAsset, InWorldAsset, bInCompile);
 	}
 
 	return nullptr;
 }
 
-UBlueprint* FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprint(const FString& InSaveAssetName, const FString& InPackagePath, bool bInCompile)
+UBlueprint* FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprint(TSoftObjectPtr<UBlueprint> InBlueprintAsset, TSoftObjectPtr<UWorld> InWorldAsset, bool bInCompile)
 {
 	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
 
@@ -115,12 +112,14 @@ UBlueprint* FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprint(cons
 	FEditorDelegates::OnConfigureNewAssetProperties.Broadcast(BlueprintFactory);
 	if (BlueprintFactory->ConfigureProperties())
 	{
-		FEditorDirectories::Get().SetLastDirectory(ELastDirectory::NEW_ASSET, InPackagePath);
+		FString PackageDir = FPaths::GetPath(InBlueprintAsset.GetLongPackageName());
+		FEditorDirectories::Get().SetLastDirectory(ELastDirectory::NEW_ASSET, PackageDir);
 
-		if (UBlueprint* NewBP = Cast<UBlueprint>(AssetTools.CreateAsset(InSaveAssetName, InPackagePath, UBlueprint::StaticClass(), BlueprintFactory, FName("Create LevelInstance Blueprint"))))
+		if (UBlueprint* NewBP = Cast<UBlueprint>(AssetTools.CreateAsset(InBlueprintAsset.GetAssetName(), PackageDir, UBlueprint::StaticClass(), BlueprintFactory, FName("Create LevelInstance Blueprint"))))
 		{
 			APackedLevelInstance* CDO = CastChecked<APackedLevelInstance>(NewBP->GeneratedClass->GetDefaultObject());
 			CDO->BlueprintAsset = NewBP;
+			CDO->SetWorldAsset(InWorldAsset);
 
 			if (bInCompile)
 			{
@@ -324,38 +323,38 @@ bool FPackedLevelInstanceBuilder::PackActor(APackedLevelInstance* InActor, TSoft
 	return PackActor(InActor, TransientLevelInstance);
 }
 
-void FPackedLevelInstanceBuilder::UpdateBlueprint(UBlueprint* Blueprint, bool bInSilentUpdate)
+void FPackedLevelInstanceBuilder::UpdateBlueprint(UBlueprint* Blueprint, bool bCheckoutAndSave, bool bPromptForSave)
 {
 	APackedLevelInstance* CDO = CastChecked<APackedLevelInstance>(Blueprint->GeneratedClass->GetDefaultObject());
 	check(CDO);
 
-	CreateOrUpdateBlueprint(CDO->GetWorldAsset(), Blueprint, bInSilentUpdate);
+	CreateOrUpdateBlueprint(CDO->GetWorldAsset(), Blueprint, bCheckoutAndSave, bPromptForSave);
 }
 
-bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bInSilentUpdate)
+bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
 {
 	bool bResult = true;
 	
 	ALevelInstance* TransientLevelInstance = CreateTransientLevelInstanceForPacking(InWorldAsset, FVector::ZeroVector, FRotator::ZeroRotator);
 	
-	bResult = CreateOrUpdateBlueprintFromUnpacked(TransientLevelInstance, InBlueprintAsset, bInSilentUpdate);
+	bResult = CreateOrUpdateBlueprintFromUnpacked(TransientLevelInstance, InBlueprintAsset, bCheckoutAndSave, bPromptForSave);
 
 	TransientLevelInstance->GetWorld()->DestroyActor(TransientLevelInstance);
 
 	return bResult;
 }
 
-bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bInSilentUpdate)
+bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
 {
 	if (APackedLevelInstance* PackedLevelInstance = Cast<APackedLevelInstance>(InLevelInstance))
 	{
-		return CreateOrUpdateBlueprintFromPacked(PackedLevelInstance, InBlueprintAsset, bInSilentUpdate);
+		return CreateOrUpdateBlueprintFromPacked(PackedLevelInstance, InBlueprintAsset, bCheckoutAndSave, bPromptForSave);
 	}
 	
-	return CreateOrUpdateBlueprintFromUnpacked(InLevelInstance, InBlueprintAsset, bInSilentUpdate);
+	return CreateOrUpdateBlueprintFromUnpacked(InLevelInstance, InBlueprintAsset, bCheckoutAndSave, bPromptForSave);
 }
 
-bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromUnpacked(ALevelInstance* InActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bInSilentUpdate)
+bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromUnpacked(ALevelInstance* InActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
 {
 	bool bResult = true;
 	
@@ -382,12 +381,12 @@ bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromUnpacked(ALevelInst
 	}
 
 	PackedLevelInstance->BlueprintAsset = InBlueprintAsset;
-	bResult &= CreateOrUpdateBlueprintFromPacked(PackedLevelInstance, PackedLevelInstance->BlueprintAsset, bInSilentUpdate);
+	bResult &= CreateOrUpdateBlueprintFromPacked(PackedLevelInstance, PackedLevelInstance->BlueprintAsset, bCheckoutAndSave, bPromptForSave);
 
 	return bResult;
 }
 
-bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevelInstance* InActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bInSilentUpdate)
+bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevelInstance* InActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptToSave)
 {
 	UBlueprint* BP = nullptr;
 	if (!InBlueprintAsset.IsNull())
@@ -405,7 +404,8 @@ bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevel
 		FString AssetName = GetPackedBPPrefix() + InActor->GetWorldAsset().GetAssetName();
 		const bool bCompile = false;
 
-		BP = CreatePackedLevelInstanceBlueprintWithDialog(AssetName, PackagePath, bCompile);
+		FString AssetPath = PackagePath + AssetName + "." + AssetName;
+		BP = CreatePackedLevelInstanceBlueprintWithDialog(TSoftObjectPtr<UBlueprint>(AssetPath), InActor->GetWorldAsset(), bCompile);
 	}
 
 	if (BP && BP->SimpleConstructionScript)
@@ -474,10 +474,9 @@ bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevel
 	// Synchronous compile
 	FKismetEditorUtilities::CompileBlueprint(BP, EBlueprintCompileOptions::SkipGarbageCollection);
 
-	if (!bInSilentUpdate)
+	if (bCheckoutAndSave)
 	{
 		const bool bCheckDirty = false;
-		const bool bPromptToSave = true;
 		TArray<UPackage*> OutFailedPackages;
 		FEditorFileUtils::PromptForCheckoutAndSave({ BP->GetPackage() }, bCheckDirty, bPromptToSave, &OutFailedPackages);
 

@@ -18,6 +18,7 @@
 #include "LevelInstance/LevelInstanceEditorLevelStreaming.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ITransaction.h"
+#include "Misc/Paths.h"
 #include "AssetRegistryModule.h"
 #include "AssetData.h"
 #include "FileHelpers.h"
@@ -178,7 +179,7 @@ void ULevelInstanceSubsystem::UpdateStreamingState()
 	}
 
 	FScopedSlowTask SlowTask(LevelInstancesToUnload.Num() + LevelInstancesToLoadOrUpdate.Num() * 2, LOCTEXT("UpdatingLevelInstances", "Updating Level Instances..."), !GetWorld()->IsGameWorld());
-	SlowTask.MakeDialog();
+	SlowTask.MakeDialogDelayed(1.0f);
 
 	check(!LevelsToRemoveScope);
 	LevelsToRemoveScope.Reset(new FLevelsToRemoveScope());
@@ -454,10 +455,10 @@ void ULevelInstanceSubsystem::PackLevelInstances()
 	};
 
 	TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
-	const bool bSilentUpdate = true;
+	const bool bCheckoutAndSave = false;
 	for (UBlueprint* Blueprint : BlueprintsToUpdate)
 	{
-		Builder->UpdateBlueprint(Blueprint, bSilentUpdate);
+		Builder->UpdateBlueprint(Blueprint, bCheckoutAndSave);
 		UpdateProgress();
 	}
 
@@ -728,7 +729,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		}
 	}
 		
-	ULevelStreamingLevelInstanceEditor* LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), TEXT(""), false, CreationParams.TemplateWorld));
+	ULevelStreamingLevelInstanceEditor* LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), CreationParams.AssetPath, false, CreationParams.TemplateWorld));
 	if (!LevelStreaming)
 	{
 		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to create new Level Instance level"));
@@ -780,18 +781,24 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	}
 	else if (CreationParams.Type == ELevelInstanceCreationType::PackedLevelInstanceBlueprint)
 	{
-		int32 LastSlashIndex = 0;
-		FString LongPackageName = WorldPtr.GetLongPackageName();
-		LongPackageName.FindLastChar('/', LastSlashIndex);
-
-		FString PackagePath = LongPackageName.Mid(0, LastSlashIndex == INDEX_NONE ? MAX_int32 : LastSlashIndex);
+		FString PackageDir = FPaths::GetPath(WorldPtr.GetLongPackageName());
 		FString AssetName = FPackedLevelInstanceBuilder::GetPackedBPPrefix() + WorldPtr.GetAssetName();
+		FString BPAssetPath = FString::Format(TEXT("{0}/{1}.{1}"), { PackageDir , AssetName });
 		const bool bCompile = true;
-		if (UBlueprint* NewBP = FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprintWithDialog(AssetName, PackagePath, bCompile))
+
+		UBlueprint* NewBP = nullptr;
+		if (CreationParams.AssetPath.IsEmpty())
+		{
+			NewBP = FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprintWithDialog(TSoftObjectPtr<UBlueprint>(BPAssetPath), WorldPtr, bCompile);
+		}
+		else
+		{
+			NewBP = FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprint(TSoftObjectPtr<UBlueprint>(BPAssetPath), WorldPtr, bCompile);
+		}
+				
+		if (NewBP)
 		{
 			NewLevelInstanceActor = GetWorld()->SpawnActor<APackedLevelInstance>(NewBP->GeneratedClass, SpawnParams);
-			APackedLevelInstance* CDO = Cast<APackedLevelInstance>(NewBP->GeneratedClass->GetDefaultObject());
-			CDO->SetWorldAsset(WorldPtr);
 		}
 
 		if (!NewLevelInstanceActor)
@@ -831,7 +838,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	}
 				
 	// Use LevelStreaming->GetLevelInstanceActor() because OnWorldAssetSaved could've reinstanced the LevelInstanceActor
-	return CommitLevelInstance(LevelStreaming->GetLevelInstanceActor(), /*bDiscardEdits*/false, &DirtyPackages);
+	return CommitLevelInstance(LevelStreaming->GetLevelInstanceActor(), /*bDiscardEdits*/false, CreationParams.bPromptForSave, &DirtyPackages);
 }
 
 bool ULevelInstanceSubsystem::BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels /* = 1 */, TArray<AActor*>* OutMovedActors /* = nullptr */)
@@ -1503,7 +1510,7 @@ void ULevelInstanceSubsystem::CommitChildrenLevelInstances(ALevelInstance* Level
 	});
 }
 
-ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits, TSet<UPackage*>* DirtyPackages)
+ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits, bool bPromptForSave, TSet<UPackage*>* DirtyPackages)
 {
 	check(CanCommitLevelInstance(LevelInstanceActor));
 
@@ -1515,7 +1522,7 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* Lev
 	bool bChangesCommitted = false;
 	if (IsLevelInstanceEditDirty(LevelInstanceEdit) && !bDiscardEdits)
 	{
-		const bool bPromptUserToSave = true;
+		const bool bPromptUserToSave = bPromptForSave;
 		const bool bSaveMapPackages = true;
 		const bool bSaveContentPackages = true;
 		const bool bFastSave = false;
@@ -1544,7 +1551,7 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* Lev
 			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 			AssetRegistry.ScanPathsSynchronous({ LevelInstanceActor->GetWorldAssetPackage() }, true);
 			// Notify 
-			LevelInstanceActor->OnWorldAssetSaved();
+			LevelInstanceActor->OnWorldAssetSaved(bPromptUserToSave);
 
 			// Update pointer since BP Compilation might have invalidated LevelInstanceActor
 			LevelInstanceActor = LevelInstanceEdit->LevelStreaming->GetLevelInstanceActor();
