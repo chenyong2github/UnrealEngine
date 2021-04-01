@@ -2,6 +2,8 @@
 
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "RHI.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/NumericLimits.h"
 
 
 // yuck global value set by Editor
@@ -141,4 +143,49 @@ float GizmoRenderingUtil::CalculateLocalPixelToWorldScale(
 	double PixelDeltaSqr = VectorDifferenceSqr(PixelA, PixelB);
 	double WorldDeltaSqr = VectorDifferenceSqr(Location, OffsetPointWorld);
 	return (float)(sqrt(WorldDeltaSqr / PixelDeltaSqr));
+}
+
+float GizmoRenderingUtil::CalculateViewDependentScaleAndFlatten(
+	const FSceneView* View,
+	const FVector& Location,
+	const float InScale,
+	FVector& OutFlattenScale)
+{
+	const FMatrix& ViewMatrix = View->ViewMatrices.GetViewMatrix();
+	bool bIsPerspective = View->ViewMatrices.GetProjectionMatrix().M[3][3] < 1.0f;
+	bool bIsOrthoXY = !bIsPerspective && FMath::Abs(ViewMatrix.M[2][2]) > 0.0f;
+	bool bIsOrthoXZ = !bIsPerspective && FMath::Abs(ViewMatrix.M[1][2]) > 0.0f;
+	bool bIsOrthoYZ = !bIsPerspective && FMath::Abs(ViewMatrix.M[0][2]) > 0.0f;
+	float UniformScale = InScale * View->WorldToScreen(Location).W * (4.0f / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0]);
+
+	// Clamp to tolerance to prevent division by zero.
+	// @todo change to use MathUtil<RealType>::ZeroTolerance and TMathUtil<RealType>::SignNonZero(Value)
+	float MinimumScale = TNumericLimits<float>::Lowest();
+	if (FMath::Abs(UniformScale) < MinimumScale)
+	{
+		UniformScale = MinimumScale * (UniformScale < 0.0f ? -1.0f : 1.0f);
+	}
+
+	if (bIsPerspective)
+	{
+		OutFlattenScale = FVector(1.0f, 1.0f, 1.0f);
+	}
+	else
+	{
+		// Flatten scale prevents scaling in the direction of the camera and thus intersecting the near plane.
+		// Based on legacy FWidget render code but is flatten actually necessary?? that axis wasn't scaled anyways!
+		if (bIsOrthoXY)
+		{
+			OutFlattenScale = FVector(1.0f, 1.0f, 1.0f / UniformScale);
+		}
+		else if (bIsOrthoXZ)
+		{
+			OutFlattenScale = FVector(1.0f, 1.0f / UniformScale, 1.0f);
+		}
+		else if (bIsOrthoYZ)
+		{
+			OutFlattenScale = FVector(1.0f / UniformScale, 1.0f, 1.0f);
+		}
+	}
+	return UniformScale;
 }

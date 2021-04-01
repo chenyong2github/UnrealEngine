@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/PrimitiveComponent.h"
-
+#include "SceneView.h"
 
 /**
  * Utility functions for standard GizmoComponent rendering
@@ -49,4 +49,14 @@ namespace GizmoRenderingUtil
 		const FSceneView* View,
 		const FVector& Location);
 
+	/**
+	 * @return Legacy view dependent conversion factor.
+	 * @return OutWorldFlattenScale vector to be applied in world space, can be used to flatten excluded 
+	 *         dimension in orthographic views as it reverses the scale in that dimension.
+	 */
+	INTERACTIVETOOLSFRAMEWORK_API float CalculateViewDependentScaleAndFlatten(
+		const FSceneView* View,
+		const FVector& Location,
+		const float Scale,
+		FVector& OutWorldFlattenScale);
 }
