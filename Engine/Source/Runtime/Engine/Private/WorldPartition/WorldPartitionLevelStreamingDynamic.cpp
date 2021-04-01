@@ -51,15 +51,15 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	check(ChildPackages.Num() == 0);
 	check(!WorldAsset.IsNull());
 
+	bIsModifiedForPIE = InCell.IsModifiedForPIE();
 	bShouldBeAlwaysLoaded = InCell.IsAlwaysLoaded();
 	StreamingPriority = InCell.GetStreamingPriority();
 	ChildPackages = InCell.GetPackages();
-	ActorContainer = InCell.ActorContainer;
 
 	UWorld* OuterWorld = InCell.GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
 	OriginalLevelPackageName = OuterWorld->GetPackage()->GetLoadedPath().GetPackageFName();
 	PackageNameToLoad = GetWorldAssetPackageFName();
-	OuterWorldPartition = OuterWorld->GetWorldPartition();	
+	OuterWorldPartition = OuterWorld->GetWorldPartition();
 }
 
 /**
@@ -225,6 +225,9 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
 	InstancingContext.AddMapping(OriginalLevelPackageName, RuntimePackage->GetFName());
 
+	TArray<AActor*> ActorsToDuplicate;
+	ActorsToDuplicate.Reserve(ChildPackages.Num());
+
 	TArray<FWorldPartitionRuntimeCellObjectMapping> ChildPackagesToLoad;
 	ChildPackagesToLoad.Reserve(ChildPackages.Num());
 
@@ -234,14 +237,15 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 		if (ChildPackage.ContainerID == 0)
 		{
 			bool bNeedDup = false;
-			if (ActorContainer)
+			if (bIsModifiedForPIE)
 			{
 				FString SubObjectName;
 				FString SubObjectContext;
 				if (ChildPackage.LoadedPath.ToString().Split(TEXT("."), &SubObjectContext, &SubObjectName, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
 				{
-					if (AActor* ActorModifiedForPIE = ActorContainer->Actors.FindRef(*SubObjectName))
+					if (AActor* ActorModifiedForPIE = World->PersistentLevel->ActorsModifiedForPIE.FindRef(*SubObjectName))
 					{
+						ActorsToDuplicate.Add(ActorModifiedForPIE);
 						bNeedDup = true;
 					}
 				}
@@ -255,8 +259,17 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	}
 
 	// Duplicate unsaved actors
-	if (ActorContainer)
+	if (ActorsToDuplicate.Num())
 	{
+		// Create an actor container to make sure duplicated actors will share an outer to properly remap inter-actors references
+		UActorContainer* ActorContainer = NewObject<UActorContainer>(World->PersistentLevel);
+
+		for (AActor* ActorToDuplicate : ActorsToDuplicate)
+		{
+			ActorToDuplicate->UObject::Rename(nullptr, ActorContainer);
+			ActorContainer->Actors.Add(ActorToDuplicate);
+		}
+
 		FObjectDuplicationParameters Parameters(ActorContainer, RuntimeLevel);
 		Parameters.DestClass = ActorContainer->GetClass();
 		Parameters.FlagMask = RF_AllFlags & ~(RF_MarkAsRootSet | RF_MarkAsNative | RF_HasExternalPackage);
@@ -268,11 +281,18 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 		UActorContainer* ActorContainerDup = (UActorContainer*)StaticDuplicateObjectEx(Parameters);
 
 		// Add the duplicated actors to the corresponding cell level
-		for (auto& ActorPair : ActorContainerDup->Actors)
+		for (AActor* Actor : ActorContainerDup->Actors)
 		{
-			ActorPair.Value->Rename(nullptr, RuntimeLevel);
+			Actor->Rename(nullptr, RuntimeLevel);
 		}
 
+		// Bring back actors to the persistent level
+		for (AActor* ActorToDuplicate : ActorsToDuplicate)
+		{
+			ActorToDuplicate->UObject::Rename(nullptr, World->PersistentLevel);
+		}
+
+		ActorContainer->MarkPendingKill();
 		ActorContainerDup->MarkPendingKill();
 	}
 
@@ -465,5 +485,6 @@ UWorld* UWorldPartitionLevelStreamingDynamic::GetOuterWorld() const
 	check(OuterWorldPartition.IsValid());
 	return OuterWorldPartition->GetTypedOuter<UWorld>();
 }
+
 
 #undef LOCTEXT_NAMESPACE

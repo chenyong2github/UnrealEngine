@@ -5,7 +5,11 @@
 UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , bIsAlwaysLoaded(false)
-{}
+#if WITH_EDITORONLY_DATA
+, bIsModifiedForPIE(false)
+#endif
+{
+}
 
 #if WITH_EDITOR
 
@@ -34,4 +38,5 @@ const UWorldPartitionRuntimeCellData* UWorldPartitionRuntimeCell::GetCellData(co
 
 UWorldPartitionRuntimeCellData::UWorldPartitionRuntimeCellData(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
-{}
+{
+}

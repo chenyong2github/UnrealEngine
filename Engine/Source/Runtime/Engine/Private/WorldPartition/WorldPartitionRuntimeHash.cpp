@@ -114,15 +114,11 @@ void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContaine
 		// Append new unsaved actors for the persistent level
 		if (Container->GetContainerPackage() == GetWorld()->PersistentLevel->GetPackage()->GetLoadedPath().GetPackageFName())
 		{
-			for (AActor* Actor : GetWorld()->PersistentLevel->Actors)
+			for (auto& ActorPair : GetWorld()->PersistentLevel->ActorsModifiedForPIE)
 			{
-				if (Actor && 
-					Actor->IsPackageExternal() && 
-					!Actor->IsPendingKill() && 
-					Actor->GetPackage()->IsDirty() &&
-					Actor->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated))
+				if (ActorPair.Value->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated))
 				{
-					FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(Actor);
+					FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(ActorPair.Value);
 					OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
 				}
 			}

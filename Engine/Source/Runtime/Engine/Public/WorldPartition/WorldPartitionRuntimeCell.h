@@ -117,6 +117,9 @@ class UWorldPartitionRuntimeCell : public UObject
 	const TArray<FName>& GetDataLayers() const { return DataLayers; }
 
 #if WITH_EDITOR
+	bool IsModifiedForPIE() const { return bIsModifiedForPIE; };
+	void SetIsModifiedForPIE(bool bInIsModifiedForPIE) { bIsModifiedForPIE = bInIsModifiedForPIE; }
+	
 	void SetDataLayers(const TArray<const UDataLayer*> InDataLayers);
 	void AddCellData(const UWorldPartitionRuntimeCellData* InCellData);
 	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, uint32 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
@@ -136,6 +139,11 @@ class UWorldPartitionRuntimeCell : public UObject
 protected:
 	UPROPERTY()
 	bool bIsAlwaysLoaded;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bIsModifiedForPIE;
+#endif
 
 private:
 	UPROPERTY()

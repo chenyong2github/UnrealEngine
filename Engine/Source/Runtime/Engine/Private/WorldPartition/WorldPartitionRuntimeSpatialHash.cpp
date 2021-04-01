@@ -727,6 +727,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 			const uint32 CellIndex = TempCellMapping.Key;
 			const int32 CellCoordX = CellIndex % TempLevel.GridSize;
 			const int32 CellCoordY = CellIndex / TempLevel.GridSize;
+			bool bCellModifiedForPIE = false;
 
 			const FSquare2DGridHelper::FGridLevel::FGridCell& TempCell = TempLevel.Cells[TempCellMapping.Value];
 
@@ -768,6 +769,17 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 									AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
 									continue;
 								}
+							} // InPIE, If a Cell as at least one modified actor we need to flag all actors of this cell so they get added to the ActorsModifiedForPIE so they are all duplicated
+							else if(!bCellModifiedForPIE && Mode == EWorldPartitionStreamingMode::PIE && World->PersistentLevel->ActorsModifiedForPIE.Num() > 0)
+							{
+								FString SubObjectName;
+								FString SubObjectContext;
+								
+								ActorDescView.GetActorPath().ToString().Split(TEXT("."), &SubObjectContext, &SubObjectName, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+								if (World->PersistentLevel->ActorsModifiedForPIE.FindRef(*SubObjectName))
+								{
+									bCellModifiedForPIE = true;
+								}
 							}
 						}
 
@@ -800,6 +812,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 
 				GridLevel.LayerCells[LayerCellIndex].GridCells.Add(StreamingCell);
 				StreamingCell->SetIsAlwaysLoaded(bIsCellAlwaysLoaded);
+				StreamingCell->SetIsModifiedForPIE(bCellModifiedForPIE);
 				StreamingCell->SetDataLayers(GridCellDataChunk.GetDataLayers());
 				StreamingCell->Level = Level;
 				FBox2D Bounds;
@@ -807,21 +820,6 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				StreamingCell->Position = FVector(Bounds.GetCenter(), 0.f);
 
 				UE_LOG(LogWorldPartition, Verbose, TEXT("Cell%s %s Actors = %d Bounds (%s)"), bIsCellAlwaysLoaded ? TEXT(" (AlwaysLoaded)") : TEXT(""), *StreamingCell->GetName(), FilteredActors.Num(), *Bounds.ToString());
-
-				check(!StreamingCell->ActorContainer);
-				for (const FActorInstance& ActorInstance : FilteredActors)
-				{
-					const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
-					if (AActor* Actor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString()))
-					{
-						if (Actor->GetPackage()->IsDirty())
-						{
-							// Create an actor container to make sure duplicated actors will share an outer to properly remap inter-actors references
-							StreamingCell->ActorContainer = NewObject<UActorContainer>(StreamingCell);
-							break;
-						}
-					}
-				}
 
 				// Keep track of all AWorldPartitionHLOD actors referenced by this cell
 				int32 NumHLODActors = 0;
@@ -831,11 +829,12 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
 					StreamingCell->AddActorToCell(ActorDescView, ActorInstance.ContainerInstance->ID, ActorInstance.ContainerInstance->Transform, ActorInstance.ContainerInstance->Container);
 
-					if (StreamingCell->ActorContainer)
+					// Add all actors of this cell to the ActorsModifiedForPIE (for Duplication)
+					if (StreamingCell->IsModifiedForPIE())
 					{
 						if (AActor* Actor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString()))
 						{
-							StreamingCell->ActorContainer->Actors.Add(Actor->GetFName(), Actor);
+							World->PersistentLevel->ActorsModifiedForPIE.Add(Actor->GetFName(), Actor);
 						}
 					}
 

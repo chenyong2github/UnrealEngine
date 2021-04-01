@@ -10,18 +10,9 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 {
 	GENERATED_UCLASS_BODY()
 
-#if WITH_EDITOR
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
-#endif
-
 	UPROPERTY()
 	FVector Position;
 
 	UPROPERTY()
 	int32 Level;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	UActorContainer* ActorContainer;
-#endif
 };

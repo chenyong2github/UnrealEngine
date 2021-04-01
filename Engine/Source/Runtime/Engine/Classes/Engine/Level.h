@@ -76,17 +76,6 @@ private:
 	ILevelPartitionInterface* InterfacePtr = nullptr;
 	ULevel* Level = nullptr;
 };
-
-// Actor container class used to duplicate actors during cells streaming in PIE
-UCLASS()
-class UActorContainer : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY()
-	TMap<FName, AActor*> Actors;
-};
 #endif
 
 /**
@@ -451,6 +440,10 @@ public:
 	TArray<AActor*> ActorsForGC;
 
 #if WITH_EDITORONLY_DATA
+	/** List of modified, unsaved actors that needs to be duplicated for PIE */
+	UPROPERTY(NonPIEDuplicateTransient)
+	TMap<FName, AActor*> ActorsModifiedForPIE;
+
 	/** Use external actors, new actor spawned in this level will be external and existing external actors will be loaded on load. */
 	UPROPERTY(EditInstanceOnly, Category=World)
 	bool bUseExternalActors;
