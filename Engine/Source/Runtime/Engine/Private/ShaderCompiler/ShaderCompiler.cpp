@@ -2941,7 +2941,7 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	if (RemoteCompileThread)
 	{
 		// Keep high priority jobs on the local machine, to avoid XGE latency
-		RemoteCompileThread->SetPriorityRange(EShaderCompileJobPriority::Low, EShaderCompileJobPriority::Low);
+		RemoteCompileThread->SetPriorityRange(EShaderCompileJobPriority::Low, EShaderCompileJobPriority::Normal);
 		LocalThread->SetPriorityRange(EShaderCompileJobPriority::Normal, EShaderCompileJobPriority::ForceLocal);
 		Threads.Add(MoveTemp(RemoteCompileThread));
 	}

@@ -198,12 +198,9 @@ int32 FShaderCompileDistributedThreadRunnable_Interface::CompilingLoop()
 	{
 		// Increase the batch size when more jobs are queued/in flight.
 
-		// Just to provide typical numbers: the number of total jobs is usually in tens of thousands at most, oftentimes in low thousands. Thus JobsPerBatch when calculated as a log2 rarely reaches the value of 16.
-		// Given that 
-		//   a) starting each XGE shader compile worker has an associated cost (it scans directories, loads multiple libraries and reads configs)
-		//   b) XGE is currently used for low priority, non time-critical jobs
-		// JobsPerBatch is now increased by a factor of 3 compared to original formula, to produce numbers in 3-48 range most of the time
-		const uint32 JobsPerBatch = FMath::Max(1, FMath::FloorToInt(3 * FMath::LogX(2.f, PendingJobs.Num() + NumDispatchedJobs)));
+		// Just to provide typical numbers: the number of total jobs is usually in tens of thousands at most, oftentimes in low thousands. Thus JobsPerBatch when calculated as a log2 rarely reaches the value of 16,
+		// and that seems to be a sweet spot: lowering it does not result in faster completion, while increasing the number of jobs per batch slows it down .
+		const uint32 JobsPerBatch = FMath::Max(1, FMath::FloorToInt(FMath::LogX(2.f, PendingJobs.Num() + NumDispatchedJobs)));
 		UE_LOG(LogShaderCompilers, Verbose, TEXT("Current jobs: %d, Batch size: %d, Num Already Dispatched: %d"), PendingJobs.Num(), JobsPerBatch, NumDispatchedJobs);
 
 
