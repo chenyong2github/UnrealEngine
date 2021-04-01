@@ -107,7 +107,6 @@ void FExportContext::Populate()
 
 	RootNode->ToDatasmith(*this);
 
-	Textures.ConvertToDatasmith();
 }
 
 void FExportContext::Update()
@@ -129,6 +128,8 @@ void FExportContext::Update()
 
 	// Update transforms/names for Datasmith Actors and MeshActors, create these actors if needed
 	RootNode->Update(*this);
+
+	Textures.Update();
 }
 
 FDefinition* FExportContext::GetEntityDefinition(SUEntityRef Entity)
@@ -250,14 +251,17 @@ TSharedPtr<FComponentDefinition> FComponentDefinitionCollection::GetComponentDef
 
 TSharedPtr<FComponentDefinition> FComponentDefinitionCollection::GetComponentDefinition(SUComponentDefinitionRef ComponentDefinitionRef)
 {
-	FComponentDefinitionIDType ComponentDefinitionID = DatasmithSketchUpUtils::GetComponentID(ComponentDefinitionRef);
-	// Make sure the SketchUp component definition exists in our dictionary of component definitions.
-	if (TSharedPtr<FComponentDefinition>* Ptr = ComponentDefinitionMap.Find(ComponentDefinitionID))
+	if (TSharedPtr<FComponentDefinition>* Ptr = FindComponentDefinition(DatasmithSketchUpUtils::GetComponentID(ComponentDefinitionRef)))
 	{
 		return *Ptr;
 	}
 
 	return AddComponentDefinition(ComponentDefinitionRef);
+}
+
+TSharedPtr<FComponentDefinition>* FComponentDefinitionCollection::FindComponentDefinition(FComponentDefinitionIDType ComponentDefinitionID)
+{
+	return ComponentDefinitionMap.Find(ComponentDefinitionID);
 }
 
 void FEntitiesObjectCollection::RegisterEntitiesFaces(DatasmithSketchUp::FEntities& Entities, const TSet<int32>& FaceIds)
@@ -337,20 +341,14 @@ void FComponentInstanceCollection::InvalidateComponentInstanceGeometry(FComponen
 	}
 }
 
-void FComponentInstanceCollection::InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID)
+bool FComponentInstanceCollection::InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID)
 {
 	if (TSharedPtr<FComponentInstance>* Ptr = FindComponentInstance(ComponentInstanceID))
 	{
 		(*Ptr)->InvalidateEntityProperties();
+		return true;
 	}
-	else
-	{
-		// todo: implement. This could happen if
-		//  - component instance was previously skipped because it doesn't contain meaningful data(probably it's not needed to process it it's still empty)
-		//  - was removed recently. Not sure if 'changed' can code after 'removed'
-		//  - addition wasn't handled
-		// - anything else?
-	}
+	return false;
 }
 
 void FComponentInstanceCollection::UpdateProperties()
@@ -441,18 +439,49 @@ TSharedPtr<FMaterial> FMaterialCollection::CreateMaterial(SUMaterialRef Material
 	return Material;
 }
 
+void FMaterialCollection::CreateMaterial(FMaterialIDType MaterialID)
+{
+	// Get the number of material definitions in the SketchUp model.
+	size_t SMaterialDefinitionCount = 0;
+	SUModelGetNumMaterials(Context.ModelRef, &SMaterialDefinitionCount); // we can ignore the returned SU_RESULT
+
+	// Retrieve the material definitions in the SketchUp model.
+	TArray<SUMaterialRef> SMaterialDefinitions;
+	SMaterialDefinitions.Init(SU_INVALID, SMaterialDefinitionCount);
+	SUModelGetMaterials(Context.ModelRef, SMaterialDefinitionCount, SMaterialDefinitions.GetData(), &SMaterialDefinitionCount); // we can ignore the returned SU_RESULT
+	SMaterialDefinitions.SetNum(SMaterialDefinitionCount);
+
+	// Add the material definitions to our dictionary.
+	for (SUMaterialRef SMaterialDefinitionRef : SMaterialDefinitions)
+	{
+		if (MaterialID == DatasmithSketchUpUtils::GetMaterialID(SMaterialDefinitionRef))
+		{
+			CreateMaterial(SMaterialDefinitionRef);
+		}
+	}
+}
+
 void FMaterialCollection::InvalidateMaterial(SUMaterialRef MaterialDefinitionRef)
 {
 	FMaterialIDType MateriadId = DatasmithSketchUpUtils::GetMaterialID(MaterialDefinitionRef);
 
+	if (InvalidateMaterial(MateriadId))
+	{
+		return;
+	}
+	CreateMaterial(MaterialDefinitionRef);
+}
+
+bool FMaterialCollection::InvalidateMaterial(FMaterialIDType MateriadId)
+{
 	if (TSharedPtr<FMaterial>* Ptr = MaterialDefinitionMap.Find(MateriadId))
 	{
 		FMaterial& Material = **Ptr;
 
 		Material.Update(Context);
-		return;
+		return true;
 	}
-	CreateMaterial(MaterialDefinitionRef);
+	return false;
 }
 
 bool FMaterialCollection::RemoveMaterial(FEntityIDType EntityId)

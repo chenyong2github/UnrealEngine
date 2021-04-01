@@ -406,6 +406,21 @@ public:
 		return false;
 	}
 
+	bool OnEntityModified(DatasmithSketchUp::FEntityIDType EntityId)
+	{
+		if (Context.ComponentInstances.InvalidateComponentInstanceProperties(EntityId))
+		{
+			return true;
+		}
+
+		if (Context.Materials.InvalidateMaterial(EntityId))
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	bool OnEntityModified(SUEntityRef Entity)
 	{
 		switch (SUEntityGetType(Entity))
@@ -430,10 +445,12 @@ public:
 			{
 				// todo: unexpected
 			}
+			break;
 		}
 		case SURefType_Material:
 		{
 			Context.Materials.InvalidateMaterial(SUMaterialFromEntity(Entity));
+			break;
 		}
 		default:
 		{
@@ -441,6 +458,81 @@ public:
 		}
 		}
 		return true;
+	}
+
+	bool OnGeometryModified(DatasmithSketchUp::FEntityIDType EntityId)
+	{
+		DatasmithSketchUp::FDefinition* DefinitionPtr = GetDefinition(EntityId);
+
+		if (!DefinitionPtr)
+		{
+			// Not a component entity
+			return false;
+		}
+
+		DefinitionPtr->InvalidateDefinitionGeometry();
+
+		return false;
+	}
+
+	DatasmithSketchUp::FDefinition* GetDefinition(DatasmithSketchUp::FEntityIDType DefinitionEntityId)
+	{
+		DatasmithSketchUp::FDefinition* DefinitionPtr = nullptr;
+
+		if (DefinitionEntityId.EntityID == 0)
+		{
+			return Context.ModelDefinition.Get();
+		}
+		else
+		{
+			if (TSharedPtr<DatasmithSketchUp::FComponentDefinition>* Ptr = Context.ComponentDefinitions.FindComponentDefinition(DefinitionEntityId))
+			{
+				return Ptr->Get();
+			}
+		}
+		return nullptr;
+	}
+
+
+	bool OnEntityAdded(DatasmithSketchUp::FEntityIDType ParentEntityId, DatasmithSketchUp::FEntityIDType EntityId)
+	{
+		DatasmithSketchUp::FDefinition* DefinitionPtr = GetDefinition(ParentEntityId);
+		
+		if (!DefinitionPtr)
+		{
+			// Not a component entity
+			return false;
+		}
+
+		DatasmithSketchUp::FEntities& Entities = DefinitionPtr->GetEntities();
+
+		if (SUGroupRef* GroupRefPtr = Entities.GetGroups().FindByPredicate([EntityId](const SUGroupRef& GroupRef) { return DatasmithSketchUpUtils::GetGroupID(GroupRef) == EntityId; }))
+		{
+			SUGroupRef GroupRef = *GroupRefPtr;
+
+			SUEntityRef Entity = SUGroupToEntity(GroupRef);
+			// todo: remove dup
+			TSharedPtr<DatasmithSketchUp::FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(SUComponentInstanceFromEntity(Entity));
+			DefinitionPtr->AddInstance(Context, ComponentInstance);
+			return true;
+		}
+
+		// todo: embed Find by id into Entities itself
+		TArray<SUComponentInstanceRef> ComponentInstances = Entities.GetComponentInstances();
+		if (SUComponentInstanceRef* ComponentInstanceRefPtr = ComponentInstances.FindByPredicate([EntityId](const SUComponentInstanceRef& EntityRef) { return DatasmithSketchUpUtils::GetComponentInstanceID(EntityRef) == EntityId; }))
+		{
+			SUComponentInstanceRef ComponentInstanceRef = *ComponentInstanceRefPtr;
+
+			SUEntityRef Entity = SUComponentInstanceToEntity(ComponentInstanceRef);
+			// todo: remove dup
+
+			SUComponentInstanceRef Ref = SUComponentInstanceFromEntity(Entity);
+			TSharedPtr<DatasmithSketchUp::FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(Ref);
+			DefinitionPtr->AddInstance(Context, ComponentInstance);
+			return true;
+		}
+
+		return false;
 	}
 
 	bool OnEntityAdded(SUEntityRef EntityParent, SUEntityRef Entity)
@@ -458,10 +550,12 @@ public:
 		case SURefType_Face:
 		{
 			Context.GetEntityDefinition(EntityParent)->InvalidateDefinitionGeometry();
+			break;
 		}
 		case SURefType_Material:
 		{
 			Context.Materials.CreateMaterial(SUMaterialFromEntity(Entity));
+			break;
 		}
 		default:
 		{
@@ -470,7 +564,12 @@ public:
 		}
 		return true;
 	}
-
+	
+	bool OnMaterialAdded(DatasmithSketchUp::FEntityIDType EntityId)
+	{
+		Context.Materials.CreateMaterial(EntityId);
+		return true;
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -645,6 +744,70 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added(VALUE self, VALUE ruby
 }
 #endif
 
+VALUE DatasmithSketchUpDirectLinkExporter_on_entity_modified_by_id(VALUE self, VALUE ruby_entity_id)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	Check_Type(ruby_entity_id, T_FIXNUM);
+	int32 EntityId = FIX2LONG(ruby_entity_id);
+	// Done converting args
+
+	Ptr->OnEntityModified(DatasmithSketchUp::FEntityIDType(EntityId));
+
+	return Qtrue;
+}
+
+VALUE DatasmithSketchUpDirectLinkExporter_on_geometry_modified_by_id(VALUE self, VALUE ruby_entity_id)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	Check_Type(ruby_entity_id, T_FIXNUM);
+	int32 EntityId = FIX2LONG(ruby_entity_id);
+	// Done converting args
+
+	Ptr->OnGeometryModified(DatasmithSketchUp::FEntityIDType(EntityId));
+
+	return Qtrue;
+}
+
+VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added_by_id(VALUE self, VALUE ruby_parent_entity_id, VALUE ruby_entity_id)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	Check_Type(ruby_parent_entity_id, T_FIXNUM);
+	int32 ParentEntityId = FIX2LONG(ruby_parent_entity_id);
+
+	Check_Type(ruby_entity_id, T_FIXNUM);
+	int32 EntityId = FIX2LONG(ruby_entity_id);
+	// Done converting args
+
+	Ptr->OnEntityAdded(DatasmithSketchUp::FEntityIDType(ParentEntityId), DatasmithSketchUp::FEntityIDType(EntityId));
+
+	return Qtrue;
+}
+
+VALUE DatasmithSketchUpDirectLinkExporter_on_material_added_by_id(VALUE self, VALUE ruby_entity_id)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	Check_Type(ruby_entity_id, T_FIXNUM);
+	int32 EntityId = FIX2LONG(ruby_entity_id);
+	// Done converting args
+
+	Ptr->OnMaterialAdded(DatasmithSketchUp::FEntityIDType(EntityId));
+
+	return Qtrue;
+}
+
+
 VALUE DatasmithSketchUpDirectLinkExporter_on_entity_removed(VALUE self, VALUE ruby_entity_id)
 {
 	// Converting args
@@ -694,6 +857,7 @@ VALUE open_directlink_ui() {
 // todo: hardcoded init module function name
 extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby()
 {
+
 	VALUE EpicGames = rb_define_module("EpicGames");
 	VALUE Datasmith = rb_define_module_under(EpicGames, "DatasmithBackend");
 
@@ -712,6 +876,11 @@ extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby()
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_modified", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_modified), 1);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_added", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_added), 2);
 #endif
+
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_modified_by_id", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_modified_by_id), 1);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_geometry_modified_by_id", ToRuby(DatasmithSketchUpDirectLinkExporter_on_geometry_modified_by_id), 1);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_added_by_id", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_added_by_id), 2);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_material_added_by_id", ToRuby(DatasmithSketchUpDirectLinkExporter_on_material_added_by_id), 1);
 
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_removed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_removed), 1);
 

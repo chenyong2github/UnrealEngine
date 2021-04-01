@@ -49,7 +49,7 @@ namespace DatasmithSketchUp
 		TSharedPtr<FComponentInstance> AddComponentInstance(SUComponentInstanceRef InComponentInstanceRef); // Register ComponentInstanceRef in the collection
 		bool RemoveComponentInstance(FComponentInstanceIDType ComponentInstanceId);
 
-		void InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID);
+		bool InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID);
 		void InvalidateComponentInstanceGeometry(FComponentInstanceIDType ComponentInstanceID);
 		void UpdateProperties();
 		void UpdateGeometry();
@@ -76,6 +76,7 @@ namespace DatasmithSketchUp
 
 		TSharedPtr<FComponentDefinition> GetComponentDefinition(SUComponentInstanceRef InSComponentInstanceRef);
 		TSharedPtr<FComponentDefinition> GetComponentDefinition(SUComponentDefinitionRef ComponentDefinitionRef);
+		TSharedPtr<FComponentDefinition>* FindComponentDefinition(FComponentDefinitionIDType ComponentDefinitionID);
 
 		void Update();
 
@@ -101,7 +102,7 @@ namespace DatasmithSketchUp
 		// Creates single Image File for each separate Texture that uses the same saved image file
 		void AddImageFileForTexture(TSharedPtr<FTexture> Texture); 
 
-		void ConvertToDatasmith();
+		void Update();
 
 	private:
 		FExportContext& Context;
@@ -152,7 +153,9 @@ namespace DatasmithSketchUp
 		);
 
 		TSharedPtr<FMaterial> CreateMaterial(SUMaterialRef SMaterialDefinitionRef);
+		void CreateMaterial(FMaterialIDType MaterialID);
 		void InvalidateMaterial(SUMaterialRef SMaterialDefinitionRef);
+		bool InvalidateMaterial(FMaterialIDType MateriadId);
 		bool RemoveMaterial(FEntityIDType EntityId);
 
 

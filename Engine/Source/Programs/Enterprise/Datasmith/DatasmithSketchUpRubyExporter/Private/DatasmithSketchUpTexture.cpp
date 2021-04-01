@@ -89,7 +89,7 @@ void FTextureCollection::AddImageFileForTexture(TSharedPtr<FTexture> Texture)
 	Texture->TextureImageFile = TextureImageFile;
 }
 
-void FTextureCollection::ConvertToDatasmith()
+void FTextureCollection::Update()
 {
 	for (TPair<FString, TSharedPtr<FTextureImageFile>>& TextureNameAndTextureImageFile : TextureNameToImageFile)
 	{
@@ -134,9 +134,16 @@ TSharedPtr<FTextureImageFile> FTextureImageFile::Create(TSharedPtr<FTexture> Tex
 
 void FTextureImageFile::Update(FExportContext& Context)
 {
+	if (!bInvalidated)
+	{
+		return;
+	}
+
 	TSharedPtr<FTexture> Texture = Textures.Array().Last(); // Texture manages to write image files in SketchUp - so take any of the textures to do it
 	FString TextureFilePath = FPaths::Combine(Context.GetAssetsOutputPath(), TextureFileName);
 	Texture->WriteImageFile(Context, TextureFilePath);
 	TextureElement->SetFile(*TextureFilePath);
 	Context.DatasmithScene->AddTexture(TextureElement); // todo: make sure that texture not created/added twice
+
+	bInvalidated = false;
 }

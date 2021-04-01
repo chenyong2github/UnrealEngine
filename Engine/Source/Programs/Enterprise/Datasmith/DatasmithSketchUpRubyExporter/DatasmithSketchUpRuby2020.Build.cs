@@ -11,20 +11,19 @@ namespace UnrealBuildTool.Rules
 		{
 			bUseRTTI = true;
 
-			// OptimizeCode = CodeOptimization.Never;
-			// bUseUnity = false;
-			// PCHUsage = PCHUsageMode.NoPCHs;
-
+			//OptimizeCode = CodeOptimization.Never;
+			//bUseUnity = false;
+			//PCHUsage = PCHUsageMode.NoPCHs;
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
 // 					// For DirectLink
-// 					"MessagingCommon",
-// 					"Messaging",
-// 					"UdpMessaging",
+ 					"MessagingCommon",
+                    "Messaging",
+                    "UdpMessaging",
 
-					"DatasmithExporter",
+                    "DatasmithExporter",
 					"DatasmithExporterUI",
 
 					"UEOpenExr",
@@ -58,6 +57,7 @@ namespace UnrealBuildTool.Rules
 
 				if (!Directory.Exists(SketchUpSDKLocation))
                 {
+                	// XXX: remove
 					System.Console.WriteLine("SketchUp SDK directory doesn't exist: '" + SketchUpSDKLocation + "'");
 				}
 			}
