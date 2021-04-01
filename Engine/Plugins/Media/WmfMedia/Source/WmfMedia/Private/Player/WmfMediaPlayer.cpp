@@ -30,6 +30,9 @@ FWmfMediaPlayer::FWmfMediaPlayer(IMediaEventSink& InEventSink)
 {
 	check(Session != NULL);
 	check(Tracks.IsValid());
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	Session->SetTracks(Tracks);
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 }
 
 
