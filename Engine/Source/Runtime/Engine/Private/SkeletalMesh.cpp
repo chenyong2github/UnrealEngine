@@ -3492,12 +3492,12 @@ void USkeletalMesh::InitMorphTargetsAndRebuildRenderData()
 	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(this);
 #endif
 	
-	MarkPackageDirty();
 	// need to refresh the map
 	InitMorphTargets();
 
 	if (IsInGameThread())
 	{
+		MarkPackageDirty();
 		// reset all morphtarget for all components
 		for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 		{
