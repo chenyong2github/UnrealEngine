@@ -1523,7 +1523,7 @@ bool UMeshPaintingSubsystem::SelectionContainsValidAdapters() const
 {
 	for (auto& MeshAdapterPair : ComponentToAdapterMap)
 	{
-		if (MeshAdapterPair.Value->IsValid())
+		if (MeshAdapterPair.Value && MeshAdapterPair.Value->IsValid())
 		{
 			return true;
 		}
