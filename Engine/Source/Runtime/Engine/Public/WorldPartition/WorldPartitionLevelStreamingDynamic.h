@@ -65,20 +65,9 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	bool bIsModifiedForPIE;
+	UActorContainer* ActorContainer;
 #endif
 
 	UPROPERTY()
 	TWeakObjectPtr<UWorldPartition> OuterWorldPartition;
-};
-
-// Actor container class used to duplicate actors during cells streaming
-UCLASS(Transient)
-class UActorContainer : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY()
-	TArray<AActor*> Actors;
 };

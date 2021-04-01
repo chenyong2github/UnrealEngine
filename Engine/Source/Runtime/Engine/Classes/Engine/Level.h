@@ -78,6 +78,17 @@ private:
 };
 #endif
 
+// Actor container class used to duplicate actors during cells streaming in PIE
+UCLASS()
+class UActorContainer : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	TMap<FName, AActor*> Actors;
+};
+
 /**
  * Structure containing all information needed for determining the screen space
  * size of an object/ texture instance.
