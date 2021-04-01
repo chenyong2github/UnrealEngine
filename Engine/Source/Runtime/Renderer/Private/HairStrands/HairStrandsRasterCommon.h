@@ -9,15 +9,13 @@
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 #include "HairStrandsCluster.h"
-#include "HairStrandsVoxelization.h"
 
 class FViewInfo;
 
 enum class EHairStrandsRasterPassType : uint8
 {
 	FrontDepth,
-	DeepOpacityMap,
-	VoxelizationVirtual
+	DeepOpacityMap
 };
 
 // ////////////////////////////////////////////////////////////////
@@ -52,37 +50,4 @@ void AddHairDeepShadowRasterPass(
 	const uint32 HairRenderInfoBits,
 	const FVector& LightDirection,
 	FHairDeepShadowRasterPassParameters* PassParameters,
-	FInstanceCullingManager& InstanceCullingManager);
-
-// ////////////////////////////////////////////////////////////////
-// Voxelization raster pass
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterUniformParameters, )
-	SHADER_PARAMETER_STRUCT(FHairStrandsVoxelCommonParameters, VirtualVoxel)
-	SHADER_PARAMETER(FMatrix, WorldToClipMatrix)
-	SHADER_PARAMETER(FVector, VoxelMinAABB)
-	SHADER_PARAMETER(FVector, VoxelMaxAABB)
-	SHADER_PARAMETER(FIntVector, VoxelResolution)
-	SHADER_PARAMETER(uint32, MacroGroupId)
-	SHADER_PARAMETER(FIntPoint, ViewportResolution)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVoxelizationViewInfo>, VoxelizationViewInfoBuffer)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, DensityTexture)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-BEGIN_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterPassParameters, )
-	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairVoxelizationRasterUniformParameters, UniformBuffer)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-void AddHairVoxelizationRasterPass(
-	FRDGBuilder& GraphBuilder,
-	const FScene* Scene,
-	const FViewInfo* ViewInfo,
-	const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos,
-	const FIntRect& ViewportRect,
-	const FVector4& HairRenderInfo,
-	const uint32 HairRenderInfoBits,
-	const FVector& RasterDirection,
-	FHairVoxelizationRasterPassParameters* PassParameters,
 	FInstanceCullingManager& InstanceCullingManager);

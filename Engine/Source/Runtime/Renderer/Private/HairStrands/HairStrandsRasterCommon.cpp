@@ -12,7 +12,6 @@
 #include "ScenePrivate.h"
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FHairDeepShadowRasterUniformParameters, "DeepRasterPass", SceneTextures);
-IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FHairVoxelizationRasterUniformParameters, "VoxelRasterPass", SceneTextures);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -80,46 +79,6 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FDeepShadowDomMeshVS, TEXT("/Engine/Private/Hai
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-template<bool bVoxelizeMaterial, bool bClusterCulling>
-class FVoxelMeshVS : public FMeshMaterialShader
-{
-	DECLARE_SHADER_TYPE(FVoxelMeshVS, MeshMaterial);
-
-protected:
-
-	FVoxelMeshVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FMeshMaterialShader(Initializer)
-	{
-		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
-		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-	}
-
-	FVoxelMeshVS() {}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return IsCompatibleWithHairStrands(Parameters.Platform, Parameters.MaterialParameters) && Parameters.VertexFactoryType->GetFName() == FName(TEXT("FHairStrandsVertexFactory"));;
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		// Note: at the moment only the plain voxelization support material voxelization
-		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("MESH_RENDER_MODE"), 2);
-		OutEnvironment.SetDefine(TEXT("SUPPORT_TANGENT_PROPERTY"), bVoxelizeMaterial ? 1 : 0);
-		OutEnvironment.SetDefine(TEXT("SUPPORT_MATERIAL_PROPERTY"), bVoxelizeMaterial ? 1 : 0);
-		OutEnvironment.SetDefine(TEXT("USE_CULLED_CLUSTER"), bClusterCulling ? 1 : 0);
-	}
-};
-
-typedef FVoxelMeshVS<false, false> TVoxelMeshVS_NoMaterial_NoCluster;
-typedef FVoxelMeshVS<false, true>  TVoxelMeshVS_NoMaterial_Cluster;
-
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TVoxelMeshVS_NoMaterial_NoCluster, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowVS.usf"), TEXT("Main"), SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TVoxelMeshVS_NoMaterial_Cluster, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowVS.usf"), TEXT("Main"), SF_Vertex);
-
-/////////////////////////////////////////////////////////////////////////////////////////
-
 class FDeepShadowDepthMeshPS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FDeepShadowDepthMeshPS, MeshMaterial);
@@ -165,44 +124,6 @@ public:
 	}
 };
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FDeepShadowDomMeshPS, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainDom"), SF_Pixel);
-
-/////////////////////////////////////////////////////////////////////////////////////////
-
-enum class EVoxelMeshPSType
-{
-	Density,
-	Material
-};
-template<EVoxelMeshPSType VoxelizationType>
-class FVoxelMeshPS : public FMeshMaterialShader
-{
-	DECLARE_SHADER_TYPE(FVoxelMeshPS, MeshMaterial);
-
-public:
-
-	FVoxelMeshPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FMeshMaterialShader(Initializer)
-	{
-		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
-		check(FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Mobile);
-	}
-
-	FVoxelMeshPS() {}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return IsCompatibleWithHairStrands(Parameters.Platform, Parameters.MaterialParameters) && Parameters.VertexFactoryType->GetFName() == FName(TEXT("FHairStrandsVertexFactory"));
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SUPPORT_TANGENT_PROPERTY"), VoxelizationType == EVoxelMeshPSType::Material ? 1 : 0);
-		OutEnvironment.SetDefine(TEXT("SUPPORT_MATERIAL_PROPERTY"), VoxelizationType == EVoxelMeshPSType::Material ? 1 : 0);
-	}
-};
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FVoxelMeshPS<EVoxelMeshPSType::Density>, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainVoxel"), SF_Pixel);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FVoxelMeshPS<EVoxelMeshPSType::Material>, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainVoxel"), SF_Pixel);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -264,15 +185,11 @@ void FHairRasterMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 			Process<FDeepShadowDepthMeshVS, FDeepShadowDepthMeshPS>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
 		else if (RasterPassType == EHairStrandsRasterPassType::DeepOpacityMap)
 			Process<FDeepShadowDomMeshVS, FDeepShadowDomMeshPS>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
-		else if (RasterPassType == EHairStrandsRasterPassType::VoxelizationVirtual && bCullingEnable)
-			Process<FVoxelMeshVS<false, true>, FVoxelMeshPS<EVoxelMeshPSType::Density>>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
-		else if (RasterPassType == EHairStrandsRasterPassType::VoxelizationVirtual && !bCullingEnable)
-			Process<FVoxelMeshVS<false, false>, FVoxelMeshPS<EVoxelMeshPSType::Density>>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
 	}
 }
 
-// Vertex is either FDeepShadowDepthMeshVS, FDeepShadowDomMeshVS, or FVoxelMeshVS
-// Pixel  is either FDeepShadowDepthMeshPS, FDeepShadowDomMeshPS, or FVoxelMeshPS
+// Vertex is either FDeepShadowDepthMeshVS or FDeepShadowDomMeshVS
+// Pixel  is either FDeepShadowDepthMeshPS or FDeepShadowDomMeshPS
 template<typename VertexShaderType, typename PixelShaderType>
 void FHairRasterMeshProcessor::Process(
 	const FMeshBatch& MeshBatch,
@@ -354,7 +271,6 @@ void AddHairStrandsRasterPass(
 		{
 		case EHairStrandsRasterPassType::DeepOpacityMap:		return RDG_EVENT_NAME("HairStrandsRasterDeepOpacityMap");
 		case EHairStrandsRasterPassType::FrontDepth:			return RDG_EVENT_NAME("HairStrandsRasterFrontDepth");
-		case EHairStrandsRasterPassType::VoxelizationVirtual:	return RDG_EVENT_NAME("HairStrandsRasterVoxelizationVirtual");
 		default:												return RDG_EVENT_NAME("Noname");
 		}
 	};
@@ -395,12 +311,6 @@ void AddHairStrandsRasterPass(
 				CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero,
 				CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-		}
-		else if (RasterPassType == EHairStrandsRasterPassType::VoxelizationVirtual)
-		{
-			DrawRenderState.SetBlendState(TStaticBlendState<
-				CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 		}
 
 		FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage; // << Were would thid be stored?
@@ -453,32 +363,6 @@ void AddHairDeepShadowRasterPass(
 		HairRenderInfo, 
 		HairRenderInfoBits,
 		LightDirection,
-		PassParameters,
-		InstanceCullingManager);
-}
-
-void AddHairVoxelizationRasterPass(
-	FRDGBuilder& GraphBuilder,
-	const FScene* Scene,
-	const FViewInfo* ViewInfo,
-	const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos,
-	const FIntRect& ViewportRect,
-	const FVector4& HairRenderInfo,
-	const uint32 HairRenderInfoBits,
-	const FVector& RasterDirection,
-	FHairVoxelizationRasterPassParameters* PassParameters,
-	FInstanceCullingManager& InstanceCullingManager)
-{
-	AddHairStrandsRasterPass<FHairVoxelizationRasterPassParameters>(
-		GraphBuilder, 
-		Scene, 
-		ViewInfo, 
-		PrimitiveSceneInfos, 
-		EHairStrandsRasterPassType::VoxelizationVirtual,
-		ViewportRect, 
-		HairRenderInfo, 
-		HairRenderInfoBits,
-		RasterDirection,
 		PassParameters,
 		InstanceCullingManager);
 }

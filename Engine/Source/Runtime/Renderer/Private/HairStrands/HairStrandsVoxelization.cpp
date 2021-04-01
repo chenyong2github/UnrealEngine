@@ -99,9 +99,6 @@ static const FIntPoint GPUDrivenViewportResolution = FIntPoint(4096, 4096);
 static int32 GHairVirtualVoxelInvalidEmptyPageIndex = 1;
 static FAutoConsoleVariableRef CVarHairVirtualVoxelInvalidEmptyPageIndex(TEXT("r.HairStrands.Voxelization.Virtual.InvalidateEmptyPageIndex"), GHairVirtualVoxelInvalidEmptyPageIndex, TEXT("Invalid voxel page index which does not contain any voxelized data."));
 
-static int32 GHairStrandsVoxelComputeRaster = 1;
-static FAutoConsoleVariableRef CVarHairStrandsVoxelComputeRaster(TEXT("r.HairStrands.Voxelization.Virtual.ComputeRaster"), GHairStrandsVoxelComputeRaster, TEXT("Use compute for rasterizing voxeliation (faster)."));
-
 static int32 GHairStrandsVoxelComputeRasterMaxVoxelCount = 32;
 static FAutoConsoleVariableRef CVarHairStrandsVoxelComputeRasterMaxVoxelCount(TEXT("r.HairStrands.Voxelization.Virtual.ComputeRasterMaxVoxelCount"), GHairStrandsVoxelComputeRasterMaxVoxelCount, TEXT("Max number of voxel which are rasterized for a given hair segment. This is for debug purpose only."));
 
@@ -1185,38 +1182,7 @@ static void AddVirtualVoxelizationRasterPass(
 		MacroGroup.VirtualVoxelNodeDesc.WorldToClip = WorldToClip;
 	}
 
-	const bool bUseComputeRaster = GHairStrandsVoxelComputeRaster > 0;
-	if (bIsGPUDriven && bUseComputeRaster)
-	{	
-		AddVirtualVoxelizationComputeRasterPass(GraphBuilder, ViewInfo, VoxelResources, MacroGroup);
-		return;
-	}
-
-	FHairVoxelizationRasterPassParameters* PassParameters = GraphBuilder.AllocParameters<FHairVoxelizationRasterPassParameters>();
-
-	{
-		FHairVoxelizationRasterUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FHairVoxelizationRasterUniformParameters>();
-
-		UniformParameters->VirtualVoxel = VoxelResources.Parameters.Common;
-		UniformParameters->WorldToClipMatrix = WorldToClip;
-		UniformParameters->VoxelMinAABB = MacroGroup.VirtualVoxelNodeDesc.WorldMinAABB;
-		UniformParameters->VoxelMaxAABB = MacroGroup.VirtualVoxelNodeDesc.WorldMaxAABB;
-		UniformParameters->VoxelResolution = TotalVoxelResolution; // i.e., the virtual resolution
-		UniformParameters->MacroGroupId = MacroGroup.MacroGroupId;
-		UniformParameters->ViewportResolution = RasterResolution;
-		UniformParameters->VoxelizationViewInfoBuffer = GraphBuilder.CreateSRV(VoxelResources.VoxelizationViewInfoBuffer);
-		UniformParameters->DensityTexture = GraphBuilder.CreateUAV(VoxelResources.PageTexture);
-
-		PassParameters->UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
-	}
-
-	// For debug purpose
-	#if 0
-	FRDGTextureRef DebugOutputTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(RasterResolution, PF_R32_UINT, FClearValueBinding::Black, TexCreate_RenderTargetable), TEXT("Hair.DummyTexture"));
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(DebugOutputTexture, ERenderTargetLoadAction::EClear);
-	#endif
-
-	AddHairVoxelizationRasterPass(GraphBuilder, Scene, ViewInfo, PrimitiveSceneInfo, ViewportRect, HairRenderInfo, HairRenderInfoBits, RasterDirection, PassParameters, InstanceCullingManager);
+	AddVirtualVoxelizationComputeRasterPass(GraphBuilder, ViewInfo, VoxelResources, MacroGroup);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
