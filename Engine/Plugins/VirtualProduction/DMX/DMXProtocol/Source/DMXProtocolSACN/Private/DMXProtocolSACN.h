@@ -2,23 +2,15 @@
 
 #pragma once
 
-#include "DMXProtocolSACNModule.h"
 #include "Interfaces/IDMXProtocol.h"
 
 #include "CoreMinimal.h"
-#include "Interfaces/IPv4/IPv4Endpoint.h"
-#include "HAL/CriticalSection.h"
-#include "HAL/ThreadSafeCounter.h"
 
-class FInternetAddr;
-class FSocket;
-class FDMXProtocolUniverseSACN;
-class FDMXProtocolSACNReceivingRunnable;
+class FDMXInputPort;
+class FDMXOutputPort;
+class FDMXProtocolSACNReceiver;
+class FDMXProtocolSACNSender;
 
-template<class TUniverse>
-class FDMXProtocolUniverseManager;
-
-using FDMXProtocolUniverseSACNPtr = TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>;
 
 class DMXPROTOCOLSACN_API FDMXProtocolSACN
 	: public IDMXProtocol
@@ -50,15 +42,33 @@ public:
 	virtual void UnregisterOutputPort(const TSharedRef<FDMXOutputPort, ESPMode::ThreadSafe>& OutputPort) override;
 	// ~End IDMXProtocol implementation
 
-private:
 	/** The supported input port communication types */
 	static const TArray<EDMXCommunicationType> InputPortCommunicationTypes;
 
 	/** The supported output port communication types */
 	static const TArray<EDMXCommunicationType> OutputPortCommunicationTypes;
 
+private:
+	/** Returns the sender for specified endpoint or nullptr if none exists */
+	TSharedPtr<FDMXProtocolSACNSender> FindExistingMulticastSender(const FString& NetworkInterfaceAddress) const;
+
+	/** Returns the sender for specified endpoint or nullptr if none exists */
+	TSharedPtr<FDMXProtocolSACNSender> FindExistingUnicastSender(const FString& NetworkInterfaceAddress, const FString& DestinationAddress) const;
+
+	/** Returns the receiver for specified endpoint or nullptr if none exists */
+	TSharedPtr<FDMXProtocolSACNReceiver> FindExistingReceiver(const FString& IPAddress, EDMXCommunicationType CommunicationType) const;
+
 	/** Set of all DMX input ports currently in use */
-	TSet<TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>> CachedInputPorts;
+	TSet<FDMXInputPortSharedRef> CachedInputPorts;
+
+	/** Set of all DMX input ports currently in use */
+	TSet<FDMXOutputPortSharedRef> CachedOutputPorts;
+
+	/** Set of receivers currently in use */
+	TSet<TSharedPtr<FDMXProtocolSACNReceiver>> Receivers;
+
+	/** Set of receivers currently in use */
+	TSet<TSharedPtr<FDMXProtocolSACNSender>> Senders;
 
 private:
 	FName ProtocolName;
