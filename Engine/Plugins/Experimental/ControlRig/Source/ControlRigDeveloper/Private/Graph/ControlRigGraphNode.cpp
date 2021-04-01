@@ -584,7 +584,9 @@ bool UControlRigGraphNode::ShowPaletteIconOnNode() const
 		return ModelNode->IsEvent() ||
 			ModelNode->IsA<URigVMFunctionEntryNode>() ||
 			ModelNode->IsA<URigVMFunctionReturnNode>() ||
-			ModelNode->IsA<URigVMFunctionReferenceNode>();
+			ModelNode->IsA<URigVMFunctionReferenceNode>() ||
+			ModelNode->IsA<URigVMCollapseNode>() ||
+			Cast<URigVMUnitNode>(ModelNode) != nullptr;
 	}
 	return false;
 }
@@ -595,14 +597,71 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 
 	static FSlateIcon FunctionIcon("EditorStyle", "Kismet.AllClasses.FunctionIcon");
 	static FSlateIcon EventIcon("EditorStyle", "GraphEditor.Event_16x");
+	static FSlateIcon EntryReturnIcon("EditorStyle", "GraphEditor.Default_16x");
+	static FSlateIcon CollapsedNodeIcon("EditorStyle", "GraphEditor.SubGraph_16x");
 
 	if (URigVMNode* ModelNode = GetModelNode())
 	{
-		if (ModelNode->IsEvent() || 
-			ModelNode->IsA<URigVMFunctionEntryNode>() || 
-			ModelNode->IsA<URigVMFunctionReturnNode>())
+		if (ModelNode->IsEvent())
 		{
 			return EventIcon;
+		}
+
+		if (ModelNode->IsA<URigVMFunctionReferenceNode>())
+		{ 
+			return FunctionIcon;
+		}
+		
+		if (ModelNode->IsA<URigVMCollapseNode>())
+		{
+			return CollapsedNodeIcon;
+		}
+
+		if (ModelNode->IsA<URigVMFunctionEntryNode>() || 
+            ModelNode->IsA<URigVMFunctionReturnNode>())
+		{
+			return EntryReturnIcon;
+		}
+
+		if (URigVMUnitNode *UnitNode = Cast<URigVMUnitNode>(ModelNode))
+		{
+			ensure(UnitNode->GetScriptStruct());
+			
+			FString IconPath;
+
+			// icon path format: StyleSetName|StyleName|SmallStyleName|StatusOverlayStyleName
+			// the last two names are optional, see FSlateIcon() for reference
+			UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(FRigVMStruct::IconMetaName, &IconPath);
+
+			const int32 NumOfIconPathNames = 4;
+			
+			FName IconPathNames[NumOfIconPathNames] = {
+				NAME_None, // StyleSetName
+				NAME_None, // StyleName
+				NAME_None, // SmallStyleName
+				NAME_None  // StatusOverlayStyleName
+			};
+
+			int32 NameIndex = 0;
+
+			while (!IconPath.IsEmpty() && NameIndex < NumOfIconPathNames)
+			{
+				FString Left;
+				FString Right;
+
+				if (!IconPath.Split(TEXT("|"), &Left, &Right))
+				{
+					Left = IconPath;
+				}
+
+				IconPathNames[NameIndex] = FName(*Left);
+
+				NameIndex++;
+				IconPath = Right;
+			}
+
+			return FSlateIcon(IconPathNames[0], IconPathNames[1], IconPathNames[2], IconPathNames[3]);
+			
 		}
 	}
 

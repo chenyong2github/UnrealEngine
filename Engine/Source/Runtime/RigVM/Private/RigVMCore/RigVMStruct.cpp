@@ -101,6 +101,7 @@ const FName FRigVMStruct::CustomWidgetMetaName("CustomWidget");
 const FName FRigVMStruct::ConstantMetaName("Constant");
 const FName FRigVMStruct::TitleColorMetaName("TitleColor");
 const FName FRigVMStruct::NodeColorMetaName("NodeColor");
+const FName FRigVMStruct::IconMetaName("Icon");
 const FName FRigVMStruct::KeywordsMetaName("Keywords");
 const FName FRigVMStruct::PrototypeNameMetaName("PrototypeName");
 const FName FRigVMStruct::ExpandPinByDefaultMetaName("ExpandByDefault");

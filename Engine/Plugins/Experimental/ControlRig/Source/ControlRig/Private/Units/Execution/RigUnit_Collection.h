@@ -364,7 +364,7 @@ struct CONTROLRIG_API FRigUnit_CollectionItemAtIndex : public FRigUnit_Collectio
 /**
  * Given a collection of items, execute iteratively across all items in a given collection
  */
-USTRUCT(meta=(DisplayName="For Each Item", Keywords="Collection,Loop,Iterate"))
+USTRUCT(meta=(DisplayName="For Each Item", Keywords="Collection,Loop,Iterate", Icon="EditorStyle|GraphEditor.Macro.ForEach_16x"))
 struct CONTROLRIG_API FRigUnit_CollectionLoop : public FRigUnit_CollectionBaseMutable
 {
 	GENERATED_BODY()

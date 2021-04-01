@@ -184,6 +184,10 @@ public:
 	static const FName ConstantMetaName;
 	static const FName TitleColorMetaName;
 	static const FName NodeColorMetaName;
+	// icon meta name format: StyleSetName|StyleName|SmallStyleName|StatusOverlayStyleName
+	// the last two names are optional, see FSlateIcon() for reference
+	// Example: Icon="EditorStyle|GraphEditor.Sequence_16x"
+	static const FName IconMetaName;
 	static const FName KeywordsMetaName;
 	static const FName PrototypeNameMetaName;
 	static const FName ExpandPinByDefaultMetaName;
