@@ -644,6 +644,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Misc", Meta = (DisplayName = "Stream landscape visual mesh LODs"))
 	bool bStreamLandscapeMeshLODs;
 
+	// Enables WebViews to use DOM storage API
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Misc", Meta = (DisplayName = "Enable DOM storage for WebViews"))
+	bool bEnableDomStorage;
+
 	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 
 

@@ -90,7 +90,7 @@ class WebViewControl
 		public float VOffset;
 	}
 
-	public WebViewControl(long inNativePtr, int width, int height, boolean swizzlePixels, boolean vulkanRenderer, final boolean bEnableRemoteDebugging, final boolean bUseTransparency)
+	public WebViewControl(long inNativePtr, int width, int height, boolean swizzlePixels, boolean vulkanRenderer, final boolean bEnableRemoteDebugging, final boolean bUseTransparency, final boolean bEnableDomStorage)
 	{
 		final WebViewControl w = this;
 
@@ -127,6 +127,7 @@ class WebViewControl
 				webView.getSettings().setAllowFileAccessFromFileURLs(true);
 				webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
 				webView.getSettings().setSupportMultipleWindows(true);
+				webView.getSettings().setDomStorageEnabled(bEnableDomStorage);
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
 				{
 					webView.getSettings().setMixedContentMode(0); // 0 = MIXED_CONTENT_ALWAYS_ALLOW
