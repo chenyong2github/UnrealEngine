@@ -208,6 +208,7 @@ void FOpenColorIOEditorModule::OnDisplayConfigurationChanged(const FOpenColorIOD
 	FViewport* CurrentViewport = GEditor->GetActiveViewport();
 	FOpenColorIODisplayConfiguration& Configuration = IOpenColorIOModule::Get().GetDisplayManager().FindOrAddDisplayConfiguration(CurrentViewport->GetClient());
 	Configuration = NewConfiguration;
+	CurrentViewport->Invalidate();
 }
 
 void FOpenColorIOEditorModule::OnLevelViewportClientListChanged()
