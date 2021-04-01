@@ -56,7 +56,7 @@ struct FARWorldSaveHeader
 
 struct APPLEARKIT_API FAppleARKitConversion
 {
-	static FORCEINLINE float ToUE4Scale()
+	static FORCEINLINE float ToUEScale()
 	{
 		return 100.f;
 	}
@@ -83,7 +83,7 @@ struct APPLEARKIT_API FAppleARKitConversion
 			FPlane(RawYUpMatrix.columns[3][0], RawYUpMatrix.columns[3][1], RawYUpMatrix.columns[3][2], RawYUpMatrix.columns[3][3]));
 
 		// Extract & convert translation
-		FVector Translation = FVector( -RawYUpFMatrix.M[3][2], RawYUpFMatrix.M[3][0], RawYUpFMatrix.M[3][1] ) * ToUE4Scale();
+		FVector Translation = FVector( -RawYUpFMatrix.M[3][2], RawYUpFMatrix.M[3][0], RawYUpFMatrix.M[3][1] ) * ToUEScale();
 
 		// Extract & convert rotation 
 		FQuat RawRotation( RawYUpFMatrix );
@@ -136,7 +136,7 @@ struct APPLEARKIT_API FAppleARKitConversion
 	 */
 	static FORCEINLINE FVector ToFVector(const vector_float3& RawYUpVector)
 	{
-		return FVector( -RawYUpVector.z, RawYUpVector.x, RawYUpVector.y ) * ToUE4Scale();
+		return FVector( -RawYUpVector.z, RawYUpVector.x, RawYUpVector.y ) * ToUEScale();
 	}
 
     /**

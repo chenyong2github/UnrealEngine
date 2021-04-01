@@ -208,7 +208,7 @@ float UAppleARKitFaceMeshComponent::GetFaceBlendShapeAmount(EARFaceBlendShape Bl
 
 FMatrix UAppleARKitFaceMeshComponent::GetRenderMatrix() const
 {
-	const float Scale = FAppleARKitConversion::ToUE4Scale();
+	const float Scale = FAppleARKitConversion::ToUEScale();
 	
 	FTransform RenderTrans;
 	switch (TransformSetting)
