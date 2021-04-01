@@ -45,8 +45,13 @@ utf8_string F3DElement2String::Element2String(const ModelerAPI::Element& InModel
 		AddIfNotZero(&InfoStr, "PointCloud=%d\n", InModelElement.GetPointCloudCount());
 		AddIfNotZero(&InfoStr, "LightCount=%d\n", InModelElement.GetLightCount());
 		Box3D Box = InModelElement.GetBounds();
+#if AC_VERSION < 24
+		InfoStr += Utf8StringFormat("Box={{%lf, %lf, %lf}, {%lf, %lf, %lf}}\n", Box.xMin, Box.yMin,
+									Box.zMin, Box.xMax, Box.yMax, Box.zMax);
+#else
 		InfoStr += Utf8StringFormat("Box={{%lf, %lf, %lf}, {%lf, %lf, %lf}}\n", Box.GetMinX(), Box.GetMinY(),
-									Box.GetMinZ(), Box.GetMaxX(), Box.GetMaxY(), Box.GetMaxZ());
+			Box.GetMinZ(), Box.GetMaxX(), Box.GetMaxY(), Box.GetMaxZ());
+#endif
 		// GetBaseElemId
 		ModelerAPI::Transformation Transform = InModelElement.GetElemLocalToWorldTransformation();
 		InfoStr += Utf8StringFormat("LocalToWorldTransformation\n\tStatus=%d\n", Transform.status);
