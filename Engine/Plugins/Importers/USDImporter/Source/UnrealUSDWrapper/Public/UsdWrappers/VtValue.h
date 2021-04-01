@@ -59,6 +59,8 @@ namespace UE
 
 	// Wrapped pxr::VtValue functions, refer to the USD SDK documentation
 	public:
+		FString GetTypeName() const;
+		bool IsArrayValued() const;
 		bool IsEmpty() const;
 
 	private:

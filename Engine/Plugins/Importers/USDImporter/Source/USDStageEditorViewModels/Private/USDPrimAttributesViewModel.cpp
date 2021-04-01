@@ -224,12 +224,12 @@ void FUsdPrimAttributesViewModel::Refresh( const TCHAR* InPrimPath, float TimeCo
 					FString AttributeName = UsdToUnreal::ConvertToken( Token );
 
 					UsdUtils::FConvertedVtValue ConvertedValue;
-					if ( !UsdToUnreal::ConvertValue( UE::FVtValue{VtValue}, ConvertedValue ) )
+					if ( !UsdToUnreal::ConvertValue( UE::FVtValue{ VtValue }, ConvertedValue ) )
 					{
 						continue;
 					}
 
-					const bool bAttrReadOnly = ConvertedValue.IsArrayValued();
+					const bool bAttrReadOnly = ConvertedValue.bIsArrayValued;
 					CreatePrimAttribute( AttributeName, ConvertedValue, bAttrReadOnly );
 				}
 			}

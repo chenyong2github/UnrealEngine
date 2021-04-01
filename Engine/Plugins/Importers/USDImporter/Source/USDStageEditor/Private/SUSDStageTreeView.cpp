@@ -677,6 +677,8 @@ void SUsdStageTreeView::OnRemovePrim()
 		return;
 	}
 
+	FScopedTransaction Transaction( LOCTEXT( "RemovePrimTransaction", "Remove prims'" ) );
+
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
 
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
@@ -907,6 +909,8 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdPrimViewModelRef& ViewMod
 
 	if ( bRenamingExistingPrim )
 	{
+		FScopedTransaction Transaction( LOCTEXT( "RenamePrimTransaction", "Rename a prim" ) );
+
 		UE::FSdfChangeBlock ChangeBlock;
 
 		// e.g. "/Root/OldPrim/"
@@ -923,7 +927,6 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdPrimViewModelRef& ViewMod
 		{
 			// e.g. "/Root/NewPrim"
 			FString NewPath = FString::Printf( TEXT( "%s/%s" ), *FPaths::GetPath( OldPath ), *NewNameStr );
-
 			TMap<FString, bool> PairsToAdd;
 			for ( TMap<FString, bool>::TIterator It( TreeItemExpansionStates ); It; ++It )
 			{
@@ -943,6 +946,8 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdPrimViewModelRef& ViewMod
 	}
 	else
 	{
+		FScopedTransaction Transaction( LOCTEXT( "AddPrimTransaction", "Add a new prim" ) );
+
 		ViewModel->DefinePrim( *InPrimName.ToString() );
 
 		const bool bResync = true;

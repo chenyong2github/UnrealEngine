@@ -1143,11 +1143,11 @@ void FUsdLevelSequenceHelperImpl::UpdateUsdLayerOffsetFromSection(const UMovieSc
 	}
 
 	// Prevent twins from being rebuilt when we update the layer offsets
-	TOptional< FScopedBlockNotices > BlockNotices;
+	TOptional< FScopedBlockNoticeListening > BlockNotices;
 
 	if ( StageActor.IsValid() )
 	{
-		BlockNotices.Emplace( StageActor.Get()->GetUsdListener() );
+		BlockNotices.Emplace( StageActor.Get() );
 	}
 
 	if ( LocalLayersSequences.Contains( SubSequence->GetFName() ) )
@@ -1464,7 +1464,7 @@ void FUsdLevelSequenceHelperImpl::HandleTransformTrackChange( const UMovieScene3
 		{
 			if ( UUsdPrimTwin* PrimTwin = StageActor->RootUsdTwin->Find( BoundSceneComponent ) )
 			{
-				FScopedBlockNotices BlockNotices( StageActor->GetUsdListener() );
+				FScopedBlockNoticeListening BlockNotices( StageActor.Get() );
 				UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( *PrimTwin->PrimPath ) );
 
 				SceneComponentsBindings.Emplace( PrimTwin ) = TPair< ULevelSequence*, FGuid >( Sequence, PossessableGuid ); // Make sure we track this binding

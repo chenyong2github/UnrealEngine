@@ -172,7 +172,7 @@ private:
 
 	void UpdateSpawnedObjectsTransientFlag( bool bTransient );
 
-	void OnPrimsChanged( const TMap< FString, bool >& PrimsChangedList );
+	void OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& InfoChanges, const UsdUtils::FObjectChangesByPath& ResyncChanges );
 	void OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin );
 
 	void OnObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
@@ -214,6 +214,11 @@ public:
 	FUsdListener& GetUsdListener() { return UsdListener; }
 	const FUsdListener& GetUsdListener() const { return UsdListener; }
 
+	/** Control whether we respond to USD notices or not. Mostly used to prevent us from responding to them when we're writing data to the stage */
+	USDSTAGE_API void StopListeningToUsdNotices();
+	USDSTAGE_API void ResumeListeningToUsdNotices();
+	USDSTAGE_API bool IsListeningToUsdNotices() const;
+
 	/** Prevents writing back data to the USD stage whenever our LevelSequences are modified */
 	USDSTAGE_API void StopMonitoringLevelSequence();
 	USDSTAGE_API void ResumeMonitoringLevelSequence();
@@ -238,5 +243,22 @@ private:
 	FUsdLevelSequenceHelper LevelSequenceHelper;
 
 	FDelegateHandle OnRedoHandle;
+	FThreadSafeCounter IsBlockedFromUsdNotices;
+};
+
+class USDSTAGE_API FScopedBlockNoticeListening final
+{
+public:
+	explicit FScopedBlockNoticeListening( AUsdStageActor* InStageActor );
+	~FScopedBlockNoticeListening();
+
+	FScopedBlockNoticeListening() = delete;
+	FScopedBlockNoticeListening( const FScopedBlockNoticeListening& ) = delete;
+	FScopedBlockNoticeListening( FScopedBlockNoticeListening&& ) = delete;
+	FScopedBlockNoticeListening& operator=( const FScopedBlockNoticeListening& ) = delete;
+	FScopedBlockNoticeListening& operator=( FScopedBlockNoticeListening&& ) = delete;
+
+private:
+	TWeakObjectPtr<AUsdStageActor> StageActor;
 };
 

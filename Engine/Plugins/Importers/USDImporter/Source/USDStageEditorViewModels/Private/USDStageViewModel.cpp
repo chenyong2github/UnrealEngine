@@ -6,6 +6,7 @@
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
+#include "USDLog.h"
 #include "USDStageActor.h"
 #include "USDStageImportContext.h"
 #include "USDStageImporterModule.h"
@@ -104,11 +105,18 @@ void FUsdStageViewModel::OpenStage( const TCHAR* FilePath )
 		UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
 	}
 
-	UsdStageActor->Modify();
+	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
+	{
+		StageActor->Modify();
 
-	UsdStageActor->RootLayer.FilePath = FilePath;
-	FPropertyChangedEvent RootLayerPropertyChangedEvent( FindFieldChecked< FProperty >( UsdStageActor->GetClass(), FName("RootLayer") ) );
-	UsdStageActor->PostEditChangeProperty( RootLayerPropertyChangedEvent );
+		StageActor->RootLayer.FilePath = FilePath;
+		FPropertyChangedEvent RootLayerPropertyChangedEvent( FindFieldChecked< FProperty >( StageActor->GetClass(), FName("RootLayer") ) );
+		StageActor->PostEditChangeProperty( RootLayerPropertyChangedEvent );
+	}
+	else
+	{
+		UE_LOG(LogUsd, Error, TEXT("Failed to find a AUsdStageActor that could open stage '%s'!"), FilePath);
+	}
 }
 
 void FUsdStageViewModel::ReloadStage()

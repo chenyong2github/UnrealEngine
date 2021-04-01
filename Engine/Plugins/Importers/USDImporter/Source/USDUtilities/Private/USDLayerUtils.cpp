@@ -461,6 +461,38 @@ UE::FSdfLayer UsdUtils::GetUESessionStateSublayer( const UE::FUsdStage& Stage, b
 	return StateLayer;
 }
 
+UE::FSdfLayer UsdUtils::FindLayerForIdentifier( const TCHAR* Identifier, const UE::FUsdStage& Stage )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	std::string IdentifierStr = UnrealToUsd::ConvertString( Identifier ).Get();
+	if ( pxr::SdfLayer::IsAnonymousLayerIdentifier( IdentifierStr ) )
+	{
+		std::string DisplayName = pxr::SdfLayer::GetDisplayNameFromIdentifier( IdentifierStr );
+
+		if ( pxr::UsdStageRefPtr UsdStage = static_cast< pxr::UsdStageRefPtr >( Stage ) )
+		{
+			const bool bIncludeSessionLayers = true;
+			for ( const pxr::SdfLayerHandle& Layer : UsdStage->GetLayerStack( bIncludeSessionLayers ) )
+			{
+				if ( Layer->GetDisplayName() == DisplayName )
+				{
+					return UE::FSdfLayer{ Layer };
+				}
+			}
+		}
+	}
+	else
+	{
+		if ( pxr::SdfLayerRefPtr Layer = pxr::SdfLayer::FindOrOpen( IdentifierStr ) )
+		{
+			return UE::FSdfLayer{ Layer };
+		}
+	}
+
+	return UE::FSdfLayer{};
+}
+
 #undef LOCTEXT_NAMESPACE
 
 #endif // #if USE_USD_SDK

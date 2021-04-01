@@ -23,6 +23,7 @@
 #include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdGeomXformable.h"
 #include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/SdfChangeBlock.h"
 
 #include "Async/ParallelFor.h"
 #include "CineCameraActor.h"
@@ -421,11 +422,26 @@ AUsdStageActor::AUsdStageActor()
 
 		OnTimeChanged.AddUObject( this, &AUsdStageActor::AnimatePrims );
 
-		UsdListener.GetOnPrimsChanged().AddUObject( this, &AUsdStageActor::OnPrimsChanged );
+		UsdListener.GetOnObjectsChanged().AddUObject( this, &AUsdStageActor::OnUsdObjectsChanged );
+
+		UsdListener.GetOnObjectsChanged().AddLambda(
+			[&]( const UsdUtils::FObjectChangesByPath& InfoChanges, const UsdUtils::FObjectChangesByPath& ResyncChanges )
+			{
+				if ( Transactor )
+				{
+					Transactor->Update( InfoChanges, ResyncChanges );
+				}
+			}
+		);
 
 		UsdListener.GetOnLayersChanged().AddLambda(
 			[&]( const TArray< FString >& ChangeVec )
 			{
+				if ( !IsListeningToUsdNotices() )
+				{
+					return;
+				}
+
 				TOptional< TGuardValue< ITransaction* > > SuppressTransaction;
 				if ( this->GetOutermost()->HasAnyPackageFlags( PKG_PlayInEditor ) )
 				{
@@ -442,29 +458,57 @@ AUsdStageActor::AUsdStageActor()
 				}
 			}
 		);
-
-		UsdListener.GetOnFieldsChanged().AddLambda(
-			[&]( const UsdUtils::FUsdFieldValueMap& OldValues, const UsdUtils::FUsdFieldValueMap& NewValues )
-			{
-				if ( Transactor )
-				{
-					Transactor->Update( OldValues, NewValues );
-				}
-			}
-		);
 	}
 }
 
-void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedList )
+void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& InfoChanges, const UsdUtils::FObjectChangesByPath& ResyncChanges )
 {
-	if ( !GetUsdStage() )
+	if ( !IsListeningToUsdNotices() )
 	{
 		return;
 	}
 
-	// Sort paths by length so that we parse the root paths first
-	TMap< FString, bool > SortedPrimsChangedList = PrimsChangedList;
-	SortedPrimsChangedList.KeySort( []( const FString& A, const FString& B ) -> bool { return A.Len() < B.Len(); } );
+	// If the stage was closed in a big transaction (e.g. undo open) a random UObject may be transacting before us and triggering USD changes,
+	// and the UE::FUsdStage will still be opened and valid (even though we intend on closing/changing it when we transact). It could be problematic/wasteful if we
+	// responded to those notices, so just early out here
+	const UE::FUsdStage& Stage = GetUsdStage();
+	if ( !Stage || !FPaths::IsSamePath( Stage.GetRootLayer().GetRealPath(), RootLayer.FilePath ) )
+	{
+		return;
+	}
+
+
+	// The most important thing here is to iterate in parent to child order, so build SortedPrimsChangedList
+	TArray< TPair< FString, bool > > SortedPrimsChangedList;
+	for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& InfoChange : InfoChanges )
+	{
+		const FString& PrimPath = InfoChange.Key;
+
+		// Some stage info should trigger some resyncs (even though technically info changes) because they should trigger reparsing of geometry
+		bool bIsResync = false;
+		if ( PrimPath == TEXT( "/" ) )
+		{
+			for ( const UsdUtils::FObjectChangeNotice& ObjectChange : InfoChange.Value )
+			{
+				for ( const UsdUtils::FAttributeChange& AttributeChange : ObjectChange.AttributeChanges )
+				{
+					static const TSet<FString> ResyncProperties = { TEXT( "metersPerUnit" ), TEXT( "upAxis" ) };
+					if ( ResyncProperties.Contains( AttributeChange.PropertyName ) )
+					{
+						bIsResync = true;
+					}
+				}
+			}
+		}
+
+		SortedPrimsChangedList.Add( TPair<FString, bool>( InfoChange.Key, bIsResync ) );
+	}
+	for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& ResyncChange : ResyncChanges )
+	{
+		const bool bIsResync = true;
+		SortedPrimsChangedList.Add( TPair<FString, bool>( ResyncChange.Key, bIsResync ) );
+	}
+	SortedPrimsChangedList.Sort( []( const TPair<FString, bool>& A, const TPair<FString, bool>& B ) -> bool { return A.Key.Len() < B.Key.Len(); } );
 
 	// During PIE, the PIE and the editor world will respond to notices. We have to prevent any PIE
 	// objects from being added to the transaction however, or else it will be discarded when finalized.
@@ -672,6 +716,21 @@ USDSTAGE_API void AUsdStageActor::Reset()
 	UsdStage = UE::FUsdStage();
 
 	OnStageChanged.Broadcast();
+}
+
+void AUsdStageActor::StopListeningToUsdNotices()
+{
+	IsBlockedFromUsdNotices.Increment();
+}
+
+void AUsdStageActor::ResumeListeningToUsdNotices()
+{
+	IsBlockedFromUsdNotices.Decrement();
+}
+
+bool AUsdStageActor::IsListeningToUsdNotices() const
+{
+	return IsBlockedFromUsdNotices.GetValue() == 0;
 }
 
 void AUsdStageActor::StopMonitoringLevelSequence()
@@ -1479,7 +1538,7 @@ void AUsdStageActor::OnPreUsdImport( FString FilePath )
 	FPaths::NormalizeFilename( RootPath );
 	if ( RootPath == FilePath )
 	{
-		UsdListener.Block();
+		StopListeningToUsdNotices();
 	}
 }
 
@@ -1495,7 +1554,7 @@ void AUsdStageActor::OnPostUsdImport( FString FilePath )
 	FPaths::NormalizeFilename( RootPath );
 	if ( RootPath == FilePath )
 	{
-		UsdListener.Unblock();
+		ResumeListeningToUsdNotices();
 	}
 }
 
@@ -1593,7 +1652,7 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 		{
 			if ( UsdStage )
 			{
-				FScopedBlockNotices BlockNotices( UsdListener );
+				FScopedBlockNoticeListening BlockNotices( this );
 
 				UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( *PrimPath ) );
 
@@ -1843,6 +1902,23 @@ void AUsdStageActor::AnimatePrims()
 		GEditor->RedrawLevelEditingViewports();
 	}
 #endif
+}
+
+FScopedBlockNoticeListening::FScopedBlockNoticeListening( AUsdStageActor* InStageActor )
+{
+	StageActor = InStageActor;
+	if ( InStageActor )
+	{
+		StageActor->StopListeningToUsdNotices();
+	}
+}
+
+FScopedBlockNoticeListening::~FScopedBlockNoticeListening()
+{
+	if ( AUsdStageActor* StageActorPtr = StageActor.Get() )
+	{
+		StageActorPtr->ResumeListeningToUsdNotices();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
