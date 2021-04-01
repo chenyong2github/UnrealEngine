@@ -9,10 +9,12 @@
 
 #include "Async/TaskGraphInterfaces.h"
 #include "RHI.h"
+#include "RenderGraphResources.h"
 
 class FRHIRayTracingScene;
 class FRHIShaderResourceView;
 class FRayTracingGeometry;
+class FRDGBuilder;
 
 /**
 * Persistent representation of the scene for ray tracing.
@@ -29,7 +31,7 @@ public:
 	// This can be an expensive process, depending on the number of instances in the scene.
 	// Immediately allocates GPU memory to fit at least the current number of instances and updates the SRV.
 	// Returns the task that must be waited upon before accessing RayTracingSceneRHI.
-	FGraphEventRef BeginCreate();
+	FGraphEventRef BeginCreate(FRDGBuilder& GraphBuilder);
 	void WaitForTasks() const;
 
 	// Resets the instance list and reserves memory for this frame.
@@ -71,6 +73,8 @@ public:
 #endif
 
 	FRayTracingAccelerationStructureSize SizeInfo = {};
+
+	FRDGBufferRef BuildScratchBuffer;
 
 private:
 	// RHI object that abstracts mesh instnaces in this scene

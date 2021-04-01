@@ -1236,7 +1236,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	DeduplicateRayGenerationShaders(RayGenShaders);
 
-	RayTracingScene.BeginCreate();
+	RayTracingScene.BeginCreate(GraphBuilder);
 
 	if (RayGenShaders.Num())
 	{
@@ -1320,12 +1320,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 			RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingScene);
 
 			FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
-			FRDGBufferDesc ScratchBufferDesc;
-			ScratchBufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
-			ScratchBufferDesc.Usage = BUF_UnorderedAccess;
-			ScratchBufferDesc.BytesPerElement = 4;
-			ScratchBufferDesc.NumElements = Scene->RayTracingScene.SizeInfo.BuildScratchSize / 4;
-			PassParams->RayTracingSceneScratchBuffer = GraphBuilder.CreateBuffer(ScratchBufferDesc, TEXT("RayTracingSceneScratchBuffer"));
+			PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
 
 			GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				[this, PassParams](FRHICommandList& RHICmdList)
@@ -1408,7 +1403,12 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-	AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+	// Scratch buffer must be referenced in this pass, as it must live until the BVH build is complete.
+	FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
+	PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
+
+	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+		[this, PassParams](FRHICommandListImmediate& RHICmdList)
 	{
 		const int32 ReferenceViewIndex = 0;
 		FViewInfo& ReferenceView = Views[ReferenceViewIndex];

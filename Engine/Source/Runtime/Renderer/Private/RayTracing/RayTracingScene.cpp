@@ -6,6 +6,7 @@
 
 #include "RenderCore.h"
 #include "RayTracingDefinitions.h"
+#include "RenderGraphBuilder.h"
 
 FRayTracingScene::FRayTracingScene()
 {
@@ -17,7 +18,7 @@ FRayTracingScene::~FRayTracingScene()
 	WaitForTasks();
 }
 
-FGraphEventRef FRayTracingScene::BeginCreate()
+FGraphEventRef FRayTracingScene::BeginCreate(FRDGBuilder& GraphBuilder)
 {
 	WaitForTasks();
 
@@ -64,6 +65,14 @@ FGraphEventRef FRayTracingScene::BeginCreate()
 			ResultScene = RHICreateRayTracingScene(SceneInitializer);
 
 		}, TStatId(), nullptr, ENamedThreads::AnyThread);
+
+	FRDGBufferDesc ScratchBufferDesc;
+	ScratchBufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
+	ScratchBufferDesc.Usage = BUF_UnorderedAccess;
+	ScratchBufferDesc.BytesPerElement = 4;
+	ScratchBufferDesc.NumElements = SizeInfo.BuildScratchSize / 4;
+
+	BuildScratchBuffer = GraphBuilder.CreateBuffer(ScratchBufferDesc, TEXT("FRayTracingScene::BuildScratchBuffer"));
 
 	return CreateRayTracingSceneTask;
 }
@@ -123,6 +132,8 @@ void FRayTracingScene::Reset()
 #ifdef DO_CHECK
 	GeometriesToValidate.Reset();
 #endif
+
+	BuildScratchBuffer = nullptr;
 }
 
 void FRayTracingScene::ResetAndReleaseResources()
