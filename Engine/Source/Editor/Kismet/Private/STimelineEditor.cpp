@@ -35,6 +35,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Engine/Selection.h"
 #include "AssetData.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "STimelineEditor"
 
@@ -233,6 +234,7 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("ExternalCurveLabel", "External Curve"))
+						.ColorAndOpacity(FStyleColors::Foreground)
 					]
 
 					// External Curve Controls
@@ -240,8 +242,9 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 					.AutoHeight()
 					.Padding(2, 0, 0, 4)
 					[
-						SNew(SBox)
-						.WidthOverride(170)
+						SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+						.ForegroundColor(FStyleColors::Foreground)
 						[
 							SNew(SHorizontalBox)
 							+SHorizontalBox::Slot()
@@ -265,7 +268,8 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 								.ToolTipText(NSLOCTEXT("TimelineEdTrack", "TimelineEdTrack_Clear", "Convert to Internal Curve"))
 								[
 									SNew(SImage)
-									.Image( FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Clear")) )
+									.Image( FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Clear")))
+									.ColorAndOpacity(FStyleColors::Foreground)
 								]
 							]
 						]
@@ -283,6 +287,7 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("SynchronizeViewLabel", "Synchronize View"))
+							.ColorAndOpacity(FStyleColors::Foreground)
 						]
 					]
 
@@ -305,6 +310,7 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 								[
 									SNew(SImage)
 									.Image( FEditorStyle::GetBrush(TEXT("ArrowUp")) )
+									.ColorAndOpacity(FStyleColors::Foreground)
 								]
 							]
 
@@ -322,6 +328,7 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 								[
 									SNew(SImage)
 									.Image( FEditorStyle::GetBrush(TEXT("ArrowDown")) )
+									.ColorAndOpacity(FStyleColors::Foreground)
 								]
 							]
 							+SHorizontalBox::Slot()
@@ -331,6 +338,7 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 							[
 								SNew(STextBlock)
 								.Text(LOCTEXT("ReorderLabel", "Reorder"))
+								.ColorAndOpacity(FStyleColors::Foreground)
 							]
 						]
 				]
@@ -1033,10 +1041,11 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 			[
 				// Add float track button
 				SNew(SButton)
-				.ContentPadding(FMargin(2,0))
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("TimelineEditor.AddFloatTrack"))
+					.Image(FAppStyle::Get().GetBrush("TimelineEditor.AddFloatTrack"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 				.ToolTipText( LOCTEXT( "AddFloatTrack", "Add Float Track" ) )
 				.OnClicked( this, &STimelineEditor::CreateNewTrack, FTTTrackBase::TT_FloatInterp )
@@ -1048,10 +1057,11 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 			[
 				// Add vector track button
 				SNew(SButton)
-				.ContentPadding(FMargin(2,0))
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("TimelineEditor.AddVectorTrack"))
+					.Image(FAppStyle::Get().GetBrush("TimelineEditor.AddVectorTrack"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 				.ToolTipText( LOCTEXT( "AddVectorTrack", "Add Vector Track" ) )
 				.OnClicked( this, &STimelineEditor::CreateNewTrack, FTTTrackBase::TT_VectorInterp )
@@ -1063,10 +1073,11 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 			[
 				// Add event track button
 				SNew(SButton)
-				.ContentPadding(FMargin(2,0))
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("TimelineEditor.AddEventTrack"))
+					.Image(FAppStyle::Get().GetBrush("TimelineEditor.AddEventTrack"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 				.ToolTipText( LOCTEXT( "AddEventTrack", "Add Event Track" ) )
 				.OnClicked( this, &STimelineEditor::CreateNewTrack, FTTTrackBase::TT_Event )
@@ -1078,10 +1089,11 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 			[
 				// Add color track button
 				SNew(SButton)
-				.ContentPadding(FMargin(2,0))
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("TimelineEditor.AddColorTrack"))
+					.Image(FAppStyle::Get().GetBrush("TimelineEditor.AddColorTrack"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 				.ToolTipText( LOCTEXT( "AddColorTrack", "Add Color Track" ) )
 				.OnClicked( this, &STimelineEditor::CreateNewTrack, FTTTrackBase::TT_LinearColorInterp )
@@ -1093,10 +1105,11 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 			[
 				// Add external curve asset button
 				SNew(SButton)
-				.ContentPadding(FMargin(2,0))
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("TimelineEditor.AddCurveAssetTrack"))
+					.Image(FAppStyle::Get().GetBrush("TimelineEditor.AddCurveAssetTrack"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 				.ToolTipText( LOCTEXT( "AddExternalAsset", "Add Selected Curve Asset" ) )
 				.IsEnabled( this, &STimelineEditor::IsCurveAssetSelected )
@@ -1133,7 +1146,7 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 				.IsChecked( this, &STimelineEditor::IsUseLastKeyframeChecked )
 				.OnCheckStateChanged( this, &STimelineEditor::OnUseLastKeyframeChanged )
 				[
-					SNew(STextBlock) .Text( LOCTEXT( "UseLastKeyframe", "Use Last Keyframe?" ) )
+					SNew(STextBlock) .Text( LOCTEXT( "UseLastKeyframe", "Use Last Keyframe" ) )
 					.AddMetaData<FTagMetaData>(TEXT("TimelineEditor.UseLastKeyframe"))
 				]
 			]
@@ -1310,6 +1323,7 @@ TSharedRef<ITableRow> STimelineEditor::MakeTrackWidget( TSharedPtr<FTimelineEdTr
 
 	return
 	SNew(STableRow< TSharedPtr<FTimelineEdTrack> >, OwnerTable )
+	.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TimelineEditor.TrackRowSubtleHighlight"))
 	.Padding(FMargin(0, 0, 0, 2))
 	[
 		SNew(STimelineEdTrack, Track, SharedThis(this))
