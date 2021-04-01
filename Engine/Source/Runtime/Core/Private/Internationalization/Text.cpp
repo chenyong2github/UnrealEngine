@@ -241,13 +241,11 @@ FText::FText( EInitToEmptyString )
 {
 }
 
-#if PLATFORM_WINDOWS && defined(__clang__)
-CORE_API const FText& FText::GetEmpty() // @todo clang: Workaround for missing symbol export
+CORE_API const FText& FText::GetEmpty()
 {
 	static const FText StaticEmptyText = FText(FText::EInitToEmptyString::Value);
 	return StaticEmptyText;
 }
-#endif
 
 FText::FText( TSharedRef<ITextData, ESPMode::ThreadSafe> InTextData )
 	: TextData(MoveTemp(InTextData))

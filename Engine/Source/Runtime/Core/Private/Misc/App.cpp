@@ -228,13 +228,13 @@ bool FApp::IsEngineInstalled()
 	return EngineInstalledState == 1;
 }
 
-#if PLATFORM_WINDOWS && defined(__clang__)
-bool FApp::IsUnattended() // @todo clang: Workaround for missing symbol export
+bool FApp::IsUnattended()
 {
+	// FCommandLine::Get() will assert that the command line has been set.
+	// This function may not be used before FCommandLine::Set() is called.
 	static bool bIsUnattended = FParse::Param(FCommandLine::Get(), TEXT("UNATTENDED"));
 	return bIsUnattended || GIsAutomationTesting;
 }
-#endif
 
 bool FApp::ShouldUseThreadingForPerformance()
 {

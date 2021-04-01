@@ -367,17 +367,7 @@ class CORE_API FText
 {
 public:
 
-#if ( !PLATFORM_WINDOWS ) || ( !defined(__clang__) )
-	static const FText& GetEmpty()
-	{
-		// This is initialized inside this function as we need to be able to control the initialization order of the empty FText instance
-		// If this were a file-scope static, we can end up with other statics trying to construct an empty FText before our empty FText has itself been constructed
-		static const FText StaticEmptyText = FText(FText::EInitToEmptyString::Value);
-		return StaticEmptyText;
-	}
-#else
-	static const FText& GetEmpty(); // @todo clang: Workaround for missing symbol export
-#endif
+	static const FText& GetEmpty();
 
 public:
 
