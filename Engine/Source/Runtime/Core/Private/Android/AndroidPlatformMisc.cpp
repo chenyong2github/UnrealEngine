@@ -1820,6 +1820,12 @@ int32 FAndroidMisc::GetAndroidBuildVersion()
 }
 #endif
 
+static bool bForceUnsupported = false;
+void FAndroidMisc::SetForceUnsupported(bool bInOverride)
+{
+	bForceUnsupported = bInOverride;
+}
+
 #if USE_ANDROID_JNI
 bool FAndroidMisc::IsSupportedAndroidDevice()
 {
@@ -1845,12 +1851,12 @@ bool FAndroidMisc::IsSupportedAndroidDevice()
 			}
 		}
 	}
-	return bSupported;
+	return bForceUnsupported ? false : bSupported;
 }
 #else
 bool FAndroidMisc::IsSupportedAndroidDevice()
 {
-	return true;
+	return !bForceUnsupported;
 }
 #endif
 

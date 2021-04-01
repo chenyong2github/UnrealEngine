@@ -191,6 +191,7 @@ public:
 	static int GetAndroidBuildVersion();
 #endif
 	static bool IsSupportedAndroidDevice();
+	static void SetForceUnsupported(bool bInOverride);
 	static TMap<FString, FString> GetConfigRulesTMap();
 	static FString* GetConfigRulesVariable(const FString& Key);
 
