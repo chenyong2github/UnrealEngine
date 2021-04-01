@@ -73,6 +73,11 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 			FString FullFilepathFormatString = OutputDirectory / FileNameFormatString;
 			GetPipeline()->ResolveFilenameFormatArguments(FullFilepathFormatString, FormatOverrides, FinalFilePath, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
 
+			if (FPaths::IsRelative(FinalFilePath))
+			{
+				FinalFilePath = FPaths::ConvertRelativePathToFull(FinalFilePath);
+			}
+
 			// Ensure the directory is created
 			{
 				FString FolderPath = FPaths::GetPath(FinalFilePath);

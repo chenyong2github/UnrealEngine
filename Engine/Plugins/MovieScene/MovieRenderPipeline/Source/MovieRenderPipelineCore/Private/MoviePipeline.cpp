@@ -1559,13 +1559,10 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	}
 
 	// No extension should be provided at this point, because we need to tack the extension onto the end after appending numbers (in the event of no overwrites)
+	// We don't convert this to a full filename because sometimes this function is used to resolve just filenames without directories, and we can't tell if the
+	// caller wants a full filepath or just a filename.
 	FString BaseFilename = FString::Format(*InFormatString, OutFinalFormatArgs.FilenameArguments);
 	FPaths::NormalizeFilename(BaseFilename);
-
-	if (FPaths::IsRelative(BaseFilename))
-	{
-		BaseFilename = FPaths::ConvertRelativePathToFull(BaseFilename);
-	}
 
 	// If we end with a "." character, remove it. The extension will put it back on. We can end up with this sometimes after resolving file format strings, ie:
 	// {sequence_name}.{frame_number} becomes {sequence_name}. for videos (which can't use frame_numbers).
