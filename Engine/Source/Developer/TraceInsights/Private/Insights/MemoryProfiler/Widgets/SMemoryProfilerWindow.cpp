@@ -150,7 +150,7 @@ void SMemoryProfilerWindow::ResetTimingViewMarkers()
 		const FLinearColor Color = FLinearColor::MakeFromHSV8(H, S, V);
 		TimeMarker->SetColor(Color);
 
-		TimeMarker->SetTime(static_cast<float>(Index)); // 0.0f, 1.0f, 2.0f, etc.
+		TimeMarker->SetTime((Index + 1) * 10.0); // 10s, 20s, 30s, etc.
 
 		TimeRulerTrack->AddTimeMarker(TimeMarker);
 		CustomTimeMarkers.Add(TimeMarker);
