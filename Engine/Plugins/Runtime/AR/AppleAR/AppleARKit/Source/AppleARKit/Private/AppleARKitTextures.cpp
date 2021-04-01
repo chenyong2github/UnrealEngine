@@ -832,7 +832,7 @@ public:
 };
 #endif
 
-#define NUM_THREADS_PER_GROUP_DIMENSION 32
+#define NUM_THREADS_PER_GROUP_DIMENSION 16
 
 class FComputeShaderYCbCrToRGB : public FGlobalShader
 {
