@@ -401,7 +401,7 @@ static void UpdateHLODGridsActors(UWorld* World, const TMap<FName, FSpatialHashR
 		if (GridActor->ActorHasTag(HLODGridTag))
 		{
 			const FSpatialHashRuntimeGrid* HLODGrid = HLODGrids.Find(GridActor->GridSettings.GridName);
-			if (HLODGrid && HLODGrid->Priority)
+			if (HLODGrid && GridActor->GridSettings.Priority)
 			{
 				ExistingGridActors.Emplace(GridActor->GridSettings.GridName, GridActor);
 			}
