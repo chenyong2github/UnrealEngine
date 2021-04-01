@@ -963,6 +963,11 @@ public:
 		RHIContext->RHIBuildAccelerationStructure(SceneBuildParams);
 	}
 
+	virtual void RHIBindAccelerationStructureMemory(FRHIRayTracingScene* Scene, FRHIBuffer* Buffer, uint32 BufferOffset) override final
+	{
+		RHIContext->RHIBindAccelerationStructureMemory(Scene, Buffer, BufferOffset);
+	}
+
 	virtual void RHIRayTraceOcclusion(FRHIRayTracingScene* Scene,
 		FRHIShaderResourceView* Rays,
 		FRHIUnorderedAccessView* Output,
