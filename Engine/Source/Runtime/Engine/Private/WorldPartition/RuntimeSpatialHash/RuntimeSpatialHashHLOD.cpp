@@ -400,7 +400,8 @@ static void UpdateHLODGridsActors(UWorld* World, const TMap<FName, FSpatialHashR
 		ASpatialHashRuntimeGridInfo* GridActor = *ItRuntimeGridActor;
 		if (GridActor->ActorHasTag(HLODGridTag))
 		{
-			if (HLODGrids.Contains(GridActor->GridSettings.GridName))
+			const FSpatialHashRuntimeGrid* HLODGrid = HLODGrids.Find(GridActor->GridSettings.GridName);
+			if (HLODGrid && HLODGrid->Priority)
 			{
 				ExistingGridActors.Emplace(GridActor->GridSettings.GridName, GridActor);
 			}
@@ -435,6 +436,9 @@ static void UpdateHLODGridsActors(UWorld* World, const TMap<FName, FSpatialHashR
 			{
 				HLODLevel = LastLODColorationColorIdx;
 			}
+
+			GridActor->GridSettings.Priority = 100 + HLODLevel;
+
 			HLODLevel = FMath::Clamp(HLODLevel + 2, 0U, LastLODColorationColorIdx);
 			GridActor->GridSettings.DebugColor = GEngine->HLODColorationColors[HLODLevel];
 

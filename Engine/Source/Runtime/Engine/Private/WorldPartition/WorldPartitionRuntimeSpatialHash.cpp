@@ -802,6 +802,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				StreamingCell->SetIsAlwaysLoaded(bIsCellAlwaysLoaded);
 				StreamingCell->SetDataLayers(GridCellDataChunk.GetDataLayers());
 				StreamingCell->Level = Level;
+				StreamingCell->Priority = RuntimeGrid.Priority;
 				FBox2D Bounds;
 				verify(TempLevel.GetCellBounds(FIntVector2(CellCoordX, CellCoordY), Bounds));
 				StreamingCell->Position = FVector(Bounds.GetCenter(), 0.f);
@@ -1054,11 +1055,15 @@ void UWorldPartitionRuntimeSpatialHash::SortStreamingCellsByImportance(const TSe
 
 	Algo::Sort(SortedCells, [](const FCellShortestDist& A, const FCellShortestDist& B)
 	{
-		if (A.Cell->Level == B.Cell->Level)
+		if (A.Cell->Priority == B.Cell->Priority)
 		{
-			return A.SourceMinDistance < B.SourceMinDistance;
+			if (A.Cell->Level == B.Cell->Level)
+			{
+				return A.SourceMinDistance < B.SourceMinDistance;
+			}
+			return A.Cell->Level > B.Cell->Level;
 		}
-		return A.Cell->Level > B.Cell->Level;
+		return A.Cell->Priority < B.Cell->Priority;
 	});
 
 	OutSortedCells.Reserve(InCells.Num());

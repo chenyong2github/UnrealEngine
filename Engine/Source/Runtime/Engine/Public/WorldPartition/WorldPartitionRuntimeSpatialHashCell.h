@@ -20,6 +20,9 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 	UPROPERTY()
 	int32 Level;
 
+	UPROPERTY()
+	int32 Priority;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	UActorContainer* ActorContainer;

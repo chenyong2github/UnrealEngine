@@ -150,6 +150,7 @@ struct FSpatialHashRuntimeGrid
 #if WITH_EDITORONLY_DATA
 		: CellSize(0)
 		, LoadingRange(1000)
+		, Priority(0)
 		, DebugColor(FLinearColor::MakeRandomColor())
 #endif
 	{}
@@ -163,6 +164,9 @@ struct FSpatialHashRuntimeGrid
 
 	UPROPERTY(EditAnywhere, Category=Settings)
 	float LoadingRange;
+
+	UPROPERTY(EditAnywhere, Category=Settings)
+	int32 Priority;
 
 	UPROPERTY(EditAnywhere, Category=Settings, meta = (IgnoreForMemberInitializationTest))
 	FLinearColor DebugColor;
