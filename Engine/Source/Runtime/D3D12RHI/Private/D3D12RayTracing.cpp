@@ -3338,27 +3338,38 @@ void FD3D12RayTracingScene::BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOffs
 	ShaderResourceView = RHICreateShaderResourceView(ViewInitializer);
 }
 
-void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& CommandContext)
+void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& CommandContext,
+	FD3D12Buffer* ScratchBuffer, uint32 ScratchBufferOffset,
+	FD3D12Buffer* InstanceBuffer, uint32 InstanceBufferOffset,
+	uint32 NumInstanceDescs)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildAccelerationStructure_TopLevel);
 	SCOPE_CYCLE_COUNTER(STAT_D3D12BuildTLAS);
-
-	TRefCountPtr<FD3D12Buffer> InstanceBuffer;
-	TRefCountPtr<FD3D12Buffer> ScratchBuffer;
 
 	const uint32 GPUIndex = CommandContext.GetGPUIndex();
 	FD3D12Adapter* Adapter = CommandContext.GetParentAdapter();
 	ID3D12Device5* RayTracingDevice = CommandContext.GetParentDevice()->GetDevice5();
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PrebuildInfo = {};
+
 	RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&BuildInputs, &PrebuildInfo);
 	check(PrebuildInfo.ResultDataMaxSizeInBytes <= SizeInfo.ResultSize);
 	check(PrebuildInfo.ScratchDataSizeInBytes <= SizeInfo.BuildScratchSize);
 
-	static const FName ScratchBufferName("BuildScratchTLAS");
-	ScratchBuffer = CreateRayTracingBuffer(Adapter, GPUIndex, PrebuildInfo.ScratchDataSizeInBytes, ERayTracingBufferType::Scratch, ScratchBufferName);
+	TRefCountPtr<FD3D12Buffer> AutoScratchBuffer;
+	if (ScratchBuffer == nullptr)
+	{
+		static const FName ScratchBufferName("AutoBuildScratchTLAS");
+		AutoScratchBuffer = CreateRayTracingBuffer(Adapter, GPUIndex, PrebuildInfo.ScratchDataSizeInBytes, ERayTracingBufferType::Scratch, ScratchBufferName);
+		ScratchBuffer = AutoScratchBuffer.GetReference();
+		ScratchBufferOffset = 0;
+	}
 
-	// Create and fill instance buffer
+	check(PrebuildInfo.ScratchDataSizeInBytes + ScratchBufferOffset <= ScratchBuffer->GetSize());
+
+	TRefCountPtr<FD3D12Buffer> AutoInstanceBuffer;
+
+	// Create and fill automatic instance buffer
 
 	if (BuildInputs.NumDescs)
 	{
@@ -3402,9 +3413,13 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 		// #dxr_todo multi state only when bShouldCopyIndirectInstances is set - will still need transition to copy_src for lock behind but this can be done on the complete pool in theory (have to check cost)
 		ID3D12ResourceAllocator* ResourceAllocator = nullptr;
-		InstanceBuffer = Adapter->CreateRHIBuffer(
+		AutoInstanceBuffer = Adapter->CreateRHIBuffer(
 			nullptr, InstanceBufferDesc, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT,
 			sizeof(D3D12_RAYTRACING_INSTANCE_DESC), InstanceBufferDesc.Width, BUF_UnorderedAccess, ED3D12ResourceStateMode::MultiState, ERHIAccess::UAVMask, CreateInfo, ResourceAllocator);
+
+		// #yuriy_todo: only create internal instance buffer if explicit one is not given
+		checkf(InstanceBuffer == nullptr, TEXT("Explicit instance buffer support is not yet implemented for D3D12 RHI."));
+		InstanceBuffer = AutoInstanceBuffer.GetReference();
 
 		{
 			TArray<FD3D12ResidencyHandle*>& GeometryResidencyHandlesForThisGPU = GeometryResidencyHandles[GPUIndex];
@@ -3460,7 +3475,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 			TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(&CommandContext);
 			FUnorderedAccessViewRHIRef InstancesDescUAV = RHICreateUnorderedAccessView(InstanceBuffer, false, false);
 
-			FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, InstanceBuffer.GetReference()->GetResource(),
+			FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, InstanceBuffer->GetResource(),
 				D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0,
 				FD3D12DynamicRHI::ETransitionMode::Apply);
 
@@ -3475,7 +3490,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 			RHICmdList.EndUAVOverlap(InstancesDescUAV);
 		}
 
-		FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, InstanceBuffer.GetReference()->GetResource(),
+		FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, InstanceBuffer->GetResource(),
 			D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0,
 			FD3D12DynamicRHI::ETransitionMode::Apply);
 	}
@@ -3499,7 +3514,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	BuildDesc.Inputs = BuildInputs;
 	BuildDesc.Inputs.InstanceDescs = InstanceBuffer ? InstanceBuffer->ResourceLocation.GetGPUVirtualAddress() : D3D12_GPU_VIRTUAL_ADDRESS(0);
 	BuildDesc.DestAccelerationStructureData = AccelerationStructureBuffer->ResourceLocation.GetGPUVirtualAddress() + BufferOffset;
-	BuildDesc.ScratchAccelerationStructureData = ScratchBuffer->ResourceLocation.GetGPUVirtualAddress();
+	BuildDesc.ScratchAccelerationStructureData = ScratchBuffer->ResourceLocation.GetGPUVirtualAddress() + ScratchBufferOffset;
 	BuildDesc.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS(0); // Null source TLAS as this is a build command
 
 	// UAV barrier is used here to ensure that all bottom level acceleration structures are built
@@ -3653,7 +3668,14 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 void FD3D12CommandContext::RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams)
 {
 	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(SceneBuildParams.Scene);
-	Scene->BuildAccelerationStructure(*this);
+	FD3D12Buffer* ScratchBuffer = FD3D12DynamicRHI::ResourceCast(SceneBuildParams.ScratchBuffer);
+	FD3D12Buffer* InstanceBuffer = FD3D12DynamicRHI::ResourceCast(SceneBuildParams.InstanceBuffer);
+	Scene->BuildAccelerationStructure(
+		*this,
+		ScratchBuffer, SceneBuildParams.ScratchBufferOffset,
+		InstanceBuffer, SceneBuildParams.InstanceBufferOffset,
+		SceneBuildParams.NumInstances
+	);
 }
 
 void FD3D12CommandContext::RHIBindAccelerationStructureMemory(FRHIRayTracingScene* InScene, FRHIBuffer* InBuffer, uint32 InBufferOffset)

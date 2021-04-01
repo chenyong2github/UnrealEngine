@@ -70,6 +70,8 @@ public:
 	TSet<const FRayTracingGeometry*> GeometriesToValidate;
 #endif
 
+	FRayTracingAccelerationStructureSize SizeInfo = {};
+
 private:
 	// RHI object that abstracts mesh instnaces in this scene
 	FRayTracingSceneRHIRef RayTracingSceneRHI;

@@ -96,7 +96,11 @@ public:
 	void BindBuffer(FRHIBuffer* Buffer, uint32 BufferOffset);
 	void ReleaseBuffer();
 
-	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext);
+	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext,
+		FD3D12Buffer* ScratchBuffer, uint32 ScratchBufferOffset,
+		FD3D12Buffer* InstanceBuffer, uint32 InstanceBufferOffset,
+		uint32 NumInstanceDescs
+	);
 
 	FShaderResourceViewRHIRef ShaderResourceView;
 

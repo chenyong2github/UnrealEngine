@@ -1129,6 +1129,10 @@ static void DeduplicateRayGenerationShaders(TArray< FRHIRayTracingShader*>& RayG
 	RayGenShaders = UniqueRayGenShaders.Array();
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FBuildAccelerationStructurePassParams, )
+RDG_BUFFER_ACCESS(RayTracingSceneScratchBuffer, ERHIAccess::UAVCompute)
+END_SHADER_PARAMETER_STRUCT()
+
 bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder)
 {
 	if (!IsRayTracingEnabled() || Views.Num() == 0)
@@ -1314,13 +1318,27 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 		{
 			RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingScene);
-			AddPass(GraphBuilder, RDG_EVENT_NAME("RayTracingScene"), [this](FRHICommandList& RHICmdList)
+
+			FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
+			FRDGBufferDesc ScratchBufferDesc;
+			ScratchBufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
+			ScratchBufferDesc.Usage = BUF_UnorderedAccess;
+			ScratchBufferDesc.BytesPerElement = 4;
+			ScratchBufferDesc.NumElements = Scene->RayTracingScene.SizeInfo.BuildScratchSize / 4;
+			PassParams->RayTracingSceneScratchBuffer = GraphBuilder.CreateBuffer(ScratchBufferDesc, TEXT("RayTracingSceneScratchBuffer"));
+
+			GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+				[this, PassParams](FRHICommandList& RHICmdList)
 			{
 				FRHIRayTracingScene* RayTracingSceneRHI = Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
 
 				RHICmdList.BindAccelerationStructureMemory(RayTracingSceneRHI, Scene->RayTracingScene.GetBufferChecked(), 0);
 
-				RHICmdList.BuildAccelerationStructure(RayTracingSceneRHI);
+				FRayTracingSceneBuildParams BuildParams;
+				BuildParams.Scene = RayTracingSceneRHI;
+				BuildParams.ScratchBuffer = PassParams->RayTracingSceneScratchBuffer->GetRHI();
+				BuildParams.ScratchBufferOffset = 0;
+				RHICmdList.BuildAccelerationStructure(BuildParams);
 
 				// Submit potentially expensive BVH build commands to the GPU as soon as possible.
 				// Avoids a GPU bubble in some CPU-limited cases.
