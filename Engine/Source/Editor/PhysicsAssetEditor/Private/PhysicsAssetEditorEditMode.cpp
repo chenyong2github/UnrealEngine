@@ -488,7 +488,7 @@ void FPhysicsAssetEditorEditMode::Tick(FEditorViewportClient* ViewportClient, fl
 		SharedData->EditorSkelComp->AnimationSpaceBases = SharedData->EditorSkelComp->GetComponentSpaceTransforms();
 		// When using the World solver, we must specify how much of the solver output gets blended into the animated mesh pose
 		// When using other solvers in PhAT, we don't want SetPhysicsBlendWeight function to re-enale the main solver physics
-		if (SharedData->RunningSimulationSolverType == EPhysicsAssetEditorSolverType::World)
+		if (SharedData->PhysicsAsset->SolverType == EPhysicsAssetSolverType::World)
 		{
 			SharedData->EditorSkelComp->SetPhysicsBlendWeight(SharedData->EditorOptions->PhysicsBlend);
 		}

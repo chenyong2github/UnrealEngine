@@ -81,8 +81,6 @@ FPhysicsAssetEditorSharedData::FPhysicsAssetEditorSharedData()
 	check(EditorOptions);
 
 	EditorOptions->LoadConfig();
-
-	RunningSimulationSolverType = EditorOptions->SolverType;
 }
 
 FPhysicsAssetEditorSharedData::~FPhysicsAssetEditorSharedData()
@@ -1906,11 +1904,8 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 {
 	if (bEnableSimulation)
 	{
-		// save the current solver type to make sure we clean up using the one we started the simulation with
-		RunningSimulationSolverType = EditorOptions->SolverType;
-
 		// in Chaos, we have to manipulate the RBAN node in the Anim Instance (at least until we get SkelMeshComp implemented)
-		const bool bUseRBANSolver = (RunningSimulationSolverType == EPhysicsAssetEditorSolverType::RBAN);
+		const bool bUseRBANSolver = (PhysicsAsset->SolverType == EPhysicsAssetSolverType::RBAN);
 		MouseHandle->SetAnimInstanceMode(bUseRBANSolver);
 
 		if (!bUseRBANSolver)
