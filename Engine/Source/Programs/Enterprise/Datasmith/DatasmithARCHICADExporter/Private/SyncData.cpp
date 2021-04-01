@@ -10,8 +10,10 @@
 #include "GeometryUtil.h"
 #include "AutoChangeDatabase.h"
 
+DISABLE_SDK_WARNINGS_START
 #include "Transformation.hpp"
 #include "Line3D.hpp"
+DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -512,6 +514,7 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			{
 				NewActor->SetLabel(TEXT("Unnamed"));
 			}
+			NewActor->SetIsAComponent(bIsAComponent);
 
 			SetActorElement(NewActor);
 			AddTags(IOProcessInfo->ElementID);
@@ -576,6 +579,7 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 					SetActorElement(FDatasmithSceneFactory::CreateActor(GSStringToUE(ElementId.ToUniString())));
 				}
 			}
+			ActorElement->SetIsAComponent(bIsAComponent);
 
 			// Need to copy from old actor to new one ?
 			if (OldActor.IsValid() && OldActor != ActorElement)

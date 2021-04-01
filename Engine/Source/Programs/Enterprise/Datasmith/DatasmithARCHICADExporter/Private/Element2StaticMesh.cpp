@@ -241,7 +241,7 @@ void FElement2StaticMesh::AddVertex(GS::Int32 InBodyVertex, const Geometry::Vect
 	}
 
 	Geometry::Vector3D VertexWorldNormal = bIsIdentity ? VertexNormal : Matrix * VertexNormal;
-	FVector CurrentNormal(float(VertexWorldNormal.x), float(VertexWorldNormal.y), float(VertexWorldNormal.z));
+	FVector CurrentNormal(-float(VertexWorldNormal.x), float(VertexWorldNormal.y), float(VertexWorldNormal.z));
 
 	// Create triangles
 	if (VertexCount == 0)

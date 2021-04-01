@@ -5,7 +5,7 @@
 
 BEGIN_NAMESPACE_UE_AC
 
-FOptions::FOptions(ETypeOptions InType) {}
+FOptions::FOptions(ETypeOptions /* InType */) {}
 
 // Save options, return size saved (throw if not enough space)
 size_t FOptions::SaveTo(CSaver* IOSaver) const

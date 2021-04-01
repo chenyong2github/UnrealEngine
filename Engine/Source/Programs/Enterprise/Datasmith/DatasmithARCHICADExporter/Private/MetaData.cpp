@@ -167,7 +167,7 @@ void FMetaData::ExportElementIDProperty()
 {
 	API_ElementMemo Memo;
 	Zap(&Memo);
-	GSErrCode GSErr = ACAPI_Element_GetMemo(GSGuid2APIGuid(ElementId), &Memo, APIMemoMask_All);
+	GSErrCode GSErr = ACAPI_Element_GetMemo(GSGuid2APIGuid(ElementId), &Memo, APIMemoMask_ElemInfoString);
 	if (GSErr == NoError && Memo.elemInfoString != nullptr)
 	{
 		AddMetaDataProperty(API_PropertyStringValueType, "ID", *Memo.elemInfoString);

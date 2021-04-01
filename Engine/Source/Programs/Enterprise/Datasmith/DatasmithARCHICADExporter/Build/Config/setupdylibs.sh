@@ -40,15 +40,19 @@ SetUpDll() {
 	OriginalDylibPath="$EnginePath/Binaries/Mac/DatasmithUE4ArchiCAD/$DylibName"
 
 	if [[ "$OriginalDylibPath" -nt "$OurDylibFolder/$DylibName" ]]; then
-	if [ -f "$OurDylibFolder/$DylibName" ]; then
-	  unlink "$OurDylibFolder/$DylibName"
-	fi
+		if [ -f "$OurDylibFolder/$DylibName" ]; then
+			unlink "$OurDylibFolder/$DylibName"
+		fi
 	fi
 	if [ ! -f "$OurDylibFolder/$DylibName" ]; then
-		echo "Copy $DylibName"
-		cp "$OriginalDylibPath" "$OurDylibFolder"
-		install_name_tool -id @loader_path/$DylibName "$OurDylibFolder/$DylibName"
-		install_name_tool -change @rpath/$dylibLibFreeImage @loader_path/$dylibLibFreeImage "$OurDylibFolder/$DylibName"
+		if [ -f "$OriginalDylibPath" ]; then
+			echo "Copy $DylibName"
+			cp "$OriginalDylibPath" "$OurDylibFolder"
+			install_name_tool -id @loader_path/$DylibName "$OurDylibFolder/$DylibName"
+			install_name_tool -change @rpath/$dylibLibFreeImage @loader_path/$dylibLibFreeImage "$OurDylibFolder/$DylibName"
+		else
+			echo "Missing $DylibName"
+		fi
 	fi
 }
 

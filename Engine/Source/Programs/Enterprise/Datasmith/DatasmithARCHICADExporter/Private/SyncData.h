@@ -79,6 +79,8 @@ class FSyncData
 
 	void SetParent(FSyncData* InParent);
 
+	void SetIsAComponent(bool bInIsAComponent = true) { bIsAComponent = bInIsAComponent; }
+
 	bool HasParent() const { return Parent != nullptr; }
 
 	void SetDefaultParent(const FElementID& InElementID);
@@ -91,6 +93,9 @@ class FSyncData
 
 	// Delete this sync data
 	virtual TSharedPtr< IDatasmithElement > GetElement() const = 0;
+
+	// Return the Id
+	const GS::Guid& GetId() const { return ElementId; }
 
   protected:
 	// Add a child
@@ -131,6 +136,9 @@ class FSyncData
 
 	// If GenId have changed or object is newly renderered
 	bool bIsModified = false;
+
+	// If this object is a component
+	bool bIsAComponent = false;
 
 	// Parent of this element
 	FSyncData* Parent = nullptr;

@@ -60,20 +60,27 @@ bool FElementTools::GetInfoString(const API_Guid& InGUID, GS::UniString* OutStri
 }
 
 // Tool: Return the localize name for element type id
-GS::UniString FElementTools::TypeName(API_ElemTypeID InElementType)
+const GS::UniString& FElementTools::TypeName(API_ElemTypeID InElementType)
 {
-	GS::UniString ElemTypeName;
-	GSErrCode	  GSErr = ACAPI_Goodies(APIAny_GetElemTypeNameID, (void*)(size_t)InElementType, &ElemTypeName);
-	if (GSErr != NoError)
+	UE_AC_Assert(API_FirstElemType <= InElementType && InElementType <= API_LastElemType);
+
+	static std::unique_ptr< GS::UniString > TypeNames[API_LastElemType + 1] = {};
+
+	if (TypeNames[InElementType] == nullptr)
 	{
-		UE_AC_DebugF("CElement::TypeName - Error %d for type%d\n", GSErr, InElementType);
+		TypeNames[InElementType] = std::make_unique< GS::UniString >();
+		GSErrCode	  GSErr = ACAPI_Goodies(APIAny_GetElemTypeNameID, (void*)(size_t)InElementType, TypeNames[InElementType].get());
+		if (GSErr != NoError)
+		{
+			UE_AC_DebugF("CElement::TypeName - Error %d for type%d\n", GSErr, InElementType);
+		}
 	}
 
-	return ElemTypeName;
+	return *TypeNames[InElementType];
 }
 
 // Tool: Return the localize name for element's type
-GS::UniString FElementTools::TypeName(const API_Guid& InElementGuid)
+const GS::UniString& FElementTools::TypeName(const API_Guid& InElementGuid)
 {
 	API_Elem_Head ElementHead;
 	Zap(&ElementHead);

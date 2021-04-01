@@ -13,10 +13,10 @@ class FElementTools
 	static bool GetInfoString(const API_Guid& InGUID, GS::UniString* OutString);
 
 	// Tool: Return the localize name for element type id
-	static GS::UniString TypeName(API_ElemTypeID InElementType);
+	static const GS::UniString& TypeName(API_ElemTypeID InElementType);
 
 	// Tool: Return the localize name for element's type
-	static GS::UniString TypeName(const API_Guid& InElementGuid);
+	static const GS::UniString& TypeName(const API_Guid& InElementGuid);
 
 	// Tool: Return the variation as string
 	static utf8_string GetVariationAsString(API_ElemVariationID InVariation);

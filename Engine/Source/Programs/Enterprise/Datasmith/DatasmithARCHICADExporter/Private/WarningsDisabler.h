@@ -30,7 +30,8 @@
     _Pragma( "clang diagnostic ignored \"-Wdeprecated-declarations\"" ) \
     _Pragma( "clang diagnostic ignored \"-Wunused-parameter\"" ) \
     _Pragma( "clang diagnostic ignored \"-Wdocumentation\"" ) \
-    _Pragma( "clang diagnostic ignored \"-Wshorten-64-to-32\"" ) \
+	_Pragma( "clang diagnostic ignored \"-Wshorten-64-to-32\"" ) \
+	_Pragma( "clang diagnostic ignored \"-Wdefaulted-function-deleted\"" ) \
 	_Pragma( "clang diagnostic ignored \"-Wcomma\"" )
 
 #define DISABLE_SDK_WARNINGS_END \

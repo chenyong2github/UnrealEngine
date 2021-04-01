@@ -355,7 +355,7 @@ void FSyncDatabase::ScanLights(const FElementID& InElementID)
 }
 
 // Scan all cameras
-void FSyncDatabase::ScanCameras(const FSyncContext& InSyncContext)
+void FSyncDatabase::ScanCameras(const FSyncContext& /* InSyncContext */)
 {
 	GS::Array< API_Guid > ElemList;
 	GSErrCode			  GSErr = ACAPI_Element_GetElemList(API_CamSetID, &ElemList);

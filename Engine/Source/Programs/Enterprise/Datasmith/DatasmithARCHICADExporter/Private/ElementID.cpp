@@ -118,9 +118,13 @@ void FElementID::HandleDepedencies() const
 				Parent = new FSyncData::FElement(APIGuid2GSGuid(OwnerElemApiGuid));
 			}
 			SyncData->SetParent(Parent);
+			SyncData->SetIsAComponent();
 			Parent->SetDefaultParent(*this);
 			UE_AC_VerboseF("FElementID::MakeConnections Child %s -> Parent %s\n",
-						   SyncData->ElementId.ToUniString().ToUtf8(), APIGuidToString(OwnerElemApiGuid).ToUtf8());
+						   SyncData->GetId().ToUniString().ToUtf8(), APIGuidToString(OwnerElemApiGuid).ToUtf8());
+		}
+		else
+		{
 		}
 	}
 }

@@ -328,8 +328,8 @@ cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modu
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling the localized GRC file...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\DatasmithARCHICADExporter.grc.rc2;%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">set FileName=DatasmithARCHICADExporter
-cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RINT\%FileName%.grc"
-"$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO%FileName%.grc.rc2.i" -o "$(OutDir)\RO%FileName%.grc.rc2" -w 2</Command>
+cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\%FileName%.grc.rc2.i" "..\..\Resources\RINT\%FileName%.grc"
+"$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\%FileName%.grc.rc2.i" -o "$(OutDir)\RO\%FileName%.grc.rc2" -w 2</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release24|x64'">cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\$(ProjectName).grc.rc2.i" "..\..\Resources\RINT\$(ProjectName).grc"
         "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\$(ProjectName).grc.rc2.i" -o "$(OutDir)\RO\$(ProjectName).grc.rc2"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the localized GRC file...</Message>
