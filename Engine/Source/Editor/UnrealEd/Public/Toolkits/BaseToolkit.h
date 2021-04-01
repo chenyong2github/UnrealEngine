@@ -13,6 +13,7 @@ class UInteractiveTool;
 class UInteractiveToolManager;
 class UEdMode;
 class IDetailsView;
+struct FDetailsViewArgs;
 enum class EToolShutdownType;
 
 /**
@@ -168,6 +169,9 @@ protected:
 
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool);
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool);
+
+	virtual void CustomizeModeDetailsViewArgs(FDetailsViewArgs& ArgsInOut) {}
+	virtual void CustomizeDetailsViewArgs(FDetailsViewArgs& ArgsInOut) {}
 
 protected:
 	TSharedPtr<SWidget> ToolkitWidget;

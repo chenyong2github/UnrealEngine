@@ -139,6 +139,8 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost,
 		ModeDetailsViewArgs.bShowOptions = false;
 		ModeDetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 
+		CustomizeModeDetailsViewArgs(ModeDetailsViewArgs);		// allow subclass to customize arguments
+
 		ModeDetailsView = PropertyEditorModule.CreateDetailView(ModeDetailsViewArgs);
 	}
 
@@ -150,6 +152,8 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost,
 		DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
 		DetailsViewArgs.bShowOptions = false;
 		DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
+
+		CustomizeDetailsViewArgs(DetailsViewArgs);		// allow subclass to customize arguments
 
 		DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	}
