@@ -7,6 +7,7 @@
 #include "Misc/ExpressionParserTypes.h"
 #include "Algo/Transform.h"
 #include "Internationalization/InternationalizationMetadata.h"
+#include "Internationalization/TextNamespaceUtil.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGatherTextFromSourceCommandlet, Log, All);
 
@@ -1723,6 +1724,7 @@ void UGatherTextFromSourceCommandlet::FStringMacroDescriptor::TryParse(const FSt
 					if (!Namespace.IsSet())
 					{
 						UE_LOG(LogGatherTextFromSourceCommandlet, Warning, TEXT("%s macro at %s doesn't define a namespace and no external namespace was set. An empty namspace will be used."), *GetToken(), *SourceLocation );
+						Namespace = FString();
 					}
 
 					FManifestContext MacroContext;
@@ -1730,7 +1732,13 @@ void UGatherTextFromSourceCommandlet::FStringMacroDescriptor::TryParse(const FSt
 					MacroContext.SourceLocation = SourceLocation;
 					MacroContext.PlatformName = Context.FilePlatformName;
 
-					Context.AddManifestText( GetToken(), Namespace.Get(FString()), SourceText, MacroContext );
+					if (EnumHasAnyFlags(Context.FileTypes, EGatherTextSourceFileTypes::Ini))
+					{
+						// Gather the text without its package ID, as the INI will strip it on load at runtime
+						TextNamespaceUtil::StripPackageNamespaceInline(Namespace.GetValue());
+					}
+
+					Context.AddManifestText( GetToken(), Namespace.GetValue(), SourceText, MacroContext );
 				}
 			}
 		}
