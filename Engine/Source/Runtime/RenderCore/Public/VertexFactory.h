@@ -91,16 +91,17 @@ enum class EVertexInputStreamType : uint8
 
 enum class EVertexFactoryFlags : uint32
 {
-	None                            = 0u,
-	UsedWithMaterials               = 1u << 1,
-	SupportsStaticLighting          = 1u << 2,
-	SupportsDynamicLighting         = 1u << 3,
-	SupportsPrecisePrevWorldPos     = 1u << 4,
-	SupportsPositionOnly            = 1u << 5,
-	SupportsCachingMeshDrawCommands = 1u << 6,
-	SupportsPrimitiveIdStream       = 1u << 7,
-	SupportsNaniteRendering         = 1u << 8,
-	SupportsRayTracing              = 1u << 9,
+	None                              = 0u,
+	UsedWithMaterials                 = 1u << 1,
+	SupportsStaticLighting            = 1u << 2,
+	SupportsDynamicLighting           = 1u << 3,
+	SupportsPrecisePrevWorldPos       = 1u << 4,
+	SupportsPositionOnly              = 1u << 5,
+	SupportsCachingMeshDrawCommands   = 1u << 6,
+	SupportsPrimitiveIdStream         = 1u << 7,
+	SupportsNaniteRendering           = 1u << 8,
+	SupportsRayTracing                = 1u << 9,
+	SupportsRayTracingDynamicGeometry = 1u << 10,
 };
 ENUM_CLASS_FLAGS(EVertexFactoryFlags);
 
@@ -398,15 +399,16 @@ public:
 		return EnumHasAllFlags(Flags, FlagsToCheck);
 	}
 
-	bool IsUsedWithMaterials() const             { return HasFlags(EVertexFactoryFlags::UsedWithMaterials); }
-	bool SupportsStaticLighting() const          { return HasFlags(EVertexFactoryFlags::SupportsStaticLighting); }
-	bool SupportsDynamicLighting() const         { return HasFlags(EVertexFactoryFlags::SupportsDynamicLighting); }
-	bool SupportsPrecisePrevWorldPos() const     { return HasFlags(EVertexFactoryFlags::SupportsPrecisePrevWorldPos); }
-	bool SupportsPositionOnly() const            { return HasFlags(EVertexFactoryFlags::SupportsPositionOnly); }
-	bool SupportsCachingMeshDrawCommands() const { return HasFlags(EVertexFactoryFlags::SupportsCachingMeshDrawCommands); }
-	bool SupportsPrimitiveIdStream() const       { return HasFlags(EVertexFactoryFlags::SupportsPrimitiveIdStream); }
-	bool SupportsNaniteRendering() const         { return HasFlags(EVertexFactoryFlags::SupportsNaniteRendering); }
-	bool SupportsRayTracing() const              { return HasFlags(EVertexFactoryFlags::SupportsRayTracing); }
+	bool IsUsedWithMaterials() const                { return HasFlags(EVertexFactoryFlags::UsedWithMaterials); }
+	bool SupportsStaticLighting() const             { return HasFlags(EVertexFactoryFlags::SupportsStaticLighting); }
+	bool SupportsDynamicLighting() const            { return HasFlags(EVertexFactoryFlags::SupportsDynamicLighting); }
+	bool SupportsPrecisePrevWorldPos() const        { return HasFlags(EVertexFactoryFlags::SupportsPrecisePrevWorldPos); }
+	bool SupportsPositionOnly() const               { return HasFlags(EVertexFactoryFlags::SupportsPositionOnly); }
+	bool SupportsCachingMeshDrawCommands() const    { return HasFlags(EVertexFactoryFlags::SupportsCachingMeshDrawCommands); }
+	bool SupportsPrimitiveIdStream() const          { return HasFlags(EVertexFactoryFlags::SupportsPrimitiveIdStream); }
+	bool SupportsNaniteRendering() const            { return HasFlags(EVertexFactoryFlags::SupportsNaniteRendering); }
+	bool SupportsRayTracing() const                 { return HasFlags(EVertexFactoryFlags::SupportsRayTracing); }
+	bool SupportsRayTracingDynamicGeometry() const  { return HasFlags(EVertexFactoryFlags::SupportsRayTracingDynamicGeometry); }
 
 	// Hash function.
 	friend uint32 GetTypeHash(const FVertexFactoryType* Type)
