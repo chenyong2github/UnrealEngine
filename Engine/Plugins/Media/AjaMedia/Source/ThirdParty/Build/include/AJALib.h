@@ -213,7 +213,7 @@ namespace AJA
 		FAJAVideoFormat VideoFormatIndex;
 		ETimecodeFormat TimecodeFormat;
 		bool bOutput; // port is output
-		bool bWaitForFrameToBeReady; // port is input and we want to wait for the image to be sent to UE4 before ticking
+		bool bWaitForFrameToBeReady; // port is input and we want to wait for the image to be sent to Unreal Engine before ticking
 	};
 
 	class AJA_API AJASyncChannel
