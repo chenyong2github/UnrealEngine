@@ -10,6 +10,8 @@
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
+#include "Engine/Blueprint.h"
+
 #include "Misc/Crc.h"
 
 FLevelInstancePackerID FLevelInstanceRecursivePacker::PackerID = 'RECP';
