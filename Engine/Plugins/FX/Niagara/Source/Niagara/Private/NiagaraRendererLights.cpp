@@ -6,6 +6,7 @@
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraStats.h"
 #include "NiagaraVertexFactory.h"
+#include "NiagaraComponent.h"
 #include "Engine/Engine.h"
 
 #include "NiagaraLightRendererProperties.h"
@@ -20,7 +21,7 @@ struct FNiagaraDynamicDataLights : public FNiagaraDynamicDataBase
 		: FNiagaraDynamicDataBase(InEmitter)
 	{
 	}
-	
+
 	TArray<FNiagaraRendererLights::SimpleLightData> LightArray;
 };
 
@@ -108,7 +109,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 
 			const FLinearColor Color = ColorReader.GetSafe(ParticleIndex, DefaultColor);
 			const float Brightness = Properties->bAlphaScalesBrightness ? Color.A : 1.0f;
-			
+
 			LightData.LightEntry.Radius = LightRadius;
 			LightData.LightEntry.Color = FVector(Color) * Brightness + Properties->ColorAdd;
 			LightData.LightEntry.Exponent = Properties->bUseInverseSquaredFalloff ? 0 : ExponentReader.GetSafe(ParticleIndex, DefaultExponent);
@@ -136,7 +137,7 @@ void FNiagaraRendererLights::GatherSimpleLights(FSimpleLightArray& OutParticleLi
 
 		for (const FNiagaraRendererLights::SimpleLightData &LightData : DynamicData->LightArray)
 		{
-			// When not using camera-offset, output one position for all views to share. 
+			// When not using camera-offset, output one position for all views to share.
 			OutParticleLights.PerViewData.Add(LightData.PerViewEntry);
 
 			// Add an entry for the light instance.

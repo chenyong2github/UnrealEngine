@@ -346,30 +346,34 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 				FNiagaraOutlinerSystemInstanceData& InstData = Instances.SystemInstances.AddDefaulted_GetRef();
 				InstData.ComponentName = Comp->GetPathName();
 
-				if (FNiagaraSystemInstance* Inst = Comp->GetSystemInstance())
+				if (FNiagaraSystemInstanceControllerPtr InstController = Comp->GetSystemInstanceController())
 				{
-					InstData.ActualExecutionState = Inst->GetActualExecutionState();
-					InstData.RequestedExecutionState = Inst->GetRequestedExecutionState();
+					InstData.ActualExecutionState = InstController->GetActualExecutionState();
+					InstData.RequestedExecutionState = InstController->GetRequestedExecutionState();
 
 					InstData.ScalabilityState = Comp->DebugCachedScalabilityState;
 					InstData.bPendingKill = Comp->IsPendingKillOrUnreachable();
 
 					InstData.PoolMethod = Comp->PoolingMethod;
 
-					InstData.Emitters.Reserve(Inst->GetEmitters().Num());
-					for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInst : Inst->GetEmitters())
+					// TODO: need to be able to access at least a shadow copy of per-emitter execution state and num particles. For now, we'll just allow unsafe access
+					if (FNiagaraSystemInstance* Inst = InstController->GetSystemInstance_Unsafe())
 					{
-						FNiagaraOutlinerEmitterInstanceData& EmitterData = InstData.Emitters.AddDefaulted_GetRef();
-						if (EmitterInst->GetCachedEmitter())
+						InstData.Emitters.Reserve(Inst->GetEmitters().Num());
+						for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInst : Inst->GetEmitters())
 						{
-							//TODO: This is a bit wasteful to copy the name into each instance data. Though we can't rely on the debugger side data matchin the actul running data on the device.
-							//We need to build a shared representation of the asset data from the client that we then reference from this per instance data.
-							EmitterData.EmitterName = EmitterInst->GetCachedEmitter()->GetUniqueEmitterName();
-							EmitterData.SimTarget = EmitterInst->GetCachedEmitter()->SimTarget;
-							//Move all above to a shared asset representation.
+							FNiagaraOutlinerEmitterInstanceData& EmitterData = InstData.Emitters.AddDefaulted_GetRef();
+							if (EmitterInst->GetCachedEmitter())
+							{
+								//TODO: This is a bit wasteful to copy the name into each instance data. Though we can't rely on the debugger side data matchin the actul running data on the device.
+								//We need to build a shared representation of the asset data from the client that we then reference from this per instance data.
+								EmitterData.EmitterName = EmitterInst->GetCachedEmitter()->GetUniqueEmitterName();
+								EmitterData.SimTarget = EmitterInst->GetCachedEmitter()->SimTarget;
+								//Move all above to a shared asset representation.
 
-							EmitterData.ExecState = EmitterInst->GetExecutionState();
-							EmitterData.NumParticles = EmitterInst->GetNumParticles();
+								EmitterData.ExecState = EmitterInst->GetExecutionState();
+								EmitterData.NumParticles = EmitterInst->GetNumParticles();
+							}
 						}
 					}
 				}

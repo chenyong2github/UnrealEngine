@@ -278,12 +278,12 @@ namespace NiagaraDebugLocal
 			if ( *Text == '\n' )
 			{
 				CurrSize.X = 0.0f;
-				CurrSize.Y = CurrSize.Y + fAdvanceHeight; 
+				CurrSize.Y = CurrSize.Y + fAdvanceHeight;
 				PrevChar = nullptr;
 				++Text;
 				continue;
 			}
-			
+
 			float TmpWidth, TmpHeight;
 			Font->GetCharSize(*Text, TmpWidth, TmpHeight);
 
@@ -409,7 +409,7 @@ FNiagaraDebugHud::~FNiagaraDebugHud()
 void FNiagaraDebugHud::UpdateSettings(const FNiagaraDebugHUDSettingsData& NewSettings)
 {
 	using namespace NiagaraDebugLocal;
-	
+
 	FNiagaraDebugHUDSettingsData::StaticStruct()->CopyScriptStruct(&Settings, &NewSettings);
 	GCachedSystemVariables.Empty();
 }
@@ -470,7 +470,8 @@ void FNiagaraDebugHud::GatherSystemInfo()
 			continue;
 		}
 
-		FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
+		FNiagaraSystemInstanceControllerPtr SystemInstanceController = NiagaraComponent->GetSystemInstanceController();
+		FNiagaraSystemInstance* SystemInstance = SystemInstanceController.IsValid() ? SystemInstanceController->GetSystemInstance_Unsafe() : nullptr;
 		if (!SystemInstance)
 		{
 			continue;
@@ -977,7 +978,8 @@ void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, 
 		}
 
 		UNiagaraSystem* NiagaraSystem = NiagaraComponent->GetAsset();
-		FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
+		FNiagaraSystemInstanceControllerPtr SystemInstanceController = NiagaraComponent->GetSystemInstanceController();
+		FNiagaraSystemInstance* SystemInstance = SystemInstanceController.IsValid() ? SystemInstanceController->GetSystemInstance_Unsafe() : nullptr;
 		if ((NiagaraSystem == nullptr) || (SystemInstance == nullptr))
 		{
 			continue;
@@ -1152,8 +1154,9 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 		}
 
 		UNiagaraSystem* NiagaraSystem = NiagaraComponent->GetAsset();
-		FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
-		if ((NiagaraSystem == nullptr) || (SystemInstance == nullptr))
+		FNiagaraSystemInstanceControllerPtr SystemInstanceController = NiagaraComponent->GetSystemInstanceController();
+		FNiagaraSystemInstance* SystemInstance = SystemInstanceController.IsValid() ? SystemInstanceController->GetSystemInstance_Unsafe() : nullptr;
+		if (NiagaraSystem == nullptr || SystemInstance == nullptr)
 		{
 			continue;
 		}
@@ -1173,7 +1176,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 		}
 
 		// Get system simulation
-		auto SystemSimulation = NiagaraComponent->GetSystemSimulation();
+		auto SystemSimulation = SystemInstance->GetSystemSimulation();
 		const bool bSystemSimulationValid = SystemSimulation.IsValid() && SystemSimulation->IsValid();
 		if (bSystemSimulationValid)
 		{

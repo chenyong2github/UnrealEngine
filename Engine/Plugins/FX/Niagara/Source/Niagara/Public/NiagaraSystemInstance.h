@@ -17,6 +17,53 @@ class FNiagaraSystemSimulation;
 class NiagaraEmitterInstanceBatcher;
 class FNiagaraGPUSystemTick;
 
+using FNiagaraSystemInstancePtr = TSharedPtr<FNiagaraSystemInstance, ESPMode::ThreadSafe>;
+
+struct FNiagaraSystemInstanceFinalizeRef
+{
+	FNiagaraSystemInstanceFinalizeRef() {}
+	explicit FNiagaraSystemInstanceFinalizeRef(FNiagaraSystemInstance** InTaskEntry) : TaskEntry(InTaskEntry) {}
+
+	bool IsPending() const
+	{
+		return TaskEntry != nullptr;
+	}
+	void Clear()
+	{
+		check(TaskEntry != nullptr);
+		*TaskEntry = nullptr;
+		TaskEntry = nullptr;
+#if DO_CHECK
+		--(*DebugCounter);
+#endif
+	}
+	void ConditionalClear()
+	{
+		if ( TaskEntry != nullptr )
+		{
+			*TaskEntry = nullptr;
+			TaskEntry = nullptr;
+#if DO_CHECK
+			--(*DebugCounter);
+#endif
+		}
+	}
+
+#if DO_CHECK
+	void SetDebugCounter(std::atomic<int>* InDebugCounter)
+	{
+		DebugCounter = InDebugCounter;
+		++(*DebugCounter);
+	}
+#endif
+
+private:
+	class FNiagaraSystemInstance** TaskEntry = nullptr;
+#if DO_CHECK
+	std::atomic<int>* DebugCounter = nullptr;
+#endif
+};
+
 class NIAGARA_API FNiagaraSystemInstance 
 {
 	friend class FNiagaraSystemSimulation;
@@ -296,10 +343,10 @@ public:
 
 	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
 
-	static bool AllocateSystemInstance(TUniquePtr<FNiagaraSystemInstance>& OutSystemInstanceAllocation, UWorld& InWorld, UNiagaraSystem& InAsset,
+	static bool AllocateSystemInstance(FNiagaraSystemInstancePtr& OutSystemInstanceAllocation, UWorld& InWorld, UNiagaraSystem& InAsset,
 		FNiagaraUserRedirectionParameterStore* InOverrideParameters = nullptr, USceneComponent* InAttachComponent = nullptr,
 		ENiagaraTickBehavior InTickBehavior = ENiagaraTickBehavior::UsePrereqs, bool bInPooled = false);
-	static bool DeallocateSystemInstance(TUniquePtr<FNiagaraSystemInstance>& SystemInstanceAllocation);
+	static bool DeallocateSystemInstance(FNiagaraSystemInstancePtr& SystemInstanceAllocation);
 	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }*/
 	bool HasGPUEmitters() { return bHasGPUEmitters;  }
 

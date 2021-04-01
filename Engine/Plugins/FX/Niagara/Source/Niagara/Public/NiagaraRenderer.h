@@ -15,13 +15,13 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "NiagaraRendererProperties.h"
 #include "RenderingThread.h"
 #include "SceneView.h"
-#include "NiagaraComponent.h"
 #include "NiagaraCutoutVertexBuffer.h"
 #include "NiagaraBoundsCalculator.h"
 
 class FNiagaraDataSet;
 class FNiagaraSceneProxy;
 class FNiagaraGPURendererCount;
+class FNiagaraSystemInstanceController;
 
 /** Struct used to pass dynamic data from game thread to render thread */
 struct FNiagaraDynamicDataBase
@@ -76,7 +76,7 @@ public:
 	FNiagaraRenderer(const FNiagaraRenderer& Other) = delete;
 	FNiagaraRenderer& operator=(const FNiagaraRenderer& Other) = delete;
 
-	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent);
+	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InComponent);
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) {}
 	virtual void ReleaseRenderThreadResources() {}
 	virtual void DestroyRenderState_Concurrent() {}
@@ -140,6 +140,7 @@ protected:
 #if STATS
 	TStatId EmitterStatID;
 #endif
+
 
 	static FParticleRenderData TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, const FNiagaraRendererLayout* RendererLayout, FNiagaraDataBuffer* SrcData);
 

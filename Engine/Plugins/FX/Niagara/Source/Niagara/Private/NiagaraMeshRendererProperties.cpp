@@ -6,6 +6,7 @@
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraEmitterInstance.h"
 #include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
@@ -103,7 +104,7 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	AttributeBindings.Add(&MeshIndexBinding);
 }
 
-FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
+FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)
 {
 	for (const auto& MeshProperties : Meshes)
 	{
@@ -111,7 +112,7 @@ FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeat
 		{
 			// There's at least one valid mesh
 			FNiagaraRenderer* NewRenderer = new FNiagaraRendererMeshes(FeatureLevel, this, Emitter);
-			NewRenderer->Initialize(this, Emitter, InComponent);
+			NewRenderer->Initialize(this, Emitter, InController);
 			return NewRenderer;
 		}
 	}

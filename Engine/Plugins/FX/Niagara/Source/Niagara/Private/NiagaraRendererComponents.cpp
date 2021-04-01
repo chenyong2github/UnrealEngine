@@ -5,6 +5,7 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraStats.h"
 #include "NiagaraComponentRendererProperties.h"
+#include "NiagaraSystemInstance.h"
 #include "Async/Async.h"
 
 #if WITH_EDITOR
@@ -179,7 +180,7 @@ void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
 		[this, Pool_GT = MoveTemp(ComponentPool), Owner_GT = MoveTemp(SpawnedOwner)]()
 		{
 			// we do not reset ParticlesWithComponents here because it's possible the render state is destroyed without destroying the renderer. In this case we want to know which particles
-			// had spawned some components previously 
+			// had spawned some components previously
 			for (auto& PoolEntry : Pool_GT)
 			{
 				if (PoolEntry.Component.IsValid())
@@ -325,7 +326,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 			// Get the particle ID and see if we have any components already assigned to the particle
 			ParticleID = UniqueIDAccessor.GetSafe(ParticleIndex, -1);
 			ParticlesWithComponents.RemoveAndCopyValue(ParticleID, PoolIndex);
-			
+
 			if (PoolIndex == -1 && Properties->bOnlyCreateComponentsOnParticleSpawn)
 			{
 				// Don't allow this particle to acquire a component unless it was just spawned or had a component assigned to it previously
@@ -422,7 +423,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 		{
 			Emitter->SetParticleComponentActive(ComponentKey, ParticleID);
 		}
-		
+
 		++ComponentCount;
 		if (ComponentCount > GNiagaraWarnComponentRenderCount)
 		{
@@ -443,7 +444,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 			break;
 		}
 	}
-		
+
 	if (ComponentCount < ComponentPool.Num())
 	{
 		// go over the pooled components we didn't need this tick to see if we can destroy some and deactivate the rest
@@ -462,8 +463,8 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 			{
 				continue;
 			}
-		
-			USceneComponent* Component = PoolEntry.Component.Get();		
+
+			USceneComponent* Component = PoolEntry.Component.Get();
 			if (!Component || (CurrentTime - PoolEntry.LastActiveTime) >= GNiagaraComponentRenderPoolInactiveTimeLimit)
 			{
 				if (Component)
@@ -608,7 +609,7 @@ void FNiagaraRendererComponents::OnObjectsReplacedCallback(const TMap<UObject*, 
 		{
 			ResetComponentPool(false);
 			break;
-		}		
+		}
 	}
 }
 

@@ -1,0 +1,468 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "NiagaraSystemInstanceController.h"
+#include "Materials/MaterialInstanceDynamic.h"
+
+//////////////////////////////////////////////////////////////////////////
+//-TOFIX: Workaround FORT-315375 GT / RT Race
+int32 GNiagaraSamplerStateWorkaroundRecache = 1;
+static FAutoConsoleVariableRef CVarNiagaraSamplerStateWorkaroundRecache(
+	TEXT("fx.Niagara.SamplerStateWorkaround.Recache"),
+	GNiagaraSamplerStateWorkaroundRecache,
+	TEXT("Enables re-cache workaround for FORT-315375."),
+	ECVF_Default
+);
+
+int32 GNiagaraSamplerStateWorkaroundCreateNew = 1;
+static FAutoConsoleVariableRef CVarNiagaraSamplerStateWorkaroundCreateNew(
+	TEXT("fx.Niagara.SamplerStateWorkaround.CreateNew"),
+	GNiagaraSamplerStateWorkaroundCreateNew,
+	TEXT("Enables creating a new RT workaround for FORT-315375."),
+	ECVF_Default
+);
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraSystemInstanceController::FNiagaraSystemInstanceController()
+	//////////////////////////////////////////////////////////////////////////
+	//-TOFIX: Workaround FORT-315375 GT / RT Race
+	: bNeedsMaterialRecache(false)
+	//////////////////////////////////////////////////////////////////////////
+{
+}
+
+void FNiagaraSystemInstanceController::Initialize(UWorld& World, UNiagaraSystem& System, FNiagaraUserRedirectionParameterStore* InOverrideParameters,
+	USceneComponent* AttachComponent, ENiagaraTickBehavior TickBehavior, bool bPooled, int32 RandomSeedOffset, bool bForceSolo)
+{
+	OverrideParameters = InOverrideParameters;
+
+	FNiagaraSystemInstance::AllocateSystemInstance(SystemInstance, World, System, OverrideParameters, AttachComponent, TickBehavior, bPooled);
+	//UE_LOG(LogNiagara, Log, TEXT("Create System: %p | %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
+	SystemInstance->SetRandomSeedOffset(RandomSeedOffset);
+	SystemInstance->Init(bForceSolo);
+
+	//////////////////////////////////////////////////////////////////////////
+	//-TOFIX: Workaround FORT-315375 GT / RT Race
+	SystemInstance->SetOnExecuteMaterialRecache(FNiagaraSystemInstance::FOnExecuteMaterialRecache::CreateThreadSafeSP(this, &FNiagaraSystemInstanceController::OnNeedsMaterialRecache));
+	//////////////////////////////////////////////////////////////////////////
+
+	WorldManager = FNiagaraWorldManager::Get(&World);
+	check(WorldManager);
+
+	UpdateEmitterMaterials(); // On system reset we want to always reinit materials for now. Hopefully we can recycle the already created Mids.
+}
+
+void FNiagaraSystemInstanceController::Release()
+{
+	// Before we can destroy the instance, we need to deactivate it.
+	if (auto SystemInst = SystemInstance.Get())
+	{
+		SystemInst->Deactivate(true);
+	}
+
+	// Rather than setting the ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
+	// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.
+	FNiagaraSystemInstance::DeallocateSystemInstance(SystemInstance);
+	WorldManager = nullptr;
+	OverrideParameters = nullptr;
+	OnMaterialsUpdatedDelegate.Unbind();
+}
+
+bool FNiagaraSystemInstanceController::HasValidSimulation() const
+{
+	if (SystemInstance.IsValid())
+	{
+		return SystemInstance->GetSystemSimulation().IsValid();
+	}
+
+	return false;
+}
+
+FNiagaraSystemRenderData* FNiagaraSystemInstanceController::CreateSystemRenderData(ERHIFeatureLevel::Type FeatureLevel) const
+{
+	if (auto SystemInst = SystemInstance.Get())
+	{
+		// We can't safely update emitter materials here because it can be called from non-game thread
+		return new FNiagaraSystemRenderData(*this, *SystemInst, FeatureLevel);
+	}
+	return nullptr;
+}
+
+void FNiagaraSystemInstanceController::GenerateSetDynamicDataCommands(FNiagaraSystemRenderData::FSetDynamicDataCommandList& Commands, FNiagaraSystemRenderData& RenderData, const FNiagaraSceneProxy& SceneProxy)
+{
+	RenderData.GenerateSetDynamicDataCommands(Commands, SceneProxy, SystemInstance.Get());
+}
+
+void FNiagaraSystemInstanceController::PostTickRenderers(FNiagaraSystemRenderData& RenderData)
+{
+	if (auto SystemInst = SystemInstance.Get())
+	{
+		RenderData.PostTickRenderers(*SystemInst);
+	}
+}
+
+void FNiagaraSystemInstanceController::NotifyRenderersComplete(FNiagaraSystemRenderData& RenderData)
+{
+	if (auto SystemInst = SystemInstance.Get())
+	{
+		RenderData.OnSystemComplete(*SystemInst);
+	}
+}
+
+int32 FNiagaraSystemInstanceController::GetNumMaterials() const
+{
+	TArray<UMaterialInterface*> UsedMaterials;
+	if (SystemInstance)
+	{
+		for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInst : SystemInstance->GetEmitters())
+		{
+			if (UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter())
+			{
+				Emitter->ForEachEnabledRenderer(
+					[&](UNiagaraRendererProperties* Properties)
+					{
+						Properties->GetUsedMaterials(EmitterInst.Get(), UsedMaterials);
+					}
+				);
+			}
+		}
+	}
+
+	return UsedMaterials.Num();
+}
+
+void FNiagaraSystemInstanceController::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials)
+{
+	if (!SystemInstance.IsValid())
+	{
+		return;
+	}
+
+	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInst : SystemInstance->GetEmitters())
+	{
+		if (UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter())
+		{
+			Emitter->ForEachEnabledRenderer(
+				[&](UNiagaraRendererProperties* Properties)
+				{
+					bool bCreateMidsForUsedMaterials = Properties->NeedsMIDsForMaterials();
+					TArray<UMaterialInterface*> Mats;
+					Properties->GetUsedMaterials(&EmitterInst.Get(), Mats);
+
+					if (bCreateMidsForUsedMaterials)
+					{
+						for (const FMaterialOverride& Override : EmitterMaterials)
+						{
+							if (Override.EmitterRendererProperty == Properties &&
+								Mats.IsValidIndex(Override.MaterialSubIndex))
+							{
+								Mats[Override.MaterialSubIndex] = Override.Material;
+							}
+						}
+					}
+
+					OutMaterials.Append(Mats);
+				}
+			);
+		}
+	}
+}
+
+UMaterialInterface* FNiagaraSystemInstanceController::GetMaterialOverride(const UNiagaraRendererProperties* InProps, int32 InMaterialSubIndex) const
+{
+	for (const FMaterialOverride& Override : EmitterMaterials)
+	{
+		if (Override.EmitterRendererProperty == InProps && InMaterialSubIndex == Override.MaterialSubIndex)
+		{
+			return Override.Material;
+		}
+	}
+
+	return nullptr;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//-TOFIX: Workaround FORT-315375 GT / RT Race
+bool FNiagaraSystemInstanceController::HandleMaterialRecache()
+{
+	check(IsInGameThread());
+
+	if (bNeedsMaterialRecache)
+	{
+		bNeedsMaterialRecache = false;
+
+		if (GNiagaraSamplerStateWorkaroundRecache)
+		{
+			for (const FMaterialOverride& MaterialOverride : EmitterMaterials)
+			{
+				MaterialOverride.Material->RecacheUniformExpressions(true);
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+//////////////////////////////////////////////////////////////////////////
+
+bool FNiagaraSystemInstanceController::GetParticleValueVec3_DebugOnly(TArray<FVector>& OutValues, FName EmitterName, FName ValueName) const
+{
+	if (SystemInstance.IsValid())
+	{
+		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Sim : SystemInstance->GetEmitters())
+		{
+			if (Sim->GetEmitterHandle().GetName() == EmitterName)
+			{
+				FNiagaraDataBuffer& ParticleData = Sim->GetData().GetCurrentDataChecked();
+				int32 NumParticles = ParticleData.GetNumInstances();
+				OutValues.SetNum(NumParticles);
+
+				const auto Reader = FNiagaraDataSetAccessor<FVector>::CreateReader(Sim->GetData(), ValueName);
+				if (!Reader.IsValid())
+				{
+					return false;
+				}
+
+				for (int32 i = 0; i < NumParticles; ++i)
+				{
+					OutValues[i] = Reader.GetSafe(i, FVector::ZeroVector);
+				}
+
+				break;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool FNiagaraSystemInstanceController::GetParticleValues_DebugOnly(TArray<float>& OutValues, FName EmitterName, FName ValueName) const
+{
+	if (SystemInstance.IsValid())
+	{
+		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Sim : SystemInstance->GetEmitters())
+		{
+			if (Sim->GetEmitterHandle().GetName() == EmitterName)
+			{
+				FNiagaraDataBuffer& ParticleData = Sim->GetData().GetCurrentDataChecked();
+				int32 NumParticles = ParticleData.GetNumInstances();
+				OutValues.SetNum(NumParticles);
+
+				const auto Reader = FNiagaraDataSetAccessor<float>::CreateReader(Sim->GetData(), ValueName);
+				if (!Reader.IsValid())
+				{
+					return false;
+				}
+
+				for (int32 i = 0; i < NumParticles; ++i)
+				{
+					OutValues[i] = Reader.GetSafe(i, 0.0f);
+				}
+
+				break;
+			}
+		}
+	}
+
+	return true;
+}
+
+void FNiagaraSystemInstanceController::DebugDump(bool bFullDump)
+{
+	if (SystemInstance.IsValid())
+	{
+		const UEnum* ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>();
+		UE_LOG(LogNiagara, Log, TEXT("\tSystem ExecutionState(%s) RequestedExecutionState(%s)"), *ExecutionStateEnum->GetNameStringByIndex((int32)SystemInstance->GetActualExecutionState()), *ExecutionStateEnum->GetNameStringByIndex((int32)SystemInstance->GetRequestedExecutionState()));
+
+		if (!SystemInstance->IsComplete())
+		{
+			for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Emitter : SystemInstance->GetEmitters())
+			{
+				UE_LOG(LogNiagara, Log, TEXT("\tEmitter '%s' ExecutionState(%s) NumParticles(%d)"), *Emitter->GetEmitterHandle().GetUniqueInstanceName(), *ExecutionStateEnum->GetNameStringByIndex((int32)Emitter->GetExecutionState()), Emitter->GetNumParticles());
+			}
+		}
+
+		if (bFullDump)
+		{
+			UE_LOG(LogNiagara, Log, TEXT("=========================== Begin Full Dump ==========================="));
+			SystemInstance->Dump();
+			UE_LOG(LogNiagara, Log, TEXT("=========================== End Full Dump ==========================="));
+		}
+	}
+}
+
+void FNiagaraSystemInstanceController::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for (auto& Override : EmitterMaterials)
+	{
+		Collector.AddReferencedObject(Override.Material);
+
+		// NOTE: Intentionally *not* adding a reference to EmitterRendererProperty because it's only used as an identifier
+	}
+}
+
+void FNiagaraSystemInstanceController::UpdateEmitterMaterials()
+{
+	check(IsInRenderingThread() || IsInGameThread() || IsAsyncLoading() || GIsSavingPackage); // Same restrictions as MIDs
+
+	TArray<FMaterialOverride> NewEmitterMaterials;
+	if (SystemInstance)
+	{
+		for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
+		{
+			FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
+			if (UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter())
+			{
+				Emitter->ForEachEnabledRenderer(
+					[&](UNiagaraRendererProperties* Properties)
+					{
+						// Nothing to do if we don't create MIDs for this material
+						if (!Properties->NeedsMIDsForMaterials())
+						{
+							return;
+						}
+
+						TArray<UMaterialInterface*> UsedMaterials;
+						Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
+
+						uint32 MaterialIndex = 0;
+						for (UMaterialInterface*& ExistingMaterial : UsedMaterials)
+						{
+							if (ExistingMaterial)
+							{
+								if (auto MID = Cast<UMaterialInstanceDynamic>(ExistingMaterial))
+								{
+									if (EmitterMaterials.FindByPredicate([&](const FMaterialOverride& ExistingOverride) -> bool { return (ExistingOverride.Material == ExistingMaterial) && (ExistingOverride.EmitterRendererProperty == Properties) && (ExistingOverride.MaterialSubIndex == MaterialIndex); }))
+									{
+										// It's a MID we've previously created and are managing. Recreate it by grabbing the parent.
+										// TODO: Are there cases where we don't always have to recreate it?
+										ExistingMaterial = MID->Parent;
+									}
+								}
+
+								// Create a new MID
+								//UE_LOG(LogNiagara, Log, TEXT("Create Dynamic Material for component %s"), *GetPathName());
+								ExistingMaterial = UMaterialInstanceDynamic::Create(ExistingMaterial, nullptr);
+								FMaterialOverride Override;
+								Override.Material = ExistingMaterial;
+								Override.EmitterRendererProperty = Properties;
+								Override.MaterialSubIndex = MaterialIndex;
+
+								NewEmitterMaterials.Add(Override);
+							}
+							++MaterialIndex;
+						}
+					}
+				);
+			}
+		}
+	}
+	EmitterMaterials = MoveTemp(NewEmitterMaterials);
+	OnMaterialsUpdatedDelegate.ExecuteIfBound();
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, bool InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetBoolDef(), InVariableName);
+		const FNiagaraBool BoolValue(InValue);
+		OverrideParameters->SetParameterValue(BoolValue, VariableDesc, true);
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, int32 InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetIntDef(), InVariableName);
+		OverrideParameters->SetParameterValue(InValue, VariableDesc, true);
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, float InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetFloatDef(), InVariableName);
+		OverrideParameters->SetParameterValue(InValue, VariableDesc, true);
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector2D InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetVec2Def(), InVariableName);
+		OverrideParameters->SetParameterValue(InValue, VariableDesc, true);
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetVec3Def(), InVariableName);
+		OverrideParameters->SetParameterValue(InValue, VariableDesc, true);
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector4 InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetVec4Def(), InVariableName);
+		OverrideParameters->SetParameterValue(InValue, VariableDesc, true);
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FLinearColor InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetColorDef(), InVariableName);
+		OverrideParameters->SetParameterValue(InValue, VariableDesc, true);
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FQuat InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetQuatDef(), InVariableName);
+		OverrideParameters->SetParameterValue(InValue, VariableDesc, true);
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, TWeakObjectPtr<UObject> InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUObjectDef(), InVariableName);
+		OverrideParameters->SetUObject(InValue.Get(), VariableDesc);
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, TWeakObjectPtr<UMaterialInterface> InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUMaterialDef(), InVariableName);
+		UObject* CurrentValue = OverrideParameters->GetUObject(VariableDesc);
+		UMaterialInterface* NewValue = InValue.Get();
+		OverrideParameters->SetUObject(NewValue, VariableDesc);
+		if (CurrentValue != NewValue)
+		{
+			UpdateEmitterMaterials(); // Will need to update our internal tables. Maybe need a new MID.
+		}
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, TWeakObjectPtr<UTextureRenderTarget> TextureRenderTarget)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUTextureRenderTargetDef(), InVariableName);
+		OverrideParameters->SetUObject(TextureRenderTarget.Get(), VariableDesc);
+	}
+}

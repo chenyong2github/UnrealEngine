@@ -6,6 +6,7 @@
 #include "NiagaraStats.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSortingGPU.h"
+#include "NiagaraComponent.h"
 #include "NiagaraCutoutVertexBuffer.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingDynamicGeometryCollection.h"

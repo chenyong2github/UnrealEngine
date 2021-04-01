@@ -122,7 +122,7 @@ void FNiagaraSystemUpdateContext::CommitUpdate()
 		if(Sys)
 		{
 			FNiagaraWorldManager::DestroyAllSystemSimulations(Sys);
-		}		
+		}
 	}
 	SystemSimsToDestroy.Empty();
 
@@ -150,10 +150,10 @@ void FNiagaraSystemUpdateContext::CommitUpdate()
 	{
 		if (Comp)
 		{
-			if (FNiagaraSystemInstance* SystemInstance = Comp->GetSystemInstance())
+			if (FNiagaraSystemInstanceControllerPtr SystemInstanceController = Comp->GetSystemInstanceController())
 			{
-				SystemInstance->OnSimulationDestroyed();
-			}			
+				SystemInstanceController->OnSimulationDestroyed();
+			}
 			Comp->EndUpdateContextReset();
 		}
 	}
@@ -191,8 +191,8 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraEmitter* Emitter, bool bReIn
 	{
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
-		FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance();
-		if (SystemInst && SystemInst->UsesEmitter(Emitter))
+		UNiagaraSystem* System = Comp->GetAsset();
+		if (System && System->UsesEmitter(Emitter))
 		{
 			AddInternal(Comp, bReInit);
 		}
@@ -219,8 +219,8 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 	{
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
-		FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance();
-		if (SystemInst && SystemInst->UsesCollection(Collection))
+		UNiagaraSystem* System = Comp->GetAsset();
+		if (System && System->UsesCollection(Collection))
 		{
 			AddInternal(Comp, bReInit);
 		}
@@ -239,7 +239,7 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 	}
 
 	bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
-	
+
 	if (bDestroyOnAdd)
 	{
 		Comp->DeactivateImmediate();
@@ -254,23 +254,23 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 		else
 		{
 			ComponentsToReset.AddUnique(Comp);
-		}		
+		}
 		return;
 	}
 	else if (bReInit)
 	{
 		// Inactive components that have references to the simulations we're about to destroy need to clear them out in case they get reactivated.
 		// Otherwise, they will hold reference and bind or remain bound to a system simulation that has been abandoned by the world manager
-		if (FNiagaraSystemInstance* SystemInstance = Comp->GetSystemInstance())
+		if (FNiagaraSystemInstanceControllerConstPtr SystemInstanceController = Comp->GetSystemInstanceController())
 		{
-			if (!SystemInstance->IsSolo() && SystemInstance->GetSystemSimulation().IsValid())
+			if (!SystemInstanceController->IsSolo() && SystemInstanceController->HasValidSimulation())
 			{
 				ComponentsToNotifySimDestroy.Add(Comp);
 				return;
 			}
 		}
 	}
-	
+
 	// If we got here, we didn't add the component to any list, so end the reset immediately
 	Comp->EndUpdateContextReset();
 }
@@ -313,7 +313,7 @@ void FNiagaraStatDatabase::AddStatCapture(FStatReportKey ReportKey, TMap<TStatId
 
 	TMap<TStatIdData const*, FStatExecutionTimer>& InstanceData = StatCaptures.FindOrAdd(ReportKey);
 	for (const auto& Entry : CapturedData)
-	{		
+	{
 		InstanceData.FindOrAdd(Entry.Key).AddTiming(Entry.Value);
 	}
 }
@@ -396,7 +396,7 @@ TMap<ENiagaraScriptUsage, TSet<FName>> FNiagaraStatDatabase::GetAvailableStatNam
 	{
 		for (const auto& StatEntry : EmitterEntry.Value)
 		{
-			ENiagaraScriptUsage Usage = EmitterEntry.Key.Value; 
+			ENiagaraScriptUsage Usage = EmitterEntry.Key.Value;
 			Result.FindOrAdd(Usage).Add(MinimalNameToName(StatEntry.Key->Name));
 		}
 	}
@@ -469,7 +469,7 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 		ensureMsgf(!bIsStackContextValue, TEXT("Should not get to this point! Should be covered by first two branch expresssions."));
 	}
 
-	CacheValues(InEmitter, InSourceMode);	
+	CacheValues(InEmitter, InSourceMode);
 }
 
 void FNiagaraVariableAttributeBinding::SetAsPreviousValue(const FNiagaraVariableBase& Src, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
@@ -698,7 +698,7 @@ void FNiagaraVariableAttributeBinding::CacheValues(const UNiagaraEmitter* InEmit
 	{
 		if (BindingSourceMode == ENiagaraBindingSource::ExplicitEmitter || (InSourceMode == ENiagaraRendererSourceDataMode::Emitter && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource))
 		{
-			// Replace  "Emitter" namespace with unaliased emitter namespace 
+			// Replace  "Emitter" namespace with unaliased emitter namespace
 			TMap<FString, FString> Aliases;
 			Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
 			ParamMapVariable = FNiagaraVariable::ResolveAliases(ParamMapVariable, Aliases);
@@ -777,7 +777,7 @@ bool FNiagaraMaterialAttributeBinding::Matches(const FNiagaraVariableBase& OldVa
 	return false;
 }
 
-void FNiagaraMaterialAttributeBinding::CacheValues(const UNiagaraEmitter* InEmitter) 
+void FNiagaraMaterialAttributeBinding::CacheValues(const UNiagaraEmitter* InEmitter)
 {
 	if (InEmitter != nullptr)
 	{

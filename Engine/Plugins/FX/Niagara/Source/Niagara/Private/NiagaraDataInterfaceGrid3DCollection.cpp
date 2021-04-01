@@ -1625,7 +1625,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 					int TileIndexX = In_AttributeIndex % {NumTiles}.x;
 					int TileIndexY = (In_AttributeIndex / {NumTiles}.x) % {NumTiles}.y;
 					int TileIndexZ = In_AttributeIndex / ({NumTiles}.x * {NumTiles}.y);		
-
+					
 					float3 UVW =
 					{
 						In_UnitX / {NumTiles}.x + 1.0*TileIndexX/{NumTiles}.x,
@@ -2365,15 +2365,15 @@ void UNiagaraDataInterfaceGrid3DCollection::GetRawTextureSize(const UNiagaraComp
 		return;
 	}
 
-	FNiagaraSystemInstance *SystemInstance = Component->GetSystemInstance();
-	if (!SystemInstance)
+	FNiagaraSystemInstanceControllerConstPtr Controller = Component->GetSystemInstanceController();
+	if (!Controller)
 	{
 		SizeX = -1;
 		SizeY = -1;
 		SizeZ = -1;
 		return;
 	}
-	FNiagaraSystemInstanceID InstanceID = SystemInstance->GetId();
+	FNiagaraSystemInstanceID InstanceID = Controller->GetSystemInstanceID();
 
 	FGrid3DCollectionRWInstanceData_GameThread* Grid3DInstanceData = SystemInstancesToProxyData_GT.FindRef(InstanceID);
 	if (!Grid3DInstanceData)
@@ -2400,15 +2400,15 @@ void UNiagaraDataInterfaceGrid3DCollection::GetTextureSize(const UNiagaraCompone
 		return;
 	}
 
-	FNiagaraSystemInstance *SystemInstance = Component->GetSystemInstance();
-	if (!SystemInstance)
+	FNiagaraSystemInstanceControllerConstPtr Controller = Component->GetSystemInstanceController();
+	if (!Controller)
 	{
 		SizeX = -1;
 		SizeY = -1;
 		SizeZ = -1;
 		return;
 	}
-	FNiagaraSystemInstanceID InstanceID = SystemInstance->GetId();
+	FNiagaraSystemInstanceID InstanceID = Controller->GetSystemInstanceID();
 
 	FGrid3DCollectionRWInstanceData_GameThread* Grid3DInstanceData = SystemInstancesToProxyData_GT.FindRef(InstanceID);
 	if (!Grid3DInstanceData)

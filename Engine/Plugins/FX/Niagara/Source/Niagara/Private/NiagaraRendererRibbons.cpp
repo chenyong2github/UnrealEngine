@@ -6,6 +6,7 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraStats.h"
+#include "NiagaraComponent.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
@@ -215,7 +216,7 @@ void FNiagaraRendererRibbons::ReleaseRenderThreadResources()
 	FNiagaraRenderer::ReleaseRenderThreadResources();
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
-	{	
+	{
 		RayTracingGeometry.ReleaseResource();
 		RayTracingDynamicVertexBuffer.Release();
 	}
@@ -265,7 +266,7 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 	// This sets up the first and next vertex for each pair of triangles in the slice.
 	// For a plane this will just be a linear set
 	// For a multiplane it will be multiple separate linear sets
-	// For a tube it will be a linear set that wraps back around to itself, 
+	// For a tube it will be a linear set that wraps back around to itself,
 	// Same with the custom vertices.
 	TArray<int32> SliceTriangleToVertexIds;
 
@@ -322,7 +323,7 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 
 			for (int32 TriangleId = 0; TriangleId < SliceTriangleToVertexIds.Num(); TriangleId += 2)
 			{
-				// Switch geometry layout based on above or below the centerline. 
+				// Switch geometry layout based on above or below the centerline.
 				// This has the effect of mirroring the triangle layout across the center
 				// except when it's an odd number of segments, then the center segment doesn't mirror.
 				bool bShouldFlipGeometry = TriangleId < (SliceTriangleToVertexIds.Num() / 2);
@@ -368,11 +369,11 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 
 template <typename TValue>
 void FNiagaraRendererRibbons::GenerateIndexBuffer(
-	FGlobalDynamicIndexBuffer::FAllocationEx& InOutIndexAllocation, 
+	FGlobalDynamicIndexBuffer::FAllocationEx& InOutIndexAllocation,
 	const FRibbonRenderingIndexOffsets& Offsets,
-	int32 InterpCount, 
-	const FVector& ViewDirection, 
-	const FVector& ViewOriginForDistanceCulling, 
+	int32 InterpCount,
+	const FVector& ViewDirection,
+	const FVector& ViewOriginForDistanceCulling,
 	FNiagaraDynamicDataRibbon* DynamicData) const
 {
 	check(DynamicData);
@@ -843,12 +844,12 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			{
 				SegmentData.Add(SegmentIndex);
 			}
-			
+
 			float U0Offset;
 			float U0Scale;
 			float U0DistributionScaler;
 			if(UV0Settings.bEnablePerParticleUOverride && U0OverrideIsBound)
-			{ 
+			{
 				U0Offset = 0;
 				U0Scale = 1.0f;
 				U0DistributionScaler = 1;
@@ -1195,11 +1196,11 @@ FNiagaraRendererRibbons::FRibbonRenderingIndexOffsets FNiagaraRendererRibbons::C
 }
 
 void FNiagaraRendererRibbons::CreatePerViewResources(
-	const FSceneView* View, 
-	const FSceneViewFamily& ViewFamily, 
-	const FNiagaraSceneProxy* SceneProxy, 
+	const FSceneView* View,
+	const FSceneViewFamily& ViewFamily,
+	const FNiagaraSceneProxy* SceneProxy,
 	FMeshElementCollector& Collector,
-	FNiagaraRibbonUniformBufferRef& OutUniformBuffer, 
+	FNiagaraRibbonUniformBufferRef& OutUniformBuffer,
 	FGlobalDynamicIndexBuffer::FAllocationEx& InOutIndexAllocation) const
 {
 	FNiagaraDynamicDataRibbon* DynamicDataRibbon = static_cast<FNiagaraDynamicDataRibbon*>(DynamicDataRender);
@@ -1338,7 +1339,7 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 	PerViewUniformParameters.MaterialParam1DataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam1].GetGPUOffset();
 	PerViewUniformParameters.MaterialParam2DataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam2].GetGPUOffset();
 	PerViewUniformParameters.MaterialParam3DataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam3].GetGPUOffset();
-	PerViewUniformParameters.DistanceFromStartOffset = 
+	PerViewUniformParameters.DistanceFromStartOffset =
 		(UV0Settings.DistributionMode == ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength ||
 		UV1Settings.DistributionMode == ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength)?
 		VFVariables[ENiagaraRibbonVFLayout::DistanceFromStart].GetGPUOffset() : -1;

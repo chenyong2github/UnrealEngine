@@ -90,7 +90,7 @@ const FNiagaraEmitterScalabilitySettings& UNiagaraEffectType::GetActiveEmitterSc
 			return Settings;
 		}
 	}
-	
+
 	//UE_LOG(LogNiagara, Warning, TEXT("Could not find active emitter scalability settings for EffectType %s"), *GetFullName());
 
 	static FNiagaraEmitterScalabilitySettings Dummy;
@@ -204,7 +204,7 @@ void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TArray<UNiagaraC
 		FNiagaraScalabilityState& State = OutState[CompIdx];
 
 		const bool AddIndex = !State.bCulled || State.IsDirty();
-		
+
 		if (State.bCulled)
 		{
 			State.Significance = 0.0f;
@@ -221,9 +221,9 @@ void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TArray<UNiagaraC
 			}
 			else
 #endif
-			if(FNiagaraSystemInstance* Inst = Component->GetSystemInstance())
+			if (FNiagaraSystemInstanceControllerConstPtr Controller = Component->GetSystemInstanceController())
 			{
-				LODDistance = Inst->GetLODDistance();
+				LODDistance = Controller->GetLODDistance();
 			}
 
 			State.Significance = 1.0f / LODDistance;
@@ -254,9 +254,9 @@ void UNiagaraSignificanceHandlerAge::CalculateSignificance(TArray<UNiagaraCompon
 		{
 			UNiagaraComponent* Component = Components[CompIdx];
 
-			if (FNiagaraSystemInstance* Inst = Component->GetSystemInstance())
+			if (FNiagaraSystemInstanceControllerConstPtr Controller = Component->GetSystemInstanceController())
 			{
-				State.Significance = 1.0f / Inst->GetAge();//Newer Systems are higher significance.
+				State.Significance = 1.0f / Controller->GetAge();//Newer Systems are higher significance.
 			}
 		}
 

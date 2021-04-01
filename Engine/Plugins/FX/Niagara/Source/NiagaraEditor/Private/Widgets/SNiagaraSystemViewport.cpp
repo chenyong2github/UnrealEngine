@@ -38,7 +38,7 @@ public:
 
 public:
 	FNiagaraSystemViewportClient(FAdvancedPreviewScene& InPreviewScene, const TSharedRef<SNiagaraSystemViewport>& InNiagaraEditorViewport, FOnScreenShotCaptured InOnScreenShotCaptured);
-	
+
 	// FEditorViewportClient interface
 	virtual FLinearColor GetBackgroundColor() const override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -87,7 +87,7 @@ FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene
 	
 	EngineShowFlags.DisableAdvancedFeatures();
 	EngineShowFlags.SetSnap(0);
-	
+
 	OverrideNearClipPlane(1.0f);
 	SetOrbitModeFromSettings();
 	bCaptureScreenShot = false;
@@ -100,7 +100,7 @@ FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene
 void FNiagaraSystemViewportClient::Tick(float DeltaSeconds)
 {
 	FEditorViewportClient::Tick(DeltaSeconds);
-	
+
 	// Tick the preview scene world.
 	if (!GIntraFrameDebuggingGameThread)
 	{
@@ -151,7 +151,7 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	if (bCaptureScreenShot && ScreenShotOwner.IsValid() && OnScreenShotCaptured.IsBound())
 	{
-		
+
 		int32 SrcWidth = InViewport->GetSizeXY().X;
 		int32 SrcHeight = InViewport->GetSizeXY().Y;
 		// Read the contents of the viewport into an array.
@@ -169,7 +169,7 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 			// Compress.
 			FCreateTexture2DParameters Params;
 			Params.bDeferCompression = true;
-			
+
 			UTexture2D* ThumbnailImage = FImageUtils::CreateTexture2D(ScaledWidth, ScaledHeight, ScaledBitmap, ScreenShotOwner.Get(), TEXT("ThumbnailTexture"), RF_NoFlags, Params);
 
 			OnScreenShotCaptured.Execute(ThumbnailImage);
@@ -251,7 +251,9 @@ void FNiagaraSystemViewportClient::DrawInstructionCounts(UNiagaraSystem* Particl
 void FNiagaraSystemViewportClient::DrawParticleCounts(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight)
 {
 	// Show particle counts
-	if ( FNiagaraSystemInstance* SystemInstance = Component->GetSystemInstance() )
+	FNiagaraSystemInstanceControllerPtr SystemInstanceController = Component->GetSystemInstanceController();
+	FNiagaraSystemInstance* SystemInstance = SystemInstanceController.IsValid() ? SystemInstanceController->GetSoloSystemInstance() : nullptr;
+	if (SystemInstance)
 	{
 		FCanvasTextItem TextItem(FVector2D(CurrentX, CurrentY), FText::FromString(TEXT("Particle Counts")), Font, FLinearColor::White);
 		TextItem.EnableShadow(FLinearColor::Black);
@@ -534,9 +536,9 @@ void SNiagaraSystemViewport::BindCommands()
 	CommandList->UnmapAction(FEditorViewportCommands::Get().CycleTransformGizmos);
 
 	const FNiagaraEditorCommands& Commands = FNiagaraEditorCommands::Get();
-	
+
 	// Add the commands to the toolkit command list so that the toolbar buttons can find them
-	
+
 	CommandList->MapAction(
 		Commands.TogglePreviewGrid,
 		FExecuteAction::CreateSP( this, &SNiagaraSystemViewport::TogglePreviewGrid ),
@@ -577,7 +579,7 @@ void SNiagaraSystemViewport::BindCommands()
 		FExecuteAction::CreateSP(this, &SNiagaraSystemViewport::ToggleOrbit),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &SNiagaraSystemViewport::IsToggleOrbitChecked));
-								  
+
 }
 
 void SNiagaraSystemViewport::OnFocusViewportToSelection()
@@ -616,11 +618,11 @@ bool SNiagaraSystemViewport::IsTogglePreviewBackgroundChecked() const
 	return bShowBackground;
 }
 
-TSharedRef<FEditorViewportClient> SNiagaraSystemViewport::MakeEditorViewportClient() 
+TSharedRef<FEditorViewportClient> SNiagaraSystemViewport::MakeEditorViewportClient()
 {
-	SystemViewportClient = MakeShareable( new FNiagaraSystemViewportClient(*AdvancedPreviewScene.Get(), SharedThis(this), 
+	SystemViewportClient = MakeShareable( new FNiagaraSystemViewportClient(*AdvancedPreviewScene.Get(), SharedThis(this),
 		FNiagaraSystemViewportClient::FOnScreenShotCaptured::CreateSP(this, &SNiagaraSystemViewport::OnScreenShotCaptured) ) );
-	
+
 	SystemViewportClient->SetViewLocation( FVector::ZeroVector );
 	SystemViewportClient->SetViewRotation( FRotator::ZeroRotator );
 	SystemViewportClient->SetViewLocationForOrbiting( FVector::ZeroVector );
@@ -628,7 +630,7 @@ TSharedRef<FEditorViewportClient> SNiagaraSystemViewport::MakeEditorViewportClie
 
 	SystemViewportClient->SetRealtime( true );
 	SystemViewportClient->VisibilityDelegate.BindSP( this, &SNiagaraSystemViewport::IsVisible );
-	
+
 	return SystemViewportClient.ToSharedRef();
 }
 
@@ -704,7 +706,7 @@ class FNiagaraBaselineViewportClient : public FEditorViewportClient
 {
 public:
 	FNiagaraBaselineViewportClient(FAdvancedPreviewScene& InPreviewScene, const TSharedRef<SNiagaraBaselineViewport>& InNiagaraEditorViewport);
-	
+
 	// FEditorViewportClient interface
 	virtual FLinearColor GetBackgroundColor() const override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -737,14 +739,14 @@ FNiagaraBaselineViewportClient::FNiagaraBaselineViewportClient(FAdvancedPreviewS
 	DrawHelper.PerspectiveGridSize = HALF_WORLD_MAX1;
 	ShowWidget(false);
 
-	FEditorViewportClient::SetViewMode(VMI_Lit);
+	SetViewMode(VMI_Lit);
 	
 	EngineShowFlags.DisableAdvancedFeatures();
 	EngineShowFlags.SetSnap(0);
-	
+
 	OverrideNearClipPlane(1.0f);
 	bUsingOrbitCamera = false;
-// 
+//
 // 	float PreviewDistance = 1000.0f;
 // 	FRotator PreviewAngle(45.0f, 0.0f, 0.0f);
 // 	SetViewLocation( PreviewAngle.Vector() * -PreviewDistance );
@@ -882,7 +884,7 @@ void SNiagaraBaselineViewport::BindCommands()
 
 	// Unbind the CycleTransformGizmos since niagara currently doesn't use the gizmos and it prevents resetting the system with
 	// spacebar when the viewport is focused.
-	CommandList->UnmapAction(FEditorViewportCommands::Get().CycleTransformGizmos);					  
+	CommandList->UnmapAction(FEditorViewportCommands::Get().CycleTransformGizmos);
 }
 
 void SNiagaraBaselineViewport::OnFocusViewportToSelection()
@@ -893,7 +895,7 @@ void SNiagaraBaselineViewport::OnFocusViewportToSelection()
 TSharedRef<FEditorViewportClient> SNiagaraBaselineViewport::MakeEditorViewportClient()
 {
 	SystemViewportClient = MakeShareable( new FNiagaraBaselineViewportClient(*AdvancedPreviewScene.Get(), SharedThis(this)) );
-	
+
 	SystemViewportClient->SetViewLocation( FVector::ZeroVector );
 	SystemViewportClient->SetViewRotation( FRotator(0.0f, 0.0f, 0.0f) );
 	SystemViewportClient->SetViewLocationForOrbiting( FVector::ZeroVector, 750.0f );
@@ -902,7 +904,7 @@ TSharedRef<FEditorViewportClient> SNiagaraBaselineViewport::MakeEditorViewportCl
 	SystemViewportClient->SetRealtime( true );
 	SystemViewportClient->SetGameView(false);
 	SystemViewportClient->VisibilityDelegate.BindSP( this, &SNiagaraBaselineViewport::IsVisible );
-	
+
 	return SystemViewportClient.ToSharedRef();
 }
 
@@ -940,7 +942,7 @@ void SNiagaraBaselineViewport::Init(TSharedPtr<SWindow>& InOwnerWindow)
 bool SNiagaraBaselineViewport::AddBaseline(UNiagaraEffectType* EffectType)
 {
 	check(EffectType && EffectType->IsPerfBaselineValid() == false);
-		
+
 	if (UNiagaraBaselineController* Controller = EffectType->GetPerfBaselineController())
 	{
 		if (UNiagaraSystem* System = Controller->GetSystem())

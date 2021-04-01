@@ -3,7 +3,9 @@
 #include "NiagaraRendererMeshes.h"
 #include "ParticleResources.h"
 #include "NiagaraDataSet.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraStats.h"
+#include "NiagaraComponent.h"
 #include "Async/ParallelFor.h"
 #include "Engine/StaticMesh.h"
 #include "NiagaraEmitterInstanceBatcher.h"
@@ -144,9 +146,9 @@ FNiagaraRendererMeshes::~FNiagaraRendererMeshes()
 {
 }
 
-void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
+void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProps, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)
 {
-	FNiagaraRenderer::Initialize(InProps, Emitter, InComponent);
+	FNiagaraRenderer::Initialize(InProps, Emitter, InController);
 
 	check(Emitter);
 	check(InProps);

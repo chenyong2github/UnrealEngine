@@ -97,8 +97,8 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	bCanSimulate = InOptions.bCanSimulate;
 	EditMode = InOptions.EditMode;
 	OnGetSequencerAddMenuContent = InOptions.OnGetSequencerAddMenuContent;
-	SystemMessageLogGuidKey = InOptions.MessageLogGuid;	
-	
+	SystemMessageLogGuidKey = InOptions.MessageLogGuid;
+
 	SystemChangedDelegateHandle = System->OnSystemPostEditChange().AddSP(this, &FNiagaraSystemViewModel::SystemChanged);
 
 	SelectionViewModel = NewObject<UNiagaraSystemSelectionViewModel>(GetTransientPackage());
@@ -277,8 +277,8 @@ void FNiagaraSystemViewModel::CompileSystem(bool bForce)
 
 ENiagaraScriptCompileStatus FNiagaraSystemViewModel::GetLatestCompileStatus() const
 {
-	return LatestCompileStatusCache.IsSet() 
-		? LatestCompileStatusCache.GetValue() 
+	return LatestCompileStatusCache.IsSet()
+		? LatestCompileStatusCache.GetValue()
 		: ENiagaraScriptCompileStatus::NCS_Unknown;
 }
 
@@ -396,7 +396,7 @@ void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate
 	{
 		EmitterHandleNames.Add(EmitterHandle.GetName());
 	}
-	
+
 	GetSystem().Modify();
 	for (FEmitterHandleToDuplicate& EmitterHandleToDuplicate : EmitterHandlesToDuplicate)
 	{
@@ -467,7 +467,7 @@ FGuid FNiagaraSystemViewModel::AddMessage(UNiagaraMessageData* NewMessage) const
 		checkf(false, TEXT("New system viewmodel edit mode defined! Must implemented AddMessage() for this edit mode!"));
 		return FGuid();
 	}
-	
+
 	bPendingAssetMessagesChanged = true;
 	return NewGuid;
 }
@@ -874,7 +874,7 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 	// Make new messages and messages jobs from the compile.
 	// Iterate from back to front to avoid reordering the events when they are queued.
 	for (int i = ScriptsToGetCompileEventsFrom.Num()-1; i >=0; --i)
-	{ 
+	{
 		const FNiagaraScriptAndOwningScriptNameString& ScriptInfo = ScriptsToGetCompileEventsFrom[i];
 		const TArray<FNiagaraCompileEvent>& CurrentCompileEvents = ScriptInfo.Script->GetVMExecutableData().LastCompileEvents;
 		for (int j = CurrentCompileEvents.Num() - 1; j >= 0; --j)
@@ -891,10 +891,10 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 
 			MessageManager->AddMessageJob(MakeUnique<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)), ScriptInfo.OwningScriptNameString), SystemMessageLogGuidKey.GetValue());
 		}
-		
+
 		// Check if there are any GPU compile errors and if so push them.
 		const FNiagaraShaderScript* ShaderScript = ScriptInfo.Script->GetRenderThreadScript();
-		if (ShaderScript != nullptr && ShaderScript->IsCompilationFinished() && 
+		if (ShaderScript != nullptr && ShaderScript->IsCompilationFinished() &&
 			ScriptInfo.Script->Usage == ENiagaraScriptUsage::ParticleGPUComputeScript)
 		{
 			const TArray<FString>& GPUCompileErrors = ShaderScript->GetCompileErrors();
@@ -1087,7 +1087,7 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedOb
 				UpdateCompiledDataInterfaces(ChangedDataInterface);
 			}
 
-		
+
 			if(ChangedObject->IsA<UNiagaraDataInterfaceCurveBase>() && ChangeType != ENiagaraDataObjectChange::Changed)
 			{
 				bRefreshCurveSelectionViewModel = true;
@@ -1156,7 +1156,7 @@ void FNiagaraSystemViewModel::DisableEmitters(TArray<FGuid> EmitterHandlesIdsToD
 void FNiagaraSystemViewModel::ToggleEmitterIsolation(TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandle)
 {
 	InEmitterHandle->GetEmitterHandle()->SetIsolated(!InEmitterHandle->GetEmitterHandle()->IsIsolated());
-	
+
 	bool bAnyEmitterIsolated = false;
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandle : EmitterHandleViewModels)
 	{
@@ -1640,7 +1640,7 @@ void FNiagaraSystemViewModel::EmitterScriptGraphChanged(const FEdGraphEditAction
 	{
 		EmitterIdsRequiringSequencerTrackUpdate.AddUnique(OwningEmitterHandleId);
 	}
-	// Remove from cache on graph change 
+	// Remove from cache on graph change
 	GuidToCachedStackModuleData.Remove(OwningEmitterHandleId);
 	InvalidateCachedCompileStatus();
 	CurveSelectionViewModel->Refresh();
@@ -1682,7 +1682,7 @@ void FNiagaraSystemViewModel::UpdateSimulationFromParameterChange()
 {
 	if (EditorSettings->GetResetSimulationOnChange())
 	{
-		/* Calling RequestResetSystem here avoids reentrancy into ResetSystem() when we edit the system parameter store on 
+		/* Calling RequestResetSystem here avoids reentrancy into ResetSystem() when we edit the system parameter store on
 		** UNiagaraComponent::Activate() as we always call PrepareRapidIterationParameters().  */
 		RequestResetSystem();
 	}
@@ -1868,7 +1868,7 @@ void FNiagaraSystemViewModel::SequencerDataChanged(EMovieSceneDataChangeType Dat
 
 void FNiagaraSystemViewModel::SequencerTimeChanged()
 {
-	if (!PreviewComponent || !PreviewComponent->GetSystemInstance() || !PreviewComponent->GetSystemInstance()->GetAreDataInterfacesInitialized())
+	if (!PreviewComponent || !SystemInstance || !SystemInstance->GetAreDataInterfacesInitialized())
 	{
 		return;
 	}
@@ -2026,7 +2026,8 @@ void FNiagaraSystemViewModel::SystemInstanceReset()
 void FNiagaraSystemViewModel::PreviewComponentSystemInstanceChanged()
 {
 	FNiagaraSystemInstance* OldSystemInstance = SystemInstance;
-	SystemInstance = PreviewComponent->GetSystemInstance();
+	FNiagaraSystemInstanceControllerPtr SystemInstanceController = PreviewComponent->GetSystemInstanceController();
+	SystemInstance = SystemInstanceController.IsValid() ? SystemInstanceController->GetSoloSystemInstance() : nullptr;
 	if (SystemInstance != OldSystemInstance)
 	{
 		if (SystemInstance != nullptr)
@@ -2068,7 +2069,7 @@ void FNiagaraSystemViewModel::UpdateEmitterFixedBounds()
 		}
 		FNiagaraEmitterHandle* SelectedEmitterHandle = EmitterHandleViewModel->GetEmitterHandle();
 		check(SelectedEmitterHandle);
-		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInst : PreviewComponent->GetSystemInstance()->GetEmitters())
+		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInst : SystemInstance->GetEmitters())
 		{
 			if (&EmitterInst->GetEmitterHandle() == SelectedEmitterHandle && !EmitterInst->IsComplete())
 			{
@@ -2100,7 +2101,7 @@ void FNiagaraSystemViewModel::AddSystemEventHandlers()
 		TArray<UNiagaraScript*> Scripts;
 		Scripts.Add(System->GetSystemSpawnScript());
 		Scripts.Add(System->GetSystemUpdateScript());
-		
+
 		for (UNiagaraScript* Script : Scripts)
 		{
 			if (Script != nullptr)

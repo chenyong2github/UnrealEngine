@@ -20,6 +20,7 @@
 #include "NiagaraEffectType.h"
 #include "NiagaraScalabilityManager.h"
 #include "NiagaraDebuggerCommon.h"
+#include "NiagaraDeferredMethodQueue.h"
 
 #include "NiagaraWorldManager.generated.h"
 
@@ -140,7 +141,7 @@ public:
 	void CleanupParameterCollections();
 	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation(ETickingGroup TickGroup, UNiagaraSystem* System);
 	void DestroySystemSimulation(UNiagaraSystem* System);
-	void DestroySystemInstance(TUniquePtr<FNiagaraSystemInstance>& InPtr);	
+	void DestroySystemInstance(FNiagaraSystemInstancePtr& InPtr);	
 
 	void MarkSimulationForPostActorWork(FNiagaraSystemSimulation* SystemSimulation);
 
@@ -224,6 +225,8 @@ public:
 
 	class FNiagaraDebugHud* GetNiagaraDebugHud() { return NiagaraDebugHud.Get(); }
 
+	class FNiagaraDeferredMethodQueue& GetDeferredMethodQueue() { return DeferredMethods; }
+
 private:
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created
 	static void OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS);
@@ -305,12 +308,14 @@ private:
 	TMap<FNDI_GeneratedData::TypeHash, TUniquePtr<FNDI_GeneratedData>> DIGeneratedData;
 
 	/** Instances that have been queued for deletion this frame, serviced in PostActorTick */
-	TArray<TUniquePtr<FNiagaraSystemInstance>> DeferredDeletionQueue;
+	TArray<FNiagaraSystemInstancePtr> DeferredDeletionQueue;
 
 	UPROPERTY(transient)
 	TMap<UNiagaraEffectType*, FNiagaraScalabilityManager> ScalabilityManagers;
 
-	/** True if the app has focus. We prevent some culling if the app doesn't have focus as it can interefre. */
+	FNiagaraDeferredMethodQueue DeferredMethods;
+
+	/** True if the app has focus. We prevent some culling if the app doesn't have focus as it can interfere. */
 	bool bAppHasFocus;
 
 	float WorldLoopTime = 0.0f;

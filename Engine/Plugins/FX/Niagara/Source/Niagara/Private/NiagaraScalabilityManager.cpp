@@ -194,7 +194,7 @@ bool FNiagaraScalabilityManager::EvaluateCullState(FNiagaraWorldManager* WorldMa
 	//Though this does mean the sorted significance values will be using out of date distances etc.
 	//I'm somewhat on the fence currently as to whether it's better to pay this cost for correctness.
 	const bool UpdateScalability = Component->ScalabilityManagerHandle == ComponentIndex
-		&& (!Context.bNewOnly || Component->GetSystemInstance()->IsPendingSpawn());
+		&& (!Context.bNewOnly || Component->GetSystemInstanceController()->IsPendingSpawn());
 
 	if (UpdateScalability)
 	{
@@ -440,7 +440,7 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, float De
 
 	const bool bResetUpdate = EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::Continuous
 		|| ((TimeSinceUpdate >= UpdatePeriod) && !DefaultContext.ComponentRequiresUpdate.Contains(true));
-		
+
 	const int32 ComponentCount = ManagedComponents.Num();
 
 	if (bResetUpdate)

@@ -1,0 +1,306 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "NiagaraSystemRenderData.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraCrashReporterHandler.h"
+#include "NiagaraScalabilityManager.h"
+
+void FNiagaraSystemRenderData::ExecuteDynamicDataCommands_RenderThread(const FSetDynamicDataCommandList& Commands)
+{
+	for (auto& Command : Commands)
+	{
+		Command.Execute();
+	}
+}
+
+FNiagaraSystemRenderData::FNiagaraSystemRenderData(const FNiagaraSystemInstanceController& SystemInstanceController, const FNiagaraSystemInstance& SystemInstance, ERHIFeatureLevel::Type FeatureLevel)
+{
+	UNiagaraSystem* System = SystemInstance.GetSystem();
+	check(System);
+
+	RendererDrawOrder = System->GetRendererDrawOrder();
+	EmitterRenderers.Reserve(RendererDrawOrder.Num());
+
+	for (TSharedRef<const FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInst : SystemInstance.GetEmitters())
+	{
+		if (UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter())
+		{
+			Emitter->ForEachEnabledRenderer(
+				[&](UNiagaraRendererProperties* Properties)
+				{
+					//We can skip creation of the renderer if the current quality level doesn't support it. If the quality level changes all systems are fully reinitialized.
+					FNiagaraRenderer* NewRenderer = nullptr;
+					if (Properties->GetIsActive() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
+					{
+						NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get(), SystemInstanceController);
+						if (Properties->MotionVectorSetting != ENiagaraRendererMotionVectorSetting::Disable)
+						{
+							bAnyMotionBlurEnabled = true;
+						}
+					}
+					EmitterRenderers.Add(NewRenderer);
+				}
+			);
+		}
+	}
+
+	// If we have renderers then the draw order on the system should match, when compiling the number of renderers can be zero
+	checkf((EmitterRenderers.Num() == 0) || (EmitterRenderers.Num() == RendererDrawOrder.Num()), TEXT("EmitterRenderers Num %d does not match System DrawOrder %d"), EmitterRenderers.Num(), RendererDrawOrder.Num());
+}
+
+FNiagaraSystemRenderData::~FNiagaraSystemRenderData()
+{
+	if(EmitterRenderers.Num() > 0)
+	{
+		Destroy_RenderThread();
+	}
+}
+
+void FNiagaraSystemRenderData::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher& Batcher)
+{
+	for (auto Renderer : EmitterRenderers)
+	{
+		if (Renderer)
+		{
+			Renderer->CreateRenderThreadResources(&Batcher);
+		}
+	}
+}
+
+void FNiagaraSystemRenderData::ReleaseRenderThreadResources()
+{
+	for (auto Renderer : EmitterRenderers)
+	{
+		if (Renderer)
+		{
+			Renderer->ReleaseRenderThreadResources();
+		}
+	}
+}
+
+void FNiagaraSystemRenderData::DestroyRenderState_Concurrent()
+{
+	// Give the renderers an opportunity to free resources that must be freed on the game thread (or task)
+	for (auto Renderer : EmitterRenderers)
+	{
+		if (Renderer)
+		{
+			Renderer->DestroyRenderState_Concurrent();
+		}
+	}
+}
+
+void FNiagaraSystemRenderData::Destroy_RenderThread()
+{
+	check(IsInRenderingThread());
+
+	// Delete the renderers
+	for (auto Renderer : EmitterRenderers)
+	{
+		if (Renderer)
+		{
+			Renderer->ReleaseRenderThreadResources();
+			delete Renderer;
+		}
+	}
+
+	EmitterRenderers.Empty();
+}
+
+FPrimitiveViewRelevance FNiagaraSystemRenderData::GetViewRelevance(const FSceneView& View, const FNiagaraSceneProxy& SceneProxy) const
+{
+	FPrimitiveViewRelevance Relevance;
+	if (IsRenderingEnabled())
+	{
+		for (const auto Renderer : EmitterRenderers)
+		{
+			if (Renderer)
+			{
+				Relevance |= Renderer->GetViewRelevance(&View, &SceneProxy);
+			}
+		}
+	}
+
+	return Relevance;
+}
+
+uint32 FNiagaraSystemRenderData::GetDynamicDataSize() const
+{
+	uint32 Size = 0;
+	for (const auto Renderer : EmitterRenderers)
+	{
+		if (Renderer)
+		{
+			Size += Renderer->GetDynamicDataSize();
+		}
+	}
+
+	return Size;
+}
+
+void FNiagaraSystemRenderData::GenerateSetDynamicDataCommands(FSetDynamicDataCommandList& Commands, const FNiagaraSceneProxy& SceneProxy, const FNiagaraSystemInstance* SystemInstance)
+{
+	if (!SystemInstance)
+	{
+		for (auto Renderer : EmitterRenderers)
+		{
+			if (Renderer)
+			{
+				Commands.Add(FSetDynamicDataCommand(Renderer, nullptr));
+			}
+		}
+
+		return;
+	}
+
+	FNiagaraCrashReporterScope CRScope(SystemInstance);
+	UNiagaraSystem* System = SystemInstance->GetSystem();
+	check(System);
+
+#if STATS
+	TStatId SystemStatID = System ? System->GetStatID(true, true) : TStatId();
+	FScopeCycleCounter SystemStatCounter(SystemStatID);
+#endif
+
+	const int32 NumEmitterRenderers = EmitterRenderers.Num();
+	if (NumEmitterRenderers == 0)
+	{
+		// Early out if we have no renderers
+		return;
+	}
+
+	Commands.Reserve(NumEmitterRenderers);
+
+	int32 RendererIndex = 0;
+	for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
+	{
+		FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
+		UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter();
+
+		if (Emitter == nullptr)
+		{
+			continue;
+		}
+
+#if STATS
+		TStatId EmitterStatID = Emitter->GetStatID(true, true);
+		FScopeCycleCounter EmitterStatCounter(EmitterStatID);
+#endif
+
+		Emitter->ForEachEnabledRenderer(
+			[&](UNiagaraRendererProperties* Properties)
+			{
+				FNiagaraRenderer* Renderer = EmitterRenderers[RendererIndex];
+				FNiagaraDynamicDataBase* NewData = nullptr;
+
+				if (Renderer && Properties->GetIsActive())
+				{
+					bool bRendererEditorEnabled = true;
+#if WITH_EDITORONLY_DATA
+					const FNiagaraEmitterHandle& Handle = System->GetEmitterHandle(i);
+					bRendererEditorEnabled = (!SystemInstance->GetIsolateEnabled() || Handle.IsIsolated());
+#endif
+					if (bRendererEditorEnabled && !EmitterInst->IsComplete() && !SystemInstance->IsComplete())
+					{
+						NewData = Renderer->GenerateDynamicData(&SceneProxy, Properties, EmitterInst);
+					}
+
+					Commands.Add(FSetDynamicDataCommand(Renderer, NewData));
+				}
+
+				++RendererIndex;
+			}
+		);
+	}
+
+#if WITH_EDITOR
+	if (ensure(RendererIndex == NumEmitterRenderers) == false)
+	{
+		// This can happen in the editor when modifying the number or renderers while the system is running and the render thread is already processing the data.
+		// in this case we just skip drawing this frame since the system will be reinitialized.
+		Commands.SetNum(Commands.Num() - RendererIndex);
+	}
+#endif
+}
+
+void FNiagaraSystemRenderData::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy& SceneProxy)
+{
+	for (int32 RendererIdx : RendererDrawOrder)
+	{
+		FNiagaraRenderer* Renderer = EmitterRenderers[RendererIdx];
+		if (Renderer && (Renderer->GetSimTarget() != ENiagaraSimTarget::GPUComputeSim || FNiagaraUtilities::AllowGPUParticles(ViewFamily.GetShaderPlatform())))
+		{
+			Renderer->GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector, &SceneProxy);
+		}
+	}
+}
+
+#if RHI_RAYTRACING
+void FNiagaraSystemRenderData::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy& SceneProxy)
+{
+	for (auto Renderer : EmitterRenderers)
+	{
+		if (Renderer)
+		{
+			Renderer->GetDynamicRayTracingInstances(Context, OutRayTracingInstances, &SceneProxy);
+		}
+	}
+}
+#endif
+
+void FNiagaraSystemRenderData::GatherSimpleLights(FSimpleLightArray& OutParticleLights) const
+{
+	for (auto Renderer : EmitterRenderers)
+	{
+		if (Renderer && Renderer->HasLights())
+		{
+			Renderer->GatherSimpleLights(OutParticleLights);
+		}
+	}
+}
+
+void FNiagaraSystemRenderData::PostTickRenderers(const FNiagaraSystemInstance& SystemInstance)
+{
+	// Give renderers a chance to do some processing PostTick
+	if (EmitterRenderers.Num() > 0)
+	{
+		const UNiagaraSystem* System = SystemInstance.GetSystem();
+		for (const FNiagaraRendererExecutionIndex& ExecIdx : System->GetRendererPostTickOrder())
+		{
+			if (EmitterRenderers.IsValidIndex(ExecIdx.SystemRendererIndex))
+			{
+				const FNiagaraEmitterInstance& EmitterInst = SystemInstance.GetEmitters()[ExecIdx.EmitterIndex].Get();
+				const UNiagaraEmitter* Emitter = EmitterInst.GetCachedEmitter();
+				FNiagaraRenderer* EmitterRenderer = EmitterRenderers[ExecIdx.SystemRendererIndex];
+				if (Emitter && EmitterRenderer)
+				{
+					const UNiagaraRendererProperties* RendererProperties = Emitter->GetRenderers()[ExecIdx.EmitterRendererIndex];
+					EmitterRenderer->PostSystemTick_GameThread(RendererProperties, &EmitterInst);
+				}
+			}
+		}
+	}
+}
+
+void FNiagaraSystemRenderData::OnSystemComplete(const FNiagaraSystemInstance& SystemInstance)
+{
+	// Give renderers a chance to handle completion
+	if (EmitterRenderers.Num() > 0)
+	{
+		const UNiagaraSystem* System = SystemInstance.GetSystem();
+		for (const FNiagaraRendererExecutionIndex& ExecIdx : System->GetRendererCompletionOrder())
+		{
+			if (EmitterRenderers.IsValidIndex(ExecIdx.SystemRendererIndex))
+			{
+				const FNiagaraEmitterInstance& EmitterInst = SystemInstance.GetEmitters()[ExecIdx.EmitterIndex].Get();
+				const UNiagaraEmitter* Emitter = EmitterInst.GetCachedEmitter();
+				FNiagaraRenderer* EmitterRenderer = EmitterRenderers[ExecIdx.SystemRendererIndex];
+				if (Emitter && EmitterRenderer)
+				{
+					const UNiagaraRendererProperties* RendererProperties = Emitter->GetRenderers()[ExecIdx.EmitterRendererIndex];
+					EmitterRenderer->OnSystemComplete_GameThread(RendererProperties, &EmitterInst);
+				}
+			}
+		}
+	}
+}

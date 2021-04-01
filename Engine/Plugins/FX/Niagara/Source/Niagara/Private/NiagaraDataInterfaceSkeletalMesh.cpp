@@ -167,7 +167,7 @@ float FSkeletalMeshSamplingRegionAreaWeightedSampler::GetWeights(TArray<float>& 
 		OutWeights.Empty();
 		return 0.0f;
 	}
-	
+
 	const FSkeletalMeshSamplingInfo& SamplingInfo = SkelMesh->GetSamplingInfo();
 	OutWeights.Empty(NumUsedRegions);
 	for (int32 i = 0; i < NumUsedRegions; ++i)
@@ -240,7 +240,7 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 	USkeletalMesh* SkelMesh = SkelComp->SkeletalMesh;
 	int32 LODIndex = 0;
 	int32 NumLODInfo = 1;
-	
+
 	if (SkelMesh != nullptr)
 	{
 		NumLODInfo = SkelMesh->GetLODInfoArray().Num();
@@ -270,7 +270,7 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 		{
 			UpdateBoneTransforms();
 		}
-		
+
 		//Prime the prev matrices if they're missing.
 		if (PrevBoneRefToLocals().Num() != CurrBoneRefToLocals().Num())
 		{
@@ -505,7 +505,7 @@ FSkeletalMeshSkinningDataHandle FNDI_SkeletalMesh_GeneratedData::GetCachedSkinni
 	// We need to add
 	FRWScopeLock WriteLock(CachedSkinningDataGuard, SLT_Write);
 	return FSkeletalMeshSkinningDataHandle(
-		Usage, 
+		Usage,
 		CachedSkinningData.Add(Component, MakeShared<FSkeletalMeshSkinningData>(Component)),
 		bNeedsDataImmediately);
 }
@@ -579,14 +579,14 @@ void FNDI_SkeletalMesh_GeneratedData::Tick(ETickingGroup TickGroup, float DeltaS
 	{
 		CachedSkinningData.Remove(Key);
 	}
-	
-	// First tick the meshes that don't need pre-skinning. 
+
+	// First tick the meshes that don't need pre-skinning.
 	// This prevents additional threading overhead when we don't need to pre-skin.
 	for (int i = 0; i < ToTickBonesOnly.Num(); i++)
 	{
 		ToTickBonesOnly[i]->Tick(DeltaSeconds, false);
 	}
-		
+
 	// Then tick the remaining meshes requiring pre-skinning in parallel
 	if (ToTickPreskin.Num() != 0)
 	{
@@ -739,7 +739,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 		TriangleCount = SkeletalMeshLODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num() / 3;
 		VertexCount = SkeletalMeshLODRenderData.GetNumVertices();
 		
-		// TODO: Bring these back when we can know if they are for sure sampling from them. Disabled for now to suppress log spam		
+		// TODO: Bring these back when we can know if they are for sure sampling from them. Disabled for now to suppress log spam
 		//if (TriangleCount == 0)
 		//{
 		//	UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> TriangleCount(0) is invalid for SkelMesh(%s) System(%s)"), *GetFullNameSafe(InstData->SkeletalMesh.Get()), *GetFullNameSafe(SystemInstance->GetSystem()));
@@ -1685,7 +1685,7 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 	Data->ConnectivityBuffer = SourceData->Connectivity.GetProxy();
 }
 
-USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystemInstance* SystemInstance, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
+USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystemInstance* SystemInstance, USceneComponent* AttachComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
 {
 	// Helper to scour an actor (or its parents) for a valid skeletal mesh component
 	auto FindActorSkelMeshComponent = [](AActor* Actor, bool bRecurseParents = false) -> USkeletalMeshComponent*
@@ -1734,7 +1734,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 		UObject* UserParamObject = InstData->UserParamBinding.Init(SystemInstance->GetInstanceParameters(), MeshUserParameter.Parameter);
 		InstData->CachedUserParam = UserParamObject;
 		if (UserParamObject)
-		{			
+		{
 			if (USkeletalMeshComponent* UserSkelMeshComp = Cast<USkeletalMeshComponent>(UserParamObject))
 			{
 				if (!UserSkelMeshComp->IsPendingKill())
@@ -1748,10 +1748,10 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 			}
 			else
 			{
-				//We have a valid, non-null UObject parameter type but it is not a type we can use to get a skeletal mesh from. 
+				//We have a valid, non-null UObject parameter type but it is not a type we can use to get a skeletal mesh from.
 				UE_LOG(LogNiagara, Warning, TEXT("SkeletalMesh data interface using object parameter with invalid type. Skeletal Mesh Data Interfaces can only get a valid mesh from SkeletalMeshComponents, SkeletalMeshActors or Actors."));
 				UE_LOG(LogNiagara, Warning, TEXT("Invalid Parameter : %s"), *UserParamObject->GetFullName());
-				UE_LOG(LogNiagara, Warning, TEXT("Niagara Component : %s"), *GetFullNameSafe(Cast<UNiagaraComponent>(SystemInstance->GetAttachComponent())));
+				UE_LOG(LogNiagara, Warning, TEXT("Niagara Component : %s"), *GetFullNameSafe(Cast<UNiagaraComponent>(AttachComponent)));
 				UE_LOG(LogNiagara, Warning, TEXT("System : %s"), *GetFullNameSafe(SystemInstance->GetSystem()));
 			}
 		}
@@ -1768,34 +1768,31 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 	{
 		FoundSkelComp = FindActorSkelMeshComponent(Source);
 	}
-	else if (bTryAttachParent && SystemInstance)
+	else if (bTryAttachParent && AttachComponent)
 	{
-		if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
+		// First, try to find the mesh component up the attachment hierarchy
+		for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 		{
-			// First, try to find the mesh component up the attachment hierarchy
-			for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
+			USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(Curr);
+			if (ParentComp && !ParentComp->IsPendingKill())
 			{
-				USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(Curr);
-				if (ParentComp && !ParentComp->IsPendingKill())
-				{
-					FoundSkelComp = ParentComp;
-					break;
-				}
+				FoundSkelComp = ParentComp;
+				break;
 			}
-			
-			if (!FoundSkelComp)
+		}
+
+		if (!FoundSkelComp)
+		{
+			// Next, try to find one in our outer chain
+			USkeletalMeshComponent* OuterComp = AttachComponent->GetTypedOuter<USkeletalMeshComponent>();
+			if (OuterComp && !OuterComp->IsPendingKill())
 			{
-				// Next, try to find one in our outer chain
-				USkeletalMeshComponent* OuterComp = AttachComponent->GetTypedOuter<USkeletalMeshComponent>();
-				if (OuterComp && !OuterComp->IsPendingKill())
-				{
-					FoundSkelComp = OuterComp;
-				}
-				else if (AActor* Actor = AttachComponent->GetAttachmentRootActor())
-				{
-					// Final fall-back, look for any mesh component on our root actor or any of its parents
-					FoundSkelComp = FindActorSkelMeshComponent(Actor, true);
-				}
+				FoundSkelComp = OuterComp;
+			}
+			else if (AActor* Actor = AttachComponent->GetAttachmentRootActor())
+			{
+				// Final fall-back, look for any mesh component on our root actor or any of its parents
+				FoundSkelComp = FindActorSkelMeshComponent(Actor, true);
 			}
 		}
 	}
@@ -1811,11 +1808,19 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 	else if (!SystemInstance || !SystemInstance->GetWorld()->IsGameWorld())
 	{
 		// NOTE: We don't fall back on the preview mesh if we have a valid skeletal mesh component referenced
-		Mesh = PreviewMesh.LoadSynchronous();		
+		Mesh = PreviewMesh.LoadSynchronous();
 	}
 #endif
 
 	return Mesh;
+}
+
+USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraComponent* Component)
+{
+	// NOTE: We don't need the system instance when not initializing instance data, and when using a UNiagaraComponent, it is always the attach component
+	TWeakObjectPtr<USceneComponent> SceneComponent;
+	USkeletalMeshComponent* FoundSkelComp = nullptr;
+	return GetSkeletalMesh(nullptr, Component, SceneComponent, FoundSkelComp, nullptr);
 }
 
 bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance)
@@ -1843,17 +1848,18 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 	// Get skel mesh and confirm have valid data
 	USkeletalMeshComponent* NewSkelComp = nullptr;
-	USkeletalMesh* Mesh = Interface->GetSkeletalMesh(SystemInstance, SceneComponent, NewSkelComp, this);
-	
+	USceneComponent* AttachComponent = SystemInstance->GetAttachComponent();
+	USkeletalMesh* Mesh = Interface->GetSkeletalMesh(SystemInstance, AttachComponent, SceneComponent, NewSkelComp, this);
+
 	SkeletalMesh = Mesh;
 	bMeshValid = Mesh != nullptr;
 	bComponentValid = SceneComponent.IsValid();
 
 	Transform = (bComponentValid ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform()).ToMatrixWithScale();
 	TransformInverseTransposed = Transform.Inverse().GetTransposed();
-	PrevTransform = Transform;	
+	PrevTransform = Transform;
 
-	if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
+	if (AttachComponent)
 	{
 		CachedAttachParent = AttachComponent->GetAttachParent();
 	}
@@ -1862,7 +1868,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	if (Mesh != nullptr)
 	{
 		// HACK! This only works on systems created by a Niagara component...should maybe move somewhere else to cover non-component systems
-		if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(SystemInstance->GetAttachComponent()))
+		if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(AttachComponent))
 		{
 			Mesh->GetOnMeshChanged().AddUObject(NiagaraComponent, &UNiagaraComponent::ReinitializeSystem);
 			if (USkeleton* Skeleton = Mesh->GetSkeleton())
@@ -2232,7 +2238,7 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 		{
 			return true;
 		}
-	}		
+	}
 	else if (Interface->SourceComponent)
 	{
 		// Reset if the source component changed (or there wasn't one and now there is)
@@ -2253,7 +2259,7 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 			return true;
 		}
 	}
-	
+
 	// Reset if the LOD we relied on was streamed out, or if the LOD we need could now be available.
 	if (SkelMesh != nullptr)
 	{
@@ -2282,7 +2288,7 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 	{
 		return true;
 	}
-	
+
 	return false;
 }
 
@@ -2479,7 +2485,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFunctions(TArray<FNiagaraFunctionSign
 void UNiagaraDataInterfaceSkeletalMesh::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	FNDISkeletalMesh_InstanceData* InstData = (FNDISkeletalMesh_InstanceData*)InstanceData;
-	
+
 	if (!InstData)
 	{
 		OutFunc = FVMExternalFunction();
@@ -2584,7 +2590,7 @@ void UNiagaraDataInterfaceSkeletalMesh::DestroyPerInstanceData(void* PerInstance
 
 #if WITH_EDITOR
 	if (USkeletalMesh* SkeletalMesh = Inst->SkeletalMesh.Get())
-	{		
+	{
 		if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(SystemInstance->GetAttachComponent()))
 		{
 			SkeletalMesh->GetOnMeshChanged().RemoveAll(NiagaraComponent);
@@ -2618,7 +2624,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::PerInstanceTick(void* PerInstanceData, F
 	return Inst->Tick(this, SystemInstance, InDeltaSeconds);
 }
 
-#if WITH_EDITOR	
+#if WITH_EDITOR
 void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
 	TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
 {
@@ -2632,10 +2638,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 
 	// Collect Errors
 #if WITH_EDITORONLY_DATA
-	FNiagaraSystemInstance* SystemInstance = Component ? Component->GetSystemInstance() : nullptr;
-	TWeakObjectPtr<USceneComponent> SceneComponent;
-	USkeletalMeshComponent* SkelMeshComponent = nullptr;
-	USkeletalMesh* SkelMesh = GetSkeletalMesh(SystemInstance, SceneComponent, SkelMeshComponent);
+	USkeletalMesh* SkelMesh = GetSkeletalMesh(Component);
 
 	if (SkelMesh != nullptr)
 	{
@@ -2651,7 +2654,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 
 		// Check for the possibility that this mesh won't behave properly because of no CPU access
 		if (!bHasCPUAccess)
-		{			
+		{
 			// Collect all scripts used by the system
 			// NOTE: We don't descriminate between CPU or GPU scripts here because while GPU access will "Just Work"
 			// on some platforms, other platforms (like Mobile or OpenGL) do not create a shader resource view for the
@@ -2661,10 +2664,10 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 			Scripts.Add(Asset->GetSystemUpdateScript());
 			for (auto&& EmitterHandle : Asset->GetEmitterHandles())
 			{
-				EmitterHandle.GetInstance()->GetScripts(Scripts, false);				
+				EmitterHandle.GetInstance()->GetScripts(Scripts, false);
 			}
 
-			// Now check if any script uses functions that require CPU access			
+			// Now check if any script uses functions that require CPU access
 			// TODO: This isn't complete enough. It doesn't guarantee that the DI used by these functions are THIS DI.
 			// Finding that information out is currently non-trivial so just pop a warning with the possibility of false
 			// positives
@@ -2695,7 +2698,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 					}
 				}
 				return false;
-			}();			
+			}();
 		}
 	}
 	else
@@ -3141,12 +3144,12 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 	{
 		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int SocketIndex, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredSocketBoneAt(DIContext, SocketIndex, Bone); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	} 
+	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredSocketTransformName)
 	{
 		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int SocketIndex, in bool bApplyTransform, out float3 OutTranslation, out float4 OutRotation, out float3 OutScale) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredSocketTransform(DIContext, SocketIndex, bApplyTransform, OutTranslation, OutRotation, OutScale); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	} 
+	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomFilteredSocketName)
 	{
 		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out int SocketBone) { {GetDISkelMeshContextName} DISkelMesh_RandomFilteredSocket(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, SocketBone); }");
@@ -3379,7 +3382,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetParameterDefinitionHLSL(const FNiagar
 
 void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse)
 {
-	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated. 
+	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated.
 	ChangeId++;
 	SourceComponent = ComponentToUse;
 	Source = ComponentToUse->GetOwner();
@@ -3387,7 +3390,7 @@ void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkelet
 
 void UNiagaraDataInterfaceSkeletalMesh::SetSamplingRegionsFromBlueprints(const TArray<FName>& InSamplingRegions)
 {
-	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated. 
+	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated.
 	ChangeId++;
 	SamplingRegions = InSamplingRegions;
 }
@@ -3434,7 +3437,7 @@ int32 UNiagaraDataInterfaceSkeletalMesh::CalculateLODIndexAndSamplingRegions(USk
 				const FSkeletalMeshSamplingRegion& Region = SamplingInfo.GetRegion(RegionIdx);
 				const FSkeletalMeshSamplingRegionBuiltData& RegionBuiltData = SamplingInfo.GetRegionBuiltData(RegionIdx);
 
-				const int32 RegionLODIndex = Region.LODIndex == INDEX_NONE ? 
+				const int32 RegionLODIndex = Region.LODIndex == INDEX_NONE ?
 					(InMesh->GetLODNum() - 1) :
 					(FMath::Clamp(Region.LODIndex, 0, InMesh->GetLODNum() - 1));
 
@@ -3450,7 +3453,7 @@ int32 UNiagaraDataInterfaceSkeletalMesh::CalculateLODIndexAndSamplingRegions(USk
 						*RegionName.ToString());
 					return INDEX_NONE;
 				}
-				
+
 				if (RegionBuiltData.TriangleIndices.Num() > 0)
 				{
 					OutSamplingRegionIndices.Add(RegionIdx);
@@ -3507,7 +3510,7 @@ void FSkeletalMeshAccessorHelper::Init<TNDISkelMesh_FilterModeSingle, TNDISkelMe
 		SamplingRegion = nullptr;
 		SamplingRegionBuiltData = nullptr;
 	}
-	
+
 	if (SkinningData != nullptr)
 	{
 		SkinningData->EnterRead();

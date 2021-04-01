@@ -3,7 +3,6 @@
 #include "MovieSceneNiagaraSystemTrackTemplate.h"
 #include "MovieSceneExecutionToken.h"
 #include "NiagaraComponent.h"
-#include "NiagaraSystemInstance.h"
 #include "IMovieScenePlayer.h"
 
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
@@ -34,30 +33,36 @@ struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 
 	virtual void RestoreState(UObject& InObject, IMovieScenePlayer& InPlayer)
 	{
-		UNiagaraComponent* NiagaraComponent = CastChecked<UNiagaraComponent>(&InObject);
-		FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
+		UNiagaraComponent* NiagaraComponent = CastChecked<UNiagaraComponent>(&InObject);		
 		if (bComponentIsActive)
 		{
 			NiagaraComponent->Activate();
 		}
 		else
 		{
-			if (SystemInstance != nullptr)
+			// TODO: This is seemingly done because there is some state that isn't fully reset on Deactivate. Should be a single component call
+			if (auto SystemInstanceController = NiagaraComponent->GetSystemInstanceController())		
 			{
-				SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetSystem);
+				SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ResetSystem);
 			}
 			NiagaraComponent->Deactivate();
 		}
 		NiagaraComponent->SetForceSolo(bComponentForceSolo);
 		NiagaraComponent->SetRenderingEnabled(bComponentRenderingEnabled);
-		if (SystemInstance != nullptr && SystemInstanceExecutionState.IsSet())
-		{
-			SystemInstance->SetRequestedExecutionState(SystemInstanceExecutionState.GetValue());
-		}
 		NiagaraComponent->SetAgeUpdateMode(ComponentAgeUpdateMode);
 		NiagaraComponent->SetSeekDelta(ComponentSeekDelta);
 		NiagaraComponent->SetDesiredAge(ComponentDesiredAge);
 		NiagaraComponent->SetLockDesiredAgeDeltaTimeToSeekDelta(bComponentLockDesiredAgeDeltaTimeToSeekDelta);
+
+		// TODO: When this action is ACTUALLY deferred, just expose it to the component		
+		if (SystemInstanceExecutionState.IsSet())
+		{
+			// NOTE: Get the controller again here because it might have been released on Deactivate
+			if (auto SystemInstanceController = NiagaraComponent->GetSystemInstanceController())		
+			{
+				SystemInstanceController->SetRequestedExecutionState_Deferred(SystemInstanceExecutionState.GetValue());
+			}
+		}
 	}
 
 	bool bComponentIsActive;
@@ -75,12 +80,13 @@ struct FPreAnimatedNiagaraComponentTokenProducer : IMovieScenePreAnimatedTokenPr
 	virtual IMovieScenePreAnimatedTokenPtr CacheExistingState(UObject& InObject) const override
 	{
 		UNiagaraComponent* NiagaraComponent = CastChecked<UNiagaraComponent>(&InObject);
-		FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
+		// TODO: Shouldn't need to access the SystemInstanceController directly here, want to eventually use the component interface only
+		FNiagaraSystemInstanceControllerPtr SystemInstanceController = NiagaraComponent->GetSystemInstanceController();
 		return FPreAnimatedNiagaraComponentToken(
 			NiagaraComponent->IsActive(),
 			NiagaraComponent->GetForceSolo(),
 			NiagaraComponent->GetRenderingEnabled(),
-			SystemInstance != nullptr ? SystemInstance->GetRequestedExecutionState() : TOptional<ENiagaraExecutionState>(),
+			SystemInstanceController.IsValid() ? SystemInstanceController->GetRequestedExecutionState() : TOptional<ENiagaraExecutionState>(),
 			NiagaraComponent->GetAgeUpdateMode(),
 			NiagaraComponent->GetSeekDelta(),
 			NiagaraComponent->GetDesiredAge(),
@@ -126,7 +132,7 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 				}
 			}
 
-			FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
+			FNiagaraSystemInstanceControllerPtr SystemInstanceController = NiagaraComponent->GetSystemInstanceController();
 
 			if (Context.GetTime() < SpawnSectionStartFrame)
 			{
@@ -134,10 +140,11 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 				{
 					if (NiagaraComponent->IsActive())
 					{
+						// TODO: More stuff that should be a single component call once deferred
 						NiagaraComponent->DeactivateImmediate();
-						if (NiagaraComponent->GetSystemInstance() != nullptr)
+						if (SystemInstanceController.IsValid() && SystemInstanceController->IsValid())
 						{
-							NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+							SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
 						}
 					}
 				}
@@ -148,10 +155,11 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 				{
 					if (NiagaraComponent->IsActive())
 					{
+						// TODO: More stuff that should be a single component call once deferred
 						NiagaraComponent->DeactivateImmediate();
-						if (NiagaraComponent->GetSystemInstance() != nullptr)
+						if (SystemInstanceController.IsValid() && SystemInstanceController->IsValid())
 						{
-							NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+							SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
 						}
 					}
 					NiagaraComponent->Activate();
@@ -165,10 +173,11 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 					{
 						NiagaraComponent->Activate();
 					}
-
-					if (SystemInstance != nullptr)
+					
+					// TODO: Once ACTUALLY deferred, should just be a component call
+					if (SystemInstanceController.IsValid() && SystemInstanceController->IsValid())
 					{
-						SystemInstance->SetRequestedExecutionState(ENiagaraExecutionState::Active);
+						SystemInstanceController->SetRequestedExecutionState_Deferred(ENiagaraExecutionState::Active);
 					}
 				}
 			}
@@ -176,19 +185,21 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 			{
 				if (SpawnSectionEndBehavior == ENiagaraSystemSpawnSectionEndBehavior::SetSystemInactive)
 				{
-					if (SystemInstance != nullptr)
+					// TODO: Once ACTUALLY deferred, should just be a component call
+					if (SystemInstanceController.IsValid() && SystemInstanceController->IsValid())
 					{
-						SystemInstance->SetRequestedExecutionState(ENiagaraExecutionState::Inactive);
+						SystemInstanceController->SetRequestedExecutionState_Deferred(ENiagaraExecutionState::Inactive);
 					}
 				}
 				else if (SpawnSectionEndBehavior == ENiagaraSystemSpawnSectionEndBehavior::Deactivate)
 				{
 					if (NiagaraComponent->IsActive())
 					{
+						// TODO: More stuff that should be a single component call once deferred
 						NiagaraComponent->DeactivateImmediate();
-						if (NiagaraComponent->GetSystemInstance() != nullptr)
+						if (SystemInstanceController.IsValid() && SystemInstanceController->IsValid())
 						{
-							NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+							SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
 						}
 					}
 				}
@@ -197,7 +208,7 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 			bool bRenderingEnabled = Context.IsPreRoll() == false;
 			NiagaraComponent->SetRenderingEnabled(bRenderingEnabled);
 
-			if (SystemInstance != nullptr && SystemInstance->IsComplete() == false)
+			if (SystemInstanceController.IsValid() && SystemInstanceController->IsValid() && SystemInstanceController->IsComplete() == false)
 			{
 				float DesiredAge = Context.GetFrameRate().AsSeconds(Context.GetTime() - SpawnSectionStartFrame);
 				if (DesiredAge >= 0)
@@ -230,7 +241,7 @@ FMovieSceneNiagaraSystemTrackImplementation::FMovieSceneNiagaraSystemTrackImplem
 	, SpawnSectionEvaluateBehavior(InSpawnSectionEvaluateBehavior)
 	, SpawnSectionEndBehavior(InSpawnSectionEndBehavior)
 	, AgeUpdateMode(InAgeUpdateMode)
-	
+
 {
 }
 

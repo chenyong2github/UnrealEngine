@@ -204,7 +204,7 @@ private:
 	void UpdateBoneTransforms();
 
 	FRWLock RWGuard;
-	
+
 	TWeakObjectPtr<USkeletalMeshComponent> MeshComp;
 
 	/** Delta seconds between calculations of the previous and current skinned positions. */
@@ -419,10 +419,10 @@ protected:
 	FNDISkeletalMesh_InstanceData* Owner;
 };
 
-/** 
+/**
  * This contains static data created once from the DI.
- * This should be in a proxy create by GT and accessible on RT. 
- * Right now we cannot follow a real Proxy pattern since Niagara does not prevent unloading of UI while RT data is still in use. 
+ * This should be in a proxy create by GT and accessible on RT.
+ * Right now we cannot follow a real Proxy pattern since Niagara does not prevent unloading of UI while RT data is still in use.
  * See https://jira.it.epicgames.net/browse/UE-69336
  */
 class FSkeletalMeshGpuSpawnStaticBuffers : public FRenderResource
@@ -597,10 +597,10 @@ struct FNDISkeletalMesh_InstanceData
 
 	/** Handle to connectivity data. */
 	FSkeletalMeshConnectivityHandle Connectivity;
-	
+
 	/** Indices of all valid Sampling regions on the mesh to sample from. */
 	TArray<int32> SamplingRegionIndices;
-			
+
 	/** Additional sampler for if we need to do area weighting sampling across multiple area weighted regions. */
 	FSkeletalMeshSamplingRegionAreaWeightedSampler SamplingRegionAreaWeightedSampler;
 
@@ -688,7 +688,7 @@ struct FNDISkeletalMesh_InstanceData
 		USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(SceneComponent.Get());
 		if (SkelComp != nullptr && SkelComp->SkeletalMesh != nullptr)
 		{
-			return SkelComp->GetSkinWeightBuffer(CachedLODIdx);			
+			return SkelComp->GetSkinWeightBuffer(CachedLODIdx);
 		}
 		return CachedLODData ? &CachedLODData->SkinWeightVertexBuffer : nullptr;
 	}
@@ -714,13 +714,13 @@ public:
 	/** Controls how to retrieve the Skeletal Mesh Component to attach to. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	ENDISkeletalMesh_SourceMode SourceMode;
-	
+
 #if WITH_EDITORONLY_DATA
 	/** Mesh used to sample from when not overridden by a source actor from the scene. Only available in editor for previewing. This is removed in cooked builds. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	TSoftObjectPtr<USkeletalMesh> PreviewMesh;
 #endif
-	
+
 	/** The source actor from which to sample. Takes precedence over the direct mesh. Note that this can only be set when used as a user variable on a component in the world.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	TObjectPtr<AActor> Source;
@@ -728,7 +728,7 @@ public:
 	/** Reference to a user parameter if we're reading one. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	FNiagaraUserParameterBinding MeshUserParameter;
-	
+
 	/** The source component from which to sample. Takes precedence over the direct mesh. Not exposed to the user, only indirectly accessible from blueprints. */
 	UPROPERTY(Transient)
 	TObjectPtr<USkeletalMeshComponent> SourceComponent;
@@ -775,10 +775,10 @@ public:
 	uint32 ChangeId;
 
 	//~ UObject interface
-	virtual void PostInitProperties()override; 
+	virtual void PostInitProperties()override;
 	virtual void PostLoad()override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;	
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 	//~ UObject interface END
@@ -795,7 +795,7 @@ public:
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)override;
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return true; }
-#if WITH_EDITOR	
+#if WITH_EDITOR
 	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
 		TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
@@ -806,7 +806,10 @@ public:
 	virtual void ModifyCompilationEnvironment(struct FShaderCompilerEnvironment& OutEnvironment) const override;
 	//~ UNiagaraDataInterface interface END
 
-	USkeletalMesh* GetSkeletalMesh(FNiagaraSystemInstance* SystemInstance, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData = nullptr);
+	/** This overload is for use when initializing per-instance data. It possibly uses the SystemInstance and instance data to initialize a user binding */
+	USkeletalMesh* GetSkeletalMesh(FNiagaraSystemInstance* SystemInstance, USceneComponent* AttachComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData);
+	/** Finds the skeletal mesh based on settings of the DI and the hierarchy of the object provided */
+	USkeletalMesh* GetSkeletalMesh(UNiagaraComponent* Component);
 
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
@@ -928,7 +931,7 @@ private:
 	//Vertex Sampling
 	//Vertex sampling done with direct vertex indices.
 public:
-	
+
 	void GetVertexSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
 	void BindVertexSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
@@ -976,8 +979,8 @@ public:
 	void BindSkeletonSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename bInterpolated>
-	void GetSkinnedBoneData(FVectorVMContext& Context);	
-	
+	void GetSkinnedBoneData(FVectorVMContext& Context);
+
 	void IsValidBone(FVectorVMContext& Context);
 	void RandomBone(FVectorVMContext& Context);
 	void GetBoneCount(FVectorVMContext& Context);
@@ -994,7 +997,7 @@ public:
 	void GetFilteredSocketBoneAt(FVectorVMContext& Context);
 	void GetFilteredSocketTransform(FVectorVMContext& Context);
 	void RandomFilteredSocket(FVectorVMContext& Context);
-		
+
 	void RandomFilteredSocketOrBone(FVectorVMContext& Context);
 	void GetFilteredSocketOrBoneCount(FVectorVMContext& Context);
 	void GetFilteredSocketOrBoneBoneAt(FVectorVMContext& Context);
@@ -1099,7 +1102,7 @@ typedef FNiagaraDISkeletalMeshPassedDataToRT FNiagaraDataInterfaceProxySkeletalM
 
 struct FNiagaraDataInterfaceProxySkeletalMesh : public FNiagaraDataInterfaceProxy
 {
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override 
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
 		return sizeof(FNiagaraDISkeletalMeshPassedDataToRT);
 	}

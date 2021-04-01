@@ -4,6 +4,7 @@
 #include "NiagaraRenderer.h"
 #include "NiagaraConstants.h"
 #include "NiagaraRendererComponents.h"
+#include "NiagaraComponent.h"
 #include "Modules/ModuleManager.h"
 #if WITH_EDITOR
 #include "Editor.h"
@@ -222,7 +223,7 @@ bool FindFunctionParameterDefaultValue(const UFunction* Function, const FPropert
 }
 #endif
 
-void UNiagaraComponentRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) 
+void UNiagaraComponentRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
 {
 	UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode::Particles);
 }
@@ -252,7 +253,7 @@ void UNiagaraComponentRendererProperties::UpdateSetterFunctions()
 			{
 				PropertyName.RemoveFromStart("b", ESearchCase::CaseSensitive);
 			}
-			
+
 			static const TArray<FString> SetterPrefixes = {
 				FString("Set"),
 				FString("K2_Set")
@@ -350,13 +351,13 @@ void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup()
 	}
 }
 
-FNiagaraRenderer* UNiagaraComponentRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
+FNiagaraRenderer* UNiagaraComponentRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)
 {
 	UpdateSetterFunctions();
 	EmitterPtr = Emitter->GetCachedEmitter();
 
 	FNiagaraRenderer* NewRenderer = new FNiagaraRendererComponents(FeatureLevel, this, Emitter);
-	NewRenderer->Initialize(this, Emitter, InComponent);
+	NewRenderer->Initialize(this, Emitter, InController);
 	return NewRenderer;
 }
 
@@ -384,7 +385,7 @@ void UNiagaraComponentRendererProperties::OnObjectsReplacedCallback(const TMap<U
 		{
 			TemplateComponent = Cast<USceneComponent>(*Replacement);
 			UpdateSetterFunctions();
-		}		
+		}
 	}
 }
 
@@ -446,7 +447,7 @@ void UNiagaraComponentRendererProperties::GetRendererWidgets(const FNiagaraEmitt
 void UNiagaraComponentRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
 {
 	TSharedRef<SWidget> Tooltip = SNew(STextBlock)
-		.Text(FText::Format(LOCTEXT("ComponentRendererTooltip", "Component Renderer ({0})"), TemplateComponent ? 
+		.Text(FText::Format(LOCTEXT("ComponentRendererTooltip", "Component Renderer ({0})"), TemplateComponent ?
 			TemplateComponent->GetClass()->GetDisplayNameText() :
 			FText::FromString("No type selected")));
 	OutWidgets.Add(Tooltip);

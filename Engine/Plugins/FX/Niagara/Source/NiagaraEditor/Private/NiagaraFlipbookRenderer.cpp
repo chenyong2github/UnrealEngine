@@ -173,7 +173,10 @@ bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, 
 				const FName VariableName = FName(SourceString.RightChop(DotIndex + 1));
 
 				// Find data interface
-				FNiagaraSystemInstance* SystemInstance = PreviewComponent->GetSystemInstance();
+				FNiagaraSystemInstanceControllerPtr SystemInstanceController = PreviewComponent->GetSystemInstanceController();
+				check(SystemInstanceController.IsValid());
+
+				FNiagaraSystemInstance* SystemInstance = SystemInstanceController->GetSoloSystemInstance();
 				const FNiagaraSystemInstanceID SystemInstanceID = SystemInstance->GetId();
 				for (auto EmitterInstance : SystemInstance->GetEmitters())
 				{
@@ -210,13 +213,19 @@ bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, 
 			const FString EmitterName = SourceString.LeftChop(SourceString.Len() - DotIndex);
 			const FName AttributeName = FName(SourceString.RightChop(DotIndex + 1));
 
-			FNiagaraSystemInstance* SystemInstace = PreviewComponent->GetSystemInstance();
-			if ( !ensure(SystemInstace) )
+			FNiagaraSystemInstanceControllerPtr SystemInstanceController = PreviewComponent->GetSystemInstanceController();
+			if (!ensure(SystemInstanceController.IsValid()))
 			{
 				return false;
 			}
 
-			for ( const auto& EmitterInstance : SystemInstace->GetEmitters() )
+			FNiagaraSystemInstance* SystemInstance = SystemInstanceController->GetSoloSystemInstance();
+			if ( !ensure(SystemInstance) )
+			{
+				return false;
+			}
+
+			for ( const auto& EmitterInstance : SystemInstance->GetEmitters() )
 			{
 				UNiagaraEmitter* NiagaraEmitter = EmitterInstance->GetCachedEmitter();
 				if ( !NiagaraEmitter || (NiagaraEmitter->GetUniqueEmitterName() != EmitterName) )

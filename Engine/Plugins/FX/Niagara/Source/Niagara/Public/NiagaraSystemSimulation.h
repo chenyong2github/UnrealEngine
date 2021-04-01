@@ -13,6 +13,9 @@ class UNiagaraEffectType;
 class UWorld;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
+class FNiagaraSystemSimulation;
+
+using FNiagaraSystemSimulationPtr = TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe>;
 
 enum class ENiagaraGPUTickHandlingMode
 {
@@ -101,7 +104,7 @@ struct FNiagaraParameterStoreToDataSetBinding
 				{
 					// if parameter sets don't support half, then we need to write in floats into the parameter set, and
 					// for that we need to adjust the offset based on the difference in stride between float & half
-					// In reality 
+					// In reality
 					const int32 ParamOffset = ParameterOffset + sizeof(float) * Layout.LayoutInfo.HalfComponentByteOffsets[CompIdx] / sizeof(FFloat16);
 					const int32 DataSetOffset = Layout.HalfComponentStart + CompIdx;
 					HalfOffsets.Emplace(ParamOffset, DataSetOffset, !ParameterSetsSupportHalf);

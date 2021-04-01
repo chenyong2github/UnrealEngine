@@ -480,7 +480,7 @@ void FNiagaraWorldManager::DestroySystemSimulation(UNiagaraSystem* System)
 	ComponentPool->RemoveComponentsBySystem(System);
 }
 
-void FNiagaraWorldManager::DestroySystemInstance(TUniquePtr<FNiagaraSystemInstance>& InPtr)
+void FNiagaraWorldManager::DestroySystemInstance(FNiagaraSystemInstancePtr& InPtr)
 {
 	check(IsInGameThread());
 	check(InPtr != nullptr);
@@ -809,6 +809,8 @@ void FNiagaraWorldManager::MarkSimulationForPostActorWork(FNiagaraSystemSimulati
 void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	check(TickGroup >= NiagaraFirstTickGroup && TickGroup <= NiagaraLastTickGroup);
+
+	DeferredMethods.ExecuteAndClear();
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);

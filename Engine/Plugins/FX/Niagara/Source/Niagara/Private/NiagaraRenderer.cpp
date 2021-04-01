@@ -6,10 +6,13 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraStats.h"
 #include "NiagaraVertexFactory.h"
+#include "NiagaraComponent.h"
 #include "Engine/Engine.h"
 #include "DynamicBufferAllocator.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraGPUSortInfo.h"
+#include "NiagaraEmitterInstance.h"
+#include "NiagaraSystemInstanceController.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sort Particles"), STAT_NiagaraSortParticles, STATGROUP_Niagara);
@@ -284,7 +287,7 @@ FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type InFeatureLevel, const 
 #endif
 }
 
-void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
+void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties* InProps, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)
 {
 	//Get our list of valid base materials. Fall back to default material if they're not valid.
 	InProps->GetUsedMaterials(Emitter, BaseMaterials_GT);
@@ -299,17 +302,9 @@ void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties *InProps, con
 		}
 		else if (Mat && bCreateMidsForUsedMaterials && !Mat->IsA<UMaterialInstanceDynamic>())
 		{
-			const UNiagaraComponent* Comp = InComponent;
-			for (const FNiagaraMaterialOverride& Override : Comp->EmitterMaterials)
+			if (UMaterialInterface* Override = InController.GetMaterialOverride(InProps, Index))
 			{
-				if (Override.EmitterRendererProperty == InProps)
-				{
-					if (Index == Override.MaterialSubIndex)
-					{
-						Mat = Override.Material;
-						continue;
-					}
-				}
+				Mat = Override;
 			}
 		}
 
