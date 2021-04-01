@@ -2,6 +2,7 @@
 
 #include "AnimStateAliasNodeDetails.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
