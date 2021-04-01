@@ -249,7 +249,7 @@ void FSlateGameResources::AddAssetToCache( UObject* InStyleObject, bool bEnsureU
 
 		if ( ExistingAsset != NULL )
 		{
-			Log( ISlateStyle::Error, FText::Format( NSLOCTEXT("SlateWidgetStyleSet", "LoadingError", "Encountered multiple Slate Widget Styles with the same name. Name: '{0}', First Asset: '{1}',  Second Asset: '{2}'."),
+			Log(EStyleMessageSeverity::Error, FText::Format( NSLOCTEXT("SlateWidgetStyleSet", "LoadingError", "Encountered multiple Slate Widget Styles with the same name. Name: '{0}', First Asset: '{1}',  Second Asset: '{2}'."),
 				FText::FromName( StyleName ),
 				FText::FromString( InStyleObject->GetPathName() ),
 				FText::FromString( InStyleObject->GetPathName() ) ) );

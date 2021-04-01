@@ -171,7 +171,7 @@ protected:
 	 * The severity of the message type 
 	 * Ordered according to their severity
 	 */
-	enum EStyleMessageSeverity
+	enum class EStyleMessageSeverity : uint8
 	{
 		CriticalError		= 0,
 		Error				= 1,
