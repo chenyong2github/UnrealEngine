@@ -167,6 +167,9 @@ private:
 	/** Called when the toggle favorites button is clicked. */
 	FReply OnToggleFavoritesClicked();
 
+	/** Called after an undo or redo operation occurs in the editor. */
+	void OnPostUndoRedo();
+
 private:
 	/** The filter for objects viewed by this details panel */
 	TSharedPtr<FDetailsViewObjectFilter> ObjectFilter;
@@ -193,4 +196,6 @@ private:
 	TSharedPtr<IDetailRootObjectCustomization> RootObjectCustomization;
 	/** True if at least one viewed object is a CDO (blueprint editing) */
 	bool bViewingClassDefaultObject;
+	/** Delegate handle for unregistering from the PostUndoRedo event. */
+	FDelegateHandle PostUndoRedoDelegateHandle;
 };

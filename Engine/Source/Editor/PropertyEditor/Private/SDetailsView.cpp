@@ -33,6 +33,8 @@ SDetailsView::~SDetailsView()
 	{
 		SaveExpandedItems(RootNode.ToSharedRef());
 	}
+
+	FEditorDelegates::PostUndoRedo.Remove(PostUndoRedoDelegateHandle);
 };
 
 /**
@@ -53,6 +55,8 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 
 	PropertyUtilities = MakeShareable( new FPropertyDetailsUtilities( *this ) );
 	PropertyGenerationUtilities = MakeShareable( new FDetailsViewPropertyGenerationUtilities(*this) );
+
+	PostUndoRedoDelegateHandle = FEditorDelegates::PostUndoRedo.AddSP(this, &SDetailsView::OnPostUndoRedo);
 
 	// We want the scrollbar to always be visible when objects are selected, but not when there is no selection - however:
 	//  - We can't use AlwaysShowScrollbar for this, as this will also show the scrollbar when nothing is selected
@@ -934,6 +938,14 @@ void SDetailsView::PostSetObject(const TArray<FDetailsViewObjectRoot>& Roots)
 void SDetailsView::SetOnObjectArrayChanged(FOnObjectArrayChanged OnObjectArrayChangedDelegate)
 {
 	OnObjectArrayChanged = OnObjectArrayChangedDelegate;
+}
+
+void SDetailsView::OnPostUndoRedo()
+{
+	for (const TSharedPtr<FComplexPropertyNode>& RootNode : RootPropertyNodes)
+	{
+		RootNode->InvalidateCachedState();
+	}
 }
 
 bool SDetailsView::IsConnected() const
