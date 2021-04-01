@@ -10,6 +10,6 @@ public class UELibrary : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "Engine", "InputCore" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "Launch" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "Launch", "ApplicationCore" });
 	}
 }

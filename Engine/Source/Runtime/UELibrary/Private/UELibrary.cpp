@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#ifdef WIN64
+
 #include "UELibrary.h"
 
 #include "Modules/ModuleManager.h"
@@ -153,3 +155,5 @@ int UELibrary_Shutdown()
 	UE::UELibrary::Private::LibraryIsInitialized = false;
 	return 0;
 }
+
+#endif // #ifdef WIN64

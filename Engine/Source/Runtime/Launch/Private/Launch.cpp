@@ -57,7 +57,7 @@ int32 EngineInit()
 /** 
  * Ticks the engine loop 
  */
-void EngineTick( void )
+LAUNCH_API void EngineTick( void )
 {
 	GEngineLoop.Tick();
 }
@@ -65,7 +65,7 @@ void EngineTick( void )
 /**
  * Shuts down the engine
  */
-void EngineExit( void )
+LAUNCH_API void EngineExit( void )
 {
 	// Make sure this is set
 	RequestEngineExit(TEXT("EngineExit() was called"));
