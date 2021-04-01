@@ -672,6 +672,7 @@ struct FMoviePipelineFilenameResolveParams
 		, FrameNumberShotRel(0)
 		, ZeroPadFrameNumberCount(0)
 		, bForceRelativeFrameNumbers(false)
+		, InitializationTime(0)
 		, InitializationVersion(0)
 		, Job(nullptr)
 		, ShotOverride(nullptr)
