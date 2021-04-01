@@ -172,12 +172,4 @@ void APackedLevelInstance::DestroyPackedComponents()
 		PackedComponent->DestroyComponent();
 	}
 }
-
-void APackedLevelInstance::RerunConstructionScripts()
-{
-	//if (bRerunConstructionScripts)
-	{
-		Super::RerunConstructionScripts();
-	}
-}
 #endif

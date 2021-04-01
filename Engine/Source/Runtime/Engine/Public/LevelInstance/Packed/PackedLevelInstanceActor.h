@@ -64,8 +64,6 @@ public:
 		NewComponent->ComponentTags.Add(GetPackedComponentTag());
 		return NewComponent;
 	}
-
-	virtual void RerunConstructionScripts() override;
 #endif
 
 #if WITH_EDITORONLY_DATA
