@@ -66,7 +66,7 @@ void FMediaTextureActions::GetActions(const TArray<UObject*>& InObjects, FToolMe
 
 uint32 FMediaTextureActions::GetCategories()
 {
-	return EAssetTypeCategories::MaterialsAndTextures | EAssetTypeCategories::Media;
+	return EAssetTypeCategories::Textures | EAssetTypeCategories::Media;
 }
 
 

@@ -216,7 +216,7 @@ FColor FAssetTypeActions_RuntimeVirtualTexture::GetTypeColor() const
 
 uint32 FAssetTypeActions_RuntimeVirtualTexture::GetCategories() 
 {
-	return EAssetTypeCategories::MaterialsAndTextures; 
+	return EAssetTypeCategories::Textures; 
 }
 
 void FAssetTypeActions_RuntimeVirtualTexture::GetActions(TArray<UObject*> const& InObjects, FMenuBuilder& MenuBuilder)

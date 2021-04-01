@@ -17,7 +17,7 @@ namespace EAssetTypeCategories
 		None = 0,
 		Basic = 1 << 0,
 		Animation = 1 << 1,
-		MaterialsAndTextures = 1 << 2,
+		Materials = 1 << 2,
 		Sounds = 1 << 3,
 		Physics = 1 << 4,
 		UI = 1 << 5,
@@ -25,9 +25,10 @@ namespace EAssetTypeCategories
 		Gameplay = 1 << 7,
 		Blueprint = 1 << 8,
 		Media = 1 << 9,
+		Textures = 1 << 10,
 
 		// Items below this will be allocated at runtime via RegisterAdvancedAssetCategory
-		FirstUser = 1 << 10,
+		FirstUser = 1 << 11,
 		LastUser = 1 << 31,
 		// Last allowed value is 1 << 31
 	};

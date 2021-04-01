@@ -35,7 +35,7 @@ UObject* UMediaTextureFactoryNew::FactoryCreateNew(UClass* InClass, UObject* InP
 
 uint32 UMediaTextureFactoryNew::GetMenuCategories() const
 {
-	return EAssetTypeCategories::Media | EAssetTypeCategories::MaterialsAndTextures;
+	return EAssetTypeCategories::Media | EAssetTypeCategories::Textures;
 }
 
 

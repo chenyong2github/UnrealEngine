@@ -23,7 +23,7 @@ FColor FAssetTypeActions_HeightfieldMinMaxTexture::GetTypeColor() const
 
 uint32 FAssetTypeActions_HeightfieldMinMaxTexture::GetCategories()
 {
-	return EAssetTypeCategories::MaterialsAndTextures; 
+	return EAssetTypeCategories::Textures; 
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -13,5 +13,5 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(255, 196, 128); }
 	virtual UClass* GetSupportedClass() const override;
 
-	virtual uint32 GetCategories() override { return EAssetTypeCategories::MaterialsAndTextures; }
+	virtual uint32 GetCategories() override { return EAssetTypeCategories::Materials; }
 };

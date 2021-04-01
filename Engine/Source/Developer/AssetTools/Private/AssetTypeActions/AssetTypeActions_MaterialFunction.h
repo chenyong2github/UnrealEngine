@@ -20,7 +20,7 @@ public:
 	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
-	virtual uint32 GetCategories() override { return EAssetTypeCategories::MaterialsAndTextures; }
+	virtual uint32 GetCategories() override { return EAssetTypeCategories::Materials; }
 	virtual class UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;
 
 protected:
@@ -41,7 +41,7 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(0,175,175); }
 	virtual UClass* GetSupportedClass() const override;
 	virtual bool CanFilter() override;
-	virtual uint32 GetCategories() override { return EAssetTypeCategories::MaterialsAndTextures; }
+	virtual uint32 GetCategories() override { return EAssetTypeCategories::Materials; }
 
 private:
 	virtual void ExecuteNewMFI(TArray<TWeakObjectPtr<UMaterialFunctionInterface>> Objects) override;
@@ -57,7 +57,7 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(0,175,175); }
 	virtual UClass* GetSupportedClass() const override;
 	virtual bool CanFilter() override;
-	virtual uint32 GetCategories() override { return EAssetTypeCategories::MaterialsAndTextures; }
+	virtual uint32 GetCategories() override { return EAssetTypeCategories::Materials; }
 
 private:
 	virtual void ExecuteNewMFI(TArray<TWeakObjectPtr<UMaterialFunctionInterface>> Objects) override;

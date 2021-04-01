@@ -23,7 +23,7 @@ FColor FAssetTypeActions_VirtualTextureBuilder::GetTypeColor() const
 
 uint32 FAssetTypeActions_VirtualTextureBuilder::GetCategories() 
 {
-	return EAssetTypeCategories::MaterialsAndTextures; 
+	return EAssetTypeCategories::Textures; 
 }
 
 #undef LOCTEXT_NAMESPACE
