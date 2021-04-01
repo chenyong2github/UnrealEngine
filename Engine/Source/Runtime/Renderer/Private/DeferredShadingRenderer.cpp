@@ -1934,11 +1934,17 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 		else
 		{
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			for (FViewInfo& View : Views)
 			{
-				FViewInfo& View = Views[ViewIndex];
 				View.HairStrandsViewData.UniformBuffer = HairStrands::CreateDefaultHairStrandsViewUniformBuffer(GraphBuilder, View);
 			}
+		}
+	}
+	else
+	{
+		for (FViewInfo& View : Views)
+		{
+			View.HairStrandsViewData.UniformBuffer = HairStrands::CreateDefaultHairStrandsViewUniformBuffer(GraphBuilder, View);
 		}
 	}
 
