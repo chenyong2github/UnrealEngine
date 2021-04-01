@@ -13,6 +13,7 @@
 #include "String/Find.h"
 #include "String/ParseTokens.h"
 #include "Templates/Function.h"
+#include "UObject/NameTypes.h"
 
 namespace UE4PathViews_Private
 {
@@ -224,13 +225,29 @@ void FPathViews::Split(const FStringView& InPath, FStringView& OutPath, FStringV
 	OutExt = CleanName.RightChop(NameLen + 1);
 }
 
-void FPathViews::Append(FStringBuilderBase& Builder, const FStringView& Suffix)
+void FPathViews::Append(FStringBuilderBase& Builder, FStringView Suffix)
 {
 	if (Builder.Len() > 0 && !UE4PathViews_Private::IsSlashOrBackslash(Builder.LastChar()))
 	{
-		Builder.Append(TEXT('/'));
+		Builder.Append('/');
 	}
+
 	Builder.Append(Suffix);
+}
+
+void FPathViews::Append(FStringBuilderBase& Builder, FName Suffix)
+{
+	if (Builder.Len() > 0 && !UE4PathViews_Private::IsSlashOrBackslash(Builder.LastChar()))
+	{
+		Builder.Append('/');
+	}
+
+	Suffix.AppendString(Builder);
+}
+
+void FPathViews::Append(FStringBuilderBase& Builder, const TCHAR* Suffix)
+{
+	Append(Builder, FStringView(Suffix));
 }
 
 FString FPathViews::ChangeExtension(const FStringView& InPath, const FStringView& InNewExtension)

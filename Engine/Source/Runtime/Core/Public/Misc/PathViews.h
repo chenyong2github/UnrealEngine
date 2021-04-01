@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 
+class FName;
 class FString;
 template <typename FuncType> class TFunctionRef;
 
@@ -160,7 +161,9 @@ public:
 	 * @param Builder A possibly-empty path that may end in a separator.
 	 * @param Suffix A possibly-empty suffix that does not start with a separator.
 	 */
-	static void Append(FStringBuilderBase& Builder, const FStringView& Suffix);
+	static void Append(FStringBuilderBase& Builder, FStringView Suffix);
+	static void Append(FStringBuilderBase& Builder, const TCHAR* Suffix);
+	static void Append(FStringBuilderBase& Builder, FName Suffix);
 
 	/**
 	 * Replaces the pre-existing file extension of a filename. 
