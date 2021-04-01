@@ -85,15 +85,12 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, TractionControlEnabled(false)
 		, AxleType(EAxleType::Undefined)
 		, FrictionCombineMethod(EFrictionCombineMethod::Multiply)
-		, LateralFrictionMultiplier(1.0f)
-		, LongitudinalFrictionMultiplier(1.0f)
 		, FrictionMultiplier(2.0f)
 		, LateralSlipGraphMultiplier(1.0f)
 		, CorneringStiffness(1000.0f)
 		, SideSlipModifier(1.0f)
 		, SlipThreshold(20.0f)
 		, SkidThreshold(20.0f)
-		, NewSimulationPath(false)
 		, MaxSpinRotation(30.0f)
 	{
 
@@ -126,8 +123,6 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 
 	EFrictionCombineMethod FrictionCombineMethod; //#todo: use this variable
 
-	float LateralFrictionMultiplier;
-	float LongitudinalFrictionMultiplier;
 	float FrictionMultiplier;
 	float LateralSlipGraphMultiplier;
 	float CorneringStiffness;
@@ -135,8 +130,6 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 
 	float SlipThreshold;
 	float SkidThreshold;
-
-	bool NewSimulationPath;
 
 	FGraph LateralSlipGraph;
 	float MaxSpinRotation;
@@ -380,13 +373,8 @@ public:
 	 *	Wheel load force from body weight and the surface friction together determine the grip available at the wheel
 	 *	DriveTorque accelerates the wheel
 	 *	BrakeTorque decelerates the wheel
-	 *
-	 *	#todo: this function is a mess and needs tidied/consolidated
-	 *	#todo: lateral friction is currently not affected by longitudinal wheel slip
-	 *	#todo: wheel slip angle isn't being used
 	 */
 	void Simulate(float DeltaTime);
-	void SimulateNew(float DeltaTime);
 
 
 	void SetMassPerWheel(float VehicleMassPerWheel)

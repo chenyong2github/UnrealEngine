@@ -28,6 +28,7 @@ struct FWheeledVehicleDebugParams
 	bool DisableSuspensionForces = false;
 	bool DisableFrictionForces = false;
 	bool DisableRollbarForces = false;
+	bool DisableConstraintSuspension = false;
 
 	float ThrottleOverride = 0.f;
 	float SteeringOverride = 0.f;

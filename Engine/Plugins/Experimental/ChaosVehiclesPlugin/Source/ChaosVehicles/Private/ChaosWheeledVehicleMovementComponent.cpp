@@ -57,6 +57,7 @@ FAutoConsoleVariableRef CVarChaosVehiclesShowBatchQueryExtents(TEXT("p.Vehicle.S
 FAutoConsoleVariableRef CVarChaosVehiclesDisableSuspensionForces(TEXT("p.Vehicle.DisableSuspensionForces"), GWheeledVehicleDebugParams.DisableSuspensionForces, TEXT("Enable/Disable Suspension Forces."));
 FAutoConsoleVariableRef CVarChaosVehiclesDisableFrictionForces(TEXT("p.Vehicle.DisableFrictionForces"), GWheeledVehicleDebugParams.DisableFrictionForces, TEXT("Enable/Disable Wheel Friction Forces."));
 FAutoConsoleVariableRef CVarChaosVehiclesDisableRollbarForces(TEXT("p.Vehicle.DisableRollbarForces"), GWheeledVehicleDebugParams.DisableRollbarForces, TEXT("Enable/Disable Rollbar Forces."));
+FAutoConsoleVariableRef CVarChaosVehiclesDisableConstraintSuspension(TEXT("p.Vehicle.DisableConstraintSuspension"), GWheeledVehicleDebugParams.DisableConstraintSuspension, TEXT("Enable/Disable Constraint based suspension, swaps to basic force based suspension without hardstops instead."));
 
 FAutoConsoleVariableRef CVarChaosVehiclesThrottleOverride(TEXT("p.Vehicle.ThrottleOverride"), GWheeledVehicleDebugParams.ThrottleOverride, TEXT("Hard code throttle input on."));
 FAutoConsoleVariableRef CVarChaosVehiclesSteeringOverride(TEXT("p.Vehicle.SteeringOverride"), GWheeledVehicleDebugParams.SteeringOverride, TEXT("Hard code steering input on."));
@@ -555,7 +556,7 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 		auto& PSuspension = PVehicle->Suspension[WheelIdx];
 		float SuspensionMovePosition = -PSuspension.Setup().MaxLength;
 
-		if (PWheel.Setup().NewSimulationPath)
+		if (!GWheeledVehicleDebugParams.DisableConstraintSuspension)
 		{
 #if WITH_CHAOS
 			if (WheelIdx < ConstraintHandles.Num())
@@ -597,7 +598,7 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 			FVector SusApplicationPoint = WheelState.WheelWorldLocation[WheelIdx] + PVehicle->Suspension[WheelIdx].Setup().SuspensionForceOffset;
 
 			check(PWheel.InContact());
-			if (!PWheel.Setup().NewSimulationPath)
+			if (GWheeledVehicleDebugParams.DisableConstraintSuspension)
 			{
 				AddForceAtPosition(SuspensionForceVector, SusApplicationPoint);
 			}
@@ -1057,7 +1058,7 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 
 					}
 
-					if (Wheels[WheelIdx]->bNewWheelSimulation)
+					if (!GWheeledVehicleDebugParams.DisableConstraintSuspension)
 					{
 						FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
 						if (TargetInstance)
