@@ -561,4 +561,7 @@ public:
 
 	/** Get the provider we are using */
 	ISourceControlProvider& GetProvider();
+
+private:
+	bool bInitSourceControl = false;
 };

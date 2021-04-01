@@ -1597,13 +1597,20 @@ bool USourceControlHelpers::GetAssetDataFromFileHistory(FSourceControlStatePtr I
 
 FScopedSourceControl::FScopedSourceControl()
 {
-	ISourceControlModule::Get().GetProvider().Init();
+	bInitSourceControl = !ISourceControlModule::Get().GetProvider().IsEnabled();
+	if (bInitSourceControl)
+	{
+		ISourceControlModule::Get().GetProvider().Init();
+	}
 }
 
 
 FScopedSourceControl::~FScopedSourceControl()
 {
-	ISourceControlModule::Get().GetProvider().Close();
+	if (bInitSourceControl)
+	{
+		ISourceControlModule::Get().GetProvider().Close();
+	}
 }
 
 
