@@ -9,7 +9,7 @@
 
 class FViewInfo;
 class FRayTracingPipelineState;
-class FRHICommandListImmediate;
+class FRHICommandList;
 class FRHIRayTracingScene;
 class FRHIShaderResourceView;
 class FRHIUniformBuffer;
