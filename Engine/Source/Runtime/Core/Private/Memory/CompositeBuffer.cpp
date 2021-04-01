@@ -1,0 +1,129 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Memory/CompositeBuffer.h"
+
+#include "Algo/Accumulate.h"
+#include "Algo/AllOf.h"
+#include "Templates/Function.h"
+
+void FCompositeBuffer::Reset()
+{
+	Segments.Empty();
+}
+
+uint64 FCompositeBuffer::GetSize() const
+{
+	return Algo::TransformAccumulate(Segments, &FSharedBuffer::GetSize, uint64(0));
+}
+
+bool FCompositeBuffer::IsOwned() const
+{
+	return Algo::AllOf(Segments, &FSharedBuffer::IsOwned);
+}
+
+FCompositeBuffer FCompositeBuffer::MakeOwned() const &
+{
+	return FCompositeBuffer(*this).MakeOwned();
+}
+
+FCompositeBuffer FCompositeBuffer::MakeOwned() &&
+{
+	for (FSharedBuffer& Segment : Segments)
+	{
+		Segment = MoveTemp(Segment).MakeOwned();
+	}
+	return MoveTemp(*this);
+}
+
+FSharedBuffer FCompositeBuffer::Flatten() const &
+{
+	switch (Segments.Num())
+	{
+	case 0:
+		return FSharedBuffer();
+	case 1:
+		return Segments[0];
+	default:
+		FUniqueBuffer Buffer = FUniqueBuffer::Alloc(GetSize());
+		Algo::TransformAccumulate(Segments, &FSharedBuffer::GetView, Buffer.GetView(), &FMutableMemoryView::CopyFrom);
+		return FSharedBuffer(MoveTemp(Buffer));
+	}
+}
+
+FSharedBuffer FCompositeBuffer::Flatten() &&
+{
+	return Segments.Num() == 1 ? MoveTemp(Segments[0]) : AsConst(*this).Flatten();
+}
+
+FCompositeBuffer FCompositeBuffer::Mid(uint64 Offset, uint64 Size) const
+{
+	FCompositeBuffer Buffer;
+	IterateRange(Offset, Size, [&Buffer](FMemoryView View, const FSharedBuffer& ViewOuter)
+		{
+			Buffer.Segments.Add(FSharedBuffer::MakeView(View, ViewOuter));
+		});
+	return Buffer;
+}
+
+FMemoryView FCompositeBuffer::ViewOrCopyRange(uint64 Offset, uint64 Size, FUniqueBuffer& CopyBuffer) const
+{
+	FMemoryView View;
+	IterateRange(Offset, Size, [Size, &View, &CopyBuffer, WriteView = FMutableMemoryView()](FMemoryView Segment) mutable
+		{
+			if (Size == Segment.GetSize())
+			{
+				View = Segment;
+			}
+			else
+			{
+				if (WriteView.IsEmpty())
+				{
+					if (CopyBuffer.GetSize() < Size)
+					{
+						CopyBuffer = FUniqueBuffer::Alloc(Size);
+					}
+					View = WriteView = CopyBuffer;
+				}
+				WriteView = WriteView.CopyFrom(Segment);
+			}
+		});
+	return View;
+}
+
+void FCompositeBuffer::CopyTo(FMutableMemoryView Target, uint64 Offset) const
+{
+	IterateRange(Offset, Target.GetSize(), [Target](FMemoryView View, const FSharedBuffer& ViewOuter) mutable
+		{
+			Target = Target.CopyFrom(View);
+		});
+}
+
+void FCompositeBuffer::IterateRange(uint64 Offset, uint64 Size, TFunctionRef<void (FMemoryView View)> Visitor) const
+{
+	IterateRange(Offset, Size, [Visitor](FMemoryView View, const FSharedBuffer& ViewOuter) { Visitor(View); });
+}
+
+void FCompositeBuffer::IterateRange(uint64 Offset, uint64 Size,
+	TFunctionRef<void (FMemoryView View, const FSharedBuffer& ViewOuter)> Visitor) const
+{
+	checkf(Offset + Size <= GetSize(), TEXT("Failed to access %" UINT64_FMT " bytes at offset %" UINT64_FMT)
+		TEXT(" of a composite buffer containing %" UINT64_FMT " bytes."), Size, Offset, GetSize());
+	for (const FSharedBuffer& Segment : Segments)
+	{
+		if (Size == 0)
+		{
+			break;
+		}
+		const FMemoryView View = Segment.GetView().Mid(Offset, Size);
+		if (const uint64 ViewSize = View.GetSize())
+		{
+			Visitor(View, Segment);
+			Offset = 0;
+			Size -= ViewSize;
+		}
+		else
+		{
+			Offset -= Segment.GetSize();
+		}
+	}
+}

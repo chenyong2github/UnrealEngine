@@ -14,7 +14,10 @@ using FMemoryView = TMemoryView<const void>;
 using FMutableMemoryView = TMemoryView<void>;
 
 // SharedBuffer
-
+class FBufferOwner;
 class FUniqueBuffer;
 class FSharedBuffer;
 class FWeakSharedBuffer;
+
+// CompositeBuffer
+class FCompositeBuffer;

@@ -5,6 +5,7 @@
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "HAL/UnrealMemory.h"
+#include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
 #include "Serialization/Archive.h"
 #include "String/BytesToHex.h"
@@ -58,26 +59,22 @@ public:
 	/** Reset to the default state in which no input has been written. */
 	CORE_API void Reset();
 
-	/** Add the data as input to the hash. May be called any number of times. */
+	/** Add the buffer as input to the hash. May be called any number of times. */
+	CORE_API void Update(FMemoryView View);
 	CORE_API void Update(const void* Data, uint64 Size);
+	CORE_API void Update(const FCompositeBuffer& Buffer);
 
-	/** Add the view as input to the hash. May be called any number of times. */
-	inline void Update(FMemoryView View)
-	{
-		Update(View.GetData(), View.GetSize());
-	}
+	/**
+	 * Finalize the hash of the input data.
+	 *
+	 * May be called any number of times, and more input may be added after.
+	 */
+	[[nodiscard]] CORE_API FBlake3Hash Finalize() const;
 
-	/** Finalize the hash of the input data. May be called any number of times, and more input may be added after. */
-	CORE_API FBlake3Hash Finalize() const;
-
-	/** Calculate the hash of the input data. */
-	CORE_API static FBlake3Hash HashBuffer(const void* Data, uint64 Size);
-
-	/** Calculate the hash of the input view. */
-	static inline FBlake3Hash HashBuffer(FMemoryView View)
-	{
-		return HashBuffer(View.GetData(), View.GetSize());
-	}
+	/** Calculate the hash of the buffer. */
+	[[nodiscard]] CORE_API static FBlake3Hash HashBuffer(FMemoryView View);
+	[[nodiscard]] CORE_API static FBlake3Hash HashBuffer(const void* Data, uint64 Size);
+	[[nodiscard]] CORE_API static FBlake3Hash HashBuffer(const FCompositeBuffer& Buffer);
 
 private:
 	TAlignedBytes<1912, 8> HasherBytes;
@@ -161,4 +158,4 @@ inline void LexFromString(FBlake3Hash& OutHash, const TCHAR* Buffer)
 }
 
 /** Convert a hash to a 64-character hex string. */
-UE_NODISCARD CORE_API FString LexToString(const FBlake3Hash& Hash);
+[[nodiscard]] CORE_API FString LexToString(const FBlake3Hash& Hash);

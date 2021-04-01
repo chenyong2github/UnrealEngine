@@ -6,6 +6,7 @@
 #include "Containers/StringView.h"
 #include "HAL/UnrealMemory.h"
 #include "Hash/Blake3.h"
+#include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
 #include "Serialization/Archive.h"
 #include "String/BytesToHex.h"
@@ -49,11 +50,10 @@ public:
 	inline ByteArray& GetBytes() { return Hash; }
 	inline const ByteArray& GetBytes() const { return Hash; }
 
-	/** Calculate the hash of the input data. */
-	static inline FIoHash HashBuffer(const void* Data, uint64 Size);
-
-	/** Calculate the hash of the input view. */
-	static inline FIoHash HashBuffer(FMemoryView View);
+	/** Calculate the hash of the buffer. */
+	[[nodiscard]] static inline FIoHash HashBuffer(FMemoryView View);
+	[[nodiscard]] static inline FIoHash HashBuffer(const void* Data, uint64 Size);
+	[[nodiscard]] static inline FIoHash HashBuffer(const FCompositeBuffer& Buffer);
 
 private:
 	alignas(uint32) ByteArray Hash{};
@@ -96,14 +96,19 @@ inline bool FIoHash::IsZero() const
 	return true;
 }
 
+inline FIoHash FIoHash::HashBuffer(FMemoryView View)
+{
+	return FIoHash(FBlake3::HashBuffer(View));
+}
+
 inline FIoHash FIoHash::HashBuffer(const void* Data, uint64 Size)
 {
 	return FIoHash(FBlake3::HashBuffer(Data, Size));
 }
 
-inline FIoHash FIoHash::HashBuffer(FMemoryView View)
+inline FIoHash FIoHash::HashBuffer(const FCompositeBuffer& Buffer)
 {
-	return FIoHash(FBlake3::HashBuffer(View));
+	return FIoHash(FBlake3::HashBuffer(Buffer));
 }
 
 inline bool operator==(const FIoHash& A, const FIoHash& B)
@@ -151,4 +156,4 @@ inline void LexFromString(FIoHash& OutHash, const TCHAR* Buffer)
 }
 
 /** Convert a hash to a 40-character hex string. */
-UE_NODISCARD CORE_API FString LexToString(const FIoHash& Hash);
+[[nodiscard]] CORE_API FString LexToString(const FIoHash& Hash);
