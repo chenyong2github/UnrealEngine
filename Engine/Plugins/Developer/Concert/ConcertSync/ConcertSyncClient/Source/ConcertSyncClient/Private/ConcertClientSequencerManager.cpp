@@ -78,6 +78,14 @@ void FConcertClientSequencerManager::OnSequencerCreated(TSharedRef<ISequencer> I
 	// Find a Sequencer state for a newly opened sequencer if we have one.
 	UMovieSceneSequence* Sequence = InSequencer->GetRootMovieSceneSequence();
 	check(Sequence != nullptr);
+
+	if (!SequencerStates.Contains(*Sequence->GetPathName()))
+	{
+		FConcertSequencerState NewState;
+		NewState.Time = InSequencer->GetGlobalTime();
+		SequencerStates.Add(*Sequence->GetPathName(), NewState);
+	}
+
 	FConcertSequencerState& SequencerState = SequencerStates.FindOrAdd(*Sequence->GetPathName());
 
 	// Setup the Sequencer
@@ -223,6 +231,15 @@ void FConcertClientSequencerManager::OnSequencerClosed(TSharedRef<ISequencer> In
 			Session->SendCustomEvent(CloseEvent, Session->GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
 		}
 	}
+	else
+	{
+		UMovieSceneSequence* Sequence = InSequencer->GetRootMovieSceneSequence();
+		if (Sequence)
+		{
+			SequencerStates.Remove(*Sequence->GetPathName());
+		}
+	}
+
 	// Removed the closed Sequencer
 	OpenSequencers.RemoveAtSwap(Index);
 }
