@@ -342,10 +342,10 @@ public:
 
 	void ReleaseCompressedAudio();
 
-	bool IsStreaming() const { return bIsStreaming; }
-	bool IsSeekableStreaming() const { return bIsStreaming && bSeekableStreaming; }
+	bool IsStreaming() const { return *bIsStreamingPtr; }
+	bool IsSeekableStreaming() const { return *bIsStreamingPtr && *bSeekableStreamingPtr; }
 	bool IsRetainingAudio() const { return FirstChunk.IsValid(); }
-	bool WasLoadingBehaviorOverridden() const { return bLoadingBehaviorOverridden; }
+	bool WasLoadingBehaviorOverridden() const { return *bLoadingBehaviorOverriddenPtr; }
 	ESoundWaveLoadingBehavior GetLoadingBehavior() const { return LoadingBehavior; }
 
 	static TArrayView<const uint8> GetZerothChunk(const FSoundWaveProxyPtr& SoundWaveProxy, bool bForImmediatePlayback = false);
@@ -385,10 +385,10 @@ private:
 	FAudioChunkHandle FirstChunk;
 	ESoundWaveLoadingBehavior LoadingBehavior;
 
-	bool bLoadingBehaviorOverridden;
-	bool bIsStreaming;
-	bool bSeekableStreaming;
-	bool bShouldUseStreamCaching;
+	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bLoadingBehaviorOverriddenPtr;
+	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bIsStreamingPtr;
+	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bSeekableStreamingPtr;
+	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bShouldUseStreamCachingPtr;
 
 #if WITH_EDITOR
 	TSharedPtr<FThreadSafeCounter> CurrentChunkRevision{ nullptr };
@@ -434,6 +434,10 @@ public:
 	/** Whether this sound supports seeking. This requires recooking with a codec which supports seekability and streaming. */
 	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (DisplayName = "Seekable", EditCondition = "bStreaming"))
 	uint8 bSeekableStreaming : 1;
+private:
+	// updated to reflect bSeekableStreaming in PostEditChangeProperty()
+	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bIsSeekableStreamingProxyFlag{ MakeShared<FThreadSafeBool, ESPMode::ThreadSafe>() };
+public:
 
 	// Loading behavior members are lazily initialized in const getters
 	/** Specifies how and when compressed audio data is loaded for asset if stream caching is enabled. */
@@ -441,7 +445,7 @@ public:
 	mutable ESoundWaveLoadingBehavior LoadingBehavior;
 
 	/** Set to true if LoadingBehavior was inherited from a SoundCue. This is useful for debugging/logging */
-	mutable uint8 bLoadingBehaviorOverridden : 1;
+	mutable TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bLoadingBehaviorOverriddenPtr { MakeShared<FThreadSafeBool, ESPMode::ThreadSafe>() };
 
 	/** Set to true for programmatically generated audio. */
 	uint8 bProcedural : 1;
@@ -1019,7 +1023,10 @@ public:
 	static FName GetCurvePropertyName() { return GET_MEMBER_NAME_CHECKED(USoundWave, Curves); }
 #endif // WITH_EDITOR
 
-	/** Checks whether sound has been categorised as streaming. */
+	/** Checks whether sound has been categorized as streaming. */
+private:
+	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bIsStreamingProxyFlag{ MakeShared<FThreadSafeBool, ESPMode::ThreadSafe>() }; // shared w/ proxies. The below functions should update this bool
+public:
 	bool IsStreaming(const TCHAR* PlatformName = nullptr) const;
 	bool IsStreaming(const FPlatformAudioCookOverrides& Overrides) const;
 
@@ -1028,6 +1035,10 @@ public:
 	/**
 	 * Checks whether we should use the load on demand cache.
 	 */
+private:
+	// ShouldUseStreamCaching() updates this value with what it returns
+	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bShouldUseStreamCachingProxyFlag{ MakeShared<FThreadSafeBool, ESPMode::ThreadSafe>() };
+public:
 	bool ShouldUseStreamCaching() const;
 
 	/**
