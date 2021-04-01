@@ -131,7 +131,7 @@ public:
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent() override;
 	virtual void GetChildKeyAreaNodesRecursively(TArray<TSharedRef<FSequencerSectionKeyAreaNode>>& OutNodes) const override;
 	virtual FText GetDisplayName() const override;
-	virtual FLinearColor GetDisplayNameColor() const override;
+	virtual FSlateColor GetDisplayNameColor() const override;
 	virtual FSlateFontInfo GetDisplayNameFont() const override;
 	virtual float GetNodeHeight() const override;
 	virtual FNodePadding GetNodePadding() const override;

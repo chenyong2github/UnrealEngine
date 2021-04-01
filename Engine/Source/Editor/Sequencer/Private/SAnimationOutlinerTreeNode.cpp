@@ -23,6 +23,7 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Framework/SlateDelegates.h"
 #include "MovieSceneTrack.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "AnimationOutliner"
 
@@ -330,11 +331,11 @@ FSlateColor SAnimationOutlinerTreeNode::GetNodeBackgroundTint() const
 
 	if (bIsSelected)
 	{
-		return FEditorStyle::GetSlateColor("SelectionColor_Pressed");
+		return FStyleColors::Select;
 	}
 	else if (Sequencer.GetSelection().NodeHasSelectedKeysOrSections(DisplayNode.ToSharedRef()))
 	{
-		return FLinearColor(FColor(115, 115, 115, 255));
+		return FStyleColors::Header;
 	}	
 	else if (DisplayNode->IsHovered())
 	{
@@ -355,11 +356,11 @@ FSlateColor SAnimationOutlinerTreeNode::GetNodeInnerBackgroundTint() const
 
 		if ( bIsSelected )
 		{
-			return FEditorStyle::GetSlateColor( "SelectionColor_Pressed" );
+			return FStyleColors::Select;
 		}
 		else if ( Sequencer.GetSelection().NodeHasSelectedKeysOrSections( DisplayNode.ToSharedRef() ) )
 		{
-			return FLinearColor( FColor( 115, 115, 115, 255 ) );
+			return FStyleColors::Header;
 		}
 		else if ( DisplayNode->IsHovered() )
 		{

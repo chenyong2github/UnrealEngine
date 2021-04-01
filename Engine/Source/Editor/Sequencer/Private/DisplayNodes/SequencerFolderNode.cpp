@@ -121,14 +121,14 @@ FSlateColor FSequencerFolderNode::GetIconColor() const
 	return FSlateColor(MovieSceneFolder.GetFolderColor());
 }
 
-FLinearColor FSequencerFolderNode::GetDisplayNameColor() const
+FSlateColor FSequencerFolderNode::GetDisplayNameColor() const
 {
 	if (ParentTree.IsNodeMute(this))
 	{
 		return FLinearColor(0.6f, 0.6f, 0.6f, 0.6f);
 	}
 
-	return FLinearColor::White;
+	return FSlateColor::UseForeground();
 }
 
 

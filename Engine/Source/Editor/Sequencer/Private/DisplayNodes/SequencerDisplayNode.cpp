@@ -798,9 +798,9 @@ FSlateFontInfo FSequencerDisplayNode::GetDisplayNameFont() const
 	return NodeFont;
 }
 
-FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
+FSlateColor FSequencerDisplayNode::GetDisplayNameColor() const
 {
-	return IsDimmed() ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	return IsDimmed() ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FSlateColor::UseForeground();
 }
 
 FText FSequencerDisplayNode::GetDisplayNameToolTipText() const

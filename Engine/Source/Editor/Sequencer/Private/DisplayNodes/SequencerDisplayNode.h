@@ -176,7 +176,7 @@ public:
 	/**
 	* @return the color used to draw the display name.
 	*/
-	virtual FLinearColor GetDisplayNameColor() const;
+	virtual FSlateColor GetDisplayNameColor() const;
 
 	/**
 	*@return The font used to draw the display name.
