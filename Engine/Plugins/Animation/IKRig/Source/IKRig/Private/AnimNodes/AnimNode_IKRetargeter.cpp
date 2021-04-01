@@ -5,13 +5,6 @@
 
 //#pragma optimize("", off)
 
-FAnimNode_IKRetargeter::FAnimNode_IKRetargeter()
-    : SourceMeshComponent(nullptr),
-	bEnableIK(true),
-	bIsInitialized (false)
-{
-}
-
 void FAnimNode_IKRetargeter::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
