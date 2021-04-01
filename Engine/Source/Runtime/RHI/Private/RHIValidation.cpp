@@ -93,8 +93,14 @@ FValidationRHI::~FValidationRHI()
 IRHITransientResourceAllocator* FValidationRHI::RHICreateTransientResourceAllocator()
 {
 	// Wrap around validation allocator
-	IRHITransientResourceAllocator* RHIAllocator = RHI->RHICreateTransientResourceAllocator();
-	return new FValidationTransientResourceAllocator(RHIAllocator);
+	if (IRHITransientResourceAllocator* RHIAllocator = RHI->RHICreateTransientResourceAllocator())
+	{
+		return new FValidationTransientResourceAllocator(RHIAllocator);
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 IRHICommandContext* FValidationRHI::RHIGetDefaultContext()
