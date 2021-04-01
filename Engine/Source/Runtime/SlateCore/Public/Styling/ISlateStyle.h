@@ -173,7 +173,7 @@ protected:
 	 */
 	enum EStyleMessageSeverity
 	{
-		// CriticalError		= 0,
+		CriticalError		= 0,
 		Error				= 1,
 		PerformanceWarning	= 2,
 		Warning				= 3,
