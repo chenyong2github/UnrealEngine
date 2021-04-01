@@ -1349,7 +1349,7 @@ bool GetAssetFileItemAttributes(const FContentBrowserAssetFileItemDataPayload& I
 	return true;
 }
 
-void PopulateAssetFolderContextMenu(const UContentBrowserDataSource* InOwnerDataSource, UToolMenu* InMenu, FAssetFolderContextMenu& InAssetFolderContextMenu)
+void PopulateAssetFolderContextMenu(UContentBrowserDataSource* InOwnerDataSource, UToolMenu* InMenu, FAssetFolderContextMenu& InAssetFolderContextMenu)
 {
 	const UContentBrowserDataMenuContext_FolderMenu* ContextObject = InMenu->FindContext<UContentBrowserDataMenuContext_FolderMenu>();
 	checkf(ContextObject, TEXT("Required context UContentBrowserDataMenuContext_FolderMenu was missing!"));
@@ -1373,14 +1373,13 @@ void PopulateAssetFolderContextMenu(const UContentBrowserDataSource* InOwnerData
 		);
 }
 
-void PopulateAssetFileContextMenu(const UContentBrowserDataSource* InOwnerDataSource, UToolMenu* InMenu, FAssetFileContextMenu& InAssetFileContextMenu)
+void PopulateAssetFileContextMenu(UContentBrowserDataSource* InOwnerDataSource, UToolMenu* InMenu, FAssetFileContextMenu& InAssetFileContextMenu)
 {
 	const UContentBrowserDataMenuContext_FileMenu* ContextObject = InMenu->FindContext<UContentBrowserDataMenuContext_FileMenu>();
 	checkf(ContextObject, TEXT("Required context UContentBrowserDataMenuContext_FileMenu was missing!"));
 
 	// Extract the internal asset data that belong to this data source from the full list of selected items given in the context
 	TArray<FAssetData> SelectedAssets;
-	TMap<FAssetData, FContentBrowserItem> SelectedAssetsToItems;
 	for (const FContentBrowserItem& SelectedItem : ContextObject->SelectedItems)
 	{
 		if (const FContentBrowserItemData* SelectedItemData = SelectedItem.GetPrimaryInternalItem())
@@ -1388,21 +1387,22 @@ void PopulateAssetFileContextMenu(const UContentBrowserDataSource* InOwnerDataSo
 			if (TSharedPtr<const FContentBrowserAssetFileItemDataPayload> AssetPayload = GetAssetFileItemPayload(InOwnerDataSource, *SelectedItemData))
 			{
 				SelectedAssets.Add(AssetPayload->GetAssetData());
-				SelectedAssetsToItems.Add(AssetPayload->GetAssetData(), SelectedItem);
 			}
 		}
 	}
 
-	FAssetFileContextMenu::FOnShowAssetsInPathsView OnShowAssetsInPathsView = FAssetFileContextMenu::FOnShowAssetsInPathsView::CreateLambda([SelectedAssetsToItems, OnShowInPathsView = ContextObject->OnShowInPathsView](const TArray<FAssetData>& InAssetsToShow)
+	FAssetFileContextMenu::FOnShowAssetsInPathsView OnShowAssetsInPathsView = FAssetFileContextMenu::FOnShowAssetsInPathsView::CreateLambda([OwnerDataSource = TWeakObjectPtr<UContentBrowserDataSource>(InOwnerDataSource), OnShowInPathsView = ContextObject->OnShowInPathsView](const TArray<FAssetData>& InAssetsToShow)
 	{
-		if (OnShowInPathsView.IsBound())
+		UContentBrowserDataSource* OwnerDataSourcePtr = OwnerDataSource.Get();
+		if (OwnerDataSourcePtr && OnShowInPathsView.IsBound())
 		{
 			TArray<FContentBrowserItem> ItemsToShow;
 			for (const FAssetData& AssetToShow : InAssetsToShow)
 			{
-				if (const FContentBrowserItem* ItemToShow = SelectedAssetsToItems.Find(AssetToShow))
+				FName VirtualPathToShow;
+				if (OwnerDataSourcePtr->Legacy_TryConvertAssetDataToVirtualPath(AssetToShow, /*bUseFolderPaths*/false, VirtualPathToShow))
 				{
-					ItemsToShow.Emplace(*ItemToShow);
+					ItemsToShow.Emplace(CreateAssetFileItem(OwnerDataSourcePtr, VirtualPathToShow, AssetToShow));
 				}
 			}
 			OnShowInPathsView.Execute(ItemsToShow);
