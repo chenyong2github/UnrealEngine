@@ -951,7 +951,7 @@ struct TVector4
 	}
 	static TVector4<T> One()
 	{
-		return FVector3<T>((T)1, (T)1, (T)1, (T)1);
+		return TVector4<T>((T)1, (T)1, (T)1, (T)1);
 	}
 
 
