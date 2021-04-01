@@ -8,9 +8,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SBoxPanel.h"
-#include "EditorStyleSet.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -57,8 +56,6 @@ public:
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle(FCoreStyle::Get(), "Toolbar.Button")
-				.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
 				.OnClicked(InArgs._OnClicked)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -96,8 +93,6 @@ public:
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-				.TextStyle(FCoreStyle::Get(), "Toolbar.Label")
-				.ShadowOffset(FVector2D::UnitVector)
 				.Text(LOCTEXT("ProjectLauncherLaunch", "Launch"))
 			];
 		}
@@ -149,13 +144,13 @@ private:
 	// Get the SlateIcon for Launch Button
 	const FSlateBrush* GetLaunchIcon() const
 	{
-		return FEditorStyle::GetBrush("Launcher.Run");
+		return FAppStyle::Get().GetBrush("Launcher.Run");
 	}
 
 	// Get the SlateIcon for Error Image
 	const FSlateBrush* GetErrorIcon() const
 	{
-		return FEditorStyle::GetBrush(TEXT("Icons.Error"));
+		return FAppStyle::Get().GetBrush(TEXT("Icons.Error"));
 	}
 
 	// Callback to see if the error icon should be displayed, based on validity of the launch profile

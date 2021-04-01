@@ -74,7 +74,6 @@ void SProjectLauncherSimpleDeviceListView::Construct(const FArguments& InArgs, c
 			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)
-				.TextStyle(FCoreStyle::Get(), "ToolBar.Keybinding")
 				.Text(LOCTEXT("ProjectLauncherDeviceManagerLinkPreamble", "Don't see your device? Verify it's setup and claimed in the "))
 			]
 
@@ -85,7 +84,6 @@ void SProjectLauncherSimpleDeviceListView::Construct(const FArguments& InArgs, c
 			[
 				// all cultures hyper link
 				SNew(SHyperlink)
-				.TextStyle(FCoreStyle::Get(), "ToolBar.Keybinding")
 				.OnNavigate(this, &SProjectLauncherSimpleDeviceListView::HandleDeviceManagerHyperlinkNavigate)
 				.Text(LOCTEXT("ProjectLauncherDeviceManagerLink", "Device Manager."))
 				.ToolTipText(LOCTEXT("ProjectLauncherDeviceManagerLinkTooltip", "Open the Device Manager window, where you can setup and claim devices connected to your machine or shared on the network."))

@@ -97,8 +97,6 @@ public:
 					.Padding(4, 0, 0, 0)
 					[
 						SNew(SButton)
-						.ButtonStyle(FCoreStyle::Get(), "Toolbar.Button")
-						.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
 						.OnClicked(this, &SProjectLauncherProfileListRow::OnEditClicked)
 						.ToolTipText(LOCTEXT("EditProfileToolTipText", "Edit profile."))
 						.HAlign(HAlign_Center)
