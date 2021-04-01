@@ -152,11 +152,13 @@ namespace Metasound
 					},
 					[this, i](int32 StartFrame, int32 EndFrame)
 					{
-						*OutputValue = *InputValues[i];
+						CurrentIndex = i;
 						OutputTrigger->TriggerFrame(StartFrame);
 					}
 				);
 			}
+
+			*OutputValue = *InputValues[CurrentIndex];
 		}
 
 	private:
@@ -167,6 +169,7 @@ namespace Metasound
 
 		FTriggerWriteRef OutputTrigger;
 		TDataWriteReference<ValueType> OutputValue;
+		int32 CurrentIndex = 0;
 	};
 
 	/** TTriggerRouteNode
