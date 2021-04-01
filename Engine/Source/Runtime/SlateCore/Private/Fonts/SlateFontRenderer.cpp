@@ -169,15 +169,13 @@ void ResizeFontBitmap(const int32 SrcWidth, const int32 SrcHeight, const TArray<
 } // namespace SlateFontRendererUtils
 
 
-FSlateFontRenderer::FSlateFontRenderer(const FFreeTypeLibrary* InFTLibrary, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeKerningCacheDirectory* InFTKerningCacheDirectory, FCompositeFontCache* InCompositeFontCache)
+FSlateFontRenderer::FSlateFontRenderer(const FFreeTypeLibrary* InFTLibrary, FFreeTypeCacheDirectory* InFTCacheDirectory, FCompositeFontCache* InCompositeFontCache)
 	: FTLibrary(InFTLibrary)
-	, FTGlyphCache(InFTGlyphCache)
-	, FTKerningCacheDirectory( InFTKerningCacheDirectory)
+	, FTCacheDirectory(InFTCacheDirectory)
 	, CompositeFontCache(InCompositeFontCache)
 {
 	check(FTLibrary);
-	check(FTGlyphCache);
-	check(FTKerningCacheDirectory);
+	check(FTCacheDirectory);
 	check(CompositeFontCache);
 }
 
@@ -314,7 +312,7 @@ TSharedPtr<FFreeTypeKerningCache> FSlateFontRenderer::GetKerningCache(const FFon
 {
 #if WITH_FREETYPE
 	FT_Face FontFace = GetFontFace(InFontData);
-	return FTKerningCacheDirectory->GetKerningCache(FontFace, FT_KERNING_DEFAULT, InSize, InScale);
+	return FTCacheDirectory->GetKerningCache(FontFace, FT_KERNING_DEFAULT, InSize, InScale);
 #else
 	return nullptr;
 #endif // WITH_FREETYPE

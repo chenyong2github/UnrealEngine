@@ -720,7 +720,8 @@ FCharacterList::FCharacterListEntry FCharacterList::CacheCharacter(TCHAR Charact
 			int16 XAdvance = 0;
 			{
 				FT_Fixed CachedAdvanceData = 0;
-				if (FontCache.FTAdvanceCache->FindOrCache(FaceGlyphData.FaceAndMemory->GetFace(), GlyphIndex, GlyphFlags, FontInfo.Size, FinalFontScale, CachedAdvanceData))
+				TSharedRef<FFreeTypeAdvanceCache> AdvanceCache = FontCache.FTCacheDirectory->GetAdvanceCache(FaceGlyphData.FaceAndMemory->GetFace(), GlyphFlags, FontInfo.Size, FinalFontScale);
+				if (AdvanceCache->FindOrCache(GlyphIndex, CachedAdvanceData))
 				{
 					XAdvance = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int16>((CachedAdvanceData + (1<<9)) >> 10);
 				}
@@ -798,12 +799,10 @@ FCharacterEntry FCharacterList::MakeCharacterEntry(TCHAR Character, const FChara
 
 FSlateFontCache::FSlateFontCache( TSharedRef<ISlateFontAtlasFactory> InFontAtlasFactory, ESlateTextureAtlasThreadId InOwningThread)
 	: FTLibrary( new FFreeTypeLibrary() )
-	, FTGlyphCache( new FFreeTypeGlyphCache() )
-	, FTAdvanceCache( new FFreeTypeAdvanceCache() )
-	, FTKerningCacheDirectory( new FFreeTypeKerningCacheDirectory() )
+	, FTCacheDirectory( new FFreeTypeCacheDirectory() )
 	, CompositeFontCache( new FCompositeFontCache( FTLibrary.Get() ) )
-	, FontRenderer( new FSlateFontRenderer( FTLibrary.Get(), FTGlyphCache.Get(), FTKerningCacheDirectory.Get(), CompositeFontCache.Get() ) )
-	, TextShaper( new FSlateTextShaper( FTGlyphCache.Get(), FTAdvanceCache.Get(), FTKerningCacheDirectory.Get(), CompositeFontCache.Get(), FontRenderer.Get(), this ) )
+	, FontRenderer( new FSlateFontRenderer( FTLibrary.Get(), FTCacheDirectory.Get(), CompositeFontCache.Get() ) )
+	, TextShaper( new FSlateTextShaper( FTCacheDirectory.Get(), CompositeFontCache.Get(), FontRenderer.Get(), this ) )
 	, FontAtlasFactory( InFontAtlasFactory )
 	, bFlushRequested( false )
 	, CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest(InitialMaxAtlasPagesBeforeFlushRequest)
@@ -825,9 +824,7 @@ FSlateFontCache::~FSlateFontCache()
 	TextShaper.Reset();
 	FontRenderer.Reset();
 	CompositeFontCache.Reset();
-	FTKerningCacheDirectory.Reset();
-	FTAdvanceCache.Reset();
-	FTGlyphCache.Reset();
+	FTCacheDirectory.Reset();
 	FTLibrary.Reset();
 }
 
@@ -1260,9 +1257,7 @@ void FSlateFontCache::FlushData()
 
 	if (GIsEditor || UnloadFreeTypeDataOnFlush)
 	{
-		FTGlyphCache->FlushCache();
-		FTAdvanceCache->FlushCache();
-		FTKerningCacheDirectory->FlushCache();
+		FTCacheDirectory->FlushCache();
 		CompositeFontCache->FlushCache();
 	}
 

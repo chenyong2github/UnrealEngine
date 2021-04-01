@@ -52,7 +52,7 @@ public:
 class FSlateTextShaper
 {
 public:
-	FSlateTextShaper(FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningCacheDirectory* InFTKerningCacheDirectory, FCompositeFontCache* InCompositeFontCache, FSlateFontRenderer* InFontRenderer, FSlateFontCache* InFontCache);
+	FSlateTextShaper(FFreeTypeCacheDirectory* InFTCacheDirectory, FCompositeFontCache* InCompositeFontCache, FSlateFontRenderer* InFontRenderer, FSlateFontCache* InFontCache);
 
 	FShapedGlyphSequenceRef ShapeBidirectionalText(const TCHAR* InText, const int32 InTextStart, const int32 InTextLen, const FSlateFontInfo& InFontInfo, const float InFontScale, const TextBiDi::ETextDirection InBaseDirection, const ETextShapingMethod TextShapingMethod) const;
 
@@ -71,11 +71,9 @@ private:
 	void PerformHarfBuzzTextShaping(const TCHAR* InText, const int32 InTextStart, const int32 InTextLen, const FSlateFontInfo& InFontInfo, const float InFontScale, const TextBiDi::ETextDirection InTextDirection, TArray<FShapedGlyphEntry>& OutGlyphsToRender) const;
 #endif // WITH_HARFBUZZ
 
-	bool InsertSubstituteGlyphs(const TCHAR* InText, const int32 InCharIndex, const TSharedRef<FShapedGlyphFaceData>& InShapedGlyphFaceData, TArray<FShapedGlyphEntry>& OutGlyphsToRender, const float InLetterSpacingScaled = 0) const;
+	bool InsertSubstituteGlyphs(const TCHAR* InText, const int32 InCharIndex, const TSharedRef<FShapedGlyphFaceData>& InShapedGlyphFaceData, const TSharedRef<FFreeTypeAdvanceCache>& AdvanceCache, TArray<FShapedGlyphEntry>& OutGlyphsToRender, const float InLetterSpacingScaled = 0) const;
 
-	FFreeTypeGlyphCache* FTGlyphCache;
-	FFreeTypeAdvanceCache* FTAdvanceCache;
-	FFreeTypeKerningCacheDirectory* FTKerningCacheDirectory;
+	FFreeTypeCacheDirectory* FTCacheDirectory;
 	FCompositeFontCache* CompositeFontCache;
 	FSlateFontRenderer* FontRenderer;
 	FSlateFontCache* FontCache;

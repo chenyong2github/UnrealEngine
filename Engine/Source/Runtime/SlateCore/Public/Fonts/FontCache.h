@@ -12,10 +12,10 @@
 
 class FCompositeFontCache;
 class FFreeTypeAdvanceCache;
+class FFreeTypeCacheDirectory;
 class FFreeTypeFace;
 class FFreeTypeGlyphCache;
 class FFreeTypeKerningCache;
-class FFreeTypeKerningCacheDirectory;
 class FFreeTypeLibrary;
 class FShapedGlyphFaceData;
 class FSlateFontCache;
@@ -872,14 +872,8 @@ private:
 	/** FreeType library instance (owned by this font cache) */
 	TUniquePtr<FFreeTypeLibrary> FTLibrary;
 
-	/** FreeType low-level glyph cache (owned by this font cache) */
-	TUniquePtr<FFreeTypeGlyphCache> FTGlyphCache;
-
-	/** FreeType low-level advance cache (owned by this font cache) */
-	TUniquePtr<FFreeTypeAdvanceCache> FTAdvanceCache;
-
-	/** FreeType low-level kerning cache directory (owned by this font cache) */
-	TUniquePtr<FFreeTypeKerningCacheDirectory> FTKerningCacheDirectory;
+	/** FreeType low-level cache directory (owned by this font cache) */
+	TUniquePtr<FFreeTypeCacheDirectory> FTCacheDirectory;
 
 	/** High-level composite font cache (owned by this font cache) */
 	TUniquePtr<FCompositeFontCache> CompositeFontCache;

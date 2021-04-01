@@ -57,7 +57,7 @@ void AppendGlyphFlags(const FFreeTypeFace& InFace, const FFontData& InFontData, 
 class FSlateFontRenderer
 {
 public:
-	FSlateFontRenderer(const FFreeTypeLibrary* InFTLibrary, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeKerningCacheDirectory* InFTKerningCacheDirectory, FCompositeFontCache* InCompositeFontCache);
+	FSlateFontRenderer(const FFreeTypeLibrary* InFTLibrary, FFreeTypeCacheDirectory* InFTCacheDirectory, FCompositeFontCache* InCompositeFontCache);
 
 	/**
 	 * @return The global max height for any character in the default font
@@ -161,7 +161,6 @@ private:
 #endif // WITH_FREETYPE
 
 	const FFreeTypeLibrary* FTLibrary;
-	FFreeTypeGlyphCache* FTGlyphCache;
-	FFreeTypeKerningCacheDirectory* FTKerningCacheDirectory;
+	FFreeTypeCacheDirectory* FTCacheDirectory;
 	FCompositeFontCache* CompositeFontCache;
 };
