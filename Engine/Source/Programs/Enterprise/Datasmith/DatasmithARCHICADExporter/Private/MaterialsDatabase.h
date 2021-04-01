@@ -43,7 +43,7 @@ class FMaterialKey
 		return ACMaterialIndex < InOther.ACMaterialIndex ||
 			   (ACMaterialIndex == InOther.ACMaterialIndex &&
 				(ACTextureIndex < InOther.ACTextureIndex ||
-				 (ACTextureIndex < InOther.ACTextureIndex && Sided < InOther.Sided)));
+				 (ACTextureIndex == InOther.ACTextureIndex && Sided < InOther.Sided)));
 	}
 };
 
