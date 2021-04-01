@@ -94,10 +94,12 @@ public:
 
 private:
 	/** Update the inspector window to show information on the supplied objects */
-	void UpdateFromObjects(const TArray<UObject*>& PropertyObjects);
+	void UpdateFromObjects(const TArray<UObject*>& PropertyObjects, bool bSelfUpdate = false);
 
 	/** Add this property and all its child properties to SelectedObjectProperties */
 	void AddPropertiesRecursive(FProperty* Property);
+
+	void OnSCSEditorTreeViewSelectionChanged(const TArray<TSharedPtr<class FSCSEditorTreeNode> >& SelectedNodes);
 
 private:
 	/** Property viewing widget */
@@ -111,6 +113,18 @@ private:
 
 	/** Set of object properties that should be visible */
 	TSet<TWeakFieldPtr<FProperty> > SelectedObjectProperties;
+
+	/** The splitter that divides object properties and components tree */
+	TSharedPtr<SSplitter> DetailsSplitter;
+
+	/** Component tree */
+	TSharedPtr<class SSCSEditor> SCSEditor;
+
+	/** Customize how the component tree looks like */
+	TSharedPtr<class FDataprepSCSEditorUICustomization> SCSEditorUICustomization;
+
+	/** The first actor in the currently selected objects */
+	AActor* SelectedActor;
 
 	/** When TRUE, the SGraphNodeDetailsWidget needs to refresh the details view on Tick */
 	bool bRefreshOnTick;
