@@ -525,10 +525,9 @@ public class IOSPlatform : Platform
 		string Output = Utils.RunLocalProcessAndReturnStdOut(IdeviceIdPath, "");
 		var ConnectedDevicesUDIDs = Output.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
 
-		DeviceInfo CurrentDevice = new DeviceInfo(TargetPlatformType);
-
 		foreach (string UnparsedUDID in ConnectedDevicesUDIDs)
 		{
+			DeviceInfo CurrentDevice = new DeviceInfo(TargetPlatformType);
 			var IdeviceInfoPath = GetPathToLibiMobileDeviceTool("ideviceinfo");
 			String ParsedUDID = UnparsedUDID.Split(" ").First();
 			String IdeviceInfoArgs = "-u " + ParsedUDID;
