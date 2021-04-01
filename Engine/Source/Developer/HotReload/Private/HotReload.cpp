@@ -85,6 +85,7 @@ namespace EThreeStateBool
 	}
 };
 
+#if WITH_HOT_RELOAD
 class FScopedHotReload
 {
 public:
@@ -108,6 +109,7 @@ public:
 private:
 	TUniquePtr<FReload>& UniquePtr;
 };
+#endif // WITH_HOT_RELOAD
 
 /**
  * Module for HotReload support
