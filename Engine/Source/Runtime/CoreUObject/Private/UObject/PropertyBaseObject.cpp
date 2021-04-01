@@ -363,14 +363,14 @@ const TCHAR* FObjectPropertyBase::ImportText_Internal( const TCHAR* InBuffer, vo
 		}
 
 		Result = DuplicateObject<UObject>(Result, Parent, DesiredName);
-		/*if (Parent->IsTemplate())
+		if (Parent->IsTemplate())
 		{
 			Result->SetFlags(RF_ArchetypeObject);
 		}
 		else
 		{
 			Result->ClearFlags(RF_ArchetypeObject);
-		}*/
+		}
 	}
 
 	SetObjectPropertyValue(Data, Result);
