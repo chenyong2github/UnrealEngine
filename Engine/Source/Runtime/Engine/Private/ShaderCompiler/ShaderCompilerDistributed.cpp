@@ -167,7 +167,7 @@ TArray<FString> FShaderCompileDistributedThreadRunnable_Interface::GetDependency
 int32 FShaderCompileDistributedThreadRunnable_Interface::CompilingLoop()
 {
 	TArray<FShaderCommonCompileJobPtr> PendingJobs;
-	if (LIKELY(!bIsHung))	// stop accepting jobs if we're hung
+	//if (LIKELY(!bIsHung))	// stop accepting jobs if we're hung - TODO: re-enable this after lockup detection logic is proved reliable and/or we have job resubmission in place
 	{
 		for (int32 PriorityIndex = MaxPriorityIndex; PriorityIndex >= MinPriorityIndex; --PriorityIndex)
 		{
@@ -186,6 +186,12 @@ int32 FShaderCompileDistributedThreadRunnable_Interface::CompilingLoop()
 				break;
 			}
 		}
+	}
+
+	// if we don't have any dispatched jobs, reset the completion timer
+	if (DispatchedTasks.Num() == 0)
+	{
+		LastTimeTaskCompleted = FPlatformTime::Seconds();
 	}
 
 	if (PendingJobs.Num() > 0)
@@ -374,11 +380,11 @@ int32 FShaderCompileDistributedThreadRunnable_Interface::CompilingLoop()
 
 	// normally we expect to have at least one task in 5 minutes, although there could be edge cases
 	double TimeSinceLastCompletedTask = FPlatformTime::Seconds() - LastTimeTaskCompleted;
-	if (TimeSinceLastCompletedTask > DistributedShaderCompilerVariables::GDistributedControllerTimeout)
+	if (TimeSinceLastCompletedTask >= DistributedShaderCompilerVariables::GDistributedControllerTimeout)
 	{
 		if (!bIsHung)
 		{
-			UE_LOG(LogShaderCompilers, Error, TEXT("Distributed compilation controller didn't receive a completed task in %f seconds!"), TimeSinceLastCompletedTask);
+			UE_LOG(LogShaderCompilers, Warning, TEXT("Distributed compilation controller didn't receive a completed task in %f seconds!"), TimeSinceLastCompletedTask);
 			bIsHung = true;
 			// TODO: resubmit the hung jobs
 		}
