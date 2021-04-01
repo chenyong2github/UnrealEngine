@@ -123,6 +123,9 @@
     <ClCompile Include="..\..\Private\SceneValidator.cpp">
       <Filter>Private</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Private\3DElement2String.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Private\WarningsDisabler.h">
@@ -240,6 +243,9 @@
       <Filter>Private</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Private\SceneValidator.h">
+      <Filter>Private</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Private\3DElement2String.h">
       <Filter>Private</Filter>
     </ClInclude>
   </ItemGroup>
