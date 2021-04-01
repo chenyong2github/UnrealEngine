@@ -93,13 +93,15 @@ public:
 UENUM()
 enum class EMeshEditingMaterialModes
 {
-	ExistingMaterial = 0,
-	Diffuse = 1,
-	Grey = 2,
-	Soft = 3,
-	TangentNormal = 4,
-	VertexColor = 5,
-	Custom = 6
+	ExistingMaterial,
+	Diffuse,
+	Grey,
+	Soft,
+	Transparent,
+	TangentNormal,
+	VertexColor,
+	CustomImage,
+	Custom
 };
 
 
@@ -118,7 +120,8 @@ public:
 	EMeshEditingMaterialModes MaterialMode = EMeshEditingMaterialModes::Diffuse;
 
 	/** Toggle flat shading on/off */
-	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode != EMeshEditingMaterialModes::ExistingMaterial") )
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, 
+		EditCondition = "MaterialMode != EMeshEditingMaterialModes::ExistingMaterial && MaterialMode != EMeshEditingMaterialModes::Transparent && MaterialMode != EMeshEditingMaterialModes::Custom") )
 	bool bFlatShading = true;
 
 	/** Main Color of Material */
@@ -126,6 +129,20 @@ public:
 	FLinearColor Color = FLinearColor(0.4f, 0.4f, 0.4f);
 
 	/** Image used in Image-Based Material */
-	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Custom", TransientToolProperty) )
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::CustomImage", TransientToolProperty) )
 	UTexture2D* Image;
+
+	//~ Could have used the same property as Color, above, but the user may want different saved values for the two
+	UPROPERTY(EditAnywhere, Category = Rendering, AdvancedDisplay, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Transparent", DisplayName = "Color"))
+	FLinearColor TransparentMaterialColor = FLinearColor(0.0606, 0.309, 0.842);
+
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Transparent", ClampMin = "0", ClampMax = "1.0"))
+	double Opacity = 0.65;
+
+	/** Although a two-sided transparent material causes rendering issues with overlapping faces, it is still frequently useful to see the shape when sculpting around other objects. */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Transparent"))
+	bool bTwoSided = true;
+
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Custom"))
+	TWeakObjectPtr<UMaterialInterface> CustomMaterial;
 };

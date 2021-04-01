@@ -76,6 +76,20 @@ UMaterialInterface* UBaseDynamicMeshComponent::GetMaterial(int32 ElementIndex) c
 	return (ElementIndex >= 0 && ElementIndex < BaseMaterials.Num()) ? BaseMaterials[ElementIndex] : nullptr;
 }
 
+FMaterialRelevance UBaseDynamicMeshComponent::GetMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const
+{
+	FMaterialRelevance Result = UMeshComponent::GetMaterialRelevance(InFeatureLevel);
+	if (OverrideRenderMaterial)
+	{
+		Result |= OverrideRenderMaterial->GetRelevance_Concurrent(InFeatureLevel);
+	}
+	if (SecondaryRenderMaterial)
+	{
+		Result |= SecondaryRenderMaterial->GetRelevance_Concurrent(InFeatureLevel);
+	}
+	return Result;
+}
+
 void UBaseDynamicMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Material)
 {
 	check(ElementIndex >= 0);

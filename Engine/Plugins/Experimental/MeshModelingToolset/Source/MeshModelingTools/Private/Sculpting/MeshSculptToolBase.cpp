@@ -80,10 +80,19 @@ void UMeshSculptToolBase::Setup()
 		[this](bool bNewValue) { UpdateWireframeVisibility(bNewValue); });
 	ViewProperties->WatchProperty(ViewProperties->MaterialMode,
 		[this](EMeshEditingMaterialModes NewMode) { UpdateMaterialMode(NewMode); });
+	ViewProperties->WatchProperty(ViewProperties->CustomMaterial,
+		[this](TWeakObjectPtr<UMaterialInterface> NewMaterial) { UpdateCustomMaterial(NewMaterial); });
 	ViewProperties->WatchProperty(ViewProperties->bFlatShading,
 		[this](bool bNewValue) { UpdateFlatShadingSetting(bNewValue); });
 	ViewProperties->WatchProperty(ViewProperties->Color,
+		[this](FLinearColor NewColor) { UpdateColorSetting(NewColor); }); 
+	// This can actually use the same function since the parameter names for the material are the same
+	ViewProperties->WatchProperty(ViewProperties->TransparentMaterialColor,
 		[this](FLinearColor NewColor) { UpdateColorSetting(NewColor); });
+	ViewProperties->WatchProperty(ViewProperties->Opacity,
+		[this](double NewValue) { UpdateOpacitySetting(NewValue); });
+	ViewProperties->WatchProperty(ViewProperties->bTwoSided,
+		[this](bool bOn) { UpdateTwoSidedSetting(bOn); });
 	ViewProperties->WatchProperty(ViewProperties->Image,
 		[this](UTexture2D* NewImage) { UpdateImageSetting(NewImage); });
 }
@@ -908,6 +917,43 @@ void UMeshSculptToolBase::UpdateImageSetting(UTexture2D* NewImage)
 	}
 }
 
+void UMeshSculptToolBase::UpdateOpacitySetting(double Opacity)
+{
+	if (ActiveOverrideMaterial != nullptr)
+	{
+		ActiveOverrideMaterial->SetScalarParameterValue(TEXT("Opacity"), Opacity);
+	}
+}
+
+void UMeshSculptToolBase::UpdateTwoSidedSetting(bool bOn)
+{
+	if (ViewProperties->MaterialMode == EMeshEditingMaterialModes::Transparent)
+	{
+		ActiveOverrideMaterial = ToolSetupUtil::GetTransparentSculptMaterial(GetToolManager(),
+			ViewProperties->TransparentMaterialColor, ViewProperties->Opacity, bOn);
+		if (ActiveOverrideMaterial)
+		{
+			GetSculptMeshComponent()->SetOverrideRenderMaterial(ActiveOverrideMaterial);
+		}
+	}
+}
+
+void UMeshSculptToolBase::UpdateCustomMaterial(TWeakObjectPtr<UMaterialInterface> NewMaterial)
+{
+	if (ViewProperties->MaterialMode == EMeshEditingMaterialModes::Custom)
+	{
+		if (NewMaterial.IsValid())
+		{
+			ActiveOverrideMaterial = UMaterialInstanceDynamic::Create(NewMaterial.Get(), this);
+			GetSculptMeshComponent()->SetOverrideRenderMaterial(ActiveOverrideMaterial);
+		}
+		else
+		{
+			GetSculptMeshComponent()->ClearOverrideRenderMaterial();
+			ActiveOverrideMaterial = nullptr;
+		}
+	}
+}
 
 
 void UMeshSculptToolBase::UpdateMaterialMode(EMeshEditingMaterialModes MaterialMode)
@@ -922,6 +968,18 @@ void UMeshSculptToolBase::UpdateMaterialMode(EMeshEditingMaterialModes MaterialM
 	{
 		if (MaterialMode == EMeshEditingMaterialModes::Custom)
 		{
+			if (ViewProperties->CustomMaterial.IsValid())
+			{
+				ActiveOverrideMaterial = UMaterialInstanceDynamic::Create(ViewProperties->CustomMaterial.Get(), this);
+			}
+			else
+			{
+				GetSculptMeshComponent()->ClearOverrideRenderMaterial();
+				ActiveOverrideMaterial = nullptr;
+			}
+		}
+		else if (MaterialMode == EMeshEditingMaterialModes::CustomImage)
+		{
 			ActiveOverrideMaterial = ToolSetupUtil::GetCustomImageBasedSculptMaterial(GetToolManager(), ViewProperties->Image);
 			if (ViewProperties->Image != nullptr)
 			{
@@ -931,6 +989,11 @@ void UMeshSculptToolBase::UpdateMaterialMode(EMeshEditingMaterialModes MaterialM
 		else if (MaterialMode == EMeshEditingMaterialModes::VertexColor)
 		{
 			ActiveOverrideMaterial = ToolSetupUtil::GetVertexColorMaterial(GetToolManager());
+		}
+		else if (MaterialMode == EMeshEditingMaterialModes::Transparent)
+		{
+			ActiveOverrideMaterial = ToolSetupUtil::GetTransparentSculptMaterial(GetToolManager(), 
+				ViewProperties->TransparentMaterialColor, ViewProperties->Opacity, ViewProperties->bTwoSided);
 		}
 		else
 		{

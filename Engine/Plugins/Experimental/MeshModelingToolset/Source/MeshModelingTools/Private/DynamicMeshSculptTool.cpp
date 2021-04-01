@@ -231,6 +231,9 @@ void UDynamicMeshSculptTool::Setup()
 	MaterialModeWatcher.Initialize(
 		[this]() { return ViewProperties->MaterialMode; },
 		[this](EMeshEditingMaterialModes NewMode) { UpdateMaterialMode(NewMode); }, EMeshEditingMaterialModes::ExistingMaterial);
+	CustomMaterialWatcher.Initialize( 
+		[this]() { return ViewProperties->CustomMaterial; },
+		[this](TWeakObjectPtr<UMaterialInterface> NewMaterial) { UpdateCustomMaterial(NewMaterial); }, ViewProperties->CustomMaterial);
 	FlatShadingWatcher.Initialize(
 		[this]() { return ViewProperties->bFlatShading; },
 		[this](bool bNewValue) { UpdateFlatShadingSetting(bNewValue); }, ViewProperties->bFlatShading);
@@ -240,6 +243,15 @@ void UDynamicMeshSculptTool::Setup()
 	ImageWatcher.Initialize(
 		[this]() { return ViewProperties->Image; },
 		[this](UTexture2D* NewImage) { UpdateImageSetting(NewImage); }, ViewProperties->Image);
+	TransparentColorWatcher.Initialize(
+		[this]() { return ViewProperties->TransparentMaterialColor; },
+		[this](FLinearColor NewColor) { UpdateColorSetting(NewColor); }, ViewProperties->TransparentMaterialColor);
+	OpacityWatcher.Initialize(
+		[this]() { return ViewProperties->Opacity; },
+		[this](double Opacity) { UpdateOpacitySetting(Opacity); }, ViewProperties->Opacity);
+	TwoSidedWatcher.Initialize(
+		[this]() { return ViewProperties->bTwoSided; },
+		[this](bool bOn) { UpdateTwoSidedSetting(bOn); }, ViewProperties->bTwoSided);
 	BrushTypeWatcher.Initialize(
 		[this]() { return SculptProperties->PrimaryBrushType; },
 		[this](EDynamicMeshSculptBrushType NewBrushType) { UpdateBrushType(NewBrushType); }, SculptProperties->PrimaryBrushType);
@@ -1505,8 +1517,12 @@ void UDynamicMeshSculptTool::OnTick(float DeltaTime)
 
 	ShowWireframeWatcher.CheckAndUpdate();
 	MaterialModeWatcher.CheckAndUpdate();
+	CustomMaterialWatcher.CheckAndUpdate();
 	FlatShadingWatcher.CheckAndUpdate();
 	ColorWatcher.CheckAndUpdate();
+	TransparentColorWatcher.CheckAndUpdate();
+	OpacityWatcher.CheckAndUpdate();
+	TwoSidedWatcher.CheckAndUpdate();
 	ImageWatcher.CheckAndUpdate();
 	BrushTypeWatcher.CheckAndUpdate();
 	GizmoPositionWatcher.CheckAndUpdate();
@@ -2456,11 +2472,28 @@ void UDynamicMeshSculptTool::UpdateMaterialMode(EMeshEditingMaterialModes Materi
 	{
 		if (MaterialMode == EMeshEditingMaterialModes::Custom)
 		{
+			if (ViewProperties->CustomMaterial.IsValid())
+			{
+				ActiveOverrideMaterial = UMaterialInstanceDynamic::Create(ViewProperties->CustomMaterial.Get(), this);
+			}
+			else
+			{
+				DynamicMeshComponent->ClearOverrideRenderMaterial();
+				ActiveOverrideMaterial = nullptr;
+			}
+		}
+		else if (MaterialMode == EMeshEditingMaterialModes::CustomImage)
+		{
 			ActiveOverrideMaterial = ToolSetupUtil::GetCustomImageBasedSculptMaterial(GetToolManager(), ViewProperties->Image);
 			if (ViewProperties->Image != nullptr)
 			{
 				ActiveOverrideMaterial->SetTextureParameterValue(TEXT("ImageTexture"), ViewProperties->Image);
 			}
+		}
+		else if (MaterialMode == EMeshEditingMaterialModes::Transparent)
+		{
+			ActiveOverrideMaterial = ToolSetupUtil::GetTransparentSculptMaterial(GetToolManager(), 
+				ViewProperties->TransparentMaterialColor, ViewProperties->Opacity, ViewProperties->bTwoSided);
 		}
 		else
 		{
@@ -2514,6 +2547,41 @@ void UDynamicMeshSculptTool::UpdateColorSetting(FLinearColor NewColor)
 	if (ActiveOverrideMaterial != nullptr)
 	{
 		ActiveOverrideMaterial->SetVectorParameterValue(TEXT("Color"), NewColor);
+	}
+}
+
+void UDynamicMeshSculptTool::UpdateOpacitySetting(double Opacity)
+{
+	if (ActiveOverrideMaterial != nullptr)
+	{
+		ActiveOverrideMaterial->SetScalarParameterValue(TEXT("Opacity"), Opacity);
+	}
+}
+
+void UDynamicMeshSculptTool::UpdateTwoSidedSetting(bool bOn)
+{
+	ActiveOverrideMaterial = ToolSetupUtil::GetTransparentSculptMaterial(GetToolManager(),
+		ViewProperties->TransparentMaterialColor, ViewProperties->Opacity, bOn);
+	if (ActiveOverrideMaterial)
+	{
+		DynamicMeshComponent->SetOverrideRenderMaterial(ActiveOverrideMaterial);
+	}
+}
+
+void UDynamicMeshSculptTool::UpdateCustomMaterial(TWeakObjectPtr<UMaterialInterface> NewMaterial)
+{
+	if (ViewProperties->MaterialMode == EMeshEditingMaterialModes::Custom)
+	{
+		if (NewMaterial.IsValid())
+		{
+			ActiveOverrideMaterial = UMaterialInstanceDynamic::Create(NewMaterial.Get(), this);
+			DynamicMeshComponent->SetOverrideRenderMaterial(ActiveOverrideMaterial);
+		}
+		else
+		{
+			DynamicMeshComponent->ClearOverrideRenderMaterial();
+			ActiveOverrideMaterial = nullptr;
+		}
 	}
 }
 

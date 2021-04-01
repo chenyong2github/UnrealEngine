@@ -69,7 +69,7 @@ public:
 	//~ End UPrimitiveComponent Interface
 
 	/** Accesses the scene relevance information for the materials applied to the mesh. Valid from game thread only. */
-	FMaterialRelevance GetMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const;
+	virtual FMaterialRelevance GetMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 	/**
 	 *	Tell the streaming system whether or not all mip levels of all textures used by this component should be loaded and remain loaded.

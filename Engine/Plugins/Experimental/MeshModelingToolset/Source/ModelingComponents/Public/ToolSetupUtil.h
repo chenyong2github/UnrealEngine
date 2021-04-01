@@ -59,6 +59,13 @@ namespace ToolSetupUtil
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultSculptMaterial(UInteractiveToolManager* ToolManager);
 
+	/**
+	 * @param bTwoSided A two sided material has some rendering artifacts in a transparent material because of indeterminate
+	 *  ordering of triangles within the mesh. Still, it is sometimes useful despite these flaws.
+	 * @return Transparent two-sided material suitable for sculpting (has some shine and a Fresnel effect)
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetTransparentSculptMaterial(UInteractiveToolManager* ToolManager, 
+		const FLinearColor& Color, double Opacity, bool bTwoSided);
 
 	/** Types of image-based material that we can create */
 	enum class ImageMaterialType

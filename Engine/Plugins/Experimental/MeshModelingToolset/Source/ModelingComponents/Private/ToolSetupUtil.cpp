@@ -91,6 +91,24 @@ UMaterialInterface* ToolSetupUtil::GetDefaultSculptMaterial(UInteractiveToolMana
 
 
 
+UMaterialInstanceDynamic* ToolSetupUtil::GetTransparentSculptMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color, double Opacity, bool bTwoSided)
+{
+	// Unfortunately the two-sided flag is not something that we can give as a runtime 
+	// parameter, so we need separate versions of the material.
+	UMaterial* Material = bTwoSided ? LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/SculptMaterial_TransparentTwoSided"))
+		: LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/SculptMaterial_Transparent"));
+
+	if (Material != nullptr)
+	{
+		UMaterialInstanceDynamic* MatInstance = UMaterialInstanceDynamic::Create(Material, ToolManager);
+		MatInstance->SetVectorParameterValue(TEXT("Color"), Color);
+		MatInstance->SetScalarParameterValue(TEXT("Opacity"), Opacity);
+		return MatInstance;
+	}
+	return nullptr;
+}
+
+
 
 UMaterialInterface* ToolSetupUtil::GetImageBasedSculptMaterial(UInteractiveToolManager* ToolManager, ImageMaterialType Type)
 {

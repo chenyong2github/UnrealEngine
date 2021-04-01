@@ -329,8 +329,12 @@ private:
 
 	TValueWatcher<bool> ShowWireframeWatcher;
 	TValueWatcher<EMeshEditingMaterialModes> MaterialModeWatcher;
+	TValueWatcher<TWeakObjectPtr<UMaterialInterface>> CustomMaterialWatcher;
 	TValueWatcher<bool> FlatShadingWatcher;
 	TValueWatcher<FLinearColor> ColorWatcher;
+	TValueWatcher<FLinearColor> TransparentColorWatcher;
+	TValueWatcher<double> OpacityWatcher;
+	TValueWatcher<bool> TwoSidedWatcher;
 	TValueWatcher<UTexture2D*> ImageWatcher;
 	TValueWatcher<EDynamicMeshSculptBrushType> BrushTypeWatcher;
 	TValueWatcher<FVector> GizmoPositionWatcher;
@@ -338,6 +342,9 @@ private:
 	void UpdateMaterialMode(EMeshEditingMaterialModes NewMode);
 	void UpdateFlatShadingSetting(bool bNewValue);
 	void UpdateColorSetting(FLinearColor NewColor);
+	void UpdateOpacitySetting(double Opacity);
+	void UpdateTwoSidedSetting(bool bOn);
+	void UpdateCustomMaterial(TWeakObjectPtr<UMaterialInterface> NewMaterial);
 	void UpdateImageSetting(UTexture2D* NewImage);
 	void UpdateBrushType(EDynamicMeshSculptBrushType BrushType);
 	void UpdateGizmoFromProperties();

@@ -610,11 +610,20 @@ public:
 			Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 			Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
 			Result.bRenderCustomDepth = ShouldRenderCustomDepth();
+			// Note that this is actually a getter. One may argue that it is poorly named.
 			MaterialRelevance.SetPrimitiveViewRelevance(Result);
 			Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
 		}
 
 		return Result;
+	}
+
+	virtual void UpdatedReferencedMaterials() override
+	{
+		FBaseDynamicMeshSceneProxy::UpdatedReferencedMaterials();
+
+		// The material relevance may need updating.
+		MaterialRelevance = ParentComponent->GetMaterialRelevance(GetScene().GetFeatureLevel());
 	}
 
 

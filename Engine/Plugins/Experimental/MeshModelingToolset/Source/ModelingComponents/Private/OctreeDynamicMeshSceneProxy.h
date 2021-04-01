@@ -224,6 +224,13 @@ public:
 		return Result;
 	}
 
+	virtual void UpdatedReferencedMaterials() override
+	{
+		FBaseDynamicMeshSceneProxy::UpdatedReferencedMaterials();
+
+		// The material relevance may need updating.
+		MaterialRelevance = ParentComponent->GetMaterialRelevance(GetScene().GetFeatureLevel());
+	}
 
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override
 	{
