@@ -144,6 +144,17 @@ UClass* UControlRigBlueprint::GetBlueprintClass() const
 	return UControlRigBlueprintGeneratedClass::StaticClass();
 }
 
+UClass* UControlRigBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO)
+{
+	UClass* Result = nullptr;
+	{
+		TGuardValue<bool> NotificationGuard(bSuspendAllNotifications, true);
+		Result = Super::RegenerateClass(ClassToRegenerate, PreviousCDO);
+	}
+	PropagateHierarchyFromBPToInstances();
+	return Result;
+}
+
 void UControlRigBlueprint::LoadModulesRequiredForCompilation() 
 {
 }
@@ -452,6 +463,8 @@ void UControlRigBlueprint::PostLoad()
 		}
 	}
 
+	PropagateHierarchyFromBPToInstances();
+	
 	// remove all non-controlrig-graphs
 	TArray<UEdGraph*> NewUberGraphPages;
 	for (UEdGraph* Graph : UbergraphPages)

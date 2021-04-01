@@ -155,6 +155,7 @@ public:
 
 	// UBlueprint interface
 	virtual UClass* GetBlueprintClass() const override;
+	virtual UClass* RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO) override;
 	virtual bool SupportedByDefaultBlueprintFactory() const override { return false; }
 	virtual bool IsValidForBytecodeOnlyRecompile() const override { return false; }
 	virtual void LoadModulesRequiredForCompilation() override;
