@@ -36,6 +36,7 @@ class UMaterialGraphNode_Base : public UEdGraphNode
 
 	/** The exec input pin */
 	UEdGraphPin* ExecInputPin = nullptr;
+	TArray<UEdGraphPin*> ExecOutputPins;
 
 	/** Create all of the input pins required */
 	virtual void CreateInputPins() {};

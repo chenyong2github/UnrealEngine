@@ -479,25 +479,9 @@ void UEdGraphNode::RemovePinAt(const int32 PinIndex, const EEdGraphPinDirection 
 {
 	Modify();
 
-	// Map requested input to actual pin index
-	int32 ActualPinIndex = INDEX_NONE;
-	int32 MatchingPinCount = 0;
+	UEdGraphPin* OldPin = GetPinWithDirectionAt(PinIndex, PinDirection);
+	checkf(OldPin, TEXT("Tried to remove a non-existent pin."));
 
-	for (int32 Index = 0; Index < Pins.Num(); Index++)
-	{
-		if (Pins[Index]->Direction == PinDirection)
-		{
-			if (PinIndex == MatchingPinCount)
-			{
-				ActualPinIndex = Index;
-			}
-			++MatchingPinCount;
-		}
-	}
-
-	checkf(ActualPinIndex != INDEX_NONE && ActualPinIndex < Pins.Num(), TEXT("Tried to remove a non-existent pin."));
-
-	UEdGraphPin* OldPin = Pins[ActualPinIndex];
 	OldPin->BreakAllPinLinks();
 	RemovePin(OldPin);
 
@@ -839,6 +823,25 @@ UEdGraphPin* UEdGraphNode::GetPinAt(int32 index) const
 	{
 		return Pins[index];
 	}
+	return nullptr;
+}
+
+UEdGraphPin* UEdGraphNode::GetPinWithDirectionAt(int32 PinIndex, EEdGraphPinDirection PinDirection) const
+{
+	// Map requested input to actual pin index
+	int32 MatchingPinCount = 0;
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->Direction == PinDirection)
+		{
+			if (PinIndex == MatchingPinCount)
+			{
+				return Pin;
+			}
+			++MatchingPinCount;
+		}
+	}
+
 	return nullptr;
 }
 

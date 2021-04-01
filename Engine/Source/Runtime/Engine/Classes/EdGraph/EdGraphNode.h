@@ -660,6 +660,9 @@ public:
 	*/
 	UEdGraphPin* GetPinAt(int32 Index) const;
 
+	/** Gets the pin with the given direction, at the given index. Pins of each direction are indexed separately for the purposes of this method */
+	UEdGraphPin* GetPinWithDirectionAt(int32 Index, EEdGraphPinDirection PinDirection) const;
+
 	/** Break all links on this node */
 	void BreakAllNodeLinks();
 
