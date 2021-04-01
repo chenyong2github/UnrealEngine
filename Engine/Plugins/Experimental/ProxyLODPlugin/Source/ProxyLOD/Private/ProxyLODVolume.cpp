@@ -466,9 +466,9 @@ private:
 
 		auto TransformGenerator = [&LocalToVoxel, &AverageTranslation](const FPlacedMesh& PlacedMesh)->openvdb::Mat4R
 		{
-			FTransform XForm = PlacedMesh.Transform;
-			XForm.AddToTranslation(-AverageTranslation);
-			FMatrix TransformMatrix = XForm.ToMatrixWithScale().Inverse();
+			FTransform MeshXForm = PlacedMesh.Transform;
+			MeshXForm.AddToTranslation(-AverageTranslation);
+			FMatrix TransformMatrix = MeshXForm.ToMatrixWithScale().Inverse();
 
 			TransformMatrix = LocalToVoxel * TransformMatrix;
 			float* data = &TransformMatrix.M[0][0];
