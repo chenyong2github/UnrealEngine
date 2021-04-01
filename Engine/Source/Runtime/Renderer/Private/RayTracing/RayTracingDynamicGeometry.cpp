@@ -183,8 +183,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	{
 		if (!ensureMsgf(IsSupportedDynamicVertexFactoryType(MeshBatch.VertexFactory->GetType()),
 			TEXT("FRayTracingDynamicGeometryConverterCS doesn't support %s. Skipping rendering of %s.  This can happen when the skinning cache runs out of space and falls back to GPUSkinVertexFactory."),
-			MeshBatch.VertexFactory->GetType()->GetName()),
-			*PrimitiveSceneProxy->GetOwnerName().ToString())
+			MeshBatch.VertexFactory->GetType()->GetName(), *PrimitiveSceneProxy->GetOwnerName().ToString()))
 		{
 			continue;
 		}
