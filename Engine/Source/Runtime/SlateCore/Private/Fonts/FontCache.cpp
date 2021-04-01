@@ -370,15 +370,21 @@ FShapedGlyphSequencePtr FShapedGlyphSequence::GetSubSequence(const int32 InStart
 	TArray<FShapedGlyphEntry> SubGlyphsToRender;
 	SubGlyphsToRender.Reserve(InEndIndex - InStartIndex);
 
-	auto GlyphCallback = [&](const FShapedGlyphEntry& CurrentGlyph, int32 CurrentGlyphIndex) -> bool
+	FSourceTextRange SubSequenceRange(InStartIndex, InEndIndex - InStartIndex);
+
+	auto GlyphCallback = [&SubGlyphsToRender, &SubSequenceRange](const FShapedGlyphEntry& CurrentGlyph, int32 CurrentGlyphIndex) -> bool
 	{
 		SubGlyphsToRender.Add(CurrentGlyph);
+
+		SubSequenceRange.TextStart = FMath::Min(SubSequenceRange.TextStart, CurrentGlyph.SourceIndex);
+		SubSequenceRange.TextLen = FMath::Max(SubSequenceRange.TextLen, static_cast<int32>(CurrentGlyph.NumCharactersInGlyph));
+
 		return true;
 	};
 
 	if (EnumerateVisualGlyphsInSourceRange(InStartIndex, InEndIndex, GlyphCallback) == EEnumerateGlyphsResult::EnumerationComplete)
 	{
-		return MakeShareable(new FShapedGlyphSequence(MoveTemp(SubGlyphsToRender), TextBaseline, MaxTextHeight, FontMaterial, OutlineSettings, FSourceTextRange(InStartIndex, InEndIndex - InStartIndex)));
+		return MakeShareable(new FShapedGlyphSequence(MoveTemp(SubGlyphsToRender), TextBaseline, MaxTextHeight, FontMaterial, OutlineSettings, SubSequenceRange));
 	}
 
 	return nullptr;
