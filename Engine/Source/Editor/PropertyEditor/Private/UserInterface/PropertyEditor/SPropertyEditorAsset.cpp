@@ -643,18 +643,28 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 			ActorPicker
 		];
 	}
+
+	NumButtons = ButtonBox->NumSlots();
 	
 	if (ButtonBoxWrapper.IsValid())
 	{
-		ButtonBoxWrapper->SetVisibility(ButtonBox->NumSlots() > 0 ? EVisibility::Visible : EVisibility::Collapsed);
+		ButtonBoxWrapper->SetVisibility(NumButtons > 0 ? EVisibility::Visible : EVisibility::Collapsed);
 	}
 }
 
 void SPropertyEditorAsset::GetDesiredWidth( float& OutMinDesiredWidth, float &OutMaxDesiredWidth )
 {
 	OutMinDesiredWidth = 250.f;
-	// No max width
 	OutMaxDesiredWidth = 350.f;
+
+	if (!AssetThumbnail.IsValid())
+	{
+		static const float ButtonWidth = 20.0f /* button width */ + 4.0f /* padding */;
+
+		const float AdditionalButtonSize = NumButtons * ButtonWidth + 8.0f /* button box padding */;
+		OutMinDesiredWidth += AdditionalButtonSize;
+		OutMaxDesiredWidth += AdditionalButtonSize;
+	}
 }
 
 const FSlateBrush* SPropertyEditorAsset::GetStatusIcon() const

@@ -376,6 +376,9 @@ private:
 	/** Whether the classes in the AllowedClassFilters list are exact or whether valid classes can be derived. */
 	bool bExactClass;
 
+	/** The number of additional buttons this picker has. */
+	int32 NumButtons;
+
 	/** Delegate to call when our object value is set */
 	FOnSetObject OnSetObject;
 
