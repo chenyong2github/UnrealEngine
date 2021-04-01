@@ -5,7 +5,7 @@
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementUtil.h"
 
-void FTypedElementViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove, FElementToMoveFinalizerMap& OutElementsToMoveFinalizers)
+void FTypedElementViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
 {
 	OutElementsToMove->Add(InElementWorldHandle);
 }
@@ -140,22 +140,16 @@ void UTypedElementViewportInteraction::GetSelectedElementsToMove(const UTypedEle
 {
 	OutElementsToMove->Reset();
 
-	FTypedElementViewportInteractionCustomization::FElementToMoveFinalizerMap ElementsToMoveFinalizers;
-	InSelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([this, InSelectionSet, InWorldType, OutElementsToMove, &ElementsToMoveFinalizers](const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle)
+	InSelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([this, InSelectionSet, InWorldType, OutElementsToMove](const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle)
 	{
 		if (InElementWorldHandle.CanEditElement())
 		{
 			FTypedElementViewportInteractionElement ViewportInteractionElement(InElementWorldHandle, GetInterfaceCustomizationByTypeId(InElementWorldHandle.GetId().GetTypeId()));
 			check(ViewportInteractionElement.IsSet());
-			ViewportInteractionElement.GetElementsToMove(InWorldType, InSelectionSet, OutElementsToMove, ElementsToMoveFinalizers);
+			ViewportInteractionElement.GetElementsToMove(InWorldType, InSelectionSet, OutElementsToMove);
 		}
 		return true;
 	});
-
-	for (const auto& FinalizerPair : ElementsToMoveFinalizers)
-	{
-		FinalizerPair.Value(FinalizerPair.Key);
-	}
 }
 
 void UTypedElementViewportInteraction::BeginGizmoManipulation(const UTypedElementList* InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode)

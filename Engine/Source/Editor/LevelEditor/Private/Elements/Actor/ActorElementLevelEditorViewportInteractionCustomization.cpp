@@ -15,7 +15,7 @@
 #include "ActorGroupingUtils.h"
 #include "LevelEditorViewport.h"
 
-void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove, FElementToMoveFinalizerMap& OutElementsToMoveFinalizers)
+void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
@@ -47,7 +47,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove
 
 	if (CanMoveActorInViewport(Actor, InWorldType))
 	{
-		AppendActorsToMove(Actor, InSelectionSet, OutElementsToMove, OutElementsToMoveFinalizers);
+		AppendActorsToMove(Actor, InSelectionSet, OutElementsToMove);
 	}
 }
 
@@ -172,7 +172,7 @@ bool FActorElementLevelEditorViewportInteractionCustomization::CanMoveActorInVie
 	return true;
 }
 
-void FActorElementLevelEditorViewportInteractionCustomization::AppendActorsToMove(AActor* InActor, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove, FElementToMoveFinalizerMap& OutElementsToMoveFinalizers)
+void FActorElementLevelEditorViewportInteractionCustomization::AppendActorsToMove(AActor* InActor, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
 {
 	auto AddActorElement = [OutElementsToMove](AActor* InActorToAdd)
 	{
@@ -185,15 +185,12 @@ void FActorElementLevelEditorViewportInteractionCustomization::AppendActorsToMov
 	AGroupActor* ParentGroup = AGroupActor::GetRootForActor(InActor, true, true);
 	if (ParentGroup && UActorGroupingUtils::IsGroupingActive())
 	{
-		// Defer group enumeration until the finalization phase, so that each group is 
-		// enumerated once, regardless of how many actors within that group are selected
+		// Skip if the group is already in the list of things to move, since this logic will have already run
 		FTypedElementHandle ParentGroupElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ParentGroup);
-		if (ParentGroupElementHandle && !OutElementsToMoveFinalizers.Contains(ParentGroupElementHandle))
+		if (ParentGroupElementHandle && !OutElementsToMove->Contains(ParentGroupElementHandle))
 		{
-			OutElementsToMoveFinalizers.Add(ParentGroupElementHandle, [ParentGroup, InSelectionSet, AddActorElement](const FTypedElementHandle&)
-			{
-				ParentGroup->ForEachMovableActorInGroup(InSelectionSet, AddActorElement);
-			});
+			ParentGroup->ForEachMovableActorInGroup(InSelectionSet, AddActorElement);
+			check(OutElementsToMove->Contains(ParentGroupElementHandle));
 		}
 	}
 	else
