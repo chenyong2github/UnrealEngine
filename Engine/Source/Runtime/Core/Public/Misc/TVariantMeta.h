@@ -29,7 +29,11 @@ struct TIsVariant;
 template <typename T>
 struct TVariantSize;
 
-namespace UE4Variant_Details
+namespace UE
+{
+namespace Core
+{
+namespace Private
 {
 	/** Determine if all the types in a template parameter pack has duplicate types */
 	template <typename...>
@@ -381,6 +385,8 @@ namespace UE4Variant_Details
 		static constexpr InvokeFn Invokers[] = { WrapperType::template FuncPtr<EncodedIndices>... };
 		return Invokers[EncodedIndex](Forward<Func>(Callable), Forward<Variants>(Args)...);
 	}
-}
+} // namespace Private
+} // namespace Core
+} // namespace UE
 
 #undef TVARIANT_STORAGE_USE_RECURSIVE_TEMPLATE
