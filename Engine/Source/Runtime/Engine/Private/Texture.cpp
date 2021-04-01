@@ -1131,7 +1131,7 @@ void FTextureSource::Compress()
 	FWriteScopeLock BulkDataExclusiveScope(BulkDataLock.Get());
 #endif
 
-	if (CanPNGCompress())
+	if (CanPNGCompress()) // Note that this will return false if the data is already a compressed PNG
 	{
 		uint8* BulkDataPtr = (uint8*)BulkData.Lock(LOCK_READ_WRITE);
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
@@ -1147,16 +1147,13 @@ void FTextureSource::Compress()
 				FMemory::Memcpy(BulkDataPtr, CompressedData.GetData(), CompressedData.Num());
 				BulkData.Unlock();
 				bPNGCompressed = true;
-
-				BulkData.StoreCompressedOnDisk(NAME_None);
 			}
 		}
 	}
-	else
-	{
-		//Can't PNG compress so just zlib compress the lot when its serialized out to disk. 
-		BulkData.StoreCompressedOnDisk(NAME_Zlib);
-	}
+	
+	// If the data is already compressed as a png then we don't need to compress it
+	// again when serializing to disk.
+	BulkData.StoreCompressedOnDisk(bPNGCompressed ? NAME_None : NAME_Zlib);
 }
 
 uint8* FTextureSource::LockMip(int32 BlockIndex, int32 LayerIndex, int32 MipIndex)
