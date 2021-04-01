@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Modules/SimpleParse.h"
+#include "Misc/StringBuilder.h"
 
 bool FSimpleParse::MatchZeroOrMoreWhitespace(const TCHAR*& InOutPtr)
 {
@@ -25,7 +26,8 @@ bool FSimpleParse::MatchChar(const TCHAR*& InOutPtr, TCHAR Ch)
 	return true;
 }
 
-bool FSimpleParse::ParseString(const TCHAR*& InOutPtr, FString& OutStr)
+template<class T>
+bool SimpleParseString(const TCHAR*& InOutPtr, T& OutStr)
 {
 	const TCHAR* Ptr = InOutPtr;
 	if (*Ptr != '"')
@@ -76,6 +78,16 @@ bool FSimpleParse::ParseString(const TCHAR*& InOutPtr, FString& OutStr)
 
 	InOutPtr = Ptr + 1;
 	return true;
+}
+
+bool FSimpleParse::ParseString(const TCHAR*& InOutPtr, FString& OutStr)
+{
+	return SimpleParseString(InOutPtr, OutStr);
+}
+
+bool FSimpleParse::ParseString(const TCHAR*& InOutPtr, FStringBuilderBase& OutStr)
+{
+	return SimpleParseString(InOutPtr, OutStr);
 }
 
 bool FSimpleParse::ParseUnsignedNumber(const TCHAR*& InOutPtr, int32& OutNumber)

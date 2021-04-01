@@ -72,6 +72,17 @@ public:
 	TStringBuilderBase& operator=(const TStringBuilderBase&) = delete;
 	TStringBuilderBase& operator=(TStringBuilderBase&&) = delete;
 
+	TStringBuilderBase& operator=(ViewType Str)
+	{
+		Reset();
+		return Append(Str);
+	}
+	
+	TStringBuilderBase& operator=(const CharType* Str)
+	{
+		return *this = ViewType(Str);
+	}
+
 	inline TStringBuilderBase(CharType* BufferPointer, int32 BufferCapacity)
 	{
 		Initialize(BufferPointer, BufferCapacity);
@@ -383,6 +394,8 @@ public:
 		: TStringBuilderBase<CharType>(StringBuffer, BufferSize)
 	{
 	}
+
+	using TStringBuilderBase<CharType>::operator=;
 
 private:
 	CharType StringBuffer[BufferSize];

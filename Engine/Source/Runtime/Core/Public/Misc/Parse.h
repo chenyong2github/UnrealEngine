@@ -57,6 +57,7 @@ struct CORE_API FParse
 	 * the out character array will not include the ignored endlines
 	 */
 	static bool LineExtended(const TCHAR** Stream, FString& Result, int32& LinesConsumed, bool Exact = 0);
+	static bool LineExtended(const TCHAR** Stream, FStringBuilderBase& Result, int32& LinesConsumed, bool Exact = 0);
 	/** Grabs the next space-delimited string from the input stream. If quoted, gets entire quoted string. */
 	static bool Token( const TCHAR*& Str, TCHAR* Result, int32 MaxLen, bool UseEscape );
 	/** Grabs the next space-delimited string from the input stream. If quoted, gets entire quoted string. */

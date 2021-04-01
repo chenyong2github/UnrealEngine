@@ -1079,7 +1079,8 @@ bool FParse::Line(const TCHAR** Stream, FString& Result, bool bExact)
 	return **Stream != TEXT('\0') || bGotStream;
 }
 
-bool FParse::LineExtended(const TCHAR** Stream, FString& Result, int32& LinesConsumed, bool bExact)
+template<class T>
+bool ParseLineExtended(const TCHAR** Stream, T& Result, int32& LinesConsumed, bool bExact)
 {
 	bool bGotStream = false;
 	bool bIsQuoted = false;
@@ -1110,7 +1111,7 @@ bool FParse::LineExtended(const TCHAR** Stream, FString& Result, int32& LinesCon
 		{
 			checkSlow(BracketDepth > 0);
 
-			Result.AppendChar(TEXT(' '));
+			Result += TEXT(' ');
 			LinesConsumed++;
 			(*Stream)++;
 			if (**Stream == TEXT('\n') || **Stream == TEXT('\r'))
@@ -1121,7 +1122,7 @@ bool FParse::LineExtended(const TCHAR** Stream, FString& Result, int32& LinesCon
 		// allow line break if the end of the line is a backslash
 		else if (!bIsQuoted && (*Stream)[0] == TEXT('\\') && ((*Stream)[1] == TEXT('\n') || (*Stream)[1] == TEXT('\r')))
 		{
-			Result.AppendChar(TEXT(' '));
+			Result += TEXT(' ');
 			LinesConsumed++;
 			(*Stream) += 2;
 			if (**Stream == TEXT('\n') || **Stream == TEXT('\r'))
@@ -1143,7 +1144,7 @@ bool FParse::LineExtended(const TCHAR** Stream, FString& Result, int32& LinesCon
 		// specifically consume escaped backslashes and quotes within quoted strings
 		else if (bIsQuoted && !bIgnore && (*Stream)[0] == TEXT('\\') && ( (*Stream)[1] == TEXT('\"') || (*Stream)[1] == TEXT('\\') ))
 		{
-			Result.AppendChars(*Stream, 2);
+			Result += FStringView(*Stream, 2);
 			(*Stream) += 2;
 		}
 		else
@@ -1153,7 +1154,7 @@ bool FParse::LineExtended(const TCHAR** Stream, FString& Result, int32& LinesCon
 			// Got stuff.
 			if (!bIgnore)
 			{
-				Result.AppendChar(*((*Stream)++));
+				Result += *((*Stream)++);
 			}
 			else
 			{
@@ -1202,6 +1203,16 @@ bool FParse::LineExtended(const TCHAR** Stream, FString& Result, int32& LinesCon
 	}
 
 	return **Stream != TEXT('\0') || bGotStream;
+}
+
+bool FParse::LineExtended(const TCHAR** Stream, FString& Result, int32& LinesConsumed, bool bExact)
+{
+	return ParseLineExtended(Stream, Result, LinesConsumed, bExact);
+}
+
+bool FParse::LineExtended(const TCHAR** Stream, FStringBuilderBase& Result, int32& LinesConsumed, bool bExact)
+{
+	return ParseLineExtended(Stream, Result, LinesConsumed, bExact);
 }
 
 uint32 FParse::HexNumber(const TCHAR* HexString)
