@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#ifdef WIN64
+#ifdef _WIN64
 
 #include "UELibrary.h"
 
