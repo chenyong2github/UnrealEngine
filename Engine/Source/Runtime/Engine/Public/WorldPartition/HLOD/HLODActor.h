@@ -60,6 +60,7 @@ public:
 protected:
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
+	virtual void RerunConstructionScripts() override;
 	//~ End UObject Interface.
 
 	//~ Begin AActor Interface.

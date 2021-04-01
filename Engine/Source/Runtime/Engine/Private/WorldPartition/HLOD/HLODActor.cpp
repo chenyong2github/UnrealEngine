@@ -61,6 +61,10 @@ void AWorldPartitionHLOD::PostLoad()
 #endif
 }
 
+
+void AWorldPartitionHLOD::RerunConstructionScripts()
+{}
+
 #if WITH_EDITOR
 
 void AWorldPartitionHLOD::PostRegisterAllComponents()
