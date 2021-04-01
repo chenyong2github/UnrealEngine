@@ -17,12 +17,11 @@ namespace UnrealBuildTool.Rules
 					"DatasmithExporter",
 					"DatasmithExporterUI",
 					"DatasmithFacade",
-
-					// Network layer
-					"UdpMessaging",
-					"MessagingCommon",
-					"Messaging",
-					"RemoteImportMessaging",
+//
+// 					// Network layer
+// 					"UdpMessaging",
+// 					"MessagingCommon",
+// 					"Messaging",
 				}
 			);
 

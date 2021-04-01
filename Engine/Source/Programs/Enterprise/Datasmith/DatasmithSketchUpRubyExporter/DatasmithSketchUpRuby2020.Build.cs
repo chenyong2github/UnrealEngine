@@ -19,11 +19,10 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					// For DirectLink
-					"MessagingCommon",
-					"Messaging",
-					"RemoteImportMessaging",
-					"UdpMessaging",
+// 					// For DirectLink
+// 					"MessagingCommon",
+// 					"Messaging",
+// 					"UdpMessaging",
 
 					"DatasmithExporter",
 					"DatasmithExporterUI",
