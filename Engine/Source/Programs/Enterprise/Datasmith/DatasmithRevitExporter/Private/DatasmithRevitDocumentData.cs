@@ -1377,30 +1377,19 @@ namespace DatasmithRevitExporter
 			}
 
 			{
-				MeshMaterialsMap[MeshName] = new Dictionary<string, int>();
 			}
 
-			Dictionary<string, int> MaterialsMap = MeshMaterialsMap[MeshName];
-			if (!MaterialsMap.ContainsKey(InMaterialName))
-			{
-				int NewMaterialIndex = MaterialsMap.Count;
-				MaterialsMap[InMaterialName] = NewMaterialIndex;
-				// Add the current Datasmith master material name to the dictionary of material names utilized by the Datasmith mesh being processed.
-				InMesh.SetMaterial(InMaterialName, NewMaterialIndex);
-			}
-
-			return MaterialsMap[InMaterialName];
-		}
-
-		public int GetCurrentMaterialIndex()
-		{
-			FDatasmithFacadeMeshElement MeshElement = GetCurrentMeshElement();
-			return MeshElement != null ? GetMeshMaterialIndex(MeshElement, CurrentMaterialName) : -1;
+			return CurrentElement.MeshMaterialsMap[CurrentMaterialName];
 		}
 
 		public FBaseElementData GetCurrentActor()
 		{
 			return ElementDataStack.Peek().GetCurrentActor();
+		}
+
+		public Element GetCurrentElement()
+		{
+			return ElementDataStack.Count > 0 ? ElementDataStack.Peek().CurrentElement : null;
 		}
 
 		private FBaseElementData OptimizeElementRecursive(FBaseElementData InElementData, FDatasmithFacadeScene InDatasmithScene)
