@@ -330,6 +330,7 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	FixupOverrideVertexColorsCount = 0;
 	bUseExternalActors = false;
 	bContainsStableActorGUIDs = true;
+	bIsAutoSaveExternalActorPackages = false;
 #endif	
 	bActorClusterCreated = false;
 	bIsPartitioned = false;
@@ -2467,6 +2468,17 @@ TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
 	}
 	
 	return ActorPackages.Array();
+}
+
+void ULevel::SetIsAutoSaveExternalActorPackages(bool bInIsAutoSaveExternalActorPackages)
+{
+	check(bIsAutoSaveExternalActorPackages != bInIsAutoSaveExternalActorPackages);
+	bIsAutoSaveExternalActorPackages = bInIsAutoSaveExternalActorPackages;
+}
+
+bool ULevel::GetIsAutoSaveExternalActorPackages() const
+{
+	return bIsAutoSaveExternalActorPackages;
 }
 
 UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, const FString& InActorPath)

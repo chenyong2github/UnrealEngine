@@ -141,7 +141,7 @@ void UActorDescContainer::BeginDestroy()
 #if WITH_EDITOR
 bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
 {
-	if (Actor && Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel) && Actor->IsMainPackageActor())
+	if (Actor && Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel) && !World->PersistentLevel->GetIsAutoSaveExternalActorPackages() && Actor->IsMainPackageActor())
 	{
 		// Only handle assets that belongs to our level
 		auto RemoveAfterFirstDot = [](const FString& InValue)

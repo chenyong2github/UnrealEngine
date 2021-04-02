@@ -609,6 +609,9 @@ public:
 
 	/** Whether the level has been saved after introducing actor GUIDs */
 	uint8										bContainsStableActorGUIDs:1;
+
+	/** Whether we are autosaviong external actors packages or not */
+	uint8										bIsAutoSaveExternalActorPackages:1;
 #endif
 	
 	/** The below variables are used temporarily while making a level visible.				*/
@@ -1044,7 +1047,17 @@ public:
 	 * @return Array of packages associated with this level
 	 */
 	ENGINE_API TArray<UPackage*> GetLoadedExternalActorPackages() const;
-				
+
+	/**
+	 * Tells the level that we're autosaving external actors or not
+	 */
+	ENGINE_API void SetIsAutoSaveExternalActorPackages(bool bInIsAutoSaveExternalActorPackages);
+
+	/**
+	 * Returns if we are autosaving external actor packages or not
+	 */
+	ENGINE_API bool GetIsAutoSaveExternalActorPackages() const;
+
 	/**
 	 * Create an package for this actor
 	 * @param InActorPath the fully qualified actor path, in the format: 'Outermost.Outer.Name'
