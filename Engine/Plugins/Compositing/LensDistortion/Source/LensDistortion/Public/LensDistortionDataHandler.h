@@ -78,6 +78,9 @@ public:
 	/** Get the computed overscan factor needed to scale the camera's sensor dimensions */
 	float GetOverscanFactor() const { return OverscanFactor; }
 
+	/** Updates overscan factor and applies to material instances */
+	void UpdateOverscanFactor(float OverscanFactor);
+
 	/** Get the post-process MID for the currently specified lens model */
 	UMaterialInstanceDynamic* GetDistortionMID() const { return DistortionPostProcessMID; }
 

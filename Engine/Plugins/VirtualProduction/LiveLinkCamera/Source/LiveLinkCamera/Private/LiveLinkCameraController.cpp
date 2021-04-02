@@ -305,19 +305,30 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 			FLensDistortionState DistortionState;
 			DistortionState.LensModel = LensFile->LensInfo.LensModel;
 
-			FDistortionParameters DistortionParams;
-			FIntrinsicParameters IntrinsicParams;
-			LensFile->EvaluateDistortionParameters(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, DistortionParams);
-			LensFile->EvaluateIntrinsicParameters(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, IntrinsicParams);
-
-			DistortionState.DistortionParameters = MoveTemp(DistortionParams);
-			DistortionState.PrincipalPoint = MoveTemp(IntrinsicParams.CenterShift);
-
 			/** The sensor dimensions must be the original dimensions of the source camera (with no overscan applied) */
 			DistortionState.SensorDimensions = FVector2D(OriginalCameraFilmback.SensorWidth, OriginalCameraFilmback.SensorHeight);
 			DistortionState.FocalLength = CineCameraComponent->CurrentFocalLength;
+			
+			if (LensFile->DataMode == ELensDataMode::Coefficients)
+			{
+				FDistortionParameters DistortionParams;
+				FIntrinsicParameters IntrinsicParams;
+				LensFile->EvaluateDistortionParameters(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, DistortionParams);
+				LensFile->EvaluateIntrinsicParameters(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, IntrinsicParams);
 
-			LensDistortionHandler->Update(DistortionState);
+				DistortionState.DistortionParameters = MoveTemp(DistortionParams);
+				DistortionState.PrincipalPoint = MoveTemp(IntrinsicParams.CenterShift);
+
+				LensDistortionHandler->Update(DistortionState);
+			}
+			else
+			{
+				FDistortionData DistortionData;
+				LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, LensDistortionHandler->GetUVDisplacementMap(), DistortionData);
+
+				//Todo : Add basic Handler that givesSetter for overscan, MID that just use the displacement map
+				LensDistortionHandler->UpdateOverscanFactor(DistortionData.OverscanFactor);
+			}
 		}
 		else
 		{

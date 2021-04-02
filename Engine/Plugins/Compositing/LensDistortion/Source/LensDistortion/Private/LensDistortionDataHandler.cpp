@@ -101,7 +101,24 @@ void ULensDistortionDataHandler::PostEditChangeProperty(struct FPropertyChangedE
 		UpdateInternal(CurrentState);
 	}
 }
+
 #endif	
+
+
+void ULensDistortionDataHandler::UpdateOverscanFactor(float InOverscanFactor)
+{
+	if (!DistortionPostProcessMID || !DisplacementMapMID)
+	{
+		InitDistortionMaterials();
+	}
+
+	OverscanFactor = InOverscanFactor;
+
+	if (DistortionPostProcessMID)
+	{
+		DistortionPostProcessMID->SetScalarParameterValue("overscan_factor", OverscanFactor);
+	}
+}
 
 float ULensDistortionDataHandler::ComputeOverscanFactor() const
 {
@@ -232,6 +249,11 @@ void ULensDistortionDataHandler::UpdateInternal(const FLensDistortionState& InNe
 		DisplacementMapMID->SetScalarParameterValue("cy", CurrentState.PrincipalPoint.Y);
 
 		DisplacementMapMID->SetScalarParameterValue("overscan_factor", OverscanFactor);
+	}
+
+	if (DistortionPostProcessMID)
+	{
+		DistortionPostProcessMID->SetScalarParameterValue("overscan_factor", OverscanFactor);
 	}
 
 	/** Draw the updated displacement map render target */

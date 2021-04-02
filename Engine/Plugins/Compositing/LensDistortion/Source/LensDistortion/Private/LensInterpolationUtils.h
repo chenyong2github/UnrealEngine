@@ -54,16 +54,42 @@ namespace LensInterpolationUtils
 		, float DeltaMaxFocus
 		, float DeltaMinZoom
 		, float DeltaMaxZoom
-		, const void* DataA, const void* DataB, const void* DataC, const void* DataD, void* OutFrameData);
+		, const void* DataA
+		, const void* DataB
+		, const void* DataC
+		, const void* DataD
+		, void* OutFrameData);
 
+	template<typename Type>
+	void BilinearInterpolate(
+        float MainCoefficient
+        , float DeltaMinFocus
+        , float DeltaMaxFocus
+        , float DeltaMinZoom
+        , float DeltaMaxZoom
+        , const Type* DataA
+		, const Type* DataB
+		, const Type* DataC
+		, const Type* DataD
+		, Type* OutFrameData)
+	{
+		BilinearInterpolate(Type::StaticStruct(), MainCoefficient, DeltaMinFocus, DeltaMaxFocus, DeltaMinZoom, DeltaMaxZoom, DataA, DataB, DataC, DataD, OutFrameData);
+	}
+	
 	void Interpolate(const UStruct* InStruct, float InBlendWeight, const void* InFrameDataA, const void* InFrameDataB, void* OutFrameData);
+
+	template<typename Type>
+	void Interpolate(float InBlendWeight, const Type* InFrameDataA, const Type* InFrameDataB, Type* OutFrameData)
+	{
+		Interpolate(Type::StaticStruct(), InBlendWeight, InFrameDataA, InFrameDataB, OutFrameData);
+	}
 	
 	float GetBlendFactor(float InValue, float ValueA, float ValueB);
 	bool InterpolateEncoderValue(float InNormalizedValue, TArrayView<FEncoderPoint> InSourceData, float& OutEvaluatedValue);
 
 	/** Helper function to find the possibly four indices for the points around the desired coordinates */
 	template<typename Type>
-	bool FindBilinearInterpIndices(float Focus, float Zoom, TArrayView<Type> InSourceData, int32& OutPointIndexA, int32& OutPointIndexB, int32& OutPointIndexC, int32& OutPointIndexD)
+	bool FindBilinearInterpIndices(float Focus, float Zoom, TConstArrayView<Type> InSourceData, int32& OutPointIndexA, int32& OutPointIndexB, int32& OutPointIndexC, int32& OutPointIndexD)
 	{
 		if (InSourceData.Num() <= 0)
 		{
@@ -85,11 +111,13 @@ namespace LensInterpolationUtils
 		for (int32 Index = 0; Index < InSourceData.Num(); ++Index)
 		{
 			const Type& CurrentPoint = InSourceData[Index];
-
-			UpdatePointIfBetter(Focus, Zoom, CurrentPoint, Index, MinFocusMinZoom);
-			UpdatePointIfBetter(Focus, Zoom, CurrentPoint, Index, MinFocusMaxZoom);
-			UpdatePointIfBetter(Focus, Zoom, CurrentPoint, Index, MaxFocusMinZoom);
-			UpdatePointIfBetter(Focus, Zoom, CurrentPoint, Index, MaxFocusMaxZoom);
+			if (CurrentPoint.IsValid())
+			{
+				UpdatePointIfBetter(Focus, Zoom, CurrentPoint, Index, MinFocusMinZoom);
+				UpdatePointIfBetter(Focus, Zoom, CurrentPoint, Index, MinFocusMaxZoom);
+				UpdatePointIfBetter(Focus, Zoom, CurrentPoint, Index, MaxFocusMinZoom);
+				UpdatePointIfBetter(Focus, Zoom, CurrentPoint, Index, MaxFocusMaxZoom);
+			}
 		}
 
 		//Patch to fix bad point selection in corner case
@@ -147,7 +175,9 @@ namespace LensInterpolationUtils
 		OutPointIndexB = MinFocusMaxZoom.Index;
 		OutPointIndexC = MaxFocusMinZoom.Index;
 		OutPointIndexD = MaxFocusMaxZoom.Index;
-		return true;
+
+		const bool bFoundValidResult = (OutPointIndexA != INDEX_NONE && OutPointIndexB != INDEX_NONE && OutPointIndexC != INDEX_NONE && OutPointIndexD != INDEX_NONE);
+		return bFoundValidResult;
 	}
 
 	template<typename Type>
@@ -191,66 +221,66 @@ namespace LensInterpolationUtils
 	}
 
 	template<typename Type>
-	bool FIZMappingBilinearInterpolation(float InFocus, float InZoom, TArrayView<Type> InSourceData, Type& OutInterpolatedData)
+	bool FIZMappingBilinearInterpolation(float InFocus, float InZoom, TConstArrayView<Type> InSourceData, Type& OutInterpolatedData)
 	{
-		int32 MinMinIndex = 0;
-		int32 MinMaxIndex = 0;
-		int32 MaxMinIndex = 0;
-		int32 MaxMaxIndex = 0;
+		int32 MinFocusMinZoomIndex = 0;
+		int32 MinFocusMaxZoomIndex = 0;
+		int32 MaxFocusMinZoomIndex = 0;
+		int32 MaxFocusMaxZoomIndex = 0;
 
 		//Start by finding the 4 points around the desired coords to do bilinear interpolation
 		//Depending on data map and desired coordinates, we might end up 
 		//  a. Not interpolating and returning a single entry point
 		//  b. Linear interpolate between two points
 		//  c. Bilinear interpolate between 4 points
-		const bool bFoundIndices = FindBilinearInterpIndices(InFocus, InZoom, InSourceData, MinMinIndex, MinMaxIndex, MaxMinIndex, MaxMaxIndex);
+		const bool bFoundIndices = FindBilinearInterpIndices(InFocus, InZoom, InSourceData, MinFocusMinZoomIndex, MinFocusMaxZoomIndex, MaxFocusMinZoomIndex, MaxFocusMaxZoomIndex);
 		if (bFoundIndices)
 		{
-			check(InSourceData.IsValidIndex(MinMinIndex));
-			check(InSourceData.IsValidIndex(MinMaxIndex));
-			check(InSourceData.IsValidIndex(MaxMinIndex));
-			check(InSourceData.IsValidIndex(MaxMaxIndex));
+			check(InSourceData.IsValidIndex(MinFocusMinZoomIndex));
+			check(InSourceData.IsValidIndex(MinFocusMaxZoomIndex));
+			check(InSourceData.IsValidIndex(MaxFocusMinZoomIndex));
+			check(InSourceData.IsValidIndex(MaxFocusMaxZoomIndex));
 
-			const Type& MinMinPoint = InSourceData[MinMinIndex];
-			const Type& MinMaxPoint = InSourceData[MinMaxIndex];
-			const Type& MaxMinPoint = InSourceData[MaxMinIndex];
-			const Type& MaxMaxPoint = InSourceData[MaxMaxIndex];
+			const Type& MinFocusMinZoomPoint = InSourceData[MinFocusMinZoomIndex];
+			const Type& MinFocusMaxZoomPoint = InSourceData[MinFocusMaxZoomIndex];
+			const Type& MaxFocusMinZoomPoint = InSourceData[MaxFocusMinZoomIndex];
+			const Type& MaxFocusMaxZoomPoint = InSourceData[MaxFocusMaxZoomIndex];
 
 			//Single point case
-			if (MinMinIndex == MaxMinIndex && MaxMinIndex == MinMaxIndex && MinMaxIndex == MaxMaxIndex)
+			if (MinFocusMinZoomIndex == MaxFocusMinZoomIndex && MaxFocusMinZoomIndex == MinFocusMaxZoomIndex && MinFocusMaxZoomIndex == MaxFocusMaxZoomIndex)
 			{
-				OutInterpolatedData = InSourceData[MinMinIndex];
+				OutInterpolatedData = InSourceData[MinFocusMinZoomIndex];
 				return true;
 			}
-			else if (MinMinIndex == MaxMinIndex && MinMaxIndex == MaxMaxIndex)
+			else if (MinFocusMinZoomIndex == MaxFocusMinZoomIndex && MinFocusMaxZoomIndex == MaxFocusMaxZoomIndex)
 			{
 				//Fixed focus
-				const float BlendingFactor = GetBlendFactor(InZoom, MinMinPoint.Zoom, MaxMaxPoint.Zoom);
-				Interpolate(Type::StaticStruct(), BlendingFactor, &MinMinPoint, &MaxMaxPoint, &OutInterpolatedData);
+				const float BlendingFactor = GetBlendFactor(InZoom, MinFocusMinZoomPoint.Zoom, MaxFocusMaxZoomPoint.Zoom);
+				Interpolate(Type::StaticStruct(), BlendingFactor, &MinFocusMinZoomPoint, &MaxFocusMaxZoomPoint, &OutInterpolatedData);
 				return true;
 			}
-			else if (MinMinIndex == MinMaxIndex && MaxMinIndex == MaxMaxIndex)
+			else if (MinFocusMinZoomIndex == MinFocusMaxZoomIndex && MaxFocusMinZoomIndex == MaxFocusMaxZoomIndex)
 			{
 				//Fixed zoom
-				const float BlendingFactor = GetBlendFactor(InFocus, MinMinPoint.Focus, MaxMaxPoint.Focus);
-				Interpolate(Type::StaticStruct(), BlendingFactor, &MinMinPoint, &MaxMaxPoint, &OutInterpolatedData);
+				const float BlendingFactor = GetBlendFactor(InFocus, MinFocusMinZoomPoint.Focus, MaxFocusMaxZoomPoint.Focus);
+				Interpolate(Type::StaticStruct(), BlendingFactor, &MinFocusMinZoomPoint, &MaxFocusMaxZoomPoint, &OutInterpolatedData);
 				return true;
 			}
 			else
 			{
 				//The current grid finder doesn't always yield points around the sample
-				const float X2X1 = MaxMinPoint.Focus - MinMinPoint.Focus;
-				const float Y2Y1 = MaxMaxPoint.Zoom - MinMinPoint.Zoom;
+				const float X2X1 = MaxFocusMinZoomPoint.Focus - MinFocusMinZoomPoint.Focus;
+				const float Y2Y1 = MaxFocusMaxZoomPoint.Zoom - MinFocusMinZoomPoint.Zoom;
 				const float Divider = X2X1 * Y2Y1;
 
 				if (!FMath::IsNearlyZero(Divider))
 				{
-					const float DeltaMaxFocus = MaxMinPoint.Focus - InFocus;
-					const float DeltaMaxZoom = MaxMaxPoint.Zoom - InZoom;
-					const float DeltaMinFocus = InFocus - MinMinPoint.Focus;
-					const float DeltaMinZoom = InZoom - MinMinPoint.Zoom;
+					const float DeltaMaxFocus = MaxFocusMinZoomPoint.Focus - InFocus;
+					const float DeltaMaxZoom = MaxFocusMaxZoomPoint.Zoom - InZoom;
+					const float DeltaMinFocus = InFocus - MinFocusMinZoomPoint.Focus;
+					const float DeltaMinZoom = InZoom - MinFocusMinZoomPoint.Zoom;
 					const float MainCoeff = 1.0f / (X2X1 * Y2Y1);
-					BilinearInterpolate(Type::StaticStruct(), MainCoeff, DeltaMinFocus, DeltaMaxFocus, DeltaMinZoom, DeltaMaxZoom, &MinMinPoint, &MinMaxPoint, &MaxMinPoint, &MaxMaxPoint, &OutInterpolatedData);
+					BilinearInterpolate(Type::StaticStruct(), MainCoeff, DeltaMinFocus, DeltaMaxFocus, DeltaMinZoom, DeltaMaxZoom, &MinFocusMinZoomPoint, &MinFocusMaxZoomPoint, &MaxFocusMinZoomPoint, &MaxFocusMaxZoomPoint, &OutInterpolatedData);
 					return true;
 				}
 			}
