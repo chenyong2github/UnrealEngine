@@ -1376,6 +1376,56 @@ namespace DatasmithRevitExporter
 				}
 			}
 
+			{
+				MeshMaterialsMap[MeshName] = new Dictionary<string, int>();
+			}
+
+			Dictionary<string, int> MaterialsMap = MeshMaterialsMap[MeshName];
+			if (!MaterialsMap.ContainsKey(InMaterialName))
+			{
+				int NewMaterialIndex = MaterialsMap.Count;
+				MaterialsMap[InMaterialName] = NewMaterialIndex;
+				// Add the current Datasmith master material name to the dictionary of material names utilized by the Datasmith mesh being processed.
+				InMesh.SetMaterial(InMaterialName, NewMaterialIndex);
+			}
+
+			return MaterialsMap[InMaterialName];
+		}
+
+		public int GetCurrentMaterialIndex()
+		{
+			FDatasmithFacadeMeshElement MeshElement = GetCurrentMeshElement();
+			return MeshElement != null ? GetMeshMaterialIndex(MeshElement, CurrentMaterialName) : -1;
+		}
+
+		public FBaseElementData GetCurrentActor()
+		{
+			return ElementDataStack.Peek().GetCurrentActor();
+		}
+
+		private FBaseElementData OptimizeElementRecursive(FBaseElementData InElementData, FDatasmithFacadeScene InDatasmithScene)
+		{
+			List<FDatasmithFacadeActor> RemoveChildren = new List<FDatasmithFacadeActor>();
+			List<FDatasmithFacadeActor> AddChildren = new List<FDatasmithFacadeActor>();
+
+			for (int ChildIndex = 0; ChildIndex < InElementData.ChildElements.Count; ChildIndex++)
+			{
+				FBaseElementData ChildElement = InElementData.ChildElements[ChildIndex];
+
+				// Optimize the Datasmith child actor.
+				FBaseElementData ResultElement = OptimizeElementRecursive(ChildElement, InDatasmithScene);
+
+				if (ChildElement != ResultElement)
+				{
+					RemoveChildren.Add(ChildElement.ElementActor);
+
+					if (ResultElement != null)
+					{
+						AddChildren.Add(ResultElement.ElementActor);
+					}
+				}
+			}
+
 			foreach (FDatasmithFacadeActor Child in RemoveChildren)
 			{
 				InElementData.ElementActor.RemoveChild(Child);
