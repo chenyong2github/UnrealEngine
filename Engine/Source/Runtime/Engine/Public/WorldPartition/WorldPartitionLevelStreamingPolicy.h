@@ -41,6 +41,7 @@ private:
 	void SetCellsStateToActivated(const TSet<const UWorldPartitionRuntimeCell*>& ToActivateCells);
 	void SetCellsStateToUnloaded(const TSet<const UWorldPartitionRuntimeCell*>& ToUnloadCells);
 	int32 GetCellLoadingCount() const;
+	int32 GetMaxCellsToLoad() const;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
