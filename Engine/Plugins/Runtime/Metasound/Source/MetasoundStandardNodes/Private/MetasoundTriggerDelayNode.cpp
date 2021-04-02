@@ -1,6 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MetasoundTriggerDelayNode.h"
-
 #include "CoreMinimal.h"
 
 #include "MetasoundBuilderInterface.h"
@@ -17,19 +15,17 @@
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundParamHelper.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_DelayNode"
 
 namespace Metasound
 {
 	namespace TriggerDelayVertexNames
 	{
-		METASOUND_PARAM(InputInTrigger, "In", "Input trigger which results in a delayed trigger.");
-		METASOUND_PARAM(InputReset, "Reset", "Resets the trigger delay, clearing the execution task if pending.");
+		METASOUND_PARAM(InputInTriggerDelay, "In", "Input trigger which results in a delayed trigger.");
+		METASOUND_PARAM(InputResetDelay, "Reset", "Resets the trigger delay, clearing the execution task if pending.");
 		METASOUND_PARAM(InputDelayTime, "Delay Time", "Time to delay and execute deferred trigger in seconds.");
 		METASOUND_PARAM(OutputOnTrigger, "Out", "The delayed output trigger.");
 	}
-
-	METASOUND_REGISTER_NODE(FTriggerDelayNode)
 
 	class FTriggerDelayOperator : public TExecutableOperator<FTriggerDelayOperator>
 	{
@@ -74,8 +70,8 @@ namespace Metasound
 		using namespace TriggerDelayVertexNames;
 
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInTrigger), TriggerIn);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputReset), TriggerReset);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInTriggerDelay), TriggerIn);
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputResetDelay), TriggerReset);
 		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputDelayTime), DelayTime);
 		return InputDataReferences;
 	}
@@ -144,13 +140,11 @@ namespace Metasound
 	{
 		using namespace TriggerDelayVertexNames;
 
-		const FTriggerDelayNode& DelayNode = static_cast<const FTriggerDelayNode&>(InParams.Node);
-
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 		FTimeReadRef Delay = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputDelayTime), InParams.OperatorSettings);
 
-		FTriggerReadRef TriggerIn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputInTrigger), InParams.OperatorSettings);
-		FTriggerReadRef TriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputReset), InParams.OperatorSettings);
+		FTriggerReadRef TriggerIn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputInTriggerDelay), InParams.OperatorSettings);
+		FTriggerReadRef TriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputResetDelay), InParams.OperatorSettings);
 
 		return MakeUnique<FTriggerDelayOperator>(InParams.OperatorSettings, TriggerReset, TriggerIn, Delay);
 	}
@@ -161,8 +155,8 @@ namespace Metasound
 
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputInTrigger)),
-				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputReset)),
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputInTriggerDelay)),
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputResetDelay)),
 				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputDelayTime), 1.0f)
 			),
 			FOutputVertexInterface(
@@ -195,10 +189,16 @@ namespace Metasound
 		return Info;
 	}
 
-	FTriggerDelayNode::FTriggerDelayNode(const FNodeInitData& InInitData)
-	:	FNodeFacade(InInitData.InstanceName, InInitData.InstanceID, TFacadeOperatorClass<FTriggerDelayOperator>())
+	class METASOUNDSTANDARDNODES_API FTriggerDelayNode : public FNodeFacade
 	{
-	}
+	public:
+		FTriggerDelayNode(const FNodeInitData& InInitData)
+			: FNodeFacade(InInitData.InstanceName, InInitData.InstanceID, TFacadeOperatorClass<FTriggerDelayOperator>())
+		{
+		}
+	};
+
+	METASOUND_REGISTER_NODE(FTriggerDelayNode)
 }
 
 #undef LOCTEXT_NAMESPACE // MetasoundTriggerDelayNode
