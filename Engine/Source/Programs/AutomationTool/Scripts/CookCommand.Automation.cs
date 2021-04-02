@@ -232,7 +232,7 @@ public partial class Project : CommandUtils
 
                 // if we are not going to pak but we specified compressed then compress in the cooker ;)
                 // otherwise compress the pak files
-                if (!Params.Pak && !Params.SkipPak && Params.Compressed)
+                if (!Params.Pak && !Params.SkipPak && Params.Compressed && ! Params.ForceUncompressed)
                 {
                     CommandletParams += " -compressed";
                 }

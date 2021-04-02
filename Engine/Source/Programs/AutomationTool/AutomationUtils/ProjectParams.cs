@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -348,7 +349,8 @@ namespace AutomationTool
 			this.ClientConfigsToBuild = InParams.ClientConfigsToBuild;
 			this.ServerConfigsToBuild = InParams.ServerConfigsToBuild;
 			this.NumClients = InParams.NumClients;
-            this.Compressed = InParams.Compressed;
+			this.Compressed = InParams.Compressed;
+			this.ForceUncompressed = InParams.ForceUncompressed;
 			this.AdditionalPakOptions = InParams.AdditionalPakOptions;
 			this.AdditionalIoStoreOptions = InParams.AdditionalIoStoreOptions;
 			this.Archive = InParams.Archive;
@@ -411,7 +413,8 @@ namespace AutomationTool
 			bool? Run = null,
 			bool? SkipServer = null,
 			bool? Clean = null,
-            bool? Compressed = null,
+			bool? Compressed = null,
+			bool? ForceUncompressed = null,
 			string AdditionalPakOptions = null,
 			string AdditionalIoStoreOptions = null,
             bool? IterativeCooking = null,
@@ -675,7 +678,8 @@ namespace AutomationTool
             {
                 this.NumCookersToSpawn = Command.ParseParamInt("NumCookersToSpawn");
             }
-            this.Compressed = GetParamValueIfNotSpecified(Command, Compressed, this.Compressed, "compressed");
+			this.Compressed = GetParamValueIfNotSpecified(Command, Compressed, this.Compressed, "compressed");
+			this.ForceUncompressed = GetParamValueIfNotSpecified(Command, ForceUncompressed, this.ForceUncompressed, "ForceUncompressed");
 			this.AdditionalPakOptions = ParseParamValueIfNotSpecified(Command, AdditionalPakOptions, "AdditionalPakOptions");
 			this.AdditionalIoStoreOptions = ParseParamValueIfNotSpecified(Command, AdditionalIoStoreOptions, "AdditionalIoStoreOptions");
 			this.IterativeCooking = GetParamValueIfNotSpecified(Command, IterativeCooking, this.IterativeCooking, new string[] { "iterativecooking", "iterate" });
@@ -1648,6 +1652,11 @@ namespace AutomationTool
         /// Compress packages during cook.
         /// </summary>
         public bool Compressed;
+
+		/// <summary>
+		/// Do not compress packages during cook, override game ProjectPackagingSettings to force it off
+		/// </summary>
+		public bool ForceUncompressed;
 
 		/// <summary>
 		/// Additional parameters when generating the PAK file
@@ -2844,6 +2853,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("ClientCookedTargets={0}", ClientCookedTargets.ToString());
 				CommandUtils.LogLog("ClientTargetPlatform={0}", string.Join(",", ClientTargetPlatforms));
 				CommandUtils.LogLog("Compressed={0}", Compressed);
+				CommandUtils.LogLog("ForceUncompressed={0}", ForceUncompressed);
 				CommandUtils.LogLog("AdditionalPakOptions={0}", AdditionalPakOptions);
 				CommandUtils.LogLog("AdditionalIoStoreOptions={0}", AdditionalIoStoreOptions);
 				CommandUtils.LogLog("CookOnTheFly={0}", CookOnTheFly);

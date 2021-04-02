@@ -20,6 +20,8 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 
 	GLog->Flush();
 
+	RequestEngineExit(TEXT("UnrealPak Exiting"));
+
 	FEngineLoop::AppPreExit();
 	FModuleManager::Get().UnloadModulesAtShutdown();
 	FEngineLoop::AppExit();

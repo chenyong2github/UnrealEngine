@@ -23,6 +23,9 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 		// the name of the ini section to use to load audio compression settings (used at runtime and cooktime)
 		FString AudioCompressionSettingsIniSectionName;
 
+		// the compression format that this platform wants; overrides game unless bForceUseProjectCompressionFormat
+		FString HardwareCompressionFormat;
+
 		// list of additonal restricted folders
 		TArray<FString> AdditionalRestrictedFolders;
 

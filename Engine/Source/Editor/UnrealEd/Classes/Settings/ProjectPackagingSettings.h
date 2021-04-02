@@ -227,18 +227,51 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Packaging)
 	FDirectoryPath HttpChunkInstallDataDirectory;
 
+
+	/**
+	 * Create compressed cooked packages (decreased deployment size)
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay, meta=(DisplayName="Create compressed cooked packages"))
+	bool bCompressed;
+	
 	/**
 	 * A comma separated list of formats to use for .pak file compression. If more than one is specified, the list is in order of priority, with fallbacks to other formats
 	 * in case of errors or unavailability of the format (plugin not enabled, etc).
+	 * Commonly PakFileCompressionFormats=Oodle or PakFileCompressionFormats=None
 	 */
-	UPROPERTY(config, EditAnywhere, Category = Packaging, meta = (DisplayName = "Pak File Compression Format(s)"))
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Pak File Compression Format(s)"))
 	FString PakFileCompressionFormats;
+	
+	/**
+	 * Force use of PakFileCompressionFormats (do not use override HardwareCompressionFormat from DDPI)
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay, meta=(DisplayName="Use this Compression Format not hardware override"))
+	bool bForceUseProjectCompressionFormatIgnoreHardwareOverride;
 
 	/**
-	 * A generic setting for allowing a project to control compression settings during .pak file compression. For instance, if using the Oodle plugin, you could use -oodlemethod=Selkie -oodlelevel=Optimal1
+	 * A generic setting for allowing a project to control compression settings during .pak file compression.
+	 * For instance PakFileAdditionalCompressionOptions=-compressionblocksize=1MB -asynccompression
 	 */
-	UPROPERTY(config, EditAnywhere, Category = Packaging, meta = (DisplayName = "Pak File Compression Commandline Options"))
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Pak File Compression Commandline Options"))
 	FString PakFileAdditionalCompressionOptions;
+	
+	/**
+	 * For compressors with multiple methods, select one.  eg. for Oodle you may use one of {Kraken,Mermaid,Selkie,Leviathan}
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Pak File Compression Method"))
+	FString PakFileCompressionMethod;
+		
+	/*
+	 * For compressors with variable levels, select the encoder effort level, which makes packages smaller but takes more time to encode.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Encoder Effort Level for Debug & Development"))
+	int32 PakFileCompressionLevel_DebugDevelopment;
+	
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Encoder Effort Level for Test & Shipping"))
+	int32 PakFileCompressionLevel_TestShipping;
+	
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Encoder Effort Level for Distribution"))
+	int32 PakFileCompressionLevel_Distribution;
 
 	/** 
 	 * Version name for HTTP Chunk Install Data.
@@ -317,13 +350,6 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay, meta=(DisplayName="Cook only maps (this only affects cookall)"))
 	bool bCookMapsOnly;
-
-
-	/**
-	 * Create compressed cooked packages (decreased deployment size)
-	 */
-	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay, meta=(DisplayName="Create compressed cooked packages"))
-	bool bCompressed;
 
 	/**
 	* Encrypt ini files inside of the pak file
