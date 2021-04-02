@@ -38,6 +38,12 @@
 	/** Passed in ColumnName */
 	FString SortedColumn;
 
+	/** Passed in WriteColumn */
+	FString WriteColumn;
+
+	/** If true, don't try to perform the write test. */
+	bool bSkipWriteTest = false;
+
 	/** Passed in Columns */
 	TMap<FString, EOnlineKeyValuePairDataType::Type> Columns;
 
@@ -125,6 +131,8 @@
 	 * Kicks off all of the testing process
 	 */
 	void Test(UWorld* InWorld, const FString& InLeaderboardName, const FString& InSortedColumn, TMap<FString, EOnlineKeyValuePairDataType::Type>&& InColumns, const FString& InUserId);
+
+	void TestFromConfig(UWorld* InWorld);
  };
 
 #endif //WITH_DEV_AUTOMATION_TESTS
