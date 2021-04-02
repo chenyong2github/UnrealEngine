@@ -89,6 +89,7 @@ bool IsHitIgnored(const FHitResult& InHit, const FSceneView& InSceneView)
 	// Only use this component if it is visible in the specified scene views
 	bool bIsRenderedOnScreen = false;
 	bool bIgnoreTranslucentPrimitive = false;
+	const bool bConsiderInvisibleComponentForPlacement = PrimitiveComponent->bConsiderForActorPlacementWhenHidden;
 	{				
 		if (PrimitiveComponent && PrimitiveComponent->SceneProxy)
 		{
@@ -99,7 +100,7 @@ bool IsHitIgnored(const FHitResult& InHit, const FSceneView& InSceneView)
 		}
 	}
 
-	return !bIsRenderedOnScreen || bIgnoreTranslucentPrimitive;
+	return (!bIsRenderedOnScreen && !bConsiderInvisibleComponentForPlacement) || bIgnoreTranslucentPrimitive;
 }
 
 FActorPositionTraceResult FActorPositioning::TraceWorldForPosition(const UWorld& InWorld, const FSceneView& InSceneView, const FVector& RayStart, const FVector& RayEnd, const TArray<AActor*>* IgnoreActors)

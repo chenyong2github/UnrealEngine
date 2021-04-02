@@ -332,6 +332,9 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bCastContactShadow = true;
 	IndirectLightingCacheQuality = ILCQ_Point;
 	bSelectable = true;
+#if WITH_EDITORONLY_DATA
+	bConsiderForActorPlacementWhenHidden = false;
+#endif // WITH_EDITORONLY_DATA
 	bFillCollisionUnderneathForNavmesh = false;
 	AlwaysLoadOnClient = true;
 	AlwaysLoadOnServer = true;

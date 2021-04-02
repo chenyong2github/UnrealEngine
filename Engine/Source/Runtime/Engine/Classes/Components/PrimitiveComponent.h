@@ -382,6 +382,12 @@ public:
 	UPROPERTY()
 	uint8 bSelectable:1;
 
+#if WITH_EDITORONLY_DATA
+	/** If true, this component will be considered for placement when dragging and placing items in the editor even if it is not visible, such as in the case of hidden collision meshes */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Collision)
+	uint8 bConsiderForActorPlacementWhenHidden:1;
+#endif //WITH_EDITORONLY_DATA
+
 	/** If true, forces mips for textures used by this component to be resident when this component's level is loaded. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=TextureStreaming)
 	uint8 bForceMipStreaming:1;
