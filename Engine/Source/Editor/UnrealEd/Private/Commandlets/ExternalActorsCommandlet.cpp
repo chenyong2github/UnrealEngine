@@ -135,7 +135,7 @@ int32 UExternalActorsCommandlet::Main(const FString& Params)
 		});
 	}
 
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+	CollectGarbage(RF_NoFlags);
 
 	for (const FString& PackageToDelete : PackagesToDelete)
 	{
