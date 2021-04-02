@@ -153,6 +153,7 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	/** 
 	 * The light function material to be applied to this light.
 	 * Note that only non-lightmapped lights (UseDirectLightMap=False) can have a light function. 
+	 * Light functions are supported within VolumetricFog, but only for Directional, Point and Spot lights. Rect lights are not supported.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightFunction)
 	class UMaterialInterface* LightFunctionMaterial;
