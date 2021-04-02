@@ -56,7 +56,7 @@ FText UMoviePipelineOutputSetting::GetFooterText(UMoviePipelineExecutorJob* InJo
 		MasterConfig->GetFormatArguments(FormatArgs);
 	}
 
-	for (const TPair<FString, FStringFormatArg>& KVP : FormatArgs.FilenameArguments)
+	for (const TPair<FString, FString>& KVP : FormatArgs.FilenameArguments)
 	{
 		FStringFormatOrderedArguments OrderedArgs = { KVP.Key, KVP.Value };
 		FString FormattedArgs = FString::Format(TEXT("{0} => {1}"), OrderedArgs);
