@@ -173,8 +173,8 @@ void FXGEControlWorker::InputThreadProc()
 		Reader << Task->Executable;
 		Reader << Task->Arguments;
 
-		// Launch the process (with a lower than normal priority)
-		Task->Handle = FPlatformProcess::CreateProc(*Task->Executable, *Task->Arguments, true, false, false, nullptr, -1, nullptr, nullptr);
+		// Launch the process with normal priority.
+		Task->Handle = FPlatformProcess::CreateProc(*Task->Executable, *Task->Arguments, true, false, false, nullptr, 0, nullptr, nullptr);
 
 		FScopeLock Lock(CS);
 		CurrentTasks.Add(Task);
