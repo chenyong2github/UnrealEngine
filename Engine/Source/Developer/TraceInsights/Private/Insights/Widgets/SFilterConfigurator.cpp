@@ -29,7 +29,6 @@ namespace Insights
 
 SFilterConfigurator::SFilterConfigurator()
 {
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,7 +41,6 @@ SFilterConfigurator::~SFilterConfigurator()
 
 void SFilterConfigurator::InitCommandList()
 {
-	
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,14 +50,14 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilterConfigurator> InFilterConfiguratorViewModel)
 {
 	SAssignNew(ExternalScrollbar, SScrollBar)
-		.AlwaysShowScrollbar(true);
+	.AlwaysShowScrollbar(true);
 
 	ChildSlot
 	[
 		SNew(SVerticalBox)
 
 		// Tree view
-		+SVerticalBox::Slot()
+		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
 		[
@@ -100,8 +98,8 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 			.AutoWidth()
 			.Padding(0.0f)
 			[
-					SNew(SBox)
-					.WidthOverride(FOptionalSize(13.0f))
+				SNew(SBox)
+				.WidthOverride(FOptionalSize(13.0f))
 				[
 					ExternalScrollbar.ToSharedRef()
 				]
@@ -115,7 +113,7 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 			[
 				SNew(SHorizontalBox)
 
-				+SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
 				.AutoWidth()
@@ -127,7 +125,7 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 					.OnClicked(this, &SFilterConfigurator::OK_OnClicked)
 				]
 
-				+SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
 				.AutoWidth()
