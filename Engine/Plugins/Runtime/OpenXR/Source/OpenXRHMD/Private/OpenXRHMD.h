@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "OpenXRHMD_Layer.h"
 #include "CoreMinimal.h"
 #include "HeadMountedDisplayBase.h"
 #include "XRTrackingSystemBase.h"
@@ -9,6 +10,7 @@
 #include "XRRenderBridge.h"
 #include "XRSwapChain.h"
 #include "SceneViewExtension.h"
+#include "StereoLayerManager.h"
 #include "DefaultSpectatorScreenController.h"
 #include "IHeadMountedDisplayVulkanExtensions.h"
 
@@ -23,7 +25,7 @@ class FOpenXRRenderBridge;
 /**
  * Simple Head Mounted Display
  */
-class FOpenXRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public FSceneViewExtensionBase
+class FOpenXRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public FSceneViewExtensionBase , public TStereoLayerManager<FOpenXRLayer>
 {
 public:
 	class FDeviceSpace
@@ -56,12 +58,16 @@ public:
 
 	struct FPipelinedLayerState
 	{
+		TArray<XrCompositionLayerQuad> QuadLayers;
 		TArray<XrCompositionLayerProjectionView> ProjectionLayers;
 		TArray<XrCompositionLayerDepthInfoKHR> DepthLayers;
+
 		TArray<XrSwapchainSubImage> ColorImages;
 		TArray<XrSwapchainSubImage> DepthImages;
+
 		FXRSwapChainPtr ColorSwapchain;
 		FXRSwapChainPtr DepthSwapchain;
+		TArray<FXRSwapChainPtr> QuadSwapchains;
 	};
 
 	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions
@@ -143,6 +149,10 @@ public:
 	{
 		return SharedThis(this);
 	}
+	virtual class IStereoLayers* GetStereoLayers() override
+	{
+		return this;
+	}
 
 	virtual void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData) override;
 
@@ -165,6 +175,8 @@ protected:
 
 	void UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins);
 	void EnumerateViews(FPipelinedFrameState& PipelineState);
+
+	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, const FXRSwapChainPtr& DstSwapChain, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const;
 
 public:
 	/** IHeadMountedDisplay interface */
@@ -223,6 +235,10 @@ public:
 	/** IStereoRenderTargetManager */
 	virtual void OnBeginPlay(FWorldContext& InWorldContext) override;
 	virtual void OnEndPlay(FWorldContext& InWorldContext) override;
+
+	/** IStereoLayers */
+	virtual void UpdateLayer(FOpenXRLayer& Layer, uint32 LayerId, bool bIsValid) const override;
+	virtual bool ShouldCopyDebugLayersToSpectatorScreen() const override { return true; }
 
 public:
 	/** Constructor */

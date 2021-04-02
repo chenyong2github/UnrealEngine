@@ -31,7 +31,8 @@
 	To access the layer data from your subclass, you have the following protected interface:
 		bool GetStereoLayersDirty() -- Returns true if layer data have changed since the status was last cleared
 		ForEachLayer(...) -- pass in a lambda to iterate through each existing layer.
-		CopyLayers(TArray<LayerType>& OutArray, bool bMarkClean = true) -- Copies the layers into OutArray. 
+		CopyLayers(TArray<LayerType>& OutArray, bool bMarkClean = true) -- Copies the layers into OutArray.
+		CopySortedLayers(TArray<LayerType>& OutArray, bool bMarkClean = true) -- Copies the layers into OutArray sorted by their priority.
 		WithLayer(uint32 LayerId, TFunction<void(LayerType*)> Func) -- Finds the layer by Id and passes it to Func or nullptr if not found.
 	The last two methods will clear the layer dirty flag unless you pass in false as the optional final argument.
 	
@@ -49,6 +50,27 @@ class TStereoLayerManager : public IStereoLayers
 private:
 	mutable FCriticalSection LayerCritSect;
 	bool bStereoLayersDirty;
+
+	struct FLayerComparePriority
+	{
+		bool operator()(const LayerType& A, const LayerType& B) const
+		{
+			FLayerDesc DescA, DescB;
+			if (GetLayerDescMember(A, DescA) && GetLayerDescMember(B, DescB))
+			{
+				if (DescA.Priority < DescB.Priority)
+				{
+					return true;
+				}
+				if (DescA.Priority > DescB.Priority)
+				{
+					return false;
+				}
+				return DescA.Id < DescB.Id;
+			}
+			return false;
+		}
+	};
 
 	struct FLayerData {
 		TMap<uint32, LayerType> Layers;
@@ -119,6 +141,12 @@ protected:
 		{
 			bStereoLayersDirty = false;
 		}
+	}
+
+	void CopySortedLayers(TArray<LayerType>& OutArray, bool bMarkClean = true)
+	{
+		CopyLayers(OutArray, bMarkClean);
+		OutArray.Sort(FLayerComparePriority());
 	}
 
 	void WithLayer(uint32 LayerId, TFunction<void(LayerType*)> Func)
@@ -344,6 +372,6 @@ protected:
 	{}
 };
 
-HEADMOUNTEDDISPLAY_API bool GetLayerDescMember(IStereoLayers::FLayerDesc& Layer, IStereoLayers::FLayerDesc& OutLayerDesc);
+HEADMOUNTEDDISPLAY_API bool GetLayerDescMember(const IStereoLayers::FLayerDesc& Layer, IStereoLayers::FLayerDesc& OutLayerDesc);
 HEADMOUNTEDDISPLAY_API void SetLayerDescMember(IStereoLayers::FLayerDesc& OutLayer, const IStereoLayers::FLayerDesc& InLayerDesc);
 HEADMOUNTEDDISPLAY_API void MarkLayerTextureForUpdate(IStereoLayers::FLayerDesc& Layer);
