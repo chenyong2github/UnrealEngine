@@ -10,14 +10,14 @@
 
 // Convenience exec commands to push values to global params.
 static FAutoConsoleCommand GPushFloatCommand(
-	TEXT("au.metasound.SetFloat"),
-	TEXT("Use this with au.metasound.SetFloat [type] [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
+	TEXT("au.MetaSound.SetFloat"),
+	TEXT("Use this with au.MetaSound.SetFloat [type] [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray< FString >& Args)
 		{
 			if (Args.Num() < 3)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
@@ -32,15 +32,15 @@ static FAutoConsoleCommand GPushFloatCommand(
 );
 
 static FAutoConsoleCommand GPushBoolCommand(
-	TEXT("au.metasound.SetBool"),
-	TEXT("Use this with au.metasound.SetBool [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
+	TEXT("au.MetaSound.SetBool"),
+	TEXT("Use this with au.MetaSound.SetBool [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray< FString >& Args)
 		{
 			if (Args.Num() < 2)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetBool should be called with two args- the address to send to and the value to send."));
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.SetBool should be called with two args- the address to send to and the value to send."));
+				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
@@ -57,14 +57,14 @@ static FAutoConsoleCommand GPushBoolCommand(
 );
 
 static FAutoConsoleCommand GPushIntCommand(
-	TEXT("au.metasound.SetInt"),
-	TEXT("Use this with au.metasound.SetInt [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
+	TEXT("au.MetaSound.SetInt"),
+	TEXT("Use this with au.MetaSound.SetInt [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray< FString >& Args)
 		{
 			if (Args.Num() < 2)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
@@ -79,15 +79,15 @@ static FAutoConsoleCommand GPushIntCommand(
 );
 
 static FAutoConsoleCommand GPushStringCommand(
-	TEXT("au.metasound.SetString"),
-	TEXT("Use this with au.metasound.SetString [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
+	TEXT("au.MetaSound.SetString"),
+	TEXT("Use this with au.MetaSound.SetString [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray< FString >& Args)
 		{
 			if (Args.Num() < 3)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetBool should be called with three args- the data type of the channel, the address to send to and the value to send."));
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.SetBool should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 

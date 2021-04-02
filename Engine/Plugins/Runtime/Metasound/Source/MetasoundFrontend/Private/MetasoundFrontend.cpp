@@ -21,13 +21,6 @@
 #include "StructSerializer.h"
 #include "Serialization/MemoryReader.h"
 
-static int32 MetasoundUndoRollLimitCvar = 128;
-FAutoConsoleVariableRef CVarMetasoundUndoRollLimit(
-	TEXT("au.Metasound.Frontend.UndoRollLimit"),
-	MetasoundUndoRollLimitCvar,
-	TEXT("Sets the maximum size of our undo buffer for graph editing in the Metasound Frontend.\n")
-	TEXT("n: Number of undoable actions we buffer."),
-	ECVF_Default);
 
 namespace Metasound
 {

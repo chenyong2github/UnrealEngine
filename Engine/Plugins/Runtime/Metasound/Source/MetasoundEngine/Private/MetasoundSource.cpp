@@ -24,6 +24,9 @@
 #include "EdGraph/EdGraph.h"
 #endif // WITH_EDITORONLY_DATA
 
+#define LOCTEXT_NAMESPACE "MetasoundSource"
+
+
 static float MetaSoundBlockRateCVar = 100.f;
 FAutoConsoleVariableRef CVarMetaSoundBlockRate(
 	TEXT("au.MetaSound.BlockRate"),
@@ -32,13 +35,9 @@ FAutoConsoleVariableRef CVarMetaSoundBlockRate(
 	TEXT("Default: 100.0f"),
 	ECVF_Default);
 
+static const FName MetasoundSourceArchetypeName = "Metasound Source";
 
-
-#define LOCTEXT_NAMESPACE "MetasoundSource"
-
-static FName MetasoundSourceArchetypeName = FName(TEXT("Metasound Source"));
-
-UMetasoundSource::UMetasoundSource(const FObjectInitializer& ObjectInitializer)
+UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FMetasoundAssetBase(GetMonoSourceArchetype())
 {
@@ -47,14 +46,14 @@ UMetasoundSource::UMetasoundSource(const FObjectInitializer& ObjectInitializer)
 	Duration = INDEFINITELY_LOOPING_DURATION;
 	bLooping = true;
 	
-	// todo: ensure that we have a method so that the audio engine can be authoritative over the sample rate the UMetasoundSource runs at.
+	// todo: ensure that we have a method so that the audio engine can be authoritative over the sample rate the UMetaSoundSource runs at.
 	SampleRate = 48000.f;
 
 }
 
 #if WITH_EDITOR
 
-void UMetasoundSource::PostEditUndo()
+void UMetaSoundSource::PostEditUndo()
 {
 	Super::PostEditUndo();
 
@@ -64,11 +63,11 @@ void UMetasoundSource::PostEditUndo()
 	}
 }
 
-void UMetasoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
+void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 {
 	Super::PostEditChangeProperty(InEvent);
 
-	if (InEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMetasoundSource, OutputFormat)) 
+	if (InEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMetaSoundSource, OutputFormat)) 
 	{
 		switch (OutputFormat)
 		{
@@ -92,24 +91,24 @@ void UMetasoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 
 #endif // WITHEDITOR
 
-bool UMetasoundSource::IsPlayable() const
+bool UMetaSoundSource::IsPlayable() const
 {
 	// todo: cache off whether this metasound is buildable to an operator.
 	return true;
 }
 
-bool UMetasoundSource::SupportsSubtitles() const
+bool UMetaSoundSource::SupportsSubtitles() const
 {
 	return Super::SupportsSubtitles();
 }
 
-float UMetasoundSource::GetDuration()
+float UMetaSoundSource::GetDuration()
 {
 	// eh? this is kind of a weird field anyways.
 	return Super::GetDuration();
 }
 
-ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
+ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
 	using namespace Metasound;
 
@@ -142,7 +141,7 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	const FMetasoundFrontendDocument* OriginalDoc = GetDocument().Get();
 	if (nullptr == OriginalDoc)
 	{
-		UE_LOG(LogMetasound, Error, TEXT("Cannot create sound generator. Null Metasound document in UMetasoundSource [Name:%s]"), *GetName());
+		UE_LOG(LogMetasound, Error, TEXT("Cannot create sound generator. Null Metasound document in UMetaSoundSource [Name:%s]"), *GetName());
 		return ISoundGeneratorPtr(nullptr);
 	}
 
@@ -170,7 +169,7 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	return ISoundGeneratorPtr(new FMetasoundGenerator(MoveTemp(InitParams)));
 }
 
-TUniquePtr<IAudioInstanceTransmitter> UMetasoundSource::CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const
+TUniquePtr<IAudioInstanceTransmitter> UMetaSoundSource::CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const
 {
 	Metasound::FMetasoundInstanceTransmitter::FInitParams InitParams(GetOperatorSettings(InParams.SampleRate), InParams.InstanceID);
 
@@ -182,7 +181,7 @@ TUniquePtr<IAudioInstanceTransmitter> UMetasoundSource::CreateInstanceTransmitte
 	return MakeUnique<Metasound::FMetasoundInstanceTransmitter>(InitParams);
 }
 
-bool UMetasoundSource::GetReceiveNodeMetadataForDataType(const FName& InTypeName, FMetasoundFrontendClassMetadata& OutMetadata) const
+bool UMetaSoundSource::GetReceiveNodeMetadataForDataType(const FName& InTypeName, FMetasoundFrontendClassMetadata& OutMetadata) const
 {
 	using namespace Metasound;
 
@@ -197,7 +196,7 @@ bool UMetasoundSource::GetReceiveNodeMetadataForDataType(const FName& InTypeName
 	return false;
 }
 
-Metasound::Frontend::FNodeHandle UMetasoundSource::AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const
+Metasound::Frontend::FNodeHandle UMetaSoundSource::AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const
 {
 	FMetasoundFrontendClassInput Description;
 	FGuid VertexID = InGraph->GetNewVertexID();
@@ -211,7 +210,7 @@ Metasound::Frontend::FNodeHandle UMetasoundSource::AddInputPinForSendAddress(con
 	return InGraph->AddInputVertex(Description);
 }
 
-bool UMetasoundSource::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const
+bool UMetaSoundSource::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const
 {
 	using namespace Metasound;
 
@@ -237,7 +236,7 @@ bool UMetasoundSource::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, co
 		Frontend::FNodeHandle ReceiveNode = RootGraph->AddNode(ReceiveNodeMetadata);
 
 		// Add receive node address to graph
-		Frontend::FNodeHandle AddressNode = UMetasoundSource::AddInputPinForSendAddress(InfoAndVertexName.SendInfo, RootGraph);
+		Frontend::FNodeHandle AddressNode = UMetaSoundSource::AddInputPinForSendAddress(InfoAndVertexName.SendInfo, RootGraph);
 		TArray<Frontend::FOutputHandle> AddressNodeOutputs = AddressNode->GetOutputs();
 		if (AddressNodeOutputs.Num() != 1)
 		{
@@ -295,7 +294,7 @@ bool UMetasoundSource::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, co
 	return true;
 }
 
-TArray<FString> UMetasoundSource::GetTransmittableInputVertexNames() const
+TArray<FString> UMetaSoundSource::GetTransmittableInputVertexNames() const
 {
 	using namespace Metasound;
 
@@ -347,14 +346,14 @@ TArray<FString> UMetasoundSource::GetTransmittableInputVertexNames() const
 	return GraphInputVertexNames;
 }
 
-Metasound::FOperatorSettings UMetasoundSource::GetOperatorSettings(Metasound::FSampleRate InSampleRate) const
+Metasound::FOperatorSettings UMetaSoundSource::GetOperatorSettings(Metasound::FSampleRate InSampleRate) const
 {
 	// Metasound graph gets evaluated 100 times per second by default.
 	float BlockRate = FMath::Clamp(MetaSoundBlockRateCVar, 1.0f, 1000.0f); 
 	return Metasound::FOperatorSettings(InSampleRate, BlockRate);
 }
 
-Metasound::FSendAddress UMetasoundSource::CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const
+Metasound::FSendAddress UMetaSoundSource::CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const
 {
 	using namespace Metasound;
 
@@ -366,7 +365,7 @@ Metasound::FSendAddress UMetasoundSource::CreateSendAddress(uint64 InInstanceID,
 	return Address;
 }
 
-TArray<UMetasoundSource::FSendInfoAndVertexName> UMetasoundSource::GetSendInfos(uint64 InInstanceID) const
+TArray<UMetaSoundSource::FSendInfoAndVertexName> UMetaSoundSource::GetSendInfos(uint64 InInstanceID) const
 {
 	using FSendInfo = Metasound::FMetasoundInstanceTransmitter::FSendInfo;
 	using namespace Metasound::Frontend;
@@ -398,52 +397,52 @@ TArray<UMetasoundSource::FSendInfoAndVertexName> UMetasoundSource::GetSendInfos(
 	return SendInfos;
 }
 
-const TArray<FMetasoundFrontendArchetype>& UMetasoundSource::GetPreferredMetasoundArchetypes() const 
+const TArray<FMetasoundFrontendArchetype>& UMetaSoundSource::GetPreferredMetasoundArchetypes() const 
 {
 	static const TArray<FMetasoundFrontendArchetype> Preferred({GetMonoSourceArchetype(), GetStereoSourceArchetype()});
 
 	return Preferred;
 }
 
-const FString& UMetasoundSource::GetOnPlayInputName()
+const FString& UMetaSoundSource::GetOnPlayInputName()
 {
 	static const FString TriggerInputName = TEXT("On Play");
 	return TriggerInputName;
 }
 
-const FString& UMetasoundSource::GetAudioOutputName()
+const FString& UMetaSoundSource::GetAudioOutputName()
 {
 	static const FString AudioOutputName = TEXT("Generated Audio");
 	return AudioOutputName;
 }
 
-const FString& UMetasoundSource::GetIsFinishedOutputName()
+const FString& UMetaSoundSource::GetIsFinishedOutputName()
 {
 	static const FString OnFinishedOutputName = TEXT("On Finished");
 	return OnFinishedOutputName;
 }
 
-const FString& UMetasoundSource::GetAudioDeviceHandleVariableName()
+const FString& UMetaSoundSource::GetAudioDeviceHandleVariableName()
 {
 	static const FString AudioDeviceHandleVarName = TEXT("AudioDeviceHandle");
 	return AudioDeviceHandleVarName;
 }
 
-const FString& UMetasoundSource::GetSoundUniqueIdName()
+const FString& UMetaSoundSource::GetSoundUniqueIdName()
 {
 	static const FString SoundUniqueIdVarName = TEXT("SoundUniqueId");
 	return SoundUniqueIdVarName;
 }
 
 
-const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
+const FMetasoundFrontendArchetype& UMetaSoundSource::GetBaseArchetype()
 {
 	auto CreateBaseArchetype = []() -> FMetasoundFrontendArchetype
 	{
 		FMetasoundFrontendArchetype Archetype;
 		
 		FMetasoundFrontendClassVertex OnPlayTrigger;
-		OnPlayTrigger.Name = UMetasoundSource::GetOnPlayInputName();
+		OnPlayTrigger.Name = UMetaSoundSource::GetOnPlayInputName();
 		OnPlayTrigger.Metadata.DisplayName = FText::FromString(OnPlayTrigger.Name);
 		OnPlayTrigger.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
 		OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
@@ -452,7 +451,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 		Archetype.Interface.Inputs.Add(OnPlayTrigger);
 
 		FMetasoundFrontendClassVertex OnFinished;
-		OnFinished.Name = UMetasoundSource::GetIsFinishedOutputName();
+		OnFinished.Name = UMetaSoundSource::GetIsFinishedOutputName();
 		OnFinished.Metadata.DisplayName = FText::FromString(OnFinished.Name);
 		OnFinished.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
 		OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
@@ -461,7 +460,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 		Archetype.Interface.Outputs.Add(OnFinished);
 
 		FMetasoundFrontendEnvironmentVariable AudioDeviceHandle;
-		AudioDeviceHandle.Name = UMetasoundSource::GetAudioDeviceHandleVariableName();
+		AudioDeviceHandle.Name = UMetaSoundSource::GetAudioDeviceHandleVariableName();
 		AudioDeviceHandle.Metadata.DisplayName = FText::FromString(AudioDeviceHandle.Name);
 		AudioDeviceHandle.Metadata.Description = LOCTEXT("AudioDeviceHandleToolTip", "Audio device handle");
 
@@ -475,7 +474,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 	return BaseArchetype;
 }
 
-const FMetasoundFrontendArchetype& UMetasoundSource::GetMonoSourceArchetype()
+const FMetasoundFrontendArchetype& UMetaSoundSource::GetMonoSourceArchetype()
 {
 	auto CreateMonoArchetype = []() -> FMetasoundFrontendArchetype
 	{
@@ -483,7 +482,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetMonoSourceArchetype()
 		Archetype.Name = "MonoSource";
 
 		FMetasoundFrontendClassVertex GeneratedAudio;
-		GeneratedAudio.Name = UMetasoundSource::GetAudioOutputName();
+		GeneratedAudio.Name = UMetaSoundSource::GetAudioOutputName();
 		GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FMonoAudioFormat>();
 		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedMono", "Audio");
 		GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
@@ -499,7 +498,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetMonoSourceArchetype()
 	return MonoArchetype;
 }
 
-const FMetasoundFrontendArchetype& UMetasoundSource::GetStereoSourceArchetype()
+const FMetasoundFrontendArchetype& UMetaSoundSource::GetStereoSourceArchetype()
 {
 	auto CreateStereoArchetype = []() -> FMetasoundFrontendArchetype
 	{
@@ -507,7 +506,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetStereoSourceArchetype()
 		Archetype.Name = FName(TEXT("StereoSource"));
 
 		FMetasoundFrontendClassVertex GeneratedAudio;
-		GeneratedAudio.Name = UMetasoundSource::GetAudioOutputName();
+		GeneratedAudio.Name = UMetaSoundSource::GetAudioOutputName();
 		GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FStereoAudioFormat>();
 		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedStereo", "Audio");
 		GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");

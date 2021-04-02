@@ -6,7 +6,7 @@
 #include "Modules/ModuleInterface.h"
 
 // Forward Declarations
-class UMetasound;
+class UMetaSound;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMetasoundEngine, Log, All);
 

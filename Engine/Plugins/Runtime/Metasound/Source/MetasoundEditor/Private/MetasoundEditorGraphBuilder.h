@@ -14,7 +14,7 @@
 // Forward Declarations
 class UEdGraphNode;
 class UEdGraphPin;
-class UMetasound;
+class UMetaSound;
 class UMetasoundEditorGraphNode;
 
 struct FEdGraphPinType;

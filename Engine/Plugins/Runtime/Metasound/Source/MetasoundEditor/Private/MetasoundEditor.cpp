@@ -146,7 +146,7 @@ namespace Metasound
 
 		void FEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 		{
-			WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_MetasoundEditor", "Metasound Editor"));
+			WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_MetasoundEditor", "MetaSound Editor"));
 			auto WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
 
 			FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
@@ -181,7 +181,7 @@ namespace Metasound
 			{
 				return TabFactory::CreateMetasoundTab(InMetasoundMenu, Args);
 			}))
-			.SetDisplayName(LOCTEXT("MetasoundTab", "Metasound"))
+			.SetDisplayName(LOCTEXT("MetasoundTab", "MetaSound"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Settings"));
 
@@ -268,7 +268,7 @@ namespace Metasound
 
 			CreateAnalyzers();
 
-			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v7")
+			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v8")
 				->AddArea
 				(
 					FTabManager::NewPrimaryArea()
@@ -346,17 +346,17 @@ namespace Metasound
 
 		FName FEditor::GetToolkitFName() const
 		{
-			return "MetasoundEditor";
+			return "MetaSoundEditor";
 		}
 
 		FText FEditor::GetBaseToolkitName() const
 		{
-			return LOCTEXT("AppLabel", "Metasound Editor");
+			return LOCTEXT("AppLabel", "MetaSound Editor");
 		}
 
 		FString FEditor::GetWorldCentricTabPrefix() const
 		{
-			return LOCTEXT("WorldCentricTabPrefix", "Metasound ").ToString();
+			return LOCTEXT("WorldCentricTabPrefix", "MetaSound ").ToString();
 		}
 
 		FLinearColor FEditor::GetWorldCentricTabColorScale() const
@@ -993,7 +993,7 @@ namespace Metasound
 			}
 
 			FGraphAppearanceInfo AppearanceInfo;
-			AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_Metasound", "Metasound");
+			AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_MetaSound", "MetaSound");
 
 			SGraphEditor::FGraphEditorEvents InEvents;
 			InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FEditor::OnSelectedNodesChanged);
@@ -1688,7 +1688,7 @@ namespace Metasound
 			}
 		}
 
-		// TODO: Add ability to filter inputs/outputs in "Metasound" Tab
+		// TODO: Add ability to filter inputs/outputs in "MetaSound" Tab
 		FText FEditor::GetFilterText() const
 		{
 			return FText::GetEmpty();

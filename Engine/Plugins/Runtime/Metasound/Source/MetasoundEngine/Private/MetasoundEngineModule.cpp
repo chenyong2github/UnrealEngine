@@ -17,11 +17,11 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 {
 	virtual void StartupModule() override
 	{
-		// If there is no archetype name, use UMetasound
-		Metasound::IMetasoundUObjectRegistry::RegisterUClassArchetype<UMetasound>(TEXT(""));
+		// If there is no archetype name, use UMetaSound
+		Metasound::IMetasoundUObjectRegistry::RegisterUClassArchetype<UMetaSound>(TEXT(""));
 
 		// Register preferred archetypes
-		Metasound::IMetasoundUObjectRegistry::RegisterUClassPreferredArchetypes<UMetasoundSource>();
+		Metasound::IMetasoundUObjectRegistry::RegisterUClassPreferredArchetypes<UMetaSoundSource>();
 
 		// flush node regsitration queue
 		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();

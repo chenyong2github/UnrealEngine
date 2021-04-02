@@ -6,67 +6,67 @@
 #include "StructSerializer.h"
 #include "UObject/UnrealType.h"
 
-UMetasound::UMetasound(const FObjectInitializer& ObjectInitializer)
+UMetaSound::UMetaSound(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FMetasoundAssetBase(FMetasoundFrontendArchetype())
 {
 }
 
 #if WITH_EDITORONLY_DATA
-UEdGraph* UMetasound::GetGraph()
+UEdGraph* UMetaSound::GetGraph()
 {
 	return Graph;
 }
 
-const UEdGraph* UMetasound::GetGraph() const
+const UEdGraph* UMetaSound::GetGraph() const
 {
 	return Graph;
 }
 
-UEdGraph& UMetasound::GetGraphChecked()
+UEdGraph& UMetaSound::GetGraphChecked()
 {
 	check(Graph);
 	return *Graph;
 }
 
-const UEdGraph& UMetasound::GetGraphChecked() const
+const UEdGraph& UMetaSound::GetGraphChecked() const
 {
 	check(Graph);
 	return *Graph;
 }
 
-void UMetasound::SetGraph(UEdGraph* InGraph)
+void UMetaSound::SetGraph(UEdGraph* InGraph)
 {
 	Graph = InGraph;
 }
 #endif // WITH_EDITORONLY_DATA
 
 // Returns document object responsible for serializing asset
-Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> UMetasound::GetDocument()
+Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> UMetaSound::GetDocument()
 {
 	return Metasound::Frontend::MakeAccessPtr(MetasoundDocument.AccessPoint, MetasoundDocument);
 }
 
 // Returns document object responsible for serializing asset
-Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> UMetasound::GetDocument() const
+Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> UMetaSound::GetDocument() const
 {
 	return Metasound::Frontend::MakeAccessPtr<const FMetasoundFrontendDocument>(MetasoundDocument.AccessPoint, MetasoundDocument);
 }
 
-const TArray<FMetasoundFrontendArchetype>& UMetasound::GetPreferredMetasoundArchetypes() const
+const TArray<FMetasoundFrontendArchetype>& UMetaSound::GetPreferredMetasoundArchetypes() const
 {
-	// Not preferred archetypes for a basic UMetasound.
+	// Not preferred archetypes for a basic UMetaSound.
 	static const TArray<FMetasoundFrontendArchetype> Preferred;
 	return Preferred;
 }
 
-bool UMetasound::IsMetasoundArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const
+bool UMetaSound::IsMetasoundArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const
 {
 	// All archetypes are supported.
 	return true;
 }
 
-const FMetasoundFrontendArchetype& UMetasound::GetPreferredMetasoundArchetype(const FMetasoundFrontendDocument& InDocument) const
+const FMetasoundFrontendArchetype& UMetaSound::GetPreferredMetasoundArchetype(const FMetasoundFrontendDocument& InDocument) const
 {
 	// Prefer to keep original archetype.
 	return InDocument.Archetype;

@@ -16,7 +16,7 @@ namespace Metasound
 	{
 		namespace FactoryPrivate
 		{
-			UObject* InitMetasound(UMetasoundSource* MetasoundSource, EObjectFlags Flags)
+			UObject* InitMetasound(UMetaSoundSource* MetasoundSource, EObjectFlags Flags)
 			{
 				FMetasoundFrontendClassMetadata Metadata;
 
@@ -49,7 +49,7 @@ namespace Metasound
 // UMetasoundFactory::UMetasoundFactory(const FObjectInitializer& ObjectInitializer)
 // 	: Super(ObjectInitializer)
 // {
-// 	SupportedClass = UMetasound::StaticClass();
+// 	SupportedClass = UMetaSound::StaticClass();
 // 
 // 	bCreateNew = true;
 // 	bEditorImport = false;
@@ -58,7 +58,7 @@ namespace Metasound
 // 
 // UObject* UMetasoundFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName Name, EObjectFlags Flags, UObject* InContext, FFeedbackContext* InFeedbackContext)
 // {
-// 	UMetasound* Metasound = NewObject<UMetasound>(InParent, Name, Flags);
+// 	UMetaSound* Metasound = NewObject<UMetaSound>(InParent, Name, Flags);
 //	Metasound::Editor::FactoryPrivate::InitMetasound(Metasound, Flags);
 // 
 //	CastChecked<UMetasoundEditorGraph>(&Metasound->GetGraphChecked())->ParentMetasound = MetasoundSource;
@@ -70,7 +70,7 @@ namespace Metasound
 UMetasoundSourceFactory::UMetasoundSourceFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = UMetasoundSource::StaticClass();
+	SupportedClass = UMetaSoundSource::StaticClass();
 
 	bCreateNew = true;
 	bEditorImport = false;
@@ -83,7 +83,7 @@ UObject* UMetasoundSourceFactory::FactoryCreateNew(UClass* InClass, UObject* InP
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
-	UMetasoundSource* MetasoundSource = NewObject<UMetasoundSource>(InParent, Name, Flags);
+	UMetaSoundSource* MetasoundSource = NewObject<UMetaSoundSource>(InParent, Name, Flags);
 	Metasound::Editor::FactoryPrivate::InitMetasound(MetasoundSource, Flags);
 
 	CastChecked<UMetasoundEditorGraph>(&MetasoundSource->GetGraphChecked())->ParentMetasound = MetasoundSource;

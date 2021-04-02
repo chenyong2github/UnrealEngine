@@ -13,7 +13,7 @@
 
 #include "MetasoundSource.generated.h"
 
-/** Declares the output audio format of the UMetasoundSource */
+/** Declares the output audio format of the UMetaSoundSource */
 UENUM()
 enum class EMetasoundSourceAudioFormat : uint8
 {
@@ -34,7 +34,7 @@ public:
  * This Metasound type can be played as an audio source.
  */
 UCLASS(hidecategories = object, BlueprintType)
-class METASOUNDENGINE_API UMetasoundSource : public USoundWaveProcedural, public FMetasoundAssetBase
+class METASOUNDENGINE_API UMetaSoundSource : public USoundWaveProcedural, public FMetasoundAssetBase
 {
 	GENERATED_BODY()
 
@@ -48,7 +48,7 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 
 public:
-	UMetasoundSource(const FObjectInitializer& ObjectInitializer);
+	UMetaSoundSource(const FObjectInitializer& ObjectInitializer);
 
 	// The output audio format of the metasound source.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Metasound)
@@ -59,14 +59,14 @@ public:
 	// while allowing editor to reference directly)
 	static FName GetDocumentPropertyName()
 	{
-		return GET_MEMBER_NAME_CHECKED(UMetasoundSource, RootMetasoundDocument);
+		return GET_MEMBER_NAME_CHECKED(UMetaSoundSource, RootMetasoundDocument);
 	}
 
 	virtual void PostEditUndo() override;
 
 	// Returns the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.
-	// @return Editor graph associated with UMetasoundSource.
+	// @return Editor graph associated with UMetaSoundSource.
 	virtual UEdGraph* GetGraph() override
 	{
 		return Graph;
@@ -91,10 +91,24 @@ public:
 
 	// Sets the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.
-	// @param Editor graph associated with UMetasoundSource.
+	// @param Editor graph associated with UMetaSoundSource.
 	virtual void SetGraph(UEdGraph* InGraph) override
 	{
 		Graph = CastChecked<UMetasoundEditorGraphBase>(InGraph);
+	}
+
+	virtual bool GetRedrawThumbnail() const override
+	{
+		return false;
+	}
+
+	virtual void SetRedrawThumbnail(bool bInRedraw) override
+	{
+	}
+
+	virtual bool CanVisualizeAsset() const override
+	{
+		return false;
 	}
 
 	void PostEditChangeProperty(FPropertyChangedEvent& InEvent);

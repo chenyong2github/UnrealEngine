@@ -7,9 +7,12 @@
 #include "Internationalization/Internationalization.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "SAudioMeter.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "Templates/SharedPointer.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
+
 
 namespace Metasound
 {
@@ -59,7 +62,7 @@ namespace Metasound
 
 				return SNew(SDockTab)
 					.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
-					.Label(LOCTEXT("MetasoundInspectorTitle", "Inspector"))
+					.Label(LOCTEXT("MetaSoundInspectorTitle", "Inspector"))
 					[
 						DetailsView.ToSharedRef()
 					];
@@ -69,12 +72,18 @@ namespace Metasound
 			{
 				check(Args.GetTabId() == Names::Metasound);
 
-				return SNew(SDockTab)
-					.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
-					.Label(LOCTEXT("MetasoundGeneralTitle", "Metasound"))
-					[
-						GraphActionMenu.ToSharedRef()
-					];
+				TSharedRef<SDockTab> NewTab = SNew(SDockTab)
+				.Label(LOCTEXT("MetaSoundGeneralTitle", "MetaSound"))
+				[
+					GraphActionMenu.ToSharedRef()
+				];
+
+				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetasoundStyle"))
+				{
+					NewTab->SetTabIcon(MetasoundStyle->GetBrush("ClassThumbnail.Metasound"));
+				}
+
+				return NewTab;
 			}
 
 			TSharedRef<SDockTab> CreatePaletteTab(TSharedPtr<SMetasoundPalette> Palette, const FSpawnTabArgs& Args)
@@ -83,7 +92,7 @@ namespace Metasound
 
 				return SNew(SDockTab)
 					.Icon(FEditorStyle::GetBrush("Kismet.Tabs.Palette"))
-					.Label(LOCTEXT("MetasoundPaletteTitle", "Palette"))
+					.Label(LOCTEXT("MetaSoundPaletteTitle", "Palette"))
 					[
 						Palette.ToSharedRef()
 					];

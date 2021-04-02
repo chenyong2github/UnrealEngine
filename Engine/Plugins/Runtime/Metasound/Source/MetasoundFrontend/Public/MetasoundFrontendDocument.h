@@ -682,7 +682,7 @@ struct FMetasoundFrontendArchetypeInterface
 };
 
 // This is used to describe the required inputs and outputs for a metasound, and is used to make sure we can use a metasound graph for specific applications.
-// For example, a UMetasoundSource needs to generate audio, so its RequiredOutputs will contain "MainAudioOutput"
+// For example, a UMetaSoundSource needs to generate audio, so its RequiredOutputs will contain "MainAudioOutput"
 USTRUCT()
 struct FMetasoundFrontendArchetype
 {

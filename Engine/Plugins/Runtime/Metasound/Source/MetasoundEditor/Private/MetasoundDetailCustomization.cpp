@@ -77,7 +77,7 @@ namespace Metasound
 			{
 				case EMetasoundActiveDetailView::Metasound:
 				{
-					IDetailCategoryBuilder& GeneralCategoryBuilder = DetailLayout.EditCategory("Metasound");
+					IDetailCategoryBuilder& GeneralCategoryBuilder = DetailLayout.EditCategory("MetaSound");
 					const FName AuthorPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Author));
 					const FName DescPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Description));
 					const FName VersionPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Version));
@@ -106,7 +106,7 @@ namespace Metasound
 
 				case EMetasoundActiveDetailView::General:
 				default:
-					DetailLayout.HideCategory("Metasound");
+					DetailLayout.HideCategory("MetaSound");
 
 					const bool bShouldBeInitiallyCollapsed = true;
 					IDetailCategoryBuilder& SoundCategory = DetailLayout.EditCategory("Sound");

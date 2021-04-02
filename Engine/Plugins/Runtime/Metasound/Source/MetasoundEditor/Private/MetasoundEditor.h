@@ -36,7 +36,7 @@ class IDetailsView;
 class IToolkitHost;
 class SVerticalBox;
 class UEdGraphNode;
-class UMetasound;
+class UMetaSound;
 class UMetasoundEditorGraph;
 
 struct FGraphActionNode;

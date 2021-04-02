@@ -24,7 +24,7 @@ struct FPropertyChangedEvent;
  * Because of this, they can have any inputs or outputs they need.
  */
 UCLASS(hidecategories = object, BlueprintType)
-class METASOUNDENGINE_API UMetasound : public UObject, public FMetasoundAssetBase
+class METASOUNDENGINE_API UMetaSound : public UObject, public FMetasoundAssetBase
 {
 	GENERATED_BODY()
 
@@ -44,19 +44,19 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 
 public:
-	UMetasound(const FObjectInitializer& ObjectInitializer);
+	UMetaSound(const FObjectInitializer& ObjectInitializer);
 
 #if WITH_EDITORONLY_DATA
 	// Returns document name (for editor purposes, and avoids making document public for edit
 	// while allowing editor to reference directly)
 	static FName GetDocumentPropertyName()
 	{
-		return GET_MEMBER_NAME_CHECKED(UMetasound, MetasoundDocument);
+		return GET_MEMBER_NAME_CHECKED(UMetaSound, MetasoundDocument);
 	}
 
 	// Returns the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.
-	// @return Editor graph associated with UMetasound.
+	// @return Editor graph associated with UMetaSound.
 	virtual UEdGraph* GetGraph() override;
 	virtual const UEdGraph* GetGraph() const override;
 	virtual UEdGraph& GetGraphChecked() override;
@@ -64,7 +64,7 @@ public:
 
 	// Sets the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.
-	// @param Editor graph associated with UMetasound.
+	// @param Editor graph associated with UMetaSound.
 	virtual void SetGraph(UEdGraph* InGraph) override;
 #endif // WITH_EDITORONLY_DATA
 

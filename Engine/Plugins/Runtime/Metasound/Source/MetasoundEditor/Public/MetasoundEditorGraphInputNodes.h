@@ -23,7 +23,7 @@
 
 // Forward Declarations
 class UEdGraphPin;
-class UMetasound;
+class UMetaSound;
 
 namespace Metasound
 {

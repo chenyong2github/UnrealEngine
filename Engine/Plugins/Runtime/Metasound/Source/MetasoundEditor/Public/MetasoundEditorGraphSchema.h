@@ -19,7 +19,7 @@
 // Forward Declarations
 class UEdGraph;
 class UEdGraphNode;
-class UMetasound;
+class UMetaSound;
 class UMetasoundEditorGraphNode;
 
 

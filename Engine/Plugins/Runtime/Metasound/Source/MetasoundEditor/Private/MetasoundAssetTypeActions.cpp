@@ -15,12 +15,12 @@ namespace Metasound
 	{
 		static const TArray<FText> AssetTypeActionSubMenu
 		{
-			LOCTEXT("AssetMetasoundSubMenu", "Metasound")
+			LOCTEXT("AssetMetaSoundSubMenu", "MetaSound")
 		};
 
 		UClass* FAssetTypeActions_Metasound::GetSupportedClass() const
 		{
-			return UMetasound::StaticClass();
+			return UMetaSound::StaticClass();
 		}
 
 		const TArray<FText>& FAssetTypeActions_Metasound::GetSubMenus() const
@@ -34,7 +34,7 @@ namespace Metasound
 
 			for (UObject* Object : InObjects)
 			{
-				if (UMetasound* Metasound = Cast<UMetasound>(Object))
+				if (UMetaSound* Metasound = Cast<UMetaSound>(Object))
 				{
 					TSharedRef<FEditor> NewEditor = MakeShared<FEditor>();
 					NewEditor->InitMetasoundEditor(Mode, ToolkitHost, Metasound);
@@ -44,7 +44,7 @@ namespace Metasound
 
 		UClass* FAssetTypeActions_MetasoundSource::GetSupportedClass() const
 		{
-			return UMetasoundSource::StaticClass();
+			return UMetaSoundSource::StaticClass();
 		}
 
 		void FAssetTypeActions_MetasoundSource::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost)
@@ -53,7 +53,7 @@ namespace Metasound
 
 			for (UObject* Object : InObjects)
 			{
-				if (UMetasoundSource* Metasound = Cast<UMetasoundSource>(Object))
+				if (UMetaSoundSource* Metasound = Cast<UMetaSoundSource>(Object))
 				{
 					TSharedRef<FEditor> NewEditor = MakeShared<FEditor>();
 					NewEditor->InitMetasoundEditor(Mode, ToolkitHost, Metasound);
