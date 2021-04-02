@@ -79,6 +79,8 @@ public:
 	UObject& GetMetasoundChecked();
 	const UObject& GetMetasoundChecked() const;
 
+	void UpdatePosition();
+
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
 	Metasound::Frontend::FConstGraphHandle GetConstRootGraphHandle() const;
 	Metasound::Frontend::FNodeHandle GetNodeHandle() const;

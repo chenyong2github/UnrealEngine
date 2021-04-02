@@ -171,8 +171,6 @@ namespace Metasound
 			void RedoGraphAction();
 
 		private:
-			static Frontend::FGraphHandle InitMetasound(UObject& InMetasound);
-
 			/** FNotifyHook interface */
 			virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 

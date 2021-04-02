@@ -247,23 +247,6 @@ namespace Metasound
 			GEditor->UnregisterForUndo(this);
 		}
 
-		Frontend::FGraphHandle FEditor::InitMetasound(UObject& InMetasound)
-		{
-			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
-			check(MetasoundAsset);
-
-			if (!MetasoundAsset->GetGraph())
-			{
-				UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(&InMetasound);
-				Graph->ParentMetasound = &InMetasound;
-				Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
-				MetasoundAsset->SetGraph(Graph);
-				FGraphBuilder::ConstructGraph(InMetasound);
-			}
-
-			return MetasoundAsset->GetRootGraphHandle();
-		}
-
 		void FEditor::InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
 		{
 			check(ObjectToEdit);
@@ -273,7 +256,6 @@ namespace Metasound
 			ObjectToEdit->SetFlags(RF_Transactional);
 
 			Metasound = ObjectToEdit;
-			InitMetasound(*Metasound);
 
 			GEditor->RegisterForUndo(this);
 
@@ -978,7 +960,7 @@ namespace Metasound
 
 				GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
 					FExecuteAction::CreateLambda([this] { CopySelectedNodes(); PasteNodes(); }),
-					FCanExecuteAction::CreateLambda([this]() { return CanCopyNodes(); }));
+					FCanExecuteAction::CreateLambda([this]() { return CanCopyNodes() && CanPasteNodes(); }));
 
 				// Alignment Commands
 				GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
@@ -1162,7 +1144,9 @@ namespace Metasound
 
 				if (!Actions.IsEmpty())
 				{
-					const FScopedTransaction Transaction(TEXT(""), LOCTEXT("MetasoundEditorDeleteSelectedNode", "Delete Metasound Variable"), Metasound);
+					check(Metasound);
+					const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorDeleteSelectedNode", "Delete Metasound Variable"));
+					Metasound->Modify();
 
 					UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetasoundGraphEditor->GetCurrentGraph());
 					Graph->Modify();
@@ -1212,33 +1196,25 @@ namespace Metasound
 		{
 			using namespace Metasound::Frontend;
 
-			const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorDeleteSelectedNode", "Delete Selected Metasound Node(s)"));
-
-			UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetasoundGraphEditor->GetCurrentGraph());
-
 			const FGraphPanelSelectionSet SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
 			MetasoundGraphEditor->ClearSelectionSet();
 
-			bool bModified = false;
+			const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorDeleteSelectedNode", "Delete Selected Metasound Node(s)"));
+			check(Metasound);
+			Metasound->Modify();
+			UEdGraph* Graph = MetasoundGraphEditor->GetCurrentGraph();
+			check(Graph);
+			Graph->Modify();
 			for (UObject* NodeObj : SelectedNodes)
 			{
 				// Some nodes may not be metasound nodes (ex. comments and perhaps aliases eventually), but can be safely deleted.
 				if (UEdGraphNode* Node = Cast<UEdGraphNode>(NodeObj))
 				{
-					if (FGraphBuilder::DeleteNode(*Node))
-					{
-						bModified = true;
-					}
-					else
+					if (!FGraphBuilder::DeleteNode(*Node))
 					{
 						MetasoundGraphEditor->SetNodeSelection(Node, true /* bSelect */);
 					}
 				}
-			}
-
-			if (bModified)
-			{
-				Graph->Modify();
 			}
 		}
 
@@ -1360,6 +1336,7 @@ namespace Metasound
 			}
 
 			const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorPaste", "Paste Metasound Node(s)"));
+			Metasound->Modify();
 			Graph->Modify();
 
 			// Clear the selection set (newly pasted stuff will be selected)
@@ -1386,14 +1363,14 @@ namespace Metasound
 				}
 				else if (UMetasoundEditorGraphInputNode* InputNode = Cast<UMetasoundEditorGraphInputNode>(GraphNode))
 				{
-					if (!MetasoundGraph->Inputs.Contains(InputNode->Input))
+					if (!MetasoundGraph->ContainsInput(InputNode->Input))
 					{
 						NodesToRemove.Add(GraphNode);
 					}
 				}
 				else if (UMetasoundEditorGraphOutputNode* OutputNode = Cast<UMetasoundEditorGraphOutputNode>(GraphNode))
 				{
-					if (!MetasoundGraph->Outputs.Contains(OutputNode->Output))
+					if (!MetasoundGraph->ContainsOutput(OutputNode->Output))
 					{
 						NodesToRemove.Add(GraphNode);
 					}

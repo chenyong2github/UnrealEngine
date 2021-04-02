@@ -224,6 +224,8 @@ void UMetasoundEditorGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 
 	if (Pin && Pin->Direction == EGPD_Input)
 	{
+		GetMetasoundChecked().Modify();
+
 		FNodeHandle NodeHandle = GetNodeHandle();
 		IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
 		FGraphBuilder::AddOrUpdateLiteralInput(GetMetasoundChecked(), NodeHandle, *Pin);
@@ -244,10 +246,7 @@ void UMetasoundEditorGraphNode::PostEditChangeProperty(FPropertyChangedEvent& In
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodePosX)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodePosY))
 	{
-		Metasound::Frontend::FNodeHandle NodeHandle = GetNodeHandle();
-		FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
-		Style.Display.Locations.FindOrAdd(NodeGuid) = FVector2D(NodePosX, NodePosY);
-		GetNodeHandle()->SetNodeStyle(Style);
+		UpdatePosition();
 	}
 
 	Super::PostEditChangeProperty(InEvent);
@@ -279,6 +278,16 @@ void UMetasoundEditorGraphNode::PostEditUndo()
 			Metasound::Editor::FGraphBuilder::AddOrUpdateLiteralInput(Metasound, NodeHandle, *Pin);
 		}
 	}
+}
+
+void UMetasoundEditorGraphNode::UpdatePosition()
+{
+	GetMetasoundChecked().Modify();
+
+	Metasound::Frontend::FNodeHandle NodeHandle = GetNodeHandle();
+	FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
+	Style.Display.Locations.FindOrAdd(NodeGuid) = FVector2D(NodePosX, NodePosY);
+	GetNodeHandle()->SetNodeStyle(Style);
 }
 
 void UMetasoundEditorGraphNode::PostDuplicate(bool bDuplicateForPIE)

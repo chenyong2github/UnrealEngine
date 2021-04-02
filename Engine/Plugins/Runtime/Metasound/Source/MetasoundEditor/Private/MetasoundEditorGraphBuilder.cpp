@@ -60,8 +60,6 @@ namespace Metasound
 						GraphHandle->RemoveNode(*InNodeHandle);
 					}
 				}
-
-				InMetasound.MarkPackageDirty();
 			}
 		}
 
@@ -130,9 +128,6 @@ namespace Metasound
 			NewGraphNode->SetNodeID(InNodeHandle->GetID());
 
 			RebuildNodePins(*NewGraphNode);
-
-			InMetasound.PostEditChange();
-			InMetasound.MarkPackageDirty();
 		}
 
 		Frontend::FNodeHandle FGraphBuilder::AddExternalNodeHandle(UObject& InMetasound, const Frontend::FNodeClassInfo& InClassInfo)
@@ -359,6 +354,16 @@ namespace Metasound
 			return nullptr;
 		}
 
+		bool FGraphBuilder::IsLiteralInput(Frontend::FNodeHandle InNodeHandle)
+		{
+			if (InNodeHandle->GetClassType() == EMetasoundFrontendClassType::Input)
+			{
+				return InNodeHandle->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden;
+			}
+
+			return false;
+		}
+
 		void FGraphBuilder::AddOrUpdateLiteralInput(UObject& InMetasound, Frontend::FNodeHandle InNodeHandle, UEdGraphPin& InInputPin, bool bForcePinValueAsDefault)
 		{
 			using namespace Frontend;
@@ -406,8 +411,7 @@ namespace Metasound
 			else
 			{
 				FNodeHandle InputNode = OutputHandle->GetOwningNode();
-				const FMetasoundFrontendNodeStyle& Style = InputNode->GetNodeStyle();
-				if (InputNode->IsValid() && Style.Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+				if (IsLiteralInput(InputNode))
 				{
 					Frontend::FGraphHandle GraphHandle = InputNode->GetOwningGraph();
 					const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(InputNode->GetNodeName());
@@ -716,8 +720,7 @@ namespace Metasound
 			if (ExistingOutput->IsValid())
 			{
 				FNodeHandle NodeHandle = ExistingOutput->GetOwningNode();
-				const FMetasoundFrontendNodeStyle& NodeStyle = NodeHandle->GetNodeStyle();
-				if (NodeHandle->IsValid() && NodeStyle.Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+				if (IsLiteralInput(NodeHandle))
 				{
 					if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(InInputPin.GetOwningNode()->GetGraph()))
 					{
@@ -915,7 +918,7 @@ namespace Metasound
 				if (Output->IsValid())
 				{
 					FNodeHandle InputHandle = Output->GetOwningNode();
-					if (InputHandle->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+					if (IsLiteralInput(InputHandle))
 					{
 						FGraphHandle Graph = InputHandle->GetOwningGraph();
 						Graph->RemoveNode(*InputHandle);
@@ -1003,10 +1006,11 @@ namespace Metasound
 		{
 			using namespace Frontend;
 		
+			DeleteLiteralInputs(InGraphNode);
+
 			FNodeHandle NodeHandle = InGraphNode.GetNodeHandle();
 			for (int32 i = InGraphNode.Pins.Num() - 1; i >= 0; i--)
 			{
-				DeleteLiteralInputs(InGraphNode);
 				InGraphNode.RemovePin(InGraphNode.Pins[i]);
 			}
 
@@ -1064,15 +1068,13 @@ namespace Metasound
 			using namespace Frontend;
 
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
-			FEdGraphPinType PinType("MetasoundNode", NAME_None, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
-			UEdGraphPin* NewPin = InEditorNode.CreatePin(EGPD_Input, PinType, FName(*InInputHandle->GetName()));
+			const FEdGraphPinType PinType = EditorModule.FindDataType(InInputHandle->GetDataType()).PinType;
 
+			UEdGraphPin* NewPin = InEditorNode.CreatePin(EGPD_Input, PinType, FName(*InInputHandle->GetName()));
 			if (ensure(NewPin))
 			{
 				NewPin->PinToolTip = InInputHandle->GetTooltip().ToString();
-				NewPin->PinType = EditorModule.FindDataType(InInputHandle->GetDataType()).PinType;
 				NewPin->bAdvancedView = InInputHandle->GetMetadata().bIsAdvancedDisplay;
-
 				if (NewPin->bAdvancedView)
 				{
 					if (InEditorNode.AdvancedPinDisplay == ENodeAdvancedPins::NoPins)
@@ -1092,15 +1094,13 @@ namespace Metasound
 		UEdGraphPin* FGraphBuilder::AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FOutputHandle InOutputHandle)
 		{
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
-			FEdGraphPinType PinType("MetasoundNode", NAME_None, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
-			UEdGraphPin* NewPin = InEditorNode.CreatePin(EGPD_Output, PinType, FName(*InOutputHandle->GetName()));
+			FEdGraphPinType	PinType = EditorModule.FindDataType(InOutputHandle->GetDataType()).PinType;
 
+			UEdGraphPin* NewPin = InEditorNode.CreatePin(EGPD_Output, PinType, FName(*InOutputHandle->GetName()));
 			if (ensure(NewPin))
 			{
 				NewPin->PinToolTip = InOutputHandle->GetTooltip().ToString();
-				NewPin->PinType = EditorModule.FindDataType(InOutputHandle->GetDataType()).PinType;
 				NewPin->bAdvancedView = InOutputHandle->GetMetadata().bIsAdvancedDisplay;
-
 				if (NewPin->bAdvancedView)
 				{
 					if (InEditorNode.AdvancedPinDisplay == ENodeAdvancedPins::NoPins)
@@ -1238,8 +1238,8 @@ namespace Metasound
 						if (bIsConnectedToLiteralInput)
 						{
 							FNodeHandle InputNode = OutputHandle->GetOwningNode();
-							const FMetasoundFrontendNodeStyle& Style = InputNode->GetNodeStyle();
-							const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(InputNode->GetNodeName());
+							const FString& InputName = InputNode->GetNodeName();
+							const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(InputName);
 							const FMetasoundFrontendLiteral DefaultLiteral = GraphHandle->GetDefaultInput(VertexID);
 							const FString DefaultLiteralString = DefaultLiteral.ToString();
 							if (MatchingPin->DefaultValue != DefaultLiteralString)
@@ -1344,39 +1344,47 @@ namespace Metasound
 			// Add missing editor nodes marked as visible.
 			for (FNodeHandle Node : FrontendNodes)
 			{
-				FMetasoundFrontendNodeStyle Style = Node->GetNodeStyle();
-				if (Style.Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Visible)
+				const FMetasoundFrontendNodeStyle& CurrentStyle = Node->GetNodeStyle();
+				if (CurrentStyle.Display.Locations.IsEmpty())
 				{
-					bIsEditorGraphDirty = true;
-
-					TArray<UMetasoundEditorGraphNode*> AddedNodes;
-					for (const TPair<FGuid, FVector2D>& Location : Style.Display.Locations)
-					{
-						UMetasoundEditorGraphNode* NewNode = AddNode(InMetasound, Node, Location.Value, false /* bInSelectNewNode */);
-						if (ensure(NewNode))
-						{
-							FAssociatedNodes& AssociatedNodeData = AssociatedNodes.FindOrAdd(Node->GetID());
-							if (AssociatedNodeData.Node->IsValid())
-							{
-								ensure(AssociatedNodeData.Node == Node);
-							}
-							else
-							{
-								AssociatedNodeData.Node = Node;
-							}
-
-							AddedNodes.Add(NewNode);
-							AssociatedNodeData.EditorNodes.Add(NewNode);
-						}
-					}
-
-					Style.Display.Locations.Reset();
-					for (UMetasoundEditorGraphNode* EditorNode : AddedNodes)
-					{
-						Style.Display.Locations.Add(EditorNode->NodeGuid, FVector2D(EditorNode->NodePosX, EditorNode->NodePosY));
-					}
-					Node->SetNodeStyle(Style);
+					continue;
 				}
+
+				FMetasoundFrontendNodeStyle NewStyle = CurrentStyle;
+				if (NewStyle.Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+				{
+					continue;
+				}
+
+				bIsEditorGraphDirty = true;
+
+				TArray<UMetasoundEditorGraphNode*> AddedNodes;
+				for (const TPair<FGuid, FVector2D>& Location : NewStyle.Display.Locations)
+				{
+					UMetasoundEditorGraphNode* NewNode = AddNode(InMetasound, Node, Location.Value, false /* bInSelectNewNode */);
+					if (ensure(NewNode))
+					{
+						FAssociatedNodes& AssociatedNodeData = AssociatedNodes.FindOrAdd(Node->GetID());
+						if (AssociatedNodeData.Node->IsValid())
+						{
+							ensure(AssociatedNodeData.Node == Node);
+						}
+						else
+						{
+							AssociatedNodeData.Node = Node;
+						}
+
+						AddedNodes.Add(NewNode);
+						AssociatedNodeData.EditorNodes.Add(NewNode);
+					}
+				}
+
+				NewStyle.Display.Locations.Reset();
+				for (UMetasoundEditorGraphNode* EditorNode : AddedNodes)
+				{
+					NewStyle.Display.Locations.Add(EditorNode->NodeGuid, FVector2D(EditorNode->NodePosX, EditorNode->NodePosY));
+				}
+				Node->SetNodeStyle(NewStyle);
 			}
 
 			// Synchronize pins on node associations.
@@ -1489,11 +1497,6 @@ namespace Metasound
 					AddPinToNode(InEditorNode, OutputHandle);
 				}
 			}
-			
-			if (bIsNodeDirty)
-			{
-				InEditorNode.MarkPackageDirty();
-			}
 
 			return bIsNodeDirty;
 		}
@@ -1516,6 +1519,12 @@ namespace Metasound
 			FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 			GraphHandle->IterateNodes([&](FNodeHandle NodeHandle)
 			{
+				// Literal Inputs are not described on EdGraph side
+				if (IsLiteralInput(NodeHandle))
+				{
+					return;
+				}
+
 				if (UMetasoundEditorGraphInput* Input = Graph->FindInput(NodeHandle->GetID()))
 				{
 					Inputs.Add(Input);

@@ -74,6 +74,10 @@ public:
 	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	virtual void PostEditUndo() override;
+#endif // WITH_EDITORONLY_DATA
 };
 
 UCLASS()
@@ -89,19 +93,14 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = DefaultValue)
 	UMetasoundEditorGraphInputLiteral* Literal;
 
-	void UpdateDocumentInput() const;
+	void UpdateDocumentInput(bool bPostTransaction = true);
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const;
 
 	void OnDataTypeChanged() override;
-	void OnLiteralChanged();
+	void OnLiteralChanged(bool bPostTransaction = true);
 
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditUndo() override
-	{
-		Super::PostEditUndo();
-
-		UpdateDocumentInput();
-	}
+	virtual void PostEditUndo() override;
 #endif // WITH_EDITORONLY_DATA
 };
 
@@ -127,6 +126,9 @@ public:
 
 	void IterateInputs(TUniqueFunction<void(UMetasoundEditorGraphInput&)> InFunction) const;
 	void IterateOutputs(TUniqueFunction<void(UMetasoundEditorGraphOutput&)> InFunction) const;
+
+	bool ContainsInput(UMetasoundEditorGraphInput* InInput) const;
+	bool ContainsOutput(UMetasoundEditorGraphOutput* InOutput) const;
 
 	virtual void Synchronize();
 
@@ -162,5 +164,7 @@ public:
 
 	TUniquePtr<IAudioInstanceTransmitter> Transmitter;
 
-	friend class Metasound::Editor::FEditor;
+// 	friend class Metasound::Editor::FEditor;
+	friend class UMetasoundFactory;
+	friend class UMetasoundSourceFactory;
 };

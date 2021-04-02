@@ -133,7 +133,7 @@ EReimportResult::Type UReimportSoundFactory::Reimport(UObject* Obj)
 	SoundWave->FreeResources();
 	SoundWave->UpdatePlatformData();
 	SoundWave->MarkPackageDirty();
-	SoundWave->bNeedsThumbnailGeneration = true;
+	SoundWave->SetRedrawThumbnail(true);
 
 	return EReimportResult::Succeeded;
 }

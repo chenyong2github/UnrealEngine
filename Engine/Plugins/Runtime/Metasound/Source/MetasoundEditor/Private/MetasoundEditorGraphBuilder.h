@@ -121,6 +121,9 @@ namespace Metasound
 			static Frontend::FOutputHandle GetOutputHandleFromPin(const UEdGraphPin* InPin);
 			static Frontend::FConstOutputHandle GetConstOutputHandleFromPin(const UEdGraphPin* InPin);
 
+			// Returns whether or not the given handle refers to a literal input
+			static bool IsLiteralInput(Frontend::FNodeHandle InNodeHandle);
+
 			// Adds or updates a hidden input that is set to the default literal value.  If the literal input is added, value defaults to
 			// 1. what is set on the input vertex of the node's inputer vertex interface, and if not defined there,
 			// 2. the pin's DataType literal default.

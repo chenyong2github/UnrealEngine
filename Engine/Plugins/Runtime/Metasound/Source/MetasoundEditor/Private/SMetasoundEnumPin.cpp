@@ -82,9 +82,6 @@ void SMetasoundEnumPin::ComboBoxSelectionChanged(TSharedPtr<int32> NewSelection,
 		FString EnumValueString = FString::FromInt(EnumValue);
 		if (GraphPinObj->GetDefaultAsString() != EnumValueString)
 		{
-			const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangeEnumPinValue", "Change Enum Pin Value"));
-			GraphPinObj->Modify();
-
 			//Set new selection
 			GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, EnumValueString);
 		}

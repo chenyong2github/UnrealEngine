@@ -167,11 +167,13 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 	using namespace Metasound::Frontend;
 
 	const FScopedTransaction Transaction(LOCTEXT("AddNewNode", "Add New Metasound Node"));
+	UObject& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
+	ParentMetasound.Modify();
 	ParentGraph->Modify();
 
-	UObject& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
 	if (UMetasoundEditorGraphExternalNode* NewGraphNode = FGraphBuilder::AddExternalNode(ParentMetasound, NodeClassInfo, Location, bSelectNewNode))
 	{
+		NewGraphNode->Modify();
 		SchemaPrivate::TryConnectNewNodeToPin(*NewGraphNode, FromPin);
 		return NewGraphNode;
 	}
@@ -190,26 +192,30 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
-	const FScopedTransaction Transaction(LOCTEXT("AddNewInputNode", "Add New Metasound Input Node"));
 
 	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(ParentGraph);
 	UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
-	ParentMetasound.Modify();
 
 	UMetasoundEditorGraphInput* Input = MetasoundGraph->FindInput(NodeID);
 	if (!ensure(Input))
 	{
 		return nullptr;
 	}
-	
+
 	FNodeHandle NodeHandle = Input->GetNodeHandle();
 	if (!ensure(NodeHandle->IsValid()))
 	{
 		return nullptr;
 	}
 
+	const FScopedTransaction Transaction(LOCTEXT("AddNewInputNode", "Add New Metasound Input Node"));
+	ParentMetasound.Modify();
+	MetasoundGraph->Modify();
+	Input->Modify();
+
 	if (UMetasoundEditorGraphInputNode* NewGraphNode = FGraphBuilder::AddInputNode(ParentMetasound, NodeHandle, InLocation))
 	{
+		NewGraphNode->Modify();
 		UEdGraphNode* EdGraphNode = CastChecked<UEdGraphNode>(NewGraphNode);
 		SchemaPrivate::TryConnectNewNodeToPin(*EdGraphNode, FromPin);
 		return EdGraphNode;
@@ -235,10 +241,9 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 	}
 
 	const FScopedTransaction Transaction(LOCTEXT("PromoteNodeInputToGraphInput", "Promote Metasound Node Input to Graph Input"));
-	ParentGraph->Modify();
-
 	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(ParentGraph);
 	UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
+	ParentMetasound.Modify();
 
 	const FText& InputName = InputHandle->GetOwningNode()->GetDisplayName();
 	const FText& InputNodeName = InputHandle->GetDisplayName();
@@ -286,12 +291,8 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
-	const FScopedTransaction Transaction(LOCTEXT("AddNewOutputNode", "Add New Metasound Output Node"));
-	ParentGraph->Modify();
-
 	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(ParentGraph);
 	UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
-	ParentMetasound.Modify();
 
 	UMetasoundEditorGraphOutput* Output = MetasoundGraph->FindOutput(NodeID);
 	if (!ensure(Output))
@@ -304,6 +305,10 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 	{
 		return nullptr;
 	}
+
+	const FScopedTransaction Transaction(LOCTEXT("AddNewOutputNode", "Add New Metasound Output Node"));
+	ParentMetasound.Modify();
+	ParentGraph->Modify();
 
 	if (UMetasoundEditorGraphOutputNode* NewGraphNode = FGraphBuilder::AddOutputNode(ParentMetasound, NodeHandle, Location, bSelectNewNode))
 	{
@@ -323,6 +328,9 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewFromSelected::PerformAction(UEdGrap
 UEdGraphNode* FMetasoundGraphSchemaAction_NewComment::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
 {
 	using namespace Metasound::Editor;
+
+	const FScopedTransaction Transaction(LOCTEXT("AddNewOutputNode", "Add Comment to Metasound Graph"));
+	ParentGraph->Modify();
 
 	UEdGraphNode_Comment* CommentTemplate = NewObject<UEdGraphNode_Comment>();
 
@@ -582,10 +590,8 @@ bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGrap
 	// so that transaction stack observes Frontend changes last if rolled back (i.e. undone).  UEdGraphSchema::TryCreateConnection
 	// intrinsically marks the respective pin EdGraphNodes as modified.
 	UEdGraphNode* PinANode = PinA->GetOwningNode();
-	if (UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(PinANode->GetGraph()))
-	{
-		Graph->GetMetasoundChecked().Modify();
-	}
+	UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(PinANode->GetGraph());
+	Graph->GetMetasoundChecked().Modify();
 
 	// This call to parent takes care of marking respective nodes for modification.
 	if (!UEdGraphSchema::TryCreateConnection(PinA, PinB))
@@ -664,15 +670,19 @@ FLinearColor UMetasoundEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType&
 
 void UMetasoundEditorGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode) const
 {
+	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
 	const FScopedTransaction Transaction(LOCTEXT("BreakNodeLinks", "Break Node Links"));
+	UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(TargetNode.GetGraph());
+	Graph->GetMetasoundChecked().Modify();
 	TargetNode.Modify();
 
 	TArray<UEdGraphPin*> Pins = TargetNode.GetAllPins();
 	for (UEdGraphPin* Pin : Pins)
 	{
-		BreakPinLinks(*Pin, false);
+		FGraphBuilder::DisconnectPin(*Pin);
+		Super::BreakPinLinks(*Pin, false /* bSendsNodeNotifcation */);
 	}
 	Super::BreakNodeLinks(TargetNode);
 }
@@ -683,10 +693,11 @@ void UMetasoundEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSe
 	using namespace Metasound::Frontend;
 
 	const FScopedTransaction Transaction(LOCTEXT("BreakPinLinks", "Break Pin Links"));
-	TargetPin.GetOwningNode()->Modify();
+	UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(TargetPin.GetOwningNode()->GetGraph());
+	Graph->GetMetasoundChecked().Modify();
+	TargetPin.Modify();
 
 	FGraphBuilder::DisconnectPin(TargetPin);
-
 	Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);
 }
 

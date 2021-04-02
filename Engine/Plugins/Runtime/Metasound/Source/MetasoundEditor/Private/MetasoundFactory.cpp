@@ -3,9 +3,47 @@
 
 #include "Kismet/KismetSystemLibrary.h"
 #include "Metasound.h"
-#include "MetasoundSource.h"
-#include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorGraphNode.h"
+#include "MetasoundEditorGraphSchema.h"
+#include "MetasoundSource.h"
+#include "MetasoundUObjectRegistry.h"
+
+
+namespace Metasound
+{
+	namespace Editor
+	{
+		namespace FactoryPrivate
+		{
+			UObject* InitMetasound(UMetasoundSource* MetasoundSource, EObjectFlags Flags)
+			{
+				FMetasoundFrontendClassMetadata Metadata;
+
+				Metadata.ClassName = FMetasoundFrontendClassName(FName(), *MetasoundSource->GetName(), FName());
+				Metadata.Version.Major = 1;
+				Metadata.Version.Minor = 0;
+				Metadata.Type = EMetasoundFrontendClassType::Graph;
+				Metadata.Author = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
+
+				MetasoundSource->SetMetadata(Metadata);
+				MetasoundSource->ConformDocumentToMetasoundArchetype();
+
+				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetasoundSource);
+				check(MetasoundAsset);
+				check(!MetasoundAsset->GetGraph());
+
+				UObject* MetasoundObject = CastChecked<UObject>(MetasoundSource);
+
+				UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(MetasoundSource, FName(), Flags);
+				Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
+				MetasoundAsset->SetGraph(Graph);
+
+				return MetasoundSource;
+			}
+		} // namespace FactoryPrivate
+	} // namespace Editor
+} // namespace Metasound
 
 // TODO: Re-enable and potentially rename once composition is supported
 // UMetasoundFactory::UMetasoundFactory(const FObjectInitializer& ObjectInitializer)
@@ -20,21 +58,13 @@
 // 
 // UObject* UMetasoundFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName Name, EObjectFlags Flags, UObject* InContext, FFeedbackContext* InFeedbackContext)
 // {
-// 	UMetasound* NewMetasound = NewObject<UMetasound>(InParent, Name, Flags);
+// 	UMetasound* Metasound = NewObject<UMetasound>(InParent, Name, Flags);
+//	Metasound::Editor::FactoryPrivate::InitMetasound(Metasound, Flags);
 // 
-// 	FMetasoundFrontendClassMetadata Metadata;
+//	CastChecked<UMetasoundEditorGraph>(&Metasound->GetGraphChecked())->ParentMetasound = MetasoundSource;
 // 
-// 	Metadata.ClassName = FMetasoundFrontendClassName{TEXT(""), *NewMetasound->GetName(), TEXT("")};
-// 	Metadata.Version.Major = 1;
-// 	Metadata.Version.Minor = 0;
-// 	Metadata.Type = EMetasoundFrontendClassType::Graph;
-// 	Metadata.Author = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
-// 
-// 	NewMetasound->SetMetadata(Metadata);
-// 
-// 	NewMetasound->ConformDocumentToMetasoundArchetype();
-// 
-// 	return NewMetasound;
+//	FGraphBuilder::ConstructGraph(*Metasound);
+//	FGraphBuilder::SynchronizeGraph(*Metasound);
 // }
 
 UMetasoundSourceFactory::UMetasoundSourceFactory(const FObjectInitializer& ObjectInitializer)
@@ -49,20 +79,17 @@ UMetasoundSourceFactory::UMetasoundSourceFactory(const FObjectInitializer& Objec
 
 UObject* UMetasoundSourceFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName Name, EObjectFlags Flags, UObject* InContext, FFeedbackContext* InFeedbackContext)
 {
+	using namespace Metasound;
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
 	UMetasoundSource* MetasoundSource = NewObject<UMetasoundSource>(InParent, Name, Flags);
+	Metasound::Editor::FactoryPrivate::InitMetasound(MetasoundSource, Flags);
 
-	FMetasoundFrontendClassMetadata Metadata;
+	CastChecked<UMetasoundEditorGraph>(&MetasoundSource->GetGraphChecked())->ParentMetasound = MetasoundSource;
 
-	Metadata.ClassName = FMetasoundFrontendClassName{TEXT(""), *MetasoundSource->GetName(), TEXT("")};
-	Metadata.Version.Major = 1;
-	Metadata.Version.Minor = 0;
-	Metadata.Type = EMetasoundFrontendClassType::Graph;
-	Metadata.Author = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
-
-	MetasoundSource->SetMetadata(Metadata);
-
-	MetasoundSource->ConformDocumentToMetasoundArchetype();
+	FGraphBuilder::ConstructGraph(*MetasoundSource);
+	FGraphBuilder::SynchronizeGraph(*MetasoundSource);
 
 	return MetasoundSource;
 }
-

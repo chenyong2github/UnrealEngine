@@ -45,6 +45,7 @@ void UMetasoundEditorGraphVariable::SetDataType(FName InNewType)
 	}
 
 	const FScopedTransaction Transaction(LOCTEXT("SetVariableDataType", "Set Metasound Variable Type"));
+	Graph->GetMetasoundChecked().Modify();
 	Graph->Modify();
 
 	// 1. Cache current editor input node reference positions & delete nodes.
@@ -115,13 +116,26 @@ Metasound::Frontend::FConstNodeHandle UMetasoundEditorGraphVariable::GetConstNod
 	return GetNodeHandle();
 }
 
-void UMetasoundEditorGraphInput::UpdateDocumentInput() const
+#if WITH_EDITORONLY_DATA
+void UMetasoundEditorGraphInputLiteral::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GetOuter()))
+	{
+		Input->OnLiteralChanged(false /* bPostTransaction */);
+	}
+}
+#endif // WITH_EDITORONLY_DATA
+
+void UMetasoundEditorGraphInput::UpdateDocumentInput(bool bPostTransaction)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	UObject* Object = CastChecked<UMetasoundEditorGraph>(GetOuter())->GetMetasound();
-	if (!ensure(Object))
+	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(GetOuter());
+	UObject* Metasound = MetasoundGraph->GetMetasound();
+	if (!ensure(Metasound))
 	{
 		return;
 	}
@@ -131,7 +145,10 @@ void UMetasoundEditorGraphInput::UpdateDocumentInput() const
 		return;
 	}
 
-	FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
+	const FScopedTransaction Transaction(LOCTEXT("Set Input Default", "Set Metasound Input Default"), bPostTransaction);
+	Metasound->Modify();
+
+	FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 	check(MetasoundAsset);
 
 	FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
@@ -167,9 +184,27 @@ Metasound::Frontend::FNodeHandle UMetasoundEditorGraphInput::AddNodeHandle(const
 	return NewNodeHandle;
 }
 
-void UMetasoundEditorGraphInput::OnLiteralChanged()
+#if WITH_EDITORONLY_DATA
+void UMetasoundEditorGraphInput::PostEditUndo()
 {
-	UpdateDocumentInput();
+	Super::PostEditUndo();
+
+	if (!Literal)
+	{
+		if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(GetOuter()))
+		{
+			MetasoundGraph->RemoveVariable(*CastChecked<UMetasoundEditorGraphVariable>(this));
+		}
+		return;
+	}
+
+	OnLiteralChanged(false /* bPostTransaction */);
+}
+#endif // WITH_EDITORONLY_DATA
+
+void UMetasoundEditorGraphInput::OnLiteralChanged(bool bPostTransaction)
+{
+	UpdateDocumentInput(bPostTransaction);
 
 	if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(GetOuter()))
 	{
@@ -199,7 +234,7 @@ void UMetasoundEditorGraphInput::OnDataTypeChanged()
 	{
 		InputLiteralClass = UMetasoundEditorGraphInputLiteral::StaticClass();
 	}
-	Literal = NewObject<UMetasoundEditorGraphInputLiteral>(this, InputLiteralClass);
+	Literal = NewObject<UMetasoundEditorGraphInputLiteral>(this, InputLiteralClass, FName(), RF_Transactional);
 }
 
 Metasound::Frontend::FNodeHandle UMetasoundEditorGraphOutput::AddNodeHandle(const FString& InNodeName, const FText& InNodeDisplayName, FName InDataType)
@@ -317,7 +352,7 @@ UMetasoundEditorGraphInput* UMetasoundEditorGraph::FindOrAddInput(Metasound::Fro
 		return Input;
 	}
 
-	if (UMetasoundEditorGraphInput* NewInput = NewObject<UMetasoundEditorGraphInput>(this))
+	if (UMetasoundEditorGraphInput* NewInput = NewObject<UMetasoundEditorGraphInput>(this, FName(), RF_Transactional))
 	{
 		NewInput->NodeID = NodeID;
 		NewInput->ClassName = InNodeHandle->GetClassName();
@@ -328,7 +363,7 @@ UMetasoundEditorGraphInput* UMetasoundEditorGraph::FindOrAddInput(Metasound::Fro
 		IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
 		TSubclassOf<UMetasoundEditorGraphInputLiteral> InputLiteralClass = EditorModule.FindInputLiteralClass(LiteralType);
 
-		NewInput->Literal = NewObject<UMetasoundEditorGraphInputLiteral>(this, InputLiteralClass);
+		NewInput->Literal = NewObject<UMetasoundEditorGraphInputLiteral>(NewInput, InputLiteralClass, FName(), RF_Transactional);
 		NewInput->Literal->SetFromLiteral(DefaultLiteral);
 
 		Inputs.Add(NewInput);
@@ -372,7 +407,7 @@ UMetasoundEditorGraphOutput* UMetasoundEditorGraph::FindOrAddOutput(Metasound::F
 		return Output;
 	}
 
-	if (UMetasoundEditorGraphOutput* NewOutput = NewObject<UMetasoundEditorGraphOutput>(this))
+	if (UMetasoundEditorGraphOutput* NewOutput = NewObject<UMetasoundEditorGraphOutput>(this, FName(), RF_Transactional))
 	{
 		NewOutput->NodeID = NodeID;
 		NewOutput->ClassName = InNodeHandle->GetClassName();
@@ -393,6 +428,16 @@ UMetasoundEditorGraphVariable* UMetasoundEditorGraph::FindVariable(FGuid InNodeI
 	}
 
 	return FindInput(InNodeID);
+}
+
+bool UMetasoundEditorGraph::ContainsInput(UMetasoundEditorGraphInput* InInput) const
+{
+	return Inputs.Contains(InInput);
+}
+
+bool UMetasoundEditorGraph::ContainsOutput(UMetasoundEditorGraphOutput* InOutput) const
+{
+	return Outputs.Contains(InOutput);
 }
 
 void UMetasoundEditorGraph::IterateInputs(TUniqueFunction<void(UMetasoundEditorGraphInput&)> InFunction) const

@@ -559,7 +559,7 @@ UObject* USoundFactory::CreateObject
 			AudioComponent->Play();
 		}
 
-		Sound->bNeedsThumbnailGeneration = true;
+		Sound->SetRedrawThumbnail(true);
 
 		return Sound;
 	}

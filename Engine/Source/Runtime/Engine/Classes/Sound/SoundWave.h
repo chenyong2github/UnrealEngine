@@ -502,6 +502,9 @@ private:
 	uint8 bSampleRateManuallyReset : 1;
 
 #if WITH_EDITOR
+	// Whether or not the thumbnail supports generation
+	uint8 bNeedsThumbnailGeneration : 1;
+
 	// Whether this was previously cooked with stream caching enabled.
 	uint8 bWasStreamCachingEnabledOnLastCook : 1;
 	// Whether this asset is loaded from cooked data.
@@ -1098,7 +1101,10 @@ public:
 
 	virtual void WillNeverCacheCookedPlatformDataAgain() override;
 
-	uint32 bNeedsThumbnailGeneration : 1;
+	virtual bool GetRedrawThumbnail() const;
+	virtual void SetRedrawThumbnail(bool bInRedraw);
+	virtual bool CanVisualizeAsset() const;
+
 #endif // WITH_EDITOR
 
 	/**

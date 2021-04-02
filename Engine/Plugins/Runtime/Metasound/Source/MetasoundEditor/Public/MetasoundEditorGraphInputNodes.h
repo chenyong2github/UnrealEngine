@@ -76,7 +76,7 @@ public:
 
 	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const
 	{
-		if (ensure(Input))
+		if (Input)
 		{
 			Input->UpdatePreviewInstance(InParameterName, InInstanceTransmitter);
 		}
@@ -84,7 +84,7 @@ public:
 	
 	virtual FGuid GetNodeID() const override
 	{
-		if (ensure(Input))
+		if (Input)
 		{
 			return Input->NodeID;
 		}
@@ -97,9 +97,9 @@ public:
 	{
 		Super::PostEditUndo();
 
-		if (ensure(Input))
+		if (Input)
 		{
-			Input->OnLiteralChanged();
+			Input->OnLiteralChanged(false /* bPostTransaction */);
 		}
 	}
 #endif // WITH_EDITORONLY_DATA

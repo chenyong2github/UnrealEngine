@@ -27,6 +27,7 @@
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/StyleColors.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
@@ -83,14 +84,31 @@ namespace Metasound
 					// Graph Editor
 					Set("MetasoundEditor.Graph.Node.Body.Input", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_input_body_64x.png")), FVector2D(114.0f, 64.0f)));
 					Set("MetasoundEditor.Graph.Node.Body.Default", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_default_body_64x.png")), FVector2D(64.0f, 64.0f)));
+
 					Set("MetasoundEditor.Graph.Node.Math.Add", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_add_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Divide", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_divide_40x.png")), Icon40x40));
+					Set("MetasoundEditor.Graph.Node.Math.Modulo", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_modulo_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Multiply", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_multiply_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Subtract", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_subtract_40x.png")), Icon40x40));
-					Set("MetasoundEditor.Graph.Node.Math.Modulo", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_modulo_40x.png")), Icon40x40));
 
 					// Misc
 					Set("MetasoundEditor.Speaker", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/speaker_144x.png")), FVector2D(144.0f, 144.0f)));
+
+					// Class Icons
+					auto SetClassIcon = [this](const FString& ClassName)
+					{
+						static const FVector2D Icon16 = FVector2D(16.0f, 16.0f);
+						static const FVector2D Icon64 = FVector2D(64.0f, 64.0f);
+
+						const FString IconFileName = FString::Printf(TEXT("Icons/%s"), *ClassName.ToLower());
+						const FSlateColor DefaultForeground(FStyleColors::Foreground);
+
+						Set(*FString::Printf(TEXT("ClassIcon.%s"), *ClassName), new IMAGE_BRUSH_SVG(IconFileName, Icon16));
+						Set(*FString::Printf(TEXT("ClassThumbnail.%s"), *ClassName), new IMAGE_BRUSH_SVG(IconFileName, Icon64));
+					};
+
+					SetClassIcon(TEXT("Metasound"));
+					SetClassIcon(TEXT("MetasoundSource"));
 				}
 
 				FSlateStyleRegistry::RegisterSlateStyle(*this);

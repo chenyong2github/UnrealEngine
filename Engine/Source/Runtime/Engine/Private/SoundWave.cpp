@@ -1164,8 +1164,11 @@ void USoundWave::PostLoad()
 		AssetImportData->SourceData = MoveTemp(Info);
 	}
 
-	bNeedsThumbnailGeneration = true;
 #endif // #if WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
+	bNeedsThumbnailGeneration = true;
+#endif // WITH_EDITOR
 
 	INC_FLOAT_STAT_BY(STAT_AudioBufferTime, Duration);
 	INC_FLOAT_STAT_BY(STAT_AudioBufferTimeChannels, NumChannels * Duration);
@@ -3060,6 +3063,23 @@ void USoundWave::CacheInheritedLoadingBehavior() const
 	}
 }
 
+#if WITH_EDITOR
+bool USoundWave::GetRedrawThumbnail() const
+{
+	return bNeedsThumbnailGeneration != 0;
+}
+
+void USoundWave::SetRedrawThumbnail(bool bInRedraw)
+{
+	bNeedsThumbnailGeneration = static_cast<uint32>(bInRedraw);
+}
+
+bool USoundWave::CanVisualizeAsset() const
+{
+	return true;
+}
+#endif // WITH_EDITOR
+
 ESoundWaveLoadingBehavior USoundWave::GetLoadingBehavior(bool bCheckSoundClasses /*= true*/) const
 {
 	checkf(!bCheckSoundClasses || CachedSoundWaveLoadingBehavior != ESoundWaveLoadingBehavior::Uninitialized,
@@ -3199,7 +3219,6 @@ bool FSoundWaveProxy::GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool 
 	}
 	return true;
 }
-
 
 bool FSoundWaveProxy::IsZerothChunkDataLoaded() const
 {

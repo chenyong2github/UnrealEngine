@@ -4,35 +4,38 @@
 #include "EditorStyleSet.h"
 #include "GraphEditorSettings.h"
 #include "IDocumentation.h"
-#include "KismetPins/SGraphPinNum.h"
 #include "KismetPins/SGraphPinBool.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "KismetPins/SGraphPinInteger.h"
+#include "KismetPins/SGraphPinNum.h"
 #include "KismetPins/SGraphPinObject.h"
 #include "KismetPins/SGraphPinString.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorModule.h"
+#include "MetasoundFrontendRegistries.h"
 #include "NodeFactory.h"
+#include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "SCommentBubble.h"
 #include "SGraphNode.h"
 #include "SGraphPin.h"
-#include "Widgets/Layout/SSpacer.h"
 #include "SLevelOfDetailBranchNode.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateColor.h"
 #include "TutorialMetaData.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
-#include "MetasoundFrontendRegistries.h"
-#include "PropertyCustomizationHelpers.h"
+#include "Widgets/SWidget.h"
 #include "SGraphPinComboBox.h"
 #include "SMetasoundEnumPin.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGraphNode"
+
 
 void SMetasoundGraphNode::Construct(const FArguments& InArgs, class UEdGraphNode* InNode)
 {
@@ -245,6 +248,13 @@ void SMetasoundGraphNode::SetDefaultTitleAreaWidget(TSharedRef<SOverlay> Default
 	}
 }
 
+void SMetasoundGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+{
+	SGraphNode::MoveTo(NewPosition, NodeFilter);
+
+	GetMetasoundNode().UpdatePosition();
+}
+
 const FSlateBrush* SMetasoundGraphNode::GetNodeBodyBrush() const
 {
 // 	if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetasoundStyle"))
@@ -321,15 +331,15 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 		{
 			const FSlateBrush* ImageBrush = MetasoundStyle->GetBrush(StyleDisplay.ImageName);
 			ContentBox->AddSlot()
-				.AutoWidth()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SImage)
-					.Image(ImageBrush)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.DesiredSizeOverride(FVector2D(20, 20))
-				];
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.Image(ImageBrush)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.DesiredSizeOverride(FVector2D(20, 20))
+			];
 		}
 	}
 

@@ -48,6 +48,11 @@ public:
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
 #if WITH_EDITOR
+	virtual bool CanVisualizeAsset() const override
+	{
+		return false;
+	}
+
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
