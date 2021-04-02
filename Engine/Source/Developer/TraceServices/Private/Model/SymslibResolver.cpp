@@ -6,6 +6,7 @@
 #include "Async/MappedFileHandle.h"
 #include "Async/ParallelFor.h"
 #include "Containers/StringView.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Logging/LogMacros.h"
 #include "Misc/PathViews.h"
