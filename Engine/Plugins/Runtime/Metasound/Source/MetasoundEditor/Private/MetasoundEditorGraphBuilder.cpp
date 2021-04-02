@@ -387,17 +387,28 @@ namespace Metasound
 				const FString NewInputName = GenerateUniqueInputName(InMetasound);
 				Frontend::FNodeHandle NewInputNode = AddInputNodeHandle(InMetasound, NewInputName, TypeName, FText::GetEmpty(), EMetasoundFrontendNodeStyleDisplayVisibility::Hidden, &PinDataTypeDefaultLiteral);
 
-				const FMetasoundFrontendLiteral* DefaultLiteral = InputHandle->GetDefaultLiteral();
 				Frontend::FGraphHandle GraphHandle = InNodeHandle->GetOwningGraph();
 				const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NewInputNode->GetNodeName());
 				if (bForcePinValueAsDefault)
 				{
 					GraphHandle->SetDefaultInput(VertexID, PinDataTypeDefaultLiteral);
 				}
-				else if (DefaultLiteral && DefaultLiteral->IsValid())
+				// Hack fix for triggers having special aspect in that they hide the default
+				// literal picker, but require a default value for graph synchronization purposes.
+				else if (InInputPin.PinType.PinCategory == PinCategoryTrigger)
 				{
-					GraphHandle->SetDefaultInput(VertexID, *DefaultLiteral);
-					InInputPin.DefaultValue = DefaultLiteral->ToString();
+					FMetasoundFrontendLiteral DefaultTriggerLiteral;
+					DefaultTriggerLiteral.Set(false);
+					GraphHandle->SetDefaultInput(VertexID, DefaultTriggerLiteral);
+					InInputPin.DefaultValue = DefaultTriggerLiteral.ToString();
+				}
+				else if (const FMetasoundFrontendLiteral* DefaultLiteral = InputHandle->GetDefaultLiteral())
+				{
+					if (DefaultLiteral->IsValid())
+					{
+						GraphHandle->SetDefaultInput(VertexID, *DefaultLiteral);
+						InInputPin.DefaultValue = DefaultLiteral->ToString();
+					}
 				}
 
 				TArray<FOutputHandle> OutputHandles = NewInputNode->GetOutputs();

@@ -30,13 +30,16 @@ namespace MetasoundFrontendLiteralPrivate
 	template<>
 	struct TLiteralValueToStringHelper<UObject*>
 	{
-		static FString Convert(const UObject* InType)
+		static FString Convert(const UObject* InObject)
 		{
-			if (nullptr == InType)
+			// Use empty string for null object as this is recognized
+			// as empty value in editor context (the string "nullptr"
+			// by contrast is not).
+			if (!InObject)
 			{
-				return FString("nullptr");
+				return FString();
 			}
-			return InType->GetFullName();
+			return InObject->GetFullName();
 		}
 	};
 
