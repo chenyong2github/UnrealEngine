@@ -77,6 +77,8 @@ void UE::Conversion::RenderBuffersToDynamicMesh(
 		int32 tid = MeshOut.AppendTriangle(a, b, c);
 		ensure(tid == ti);
 		Normals->SetTriangle(tid, FIndex3i(a, b, c));
+		Tangents->SetTriangle(tid, FIndex3i(a, b, c));
+		BiTangents->SetTriangle(tid, FIndex3i(a, b, c));
 		for (int32 ui = 0; ui < NumUVChannels; ++ui)
 		{
 			UVs[ui]->SetTriangle(tid, FIndex3i(a, b, c));

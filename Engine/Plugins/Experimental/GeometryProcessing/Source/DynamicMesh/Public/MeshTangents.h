@@ -85,6 +85,13 @@ public:
 	void CopyTriVertexTangents(const TMeshTangents<OtherRealType>& OtherTangents);
 
 	/**
+	 * Initialize Tangents from the FDynamicMeshAttributeSet of SourceMesh 
+	 * @return false if tangent attributes do not exist
+	 */
+	bool CopyTriVertexTangents(const FDynamicMesh3& SourceMesh);
+
+
+	/**
 	 * Calculate per-triangle tangent spaces based on the given per-triangle normal and UV overlays.
 	 * In this mode there is no averaging of tangents across triangles. So if we have N triangles
 	 * in the mesh, then 3*N tangents are generated. These tangents are computed in parallel.

@@ -28,6 +28,41 @@ void TMeshTangents<RealType>::SetTangentCount(int Count, bool bClearToZero)
 }
 
 
+template<typename RealType>
+bool TMeshTangents<RealType>::CopyTriVertexTangents(const FDynamicMesh3& SourceMesh)
+{
+	if (SourceMesh.HasAttributes() == false || SourceMesh.Attributes()->HasTangentSpace() == false)
+	{
+		return false;
+	}
+	const FDynamicMeshNormalOverlay* TangentsAttrib = SourceMesh.Attributes()->PrimaryTangents();
+	const FDynamicMeshNormalOverlay* BiTangentsAttrib = SourceMesh.Attributes()->PrimaryBiTangents();
+
+	//InitializeTriVertexTangents(false);    // this requires Mesh to be initialized which is not strictly necessary...
+	SetTangentCount(SourceMesh.MaxTriangleID() * 3, false);
+
+	for (int32 tid : SourceMesh.TriangleIndicesItr())
+	{
+		if ( TangentsAttrib->IsSetTriangle(tid) && BiTangentsAttrib->IsSetTriangle(tid) )
+		{
+			FVector3f TriTangents[3];
+			TangentsAttrib->GetTriElements(tid, TriTangents[0], TriTangents[1], TriTangents[2]);
+			FVector3f TriBiTangents[3];
+			BiTangentsAttrib->GetTriElements(tid, TriBiTangents[0], TriBiTangents[1], TriBiTangents[2]);
+
+			int32 k = 3 * tid;
+			for (int32 j = 0; j < 3; ++j )
+			{
+				Tangents[k+j] = FVector3<RealType>(TriTangents[j]);
+				Bitangents[k+j] = FVector3<RealType>(TriBiTangents[j]);
+			}
+		}
+	}
+
+	return true;
+}
+
+
 
 template<typename RealType>
 void TMeshTangents<RealType>::ComputeTriVertexTangents(const FDynamicMeshNormalOverlay* NormalOverlay, const FDynamicMeshUVOverlay* UVOverlay, const FComputeTangentsOptions& Options)
