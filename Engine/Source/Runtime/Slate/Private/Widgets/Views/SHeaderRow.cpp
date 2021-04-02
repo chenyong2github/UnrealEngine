@@ -642,6 +642,18 @@ bool SHeaderRow::IsColumnGenerated(const FName& InColumnId) const
 	return false;
 }
 
+bool SHeaderRow::IsColumnVisible(const FName& InColumnId) const
+{
+	for (const FColumn& SomeColumn : Columns)
+	{
+		if (SomeColumn.ColumnId == InColumnId)
+		{
+			return SomeColumn.bIsVisible;
+		}
+	}
+	return false;
+}
+
 FReply SHeaderRow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	if (bCanSelectGeneratedColumn && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)

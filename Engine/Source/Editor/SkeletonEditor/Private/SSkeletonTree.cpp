@@ -132,7 +132,6 @@ void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditab
 		BoneFilter = EBoneFilter::All;
 	}
 	SocketFilter = ESocketFilter::Active;
-	bShowingAdvancedOptions = false;
 	bSelecting = false;
 
 	EditableSkeleton = InEditableSkeleton;
@@ -570,16 +569,6 @@ struct FScopedSavedSelection
 
 void SSkeletonTree::CreateTreeColumns()
 {
-	auto HeaderVisibilityLambda = [this]()
-	{
-		if(Mode == ESkeletonTreeMode::Editor)
-		{
-			return bShowingAdvancedOptions || BlendProfilePicker->GetSelectedBlendProfileName() != NAME_None ? EVisibility::Visible : EVisibility::Collapsed;
-		}
-		
-		return  EVisibility::Collapsed; 
-	};
-
 	TArray<FName> HiddenColumnsList;
 	HiddenColumnsList.Add(ISkeletonTree::Columns::Retargeting);
 	HiddenColumnsList.Add(ISkeletonTree::Columns::BlendProfile);
@@ -786,7 +775,7 @@ TSharedPtr< SWidget > SSkeletonTree::CreateContextMenu()
 					MenuBuilder.EndSection();
 				}
 
-				if(bShowingAdvancedOptions)
+				if(IsShowingAdvancedOptions())
 				{
 					MenuBuilder.BeginSection("SkeletonTreeBoneTranslationRetargeting", LOCTEXT("BoneTranslationRetargetingHeader", "Bone Translation Retargeting"));
 					{
@@ -2069,13 +2058,13 @@ void SSkeletonTree::DeleteVirtualBones(const TArray<TSharedPtr<FSkeletonTreeVirt
 
 void SSkeletonTree::OnChangeShowingAdvancedOptions()
 {
-	bShowingAdvancedOptions = !bShowingAdvancedOptions;
+	SkeletonTreeView->GetHeaderRow()->SetShowGeneratedColumn(ISkeletonTree::Columns::Retargeting, !IsShowingAdvancedOptions());
 	HandleTreeRefresh();
 }
 
 bool SSkeletonTree::IsShowingAdvancedOptions() const
 {
-	return bShowingAdvancedOptions;
+	return SkeletonTreeView->GetHeaderRow()->IsColumnVisible(ISkeletonTree::Columns::Retargeting);
 }
 
 UBlendProfile* SSkeletonTree::GetSelectedBlendProfile()

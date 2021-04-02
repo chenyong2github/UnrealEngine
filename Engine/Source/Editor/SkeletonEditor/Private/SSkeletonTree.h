@@ -387,8 +387,6 @@ private:
 	/** Current type of sockets to show */
 	ESocketFilter SocketFilter;
 
-	bool bShowingAdvancedOptions;
-
 	/** Points to an item that is being requested to be renamed */
 	TSharedPtr<ISkeletonTreeItem> DeferredRenameRequest;
 

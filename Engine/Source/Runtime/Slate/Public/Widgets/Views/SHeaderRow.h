@@ -337,6 +337,9 @@ public:
 	/** @return is the header widget with the column id is generated */
 	bool IsColumnGenerated( const FName& InColumnId ) const;
 
+	/** @return true if the header widget with the column id is visible */
+	bool IsColumnVisible( const FName& InColumnId ) const;
+
 	//~ Begin SWidget interface
 	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	//~ End SWidget interface
