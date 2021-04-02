@@ -1050,7 +1050,7 @@ void UReflectionCaptureComponent::MarkDirtyForRecapture()
 
 void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldToUpdate, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
 {
-	if (WorldToUpdate->Scene
+	if (WorldToUpdate && WorldToUpdate->Scene
 		// Don't capture and read back capture contents if we are currently doing async shader compiling
 		// This will keep the update requests in the queue until compiling finishes
 		// Note: this will also prevent uploads of cubemaps from DDC, which is unintentional
