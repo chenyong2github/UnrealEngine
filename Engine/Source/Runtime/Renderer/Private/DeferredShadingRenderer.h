@@ -31,6 +31,8 @@ struct FRayTracingReflectionOptions;
 struct FHairStrandsTransmittanceMaskData;
 struct FHairStrandsRenderingData;
 
+struct FVolumetricFogLocalLightFunctionInfo;
+
 /**
  * Encapsulates the resources and render targets used by global illumination plugins (experimental).
  */
@@ -593,6 +595,7 @@ private:
 	void RenderLightFunctionForVolumetricFog(
 		FRDGBuilder& GraphBuilder,
 		FViewInfo& View,
+		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures,
 		FIntVector VolumetricFogGridSize,
 		float VolumetricFogMaxDistance,
 		FMatrix& OutLightFunctionWorldToShadow,
@@ -607,7 +610,8 @@ private:
 		FVector GridZParams,
 		float VolumetricFogDistance);
 
-	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder);
+	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder,
+		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures);
 
 	void VisualizeVolumetricLightmap(
 		FRDGBuilder& GraphBuilder,

@@ -12,13 +12,7 @@ float2 LightFunctionTexelSize;
 
 float4x4 ShadowToWorld;
 
-float3 GetWorldPositionForLightFunctionTexturePosition(float2 ScreenPosition)
-{
-	// Pick a depth to evaluate the light function at
-	float SceneDepth = 0.5f;
-	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition, SceneDepth, 1), ShadowToWorld);
-	return HomogeneousWorldPosition.xyz;
-}
+float3 LightWorldPosition;
 
 void Main(
 	in noperspective float4 UV : TEXCOORD0,
@@ -26,32 +20,48 @@ void Main(
 	out float4 OutColor : SV_Target0
 	)
 {
-	/*
-	float2 LightFunctionTextureUV = SvPositionToBufferUV(SvPosition);
+	
+	float4 AbsoluteWorldPosition = float4(0,0,0,1);
+	float3 LightVector = float3(0,0,0);
+
+#if LIGHT_TYPE == 0 
+	// Point and rect light
+	float Theta = (UV.x * (2*PI)) - PI;
+	float Phi = UV.y * PI;
+	float X = cos(Theta) * sin(Phi);
+	float Y = sin(Theta) * sin(Phi);
+	float Z = cos(Phi);
+	LightVector = float3(Z, Y, X);
+	AbsoluteWorldPosition = float4(LightWorldPosition + LightVector.zyx, 1);
+
+#else
+
+	float Depth = 0.000001f;
+	float2 ScreenPosition;
+
+#if LIGHT_TYPE == 1
+	// Spot light
+	ScreenPosition = (SvPosition.xy * LightFunctionTexelSize);
+	ScreenPosition.x = 1 - ScreenPosition.x;
+	ScreenPosition.y = 1 - ScreenPosition.y;
+#else // LIGHT_TYPE == 2
+	// Directional light
+	ScreenPosition = (SvPosition.xy * LightFunctionTexelSize - float2(0.5f, 0.5f)) * float2(2, -2);
+#endif
 
 	// make SvPosition appear to be rasterized with the depth from the depth buffer
-	SvPosition.z = LookupDeviceZ(ScreenUV);
+	AbsoluteWorldPosition = mul(float4(ScreenPosition, Depth, 1), ShadowToWorld);
+	AbsoluteWorldPosition.xyz /= AbsoluteWorldPosition.w;
 
-	float3 LightVector;
-	{
-		float4 Hom = mul(float4(SvPosition.xyz, 1), SvPositionToLight);
-		LightVector = Hom.xyz / Hom.w;
-	}
+	float4 Hom = mul(float4(AbsoluteWorldPosition.xyz, 1), LightFunctionWorldToLight);
+	LightVector = Hom.xyz / Hom.w;
+#endif
 	
-	// todo: TranslatedWorld would be better for quality
-	float3 AbsoluteWorldPosition = SvPositionToWorld(SvPosition);
-	*/
-
-	float2 ScreenPosition = (SvPosition.xy * LightFunctionTexelSize - float2(0.5f, 0.5f)) * float2(2, -2);
-	float3 AbsoluteWorldPosition = GetWorldPositionForLightFunctionTexturePosition(ScreenPosition);
-
-	float4 LightVector = mul(float4(AbsoluteWorldPosition, 1), LightFunctionWorldToLight);
-	LightVector.xyz /= LightVector.w;
-	float3 LightFunction = GetLightFunctionColor(LightVector.xyz, AbsoluteWorldPosition);
+	float3 LightFunction = GetLightFunctionColor(LightVector, AbsoluteWorldPosition.xyz);
 	float GreyScale = dot(LightFunction, .3333f).x;
 
 	// Calculate radial view distance for stable fading
-	float ViewDistance = length(View.WorldCameraOrigin - AbsoluteWorldPosition);
+	float ViewDistance = length(View.WorldCameraOrigin - AbsoluteWorldPosition.xyz);
 
 	float DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
 	// Fade to disabled based on LightFunctionFadeDistance

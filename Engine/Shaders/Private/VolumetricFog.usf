@@ -197,6 +197,40 @@ float InverseSquaredLightDistanceBiasScale;
 #define INVERSE_SQUARED_FALLOFF 1
 #endif
 
+#if	USE_LIGHT_FUNCTION
+
+/** Matrix can be either WorldToShadow or WorldToLight depending on light type. */
+float4x4 LocalLightFunctionMatrix;
+float4 LightFunctionAtlasTileMinMaxUvBound;
+
+Texture2D LightFunctionAtlasTexture;
+SamplerState LightFunctionAtlasSampler;
+
+float2 GetLocalLightFunction(float3 WorldPosition, bool IsPointLight)
+{
+	float2 LightFunctionUV;
+	if (IsPointLight)
+	{
+		// Get vector from light to cell world pos.
+		float3 LightVec = normalize(WorldPosition - DeferredLightUniforms.Position);
+		// Transform and swizzle
+		LightVec = mul(float4(LightVec.xyz, 0), LocalLightFunctionMatrix).zyx; 
+		// Map to spherical coordinate
+		LightFunctionUV = float2((atan2Fast(LightVec.y, LightVec.x) + PI) / (2 * PI), acosFast(LightVec.z) / PI);
+	}
+	else
+	{
+		float4 HomogeneousShadowPosition = mul(float4(WorldPosition, 1), LocalLightFunctionMatrix);
+		HomogeneousShadowPosition.xyz /= HomogeneousShadowPosition.w;
+		LightFunctionUV = HomogeneousShadowPosition.xy;
+		LightFunctionUV.x = 1 - LightFunctionUV.x;
+		LightFunctionUV.y = 1 - LightFunctionUV.y;
+	}
+	
+	return Texture2DSampleLevel(LightFunctionAtlasTexture, LightFunctionAtlasSampler, LightFunctionAtlasTileMinMaxUvBound.xy + LightFunctionUV * (LightFunctionAtlasTileMinMaxUvBound.zw - LightFunctionAtlasTileMinMaxUvBound.xy), 0).x;
+}
+#endif
+
 void InjectShadowedLocalLightPS(
 	FWriteToSliceGeometryOutput Input,
 	out float4 OutScattering : SV_Target0
@@ -296,10 +330,18 @@ void InjectShadowedLocalLightPS(
 			float CombinedAttenuation = Lighting * LightMask;
 			float ShadowFactor = 1.0f;
 
+			bool IsPointLight = LightData.bRadialLight && !LightData.bSpotLight;
+			
+#if ENABLE_SHADOW_COMPUTATION
 			if (CombinedAttenuation > 0)
 			{
-				ShadowFactor = ComputeVolumeShadowing(WorldPosition, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight);
+				ShadowFactor = ComputeVolumeShadowing(WorldPosition, IsPointLight, LightData.bSpotLight);
 			}
+#endif
+	
+#if	USE_LIGHT_FUNCTION
+			ShadowFactor *= GetLocalLightFunction(WorldPosition, IsPointLight);
+#endif
 
 			OutScattering.rgb += LightColor * (PhaseFunction(PhaseG, dot(L, -CameraVector)) * CombinedAttenuation * ShadowFactor * VolumetricScatteringIntensity);
 				

@@ -105,6 +105,14 @@ FAutoConsoleVariableRef CVarInverseSquaredLightDistanceBiasScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
+int GVolumetricFogLightFunction = 1;
+FAutoConsoleVariableRef CVarVolumetricFogLightFunction(
+	TEXT("r.VolumetricFog.LightFunction"),
+	GVolumetricFogLightFunction,
+	TEXT("Whether light functions are generated to be sampled when rendering volumetric fog."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumetricFogGlobalData, "VolumetricFog");
 
 DECLARE_GPU_STAT(VolumetricFog);
@@ -243,14 +251,25 @@ class TInjectShadowedLocalLightPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(TInjectShadowedLocalLightPS);
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, WhiteDummyTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LightFunctionAtlasTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LightFunctionAtlasSampler)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
 	class FDynamicallyShadowed	: SHADER_PERMUTATION_BOOL("DYNAMICALLY_SHADOWED");
 	class FInverseSquared		: SHADER_PERMUTATION_BOOL("INVERSE_SQUARED_FALLOFF");
 	class FTemporalReprojection : SHADER_PERMUTATION_BOOL("USE_TEMPORAL_REPROJECTION");
+	class FLightFunction		: SHADER_PERMUTATION_BOOL("USE_LIGHT_FUNCTION");
+	class FEnableShadows		: SHADER_PERMUTATION_BOOL("ENABLE_SHADOW_COMPUTATION");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FDynamicallyShadowed,
 		FInverseSquared,
-		FTemporalReprojection >;
+		FTemporalReprojection,
+		FLightFunction,
+		FEnableShadows	>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -265,10 +284,16 @@ class TInjectShadowedLocalLightPS : public FGlobalShader
 	TInjectShadowedLocalLightPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
 		FGlobalShader(Initializer)
 	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap);
 		PhaseG.Bind(Initializer.ParameterMap, TEXT("PhaseG"));
 		InverseSquaredLightDistanceBiasScale.Bind(Initializer.ParameterMap, TEXT("InverseSquaredLightDistanceBiasScale"));
 		VolumetricFogParameters.Bind(Initializer.ParameterMap);
 		VolumeShadowingParameters.Bind(Initializer.ParameterMap);
+
+		LightFunctionMatrixParam.Bind(Initializer.ParameterMap, TEXT("LocalLightFunctionMatrix"));
+		LightFunctionAtlasTileMinMaxUvBoundParam.Bind(Initializer.ParameterMap, TEXT("LightFunctionAtlasTileMinMaxUvBound"));
+		LightFunctionAtlasTextureParam.Bind(Initializer.ParameterMap, TEXT("LightFunctionAtlasTexture"));
+		LightFunctionAtlasSamplerParam.Bind(Initializer.ParameterMap, TEXT("LightFunctionAtlasSampler"));
 	}
 
 	TInjectShadowedLocalLightPS() {}
@@ -283,7 +308,10 @@ public:
 		const FLightSceneInfo* LightSceneInfo,
 		const FExponentialHeightFogSceneInfo& FogInfo,
 		const FProjectedShadowInfo* ShadowMap,
-		bool bDynamicallyShadowed)
+		bool bDynamicallyShadowed,
+		const FMatrix& LightFunctionMatrix,
+		FRDGTextureRef LightFunctionAtlasTexture,
+		FVector4 LightFunctionAtlasTileMinMaxUvBound)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
@@ -296,6 +324,15 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, PhaseG, FogInfo.VolumetricFogScatteringDistribution);
 		SetShaderValue(RHICmdList, ShaderRHI, InverseSquaredLightDistanceBiasScale, GInverseSquaredLightDistanceBiasScale);
 
+		SetShaderValue(RHICmdList, ShaderRHI, LightFunctionAtlasTileMinMaxUvBoundParam, LightFunctionAtlasTileMinMaxUvBound);
+		SetShaderValue(RHICmdList, ShaderRHI, LightFunctionMatrixParam, LightFunctionMatrix);
+		if (LightFunctionAtlasTextureParam.IsBound())
+		{
+			SetTextureParameter(RHICmdList, ShaderRHI, LightFunctionAtlasTextureParam, LightFunctionAtlasSamplerParam,
+				TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
+				LightFunctionAtlasTexture->GetPooledRenderTarget()->GetShaderResourceRHI());
+		}
+
 		VolumeShadowingParameters.Set(RHICmdList, ShaderRHI, View, LightSceneInfo, ShadowMap, INDEX_NONE, bDynamicallyShadowed);
 	}
 
@@ -304,6 +341,10 @@ private:
 	LAYOUT_FIELD(FShaderParameter, InverseSquaredLightDistanceBiasScale);
 	LAYOUT_FIELD(FVolumetricFogIntegrationParameters, VolumetricFogParameters);
 	LAYOUT_FIELD(FVolumeShadowingParameters, VolumeShadowingParameters);
+	LAYOUT_FIELD(FShaderParameter, LightFunctionAtlasTileMinMaxUvBoundParam);
+	LAYOUT_FIELD(FShaderParameter, LightFunctionMatrixParam);
+	LAYOUT_FIELD(FShaderResourceParameter, LightFunctionAtlasTextureParam);
+	LAYOUT_FIELD(FShaderResourceParameter, LightFunctionAtlasSamplerParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(TInjectShadowedLocalLightPS, "/Engine/Private/VolumetricFog.usf", "InjectShadowedLocalLightPS", SF_Pixel);
@@ -325,7 +366,7 @@ FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(const FLightScenePr
 	return NULL;
 }
 
-bool LightNeedsSeparateInjectionIntoVolumetricFog(const FLightSceneInfo* LightSceneInfo, FVisibleLightInfo& VisibleLightInfo)
+bool LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(const FLightSceneInfo* LightSceneInfo, FVisibleLightInfo& VisibleLightInfo)
 {
 	const FLightSceneProxy* LightProxy = LightSceneInfo->Proxy;
 
@@ -342,6 +383,13 @@ bool LightNeedsSeparateInjectionIntoVolumetricFog(const FLightSceneInfo* LightSc
 	}
 
 	return false;
+}
+
+bool LightNeedsSeparateInjectionIntoVolumetricFogForLightFunction(const FLightSceneInfo* LightSceneInfo)
+{
+	// No directional light type because it is handled in a specific way in RenderLightFunctionForVolumetricFog.
+	// TODO: add support for rect lights.
+	return GVolumetricFogLightFunction > 0 && (LightSceneInfo->Proxy->GetLightType() == LightType_Point || LightSceneInfo->Proxy->GetLightType() == LightType_Spot);
 }
 
 FIntPoint CalculateVolumetricFogBoundsForLight(const FSphere& LightBounds, const FViewInfo& View, FIntVector VolumetricFogGridSize, FVector GridZParams)
@@ -449,6 +497,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 	const FRDGTextureDesc& VolumeDesc,
 	FRDGTexture*& OutLocalShadowedLightScattering)
 {
+	TMap<FLightSceneInfo*, FVolumetricFogLocalLightFunctionInfo>& LocalLightFunctionData = View.VolumetricFogResources.LocalLightFunctionData;
 	TArray<const FLightSceneInfo*, SceneRenderingAllocator> LightsToInject;
 
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
@@ -456,9 +505,13 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		const FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
 
+		bool bIsShadowed = LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(LightSceneInfo, VisibleLightInfos[LightSceneInfo->Id]);
+		bool bUsesLightFunction = ViewFamily.EngineShowFlags.LightFunctions 
+			&& CheckForLightFunction(LightSceneInfo) && LightNeedsSeparateInjectionIntoVolumetricFogForLightFunction(LightSceneInfo);
+
 		if (LightSceneInfo->ShouldRenderLightViewIndependent()
 			&& LightSceneInfo->ShouldRenderLight(View)
-			&& LightNeedsSeparateInjectionIntoVolumetricFog(LightSceneInfo, VisibleLightInfos[LightSceneInfo->Id])
+			&& (bIsShadowed || bUsesLightFunction)
 			&& LightSceneInfo->Proxy->GetVolumetricScatteringIntensity() > 0)
 		{
 			const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
@@ -474,66 +527,97 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 	{
 		OutLocalShadowedLightScattering = GraphBuilder.CreateTexture(VolumeDesc, TEXT("LocalShadowedLightScattering"));
 
-		FRenderTargetParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+		TInjectShadowedLocalLightPS::FParameters* PassParameters = GraphBuilder.AllocParameters<TInjectShadowedLocalLightPS::FParameters>();
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutLocalShadowedLightScattering, ERenderTargetLoadAction::EClear);
+		PassParameters->LightFunctionAtlasTexture = View.VolumetricFogResources.TransientLightFunctionTextureAtlas ? View.VolumetricFogResources.TransientLightFunctionTextureAtlas->GetTransientLightFunctionAtlasTexture() : GSystemTextures.GetWhiteDummy(GraphBuilder);
+		PassParameters->LightFunctionAtlasSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		// We also bind the default light function texture because when we are out of atlas tile, we fallback to use a white light function so we need the RHI to be created
+		PassParameters->WhiteDummyTexture = View.VolumetricFogResources.TransientLightFunctionTextureAtlas ? View.VolumetricFogResources.TransientLightFunctionTextureAtlas->GetDefaultLightFunctionTexture() : GSystemTextures.GetWhiteDummy(GraphBuilder);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("ShadowedLights"),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[PassParameters, &View, this, LightsToInject, VolumetricFogGridSize, GridZParams, bUseTemporalReprojection, IntegrationData, FogInfo](FRHICommandListImmediate& RHICmdList)
-		{
-			for (int32 LightIndex = 0; LightIndex < LightsToInject.Num(); LightIndex++)
 			{
-				const FLightSceneInfo* LightSceneInfo = LightsToInject[LightIndex];
-				FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(LightSceneInfo->Proxy, VisibleLightInfos[LightSceneInfo->Id]);
+				TMap<FLightSceneInfo*, FVolumetricFogLocalLightFunctionInfo>& LocalLightFunctionData = View.VolumetricFogResources.LocalLightFunctionData;
 
-				const bool bInverseSquared = LightSceneInfo->Proxy->IsInverseSquared();
-				const bool bDynamicallyShadowed = ProjectedShadowInfo != NULL;
-				const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
-				const FIntPoint VolumeZBounds = CalculateVolumetricFogBoundsForLight(LightBounds, View, VolumetricFogGridSize, GridZParams);
-
-				if (VolumeZBounds.X < VolumeZBounds.Y)
+				for (int32 LightIndex = 0; LightIndex < LightsToInject.Num(); LightIndex++)
 				{
-					TInjectShadowedLocalLightPS::FPermutationDomain PermutationVector;
-					PermutationVector.Set< TInjectShadowedLocalLightPS::FDynamicallyShadowed >(bDynamicallyShadowed);
-					PermutationVector.Set< TInjectShadowedLocalLightPS::FInverseSquared >(bInverseSquared);
-					PermutationVector.Set< TInjectShadowedLocalLightPS::FTemporalReprojection >(bUseTemporalReprojection);
+					const FLightSceneInfo* LightSceneInfo = LightsToInject[LightIndex];
+					FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(LightSceneInfo->Proxy, VisibleLightInfos[LightSceneInfo->Id]);
 
-					auto VertexShader = View.ShaderMap->GetShader< FWriteToBoundingSphereVS >();
-					TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader(View.ShaderMap);
-					auto PixelShader = View.ShaderMap->GetShader< TInjectShadowedLocalLightPS >(PermutationVector);
+					const bool bInverseSquared = LightSceneInfo->Proxy->IsInverseSquared();
+					const bool bDynamicallyShadowed = ProjectedShadowInfo != NULL;
+					const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
+					const FIntPoint VolumeZBounds = CalculateVolumetricFogBoundsForLight(LightBounds, View, VolumetricFogGridSize, GridZParams);
 
-					FGraphicsPipelineStateInitializer GraphicsPSOInit;
-					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-					// Accumulate the contribution of multiple lights
-					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_One>::GetRHI();
-
-					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
-					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-					GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-					GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-					PixelShader->SetParameters(RHICmdList, View, IntegrationData, LightSceneInfo, FogInfo, ProjectedShadowInfo, bDynamicallyShadowed);
-					VertexShader->SetParameters(RHICmdList, View, IntegrationData, LightBounds, VolumeZBounds.X);
-
-					if (GeometryShader.IsValid())
+					if (VolumeZBounds.X < VolumeZBounds.Y)
 					{
-						GeometryShader->SetParameters(RHICmdList, VolumeZBounds.X);
-					}
+						bool bIsShadowed = LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(LightSceneInfo, VisibleLightInfos[LightSceneInfo->Id]);
+						bool bUsesLightFunction = ViewFamily.EngineShowFlags.LightFunctions 
+							&& CheckForLightFunction(LightSceneInfo) && LightNeedsSeparateInjectionIntoVolumetricFogForLightFunction(LightSceneInfo);
 
-					RHICmdList.SetStreamSource(0, GCircleRasterizeVertexBuffer.VertexBufferRHI, 0);
-					const int32 NumInstances = VolumeZBounds.Y - VolumeZBounds.X;
-					const int32 NumTriangles = FCircleRasterizeVertexBuffer::NumVertices - 2;
-					RHICmdList.DrawIndexedPrimitive(GCircleRasterizeIndexBuffer.IndexBufferRHI, 0, 0, FCircleRasterizeVertexBuffer::NumVertices, 0, NumTriangles, NumInstances);
+						FRDGTextureRef LightFunctionTexture = PassParameters->LightFunctionAtlasTexture;
+						FMatrix LightFunctionMatrix = FMatrix::Identity;
+						FVector4 LightFunctionAtlasTileMinMaxUvBound = FVector4(ForceInitToZero);
+						if (bUsesLightFunction)
+						{
+							FVolumetricFogLocalLightFunctionInfo* LightFunctionData = LocalLightFunctionData.Find(LightSceneInfo);
+
+							if (!ensure(LightFunctionData != nullptr))
+							{
+								// The light function data is missing but the light requires it. Skip this light for now.
+								continue;
+							}
+
+							LightFunctionMatrix = LightFunctionData->LightFunctionMatrix;
+							LightFunctionTexture = LightFunctionData->AtlasTile.Texture;
+							LightFunctionAtlasTileMinMaxUvBound = LightFunctionData->AtlasTile.MinMaxUvBound;
+						}
+
+						TInjectShadowedLocalLightPS::FPermutationDomain PermutationVector;
+						PermutationVector.Set< TInjectShadowedLocalLightPS::FDynamicallyShadowed >(bDynamicallyShadowed);
+						PermutationVector.Set< TInjectShadowedLocalLightPS::FInverseSquared >(bInverseSquared);
+						PermutationVector.Set< TInjectShadowedLocalLightPS::FTemporalReprojection >(bUseTemporalReprojection);
+						PermutationVector.Set< TInjectShadowedLocalLightPS::FLightFunction >(bUsesLightFunction);
+						PermutationVector.Set< TInjectShadowedLocalLightPS::FEnableShadows >(bIsShadowed);
+
+						auto VertexShader = View.ShaderMap->GetShader< FWriteToBoundingSphereVS >();
+						TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader(View.ShaderMap);
+						auto PixelShader = View.ShaderMap->GetShader< TInjectShadowedLocalLightPS >(PermutationVector);
+
+						FGraphicsPipelineStateInitializer GraphicsPSOInit;
+						RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+						GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+						GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+						// Accumulate the contribution of multiple lights
+						GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_One>::GetRHI();
+
+						GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
+						GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+						GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
+						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+						GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+						PixelShader->SetParameters(RHICmdList, View, IntegrationData, LightSceneInfo, FogInfo, ProjectedShadowInfo, bDynamicallyShadowed,
+							LightFunctionMatrix, LightFunctionTexture, LightFunctionAtlasTileMinMaxUvBound);
+						VertexShader->SetParameters(RHICmdList, View, IntegrationData, LightBounds, VolumeZBounds.X);
+
+						if (GeometryShader.IsValid())
+						{
+							GeometryShader->SetParameters(RHICmdList, VolumeZBounds.X);
+						}
+
+						RHICmdList.SetStreamSource(0, GCircleRasterizeVertexBuffer.VertexBufferRHI, 0);
+						const int32 NumInstances = VolumeZBounds.Y - VolumeZBounds.X;
+						const int32 NumTriangles = FCircleRasterizeVertexBuffer::NumVertices - 2;
+						RHICmdList.DrawIndexedPrimitive(GCircleRasterizeIndexBuffer.IndexBufferRHI, 0, 0, FCircleRasterizeVertexBuffer::NumVertices, 0, NumTriangles, NumInstances);
+					}
 				}
-			}
-		});
+			});
 	}
 }
 
@@ -982,7 +1066,8 @@ void FDeferredShadingSceneRenderer::SetupVolumetricFog()
 	}
 }
 
-void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuilder)
+void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures)
 {
 	if (!ShouldRenderVolumetricFog())
 	{
@@ -1026,7 +1111,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			&& ViewFamily.bRealtimeUpdate
 			&& View.ViewState->LightScatteringHistory;
 
-		FMatrix LightFunctionWorldToShadow;
+		FMatrix DirectionalLightFunctionWorldToShadow;
 
 		RDG_EVENT_SCOPE(GraphBuilder, "VolumetricFog");
 
@@ -1035,8 +1120,9 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 		GraphBuilder.SetNameForTemporalEffect(FName(NameForTemporalEffect, View.ViewState ? View.ViewState->UniqueID : 0));
 #endif
 
-		FRDGTexture* LightFunctionTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
-		bool bUseDirectionalLightShadowing;
+		// The potential light function for the main directional light is kept separate to be applied during the main VolumetricFogLightScattering pass (as an optimisation).
+		FRDGTexture* DirectionalLightFunctionTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+		bool bUseDirectionalLightShadowing = false;
 
 		// Recover the information about the light use as the forward directional light for cloud shadowing
 		int AtmosphericDirectionalLightIndex = -1;
@@ -1065,10 +1151,11 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 		RenderLightFunctionForVolumetricFog(
 			GraphBuilder,
 			View,
+			SceneTextures,
 			VolumetricFogGridSize,
 			FogInfo.VolumetricFogDistance,
-			LightFunctionWorldToShadow,
-			LightFunctionTexture,
+			DirectionalLightFunctionWorldToShadow,
+			DirectionalLightFunctionTexture,
 			bUseDirectionalLightShadowing);
 
 		View.VolumetricFogResources.IntegratedLightScatteringTexture = nullptr;
@@ -1139,7 +1226,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			PassParameters->VBufferA = IntegrationData.VBufferA;
 			PassParameters->VBufferB = IntegrationData.VBufferB;
 			PassParameters->LocalShadowedLightScattering = LocalShadowedLightScattering;
-			PassParameters->LightFunctionTexture = LightFunctionTexture;
+			PassParameters->LightFunctionTexture = DirectionalLightFunctionTexture;
 			PassParameters->RWLightScattering = IntegrationData.LightScatteringUAV;
 
 			const bool bUseGlobalDistanceField = UseGlobalDistanceField() && Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0;
@@ -1174,7 +1261,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 					PassParameters->LightFunctionTexture ? TEXT("LF") : TEXT("")),
 				PassParameters,
 				ERDGPassFlags::Compute,
-				[PassParameters, ComputeShader, &View, this, FogInfo, bUseTemporalReprojection, VolumetricFogGridSize, IntegrationData, bUseDirectionalLightShadowing, bUseDistanceFieldSkyOcclusion, LightFunctionWorldToShadow, AtmosphericDirectionalLightIndex, AtmosphereLightProxy](FRHICommandListImmediate& RHICmdList)
+				[PassParameters, ComputeShader, &View, this, FogInfo, bUseTemporalReprojection, VolumetricFogGridSize, IntegrationData, bUseDirectionalLightShadowing, bUseDistanceFieldSkyOcclusion, DirectionalLightFunctionWorldToShadow, AtmosphericDirectionalLightIndex, AtmosphereLightProxy](FRHICommandListImmediate& RHICmdList)
 			{
 				const FIntVector NumGroups = FIntVector::DivideAndRoundUp(VolumetricFogGridSize, FIntVector(VolumetricFogLightScatteringGroupSizeX, VolumetricFogLightScatteringGroupSizeY, VolumetricFogLightScatteringGroupSizeZ));
 
@@ -1188,7 +1275,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 				}
 
 				FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
-				ComputeShader->SetParameters(RHICmdList, View, IntegrationData, FogInfo, LightScatteringHistoryTexture, bUseDirectionalLightShadowing, LightFunctionWorldToShadow, AtmosphericDirectionalLightIndex, AtmosphereLightProxy, CloudInfo);
+				ComputeShader->SetParameters(RHICmdList, View, IntegrationData, FogInfo, LightScatteringHistoryTexture, bUseDirectionalLightShadowing, DirectionalLightFunctionWorldToShadow, AtmosphericDirectionalLightIndex, AtmosphereLightProxy, CloudInfo);
 
 				SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), *PassParameters);
 				DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups.X, NumGroups.Y, NumGroups.Z);

@@ -48,6 +48,7 @@ struct FHairStrandsVisibilityViews;
 struct FSortedLightSetSceneInfo;
 struct FHairStrandsRenderingData;
 enum class EVelocityPass : uint32;
+class FTransientLightFunctionTextureAtlas;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
@@ -707,6 +708,20 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 extern void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalData& Parameters);
 
+struct FTransientLightFunctionTextureAtlasTile
+{
+	bool bIsDefault;		// If true, then the atlas item generation can be skipped
+	FRDGTextureRef Texture;
+	FIntRect RectBound;
+	FVector4 MinMaxUvBound;
+};
+
+struct FVolumetricFogLocalLightFunctionInfo
+{
+	FTransientLightFunctionTextureAtlasTile AtlasTile;
+	FMatrix LightFunctionMatrix;
+};
+
 class FVolumetricFogViewResources
 {
 public:
@@ -714,12 +729,22 @@ public:
 
 	FRDGTextureRef IntegratedLightScatteringTexture = nullptr;
 
+	// TODO: right now the lightfunction atlas is dedicated to the volumetric fog.
+	// Later we could put the allocated atlas tiles on FLightSceneInfo and uploaded as light data on GPU
+	// so that the lightfunction atlas can be used for forward rendering or tiled lighting.
+	// For this to work we would also need to add the default white light functoin as an atlas item.
+	// Note: this is not a smart pointer since it is allocated using the GraphBuilder frame transient memory.
+	FTransientLightFunctionTextureAtlas* TransientLightFunctionTextureAtlas = nullptr;
+
+	TMap<FLightSceneInfo*, FVolumetricFogLocalLightFunctionInfo> LocalLightFunctionData;
+
 	FVolumetricFogViewResources()
 	{}
 
 	void Release()
 	{
 		IntegratedLightScatteringTexture = nullptr;
+		TransientLightFunctionTextureAtlas = nullptr;
 	}
 };
 

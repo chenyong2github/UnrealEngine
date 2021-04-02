@@ -1862,7 +1862,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bOcclusionBeforeBasePass)
 	{
-		ComputeVolumetricFog(GraphBuilder);
+		ComputeVolumetricFog(GraphBuilder, SceneTextures);
 	}
 
 	// Kick off async compute cloud eraly if all depth has been written in the prepass
@@ -2029,7 +2029,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RenderShadowDepthMaps(InRHICmdList);
 		});
 
-		ComputeVolumetricFog(GraphBuilder);
+		ComputeVolumetricFog(GraphBuilder, SceneTextures);
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
 	// End shadow and fog after base pass
