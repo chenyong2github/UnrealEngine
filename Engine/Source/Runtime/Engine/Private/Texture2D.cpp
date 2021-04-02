@@ -1228,7 +1228,12 @@ void FVirtualTexture2DResource::InitRHI()
 
 	check(TextureOwner);
 
-	const uint32 MaxAnisotropy = FMath::Min<int32>(VirtualTextureScalability::GetMaxAnisotropy(), VTData->TileBorderSize);
+	uint32 MaxAnisotropy = 0;
+	if (VirtualTextureScalability::IsAnisotropicFilteringEnabled())
+	{
+		// Limit HW MaxAnisotropy to avoid sampling outside VT borders
+		MaxAnisotropy = FMath::Min<int32>(VirtualTextureScalability::GetMaxAnisotropy(), VTData->TileBorderSize);
+	}
 
 	// We always create a sampler state if we're attached to a texture. This is used to sample the cache texture during actual rendering and the miptails editor resource.
 	// If we're not attached to a texture it likely means we're light maps which have sampling handled differently.

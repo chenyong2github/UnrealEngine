@@ -16,6 +16,8 @@ namespace VirtualTextureScalability
 	ENGINE_API float GetPoolSizeScale();
 	/** Get resolution bias for runtime virtual textures. */
 	ENGINE_API int32 GetRuntimeVirtualTextureSizeBias();
+	/** Is HW Anisotropic filtering enabled for VT */
+	ENGINE_API bool IsAnisotropicFilteringEnabled();
 
 	/**
 	 * Get maximum anisotropy when virtual texture sampling. 

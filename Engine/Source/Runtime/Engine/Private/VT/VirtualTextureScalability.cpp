@@ -225,13 +225,13 @@ namespace VirtualTextureScalability
 #endif
 	}
 
+	bool IsAnisotropicFilteringEnabled()
+	{
+		return CVarVTEnableAnisotropy.GetValueOnAnyThread() != 0;
+	}
+
 	int32 GetMaxAnisotropy()
 	{
-		if (CVarVTEnableAnisotropy.GetValueOnAnyThread() == 0)
-		{
-			return 0;
-		}
-
 		return CVarVTMaxAnisotropy.GetValueOnAnyThread();
 	}
 

@@ -204,14 +204,12 @@ int TextureComputeVirtualMipLevel(
 	OutResult.dUVdx = dUVdx * PageTableUniform.SizeInPages;
 	OutResult.dUVdy = dUVdy * PageTableUniform.SizeInPages;
 
-#if VIRTUAL_TEXTURE_ANISOTROPIC_FILTERING
+	// Always compute mip level using MipLevelAniso2D, even if VIRTUAL_TEXTURE_ANISOTROPIC_FILTERING is disabled
+	// This way the VT mip level selection will come much closer to HW mip selection, even if we're not sampling the texture using anisotropic filtering
 	const float ComputedLevel = MipLevelAniso2D(OutResult.dUVdx, OutResult.dUVdy, PageTableUniform.MaxAnisoLog2);
-#else
-	const float ComputedLevel = MipLevel2D(OutResult.dUVdx, OutResult.dUVdy);
-#endif
 
 	const float Noise = InterleavedGradientNoise(SvPositionXY, View.StateFrameIndexMod8);
-	return (int)floor(ComputedLevel + MipBias + Noise * 0.5f - 0.25f) + int(PageTableUniform.vPageTableMipBias);
+	return (int)floor(ComputedLevel + MipBias + Noise) + int(PageTableUniform.vPageTableMipBias);
 }
 
 /** Samples page table indirection and any apply changes to UV, vLevel and PageTable information for adaptive page tables. */

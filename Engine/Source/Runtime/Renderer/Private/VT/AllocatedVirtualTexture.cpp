@@ -371,7 +371,9 @@ void FAllocatedVirtualTexture::GetPackedPageTableUniform(FUintVector4* OutUnifor
 	const uint32 HeightInPages = GetHeightInTiles();
 	const uint32 vPageTableMipBias = FMath::FloorLog2(vPageSize);
 
-	const uint32 MaxAnisotropy = FMath::Min<int32>(VirtualTextureScalability::GetMaxAnisotropy(), PageBorderSize);
+	// Here MaxAnisotropy only controls the VT mip level selection
+	// We don't need to limit this value based on border size, and we can add this factor in even if HW anisotropic filtering is disabled
+	const uint32 MaxAnisotropy = VirtualTextureScalability::GetMaxAnisotropy();
 	const uint32 MaxAnisotropyLog2 = (MaxAnisotropy > 0u) ? FMath::FloorLog2(MaxAnisotropy) : 0u;
 
 	const uint32 AdaptiveLevelBias = 0; // todo[vt]: Required for handling SampleLevel correctly on adaptive page tables.
