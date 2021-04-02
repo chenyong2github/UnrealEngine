@@ -4251,7 +4251,7 @@ class SFxTest : public SCompoundWidget
 							+SHorizontalBox::Slot() .AutoWidth()
 							[
 								SNew(SImage)
-								.Image(FTestStyle::Get().GetBrush("UE4Icon"))
+								.Image(FTestStyle::Get().GetBrush("UEIcon"))
 							]
 							+SHorizontalBox::Slot() .AutoWidth()
 							[
@@ -4726,7 +4726,7 @@ public:
 					.AutoWidth()
 					[
 						SNew(SImage)
-						.Image(FTestStyle::Get().GetBrush("UE4Icon"))
+						.Image(FTestStyle::Get().GetBrush("UEIcon"))
 					]
 					+ SHorizontalBox::Slot()
 					.Padding(FMargin(15.0f, 0.0f, 0.0f, 0.0f))
@@ -5585,7 +5585,7 @@ private:
 		{
 			check(IsInGameThread());
 			Style.SetContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
-			Style.Set("UE4Icon", new FSlateImageBrush(Style.RootToContentDir(TEXT("Testing/UE4Icon.png")), FVector2D(50, 50)));
+			Style.Set("UEIcon", new FSlateVectorImageBrush(Style.RootToContentDir(TEXT("Starship/Common/unreal.svg")), FVector2D(50, 50)));
 			IsInit = true;
 		}
 		return Style;
@@ -5615,7 +5615,7 @@ void SRenderTransformManipulatorWidgetImpl::Construct(const FArguments& InArgs)
 					SAssignNew(ImageWidget, SImage)
 					.RenderTransform_Static(&::GetTestRenderTransform)
 					.RenderTransformPivot_Static(&::GetTestRenderTransformPivot)
-					.Image(GetStyle().GetBrush("UE4Icon"))
+					.Image(GetStyle().GetBrush("UEIcon"))
 				]
 			+ SVerticalBox::Slot().AutoHeight().Padding(4)
 			[

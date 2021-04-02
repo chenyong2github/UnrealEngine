@@ -41,6 +41,7 @@ void FTestStyle::SetStyle( const TSharedRef< ISlateStyle >& NewStyle )
 }
 
 #define IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
+#define IMAGE_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush( Style->RootToContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 #define BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
@@ -85,7 +86,7 @@ TSharedRef< ISlateStyle > FTestStyle::Create()
 
 	Style->Set( "GammaReference", new IMAGE_BRUSH( "Testing/GammaReference", FVector2D(256,128) ) );
 
-	Style->Set( "UE4Icon", new IMAGE_BRUSH( "Testing/UE4Icon", FVector2D(50,50) ) );
+	Style->Set( "UEIcon", new IMAGE_BRUSH_SVG( "Starship/Common/unreal", FVector2D(50,50) ) );
 
 	Style->Set( "NewLevelBlank", new IMAGE_BRUSH( "Testing/NewLevelBlank", FVector2D(256,256) ) );
 
