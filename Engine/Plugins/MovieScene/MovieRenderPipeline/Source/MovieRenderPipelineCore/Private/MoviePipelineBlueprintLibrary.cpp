@@ -594,14 +594,15 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 	}
 }
 
-int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(const UMoviePipeline* InMoviePipeline)
+int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(FMoviePipelineFilenameResolveParams InParams)
 {
-	if (!InMoviePipeline)
+	if (!InParams.Job)
 	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot resolve Version Number without a Job to pull settings from."), ELogVerbosity::Error);
 		return -1;
 	}
 
-	UMoviePipelineOutputSetting* OutputSettings = InMoviePipeline->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSettings = InParams.Job->GetConfiguration()->FindSetting<UMoviePipelineOutputSetting>();
 	if (!OutputSettings->bAutoVersion)
 	{
 		return OutputSettings->VersionNumber;
@@ -613,9 +614,11 @@ int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(const UMoviePipeline*
 	FString FinalPath;
 	FMoviePipelineFormatArgs FinalFormatArgs;
 	TMap<FString, FString> Overrides;
-	Overrides.Add(TEXT("version"), TEXT("{version}")); // Force the Version string to stay as {version} so we can substring based on it later.
+	// Force the Version string to stay as {version} so we can substring based on it later.
+	InParams.FileNameFormatOverrides.Add(TEXT("version"), TEXT("{version}"));
+	
+	UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(FileNameFormatString, InParams, FinalPath, FinalFormatArgs);
 
-	InMoviePipeline->ResolveFilenameFormatArguments(FileNameFormatString, Overrides, FinalPath, FinalFormatArgs);
 	FinalPath = FPaths::ConvertRelativePathToFull(FinalPath);
 	FPaths::NormalizeFilename(FinalPath);
 

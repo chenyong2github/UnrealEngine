@@ -129,9 +129,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	static void UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob, bool& bShotsChanged);
 	
-	/** If version number is manually specifies, returns that, otherwise search the Output Directory for the highest version already existing an increments it by one. */
+	/**  If version number is manually specified by the Job, returns that. Otherwise search the Output Directory for the highest version already existing an increments it by one. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	static int32 ResolveVersionNumber(const UMoviePipeline* InMoviePipeline);
+	static int32 ResolveVersionNumber(FMoviePipelineFilenameResolveParams InParams);
 
 	/** In case of Overscan percentage being higher than 0 we render additional pixels. This function returns the resolution with overscan taken into account. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
