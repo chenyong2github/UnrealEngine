@@ -125,9 +125,6 @@ namespace Audio
 		{
 			return InScaleDegrees[FirstNegativeIndex - 1];
 		}
-
-		ensure(false); // something bad happened
-		return 0.0f;
 	}
 
 
