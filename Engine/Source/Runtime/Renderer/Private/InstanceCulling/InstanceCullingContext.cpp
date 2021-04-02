@@ -133,6 +133,8 @@ public:
 		SHADER_PARAMETER(int32, NumInstanceRuns)
 		SHADER_PARAMETER(int32, NumCommands)
 		SHADER_PARAMETER(uint32, NumInstanceFlagWords)
+		SHADER_PARAMETER(uint32, NumCulledInstances)
+		SHADER_PARAMETER(uint32, NumCulledViews)
 		SHADER_PARAMETER(int32, NumViewIds)
 
 		SHADER_PARAMETER(int32, DynamicPrimitiveIdOffset)
@@ -228,6 +230,8 @@ public:
 		SHADER_PARAMETER(int32, NumInstanceRuns)
 		SHADER_PARAMETER(int32, NumCommands)
 		SHADER_PARAMETER(uint32, NumInstanceFlagWords)
+		SHADER_PARAMETER(uint32, NumCulledInstances)
+		SHADER_PARAMETER(uint32, NumCulledViews)
 		SHADER_PARAMETER(int32, NumViewIds)
 
 		SHADER_PARAMETER(int32, DynamicPrimitiveIdOffset)
@@ -294,6 +298,8 @@ public:
 		SHADER_PARAMETER(int32, NumInstanceRuns)		
 		SHADER_PARAMETER(int32, NumCommands)
 		SHADER_PARAMETER(uint32, NumInstanceFlagWords)
+		SHADER_PARAMETER(uint32, NumCulledInstances)
+		SHADER_PARAMETER(uint32, NumCulledViews)
 		SHADER_PARAMETER(int32, NumViewIds)
 
 		SHADER_PARAMETER(int32, DynamicPrimitiveIdOffset)
@@ -324,8 +330,9 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	// If there is no manager, then there is no data on culling, so set flag to skip that and ignore buffers.
 	FRDGBufferRef VisibleInstanceFlagsRDG = InstanceCullingManager != nullptr ? InstanceCullingManager->CullingIntermediate.VisibleInstanceFlags : nullptr;
 	const bool bCullInstances = InstanceCullingManager != nullptr;
-	const int32 NumInstances = InstanceCullingManager != nullptr ? InstanceCullingManager->CullingIntermediate.NumInstances : 0;
-	int32 NumInstanceFlagWords = FMath::DivideAndRoundUp(NumInstances, int32(sizeof(uint32) * 8));
+	const uint32 NumCulledInstances = InstanceCullingManager != nullptr ? uint32(InstanceCullingManager->CullingIntermediate.NumInstances) : 0U;
+	const uint32 NumCulledViews = InstanceCullingManager != nullptr ? uint32(InstanceCullingManager->CullingIntermediate.NumViews) : 0U;
+	uint32 NumInstanceFlagWords = FMath::DivideAndRoundUp(NumCulledInstances, uint32(sizeof(uint32) * 8));
 
 #if ENABLE_DETERMINISTIC_INSTANCE_CULLING
 	// 1. Compute output sizes for all commands
@@ -362,7 +369,9 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 		PassParameters->NumCommands = CullingCommands.Num();
 		PassParameters->VisibleInstanceFlags = VisibleInstanceFlagsRDG ? GraphBuilder.CreateSRV(VisibleInstanceFlagsRDG) : nullptr;
 
-		PassParameters->NumInstanceFlagWords = uint32(NumInstanceFlagWords);
+		PassParameters->NumInstanceFlagWords = NumInstanceFlagWords;
+		PassParameters->NumCulledInstances = NumCulledInstances;
+		PassParameters->NumCulledViews = NumCulledViews;
 
 		FComputeInstanceIdOutputSizeCs::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FComputeInstanceIdOutputSizeCs::FCullInstancesDim>(bCullInstances);
@@ -437,7 +446,9 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 		PassParameters->NumInstanceRuns = InstanceRuns.Num();
 		PassParameters->NumCommands = CullingCommands.Num();
 		PassParameters->VisibleInstanceFlags = VisibleInstanceFlagsRDG ? GraphBuilder.CreateSRV(VisibleInstanceFlagsRDG) : nullptr;
-		PassParameters->NumInstanceFlagWords = uint32(NumInstanceFlagWords);
+		PassParameters->NumInstanceFlagWords = NumInstanceFlagWords;
+		PassParameters->NumCulledInstances = NumCulledInstances;
+		PassParameters->NumCulledViews = NumCulledViews;
 
 		FOutputInstanceIdsAtOffsetCs::FPermutationDomain PermutationVector;
 		// NOTE: this also switches between legacy buffer and RDG for Id output
@@ -500,7 +511,9 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	PassParameters->NumCommands = CullingCommands.Num();
 	PassParameters->VisibleInstanceFlags = VisibleInstanceFlagsRDG ? GraphBuilder.CreateSRV(VisibleInstanceFlagsRDG) : nullptr;
 
-	PassParameters->NumInstanceFlagWords = uint32(NumInstanceFlagWords);
+	PassParameters->NumInstanceFlagWords = NumInstanceFlagWords;
+	PassParameters->NumCulledInstances = NumCulledInstances;
+	PassParameters->NumCulledViews = NumCulledViews;
 
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FPermutationDomain PermutationVector;
 	// NOTE: this also switches between legacy buffer and RDG for Id output
@@ -612,6 +625,8 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 
 	int32 NumInstanceFlagWords = FMath::DivideAndRoundUp(Intermediate.NumInstances, int32(sizeof(uint32) * 8));
 	PassParameters->NumInstanceFlagWords = uint32(NumInstanceFlagWords);
+	PassParameters->NumCulledInstances = uint32(Intermediate.NumInstances);
+	PassParameters->NumCulledViews = uint32(Intermediate.NumViews);
 
 
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FPermutationDomain PermutationVector;

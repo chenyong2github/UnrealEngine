@@ -36,6 +36,8 @@ StructuredBuffer<uint> PrimitiveIds;
 #if CULL_INSTANCES
 StructuredBuffer<uint> VisibleInstanceFlags;
 uint NumInstanceFlagWords;
+uint NumCulledInstances;
+uint NumCulledViews;
 #endif
 
 uint NumPrimitiveIds;
@@ -71,12 +73,14 @@ uint TranslatePrimitiveId(uint PrimitiveIdIn)
 bool TestInstanceVisibilityBit(uint InstanceId, uint ViewId)
 {
 #if CULL_INSTANCES
-	uint ViewWordOffset = ViewId * NumInstanceFlagWords;
-	uint WordOffset = ViewWordOffset + InstanceId / 32U;
-	return (VisibleInstanceFlags[WordOffset] & (1U << (InstanceId % 32U))) != 0U;
-#else
-	return true;
+	if (InstanceId < NumCulledInstances && ViewId < NumCulledViews)
+	{
+		uint ViewWordOffset = ViewId * NumInstanceFlagWords;
+		uint WordOffset = ViewWordOffset + InstanceId / 32U;
+		return (VisibleInstanceFlags[WordOffset] & (1U << (InstanceId % 32U))) != 0U;
+	}
 #endif
+	return true;
 }
 
 

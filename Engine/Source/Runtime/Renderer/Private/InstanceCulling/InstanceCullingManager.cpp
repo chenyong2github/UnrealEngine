@@ -103,7 +103,9 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 {
 #if GPUCULL_TODO
 	TRACE_CPUPROFILER_EVENT_SCOPE(FInstanceCullingManager::CullInstances);
-	RDG_EVENT_SCOPE(GraphBuilder, "CullInstances");
+	int32 NumViews = CullingViews.Num();
+	int32 NumInstances = GPUScene.InstanceDataAllocator.GetMaxSize();
+	RDG_EVENT_SCOPE(GraphBuilder, "CullInstances [%d Views X %d Instances]", NumViews, NumInstances);
 
 	check(!CullingIntermediate.InstanceIdOutOffsetBuffer);
 	check(!CullingIntermediate.VisibleInstanceFlags);
@@ -113,8 +115,6 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 
 	CullingIntermediate.InstanceIdOutOffsetBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.OutputOffsetBufferOut"), NullArray);
 
-	int32 NumViews = CullingViews.Num();
-	int32 NumInstances = GPUScene.InstanceDataAllocator.GetMaxSize();
 	int32 NumInstanceFlagWords = FMath::DivideAndRoundUp(NumInstances, int32(sizeof(uint32) * 8));
 
 	CullingIntermediate.NumInstances = NumInstances;
