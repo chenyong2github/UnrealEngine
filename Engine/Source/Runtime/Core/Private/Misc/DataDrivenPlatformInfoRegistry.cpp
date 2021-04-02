@@ -177,6 +177,16 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	DDPIGetBool(IniFile, TEXT("Freezing_bWithRayTracing"), Info.Freezing_bWithRayTracing);
 
 	// NOTE: add more settings here!
+	DDPIGetBool(IniFile, TEXT("bIsInteractablePlatform"), Info.bIsInteractablePlatform);
+	DDPIGetBool(IniFile, TEXT("bHasDedicatedGamepad"), Info.bHasDedicatedGamepad);
+	DDPIGetBool(IniFile, TEXT("bDefaultInputStandardKeyboard"), Info.bDefaultInputStandardKeyboard);
+
+	DDPIGetBool(IniFile, TEXT("bInputSupportConfigurable"), Info.bInputSupportConfigurable);
+	DDPIGetString(IniFile, TEXT("DefaultInputType"), Info.DefaultInputType);
+	DDPIGetBool(IniFile, TEXT("bSupportsMouseAndKeyboard"), Info.bSupportsMouseAndKeyboard);
+	DDPIGetBool(IniFile, TEXT("bSupportsGamepad"), Info.bSupportsGamepad);
+	DDPIGetBool(IniFile, TEXT("bCanChangeGamepadType"), Info.bCanChangeGamepadType);
+	DDPIGetBool(IniFile, TEXT("bSupportsTouch"), Info.bSupportsTouch);
 
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA

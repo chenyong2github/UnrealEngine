@@ -38,6 +38,23 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 
 		// NOTE: add more settings here (and read them in in the LoadDDPIIniSettings() function in the .cpp)
 
+		// True if users will actually interact with this plaform, IE: not a GDK
+		bool bIsInteractablePlatform = false;
+
+		// True if this platform has a non-generic gamepad specifically associated with it
+		bool bHasDedicatedGamepad = false;
+
+		// True if this platform handles input via standard keyboard layout by default, translates to PC platform
+		bool bDefaultInputStandardKeyboard = false;
+
+		// Input-related settings
+		bool bInputSupportConfigurable = false;
+		FString DefaultInputType = "Gamepad";
+		bool bSupportsMouseAndKeyboard = false;
+		bool bSupportsGamepad = true;
+		bool bCanChangeGamepadType = true;
+		bool bSupportsTouch = false;
+
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 		// list of TP names (WindowsNoEditor, etc)
