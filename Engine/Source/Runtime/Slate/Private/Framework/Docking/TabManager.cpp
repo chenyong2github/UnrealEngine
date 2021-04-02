@@ -862,7 +862,7 @@ void FTabManager::CloseAllAreas()
 
 TSharedRef<FTabManager::FLayout> FTabManager::PersistLayout() const
 {
-	UE_LOG(LogSlate, Log, TEXT("Saving tab layout to %s"), *ActiveLayoutName.ToString());
+	UE_LOG(LogSlate, Log, TEXT("Saving tab layout to %s in TabManager 0x%p"), *ActiveLayoutName.ToString(), this);
 
 	TSharedRef<FLayout> PersistentLayout = FTabManager::NewLayout( this->ActiveLayoutName );
 	
@@ -918,7 +918,7 @@ FTabSpawnerEntry& FTabManager::RegisterTabSpawner(const FName TabId, const FOnSp
 	ensure(!TabSpawner.Contains(TabId));
 	ensure(!FGlobalTabmanager::Get()->IsLegacyTabType(TabId));
 
-	UE_LOG(LogSlate, Log, TEXT("Registering tab spawner for layout '%s': '%s'"), *ActiveLayoutName.ToString(), *TabId.ToString());
+	UE_LOG(LogSlate, Log, TEXT("Registering tab spawner for '%s' in layout '%s' on TabManager 0x%p"), *TabId.ToString(), *ActiveLayoutName.ToString(), this);
 
 	TSharedRef<FTabSpawnerEntry> NewSpawnerEntry = MakeShareable(new FTabSpawnerEntry(TabId, OnSpawnTab, CanSpawnTab));
 	TabSpawner.Add(TabId, NewSpawnerEntry);
@@ -927,7 +927,7 @@ FTabSpawnerEntry& FTabManager::RegisterTabSpawner(const FName TabId, const FOnSp
 
 bool FTabManager::UnregisterTabSpawner( const FName TabId )
 {
-	UE_LOG(LogSlate, Log, TEXT("Unregistering tab spawner for layout '%s': '%s'"), *ActiveLayoutName.ToString(), *TabId.ToString());
+	UE_LOG(LogSlate, Log, TEXT("Unregistering tab spawner for '%s' in layout '%s' on TabManager 0x%p"), *TabId.ToString(), *ActiveLayoutName.ToString(), this);
 
 	return TabSpawner.Remove( TabId ) > 0;
 }
@@ -937,7 +937,7 @@ void FTabManager::UnregisterAllTabSpawners()
 	if (TabSpawner.Num())
 	{
 		FString AllTabIdsString = FString::JoinBy(TabSpawner, TEXT(", "), [](const TPair<FName, TSharedRef<FTabSpawnerEntry>> Entry) { return Entry.Key.ToString(); });
-		UE_LOG(LogSlate, Log, TEXT("Unregistering all tab spawners for layout '%s': %s"), *ActiveLayoutName.ToString(), *AllTabIdsString);
+		UE_LOG(LogSlate, Log, TEXT("Unregistering all tab spawners on TabManager 0x%p for layout '%s': %s"), this, *ActiveLayoutName.ToString(), *AllTabIdsString);
 	}
 
 	TabSpawner.Empty();
@@ -948,7 +948,7 @@ TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, 
 {
 	ActiveLayoutName = Layout->LayoutName;
 
-	UE_LOG(LogSlate, Log, TEXT("Restoring tab layout: %s"), *ActiveLayoutName.ToString());
+	UE_LOG(LogSlate, Log, TEXT("Restoring tab layout: %s in TabManager 0x%p"), *ActiveLayoutName.ToString(), this);
 
 	TSharedPtr<SDockingArea> PrimaryDockArea;
 	for (int32 AreaIndex=0; AreaIndex < Layout->Areas.Num(); ++AreaIndex )

@@ -28,7 +28,7 @@ FApplicationMode::FApplicationMode(FName InModeName, FText(*GetLocalizedMode)(co
 
 void FApplicationMode::DeactivateMode(TSharedPtr<FTabManager> InTabManager)
 {
-	UE_LOG(LogApplicationMode, Log, TEXT("Deactivating ApplicationMode '%s'"), *ModeName.ToString());
+	UE_LOG(LogApplicationMode, Log, TEXT("Deactivating ApplicationMode '%s': 0x%p with TabManager: 0x%p"), *ModeName.ToString(), this, InTabManager.Get());
 
 	// Save the layout to INI
 	check(InTabManager.IsValid());
@@ -49,7 +49,7 @@ void FApplicationMode::DeactivateMode(TSharedPtr<FTabManager> InTabManager)
 
 TSharedRef<FTabManager::FLayout> FApplicationMode::ActivateMode(TSharedPtr<FTabManager> InTabManager)
 {
-	UE_LOG(LogApplicationMode, Log, TEXT("Activating ApplicationMode '%s'"), *ModeName.ToString());
+	UE_LOG(LogApplicationMode, Log, TEXT("Activating ApplicationMode '%s': 0x%p with TabManager: 0x%p"), *ModeName.ToString(), this, InTabManager.Get());
 
 	check(InTabManager.IsValid());
 	RegisterTabFactories(InTabManager);
