@@ -171,16 +171,16 @@ extern RENDERCORE_API class FTexture* GBlackUintTexture;
 extern RENDERCORE_API class FTextureWithRDG* GBlackUintVolumeTexture;
 
 /** A global white cube texture. */
-extern RENDERCORE_API class FTexture* GWhiteTextureCube;
+extern RENDERCORE_API class FTextureWithRDG* GWhiteTextureCube;
 
 /** A global black cube texture. */
-extern RENDERCORE_API class FTexture* GBlackTextureCube;
+extern RENDERCORE_API class FTextureWithRDG* GBlackTextureCube;
 
 /** A global black cube depth texture. */
-extern RENDERCORE_API class FTexture* GBlackTextureDepthCube;
+extern RENDERCORE_API class FTextureWithRDG* GBlackTextureDepthCube;
 
 /** A global black cube array texture. */
-extern RENDERCORE_API class FTexture* GBlackCubeArrayTexture;
+extern RENDERCORE_API class FTextureWithRDG* GBlackCubeArrayTexture;
 
 /** A global texture that has a different solid color in each mip-level. */
 extern RENDERCORE_API class FTexture* GMipColorTexture;
