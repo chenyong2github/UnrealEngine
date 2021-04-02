@@ -3,6 +3,7 @@
 #include "IRemoteControlModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "IRemoteControlReplicator.h"
 #include "IStructSerializerBackend.h"
 #include "Misc/CoreMisc.h"
 #include "RemoteControlPreset.h"
@@ -11,6 +12,7 @@
 #include "StructDeserializer.h"
 #include "UObject/UnrealType.h"
 #include "UObject/Class.h"
+#include "UObject/FieldPath.h"
 
 #if WITH_EDITOR
 	#include "ScopedTransaction.h"
@@ -251,7 +253,7 @@ public:
 						FProperty* ResolvedProperty = PropertyPath.GetResolvedData().Field;
 						if (RemoteControlUtil::IsPropertyAllowed(ResolvedProperty, AccessType, bObjectInGame))
 						{
-							OutObjectRef = FRCObjectReference{ AccessType , Object, MoveTemp(PropertyPath)};
+							OutObjectRef = FRCObjectReference{ AccessType , Object, MoveTemp(PropertyPath) };
 						}
 						else
 						{
@@ -288,6 +290,29 @@ public:
 		}
 
 		return bSuccess;
+	}
+
+	virtual void RegisterReplicator(TSharedRef<IRemoteControlReplicator> InReplicator) override
+	{
+		if (InReplicator->GetName() != NAME_None)
+		{
+			RemoteControlReplicatorSet.Add(InReplicator);
+		}
+	}
+
+	virtual void UnregisterReplicator(FName ReplicatorName) override
+	{
+		if (ReplicatorName != NAME_None)
+		{
+			for (auto Iter = RemoteControlReplicatorSet.CreateIterator(); Iter; ++Iter)
+			{
+				const TSharedPtr<IRemoteControlReplicator>& Replicator = *Iter;
+				if (Replicator->GetName() == ReplicatorName)
+				{
+					Iter.RemoveCurrent();
+				}
+			}
+		}
 	}
 
 	virtual bool GetObjectProperties(const FRCObjectReference& ObjectAccess, IStructSerializerBackend& Backend) override
@@ -343,8 +368,28 @@ public:
 		return false;
 	}
 
-	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend) override
+	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InReplicatePayload) override
 	{
+		// Check the replication path before apply property values
+		if (InReplicatePayload.Num() != 0 && RemoteControlReplicatorSet.Num() != 0 && ObjectAccess.Object.IsValid())
+		{
+			FString PropertyPathString = TFieldPath<FProperty>(ObjectAccess.Property.Get()).ToString();
+			FRCSetObjectPropertiesReplication ReplicatorReference(ObjectAccess.Object->GetPathName(), PropertyPathString, ObjectAccess.PropertyPathInfo.ToString(), ObjectAccess.Access, InPayloadType, InReplicatePayload);
+
+			bool bIntercept = false;
+
+			for (const TSharedPtr<IRemoteControlReplicator>& Replicator : RemoteControlReplicatorSet)
+			{
+				const ERemoteControlReplicatorFlag ReturnReplicatorFlags = Replicator->InterceptSetObjectProperties(ReplicatorReference);
+				bIntercept |= IRemoteControlReplicator::HasAnyFlags(ReturnReplicatorFlags, RCRF_Intercept);
+			}
+
+			if (bIntercept)
+			{
+				return true;
+			}
+		}
+
 		//Setting object properties require a property and can't be done at the object level. Property must be valid to move forward
 		if (ObjectAccess.IsValid()
 			&& (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS)
@@ -411,9 +456,30 @@ public:
 		return false;
 	}
 
-	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess) override
+	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bReplicate) override
 	{
-		if (ObjectAccess.IsValid() && (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
+		// Check the replication path before reset the property on this instance
+		if (bReplicate && RemoteControlReplicatorSet.Num() != 0 && ObjectAccess.Object.IsValid())
+		{
+			FString PropertyPathString = TFieldPath<FProperty>(ObjectAccess.Property.Get()).ToString();
+			FRCObjectReplication ReplicatorReference(ObjectAccess.Object->GetPathName(), PropertyPathString, ObjectAccess.PropertyPathInfo.ToString(), ObjectAccess.Access);
+
+			bool bIntercept = false;
+
+			for (const TSharedPtr<IRemoteControlReplicator>& Replicator : RemoteControlReplicatorSet)
+			{
+				const ERemoteControlReplicatorFlag ReturnReplicatorFlags = Replicator->InterceptResetObjectProperties(ReplicatorReference);
+				bIntercept |= IRemoteControlReplicator::HasAnyFlags(ReturnReplicatorFlags, RCRF_Intercept);
+			}
+
+			if (bIntercept)
+			{
+				return true;
+			}
+		}
+
+		if (ObjectAccess.IsValid() 
+			&& (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
 		{
 			UObject* Object = ObjectAccess.Object.Get();
 			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
@@ -549,6 +615,9 @@ private:
 
 	/** Whether the module has already scanned for existing preset assets. */
 	bool bHasDoneInitialPresetSearch = false;
+
+	/** Set of all replicator instances */
+	TSet<TSharedPtr<IRemoteControlReplicator>> RemoteControlReplicatorSet;
 };
 
 #undef LOCTEXT_NAMESPACE

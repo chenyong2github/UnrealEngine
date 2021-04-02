@@ -589,7 +589,8 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 		const FBlockDelimiters& PropertyValueDelimiters = DeserializedRequest.GetStructParameters().FindChecked(FRCObjectRequest::PropertyValueLabel());
 		if (bResetToDefault)
 		{
-			if (IRemoteControlModule::Get().ResetObjectProperties(ObjectRef))
+			constexpr bool bUseReplicator = true;
+			if (IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bUseReplicator))
 			{
 				Response->Code = EHttpServerResponseCodes::Ok;
 			}
@@ -600,7 +601,8 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 			Reader.Seek(PropertyValueDelimiters.BlockStart);
 			Reader.SetLimitSize(PropertyValueDelimiters.BlockEnd + 1);
 			FRCJsonStructDeserializerBackend DeserializerBackend(Reader);
-			if (IRemoteControlModule::Get().SetObjectProperties(ObjectRef, DeserializerBackend))
+			// Set a ERCPayloadType and TCHARBody in order to follow the replication path
+			if (IRemoteControlModule::Get().SetObjectProperties(ObjectRef, DeserializerBackend, ERCPayloadType::Json, DeserializedRequest.TCHARBody))
 			{
 				Response->Code = EHttpServerResponseCodes::Ok;
 			}
@@ -799,12 +801,15 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 
 		if (SetPropertyRequest.ResetToDefault)
 		{
-			bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef);
+			// set a replicator as an extra argument {}
+			constexpr bool bUseReplicator = true;
+			bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bUseReplicator);
 		}
 		else
 		{
 			NewPayloadReader.Seek(0);
-			bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend);
+			// Set a ERCPayloadType and TCHARBody in order to follow the replication path
+			bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend, ERCPayloadType::Json, NewPayload);
 		}
 	}
 
@@ -1073,12 +1078,14 @@ bool FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute(const FHt
 
 				if (SetPropertyRequest.ResetToDefault)
 				{
-					bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef);
+					constexpr bool bUseReplicator = true;
+					bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bUseReplicator);
 				}
 				else
 				{
 					NewPayloadReader.Seek(0);
-					bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend);
+					// Set a ERCPayloadType and NewPayload in order to follow the replication path
+					bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend, ERCPayloadType::Json, NewPayload);
 				}
 			}
 		}
