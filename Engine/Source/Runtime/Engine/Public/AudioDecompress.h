@@ -89,6 +89,12 @@ public:
 	*/
 	virtual int GetStreamBufferSize() const = 0;
 
+	/**
+	* Returns whether this instance can be cast to a IStreamedCompressedInfo. Surprisingly
+	* SupportsStreaming doesn't work for this.
+	*/
+	virtual bool IsStreamedCompressedInfo() const { return false; }
+
 	////////////////////////////////////////////////////////////////
 	// Following functions are optional if streaming is supported //
 	////////////////////////////////////////////////////////////////
@@ -201,6 +207,7 @@ public:
 	virtual bool StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize, int32& OutNumBytesStreamed) override;
 	virtual int32 GetCurrentChunkIndex() const override { return CurrentChunkIndex; }
 	virtual int32 GetCurrentChunkOffset() const override { return SrcBufferOffset; }
+	virtual bool IsStreamedCompressedInfo() const override { return true; }
 	//~ End ICompressedInfo Interface
 
 	/** Parse the header information from the input source buffer data. This is dependent on compression format. */
@@ -221,6 +228,8 @@ public:
 	/** The size of the decode PCM buffer size. */
 	virtual uint32 GetMaxFrameSizeSamples() const = 0;
 
+	int32 GetStreamSeekBlockIndex() const { return StreamSeekBlockIndex; }
+	int32 GetStreamSeekBlockOffset() const { return StreamSeekBlockOffset; }
 protected:
 
 	/** Reads from the internal source audio buffer stream of the given data size. */
@@ -309,6 +318,18 @@ protected:
 	uint32 SrcBufferPadding;
 	/** Chunk Handle to ensure that this chunk of streamed audio is not deleted while we are using it. */
 	FAudioChunkHandle CurCompressedChunkHandle;
+
+	/** 
+		When a streaming seek request comes down, this is the block we are going to. INDEX_NONE means no seek pending.
+		When using the legacy streaming system this is read on a thread other than the decompression thread
+		to prime the correct chunk, so it needs an atomic. It's only ever _set_ on one thread, and the read
+		has no timing restrictions, so no lock is necessary. Also the legacy streamer isn't used anymore anyway.
+
+		This and StreamSeekBlockOffset are expected to be set by the codec's SeekToTime() function.
+	*/
+	std::atomic<int32> StreamSeekBlockIndex;
+	/** When a streaming seek request comes down, this is the offset in to the block we want to start decoding from. */
+	int32 StreamSeekBlockOffset;
 };
 
 

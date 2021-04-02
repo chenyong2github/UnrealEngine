@@ -27,6 +27,8 @@ IStreamedCompressedInfo::IStreamedCompressedInfo()
 	, CurrentChunkIndex(0)
 	, bPrintChunkFailMessage(true)
 	, SrcBufferPadding(0)
+	, StreamSeekBlockIndex(INDEX_NONE)
+	, StreamSeekBlockOffset(0)
 {
 }
 
@@ -188,6 +190,25 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 
 	// Write out any PCM data that was decoded during the last request
 	uint32 RawPCMOffset = WriteFromDecodedPCM(Destination, BufferSize);
+
+	// If we have a pending next chunk from seeking, move to it now.
+	if (StreamSeekBlockIndex != INDEX_NONE)
+	{
+		uint32 ChunkSize = 0;
+		SrcBufferData = GetLoadedChunk(StreamingSoundWave, StreamSeekBlockIndex, ChunkSize);
+		UE_LOG(LogAudio, Log, TEXT("Seek block request: %d / %d (%s)"), StreamSeekBlockIndex.load(), StreamSeekBlockOffset, SrcBufferData == nullptr ? TEXT("present") : TEXT("missing"));
+		if (SrcBufferData == nullptr)
+		{
+			// After a seek we're likely to need to wait a bit for the chunk to get in to memory.
+			ZeroBuffer(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
+			return false;
+		}
+
+		CurrentChunkIndex = StreamSeekBlockIndex;
+		SrcBufferDataSize = ChunkSize;
+		SrcBufferOffset = StreamSeekBlockOffset;
+		StreamSeekBlockIndex = INDEX_NONE;
+	}
 
 	// If next chunk wasn't loaded when last one finished reading, try to get it again now
 	if (SrcBufferData == NULL)

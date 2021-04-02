@@ -606,6 +606,25 @@ void FLegacyAudioStreamingManager::UpdateResourceStreaming(float DeltaTime, bool
 			// Request the chunk the source is using and the one after that
 			FWaveRequest& WaveRequest = GetWaveRequest(SoundWave->GetFObjectKey());
 			int32 SourceChunk = Decoder->GetCurrentChunkIndex();
+
+			// If there's a seek request, use that as our current chunk index.				
+			if (Decoder->IsStreamedCompressedInfo())
+			{
+				// This is awk because the decoder thread catches the seek to
+				// advance, so we have to read this atomically. However, if it changes,
+				// that means that the chunk is already in memory (because StreamCompressedData
+				// only updates it when the chunk is present).
+				// ... and also, GetCurrentChunkIndex has the same problem. So it's layers
+				// on layers.
+				IStreamedCompressedInfo* Streamed = (IStreamedCompressedInfo*)Decoder;
+				int32 StreamSeekToBlockIndex = Streamed->GetStreamSeekBlockIndex();
+				if (StreamSeekToBlockIndex != INDEX_NONE)
+				{
+					UE_LOG(LogAudio, Log, TEXT("Diverting streaming chunk due to seek -- from %d to %d"), SourceChunk, StreamSeekToBlockIndex);
+					SourceChunk = StreamSeekToBlockIndex;
+				}
+			}
+
 			if (SourceChunk >= 0 && SourceChunk < (int32)SoundWave->GetNumChunks())
 			{
 				WaveRequest.RequiredIndices.AddUnique(SourceChunk);
