@@ -257,7 +257,7 @@ void SMetasoundGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFil
 
 const FSlateBrush* SMetasoundGraphNode::GetNodeBodyBrush() const
 {
-// 	if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetasoundStyle"))
+// 	if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 // 	{
 // 		if (GetMetasoundNode().GetNodeHandle()->GetClassType() == EMetasoundFrontendClassType::Input)
 // 		{
@@ -327,7 +327,7 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 				SAssignNew(LeftNodeBox, SVerticalBox)
 			];
 
-		if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetasoundStyle"))
+		if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 		{
 			const FSlateBrush* ImageBrush = MetasoundStyle->GetBrush(StyleDisplay.ImageName);
 			ContentBox->AddSlot()

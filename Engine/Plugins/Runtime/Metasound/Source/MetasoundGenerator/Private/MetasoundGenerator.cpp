@@ -35,13 +35,13 @@ namespace Metasound
 		{
 			if (Error.IsValid())
 			{
-				UE_LOG(LogMetasound, Warning, TEXT("MetasoundSource [%s] build error [%s] \"%s\""), *InitParams.MetaSoundName, *(Error->GetErrorType().ToString()), *(Error->GetErrorDescription().ToString()));
+				UE_LOG(LogMetaSound, Warning, TEXT("MetasoundSource [%s] build error [%s] \"%s\""), *InitParams.MetaSoundName, *(Error->GetErrorType().ToString()), *(Error->GetErrorDescription().ToString()));
 			}
 		}
 
 		if (!GraphOperator.IsValid())
 		{
-			UE_LOG(LogMetasound, Error, TEXT("Failed to build Metasound operator from graph in MetasoundSource [%s]"), *InitParams.MetaSoundName);
+			UE_LOG(LogMetaSound, Error, TEXT("Failed to build Metasound operator from graph in MetasoundSource [%s]"), *InitParams.MetaSoundName);
 		}
 		else
 		{
@@ -53,7 +53,7 @@ namespace Metasound
 			{
 				if (!Outputs.ContainsDataReadReference<FStereoAudioFormat>(InitParams.OutputName))
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("MetasoundSource [%s] does not contain stereo output [%s] in output"), *InitParams.MetaSoundName, *InitParams.OutputName);
+					UE_LOG(LogMetaSound, Warning, TEXT("MetasoundSource [%s] does not contain stereo output [%s] in output"), *InitParams.MetaSoundName, *InitParams.OutputName);
 				}
 				OutputBuffers = Outputs.GetDataReadReferenceOrConstruct<FStereoAudioFormat>(InitParams.OutputName, InitParams.OperatorSettings)->GetBuffers();
 			}
@@ -61,7 +61,7 @@ namespace Metasound
 			{
 				if (!Outputs.ContainsDataReadReference<FMonoAudioFormat>(InitParams.OutputName))
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("MetasoundSource [%s] does not contain mono output [%s] in output"), *InitParams.MetaSoundName, *InitParams.OutputName);
+					UE_LOG(LogMetaSound, Warning, TEXT("MetasoundSource [%s] does not contain mono output [%s] in output"), *InitParams.MetaSoundName, *InitParams.OutputName);
 				}
 				OutputBuffers = Outputs.GetDataReadReferenceOrConstruct<FMonoAudioFormat>(InitParams.OutputName, InitParams.OperatorSettings)->GetBuffers();
 			}
@@ -155,7 +155,7 @@ namespace Metasound
 		{
 			int32 FoundNumChannels = InData->OutputBuffers.Num();
 
-			UE_LOG(LogMetasound, Warning, TEXT("Metasound generator expected %d number of channels, found %d"), NumChannels, FoundNumChannels);
+			UE_LOG(LogMetaSound, Warning, TEXT("Metasound generator expected %d number of channels, found %d"), NumChannels, FoundNumChannels);
 
 			int32 NumChannelsToCopy = FMath::Min(FoundNumChannels, NumChannels);
 			int32 NumChannelsToCreate = NumChannels - NumChannelsToCopy;

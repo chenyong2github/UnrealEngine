@@ -255,7 +255,7 @@ namespace Metasound
 			{
 				FScopeLock ScopeLock(&LazyInitCommandCritSection);
 
-				UE_LOG(LogTemp, Display, TEXT("Processing %i Metasounds Frontend Registration Requests."), LazyInitCommands.Num());
+				UE_LOG(LogMetaSound, Display, TEXT("Processing %i Metasounds Frontend Registration Requests."), LazyInitCommands.Num());
 				uint64 CurrentTime = FPlatformTime::Cycles64();
 
 				for (TUniqueFunction<void()>& Command : LazyInitCommands)
@@ -266,7 +266,7 @@ namespace Metasound
 				LazyInitCommands.Empty();
 
 				uint64 CyclesUsed = FPlatformTime::Cycles64() - CurrentTime;
-				UE_LOG(LogTemp, Display, TEXT("Initializing Metasounds Frontend took %f seconds."), FPlatformTime::ToSeconds64(CyclesUsed));
+				UE_LOG(LogMetaSound, Display, TEXT("Initializing Metasounds Frontend took %f seconds."), FPlatformTime::ToSeconds64(CyclesUsed));
 			}
 
 			bool FRegistryContainerImpl::EnqueueInitCommand(TUniqueFunction<void()>&& InFunc)
@@ -274,7 +274,7 @@ namespace Metasound
 				FScopeLock ScopeLock(&LazyInitCommandCritSection);
 				if (LazyInitCommands.Num() >= MaxNumNodesAndDatatypesToInitialize)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("Registering more that %d nodes and datatypes for metasounds! Consider increasing MetasoundFrontendRegistryContainer::MaxNumNodesAndDatatypesToInitialize."));
+					UE_LOG(LogMetaSound, Warning, TEXT("Registering more that %d nodes and datatypes for metasounds! Consider increasing MetasoundFrontendRegistryContainer::MaxNumNodesAndDatatypesToInitialize."));
 				}
 
 				LazyInitCommands.Add(MoveTemp(InFunc));
@@ -540,7 +540,7 @@ namespace Metasound
 					Metasound::Frontend::FNodeRegistryKey OutputNodeRegistryKey = GetRegistryKey(InCallbacks.CreateFrontendOutputClass().Metadata);
 					DataTypeNodeRegistry.Add(OutputNodeRegistryKey, InElement);
 
-					UE_LOG(LogMetasound, Display, TEXT("Registered Metasound Datatype %s."), *InDataInfo.DataTypeName.ToString());
+					UE_LOG(LogMetaSound, Display, TEXT("Registered Metasound Datatype %s."), *InDataInfo.DataTypeName.ToString());
 					return true;
 				}
 			}

@@ -9,7 +9,7 @@
 #include "MetasoundUObjectRegistry.h"
 #include "ScopedTransaction.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundEditor"
+#define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 
 TArray<UMetasoundEditorGraphNode*> UMetasoundEditorGraphVariable::GetNodes() const
@@ -44,7 +44,7 @@ void UMetasoundEditorGraphVariable::SetDataType(FName InNewType)
 		return;
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("SetVariableDataType", "Set Metasound Variable Type"));
+	const FScopedTransaction Transaction(LOCTEXT("SetVariableDataType", "Set MetaSound Variable Type"));
 	Graph->GetMetasoundChecked().Modify();
 	Graph->Modify();
 
@@ -145,7 +145,7 @@ void UMetasoundEditorGraphInput::UpdateDocumentInput(bool bPostTransaction)
 		return;
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("Set Input Default", "Set Metasound Input Default"), bPostTransaction);
+	const FScopedTransaction Transaction(LOCTEXT("Set Input Default", "Set MetaSound Input Default"), bPostTransaction);
 	Metasound->Modify();
 
 	FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
@@ -225,7 +225,7 @@ void UMetasoundEditorGraphInput::OnDataTypeChanged()
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
-	IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
+	IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 	const FEditorDataType& EditorDataType = EditorModule.FindDataType(TypeName);
 	const EMetasoundFrontendLiteralType LiteralType = static_cast<EMetasoundFrontendLiteralType>(EditorDataType.RegistryInfo.PreferredLiteralType);
 
@@ -360,7 +360,7 @@ UMetasoundEditorGraphInput* UMetasoundEditorGraph::FindOrAddInput(Metasound::Fro
 
 		FMetasoundFrontendLiteral DefaultLiteral = Graph->GetDefaultInput(VertexID);
 		EMetasoundFrontendLiteralType LiteralType = DefaultLiteral.GetType();
-		IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
+		IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 		TSubclassOf<UMetasoundEditorGraphInputLiteral> InputLiteralClass = EditorModule.FindInputLiteralClass(LiteralType);
 
 		NewInput->Literal = NewObject<UMetasoundEditorGraphInputLiteral>(NewInput, InputLiteralClass, FName(), RF_Transactional);

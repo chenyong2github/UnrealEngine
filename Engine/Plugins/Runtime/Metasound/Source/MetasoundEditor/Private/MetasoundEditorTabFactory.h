@@ -11,7 +11,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Templates/SharedPointer.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundEditor"
+#define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 
 namespace Metasound
@@ -78,9 +78,9 @@ namespace Metasound
 					GraphActionMenu.ToSharedRef()
 				];
 
-				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetasoundStyle"))
+				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 				{
-					NewTab->SetTabIcon(MetasoundStyle->GetBrush("ClassThumbnail.Metasound"));
+					NewTab->SetTabIcon(MetasoundStyle->GetBrush("MetasoundEditor.Metasound.Icon"));
 				}
 
 				return NewTab;

@@ -172,13 +172,13 @@ namespace Metasound
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Error, TEXT("Cannot create input node [NodeID:%s]. [Vertex:%s] cannot be constructed with the provided literal type."), *InNode.ID.ToString(), *InputVertex.Name);
+					UE_LOG(LogMetaSound, Error, TEXT("Cannot create input node [NodeID:%s]. [Vertex:%s] cannot be constructed with the provided literal type."), *InNode.ID.ToString(), *InputVertex.Name);
 				}
 			}
 		}
 		else
 		{
-			UE_LOG(LogMetasound, Error, TEXT("Cannot create input node [NodeID:%s]. No default literal set for input node."), *InNode.ID.ToString());
+			UE_LOG(LogMetaSound, Error, TEXT("Cannot create input node [NodeID:%s]. No default literal set for input node."), *InNode.ID.ToString());
 		}
 
 		return TUniquePtr<INode>(nullptr);
@@ -364,7 +364,7 @@ namespace Metasound
 							}
 							else
 							{
-								UE_LOG(LogMetasound, Error, TEXT("Failed to match input node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *InGraphClass.ID.ToString());
+								UE_LOG(LogMetaSound, Error, TEXT("Failed to match input node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *InGraphClass.ID.ToString());
 							}
 						}
 
@@ -381,7 +381,7 @@ namespace Metasound
 							}
 							else
 							{
-								UE_LOG(LogMetasound, Error, TEXT("Failed to match output node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *InGraphClass.ID.ToString());
+								UE_LOG(LogMetaSound, Error, TEXT("Failed to match output node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *InGraphClass.ID.ToString());
 							}
 						}
 
@@ -416,7 +416,7 @@ namespace Metasound
 			const INode* CoreNode = OutGraph.FindNode(Node.ID);
 			if (nullptr == CoreNode)
 			{
-				UE_LOG(LogMetasound, Display, TEXT("Could not find referenced node [NodeID:%s]"), *Node.ID.ToString());
+				UE_LOG(LogMetaSound, Display, TEXT("Could not find referenced node [NodeID:%s]"), *Node.ID.ToString());
 				continue;
 			}
 
@@ -440,14 +440,14 @@ namespace Metasound
 			if (nullptr == DestinationNodeAndVertex)
 			{
 				// TODO: bubble up error
-				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find destination [NodeID:%s, VertexID:%s]"), *Edge.ToNodeID.ToString(), *Edge.ToVertexID.ToString());
+				UE_LOG(LogMetaSound, Error, TEXT("Failed to add edge. Could not find destination [NodeID:%s, VertexID:%s]"), *Edge.ToNodeID.ToString(), *Edge.ToVertexID.ToString());
 				continue;
 			}
 
 			if (nullptr == DestinationNodeAndVertex->Node)
 			{
 				// TODO: bubble up error
-				UE_LOG(LogMetasound, Warning, TEXT("Skipping edge. Null destination node [NodeID:%s]"), *Edge.ToNodeID.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Skipping edge. Null destination node [NodeID:%s]"), *Edge.ToNodeID.ToString());
 				continue;
 			}
 
@@ -456,14 +456,14 @@ namespace Metasound
 
 			if (nullptr == SourceNodeAndVertex)
 			{
-				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find source [NodeID:%s, VertexID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromVertexID.ToString());
+				UE_LOG(LogMetaSound, Error, TEXT("Failed to add edge. Could not find source [NodeID:%s, VertexID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromVertexID.ToString());
 				continue;
 			}
 
 			if (nullptr == SourceNodeAndVertex->Node)
 			{
 				// TODO: bubble up error
-				UE_LOG(LogMetasound, Warning, TEXT("Skipping edge. Null source node [NodeID:%s]"), *Edge.FromNodeID.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Skipping edge. Null source node [NodeID:%s]"), *Edge.FromNodeID.ToString());
 				continue;
 			}
 
@@ -477,7 +477,7 @@ namespace Metasound
 
 			if (!bSuccess)
 			{
-				UE_LOG(LogMetasound, Error, TEXT("Failed to connect edge from [NodeID:%s, VertexID:%s] to [NodeID:%s, VertexID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromVertexID.ToString(), *Edge.ToNodeID.ToString(), *Edge.ToVertexID.ToString());
+				UE_LOG(LogMetaSound, Error, TEXT("Failed to connect edge from [NodeID:%s, VertexID:%s] to [NodeID:%s, VertexID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromVertexID.ToString(), *Edge.ToNodeID.ToString(), *Edge.ToVertexID.ToString());
 			}
 		}
 	}
@@ -530,7 +530,7 @@ namespace Metasound
 		{
 			// Likely this will change in the future and the builder will be able
 			// to build graphs with subgraphs..
-			UE_LOG(LogMetasound, Error, TEXT("Provided graph not flat. FFrontendGraphBuilder can only build flat graphs"));
+			UE_LOG(LogMetaSound, Error, TEXT("Provided graph not flat. FFrontendGraphBuilder can only build flat graphs"));
 			return TUniquePtr<FFrontendGraph>(nullptr);
 		}
 

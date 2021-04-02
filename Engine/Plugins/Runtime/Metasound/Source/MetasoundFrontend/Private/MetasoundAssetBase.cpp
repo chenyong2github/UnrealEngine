@@ -30,7 +30,7 @@ void FMetasoundAssetBase::SetMetadata(FMetasoundFrontendClassMetadata& InMetadat
 
 	if (Doc.RootGraph.Metadata.Type != EMetasoundFrontendClassType::Graph)
 	{
-		UE_LOG(LogMetasound, Display, TEXT("Forcing class type to EMetasoundFrontendClassType::Graph on root graph metadata"));
+		UE_LOG(LogMetaSound, Display, TEXT("Forcing class type to EMetasoundFrontendClassType::Graph on root graph metadata"));
 		Doc.RootGraph.Metadata.Type = EMetasoundFrontendClassType::Graph;
 	}
 

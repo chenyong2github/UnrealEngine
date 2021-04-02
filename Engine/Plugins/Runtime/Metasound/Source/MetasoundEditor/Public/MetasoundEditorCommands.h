@@ -15,7 +15,7 @@ namespace Metasound
 		public:
 			/** Constructor */
 			FEditorCommands()
-				: TCommands<FEditorCommands>("MetasoundEditor", NSLOCTEXT("Contexts", "MetasoundEditor", "Metasound Graph Editor"), NAME_None, "MetasoundStyle")
+				: TCommands<FEditorCommands>("MetaSoundEditor", NSLOCTEXT("Contexts", "MetaSoundEditor", "MetaSound Graph Editor"), NAME_None, "MetaSoundStyle")
 			{
 			}
 

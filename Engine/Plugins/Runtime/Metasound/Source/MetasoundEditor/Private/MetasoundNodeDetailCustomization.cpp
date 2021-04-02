@@ -40,7 +40,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 
-#define LOCTEXT_NAMESPACE "MetasoundEditor"
+#define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 namespace Metasound
 {
@@ -508,7 +508,7 @@ namespace Metasound
 			}
 
 			DataTypeNames.Reset();
-			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
+			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 			EditorModule.IterateDataTypes([&](const FEditorDataType& EditorDataType)
 			{
 				const FString TypeName = EditorDataType.RegistryInfo.DataTypeName.ToString();

@@ -263,7 +263,7 @@ void FMetasoundFrontendLiteral::SetFromLiteral(const Metasound::FLiteral& InLite
 			// is valid as a null proxy can safely correspond to a null UObject ptr).
 			if (InLiteral.Value.Get<Audio::IProxyDataPtr>().IsValid())
 			{
-				UE_LOG(LogMetasound, Error, TEXT("Cannot set UObjectProxy from Metasound::FLiteral"));
+				UE_LOG(LogMetaSound, Error, TEXT("Cannot set UObjectProxy from Metasound::FLiteral"));
 			}
 			Set(static_cast<UObject*>(nullptr));
 		}
@@ -307,7 +307,7 @@ void FMetasoundFrontendLiteral::SetFromLiteral(const Metasound::FLiteral& InLite
 			// is valid as a null proxy can safely correspond to a null UObject ptr).
 			if (!InLiteral.Value.Get<TArray<Audio::IProxyDataPtr>>().IsEmpty())
 			{
-				UE_LOG(LogMetasound, Error, TEXT("Cannot set UObjectProxy from Metasound::FLiteral"));
+				UE_LOG(LogMetaSound, Error, TEXT("Cannot set UObjectProxy from Metasound::FLiteral"));
 			}
 			Set(TArray<UObject*>());
 		}
@@ -424,7 +424,7 @@ Metasound::FLiteral FMetasoundFrontendLiteral::ToLiteral(const FName& InMetasoun
 
 	if (!bIsTypeSupported)
 	{
-		UE_LOG(LogMetasound, Error, TEXT("Reverting to default literal type for data type. Failed to create supported Metasound::FLiteral for data type [Name:%s] with FMetasoundFrontendLiteral [Literal:%s]"), *InMetasoundDataTypeName.ToString(), *ToString());
+		UE_LOG(LogMetaSound, Error, TEXT("Reverting to default literal type for data type. Failed to create supported Metasound::FLiteral for data type [Name:%s] with FMetasoundFrontendLiteral [Literal:%s]"), *InMetasoundDataTypeName.ToString(), *ToString());
 
 		Literal = GetDefaultParamForDataType(InMetasoundDataTypeName);
 	}
@@ -470,7 +470,7 @@ Metasound::FLiteral FMetasoundFrontendLiteral::ToLiteralNoProxy() const
 
 	if ((EMetasoundFrontendLiteralType::UObject == Type) || (EMetasoundFrontendLiteralType::UObjectArray == Type))
 	{
-		UE_LOG(LogMetasound, Error, TEXT("Cannot convert FMetasoundFrontendLiteral to Metasound::Literal without data type name [Literal:%s]"), *ToString());
+		UE_LOG(LogMetaSound, Error, TEXT("Cannot convert FMetasoundFrontendLiteral to Metasound::Literal without data type name [Literal:%s]"), *ToString());
 		return FLiteral::CreateInvalid();
 	}
 

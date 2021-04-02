@@ -7,7 +7,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-DEFINE_LOG_CATEGORY(LogMetasound);
+DEFINE_LOG_CATEGORY(LogMetaSound);
 
 namespace Metasound 
 {

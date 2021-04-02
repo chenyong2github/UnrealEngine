@@ -29,6 +29,7 @@
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorSettings.h"
 #include "MetasoundEditorTabFactory.h"
+#include "MetasoundLog.h"
 #include "MetasoundUObjectRegistry.h"
 #include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
@@ -48,15 +49,15 @@
 #include "../../GraphEditor/Private/GraphActionNode.h"
 
 
-#define LOCTEXT_NAMESPACE "MetasoundEditor"
+#define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 static int32 ShowLiteralMetasoundInputsInEditorCVar = 0;
-FAutoConsoleVariableRef CVarShowLiteralMetasoundInputsInEditor(
-	TEXT("au.Debug.Editor.Metasounds.ShowLiteralInputs"),
-	ShowLiteralMetasoundInputsInEditorCVar,
-	TEXT("Show literal inputs in the Metasound Editor.\n")
-	TEXT("0: Disabled (default), !0: Enabled"),
-	ECVF_Default);
+// FAutoConsoleVariableRef CVarShowLiteralMetasoundInputsInEditor(
+// 	TEXT("au.Debug.Editor.Metasounds.ShowLiteralInputs"),
+// 	ShowLiteralMetasoundInputsInEditorCVar,
+// 	TEXT("Show literal inputs in the Metasound Editor.\n")
+// 	TEXT("0: Disabled (default), !0: Enabled"),
+// 	ECVF_Default);
 
 
 namespace Metasound
@@ -523,29 +524,30 @@ namespace Metasound
 				GetToolkitCommands(),
 				FToolBarExtensionDelegate::CreateLambda([this](FToolBarBuilder& ToolbarBuilder)
 				{
-					ToolbarBuilder.BeginSection("Utilities");
-					{
-						ToolbarBuilder.AddToolBarButton
-						(
-							FEditorCommands::Get().Import,
-							NAME_None,
-							TAttribute<FText>(),
-							TAttribute<FText>(),
-							TAttribute<FSlateIcon>::Create([this]() { return GetImportStatusImage(); }),
-							"ImportMetasound"
-						);
-
-						ToolbarBuilder.AddToolBarButton
-						(
-							FEditorCommands::Get().Export,
-							NAME_None,
-							TAttribute<FText>(),
-							TAttribute<FText>(),
-							TAttribute<FSlateIcon>::Create([this]() { return GetExportStatusImage(); }),
-							"ExportMetasound"
-						);
-					}
-					ToolbarBuilder.EndSection();
+				// TODO: Add OS SVD and clean this up post UE5.0 - Early Access
+// 					ToolbarBuilder.BeginSection("Utilities");
+// 					{
+// 						ToolbarBuilder.AddToolBarButton
+// 						(
+// 							FEditorCommands::Get().Import,
+// 							NAME_None,
+// 							TAttribute<FText>(),
+// 							TAttribute<FText>(),
+// 							TAttribute<FSlateIcon>::Create([this]() { return GetImportStatusImage(); }),
+// 							"ImportMetasound"
+// 						);
+// 
+// 						ToolbarBuilder.AddToolBarButton
+// 						(
+// 							FEditorCommands::Get().Export,
+// 							NAME_None,
+// 							TAttribute<FText>(),
+// 							TAttribute<FText>(),
+// 							TAttribute<FSlateIcon>::Create([this]() { return GetExportStatusImage(); }),
+// 							"ExportMetasound"
+// 						);
+// 					}
+// 					ToolbarBuilder.EndSection();
 
 					ToolbarBuilder.BeginSection("Audition");
 					{
@@ -584,13 +586,13 @@ namespace Metasound
 		FSlateIcon FEditor::GetImportStatusImage() const
 		{
 			const FName IconName = "MetasoundEditor.Import";
-			return FSlateIcon("MetasoundStyle", IconName);
+			return FSlateIcon("MetaSoundStyle", IconName);
 		}
 
 		FSlateIcon FEditor::GetSettingsImage() const
 		{
 			const FName IconName = "MetasoundEditor.Settings";
-			return FSlateIcon("MetasoundStyle", IconName);
+			return FSlateIcon("MetaSoundStyle", IconName);
 		}
 
 		FSlateIcon FEditor::GetExportStatusImage() const
@@ -601,7 +603,7 @@ namespace Metasound
 				IconName = "MetasoundEditor.ExportError";
 			}
 
-			return FSlateIcon("MetasoundStyle", IconName);
+			return FSlateIcon("MetaSoundStyle", IconName);
 		}
 
 		void FEditor::BindGraphCommands()
@@ -655,10 +657,10 @@ namespace Metasound
 			if (MetasoundAsset)
 			{
 				// TODO: Prompt OFD and provide path from user
-				const FString InputPath = FPaths::ProjectIntermediateDir() / TEXT("Metasounds") + FPaths::ChangeExtension(Metasound->GetPathName(), FMetasoundAssetBase::FileExtension);
+				const FString InputPath = FPaths::ProjectIntermediateDir() / TEXT("MetaSounds") + FPaths::ChangeExtension(Metasound->GetPathName(), FMetasoundAssetBase::FileExtension);
 				
-				// TODO: use the same directory as the currently open metasound
-				const FString OutputPath = FString("/Game/ImportedMetasound/GeneratedMetasound");
+				// TODO: use the same directory as the currently open MetaSound
+				const FString OutputPath = FString("/Game/ImportedMetaSound/GeneratedMetaSound");
 
 				FMetasoundFrontendDocument MetasoundDoc;
 
@@ -668,7 +670,7 @@ namespace Metasound
 
 					if (ImportClasses.Num() < 1)
 					{
-						UE_LOG(LogTemp, Warning, TEXT("Cannot create UObject from Metasound document. No UClass supports archetype \"%s\""), *MetasoundDoc.Archetype.Name.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Cannot create UObject from MetaSound document. No UClass supports archetype \"%s\""), *MetasoundDoc.Archetype.Name.ToString());
 					}
 					else
 					{
@@ -677,7 +679,7 @@ namespace Metasound
 							for (UClass* Cls : ImportClasses)
 							{
 								// TODO: could do a modal dialog to give user choice of import type.
-								UE_LOG(LogTemp, Warning, TEXT("Duplicate UClass support archetype \"%s\" with UClass \"%s\""), *MetasoundDoc.Archetype.Name.ToString(), *Cls->GetName());
+								UE_LOG(LogMetaSound, Warning, TEXT("Duplicate UClass support archetype \"%s\" with UClass \"%s\""), *MetasoundDoc.Archetype.Name.ToString(), *Cls->GetName());
 							}
 						}
 
@@ -686,7 +688,7 @@ namespace Metasound
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("Could not import Metasound at path: %s"), *InputPath);
+					UE_LOG(LogMetaSound, Warning, TEXT("Could not import MetaSound at path: %s"), *InputPath);
 				}
 			}
 		}
@@ -704,7 +706,7 @@ namespace Metasound
 			static const FString MetasoundExtension(TEXT(".metasound"));
 
 			// TODO: We could just make this an object.
-			const FString Path = FPaths::ProjectSavedDir() / TEXT("Metasounds") + FPaths::ChangeExtension(Metasound->GetPathName(), MetasoundExtension);
+			const FString Path = FPaths::ProjectSavedDir() / TEXT("MetaSounds") + FPaths::ChangeExtension(Metasound->GetPathName(), MetasoundExtension);
 			InMetasoundAsset->GetDocumentHandle()->ExportToJSONAsset(Path);
 		}
 
@@ -1145,7 +1147,7 @@ namespace Metasound
 				if (!Actions.IsEmpty())
 				{
 					check(Metasound);
-					const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorDeleteSelectedNode", "Delete Metasound Variable"));
+					const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorDeleteSelectedNode", "Delete MetaSound Variable"));
 					Metasound->Modify();
 
 					UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetasoundGraphEditor->GetCurrentGraph());
@@ -1199,7 +1201,7 @@ namespace Metasound
 			const FGraphPanelSelectionSet SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
 			MetasoundGraphEditor->ClearSelectionSet();
 
-			const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorDeleteSelectedNode", "Delete Selected Metasound Node(s)"));
+			const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorDeleteSelectedNode", "Delete Selected MetaSound Node(s)"));
 			check(Metasound);
 			Metasound->Modify();
 			UEdGraph* Graph = MetasoundGraphEditor->GetCurrentGraph();
@@ -1335,7 +1337,7 @@ namespace Metasound
 				return;
 			}
 
-			const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorPaste", "Paste Metasound Node(s)"));
+			const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorPaste", "Paste MetaSound Node(s)"));
 			Metasound->Modify();
 			Graph->Modify();
 
@@ -1779,7 +1781,7 @@ namespace Metasound
 			{
 				case ENodeSection::Inputs:
 				{
-					const FScopedTransaction Transaction(LOCTEXT("AddInputNode", "Add Metasound Input"));
+					const FScopedTransaction Transaction(LOCTEXT("AddInputNode", "Add MetaSound Input"));
 					Metasound->Modify();
 
 					const FName DataTypeName = "Bool";
@@ -1805,7 +1807,7 @@ namespace Metasound
 
 				case ENodeSection::Outputs:
 				{
-					const FScopedTransaction Transaction(TEXT(""), LOCTEXT("AddOutputNode", "Add Metasound Output"), Metasound);
+					const FScopedTransaction Transaction(TEXT(""), LOCTEXT("AddOutputNode", "Add MetaSound Output"), Metasound);
 					Metasound->Modify();
 
 					const FName DataTypeName = "Bool";

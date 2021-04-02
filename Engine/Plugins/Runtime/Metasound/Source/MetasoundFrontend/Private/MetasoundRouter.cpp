@@ -17,7 +17,7 @@ static FAutoConsoleCommand GPushFloatCommand(
 		{
 			if (Args.Num() < 3)
 			{
-				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
@@ -39,8 +39,8 @@ static FAutoConsoleCommand GPushBoolCommand(
 		{
 			if (Args.Num() < 2)
 			{
-				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.SetBool should be called with two args- the address to send to and the value to send."));
-				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.SetBool should be called with two args- the address to send to and the value to send."));
+				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
@@ -64,7 +64,7 @@ static FAutoConsoleCommand GPushIntCommand(
 		{
 			if (Args.Num() < 2)
 			{
-				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
@@ -86,8 +86,8 @@ static FAutoConsoleCommand GPushStringCommand(
 		{
 			if (Args.Num() < 3)
 			{
-				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.SetBool should be called with three args- the data type of the channel, the address to send to and the value to send."));
-				UE_LOG(LogMetasound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.SetBool should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
@@ -160,7 +160,7 @@ namespace Metasound
 		else
 		{
 			// Otherwise, the subsystem FName was invalid.
-			UE_LOG(LogMetasound, Error, TEXT("Cannot create Sender. Did not find transmission subsystem [Name:%s]"), *InAddress.Subsystem.ToString());
+			UE_LOG(LogMetaSound, Error, TEXT("Cannot create Sender. Did not find transmission subsystem [Name:%s]"), *InAddress.Subsystem.ToString());
 		}
 
 		return MoveTemp(Sender);
@@ -194,7 +194,7 @@ namespace Metasound
 		else
 		{
 			// Otherwise, the subsystem FName was invalid.
-			UE_LOG(LogMetasound, Error, TEXT("Cannot create Receiver. Did not find transmission subsystem [Name:%s]"), *InAddress.Subsystem.ToString());
+			UE_LOG(LogMetaSound, Error, TEXT("Cannot create Receiver. Did not find transmission subsystem [Name:%s]"), *InAddress.Subsystem.ToString());
 		}
 
 		return MoveTemp(Receiver);

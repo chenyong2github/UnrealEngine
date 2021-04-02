@@ -29,7 +29,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 
-#define LOCTEXT_NAMESPACE "MetasoundEditor"
+#define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 
 namespace Metasound

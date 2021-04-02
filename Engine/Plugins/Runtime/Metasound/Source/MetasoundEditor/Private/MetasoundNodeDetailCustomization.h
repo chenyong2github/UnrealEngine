@@ -25,7 +25,7 @@ class IPropertyHandle;
 class SCheckBox;
 class STextComboBox;
 
-#define LOCTEXT_NAMESPACE "MetasoundEditor"
+#define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 namespace Metasound
 {
@@ -162,7 +162,7 @@ namespace Metasound
 
 				if (GraphVariable.IsValid())
 				{
-					const FText TransactionLabel = FText::Format(LOCTEXT("SetTooltip", "Set the Metasound {0}'s tooltip"), VariableLabel);
+					const FText TransactionLabel = FText::Format(LOCTEXT("SetTooltip", "Set the MetaSound {0}'s tooltip"), VariableLabel);
 					const FScopedTransaction Transaction(TransactionLabel);
 					FNodeHandle NodeHandle = GraphVariable->GetNodeHandle();
 					NodeHandle->SetDescription(InNewText);

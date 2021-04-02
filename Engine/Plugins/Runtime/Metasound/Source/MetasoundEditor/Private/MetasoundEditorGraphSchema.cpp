@@ -6,6 +6,7 @@
 #include "EdGraphSchema_K2.h"
 #include "Editor.h"
 #include "Engine/Selection.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
@@ -28,7 +29,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundEditor"
+#define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 
 namespace Metasound
@@ -166,7 +167,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
-	const FScopedTransaction Transaction(LOCTEXT("AddNewNode", "Add New Metasound Node"));
+	const FScopedTransaction Transaction(LOCTEXT("AddNewNode", "Add New MetaSound Node"));
 	UObject& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
 	ParentMetasound.Modify();
 	ParentGraph->Modify();
@@ -208,7 +209,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 		return nullptr;
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("AddNewInputNode", "Add New Metasound Input Node"));
+	const FScopedTransaction Transaction(LOCTEXT("AddNewInputNode", "Add New MetaSound Input Node"));
 	ParentMetasound.Modify();
 	MetasoundGraph->Modify();
 	Input->Modify();
@@ -240,7 +241,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 		return nullptr;
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("PromoteNodeInputToGraphInput", "Promote Metasound Node Input to Graph Input"));
+	const FScopedTransaction Transaction(LOCTEXT("PromoteNodeInputToGraphInput", "Promote MetaSound Node Input to Graph Input"));
 	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(ParentGraph);
 	UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
 	ParentMetasound.Modify();
@@ -306,7 +307,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 		return nullptr;
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("AddNewOutputNode", "Add New Metasound Output Node"));
+	const FScopedTransaction Transaction(LOCTEXT("AddNewOutputNode", "Add New MetaSound Output Node"));
 	ParentMetasound.Modify();
 	ParentGraph->Modify();
 
@@ -329,7 +330,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewComment::PerformAction(UEdGraph* Pa
 {
 	using namespace Metasound::Editor;
 
-	const FScopedTransaction Transaction(LOCTEXT("AddNewOutputNode", "Add Comment to Metasound Graph"));
+	const FScopedTransaction Transaction(LOCTEXT("AddNewOutputNode", "Add Comment to MetaSound Graph"));
 	ParentGraph->Modify();
 
 	UEdGraphNode_Comment* CommentTemplate = NewObject<UEdGraphNode_Comment>();
@@ -477,6 +478,10 @@ void UMetasoundEditorGraphSchema::GetContextMenuActions(class UToolMenu* Menu, c
 	else if (Context->Node && Context->Node->IsA<UMetasoundEditorGraphNode>())
 	{
 		FToolMenuSection& Section = Menu->AddSection("MetasoundGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
+		Section.AddMenuEntry(FGenericCommands::Get().Delete);
+		Section.AddMenuEntry(FGenericCommands::Get().Cut);
+		Section.AddMenuEntry(FGenericCommands::Get().Copy);
+		Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
 		Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 	}
 

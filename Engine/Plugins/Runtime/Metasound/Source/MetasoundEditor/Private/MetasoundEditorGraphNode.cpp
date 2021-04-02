@@ -18,7 +18,7 @@
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundEditor"
+#define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 
 UMetasoundEditorGraphNode::UMetasoundEditorGraphNode(const FObjectInitializer& ObjectInitializer)
@@ -227,7 +227,7 @@ void UMetasoundEditorGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 		GetMetasoundChecked().Modify();
 
 		FNodeHandle NodeHandle = GetNodeHandle();
-		IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
+		IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 		FGraphBuilder::AddOrUpdateLiteralInput(GetMetasoundChecked(), NodeHandle, *Pin);
 	}
 }
@@ -336,14 +336,6 @@ void UMetasoundEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGrap
 					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
 				}
 			}));
-		}
-
-		{
-			FToolMenuSection& Section = Menu->AddSection("MetasoundEditorGraphNodeEdit");
-			Section.AddMenuEntry(FGenericCommands::Get().Delete);
-			Section.AddMenuEntry(FGenericCommands::Get().Cut);
-			Section.AddMenuEntry(FGenericCommands::Get().Copy);
-			Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
 		}
 	}
 }

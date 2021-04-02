@@ -149,7 +149,7 @@ namespace Metasound
 			{
 				if (*Trigger)
 				{
-					UE_LOG(LogMetasound, Display, TEXT("%s %s"), *(*Label), *LexToString(*ValueToLog));
+					UE_LOG(LogMetaSound, Display, TEXT("%s %s"), *(*Label), *LexToString(*ValueToLog));
 				}
 			}
 

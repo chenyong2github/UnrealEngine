@@ -6,10 +6,11 @@
 #include "Templates/Casts.h"
 
 #include "MetasoundDataReference.h"
-#include "MetasoundOutputNode.h"
-#include "MetasoundInputNode.h"
-#include "MetasoundOperatorInterface.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundInputNode.h"
+#include "MetasoundLog.h"
+#include "MetasoundOperatorInterface.h"
+#include "MetasoundOutputNode.h"
 
 template<typename TNodeType, typename TFromType, typename TToType>
 bool RegisterConversionNode(const FString& FromPin, const FString& ToPin, const Metasound::FNodeClassMetadata& InNodeMetadata)

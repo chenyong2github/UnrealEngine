@@ -56,7 +56,7 @@ namespace Metasound
 		{
 		public:
 			FSlateStyle()
-				: FSlateStyleSet("MetasoundStyle")
+				: FSlateStyleSet("MetaSoundStyle")
 			{
 				SetParentStyleName(FEditorStyle::GetStyleSetName());
 
@@ -65,6 +65,9 @@ namespace Metasound
 
 				static const FVector2D Icon20x20(20.0f, 20.0f);
 				static const FVector2D Icon40x40(40.0f, 40.0f);
+
+				static const FVector2D Icon16 = FVector2D(16.0f, 16.0f);
+				static const FVector2D Icon64 = FVector2D(64.0f, 64.0f);
 
 				// Metasound Editor
 				{
@@ -93,18 +96,16 @@ namespace Metasound
 
 					// Misc
 					Set("MetasoundEditor.Speaker", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/speaker_144x.png")), FVector2D(144.0f, 144.0f)));
+					Set("MetasoundEditor.Metasound.Icon", new IMAGE_BRUSH_SVG(TEXT("Icons/metasound_icon"), Icon16));
 
 					// Class Icons
-					auto SetClassIcon = [this](const FString& ClassName)
+					auto SetClassIcon = [this, InIcon16 = Icon16, InIcon64 = Icon64](const FString& ClassName)
 					{
-						static const FVector2D Icon16 = FVector2D(16.0f, 16.0f);
-						static const FVector2D Icon64 = FVector2D(64.0f, 64.0f);
-
 						const FString IconFileName = FString::Printf(TEXT("Icons/%s"), *ClassName.ToLower());
 						const FSlateColor DefaultForeground(FStyleColors::Foreground);
 
-						Set(*FString::Printf(TEXT("ClassIcon.%s"), *ClassName), new IMAGE_BRUSH_SVG(IconFileName, Icon16));
-						Set(*FString::Printf(TEXT("ClassThumbnail.%s"), *ClassName), new IMAGE_BRUSH_SVG(IconFileName, Icon64));
+						Set(*FString::Printf(TEXT("ClassIcon.%s"), *ClassName), new IMAGE_BRUSH_SVG(IconFileName, InIcon16));
+						Set(*FString::Printf(TEXT("ClassThumbnail.%s"), *ClassName), new IMAGE_BRUSH_SVG(IconFileName, InIcon64));
 					};
 
 					SetClassIcon(TEXT("Metasound"));
@@ -336,9 +337,9 @@ namespace Metasound
 
 				ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 
-				SettingsModule.RegisterSettings("Editor", "Audio", "Metasound Editor",
-					NSLOCTEXT("MetasoundsEditor", "MetasoundEditorSettingsName", "Metasound Editor"),
-					NSLOCTEXT("MetasoundsEditor", "MetasoundEditorSettingsDescription", "Customize Metasound Editor."),
+				SettingsModule.RegisterSettings("Editor", "Audio", "MetaSound Editor",
+					NSLOCTEXT("MetaSoundsEditor", "MetaSoundEditorSettingsName", "MetaSound Editor"),
+					NSLOCTEXT("MetaSoundsEditor", "MetaSoundEditorSettingsDescription", "Customize MetaSound Editor."),
 					GetMutableDefault<UMetasoundEditorSettings>()
 				);
 			}
@@ -347,7 +348,7 @@ namespace Metasound
 			{
 				if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 				{
-					SettingsModule->UnregisterSettings("Editor", "Audio", "Metasound Editor");
+					SettingsModule->UnregisterSettings("Editor", "Audio", "MetaSound Editor");
 				}
 
 				if (FModuleManager::Get().IsModuleLoaded(AssetToolName))

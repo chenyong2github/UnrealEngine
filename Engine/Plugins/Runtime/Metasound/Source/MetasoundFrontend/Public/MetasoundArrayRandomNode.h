@@ -206,7 +206,7 @@ namespace Metasound
 			}
 			else
 			{
-				UE_LOG(LogMetasound, Error, TEXT("Array Random Get: Can't retrieve random elements from an empty array"));
+				UE_LOG(LogMetaSound, Error, TEXT("Array Random Get: Can't retrieve random elements from an empty array"));
 			}
 		}
 

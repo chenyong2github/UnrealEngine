@@ -247,7 +247,7 @@ namespace Metasound
 			}
 			else 
 			{
-				UE_LOG(LogMetasound, Error, TEXT("Array Shuffle: Can't shuffle an empty array"));
+				UE_LOG(LogMetaSound, Error, TEXT("Array Shuffle: Can't shuffle an empty array"));
 			}
 		}
 

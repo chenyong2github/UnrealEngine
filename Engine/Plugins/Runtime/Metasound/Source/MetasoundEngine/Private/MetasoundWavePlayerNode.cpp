@@ -345,7 +345,7 @@ namespace Metasound
 			{
 				if (bReportToLog)
 				{
-					UE_LOG(LogMetasound, Error, TEXT("Failed to initialize SoundWave decoder. WavePlayerNode references invalid or missing Wave."));
+					UE_LOG(LogMetaSound, Error, TEXT("Failed to initialize SoundWave decoder. WavePlayerNode references invalid or missing Wave."));
 				}
 				return false;
 			}
@@ -358,7 +358,7 @@ namespace Metasound
 			{
 				if (bReportToLog)
 				{
-					UE_LOG(LogMetasound, Error, TEXT("Failed to initialize SoundWave decoder. WavePlayerNode only supports 2 channels max [%s: %d Channels])"), *WaveProxy->GetFullName(), NumChannels);
+					UE_LOG(LogMetaSound, Error, TEXT("Failed to initialize SoundWave decoder. WavePlayerNode only supports 2 channels max [%s: %d Channels])"), *WaveProxy->GetFullName(), NumChannels);
 				}
 				return false;
 			}
