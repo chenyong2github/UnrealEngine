@@ -1120,26 +1120,14 @@ void FDesktopPlatformBase::GetProjectBuildProducts(const FString& ProjectDir, TA
 
 FString FDesktopPlatformBase::GetEngineSavedConfigDirectory(const FString& Identifier)
 {
-	// Get the engine root directory
-	FString RootDir;
-	if (!GetEngineRootDirFromIdentifier(Identifier, RootDir))
-	{
-		return FString();
-	}
-
-	// Get the path to the game agnostic settings
-	FString UserDir;
-	if (IsStockEngineRelease(Identifier))
-	{
-		UserDir = FPaths::Combine(FPlatformProcess::UserSettingsDir(), *FApp::GetEpicProductIdentifier(), *Identifier);
-	}
-	else
-	{
-		UserDir = FPaths::Combine(*RootDir, TEXT("Engine"));
-	}
-
 	// Get the game agnostic config dir
-	return UserDir / TEXT("Saved/Config") / ANSI_TO_TCHAR(FPlatformProperties::PlatformName());
+	const FString UserDir = GetUserDir(Identifier);
+	if (!UserDir.IsEmpty())
+	{
+		return UserDir / TEXT("Saved/Config") / ANSI_TO_TCHAR(FPlatformProperties::PlatformName());
+	}
+
+	return FString();
 }
 
 bool FDesktopPlatformBase::EnumerateProjectsKnownByEngine(const FString &Identifier, bool bIncludeNativeProjects, TArray<FString> &OutProjectFileNames)
@@ -1152,7 +1140,6 @@ bool FDesktopPlatformBase::EnumerateProjectsKnownByEngine(const FString &Identif
 	}
 
 	FString GameAgnosticConfigDir = GetEngineSavedConfigDirectory(Identifier);
-
 	if (GameAgnosticConfigDir.Len() == 0)
 	{
 		return false;
@@ -1164,7 +1151,12 @@ bool FDesktopPlatformBase::EnumerateProjectsKnownByEngine(const FString &Identif
 
 	// Load the config file
 	FConfigFile GameAgnosticConfig;
-	FConfigCacheIni::LoadExternalIniFile(GameAgnosticConfig, TEXT("EditorSettings"), NULL, *GameAgnosticConfigDir, false);
+	if (!FConfigCacheIni::LoadExternalIniFile(GameAgnosticConfig, TEXT("EditorSettings"), NULL, *GameAgnosticConfigDir, false))
+	{
+		// Load from the legacy path. Most likely a pre-UE5 engine install
+		GameAgnosticConfigDir = GetLegacyEngineSavedConfigDirectory(Identifier);
+		FConfigCacheIni::LoadExternalIniFile(GameAgnosticConfig, TEXT("EditorSettings"), NULL, *GameAgnosticConfigDir, false);
+	}
 
 	// Find the editor game-agnostic settings
 	FConfigSection* Section = GameAgnosticConfig.Find(TEXT("/Script/UnrealEd.EditorSettings"));
@@ -1448,6 +1440,40 @@ bool FDesktopPlatformBase::ReadTargetInfo(const FString& FileName, TArray<FTarge
 	}
 
 	return true;
+}
+
+FString FDesktopPlatformBase::GetUserDir(const FString& Identifier)
+{
+	// Get the engine root directory
+	FString RootDir;
+	if (!GetEngineRootDirFromIdentifier(Identifier, RootDir))
+	{
+		return FString();
+	}
+
+	// Get the path to the game agnostic settings
+	FString UserDir;
+	if (IsStockEngineRelease(Identifier))
+	{
+		UserDir = FPaths::Combine(FPlatformProcess::UserSettingsDir(), *FApp::GetEpicProductIdentifier(), *Identifier);
+	}
+	else
+	{
+		UserDir = FPaths::Combine(*RootDir, TEXT("Engine"));
+	}
+
+	return UserDir;
+}
+
+FString FDesktopPlatformBase::GetLegacyEngineSavedConfigDirectory(const FString& Identifier)
+{
+	const FString UserDir = GetUserDir(Identifier);
+	if (!UserDir.IsEmpty())
+	{
+		return UserDir / TEXT("Saved/Config") / ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName());
+	}
+
+	return FString();
 }
 
 FString FDesktopPlatformBase::GetUnrealBuildToolProjectFileName(const FString& RootDir) const
