@@ -5,52 +5,129 @@
 #include "HairStrandsVisibilityCommon.ush"
 
 #define TILE_SIZE 8
+#define GROUP_THREAD_COUNT (TILE_SIZE*TILE_SIZE)
 
-uint2 Resolution;
-uint2 TileResolution;
-uint  TileCount;
-uint  TileSize;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Texture2D<uint4> CategorizationTexture;
-RWTexture2D<uint> OutTileCounter;
-RWTexture2D<uint> OutTileIndexTexture;
-RWBuffer<uint2>   OutTileBuffer;
+#if SHADER_TILE_GENERATION
+int bRectPrimitive;
+int2 ViewResolution;
+Texture2D<uint4> InputTexture;
+RWBuffer<uint> TileIndirectBuffer;
+RWBuffer<uint2> TileDataBuffer;
 
-groupshared uint bAllocationTile;
+groupshared bool s_HasTileHair[GROUP_THREAD_COUNT];
 
 [numthreads(TILE_SIZE, TILE_SIZE, 1)]
-void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
+void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
 {
-	if (GroupIndex == 0)
+	if (all(DispatchThreadId == 0))
 	{
-		bAllocationTile = 0;
+		TileIndirectBuffer[0] = bRectPrimitive > 0 ? 4 : 6;
 	}
 
-	uint2 PixelCoord = DispatchThreadId.xy;
-	if (PixelCoord.x >= Resolution.x || PixelCoord.y >= Resolution.y)
-		PixelCoord = Resolution-1;
+	const uint2 PixelCoord = DispatchThreadId;
 
-	const uint2 TileCoord = PixelCoord / TILE_SIZE;
-	const FCategorizationData Categorization = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelCoord, 0)));
-	if (Categorization.PixelCoverage > 0)
+	bool bHasHairData = false;
+	if (all(PixelCoord < uint2(ViewResolution)))
 	{
-		InterlockedOr(bAllocationTile, 1);		
+		const FCategorizationData CategorisationData = DecodeCategorizationData(InputTexture.Load(uint3(PixelCoord, 0)));
+		bHasHairData = CategorisationData.PixelCoverage > 0.0f;
 	}
+	s_HasTileHair[LinearIndex] = bHasHairData;
 
 	GroupMemoryBarrierWithGroupSync();
-
-	if (GroupIndex == 0)
+	if (LinearIndex < 32)
 	{
-		if (bAllocationTile > 0)
-		{
-			uint AllocationOffset = 0;
-			InterlockedAdd(OutTileCounter[uint2(0, 0)], 1, AllocationOffset);
-			OutTileIndexTexture[TileCoord] = AllocationOffset;
-			OutTileBuffer[AllocationOffset] = TileCoord;
-		}
-		else
-		{
-			OutTileIndexTexture[TileCoord] = INVALID_TILE_OFFSET;
-		}
+		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 32];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 16)
+	{
+		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 16];
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LinearIndex < 8)
+	{
+		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 8];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 4)
+	{
+		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 4];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 2)
+	{
+		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 2];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 1 && (s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 1]))
+	{
+		uint WriteToIndex;
+		InterlockedAdd(TileIndirectBuffer[1], 1, WriteToIndex);
+		TileDataBuffer[WriteToIndex] = GroupId.xy;
 	}
 }
+#endif // SHADER_TILE_GENERATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_TILE_COPY_ARGS
+uint GroupSize;
+Buffer<uint> TileIndirectDrawBuffer;
+RWBuffer<uint> TileIndirectDispatchBuffer;
+
+[numthreads(1, 1, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (all(DispatchThreadId == 0))
+	{
+		TileIndirectDispatchBuffer[0] = (TileIndirectDrawBuffer[1] + GroupSize-1) / GroupSize;
+		TileIndirectDispatchBuffer[1] = 1;
+		TileIndirectDispatchBuffer[2] = 1;
+	}
+}
+#endif // SHADER_TILE_COPY_ARGS
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_TILE_DEBUG
+
+void MainPS(
+	in FScreenVertexOutput Input,
+	out float4 OutColor0 : SV_Target0)
+{
+	const uint2 InTileCoord = uint2(Input.Position.xy) >> 3u; // TILE_SIZE == 8;
+	const bool bTileX = (InTileCoord.x & 1) == 0;
+	const bool bTileY = (InTileCoord.y & 1) == 0;
+	const bool bChecker = (bTileX && bTileY) || (!bTileX && !bTileY);
+	OutColor0 = 255;
+	OutColor0 = bChecker ? float4(0.0f, 0.5f, 0.f, 1.0f) : float4(0.f, 1.0f, 0.f, 1.0f);
+}
+
+#endif //SHADER_TILE_DEBUG
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_TILE_VS
+int2 TileOutputResolution;
+Buffer<uint2> TileDataBuffer;
+
+void MainVS(
+	in uint InVertexId : SV_VertexID,
+	in uint InInstanceId : SV_InstanceID,
+	out FScreenVertexOutput Out)
+{
+	Out = (FScreenVertexOutput)0;
+	const uint2 TileCoord = TileDataBuffer[InInstanceId];
+
+	uint2 TileVertex = TileCoord * TILE_SIZE;
+	TileVertex.x += InVertexId == 1 || InVertexId == 2 || InVertexId == 4 ? TILE_SIZE : 0;
+	TileVertex.y += InVertexId == 2 || InVertexId == 4 || InVertexId == 5 ? TILE_SIZE : 0;
+	Out.UV = float2(TileVertex) / float2(TileOutputResolution);
+	Out.Position = float4(Out.UV * float2(2.0f, -2.0f) + float2(-1.0, 1.0f), 0.5f, 1.0f);
+}
+
+#endif //SHADER_TILE_VS

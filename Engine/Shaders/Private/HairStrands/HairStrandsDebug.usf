@@ -20,9 +20,6 @@ SamplerState LinearSampler;
 Texture2D<uint> HairCountUintTexture;
 Texture2D<float> HairCountTexture;
 
-uint TileSize;
-Texture2D<uint> TileIndexTexture;
-
 #define DEBUG_MODE_SAMPLE_COUNT 0 
 #define DEBUG_MODE_COVERAGE_TYPE 1
 #define DEBUG_MODE_TAA_RESOLVE_TYPE 2
@@ -83,14 +80,6 @@ void MainPS(
 	if (DebugMode == DEBUG_MODE_COVERAGE)
 	{
 		Color = GetColorCode(saturate(CatData.PixelCoverage));
-	}
-
-	if (DebugMode == DEBUG_MODE_TILE)
-	{
-		const uint2 TileCoord = PixelPos / TileSize;
-		const uint  TileOffset = TileIndexTexture[TileCoord];
-		Color = TileOffset != INVALID_TILE_OFFSET ? float3(0.25, 0.85, 0.25) : float3(0.85, 0.25, 0.25);
-		Alpha = 0.5f;
 	}
 
 	const bool bIsDebugModeMaterial =

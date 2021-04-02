@@ -4,6 +4,7 @@
 #include "HairStrandsCluster.h"
 #include "HairStrandsUtils.h"
 #include "HairStrandsInterface.h"
+#include "HairStrandsTile.h"
 
 #include "Shader.h"
 #include "GlobalShader.h"
@@ -81,6 +82,10 @@ static FAutoConsoleVariableRef CVarHairStrandsVisibility_OutputEmissiveData(TEXT
 
 static int32 GHairStrandsDebugPPLL = 0;
 static FAutoConsoleVariableRef CVarHairStrandsDebugPPLL(TEXT("r.HairStrands.Visibility.PPLL.Debug"), GHairStrandsDebugPPLL, TEXT("Draw debug per pixel light list rendering."));
+
+static int32 GHairStrandsTile = 0;
+static FAutoConsoleVariableRef CVarHairStrandsTile(TEXT("r.HairStrands.Tile"), GHairStrandsTile, TEXT("Enable tile generation & usage for hair strands."));
+
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2117,87 +2122,6 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-class FHairGenerateTileCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FHairGenerateTileCS);
-	SHADER_USE_PARAMETER_STRUCT(FHairGenerateTileCS, FGlobalShader);
-
-	class FTileSize : SHADER_PERMUTATION_INT("PERMUTATION_TILESIZE", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FTileSize>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntPoint, Resolution)
-		SHADER_PARAMETER(FIntPoint, TileResolution)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTileCounter)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTileIndexTexture)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutTileBuffer)
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FHairGenerateTileCS, "/Engine/Private/HairStrands/HairStrandsVisibilityTile.usf", "MainCS", SF_Compute);
-
-static void AddGenerateTilePass(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	const uint32 ThreadGroupSize,
-	const uint32 TileSize,
-	const FRDGTextureRef& CategorizationTexture,
-	FRDGTextureRef& OutTileIndexTexture,
-	FRDGBufferRef& OutTileBuffer,
-	FRDGBufferRef& OutTileIndirectArgs)
-{
-	check(TileSize == 8); // only size supported for now
-	const FIntPoint Resolution = CategorizationTexture->Desc.Extent;
-	const FIntPoint TileResolution = FIntPoint(FMath::CeilToInt(Resolution.X / float(TileSize)), FMath::CeilToInt(Resolution.Y / float(TileSize)));
-	const uint32 TileCount = TileResolution.X * TileResolution.Y;
-
-	FRDGTextureRef TileCounter;
-	{
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(FIntPoint(1,1), PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource);
-		TileCounter = GraphBuilder.CreateTexture(Desc, TEXT("Hair.TileCounter"));
-	}
-
-	{
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(TileResolution, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource);
-		OutTileIndexTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.TileIndexTexture"));
-	}
-
-	OutTileBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TileCount), TEXT("Hair.TileBuffer"));
-
-	uint32 ClearValues[4] = { 0,0,0,0 };
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(TileCounter), ClearValues);
-
-	FHairGenerateTileCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FHairGenerateTileCS::FTileSize>(0);
-
-	FHairGenerateTileCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairGenerateTileCS::FParameters>();
-	PassParameters->Resolution = Resolution;
-	PassParameters->TileResolution = TileResolution;
-	PassParameters->CategorizationTexture = CategorizationTexture;
-	PassParameters->OutTileCounter = GraphBuilder.CreateUAV(TileCounter);
-	PassParameters->OutTileIndexTexture = GraphBuilder.CreateUAV(OutTileIndexTexture);
-	PassParameters->OutTileBuffer = GraphBuilder.CreateUAV(OutTileBuffer, PF_R16G16_UINT);
-
-	TShaderMapRef<FHairGenerateTileCS> ComputeShader(View.ShaderMap, PermutationVector);
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("HairGenerateTile"),
-		ComputeShader,
-		PassParameters,
-		FIntVector(TileResolution.X, TileResolution.Y, 1));
-
-	OutTileIndirectArgs = AddCopyIndirectArgPass(GraphBuilder, &View, ThreadGroupSize, TileSize*TileSize, TileCounter);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 class FHairVisibilityFillOpaqueDepthPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairVisibilityFillOpaqueDepthPS);
@@ -3667,16 +3591,10 @@ void RenderHairStrandsVisibilityBuffer(
 		#endif
 
 			// Generate Tile data
-			if (CategorizationTexture)
+			const bool bGenerateTile = GHairStrandsTile > 0;
+			if (CategorizationTexture && bGenerateTile)
 			{
-				FRDGTextureRef TileIndexTexture = nullptr;
-				FRDGBufferRef TileBuffer = nullptr;
-				FRDGBufferRef TileIndirectArgs = nullptr;
-				AddGenerateTilePass(GraphBuilder, View, VisibilityData.TileThreadGroupSize, VisibilityData.TileSize, CategorizationTexture, TileIndexTexture, TileBuffer, TileIndirectArgs);
-
-				VisibilityData.TileIndexTexture = TileIndexTexture;
-				VisibilityData.TileBuffer = TileBuffer;
-				VisibilityData.TileIndirectArgs = TileIndirectArgs;
+				VisibilityData.TileData = AddHairStrandsGenerateTilesPass(GraphBuilder, View, CategorizationTexture);
 			}
 		}
 	}

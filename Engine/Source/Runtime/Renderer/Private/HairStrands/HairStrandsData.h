@@ -29,6 +29,25 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, )
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 ////////////////////////////////////////////////////////////////////////////////////
+// Tile data
+
+struct FHairStrandsTiles
+{
+	FIntPoint			Resolution = FIntPoint(0, 0);
+	static const uint32 GroupSize = 64;
+	static const uint32	TileSize = 8;
+	uint32				TileCount = 0;
+	bool				bRectPrimitive = false;
+
+	FRDGBufferSRVRef	TileDataSRV = nullptr;
+	FRDGBufferRef		TileDataBuffer = nullptr;
+	FRDGBufferRef		TileIndirectDrawBuffer = nullptr;
+	FRDGBufferRef		TileIndirectDispatchBuffer = nullptr;
+
+	bool IsValid() const { return TileCount > 0 && TileDataBuffer != nullptr; }
+};
+
+////////////////////////////////////////////////////////////////////////////////////
 // Visibility Data
 
 struct FHairStrandsVisibilityData
@@ -43,12 +62,6 @@ struct FHairStrandsVisibilityData
 
 	FRDGTextureRef LightChannelMaskTexture = nullptr;
 
-	FRDGTextureRef	TileIndexTexture = nullptr;
-	FRDGBufferRef	TileBuffer = nullptr;
-	FRDGBufferRef	TileIndirectArgs = nullptr;
-	uint32			TileSize = 8;
-	uint32			TileThreadGroupSize = 32;
-
 	uint32			MaxSampleCount = 8;
 	uint32			MaxNodeCount = 0;
 	FRDGTextureRef	NodeCount = nullptr;
@@ -57,6 +70,8 @@ struct FHairStrandsVisibilityData
 	FRDGBufferRef	NodeCoord = nullptr;
 	FRDGBufferRef	NodeIndirectArg = nullptr;
 	uint32			NodeGroupSize = 0;
+
+	FHairStrandsTiles TileData;
 
 	const static EPixelFormat NodeCoordFormat = PF_R16G16_UINT;
 

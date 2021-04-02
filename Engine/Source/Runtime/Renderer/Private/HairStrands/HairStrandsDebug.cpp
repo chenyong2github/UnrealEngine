@@ -10,6 +10,7 @@
 #include "HairStrandsVisibility.h"
 #include "HairStrandsInterface.h"
 #include "HairStrandsMeshProjection.h"
+#include "HairStrandsTile.h"
 
 #include "Shader.h"
 #include "GlobalShader.h"
@@ -334,13 +335,11 @@ class FHairDebugPS : public FGlobalShader
 		SHADER_PARAMETER(uint32, FastResolveMask)
 		SHADER_PARAMETER(uint32, DebugMode)
 		SHADER_PARAMETER(int32, SampleIndex)
-		SHADER_PARAMETER(uint32, TileSize)
 		SHADER_PARAMETER(uint32, MaxSampleCount)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCountTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCountUintTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NodeIndex)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TileIndexTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, NodeData)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthStencilTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
@@ -371,10 +370,9 @@ static void AddDebugHairPass(
 		InDebugMode == EHairDebugMode::MaterialBaseColor ||
 		InDebugMode == EHairDebugMode::MaterialRoughness ||
 		InDebugMode == EHairDebugMode::MaterialSpecular ||
-		InDebugMode == EHairDebugMode::MaterialTangent ||
-		InDebugMode == EHairDebugMode::Tile);
+		InDebugMode == EHairDebugMode::MaterialTangent);
 
-	if (!VisibilityData.CategorizationTexture || !VisibilityData.NodeIndex || !VisibilityData.NodeData || !VisibilityData.TileIndexTexture) return;
+	if (!VisibilityData.CategorizationTexture || !VisibilityData.NodeIndex || !VisibilityData.NodeData) return;
 	if (InDebugMode == EHairDebugMode::TAAResolveType && !InDepthStencilTexture) return;
 
 	FRDGTextureRef HairCountTexture = VisibilityData.ViewHairCountTexture ? VisibilityData.ViewHairCountTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
@@ -395,7 +393,6 @@ static void AddDebugHairPass(
 		case EHairDebugMode::MaterialRoughness:	InternalDebugMode = 6; break;
 		case EHairDebugMode::MaterialSpecular:	InternalDebugMode = 7; break;
 		case EHairDebugMode::MaterialTangent:	InternalDebugMode = 8; break;
-		case EHairDebugMode::Tile:				InternalDebugMode = 9; break;
 	};
 
 	FHairDebugPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPS::FParameters>();
@@ -407,9 +404,7 @@ static void AddDebugHairPass(
 	Parameters->HairCountUintTexture = HairCountUintTexture;
 	Parameters->NodeIndex = VisibilityData.NodeIndex;
 	Parameters->NodeData = GraphBuilder.CreateSRV(VisibilityData.NodeData);
-	Parameters->TileIndexTexture = VisibilityData.TileIndexTexture;
-	Parameters->TileSize = VisibilityData.TileSize;
-	Parameters->DepthStencilTexture = InDepthStencilTexture;
+		Parameters->DepthStencilTexture = InDepthStencilTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->DebugMode = InternalDebugMode;
 	Parameters->SampleIndex = GHairStrandsDebugSampleIndex;
@@ -1250,15 +1245,17 @@ static void InternalRenderHairStrandsDebugInfo(
 		HairDebugMode == EHairDebugMode::MaterialBaseColor ||
 		HairDebugMode == EHairDebugMode::MaterialRoughness ||
 		HairDebugMode == EHairDebugMode::MaterialSpecular ||
-		HairDebugMode == EHairDebugMode::MaterialTangent ||
-		HairDebugMode == EHairDebugMode::Tile;
+		HairDebugMode == EHairDebugMode::MaterialTangent;
 	if (bRunDebugPass)
 	{
 		{
-			const FHairStrandsVisibilityData& VisibilityData = HairData.VisibilityData;
-			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData, SceneTextures.Stencil, SceneColorTexture);
-			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData, HairData.MacroGroupResources, SceneTextures.Stencil);
+			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, HairData.VisibilityData, SceneTextures.Stencil, SceneColorTexture);
+			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, HairData.VisibilityData, HairData.MacroGroupResources, SceneTextures.Stencil);
 		}
+	}
+	else if (HairDebugMode == EHairDebugMode::Tile && HairData.VisibilityData.TileData.IsValid())
+	{
+		AddHairStrandsDebugTilePass(GraphBuilder, View, SceneColorTexture, HairData.VisibilityData.TileData);
 	}
 
 	if (bIsVoxelMode)
