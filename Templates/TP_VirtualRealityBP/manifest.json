@@ -56,12 +56,21 @@
 		"TP_VirtualRealityBP_Preview.png"
 	],
 	"SortKey": "VirtualRealityBP",
-	"AdditionalFeaturePacks": [
+	"AdditionalFeaturePacks": 
+	[
 		{
 			"MountName": "Geometry",
-			"DetailLevels": [
+			"DetailLevels": 
+			[
 				"Standard",
 				"High"
+			]
+		},
+		{
+			"MountName": "FPWeapon",
+			"DetailLevels": 
+			[
+				"Standard"
 			]
 		}
 	]
