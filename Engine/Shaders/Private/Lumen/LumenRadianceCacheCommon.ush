@@ -158,7 +158,7 @@ float3 SampleRadianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection, flo
 	return RadianceCacheDepthAtlas.SampleLevel(GlobalPointClampedSampler, ProbeAtlasUV, MipLevel).x / 10000.0f;
 #else
 	uint2 ProbeAtlasCoord = FinalProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
-	float2 ProbeTexelCoord = ProbeUV * RadianceProbeResolution + (1 << FinalRadianceAtlasMaxMip);
+	float2 ProbeTexelCoord = ProbeUV * RadianceProbeResolution + (1u << FinalRadianceAtlasMaxMip);
 	float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) * InvProbeFinalRadianceAtlasResolution;
 
 	float3 UnmappedDebugColor = 0.0f;
@@ -295,9 +295,9 @@ float3 SampleIrradianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection)
 	//@todo - move out of loop
 	float2 ProbeUV = DirectionToOctahedralMap(WorldSpaceDirection);
 
-	uint FinalIrradianceProbeResolution = IrradianceProbeResolution + 2 * (1 << FinalRadianceAtlasMaxMip);
+	uint FinalIrradianceProbeResolution = IrradianceProbeResolution + 2 * (1u << FinalRadianceAtlasMaxMip);
 	uint2 ProbeAtlasCoord = FinalIrradianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
-	float2 ProbeTexelCoord = ProbeUV * IrradianceProbeResolution + (1 << FinalRadianceAtlasMaxMip);
+	float2 ProbeTexelCoord = ProbeUV * IrradianceProbeResolution + (1u << FinalRadianceAtlasMaxMip);
 	float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) * InvProbeFinalIrradianceAtlasResolution;
 
 	float3 UnmappedDebugColor = 0.0f;
@@ -310,9 +310,9 @@ float2 SampleProbeOcclusion(uint ProbeIndex, float3 WorldSpaceDirection)
 {
 	float2 ProbeUV = DirectionToOctahedralMap(WorldSpaceDirection);
 
-	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1 << FinalRadianceAtlasMaxMip);
+	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1u << FinalRadianceAtlasMaxMip);
 	uint2 ProbeAtlasCoord = FinalOcclusionProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
-	float2 ProbeTexelCoord = ProbeUV * OcclusionProbeResolution + (1 << FinalRadianceAtlasMaxMip);
+	float2 ProbeTexelCoord = ProbeUV * OcclusionProbeResolution + (1u << FinalRadianceAtlasMaxMip);
 	float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) / float2(ProbeAtlasResolutionInProbes * FinalOcclusionProbeResolution);
 
 	return RadianceCacheProbeOcclusionAtlas.SampleLevel(GlobalBilinearClampedSampler, ProbeAtlasUV, 0.0f);
