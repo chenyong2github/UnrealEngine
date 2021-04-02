@@ -115,10 +115,12 @@ static TAutoConsoleVariable<int32> CVarVTProduceLockedTilesOnFlush(
 
 static FORCEINLINE uint32 EncodePage(uint32 ID, uint32 vLevel, uint32 vTileX, uint32 vTileY)
 {
+	const uint32 vLevelPlus1 = vLevel + 1u;
+
 	uint32 Page;
 	Page = vTileX << 0;
 	Page |= vTileY << 12;
-	Page |= vLevel << 24;
+	Page |= vLevelPlus1 << 24;
 	Page |= ID << 28;
 	return Page;
 }
