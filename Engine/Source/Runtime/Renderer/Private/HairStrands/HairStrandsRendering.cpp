@@ -20,26 +20,48 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 		Parameters->HairSampleCoords = GraphBuilder.CreateSRV(In->NodeCoord, FHairStrandsVisibilityData::NodeCoordFormat);
 		Parameters->HairSampleCount = In->NodeCount;
 		Parameters->HairSampleViewportResolution = In->SampleLightingViewportResolution;
+
+		if (In->TileData.IsValid())
+		{
+			Parameters->HairTileData = In->TileData.TileDataSRV;
+			Parameters->HairTileCount = GraphBuilder.CreateSRV(In->TileData.TileCountBuffer, PF_R32_UINT);
+		}
+		else
+		{
+			FRDGBufferRef DummyBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1), TEXT("Hair.DummyBuffer"));
+			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DummyBuffer, PF_R16G16_UINT), 0);
+			FRDGBufferSRVRef DummyBufferR32SRV = GraphBuilder.CreateSRV(DummyBuffer, PF_R32_UINT);
+			FRDGBufferSRVRef DummyBufferRG16SRV = GraphBuilder.CreateSRV(DummyBuffer, PF_R16G16_UINT);
+			Parameters->HairTileData = DummyBufferR32SRV;
+			Parameters->HairTileCount = DummyBufferRG16SRV;
+		}
 	}
 	else
 	{
-		FRDGBufferRef DummyBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4,1), TEXT("Hair.DummyBuffer"));
+		FRDGBufferRef DummyBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4,1), TEXT("Hair.DummyBuffer"));
 		FRDGBufferRef DummyNodeBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(20, 1), TEXT("Hair.DummyNodeBuffer"));
+
 		FRDGTextureRef BlackTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 		FRDGTextureRef ZeroR32_UINT = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
 		FRDGTextureRef ZeroRGBA16_UINT = GSystemTextures.GetZeroUShort4Dummy(GraphBuilder);
 		FRDGTextureRef FarDepth = GSystemTextures.GetDepthDummy(GraphBuilder);
 
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DummyNodeBuffer), 0);
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DummyBuffer), 0);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DummyBuffer, PF_R16G16_UINT), 0);
+
+		FRDGBufferSRVRef DummyBufferR32SRV = GraphBuilder.CreateSRV(DummyBuffer, PF_R32_UINT);
+		FRDGBufferSRVRef DummyBufferRG16SRV = GraphBuilder.CreateSRV(DummyBuffer, PF_R16G16_UINT);
 
 		Parameters->HairOnlyDepthTexture = FarDepth;
 		Parameters->HairCategorizationTexture = ZeroRGBA16_UINT;
 		Parameters->HairSampleCount = ZeroR32_UINT;
 		Parameters->HairSampleOffset = ZeroR32_UINT;
-		Parameters->HairSampleCoords = GraphBuilder.CreateSRV(DummyBuffer);
+		Parameters->HairSampleCoords = DummyBufferRG16SRV;
 		Parameters->HairSampleData	 = GraphBuilder.CreateSRV(DummyNodeBuffer);
 		Parameters->HairSampleViewportResolution = FIntPoint(0, 0);
+
+		Parameters->HairTileData = DummyBufferR32SRV;
+		Parameters->HairTileCount = DummyBufferRG16SRV;
 	}
 
 	return GraphBuilder.CreateUniformBuffer(Parameters);

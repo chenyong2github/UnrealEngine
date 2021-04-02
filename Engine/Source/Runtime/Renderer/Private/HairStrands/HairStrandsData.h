@@ -26,6 +26,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, HairSampleCount)						// Total count of hair sample, in sample space
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedHairSample>, HairSampleData)// Sample data (coverage, tangent, base color, ...), in sample space // HAIRSTRANDS_TODO: change this to be a uint4 so that we don't have to include the type for generated contant buffer
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, HairSampleCoords)					// Screen pixel coordinate of each sample, in sample space
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, HairTileData)						// Tile coords (RG16F)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>,  HairTileCount)						// Tile total count
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -41,6 +43,7 @@ struct FHairStrandsTiles
 
 	FRDGBufferSRVRef	TileDataSRV = nullptr;
 	FRDGBufferRef		TileDataBuffer = nullptr;
+	FRDGBufferRef		TileCountBuffer = nullptr;
 	FRDGBufferRef		TileIndirectDrawBuffer = nullptr;
 	FRDGBufferRef		TileIndirectDispatchBuffer = nullptr;
 

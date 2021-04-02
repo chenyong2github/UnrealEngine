@@ -10,10 +10,9 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if SHADER_TILE_GENERATION
-int bRectPrimitive;
 int2 ViewResolution;
 Texture2D<uint4> InputTexture;
-RWBuffer<uint> TileIndirectBuffer;
+RWBuffer<uint> TileCountBuffer;
 RWBuffer<uint2> TileDataBuffer;
 
 groupshared bool s_HasTileHair[GROUP_THREAD_COUNT];
@@ -21,11 +20,6 @@ groupshared bool s_HasTileHair[GROUP_THREAD_COUNT];
 [numthreads(TILE_SIZE, TILE_SIZE, 1)]
 void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
 {
-	if (all(DispatchThreadId == 0))
-	{
-		TileIndirectBuffer[0] = bRectPrimitive > 0 ? 4 : 6;
-	}
-
 	const uint2 PixelCoord = DispatchThreadId;
 
 	bool bHasHairData = false;
@@ -66,7 +60,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	if (LinearIndex < 1 && (s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 1]))
 	{
 		uint WriteToIndex;
-		InterlockedAdd(TileIndirectBuffer[1], 1, WriteToIndex);
+		InterlockedAdd(TileCountBuffer[0], 1, WriteToIndex);
 		TileDataBuffer[WriteToIndex] = GroupId.xy;
 	}
 }
@@ -76,7 +70,9 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 #if SHADER_TILE_COPY_ARGS
 uint GroupSize;
-Buffer<uint> TileIndirectDrawBuffer;
+uint bRectPrimitive;
+Buffer<uint> TileCountBuffer;
+RWBuffer<uint> TileIndirectDrawBuffer;
 RWBuffer<uint> TileIndirectDispatchBuffer;
 
 [numthreads(1, 1, 1)]
@@ -84,7 +80,15 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (all(DispatchThreadId == 0))
 	{
-		TileIndirectDispatchBuffer[0] = (TileIndirectDrawBuffer[1] + GroupSize-1) / GroupSize;
+		const uint TileCount = TileCountBuffer[0];
+
+		// Indirect draw
+		TileIndirectDrawBuffer[0] = bRectPrimitive > 0 ? 4 : 6;
+		TileIndirectDrawBuffer[1] = TileCount;
+		TileIndirectDrawBuffer[2] = 1;
+
+		// Indirect dispatch
+		TileIndirectDispatchBuffer[0] = (TileCount + GroupSize-1) / GroupSize;
 		TileIndirectDispatchBuffer[1] = 1;
 		TileIndirectDispatchBuffer[2] = 1;
 	}

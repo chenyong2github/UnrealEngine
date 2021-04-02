@@ -27,7 +27,7 @@ FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStra
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Generate indirect dispatch buffer based on the indirect draw buffer
+// Generate indirect draw and indirect dispatch buffers
 
 class FHairStrandsTileCopyArgsPassCS : public FGlobalShader
 {
@@ -39,7 +39,9 @@ class FHairStrandsTileCopyArgsPassCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(uint32, GroupSize)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TileIndirectDrawBuffer)
+		SHADER_PARAMETER(uint32, bRectPrimitive)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TileCountBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileIndirectDrawBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileIndirectDispatchBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -65,7 +67,9 @@ void AddHairStrandsCopyArgsTilesPass(
 	TShaderMapRef<FHairStrandsTileCopyArgsPassCS> ComputeShader(View.ShaderMap);
 	FHairStrandsTileCopyArgsPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairStrandsTileCopyArgsPassCS::FParameters>();
 	PassParameters->GroupSize = FHairStrandsTiles::GroupSize;
-	PassParameters->TileIndirectDrawBuffer = GraphBuilder.CreateSRV(TileData.TileIndirectDrawBuffer, PF_R32_UINT);
+	PassParameters->bRectPrimitive = TileData.bRectPrimitive ? 1 : 0;
+	PassParameters->TileCountBuffer = GraphBuilder.CreateSRV(TileData.TileCountBuffer, PF_R32_UINT);
+	PassParameters->TileIndirectDrawBuffer = GraphBuilder.CreateUAV(TileData.TileIndirectDrawBuffer, PF_R32_UINT);
 	PassParameters->TileIndirectDispatchBuffer = GraphBuilder.CreateUAV(TileData.TileIndirectDispatchBuffer, PF_R32_UINT);
 
 	FComputeShaderUtils::AddPass(
@@ -88,10 +92,9 @@ class FHairStrandsTileGenerationPassCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER(int32, bRectPrimitive)
 		SHADER_PARAMETER(FIntPoint, ViewResolution)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint4>, InputTexture)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileIndirectBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileCountBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileDataBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -121,28 +124,27 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 	Out.TileCount = TileResolution.X * TileResolution.Y;
 	Out.Resolution = InputResolution;
 	Out.bRectPrimitive = GRHISupportsRectTopology;
+	Out.TileCountBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1), TEXT("Hair.TileCountBuffer"));
 	Out.TileIndirectDrawBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("Hair.TileIndirectDrawBuffer"));
 	Out.TileIndirectDispatchBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Hair.TileIndirectDispatchBuffer"));
 	Out.TileDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Out.TileCount), TEXT("Hair.TileDataBuffer"));
 
-	FRDGBufferUAVRef TileIndirectUAV = GraphBuilder.CreateUAV(Out.TileIndirectDrawBuffer, PF_R32_UINT);
-	AddClearUAVPass(GraphBuilder, TileIndirectUAV, 0u);
+	FRDGBufferUAVRef TileCountUAV = GraphBuilder.CreateUAV(Out.TileCountBuffer, PF_R32_UINT);
+	AddClearUAVPass(GraphBuilder, TileCountUAV, 0u);
 
 	TShaderMapRef<FHairStrandsTileGenerationPassCS> ComputeShader(View.ShaderMap);
 	FHairStrandsTileGenerationPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairStrandsTileGenerationPassCS::FParameters>();
-	PassParameters->bRectPrimitive = Out.bRectPrimitive ? 1 : 0;
 	PassParameters->ViewResolution = View.ViewRect.Size();
 	PassParameters->InputTexture = InputTexture;
 	PassParameters->TileDataBuffer = GraphBuilder.CreateUAV(Out.TileDataBuffer, PF_R16G16_UINT);
-	PassParameters->TileIndirectBuffer = TileIndirectUAV;
+	PassParameters->TileCountBuffer = TileCountUAV;
 
-	const uint32 GroupSize = 8;
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsTileClassification"),
 		ComputeShader,
 		PassParameters,
-		FComputeShaderUtils::GetGroupCount(InputResolution, GroupSize));
+		FComputeShaderUtils::GetGroupCount(InputResolution, FHairStrandsTiles::TileSize));
 
 	Out.TileDataSRV = GraphBuilder.CreateSRV(Out.TileDataBuffer, PF_R16G16_UINT);
 
