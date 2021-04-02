@@ -5,7 +5,7 @@
 
 #include "../SceneTexturesCommon.ush"
 #include "../DeferredShadingCommon.ush"
-#include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsVisibilityCommon.ush" 
 
 #if SHADER_SUBCOLOR
 
