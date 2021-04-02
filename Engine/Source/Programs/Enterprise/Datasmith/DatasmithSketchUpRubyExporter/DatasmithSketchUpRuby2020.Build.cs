@@ -18,14 +18,10 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-// 					// For DirectLink
- 					"MessagingCommon",
-                    "Messaging",
-                    "UdpMessaging",
-
-                    "DatasmithExporter",
+					"DatasmithExporter",
 					"DatasmithExporterUI",
 
+					"UdpMessaging", // required for DirectLink networking
 					"UEOpenExr",
 				}
 			);
@@ -56,8 +52,8 @@ namespace UnrealBuildTool.Rules
 				}
 
 				if (!Directory.Exists(SketchUpSDKLocation))
-                {
-                	// XXX: remove
+				{
+					// XXX: remove
 					System.Console.WriteLine("SketchUp SDK directory doesn't exist: '" + SketchUpSDKLocation + "'");
 				}
 			}
@@ -87,7 +83,7 @@ namespace UnrealBuildTool.Rules
 			return "SKP_SDK_2020";
 		}
 		public override string GetRubyLibName()
-        {
+		{
 			return "x64-msvcrt-ruby250.lib";
 		}
 	}
