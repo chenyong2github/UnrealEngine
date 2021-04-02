@@ -177,6 +177,7 @@ public:
 	bool ZoomOnTimeInterval(const double Time, const double Duration);
 	bool RelativeZoomWithFixedX(const float Delta, const float X);
 	bool ZoomWithFixedX(const double NewScaleX, const float X);
+	bool SetScaleX(const double NewScaleX);
 
 	//////////////////////////////////////////////////
 	// Vertical axis

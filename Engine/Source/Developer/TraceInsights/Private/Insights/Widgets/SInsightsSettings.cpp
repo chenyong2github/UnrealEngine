@@ -38,13 +38,22 @@ void SInsightsSettings::Construct(const FArguments& InArgs)
 
 	AddTitle(LOCTEXT("SettingsTitle","Unreal Insights - Settings"), SettingsGrid, CurrentRowPos);
 	AddSeparator(SettingsGrid, CurrentRowPos);
-	AddHeader(LOCTEXT("TimingProfilerTitle","TimingProfiler"), SettingsGrid, CurrentRowPos);
+	AddHeader(LOCTEXT("TimingProfilerTitle","Timing Insights - defaults (applies when a new analysis session starts)"), SettingsGrid, CurrentRowPos);
 	AddOption
 	(
-		LOCTEXT("bShowEmptyTracksByDefault_T","Show empty CPU/GPU tracks in Timing View, by default"),
-		LOCTEXT("bShowEmptyTracksByDefault_TT","If True, empty CPU/GPU tracks will be visible in Timing View. Applies when session starts."),
-		SettingPtr->bShowEmptyTracksByDefault,
-		SettingPtr->GetDefaults().bShowEmptyTracksByDefault,
+		LOCTEXT("bAutoHideEmptyTracks_T","Auto hide empty CPU/GPU tracks in Timing View"),
+		LOCTEXT("bAutoHideEmptyTracks_TT","If enabled, the empty CPU/GPU tracks will be hidden in the Timing View."),
+		SettingPtr->bAutoHideEmptyTracks,
+		SettingPtr->GetDefaults().bAutoHideEmptyTracks,
+		SettingsGrid,
+		CurrentRowPos
+	);
+	AddOption
+	(
+		LOCTEXT("bAutoZoomOnFrameSelection_T", "Auto zoom on frame selection"),
+		LOCTEXT("bAutoZoomOnFrameSelection_TT", "If enabled, the Timing View will also be zoomed when a new frame is selected in the Frames track."),
+		SettingPtr->bAutoZoomOnFrameSelection,
+		SettingPtr->GetDefaults().bAutoZoomOnFrameSelection,
 		SettingsGrid,
 		CurrentRowPos
 	);

@@ -317,6 +317,7 @@ public:
 	void ScrollAtPosY(float ScrollPosY);
 	void ScrollAtTime(double StartTime);
 	void CenterOnTimeInterval(double IntervalStartTime, double IntervalDuration);
+	void ZoomOnTimeInterval(double IntervalStartTime, double IntervalDuration);
 	void BringIntoView(double StartTime, double EndTime);
 	void SelectTimeInterval(double IntervalStartTime, double IntervalDuration);
 	void SelectToTimeMarker(double InTimeMarker);
@@ -366,18 +367,14 @@ protected:
 	void AutoScroll_OnCheckStateChanged(ECheckBoxState NewRadioState);
 	ECheckBoxState AutoScroll_IsChecked() const;
 
-	void AutoScrollFrameAligned_Execute();
-	bool AutoScrollFrameAligned_IsChecked() const;
+	void SetAutoScrollFrameAlignment(int32 FrameType);
+	bool CompareAutoScrollFrameAlignment(int32 FrameType) const;
 
-	void AutoScrollFrameType_Execute(ETraceFrameType FrameType);
-	bool AutoScrollFrameType_CanExecute(ETraceFrameType FrameType) const;
-	bool AutoScrollFrameType_IsChecked(ETraceFrameType FrameType) const;
+	void SetAutoScrollViewportOffset(double Percent);
+	bool CompareAutoScrollViewportOffset(double Percent) const;
 
-	void AutoScrollViewportOffset_Execute(double Percent);
-	bool AutoScrollViewportOffset_IsChecked(double Percent) const;
-
-	void AutoScrollDelay_Execute(double Delay);
-	bool AutoScrollDelay_IsChecked(double Delay) const;
+	void SetAutoScrollDelay(double Delay);
+	bool CompareAutoScrollDelay(double Delay) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -525,11 +522,11 @@ protected:
 	/** True if the viewport scrolls automatically. */
 	bool bAutoScroll;
 
-	/** True, if auto-scroll should align center of viewport with start of a frame. */
-	bool bIsAutoScrollFrameAligned;
-
-	/** Type of frame to align with (Game or Rendering), if bIsAutoScrollFrameAligned is enabled. */
-	ETraceFrameType AutoScrollFrameType;
+	/**
+	 * Frame Alignment. Controls if auto-scroll should align center of the viewport with start of a frame or not.
+	 * Valid options: -1 to disable frame alignment or the type of frame to align with (0 = Game or 1 = Rendering; see ETraceFrameType).
+	 */
+	int32 AutoScrollFrameAlignment;
 
 	/**
 	 * Viewport offset while auto-scrolling, as percent of viewport width.

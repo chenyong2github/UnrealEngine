@@ -133,7 +133,7 @@ protected:
 	TSharedPtr<FFrameTrackSeries> FindSeries(int32 FrameType) const;
 	void UpdateState();
 
-	void DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
+	void DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font, bool bDrawBackgroundLayer) const;
 	void DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
 
 	FFrameTrackSampleRef GetSampleAtMousePosition(float X, float Y);
@@ -153,6 +153,10 @@ protected:
 	bool ContextMenu_AutoZoom_CanExecute();
 	bool ContextMenu_AutoZoom_IsChecked();
 	void AutoZoom();
+
+	void ContextMenu_ZoomTimingViewOnFrameSelection_Execute();
+	bool ContextMenu_ZoomTimingViewOnFrameSelection_CanExecute();
+	bool ContextMenu_ZoomTimingViewOnFrameSelection_IsChecked();
 
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
@@ -179,10 +183,14 @@ protected:
 
 	bool bShowGameFrames;
 	bool bShowRenderingFrames;
+
 	bool bIsAutoZoomEnabled;
+
 	float AutoZoomViewportPos;
 	float AutoZoomViewportScale;
 	float AutoZoomViewportSize;
+
+	bool bZoomTimingViewOnFrameSelection;
 
 	uint64 AnalysisSyncNextTimestamp;
 
@@ -208,6 +216,8 @@ protected:
 
 	/** True, if the user is currently interactively scrolling the view (ex.: by holding the left mouse button and dragging). */
 	bool bIsScrolling;
+
+	mutable bool bDrawVerticalAxisLabelsOnLeftSide;
 
 	//////////////////////////////////////////////////
 	// Selection

@@ -119,6 +119,20 @@ bool FTimingTrackViewport::ZoomWithFixedX(const double NewScaleX, const float X)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool FTimingTrackViewport::SetScaleX(const double NewScaleX)
+{
+	const double LocalNewScaleX = FMath::Clamp(NewScaleX, MinScaleX, MaxScaleX);
+	if (LocalNewScaleX != ScaleX)
+	{
+		ScaleX = LocalNewScaleX;
+		AddDirtyFlags(ETimingTrackViewportDirtyFlags::HScaleChanged);
+		return true;
+	}
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 double FTimingTrackViewport::RestrictEndTime(const double InEndTime) const
 {
 	if (InEndTime == DBL_MAX || InEndTime == std::numeric_limits<double>::infinity())

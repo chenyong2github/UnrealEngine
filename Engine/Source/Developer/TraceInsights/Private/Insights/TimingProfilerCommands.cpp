@@ -84,10 +84,30 @@ FTimingViewCommands::FTimingViewCommands()
 PRAGMA_DISABLE_OPTIMIZATION
 void FTimingViewCommands::RegisterCommands()
 {
-	UI_COMMAND(AutoHideEmptyTracks, "Auto Hide Empty Tracks", "Auto hide empty tracks (ones without timing events in current viewport).", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::V));
-	UI_COMMAND(ToggleCompactMode, "Compact Mode", "Toggle compact mode for supporting tracks.\n(ex. timing tracks will be displayed with reduced height)", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::C));
-	UI_COMMAND(ShowMainGraphTrack, "Graph Track", "Show/hide the main Graph track.", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::G));
-	UI_COMMAND(ShowTaskDependencies, "Task Dependencies", "Show/hide all dependencies of the current task (for a selected cpu timing event).", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::T));
+	UI_COMMAND(AutoHideEmptyTracks,
+		"Auto Hide Empty Tracks",
+		"Auto hide empty tracks (ex.: ones without timing events in the current viewport).\nThis option is persistent to UnrealInsightsSettings.ini file.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EKeys::V));
+
+	UI_COMMAND(ToggleCompactMode,
+		"Compact Mode",
+		"Toggle compact mode for supporting tracks.\n(ex.: the timing tracks will be displayed with reduced height)",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EKeys::C));
+
+	UI_COMMAND(ShowMainGraphTrack,
+		"Graph Track",
+		"Show/hide the main Graph track.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EKeys::G));
+
+	UI_COMMAND(ShowTaskDependencies,
+		"Task Dependencies",
+		"Show/hide all dependencies of the current task (for a selected cpu timing event).",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EKeys::T));
+
 	//UI_COMMAND(ShowAllGpuTracks, "GPU Track(s)", "Show/hide the GPU track(s).", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Y));
 	//UI_COMMAND(ShowAllCpuTracks, "CPU Thread Tracks", "Show/hide all CPU tracks (and all CPU thread groups).", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::U));
 }

@@ -269,6 +269,8 @@ void STimingView::HideAllDefaultTracks()
 
 void STimingView::Reset(bool bIsFirstReset)
 {
+	const FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+
 	if (!bIsFirstReset)
 	{
 		for (Insights::ITimingViewExtender* Extender : GetExtenders())
@@ -280,6 +282,13 @@ void STimingView::Reset(bool bIsFirstReset)
 	//////////////////////////////////////////////////
 
 	Viewport.Reset();
+
+	if (IsAutoHideEmptyTracksEnabled() != Settings.IsAutoHideEmptyTracksEnabled())
+	{
+		ToggleAutoHideEmptyTracks();
+	}
+
+	Viewport.SetScaleX(100.0 / FMath::Clamp(Settings.GetDefaultZoomLevel(), 0.00000001, 3600.0));
 
 	//////////////////////////////////////////////////
 
@@ -361,10 +370,9 @@ void STimingView::Reset(bool bIsFirstReset)
 	bIsDragging = false;
 
 	bAutoScroll = false;
-	bIsAutoScrollFrameAligned = true;
-	AutoScrollFrameType = TraceFrameType_Game;
-	AutoScrollViewportOffsetPercent = 0.1; // scrolls forward 10% of viewport's width
-	AutoScrollMinDelay = 0.3; // [seconds]
+	AutoScrollFrameAlignment = Settings.GetAutoScrollFrameAlignment();
+	AutoScrollViewportOffsetPercent = Settings.GetAutoScrollViewportOffsetPercent();
+	AutoScrollMinDelay = Settings.GetAutoScrollMinDelay();
 	LastAutoScrollTime = 0;
 
 	bIsPanning = false;
@@ -557,14 +565,15 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			// By default, align the current session time with the offseted right side of the viewport.
 			double MinStartTime = Viewport.GetMaxValidTime() - ViewportDuration + AutoScrollViewportOffsetTime;
 
-			if (bIsAutoScrollFrameAligned)
+			if (AutoScrollFrameAlignment >= 0)
 			{
 				if (Session.IsValid())
 				{
 					TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 					const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(*Session.Get());
 
-					const uint64 FrameCount = FramesProvider.GetFrameCount(AutoScrollFrameType);
+					const ETraceFrameType FrameTpe = static_cast<ETraceFrameType>(AutoScrollFrameAlignment);
+					const uint64 FrameCount = FramesProvider.GetFrameCount(FrameTpe);
 
 					if (FrameCount > 0)
 					{
@@ -572,7 +581,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 						uint64 FrameIndex = FrameCount;
 						while (FrameIndex > 0)
 						{
-							const TraceServices::FFrame* FramePtr = FramesProvider.GetFrame(AutoScrollFrameType, --FrameIndex);
+							const TraceServices::FFrame* FramePtr = FramesProvider.GetFrame(FrameTpe, --FrameIndex);
 							if (FramePtr && FramePtr->EndTime <= Viewport.GetMaxValidTime())
 							{
 								// Align the start time of the frame with the right side of the viewport.
@@ -584,7 +593,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 						// Get the frame at the center of the viewport.
 						TraceServices::FFrame Frame;
 						const double ViewportCenter = MinStartTime + ViewportDuration / 2;
-						if (FramesProvider.GetFrameFromTime(AutoScrollFrameType, ViewportCenter, Frame))
+						if (FramesProvider.GetFrameFromTime(FrameTpe, ViewportCenter, Frame))
 						{
 							if (Frame.EndTime > ViewportCenter)
 							{
@@ -612,7 +621,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			Extender->Tick(*this, *Session.Get());
 		}
 
-		// Re-sort now if we need to
+		// Re-sort now (if we need to).
 		UpdateScrollableTracksOrder();
 	}
 
@@ -2977,63 +2986,54 @@ ECheckBoxState STimingView::AutoScroll_IsChecked() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::AutoScrollFrameAligned_Execute()
+void STimingView::SetAutoScrollFrameAlignment(int32 FrameType)
 {
-	bIsAutoScrollFrameAligned = !bIsAutoScrollFrameAligned;
+	AutoScrollFrameAlignment = FrameType;
+
+	// Persistent option. Save it to the config file.
+	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+	Settings.SetAndSaveAutoScrollFrameAlignment(FrameType);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimingView::AutoScrollFrameAligned_IsChecked() const
+bool STimingView::CompareAutoScrollFrameAlignment(int32 FrameType) const
 {
-	return bIsAutoScrollFrameAligned;
+	return AutoScrollFrameAlignment == FrameType;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::AutoScrollFrameType_Execute(ETraceFrameType FrameType)
-{
-	AutoScrollFrameType = FrameType;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STimingView::AutoScrollFrameType_CanExecute(ETraceFrameType FrameType) const
-{
-	return bIsAutoScrollFrameAligned;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STimingView::AutoScrollFrameType_IsChecked(ETraceFrameType FrameType) const
-{
-	return AutoScrollFrameType == FrameType;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::AutoScrollViewportOffset_Execute(double Percent)
+void STimingView::SetAutoScrollViewportOffset(double Percent)
 {
 	AutoScrollViewportOffsetPercent = Percent;
+
+	// Persistent option. Save it to the config file.
+	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+	Settings.SetAndSaveAutoScrollViewportOffsetPercent(Percent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimingView::AutoScrollViewportOffset_IsChecked(double Percent) const
+bool STimingView::CompareAutoScrollViewportOffset(double Percent) const
 {
 	return AutoScrollViewportOffsetPercent == Percent;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::AutoScrollDelay_Execute(double Delay)
+void STimingView::SetAutoScrollDelay(double Delay)
 {
 	AutoScrollMinDelay = Delay;
+
+	// Persistent option. Save it to the config file.
+	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+	Settings.SetAndSaveAutoScrollMinDelay(Delay);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimingView::AutoScrollDelay_IsChecked(double Delay) const
+bool STimingView::CompareAutoScrollDelay(double Delay) const
 {
 	return AutoScrollMinDelay == Delay;
 }
@@ -3144,6 +3144,17 @@ void STimingView::ScrollAtTime(double StartTime)
 void STimingView::CenterOnTimeInterval(double IntervalStartTime, double IntervalDuration)
 {
 	if (Viewport.CenterOnTimeInterval(IntervalStartTime, IntervalDuration))
+	{
+		Viewport.EnforceHorizontalScrollLimits(1.0); // 1.0 is to disable interpolation
+		UpdateHorizontalScrollBar();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ZoomOnTimeInterval(double IntervalStartTime, double IntervalDuration)
+{
+	if (Viewport.ZoomOnTimeInterval(IntervalStartTime, IntervalDuration))
 	{
 		Viewport.EnforceHorizontalScrollLimits(1.0); // 1.0 is to disable interpolation
 		UpdateHorizontalScrollBar();
@@ -3776,34 +3787,34 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 	MenuBuilder.BeginSection("QuickFilter", LOCTEXT("AutoScrollHeading", "Auto Scroll Options"));
 	{
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("AutoScrollFrameAligned", "Frame Aligned"),
-			LOCTEXT("AutoScrollFrameAligned_Tooltip", "Align the viewport's center position with the start time of a frame."),
+			LOCTEXT("AutoScrollNoFrameAlignment", "No Frame Alignment"),
+			LOCTEXT("AutoScrollNoFrameAlignment_Tooltip", "Disable frame alignment."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollFrameAligned_Execute),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::SetAutoScrollFrameAlignment, -1),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollFrameAligned_IsChecked)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("AutoScrollFrameTypeGame", "Align with Game Frames"),
-			LOCTEXT("AutoScrollFrameTypeGame_Tooltip", "Align the viewport's center position with the start time of a Game frame."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollFrameType_Execute, TraceFrameType_Game),
-				FCanExecuteAction::CreateSP(this, &STimingView::AutoScrollFrameType_CanExecute, TraceFrameType_Game),
-				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollFrameType_IsChecked, TraceFrameType_Game)),
+				FIsActionChecked::CreateSP(this, &STimingView::CompareAutoScrollFrameAlignment, -1)),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("AutoScrollFrameTypeRendering", "Align with Rendering Frames"),
-			LOCTEXT("AutoScrollFrameTypeRendering_Tooltip", "Align the viewport's center position with the start time of a Rendering frame."),
+			LOCTEXT("AutoScrollAlignWithGameFrames", "Align with Game Frames"),
+			LOCTEXT("AutoScrollAlignWithGameFrames_Tooltip", "Align the viewport's center position with the start time of a Game frame."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollFrameType_Execute, TraceFrameType_Rendering),
-				FCanExecuteAction::CreateSP(this, &STimingView::AutoScrollFrameType_CanExecute, TraceFrameType_Rendering),
-				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollFrameType_IsChecked, TraceFrameType_Rendering)),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::SetAutoScrollFrameAlignment, (int32)TraceFrameType_Game),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::CompareAutoScrollFrameAlignment, (int32)TraceFrameType_Game)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollAlignWithRenderingFrames", "Align with Rendering Frames"),
+			LOCTEXT("AutoScrollAlignWithRenderingFrames_Tooltip", "Align the viewport's center position with the start time of a Rendering frame."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::SetAutoScrollFrameAlignment, (int32)TraceFrameType_Rendering),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::CompareAutoScrollFrameAlignment, (int32)TraceFrameType_Rendering)),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
@@ -3814,9 +3825,9 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 			LOCTEXT("AutoScrollViewportOffset-10", "Viewport Offset: -10%"),
 			LOCTEXT("AutoScrollViewportOffset-10_Tooltip", "Set the viewport offset to -10% (i.e. backward) of the viewport's width.\nAvoids flickering as the end of session will be outside of the viewport."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollViewportOffset_Execute, -0.1),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::SetAutoScrollViewportOffset, -0.1),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollViewportOffset_IsChecked, -0.1)),
+				FIsActionChecked::CreateSP(this, &STimingView::CompareAutoScrollViewportOffset, -0.1)),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
@@ -3825,9 +3836,9 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 			LOCTEXT("AutoScrollViewportOffset0", "Viewport Offset: 0"),
 			LOCTEXT("AutoScrollViewportOffset0_Tooltip", "Set the viewport offset to 0."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollViewportOffset_Execute, 0.0),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::SetAutoScrollViewportOffset, 0.0),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollViewportOffset_IsChecked, 0.0)),
+				FIsActionChecked::CreateSP(this, &STimingView::CompareAutoScrollViewportOffset, 0.0)),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
@@ -3836,9 +3847,9 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 			LOCTEXT("AutoScrollViewportOffset+10", "Viewport Offset: +10%"),
 			LOCTEXT("AutoScrollViewportOffset+10_Tooltip", "Set the viewport offset to +10% (i.e. forward) of the viewport's width.\nAllows 10% empty space on the right side of the viewport."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollViewportOffset_Execute, +0.1),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::SetAutoScrollViewportOffset, +0.1),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollViewportOffset_IsChecked, +0.1)),
+				FIsActionChecked::CreateSP(this, &STimingView::CompareAutoScrollViewportOffset, +0.1)),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
@@ -3849,9 +3860,9 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 			LOCTEXT("AutoScrollDelay0", "Delay: 0"),
 			LOCTEXT("AutoScrollDelay0_Tooltip", "Set the time delay of the auto-scroll update to 0."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollDelay_Execute, 0.0),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::SetAutoScrollDelay, 0.0),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollDelay_IsChecked, 0.0)),
+				FIsActionChecked::CreateSP(this, &STimingView::CompareAutoScrollDelay, 0.0)),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
@@ -3860,9 +3871,9 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 			LOCTEXT("AutoScrollDelay300ms", "Delay: 300ms"),
 			LOCTEXT("AutoScrollDelay300ms_Tooltip", "Set the time delay of the auto-scroll update to 300ms."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollDelay_Execute, 0.3),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::SetAutoScrollDelay, 0.3),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollDelay_IsChecked, 0.3)),
+				FIsActionChecked::CreateSP(this, &STimingView::CompareAutoScrollDelay, 0.3)),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
@@ -3871,9 +3882,9 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 			LOCTEXT("AutoScrollDelay1s", "Delay: 1s"),
 			LOCTEXT("AutoScrollDelay1s_Tooltip", "Set the time delay of the auto-scroll update to 1s."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollDelay_Execute, 1.0),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::SetAutoScrollDelay, 1.0),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollDelay_IsChecked, 1.0)),
+				FIsActionChecked::CreateSP(this, &STimingView::CompareAutoScrollDelay, 1.0)),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
@@ -3882,9 +3893,9 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 			LOCTEXT("AutoScrollDelay3s", "Delay: 3s"),
 			LOCTEXT("AutoScrollDelay3s_Tooltip", "Set the time delay of the auto-scroll update to 3s."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollDelay_Execute, 3.0),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::SetAutoScrollDelay, 3.0),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollDelay_IsChecked, 3.0)),
+				FIsActionChecked::CreateSP(this, &STimingView::CompareAutoScrollDelay, 3.0)),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
@@ -4058,6 +4069,11 @@ void STimingView::ToggleAutoHideEmptyTracks()
 			TrackPtr->SetHeight(0.0f);
 		}
 	}
+
+	// Persistent option. Save it to the config file.
+	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+	const bool bIsEnabled = IsAutoHideEmptyTracksEnabled();
+	Settings.SetAndSaveAutoHideEmptyTracks(bIsEnabled);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
