@@ -20,11 +20,11 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 		Parameters->HairSampleCoords = GraphBuilder.CreateSRV(In->NodeCoord, FHairStrandsVisibilityData::NodeCoordFormat);
 		Parameters->HairSampleCount = In->NodeCount;
 		Parameters->HairSampleViewportResolution = In->SampleLightingViewportResolution;
-
 		if (In->TileData.IsValid())
 		{
 			Parameters->HairTileData = In->TileData.TileDataSRV;
 			Parameters->HairTileCount = GraphBuilder.CreateSRV(In->TileData.TileCountBuffer, PF_R32_UINT);
+			Parameters->HairTileCountXY = In->TileData.TileCountXY;
 		}
 		else
 		{
@@ -34,6 +34,7 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 			FRDGBufferSRVRef DummyBufferRG16SRV = GraphBuilder.CreateSRV(DummyBuffer, PF_R16G16_UINT);
 			Parameters->HairTileData = DummyBufferR32SRV;
 			Parameters->HairTileCount = DummyBufferRG16SRV;
+			Parameters->HairTileCountXY = FIntPoint(0,0);
 		}
 	}
 	else
@@ -62,6 +63,7 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 
 		Parameters->HairTileData = DummyBufferR32SRV;
 		Parameters->HairTileCount = DummyBufferRG16SRV;
+		Parameters->HairTileCountXY = FIntPoint(0, 0);
 	}
 
 	return GraphBuilder.CreateUniformBuffer(Parameters);

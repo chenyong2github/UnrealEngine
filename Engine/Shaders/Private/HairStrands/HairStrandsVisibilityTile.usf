@@ -69,7 +69,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if SHADER_TILE_COPY_ARGS
-uint GroupSize;
+uint2 TileCountXY;
 uint bRectPrimitive;
 Buffer<uint> TileCountBuffer;
 RWBuffer<uint> TileIndirectDrawBuffer;
@@ -88,8 +88,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		TileIndirectDrawBuffer[2] = 1;
 
 		// Indirect dispatch
-		TileIndirectDispatchBuffer[0] = (TileCount + GroupSize-1) / GroupSize;
-		TileIndirectDispatchBuffer[1] = 1;
+		TileIndirectDispatchBuffer[0] = TileCount % TileCountXY.x;
+		TileIndirectDispatchBuffer[1] = (TileCount+TileCountXY.x-1) / TileCountXY.x;
 		TileIndirectDispatchBuffer[2] = 1;
 	}
 }

@@ -38,7 +38,7 @@ class FHairStrandsTileCopyArgsPassCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER(uint32, GroupSize)
+		SHADER_PARAMETER(FIntPoint, TileCountXY)
 		SHADER_PARAMETER(uint32, bRectPrimitive)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TileCountBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileIndirectDrawBuffer)
@@ -66,7 +66,7 @@ void AddHairStrandsCopyArgsTilesPass(
 {
 	TShaderMapRef<FHairStrandsTileCopyArgsPassCS> ComputeShader(View.ShaderMap);
 	FHairStrandsTileCopyArgsPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairStrandsTileCopyArgsPassCS::FParameters>();
-	PassParameters->GroupSize = FHairStrandsTiles::GroupSize;
+	PassParameters->TileCountXY = TileData.TileCountXY;
 	PassParameters->bRectPrimitive = TileData.bRectPrimitive ? 1 : 0;
 	PassParameters->TileCountBuffer = GraphBuilder.CreateSRV(TileData.TileCountBuffer, PF_R32_UINT);
 	PassParameters->TileIndirectDrawBuffer = GraphBuilder.CreateUAV(TileData.TileIndirectDrawBuffer, PF_R32_UINT);
@@ -120,8 +120,8 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 
 	check(FHairStrandsTiles::TileSize == 8); // only size supported for now
 	const FIntPoint InputResolution = InputTexture->Desc.Extent;
-	const FIntPoint TileResolution = FIntPoint(FMath::CeilToInt(InputResolution.X / float(FHairStrandsTiles::TileSize)), FMath::CeilToInt(InputResolution.Y / float(FHairStrandsTiles::TileSize)));
-	Out.TileCount = TileResolution.X * TileResolution.Y;
+	Out.TileCountXY = FIntPoint(FMath::CeilToInt(InputResolution.X / float(FHairStrandsTiles::TileSize)), FMath::CeilToInt(InputResolution.Y / float(FHairStrandsTiles::TileSize)));
+	Out.TileCount = Out.TileCountXY.X * Out.TileCountXY.Y;
 	Out.Resolution = InputResolution;
 	Out.bRectPrimitive = GRHISupportsRectTopology;
 	Out.TileCountBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1), TEXT("Hair.TileCountBuffer"));
