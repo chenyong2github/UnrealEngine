@@ -83,7 +83,7 @@ void FWorldSnapshotData::SnapshotWorld(UWorld* World)
 
 		// For now only snapshot the actors which would be visible in the scene outliner to avoid complications with special hidden actors
 		// We'll also filter out actors of specific classes
-		if (Actor->IsListedInSceneOutliner() && ULevelSnapshot::IsActorDesirableForCapture(Actor))
+		if (ULevelSnapshot::IsActorDesirableForCapture(Actor)) 
 		{
 			ActorData.Add(Actor, FActorSnapshotData::SnapshotActor(Actor, *this));
 		}

@@ -195,6 +195,7 @@ void FApplySnapshotDataArchiveV2::PushSerializedProperty(FProperty* InProperty, 
 {
 	Super::PushSerializedProperty(InProperty, bIsEditorOnlyProperty);
 
+#if WITH_EDITOR
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("PreEditChange"), STAT_PreEditChange, STATGROUP_LevelSnapshots);
 	if (FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 	{
@@ -204,6 +205,7 @@ void FApplySnapshotDataArchiveV2::PushSerializedProperty(FProperty* InProperty, 
 	{
 		OriginalObject->PreEditChange(InProperty);
 	}
+#endif
 	
 	PropertiesLeftToSerialize.RemoveProperty(InProperty);
 }
@@ -211,7 +213,8 @@ void FApplySnapshotDataArchiveV2::PushSerializedProperty(FProperty* InProperty, 
 void FApplySnapshotDataArchiveV2::PopSerializedProperty(FProperty* InProperty, const bool bIsEditorOnlyProperty)
 {
 	Super::PopSerializedProperty(InProperty, bIsEditorOnlyProperty);
-	
+
+#if WITH_EDITOR
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("PostEditChange"), STAT_PostEditChange, STATGROUP_LevelSnapshots);
 	if (FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 	{
@@ -222,6 +225,7 @@ void FApplySnapshotDataArchiveV2::PopSerializedProperty(FProperty* InProperty, c
 		FPropertyChangedEvent ChangeEvent(InProperty);
 		OriginalObject->PostEditChangeProperty(ChangeEvent);
 	}
+#endif
 }
 
 FApplySnapshotDataArchiveV2::FApplySnapshotDataArchiveV2(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, const FPropertySelection& InSelectionSet)

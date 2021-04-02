@@ -8,6 +8,7 @@
 #include "PropertyInfoHelpers.h"
 
 #include "EngineUtils.h"
+#include "Engine/LevelScriptActor.h"
 #include "Components/BillboardComponent.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/DefaultPhysicsVolume.h"
@@ -15,7 +16,6 @@
 
 #if WITH_EDITOR
 #include "ActorEditorUtils.h"
-#include "Engine/LevelScriptActor.h"
 #include "ScopedTransaction.h"
 #endif
 

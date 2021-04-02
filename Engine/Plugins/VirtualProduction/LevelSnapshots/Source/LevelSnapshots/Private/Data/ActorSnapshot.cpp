@@ -17,6 +17,7 @@ namespace
 {
 	void NotifyPreEdit(UObject* Object, const FPropertySelection& SelectedProperties)
 	{
+#if WITH_EDITOR
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("PreEditChange"), STAT_PreEditChange, STATGROUP_LevelSnapshots);
 		
 		for (const TFieldPath<FProperty>& PropertyPath : SelectedProperties.SelectedPropertyPaths)
@@ -27,10 +28,13 @@ namespace
 				Object->PreEditChange(SelectedProperty);
 			}
 		}
+#endif
 	}
 
 	void NotifyPostEdit(UObject* Object, const FPropertySelection& SelectedProperties)
 	{
+		
+#if WITH_EDITOR
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("PostEditChange"), STAT_PostEditChange, STATGROUP_LevelSnapshots);
 		
 		for (const TFieldPath<FProperty>& PropertyPath : SelectedProperties.SelectedPropertyPaths)
@@ -42,6 +46,7 @@ namespace
 				Object->PostEditChangeProperty(ChangeEvent);
 			}
 		}
+#endif
 	}
 
 	struct GenerateSelectionSetFromDiffImpl
