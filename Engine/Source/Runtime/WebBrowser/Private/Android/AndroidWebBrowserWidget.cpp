@@ -22,6 +22,7 @@
 #include "WebBrowserTextureSample.h"
 #include "WebBrowserModule.h"
 #include "IWebBrowserSingleton.h"
+#include "Misc/ConfigCacheIni.h"
 
 // For UrlDecode
 #include "Http.h"
