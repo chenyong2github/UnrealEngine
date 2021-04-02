@@ -569,6 +569,9 @@ public:
 	/** Check if we have a global interpolation */
 	void HasGlobalInterpolation(FVectorVMContext& Context);
 
+	/** Check if we need a rest pose update */
+	void NeedRestUpdate(FVectorVMContext& Context);
+
 	/** Eval the skinned position given a rest position*/
 	void EvalSkinnedPosition(FVectorVMContext& Context);
 
@@ -610,6 +613,9 @@ public:
 
 	/** Param to check if the roots have been attached to the skin */
 	static const FString InterpolationModeName;
+
+	/** Param to check if we need to update the rest pose */
+	static const FString RestUpdateName;
 
 	/** boolean to check if we need to rest the simulation*/
 	static const FString ResetSimulationName;

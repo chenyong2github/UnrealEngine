@@ -154,6 +154,7 @@ static const FName ComputeAirDragForceName(TEXT("ComputeAirDragForce"));
 
 static const FName NeedSimulationResetName(TEXT("NeedSimulationReset"));
 static const FName HasGlobalInterpolationName(TEXT("HasGlobalInterpolation"));
+static const FName NeedRestUpdateName(TEXT("NeedRestUpdate"));
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -174,6 +175,7 @@ const FString UNiagaraDataInterfaceHairStrands::RestPositionBufferName(TEXT("Res
 
 const FString UNiagaraDataInterfaceHairStrands::ResetSimulationName(TEXT("ResetSimulation_"));
 const FString UNiagaraDataInterfaceHairStrands::InterpolationModeName(TEXT("InterpolationMode_"));
+const FString UNiagaraDataInterfaceHairStrands::RestUpdateName(TEXT("RestUpdate_"));
 const FString UNiagaraDataInterfaceHairStrands::RootBarycentricCoordinatesName(TEXT("RootBarycentricCoordinatesBuffer_"));
 
 const FString UNiagaraDataInterfaceHairStrands::RestRootOffsetName(TEXT("RestRootOffset_"));
@@ -202,6 +204,9 @@ const FString UNiagaraDataInterfaceHairStrands::ParamsScaleBufferName(TEXT("Para
 static int32 GHairSimulationMaxDelay = 4;
 static FAutoConsoleVariableRef CVarHairSimulationMaxDelay(TEXT("r.HairStrands.SimulationMaxDelay"), GHairSimulationMaxDelay, TEXT("Maximum tick Delay before starting the simulation"));
 
+static int32 GHairSimulationRestUpdate = false;
+static FAutoConsoleVariableRef CVarHairSimulationRestUpdate(TEXT("r.HairStrands.SimulationRestUpdate"), GHairSimulationRestUpdate, TEXT("Update the simulation rest pose"));
+
 //------------------------------------------------------------------------------------------------------------
 
 struct FNDIHairStrandsParametersName
@@ -220,6 +225,7 @@ struct FNDIHairStrandsParametersName
 
 		InterpolationModeName = UNiagaraDataInterfaceHairStrands::InterpolationModeName + Suffix;
 		ResetSimulationName = UNiagaraDataInterfaceHairStrands::ResetSimulationName + Suffix;
+		RestUpdateName = UNiagaraDataInterfaceHairStrands::RestUpdateName + Suffix;
 		RootBarycentricCoordinatesName = UNiagaraDataInterfaceHairStrands::RootBarycentricCoordinatesName + Suffix;
 
 		RestRootOffsetName = UNiagaraDataInterfaceHairStrands::RestRootOffsetName + Suffix;
@@ -256,6 +262,7 @@ struct FNDIHairStrandsParametersName
 
 	FString ResetSimulationName;
 	FString InterpolationModeName;
+	FString RestUpdateName;
 	FString RootBarycentricCoordinatesName;
 
 	FString RestRootOffsetName;
@@ -532,6 +539,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 
 		ResetSimulation.Bind(ParameterMap, *ParamNames.ResetSimulationName);
 		InterpolationMode.Bind(ParameterMap,*ParamNames.InterpolationModeName);
+		RestUpdate.Bind(ParameterMap, *ParamNames.RestUpdateName);
 		RestRootOffset.Bind(ParameterMap, *ParamNames.RestRootOffsetName);
 		DeformedRootOffset.Bind(ParameterMap, *ParamNames.DeformedRootOffsetName);
 
@@ -588,6 +596,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 
 			const int32 MeshLODIndex = IsRootValid ? HairStrandsBuffer->SourceDeformedRootResources->MeshLODIndex : -1;
 			int32 InterpolationModeValue = IsRootValid && HairStrandsBuffer->SourceDeformedRootResources->IsValid(MeshLODIndex) ? 1 : 0;
+			const int32 RestUpdateValue = GHairSimulationRestUpdate;
 
 			const FHairStrandsRestRootResource::FLOD* RestMeshProjection = (InterpolationModeValue == 1) ? &(HairStrandsBuffer->SourceRestRootResources->LODs[MeshLODIndex]) : nullptr;
 			const FHairStrandsDeformedRootResource::FLOD* DeformedMeshProjection = (InterpolationModeValue == 1) ? &(HairStrandsBuffer->SourceDeformedRootResources->LODs[MeshLODIndex]) : nullptr;
@@ -655,6 +664,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ResetSimulation, bNeedSimReset);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InterpolationMode, InterpolationModeValue);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, RestUpdate, RestUpdateValue);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, RestRootOffset, RestRootOffsetValue);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, DeformedRootOffset, DeformedRootOffsetValue);
 
@@ -694,6 +704,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ResetSimulation, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InterpolationMode, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, RestUpdate, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, RestRootOffset, FVector4(0, 0, 0, 0));
 			SetShaderValue(RHICmdList, ComputeShaderRHI, DeformedRootOffset, FVector4(0, 0, 0, 0));
 
@@ -738,6 +749,7 @@ private:
 
 	LAYOUT_FIELD(FShaderParameter, ResetSimulation);
 	LAYOUT_FIELD(FShaderParameter, InterpolationMode);
+	LAYOUT_FIELD(FShaderParameter, RestUpdate);
 	LAYOUT_FIELD(FShaderParameter, RestRootOffset);
 	LAYOUT_FIELD(FShaderParameter, DeformedRootOffset);
 
@@ -2043,6 +2055,16 @@ void UNiagaraDataInterfaceHairStrands::GetFunctions(TArray<FNiagaraFunctionSigna
 
 		OutFunctions.Add(Sig);
 	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = NeedRestUpdateName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Rest Update")));
+
+		OutFunctions.Add(Sig);
+	}
 }
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetNumStrands);
@@ -2139,6 +2161,7 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ComputeMaterialF
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ComputeAirDragForce);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, NeedSimulationReset);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, HasGlobalInterpolation);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, NeedRestUpdate);
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, InitGridSamples);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetSampleState);
@@ -2539,6 +2562,11 @@ void UNiagaraDataInterfaceHairStrands::GetVMExternalFunction(const FVMExternalFu
 	{
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, HasGlobalInterpolation)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == NeedRestUpdateName)
+	{
+		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, NeedRestUpdate)::Bind(this, OutFunc);
 	}
 }
 
@@ -3149,6 +3177,11 @@ void UNiagaraDataInterfaceHairStrands::HasGlobalInterpolation(FVectorVMContext& 
 	{
 		*OutGlobalInterpolation.GetDestAndAdvance() = InstData->GlobalInterpolation;
 	}
+}
+
+void UNiagaraDataInterfaceHairStrands::NeedRestUpdate(FVectorVMContext& Context)
+{
+	// @todo : implement function for cpu 
 }
 
 #if WITH_EDITORONLY_DATA
@@ -3860,6 +3893,17 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 				void {InstanceFunctionName} ( out bool GlobalInterpolation)
 				{
 					{HairStrandsContextName} GlobalInterpolation  = (DIContext.InterpolationMode == 2);
+				}
+				)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == NeedRestUpdateName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+				void {InstanceFunctionName} ( out bool RestUpdate)
+				{
+					{HairStrandsContextName} RestUpdate  = DIContext.RestUpdate;
 				}
 				)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
