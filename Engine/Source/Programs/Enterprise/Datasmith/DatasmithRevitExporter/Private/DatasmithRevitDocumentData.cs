@@ -190,7 +190,7 @@ namespace DatasmithRevitExporter
 			public void UpdateMeshName()
 			{
 				FDatasmithFacadeActorMesh MeshActor = ElementActor as FDatasmithFacadeActorMesh;
-				MeshActor.SetMesh(DatasmithMeshElement.GetName());
+				MeshActor?.SetMesh(DatasmithMeshElement.GetName());
 				bOptimizeHierarchy = false;
 			}
 		}
@@ -1037,7 +1037,9 @@ namespace DatasmithRevitExporter
 				{
 					ElementData = (FElementData)DirectLink.GetCachedElement(InElement);
 
-					if (DirectLink.IsElementModified(InElement))
+					bool bIsLinkedDocument = InElement.GetType() == typeof(RevitLinkInstance);
+
+					if (bIsLinkedDocument || DirectLink.IsElementModified(InElement))
 					{
 						FDatasmithFacadeActor ExistingActor = ElementData.ElementActor;
 
