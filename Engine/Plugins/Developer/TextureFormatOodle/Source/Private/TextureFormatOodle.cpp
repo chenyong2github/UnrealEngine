@@ -257,8 +257,7 @@ public:
 	void Init()
 	{
 		// this is done at Singleton init time, the first time GetTextureFormat() is called
-		UE_LOG(LogTextureFormatOodle, Display, TEXT("TextureFormatOodle::Init for Oodle Texture %s"), TEXT(OodleTextureVersion) );
-					
+
 		#define OODLETEXTURE_INI_SECTION	TEXT("TextureFormatOodle")
 		
 		// Check that the OodleHandlerComponent section exists, and if not, init with defaults
@@ -288,7 +287,16 @@ public:
 
 		if ( GlobalLambdaMultiplier <= 0.f )
 		{
-			GlobalLambdaMultiplier= 1.f;
+			GlobalLambdaMultiplier = 1.f;
+		}
+		
+		if ( bForceRDOOff )
+		{
+			UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init RDO Off"), TEXT(OodleTextureVersion) );
+		}
+		else
+		{
+			UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init RDO On with DefaultRDOLambda=%d"), TEXT(OodleTextureVersion), DefaultRDOLambda);
 		}
 	}
 	

@@ -336,7 +336,7 @@ class FOodleDataPluginModuleInterface : public IModuleInterface
 		// we only need to be doing all this when run as UnrealPak or iostore commandlet
 		//	(IsProgram also picks up cooker and a few other things, that's okay)
 		if ( IsIOStore || IsProgram )
-		{		
+		{
 			// defaults if no options set :
 			UsedCompressor = OodleLZ_Compressor_Kraken;
 			// Kraken is a good compromise of compression ratio & speed
@@ -410,7 +410,12 @@ class FOodleDataPluginModuleInterface : public IModuleInterface
 			if (pUsedCompressor) UsedCompressor = *pUsedCompressor;
 			if (pUsedLevel)	UsedLevel = *pUsedLevel;
 
-			UE_LOG(OodleCompression, Display, TEXT("Oodle v%s initializing compressor with %s, level %s, SpaceSpeed tradeoff %d"), TEXT(OodleVersion), **MethodMap.FindKey(UsedCompressor), **LevelMap.FindKey(UsedLevel), SpaceSpeedTradeoff);
+			// no init log line if we're not enabled :
+			bool bUseCompressionFormatOodle = FCString::Strifind(FCommandLine::Get(), TEXT("-compressionformats=oodle")) != NULL;
+			if ( bUseCompressionFormatOodle )			
+			{
+				UE_LOG(OodleCompression, Display, TEXT("Oodle v%s initializing with method=%s, level=%d=%s"), TEXT(OodleVersion), **MethodMap.FindKey(UsedCompressor), (int)UsedLevel, **LevelMap.FindKey(UsedLevel) );
+			}
 		}
 
 		}
