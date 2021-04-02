@@ -1676,25 +1676,34 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 
 	FString TextureCompressionFormat;
 	bool bHasFormat = EngineSettings.GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat);
-
-	bool bEnableInEditor = false;
+	
+	// Disable in the Editor by default ?
+	// I guess this is done for speed but it's not a great idea because it means people aren't seeing the real content
+	//	would be preferrable to properly make a "fast preview" vs "cook encode" mode
+	//bool bEnableInEditor = false;
+	bool bEnableInEditor = true;
 	EngineSettings.GetBool(TEXT("AlternateTextureCompression"), TEXT("bEnableInEditor"), bEnableInEditor);
 
-	// Disable in the Editor by default but never in cooked builds
-	bEnableInEditor = !TargetPlatform->HasEditorOnlyData() || bEnableInEditor;
+	// do prefixing if bEnableInEditor or if making cooked content
+	bool bEnablePrefix = !TargetPlatform->HasEditorOnlyData() || bEnableInEditor;
 
-	if (bHasPrefix && bHasFormat && bEnableInEditor)
+	if (bHasPrefix && bHasFormat && bEnablePrefix)
 	{
-		ITextureFormat* TextureFormat = FModuleManager::LoadModuleChecked<ITextureFormatModule>(*TextureCompressionFormat).GetTextureFormat();
+		ITextureFormatModule*TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
 
-		TArray<FName> SupportedFormats;
-		TextureFormat->GetSupportedFormats(SupportedFormats);
-
-		FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
-
-		if (SupportedFormats.Contains(NewFormatName))
+		if ( TextureFormatModule )
 		{
-			TextureFormatName = NewFormatName;
+			ITextureFormat* TextureFormat = TextureFormatModule->GetTextureFormat();
+
+			TArray<FName> SupportedFormats;
+			TextureFormat->GetSupportedFormats(SupportedFormats);
+
+			FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
+
+			if (SupportedFormats.Contains(NewFormatName))
+			{
+				TextureFormatName = NewFormatName;
+			}
 		}
 	}
 

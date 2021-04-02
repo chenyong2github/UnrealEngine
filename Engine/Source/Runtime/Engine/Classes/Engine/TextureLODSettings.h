@@ -41,6 +41,7 @@ struct ENGINE_API FTextureLODGroup
 		, DownscaleOptions(ETextureDownscaleOptions::SimpleAverage)
 		, VirtualTextureTileCountBias(0)
 		, VirtualTextureTileSizeBias(0)
+		, LossyCompressionAmount(TLCA_Default)
 	{
 		SetupGroup();
 	}
@@ -125,6 +126,9 @@ struct ENGINE_API FTextureLODGroup
 
 	UPROPERTY()
 	int32 VirtualTextureTileSizeBias;
+	
+	UPROPERTY()
+	TEnumAsByte<enum ETextureLossyCompressionAmount> LossyCompressionAmount;
 
 	void SetupGroup();
 };

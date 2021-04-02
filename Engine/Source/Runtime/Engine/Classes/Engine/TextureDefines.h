@@ -204,3 +204,15 @@ enum class ETextureDownscaleOptions : uint8
 	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
 	Sharpen10
 };
+
+UENUM()
+enum ETextureLossyCompressionAmount
+{
+	TLCA_Default		UMETA(DisplayName = "Default"),
+	TLCA_None			UMETA(DisplayName = "No lossy compression"),
+	TLCA_Lowest			UMETA(DisplayName = "Lowest (Best image quality, largest filesize)"),
+	TLCA_Low			UMETA(DisplayName = "Low"),
+	TLCA_Medium			UMETA(DisplayName = "Medium"),
+	TLCA_High			UMETA(DisplayName = "High"),
+	TLCA_Highest		UMETA(DisplayName = "Highest (Worst image quality, smallest filesize)"),
+};

@@ -157,6 +157,12 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempFloat = Settings.Downscale; Ar << TempFloat;
 		TempByte = Settings.DownscaleOptions; Ar << TempByte;
 	}
+
+	//Settings.LossyCompressionAmount
+	//Settings.CompressionQuality
+
+	//note : LossyCompressionAmount and CompressionQuality are not put in DDC key
+	// it is up to textureformats that use them to put them in
 }
 
 /**
@@ -435,8 +441,13 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bChromaKeyTexture = Texture.bChromaKeyTexture;
 	OutBuildSettings.ChromaKeyThreshold = Texture.ChromaKeyThreshold;
 	OutBuildSettings.CompressionQuality = Texture.CompressionQuality - 1; // translate from enum's 0 .. 5 to desired compression (-1 .. 4, where -1 is default while 0 .. 4 are actual quality setting override)
-	// TODO - get default value from config/CVAR/LODGroup?
-	OutBuildSettings.LossyCompressionAmount = (Texture.LossyCompressionAmount == TLCA_Default) ? TLCA_Lowest : Texture.LossyCompressionAmount.GetValue();
+	
+	OutBuildSettings.LossyCompressionAmount = Texture.LossyCompressionAmount.GetValue();
+
+	// if LossyCompressionAmount is Default, inherit from LODGroup :
+	const FTextureLODGroup& LODGroup = TextureLODSettings.GetTextureLODGroup(Texture.LODGroup);
+	if ( OutBuildSettings.LossyCompressionAmount == TLCA_Default )
+		OutBuildSettings.LossyCompressionAmount = LODGroup.LossyCompressionAmount;
 
 	OutBuildSettings.Downscale = 1.0f;
 	if (MipGenSettings == TMGS_NoMipmaps && 

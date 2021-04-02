@@ -93,7 +93,10 @@ public:
 
 	virtual FString GetDerivedDataKeyString(const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const final
 	{
-		FString BaseString = GetBaseFormatObject(BuildSettings->TextureFormatName)->GetDerivedDataKeyString(Texture, BuildSettings);
+		FTextureBuildSettings BaseSettings = *BuildSettings;
+		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings->TextureFormatName);
+
+		FString BaseString = GetBaseFormatObject(BuildSettings->TextureFormatName)->GetDerivedDataKeyString(Texture, &BaseSettings);
 		FString ChildString = GetChildDerivedDataKeyString(Texture, BuildSettings);
 
 		return BaseString + ChildString;

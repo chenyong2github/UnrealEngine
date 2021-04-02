@@ -536,6 +536,9 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		CrunchParameters.OutputFormat = LayerData.TextureFormatName;
 		switch (BuildSettingsLayer0.LossyCompressionAmount)
 		{
+		// map Default to Lowest
+		//	(this used to be done outside in the Engine)
+		case TLCA_Default:
 		case TLCA_Lowest: CrunchParameters.CompressionAmmount = 0.0f; break;
 		case TLCA_Low: CrunchParameters.CompressionAmmount = 0.25f; break;
 		case TLCA_Medium: CrunchParameters.CompressionAmmount = 0.5f; break;
