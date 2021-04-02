@@ -1036,6 +1036,10 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 
 				// Skip classes that report themselves as assets but that the editor AssetRegistry is currently not counting as assets
 				if (UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
+				{
+					return;
+				}
+
 				// Package name
 				const FName PackageName = InMemoryPackage->GetFName();
 
