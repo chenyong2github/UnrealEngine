@@ -119,9 +119,9 @@ namespace UsdToUnreal
 				ConvertedFlags.bDidRemovePropertyWithOnlyRequiredFields = Entry->flags.didRemovePropertyWithOnlyRequiredFields;
 				ConvertedFlags.bDidRemoveProperty = Entry->flags.didRemoveProperty;
 
-				static_assert( UsdUtils::ESubLayerChangeType::SubLayerAdded == pxr::SdfChangeList::SubLayerChangeType::SubLayerAdded, "Enum values changed!" );
-				static_assert( UsdUtils::ESubLayerChangeType::SubLayerOffset == pxr::SdfChangeList::SubLayerChangeType::SubLayerOffset, "Enum values changed!" );
-				static_assert( UsdUtils::ESubLayerChangeType::SubLayerRemoved == pxr::SdfChangeList::SubLayerChangeType::SubLayerRemoved, "Enum values changed!" );
+				static_assert( static_cast< int >( UsdUtils::ESubLayerChangeType::SubLayerAdded ) == static_cast< int >( pxr::SdfChangeList::SubLayerChangeType::SubLayerAdded ), "Enum values changed!" );
+				static_assert( static_cast< int >( UsdUtils::ESubLayerChangeType::SubLayerOffset ) == static_cast< int >( pxr::SdfChangeList::SubLayerChangeType::SubLayerOffset ), "Enum values changed!" );
+				static_assert( static_cast< int >( UsdUtils::ESubLayerChangeType::SubLayerRemoved ) == static_cast< int >( pxr::SdfChangeList::SubLayerChangeType::SubLayerRemoved ), "Enum values changed!" );
 				for ( const std::pair<std::string, pxr::SdfChangeList::SubLayerChangeType>& SubLayerChange : Entry->subLayerChanges )
 				{
 					ConvertedEntry.SubLayerChanges.Add(

@@ -121,7 +121,7 @@ FText SUsdStageInfo::GetMetersPerUnit() const
 void SUsdStageInfo::OnObjectsChanged( const UsdUtils::FObjectChangesByPath& InfoChanges, const UsdUtils::FObjectChangesByPath& ResyncChanges )
 {
 	bool bHasStageChanges = false;
-	for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>> Change : InfoChanges )
+	for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& Change : InfoChanges )
 	{
 		if ( Change.Key == TEXT( "/" ) )
 		{
@@ -131,7 +131,7 @@ void SUsdStageInfo::OnObjectsChanged( const UsdUtils::FObjectChangesByPath& Info
 	}
 	if ( !bHasStageChanges )
 	{
-		for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>> Change : ResyncChanges )
+		for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& Change : ResyncChanges )
 		{
 			if ( Change.Key == TEXT( "/" ) )
 			{

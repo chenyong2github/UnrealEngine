@@ -209,7 +209,7 @@ namespace UsdToUnreal
 		const TfType& UnderlyingType = UsdValue.GetType();
 
 #pragma push_macro("CHECK_TYPE")
-#define CHECK_TYPE(T) UnderlyingType.IsA<##T>() || UnderlyingType.IsA<VtArray<##T>>()
+#define CHECK_TYPE(T) UnderlyingType.IsA<T>() || UnderlyingType.IsA<VtArray<T>>()
 
 		if ( CHECK_TYPE(bool) )
 		{
