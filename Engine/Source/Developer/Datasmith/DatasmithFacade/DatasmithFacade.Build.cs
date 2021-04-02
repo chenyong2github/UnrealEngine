@@ -23,10 +23,6 @@ namespace UnrealBuildTool.Rules
 				{
 					"DatasmithExporter",
 					"UEOpenExr",
-
-					// DirectLink
-					"Messaging",
-					"MessagingCommon",
 				}
 			);
 		}
