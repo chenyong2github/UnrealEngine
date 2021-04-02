@@ -77,6 +77,8 @@ private:
 	 */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+	FReply OnTimeMarkerLabelDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent, uint32 TimeMarkerIndex);
+
 private:
 	TWeakPtr<SMemoryProfilerWindow> ProfilerWindowWeakPtr;
 

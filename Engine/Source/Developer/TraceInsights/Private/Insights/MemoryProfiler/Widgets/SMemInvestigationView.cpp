@@ -257,6 +257,7 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructTimeMarkerWidget(uint32 Time
 			SNew(STextBlock)
 			.Text(FText::FromString(TimeMarker->GetName()))
 			.ColorAndOpacity(FSlateColor(TimeMarker->GetColor()))
+			.OnDoubleClicked(this, &SMemInvestigationView::OnTimeMarkerLabelDoubleClicked, TimeMarkerIndex)
 		]
 
 		+ SHorizontalBox::Slot()
@@ -528,6 +529,29 @@ FReply SMemInvestigationView::RunQuery()
 		MemAllocTableTreeView->SetQueryParams(Rule, TimeMarkers[0], TimeMarkers[1], TimeMarkers[2], TimeMarkers[3]);
 	}
 
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SMemInvestigationView::OnTimeMarkerLabelDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent, uint32 TimeMarkerIndex)
+{
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+	if (ProfilerWindow.IsValid())
+	{
+		const uint32 NumTimeMarkers = ProfilerWindow->GetNumCustomTimeMarkers();
+		if (TimeMarkerIndex < NumTimeMarkers)
+		{
+			const TSharedRef<Insights::FTimeMarker>& TimeMarker = ProfilerWindow->GetCustomTimeMarker(TimeMarkerIndex);
+			TSharedPtr<STimingView> TimingView = ProfilerWindow->GetTimingView();
+			if (TimingView.IsValid())
+			{
+				// Move timer to the center of the timing view.
+				const double Time = (TimingView->GetViewport().GetStartTime() + TimingView->GetViewport().GetEndTime()) / 2.0;
+				TimeMarker->SetTime(Time);
+			}
+		}
+	}
 	return FReply::Handled();
 }
 
