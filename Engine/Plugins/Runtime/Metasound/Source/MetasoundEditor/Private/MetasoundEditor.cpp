@@ -911,6 +911,14 @@ namespace Metasound
 
 		void FEditor::OnCreateComment()
 		{
+			if (MetasoundGraphEditor.IsValid())
+			{
+				if (UEdGraph* Graph = MetasoundGraphEditor->GetCurrentGraph())
+				{
+					FMetasoundGraphSchemaAction_NewComment CommentAction;
+					CommentAction.PerformAction(Graph, nullptr, MetasoundGraphEditor->GetPasteLocation());
+				}
+			}
 		}
 
 		void FEditor::CreateGraphEditorWidget()
@@ -936,11 +944,7 @@ namespace Metasound
 					FExecuteAction::CreateSP(this, &FEditor::DeleteInput),
 					FCanExecuteAction::CreateSP(this, &FEditor::CanDeleteInput));
 
-				// Graph Editor Commands
-				GraphEditorCommands->MapAction(FGraphEditorCommands::Get().CreateComment,
-					FExecuteAction::CreateSP(this, &FEditor::OnCreateComment));
-
-				// Editing commands
+				// Editing Commands
 				GraphEditorCommands->MapAction(FGenericCommands::Get().SelectAll,
 					FExecuteAction::CreateLambda([this]() { MetasoundGraphEditor->SelectAllNodes(); }));
 
@@ -992,6 +996,10 @@ namespace Metasound
 
 				GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DistributeNodesVertically,
 					FExecuteAction::CreateLambda([this]() { MetasoundGraphEditor->OnDistributeNodesV(); }));
+
+				// Node Commands
+				GraphEditorCommands->MapAction(FGraphEditorCommands::Get().CreateComment,
+					FExecuteAction::CreateSP(this, &FEditor::OnCreateComment));
 			}
 
 			FGraphAppearanceInfo AppearanceInfo;

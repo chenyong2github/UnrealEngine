@@ -514,14 +514,44 @@ namespace Metasound
 				break;
 
 				case ELiteralType::BooleanArray:
+				{
+					OutDefaultLiteral.Set(TArray<bool>());
+				}
+				break;
+
 				case ELiteralType::FloatArray:
+				{
+					OutDefaultLiteral.Set(TArray<float>());
+				}
+				break;
+
 				case ELiteralType::IntegerArray:
+				{
+					OutDefaultLiteral.Set(TArray<int32>());
+				}
+				break;
+
 				case ELiteralType::NoneArray:
+				{
+					OutDefaultLiteral.Set(FMetasoundFrontendLiteral::FDefaultArray());
+				}
+				break;
+
 				case ELiteralType::StringArray:
+				{
+					OutDefaultLiteral.Set(TArray<FString>());
+				}
+				break;
+
 				case ELiteralType::UObjectProxyArray:
+				{
+					OutDefaultLiteral.Set(TArray<UObject*>());
+				}
+				break;
+
 				case ELiteralType::None:
 				{
-					return false;
+					OutDefaultLiteral.Set(FMetasoundFrontendLiteral::FDefault());
 				}
 				break;
 

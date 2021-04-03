@@ -1063,9 +1063,7 @@ namespace Metasound
 
 			GraphHandle->IterateConstNodes([this, NodeID, InNewName](FConstNodeHandle NodeToCompare)
 			{
-				// Disregard display name collisions with hidden nodes
-				const bool bIsVisible = NodeToCompare->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Visible;
-				if (NodeID != NodeToCompare->GetID() && bIsVisible)
+				if (NodeID != NodeToCompare->GetID())
 				{
 					if (InNewName.CompareToCaseIgnored(NodeToCompare->GetDisplayName()) == 0)
 					{
