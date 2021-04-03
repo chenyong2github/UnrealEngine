@@ -815,6 +815,11 @@ void FD3D12Adapter::InitializeDevices()
 					}
 				}
 			}
+
+			GRHIRayTracingAccelerationStructureAlignment = uint32(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+			GRHIRayTracingShaderTableAlignment = uint32(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+			GRHIRayTracingInstanceDescriptorSize = uint32(sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+
 #endif // D3D12_RHI_RAYTRACING
 
 #if PLATFORM_WINDOWS && D3D12_CORE_ENABLED

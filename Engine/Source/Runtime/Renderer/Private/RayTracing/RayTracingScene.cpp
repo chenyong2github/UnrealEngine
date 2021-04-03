@@ -66,11 +66,12 @@ FGraphEventRef FRayTracingScene::BeginCreate(FRDGBuilder& GraphBuilder)
 
 		}, TStatId(), nullptr, ENamedThreads::AnyThread);
 
+	const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
 	FRDGBufferDesc ScratchBufferDesc;
 	ScratchBufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
 	ScratchBufferDesc.Usage = BUF_UnorderedAccess;
-	ScratchBufferDesc.BytesPerElement = 4;
-	ScratchBufferDesc.NumElements = SizeInfo.BuildScratchSize / 4;
+	ScratchBufferDesc.BytesPerElement = uint32(ScratchAlignment);
+	ScratchBufferDesc.NumElements = uint32(FMath::DivideAndRoundUp(SizeInfo.BuildScratchSize, ScratchAlignment));
 
 	BuildScratchBuffer = GraphBuilder.CreateBuffer(ScratchBufferDesc, TEXT("FRayTracingScene::BuildScratchBuffer"));
 

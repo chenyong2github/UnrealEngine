@@ -578,6 +578,15 @@ extern RHI_API bool GRHISupportsRayTracingAsyncBuildAccelerationStructure;
 /** Whether or not the RHI supports the AMD Hit Token extension. */
 extern RHI_API bool GRHISupportsRayTracingAMDHitToken;
 
+/** Required alignment for ray tracing acceleration structures and scratch buffers. */
+extern RHI_API uint32 GRHIRayTracingAccelerationStructureAlignment;
+
+/** Required alignment for ray tracing shader binding table buffer. */
+extern RHI_API uint32 GRHIRayTracingShaderTableAlignment;
+
+/** Size of an individual element in the ray tracing instance buffer. This defines the required stride and alignment of structured buffers of instances. */
+extern RHI_API uint32 GRHIRayTracingInstanceDescriptorSize;
+
 /** Whether or not the RHI supports shader wave operations (shader model 6.0). */
 extern RHI_API bool GRHISupportsWaveOperations;
 
