@@ -228,8 +228,15 @@ void FMovieSceneRootEvaluationTemplateInstance::GetSequenceParentage(const UE::M
 	const FMovieSceneSequenceHierarchyNode* HierarchyNode = Hierarchy->FindNode(Instance.GetSequenceID());
 	while (HierarchyNode && HierarchyNode->ParentID.IsValid())
 	{
-		const FInstanceHandle ParentHandle = RootInstance.FindSubInstance(HierarchyNode->ParentID);
-		OutParentHandles.Add(ParentHandle);
+		if (HierarchyNode->ParentID != MovieSceneSequenceID::Root)
+		{
+			const FInstanceHandle ParentHandle = RootInstance.FindSubInstance(HierarchyNode->ParentID);
+			OutParentHandles.Add(ParentHandle);
+		}
+		else
+		{
+			OutParentHandles.Add(RootInstanceHandle);
+		}
 		HierarchyNode = Hierarchy->FindNode(HierarchyNode->ParentID);
 	}
 }
