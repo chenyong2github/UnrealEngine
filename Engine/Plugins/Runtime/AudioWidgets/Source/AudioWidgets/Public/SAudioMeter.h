@@ -34,7 +34,7 @@ public:
 		, _MeterPeakColor(FLinearColor::Blue)
 		, _MeterScaleColor(FLinearColor::White)
 		, _MeterScaleLabelColor(FLinearColor::Gray)
-		, _Style(&FCoreStyle::Get().GetWidgetStyle<FAudioMeterStyle>("AudioMeter"))
+		, _Style(&FAudioMeterStyle::GetDefault())
 	{
 	}
 
