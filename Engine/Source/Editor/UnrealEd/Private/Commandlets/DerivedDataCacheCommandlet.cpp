@@ -45,37 +45,40 @@ void UDerivedDataCacheCommandlet::MaybeMarkPackageAsAlreadyLoaded(UPackage *Pack
 
 static void WaitForCurrentShaderCompilationToFinish(bool& bInOutHadActivity)
 {
-	int32 CachedShaderCount = GShaderCompilingManager->GetNumRemainingJobs();
-	if (CachedShaderCount == 0)
+	if (GShaderCompilingManager->IsCompiling())
 	{
-		return;
-	}
-
-	int32 NumCompletedShadersSinceLastLog = 0;
-	bInOutHadActivity = true;
-	UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Waiting for %d shaders to finish."), CachedShaderCount);
-	while (GShaderCompilingManager->IsCompiling())
-	{
-		const int32 CurrentShaderCount = GShaderCompilingManager->GetNumRemainingJobs();
-		NumCompletedShadersSinceLastLog += (CachedShaderCount - CurrentShaderCount);
-		CachedShaderCount = CurrentShaderCount;
-
-		if (NumCompletedShadersSinceLastLog >= 1000)
+		bInOutHadActivity = true;
+		int32 CachedShaderCount = GShaderCompilingManager->GetNumRemainingJobs();
+		if (CachedShaderCount > 0)
 		{
 			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Waiting for %d shaders to finish."), CachedShaderCount);
-			NumCompletedShadersSinceLastLog = 0;
 		}
+		int32 NumCompletedShadersSinceLastLog = 0;
+		while (GShaderCompilingManager->IsCompiling())
+		{
+			const int32 CurrentShaderCount = GShaderCompilingManager->GetNumRemainingJobs();
+			NumCompletedShadersSinceLastLog += (CachedShaderCount - CurrentShaderCount);
+			CachedShaderCount = CurrentShaderCount;
 
-		// Process any asynchronous shader compile results that are ready, limit execution time
-		GShaderCompilingManager->ProcessAsyncResults(true, false);
-		GDistanceFieldAsyncQueue->ProcessAsyncTasks();
-		GCardRepresentationAsyncQueue->ProcessAsyncTasks();
+			if (NumCompletedShadersSinceLastLog >= 1000)
+			{
+				UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Waiting for %d shaders to finish."), CachedShaderCount);
+				NumCompletedShadersSinceLastLog = 0;
+			}
+
+			// Process any asynchronous shader compile results that are ready, limit execution time
+			GShaderCompilingManager->ProcessAsyncResults(true, false);
+			GDistanceFieldAsyncQueue->ProcessAsyncTasks();
+			GCardRepresentationAsyncQueue->ProcessAsyncTasks();
+		}
+		GShaderCompilingManager->FinishAllCompilation(); // Final blocking check as IsCompiling() may be non-deterministic
+		UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Done waiting for shaders to finish."));
 	}
-	GShaderCompilingManager->FinishAllCompilation(); // Final blocking check as IsCompiling() may be non-deterministic
+
+	// these shouldn't be predicated on whether the shaders were being compiled
 	GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
 	GCardRepresentationAsyncQueue->BlockUntilAllBuildsComplete();
-	UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Done waiting for shaders to finish."));
-};
+}
 
 static void WaitForCurrentTextureBuildingToFinish(bool& bInOutHadActivity)
 {
