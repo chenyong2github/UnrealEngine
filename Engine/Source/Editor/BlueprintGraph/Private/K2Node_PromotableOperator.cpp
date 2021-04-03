@@ -858,7 +858,10 @@ void UK2Node_PromotableOperator::EvaluatePinsFromChange(UEdGraphPin* ChangedPin,
 		for(int32 i = ChangedPin->LinkedTo.Num() - 1; i >= 0; --i)
 		{
 			UEdGraphPin* Link = ChangedPin->LinkedTo[i];
-			if(Link->PinType != MostRecentConnection)
+			if( Link->PinType.PinCategory != MostRecentConnection.PinCategory ||
+				Link->PinType.PinSubCategory != MostRecentConnection.PinSubCategory ||
+				Link->PinType.PinSubCategoryObject != MostRecentConnection.PinSubCategoryObject
+			)
 			{
 				ChangedPin->BreakLinkTo(Link);				
 			}
