@@ -27,6 +27,18 @@ void AtomicAdd_{ParameterName}_UEImpureCall(in bool bExecute, int X, int Y, int 
 	}
 }
 
+void AtomicCompareAndExchange_{ParameterName}_UEImpureCall(in bool bExecute, int X, int Y, int ComparisonValue, int Value, out int OriginalValue)
+{
+	if ( bExecute )
+	{
+		InterlockedCompareExchange(RWTextureUAV_{ParameterName}[int2(X, Y)], ComparisonValue, Value, OriginalValue);
+	}
+	else
+	{
+		OriginalValue = RWTextureUAV_{ParameterName}[int2(X, Y)];
+	}
+}
+
 void AtomicMax_{ParameterName}_UEImpureCall(in bool bExecute, int X, int Y, int InValue, out int CurrValue, out int PrevValue)
 {
 	if ( bExecute )
