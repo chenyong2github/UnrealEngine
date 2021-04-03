@@ -213,7 +213,7 @@ void UPlaneCutTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Plane Cut"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartPlaneCutTool", "Press 'A' or use the Cut button to cut the mesh without leaving the tool.  When grid snapping is enabled, you can toggle snapping with the shift key."),
+		LOCTEXT("OnStartPlaneCutTool", "Press 'A' or use the Cut button to cut the mesh without leaving the tool.  Press 'S' to flip the plane direction.  When grid snapping is enabled, you can toggle snapping with the shift key."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -228,6 +228,12 @@ void UPlaneCutTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		LOCTEXT("DoPlaneCutTooltip", "Cut the mesh with the current cutting plane, without exiting the tool"),
 		EModifierKey::None, EKeys::A,
 		[this]() { this->Cut(); } );
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 102,
+		TEXT("Flip Cutting Plane"),
+		LOCTEXT("FlipCutPlane", "Flip Cutting Plane"),
+		LOCTEXT("FlipCutPlaneTooltip", "Flip the cutting plane"),
+		EModifierKey::None, EKeys::S,
+		[this]() { this->FlipPlane(); });
 }
 
 
@@ -260,6 +266,18 @@ void UPlaneCutTool::SetupPreviews()
 	}
 }
 
+
+void UPlaneCutTool::FlipPlane()
+{
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("FlipPlaneTransactionName", "Flip Plane"));
+
+	FQuat Flipper(CutPlaneOrientation.GetRightVector(), FMathf::Pi);
+	CutPlaneOrientation = Flipper * CutPlaneOrientation;
+	FTransform NewTransform(CutPlaneOrientation, CutPlaneOrigin);
+	PlaneTransformGizmo->SetNewGizmoTransform(NewTransform);
+
+	GetToolManager()->EndUndoTransaction();
+}
 
 
 void UPlaneCutTool::Cut()
@@ -389,6 +407,8 @@ void UPlaneCutTool::OnTick(float DeltaTime)
 	{
 		PlaneTransformGizmo->bSnapToWorldGrid =
 			BasicProperties->bSnapToWorldGrid && bIgnoreSnappingToggle == false;
+		PlaneTransformGizmo->bSnapToWorldRotGrid =
+			BasicProperties->bSnapRotationToWorldGrid && bIgnoreSnappingToggle == false;
 	}
 
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
