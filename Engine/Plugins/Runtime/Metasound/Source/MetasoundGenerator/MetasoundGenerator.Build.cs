@@ -9,8 +9,6 @@ namespace UnrealBuildTool.Rules
 	{
         public MetasoundGenerator(ReadOnlyTargetRules Target) : base(Target)
 		{
-			//OptimizeCode = CodeOptimization.Never;
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"SignalProcessing",

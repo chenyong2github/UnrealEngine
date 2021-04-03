@@ -9,8 +9,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public MetasoundFrontend(ReadOnlyTargetRules Target) : base(Target)
 		{
-			OptimizeCode = CodeOptimization.Never;
-
 			PublicDependencyModuleNames.AddRange
 			(
 				new string[]

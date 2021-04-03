@@ -9,8 +9,6 @@ namespace UnrealBuildTool.Rules
 	{
         public MetasoundGraphCore(ReadOnlyTargetRules Target) : base(Target)
 		{
-            //OptimizeCode = CodeOptimization.Never;
-
             PublicDependencyModuleNames.AddRange(
 				new string[] {
                     "Core",
