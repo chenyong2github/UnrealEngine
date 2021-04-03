@@ -165,8 +165,8 @@ private:
 class FNiagaraSimulationStageMergeAdapter
 {
 public:
-	FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, const UNiagaraSimulationStageBase* InSimulationStage, UNiagaraNodeOutput* InOutputNode);
-	FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraSimulationStageBase* InSimulationStage, UNiagaraNodeOutput* InOutputNode);
+	FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, const UNiagaraSimulationStageBase* InSimulationStage, int32 InSimulationStageIndex, UNiagaraNodeOutput* InOutputNode);
+	FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraSimulationStageBase* InSimulationStage, int32 InSimulationStageIndex, UNiagaraNodeOutput* InOutputNode);
 	FNiagaraSimulationStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraNodeOutput* InOutputNode);
 
 	FGuid GetUsageId() const;
@@ -175,10 +175,11 @@ public:
 	UNiagaraSimulationStageBase* GetEditableSimulationStage() const;
 	UNiagaraNodeOutput* GetOutputNode() const;
 	UNiagaraNodeInput* GetInputNode() const;
+	int32 GetSimulationStageIndex() const;
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> GetSimulationStageStack() const;
 
 private:
-	void Initialize(const UNiagaraEmitter& InEmitter, const UNiagaraSimulationStageBase* InSimulationStage, UNiagaraSimulationStageBase* InEditableSimulationStage, UNiagaraNodeOutput* InOutputNode);
+	void Initialize(const UNiagaraEmitter& InEmitter, const UNiagaraSimulationStageBase* InSimulationStage, UNiagaraSimulationStageBase* InEditableSimulationStage, int32 InSimulationStageIndex, UNiagaraNodeOutput* InOutputNode);
 
 private:
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
@@ -186,6 +187,7 @@ private:
 	UNiagaraSimulationStageBase* EditableSimulationStage;
 	TWeakObjectPtr<UNiagaraNodeOutput> OutputNode;
 	TWeakObjectPtr<UNiagaraNodeInput> InputNode;
+	int32 SimulationStageIndex;
 
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> SimulationStageStack;
 };
