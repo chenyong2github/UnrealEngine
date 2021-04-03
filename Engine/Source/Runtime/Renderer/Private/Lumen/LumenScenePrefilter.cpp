@@ -45,7 +45,6 @@ class FLumenCardCopyPS : public FGlobalShader
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
 		FGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
-		OutEnvironment.SetRenderTargetOutputFormat( 0, EPixelFormat::PF_R32_UINT );
 	}
 };
 
@@ -77,7 +76,7 @@ class FLumenCardCopyDepthPS : public FGlobalShader
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
 		FGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
-		OutEnvironment.SetRenderTargetOutputFormat( 0, EPixelFormat::PF_R32_UINT );
+		OutEnvironment.SetRenderTargetOutputFormat(0, EPixelFormat::PF_G16R16);
 	}
 };
 
@@ -109,8 +108,8 @@ class FLumenCardPrefilterDepthPS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
-		FGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
-		OutEnvironment.SetRenderTargetOutputFormat( 0, EPixelFormat::PF_R32_UINT );
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetRenderTargetOutputFormat(0, EPixelFormat::PF_G16R16);
 	}
 };
 

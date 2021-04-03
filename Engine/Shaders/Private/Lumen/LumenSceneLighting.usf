@@ -295,9 +295,9 @@ void LumenCardCopyDepthPS(
 	FCardVSToPS CardInterpolants,
 	out float4 OutColor : SV_Target0)
 {
-	float SourceDepth = Texture2DSampleLevel(SourceDepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+	float SourceDepth = Texture2DSampleLevel(SourceDepthAtlas, GlobalPointClampedSampler, CardInterpolants.AtlasCoord, 0).x;
 
-	// Undo inverted Z
+	// Reverse inverted Z from the HW depth buffer
 	float Depth = 1.0f - SourceDepth;
 
 	OutColor = float4(Depth, Depth * Depth, 0.0f, 0.0f);
