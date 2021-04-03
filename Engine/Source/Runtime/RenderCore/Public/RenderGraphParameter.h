@@ -35,7 +35,8 @@ public:
 	{
 		return
 			MemberType == UBMT_RDG_TEXTURE ||
-			MemberType == UBMT_RDG_TEXTURE_ACCESS;
+			MemberType == UBMT_RDG_TEXTURE_ACCESS ||
+			MemberType == UBMT_RDG_TEXTURE_ACCESS_ARRAY;
 	}
 
 	bool IsTextureAccess() const
@@ -43,16 +44,26 @@ public:
 		return MemberType == UBMT_RDG_TEXTURE_ACCESS;
 	}
 
+	bool IsTextureAccessArray() const
+	{
+		return MemberType == UBMT_RDG_TEXTURE_ACCESS_ARRAY;
+	}
+
 	bool IsBuffer() const
 	{
 		return
-			MemberType == UBMT_RDG_BUFFER ||
-			MemberType == UBMT_RDG_BUFFER_ACCESS;
+			MemberType == UBMT_RDG_BUFFER_ACCESS ||
+			MemberType == UBMT_RDG_BUFFER_ACCESS_ARRAY;
 	}
 
 	bool IsBufferAccess() const
 	{
 		return MemberType == UBMT_RDG_BUFFER_ACCESS;
+	}
+
+	bool IsBufferAccessArray() const
+	{
+		return MemberType == UBMT_RDG_BUFFER_ACCESS_ARRAY;
 	}
 
 	bool IsUniformBuffer() const
@@ -123,6 +134,12 @@ public:
 		return *GetAs<FRDGTextureAccess>();
 	}
 
+	const FRDGTextureAccessArray& GetAsTextureAccessArray() const
+	{
+		check(MemberType == UBMT_RDG_TEXTURE_ACCESS_ARRAY);
+		return *GetAs<FRDGTextureAccessArray>();
+	}
+
 	FRDGBufferRef GetAsBuffer() const
 	{
 		check(IsBuffer());
@@ -133,6 +150,12 @@ public:
 	{
 		check(MemberType == UBMT_RDG_BUFFER_ACCESS);
 		return *GetAs<FRDGBufferAccess>();
+	}
+
+	const FRDGBufferAccessArray& GetAsBufferAccessArray() const
+	{
+		check(MemberType == UBMT_RDG_BUFFER_ACCESS_ARRAY);
+		return *GetAs<FRDGBufferAccessArray>();
 	}
 
 	FRDGTextureSRVRef GetAsTextureSRV() const

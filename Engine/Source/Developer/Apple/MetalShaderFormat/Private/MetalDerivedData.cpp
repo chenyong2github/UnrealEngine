@@ -1386,7 +1386,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 							case UBMT_RDG_TEXTURE_SRV:
 							case UBMT_SRV:
 							case UBMT_SAMPLER:
-							case UBMT_RDG_BUFFER:
 							case UBMT_RDG_BUFFER_SRV:
 							case UBMT_UAV:
 							case UBMT_RDG_TEXTURE_UAV:
@@ -1450,7 +1449,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 											EntryString += ")]];\n";
 											break;
 										}
-										case UBMT_RDG_BUFFER:
 										case UBMT_RDG_BUFFER_SRV:
 										{
 											FCStringAnsi::Snprintf(BufferIdx, 3, "%d", Entry.ResourceIndex + 1);

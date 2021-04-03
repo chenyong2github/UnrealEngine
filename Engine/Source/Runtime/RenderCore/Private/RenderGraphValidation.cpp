@@ -562,6 +562,34 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 
 	bool bCanProduce = false;
 
+	const auto CheckResourceAccess = [&](FRDGParentResourceRef Resource, ERHIAccess Access)
+	{
+		checkf(bIsCopy || !EnumHasAnyFlags(Access, AccessMaskCopy), TEXT("Pass '%s' uses resource '%s' with access '%s' containing states which require the 'ERDGPass::Copy' flag."), Pass->GetName(), Resource->Name, *GetRHIAccessName(Access));
+		checkf(bIsAnyCompute || !EnumHasAnyFlags(Access, AccessMaskCompute), TEXT("Pass '%s' uses resource '%s' with access '%s' containing states which require the 'ERDGPass::Compute' or 'ERDGPassFlags::AsyncCompute' flag."), Pass->GetName(), Resource->Name, *GetRHIAccessName(Access));
+		checkf(bIsRaster || !EnumHasAnyFlags(Access, AccessMaskRaster), TEXT("Pass '%s' uses resource '%s' with access '%s' containing states which require the 'ERDGPass::Raster' flag."), Pass->GetName(), Resource->Name, *GetRHIAccessName(Access));
+		checkf(bIsAnyCompute || bIsRaster || !EnumHasAnyFlags(Access, AccessMaskComputeOrRaster), TEXT("Pass '%s' uses resource '%s' with access '%s' containing states which require the 'ERDGPassFlags::Compute' or 'ERDGPassFlags::AsyncCompute' or 'ERDGPass::Raster' flag."), Pass->GetName(), Resource->Name, *GetRHIAccessName(Access));
+	};
+
+	const auto CheckBufferAccess = [&](FRDGBufferRef Buffer, ERHIAccess Access)
+	{
+		CheckResourceAccess(Buffer, Access);
+
+		if (IsWritableAccess(Access))
+		{
+			MarkBufferAsProduced(Buffer);
+		}
+	};
+
+	const auto CheckTextureAccess = [&](FRDGTextureRef Texture, ERHIAccess Access)
+	{
+		CheckResourceAccess(Texture, Access);
+
+		if (IsWritableAccess(Access))
+		{
+			MarkTextureAsProduced(Texture);
+		}
+	};
+
 	PassParameters.Enumerate([&](FRDGParameter Parameter)
 	{
 		if (Parameter.IsParentResource())
@@ -610,14 +638,6 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 			}
 		}
 		break;
-		case UBMT_RDG_BUFFER:
-		{
-			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
-			{
-				MarkAsConsumed(Buffer);
-			}
-		}
-		break;
 		case UBMT_RDG_BUFFER_SRV:
 		{
 			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
@@ -641,43 +661,45 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 		break;
 		case UBMT_RDG_TEXTURE_ACCESS:
 		{
-			const FRDGTextureAccess TextureAccess = Parameter.GetAsTextureAccess();
-			const ERHIAccess Access = TextureAccess.GetAccess();
-			const bool bIsWriteAccess = IsWritableAccess(Access);
-			bCanProduce |= bIsWriteAccess;
+			FRDGTextureAccess TextureAccess = Parameter.GetAsTextureAccess();
+			bCanProduce |= IsWritableAccess(TextureAccess.GetAccess());
 
-			if (FRDGTextureRef Texture = TextureAccess.GetTexture())
+			if (TextureAccess)
 			{
-				checkf(bIsCopy       || !EnumHasAnyFlags(Access, AccessMaskCopy),    TEXT("Pass '%s' uses texture '%s' with access '%s' containing states which require the 'ERDGPass::Copy' flag."), Pass->GetName(), Texture->Name, *GetRHIAccessName(Access));
-				checkf(bIsAnyCompute || !EnumHasAnyFlags(Access, AccessMaskCompute), TEXT("Pass '%s' uses texture '%s' with access '%s' containing states which require the 'ERDGPass::Compute' or 'ERDGPassFlags::AsyncCompute' flag."), Pass->GetName(), Texture->Name, *GetRHIAccessName(Access));
-				checkf(bIsRaster     || !EnumHasAnyFlags(Access, AccessMaskRaster),  TEXT("Pass '%s' uses texture '%s' with access '%s' containing states which require the 'ERDGPass::Raster' flag."), Pass->GetName(), Texture->Name, *GetRHIAccessName(Access));
-				checkf(bIsAnyCompute || bIsRaster || !EnumHasAnyFlags(Access, AccessMaskComputeOrRaster), TEXT("Pass '%s' uses texture '%s' with access '%s' containing states which require the 'ERDGPassFlags::Compute' or 'ERDGPassFlags::AsyncCompute' or 'ERDGPass::Raster' flag."), Pass->GetName(), Texture->Name, *GetRHIAccessName(Access));
+				CheckTextureAccess(TextureAccess.GetTexture(), TextureAccess.GetAccess());
+			}
+		}
+		break;
+		case UBMT_RDG_TEXTURE_ACCESS_ARRAY:
+		{
+			const FRDGTextureAccessArray& TextureAccessArray = Parameter.GetAsTextureAccessArray();
+			bCanProduce |= IsWritableAccess(TextureAccessArray.GetAccess());
 
-				if (bIsWriteAccess)
-				{
-					MarkTextureAsProduced(Texture);
-				}
+			for (FRDGTextureRef Texture : TextureAccessArray)
+			{
+				CheckTextureAccess(Texture, TextureAccessArray.GetAccess());
 			}
 		}
 		break;
 		case UBMT_RDG_BUFFER_ACCESS:
 		{
-			const FRDGBufferAccess BufferAccess = Parameter.GetAsBufferAccess();
-			const ERHIAccess Access = BufferAccess.GetAccess();
-			const bool bIsWriteAccess = IsWritableAccess(Access);
-			bCanProduce |= bIsWriteAccess;
+			FRDGBufferAccess BufferAccess = Parameter.GetAsBufferAccess();
+			bCanProduce |= IsWritableAccess(BufferAccess.GetAccess());
 
-			if (FRDGBufferRef Buffer = BufferAccess.GetBuffer())
+			if (BufferAccess)
 			{
-				checkf(bIsCopy       || !EnumHasAnyFlags(Access, AccessMaskCopy),    TEXT("Pass '%s' uses buffer '%s' with access '%s' containing states which require the 'ERDGPass::Copy' flag."), Pass->GetName(), Buffer->Name, *GetRHIAccessName(Access));
-				checkf(bIsAnyCompute || !EnumHasAnyFlags(Access, AccessMaskCompute), TEXT("Pass '%s' uses buffer '%s' with access '%s' containing states which require the 'ERDGPass::Compute' or 'ERDGPassFlags::AsyncCompute' flag."), Pass->GetName(), Buffer->Name, *GetRHIAccessName(Access));
-				checkf(bIsRaster     || !EnumHasAnyFlags(Access, AccessMaskRaster),  TEXT("Pass '%s' uses buffer '%s' with access '%s' containing states which require the 'ERDGPass::Raster' flag."), Pass->GetName(), Buffer->Name, *GetRHIAccessName(Access));
-				checkf(bIsAnyCompute || bIsRaster || !EnumHasAnyFlags(Access, AccessMaskComputeOrRaster), TEXT("Pass '%s' uses buffer '%s' with access '%s' containing states which require the 'ERDGPassFlags::Compute' or 'ERDGPassFlags::AsyncCompute' or 'ERDGPass::Raster' flag."), Pass->GetName(), Buffer->Name, *GetRHIAccessName(Access));
+				CheckBufferAccess(BufferAccess.GetBuffer(), BufferAccess.GetAccess());
+			}
+		}
+		break;
+		case UBMT_RDG_BUFFER_ACCESS_ARRAY:
+		{
+			const FRDGBufferAccessArray& BufferAccessArray = Parameter.GetAsBufferAccessArray();
+			bCanProduce |= IsWritableAccess(BufferAccessArray.GetAccess());
 
-				if (IsWritableAccess(BufferAccess.GetAccess()))
-				{
-					MarkBufferAsProduced(Buffer);
-				}
+			for (FRDGBufferRef Buffer : BufferAccessArray)
+			{
+				CheckBufferAccess(Buffer, BufferAccessArray.GetAccess());
 			}
 		}
 		break;
@@ -881,6 +903,19 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 			}
 		});
 
+		const auto ValidateTextureAccess = [](FRDGTextureRef Texture, ERHIAccess Access)
+		{
+			if (EnumHasAnyFlags(Access, ERHIAccess::UAVMask))
+			{
+				Texture->GetTextureDebugData().bHasNeededUAV = true;
+			}
+			if (EnumHasAnyFlags(Access, ERHIAccess::RTV | ERHIAccess::DSVRead | ERHIAccess::DSVWrite))
+			{
+				Texture->GetTextureDebugData().bHasBeenBoundAsRenderTarget = true;
+			}
+			Texture->MarkResourceAsUsed();
+		};
+
 		Pass->GetParameters().Enumerate([&](FRDGParameter Parameter)
 		{
 			switch (Parameter.GetType())
@@ -893,25 +928,29 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 				}
 			break;
 			case UBMT_RDG_TEXTURE_ACCESS:
-			{
-				const FRDGTextureAccess TextureAccess = Parameter.GetAsTextureAccess();
-				if (FRDGTextureRef Texture = TextureAccess.GetTexture())
+				if (FRDGTextureAccess TextureAccess = Parameter.GetAsTextureAccess())
 				{
-					const ERHIAccess Access = TextureAccess.GetAccess();
-					if (EnumHasAnyFlags(Access, ERHIAccess::UAVMask))
-					{
-						Texture->GetTextureDebugData().bHasNeededUAV = true;
-					}
-					if (EnumHasAnyFlags(Access, ERHIAccess::RTV | ERHIAccess::DSVRead | ERHIAccess::DSVWrite))
-					{
-						Texture->GetTextureDebugData().bHasBeenBoundAsRenderTarget = true;
-					}
-					Texture->MarkResourceAsUsed();
+					ValidateTextureAccess(TextureAccess.GetTexture(), TextureAccess.GetAccess());
+				}
+			break;
+			case UBMT_RDG_TEXTURE_ACCESS_ARRAY:
+			{
+				const FRDGTextureAccessArray& TextureAccessArray = Parameter.GetAsTextureAccessArray();
+
+				for (FRDGTextureRef Texture : TextureAccessArray)
+				{
+					ValidateTextureAccess(Texture, TextureAccessArray.GetAccess());
 				}
 			}
 			break;
 			case UBMT_RDG_BUFFER_ACCESS:
 				if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
+				{
+					Buffer->MarkResourceAsUsed();
+				}
+			break;
+			case UBMT_RDG_BUFFER_ACCESS_ARRAY:
+				for (FRDGBufferRef Buffer : Parameter.GetAsBufferAccessArray())
 				{
 					Buffer->MarkResourceAsUsed();
 				}

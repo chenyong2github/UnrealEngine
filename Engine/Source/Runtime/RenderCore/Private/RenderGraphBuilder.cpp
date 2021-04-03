@@ -135,7 +135,17 @@ void EnumerateTextureAccess(FRDGParameterStruct PassParameters, ERDGPassFlags Pa
 		{
 			if (FRDGTextureAccess TextureAccess = Parameter.GetAsTextureAccess())
 			{
-				AccessFunction(nullptr, TextureAccess.GetTexture(), TextureAccess.GetAccess(), NoneFlags, TextureAccess.GetTexture()->GetSubresourceRange());
+				AccessFunction(nullptr, TextureAccess.GetTexture(), TextureAccess.GetAccess(), NoneFlags, TextureAccess->GetSubresourceRange());
+			}
+		}
+		break;
+		case UBMT_RDG_TEXTURE_ACCESS_ARRAY:
+		{
+			const FRDGTextureAccessArray& TextureAccessArray = Parameter.GetAsTextureAccessArray();
+
+			for (FRDGTextureRef Texture : TextureAccessArray)
+			{
+				AccessFunction(nullptr, Texture, TextureAccessArray.GetAccess(), NoneFlags, Texture->GetSubresourceRange());
 			}
 		}
 		break;
@@ -224,8 +234,19 @@ void EnumerateTextureParameters(FRDGParameterStruct PassParameters, TParameterFu
 		switch (Parameter.GetType())
 		{
 		case UBMT_RDG_TEXTURE:
-		case UBMT_RDG_TEXTURE_ACCESS:
 			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
+			{
+				ParameterFunction(Texture);
+			}
+		break;
+		case UBMT_RDG_TEXTURE_ACCESS:
+			if (FRDGTextureAccess Texture = Parameter.GetAsTextureAccess())
+			{
+				ParameterFunction(Texture);
+			}
+		break;
+		case UBMT_RDG_TEXTURE_ACCESS_ARRAY:
+			for (FRDGTextureRef Texture : Parameter.GetAsTextureAccessArray())
 			{
 				ParameterFunction(Texture);
 			}
@@ -282,24 +303,21 @@ void EnumerateBufferAccess(FRDGParameterStruct PassParameters, ERDGPassFlags Pas
 	{
 		switch (Parameter.GetType())
 		{
-		case UBMT_RDG_BUFFER:
-			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
-			{
-				ERHIAccess BufferAccess = SRVAccess;
-
-				if (EnumHasAnyFlags(Buffer->Desc.Usage, BUF_DrawIndirect))
-				{
-					BufferAccess |= ERHIAccess::IndirectArgs;
-				}
-
-				AccessFunction(nullptr, Buffer, BufferAccess);
-			}
-		break;
 		case UBMT_RDG_BUFFER_ACCESS:
 			if (FRDGBufferAccess BufferAccess = Parameter.GetAsBufferAccess())
 			{
 				AccessFunction(nullptr, BufferAccess.GetBuffer(), BufferAccess.GetAccess());
 			}
+		break;
+		case UBMT_RDG_BUFFER_ACCESS_ARRAY:
+		{
+			const FRDGBufferAccessArray& BufferAccessArray = Parameter.GetAsBufferAccessArray();
+
+			for (FRDGBufferRef Buffer : BufferAccessArray)
+			{
+				AccessFunction(nullptr, Buffer, BufferAccessArray.GetAccess());
+			}
+		}
 		break;
 		case UBMT_RDG_BUFFER_SRV:
 			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
@@ -335,9 +353,14 @@ void EnumerateBufferParameters(FRDGParameterStruct PassParameters, TParameterFun
 	{
 		switch (Parameter.GetType())
 		{
-		case UBMT_RDG_BUFFER:
 		case UBMT_RDG_BUFFER_ACCESS:
-			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
+			if (FRDGBufferRef Buffer = Parameter.GetAsBufferAccess())
+			{
+				ParameterFunction(Buffer);
+			}
+		break;
+		case UBMT_RDG_BUFFER_ACCESS_ARRAY:
+			for (FRDGBufferRef Buffer : Parameter.GetAsBufferAccessArray())
 			{
 				ParameterFunction(Buffer);
 			}
@@ -2781,7 +2804,7 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 					{
 						for (int32 MipLevel = 0; MipLevel < Texture->Desc.NumMips; MipLevel++)
 						{
-							AddClearUAVPass(*this, this->CreateUAV(FRDGTextureUAVDesc(Texture, MipLevel)), ClobberColor);
+							AddClearUAVPass(*this, CreateUAV(FRDGTextureUAVDesc(Texture, MipLevel)), ClobberColor);
 						}
 					}
 					else if (EnumHasAnyFlags(TextureAccess.GetAccess(), ERHIAccess::RTV))
@@ -2808,7 +2831,7 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 					{
 						for (int32 MipLevel = 0; MipLevel < Texture->Desc.NumMips; MipLevel++)
 						{
-							AddClearUAVPass(*this, this->CreateUAV(FRDGTextureUAVDesc(Texture, MipLevel)), ClobberColor);
+							AddClearUAVPass(*this, CreateUAV(FRDGTextureUAVDesc(Texture, MipLevel)), ClobberColor);
 						}
 					}
 				}

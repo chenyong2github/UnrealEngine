@@ -72,10 +72,7 @@ struct FShaderParameterStructBindingContext
 				BaseType == UBMT_SAMPLER);
 
 			const bool bIsRDGResource =
-				IsRDGResourceReferenceShaderParameterType(BaseType) &&
-				BaseType != UBMT_RDG_BUFFER &&
-				BaseType != UBMT_RDG_BUFFER_ACCESS &&
-				BaseType != UBMT_RDG_TEXTURE_ACCESS;
+				IsRDGResourceReferenceShaderParameterType(BaseType) && !IsRDGResourceAccessType(BaseType);
 
 			const bool bIsVariableNativeType = (
 				BaseType == UBMT_INT32 ||
@@ -121,16 +118,6 @@ struct FShaderParameterStructBindingContext
 				checkf(!bIsArray, TEXT("Array of referenced structure is not supported, because the structure is globally uniquely named."));
 				// The member name of a globally referenced struct is the not name on the struct.
 				ShaderBindingName = Member.GetStructMetadata()->GetShaderVariableName();
-			}
-			else if (BaseType == UBMT_RDG_BUFFER)
-			{
-				// RHI does not support setting a buffer as a shader parameter.
-				check(!bIsArray);
-				if( ParametersMap->ContainsParameterAllocation(*ShaderBindingName) )
-				{
-					UE_LOG(LogShaders, Fatal, TEXT("%s can't bind shader parameter %s as buffer. Use buffer SRV for reading in shader."), *CppName, *ShaderBindingName);
-				}
-				continue;
 			}
 			else if (bUseRootShaderParameters && bIsVariableNativeType)
 			{

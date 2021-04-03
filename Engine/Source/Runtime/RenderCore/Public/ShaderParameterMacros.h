@@ -8,6 +8,7 @@
 #pragma once
 
 #include "ShaderParameterMetadata.h"
+#include "RenderGraphAllocator.h"
 #include "Algo/Reverse.h"
 
 
@@ -419,6 +420,76 @@ public:
 
 	TRDGTextureAccess(FRDGTexture * InTexture)
 		: FRDGTextureAccess(InTexture, InAccess)
+	{}
+};
+
+template <typename ResourceType>
+class alignas(SHADER_PARAMETER_POINTER_ALIGNMENT) TRDGResourceAccessArray
+{
+public:
+	using ArrayType = TArray<ResourceType*, FRDGArrayAllocator>;
+	using ArrayViewType = TArrayView<ResourceType* const>;
+
+	TRDGResourceAccessArray() = default;
+	TRDGResourceAccessArray(ArrayViewType InArrayView, ERHIAccess InAccess)
+		: Array(InArrayView)
+		, Access(InAccess)
+	{}
+
+	FORCEINLINE ArrayViewType GetArray() const { return Array; }
+	FORCEINLINE ERHIAccess GetAccess() const { return Access; }
+
+	// Forward commonly used functions to the array.
+	FORCEINLINE void Add(ResourceType* Resource) { Array.Add(Resource); }
+	FORCEINLINE void Reserve(uint32 Count) { Array.Reserve(Count); }
+	FORCEINLINE bool IsEmpty() const { return Array.IsEmpty(); }
+	FORCEINLINE uint32 Num() const { return Array.Num(); }
+	FORCEINLINE typename ArrayType::RangedForIteratorType      begin()       { return Array.begin(); }
+	FORCEINLINE typename ArrayType::RangedForConstIteratorType begin() const { return Array.begin(); }
+	FORCEINLINE typename ArrayType::RangedForIteratorType      end()         { return Array.end(); }
+	FORCEINLINE typename ArrayType::RangedForConstIteratorType end() const   { return Array.end(); }
+
+private:
+	ArrayType Array;
+#if !PLATFORM_64BITS
+	uint32 _Padding;
+#endif
+	ERHIAccess Access = ERHIAccess::Unknown;
+};
+
+using FRDGBufferAccessArray = TRDGResourceAccessArray<FRDGBuffer>;
+
+template <ERHIAccess InAccess>
+class alignas(SHADER_PARAMETER_POINTER_ALIGNMENT) TRDGBufferAccessArray
+	: public FRDGBufferAccessArray
+{
+public:
+	static_assert(IsValidAccess(InAccess), "Buffer access is invalid.");
+
+	TRDGBufferAccessArray()
+		: TRDGBufferAccessArray({}, InAccess)
+	{}
+
+	TRDGBufferAccessArray(ArrayViewType InBufferView)
+		: TRDGBufferAccessArray(InBufferView, InAccess)
+	{}
+};
+
+using FRDGTextureAccessArray = TRDGResourceAccessArray<FRDGTexture>;
+
+template <ERHIAccess InAccess>
+class alignas(SHADER_PARAMETER_POINTER_ALIGNMENT) TRDGTextureAccessArray
+	: public FRDGTextureAccessArray
+{
+public:
+	static_assert(IsValidAccess(InAccess), "Texture access is invalid.");
+
+	TRDGTextureAccessArray()
+		: FRDGTextureAccessArray({}, InAccess)
+	{}
+
+	TRDGTextureAccessArray(ArrayViewType InTextureArray)
+		: FRDGTextureAccessArray(InTextureArray, InAccess)
 	{}
 };
 
@@ -992,7 +1063,7 @@ struct TShaderParameterTypeInfo<FMatrix>
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
 
-template <typename RDGResourceType>
+template <typename ResourceAccessType>
 struct TRDGResourceAccessTypeInfo
 {
 	static constexpr int32 NumRows = 1;
@@ -1001,11 +1072,27 @@ struct TRDGResourceAccessTypeInfo
 	static constexpr int32 Alignment = SHADER_PARAMETER_POINTER_ALIGNMENT;
 	static constexpr bool bIsStoredInConstantBuffer = false;
 
-	using TAlignedType = RDGResourceType;
+	using TAlignedType = ResourceAccessType;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 
 	static_assert(sizeof(TAlignedType) == SHADER_PARAMETER_POINTER_ALIGNMENT * 2, "Uniform buffer layout must not be platform dependent.");
+};
+
+template <typename ResourceAccessArrayType>
+struct TRDGResourceAccessArrayTypeInfo
+{
+	static constexpr int32 NumRows = 1;
+	static constexpr int32 NumColumns = 1;
+	static constexpr int32 NumElements = 0;
+	static constexpr int32 Alignment = SHADER_PARAMETER_POINTER_ALIGNMENT;
+	static constexpr bool bIsStoredInConstantBuffer = false;
+
+	using TAlignedType = ResourceAccessArrayType;
+
+	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
+
+	static_assert(sizeof(TAlignedType) == SHADER_PARAMETER_POINTER_ALIGNMENT * 3, "Uniform buffer layout must not be platform dependent.");
 };
 
 template<typename T, size_t InNumElements>
@@ -1472,19 +1559,6 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 #define SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(ShaderType,MemberName, ArrayDecl) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_UAV, TShaderResourceParameterTypeInfo<FRDGTextureUAV* ArrayDecl>, FRDGTextureUAV*,MemberName,ArrayDecl,,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
 
-/** Adds a render graph tracked buffer.
- *
- * Example:
- *	SHADER_PARAMETER_RDG_BUFFER(Buffer<float4>, MyBuffer)
- *	SHADER_PARAMETER_RDG_BUFFER_ARRAY(Buffer<float4>, MyArrayOfBuffers, [4])
- */
-// TODO: ShaderType is unnecessary, because the RHI does not support binding a buffer as a shader parameter.
-#define SHADER_PARAMETER_RDG_BUFFER(ShaderType,MemberName) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER, TShaderResourceParameterTypeInfo<FRDGBuffer*>, FRDGBuffer*,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
-
-#define SHADER_PARAMETER_RDG_BUFFER_ARRAY(ShaderType,MemberName, ArrayDecl) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER, TShaderResourceParameterTypeInfo<FRDGBuffer* ArrayDecl>, FRDGBuffer*,MemberName,ArrayDecl,,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
-
 /** Adds a shader resource view for a render graph tracked buffer.
  *
  * Example:
@@ -1617,18 +1691,27 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 #define RDG_BUFFER_ACCESS(MemberName, Access) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_ACCESS, TRDGResourceAccessTypeInfo<TRDGBufferAccess<Access>>, TRDGBufferAccess<Access>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
+#define RDG_BUFFER_ACCESS_ARRAY(MemberName, Access) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_ACCESS_ARRAY, TRDGResourceAccessArrayTypeInfo<TRDGBufferAccessArray<Access>>, TRDGBufferAccessArray<Access>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
+
 #define RDG_BUFFER_ACCESS_DYNAMIC(MemberName) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_ACCESS, TRDGResourceAccessTypeInfo<FRDGBufferAccess>, FRDGBufferAccess,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
+
+#define RDG_BUFFER_ACCESS_ARRAY_DYNAMIC(MemberName) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_ACCESS_ARRAY, TRDGResourceAccessArrayTypeInfo<FRDGBufferAccessArray>, FRDGBufferAccessArray,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
 /** Informs the RDG pass to transition the texture into the requested state. */
 #define RDG_TEXTURE_ACCESS(MemberName, Access) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_ACCESS, TRDGResourceAccessTypeInfo<TRDGTextureAccess<Access>>, TRDGTextureAccess<Access>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
+#define RDG_TEXTURE_ACCESS_ARRAY(MemberName, Access) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_ACCESS_ARRAY, TRDGResourceAccessArrayTypeInfo<TRDGTextureAccessArray<Access>>, TRDGTextureAccessArray<Access>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
+
 #define RDG_TEXTURE_ACCESS_DYNAMIC(MemberName) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_ACCESS, TRDGResourceAccessTypeInfo<FRDGTextureAccess>, FRDGTextureAccess,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
-#define SHADER_PARAMETER_RDG_BUFFER_UPLOAD(MemberName) \
-	RDG_BUFFER_ACCESS(MemberName, ERHIAccess::CopyDest)
+#define RDG_TEXTURE_ACCESS_ARRAY_DYNAMIC(MemberName) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_ACCESS_ARRAY, TRDGResourceAccessArrayTypeInfo<FRDGTextureAccessArray>, FRDGTextureAccessArray,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
 /** Adds bindings slots for render targets on the structure. This is important for rasterizer based pass bind the
  * render target at the RHI pass creation. The name of the struct member will forced to RenderTargets, and
@@ -1662,3 +1745,15 @@ END_SHADER_PARAMETER_STRUCT()
 
 /** Returns the name of the macro that should be used for a given shader parameter base type. */
 const TCHAR* GetShaderParameterMacroName(EUniformBufferBaseType ShaderParameterBaseType);
+
+/** Deprecated buffer macros. */
+#define SHADER_PARAMETER_RDG_BUFFER_UPLOAD(MemberName) \
+	DEPRECATED_MACRO(5.0, "SHADER_PARAMETER_RDG_BUFFER_UPLOAD has been deprecated. Use RDG_BUFFER_ACCESS(Buffer, ERHIAccess::CopyDest) instead.") \
+	RDG_BUFFER_ACCESS(MemberName, ERHIAccess::CopyDest)
+
+#define SHADER_PARAMETER_RDG_BUFFER(ShaderType,MemberName) \
+	DEPRECATED_MACRO(5.0, "SHADER_PARAMETER_RDG_BUFFER has been deprecated. Use RDG_BUFFER_ACCESS with an explicit RHI state instead.") \
+	RDG_BUFFER_ACCESS(MemberName, ERHIAccess::SRVMask | ERHIAccess::IndirectArgs)
+
+#define SHADER_PARAMETER_RDG_BUFFER_ARRAY(ShaderType,MemberName, ArrayDecl) \
+	DEPRECATED_MACRO(5.0, "SHADER_PARAMETER_RDG_BUFFER_ARRAY has been deprecated. Use RDG_BUFFER_ACCESS_ARRAY instead.")

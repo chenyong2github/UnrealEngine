@@ -263,7 +263,7 @@ class FHairCoverageLUTCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FUploadParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UPLOAD(UploadBuffer)
+		RDG_BUFFER_ACCESS(UploadBuffer, ERHIAccess::CopyDest)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:

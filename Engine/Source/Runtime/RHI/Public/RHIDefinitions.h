@@ -1062,10 +1062,11 @@ enum EUniformBufferBaseType : uint8
 	// Resources tracked by render graph.
 	UBMT_RDG_TEXTURE,
 	UBMT_RDG_TEXTURE_ACCESS,
+	UBMT_RDG_TEXTURE_ACCESS_ARRAY,
 	UBMT_RDG_TEXTURE_SRV,
 	UBMT_RDG_TEXTURE_UAV,
-	UBMT_RDG_BUFFER,
 	UBMT_RDG_BUFFER_ACCESS,
+	UBMT_RDG_BUFFER_ACCESS_ARRAY,
 	UBMT_RDG_BUFFER_SRV,
 	UBMT_RDG_BUFFER_UAV,
 	UBMT_RDG_UNIFORM_BUFFER,
@@ -1904,17 +1905,28 @@ inline bool IsRDGTextureReferenceShaderParameterType(EUniformBufferBaseType Base
 		BaseType == UBMT_RDG_TEXTURE ||
 		BaseType == UBMT_RDG_TEXTURE_SRV ||
 		BaseType == UBMT_RDG_TEXTURE_UAV ||
-		BaseType == UBMT_RDG_TEXTURE_ACCESS;
+		BaseType == UBMT_RDG_TEXTURE_ACCESS ||
+		BaseType == UBMT_RDG_TEXTURE_ACCESS_ARRAY;
 }
 
 /** Returns whether the shader parameter type references an RDG buffer. */
 inline bool IsRDGBufferReferenceShaderParameterType(EUniformBufferBaseType BaseType)
 {
 	return
-		BaseType == UBMT_RDG_BUFFER ||
 		BaseType == UBMT_RDG_BUFFER_SRV ||
 		BaseType == UBMT_RDG_BUFFER_UAV ||
-		BaseType == UBMT_RDG_BUFFER_ACCESS;
+		BaseType == UBMT_RDG_BUFFER_ACCESS ||
+		BaseType == UBMT_RDG_BUFFER_ACCESS_ARRAY;
+}
+
+/** Returns whether the shader parameter type is for RDG access and not actually for shaders. */
+inline bool IsRDGResourceAccessType(EUniformBufferBaseType BaseType)
+{
+	return
+		BaseType == UBMT_RDG_TEXTURE_ACCESS ||
+		BaseType == UBMT_RDG_TEXTURE_ACCESS_ARRAY ||
+		BaseType == UBMT_RDG_BUFFER_ACCESS ||
+		BaseType == UBMT_RDG_BUFFER_ACCESS_ARRAY;
 }
 
 /** Returns whether the shader parameter type is a reference onto a RDG resource. */
@@ -1949,8 +1961,7 @@ inline bool IsShaderParameterTypeIgnoredByRHI(EUniformBufferBaseType BaseType)
 		BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS ||
 
 		// Custom access states are used by the render graph.
-		BaseType == UBMT_RDG_TEXTURE_ACCESS ||
-		BaseType == UBMT_RDG_BUFFER_ACCESS ||
+		IsRDGResourceAccessType(BaseType) ||
 
 		// #yuriy_todo: RHI is able to dereference uniform buffer in root shader parameter structures
 		BaseType == UBMT_REFERENCED_STRUCT ||
