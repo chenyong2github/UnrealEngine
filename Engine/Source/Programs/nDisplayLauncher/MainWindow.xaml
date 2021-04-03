@@ -604,43 +604,43 @@
 					</Grid.ColumnDefinitions>
 
 					<Label Grid.Row="0" Grid.Column="0" Content="General plugin" />
-					<ComboBox Grid.Row="0" Grid.Column="1" x:Name="ctrlLogPlugin" SelectedItem="{Binding SelectedVerbocityPlugin}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="0" Grid.Column="1" x:Name="ctrlLogPlugin" SelectedItem="{Binding SelectedVerbocityPlugin}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="1" Grid.Column="0" Content="Engine" />
-					<ComboBox Grid.Row="1" Grid.Column="1" x:Name="ctrlLogEngine" SelectedItem="{Binding SelectedVerbocityEngine}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="1" Grid.Column="1" x:Name="ctrlLogEngine" SelectedItem="{Binding SelectedVerbocityEngine}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="2" Grid.Column="0" Content="Blueprint" />
-					<ComboBox Grid.Row="2" Grid.Column="1" x:Name="ctrlLogBlueprint" SelectedItem="{Binding SelectedVerbocityBlueprint}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="2" Grid.Column="1" x:Name="ctrlLogBlueprint" SelectedItem="{Binding SelectedVerbocityBlueprint}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="3" Grid.Column="0" Content="Config" />
-					<ComboBox Grid.Row="3" Grid.Column="1" x:Name="ctrlLogConfig" SelectedItem="{Binding SelectedVerbocityConfig}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="3" Grid.Column="1" x:Name="ctrlLogConfig" SelectedItem="{Binding SelectedVerbocityConfig}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="4" Grid.Column="0" Content="Cluster" />
-					<ComboBox Grid.Row="4" Grid.Column="1" x:Name="ctrlLogCluster" SelectedItem="{Binding SelectedVerbocityCluster}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="4" Grid.Column="1" x:Name="ctrlLogCluster" SelectedItem="{Binding SelectedVerbocityCluster}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="5" Grid.Column="0" Content="Game" />
-					<ComboBox Grid.Row="5" Grid.Column="1" x:Name="ctrlLogGame" SelectedItem="{Binding SelectedVerbocityGame}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="5" Grid.Column="1" x:Name="ctrlLogGame" SelectedItem="{Binding SelectedVerbocityGame}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="6" Grid.Column="0" Content="Game Mode" />
-					<ComboBox Grid.Row="6" Grid.Column="1" x:Name="ctrlLogGameMode" SelectedItem="{Binding SelectedVerbocityGameMode}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="6" Grid.Column="1" x:Name="ctrlLogGameMode" SelectedItem="{Binding SelectedVerbocityGameMode}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="7" Grid.Column="0" Content="Input" />
-					<ComboBox Grid.Row="7" Grid.Column="1" x:Name="ctrlLogInput" SelectedItem="{Binding SelectedVerbocityInput}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="7" Grid.Column="1" x:Name="ctrlLogInput" SelectedItem="{Binding SelectedVerbocityInput}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="8" Grid.Column="0" Content="VRPN" />
-					<ComboBox Grid.Row="8" Grid.Column="1" x:Name="ctrlLogVRPN" SelectedItem="{Binding SelectedVerbocityVrpn}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="8" Grid.Column="1" x:Name="ctrlLogVRPN" SelectedItem="{Binding SelectedVerbocityVrpn}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="9" Grid.Column="0" Content="Network" />
-					<ComboBox Grid.Row="9" Grid.Column="1" x:Name="ctrlLogNetwork" SelectedItem="{Binding SelectedVerbocityNetwork}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="9" Grid.Column="1" x:Name="ctrlLogNetwork" SelectedItem="{Binding SelectedVerbocityNetwork}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="10" Grid.Column="0" Content="Network Messages" />
-					<ComboBox Grid.Row="10" Grid.Column="1" x:Name="ctrlLogNetworkMsg" SelectedItem="{Binding SelectedVerbocityNetworkMsg}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="10" Grid.Column="1" x:Name="ctrlLogNetworkMsg" SelectedItem="{Binding SelectedVerbocityNetworkMsg}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="11" Grid.Column="0" Content="Render" />
-					<ComboBox Grid.Row="11" Grid.Column="1" x:Name="ctrlLogRender" SelectedItem="{Binding SelectedVerbocityRender}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="11" Grid.Column="1" x:Name="ctrlLogRender" SelectedItem="{Binding SelectedVerbocityRender}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="12" Grid.Column="0" Content="RenderSync" />
-					<ComboBox Grid.Row="12" Grid.Column="1" x:Name="ctrlLogRenderSync" SelectedItem="{Binding SelectedVerbocityRenderSync}" ItemsSource="{Binding UE4LogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
+					<ComboBox Grid.Row="12" Grid.Column="1" x:Name="ctrlLogRenderSync" SelectedItem="{Binding SelectedVerbocityRenderSync}" ItemsSource="{Binding UELogVerbosityEnumTypeValues}" Template="{DynamicResource ComboBoxTemplate}" Width="Auto" HorizontalAlignment="Stretch" />
 
 					<Label Grid.Row="0" Grid.Column="3" Content="For each:" />
 					<Button x:Name="ctrlBtnSetVerbosityAll" Grid.Row="1" Grid.Column="3" Content="All" Click="ctrlBtnSetVerbosityAll_Click" />

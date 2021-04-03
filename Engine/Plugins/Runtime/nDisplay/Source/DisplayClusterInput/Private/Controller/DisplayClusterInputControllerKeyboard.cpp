@@ -282,7 +282,7 @@ void FKeyboardController::ConnectKey(FChannelBinds& KeyboardData, uint32 VrpnCha
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 
-// Support reflect vrpn to ue4\nDisplay:
+// Support vrpn reflection
 void FKeyboardController::ReflectKeyboard(const FString& VrpnDeviceId, EDisplayClusterInputKeyboardReflectionMode ReflectionMode)
 {
 	switch (ReflectionMode)

@@ -70,7 +70,7 @@ bool FDisplayClusterProjectionCameraPolicy::CalculateView(const uint32 ViewIdx, 
 		InOutViewLocation = AssignedCamera->GetComponentLocation();
 		InOutViewRotation = AssignedCamera->GetComponentRotation();
 	}
-	// Otherwise default UE4 camera is used
+	// Otherwise default UE camera is used
 	else
 	{
 		if (World)

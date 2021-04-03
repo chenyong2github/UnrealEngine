@@ -275,7 +275,7 @@ public:
 	* Configuration of interpupillary (interocular) distance
 	*
 	* @param CameraID    - Camera ID to modify
-	* @param EyeDistance - distance between eyes (UE4 units).
+	* @param EyeDistance - distance between eyes (engine units).
 	*/
 	UE_DEPRECATED(4.26, "This function has been moved to UDisplayClusterCameraComponent")
 	virtual void  SetInterpupillaryDistance(const FString& CameraID, float EyeDistance)
@@ -286,7 +286,7 @@ public:
 	*
 	* @param CameraID    - Camera ID to get data
 	*
-	* @return - distance between eyes (UE4 units)
+	* @return - distance between eyes (engine units)
 	*/
 	UE_DEPRECATED(4.26, "This function has been moved to UDisplayClusterCameraComponent")
 	virtual float GetInterpupillaryDistance(const FString& CameraID) const

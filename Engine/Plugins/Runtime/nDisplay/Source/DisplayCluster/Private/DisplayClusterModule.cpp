@@ -35,7 +35,7 @@ FDisplayClusterModule::~FDisplayClusterModule()
 	GDisplayCluster = nullptr;
 #else
 	// WORKAROUND
-	// UE4 does something like that:
+	// The engine does something like that:
 	// 1. inst1 = new FDisplayClusterModule
 	// 2. inst2 = new FDisplayClusterModule
 	// 3. delete inst1

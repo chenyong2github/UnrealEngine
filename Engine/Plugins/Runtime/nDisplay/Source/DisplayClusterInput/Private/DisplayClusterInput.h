@@ -38,5 +38,5 @@ private:
 	FDisplayClusterInputModule&                   InputModuleAPI;
 	TSharedPtr<FGenericApplicationMessageHandler> MessageHandler;
 	
-	int32 UnrealControllerIndex;  // Local UE4 player index (multi player purpose)
+	int32 UnrealControllerIndex;  // Local player index (multi player purpose)
 };

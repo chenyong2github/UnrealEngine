@@ -213,7 +213,7 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		public static UE4LogVerbosity UE4LogVerbosity_FromString(string From, UE4LogVerbosity Default)
+		public static UELogVerbosity UELogVerbosity_FromString(string From, UELogVerbosity Default)
 		{			
 			if (string.IsNullOrEmpty(From))
 			{
@@ -224,46 +224,46 @@ namespace nDisplayLauncher.Cluster
 
 			if (string.Compare(From, "All", true) == 0)
 			{
-				return UE4LogVerbosity.All;
+				return UELogVerbosity.All;
 			}
 			else if (string.Compare(From, "Verbose", true) == 0)
 			{
-				return UE4LogVerbosity.Verbose;
+				return UELogVerbosity.Verbose;
 			}
 			else if (string.Compare(From, "Log", true) == 0)
 			{
-				return UE4LogVerbosity.Log;
+				return UELogVerbosity.Log;
 			}
 			else if (string.Compare(From, "Display", true) == 0)
 			{
-				return UE4LogVerbosity.Display;
+				return UELogVerbosity.Display;
 			}
 			else if (string.Compare(From, "Warning", true) == 0)
 			{
-				return UE4LogVerbosity.Warning;
+				return UELogVerbosity.Warning;
 			}
 			else if (string.Compare(From, "Error", true) == 0)
 			{
-				return UE4LogVerbosity.Error;
+				return UELogVerbosity.Error;
 			}
 			else if (string.Compare(From, "Fatal", true) == 0)
 			{
-				return UE4LogVerbosity.Fatal;
+				return UELogVerbosity.Fatal;
 			}
 
 			return Default;
 		}
 
-		public IEnumerable<UE4LogVerbosity> UE4LogVerbosityEnumTypeValues
+		public IEnumerable<UELogVerbosity> UELogVerbosityEnumTypeValues
 		{
 			get
 			{
-				return Enum.GetValues(typeof(UE4LogVerbosity)).Cast<UE4LogVerbosity>();
+				return Enum.GetValues(typeof(UELogVerbosity)).Cast<UELogVerbosity>();
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityPlugin = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityPlugin
+		private UELogVerbosity _SelectedVerbocityPlugin = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityPlugin
 		{
 			get { return _SelectedVerbocityPlugin; }
 			set
@@ -273,8 +273,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityEngine = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityEngine
+		private UELogVerbosity _SelectedVerbocityEngine = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityEngine
 		{
 			get { return _SelectedVerbocityEngine; }
 			set
@@ -284,8 +284,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityBlueprint = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityBlueprint
+		private UELogVerbosity _SelectedVerbocityBlueprint = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityBlueprint
 		{
 			get { return _SelectedVerbocityBlueprint; }
 			set
@@ -295,8 +295,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityConfig = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityConfig
+		private UELogVerbosity _SelectedVerbocityConfig = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityConfig
 		{
 			get { return _SelectedVerbocityConfig; }
 			set
@@ -306,8 +306,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityCluster = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityCluster
+		private UELogVerbosity _SelectedVerbocityCluster = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityCluster
 		{
 			get { return _SelectedVerbocityCluster; }
 			set
@@ -317,8 +317,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityGame = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityGame
+		private UELogVerbosity _SelectedVerbocityGame = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityGame
 		{
 			get { return _SelectedVerbocityGame; }
 			set
@@ -328,8 +328,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityGameMode = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityGameMode
+		private UELogVerbosity _SelectedVerbocityGameMode = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityGameMode
 		{
 			get { return _SelectedVerbocityGameMode; }
 			set
@@ -339,8 +339,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityInput = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityInput
+		private UELogVerbosity _SelectedVerbocityInput = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityInput
 		{
 			get { return _SelectedVerbocityInput; }
 			set
@@ -350,8 +350,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityVrpn = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityVrpn
+		private UELogVerbosity _SelectedVerbocityVrpn = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityVrpn
 		{
 			get { return _SelectedVerbocityVrpn; }
 			set
@@ -361,8 +361,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityNetwork = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityNetwork
+		private UELogVerbosity _SelectedVerbocityNetwork = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityNetwork
 		{
 			get { return _SelectedVerbocityNetwork; }
 			set
@@ -372,8 +372,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityNetworkMsg = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityNetworkMsg
+		private UELogVerbosity _SelectedVerbocityNetworkMsg = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityNetworkMsg
 		{
 			get { return _SelectedVerbocityNetworkMsg; }
 			set
@@ -383,8 +383,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityRender = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityRender
+		private UELogVerbosity _SelectedVerbocityRender = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityRender
 		{
 			get { return _SelectedVerbocityRender; }
 			set
@@ -394,8 +394,8 @@ namespace nDisplayLauncher.Cluster
 			}
 		}
 
-		private UE4LogVerbosity _SelectedVerbocityRenderSync = UE4LogVerbosity.Log;
-		public UE4LogVerbosity SelectedVerbocityRenderSync
+		private UELogVerbosity _SelectedVerbocityRenderSync = UELogVerbosity.Log;
+		public UELogVerbosity SelectedVerbocityRenderSync
 		{
 			get { return _SelectedVerbocityRenderSync; }
 			set
@@ -491,18 +491,18 @@ namespace nDisplayLauncher.Cluster
 			try
 			{
 				IsCustomLogsUsed            = RegistrySaver.ReadBoolValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsUseCustomLogs);
-				SelectedVerbocityPlugin     = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityPlugin), UE4LogVerbosity.Log);
-				SelectedVerbocityEngine     = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityEngine), UE4LogVerbosity.Log);
-				SelectedVerbocityConfig     = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityConfig), UE4LogVerbosity.Log);
-				SelectedVerbocityCluster    = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityCluster), UE4LogVerbosity.Log);
-				SelectedVerbocityGame       = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityGame), UE4LogVerbosity.Log);
-				SelectedVerbocityGameMode   = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityGameMode), UE4LogVerbosity.Log);
-				SelectedVerbocityInput      = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityInput), UE4LogVerbosity.Log);
-				SelectedVerbocityVrpn       = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityInputVrpn), UE4LogVerbosity.Log);
-				SelectedVerbocityNetwork    = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityNetwork), UE4LogVerbosity.Log);
-				SelectedVerbocityNetworkMsg = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityNetworkMsg), UE4LogVerbosity.Log);
-				SelectedVerbocityBlueprint  = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityBlueprint), UE4LogVerbosity.Log);
-				SelectedVerbocityRender     = UE4LogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityRender), UE4LogVerbosity.Log);
+				SelectedVerbocityPlugin     = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityPlugin), UELogVerbosity.Log);
+				SelectedVerbocityEngine     = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityEngine), UELogVerbosity.Log);
+				SelectedVerbocityConfig     = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityConfig), UELogVerbosity.Log);
+				SelectedVerbocityCluster    = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityCluster), UELogVerbosity.Log);
+				SelectedVerbocityGame       = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityGame), UELogVerbosity.Log);
+				SelectedVerbocityGameMode   = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityGameMode), UELogVerbosity.Log);
+				SelectedVerbocityInput      = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityInput), UELogVerbosity.Log);
+				SelectedVerbocityVrpn       = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityInputVrpn), UELogVerbosity.Log);
+				SelectedVerbocityNetwork    = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityNetwork), UELogVerbosity.Log);
+				SelectedVerbocityNetworkMsg = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityNetworkMsg), UELogVerbosity.Log);
+				SelectedVerbocityBlueprint  = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityBlueprint), UELogVerbosity.Log);
+				SelectedVerbocityRender     = UELogVerbosity_FromString(RegistrySaver.ReadStringValue(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityRender), UELogVerbosity.Log);
 			}
 			catch (Exception ex)
 			{

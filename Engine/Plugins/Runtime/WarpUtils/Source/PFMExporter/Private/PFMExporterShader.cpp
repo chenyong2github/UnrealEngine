@@ -81,7 +81,7 @@ public:
 	}	
 };
 
-// Implement shaders inside UE4
+// Implement shaders inside UE
 IMPLEMENT_SHADER_TYPE(, FPFMExporterVS, PFMExporterShaderFileName, TEXT("PFMExporterUV_VS"), SF_Vertex);
 IMPLEMENT_SHADER_TYPE(, FPFMExporterPS, PFMExporterShaderFileName, TEXT("PFMExporterPassthrough_PS"), SF_Pixel);
 

@@ -170,7 +170,7 @@ public:
 		return true;
 	}
 
-	// Send vrpn channels data to UE4 core
+	// Send vrpn channels data to the engine core
 	void UpdateEvents(const double CurrentTime, FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId)
 	{
 		for (auto& DeviceIt : BindMap)

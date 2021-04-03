@@ -37,7 +37,7 @@ public:
 	virtual bool BindVrpnChannel(const FString& VrpnDeviceId, const int32 VrpnChannel, const FKey Target) override;
 
 	/**
-	* Create new bind from vrpn keyboard device key to UE4 target by user friendly target name
+	* Create new bind from vrpn keyboard device key to a target by user friendly target name
 	*
 	* @return True if success
 	*/

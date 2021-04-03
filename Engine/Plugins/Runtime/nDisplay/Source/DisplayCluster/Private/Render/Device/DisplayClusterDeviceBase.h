@@ -169,7 +169,7 @@ protected:
 	mutable TArray<FDisplayClusterRenderViewport> RenderViewports;
 	// Views per viewport (render passes)
 	uint32 ViewsAmountPerViewport = 0;
-	// UE4 main viewport
+	// UE main viewport
 	FViewport* MainViewport = nullptr;
 
 	bool bIsSceneOpen = false;

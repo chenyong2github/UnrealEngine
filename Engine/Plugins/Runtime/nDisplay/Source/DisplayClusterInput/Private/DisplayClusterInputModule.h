@@ -26,9 +26,9 @@ public:
 	virtual TSharedPtr< class IInputDevice > CreateInputDevice( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler ) override;
 
 public:
-	// Add new VRPN device input bind from channel to UE4 target (type auto detected by device ID)
+	// Add new VRPN device input bind from channel to a target (type auto detected by device ID)
 	virtual bool BindVrpnChannel(const FString& VrpnDeviceId, uint32 VrpnChannel, const FString& BindTargetName) override;
-	// Bind all keyboard keys to ue4 (default keyboard and|or nDisplay second keyboard namespaces)
+	// Bind all keyboard keys (default keyboard and|or nDisplay second keyboard namespaces)
 	virtual bool SetVrpnKeyboardReflectionMode(const FString& VrpnDeviceId, EDisplayClusterInputKeyboardReflectionMode ReflectionMode) override;
 	// Apply all delayed vrpn bindings
 	void UpdateVrpnBindings();

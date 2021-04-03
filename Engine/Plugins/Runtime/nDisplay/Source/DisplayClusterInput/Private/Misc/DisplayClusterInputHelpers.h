@@ -12,7 +12,7 @@ class DisplayClusterInputHelpers
 {
 public:
 	/** 
-	 * Converts keyboard button name (defined inside UE4 core) to a scancode (equals to a keyboard vrpn channel)
+	 * Converts keyboard button name (defined inside the engine core) to a scancode (equals to a keyboard vrpn channel)
 	 */
 	static bool KeyNameToVrpnScancode(const FString& KeyName, int32& VrpnScanCode);
 };

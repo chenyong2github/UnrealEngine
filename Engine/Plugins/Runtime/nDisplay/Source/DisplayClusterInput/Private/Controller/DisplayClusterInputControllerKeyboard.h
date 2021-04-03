@@ -16,7 +16,7 @@ public:
 	{ }
 
 public:
-	// Register nDisplay second keyboard keys in UE4 FKey namespace
+	// Register nDisplay second keyboard keys in the engine FKey namespace
 	virtual void Initialize() override;
 
 	// Delegated events for DisplayClusterInput vrpn connect
@@ -24,7 +24,7 @@ public:
 	virtual void ProcessEndSession() override;
 	virtual void ProcessPreTick() override;
 
-	// Reflect vrpn keyboard to UE4
+	// Reflect vrpn keyboard to the engine
 	void ReflectKeyboard(const FString& VrpnDeviceId, EDisplayClusterInputKeyboardReflectionMode ReflectionMode);
 
 

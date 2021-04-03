@@ -18,8 +18,8 @@ namespace nDisplayLauncher
 	{
 		static readonly string CfgFileExtention = "nDisplay config file (*.cfg)|*.cfg";
 		static readonly string AppFileExtention = "nDisplay application (*.exe)|*.exe|Script (*.bat;*.cmd)|*.bat;*.cmd";
-		static readonly string UE4EditorFileExtention = "UE4 Editor (*.exe)|*.exe";
-		static readonly string UE4ProjectExtention = "UE4 Project (*.uproject)|*.uproject";
+		static readonly string UEEditorFileExtention = "Unreal Editor (*.exe)|*.exe";
+		static readonly string UEProjectExtention = "Unreal Project (*.uproject)|*.uproject";
 
 		private void InitializeLauncher()
 		{
@@ -84,15 +84,15 @@ namespace nDisplayLauncher
 		{
 			string CmdLine = String.Empty;
 			System.Windows.Forms.OpenFileDialog openFileDialog = new System.Windows.Forms.OpenFileDialog();
-			openFileDialog.Filter = UE4EditorFileExtention;
-			openFileDialog.Title = "Select UE4 Editor";
+			openFileDialog.Filter = UEEditorFileExtention;
+			openFileDialog.Title = "Select Unreal Editor";
 			if (openFileDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
 			{
 				CmdLine = openFileDialog.FileName;
 
 				System.Windows.Forms.OpenFileDialog openFileDialogForProject = new System.Windows.Forms.OpenFileDialog();
-				openFileDialogForProject.Filter = UE4ProjectExtention;
-				openFileDialogForProject.Title = "Select UE4 Project";
+				openFileDialogForProject.Filter = UEProjectExtention;
+				openFileDialogForProject.Title = "Select Unreal Project";
 				if (openFileDialogForProject.ShowDialog() == System.Windows.Forms.DialogResult.OK)
 				{
 					CmdLine += " " + openFileDialogForProject.FileName + " -game ";

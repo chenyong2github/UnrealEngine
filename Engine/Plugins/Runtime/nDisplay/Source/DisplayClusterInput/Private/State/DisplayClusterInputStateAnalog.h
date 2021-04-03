@@ -24,7 +24,7 @@ public:
 		BindKeys.Empty();
 	}
 
-	// Add new UE4 target to binds array
+	// Add new target to binds array
 	bool BindTarget(const FName& NewKey)
 	{
 		if (BindKeys.Contains(NewKey))
@@ -55,15 +55,15 @@ public:
 		AnalogState = AnalogNextState;
 	}
 
-	// Send all changes to UE4 core
+	// Send all changes to the engine core
 	void UpdateEvents(FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId, double CurrentTime);
 
 private:
-	// Send axis event to UE4 core
+	// Send axis event to the engine core
 	bool OnAnalogChanges(FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId);
 
 private:
-	// UE4 bind targets for this channel
+	// Binding targets for this channel
 	TArray<FName> BindKeys;
 	// Analog value [0.f,1.f]
 	float AnalogState;

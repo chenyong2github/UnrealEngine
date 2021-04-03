@@ -15,11 +15,11 @@ enum class EDisplayClusterInputKeyboardReflectionMode : uint8
 	None     UMETA(DisplayName = "No reflection"),
 	nDisplay UMETA(DisplayName = "nDisplay buttons only"),
 	Core     UMETA(DisplayName = "UE core keyboard events"),
-	All      UMETA(DisplayName = "Both nDisplay and UE4 core")
+	All      UMETA(DisplayName = "Both nDisplay and UE core")
 };
 
 
-// Binding description. Maps VRPN device channel to an UE4 FKey
+// Binding description. Maps VRPN device channel to a FKey
 USTRUCT(BlueprintType)
 struct FDisplayClusterInputBinding
 {

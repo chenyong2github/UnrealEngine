@@ -466,10 +466,10 @@ bool FDisplayClusterProjectionVIOSOPolicy::FViewData::InitializeVIOSO(FRHITextur
 #ifdef VIOSO_USE_GRAPHICS_API_D3D11
 	case ERenderDevice::D3D11:
 	{
-		auto UE4D3DDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
+		auto UED3DDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 
 		FD3D11ContextHelper D3D11ContextHelper;
-		if (D3D11ContextHelper.AssignD3D11RenderTarget(RenderTargetTexture) && Warper.Initialize(UE4D3DDevice, InConfigData))
+		if (D3D11ContextHelper.AssignD3D11RenderTarget(RenderTargetTexture) && Warper.Initialize(UED3DDevice, InConfigData))
 		{
 			return true;
 		}

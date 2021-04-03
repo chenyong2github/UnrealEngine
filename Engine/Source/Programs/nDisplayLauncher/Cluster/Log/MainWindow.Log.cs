@@ -5,7 +5,7 @@ using System.Windows;
 
 namespace nDisplayLauncher
 {
-	public enum UE4LogVerbosity
+	public enum UELogVerbosity
 	{
 		All = 0,
 		Verbose,
@@ -25,35 +25,35 @@ namespace nDisplayLauncher
 
 		private void ctrlBtnSetVerbosityAll_Click(object sender, RoutedEventArgs e)
 		{
-			UE4LogVerbosity Verbosity = UE4LogVerbosity.Log;
+			UELogVerbosity Verbosity = UELogVerbosity.Log;
 
 			if (sender == ctrlBtnSetVerbosityAll)
 			{
-				Verbosity = UE4LogVerbosity.All;
+				Verbosity = UELogVerbosity.All;
 			}
 			else if (sender == ctrlBtnSetVerbosityVerbose)
 			{
-				Verbosity = UE4LogVerbosity.Verbose;
+				Verbosity = UELogVerbosity.Verbose;
 			}
 			else if (sender == ctrlBtnSetVerbosityLog)
 			{
-				Verbosity = UE4LogVerbosity.Log;
+				Verbosity = UELogVerbosity.Log;
 			}
 			else if (sender == ctrlBtnSetVerbosityDisplay)
 			{
-				Verbosity = UE4LogVerbosity.Display;
+				Verbosity = UELogVerbosity.Display;
 			}
 			else if (sender == ctrlBtnSetVerbosityWarning)
 			{
-				Verbosity = UE4LogVerbosity.Warning;
+				Verbosity = UELogVerbosity.Warning;
 			}
 			else if (sender == ctrlBtnSetVerbosityError)
 			{
-				Verbosity = UE4LogVerbosity.Error;
+				Verbosity = UELogVerbosity.Error;
 			}
 			else if (sender == ctrlBtnSetVerbosityFatal)
 			{
-				Verbosity = UE4LogVerbosity.Fatal;
+				Verbosity = UELogVerbosity.Fatal;
 			}
 			else
 			{

@@ -49,7 +49,7 @@ void FDisplayClusterInputModule::SendControllerEvents(const TSharedPtr<FGenericA
 {
 	const double CurrentTime = FPlatformTime::Seconds();
 	
-	// Send all changes for button and analog to UE4 core
+	// Send all changes for button and analog to the engine core
 	ButtonController.UpdateEvents(CurrentTime, MessageHandler.Get(), UnrealControllerIndex);
 	AnalogController.UpdateEvents(CurrentTime, MessageHandler.Get(), UnrealControllerIndex);
 	KeyboardController.UpdateEvents(CurrentTime, MessageHandler.Get(), UnrealControllerIndex);
@@ -105,7 +105,7 @@ bool FDisplayClusterInputModule::BindVrpnChannel(const FString& VrpnDeviceId, ui
 	return false;
 }
 
-// Bind all keyboard keys to ue4 (default keyboard and|or nDisplay second keyboard namespaces)
+// Bind all keyboard keys to the engine (default keyboard and|or nDisplay second keyboard namespaces)
 bool FDisplayClusterInputModule::SetVrpnKeyboardReflectionMode(const FString& VrpnDeviceId, EDisplayClusterInputKeyboardReflectionMode ReflectionMode)
 {
 	if (IsSessionStarted())

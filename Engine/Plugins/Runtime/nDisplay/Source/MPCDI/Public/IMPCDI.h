@@ -300,7 +300,7 @@ public:
 	*
 	* @param InRegionLocator - region locator
 	* @param PFMFile - full path to PFM file
-	* @param WorldScale - world scale multiplier to UE4 game (value=100 from meters->sm)
+	* @param WorldScale - world scale multiplier (value=100 from meters->cm)
 	* @param bIsUnrealGameSpace - let=true, if you dont want to apply axis conversion from mpcdi space
 	*
 	* @return - true if success
@@ -314,7 +314,7 @@ public:
 	* @param PFMPoints - PFM points, row-by-row
 	* @param DimW - Row width
 	* @param DimH - Rows count
-	* @param WorldScale - world scale multiplier to UE4 game (value=100 from meters->sm)
+	* @param WorldScale - world scale multiplier (value=100 from meters->cm)
 	* @param bIsUnrealGameSpace - let=true, if you dont want to apply axis conversion from mpcdi space
 	*
 	* @return - true if success

@@ -38,14 +38,14 @@ public:
 	}
 
 	/**
-	* Create new bind from vrpn device channel to UE4 target by user friendly target name
+	* Create new bind from vrpn device channel to a target by user friendly target name
 	*
 	* @return True, if bind created successfully
 	*/	
 	virtual bool BindVrpnChannel(const FString& VrpnDeviceId, uint32 VrpnChannel, const FString& BindTargetName) = 0;
 
 	/*
-	 * Bind all keyboard keys to ue4 (default keyboard and|or nDisplay second keyboard namespaces)
+	 * Bind all keyboard keys (default keyboard and|or nDisplay second keyboard namespaces)
 	 *
 	 * @return true, if vrpn keyboard name is valid and op success
 	 */

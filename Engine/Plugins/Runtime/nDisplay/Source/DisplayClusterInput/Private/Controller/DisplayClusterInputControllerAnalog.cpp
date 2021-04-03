@@ -13,7 +13,7 @@
 #define LOCTEXT_NAMESPACE "DisplayClusterInput"
 
 
-// Add vrpn analog to UE4 global name-space
+// Add vrpn analog to the engine global name-space
 void FAnalogController::Initialize()
 {
 	static const FName nDisplayClusterInputCategoryName(TEXT("nDisplayAnalogs"));

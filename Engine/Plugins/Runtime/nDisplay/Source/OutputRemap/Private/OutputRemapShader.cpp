@@ -95,7 +95,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, PostprocessInputParameterSampler0)
 };
 
-// Implement shaders inside UE4
+// Implement shaders inside UE
 IMPLEMENT_SHADER_TYPE(, FOutputRemapVS, OutputRemapShaderFileName, TEXT("OutputRemap_VS"), SF_Vertex);
 IMPLEMENT_SHADER_TYPE(, FOutputRemapPS, OutputRemapShaderFileName, TEXT("OutputRemap_PS"), SF_Pixel);
 

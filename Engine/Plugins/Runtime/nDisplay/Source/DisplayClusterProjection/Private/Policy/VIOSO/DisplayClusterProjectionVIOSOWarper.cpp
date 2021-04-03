@@ -113,7 +113,7 @@ bool FViosoWarper::CalculateViewProjection(FVector& InOutViewLocation, FRotator&
 
 	if (VWB_ERROR_NONE == FLibVIOSO::GetViewClip(pWarper, &InViosoEyeLocation.X, &InViosoEyeEulerRotation.X, &ViewMatrix[0], &ViewClip[0]) && IsViewClipValid())
 	{
-		// Convert to UE4 coordinate system
+		// Convert to UE coordinate system
 		FVector OutViosoEyeLocation = GetViosoViewLocation();
 		FVector OutViewLocation = FromViosoLocation(OutViosoEyeLocation, WorldToMeters);
 
@@ -139,26 +139,26 @@ bool FViosoWarper::IsViewClipValid() const
 	return true;
 }
 
-const float UE4ViosoUnitsInMeter = 1.f;
+const float UEViosoUnitsInMeter = 1.f;
 
 FVector FViosoWarper::ToViosoLocation(const FVector& InPos, const float WorldToMeters) const
 {
-	float Scale = (UE4ViosoUnitsInMeter / WorldToMeters);
+	float Scale = (UEViosoUnitsInMeter / WorldToMeters);
 
-	// UE4 coords(x,y,z) = fw,right,up
-	// UE4+VIOSO(X,Y,Z) = RIGHT, UP, FW = (y,z,x)
+	// UE coords(x,y,z) = fw,right,up
+	// UE+VIOSO(X,Y,Z) = RIGHT, UP, FW = (y,z,x)
 	FVector ViosoLocation(-InPos.Y, -InPos.Z, InPos.X);
 	return ViosoLocation * Scale;
 }
 
 FVector FViosoWarper::FromViosoLocation(const FVector& InPos, const float WorldToMeters) const
 {
-	float Scale = (WorldToMeters / UE4ViosoUnitsInMeter);
+	float Scale = (WorldToMeters / UEViosoUnitsInMeter);
 
-	// UE4+VIOSO(X,Y,Z) = RIGHT, UP, FW
-	// UE4 coords(x,y,z) = fw,right,up = (Z,X,Y)
-	FVector UE4Location(InPos.Z, -InPos.X, -InPos.Y);
-	return UE4Location * Scale;
+	// UE+VIOSO(X,Y,Z) = RIGHT, UP, FW
+	// UE coords(x,y,z) = fw,right,up = (Z,X,Y)
+	FVector UELocation(InPos.Z, -InPos.X, -InPos.Y);
+	return UELocation * Scale;
 }
 
 FVector  FViosoWarper::ToViosoEulerRotation(const FRotator& InRotation) const

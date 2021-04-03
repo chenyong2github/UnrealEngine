@@ -16,7 +16,7 @@ public:
 		PositionNext(0, 0, 0)
 	{ }
 
-	// Clear all binds to UE4
+	// Clear all bindings
 	void Reset()
 	{
 		Trackers.Empty();
@@ -34,7 +34,7 @@ public:
 		return Trackers.Find(NewTrackerKey);
 	}
 
-	// Add new UE4 target to tracker array
+	// Add a new target to tracker array
 	bool BindTarget(const EControllerHand NewTrackerKey)
 	{
 		if (Trackers.Contains(NewTrackerKey))
@@ -69,7 +69,7 @@ public:
 	}
 
 private:
-	// List of all UE4 trackers binded to this vrpn channel
+	// List of all trackers binded to this vrpn channel
 	TArray<EControllerHand> Trackers;
 
 	// Current tracker state
