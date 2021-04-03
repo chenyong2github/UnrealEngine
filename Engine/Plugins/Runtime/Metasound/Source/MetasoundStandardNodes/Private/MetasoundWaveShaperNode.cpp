@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MetasoundWaveShaperNode.h"
-
 #include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
@@ -171,7 +169,6 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FWaveShaperOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
-		const FWaveShaperNode& WaveShaperNode = static_cast<const FWaveShaperNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
@@ -184,10 +181,17 @@ namespace Metasound
 		return MakeUnique<FWaveShaperOperator>(InParams.OperatorSettings, AudioIn, InAmount, InBias, OutGain, InType);
 	}
 
-	FWaveShaperNode::FWaveShaperNode(const FNodeInitData& InitData)
-		: FNodeFacade(InitData.InstanceName, InitData.InstanceID, TFacadeOperatorClass<FWaveShaperOperator>())
+	class FWaveShaperNode : public FNodeFacade
 	{
-	}
+	public:
+		/**
+		 * Constructor used by the Metasound Frontend.
+		 */
+		FWaveShaperNode(const FNodeInitData& InitData)
+			: FNodeFacade(InitData.InstanceName, InitData.InstanceID, TFacadeOperatorClass<FWaveShaperOperator>())
+		{
+		}
+	};
 
 	METASOUND_REGISTER_NODE(FWaveShaperNode)
 }

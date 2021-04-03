@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MetasoundITDPannerNode.h"
-
 #include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
@@ -14,8 +12,10 @@
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/Delay.h"
 #include "DSP/Dsp.h"
+#include "MetasoundFacade.h"
+#include "MetasoundStandardNodesCategories.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_ITDPannerNode"
 
 namespace Metasound
 {
@@ -318,7 +318,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
-
+			Info.CategoryHierarchy.Emplace(StandardNodes::Spatalization);
 			return Info;
 		};
 
@@ -329,7 +329,6 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FITDPannerOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
-		const FITDPannerNode& ITDPannerNode = static_cast<const FITDPannerNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
@@ -343,10 +342,17 @@ namespace Metasound
 		return MakeUnique<FITDPannerOperator>(InParams.OperatorSettings, AudioIn, PanningAngle, DistanceFactor, HeadWidth);
 	}
 
-	FITDPannerNode::FITDPannerNode(const FNodeInitData& InitData)
-		: FNodeFacade(InitData.InstanceName, InitData.InstanceID, TFacadeOperatorClass<FITDPannerOperator>())
+	class FITDPannerNode : public FNodeFacade
 	{
-	}
+	public:
+		/**
+		 * Constructor used by the Metasound Frontend.
+		 */
+		FITDPannerNode(const FNodeInitData& InitData)
+			: FNodeFacade(InitData.InstanceName, InitData.InstanceID, TFacadeOperatorClass<FITDPannerOperator>())
+		{
+		}
+	};
 
 	METASOUND_REGISTER_NODE(FITDPannerNode)
 }

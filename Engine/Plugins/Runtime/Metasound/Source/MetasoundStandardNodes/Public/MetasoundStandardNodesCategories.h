@@ -16,5 +16,8 @@ namespace Metasound
 		extern const FText Conversions;
 		extern const FText DebugUtils;
 		extern const FText Io;
+		extern const FText Delays;
+		extern const FText Spatalization;
+		extern const FText Dynamics;
 	}
 }

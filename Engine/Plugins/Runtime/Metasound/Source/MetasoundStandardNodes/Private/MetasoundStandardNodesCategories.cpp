@@ -10,12 +10,15 @@ namespace Metasound
 	{
 		const FText Generators = { LOCTEXT("Metasound_GeneratorsCategory", "Generators") };
 		const FText Filters = { LOCTEXT("Metasound_FiltersCategory", "Filters") };
-		const FText TriggerUtils = { LOCTEXT("Metasound_TriggerUtilsCategory", "Trigger Utilities") };
+		const FText TriggerUtils = { LOCTEXT("Metasound_TriggerUtilsCategory", "Triggers") };
 		const FText Music = { LOCTEXT("Metasound_MusicCategory", "Music") };
-		const FText RandomUtils = { LOCTEXT("Metasound_RandomUtilsCategory", "Random Utilities") };
+		const FText RandomUtils = { LOCTEXT("Metasound_RandomCategory", "Random") };
 		const FText Conversions  = { LOCTEXT("Metasound_ConversionsCategory", "Conversions") };
-		const FText DebugUtils = { LOCTEXT("Metasound_DebugUtilsCategory", "Debug Utilities") };
+		const FText DebugUtils = { LOCTEXT("Metasound_DebugUtilsCategory", "Debug") };
 		const FText Io = { LOCTEXT("Metasound_IoCategory", "External IO") };
+		const FText Delays = { LOCTEXT("Metasound_EffectsCategory", "Delays") };
+		const FText Spatalization = { LOCTEXT("Metasound_SpatializationCategory", "Spatialization") };
+		const FText Dynamics = { LOCTEXT("Metasound_DynamicsCategory", "Dynamics") };
 	}
 }
 

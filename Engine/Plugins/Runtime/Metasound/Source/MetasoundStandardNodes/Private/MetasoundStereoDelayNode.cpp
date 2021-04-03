@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MetasoundStereoDelayNode.h"
-
 #include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
@@ -12,8 +10,10 @@
 #include "MetasoundTime.h"
 #include "MetasoundAudioBuffer.h"
 #include "DSP/Delay.h"
+#include "MetasoundStandardNodesCategories.h"
+#include "MetasoundFacade.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_DelayNode"
 
 namespace Metasound
 {
@@ -314,7 +314,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
-
+			Info.CategoryHierarchy.Emplace(StandardNodes::Delays);
 			return Info;
 		};
 
@@ -325,7 +325,6 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FStereoDelayOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
-		const FStereoDelayNode& StereoDelayNode = static_cast<const FStereoDelayNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
@@ -341,10 +340,18 @@ namespace Metasound
 		return MakeUnique<FStereoDelayOperator>(InParams.OperatorSettings, LeftAudioIn, RightAudioIn, StereoDelayMode, DelayTime, DelayRatio, DryLevel, WetLevel, Feedback);
 	}
 
-	FStereoDelayNode::FStereoDelayNode(const FNodeInitData& InitData)
-		: FNodeFacade(InitData.InstanceName, InitData.InstanceID, TFacadeOperatorClass<FStereoDelayOperator>())
+
+	class FStereoDelayNode : public FNodeFacade
 	{
-	}
+	public:
+		/**
+		 * Constructor used by the Metasound Frontend.
+		 */
+		FStereoDelayNode(const FNodeInitData& InitData)
+			: FNodeFacade(InitData.InstanceName, InitData.InstanceID, TFacadeOperatorClass<FStereoDelayOperator>())
+		{
+		}
+	};
 
 	METASOUND_REGISTER_NODE(FStereoDelayNode)
 }
