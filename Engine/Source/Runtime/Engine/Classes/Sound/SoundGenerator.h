@@ -10,17 +10,11 @@
 // Parameters used for constructing a new ISoundGenerator.
 struct FSoundGeneratorInitParams
 {
-	float SampleRate;
-	int32 NumChannels;
-	int32 NumFramesPerCallback;
-	uint64 InstanceID;
-
-	FSoundGeneratorInitParams()
-		: SampleRate(0.0f)
-		, NumChannels(0)
-		, NumFramesPerCallback(0)
-		, InstanceID(0)
-	{}
+	float SampleRate = 0.0f;
+	int32 NumChannels = 0;
+	int32 NumFramesPerCallback = 0;
+	uint64 InstanceID = 0;
+	bool bIsPreviewSound = false;
 };
 
 class ENGINE_API ISoundGenerator

@@ -68,15 +68,26 @@ namespace Metasound
 		FRandomStream RandomStream;
 	};
 
+	struct InitSharedStateArgs
+	{
+		uint32 SharedStateId = 0;
+		int32 Seed = INDEX_NONE;
+		int32 NumElements = 0;
+		int32 NoRepeatOrder = 0;
+		bool bIsPreviewSound = false;
+		TArray<float> Weights;
+	};
+
 	class METASOUNDFRONTEND_API FSharedStateRandomGetManager
 	{
 	public:
 		static FSharedStateRandomGetManager& Get();
 
-		void InitSharedState(uint32 InSharedStateId, int32 InSeed, int32 InNumElements, const TArray<float>& InWeights, int32 InNoRepeatOrder);
+		void InitSharedState(InitSharedStateArgs& InArgs);
 		int32 NextValue(uint32 InSharedStateId);
 		void SetSeed(uint32 InSharedStateId, int32 InSeed);
 		void SetNoRepeatOrder(uint32 InSharedStateId, int32 InNoRepeatOrder);
+		void SetRandomWeights(uint32 InSharedStateId, const TArray<float>& InRandomWeights);
 		void ResetSeed(uint32 InSharedStateId);
 
 	private:
@@ -94,7 +105,7 @@ namespace Metasound
 	public:
 		using FArrayDataReadReference = TDataReadReference<ArrayType>;
 		using FArrayWeightReadReference = TDataReadReference<TArray<float>>;
-		using WeightArrayType = TArray<float>;
+		using WeightsArrayType = TArray<float>;
 		using ElementType = typename MetasoundArrayNodesPrivate::TArrayElementType<ArrayType>::Type;
 		using FElementTypeWriteReference = TDataWriteReference<ElementType>;
 
@@ -107,7 +118,7 @@ namespace Metasound
 					TInputDataVertexModel<FTrigger>(InputTriggerNextName, InputTriggerNextTooltip),
 					TInputDataVertexModel<FTrigger>(InputTriggerResetName, InputTriggerResetTooltip),
 					TInputDataVertexModel<ArrayType>(InputRandomArrayName, InputRandomArrayTooltip),
-					TInputDataVertexModel<WeightArrayType>(InputWeightsName, InputWeightsTooltip),
+					TInputDataVertexModel<WeightsArrayType>(InputWeightsName, InputWeightsTooltip),
 					TInputDataVertexModel<int32>(InputSeedName, InputSeedTooltip, -1),
 					TInputDataVertexModel<int32>(InputNoRepeatOrderName, InputNoRepeatOrderTooltip, 1),
 					TInputDataVertexModel<bool>(InputEnableSharedStateName, InputEnableSharedStateTooltip, false)
@@ -150,7 +161,7 @@ namespace Metasound
 			FTriggerReadRef InTriggerNext = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, InputTriggerNextName, InParams.OperatorSettings);
 			FTriggerReadRef InTriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTrigger>(Inputs, InputTriggerResetName, InParams.OperatorSettings);
 			FArrayDataReadReference InInputArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<ArrayType>(Inputs, InputRandomArrayName, InParams.OperatorSettings);
-			FArrayWeightReadReference InInputWeightsArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<WeightArrayType>(Inputs, InputWeightsName, InParams.OperatorSettings);
+			FArrayWeightReadReference InInputWeightsArray = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<WeightsArrayType>(Inputs, InputWeightsName, InParams.OperatorSettings);
 			FInt32ReadRef InSeedValue = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, InputSeedName, InParams.OperatorSettings);
 			FInt32ReadRef InNoRepeatOrder = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, InputNoRepeatOrderName, InParams.OperatorSettings);
 			FBoolReadRef bInEnableSharedState = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(Inputs, InputEnableSharedStateName, InParams.OperatorSettings);
@@ -163,7 +174,7 @@ namespace Metasound
 			const FTriggerReadRef& InTriggerNext,
 			const FTriggerReadRef& InTriggerReset,
 			const FArrayDataReadReference& InInputArray,
-			const TDataReadReference<WeightArrayType>& InInputWeightsArray,
+			const TDataReadReference<WeightsArrayType>& InInputWeightsArray,
 			const FInt32ReadRef& InSeedValue,
 			const FInt32ReadRef& InNoRepeatOrder,
 			const FBoolReadRef& bInEnableSharedState)
@@ -183,10 +194,10 @@ namespace Metasound
 			PrevSeedValue = *SeedValue;
 			PrevNoRepeatOrder = FMath::Max(*NoRepeatOrder, 0);
 
+			WeightsArray = *InputWeightsArray;
+
 			const ArrayType& InputArrayRef = *InputArray;
 			int32 ArraySize = InputArrayRef.Num();
-
-			const TArray<float>& InputWeightsArrayRef = *InputWeightsArray;
 
 			if (ArraySize > 0)
 			{
@@ -196,12 +207,23 @@ namespace Metasound
 					SharedStateUniqueId = InParams.Environment.GetValue<uint32>(TEXT("SoundUniqueId"));
 					check(SharedStateUniqueId != INDEX_NONE);
 
+					bIsPreviewSound = InParams.Environment.GetValue<bool>(TEXT("IsPreviewSound"));
+
 					FSharedStateRandomGetManager& RGM = FSharedStateRandomGetManager::Get();
-					RGM.InitSharedState(SharedStateUniqueId, PrevSeedValue, ArraySize, InputWeightsArrayRef, PrevNoRepeatOrder);
+
+					InitSharedStateArgs Args;
+					Args.SharedStateId = SharedStateUniqueId;
+					Args.Seed = PrevSeedValue;
+					Args.NumElements = ArraySize;
+					Args.NoRepeatOrder = PrevNoRepeatOrder;
+					Args.bIsPreviewSound = bIsPreviewSound;
+					Args.Weights = WeightsArray;
+
+					RGM.InitSharedState(Args);
 				}
 				else
 				{
-					ArrayRandomGet = MakeUnique<FArrayRandomGet>(PrevSeedValue, ArraySize, InputWeightsArrayRef, PrevNoRepeatOrder);
+					ArrayRandomGet = MakeUnique<FArrayRandomGet>(PrevSeedValue, ArraySize, WeightsArray, PrevNoRepeatOrder);
 				}
 			}
 			else
@@ -278,6 +300,18 @@ namespace Metasound
 					ArrayRandomGet->SetNoRepeatOrder(PrevNoRepeatOrder);
 				}
 			}
+
+			WeightsArray = *InputWeightsArray;
+			if (SharedStateUniqueId != INDEX_NONE)
+			{
+				FSharedStateRandomGetManager& RGM = FSharedStateRandomGetManager::Get();
+				RGM.SetRandomWeights(SharedStateUniqueId, WeightsArray);
+			}
+			else
+			{
+				check(ArrayRandomGet.IsValid());
+				ArrayRandomGet->SetRandomWeights(WeightsArray);
+			}
  
 			// Don't do anything if our array is empty
 			if (InputArrayRef.Num() == 0)
@@ -341,7 +375,7 @@ namespace Metasound
 		FTriggerReadRef TriggerNext;
 		FTriggerReadRef TriggerReset;
 		FArrayDataReadReference InputArray;
-		TDataReadReference<WeightArrayType> InputWeightsArray;
+		TDataReadReference<WeightsArrayType> InputWeightsArray;
 		FInt32ReadRef SeedValue;
 		FInt32ReadRef NoRepeatOrder;
 		FBoolReadRef bEnableSharedState;
@@ -353,9 +387,11 @@ namespace Metasound
 
 		// Data
 		TUniquePtr<FArrayRandomGet> ArrayRandomGet;
+		TArray<float> WeightsArray;
 		int32 PrevSeedValue = INDEX_NONE;
 		int32 PrevNoRepeatOrder = INDEX_NONE;
 		uint32 SharedStateUniqueId = INDEX_NONE;
+		bool bIsPreviewSound = false;
 	};
 
 	template<typename ArrayType>

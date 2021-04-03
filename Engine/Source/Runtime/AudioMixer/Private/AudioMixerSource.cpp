@@ -812,7 +812,16 @@ namespace Audio
 			InstanceID = WaveInstance->ActiveSound->GetAudioComponentID();
 		}
 
-		MixerSourceBuffer = FMixerSourceBuffer::Create(InstanceID, AudioDevice->GetSampleRate(), *MixerBuffer, SoundWave, InWaveInstance->LoopingMode, bIsSeeking);
+		FMixerSourceBufferInitArgs BufferInitArgs;
+		BufferInitArgs.InstanceID = InstanceID;
+		BufferInitArgs.SampleRate = AudioDevice->GetSampleRate();
+		BufferInitArgs.Buffer = MixerBuffer;
+		BufferInitArgs.SoundWave = &SoundWave;
+		BufferInitArgs.LoopingMode = InWaveInstance->LoopingMode;
+		BufferInitArgs.bIsSeeking = bIsSeeking;
+		BufferInitArgs.bIsPreviewSound = WaveInstance->ActiveSound->bIsPreviewSound;
+
+		MixerSourceBuffer = FMixerSourceBuffer::Create(BufferInitArgs);
 		
 		if (!MixerSourceBuffer.IsValid())
 		{

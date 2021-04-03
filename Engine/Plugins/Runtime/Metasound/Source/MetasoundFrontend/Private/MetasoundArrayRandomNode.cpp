@@ -184,14 +184,18 @@ namespace Metasound
 		return RGM;
 	}
 
-	void FSharedStateRandomGetManager::InitSharedState(uint32 InSharedStateId, int32 InSeed, int32 InNumElements, const TArray<float>& InWeights, int32 InNoRepeatOrder)
+	void FSharedStateRandomGetManager::InitSharedState(InitSharedStateArgs& InArgs)
 	{
 		FScopeLock Lock(&CritSect);
 
-		if (!RandomGets.Contains(InSharedStateId))
+		if (!InArgs.bIsPreviewSound && RandomGets.Contains(InArgs.SharedStateId))
 		{
-			RandomGets.Add(InSharedStateId, MakeUnique<FArrayRandomGet>(InSeed, InNumElements, InWeights, InNoRepeatOrder));
+			// TODO: check the actual arguments here against what has been registered, and if the new args are different warn they'll be ignored.
+			return;
 		}
+
+		// For preview sounds, we'll stomp the state
+		RandomGets.Add(InArgs.SharedStateId, MakeUnique<FArrayRandomGet>(InArgs.Seed, InArgs.NumElements, InArgs.Weights, InArgs.NoRepeatOrder));
 	}
 
 	int32 FSharedStateRandomGetManager::NextValue(uint32 InSharedStateId)
@@ -213,6 +217,13 @@ namespace Metasound
 		FScopeLock Lock(&CritSect);
 		TUniquePtr<FArrayRandomGet>* RG = RandomGets.Find(InSharedStateId);
 		(*RG)->SetNoRepeatOrder(InNoRepeatOrder);
+	}
+
+	void FSharedStateRandomGetManager::SetRandomWeights(uint32 InSharedStateId, const TArray<float>& InRandomWeights)
+	{
+		FScopeLock Lock(&CritSect);
+		TUniquePtr<FArrayRandomGet>* RG = RandomGets.Find(InSharedStateId);
+		(*RG)->SetRandomWeights(InRandomWeights);
 	}
 
 	void FSharedStateRandomGetManager::ResetSeed(uint32 InSharedStateId)

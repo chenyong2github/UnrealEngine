@@ -56,47 +56,49 @@ namespace Audio
 		return CurrentSample >= NumSamples;
 	}
 
-	TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> FMixerSourceBuffer::Create(uint64 InInstanceID, int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode)
+	TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> FMixerSourceBuffer::Create(FMixerSourceBufferInitArgs& InArgs)
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
-		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> NewSourceBuffer = MakeShareable(new FMixerSourceBuffer(InInstanceID, InSampleRate, InBuffer, InWave, InLoopingMode, bInIsSeeking, bInForceSyncDecode));
+		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> NewSourceBuffer = MakeShareable(new FMixerSourceBuffer(InArgs));
 
 		return NewSourceBuffer;
 	}
 
-	FMixerSourceBuffer::FMixerSourceBuffer(uint64 InInstanceID, int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode)
+	FMixerSourceBuffer::FMixerSourceBuffer(FMixerSourceBufferInitArgs& InArgs)
 		: NumBuffersQeueued(0)
 		, CurrentBuffer(0)
-		, SoundWave(&InWave)
+		, SoundWave(InArgs.SoundWave)
 		, AsyncRealtimeAudioTask(nullptr)
 		, DecompressionState(nullptr)
-		, LoopingMode(InLoopingMode)
-		, NumChannels(InBuffer.NumChannels)
-		, BufferType(InBuffer.GetType())
-		, NumPrecacheFrames(InWave.NumPrecacheFrames)
+		, LoopingMode(InArgs.LoopingMode)
+		, NumChannels(InArgs.Buffer->NumChannels)
+		, BufferType(InArgs.Buffer->GetType())
+		, NumPrecacheFrames(InArgs.SoundWave->NumPrecacheFrames)
 		, bInitialized(false)
 		, bBufferFinished(false)
 		, bPlayedCachedBuffer(false)
-		, bIsSeeking(bInIsSeeking)
+		, bIsSeeking(InArgs.bIsSeeking)
 		, bLoopCallback(false)
-		, bProcedural(InWave.bProcedural)
-		, bIsBus(InWave.bIsSourceBus)
-		, bForceSyncDecode(bInForceSyncDecode)
+		, bProcedural(InArgs.SoundWave->bProcedural)
+		, bIsBus(InArgs.SoundWave->bIsSourceBus)
+		, bForceSyncDecode(InArgs.bForceSyncDecode)
 		, bHasError(false)
 	{
 		// TODO: remove the need to do this here. 1) remove need for decoders to depend on USoundWave and 2) remove need for procedural sounds to use USoundWaveProcedural
-		InWave.AddPlayingSource(this);
+		InArgs.SoundWave->AddPlayingSource(this);
 
 		// Retrieve a sound generator if this is a procedural sound wave
 		if (bProcedural)
 		{
 			FSoundGeneratorInitParams InitParams;
-			InitParams.SampleRate = InSampleRate;
+			InitParams.SampleRate = InArgs.SampleRate;
 			InitParams.NumChannels = NumChannels;
 			InitParams.NumFramesPerCallback = MONO_PCM_BUFFER_SAMPLES;
-			InitParams.InstanceID = InInstanceID;
-			SoundGenerator = InWave.CreateSoundGenerator(InitParams);
+			InitParams.InstanceID = InArgs.InstanceID;
+			InitParams.bIsPreviewSound = InArgs.bIsPreviewSound;
+
+			SoundGenerator = InArgs.SoundWave->CreateSoundGenerator(InitParams);
 		}
 
 		const uint32 TotalSamples = MONO_PCM_BUFFER_SAMPLES * NumChannels;

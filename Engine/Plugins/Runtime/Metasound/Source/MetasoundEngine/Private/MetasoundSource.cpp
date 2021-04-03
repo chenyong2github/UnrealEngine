@@ -137,6 +137,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 
 	// Set the unique object ID as an environment variable
 	Environment.SetValue<uint32>(GetSoundUniqueIdName(), GetUniqueID());
+	Environment.SetValue<bool>(GetIsPreviewSoundName(), InParams.bIsPreviewSound);
 
 	const FMetasoundFrontendDocument* OriginalDoc = GetDocument().Get();
 	if (nullptr == OriginalDoc)
@@ -434,6 +435,11 @@ const FString& UMetaSoundSource::GetSoundUniqueIdName()
 	return SoundUniqueIdVarName;
 }
 
+const FString& UMetaSoundSource::GetIsPreviewSoundName()
+{
+	static const FString SoundIsPreviewSoundName = TEXT("IsPreviewSound");
+	return SoundIsPreviewSoundName;
+}
 
 const FMetasoundFrontendArchetype& UMetaSoundSource::GetBaseArchetype()
 {

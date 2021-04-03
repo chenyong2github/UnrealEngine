@@ -46,11 +46,23 @@ namespace Audio
 
 	using FMixerSourceBufferPtr = TSharedPtr<class FMixerSourceBuffer, ESPMode::ThreadSafe>;
 
+	struct FMixerSourceBufferInitArgs
+	{
+		uint32 InstanceID = 0;
+		int32 SampleRate = 0;
+		FMixerBuffer* Buffer = nullptr;
+		USoundWave* SoundWave = nullptr;
+		ELoopingMode LoopingMode = ELoopingMode::LOOP_Never;
+		bool bIsSeeking = false;
+		bool bForceSyncDecode = false;
+		bool bIsPreviewSound = false;
+	};
+
 	/** Class which handles decoding audio for a particular source buffer. */
 	class FMixerSourceBuffer : public ISoundWaveClient
 	{
 	public:
-		static FMixerSourceBufferPtr Create(uint64 InInstanceID, int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
+		static FMixerSourceBufferPtr Create(FMixerSourceBufferInitArgs& InArgs);
 
 		~FMixerSourceBuffer();
 
@@ -101,7 +113,7 @@ namespace Audio
 		bool IsGeneratorFinished() const;
 
 	private:
-		FMixerSourceBuffer(uint64 InInstanceID, int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
+		FMixerSourceBuffer(FMixerSourceBufferInitArgs& InArgs);
 
 		void SubmitInitialPCMBuffers();
 		void SubmitInitialRealtimeBuffers();
