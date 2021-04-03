@@ -85,15 +85,16 @@ namespace Metasound
 		template<typename UClassToUse, typename TEnableIf<TIsDerivedFrom<UClassToUse, IAudioProxyDataFactory>::Value, bool>::Type = true>
 		IAudioProxyDataFactory* CastToAudioProxyDataFactory(UObject* InObject)
 		{
-			UClassToUse* DowncastObject = Cast<UClassToUse>(InObject);
-			if (ensureAlways(DowncastObject))
+			if (InObject)
 			{
-				return static_cast<IAudioProxyDataFactory*>(DowncastObject);
+				UClassToUse* DowncastObject = Cast<UClassToUse>(InObject);
+				if (ensureAlways(DowncastObject))
+				{
+					return static_cast<IAudioProxyDataFactory*>(DowncastObject);
+				}
 			}
-			else
-			{
-				return nullptr;
-			}
+
+			return nullptr;
 		}
 
 		template<typename UClassToUse, typename TEnableIf<!TIsDerivedFrom<UClassToUse, IAudioProxyDataFactory>::Value, bool>::Type = true>
@@ -303,21 +304,21 @@ namespace Metasound
 				static_assert(!bSpecifiedUClassForProxy || std::is_base_of<IAudioProxyDataFactory, UClassToUse>::value, "If a Metasound Datatype uses a UObject as a literal, the UClass of that object needs to also derive from Audio::IProxyDataFactory. See USoundWave as an example.");
 				ProxyGenerator = [](UObject* InObject) -> Audio::IProxyDataPtr
 				{
-					IAudioProxyDataFactory* ObjectAsFactory = CastToAudioProxyDataFactory<UClassToUse>(InObject);
-
-					if (ensureAlways(ObjectAsFactory))
+					if (InObject)
 					{
-						static FName ProxySubsystemName = TEXT("Metasound");
-						
-						Audio::FProxyDataInitParams ProxyInitParams;
-						ProxyInitParams.NameOfFeatureRequestingProxy = ProxySubsystemName;
+						IAudioProxyDataFactory* ObjectAsFactory = CastToAudioProxyDataFactory<UClassToUse>(InObject);
+						if (ensureAlways(ObjectAsFactory))
+						{
+							static FName ProxySubsystemName = TEXT("Metasound");
 
-						return ObjectAsFactory->CreateNewProxyData(ProxyInitParams);
+							Audio::FProxyDataInitParams ProxyInitParams;
+							ProxyInitParams.NameOfFeatureRequestingProxy = ProxySubsystemName;
+
+							return ObjectAsFactory->CreateNewProxyData(ProxyInitParams);
+						}
 					}
-					else
-					{
-						return Audio::IProxyDataPtr(nullptr);
-					}
+
+					return Audio::IProxyDataPtr(nullptr);
 				};
 			}
 
