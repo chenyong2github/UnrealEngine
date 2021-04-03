@@ -308,36 +308,37 @@ bool ShouldSkySampleAtmosphereLightsOpaqueShadow(const FScene& Scene, const TArr
 		(LightShadowData.ProjectedShadowInfo0 || LightShadowData.ProjectedShadowInfo1);
 }
 void GetSkyAtmosphereLightsUniformBuffers(
-	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal0>& OutLightShadowShaderParams0UniformBuffer,
-	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal1>& OutLightShadowShaderParams1UniformBuffer,
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FVolumeShadowingShaderParametersGlobal0>& OutLightShadowShaderParams0UniformBuffer,
+	TRDGUniformBufferRef<FVolumeShadowingShaderParametersGlobal1>& OutLightShadowShaderParams1UniformBuffer,
 	const SkyAtmosphereLightShadowData& LightShadowData,
 	const FViewInfo& ViewInfo,
 	const bool bShouldSampleOpaqueShadow,
 	const EUniformBufferUsage UniformBufferUsage
 )
 {
-	FVolumeShadowingShaderParametersGlobal0 LightShadowShaderParams0;
-	FVolumeShadowingShaderParametersGlobal1 LightShadowShaderParams1;
+	FVolumeShadowingShaderParametersGlobal0& LightShadowShaderParams0 = *GraphBuilder.AllocParameters<FVolumeShadowingShaderParametersGlobal0>();
+	FVolumeShadowingShaderParametersGlobal1& LightShadowShaderParams1 = *GraphBuilder.AllocParameters<FVolumeShadowingShaderParametersGlobal1>();
 	if (bShouldSampleOpaqueShadow && LightShadowData.LightVolumetricShadowSceneinfo0)
 	{
-		SetVolumeShadowingShaderParameters(LightShadowShaderParams0, ViewInfo,
+		SetVolumeShadowingShaderParameters(GraphBuilder, LightShadowShaderParams0, ViewInfo,
 			LightShadowData.LightVolumetricShadowSceneinfo0, LightShadowData.ProjectedShadowInfo0, INDEX_NONE);
 	}
 	else
 	{
-		SetVolumeShadowingDefaultShaderParameters(LightShadowShaderParams0);
+		SetVolumeShadowingDefaultShaderParameters(GraphBuilder, LightShadowShaderParams0);
 	}
 	if (bShouldSampleOpaqueShadow && LightShadowData.LightVolumetricShadowSceneinfo1)
 	{
-		SetVolumeShadowingShaderParameters(LightShadowShaderParams1, ViewInfo,
+		SetVolumeShadowingShaderParameters(GraphBuilder, LightShadowShaderParams1, ViewInfo,
 			LightShadowData.LightVolumetricShadowSceneinfo1, LightShadowData.ProjectedShadowInfo1, INDEX_NONE);
 	}
 	else
 	{
-		SetVolumeShadowingDefaultShaderParameters(LightShadowShaderParams1);
+		SetVolumeShadowingDefaultShaderParameters(GraphBuilder, LightShadowShaderParams1);
 	}
-	OutLightShadowShaderParams0UniformBuffer = TUniformBufferRef<FVolumeShadowingShaderParametersGlobal0>::CreateUniformBufferImmediate(LightShadowShaderParams0, UniformBufferUsage);
-	OutLightShadowShaderParams1UniformBuffer = TUniformBufferRef<FVolumeShadowingShaderParametersGlobal1>::CreateUniformBufferImmediate(LightShadowShaderParams1, UniformBufferUsage);
+	OutLightShadowShaderParams0UniformBuffer = GraphBuilder.CreateUniformBuffer(&LightShadowShaderParams0);
+	OutLightShadowShaderParams1UniformBuffer = GraphBuilder.CreateUniformBuffer(&LightShadowShaderParams1);
 }
 
 bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& EngineShowFlags)
@@ -623,8 +624,8 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 		SHADER_PARAMETER(float, AerialPerspectiveStartDepthKm)
 		SHADER_PARAMETER(uint32, SourceDiskEnabled)
 		SHADER_PARAMETER(uint32, DepthReadDisabled)
-		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
-		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
 		SHADER_PARAMETER(float, VolumetricCloudShadowStrength0)
 		SHADER_PARAMETER(float, VolumetricCloudShadowStrength1)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
@@ -832,8 +833,8 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, VolumetricCloudShadowMapTexture0Sampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VolumetricCloudShadowMapTexture1Sampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VolumetricCloudSkyAOTextureSampler)
-		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
-		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
 		SHADER_PARAMETER(int32, VirtualShadowMapId0)
 		SHADER_PARAMETER(int32, VirtualShadowMapId1)
@@ -896,8 +897,8 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, VolumetricCloudSkyAOTextureSampler)
 		SHADER_PARAMETER(float, AerialPerspectiveStartDepthKm)
 		SHADER_PARAMETER(float, RealTimeReflection360Mode)
-		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
-		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
 		SHADER_PARAMETER(int32, VirtualShadowMapId0)
 		SHADER_PARAMETER(int32, VirtualShadowMapId1)
@@ -1536,9 +1537,9 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		FRDGTextureRef SkyAtmosphereCameraAerialPerspectiveVolume = GraphBuilder.RegisterExternalTexture(View.SkyAtmosphereCameraAerialPerspectiveVolume);
 		FRDGTextureUAVRef SkyAtmosphereCameraAerialPerspectiveVolumeUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SkyAtmosphereCameraAerialPerspectiveVolume, 0));
 
-		TUniformBufferRef<FVolumeShadowingShaderParametersGlobal0> LightShadowShaderParams0UniformBuffer;
-		TUniformBufferRef<FVolumeShadowingShaderParametersGlobal1> LightShadowShaderParams1UniformBuffer;
-		GetSkyAtmosphereLightsUniformBuffers(LightShadowShaderParams0UniformBuffer, LightShadowShaderParams1UniformBuffer,
+		TRDGUniformBufferRef<FVolumeShadowingShaderParametersGlobal0> LightShadowShaderParams0UniformBuffer{};
+		TRDGUniformBufferRef<FVolumeShadowingShaderParametersGlobal1> LightShadowShaderParams1UniformBuffer{};
+		GetSkyAtmosphereLightsUniformBuffers(GraphBuilder, LightShadowShaderParams0UniformBuffer, LightShadowShaderParams1UniformBuffer,
 			LightShadowData, View, bShouldSampleOpaqueShadow, UniformBuffer_SingleFrame);
 
 		// Find virtual shadow maps associated with our chosen lights and view, if any
@@ -1879,7 +1880,7 @@ void FSceneRenderer::RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinim
 		SkyRC.SkyAtmosphereViewLutTexture = GraphBuilder.RegisterExternalTexture(View.SkyAtmosphereViewLutTexture);
 		SkyRC.SkyAtmosphereCameraAerialPerspectiveVolume = GraphBuilder.RegisterExternalTexture(View.SkyAtmosphereCameraAerialPerspectiveVolume);
 
-		GetSkyAtmosphereLightsUniformBuffers(SkyRC.LightShadowShaderParams0UniformBuffer, SkyRC.LightShadowShaderParams1UniformBuffer,
+		GetSkyAtmosphereLightsUniformBuffers(GraphBuilder, SkyRC.LightShadowShaderParams0UniformBuffer, SkyRC.LightShadowShaderParams1UniformBuffer,
 			LightShadowData, View, SkyRC.bShouldSampleOpaqueShadow, UniformBuffer_SingleDraw);
 
 		if (LightShadowData.LightVolumetricShadowSceneinfo0)

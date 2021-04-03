@@ -1317,14 +1317,14 @@ public:
 
 
 BEGIN_SHADER_PARAMETER_STRUCT(FOnePassPointShadowProjection, )
-	SHADER_PARAMETER_TEXTURE(TextureCube, ShadowDepthCubeTexture)
-	SHADER_PARAMETER_TEXTURE(TextureCube, ShadowDepthCubeTexture2)
+	SHADER_PARAMETER_RDG_TEXTURE(TextureCube, ShadowDepthCubeTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(TextureCube, ShadowDepthCubeTexture2)
 	SHADER_PARAMETER_SAMPLER(SamplerComparisonState, ShadowDepthCubeTextureSampler)
 	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewProjectionMatrices, [6])
 	SHADER_PARAMETER(float, InvShadowmapResolution)
 END_SHADER_PARAMETER_STRUCT()
 
-extern void GetOnePassPointShadowProjectionParameters(const FProjectedShadowInfo* ShadowInfo, FOnePassPointShadowProjection& OutParameters);
+extern void GetOnePassPointShadowProjectionParameters(FRDGBuilder& GraphBuilder, const FProjectedShadowInfo* ShadowInfo, FOnePassPointShadowProjection& OutParameters);
 
 
 /** One pass point light shadow projection parameters used by multiple shaders. */

@@ -237,16 +237,14 @@ uint32 GetShadowQuality()
 	return FMath::Clamp(Ret, 0, 5);
 }
 
-void GetOnePassPointShadowProjectionParameters(const FProjectedShadowInfo* ShadowInfo, FOnePassPointShadowProjection& OutParameters)
+void GetOnePassPointShadowProjectionParameters(FRDGBuilder& GraphBuilder, const FProjectedShadowInfo* ShadowInfo, FOnePassPointShadowProjection& OutParameters)
 {
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
 	//@todo DynamicGI: remove duplication with FOnePassPointShadowProjectionShaderParameters
-	FRHITexture* ShadowDepthTextureValue = ShadowInfo
-		? ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture->GetTextureCube()
-		: GBlackTextureDepthCube->TextureRHI.GetReference();
-	if (!ShadowDepthTextureValue)
-	{
-		ShadowDepthTextureValue = GBlackTextureDepthCube->TextureRHI.GetReference();
-	}
+	FRDGTexture* ShadowDepthTextureValue = ShadowInfo
+		? GraphBuilder.RegisterExternalTexture(ShadowInfo->RenderTargets.DepthTarget)
+		: GBlackTextureDepthCube->GetRDG(GraphBuilder);
 
 	OutParameters.ShadowDepthCubeTexture = ShadowDepthTextureValue;
 	OutParameters.ShadowDepthCubeTexture2 = ShadowDepthTextureValue;

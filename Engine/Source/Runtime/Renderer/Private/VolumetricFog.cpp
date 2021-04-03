@@ -352,6 +352,7 @@ private:
 IMPLEMENT_GLOBAL_SHADER(TInjectShadowedLocalLightPS, "/Engine/Private/VolumetricFog.usf", "InjectShadowedLocalLightPS", SF_Pixel);
 
 void GetVolumeShadowingShaderParameters(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	const FLightSceneInfo* LightSceneInfo, 
 	const FProjectedShadowInfo* ShadowMap, 
@@ -413,24 +414,23 @@ void GetVolumeShadowingShaderParameters(
 	{
 		OutParameters.DepthBiasParameters = FVector4(ShadowMap->GetShaderDepthBias(), ShadowMap->GetShaderSlopeDepthBias(), ShadowMap->GetShaderMaxSlopeDepthBias(), 1.0f / (ShadowMap->MaxSubjectZ - ShadowMap->MinSubjectZ));
 
-		FRHITexture* ShadowDepthTextureResource = nullptr;
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
+		FRDGTexture* ShadowDepthTextureResource = nullptr;
 		if (LightType == LightType_Point || LightType == LightType_Rect)
 		{
-			if (GBlackTexture && GBlackTexture->TextureRHI)
-			{
-				ShadowDepthTextureResource = GBlackTexture->TextureRHI->GetTexture2D();
-			}
+			ShadowDepthTextureResource = SystemTextures.Black;
 		}
 		else
 		{
-			ShadowDepthTextureResource = ShadowMap->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference();
+			ShadowDepthTextureResource = GraphBuilder.RegisterExternalTexture(ShadowMap->RenderTargets.DepthTarget);
 		}
 
 		OutParameters.ShadowDepthTexture = ShadowDepthTextureResource;
 		OutParameters.ShadowDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 
-	GetOnePassPointShadowProjectionParameters(bDynamicallyShadowed && (LightType == LightType_Point || LightType == LightType_Rect) ? ShadowMap : NULL, OutParameters.OnePassPointShadowProjection);
+	GetOnePassPointShadowProjectionParameters(GraphBuilder, bDynamicallyShadowed && (LightType == LightType_Point || LightType == LightType_Rect) ? ShadowMap : NULL, OutParameters.OnePassPointShadowProjection);
 
 	const FStaticShadowDepthMap* StaticShadowDepthMap = LightSceneInfo->Proxy->GetStaticShadowDepthMap();
 	const uint32 bStaticallyShadowedValue = LightSceneInfo->IsPrecomputedLightingValid() && StaticShadowDepthMap && StaticShadowDepthMap->Data && StaticShadowDepthMap->TextureRHI ? 1 : 0;

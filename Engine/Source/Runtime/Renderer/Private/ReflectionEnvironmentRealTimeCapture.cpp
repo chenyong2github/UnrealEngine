@@ -386,7 +386,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				{
 					SkyAtmosphereLightShadowData LightShadowData;
 					SkyRC.bShouldSampleOpaqueShadow = ShouldSkySampleAtmosphereLightsOpaqueShadow(*Scene, SceneRenderer.VisibleLightInfos, LightShadowData);
-					GetSkyAtmosphereLightsUniformBuffers(SkyRC.LightShadowShaderParams0UniformBuffer, SkyRC.LightShadowShaderParams1UniformBuffer,
+					GetSkyAtmosphereLightsUniformBuffers(GraphBuilder, SkyRC.LightShadowShaderParams0UniformBuffer, SkyRC.LightShadowShaderParams1UniformBuffer,
 						LightShadowData, CubeView, SkyRC.bShouldSampleOpaqueShadow, UniformBuffer_SingleDraw);
 				}
 
@@ -433,16 +433,16 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						// Get the main view shadow info for the cloud shadows in reflection.
 						if (!CloudRC.bSkipAtmosphericLightShadowmap && AtmosphericLight0 && ProjectedShadowInfo0)
 						{
-							SetVolumeShadowingShaderParameters(CloudRC.LightShadowShaderParams0, MainView, AtmosphericLight0Info, ProjectedShadowInfo0, INDEX_NONE);
+							SetVolumeShadowingShaderParameters(GraphBuilder, CloudRC.LightShadowShaderParams0, MainView, AtmosphericLight0Info, ProjectedShadowInfo0, INDEX_NONE);
 						}
 						else
 						{
-							SetVolumeShadowingDefaultShaderParameters(CloudRC.LightShadowShaderParams0);
+							SetVolumeShadowingDefaultShaderParameters(GraphBuilder, CloudRC.LightShadowShaderParams0);
 						}
 					}
 					else
 					{
-						SetVolumeShadowingDefaultShaderParameters(CloudRC.LightShadowShaderParams0);
+						SetVolumeShadowingDefaultShaderParameters(GraphBuilder, CloudRC.LightShadowShaderParams0);
 					}
 				}
 				else

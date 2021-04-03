@@ -1552,7 +1552,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 					FVector ViewOrigin = ViewInfo.ViewMatrices.GetViewOrigin();
 
 					FVolumeShadowingShaderParametersGlobal0 LightShadowShaderParams0;
-					SetVolumeShadowingDefaultShaderParameters(LightShadowShaderParams0);
+					SetVolumeShadowingDefaultShaderParameters(GraphBuilder, LightShadowShaderParams0);
 
 					FRenderVolumetricCloudGlobalParameters& VolumetricCloudParams = *GraphBuilder.AllocParameters<FRenderVolumetricCloudGlobalParameters>();
 					VolumetricCloudParams.Light0Shadow = LightShadowShaderParams0;
@@ -2205,12 +2205,12 @@ bool FSceneRenderer::RenderVolumetricCloud(
 				}
 				if (!CloudRC.bSkipAtmosphericLightShadowmap && AtmosphericLight0 && ProjectedShadowInfo0)
 				{
-					SetVolumeShadowingShaderParameters(CloudRC.LightShadowShaderParams0, ViewInfo, AtmosphericLight0Info, ProjectedShadowInfo0, INDEX_NONE);
+					SetVolumeShadowingShaderParameters(GraphBuilder, CloudRC.LightShadowShaderParams0, ViewInfo, AtmosphericLight0Info, ProjectedShadowInfo0, INDEX_NONE);
 					CloudRC.VirtualShadowMapId0 = VisibleLightInfos[AtmosphericLight0Info->Id].GetVirtualShadowMapId(&ViewInfo);
 				}
 				else
 				{
-					SetVolumeShadowingDefaultShaderParameters(CloudRC.LightShadowShaderParams0);
+					SetVolumeShadowingDefaultShaderParameters(GraphBuilder, CloudRC.LightShadowShaderParams0);
 					CloudRC.VirtualShadowMapId0 = INDEX_NONE;
 				}
 				// Cannot nest a global buffer into another one and we are limited to only one PassUniformBuffer on PassDrawRenderState.
@@ -2274,7 +2274,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 						SkyRC.SkyAtmosphereCameraAerialPerspectiveVolume = GSystemTextures.GetVolumetricBlackDummy(GraphBuilder);
 					}
 
-					GetSkyAtmosphereLightsUniformBuffers(SkyRC.LightShadowShaderParams0UniformBuffer, SkyRC.LightShadowShaderParams1UniformBuffer,
+					GetSkyAtmosphereLightsUniformBuffers(GraphBuilder, SkyRC.LightShadowShaderParams0UniformBuffer, SkyRC.LightShadowShaderParams1UniformBuffer,
 						LightShadowData, ViewInfo, SkyRC.bShouldSampleOpaqueShadow, UniformBuffer_SingleDraw);
 
 					SkyRC.bShouldSampleCloudShadow = CloudShadowAOData.bShouldSampleCloudShadow;

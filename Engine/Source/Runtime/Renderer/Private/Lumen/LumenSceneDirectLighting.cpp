@@ -515,6 +515,7 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 
 		GetVolumeShadowingShaderParameters(
+			GraphBuilder,
 			View,
 			LightSceneInfo,
 			ShadowSetup.DenseShadowMap,

@@ -101,8 +101,8 @@ struct FSkyAtmosphereRenderContext
 	float NearClippingDistance;
 	ERHIFeatureLevel::Type FeatureLevel;
 
-	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal0> LightShadowShaderParams0UniformBuffer;
-	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal1> LightShadowShaderParams1UniformBuffer;
+	TRDGUniformBufferRef<FVolumeShadowingShaderParametersGlobal0> LightShadowShaderParams0UniformBuffer{};
+	TRDGUniformBufferRef<FVolumeShadowingShaderParametersGlobal1> LightShadowShaderParams1UniformBuffer{};
 
 	int VirtualShadowMapId0 = INDEX_NONE;
 	int VirtualShadowMapId1 = INDEX_NONE;
@@ -185,8 +185,9 @@ struct SkyAtmosphereLightShadowData
 };
 bool ShouldSkySampleAtmosphereLightsOpaqueShadow(const FScene& Scene, const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos, SkyAtmosphereLightShadowData& LightShadowData);
 void GetSkyAtmosphereLightsUniformBuffers(
-	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal0>& OutLightShadowShaderParams0UniformBuffer,
-	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal1>& OutLightShadowShaderParams1UniformBuffer,
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FVolumeShadowingShaderParametersGlobal0>& OutLightShadowShaderParams0UniformBuffer,
+	TRDGUniformBufferRef<FVolumeShadowingShaderParametersGlobal1>& OutLightShadowShaderParams1UniformBuffer,
 	const SkyAtmosphereLightShadowData& LightShadowData,
 	const FViewInfo& ViewInfo,
 	const bool bShouldSampleOpaqueShadow,

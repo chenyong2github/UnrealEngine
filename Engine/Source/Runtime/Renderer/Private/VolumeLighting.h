@@ -19,7 +19,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParameters, )
 	SHADER_PARAMETER(FVector4, DepthBiasParameters)
 	SHADER_PARAMETER(FVector4, ShadowInjectParams)
 	SHADER_PARAMETER_ARRAY(FVector4, ClippingPlanes, [2])
-	SHADER_PARAMETER_TEXTURE(Texture2D, ShadowDepthTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ShadowDepthTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ShadowDepthTextureSampler)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FOnePassPointShadowProjection, OnePassPointShadowProjection)
 	SHADER_PARAMETER(uint32, bStaticallyShadowed)
@@ -30,6 +30,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 extern void GetVolumeShadowingShaderParameters(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
 	const FProjectedShadowInfo* ShadowMap,
@@ -60,20 +61,22 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 class FVisibleLightInfo;
 
 void SetVolumeShadowingShaderParameters(
+	FRDGBuilder& GraphBuilder,
 	FVolumeShadowingShaderParametersGlobal0& ShaderParams,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
 	const FProjectedShadowInfo* ShadowInfo,
 	int32 InnerSplitIndex);
 void SetVolumeShadowingShaderParameters(
+	FRDGBuilder& GraphBuilder,
 	FVolumeShadowingShaderParametersGlobal1& ShaderParams,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
 	const FProjectedShadowInfo* ShadowInfo,
 	int32 InnerSplitIndex);
 
-void SetVolumeShadowingDefaultShaderParameters(FVolumeShadowingShaderParametersGlobal0& ShaderParams);
-void SetVolumeShadowingDefaultShaderParameters(FVolumeShadowingShaderParametersGlobal1& ShaderParams);
+void SetVolumeShadowingDefaultShaderParameters(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParametersGlobal0& ShaderParams);
+void SetVolumeShadowingDefaultShaderParameters(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParametersGlobal1& ShaderParams);
 
 /**
  * Fetch the first allocated whole scene shadow map for a given light.
