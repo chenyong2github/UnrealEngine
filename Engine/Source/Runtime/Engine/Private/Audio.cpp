@@ -351,11 +351,6 @@ bool FSoundSource::SetReverbApplied(bool bHardwareAvailable)
 	return(bReverbApplied);
 }
 
-float FSoundSource::SetStereoBleed()
-{
-	return 0.f;
-}
-
 float FSoundSource::SetLFEBleed()
 {
 	LFEBleed = WaveInstance->LFEBleed;
