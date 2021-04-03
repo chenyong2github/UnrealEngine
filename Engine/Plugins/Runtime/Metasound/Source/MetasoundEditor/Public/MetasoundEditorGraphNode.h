@@ -54,7 +54,6 @@ public:
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual FText GetTooltipText() const override;
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
-	virtual void PrepareForCopying() override;
 	virtual void ReconstructNode() override;
 	// End of UEdGraphNode interface
 

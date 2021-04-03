@@ -232,10 +232,6 @@ void UMetasoundEditorGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 	}
 }
 
-void UMetasoundEditorGraphNode::PrepareForCopying()
-{
-}
-
 void UMetasoundEditorGraphNode::PostEditImport()
 {
 }

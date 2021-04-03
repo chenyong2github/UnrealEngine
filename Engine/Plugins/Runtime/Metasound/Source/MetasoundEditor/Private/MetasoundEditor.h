@@ -103,7 +103,12 @@ namespace Metasound
 			/** Whether pasting the currently selected nodes is permissible */
 			bool CanPasteNodes();
 
-			void PasteNodes(const FVector2D* Location = nullptr);
+			/* Duplicates the selected node(s) in the graph */
+			void DuplicateNodes();
+
+			/* Pastes node(s) from the clipboard to the graph */
+			void PasteNodes(const FVector2D* InLocation = nullptr);
+			void PasteNodes(const FVector2D* InLocation, const FText& InTransactionText);
 
 			int32 GetNumNodesSelected() const
 			{
@@ -155,13 +160,19 @@ namespace Metasound
 			/** Cut the currently selected nodes */
 			void CutSelectedNodes();
 
-			/** Copy the currently selected nodes */
-			void CopySelectedNodes();
+			/** Copy the currently selected nodes to the given string */
+			void CopySelectedNodes(FString& OutString) const;
 
-			/** Whether copying the currently selected nodes is permissible */
+			/** Copy the currently selected nodes */
+			void CopySelectedNodes() const;
+
+			/** Whether copying the currently selected node(s) is permissible */
 			bool CanCopyNodes() const;
 
-			/** Whether the currently selected nodes can be deleted */
+			/** Whether or not the currently selected node(s) can be duplicated */
+			bool CanDuplicateNodes() const;
+
+			/** Whether the currently selected node(s) can be deleted */
 			bool CanDeleteNodes() const;
 
 			/** Called to undo the last action */
@@ -287,8 +298,8 @@ namespace Metasound
 			/** Whether or not metasound being edited is valid */
 			bool bPassedValidation = true;
 
-			/** Clipboard content used when pasting from clipboard to avoid deserializing twice */
-			FString ClipboardContent;
+			/** Text content used when either duplicating or pasting from clipboard (avoids deserializing twice) */
+			FString NodeTextToPaste;
 
 			/** Boolean state for when selection change handle should not respond due to selection state
 			  * being manually applied in code */
