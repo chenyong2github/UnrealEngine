@@ -750,7 +750,7 @@ static uint64 NextTaskId = 1;
 static TMap<uint64, FGraphEventRef> TaskIdMap;
 static uint8 PadToCacheLine2[64];
 
-static uint64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobData, uint64* Dependencies, int NumDependencies, void* UserPtr)
+static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobData, OO_U64* Dependencies, int NumDependencies, void* UserPtr)
 {
 	FGraphEventArray Prerequisites;
 	if ( NumDependencies > 0 )
@@ -783,7 +783,7 @@ static uint64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 	return Id;
 }
 
-static void OODLE_CALLBACK TFO_WaitJob(uint64 JobHandle, void* UserPtr)
+static void OODLE_CALLBACK TFO_WaitJob(OO_U64 JobHandle, void* UserPtr)
 {
 	TaskIdMapLock.Lock();
 	FGraphEventRef Task = TaskIdMap[JobHandle];
@@ -819,7 +819,7 @@ static void OODLE_CALLBACK TFO_OodleLog(int verboseLevel, const char* file, int 
 }
 
 
-static void* OODLE_CALLBACK TFO_OodleMallocAligned(SSIZE_T Bytes, int32 Alignment)
+static void* OODLE_CALLBACK TFO_OodleMallocAligned(OO_SINTa Bytes, OO_S32 Alignment)
 {
 	void * Ret = FMemory::Malloc(Bytes, Alignment);
 	check( Ret != nullptr );
