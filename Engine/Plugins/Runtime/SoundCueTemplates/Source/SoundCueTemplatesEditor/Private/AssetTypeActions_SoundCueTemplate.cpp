@@ -59,6 +59,23 @@ void FAssetTypeActions_SoundCueTemplate::ExecuteCopyToSoundCue(TArray<TWeakObjec
 	}
 }
 
+const TArray<FText>& FAssetTypeActions_SoundCueTemplate::GetSubMenus() const
+{
+	if (FModuleManager::Get().IsModuleLoaded(TEXT("MetasoundEditor")))
+	{
+		static const TArray<FText> AssetTypeActionSubMenu
+		{
+			LOCTEXT("AssetSoudnCueSubMenu", "Legacy")
+		};
+		return AssetTypeActionSubMenu;
+	}
+	else
+	{
+		static const TArray<FText> AssetTypeActionSubMenu;
+		return AssetTypeActionSubMenu;
+	}
+}
+
 void FAssetActionExtender_SoundCueTemplate::RegisterMenus()
 {
 	if (!UToolMenus::IsToolMenuUIEnabled())
@@ -116,4 +133,8 @@ void FAssetActionExtender_SoundCueTemplate::ExecuteCreateSoundCueTemplate(const 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackagePath), USoundCueTemplate::StaticClass(), Factory);
 }
+
+
+
+
 #undef LOCTEXT_NAMESPACE

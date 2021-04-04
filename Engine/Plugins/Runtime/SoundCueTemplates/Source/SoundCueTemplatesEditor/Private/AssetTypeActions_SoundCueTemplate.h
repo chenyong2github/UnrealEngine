@@ -17,6 +17,7 @@ public:
 	virtual UClass* GetSupportedClass() const override;
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 	virtual bool CanFilter() override { return true; }
+	virtual const TArray<FText>& GetSubMenus() const override;
 
 protected:
 	/** Converts the provided SoundCue Template to a fully-modifiable SoundCue */

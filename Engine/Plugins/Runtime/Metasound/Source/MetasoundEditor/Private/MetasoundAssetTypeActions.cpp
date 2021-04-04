@@ -13,19 +13,9 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		static const TArray<FText> AssetTypeActionSubMenu
-		{
-			LOCTEXT("AssetMetaSoundSubMenu", "MetaSound")
-		};
-
 		UClass* FAssetTypeActions_Metasound::GetSupportedClass() const
 		{
 			return UMetaSound::StaticClass();
-		}
-
-		const TArray<FText>& FAssetTypeActions_Metasound::GetSubMenus() const
-		{
-			return AssetTypeActionSubMenu;
 		}
 
 		void FAssetTypeActions_Metasound::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost)
@@ -59,11 +49,6 @@ namespace Metasound
 					NewEditor->InitMetasoundEditor(Mode, ToolkitHost, Metasound);
 				}
 			}
-		}
-
-		const TArray<FText>& FAssetTypeActions_MetasoundSource::GetSubMenus() const
-		{
-			return AssetTypeActionSubMenu;
 		}
 	} // namespace Editor
 } // namespace Metasound

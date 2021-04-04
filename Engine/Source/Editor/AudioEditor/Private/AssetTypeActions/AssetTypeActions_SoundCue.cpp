@@ -121,4 +121,21 @@ void FAssetTypeActions_SoundCue::ExecuteConsolidateAttenuation(TArray<TWeakObjec
 	}
 }
 
+const TArray<FText>& FAssetTypeActions_SoundCue::GetSubMenus() const
+{
+	if (FModuleManager::Get().IsModuleLoaded(TEXT("MetasoundEditor")))
+	{
+		static const TArray<FText> AssetTypeActionSubMenu
+		{
+			LOCTEXT("AssetSoudnCueSubMenu", "Legacy")
+		};
+		return AssetTypeActionSubMenu;
+	}
+	else
+	{
+		static const TArray<FText> AssetTypeActionSubMenu;
+		return AssetTypeActionSubMenu;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
