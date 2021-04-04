@@ -93,7 +93,12 @@ public class OodleDataPlugin : ModuleRules
         {
 			ReleaseLib = "liboo2coreios.a";
 			DebugLib = "liboo2coreios_dbg.a";
-        }
+		}
+		else if (Target.Platform == UnrealTargetPlatform.TVOS)
+		{
+			ReleaseLib = "liboo2coretvos.a";
+			DebugLib = "liboo2coretvos_dbg.a";
+		}
 		else
 		{
 			// the subclass will return the library names
