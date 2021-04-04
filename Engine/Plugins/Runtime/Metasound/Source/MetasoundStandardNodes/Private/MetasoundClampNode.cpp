@@ -35,7 +35,7 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{LOCTEXT("ClampCategory", "Utils")},
+				{LOCTEXT("ClampCategory", "Math")},
 				{TEXT("Clamp")},
 				FNodeDisplayStyle{}
 			};

@@ -35,7 +35,7 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{LOCTEXT("MaxCategory", "Utils")},
+				{LOCTEXT("MaxCategory", "Math")},
 				{TEXT("Max")},
 				FNodeDisplayStyle{}
 			};
