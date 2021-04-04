@@ -206,7 +206,7 @@ float4 LightFunctionAtlasTileMinMaxUvBound;
 Texture2D LightFunctionAtlasTexture;
 SamplerState LightFunctionAtlasSampler;
 
-float2 GetLocalLightFunction(float3 WorldPosition, bool IsPointLight)
+float GetLocalLightFunction(float3 WorldPosition, bool IsPointLight)
 {
 	float2 LightFunctionUV;
 	if (IsPointLight)
