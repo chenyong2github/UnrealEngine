@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#ifdef _WIN64
+#if PLATFORM_WINDOWS
 
 #include "UELibrary.h"
 
@@ -156,4 +156,4 @@ int UELibrary_Shutdown()
 	return 0;
 }
 
-#endif // #ifdef WIN64
+#endif // #if PLATFORM_WINDOWS
