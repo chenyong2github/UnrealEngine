@@ -12,7 +12,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundParamHelper.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_Conversion"
 
 namespace Metasound
 {
@@ -281,4 +281,4 @@ namespace Metasound
 	METASOUND_REGISTER_NODE(FConversionAudioToFloat)
 }
 
-
+#undef LOCTEXT_NAMESPACE
