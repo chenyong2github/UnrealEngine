@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Traits/MemberFunctionPtrOuter.h"
+#include "Templates/UnrealTemplate.h" // For Forward<>()
 #include <type_traits>
 
 
