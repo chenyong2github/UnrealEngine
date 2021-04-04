@@ -20,7 +20,10 @@
       "Type": "RuntimeAndProgram",
       "LoadingPhase": "EarliestPossible",
       "WhitelistPrograms": [ "UnrealPak" ],
-	  "BlacklistPlatforms":  [ "HoloLens" ]
+	  "BlacklistPlatforms": [ 
+		"HoloLens", 
+		"Lumin" 
+      ]
     }
   ]
 }
