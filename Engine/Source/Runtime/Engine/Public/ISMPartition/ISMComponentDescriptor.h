@@ -162,5 +162,8 @@ public:
 
 	UPROPERTY()
 	uint8 bVisible : 1;
+
+	UPROPERTY()
+	uint8 bConsiderForActorPlacementWhenHidden : 1;
 #endif
 };
