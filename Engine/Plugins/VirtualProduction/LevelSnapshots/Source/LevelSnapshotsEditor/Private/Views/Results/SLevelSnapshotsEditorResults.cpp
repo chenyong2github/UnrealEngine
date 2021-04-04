@@ -1306,7 +1306,7 @@ TSet<UActorComponent*> SLevelSnapshotsEditorResults::GetAllAttachedComponents(co
 {
 	TSet<UActorComponent*> AllActorComponents = InActor->GetComponents(); // Native components
 
-	for (UActorComponent* const& Component : InActor->GetInstanceComponents()) // Components per-instance
+	for (UActorComponent* Component : InActor->GetInstanceComponents()) // Components per-instance
 	{
 		if (Component != nullptr)
 		{
@@ -1314,7 +1314,7 @@ TSet<UActorComponent*> SLevelSnapshotsEditorResults::GetAllAttachedComponents(co
 		}
 	}
 
-	for (UActorComponent* const& Component : InActor->BlueprintCreatedComponents) // Components defined in blueprint
+	for (UActorComponent* Component : InActor->BlueprintCreatedComponents) // Components defined in blueprint
 	{
 		if (Component != nullptr)
 		{
@@ -1322,7 +1322,7 @@ TSet<UActorComponent*> SLevelSnapshotsEditorResults::GetAllAttachedComponents(co
 		}
 	}
 
-	for (UActorComponent* const& Component : InActor->GetReplicatedComponents()) // Replicated Components
+	for (UActorComponent* Component : InActor->GetReplicatedComponents()) // Replicated Components
 	{
 		if (Component != nullptr)
 		{
