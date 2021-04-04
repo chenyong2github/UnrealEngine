@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "CoreMinimal.h"
 
 struct FDerivedDistortionDataJobOutput;
 struct FDerivedDistortionDataJobArgs;

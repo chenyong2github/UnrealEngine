@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Math/Vector2D.h"
 
 class UTextureRenderTarget2D;
 

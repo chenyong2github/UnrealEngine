@@ -3,12 +3,14 @@
 #pragma once
 
 #include "ICalibratedMapProcessor.h"
+#include "Containers/Queue.h"
 #include "Templates/PimplPtr.h"
-
+#include "UObject/WeakObjectPtr.h"
 
 class UTexture;
 struct FDerivedDistortionData;
 class FRHIGPUBufferReadback;
+class UTextureRenderTarget2D;
 
 /** 
  * Result of processing derived data 

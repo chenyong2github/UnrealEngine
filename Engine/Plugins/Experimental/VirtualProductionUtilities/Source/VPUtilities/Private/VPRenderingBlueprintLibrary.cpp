@@ -11,6 +11,7 @@
 #include "IAssetViewport.h"
 #include "ILevelEditor.h"
 #include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
 #endif // WITH_EDITOR
 
 

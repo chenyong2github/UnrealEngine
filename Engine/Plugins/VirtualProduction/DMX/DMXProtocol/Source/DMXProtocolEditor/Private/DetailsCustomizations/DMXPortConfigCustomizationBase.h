@@ -3,10 +3,9 @@
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
-
 #include "DMXProtocolCommon.h"
-
 #include "CoreMinimal.h"
+#include "Layout/Visibility.h"
 
 enum class EDMXCommunicationType : uint8;
 class SDMXCommunicationTypeComboBox;
