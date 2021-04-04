@@ -830,7 +830,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 	// We don't convert this to a full filename because sometimes this function is used to resolve just filenames without directories, and we can't tell if the
 	// caller wants a full filepath or just a filename.
 	FStringFormatNamedArguments NamedArgs;
-	for (const TPair<FString, FString> Argument : OutMergedFormatArgs.FilenameArguments)
+	for (const TPair<FString, FString>& Argument : OutMergedFormatArgs.FilenameArguments)
 	{
 		NamedArgs.Add(Argument.Key, Argument.Value);
 	}
