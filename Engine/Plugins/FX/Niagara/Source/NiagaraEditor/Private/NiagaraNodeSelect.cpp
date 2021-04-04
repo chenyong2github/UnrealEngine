@@ -253,8 +253,8 @@ void UNiagaraNodeSelect::PostLoad()
 {
 	Super::PostLoad();
 	
-	// assume the enum changed just to make sure
-	if (SelectorPinType.IsEnum() && SelectorPinType.GetEnum())
+	// we assume something changed externally if the input pins are outdated; i.e. the assigned enum changed or value order changed
+	if (AreInputPinsOutdated())
 	{
 		RefreshFromExternalChanges();
 	}
@@ -320,7 +320,6 @@ void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int3
 	{
 		OptionValues.Add(SelectorValues[Index]);
 	}
-
 
 	for (int32 SelectorValueIndex = 0; SelectorValueIndex < NumOptionsPerVariable; SelectorValueIndex++)
 	{
@@ -657,7 +656,7 @@ TArray<int32> UNiagaraNodeSelect::GetOptionValues() const
 
 	if(SelectorPinType == FNiagaraTypeDefinition::GetBoolDef())
 	{
-		SelectorValues = { 0, 1 };
+		SelectorValues = { 1, 0 };
 	}
 	else if(SelectorPinType == FNiagaraTypeDefinition::GetIntDef())
 	{

@@ -71,8 +71,7 @@ bool UNiagaraNodeUsageSelector::ShouldHideEnumEntry(UEnum* Enum, int32 Index) co
 TArray<int32> UNiagaraNodeUsageSelector::GetOptionValues() const
 {
 	TArray<int32> OptionValues;
-
-	for(int32 Value = 0; Value < NumOptionsPerVariable; Value++)
+	for(int32 Value = 0; Value < (int32) ENiagaraScriptGroup::Max; Value++)
 	{
 		OptionValues.Add(Value);
 	}
@@ -132,6 +131,62 @@ FName UNiagaraNodeUsageSelector::GetOptionPinName(const FNiagaraVariable& Variab
 	return FName(Variable.GetName().ToString() + FString::Printf(TEXT(" if %s"), *GetInputCaseName(Value)));
 }
 
+bool UNiagaraNodeUsageSelector::AreInputPinsOutdated() const
+{
+	TArray<UEdGraphPin*> InputPins;
+	GetInputPins(InputPins);
+
+	InputPins.RemoveAll([](UEdGraphPin* Pin)
+	{
+		return Pin->bOrphanedPin == true || Pin->PersistentGuid.IsValid();
+	});
+
+	// this gets the new option values so we can retrieve the new pin names
+	TArray<int32> OptionValues = GetOptionValues();
+
+	// collect the new pin names
+	TArray<FName> NewPinNames;
+	for(int32 OptionIndex = 0; OptionIndex < OptionValues.Num(); OptionIndex++)
+	{
+		for(const FNiagaraVariable& Variable : OutputVars)
+		{
+			FName UpdatedPinName = GetOptionPinName(Variable, OptionValues[OptionIndex]);
+			NewPinNames.Add(UpdatedPinName);		
+		}
+	}
+
+	// this checks the current, possibly outdated, state for consistency. Should never be unequal but we are making sure.
+	if (InputPins.Num() != NumOptionsPerVariable * OutputVars.Num())
+	{
+		return true;
+	}
+
+	// this checks the new, up to date pin count against the old pin count
+	if(NewPinNames.Num() != InputPins.Num())
+	{
+		return true;
+	}
+	else
+	{
+		bool bAnyPinNameChangeDetected = false;
+		for(int32 Index = 0; Index < NewPinNames.Num(); Index++)
+		{
+			if(!NewPinNames[Index].ToString().Equals(InputPins[Index]->PinName.ToString()))
+			{
+				bAnyPinNameChangeDetected = true;
+				break;
+			}
+		}
+
+		if (bAnyPinNameChangeDetected)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void UNiagaraNodeUsageSelector::AllocateDefaultPins()
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
@@ -172,8 +227,26 @@ void UNiagaraNodeUsageSelector::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> In
 		return;
 	}
 
-	TArray<int32> OptionValues = GetOptionValues();
+	TArray<FString> Cases;
+
+	TArray<UEdGraphPin*> InputPins;
+	GetInputPins(InputPins);
+
+	InputPins.RemoveAll([](UEdGraphPin* Pin)
+	{
+		return Pin->bOrphanedPin == true;
+	});
+	
+	for (int32 Idx = 0; Idx < OutputVars.Num() * NumOptionsPerVariable; Idx += OutputVars.Num())
+	{
+		TArray<FString> PinNameParts;
+		InputPins[Idx]->PinName.ToString().ParseIntoArray(PinNameParts, TEXT(" "), true);
+
+		Cases.Add(PinNameParts.Last());
+	}
+	
 	int32 Offset = 0;
+	int32 NaturalIndex = 0;
 	// insert separators to make the grouping apparent.
 	for (int32 Idx = 0; Idx < OutputVars.Num() * NumOptionsPerVariable; Idx += OutputVars.Num())
 	{
@@ -190,7 +263,7 @@ void UNiagaraNodeUsageSelector::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> In
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(TEXT("If ") + GetInputCaseName(OptionValues[OptionValueIndex])))
+				.Text(FText::FromString(TEXT("If ") + Cases[NaturalIndex++]))
 			]
 		];
 		Offset++;

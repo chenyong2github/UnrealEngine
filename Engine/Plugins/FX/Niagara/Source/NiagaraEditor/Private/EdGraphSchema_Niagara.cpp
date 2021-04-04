@@ -904,7 +904,7 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, UtilMenuCat, UsageSelectorMenuDesc, TEXT("Static Switch"), FText::GetEmpty());
 		UNiagaraNodeStaticSwitch* Node = NewObject<UNiagaraNodeStaticSwitch>(OwnerOfTemporaries);
 		// new nodes should auto refresh
-		Node->SwitchTypeData.bAutoRefreshForEnums = true;
+		Node->SwitchTypeData.bAutoRefreshEnabled = true;
 		Action->NodeTemplate = Node;
 	}
 

@@ -33,9 +33,9 @@ struct FStaticSwitchTypeData
 	UPROPERTY()
 	FName SwitchConstant;
 
-	/** If true, a node in enum mode will, if loaded, refresh as the enum changes, or if unloaded, refresh on post load */
+	/** If true, a node will auto refresh under certain circumstances, like in post load or if the assigned enum changes */
 	UPROPERTY()
-	bool bAutoRefreshForEnums = false;
+	bool bAutoRefreshEnabled = false;
 
 	FStaticSwitchTypeData() : SwitchType(ENiagaraStaticSwitchType::Bool), Enum(nullptr)
 	{ }

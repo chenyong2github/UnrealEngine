@@ -115,7 +115,7 @@ void UNiagaraNodeStaticSwitch::PreChange(const UUserDefinedEnum* Changed, FEnumE
 
 void UNiagaraNodeStaticSwitch::PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
 {
-	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && Changed == SwitchTypeData.Enum && (SwitchTypeData.bAutoRefreshForEnums == true || NiagaraStaticSwitchCVars::bEnabledAutoRefreshOldStaticSwitches))
+	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && Changed == SwitchTypeData.Enum && (SwitchTypeData.bAutoRefreshEnabled == true || NiagaraStaticSwitchCVars::bEnabledAutoRefreshOldStaticSwitches))
 	{
 		RefreshFromExternalChanges();
 	}
@@ -439,11 +439,11 @@ void UNiagaraNodeStaticSwitch::CheckForOutdatedEnum(FHlslNiagaraTranslator* Tran
 		{
 			if(NewPinNames.Num() == 0)
 			{
-				Translator->Message(FNiagaraCompileEventSeverity::Log, LOCTEXT("EmptyEnumEntries", "The assigned enum has 0 entries or there is no assigned enum."), this, nullptr);
+				Translator->Message(FNiagaraCompileEventSeverity::Log, LOCTEXT("EmptyEnumEntries", "A static switch either has no enum assigned or the enum has no entries. A node refresh is advised."), this, nullptr, FString(), true);
 			}
 			else
 			{
-				Translator->Message(FNiagaraCompileEventSeverity::Log, LOCTEXT("PinCountMismatch", "The input pins count does not match the valid enum entry count. Please refresh the node."), this, nullptr);
+				Translator->Message(FNiagaraCompileEventSeverity::Log, LOCTEXT("PinCountMismatch", "Static switch pins reflect outdated enum entries. While the static switch is fully functional, a node refresh is advised."), this, nullptr, FString(), true);
 			}
 		}
 		else
@@ -460,7 +460,7 @@ void UNiagaraNodeStaticSwitch::CheckForOutdatedEnum(FHlslNiagaraTranslator* Tran
 
 			if (bAnyPinNameChangeDetected)
 			{
-				Translator->Message(FNiagaraCompileEventSeverity::Log, LOCTEXT("EnumPinNameChangeDetected", "The node pins reflect outdated enum entries. Please refresh the node."), this, nullptr);
+				Translator->Message(FNiagaraCompileEventSeverity::Log, LOCTEXT("EnumPinNameChangeDetected", "Static switch pins reflect outdated enum entries. While the static switch is fully functional, a node refresh is advised."), this, nullptr, FString(), true);
 			}
 		}
 	}
@@ -574,10 +574,13 @@ void UNiagaraNodeStaticSwitch::PostLoad()
 		}
 	}
 
-	// assume the enum changed so we'll refresh to make sure
-	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum && (SwitchTypeData.bAutoRefreshForEnums == true || NiagaraStaticSwitchCVars::bEnabledAutoRefreshOldStaticSwitches))
+	if(SwitchTypeData.bAutoRefreshEnabled == true || NiagaraStaticSwitchCVars::bEnabledAutoRefreshOldStaticSwitches)
 	{
-		RefreshFromExternalChanges();
+		// we assume something changed externally if the input pins are outdated; i.e. the assigned enum changed or value order changed
+		if(AreInputPinsOutdated())
+		{
+			RefreshFromExternalChanges();
+		}
 	}
 }
 
