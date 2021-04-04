@@ -360,7 +360,7 @@ void FEXRImageWriteTask::AddFileMetadata(Imf::Header& InHeader)
 	if (OpenExrModule)
 	{
 		TMap<FString, FStringFormatArg> NewMap;
-		for (const TPair<FString, FString> Metadata : FileMetadata)
+		for (const TPair<FString, FString>& Metadata : FileMetadata)
 		{
 			NewMap.Add(Metadata.Key, Metadata.Value);
 		}
