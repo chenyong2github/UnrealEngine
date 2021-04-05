@@ -216,6 +216,16 @@ public:
 	/** End IModuleInterface implementation */
 
 	/**
+	* Iterate through all textures used by the material and return the maximum texture resolution used
+	*
+	* @param MaterialInterface	The material to scan for texture size
+	* @param MinimumSize		The minimum size returned
+	*
+	* @return Size (width and height)
+	*/
+	static FIntPoint FindMaxTextureSize(UMaterialInterface* InMaterialInterface, FIntPoint MinimumSize = FIntPoint(1, 1));
+
+	/**
 	 * Whether material utilities support exporting specified material blend mode and property 
 	 */
 	static bool SupportsExport(EBlendMode InBlendMode, EMaterialProperty InMaterialProperty);

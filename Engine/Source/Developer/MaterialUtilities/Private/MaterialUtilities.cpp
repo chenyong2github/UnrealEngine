@@ -695,65 +695,6 @@ public:
 		return Ar << V.MaterialInterface;
 	}
 
-	/**
-	* Iterate through all textures used by the material and return the maximum texture resolution used
-	* (ideally this could be made dependent of the material property)
-	*
-	* @param MaterialInterface The material to scan for texture size
-	*
-	* @return Size (width and height)
-	*/
-	FIntPoint FindMaxTextureSize(UMaterialInterface* InMaterialInterface, FIntPoint MinimumSize = FIntPoint(1, 1)) const
-	{
-		// static lod settings so that we only initialize them once
-		UTextureLODSettings* GameTextureLODSettings = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings();
-
-		TArray<UTexture*> MaterialTextures;
-
-		InMaterialInterface->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, false, GMaxRHIFeatureLevel, false);
-		FTextureCompilingManager::Get().FinishCompilation(MaterialTextures);
-
-		// find the largest texture in the list (applying it's LOD bias)
-		FIntPoint MaxSize = MinimumSize;
-		for (int32 TexIndex = 0; TexIndex < MaterialTextures.Num(); TexIndex++)
-		{
-			UTexture* Texture = MaterialTextures[TexIndex];
-
-			if (Texture == NULL)
-			{
-				continue;
-			}
-
-			// get the max size of the texture
-			FIntPoint LocalSize(0, 0);
-			if (Texture->IsA(UTexture2D::StaticClass()))
-			{
-				UTexture2D* Tex2D = (UTexture2D*)Texture;
-				LocalSize = FIntPoint(Tex2D->GetSizeX(), Tex2D->GetSizeY());
-			}
-			else if (Texture->IsA(UTextureCube::StaticClass()))
-			{
-				UTextureCube* TexCube = (UTextureCube*)Texture;
-				LocalSize = FIntPoint(TexCube->GetSizeX(), TexCube->GetSizeY());
-			}
-			else if (Texture->IsA(UTexture2DArray::StaticClass())) 
-			{
-				UTexture2DArray* TexArray = (UTexture2DArray*)Texture;
-				LocalSize = FIntPoint(TexArray->GetSizeX(), TexArray->GetSizeY());
-			}
-
-			int32 LocalBias = GameTextureLODSettings->CalculateLODBias(Texture);
-
-			// bias the texture size based on LOD group
-			FIntPoint BiasedLocalSize(LocalSize.X >> LocalBias, LocalSize.Y >> LocalBias);
-
-			MaxSize.X = FMath::Max(BiasedLocalSize.X, MaxSize.X);
-			MaxSize.Y = FMath::Max(BiasedLocalSize.Y, MaxSize.Y);
-		}
-
-		return MaxSize;
-	}
-
 	static bool WillFillData(EBlendMode InBlendMode, EMaterialProperty InMaterialProperty)
 	{
 		if (InMaterialProperty == MP_EmissiveColor)
@@ -865,7 +806,56 @@ static void RenderSceneToTexture(
 	RenderTargetTexture = nullptr;
 }
 
+FIntPoint FMaterialUtilities::FindMaxTextureSize(UMaterialInterface* InMaterialInterface, FIntPoint MinimumSize)
+{
+	// static lod settings so that we only initialize them once
+	UTextureLODSettings* GameTextureLODSettings = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings();
 
+	TArray<UTexture*> MaterialTextures;
+
+	InMaterialInterface->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, false, GMaxRHIFeatureLevel, false);
+	FTextureCompilingManager::Get().FinishCompilation(MaterialTextures);
+
+	// find the largest texture in the list (applying it's LOD bias)
+	FIntPoint MaxSize = MinimumSize;
+	for (int32 TexIndex = 0; TexIndex < MaterialTextures.Num(); TexIndex++)
+	{
+		UTexture* Texture = MaterialTextures[TexIndex];
+
+		if (Texture == NULL)
+		{
+			continue;
+		}
+
+		// get the max size of the texture
+		FIntPoint LocalSize(0, 0);
+		if (Texture->IsA(UTexture2D::StaticClass()))
+		{
+			UTexture2D* Tex2D = (UTexture2D*)Texture;
+			LocalSize = FIntPoint(Tex2D->GetSizeX(), Tex2D->GetSizeY());
+		}
+		else if (Texture->IsA(UTextureCube::StaticClass()))
+		{
+			UTextureCube* TexCube = (UTextureCube*)Texture;
+			LocalSize = FIntPoint(TexCube->GetSizeX(), TexCube->GetSizeY());
+		}
+		else if (Texture->IsA(UTexture2DArray::StaticClass()))
+		{
+			UTexture2DArray* TexArray = (UTexture2DArray*)Texture;
+			LocalSize = FIntPoint(TexArray->GetSizeX(), TexArray->GetSizeY());
+		}
+
+		int32 LocalBias = GameTextureLODSettings->CalculateLODBias(Texture);
+
+		// bias the texture size based on LOD group
+		FIntPoint BiasedLocalSize(LocalSize.X >> LocalBias, LocalSize.Y >> LocalBias);
+
+		MaxSize.X = FMath::Max(BiasedLocalSize.X, MaxSize.X);
+		MaxSize.Y = FMath::Max(BiasedLocalSize.Y, MaxSize.Y);
+	}
+
+	return MaxSize;
+}
 
 bool FMaterialUtilities::SupportsExport(EBlendMode InBlendMode, EMaterialProperty InMaterialProperty)
 {
@@ -874,18 +864,12 @@ bool FMaterialUtilities::SupportsExport(EBlendMode InBlendMode, EMaterialPropert
 
 bool FMaterialUtilities::ExportMaterialProperty(UWorld* InWorld, UMaterialInterface* InMaterial, EMaterialProperty InMaterialProperty, UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutBMP)
 {
-	TUniquePtr<FExportMaterialProxy> MaterialProxy(new FExportMaterialProxy(InMaterial, InMaterialProperty));
-	if (MaterialProxy == nullptr)
-	{
-		return false;
-	}
-
 	FBox2D DummyBounds(FVector2D(0, 0), FVector2D(1, 1));
 	TArray<FVector2D> EmptyTexCoords;
 	FMaterialMergeData MaterialData(InMaterial, nullptr, nullptr, 0, DummyBounds, EmptyTexCoords);
 	const bool bForceGamma = (InMaterialProperty == MP_Normal) || (InMaterialProperty == MP_OpacityMask) || (InMaterialProperty == MP_Opacity);	
 
-	FIntPoint MaxSize = MaterialProxy->FindMaxTextureSize(InMaterial);
+	FIntPoint MaxSize = FindMaxTextureSize(InMaterial);
 	FIntPoint OutSize = MaxSize;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RenderMaterialPropertyToTexture(MaterialData, InMaterialProperty, bForceGamma, PF_B8G8R8A8, MaxSize, OutSize, OutBMP);
@@ -894,17 +878,11 @@ bool FMaterialUtilities::ExportMaterialProperty(UWorld* InWorld, UMaterialInterf
 
 bool FMaterialUtilities::ExportMaterialProperty(UWorld* InWorld, UMaterialInterface* InMaterial, EMaterialProperty InMaterialProperty, FIntPoint& OutSize, TArray<FColor>& OutBMP)
 {
-	TUniquePtr<FExportMaterialProxy> MaterialProxy(new FExportMaterialProxy(InMaterial, InMaterialProperty));
-	if (MaterialProxy == nullptr)
-	{
-		return false;
-	}
-
 	FBox2D DummyBounds(FVector2D(0, 0), FVector2D(1, 1));
 	TArray<FVector2D> EmptyTexCoords;
 	FMaterialMergeData MaterialData(InMaterial, nullptr, nullptr, 0, DummyBounds, EmptyTexCoords);
 	const bool bForceGamma = (InMaterialProperty == MP_Normal) || (InMaterialProperty == MP_OpacityMask) || (InMaterialProperty == MP_Opacity);
-	OutSize = MaterialProxy->FindMaxTextureSize(InMaterial);
+	OutSize = FindMaxTextureSize(InMaterial);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RenderMaterialPropertyToTexture(MaterialData, InMaterialProperty, bForceGamma, PF_B8G8R8A8, OutSize, OutSize, OutBMP);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -912,17 +890,11 @@ bool FMaterialUtilities::ExportMaterialProperty(UWorld* InWorld, UMaterialInterf
 
 bool FMaterialUtilities::ExportMaterialProperty(UMaterialInterface* InMaterial, EMaterialProperty InMaterialProperty, TArray<FColor>& OutBMP, FIntPoint& OutSize)
 {
-	TUniquePtr<FExportMaterialProxy> MaterialProxy(new FExportMaterialProxy(InMaterial, InMaterialProperty));
-	if (MaterialProxy == nullptr)
-	{
-		return false;
-	}
-
 	FBox2D DummyBounds(FVector2D(0, 0), FVector2D(1, 1));
 	TArray<FVector2D> EmptyTexCoords;
 	FMaterialMergeData MaterialData(InMaterial, nullptr, nullptr, 0, DummyBounds, EmptyTexCoords);
 	const bool bForceGamma = (InMaterialProperty == MP_Normal) || (InMaterialProperty == MP_OpacityMask) || (InMaterialProperty == MP_Opacity);
-	OutSize = MaterialProxy->FindMaxTextureSize(InMaterial);
+	OutSize = FindMaxTextureSize(InMaterial);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RenderMaterialPropertyToTexture(MaterialData, InMaterialProperty, bForceGamma, PF_B8G8R8A8, OutSize, OutSize, OutBMP);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -930,12 +902,6 @@ bool FMaterialUtilities::ExportMaterialProperty(UMaterialInterface* InMaterial, 
 
 bool FMaterialUtilities::ExportMaterialProperty(UMaterialInterface* InMaterial, EMaterialProperty InMaterialProperty, FIntPoint InSize, TArray<FColor>& OutBMP)
 {
-	TUniquePtr<FExportMaterialProxy> MaterialProxy(new FExportMaterialProxy(InMaterial, InMaterialProperty));
-	if (MaterialProxy == nullptr)
-	{
-		return false;
-	}
-
 	FBox2D DummyBounds(FVector2D(0, 0), FVector2D(1, 1));
 	TArray<FVector2D> EmptyTexCoords;
 	FMaterialMergeData MaterialData(InMaterial, nullptr, nullptr, 0, DummyBounds, EmptyTexCoords);

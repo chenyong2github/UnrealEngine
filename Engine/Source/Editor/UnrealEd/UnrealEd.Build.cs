@@ -195,7 +195,8 @@ public class UnrealEd : ModuleRules
 				"EditorInteractiveToolsFramework",
 				"TraceLog",
 				"DeveloperSettings",
-				"AnimationModifiers"
+				"AnimationModifiers",
+				"MaterialBaking",
 			}
 		);
 

@@ -72,6 +72,9 @@
 #include "InstancedFoliage.h"
 #include "Engine/Selection.h"
 #include "AssetExportTask.h"
+#include "IMaterialBakingModule.h"
+#include "MaterialBakingStructures.h"
+#include "MaterialOptions.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Camera/CameraComponent.h"
@@ -810,7 +813,7 @@ public:
 
 inline FString FixupMaterialName(UMaterialInterface* Material)
 {
-	return Material->GetPathName().Replace(TEXT("."), TEXT("_")).Replace(TEXT(":"), TEXT("_"));
+	return Material->GetName().Replace(TEXT("."), TEXT("_")).Replace(TEXT(":"), TEXT("_"));
 }
 
 
@@ -1013,30 +1016,65 @@ static void AddActorToOBJs(AActor* Actor, TArray<FOBJGeom*>& Objects, TSet<UMate
 
 // @param Material must not be 0
 // @param MatProp e.g. MP_DiffuseColor
-static void ExportMaterialPropertyTexture(const FString &BMPFilename, UMaterialInterface* Material, const EMaterialProperty MatProp)
+static void ExportMaterialPropertyTexture(const FString& BMPFilename, UMaterialInterface* Material, const EMaterialProperty MatProp)
 {
 	check(Material);
 
 	// make the BMP for the diffuse channel
 	TArray<FColor> OutputBMP;
 	FIntPoint OutSize;
-	
-	TEnumAsByte<EBlendMode> BlendMode = Material->GetBlendMode();
-	bool bIsValidMaterial = FMaterialUtilities::SupportsExport((EBlendMode)(BlendMode), MatProp);
 
-	if (bIsValidMaterial)
+	const TEnumAsByte<EBlendMode> BlendMode = Material->GetBlendMode();
+
+	bool bIsValidProperty = FMaterialUtilities::SupportsExport(BlendMode, MatProp);
+	if (bIsValidProperty)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		// render the material to a texture to export as a bmp
-		if (!FMaterialUtilities::ExportMaterialProperty(Material, MatProp, OutputBMP, OutSize ))
+		FMeshData MeshSettings;
+		MeshSettings.MeshDescription = nullptr;
+		MeshSettings.TextureCoordinateBox = FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
+		MeshSettings.TextureCoordinateIndex = 0;
+
+		FMaterialData MaterialSettings;
+		MaterialSettings.Material = Material;
+
+		// Add all user defined properties for baking out
+		FPropertyEntry Entry(MatProp);
+		if (!Entry.bUseConstantValue && Material->IsPropertyActive(Entry.Property) && Entry.Property != MP_MAX)
 		{
-			bIsValidMaterial = false;
-		}		
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FIntPoint TextureSize = FMaterialUtilities::FindMaxTextureSize(Material, MatProp);
+			MaterialSettings.PropertySizes.Add(Entry.Property, TextureSize);
+		}
+
+		TArray<FMeshData*> MeshSettingPtrs{ &MeshSettings };
+		TArray<FMaterialData*> MaterialSettingPtrs{ &MaterialSettings };
+
+		IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("MaterialBaking");
+
+		bool bSetData = false;
+		bool bSetSize = false;
+		TArray<FBakeOutput> BakeOutputs;
+		Module.BakeMaterials(MaterialSettingPtrs, MeshSettingPtrs, BakeOutputs);
+		if (BakeOutputs.Num() > 0)
+		{
+			FBakeOutput& Output = BakeOutputs[0];
+			if (TArray<FColor>* PropertyData = Output.PropertyData.Find(MatProp))
+			{
+				OutputBMP = MoveTemp(*PropertyData);
+				bSetData = true;
+			}
+
+			if (FIntPoint* PropertySize = Output.PropertySizes.Find(MatProp))
+			{
+				OutSize = *PropertySize;
+				bSetSize = true;
+			}
+		}
+
+		bIsValidProperty = bSetData && bSetSize;
 	}
 
 	// make invalid textures a solid red
-	if (!bIsValidMaterial)
+	if (!bIsValidProperty)
 	{
 		OutSize = FIntPoint(1, 1);
 		OutputBMP.Empty();
@@ -1068,14 +1106,11 @@ void ExportOBJs(FOutputDevice& FileAr, FStringOutputDevice* MemAr, FFeedbackCont
 	// export extra material info if we added any
 	if (Materials)
 	{
-		// stop the rendering thread so we can easily render to texture
-		SCOPED_SUSPEND_RENDERING_THREAD(true);
-
 		// make a .MTL file next to the .obj file that contains the materials
 		FString MaterialLibFilename = FPaths::GetBaseFilename(OBJFilename, false) + TEXT(".mtl");
 
 		// use the output device file, just like the Exporter makes for the .obj, no backup
-		FOutputDeviceFile* MaterialLib = new FOutputDeviceFile(*MaterialLibFilename, true);
+		TUniquePtr<FOutputDeviceFile> MaterialLib = MakeUnique<FOutputDeviceFile>(*MaterialLibFilename, true);
 		MaterialLib->SetSuppressEventTag(true);
 		MaterialLib->SetAutoEmitLineTerminator(false);
 
@@ -1090,28 +1125,25 @@ void ExportOBJs(FOutputDevice& FileAr, FStringOutputDevice* MemAr, FFeedbackCont
 			MaterialLib->Logf(TEXT("newmtl %s\r\n"), *MaterialName);
 
 			{
-				FString BMPFilename = FPaths::GetPath(MaterialLibFilename) / MaterialName + TEXT("_D.bmp");
+				FString BMPFilename = FPaths::Combine(FPaths::GetPath(MaterialLibFilename), MaterialName + TEXT("_D.bmp"));
 				ExportMaterialPropertyTexture(BMPFilename, Material, MP_BaseColor);
 				MaterialLib->Logf(TEXT("\tmap_Kd %s\r\n"), *FPaths::GetCleanFilename(BMPFilename));
 			}
 
 			{
-				FString BMPFilename = FPaths::GetPath(MaterialLibFilename) / MaterialName + TEXT("_S.bmp");
+				FString BMPFilename = FPaths::Combine(FPaths::GetPath(MaterialLibFilename), MaterialName + TEXT("_S.bmp"));
 				ExportMaterialPropertyTexture(BMPFilename, Material, MP_Specular);
 				MaterialLib->Logf(TEXT("\tmap_Ks %s\r\n"), *FPaths::GetCleanFilename(BMPFilename));
 			}
 
 			{
-				FString BMPFilename = FPaths::GetPath(MaterialLibFilename) / MaterialName + TEXT("_N.bmp");
+				FString BMPFilename = FPaths::Combine(FPaths::GetPath(MaterialLibFilename), MaterialName + TEXT("_N.bmp"));
 				ExportMaterialPropertyTexture(BMPFilename, Material, MP_Normal);
 				MaterialLib->Logf(TEXT("\tbump %s\r\n"), *FPaths::GetCleanFilename(BMPFilename));
 			}
 
 			MaterialLib->Logf(TEXT("\r\n"));
 		}
-		
-		MaterialLib->TearDown();
-		delete MaterialLib;
 
 		Ar.Logf(TEXT("mtllib %s\n"), *FPaths::GetCleanFilename(MaterialLibFilename));
 	}
