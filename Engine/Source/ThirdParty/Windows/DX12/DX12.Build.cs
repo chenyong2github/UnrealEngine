@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 using UnrealBuildTool;
+using EpicGames.Core;
 
 public class DX12 : ModuleRules
 {
@@ -7,17 +8,9 @@ public class DX12 : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string DirectXSDKDir = "";
-		if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			DirectXSDKDir = Target.WindowsPlatform.bUseWindowsSDK10 ?
-			Target.UEThirdPartySourceDirectory + "Windows/DirectXLegacy" :
-			Target.UEThirdPartySourceDirectory + "Windows/DirectX";
-		}
-		else
-		{
-			DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
-		}
+		Log.TraceLog("Running DX12");
+
+		string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
 
 		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -30,7 +23,6 @@ public class DX12 : ModuleRules
 
 			bool PixAvalable = (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64);
 			if (PixAvalable &&
-				//Target.WindowsPlatform.bUseWindowsSDK10 &&
 				Target.WindowsPlatform.bPixProfilingEnabled &&
 				Target.Configuration != UnrealTargetConfiguration.Shipping &&
 				Target.Configuration != UnrealTargetConfiguration.Test)

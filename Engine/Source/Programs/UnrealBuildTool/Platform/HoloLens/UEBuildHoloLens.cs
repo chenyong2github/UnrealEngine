@@ -597,18 +597,6 @@ namespace UnrealBuildTool
 			// Add Win10 SDK pieces - moved here since it allows better control over SDK version
 			string Win10SDKRoot = Target.WindowsPlatform.WindowsSdkDir;
 
-			// Include paths
-			CompileEnvironment.SystemIncludePaths.Add(new DirectoryReference(string.Format(@"{0}\Include\{1}\ucrt", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion)));
-			CompileEnvironment.SystemIncludePaths.Add(new DirectoryReference(string.Format(@"{0}\Include\{1}\um", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion)));
-			CompileEnvironment.SystemIncludePaths.Add(new DirectoryReference(string.Format(@"{0}\Include\{1}\shared", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion)));
-			CompileEnvironment.SystemIncludePaths.Add(new DirectoryReference(string.Format(@"{0}\Include\{1}\winrt", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion)));
-
-			// Library paths
-			// @MIXEDREALITY_CHANGE : BEGIN TODO: change to arm.
-			string LibArchitecture = WindowsExports.GetArchitectureSubpath(Target.HoloLensPlatform.Architecture);
-			LinkEnvironment.SystemLibraryPaths.Add(new DirectoryReference(string.Format(@"{0}\Lib\{1}\ucrt\{2}", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion, LibArchitecture)));
-			LinkEnvironment.SystemLibraryPaths.Add(new DirectoryReference(string.Format(@"{0}\Lib\{1}\um\{2}", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion, LibArchitecture)));
-
 			// Reference (WinMD) paths
 			// Only Foundation and Universal are referenced by default.  
 			List<string> AlwaysReferenceContracts = new List<string>();
