@@ -4667,7 +4667,7 @@ FbxNode* FFbxExporter::ExportStaticMeshToFbx(const UStaticMesh* StaticMesh, int3
 			}
 			else
 			{
-				StaticMesh->GetMaterial(Polygons.MaterialIndex);
+				Material = StaticMesh->GetMaterial(Polygons.MaterialIndex);
 			}
 
 			FbxSurfaceMaterial* FbxMaterial = Material ? ExportMaterial(Material) : NULL;
