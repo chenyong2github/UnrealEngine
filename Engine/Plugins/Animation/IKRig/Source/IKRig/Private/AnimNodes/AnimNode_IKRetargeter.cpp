@@ -143,10 +143,16 @@ void FAnimNode_IKRetargeter::InitializeRetargetData(const UAnimInstance* InAnimI
 
 void FAnimNode_IKRetargeter::CopyBoneTransformsFromSource(USkeletalMeshComponent* TargetMeshComponent)
 {
-	USkeletalMeshComponent* SourceMeshComp = CurrentlyUsedSourceMeshComponent.IsValid() ? CurrentlyUsedSourceMeshComponent.Get() : nullptr;
+	if (!CurrentlyUsedSourceMeshComponent.IsValid())
+	{
+		return; 
+	}
 
+	USkeletalMeshComponent* SourceMeshComp =  CurrentlyUsedSourceMeshComponent.Get();
+	
 	// is the source mesh ticking?
 	if (!SourceMeshComp->IsRegistered())
+		
 	{
 		CurrentlyUsedSourceMesh.Reset(); // forces reinitialization when re-registered
 		return; // skip copying pose when component is no longer ticking
