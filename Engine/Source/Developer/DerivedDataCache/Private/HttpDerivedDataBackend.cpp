@@ -720,6 +720,7 @@ bool VerifyPayload(const FSHAHash& Hash, const TArray<uint8>& Payload);
 bool VerifyPayload(const FIoHash& Hash, const TArray<uint8>& Payload);
 bool VerifyRequest(const class FRequest* Request, const TArray<uint8>& Payload);
 bool HashPayload(class FRequest* Request, const TArrayView<const uint8> Payload);
+bool ShouldAbortForShutdown();
 
 //----------------------------------------------------------------------------------------------------------
 // Request pool
@@ -1509,11 +1510,21 @@ private:
 	{
 		while (Request)
 		{
+			if (ShouldAbortForShutdown())
+			{
+				return;
+			}
+
 			while (FQueuedEntry* Entry = QueuedPuts.Pop())
 			{
 				Request->Reset();
 				PerformPut(Request, *Entry->Namespace, *Entry->Bucket, *Entry->CacheKey, Entry->Data, UsageStats);
 				delete Entry;
+
+				if (ShouldAbortForShutdown())
+				{
+					return;
+				}
 			}
 
 			Pool->ReleaseRequestToPool(Request);
@@ -1693,6 +1704,11 @@ bool HashPayload(FRequest* Request, const TArrayView<const uint8> Payload)
 	FIoHash PayloadHash = FIoHash::HashBuffer(Payload.GetData(), Payload.Num());
 	Request->SetHeader(TEXT("X-Jupiter-IoHash"), *WriteToString<48>(PayloadHash));
 	return true;
+}
+
+bool ShouldAbortForShutdown()
+{
+	return !GIsBuildMachine && FDerivedDataBackend::Get().IsShuttingDown();
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -2127,6 +2143,12 @@ FDerivedDataBackendInterface::EPutStatus FHttpDerivedDataBackend::PutCachedData(
 	for (int32 Attempts = 0; Attempts < UE_HTTPDDC_MAX_ATTEMPTS; ++Attempts)
 	{
 		FDataUploadHelper Request(PutRequestPools[IsInGameThread()].Get(), *Namespace, *DefaultBucket,	CacheKey, InData, UsageStats);
+
+		if (ShouldAbortForShutdown())
+		{
+			return EPutStatus::NotCached;
+		}
+
 		const int64 ResponseCode = Request.GetResponseCode();
 
 		if (Request.IsSuccess() && (Request.IsQueued() || FRequest::IsSuccessResponse(ResponseCode)))
