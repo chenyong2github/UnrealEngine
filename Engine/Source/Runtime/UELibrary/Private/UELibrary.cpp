@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS && _WIN64
 
 #include "UELibrary.h"
 
