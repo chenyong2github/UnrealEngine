@@ -369,8 +369,47 @@ UMetasoundEditorGraphSchema::UMetasoundEditorGraphSchema(const FObjectInitialize
 
 bool UMetasoundEditorGraphSchema::ConnectionCausesLoop(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin) const
 {
-	// TODO: Implement loop check
-	return false;
+	using namespace Metasound::Editor;
+
+	bool bCausesLoop = false;
+
+	if ((nullptr != InputPin) && (nullptr != OutputPin))
+	{
+		UEdGraphNode* InputNode = InputPin->GetOwningNode();
+		UEdGraphNode* OutputNode = OutputPin->GetOwningNode();
+
+		// Sets bCausesLoop if the input node already has a path to the output node
+		//
+		FGraphBuilder::DepthFirstTraversal(InputNode, [&](UEdGraphNode* Node) -> TSet<UEdGraphNode*>
+			{
+				TSet<UEdGraphNode*> Children;
+
+				if (OutputNode == Node)
+				{
+					// If the input node can already reach the output node, then this 
+					// connection will cause a loop.
+					bCausesLoop = true;
+				}
+
+				if (!bCausesLoop)
+				{
+					// Only produce children if no loop exists to avoid wasting unnecessary CPU
+					if (nullptr != Node)
+					{
+						Node->ForEachNodeDirectlyConnectedToOutputs([&](UEdGraphNode* ChildNode) 
+							{ 
+								Children.Add(ChildNode);
+							}
+						);
+					}
+				}
+
+				return Children;
+			}
+		);
+	}
+	
+	return bCausesLoop;
 }
 
 void UMetasoundEditorGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuilder) const

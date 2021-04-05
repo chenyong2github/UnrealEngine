@@ -183,6 +183,19 @@ namespace Metasound
 
 			// Returns true if the FOutputHandle and UEdGraphPin match each other.
 			static bool IsMatchingOutputHandleAndPin(const Frontend::FOutputHandle& InOutputHandle, const UEdGraphPin& InEditorPin);
+
+			// Function signature for visiting a node doing depth first traversal.
+			//
+			// Functions accept a UEdGraphNode* and return a TSet<UEdGraphNode*> which
+			// represent all the children of the node. 
+			using FDepthFirstVisitFunction = TFunctionRef<TSet<UEdGraphNode*> (UEdGraphNode*)>; 
+
+			// Traverse depth first starting at the InInitialNode and calling the InVisitFunction
+			// for each node. 
+			//
+			// This implementation avoids recursive function calls to support deep
+			// graphs.
+			static void DepthFirstTraversal(UEdGraphNode* InInitialNode, FDepthFirstVisitFunction InVisitFunction);
 		};
 	} // namespace Editor
 } // namespace Metasound

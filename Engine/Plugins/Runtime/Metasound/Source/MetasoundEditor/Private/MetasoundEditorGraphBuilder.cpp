@@ -1104,6 +1104,28 @@ namespace Metasound
 			return false;
 		}
 
+		void FGraphBuilder::DepthFirstTraversal(UEdGraphNode* InInitialNode, FDepthFirstVisitFunction InVisitFunction)
+		{
+			// Non recursive depth first traversal.
+			TArray<UEdGraphNode*> Stack({InInitialNode});
+			TSet<UEdGraphNode*> Visited;
+
+			while (Stack.Num() > 0)
+			{
+				UEdGraphNode* CurrentNode = Stack.Pop();
+				if (Visited.Contains(CurrentNode))
+				{
+					// Do not revisit a node that has already been visited. 
+					continue;
+				}
+
+				TArray<UEdGraphNode*> Children = InVisitFunction(CurrentNode).Array();
+				Stack.Append(Children);
+
+				Visited.Add(CurrentNode);
+			}
+		}
+
 		UEdGraphPin* FGraphBuilder::AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FInputHandle InInputHandle)
 		{
 			using namespace Frontend;
