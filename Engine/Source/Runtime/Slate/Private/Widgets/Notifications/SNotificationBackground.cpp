@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Widgets/Notifications/SNotificationBackground.h"
 #include "Styling/StyleColors.h"
 
