@@ -6257,23 +6257,25 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 		MobileWeightmapTextures.Add(CurrentWeightmapTexture);
 		int32 CurrentChannel = 0;
 
-		// Give normal map a full texture if this doesn't increase the overall allocation count.
-		// This then saves a texture slot because we don't need to sample a combined normalmap/weightmap texture with two different sampler settings.
-		int32 NumTexturesCombinedNormal = FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num() + 2, 4);
-		int32 NumTexturesIsolatedNormal = 1 + FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num(), 4);
-		bool bIsolateNormalMap = NumTexturesCombinedNormal == NumTexturesIsolatedNormal;
-		int32 RemainingChannels = bIsolateNormalMap ? 0 : 2;
-
+		// We can potentially save a channel allocation if we have weight based blends.
+		const bool bAtLeastOneWeightBasedBlend = MobileWeightmapLayerAllocations.FindByPredicate([&](const FWeightmapLayerAllocationInfo& Allocation) -> bool { return !Allocation.LayerInfo->bNoWeightBlend; }) != nullptr;
+		const bool bUseWeightBasedChannelOptim =  bAtLeastOneWeightBasedBlend && MobileWeightmapLayerAllocations.Num() <= 3;
 		MobileBlendableLayerMask = 0;
 
-		bool bAtLeastOneWeightBasedBlend = MobileWeightmapLayerAllocations.FindByPredicate([&](const FWeightmapLayerAllocationInfo& Allocation) -> bool { return !Allocation.LayerInfo->bNoWeightBlend; }) != nullptr;
+		// Give normal map a full texture if this doesn't increase the overall allocation count.
+		// This then saves a texture slot because we don't need to sample a combined normalmap/weightmap texture with two different sampler settings.
+		// This optimization won't be useful or valid if we are already applying the weight based blending channel optimization.
+		const int32 NumTexturesCombinedNormal = FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num() + 2, 4);
+		const int32 NumTexturesIsolatedNormal = 1 + FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num(), 4);
+		const bool bIsolateNormalMap = !bUseWeightBasedChannelOptim && NumTexturesCombinedNormal == NumTexturesIsolatedNormal;
+		int32 RemainingChannels = bIsolateNormalMap ? 0 : 2;
 
 		for (auto& Allocation : MobileWeightmapLayerAllocations)
 		{
 			if (Allocation.LayerInfo)
 			{
 				// If we can pack into 2 channels with the 3rd implied, track the mask for the weight blendable layers
-				if (bAtLeastOneWeightBasedBlend && MobileWeightmapLayerAllocations.Num() <= 3)
+				if (bUseWeightBasedChannelOptim)
 				{
 					MobileBlendableLayerMask |= (!Allocation.LayerInfo->bNoWeightBlend ? (1 << CurrentChannel) : 0);
 
