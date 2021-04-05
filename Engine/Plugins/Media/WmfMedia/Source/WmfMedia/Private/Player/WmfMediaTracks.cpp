@@ -501,6 +501,11 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 {
 	FTimespan TimeRangeLow = TimeRange.GetLowerBoundValue().Time;
 	FTimespan TimeRangeHigh = TimeRange.GetUpperBoundValue().Time;
+	// Account for loop wraparound.
+	if (TimeRangeHigh < TimeRangeLow)
+	{
+		TimeRangeHigh += CachedDuration;
+	}
 	TRange<FTimespan> TimeRangeTime(TimeRangeLow, TimeRangeHigh);
 	FTimespan LoopDiff = CachedDuration * 0.5f;
 	float CurrentOverlap = 0.0f;
@@ -528,15 +533,32 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 				FTimespan Diff = TimeRangeLow - SampleEndTime;
 				if (Diff > LoopDiff)
 				{
-					break;
+					// Adjust sample times so they are in the same "space" as the time range.
+					SampleStartTime += CachedDuration;
+					SampleEndTime += CachedDuration;
+					UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange sample loop %f %f"),
+						SampleStartTime.GetTotalSeconds(), SampleEndTime.GetTotalSeconds());
 				}
-
-				// Try next sample.
-				VideoSampleQueue.Pop();
+				else
+				{
+					// Try next sample.
+					VideoSampleQueue.Pop();
+					continue;
+				}
 			}
-			else
+			
 			{
 #if WMFMEDIA_PLAYER_VERSION >= 2
+				// Did we already pass this sample,
+				// and the sample is at the end of the video and we just looped around?
+				FTimespan Diff = SampleEndTime - TimeRangeLow;
+				if (Diff > LoopDiff)
+				{
+					VideoSampleQueue.Pop();
+					UE_LOG(LogWmfMedia, VeryVerbose, TEXT("pop1.1"));
+					continue;
+				}
+
 				// Are we waiting for the sample from a seek?
 				if (SeekTimeOptional.IsSet())
 				{
@@ -588,20 +610,8 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 				else
 				{
 					// Sample is not before the end of the requested time range.
-					// Or is it? We might have looped back.
-					// If the difference in time is large, then we looped back and
-					// so this sample really is before the requested one and we can drop it.
-					FTimespan Diff = SampleStartTime - TimeRangeHigh;
-					if (Diff > LoopDiff)
-					{
-						// Try next sample.
-						VideoSampleQueue.Pop();
-					}
-					else
-					{
-						// We are done for now.
-						break;
-					}
+					// We are done for now.
+					break;
 				}
 			}
 		}
