@@ -769,8 +769,6 @@ void FD3D11DynamicRHI::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,bool bPre
 	MaxBoundVertexBufferIndex = INDEX_NONE;
 	
 	StateCache.SetPixelShader(nullptr);
-	StateCache.SetHullShader(nullptr);
-	StateCache.SetDomainShader(nullptr);
 	StateCache.SetGeometryShader(nullptr);
 	// Compute Shader is set to NULL after each Dispatch call, so no need to clear it here
 

@@ -38,8 +38,6 @@
 DECLARE_ISBOUNDSHADER(VertexShader)
 DECLARE_ISBOUNDSHADER(PixelShader)
 DECLARE_ISBOUNDSHADER(GeometryShader)
-DECLARE_ISBOUNDSHADER(HullShader)
-DECLARE_ISBOUNDSHADER(DomainShader)
 DECLARE_ISBOUNDSHADER(ComputeShader)
 
 
@@ -196,8 +194,6 @@ void FD3D11DynamicRHI::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* Gr
 	if (bApplyAdditionalState)
 	{
 		ApplyStaticUniformBuffers(static_cast<FD3D11VertexShader*>(PsoInit.BoundShaderState.VertexShaderRHI));
-		ApplyStaticUniformBuffers(static_cast<FD3D11HullShader*>(PsoInit.BoundShaderState.HullShaderRHI));
-		ApplyStaticUniformBuffers(static_cast<FD3D11DomainShader*>(PsoInit.BoundShaderState.DomainShaderRHI));
 		ApplyStaticUniformBuffers(static_cast<FD3D11GeometryShader*>(PsoInit.BoundShaderState.GeometryShaderRHI));
 		ApplyStaticUniformBuffers(static_cast<FD3D11PixelShader*>(PsoInit.BoundShaderState.PixelShaderRHI));
 	}
@@ -324,18 +320,7 @@ void FD3D11DynamicRHI::RHISetBoundShaderState(FRHIBoundShaderState* BoundShaderS
 	StateCache.SetVertexShader(BoundShaderState->VertexShader);
 	StateCache.SetPixelShader(BoundShaderState->PixelShader);
 
-	StateCache.SetHullShader(BoundShaderState->HullShader);
-	StateCache.SetDomainShader(BoundShaderState->DomainShader);
 	StateCache.SetGeometryShader(BoundShaderState->GeometryShader);
-
-	if(BoundShaderState->HullShader != NULL && BoundShaderState->DomainShader != NULL)
-	{
-		bUsingTessellation = true;
-	}
-	else
-	{
-		bUsingTessellation = false;
-	}
 
 	// @TODO : really should only discard the constants if the shader state has actually changed.
 	bDiscardSharedConstants = true;
@@ -395,20 +380,6 @@ void FD3D11DynamicRHI::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI,uint32 
 		FD3D11VertexShader* VertexShader = static_cast<FD3D11VertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShader);
 		SetShaderTexture<SF_Vertex>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
-	}
-	break;
-	case SF_Hull:
-	{
-		FD3D11HullShader* HullShader = static_cast<FD3D11HullShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(HullShader);
-		SetShaderTexture<SF_Hull>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
-	}
-	break;
-	case SF_Domain:
-	{
-		FD3D11DomainShader* DomainShader = static_cast<FD3D11DomainShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(DomainShader);
-		SetShaderTexture<SF_Domain>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
 	}
 	break;
 	case SF_Geometry:
@@ -514,20 +485,6 @@ void FD3D11DynamicRHI::RHISetShaderResourceViewParameter(FRHIGraphicsShader* Sha
 		SetShaderResourceView<SF_Vertex>(Resource, D3D11SRV, TextureIndex, NAME_None);
 	}
 	break;
-	case SF_Hull:
-	{
-		FD3D11HullShader* HullShader = static_cast<FD3D11HullShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(HullShader);
-		SetShaderResourceView<SF_Hull>(Resource, D3D11SRV, TextureIndex, NAME_None);
-	}
-	break;
-	case SF_Domain:
-	{
-		FD3D11DomainShader* DomainShader = static_cast<FD3D11DomainShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(DomainShader);
-		SetShaderResourceView<SF_Domain>(Resource, D3D11SRV, TextureIndex, NAME_None);
-	}
-	break;
 	case SF_Geometry:
 	{
 		FD3D11GeometryShader* GeometryShader = static_cast<FD3D11GeometryShader*>(ShaderRHI);
@@ -576,20 +533,6 @@ void FD3D11DynamicRHI::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI,uint32 
 		FD3D11VertexShader* VertexShader = static_cast<FD3D11VertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShader);
 		StateCache.SetSamplerState<SF_Vertex>(StateResource, SamplerIndex);
-	}
-		break;
-	case SF_Hull:
-	{
-		FD3D11HullShader* HullShader = static_cast<FD3D11HullShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(HullShader);
-		StateCache.SetSamplerState<SF_Hull>(StateResource, SamplerIndex);
-	}
-	break;
-	case SF_Domain:
-	{
-		FD3D11DomainShader* DomainShader = static_cast<FD3D11DomainShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(DomainShader);
-		StateCache.SetSamplerState<SF_Domain>(StateResource, SamplerIndex);
 	}
 	break;
 	case SF_Geometry:
@@ -647,22 +590,6 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderRHI,u
 		StateCache.SetConstantBuffer<SF_Vertex>(ConstantBuffer, BufferIndex);
 	}
 	break;
-	case SF_Hull:
-	{
-		FD3D11HullShader* HullShader = static_cast<FD3D11HullShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(HullShader);
-		Stage = SF_Hull;
-		StateCache.SetConstantBuffer<SF_Hull>(ConstantBuffer, BufferIndex);
-	}
-	break;
-	case SF_Domain:
-	{
-		FD3D11DomainShader* DomainShader = static_cast<FD3D11DomainShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(DomainShader);
-		Stage = SF_Domain;
-		StateCache.SetConstantBuffer<SF_Domain>(ConstantBuffer, BufferIndex);
-	}
-	break;
 	case SF_Geometry:
 	{
 		FD3D11GeometryShader* GeometryShader = static_cast<FD3D11GeometryShader*>(ShaderRHI);
@@ -712,22 +639,6 @@ void FD3D11DynamicRHI::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI,uint3
 		VALIDATE_BOUND_SHADER(VertexShader);
 		checkSlow(VSConstantBuffers[BufferIndex]);
 		VSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
-	}
-	break;
-	case SF_Hull:
-	{
-		FD3D11HullShader* HullShader = static_cast<FD3D11HullShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(HullShader);
-		checkSlow(HSConstantBuffers[BufferIndex]);
-		HSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
-	}
-	break;
-	case SF_Domain:
-	{
-		FD3D11DomainShader* DomainShader = static_cast<FD3D11DomainShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(DomainShader);
-		checkSlow(DSConstantBuffers[BufferIndex]);
-		DSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
 	case SF_Geometry:
@@ -1157,31 +1068,8 @@ void FD3D11DynamicRHI::SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& 
 
 // Primitive drawing.
 
-static D3D11_PRIMITIVE_TOPOLOGY GetD3D11PrimitiveType(EPrimitiveType PrimitiveType, bool bUsingTessellation)
+static D3D11_PRIMITIVE_TOPOLOGY GetD3D11PrimitiveType(EPrimitiveType PrimitiveType)
 {
-	if(bUsingTessellation)
-	{
-		switch(PrimitiveType)
-		{
-		case PT_1_ControlPointPatchList: return D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST;
-		case PT_2_ControlPointPatchList: return D3D11_PRIMITIVE_TOPOLOGY_2_CONTROL_POINT_PATCHLIST;
-
-		// This is the case for tessellation without AEN or other buffers, so just flip to 3 CPs
-		case PT_TriangleList: return D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST;
-
-		case PT_LineList:
-		case PT_TriangleStrip:
-		case PT_QuadList:
-		case PT_PointList:
-		case PT_RectList:
-			UE_LOG(LogD3D11RHI, Fatal,TEXT("Invalid type specified for tessellated render, probably missing a case in FStaticMeshSceneProxy::GetMeshElement"));
-			break;
-		default:
-			// Other cases are valid.
-			break;
-		};
-	}
-
 	switch(PrimitiveType)
 	{
 	case PT_TriangleList: return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1245,33 +1133,6 @@ void FD3D11DynamicRHI::CommitNonComputeShaderConstants()
 		{
 			FD3D11ConstantBuffer* ConstantBuffer = VSConstantBuffers[i];
 			FD3DRHIUtil::CommitConstants<SF_Vertex>(ConstantBuffer, StateCache, i, bDiscardSharedConstants);
-		}
-	}
-
-	// Skip HS/DS CB updates in cases where tessellation isn't being used
-	// Note that this is *potentially* unsafe because bDiscardSharedConstants is cleared at the
-	// end of the function, however we're OK for now because bDiscardSharedConstants
-	// is always reset whenever bUsingTessellation changes in SetBoundShaderState()
-	if(bUsingTessellation)
-	{
-		if (CurrentBoundShaderState->bShaderNeedsGlobalConstantBuffer[SF_Hull])
-		{
-			// Commit and bind hull shader constants
-			for(uint32 i=0;i<MAX_CONSTANT_BUFFER_SLOTS; i++)
-			{
-				FD3D11ConstantBuffer* ConstantBuffer = HSConstantBuffers[i];
-				FD3DRHIUtil::CommitConstants<SF_Hull>(ConstantBuffer, StateCache, i, bDiscardSharedConstants);
-			}
-		}
-
-		if (CurrentBoundShaderState->bShaderNeedsGlobalConstantBuffer[SF_Domain])
-		{
-			// Commit and bind domain shader constants
-			for(uint32 i=0;i<MAX_CONSTANT_BUFFER_SLOTS; i++)
-			{
-				FD3D11ConstantBuffer* ConstantBuffer = DSConstantBuffers[i];
-				FD3DRHIUtil::CommitConstants<SF_Domain>(ConstantBuffer, StateCache, i, bDiscardSharedConstants);
-			}
 		}
 	}
 
@@ -1647,14 +1508,6 @@ void FD3D11DynamicRHI::CommitGraphicsResourceTables()
 	{
 		SetResourcesFromTables(PixelShader);
 	}
-	if (auto* Shader = CurrentBoundShaderState->GetHullShader())
-	{
-		SetResourcesFromTables(Shader);
-	}
-	if (auto* Shader = CurrentBoundShaderState->GetDomainShader())
-	{
-		SetResourcesFromTables(Shader);
-	}
 	if (auto* Shader = CurrentBoundShaderState->GetGeometryShader())
 	{
 		SetResourcesFromTables(Shader);
@@ -1678,7 +1531,7 @@ void FD3D11DynamicRHI::RHIDrawPrimitive(uint32 BaseVertexIndex,uint32 NumPrimiti
 	uint32 VertexCount = GetVertexCountForPrimitiveCount(NumPrimitives,PrimitiveType);
 
 	GPUProfilingData.RegisterGPUWork(NumPrimitives * NumInstances, VertexCount * NumInstances);
-	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType,bUsingTessellation));
+	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType));
 	if(NumInstances > 1)
 	{
 		Direct3DDeviceIMContext->DrawInstanced(VertexCount,NumInstances,BaseVertexIndex,0);
@@ -1702,7 +1555,7 @@ void FD3D11DynamicRHI::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRHI, u
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
 
-	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType,bUsingTessellation));
+	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType));
 	Direct3DDeviceIMContext->DrawInstancedIndirect(ArgumentBuffer->Resource,ArgumentOffset);
 
 	EnableUAVOverlap();
@@ -1725,7 +1578,7 @@ void FD3D11DynamicRHI::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FRHIBu
 
 	TrackResourceBoundAsIB(IndexBuffer);
 	StateCache.SetIndexBuffer(IndexBuffer->Resource, Format, 0);
-	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType,bUsingTessellation));
+	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType));
 
 	if(NumInstances > 1)
 	{
@@ -1765,7 +1618,7 @@ void FD3D11DynamicRHI::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, int32
 
 	TrackResourceBoundAsIB(IndexBuffer);
 	StateCache.SetIndexBuffer(IndexBuffer->Resource, Format, 0);
-	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType,bUsingTessellation));
+	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType));
 
 	if (NumInstances > 1 || FirstInstance != 0)
 	{
@@ -1798,7 +1651,7 @@ void FD3D11DynamicRHI::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBufferRH
 	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 	TrackResourceBoundAsIB(IndexBuffer);
 	StateCache.SetIndexBuffer(IndexBuffer->Resource, Format, 0);
-	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType,bUsingTessellation));
+	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType));
 	Direct3DDeviceIMContext->DrawIndexedInstancedIndirect(ArgumentBuffer->Resource,ArgumentOffset);
 
 	EnableUAVOverlap();

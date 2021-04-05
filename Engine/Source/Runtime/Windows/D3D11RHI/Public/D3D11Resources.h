@@ -74,24 +74,6 @@ public:
 	TRefCountPtr<ID3D11GeometryShader> Resource;
 };
 
-class FD3D11HullShader : public FRHIHullShader, public FD3D11ShaderData
-{
-public:
-	enum { StaticFrequency = SF_Hull };
-
-	/** The shader resource. */
-	TRefCountPtr<ID3D11HullShader> Resource;
-};
-
-class FD3D11DomainShader : public FRHIDomainShader, public FD3D11ShaderData
-{
-public:
-	enum { StaticFrequency = SF_Domain };
-
-	/** The shader resource. */
-	TRefCountPtr<ID3D11DomainShader> Resource;
-};
-
 class FD3D11PixelShader : public FRHIPixelShader, public FD3D11ShaderData
 {
 public:
@@ -123,8 +105,6 @@ public:
 	TRefCountPtr<ID3D11InputLayout> InputLayout;
 	TRefCountPtr<ID3D11VertexShader> VertexShader;
 	TRefCountPtr<ID3D11PixelShader> PixelShader;
-	TRefCountPtr<ID3D11HullShader> HullShader;
-	TRefCountPtr<ID3D11DomainShader> DomainShader;
 	TRefCountPtr<ID3D11GeometryShader> GeometryShader;
 
 	bool bShaderNeedsGlobalConstantBuffer[SF_NumStandardFrequencies];
@@ -146,8 +126,6 @@ public:
 	 */
 	FORCEINLINE FD3D11VertexShader*   GetVertexShader() const   { return (FD3D11VertexShader*)CacheLink.GetVertexShader(); }
 	FORCEINLINE FD3D11PixelShader*    GetPixelShader() const    { return (FD3D11PixelShader*)CacheLink.GetPixelShader(); }
-	FORCEINLINE FD3D11HullShader*     GetHullShader() const     { return (FD3D11HullShader*)CacheLink.GetHullShader(); }
-	FORCEINLINE FD3D11DomainShader*   GetDomainShader() const   { return (FD3D11DomainShader*)CacheLink.GetDomainShader(); }
 	FORCEINLINE FD3D11GeometryShader* GetGeometryShader() const { return (FD3D11GeometryShader*)CacheLink.GetGeometryShader(); }
 };
 
@@ -749,16 +727,6 @@ template<>
 struct TD3D11ResourceTraits<FRHIGeometryShader>
 {
 	typedef FD3D11GeometryShader TConcreteType;
-};
-template<>
-struct TD3D11ResourceTraits<FRHIHullShader>
-{
-	typedef FD3D11HullShader TConcreteType;
-};
-template<>
-struct TD3D11ResourceTraits<FRHIDomainShader>
-{
-	typedef FD3D11DomainShader TConcreteType;
 };
 template<>
 struct TD3D11ResourceTraits<FRHIPixelShader>

@@ -101,8 +101,6 @@ void FD3D11DynamicRHI::InitConstantBuffers()
 	//	constants
 	VSConstantBuffers.Empty(MAX_CONSTANT_BUFFER_SLOTS);
 	PSConstantBuffers.Empty(MAX_CONSTANT_BUFFER_SLOTS);
-	HSConstantBuffers.Empty(MAX_CONSTANT_BUFFER_SLOTS);
-	DSConstantBuffers.Empty(MAX_CONSTANT_BUFFER_SLOTS);
 	GSConstantBuffers.Empty(MAX_CONSTANT_BUFFER_SLOTS);
 	CSConstantBuffers.Empty(MAX_CONSTANT_BUFFER_SLOTS);
 	for(int32 BufferIndex = 0;BufferIndex < MAX_CONSTANT_BUFFER_SLOTS;BufferIndex++)
@@ -120,8 +118,6 @@ void FD3D11DynamicRHI::InitConstantBuffers()
 		// New circular buffer system for faster constant uploads.  Avoids CopyResource and speeds things up considerably
 		VSConstantBuffers.Add(new FWinD3D11ConstantBuffer(this, Size, SubBuffers));
 		PSConstantBuffers.Add(new FWinD3D11ConstantBuffer(this, Size, SubBuffers));
-		HSConstantBuffers.Add(new FWinD3D11ConstantBuffer(this, Size));
-		DSConstantBuffers.Add(new FWinD3D11ConstantBuffer(this, Size));
 		GSConstantBuffers.Add(new FWinD3D11ConstantBuffer(this, Size));
 		CSConstantBuffers.Add(new FWinD3D11ConstantBuffer(this, Size));
 	}

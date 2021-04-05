@@ -82,8 +82,6 @@ protected:
 
 	// Shader Cache
 	ID3D11VertexShader* CurrentVertexShader;
-	ID3D11HullShader* CurrentHullShader;
-	ID3D11DomainShader* CurrentDomainShader;
 	ID3D11GeometryShader* CurrentGeometryShader;
 	ID3D11PixelShader* CurrentPixelShader;
 	ID3D11ComputeShader* CurrentComputeShader;
@@ -142,8 +140,6 @@ protected:
 		switch (ShaderFrequency)
 		{
 		case SF_Vertex:		Direct3DDeviceIMContext->VSSetShaderResources(ResourceIndex, 1, &SRV); break;
-		case SF_Hull:		Direct3DDeviceIMContext->HSSetShaderResources(ResourceIndex, 1, &SRV); break;
-		case SF_Domain:		Direct3DDeviceIMContext->DSSetShaderResources(ResourceIndex, 1, &SRV); break;
 		case SF_Geometry:	Direct3DDeviceIMContext->GSSetShaderResources(ResourceIndex, 1, &SRV); break;
 		case SF_Pixel:		Direct3DDeviceIMContext->PSSetShaderResources(ResourceIndex, 1, &SRV); break;
 		case SF_Compute:	Direct3DDeviceIMContext->CSSetShaderResources(ResourceIndex, 1, &SRV); break;
@@ -157,8 +153,6 @@ protected:
 		switch (ShaderFrequency)
 		{
 		case SF_Vertex:		Direct3DDeviceIMContext->VSSetSamplers(SamplerIndex, 1, &SamplerState); break;
-		case SF_Hull:		Direct3DDeviceIMContext->HSSetSamplers(SamplerIndex, 1, &SamplerState); break;
-		case SF_Domain:		Direct3DDeviceIMContext->DSSetSamplers(SamplerIndex, 1, &SamplerState); break;
 		case SF_Geometry:	Direct3DDeviceIMContext->GSSetSamplers(SamplerIndex, 1, &SamplerState); break;
 		case SF_Pixel:		Direct3DDeviceIMContext->PSSetSamplers(SamplerIndex, 1, &SamplerState); break;
 		case SF_Compute:	Direct3DDeviceIMContext->CSSetSamplers(SamplerIndex, 1, &SamplerState); break;
@@ -172,8 +166,6 @@ protected:
 		switch (ShaderFrequency)
 		{
 		case SF_Vertex:		Direct3DDeviceIMContext->VSSetConstantBuffers(SlotIndex, 1, &ConstantBuffer); break;
-		case SF_Hull:		Direct3DDeviceIMContext->HSSetConstantBuffers(SlotIndex, 1, &ConstantBuffer); break;
-		case SF_Domain:		Direct3DDeviceIMContext->DSSetConstantBuffers(SlotIndex, 1, &ConstantBuffer); break;
 		case SF_Geometry:	Direct3DDeviceIMContext->GSSetConstantBuffers(SlotIndex, 1, &ConstantBuffer); break;
 		case SF_Pixel:		Direct3DDeviceIMContext->PSSetConstantBuffers(SlotIndex, 1, &ConstantBuffer); break;
 		case SF_Compute:	Direct3DDeviceIMContext->CSSetConstantBuffers(SlotIndex, 1, &ConstantBuffer); break;
@@ -303,8 +295,6 @@ public:
 		switch (ShaderFrequency)
 		{
 		case SF_Vertex:		Direct3DDeviceIMContext->VSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Empty); break;
-		case SF_Hull:		Direct3DDeviceIMContext->HSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Empty); break;
-		case SF_Domain:		Direct3DDeviceIMContext->DSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Empty); break;
 		case SF_Geometry:	Direct3DDeviceIMContext->GSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Empty); break;
 		case SF_Pixel:		Direct3DDeviceIMContext->PSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Empty); break;
 		case SF_Compute:	Direct3DDeviceIMContext->CSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Empty); break;
@@ -338,12 +328,6 @@ public:
 			{
 			case SF_Vertex:		
 				Direct3DDeviceIMContext->VSGetShaderResources(StartResourceIndex, NumResources, SRV); 
-				break;
-			case SF_Hull:		
-				Direct3DDeviceIMContext->HSGetShaderResources(StartResourceIndex, NumResources, SRV); 
-				break;
-			case SF_Domain:		
-				Direct3DDeviceIMContext->DSGetShaderResources(StartResourceIndex, NumResources, SRV); 
 				break;
 			case SF_Geometry:	
 				Direct3DDeviceIMContext->GSGetShaderResources(StartResourceIndex, NumResources, SRV); 
@@ -457,12 +441,6 @@ public:
 				case SF_Vertex:		
 					Direct3DDeviceIMContext->VSGetSamplers(StartSamplerIndex, NumSamplerIndexes, SamplerStates); 
 					break;
-				case SF_Hull:		
-					Direct3DDeviceIMContext->HSGetSamplers(StartSamplerIndex, NumSamplerIndexes, SamplerStates); 
-					break;
-				case SF_Domain:		
-					Direct3DDeviceIMContext->DSGetSamplers(StartSamplerIndex, NumSamplerIndexes, SamplerStates); 
-					break;
 				case SF_Geometry:	
 					Direct3DDeviceIMContext->GSGetSamplers(StartSamplerIndex, NumSamplerIndexes, SamplerStates); 
 					break;
@@ -515,8 +493,6 @@ template <EShaderFrequency ShaderFrequency>
 			switch (ShaderFrequency)
 			{
 			case SF_Vertex:		Direct3DDeviceIMContext1->VSGetConstantBuffers(StartSlot, NumBuffers, ConstantBuffers); break;
-			case SF_Hull:		Direct3DDeviceIMContext1->HSGetConstantBuffers(StartSlot, NumBuffers, ConstantBuffers); break;
-			case SF_Domain:		Direct3DDeviceIMContext1->DSGetConstantBuffers(StartSlot, NumBuffers, ConstantBuffers); break;
 			case SF_Geometry:	Direct3DDeviceIMContext1->GSGetConstantBuffers(StartSlot, NumBuffers, ConstantBuffers); break;
 			case SF_Pixel:		Direct3DDeviceIMContext1->PSGetConstantBuffers(StartSlot, NumBuffers, ConstantBuffers); break;
 			case SF_Compute:	Direct3DDeviceIMContext1->CSGetConstantBuffers(StartSlot, NumBuffers, ConstantBuffers); break;
@@ -672,62 +648,6 @@ template <EShaderFrequency ShaderFrequency>
 		}
 #else
 		Direct3DDeviceIMContext->VSGetShader(VertexShader, nullptr, nullptr);
-#endif
-	}
-
-	D3D11_STATE_CACHE_INLINE void SetHullShader(ID3D11HullShader* Shader)
-	{
-#if D3D11_ALLOW_STATE_CACHE
-		D3D11_STATE_CACHE_VERIFY_PRE();
-		if ((CurrentHullShader != Shader) || GD3D11SkipStateCaching)
-		{
-			CurrentHullShader = Shader;
-			Direct3DDeviceIMContext->HSSetShader(Shader, nullptr, 0);
-		}
-		D3D11_STATE_CACHE_VERIFY_POST();
-#else
-		Direct3DDeviceIMContext->HSSetShader(Shader, nullptr, 0);
-#endif
-	}
-
-	D3D11_STATE_CACHE_INLINE void GetHullShader(ID3D11HullShader** HullShader)
-	{
-#if D3D11_ALLOW_STATE_CACHE
-		*HullShader = CurrentHullShader;
-		if (CurrentHullShader)
-		{
-			CurrentHullShader->AddRef();
-		}
-#else
-		Direct3DDeviceIMContext->HSGetShader(HullShader, nullptr, nullptr);
-#endif
-	}
-
-	D3D11_STATE_CACHE_INLINE void SetDomainShader(ID3D11DomainShader* Shader)
-	{
-#if D3D11_ALLOW_STATE_CACHE
-		D3D11_STATE_CACHE_VERIFY_PRE();
-		if ((CurrentDomainShader != Shader) || GD3D11SkipStateCaching)
-		{
-			CurrentDomainShader = Shader;
-			Direct3DDeviceIMContext->DSSetShader(Shader, nullptr, 0);
-		}
-		D3D11_STATE_CACHE_VERIFY_POST();
-#else
-		Direct3DDeviceIMContext->DSSetShader(Shader, nullptr, 0);
-#endif
-	}
-
-	D3D11_STATE_CACHE_INLINE void GetDomainShader(ID3D11DomainShader** DomainShader)
-	{
-#if D3D11_ALLOW_STATE_CACHE
-		*DomainShader = CurrentDomainShader;
-		if (CurrentDomainShader)
-		{
-			CurrentDomainShader->AddRef();
-		}
-#else
-		Direct3DDeviceIMContext->DSGetShader(DomainShader, nullptr, nullptr);
 #endif
 	}
 

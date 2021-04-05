@@ -53,8 +53,6 @@ void ClearShaderResource(ID3D11DeviceContext* Direct3DDeviceIMContext, uint32 Re
 	case SF_Pixel:   Direct3DDeviceIMContext->PSSetShaderResources(ResourceIndex,1,&NullView); break;
 	case SF_Compute: Direct3DDeviceIMContext->CSSetShaderResources(ResourceIndex,1,&NullView); break;
 	case SF_Geometry:Direct3DDeviceIMContext->GSSetShaderResources(ResourceIndex,1,&NullView); break;
-	case SF_Domain:  Direct3DDeviceIMContext->DSSetShaderResources(ResourceIndex,1,&NullView); break;
-	case SF_Hull:    Direct3DDeviceIMContext->HSSetShaderResources(ResourceIndex,1,&NullView); break;
 	case SF_Vertex:  Direct3DDeviceIMContext->VSSetShaderResources(ResourceIndex,1,&NullView); break;
 	};
 }
@@ -184,8 +182,6 @@ void FD3D11DynamicRHI::InternalSetShaderResourceView(FD3D11BaseShaderResource* R
 }
 
 template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Vertex>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
-template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Hull>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
-template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Domain>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
 template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Pixel>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
 template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Geometry>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
 template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Compute>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
@@ -242,8 +238,6 @@ void FD3D11DynamicRHI::ConditionalClearShaderResource(FD3D11BaseShaderResource* 
 	SCOPE_CYCLE_COUNTER(STAT_D3D11ClearShaderResourceTime);
 	check(Resource);
 	ClearShaderResourceViews<SF_Vertex>(Resource);
-	ClearShaderResourceViews<SF_Hull>(Resource);
-	ClearShaderResourceViews<SF_Domain>(Resource);
 	ClearShaderResourceViews<SF_Pixel>(Resource);
 	ClearShaderResourceViews<SF_Geometry>(Resource);
 	ClearShaderResourceViews<SF_Compute>(Resource);
@@ -286,8 +280,6 @@ void FD3D11DynamicRHI::ClearAllShaderResourcesForFrequency()
 void FD3D11DynamicRHI::ClearAllShaderResources()
 {
 	ClearAllShaderResourcesForFrequency<SF_Vertex>();
-	ClearAllShaderResourcesForFrequency<SF_Hull>();
-	ClearAllShaderResourcesForFrequency<SF_Domain>();
 	ClearAllShaderResourcesForFrequency<SF_Geometry>();
 	ClearAllShaderResourcesForFrequency<SF_Pixel>();
 	ClearAllShaderResourcesForFrequency<SF_Compute>();

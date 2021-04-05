@@ -41,8 +41,6 @@ void FD3D11StateCacheBase::VerifySamplerStates()
 	switch (ShaderFrequency)
 	{
 	case SF_Vertex:		Direct3DDeviceIMContext->VSGetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, SamplerStates); break;
-	case SF_Hull:		Direct3DDeviceIMContext->HSGetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, SamplerStates); break;
-	case SF_Domain:		Direct3DDeviceIMContext->DSGetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, SamplerStates); break;
 	case SF_Geometry:	Direct3DDeviceIMContext->GSGetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, SamplerStates); break;
 	case SF_Pixel:		Direct3DDeviceIMContext->PSGetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, SamplerStates); break;
 	case SF_Compute:	Direct3DDeviceIMContext->CSGetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, SamplerStates); break;
@@ -67,8 +65,6 @@ void FD3D11StateCacheBase::VerifyConstantBuffers()
 	switch (ShaderFrequency)
 	{
 	case SF_Vertex:		Direct3DDeviceIMContext->VSGetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Buffers); break;
-	case SF_Hull:		Direct3DDeviceIMContext->HSGetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Buffers); break;
-	case SF_Domain:		Direct3DDeviceIMContext->DSGetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Buffers); break;
 	case SF_Geometry:	Direct3DDeviceIMContext->GSGetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Buffers); break;
 	case SF_Pixel:		Direct3DDeviceIMContext->PSGetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Buffers); break;
 	case SF_Compute:	Direct3DDeviceIMContext->CSGetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, Buffers); break;
@@ -92,8 +88,6 @@ void FD3D11StateCacheBase::VerifyShaderResourceViews()
 	switch (ShaderFrequency)
 	{
 	case SF_Vertex:		Direct3DDeviceIMContext->VSGetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, Views); break;
-	case SF_Hull:		Direct3DDeviceIMContext->HSGetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, Views); break;
-	case SF_Domain:		Direct3DDeviceIMContext->DSGetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, Views); break;
 	case SF_Geometry:	Direct3DDeviceIMContext->GSGetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, Views); break;
 	case SF_Pixel:		Direct3DDeviceIMContext->PSGetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, Views); break;
 	case SF_Compute:	Direct3DDeviceIMContext->CSGetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, Views); break;
@@ -135,22 +129,16 @@ void FD3D11StateCacheBase::VerifyCacheState()
 	// Verify Shader States
 	{
 		TRefCountPtr<ID3D11VertexShader> VertexShader;
-		TRefCountPtr<ID3D11HullShader> HullShader;
-		TRefCountPtr<ID3D11DomainShader> DomainShader;
 		TRefCountPtr<ID3D11GeometryShader> GeometryShader;
 		TRefCountPtr<ID3D11PixelShader> PixelShader;
 		TRefCountPtr<ID3D11ComputeShader> ComputeShader;
 
 		Direct3DDeviceIMContext->VSGetShader(VertexShader.GetInitReference(), nullptr, nullptr);
-		Direct3DDeviceIMContext->HSGetShader(HullShader.GetInitReference(), nullptr, nullptr);
-		Direct3DDeviceIMContext->DSGetShader(DomainShader.GetInitReference(), nullptr, nullptr);
 		Direct3DDeviceIMContext->GSGetShader(GeometryShader.GetInitReference(), nullptr, nullptr);
 		Direct3DDeviceIMContext->PSGetShader(PixelShader.GetInitReference(), nullptr, nullptr);
 		Direct3DDeviceIMContext->CSGetShader(ComputeShader.GetInitReference(), nullptr, nullptr);
 
 		check(VertexShader.GetReference() == CurrentVertexShader);
-		check(HullShader.GetReference() == CurrentHullShader);
-		check(DomainShader.GetReference() == CurrentDomainShader);
 		check(GeometryShader.GetReference() == CurrentGeometryShader);
 		check(PixelShader.GetReference() == CurrentPixelShader);
 		check(ComputeShader.GetReference() == CurrentComputeShader);
@@ -208,8 +196,6 @@ void FD3D11StateCacheBase::VerifyCacheState()
 	// Verify Sampler States
 	{
 		VerifySamplerStates<SF_Vertex>();
-		VerifySamplerStates<SF_Hull>();
-		VerifySamplerStates<SF_Domain>();
 		VerifySamplerStates<SF_Geometry>();
 		VerifySamplerStates<SF_Pixel>();
 		VerifySamplerStates<SF_Compute>();
@@ -258,8 +244,6 @@ void FD3D11StateCacheBase::VerifyCacheState()
 	// Verify Constant Buffers
 	{
 		((FD3D11StateCache*)this)->VerifyConstantBuffers<SF_Vertex>();
-		((FD3D11StateCache*)this)->VerifyConstantBuffers<SF_Hull>();
-		((FD3D11StateCache*)this)->VerifyConstantBuffers<SF_Domain>();
 		((FD3D11StateCache*)this)->VerifyConstantBuffers<SF_Geometry>();
 		((FD3D11StateCache*)this)->VerifyConstantBuffers<SF_Pixel>();
 		((FD3D11StateCache*)this)->VerifyConstantBuffers<SF_Compute>();
@@ -268,8 +252,6 @@ void FD3D11StateCacheBase::VerifyCacheState()
 	// Verify Shader Resource Views
 	{
 		VerifyShaderResourceViews<SF_Vertex>();
-		VerifyShaderResourceViews<SF_Hull>();
-		VerifyShaderResourceViews<SF_Domain>();
 		VerifyShaderResourceViews<SF_Geometry>();
 		VerifyShaderResourceViews<SF_Pixel>();
 		VerifyShaderResourceViews<SF_Compute>();
@@ -310,8 +292,6 @@ void FD3D11StateCacheBase::ClearState()
 
 	// Shader Cache
 	CurrentVertexShader = nullptr;
-	CurrentHullShader = nullptr;
-	CurrentDomainShader = nullptr;
 	CurrentGeometryShader = nullptr;
 	CurrentPixelShader = nullptr;
 	CurrentComputeShader = nullptr;

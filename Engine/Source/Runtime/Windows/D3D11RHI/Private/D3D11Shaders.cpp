@@ -206,66 +206,6 @@ FGeometryShaderRHIRef FD3D11DynamicRHI::CreateGeometryShader_RenderThread(
 	return RHICreateGeometryShader(Code, Hash);
 }
 
-FHullShaderRHIRef FD3D11DynamicRHI::RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
-{ 
-	FShaderCodeReader ShaderCode(Code);
-
-	FD3D11HullShader* Shader = new FD3D11HullShader;
-
-	FMemoryReaderView Ar( Code, true );
-	Ar << Shader->ShaderResourceTable;
-	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
-	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
-
-	ReadShaderOptionalData(ShaderCode, *Shader);
-	if (!Shader->bIsSm6Shader && ApplyVendorExtensions(Direct3DDevice, SF_Hull, Shader->VendorExtensions))
-	{
-		VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateHullShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
-		ResetVendorExtensions(Direct3DDevice, SF_Hull, Shader->VendorExtensions);
-		InitUniformBufferStaticSlots(Shader);
-	}
-
-	return Shader;
-}
-
-FHullShaderRHIRef FD3D11DynamicRHI::CreateHullShader_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	TArrayView<const uint8> Code, const FSHAHash& Hash)
-{
-	return RHICreateHullShader(Code, Hash);
-}
-
-FDomainShaderRHIRef FD3D11DynamicRHI::RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
-{ 
-	FShaderCodeReader ShaderCode(Code);
-
-	FD3D11DomainShader* Shader = new FD3D11DomainShader;
-
-	FMemoryReaderView Ar(Code, true);
-	Ar << Shader->ShaderResourceTable;
-	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
-	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
-
-	ReadShaderOptionalData(ShaderCode, *Shader);
-	if (!Shader->bIsSm6Shader && ApplyVendorExtensions(Direct3DDevice, SF_Domain, Shader->VendorExtensions))
-	{
-		VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateDomainShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
-		ResetVendorExtensions(Direct3DDevice, SF_Domain, Shader->VendorExtensions);
-		InitUniformBufferStaticSlots(Shader);
-	}
-
-	return Shader;
-}
-
-FDomainShaderRHIRef FD3D11DynamicRHI::CreateDomainShader_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	TArrayView<const uint8> Code, const FSHAHash& Hash)
-{
-	return RHICreateDomainShader(Code, Hash);
-}
-
 FPixelShaderRHIRef FD3D11DynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
@@ -402,8 +342,6 @@ FD3D11BoundShaderState::~FD3D11BoundShaderState()
 * @param VertexDeclaration - existing vertex decl
 * @param StreamStrides - optional stream strides
 * @param VertexShader - existing vertex shader
-* @param HullShader - existing hull shader
-* @param DomainShader - existing domain shader
 * @param PixelShader - existing pixel shader
 * @param GeometryShader - existing geometry shader
 */
