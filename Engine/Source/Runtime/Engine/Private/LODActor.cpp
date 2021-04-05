@@ -818,6 +818,7 @@ void ALODActor::AddSubActors(const TArray<AActor*>& InActors)
 
 	for(AActor* Actor : InActors)
 	{
+		check(Actor != this);
 		UStaticMeshComponent* LODComponent = GetOrCreateLODComponentForActor(Actor);
 		Actor->SetLODParent(LODComponent, LODDrawDistanceWithOverride);
 

@@ -314,17 +314,20 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 	{
 		if (ALODActor* SubLODActor = Cast<ALODActor>(Actor))
 		{
-			if (SubHLODDescs.Contains(SubLODActor->ProxyDesc))
+			if (SubLODActor->ProxyDesc && SubHLODDescs.Contains(SubLODActor->ProxyDesc))
 			{
+				check(SubLODActor != LODActor);
 				SubActorsToAdd.Add(SubLODActor);
 			}
 		}
 	}
 
 	// Find all subactors from the level
-	Algo::Transform(SubActors, SubActorsToAdd, [InLevel](const FName& ActorName)
+	Algo::Transform(SubActors, SubActorsToAdd, [InLevel, LODActor](const FName& ActorName)
 	{
-		return FindObjectFast<AActor>(InLevel, ActorName);
+		AActor* Actor = FindObjectFast<AActor>(InLevel, ActorName);
+		check(Actor != LODActor);
+		return Actor;
 	});
 
 	// Remove null entries
