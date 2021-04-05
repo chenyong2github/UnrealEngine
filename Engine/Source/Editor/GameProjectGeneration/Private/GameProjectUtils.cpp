@@ -225,6 +225,23 @@ namespace
 			true /* ShouldReplaceExistingValue */);
 	}
 
+	void AddNewProjectDefaultShadowConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues)
+	{
+		// Enable support for virtual shadow maps by default for new projects
+		ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+			TEXT("/Script/Engine.RendererSettings"),
+			TEXT("r.Shadow.Virtual.Enable"),
+			TEXT("1"),
+			true /* ShouldReplaceExistingValue */);
+
+		// and also support for non-nanite VSM, this has an impact on all shadow rendering, which is why this is off for existing projects by default.
+		ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+			TEXT("/Script/Engine.RendererSettings"),
+			TEXT("r.Shadow.Virtual.NonNaniteVSM"),
+			TEXT("True"),
+			true /* ShouldReplaceExistingValue */);
+	}
+
 	/** Get the configuration values for raytracing if enabled. */
 	void AddRaytracingConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues)
 	{
@@ -1816,7 +1833,7 @@ TOptional<FGuid> GameProjectUtils::CreateProjectFromTemplate(const FProjectInfor
 
 	AddLumenConfigValues(InProjectInfo, ConfigValuesToSet);
 	AddRaytracingConfigValues(InProjectInfo, ConfigValuesToSet);
-
+	AddNewProjectDefaultShadowConfigValues(InProjectInfo, ConfigValuesToSet);
 	AddDefaultMapConfigValues(InProjectInfo, ConfigValuesToSet);
 	
 	TemplateDefs->AddConfigValues(ConfigValuesToSet, TemplateName, ProjectName, InProjectInfo.bShouldGenerateCode);
@@ -2153,6 +2170,7 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 		TArray<FTemplateConfigValue> ConfigValuesToSet;
 		AddHardwareConfigValues(InProjectInfo, ConfigValuesToSet);
 		AddLumenConfigValues(InProjectInfo, ConfigValuesToSet);
+		AddNewProjectDefaultShadowConfigValues(InProjectInfo, ConfigValuesToSet);
 		AddRaytracingConfigValues(InProjectInfo, ConfigValuesToSet);
 
 		if (!SaveConfigValues(InProjectInfo, ConfigValuesToSet, OutFailReason))

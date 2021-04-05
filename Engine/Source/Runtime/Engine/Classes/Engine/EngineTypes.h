@@ -405,6 +405,23 @@ namespace EReflectionMethod
 	};
 }
 
+
+
+// Note: Maps to r.Shadow.Virtual.Enable AND r.Shadow.Virtual.NonNaniteVSM, where Standard == 0 == off, this enum is used in URendererSettings for readability
+UENUM()
+namespace EDynamicShadowingMethod
+{
+	enum Type
+	{
+		/** UE4 shadowing system only. Required to enable stationary baked shadows (but which is incompatible with Nanite geometry) */
+		Standard,
+
+		/** High-quality shadows for next-gen projects with simplified setup. This system is in development and thus has a number of performance pitfalls. */
+		VirtualShadowMaps UMETA(DisplayName = "Virtual Shadow Maps (Beta)"),
+	};
+}
+
+
 /** Specifies which component of the scene rendering should be output to the final render target. */
 UENUM()
 enum ESceneCaptureSource 

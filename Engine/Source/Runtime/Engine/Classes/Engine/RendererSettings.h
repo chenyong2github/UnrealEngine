@@ -362,9 +362,23 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip="Controls which tracing method Lumen uses when using Software Ray Tracing."))
 	TEnumAsByte<ELumenSoftwareTracingMode::Type> LumenSoftwareTracingMode;
 
+	UPROPERTY(config, EditAnywhere, Category = Shadows, meta = (
+		ConsoleVariable = "r.Shadow.Virtual.Enable", DisplayName = "Dynamic Shadowing Method",
+		ToolTip = "Dynamic Shadowing Method",
+		ConfigRestartRequired = true))
+	TEnumAsByte<EDynamicShadowingMethod::Type> DynamicShadowingMethod;
+
+	// Note: this is slaved to the DynamicShadowingMethod, which is why it is not editable, the property is only here to let us propagate to the ini file.
+	UPROPERTY(config, EditAnywhere, Category = Shadows, meta = (
+		EditCondition = "false",
+		ReadOnly,
+		ConsoleVariable="r.Shadow.Virtual.NonNaniteVSM",
+		ConfigRestartRequired = true))
+	uint32 bEnableNonNaniteVSM:1;
+
 	/**
-	"Ray Tracing settings."
-	*/
+	 * "Ray Tracing settings."
+	 */
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
 		ConsoleVariable = "r.RayTracing", DisplayName = "Support Hardware Ray Tracing",
 		ToolTip = "Support Hardware Ray Tracing features.  Requires 'Support Compute Skincache' before project is allowed to set this.",

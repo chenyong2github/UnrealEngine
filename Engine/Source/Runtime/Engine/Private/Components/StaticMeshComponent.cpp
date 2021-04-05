@@ -411,6 +411,19 @@ void UStaticMeshComponent::CheckForErrors()
 		OwnerName = Owner->GetName();
 	}
 
+	if (GetStaticMesh() != nullptr && GetStaticMesh()->NaniteSettings.bEnabled != 0)
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Enable"));
+		if (CVar->GetInt() == 0)
+		{
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("MeshName"), FText::FromString(GetStaticMesh()->GetName()));
+			FMessageLog("MapCheck").Warning()
+				->AddToken(FUObjectToken::Create(Owner))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_NaniteNoVSM", "Static mesh '{MeshName}' uses Nanite but Virtual Shadow Maps are not enabled in the project settings. Nanite geometry does not support stationary light shadows, and may yield poor visual quality and reduced performance. Nanite geometry works best with virtual shadow maps enabled. See release notes."), Arguments)));
+		}
+	}
+
 	// Make sure any simplified meshes can still find their high res source mesh
 	if( GetStaticMesh() != NULL && GetStaticMesh()->GetRenderData())
 	{
