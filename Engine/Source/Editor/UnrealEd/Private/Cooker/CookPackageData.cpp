@@ -678,11 +678,6 @@ namespace Cook
 			SetIsPreloadAttempted(true);
 			return true;
 		}
-		{
-			// Use of preloaded files is not yet implemented when GAllowCookedDataInEditorBuilds is on, see FLinkerLoad::CreateLoader
-			SetIsPreloadAttempted(true);
-			return true;
-		}
 		if (!PreloadableFile.Get())
 		{
 			TStringBuilder<NAME_SIZE> FileNameString;
