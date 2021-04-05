@@ -126,14 +126,6 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 		OutParameters.bIsStereo = false;
 	}
 
-	const bool bIsMobilePixelProjectedReflectionEnabled = IsMobilePixelProjectedReflectionEnabled(View.GetShaderPlatform());
-
-	// We don't generate the RHI resource for the planar reflection render target if the mobile pixel projected reflection is enabled
-	if (bIsMobilePixelProjectedReflectionEnabled)
-	{
-		PlanarReflectionTextureValue = GBlackTexture;
-	}
-
 	OutParameters.PlanarReflectionTexture = PlanarReflectionTextureValue->TextureRHI;
 	OutParameters.PlanarReflectionSampler = PlanarReflectionTextureValue->SamplerStateRHI;
 }

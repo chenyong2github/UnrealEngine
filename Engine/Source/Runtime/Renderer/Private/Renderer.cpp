@@ -275,7 +275,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 			}
 			else // Mobile
 			{
-				PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Translucent);
+				PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Translucent, EMobileSceneTextureSetupMode::None);
 
 				RenderContext.AddPass(RDG_EVENT_NAME("TranslucentMobile"), PassParameters,
 					[Scene, &View, DrawRenderState, &Mesh](FRHICommandListImmediate& RHICmdList)
@@ -354,7 +354,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 				}
 				else // Mobile
 				{
-					PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque);
+					PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque, EMobileSceneTextureSetupMode::None);
 
 					RenderContext.AddPass(RDG_EVENT_NAME("OpaqueMobile"), PassParameters,
 						[Scene, &View, DrawRenderState, &Mesh](FRHICommandListImmediate& RHICmdList)

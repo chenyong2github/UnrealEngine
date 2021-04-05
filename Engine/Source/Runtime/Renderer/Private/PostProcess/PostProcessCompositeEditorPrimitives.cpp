@@ -481,7 +481,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 			}
 			else
 			{
-				PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, *EditorView, EMobileBasePass::Translucent);
+				PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, *EditorView, EMobileBasePass::Translucent, EMobileSceneTextureSetupMode::None);
 			}
 
 			GraphBuilder.AddPass(

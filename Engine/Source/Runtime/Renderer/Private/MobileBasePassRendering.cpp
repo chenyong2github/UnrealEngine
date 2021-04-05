@@ -148,8 +148,7 @@ void SetupMobileBasePassUniformParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	EMobileBasePass BasePass,
-	FRDGTextureRef ScreenSpaceAOTexture,
-	FTextureRHIRef PixelProjectedReflectionTexture,
+	EMobileSceneTextureSetupMode SetupMode,
 	FMobileBasePassUniformParameters& BasePassParameters)
 {
 	SetupFogUniformParameters(GraphBuilder, View, BasePassParameters.Fog);
@@ -157,15 +156,10 @@ void SetupMobileBasePassUniformParameters(
 	const FScene* Scene = View.Family->Scene ? View.Family->Scene->GetRenderScene() : nullptr;
 	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, BasePassParameters.PlanarReflection);
-
-	EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::None;
-	if (BasePass == EMobileBasePass::Translucent)
+	if (View.PrevViewInfo.MobilePixelProjectedReflection.IsValid())
 	{
-		SetupMode |= EMobileSceneTextureSetupMode::SceneColor;
-	}
-	if (View.bCustomDepthStencilValid)
-	{
-		SetupMode |= EMobileSceneTextureSetupMode::CustomDepth;
+		BasePassParameters.PlanarReflection.PlanarReflectionTexture = View.PrevViewInfo.MobilePixelProjectedReflection->GetRenderTargetItem().ShaderResourceTexture;
+		BasePassParameters.PlanarReflection.PlanarReflectionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
@@ -174,23 +168,19 @@ void SetupMobileBasePassUniformParameters(
 
 	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-	if (PixelProjectedReflectionTexture.IsValid())
-			{
-		BasePassParameters.PlanarReflection.PlanarReflectionTexture = PixelProjectedReflectionTexture;
-				BasePassParameters.PlanarReflection.PlanarReflectionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			}
-
 	BasePassParameters.EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View), PF_A32B32G32R32F);
 
-	if (BasePass == EMobileBasePass::Opaque && ScreenSpaceAOTexture != nullptr)
+	FRDGTextureRef AmbientOcclusionTexture = SystemTextures.White;
+	if (BasePass == EMobileBasePass::Opaque)
 	{
-		BasePassParameters.AmbientOcclusionTexture = ScreenSpaceAOTexture;
+		FRDGTextureRef LastFrameScreenSpaceAO = TryRegisterExternalTexture(GraphBuilder, View.PrevViewInfo.MobileAmbientOcclusion); 
+		if (LastFrameScreenSpaceAO)
+		{
+			AmbientOcclusionTexture = LastFrameScreenSpaceAO;
+		}
 	}
-	else
-	{
-		BasePassParameters.AmbientOcclusionTexture = SystemTextures.White;
-	}
+
+	BasePassParameters.AmbientOcclusionTexture = AmbientOcclusionTexture;
 	BasePassParameters.AmbientOcclusionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	BasePassParameters.AmbientOcclusionStaticFraction = FMath::Clamp(View.FinalPostProcessSettings.AmbientOcclusionStaticFraction, 0.0f, 1.0f);
 
@@ -213,11 +203,10 @@ TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUnifo
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	EMobileBasePass BasePass,
-	FRDGTextureRef ScreenSpaceAO,
-	FTextureRHIRef PixelProjectedReflectionTexture)
+	EMobileSceneTextureSetupMode SetupMode)
 {
 	FMobileBasePassUniformParameters* BasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassUniformParameters>();
-	SetupMobileBasePassUniformParameters(GraphBuilder, View, BasePass, ScreenSpaceAO, PixelProjectedReflectionTexture, *BasePassParameters);
+	SetupMobileBasePassUniformParameters(GraphBuilder, View, BasePass, SetupMode, *BasePassParameters);
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
 }
 

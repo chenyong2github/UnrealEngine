@@ -202,7 +202,7 @@ static void GetLightMaterial(const FCachedLightMaterial& DefaultLightMaterial, c
 	OutShader = MaterialShaderMap->GetShader<ShaderType>(PermutationId);
 }
 
-static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene& Scene, const FViewInfo& View, const FCachedLightMaterial& DefaultLightMaterial, const FTextureRHIRef MobilePixelProjectedReflection)
+static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene& Scene, const FViewInfo& View, const FCachedLightMaterial& DefaultLightMaterial)
 {
 	FLightSceneInfo* DirectionalLight = nullptr;
 	for (int32 ChannelIdx = 0; ChannelIdx < UE_ARRAY_COUNT(Scene.MobileDirectionalLights) && !DirectionalLight; ChannelIdx++)
@@ -258,10 +258,9 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene.GetForwardPassGlobalPlanarReflection();
 	FPlanarReflectionUniformParameters PlanarReflectionUniformParameters;
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, PlanarReflectionUniformParameters);
-
-	if (MobilePixelProjectedReflection.IsValid())
+	if (View.PrevViewInfo.MobilePixelProjectedReflection.IsValid())
 	{
-		PlanarReflectionUniformParameters.PlanarReflectionTexture = MobilePixelProjectedReflection;
+		PlanarReflectionUniformParameters.PlanarReflectionTexture = View.PrevViewInfo.MobilePixelProjectedReflection->GetRenderTargetItem().ShaderResourceTexture;
 	}
 	PassParameters.PlanarReflection = TUniformBufferRef<FPlanarReflectionUniformParameters>::CreateUniformBufferImmediate(PlanarReflectionUniformParameters, UniformBuffer_SingleDraw);
 
@@ -580,8 +579,7 @@ void MobileDeferredShadingPass(
 	int32 NumViews,
 	const FViewInfo& View,
 	const FScene& Scene, 
-	const FSortedLightSetSceneInfo &SortedLightSet,
-	const FTextureRHIRef MobilePixelProjectedReflection)
+	const FSortedLightSetSceneInfo &SortedLightSet)
 {
 	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
@@ -591,7 +589,7 @@ void MobileDeferredShadingPass(
 	DefaultMaterial.Material = DefaultMaterial.MaterialProxy->GetMaterialNoFallback(ERHIFeatureLevel::ES3_1);
 	check(DefaultMaterial.Material);
 
-	RenderDirectLight(RHICmdList, Scene, View, DefaultMaterial, MobilePixelProjectedReflection);
+	RenderDirectLight(RHICmdList, Scene, View, DefaultMaterial);
 
 	if (GMobileUseClusteredDeferredShading == 0)
 	{

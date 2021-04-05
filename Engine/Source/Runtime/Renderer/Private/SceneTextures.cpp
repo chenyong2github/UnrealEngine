@@ -1096,25 +1096,16 @@ void SetupMobileSceneTextureUniformParameters(
 
 	if (const FSceneTextures* SceneTextures = GraphBuilder.Blackboard.Get<FSceneTextures>())
 	{
-		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneColor))
+		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneColor) && HasBeenProduced(SceneTextures->Color.Resolve))
 		{
-			if (HasBeenProduced(SceneTextures->Color.Resolve))
-			{
-				SceneTextureParameters.SceneColorTexture = SceneTextures->Color.Resolve;
-			}
-
-			if (HasBeenProduced(SceneTextures->Depth.Resolve))
-			{
-				SceneTextureParameters.SceneDepthTexture = SceneTextures->Depth.Resolve;
-			}
+			SceneTextureParameters.SceneColorTexture = SceneTextures->Color.Resolve;
 		}
 
-		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneDepth))
+		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneDepth) && 
+			HasBeenProduced(SceneTextures->Depth.Resolve) && 
+			!EnumHasAnyFlags(SceneTextures->Depth.Resolve->Desc.Flags, TexCreate_Memoryless))
 		{
-			if ((HasBeenProduced(SceneTextures->Depth.Resolve) && !EnumHasAnyFlags(SceneTextures->Depth.Resolve->Desc.Flags, TexCreate_Memoryless)))
-			{
-				SceneTextureParameters.SceneDepthTexture = SceneTextures->Depth.Resolve;
-			}
+			SceneTextureParameters.SceneDepthTexture = SceneTextures->Depth.Resolve;
 		}
 
 		if (SceneTextures->Config.bIsUsingGBuffers)

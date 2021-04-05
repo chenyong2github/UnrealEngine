@@ -21,5 +21,4 @@ void MobileDeferredShadingPass(
 	int32 NumViews,
 	const FViewInfo& View,
 	const FScene& Scene, 
-	const FSortedLightSetSceneInfo &SortedLightSet,
-	const FTextureRHIRef MobilePixelProjectedReflection);
+	const FSortedLightSetSceneInfo &SortedLightSet);
