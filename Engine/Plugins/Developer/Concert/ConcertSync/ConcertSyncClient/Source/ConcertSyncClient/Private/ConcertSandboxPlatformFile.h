@@ -216,10 +216,10 @@ private:
 		FDelegateHandle OnDirectoryChangedHandle;
 	};
 
-	/** Callback when a new content path is mounted in UE4 */
+	/** Callback when a new content path is mounted */
 	void OnContentPathMounted(const FString& InAssetPath, const FString& InFilesystemPath);
 
-	/** Callback when an existing content path is unmounted in UE4 */
+	/** Callback when an existing content path is unmounted */
 	void OnContentPathDismounted(const FString& InAssetPath, const FString& InFilesystemPath);
 
 	/** Register a mount path from a source content path */

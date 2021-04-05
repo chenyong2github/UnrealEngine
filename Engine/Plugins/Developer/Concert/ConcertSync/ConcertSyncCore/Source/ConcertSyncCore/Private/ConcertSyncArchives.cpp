@@ -180,8 +180,8 @@ FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifier
 
 	if (InVersionInfo)
 	{
-		SetUE4Ver(InVersionInfo->FileVersion.FileVersionUE4);
-		SetLicenseeUE4Ver(InVersionInfo->FileVersion.FileVersionLicenseeUE4);
+		SetUE4Ver(InVersionInfo->FileVersion.FileVersion);
+		SetLicenseeUE4Ver(InVersionInfo->FileVersion.FileVersionLicensee);
 		SetEngineVer(FEngineVersionBase(InVersionInfo->EngineVersion.Major, InVersionInfo->EngineVersion.Minor, InVersionInfo->EngineVersion.Patch, InVersionInfo->EngineVersion.Changelist));
 
 		FCustomVersionContainer EngineCustomVersions;

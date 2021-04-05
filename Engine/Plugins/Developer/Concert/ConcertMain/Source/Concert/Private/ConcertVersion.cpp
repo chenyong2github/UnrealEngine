@@ -49,14 +49,14 @@ bool ValidateVersion(const int32 InCurrent, const int32 InOther, const FText InV
 
 void FConcertFileVersionInfo::Initialize()
 {
-	FileVersionUE4 = GPackageFileUEVersion;
-	FileVersionLicenseeUE4 = GPackageFileLicenseeUEVersion;
+	FileVersion = GPackageFileUEVersion;
+	FileVersionLicensee = GPackageFileLicenseeUEVersion;
 }
 
 bool FConcertFileVersionInfo::Validate(const FConcertFileVersionInfo& InOther, const EConcertVersionValidationMode InValidationMode, FText* OutFailureReason) const
 {
-	return ConcertVersionUtil::ValidateVersion(FileVersionUE4, InOther.FileVersionUE4, LOCTEXT("PackageVersionName", "Package Version"), InValidationMode, OutFailureReason)
-		&& ConcertVersionUtil::ValidateVersion(FileVersionLicenseeUE4, InOther.FileVersionLicenseeUE4, LOCTEXT("LicenseePackageVersionName", "Licensee Package Version"), InValidationMode, OutFailureReason);
+	return ConcertVersionUtil::ValidateVersion(FileVersion, InOther.FileVersion, LOCTEXT("PackageVersionName", "Package Version"), InValidationMode, OutFailureReason)
+		&& ConcertVersionUtil::ValidateVersion(FileVersionLicensee, InOther.FileVersionLicensee, LOCTEXT("LicenseePackageVersionName", "Licensee Package Version"), InValidationMode, OutFailureReason);
 }
 
 
