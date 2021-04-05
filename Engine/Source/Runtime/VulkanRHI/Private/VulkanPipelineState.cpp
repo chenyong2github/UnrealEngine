@@ -245,20 +245,6 @@ FVulkanGraphicsPipelineDescriptorState::FVulkanGraphicsPipelineDescriptorState(F
 		}
 #endif
 
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		uint64 HullShaderKey = InGfxPipeline->GetShaderKey(SF_Hull);
-		if (HullShaderKey)
-		{
-			const FVulkanHullShader* HullShader = ShaderFactory.LookupShader<FVulkanHullShader>(HullShaderKey);
-			PackedUniformBuffers[ShaderStage::Hull].Init(HullShader->GetCodeHeader(), PackedUniformBuffersMask[ShaderStage::Hull]);
-		}
-		uint64 DomainShaderKey = InGfxPipeline->GetShaderKey(SF_Domain);
-		if (DomainShaderKey)
-		{
-			const FVulkanDomainShader* DomainShader = ShaderFactory.LookupShader<FVulkanDomainShader>(DomainShaderKey);
-			PackedUniformBuffers[ShaderStage::Domain].Init(DomainShader->GetCodeHeader(), PackedUniformBuffersMask[ShaderStage::Domain]);
-		}
-#endif
 		CreateDescriptorWriteInfos();
 
 		//UE_LOG(LogVulkanRHI, Warning, TEXT("GfxPSOState %p For PSO %p Writes:%d"), this, InGfxPipeline, DSWriteContainer.DescriptorWrites.Num());
@@ -372,10 +358,6 @@ void FVulkanCommandListContext::RHISetGraphicsPipelineState(FRHIGraphicsPipeline
 	if (bApplyAdditionalState)
 	{
 		ApplyStaticUniformBuffers(static_cast<FVulkanVertexShader*>(Pipeline->VulkanShaders[ShaderStage::Vertex]));
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		ApplyStaticUniformBuffers(static_cast<FVulkanHullShader*>(Pipeline->VulkanShaders[ShaderStage::Hull]));
-		ApplyStaticUniformBuffers(static_cast<FVulkanDomainShader*>(Pipeline->VulkanShaders[ShaderStage::Domain]));
-#endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		ApplyStaticUniformBuffers(static_cast<FVulkanGeometryShader*>(Pipeline->VulkanShaders[ShaderStage::Geometry]));
 #endif

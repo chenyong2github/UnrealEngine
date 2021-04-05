@@ -44,12 +44,6 @@ inline uint64 GetShaderKeyForGfxStage(const FBoundShaderStateInput& BSI, ShaderS
 	case ShaderStage::Geometry:
 		return GetShaderKey<FVulkanGeometryShader>(BSI.GeometryShaderRHI);
 #endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case ShaderStage::Hull:
-		return GetShaderKey<FVulkanHullShader>(BSI.HullShaderRHI);
-	case ShaderStage::Domain:
-		return GetShaderKey<FVulkanDomainShader>(BSI.DomainShaderRHI);
-#endif
 	default:
 		check(0);
 	}
@@ -726,10 +720,6 @@ public:
 	FVertexShaderRHIRef					VertexShaderRHI;
 	FVertexDeclarationRHIRef			VertexDeclarationRHI;
 
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	FDomainShaderRHIRef					DomainShaderRHI;
-	FHullShaderRHIRef					HullShaderRHI;
-#endif 
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	FGeometryShaderRHIRef				GeometryShaderRHI;
 #endif

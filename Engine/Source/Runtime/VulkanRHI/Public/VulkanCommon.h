@@ -28,10 +28,6 @@ namespace ShaderStage
 
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 		Geometry		= 2,
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		Hull			= 3,
-		Domain			= 4,
-#endif
 		NumStages,
 
 		MaxNumSets		= 8,
@@ -52,10 +48,6 @@ namespace ShaderStage
 		switch (Stage)
 		{
 		case SF_Vertex:		return Vertex;
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		case SF_Hull:		return Hull;
-		case SF_Domain:		return Domain;
-#endif
 		case SF_Pixel:		return Pixel;
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 		case SF_Geometry:	return Geometry;
@@ -74,10 +66,6 @@ namespace ShaderStage
 		switch (Stage)
 		{
 		case EStage::Vertex:	return SF_Vertex;
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		case EStage::Hull:		return SF_Hull;
-		case EStage::Domain:	return SF_Domain;
-#endif
 		case EStage::Pixel:		return SF_Pixel;
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 		case EStage::Geometry:	return SF_Geometry;

@@ -160,10 +160,6 @@ static inline FSHAHash GetShaderHashForStage(const FGraphicsPipelineStateInitial
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 	case ShaderStage::Geometry:		return GetShaderHash<FRHIGeometryShader, FVulkanGeometryShader>(PSOInitializer.BoundShaderState.GeometryShaderRHI);
 #endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case ShaderStage::Hull:			return GetShaderHash<FRHIHullShader, FVulkanHullShader>(PSOInitializer.BoundShaderState.HullShaderRHI);
-	case ShaderStage::Domain:		return GetShaderHash<FRHIDomainShader, FVulkanDomainShader>(PSOInitializer.BoundShaderState.DomainShaderRHI);
-#endif
 	default:			check(0);	break;
 	}
 
@@ -1323,10 +1319,6 @@ FVulkanShaderHashes::FVulkanShaderHashes(const FGraphicsPipelineStateInitializer
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 	Stages[ShaderStage::Geometry] = GetShaderHash<FRHIGeometryShader, FVulkanGeometryShader>(PSOInitializer.BoundShaderState.GeometryShaderRHI);
 #endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	Stages[ShaderStage::Hull] = GetShaderHash<FRHIHullShader, FVulkanHullShader>(PSOInitializer.BoundShaderState.HullShaderRHI);
-	Stages[ShaderStage::Domain] = GetShaderHash<FRHIDomainShader, FVulkanDomainShader>(PSOInitializer.BoundShaderState.DomainShaderRHI);
-#endif
 	Finalize();
 }
 
@@ -1514,15 +1506,6 @@ void FVulkanPipelineStateCacheManager::CreateGfxEntry(const FGraphicsPipelineSta
 			}
 #endif
 
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			if (Shaders[ShaderStage::Hull])
-			{
-				const FVulkanShaderHeader& HSHeader = Shaders[ShaderStage::Hull]->GetCodeHeader();
-				const FVulkanShaderHeader& DSHeader = Shaders[ShaderStage::Domain]->GetCodeHeader();
-				DescriptorSetLayoutInfo.ProcessBindingsForStage(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, ShaderStage::Hull, HSHeader, UBGatherInfo);
-				DescriptorSetLayoutInfo.ProcessBindingsForStage(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, ShaderStage::Domain, DSHeader, UBGatherInfo);
-			}
-#endif
 			// Second pass
 			const int32 NumImmutableSamplers = PSOInitializer.ImmutableSamplerState.ImmutableSamplers.Num();
 			TArrayView<FRHISamplerState*> ImmutableSamplers(NumImmutableSamplers > 0 ? &(FRHISamplerState*&)PSOInitializer.ImmutableSamplerState.ImmutableSamplers[0] : nullptr, NumImmutableSamplers);
@@ -1667,10 +1650,6 @@ FVulkanRHIGraphicsPipelineState::FVulkanRHIGraphicsPipelineState(FVulkanDevice* 
 
 	FMemory::Memset(VulkanShaders, 0, sizeof(VulkanShaders));
 	VulkanShaders[ShaderStage::Vertex] = static_cast<FVulkanVertexShader*>(PSOInitializer_.BoundShaderState.VertexShaderRHI);
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	VulkanShaders[ShaderStage::Hull] = static_cast<FVulkanHullShader*>(PSOInitializer_.BoundShaderState.HullShaderRHI);
-	VulkanShaders[ShaderStage::Domain] = static_cast<FVulkanDomainShader*>(PSOInitializer_.BoundShaderState.DomainShaderRHI);
-#endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	VulkanShaders[ShaderStage::Geometry] = static_cast<FVulkanGeometryShader*>(PSOInitializer_.BoundShaderState.GeometryShaderRHI);
 #endif
@@ -1688,11 +1667,6 @@ FVulkanRHIGraphicsPipelineState::FVulkanRHIGraphicsPipelineState(FVulkanDevice* 
 	PixelShaderRHI = PSOInitializer_.BoundShaderState.PixelShaderRHI;
 	VertexShaderRHI = PSOInitializer_.BoundShaderState.VertexShaderRHI;
 	VertexDeclarationRHI = PSOInitializer_.BoundShaderState.VertexDeclarationRHI;
-
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	DomainShaderRHI = PSOInitializer_.BoundShaderState.DomainShaderRHI;
-	HullShaderRHI = PSOInitializer_.BoundShaderState.HullShaderRHI;
-#endif 
 
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	GeometryShaderRHI = PSOInitializer_.BoundShaderState.GeometryShaderRHI;
@@ -2051,21 +2025,6 @@ void GetVulkanShaders(const FBoundShaderStateInput& BSI, FVulkanShader* OutShade
 #else
 		ensureMsgf(0, TEXT("Geometry not supported!"));
 #endif
-	}
-#endif
-
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	if (BSI.HullShaderRHI)
-	{
-		// Can't have Hull w/o Domain
-		check(BSI.DomainShaderRHI);
-		OutShaders[ShaderStage::Hull] = ResourceCast(BSI.HullShaderRHI);
-		OutShaders[ShaderStage::Domain] = ResourceCast(BSI.DomainShaderRHI);
-	}
-	else
-	{
-		// Can't have Domain w/o Hull
-		check(BSI.DomainShaderRHI == nullptr);
 	}
 #endif
 }

@@ -182,8 +182,6 @@ public:
 
 typedef TVulkanBaseShader<FRHIVertexShader, SF_Vertex, VK_SHADER_STAGE_VERTEX_BIT>					FVulkanVertexShader;
 typedef TVulkanBaseShader<FRHIPixelShader, SF_Pixel, VK_SHADER_STAGE_FRAGMENT_BIT>					FVulkanPixelShader;
-typedef TVulkanBaseShader<FRHIHullShader, SF_Hull, VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT>		FVulkanHullShader;
-typedef TVulkanBaseShader<FRHIDomainShader, SF_Domain, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT>	FVulkanDomainShader;
 typedef TVulkanBaseShader<FRHIComputeShader, SF_Compute, VK_SHADER_STAGE_COMPUTE_BIT>				FVulkanComputeShader;
 typedef TVulkanBaseShader<FRHIGeometryShader, SF_Geometry, VK_SHADER_STAGE_GEOMETRY_BIT>			FVulkanGeometryShader;
 
@@ -233,8 +231,6 @@ public:
 
 	FORCEINLINE FVulkanVertexShader*   GetVertexShader() const { return (FVulkanVertexShader*)CacheLink.GetVertexShader(); }
 	FORCEINLINE FVulkanPixelShader*    GetPixelShader() const { return (FVulkanPixelShader*)CacheLink.GetPixelShader(); }
-	FORCEINLINE FVulkanHullShader*     GetHullShader() const { return (FVulkanHullShader*)CacheLink.GetHullShader(); }
-	FORCEINLINE FVulkanDomainShader*   GetDomainShader() const { return (FVulkanDomainShader*)CacheLink.GetDomainShader(); }
 	FORCEINLINE FVulkanGeometryShader* GetGeometryShader() const { return (FVulkanGeometryShader*)CacheLink.GetGeometryShader(); }
 
 	const FVulkanShader* GetShader(ShaderStage::EStage Stage) const
@@ -242,10 +238,6 @@ public:
 		switch (Stage)
 		{
 		case ShaderStage::Vertex:		return GetVertexShader();
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		case ShaderStage::Hull:			return GetHullShader();
-		case ShaderStage::Domain:		return GetDomainShader();
-#endif
 		case ShaderStage::Pixel:		return GetPixelShader();
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 		case ShaderStage::Geometry:	return GetGeometryShader();
@@ -1477,16 +1469,6 @@ template<>
 struct TVulkanResourceTraits<FRHIGeometryShader>
 {
 	typedef FVulkanGeometryShader TConcreteType;
-};
-template<>
-struct TVulkanResourceTraits<FRHIHullShader>
-{
-	typedef FVulkanHullShader TConcreteType;
-};
-template<>
-struct TVulkanResourceTraits<FRHIDomainShader>
-{
-	typedef FVulkanDomainShader TConcreteType;
 };
 template<>
 struct TVulkanResourceTraits<FRHIPixelShader>
