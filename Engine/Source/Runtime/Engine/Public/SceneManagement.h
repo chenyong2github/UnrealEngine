@@ -1651,7 +1651,7 @@ protected:
 	 * The light may still have dynamic brightness and color. 
 	 * The light may or may not also have static lighting.
 	 */
-	const uint8 bStaticShadowing : 1;
+	uint8 bStaticShadowing : 1;
 
 	/** True if the light casts dynamic shadows. */
 	const uint8 bCastDynamicShadow : 1;

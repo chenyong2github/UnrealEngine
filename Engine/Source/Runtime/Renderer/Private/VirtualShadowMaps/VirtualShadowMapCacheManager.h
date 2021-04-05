@@ -5,7 +5,6 @@
 =============================================================================*/
 #pragma once
 
-#include "VirtualShadowMapConfig.h"
 #include "CoreMinimal.h"
 #include "VirtualShadowMapArray.h"
 #include "SceneManagement.h"

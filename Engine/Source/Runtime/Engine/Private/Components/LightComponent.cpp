@@ -339,6 +339,13 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 {
 	check(SceneInterface);
 
+	// Treat stationary lights as movable when non-nanite VSMs are enabled
+	const bool bNonNaniteVirtualShadowMaps = UseNonNaniteVirtualShadowMaps(SceneInterface->GetShaderPlatform(), SceneInterface->GetFeatureLevel());
+	if (bNonNaniteVirtualShadowMaps)
+	{
+		bStaticShadowing = bStaticLighting;
+	}
+
 	const FLightComponentMapBuildData* MapBuildData = InLightComponent->GetLightComponentMapBuildData();
 	
 	if (MapBuildData && bStaticShadowing && !bStaticLighting)

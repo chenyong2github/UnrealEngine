@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "VirtualShadowMapConfig.h"
 #include "CoreMinimal.h"
 #include "RenderGraphResources.h"
 #include "ScreenSpaceDenoise.h"

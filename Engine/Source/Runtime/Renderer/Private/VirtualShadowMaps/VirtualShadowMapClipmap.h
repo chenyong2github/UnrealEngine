@@ -6,7 +6,6 @@ VirtualShadowMapClipmap.h
 
 #pragma once
 
-#include "VirtualShadowMapConfig.h"
 #include "CoreMinimal.h"
 #include "VirtualShadowMapProjection.h"
 

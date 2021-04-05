@@ -33,7 +33,6 @@
 #include "GpuDebugRendering.h"
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
 #include "Nanite/NaniteRender.h"
-#include "VirtualShadowMaps/VirtualShadowMapConfig.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
 #include "HairStrands/HairStrandsData.h"

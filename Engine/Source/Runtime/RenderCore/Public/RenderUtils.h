@@ -684,3 +684,18 @@ inline bool UseVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFe
 
 	return UseGPUScene(ShaderPlatform, FeatureLevel) && !bForwardShadingEnabled && (EnableVirtualSMCVar && EnableVirtualSMCVar->GetInt() != 0) && DoesPlatformSupportNanite(ShaderPlatform);
 }
+
+/**
+* Returns true if non-nanite virtual shadow maps are enbled by CVar r.Shadow.Virtual.NonNaniteVSM 
+* and UseVirtualShadowMaps is true for the given platform and feature level.
+*/
+inline bool UseNonNaniteVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFeatureLevel FeatureLevel)
+{
+	static const auto EnableCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.NonNaniteVSM"));
+
+#if GPUCULL_TODO
+	return EnableCVar->GetInt() != 0 && UseVirtualShadowMaps(ShaderPlatform, FeatureLevel);
+#else // !GPUCULL_TODO
+	return false;
+#endif // GPUCULL_TODO
+}

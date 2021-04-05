@@ -29,7 +29,6 @@
 #include "LightRendering.h"
 #include "HairStrands/HairStrandsRendering.h"
 #include "Strata/Strata.h"
-#include "VirtualShadowMaps/VirtualShadowMapConfig.h"
 
 ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
 
