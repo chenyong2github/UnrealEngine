@@ -42,6 +42,7 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
+static float GenericThumbnailSizes[(int32)EThumbnailSize::MAX] = { 24, 32, 64, 128, 200 };
 
 ///////////////////////////////
 // FAssetViewModeUtils
@@ -1664,6 +1665,8 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 		ThumbnailConfig.HighlightedText = InArgs._HighlightText;
 		ThumbnailConfig.HintColorAndOpacity = InArgs._ThumbnailHintColorAndOpacity;
 		ThumbnailConfig.Padding= FMargin(2.0f);
+		ThumbnailConfig.GenericThumbnailSize = MakeAttributeSP(this, &SAssetTileItem::GetGenericThumbnailSize);
+
 		{
 			FContentBrowserItemDataAttributeValue ColorAttributeValue = AssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemColor);
 			if (ColorAttributeValue.IsValid())
@@ -1733,7 +1736,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 							.VAlign(VAlign_Top)
 							[
 								SNew(SBox)
-								.MaxDesiredHeight(AssetNameHeights[(int32)CurrentThumbnailSize])
+								.MaxDesiredHeight(this, &SAssetTileItem::GetNameAreaMaxDesiredHeight)
 								[
 									SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
 									.Font(this, &SAssetTileItem::GetThumbnailFont)
@@ -1926,6 +1929,16 @@ const FSlateBrush* SAssetTileItem::GetFolderBackgroundShadowImage() const
 	}
 
 	return FStyleDefaults::GetNoBrush();
+}
+
+FOptionalSize SAssetTileItem::GetNameAreaMaxDesiredHeight() const
+{
+	return AssetNameHeights[(int32)CurrentThumbnailSize.Get()];
+}
+
+int32 SAssetTileItem::GetGenericThumbnailSize() const
+{
+	return GenericThumbnailSizes[(int32)CurrentThumbnailSize.Get()];
 }
 
 void SAssetTileItem::InitializeAssetNameHeights()

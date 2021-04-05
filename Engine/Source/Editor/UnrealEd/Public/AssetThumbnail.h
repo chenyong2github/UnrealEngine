@@ -57,6 +57,7 @@ struct FAssetThumbnailConfig
 	TAttribute< FLinearColor > HintColorAndOpacity;
 	TOptional< FLinearColor > AssetTypeColorOverride;
 	FMargin Padding;
+	TAttribute<int32> GenericThumbnailSize = 64;
 };
 
 

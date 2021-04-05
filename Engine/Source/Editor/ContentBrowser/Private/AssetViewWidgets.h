@@ -496,7 +496,7 @@ public:
 		SLATE_ARGUMENT( bool, AllowThumbnailHintLabel )
 
 		/** Current size of the thumbnail that was generated */
-		SLATE_ARGUMENT(EThumbnailSize, CurrentThumbnailSize)
+		SLATE_ATTRIBUTE(EThumbnailSize, CurrentThumbnailSize)
 
 		/** The width of the item */
 		SLATE_ATTRIBUTE( float, ItemWidth )
@@ -590,6 +590,10 @@ protected:
 	const FSlateBrush* GetFolderBackgroundImage() const;
 	const FSlateBrush* GetFolderBackgroundShadowImage() const;
 
+	FOptionalSize GetNameAreaMaxDesiredHeight() const;
+
+	int32 GetGenericThumbnailSize() const;
+
 	static void InitializeAssetNameHeights();
 
 private:
@@ -606,7 +610,7 @@ private:
 	float ThumbnailPadding;
 
 	/** Current thumbnail size when this widget was generated */
-	EThumbnailSize CurrentThumbnailSize;
+	TAttribute<EThumbnailSize> CurrentThumbnailSize;
 };
 
 /** An item in the asset column view */

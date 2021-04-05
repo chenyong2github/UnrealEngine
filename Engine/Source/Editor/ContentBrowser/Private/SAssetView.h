@@ -677,6 +677,9 @@ private:
 	/** Gets the current thumbnail scale */
 	float GetThumbnailScale() const;
 
+	/** Gets the current thumbnail size enum */
+	EThumbnailSize GetThumbnailSize() const { return ThumbnailSize; }
+
 	/** Gets the scaled item height for the list view */
 	float GetListViewItemHeight() const;
 	

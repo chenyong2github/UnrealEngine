@@ -56,6 +56,7 @@ public:
 		, _ClassThumbnailBrushOverride(NAME_None)
 		, _AssetTypeColorOverride()
 		, _Padding(0)
+		, _GenericThumbnailSize(64)
 		{}
 
 		SLATE_ARGUMENT(FName, Style)
@@ -72,6 +73,7 @@ public:
 		SLATE_ARGUMENT(FName, ClassThumbnailBrushOverride)
 		SLATE_ARGUMENT(TOptional<FLinearColor>, AssetTypeColorOverride)
 		SLATE_ARGUMENT(FMargin, Padding)
+		SLATE_ATTRIBUTE(int32, GenericThumbnailSize)
 
 	SLATE_END_ARGS()
 
@@ -90,6 +92,7 @@ public:
 		bHasRenderedThumbnail = false;
 		WidthLastFrame = 0;
 		GenericThumbnailBorderPadding = 2.f;
+		GenericThumbnailSize = InArgs._GenericThumbnailSize;
 
 		AssetThumbnail->OnAssetDataChanged().AddSP(this, &SAssetThumbnail::OnAssetDataChanged);
 
@@ -148,6 +151,7 @@ public:
 				+SOverlay::Slot()
 				[
 					SAssignNew(GenericThumbnailImage, SImage)
+					.DesiredSizeOverride(this, &SAssetThumbnail::GetGenericThumbnailDesiredSize)
 					.Image(this, &SAssetThumbnail::GetClassThumbnailBrush)
 				]
 			]
@@ -673,6 +677,13 @@ private:
 		}
 	}
 
+	TOptional<FVector2D> GetGenericThumbnailDesiredSize() const
+	{
+		const int32 Size = GenericThumbnailSize.Get();
+
+		return FVector2D(Size, Size);
+	}
+
 private:
 	TSharedPtr<STextBlock> GenericLabelTextBlock;
 	TSharedPtr<STextBlock> HintTextBlock;
@@ -696,6 +707,8 @@ private:
 	EThumbnailLabel::Type Label;
 
 	TAttribute< FLinearColor > HintColorAndOpacity;
+	TAttribute<int32> GenericThumbnailSize;
+
 	bool bAllowHintText;
 	bool bAllowRealTimeOnHovered;
 
@@ -831,7 +844,8 @@ TSharedRef<SWidget> FAssetThumbnail::MakeThumbnailWidget( const FAssetThumbnailC
 		.ClassThumbnailBrushOverride(InConfig.ClassThumbnailBrushOverride)
 		.AllowAssetSpecificThumbnailOverlay(InConfig.bAllowAssetSpecificThumbnailOverlay)
 		.AssetTypeColorOverride(InConfig.AssetTypeColorOverride)
-		.Padding(InConfig.Padding);
+		.Padding(InConfig.Padding)
+		.GenericThumbnailSize(InConfig.GenericThumbnailSize);
 }
 
 void FAssetThumbnail::RefreshThumbnail()
