@@ -1434,7 +1434,7 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 	//     9.3. Etc
 	// 10. Push the new "DefaultLayout.ini" together with your new code.
 	// 11. Also update these instructions if you change the version number (e.g., from "UnrealEd_Layout_v1.6" to "UnrealEd_Layout_v1.7").
-	const FName LayoutName = TEXT("LevelEditor_Layout_v1.6");
+	const FName LayoutName = TEXT("LevelEditor_Layout_v1.7");
 	const TSharedRef<FTabManager::FLayout> DefaultLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni,
 		FTabManager::NewLayout( LayoutName )
 		->AddArea
@@ -1463,7 +1463,7 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 					(
 						FTabManager::NewStack()
 						->SetSizeCoefficient( 0.3f )
-						->AddTab(LevelEditorTabIds::PlacementBrowser, ETabState::SidebarTab, ESidebarLocation::Left, 0.12f)
+						->AddTab(LevelEditorTabIds::PlacementBrowser, ETabState::ClosedTab)
 						->AddTab(LevelEditorTabIds::LevelEditorToolBox, ETabState::ClosedTab)
 					)
 					->Split
@@ -1478,7 +1478,8 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(.4)
-					->AddTab("ContentBrowserTab1", ETabState::OpenedTab)
+					->SetHideTabWell(true)
+					->AddTab("ContentBrowserTab1", ETabState::ClosedTab)
 					->AddTab(LevelEditorTabIds::OutputLog, ETabState::ClosedTab)
 				)
 			)

@@ -507,7 +507,7 @@ public:
 	 *
 	 * @return The content browser drawer widget
 	 */
-	virtual TSharedRef<class SWidget> CreateContentBrowserDrawer(const FContentBrowserConfig& ContentBrowserConfig) = 0;
+	virtual TSharedRef<class SWidget> CreateContentBrowserDrawer(const FContentBrowserConfig& ContentBrowserConfig, TFunction<TSharedPtr<SDockTab>()> InOnGetTabForDrawer) = 0;
 
 	/**
 	 * Opens the Open Asset dialog in a non-modal window

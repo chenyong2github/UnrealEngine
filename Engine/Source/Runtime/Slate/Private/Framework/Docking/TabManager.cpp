@@ -2498,6 +2498,17 @@ TSharedPtr<SDockTab> FGlobalTabmanager::GetMajorTabForTabManager(const TSharedRe
 	return TSharedPtr<SDockTab>();
 }
 
+TSharedPtr<FTabManager> FGlobalTabmanager::GetTabManagerForMajorTab(const TSharedPtr<SDockTab> DockTab) const
+{
+	const int32 Index = SubTabManagers.IndexOfByPredicate(FindByTab(DockTab.ToSharedRef()));
+	if (Index != INDEX_NONE)
+	{
+		return SubTabManagers[Index].TabManager.Pin();
+	}
+
+	return nullptr;
+}
+
 void FGlobalTabmanager::DrawAttentionToTabManager( const TSharedRef<FTabManager>& ChildManager )
 {
 	TSharedPtr<SDockTab> Tab = GetMajorTabForTabManager(ChildManager);

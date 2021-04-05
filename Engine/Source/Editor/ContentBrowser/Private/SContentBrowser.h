@@ -54,13 +54,15 @@ public:
 	SLATE_BEGIN_ARGS( SContentBrowser )
 		: _ContainingTab()
 		, _InitiallyLocked(false)
+		, _IsDrawer(false)
 	{}
 		/** The tab in which the content browser resides */
-		SLATE_ARGUMENT( TSharedPtr<SDockTab>, ContainingTab )
+		SLATE_ARGUMENT(TSharedPtr<SDockTab>, ContainingTab)
 
 		/** If true, this content browser will not sync from external sources. */
-		SLATE_ARGUMENT( bool, InitiallyLocked )
+		SLATE_ARGUMENT(bool, InitiallyLocked )
 
+		SLATE_ARGUMENT(bool, IsDrawer)
 	SLATE_END_ARGS()
 
 	~SContentBrowser();
@@ -178,6 +180,13 @@ public:
 	/** Gives keyboard focus to the asset search box */
 	void SetKeyboardFocusOnSearch() const;
 
+	/**
+	 * Copies settings from a different browser to this browser
+	 * Note this overrides any settings already saved for this browser 
+	 */
+	void CopySettingsFromBrowser(TSharedPtr<SContentBrowser> OtherBrowser);
+
+	/** SWidget interface  */
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnPreviewMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
@@ -321,6 +330,9 @@ private:
 
 	/** Handler for clicking the lock button */
 	FReply ToggleLockClicked();
+
+	/** Handler for clicking the dock drawer in layout button */
+	FReply DockInLayoutClicked();
 
 	/** Gets the menu text */
 	FText GetLockMenuText() const;
@@ -515,6 +527,7 @@ private:
 	TSharedRef<SWidget> CreateFavoritesView(const FContentBrowserConfig* Config);
 	TSharedRef<SWidget> CreatePathView(const FContentBrowserConfig* Config);
 	TSharedRef<SWidget> CreateDockedCollectionsView(const FContentBrowserConfig* Config);
+	TSharedRef<SWidget> CreateDrawerDockButton(const FContentBrowserConfig* Config);
 
 	/** Adds menu options to the view menu */
 	void ExtendViewOptionsMenu(const FContentBrowserConfig* Config);
@@ -598,6 +611,9 @@ private:
 
 	/** True if this content browser can be set to the primary browser. */
 	bool bCanSetAsPrimaryBrowser;
+
+	/** True if this content browser is an a drawer */
+	bool bIsDrawer;
 
 	/** Unique name for this Content Browser. */
 	FName InstanceName;

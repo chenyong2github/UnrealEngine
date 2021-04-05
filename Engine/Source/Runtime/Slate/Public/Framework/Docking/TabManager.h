@@ -1164,6 +1164,12 @@ public:
 	/** Gets the major tab for the manager */
 	TSharedPtr<SDockTab> GetMajorTabForTabManager(const TSharedRef<FTabManager>& ChildManager);
 
+	/** 
+	 * Gets the tab manager that a major tab owns. The returned tab manager is the tab manager that manages the minor tabs for a major tab.
+	 * Note: this is not the same as DockTab->GetTabManager(). That function returns the tab manager the major tab is in
+	 */
+	TSharedPtr<FTabManager> GetTabManagerForMajorTab(const TSharedPtr<SDockTab> DockTab) const;
+
 	/** Draw the user's attention to a child tab manager */
 	void DrawAttentionToTabManager( const TSharedRef<FTabManager>& ChildManager );
 

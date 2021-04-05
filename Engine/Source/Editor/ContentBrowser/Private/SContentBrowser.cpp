@@ -127,8 +127,10 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 		InArgs._ContainingTab->SetOnTabActivated( SDockTab::FOnTabActivatedCallback::CreateSP( this, &SContentBrowser::OnContainingTabActivated ) );
 	}
 	
-	bIsLocked = InArgs._InitiallyLocked;
+
+ 	bIsLocked = InArgs._InitiallyLocked;
 	bCanSetAsPrimaryBrowser = Config != nullptr ? Config->bCanSetAsPrimaryBrowser : true;
+	bIsDrawer = InArgs._IsDrawer;
 
 	HistoryManager.SetOnApplyHistoryData(FOnApplyHistoryData::CreateSP(this, &SContentBrowser::OnApplyHistoryData));
 	HistoryManager.SetOnUpdateHistoryData(FOnUpdateHistoryData::CreateSP(this, &SContentBrowser::OnUpdateHistoryData));
@@ -236,7 +238,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 		[
 			SNew( SBorder )
 			.Padding( FMargin( 3 ) )
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
+			.BorderImage(bIsDrawer ? FStyleDefaults::GetNoBrush() : FAppStyle::Get().GetBrush("Brushes.Panel"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -333,6 +335,13 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				[
+					CreateDrawerDockButton(Config)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				.Padding(5.0f, 0.0f, 0.0f, 0.0f)
 				.HAlign(HAlign_Right)
 				[
@@ -378,7 +387,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						[
 							SAssignNew(PathFavoriteSplitterPtr, SSplitter)
 							.Clipping(EWidgetClipping::ClipToBounds)
-							.PhysicalSplitterHandleSize(3.0f)
+							.PhysicalSplitterHandleSize(1.0f)
 							.HitDetectionSplitterHandleSize(3.0f)
 							.Orientation(EOrientation::Orient_Vertical)
 							.MinimumSlotHeight(26.0f)
@@ -867,6 +876,41 @@ TSharedRef<SWidget> SContentBrowser::CreateDockedCollectionsView(const FContentB
 		];
 }
 
+TSharedRef<SWidget> SContentBrowser::CreateDrawerDockButton(const FContentBrowserConfig* Config)
+{
+	if(bIsDrawer)
+	{
+		return 
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.ToolTipText(LOCTEXT("DockInLayout_Tooltip", "Docks this content browser in the current layout, copying all settings from the drawer.\nThe drawer will still be usable as a temporary browser."))
+			.ContentPadding(FMargin(1, 0))
+			.OnClicked(this, &SContentBrowser::DockInLayoutClicked)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4.0, 0.0f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FAppStyle::Get().GetBrush("EditorViewport.SubMenu.Layouts"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(4.0, 0.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("DockInLayout", "Dock in Layout"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			];
+	}
+
+	return SNullWidget::NullWidget;
+}
+
 void SContentBrowser::ExtendViewOptionsMenu(const FContentBrowserConfig* Config)
 {
 	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetViewOptions");
@@ -1340,6 +1384,16 @@ void SContentBrowser::SetKeyboardFocusOnSearch() const
 {
 	// Focus on the search box
 	FSlateApplication::Get().SetKeyboardFocus( SearchBoxPtr, EFocusCause::SetDirectly );
+}
+
+void SContentBrowser::CopySettingsFromBrowser(TSharedPtr<SContentBrowser> OtherBrowser)
+{
+	FName InstanceNameToCopyFrom = OtherBrowser->GetInstanceName();
+
+	// Clear out any existing settings that dont get reset on load
+	FilterListPtr->RemoveAllFilters();
+
+	LoadSettings(InstanceNameToCopyFrom);
 }
 
 FReply SContentBrowser::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
@@ -2422,6 +2476,13 @@ void SContentBrowser::OnItemsActivated(TArrayView<const FContentBrowserItem> Act
 FReply SContentBrowser::ToggleLockClicked()
 {
 	bIsLocked = !bIsLocked;
+
+	return FReply::Handled();
+}
+
+FReply SContentBrowser::DockInLayoutClicked()
+{
+	FContentBrowserSingleton::Get().DockContentBrowserDrawer();
 
 	return FReply::Handled();
 }

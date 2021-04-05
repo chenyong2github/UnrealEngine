@@ -24,6 +24,7 @@ public class StatusBar : ModuleRules
 				"OutputLog",
 				"SourceControlWindows",
 				"EditorSubsystem",
+				"MainFrame",
             });
     }
 }

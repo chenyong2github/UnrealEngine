@@ -49,7 +49,7 @@ public:
 	virtual TSharedRef<class SWidget> CreateAssetPicker(const FAssetPickerConfig& AssetPickerConfig) override;
 	virtual TSharedRef<class SWidget> CreatePathPicker(const FPathPickerConfig& PathPickerConfig) override;
 	virtual TSharedRef<class SWidget> CreateCollectionPicker(const FCollectionPickerConfig& CollectionPickerConfig) override;
-	virtual TSharedRef<class SWidget> CreateContentBrowserDrawer(const FContentBrowserConfig& ContentBrowserConfig) override;
+	virtual TSharedRef<class SWidget> CreateContentBrowserDrawer(const FContentBrowserConfig& ContentBrowserConfig, TFunction<TSharedPtr<SDockTab>()> InOnGetTabForDrawer) override;
 	virtual void CreateOpenAssetDialog(const FOpenAssetDialogConfig& OpenAssetConfig, const FOnAssetsChosenForOpen& OnAssetsChosenForOpen, const FOnAssetDialogCancelled& OnAssetDialogCancelled) override;
 	virtual TArray<FAssetData> CreateModalOpenAssetDialog(const FOpenAssetDialogConfig& InConfig) override;
 	virtual void CreateSaveAssetDialog(const FSaveAssetDialogConfig& SaveAssetConfig, const FOnObjectPathChosenForSave& OnAssetNameChosenForSave, const FOnAssetDialogCancelled& OnAssetDialogCancelled) override;
@@ -90,6 +90,9 @@ public:
 	/** Single storage location for content browser favorites */
 	TArray<FString> FavoriteFolderPaths;
 
+	/** Docks the current content browser drawer as a tabbed content browser in a layout */
+	void DockContentBrowserDrawer();
+
 private:
 
 	/** Util to get or create the content browser that should be used by the various Sync functions */
@@ -110,7 +113,7 @@ private:
 	void FocusContentBrowser(const TSharedPtr<SContentBrowser>& BrowserToFocus);
 
 	/** Summons a new content browser */
-	FName SummonNewBrowser(bool bAllowLockedBrowsers = false);
+	FName SummonNewBrowser(bool bAllowLockedBrowsers = false, TSharedPtr<FTabManager> SpecificTabManager = nullptr);
 
 	/** Handler for a request to spawn a new content browser tab */
 	TSharedRef<SDockTab> SpawnContentBrowserTab( const FSpawnTabArgs& SpawnTabArgs, int32 BrowserIdx );
@@ -135,6 +138,8 @@ private:
 	TArray<TWeakPtr<SContentBrowser>> AllContentBrowsers;
 
 	TWeakPtr<SContentBrowser> ContentBrowserDrawer;
+
+	TFunction<TSharedPtr<SDockTab>()> OnGetTabForDrawer;
 
 	TMap<FName, TWeakPtr<FTabManager>> BrowserToLastKnownTabManagerMap;
 

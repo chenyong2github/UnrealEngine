@@ -79,6 +79,11 @@ public:
 	 */
 	bool OpenContentBrowserDrawer();
 
+	/**
+	 * Forces the drawer to dismiss. Usually it dismisses with focus. Only call this if there is some reason an open drawer would be invalid for the current state of the editor.
+	 */
+	bool ForceDismissDrawer();
+
 	/** 
 	 * Creates a new instance of a status bar widget
 	 *
@@ -121,16 +126,16 @@ private:
 	bool ToggleContentBrowser(TSharedRef<SWindow> ParentWindow);
 	void OnDebugConsoleClosed();
 	void CreateContentBrowserIfNeeded();
+	void CreateAndShowNewUserTipIfNeeded(TSharedPtr<SWindow> ParentWindow, bool bIsNewProjectDialog);
+
 	TSharedPtr<SStatusBar> GetStatusBar(FName StatusBarName) const;
 	TSharedRef<SWidget> OnGetContentBrowser();
 	void OnContentBrowserOpened(TSharedRef<SStatusBar>& StatusBarWithContentBrowser);
 	void OnContentBrowserDismissed(const TSharedPtr<SWidget>& NewlyFocusedWidget);
 	void HandleDeferredOpenContentBrowser(TSharedPtr<SWindow> ParentWindow);
-
 private:
 	TMap<FName, TWeakPtr<SStatusBar>> StatusBars;
 	TWeakPtr<SWidget> PreviousKeyboardFocusedWidget;
-
 	/** The floating content browser that is opened via the content browser button in the status bar */
 	TSharedPtr<SWidget> StatusBarContentBrowser;
 	static int32 MessageHandleCounter;

@@ -50,7 +50,7 @@ class SDrawerOverlay : public SCompoundWidget
 		_Clipping = EWidgetClipping::ClipToBounds;
 		_ShadowOffset = FVector2D(10.0f, 20.0f);
 	}
-	SLATE_DEFAULT_SLOT(FArguments, Content)
+		SLATE_DEFAULT_SLOT(FArguments, Content)
 		SLATE_ARGUMENT(float, MinDrawerHeight)
 		SLATE_ARGUMENT(float, MaxDrawerHeight)
 		SLATE_ARGUMENT(float, TargetDrawerHeight)
@@ -82,8 +82,9 @@ class SDrawerOverlay : public SCompoundWidget
 
 		OnTargetHeightChanged = InArgs._OnTargetHeightChanged;
 
-		BackgroundBrush = FAppStyle::Get().GetBrush("Brushes.Panel");
-		ShadowBrush = FAppStyle::Get().GetBrush("StatusBar.ContentBrowserShadow");
+		BackgroundBrush = FAppStyle::Get().GetBrush("StatusBar.DrawerBackground");
+		ShadowBrush = FAppStyle::Get().GetBrush("StatusBar.DrawerShadow");
+		BorderBrush = FAppStyle::Get().GetBrush("Docking.Sidebar.Border");
 
 		bIsResizeHandleHovered = false;
 		bIsResizing = false;
@@ -239,7 +240,16 @@ class SDrawerOverlay : public SCompoundWidget
 			ESlateDrawEffect::None,
 			ShadowBrush->GetTint(InWidgetStyle));
 
-		return OutLayerId;
+
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			OutLayerId+1,
+			RenderTransformedChildGeometry.ToPaintGeometry(ShadowOffset, FVector2D(AllottedGeometry.GetLocalSize().X - (ShadowOffset.X * 2), TargetHeight)),
+			BorderBrush,
+			ESlateDrawEffect::None,
+			BorderBrush->GetTint(InWidgetStyle));
+
+		return OutLayerId+1;
 
 	}
 
@@ -263,6 +273,7 @@ private:
 	FOnStatusBarDrawerTargetHeightChanged OnTargetHeightChanged;
 	const FSlateBrush* BackgroundBrush;
 	const FSlateBrush* ShadowBrush;
+	const FSlateBrush* BorderBrush;
 	const FSplitterStyle* SplitterStyle;
 	FVector2D ShadowOffset;
 	FThrottleRequest ResizeThrottleHandle;

@@ -33,6 +33,8 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
+static const FName ContentBrowserDrawerInstanceName("ContentBrowserDrawer");
+
 FContentBrowserSingleton::FContentBrowserSingleton()
 	: CollectionAssetRegistryBridge(MakeShared<FCollectionAssetRegistryBridge>())
 	, SettingsStringID(0)
@@ -87,10 +89,6 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 		AddSpawnerEntryToMenuSection(Section, ContentBrowserTabSpawner, TabID);
 	}
 
-	// Register a couple legacy tab ids
-	FGlobalTabmanager::Get()->AddLegacyTabType( "LevelEditorContentBrowser", "ContentBrowserTab1" );
-	FGlobalTabmanager::Get()->AddLegacyTabType( "MajorContentBrowserTab", "ContentBrowserTab2" );
-
 	// Register to be notified when properties are edited
 	FEditorDelegates::LoadSelectedAssetsIfNeeded.AddRaw(this, &FContentBrowserSingleton::OnEditorLoadSelectedAssetsIfNeeded);
 
@@ -133,16 +131,17 @@ TSharedRef<class SWidget> FContentBrowserSingleton::CreateCollectionPicker(const
 		.CollectionPickerConfig(CollectionPickerConfig);
 }
 
-TSharedRef<class SWidget> FContentBrowserSingleton::CreateContentBrowserDrawer(const FContentBrowserConfig& ContentBrowserConfig)
+TSharedRef<class SWidget> FContentBrowserSingleton::CreateContentBrowserDrawer(const FContentBrowserConfig& ContentBrowserConfig, TFunction<TSharedPtr<SDockTab>()> InOnGetTabForDrawer)
 {
 	TSharedPtr<SContentBrowser> ContentBrowserDrawerPinned;
 	if(!ContentBrowserDrawer.IsValid())
 	{
-		static const FName ContentBrowserDrawerInstanceName("ContentBrowserDrawer");
 		ContentBrowserDrawerPinned =
 			SNew(SContentBrowser, ContentBrowserDrawerInstanceName, &ContentBrowserConfig)
-			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
+			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+			.IsDrawer(true);
 
+		OnGetTabForDrawer = InOnGetTabForDrawer;
 		ContentBrowserDrawer = ContentBrowserDrawerPinned;
 	}
 	else
@@ -656,7 +655,55 @@ void FContentBrowserSingleton::FocusContentBrowser(const TSharedPtr<SContentBrow
 	}
 }
 
-FName FContentBrowserSingleton::SummonNewBrowser(bool bAllowLockedBrowsers)
+void FContentBrowserSingleton::DockContentBrowserDrawer()
+{
+	TSharedPtr<FTabManager> ForTabManager;
+	TSharedPtr<SDockTab> Tab = OnGetTabForDrawer();
+	if (Tab)
+	{
+		ForTabManager = FGlobalTabmanager::Get()->GetTabManagerForMajorTab(Tab.ToSharedRef());
+	}
+
+	
+	// Dont summon a content browser if a content browser already exists in the tab manager
+	bool bExistingTab = false;
+	{
+		for (int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++)
+		{
+			if (TSharedPtr<SDockTab> ExistingTab = ForTabManager->FindExistingLiveTab(ContentBrowserTabIDs[BrowserIdx]))
+			{
+				GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->ForceDismissDrawer();
+				ExistingTab->ActivateInParent(ETabActivationCause::SetDirectly);
+				bExistingTab = true;
+				break;
+			}
+		}
+	}
+
+	if(!bExistingTab)
+	{
+		TSharedPtr<SContentBrowser> ContentBrowserDrawerPinned = ContentBrowserDrawer.Pin();
+
+		// Make sure current content browser drawer settings are saved so we can copy them to the new browser
+		ContentBrowserDrawerPinned->SaveSettings();
+
+		FName InstanceName = SummonNewBrowser(false, ForTabManager);
+		for (int32 AllBrowsersIdx = AllContentBrowsers.Num() - 1; AllBrowsersIdx >= 0; --AllBrowsersIdx)
+		{
+			if (TSharedPtr<SContentBrowser> Browser = AllContentBrowsers[AllBrowsersIdx].Pin())
+			{
+				if (Browser->GetInstanceName() == InstanceName)
+				{
+					Browser->CopySettingsFromBrowser(ContentBrowserDrawerPinned);
+					break;
+				}
+			}
+		}
+	}
+
+}
+
+FName FContentBrowserSingleton::SummonNewBrowser(bool bAllowLockedBrowsers, TSharedPtr<FTabManager> SpecificTabManager)
 {
 	TSet<FName> OpenBrowserIDs;
 
@@ -684,7 +731,7 @@ FName FContentBrowserSingleton::SummonNewBrowser(bool bAllowLockedBrowsers)
 
 	if ( NewTabName != NAME_None )
 	{
-		const TWeakPtr<FTabManager>& TabManagerToInvoke = BrowserToLastKnownTabManagerMap.FindRef(NewTabName);
+		const TWeakPtr<FTabManager>& TabManagerToInvoke = SpecificTabManager.IsValid() ? SpecificTabManager : BrowserToLastKnownTabManagerMap.FindRef(NewTabName);
 		if ( TabManagerToInvoke.IsValid() )
 		{
 			TabManagerToInvoke.Pin()->TryInvokeTab(NewTabName);

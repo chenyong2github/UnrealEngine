@@ -17,6 +17,7 @@
 #include "Widgets/Notifications/INotificationWidget.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Styling/StyleColors.h"
+#include "Widgets/Notifications/SNotificationBackground.h"
 
 /////////////////////////////////////////////////
 // SNotificationExtendable
@@ -317,77 +318,6 @@ protected:
 };
 
 
-class SNotificationBackground : public SBorder
-{
-public:
-	SLATE_BEGIN_ARGS(SNotificationBackground) {}
-		SLATE_ATTRIBUTE(FMargin, Padding)
-		/** ColorAndOpacity is the color and opacity of content in the border */
-		SLATE_ATTRIBUTE(FLinearColor, ColorAndOpacity)
-		/** BorderBackgroundColor refers to the actual color and opacity of the supplied border image.*/
-		SLATE_ATTRIBUTE(FSlateColor, BorderBackgroundColor)
-
-		SLATE_ATTRIBUTE(FVector2D, DesiredSizeScale)
-
-		SLATE_DEFAULT_SLOT(FArguments, Content)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs)
-	{
-		WatermarkBrush = FAppStyle::Get().GetBrush("NotificationList.Watermark");
-		BorderBrush = FAppStyle::Get().GetBrush("NotificationList.ItemBackground_Border");
-
-		WatermarkTint = FStyleColors::Notifications.GetSpecifiedColor() * FLinearColor(1.15f, 1.15f, 1.15f, 1.0f);
-
-		SBorder::Construct(
-			SBorder::FArguments()
-			.BorderImage(FAppStyle::Get().GetBrush("NotificationList.ItemBackground"))
-			.Padding(InArgs._Padding)
-			.BorderBackgroundColor(InArgs._BorderBackgroundColor)
-			.ColorAndOpacity(InArgs._ColorAndOpacity)
-			.DesiredSizeScale(InArgs._DesiredSizeScale)
-			[
-				InArgs._Content.Widget
-			]
-		);
-	}
-
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
-	{
-		if (WatermarkBrush && WatermarkBrush->DrawAs != ESlateBrushDrawType::NoDrawType)
-		{
-			// The watermark should be 250% bigger than the size of the notification to get the desired effect
-			const float SizeY = AllottedGeometry.GetLocalSize().Y;
-			const float WatermarkSize = FMath::Clamp(SizeY * 2.50f, 130.0f, 220.0f);
-	
-			FSlateDrawElement::MakeBox(
-				OutDrawElements,
-				LayerId + 1,
-				AllottedGeometry.ToPaintGeometry(FVector2D(4.0f, 4.0f), FVector2D(WatermarkSize, WatermarkSize)),
-				WatermarkBrush,
-				ESlateDrawEffect::None,
-				WatermarkTint * InWidgetStyle.GetColorAndOpacityTint() * GetBorderBackgroundColor().GetColor(InWidgetStyle));
-		}
-
-
-		int32 OutLayerId = SBorder::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
-
-		FSlateDrawElement::MakeBox(
-			OutDrawElements,
-			OutLayerId,
-			AllottedGeometry.ToPaintGeometry(),
-			BorderBrush,
-			ESlateDrawEffect::None,
-			BorderBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint());
-
-		return OutLayerId+1;
-	}
-	
-private:
-	const FSlateBrush* WatermarkBrush = nullptr;
-	const FSlateBrush* BorderBrush = nullptr;
-	FLinearColor WatermarkTint;
-};
 
 /////////////////////////////////////////////////
 // SNotificationItemImpl
@@ -454,26 +384,14 @@ public:
 
 		ChildSlot
 		[
-/*
-			SNew(SOverlay)
-			+ SOverlay::Slot()
-			[*/
-				SNew(SNotificationBackground)
-				.Padding(FMargin(16, 8))
-				.BorderBackgroundColor(this, &SNotificationItemImpl::GetContentColor)
-				.ColorAndOpacity(this, &SNotificationItemImpl::GetContentColorRaw)
-				.DesiredSizeScale(this, &SNotificationItemImpl::GetItemScale)
-				[
-					ConstructInternals(InArgs)
-				]
-/*
-			]
-			+SOverlay::Slot()
+			SNew(SNotificationBackground)
+			.Padding(FMargin(16, 8))
+			.BorderBackgroundColor(this, &SNotificationItemImpl::GetContentColor)
+			.ColorAndOpacity(this, &SNotificationItemImpl::GetContentColorRaw)
+			.DesiredSizeScale(this, &SNotificationItemImpl::GetItemScale)
 			[
-				SNew(SImage)
-				.Image(FAppStyle::Get().GetBrush("NotificationList.ItemBackground_Border"))
-				.Visibility(EVisibility::HitTestInvisible)
-			]*/
+				ConstructInternals(InArgs)
+			]
 		];
 	}
 	
@@ -721,9 +639,6 @@ public:
 		if (NotificationWidget->UseNotificationBackground())
 		{
 			Internals =
-				/*SNew(SOverlay)
-				+ SOverlay::Slot()
-				[*/
 					SNew(SNotificationBackground)
 					.Padding(FMargin(16, 8))
 					.BorderBackgroundColor(this, &SNotificationItemExternalImpl::GetContentColor)
@@ -736,13 +651,6 @@ public:
 							NotificationWidget->AsWidget()
 						]
 					];
-			/*	]
-				+SOverlay::Slot()
-				[
-					SNew(SImage)
-					.Image(FAppStyle::Get().GetBrush("NotificationList.ItemBackground_Border"))
-					.Visibility(EVisibility::HitTestInvisible)
-				];*/
 		}
 		else
 		{
