@@ -362,7 +362,7 @@ void AController::OnPossess(APawn* InPawn)
 	// update rotation to match possessed pawn's rotation
 	SetControlRotation(Pawn->GetActorRotation());
 
-	Pawn->Restart();
+	Pawn->DispatchRestart(false);
 }
 
 void AController::UnPossess()

@@ -393,6 +393,27 @@ void APawn::PawnClientRestart()
 	}
 }
 
+void APawn::NotifyRestarted()
+{
+	ReceiveRestarted();
+	ReceiveRestartedDelegate.Broadcast(this);
+}
+
+void APawn::DispatchRestart(bool bCallClientRestart)
+{
+	if (bCallClientRestart)
+	{
+		// This calls Restart()
+		PawnClientRestart();
+	}
+	else
+	{
+		Restart();
+	}
+
+	NotifyRestarted();
+}
+
 void APawn::Destroyed()
 {
 	DetachFromControllerPendingDestroy();

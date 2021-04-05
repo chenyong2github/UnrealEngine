@@ -340,7 +340,7 @@ ASpectatorPawn* ADebugCameraController::SpawnSpectatorPawn()
 			if (SpawnedSpectator)
 			{
 				SpawnedSpectator->PossessedBy(this);
-				SpawnedSpectator->PawnClientRestart();
+				SpawnedSpectator->DispatchRestart(true);
 				if (SpawnedSpectator->PrimaryActorTick.bStartWithTickEnabled)
 				{
 					SpawnedSpectator->SetActorTickEnabled(true);

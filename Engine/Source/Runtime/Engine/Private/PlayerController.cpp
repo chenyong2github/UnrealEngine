@@ -772,7 +772,7 @@ void APlayerController::ClientRestart_Implementation(APawn* NewPawn)
 	AcknowledgePossession(GetPawn());
 
 	GetPawn()->Controller = this;
-	GetPawn()->PawnClientRestart();
+	GetPawn()->DispatchRestart(true);
 	
 	if (GetLocalRole() < ROLE_Authority)
 	{
@@ -829,7 +829,7 @@ void APlayerController::OnPossess(APawn* PawnToPossess)
 		// We're really just trying to avoid calling Restart() multiple times.
 		if (!IsLocalPlayerController())
 		{
-			GetPawn()->Restart();
+			GetPawn()->DispatchRestart(false);
 		}
 
 		ClientRestart(GetPawn());
@@ -4931,7 +4931,7 @@ ASpectatorPawn* APlayerController::SpawnSpectatorPawn()
 				{
 					SpawnedSpectator->SetReplicates(false); // Client-side only
 					SpawnedSpectator->PossessedBy(this);
-					SpawnedSpectator->PawnClientRestart();
+					SpawnedSpectator->DispatchRestart(true);
 					if (SpawnedSpectator->PrimaryActorTick.bStartWithTickEnabled)
 					{
 						SpawnedSpectator->SetActorTickEnabled(true);
