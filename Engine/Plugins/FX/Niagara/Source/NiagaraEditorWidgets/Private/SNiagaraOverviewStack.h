@@ -14,6 +14,7 @@ class UNiagaraStackItem;
 class UNiagaraStackViewModel;
 class UNiagaraSystemSelectionViewModel;
 class FNiagaraStackCommandContext;
+class UNiagaraStackItemGroup;
 
 class SNiagaraOverviewStack : public SCompoundWidget
 {
@@ -58,6 +59,15 @@ private:
 	FReply OnRowAcceptDrop(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry);
 
 	EVisibility GetIssueIconVisibility() const;
+
+	void OnItemGroupEnabledStateChanged(ECheckBoxState InCheckState, UNiagaraStackItemGroup* Group);
+	ECheckBoxState ItemGroupCheckEnabledStatus(UNiagaraStackItemGroup* Group) const;
+	bool GetItemGroupEnabledCheckboxEnabled(UNiagaraStackItemGroup* Group) const;
+
+	FText GetItemGroupDeleteButtonToolTip(UNiagaraStackItemGroup* Group) const;
+	bool GetItemGroupDeleteButtonIsEnabled(UNiagaraStackItemGroup* Group) const;
+	EVisibility GetItemGroupDeleteButtonVisibility(UNiagaraStackItemGroup* Group) const;
+	FReply OnItemGroupDeleteClicked(UNiagaraStackItemGroup* Group);
 
 private:
 	UNiagaraStackViewModel* StackViewModel;
