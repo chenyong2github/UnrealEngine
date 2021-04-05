@@ -598,7 +598,11 @@ void UAnimStateTransitionNode::ValidateNodeDuringCompilation(class FCompilerResu
 		UAnimGraphNode_TransitionResult* ResultNode = TransGraph->GetResultNode();
 		check(ResultNode);
 
-		if(ResultNode->Pins.Num() > 0)
+		if (ResultNode->PropertyBindings.Num() > 0 && ResultNode->PropertyBindings.CreateIterator()->Value.bIsBound)
+		{
+			// Rule is bound so nothing more to check
+		}
+		else if (ResultNode->Pins.Num() > 0)
 		{
 			UEdGraphPin* BoolResultPin = ResultNode->Pins[0];
 			if (BoolResultPin && (BoolResultPin->LinkedTo.Num() == 0) && (BoolResultPin->DefaultValue.ToBool() == false))
