@@ -136,6 +136,20 @@ void ScreenProbeCompositeTracesWithScatterCS(
 				RWScreenProbeTraceMoving[GatherTexelCoord] = TexelMoving;
 			}
 		}
+		else
+		{
+			// Clear probes outside of valid depth range to zero
+
+			uint2 ProbeTexelCoord = GroupThreadId.xy;
+
+			if (all(ProbeTexelCoord < ScreenProbeGatherOctahedronResolution))
+			{
+				uint2 GatherTexelCoord = ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
+				RWScreenProbeRadiance[GatherTexelCoord] = 0.0f;
+				RWScreenProbeHitDistance[GatherTexelCoord] = EncodeProbeHitDistanceForFiltering(GetProbeMaxHitDistance());
+				RWScreenProbeTraceMoving[GatherTexelCoord] = 0.0f;
+			}
+		}
 	}
 }
 
@@ -471,6 +485,20 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 				RWScreenProbeRadianceSHDirectional[WriteIndex + 1] = DirectionalSH1;
 			}
 #endif
+		}
+		else
+		{
+			// Clear probes outside of valid depth range to zero
+
+			uint ThreadIndex = GroupThreadId.y * ScreenProbeGatherOctahedronResolution + GroupThreadId.x;
+			uint2 ProbeTexelCoord = GroupThreadId.xy;
+
+			if (all(ProbeTexelCoord < ScreenProbeGatherOctahedronResolution))
+			{
+				uint WriteIndex = ((ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x) * 3 + ThreadIndex) * 2;
+				RWScreenProbeRadianceSHDirectional[WriteIndex + 0] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+				RWScreenProbeRadianceSHDirectional[WriteIndex + 1] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+			}
 		}
 	}
 }
