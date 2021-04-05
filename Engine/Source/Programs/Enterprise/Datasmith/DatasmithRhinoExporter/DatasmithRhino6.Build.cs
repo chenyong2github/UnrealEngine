@@ -16,13 +16,6 @@ namespace UnrealBuildTool.Rules
 					"DatasmithFacadeCSharp",
 				}
 			);
-
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					ModuleDirectory
-				}
-			);
 		}
 
 		public abstract string GetRhinoVersion();

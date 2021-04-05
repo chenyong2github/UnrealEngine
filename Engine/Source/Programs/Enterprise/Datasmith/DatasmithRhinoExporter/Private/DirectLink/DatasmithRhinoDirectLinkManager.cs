@@ -77,7 +77,7 @@ namespace DatasmithRhino.DirectLink
 		public Rhino.Commands.Result Synchronize(RhinoDoc RhinoDocument)
 		{
 			Rhino.Commands.Result ExportResult = Rhino.Commands.Result.Failure;
-			bool bIsValidContext = RhinoDocument == ExportContext.RhinoDocument;
+			bool bIsValidContext = ExportContext != null && RhinoDocument == ExportContext.RhinoDocument;
 
 			if (bIsValidContext || SetupDirectLinkScene(RhinoDocument))
 			{
