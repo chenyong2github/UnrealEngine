@@ -1666,8 +1666,16 @@ void FNiagaraEditorUtilities::KillSystemInstances(const UNiagaraSystem& System)
 	}
 }
 
-bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage)
+bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FString NewNameString, FText& OutErrorMessage)
 {
+	if (NewNameString.Len() >= FNiagaraConstants::MaxParameterLength)
+	{
+		OutErrorMessage = FText::FormatOrdered(LOCTEXT("EmptyNameError", "Name cannot exceed {0} characters."), FNiagaraConstants::MaxParameterLength);
+		return false;
+	}
+
+	FName NewName = *NewNameString;
+
 	if (NewName == NAME_None)
 	{
 		OutErrorMessage = LOCTEXT("EmptyNameError", "Name can not be empty.");

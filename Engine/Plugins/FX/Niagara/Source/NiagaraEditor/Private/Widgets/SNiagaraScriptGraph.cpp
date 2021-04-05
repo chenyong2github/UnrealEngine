@@ -315,7 +315,7 @@ bool SNiagaraScriptGraph::OnVerifyNodeTextCommit(const FText& NewText, UEdGraphN
 	UNiagaraNodeInput* InputNodeBeingChanged = Cast<UNiagaraNodeInput>(NodeBeingChanged);
 	if (InputNodeBeingChanged != nullptr)
 	{
-		return FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*InputNodeBeingChanged, InputNodeBeingChanged->Input.GetName(), *NewText.ToString(), OutErrorMessage);
+		return FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*InputNodeBeingChanged, InputNodeBeingChanged->Input.GetName(), NewText.ToString(), OutErrorMessage);
 	}
 	return bValid;
 }

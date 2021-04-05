@@ -108,7 +108,7 @@ TOptional<FName> UNiagaraNodeOutput::GetStackContextOverride() const
 
 bool UNiagaraNodeOutput::VerifyPinNameTextChanged(const FText& InText, FText& OutErrorMessage, UEdGraphPin* Pin) const
 {
-	return FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*this, Pin->PinName, *InText.ToString(), OutErrorMessage);
+	return FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*this, Pin->PinName, InText.ToString(), OutErrorMessage);
 }
 
 void UNiagaraNodeOutput::PinNameTextCommitted(const FText& Text, ETextCommit::Type CommitType, UEdGraphPin* Pin)

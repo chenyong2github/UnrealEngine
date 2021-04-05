@@ -227,7 +227,7 @@ namespace FNiagaraEditorUtilities
 	void KillSystemInstances(const UNiagaraSystem& System);
 
 
-	bool VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage);
+	bool VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FString NewName, FText& OutErrorMessage);
 
 	/**
 	 * Adds a new Parameter to a target ParameterStore with an undo/redo transaction and name collision handling.
