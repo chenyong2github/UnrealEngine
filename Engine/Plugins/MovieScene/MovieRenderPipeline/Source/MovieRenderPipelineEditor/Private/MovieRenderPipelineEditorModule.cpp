@@ -15,6 +15,7 @@
 #include "MoviePipelineExecutor.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
+#include "Editor.h"
 #include "EditorStyleSet.h"
 #include "ScopedTransaction.h"
 #include "Misc/PackageName.h"
