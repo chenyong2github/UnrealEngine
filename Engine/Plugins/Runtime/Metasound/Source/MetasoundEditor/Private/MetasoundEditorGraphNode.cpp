@@ -14,6 +14,7 @@
 #include "MetasoundEditorCommands.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundUObjectRegistry.h"
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
@@ -230,6 +231,80 @@ void UMetasoundEditorGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 		IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 		FGraphBuilder::AddOrUpdateLiteralInput(GetMetasoundChecked(), NodeHandle, *Pin);
 	}
+}
+
+FString UMetasoundEditorGraphNode::GetPinMetaData(FName InPinName, FName InKey)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	if (InKey == "DisallowedClasses")
+	{
+		if (UEdGraphPin* Pin = FindPin(InPinName, EGPD_Input))
+		{
+			FInputHandle Handle = FGraphBuilder::GetInputHandleFromPin(Pin);
+
+			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+			if (!ensure(Registry))
+			{
+				return FString();
+			}
+
+			Metasound::FDataTypeRegistryInfo DataTypeInfo;
+			if (!ensure(Registry->GetInfoForDataType(Handle->GetDataType(), DataTypeInfo)))
+			{
+				return FString();
+			}
+
+			const EMetasoundFrontendLiteralType LiteralType = GetMetasoundFrontendLiteralType(DataTypeInfo.PreferredLiteralType);
+			if (LiteralType != EMetasoundFrontendLiteralType::UObject && LiteralType != EMetasoundFrontendLiteralType::UObjectArray)
+			{
+				return FString();
+			}
+
+			UClass* ProxyGenClass = DataTypeInfo.ProxyGeneratorClass;
+			if (!ProxyGenClass)
+			{
+				return FString();
+			}
+
+			FString DisallowedClasses;
+			const FName ClassName = ProxyGenClass->GetFName();
+			for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+			{
+				UClass* Class = *ClassIt;
+				if (!Class->IsNative())
+				{
+					continue;
+				}
+
+				if (Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+				{
+					continue;
+				}
+
+				if (ClassIt->GetFName() == ClassName)
+				{
+					continue;
+				}
+
+				if (Class->IsChildOf(ProxyGenClass))
+				{
+					if (!DisallowedClasses.IsEmpty())
+					{
+						DisallowedClasses += TEXT(",");
+					}
+					DisallowedClasses += *ClassIt->GetName();
+				}
+			}
+
+			return DisallowedClasses;
+		}
+
+		return FString();
+	}
+
+	return Super::GetPinMetaData(InPinName, InKey);
 }
 
 void UMetasoundEditorGraphNode::PostEditImport()

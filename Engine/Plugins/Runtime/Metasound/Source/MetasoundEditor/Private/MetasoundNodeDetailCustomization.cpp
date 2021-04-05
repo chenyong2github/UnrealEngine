@@ -320,16 +320,6 @@ namespace Metasound
 				return false;
 			};
 
-			auto CommitAsset = [InPropertyHandle = PropertyHandle, InProxyGenClass = ProxyGenClass](const FAssetData& InAssetData)
-			{
-				// if we've hit this code, the presumption is that the datatype for this parameter has already defined a corresponding UClass that can be used to set it.
-				ensureAlways(InProxyGenClass.IsValid());
-
-				UObject* InObject = InAssetData.GetAsset();
-
-				InPropertyHandle->SetValue(InObject);
-			};
-
 			auto GetAssetPath = [PropertyHandle = PropertyHandle]()
 			{
 				UObject* Object = nullptr;
@@ -343,12 +333,29 @@ namespace Metasound
 			TArray<const UClass*> AllowedClasses;
 			AllowedClasses.Add(ProxyGenClass.Get());
 
+			auto FilterAsset = [InProxyGenClass = ProxyGenClass](const FAssetData& InAsset)
+			{
+				if (InProxyGenClass.IsValid())
+				{
+					if (UObject* Object = InAsset.GetAsset())
+					{
+						if (UClass* Class = Object->GetClass())
+						{
+							return Class != InProxyGenClass.Get();
+						}
+					}
+				}
+
+				return true;
+			};
+
 			return SNew(SObjectPropertyEntryBox)
 				.ObjectPath_Lambda(GetAssetPath)
 				.AllowedClass(ProxyGenClass.Get())
 				.OnShouldSetAsset_Lambda(ValidateAsset)
-				.OnObjectChanged_Lambda(CommitAsset)
-				.AllowClear(false)
+				.OnShouldFilterAsset_Lambda(FilterAsset)
+				.PropertyHandle(PropertyHandle)
+				.AllowClear(true)
 				.DisplayUseSelected(true)
 				.DisplayBrowse(true)
 				.DisplayThumbnail(true)
