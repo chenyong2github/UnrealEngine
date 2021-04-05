@@ -594,7 +594,7 @@ void FFeedbackContextEditor::ProgressReported( const float TotalProgressInterp, 
 				}
 			}
 
-			DisplayMessage = FText::FromString(FString::Printf(TEXT("%3i%% - %s"), int(TotalProgressInterp * 100.f), *NewDisplayMessage));
+			DisplayMessage = FText::FromString(FString::Printf(TEXT("%i%% - %s"), int(TotalProgressInterp * 100.f), *NewDisplayMessage));
 		}
 
 		FPlatformSplash::SetSplashText(SplashTextType::StartupProgress, *DisplayMessage.ToString());

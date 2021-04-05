@@ -186,7 +186,7 @@ void FMacPlatformSplash::Show()
 
 		const FText GameName = FText::FromString(FApp::GetProjectName());
 
-		const TCHAR* SplashImage = GIsEditor ? ( GameName.IsEmpty() ? TEXT("EdSplashDefault") : TEXT("EdSplash") ) : ( GameName.IsEmpty() ? TEXT("SplashDefault") : TEXT("Splash") );
+		const TCHAR* SplashImage = GIsEditor ? TEXT("EdSplash") : TEXT("Splash");
 
 		// make sure a splash was found
 		FString SplashPath;

@@ -684,7 +684,7 @@ void FLinuxPlatformSplash::Show( )
 	// first look for the splash, do not init anything if not found
 	FString SplashPath;
 	{
-		const TCHAR* SplashImage = GIsEditor ? (GameName.IsEmpty() ? TEXT("EdSplashDefault") : TEXT("EdSplash")) : (GameName.IsEmpty() ? TEXT("SplashDefault") : TEXT("Splash"));
+		const TCHAR* SplashImage = GIsEditor ? TEXT("EdSplash") : TEXT("Splash");
 		if (!GetSplashPath(SplashImage, SplashPath, IsCustom))
 		{
 			UE_LOG(LogHAL, Warning, TEXT("Splash screen image not found."));
