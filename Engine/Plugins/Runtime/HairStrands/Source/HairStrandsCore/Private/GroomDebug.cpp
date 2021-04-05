@@ -57,7 +57,6 @@ static void GetGroomInterpolationData(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	const FHairStrandsInstances& Instances,
-	const EWorldType::Type WorldType,
 	const EHairStrandsProjectionMeshType MeshType,
 	const FGPUSkinCache* SkinCache,
 	FHairStrandsProjectionMeshData::LOD& OutGeometries)
@@ -66,7 +65,7 @@ static void GetGroomInterpolationData(
 	{
 		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
 
-		if (!Instance || Instance->WorldType != WorldType || !Instance->Debug.MeshComponent)
+		if (!Instance || !Instance->Debug.MeshComponent)
 			continue;
 
 		FCachedGeometry CachedGeometry;
@@ -773,7 +772,6 @@ static const TCHAR* ToString(EHairBindingType In)
 void RunHairStrandsDebug(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	EWorldType::Type WorldType,
 	const FSceneView& View,
 	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
@@ -816,10 +814,6 @@ void RunHairStrandsDebug(
 			{
 				FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
 
-				const bool bIsActive = Instance->WorldType == WorldType;
-				if (!bIsActive)
-					continue;
-
 				Line = FString::Printf(TEXT(" * Group:%d/%d | LOD:%1.2f/%d | GeometryType:%s | BindingType:%s | Sim:%d | RBF:%d | VertexCount:%d | Name: %s"),
 					Instance->Debug.GroupIndex,
 					Instance->Debug.GroupCount,
@@ -833,7 +827,7 @@ void RunHairStrandsDebug(
 					Instance->Guides.bHasGlobalInterpolation,
 					Instance->HairGroupPublicData->VertexCount,
 					*Instance->Debug.GroomAssetName);
-				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugGroupColor : InactiveColor);
+				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugGroupColor);
 			}
 
 			const bool bFlush = false;
@@ -855,10 +849,10 @@ void RunHairStrandsDebug(
 
 			if (GHairDebugMeshProjection_SkinCacheMesh > 0)
 			{
-				auto RenderMeshProjection = [&bClearDepth, WorldType, ShaderMap, Viewport, &ViewUniformBuffer, Instances, SkinCache, &SceneColorTexture, &DepthTexture, &GraphBuilder](FRDGBuilder& LocalGraphBuilder, EHairStrandsProjectionMeshType MeshType)
+				auto RenderMeshProjection = [&bClearDepth, ShaderMap, Viewport, &ViewUniformBuffer, Instances, SkinCache, &SceneColorTexture, &DepthTexture, &GraphBuilder](FRDGBuilder& LocalGraphBuilder, EHairStrandsProjectionMeshType MeshType)
 				{
 					FHairStrandsProjectionMeshData::LOD MeshProjectionLODData;
-					GetGroomInterpolationData(GraphBuilder, ShaderMap, Instances, WorldType, MeshType, SkinCache, MeshProjectionLODData);
+					GetGroomInterpolationData(GraphBuilder, ShaderMap, Instances, MeshType, SkinCache, MeshProjectionLODData);
 					for (FHairStrandsProjectionMeshData::Section& Section : MeshProjectionLODData.Sections)
 					{
 						AddDebugProjectionMeshPass(LocalGraphBuilder, ShaderMap, Viewport, ViewUniformBuffer, MeshType, bClearDepth, Section, SceneColorTexture, DepthTexture);
@@ -872,14 +866,14 @@ void RunHairStrandsDebug(
 				RenderMeshProjection(GraphBuilder, EHairStrandsProjectionMeshType::TargetMesh);
 			}
 
-			auto RenderProjectionData = [&GraphBuilder, ShaderMap, Viewport, &ViewUniformBuffer, Instances, WorldType, SkinCache, &bClearDepth, SceneColorTexture, DepthTexture](EHairStrandsInterpolationType StrandType, bool bRestTriangle, bool bRestFrame, bool bDeformedTriangle, bool bDeformedFrame)
+			auto RenderProjectionData = [&GraphBuilder, ShaderMap, Viewport, &ViewUniformBuffer, Instances, SkinCache, &bClearDepth, SceneColorTexture, DepthTexture](EHairStrandsInterpolationType StrandType, bool bRestTriangle, bool bRestFrame, bool bDeformedTriangle, bool bDeformedFrame)
 			{
 				TArray<int32> HairLODIndices;
 				for (FHairStrandsInstance* AbstractInstance : Instances)
 				{
 					FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
 
-					if (Instance->WorldType != WorldType || !Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr || Instance->BindingType != EHairBindingType::Skinning)
+					if (!Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr || Instance->BindingType != EHairBindingType::Skinning)
 						continue;
 
 					const int32 MeshLODIndex = Instance->Debug.MeshLODIndex;

@@ -222,7 +222,6 @@ private:
 	bool bValidationEnable = true;
 	bool bPreviewMode = false;
 
-	EWorldType::Type GetWorldType() const; 
 	void InitResources(bool bIsBindingReloading=false);
 	void ReleaseResources();
 

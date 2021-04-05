@@ -187,7 +187,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	} Debug;
 
 	FTransform				LocalToWorld = FTransform::Identity;
-	EWorldType::Type		WorldType;
 	FHairGroupPublicData*	HairGroupPublicData = nullptr;
 	EHairGeometryType		GeometryType = EHairGeometryType::NoneGeometry;
 	EHairBindingType		BindingType = EHairBindingType::NoneBinding;

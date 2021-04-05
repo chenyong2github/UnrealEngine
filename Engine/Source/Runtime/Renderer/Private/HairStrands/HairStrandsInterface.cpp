@@ -391,7 +391,6 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	FHairStrandsBookmarkParameters Out;
 	Out.DebugShaderData			= &View.ShaderDrawData;
 	Out.SkinCache				= View.Family->Scene->GetGPUSkinCache();
-	Out.WorldType				= View.Family->Scene->GetWorld()->WorldType;
 	Out.ShaderMap				= View.ShaderMap;
 	Out.Instances				= &Scene->HairStrandsSceneData.RegisteredProxies;
 	Out.View					= &View;

@@ -1767,18 +1767,11 @@ FHairStrandsDeformedRootResource* UGroomComponent::GetGuideStrandsDeformedRootRe
 	return HairGroupInstances[GroupIndex]->Guides.DeformedRootResource;
 }
 
-EWorldType::Type UGroomComponent::GetWorldType() const
-{
-	EWorldType::Type WorldType = GetWorld() ? EWorldType::Type(GetWorld()->WorldType) : EWorldType::None;
-	return WorldType == EWorldType::Inactive ? EWorldType::Editor : WorldType;
-}
-
 void UGroomComponent::UpdateSimulatedGroups()
 {
 	if (HairGroupInstances.Num()>0)
 	{
 		const uint32 Id = ComponentId.PrimIDValue;
-		const EWorldType::Type WorldType = GetWorldType();
 		
 		const bool bIsStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands);
 
@@ -1789,7 +1782,7 @@ void UGroomComponent::UpdateSimulatedGroups()
 		UGroomAsset* LocalGroomAsset = GroomAsset;
 		UGroomBindingAsset* LocalBindingAsset = BindingAsset;
 		ENQUEUE_RENDER_COMMAND(FHairStrandsTick_UEnableSimulatedGroups)(
-			[LocalInstances, LocalGroomAsset, LocalBindingAsset, Id, WorldType, bIsStrandsEnabled, LODIndex](FRHICommandListImmediate& RHICmdList)
+			[LocalInstances, LocalGroomAsset, LocalBindingAsset, Id, bIsStrandsEnabled, LODIndex](FRHICommandListImmediate& RHICmdList)
 		{
 			int32 GroupIt = 0;
 			for (FHairGroupInstance* Instance : LocalInstances)
@@ -2048,13 +2041,11 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	}
 
 	const bool bIsStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands);
-	const EWorldType::Type WorldType = GetWorldType();
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
 		FHairGroupInstance* HairGroupInstance = new FHairGroupInstance();
 		HairGroupInstance->AddRef();
 		HairGroupInstances.Add(HairGroupInstance);
-		HairGroupInstance->WorldType = WorldType;
 		HairGroupInstance->Debug.ComponentId = ComponentId.PrimIDValue;
 		HairGroupInstance->Debug.GroupIndex = GroupIt;
 		HairGroupInstance->Debug.GroupCount = GroupCount;
@@ -2578,17 +2569,6 @@ void UGroomComponent::OnRegister()
 	{
 		InitResources();
 	}
-
-	const EWorldType::Type WorldType = GetWorldType();
-	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
-	ENQUEUE_RENDER_COMMAND(FHairStrandsRegister)(
-		[WorldType, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
-	{
-		for (FHairGroupInstance* Instance : LocalHairGroupInstances)
-		{
-			Instance->WorldType = WorldType;
-		}
-	});
 }
 
 void UGroomComponent::OnUnregister()
@@ -2657,7 +2637,6 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);	
 	
-	const EWorldType::Type WorldType = GetWorldType();
 	const uint32 Id = ComponentId.PrimIDValue;
 	const ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? ERHIFeatureLevel::Type(GetWorld()->FeatureLevel) : ERHIFeatureLevel::Num;
 
@@ -2722,14 +2701,13 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	const FTransform SkinLocalToWorld = RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform();
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
-		[Id, WorldType, SkinLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
+		[Id, SkinLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
 	{		
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
 
 		for (FHairGroupInstance* Instance : LocalHairGroupInstances)
 		{
-			Instance->WorldType = WorldType;
 			Instance->Debug.SkeletalPreviousLocalToWorld = Instance->Debug.SkeletalLocalToWorld;
 			Instance->Debug.SkeletalLocalToWorld = SkinLocalToWorld;
 		}

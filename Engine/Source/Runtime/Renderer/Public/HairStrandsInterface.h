@@ -425,7 +425,6 @@ struct FHairStrandsBookmarkParameters
 {
 	class FGPUSkinCache* SkinCache = nullptr;
 	FShaderDrawDebugData* DebugShaderData = nullptr;
-	EWorldType::Type WorldType = EWorldType::None;
 	class FGlobalShaderMap* ShaderMap = nullptr;
 
 	FIntRect ViewRect; // View 0
