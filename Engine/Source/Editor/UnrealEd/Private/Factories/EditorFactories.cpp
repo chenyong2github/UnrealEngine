@@ -4661,6 +4661,30 @@ UObject* UTextureFactory::FactoryCreateBinary
 
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 
+	// If the texture is larger than a certain threshold make it VT. This is explicitly done after the
+	// application of the existing settings above, so if a texture gets reimported at a larger size it will
+	// still be properly flagged as a VT (note: What about reimporting at a lower resolution?)
+	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); 
+	check(CVarVirtualTexturesEnabled);
+
+	if (CVarVirtualTexturesEnabled->GetValueOnAnyThread())
+	{
+		const int32 VirtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
+		const int32 VirtualTextureAutoEnableThresholdPixels = VirtualTextureAutoEnableThreshold * VirtualTextureAutoEnableThreshold;
+
+		// We do this in pixels so a 8192 x 128 texture won't get VT enabled 
+		// We use the Source size instead of simple Texture2D->GetSizeX() as this uses the size of the platform data
+		// however for a new texture platform data may not be generated yet, and for an reimport of a texture this is the size of the
+		// old texture. 
+		// Using source size gives one small caveat. It looks at the size before mipmap power of two padding adjustment.
+		// Textures with more than 1 block (UDIM textures) must be imported as VT
+		if (Texture->Source.GetNumBlocks() > 1 ||
+			Texture2D->Source.GetSizeX() * Texture2D->Source.GetSizeY() >= VirtualTextureAutoEnableThresholdPixels)
+		{
+			Texture2D->VirtualTextureStreaming = true;
+		}
+	}
+
 	// Restore user set options
 	if (ExistingTexture && bUsingExistingSettings)
 	{
@@ -4706,29 +4730,6 @@ UObject* UTextureFactory::FactoryCreateBinary
 	{
 		// The texture has been imported and has no editor specific changes applied so we clear the painted flag.
 		Texture2D->bHasBeenPaintedInEditor = false;
-
-		// If the texture is larger than a certain threshold make it VT. This is explicitly done after the
-		// application of the existing settings above, so if a texture gets reimported at a larger size it will
-		// still be properly flagged as a VT (note: What about reimporting at a lower resolution?)
-		static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
-		
-		if (CVarVirtualTexturesEnabled->GetValueOnAnyThread())
-		{
-			int virtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
-			int virtualTextureAutoEnableThresholdPixels = virtualTextureAutoEnableThreshold * virtualTextureAutoEnableThreshold;
-
-			// We do this in pixels so a 8192 x 128 texture won't get VT enabled 
-			// We use the Source size instead of simple Texture2D->GetSizeX() as this uses the size of the platform data
-			// however for a new texture platform data may not be generated yet, and for an reimport of a texture this is the size of the
-			// old texture. 
-			// Using source size gives one small caveat. It looks at the size before mipmap power of two padding adjustment.
-			// Textures with more than 1 block (UDIM textures) must be imported as VT
-			if (Texture->Source.GetNumBlocks() > 1 ||
-				Texture2D->Source.GetSizeX()*Texture2D->Source.GetSizeY() >= virtualTextureAutoEnableThresholdPixels)
-			{
-				Texture2D->VirtualTextureStreaming = true;
-			}
-		}
 	}
 
 	// Automatically detect if the texture is a normal map and configure its properties accordingly
