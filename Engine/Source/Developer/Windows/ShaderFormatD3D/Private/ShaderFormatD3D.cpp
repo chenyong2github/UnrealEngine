@@ -41,11 +41,17 @@ public:
 		CheckFormat(Format);
 		if (Format == NAME_PCD3D_SM6)
 		{
-			return HashCombine(DxcVersionHash, GetTypeHash(UE_SHADER_PCD3D_SM6_VER));
+			uint32 ShaderModelHash = GetTypeHash(UE_SHADER_PCD3D_SM6_VER);
+
+		#if USE_SHADER_MODEL_6_6
+			ShaderModelHash ^= 0x96ED7F56;
+		#endif
+
+			return HashCombine(DxcVersionHash, ShaderModelHash);
 		}
 		else if (Format == NAME_PCD3D_SM5)
 		{
-			// Technically not needed for regular SM5 commpiled with legacy compiler,
+			// Technically not needed for regular SM5 compiled with legacy compiler,
 			// but PCD3D_SM5 currently includes ray tracing shaders that are compiled with new compiler stack.
 			return HashCombine(DxcVersionHash, GetTypeHash(UE_SHADER_PCD3D_SM5_VER));
 		}

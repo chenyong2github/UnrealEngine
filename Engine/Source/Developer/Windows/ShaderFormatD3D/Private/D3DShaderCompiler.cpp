@@ -92,26 +92,27 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 			checkfSlow(false, TEXT("Unexpected shader frequency"));
 			return nullptr;
 		case SF_Pixel:
-			return TEXT("ps_6_5");
+			return USE_SHADER_MODEL_6_6 ? TEXT("ps_6_6") : TEXT("ps_6_5");
 		case SF_Vertex:
-			return TEXT("vs_6_5");
+			return USE_SHADER_MODEL_6_6 ? TEXT("vs_6_6") : TEXT("vs_6_5");
 		case SF_Mesh:
-			return TEXT("ms_6_5");
+			return USE_SHADER_MODEL_6_6 ? TEXT("ms_6_6") : TEXT("ms_6_5");
 		case SF_Amplification:
-			return TEXT("as_6_5");
+			return USE_SHADER_MODEL_6_6 ? TEXT("as_6_6") : TEXT("as_6_5");
 		case SF_Hull:
-			return TEXT("hs_6_5");
+			return USE_SHADER_MODEL_6_6 ? TEXT("hs_6_6") : TEXT("hs_6_5");
 		case SF_Domain:
-			return TEXT("ds_6_5");
+			return USE_SHADER_MODEL_6_6 ? TEXT("ds_6_6") : TEXT("ds_6_5");
 		case SF_Geometry:
-			return TEXT("gs_6_5");
+			return USE_SHADER_MODEL_6_6 ? TEXT("gs_6_6") : TEXT("gs_6_5");
 		case SF_Compute:
-			return TEXT("cs_6_5");
+			return USE_SHADER_MODEL_6_6 ? TEXT("cs_6_6") : TEXT("cs_6_5");
 		case SF_RayGen:
 		case SF_RayMiss:
 		case SF_RayHitGroup:
 		case SF_RayCallable:
-			return TEXT("lib_6_5");
+			// return USE_SHADER_MODEL_6_6 ? TEXT("lib_6_6") : TEXT("lib_6_5");
+			return TEXT("lib_6_5"); // TODO: Intentionally using SM6.5 as a workaround for outstanding driver bug.
 		}
 	}
 	else if(Target.Platform == SP_PCD3D_SM5)
@@ -162,7 +163,7 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 /**
