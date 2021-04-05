@@ -994,6 +994,11 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			CollectorResources = &Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FMeshCollectorResources>();
 		}
 
+		if (!CollectorResources->GetVertexFactory().GetType()->SupportsRayTracingDynamicGeometry())
+		{
+			return;
+		}
+
 		// Setup material for our ray tracing instance
 		FCPUSimParticleDataAllocation CPUSimParticleDataAllocation = ConditionalAllocateCPUSimParticleData(DynamicDataSprites, RendererLayout, Context.RayTracingMeshResourceCollector.GetDynamicReadBuffer(), bNeedsGPUVis);
 		FNiagaraSpriteVFLooseParameters VFLooseParams;

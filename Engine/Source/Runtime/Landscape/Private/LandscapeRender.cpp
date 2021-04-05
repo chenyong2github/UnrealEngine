@@ -2472,6 +2472,11 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 		return;
 	}
 
+	if (!VertexFactory->GetType()->SupportsRayTracingDynamicGeometry())
+	{
+		return;
+	}
+
 	int32 ForcedLODLevel = ForcedLOD;
 
 	int32 ViewLodOveride = GetViewLodOverride(*Context.ReferenceView);

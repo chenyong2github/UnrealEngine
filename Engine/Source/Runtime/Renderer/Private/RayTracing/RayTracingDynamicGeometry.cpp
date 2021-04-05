@@ -3,6 +3,7 @@
 #include "MeshMaterialShader.h"
 #include "ScenePrivate.h"
 #include "RayTracingDynamicGeometryCollection.h"
+#include "RayTracingInstance.h"
 
 #if RHI_RAYTRACING
 
@@ -11,11 +12,6 @@ DECLARE_CYCLE_STAT(TEXT("RTDynGeomBuild"), STAT_CLM_RTDynGeomBuild, STATGROUP_Pa
 
 // Workaround for outstanding memory corruption on some platforms when parallel command list translation is used.
 #define USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS 0
-
-static bool IsSupportedDynamicVertexFactoryType(const FVertexFactoryType* VertexFactoryType)
-{
-	return VertexFactoryType->SupportsRayTracingDynamicGeometry();
-}
 
 class FRayTracingDynamicGeometryConverterCS : public FMeshMaterialShader
 {
@@ -41,7 +37,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsSupportedDynamicVertexFactoryType(Parameters.VertexFactoryType) && ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return Parameters.VertexFactoryType->SupportsRayTracingDynamicGeometry() && ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
 	void GetShaderBindings(
@@ -174,7 +170,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 
 	for (const FMeshBatch& MeshBatch : UpdateParams.MeshBatches)
 	{
-		if (!ensureMsgf(IsSupportedDynamicVertexFactoryType(MeshBatch.VertexFactory->GetType()),
+		if (!ensureMsgf(MeshBatch.VertexFactory->GetType()->SupportsRayTracingDynamicGeometry(),
 			TEXT("FRayTracingDynamicGeometryConverterCS doesn't support %s. Skipping rendering of %s.  This can happen when the skinning cache runs out of space and falls back to GPUSkinVertexFactory."),
 			MeshBatch.VertexFactory->GetType()->GetName(), *PrimitiveSceneProxy->GetOwnerName().ToString()))
 		{

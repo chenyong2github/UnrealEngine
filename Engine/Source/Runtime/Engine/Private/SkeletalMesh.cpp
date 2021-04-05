@@ -6219,17 +6219,31 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				MeshObject->SectionIndexPreview = INDEX_NONE;
 				MeshObject->MaterialIndexPreview = INDEX_NONE;
 			#endif
+
+				bool bSupportedVFType = true;
 				for (FSkeletalMeshSectionIter Iter(LODIndex, *MeshObject, LODData, LODSection); Iter; ++Iter)
 				{
 					const FSkelMeshRenderSection& Section = Iter.GetSection();
 					const int32 SectionIndex = Iter.GetSectionElementIndex();
 					const FSectionElementInfo& SectionElementInfo = Iter.GetSectionElementInfo();
 
+					if (!MeshObject->GetSkinVertexFactory(Context.ReferenceView, LODIndex, SectionIndex)->GetType()->SupportsRayTracingDynamicGeometry())
+					{
+						bSupportedVFType = false;
+						break;
+					}
+
 					FMeshBatch MeshBatch;
 					CreateBaseMeshBatch(Context.ReferenceView, LODData, LODIndex, SectionIndex, SectionElementInfo, MeshBatch);
 
 					RayTracingInstance.Materials.Add(MeshBatch);
 				}
+
+				if (!bSupportedVFType)
+				{
+					return;
+				}
+
 			#if WITH_EDITORONLY_DATA
 				MeshObject->SectionIndexPreview = SectionIndexPreview;
 				MeshObject->MaterialIndexPreview = MaterialIndexPreview;

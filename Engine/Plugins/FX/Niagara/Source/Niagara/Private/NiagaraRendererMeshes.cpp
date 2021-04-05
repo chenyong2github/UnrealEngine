@@ -1073,6 +1073,12 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		const FMeshData& MeshData = Meshes[MeshIndex];
 		const int32 LODIndex = GetLODIndex(MeshIndex);
 
+		FVertexFactory* VertexFactory = &MeshData.RenderData->LODVertexFactories[LODIndex].VertexFactory;
+		if (!VertexFactory->GetType()->SupportsRayTracingDynamicGeometry())
+		{
+			continue;
+		}
+
 		const FStaticMeshLODResources& LODModel = MeshData.RenderData->LODResources[LODIndex];
 		FRayTracingGeometry& Geometry = MeshData.RenderData->LODResources[LODIndex].RayTracingGeometry;
 		FRayTracingInstance RayTracingInstance;
@@ -1102,7 +1108,6 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			FMeshBatch MeshBatch;
 			const FStaticMeshLODResources& LOD = MeshData.RenderData->LODResources[LODIndex];
 			const FStaticMeshVertexFactories& VFs = MeshData.RenderData->LODVertexFactories[LODIndex];
-			FVertexFactory* VertexFactory = &MeshData.RenderData->LODVertexFactories[LODIndex].VertexFactory;
 
 			MeshBatch.VertexFactory = VertexFactory;
 			MeshBatch.MaterialRenderProxy = MaterialProxy;

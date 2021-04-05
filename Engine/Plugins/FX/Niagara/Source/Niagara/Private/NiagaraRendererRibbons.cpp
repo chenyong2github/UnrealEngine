@@ -1400,6 +1400,11 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	// Setup material for our ray tracing instance
 	FNiagaraMeshCollectorResourcesRibbon& CollectorResources = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FNiagaraMeshCollectorResourcesRibbon>();
 
+	if (!CollectorResources.VertexFactory.GetType()->SupportsRayTracingDynamicGeometry())
+	{
+		return;
+	}
+
 	FGlobalDynamicIndexBuffer::FAllocationEx DynamicIndexAllocation;
 	CreatePerViewResources(Context.ReferenceView, Context.ReferenceViewFamily, SceneProxy, Context.RayTracingMeshResourceCollector, CollectorResources.UniformBuffer, DynamicIndexAllocation);
 
