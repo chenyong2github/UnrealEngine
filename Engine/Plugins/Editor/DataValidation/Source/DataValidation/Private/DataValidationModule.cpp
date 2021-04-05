@@ -114,8 +114,8 @@ void FDataValidationModule::ShutdownModule()
 void FDataValidationModule::RegisterMenus()
 {
 	FToolMenuOwnerScoped OwnerScoped(this);
-	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.File");
-	FToolMenuSection& Section = Menu->AddSection("DataValidation", LOCTEXT("DataValidation", "DataValidation"), FToolMenuInsert("FileLoadAndSave", EToolMenuInsertType::After));
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Tools");
+	FToolMenuSection& Section = Menu->AddSection("DataValidation", LOCTEXT("DataValidation", "DataValidation"));
 	Section.AddEntry(FToolMenuEntry::InitMenuEntry(
 		"ValidateData",
 		TAttribute<FText>::Create(&Menu_ValidateDataGetTitle),

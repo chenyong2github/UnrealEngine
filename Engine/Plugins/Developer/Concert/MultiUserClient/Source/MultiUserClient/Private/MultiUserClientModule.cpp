@@ -782,7 +782,7 @@ private:
 		FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
 
 #if WITH_EDITOR
-		RegisterTabSpawner(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
+		RegisterTabSpawner(WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory());
 
 		// Register Workspace view
 		RegisterWorkspaceUI();

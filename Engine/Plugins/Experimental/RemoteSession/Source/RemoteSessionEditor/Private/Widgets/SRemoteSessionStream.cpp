@@ -79,7 +79,7 @@ void SRemoteSessionStream::RegisterNomadTabSpawner()
 		LevelEditorTabManager->RegisterTabSpawner(RemoteSessionStream::RemoteSessionStreamApp, FOnSpawnTab::CreateStatic(&RemoteSessionStream::CreateMediaFrameworkCaptureCameraViewportTab))
 			.SetDisplayName(LOCTEXT("TabTitle", "Remote Session Stream"))
 			.SetTooltipText(LOCTEXT("TooltipText", "Stream a particular UMG to a Remote Session app."))
-			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
+			.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
 			.SetIcon(FSlateIcon(FRemoteSessionEditorStyle::GetStyleSetName(), "TabIcons.RemoteSession.Small"));
 	};
 

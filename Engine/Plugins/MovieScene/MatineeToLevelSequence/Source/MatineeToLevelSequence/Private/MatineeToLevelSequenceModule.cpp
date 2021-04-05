@@ -110,7 +110,7 @@ protected:
 				.SetDisplayName(LOCTEXT("MatineeCameraShakeConverter", "Matinee Camera Shake Converter"))
 				.SetTooltipText(LOCTEXT("MatineeCameraShakeConverterTooltipText", "Open the legacy camera shake converter tool."))
 				.SetIcon(Icon)
-				.SetGroup(MenuStructure.GetDeveloperToolsMiscCategory());
+				.SetGroup(MenuStructure.GetLevelEditorCinematicsCategory());
 			});
 	}
 

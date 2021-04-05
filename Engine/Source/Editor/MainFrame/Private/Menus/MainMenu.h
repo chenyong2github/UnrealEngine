@@ -37,6 +37,7 @@ public:
 	 * @param MenuName Identifier associated with the menu.
 	 * @return ToolMenuContext Context containing state.
 	 */
+	UE_DEPRECATED(4.26, "MakeMainTabMenu has been deprecated, use MakeMainMenu instead.")
 	static TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext );
 
 	/**
@@ -63,6 +64,11 @@ protected:
 	static void RegisterWindowMenu();
 
 	/**
+	 * Called to fill the app menu's content.
+	 */
+	static void RegisterToolsMenu();
+
+	/**
 	 * Called to fill the help menu's content.
 	 */
 	static void RegisterHelpMenu();
@@ -75,7 +81,7 @@ protected:
 	/**
 	 * Called to fill the file menu's recent and exit content.
 	 */
-	static void RegisterRecentFileAndExitMenuItems();
+	static void RegisterExitMenuItems();
 
 private:
 	/** 

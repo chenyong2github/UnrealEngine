@@ -107,7 +107,7 @@ void FMergeActorsModule::StartupModule()
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(MergeActorsTabName, FOnSpawnTab::CreateRaw(this, &FMergeActorsModule::CreateMergeActorsTab))
 		.SetDisplayName(NSLOCTEXT("MergeActorsModule", "TabTitle", "Merge Actors"))
 		.SetTooltipText(NSLOCTEXT("MergeActorsModule", "TooltipText", "Open the Merge Actors tab."))
-		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "MergeActors.TabIcon"));
 
 	// Register built-in merging tools straight away

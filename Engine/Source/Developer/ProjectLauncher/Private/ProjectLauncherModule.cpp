@@ -32,9 +32,6 @@ public:
 	
 	virtual void StartupModule() override
 	{
-#if WITH_EDITOR
-		FGlobalTabmanager::Get()->RegisterTabSpawner(ProjectLauncherTabName, FOnSpawnTab::CreateRaw(this, &FProjectLauncherModule::SpawnProjectLauncherTab));
-#else
 		// This is still experimental in the editor, so it'll be invoked specifically in FMainMenu if the experimental settings flag is set.
 		//@todo Enable this in the editor when no longer experimental
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ProjectLauncherTabName, FOnSpawnTab::CreateRaw(this, &FProjectLauncherModule::SpawnProjectLauncherTab))
@@ -42,16 +39,11 @@ public:
 			.SetTooltipText(NSLOCTEXT("FProjectLauncherModule", "ProjectLauncherTooltipText", "Open the Project Launcher tab."))
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Launcher.TabIcon"))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
-#endif
 	}
 
 	virtual void ShutdownModule() override
 	{
-#if WITH_EDITOR
-		FGlobalTabmanager::Get()->UnregisterTabSpawner(ProjectLauncherTabName);
-#else
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ProjectLauncherTabName);
-#endif
 	}
 
 private:

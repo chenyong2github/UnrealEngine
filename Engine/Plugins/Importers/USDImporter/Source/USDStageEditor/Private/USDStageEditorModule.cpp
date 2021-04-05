@@ -53,7 +53,7 @@ public:
 				LevelEditorTabManager->RegisterTabSpawner( TEXT("USDStage"), FOnSpawnTab::CreateStatic( &FUsdStageEditorModule::SpawnUsdStageTab ) )
 					.SetDisplayName( LOCTEXT( "USDStage", "USD Stage" ) )
 					.SetTooltipText( LOCTEXT( "USDStageTab", "Open USD Stage tab" ) )
-					.SetGroup( WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory() )
+					.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory())
 					.SetIcon( LayersIcon );
 			});
 

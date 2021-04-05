@@ -30,36 +30,37 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 		static void RegisterFileLoadAndSaveItems()
 		{
 			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.File");
-			FToolMenuSection& Section = Menu->FindOrAddSection("FileLoadAndSave");
+
+			FToolMenuSection& OpenSection = Menu->FindOrAddSection("FileOpen");
+
 			FToolMenuInsert InsertPos(NAME_None, EToolMenuInsertType::First);
 
 			// New Level
-			Section.AddMenuEntry( FLevelEditorCommands::Get().NewLevel ).InsertPosition = InsertPos;
+			OpenSection.AddMenuEntry( FLevelEditorCommands::Get().NewLevel ).InsertPosition = InsertPos;
 
 			// Open Level
-			Section.AddMenuEntry( FLevelEditorCommands::Get().OpenLevel ).InsertPosition = InsertPos;
+			OpenSection.AddMenuEntry( FLevelEditorCommands::Get().OpenLevel ).InsertPosition = InsertPos;
 
 			// Open Asset
 			//@TODO: Doesn't work when summoned from here: Section.AddMenuEntry( FGlobalEditorCommonCommands::Get().SummonOpenAssetDialog );
 
+			FToolMenuSection& SaveSection = Menu->FindOrAddSection("FileSave");
+
 			// Save
-			Section.AddMenuEntry( FLevelEditorCommands::Get().Save ).InsertPosition = InsertPos;
+			SaveSection.AddMenuEntry( FLevelEditorCommands::Get().Save ).InsertPosition = InsertPos;
 	
 			// Save As
-			Section.AddMenuEntry( FLevelEditorCommands::Get().SaveAs ).InsertPosition = InsertPos;
-
-			// Save Levels
-			Section.AddMenuEntry( FLevelEditorCommands::Get().SaveAllLevels ).InsertPosition = InsertPos;
+			SaveSection.AddMenuEntry( FLevelEditorCommands::Get().SaveAs ).InsertPosition = InsertPos;
 		}
 
 		static void FillFileRecentAndFavoriteFileItems()
 		{
 			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.File");
-			FToolMenuInsert SectionInsertPos("FileRecentFiles", EToolMenuInsertType::Before);
+			FToolMenuInsert SectionInsertPos("FileSave", EToolMenuInsertType::After);
 
 			// Import/Export
 			{
-				FToolMenuSection& Section = Menu->AddSection("FileActors", LOCTEXT("ImportExportHeading", "Actors"), SectionInsertPos);
+				FToolMenuSection& Section = Menu->AddSection("FileActors", LOCTEXT("ImportExportHeading", "Import/Export"), SectionInsertPos);
 				{
 					// Import Into Level
 					Section.AddMenuEntry(FLevelEditorCommands::Get().ImportScene);
@@ -121,7 +122,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 					}
 				};
 
-				FToolMenuSection& Section = Menu->AddSection("FileFavoriteLevels", TAttribute<FText>(), SectionInsertPos);
+				FToolMenuSection& Section = Menu->FindOrAddSection("FileOpen");
 
 				Section.AddDynamicEntry("FileFavoriteLevels", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 				{
@@ -165,7 +166,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 					}
 				};
 
-				FToolMenuSection& Section = Menu->AddSection("FileRecentLevels", TAttribute<FText>(), SectionInsertPos);
+				FToolMenuSection& Section = Menu->FindOrAddSection("FileOpen");
 				Section.AddDynamicEntry("FileRecentLevels", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 				{
 					IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
@@ -227,6 +228,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 
 			FToolMenuSection& Section = Menu->FindOrAddSection(NAME_None);
 
+
 			FToolMenuEntry& Entry =
 				Section.AddSubMenu(
 					"Build",
@@ -237,6 +239,12 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 
 			Entry.InsertPosition = FToolMenuInsert("Help", EToolMenuInsertType::Before);
 		}
+
+
+		static void ExtendToolsMenu()
+		{
+			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Tools", "MainFrame.MainMenu.Tools");
+		}
 	};
 
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -244,6 +252,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 	ToolMenus->RegisterMenu("LevelEditor.MainMenu.File", "MainFrame.MainTabMenu.File");
 	ToolMenus->RegisterMenu("LevelEditor.MainMenu.Window", "MainFrame.MainMenu.Window");
 
+	// Add other top level menus
 	Local::ExtendMenuBar();
 
 	// Add level loading and saving menu items
@@ -258,6 +267,10 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 	// Extend the Help menu
 	Local::ExtendHelpMenu();
 
+	// Extend the Tools menu
+	Local::ExtendToolsMenu();
+
+	// Extend the Build menu
 	RegisterBuildMenu();
 
 }

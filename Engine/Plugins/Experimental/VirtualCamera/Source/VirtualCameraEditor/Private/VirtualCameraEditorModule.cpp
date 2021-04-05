@@ -27,7 +27,7 @@ public:
 	{
 		FVirtualCameraEditorStyle::Register();
 		const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-		TSharedRef<FWorkspaceItem> DeveloperToolsGroup = MenuStructure.GetDeveloperToolsMiscCategory();
+		TSharedRef<FWorkspaceItem> DeveloperToolsGroup = MenuStructure.GetLevelEditorVirtualProductionCategory();
 		SVirtualCameraTab::RegisterNomadTabSpawner(DeveloperToolsGroup);
 
 		RegisterSettings();

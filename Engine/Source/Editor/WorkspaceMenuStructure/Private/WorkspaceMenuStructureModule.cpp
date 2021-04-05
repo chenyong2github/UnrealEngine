@@ -20,6 +20,10 @@ public:
 	{
 		return MenuRoot.ToSharedRef();
 	}
+	virtual TSharedRef<FWorkspaceItem> GetToolsStructureRoot() const override
+	{
+		return ToolsMenuRoot.ToSharedRef();
+	}
 
 	virtual TSharedRef<FWorkspaceItem> GetLevelEditorCategory() const override
 	{
@@ -46,6 +50,11 @@ public:
 		return LevelEditorCinematicsCategory.ToSharedRef();
 	}
 
+	virtual TSharedRef<FWorkspaceItem> GetLevelEditorVirtualProductionCategory() const override
+	{
+		return LevelEditorVirtualProductionCategory.ToSharedRef();
+	}
+
 	virtual TSharedRef<FWorkspaceItem> GetToolsCategory() const override
 	{
 		return ToolsCategory.ToSharedRef();
@@ -64,6 +73,16 @@ public:
 	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsProfilingCategory() const override
 	{
 		return DeveloperToolsProfilingCategory.ToSharedRef();
+	}
+
+	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsAuditCategory() const override
+	{
+		return DeveloperToolsAuditCategory.ToSharedRef();
+	}	
+
+	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsPlatformsCategory() const override
+	{
+		return DeveloperToolsPlatformsCategory.ToSharedRef();
 	}
 
 	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsMiscCategory() const override
@@ -87,33 +106,38 @@ public:
 		LevelEditorViewportsCategory = LevelEditorCategory->AddGroup(LOCTEXT( "WorkspaceMenu_LevelEditorViewportCategory", "Viewports" ), LOCTEXT( "WorkspaceMenu_LevelEditorViewportCategoryTooltip", "Open a Viewport tab." ), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"), true);
 		LevelEditorDetailsCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorDetailCategory", "Details" ), LOCTEXT("WorkspaceMenu_LevelEditorDetailCategoryTooltip", "Open a Details tab." ), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"), true );
 		LevelEditorCinematicsCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorCinematicsCategory", "Cinematics"), LOCTEXT("WorkspaceMenu_LevelEditorCinematicsCategoryTooltip", "Open a Cinematics tab."), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Cinematics"), true);
+		LevelEditorVirtualProductionCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorVirtualProductionCategory", "Virtual Production"), LOCTEXT("WorkspaceMenu_LevelEditorVirtualProductionCategoryTooltip", "Open a Virtual Production tab."), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.VirtualProduction"), true);
 		LevelEditorModesCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorToolsCategory", "Editor Modes" ), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.EditorModes"), true );
+
 	}
 
 	void ResetToolsCategory()
 	{
-		ToolsCategory->ClearItems();
-
-		// Developer tools sub menu
-		DeveloperToolsCategory = ToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsCategory", "Developer Tools"), FSlateIcon(FEditorStyle::GetStyleSetName(), "DeveloperTools.MenuIcon"));
-
 		// Developer tools sections
-		DeveloperToolsDebugCategory = DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsDebugCategory", "Debug"), FSlateIcon(), true);
-		DeveloperToolsLogCategory = DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsLogCategory", "Log"), FSlateIcon(), true);
-		DeveloperToolsProfilingCategory = DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsProfilingCategory", "Profiling"), FSlateIcon(), true);
-		DeveloperToolsMiscCategory = DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsMiscCategory", "Miscellaneous"), FSlateIcon(), true);
-		
-		// Automation tools sub menu
-		AutomationToolsCategory = FWorkspaceItem::NewGroup(LOCTEXT("WorkspaceMenu_AutomationToolsCategory", "Automation Tools"), FSlateIcon(), true);
+		DeveloperToolsCategory->ClearItems();
+		DeveloperToolsSubMenuDebugCategory =     DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsDebugCategory", "Debug"), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Debug"), true);
+
+		DeveloperToolsDebugCategory = DeveloperToolsSubMenuDebugCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsDebugCategory", "Debug"), FSlateIcon(), true);
+		AutomationToolsCategory = DeveloperToolsSubMenuDebugCategory->AddGroup(LOCTEXT("WorkspaceMenu_AutomationToolsCategory", "Testing"), FSlateIcon(), true);
+
+		DeveloperToolsProfilingCategory = DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsProfilingCategory", "Profile"),  FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Debug"), true);
+		DeveloperToolsAuditCategory =     DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsAuditCategory", "Audit"), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Debug"), true);
+		DeveloperToolsPlatformsCategory = DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsPlatforms:WCategory", "Platforms"), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Debug"), true);
+		DeveloperToolsMiscCategory =      DeveloperToolsCategory->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsMiscCategory", "Miscellaneous"), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Debug"), true);
 	}
 
 public:
 	FWorkspaceMenuStructure()
 		: MenuRoot ( FWorkspaceItem::NewGroup(LOCTEXT( "WorkspaceMenu_Root", "Menu Root" )) )
+		, ToolsMenuRoot ( FWorkspaceItem::NewGroup(LOCTEXT( "WorkspaceToolsMenu_Root", "Tools Menu Root" )) )
 		, LevelEditorCategory ( MenuRoot->AddGroup(LOCTEXT( "WorkspaceMenu_LevelEditorCategory", "Level Editor" ), FSlateIcon(), true) )
-		, ToolsCategory ( MenuRoot->AddGroup(LOCTEXT( "WorkspaceMenu_ToolsCategory", "General" ), FSlateIcon(), true) )
+		, ToolsCategory ( ToolsMenuRoot->AddGroup(LOCTEXT( "WorkspaceMenu_ToolsCategory", "Tools" ), FSlateIcon(), true) )
+		, DeveloperToolsCategory ( ToolsMenuRoot->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsCategory", "Instrumentation"), FSlateIcon()) )
+		, DeveloperToolsLogCategory ( MenuRoot->AddGroup(LOCTEXT("WorkspaceMenu_DeveloperToolsLogCategory", "Log"), FSlateIcon(), true))
 		, EditOptions( FWorkspaceItem::NewGroup(LOCTEXT( "WorkspaceEdit_Options", "Edit Options" )) )
 	{
+
+
 		ResetLevelEditorCategory();
 		ResetToolsCategory();
 	}
@@ -122,18 +146,23 @@ public:
 
 private:
 	TSharedPtr<FWorkspaceItem> MenuRoot;
+	TSharedPtr<FWorkspaceItem> ToolsMenuRoot;
 	
 	TSharedPtr<FWorkspaceItem> LevelEditorCategory;
 	TSharedPtr<FWorkspaceItem> LevelEditorViewportsCategory;
 	TSharedPtr<FWorkspaceItem> LevelEditorDetailsCategory;
 	TSharedPtr<FWorkspaceItem> LevelEditorCinematicsCategory;
+	TSharedPtr<FWorkspaceItem> LevelEditorVirtualProductionCategory;
 	TSharedPtr<FWorkspaceItem> LevelEditorModesCategory;
 
 	TSharedPtr<FWorkspaceItem> ToolsCategory;
 	TSharedPtr<FWorkspaceItem> DeveloperToolsCategory;
-	TSharedPtr<FWorkspaceItem> DeveloperToolsDebugCategory;
 	TSharedPtr<FWorkspaceItem> DeveloperToolsLogCategory;
+	TSharedPtr<FWorkspaceItem> DeveloperToolsSubMenuDebugCategory;
+	TSharedPtr<FWorkspaceItem> DeveloperToolsDebugCategory;
+	TSharedPtr<FWorkspaceItem> DeveloperToolsAuditCategory;
 	TSharedPtr<FWorkspaceItem> DeveloperToolsProfilingCategory;
+	TSharedPtr<FWorkspaceItem> DeveloperToolsPlatformsCategory;
 	TSharedPtr<FWorkspaceItem> DeveloperToolsMiscCategory;
 	
 	TSharedPtr<FWorkspaceItem> AutomationToolsCategory;

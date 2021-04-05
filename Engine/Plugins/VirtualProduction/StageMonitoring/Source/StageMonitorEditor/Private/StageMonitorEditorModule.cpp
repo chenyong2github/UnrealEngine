@@ -20,7 +20,7 @@ DEFINE_LOG_CATEGORY(LogStageMonitorEditor);
 
 void FStageMonitorEditorModule::StartupModule()
 {
-	SStageMonitorPanel::RegisterNomadTabSpawner(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
+	SStageMonitorPanel::RegisterNomadTabSpawner(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory());
 
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 	if (SettingsModule)

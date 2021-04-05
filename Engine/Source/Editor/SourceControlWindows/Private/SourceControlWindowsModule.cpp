@@ -59,17 +59,11 @@ void FSourceControlWindowsModule::StartupModule()
 
 	// Create a Source Control group under the Tools category
 	const FSlateIcon SourceControlIcon(FEditorStyle::GetStyleSetName(), "SourceControl.ChangelistsTab");
-	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-	TSharedRef<FWorkspaceItem> SourceControlGroup = MenuStructure.GetToolsCategory()->AddGroup(
-		LOCTEXT("WorkspaceMenu_SourceControlCategory", "Source Control"),
-		LOCTEXT("SourceControlMenuTooltipText", "Source Control Operations"),
-		SourceControlIcon,
-		true);
 
 	// Register the changlist tab spawner
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SourceControlChangelistsTabName, FOnSpawnTab::CreateRaw(this, &FSourceControlWindowsModule::CreateChangelistsTab))
 		.SetDisplayName(LOCTEXT("ChangelistsTabTitle", "Changelists"))
-		.SetGroup(SourceControlGroup)
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
 		.SetIcon(SourceControlIcon);
 
 #if WITH_RELOAD

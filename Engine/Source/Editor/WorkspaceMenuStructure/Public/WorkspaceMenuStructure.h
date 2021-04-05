@@ -31,6 +31,9 @@ public:
 	/** Get the root of the menu structure. Pass this into PopulateTabSpawnerMenu() */
 	virtual TSharedRef<FWorkspaceItem> GetStructureRoot() const = 0;
 
+	/** Alternate root for the Tools menu */
+	virtual TSharedRef<FWorkspaceItem> GetToolsStructureRoot() const = 0;
+
 	/** See diagram above */
 	virtual TSharedRef<FWorkspaceItem> GetLevelEditorCategory() const = 0;
 
@@ -42,6 +45,9 @@ public:
 
 	/** See diagram above */
 	virtual TSharedRef<FWorkspaceItem> GetLevelEditorCinematicsCategory() const = 0;
+
+	/** See diagram above */
+	virtual TSharedRef<FWorkspaceItem> GetLevelEditorVirtualProductionCategory() const = 0;
 
 	/** See diagram above */
 	virtual TSharedRef<FWorkspaceItem> GetLevelEditorModesCategory() const = 0;
@@ -57,6 +63,12 @@ public:
 
 	/** See diagram above */
 	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsProfilingCategory() const = 0;	
+	
+	/** See diagram above */
+	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsAuditCategory() const = 0;	
+
+	/** See diagram above */
+	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsPlatformsCategory() const = 0;	
 	
 	/** See diagram above */
 	virtual TSharedRef<FWorkspaceItem> GetDeveloperToolsMiscCategory() const = 0;

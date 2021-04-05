@@ -149,7 +149,7 @@ void FLiveLinkCurveDebugUIModule::RegisterTabSpawner()
 	//Register with the Developer Tools Menu
 #if WITH_EDITOR
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-	SpawnerEntry.SetGroup(MenuStructure.GetDeveloperToolsMiscCategory());
+	SpawnerEntry.SetGroup(MenuStructure.GetDeveloperToolsDebugCategory());
 #endif //WITH_EDITOR
 }
 

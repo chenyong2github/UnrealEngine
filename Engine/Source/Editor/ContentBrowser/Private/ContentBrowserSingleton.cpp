@@ -45,7 +45,7 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 	// Register the tab spawners for all content browsers
 	const FSlateIcon ContentBrowserIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.TabIcon");
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-	TSharedRef<FWorkspaceItem> ContentBrowserGroup = MenuStructure.GetToolsCategory()->AddGroup(
+	TSharedRef<FWorkspaceItem> ContentBrowserGroup = MenuStructure.GetLevelEditorCategory()->AddGroup(
 		LOCTEXT( "WorkspaceMenu_ContentBrowserCategory", "Content Browser" ),
 		LOCTEXT( "ContentBrowserMenuTooltipText", "Open a Content Browser tab." ),
 		ContentBrowserIcon,

@@ -205,7 +205,7 @@ private:
 #if WITH_EDITOR
 	void RegisterTabSpawner()
 	{
-		TSharedPtr<FWorkspaceItem> WorkspaceGroup = WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory();
+		TSharedPtr<FWorkspaceItem> WorkspaceGroup = WorkspaceMenu::GetMenuStructure().GetToolsCategory();
 		if (bTabSpawnerRegistrated)
 		{
 			UnregisterTabSpawner();

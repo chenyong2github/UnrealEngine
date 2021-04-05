@@ -55,7 +55,7 @@ void UStylusInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		FOnSpawnTab::CreateUObject(this, &UStylusInputSubsystem::OnSpawnPluginTab))
 		.SetDisplayName(LOCTEXT("DebugTabTitle", "Stylus Input Debug"))
 		.SetTooltipText(LOCTEXT("DebugTabTooltip", "Debug panel to display current values of stylus inputs."))
-		.SetGroup(MenuStructure.GetDeveloperToolsMiscCategory());
+		.SetGroup(MenuStructure.GetDeveloperToolsDebugCategory());
 }
 
 void UStylusInputSubsystem::Deinitialize()

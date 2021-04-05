@@ -38,15 +38,7 @@ void FVPUtilitiesEditorModule::StartupModule()
 	CustomUIHandler.Reset(NewObject<UVPCustomUIHandler>());
 	CustomUIHandler->Init();
 
-	{
-		const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-		TSharedRef<FWorkspaceItem> MediaBrowserGroup = MenuStructure.GetDeveloperToolsMiscCategory()->GetParent()->AddGroup(
-			LOCTEXT("WorkspaceMenu_VirtualProductionCategory", "Virtual Production"),
-			FSlateIcon(),
-			true);
-
-		SGenlockProviderTab::RegisterNomadTabSpawner(MediaBrowserGroup);
-	}
+	SGenlockProviderTab::RegisterNomadTabSpawner(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory());
 
 	RegisterSettings();
 

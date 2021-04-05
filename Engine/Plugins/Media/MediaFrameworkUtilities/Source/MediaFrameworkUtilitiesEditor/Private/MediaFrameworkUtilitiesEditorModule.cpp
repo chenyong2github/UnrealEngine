@@ -78,7 +78,7 @@ public:
 
 			{
 				const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-				TSharedRef<FWorkspaceItem> MediaBrowserGroup = MenuStructure.GetDeveloperToolsMiscCategory()->GetParent()->AddGroup(
+				TSharedRef<FWorkspaceItem> MediaBrowserGroup = MenuStructure.GetLevelEditorVirtualProductionCategory()->AddGroup(
 					LOCTEXT("WorkspaceMenu_MediaCategory", "Media"),
 					FSlateIcon(),
 					true);

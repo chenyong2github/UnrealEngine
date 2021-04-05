@@ -92,7 +92,7 @@ void FCameraShakePreviewerModule::RegisterEditorTab()
 			.SetDisplayName(LOCTEXT("CameraShakePreviewer", "Camera Shake Previewer"))
 			.SetTooltipText(LOCTEXT("CameraShakePreviewerTooltipText", "Open the camera shake preview panel."))
 			.SetIcon(Icon)
-			.SetGroup(MenuStructure.GetLevelEditorCategory());
+			.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCinematicsCategory());
 	});
 }
 

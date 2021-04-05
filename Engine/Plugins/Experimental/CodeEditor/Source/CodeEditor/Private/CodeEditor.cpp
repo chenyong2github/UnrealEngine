@@ -39,7 +39,7 @@ public:
 	{
 		if (UToolMenus::IsToolMenuUIEnabled())
 		{
-			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.File");
+			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Tools");
 			FToolMenuSection& Section = Menu->FindOrAddSection("FileProject");
 
 			FToolMenuOwnerScoped OwnerScoped(this);
