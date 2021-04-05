@@ -6,7 +6,7 @@
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyle.h"
 
-class FModelingToolsEditorModeStyle
+class MODELINGTOOLSEDITORMODE_API FModelingToolsEditorModeStyle
 {
 public:
 	static void Initialize();

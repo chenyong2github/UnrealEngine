@@ -21,6 +21,10 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SExpandableArea.h"
 
+// for Tool Extensions
+#include "Features/IModularFeatures.h"
+#include "ModelingModeToolExtensions.h"
+
 // for LOD setting
 #include "EditorInteractiveToolsFrameworkModule.h"
 #include "Tools/EditorComponentSourceFactory.h"
@@ -51,6 +55,12 @@ FModelingToolsEditorModeToolkit::~FModelingToolsEditorModeToolkit()
 	Settings->OnModified.Remove(AssetSettingsModifiedHandle);
 	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolNotificationMessage.RemoveAll(this);
 	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolWarningMessage.RemoveAll(this);
+}
+
+
+void FModelingToolsEditorModeToolkit::CustomizeModeDetailsViewArgs(FDetailsViewArgs& ArgsInOut)
+{
+	//ArgsInOut.ColumnWidth = 0.3f;
 }
 
 void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
@@ -429,16 +439,46 @@ void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& Palette
 {
 	PaletteNames = PaletteNames_Standard;
 
+	TArray<FName> ExistingNames;
+	for ( FName Name : PaletteNames )
+	{
+		ExistingNames.Add(Name);
+	}
+
+
 	bool bEnablePrototypes = (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0);
 	if (bEnablePrototypes)
 	{
 		PaletteNames.Add(PrototypesTabName);
+		ExistingNames.Add(PrototypesTabName);
 	}
 
 	bool bEnablePolyModel = (CVarEnablePolyModeling.GetValueOnGameThread() > 0);
 	if (bEnablePolyModel)
 	{
 		PaletteNames.Add(PolyEditTabName);
+		ExistingNames.Add(PolyEditTabName);
+	}
+
+	if (IModularFeatures::Get().IsModularFeatureAvailable(IModelingModeToolExtension::GetModularFeatureName()))
+	{
+		TArray<IModelingModeToolExtension*> Extensions = IModularFeatures::Get().GetModularFeatureImplementations<IModelingModeToolExtension>(
+			IModelingModeToolExtension::GetModularFeatureName());
+		for (int32 k = 0; k < Extensions.Num(); ++k)
+		{
+			FText ExtensionName = Extensions[k]->GetExtensionName();
+			FText SectionName = Extensions[k]->GetToolSectionName();
+			FName SectionIndex(SectionName.ToString());
+			if (ExistingNames.Contains(SectionIndex))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Modeling Mode Extension [%s] uses existing Section Name [%s] - buttons may not be visible"), *ExtensionName.ToString(), *SectionName.ToString());
+			}
+			else
+			{
+				PaletteNames.Add(SectionIndex);
+				ExistingNames.Add(SectionIndex);
+			}
+		}
 	}
 }
 
@@ -610,6 +650,27 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSubdividePolyTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
+	}
+	else
+	{
+		TArray<IModelingModeToolExtension*> Extensions = IModularFeatures::Get().GetModularFeatureImplementations<IModelingModeToolExtension>(
+			IModelingModeToolExtension::GetModularFeatureName());
+		for (int32 k = 0; k < Extensions.Num(); ++k)
+		{
+			FText SectionName = Extensions[k]->GetToolSectionName();
+			FName SectionIndex(SectionName.ToString());
+			if (PaletteIndex == SectionIndex)
+			{
+				FExtensionToolQueryInfo ExtensionQueryInfo;
+				ExtensionQueryInfo.bIsInfoQueryOnly = true;
+				TArray<FExtensionToolDescription> ToolSet;
+				Extensions[k]->GetExtensionTools(ExtensionQueryInfo, ToolSet);
+				for (const FExtensionToolDescription& ToolInfo : ToolSet)
+				{
+					ToolbarBuilder.AddToolBarButton(ToolInfo.ToolCommand);
+				}
+			}
+		}
 	}
 }
 

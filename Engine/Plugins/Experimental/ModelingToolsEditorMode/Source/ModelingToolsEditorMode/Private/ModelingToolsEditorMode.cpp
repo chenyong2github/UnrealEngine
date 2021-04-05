@@ -14,6 +14,9 @@
 #include "EditorViewportClient.h"
 #include "EngineAnalytics.h"
 
+#include "Features/IModularFeatures.h"
+#include "ModelingModeToolExtensions.h"
+
 //#include "SingleClickTool.h"
 //#include "MeshSurfacePointTool.h"
 //#include "MeshVertexDragTool.h"
@@ -603,6 +606,33 @@ void UModelingToolsEditorMode::Enter()
 	RegisterPolyModelActionTool(EEditMeshPolygonsToolActions::Outset, ToolManagerCommands.BeginPolyModelTool_Outset, TEXT("PolyEdit_Outset"));
 	RegisterPolyModelActionTool(EEditMeshPolygonsToolActions::CutFaces, ToolManagerCommands.BeginPolyModelTool_CutFaces, TEXT("PolyEdit_CutFaces"));
 
+
+	// register extensions
+	TArray<IModelingModeToolExtension*> Extensions = IModularFeatures::Get().GetModularFeatureImplementations<IModelingModeToolExtension>(
+		IModelingModeToolExtension::GetModularFeatureName());
+	if (Extensions.Num() > 0)
+	{
+		FExtensionToolQueryInfo ExtensionQueryInfo;
+		ExtensionQueryInfo.ToolsContext = ToolsContext.Get();
+		ExtensionQueryInfo.AssetAPI = ModelingModeAssetGenerationAPI.Get();
+
+		UE_LOG(LogTemp, Log, TEXT("ModelingMode: Found %d Tool Extension Modules"), Extensions.Num());
+		for (int32 k = 0; k < Extensions.Num(); ++k)
+		{
+			// TODO: extension name
+			FText ExtensionName = Extensions[k]->GetExtensionName();
+			FString ExtensionPrefix = FString::Printf(TEXT("[%d][%s]"), k, *ExtensionName.ToString());
+
+			TArray<FExtensionToolDescription> ToolSet;
+			Extensions[k]->GetExtensionTools(ExtensionQueryInfo, ToolSet);
+			for (const FExtensionToolDescription& ToolInfo : ToolSet)
+			{
+				UE_LOG(LogTemp, Log, TEXT("%s - Registering Tool [%s]"), *ExtensionPrefix, *ToolInfo.ToolName.ToString());
+
+				RegisterTool(ToolInfo.ToolCommand, ToolInfo.ToolName.ToString(), ToolInfo.ToolBuilder);
+			}
+		}
+	}
 
 
 	ToolsContext->ToolManager->SelectActiveToolType(EToolSide::Left, TEXT("DynaSculptTool"));
