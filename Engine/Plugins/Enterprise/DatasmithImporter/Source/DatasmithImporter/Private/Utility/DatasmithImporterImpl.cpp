@@ -579,29 +579,32 @@ UActorComponent* FDatasmithImporterImpl::PublicizeComponent(UActorComponent& Sou
 
 		check(DestinationComponent);
 
-		// Copy component data
+		if (&SourceComponent != DestinationComponent)
 		{
-			TArray< uint8 > Bytes;
-			FComponentWriter ObjectWriter(&SourceComponent, Bytes);
-			FObjectReader ObjectReader(DestinationComponent, Bytes);
-		}
+			// Copy component data
+			{
+				TArray< uint8 > Bytes;
+				FComponentWriter ObjectWriter(&SourceComponent, Bytes);
+				FObjectReader ObjectReader(DestinationComponent, Bytes);
+			}
 
-		if ( DestinationComponent->GetFName() != SourceComponent.GetFName() )
-		{
-			DestinationComponent->Rename( *SourceComponent.GetName() );
+			if ( DestinationComponent->GetFName() != SourceComponent.GetFName() )
+			{
+				DestinationComponent->Rename( *SourceComponent.GetName() );
+			}
+
+			// #ueent_todo: we shouldn't be copying instanced object pointers in the first place
+			UDatasmithAssetUserData* SourceAssetUserData = DestinationComponent->GetAssetUserData< UDatasmithAssetUserData >();
+
+			if ( SourceAssetUserData )
+			{
+				UDatasmithAssetUserData* DestinationAssetUserData = DuplicateObject< UDatasmithAssetUserData >( SourceAssetUserData, DestinationComponent );
+				DestinationComponent->RemoveUserDataOfClass( UDatasmithAssetUserData::StaticClass() );
+				DestinationComponent->AddAssetUserData( DestinationAssetUserData );
+			}
 		}
 
 		FixReferencesForObject(DestinationComponent, ReferencesToRemap);
-
-		// #ueent_todo: we shouldn't be copying instanced object pointers in the first place
-		UDatasmithAssetUserData* SourceAssetUserData = DestinationComponent->GetAssetUserData< UDatasmithAssetUserData >();
-
-		if ( SourceAssetUserData )
-		{
-			UDatasmithAssetUserData* DestinationAssetUserData = DuplicateObject< UDatasmithAssetUserData >( SourceAssetUserData, DestinationComponent );
-			DestinationComponent->RemoveUserDataOfClass( UDatasmithAssetUserData::StaticClass() );
-			DestinationComponent->AddAssetUserData( DestinationAssetUserData );
-		}
 
 		ReferencesToRemap.Add( &SourceComponent, DestinationComponent );
 
