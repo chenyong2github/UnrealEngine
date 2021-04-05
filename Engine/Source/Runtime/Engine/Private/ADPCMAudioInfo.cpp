@@ -203,24 +203,19 @@ void FADPCMAudioInfo::SeekToTimeInternal(const float InSeekTime)
 		{
 			const int32 ChannelBlockSize = sizeof(int16) * NumChannels;
 
-			// 1. Find total offset
-			CurrentChunkBufferOffset = HeaderOffset + (TotalSamplesStreamed * ChannelBlockSize);
-			
-			// 2. Calculate index and remove from offset
-			while (CurrentChunkBufferOffset >= StreamingSoundWave->GetSizeOfChunk(CurrentChunkIndex))
+			uint32 TotalByteSizeToSeek = TotalSamplesStreamed * ChannelBlockSize;		
+			uint32 SizeOfCurrentChunk = StreamingSoundWave->GetSizeOfChunk(CurrentChunkIndex);
+			uint32 CurrentBytes = 0;
+			while (CurrentBytes + SizeOfCurrentChunk < TotalByteSizeToSeek)
 			{
-				CurrentChunkBufferOffset -= StreamingSoundWave->GetSizeOfChunk(CurrentChunkIndex);
 				CurrentChunkIndex++;
-				
-				if (CurrentChunkIndex >= TotalStreamingChunks)
-				{
-					CurrentChunkIndex = FirstChunkSampleDataIndex;
-					CurrentChunkBufferOffset = FirstChunkSampleDataOffset;
-					break;
-				}
+				CurrentBytes += SizeOfCurrentChunk;
+				CurrentChunkBufferOffset -= SizeOfCurrentChunk;
+				SizeOfCurrentChunk = StreamingSoundWave->GetSizeOfChunk(CurrentChunkIndex);
 			}
 
-			// 3. Trim remainder of block size, effectively aligning the block to a channel pair boundary
+			check(CurrentBytes <= TotalByteSizeToSeek);
+			CurrentChunkBufferOffset = TotalByteSizeToSeek - CurrentBytes;
 			CurrentChunkBufferOffset -= CurrentChunkBufferOffset % ChannelBlockSize;
 		}
 		else

@@ -352,6 +352,10 @@ UObject* USoundFactory::CreateObject
 			Sound->ConcurrencySet = TemplateSoundWave->ConcurrencySet;
 		}
 
+		Sound->CompressionQuality = 100;
+		Sound->bStreaming = true;
+		Sound->bSeekableStreaming = true;
+
 		// If we're a multi-channel file, we're going to spoof the behavior of the SoundSurroundFactory
 		int32 ChannelCount = (int32)*WaveInfo.pChannels;
 		check(ChannelCount >0);
