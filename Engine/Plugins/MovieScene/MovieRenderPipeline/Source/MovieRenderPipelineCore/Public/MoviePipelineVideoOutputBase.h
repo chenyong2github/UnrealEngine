@@ -65,6 +65,7 @@ protected:
 	virtual bool HasFinishedProcessingImpl() override;
 	virtual void BeginFinalizeImpl() override;
 	virtual void FinalizeImpl() override;
+	virtual void OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot, const bool bFlushToDisk) override;
 #if WITH_EDITOR
 	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override;
 #endif

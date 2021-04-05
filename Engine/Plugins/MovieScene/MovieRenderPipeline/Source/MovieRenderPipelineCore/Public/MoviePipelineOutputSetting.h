@@ -22,6 +22,7 @@ public:
 	virtual bool IsValidOnShots() const override { return false; }
 	virtual bool IsValidOnMaster() const override { return true; }
 	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
+	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) override;
 
 	// UObject Interface
 	virtual void PostLoad() override;
@@ -102,4 +103,12 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "File Output")
 	int32 FrameNumberOffset;
+
+	/**
+	* If true, the game thread will stall at the end of each shot to flush the rendering queue, and then flush any outstanding writes to disk, finalizing any
+	* outstanding videos and generally completing the work. This is intentionally not exposed to the user interface as it is only relevant for scripting where
+	* scripts may do post-shot callback work.
+	*/
+	UPROPERTY(BlueprintReadWrite, Category = "File Output")
+	bool bFlushDiskWritesPerShot;
 };

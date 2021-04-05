@@ -20,7 +20,7 @@
 #include "MoviePipelineImageQuantization.h"
 #include "MoviePipelineWidgetRenderSetting.h"
 #include "MoviePipelineUtils.h"
-
+#include "HAL/PlatformTime.h"
 
 DECLARE_CYCLE_STAT(TEXT("ImgSeqOutput_RecieveImageData"), STAT_ImgSeqRecieveImageData, STATGROUP_MoviePipeline);
 
@@ -41,6 +41,20 @@ bool UMoviePipelineImageSequenceOutputBase::HasFinishedProcessingImpl()
 { 
 	// Wait until the finalization fence is reached meaning we've written everything to disk.
 	return Super::HasFinishedProcessingImpl() && (!FinalizeFence.IsValid() || FinalizeFence.WaitFor(0));
+}
+
+void UMoviePipelineImageSequenceOutputBase::OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot, const bool bFlushToDisk)
+{
+	if (bFlushToDisk)
+	{
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("ImageSequenceOutputBase flushing %d tasks to disk, inserting a fence in the queue and then waiting..."), ImageWriteQueue->GetNumPendingTasks());
+		const double FlushBeginTime = FPlatformTime::Seconds();
+
+		TFuture<void> Fence = ImageWriteQueue->CreateFence();
+		Fence.Wait();
+		const float ElapsedS = float((FPlatformTime::Seconds() - FlushBeginTime));
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished flushing tasks to disk after %2.2fs!"), ElapsedS);
+	}
 }
 
 void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)

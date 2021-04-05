@@ -137,6 +137,8 @@ public:
 	void ProcessOutstandingFinishedFrames();
 	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample);
 	const MoviePipeline::FAudioState& GetAudioState() const { return AudioState; }
+	void SetFlushDiskWritesPerShot(const bool bFlushWrites) { bFlushDiskWritesPerShot = bFlushWrites; }
+	bool IsFlushDiskWritesPerShot() const { return bFlushDiskWritesPerShot; }
 public:
 	template<typename SettingType>
 	SettingType* FindOrAddSettingForShot(const UMoviePipelineExecutorShot* InShot) const
@@ -384,6 +386,9 @@ private:
 	bool bHasRunBeginFrameOnce;
 	/** Should we pause the game at the end of the frame? Used to implement frame step debugger. */
 	bool bPauseAtEndOfFrame;
+
+	/** Should we flush outstanding work between each shot, ensuring all files are written to disk before we move on? */
+	bool bFlushDiskWritesPerShot;
 
 	/** True if RequestShutdown() was called. At the start of the next frame we will stop producing frames (if needed) and start shutting down. */
 	FThreadSafeBool bShutdownRequested;

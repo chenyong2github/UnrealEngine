@@ -10,6 +10,24 @@
 #include "Misc/Paths.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/PlatformFile.h"
+#include "HAL/PlatformTime.h"
+
+void UMoviePipelineVideoOutputBase::OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot, const bool bFlushToDisk)
+{
+	if (bFlushToDisk)
+	{
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineVideoOutputBase flushing %d tasks to disk..."), AllWriters.Num());
+		const double FlushBeginTime = FPlatformTime::Seconds();
+
+		// Despite what the comments indicate, there's no actual queue of tasks here, so we can just call BeginFinalize/Finalize.
+		// Finalize will clear the AllWriters array, so any subsequent requests to write to that shot will try to generate a new file.
+		BeginFinalizeImpl();
+		FinalizeImpl();
+
+		const float ElapsedS = float((FPlatformTime::Seconds() - FlushBeginTime));
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished flushing tasks to disk after %2.2fs!"), ElapsedS);
+	}
+}
 
 
 void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)

@@ -56,7 +56,7 @@ public:
 	/**
 	* This is called when a shot ends, right after the last frame is rendered.
 	*/
-	void OnShotFinished(const UMoviePipelineExecutorShot* InShot) { OnShotFinishedImpl(InShot); }
+	void OnShotFinished(const UMoviePipelineExecutorShot* InShot, const bool bFlushToDisk) { OnShotFinishedImpl(InShot, bFlushToDisk); }
 
 	/**
 	* This is called during the Shutdown process of the Pipeline. This is after finalization.
@@ -74,7 +74,7 @@ protected:
 	virtual void BeginFinalizeImpl() {}
 	virtual bool HasFinishedProcessingImpl() { return true; }
 	virtual void FinalizeImpl() {}
-	virtual void OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot) {}
+	virtual void OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot, const bool bFlushToDisk = false) {}
 	virtual void OnPipelineFinishedImpl() {}
 	virtual void OnPostTickImpl() {}
 	// ~UMoviePipelineOutputBase

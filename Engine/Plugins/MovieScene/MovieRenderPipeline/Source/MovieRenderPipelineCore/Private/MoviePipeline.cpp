@@ -1038,23 +1038,29 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 	// Start in InitializeShot() because we don't want to record samples during warm up/motion blur.
 	StopAudioRecording();
 
+	// Teardown any rendering architecture for this shot. This needs to happen first because it'll flush outstanding rendering commands
+	TeardownRenderingPipelineForShot(InShot);
+
+	if (IsFlushDiskWritesPerShot())
+	{
+		// Moves them from the Output Builder to the output containers
+		ProcessOutstandingFinishedFrames();
+	}
+
 	// Notify our containers that the current shot has ended.
 	for (UMoviePipelineOutputBase* Container : GetPipelineMasterConfig()->GetOutputContainers())
 	{
-		Container->OnShotFinished(InShot);
+		Container->OnShotFinished(InShot, IsFlushDiskWritesPerShot());
 	}
 
 	if (InShot->GetShotOverrideConfiguration() != nullptr)
 	{
-		// Any shot-specific overrides haven't had first time initialization. So we'll do that now.
+		// Any shot-specific overrides should get shutdown now.
 		for (UMoviePipelineSetting* Setting : InShot->GetShotOverrideConfiguration()->GetUserSettings())
 		{
 			Setting->OnMoviePipelineShutdown(this);
 		}
 	}
-
-	// Teardown any rendering architecture for this shot.
-	TeardownRenderingPipelineForShot(InShot);
 
 	CurrentShotIndex++;
 

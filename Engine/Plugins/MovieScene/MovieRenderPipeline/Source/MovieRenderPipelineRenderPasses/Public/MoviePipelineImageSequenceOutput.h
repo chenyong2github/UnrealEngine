@@ -21,6 +21,7 @@ protected:
 	// UMovieRenderPipelineOutputContainer interface
 	virtual void BeginFinalizeImpl() override;
 	virtual bool HasFinishedProcessingImpl() override;
+	virtual void OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot, const bool bFlushToDisk) override;
 	// ~UMovieRenderPipelineOutputContainer interface
 
 	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
