@@ -103,6 +103,13 @@ private:
 class DIRECTLINK_API FParameterStore
 {
 public:
+	FParameterStore();
+	~FParameterStore();
+	FParameterStore(const FParameterStore&);
+	FParameterStore& operator=(const FParameterStore&);
+	FParameterStore(FParameterStore&&);
+	FParameterStore& operator=(FParameterStore&&);
+
 	template<typename T, typename S>
 	TStoreKey<T, S>& RegisterParameter(TStoreKey<T, S>& Key, FName Name)
 	{
