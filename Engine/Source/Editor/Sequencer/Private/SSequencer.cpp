@@ -69,6 +69,7 @@
 #include "SSequencerDebugVisualizer.h"
 #include "SSequencerTreeFilterStatusBar.h"
 #include "ISequencerModule.h"
+#include "IMovieRendererInterface.h"
 #include "IVREditorModule.h"
 #include "EditorFontGlyphs.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -1446,6 +1447,15 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().FindInContentBrowser );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().CreateCamera );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
+
+			ToolBarBuilder.AddComboButton(
+				FUIAction(),
+				FOnGetContent::CreateSP( this, &SSequencer::MakeRenderMovieMenu ),
+				LOCTEXT( "RenderMovieOptions", "Render Movie Options" ),
+				LOCTEXT( "RenderMovieOptionsToolTip", "Render Movie Options" ),
+				TAttribute<FSlateIcon>(),
+				true );
+
 			UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
 			if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)
 			{
@@ -2613,6 +2623,58 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 					.LinearDeltaSensitivity(25)
 			],
 		LOCTEXT("JumpFrameIncrement", "Jump Frame Increment"));
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SSequencer::MakeRenderMovieMenu()
+{
+	FMenuBuilder MenuBuilder( false, SequencerPtr.Pin()->GetCommandBindings() );
+
+	MenuBuilder.BeginSection( "RenderMovie", LOCTEXT( "RenderMovieMenuHeader", "Render Movie" ) );
+	{
+		ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+		TArray<FString> MovieRendererNames = SequencerModule.GetMovieRendererNames();
+
+		for (FString MovieRendererName : MovieRendererNames)
+		{
+			MenuBuilder.AddMenuEntry(
+				FText::FromString(MovieRendererName),
+				FText::FromString(MovieRendererName),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this, MovieRendererName] { SequencerPtr.Pin()->GetSequencerSettings()->SetMovieRendererName(MovieRendererName); }),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateLambda([this] 
+					{ 
+						ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+						IMovieRendererInterface* MovieRender = SequencerModule.GetMovieRenderer(SequencerPtr.Pin()->GetMovieRendererName());
+						return MovieRender != nullptr;
+					})),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
+			);
+		}		
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("RenderMovieLegacy", "Movie Scene Capture (Legacy)"),
+			LOCTEXT("RenderMovieTooltip", "Movie Scene Capture (Legacy)"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->GetSequencerSettings()->SetMovieRendererName(TEXT("MovieSceneCapture")); }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]
+				{
+					ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+					IMovieRendererInterface* MovieRender = SequencerModule.GetMovieRenderer(SequencerPtr.Pin()->GetMovieRendererName());
+					return MovieRender == nullptr;
+				})),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+	}
+
+	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }

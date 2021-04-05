@@ -5,6 +5,7 @@
 #include "Textures/SlateIcon.h"
 #include "EditorModeRegistry.h"
 #include "Toolkits/AssetEditorToolkit.h"
+#include "IMovieRendererInterface.h"
 #include "ISequencer.h"
 #include "ISequencerModule.h"
 #include "SequencerCommands.h"
@@ -309,6 +310,42 @@ public:
 
 	virtual TSharedPtr<FSequencerCustomizationManager> GetSequencerCustomizationManager() const override { return SequencerCustomizationManager; }
 
+
+	virtual FDelegateHandle RegisterMovieRenderer(TUniquePtr<IMovieRendererInterface>&& InMovieRenderer) override
+	{
+		FDelegateHandle NewHandle(FDelegateHandle::GenerateNewHandle);
+		MovieRenderers.Add(FMovieRendererEntry{ NewHandle, MoveTemp(InMovieRenderer) });
+		return NewHandle;
+	}
+
+	virtual void UnregisterMovieRenderer(FDelegateHandle InDelegateHandle) override
+	{
+		MovieRenderers.RemoveAll([InDelegateHandle](const FMovieRendererEntry& In){ return In.Handle == InDelegateHandle; });
+	}
+
+	virtual IMovieRendererInterface* GetMovieRenderer(const FString& InMovieRendererName) override
+	{
+		for (const FMovieRendererEntry& MovieRenderer : MovieRenderers)
+		{
+			if (MovieRenderer.Renderer->GetDisplayName() == InMovieRendererName)
+			{
+				return MovieRenderer.Renderer.Get();
+			}
+		}
+
+		return nullptr;
+	}
+
+	virtual TArray<FString> GetMovieRendererNames() override
+	{
+		TArray<FString> MovieRendererNames;
+		for (const FMovieRendererEntry& MovieRenderer : MovieRenderers)
+		{
+			MovieRendererNames.Add(MovieRenderer.Renderer->GetDisplayName());
+		}
+		return MovieRendererNames;
+	}
+
 private:
 
 	TSet<FAnimatedPropertyKey> PropertyAnimators;
@@ -339,6 +376,15 @@ private:
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
 
 	TSharedPtr<FSequencerCustomizationManager> SequencerCustomizationManager;
+
+	struct FMovieRendererEntry
+	{
+		FDelegateHandle Handle;
+		TUniquePtr<IMovieRendererInterface> Renderer;
+	};
+
+	/** Array of movie renderers */
+	TArray<FMovieRendererEntry> MovieRenderers;
 };
 
 IMPLEMENT_MODULE(FSequencerModule, Sequencer);

@@ -12,6 +12,7 @@
 #include "MovieRenderPipelineSettings.h"
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "MoviePipelineCommands.h"
+#include "MoviePipelineEditorBlueprintLibrary.h"
 
 // Slate Includes
 #include "Widgets/Input/SComboButton.h"
@@ -1054,34 +1055,22 @@ void SMoviePipelineQueueEditor::OnCreateJobFromAsset(const FAssetData& InAsset)
 	if (LevelSequence)
 	{
 		FScopedTransaction Transaction(FText::Format(LOCTEXT("CreateJob_Transaction", "Add {0}|plural(one=Job, other=Jobs)"), 1));
-		const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
 
 		UMoviePipelineQueue* ActiveQueue = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>()->GetQueue();
 		check(ActiveQueue);
-		ActiveQueue->Modify();
-
-		UMoviePipelineExecutorJob* NewJob = ActiveQueue->AllocateNewJob(ProjectSettings->DefaultExecutorJob);
-		if (!ensureAlwaysMsgf(NewJob, TEXT("Failed to allocate new job! Check the DefaultExecutorJob is not null in Project Settings!")))
+		
+		UMoviePipelineExecutorJob* NewJob = UMoviePipelineEditorBlueprintLibrary::CreateJobFromSequence(ActiveQueue, LevelSequence);
+		if (!NewJob)
 		{
 			return;
 		}
 
-		NewJob->Modify();
-
 		PendingJobsToSelect.Add(NewJob);
-
-		// We'll assume they went to render from the current world - they can always override it later.
-		FSoftObjectPath CurrentWorld = FSoftObjectPath(GEditor->GetEditorWorldContext().World());
-		FSoftObjectPath Sequence = InAsset.ToSoftObjectPath();
-		NewJob->Map = CurrentWorld;
-		NewJob->Author = FPlatformProcess::UserName(false);
-		NewJob->SetSequence(Sequence);
-		NewJob->JobName = NewJob->Sequence.GetAssetName();
 		
-
 		{
 			// The job configuration is already set up with an empty configuration, but we'll try and use their last used preset 
 			// (or a engine supplied default) for better user experience. 
+			const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
 			if (ProjectSettings->LastPresetOrigin.IsValid())
 			{
 				NewJob->SetPresetOrigin(ProjectSettings->LastPresetOrigin.Get());

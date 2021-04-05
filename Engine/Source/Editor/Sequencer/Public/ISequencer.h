@@ -28,6 +28,7 @@ class FUICommandList;
 class FSequencerKeyCollection;
 class UMovieSceneSequence;
 class UMovieSceneSubSection;
+class UMovieSceneCinematicShotSection;
 class IDetailsView;
 class IKeyArea;
 enum class EMapChangeType : uint8;
@@ -417,9 +418,9 @@ public:
 	/*
 	 * Render movie for a section.
 	 * 
-	 * @param InSection The given section to render.
+	 * @param InSections The given sections to render.
 	 */
-	virtual void RenderMovie(UMovieSceneSection* InSection) const = 0;
+	virtual void RenderMovie(const TArray<UMovieSceneCinematicShotSection*>& InSections) const = 0;
 
 	/*
 	 * Puts sequencer in a silent state (whereby it will not redraw viewports, or attempt to update external state besides the sequence itself)

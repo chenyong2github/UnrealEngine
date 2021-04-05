@@ -357,6 +357,12 @@ public:
 	EFrameNumberDisplayFormats GetTimeDisplayFormat() const { return FrameNumberDisplayFormat; }
 	/** Sets the time display format to the specified type. */
 	void SetTimeDisplayFormat(EFrameNumberDisplayFormats InFormat);
+
+	/** What movie renderer to use */
+	FString GetMovieRendererName() const { return MovieRendererName; }
+	/** Sets the movie renderer to use */
+	void SetMovieRendererName(const FString& InMovieRendererName);
+
 protected:
 
 	/** The auto change mode (auto-key, auto-track or none). */
@@ -560,6 +566,10 @@ protected:
 	/** What format do we display time in to the user? */
 	UPROPERTY(config, EditAnywhere, Category=General)
 	EFrameNumberDisplayFormats FrameNumberDisplayFormat;
+
+	/** Which movie renderer to use */
+	UPROPERTY(config, EditAnywhere, Category=General)
+	FString MovieRendererName;
 
 	FOnEvaluateSubSequencesInIsolationChanged OnEvaluateSubSequencesInIsolationChangedEvent;
 	FOnShowSelectedNodesOnlyChanged OnShowSelectedNodesOnlyChangedEvent;

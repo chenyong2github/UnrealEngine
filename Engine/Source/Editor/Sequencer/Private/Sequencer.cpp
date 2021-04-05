@@ -119,6 +119,7 @@
 #include "MovieSceneCopyableBinding.h"
 #include "MovieSceneCopyableTrack.h"
 #include "ISequencerChannelInterface.h"
+#include "IMovieRendererInterface.h"
 #include "SequencerKeyCollection.h"
 #include "CurveEditor.h"
 #include "CurveEditorScreenSpace.h"
@@ -3579,13 +3580,45 @@ void FSequencer::ModifyViewportClientView(FEditorViewportViewModifierParams& Par
 	}
 }
 
-void FSequencer::RenderMovie(UMovieSceneSection* InSection) const
+FString FSequencer::GetMovieRendererName() const
 {
-	RenderMovieInternal(InSection->GetRange(), true);
+	// If blank, default to the first available since we don't want the be using the Legacy one anyway, unless the user explicitly chooses it.
+	FString MovieRendererName = Settings->GetMovieRendererName();
+	ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+	if (MovieRendererName.IsEmpty() && SequencerModule.GetMovieRendererNames().Num() > 0)
+	{
+		MovieRendererName = SequencerModule.GetMovieRendererNames()[0];
+
+		Settings->SetMovieRendererName(MovieRendererName);
+	}
+
+	return MovieRendererName;
+}
+
+void FSequencer::RenderMovie(const TArray<UMovieSceneCinematicShotSection*>& InSections) const
+{
+	ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+	if (IMovieRendererInterface* MovieRenderer = SequencerModule.GetMovieRenderer(GetMovieRendererName()))
+	{
+		MovieRenderer->RenderMovie(GetRootMovieSceneSequence(), InSections);
+		return;
+	}
+
+	if (InSections.Num() != 0)
+	{
+		RenderMovieInternal(InSections[0]->GetRange(), true);
+	}
 }
 
 void FSequencer::RenderMovieInternal(TRange<FFrameNumber> Range, bool bSetFrameOverrides) const
 {
+	ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+	if (IMovieRendererInterface* MovieRenderer = SequencerModule.GetMovieRenderer(GetMovieRendererName()))
+	{
+		MovieRenderer->RenderMovie(GetRootMovieSceneSequence(), TArray<UMovieSceneCinematicShotSection*>());
+		return;
+	}
+
 	if (Range.GetLowerBound().IsOpen() || Range.GetUpperBound().IsOpen())
 	{
 		Range = TRange<FFrameNumber>::Hull(Range, GetPlaybackRange());

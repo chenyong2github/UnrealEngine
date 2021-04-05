@@ -405,6 +405,9 @@ private:
 	/** Makes the plabacky menu for the toolbar. */
 	TSharedRef<SWidget> MakePlaybackMenu();
 
+	/** Makes the render movie menu for the toolbar. */
+	TSharedRef<SWidget> MakeRenderMovieMenu();
+
 	/** Makes the snapping menu for the toolbar. */
 	TSharedRef<SWidget> MakeSnapMenu();
 

@@ -773,7 +773,7 @@ public:
 	virtual void ForceEvaluate() override;
 	virtual void SetPerspectiveViewportPossessionEnabled(bool bEnabled) override;
 	virtual void SetPerspectiveViewportCameraCutEnabled(bool bEnabled) override;
-	virtual void RenderMovie(UMovieSceneSection* InSection) const override;
+	virtual void RenderMovie(const TArray<UMovieSceneCinematicShotSection*>& InSections) const override;
 	virtual void EnterSilentMode() override;
 	virtual void ExitSilentMode() override;
 	virtual bool IsInSilentMode() const override { return SilentModeCount != 0; }
@@ -1165,7 +1165,6 @@ private:
 
 public:
 
-
 	/** Helper function which returns how many frames (in tick resolution) one display rate frame represents. */
 	double GetDisplayRateDeltaFrameCount() const;
 
@@ -1175,6 +1174,8 @@ public:
 		return ScrubStyle;
 	}
 
+	/** Get the name of the movie renderer to use, defaults to the first available if the setting is empty */
+	FString GetMovieRendererName() const;
 
 private:
 

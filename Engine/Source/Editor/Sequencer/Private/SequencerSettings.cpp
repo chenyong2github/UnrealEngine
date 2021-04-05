@@ -765,3 +765,12 @@ void USequencerSettings::SetTimeDisplayFormat(EFrameNumberDisplayFormats InForma
 		SaveConfig();
 	}
 }
+
+void USequencerSettings::SetMovieRendererName(const FString& InMovieRendererName)
+{
+	if (InMovieRendererName != MovieRendererName)
+	{
+		MovieRendererName = InMovieRendererName;
+		SaveConfig();
+	}
+}
