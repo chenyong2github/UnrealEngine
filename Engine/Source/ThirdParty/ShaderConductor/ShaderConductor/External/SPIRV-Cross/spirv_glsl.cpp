@@ -1940,6 +1940,7 @@ string CompilerGLSL::buffer_to_packing_standard(const SPIRType &type, bool suppo
 	}
 	else
 	{
+		return "std430";//TODO: workaround
 		SPIRV_CROSS_THROW("Buffer block cannot be expressed as any of std430, std140, scalar, even with enhanced "
 		                  "layouts. You can try flattening this block to support a more flexible layout.");
 	}

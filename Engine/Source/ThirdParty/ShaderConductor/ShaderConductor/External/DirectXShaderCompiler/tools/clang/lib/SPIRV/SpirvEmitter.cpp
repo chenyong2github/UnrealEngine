@@ -492,10 +492,17 @@ SpirvEmitter::SpirvEmitter(CompilerInstance &ci)
     spirvOptions.sBufferLayoutRule = SpirvLayoutRule::Scalar;
     spirvOptions.ampPayloadLayoutRule = SpirvLayoutRule::Scalar;
   } else if (spirvOptions.ue5Layout) {
+#if 1//WIP
     spirvOptions.cBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
     spirvOptions.tBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
     spirvOptions.sBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
     spirvOptions.ampPayloadLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
+#elif 1
+    spirvOptions.cBufferLayoutRule = SpirvLayoutRule::FxcCTBuffer; // RelaxedGLSLStd430 makes objects disappear; RelaxedGLSLStd140 causes memory corruption; GLSLStd140 causes wrong results as well;
+    spirvOptions.tBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
+    spirvOptions.sBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
+    spirvOptions.ampPayloadLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
+#endif
   } else {
     spirvOptions.cBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd140;
     spirvOptions.tBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;

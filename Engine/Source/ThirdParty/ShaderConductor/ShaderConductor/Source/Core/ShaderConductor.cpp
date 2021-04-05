@@ -996,7 +996,7 @@ namespace
         opts.flatten_multidimensional_arrays = false;
         opts.enable_420pack_extension =
             (target.language == ShadingLanguage::Glsl) && ((target.version == nullptr) || (opts.version >= 420));
-        opts.vulkan_semantics = false;
+		opts.vulkan_semantics = true;// false; //WIP
         opts.vertex.fixup_clipspace = opts.es;
         opts.vertex.flip_vert_y = opts.es;
         opts.vertex.support_nonzero_base_instance = true;
