@@ -313,7 +313,7 @@ namespace Metasound
 				{
 					if (UClass* Class = Object->GetClass())
 					{
-						return Class->IsChildOf(InProxyGenClass.Get());
+						return Class == InProxyGenClass.Get();
 					}
 				}
 
