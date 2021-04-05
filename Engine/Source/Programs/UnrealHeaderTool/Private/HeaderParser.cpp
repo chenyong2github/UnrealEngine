@@ -5205,30 +5205,6 @@ void FHeaderParser::GetVarType(
 	}
 }
 
-/**
- * If the property has already been seen during compilation, then return add. If not,
- * then return replace so that INI files don't mess with header exporting
- *
- * @param PropertyName the string token for the property
- *
- * @return FNAME_Replace_Not_Safe_For_Threading or FNAME_Add
- */
-EFindName FHeaderParser::GetFindFlagForPropertyName(const TCHAR* PropertyName)
-{
-	static TMap<FString,int32> PreviousNames;
-	FString PropertyStr(PropertyName);
-	FString UpperPropertyStr = PropertyStr.ToUpper();
-	// See if it's in the list already
-	if (PreviousNames.Find(UpperPropertyStr))
-	{
-		return FNAME_Add;
-	}
-	// Add it to the list for future look ups
-	PreviousNames.Add(MoveTemp(UpperPropertyStr),1);
-	FName CurrentText(PropertyName,FNAME_Find); // keep generating this FName in case it has been affecting the case of future FNames.
-	return FNAME_Replace_Not_Safe_For_Threading;
-}
-
 FProperty* FHeaderParser::GetVarNameAndDim
 (
 	UStruct*                Scope,
@@ -5507,10 +5483,8 @@ FProperty* FHeaderParser::GetVarNameAndDim
 		}
 	}
 
-	// If this is the first time seeing the property name, then flag it for replace instead of add
-	const EFindName FindFlag = VarProperty.PropertyFlags & CPF_Config ? GetFindFlagForPropertyName(VarProperty.Identifier) : FNAME_Add;
 	// create the FName for the property, splitting (ie Unnamed_3 -> Unnamed,3)
-	FName PropertyName(VarProperty.Identifier, FindFlag);
+	FName PropertyName(VarProperty.Identifier);
 
 	FProperty* Prev = nullptr;
 	for (TFieldIterator<FProperty> It(Scope, EFieldIteratorFlags::ExcludeSuper); It; ++It)

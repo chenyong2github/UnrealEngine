@@ -988,16 +988,6 @@ protected:
 	void InitScriptLocation( FScriptLocation& Retry );
 	void ReturnToLocation( const FScriptLocation& Retry, bool Binary=1, bool Text=1 );
 
-	/**
-	 * If the property has already been seen during compilation, then return add. If not,
-	 * then return replace so that INI files don't mess with header exporting
-	 *
-	 * @param PropertyName the string token for the property
-	 *
-	 * @return FNAME_Replace_Not_Safe_For_Threading or FNAME_Add
-	 */
-	EFindName GetFindFlagForPropertyName(const TCHAR* PropertyName);
-
 	static void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const FToken* OuterPropertyType);
 
 	// Cache of ScriptStructs that have been validated for Net Replication and RPC

@@ -2137,11 +2137,18 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 	if (SingletonsToOutput)
 	{
 		Algo::Sort(*SingletonsToOutput, [](UField* A, UField* B)
-		{
-			// Structs before delegates then UniqueId order
-			return (uint64(A->IsA<UDelegateFunction>()) << 32) + A->GetUniqueID() <
-			       (uint64(B->IsA<UDelegateFunction>()) << 32) + B->GetUniqueID();
-		});
+			{
+				bool bADel = A->IsA<UDelegateFunction>();
+				bool bBDel = B->IsA<UDelegateFunction>();
+				if (bADel != bBDel)
+				{
+					return !bADel;
+				}
+				const FString& AName = FTypeSingletonCache::Get(A, true).GetName();
+				const FString& BName = FTypeSingletonCache::Get(B, true).GetName();
+				return AName < BName;
+			});
+
 
 		for (UField* ScriptType : *SingletonsToOutput)
 		{
@@ -6050,9 +6057,20 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 
 			RecordPackageSingletons(*SourceFile->GetPackage(), Structs, DelegateFunctions);
 
+			// Sort by line number to help make sure things are in order
+			auto Predicate = [](const UField& Lhs, const UField& Rhs)
+			{
+				TSharedRef<FUnrealTypeDefinitionInfo>* TLhs = GTypeDefinitionInfoMap.Find(&Lhs);
+				check(TLhs);
+				TSharedRef<FUnrealTypeDefinitionInfo>* TRhs = GTypeDefinitionInfoMap.Find(&Rhs);
+				check(TRhs);
+
+				return (*TLhs)->GetLineNumber() < (*TRhs)->GetLineNumber();
+			};
+			Enums.StableSort(Predicate);
+			Structs.StableSort(Predicate);
+
 			// Reverse the containers as they come out in the reverse order of declaration
-			Algo::Reverse(Enums);
-			Algo::Reverse(Structs);
 			Algo::Reverse(DelegateFunctions);
 
 			const FString FileDefineName = SourceFile->GetFileDefineName();
@@ -6065,13 +6083,6 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 				TEXT("#define %s")																	LINE_TERMINATOR
 				LINE_TERMINATOR,
 				*FileDefineName, *StrippedFilename, *StrippedFilename, *FileDefineName);
-
-			// export delegate definitions
-			for (UDelegateFunction* Func : DelegateFunctions)
-			{
-				GeneratedFunctionDeclarations.Log(FTypeSingletonCache::Get(Func).GetExternDecl());
-				ConstThis->ExportDelegateDeclaration(OutText, ReferenceGatherers, *SourceFile, Func);
-			}
 
 			// Export enums declared in non-UClass headers.
 			for (UEnum* Enum : Enums)
@@ -6090,6 +6101,13 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 			{
 				GeneratedFunctionDeclarations.Log(FTypeSingletonCache::Get(Struct).GetExternDecl());
 				ConstThis->ExportGeneratedStructBodyMacros(GeneratedHeaderText, OutText, ReferenceGatherers, *SourceFile, Struct);
+			}
+
+			// export delegate definitions
+			for (UDelegateFunction* Func : DelegateFunctions)
+			{
+				GeneratedFunctionDeclarations.Log(FTypeSingletonCache::Get(Func).GetExternDecl());
+				ConstThis->ExportDelegateDeclaration(OutText, ReferenceGatherers, *SourceFile, Func);
 			}
 
 			// export delegate wrapper function implementations
@@ -6157,11 +6175,15 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		FileInfo.StartLoad(MoveTemp(ClassesHeaderPath));
 	}
 
+	// Create a sorted list of the exported source files so that the generated code is consistent
+	TArray<FUnrealSourceFile*> ExportedSorted(Exported);
+	ExportedSorted.Sort([](const FUnrealSourceFile& Lhs, const FUnrealSourceFile& Rhs) { return Lhs.GetFilename() < Rhs.GetFilename(); });
+
 	// Export an include line for each header
 	TSet<FUnrealSourceFile*> PublicHeaderGroupIncludes;
 	FUHTStringBuilder GeneratedFunctionDeclarations;
 
-	for (FUnrealSourceFile* SourceFile : Exported)
+	for (FUnrealSourceFile* SourceFile : ExportedSorted)
 	{
 		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
 		{
@@ -6179,7 +6201,7 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 	}
 
 	// Add includes for 'Within' classes
-	for (FUnrealSourceFile* SourceFile : Exported)
+	for (FUnrealSourceFile* SourceFile : ExportedSorted)
 	{
 		bool bAddedStructuredArchiveFromArchiveHeader = false;
 		bool bAddedArchiveUObjectFromStructuredArchiveHeader = false;
@@ -6232,9 +6254,18 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 			PublicHeaderGroupIncludes.Append(*SourceFilesForPackage);
 		}
 
+		// Make the public header list stable regardless of the order the files are parsed.
+		TArray<FString> BuildPaths;
+		BuildPaths.Reserve(PublicHeaderGroupIncludes.Num());
 		for (FUnrealSourceFile* SourceFile : PublicHeaderGroupIncludes)
 		{
-			ClassesHText.Logf(TEXT("#include \"%s\"") LINE_TERMINATOR, *GetBuildPath(*SourceFile));
+			BuildPaths.Emplace(GetBuildPath(*SourceFile));
+		}
+		BuildPaths.Sort();
+
+		for (const FString& BuildPath : BuildPaths)
+		{
+			ClassesHText.Logf(TEXT("#include \"%s\"") LINE_TERMINATOR, *BuildPath);
 		}
 
 		ClassesHText.Log(LINE_TERMINATOR);
@@ -6254,9 +6285,10 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 	if (GeneratedFunctionDeclarations.Len())
 	{
 		uint32 CombinedHash = 0;
-		for (const TPair<FUnrealSourceFile*, FGeneratedCPP>& GeneratedCPP : GeneratedCPPs)
+		for (FUnrealSourceFile* SourceFile : ExportedSorted)
 		{
-			uint32 SplitHash = GenerateTextHash(*GeneratedCPP.Value.GeneratedText);
+			const FGeneratedCPP& GeneratedCPP = GeneratedCPPs.FindChecked(SourceFile);
+			uint32 SplitHash = GenerateTextHash(*GeneratedCPP.GeneratedText);
 			if (CombinedHash == 0)
 			{
 				// Don't combine in the first case because it keeps GUID backwards compatibility
