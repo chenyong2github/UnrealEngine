@@ -274,6 +274,11 @@ void SGeometryCollectionOutliner::SetHistogramSelection(UGeometryCollectionCompo
 	}
 }
 
+int32 SGeometryCollectionOutliner::GetBoneSelectionCount() const
+{
+	return TreeView->GetSelectedItems().Num();
+}
+
 void SGeometryCollectionOutliner::SetBoneSelection(UGeometryCollectionComponent* RootComponent, const TArray<int32>& InSelection, bool bClearCurrentSelection)
 {
 	TGuardValue<bool> ExternalSelectionGuard(bPerformingSelection, true);

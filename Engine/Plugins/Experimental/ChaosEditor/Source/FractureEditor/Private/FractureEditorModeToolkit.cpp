@@ -295,6 +295,12 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 					SAssignNew(OutlinerView, SGeometryCollectionOutliner)
 					.OnBoneSelectionChanged(this, &FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged)
 				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.Text(this, &FFractureEditorModeToolkit::GetSelectionInfo)
+				]
 			]
 		]	
 	];
@@ -1340,6 +1346,13 @@ void FFractureEditorModeToolkit::OnHistogramBoneSelectionChanged(UGeometryCollec
 	// If anything is selected in the Histogram, filter the appropriate Outliner component
 	OutlinerView->SetHistogramSelection(RootComponent, SelectedBones);
 }
+
+FText FFractureEditorModeToolkit::GetSelectionInfo() const
+{
+	FString Buffer = FString::Printf(TEXT("Selected: %d"), OutlinerView->GetBoneSelectionCount());
+	return FText::FromString(Buffer);
+}
+
 
 FText FFractureEditorModeToolkit::GetStatisticsSummary() const
 {

@@ -135,6 +135,7 @@ public:
 	int32 GetLevelCount();
 
 	FText GetStatisticsSummary() const;
+	FText GetSelectionInfo() const;
 
 	/** Returns the number of Mode specific tabs in the mode toolbar **/ 
 	const static TArray<FName> PaletteNames;
