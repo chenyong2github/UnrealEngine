@@ -11,6 +11,7 @@
 #include "Shader.h"
 
 class FPrimitiveSceneProxy;
+class FViewInfo;
 struct FMeshBatch;
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -194,7 +195,7 @@ struct FHairStrandsDeepShadowData
 
 	FIntPoint ShadowResolution = FIntPoint::ZeroValue;
 	uint32 LightId = ~0;
-	ELightComponentType LightType = LightType_MAX;
+	bool bIsLightDirectional = false;
 	FVector  LightDirection;
 	FVector4 LightPosition;
 	FLinearColor LightLuminance;

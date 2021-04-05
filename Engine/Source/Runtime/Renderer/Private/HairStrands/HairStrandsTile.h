@@ -13,6 +13,8 @@
 #include "ShaderParameterStruct.h"
 #include "HairStrandsData.h"
 
+class FViewInfo;
+
 class FHairStrandsTilePassVS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairStrandsTilePassVS);
