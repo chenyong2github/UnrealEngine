@@ -13,6 +13,7 @@ namespace Metasound
 		const FText TriggerUtils = { LOCTEXT("Metasound_TriggerUtilsCategory", "Triggers") };
 		const FText Music = { LOCTEXT("Metasound_MusicCategory", "Music") };
 		const FText RandomUtils = { LOCTEXT("Metasound_RandomCategory", "Random") };
+		const FText Audio = { LOCTEXT("Metasound_AudioCategory", "Audio") };
 		const FText Conversions  = { LOCTEXT("Metasound_ConversionsCategory", "Conversions") };
 		const FText DebugUtils = { LOCTEXT("Metasound_DebugUtilsCategory", "Debug") };
 		const FText Io = { LOCTEXT("Metasound_IoCategory", "External IO") };
