@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
+#include "ProfilingDebugging/MiscTrace.h"
 
 /** Contains all settings for the Unreal Insights, accessible through the main manager. */
 class FInsightsSettings
