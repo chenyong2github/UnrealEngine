@@ -114,6 +114,11 @@ namespace Chaos
 		virtual Chaos::FPhysicsSolver* GetComponentSolver(UPrimitiveComponent* InComponent) const = 0;
 
 		/**
+		 * Called from the game thread to perform any global setup that the adapter may need to perform.
+		 */
+		virtual void Initialize() {}
+		
+		/**
 		 * Called from the game thread to initialize a component and cache ready to record a cache
 		 * @param InComponent Target component to initialize
 		 * @param InCache Target cache to initialize

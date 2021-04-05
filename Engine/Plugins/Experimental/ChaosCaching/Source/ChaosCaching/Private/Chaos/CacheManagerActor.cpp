@@ -203,6 +203,11 @@ void AChaosCacheManager::BeginPlay()
 	IModularFeatures&               ModularFeatures = IModularFeatures::Get();
 	TArray<FComponentCacheAdapter*> Adapters        = ModularFeatures.GetModularFeatureImplementations<FComponentCacheAdapter>(FComponentCacheAdapter::FeatureName);
 
+	for (FComponentCacheAdapter* Adapter : Adapters)
+	{
+		Adapter->Initialize();
+	}
+	
 	ActiveAdapters.Reset();
 
 	int32       NumFailedPlaybackEntries = 0;

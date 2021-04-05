@@ -50,15 +50,19 @@ struct FBreakingEvent : public FCacheEventBase
 		, BoundingBoxMax(0.0f, 0.0f, 0.0f)
 	{ }
 
-	FBreakingEvent(int32 InIndex, const Chaos::FBreakingData& InData)
+	FBreakingEvent(int32 InIndex, const Chaos::FBreakingData& InData, const FTransform& WorldToComponent)
 		: Index(InIndex)
-		, Location(InData.Location)
-		, Velocity(InData.Velocity)
+		, Location(WorldToComponent.TransformPosition(InData.Location))
+		, Velocity(WorldToComponent.TransformVector(InData.Velocity))
 		, AngularVelocity(InData.AngularVelocity)
 		, Mass(InData.Mass)
 		, BoundingBoxMin(InData.BoundingBox.Min())
 		, BoundingBoxMax(InData.BoundingBox.Max())
-	{ }
+	{
+		FBox TransformedBounds = FBox(BoundingBoxMin, BoundingBoxMax).TransformBy(WorldToComponent);
+		BoundingBoxMin = TransformedBounds.Min;
+		BoundingBoxMax = TransformedBounds.Max;
+	}
 
 	UPROPERTY()
 	int32 Index;
@@ -105,15 +109,15 @@ struct FCollisionEvent : public FCacheEventBase
 		, PenetrationDepth(0.0f)
 	{}
 
-	FCollisionEvent(int32 InIndex, const Chaos::FCollidingData& InData)
+	FCollisionEvent(int32 InIndex, const Chaos::FCollidingData& InData, const FTransform& WorldToComponent)
 		: Index(InIndex)
-		, Location(InData.Location)
-		, AccumulatedImpulse(InData.AccumulatedImpulse)
-		, Normal(InData.Normal)
-		, Velocity1(InData.Velocity1)
-		, Velocity2(InData.Velocity2)
-		, DeltaVelocity1(InData.DeltaVelocity1)
-		, DeltaVelocity2(InData.DeltaVelocity2)
+		, Location(WorldToComponent.TransformPosition(InData.Location))
+		, AccumulatedImpulse(WorldToComponent.TransformVector(InData.AccumulatedImpulse))
+		, Normal(WorldToComponent.TransformVector(InData.Normal))
+		, Velocity1(WorldToComponent.TransformVector(InData.Velocity1))
+		, Velocity2(WorldToComponent.TransformVector(InData.Velocity2))
+		, DeltaVelocity1(WorldToComponent.TransformVector(InData.DeltaVelocity1))
+		, DeltaVelocity2(WorldToComponent.TransformVector(InData.DeltaVelocity2))
 		, AngularVelocity1(InData.AngularVelocity1)
 		, AngularVelocity2(InData.AngularVelocity2)
 		, Mass1(InData.Mass1)
@@ -177,14 +181,18 @@ struct FTrailingEvent : public FCacheEventBase
 		, BoundingBoxMax(0.0f, 0.0f, 0.0f)
 	{ }
 
-	FTrailingEvent(int32 InIndex, const Chaos::FTrailingData& InData)
+	FTrailingEvent(int32 InIndex, const Chaos::FTrailingData& InData, const FTransform& WorldToComponent)
 		: Index(InIndex)
-		, Location(InData.Location)
-		, Velocity(InData.Velocity)
+		, Location(WorldToComponent.TransformPosition(InData.Location))
+		, Velocity(WorldToComponent.TransformVector(InData.Velocity))
 		, AngularVelocity(InData.AngularVelocity)
 		, BoundingBoxMin(InData.BoundingBox.Min())
 		, BoundingBoxMax(InData.BoundingBox.Max())
-	{ }
+	{
+		FBox TransformedBounds = FBox(BoundingBoxMin, BoundingBoxMax).TransformBy(WorldToComponent);
+		BoundingBoxMin = TransformedBounds.Min;
+		BoundingBoxMax = TransformedBounds.Max;
+	}
 
 	UPROPERTY()
 		int32 Index;
@@ -237,6 +245,7 @@ namespace Chaos
 		FGuid                  GetGuid() const override;
 		Chaos::FPhysicsSolver* GetComponentSolver(UPrimitiveComponent* InComponent) const override;
 		bool                   ValidForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const override;
+		void				   Initialize() override;
 		bool                   InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache) override;
 		bool                   InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const override;
 		void                   Record_PostSolve(UPrimitiveComponent* InComp, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const override;

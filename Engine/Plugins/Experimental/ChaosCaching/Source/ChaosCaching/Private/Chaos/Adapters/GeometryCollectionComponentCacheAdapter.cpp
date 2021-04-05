@@ -49,6 +49,7 @@ namespace Chaos
 
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComp);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
+		const FTransform WorldToComponent = Comp->GetComponentTransform().Inverse();
 		
 		if(!Proxy)
 		{
@@ -142,7 +143,7 @@ namespace Chaos
 						int32 TransformIndex = Proxy->GetTransformGroupIndexFromHandle(Rigid);
 						if (TransformIndex > INDEX_NONE)
 						{
-							OutFrame.PushEvent(FBreakingEvent::EventName, InTime, FBreakingEvent(TransformIndex, BreakingData));
+							OutFrame.PushEvent(FBreakingEvent::EventName, InTime, FBreakingEvent(TransformIndex, BreakingData, WorldToComponent));
 						}
 					}
 				}
@@ -162,7 +163,7 @@ namespace Chaos
 						int32 TransformIndex = Proxy->GetTransformGroupIndexFromHandle(Rigid);
 						if (TransformIndex > INDEX_NONE)
 						{
-							OutFrame.PushEvent(FCollisionEvent::EventName, InTime, FCollisionEvent(TransformIndex, CollisionData));
+							OutFrame.PushEvent(FCollisionEvent::EventName, InTime, FCollisionEvent(TransformIndex, CollisionData, WorldToComponent));
 						}
 					}
 				}
@@ -182,7 +183,7 @@ namespace Chaos
 						int32 TransformIndex = Proxy->GetTransformGroupIndexFromHandle(Rigid);
 						if (TransformIndex > INDEX_NONE)
 						{
-							OutFrame.PushEvent(FTrailingEvent::EventName, InTime, FTrailingEvent(TransformIndex, TrailingData));
+							OutFrame.PushEvent(FTrailingEvent::EventName, InTime, FTrailingEvent(TransformIndex, TrailingData, WorldToComponent));
 						}
 					}
 				}
@@ -205,6 +206,7 @@ namespace Chaos
 
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComponent);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
+		const FTransform ComponentToWorld = Comp->GetComponentTransform();
 
 		if(!Proxy)
 		{
@@ -328,11 +330,12 @@ namespace Chaos
 
 							FBreakingData CachedBreak;
 							CachedBreak.Particle = Particle;
-							CachedBreak.Location = Event->Location;
-							CachedBreak.Velocity = Event->Velocity;
+							CachedBreak.Location = ComponentToWorld.TransformPosition(Event->Location);
+							CachedBreak.Velocity = ComponentToWorld.TransformVector(Event->Velocity);
 							CachedBreak.AngularVelocity = Event->AngularVelocity;
 							CachedBreak.Mass = Event->Mass;
 							CachedBreak.BoundingBox = TAABB<float, 3>(Event->BoundingBoxMin, Event->BoundingBoxMax);
+							CachedBreak.BoundingBox = CachedBreak.BoundingBox.TransformedAABB(ComponentToWorld);
 
 							if (!SolverBreakingEventFilter->Enabled() || SolverBreakingEventFilter->Pass(CachedBreak))
 							{
@@ -375,10 +378,11 @@ namespace Chaos
 
 							FTrailingData CachedTrail;
 							CachedTrail.Particle = Particle;
-							CachedTrail.Location = Event->Location;
-							CachedTrail.Velocity = Event->Velocity;
+							CachedTrail.Location = ComponentToWorld.TransformPosition(Event->Location);
+							CachedTrail.Velocity = ComponentToWorld.TransformVector(Event->Velocity);
 							CachedTrail.AngularVelocity = Event->AngularVelocity;
 							CachedTrail.BoundingBox = TAABB<float, 3>(Event->BoundingBoxMin, Event->BoundingBoxMax);
+							CachedTrail.BoundingBox = CachedTrail.BoundingBox.TransformedAABB(ComponentToWorld);
 
 							if (!SolverTrailingEventFilter->Enabled() || SolverTrailingEventFilter->Pass(CachedTrail))
 							{
@@ -420,13 +424,13 @@ namespace Chaos
 							}
 
 							FCollidingData CachedCollision;
-							CachedCollision.Location = Event->Location;
-							CachedCollision.AccumulatedImpulse = Event->AccumulatedImpulse;
-							CachedCollision.Normal = Event->Normal;
-							CachedCollision.Velocity1 = Event->Velocity1;
-							CachedCollision.Velocity2 = Event->Velocity2;
-							CachedCollision.DeltaVelocity1 = Event->DeltaVelocity1;
-							CachedCollision.DeltaVelocity2 = Event->DeltaVelocity2;
+							CachedCollision.Location = ComponentToWorld.TransformPosition(Event->Location);
+							CachedCollision.AccumulatedImpulse = ComponentToWorld.TransformVector(Event->AccumulatedImpulse);
+							CachedCollision.Normal = ComponentToWorld.TransformVector(Event->Normal);
+							CachedCollision.Velocity1 = ComponentToWorld.TransformVector(Event->Velocity1);
+							CachedCollision.Velocity2 = ComponentToWorld.TransformVector(Event->Velocity2);
+							CachedCollision.DeltaVelocity1 = ComponentToWorld.TransformVector(Event->DeltaVelocity1);
+							CachedCollision.DeltaVelocity2 = ComponentToWorld.TransformVector(Event->DeltaVelocity2);
 							CachedCollision.AngularVelocity1 = Event->AngularVelocity1;
 							CachedCollision.AngularVelocity2 = Event->AngularVelocity2;
 							CachedCollision.Mass1 = Event->Mass1;
@@ -573,6 +577,11 @@ namespace Chaos
 		return nullptr;
 	}
 
+	void FGeometryCollectionCacheAdapter::Initialize()
+	{
+		CachedData.Empty();
+	}
+	
 	bool FGeometryCollectionCacheAdapter::InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache)
 	{
 		UGeometryCollectionComponent*    Comp     = CastChecked<UGeometryCollectionComponent>(InComponent);
