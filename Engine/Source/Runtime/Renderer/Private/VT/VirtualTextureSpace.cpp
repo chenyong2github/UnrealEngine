@@ -76,11 +76,6 @@ FVirtualTextureSpace::FVirtualTextureSpace(FVirtualTextureSystem* InSystem, uint
 		++PageTableIndex;
 	}
 
-	//PageTableSize = FMath::Max(InSizeNeeded, VIRTUALTEXTURE_MIN_PAGETABLE_SIZE);
-	//PageTableSize = FMath::RoundUpToPowerOfTwo(PageTableSize);
-	//ensure(PageTableSize <= Description.MaxSpaceSize);
-	//ensure(Description.MaxSpaceSize <= VIRTUALTEXTURE_MAX_PAGETABLE_SIZE);
-	//NumPageTableLevels = FMath::FloorLog2(PageTableSize) + 1;
 	Allocator.Initialize(Description.MaxSpaceSize);
 
 	bNeedToAllocatePageTableIndirection = InDesc.IndirectionTextureSize > 0;
@@ -138,7 +133,10 @@ uint32 FVirtualTextureSpace::GetSizeInBytes() const
 	uint32 TotalSize = 0u;
 	for (uint32 TextureIndex = 0u; TextureIndex < GetNumPageTableTextures(); ++TextureIndex)
 	{
-		const SIZE_T TextureSize = CalcTextureSize(CachedPageTableWidth, CachedPageTableHeight, TexturePixelFormat[TextureIndex], CachedNumPageTableLevels);
+		const uint32 PageTableWidth = Align(Allocator.GetAllocatedWidth(), VIRTUALTEXTURE_MIN_PAGETABLE_SIZE);
+		const uint32 PageTableHeight = Align(Allocator.GetAllocatedHeight(), VIRTUALTEXTURE_MIN_PAGETABLE_SIZE);
+		const uint32 NumPageTableLevels = FMath::FloorLog2(FMath::Max(PageTableWidth, PageTableHeight)) + 1u;
+		const SIZE_T TextureSize = CalcTextureSize(PageTableWidth, PageTableHeight, TexturePixelFormat[TextureIndex], NumPageTableLevels);
 		TotalSize += TextureSize;
 	}
 	
@@ -273,8 +271,6 @@ void FVirtualTextureSpace::AllocateTextures(FRDGBuilder& GraphBuilder)
 
 		CachedPageTableWidth = Align(Allocator.GetAllocatedWidth(), VIRTUALTEXTURE_MIN_PAGETABLE_SIZE);
 		CachedPageTableHeight = Align(Allocator.GetAllocatedHeight(), VIRTUALTEXTURE_MIN_PAGETABLE_SIZE);
-		//CachedPageTableWidth = FMath::Max(CachedPageTableWidth, VIRTUALTEXTURE_MIN_PAGETABLE_SIZE);
-		//CachedPageTableHeight = FMath::Max(CachedPageTableHeight, VIRTUALTEXTURE_MIN_PAGETABLE_SIZE);
 		CachedNumPageTableLevels = FMath::FloorLog2(FMath::Max(CachedPageTableWidth, CachedPageTableHeight)) + 1u;
 
 		for (uint32 TextureIndex = 0u; TextureIndex < GetNumPageTableTextures(); ++TextureIndex)

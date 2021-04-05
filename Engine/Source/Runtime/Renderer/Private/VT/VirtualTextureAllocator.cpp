@@ -8,10 +8,12 @@
 #include "Misc/Paths.h"
 
 #if WITH_EDITOR
+#include "HAL/FileManager.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
-#include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
 #endif // WITH_EDITOR
 
 FVirtualTextureAllocator::FVirtualTextureAllocator(uint32 Dimensions)

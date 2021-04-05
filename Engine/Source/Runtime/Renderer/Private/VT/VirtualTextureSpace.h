@@ -125,8 +125,6 @@ private:
 	FBufferRHIRef UpdateBuffer;
 	FShaderResourceViewRHIRef UpdateBufferSRV;
 
-	//uint32 PageTableSize;
-	//uint32 NumPageTableLevels;
 	uint32 NumRefs;
 
 	uint8 ID;
