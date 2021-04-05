@@ -24,9 +24,10 @@ FFractureToolContext::FFractureToolContext(UGeometryCollectionComponent* InGeome
 
 void FFractureToolContext::Sanitize()
 {
-	// Ensure that selected idices are valid
-	SelectedBones.RemoveAll([this](int32 Index) {
-		return Index == INDEX_NONE;
+	// Ensure that selected indices are valid
+	int NumTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
+	SelectedBones.RemoveAll([this, NumTransforms](int32 Index) {
+		return Index == INDEX_NONE || !ensure(Index < NumTransforms);
 		});
 	
 	// Ensure that children of a selected node are not also selected.
@@ -39,6 +40,12 @@ void FFractureToolContext::Sanitize()
 
 void FFractureToolContext::RemoveRootNodes()
 {
+	// Ensure that selected indices are valid
+	int NumTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
+	SelectedBones.RemoveAll([this, NumTransforms](int32 Index) {
+		return Index == INDEX_NONE || !ensure(Index < NumTransforms);
+		});
+
 	SelectedBones.RemoveAll([this](int32 Index) {
 		return FGeometryCollectionClusteringUtility::IsARootBone(this->GeometryCollection.Get(), Index);
 		});
@@ -157,6 +164,8 @@ void FFractureToolContext::ConvertSelectionToClusterNodes()
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 	const TManagedArray<int32>& Parents = GeometryCollection->Parent;
 	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
+
+	Sanitize();
 
 	TArray<int32> AddedClusterSelections;
 	for (int32 Index : SelectedBones)
