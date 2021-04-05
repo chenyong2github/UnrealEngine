@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "BaseGizmos/GizmoInterfaces.h"
+#include "BaseGizmos/GizmoBaseObject.h"
 #include "HitTargets.generated.h"
 
 class UPrimitiveComponent;
@@ -24,24 +25,16 @@ public:
 	/** This function is called to update hover state of the target */
 	TFunction<void(bool)> UpdateHoverFunction;
 
+	/** This function is called to update interacting state of the target */
+	TFunction<void(bool)> UpdateInteractingFunction;
+
 
 public:
-	virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const
-	{
-		if (IsHitFunction)
-		{
-			return IsHit(ClickPos);
-		}
-		return FInputRayHit();
-	}
+	virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
 
-	virtual void UpdateHoverState(bool bHovering) const
-	{
-		if (UpdateHoverFunction)
-		{
-			UpdateHoverFunction(bHovering);
-		}
-	}
+	virtual void UpdateHoverState(bool bHovering);
+
+	virtual void UpdateInteractingState(bool bHovering);
 };
 
 
@@ -73,26 +66,56 @@ public:
 	/** This function is called to update hover state of the target */
 	TFunction<void(bool)> UpdateHoverFunction;
 
+	/** This function is called to update interacting state of the target */
+	TFunction<void(bool)> UpdateInteractingFunction;
 
 public:
 	virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
 
-	virtual void UpdateHoverState(bool bHovering) const
-	{
-		if (UpdateHoverFunction)
-		{
-			UpdateHoverFunction(bHovering);
-		}
-	}
+	virtual void UpdateHoverState(bool bHovering);
+
+	virtual void UpdateInteractingState(bool bHovering);
 
 public:
 	static UGizmoComponentHitTarget* Construct(
 		UPrimitiveComponent* Component,
-		UObject* Outer = (UObject*)GetTransientPackage())
-	{
-		UGizmoComponentHitTarget* NewHitTarget = NewObject<UGizmoComponentHitTarget>(Outer);
-		NewHitTarget->Component = Component;
-		return NewHitTarget;
-	}
+		UObject* Outer = (UObject*)GetTransientPackage());
+};
+
+/**
+ * UGizmoObjectHitTarget is an IGizmoClickTarget implementation that
+ * hit-tests any object derived from UGizmoBaseObject
+ */
+UCLASS()
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoObjectHitTarget : public UObject, public IGizmoClickTarget
+{
+	GENERATED_BODY()
+public:
+
+	/**
+	 * Gizmo object.
+	 */
+	UPROPERTY()
+	TObjectPtr<UGizmoBaseObject> GizmoObject;
+
+	/**
+	 * If set, this condition is checked before performing the hit test. This gives a way
+	 * to disable the hit test without hiding the component. This is useful, for instance,
+	 * in a repositionable transform gizmo in world-coordinate mode, where the rotation
+	 * components need to be hittable for movement, but not for repositioning.
+	 */
+	TFunction<bool(const FInputDeviceRay&)> Condition = nullptr;
+
+public:
+	virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
+
+	virtual void UpdateHoverState(bool bHovering);
+
+	virtual void UpdateInteractingState(bool bInteracting);
+
+public:
+	static UGizmoObjectHitTarget* Construct(
+		UGizmoBaseObject* InGizmoObject,
+		UObject* Outer = (UObject*)GetTransientPackage());
 };
 

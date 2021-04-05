@@ -4,7 +4,30 @@
 #include "Components/PrimitiveComponent.h"
 #include "Engine/EngineTypes.h"    // FHitResult
 
+FInputRayHit UGizmoLambdaHitTarget::IsHit(const FInputDeviceRay& ClickPos) const
+{
+	if (IsHitFunction)
+	{
+		return IsHit(ClickPos);
+	}
+	return FInputRayHit();
+}
 
+void UGizmoLambdaHitTarget::UpdateHoverState(bool bHovering)
+{
+	if (UpdateHoverFunction)
+	{
+		UpdateHoverFunction(bHovering);
+	}
+}
+
+void UGizmoLambdaHitTarget::UpdateInteractingState(bool bHovering)
+{
+	if (UpdateInteractingFunction)
+	{
+		UpdateInteractingFunction(bHovering);
+	}
+}
 
 FInputRayHit UGizmoComponentHitTarget::IsHit(const FInputDeviceRay& ClickPos) const
 {
@@ -29,4 +52,61 @@ FInputRayHit UGizmoComponentHitTarget::IsHit(const FInputDeviceRay& ClickPos) co
 	}
 	return Hit;
 }
+
+void UGizmoComponentHitTarget::UpdateHoverState(bool bHovering)
+{
+	if (UpdateHoverFunction)
+	{
+		UpdateHoverFunction(bHovering);
+	}
+}
+
+void UGizmoComponentHitTarget::UpdateInteractingState(bool bHovering)
+{
+	if (UpdateInteractingFunction)
+	{
+		UpdateInteractingFunction(bHovering);
+	}
+}
+
+UGizmoComponentHitTarget* UGizmoComponentHitTarget::Construct(UPrimitiveComponent* Component, UObject* Outer)
+{
+	UGizmoComponentHitTarget* NewHitTarget = NewObject<UGizmoComponentHitTarget>(Outer);
+	NewHitTarget->Component = Component;
+	return NewHitTarget;
+}
+
+FInputRayHit UGizmoObjectHitTarget::IsHit(const FInputDeviceRay& ClickPos) const
+{
+	if (GizmoObject && (!Condition || Condition(ClickPos)))
+	{
+		return GizmoObject->LineTraceObject(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction);
+	}
+	return FInputRayHit();
+}
+
+void UGizmoObjectHitTarget::UpdateHoverState(bool bHovering)
+{
+	if (GizmoObject)
+	{
+		GizmoObject->SetHoverState(bHovering);
+	}
+}
+
+void UGizmoObjectHitTarget::UpdateInteractingState(bool bInteracting)
+{
+	if (GizmoObject)
+	{
+		GizmoObject->SetInteractingState(bInteracting);
+	}
+}
+
+UGizmoObjectHitTarget* UGizmoObjectHitTarget::Construct(UGizmoBaseObject* InGizmoObject, UObject* Outer)
+{
+	UGizmoObjectHitTarget* NewHitTarget = NewObject<UGizmoObjectHitTarget>(Outer);
+	NewHitTarget->GizmoObject = InGizmoObject;
+	return NewHitTarget;
+}
+
+
 

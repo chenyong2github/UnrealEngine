@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "InputState.h"
+#include "ToolContextInterfaces.h"
 #include "GizmoInterfaces.generated.h"
 
 
@@ -103,8 +104,19 @@ public:
 	//UFUNCTION()    // FInputDeviceRay is not USTRUCT because FRay is not USTRUCT
 	virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const = 0;
 
+	/*
+	 * Updates the hover state indicating whether the input device is currently hovering over the Standard gizmo.
+	 * This should be be set to false once interaction with the gizmo commences.
+	 */
 	UFUNCTION()
-	virtual void UpdateHoverState(bool bHovering) const = 0;
+	virtual void UpdateHoverState(bool bHovering) = 0;
+
+	/*
+	 * Updates the interacting state indicating when interaction with the Standard gizmo is actively occurring, 
+	 * typically upon the input device clicking and dragging the Standard gizmo.
+	 */
+	UFUNCTION()
+	virtual void UpdateInteractingState(bool bInteracting) = 0;
 };
 
 
