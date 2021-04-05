@@ -5737,6 +5737,8 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 	TSharedRef<FSequencerDisplayNode> SelectionNodeToRemove = ConstCastSharedRef<FSequencerDisplayNode>(NodeToBeDeleted);
 	Selection.RemoveFromSelection(SelectionNodeToRemove);
 
+	SelectionNodeToRemove->DeleteNode();
+
 	if ( NodeToBeDeleted->GetType() == ESequencerNode::Folder )
 	{
 		// Delete Children

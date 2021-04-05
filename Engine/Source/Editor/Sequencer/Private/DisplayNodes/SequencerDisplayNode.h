@@ -535,6 +535,10 @@ public:
 	 */
 	virtual void Drop( const TArray<TSharedRef<FSequencerDisplayNode>>& DraggedNodes, EItemDropZone DropZone ) { }
 
+	/*
+	 * Handles this node being deleted
+	 */
+	virtual void DeleteNode() { }
 
 public:
 

@@ -1185,6 +1185,20 @@ void FSequencerObjectBindingNode::Drop(const TArray<TSharedRef<FSequencerDisplay
 	ParentTree.GetSequencer().NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 }
 
+void FSequencerObjectBindingNode::DeleteNode()
+{
+	UMovieScene* MovieScene = GetSequencer().GetRootMovieSceneSequence()->GetMovieScene();
+	MovieScene->Modify();
+
+	UE::MovieScene::FFixedObjectBindingID BindingID(GetObjectBinding(), GetSequencer().GetFocusedTemplateID());
+	for (auto It = GetSequencer().GetObjectBindingTagCache()->IterateTags(BindingID); It; ++It)
+	{
+		MovieScene->UntagBinding(It.Value(), BindingID);
+	}
+
+	FSequencerDisplayNode::DeleteNode();
+}
+
 
 /* FSequencerObjectBindingNode implementation
  *****************************************************************************/
