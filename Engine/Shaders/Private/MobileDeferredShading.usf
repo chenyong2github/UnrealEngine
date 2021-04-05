@@ -10,6 +10,9 @@
 #include "LightFunctionCommon.ush"
 #include "PlanarReflectionShared.ush"
 
+// Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer
+#define MobileSceneTextures MobileBasePass.SceneTextures
+
 #if APPLY_SKY_REFLECTION
 #define ENABLE_SKY_LIGHT 1
 #endif
