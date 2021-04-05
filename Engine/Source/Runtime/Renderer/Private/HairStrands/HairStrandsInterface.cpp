@@ -16,6 +16,7 @@
 #include "SkeletalRenderPublic.h"
 #include "SceneRendering.h"
 #include "SystemTextures.h"
+#include "ScenePrivate.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHairRendering, Log, All);
 
@@ -55,6 +56,25 @@ static TAutoConsoleVariable<int32> CVarHairStrandsSimulation(
 	TEXT("r.HairStrands.Simulation"), 1,
 	TEXT("Enable/disable hair simulation"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair strands instance ref. counting for debug purpose only
+uint32 FHairStrandsInstance::GetRefCount() const
+{
+	return RefCount;
+}
+
+uint32 FHairStrandsInstance::AddRef() const
+{
+	return ++RefCount;
+}
+
+uint32 FHairStrandsInstance::Release() const
+{
+	check(RefCount > 0);
+	uint32 LocalRefCount = --RefCount;
+	return LocalRefCount;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Import/export utils function for hair resources
@@ -366,13 +386,14 @@ void RunHairStrandsBookmark(EHairStrandsBookmark Bookmark, FHairStrandsBookmarkP
 }
 
 bool IsHairStrandsClusterCullingUseHzb();
-FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FViewInfo& View)
+FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene, FViewInfo& View)
 {
 	FHairStrandsBookmarkParameters Out;
 	Out.DebugShaderData			= &View.ShaderDrawData;
 	Out.SkinCache				= View.Family->Scene->GetGPUSkinCache();
 	Out.WorldType				= View.Family->Scene->GetWorld()->WorldType;
 	Out.ShaderMap				= View.ShaderMap;
+	Out.Instances				= &Scene->HairStrandsSceneData.RegisteredProxies;
 	Out.View					= &View;
 	Out.ViewRect				= View.ViewRect;
 	Out.SceneColorTexture		= nullptr;
@@ -386,10 +407,10 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FViewInfo& Vi
 	return Out;
 }
 
-FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(TArray<FViewInfo>& Views)
+FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene, TArray<FViewInfo>& Views)
 {
 	FHairStrandsBookmarkParameters Out;
-	Out = CreateHairStrandsBookmarkParameters(Views[0]);
+	Out = CreateHairStrandsBookmarkParameters(Scene, Views[0]);
 	Out.AllViews.Reserve(Views.Num());
 	for (const FViewInfo& View : Views)
 	{

@@ -39,68 +39,6 @@ bool IsHairStrandsSkinCacheEnable()
 
 DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Runtime execution order (on the render thread):
-//  * Register
-//  * For each frame
-//		* Update
-//		* Update triangles information for dynamic meshes
-//		* RunHairStrandsInterpolation (Interpolation callback)
-//  * UnRegister
-//
-// This code supposed a  small number of instance (~10), and won't scale to large crowed (linear loop, lot of cache misses, ...)
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct FHairStrandsManager
-{
-	// #hair_todo: change this array to a queue update, in order make processing/update thread safe.
-	TArray<FHairGroupInstance*> Instances;
-
-	FHairStrandsManager()
-	{
-		// Reserve a large a mount of object to avoid any potential memory reallocation, which 
-		// could cause some thread safety issue. This is a workaround against the non-thread-safe array
-		Instances.Reserve(64);
-	}
-};
-
-FHairStrandsManager GHairManager;
-
-void RegisterHairStrands(FHairGroupInstance* InInstance)
-{
-	for (const FHairGroupInstance* Instance : GHairManager.Instances)
-	{
-		if (Instance->Debug.ComponentId == InInstance->Debug.ComponentId && 
-			Instance->Debug.GroupIndex == InInstance->Debug.GroupIndex)
-		{
-			// Component already registered. This should not happen. 
-			UE_LOG(LogGroomManager, Warning, TEXT("Component already register. This should't happen. Please report this to a rendering engineer."))
-			return;
-		}
-	}
-
-	check(InInstance->HairGroupPublicData);
-	GHairManager.Instances.Add(InInstance);
-}
-
-void UnregisterHairStrands(uint32 ComponentId)
-{
-	for (int32 Index=0;Index< GHairManager.Instances.Num();)
-	{
-		const FHairGroupInstance* Instance = GHairManager.Instances[Index];
-
-		if (Instance->Debug.ComponentId == ComponentId)
-		{
-			GHairManager.Instances[Index] = GHairManager.Instances[GHairManager.Instances.Num()-1];
-			GHairManager.Instances.SetNum(GHairManager.Instances.Num() - 1, false);
-		}
-		else
-		{
-			++Index;
-		}
-	}
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 static bool IsInstanceVisible(
@@ -131,6 +69,7 @@ bool NeedsUpdateCardsMeshTriangles();
 static void RunInternalHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView* View,
+	const FHairStrandsInstances& Instances,
 	EWorldType::Type WorldType, 
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
@@ -141,15 +80,21 @@ static void RunInternalHairStrandsInterpolation(
 	check(IsInRenderingThread());
 
 	// Update dynamic mesh triangles
-	for (FHairGroupInstance* Instance : GHairManager.Instances)
+	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
+		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
+		// HAIR_TODO: Do culling on the output of the view rather than the macro group cluster, in order to get consistent result with draw logic
 		// Frustum culling for rendering strands. Update position only for visible/in camera frustum
+		#if 0
 		if (Type == EHairStrandsInterpolationType::RenderStrands && !IsInstanceVisible(View, Instance))
 		{
 			continue;
 		}
+		#endif
 
 		int32 MeshLODIndex = -1;
+		check(Instance->WorldType == WorldType);
 		if (Instance->WorldType != WorldType || Instance->GeometryType == EHairGeometryType::NoneGeometry)
 			continue;
 	
@@ -177,8 +122,6 @@ static void RunInternalHairStrandsInterpolation(
 		{
 			BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, CachedGeometry);
 		}
-		if (CachedGeometry.Sections.Num() == 0)
-			continue;
 
 		FHairStrandsProjectionMeshData::LOD MeshDataLOD;
 		for (const FCachedGeometry::Section& Section : CachedGeometry.Sections)
@@ -351,16 +294,22 @@ static void RunInternalHairStrandsInterpolation(
 	// Reset deformation
 	if (EHairStrandsInterpolationType::SimulationStrands == Type)
 	{
-		for (FHairGroupInstance* Instance : GHairManager.Instances)
+		for (FHairStrandsInstance* AbstractInstance : Instances)
 		{
+			FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
+			check(Instance->WorldType == WorldType);
 			if (Instance->WorldType != WorldType || Instance->GeometryType == EHairGeometryType::NoneGeometry)
 				continue;
 
+			// HAIR_TODO: Do culling on the output of the view rather than the macro group cluster, in order to get consistent result with draw logic
 			// Frustum culling guide deformation if the instance does not have any simulation
+			#if 0
 			if (Instance->GeometryType == EHairGeometryType::Strands && !Instance->Guides.bIsSimulationEnable  && !IsInstanceVisible(View, Instance))
 			{
 				continue;
 			}
+			#endif
 
 			ResetHairStrandsInterpolation(GraphBuilder, ShaderMap, Instance, Instance->Debug.MeshLODIndex);
 		}
@@ -369,16 +318,22 @@ static void RunInternalHairStrandsInterpolation(
 	// Hair interpolation
 	if (EHairStrandsInterpolationType::RenderStrands == Type)
 	{
-		for (FHairGroupInstance* Instance : GHairManager.Instances)
+		for (FHairStrandsInstance* AbstractInstance : Instances)
 		{
+			FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
+			check(Instance->WorldType == WorldType);
 			if (Instance->WorldType != WorldType || Instance->GeometryType == EHairGeometryType::NoneGeometry)
 				continue;
 
+			// HAIR_TODO: Do culling on the output of the view rather than the macro group cluster, in order to get consistent result with draw logic
 			// Frustum culling for rendering strands. Update position only for visible/in camera frustum
+			#if 0
 			if (!IsInstanceVisible(View, Instance))
 			{
 				continue;
 			}
+			#endif
 
  			ComputeHairStrandsInterpolation(
 				GraphBuilder, 
@@ -394,6 +349,7 @@ static void RunInternalHairStrandsInterpolation(
 static void RunHairStrandsInterpolation_Guide(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView* View,
+	const FHairStrandsInstances& Instances,
 	EWorldType::Type WorldType,
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
@@ -409,6 +365,7 @@ static void RunHairStrandsInterpolation_Guide(
 	RunInternalHairStrandsInterpolation(
 		GraphBuilder,
 		View,
+		Instances,
 		WorldType,
 		SkinCache,
 		ShaderDrawData,
@@ -420,6 +377,7 @@ static void RunHairStrandsInterpolation_Guide(
 static void RunHairStrandsInterpolation_Strands(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView* View,
+	const FHairStrandsInstances& Instances,
 	EWorldType::Type WorldType,
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
@@ -435,6 +393,7 @@ static void RunHairStrandsInterpolation_Strands(
 	RunInternalHairStrandsInterpolation(
 		GraphBuilder,
 		View,
+		Instances,
 		WorldType,
 		SkinCache,
 		ShaderDrawData,
@@ -445,11 +404,15 @@ static void RunHairStrandsInterpolation_Strands(
 
 
 static void RunHairStrandsGatherCluster(
+	const FHairStrandsInstances& Instances,
 	EWorldType::Type WorldType,
 	FHairStrandClusterData* ClusterData)
 {
-	for (FHairGroupInstance* Instance : GHairManager.Instances)
+	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
+		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
+		check(Instance->WorldType == WorldType);
 		if (Instance->WorldType != WorldType || Instance->GeometryType != EHairGeometryType::Strands)
 			continue;
 
@@ -511,7 +474,7 @@ static EHairGeometryType ConvertLODGeometryType(EHairGeometryType Type, bool Inb
 	return EHairGeometryType::NoneGeometry;
 }
 
-static void RunHairBufferSwap(EWorldType::Type WorldType, const TArray<const FSceneView*> Views)
+static void RunHairBufferSwap(const FHairStrandsInstances& Instances, EWorldType::Type WorldType, const TArray<const FSceneView*> Views)
 {
 	EShaderPlatform ShaderPlatform = EShaderPlatform::SP_NumPlatforms;
 	if (Views.Num() > 0)
@@ -519,9 +482,13 @@ static void RunHairBufferSwap(EWorldType::Type WorldType, const TArray<const FSc
 		ShaderPlatform = Views[0]->GetShaderPlatform();
 	}
 
-	for (FHairGroupInstance* Instance : GHairManager.Instances)
+	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
+		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
 		int32 MeshLODIndex = -1;
+		check(Instance);
+		check(Instance->WorldType == WorldType);
 		if (!Instance || Instance->WorldType != WorldType)
 			continue;
 
@@ -590,7 +557,7 @@ static void RunHairBufferSwap(EWorldType::Type WorldType, const TArray<const FSc
 	}
 }
 
-static void RunHairLODSelection(EWorldType::Type WorldType, const TArray<const FSceneView*> Views)
+static void RunHairLODSelection(const FHairStrandsInstances& Instances, EWorldType::Type WorldType, const TArray<const FSceneView*> Views)
 {
 	EShaderPlatform ShaderPlatform = EShaderPlatform::SP_NumPlatforms;
 	if (Views.Num() > 0)
@@ -598,11 +565,13 @@ static void RunHairLODSelection(EWorldType::Type WorldType, const TArray<const F
 		ShaderPlatform = Views[0]->GetShaderPlatform();
 	}
 
-	for (FHairGroupInstance* Instance : GHairManager.Instances)
+	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
+		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
 		int32 MeshLODIndex = -1;
-		if (!Instance || Instance->WorldType != WorldType)
-			continue;
+		check(Instance);
+		check(Instance->WorldType == WorldType);
 
 		check(Instance->HairGroupPublicData);
 
@@ -750,9 +719,9 @@ void RunHairStrandsDebug(
 	FGlobalShaderMap* ShaderMap,
 	EWorldType::Type WorldType,
 	const FSceneView& View,
+	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
-	const TArray<FHairGroupInstance*>& Instances,
 	FRDGTextureRef SceneColor,
 	FIntRect Viewport,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer);
@@ -765,6 +734,8 @@ void ProcessHairStrandsBookmark(
 	EHairStrandsBookmark Bookmark,
 	FHairStrandsBookmarkParameters& Parameters)
 {
+	check(Parameters.Instances != nullptr);
+
 	if (Bookmark == EHairStrandsBookmark::ProcessTasks)
 	{
 		const bool bHasHairStardsnProcess =
@@ -786,10 +757,12 @@ void ProcessHairStrandsBookmark(
 		if (GHairStrands_SwapBufferEndOfFrame <= 0)
 		{
 			RunHairBufferSwap(
+				*Parameters.Instances,
 				Parameters.WorldType,
 				Parameters.AllViews);
 		}
 		RunHairLODSelection(
+			*Parameters.Instances,
 			Parameters.WorldType,
 			Parameters.AllViews);
 	}
@@ -798,6 +771,7 @@ void ProcessHairStrandsBookmark(
 		if (GHairStrands_SwapBufferEndOfFrame > 0)
 		{
 			RunHairBufferSwap(
+				*Parameters.Instances,
 				Parameters.WorldType,
 				Parameters.AllViews);
 		}
@@ -808,6 +782,7 @@ void ProcessHairStrandsBookmark(
 		RunHairStrandsInterpolation_Guide(
 			*GraphBuilder,
 			Parameters.View,
+			*Parameters.Instances,
 			Parameters.WorldType,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
@@ -817,6 +792,7 @@ void ProcessHairStrandsBookmark(
 	else if (Bookmark == EHairStrandsBookmark::ProcessGatherCluster)
 	{
 		RunHairStrandsGatherCluster(
+			*Parameters.Instances,
 			Parameters.WorldType,
 			&Parameters.HairClusterData);
 	}
@@ -826,6 +802,7 @@ void ProcessHairStrandsBookmark(
 		RunHairStrandsInterpolation_Strands(
 			*GraphBuilder,
 			Parameters.View,
+			*Parameters.Instances,
 			Parameters.WorldType,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
@@ -840,9 +817,9 @@ void ProcessHairStrandsBookmark(
 			Parameters.ShaderMap,
 			Parameters.WorldType,
 			*Parameters.View,
+			*Parameters.Instances,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
-			GHairManager.Instances,
 			Parameters.SceneColorTexture,
 			Parameters.View->UnscaledViewRect,
 			Parameters.View->ViewUniformBuffer);
@@ -851,5 +828,5 @@ void ProcessHairStrandsBookmark(
 
 void ProcessHairStrandsParameters(FHairStrandsBookmarkParameters& Parameters)
 {
-	Parameters.bHasElements = GHairManager.Instances.Num() > 0;
+	Parameters.bHasElements = Parameters.Instances && Parameters.Instances->Num() > 0;
 }

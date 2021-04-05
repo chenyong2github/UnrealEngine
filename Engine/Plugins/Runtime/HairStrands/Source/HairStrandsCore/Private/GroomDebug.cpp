@@ -56,14 +56,16 @@ bool IsHairStrandsSkinCacheEnable();
 static void GetGroomInterpolationData(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	const TArray<FHairGroupInstance*> Instances,
+	const FHairStrandsInstances& Instances,
 	const EWorldType::Type WorldType,
 	const EHairStrandsProjectionMeshType MeshType,
 	const FGPUSkinCache* SkinCache,
 	FHairStrandsProjectionMeshData::LOD& OutGeometries)
 {
-	for (const FHairGroupInstance* Instance : Instances)
+	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
+		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
 		if (!Instance || Instance->WorldType != WorldType || !Instance->Debug.MeshComponent)
 			continue;
 
@@ -773,9 +775,9 @@ void RunHairStrandsDebug(
 	FGlobalShaderMap* ShaderMap,
 	EWorldType::Type WorldType,
 	const FSceneView& View,
+	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
-	const TArray<FHairGroupInstance*>& Instances,
 	FRDGTextureRef SceneColorTexture,
 	FIntRect Viewport,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
@@ -810,8 +812,10 @@ void RunHairStrandsDebug(
 			Line = FString::Printf(TEXT("Registered hair groups count : %d"), Instances.Num());
 			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
 
-			for (FHairGroupInstance* Instance : Instances)
+			for (FHairStrandsInstance* AbstractInstance : Instances)
 			{
+				FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
 				const bool bIsActive = Instance->WorldType == WorldType;
 				if (!bIsActive)
 					continue;
@@ -871,8 +875,10 @@ void RunHairStrandsDebug(
 			auto RenderProjectionData = [&GraphBuilder, ShaderMap, Viewport, &ViewUniformBuffer, Instances, WorldType, SkinCache, &bClearDepth, SceneColorTexture, DepthTexture](EHairStrandsInterpolationType StrandType, bool bRestTriangle, bool bRestFrame, bool bDeformedTriangle, bool bDeformedFrame)
 			{
 				TArray<int32> HairLODIndices;
-				for (FHairGroupInstance* Instance : Instances)
+				for (FHairStrandsInstance* AbstractInstance : Instances)
 				{
+					FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
 					if (Instance->WorldType != WorldType || !Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr || Instance->BindingType != EHairBindingType::Skinning)
 						continue;
 
@@ -986,22 +992,28 @@ void RunHairStrandsDebug(
 
 	if (GHairCardsVoxelDebug > 0)
 	{
-		for (FHairGroupInstance* Instance : Instances)
+		for (FHairStrandsInstance* AbstractInstance : Instances)
 		{
+			FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
 			AddVoxelPlainRaymarchingPass(GraphBuilder, View, ShaderMap, Instance, ShaderDrawData, SceneColorTexture);
 		}
 	}
 
 	if (GHairCardsAtlasDebug > 0)
 	{
-		for (FHairGroupInstance* Instance : Instances)
+		for (FHairStrandsInstance* AbstractInstance : Instances)
 		{
+			FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
 			AddDrawDebugCardsAtlasPass(GraphBuilder, View, ShaderMap, Instance, ShaderDrawData, SceneColorTexture);
 		}
 	}
 
-	for (FHairGroupInstance* Instance : Instances)
+	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
+		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
 		if (GHairCardsGuidesDebug_Ren > 0 || Instance->Debug.bDrawCardsGuides)
 			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderDrawData, Instance->Debug.bDrawCardsGuides ? false : GHairCardsGuidesDebug_Ren == 1, true);
 		if (GHairCardsGuidesDebug_Sim > 0)

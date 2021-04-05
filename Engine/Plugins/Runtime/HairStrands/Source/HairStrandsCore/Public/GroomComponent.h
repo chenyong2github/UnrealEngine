@@ -93,6 +93,7 @@ public:
 	virtual void OnUnregister() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	virtual void BeginDestroy() override;
+	virtual void FinishDestroy() override;
 	virtual void OnAttachmentChanged() override;
 	virtual void DetachFromComponent(const FDetachmentTransformRules& DetachmentRules) override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
@@ -195,6 +196,7 @@ public:
 
 private:
 	TArray<FHairGroupInstance*> HairGroupInstances;
+	TArray<FHairGroupInstance*> DeferredDeleteHairGroupInstances;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
@@ -210,6 +212,7 @@ protected:
 	virtual void OnChildDetached(USceneComponent* ChildComponent) override;
 
 private:
+	void DeleteDeferredHairGroupInstances();
 	void* InitializedResources;
 	class UMeshComponent* RegisteredMeshComponent;
 	FVector SkeletalPreviousPositionOffset;

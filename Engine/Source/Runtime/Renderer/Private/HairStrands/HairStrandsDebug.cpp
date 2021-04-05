@@ -1044,6 +1044,7 @@ static void AddDrawDebugClusterPass(
 uint32 GetHairStrandsMeanSamplePerPixel();
 static void InternalRenderHairStrandsDebugInfo(
 	FRDGBuilder& GraphBuilder,
+	FScene* Scene,
 	FViewInfo& View,
 	const struct FHairStrandClusterData& HairClusterData,
 	FRDGTextureRef SceneColorTexture)
@@ -1066,7 +1067,7 @@ static void InternalRenderHairStrandsDebugInfo(
 	const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
 
 	{
-		FHairStrandsBookmarkParameters Params = CreateHairStrandsBookmarkParameters(View);
+		FHairStrandsBookmarkParameters Params = CreateHairStrandsBookmarkParameters(Scene, View);
 		Params.SceneColorTexture = SceneColorTexture;
 		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessDebug, Params);
 	}
@@ -1365,6 +1366,7 @@ static void InternalRenderHairStrandsDebugInfo(
 
 void RenderHairStrandsDebugInfo(
 	FRDGBuilder& GraphBuilder,
+	FScene* Scene,
 	TArrayView<FViewInfo> Views,
 	const struct FHairStrandClusterData& HairClusterData,
 	FRDGTextureRef SceneColorTexture)
@@ -1374,7 +1376,7 @@ void RenderHairStrandsDebugInfo(
 	{
 		if (HairStrands::HasViewHairStrandsData(View))
 		{
-			InternalRenderHairStrandsDebugInfo(GraphBuilder, View, HairClusterData, SceneColorTexture);
+			InternalRenderHairStrandsDebugInfo(GraphBuilder, Scene, View, HairClusterData, SceneColorTexture);
 		}
 	}
 }

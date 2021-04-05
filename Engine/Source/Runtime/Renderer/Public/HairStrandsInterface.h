@@ -132,6 +132,19 @@ enum EHairInterpolationType
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Public group data 
+
+struct RENDERER_API FHairStrandsInstance
+{
+	virtual ~FHairStrandsInstance() = default;
+	uint32 GetRefCount() const;
+	uint32 AddRef() const;
+	uint32 Release() const;
+	int32 RegisteredIndex = -1;
+protected:
+	mutable uint32 RefCount = 0;
+};
+typedef RENDERER_API TArray<FHairStrandsInstance*> FHairStrandsInstances;
+
 class RENDERER_API FHairGroupPublicData : public FRenderResource
 {
 public:
@@ -416,6 +429,7 @@ struct FHairStrandsBookmarkParameters
 	class FGlobalShaderMap* ShaderMap = nullptr;
 
 	FIntRect ViewRect; // View 0
+	FHairStrandsInstances* Instances = nullptr;
 	const FSceneView* View = nullptr;// // View 0
 	TArray<const FSceneView*> AllViews;
 	FRDGTextureRef SceneColorTexture{};

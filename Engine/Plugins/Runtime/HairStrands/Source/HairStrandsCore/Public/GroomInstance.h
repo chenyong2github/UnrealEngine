@@ -37,7 +37,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters> FHairCardsUniformBuffer;
 
 // Represent/Describe data & resources of a hair group belonging to a groom
-struct HAIRSTRANDSCORE_API FHairGroupInstance
+struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 {
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// Helper struct which aggregate strands based data/resources

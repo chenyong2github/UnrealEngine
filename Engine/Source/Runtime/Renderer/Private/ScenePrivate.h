@@ -90,6 +90,7 @@ class FRuntimeVirtualTextureSceneProxy;
 class FLumenSceneData;
 class FVirtualShadowMapArrayCacheManager;
 class FComputeFramework;
+struct FHairStrandsInstance;
 
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
@@ -1671,6 +1672,13 @@ public:
 	void ResizeCubemapArrayGPU(uint32 InMaxCubemaps, int32 InCubemapSize);
 };
 
+/** Scene state used to manage hair strands. */
+class FHairStrandsSceneData
+{
+public:
+	TArray<FHairStrandsInstance*> RegisteredProxies;
+};
+
 class FVolumetricLightmapInterpolation
 {
 public:
@@ -2712,6 +2720,9 @@ public:
 	/** State needed for the reflection environment feature. */
 	FReflectionEnvironmentSceneData ReflectionSceneData;
 
+	/** The hair strands in the scene. */
+	FHairStrandsSceneData HairStrandsSceneData;
+
 	/** 
 	 * Precomputed lighting volumes in the scene, used for interpolating dynamic object lighting.
 	 * These are typically one per streaming level and they store volume lighting samples computed by Lightmass. 
@@ -2926,6 +2937,9 @@ public:
 	virtual void AddExponentialHeightFog(UExponentialHeightFogComponent* FogComponent) override;
 	virtual void RemoveExponentialHeightFog(UExponentialHeightFogComponent* FogComponent) override;
 	virtual bool HasAnyExponentialHeightFog() const override;
+
+	virtual void AddHairStrands(FHairStrandsInstance* Proxy) override;
+	virtual void RemoveHairStrands(FHairStrandsInstance* Proxy) override;
 
 	virtual void AddSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, bool bStaticLightingBuilt) override;
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override;

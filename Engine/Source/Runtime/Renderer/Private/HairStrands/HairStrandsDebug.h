@@ -11,6 +11,7 @@
 
 void RenderHairStrandsDebugInfo(
 	FRDGBuilder& GraphBuilder,
+	FScene* Scene, 
 	TArrayView<FViewInfo> Views,
 	const struct FHairStrandClusterData& HairClusterData,
 	FRDGTextureRef SceneColorTexture);

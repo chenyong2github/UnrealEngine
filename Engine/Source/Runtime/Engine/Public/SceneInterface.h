@@ -35,6 +35,7 @@ class FViewInfo;
 class FSceneRenderer;
 class FComputeFramework;
 class FInstanceCullingManager;
+struct FHairStrandsInstance;
 
 enum EBasePassDrawListType
 {
@@ -309,6 +310,20 @@ public:
 	 * @param VolumetricCloudSceneProxy - the sky atmosphere proxy
 	 */
 	virtual void RemoveVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) = 0;
+
+	/**
+	 * Adds a hair strands proxy to the scene
+	 *
+	 * @param Proxy - the hair strands proxy
+	 */
+	virtual void AddHairStrands(FHairStrandsInstance* Proxy) = 0;
+
+	/**
+	 * Removes a hair strands proxy to the scene
+	 *
+	 * @param Proxy - the hair strands proxy
+	 */
+	virtual void RemoveHairStrands(FHairStrandsInstance* Proxy) = 0;
 
 	/**
 	 * Set the physics field scene proxy to the scene

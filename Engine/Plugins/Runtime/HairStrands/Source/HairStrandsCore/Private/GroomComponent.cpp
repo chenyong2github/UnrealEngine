@@ -606,12 +606,53 @@ public:
 
 	virtual ~FHairStrandsSceneProxy()
 	{
-
 	}
 	
+	/**
+	 *	Called when the rendering thread adds the proxy to the scene.
+	 *	This function allows for generating renderer-side resources.
+	 *	Called in the rendering thread.
+	 */
+	virtual void CreateRenderThreadResources() 
+	{
+		FPrimitiveSceneProxy::CreateRenderThreadResources();
+
+		// Register the data to the scene
+		FSceneInterface& LocalScene = GetScene();
+		TArray<FHairGroupInstance*> LocalInstances = HairGroupInstances;
+		for (FHairGroupInstance* Instance : LocalInstances)
+		{
+			if (Instance->IsValid() || Instance->Strands.ClusterCullingResource)
+			{
+				check(Instance->HairGroupPublicData != nullptr);
+				Instance->AddRef();
+				LocalScene.AddHairStrands(Instance);
+			}
+		}
+	}
+
+	/**
+	 *	Called when the rendering thread removes the proxy from the scene.
+	 *	This function allows for removing renderer-side resources.
+	 *	Called in the rendering thread.
+	 */
 	virtual void DestroyRenderThreadResources() override
 	{
 		FPrimitiveSceneProxy::DestroyRenderThreadResources();
+
+		// Unregister the data to the scene
+		FSceneInterface& LocalScene = GetScene();
+		TArray<FHairGroupInstance*> LocalInstances = HairGroupInstances;
+		for (FHairGroupInstance* Instance : LocalInstances)
+		{
+			if (Instance->IsValid() || Instance->Strands.ClusterCullingResource)
+			{
+				check(Instance->GetRefCount() > 0);
+				LocalScene.RemoveHairStrands(Instance);
+				Instance->Release();
+			}
+		}
+
 		CardsAndMeshesVertexFactories.ReleaseResources();
 		StrandsVertexFactory.ReleaseResource();
 	}
@@ -663,6 +704,7 @@ public:
 			const FHairGroup& GroupData = HairGroups[GroupIt];
 
 			FHairGroupInstance* Instance = HairGroupInstances[GroupIt];
+			check(Instance->GetRefCount() > 0);
 			FMatrix OverrideLocalToWorld = GetLocalToWorld();
 			GetOverrideLocalToTransform(Instance, OverrideLocalToWorld);
 
@@ -756,6 +798,8 @@ public:
 			{
 				for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 				{
+					check(Instances[GroupIt]->GetRefCount() > 0);
+
 					FMaterialRenderProxy* Strands_MaterialProxy = nullptr;
 					const EHairStrandsDebugMode DebugMode = GetHairStrandsGeometryDebugMode(Instances[GroupIt]);
 					if (DebugMode != EHairStrandsDebugMode::NoneDebug)
@@ -821,6 +865,8 @@ public:
 		{
 			return nullptr;
 		}
+
+		check(Instance->GetRefCount());
 
 		const int32 IntLODIndex = Instance->HairGroupPublicData->GetIntLODIndex();
 		const FVertexFactory* VertexFactory = nullptr;
@@ -957,6 +1003,7 @@ public:
 		const uint32 GroupCount = Instances.Num();
 		for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 		{
+			check(Instances[GroupIt]->GetRefCount());
 			const EHairGeometryType GeometryType = Instances[GroupIt]->GeometryType;
 			const FHairGroup& GroupData = HairGroups[GroupIt];
 			bUseCardsOrMesh = bUseCardsOrMesh || GeometryType == EHairGeometryType::Cards || GeometryType == EHairGeometryType::Meshes;
@@ -1409,6 +1456,8 @@ void UGroomComponent::UpdateHairGroupsDescAndInvalidateRenderState()
 
 FPrimitiveSceneProxy* UGroomComponent::CreateSceneProxy()
 {
+	DeleteDeferredHairGroupInstances();
+
 	if (!GroomAsset || GroomAsset->GetNumHairGroups() == 0 || HairGroupInstances.Num() == 0)
 		return nullptr;
 
@@ -2003,6 +2052,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
 		FHairGroupInstance* HairGroupInstance = new FHairGroupInstance();
+		HairGroupInstance->AddRef();
 		HairGroupInstances.Add(HairGroupInstance);
 		HairGroupInstance->WorldType = WorldType;
 		HairGroupInstance->Debug.ComponentId = ComponentId.PrimIDValue;
@@ -2349,22 +2399,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	{
 		return;
 	}
-
-	TArray<FHairGroupInstance*> LocalInstances = HairGroupInstances;
-	ENQUEUE_RENDER_COMMAND(FHairStrandsBuffers)(
-	[ LocalInstances ] (FRHICommandListImmediate& RHICmdList)
-	{
-		const uint32 GroupCount = LocalInstances.Num();
-		for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
-		{
-			FHairGroupInstance* HairGroupInstance = LocalInstances[GroupIt];
-			// An empty groom doesn't have a ClusterCullingResource and shouldn't be registered
-			if (HairGroupInstance->IsValid() || HairGroupInstance->Strands.ClusterCullingResource)
-			{
-				RegisterHairStrands(HairGroupInstance);
-			}
-		}
-	});
 }
 
 template<typename T>
@@ -2380,23 +2414,36 @@ void InternalResourceRelease(T*& In)
 
 void UGroomComponent::ReleaseResources()
 {
-	// Unregister component interpolation resources
-	const FPrimitiveComponentId LocalComponentId = ComponentId;
-	const uint32 Id = LocalComponentId.PrimIDValue;
-	ENQUEUE_RENDER_COMMAND(StaticMeshVertexBuffersLegacyInit)(
-		[Id](FRHICommandListImmediate& RHICmdList)
-	{
-		UnregisterHairStrands(Id);
-	});
 
+	FHairStrandsSceneProxy* GroomSceneProxy = (FHairStrandsSceneProxy*)SceneProxy;
 	InitializedResources = nullptr;
-	for (FHairGroupInstance* Instance : HairGroupInstances)
+
+	// Deferring instances deletion to insure scene proxy are done with the rendering data
+	DeferredDeleteHairGroupInstances = HairGroupInstances;
+	HairGroupInstances.Empty();
+
+	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
+	if (RegisteredMeshComponent)
+	{
+		RemoveTickPrerequisiteComponent(RegisteredMeshComponent);
+	}
+	SkeletalPreviousPositionOffset = FVector::ZeroVector;
+	RegisteredMeshComponent = nullptr;
+
+	MarkRenderStateDirty();
+}
+
+void UGroomComponent::DeleteDeferredHairGroupInstances()
+{
+	FHairStrandsSceneProxy* GroomSceneProxy = (FHairStrandsSceneProxy*)SceneProxy;
+	for (FHairGroupInstance* Instance : DeferredDeleteHairGroupInstances)
 	{
 		FHairGroupInstance* LocalInstance = Instance;
 		ENQUEUE_RENDER_COMMAND(FHairStrandsBuffers)(
-		[LocalInstance](FRHICommandListImmediate& RHICmdList)
+		[LocalInstance, GroomSceneProxy](FRHICommandListImmediate& RHICmdList)
 		{
-			// Release the root resources only if they have been created internally (vs. being created by external asset)
+			// Sanity check
+			check(LocalInstance->GetRefCount() == 1);
 
 			// Guides
 			if (LocalInstance->Guides.IsValid())
@@ -2450,20 +2497,11 @@ void UGroomComponent::ReleaseResources()
 			}
 
 			InternalResourceRelease(LocalInstance->HairGroupPublicData);
+			LocalInstance->Release();
 			delete LocalInstance;
 		});
 	}
-	HairGroupInstances.Empty();
-
-	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
-	if (RegisteredMeshComponent)
-	{
-		RemoveTickPrerequisiteComponent(RegisteredMeshComponent);
-	}
-	SkeletalPreviousPositionOffset = FVector::ZeroVector;
-	RegisteredMeshComponent = nullptr;
-
-	MarkRenderStateDirty();
+	DeferredDeleteHairGroupInstances.Empty();
 }
 
 void UGroomComponent::PostLoad()
@@ -2565,9 +2603,16 @@ void UGroomComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void UGroomComponent::FinishDestroy()
+{
+	DeleteDeferredHairGroupInstances();
+	Super::FinishDestroy();
+}
+
 void UGroomComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	ReleaseResources();
+	DeleteDeferredHairGroupInstances();
 
 #if WITH_EDITOR
 	if (bIsGroomAssetCallbackRegistered && GroomAsset)
