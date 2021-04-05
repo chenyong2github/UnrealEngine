@@ -39,6 +39,13 @@ void UAxisPositionGizmo::Setup()
 	bInInteraction = false;
 }
 
+void UAxisPositionGizmo::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	if (GizmoObject)
+	{
+		GizmoObject->Render(RenderAPI);
+	}
+}
 
 FInputRayHit UAxisPositionGizmo::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
 {
@@ -86,6 +93,11 @@ void UAxisPositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 	ParameterSource->BeginModify();
 
 	bInInteraction = true;
+
+	if (HitTarget)
+	{
+		HitTarget->UpdateInteractingState(bInInteraction);
+	}
 
 	if (StateTarget)
 	{
@@ -136,6 +148,11 @@ void UAxisPositionGizmo::OnClickRelease(const FInputDeviceRay& ReleasePos)
 		StateTarget->EndUpdate();
 	}
 	bInInteraction = false;
+
+	if (HitTarget)
+	{
+		HitTarget->UpdateInteractingState(bInInteraction);
+	}
 }
 
 
@@ -149,6 +166,11 @@ void UAxisPositionGizmo::OnTerminateDragSequence()
 		StateTarget->EndUpdate();
 	}
 	bInInteraction = false;
+
+	if (HitTarget)
+	{
+		HitTarget->UpdateInteractingState(bInInteraction);
+	}
 }
 
 

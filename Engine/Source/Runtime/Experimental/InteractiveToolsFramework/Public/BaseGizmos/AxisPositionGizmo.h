@@ -47,6 +47,7 @@ public:
 	// UInteractiveGizmo overrides
 
 	virtual void Setup() override;
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	// IClickDragBehaviorTarget implementation
 
@@ -83,6 +84,11 @@ public:
 	/** The mouse click behavior of the gizmo is accessible so that it can be modified to use different mouse keys. */
 	UPROPERTY()
 	TObjectPtr<UClickDragInputBehavior> MouseBehavior;
+
+	/** Optional object used to render the gizmo. */
+	UPROPERTY()
+	TObjectPtr<UGizmoBaseObject> GizmoObject;
+
 
 public:
 	/** If enabled, then the sign on the parameter delta is always "increasing" when moving away from the origin point, rather than just being a projection onto the axis */
