@@ -128,21 +128,13 @@ FUniqueBuffer FUniqueBuffer::MakeView(void* Data, uint64 Size)
 	return FUniqueBuffer(new BufferOwnerPrivate::FBufferOwnerView(Data, Size));
 }
 
-FUniqueBuffer FUniqueBuffer::MakeUnique(FSharedBuffer&& Buffer)
-{
-	OwnerPtrType ExistingOwner = ToPrivateOwnerPtr(MoveTemp(Buffer));
-	if (!ExistingOwner || (ExistingOwner->IsOwned() && ExistingOwner->GetTotalRefCount() == 1))
-	{
-		return FUniqueBuffer(MoveTemp(ExistingOwner));
-	}
-	else
-	{
-		return Clone(ExistingOwner->GetData(), ExistingOwner->GetSize());
-	}
-}
-
 FUniqueBuffer::FUniqueBuffer(FBufferOwner* InOwner)
 	: Owner(InOwner)
+{
+}
+
+FUniqueBuffer::FUniqueBuffer(BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>&& SharedOwner)
+	: Owner(MoveTemp(SharedOwner))
 {
 }
 
@@ -164,16 +156,21 @@ void FUniqueBuffer::Materialize() const
 	}
 }
 
+FSharedBuffer FUniqueBuffer::MoveToShared()
+{
+	return FSharedBuffer(ToPrivateOwnerPtr(MoveTemp(*this)));
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FSharedBuffer FSharedBuffer::Clone(FMemoryView View)
 {
-	return FSharedBuffer(FUniqueBuffer::Clone(View));
+	return FUniqueBuffer::Clone(View).MoveToShared();
 }
 
 FSharedBuffer FSharedBuffer::Clone(const void* Data, uint64 Size)
 {
-	return FSharedBuffer(FUniqueBuffer::Clone(Data, Size));
+	return FUniqueBuffer::Clone(Data, Size).MoveToShared();
 }
 
 FSharedBuffer FSharedBuffer::MakeView(FMemoryView View)
@@ -229,6 +226,11 @@ FSharedBuffer::FSharedBuffer(FBufferOwner* InOwner)
 {
 }
 
+FSharedBuffer::FSharedBuffer(BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>&& SharedOwner)
+	: Owner(MoveTemp(SharedOwner))
+{
+}
+
 FSharedBuffer::FSharedBuffer(const BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FWeakOps>& WeakOwner)
 	: Owner(WeakOwner)
 {
@@ -254,6 +256,19 @@ void FSharedBuffer::Materialize() const
 	if (Owner)
 	{
 		Owner->Materialize();
+	}
+}
+
+FUniqueBuffer FSharedBuffer::MoveToUnique()
+{
+	OwnerPtrType ExistingOwner = ToPrivateOwnerPtr(MoveTemp(*this));
+	if (!ExistingOwner || (ExistingOwner->IsOwned() && ExistingOwner->GetTotalRefCount() == 1))
+	{
+		return FUniqueBuffer(MoveTemp(ExistingOwner));
+	}
+	else
+	{
+		return FUniqueBuffer::Clone(ExistingOwner->GetData(), ExistingOwner->GetSize());
 	}
 }
 

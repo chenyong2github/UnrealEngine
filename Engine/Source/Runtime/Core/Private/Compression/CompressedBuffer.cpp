@@ -142,7 +142,7 @@ public:
 		FUniqueBuffer HeaderData = FUniqueBuffer::Alloc(sizeof(FHeader));
 		const FMutableMemoryView HeaderDataView = HeaderData;
 
-		FCompositeBuffer CompressedData(FSharedBuffer(MoveTemp(HeaderData)), RawData.MakeOwned());
+		FCompositeBuffer CompressedData(HeaderData.MoveToShared(), RawData.MakeOwned());
 		Header.Write(HeaderDataView);
 		Header.Crc32 = CalculateCrc32(Header, CompressedData);
 		Header.Write(HeaderDataView);
@@ -264,7 +264,7 @@ FCompositeBuffer FMethodBlock::Compress(const FCompositeBuffer& RawData, const u
 	CompressedDataView.Mid(sizeof(FHeader), MetaSize).CopyFrom(MakeMemoryView(CompressedBlockSizes));
 
 	const FMemoryView CompositeView = CompressedDataView.Left(sizeof(FHeader) + MetaSize + CompressedSize);
-	const FCompositeBuffer Composite(FSharedBuffer::MakeView(CompositeView, FSharedBuffer(MoveTemp(CompressedData))));
+	const FCompositeBuffer Composite(FSharedBuffer::MakeView(CompositeView, CompressedData.MoveToShared()));
 
 	FHeader Header;
 	Header.Method = GetMethod();
@@ -289,7 +289,7 @@ FCompositeBuffer FMethodBlock::Decompress(const FHeader& Header, const FComposit
 	if (!CompressedData.IsOwned())
 	{
 		FUniqueBuffer Buffer = FUniqueBuffer::Alloc(Header.TotalRawSize);
-		return TryDecompressTo(Header, CompressedData, Buffer) ? FCompositeBuffer(FSharedBuffer(MoveTemp(Buffer))) : FCompositeBuffer();
+		return TryDecompressTo(Header, CompressedData, Buffer) ? FCompositeBuffer(Buffer.MoveToShared()) : FCompositeBuffer();
 	}
 
 	TArray64<uint32> CompressedBlockSizes;
@@ -315,7 +315,7 @@ FCompositeBuffer FMethodBlock::Decompress(const FHeader& Header, const FComposit
 		}
 		FUniqueBuffer RawDataBuffer = FUniqueBuffer::Alloc(RawDataSize);
 		RawDataView = RawDataBuffer;
-		RawData = FSharedBuffer(MoveTemp(RawDataBuffer));
+		RawData = RawDataBuffer.MoveToShared();
 	}
 
 	// Decompress the compressed data in blocks and reference the uncompressed blocks.
@@ -622,7 +622,7 @@ FSharedBuffer FCompressedBuffer::Decompress() const
 			FUniqueBuffer RawData = FUniqueBuffer::Alloc(Header.TotalRawSize);
 			if (Method->TryDecompressTo(Header, CompressedData, RawData))
 			{
-				return FSharedBuffer(MoveTemp(RawData));
+				return RawData.MoveToShared();
 			}
 		}
 	}

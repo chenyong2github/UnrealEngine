@@ -55,7 +55,7 @@ bool FVirtualizationWrapperTestBasic::RunTest(const FString& Parameters)
 
 	// Create a new bulkdata object and copy by assignment (note we assign some junk data that will get overwritten)
 	FByteVirtualizedBulkData BulkDataAssignment;
-	BulkDataAssignment.UpdatePayload(FSharedBuffer(FUniqueBuffer::Alloc(128)));
+	BulkDataAssignment.UpdatePayload(FUniqueBuffer::Alloc(128).MoveToShared());
 	BulkDataAssignment = BulkData;
 
 	// Test both bulkdata objects
@@ -129,7 +129,7 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 		{
 			FUniqueBuffer EditablePayload = FUniqueBuffer::Clone(Payload);
 			FMemory::Memset(EditablePayload.GetData(), NewValue, EditablePayload.GetSize());
-			EditedPayload = MoveTemp(EditablePayload);
+			EditedPayload = EditablePayload.MoveToShared();
 		}
 
 		// Update the bulkdata object with the new edited payload

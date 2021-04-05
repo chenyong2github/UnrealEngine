@@ -90,7 +90,7 @@ FCbFieldIterator FCbWriter::Save() const
 	const uint64 Size = GetSaveSize();
 	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(Size);
 	const FCbFieldViewIterator Output = Save(Buffer);
-	return FCbFieldIterator::MakeRangeView(Output, FSharedBuffer(MoveTemp(Buffer)));
+	return FCbFieldIterator::MakeRangeView(Output, Buffer.MoveToShared());
 }
 
 FCbFieldViewIterator FCbWriter::Save(const FMutableMemoryView Buffer) const

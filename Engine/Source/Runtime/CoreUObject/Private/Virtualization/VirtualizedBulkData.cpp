@@ -254,7 +254,7 @@ bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FSharedBuffer& InP
 
 		if (Ar.IsLoading())
 		{
-			InPayload = FSharedBuffer(MoveTemp(LoadPayload));
+			InPayload = LoadPayload.MoveToShared();
 		}
 
 		return true;

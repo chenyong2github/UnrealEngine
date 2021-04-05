@@ -1094,7 +1094,7 @@ public:
 			FUniqueBuffer MutableBuffer = FUniqueBuffer::Alloc(ViewType::GetSize());
 			ViewType::CopyTo(MutableBuffer);
 			ViewType::operator=(ViewType(MutableBuffer.GetData()));
-			Buffer = MoveTemp(MutableBuffer);
+			Buffer = MutableBuffer.MoveToShared();
 		}
 	}
 

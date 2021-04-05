@@ -186,7 +186,7 @@ FCbField LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
 	{
 		Ar.Serialize(View.GetData(), static_cast<int64>(View.GetSize()));
 	}
-	return FCbField(FSharedBuffer(MoveTemp(Buffer)));
+	return FCbField(Buffer.MoveToShared());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

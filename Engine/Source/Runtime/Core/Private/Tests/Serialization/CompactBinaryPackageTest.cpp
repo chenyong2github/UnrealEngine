@@ -207,7 +207,7 @@ bool FCbAttachmentTest::RunTest(const FString& Parameters)
 
 	// Binary Empty
 	{
-		const FCbAttachment Attachment(FSharedBuffer(FUniqueBuffer::Alloc(0)));
+		const FCbAttachment Attachment(FUniqueBuffer::Alloc(0).MoveToShared());
 		TestTrue(TEXT("FCbAttachment(BinaryEmpty).IsNull()"), Attachment.IsNull());
 		TestFalse(TEXT("FCbAttachment(BinaryEmpty).IsBinary()"), Attachment.IsBinary());
 		TestFalse(TEXT("FCbAttachment(BinaryEmpty).IsCompactBinary()"), Attachment.IsCompactBinary());

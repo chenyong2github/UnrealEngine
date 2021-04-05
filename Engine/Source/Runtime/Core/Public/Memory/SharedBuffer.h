@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/ContainersFwd.h"
+#include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Invoke.h"
@@ -193,7 +194,7 @@ private:
  * A reference to a single-ownership mutable buffer.
  *
  * Ownership can be transferred by moving to FUniqueBuffer or it can be converted to an immutable
- * shared buffer by moving to FSharedBuffer.
+ * shared buffer with MoveToShared().
  *
  * @see FBufferOwner
  */
@@ -228,14 +229,6 @@ public:
 	template <typename DeleteFunctionType,
 		decltype(Invoke(std::declval<DeleteFunctionType>(), std::declval<void*>(), std::declval<uint64>()))* = nullptr>
 	UE_NODISCARD static inline FUniqueBuffer TakeOwnership(void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction);
-
-	/**
-	 * Make a unique buffer from a shared buffer.
-	 *
-	 * Steals the buffer owner from the shared buffer if this is the last reference to it, otherwise
-	 * clones the shared buffer to guarantee unique ownership. An non-owned buffer is always cloned.
-	 */
-	UE_NODISCARD CORE_API static FUniqueBuffer MakeUnique(FSharedBuffer&& Buffer);
 
 	/** Construct a null unique buffer. */
 	FUniqueBuffer() = default;
@@ -291,13 +284,22 @@ public:
 	 */
 	CORE_API void Materialize() const;
 
+	/**
+	 * Convert this to an immutable shared buffer, leaving this null.
+	 *
+	 * Steals the buffer owner from the unique buffer.
+	 */
+	UE_NODISCARD CORE_API FSharedBuffer MoveToShared();
+
+	friend class FSharedBuffer;
+
 private:
+	explicit FUniqueBuffer(BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>&& SharedOwner);
+
 	using OwnerPtrType = BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>;
 
 	inline friend const OwnerPtrType& ToPrivateOwnerPtr(const FUniqueBuffer& Buffer) { return Buffer.Owner; }
 	inline friend OwnerPtrType ToPrivateOwnerPtr(FUniqueBuffer&& Buffer) { return MoveTemp(Buffer.Owner); }
-
-	inline explicit FUniqueBuffer(OwnerPtrType&& InOwner) : Owner(MoveTemp(InOwner)) {}
 
 	OwnerPtrType Owner;
 };
@@ -350,19 +352,6 @@ public:
 	/** Construct a shared buffer from a new unreferenced buffer owner. */
 	CORE_API explicit FSharedBuffer(FBufferOwner* Owner);
 
-	/** Construct a shared buffer from a unique buffer, making it immutable. */
-	inline explicit FSharedBuffer(FUniqueBuffer&& Buffer)
-		: Owner(ToPrivateOwnerPtr(MoveTemp(Buffer)))
-	{
-	}
-
-	/** Assign a shared buffer from a unique buffer, making it immutable. */
-	inline FSharedBuffer& operator=(FUniqueBuffer&& Buffer)
-	{
-		Owner = ToPrivateOwnerPtr(MoveTemp(Buffer));
-		return *this;
-	}
-
 	/** Reset this to null. */
 	CORE_API void Reset();
 
@@ -403,10 +392,20 @@ public:
 	 */
 	CORE_API void Materialize() const;
 
+	/**
+	 * Convert this to a unique buffer, leaving this null.
+	 *
+	 * Steals the buffer owner from the shared buffer if this is the last reference to it, otherwise
+	 * clones the shared buffer to guarantee unique ownership. A non-owned buffer is always cloned.
+	 */
+	UE_NODISCARD CORE_API FUniqueBuffer MoveToUnique();
+
+	friend class FUniqueBuffer;
 	friend class FWeakSharedBuffer;
 
 private:
-	FSharedBuffer(const BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FWeakOps>& WeakOwner);
+	explicit FSharedBuffer(BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>&& SharedOwner);
+	explicit FSharedBuffer(const BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FWeakOps>& WeakOwner);
 
 	using OwnerPtrType = BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>;
 

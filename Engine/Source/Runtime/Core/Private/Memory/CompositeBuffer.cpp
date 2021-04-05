@@ -46,7 +46,7 @@ FSharedBuffer FCompositeBuffer::Flatten() const &
 	default:
 		FUniqueBuffer Buffer = FUniqueBuffer::Alloc(GetSize());
 		Algo::TransformAccumulate(Segments, &FSharedBuffer::GetView, Buffer.GetView(), &FMutableMemoryView::CopyFrom);
-		return FSharedBuffer(MoveTemp(Buffer));
+		return Buffer.MoveToShared();
 	}
 }
 

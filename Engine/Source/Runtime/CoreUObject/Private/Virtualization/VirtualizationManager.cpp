@@ -80,7 +80,7 @@ FSharedBuffer FVirtualizationManager::PullData(const FGuid& Guid)
 
 	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(DataLength);
 	FileAr->Serialize(Buffer.GetData(), DataLength);
-	return FSharedBuffer(MoveTemp(Buffer));
+	return Buffer.MoveToShared();
 }
 
 void FVirtualizationManager::LoadSettingsFromConfigFiles()

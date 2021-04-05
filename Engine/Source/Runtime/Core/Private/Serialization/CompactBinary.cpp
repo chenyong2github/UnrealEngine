@@ -917,7 +917,7 @@ FCbFieldIterator FCbFieldIterator::CloneRange(const FCbFieldViewIterator& It)
 	{
 		FUniqueBuffer Buffer = FUniqueBuffer::Alloc(It.GetRangeSize());
 		It.CopyRangeTo(Buffer);
-		return MakeRange(FSharedBuffer(MoveTemp(Buffer)));
+		return MakeRange(Buffer.MoveToShared());
 	}
 }
 
