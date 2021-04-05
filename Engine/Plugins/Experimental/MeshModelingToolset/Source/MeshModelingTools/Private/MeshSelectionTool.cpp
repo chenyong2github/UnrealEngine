@@ -1258,6 +1258,10 @@ void UMeshSelectionTool::DeleteSelectedTriangles()
 	{
 		return;
 	}
+	if (SelectedFaces.Num() >= PreviewMesh->GetMesh()->TriangleCount())
+	{
+		return;
+	}
 
 	TUniquePtr<FToolCommandChangeSequence> ChangeSeq = MakeUnique<FToolCommandChangeSequence>();
 
