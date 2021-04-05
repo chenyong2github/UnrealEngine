@@ -295,14 +295,6 @@ static FORCEINLINE EShaderFrequency GetShaderFrequency(FRHIGraphicsShader* Shade
 	case SF_Vertex:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Vertex);
 		return SF_Vertex;
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case SF_Hull:
-		VALIDATE_BOUND_SHADER(ShaderRHI, Hull);
-		return SF_Hull;
-	case SF_Domain:
-		VALIDATE_BOUND_SHADER(ShaderRHI, Domain);
-		return SF_Domain;
-#endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	case SF_Geometry:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Geometry);
@@ -325,14 +317,6 @@ static FORCEINLINE CrossCompiler::EShaderStage GetShaderCrossCompilerStage(FRHIG
 	case SF_Vertex:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Vertex);
 		return CrossCompiler::SHADER_STAGE_VERTEX;
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case SF_Hull:
-		VALIDATE_BOUND_SHADER(ShaderRHI, Hull);
-		return CrossCompiler::SHADER_STAGE_HULL;
-	case SF_Domain:
-		VALIDATE_BOUND_SHADER(ShaderRHI, Domain);
-		return CrossCompiler::SHADER_STAGE_DOMAIN;
-#endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	case SF_Geometry:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Geometry);
@@ -357,18 +341,6 @@ static FORCEINLINE void GetShaderStageIndexAndMaxUnits(FRHIGraphicsShader* Shade
 		OutIndex = FOpenGL::GetFirstVertexTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxVertexTextureImageUnits();
 		break;
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case SF_Hull:
-		VALIDATE_BOUND_SHADER(ShaderRHI, Hull);
-		OutIndex = FOpenGL::GetFirstHullTextureUnit();
-		OutMaxUnits = FOpenGL::GetMaxHullTextureImageUnits();
-		break;
-	case SF_Domain:
-		VALIDATE_BOUND_SHADER(ShaderRHI, Domain);
-		OutIndex = FOpenGL::GetFirstDomainTextureUnit();
-		OutMaxUnits = FOpenGL::GetMaxDomainTextureImageUnits();
-		break;
-#endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	case SF_Geometry:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Geometry);
@@ -2497,8 +2469,6 @@ template <EShaderFrequency Frequency>
 uint32 GetFirstTextureUnit();
 
 template <> FORCEINLINE uint32 GetFirstTextureUnit<SF_Vertex>() { return FOpenGL::GetFirstVertexTextureUnit(); }
-template <> FORCEINLINE uint32 GetFirstTextureUnit<SF_Hull>() { return FOpenGL::GetFirstHullTextureUnit(); }
-template <> FORCEINLINE uint32 GetFirstTextureUnit<SF_Domain>() { return FOpenGL::GetFirstDomainTextureUnit(); }
 template <> FORCEINLINE uint32 GetFirstTextureUnit<SF_Pixel>() { return FOpenGL::GetFirstPixelTextureUnit(); }
 template <> FORCEINLINE uint32 GetFirstTextureUnit<SF_Geometry>() { return FOpenGL::GetFirstGeometryTextureUnit(); }
 template <> FORCEINLINE uint32 GetFirstTextureUnit<SF_Compute>() { return FOpenGL::GetFirstComputeTextureUnit(); }
@@ -2507,8 +2477,6 @@ template <EShaderFrequency Frequency>
 uint32 GetNumTextureUnits();
 
 template <> FORCEINLINE uint32 GetNumTextureUnits<SF_Vertex>() { return FOpenGL::GetMaxVertexTextureImageUnits(); }
-template <> FORCEINLINE uint32 GetNumTextureUnits<SF_Hull>() { return FOpenGL::GetMaxHullTextureImageUnits(); }
-template <> FORCEINLINE uint32 GetNumTextureUnits<SF_Domain>() { return FOpenGL::GetMaxDomainTextureImageUnits(); }
 template <> FORCEINLINE uint32 GetNumTextureUnits<SF_Pixel>() { return FOpenGL::GetMaxTextureImageUnits(); }
 template <> FORCEINLINE uint32 GetNumTextureUnits<SF_Geometry>() { return FOpenGL::GetMaxGeometryTextureImageUnits(); }
 template <> FORCEINLINE uint32 GetNumTextureUnits<SF_Compute>() { return FOpenGL::GetMaxComputeTextureImageUnits(); }
@@ -2664,20 +2632,6 @@ void FOpenGLDynamicRHI::CommitGraphicsResourceTablesInner()
 			SetResourcesFromTables(Shader);
 		}
 	}
-	if (PendingState.DirtyUniformBuffers[SF_Hull])
-	{
-		if (auto* Shader = PendingState.BoundShaderState->GetHullShader())
-		{
-			SetResourcesFromTables(Shader);
-		}
-	}
-	if (PendingState.DirtyUniformBuffers[SF_Domain])
-	{
-		if (auto* Shader = PendingState.BoundShaderState->GetDomainShader())
-		{
-			SetResourcesFromTables(Shader);
-		}
-	}
 	if (PendingState.DirtyUniformBuffers[SF_Geometry])
 	{
 		if (auto* Shader = PendingState.BoundShaderState->GetGeometryShader())
@@ -2767,13 +2721,8 @@ void FOpenGLDynamicRHI::RHIDrawPrimitive(uint32 BaseVertexIndex,uint32 NumPrimit
 	GLenum DrawMode = GL_TRIANGLES;
 	GLsizei NumElements = 0;
 	GLint PatchSize = 0;
-	FindPrimitiveType(PrimitiveType, ContextState.bUsingTessellation, NumPrimitives, DrawMode, NumElements, PatchSize);
+	FindPrimitiveType(PrimitiveType, NumPrimitives, DrawMode, NumElements, PatchSize);
 
-	if (FOpenGL::SupportsTessellation() && DrawMode == GL_PATCHES )
-	{
-		FOpenGL::PatchParameteri(GL_PATCH_VERTICES, PatchSize);
-	}
-	
 #if DEBUG_GL_SHADERS
 	VerifyProgramPipeline();
 #endif
@@ -2822,12 +2771,7 @@ void FOpenGLDynamicRHI::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRHI, 
 		GLenum DrawMode = GL_TRIANGLES;
 		GLsizei NumElements = 0;
 		GLint PatchSize = 0;
-		FindPrimitiveType(PrimitiveType, ContextState.bUsingTessellation, 0, DrawMode, NumElements, PatchSize);
-
-		if (FOpenGL::SupportsTessellation() && DrawMode == GL_PATCHES )
-		{
-			FOpenGL::PatchParameteri(GL_PATCH_VERTICES, PatchSize);
-		} 
+		FindPrimitiveType(PrimitiveType, 0, DrawMode, NumElements, PatchSize);
 
 		FOpenGLBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
@@ -2880,12 +2824,7 @@ void FOpenGLDynamicRHI::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FRHIB
 		GLenum DrawMode = GL_TRIANGLES;
 		GLsizei NumElements = 0;
 		GLint PatchSize = 0;
-		FindPrimitiveType(PrimitiveType, ContextState.bUsingTessellation, 0, DrawMode, NumElements, PatchSize);
-
-		if (FOpenGL::SupportsTessellation() && DrawMode == GL_PATCHES )
-		{
-			FOpenGL::PatchParameteri(GL_PATCH_VERTICES, PatchSize);
-		} 
+		FindPrimitiveType(PrimitiveType, 0, DrawMode, NumElements, PatchSize);
 
 		GLenum IndexType = IndexBuffer->GetStride() == sizeof(uint32) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
 
@@ -2973,12 +2912,7 @@ void FOpenGLDynamicRHI::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, int3
 	GLenum DrawMode = GL_TRIANGLES;
 	GLsizei NumElements = 0;
 	GLint PatchSize = 0;
-	FindPrimitiveType(PrimitiveType, ContextState.bUsingTessellation, NumPrimitives, DrawMode, NumElements, PatchSize);
-
-	if (FOpenGL::SupportsTessellation() && DrawMode == GL_PATCHES )
-	{
-		FOpenGL::PatchParameteri(GL_PATCH_VERTICES, PatchSize);
-	}
+	FindPrimitiveType(PrimitiveType, NumPrimitives, DrawMode, NumElements, PatchSize);
 
 	GLenum IndexType = IndexBuffer->GetStride() == sizeof(uint32) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
 	StartIndex *= IndexBuffer->GetStride() == sizeof(uint32) ? sizeof(uint32) : sizeof(uint16);
@@ -3041,12 +2975,7 @@ void FOpenGLDynamicRHI::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBufferR
 		GLenum DrawMode = GL_TRIANGLES;
 		GLsizei NumElements = 0;
 		GLint PatchSize = 0;
-		FindPrimitiveType(PrimitiveType, ContextState.bUsingTessellation, 0, DrawMode, NumElements, PatchSize);
-
-		if (FOpenGL::SupportsTessellation() && DrawMode == GL_PATCHES )
-		{
-			FOpenGL::PatchParameteri(GL_PATCH_VERTICES, PatchSize);
-		} 
+		FindPrimitiveType(PrimitiveType, 0, DrawMode, NumElements, PatchSize);
 
 		GLenum IndexType = IndexBuffer->GetStride() == sizeof(uint32) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
 

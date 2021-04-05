@@ -188,8 +188,6 @@ void FOpenGLES::ProcessQueryGLInt()
 	MaxVertexUniformComponents = FMath::Max<GLint>(MaxVertexUniformComponents, RequiredMaxVertexUniformComponents);
 	MaxGeometryUniformComponents = 0;
 	MaxGeometryTextureImageUnits = 0;
-	MaxHullTextureImageUnits = 0;
-	MaxDomainTextureImageUnits = 0;
 
 	// Set lowest possible limits for texture units, to avoid extra work in GL RHI
 	MaxTextureImageUnits = FMath::Min(MaxTextureImageUnits, 16);

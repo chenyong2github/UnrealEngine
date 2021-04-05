@@ -41,7 +41,6 @@ struct FOpenGL3 : public FOpenGLBase
 	static FORCEINLINE bool SupportsVolumeTextureRendering()		{ return bSupportsVolumeTextureRendering; }
 	static FORCEINLINE bool SupportsGenerateMipmap()				{ return true; }
 	static FORCEINLINE bool AmdWorkaround()							{ return bAmdWorkaround; }
-	static FORCEINLINE bool SupportsTessellation()					{ return bSupportsTessellation; }
 	static FORCEINLINE bool SupportsSeparateShaderObjects()			{ return bSupportsSeparateShaderObjects; }
 	static FORCEINLINE bool SupportsBufferStorage()					{ return true; }
 
@@ -783,7 +782,6 @@ protected:
 	static GLint TimestampQueryBits;
 	
 	static bool bDebugContext;
-	static bool bSupportsTessellation;
 	static bool bSupportsSeparateShaderObjects;
 	static bool bAndroidGLESCompatibilityMode;
 };

@@ -365,7 +365,7 @@ inline uint32 FindMaxMipmapLevel(uint32 Width, uint32 Height, uint32 Depth)
 	return FindMaxMipmapLevel((Width > Height) ? Width : Height, Depth);
 }
 
-inline void FindPrimitiveType(uint32 InPrimitiveType, bool bUsingTessellation, uint32 InNumPrimitives, GLenum &DrawMode, GLsizei &NumElements, GLint &PatchSize)
+inline void FindPrimitiveType(uint32 InPrimitiveType, uint32 InNumPrimitives, GLenum &DrawMode, GLsizei &NumElements, GLint &PatchSize)
 {
 	DrawMode = GL_TRIANGLES;
 	NumElements = InNumPrimitives;
@@ -374,30 +374,18 @@ inline void FindPrimitiveType(uint32 InPrimitiveType, bool bUsingTessellation, u
 	switch (InPrimitiveType)
 	{
 	case PT_TriangleList:
-		if (bUsingTessellation) // see GetD3D11PrimitiveType
-		{ 
-			DrawMode = GL_PATCHES;
-			PatchSize = 3;
-			NumElements = InNumPrimitives * PatchSize;
-		}
-		else
-		{
-			DrawMode = GL_TRIANGLES;
-			NumElements = InNumPrimitives * 3;
-		}
+		DrawMode = GL_TRIANGLES;
+		NumElements = InNumPrimitives * 3;
 		break;
 	case PT_TriangleStrip:
-		check(!bUsingTessellation);
 		DrawMode = GL_TRIANGLE_STRIP;
 		NumElements = InNumPrimitives + 2;
 		break;
 	case PT_LineList:
-		check(!bUsingTessellation);
 		DrawMode = GL_LINES;
 		NumElements = InNumPrimitives * 2;
 		break;
 	case PT_PointList:
-		check(!bUsingTessellation);
 		DrawMode = GL_POINTS;
 		NumElements = InNumPrimitives;
 		break;

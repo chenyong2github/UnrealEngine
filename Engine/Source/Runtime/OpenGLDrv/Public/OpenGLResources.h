@@ -358,8 +358,6 @@ private:
 typedef TOpenGLResourceProxy<FRHIVertexShader, FOpenGLVertexShader> FOpenGLVertexShaderProxy;
 typedef TOpenGLResourceProxy<FRHIPixelShader, FOpenGLPixelShader> FOpenGLPixelShaderProxy;
 typedef TOpenGLResourceProxy<FRHIGeometryShader, FOpenGLGeometryShader> FOpenGLGeometryShaderProxy;
-typedef TOpenGLResourceProxy<FRHIHullShader, FOpenGLHullShader> FOpenGLHullShaderProxy;
-typedef TOpenGLResourceProxy<FRHIDomainShader, FOpenGLDomainShader> FOpenGLDomainShaderProxy;
 typedef TOpenGLResourceProxy<FRHIComputeShader, FOpenGLComputeShader> FOpenGLComputeShaderProxy;
 
 
@@ -1161,8 +1159,6 @@ public:
 	TRefCountPtr<FOpenGLVertexShaderProxy> VertexShaderProxy;
 	TRefCountPtr<FOpenGLPixelShaderProxy> PixelShaderProxy;
 	TRefCountPtr<FOpenGLGeometryShaderProxy> GeometryShaderProxy;
-	TRefCountPtr<FOpenGLHullShaderProxy> HullShaderProxy;
-	TRefCountPtr<FOpenGLDomainShaderProxy> DomainShaderProxy;
 
 	/** Initialization constructor. */
 	FOpenGLBoundShaderState(
@@ -1194,8 +1190,6 @@ public:
 	}
 
 	FOpenGLGeometryShader* GetGeometryShader()	{ return GeometryShaderProxy ? GeometryShaderProxy->GetGLResourceObject() : nullptr;}
-	FOpenGLHullShader* GetHullShader()	{ return HullShaderProxy ? HullShaderProxy->GetGLResourceObject() : nullptr; }
-	FOpenGLDomainShader* GetDomainShader()	{ return DomainShaderProxy ? DomainShaderProxy->GetGLResourceObject() : nullptr;}
 
 	virtual ~FOpenGLBoundShaderState();
 };
@@ -2289,16 +2283,6 @@ template<>
 struct TOpenGLResourceTraits<FRHIGeometryShader>
 {
 	typedef FOpenGLGeometryShaderProxy TConcreteType;
-};
-template<>
-struct TOpenGLResourceTraits<FRHIHullShader>
-{
-	typedef FOpenGLHullShaderProxy TConcreteType;
-};
-template<>
-struct TOpenGLResourceTraits<FRHIDomainShader>
-{
-	typedef FOpenGLDomainShaderProxy TConcreteType;
 };
 template<>
 struct TOpenGLResourceTraits<FRHIPixelShader>

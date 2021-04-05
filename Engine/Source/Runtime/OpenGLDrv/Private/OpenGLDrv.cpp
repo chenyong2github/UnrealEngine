@@ -401,15 +401,11 @@ GLint FOpenGLBase::MaxTextureImageUnits = -1;
 GLint FOpenGLBase::MaxCombinedTextureImageUnits = -1;
 GLint FOpenGLBase::MaxVertexTextureImageUnits = -1;
 GLint FOpenGLBase::MaxGeometryTextureImageUnits = -1;
-GLint FOpenGLBase::MaxHullTextureImageUnits = -1;
-GLint FOpenGLBase::MaxDomainTextureImageUnits = -1;
 GLint FOpenGLBase::MaxVaryingVectors = -1;
 GLint FOpenGLBase::TextureBufferAlignment = -1;
 GLint FOpenGLBase::MaxVertexUniformComponents = -1;
 GLint FOpenGLBase::MaxPixelUniformComponents = -1;
 GLint FOpenGLBase::MaxGeometryUniformComponents = -1;
-GLint FOpenGLBase::MaxHullUniformComponents = -1;
-GLint FOpenGLBase::MaxDomainUniformComponents = -1;
 bool  FOpenGLBase::bSupportsClipControl = false;
 bool  FOpenGLBase::bSupportsASTC = false;
 bool  FOpenGLBase::bSupportsCopyImage = false;
@@ -439,8 +435,6 @@ void FOpenGLBase::ProcessExtensions( const FString& ExtensionsString )
 		MaxTextureImageUnits = MaxTextureImageUnits > 16 ? 16 : MaxTextureImageUnits;
 		MaxVertexTextureImageUnits = MaxVertexTextureImageUnits > 8 ? 8 : MaxVertexTextureImageUnits;
 		MaxGeometryTextureImageUnits = MaxGeometryTextureImageUnits > 8 ? 8 : MaxGeometryTextureImageUnits;
-		MaxHullTextureImageUnits = 0;
-		MaxDomainTextureImageUnits = 0;
 		MaxCombinedTextureImageUnits = MaxCombinedTextureImageUnits > 32 ? 32 : MaxCombinedTextureImageUnits;
 	}
 	else
@@ -451,8 +445,6 @@ void FOpenGLBase::ProcessExtensions( const FString& ExtensionsString )
 			MaxTextureImageUnits = MaxTextureImageUnits > 16 ? 16 : MaxTextureImageUnits;
 			MaxVertexTextureImageUnits = MaxVertexTextureImageUnits > 8 ? 8 : MaxVertexTextureImageUnits;
 			MaxGeometryTextureImageUnits = MaxGeometryTextureImageUnits > 8 ? 8 : MaxGeometryTextureImageUnits;
-			MaxHullTextureImageUnits = MaxHullTextureImageUnits > 8 ? 8 : MaxHullTextureImageUnits;
-			MaxDomainTextureImageUnits = MaxDomainTextureImageUnits > 8 ? 8 : MaxDomainTextureImageUnits;
 			MaxCombinedTextureImageUnits = MaxCombinedTextureImageUnits > 48 ? 48 : MaxCombinedTextureImageUnits;
 		}
 	}

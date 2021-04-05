@@ -330,7 +330,6 @@ struct FOpenGLContextState : public FOpenGLCommonState
 	uint32							RenderTargetHeight;
 	GLuint							OcclusionQuery;
 	GLuint							Program;
-	bool							bUsingTessellation;
 	GLuint 							UniformBuffers[CrossCompiler::NUM_SHADER_STAGES*OGL_MAX_UNIFORM_BUFFER_BINDINGS];
 	GLuint 							UniformBufferOffsets[CrossCompiler::NUM_SHADER_STAGES*OGL_MAX_UNIFORM_BUFFER_BINDINGS];
 	TArray<FOpenGLSamplerState*>	CachedSamplerStates;
@@ -380,7 +379,6 @@ struct FOpenGLContextState : public FOpenGLCommonState
 	:	StencilRef(0)
 	,	Framebuffer(0)
 	,	Program(0)
-	,	bUsingTessellation(false)
 	,	ActiveTexture(GL_TEXTURE0)
 	,	bScissorEnabled(false)
 	,	DepthMinZ(0.0f)
