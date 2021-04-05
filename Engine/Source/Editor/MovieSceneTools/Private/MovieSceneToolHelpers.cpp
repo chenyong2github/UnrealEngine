@@ -2228,12 +2228,14 @@ bool MovieSceneToolHelpers::ImportFBXIntoControlRigChannels(UMovieScene* MovieSc
 	bool bOldbConvertScene = ImportOptions->bConvertScene;
 	bool bOldbConvertSceneUnit = ImportOptions->bConvertSceneUnit;
 	bool bOldbForceFrontXAxis = ImportOptions->bForceFrontXAxis;
+	float OldUniformScale = ImportOptions->ImportUniformScale;
 	EFBXAnimationLengthImportType OldAnimLengthType = ImportOptions->AnimationLengthImportType;
 
 
 	ImportOptions->bConvertScene = true;
-	ImportOptions->bConvertSceneUnit = true;
+	ImportOptions->bConvertSceneUnit = ImportFBXControlRigSettings->bConvertSceneUnit;
 	ImportOptions->bForceFrontXAxis = ImportFBXControlRigSettings->bForceFrontXAxis;
+	ImportOptions->ImportUniformScale = ImportFBXControlRigSettings->ImportUniformScale;
 	ImportOptions->AnimationLengthImportType = FBXALIT_ExportedTime;
 
 	const FString FileExtension = FPaths::GetExtension(ImportFilename);
@@ -2252,7 +2254,9 @@ bool MovieSceneToolHelpers::ImportFBXIntoControlRigChannels(UMovieScene* MovieSc
 		FObjectWriter(CurrentImportFBXSettings, OriginalSettings);
 
 		CurrentImportFBXSettings->bMatchByNameOnly = false;
+		CurrentImportFBXSettings->bConvertSceneUnit = ImportFBXControlRigSettings->bConvertSceneUnit;
 		CurrentImportFBXSettings->bForceFrontXAxis = ImportFBXControlRigSettings->bForceFrontXAxis;
+		CurrentImportFBXSettings->ImportUniformScale = ImportFBXControlRigSettings->ImportUniformScale;
 		CurrentImportFBXSettings->bCreateCameras = false;
 		CurrentImportFBXSettings->bReduceKeys = false;
 		CurrentImportFBXSettings->ReduceKeysTolerance = 0.01f;
@@ -2346,7 +2350,7 @@ bool MovieSceneToolHelpers::ImportFBXIntoControlRigChannels(UMovieScene* MovieSc
 	ImportOptions->bConvertScene = bOldbConvertScene;
 	ImportOptions->bConvertSceneUnit = bOldbConvertSceneUnit;
 	ImportOptions->bForceFrontXAxis = bOldbForceFrontXAxis;
-	ImportOptions->bForceFrontXAxis = bOldbForceFrontXAxis;
+	ImportOptions->ImportUniformScale = OldUniformScale;;
 	return bValid;
 }
 
@@ -3091,11 +3095,13 @@ bool MovieSceneToolHelpers::ReadyFBXForImport(const FString&  ImportFilename, UM
 	OutParams.bConvertSceneBackup = ImportOptions->bConvertScene;
 	OutParams.bConvertSceneUnitBackup = ImportOptions->bConvertSceneUnit;
 	OutParams.bForceFrontXAxisBackup = ImportOptions->bForceFrontXAxis;
+	OutParams.ImportUniformScaleBackup = ImportOptions->ImportUniformScale;
 
 	ImportOptions->bIsImportCancelable = false;
 	ImportOptions->bConvertScene = true;
-	ImportOptions->bConvertSceneUnit = true;
+	ImportOptions->bConvertSceneUnit = ImportFBXSettings->bConvertSceneUnit;
 	ImportOptions->bForceFrontXAxis = ImportFBXSettings->bForceFrontXAxis;
+	ImportOptions->ImportUniformScale = ImportFBXSettings->ImportUniformScale;
 
 	const FString FileExtension = FPaths::GetExtension(ImportFilename);
 	if (!FbxImporter->ImportFromFile(*ImportFilename, FileExtension, true))
@@ -3105,6 +3111,7 @@ bool MovieSceneToolHelpers::ReadyFBXForImport(const FString&  ImportFilename, UM
 		ImportOptions->bConvertScene = OutParams.bConvertSceneBackup;
 		ImportOptions->bConvertSceneUnit = OutParams.bConvertSceneUnitBackup;
 		ImportOptions->bForceFrontXAxis = OutParams.bForceFrontXAxisBackup;
+		ImportOptions->ImportUniformScale = OutParams.ImportUniformScaleBackup;
 		return false;
 	}
 	return true;
@@ -3123,6 +3130,9 @@ bool ImportFBXOntoControlRigs(UWorld* World, UMovieScene* MovieScene, IMovieScen
 	CurrentImportFBXSettings->bCreateCameras = ImportFBXSettings->bCreateCameras;
 	CurrentImportFBXSettings->bReduceKeys = ImportFBXSettings->bReduceKeys;
 	CurrentImportFBXSettings->ReduceKeysTolerance = ImportFBXSettings->ReduceKeysTolerance;
+	CurrentImportFBXSettings->bConvertSceneUnit = ImportFBXSettings->bConvertSceneUnit;
+	CurrentImportFBXSettings->ImportUniformScale = ImportFBXSettings->ImportUniformScale;
+
 
 	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
 
@@ -3143,7 +3153,8 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieSceneSequence*
 	CurrentImportFBXSettings->bCreateCameras = ImportFBXSettings->bCreateCameras;
 	CurrentImportFBXSettings->bReduceKeys = ImportFBXSettings->bReduceKeys;
 	CurrentImportFBXSettings->ReduceKeysTolerance = ImportFBXSettings->ReduceKeysTolerance;
-
+	CurrentImportFBXSettings->bConvertSceneUnit = ImportFBXSettings->bConvertSceneUnit;
+	CurrentImportFBXSettings->ImportUniformScale = ImportFBXSettings->ImportUniformScale;
 	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
 
 	UnFbx::FFbxCurvesAPI CurveAPI;
@@ -3229,6 +3240,7 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieSceneSequence*
 	ImportOptions->bConvertScene = InParams.bConvertSceneBackup;
 	ImportOptions->bConvertSceneUnit = InParams.bConvertSceneUnitBackup;
 	ImportOptions->bForceFrontXAxis = InParams.bForceFrontXAxisBackup;
+	ImportOptions->ImportUniformScale = InParams.ImportUniformScaleBackup;
 	return true;
 }
 
