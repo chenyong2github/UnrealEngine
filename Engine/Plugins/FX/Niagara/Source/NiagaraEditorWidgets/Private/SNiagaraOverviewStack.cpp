@@ -31,6 +31,7 @@
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SToolTip.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
