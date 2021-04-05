@@ -670,6 +670,7 @@ namespace UnrealBuildTool
 					case CppStandardVersion.Cpp17:
 						Arguments.Add("/std:c++17");
 						break;
+					case CppStandardVersion.Cpp20:
 					case CppStandardVersion.Latest:
 						Arguments.Add("/std:c++latest");
 						break;
