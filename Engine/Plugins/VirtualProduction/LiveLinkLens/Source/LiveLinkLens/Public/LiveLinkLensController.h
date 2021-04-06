@@ -5,7 +5,7 @@
 #include "LiveLinkControllerBase.h"
 
 #include "CineCameraComponent.h"
-#include "LensDistortionDataHandler.h"
+#include "LensDistortionModelHandlerBase.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 #include "LiveLinkLensController.generated.h"
@@ -47,14 +47,13 @@ protected:
 	void CleanupDistortion();
 
 protected:
-
 	/** Whether or not to apply a post-process distortion effect directly to the attached CineCamera */
 	UPROPERTY(EditAnywhere, Category = "Lens Distortion")
 	bool bApplyDistortion = false;
 
 	/** Cached distortion handler associated with attached camera component */
 	UPROPERTY(EditAnywhere, Category = "Lens Distortion", Transient)
-	ULensDistortionDataHandler* LensDistortionHandler = nullptr;
+	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
 
 	/** Cached distortion MID the handler produced. Used to clean up old one in case it changes */
 	UPROPERTY(Transient)

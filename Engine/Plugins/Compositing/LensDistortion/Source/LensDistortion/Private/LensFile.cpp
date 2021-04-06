@@ -75,7 +75,7 @@ void ULensFile::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& P
 
 #endif //WITH_EDITOR
 
-bool ULensFile::EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionParameters& OutEvaluatedValue)
+bool ULensFile::EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionInfo& OutEvaluatedValue)
 {
 	if (DistortionMapping.Num() <= 0)
 	{
@@ -84,7 +84,7 @@ bool ULensFile::EvaluateDistortionParameters(float InFocus, float InZoom, FDisto
 
 	if (DistortionMapping.Num() == 1)
 	{
-		OutEvaluatedValue = DistortionMapping[0].Parameters;
+		OutEvaluatedValue = DistortionMapping[0].DistortionInfo;
 		return true;
 	}
 
@@ -92,7 +92,7 @@ bool ULensFile::EvaluateDistortionParameters(float InFocus, float InZoom, FDisto
 	const bool bSuccess = LensInterpolationUtils::FIZMappingBilinearInterpolation<FDistortionMapPoint>(InFocus, InZoom, DistortionMapping, InterpPoint);
 	if (bSuccess)
 	{
-		OutEvaluatedValue = MoveTemp(InterpPoint.Parameters);
+		OutEvaluatedValue = MoveTemp(InterpPoint.DistortionInfo);
 	}
 
 	return bSuccess;
@@ -135,11 +135,11 @@ bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, UTextureRend
 		return false;
 	}
 
-	if(DataMode == ELensDataMode::Coefficients)
+	if(DataMode == ELensDataMode::Parameters)
 	{
 		if(DistortionMapping.Num() <= 0)
 		{
-			UE_LOG(LogLensDistortion, Warning, TEXT("Can't evaluate LensFile '%s' - No distortion coefficients"), *GetName());
+			UE_LOG(LogLensDistortion, Warning, TEXT("Can't evaluate LensFile '%s' - No distortion parameters"), *GetName());
 			return false;
 		}
 	}
@@ -458,6 +458,43 @@ void ULensFile::UpdateDerivedData()
 		}
 	}
 }
+
+#if WITH_EDITOR
+void ULensFile::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	const FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensInfo, LensModel))
+	{
+		uint32 NumDistortionParameters = 0;
+		if (LensInfo.LensModel)
+		{
+			NumDistortionParameters = LensInfo.LensModel->GetDefaultObject<ULensModel>()->GetNumParameters();
+		}
+
+		for (FDistortionMapPoint& MapPoint : DistortionMapping)
+		{
+			MapPoint.DistortionInfo.Parameters.Empty();
+			MapPoint.DistortionInfo.Parameters.Init(0.0f, NumDistortionParameters);
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensFile, DistortionMapping))
+	{
+		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
+		{
+			uint32 NumDistortionParameters = 0;
+			if (LensInfo.LensModel)
+			{
+				NumDistortionParameters = LensInfo.LensModel->GetDefaultObject<ULensModel>()->GetNumParameters();
+			}
+
+			FDistortionMapPoint& MapPoint = DistortionMapping.Last();
+			MapPoint.DistortionInfo.Parameters.Init(0.0f, NumDistortionParameters);
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif	
 
 ULensFile* FLensFilePicker::GetLensFile() const
 {

@@ -4,10 +4,12 @@
 
 #include "Engine/AssetUserData.h"
 
+#include "CoreMinimal.h"
 #include "LensData.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Models/LensModel.h"
 
-#include "LensDistortionDataHandler.generated.h"
+#include "LensDistortionModelHandlerBase.generated.h"
 
 USTRUCT(BlueprintType)
 struct LENSDISTORTION_API FLensDistortionState
@@ -15,13 +17,9 @@ struct LENSDISTORTION_API FLensDistortionState
 	GENERATED_BODY()
 
 public:
-	/** Lens Model describing how to interpret the distortion parameters */
+	/** Generic array of distortion parameters */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
-	ELensModel LensModel = ELensModel::Spherical;
-
-	/** Coefficients of the distortion model */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
-	FDistortionParameters DistortionParameters;
+	FDistortionInfo DistortionInfo;
 
 	/** Normalized center of the image, in the range [0.0f, 1.0f] */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
@@ -41,15 +39,15 @@ public:
 };
 
 /** Asset user data that can be used on Camera Actors to manage lens distortion state and utilities  */
-UCLASS(BlueprintType)
-class LENSDISTORTION_API ULensDistortionDataHandler : public UAssetUserData
+UCLASS(Abstract)
+class LENSDISTORTION_API ULensDistortionModelHandlerBase : public UAssetUserData
 {
 	GENERATED_BODY()
 
 public:
-	/** Get the first instance of a LensDistortionDataHandler object belonging to the input component */
+	/** Returns true if the input model is supported by this model handler, false otherwise. */
 	UFUNCTION(BlueprintCallable, Category = "Distortion")
-	static ULensDistortionDataHandler* GetLensDistortionDataHandler(UActorComponent* InComponentWithUserData);
+	bool IsModelSupported(const TSubclassOf<ULensModel>& ModelToSupport) const;
 
 	/** Update the lens distortion state, recompute the overscan factor, and set all material parameters */
 	UFUNCTION(BlueprintCallable, Category = "Distortion")
@@ -68,7 +66,7 @@ public:
 	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif	
 	//~ End UObject Interface
 
@@ -78,17 +76,11 @@ public:
 	/** Get the computed overscan factor needed to scale the camera's sensor dimensions */
 	float GetOverscanFactor() const { return OverscanFactor; }
 
-	/** Updates overscan factor and applies to material instances */
-	void UpdateOverscanFactor(float OverscanFactor);
-
 	/** Get the post-process MID for the currently specified lens model */
 	UMaterialInstanceDynamic* GetDistortionMID() const { return DistortionPostProcessMID; }
 
 	/** Get the specified lens model that characterizes the distortion effect */
-	ELensModel GetLensModel() const { return CurrentState.LensModel; };
-
-	/** Get the coefficients of the distortion model */
-	FDistortionParameters GetDistortionParameters() const { return CurrentState.DistortionParameters; }
+	const TSubclassOf<ULensModel>& GetLensModelClass() const { return LensModelClass; };
 
 	/** Get the normalized center of projection of the image, in the range [0.0f, 1.0f] */
 	FVector2D GetPrincipalPoint() const { return CurrentState.PrincipalPoint; }
@@ -99,15 +91,27 @@ public:
 	/** Get the focal length of the camera, in millimeters */
 	float GetFocalLength() const { return CurrentState.FocalLength; }
 
-private:
+	/** Updates overscan factor and applies to material instances */
+	void UpdateOverscanFactor(float OverscanFactor);
+
+protected:
+	/** Initialize the handler. Derived classes must set the LensModelClass that they support, if not already set */
+	virtual void InitializeHandler() PURE_VIRTUAL(ULensDistortionModelHandlerBase::InitializeHandler);
+
 	/** Use the current distortion state to compute the distortion position of an input UV coordinate */
-	FVector2D ComputeDistortedUV(const FVector2D& InScreenUV) const;
+	virtual FVector2D ComputeDistortedUV(const FVector2D& InScreenUV) const PURE_VIRTUAL(ULensDistortionModelHandlerBase::ComputeDistortedUV, return FVector2D::ZeroVector;);
 
 	/** Use the current distortion state to compute the overscan factor needed such that all distorted UVs will fall into the valid range of [0,1] */
 	float ComputeOverscanFactor() const;
 
 	/** Create the distortion MIDs */
-	void InitDistortionMaterials();
+	virtual void InitDistortionMaterials() PURE_VIRTUAL(ULensDistortionModelHandlerBase::InitDistortionMaterials);
+
+	/** Set the material parameters for the displacement map and distortion post-process materials */
+	virtual void UpdateMaterialParameters() PURE_VIRTUAL(ULensDistortionModelHandlerBase::UpdateMaterialParameters);
+
+	/** Convert the generic distortion parameter array into the specific structure of parameters used by the supported lens model */
+	virtual void InterpretDistortionParameters() PURE_VIRTUAL(ULensDistortionModelHandlerBase::InterpretDistortionParameters);
 
 	/** Update the lens distortion state, recompute the overscan factor, and set all material parameters */
 	void UpdateInternal(const FLensDistortionState& InNewState);
@@ -118,6 +122,10 @@ public:
 	UMaterialInstanceDynamic* DistortionPostProcessMID = nullptr;
 
 protected:
+	/** Lens Model describing how to interpret the distortion parameters */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Distortion")
+	TSubclassOf<ULensModel> LensModelClass;
+
 	/** Current state as set by the most recent call to Update() */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Distortion", meta = (ShowOnlyInnerProperties))
 	FLensDistortionState CurrentState;
@@ -126,7 +134,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
 	float OverscanFactor = 1.0f;
 
-private:
 	/** MID used to draw a UV distortion displacement map to the DisplacementMapRT */
 	UPROPERTY(Transient)
 	UMaterialInstanceDynamic* DisplacementMapMID = nullptr;

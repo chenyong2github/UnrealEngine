@@ -22,7 +22,7 @@ class FLensFilePreComputeDataProcessor;
 UENUM()
 enum class ELensDataMode : uint8
 {
-	Coefficients = 0,
+	Parameters = 0,
 	STMap = 1
 };
 
@@ -92,7 +92,7 @@ public:
 	float Zoom = 0.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Distortion")
-	FDistortionParameters Parameters;
+	FDistortionInfo DistortionInfo;
 
 private:
 
@@ -248,7 +248,7 @@ public:
 	//~ End FTickableGameObject
 	
 	/** Returns interpolated distortion parameters based on input focus and zoom */
-	bool EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionParameters& OutEvaluatedValue);
+	bool EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionInfo& OutEvaluatedValue);
 
 	/** Returns interpolated intrinsic parameters based on input focus and zoom */
 	bool EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrinsicParameters& OutEvaluatedValue);
@@ -280,6 +280,12 @@ public:
 	/** Callbacked when stmap derived data has completed */
 	void OnDistortionDerivedDataJobCompleted(const FDerivedDistortionDataJobOutput& JobOutput);
 
+	//~ Begin UObject Interface
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif	
+	//~ End UObject Interface
+
 protected:
 
 	/** Updates derived data entries to make sure it matches what is assigned in map points based on data mode */
@@ -296,10 +302,10 @@ public:
 
 	/** Type of data used for lens mapping */
 	UPROPERTY(EditAnywhere, Category="Lens mapping")
-	ELensDataMode DataMode = ELensDataMode::Coefficients;
+	ELensDataMode DataMode = ELensDataMode::Parameters;
 	
 	/** Mapping between FIZ data and distortion parameters (k1, k2...) */
-	UPROPERTY(EditAnywhere, Category="FIZ map", meta = (EditCondition = "DataMode == ELensDataMode::Coefficients"))
+	UPROPERTY(EditAnywhere, Category="FIZ map", meta = (EditCondition = "DataMode == ELensDataMode::Parameters"))
 	TArray<FDistortionMapPoint> DistortionMapping;
 
 	/** Mapping between FIZ data and intrinsic parameters (focal length, center shift) */

@@ -2,6 +2,7 @@
 
 #include "LiveLinkLensController.h"
 
+#include "LensDistortionSubsystem.h"
 #include "LiveLinkLensRole.h"
 #include "LiveLinkLensTypes.h"
 #include "Logging/LogMacros.h"
@@ -18,6 +19,10 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 	{
 		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
 		{
+			ULensDistortionSubsystem* SubSystem = GEngine->GetEngineSubsystem<ULensDistortionSubsystem>();
+			TSubclassOf<ULensModel> LensModel = SubSystem->GetRegisteredLensModel(StaticData->LensModel);
+			LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(CineCameraComponent, LensModel);
+
 			//To keep track of an updated MID from the handler
 			UMaterialInstanceDynamic* NewDistortionMID = nullptr;
 
@@ -25,14 +30,13 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 
 			if (LensDistortionHandler)
 			{
-				/** Update the lens distortion handler with the latest frame of data from the LiveLink source */
+				// Update the lens distortion handler with the latest frame of data from the LiveLink source
 				FLensDistortionState DistortionState;
 
-				DistortionState.LensModel = StaticData->LensModel;
-				DistortionState.DistortionParameters = FrameData->DistortionParameters;
+				DistortionState.DistortionInfo = FrameData->DistortionInfo;
 				DistortionState.PrincipalPoint = FrameData->PrincipalPoint;
 
-				/** The sensor dimensions must be the original dimensions of the source camera (with no overscan applied) */
+				// The sensor dimensions must be the original dimensions of the source camera (with no overscan applied)
 				DistortionState.SensorDimensions = FVector2D(OriginalCameraFilmback.SensorWidth, OriginalCameraFilmback.SensorHeight);
 				DistortionState.FocalLength = FrameData->FocalLength;
 
@@ -40,7 +44,7 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 
 				NewDistortionMID = LensDistortionHandler->GetDistortionMID();
 
-				/** Get the computed overscan factor and scale the camera's sensor dimensions to simulate a wider FOV */
+				// Get the computed overscan factor and scale the camera's sensor dimensions to simulate a wider FOV
 				if (bApplyDistortion)
 				{
 					const float OverscanFactor = LensDistortionHandler->GetOverscanFactor();
@@ -58,13 +62,13 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 			//Stamp last MID used for distortion
 			LastDistortionMID = NewDistortionMID;
 
-			/** If distortion should be applied to the attached cinecamera, fetch the distortion MID from the Lens Distortion Handler and add it to the camera's post-process materials */
+			// If distortion should be applied to the attached cinecamera, fetch the distortion MID from the Lens Distortion Handler and add it to the camera's post-process materials
 			if (bApplyDistortion && (bIsDistortionSetup == false))
 			{
 				CineCameraComponent->AddOrUpdateBlendable(LastDistortionMID);
 				bIsDistortionSetup = true;
 			}
-			/** If distortion should not be applied, remove the distortion MID from the camera's post process materials */
+			// If distortion should not be applied, remove the distortion MID from the camera's post process materials
 			else if (bIsDistortionSetup && (bApplyDistortion == false))
 			{
 				CleanupDistortion();
@@ -98,6 +102,8 @@ void ULiveLinkLensController::SetAttachedComponent(UActorComponent* ActorCompone
 	
 	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
 	{
+		LastCameraFilmback = CineCameraComponent->Filmback;
+
 		//When our component has changed, make sure we update our 
 		//cached/original filmback to restore it correctly
 		//PIE case is odd because the camera is duplicated from editor and its filmback will already be distorted
@@ -108,7 +114,6 @@ void ULiveLinkLensController::SetAttachedComponent(UActorComponent* ActorCompone
 		}
 
 		UpdateDistortionHandler(CineCameraComponent);
-		LastCameraFilmback = CineCameraComponent->Filmback;
 	}
 }
 
@@ -141,7 +146,7 @@ void ULiveLinkLensController::PostEditChangeProperty(struct FPropertyChangedEven
 			else
 			{
 				CineCameraComponent->Filmback = OriginalCameraFilmback;
-				LensDistortionHandler = nullptr;
+//				LensDistortionHandler = nullptr;
 			}
 		}
 	}
@@ -150,16 +155,11 @@ void ULiveLinkLensController::PostEditChangeProperty(struct FPropertyChangedEven
 
 void ULiveLinkLensController::UpdateDistortionHandler(UCineCameraComponent* CineCameraComponent)
 {
-	check(CineCameraComponent);
-	LensDistortionHandler = ULensDistortionDataHandler::GetLensDistortionDataHandler(CineCameraComponent);
-	if (LensDistortionHandler == nullptr)
+	if (LensDistortionHandler)
 	{
-		LensDistortionHandler = NewObject<ULensDistortionDataHandler>(CineCameraComponent);
-		CineCameraComponent->AddAssetUserData(LensDistortionHandler);
+		//Cache MID when changing handler to start with something valid. i.e. Cleaning MID from blendables if LL was never valid
+		LastDistortionMID = LensDistortionHandler->GetDistortionMID();
 	}
-
-	//Cache MID when changing handler to start with something valid. i.e. Cleaning MID from blendables if LL was never valid
-	LastDistortionMID = LensDistortionHandler->GetDistortionMID();
 }
 
 void ULiveLinkLensController::UpdateCachedFilmback(UCineCameraComponent* CineCameraComponent)

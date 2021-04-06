@@ -7,7 +7,7 @@
 #include "CineCameraComponent.h"
 #include "Controllers/LiveLinkTransformController.h"
 #include "Engine/EngineTypes.h"
-#include "LensDistortionDataHandler.h"
+#include "LensDistortionModelHandlerBase.h"
 #include "LensFile.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
@@ -48,7 +48,7 @@ protected:
 
 	/** Cached distortion handler associated with attached camera component */
 	UPROPERTY(EditAnywhere, Category = "Lens Distortion", Transient)
-	ULensDistortionDataHandler* LensDistortionHandler = nullptr;
+	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
 
 	/** Cached distortion MID the handler produced. Used to clean up old one in case it changes */
 	UPROPERTY(Transient)

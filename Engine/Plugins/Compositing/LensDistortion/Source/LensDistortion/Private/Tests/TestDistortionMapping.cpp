@@ -44,7 +44,7 @@ namespace LensDistortionTestUtil
 					const float ZoomValue = MaxZoom / (float)ZoomDiv * (float)ZoomIndex;
 					TempPoint.Focus = FocusValue;
 					TempPoint.Zoom = ZoomValue;
-					TempPoint.Parameters.K1 = DistortionMapping.Num();
+					TempPoint.DistortionInfo.Parameters[0] = DistortionMapping.Num();
 					DistortionMapping.Add(TempPoint);
 				}
 			}
@@ -56,7 +56,7 @@ namespace LensDistortionTestUtil
 					const float ZoomValue = MaxZoom / (float)ZoomDiv * (float)ZoomIndex;
 					TempPoint.Focus = FocusValue;
 					TempPoint.Zoom = ZoomValue;
-					TempPoint.Parameters.K1 = DistortionMapping.Num();
+					TempPoint.DistortionInfo.Parameters[0] = DistortionMapping.Num();
 					DistortionMapping.Add(TempPoint);
 				}
 			}
@@ -78,7 +78,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 1);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 10);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 11);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 5.5f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 5.5f);
 		}
 		
 		{
@@ -92,7 +92,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 1);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 10);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 11);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 3.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 3.0f);
 		}
 	
 
@@ -107,7 +107,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 1);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 0);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 1);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 0.5f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 0.5f);
 		}
 
 		{
@@ -121,7 +121,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 0);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 10);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 10);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 5.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 5.0f);
 		}
 		
 		{
@@ -135,7 +135,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 31);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 31);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 31);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 31.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 31.0f);
 		}
 
 		{
@@ -149,7 +149,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 62);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 74);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 74);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 68.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 68.0f);
 		}
 
 		{
@@ -163,7 +163,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 71);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 70);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 71);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 70.5f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 70.5f);
 		}
 
 		{
@@ -177,7 +177,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 71);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 71);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 71);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 71.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 71.0f);
 		}
 
 		{
@@ -191,7 +191,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 63);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 74);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 75);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 68.5f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 68.5f);
 		}
 
 		{
@@ -205,7 +205,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 0);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 0);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 0);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 0.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 0.0f);
 		}
 
 		{
@@ -219,7 +219,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 4);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 3);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 4);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 3.5f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 3.5f);
 		}
 
 		{
@@ -233,7 +233,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 9);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 9);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 9);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 9.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 9.0f);
 		}
 
 		{
@@ -247,7 +247,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 39);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 49);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 49);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 44.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 44.0f);
 		}
 
 		{
@@ -261,7 +261,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 91);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 91);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 91);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 91.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 91.0f);
 		}
 
 		{
@@ -275,7 +275,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 86);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 85);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 86);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 85.5f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 85.5f);
 		}
 
 		{
@@ -289,7 +289,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 82);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 82);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 82);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 82.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 82.0f);
 		}
 
 		{
@@ -303,7 +303,7 @@ namespace LensDistortionTestUtil
 			Test.TestEqual(*FString::Printf(TEXT("MinMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MinMaxPoint, 30);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMin - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMinPoint, 40);
 			Test.TestEqual(*FString::Printf(TEXT("MaxMax - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), MaxMaxPoint, 40);
-			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.Parameters.K1, 35.0f);
+			Test.TestEqual(*FString::Printf(TEXT("InterpResult - (%0.2f,%0.2f)"), DesiredFocus, DesiredZoom), Result.DistortionInfo.Parameters[0], 35.0f);
 		}
 	}
 }

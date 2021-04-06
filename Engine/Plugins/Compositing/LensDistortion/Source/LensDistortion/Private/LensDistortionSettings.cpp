@@ -2,6 +2,13 @@
 
 #include "LensDistortionSettings.h"
 
+#include "SphericalLensDistortionModelHandler.h"
+
+ULensDistortionSettings::ULensDistortionSettings()
+{
+	DefaultDisplacementMaterials.Add(USphericalLensDistortionModelHandler::StaticClass(), TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/LensDistortion/Materials/M_SphericalDistortionDisplacementMap.M_SphericalDistortionDisplacementMap"))));
+	DefaultDistortionMaterials.Add(USphericalLensDistortionModelHandler::StaticClass(), TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/LensDistortion/Materials/M_SphericalDistortionPostProcess.M_SphericalDistortionPostProcess"))));
+}
 
 FName ULensDistortionSettings::GetCategoryName() const
 {
@@ -19,6 +26,16 @@ FText ULensDistortionSettings::GetSectionText() const
 ULensFile* ULensDistortionSettings::GetStartupLensFile() const
 {
 	return StartupLensFile.LoadSynchronous();
+}
+
+UMaterialInterface* ULensDistortionSettings::GetDefaultDisplacementMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const
+{
+	return DefaultDisplacementMaterials.Find(InModelHandler)->LoadSynchronous();
+}
+
+UMaterialInterface* ULensDistortionSettings::GetDefaultDistortionMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const
+{
+	return DefaultDistortionMaterials.Find(InModelHandler)->LoadSynchronous();
 }
 
 FName ULensDistortionEditorSettings::GetCategoryName() const

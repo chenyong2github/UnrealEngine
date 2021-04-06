@@ -13,6 +13,7 @@
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/Paths.h"
+#include "Models/SphericalLensModel.h"
 #include "Modules/ModuleManager.h"
 #include "ShaderCore.h"
 #include "UObject/UObjectGlobals.h"
@@ -39,6 +40,8 @@ public:
 	//~ End IModuleInterface interface
 
 	void ApplyStartupLensFile();
+	void RegisterDistortionModels();
+	void UnregisterDistortionModels();
 
 private:
 	
@@ -54,11 +57,14 @@ void FLensDistortion::StartupModule()
 	AddShaderSourceDirectoryMapping(TEXT("/Plugin/LensDistortion"), PluginShaderDir);
 
 	ApplyStartupLensFile();
+	RegisterDistortionModels();
 }
 
 
 void FLensDistortion::ShutdownModule()
 {
+	UnregisterDistortionModels();
+
 	if (PostEngineInitHandle.IsValid())
 	{
 		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
@@ -126,6 +132,40 @@ void FLensDistortion::ApplyStartupLensFile()
 		else
 		{
 			PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda(ApplyLensFile);
+		}
+	}
+}
+
+void FLensDistortion::RegisterDistortionModels()
+{
+	auto RegisterModels = [this]()
+	{
+		// Register all lens models defined in this module
+		ULensDistortionSubsystem* SubSystem = GEngine->GetEngineSubsystem<ULensDistortionSubsystem>();
+		SubSystem->RegisterDistortionModel(USphericalLensModel::StaticClass());
+	};
+
+	if (FApp::CanEverRender())
+	{
+		if (GEngine && GEngine->IsInitialized())
+		{
+			RegisterModels();
+		}
+		else
+		{
+			PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda(RegisterModels);
+		}
+	}
+}
+
+void FLensDistortion::UnregisterDistortionModels()
+{
+	if (GEngine)
+	{
+		// Unregister all lens models defined in this module
+		if (ULensDistortionSubsystem* SubSystem = GEngine->GetEngineSubsystem<ULensDistortionSubsystem>())
+		{
+			SubSystem->UnregisterDistortionModel(USphericalLensModel::StaticClass());
 		}
 	}
 }

@@ -6,12 +6,10 @@ namespace UnrealBuildTool.Rules
 	{
 		public LensDistortion(ReadOnlyTargetRules Target) : base(Target)
 		{
-			OptimizeCode = CodeOptimization.Never;
-
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"CinematicCamera",
 					"Core",
 					"CoreUObject",
 					"DeveloperSettings",

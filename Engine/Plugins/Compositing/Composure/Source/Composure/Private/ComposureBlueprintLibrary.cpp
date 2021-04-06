@@ -12,7 +12,8 @@
 #include "ComposureUtils.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
-#include "LensDistortionDataHandler.h"
+#include "LensDistortionModelHandlerBase.h"
+#include "LensDistortionSubsystem.h"
 #include "Modules/ModuleManager.h"
 #include "Slate/SceneViewport.h"
 
@@ -81,23 +82,28 @@ void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraCompone
 		FMinimalViewInfo CameraViewInfo;
 		Src->GetCameraView(/*DeltaTime =*/0.0f, CameraViewInfo);
 
-		/** If distortion should be applied, get the overscan factor from the Src's lens distortion data handler, and use it to augment the Dst's FOV */
+		// If distortion should be applied, get the overscan factor from the Src's lens distortion data handler, and use it to augment the Dst's FOV
 		if (bApplyDistortion)
 		{
 			if (UCineCameraComponent* SrcCineCameraComponent = Cast<UCineCameraComponent>(Src))
 			{ 			
-				if (ULensDistortionDataHandler* LensDistortionHandler = ULensDistortionDataHandler::GetLensDistortionDataHandler(SrcCineCameraComponent))
+				ULensDistortionSubsystem* SubSystem = GEngine->GetEngineSubsystem<ULensDistortionSubsystem>();
+				if (SubSystem)
 				{
-					const float OverscanFactor = LensDistortionHandler->GetOverscanFactor();
-					if (SrcCineCameraComponent->CurrentFocalLength <= 0.0f)
+					if (ULensDistortionModelHandlerBase* LensDistortionHandler = SubSystem->GetDistortionModelHandler(SrcCineCameraComponent))
 					{
-						Dst->FOVAngle = 0.0f;
+						const float OverscanFactor = LensDistortionHandler->GetOverscanFactor();
+						if (SrcCineCameraComponent->CurrentFocalLength <= 0.0f)
+						{
+							Dst->FOVAngle = 0.0f;
+						}
+						else
+						{
+							const float OverscanSensorWidth = (SrcCineCameraComponent->Filmback.SensorWidth * 0.5f) * OverscanFactor;
+							Dst->FOVAngle = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / SrcCineCameraComponent->CurrentFocalLength));
+						}
 					}
-					else
-					{
-						const float OverscanSensorWidth = (SrcCineCameraComponent->Filmback.SensorWidth * 0.5f) * OverscanFactor;
-						Dst->FOVAngle = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / SrcCineCameraComponent->CurrentFocalLength));
-					}
+
 				}
 			}
 		}
