@@ -71,20 +71,6 @@ taa_half3 TransformColorForClampingBox(taa_half3 Color)
 	return RGBToYCoCg(Color);
 }
 
-uint GetGroupThreadIndex(uint GroupThreadIndex)
-#if COMPILER_SUPPORTS_WAVE_ONCE
-{
-	ISOLATE
-	{
-		return WaveGetLaneIndex();
-	}
-}
-#else
-{
-	return GroupThreadIndex;
-}
-#endif
-
 
 //------------------------------------------------------- ENTRY POINT
 
@@ -93,6 +79,8 @@ void MainCS(
 	uint2 GroupId : SV_GroupID,
 	uint GroupThreadIndex : SV_GroupIndex)
 {
+	uint GroupWaveIndex = GetGroupWaveIndex(GroupThreadIndex, /* GroupSize = */ TILE_SIZE * TILE_SIZE);
+
 	float4 Debug = 0.0;
 
 	uint2 DispatchThreadId = (
@@ -241,7 +229,7 @@ void MainCS(
 	#if CONFIG_MANUAL_LDS_SPILL
 	ISOLATE
 	{
-		uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex);
+		uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex, GroupWaveIndex);
 
 		SharedArray0[LocalGroupThreadIndex] = taa_half4(FilteredInputColor, LowFrequencyRejection);
 		SharedArray1[LocalGroupThreadIndex] = taa_half4(InputMinColor, InputPixelAlignement);
@@ -347,7 +335,7 @@ void MainCS(
 	#if CONFIG_MANUAL_LDS_SPILL
 	ISOLATE
 	{
-		uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex);
+		uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex, GroupWaveIndex);
 
 		taa_half4 RawLDS0 = SharedArray0[LocalGroupThreadIndex];
 		taa_half4 RawLDS1 = SharedArray1[LocalGroupThreadIndex];
@@ -716,7 +704,7 @@ void MainCS(
 
 	ISOLATE
 	{
-		uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex);
+		uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex, GroupWaveIndex);
 
 		#if 1
 			uint2 LocalHistoryPixelPos = (

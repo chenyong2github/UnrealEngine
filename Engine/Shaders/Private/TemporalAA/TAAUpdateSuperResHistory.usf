@@ -23,23 +23,6 @@ RWTexture2D<uint> HistoryOutput_SuperResTextures_0;
 RWTexture2D<uint> HistoryOutput_SuperResTextures_1;
 
 
-//------------------------------------------------------- FUNCTIONS
-
-uint GetGroupThreadIndex(uint GroupThreadIndex)
-#if COMPILER_SUPPORTS_WAVE_ONCE
-{
-	ISOLATE
-	{
-		return WaveGetLaneIndex();
-	}
-}
-#else
-{
-	return GroupThreadIndex;
-}
-#endif
-
-
 //------------------------------------------------------- ENTRY POINT
 
 [numthreads(TILE_SIZE, TILE_SIZE, 1)]
@@ -47,6 +30,8 @@ void MainCS(
 	uint2 GroupId : SV_GroupID,
 	uint GroupThreadIndex : SV_GroupIndex)
 {
+	uint GroupWaveIndex = GetGroupWaveIndex(GroupThreadIndex, /* GroupSize = */ TILE_SIZE * TILE_SIZE);
+
 	float4 Debug = 0.0;
 
 	uint2 DispatchThreadId = (
@@ -195,7 +180,7 @@ void MainCS(
 	ISOLATE
 	{
 		#if 1
-			uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex);
+			uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex, GroupWaveIndex);
 			uint2 LocalHistoryPixelPos = (
 				ZOrder2D(LocalGroupThreadIndex, log2(TILE_SIZE)) +
 				GroupId * uint2(TILE_SIZE, TILE_SIZE));
