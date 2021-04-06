@@ -18,7 +18,7 @@
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundParamHelper.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_RepeatNode"
 
 namespace Metasound
 {
@@ -29,7 +29,7 @@ namespace Metasound
 		METASOUND_PARAM(InputStart, "Start", "Starts executing periodic output triggers.");
 		METASOUND_PARAM(InputStop, "Stop", "Stops executing periodic output triggers.");
 		METASOUND_PARAM(InputPeriod, "Period", "The period to trigger in seconds.");
-		METASOUND_PARAM(OutputOnTrigger, "Out", "The periodically generated output trigger.");
+		METASOUND_PARAM(RepeatOutputOnTrigger, "RepeatOut", "The periodically generated output trigger.");
 	}
 
 	class FTriggerRepeatOperator : public TExecutableOperator<FTriggerRepeatOperator>
@@ -88,7 +88,7 @@ namespace Metasound
 		using namespace TriggerRepeatVertexNames;
 
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnTrigger), TriggerOut);
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(RepeatOutputOnTrigger), TriggerOut);
 
 		return OutputDataReferences;
 	}
@@ -157,7 +157,7 @@ namespace Metasound
 				TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputPeriod), 0.2f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnTrigger))
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(RepeatOutputOnTrigger))
 			)
 		);
 

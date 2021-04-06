@@ -9,7 +9,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundParamHelper.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_ClampNode"
 
 namespace Metasound
 {
@@ -176,7 +176,7 @@ namespace Metasound
 				FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
 				FName OperatorName = TEXT("Clamp");
 				FText NodeDisplayName = FText::Format(LOCTEXT("ClampDisplayNamePattern", "Clamp ({0})"), FText::FromString(GetMetasoundDataTypeString<ValueType>()));
-				FText NodeDescription = LOCTEXT("MinDesc", "Returns the clamped value of the input within the given value range.");
+				FText NodeDescription = LOCTEXT("ClampDesc", "Returns the clamped value of the input within the given value range.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundClampNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -284,4 +284,4 @@ namespace Metasound
 
 }
 
-#undef LOCTEXT_NAMESPACE
+#undef LOCTEXT_NAMESPACE //MetaSoundStandardNodes_ClampNode

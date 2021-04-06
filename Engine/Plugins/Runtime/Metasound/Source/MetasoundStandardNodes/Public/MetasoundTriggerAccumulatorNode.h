@@ -10,7 +10,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundParamHelper.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_AccumulatorNode"
 
 namespace Metasound
 {
@@ -23,7 +23,7 @@ namespace Metasound
 	{
 		METASOUND_PARAM(InputAutoReset, "Auto Reset", "Input trigger which results in a delayed trigger.");	
 		METASOUND_PARAM(InputTrigger, "In {0}", "Trigger {0} input. All trigger inputs must be triggered before the output trigger is hit.");
-		METASOUND_PARAM(OutputOnTrigger, "Out", "Triggered when all input triggers have been triggered. Call Reset to reset the state or use \"Auto Reset\".");
+		METASOUND_PARAM(AccumulateOutputOnTrigger, "Out", "Triggered when all input triggers have been triggered. Call Reset to reset the state or use \"Auto Reset\".");
 	}
 
 	template<uint32 NumInputs>
@@ -46,7 +46,7 @@ namespace Metasound
 				InputInterface.Add(TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_TT(InputAutoReset)));
 
 				FOutputVertexInterface OutputInterface;
-				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnTrigger)));
+				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(AccumulateOutputOnTrigger)));
 
 				return FVertexInterface(InputInterface, OutputInterface);
 			};
@@ -121,7 +121,7 @@ namespace Metasound
 			using namespace TriggerAccumulatorVertexNames;
 
 			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnTrigger), OutputTrigger);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(AccumulateOutputOnTrigger), OutputTrigger);
 
 			return Outputs;
 		}
@@ -209,4 +209,4 @@ namespace Metasound
 
 } // namespace Metasound
 
-#undef LOCTEXT_NAMESPACE
+#undef LOCTEXT_NAMESPACE //MetasoundStandardNodes_AccumulatorNode

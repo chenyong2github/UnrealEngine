@@ -290,7 +290,7 @@ namespace Metasound
 				TInputDataVertexModel<FTime>(StereoDelay::InParamNameDelayTime, LOCTEXT("DelayTimeTooltip", "The amount of time to delay the audio."), 1.0f),
 				TInputDataVertexModel<float>(StereoDelay::InParamNameDelayRatio, LOCTEXT("DelayRatioTooltip", "Delay spread for left and right channels. Allows left and right channels to have differential delay amounts. Useful for stereo channel decorrelation"), 0.0f),
 				TInputDataVertexModel<float>(StereoDelay::InParamNameDryLevel, LOCTEXT("DryLevelTooltip", "The dry level of the delay."), 0.0f),
-				TInputDataVertexModel<float>(StereoDelay::InParamNameWetLevel, LOCTEXT("FeedbackTooltip", "The wet level of the delay."), 1.0f),
+				TInputDataVertexModel<float>(StereoDelay::InParamNameWetLevel, LOCTEXT("WetLevelTooltip", "The wet level of the delay."), 1.0f),
 				TInputDataVertexModel<float>(StereoDelay::InParamNameFeedbackAmount, LOCTEXT("FeedbackTooltip", "Feedback amount."), 0.0f)
 			),
 			FOutputVertexInterface(
@@ -357,4 +357,4 @@ namespace Metasound
 	METASOUND_REGISTER_NODE(FStereoDelayNode)
 }
 
-#undef LOCTEXT_NAMESPACE
+#undef LOCTEXT_NAMESPACE //MetasoundStandardNodes_DelayNode

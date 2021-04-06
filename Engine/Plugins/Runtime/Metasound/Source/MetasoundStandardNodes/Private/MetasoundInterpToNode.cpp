@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MetasoundInterpToNode.h"
+#include "MetasoundFacade.h"
 
 #include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
@@ -11,7 +11,7 @@
 #include "MetasoundTime.h"
 #include "DSP/VolumeFader.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_InterpNode"
 
 namespace Metasound
 {
@@ -21,6 +21,19 @@ namespace Metasound
 		static const TCHAR* InParamNameInterpTime = TEXT("Interp Time");
 		static const TCHAR* OutParamNameValue = TEXT("Value");
 	}
+
+	/** FInterpToNode
+	*
+	*  Interpolates to a target value over a given time.
+	*/
+	class METASOUNDSTANDARDNODES_API FInterpToNode : public FNodeFacade
+	{
+	public:
+		/**
+		 * Constructor used by the Metasound Frontend.
+		 */
+		FInterpToNode(const FNodeInitData& InitData);
+	};
 
 	class FInterpToOperator : public TExecutableOperator<FInterpToOperator>
 	{
@@ -144,6 +157,12 @@ namespace Metasound
 		return Info;
 	}
 
+
+	FInterpToNode::FInterpToNode(const FNodeInitData& InitData)
+		: FNodeFacade(InitData.InstanceName, InitData.InstanceID, TFacadeOperatorClass<FInterpToOperator>())
+	{
+	}
+
 	TUniquePtr<IOperator> FInterpToOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
 		const FInterpToNode& InterpToNode = static_cast<const FInterpToNode&>(InParams.Node);
@@ -156,12 +175,8 @@ namespace Metasound
 		return MakeUnique<FInterpToOperator>(InParams.OperatorSettings, TargetValue, InterpTime);
 	}
 
-	FInterpToNode::FInterpToNode(const FNodeInitData& InitData)
-		: FNodeFacade(InitData.InstanceName, InitData.InstanceID, TFacadeOperatorClass<FInterpToOperator>())
-	{
-	}
 
 	METASOUND_REGISTER_NODE(FInterpToNode)
 }
 
-#undef LOCTEXT_NAMESPACE
+#undef LOCTEXT_NAMESPACE //MetasoundStandardNodes_InterpNode
