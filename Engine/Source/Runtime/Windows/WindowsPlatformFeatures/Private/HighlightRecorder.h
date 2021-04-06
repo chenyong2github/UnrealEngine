@@ -38,7 +38,7 @@ public:
 		return bSaving;
 	}
 
-	using FDoneCallback = TFunction<void(bool)>;
+	using FDoneCallback = TFunction<void(bool /* bSuccess */, const FString& /* FullPathToFile */)>;
 	bool SaveHighlight(const TCHAR* Filename, FDoneCallback DoneCallback, double MaxDurationSecs = 1.0 * 60 * 60);
 
 private:
@@ -165,7 +165,7 @@ public:
 
 		Get()->SaveHighlight(
 			*Filename,
-			[](bool bRes)
+			[](bool bRes, const FString& InFullPathToFile)
 			{
 				UE_LOG(HighlightRecorder, Log, TEXT("saving done: %d"), bRes);
 			},

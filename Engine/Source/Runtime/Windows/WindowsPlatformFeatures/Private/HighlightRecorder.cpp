@@ -186,7 +186,8 @@ bool FHighlightRecorder::SaveHighlight(const TCHAR* Filename, FDoneCallback InDo
 
 	UE_LOG(HighlightRecorder, Log, TEXT("start saving to %s, max duration %.3f"), Filename, MaxDurationSecs);
 
-	FString LocalFilename = Filename;
+	auto& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	FString FullFilename = PlatformFile.ConvertToAbsolutePathForExternalAppForWrite(*(FPaths::VideoCaptureDir() + Filename));
 
 	bSaving = true;
 	DoneCallback = MoveTemp(InDoneCallback);
@@ -198,9 +199,9 @@ bool FHighlightRecorder::SaveHighlight(const TCHAR* Filename, FDoneCallback InDo
 			BackgroundSaving->Join();
 		}
 
-		BackgroundSaving.Reset(new FThread(TEXT("Highlight Saving"), [this, LocalFilename, MaxDurationSecs]()
+		BackgroundSaving.Reset(new FThread(TEXT("Highlight Saving"), [this, FullFilename, MaxDurationSecs]()
 		{
-			SaveHighlightInBackground(LocalFilename, MaxDurationSecs);
+			SaveHighlightInBackground(FullFilename, MaxDurationSecs);
 		}));
 	}
 
@@ -221,7 +222,7 @@ bool FHighlightRecorder::SaveHighlightInBackground(const FString& Filename, doub
 	double PassedSecs = FPlatformTime::Seconds() - T0;
 	UE_LOG(HighlightRecorder, Log, TEXT("saving to %s %s, took %.3f secs"), *Filename, bRes ? TEXT("succeeded") : TEXT("failed"), PassedSecs);
 
-	DoneCallback(bRes);
+	DoneCallback(bRes, Filename);
 	bSaving = false;
 
 	return bRes;
@@ -293,21 +294,20 @@ bool FHighlightRecorder::SaveHighlightInBackgroundImpl(const FString& Filename, 
 	return true;
 }
 
-bool FHighlightRecorder::InitialiseMp4Writer(const FString& Filename, bool bHasAudio)
+bool FHighlightRecorder::InitialiseMp4Writer(const FString& FullFilename, bool bHasAudio)
 {
-	FString VideoCaptureDir = FPaths::VideoCaptureDir();
+	// create target directory if it does not exist
+	FString DirName = FPaths::GetPath(FullFilename);
 	auto& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-	if (!PlatformFile.DirectoryExists(*VideoCaptureDir))
+	if (!PlatformFile.DirectoryExists(*DirName))
 	{
-		bool bRes = PlatformFile.CreateDirectory(*VideoCaptureDir);
+		bool bRes = PlatformFile.CreateDirectory(*DirName);
 		if (!bRes)
 		{
-			UE_LOG(HighlightRecorder, Error, TEXT("Can't create directory %s"), *VideoCaptureDir);
+			UE_LOG(HighlightRecorder, Error, TEXT("Can't create directory %s"), *DirName);
 			return false;
 		}
 	}
-
-	FString FullFilename = PlatformFile.ConvertToAbsolutePathForExternalAppForWrite(*(VideoCaptureDir + Filename));
 
 	Mp4Writer.Reset(new FWmfMp4Writer);
 
