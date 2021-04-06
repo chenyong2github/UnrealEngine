@@ -17,6 +17,7 @@
 #include "TextureResource.h"
 #include "Engine/StreamableRenderAsset.h"
 #include "PerPlatformProperties.h"
+#include "Misc/FieldAccessor.h"
 #include "Texture.generated.h"
 
 class ITargetPlatform;
@@ -840,9 +841,26 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Texture)
 	TArray<UAssetUserData*> AssetUserData;
 
-public:
+private:
 	/** The texture's resource, can be NULL */
-	class FTextureResource*	Resource;
+	class FTextureResource* PrivateResource;
+	/** Value updated and returned by the render-thread to allow
+	  * fenceless update from the game-thread without causing
+	  * potential crash in the render thread.
+	  */
+	class FTextureResource* PrivateResourceRenderThread;
+
+public:
+	TFieldPtrAccessor<FTextureResource> Resource;
+
+	/** Set texture's resource, can be NULL */
+	ENGINE_API void SetResource(FTextureResource* Resource);
+
+	/** Get the texture's resource, can be NULL */
+	ENGINE_API FTextureResource* GetResource();
+
+	/** Get the const texture's resource, can be NULL */
+	ENGINE_API const FTextureResource* GetResource() const;
 
 	/** Stable RHI texture reference that refers to the current RHI texture. Note this is manually refcounted! */
 	FTextureReference TextureReference;

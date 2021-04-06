@@ -73,6 +73,11 @@ UTexture::FOnTextureSaved UTexture::PreSaveEvent;
 
 UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, PrivateResource(nullptr)
+	, PrivateResourceRenderThread(nullptr)
+	, Resource(
+		[this]()-> FTextureResource* { return GetResource(); },
+		[this](FTextureResource* InTextureResource) { SetResource(InTextureResource); })
 {
 	SRGB = true;
 	Filter = TF_Default;
@@ -107,9 +112,42 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	}
 }
 
+const FTextureResource* UTexture::GetResource() const
+{
+	if (IsInActualRenderingThread() || IsInRHIThread())
+	{
+		return PrivateResourceRenderThread;
+	}
+	return PrivateResource;
+}
+
+FTextureResource* UTexture::GetResource()
+{
+	if (IsInActualRenderingThread() || IsInRHIThread())
+	{
+		return PrivateResourceRenderThread;
+	}
+	return PrivateResource;
+}
+
+void UTexture::SetResource(FTextureResource* InResource)
+{
+	check (!IsInActualRenderingThread() && !IsInRHIThread());
+
+	// Each PrivateResource value must be updated in it's own thread because any
+	// rendering code trying to access the Resource from this UTexture will
+	// crash if it suddenly sees nullptr or a new resource that has not had it's InitRHI called.
+
+	PrivateResource = InResource;
+	ENQUEUE_RENDER_COMMAND(SetResourceRenderThread)([this, InResource](FRHICommandListImmediate& RHICmdList)
+	{
+		PrivateResourceRenderThread = InResource;
+	});
+}
+
 void UTexture::ReleaseResource()
 {
-	if (Resource)
+	if (PrivateResource)
 	{
 		UnlinkStreaming();
 
@@ -122,13 +160,14 @@ void UTexture::ReleaseResource()
 
 		CachedSRRState.Clear();
 
+		FTextureResource* ToDelete = PrivateResource;
 		// Free the resource.
-		ENQUEUE_RENDER_COMMAND(DeleteResource)([ToDelete = Resource](FRHICommandListImmediate& RHICmdList)
+		SetResource(nullptr);
+		ENQUEUE_RENDER_COMMAND(DeleteResource)([ToDelete](FRHICommandListImmediate& RHICmdList)
 		{
 			ToDelete->ReleaseResource();
 			delete ToDelete;
 		});
-		Resource = nullptr;
 	}
 }
 
@@ -141,13 +180,14 @@ void UTexture::UpdateResource()
 	if( FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject) )
 	{
 		// Create a new texture resource.
-		Resource = CreateResource();
+		FTextureResource* NewResource = CreateResource();
+		SetResource(NewResource);
 
-		if (Resource)
+		if (NewResource)
 		{
 			LLM_SCOPE(ELLMTag::Textures);
 
-			if (FStreamableTextureResource* StreamableResource = Resource->GetStreamableTextureResource())
+			if (FStreamableTextureResource* StreamableResource = NewResource->GetStreamableTextureResource())
 			{
 				// State the gamethread coherent resource state.
 				CachedSRRState = StreamableResource->GetPostInitState();
@@ -159,12 +199,11 @@ void UTexture::UpdateResource()
 			}
 
 			// Init the texture reference, which needs to be set from a render command, since TextureReference.TextureReferenceRHI is gamethread coherent.
-			FTextureResource* ResourceToInit = Resource;
-			ENQUEUE_RENDER_COMMAND(SetTextureReference)([this, ResourceToInit](FRHICommandListImmediate& RHICmdList)
+			ENQUEUE_RENDER_COMMAND(SetTextureReference)([this, NewResource](FRHICommandListImmediate& RHICmdList)
 			{
-				ResourceToInit->SetTextureReference(TextureReference.TextureReferenceRHI);
+				NewResource->SetTextureReference(TextureReference.TextureReferenceRHI);
 			});
-			BeginInitResource(Resource);
+			BeginInitResource(NewResource);
 			// Now that the resource is ready for streaming, bind it to the streamer.
 			LinkStreaming();
 		}
@@ -486,11 +525,11 @@ void UTexture::FinishDestroy()
 	check(!bAsyncResourceReleaseHasBeenStarted || ReleaseFence.IsFenceComplete());
 	check(TextureReference.IsInitialized_GameThread() == false);
 
-	if(Resource)
+	if(PrivateResource)
 	{
 		// Free the resource.
-		delete Resource;
-		Resource = NULL;
+		delete PrivateResource;
+		PrivateResource = NULL;
 	}
 
 	CleanupCachedRunningPlatformData();
@@ -809,7 +848,7 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatfo
 		// Ensure NumMipsInTail is within valid range to safeguard on the above expressions. 
 		const int32 NumMipsInTail = FMath::Clamp<int32>(PlatformData->GetNumMipsInTail(), 1, NumMips);
 
-		// Bias is not allowed to shrink the mip count bellow NumMipsInTail.
+		// Bias is not allowed to shrink the mip count below NumMipsInTail.
 		NumRequestedMips = FMath::Max<int32>(NumMips - ResourceLODBias, NumMipsInTail);
 
 		// If trying to load optional mips, check if the first resource mip is available.
