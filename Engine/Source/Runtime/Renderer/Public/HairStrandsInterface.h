@@ -271,9 +271,13 @@ public:
 		EHairBindingType BindingType = EHairBindingType::NoneBinding;
 		FTransform LocalToWorldTransform;
 	};
+
+	// Current hook for retriving instance data. 
+	// This needs to be refactor to merge FHairGroupPublicData & HairStrandsInstance
+	FHairStrandsInstance* Instance = nullptr;
+
 	FVertexFactoryInput VFInput;
 	uint32 ClusterDataIndex = ~0; // #hair_todo: move this into instance data, or remove FHairStrandClusterData
-//private:
 
 	uint32 GroupControlTriangleStripVertexCount;
 	uint32 GroupIndex;
@@ -428,6 +432,7 @@ struct FHairStrandsBookmarkParameters
 	class FGlobalShaderMap* ShaderMap = nullptr;
 
 	FIntRect ViewRect; // View 0
+	FHairStrandsInstances VisibleInstances;
 	FHairStrandsInstances* Instances = nullptr;
 	const FSceneView* View = nullptr;// // View 0
 	TArray<const FSceneView*> AllViews;

@@ -2066,6 +2066,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		// Initialize LOD screen size & visibility
 		{
 			HairGroupInstance->HairGroupPublicData = new FHairGroupPublicData(GroupIt);
+			HairGroupInstance->HairGroupPublicData->Instance = HairGroupInstance;
 			TArray<float> CPULODScreenSize;
 			TArray<bool> LODVisibility;
 			TArray<EHairGeometryType> LODGeometryTypes;

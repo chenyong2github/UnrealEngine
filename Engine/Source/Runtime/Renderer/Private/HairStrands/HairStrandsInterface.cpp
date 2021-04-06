@@ -389,6 +389,18 @@ bool IsHairStrandsClusterCullingUseHzb();
 FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene, FViewInfo& View)
 {
 	FHairStrandsBookmarkParameters Out;
+	Out.VisibleInstances.Reserve(View.HairStrandsMeshElements.Num());
+	for (const FMeshBatchAndRelevance& MeshBatch : View.HairStrandsMeshElements)
+	{
+		if (MeshBatch.Mesh && MeshBatch.Mesh->Elements.Num() > 0)
+		{
+			FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<FHairGroupPublicData*>(MeshBatch.Mesh->Elements[0].VertexFactoryUserData);
+			if (HairGroupPublicData && HairGroupPublicData->Instance)
+			{
+				Out.VisibleInstances.Add(HairGroupPublicData->Instance);
+			}
+		}
+	}
 	Out.DebugShaderData			= &View.ShaderDrawData;
 	Out.SkinCache				= View.Family->Scene->GetGPUSkinCache();
 	Out.ShaderMap				= View.ShaderMap;

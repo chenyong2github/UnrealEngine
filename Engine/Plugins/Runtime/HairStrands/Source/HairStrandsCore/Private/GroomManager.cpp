@@ -41,27 +41,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static bool IsInstanceVisible(
-	const FSceneView* View,
-	FHairGroupInstance* Instance)
+static bool IsInstanceFrustumCullingEnable()
 {
-	// Frustum culling for rendering strands. Update position only for visible/in camera frustum
-	if (GHairStrands_InterpolationFrustumCullingEnable > 0)
-	{
-		if (!Instance->ProxyBounds)
-		{
-			return false;
-		}
-
-		const FSphere InstanceBound = Instance->ProxyBounds->GetSphere();
-		bool bFullyContained = false;
-		if (!View->ViewFrustum.IntersectSphere(InstanceBound.Center, InstanceBound.W, bFullyContained))
-		{
-			return false;
-		}
-	}
-
-	return true;
+	return GHairStrands_InterpolationFrustumCullingEnable > 0;
 }
 
 bool NeedsUpdateCardsMeshTriangles();
@@ -82,15 +64,6 @@ static void RunInternalHairStrandsInterpolation(
 	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
 		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
-
-		// HAIR_TODO: Do culling on the output of the view rather than the macro group cluster, in order to get consistent result with draw logic
-		// Frustum culling for rendering strands. Update position only for visible/in camera frustum
-		#if 0
-		if (Type == EHairStrandsInterpolationType::RenderStrands && !IsInstanceVisible(View, Instance))
-		{
-			continue;
-		}
-		#endif
 
 		int32 MeshLODIndex = -1;
 		if (Instance->GeometryType == EHairGeometryType::NoneGeometry)
@@ -299,15 +272,6 @@ static void RunInternalHairStrandsInterpolation(
 			if (Instance->GeometryType == EHairGeometryType::NoneGeometry)
 				continue;
 
-			// HAIR_TODO: Do culling on the output of the view rather than the macro group cluster, in order to get consistent result with draw logic
-			// Frustum culling guide deformation if the instance does not have any simulation
-			#if 0
-			if (Instance->GeometryType == EHairGeometryType::Strands && !Instance->Guides.bIsSimulationEnable  && !IsInstanceVisible(View, Instance))
-			{
-				continue;
-			}
-			#endif
-
 			ResetHairStrandsInterpolation(GraphBuilder, ShaderMap, Instance, Instance->Debug.MeshLODIndex);
 		}
 	}
@@ -321,15 +285,6 @@ static void RunInternalHairStrandsInterpolation(
 
 			if (Instance->GeometryType == EHairGeometryType::NoneGeometry)
 				continue;
-
-			// HAIR_TODO: Do culling on the output of the view rather than the macro group cluster, in order to get consistent result with draw logic
-			// Frustum culling for rendering strands. Update position only for visible/in camera frustum
-			#if 0
-			if (!IsInstanceVisible(View, Instance))
-			{
-				continue;
-			}
-			#endif
 
  			ComputeHairStrandsInterpolation(
 				GraphBuilder, 
@@ -721,6 +676,13 @@ void ProcessHairStrandsBookmark(
 	FHairStrandsBookmarkParameters& Parameters)
 {
 	check(Parameters.Instances != nullptr);
+	const bool bCulling =
+		IsInstanceFrustumCullingEnable() && (
+			Bookmark == EHairStrandsBookmark::ProcessGuideInterpolation ||
+			Bookmark == EHairStrandsBookmark::ProcessGatherCluster ||
+			Bookmark == EHairStrandsBookmark::ProcessStrandsInterpolation ||
+			Bookmark == EHairStrandsBookmark::ProcessDebug);
+	FHairStrandsInstances& Instances = bCulling ? Parameters.VisibleInstances : *Parameters.Instances;
 
 	if (Bookmark == EHairStrandsBookmark::ProcessTasks)
 	{
@@ -765,7 +727,7 @@ void ProcessHairStrandsBookmark(
 		RunHairStrandsInterpolation_Guide(
 			*GraphBuilder,
 			Parameters.View,
-			*Parameters.Instances,
+			Instances,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
 			Parameters.ShaderMap,
@@ -774,7 +736,7 @@ void ProcessHairStrandsBookmark(
 	else if (Bookmark == EHairStrandsBookmark::ProcessGatherCluster)
 	{
 		RunHairStrandsGatherCluster(
-			*Parameters.Instances,
+			Instances,
 			&Parameters.HairClusterData);
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessStrandsInterpolation)
@@ -783,7 +745,7 @@ void ProcessHairStrandsBookmark(
 		RunHairStrandsInterpolation_Strands(
 			*GraphBuilder,
 			Parameters.View,
-			*Parameters.Instances,
+			Instances,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
 			Parameters.ShaderMap,
@@ -796,7 +758,7 @@ void ProcessHairStrandsBookmark(
 			*GraphBuilder,
 			Parameters.ShaderMap,
 			*Parameters.View,
-			*Parameters.Instances,
+			Instances,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
 			Parameters.SceneColorTexture,
