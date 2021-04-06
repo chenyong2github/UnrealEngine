@@ -378,8 +378,8 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 		}
 	}
 
-	ConvertToExternalTexture(GraphBuilder, OpacityAtlas, LumenSceneData.OpacityAtlas);
-	ConvertToExternalTexture(GraphBuilder, DepthAtlas, LumenSceneData.DepthAtlas);
+	LumenSceneData.OpacityAtlas = GraphBuilder.ConvertToExternalTexture(OpacityAtlas);
+	LumenSceneData.DepthAtlas = GraphBuilder.ConvertToExternalTexture(DepthAtlas);
 }
 
 class FLumenCardPrefilterLightingPS : public FGlobalShader

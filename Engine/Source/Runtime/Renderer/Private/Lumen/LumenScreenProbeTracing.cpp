@@ -405,7 +405,7 @@ void SetupVisualizeTraces(
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(FIntPoint(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution), FScreenProbeSetupVisualizeTracesCS::GetGroupSize()));
 
-		ConvertToExternalBuffer(GraphBuilder, VisualizeTracesData, GVisualizeTracesData);
+		GVisualizeTracesData = GraphBuilder.ConvertToExternalBuffer(VisualizeTracesData);
 	}
 }
 

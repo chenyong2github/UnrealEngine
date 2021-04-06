@@ -222,10 +222,8 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 			FRDGTextureRef OutLUT3D = GraphBuilder.CreateTexture(Desc3D, TEXT("StrataEnergyLUT3D"));
 			FRDGTextureRef OutLUT2D = GraphBuilder.CreateTexture(Desc2D, TEXT("StrataEnergyLUT2D"));
 
-			GraphBuilder.PreallocateTexture(OutLUT3D);
-			GraphBuilder.PreallocateTexture(OutLUT2D);
-			StrataSceneData.GGXEnergyLUT3DTexture = GraphBuilder.GetPooledTexture(OutLUT3D);
-			StrataSceneData.GGXEnergyLUT2DTexture = GraphBuilder.GetPooledTexture(OutLUT2D);
+			StrataSceneData.GGXEnergyLUT3DTexture = GraphBuilder.ConvertToExternalTexture(OutLUT3D);
+			StrataSceneData.GGXEnergyLUT2DTexture = GraphBuilder.ConvertToExternalTexture(OutLUT2D);
 		}
 	}
 	else
@@ -803,9 +801,11 @@ static void AddStrataLUTPass(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRen
 		Parameters,
 		RenderTargetRect);
 
-	// Export to untracked because these textures lifetime is multiple frame, and also make sure transition is correctly done.
-	ConvertToUntrackedExternalTexture(GraphBuilder, OutLUT2D, GGXEnergyLUT2DTexture, ERHIAccess::SRVMask);
-	ConvertToUntrackedExternalTexture(GraphBuilder, OutLUT3D, GGXEnergyLUT3DTexture, ERHIAccess::SRVMask);
+	// Finalize because these textures lifetime is multiple frame, and also make sure transition is correctly done.
+	FRDGResourceAccessFinalizer ResourceAccessFinalizer;
+	GGXEnergyLUT2DTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, OutLUT2D, ERHIAccess::SRVMask);
+	GGXEnergyLUT3DTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, OutLUT3D, ERHIAccess::SRVMask);
+	ResourceAccessFinalizer.Finalize(GraphBuilder);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

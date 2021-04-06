@@ -251,6 +251,9 @@ protected:
 	/** Whether this resource needs acquire / discard. */
 	uint8 bTransient : 1;
 
+	/** (External | Extracted only) If true, the resource is locked in its current state and will not be transitioned any more. */
+	uint8 bFinalizedAccess : 1;
+
 	/** Whether this resource is the last owner of its allocation (i.e. nothing aliases the allocation later in the execution timeline). */
 	uint8 bLastOwner : 1;
 

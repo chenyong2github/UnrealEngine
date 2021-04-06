@@ -351,6 +351,16 @@ public:
 		return Buffer;
 	}
 
+	FORCEINLINE bool operator==(const FRDGBufferAccess& RHS) const
+	{
+		return Buffer == RHS.Buffer && Access == RHS.Access;
+	}
+
+	FORCEINLINE bool operator!=(const FRDGBufferAccess& RHS) const
+	{
+		return Buffer != RHS.Buffer || Access != RHS.Access;
+	}
+
 private:
 	TAlignedShaderParameterPtr<FRDGBuffer*> Buffer = nullptr;
 	ERHIAccess  Access = ERHIAccess::Unknown;
@@ -402,6 +412,16 @@ public:
 		return Texture;
 	}
 
+	FORCEINLINE bool operator==(const FRDGTextureAccess& RHS) const
+	{
+		return Texture == RHS.Texture && Access == RHS.Access;
+	}
+
+	FORCEINLINE bool operator!=(const FRDGTextureAccess& RHS) const
+	{
+		return Texture != RHS.Texture || Access != RHS.Access;
+	}
+
 private:
 	TAlignedShaderParameterPtr<FRDGTexture*> Texture = nullptr;
 	ERHIAccess   Access  = ERHIAccess::Unknown;
@@ -418,80 +438,27 @@ public:
 		: FRDGTextureAccess(nullptr, InAccess)
 	{}
 
-	TRDGTextureAccess(FRDGTexture * InTexture)
+	TRDGTextureAccess(FRDGTexture* InTexture)
 		: FRDGTextureAccess(InTexture, InAccess)
 	{}
 };
 
-template <typename ResourceType>
+template <typename ResourceAccessType>
 class alignas(SHADER_PARAMETER_POINTER_ALIGNMENT) TRDGResourceAccessArray
+	: public TArray<ResourceAccessType, FRDGArrayAllocator>
 {
+	using Super = TArray<ResourceAccessType, FRDGArrayAllocator>;
 public:
-	using ArrayType = TArray<ResourceType*, FRDGArrayAllocator>;
-	using ArrayViewType = TArrayView<ResourceType* const>;
-
-	TRDGResourceAccessArray() = default;
-	TRDGResourceAccessArray(ArrayViewType InArrayView, ERHIAccess InAccess)
-		: Array(InArrayView)
-		, Access(InAccess)
-	{}
-
-	FORCEINLINE ArrayViewType GetArray() const { return Array; }
-	FORCEINLINE ERHIAccess GetAccess() const { return Access; }
-
-	// Forward commonly used functions to the array.
-	FORCEINLINE void Add(ResourceType* Resource) { Array.Add(Resource); }
-	FORCEINLINE void Reserve(uint32 Count) { Array.Reserve(Count); }
-	FORCEINLINE bool IsEmpty() const { return Array.IsEmpty(); }
-	FORCEINLINE uint32 Num() const { return Array.Num(); }
-	FORCEINLINE typename ArrayType::RangedForIteratorType      begin()       { return Array.begin(); }
-	FORCEINLINE typename ArrayType::RangedForConstIteratorType begin() const { return Array.begin(); }
-	FORCEINLINE typename ArrayType::RangedForIteratorType      end()         { return Array.end(); }
-	FORCEINLINE typename ArrayType::RangedForConstIteratorType end() const   { return Array.end(); }
+	using Super::Super;
 
 private:
-	ArrayType Array;
 #if !PLATFORM_64BITS
 	uint32 _Padding;
 #endif
-	ERHIAccess Access = ERHIAccess::Unknown;
 };
 
-using FRDGBufferAccessArray = TRDGResourceAccessArray<FRDGBuffer>;
-
-template <ERHIAccess InAccess>
-class alignas(SHADER_PARAMETER_POINTER_ALIGNMENT) TRDGBufferAccessArray
-	: public FRDGBufferAccessArray
-{
-public:
-	static_assert(IsValidAccess(InAccess), "Buffer access is invalid.");
-
-	TRDGBufferAccessArray()
-		: TRDGBufferAccessArray({}, InAccess)
-	{}
-
-	TRDGBufferAccessArray(ArrayViewType InBufferView)
-		: TRDGBufferAccessArray(InBufferView, InAccess)
-	{}
-};
-
-using FRDGTextureAccessArray = TRDGResourceAccessArray<FRDGTexture>;
-
-template <ERHIAccess InAccess>
-class alignas(SHADER_PARAMETER_POINTER_ALIGNMENT) TRDGTextureAccessArray
-	: public FRDGTextureAccessArray
-{
-public:
-	static_assert(IsValidAccess(InAccess), "Texture access is invalid.");
-
-	TRDGTextureAccessArray()
-		: FRDGTextureAccessArray({}, InAccess)
-	{}
-
-	TRDGTextureAccessArray(ArrayViewType InTextureArray)
-		: FRDGTextureAccessArray(InTextureArray, InAccess)
-	{}
-};
+using FRDGBufferAccessArray = TRDGResourceAccessArray<FRDGBufferAccess>;
+using FRDGTextureAccessArray = TRDGResourceAccessArray<FRDGTextureAccess>;
 
 /** Render graph information about how to bind a render target. */
 struct FRenderTargetBinding
@@ -1077,22 +1044,6 @@ struct TRDGResourceAccessTypeInfo
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 
 	static_assert(sizeof(TAlignedType) == SHADER_PARAMETER_POINTER_ALIGNMENT * 2, "Uniform buffer layout must not be platform dependent.");
-};
-
-template <typename ResourceAccessArrayType>
-struct TRDGResourceAccessArrayTypeInfo
-{
-	static constexpr int32 NumRows = 1;
-	static constexpr int32 NumColumns = 1;
-	static constexpr int32 NumElements = 0;
-	static constexpr int32 Alignment = SHADER_PARAMETER_POINTER_ALIGNMENT;
-	static constexpr bool bIsStoredInConstantBuffer = false;
-
-	using TAlignedType = ResourceAccessArrayType;
-
-	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
-
-	static_assert(sizeof(TAlignedType) == SHADER_PARAMETER_POINTER_ALIGNMENT * 3, "Uniform buffer layout must not be platform dependent.");
 };
 
 template<typename T, size_t InNumElements>
@@ -1691,27 +1642,21 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 #define RDG_BUFFER_ACCESS(MemberName, Access) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_ACCESS, TRDGResourceAccessTypeInfo<TRDGBufferAccess<Access>>, TRDGBufferAccess<Access>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
-#define RDG_BUFFER_ACCESS_ARRAY(MemberName, Access) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_ACCESS_ARRAY, TRDGResourceAccessArrayTypeInfo<TRDGBufferAccessArray<Access>>, TRDGBufferAccessArray<Access>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
-
 #define RDG_BUFFER_ACCESS_DYNAMIC(MemberName) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_ACCESS, TRDGResourceAccessTypeInfo<FRDGBufferAccess>, FRDGBufferAccess,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
-#define RDG_BUFFER_ACCESS_ARRAY_DYNAMIC(MemberName) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_ACCESS_ARRAY, TRDGResourceAccessArrayTypeInfo<FRDGBufferAccessArray>, FRDGBufferAccessArray,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
+#define RDG_BUFFER_ACCESS_ARRAY(MemberName) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_ACCESS_ARRAY, TRDGResourceAccessTypeInfo<FRDGBufferAccessArray>, FRDGBufferAccessArray,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
 /** Informs the RDG pass to transition the texture into the requested state. */
 #define RDG_TEXTURE_ACCESS(MemberName, Access) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_ACCESS, TRDGResourceAccessTypeInfo<TRDGTextureAccess<Access>>, TRDGTextureAccess<Access>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
-#define RDG_TEXTURE_ACCESS_ARRAY(MemberName, Access) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_ACCESS_ARRAY, TRDGResourceAccessArrayTypeInfo<TRDGTextureAccessArray<Access>>, TRDGTextureAccessArray<Access>,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
-
 #define RDG_TEXTURE_ACCESS_DYNAMIC(MemberName) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_ACCESS, TRDGResourceAccessTypeInfo<FRDGTextureAccess>, FRDGTextureAccess,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
-#define RDG_TEXTURE_ACCESS_ARRAY_DYNAMIC(MemberName) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_ACCESS_ARRAY, TRDGResourceAccessArrayTypeInfo<FRDGTextureAccessArray>, FRDGTextureAccessArray,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
+#define RDG_TEXTURE_ACCESS_ARRAY(MemberName) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_ACCESS_ARRAY, TRDGResourceAccessTypeInfo<FRDGTextureAccessArray>, FRDGTextureAccessArray,MemberName,,,EShaderPrecisionModifier::Float,TEXT(""),false)
 
 /** Adds bindings slots for render targets on the structure. This is important for rasterizer based pass bind the
  * render target at the RHI pass creation. The name of the struct member will forced to RenderTargets, and

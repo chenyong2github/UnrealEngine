@@ -762,7 +762,7 @@ void ClearAtlas(FRDGBuilder& GraphBuilder, TRefCountPtr<IPooledRenderTarget>& At
 	LLM_SCOPE_BYTAG(Lumen);
 	FRDGTextureRef AtlasTexture = GraphBuilder.RegisterExternalTexture(Atlas);
 	AddClearRenderTargetPass(GraphBuilder, AtlasTexture);
-	ConvertToExternalTexture(GraphBuilder, AtlasTexture, Atlas);
+	Atlas = GraphBuilder.ConvertToExternalTexture(AtlasTexture);
 }
 
 void ClearAtlasesToDebugValues(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FViewInfo& View)
@@ -2224,9 +2224,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				);
 			}
 
-			ConvertToExternalTexture(GraphBuilder, AlbedoAtlasTexture, LumenSceneData.AlbedoAtlas);
-			ConvertToExternalTexture(GraphBuilder, NormalAtlasTexture, LumenSceneData.NormalAtlas);
-			ConvertToExternalTexture(GraphBuilder, EmissiveAtlasTexture, LumenSceneData.EmissiveAtlas);
+			LumenSceneData.AlbedoAtlas = GraphBuilder.ConvertToExternalTexture(AlbedoAtlasTexture);
+			LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(NormalAtlasTexture);
+			LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(EmissiveAtlasTexture);
 		}
 
 		{
@@ -2257,7 +2257,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 						}
 					});
 
-				ConvertToExternalBuffer(GraphBuilder, CardIndexBuffer, LumenCardRenderer.CardsToRenderIndexBuffer);
+				LumenCardRenderer.CardsToRenderIndexBuffer = GraphBuilder.ConvertToExternalBuffer(CardIndexBuffer);
 			}
 
 			{
@@ -2295,7 +2295,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 						}
 					});
 
-				ConvertToExternalBuffer(GraphBuilder, CardHashMapBuffer, LumenCardRenderer.CardsToRenderHashMapBuffer);
+				LumenCardRenderer.CardsToRenderHashMapBuffer = GraphBuilder.ConvertToExternalBuffer(CardHashMapBuffer);
 			}
 
 			{
@@ -2323,7 +2323,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 						}
 					});
 
-				ConvertToExternalBuffer(GraphBuilder, VisibleCardsIndexBuffer, LumenSceneData.VisibleCardsIndexBuffer);
+				LumenSceneData.VisibleCardsIndexBuffer = GraphBuilder.ConvertToExternalBuffer(VisibleCardsIndexBuffer);
 			}
 		}
 

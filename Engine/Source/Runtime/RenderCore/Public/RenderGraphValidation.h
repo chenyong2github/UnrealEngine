@@ -89,8 +89,10 @@ public:
 	void ValidateGetPooledTexture(FRDGTextureRef Texture) const;
 	void ValidateGetPooledBuffer(FRDGBufferRef Buffer) const;
 
-	void ValidateSetTextureAccessFinal(FRDGTextureRef Texture, ERHIAccess AccessFinal);
-	void ValidateSetBufferAccessFinal(FRDGBufferRef Buffer, ERHIAccess AccessFinal);
+	void ValidateSetAccessFinal(FRDGParentResourceRef Resource, ERHIAccess AccessFinal);
+
+	void ValidateFinalize(FRDGParentResourceRef Resource, ERHIAccess Access, FRDGPassHandle ConvertToUntrackedPassHandle);
+	void ValidateFinalizedAccess(FRDGParentResourceRef Resource, ERHIAccess Access, const FRDGPass* Pass);
 
 	/** Traverses all resources in the pass and marks whether they are externally accessible by user pass implementations. */
 	static void SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAccess);

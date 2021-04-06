@@ -817,54 +817,6 @@ FRDGBufferRef CreateVertexBuffer(
 	return Buffer;
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FTextureAccessDynamicPassParameters, )
-	RDG_TEXTURE_ACCESS_DYNAMIC(Texture)
-END_SHADER_PARAMETER_STRUCT()
-
-void ConvertToUntrackedTexture(
-	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef Texture,
-	ERHIAccess AccessFinal)
-{
-	GraphBuilder.SetTextureAccessFinal(Texture, AccessFinal);
-
-	auto* PassParameters = GraphBuilder.AllocParameters<FTextureAccessDynamicPassParameters>();
-	PassParameters->Texture = FRDGTextureAccess(Texture, AccessFinal);
-	GraphBuilder.AddPass({}, PassParameters,
-		// Use all of the work flags so that any access is valid.
-		ERDGPassFlags::Copy |
-		ERDGPassFlags::Compute |
-		ERDGPassFlags::Raster |
-		ERDGPassFlags::SkipRenderPass |
-		// We're not writing to anything, so we have to tell the pass not to cull.
-		ERDGPassFlags::NeverCull,
-		[](FRHICommandList&) {});
-}
-
-BEGIN_SHADER_PARAMETER_STRUCT(FBufferAccessDynamicPassParameters, )
-	RDG_BUFFER_ACCESS_DYNAMIC(Buffer)
-END_SHADER_PARAMETER_STRUCT()
-
-void ConvertToUntrackedBuffer(
-	FRDGBuilder& GraphBuilder,
-	FRDGBufferRef Buffer,
-	ERHIAccess AccessFinal)
-{
-	GraphBuilder.SetBufferAccessFinal(Buffer, AccessFinal);
-
-	auto* PassParameters = GraphBuilder.AllocParameters<FBufferAccessDynamicPassParameters>();
-	PassParameters->Buffer = FRDGBufferAccess(Buffer, AccessFinal);
-	GraphBuilder.AddPass({}, PassParameters,
-		// Use all of the work flags so that any access is valid.
-		ERDGPassFlags::Copy |
-		ERDGPassFlags::Compute |
-		ERDGPassFlags::Raster |
-		ERDGPassFlags::SkipRenderPass |
-		// We're not writing to anything, so we have to tell the pass not to cull.
-		ERDGPassFlags::NeverCull,
-		[](FRHICommandList&) {});
-}
-
 FRDGWaitForTasksScope::~FRDGWaitForTasksScope()
 {
 	if (bCondition)

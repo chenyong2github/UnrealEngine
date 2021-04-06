@@ -1261,6 +1261,8 @@ void CreateHairStrandsDebugResources(FRDGBuilder& GraphBuilder, const FHairStran
 		In->VoxelData.GetData(),
 		sizeof(FHairStrandsDebugDatas::FVoxel) * In->VoxelData.Num());
 
-	ConvertToUntrackedExternalBuffer(GraphBuilder, VoxelOffsetAndCount, Out->VoxelOffsetAndCount, ERHIAccess::SRVMask);
-	ConvertToUntrackedExternalBuffer(GraphBuilder, VoxelData, Out->VoxelData, ERHIAccess::SRVMask);
+	FRDGResourceAccessFinalizer ResourceAccessFinalizer;
+	Out->VoxelOffsetAndCount = ConvertToFinalizedExternalBuffer(GraphBuilder, ResourceAccessFinalizer, VoxelOffsetAndCount);
+	Out->VoxelData = ConvertToFinalizedExternalBuffer(GraphBuilder, ResourceAccessFinalizer, VoxelData);
+	ResourceAccessFinalizer.Finalize(GraphBuilder);
 }

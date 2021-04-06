@@ -840,7 +840,7 @@ const TRefCountPtr<FRDGPooledBuffer>& FSceneViewState::FEyeAdaptationManager::Ge
 		RDGBufferDesc.Usage |= BUF_SourceCopy;
 		FRDGBufferRef RDGBuffer = GraphBuilder.CreateBuffer(RDGBufferDesc, TEXT("EyeAdaptationBuffer"), ERDGBufferFlags::MultiFrame);
 
-		ConvertToExternalBuffer(GraphBuilder, RDGBuffer, ExposureBufferData[BufferIndex]);
+		ExposureBufferData[BufferIndex] = GraphBuilder.ConvertToExternalBuffer(RDGBuffer);
 
 		FVector4* BufferData = (FVector4*)GraphBuilder.RHICmdList.LockBuffer(ExposureBufferData[BufferIndex]->GetRHI(), 0, sizeof(FVector4), RLM_WriteOnly);
 		*BufferData = FVector4(1.0f, 1.0f, 1.0f, 1.0f);

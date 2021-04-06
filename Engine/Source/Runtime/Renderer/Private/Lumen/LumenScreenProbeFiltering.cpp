@@ -391,8 +391,8 @@ void FilterScreenProbes(
 	}
 
 	FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
-	ConvertToExternalTexture(GraphBuilder, ScreenProbeRadiance, ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance);
-	ConvertToExternalTexture(GraphBuilder, ScreenProbeParameters.ScreenProbeSceneDepth, ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeSceneDepth);
+	ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance = GraphBuilder.ConvertToExternalTexture(ScreenProbeRadiance);
+	ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeSceneDepth = GraphBuilder.ConvertToExternalTexture(ScreenProbeParameters.ScreenProbeSceneDepth);
 
 	const uint32 ConvertToSHThreadGroupSize = FScreenProbeConvertToSphericalHarmonicCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution);
 	const int32 RadianceSHBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y;

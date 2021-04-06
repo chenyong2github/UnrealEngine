@@ -107,6 +107,9 @@ struct FRDGParentResourceDebugData
 
 	/** Tracks whether this resource was clobbered by the builder prior to use. */
 	bool bHasBeenClobbered = false;
+
+	/** Tracks which pass performed a finalize operation on the resource. */
+	FRDGPassHandle FinalizePass;
 };
 
 FRDGParentResourceDebugData& FRDGParentResource::GetParentDebugData() const
@@ -457,18 +460,32 @@ void FRDGUserValidation::ValidateGetPooledBuffer(FRDGBufferRef Buffer) const
 	checkf(Buffer->bExternal, TEXT("GetPooledBuffer called on buffer %s, but it is not external. Call PreallocateBuffer or register as an external buffer instead."), Buffer->Name);
 }
 
-void FRDGUserValidation::ValidateSetTextureAccessFinal(FRDGTextureRef Texture, ERHIAccess AccessFinal)
+void FRDGUserValidation::ValidateSetAccessFinal(FRDGParentResourceRef Resource, ERHIAccess AccessFinal)
 {
-	check(Texture);
+	check(Resource);
 	check(AccessFinal != ERHIAccess::Unknown && IsValidAccess(AccessFinal));
-	checkf(Texture->bExternal || Texture->bExtracted, TEXT("Cannot set final access on nont-external texture '%s' unless it is first extracted."), Texture->Name);
+	checkf(Resource->bExternal || Resource->bExtracted, TEXT("Cannot set final access on non-external resource '%s' unless it is first extracted or preallocated."), Resource->Name);
+	checkf(!Resource->bFinalizedAccess, TEXT("Cannot set final access on finalized resource %s."), Resource->Name);
 }
 
-void FRDGUserValidation::ValidateSetBufferAccessFinal(FRDGBufferRef Buffer, ERHIAccess AccessFinal)
+void FRDGUserValidation::ValidateFinalize(FRDGParentResourceRef Resource, ERHIAccess AccessFinal, FRDGPassHandle FinalizePass)
 {
-	check(Buffer);
+	check(Resource);
 	check(AccessFinal != ERHIAccess::Unknown && IsValidAccess(AccessFinal));
-	checkf(Buffer->bExternal || Buffer->bExtracted, TEXT("Cannot set final access on nont-external buffer '%s' unless it is first extracted."), Buffer->Name);
+	checkf(IsReadOnlyAccess(AccessFinal), TEXT("Cannot convert resource %s to untracked with access %s. Access must be read-only."), Resource->Name, *GetRHIAccessName(AccessFinal));
+	checkf(Resource->bExternal || Resource->bExtracted, TEXT("Cannot convert resource %s to untracked unless it is first extracted or made external."), Resource->Name);
+	Resource->GetParentDebugData().FinalizePass = FinalizePass;
+}
+
+void FRDGUserValidation::ValidateFinalizedAccess(FRDGParentResourceRef Resource, ERHIAccess Access, const FRDGPass* Pass)
+{
+	ensureMsgf(EnumHasAnyFlags(Resource->AccessFinal, Access),
+		TEXT("Resource %s was finalized with access %s, but is being used in pass %s with access %s. Any future pass must use a subset of the finalized access state."),
+		Resource->Name, *GetRHIAccessName(Resource->AccessFinal), Pass->GetName(), *GetRHIAccessName(Access), *GetRHIPipelineName(Pass->GetPipeline()));
+
+	ensureMsgf(Pass->GetPipeline() == ERHIPipeline::Graphics,
+		TEXT("Resource %s was finalized but is being used on the async compute pass %s. Only graphics pipe access is allowed for finalized resources."),
+		Resource->Name, Pass->GetName());
 }
 
 void FRDGUserValidation::ValidateAddPass(const FRDGEventName& Name, ERDGPassFlags Flags)
@@ -577,6 +594,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 		if (IsWritableAccess(Access))
 		{
 			MarkBufferAsProduced(Buffer);
+			bCanProduce = true;
 		}
 	};
 
@@ -587,6 +605,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 		if (IsWritableAccess(Access))
 		{
 			MarkTextureAsProduced(Texture);
+			bCanProduce = true;
 		}
 	};
 
@@ -673,18 +692,16 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 		case UBMT_RDG_TEXTURE_ACCESS_ARRAY:
 		{
 			const FRDGTextureAccessArray& TextureAccessArray = Parameter.GetAsTextureAccessArray();
-			bCanProduce |= IsWritableAccess(TextureAccessArray.GetAccess());
 
-			for (FRDGTextureRef Texture : TextureAccessArray)
+			for (FRDGTextureAccess TextureAccess : TextureAccessArray)
 			{
-				CheckTextureAccess(Texture, TextureAccessArray.GetAccess());
+				CheckTextureAccess(TextureAccess.GetTexture(), TextureAccess.GetAccess());
 			}
 		}
 		break;
 		case UBMT_RDG_BUFFER_ACCESS:
 		{
 			FRDGBufferAccess BufferAccess = Parameter.GetAsBufferAccess();
-			bCanProduce |= IsWritableAccess(BufferAccess.GetAccess());
 
 			if (BufferAccess)
 			{
@@ -695,11 +712,10 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 		case UBMT_RDG_BUFFER_ACCESS_ARRAY:
 		{
 			const FRDGBufferAccessArray& BufferAccessArray = Parameter.GetAsBufferAccessArray();
-			bCanProduce |= IsWritableAccess(BufferAccessArray.GetAccess());
 
-			for (FRDGBufferRef Buffer : BufferAccessArray)
+			for (FRDGBufferAccess BufferAccess : BufferAccessArray)
 			{
-				CheckBufferAccess(Buffer, BufferAccessArray.GetAccess());
+				CheckBufferAccess(BufferAccess.GetBuffer(), BufferAccess.GetAccess());
 			}
 		}
 		break;
@@ -937,9 +953,9 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 			{
 				const FRDGTextureAccessArray& TextureAccessArray = Parameter.GetAsTextureAccessArray();
 
-				for (FRDGTextureRef Texture : TextureAccessArray)
+				for (FRDGTextureAccess TextureAccess : TextureAccessArray)
 				{
-					ValidateTextureAccess(Texture, TextureAccessArray.GetAccess());
+					ValidateTextureAccess(TextureAccess.GetTexture(), TextureAccess.GetAccess());
 				}
 			}
 			break;
@@ -950,9 +966,9 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 				}
 			break;
 			case UBMT_RDG_BUFFER_ACCESS_ARRAY:
-				for (FRDGBufferRef Buffer : Parameter.GetAsBufferAccessArray())
+				for (FRDGBufferAccess BufferAccess : Parameter.GetAsBufferAccessArray())
 				{
-					Buffer->MarkResourceAsUsed();
+					BufferAccess->MarkResourceAsUsed();
 				}
 			break;
 			case UBMT_RENDER_TARGET_BINDING_SLOTS:

@@ -488,9 +488,9 @@ static void AddClusterCullingPass(
 	}
 
 	{
-		ConvertToExternalBuffer(GraphBuilder, GlobalClusterIdBuffer, ClusterData.ClusterIdBuffer);
-		ConvertToExternalBuffer(GraphBuilder, GlobalIndexStartBuffer, ClusterData.ClusterIndexOffsetBuffer);
-		ConvertToExternalBuffer(GraphBuilder, GlobalIndexCountBuffer, ClusterData.ClusterIndexCountBuffer);
+		ClusterData.ClusterIdBuffer = GraphBuilder.ConvertToExternalBuffer(GlobalClusterIdBuffer);
+		ClusterData.ClusterIndexOffsetBuffer = GraphBuilder.ConvertToExternalBuffer(GlobalIndexStartBuffer);
+		ClusterData.ClusterIndexCountBuffer = GraphBuilder.ConvertToExternalBuffer(GlobalIndexCountBuffer);
 	}
 
 	/// Prepare some indirect dispatch for compute raster visibility buffers
@@ -512,11 +512,11 @@ static void AddClusterCullingPass(
 #if WITH_EDITOR
 	if (bClusterDebugAABBBuffer)
 	{
-		ConvertToExternalBuffer(GraphBuilder, ClusterDebugInfoBuffer, ClusterData.ClusterDebugInfoBuffer);
+		ClusterData.ClusterDebugInfoBuffer = GraphBuilder.ConvertToExternalBuffer(ClusterDebugInfoBuffer);
 	}
 	if (bClusterDebug)
 	{
-		ConvertToExternalBuffer(GraphBuilder, DispatchIndirectParametersClusterCount, ClusterData.CulledDispatchIndirectParametersClusterCount);
+		ClusterData.CulledDispatchIndirectParametersClusterCount = GraphBuilder.ConvertToExternalBuffer(DispatchIndirectParametersClusterCount);
 	}
 #endif
 

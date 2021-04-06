@@ -301,7 +301,7 @@ void FVirtualTextureSpace::AllocateTextures(FRDGBuilder& GraphBuilder)
 				AddCopyTexturePass(GraphBuilder, SrcTexture, DstTexture, CopyInfo);
 			}
 
-			ConvertToExternalTexture(GraphBuilder, DstTexture, TextureEntry.RenderTarget);
+			TextureEntry.RenderTarget = GraphBuilder.ConvertToExternalTexture(DstTexture);
 			RHIUpdateTextureReference(TextureEntry.TextureReferenceRHI, TextureEntry.RenderTarget->GetShaderResourceRHI());
 		}
 
@@ -322,7 +322,7 @@ void FVirtualTextureSpace::AllocateTextures(FRDGBuilder& GraphBuilder)
 
 			FRDGTextureRef PageTableIndirectionTexture = GraphBuilder.CreateTexture(Desc, TEXT("PageTableIndirection"));
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(PageTableIndirectionTexture), FUintVector4(ForceInitToZero));
-			ConvertToExternalTexture(GraphBuilder, PageTableIndirectionTexture, PageTableIndirection.RenderTarget);
+			PageTableIndirection.RenderTarget = GraphBuilder.ConvertToExternalTexture(PageTableIndirectionTexture);
 			RHIUpdateTextureReference(PageTableIndirection.TextureReferenceRHI, PageTableIndirection.RenderTarget->GetShaderResourceRHI());
 		}
 
@@ -435,6 +435,9 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 	}
 	check(VertexShader.IsValid());
 
+	FRDGTextureAccessArray PageTableTextures;
+	PageTableTextures.SetNum(FMath::DivideAndRoundUp<uint32>(Description.NumPageTableLayers, LayersPerPageTableTexture));
+
 	uint32 FirstUpdate = 0;
 	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumPageTableLayers; ++LayerIndex)
 	{
@@ -443,6 +446,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 
 		FTextureEntry& PageTableEntry = PageTable[TextureIndex];
 		FRDGTextureRef PageTableTexture = GraphBuilder.RegisterExternalTexture(PageTableEntry.RenderTarget);
+		PageTableTextures[TextureIndex] = FRDGTextureAccess(PageTableTexture, ERHIAccess::SRVMask);
 
 		// Use color write mask to update the proper page table entry for this layer
 		FRHIBlendState* BlendStateRHI = nullptr;
@@ -523,8 +527,10 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 			MipHeight = FMath::Max(MipHeight / 2u, 1u);
 		}
 
-		ConvertToUntrackedExternalTexture(GraphBuilder, PageTableTexture, PageTableEntry.RenderTarget, ERHIAccess::SRVMask);
+		PageTableEntry.RenderTarget = GraphBuilder.ConvertToExternalTexture(PageTableTexture);
 	}
+
+	GraphBuilder.FinalizeTextureAccess(MoveTemp(PageTableTextures));
 }
 
 void FVirtualTextureSpace::DumpToConsole(bool verbose)

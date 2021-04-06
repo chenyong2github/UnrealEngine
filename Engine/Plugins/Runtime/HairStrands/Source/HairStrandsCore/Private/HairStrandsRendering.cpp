@@ -1370,6 +1370,7 @@ void ComputeHairStrandsInterpolation(
 	Instance->HairGroupPublicData->VFInput.Meshes	= FHairGroupPublicData::FVertexFactoryInput::FMeshes();
 	const EHairGeometryType InstanceGeometryType	= Instance->GeometryType;
 
+	FRDGResourceAccessFinalizer ResourceAccessFinalizer;
 
 	if (InstanceGeometryType == EHairGeometryType::Strands)
 	{
@@ -1639,7 +1640,7 @@ void ComputeHairStrandsInterpolation(
 						Instance->Guides.DeformedRootResource);
 				}
 
-				ConvertToUntrackedBuffer(GraphBuilder, Register(GraphBuilder, LOD.DeformedResource->GetBuffer(FHairCardsDeformedResource::Current), ERDGImportedBufferFlags::None).Buffer, ERHIAccess::SRVMask);
+				ResourceAccessFinalizer.AddBuffer(Register(GraphBuilder, LOD.DeformedResource->GetBuffer(FHairCardsDeformedResource::Current), ERDGImportedBufferFlags::None).Buffer, ERHIAccess::SRVMask);
 			}
 
 			#if RHI_RAYTRACING
@@ -1700,7 +1701,7 @@ void ComputeHairStrandsInterpolation(
 					Instance->Guides.RestRootResource,
 					Instance->Guides.DeformedRootResource);
 
-				ConvertToUntrackedBuffer(GraphBuilder, Register(GraphBuilder, MeshesInstance.DeformedResource->GetBuffer(FHairMeshesDeformedResource::Current), ERDGImportedBufferFlags::None).Buffer, ERHIAccess::SRVMask);
+				ResourceAccessFinalizer.AddBuffer(Register(GraphBuilder, MeshesInstance.DeformedResource->GetBuffer(FHairMeshesDeformedResource::Current), ERDGImportedBufferFlags::None).Buffer, ERHIAccess::SRVMask);
 			}
 
 			#if RHI_RAYTRACING
@@ -1739,6 +1740,8 @@ void ComputeHairStrandsInterpolation(
 	else
 		Instance->HairGroupPublicData->VFInput.LocalToWorldTransform = Instance->LocalToWorld;
 	Instance->HairGroupPublicData->bSupportVoxelization = Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow;
+
+	ResourceAccessFinalizer.Finalize(GraphBuilder);
 }
 
 void ResetHairStrandsInterpolation(

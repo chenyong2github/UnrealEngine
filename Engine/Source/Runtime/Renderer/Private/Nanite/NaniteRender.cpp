@@ -3054,7 +3054,7 @@ static void AllocateCandidateBuffers(FRDGBuilder& GraphBuilder, FGlobalShaderMap
 			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
 			*MainCandidateNodesAndClustersBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.MainPass.CandidateNodesAndClustersBuffer"));
 			AddPassInitCandidateNodesAndClustersUAV(GraphBuilder, ShaderMap, GraphBuilder.CreateUAV(*MainCandidateNodesAndClustersBufferRef), false);
-			ConvertToExternalBuffer(GraphBuilder, *MainCandidateNodesAndClustersBufferRef, CandidateNodesAndClustersBuffer);
+			CandidateNodesAndClustersBuffer = GraphBuilder.ConvertToExternalBuffer(*MainCandidateNodesAndClustersBufferRef);
 		}
 	}
 
@@ -3071,7 +3071,7 @@ static void AllocateCandidateBuffers(FRDGBuilder& GraphBuilder, FGlobalShaderMap
 			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
 			*PostCandidateNodesAndClustersBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.PostPass.CandidateNodesAndClustersBuffer"));
 			AddPassInitCandidateNodesAndClustersUAV(GraphBuilder, ShaderMap, GraphBuilder.CreateUAV(*PostCandidateNodesAndClustersBufferRef), true);
-			ConvertToExternalBuffer(GraphBuilder, *PostCandidateNodesAndClustersBufferRef, CandidateNodesAndClustersBuffer);
+			CandidateNodesAndClustersBuffer = GraphBuilder.ConvertToExternalBuffer(*PostCandidateNodesAndClustersBufferRef);
 		}
 	}
 }
@@ -3513,7 +3513,7 @@ void ExtractStats(
 		// Extract main pass buffers
 		{
 			auto& MainPassBuffers = Nanite::GGlobalResources.GetMainPassBuffers();
-			ConvertToExternalBuffer(GraphBuilder, CullingContext.MainRasterizeArgsSWHW, MainPassBuffers.StatsRasterizeArgsSWHWBuffer);
+			MainPassBuffers.StatsRasterizeArgsSWHWBuffer = GraphBuilder.ConvertToExternalBuffer(CullingContext.MainRasterizeArgsSWHW);
 		}
 
 		// Extract post pass buffers
@@ -3522,12 +3522,12 @@ void ExtractStats(
 		if( CullingContext.bTwoPassOcclusion )
 		{
 			check( CullingContext.PostRasterizeArgsSWHW != nullptr );
-			ConvertToExternalBuffer(GraphBuilder, CullingContext.PostRasterizeArgsSWHW, PostPassBuffers.StatsRasterizeArgsSWHWBuffer);
+			PostPassBuffers.StatsRasterizeArgsSWHWBuffer = GraphBuilder.ConvertToExternalBuffer(CullingContext.PostRasterizeArgsSWHW);
 		}
 
 		// Extract calculated stats (so VisibleClustersSWHW isn't needed later)
 		{
-			ConvertToExternalBuffer(GraphBuilder, CullingContext.StatsBuffer, Nanite::GGlobalResources.GetStatsBufferRef());
+			Nanite::GGlobalResources.GetStatsBufferRef() = GraphBuilder.ConvertToExternalBuffer(CullingContext.StatsBuffer);
 		}
 
 		// Save out current render and debug flags.

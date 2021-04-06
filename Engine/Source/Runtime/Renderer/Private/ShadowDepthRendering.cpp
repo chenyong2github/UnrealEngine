@@ -1424,7 +1424,7 @@ static void RenderShadowDepthAtlasNanite(
 				TEXT("Shadow.AtlasHZB"),
 				/* OutFurthestHZBTexture = */ &FurthestHZBTexture,
 				PF_R32_FLOAT);
-			ConvertToExternalTexture(GraphBuilder, FurthestHZBTexture, PrevAtlasHZBs[AtlasIndex]);
+			PrevAtlasHZBs[AtlasIndex] = GraphBuilder.ConvertToExternalTexture(FurthestHZBTexture);
 		}
 		else
 		{
@@ -1469,6 +1469,8 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 		CVarNaniteShadows.GetValueOnRenderThread() != 0;
 
 	Scene->PrevAtlasHZBs.SetNum(SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num());
+
+	FRDGResourceAccessFinalizer ResourceAccessFinalizer;
 
 	for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num(); AtlasIndex++)
 	{
@@ -1564,8 +1566,10 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 		}
 
 		// Make readable because AtlasDepthTexture is not tracked via RDG yet
-		ConvertToUntrackedExternalTexture(GraphBuilder, AtlasDepthTexture, ShadowMapAtlas.RenderTargets.DepthTarget, ERHIAccess::SRVMask);
+		ShadowMapAtlas.RenderTargets.DepthTarget = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, AtlasDepthTexture);
 	}
+
+	ResourceAccessFinalizer.Finalize(GraphBuilder);
 }
 
 extern TAutoConsoleVariable<int32> CVarAllocatePagesUsingRects;
@@ -1842,6 +1846,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 	const bool bUseGeometryShader = !GRHISupportsArrayIndexFromAnyShader;
 
+	FRDGResourceAccessFinalizer ResourceAccessFinalizer;
+
 	for (int32 CubemapIndex = 0; CubemapIndex < SortedShadowsForShadowDepthPass.ShadowMapCubemaps.Num(); CubemapIndex++)
 	{
 		FSortedShadowMapAtlas& ShadowMap = SortedShadowsForShadowDepthPass.ShadowMapCubemaps[CubemapIndex];
@@ -1979,7 +1985,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 							TEXT("Shadow.CubemapHZB"),
 							/* OutFurthestHZBTexture = */ &FurthestHZBTexture);
 
-						ConvertToExternalTexture(GraphBuilder, FurthestHZBTexture, HZB);
+						HZB = GraphBuilder.ConvertToExternalTexture(FurthestHZBTexture);
 					}
 					UpdateCurrentFrameHZB(LightSceneInfo, ShadowKey, ProjectedShadowInfo, HZB, CubemapFaceIndex);
 				}
@@ -1987,8 +1993,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 		}
 
 		// Make readable because ShadowDepthTexture is not tracked via RDG yet
-		ConvertToUntrackedExternalTexture(GraphBuilder, ShadowDepthTexture, ShadowMap.RenderTargets.DepthTarget, ERHIAccess::SRVMask);
+		ShadowMap.RenderTargets.DepthTarget = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, ShadowDepthTexture);
 	}
+
+	ResourceAccessFinalizer.Finalize(GraphBuilder);
 
 	if (SortedShadowsForShadowDepthPass.PreshadowCache.Shadows.Num() > 0)
 	{

@@ -701,7 +701,7 @@ void FDistanceFieldSceneData::ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder
 		}
 
 		BrickTextureDimensionsInBricks = DesiredBrickTextureDimensionsInBricks;
-		ConvertToUntrackedExternalTexture(GraphBuilder, DistanceFieldBrickVolumeTextureRDG, DistanceFieldBrickVolumeTexture, ERHIAccess::SRVMask);
+		DistanceFieldBrickVolumeTexture = GraphBuilder.ConvertToExternalTexture(DistanceFieldBrickVolumeTextureRDG);
 	}
 }
 
@@ -881,7 +881,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 			// Allocate staging buffer space for the indirection table compute scatter
 			IndirectionTableUploadBuffer.Init(NumIndirectionTableAdds, sizeof(uint32), false, TEXT("DistanceFields.DFIndirectionTableUploadBuffer"));
 		}
-		
+
 		FDistanceFieldAtlasUpload AtlasUpload(BrickUploadCoordinatesBuffer, BrickUploadDataBuffer);
 
 		if (NumBrickUploads > 0)
@@ -919,20 +919,20 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 			{
 				RHICmdList.Transition({
 					FRHITransitionInfo(IndirectionTable.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-				});
+					});
 
 				IndirectionTableUploadBuffer.ResourceUploadTo(RHICmdList, IndirectionTable, false);
 
 				RHICmdList.Transition({
 					FRHITransitionInfo(IndirectionTable.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
-				});
+					});
 			}
 		});
 
+		FRDGTextureRef DistanceFieldBrickVolumeTextureRDG = GraphBuilder.RegisterExternalTexture(DistanceFieldBrickVolumeTexture, TEXT("DistanceFields.DistanceFieldBrickVolumeTexture"));
+
 		if (NumBrickUploads > 0)
 		{
-			FRDGTextureRef DistanceFieldBrickVolumeTextureRDG = GraphBuilder.RegisterExternalTexture(DistanceFieldBrickVolumeTexture, TEXT("DistanceFields.DistanceFieldBrickVolumeTexture"));
-
 			// GRHIMaxDispatchThreadGroupsPerDimension can be MAX_int32 so we need to do this math in 64-bit.
 			const int32 MaxBrickUploadsPerPass = (int32)FMath::Min<int64>((int64)GRHIMaxDispatchThreadGroupsPerDimension.Z * FScatterUploadDistanceFieldAtlasCS::GetGroupSize() / DistanceField::BrickSize, MAX_int32);
 
@@ -958,8 +958,10 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 					FComputeShaderUtils::GetGroupCount(FIntVector(DistanceField::BrickSize, DistanceField::BrickSize, NumBrickUploadsThisPass * DistanceField::BrickSize), FScatterUploadDistanceFieldAtlasCS::GetGroupSize()));
 			}
 
-			ConvertToUntrackedExternalTexture(GraphBuilder, DistanceFieldBrickVolumeTextureRDG, DistanceFieldBrickVolumeTexture, ERHIAccess::SRVMask);
+			DistanceFieldBrickVolumeTexture = GraphBuilder.ConvertToExternalTexture(DistanceFieldBrickVolumeTextureRDG);
 		}
+
+		GraphBuilder.FinalizeTextureAccess(DistanceFieldBrickVolumeTextureRDG, ERHIAccess::SRVMask);
 	}
 
 	if (AssetDataUploads.Num() > 0)

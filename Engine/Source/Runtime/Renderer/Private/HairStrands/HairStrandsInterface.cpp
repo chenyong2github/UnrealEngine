@@ -225,7 +225,7 @@ bool IsHairStrandsSimulationEnable()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void ConvertToExternalBufferWithViews(FRDGBuilder& GraphBuilder, FRDGBufferRef& InBuffer, FRDGExternalBuffer& OutBuffer, EPixelFormat Format)
 {
-	ConvertToExternalBuffer(GraphBuilder, InBuffer, OutBuffer.Buffer);
+	OutBuffer.Buffer = GraphBuilder.ConvertToExternalBuffer(InBuffer);
 	if (Format != PF_Unknown)
 	{
 		if (InBuffer->Desc.Usage & BUF_ShaderResource)

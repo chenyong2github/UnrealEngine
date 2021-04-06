@@ -1163,10 +1163,10 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 		UpdateVoxelVisBuffer(GraphBuilder, Scene, View, TracingInputs, VoxelVisBuffer, ClipmapsToUpdate, bForceFullUpdate);
 		VoxelizeVisBuffer(View, Scene, TracingInputs, VoxelLighting, VoxelVisBuffer, ClipmapsToUpdate, GraphBuilder);
 
-		ConvertToExternalTexture(GraphBuilder, VoxelLighting, View.ViewState->Lumen.VoxelLighting);
+		View.ViewState->Lumen.VoxelLighting = GraphBuilder.ConvertToExternalTexture(VoxelLighting);
 		View.ViewState->Lumen.VoxelGridResolution = TracingInputs.VoxelGridResolution;
 		View.ViewState->Lumen.NumClipmapLevels = TracingInputs.NumClipmapLevels;
 	}
 
-	ConvertToExternalTexture(GraphBuilder, VoxelVisBuffer, View.ViewState->Lumen.VoxelVisBuffer);
+	View.ViewState->Lumen.VoxelVisBuffer = GraphBuilder.ConvertToExternalTexture(VoxelVisBuffer);
 }

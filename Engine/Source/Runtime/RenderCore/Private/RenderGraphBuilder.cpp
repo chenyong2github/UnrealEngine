@@ -143,9 +143,9 @@ void EnumerateTextureAccess(FRDGParameterStruct PassParameters, ERDGPassFlags Pa
 		{
 			const FRDGTextureAccessArray& TextureAccessArray = Parameter.GetAsTextureAccessArray();
 
-			for (FRDGTextureRef Texture : TextureAccessArray)
+			for (FRDGTextureAccess TextureAccess : TextureAccessArray)
 			{
-				AccessFunction(nullptr, Texture, TextureAccessArray.GetAccess(), NoneFlags, Texture->GetSubresourceRange());
+				AccessFunction(nullptr, TextureAccess.GetTexture(), TextureAccess.GetAccess(), NoneFlags, TextureAccess->GetSubresourceRange());
 			}
 		}
 		break;
@@ -246,7 +246,7 @@ void EnumerateTextureParameters(FRDGParameterStruct PassParameters, TParameterFu
 			}
 		break;
 		case UBMT_RDG_TEXTURE_ACCESS_ARRAY:
-			for (FRDGTextureRef Texture : Parameter.GetAsTextureAccessArray())
+			for (FRDGTextureAccess Texture : Parameter.GetAsTextureAccessArray())
 			{
 				ParameterFunction(Texture);
 			}
@@ -313,9 +313,9 @@ void EnumerateBufferAccess(FRDGParameterStruct PassParameters, ERDGPassFlags Pas
 		{
 			const FRDGBufferAccessArray& BufferAccessArray = Parameter.GetAsBufferAccessArray();
 
-			for (FRDGBufferRef Buffer : BufferAccessArray)
+			for (FRDGBufferAccess BufferAccess : BufferAccessArray)
 			{
-				AccessFunction(nullptr, Buffer, BufferAccessArray.GetAccess());
+				AccessFunction(nullptr, BufferAccess.GetBuffer(), BufferAccess.GetAccess());
 			}
 		}
 		break;
@@ -360,7 +360,7 @@ void EnumerateBufferParameters(FRDGParameterStruct PassParameters, TParameterFun
 			}
 		break;
 		case UBMT_RDG_BUFFER_ACCESS_ARRAY:
-			for (FRDGBufferRef Buffer : Parameter.GetAsBufferAccessArray())
+			for (FRDGBufferAccess Buffer : Parameter.GetAsBufferAccessArray())
 			{
 				ParameterFunction(Buffer);
 			}
@@ -584,8 +584,9 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 #endif
 }
 
-void FRDGBuilder::PreallocateBuffer(FRDGBufferRef Buffer)
+const TRefCountPtr<FRDGPooledBuffer>& FRDGBuilder::ConvertToExternalBuffer(FRDGBufferRef Buffer)
 {
+	checkf(Buffer, TEXT("ConvertToExternalBuffer called with a null buffer."));
 	if (!Buffer->bExternal)
 	{
 		Buffer->bExternal = 1;
@@ -593,16 +594,72 @@ void FRDGBuilder::PreallocateBuffer(FRDGBufferRef Buffer)
 		BeginResourceRHI(nullptr, GetProloguePassHandle(), Buffer);
 		ExternalBuffers.Add(Buffer->PooledBuffer, Buffer);
 	}
+	return GetPooledBuffer(Buffer);
 }
 
-void FRDGBuilder::PreallocateTexture(FRDGTextureRef Texture)
+const TRefCountPtr<IPooledRenderTarget>& FRDGBuilder::ConvertToExternalTexture(FRDGTextureRef Texture)
 {
+	checkf(Texture, TEXT("ConvertToExternalTexture called with a null texture."));
 	if (!Texture->bExternal)
 	{
 		Texture->bExternal = 1;
 		Texture->AccessFinal = kDefaultAccessFinal;
 		BeginResourceRHI(nullptr, GetProloguePassHandle(), Texture);
 		ExternalTextures.Add(Texture->GetRHIUnchecked(), Texture);
+	}
+	return GetPooledTexture(Texture);
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FFinalizePassParameters, )
+	RDG_TEXTURE_ACCESS_ARRAY(Textures)
+	RDG_BUFFER_ACCESS_ARRAY(Buffers)
+END_SHADER_PARAMETER_STRUCT()
+
+void FRDGBuilder::FinalizeResourceAccess(FRDGTextureAccessArray&& InTextures, FRDGBufferAccessArray&& InBuffers)
+{
+	auto* PassParameters = AllocParameters<FFinalizePassParameters>();
+	PassParameters->Textures = Forward<FRDGTextureAccessArray&&>(InTextures);
+	PassParameters->Buffers = Forward<FRDGBufferAccessArray&&>(InBuffers);
+
+	// Take reference to pass parameters version since we've moved the memory.
+	const auto& LocalTextures = PassParameters->Textures;
+	const auto& LocalBuffers = PassParameters->Buffers;
+
+#if RDG_ENABLE_DEBUG
+	{
+		const FRDGPassHandle FinalizePassHandle(Passes.Num());
+
+		for (FRDGTextureAccess TextureAccess : LocalTextures)
+		{
+			UserValidation.ValidateFinalize(TextureAccess.GetTexture(), TextureAccess.GetAccess(), FinalizePassHandle);
+		}
+
+		for (FRDGBufferAccess BufferAccess : LocalBuffers)
+		{
+			UserValidation.ValidateFinalize(BufferAccess.GetBuffer(), BufferAccess.GetAccess(), FinalizePassHandle);
+		}
+	}
+#endif
+
+	AddPass(
+		RDG_EVENT_NAME("FinalizeResourceAccess(Textures: %d, Buffers: %d)", LocalTextures.Num(), LocalBuffers.Num()),
+		PassParameters,
+		// Use all of the work flags so that any access is valid.
+		ERDGPassFlags::Copy | ERDGPassFlags::Compute | ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass |
+		// We're not writing to anything, so we have to tell the pass not to cull.
+		ERDGPassFlags::NeverCull,
+		[](FRHICommandList&) {});
+
+	// bFinalized must be set after adding the finalize pass, as future declarations of the resource will be ignored.
+
+	for (FRDGTextureAccess TextureAccess : LocalTextures)
+	{
+		TextureAccess->bFinalizedAccess = 1;
+	}
+
+	for (FRDGBufferAccess BufferAccess : LocalBuffers)
+	{
+		BufferAccess->bFinalizedAccess = 1;
 	}
 }
 
@@ -1573,6 +1630,16 @@ void FRDGBuilder::SetupPass(FRDGPass* Pass)
 	Pass->TextureStates.Reserve(PassParameters.GetTextureParameterCount() + (PassParameters.HasRenderTargets() ? (MaxSimultaneousRenderTargets + 1) : 0));
 	EnumerateTextureAccess(PassParameters, PassFlags, [&](FRDGViewRef TextureView, FRDGTextureRef Texture, ERHIAccess Access, ERDGTextureAccessFlags AccessFlags, FRDGTextureSubresourceRange Range)
 	{
+		if (Texture->bFinalizedAccess)
+		{
+			// Finalized resources expected to remain in the same state, so are ignored by the graph.
+			// As only External | Extracted resources can be finalized by the user, the graph doesn't
+			// need to track them any more for culling / transition purposes. Validation checks that these
+			// invariants are true.
+			IF_RDG_ENABLE_DEBUG(UserValidation.ValidateFinalizedAccess(Texture, Access, Pass));
+			return;
+		}
+
 		check(Access != ERHIAccess::Unknown);
 		const FRDGViewHandle NoUAVBarrierHandle = GetHandleIfNoUAVBarrier(TextureView);
 		const EResourceTransitionFlags TransitionFlags = GetTextureViewTransitionFlags(TextureView, Texture);
@@ -1624,6 +1691,16 @@ void FRDGBuilder::SetupPass(FRDGPass* Pass)
 	EnumerateBufferAccess(PassParameters, PassFlags, [&](FRDGViewRef BufferView, FRDGBufferRef Buffer, ERHIAccess Access)
 	{
 		check(Access != ERHIAccess::Unknown);
+
+		if (Buffer->bFinalizedAccess)
+		{
+			// Finalized resources expected to remain in the same state, so are ignored by the graph.
+			// As only External | Extracted resources can be finalized by the user, the graph doesn't
+			// need to track them any more for culling / transition purposes. Validation checks that these
+			// invariants are true.
+			IF_RDG_ENABLE_DEBUG(UserValidation.ValidateFinalizedAccess(Buffer, Access, Pass));
+			return;
+		}
 
 		const FRDGViewHandle NoUAVBarrierHandle = GetHandleIfNoUAVBarrier(BufferView);
 
@@ -1953,7 +2030,7 @@ void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle)
 
 void FRDGBuilder::AddEpilogueTransition(FRDGTextureRef Texture)
 {
-	if (!Texture->bLastOwner || Texture->bCulled)
+	if (!Texture->bLastOwner || Texture->bCulled || Texture->bFinalizedAccess)
 	{
 		return;
 	}
@@ -2015,7 +2092,7 @@ void FRDGBuilder::AddEpilogueTransition(FRDGTextureRef Texture)
 
 void FRDGBuilder::AddEpilogueTransition(FRDGBufferRef Buffer)
 {
-	if (!Buffer->bLastOwner || Buffer->bCulled)
+	if (!Buffer->bLastOwner || Buffer->bCulled || Buffer->bFinalizedAccess)
 	{
 		return;
 	}

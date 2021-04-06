@@ -1327,7 +1327,7 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 		
 		ClearStreamingRequestCount(GraphBuilder, GraphBuilder.CreateUAV(StreamingRequestsBufferRef));
 
-		ConvertToExternalBuffer(GraphBuilder, StreamingRequestsBufferRef, StreamingRequestsBuffer);
+		StreamingRequestsBuffer = GraphBuilder.ConvertToExternalBuffer(StreamingRequestsBufferRef);
 	}
 
 	AsyncState.bBuffersTransitionedToWrite = ProcessNewResources(GraphBuilder);

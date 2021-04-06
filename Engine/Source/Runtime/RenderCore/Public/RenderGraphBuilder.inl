@@ -246,13 +246,13 @@ inline const TRefCountPtr<FRDGPooledBuffer>& FRDGBuilder::GetPooledBuffer(FRDGBu
 
 inline void FRDGBuilder::SetTextureAccessFinal(FRDGTextureRef Texture, ERHIAccess AccessFinal)
 {
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateSetTextureAccessFinal(Texture, AccessFinal));
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateSetAccessFinal(Texture, AccessFinal));
 	Texture->AccessFinal = AccessFinal;
 }
 
 inline void FRDGBuilder::SetBufferAccessFinal(FRDGBufferRef Buffer, ERHIAccess AccessFinal)
 {
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateSetBufferAccessFinal(Buffer, AccessFinal));
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateSetAccessFinal(Buffer, AccessFinal));
 	Buffer->AccessFinal = AccessFinal;
 }
 

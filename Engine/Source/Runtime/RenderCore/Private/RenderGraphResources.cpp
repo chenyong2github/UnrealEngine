@@ -27,6 +27,7 @@ FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentReso
 	, bExtracted(0)
 	, bProduced(0)
 	, bTransient(0)
+	, bFinalizedAccess(0)
 	, bLastOwner(1)
 	// Culling logic runs only when immediate mode is off.
 	, bCulled(1)

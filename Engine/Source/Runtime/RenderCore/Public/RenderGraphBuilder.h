@@ -184,25 +184,48 @@ public:
 	 *  to an external resource. This will increase memory pressure, but allows for querying the pooled resource with GetPooled{Texture, Buffer}.
 	 *  This is primarily used as an aid for porting code incrementally to RDG.
 	 */
-	void PreallocateTexture(FRDGTextureRef Texture);
-	void PreallocateBuffer(FRDGBufferRef Buffer);
+	const TRefCountPtr<IPooledRenderTarget>& ConvertToExternalTexture(FRDGTextureRef Texture);
+	const TRefCountPtr<FRDGPooledBuffer>& ConvertToExternalBuffer(FRDGBufferRef Buffer);
 
-	/** Performs an immediate query for the underlying pooled texture. This is only allowed for registered or preallocated textures. */
+	/** Performs an immediate query for the underlying pooled resource. This is only allowed for external or extracted resources. */
 	const TRefCountPtr<IPooledRenderTarget>& GetPooledTexture(FRDGTextureRef Texture) const;
-
-	/** Performs an immediate query for the underlying pooled buffer. This is only allowed for registered or preallocated buffers. */
 	const TRefCountPtr<FRDGPooledBuffer>& GetPooledBuffer(FRDGBufferRef Buffer) const;
 
-	/** Sets the access to transition to after execution. Only valid on external or extracted textures. Overwrites any previously set final access. */
+	/** (External | Extracted only) Sets the access to transition to after execution at the end of the graph. Overwrites any previously set final access. */
 	void SetTextureAccessFinal(FRDGTextureRef Texture, ERHIAccess Access);
 
-	/** Sets the access to transition to after execution. Only valid on external or extracted buffers. Overwrites any previously set final access. */
+	/** (External | Extracted only) Sets the access to transition to after execution at the end of the graph. Overwrites any previously set final access. */
 	void SetBufferAccessFinal(FRDGBufferRef Buffer, ERHIAccess Access);
 
-	/** Flag a texture that is produced by a pass but never used or extracted to not emit an 'unused' warning. */
-	void RemoveUnusedTextureWarning(FRDGTextureRef Texture);
+	/** Finalizes the access of multiple resources so that they are immutable for the remainder of the graph. This immediately forces all resources into
+	 *  their finalized states. The resources cannot be used in any other state within the graph and must be used on the graphics pipe. This is designed
+	 *  for complex cases where resources are produced early in the graph and transitioned to a read-only state. Finalized access resources can be used
+	 *  outside of RDG pass parameters on any future pass without invoking RHI validation failures.
+	 */
+	void FinalizeResourceAccess(FRDGTextureAccessArray&& Textures, FRDGBufferAccessArray&& Buffers);
 
-	/** Flag a buffer that is produced by a pass but never used or extracted to not emit an 'unused' warning. */
+	inline void FinalizeTextureAccess(FRDGTextureAccessArray&& InTextures)
+	{
+		FinalizeResourceAccess(Forward<FRDGTextureAccessArray&&>(InTextures), {});
+	}
+
+	inline void FinalizeBufferAccess(FRDGBufferAccessArray&& InBuffers)
+	{
+		FinalizeResourceAccess({}, Forward<FRDGBufferAccessArray&&>(InBuffers));
+	}
+
+	inline void FinalizeTextureAccess(FRDGTextureRef Texture, ERHIAccess Access)
+	{
+		FinalizeResourceAccess({ FRDGTextureAccess(Texture, Access) }, {});
+	}
+
+	inline void FinalizeBufferAccess(FRDGBufferRef Buffer, ERHIAccess Access)
+	{
+		FinalizeResourceAccess({}, { FRDGBufferAccess(Buffer, Access) });
+	}
+
+	/** Flag a resource that is produced by a pass but never used or extracted to not emit an 'unused' warning. */
+	void RemoveUnusedTextureWarning(FRDGTextureRef Texture);
 	void RemoveUnusedBufferWarning(FRDGBufferRef Buffer);
 
 	/** Manually begins a new GPU event scope. */
@@ -222,6 +245,15 @@ public:
 
 	/** The blackboard used to hold common data tied to the graph lifetime. */
 	FRDGBlackboard Blackboard;
+
+	//////////////////////////////////////////////////////////////////////////
+	// Deprecated Functions
+	UE_DEPRECATED(5.0, "PreallocateTexture has been renamed to ConvertToExternalTexture")
+	inline void PreallocateTexture(FRDGTextureRef Texture) { ConvertToExternalTexture(Texture); }
+
+	UE_DEPRECATED(5.0, "PreallocateBuffer has been renamed to ConvertToExternalBuffer")
+	inline void PreallocateBuffer(FRDGBufferRef Buffer) { ConvertToExternalBuffer(Buffer); }
+	//////////////////////////////////////////////////////////////////////////
 
 private:
 	static const ERHIAccess kDefaultAccessInitial = ERHIAccess::Unknown;

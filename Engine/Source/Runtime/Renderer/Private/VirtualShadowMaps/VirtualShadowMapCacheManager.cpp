@@ -198,7 +198,7 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(bool bEnableCaching, F
 	{
 		AccumulatedStatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1 + FVirtualShadowMapArray::NumStats * MaxStatFrames), TEXT("Shadow.Virtual.AccumulatedStatsBuffer"));	// TODO: Can't be a structured buffer as EnqueueCopy is only defined for vertex buffers
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(AccumulatedStatsBufferRDG, PF_R32_UINT), 0);
-		ConvertToExternalBuffer(GraphBuilder, AccumulatedStatsBufferRDG, AccumulatedStatsBuffer);
+		AccumulatedStatsBuffer = GraphBuilder.ConvertToExternalBuffer(AccumulatedStatsBufferRDG);
 	}
 	else
 	{

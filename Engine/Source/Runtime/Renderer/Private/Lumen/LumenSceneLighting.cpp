@@ -575,7 +575,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 			RenderRadiosityForLumenScene(GraphBuilder, TracingInputs, GlobalShaderMap, RadiosityAtlas);
 
-			ConvertToExternalTexture(GraphBuilder, RadiosityAtlas, LumenSceneData.RadiosityAtlas);
+			LumenSceneData.RadiosityAtlas = GraphBuilder.ConvertToExternalTexture(RadiosityAtlas);
 
 			FLumenCardScatterContext DirectLightingCardScatterContext;
 			extern float GLumenSceneCardDirectLightingUpdateFrequencyScale;
@@ -681,14 +681,14 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 			PrefilterLumenSceneLighting(GraphBuilder, View, TracingInputs, GlobalShaderMap, DirectLightingCardScatterContext);
 
-			ConvertToExternalTexture(GraphBuilder, TracingInputs.FinalLightingAtlas, LumenSceneData.FinalLightingAtlas);
+			LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.FinalLightingAtlas);
 			if (Lumen::UseIrradianceAtlas(View))
 			{
-				ConvertToExternalTexture(GraphBuilder, TracingInputs.IrradianceAtlas, LumenSceneData.IrradianceAtlas);
+				LumenSceneData.IrradianceAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.IrradianceAtlas);
 			}
 			if (Lumen::UseIndirectIrradianceAtlas(View))
 			{
-				ConvertToExternalTexture(GraphBuilder, TracingInputs.IndirectIrradianceAtlas, LumenSceneData.IndirectIrradianceAtlas);
+				LumenSceneData.IndirectIrradianceAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.IndirectIrradianceAtlas);
 			}
 		}
 

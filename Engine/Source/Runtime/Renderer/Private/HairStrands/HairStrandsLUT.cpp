@@ -345,7 +345,7 @@ static FRDGTextureRef InternalGetHairLUT(FRDGBuilder& GraphBuilder, const FViewI
 		if (bNeedUpdate)
 		{
 			Out = AddHairLUTPass(GraphBuilder, View, HairLUTType_DualScattering);
-			ConvertToUntrackedExternalTexture(GraphBuilder, Out, GSystemTextures.HairLUT0, ERHIAccess::SRVMask);
+			GSystemTextures.HairLUT0 = ConvertToFinalizedExternalTexture(GraphBuilder, Out);
 		}
 		else if (bRegister)
 		{
@@ -358,7 +358,7 @@ static FRDGTextureRef InternalGetHairLUT(FRDGBuilder& GraphBuilder, const FViewI
 		if (bNeedUpdate)
 		{
 			Out = AddHairLUTPass(GraphBuilder, View, HairLUTType_MeanEnergy);
-			ConvertToUntrackedExternalTexture(GraphBuilder, Out, GSystemTextures.HairLUT1, ERHIAccess::SRVMask);
+			GSystemTextures.HairLUT1 = ConvertToFinalizedExternalTexture(GraphBuilder, Out);
 		}
 		else if (bRegister)
 		{
@@ -371,7 +371,7 @@ static FRDGTextureRef InternalGetHairLUT(FRDGBuilder& GraphBuilder, const FViewI
 		if (bNeedUpdate)
 		{
 			Out = AddHairCoverageLUTPass(GraphBuilder, View);
-			ConvertToUntrackedExternalTexture(GraphBuilder, Out, GSystemTextures.HairLUT2, ERHIAccess::SRVMask);
+			GSystemTextures.HairLUT2 = ConvertToFinalizedExternalTexture(GraphBuilder, Out);
 		}
 		else if (bRegister)
 		{

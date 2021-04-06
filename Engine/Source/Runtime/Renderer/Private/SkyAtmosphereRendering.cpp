@@ -1280,6 +1280,8 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 	FRDGTextureRef MultiScatteredLuminanceLut = GraphBuilder.RegisterExternalTexture(SkyInfo.GetMultiScatteredLuminanceLutTexture());
 	FRDGTextureUAVRef MultiScatteredLuminanceLutUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(MultiScatteredLuminanceLut, 0));
 
+	FRDGResourceAccessFinalizer ResourceAccessFinalizer;
+
 	// Transmittance LUT
 	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 	if (CVarSkyAtmosphereTransmittanceLUT.GetValueOnRenderThread() > 0)
@@ -1367,7 +1369,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		const FIntVector NumGroups = FIntVector::DivideAndRoundUp(TextureSize, FRenderDistantSkyLightLutCS::GroupSize);
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("DistantSkyLightLut"), ComputeShader, PassParameters, NumGroups);
 
-		ConvertToUntrackedExternalTexture(GraphBuilder, DistantSkyLightLut, SkyInfo.GetDistantSkyLightLutTexture(), ERHIAccess::SRVMask);
+		SkyInfo.GetDistantSkyLightLutTexture() = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, DistantSkyLightLut);
 	}
 
 	SkyAtmosphereLightShadowData LightShadowData;
@@ -1460,7 +1462,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 			const FIntVector NumGroups = FIntVector::DivideAndRoundUp(TextureSize, FRenderSkyViewLutCS::GroupSize);
 			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("RealTimeCaptureSkyViewLut"), ComputeShader, PassParameters, NumGroups);
 
-			ConvertToUntrackedExternalTexture(GraphBuilder, RealTimeReflectionCaptureSkyAtmosphereViewLutTexture, Scene->RealTimeReflectionCaptureSkyAtmosphereViewLutTexture, ERHIAccess::SRVMask);
+			Scene->RealTimeReflectionCaptureSkyAtmosphereViewLutTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, RealTimeReflectionCaptureSkyAtmosphereViewLutTexture);
 		}
 		else
 		{
@@ -1513,7 +1515,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 			const FIntVector NumGroups = FIntVector::DivideAndRoundUp(TextureSize, FRenderCameraAerialPerspectiveVolumeCS::GroupSize);
 			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("RealTimeCaptureCamera360VolumeLut"), ComputeShader, PassParameters, NumGroups);
 
-			ConvertToUntrackedExternalTexture(GraphBuilder, RealTimeReflectionCaptureCamera360APLutTexture, Scene->RealTimeReflectionCaptureCamera360APLutTexture, ERHIAccess::SRVMask);
+			Scene->RealTimeReflectionCaptureCamera360APLutTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, RealTimeReflectionCaptureCamera360APLutTexture);
 		}
 		else
 		{
@@ -1647,11 +1649,13 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("CameraVolumeLut"), ComputeShader, PassParameters, NumGroups);
 		}
 
-		ConvertToUntrackedExternalTexture(GraphBuilder, SkyAtmosphereViewLutTexture, View.SkyAtmosphereViewLutTexture, ERHIAccess::SRVMask);
-		ConvertToUntrackedExternalTexture(GraphBuilder, SkyAtmosphereCameraAerialPerspectiveVolume, View.SkyAtmosphereCameraAerialPerspectiveVolume, ERHIAccess::SRVMask);
+		View.SkyAtmosphereViewLutTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, SkyAtmosphereViewLutTexture);
+		View.SkyAtmosphereCameraAerialPerspectiveVolume = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, SkyAtmosphereCameraAerialPerspectiveVolume);
 	}
 
-	ConvertToUntrackedExternalTexture(GraphBuilder, TransmittanceLut, SkyInfo.GetTransmittanceLutTexture(), ERHIAccess::SRVMask);
+	SkyInfo.GetTransmittanceLutTexture() = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, TransmittanceLut);
+
+	ResourceAccessFinalizer.Finalize(GraphBuilder);
 
 	// TODO have RDG execute those above passes with compute overlap similarly to using AutomaticCacheFlushAfterComputeShader(true);
 }

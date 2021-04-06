@@ -828,7 +828,7 @@ void FTemporalRenderTargetState::ExtractCurrentRT(FRDGBuilder& GraphBuilder, FRD
 {
 	check(Resolution.X > 0 && Resolution.Y > 0);
 
-	ConvertToExternalTexture(GraphBuilder, RDGTexture, RenderTargets[CurrentRT]);
+	RenderTargets[CurrentRT] = GraphBuilder.ConvertToExternalTexture(RDGTexture);
 }
 
 FRDGTextureRef FTemporalRenderTargetState::GetOrCreatePreviousRT(FRDGBuilder& GraphBuilder)

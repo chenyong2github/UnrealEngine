@@ -1572,19 +1572,19 @@ void RenderRadianceCache(
 				GroupSize);
 		}
 
-		ConvertToExternalBuffer(GraphBuilder, ProbeFreeListAllocator, RadianceCacheState.ProbeFreeListAllocator);
-		ConvertToExternalBuffer(GraphBuilder, ProbeFreeList, RadianceCacheState.ProbeFreeList);
-		ConvertToExternalBuffer(GraphBuilder, ProbeAllocator, RadianceCacheState.ProbeAllocator);
-		ConvertToExternalBuffer(GraphBuilder, ProbeLastUsedFrame, RadianceCacheState.ProbeLastUsedFrame);
-		ConvertToExternalBuffer(GraphBuilder, ProbeWorldOffset, RadianceCacheState.ProbeWorldOffset);
-		ConvertToExternalTexture(GraphBuilder, RadianceProbeIndirectionTexture, RadianceCacheState.RadianceProbeIndirectionTexture);
-		ConvertToExternalTexture(GraphBuilder, DepthProbeAtlasTexture, RadianceCacheState.DepthProbeAtlasTexture);
-		ConvertToExternalTexture(GraphBuilder, RadianceProbeAtlasTextureSource, RadianceCacheState.RadianceProbeAtlasTexture);
-		ConvertToExternalTexture(GraphBuilder, DebugBRDFProbabilityDensityFunction, RadianceCacheState.DebugBRDFProbabilityDensityFunction);
+		RadianceCacheState.ProbeFreeListAllocator = GraphBuilder.ConvertToExternalBuffer(ProbeFreeListAllocator);
+		RadianceCacheState.ProbeFreeList = GraphBuilder.ConvertToExternalBuffer(ProbeFreeList);
+		RadianceCacheState.ProbeAllocator = GraphBuilder.ConvertToExternalBuffer(ProbeAllocator);
+		RadianceCacheState.ProbeLastUsedFrame = GraphBuilder.ConvertToExternalBuffer(ProbeLastUsedFrame);
+		RadianceCacheState.ProbeWorldOffset = GraphBuilder.ConvertToExternalBuffer(ProbeWorldOffset);
+		RadianceCacheState.RadianceProbeIndirectionTexture = GraphBuilder.ConvertToExternalTexture(RadianceProbeIndirectionTexture);
+		RadianceCacheState.DepthProbeAtlasTexture = GraphBuilder.ConvertToExternalTexture(DepthProbeAtlasTexture);
+		RadianceCacheState.RadianceProbeAtlasTexture = GraphBuilder.ConvertToExternalTexture(RadianceProbeAtlasTextureSource);
+		RadianceCacheState.DebugBRDFProbabilityDensityFunction = GraphBuilder.ConvertToExternalTexture(DebugBRDFProbabilityDensityFunction);
 
 		if (FinalRadianceAtlas)
 		{
-			ConvertToExternalTexture(GraphBuilder, FinalRadianceAtlas, RadianceCacheState.FinalRadianceAtlas);
+			RadianceCacheState.FinalRadianceAtlas = GraphBuilder.ConvertToExternalTexture(FinalRadianceAtlas);
 		}
 		else
 		{
@@ -1593,8 +1593,8 @@ void RenderRadianceCache(
 		
 		if (FinalIrradianceAtlas)
 		{
-			ConvertToExternalTexture(GraphBuilder, FinalIrradianceAtlas, RadianceCacheState.FinalIrradianceAtlas);
-			ConvertToExternalTexture(GraphBuilder, ProbeOcclusionAtlas, RadianceCacheState.ProbeOcclusionAtlas);
+			RadianceCacheState.FinalIrradianceAtlas = GraphBuilder.ConvertToExternalTexture(FinalIrradianceAtlas);
+			RadianceCacheState.ProbeOcclusionAtlas = GraphBuilder.ConvertToExternalTexture(ProbeOcclusionAtlas);
 		}
 		else
 		{

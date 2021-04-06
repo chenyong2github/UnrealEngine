@@ -149,16 +149,6 @@ RENDERCORE_API FRDGTextureRef RegisterExternalTextureWithFallback(
 	ERenderTargetTexture ExternalTexture = ERenderTargetTexture::ShaderResource,
 	ERenderTargetTexture FallbackTexture = ERenderTargetTexture::ShaderResource);
 
-UE_DEPRECATED(4.26, "RegisterExternalTextureWithFallback no longer takes a Name. It uses name of the external texture instead.")
-inline FRDGTextureRef RegisterExternalTextureWithFallback(
-	FRDGBuilder& GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture,
-	const TCHAR* ExternalPooledTextureName)
-{
-	return RegisterExternalTextureWithFallback(GraphBuilder, ExternalPooledTexture, FallbackPooledTexture);
-}
-
 /** Variants of RegisterExternalTexture which will returns null (rather than assert) if the external texture is null. */
 inline FRDGTextureRef TryRegisterExternalTexture(
 	FRDGBuilder& GraphBuilder,
@@ -768,46 +758,96 @@ void AddReadbackBufferPass(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, FRDG
 	GraphBuilder.AddPass(MoveTemp(Name), PassParameters, ERDGPassFlags::Readback, MoveTemp(ExecuteLambda));
 }
 
-// Forces the graph to make the resource immediately available as if it were registered. Returns the pooled resource.
-
-inline void ConvertToExternalBuffer(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer)
+/** Batches up RDG resource access finalizations and submits them all at once to RDG. */
+class FRDGResourceAccessFinalizer
 {
-	check(Buffer);
-	GraphBuilder.PreallocateBuffer(Buffer);
-	OutPooledBuffer = GraphBuilder.GetPooledBuffer(Buffer);
+public:
+	FRDGResourceAccessFinalizer() = default;
+	~FRDGResourceAccessFinalizer()
+	{
+		checkf(IsEmpty(), TEXT("Finalize must be called before destruction."));
+	}
+
+	void Reserve(uint32 TextureCount, uint32 BufferCount)
+	{
+		Textures.Reserve(TextureCount);
+		Buffers.Reserve(BufferCount);
+	}
+
+	void AddTexture(FRDGTextureRef Texture, ERHIAccess Access)
+	{
+		if (Texture)
+		{
+			checkf(IsValidAccess(Access) && Access != ERHIAccess::Unknown, TEXT("Attempted to finalize texture %s with an invalid access %s."), Texture->Name, *GetRHIAccessName(Access));
+			Textures.Emplace(Texture, Access);
+		}
+	}
+
+	void AddBuffer(FRDGBufferRef Buffer, ERHIAccess Access)
+	{
+		if (Buffer)
+		{
+			checkf(IsValidAccess(Access) && Access != ERHIAccess::Unknown, TEXT("Attempted to finalize buffer %s with an invalid access %s."), Buffer->Name, *GetRHIAccessName(Access));
+			Buffers.Emplace(Buffer, Access);
+		}
+	}
+
+	void Finalize(FRDGBuilder& GraphBuilder)
+	{
+		if (!IsEmpty())
+		{
+			GraphBuilder.FinalizeResourceAccess(MoveTemp(Textures), MoveTemp(Buffers));
+		}
+	}
+
+	bool IsEmpty() const
+	{
+		return Textures.IsEmpty() && Buffers.IsEmpty();
+	}
+
+private:
+	FRDGTextureAccessArray Textures;
+	FRDGBufferAccessArray Buffers;
+};
+
+inline const TRefCountPtr<IPooledRenderTarget>& ConvertToFinalizedExternalTexture(
+	FRDGBuilder& GraphBuilder,
+	FRDGResourceAccessFinalizer& ResourceAccessFinalizer,
+	FRDGTextureRef Texture,
+	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
+{
+	ResourceAccessFinalizer.AddTexture(Texture, AccessFinal);
+	return GraphBuilder.ConvertToExternalTexture(Texture);
 }
 
-inline void ConvertToExternalTexture(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget)
+inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToFinalizedExternalBuffer(
+	FRDGBuilder& GraphBuilder,
+	FRDGResourceAccessFinalizer& ResourceAccessFinalizer,
+	FRDGBufferRef Buffer,
+	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
 {
-	check(Texture);
-	GraphBuilder.PreallocateTexture(Texture);
-	OutPooledRenderTarget = GraphBuilder.GetPooledTexture(Texture);
+	ResourceAccessFinalizer.AddBuffer(Buffer, AccessFinal);
+	return GraphBuilder.ConvertToExternalBuffer(Buffer);
 }
 
-// Forces a resource into its final state early in the graph. Useful if an external texture is produced by the graph but consumed
-// later in the graph without being registered. For example, if the resource is read-only embedded in a non-RDG uniform buffer and
-// or registration with RDG is too expensive or difficult.
-RENDERCORE_API void ConvertToUntrackedTexture(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, ERHIAccess AccessFinal);
-RENDERCORE_API void ConvertToUntrackedBuffer(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, ERHIAccess AccessFinal);
-
-inline void ConvertToUntrackedExternalTexture(
+inline const TRefCountPtr<IPooledRenderTarget>& ConvertToFinalizedExternalTexture(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef Texture,
-	TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget,
-	ERHIAccess AccessFinal)
+	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
 {
-	ConvertToExternalTexture(GraphBuilder, Texture, OutPooledRenderTarget);
-	ConvertToUntrackedTexture(GraphBuilder, Texture, AccessFinal);
+	const TRefCountPtr<IPooledRenderTarget>& PooledTexture = GraphBuilder.ConvertToExternalTexture(Texture);
+	GraphBuilder.FinalizeTextureAccess(Texture, AccessFinal);
+	return PooledTexture;
 }
 
-inline void ConvertToUntrackedExternalBuffer(
+inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToFinalizedExternalBuffer(
 	FRDGBuilder& GraphBuilder,
 	FRDGBufferRef Buffer,
-	TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer,
 	ERHIAccess AccessFinal)
 {
-	ConvertToExternalBuffer(GraphBuilder, Buffer, OutPooledBuffer);
-	ConvertToUntrackedBuffer(GraphBuilder, Buffer, AccessFinal);
+	const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = GraphBuilder.ConvertToExternalBuffer(Buffer);
+	GraphBuilder.FinalizeBufferAccess(Buffer, AccessFinal);
+	return PooledBuffer;
 }
 
 /** Scope used to wait for outstanding tasks when the scope destructor is called. Used for command list recording tasks. */
@@ -835,3 +875,40 @@ RENDERCORE_API bool GetPooledFreeBuffer(
 	const FRDGBufferDesc& Desc,
 	TRefCountPtr<FRDGPooledBuffer>& Out,
 	const TCHAR* InDebugName);
+
+//////////////////////////////////////////////////////////////////////////
+//! Deprecated Functions
+
+UE_DEPRECATED(5.0, "ConvertToExternalBuffer has been refactored to FRDGBuilder::ConvertToExternalBuffer.")
+inline void ConvertToExternalBuffer(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer)
+{
+	OutPooledBuffer = GraphBuilder.ConvertToExternalBuffer(Buffer);
+}
+
+UE_DEPRECATED(5.0, "ConvertToExternalTexture has been refactored to FRDGBuilder::ConvertToExternalTexture.")
+inline void ConvertToExternalTexture(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget)
+{
+	OutPooledRenderTarget = GraphBuilder.ConvertToExternalTexture(Texture);
+}
+
+UE_DEPRECATED(5.0, "ConvertToUntrackedExternalTexture has been refactored to ConvertToFinalizedExternalTexture.")
+inline void ConvertToUntrackedExternalTexture(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef Texture,
+	TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget,
+	ERHIAccess AccessFinal)
+{
+	OutPooledRenderTarget = ConvertToFinalizedExternalTexture(GraphBuilder, Texture, AccessFinal);
+}
+
+UE_DEPRECATED(5.0, "ConvertToUntrackedExternalTexture has been refactored to ConvertToFinalizedExternalBuffer.")
+inline void ConvertToUntrackedExternalBuffer(
+	FRDGBuilder& GraphBuilder,
+	FRDGBufferRef Buffer,
+	TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer,
+	ERHIAccess AccessFinal)
+{
+	OutPooledBuffer = ConvertToFinalizedExternalBuffer(GraphBuilder, Buffer, AccessFinal);
+}
+
+//////////////////////////////////////////////////////////////////////////

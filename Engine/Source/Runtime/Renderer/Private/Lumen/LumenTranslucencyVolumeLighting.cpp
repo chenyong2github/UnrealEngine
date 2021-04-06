@@ -342,8 +342,8 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 
 		if (View.ViewState)
 		{
-			ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolumeNewHistory0, View.ViewState->Lumen.TranslucencyVolume0);
-			ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolumeNewHistory1, View.ViewState->Lumen.TranslucencyVolume1);
+			View.ViewState->Lumen.TranslucencyVolume0 = GraphBuilder.ConvertToExternalTexture(TranslucencyGIVolumeNewHistory0);
+			View.ViewState->Lumen.TranslucencyVolume1 = GraphBuilder.ConvertToExternalTexture(TranslucencyGIVolumeNewHistory1);
 		}
 
 		View.LumenTranslucencyGIVolume.Texture0 = TranslucencyGIVolume0;

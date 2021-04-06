@@ -13,7 +13,7 @@ public:
 
 	bool IsResource() const
 	{
-		return !IsRenderTargetBindingSlots();
+		return !IsRenderTargetBindingSlots() && !IsResourceAccessArray();
 	}
 
 	bool IsSRV() const
@@ -35,8 +35,7 @@ public:
 	{
 		return
 			MemberType == UBMT_RDG_TEXTURE ||
-			MemberType == UBMT_RDG_TEXTURE_ACCESS ||
-			MemberType == UBMT_RDG_TEXTURE_ACCESS_ARRAY;
+			MemberType == UBMT_RDG_TEXTURE_ACCESS;
 	}
 
 	bool IsTextureAccess() const
@@ -51,9 +50,7 @@ public:
 
 	bool IsBuffer() const
 	{
-		return
-			MemberType == UBMT_RDG_BUFFER_ACCESS ||
-			MemberType == UBMT_RDG_BUFFER_ACCESS_ARRAY;
+		return MemberType == UBMT_RDG_BUFFER_ACCESS;
 	}
 
 	bool IsBufferAccess() const
@@ -64,6 +61,11 @@ public:
 	bool IsBufferAccessArray() const
 	{
 		return MemberType == UBMT_RDG_BUFFER_ACCESS_ARRAY;
+	}
+
+	bool IsResourceAccessArray() const
+	{
+		return IsBufferAccessArray() || IsTextureAccessArray();
 	}
 
 	bool IsUniformBuffer() const

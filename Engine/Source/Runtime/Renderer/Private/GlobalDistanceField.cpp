@@ -2294,38 +2294,42 @@ void UpdateGlobalDistanceFieldVolume(
 				}
 			}
 
+			FRDGResourceAccessFinalizer ResourceAccessFinalizer;
+
 			for (int32 CacheType = StartCacheType; CacheType < GDF_Num; CacheType++)
 			{
 				if (PageTableLayerTextures[CacheType])
 				{
-					ConvertToUntrackedExternalTexture(GraphBuilder, PageTableLayerTextures[CacheType], GlobalDistanceFieldInfo.PageTableLayerTextures[CacheType], ERHIAccess::SRVMask);
+					GlobalDistanceFieldInfo.PageTableLayerTextures[CacheType] = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, PageTableLayerTextures[CacheType]);
 				}
 			}
 
 			if (PageFreeListAllocatorBuffer)
 			{
-				ConvertToUntrackedExternalBuffer(GraphBuilder, PageFreeListAllocatorBuffer, GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer, ERHIAccess::SRVMask);
+				GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer = ConvertToFinalizedExternalBuffer(GraphBuilder, ResourceAccessFinalizer, PageFreeListAllocatorBuffer);
 			}
 
 			if (PageFreeListBuffer)
 			{
-				ConvertToUntrackedExternalBuffer(GraphBuilder, PageFreeListBuffer, GlobalDistanceFieldInfo.PageFreeListBuffer, ERHIAccess::SRVMask);
+				GlobalDistanceFieldInfo.PageFreeListBuffer = ConvertToFinalizedExternalBuffer(GraphBuilder, ResourceAccessFinalizer, PageFreeListBuffer);
 			}
 
 			if (PageAtlasTexture)
 			{
-				ConvertToUntrackedExternalTexture(GraphBuilder, PageAtlasTexture, GlobalDistanceFieldInfo.PageAtlasTexture, ERHIAccess::SRVMask);
+				GlobalDistanceFieldInfo.PageAtlasTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, PageAtlasTexture);
 			}
 
 			if (PageTableCombinedTexture)
 			{
-				ConvertToUntrackedExternalTexture(GraphBuilder, PageTableCombinedTexture, GlobalDistanceFieldInfo.PageTableCombinedTexture, ERHIAccess::SRVMask);
+				GlobalDistanceFieldInfo.PageTableCombinedTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, PageTableCombinedTexture);
 			}
 
 			if (MipTexture)
 			{
-				ConvertToUntrackedExternalTexture(GraphBuilder, MipTexture, GlobalDistanceFieldInfo.MipTexture, ERHIAccess::SRVMask);
+				GlobalDistanceFieldInfo.MipTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, MipTexture);
 			}
+
+			ResourceAccessFinalizer.Finalize(GraphBuilder);
 		}
 	}
 

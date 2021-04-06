@@ -1238,7 +1238,7 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder)
 			FComputeShaderUtils::GetGroupCount(FIntPoint(DebugTargetWidth, DebugTargetHeight), FVirtualPageManagementShader::DefaultCSGroupXY)
 		);
 
-		ConvertToExternalTexture(GraphBuilder, DebugOutput, DebugVisualizationOutput);
+		DebugVisualizationOutput = GraphBuilder.ConvertToExternalTexture(DebugOutput);
 	}
 }
 
