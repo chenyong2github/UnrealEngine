@@ -398,6 +398,16 @@ public:
 		return RadiusOfInterest;
 	}
 
+	bool IsInRegionOfInterest(FVector Pos) const
+	{
+		return (RadiusOfInterest <= 0.0f) || ((Pos - CenterOfInterest).SizeSquared() < RadiusOfInterest * RadiusOfInterest);
+	}
+
+	bool IsInRegionOfInterest(FVector Pos, FReal Radius) const
+	{
+		return (RadiusOfInterest <= 0.0f) || ((Pos - CenterOfInterest).SizeSquared() < (RadiusOfInterest + Radius) * (RadiusOfInterest + Radius));
+	}
+
 	void SetConsumerActive(void* Consumer, bool bConsumerActive);
 
 	static FDebugDrawQueue& GetInstance()
@@ -435,11 +445,6 @@ private:
 			return IsInBudget();
 		}
 		return false;
-	}
-
-	bool IsInRegionOfInterest(FVector Pos) const
-	{
-		return (RadiusOfInterest <= 0.0f) || ((Pos - CenterOfInterest).SizeSquared() < RadiusOfInterest * RadiusOfInterest);
 	}
 
 	bool IsInBudget() const
