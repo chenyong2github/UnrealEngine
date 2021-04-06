@@ -751,36 +751,22 @@ void FStreamingNetworkPlatformFile::GetFileInfo(const TCHAR* Filename, FFileInfo
 	FString RelativeFilename = Filename;
 	MakeStandardNetworkFilename(RelativeFilename);
 
-	if (!CachedFileInfo.Contains(RelativeFilename))
+	FStreamingNetworkFileArchive Payload(NFS_Messages::GetFileInfo);
+	Payload << const_cast<FString&>(RelativeFilename);
+
+	// Send the filename over
+	FArrayReader Response;
+	if (SendPayloadAndReceiveResponse(Payload, Response) == false)
 	{
-		FStreamingNetworkFileArchive Payload(NFS_Messages::GetFileInfo);
-		Payload << const_cast<FString&>(RelativeFilename);
-
-//		if (RelativeFilename == TEXT("../../../UDKGame/Content/Maps/GDC12_Ice/GDC_2012_Throne_Cave.uasset"))
-//		{
-//			Info.ReadOnly = true;
-//		}
-
-		// Send the filename over
-		FArrayReader Response;
-		if (SendPayloadAndReceiveResponse(Payload, Response) == false)
-		{
-			return;
-		}
-
-		// Get info from the response
-		Response << Info.FileExists;
-		Response << Info.ReadOnly;
-		Response << Info.Size;
-		Response << Info.TimeStamp;
-		Response << Info.AccessTimeStamp;
-
-		CachedFileInfo.Add(RelativeFilename, Info);
+		return;
 	}
-	else
-	{
-		Info = *(CachedFileInfo.Find(RelativeFilename));
-	}
+
+	// Get info from the response
+	Response << Info.FileExists;
+	Response << Info.ReadOnly;
+	Response << Info.Size;
+	Response << Info.TimeStamp;
+	Response << Info.AccessTimeStamp;
 }
 
 

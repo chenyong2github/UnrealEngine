@@ -216,7 +216,4 @@ private:
 
 	/** Set files that the server said we should sync asynchronously */
 	TArray<FString> FilesToSyncAsync;
-
-	/** Stored information about the files we have already cached */
-	TMap<FString, FFileInfo> CachedFileInfo;
 };
