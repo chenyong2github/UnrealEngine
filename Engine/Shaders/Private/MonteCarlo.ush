@@ -315,6 +315,12 @@ float4 UniformSampleConeRobust(float2 E, float SinThetaMax2)
 	return float4(L, PDF);
 }
 
+float UniformConeSolidAngle(float SinThetaMax2)
+{
+	float OneMinusCosThetaMax = SinThetaMax2 < 0.01 ? SinThetaMax2 * (0.5 + 0.125 * SinThetaMax2) : 1 - sqrt(1 - SinThetaMax2);
+	return 2 * PI * OneMinusCosThetaMax;
+}
+
 // Same as the function above, but uses a concentric mapping
 float4 UniformSampleConeConcentricRobust(float2 E, float SinThetaMax2)
 {

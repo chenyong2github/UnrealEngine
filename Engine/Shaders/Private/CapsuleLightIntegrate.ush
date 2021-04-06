@@ -7,6 +7,7 @@
 #include "AreaLightCommon.ush"
 #include "ShadingModels.ush"
 #include "CapsuleLight.ush"
+#include "CapsuleLightSampling.ush"
 #include "SobolRandom.ush"
 
 Texture2D DummyRectLightTextureForCapsuleCompilerWarning;
@@ -133,41 +134,9 @@ FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FCapsuleL
 
 	float DistanceSqr = dot( ToLight, ToLight );
 	float3 ConeAxis = ToLight * rsqrt( DistanceSqr );
-	float ConeCos = sqrt( 1 - Square( Capsule.Radius ) / DistanceSqr );
+	float SineConeSqr = saturate(Pow2(Capsule.Radius) / DistanceSqr);
 
-
-	float3 ClosestPointOnAxis = ToLight - CapsuleAxis * dot( CapsuleAxis, ToLight );
-	
-	FRect Rect;
-	Rect.Origin = ToLight;
-	Rect.Axis[1] = CapsuleAxis;
-	Rect.Axis[2] = normalize( -ClosestPointOnAxis );
-	Rect.Axis[0] = cross( Rect.Axis[1], Rect.Axis[2] );
-
-	float SinCylinderAngle = Capsule.Radius * rsqrt( dot( ClosestPointOnAxis, ClosestPointOnAxis ) );
-	// width * cos(angle) = 2r 
-	float RectRadius = Capsule.Radius * rsqrt( 1 - Pow2( SinCylinderAngle ) );
-
-	float Extension[2];
-	for( uint i = 0; i < 2; i++ )
-	{
-		float3 PointPos = ToLight + CapsuleAxis * Capsule.Length * ( i > 0 ? 0.5 : -0.5 );
-
-		float SinSphereAngle = Capsule.Radius * rsqrt( dot( PointPos, PointPos ) );
-		float CosAxisAngle = abs( dot( CapsuleAxis, normalize( PointPos ) ) );
-		//float SinExtension = sin( AxisAngle -  SphereAngle );
-		float SinExtension = sqrt( ( 1 - Pow2( CosAxisAngle ) ) * ( 1 - Pow2( SinSphereAngle ) ) ) - CosAxisAngle * SinSphereAngle;
-		Extension[i] = Capsule.Radius / SinExtension;
-	}
-
-	float Translate = 0.5 * ( Extension[1] - Extension[0] );
-	float Extend = 0.5 * ( Extension[0] + Extension[1] );
-	
-	Rect.Origin += Translate * Rect.Axis[1];
-	Rect.Extent = float2( RectRadius, 0.5 * Capsule.Length + Extend );
-
-	FSphericalRect SphericalRect = BuildSphericalRect( Rect );
-
+	FCapsuleSphericalBounds CapsuleBounds = CapsuleGetSphericalBounds(ToLight, CapsuleAxis, Capsule.Radius, Capsule.Length);
 	
 	const uint NumSets = 3;
 	const uint NumSamples[ NumSets ] =
@@ -255,13 +224,13 @@ FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FCapsuleL
 
 				if( Capsule.Length > 0 )
 				{
-					float3 ToArea = UniformSampleSphericalRect( E, SphericalRect );
+					float3 ToArea = CapsuleBounds.Sample(E).xyz;
 					L = normalize( ToArea );
 					H = normalize( V + L );
 				}
 				else
 				{
-					L = TangentToWorld( UniformSampleCone( E, ConeCos ).xyz, ConeAxis );
+					L = TangentToWorld( UniformSampleConeRobust( E, SineConeSqr).xyz, ConeAxis );
 					H = normalize(V + L);
 				}
 			}
@@ -273,13 +242,7 @@ FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FCapsuleL
 			if( NoL > 0 && VoH > 0 )
 			{
 				{
-					float3 ToSphere = ClosestPointLineToRay( Capsule.LightPos[0], Capsule.LightPos[1], Capsule.Length, L );
-
-					float DistSqr = dot( ToSphere, ToSphere );
-					float3 ConeAxis = ToSphere * rsqrt( DistSqr );
-					float ConeCos = sqrt( 1 - Square( Capsule.Radius ) / DistSqr );
-
-					if( dot( L, ConeAxis ) < ConeCos )
+					if (CapsuleTest(L, ToLight, CapsuleAxis, Pow2(Capsule.Radius), Capsule.Length) > 0)
 					{
 						// Ray misses sphere
 						continue;
@@ -290,12 +253,12 @@ FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FCapsuleL
 				{
 					NoL / PI,
 					D_GGX( Pow4(GBuffer.Roughness), NoH ) * NoH / (4 * VoH),
-					1.0 / SphericalRect.SolidAngle,
+					1.0 / CapsuleBounds.GetSolidAngle(),
 				};
 
 				if( Capsule.Length == 0 )
 				{
-					PDF[2] = 1.0 / ( 2 * PI * (1 - ConeCos) );
+					PDF[2] = 1.0 / UniformConeSolidAngle(SineConeSqr);
 				}
 
 				// MIS power heuristic
