@@ -384,7 +384,38 @@ void FTaskTable::AddDefaultColumns()
 
 		AddColumn(ColumnRef);
 	}
+	//////////////////////////////////////////////////
+	// Finished Timestamp Column
+	{
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FTaskTableColumns::FinishedTimestampColumnId);
+		FTableColumn& Column = *ColumnRef;
 
+		Column.SetIndex(ColumnIndex++);
+
+		Column.SetShortName(LOCTEXT("FinishedTimestampColumnName", "Finished"));
+		Column.SetTitleName(LOCTEXT("FinishedTimestampColumnTitle", "Finished"));
+		Column.SetDescription(LOCTEXT("FinishedTimestampColumnDesc", "The time when the task was Finished."));
+
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+
+		Column.SetHorizontalAlignment(HAlign_Left);
+		Column.SetInitialWidth(100.0f);
+
+		Column.SetDataType(ETableCellDataType::Double);
+
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetFinishedTimestamp>>();
+		Column.SetValueGetter(Getter);
+
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FDoubleValueFormatterAsTimeAuto>();
+		Column.SetValueFormatter(Formatter);
+
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
+		Column.SetValueSorter(Sorter);
+
+		Column.SetAggregation(ETableColumnAggregation::Min);
+
+		AddColumn(ColumnRef);
+	}
 	//////////////////////////////////////////////////
 	// Completed Timestamp Column
 	{
@@ -444,39 +475,6 @@ void FTaskTable::AddDefaultColumns()
 
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
 		Column.SetValueSorter(Sorter);
-
-		AddColumn(ColumnRef);
-	}
-
-	//////////////////////////////////////////////////
-	// Finished Timestamp Column
-	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FTaskTableColumns::FinishedTimestampColumnId);
-		FTableColumn& Column = *ColumnRef;
-
-		Column.SetIndex(ColumnIndex++);
-
-		Column.SetShortName(LOCTEXT("FinishedTimestampColumnName", "Finished"));
-		Column.SetTitleName(LOCTEXT("FinishedTimestampColumnTitle", "Finished"));
-		Column.SetDescription(LOCTEXT("FinishedTimestampColumnDesc", "The time when the task was Finished."));
-
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
-
-		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(100.0f);
-
-		Column.SetDataType(ETableCellDataType::Double);
-
-		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetFinishedTimestamp>>();
-		Column.SetValueGetter(Getter);
-
-		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FDoubleValueFormatterAsTimeAuto>();
-		Column.SetValueFormatter(Formatter);
-
-		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
-		Column.SetValueSorter(Sorter);
-
-		Column.SetAggregation(ETableColumnAggregation::Min);
 
 		AddColumn(ColumnRef);
 	}
