@@ -1499,6 +1499,10 @@ public:
 	 * Ticks the viewport on the Game thread
 	 */
 	virtual void Tick(float DeltaTime) {}
+
+	virtual void WaitForFrameEventCompletion() { }
+
+	virtual void IssueFrameEvent() { }
 };
 
 //

@@ -52,9 +52,9 @@ public:
 	FTexture2DRHIRef GetBackBuffer(FRHICommandListImmediate& RHICmdList);
 	void AdvanceBackBufferFrame(FRHICommandListImmediate& RHICmdList);
 
-	void WaitForFrameEventCompletion();
+	virtual void WaitForFrameEventCompletion() override;
 
-	void IssueFrameEvent();
+	virtual void IssueFrameEvent() override;
 
 	inline FIntPoint GetSizeXY() const
 	{
