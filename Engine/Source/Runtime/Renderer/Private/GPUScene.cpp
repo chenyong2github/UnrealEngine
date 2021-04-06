@@ -1248,8 +1248,6 @@ int32 FGPUScene::AllocateInstanceSlots(int32 NumInstanceDataEntries)
 				InstanceDataToClear.Add(false, NewSize - InstanceDataToClear.Num());
 			}
 
-			InstanceClearList.Reserve(InstanceDataToClear.Num());
-
 			// Set all bits associated with newly allocated instance data, otherwise deferred uploads will result in uninitialized instances (primarily for dynamic primitives).
 			for (int32 AddIndex = 0; AddIndex < NumInstanceDataEntries; ++AddIndex)
 			{
@@ -1276,7 +1274,6 @@ void FGPUScene::FreeInstanceSlots(int InstanceDataOffset, int32 NumInstanceDataE
 	if (bIsEnabled)
 	{
 		InstanceDataAllocator.Free(InstanceDataOffset, NumInstanceDataEntries);
-		InstanceClearList.Reserve(InstanceDataToClear.Num());
 		for (int32 AddIndex = 0; AddIndex < NumInstanceDataEntries; ++AddIndex)
 		{
 			int32 InstanceIndex = InstanceDataOffset + AddIndex;
