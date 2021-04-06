@@ -27,6 +27,7 @@ struct FSkelMeshRenderSection;
 class FPositionVertexBuffer;
 
 DECLARE_DELEGATE_OneParam(FOnAnimUpdateRateParamsCreated, FAnimUpdateRateParameters*)
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnTickPose, USkinnedMeshComponent* /*SkinnedMeshComponent*/, float /*DeltaTime*/, bool /*bNeedsValidRootMotion*/)
 
 //
 // Bone Visibility.
@@ -1111,7 +1112,12 @@ public:
 	 * @return	Return true if anything modified. Return false otherwise
 	 * @param bNeedsValidRootMotion - Networked games care more about this, but if false we can do less calculations
 	 */
-	virtual void TickPose(float DeltaTime, bool bNeedsValidRootMotion) { TickUpdateRate(DeltaTime, bNeedsValidRootMotion); }
+	virtual void TickPose(float DeltaTime, bool bNeedsValidRootMotion);
+
+	/**
+	 * Invoked at the beginning of TickPose before doing the bulk of the tick work
+	 */
+	FOnTickPose OnTickPose;
 
 	/** 
 	 * Update Slave Component. This gets called when MasterPoseComponent!=NULL

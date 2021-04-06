@@ -788,6 +788,12 @@ bool USkinnedMeshComponent::ShouldUseUpdateRateOptimizations() const
 	return bEnableUpdateRateOptimizations && CVarEnableAnimRateOptimization.GetValueOnAnyThread() > 0;
 }
 
+void USkinnedMeshComponent::TickPose(float DeltaTime, bool bNeedsValidRootMotion)
+{
+	OnTickPose.Broadcast(this, DeltaTime, bNeedsValidRootMotion);
+	TickUpdateRate(DeltaTime, bNeedsValidRootMotion);
+}
+
 void USkinnedMeshComponent::TickUpdateRate(float DeltaTime, bool bNeedsValidRootMotion)
 {
 	SCOPE_CYCLE_COUNTER(STAT_TickUpdateRate);
