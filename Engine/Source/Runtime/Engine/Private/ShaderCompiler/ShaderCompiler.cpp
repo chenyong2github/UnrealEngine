@@ -5089,7 +5089,7 @@ namespace
 	{
 		FString CmdName = FParse::Token(CmdString, 0);
 
-		bool bCompileChangedShaders = true;
+		bool bCompileChangedShaders = false;
 		OutMaterialsToLoad.Empty();
 
 		if( !CmdName.IsEmpty() && FCString::Stricmp(*CmdName,TEXT("Material"))==0 )
@@ -5109,6 +5109,10 @@ namespace
 					break;
 				}
 			}
+		}
+		else if (!CmdName.IsEmpty() && FCString::Stricmp(*CmdName, TEXT("Changed")) == 0)
+		{
+			bCompileChangedShaders = true;
 		}
 		else
 		{
@@ -5141,9 +5145,6 @@ void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& 
 	// load all the mesh material shaders if any were sent back
 	if (MeshMaterialMaps.Num() > 0)
 	{
-		// this will stop the rendering thread, and reattach components, in the destructor
-		FMaterialUpdateContext UpdateContext(0);
-
 		// parse the shaders
 		FMemoryReader MemoryReader(MeshMaterialMaps, true);
 		FNameAsStringProxyArchive Ar(MemoryReader);
@@ -5151,11 +5152,18 @@ void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& 
 		TArray<UMaterialInterface*> LoadedMaterials;
 		FMaterialShaderMap::LoadForRemoteRecompile(Ar, GMaxRHIShaderPlatform, LoadedMaterials);
 
-		// gather the shader maps to reattach
-		for (UMaterialInterface* Material : LoadedMaterials)
+		// Only update materials if we need to.
+		if (LoadedMaterials.Num())
 		{
-			Material->RecacheUniformExpressions(true);
-			UpdateContext.AddMaterialInterface(Material);
+			// this will stop the rendering thread, and reattach components, in the destructor
+			FMaterialUpdateContext UpdateContext(0);
+
+			// gather the shader maps to reattach
+			for (UMaterialInterface* Material : LoadedMaterials)
+			{
+				Material->RecacheUniformExpressions(true);
+				UpdateContext.AddMaterialInterface(Material);
+			}
 		}
 	}
 }
