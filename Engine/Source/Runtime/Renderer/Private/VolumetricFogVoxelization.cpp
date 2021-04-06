@@ -495,17 +495,6 @@ void VoxelizeVolumePrimitive(FVoxelizeVolumeMeshProcessor& PassMeshProcessor,
 
 		if (bOverrideWithQuadMesh)
 		{
-			if (!GQuadMeshVertexFactory || GQuadMeshVertexFactory->HasIncompatibleFeatureLevel(View.GetFeatureLevel()))
-			{
-				if (GQuadMeshVertexFactory)
-				{
-					GQuadMeshVertexFactory->ReleaseResource();
-					delete GQuadMeshVertexFactory;
-				}
-				GQuadMeshVertexFactory = new FQuadMeshVertexFactory(View.GetFeatureLevel());
-				GQuadMeshVertexBuffer.UpdateRHI();
-				GQuadMeshVertexFactory->InitResource();
-			}
 			LocalQuadMesh.VertexFactory = GQuadMeshVertexFactory;
 			LocalQuadMesh.MaterialRenderProxy = MaterialProxy;
 			LocalQuadMesh.Elements[0].IndexBuffer = &GQuadMeshIndexBuffer;
@@ -577,6 +566,18 @@ void FDeferredShadingSceneRenderer::VoxelizeFogVolumePrimitives(
 			);
 
 			PassParameters->View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewVoxelizeParameters, UniformBuffer_SingleFrame);
+		}
+
+		if (!GQuadMeshVertexFactory || GQuadMeshVertexFactory->HasIncompatibleFeatureLevel(View.GetFeatureLevel()))
+		{
+			if (GQuadMeshVertexFactory)
+			{
+				GQuadMeshVertexFactory->ReleaseResource();
+				delete GQuadMeshVertexFactory;
+			}
+			GQuadMeshVertexFactory = new FQuadMeshVertexFactory(View.GetFeatureLevel());
+			GQuadMeshVertexBuffer.UpdateRHI();
+			GQuadMeshVertexFactory->InitResource();
 		}
 
 		GraphBuilder.AddPass(

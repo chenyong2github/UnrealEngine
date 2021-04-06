@@ -891,17 +891,8 @@ static FSingleTriangleMeshVertexFactory* GSingleTriangleMeshVertexFactory = NULL
 
 static void GetSingleTriangleMeshBatch(FMeshBatch& LocalSingleTriangleMesh, const FMaterialRenderProxy* CloudVolumeMaterialProxy, const ERHIFeatureLevel::Type FeatureLevel)
 {
-	if (!GSingleTriangleMeshVertexFactory || GSingleTriangleMeshVertexFactory->HasIncompatibleFeatureLevel(FeatureLevel))
-	{
-		if (GSingleTriangleMeshVertexFactory)
-		{
-			GSingleTriangleMeshVertexFactory->ReleaseResource();
-			delete GSingleTriangleMeshVertexFactory;
-		}
-		GSingleTriangleMeshVertexFactory = new FSingleTriangleMeshVertexFactory(FeatureLevel);
-		GSingleTriangleMeshVertexBuffer.UpdateRHI();
-		GSingleTriangleMeshVertexFactory->InitResource();
-	}
+	check(GSingleTriangleMeshVertexFactory && !GSingleTriangleMeshVertexFactory->HasIncompatibleFeatureLevel(FeatureLevel));
+
 	LocalSingleTriangleMesh.VertexFactory = GSingleTriangleMeshVertexFactory;
 	LocalSingleTriangleMesh.MaterialRenderProxy = CloudVolumeMaterialProxy;
 	LocalSingleTriangleMesh.Elements[0].IndexBuffer = nullptr;
@@ -1324,6 +1315,18 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 	if (!bShouldRenderVolumetricCloud)
 	{
 		return;
+	}
+
+	if (!GSingleTriangleMeshVertexFactory || GSingleTriangleMeshVertexFactory->HasIncompatibleFeatureLevel(ViewFamily.GetFeatureLevel()))
+	{
+		if (GSingleTriangleMeshVertexFactory)
+		{
+			GSingleTriangleMeshVertexFactory->ReleaseResource();
+			delete GSingleTriangleMeshVertexFactory;
+		}
+		GSingleTriangleMeshVertexFactory = new FSingleTriangleMeshVertexFactory(ViewFamily.GetFeatureLevel());
+		GSingleTriangleMeshVertexBuffer.UpdateRHI();
+		GSingleTriangleMeshVertexFactory->InitResource();
 	}
 
 	if (Scene)
