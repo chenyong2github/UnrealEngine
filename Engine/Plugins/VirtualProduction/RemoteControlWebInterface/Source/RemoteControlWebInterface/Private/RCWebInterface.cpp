@@ -6,6 +6,7 @@
 #include "RCWebInterfaceProcess.h"
 #include "RCWebInterfaceSettings.h"
 #include "IWebRemoteControlModule.h"
+#include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 
 #if WITH_EDITOR
