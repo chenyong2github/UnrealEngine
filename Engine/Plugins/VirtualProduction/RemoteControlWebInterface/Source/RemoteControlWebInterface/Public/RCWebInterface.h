@@ -30,4 +30,7 @@ private:
 
 	/** Customizations/Additions to add to the RC Panel. */
 	TPimplPtr<FRCWebInterfaceCustomizations> Customizations;
+
+	/** Prevents the WebApp from starting. Can be set from command line with -RCWebInterfaceDisable */
+	bool bRCWebInterfaceDisable;
 };
