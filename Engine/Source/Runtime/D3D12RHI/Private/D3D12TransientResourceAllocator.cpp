@@ -177,7 +177,7 @@ void FD3D12TransientMemoryPool::ReleaseResource(FD3D12Resource* InResource, FRHI
 
 	uint64 AllocationOffset = InReleasedAllocationData.GetOffset();
 	uint64 AllocationSize = InReleasedAllocationData.GetSize();
-
+	
 	// Placed resource object is 'never' freed - it can be reused again this or next frame
 	// Will only be destroyed when the allocator is destroyed
 	FResourceCreateState CreateState;
@@ -188,7 +188,7 @@ void FD3D12TransientMemoryPool::ReleaseResource(FD3D12Resource* InResource, FRHI
 	uint64 CreateStateHash = CreateState.GetHash();
 	check(CachedResourceMap.Find(CreateStateHash) == nullptr);
 	CachedResourceMap.Add(CreateStateHash, InResource);
-	
+
 	// Track this resource so aliasing barriers can be added if used again
 	ActiveResourceData ResourceData;
 	ResourceData.AllocationRange = FInt64Range(AllocationOffset, AllocationOffset + AllocationSize);
@@ -453,6 +453,27 @@ void FD3D12TransientMemoryPoolManager::UpdateMemoryStats()
 //-----------------------------------------------------------------------------
 
 
+D3D12_RESOURCE_STATES FD3D12TransientResourceAllocator::GetInitialResourceState(const D3D12_RESOURCE_DESC& InDesc)
+{
+	// Validate the creation state
+	D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+	if (EnumHasAnyFlags(InDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET))
+	{
+		State = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	}
+	else if (EnumHasAnyFlags(InDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+	{
+		State = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	}
+	else if (EnumHasAnyFlags(InDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
+	{
+		State = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	}
+	check(State != D3D12_RESOURCE_STATE_COMMON);
+	return State;
+}
+
+
 FD3D12TransientResourceAllocator::FD3D12TransientResourceAllocator(FD3D12TransientMemoryPoolManager& InMemoryPoolManager) :
 	FD3D12PoolAllocator(
 		InMemoryPoolManager.GetParentDevice(),
@@ -489,6 +510,16 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 	FD3D12PooledTextureData TextureData = PoolManager.GetPooledTexture(InCreateInfo, InDebugName);
 
 	FD3D12BaseShaderResource* BaseShaderResource = nullptr;
+	
+	ERHIAccess InitialState = ERHIAccess::UAVMask;
+	if (EnumHasAnyFlags(InCreateInfo.Flags, TexCreate_RenderTargetable))
+	{
+		InitialState = ERHIAccess::RTV;
+	}
+	else if (EnumHasAnyFlags(InCreateInfo.Flags, TexCreate_DepthStencilTargetable))
+	{
+		InitialState = ERHIAccess::DSVWrite;
+	}
 
 	// Found something?
 	if (TextureData.RHITexture)
@@ -507,8 +538,10 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 			ClearValuePtr = &TextureData.ClearValue;
 		}
 
+		D3D12_RESOURCE_STATES CreateState = GetD3D12ResourceState(InitialState, false);
+
 		// Allocate a new FD3D12Resource on the resource location
-		AllocateTexture(D3D12_HEAP_TYPE_DEFAULT, TextureData.ResourceDesc, InCreateInfo.Format, ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_COMMON, ClearValuePtr, InDebugName, BaseShaderResource->ResourceLocation);
+		AllocateTexture(D3D12_HEAP_TYPE_DEFAULT, TextureData.ResourceDesc, InCreateInfo.Format, ED3D12ResourceStateMode::MultiState, CreateState, ClearValuePtr, InDebugName, BaseShaderResource->ResourceLocation);
 
 		// Inform the listeners about the change - should ideally still get from cache
 		{
@@ -530,7 +563,7 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 			const bool bTextureArray = false;
 			const bool bCubeTexture = false;
 			ID3D12ResourceAllocator* ResourceAllocator = this;
-			FD3D12Texture2D* Texture2D = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture2D<FD3D12BaseTexture2D>(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, 1, bTextureArray, bCubeTexture, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.NumSamples, InCreateInfo.Flags, ERHIAccess::Discard, CreateInfo, ResourceAllocator);
+			FD3D12Texture2D* Texture2D = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture2D<FD3D12BaseTexture2D>(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, 1, bTextureArray, bCubeTexture, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.NumSamples, InCreateInfo.Flags, InitialState, CreateInfo, ResourceAllocator);
 			TextureData.RHITexture = Texture2D;
 			TextureData.ResourceDesc = Texture2D->GetResource()->GetDesc();
 			TextureData.ClearValue = Texture2D->GetResource()->GetClearValue();
@@ -543,7 +576,7 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 		{
 			// Only support 2d textures for now
 			ID3D12ResourceAllocator* ResourceAllocator = this;
-			FD3D12Texture3D* Texture3D = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture3D(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, InCreateInfo.Depth, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.Flags, ERHIAccess::Discard, CreateInfo, ResourceAllocator);
+			FD3D12Texture3D* Texture3D = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture3D(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, InCreateInfo.Depth, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.Flags, InitialState, CreateInfo, ResourceAllocator);
 			TextureData.RHITexture = Texture3D;
 			TextureData.ResourceDesc = Texture3D->GetResource()->GetDesc();
 			TextureData.ClearValue = Texture3D->GetResource()->GetClearValue();
@@ -559,7 +592,7 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 			const bool bTextureArray = false;
 			const bool bCubeTexture = true;
 			ID3D12ResourceAllocator* ResourceAllocator = this;
-			FD3D12TextureCube* TextureCube = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture2D<FD3D12BaseTextureCube>(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, 6, bTextureArray, bCubeTexture, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.NumSamples, InCreateInfo.Flags, ERHIAccess::Discard, CreateInfo, ResourceAllocator);
+			FD3D12TextureCube* TextureCube = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture2D<FD3D12BaseTextureCube>(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, 6, bTextureArray, bCubeTexture, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.NumSamples, InCreateInfo.Flags, InitialState, CreateInfo, ResourceAllocator);
 			TextureData.RHITexture = TextureCube;
 			TextureData.ResourceDesc = TextureCube->GetResource()->GetDesc();
 			TextureData.ClearValue = TextureCube->GetResource()->GetClearValue();
@@ -593,6 +626,7 @@ FRHIBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBufferCreat
 	// Try and get a pooled texture from the manager
 	FD3D12TransientMemoryPoolManager& PoolManager = GetParentDevice()->GetTransientMemoryPoolManager();
 	FD3D12PooledBufferData BufferData = PoolManager.GetPooledBuffer(InCreateInfo, InDebugName);
+	ERHIAccess InitialState = ERHIAccess::UAVMask;
 
 	FD3D12Buffer* Buffer = nullptr;
 
@@ -608,8 +642,10 @@ FRHIBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBufferCreat
 		uint32 Alignment;
 		FD3D12Buffer::GetResourceDescAndAlignment(InCreateInfo.Size, InCreateInfo.Stride, UsageFlags, Desc, Alignment);
 
+		D3D12_RESOURCE_STATES CreateState = GetD3D12ResourceState(InitialState, false);
+
 		// Allocate a new FD3D12Resource on the resource location
-		AllocateResource(D3D12_HEAP_TYPE_DEFAULT, Desc, Desc.Width, Alignment, ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_COMMON, nullptr, InDebugName, Buffer->ResourceLocation);
+		AllocateResource(D3D12_HEAP_TYPE_DEFAULT, Desc, Desc.Width, Alignment, ED3D12ResourceStateMode::MultiState, CreateState, nullptr, InDebugName, Buffer->ResourceLocation);
 
 		// Inform the listeners about the change (should be empty?)
 		Buffer->ResourceRenamed(&Buffer->ResourceLocation);
@@ -618,7 +654,7 @@ FRHIBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBufferCreat
 	{
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		ID3D12ResourceAllocator* ResourceAllocator = this;
-		Buffer = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Buffer(nullptr, InCreateInfo.Size, InCreateInfo.Usage, InCreateInfo.Stride, ERHIAccess::Discard, CreateInfo, ResourceAllocator);
+		Buffer = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Buffer(nullptr, InCreateInfo.Size, InCreateInfo.Usage, InCreateInfo.Stride, InitialState, CreateInfo, ResourceAllocator);
 		BufferData.RHIBuffer = Buffer;
 		BufferData.CreateInfo = InCreateInfo;
 	}
@@ -767,6 +803,9 @@ FD3D12Resource* FD3D12TransientResourceAllocator::CreatePlacedResource(const FRH
 	// No cached resource then use base class
 	if (Resource == nullptr)
 	{
+		// Validate the creation state
+		check(InCreateState == GetInitialResourceState(InDesc));
+
 		TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::CreatePlacedResource);
 		Resource = FD3D12PoolAllocator::CreatePlacedResource(InAllocationData, InDesc, InCreateState, InResourceStateMode, InClearValue, InName);
 	}

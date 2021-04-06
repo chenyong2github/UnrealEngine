@@ -907,7 +907,8 @@ public:
 		bool bValidateState = !GUseInternalTransitions && (InMode == ETransitionMode::Validate);
 
 		// Try and get the correct D3D before state for the transition
-		D3D12_RESOURCE_STATES BeforeState = InResourceState.GetSubresourceState(InSubresourceIndex);
+		D3D12_RESOURCE_STATES TrackedState = InResourceState.GetSubresourceState(InSubresourceIndex);
+		D3D12_RESOURCE_STATES BeforeState = TrackedState;
 
 		// Still untracked in this command list, then try and find out a before state to use
 		if (BeforeState == D3D12_RESOURCE_STATE_TBD)
@@ -924,9 +925,21 @@ public:
 			}
 			else if (GUseInternalTransitions)
 			{
-				// We need a pending resource barrier so we can setup the state before this command list executes
-				InCommandList.AddPendingResourceBarrier(InResource, InAfterState, InSubresourceIndex);
-				InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+				// Already perform transition here if possible to skip patch up during command list execution
+				if (InBeforeState != D3D12_RESOURCE_STATE_TBD)
+				{
+					check(BeforeState == D3D12_RESOURCE_STATE_TBD || BeforeState == InBeforeState);
+					BeforeState = InBeforeState;
+
+					// Add dummy pending barrier, because the end state needs to be updated during execute
+					InCommandList.AddPendingResourceBarrier(InResource, D3D12_RESOURCE_STATE_TBD, InSubresourceIndex);
+				}
+				else
+				{
+					// We need a pending resource barrier so we can setup the state before this command list executes
+					InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+					InCommandList.AddPendingResourceBarrier(InResource, InAfterState, InSubresourceIndex);
+				}
 			}
 			else
 			{
@@ -978,7 +991,12 @@ public:
 				{
 					InCommandList.AddTransitionBarrier(InResource, BeforeState, InAfterState, InSubresourceIndex);
 					InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
-				}				
+				}
+				// Force update the state when the tracked state is still unknown
+				else if (TrackedState == D3D12_RESOURCE_STATE_TBD)
+				{
+					InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+				}
 			}
 		}
 

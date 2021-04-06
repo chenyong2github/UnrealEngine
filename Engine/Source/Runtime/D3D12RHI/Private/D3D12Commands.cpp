@@ -335,47 +335,20 @@ static void HandleResourceDiscardTransitions(
 				return;
 			}
 
-			const D3D12_RESOURCE_FLAGS ResourceFlags = Resource->GetDesc().Flags;
-
-			D3D12_RESOURCE_STATES DiscardState;
-
-			if (EnumHasAnyFlags(ResourceFlags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET))
-			{
-				DiscardState = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			}
-			else if (EnumHasAnyFlags(ResourceFlags, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
-			{
-				DiscardState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-			}
-			else if (EnumHasAnyFlags(ResourceFlags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
-			{
-				DiscardState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-			}
-			else
-			{
-				return;
-			}
-
-			if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression))
-			{
-				DiscardState |= SkipFastClearEliminateState;
-			}
-
+			// Get the initial state to force a 'nop' transition so the internal command list resource tracking has the correct state
+			// already to make sure it's not added to the pending transition list to be kicked before this command list (resource is not valid then yet)
+			D3D12_RESOURCE_STATES InitialState = FD3D12TransientResourceAllocator::GetInitialResourceState(Resource->GetDesc());
 			if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
 			{
-				if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, DiscardState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply))
-				{
-					ResourcesToDiscard.Emplace(Resource, Info.Flags, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-				}
+				FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, InitialState, InitialState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
+				ResourcesToDiscard.Emplace(Resource, Info.Flags, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 			}
 			else
 			{
 				EnumerateSubresources(Resource, Info, [&](uint32 Subresource)
 				{
-					if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, DiscardState, Subresource, FD3D12DynamicRHI::ETransitionMode::Apply))
-					{
-						ResourcesToDiscard.Emplace(Resource, Info.Flags, Subresource);
-					}
+					FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, InitialState, InitialState, Subresource, FD3D12DynamicRHI::ETransitionMode::Apply);
+					ResourcesToDiscard.Emplace(Resource, Info.Flags, Subresource);
 				});
 			}
 		});
@@ -451,11 +424,10 @@ static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12T
 			break;
 		}
 
+		FD3D12Resource* Resource = BaseShaderResource->ResourceLocation.GetResource();
 		if (Info.Action == FRHITransientAliasingInfo::EAction::Acquire)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::AcquireTransient);
-
-			FD3D12Resource* Resource = BaseShaderResource->ResourceLocation.GetResource();
 
 			// Try and see if the resource has overlapping resources
 			if (BaseShaderResource->ResourceLocation.IsTransient() && BaseShaderResource->ResourceLocation.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
@@ -474,6 +446,10 @@ static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12T
 		else
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::DiscardTransient);
+
+			// Restore the resource back to the initial state when done
+			D3D12_RESOURCE_STATES FinalState = FD3D12TransientResourceAllocator::GetInitialResourceState(BaseShaderResource->GetResource()->GetDesc());
+			FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, FinalState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
 
 			// Remove from caches
 			Context.ConditionalClearShaderResource(&BaseShaderResource->ResourceLocation);

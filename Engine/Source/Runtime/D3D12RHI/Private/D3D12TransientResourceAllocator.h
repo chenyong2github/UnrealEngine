@@ -198,6 +198,9 @@ public:
 	// Try and find overlapping resource data for given base resource
 	TArrayView<FD3D12Resource*> GetOverlappingResources(FD3D12BaseShaderResource* InBaseShaderResource);
 
+	// Get the initial resource state
+	static D3D12_RESOURCE_STATES GetInitialResourceState(const D3D12_RESOURCE_DESC& InDesc);
+
 private:
 
 	// Override placed resource allocation helper function to get from cache if available
