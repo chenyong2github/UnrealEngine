@@ -2057,7 +2057,7 @@ public:
 	/**
 	 * Update FApp::CurrentTime / FApp::DeltaTime while taking into account max tick rate.
 	 */
-	void UpdateTimeAndHandleMaxTickRate();
+	virtual void UpdateTimeAndHandleMaxTickRate();
 
 	void SetGameLatencyMarkerStart(uint64 FrameNumber);
 	void SetGameLatencyMarkerEnd(uint64 FrameNumber);

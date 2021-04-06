@@ -14,7 +14,7 @@ DECLARE_LOG_CATEGORY_CLASS(LogMediaTimeSource, Log, All);
 
 FTimespan FAppMediaTimeSource::GetTimecode()
 {
-	const double CurrentTime = FApp::GetCurrentTime();
+	const double CurrentTime = FApp::GetGameTime();
 	const FTimespan Timecode = FTimespan::FromSeconds(CurrentTime);
 
 	UE_LOG(LogMediaTimeSource, VeryVerbose, TEXT("AppMediaTimeSource: Time %.10f, Delta %.10f, Timecode %s"), CurrentTime, FApp::GetDeltaTime(), *Timecode.ToString(TEXT("%h:%m:%s.%t")));

@@ -2116,6 +2116,7 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 		if (!bRunEngineCode)
 		{
 			UpdateTimecode();
+			FApp::SetGameTime(FApp::GetGameTime() + FApp::GetDeltaTime());
 			return;
 		}
 	}
@@ -2339,6 +2340,8 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 #endif // !UE_BUILD_SHIPPING
 
 	UpdateTimecode();
+
+	FApp::SetGameTime(FApp::GetGameTime() + FApp::GetDeltaTime());
 }
 
 void UEngine::ReinitializeCustomTimeStep()
