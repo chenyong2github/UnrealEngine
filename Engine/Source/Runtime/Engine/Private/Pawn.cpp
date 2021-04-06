@@ -504,10 +504,7 @@ void APawn::OnRep_Controller()
 
 	if (bNotifyControllerChange)
 	{
-		if (UGameInstance* GameInstance = GetGameInstance())
-		{
-			GameInstance->GetOnPawnControllerChanged().Broadcast(this, Controller);
-		}
+		NotifyControllerChanged();
 	}
 }
 
@@ -561,10 +558,7 @@ void APawn::PossessedBy(AController* NewController)
 	{
 		ReceivePossessed(Controller);
 	
-		if (UGameInstance* GameInstance = GetGameInstance())
-		{
-			GameInstance->GetOnPawnControllerChanged().Broadcast(this, Controller);
-		}
+		NotifyControllerChanged();
 	}
 }
 
@@ -587,14 +581,23 @@ void APawn::UnPossessed()
 		ReceiveUnpossessed(OldController);
 	}
 
-	if (UGameInstance* GameInstance = GetGameInstance())
-	{
-		GameInstance->GetOnPawnControllerChanged().Broadcast(this, nullptr);
-	}
+	NotifyControllerChanged();
 
 	ConsumeMovementInputVector();
 }
 
+void APawn::NotifyControllerChanged()
+{
+	ReceiveControllerChanged(LastController, Controller);
+	ReceiveControllerChangedDelegate.Broadcast(this, LastController, Controller);
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		GameInstance->GetOnPawnControllerChanged().Broadcast(this, Controller);
+	}
+
+	// Update the cached controller
+	LastController = Controller;
+}
 
 class UNetConnection* APawn::GetNetConnection() const
 {

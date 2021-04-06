@@ -28,6 +28,7 @@ class UPrimitiveComponent;
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogDamage, Warning, All);
 
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPawnRestartedSignature, APawn, ReceiveRestartedDelegate, APawn*, Pawn);
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_ThreeParams(FPawnControllerChangedSignature, APawn, ReceiveControllerChangedDelegate, APawn*, Pawn, AController*, OldController, AController*, NewController);
 
 /** 
  * Pawn is the base class of all actors that can be possessed by players or AI.
@@ -163,6 +164,10 @@ public:
 	UPROPERTY(replicatedUsing=OnRep_Controller)
 	TObjectPtr<AController> Controller;
 
+	/** Previous controller that was controlling this pawn since the last controller change notification */
+	UPROPERTY(transient)
+	TObjectPtr<AController> LastController;
+
 	/** Max difference between pawn's Rotation.Yaw and GetDesiredRotation().Yaw for pawn to be considered as having reached its desired rotation */
 	float AllowedYawError;
 
@@ -178,9 +183,6 @@ public:
 	 * @param	NewRemoteViewPitch	Pitch component to replicate to remote (non owned) clients.
 	 */
 	void SetRemoteViewPitch(float NewRemoteViewPitch);
-
-	/** Called when our Controller no longer possesses us. */
-	virtual void UnPossessed();
 
 	/** Return Physics Volume for this Pawn */
 	virtual APhysicsVolume* GetPawnPhysicsVolume() const;
@@ -302,6 +304,7 @@ public:
 	/** Whether this Pawn's input handling is enabled.  Pawn must still be possessed to get input even if this is true */
 	bool InputEnabled() const { return bInputEnabled; }
 
+
 	/** 
 	 * Called when this Pawn is possessed. Only called on the server (or in standalone).
 	 * @param NewController The controller possessing this pawn
@@ -312,17 +315,49 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, BlueprintAuthorityOnly, meta=(DisplayName= "Possessed"))
 	void ReceivePossessed(AController* NewController);
 
+	/** Called when our Controller no longer possesses us. Only called on the server (or in standalone). */
+	virtual void UnPossessed();
+
 	/** Event called when the Pawn is no longer possessed by a Controller. Only called on the server (or in standalone) */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintAuthorityOnly, meta=(DisplayName= "Unpossessed"))
 	void ReceiveUnpossessed(AController* OldController);
 
-	/** Event called when a pawn has been restarted, usually by a possession change. This is called on the server for all pawns and the owning client for player pawns */
+
+	/** Event called after a pawn's controller has changed, on the server and owning client. This will happen at the same time as the delegate on GameInstance */
+	UFUNCTION(BlueprintImplementableEvent)
+	void ReceiveControllerChanged(AController* OldController, AController* NewController);
+
+	/** Event called after a pawn's controller has changed, on the server and owning client. This will happen at the same time as the delegate on GameInstance */
+	UPROPERTY(BlueprintAssignable, Category = Pawn)
+	FPawnControllerChangedSignature ReceiveControllerChangedDelegate;
+
+	/** Call to notify about a change in controller, on both the server and owning client. This calls the above event and delegate */
+	virtual void NotifyControllerChanged();
+
+
+	/** Event called after a pawn has been restarted, usually by a possession change. This is called on the server for all pawns and the owning client for player pawns */
 	UFUNCTION(BlueprintImplementableEvent)
 	void ReceiveRestarted();
 
-	/** Event called when a pawn has been restarted, usually by a possession change. This is called on the server for all pawns and the owning client for player pawns */
+	/** Event called after a pawn has been restarted, usually by a possession change. This is called on the server for all pawns and the owning client for player pawns */
 	UPROPERTY(BlueprintAssignable, Category = Pawn)
 	FPawnRestartedSignature ReceiveRestartedDelegate;
+
+	/**
+	 * Notifies other systems that a pawn has been restarted. By default this is called on the server for all pawns and the owning client for player pawns.
+	 * This can be overridden by subclasses to delay the notification of restart until data has loaded/replicated
+	 */
+	virtual void NotifyRestarted();
+
+	/** Called when the Pawn is being restarted (usually by being possessed by a Controller). This is called on the server for all pawns and the owning client for player pawns  */
+	virtual void Restart();
+
+	/** Called on the owning client of a player-controlled Pawn when it is restarted, this calls Restart() */
+	virtual void PawnClientRestart();
+
+	/** Wrapper function to call correct restart functions, enable bCallClientRestart if this is a locally owned player pawn or equivalent */
+	void DispatchRestart(bool bCallClientRestart);
+
 
 	/** Returns true if controlled by a local (not network) Controller.	 */
 	UFUNCTION(BlueprintPure, Category=Pawn)
@@ -355,21 +390,6 @@ public:
 
 	/** Returns true if player is viewing this Pawn in FreeCam */
 	virtual bool InFreeCam() const;
-
-	/** Called when the Pawn is being restarted (usually by being possessed by a Controller). This is called on the server for all pawns and the owning client for player pawns  */
-	virtual void Restart();
-
-	/** Called on the owning client of a player-controlled Pawn when it is restarted, this calls Restart() */
-	virtual void PawnClientRestart();
-
-	/** 
-	 * Notifies other systems that a pawn has been restarted. By default this is called on the server for all pawns and the owning client for player pawns.
-	 * This can be overridden by subclasses to delay the notification of restart until data has loaded/replicated
-	 */
-	virtual void NotifyRestarted();
-
-	/** Wrapper function to call correct restart functions, enable bCallClientRestart if this is a locally owned player pawn or equivalent */
-	void DispatchRestart(bool bCallClientRestart);
 
 	/** Updates Pawn's rotation to the given rotation, assumed to be the Controller's ControlRotation. Respects the bUseControllerRotation* settings. */
 	virtual void FaceRotation(FRotator NewControlRotation, float DeltaTime = 0.f);
