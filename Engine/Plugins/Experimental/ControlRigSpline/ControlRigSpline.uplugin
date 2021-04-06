@@ -27,6 +27,12 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [ "Win64" ]
+		},
+		{
+			"Name": "ControlRigSplineEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [ "Win64" ]
 		}
 	]
 }

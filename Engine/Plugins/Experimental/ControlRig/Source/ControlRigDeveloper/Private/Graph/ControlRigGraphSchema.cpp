@@ -15,6 +15,7 @@
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintGeneratedClass.h"
+#include "ControlRigDeveloper.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "EulerTransform.h"
@@ -339,6 +340,20 @@ FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinT
 			if (Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 			{
 				return FLinearColor::White;
+			}
+			
+			if (Struct == FRigElementKey::StaticStruct() || Struct == FRigElementKeyCollection::StaticStruct())
+			{
+				return FLinearColor(0.0, 0.6588, 0.9490);
+			}
+
+			// external types can register their own colors, check if there are any
+			if (IControlRigDeveloperModule* Module = FModuleManager::GetModulePtr<IControlRigDeveloperModule>("ControlRigDeveloper"))
+			{
+				if (const FLinearColor* Color = Module->FindPinTypeColor(Struct))
+				{
+					return *Color;
+				}
 			}
 		}
 	}

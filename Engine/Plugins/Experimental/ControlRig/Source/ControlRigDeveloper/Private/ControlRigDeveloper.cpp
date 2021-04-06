@@ -21,6 +21,16 @@ public:
 	FControlRigBlueprintCompiler ControlRigBlueprintCompiler;
 
 	static TSharedPtr<FKismetCompilerContext> GetControlRigCompiler(UBlueprint* BP, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions);
+
+	virtual void RegisterPinTypeColor(UStruct* Struct, const FLinearColor Color) override;
+
+	virtual void UnRegisterPinTypeColor(UStruct* Struct) override;
+	
+	virtual const FLinearColor* FindPinTypeColor(UStruct* Struct) const override;
+
+private:
+
+	TMap<UStruct*, FLinearColor> PinTypeColorMap;
 };
 
 void FControlRigDeveloperModule::StartupModule()
@@ -55,6 +65,23 @@ TSharedPtr<FKismetCompilerContext> FControlRigDeveloperModule::GetControlRigComp
 	return TSharedPtr<FKismetCompilerContext>(new FControlRigBlueprintCompilerContext(BP, InMessageLog, InCompileOptions));
 }
 
+void FControlRigDeveloperModule::RegisterPinTypeColor(UStruct* Struct, const FLinearColor Color)
+{
+	if (Struct)
+	{ 
+		PinTypeColorMap.FindOrAdd(Struct) = Color;
+	}
+}
+
+void FControlRigDeveloperModule::UnRegisterPinTypeColor(UStruct* Struct)
+{
+	PinTypeColorMap.Remove(Struct);
+}
+
+const FLinearColor* FControlRigDeveloperModule::FindPinTypeColor(UStruct* Struct) const
+{
+	return PinTypeColorMap.Find(Struct);
+}
 
 IMPLEMENT_MODULE(FControlRigDeveloperModule, ControlRigDeveloper)
 
