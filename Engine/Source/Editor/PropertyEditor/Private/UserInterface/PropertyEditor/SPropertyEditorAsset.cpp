@@ -346,7 +346,8 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 
 	bIsActor = ObjectClass->IsChildOf(AActor::StaticClass());
 
-	if (Property && !Property->HasMetaData("NoCreate"))
+	const bool bAllowCreation = !Property || !Property->HasMetaData("NoCreate");
+	if (bAllowCreation) 
 	{
 		if (InArgs._NewAssetFactories.IsSet())
 		{
