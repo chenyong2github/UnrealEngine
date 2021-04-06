@@ -76,7 +76,7 @@ private:
 
 	/** Timestamp when we made the last warning log. Intervals to avoid log spamming */
 	double LastInvalidLoggingLoggedTimestamp = 0.0f;
-	static constexpr float TimeBetweenLoggingSeconds = 2.0f;
+	static constexpr float TimeBetweenLoggingSeconds = 10.0f;
 
 	//Last values used to detect changes made by the user and update our original caches
 	FCameraFilmbackSettings LastCameraFilmback;

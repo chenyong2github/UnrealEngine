@@ -12,6 +12,7 @@
 #include "LensFile.h"
 #include "LiveLinkComponentController.h"
 #include "Logging/LogMacros.h"
+#include "LiveLinkLog.h"
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "UObject/EnterpriseObjectVersion.h"
@@ -213,9 +214,26 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 			if ((CurrentTime - LastInvalidLoggingLoggedTimestamp) > TimeBetweenLoggingSeconds)
 			{
 				LastInvalidLoggingLoggedTimestamp = CurrentTime;
-				UE_LOG(LogLiveLinkCameraController, Warning, TEXT("'%s' needs encoder mapping but lens file is invalid"), *GetName())
+				FLiveLinkLog::Warning(TEXT("'%s' needs encoder mapping but lens file is invalid. Falling back to default CineCamera parameters - is this intentional?"), *GetName());
 			}
 
+			// If no LensFile is found, then use the existing min/max parameters in the current camera
+			if (StaticData->bIsFocusDistanceSupported)
+			{
+				const float MinFocusDistInWorldUnits = CineCameraComponent->LensSettings.MinimumFocusDistance * (CineCameraComponent->GetWorldToMetersScale() / 1000.f);	// convert mm to uu
+				float NewFocusDistance = FMath::Lerp(MinFocusDistInWorldUnits, 100000.0f, FrameData->FocusDistance);
+				CineCameraComponent->FocusSettings.ManualFocusDistance = NewFocusDistance;
+			}
+			if (StaticData->bIsApertureSupported)
+			{
+				float NewAperture = FMath::Lerp(CineCameraComponent->LensSettings.MinFStop, CineCameraComponent->LensSettings.MaxFStop, FrameData->Aperture);
+				CineCameraComponent->CurrentAperture = NewAperture;
+			}
+			if (StaticData->bIsFocalLengthSupported)
+			{
+				float NewZoom = FMath::Lerp(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->LensSettings.MaxFocalLength, FrameData->FocalLength);
+				CineCameraComponent->SetCurrentFocalLength(NewZoom);
+			}
 		}
 	}
 	else
