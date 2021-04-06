@@ -165,6 +165,8 @@ void ComputePipelineCreationArgs_POD::Destroy()
 void GraphicsPipelineCreationArgs_POD::Destroy()
 {
 	FMemory::Free((void*)Desc.Desc.VS.pShaderBytecode);
+	FMemory::Free((void*)Desc.Desc.MS.pShaderBytecode);
+	FMemory::Free((void*)Desc.Desc.AS.pShaderBytecode);
 	FMemory::Free((void*)Desc.Desc.PS.pShaderBytecode);
 	FMemory::Free((void*)Desc.Desc.GS.pShaderBytecode);
 	FMemory::Free((void*)Desc.Desc.HS.pShaderBytecode);
@@ -279,6 +281,14 @@ void FD3D12PipelineStateCache::RebuildFromDiskCache(ID3D12RootSignature* Graphic
 		if (PSODesc->VS.BytecodeLength)
 		{
 			DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&PSODesc->VS.pShaderBytecode, PSODesc->VS.BytecodeLength, bBackShadersWithSystemMemory);
+		}
+		if (PSODesc->MS.BytecodeLength)
+		{
+			DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&PSODesc->MS.pShaderBytecode, PSODesc->MS.BytecodeLength, bBackShadersWithSystemMemory);
+		}
+		if (PSODesc->AS.BytecodeLength)
+		{
+			DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&PSODesc->AS.pShaderBytecode, PSODesc->AS.BytecodeLength, bBackShadersWithSystemMemory);
 		}
 		if (PSODesc->PS.BytecodeLength)
 		{
@@ -419,6 +429,14 @@ void FD3D12PipelineStateCache::AddToDiskCache(const FD3D12LowLevelGraphicsPipeli
 		if (PsoDesc.VS.BytecodeLength)
 		{
 			DiskCache.AppendData((void*)PsoDesc.VS.pShaderBytecode, PsoDesc.VS.BytecodeLength);
+		}
+		if (PsoDesc.MS.BytecodeLength)
+		{
+			DiskCache.AppendData((void*)PsoDesc.MS.pShaderBytecode, PsoDesc.MS.BytecodeLength);
+		}
+		if (PsoDesc.AS.BytecodeLength)
+		{
+			DiskCache.AppendData((void*)PsoDesc.AS.pShaderBytecode, PsoDesc.AS.BytecodeLength);
 		}
 		if (PsoDesc.PS.BytecodeLength)
 		{

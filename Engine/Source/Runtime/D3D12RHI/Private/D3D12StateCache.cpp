@@ -353,6 +353,11 @@ void FD3D12StateCacheBase::SetScissorRects(uint32 Count, const D3D12_RECT* const
 	}
 }
 
+inline bool ShouldSkipStage(uint32 Stage)
+{
+	return ((Stage == SF_Mesh || Stage == SF_Amplification) && !GRHISupportsMeshShaders);
+}
+
 template <ED3D12PipelineType PipelineType>
 void FD3D12StateCacheBase::ApplyState()
 {
@@ -520,6 +525,11 @@ void FD3D12StateCacheBase::ApplyState()
 
 		for (uint32 Stage = StartStage; Stage < EndStage; ++Stage)
 		{
+			if (ShouldSkipStage(Stage))
+			{
+				continue;
+			}
+
 			// Note this code assumes the starting register is index 0.
 			const SRVSlotMask CurrentShaderSRVRegisterMask = BitMask<SRVSlotMask>(PipelineState.Common.CurrentShaderSRVCounts[Stage]);
 			CurrentShaderDirtySRVSlots[Stage] = CurrentShaderSRVRegisterMask & PipelineState.Common.SRVCache.DirtySlotMask[Stage];
@@ -675,6 +685,11 @@ void FD3D12StateCacheBase::ApplySamplers(const FD3D12RootSignature* const pRootS
 
 		for (uint32 Stage = StartStage; Stage < EndStage; ++Stage)
 		{
+			if (ShouldSkipStage(Stage))
+			{
+				continue;
+			}
+
 			// Note this code assumes the starting register is index 0.
 			const SamplerSlotMask CurrentShaderSamplerRegisterMask = ((SamplerSlotMask)1 << PipelineState.Common.CurrentShaderSamplerCounts[Stage]) - (SamplerSlotMask)1;
 			CurrentShaderDirtySamplerSlots[Stage] = CurrentShaderSamplerRegisterMask & Cache.DirtySlotMask[Stage];
@@ -705,6 +720,11 @@ void FD3D12StateCacheBase::ApplySamplers(const FD3D12RootSignature* const pRootS
 
 		for (uint32 Stage = StartStage; Stage < EndStage; Stage++)
 		{
+			if (ShouldSkipStage(Stage))
+			{
+				continue;
+			}
+
 			if ((CurrentShaderDirtySamplerSlots[Stage] && NumSamplers[Stage]))
 			{
 				SamplerSlotMask& CurrentDirtySlotMask = Cache.DirtySlotMask[Stage];
@@ -843,6 +863,11 @@ bool FD3D12StateCacheBase::AssertResourceStates(ED3D12PipelineType PipelineType)
 	bool bSRVIntersectsWithStencil = false;
 	for (uint32 Stage = StartStage; Stage < EndStage; Stage++)
 	{
+		if (ShouldSkipStage(Stage))
+		{
+			continue;
+		}
+
 		// UAVs
 		{
 			const uint32 numUAVs = PipelineState.Common.CurrentShaderUAVCounts[Stage];

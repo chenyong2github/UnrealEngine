@@ -420,7 +420,7 @@ const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticMes
 {
 	// TODO: Support vendor extensions for static root signatures?
 
-	static const uint32 DescriptorTableCount = 16;
+	static const uint32 DescriptorTableCount = 10;
 	static struct
 	{
 		D3D12_SHADER_VISIBILITY Vis;

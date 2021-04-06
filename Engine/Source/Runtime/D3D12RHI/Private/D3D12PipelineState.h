@@ -195,6 +195,8 @@ template <> struct equality_pipeline_state_desc<FD3D12LowLevelGraphicsPipelineSt
 		// Order from most likely to change to least
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.PS.BytecodeLength)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.VS.BytecodeLength)
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.MS.BytecodeLength)
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.AS.BytecodeLength)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.GS.BytecodeLength)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.DS.BytecodeLength)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.HS.BytecodeLength)
@@ -226,6 +228,8 @@ template <> struct equality_pipeline_state_desc<FD3D12LowLevelGraphicsPipelineSt
 		// should be tiny i.e if there were 1 quadrillion shaders the chance of a 
 		// collision is ~ 1 in 10^18. so only do a full check on debug builds
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(VSHash)
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(MSHash)
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(ASHash)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(PSHash)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(GSHash)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(HSHash)
@@ -248,6 +252,8 @@ template <> struct equality_pipeline_state_desc<FD3D12LowLevelGraphicsPipelineSt
 
 	#if PLATFORM_WINDOWS
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(VSExtensions);
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(MSExtensions);
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(ASExtensions);
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(PSExtensions);
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(GSExtensions);
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(HSExtensions);

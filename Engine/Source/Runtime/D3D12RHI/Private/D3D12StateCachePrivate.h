@@ -135,6 +135,8 @@ struct FD3D12ResourceCache
 	inline void DirtyGraphics(const ResourceSlotMask& SlotMask = -1)
 	{
 		Dirty(SF_Vertex, SlotMask);
+		Dirty(SF_Mesh, SlotMask);
+		Dirty(SF_Amplification, SlotMask);
 		Dirty(SF_Hull, SlotMask);
 		Dirty(SF_Domain, SlotMask);
 		Dirty(SF_Pixel, SlotMask);

@@ -148,6 +148,8 @@ uint64 FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPip
 	struct GraphicsPSOData
 	{
 		ShaderBytecodeHash VSHash;
+		ShaderBytecodeHash MSHash;
+		ShaderBytecodeHash ASHash;
 		ShaderBytecodeHash HSHash;
 		ShaderBytecodeHash DSHash;
 		ShaderBytecodeHash GSHash;
@@ -195,6 +197,8 @@ uint64 FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPip
 	RenderTargetData* RTData = (RenderTargetData*) (Data + GraphicsPSODataSize);
 
 	PSOData->VSHash          = Desc.VSHash;
+	PSOData->MSHash          = Desc.MSHash;
+	PSOData->ASHash          = Desc.ASHash;
 	PSOData->HSHash          = Desc.HSHash;
 	PSOData->DSHash          = Desc.DSHash;
 	PSOData->GSHash          = Desc.GSHash;
