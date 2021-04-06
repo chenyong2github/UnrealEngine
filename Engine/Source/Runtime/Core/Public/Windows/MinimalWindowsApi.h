@@ -10,6 +10,11 @@
 
 #pragma once
 
+#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
+	#error this file is for PLATFORM_WINDOWS or PLATFORM_HOLOLENS only
+#endif
+
+
 #include "CoreTypes.h"
 
 #ifdef __clang__

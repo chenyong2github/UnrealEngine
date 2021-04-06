@@ -2,6 +2,11 @@
 
 #pragma once
 
+// #TODO: redirect to platform-agnostic version for the time being. Eventually this will become an error
+#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
+	#include "Microsoft/MinWindows.h"
+#else
+
 #include "CoreTypes.h"
 
 #if defined(_WINDOWS_) && !defined(UE4_MINIMAL_WINDOWS_INCLUDE)
@@ -68,3 +73,5 @@ struct IUnknown;
 #include <Windows.h>
 
 #undef GetFreeSpace
+
+#endif //PLATFORM_*
