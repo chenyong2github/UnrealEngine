@@ -21,7 +21,14 @@ FComponentRequestHandle::~FComponentRequestHandle()
 	UGameFrameworkComponentManager* LocalManager = OwningManager.Get();
 	if (LocalManager)
 	{
-		LocalManager->RemoveComponentRequest(ReceiverClass, ComponentClass);
+		if (ComponentClass.Get())
+		{
+			LocalManager->RemoveComponentRequest(ReceiverClass, ComponentClass);
+		}
+		if (ExtensionHandle.IsValid())
+		{
+			LocalManager->RemoveExtensionHandler(ReceiverClass, ExtensionHandle);
+		}
 	}
 }
 
@@ -29,6 +36,12 @@ bool FComponentRequestHandle::IsValid() const
 {
 	return OwningManager.IsValid();
 }
+
+FName UGameFrameworkComponentManager::NAME_ReceiverAdded = FName("ReceiverAdded");
+FName UGameFrameworkComponentManager::NAME_ReceiverRemoved = FName("ReceiverRemoved");
+FName UGameFrameworkComponentManager::NAME_ExtensionAdded = FName("ExtensionAdded");
+FName UGameFrameworkComponentManager::NAME_ExtensionRemoved = FName("ExtensionRemoved");
+FName UGameFrameworkComponentManager::NAME_GameActorReady = FName("GameActorReady");
 
 void UGameFrameworkComponentManager::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
@@ -124,6 +137,14 @@ void UGameFrameworkComponentManager::AddReceiverInternal(AActor* Receiver)
 				}
 			}
 		}
+
+		if (FExtensionHandlerEvent* HandlerEvent = ReceiverClassToEventMap.Find(ReceiverClassPath))
+		{
+			for (const TPair<FDelegateHandle, FExtensionHandlerDelegate>& Pair : *HandlerEvent)
+			{
+				Pair.Value.Execute(Receiver, NAME_ReceiverAdded);
+			}
+		}
 	}
 }
 
@@ -164,6 +185,8 @@ void UGameFrameworkComponentManager::RemoveReceiverInternal(AActor* Receiver)
 	{
 		DestroyInstancedComponent(Component);
 	}
+
+	SendExtensionEventInternal(Receiver, NAME_ReceiverRemoved);
 }
 
 TSharedPtr<FComponentRequestHandle> UGameFrameworkComponentManager::AddComponentRequest(const TSoftClassPtr<AActor>& ReceiverClass, TSubclassOf<UActorComponent> ComponentClass)
@@ -275,6 +298,122 @@ void UGameFrameworkComponentManager::RemoveComponentRequest(const TSoftClassPtr<
 	}
 }
 
+TSharedPtr<FComponentRequestHandle> UGameFrameworkComponentManager::AddExtensionHandler(const TSoftClassPtr<AActor>& ReceiverClass, FExtensionHandlerDelegate ExtensionHandler)
+{
+	// You must have a target and bound handler. The target cannot be AActor, that is too broad and would be bad for performance.
+	if (!ensure(!ReceiverClass.IsNull()) || !ensure(ExtensionHandler.IsBound()) || !ensure(ReceiverClass.ToString() != TEXT("/Script/Engine.Actor")))
+	{
+		return nullptr;
+	}
+
+	FComponentRequestReceiverClassPath ReceiverClassPath(ReceiverClass);
+	FExtensionHandlerEvent& HandlerEvent = ReceiverClassToEventMap.FindOrAdd(ReceiverClassPath);
+
+	// This is a fake multicast delegate using a map
+	FDelegateHandle DelegateHandle(FDelegateHandle::EGenerateNewHandleType::GenerateNewHandle);
+	HandlerEvent.Add(DelegateHandle, ExtensionHandler);
+
+	if (UClass* ReceiverClassPtr = ReceiverClass.Get())
+	{
+		UGameInstance* LocalGameInstance = GetGameInstance();
+		if (ensure(LocalGameInstance))
+		{
+			UWorld* LocalWorld = LocalGameInstance->GetWorld();
+			if (ensure(LocalWorld))
+			{
+				for (TActorIterator<AActor> ActorIt(LocalWorld, ReceiverClassPtr); ActorIt; ++ActorIt)
+				{
+					if (ActorIt->IsActorInitialized())
+					{
+						ExtensionHandler.Execute(*ActorIt, NAME_ExtensionAdded);
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		// Actor class is not in memory, there will be no actor instances
+	}
+
+	return MakeShared<FComponentRequestHandle>(this, ReceiverClass, DelegateHandle);
+}
+
+void UGameFrameworkComponentManager::RemoveExtensionHandler(const TSoftClassPtr<AActor>& ReceiverClass, FDelegateHandle DelegateHandle)
+{
+	FComponentRequestReceiverClassPath ReceiverClassPath(ReceiverClass);
+
+	if (FExtensionHandlerEvent* HandlerEvent = ReceiverClassToEventMap.Find(ReceiverClassPath))
+	{
+		FExtensionHandlerDelegate* HandlerDelegate = HandlerEvent->Find(DelegateHandle);
+		if (ensure(HandlerDelegate))
+		{
+			// Call it once on unregister
+			if (UClass* ReceiverClassPtr = ReceiverClass.Get())
+			{
+				UGameInstance* LocalGameInstance = GetGameInstance();
+				if (ensure(LocalGameInstance))
+				{
+					UWorld* LocalWorld = LocalGameInstance->GetWorld();
+					if (ensure(LocalWorld))
+					{
+						for (TActorIterator<AActor> ActorIt(LocalWorld, ReceiverClassPtr); ActorIt; ++ActorIt)
+						{
+							if (ActorIt->IsActorInitialized())
+							{
+								HandlerDelegate->Execute(*ActorIt, NAME_ExtensionRemoved);
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				// Actor class is not in memory, there will be no actor instances
+			}
+
+			HandlerEvent->Remove(DelegateHandle);
+
+			if (HandlerEvent->IsEmpty())
+			{
+				ReceiverClassToEventMap.Remove(ReceiverClassPath);
+			}
+		}
+	}
+}
+
+void UGameFrameworkComponentManager::SendExtensionEvent(AActor* Receiver, FName EventName, bool bOnlyInGameWorlds)
+{
+	if (Receiver != nullptr)
+	{
+		if (bOnlyInGameWorlds)
+		{
+			UWorld* ReceiverWorld = Receiver->GetWorld();
+			if ((ReceiverWorld == nullptr) || !ReceiverWorld->IsGameWorld() || ReceiverWorld->IsPreviewWorld())
+			{
+				return;
+			}
+		}
+
+		SendExtensionEventInternal(Receiver, EventName);
+	}
+}
+
+void UGameFrameworkComponentManager::SendExtensionEventInternal(AActor* Receiver, const FName& EventName)
+{
+	for (UClass* Class = Receiver->GetClass(); Class && Class != AActor::StaticClass(); Class = Class->GetSuperClass())
+	{
+		FComponentRequestReceiverClassPath ReceiverClassPath(Class);
+		if (FExtensionHandlerEvent* HandlerEvent = ReceiverClassToEventMap.Find(ReceiverClassPath))
+		{
+			for (const TPair<FDelegateHandle, FExtensionHandlerDelegate>& Pair : *HandlerEvent)
+			{
+				Pair.Value.Execute(Receiver, EventName);
+			}
+		}
+	}
+}
+
 void UGameFrameworkComponentManager::CreateComponentOnInstance(AActor* ActorInstance, TSubclassOf<UActorComponent> ComponentClass)
 {
 	check(ActorInstance);
@@ -339,6 +478,31 @@ void UGameFrameworkComponentManager::RemoveGameFrameworkComponentReceiver(AActor
 		if (UGameFrameworkComponentManager* GFCM = UGameInstance::GetSubsystem<UGameFrameworkComponentManager>(Receiver->GetGameInstance()))
 		{
 			GFCM->RemoveReceiverInternal(Receiver);
+		}
+	}
+}
+
+void UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(AActor* Receiver, const FName& EventName, bool bOnlyInGameWorlds)
+{
+	if (Receiver != nullptr)
+	{
+		if (bOnlyInGameWorlds)
+		{
+			UWorld* ReceiverWorld = Receiver->GetWorld();
+			if ((ReceiverWorld != nullptr) && ReceiverWorld->IsGameWorld() && !ReceiverWorld->IsPreviewWorld())
+			{
+				if (UGameFrameworkComponentManager* GFCM = UGameInstance::GetSubsystem<UGameFrameworkComponentManager>(ReceiverWorld->GetGameInstance()))
+				{
+					GFCM->SendExtensionEvent(Receiver, EventName);
+				}
+			}
+		}
+		else
+		{
+			if (UGameFrameworkComponentManager* GFCM = UGameInstance::GetSubsystem<UGameFrameworkComponentManager>(Receiver->GetGameInstance()))
+			{
+				GFCM->SendExtensionEvent(Receiver, EventName);
+			}
 		}
 	}
 }
