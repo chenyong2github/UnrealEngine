@@ -4668,8 +4668,10 @@ UObject* UTextureFactory::FactoryCreateBinary
 		// But that was unintuitive for many users so now for re-imports we will end up ignoring this and respecting the existing setting below.
 		static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); 
 		check(CVarVirtualTexturesEnabled);
+		static const auto CVarVirtualTexturesAutoImportEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VT.EnableAutoImport"));
+		check(CVarVirtualTexturesAutoImportEnabled);
 
-		if (CVarVirtualTexturesEnabled->GetValueOnAnyThread())
+		if (CVarVirtualTexturesEnabled->GetValueOnAnyThread() && CVarVirtualTexturesAutoImportEnabled->GetValueOnAnyThread())
 		{
 			const int32 VirtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
 			const int32 VirtualTextureAutoEnableThresholdPixels = VirtualTextureAutoEnableThreshold * VirtualTextureAutoEnableThreshold;

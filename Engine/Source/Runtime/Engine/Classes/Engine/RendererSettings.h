@@ -259,6 +259,13 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
 		EditCondition = "bVirtualTextures",
+		ConsoleVariable = "r.VT.EnableAutoImport", DisplayName = "Enable virtual texture on texture import",
+		ToolTip = "Set the 'Virtual Texture Streaming' setting for imported textures based on 'Auto Virtual Texturing Size' in the texture import settings.",
+		ConfigRestartRequired = false))
+	uint32 bVirtualTextureEnableAutoImport : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
+		EditCondition = "bVirtualTextures",
 		ConsoleVariable = "r.VirtualTexturedLightmaps", DisplayName = "Enable virtual texture lightmaps",
 		ToolTip = "When enabled, lightmaps will be streamed using the virtual texture system. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
