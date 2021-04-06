@@ -763,24 +763,11 @@ void UDisplaceMeshTool::Setup()
 	{
 		TextureMapProperties->DisplacementMap = nullptr;
 	}
-	TextureMapProperties->AdjustmentCurve = ToolSetupUtil::GetContrastAdjustmentCurve(GetToolManager());
-
-	// In editor, we can respond directly to curve updates.
-#if WITH_EDITORONLY_DATA
-	if (TextureMapProperties->AdjustmentCurve)
+	if (TextureMapProperties->AdjustmentCurve == nullptr)
 	{
-		TextureMapProperties->AdjustmentCurve->OnUpdateCurve.AddWeakLambda(this,
-			[this](UCurveBase* Curve, EPropertyChangeType::Type ChangeType) {
-				if (TextureMapProperties->bApplyAdjustmentCurve)
-				{
-					FDisplaceMeshOpFactory* DisplacerDownCast = static_cast<FDisplaceMeshOpFactory*>(Displacer.Get());
-					DisplacerDownCast->SetAdjustmentCurve(TextureMapProperties->AdjustmentCurve);
-					bNeedsDisplaced = true;
-					StartComputation();
-				}
-			});
+		// if curve is null, create from default
+		TextureMapProperties->AdjustmentCurve = ToolSetupUtil::GetContrastAdjustmentCurve(GetToolManager());
 	}
-#endif
 	
 	// populate weight maps list
 	IMeshDescriptionProvider* TargetMeshProvider = Cast<IMeshDescriptionProvider>(Target);
@@ -879,12 +866,8 @@ void UDisplaceMeshTool::Setup()
 
 void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
-#if WITH_EDITORONLY_DATA
-	if (TextureMapProperties->AdjustmentCurve)
-	{
-		TextureMapProperties->AdjustmentCurve->OnUpdateCurve.RemoveAll(this);
-	}
-#endif
+	// unhook any active listener for contrast curve
+	DisconnectActiveContrastCurveTarget();
 
 	CommonProperties->SaveProperties(this);
 	NoiseProperties->SaveProperties(this);
@@ -934,6 +917,7 @@ void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		DynamicMeshComponent = nullptr;
 	}
 }
+
 
 void UDisplaceMeshTool::ValidateSubdivisions()
 {
@@ -1092,8 +1076,66 @@ void UDisplaceMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 }
 #endif
 
+
+void UDisplaceMeshTool::UpdateActiveContrastCurveTarget()
+{
+	using namespace DisplaceMeshToolLocals;
+
+	// if user resets the AdjustmentCurve field, it will go to nullptr, in this case we will force it 
+	// back to a new default curve
+	if (TextureMapProperties->AdjustmentCurve == nullptr)
+	{
+		using namespace DisplaceMeshToolLocals;
+		TextureMapProperties->AdjustmentCurve = ToolSetupUtil::GetContrastAdjustmentCurve(GetToolManager());
+		bNeedsDisplaced = true;
+	}
+
+#if WITH_EDITORONLY_DATA
+	// if the AdjustmentCurve changes, then we need to change which one we are listening to for CurveUpdate events
+	if (TextureMapProperties->AdjustmentCurve != ActiveContrastCurveTarget)
+	{
+		DisconnectActiveContrastCurveTarget();
+
+		if (TextureMapProperties->AdjustmentCurve != nullptr)
+		{
+			ActiveContrastCurveTarget = TextureMapProperties->AdjustmentCurve;
+			ActiveContrastCurveListenerHandle = ActiveContrastCurveTarget->OnUpdateCurve.AddWeakLambda(this,
+				[this](UCurveBase* Curve, EPropertyChangeType::Type ChangeType) {
+				if (TextureMapProperties->bApplyAdjustmentCurve)
+				{
+					FDisplaceMeshOpFactory* DisplacerDownCast = static_cast<FDisplaceMeshOpFactory*>(Displacer.Get());
+					DisplacerDownCast->SetAdjustmentCurve(TextureMapProperties->AdjustmentCurve);
+					bNeedsDisplaced = true;
+					StartComputation();
+				}
+			});
+		}
+	}
+#endif
+}
+
+void UDisplaceMeshTool::DisconnectActiveContrastCurveTarget()
+{
+	using namespace DisplaceMeshToolLocals;
+
+#if WITH_EDITORONLY_DATA
+	if (ActiveContrastCurveTarget != nullptr)
+	{
+		ActiveContrastCurveTarget->OnUpdateCurve.Remove(ActiveContrastCurveListenerHandle);
+		ActiveContrastCurveListenerHandle = FDelegateHandle();
+		ActiveContrastCurveTarget = nullptr;
+
+		FDisplaceMeshOpFactory* DisplacerDownCast = static_cast<FDisplaceMeshOpFactory*>(Displacer.Get());
+		DisplacerDownCast->SetAdjustmentCurve(nullptr);
+	}
+#endif
+}
+
+
 void UDisplaceMeshTool::OnTick(float DeltaTime)
 {
+	UpdateActiveContrastCurveTarget();
+
 	AdvanceComputation();
 }
 
@@ -1122,6 +1164,8 @@ void UDisplaceMeshTool::StartComputation()
 
 void UDisplaceMeshTool::AdvanceComputation()
 {
+	using namespace DisplaceMeshToolLocals;
+
 	if (SubdivideTask && SubdivideTask->IsDone())
 	{
 		SubdividedMesh = TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>(SubdivideTask->GetTask().ExtractOperator()->ExtractResult().Release());
@@ -1130,6 +1174,10 @@ void UDisplaceMeshTool::AdvanceComputation()
 	}
 	if (SubdividedMesh && bNeedsDisplaced)
 	{
+		// force update of contrast curve
+		FDisplaceMeshOpFactory* DisplacerDownCast = static_cast<FDisplaceMeshOpFactory*>(Displacer.Get());
+		DisplacerDownCast->SetAdjustmentCurve(TextureMapProperties->bApplyAdjustmentCurve ? TextureMapProperties->AdjustmentCurve : nullptr);
+
 		DisplaceTask = new FAsyncTaskExecuterWithAbort<TModelingOpTask<FDynamicMeshOperator>>(Displacer->MakeNewOperator());
 		DisplaceTask->StartBackgroundTask();
 		bNeedsDisplaced = false;
