@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"CinematicCamera",
 					"Engine",
+					"Foliage",
 					"GeometryCache", // Just so that we can fetch its AssetImportData
 					"IntelTBB",
 					"MeshDescription",
