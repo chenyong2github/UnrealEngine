@@ -132,7 +132,7 @@ bool HasVisibleChildren(UNiagaraStackEntry* Entry)
 	return Children.Num() > 0;
 }
 
-void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWidget, TSharedPtr<SWidget> InValueWidget, TSharedPtr<SWidget> InEditConditionWidget)
+void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWidget, TSharedPtr<SWidget> InValueWidget, TSharedPtr<SWidget> InEditConditionWidget, TSharedPtr<SWidget> InResetWidget)
 {
 	FSlateColor IconColor = FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName()));
 	if (bIsCategoryIconHighlighted)
@@ -350,6 +350,14 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 						[
 							SNew(SNiagaraStackIssueIcon, StackViewModel, StackEntry)
 							.Visibility(IssueIconVisibility)
+						]
+						// Reset To Default
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(0, 0, 3, 0)
+						[
+							InResetWidget.IsValid() ? InResetWidget.ToSharedRef() : SNullWidget::NullWidget
 						]
 					]
 				]
