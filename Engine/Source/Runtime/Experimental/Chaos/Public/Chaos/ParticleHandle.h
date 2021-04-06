@@ -803,6 +803,8 @@ public:
 	{
 		SetLinearEtherDrag(DynamicMisc.LinearEtherDrag());
 		SetAngularEtherDrag(DynamicMisc.AngularEtherDrag());
+		SetMaxLinearSpeedSq(DynamicMisc.MaxLinearSpeedSq());
+		SetMaxAngularSpeedSq(DynamicMisc.MaxAngularSpeedSq());
 		SetCollisionGroup(DynamicMisc.CollisionGroup());
 		SetGravityEnabled(DynamicMisc.GravityEnabled());
 		SetCCDEnabled(DynamicMisc.CCDEnabled());
@@ -848,6 +850,14 @@ public:
 	T AngularEtherDrag() const { return PBDRigidParticles->AngularEtherDrag(ParticleIdx); }
 	T& AngularEtherDrag() { return PBDRigidParticles->AngularEtherDrag(ParticleIdx); }
 	void SetAngularEtherDrag(const T& InAngularEtherDrag) { PBDRigidParticles->AngularEtherDrag(ParticleIdx) = InAngularEtherDrag; }
+
+	T MaxLinearSpeedSq() const { return PBDRigidParticles->MaxLinearSpeedSq(ParticleIdx); }
+	T& MaxLinearSpeedSq() { return PBDRigidParticles->MaxLinearSpeedSq(ParticleIdx); }
+	void SetMaxLinearSpeedSq(const T& InMaxLinearSpeed) { PBDRigidParticles->MaxLinearSpeedSq(ParticleIdx) = InMaxLinearSpeed; }
+
+	T MaxAngularSpeedSq() const { return PBDRigidParticles->MaxAngularSpeedSq(ParticleIdx); }
+	T& MaxAngularSpeedSq() { return PBDRigidParticles->MaxAngularSpeedSq(ParticleIdx); }
+	void SetMaxAngularSpeedSq(const T& InMaxAngularSpeed) { PBDRigidParticles->MaxAngularSpeedSq(ParticleIdx) = InMaxAngularSpeed; }
 
 	int32 Island() const { return PBDRigidParticles->Island(ParticleIdx); }
 	int32& Island() { return PBDRigidParticles->Island(ParticleIdx); }
@@ -2272,6 +2282,18 @@ public:
 	void SetAngularEtherDrag(const T& InAngularEtherDrag)
 	{
 		MMiscData.Modify(true,MDirtyFlags,Proxy,[&InAngularEtherDrag](auto& Data){ Data.SetAngularEtherDrag(InAngularEtherDrag);});
+	}
+
+	T MaxLinearSpeedSq() const { return MMiscData.Read().MaxLinearSpeedSq(); }
+	void SetMaxLinearSpeedSq(const T& InLinearSpeed)
+	{
+		MMiscData.Modify(true,MDirtyFlags,Proxy,[&InLinearSpeed](auto& Data){ Data.SetMaxLinearSpeedSq(InLinearSpeed);});
+	}
+
+	T MaxAngularSpeedSq() const { return MMiscData.Read().MaxAngularSpeedSq(); }
+	void SetMaxAngularSpeedSq(const T& InAngularSpeed)
+	{
+		MMiscData.Modify(true,MDirtyFlags,Proxy,[&InAngularSpeed](auto& Data){ Data.SetMaxAngularSpeedSq(InAngularSpeed);});
 	}
 
 	int32 Island() const { return MIsland; }

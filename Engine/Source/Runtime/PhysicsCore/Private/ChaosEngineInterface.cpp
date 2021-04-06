@@ -580,13 +580,44 @@ void FChaosEngineInterface::SetAngularVelocity_AssumesLocked(const FPhysicsActor
 
 float FChaosEngineInterface::GetMaxAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	CHAOS_ENSURE(false);
-	return FLT_MAX;
+	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		return FMath::Sqrt(InActorReference->GetGameThreadAPI().GetMaxAngularSpeedSq());
+	}
+
+	return TNumericLimits<float>::Max();
 }
 
-void FChaosEngineInterface::SetMaxAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,float InMaxAngularVelocity)
+float FChaosEngineInterface::GetMaxLinearVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	CHAOS_ENSURE(false);
+	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		return FMath::Sqrt(InActorReference->GetGameThreadAPI().GetMaxLinearSpeedSq());
+	}
+
+	return TNumericLimits<float>::Max();
+}
+
+void FChaosEngineInterface::SetMaxAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,float InMaxAngularVelocityRadians)
+{
+	// We're about to square the input so we clamp to this maximum
+	static const float MaxInput = FMath::Sqrt(TNumericLimits<float>::Max());
+
+	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		InActorReference->GetGameThreadAPI().SetMaxAngularSpeedSq(InMaxAngularVelocityRadians > MaxInput ? TNumericLimits<float>::Max() : InMaxAngularVelocityRadians * InMaxAngularVelocityRadians);
+	}
+}
+
+void FChaosEngineInterface::SetMaxLinearVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InMaxLinearVelocity)
+{
+	// We're about to square the input so we clamp to this maximum
+	static const float MaxInput = FMath::Sqrt(TNumericLimits<float>::Max());
+
+	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		InActorReference->GetGameThreadAPI().SetMaxLinearSpeedSq(InMaxLinearVelocity > MaxInput ? TNumericLimits<float>::Max() : InMaxLinearVelocity * InMaxLinearVelocity);
+	}
 }
 
 float FChaosEngineInterface::GetMaxDepenetrationVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference)

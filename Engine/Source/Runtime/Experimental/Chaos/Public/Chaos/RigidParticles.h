@@ -83,6 +83,8 @@ public:
 		TArrayCollection::AddArray(&MRotationOfMass);
 		TArrayCollection::AddArray(&MLinearEtherDrag);
 		TArrayCollection::AddArray(&MAngularEtherDrag);
+		TArrayCollection::AddArray(&MaxLinearSpeedsSq);
+		TArrayCollection::AddArray(&MaxAngularSpeedsSq);
 		TArrayCollection::AddArray(&MCollisionParticles);
 		TArrayCollection::AddArray(&MCollisionGroup);
 		TArrayCollection::AddArray(&MCollisionConstraintFlags);
@@ -109,6 +111,8 @@ public:
 		, MInvM(MoveTemp(Other.MInvM))
 		, MCenterOfMass(MoveTemp(Other.MCenterOfMass))
 		, MRotationOfMass(MoveTemp(Other.MRotationOfMass))
+		, MaxLinearSpeedsSq(MoveTemp(Other.MaxLinearSpeedsSq))
+		, MaxAngularSpeedsSq(MoveTemp(Other.MaxAngularSpeedsSq))
 		, MCollisionParticles(MoveTemp(Other.MCollisionParticles))
 		, MCollisionGroup(MoveTemp(Other.MCollisionGroup))
 		, MCollisionConstraintFlags(MoveTemp(Other.MCollisionConstraintFlags))
@@ -132,6 +136,8 @@ public:
 		TArrayCollection::AddArray(&MRotationOfMass);
 		TArrayCollection::AddArray(&MLinearEtherDrag);
 		TArrayCollection::AddArray(&MAngularEtherDrag);
+		TArrayCollection::AddArray(&MaxLinearSpeedsSq);
+		TArrayCollection::AddArray(&MaxAngularSpeedsSq);
 		TArrayCollection::AddArray(&MCollisionParticles);
 		TArrayCollection::AddArray(&MCollisionGroup);
 		TArrayCollection::AddArray(&MCollisionConstraintFlags);
@@ -189,6 +195,12 @@ public:
 
 	FORCEINLINE const T& AngularEtherDrag(const int32 index) const { return MAngularEtherDrag[index]; }
 	FORCEINLINE T& AngularEtherDrag(const int32 index) { return MAngularEtherDrag[index]; }
+
+	FORCEINLINE const T& MaxLinearSpeedSq(const int32 index) const { return MaxLinearSpeedsSq[index]; }
+	FORCEINLINE T& MaxLinearSpeedSq(const int32 index) { return MaxLinearSpeedsSq[index]; }
+
+	FORCEINLINE const T& MaxAngularSpeedSq(const int32 index) const { return MaxAngularSpeedsSq[index]; }
+	FORCEINLINE T& MaxAngularSpeedSq(const int32 index) { return MaxAngularSpeedsSq[index]; }
 
 	FORCEINLINE int32 CollisionParticlesSize(int32 Index) const { return MCollisionParticles[Index] == nullptr ? 0 : MCollisionParticles[Index]->Size(); }
 
@@ -306,6 +318,8 @@ public:
 	FORCEINLINE TArray<TRotation<T, d>>& AllRotationOfMass() { return MRotationOfMass; }
 	FORCEINLINE TArray<FReal>& AllLinearEtherDrag() { return MLinearEtherDrag; }
 	FORCEINLINE TArray<FReal>& AllAngularEtherDrag() { return MAngularEtherDrag; }
+	FORCEINLINE TArray<FReal>& AllMaxLinearSpeeds() { return MaxLinearSpeedsSq; }
+	FORCEINLINE TArray<FReal>& AllMaxAngularSpeeds() { return MaxAngularSpeedsSq; }
 	FORCEINLINE TArray<bool>& AllDisabled() { return MDisabled; }
 	FORCEINLINE TArray<EObjectStateType>& AllObjectState() { return MObjectState; }
 	FORCEINLINE TArray<bool>& AllGravityEnabled() { return MGravityEnabled; }
@@ -326,6 +340,8 @@ private:
 	TArrayCollectionArray<TRotation<T,d>> MRotationOfMass;
 	TArrayCollectionArray<T> MLinearEtherDrag;
 	TArrayCollectionArray<T> MAngularEtherDrag;
+	TArrayCollectionArray<T> MaxLinearSpeedsSq;
+	TArrayCollectionArray<T> MaxAngularSpeedsSq;
 	TArrayCollectionArray<TUniquePtr<TBVHParticles<T, d>>> MCollisionParticles;
 	TArrayCollectionArray<int32> MCollisionGroup;
 	TArrayCollectionArray<uint32> MCollisionConstraintFlags;

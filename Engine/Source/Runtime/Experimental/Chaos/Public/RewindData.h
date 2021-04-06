@@ -124,6 +124,18 @@ public:
 	}
 
 	template <typename TParticle>
+	FReal MaxLinearSpeedSq(const TParticle& Particle) const
+	{
+		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().MaxLinearSpeedSq() : Particle.CastToRigidParticle()->MaxLinearSpeedSq();
+	}
+
+	template <typename TParticle>
+	FReal MaxAngularSpeedSq(const TParticle& Particle) const
+	{
+		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().MaxAngularSpeedSq() : Particle.CastToRigidParticle()->MaxAngularSpeedSq();
+	}
+
+	template <typename TParticle>
 	EObjectStateType ObjectState(const TParticle& Particle) const
 	{
 		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().ObjectState() : Particle.CastToRigidParticle()->ObjectState();
@@ -298,6 +310,16 @@ public:
 	FReal AngularEtherDrag() const
 	{
 		return State.AngularEtherDrag(Particle);
+	}
+
+	FReal MaxLinearSpeedSq() const
+	{
+		return State.MaxLinearSpeedSq(Particle);
+	}
+
+	FReal MaxAngularSpeedSq() const
+	{
+		return State.MaxAngularSpeedSq(Particle);
 	}
 
 	EObjectStateType ObjectState() const

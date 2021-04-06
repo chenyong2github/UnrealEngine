@@ -32,6 +32,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 
 		// Change hair strands vertex format
 		HairStrandsVertexFormatChange,
+		
+		// Added max linear and angular speed to Chaos bodies
+		AddChaosMaxLinearAngularSpeed,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

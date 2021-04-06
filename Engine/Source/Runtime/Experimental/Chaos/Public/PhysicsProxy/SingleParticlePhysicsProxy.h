@@ -14,6 +14,7 @@
 #include "Chaos/Core.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "Framework/Threading.h"
+#include "Math/NumericLimits.h"
 
 namespace Chaos
 {
@@ -838,7 +839,7 @@ public:
 	int32 Island() const
 	{
 		VerifyContext();
-		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		if (const TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
 			return Rigid->Island();
 		}
@@ -849,7 +850,7 @@ public:
 	void SetIsland(const int32 InIsland)
 	{
 		VerifyContext();
-		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		if (TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
 			Rigid->SetIsland(InIsland);
 		}
@@ -858,7 +859,7 @@ public:
 	bool ToBeRemovedOnFracture() const
 	{
 		VerifyContext();
-		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		if (const TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
 			return Rigid->ToBeRemovedOnFracture();
 		}
@@ -869,7 +870,7 @@ public:
 	void SetToBeRemovedOnFracture(const bool InToBeRemovedOnFracture)
 	{
 		VerifyContext();
-		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		if (TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
 			Rigid->SetToBeRemovedOnFracture(InToBeRemovedOnFracture);
 		}
@@ -878,7 +879,7 @@ public:
 	void ClearEvents()
 	{
 		VerifyContext();
-		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		if (TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
 			Rigid->ClearEvents();
 		}
@@ -887,7 +888,7 @@ public:
 	EWakeEventEntry GetWakeEvent()
 	{
 		VerifyContext();
-		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		if (TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
 			return Rigid->GetWakeEvent();
 		}
@@ -898,7 +899,7 @@ public:
 	void ClearForces(bool bInvalidate = true)
 	{
 		VerifyContext();
-		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		if (TPBDRigidParticle<FReal, 3>*Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
 			Rigid->ClearForces(bInvalidate);
 		}
@@ -907,7 +908,7 @@ public:
 	void ClearTorques(bool bInvalidate = true)
 	{
 		VerifyContext();
-		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		if (TPBDRigidParticle<FReal, 3>*Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
 			Rigid->ClearTorques(bInvalidate);
 		}
@@ -943,7 +944,7 @@ public:
 	void SetCCDEnabled(bool bEnabled)
 	{
 		VerifyContext();
-		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		if (TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
 			Rigid->SetCCDEnabled(bEnabled);
 		}
@@ -952,12 +953,52 @@ public:
 	bool CCDEnabled() const
 	{
 		VerifyContext();
-		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		if (const TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
 			return Rigid->CCDEnabled();
 		}
 
 		return false;
+	}
+
+	void SetMaxLinearSpeedSq(FReal InNewSpeed)
+	{
+		VerifyContext();
+		if(TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		{
+			Rigid->SetMaxLinearSpeedSq(InNewSpeed);
+		}
+	}
+
+	FReal GetMaxLinearSpeedSq()
+	{
+		VerifyContext();
+		if(const TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		{
+			return Rigid->MaxLinearSpeedSq();
+		}
+
+		return TNumericLimits<FReal>::Max();
+	}
+
+	void SetMaxAngularSpeedSq(FReal InNewSpeed)
+	{
+		VerifyContext();
+		if(TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		{
+			Rigid->SetMaxAngularSpeedSq(InNewSpeed);
+		}
+	}
+
+	FReal GetMaxAngularSpeedSq()
+	{
+		VerifyContext();
+		if(const TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		{
+			return Rigid->MaxAngularSpeedSq();
+		}
+
+		return TNumericLimits<FReal>::Max();
 	}
 
 	void SetDisabled(bool bDisable)

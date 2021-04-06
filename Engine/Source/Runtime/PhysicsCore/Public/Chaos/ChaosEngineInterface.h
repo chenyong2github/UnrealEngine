@@ -408,7 +408,9 @@ public:
 	static FVector GetAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static void SetAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InNewVelocity,bool bAutoWake = true);
 	static float GetMaxAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference);
-	static void SetMaxAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,float InMaxAngularVelocity);
+	static float GetMaxLinearVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static void SetMaxAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,float InMaxAngularVelocityRadians);
+	static void SetMaxLinearVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InMaxLinearVelocity);
 
 	static float GetMaxDepenetrationVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static void SetMaxDepenetrationVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,float InMaxDepenetrationVelocity);
