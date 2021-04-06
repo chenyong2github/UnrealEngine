@@ -494,6 +494,8 @@ RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platfo
 
 RENDERCORE_API bool SupportsDesktopTemporalAA(const FStaticShaderPlatform Platform);
 
+RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform);
+
 
 /* Simple cache for RendererSettings ini lookup per shader platform. */
 template<typename Type>
@@ -542,13 +544,6 @@ inline bool IsUsingGBuffers(const FStaticShaderPlatform Platform)
 	{
 		return !IsAnyForwardShadingEnabled(Platform);
 	}
-}
-
-/** Returns whether DBuffer decals are enabled for a given shader platform */
-inline bool IsUsingDBuffers(const FStaticShaderPlatform Platform)
-{
-	extern RENDERCORE_API uint64 GDBufferPlatformMask;
-	return !!(GDBufferPlatformMask & (1ull << Platform));
 }
 
 /** Returns whether the base pass should output to the velocity buffer is enabled for a given shader platform */
