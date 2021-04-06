@@ -13,7 +13,7 @@
 #include "Containers/SparseArray.h"
 #include "UObject/ObjectKey.h"
 
-namespace UE4PushModelPrivate
+namespace UEPushModelPrivate
 {
 	/**
 	 * This is a "state" for a given Object that is being tracked by a Push Model Object Manager.

@@ -3729,7 +3729,7 @@ void UInterpTrackMove::UpdateKeyframe(int32 KeyIndex, UInterpTrackInst* TrInst)
 	UInterpTrackInstMove* MoveTrackInst = CastChecked<UInterpTrackInstMove>(TrInst);
 
 
-	/* @todo UE4 do we still need this code? 
+	/* @todo UE do we still need this code? 
 	if ( APawn * Pawn = Actor->GetAPawn() )
 	{
 		if ( Pawn->CapsuleComponent )
@@ -5754,7 +5754,7 @@ void UInterpTrackInstFloatProp::RestoreActorState(UInterpTrack* Track)
 
 	// We update components, so things like draw scale take effect.
 	// Don't force update all components unless we're in the editor.
-	Actor->ReregisterAllComponents(); // @todo UE4 insist on a property update callback, and use here?
+	Actor->ReregisterAllComponents(); // @todo UE insist on a property update callback, and use here?
 }
 
 void UInterpTrackInstFloatProp::InitTrackInst(UInterpTrack* Track)
@@ -5896,7 +5896,7 @@ void UInterpTrackInstVectorProp::RestoreActorState(UInterpTrack* Track)
 
 	// We update components, so things like draw scale take effect.
 	// Don't force update all components unless we're in the editor.
-	Actor->ReregisterAllComponents(); // @todo UE4 insist on a property update callback, and use here?
+	Actor->ReregisterAllComponents(); // @todo UE insist on a property update callback, and use here?
 }
 
 void UInterpTrackInstVectorProp::InitTrackInst(UInterpTrack* Track)
@@ -6098,7 +6098,7 @@ void UInterpTrackInstBoolProp::RestoreActorState( UInterpTrack* Track )
 
 	// We update components, so things like draw scale take effect.
 	// Don't force update all components unless we're in the editor.
-	Actor->ReregisterAllComponents(); // @todo UE4 insist on a property update callback, and use here?
+	Actor->ReregisterAllComponents(); // @todo UE insist on a property update callback, and use here?
 }
 
 /*-----------------------------------------------------------------------------
@@ -6240,7 +6240,7 @@ void UInterpTrackInstColorProp::RestoreActorState(UInterpTrack* Track)
 
 	// We update components, so things like draw scale take effect.
 	// Don't force update all components unless we're in the editor.
-	Actor->ReregisterAllComponents(); // @todo UE4 insist on a property update callback, and use here?
+	Actor->ReregisterAllComponents(); // @todo UE insist on a property update callback, and use here?
 }
 
 /** Initialize this Track instance. Called in-game before doing any interpolation. */
@@ -6389,7 +6389,7 @@ void UInterpTrackInstLinearColorProp::RestoreActorState(UInterpTrack* Track)
 
 	// We update components, so things like draw scale take effect.
 	// Don't force update all components unless we're in the editor.
-	Actor->ReregisterAllComponents(); // @todo UE4 insist on a property update callback, and use here?
+	Actor->ReregisterAllComponents(); // @todo UE insist on a property update callback, and use here?
 }
 
 void UInterpTrackInstLinearColorProp::InitTrackInst(UInterpTrack* Track)

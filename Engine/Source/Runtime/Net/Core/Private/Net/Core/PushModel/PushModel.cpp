@@ -17,7 +17,7 @@
 DECLARE_CYCLE_STAT(TEXT("PushModel PostGarbageCollect"), STAT_PushModel_PostGarbageCollect, STATGROUP_Net);
 DEFINE_LOG_CATEGORY_STATIC(LogPushModel, All, All);
 
-namespace UE4PushModelPrivate
+namespace UEPushModelPrivate
 {
 	//! Originally, multiple implementations of FPushModelObjectManagers were tested.
 	//! The way this worked was by implementing the managers here, using Macros or

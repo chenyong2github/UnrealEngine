@@ -10,7 +10,7 @@
 #include "Containers/BitArray.h"
 #include "PushModelUtils.h"
 
-namespace UE4PushModelPrivate
+namespace UEPushModelPrivate
 {
 	class FPushModelPerNetDriverState
 	{

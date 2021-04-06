@@ -35,7 +35,7 @@ void UNetPushModelHelpers::MarkPropertyDirty(UObject* Object, FName PropertyName
 }
 
 #if WITH_PUSH_MODEL
-namespace UE4PushModelPrivate
+namespace UEPushModelPrivate
 {
 #if WITH_PUSH_VALIDATION_SUPPORT
 	static bool bCheckPushBPRepIndexAgainstName = false;
@@ -65,7 +65,7 @@ void UNetPushModelHelpers::MarkPropertyDirtyFromRepIndex(UObject* Object, int32 
 			else
 			{
 #if WITH_PUSH_VALIDATION_SUPPORT
-				checkf(!UE4PushModelPrivate::bCheckPushBPRepIndexAgainstName || Class->ClassReps[RepIndex].Property->GetFName() == PropertyName,
+				checkf(!UEPushModelPrivate::bCheckPushBPRepIndexAgainstName || Class->ClassReps[RepIndex].Property->GetFName() == PropertyName,
 					TEXT("Property and RepIndex don't match! Object=%s, RepIndex=%d, InPropertyName=%s, FoundPropertyName=%s"),
 						*Object->GetPathName(), RepIndex, *PropertyName.ToString(), *(Class->ClassReps[RepIndex].Property->GetName()));
 #endif

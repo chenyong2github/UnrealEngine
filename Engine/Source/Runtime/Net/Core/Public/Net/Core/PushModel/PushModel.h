@@ -20,10 +20,10 @@
  * Rationale
  ****************************************************************
  *
- * The intention of Push Model is to provide a fundamental trade off in the way UE4 property replication works, without changing
+ * The intention of Push Model is to provide a fundamental trade off in the way UE property replication works, without changing
  * the underlying replication machinery.
  *
- * Traditionally, UE4 Networking works by having coders and designers mark properties as replicated, and then having the network
+ * Traditionally, UE Networking works by having coders and designers mark properties as replicated, and then having the network
  * system periodically compare the values of those properties to their last sent state. When we detect a change in the state,
  * then we will send that data to clients.
  *
@@ -36,7 +36,7 @@
  * on every object. This sort of overhead isn't a big deal while games are relatively small, but as they start to scale up, this
  * can become a bottleneck.
  *
- * To abate this, there's a bunch of machinery UE4 provides, things like:
+ * To abate this, there's a bunch of machinery UE provides, things like:
  *
  *	Net Frequency
  *		Gives devs the ability to tune how often actors are considered for replication.
@@ -274,7 +274,7 @@ private:
 // DO NOT USE METHODS IN THIS NAMESPACE DIRECTLY
 // Use the Macros instead, as they respect conditional compilation.
 // See PushModelMarcos.h
-namespace UE4PushModelPrivate
+namespace UEPushModelPrivate
 {
 	//~ Using int32 isn't very forward looking, but for now GUObjectArray also uses int32
 	//~ so we're probably safe.
@@ -380,9 +380,9 @@ namespace UE4PushModelPrivate
 }
 
 
-#define CONDITIONAL_ON_PUSH_MODEL(Work) if (UE4PushModelPrivate::IsPushModelEnabled()) { Work; }
-#define IS_PUSH_MODEL_ENABLED() UE4PushModelPrivate::IsPushModelEnabled()
-#define PUSH_MAKE_BP_PROPERTIES_PUSH_MODEL() (UE4PushModelPrivate::IsPushModelEnabled() && UE4PushModelPrivate::MakeBpPropertiesPushModel())
+#define CONDITIONAL_ON_PUSH_MODEL(Work) if (UEPushModelPrivate::IsPushModelEnabled()) { Work; }
+#define IS_PUSH_MODEL_ENABLED() UEPushModelPrivate::IsPushModelEnabled()
+#define PUSH_MAKE_BP_PROPERTIES_PUSH_MODEL() (UEPushModelPrivate::IsPushModelEnabled() && UEPushModelPrivate::MakeBpPropertiesPushModel())
 
 #define GET_PROPERTY_REP_INDEX(ClassName, PropertyName) (int32)ClassName::ENetFields_Private::PropertyName
 #define GET_PROPERTY_REP_INDEX_STATIC_ARRAY_START(ClassName, PropertyName) ((int32)ClassName::ENetFields_Private::PropertyName ## _STATIC_ARRAY)
@@ -391,34 +391,34 @@ namespace UE4PushModelPrivate
 
 #define IS_PROPERTY_REPLICATED(Property) (0 != (EPropertyFlags::CPF_Net & Property->PropertyFlags))
 
-#define CONDITIONAL_ON_OBJECT_NET_ID(Object, Work) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushId(); Work; }
-#define CONDITIONAL_ON_OBJECT_NET_ID_DYNAMIC(Object, Work) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushIdDynamic(); Work; }
-#define CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, Work) if (IS_PROPERTY_REPLICATED(Property)) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushIdDynamic();  Work; }
+#define CONDITIONAL_ON_OBJECT_NET_ID(Object, Work) { const UEPushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushId(); Work; }
+#define CONDITIONAL_ON_OBJECT_NET_ID_DYNAMIC(Object, Work) { const UEPushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushIdDynamic(); Work; }
+#define CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, Work) if (IS_PROPERTY_REPLICATED(Property)) { const UEPushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushIdDynamic();  Work; }
 
 //~ For these macros, we won't bother checking if Push Model is enabled. Instead, we'll just check to see whether or not the Custom ID is valid.
 
 // Marks a property dirty by RepIndex without doing additional rep index validation.
-#define MARK_PROPERTY_DIRTY_UNSAFE(Object, RepIndex) CONDITIONAL_ON_OBJECT_NET_ID_DYNAMIC(Object, UE4PushModelPrivate::MarkPropertyDirty(PrivatePushId, RepIndex))
+#define MARK_PROPERTY_DIRTY_UNSAFE(Object, RepIndex) CONDITIONAL_ON_OBJECT_NET_ID_DYNAMIC(Object, UEPushModelPrivate::MarkPropertyDirty(PrivatePushId, RepIndex))
 
 // Marks a property dirty by UProperty*, validating that it's actually a replicated property.
-#define MARK_PROPERTY_DIRTY(Object, Property) CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, UE4PushModelPrivate::MarkPropertyDirty(PrivatePushId, Property->RepIndex))
+#define MARK_PROPERTY_DIRTY(Object, Property) CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, UEPushModelPrivate::MarkPropertyDirty(PrivatePushId, Property->RepIndex))
 
 
 // Marks a static array property dirty given, the Object, UProperty*, and Index.
-#define MARK_PROPERTY_DIRTY_STATIC_ARRAY_INDEX(Object, Property, ArrayIndex) CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, UE4PushModelPrivate::MarkPropertyDirty(PrivatePushId, Property->RepIndex + ArrayIndex))
+#define MARK_PROPERTY_DIRTY_STATIC_ARRAY_INDEX(Object, Property, ArrayIndex) CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, UEPushModelPrivate::MarkPropertyDirty(PrivatePushId, Property->RepIndex + ArrayIndex))
 
 // Marks all elements of a static array property dirty, given the Object and UProperty*
-#define MARK_PROPERTY_DIRTY_STATIC_ARRAY(Object, Property) CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, UE4PushModelPrivate::MarkPropertyDirty(PrivatePushId, Property->RepIndex, Property->RepIndex + Property->ArrayDim - 1))
+#define MARK_PROPERTY_DIRTY_STATIC_ARRAY(Object, Property) CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, UEPushModelPrivate::MarkPropertyDirty(PrivatePushId, Property->RepIndex, Property->RepIndex + Property->ArrayDim - 1))
 
 
 // Marks a property dirty, given the Class Name, Property Name, and Object. This will fail to compile if the Property or Class aren't valid.
-#define MARK_PROPERTY_DIRTY_FROM_NAME(ClassName, PropertyName, Object) CONDITIONAL_ON_OBJECT_NET_ID(Object, UE4PushModelPrivate::MarkPropertyDirty(PrivatePushId, GET_PROPERTY_REP_INDEX(ClassName, PropertyName)))
+#define MARK_PROPERTY_DIRTY_FROM_NAME(ClassName, PropertyName, Object) CONDITIONAL_ON_OBJECT_NET_ID(Object, UEPushModelPrivate::MarkPropertyDirty(PrivatePushId, GET_PROPERTY_REP_INDEX(ClassName, PropertyName)))
 
 // Marks a static array property dirty, given the Class Name, Property Name, Index, and Object. This will fail to compile if the Property and Class aren't valid. Callers are responsible for validating the index.
-#define MARK_PROPERTY_DIRTY_FROM_NAME_STATIC_ARRAY_INDEX(ClassName, PropertyName, ArrayIndex, Object) CONDITIONAL_ON_OBJECT_NET_ID(Object, UE4PushModelPrivate::MarkPropertyDirty(PrivatePushId, GET_PROPERTY_REP_INDEX_STATIC_ARRAY_INDEX(ClassName, PropertyName, ArrayIndex)))
+#define MARK_PROPERTY_DIRTY_FROM_NAME_STATIC_ARRAY_INDEX(ClassName, PropertyName, ArrayIndex, Object) CONDITIONAL_ON_OBJECT_NET_ID(Object, UEPushModelPrivate::MarkPropertyDirty(PrivatePushId, GET_PROPERTY_REP_INDEX_STATIC_ARRAY_INDEX(ClassName, PropertyName, ArrayIndex)))
 
 // Marks an entire static array property dirty, given the Class Name, Property Name, and Object. This will fail to compile if the Property or Class aren't valid.
-#define MARK_PROPERTY_DIRTY_FROM_NAME_STATIC_ARRAY(ClassName, PropertyName, Object) CONDITIONAL_ON_OBJECT_NET_ID(Object, UE4PushModelPrivate::MarkPropertyDirty(PrivatePushId, GET_PROPERTY_REP_INDEX_STATIC_ARRAY_START(ClassName, PropertyName), GET_PROPERTY_REP_INDEX_STATIC_ARRAY_END(ClassName, PropertyName))
+#define MARK_PROPERTY_DIRTY_FROM_NAME_STATIC_ARRAY(ClassName, PropertyName, Object) CONDITIONAL_ON_OBJECT_NET_ID(Object, UEPushModelPrivate::MarkPropertyDirty(PrivatePushId, GET_PROPERTY_REP_INDEX_STATIC_ARRAY_START(ClassName, PropertyName), GET_PROPERTY_REP_INDEX_STATIC_ARRAY_END(ClassName, PropertyName))
 
 
 #else // WITH_PUSH_MODEL

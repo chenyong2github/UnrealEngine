@@ -55,7 +55,7 @@ enum class ERepDataBufferType
 	ShadowBuffer	//! Indicates this buffer is a packed shadow buffer.
 };
 
-namespace UE4_RepLayout_Private
+namespace UE_RepLayout_Private
 {
 	/**
 	 * TRepDataBuffer and TConstRepDataBuffer act as wrapper around internal data
@@ -105,8 +105,8 @@ namespace UE4_RepLayout_Private
 	}
 }
 
-template<ERepDataBufferType DataType> using TRepDataBuffer = UE4_RepLayout_Private::TRepDataBufferBase<DataType, uint8>;
-template<ERepDataBufferType DataType> using TConstRepDataBuffer = UE4_RepLayout_Private::TRepDataBufferBase<DataType, const uint8>;
+template<ERepDataBufferType DataType> using TRepDataBuffer = UE_RepLayout_Private::TRepDataBufferBase<DataType, uint8>;
+template<ERepDataBufferType DataType> using TConstRepDataBuffer = UE_RepLayout_Private::TRepDataBufferBase<DataType, const uint8>;
 
 typedef TRepDataBuffer<ERepDataBufferType::ObjectBuffer> FRepObjectDataBuffer;
 typedef TRepDataBuffer<ERepDataBufferType::ShadowBuffer> FRepShadowDataBuffer;
@@ -509,13 +509,13 @@ public:
 
 #if WITH_PUSH_MODEL
 
-	const UE4PushModelPrivate::FPushModelPerNetDriverHandle& GetPushModelObjectHandle() const
+	const UEPushModelPrivate::FPushModelPerNetDriverHandle& GetPushModelObjectHandle() const
 	{
 		return PushModelObjectHandle;
 	}
 
 private:
-	const UE4PushModelPrivate::FPushModelPerNetDriverHandle PushModelObjectHandle;
+	const UEPushModelPrivate::FPushModelPerNetDriverHandle PushModelObjectHandle;
 #endif
 };
 

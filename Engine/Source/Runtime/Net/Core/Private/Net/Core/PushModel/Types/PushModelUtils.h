@@ -9,7 +9,7 @@
 #include "CoreMinimal.h"
 #include "Containers/BitArray.h"
 
-namespace UE4PushModelPrivate
+namespace UEPushModelPrivate
 {
 	static const int32 GetNumWordsInBitArray(const TBitArray<>& BitArray)
 	{

@@ -194,7 +194,7 @@
  * Those bunches are then passed along to individual Channels to be processed further.
  *
  * A Packet may contain no bunches, a single bunch, or multiple bunches.
- * Because size limits for bunches may be larger than the size limits of a single packet, UE4 supports
+ * Because size limits for bunches may be larger than the size limits of a single packet, UE supports
  * the notion of partial bunches.
  *
  * When a bunch is too large, before transmission we will slice it into a number of smaller bunches.
@@ -220,7 +220,7 @@
  *****************************************************************************************
  *
  *
- * UE4 Networking typically assumes reliability isn't guaranteed by the underlying network protocol.
+ * UE Networking typically assumes reliability isn't guaranteed by the underlying network protocol.
  * Instead, it implements its own reliability and retransmission of both packets and bunches.
  *
  * When a NetConnection is established, it will establish a Sequence Number for its packets and bunches.

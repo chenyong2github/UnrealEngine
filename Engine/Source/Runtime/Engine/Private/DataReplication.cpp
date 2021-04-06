@@ -2221,7 +2221,7 @@ void FObjectReplicator::QueuePropertyRepNotify(
 		//@note: AddUniqueItem() here for static arrays since RepNotify() currently doesn't indicate index,
 		//			so reporting the same property multiple times is not useful and wastes CPU
 		//			were that changed, this should go back to AddItem() for efficiency
-		// @todo UE4 - not checking if replicated value is changed from old.  Either fix or document, as may get multiple repnotifies of unacked properties.
+		// @todo UE - not checking if replicated value is changed from old.  Either fix or document, as may get multiple repnotifies of unacked properties.
 		ReceivingRepState->RepNotifies.AddUnique(Property);
 
 		UFunction* RepNotifyFunc = Object->FindFunctionChecked(Property->RepNotifyFunc);
