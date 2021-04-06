@@ -6,6 +6,7 @@
 
 #include "Async/Future.h"
 #include "IMessageContext.h"
+#include "Misc/EngineVersion.h"
 
 #include <atomic>
 
@@ -16,13 +17,13 @@ namespace DirectLink
 class ISceneGraphNode;
 
 
-enum ECommunicationStatus{
-	ECS_NoIssue                      = 0,
-	ECS_ModuleNotLoaded_Messaging    = 1<<0,
-	ECS_ModuleNotLoaded_UdpMessaging = 1<<1,
-	ECS_ModuleNotLoaded_Networking   = 1<<2,
+enum class ECommunicationStatus{
+	NoIssue                      = 0,
+	ModuleNotLoaded_Messaging    = 1<<0,
+	ModuleNotLoaded_UdpMessaging = 1<<1,
+	ModuleNotLoaded_Networking   = 1<<2,
 };
-
+ENUM_CLASS_FLAGS(ECommunicationStatus)
 DIRECTLINK_API ECommunicationStatus ValidateCommunicationStatus();
 
 struct FRawInfo
@@ -38,6 +39,7 @@ struct FRawInfo
 	{
 		FEndpointInfo() = default;
 		FString Name;
+		FEngineVersion Version; // Unreal version. This field is empty when the client predates 4.27.0
 		TArray<FDataPointId> Destinations;
 		TArray<FDataPointId> Sources;
 		FString UserName;
