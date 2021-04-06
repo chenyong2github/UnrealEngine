@@ -512,12 +512,6 @@ void FShaderCompileJobCollection::ProcessFinishedJob(FShaderCommonCompileJob* Fi
 	if (!bWasCached && ShaderCompiler::IsJobCacheEnabled())
 	{
 		AddToCacheAndProcessPending(FinishedJob);
-
-		ensureMsgf(FinishedJob->bInputHashSet, TEXT("Finished job didn't have input hash set, was shader compiler jobs cache toggled runtime?"));
-		const FSHAHash& InputHash = FinishedJob->GetInputHash();
-
-		// remove ourselves from the jobs in flight, if we were there (if this job is a cloned job it might not have been)
-		JobsInFlight.Remove(InputHash);
 	}
 }
 
@@ -528,13 +522,15 @@ void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompi
 		return;
 	}
 
-	// TODO: reduce the scopes
-	FWriteScopeLock JobLocker(Lock);
+	ensureMsgf(FinishedJob->bInputHashSet, TEXT("Finished job didn't have input hash set, was shader compiler jobs cache toggled runtime?"));
 
 	const FSHAHash& InputHash = FinishedJob->GetInputHash();
 	TArray<uint8> Output;
 	FMemoryWriter Writer(Output);
 	FinishedJob->SerializeOutput(Writer);
+
+	// TODO: reduce the scope - e.g. SerializeOutput and processing finished jobs can be moved out of it
+	FWriteScopeLock JobLocker(Lock);
 
 	// see if there are outstanding jobs that also need to be resolved
 	int32 NumOutstandingJobsWithSameHash = 0;
@@ -570,6 +566,9 @@ void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompi
 		// we only cache jobs that succeded
 		CompletedJobsCache.Add(InputHash, Output, NumOutstandingJobsWithSameHash);
 	}
+
+	// remove ourselves from the jobs in flight, if we were there (if this job is a cloned job it might not have been)
+	JobsInFlight.Remove(InputHash);
 }
 
 void FShaderCompileJobCollection::LogCachingStats(bool bForceLogIgnoringTimeInverval)
