@@ -301,4 +301,7 @@ protected:
 
 	void UpdateMaterialTextureParameters(UMaterialInstanceDynamic* Material, const FSourceMaterialInfo& SourceMaterialInfo,
 		const TMap<UTexture2D*,UTexture2D*>& PreviewTextures, UTexture2D* PreviewNormalMap);
+
+	// Return true if the given path corresponds to a material or texture in SourceMaterials
+	bool IsSourceAsset(const FString& AssetPath) const;
 };
