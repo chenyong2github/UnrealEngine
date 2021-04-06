@@ -165,25 +165,6 @@ FAutoConsoleCommandWithWorldAndArgs DumpNiagaraComponentsCommand(
 	)
 );
 
-//////////////////////////////////////////////////////////////////////////
-//-TOFIX: Workaround FORT-315375 GT / RT Race
-int32 GNiagaraSamplerStateWorkaroundRecache = 1;
-static FAutoConsoleVariableRef CVarNiagaraSamplerStateWorkaroundRecache(
-	TEXT("fx.Niagara.SamplerStateWorkaround.Recache"),
-	GNiagaraSamplerStateWorkaroundRecache,
-	TEXT("Enables re-cache workaround for FORT-315375."),
-	ECVF_Default
-);
-
-int32 GNiagaraSamplerStateWorkaroundCreateNew = 1;
-static FAutoConsoleVariableRef CVarNiagaraSamplerStateWorkaroundCreateNew(
-	TEXT("fx.Niagara.SamplerStateWorkaround.CreateNew"),
-	GNiagaraSamplerStateWorkaroundCreateNew,
-	TEXT("Enables creating a new RT workaround for FORT-315375."),
-	ECVF_Default
-);
-//////////////////////////////////////////////////////////////////////////
-
 FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)
 		: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
 		, bRenderingEnabled(true)
@@ -537,10 +518,6 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bIsCulledByScalability(false)
 	, bDuringUpdateContextReset(false)
 	, bNeedsUpdateEmitterMaterials(true) // At least need to run once
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	, bNeedsMaterialRecache(false)
-	//////////////////////////////////////////////////////////////////////////
 	//, bIsChangingAutoAttachment(false)
 	, ScalabilityManagerHandle(INDEX_NONE)
 	, ForceUpdateTransformTime(0.0f)
@@ -938,24 +915,6 @@ bool UNiagaraComponent::InitializeSystem()
 		SystemInstance->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
 		SystemInstance->SetOnComplete(FNiagaraSystemInstance::FOnComplete::CreateUObject(this, &UNiagaraComponent::OnSystemComplete));
 
-		//////////////////////////////////////////////////////////////////////////
-		//-TOFIX: Workaround FORT-315375 GT / RT Race
-		SystemInstance->SetOnExecuteMaterialRecache(
-			FNiagaraSystemInstance::FOnExecuteMaterialRecache::CreateLambda(
-				[WeakComponent=TWeakObjectPtr<UNiagaraComponent>(this)]()
-				{
-					check(IsInGameThread());
-
-					auto Component = WeakComponent.Get();
-					if (Component)
-					{
-						Component->bNeedsMaterialRecache = true;
-					}
-				}
-			)
-		);
-		//////////////////////////////////////////////////////////////////////////
-
 		if (bEnableGpuComputeDebug)
 		{
 			SystemInstance->SetGpuComputeDebug(bEnableGpuComputeDebug);
@@ -1315,22 +1274,6 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 
 	// NOTE: Since this is happening before scene visibility calculation, it's likely going to be off by a frame
 	SystemInstance->SetLastRenderTime(GetLastRenderTime());
-
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	if (bNeedsMaterialRecache)
-	{
-		bNeedsMaterialRecache = false;
-
-		if ( GNiagaraSamplerStateWorkaroundRecache )
-		{
-			for (const FNiagaraMaterialOverride& MaterialOverride : EmitterMaterials)
-			{
-				MaterialOverride.Material->RecacheUniformExpressions(true);
-			}
-		}
-	}
-	//////////////////////////////////////////////////////////////////////////
 
 	MarkRenderDynamicDataDirty();
 
@@ -1976,10 +1919,6 @@ void UNiagaraComponent::UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials
 											NewOverride.Material = ExistingMaterial;
 											NewOverride.EmitterRendererProperty = Properties;
 											NewOverride.MaterialSubIndex = MaterialIndex;
-											//////////////////////////////////////////////////////////////////////////
-											//-TOFIX: Workaround FORT-315375 GT / RT Race
-											NewOverride.Material->RecacheUniformExpressions(true);
-											//////////////////////////////////////////////////////////////////////////
 
 											bCreateMID = false;
 										}

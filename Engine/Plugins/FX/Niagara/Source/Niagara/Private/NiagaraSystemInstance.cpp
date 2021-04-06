@@ -17,6 +17,8 @@
 #include "NiagaraCrashReporterHandler.h"
 #include "Async/Async.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 #if WITH_EDITORONLY_DATA
 #include "Editor.h"
 #endif
@@ -647,7 +649,6 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 		SystemInstanceAllocation->OverrideParameters = nullptr;
 		SystemInstanceAllocation->OnPostTickDelegate.Unbind();
 		SystemInstanceAllocation->OnCompleteDelegate.Unbind();
-		SystemInstanceAllocation->OnExecuteMaterialRecacheDelegate.Unbind();
 
 		WorldManager->DestroySystemInstance(SystemInstanceAllocation);
 		check(SystemInstanceAllocation == nullptr);
@@ -758,11 +759,6 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 
 	// Wait for any async operations, can complete the system
 	WaitForConcurrentTickAndFinalize();
-
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	bRequestMaterialRecache = false;
-	//////////////////////////////////////////////////////////////////////////
 
 	LastRenderTime = World->GetTimeSeconds();
 
@@ -2270,15 +2266,6 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeede
 	ConcurrentTickGraphEvent = nullptr;
 	FinalizeRef.ConditionalClear();
 
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	if ( bRequestMaterialRecache )
-	{
-		OnExecuteMaterialRecacheDelegate.ExecuteIfBound();
-		bRequestMaterialRecache = false;
-	}
-	//////////////////////////////////////////////////////////////////////////
-
 	FNiagaraCrashReporterScope CRScope(this);
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
@@ -2533,3 +2520,5 @@ const FString& FNiagaraSystemInstance::GetCrashReporterTag()const
 	}
 	return CrashReporterTag;
 }
+
+PRAGMA_ENABLE_OPTIMIZATION

@@ -680,29 +680,12 @@ bool UNiagaraDataInterfaceIntRenderTarget2D::UpdateInstanceTexture(FNiagaraSyste
 			!InstanceData->TargetTexture->bCanCreateUAV ||
 			(InstanceData->TargetTexture->bAutoGenerateMips != bAutoGenerateMips))
 		{
-			//////////////////////////////////////////////////////////////////////////
-			//-TOFIX: Workaround FORT-315375 GT / RT Race
-			extern int32 GNiagaraSamplerStateWorkaroundCreateNew;
-			if (!bIsRenderTargetUserParam && GNiagaraSamplerStateWorkaroundCreateNew)
-			{
-				InstanceData->TargetTexture->ReleaseResource();
-
-				InstanceData->TargetTexture = NewObject<UTextureRenderTarget2D>(this);
-				ManagedRenderTargets[SystemInstance->GetId()] = InstanceData->TargetTexture;
-			}
-			//////////////////////////////////////////////////////////////////////////
-
 			// resize RT to match what we need for the output
 			InstanceData->TargetTexture->bCanCreateUAV = true;
 			InstanceData->TargetTexture->bAutoGenerateMips = bAutoGenerateMips;
 			InstanceData->TargetTexture->OverrideFormat = InstanceData->Format;
 			InstanceData->TargetTexture->InitAutoFormat(InstanceData->Size.X, InstanceData->Size.Y);
 			InstanceData->TargetTexture->UpdateResourceImmediate(true);
-
-			//////////////////////////////////////////////////////////////////////////
-			//-TOFIX: Workaround FORT-315375 GT / RT Race
-			SystemInstance->RequestMaterialRecache();
-			//////////////////////////////////////////////////////////////////////////
 
 			bHasChanged = true;
 		}
