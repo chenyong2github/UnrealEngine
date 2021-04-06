@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RHI.h"
-
 #pragma once
+
+#include "RHI.h"
 
 struct FVRamPageRange
 {
