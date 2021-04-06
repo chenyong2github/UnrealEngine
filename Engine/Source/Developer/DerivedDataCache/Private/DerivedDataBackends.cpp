@@ -933,7 +933,7 @@ public:
 		while (AsyncCompletionCounter.GetValue())
 		{
 			check(AsyncCompletionCounter.GetValue() >= 0);
-			FPlatformProcess::Sleep(1.0f);
+			FPlatformProcess::Sleep(0.1f);
 			if (FPlatformTime::Seconds() - LastPrint > 5.0)
 			{
 				UE_LOG(LogDerivedDataCache, Log, TEXT("Waited %ds for derived data cache to finish..."), int32(FPlatformTime::Seconds() - StartTime));
