@@ -58,8 +58,6 @@ namespace UsdToUnreal
 	USDUTILITIES_API FVector ConvertVector( const pxr::GfVec3f& InValue );
 	USDUTILITIES_API FVector ConvertVector( const FUsdStageInfo& StageInfo, const pxr::GfVec3f& InValue );
 
-	USDUTILITIES_API FTransform ConvertTransform( bool bZUp, FTransform Transform );
-
 	USDUTILITIES_API FMatrix ConvertMatrix( const pxr::GfMatrix4d& Matrix );
 	USDUTILITIES_API FTransform ConvertMatrix( const FUsdStageInfo& StageInfo, const pxr::GfMatrix4d& InMatrix );
 

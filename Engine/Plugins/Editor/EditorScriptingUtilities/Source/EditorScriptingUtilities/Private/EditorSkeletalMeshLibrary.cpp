@@ -73,6 +73,81 @@ int32 UEditorSkeletalMeshLibrary::GetNumVerts(USkeletalMesh* SkeletalMesh, int32
 	return 0;
 }
 
+int32 UEditorSkeletalMeshLibrary::GetNumSections( USkeletalMesh* SkeletalMesh, int32 LODIndex )
+{
+	TGuardValue<bool> UnattendedScriptGuard( GIsRunningUnattendedScript, true );
+
+	if ( !EditorScriptingUtils::IsInEditorAndNotPlaying() )
+	{
+		return INDEX_NONE;
+	}
+
+	if ( SkeletalMesh == nullptr )
+	{
+		UE_LOG( LogEditorScripting, Error, TEXT( "GetNumSections: The SkeletalMesh is null." ) );
+		return INDEX_NONE;
+	}
+
+	if ( SkeletalMesh->GetResourceForRendering() && SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() > 0 )
+	{
+		TIndirectArray<FSkeletalMeshLODRenderData>& LodRenderData = SkeletalMesh->GetResourceForRendering()->LODRenderData;
+		if ( LodRenderData.IsValidIndex( LODIndex ) )
+		{
+			return LodRenderData[ LODIndex ].RenderSections.Num();
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+int32 UEditorSkeletalMeshLibrary::GetLODMaterialSlot( USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 SectionIndex )
+{
+	TGuardValue<bool> UnattendedScriptGuard( GIsRunningUnattendedScript, true );
+
+	if ( !EditorScriptingUtils::IsInEditorAndNotPlaying() )
+	{
+		return INDEX_NONE;
+	}
+
+	if ( SkeletalMesh == nullptr )
+	{
+		UE_LOG( LogEditorScripting, Error, TEXT( "GetLODMaterialSlot: The SkeletalMesh is null." ) );
+		return INDEX_NONE;
+	}
+
+	if ( SkeletalMesh->GetResourceForRendering() && SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() > 0 )
+	{
+		TIndirectArray<FSkeletalMeshLODRenderData>& LodRenderData = SkeletalMesh->GetResourceForRendering()->LODRenderData;
+		if ( LodRenderData.IsValidIndex( LODIndex ) )
+		{
+			const TArray<FSkelMeshRenderSection>& Sections = LodRenderData[ LODIndex ].RenderSections;
+			if ( Sections.IsValidIndex( SectionIndex ) )
+			{
+				int32 MaterialIndex = Sections[ SectionIndex ].MaterialIndex;
+
+				const FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo( LODIndex );
+				if ( LODInfo && LODInfo->LODMaterialMap.IsValidIndex( SectionIndex ) )
+				{
+					// If we have an optional LODMaterialMap, we need to reroute the material index through it
+					MaterialIndex = LODInfo->LODMaterialMap[ SectionIndex ];
+				}
+
+				return MaterialIndex;
+			}
+			else
+			{
+				UE_LOG( LogEditorScripting, Error, TEXT( "GetLODMaterialSlot: Invalid SectionIndex." ) );
+			}
+		}
+		else
+		{
+			UE_LOG( LogEditorScripting, Error, TEXT( "GetLODMaterialSlot: Invalid LODIndex." ) );
+		}
+	}
+
+	return INDEX_NONE;
+}
+
 bool UEditorSkeletalMeshLibrary::RenameSocket(USkeletalMesh* SkeletalMesh, FName OldName, FName NewName)
 {
 	if (SkeletalMesh == nullptr)

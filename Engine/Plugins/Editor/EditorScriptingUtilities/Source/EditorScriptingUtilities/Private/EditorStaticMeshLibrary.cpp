@@ -441,7 +441,7 @@ int32 UEditorStaticMeshLibrary::ImportLOD(UStaticMesh* BaseStaticMesh, const int
 		UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ImportLOD: Cannot import mesh LOD."));
 		return INDEX_NONE;
 	}
-	
+
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostLODImport(BaseStaticMesh, LODIndex);
 
 	return LODIndex;
@@ -530,7 +530,7 @@ int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationSta
 
 	if ( DestinationStaticMesh->GetNumSourceModels() < DestinationLodIndex + 1 )
 	{
-		// Add one LOD 
+		// Add one LOD
 		DestinationStaticMesh->AddSourceModel();
 
 		DestinationLodIndex = DestinationStaticMesh->GetNumSourceModels() - 1;
@@ -636,24 +636,24 @@ int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationSta
 			const UMaterialInterface* SourceMaterial = SourceStaticMesh->GetMaterial( SourceMeshSectionInfo.MaterialIndex );
 
 			int32 DestinationMaterialIndex = INDEX_NONE;
-			
+
 			if ( bReuseExistingMaterialSlots )
 			{
 				DestinationMaterialIndex = FindMaterialIndex( DestinationStaticMesh, SourceMaterial );
 			}
-			
+
 			if ( DestinationMaterialIndex == INDEX_NONE )
 			{
 				DestinationMaterialIndex = NumDestinationMaterial++;
 			}
-			
+
 			LodSectionMaterialMapping.Add( SourceLodSectionIndex, DestinationMaterialIndex );
 		}
 
 		for ( TMap< int32, int32 >::TConstIterator It = LodSectionMaterialMapping.CreateConstIterator(); It; ++It )
 		{
 			const int32 SectionIndex = It->Key;
-		
+
 			const FMeshSectionInfo& SourceSectionInfo = SourceStaticMesh->GetSectionInfoMap().Get( SourceLodIndex, SectionIndex );
 
 			UMaterialInterface* SourceMaterial = SourceStaticMesh->GetMaterial( SourceSectionInfo.MaterialIndex );
@@ -1014,7 +1014,7 @@ bool UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotificat
 	bResults.SetNumZeroed(StaticMeshes.Num());
 
 	TAtomic<uint32> Processed(0);
-	TFuture<void> Result = 
+	TFuture<void> Result =
 		Async(
 			EAsyncExecution::ThreadPool,
 			[&Processed, &bResults, &StaticMeshes, HullCount, MaxHullVerts, HullPrecision]()
@@ -1030,12 +1030,12 @@ bool UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotificat
 				);
 			}
 		);
-	
+
 	uint32 LastProcessed = 0;
 	const FText ProgressText = LOCTEXT("ComputingConvexCollision", "Computing convex collision for static mesh {0}/{1} ...");
 	FScopedSlowTask Progress(StaticMeshes.Num(), FText::Format(ProgressText, LastProcessed, StaticMeshes.Num()));
 	Progress.MakeDialog();
-	
+
 	while (!Result.WaitFor(FTimespan::FromMilliseconds(33.0)))
 	{
 		uint32 LocalProcessed = Processed.Load(EMemoryOrder::Relaxed);
@@ -1057,7 +1057,7 @@ bool UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotificat
 			StaticMesh->PostEditChange();
 		}
 	}
-	
+
 	// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
 	for (UStaticMesh* StaticMesh : EditedStaticMeshes)
 	{
@@ -1277,6 +1277,36 @@ void UEditorStaticMeshLibrary::SetLODMaterialSlot(UStaticMesh* StaticMesh, int32
 	StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, SectionInfo);
 
 	StaticMesh->PostEditChange();
+}
+
+int32 UEditorStaticMeshLibrary::GetLODMaterialSlot( UStaticMesh* StaticMesh, int32 LODIndex, int32 SectionIndex )
+{
+	TGuardValue<bool> UnattendedScriptGuard( GIsRunningUnattendedScript, true );
+
+	if ( !EditorScriptingUtils::IsInEditorAndNotPlaying() )
+	{
+		return INDEX_NONE;
+	}
+
+	if ( StaticMesh == nullptr )
+	{
+		UE_LOG( LogEditorScripting, Error, TEXT( "GetLODMaterialSlot: The StaticMesh is null." ) );
+		return INDEX_NONE;
+	}
+
+	if ( LODIndex >= StaticMesh->GetNumLODs() )
+	{
+		UE_LOG( LogEditorScripting, Error, TEXT( "GetLODMaterialSlot: Invalid LOD index %d (of %d)." ), LODIndex, StaticMesh->GetNumLODs() );
+		return INDEX_NONE;
+	}
+
+	if ( SectionIndex >= StaticMesh->GetNumSections( LODIndex ) )
+	{
+		UE_LOG( LogEditorScripting, Error, TEXT( "GetLODMaterialSlot: Invalid section index %d (of %d)." ), SectionIndex, StaticMesh->GetNumSections( LODIndex ) );
+		return INDEX_NONE;
+	}
+
+	return StaticMesh->GetSectionInfoMap().Get( LODIndex, SectionIndex ).MaterialIndex;
 }
 
 bool UEditorStaticMeshLibrary::HasVertexColors(UStaticMesh* StaticMesh)

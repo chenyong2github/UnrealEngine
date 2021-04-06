@@ -24,13 +24,15 @@ PXR_NAMESPACE_OPEN_SCOPE
 	using UsdStageRefPtr = TfRefPtr< UsdStage >;
 PXR_NAMESPACE_CLOSE_SCOPE
 
-struct FFrameRate;
-struct FMovieSceneSequenceTransform;
+class AInstancedFoliageActor;
 class UCineCameraComponent;
+class ULevel;
 class UMeshComponent;
 class UMovieScene;
 class UMovieScene3DTransformTrack;
 class USceneComponent;
+struct FFrameRate;
+struct FMovieSceneSequenceTransform;
 
 namespace UsdToUnreal
 {
@@ -63,6 +65,17 @@ namespace UnrealToUsd
 	 * @param SequenceTransform    The time transform to apply to the track keys to get them from Usd Stage time to track time (in other words: from main sequence to subsequence)
 	 */
 	USDUTILITIES_API bool ConvertXformable( const UMovieScene3DTransformTrack& MovieSceneTrack, pxr::UsdPrim& UsdPrim, const FMovieSceneSequenceTransform& SequenceTransform );
+
+	/**
+	 * Converts a AInstancedFoliageActor to a prim containing a pxr::UsdGeomPointInstancer schema. Each foliage type should correspond to a prototype.
+	 * This function only converts the protoIndices, positions, orientations and scales attributes.
+	 *
+	 * @param Actor				   The actor to convert data from
+	 * @param Prim                 The pxr::UsdGeomPointInstancer to write to
+	 * @param TimeCode			   TimeCode to write the attribute values at. Use UsdUtils::GetDefaultTimeCode() for the Default value.
+	 * @param InstancesLevel       Only foliage instances belonging to this level will be converted. This defaults to the Actor's level if left nullptr.
+	 */
+	USDUTILITIES_API bool ConvertInstancedFoliageActor( const AInstancedFoliageActor& Actor, pxr::UsdPrim& UsdPrim, double TimeCode, ULevel* InstancesLevel = nullptr );
 }
 
 #endif // #if USE_USD_SDK

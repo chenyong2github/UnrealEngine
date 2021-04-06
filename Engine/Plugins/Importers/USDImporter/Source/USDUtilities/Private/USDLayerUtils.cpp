@@ -44,22 +44,19 @@ namespace UsdUtils
 	}
 }
 
-bool UsdUtils::InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* SubLayerFile, int32 Index )
+bool UsdUtils::InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCHAR* SubLayerFile, int32 Index )
 {
-	if ( !ParentLayer.Get() )
+	if ( !ParentLayer )
 	{
 		return false;
 	}
 
+	FString RelativeSubLayerPath = SubLayerFile;
+	MakePathRelativeToLayer( UE::FSdfLayer{ ParentLayer }, RelativeSubLayerPath );
+
 	FScopedUsdAllocs UsdAllocs;
 
-	std::string UsdLayerFilePath = ParentLayer.Get()->GetRealPath();
-	FString LayerFilePath = UsdToUnreal::ConvertString( UsdLayerFilePath );
-
-	FString SubLayerFilePath = FPaths::ConvertRelativePathToFull( SubLayerFile );
-	FPaths::MakePathRelativeTo( SubLayerFilePath, *LayerFilePath );
-
-	ParentLayer.Get()->InsertSubLayerPath( UnrealToUsd::ConvertString( *SubLayerFilePath ).Get(), Index );
+	ParentLayer->InsertSubLayerPath( UnrealToUsd::ConvertString( *RelativeSubLayerPath ).Get(), Index );
 
 	return true;
 }
@@ -141,7 +138,7 @@ TUsdStore< pxr::SdfLayerRefPtr > UsdUtils::CreateNewLayer( TUsdStore< pxr::UsdSt
 	}
 
 	// New layer needs to be created and in the stage layer stack before we can edit it
-	UsdUtils::InsertSubLayer( ParentLayer, LayerFilePath );
+	UsdUtils::InsertSubLayer( ParentLayer.Get(), LayerFilePath );
 
 	UsdUtils::StartMonitoringErrors();
 	pxr::UsdEditContext UsdEditContext( UsdStage.Get(), LayerRef );
