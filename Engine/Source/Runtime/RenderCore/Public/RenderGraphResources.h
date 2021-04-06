@@ -124,7 +124,6 @@ private:
 #if RDG_ENABLE_DEBUG
 	struct FRDGResourceDebugData* DebugData = nullptr;
 	FRDGResourceDebugData& GetDebugData() const;
-	bool IsPassthrough() const;
 #endif
 
 	friend FRDGBuilder;

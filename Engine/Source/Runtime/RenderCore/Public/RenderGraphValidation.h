@@ -106,6 +106,9 @@ private:
 	TArray<FRDGTextureRef, FRDGArrayAllocator> TrackedTextures;
 	TArray<FRDGBufferRef, FRDGArrayAllocator> TrackedBuffers;
 
+	/** Map tracking all active resources in the graph. */
+	TSet<FRDGResourceRef, DefaultKeyFuncs<FRDGResourceRef>, FRDGSetAllocator> ResourceMap;
+
 	/** Whether the Execute() has already been called. */
 	bool bHasExecuted = false;
 
