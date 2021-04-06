@@ -16,9 +16,6 @@ UMovieSceneInterrogatedPropertyInstantiatorSystem::UMovieSceneInterrogatedProper
 {
 	using namespace UE::MovieScene;
 
-	// This system should never run at runtime
-	SystemExclusionContext |= EEntitySystemContext::Runtime;
-
 	BuiltInComponents = FBuiltInComponentTypes::Get();
 
 	RecomposerImpl.OnGetPropertyInfo = FOnGetPropertyRecomposerPropertyInfo::CreateUObject(
@@ -36,7 +33,9 @@ UMovieSceneInterrogatedPropertyInstantiatorSystem::UMovieSceneInterrogatedProper
 
 bool UMovieSceneInterrogatedPropertyInstantiatorSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
 {
-	return true;
+	using namespace UE::MovieScene;
+
+	return InLinker->EntityManager.Contains(FEntityComponentFilter().All({ BuiltInComponents->PropertyBinding, BuiltInComponents->Interrogation.InputKey }));
 }
 
 UE::MovieScene::FPropertyRecomposerPropertyInfo UMovieSceneInterrogatedPropertyInstantiatorSystem::FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const

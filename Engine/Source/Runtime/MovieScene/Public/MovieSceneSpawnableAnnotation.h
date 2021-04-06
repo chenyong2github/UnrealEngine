@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if WITH_EDITOR
-
 #include "Misc/Optional.h"
 #include "Misc/Guid.h"
 #include "UObject/WeakObjectPtr.h"
@@ -42,6 +40,3 @@ struct FMovieSceneSpawnableAnnotation
 	/** The sequence ID that spawned this object */
 	FMovieSceneSequenceID SequenceID;
 };
-
-
-#endif // WITH_EDITOR

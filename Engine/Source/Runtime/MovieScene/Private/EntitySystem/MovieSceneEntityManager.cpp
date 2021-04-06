@@ -1742,6 +1742,11 @@ void FEntityManager::InitializeMutualComponents(FMovieSceneEntityID EntityID)
 
 void FEntityManager::AddMutualComponents()
 {
+	AddMutualComponents(FEntityComponentFilter());
+}
+
+void FEntityManager::AddMutualComponents(const FEntityComponentFilter& InFilter)
+{
 	CheckCanChangeStructure();
 
 	TMap<int32, FComponentMask> AllocationMutations;
@@ -1754,6 +1759,10 @@ void FEntityManager::AddMutualComponents()
 		}
 
 		FComponentMask NewAllocationType = EntityAllocationMasks[AllocationIndex];
+		if (InFilter.IsValid() && !InFilter.Match(NewAllocationType))
+		{
+			continue;
+		}
 
 		const int32 NumNewComponents = ComponentRegistry->Factories.ComputeMutuallyInclusiveComponents(NewAllocationType);
 		if (NumNewComponents != 0)

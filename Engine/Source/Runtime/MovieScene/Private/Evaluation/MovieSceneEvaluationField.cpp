@@ -142,6 +142,26 @@ void FMovieSceneEntityComponentField::QueryPersistentEntities(FFrameNumber Query
 	}
 }
 
+void FMovieSceneEntityComponentField::QueryPersistentEntities(FFrameNumber QueryTime, TFunctionRef<bool(const FMovieSceneEvaluationFieldEntityQuery&)> QueryCallback, TRange<FFrameNumber>& OutRange) const
+{
+	FMovieSceneEvaluationTreeRangeIterator Iterator = PersistentEntityTree.SerializedData.IterateFromTime(QueryTime);
+	check(Iterator);
+
+	OutRange = Iterator.Range();
+	for (FMovieSceneEvaluationFieldEntityTree::FEntityAndMetaDataIndex Pair : PersistentEntityTree.SerializedData.GetAllData(Iterator.Node()))
+	{
+		FMovieSceneEvaluationFieldEntityQuery Query{
+			GetEntity(Pair.EntityIndex),
+			Pair.MetaDataIndex
+		};
+
+		if (!QueryCallback(Query))
+		{
+			return;
+		}
+	}
+}
+
 bool FMovieSceneEntityComponentField::HasAnyOneShotEntities() const
 {
 	return !OneShotEntityTree.SerializedData.IsEmpty();

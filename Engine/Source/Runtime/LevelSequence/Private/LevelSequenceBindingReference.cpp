@@ -92,6 +92,11 @@ UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, FName Strea
 	return nullptr;
 }
 
+bool FLevelSequenceBindingReference::operator==(const FLevelSequenceBindingReference& Other) const
+{
+	return ExternalObjectPath == Other.ExternalObjectPath && ObjectPath == Other.ObjectPath;
+}
+
 void FLevelSequenceBindingReference::PostSerialize(const FArchive& Ar)
 {
 	if (Ar.IsLoading() && !PackageName_DEPRECATED.IsEmpty())
@@ -295,6 +300,21 @@ void FLevelSequenceBindingReferences::ResolveBinding(const FGuid& ObjectId, UObj
 			OutObjects.Add(SkeletalMeshComponent->GetAnimInstance());
 		}
 	}
+}
+
+FGuid FLevelSequenceBindingReferences::FindBindingFromObject(UObject* InObject, UObject* InContext) const
+{
+	FLevelSequenceBindingReference Predicate(InObject, InContext);
+
+	for (const TPair<FGuid, FLevelSequenceBindingReferenceArray>& Pair : BindingIdToReferences)
+	{
+		if (Pair.Value.References.Contains(Predicate))
+		{
+			return Pair.Key;
+		}
+	}
+
+	return FGuid();
 }
 
 void FLevelSequenceBindingReferences::RemoveInvalidBindings(const TSet<FGuid>& ValidBindingIDs)

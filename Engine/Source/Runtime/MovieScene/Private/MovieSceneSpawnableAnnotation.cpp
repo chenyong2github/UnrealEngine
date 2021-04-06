@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneSpawnableAnnotation.h"
-
-#if WITH_EDITOR
-
 #include "UObject/UObjectAnnotation.h"
-
 
 static FUObjectAnnotationSparse<FMovieSceneSpawnableAnnotation,true> SpawnedObjectAnnotation;
 
@@ -34,5 +30,3 @@ TOptional<FMovieSceneSpawnableAnnotation> FMovieSceneSpawnableAnnotation::Find(U
 
 	return ReturnValue;
 }
-
-#endif // WITH_EDITOR

@@ -41,6 +41,11 @@ struct FLevelSequenceBindingReference
 	 */
 	LEVELSEQUENCE_API UObject* Resolve(UObject* InContext, FName StreamedLevelAssetPath) const;
 
+	/**
+	 * Check whether this binding reference is equal to the specified object
+	 */
+	LEVELSEQUENCE_API bool operator==(const FLevelSequenceBindingReference& Other) const;
+
 	/** Handles ExternalObjectPath fixup */
 	void PostSerialize(const FArchive& Ar);
 
@@ -138,6 +143,16 @@ struct FLevelSequenceBindingReferences
 	 * @param OutObjects				Array to populate with resolved object bindings
 	 */
 	void ResolveBinding(const FGuid& ObjectId, UObject* InContext, FName StreamedLevelAssetPath, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const;
+
+	/**
+	 * Resolve a binding for the specified ID using a given context
+	 *
+	 * @param ObjectId					The ID to associate the object with
+	 * @param InContext					A context in which InObject resides
+	 * @oaram StreamedLevelAssetPath    The path to the streamed level asset that contains the level sequence actor playing back the sequence. 'None' for any non-instance-level setups.
+	 * @param OutObjects				Array to populate with resolved object bindings
+	 */
+	FGuid FindBindingFromObject(UObject* InObject, UObject* InContext) const;
 
 	/**
 	 * Const accessor for the currently bound anim instance IDs

@@ -399,6 +399,11 @@ void ULevelSequence::LocateBoundObjects(const FGuid& ObjectId, UObject* Context,
 	BindingReferences.ResolveBinding(ObjectId, Context, StreamedLevelAssetPath, OutObjects);
 }
 
+FGuid ULevelSequence::FindBindingFromObject(UObject* InObject, UObject* Context) const
+{
+	return BindingReferences.FindBindingFromObject(InObject, Context);
+}
+
 void ULevelSequence::GatherExpiredObjects(const FMovieSceneObjectCache& InObjectCache, TArray<FGuid>& OutInvalidIDs) const
 {
 	for (const FGuid& ObjectId : BindingReferences.GetBoundAnimInstances())

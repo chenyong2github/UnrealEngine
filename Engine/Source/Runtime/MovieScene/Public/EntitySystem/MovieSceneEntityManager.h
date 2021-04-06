@@ -387,6 +387,11 @@ public:
 	 */
 	void AddMutualComponents();
 
+	/**
+	 * Run through all entities in this entity manager, ensuring that all mutual components exist for any component types that match the specified filter
+	 */
+	void AddMutualComponents(const FEntityComponentFilter& InFilter);
+
 public:
 
 

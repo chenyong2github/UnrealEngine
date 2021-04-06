@@ -95,6 +95,15 @@ public:
 	MOVIESCENE_API FGuid FindPossessableObjectId(UObject& Object, UObject* Context) const;
 
 	/**
+	 * Optional method for efficient lookup of an object binding from an actual object in the world
+	 *
+	 * @param ObjectId				The unique identifier of the object.
+	 * @param Context				Optional context to use to find the required object (for instance, a parent spawnable object or its world)
+	 * @return The object's guid, or zero guid if the object is not a valid possessable in the current context
+	 */
+	virtual FGuid FindBindingFromObject(UObject* InObject, UObject* Context) const { return FGuid(); }
+
+	/**
 	 * Called to validate the specified object cache by removing anything that should be deemed out of date
 	 * 
 	 * @param InObjectCache 		The object cache container that contains all the objects currently animated by this sequence

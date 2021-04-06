@@ -12,6 +12,7 @@
 #include "Evaluation/MovieSceneEvaluationTree.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "Templates/Function.h"
 #include "MovieSceneEvaluationField.generated.h"
 
 struct FFrameNumber;
@@ -241,6 +242,16 @@ struct MOVIESCENE_API FMovieSceneEntityComponentField
 	 * @param OutEntities A set that will be populated with all the entities that exist at the specified time
 	 */
 	void QueryPersistentEntities(FFrameNumber QueryTime, TRange<FFrameNumber>& OutRange, FMovieSceneEvaluationFieldEntitySet& OutEntities) const;
+
+	/**
+	 * Query the persistent entities for any given time within a sequence.
+	 * @note: Persistent entities should remain alive until they are no longer present at the current time.
+	 *
+	 * @param QueryTime     The time at which to query the field (in the TickResolution of the sequence this was generated from)
+	 * @param QueryCallback A handler for dealing with the resulting entities
+	 * @param OutRange      Will receive the hull of the range that was intersected for which the resulting OutEntities remains constant
+	 */
+	void QueryPersistentEntities(FFrameNumber QueryTime, TFunctionRef<bool(const FMovieSceneEvaluationFieldEntityQuery&)> QueryCallback, TRange<FFrameNumber>& OutRange) const;
 
 	/**
 	 * Check whether this field contains any one-shot entities
