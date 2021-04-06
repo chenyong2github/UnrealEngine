@@ -3,30 +3,7 @@
 #include "NiagaraSystemInstanceController.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
-//////////////////////////////////////////////////////////////////////////
-//-TOFIX: Workaround FORT-315375 GT / RT Race
-int32 GNiagaraSamplerStateWorkaroundRecache = 1;
-static FAutoConsoleVariableRef CVarNiagaraSamplerStateWorkaroundRecache(
-	TEXT("fx.Niagara.SamplerStateWorkaround.Recache"),
-	GNiagaraSamplerStateWorkaroundRecache,
-	TEXT("Enables re-cache workaround for FORT-315375."),
-	ECVF_Default
-);
-
-int32 GNiagaraSamplerStateWorkaroundCreateNew = 1;
-static FAutoConsoleVariableRef CVarNiagaraSamplerStateWorkaroundCreateNew(
-	TEXT("fx.Niagara.SamplerStateWorkaround.CreateNew"),
-	GNiagaraSamplerStateWorkaroundCreateNew,
-	TEXT("Enables creating a new RT workaround for FORT-315375."),
-	ECVF_Default
-);
-//////////////////////////////////////////////////////////////////////////
-
 FNiagaraSystemInstanceController::FNiagaraSystemInstanceController()
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	: bNeedsMaterialRecache(false)
-	//////////////////////////////////////////////////////////////////////////
 {
 }
 
@@ -39,11 +16,6 @@ void FNiagaraSystemInstanceController::Initialize(UWorld& World, UNiagaraSystem&
 	//UE_LOG(LogNiagara, Log, TEXT("Create System: %p | %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
 	SystemInstance->SetRandomSeedOffset(RandomSeedOffset);
 	SystemInstance->Init(bForceSolo);
-
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	SystemInstance->SetOnExecuteMaterialRecache(FNiagaraSystemInstance::FOnExecuteMaterialRecache::CreateThreadSafeSP(this, &FNiagaraSystemInstanceController::OnNeedsMaterialRecache));
-	//////////////////////////////////////////////////////////////////////////
 
 	WorldManager = FNiagaraWorldManager::Get(&World);
 	check(WorldManager);
@@ -179,31 +151,6 @@ UMaterialInterface* FNiagaraSystemInstanceController::GetMaterialOverride(const 
 
 	return nullptr;
 }
-
-//////////////////////////////////////////////////////////////////////////
-//-TOFIX: Workaround FORT-315375 GT / RT Race
-bool FNiagaraSystemInstanceController::HandleMaterialRecache()
-{
-	check(IsInGameThread());
-
-	if (bNeedsMaterialRecache)
-	{
-		bNeedsMaterialRecache = false;
-
-		if (GNiagaraSamplerStateWorkaroundRecache)
-		{
-			for (const FMaterialOverride& MaterialOverride : EmitterMaterials)
-			{
-				MaterialOverride.Material->RecacheUniformExpressions(true);
-			}
-
-			return true;
-		}
-	}
-
-	return false;
-}
-//////////////////////////////////////////////////////////////////////////
 
 bool FNiagaraSystemInstanceController::GetParticleValueVec3_DebugOnly(TArray<FVector>& OutValues, FName EmitterName, FName ValueName) const
 {

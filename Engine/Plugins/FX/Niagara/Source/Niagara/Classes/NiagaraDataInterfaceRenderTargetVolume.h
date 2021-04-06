@@ -46,6 +46,10 @@ struct FRenderTargetVolumeRWInstanceData_RenderThread
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
 #endif
+#if STATS
+	void UpdateMemoryStats();
+	uint64 MemorySize = 0;
+#endif
 };
 
 struct FNiagaraDataInterfaceProxyRenderTargetVolumeProxy : public FNiagaraDataInterfaceProxyRW
@@ -115,12 +119,20 @@ public:
 	static const FString InputName;
 	static const FString SizeName;
 
-	UPROPERTY(EditAnywhere, Category = "Render Target")
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings"))
 	FIntVector Size;
 
 	/** When enabled overrides the format of the render target, otherwise uses the project default setting. */
-	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "bOverrideFormat"))
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings && bOverrideFormat"))
 	TEnumAsByte<ETextureRenderTargetFormat> OverrideRenderTargetFormat;
+
+	/**
+	When enabled texture parameters (size / etc) are taken from the user provided render target.
+	If no valid user parameter is set the system will be invalid.
+	Note: The resource will be recreated if UAV access is not available, which will reset the contents.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Render Target")
+	uint8 bInheritUserParameterSettings : 1;
 
 	UPROPERTY(EditAnywhere, Category = "Render Target", meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverrideFormat : 1;

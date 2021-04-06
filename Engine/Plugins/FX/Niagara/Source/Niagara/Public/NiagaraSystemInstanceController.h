@@ -166,17 +166,10 @@ private:
 
 	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_SHIM(SetRequestedExecutionState,)
 
-	void OnNeedsMaterialRecache() { bNeedsMaterialRecache = true; }
-
 private:
 	FNiagaraWorldManager* WorldManager = nullptr;
 	FNiagaraUserRedirectionParameterStore* OverrideParameters = nullptr;
 	FNiagaraSystemInstancePtr SystemInstance;
 	TArray<FMaterialOverride> EmitterMaterials;
 	FOnMaterialsUpdated OnMaterialsUpdatedDelegate;
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	/** True if we need to force our materials to recache */
-	uint32 bNeedsMaterialRecache : 1;
-	//////////////////////////////////////////////////////////////////////////
 };

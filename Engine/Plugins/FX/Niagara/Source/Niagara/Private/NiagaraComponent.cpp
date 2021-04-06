@@ -1147,11 +1147,6 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 	// NOTE: Since this is happening before scene visibility calculation, it's likely going to be off by a frame
 	SystemInstanceController->SetLastRenderTime(GetLastRenderTime());
 
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	SystemInstanceController->HandleMaterialRecache();
-	//////////////////////////////////////////////////////////////////////////
-
 	MarkRenderDynamicDataDirty();
 
 	// Check to force update our transform based on a timer or bounds expanding beyond their previous local boundaries

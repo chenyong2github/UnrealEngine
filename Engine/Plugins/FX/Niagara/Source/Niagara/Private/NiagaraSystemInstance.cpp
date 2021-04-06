@@ -646,7 +646,6 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(FNiagaraSystemInstancePtr&
 		SystemInstanceAllocation->OverrideParameters = nullptr;
 		SystemInstanceAllocation->OnPostTickDelegate.Unbind();
 		SystemInstanceAllocation->OnCompleteDelegate.Unbind();
-		SystemInstanceAllocation->OnExecuteMaterialRecacheDelegate.Unbind();
 
 		WorldManager->DestroySystemInstance(SystemInstanceAllocation);
 		check(SystemInstanceAllocation == nullptr);
@@ -757,11 +756,6 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 
 	// Wait for any async operations, can complete the system
 	WaitForAsyncTickAndFinalize();
-
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	bRequestMaterialRecache = false;
-	//////////////////////////////////////////////////////////////////////////
 
 	LastRenderTime = World->GetTimeSeconds();
 
@@ -2308,15 +2302,6 @@ void FNiagaraSystemInstance::OnSimulationDestroyed()
 
 bool FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded)
 {
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	if ( bRequestMaterialRecache )
-	{
-		OnExecuteMaterialRecacheDelegate.ExecuteIfBound();
-		bRequestMaterialRecache = false;
-	}
-	//////////////////////////////////////////////////////////////////////////
-
 	if (bNeedsFinalize)//We can come in here twice in one tick if the GT calls WaitForAsync() while there is a GT finalize task in the queue.
 	{
 		FNiagaraCrashReporterScope CRScope(this);
