@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED
 
 #include "Trace/Detail/Protocol.h"
+#include "Trace/Detail/Transport.h"
 #include "Trace/Trace.h"
 
 #include <memory.h>

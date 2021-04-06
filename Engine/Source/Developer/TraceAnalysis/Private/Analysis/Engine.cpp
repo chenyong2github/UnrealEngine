@@ -11,6 +11,7 @@
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 #include "Trace/Detail/Protocol.h"
+#include "Trace/Detail/Transport.h"
 #include "Transport/PacketTransport.h"
 #include "Transport/Transport.h"
 #include "Transport/TidPacketTransport.h"

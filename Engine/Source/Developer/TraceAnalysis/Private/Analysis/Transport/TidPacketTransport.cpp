@@ -3,7 +3,7 @@
 #include "TidPacketTransport.h"
 #include "Algo/BinarySearch.h"
 #include "HAL/UnrealMemory.h"
-#include "Trace/Detail/Protocol.h"
+#include "Trace/Detail/Transport.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace UE {

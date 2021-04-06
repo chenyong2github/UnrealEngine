@@ -6,8 +6,9 @@
 
 #include "Platform.h"
 #include "Trace/Detail/Atomic.h"
-#include "Trace/Detail/Protocol.h"
 #include "Trace/Detail/Channel.h"
+#include "Trace/Detail/Protocol.h"
+#include "Trace/Detail/Transport.h"
 #include "Trace/Trace.inl"
 #include "WriteBufferRedirect.h"
 
