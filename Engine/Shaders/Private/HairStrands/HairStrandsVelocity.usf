@@ -45,6 +45,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 {
 	const uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
 	const FNodeDesc NodeDesc = DecodeNodeDesc(NodeIndex.Load(uint3(PixelCoord, 0)));
+	bool bNeedFastResolve = false;
 	if (NodeDesc.Count > 0)
 	{
 		// Store final sort node data 
@@ -62,7 +63,6 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		float MaxVelocityMagnitude2 = 0;
 		#endif		
 
-		bool bNeedFastResolve = false;
 		for (uint NodeIt = 0; NodeIt < NodeDesc.Count; ++NodeIt)
 		{
 			const uint SampleIndex = NodeDesc.Offset + NodeIt;
@@ -107,8 +107,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
 		OutVelocityTexture[PixelCoord] = ToOutput(MaxEncodedVelocity);
-		#endif		
-
-		OutResolveMaskTexture[PixelCoord] = bNeedFastResolve ? 1 : 0;
+		#endif
 	}
+
+	OutResolveMaskTexture[PixelCoord] = bNeedFastResolve ? 1 : 0;
 }
