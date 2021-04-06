@@ -182,6 +182,8 @@ private:
 
 	/** Serial number for this cache */
 	uint32 SerialNumber = 0;
+
+	bool bReentrantUpdate = false;
 };
 
 /**
