@@ -2612,6 +2612,10 @@ public:
 	/**  Packed bit array of primitives that are always visible. */
 	TBitArray<> PrimitivesAlwaysVisible;
 
+#if WITH_EDITOR
+	TBitArray<> PrimitivesSelected;
+#endif
+
 	TBitArray<> PrimitivesNeedingStaticMeshUpdate;
 	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck;
 
