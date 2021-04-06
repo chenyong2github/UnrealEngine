@@ -3,6 +3,8 @@
 #pragma once
 
 // This file provides a way to include Eigen/Core without producing static analysis warnings.
+THIRD_PARTY_INCLUDES_START
+
 #if defined(__clang__)
 _Pragma("clang diagnostic push") \
 _Pragma("clang diagnostic ignored \"-Wshadow\"")
@@ -27,4 +29,6 @@ _Pragma("clang diagnostic pop")
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
+
+THIRD_PARTY_INCLUDES_END
 
