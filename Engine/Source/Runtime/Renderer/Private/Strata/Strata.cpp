@@ -35,7 +35,13 @@ static TAutoConsoleVariable<int32> CVarStrataClassification(
 static TAutoConsoleVariable<int32> CVarStrataClassificationDebug(
 	TEXT("r.Strata.Classification.Debug"),
 	0,
-	TEXT("Enable strata classification visualization."),
+	TEXT("Enable strata classification visualization: 1 shows tile with simple material only while 2 shows tile with complex material."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataClassificationPassesReadingStrataAreTiled(
+	TEXT("r.Strata.Classification.PassesReadingStrataAreTiled"),
+	1,
+	TEXT("Enable the tiling of passes reading strata material (when possible) instead of doing multiple full screen passes testing stencil."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarStrataLUTResolution(
@@ -87,12 +93,16 @@ void FStrataSceneData::Reset()
 	MaterialLobesBuffer = nullptr;
 	MaterialLobesBufferUAV = nullptr;
 	MaterialLobesBufferSRV = nullptr;
-	ClassificationTileListBuffer = nullptr;
-	ClassificationTileListBufferUAV = nullptr;
-	ClassificationTileListBufferSRV = nullptr;
-	ClassificationTileIndirectBuffer = nullptr;
-	ClassificationTileIndirectBufferUAV = nullptr;
-	ClassificationTileIndirectBufferSRV = nullptr;
+
+	for (uint32 i = 0; i < EStrataTileMaterialType::ECount; ++i)
+	{
+		ClassificationTileListBuffer[i] = nullptr;
+		ClassificationTileListBufferUAV[i] = nullptr;
+		ClassificationTileListBufferSRV[i] = nullptr;
+		ClassificationTileIndirectBuffer[i] = nullptr;
+		ClassificationTileIndirectBufferUAV[i] = nullptr;
+		ClassificationTileIndirectBufferSRV[i] = nullptr;
+	}
 
 	StrataGlobalUniformParameters = nullptr;
 }
@@ -129,7 +139,12 @@ bool IsClassificationEnabled()
 	return CVarStrataClassification.GetValueOnAnyThread() > 0;
 }
 
-uint32 GetStrataTileSize()
+bool ShouldPassesReadingStrataBeTiled(ERHIFeatureLevel::Type FeatureLevel)
+{
+	return FeatureLevel >= ERHIFeatureLevel::SM5 && CVarStrataClassificationPassesReadingStrataAreTiled.GetValueOnAnyThread() > 0;
+}
+
+uint32 GetStrataBufferTileSize()
 {
 	return 8;
 }
@@ -168,18 +183,23 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 
 		// Tile classification buffers
 		{
-			const int32 TileInPixel = GetStrataTileSize();
+			const int32 TileInPixel = GetStrataBufferTileSize();
 			const FIntPoint TileResolution(FMath::DivideAndRoundUp(SceneTextureExtent.X, TileInPixel), FMath::DivideAndRoundUp(SceneTextureExtent.Y, TileInPixel));
 
-			StrataSceneData.ClassificationTileListBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TileResolution.X * TileResolution.Y), TEXT("StrataTileListBuffer"));
-			StrataSceneData.ClassificationTileListBufferSRV = GraphBuilder.CreateSRV(StrataSceneData.ClassificationTileListBuffer, PF_R32_UINT);
-			StrataSceneData.ClassificationTileListBufferUAV = GraphBuilder.CreateUAV(StrataSceneData.ClassificationTileListBuffer, PF_R32_UINT);
+			// As of today we allocate one index+indirect buffer for each EStrataTileMaterialType.
+			// This is fine for two types, later we might want to have a single list and indirect buffer with offsets.
+			for (uint32 i = 0; i < EStrataTileMaterialType::ECount; ++i)
+			{
+				StrataSceneData.ClassificationTileListBuffer[i] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TileResolution.X * TileResolution.Y), i==EStrataTileMaterialType::ESimple ? TEXT("SimpleStrataTileListBuffer") : TEXT("ComplexStrataTileListBuffer"));
+				StrataSceneData.ClassificationTileListBufferSRV[i] = GraphBuilder.CreateSRV(StrataSceneData.ClassificationTileListBuffer[i], PF_R32_UINT);
+				StrataSceneData.ClassificationTileListBufferUAV[i] = GraphBuilder.CreateUAV(StrataSceneData.ClassificationTileListBuffer[i], PF_R32_UINT);
 
-			StrataSceneData.ClassificationTileIndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("StrataTileIndirectBuffer"));
-			StrataSceneData.ClassificationTileIndirectBufferSRV = GraphBuilder.CreateSRV(StrataSceneData.ClassificationTileIndirectBuffer, PF_R32_UINT);
-			StrataSceneData.ClassificationTileIndirectBufferUAV = GraphBuilder.CreateUAV(StrataSceneData.ClassificationTileIndirectBuffer, PF_R32_UINT);
+				StrataSceneData.ClassificationTileIndirectBuffer[i] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), i == EStrataTileMaterialType::ESimple ? TEXT("SimpleStrataTileIndirectBuffer") : TEXT("ComplexStrataTileIndirectBuffer"));
+				StrataSceneData.ClassificationTileIndirectBufferSRV[i] = GraphBuilder.CreateSRV(StrataSceneData.ClassificationTileIndirectBuffer[i], PF_R32_UINT);
+				StrataSceneData.ClassificationTileIndirectBufferUAV[i] = GraphBuilder.CreateUAV(StrataSceneData.ClassificationTileIndirectBuffer[i], PF_R32_UINT);
 
-			AddClearUAVPass(GraphBuilder, StrataSceneData.ClassificationTileIndirectBufferUAV, 0);
+				AddClearUAVPass(GraphBuilder, StrataSceneData.ClassificationTileIndirectBufferUAV[i], 0);
+			}
 		}
 
 		// Top layer texture
@@ -451,8 +471,10 @@ class FStrataMaterialTileClassificationPassCS : public FGlobalShader
 		SHADER_PARAMETER(int32, bRectPrimitive)
 		SHADER_PARAMETER(FIntPoint, ViewResolution)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ClassificationTexture)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileIndirectData)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileListData)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SimpleTileIndirectDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SimpleTileListDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ComplexTileIndirectDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ComplexTileListDataBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -475,55 +497,15 @@ IMPLEMENT_GLOBAL_SHADER(FStrataMaterialTileClassificationPassCS, "/Engine/Privat
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-class FStrataMaterialStencilClassificationPassVS : public FGlobalShader
+class FStrataMaterialStencilTaggingPassPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FStrataMaterialStencilClassificationPassVS);
-	SHADER_USE_PARAMETER_STRUCT(FStrataMaterialStencilClassificationPassVS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FStrataMaterialStencilTaggingPassPS);
+	SHADER_USE_PARAMETER_STRUCT(FStrataMaterialStencilTaggingPassPS, FGlobalShader);
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER(int32, TileSize)
-		SHADER_PARAMETER(int32, bRectPrimitive)
-		SHADER_PARAMETER(FIntPoint, TileCount)
-		SHADER_PARAMETER(FIntPoint, OutputResolution)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TileListBuffer)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
-	{
-		return PermutationVector;
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 && Strata::IsStrataEnabled();
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_STENCIL_CATEGORIZATION"), 1);
-	}
-};
-
-class FStrataMaterialStencilClassificationPassPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FStrataMaterialStencilClassificationPassPS);
-	SHADER_USE_PARAMETER_STRUCT(FStrataMaterialStencilClassificationPassPS, FGlobalShader);
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER(int32, TileSize)
-		SHADER_PARAMETER(int32, bRectPrimitive)
-		SHADER_PARAMETER(FIntPoint, TileCount)
-		SHADER_PARAMETER(FIntPoint, OutputResolution)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TileListBuffer)
-		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_STRUCT_INCLUDE(Strata::FStrataTilePassVS::FParameters, VS)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -544,38 +526,51 @@ class FStrataMaterialStencilClassificationPassPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FStrataMaterialStencilClassificationPassVS, "/Engine/Private/Strata/StrataMaterialClassification.usf", "StencilMainVS", SF_Vertex);
-IMPLEMENT_GLOBAL_SHADER(FStrataMaterialStencilClassificationPassPS, "/Engine/Private/Strata/StrataMaterialClassification.usf", "StencilMainPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FStrataTilePassVS, "/Engine/Private/Strata/StrataMaterialClassification.usf", "StrataTilePassVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FStrataMaterialStencilTaggingPassPS, "/Engine/Private/Strata/StrataMaterialClassification.usf", "StencilMainPS", SF_Pixel);
 
-static void AddStrataInternalClassifedTilePass(
+void FillUpTiledPassData(
+	EStrataTileMaterialType Type, 
+	const FViewInfo& View, 
+	FStrataTilePassVS::FParameters& ParametersVS,
+	EPrimitiveType& PrimitiveType)
+{
+	const FIntPoint OutputResolution = View.ViewRect.Size();
+	ParametersVS.OutputResolutionAndInv = FVector4(OutputResolution.X, OutputResolution.Y, 1.0f / float(OutputResolution.X), 1.0f / float(OutputResolution.Y));
+	ParametersVS.TileListBuffer = View.StrataSceneData->ClassificationTileListBufferSRV[Type];
+	ParametersVS.TileIndirectBuffer = View.StrataSceneData->ClassificationTileIndirectBuffer[Type];
+
+	PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
+}
+
+static void AddStrataInternalClassificationTilePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FRDGTextureRef* DepthTexture,
 	const FRDGTextureRef* ColorTexture,
-	FRDGBufferSRVRef TileListBufferSRV,
-	FRDGBufferRef TileIndirectBuffer)
-{	
+	EStrataTileMaterialType TileMaterialType,
+	const bool bDebug = false)
+{
+	// We cannot early exit due to the fact that the local light are still rendered as mesh volumes (so cannot be tiled as such)
+	//if (ShouldPassesReadingStrataBeTiled())
+	//{
+	//	return;
+	//}
+
+	EPrimitiveType StrataTilePrimitiveType = PT_TriangleList;
 	const FIntPoint OutputResolution = View.ViewRect.Size();
-	const int32 TileSize = GetStrataTileSize();
-	
-	const FIntPoint TileCount(FMath::DivideAndRoundUp(OutputResolution.X, TileSize), FMath::DivideAndRoundUp(OutputResolution.Y, TileSize));
-	const uint32 InstanceCount = TileCount.X * TileCount.Y;
+	FVector4 OutputResolutionAndInv = FVector4(OutputResolution.X, OutputResolution.Y, 1.0f / float(OutputResolution.X), 1.0f / float(OutputResolution.Y));
 
-	FStrataMaterialStencilClassificationPassPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FStrataMaterialStencilClassificationPassPS::FParameters>();
-	ParametersPS->TileSize = TileSize;
-	ParametersPS->TileCount = TileCount;
-	ParametersPS->bRectPrimitive = GRHISupportsRectTopology ? 1 : 0;
-	ParametersPS->OutputResolution = OutputResolution;
-	ParametersPS->TileListBuffer = TileListBufferSRV;
-	ParametersPS->TileIndirectBuffer = TileIndirectBuffer;
+	FStrataMaterialStencilTaggingPassPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FStrataMaterialStencilTaggingPassPS::FParameters>();
+	FillUpTiledPassData(TileMaterialType, View, ParametersPS->VS, StrataTilePrimitiveType);
 
-	TShaderMapRef<FStrataMaterialStencilClassificationPassVS> VertexShader(View.ShaderMap);
-	TShaderMapRef<FStrataMaterialStencilClassificationPassPS> PixelShader(View.ShaderMap);
+	TShaderMapRef<FStrataTilePassVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FStrataMaterialStencilTaggingPassPS> PixelShader(View.ShaderMap);
 
 	// For debug purpose
-	const bool bDebug = ColorTexture != nullptr;
 	if (bDebug)
 	{
+		check(ColorTexture);
 		ParametersPS->RenderTargets[0] = FRenderTargetBinding(*ColorTexture, ERenderTargetLoadAction::ELoad);
 	}
 	else
@@ -594,15 +589,8 @@ static void AddStrataInternalClassifedTilePass(
 		RDG_EVENT_NAME("StrataStencilClassificationPass"),
 		ParametersPS,
 		ERDGPassFlags::Raster,
-		[ParametersPS, VertexShader, PixelShader, OutputResolution, InstanceCount, bDebug](FRHICommandList& RHICmdList)
+		[ParametersPS, VertexShader, PixelShader, OutputResolution, StrataTilePrimitiveType, bDebug](FRHICommandList& RHICmdList)
 		{
-			FStrataMaterialStencilClassificationPassVS::FParameters ParametersVS;
-			ParametersVS.TileSize = ParametersPS->TileSize;
-			ParametersVS.bRectPrimitive = ParametersPS->bRectPrimitive;
-			ParametersVS.TileCount = ParametersPS->TileCount;
-			ParametersVS.OutputResolution = ParametersPS->OutputResolution;
-			ParametersVS.TileListBuffer = ParametersPS->TileListBuffer;
-
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Max, BF_SourceAlpha, BF_DestAlpha>::GetRHI();
@@ -622,15 +610,14 @@ static void AddStrataInternalClassifedTilePass(
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			GraphicsPSOInit.PrimitiveType = ParametersPS->bRectPrimitive > 0 ? PT_RectList : PT_TriangleList;
+			GraphicsPSOInit.PrimitiveType = StrataTilePrimitiveType;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
-			//SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *ParametersPS);
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersPS->VS);
 
 			RHICmdList.SetStencilRef(StencilBit);
 			RHICmdList.SetViewport(0, 0, 0.0f, OutputResolution.X, OutputResolution.Y, 1.0f);
 			RHICmdList.SetStreamSource(0, nullptr, 0);
-			RHICmdList.DrawPrimitiveIndirect(ParametersPS->TileIndirectBuffer->GetIndirectRHICallBuffer(), 0);
+			RHICmdList.DrawPrimitiveIndirect(ParametersPS->VS.TileIndirectBuffer->GetIndirectRHICallBuffer(), 0);
 		});
 }
 
@@ -639,8 +626,7 @@ void AddStrataStencilPass(
 	const FViewInfo& View,
 	const FMinimalSceneTextures& SceneTextures)
 {
-	AddStrataInternalClassifedTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, 
-		View.StrataSceneData->ClassificationTileListBufferSRV, View.StrataSceneData->ClassificationTileIndirectBuffer);
+	AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::ESimple);
 }
 
 void AddStrataStencilPass(
@@ -651,8 +637,7 @@ void AddStrataStencilPass(
 	for (int32 i = 0; i < Views.Num(); ++i)
 	{
 		const FViewInfo& View = Views[i];
-		AddStrataInternalClassifedTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, 
-			View.StrataSceneData->ClassificationTileListBufferSRV, View.StrataSceneData->ClassificationTileIndirectBuffer);
+		AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::ESimple);
 	}
 }
 
@@ -702,12 +687,14 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 		{
 			TShaderMapRef<FStrataMaterialTileClassificationPassCS> ComputeShader(View.ShaderMap);
 			FStrataMaterialTileClassificationPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataMaterialTileClassificationPassCS::FParameters>();
-			PassParameters->TileSize = GetStrataTileSize();
+			PassParameters->TileSize = GetStrataBufferTileSize();	// STRATA_TODO not sure we want to tie the buffer tile optimisation for cache and the Categotisation tile size?
 			PassParameters->bRectPrimitive = GRHISupportsRectTopology ? 1 : 0;
 			PassParameters->ViewResolution = View.ViewRect.Size();
 			PassParameters->ClassificationTexture = View.StrataSceneData->ClassificationTexture;
-			PassParameters->TileListData = View.StrataSceneData->ClassificationTileListBufferUAV;
-			PassParameters->TileIndirectData = View.StrataSceneData->ClassificationTileIndirectBufferUAV;
+			PassParameters->SimpleTileListDataBuffer = View.StrataSceneData->ClassificationTileListBufferUAV[EStrataTileMaterialType::ESimple];
+			PassParameters->SimpleTileIndirectDataBuffer = View.StrataSceneData->ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::ESimple];
+			PassParameters->ComplexTileListDataBuffer = View.StrataSceneData->ClassificationTileListBufferUAV[EStrataTileMaterialType::EComplex];
+			PassParameters->ComplexTileIndirectDataBuffer = View.StrataSceneData->ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::EComplex];
 
 			// Add 64 threads permutation
 			const uint32 GroupSize = 8;
@@ -894,14 +881,17 @@ void AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Vi
 		}
 	}
 
-	if (IsClassificationEnabled() && CVarStrataClassificationDebug.GetValueOnAnyThread() > 0)
+	const int32 StrataClassificationDebug = CVarStrataClassificationDebug.GetValueOnAnyThread();
+	if (IsClassificationEnabled() && StrataClassificationDebug > 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "StrataVisualizeClassification");
 		for (int32 i = 0; i < Views.Num(); ++i)
 		{
 			const FViewInfo& View = Views[i];
-			AddStrataInternalClassifedTilePass(GraphBuilder, View, nullptr, &SceneColorTexture,
-				View.StrataSceneData->ClassificationTileListBufferSRV, View.StrataSceneData->ClassificationTileIndirectBuffer);
+			const int32 StrataTileMaterialTypeIndex = FMath::Clamp(StrataClassificationDebug - 1, 0, 1);
+			const bool bDebugPass = true;
+			AddStrataInternalClassificationTilePass(
+				GraphBuilder, View, nullptr, &SceneColorTexture, (EStrataTileMaterialType)StrataTileMaterialTypeIndex, bDebugPass);
 		}
 	}
 

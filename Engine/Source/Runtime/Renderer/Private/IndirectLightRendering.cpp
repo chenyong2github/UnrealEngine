@@ -304,9 +304,15 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 
-		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 }; // FReflectionEnvironmentSkyLightingPS
+
+
+BEGIN_SHADER_PARAMETER_STRUCT(FReflectionEnvironmentSkyLightingParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FReflectionEnvironmentSkyLightingPS::FParameters, PS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(Strata::FStrataTilePassVS::FParameters, VS)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER(FDiffuseIndirectCompositePS, "/Engine/Private/DiffuseIndirectComposite.usf", "MainPS", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FAmbientCubemapCompositePS, "/Engine/Private/AmbientCubemapComposite.usf", "MainPS", SF_Pixel);
@@ -1123,7 +1129,9 @@ static void AddSkyReflectionPass(
 	bool bSkyLight, 
 	bool bDynamicSkyLight, 
 	bool bApplySkyShadowing,
-	bool bStrataFastPath)
+	bool bEnableStrataStencilTest,
+	bool bEnableStrataTiledPass,
+	uint32 StrataTileMaterialType)	// 0 simple material, 1 all/complex material. Does not matter when strata is disabled. See EStrataTileMaterialType
 {
 	// Render the reflection environment with tiled deferred culling
 	bool bHasBoxCaptures = (View.NumBoxReflectionCaptures > 0);
@@ -1140,7 +1148,7 @@ static void AddSkyReflectionPass(
 
 	const auto& SceneColorTexture = SceneTextures.Color;
 
-	FReflectionEnvironmentSkyLightingPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionEnvironmentSkyLightingPS::FParameters>();
+	FReflectionEnvironmentSkyLightingParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionEnvironmentSkyLightingParameters>();
 
 	// Setup the parameters of the shader.
 	{
@@ -1168,70 +1176,70 @@ static void AddSkyReflectionPass(
 			const float Mul = 1.0f / (Max - Min);
 			const float Add = -Min / (Max - Min);
 
-			PassParameters->OcclusionTintAndMinOcclusion = SkyLightOcclusionTintAndMinOcclusion;
-			PassParameters->ContrastAndNormalizeMulAdd = FVector(SkyLightContrast, Mul, Add);
-			PassParameters->OcclusionExponent = SkyLightOcclusionExponent;
-			PassParameters->OcclusionCombineMode = SkyLightOcclusionCombineMode == OCM_Minimum ? 0.0f : 1.0f;
-			PassParameters->ApplyBentNormalAO = DynamicBentNormalAO;
-			PassParameters->InvSkySpecularOcclusionStrength = 1.0f / FMath::Max(CVarSkySpecularOcclusionStrength.GetValueOnRenderThread(), 0.1f);
+			PassParameters->PS.OcclusionTintAndMinOcclusion = SkyLightOcclusionTintAndMinOcclusion;
+			PassParameters->PS.ContrastAndNormalizeMulAdd = FVector(SkyLightContrast, Mul, Add);
+			PassParameters->PS.OcclusionExponent = SkyLightOcclusionExponent;
+			PassParameters->PS.OcclusionCombineMode = SkyLightOcclusionCombineMode == OCM_Minimum ? 0.0f : 1.0f;
+			PassParameters->PS.ApplyBentNormalAO = DynamicBentNormalAO;
+			PassParameters->PS.InvSkySpecularOcclusionStrength = 1.0f / FMath::Max(CVarSkySpecularOcclusionStrength.GetValueOnRenderThread(), 0.1f);
 		}
 
 		// Setups all shader parameters related to distance field AO
 		{
 			FIntPoint AOBufferSize = GetBufferSizeForAO();
-			PassParameters->AOBufferBilinearUVMax = FVector2D(
+			PassParameters->PS.AOBufferBilinearUVMax = FVector2D(
 				(View.ViewRect.Width() / GAODownsampleFactor - 0.51f) / AOBufferSize.X, // 0.51 - so bilateral gather4 won't sample invalid texels
 				(View.ViewRect.Height() / GAODownsampleFactor - 0.51f) / AOBufferSize.Y);
 
 			extern float GAOViewFadeDistanceScale;
-			PassParameters->AOMaxViewDistance = GetMaxAOViewDistance();
-			PassParameters->DistanceFadeScale = 1.0f / ((1.0f - GAOViewFadeDistanceScale) * GetMaxAOViewDistance());
+			PassParameters->PS.AOMaxViewDistance = GetMaxAOViewDistance();
+			PassParameters->PS.DistanceFadeScale = 1.0f / ((1.0f - GAOViewFadeDistanceScale) * GetMaxAOViewDistance());
 
-			PassParameters->BentNormalAOTexture = DynamicBentNormalAOTexture;
-			PassParameters->BentNormalAOSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+			PassParameters->PS.BentNormalAOTexture = DynamicBentNormalAOTexture;
+			PassParameters->PS.BentNormalAOSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 		}
 
-		PassParameters->AmbientOcclusionTexture = AmbientOcclusionTexture;
-		PassParameters->AmbientOcclusionSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->PS.AmbientOcclusionTexture = AmbientOcclusionTexture;
+		PassParameters->PS.AmbientOcclusionSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
-		PassParameters->ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : SystemTextures.Black;
-		PassParameters->ScreenSpaceReflectionsSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->PS.ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : SystemTextures.Black;
+		PassParameters->PS.ScreenSpaceReflectionsSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
 		if (Scene->HasVolumetricCloud())
 		{
 			FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
 
-			PassParameters->CloudSkyAOTexture = View.VolumetricCloudSkyAO != nullptr ? View.VolumetricCloudSkyAO : SystemTextures.Black;
-			PassParameters->CloudSkyAOWorldToLightClipMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudSkyAOWorldToLightClipMatrix;
-			PassParameters->CloudSkyAOFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudSkyAOFarDepthKm;
-			PassParameters->CloudSkyAOEnabled = 1;
+			PassParameters->PS.CloudSkyAOTexture = View.VolumetricCloudSkyAO != nullptr ? View.VolumetricCloudSkyAO : SystemTextures.Black;
+			PassParameters->PS.CloudSkyAOWorldToLightClipMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudSkyAOWorldToLightClipMatrix;
+			PassParameters->PS.CloudSkyAOFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudSkyAOFarDepthKm;
+			PassParameters->PS.CloudSkyAOEnabled = 1;
 		}
 		else
 		{
-			PassParameters->CloudSkyAOTexture = SystemTextures.Black;
-			PassParameters->CloudSkyAOEnabled = 0;
+			PassParameters->PS.CloudSkyAOTexture = SystemTextures.Black;
+			PassParameters->PS.CloudSkyAOEnabled = 0;
 		}
-		PassParameters->CloudSkyAOSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+		PassParameters->PS.CloudSkyAOSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
-		PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
-		PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		PassParameters->PS.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+		PassParameters->PS.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-		PassParameters->SceneTextures = SceneTextureParameters;
+		PassParameters->PS.SceneTextures = SceneTextureParameters;
 
-		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-		PassParameters->ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
+		PassParameters->PS.ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->PS.ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
 		{
 			FReflectionUniformParameters ReflectionUniformParameters;
 			SetupReflectionUniformParameters(View, ReflectionUniformParameters);
-			PassParameters->ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
+			PassParameters->PS.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 		}
-		PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+		PassParameters->PS.ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 
-		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+		PassParameters->PS.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 	}
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
-	if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+	if (bEnableStrataStencilTest)
 	{		
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextureParameters.SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 	}
@@ -1248,23 +1256,34 @@ static void AddSkyReflectionPass(
 		View, bHasBoxCaptures, bHasSphereCaptures, DynamicBentNormalAO != 0.0f,
 		bSkyLight, bDynamicSkyLight, bApplySkyShadowing,
 		bRequiresSpecializedReflectionEnvironmentShader,
-		bStrataFastPath);
+		StrataTileMaterialType == EStrataTileMaterialType::ESimple);
 
 	TShaderMapRef<FReflectionEnvironmentSkyLightingPS> PixelShader(View.ShaderMap, PermutationVector);
-	ClearUnusedGraphResources(PixelShader, PassParameters);
+	ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
+
+	EPrimitiveType StrataTilePrimitiveType = PT_TriangleList;
+	TShaderMapRef<Strata::FStrataTilePassVS> StrataTilePassVertexShader(View.ShaderMap);
+	PassParameters->VS.TileIndirectBuffer = nullptr;
+	PassParameters->VS.TileListBuffer = nullptr;
+	if (bEnableStrataTiledPass)
+	{
+		Strata::FillUpTiledPassData((EStrataTileMaterialType)StrataTileMaterialType, View, PassParameters->VS, StrataTilePrimitiveType);
+		ClearUnusedGraphResources(StrataTilePassVertexShader, &PassParameters->VS);
+	}
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("ReflectionEnvironmentAndSky %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[PassParameters, &View, PixelShader, bCheckerboardSubsurfaceRendering, bStrataFastPath](FRHICommandList& InRHICmdList)
+		[PassParameters, &View, PixelShader, bCheckerboardSubsurfaceRendering, 
+		bEnableStrataStencilTest, bEnableStrataTiledPass, StrataTilePassVertexShader, StrataTileMaterialType, StrataTilePrimitiveType](FRHICommandList& InRHICmdList)
 	{
 		InRHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		FPixelShaderUtils::InitFullscreenPipelineState(InRHICmdList, View.ShaderMap, PixelShader, GraphicsPSOInit);
 
-		if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+		if (bEnableStrataStencilTest)
 		{
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
 				false, CF_Always, 
@@ -1300,13 +1319,28 @@ static void AddSkyReflectionPass(
 			InRHICmdList.SetDepthBounds(Values.MinDepth, Values.MaxDepth);
 		}
 
-		SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
-		SetShaderParameters(InRHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-		if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+		if (bEnableStrataTiledPass)
 		{
-			InRHICmdList.SetStencilRef(bStrataFastPath ? Strata::StencilBit : 0x0);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = StrataTilePassVertexShader.GetVertexShader();
+			GraphicsPSOInit.PrimitiveType = StrataTilePrimitiveType;
 		}
-		FPixelShaderUtils::DrawFullscreenTriangle(InRHICmdList);
+
+		SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
+		SetShaderParameters(InRHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+		if (bEnableStrataStencilTest)
+		{
+			InRHICmdList.SetStencilRef(StrataTileMaterialType == EStrataTileMaterialType::ESimple ? Strata::StencilBit : 0x0);
+		}
+
+		if (!bEnableStrataTiledPass)
+		{
+			FPixelShaderUtils::DrawFullscreenTriangle(InRHICmdList);
+		}
+		else
+		{
+			SetShaderParameters(InRHICmdList, StrataTilePassVertexShader, StrataTilePassVertexShader.GetVertexShader(), PassParameters->VS);
+			InRHICmdList.DrawPrimitiveIndirect(PassParameters->VS.TileIndirectBuffer->GetIndirectRHICallBuffer(), 0);
+		}
 	});
 }
 
@@ -1535,21 +1569,14 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 		{
 			RDG_GPU_STAT_SCOPE(GraphBuilder, ReflectionEnvironment);
 
-			AddSkyReflectionPass(
-				GraphBuilder,
-				View,
-				Scene,
-				SceneTextures,
-				DynamicBentNormalAOTexture,
-				ReflectionsColor,
-				RayTracingReflectionOptions,
-				SceneTextureParameters,
-				bSkyLight,
-				bDynamicSkyLight,
-				bApplySkyShadowing,
-				false);
-			if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+			const bool bStrataClassificationEnabled = Strata::IsStrataEnabled() && Strata::IsClassificationEnabled();
+			const bool bTilePassesReadingStrataEnabled = Strata::ShouldPassesReadingStrataBeTiled(Scene->GetFeatureLevel());
+
+			if (bStrataClassificationEnabled && bTilePassesReadingStrataEnabled)
 			{
+				const bool bEnableStrataTiledPass = true;
+				const bool bEnableStrataStencilTest = false;
+
 				AddSkyReflectionPass(
 					GraphBuilder,
 					View,
@@ -1562,7 +1589,65 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bSkyLight,
 					bDynamicSkyLight,
 					bApplySkyShadowing,
-					true);
+					bEnableStrataStencilTest,
+					bEnableStrataTiledPass,
+					EStrataTileMaterialType::ESimple);
+
+				AddSkyReflectionPass(
+					GraphBuilder,
+					View,
+					Scene,
+					SceneTextures,
+					DynamicBentNormalAOTexture,
+					ReflectionsColor,
+					RayTracingReflectionOptions,
+					SceneTextureParameters,
+					bSkyLight,
+					bDynamicSkyLight,
+					bApplySkyShadowing,
+					bEnableStrataStencilTest,
+					bEnableStrataTiledPass,
+					EStrataTileMaterialType::EComplex);
+			}
+			else
+			{
+				const bool bEnableStrataTiledPass = false;
+				const bool bEnableStrataStencilTest = bStrataClassificationEnabled;
+
+				// Typical path uses when Strata is not enabled
+				AddSkyReflectionPass(
+					GraphBuilder,
+					View,
+					Scene,
+					SceneTextures,
+					DynamicBentNormalAOTexture,
+					ReflectionsColor,
+					RayTracingReflectionOptions,
+					SceneTextureParameters,
+					bSkyLight,
+					bDynamicSkyLight,
+					bApplySkyShadowing,
+					bEnableStrataStencilTest,
+					bEnableStrataTiledPass,
+					EStrataTileMaterialType::EComplex);
+				if (bStrataClassificationEnabled && !bTilePassesReadingStrataEnabled)
+				{
+					AddSkyReflectionPass(
+						GraphBuilder,
+						View,
+						Scene,
+						SceneTextures,
+						DynamicBentNormalAOTexture,
+						ReflectionsColor,
+						RayTracingReflectionOptions,
+						SceneTextureParameters,
+						bSkyLight,
+						bDynamicSkyLight,
+						bApplySkyShadowing,
+						bEnableStrataStencilTest,
+						bEnableStrataTiledPass,
+						EStrataTileMaterialType::ESimple);
+				}
 			}
 		}
 

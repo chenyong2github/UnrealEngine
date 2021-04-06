@@ -31,6 +31,13 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, GGXEnergyLUTSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+enum EStrataTileMaterialType : uint32
+{
+	ESimple = 0,
+	EComplex = 1,
+	ECount
+};
+
 struct FStrataSceneData
 {
 	uint32 MaxBytesPerPixel;
@@ -40,12 +47,12 @@ struct FStrataSceneData
 	FRDGBufferRef MaterialLobesBuffer;
 	FRDGBufferUAVRef MaterialLobesBufferUAV;
 	FRDGBufferSRVRef MaterialLobesBufferSRV;
-	FRDGBufferRef ClassificationTileListBuffer;
-	FRDGBufferUAVRef ClassificationTileListBufferUAV;
-	FRDGBufferSRVRef ClassificationTileListBufferSRV;
-	FRDGBufferRef ClassificationTileIndirectBuffer;
-	FRDGBufferUAVRef ClassificationTileIndirectBufferUAV;
-	FRDGBufferSRVRef ClassificationTileIndirectBufferSRV;
+	FRDGBufferRef ClassificationTileListBuffer[EStrataTileMaterialType::ECount];
+	FRDGBufferUAVRef ClassificationTileListBufferUAV[EStrataTileMaterialType::ECount];
+	FRDGBufferSRVRef ClassificationTileListBufferSRV[EStrataTileMaterialType::ECount];
+	FRDGBufferRef ClassificationTileIndirectBuffer[EStrataTileMaterialType::ECount];
+	FRDGBufferUAVRef ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::ECount];
+	FRDGBufferSRVRef ClassificationTileIndirectBufferSRV[EStrataTileMaterialType::ECount];
 
 	FRDGTextureRef ClassificationTexture;
 	FRDGTextureRef TopLayerNormalTexture;
@@ -67,12 +74,14 @@ struct FStrataSceneData
 	void Reset();
 };
 
+
 namespace Strata
 {
 constexpr uint32 StencilBit = 0x80; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_FASTPATH)
 
 bool IsStrataEnabled();
 bool IsClassificationEnabled();
+bool ShouldPassesReadingStrataBeTiled(ERHIFeatureLevel::Type FeatureLevel);
 
 void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder);
 
@@ -86,6 +95,35 @@ void AddStrataStencilPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, cons
 void AddStrataStencilPass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views, const FMinimalSceneTextures& SceneTextures);
 
 void AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views, FRDGTextureRef SceneColorTexture, EShaderPlatform Platform);
+
+
+class FStrataTilePassVS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FStrataTilePassVS);
+	SHADER_USE_PARAMETER_STRUCT(FStrataTilePassVS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FVector4, OutputResolutionAndInv)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBuffer)
+		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5; // We do not skip the compilation because we have some conditional when tiling a pass and the shader must be fetch once before hand.
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_STENCIL_CATEGORIZATION"), 1);
+	}
 };
+
+void FillUpTiledPassData(EStrataTileMaterialType Type, const FViewInfo& View, FStrataTilePassVS::FParameters& ParametersVS, EPrimitiveType& PrimitiveType);
+
+};
+
+
 
 
