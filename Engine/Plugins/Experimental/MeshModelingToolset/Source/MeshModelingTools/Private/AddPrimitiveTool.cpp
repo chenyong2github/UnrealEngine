@@ -246,8 +246,7 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	}
 
 	// Snap to grid if applicable
-	if (ShapeSettings->bSnapToGrid
-		&& GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
+	if (ShapeSettings->bSnapToGrid)
 	{
 		FSceneSnapQueryRequest Request;
 		Request.RequestType = ESceneSnapQueryType::Position;
