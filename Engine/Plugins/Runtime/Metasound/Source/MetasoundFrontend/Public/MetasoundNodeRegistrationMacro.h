@@ -8,7 +8,6 @@
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundLog.h"
 #include "MetasoundNodeInterface.h"
-#include "Templates/IntegralConstant.h"
 
 namespace Metasound
 {

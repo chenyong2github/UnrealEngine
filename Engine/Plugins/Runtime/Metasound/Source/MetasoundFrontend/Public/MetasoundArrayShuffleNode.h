@@ -10,12 +10,11 @@
 #include "MetasoundFacade.h"
 #include "MetasoundLog.h"
 #include "MetasoundNodeInterface.h"
-#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundTrigger.h"
-#include "Containers/CircularQueue.h"
 #include "MetasoundArrayNodes.h"
+#include "Misc/ScopeLock.h"
 
 #include <type_traits>
 

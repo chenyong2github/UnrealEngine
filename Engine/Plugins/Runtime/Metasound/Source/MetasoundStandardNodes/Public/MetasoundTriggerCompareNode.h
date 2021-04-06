@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundDataReferenceCollection.h"
+#include "MetasoundEnumRegistrationMacro.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNode.h"

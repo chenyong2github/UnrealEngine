@@ -2,11 +2,13 @@
 
 #pragma once
 
+#include "Containers/CircularQueue.h"
 #include "CoreMinimal.h"
+
+#include "MetasoundArrayNodes.h"
+#include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeInterface.h"
-#include "MetasoundExecutableOperator.h"
-#include "MetasoundArrayNodes.h"
 #include "MetasoundTrigger.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundFrontend_RandomArrayGet"

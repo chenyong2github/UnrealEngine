@@ -11,6 +11,13 @@ namespace Metasound
 {
 	namespace MetasoundTransmissionPrivate
 	{
+		// Determines whether send/receive nodes are enabled for a specific data type.
+		template<typename DataType>
+		struct TEnableTransmission
+		{
+			static constexpr bool Value = true;
+		};
+
 		// TTransmissionSupport determines whether the send/receive system is 
 		// supported for a given data type. It is used to add send/receive
 		// support when possible, and avoid errors when registering data types
@@ -19,6 +26,7 @@ namespace Metasound
 		struct TTransmissionSupport
 		{
 		private:
+			static constexpr bool bEnabled = TEnableTransmission<DataType>::Value;
 
 			// All types that support copy assignment and copy construction can be
 			// used in the transmission system. 
@@ -30,7 +38,7 @@ namespace Metasound
 
 		public:
 			
-			static constexpr bool bIsTransmissionSupported = bIsCopyable || bIsAudioDataType; 
+			static constexpr bool bIsTransmissionSupported = bEnabled && (bIsCopyable || bIsAudioDataType);
 		};
 
 		// At the time of writing this code, TArray incorrectly defines a copy constructor
@@ -43,9 +51,11 @@ namespace Metasound
 		{
 			static constexpr bool bIsCopyable = std::is_copy_assignable<ElementType>::value && std::is_copy_constructible<ElementType>::value;
 
+			static constexpr bool bEnabled = TEnableTransmission<TArray<ElementType>>::Value;
+
 		public:
 			
-			static constexpr bool bIsTransmissionSupported = bIsCopyable;
+			static constexpr bool bIsTransmissionSupported = bIsCopyable && bEnabled;
 		};
 	}
 

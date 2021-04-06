@@ -4,6 +4,7 @@
 #include "DSP/MidiNoteQuantizer.h"
 #include "Internationalization/Text.h"
 
+#include "MetasoundEnumRegistrationMacro.h"
 #include "MetasoundFacade.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundScaleEnums.h"

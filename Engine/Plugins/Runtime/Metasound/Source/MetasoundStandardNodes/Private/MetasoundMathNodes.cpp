@@ -817,6 +817,7 @@ namespace Metasound
 		}
 	};
 
+#if 0
 	// int64 has to be explicitly implemented as they are PODs that are not implemented as a literal base type.
 	template <>
 	class TMathOpAdd<int64>
@@ -863,6 +864,7 @@ namespace Metasound
 			}
 		}
 	};
+#endif
 
 	template <>
 	class TMathOpSubtract<FAudioBuffer>
@@ -983,6 +985,7 @@ namespace Metasound
 		}
 	};
 
+#if 0
 	// int64 has to be explicitly implemented as they are PODs that are not implemented as a literal base type.
 	template <>
 	class TMathOpSubtract<int64>
@@ -1029,6 +1032,7 @@ namespace Metasound
 			}
 		}
 	};
+#endif
 
 	template <>
 	class TMathOpMultiply<FAudioBuffer>
@@ -1218,6 +1222,7 @@ namespace Metasound
 		}
 	};
 
+#if 0
 	// int64 has to be explicitly implemented as they are PODs that are not implemented as a literal base type.
 	template <>
 	class TMathOpMultiply<int64>
@@ -1264,6 +1269,7 @@ namespace Metasound
 			}
 		}
 	};
+#endif
 
 	template <>
 	class TMathOpDivide<FTime, float>
@@ -1317,6 +1323,7 @@ namespace Metasound
 		}
 	};
 
+#if 0
 	// int64 has to be explicitly implemented as they are PODs that are not implemented as a literal base type.
 	template <>
 	class TMathOpDivide<int64>
@@ -1425,11 +1432,12 @@ namespace Metasound
 			}
 		}
 	};
+#endif
 
 	// Definitions
 	DEFINE_METASOUND_MATHOP(Add, Float, float, LOCTEXT("Metasound_MathAddFloatNodeDescription", "Adds floats."))
 	DEFINE_METASOUND_MATHOP(Add, Int32, int32, LOCTEXT("Metasound_MathAddInt32NodeDescription", "Adds int32s."))
-	DEFINE_METASOUND_MATHOP(Add, Int64, int64, LOCTEXT("Metasound_MathAddInt64NodeDescription", "Adds int64s."))
+	//DEFINE_METASOUND_MATHOP(Add, Int64, int64, LOCTEXT("Metasound_MathAddInt64NodeDescription", "Adds int64s."))
 	DEFINE_METASOUND_MATHOP(Add, Audio, FAudioBuffer, LOCTEXT("Metasound_MathAddBufferNodeDescription", "Adds buffers together by sample."))
 	DEFINE_METASOUND_MATHOP(Add, Time, FTime, LOCTEXT("Metasound_MathAddTimeNodeDescription", "Adds time values."))
 
@@ -1437,13 +1445,13 @@ namespace Metasound
 
 	DEFINE_METASOUND_MATHOP(Subtract, Float, float, LOCTEXT("Metasound_MathSubractFloatNodeDescription", "Subtracts floats."))
 	DEFINE_METASOUND_MATHOP(Subtract, Int32, int32, LOCTEXT("Metasound_MathSubractInt32NodeDescription", "Subtracts int32s."))
-	DEFINE_METASOUND_MATHOP(Subtract, Int64, int64, LOCTEXT("Metasound_MathSubractInt64NodeDescription", "Subtracts int64s."))
+	//DEFINE_METASOUND_MATHOP(Subtract, Int64, int64, LOCTEXT("Metasound_MathSubractInt64NodeDescription", "Subtracts int64s."))
 	DEFINE_METASOUND_MATHOP(Subtract, Audio, FAudioBuffer, LOCTEXT("Metasound_MathSubtractBufferNodeDescription", "Subtracts buffers sample-by-sample."))
 	DEFINE_METASOUND_MATHOP(Subtract, Time, FTime, LOCTEXT("Metasound_MathSubractTimeNodeDescription", "Subtracts time values."))
 
 	DEFINE_METASOUND_MATHOP(Multiply, Float, float, LOCTEXT("Metasound_MathMultiplyFloatNodeDescription", "Multiplies floats."))
 	DEFINE_METASOUND_MATHOP(Multiply, Int32, int32, LOCTEXT("Metasound_MathMultiplyInt32NodeDescription", "Multiplies int32s."))
-	DEFINE_METASOUND_MATHOP(Multiply, Int64, int64, LOCTEXT("Metasound_MathMultiplyInt64NodeDescription", "Multiplies int64s."))
+	//DEFINE_METASOUND_MATHOP(Multiply, Int64, int64, LOCTEXT("Metasound_MathMultiplyInt64NodeDescription", "Multiplies int64s."))
 	DEFINE_METASOUND_MATHOP(Multiply, Audio, FAudioBuffer, LOCTEXT("Metasound_MathMultiplyBufferNodeDescription", "Multiplies buffers together sample-by-sample."))
 
 	DEFINE_METASOUND_OPERAND_TYPED_MATHOP(Multiply, Audio, FAudioBuffer, Float, float, LOCTEXT("Metasound_MathMultiplyAudioByFloatDescription", "Multiplies buffer by float scalars."))
@@ -1451,12 +1459,12 @@ namespace Metasound
 
 	DEFINE_METASOUND_MATHOP(Divide, Float, float, LOCTEXT("Metasound_MathDivideFloatNodeDescription", "Divide float by another float."))
 	DEFINE_METASOUND_MATHOP(Divide, Int32, int32, LOCTEXT("Metasound_MathDivideInt32NodeDescription", "Divide int32 by another int32."))
-	DEFINE_METASOUND_MATHOP(Divide, Int64, int64, LOCTEXT("Metasound_MathDivideInt64NodeDescription", "Divide int64 by another int64."))
+	//DEFINE_METASOUND_MATHOP(Divide, Int64, int64, LOCTEXT("Metasound_MathDivideInt64NodeDescription", "Divide int64 by another int64."))
 
 	DEFINE_METASOUND_OPERAND_TYPED_MATHOP(Divide, Time, FTime, Float, float, LOCTEXT("Metasound_MathDivideTimeNodeDescription", "Divides time by floats."))
 
 	DEFINE_METASOUND_MATHOP(Modulo, Int32, int32, LOCTEXT("Metasound_MathModulusInt32NodeDescription", "Modulo int32 by another int32."))
-	DEFINE_METASOUND_MATHOP(Modulo, Int64, int64, LOCTEXT("Metasound_MathModulusInt64NodeDescription", "Modulo int64 by another int64."))
+	//DEFINE_METASOUND_MATHOP(Modulo, Int64, int64, LOCTEXT("Metasound_MathModulusInt64NodeDescription", "Modulo int64 by another int64."))
 
 	DEFINE_METASOUND_MATHOP(Power, Float, float, LOCTEXT("Metasound_MathPowerFloatNodeDescription", "Raise float to the power of another float."))
 
@@ -1464,14 +1472,14 @@ namespace Metasound
 
 	METASOUND_REGISTER_NODE(FAddFloatNode)
 	METASOUND_REGISTER_NODE(FAddInt32Node)
-	METASOUND_REGISTER_NODE(FAddInt64Node)
+	//METASOUND_REGISTER_NODE(FAddInt64Node)
 	METASOUND_REGISTER_NODE(FAddTimeNode)
 	METASOUND_REGISTER_NODE(FAddAudioNode)
 	METASOUND_REGISTER_NODE(FAddAudioFloatNode)
 
 	METASOUND_REGISTER_NODE(FSubtractFloatNode)
 	METASOUND_REGISTER_NODE(FSubtractInt32Node)
-	METASOUND_REGISTER_NODE(FSubtractInt64Node)
+	//METASOUND_REGISTER_NODE(FSubtractInt64Node)
 	METASOUND_REGISTER_NODE(FSubtractTimeNode)
 	METASOUND_REGISTER_NODE(FSubtractAudioNode)
 
@@ -1479,16 +1487,16 @@ namespace Metasound
 	METASOUND_REGISTER_NODE(FMultiplyAudioFloatNode)
 	METASOUND_REGISTER_NODE(FMultiplyFloatNode)
 	METASOUND_REGISTER_NODE(FMultiplyInt32Node)
-	METASOUND_REGISTER_NODE(FMultiplyInt64Node)
+	//METASOUND_REGISTER_NODE(FMultiplyInt64Node)
 	METASOUND_REGISTER_NODE(FMultiplyTimeFloatNode)
 
 	METASOUND_REGISTER_NODE(FDivideFloatNode)
 	METASOUND_REGISTER_NODE(FDivideInt32Node)
-	METASOUND_REGISTER_NODE(FDivideInt64Node)
+	//METASOUND_REGISTER_NODE(FDivideInt64Node)
 	METASOUND_REGISTER_NODE(FDivideTimeFloatNode)
 
 	METASOUND_REGISTER_NODE(FModuloInt32Node)
-	METASOUND_REGISTER_NODE(FModuloInt64Node)
+	//METASOUND_REGISTER_NODE(FModuloInt64Node)
 
 	METASOUND_REGISTER_NODE(FPowerFloatNode)
 

@@ -12,7 +12,6 @@
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
-
 namespace Metasound
 {
 	namespace MetasoundTriggerAccumulatorNodePrivate
@@ -209,3 +208,5 @@ namespace Metasound
 	};
 
 } // namespace Metasound
+
+#undef LOCTEXT_NAMESPACE

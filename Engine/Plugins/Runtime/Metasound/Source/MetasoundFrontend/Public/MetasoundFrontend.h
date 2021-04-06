@@ -7,7 +7,6 @@
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundBuilderInterface.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 // Forward Declarations
 class FMetasoundAssetBase;

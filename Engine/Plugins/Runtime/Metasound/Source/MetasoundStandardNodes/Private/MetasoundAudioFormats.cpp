@@ -3,6 +3,7 @@
 #include "MetasoundAudioFormats.h"
 
 #include "CoreMinimal.h"
+#include "MetasoundArrayNodesRegistration.h"
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
@@ -636,6 +637,58 @@ namespace Metasound
 		TSharedRef<FInputOperatorFactory, ESPMode::ThreadSafe> Factory;
 
 	};
+
+	// Disable arrays of audio formats. 
+	template<>
+	struct TEnableArrayNodes<FMonoAudioFormat>
+	{
+		static constexpr bool Value = false;
+	};
+
+	template<>
+	struct TEnableArrayNodes<FStereoAudioFormat>
+	{
+		static constexpr bool Value = false;
+	};
+
+	// Disable transmission of audio formats
+	template<>
+	struct TIsTransmittable<FMonoAudioFormat>
+	{
+		static constexpr bool Value = false;
+	};
+
+	template<>
+	struct TIsTransmittable<FStereoAudioFormat>
+	{
+		static constexpr bool Value = false;
+	};
+
+	// Disable auto converts using audio format construtors
+	template<typename FromDataType>
+	struct TIsAutoConvertible<FromDataType, FMonoAudioFormat>
+	{
+		static constexpr bool bIsConvertible = std::is_convertible<FromDataType, FAudioBuffer>::value;
+
+		static constexpr bool bIsFromArithmeticType = std::is_arithmetic<FromDataType>::value;
+
+	public:
+
+		static constexpr bool Value = bIsConvertible && (!bIsFromArithmeticType);
+	};
+
+	template<typename FromDataType>
+	struct TIsAutoConvertible<FromDataType, FStereoAudioFormat>
+	{
+		static constexpr bool bIsConvertible = std::is_convertible<FromDataType, FAudioBuffer>::value;
+
+		static constexpr bool bIsFromArithmeticType = std::is_arithmetic<FromDataType>::value;
+
+	public:
+
+		static constexpr bool Value = bIsConvertible && (!bIsFromArithmeticType);
+	};
+
 }
 
 // Data type registration has to happen after TInputNode<> and TOutputNode<> specializations

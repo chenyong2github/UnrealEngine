@@ -2,6 +2,7 @@
 #include "MetasoundTriggerOnThresholdNode.h"
 
 #include "MetasoundAudioBuffer.h"
+#include "MetasoundEnumRegistrationMacro.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"

@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "MetasoundFacade.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
-
 namespace Metasound
 {
 	class METASOUNDSTANDARDNODES_API FWaveWriterNode : public FNodeFacade
@@ -17,3 +15,4 @@ namespace Metasound
 	private:
 	};
 } // namespace Metasound
+

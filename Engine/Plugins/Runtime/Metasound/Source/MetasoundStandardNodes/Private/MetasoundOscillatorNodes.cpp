@@ -2,17 +2,19 @@
 #include "MetasoundOscillatorNodes.h"
 
 #include "DSP/Dsp.h"
+
 #include "MetasoundAudioBuffer.h"
+#include "MetasoundEnumRegistrationMacro.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
+#include "MetasoundTime.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
-#include "MetasoundTime.h"
-#include "MetasoundStandardNodesCategories.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 

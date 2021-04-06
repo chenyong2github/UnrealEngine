@@ -21,7 +21,6 @@
 #include "StructSerializer.h"
 #include "Serialization/MemoryReader.h"
 
-
 namespace Metasound
 {
 	namespace Frontend
@@ -223,18 +222,5 @@ class FMetasoundFrontendModule : public IModuleInterface
 		}
 	}
 };
-
-
-REGISTER_METASOUND_DATATYPE(bool, "Bool", ::Metasound::ELiteralType::Boolean)
-REGISTER_METASOUND_DATATYPE(int32, "Int32", ::Metasound::ELiteralType::Integer)
-REGISTER_METASOUND_DATATYPE(int64, "Int64", ::Metasound::ELiteralType::Integer)
-REGISTER_METASOUND_DATATYPE(float, "Float", ::Metasound::ELiteralType::Float)
-REGISTER_METASOUND_DATATYPE(double, "Double", ::Metasound::ELiteralType::Float)
-REGISTER_METASOUND_DATATYPE(FString, "String", ::Metasound::ELiteralType::String)
-
-REGISTER_METASOUND_DATATYPE(Metasound::FTrigger, "Trigger", ::Metasound::ELiteralType::Boolean)
-REGISTER_METASOUND_DATATYPE(Metasound::FTime, "Time", ::Metasound::ELiteralType::Float)
-REGISTER_METASOUND_DATATYPE(Metasound::FAudioBuffer, "Audio")
-REGISTER_METASOUND_DATATYPE(Metasound::FSendAddress, "Transmission:Address", ::Metasound::ELiteralType::String)
 
 IMPLEMENT_MODULE(FMetasoundFrontendModule, MetasoundFrontend);

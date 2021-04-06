@@ -11,6 +11,11 @@
 
 namespace Metasound
 {
+	template<typename ... ElementType>
+	struct TEnableArrayNodes
+	{
+		static constexpr bool Value = true;
+	};
 
 	namespace MetasoundArrayNodesPrivate
 	{
@@ -22,30 +27,37 @@ namespace Metasound
 		template<typename ArrayType>
 		struct TArrayNodeSupport
 		{
-			using ElementType = typename TArrayElementType<ArrayType>::Type;
+		private:
+			using ElementType = typename MetasoundArrayNodesPrivate::TArrayElementType<ArrayType>::Type;
+
+			static constexpr bool bIsElementParsableAndAssignable = TIsParsable<ElementType>::Value && std::is_copy_assignable<ElementType>::value;
+
+			static constexpr bool bEnabled = TEnableArrayNodes<ElementType>::Value;
+
+		public:
 			
 			// Array num is supported for all array types.
-			static constexpr bool bIsArrayNumSupported = true;
+			static constexpr bool bIsArrayNumSupported = bEnabled;
 
 			// Element must be default parsable to create get operator because a
 			// value must be returned even if the index is invalid. Also values are
 			// assigned by copy.
-			static constexpr bool bIsArrayGetSupported = TIsParsable<ElementType>::Value && std::is_copy_assignable<ElementType>::value;
+			static constexpr bool bIsArrayGetSupported = bEnabled && bIsElementParsableAndAssignable;
 
 			// Element must be copy assignable to set the value.
-			static constexpr bool bIsArraySetSupported = std::is_copy_assignable<ElementType>::value && std::is_copy_constructible<ElementType>::value;
+			static constexpr bool bIsArraySetSupported = bEnabled && std::is_copy_assignable<ElementType>::value && std::is_copy_constructible<ElementType>::value;
 
 			// Elements must be copy constructible
-			static constexpr bool bIsArrayConcatSupported = std::is_copy_constructible<ElementType>::value;
+			static constexpr bool bIsArrayConcatSupported = bEnabled && std::is_copy_constructible<ElementType>::value;
 
 			// Elements must be copy constructible
-			static constexpr bool bIsArraySubsetSupported = std::is_copy_constructible<ElementType>::value;
+			static constexpr bool bIsArraySubsetSupported = bEnabled && std::is_copy_constructible<ElementType>::value;
 
 			// Array shuffle is supported for all types that get is supported for.
-			static constexpr bool bIsArrayShuffleSupported = bIsArrayGetSupported;
+			static constexpr bool bIsArrayShuffleSupported = bEnabled && bIsElementParsableAndAssignable;
 
 			// Random get is supported for all types that get is supported for.
-			static constexpr bool bIsArrayRandomGetSupported = bIsArrayGetSupported;
+			static constexpr bool bIsArrayRandomGetSupported = bEnabled && bIsElementParsableAndAssignable;
 		};
 
 		template<typename ArrayType, typename std::enable_if<TArrayNodeSupport<ArrayType>::bIsArrayGetSupported, bool>::type = true>
@@ -113,12 +125,17 @@ namespace Metasound
 			return true;
 		}
 
-		template<typename ArrayType>
+		template<typename ArrayType, typename std::enable_if<TArrayNodeSupport<ArrayType>::bIsArrayNumSupported, bool>::type = true>
 		bool RegisterArrayNumNode()
 		{
-			static_assert(TArrayNodeSupport<ArrayType>::bIsArrayNumSupported, "TArrayNumNode<> is not supported by array type");
-
 			return ensureAlways(RegisterNodeWithFrontend<Metasound::TArrayNumNode<ArrayType>>());
+		}
+
+		template<typename ArrayType, typename std::enable_if<!TArrayNodeSupport<ArrayType>::bIsArrayNumSupported, bool>::type = true>
+		bool RegisterArrayNumNode()
+		{
+			// No op if not supported
+			return true;
 		}
 
 		template<typename ArrayType, typename std::enable_if<TArrayNodeSupport<ArrayType>::bIsArrayShuffleSupported, bool>::type = true>
@@ -143,7 +160,7 @@ namespace Metasound
 		}
 
 		template<typename ArrayType, typename std::enable_if<!TArrayNodeSupport<ArrayType>::bIsArrayRandomGetSupported, bool>::type = true>
-		bool RegisterArrayShuffleNode()
+		bool RegisterArrayRandomGetNode()
 		{
 			// No op if not supported
 			return true;

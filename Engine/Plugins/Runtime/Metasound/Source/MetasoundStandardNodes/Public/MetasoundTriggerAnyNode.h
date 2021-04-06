@@ -162,3 +162,5 @@ namespace Metasound
 	};
 
 } // namespace Metasound
+
+#undef LOCTEXT_NAMESPACE

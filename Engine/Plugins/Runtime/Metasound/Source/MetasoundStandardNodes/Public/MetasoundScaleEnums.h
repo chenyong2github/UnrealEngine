@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundEnum.h"
+#include "MetasoundEnumRegistrationMacro.h"
 #include "DSP/MidiNoteQuantizer.h"
 #include "Internationalization/Text.h"
 #include "MetasoundDataTypeRegistrationMacro.h"

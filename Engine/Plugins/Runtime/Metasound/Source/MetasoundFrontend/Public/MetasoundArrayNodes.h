@@ -10,16 +10,13 @@
 #include "MetasoundFacade.h"
 #include "MetasoundLog.h"
 #include "MetasoundNodeInterface.h"
-#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundTrigger.h"
-#include "Containers/CircularQueue.h"
 
 #include <type_traits>
 
 #define LOCTEXT_NAMESPACE "MetasoundFrontend"
-
 
 namespace Metasound
 {

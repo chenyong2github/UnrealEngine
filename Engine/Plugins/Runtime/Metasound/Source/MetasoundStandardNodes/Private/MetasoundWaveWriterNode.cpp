@@ -3,12 +3,13 @@
 #include "MetasoundWaveWriterNode.h"
 
 #include "HAL/FileManager.h"
+#include "MetasoundBuildError.h"
+#include "MetasoundEnumRegistrationMacro.h"
+#include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
-#include "MetasoundStandardNodesNames.h"
 #include "MetasoundStandardNodesCategories.h"
-#include "MetasoundExecutableOperator.h"
-#include "MetasoundBuildError.h"
+#include "MetasoundStandardNodesNames.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 

@@ -28,6 +28,50 @@
 
 namespace Metasound
 {
+	// Helper utility to test if we can transmit a datatype between a send and a receive node.
+	template <typename TDataType>
+	struct TIsTransmittable
+	{
+	private:
+		static constexpr bool bIsCopyConstructible = std::is_copy_constructible<TDataType>::value;
+		static constexpr bool bIsCopyAssignable = std::is_copy_assignable<TDataType>::value;
+
+		// TODO: audio types were intended to be send/receive nodes but they require 
+		// template specialization.  TIsTransmittable should ask the Send and Receive nodes
+		// if they are transmittable rather than attempting to do the logic for all
+		// types here. 
+		//static constexpr bool bIsAudioDataType = TIsDerivedFrom<TDataType, IAudioDataType>::Value;
+
+		static constexpr bool bCanBeTransmitted = bIsCopyConstructible && bIsCopyAssignable;
+
+	public:
+
+		static constexpr bool Value = bCanBeTransmitted;
+	};
+
+	// Specialization of TIsTransmittable<> for TArray to handle lax TArray copy constructor 
+	// definition. This can be removed once updates to TArray are merged into the same codebase.
+	// TODO: delete me eventually.
+	template<typename TElementType>
+	struct TIsTransmittable<TArray<TElementType>>
+	{
+		// Depend on copy constructor of elements to determine whether TArray is copy constructible
+		// and copy assignable. Definitions for TArray copy construction and copy assignment are
+		// defined by default whether or not the TArray element types support them. This logic
+		// skips checking the TArray object itselt and instead checks the TArray element type
+		// directly.
+
+		static constexpr bool Value = TIsTransmittable<TElementType>::Value;
+	};
+
+	// Determines whether an auto converter node will be registered to convert 
+	// between two types. 
+	template<typename TFromDataType, typename TToDataType>
+	struct TIsAutoConvertible
+	{
+		static constexpr bool Value = std::is_convertible<TFromDataType, TToDataType>::value;
+	};
+
 	namespace MetasoundDataTypeRegistrationPrivate
 	{
 		// Returns the Array version of a literal type if it exists.
@@ -103,47 +147,6 @@ namespace Metasound
 			return nullptr;
 		}
 		
-		// Helper utility to test if we can transmit a datatype between a send and a receive node.
-		template <typename TDataType>
-		struct TIsTransmittable
-		{
-		private:
-			static constexpr bool bIsCopyConstructible = std::is_copy_constructible<TDataType>::value;
-			static constexpr bool bIsCopyAssignable = std::is_copy_assignable<TDataType>::value;
-
-			// TODO: audio types were intended to be send/receive nodes but they require 
-			// template specialization.  TIsTransmittable should ask the Send and Receive nodes
-			// if they are transmittable rather than attempting to do the logic for all
-			// types here. 
-			//static constexpr bool bIsAudioDataType = TIsDerivedFrom<TDataType, IAudioDataType>::Value;
-
-			static constexpr bool bCanBeTransmitted = bIsCopyConstructible && bIsCopyAssignable;
-
-		public:
-
-			static constexpr bool Value = bCanBeTransmitted;
-		};
-
-		// Specialization of TIsTransmittable<> for TArray to handle lax TArray copy constructor 
-		// definition. This can be removed once updates to TArray are merged into the same codebase.
-		// TODO: delete me eventually.
-		template<typename TElementType>
-		struct TIsTransmittable<TArray<TElementType>>
-		{
-		private:
-			// Depend on copy constructor of elements to determine whether TArray is copy constructible
-			// and copy assignable. Definitions for TArray copy construction and copy assignment are
-			// defined by default whether or not the TArray element types support them. This logic
-			// skips checking the TArray object itselt and instead checks the TArray element type
-			// directly.
-			static constexpr bool bIsElementCopyConstructible = std::is_copy_constructible<TElementType>::value;
-
-			static constexpr bool bCanBeTransmitted = bIsElementCopyConstructible;
-
-		public:
-
-			static constexpr bool Value = bCanBeTransmitted;
-		};
 
 		// This utility function can be used to optionally check to see if we can transmit a data type, and autogenerate send and receive nodes for that datatype.
 		template<typename TDataType, typename TEnableIf<TIsTransmittable<TDataType>::Value, bool>::Type = true>
@@ -162,7 +165,7 @@ namespace Metasound
 		}
 
 		// This utility function can be used to check to see if we can static cast between two types, and autogenerate a node for that static cast.
-		template<typename TFromDataType, typename TToDataType, typename std::enable_if<std::is_convertible<TFromDataType, TToDataType>::value, int>::type = 0>
+		template<typename TFromDataType, typename TToDataType, typename std::enable_if<TIsAutoConvertible<TFromDataType, TToDataType>::Value, bool>::type = true>
 		void AttemptToRegisterConverter()
 		{
 			using FConverterNode = Metasound::TAutoConverterNode<TFromDataType, TToDataType>;
@@ -179,7 +182,7 @@ namespace Metasound
 			}
 		}
 
-		template<typename TFromDataType, typename TToDataType, typename std::enable_if<!std::is_convertible<TFromDataType, TToDataType>::value, int>::type = 0>
+		template<typename TFromDataType, typename TToDataType, typename std::enable_if<!TIsAutoConvertible<TFromDataType, TToDataType>::Value, int>::type = 0>
 		void AttemptToRegisterConverter()
 		{
 			// This implementation intentionally noops, because static_cast<TFromDataType>(TToDataType&) is invalid.
@@ -244,10 +247,6 @@ namespace Metasound
 		// SFINAE stub for non-enum types. 
 		template<typename TDataType, typename std::enable_if<!TEnumTraits<TDataType>::bIsEnum, bool>::type = true>
 		bool RegisterEnumDataTypeWithFrontend() { return false; }
-
-
-
-
 
 		template<typename TDataType, ELiteralType PreferredArgType = ELiteralType::None, typename UClassToUse = UObject>
 		bool RegisterDataTypeWithFrontendInternal()
@@ -396,7 +395,6 @@ namespace Metasound
 	bool RegisterDataTypeWithFrontend()
 	{
 		using namespace MetasoundDataTypeRegistrationPrivate;
-
 
 		// Register TDataType as a metasound data type.
 		bool bSuccess = RegisterDataTypeWithFrontendInternal<TDataType, PreferredArgType, UClassToUse>();
