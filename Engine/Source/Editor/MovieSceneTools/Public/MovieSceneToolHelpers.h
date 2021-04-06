@@ -509,15 +509,15 @@ public:
 	* @return Returns the USkeletalMeshComponent if one is found
 	*/
 	static USkeletalMeshComponent* AcquireSkeletalMeshFromObject(UObject* BoundObject);
+	
 	/*
 	*  Get an actors word transforms at the specified times
-	* @param Sequencer Sequencer to evaluation
+	* @param Sequencer Sequencer to evaluate
     * @param ActorForWorldTransforms The actor and possible component and socket that we want to get the world transforms for.
 	* @param Frames The times we want to get the world transforms
 	* @param OutWorldTransforms The calculated world transforms, one for each specified frame.
 	*/
 	static void GetActorWorldTransforms(ISequencer* Sequencer, const FActorForWorldTransforms& Actors, const TArray<FFrameNumber>& Frames, TArray<FTransform>& OutWorldTransforms);
-
 
 };
 

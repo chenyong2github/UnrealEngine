@@ -673,6 +673,12 @@ public:
 	*/
 	virtual void ObjectImplicitlyAdded(UObject* InObject) const = 0;
 
+	/**
+	* Specify that an object was implicitly removed. We will notify the track editors that it was
+	@InObject Object that was removed that was part of a track/binding but not the real binding
+	*/
+	virtual void ObjectImplicitlyRemoved(UObject* InObject) const = 0;
+
 public:
 	/**
 	*    Turn on/off the filter with the specified name

@@ -327,9 +327,13 @@ public:
 	virtual void CreateRigControlsForCurveContainer();
 	virtual void GetControlsInOrder(TArray<FRigControlElement*>& SortedControls) const;
 
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	virtual void SelectControl(const FName& InControlName, bool bSelect = true);
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	virtual bool ClearControlSelection();
+	UFUNCTION(BlueprintPure, Category = "Control Rig")
 	virtual TArray<FName> CurrentControlSelection() const;
+	UFUNCTION(BlueprintPure, Category = "Control Rig")
 	virtual bool IsControlSelected(const FName& InControlName)const;
 
 	// Returns true if this manipulatable subject is currently

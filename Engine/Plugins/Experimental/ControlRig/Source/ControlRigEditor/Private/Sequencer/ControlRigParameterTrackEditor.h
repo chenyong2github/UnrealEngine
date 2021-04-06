@@ -61,6 +61,7 @@ public:
 	virtual void OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel);
 	virtual bool HasTransformKeyOverridePriority() const override;
 	virtual void ObjectImplicitlyAdded(UObject* InObject)  override;
+	virtual void ObjectImplicitlyRemoved(UObject* InObject)  override;
 	virtual void BuildTrackContextMenu(FMenuBuilder& MenuBuilder, UMovieSceneTrack* InTrack) override;
 	virtual bool HandleAssetAdded(UObject* Asset, const FGuid& TargetObjectGuid) override;
 

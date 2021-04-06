@@ -1186,13 +1186,15 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 	const EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
 	const ECoordSystem CoordSystem = InViewportClient->GetWidgetCoordSystemSpace();
 
-	if (InteractionScope != nullptr && bMouseButtonDown && !bCtrlDown && !bShiftDown && CurrentAxis != EAxisList::None)
-	{
-		const bool bDoRotation = !Rot.IsZero() && (WidgetMode == UE::Widget::WM_Rotate || WidgetMode == UE::Widget::WM_TranslateRotateZ);
-		const bool bDoTranslation = !Drag.IsZero() && (WidgetMode == UE::Widget::WM_Translate || WidgetMode == UE::Widget::WM_TranslateRotateZ);
-		const bool bDoScale = !Scale.IsZero() && WidgetMode == UE::Widget::WM_Scale;
+	const bool bDoRotation = !Rot.IsZero() && (WidgetMode == UE::Widget::WM_Rotate || WidgetMode == UE::Widget::WM_TranslateRotateZ);
+	const bool bDoTranslation = !Drag.IsZero() && (WidgetMode == UE::Widget::WM_Translate || WidgetMode == UE::Widget::WM_TranslateRotateZ);
+	const bool bDoScale = !Scale.IsZero() && WidgetMode == UE::Widget::WM_Scale;
 
-		if (AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
+
+	if (InteractionScope != nullptr && bMouseButtonDown && !bCtrlDown && !bShiftDown && CurrentAxis != EAxisList::None
+		&& (bDoRotation || bDoTranslation || bDoScale))
+	{
+			if (AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
 		{
 			FTransform ComponentTransform = GetHostingSceneComponentTransform();
 			bool bDoLocal = (CoordSystem == ECoordSystem::COORD_Local && Settings && Settings->bLocalTransformsInEachLocalSpace);

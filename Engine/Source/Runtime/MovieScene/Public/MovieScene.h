@@ -554,7 +554,7 @@ public:
 	 * @param ObjectGuid The runtime object guid that the track is bound to.
 	 * @param TrackName The name of the track to differentiate the one we are searching for from other tracks of the same class (optional).
 	 * @return The found track or nullptr if one does not exist.
-	 * @see AddTrack, RemoveTrack
+	 * @see AddTrack, RemoveTrack, FindTracks
 	 */
 	UMovieSceneTrack* FindTrack(TSubclassOf<UMovieSceneTrack> TrackClass, const FGuid& ObjectGuid, const FName& TrackName = NAME_None) const;
 	
@@ -565,13 +565,24 @@ public:
 	 * @param ObjectGuid The runtime object guid that the track is bound to.
 	 * @param TrackName The name of the track to differentiate the one we are searching for from other tracks of the same class (optional).
 	 * @return The found track or nullptr if one does not exist.
-	 * @see AddTrack, RemoveTrack
+	 * @see AddTrack, RemoveTrack, FindTracks
 	 */
 	template<typename TrackClass>
 	TrackClass* FindTrack(const FGuid& ObjectGuid, const FName& TrackName = NAME_None) const
 	{
 		return Cast<TrackClass>(FindTrack(TrackClass::StaticClass(), ObjectGuid, TrackName));
 	}
+
+	/**
+	 * Find all tracks of a given class.
+	 *
+	 * @param TrackClass The class of the track to find.
+	 * @param ObjectGuid The runtime object guid that the track is bound to.
+	 * @param TrackName The name of the track to differentiate the one we are searching for from other tracks of the same class (optional).
+	 * @return The found tracks or an empty array if none exist
+	 * @see AddTrack, RemoveTrack, FindTrack
+	 */
+	TArray<UMovieSceneTrack*> FindTracks(TSubclassOf<UMovieSceneTrack> TrackClass, const FGuid& ObjectGuid, const FName& TrackName = NAME_None) const;
 
 	/**
 	 * Removes a track.

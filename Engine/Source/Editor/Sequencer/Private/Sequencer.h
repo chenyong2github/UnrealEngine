@@ -845,6 +845,8 @@ public:
 	virtual bool IsReadOnly() const override;
 	virtual void ExternalSelectionHasChanged() override { SynchronizeSequencerSelectionWithExternalSelection(); }
 	virtual void ObjectImplicitlyAdded(UObject* InObject) const override;
+	virtual void ObjectImplicitlyRemoved(UObject* InObject) const override;
+
 	/** Access the user-supplied settings object */
 	virtual USequencerSettings* GetSequencerSettings() const override { return Settings; }
 	virtual void SetSequencerSettings(USequencerSettings* InSettings) override { Settings = InSettings; }

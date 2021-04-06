@@ -361,6 +361,14 @@ void FControlRigParameterTrackEditor::ObjectImplicitlyAdded(UObject* InObject)
 	}
 }
 
+void FControlRigParameterTrackEditor::ObjectImplicitlyRemoved(UObject* InObject)
+{
+	UControlRig* ControlRig = Cast<UControlRig>(InObject);
+	if (ControlRig)
+	{
+		UnbindControlRig(ControlRig);
+	}
+}
 
 void FControlRigParameterTrackEditor::OnRelease()
 {
@@ -1298,8 +1306,8 @@ void FControlRigParameterTrackEditor::AddControlRigFromComponent(FGuid InGuid)
 			{
 				AddControlRig(CR->GetClass(), BoundActor, InGuid, CR);
 			}
-			
 		}
+			
 	}
 }
 
@@ -3280,3 +3288,5 @@ void FControlRigParameterSection::OnAnimationAssetEnterPressedForFK(const TArray
 }
 
 #undef LOCTEXT_NAMESPACE
+
+

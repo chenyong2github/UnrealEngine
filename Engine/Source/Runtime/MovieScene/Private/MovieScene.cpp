@@ -881,6 +881,31 @@ UMovieSceneTrack* UMovieScene::FindTrack(TSubclassOf<UMovieSceneTrack> TrackClas
 	return nullptr;
 }
 
+TArray<UMovieSceneTrack*> UMovieScene::FindTracks(TSubclassOf<UMovieSceneTrack> TrackClass, const FGuid& ObjectGuid, const FName& TrackName) const
+{
+	check(ObjectGuid.IsValid());
+	TArray<UMovieSceneTrack*> MovieSceneTracks;
+	for (const auto& Binding : ObjectBindings)
+	{
+		if (Binding.GetObjectGuid() != ObjectGuid)
+		{
+			continue;
+		}
+
+		for (const auto& Track : Binding.GetTracks())
+		{
+			if (TrackClass.GetDefaultObject() == nullptr || Track->GetClass() == TrackClass)
+			{
+				if (TrackName == NAME_None || Track->GetTrackName() == TrackName)
+				{
+					MovieSceneTracks.Add(Track);
+				}
+			}
+		}
+	}
+
+	return MovieSceneTracks;
+}
 
 UMovieSceneTrack* UMovieScene::AddTrack( TSubclassOf<UMovieSceneTrack> TrackClass, const FGuid& ObjectGuid )
 {

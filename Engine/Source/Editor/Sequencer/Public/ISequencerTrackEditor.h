@@ -252,6 +252,11 @@ public:
 	*/
 	virtual void ObjectImplicitlyAdded(UObject* InObject)  {}
 
+	/**
+	* Handle this object being implicitly removed
+	*/
+	virtual void ObjectImplicitlyRemoved(UObject* InObject) {}
+
 public:
 
 	/** Virtual destructor. */

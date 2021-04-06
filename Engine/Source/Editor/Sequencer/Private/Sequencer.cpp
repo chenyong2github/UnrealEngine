@@ -9692,6 +9692,14 @@ void FSequencer::ObjectImplicitlyAdded(UObject* InObject) const
 	}
 }
 
+void FSequencer::ObjectImplicitlyRemoved(UObject* InObject) const
+{
+	for (int32 i = 0; i < TrackEditors.Num(); ++i)
+	{
+		TrackEditors[i]->ObjectImplicitlyRemoved(InObject);
+	}
+}
+
 void FSequencer::SetFilterOn(const FText& InName, bool bOn)
 {
 	SequencerWidget->SetFilterOn(InName, bOn);

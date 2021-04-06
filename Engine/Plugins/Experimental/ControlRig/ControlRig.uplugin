@@ -23,6 +23,10 @@
 		{
 			"Name": "PropertyAccessEditor",
 			"Enabled": true
+		},
+		{
+			"Name": "SequencerScripting",
+			"Enabled": true
 		}
 	],
 	"Modules" :

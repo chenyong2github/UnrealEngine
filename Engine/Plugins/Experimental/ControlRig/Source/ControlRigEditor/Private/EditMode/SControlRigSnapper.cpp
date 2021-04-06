@@ -26,6 +26,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Input/SButton.h"
+#include "Tools/ControlRigSnapSettings.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigSnapper"
 
@@ -374,7 +375,8 @@ FReply SControlRigSnapper::OnEndFrameClicked()
 
 FReply SControlRigSnapper::OnSnapAnimationClicked()
 {
-	Snapper.SnapIt(StartFrame, EndFrame, ActorToSnap, ParentToSnap);
+	const UControlRigSnapSettings* SnapSettings = GetDefault<UControlRigSnapSettings>();
+	Snapper.SnapIt(StartFrame, EndFrame, ActorToSnap, ParentToSnap,SnapSettings);
 	return FReply::Handled();
 }
 

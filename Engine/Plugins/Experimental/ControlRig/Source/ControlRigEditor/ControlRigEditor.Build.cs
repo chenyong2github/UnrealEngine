@@ -76,6 +76,7 @@ namespace UnrealBuildTool.Rules
                     "RigVMDeveloper",
 					"AnimationEditor",
 					"MessageLog",
+                    "SequencerScripting",
 					"PropertyAccessEditor",
 					"KismetWidgets",
 				}

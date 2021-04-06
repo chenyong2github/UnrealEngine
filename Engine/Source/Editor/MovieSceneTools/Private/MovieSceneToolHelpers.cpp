@@ -3979,7 +3979,12 @@ static void GetSequencerActorWorldTransforms(ISequencer* Sequencer, const FActor
 	if (AActor* Actor = ActorSelection.Actor.Get())
 	{
 
-		USkeletalMeshComponent* SkelMeshComp = MovieSceneToolHelpers::AcquireSkeletalMeshFromObject(Actor);
+		USkeletalMeshComponent* SkelMeshComp = ActorSelection.Component.IsValid() ? Cast<USkeletalMeshComponent>(ActorSelection.Component.Get()) : nullptr;
+
+		if (!SkelMeshComp)
+		{
+			SkelMeshComp = MovieSceneToolHelpers::AcquireSkeletalMeshFromObject(Actor);
+		}
 
 		if (ActorSelection.SocketName != NAME_None && SkelMeshComp)
 		{
@@ -4028,14 +4033,20 @@ static void GetSequencerActorWorldTransforms(ISequencer* Sequencer, const FActor
 						}
 					}
 
-					SkelMeshComp->TickAnimation(0.03f, false);
-					SkelMeshComp->RefreshBoneTransforms();
-					SkelMeshComp->RefreshSlaveComponents();
-					SkelMeshComp->UpdateComponentToWorld();
-					SkelMeshComp->FinalizeBoneTransform();
-					SkelMeshComp->MarkRenderTransformDirty();
-					SkelMeshComp->MarkRenderDynamicDataDirty();
+					TArray<USkeletalMeshComponent*> MeshComps;
+					ActorSelection.Actor->GetComponents<USkeletalMeshComponent>(MeshComps, true);
 
+					for (USkeletalMeshComponent* MeshComp : MeshComps)
+					{
+						MeshComp->TickAnimation(0.03f, false);
+						MeshComp->RefreshBoneTransforms();
+						MeshComp->RefreshSlaveComponents();
+						MeshComp->UpdateComponentToWorld();
+						MeshComp->FinalizeBoneTransform();
+						MeshComp->MarkRenderTransformDirty();
+						MeshComp->MarkRenderDynamicDataDirty();
+					}
+					
 					OutTransforms[Index] = SkelMeshComp->GetSocketTransform(ActorSelection.SocketName);// GetSocketTransofrm is world space in theory*OutTransforms[Index];
 
 				}
