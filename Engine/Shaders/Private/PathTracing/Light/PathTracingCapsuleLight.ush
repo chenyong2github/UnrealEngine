@@ -41,8 +41,8 @@ FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
 	if (ConeSolidAngle < RectSolidAngle)
 	{
 		// Is ray pointing inside the cone of directions?
-		float CosTheta = saturate(dot(normalize(Ray.Direction), CapsuleBounds.Axis));
-		t = CosTheta >= SqrtOneMinusX(CapsuleBounds.SinThetaMax2) ? length(LightPosition) : -1.0;
+		float CosTheta = dot(normalize(Ray.Direction), CapsuleBounds.ConeAxis);
+		t = CosTheta >= SqrtOneMinusX(CapsuleBounds.ConeSinThetaMax2) ? length(LightPosition) : -1.0;
 	}
 	else
 	{

@@ -108,7 +108,7 @@ FCapsuleSphericalBounds CapsuleGetSphericalBounds(float3 Origin, float3 Axis, fl
 	FCapsuleSphericalBounds Result;
 	Result.SphericalRect = BuildSphericalRect(Rect);
 	Result.ConeAxis = normalize(lerp(R0, R1, saturate(InvDistR1 / (InvDistR0 + InvDistR1))));
-	Result.ConeSinThetaMax2 = 0.5 - 0.5 * saturate(dot(R0, R1) * InvDistR0 * InvDistR1); // sin(x/2)^2 = (1-cos(x))/2
+	Result.ConeSinThetaMax2 = saturate(0.5 - 0.5 * dot(R0, R1) * InvDistR0 * InvDistR1); // sin(x/2)^2 = (1-cos(x))/2
 	Result.ConeSolidAngle = UniformConeSolidAngle(Result.ConeSinThetaMax2);
 	return Result;
 }
