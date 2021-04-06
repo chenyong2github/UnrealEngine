@@ -2003,7 +2003,7 @@ void FNaniteMaterialTables::Release()
 	HitProxyTableDataBuffer.Release();
 }
 
-bool FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 InNumPrimitiveUpdates)
+void FNaniteMaterialTables::UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives, uint32 InNumPrimitiveUpdates)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
@@ -2019,22 +2019,42 @@ bool FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 N
 	TArray<FRHITransitionInfo, TInlineAllocator<2>> UAVs;
 
 	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(NumPrimitives * MaxMaterials, 256u));
-	bool bResized = false;
-	bResized |= ResizeResourceIfNeeded(RHICmdList, DepthTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("Nanite.DepthTableDataBuffer"));
-	if (bResized)
+
+	if (ResizeResourceIfNeeded(GraphBuilder, DepthTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("Nanite.DepthTableDataBuffer")))
 	{
 		UAVs.Add(FRHITransitionInfo(DepthTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	}
 #if WITH_EDITOR
-	bResized |= ResizeResourceIfNeeded(RHICmdList, HitProxyTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("Nanite.HitProxyTableDataBuffer"));
-	if (bResized)
+	if (ResizeResourceIfNeeded(GraphBuilder, HitProxyTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("Nanite.HitProxyTableDataBuffer")))
 	{
 		UAVs.Add(FRHITransitionInfo(HitProxyTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	}
 #endif // WITH_EDITOR
 
-	RHICmdList.Transition(UAVs);
+	GraphBuilder.AddPass(RDG_EVENT_NAME("NaniteMaterialTables.UpdateBufferState-Transition"), ERDGPassFlags::None,
+		[LocalUAVs = MoveTemp(UAVs)](FRHICommandListImmediate& RHICmdList)
+	{
+		RHICmdList.Transition(LocalUAVs);
+	});
+}
 
+void FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 InNumPrimitiveUpdates)
+{
+	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
+
+	LLM_SCOPE_BYTAG(Nanite);
+
+	check(NumPrimitiveUpdates == InNumPrimitiveUpdates);
+	check(NumDepthTableUpdates == 0);
+	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(NumPrimitives * MaxMaterials, 256u));
+#if WITH_EDITOR
+	check(NumHitProxyTableUpdates == 0);
+
+	check(HitProxyTableDataBuffer.NumBytes == SizeReserve * sizeof(uint32));
+#endif
+	check(DepthTableDataBuffer.NumBytes == SizeReserve * sizeof(uint32));
+
+	NumPrimitiveUpdates = InNumPrimitiveUpdates;
 	if (NumPrimitiveUpdates > 0)
 	{
 		DepthTableUploadBuffer.Init(NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("Nanite.DepthTableUploadBuffer"));
@@ -2042,8 +2062,6 @@ bool FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 N
 		HitProxyTableUploadBuffer.Init(NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("Nanite.HitProxyTableUploadBuffer"));
 	#endif
 	}
-
-	return bResized;
 }
 
 void* FNaniteMaterialTables::GetDepthTablePtr(uint32 PrimitiveIndex, uint32 EntryCount)

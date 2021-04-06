@@ -391,8 +391,10 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWByteAddressBuffer>(FRHICommandList
 		FRWByteAddressBuffer NewBuffer;
 		NewBuffer.Initialize(DebugName, NumBytes, 0);
 
-		RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
-		RHICmdList.Transition(FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		RHICmdList.Transition({
+			FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
+			FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+		});
 
 		// Copy data to new buffer
 		uint32 CopyBytes = FMath::Min(NumBytes, Buffer.NumBytes);
@@ -422,8 +424,10 @@ RENDERCORE_API bool ResizeResourceSOAIfNeeded<FRWBufferStructured>(FRHICommandLi
 		FRWBufferStructured NewBuffer;
 		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
 
-		RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
-		RHICmdList.Transition(FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		RHICmdList.Transition({
+			FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
+			FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+		});
 
 		// Copy data to new buffer
 		uint32 OldArraySize = Buffer.NumBytes / NumArrays;
@@ -436,6 +440,115 @@ RENDERCORE_API bool ResizeResourceSOAIfNeeded<FRWBufferStructured>(FRHICommandLi
 			MemcpyResource( RHICmdList, NewBuffer, Buffer, CopyBytes, i * NewArraySize, i * OldArraySize );
 		}
 		RHICmdList.EndUAVOverlap(NewBuffer.UAV);
+
+		Buffer = NewBuffer;
+		return true;
+	}
+
+	return false;
+}
+
+RENDERCORE_API bool ResizeResourceSOAIfNeeded(FRDGBuilder& GraphBuilder, FRWBufferStructured& Buffer, uint32 NumBytes, uint32 NumArrays, const TCHAR* DebugName)
+{
+	check((NumBytes & 15) == 0);
+	check(NumBytes % NumArrays == 0);
+	check(Buffer.NumBytes % NumArrays == 0);
+
+	if (Buffer.NumBytes == 0)
+	{
+		Buffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		return true;
+	}
+	else if (NumBytes != Buffer.NumBytes)
+	{
+		FRWBufferStructured NewBuffer;
+		FRWBufferStructured OldBuffer = Buffer;
+		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		AddPass(GraphBuilder, RDG_EVENT_NAME("ResizeResourceSOAIfNeeded"), 
+			[OldBuffer, NewBuffer, NumBytes, NumArrays](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.Transition({
+				FRHITransitionInfo(OldBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
+				FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			});
+
+			// Copy data to new buffer
+			uint32 OldArraySize = OldBuffer.NumBytes / NumArrays;
+			uint32 NewArraySize = NumBytes / NumArrays;
+
+			RHICmdList.BeginUAVOverlap(NewBuffer.UAV);
+			uint32 CopyBytes = FMath::Min(NewArraySize, OldArraySize);
+
+			for (uint32 i = 0; i < NumArrays; i++)
+			{
+				MemcpyResource(RHICmdList, NewBuffer, OldBuffer, CopyBytes, i * NewArraySize, i * OldArraySize);
+			}
+			RHICmdList.EndUAVOverlap(NewBuffer.UAV);
+		});
+
+		Buffer = NewBuffer;
+		return true;
+	}
+
+	return false;
+}
+
+template <typename FBufferType>
+void AddCopyBufferPass(FRDGBuilder& GraphBuilder, const FBufferType &NewBuffer, const FBufferType &OldBuffer)
+{
+	AddPass(GraphBuilder, RDG_EVENT_NAME("ResizeResourceIfNeeded-Copy"), 
+		[OldBuffer, NewBuffer](FRHICommandListImmediate& RHICmdList)
+	{
+		RHICmdList.Transition({
+			FRHITransitionInfo(OldBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
+			FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+		});
+
+		// Copy data to new buffer
+		uint32 CopyBytes = FMath::Min(NewBuffer.NumBytes, OldBuffer.NumBytes);
+		MemcpyResource(RHICmdList, NewBuffer, OldBuffer, CopyBytes);
+	});
+}
+
+RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBufferStructured& Buffer, uint32 NumBytes, const TCHAR* DebugName)
+{
+	check((NumBytes & 15) == 0);
+
+	if (Buffer.NumBytes == 0)
+	{
+		Buffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		return true;
+	}
+	else if (NumBytes != Buffer.NumBytes)
+	{
+		FRWBufferStructured NewBuffer;
+		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+
+		AddCopyBufferPass(GraphBuilder, NewBuffer, Buffer);
+
+		Buffer = NewBuffer;
+		return true;
+	}
+
+	return false;
+}
+
+RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWByteAddressBuffer& Buffer, uint32 NumBytes, const TCHAR* DebugName)
+{
+	// Needs to be aligned to 16 bytes to MemcpyResource to work correctly (otherwise it skips last unaligned elements of the buffer during resize)
+	check((NumBytes & 15) == 0);
+
+	if (Buffer.NumBytes == 0)
+	{
+		Buffer.Initialize(DebugName, NumBytes, 0);
+		return true;
+	}
+	else if (NumBytes != Buffer.NumBytes)
+	{
+		FRWByteAddressBuffer NewBuffer;
+		NewBuffer.Initialize(DebugName, NumBytes, 0);
+
+		AddCopyBufferPass(GraphBuilder, NewBuffer, Buffer);
 
 		Buffer = NewBuffer;
 		return true;
@@ -491,7 +604,7 @@ void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement
 }
 
 template<typename ResourceType>
-void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, ResourceType& DstBuffer, bool bFlush)
+void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, bool bFlush)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FScatterUploadBuffer::ResourceUploadTo);
 	
@@ -579,6 +692,6 @@ template RENDERCORE_API void MemsetResource< FRWByteAddressBuffer>(FRHICommandLi
 template RENDERCORE_API void MemcpyResource< FTextureRWBuffer2D>(FRHICommandList& RHICmdList, const FTextureRWBuffer2D& DstBuffer, const FTextureRWBuffer2D& SrcBuffer, uint32 NumBytes, uint32 DstOffset, uint32 SrcOffset);
 template RENDERCORE_API void MemcpyResource< FRWBufferStructured>(FRHICommandList& RHICmdList, const FRWBufferStructured& DstBuffer, const FRWBufferStructured& SrcBuffer, uint32 NumBytes, uint32 DstOffset, uint32 SrcOffset);
 template RENDERCORE_API void MemcpyResource< FRWByteAddressBuffer>(FRHICommandList& RHICmdList, const FRWByteAddressBuffer& DstBuffer, const FRWByteAddressBuffer& SrcBuffer, uint32 NumBytes, uint32 DstOffset, uint32 SrcOffset);
-template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FTextureRWBuffer2D>(FRHICommandList& RHICmdList, FTextureRWBuffer2D& DstBuffer, bool bFlush);
-template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FRWBufferStructured>(FRHICommandList& RHICmdList, FRWBufferStructured& DstBuffer, bool bFlush);
-template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FRWByteAddressBuffer>(FRHICommandList& RHICmdList, FRWByteAddressBuffer& DstBuffer, bool bFlush);
+template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FTextureRWBuffer2D>(FRHICommandList& RHICmdList, const FTextureRWBuffer2D& DstBuffer, bool bFlush);
+template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FRWBufferStructured>(FRHICommandList& RHICmdList, const FRWBufferStructured& DstBuffer, bool bFlush);
+template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FRWByteAddressBuffer>(FRHICommandList& RHICmdList, const FRWByteAddressBuffer& DstBuffer, bool bFlush);

@@ -305,7 +305,10 @@ public:
 
 	void Release();
 
-	bool Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
+	void UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
+
+
+	void Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
 	void* GetDepthTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);
 #if WITH_EDITOR
 	void* GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);

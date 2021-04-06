@@ -516,7 +516,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				CubeView.ViewUniformBuffer = CubeViewUniformBuffer;
 				if (CubeView.bSceneHasSkyMaterial)
 				{
-					GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, this, CubeView);
+					GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, this, CubeView);
 				}
 
 				SkyRC.ViewUniformBuffer = CubeViewUniformBuffer;

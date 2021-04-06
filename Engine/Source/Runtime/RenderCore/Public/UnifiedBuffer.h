@@ -6,6 +6,8 @@
 #include "RHI.h"
 #include "Containers/DynamicRHIResourceArray.h"
 
+class FRDGBuilder;
+
 /*
  * Can store arbitrary data so long as it follows alignment restrictions. Intended mostly for read only data uploaded from CPU.
  * Allows sparse allocations and updates from CPU.
@@ -20,6 +22,15 @@ template<typename ResourceType>
 extern RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, ResourceType& Texture, uint32 NumBytes, const TCHAR* DebugName);
 template<typename ResourceType>
 extern RENDERCORE_API bool ResizeResourceSOAIfNeeded( FRHICommandList& RHICmdList, ResourceType& Texture, uint32 NumBytes, uint32 NumArrays, const TCHAR* DebugName );
+
+
+/**
+ * This version will resize/allocate the buffer at once and add a RDG pass to perform the copy on the RDG time-line if there was previous data).
+ */
+RENDERCORE_API bool ResizeResourceSOAIfNeeded(FRDGBuilder& GraphBuilder, FRWBufferStructured& Buffer, uint32 NumBytes, uint32 NumArrays, const TCHAR* DebugName);
+RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBufferStructured& Buffer, uint32 NumBytes, const TCHAR* DebugName);
+RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWByteAddressBuffer& Buffer, uint32 NumBytes, const TCHAR* DebugName);
+
 
 class FScatterUploadBuffer
 {
@@ -42,7 +53,7 @@ public:
 	RENDERCORE_API void Init( uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName );
 
 	template<typename ResourceType>
-	RENDERCORE_API void ResourceUploadTo(FRHICommandList& RHICmdList, ResourceType& DstBuffer, bool bFlush = false);
+	RENDERCORE_API void ResourceUploadTo(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, bool bFlush = false);
 
 	void Add( uint32 Index, const void* Data, uint32 Num = 1 )
 	{

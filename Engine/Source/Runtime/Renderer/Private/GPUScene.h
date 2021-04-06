@@ -135,6 +135,23 @@ private:
 	FGPUScene& GPUScene;
 };
 
+// Buffers used by GPU-Scene, since they can be resized during updates AND the render passes must retain the 
+// right copy (this is chiefly because the init of shadow views after pre-pass means we need to be able to set 
+// up GPU-Scene before pre-pass, but then may discover new primitives etc. As there is no way to know how many
+// dynamic primitives will turn up after Pre-pass, we can't guarantee a resize won't happen).
+struct FGPUSceneBufferState
+{
+	FRWBufferStructured	PrimitiveBuffer;
+	FRWBufferStructured	InstanceDataBuffer;
+	uint32				InstanceDataSOAStride = 1; // Distance between arrays in float4s
+	FRWBufferStructured	InstanceBVHBuffer;
+	FRWBufferStructured	LightmapDataBuffer;
+	uint32 LightMapDataBufferSize;
+
+	bool bResizedPrimitiveData = false;
+	bool bResizedInstanceData = false;
+	bool bResizedLightmapData = false;
+};
 
 class FGPUScene
 {
@@ -180,7 +197,7 @@ public:
 	/**
 	 * Upload primitives from View.DynamicPrimitiveCollector.
 	 */
-	void UploadDynamicPrimitiveShaderDataForView(FRHICommandListImmediate& RHICmdList, FScene* Scene, FViewInfo& View);
+	void UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View);
 
 	/**
 	 * Pull all pending updates from Scene and upload primitive & instance data.
@@ -206,15 +223,12 @@ public:
 	/** GPU mirror of Primitives */
 	FRWBufferStructured PrimitiveBuffer;
 	FScatterUploadBuffer PrimitiveUploadBuffer;
-	FScatterUploadBuffer PrimitiveUploadViewBuffer;
 
 	/** GPU primitive instance list */
-	TBitArray<>				InstanceDataToClear;
 	FGrowOnlySpanAllocator	InstanceDataAllocator;
 	FRWBufferStructured		InstanceDataBuffer;
 	FScatterUploadBuffer	InstanceUploadBuffer;
 	uint32					InstanceDataSOAStride;	// Distance between arrays in float4s
-	TSet<uint32>			InstanceClearList;
 	FRWBufferStructured		InstanceBVHBuffer;
 
 	/** GPU light map data */
@@ -226,6 +240,8 @@ public:
 	TBitArray<>				AddedPrimitiveFlags;
 
 private:
+	TBitArray<>				InstanceDataToClear;
+	TSet<uint32>			InstanceClearList;
 
 	TRange<int32> CommitPrimitiveCollector(FGPUScenePrimitiveCollector& PrimitiveCollector);
 
@@ -247,16 +263,20 @@ private:
 
 	ERHIFeatureLevel::Type FeatureLevel;
 
+	template<typename FUploadDataSourceAdapter>
+	FGPUSceneBufferState UpdateBufferState(FRDGBuilder& GraphBuilder, FScene* Scene, FUploadDataSourceAdapter& UploadDataSourceAdapter);
+
+
 	/**
 	 * Generalized upload that uses an adapter to abstract the data souce. Enables uploading scene primitives & dynamic primitives using a single path.
 	 * @parameter Scene may be null, as it is only needed for the Nanite material table update (which is coupled to the Scene at the moment).
 	 */
 	template<typename FUploadDataSourceAdapter>
-	void UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene* Scene, FUploadDataSourceAdapter& UploadDataSourceAdapter);
+	void UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene* Scene, FUploadDataSourceAdapter& UploadDataSourceAdapter, const FGPUSceneBufferState &BufferState);
 
-	void UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& RHICmdList, FScene* Scene, FViewInfo& View);
+	void UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View);
 
-	void UpdateInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene);
+	void UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene);
 };
 
 class FGPUSceneScopeBeginEndHelper
