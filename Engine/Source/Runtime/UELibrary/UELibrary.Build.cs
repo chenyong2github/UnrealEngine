@@ -10,7 +10,7 @@ public class UELibrary : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "Engine", "InputCore" });
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform != UnrealTargetPlatform.Mac && Target.Platform != UnrealTargetPlatform.Linux)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] { "Launch", "ApplicationCore" });
 		}
