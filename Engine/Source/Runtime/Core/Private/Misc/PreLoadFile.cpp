@@ -87,10 +87,13 @@ void FPreLoadFile::KickOffRead()
 			CompletionEvent->Trigger();
 			delete AsyncReadHandle;
 		}
+
+		delete SizeRequestHandle;
+		SizeRequestHandle = nullptr;
 	};
 
 	AsyncReadHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Path);
-	AsyncReadHandle->SizeRequest(&SizeCallbackFunction);
+	SizeRequestHandle = AsyncReadHandle->SizeRequest(&SizeCallbackFunction);
 
 #else
 

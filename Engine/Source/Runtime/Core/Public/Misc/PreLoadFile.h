@@ -22,5 +22,6 @@ protected:
 	int64 FileSize;
 	FString Path;
 	FEvent* CompletionEvent;
-	class IAsyncReadFileHandle* AsyncReadHandle;
+	class IAsyncReadFileHandle* AsyncReadHandle = nullptr;
+	class IAsyncReadRequest* SizeRequestHandle = nullptr;
 };
