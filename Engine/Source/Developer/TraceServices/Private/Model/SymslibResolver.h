@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+
 #if PLATFORM_WINDOWS
 
 #include "Async/MappedFileHandle.h"
@@ -26,7 +27,6 @@ public:
 	void GetStats(IModuleProvider::FStats* OutStats) const;
 
 private:
-
 	enum class EModuleStatus : uint8
 	{
 		Pending,
@@ -65,7 +65,7 @@ private:
 	};
 
 	/**
-	 * Checks if there are no modules in flight and that the queue has reached 
+	 * Checks if there are no modules in flight and that the queue has reached
 	 * the threshold for dispatching. Note that is up to the caller to synchronize.
 	 */
 	void MaybeDispatchQueuedAddresses();
@@ -80,15 +80,22 @@ private:
 	void ResolveSymbolTracked(uint64 Address, FResolvedSymbol* Target);
 	bool ResolveSymbol(uint64 Address, FResolvedSymbol* Target);
 	void TrackFileHandlesAndRegions(IMappedFileHandle* FileHandle, IMappedFileRegion* FileRegion);
-	
+
 	FRWLock ModulesLock;
 	TPagedArray<FModuleEntry> Modules;
 	TArray<FModuleEntry*> SortedModules;
 	FCriticalSection SymbolsQueueLock;
 	TArray<FQueuedAddress, TInlineAllocator<QueuedAddressLength>> ResolveQueue;
 	std::atomic<uint32> TasksInFlight;
-	TArray<TTuple<IMappedFileHandle*, IMappedFileRegion*>> FileHandlesAndRegions;
-	
+
+	struct FMappedFileAndRegion
+	{
+		IMappedFileHandle* Handle;
+		IMappedFileRegion* Region;
+	};
+	TArray<FMappedFileAndRegion> FileHandlesAndRegions;
+	FRWLock FileHandlesAndRegionsLock;
+
 	std::atomic<uint32> ModulesDiscovered;
 	std::atomic<uint32> ModulesFailed;
 	std::atomic<uint32> ModulesLoaded;

@@ -7,12 +7,18 @@
 #include "HAL/RunnableThread.h"
 #include <atomic>
 
-// When set use the RAD Syms library, otherwise fall back to DbgHelp (on Windows)
-#define USE_SYMS_LIB 1
+// Choose which symbol resolver to use.
+// If both are enabled and the RAD Syms library fails to initialize, it will fall back to DbgHelp (on Windows).
+#define USE_SYMSLIB 1
+#define USE_DBGHELP 1
 
 // Symbol files implementations
+#if USE_SYMSLIB
 #include "SymslibResolver.h"
+#endif
+#if USE_DBGHELP
 #include "DbgHelpResolver.h"
+#endif
 
 namespace TraceServices {
 
@@ -49,8 +55,7 @@ public:
 	//Query interface
 	const FResolvedSymbol*		GetSymbol(uint64 Address) override;
 	void						GetStats(FStats* OutStats) const override;
-	
-	
+
 	//Analysis interface
 	void						OnModuleLoad(const FStringView& Module, uint64 Base, uint32 Size, const uint8* Checksum, uint32 ChecksumSize) override;
 	void 						OnModuleUnload(uint64 Base) override;
@@ -158,16 +163,23 @@ IModuleAnalysisProvider* CreateModuleProvider(IAnalysisSession& InSession, const
 {
 	IModuleAnalysisProvider* Provider(nullptr);
 #if PLATFORM_WINDOWS
+#if USE_SYMSLIB
 	if (!Provider && InSymbolFormat.Equals("pdb"))
 	{
 		Provider = new TModuleProvider<FSymslibResolver>(InSession);
 	}
+#endif // USE_SYMSLIB
+#if USE_DBGHELP
 	if (!Provider && InSymbolFormat.Equals("pdb"))
 	{
 		Provider = new TModuleProvider<FDbgHelpResolver>(InSession);
 	}
+#endif // USE_DBGHELP
 #endif //PLATFORM_WINDOWS
 	return Provider;
 }
 
 } // namespace TraceServices
+
+#undef USE_SYMSLIB
+#undef USE_DBGHELP
