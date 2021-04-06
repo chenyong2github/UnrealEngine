@@ -99,7 +99,7 @@ struct FRigUnit_FullbodyIK_WorkData
 /**
  * Based on Jacobian solver at core, this can solve multi chains within a root using multi effectors
  */
-USTRUCT(meta=(DisplayName="Fullbody IK", Category="Hierarchy", Keywords="Multi, Effector, N-Chain, FB, IK"))
+USTRUCT(meta=(DisplayName="Fullbody IK", Category="Hierarchy", Keywords="Multi, Effector, N-Chain, FB, IK", Deprecated = "5.0"))
 struct FRigUnit_FullbodyIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
