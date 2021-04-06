@@ -369,6 +369,7 @@ public:
 	/** Destructor, flushes all sync tasks **/
 	~FDerivedDataCache()
 	{
+		WaitForQuiescence(true);
 		FScopeLock ScopeLock(&SynchronizationObject);
 		for (TMap<uint32,FAsyncTask<FBuildAsyncWorker>*>::TIterator It(PendingTasks); It; ++It)
 		{
