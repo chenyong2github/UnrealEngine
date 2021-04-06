@@ -2948,7 +2948,7 @@ FRasterContext InitRasterContext(
 	// Set rasterizer scheduling based on config and platform capabilities.
 	if (GNaniteComputeRasterization != 0)
 	{
-		const bool bUseAsyncCompute = GSupportsEfficientAsyncCompute && (GNaniteAsyncRasterization != 0);
+		const bool bUseAsyncCompute = GSupportsEfficientAsyncCompute && (GNaniteAsyncRasterization != 0) && EnumHasAnyFlags(GRHIMultiPipelineMergeableAccessMask, ERHIAccess::UAVMask);
 		RasterContext.RasterScheduling = bUseAsyncCompute ? ERasterScheduling::HardwareAndSoftwareOverlap : ERasterScheduling::HardwareThenSoftware;
 	}
 	else

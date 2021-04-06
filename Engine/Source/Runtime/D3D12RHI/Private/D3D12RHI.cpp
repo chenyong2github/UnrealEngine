@@ -81,6 +81,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 
 	GRHISupportsMultithreading = true;
 	GRHIMultiPipelineMergeableAccessMask = GRHIMergeableAccessMask;
+	EnumRemoveFlags(GRHIMultiPipelineMergeableAccessMask, ERHIAccess::UAVMask);
 
 	GPoolSizeVRAMPercentage = 0;
 	GTexturePoolSize = 0;
