@@ -292,6 +292,8 @@ public:
 			}
 		}
 
+		// force a save of dirty packages before proceeding to run UAT
+		FTurnkeyEditorSupport::SaveAll();
 
 		// basic BuildCookRun params we always want
 		FString BuildCookRunParams = FString::Printf(TEXT("-nop4 -utf8output %s -cook "), GetUATCompilationFlags());

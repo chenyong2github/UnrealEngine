@@ -14,7 +14,8 @@ public:
 	static void PrepareToLaunchRunningMap(const FString& DeviceId, const FString& DeviceName);
 	static void LaunchRunningMap(const FString& DeviceId, const FString& DeviceName, const FString& ProjectPath, bool bUseTurnkey);
 	static void AddEditorOptions(struct FToolMenuSection& MenuBuilder);
-
+	
+	static void SaveAll();
 	static bool DoesProjectHaveCode();
 	static void RunUAT(const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText& TaskShortName, const struct FSlateBrush* TaskIcon, TFunction<void(FString, double)> ResultCallback=TFunction<void(FString, double)>());
 

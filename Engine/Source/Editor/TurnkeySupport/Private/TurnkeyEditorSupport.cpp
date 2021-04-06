@@ -21,6 +21,7 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "ToolMenus.h"
+#include "FileHelpers.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FTurnkeyEditorSupport"
@@ -158,6 +159,20 @@ void FTurnkeyEditorSupport::LaunchRunningMap(const FString& DeviceId, const FStr
 			}
 		}
 	}
+#endif
+}
+
+void FTurnkeyEditorSupport::SaveAll()
+{
+#if WITH_EDITOR
+	FEditorFileUtils::SaveDirtyPackages(false /*bPromptUserToSave*/
+		, true /*bSaveMapPackages*/
+		, true /*bSaveContentPackages*/
+		, false /*bFastSave*/
+		, false /*bNotifyNoPackagesSaved*/
+		, false /*bCanBeDeclined*/);
+#else
+	unimplemented();
 #endif
 }
 
