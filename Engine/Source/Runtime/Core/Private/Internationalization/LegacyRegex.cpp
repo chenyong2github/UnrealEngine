@@ -11,7 +11,8 @@ class FRegexPatternImplementation
 
 };
 
-FRegexPattern::FRegexPattern(const FString& SourceString) : Implementation( MakeShareable( new FRegexPatternImplementation() ) )
+FRegexPattern::FRegexPattern(const FString& SourceString)
+	: Implementation(MakeShared<FRegexPatternImplementation>())
 {
 }
 
@@ -20,9 +21,17 @@ class FRegexMatcherImplementation
 
 };
 
-FRegexMatcher::FRegexMatcher(const FRegexPattern& Pattern, const FString& InputString) : Implementation( MakeShareable( new FRegexMatcherImplementation() ) )
+FRegexMatcher::FRegexMatcher(const FRegexPattern& SourcePattern, const FString& InputString)
+	: Pattern(SourcePattern)
+	, Implementation(MakeShared<FRegexMatcherImplementation>())
 {
-}	
+}
+
+FRegexMatcher::FRegexMatcher(FRegexPattern&& SourcePattern, const FString& InputString)
+	: Pattern(MoveTemp(SourcePattern))
+	, Implementation(MakeShared<FRegexMatcherImplementation>())
+{
+}
 
 bool FRegexMatcher::FindNext()
 {

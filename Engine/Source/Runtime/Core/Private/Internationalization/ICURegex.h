@@ -23,17 +23,17 @@ public:
 	static bool IsInitialized();
 	static FICURegexManager& Get();
 
-	TWeakPtr<icu::RegexPattern> CreateRegexPattern(const FString& InSourceString);
-	void DestroyRegexPattern(TWeakPtr<icu::RegexPattern>& InICURegexPattern);
+	TWeakPtr<const icu::RegexPattern> CreateRegexPattern(const FString& InSourceString);
+	void DestroyRegexPattern(TWeakPtr<const icu::RegexPattern>& InICURegexPattern);
 
-	TWeakPtr<icu::RegexMatcher> CreateRegexMatcher(icu::RegexPattern* InPattern, const icu::UnicodeString* InInputString);
+	TWeakPtr<icu::RegexMatcher> CreateRegexMatcher(const icu::RegexPattern* InPattern, const icu::UnicodeString* InInputString);
 	void DestroyRegexMatcher(TWeakPtr<icu::RegexMatcher>& InICURegexMatcher);
 
 private:
 	static FICURegexManager* Singleton;
 
 	FCriticalSection AllocatedRegexPatternsCS;
-	TSet<TSharedPtr<icu::RegexPattern>> AllocatedRegexPatterns;
+	TSet<TSharedPtr<const icu::RegexPattern>> AllocatedRegexPatterns;
 
 	FCriticalSection AllocatedRegexMatchersCS;
 	TSet<TSharedPtr<icu::RegexMatcher>> AllocatedRegexMatchers;
