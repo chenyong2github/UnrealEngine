@@ -77,8 +77,6 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	bEnableRayTracingShadows = 0;
 	bEnableRayTracingTextureLOD = 0;
 	MaxSkinBones = FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones;
-
-	bEnableNonNaniteVSM = 0;
 }
 
 void URendererSettings::PostInitProperties()
@@ -195,28 +193,23 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			}
 		}
 
-		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, DynamicShadowingMethod))
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, ShadowMapMethod)
+			&& ShadowMapMethod == EShadowMapMethod::VirtualShadowMaps)
 		{
-			// Propagate the setting to the 'r.Shadow.Virtual.NonNaniteVSM' CVar
-			int32 Value = static_cast<int32>(DynamicShadowingMethod);
-			bEnableNonNaniteVSM = Value;
-
-			// Don't think we need this as the below should trigger a reload of INI?
-			//IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.NonNaniteVSM"));
-			//CVar->Set(Value, ECVF_SetByProjectSetting);
-			for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt)
+			if (!bEnableNonNaniteVSM)
 			{
-				FProperty* Property = *PropIt;
-				if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bEnableNonNaniteVSM))
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("Setting automatically enabled, needs restart.", "Virtual Shadow Maps are most efficient when handling both geometry paths, 'Support non-Nanite geometry in Virtual Shadow Maps' has been automatically enabled.  This requires a restart."));
+
+				bEnableNonNaniteVSM = true;
+
+				for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt)
 				{
-					UpdateSinglePropertyInConfigFile(Property, GetDefaultConfigFilename());
+					FProperty* Property = *PropIt;
+					if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bEnableNonNaniteVSM))
+					{
+						UpdateSinglePropertyInConfigFile(Property, GetDefaultConfigFilename());
+					}
 				}
-			}
-
-			if (Value != 0)
-			{
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("Virtual Shadow Maps (Beta) Enabled", "Note that the virtual shadow map system is in beta and may have a performance impact, even if the run-time toggle (r.Shadow.Virtual.Enable) is used to turn them off."));
-				// TODO: put this in release notes? Note: When enabling the virtual shadow map system (beta), both 'r.Shadow.Virtual.Enable' and 'r.Shadow.Virtual.NonNaniteVSM' are turned on for the project. 'r.Shadow.Virtual.Enable' can be toggled at run-time, but there may still be some overhead as long as 'r.Shadow.Virtual.NonNaniteVSM' is turned on (requires restart)
 			}
 		}
 
@@ -285,6 +278,11 @@ bool URendererSettings::CanEditChange(const FProperty* InProperty) const
 	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bSupportSkyAtmosphereAffectsHeightFog)))
 	{
 		return ParentVal && bSupportSkyAtmosphere;
+	}
+
+	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bEnableNonNaniteVSM)))
+	{
+		return ParentVal && ShadowMapMethod == EShadowMapMethod::VirtualShadowMaps;
 	}
 
 	return ParentVal;

@@ -363,16 +363,13 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	TEnumAsByte<ELumenSoftwareTracingMode::Type> LumenSoftwareTracingMode;
 
 	UPROPERTY(config, EditAnywhere, Category = Shadows, meta = (
-		ConsoleVariable = "r.Shadow.Virtual.Enable", DisplayName = "Dynamic Shadowing Method",
-		ToolTip = "Dynamic Shadowing Method",
-		ConfigRestartRequired = true))
-	TEnumAsByte<EDynamicShadowingMethod::Type> DynamicShadowingMethod;
+		ConsoleVariable = "r.Shadow.Virtual.Enable", DisplayName = "Shadow Map Method",
+		ToolTip = "Shadow Map Method"))
+	TEnumAsByte<EShadowMapMethod::Type> ShadowMapMethod;
 
-	// Note: this is slaved to the DynamicShadowingMethod, which is why it is not editable, the property is only here to let us propagate to the ini file.
 	UPROPERTY(config, EditAnywhere, Category = Shadows, meta = (
-		EditCondition = "false",
-		ReadOnly,
-		ConsoleVariable="r.Shadow.Virtual.NonNaniteVSM",
+		ConsoleVariable = "r.Shadow.Virtual.NonNaniteVSM", DisplayName = "Support non-Nanite geometry in Virtual Shadow Maps",
+		ToolTip = "Whether to support non-Nanite geometry in Virtual Shadow Maps.  Enabling this incurs a small overhead if Virtual Shadow Maps is not the active Dynamic Shadowing Method.",
 		ConfigRestartRequired = true))
 	uint32 bEnableNonNaniteVSM:1;
 
