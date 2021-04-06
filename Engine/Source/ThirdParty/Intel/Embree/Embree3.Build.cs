@@ -40,9 +40,8 @@ public class Embree3 : ModuleRules
 			string SDKDir = Path.Combine(IntelEmbreeLibs, "Linux/x86_64-unknown-linux-gnu/lib");
 
 			PublicIncludePaths.Add(Path.Combine(IncludeDir, "include"));
-			PublicAdditionalLibraries.Add(Path.Combine(SDKDir, "libembree.so"));
-			PublicAdditionalLibraries.Add(Path.Combine(SDKDir, "libembree3.so.3"));
-			RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree.so"));
+			PublicAdditionalLibraries.Add(Path.Combine(SDKDir, "libembree3.so"));
+			RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree3.so"));
 			RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree3.so.3"));
 			PublicDefinitions.Add("USE_EMBREE=1");
 		}
