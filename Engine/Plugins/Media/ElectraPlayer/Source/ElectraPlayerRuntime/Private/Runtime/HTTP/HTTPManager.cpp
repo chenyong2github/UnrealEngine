@@ -312,14 +312,14 @@ namespace Electra
 		{
 			void SignalDone()
 			{
-				if (WaitingEvent)
+				if (WaitingEvent.IsValid())
 				{
 					WaitingEvent->Signal();
-					WaitingEvent = nullptr;
+					WaitingEvent.Reset();
 				}
 			}
 			TSharedPtrTS<FRequest> Request;
-			FMediaEvent* WaitingEvent = nullptr;
+			TSharedPtrTS<FMediaEvent> WaitingEvent;
 		};
 
 		FCriticalSection												Lock;
@@ -404,15 +404,15 @@ namespace Electra
 
 	void FElectraHttpManager::RemoveRequest(TSharedPtrTS<FRequest> Request)
 	{
-		FMediaEvent Sig;
+		TSharedPtrTS<FMediaEvent> WaitingEvent = MakeSharedTS<FMediaEvent>();
 		FRemoveRequest Remove;
 		Remove.Request = Request;
-		Remove.WaitingEvent = &Sig;
+		Remove.WaitingEvent = WaitingEvent;
 		Lock.Lock();
 		RequestsToRemove.Enqueue(MoveTemp(Remove));
 		RequestChangesEvent.Signal();
 		Lock.Unlock();
-		Sig.Wait();
+		WaitingEvent->Wait();
 	}
 
 	FElectraHttpManager::FHandle* FElectraHttpManager::CreateLocalFileHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<IElectraHttpManager::FRequest>& Request)

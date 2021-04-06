@@ -180,11 +180,14 @@ private:
 	/** Output queues as needed by MediaFramework */
 	TUniquePtr<FMediaSamples> MediaSamples;
 
+	/** Lock to guard the POD callback pointers from being changed while being used. */
+	FCriticalSection CallbackPointerLock;
+
 	/** Option interface */
-	const IMediaOptions* OptionInterface;
+	const IMediaOptions* OptionInterface = nullptr;
 
 	/** The media event handler */
-	IMediaEventSink* EventSink;
+	IMediaEventSink* EventSink = nullptr;
 
 	/** The actual player */
 	TSharedPtr<IElectraPlayerInterface, ESPMode::ThreadSafe> Player;
