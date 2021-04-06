@@ -208,11 +208,25 @@ namespace Metasound
 			InTabManager->UnregisterTabSpawner(TabFactory::Names::Metasound);
 		}
 
+		bool FEditor::IsPlaying() const
+		{
+			if (Metasound)
+			{
+				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+				check(MetasoundAsset);
+
+				if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(MetasoundAsset->GetGraph()))
+				{
+					return Graph->IsPreviewing();
+				}
+			}
+
+			return false;
+		}
+
 		FEditor::~FEditor()
 		{
-			// Stop any playing sounds when the editor closes
-			UAudioComponent* Component = GEditor->GetPreviewAudioComponent();
-			if (Component && Component->IsPlaying())
+			if (IsPlaying())
 			{
 				Stop();
 			}
@@ -712,44 +726,30 @@ namespace Metasound
 
 		void FEditor::Play()
 		{
-			check(GEditor);
-
 			if (USoundBase* MetasoundToPlay = Cast<USoundBase>(Metasound))
 			{
 				// Set the send to the audio bus that is used for analyzing the metasound output
+				check(GEditor);
 				if (UAudioComponent* PreviewComp = GEditor->PlayPreviewSound(MetasoundToPlay))
 				{
 					PlayTime = 0.0;
 
+					UObject* CommObject = PreviewComp->GetCommunicationInterface().GetObject();
+					if (ensure(CommObject))
+					{
+						SetPreviewID(CommObject->GetUniqueID());
+					}
+
 					if (MetasoundAudioBus.IsValid())
 					{
 						PreviewComp->SetAudioBusSendPostEffect(MetasoundAudioBus.Get(), 1.0f);
-					}
-
-					TUniquePtr<IAudioInstanceTransmitter> MetasoundComm;
-
-					// Communicating with playing component requires audio component ID and sample rate. 
-					if (FAudioDevice* PreviewAudioDevice = PreviewComp->GetAudioDevice())
-					{
-						if(FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound))
-						{
-							const uint64 AudioComponentID = PreviewComp->GetAudioComponentID();
-							const float SampleRate = PreviewAudioDevice->GetSampleRate();
-							MetasoundComm = MetasoundToPlay->CreateInstanceTransmitter(FAudioInstanceTransmitterInitParams { AudioComponentID, SampleRate });
-						}
-					}
-
-					if (UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetasoundGraphEditor->GetCurrentGraph()))
-					{
-						Graph->SetMetasoundInstanceTransmitter(MoveTemp(MetasoundComm));
 					}
 				}
 
 				MetasoundGraphEditor->RegisterActiveTimer(0.0f,
 					FWidgetActiveTimerDelegate::CreateLambda([this](double InCurrentTime, float InDeltaTime)
 					{
-						UAudioComponent* PreviewComp = GEditor->GetPreviewAudioComponent();
-						if (PreviewComp && PreviewComp->IsPlaying())
+						if (IsPlaying())
 						{
 							if (PlayTimeWidget.IsValid())
 							{
@@ -764,6 +764,7 @@ namespace Metasound
 						}
 						else
 						{
+							SetPreviewID(INDEX_NONE);
 							PlayTime = 0.0;
 							PlayTimeWidget->SetText(FText::GetEmpty());
 							return EActiveTimerReturnType::Stop;
@@ -771,6 +772,26 @@ namespace Metasound
 					})
 				);
 			}
+		}
+
+		void FEditor::SetPreviewID(uint32 InPreviewID)
+		{
+			if (!Metasound)
+			{
+				return;
+			}
+
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+			check(MetasoundAsset);
+
+			UEdGraph* Graph = MetasoundAsset->GetGraph();
+			if (!Graph)
+			{
+				return;
+			}
+			UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(MetasoundAsset->GetGraph());
+
+			MetasoundGraph->SetPreviewID(InPreviewID);
 		}
 
 		void FEditor::ExecuteNode()
@@ -796,14 +817,14 @@ namespace Metasound
 		{
 			check(GEditor);
 			GEditor->ResetPreviewAudioComponent();
+			SetPreviewID(INDEX_NONE);
 		}
 
 		void FEditor::TogglePlayback()
 		{
 			check(GEditor);
 
-			UAudioComponent* Component = GEditor->GetPreviewAudioComponent();
-			if (Component && Component->IsPlaying())
+			if (IsPlaying())
 			{
 				Stop();
 			}
@@ -815,17 +836,22 @@ namespace Metasound
 
 		void FEditor::ExecuteNode(UEdGraphNode* Node)
 		{
+			if (!IsPlaying())
+			{
+				return;
+			}
+
 			if (UMetasoundEditorGraphInputNode* InputNode = Cast<UMetasoundEditorGraphInputNode>(Node))
 			{
-				// TODO: fix how identifying the parameter to update is determined. It should not be done
-				// with a "DisplayName" but rather the vertex Guid.
-				if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(InputNode->GetOuter()))
+				if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
 				{
-					if (IAudioInstanceTransmitter* Transmitter = MetasoundGraph->GetMetasoundInstanceTransmitter())
+					// TODO: fix how identifying the parameter to update is determined. It should not be done
+					// with a "DisplayName" but rather the vertex Guid.
+					if (TScriptInterface<IAudioCommunicationInterface> CommInterface = PreviewComponent->GetCommunicationInterface())
 					{
 						Metasound::Frontend::FConstNodeHandle NodeHandle = InputNode->GetConstNodeHandle();
 						Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
-						Transmitter->SetParameter(*VertexKey, true);
+						CommInterface->Trigger(*VertexKey);
 					}
 				}
 			}

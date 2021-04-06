@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundNodeDetailCustomization.h"
 
+#include "Components/AudioComponent.h"
 #include "Containers/Set.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
@@ -82,15 +83,24 @@ namespace Metasound
 					return;
 				}
 
-				// TODO: fix how identifying the parameter to update is determined. It should not be done
-				// with a "DisplayName" but rather the vertex Guid.
-				if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(Input->GetOuter()))
+				// If modifying graph not currently being previewed, do not forward request
+				if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(Input->GetOuter()))
 				{
-					if (IAudioInstanceTransmitter* Transmitter = MetasoundGraph->GetMetasoundInstanceTransmitter())
+					if (!Graph->IsPreviewing())
 					{
+						return;
+					}
+				}
+
+				if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
+				{
+					if (TScriptInterface<IAudioCommunicationInterface> CommInterface = PreviewComponent->GetCommunicationInterface())
+					{
+						// TODO: fix how identifying the parameter to update is determined. It should not be done
+						// with a "DisplayName" but rather the vertex Guid.
 						Metasound::Frontend::FConstNodeHandle NodeHandle = Input->GetConstNodeHandle();
 						Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
-						Transmitter->SetParameter(*VertexKey, true);
+						CommInterface->Trigger(*VertexKey);
 					}
 				}
 			}

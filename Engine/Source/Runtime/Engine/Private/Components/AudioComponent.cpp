@@ -86,10 +86,6 @@ UAudioComponent::UAudioComponent(const FObjectInitializer& ObjectInitializer)
 		FScopeLock Lock(&AudioIDToComponentMapLock);
 		AudioIDToComponentMap.Add(AudioComponentID, this);
 	}
-
-	// Create communications object.
-	static const FName NAME_CommunicationSubObj{ TEXT("AudioComponentCommunication") };
-	CommunicationInterface = CreateDefaultSubobject<UAudioComponentCommunication>(NAME_CommunicationSubObj, true);
 }
 
 UAudioComponent* UAudioComponent::GetAudioComponentFromID(uint64 AudioComponentID)
@@ -103,7 +99,10 @@ UAudioComponent* UAudioComponent::GetAudioComponentFromID(uint64 AudioComponentI
 
 void UAudioComponent::BeginDestroy()
 {
-	Super::BeginDestroy();
+	if (CommunicationInterface)
+	{
+		CommunicationInterface->Shutdown();
+	}
 
 	if (IsActive() && Sound && Sound->IsLooping())
 	{
@@ -111,8 +110,12 @@ void UAudioComponent::BeginDestroy()
 		Stop();
 	}
 
-	FScopeLock Lock(&AudioIDToComponentMapLock);
-	AudioIDToComponentMap.Remove(AudioComponentID);
+	{
+		FScopeLock Lock(&AudioIDToComponentMapLock);
+		AudioIDToComponentMap.Remove(AudioComponentID);
+	}
+
+	Super::BeginDestroy();
 }
 
 FString UAudioComponent::GetDetailedInfoInternal() const
@@ -450,7 +453,6 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 		bAutoDestroy = bCurrentAutoDestroy;
 	}
 
-	// Whether or not we managed to actually try to play the sound
 	if (Sound && (World == nullptr || World->bAllowAudioPlayback))
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
@@ -501,6 +503,13 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 			FVector Location = GetComponentTransform().GetLocation();
 
 			AudioDevice->GetMaxDistanceAndFocusFactor(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
+
+			// Create communications object.
+			if (!CommunicationInterface)
+			{
+				static const FName InterfaceName("AudioComponentCommunication");
+				CommunicationInterface = NewObject<UAudioComponentCommunication>(this, InterfaceName);
+			}
 
 			FActiveSound NewActiveSound;
 			NewActiveSound.SetAudioComponent(*this);
@@ -751,6 +760,15 @@ void UAudioComponent::Stop()
 	if (!AudioDevice)
 	{
 		return;
+	}
+
+	if (bIsPreviewSound)
+	{
+		if (CommunicationInterface)
+		{
+			CommunicationInterface->Shutdown();
+			CommunicationInterface = nullptr;
+		}
 	}
 
 	// Set this to immediately be inactive

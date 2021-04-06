@@ -18,6 +18,8 @@ class IAudioCommunicationInterface : public IInterface
 	GENERATED_IINTERFACE_BODY()
 
 public:
+	virtual void Shutdown() = 0;
+
 	// Triggers a named trigger 
 	UFUNCTION(BlueprintCallable, Category = "Communication|Triggers")
 	virtual void Trigger(FName Name) = 0;

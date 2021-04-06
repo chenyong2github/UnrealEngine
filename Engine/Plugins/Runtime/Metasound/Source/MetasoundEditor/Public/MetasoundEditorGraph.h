@@ -8,7 +8,9 @@
 #include "MetasoundFrontendLiteral.h"
 #include "MetasoundSource.h"
 #include "MetasoundUObjectRegistry.h"
+#include "Sound/AudioCommunicationInterface.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ScriptInterface.h"
 
 #include "MetasoundEditorGraph.generated.h"
 
@@ -57,7 +59,7 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInputLiteral : public UObject
 	GENERATED_BODY()
 
 public:
-	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioCommunicationInterface>& InCommInterface) const
 	{
 	}
 
@@ -94,7 +96,7 @@ public:
 	UMetasoundEditorGraphInputLiteral* Literal;
 
 	void UpdateDocumentInput(bool bPostTransaction = true);
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const;
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioCommunicationInterface>& InCommInterface) const;
 
 	void OnDataTypeChanged() override;
 	void OnLiteralChanged(bool bPostTransaction = true);
@@ -130,18 +132,16 @@ public:
 	bool ContainsInput(UMetasoundEditorGraphInput* InInput) const;
 	bool ContainsOutput(UMetasoundEditorGraphOutput* InOutput) const;
 
+	void SetPreviewID(uint32 InPreviewID);
+	bool IsPreviewing() const;
+
 	virtual void Synchronize();
 
-	// Sets the transmitter interface for the current metasound preview.
-	void SetMetasoundInstanceTransmitter(TUniquePtr<IAudioInstanceTransmitter>&& InTransmitter);
-
-	// Gets the transmitter interface for the current metasound preview.
-	IAudioInstanceTransmitter* GetMetasoundInstanceTransmitter();
-
-	// Gets the transmitter interface for the current metasound preview.
-	const IAudioInstanceTransmitter* GetMetasoundInstanceTransmitter() const;
-
 private:
+	// Preview ID is the Unique ID provided by the UObject that implements
+	// a sound's CommunicationInterface when a sound begins playing.
+	uint32 PreviewID = INDEX_NONE;
+
 	UPROPERTY()
 	TObjectPtr<UObject> ParentMetasound;
 
@@ -162,9 +162,6 @@ public:
 
 	bool RemoveVariable(UMetasoundEditorGraphVariable& InVariable);
 
-	TUniquePtr<IAudioInstanceTransmitter> Transmitter;
-
-// 	friend class Metasound::Editor::FEditor;
 	friend class UMetasoundFactory;
 	friend class UMetasoundSourceFactory;
 };

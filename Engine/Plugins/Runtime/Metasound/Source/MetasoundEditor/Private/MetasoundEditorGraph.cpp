@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEditorGraph.h"
 
+#include "Components/AudioComponent.h"
 #include "EdGraph/EdGraphNode.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
@@ -8,6 +9,7 @@
 #include "MetasoundEditorModule.h"
 #include "MetasoundUObjectRegistry.h"
 #include "ScopedTransaction.h"
+#include "Sound/AudioCommunicationInterface.h"
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
@@ -159,11 +161,11 @@ void UMetasoundEditorGraphInput::UpdateDocumentInput(bool bPostTransaction)
 	GraphHandle->SetDefaultInput(VertexID, Literal->GetDefault());
 }
 
-void UMetasoundEditorGraphInput::UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const
+void UMetasoundEditorGraphInput::UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioCommunicationInterface>& InCommInterface) const
 {
 	if (ensure(Literal))
 	{
-		Literal->UpdatePreviewInstance(InParameterName, InInstanceTransmitter);
+		Literal->UpdatePreviewInstance(InParameterName, InCommInterface);
 	}
 }
 
@@ -206,15 +208,19 @@ void UMetasoundEditorGraphInput::OnLiteralChanged(bool bPostTransaction)
 {
 	UpdateDocumentInput(bPostTransaction);
 
-	if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(GetOuter()))
+	const bool bIsPreviewing = CastChecked<UMetasoundEditorGraph>(GetOuter())->IsPreviewing();
+	if (bIsPreviewing)
 	{
-		if (IAudioInstanceTransmitter* Transmitter = MetasoundGraph->GetMetasoundInstanceTransmitter())
+		UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent();
+		check(PreviewComponent);
+
+		if (TScriptInterface<IAudioCommunicationInterface> CommInterface = PreviewComponent->GetCommunicationInterface())
 		{
 			// TODO: fix how identifying the parameter to update is determined. It should not be done
 			// with a "DisplayName" but rather the vertex Guid.
 			Metasound::Frontend::FConstNodeHandle NodeHandle = GetConstNodeHandle();
 			Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
-			UpdatePreviewInstance(VertexKey, *Transmitter);
+			UpdatePreviewInstance(VertexKey, CommInterface);
 		}
 	}
 }
@@ -294,21 +300,6 @@ UObject& UMetasoundEditorGraph::GetMetasoundChecked() const
 {
 	check(ParentMetasound);
 	return *ParentMetasound;
-}
-
-void UMetasoundEditorGraph::SetMetasoundInstanceTransmitter(TUniquePtr<IAudioInstanceTransmitter>&& InTransmitter)
-{
-	Transmitter = MoveTemp(InTransmitter);
-}
-
-IAudioInstanceTransmitter* UMetasoundEditorGraph::GetMetasoundInstanceTransmitter()
-{
-	return Transmitter.Get();
-}
-
-const IAudioInstanceTransmitter* UMetasoundEditorGraph::GetMetasoundInstanceTransmitter() const
-{
-	return Transmitter.Get();
 }
 
 void UMetasoundEditorGraph::Synchronize()
@@ -449,6 +440,33 @@ void UMetasoundEditorGraph::IterateInputs(TUniqueFunction<void(UMetasoundEditorG
 			InFunction(*Input);
 		}
 	}
+}
+
+void UMetasoundEditorGraph::SetPreviewID(uint32 InPreviewID)
+{
+	PreviewID = InPreviewID;
+}
+
+bool UMetasoundEditorGraph::IsPreviewing() const
+{
+	UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent();
+	if (!PreviewComponent)
+	{
+		return false;
+	}
+
+	if (!PreviewComponent->IsPlaying())
+	{
+		return false;
+	}
+
+	UObject* CommInterface = PreviewComponent->GetCommunicationInterface().GetObject();
+	if (!CommInterface)
+	{
+		return false;
+	}
+
+	return CommInterface->GetUniqueID() == PreviewID;
 }
 
 void UMetasoundEditorGraph::IterateOutputs(TUniqueFunction<void(UMetasoundEditorGraphOutput&)> InFunction) const

@@ -14,7 +14,11 @@ class ENGINE_API UAudioComponentCommunication	: public UObject
 	GENERATED_BODY()
 
 protected:
+	virtual void BeginDestroy() override;
+
 	// IAudioCommunicationInterface
+	void Shutdown() override;
+
 	void Trigger(FName InName) override;
 	void SetBool(FName InName, bool InValue) override;
 	void SetBoolArray(FName InName, const TArray<bool>& InValue) override;

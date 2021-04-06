@@ -626,6 +626,8 @@ class IAudioInstanceTransmitter
 	public:
 		virtual ~IAudioInstanceTransmitter() = default;
 
+		virtual bool Shutdown() = 0;
+
 		// Return the instance ID
 		virtual uint64 GetInstanceID() const = 0;
 	

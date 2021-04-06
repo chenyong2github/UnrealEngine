@@ -8,9 +8,11 @@
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
+#include "MetasoundExecutableOperator.h"
 #include "MetasoundLiteral.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundOperatorSettings.h"
+#include "MetasoundTrigger.h"
 #include "Misc/Guid.h"
 #include "UObject/NameTypes.h"
 
@@ -372,7 +374,7 @@ namespace Metasound
 			}
 			else
 			{
-				return Push(TDataTypeLiteralFactory<TDataType>::CreateExplicitArgs(Params.OperatorSettings, InLiteral));
+				return TSender<TDataType>::Push(TDataTypeLiteralFactory<TDataType>::CreateExplicitArgs(Params.OperatorSettings, InLiteral));
 			}
 		}
 
@@ -458,7 +460,17 @@ namespace Metasound
 
 		bool CanPop() const
 		{
-			return DataChannel->GetPayloadID() != LastPayloadID && !DataChannel->IsEmpty();
+			if (DataChannel->GetPayloadID() == LastPayloadID)
+			{
+				return false;
+			}
+
+			if (DataChannel->IsEmpty())
+			{
+				return false;
+			}
+
+			return true;
 		}
 
 		// Pop the latest value from the data channel.
@@ -480,6 +492,13 @@ namespace Metasound
 			: IReceiver(InDataChannel, GetDataTypeName())
 			, OperatorSettings(InitParams.OperatorSettings)
 		{
+			// Executable DataTypes (currently just triggers) do not
+			// sync to past state provided by the data channel,
+			// so mark them as up-to-date.
+			if (TExecutableDataType<TDataType>::bIsExecutable)
+			{
+				LastPayloadID = InDataChannel->GetPayloadID();
+			}
 		}
 
 		void PushPayload(int64 InPayloadID, const TDataType& InDataPayload)
@@ -962,6 +981,8 @@ namespace Metasound
 			}
 		}
 
+		bool UnregisterDataChannel(const FName& InDataTypeName, const FName& InChannelName);
+
 		FAddressRouter(const FAddressRouter& Other)
 			: DataChannelMap(Other.DataChannelMap)
 		{
@@ -972,7 +993,6 @@ namespace Metasound
 
 	private:
 		FDataChannelKey GetDataChannelKey(const FName& InDataTypeName, const FName& InChannelName) const;
-
 
 		TMap<FDataChannelKey, TSharedRef<IDataChannel, ESPMode::ThreadSafe>> DataChannelMap;
 		FCriticalSection DataChannelMapMutationLock;
@@ -1129,6 +1149,9 @@ namespace Metasound
 
 			return Receiver;
 		}
+
+		// Unregisters DataChannel irrespective of number of receivers or senders still active.
+		bool UnregisterDataChannel(const FName& InDataTypeName, const FName& InChannelName);
 
 		// Pushes a literal parameter to a specific data channel in the global router.
 		// returns false if the literal type isn't supported.

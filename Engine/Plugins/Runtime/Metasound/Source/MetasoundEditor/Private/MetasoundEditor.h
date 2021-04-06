@@ -182,6 +182,8 @@ namespace Metasound
 			void RedoGraphAction();
 
 		private:
+			void SetPreviewID(uint32 InPreviewID);
+
 			/** FNotifyHook interface */
 			virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
@@ -250,6 +252,8 @@ namespace Metasound
 			void EditObjectSettings();
 
 			void NotifyUserModifiedBySync();
+
+			bool IsPlaying() const;
 
 			/** List of open tool panels; used to ensure only one exists at any one time */
 			TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;

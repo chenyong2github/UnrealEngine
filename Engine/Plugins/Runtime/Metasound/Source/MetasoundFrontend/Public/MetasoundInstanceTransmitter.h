@@ -63,6 +63,8 @@ namespace Metasound
 		FMetasoundInstanceTransmitter(const FMetasoundInstanceTransmitter::FInitParams& InInitParams);
 		virtual ~FMetasoundInstanceTransmitter() = default;
 
+		bool Shutdown() override;
+
 		/** Returns ID of the MetaSound instance associated with this transmitter. */
 		uint64 GetInstanceID() const override;
 		
@@ -179,9 +181,6 @@ namespace Metasound
 		// Create and store a new ISender for the given FSendInfo.
 		ISender* AddSender(const FSendInfo& InInfo);
 
-		// Create a new ISender from FSendInfo.
-		TUniquePtr<ISender> CreateSender(const FSendInfo& InInfo) const;
-
 		TArray<FSendInfo> SendInfos;
 		FOperatorSettings OperatorSettings;
 		uint64 InstanceID;
@@ -189,4 +188,3 @@ namespace Metasound
 		TMap<FName, TUniquePtr<ISender>> InputSends;
 	};
 }
-

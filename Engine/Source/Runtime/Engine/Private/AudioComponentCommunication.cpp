@@ -1,11 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Sound/AudioComponentCommuncation.h"
+#include "Audio.h"
 #include "AudioDevice.h"
+#include "ActiveSound.h"
 #include "AudioThread.h"
 #include "Components/AudioComponent.h"
-#include "ActiveSound.h"
 #include "IAudioExtensionPlugin.h"
+#include "Sound/AudioComponentCommuncation.h"
+
+void UAudioComponentCommunication::Shutdown()
+{
+	if (UAudioComponent* OwningComponent = Cast<UAudioComponent>(GetOuter()))
+	{
+		if (FAudioDevice* AudioDevice = OwningComponent->GetAudioDevice())
+		{
+			const uint64 MyAudioComponentID = OwningComponent->GetAudioComponentID();
+			FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID]() mutable
+			{
+				if (FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID))
+				{
+					if (IAudioInstanceTransmitter* Transmitter = ActiveSound->GetTransmitter())
+					{
+						Transmitter->Shutdown();
+					}
+				}
+			});
+		}
+	}
+}
+
+void UAudioComponentCommunication::BeginDestroy()
+{
+	Shutdown();
+	Super::BeginDestroy();
+}
 
 void UAudioComponentCommunication::Trigger(FName InName)
 {
@@ -116,7 +144,7 @@ void UAudioComponentCommunication::SetValue(FName InName, T&& InX)
 						{
 							if (!Transmitter->SetParameter(InName, MoveTempIfPossible(InX)))
 							{
-								UE_LOG(LogTemp, Warning, TEXT("Failed to SetParameter '%s'"), *InName.ToString() );
+								UE_LOG(LogAudio, Warning, TEXT("Failed to SetParameter '%s'"), *InName.ToString() );
 							}
 						}
 					}

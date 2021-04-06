@@ -11,6 +11,18 @@ namespace Metasound
 	{
 	}
 
+	bool FMetasoundInstanceTransmitter::Shutdown()
+	{
+		bool bSuccess = true;
+
+		for (const FSendInfo& SendInfo : SendInfos)
+		{
+			bSuccess &= FDataTransmissionCenter::Get().UnregisterDataChannel(SendInfo.TypeName, SendInfo.Address.ChannelName);
+		}
+
+		return bSuccess;
+	}
+
 	uint64 FMetasoundInstanceTransmitter::GetInstanceID() const
 	{
 		return InstanceID;
@@ -104,26 +116,20 @@ namespace Metasound
 		return nullptr;
 	}
 
-	TUniquePtr<ISender> FMetasoundInstanceTransmitter::CreateSender(const FSendInfo& InInfo) const
-	{
-		// TODO: likely want to remove this and opt for different protocols having different behaviors.
-		const float DelayTimeInSeconds = 0.1f; //< This not used for non-audio routing.
-		FSenderInitParams InitParams = {OperatorSettings, DelayTimeInSeconds};
-
-		return FDataTransmissionCenter::Get().RegisterNewSender(InInfo.TypeName, InInfo.Address, InitParams);
-	}
-
 	ISender* FMetasoundInstanceTransmitter::AddSender(const FSendInfo& InInfo)
 	{
-		TUniquePtr<ISender> Sender = CreateSender(InInfo);
+		// TODO: likely want to remove this and opt for different protocols having different behaviors.
+		const float DelayTimeInSeconds = 0.1f; // This not used for non-audio routing.
+		const FSenderInitParams InitParams = { OperatorSettings, DelayTimeInSeconds };
 
+		TUniquePtr<ISender> Sender = FDataTransmissionCenter::Get().RegisterNewSender(InInfo.TypeName, InInfo.Address, InitParams);
 		if (ensureMsgf(Sender.IsValid(), TEXT("Failed to create sender [DataType:%s, Address:%s]"), *InInfo.TypeName.ToString(), *InInfo.Address.ChannelName.ToString()))
 		{
 			ISender* Ptr = Sender.Get();
 			InputSends.Add(InInfo.ParameterName, MoveTemp(Sender));
 			return Ptr;
 		}
-		
+
 		return nullptr;
 	}
 }

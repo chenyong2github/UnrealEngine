@@ -200,6 +200,11 @@ namespace Metasound
 		return MoveTemp(Receiver);
 	}
 
+	bool FDataTransmissionCenter::UnregisterDataChannel(const FName& InDataTypeName, const FName& InChannelName)
+	{
+		return GlobalRouter.UnregisterDataChannel(InDataTypeName, InChannelName);
+	}
+
 	bool FDataTransmissionCenter::PushLiteral(FName DataType, FName GlobalChannelName, const FLiteral& InParam)
 	{
 		return GlobalRouter.PushLiteral(DataType, GlobalChannelName, InParam);
@@ -289,9 +294,29 @@ namespace Metasound
 		}
 	}
 
+	bool FAddressRouter::UnregisterDataChannel(const FName& InDataTypeName, const FName& InChannelName)
+	{
+		FScopeLock ScopeLock(&DataChannelMapMutationLock);
+		const FDataChannelKey ChannelKey = GetDataChannelKey(InDataTypeName, InChannelName);
+
+		if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* Channel = DataChannelMap.Find(ChannelKey))
+		{
+			if (const int32 NumReceiversActive = Channel->Get().GetNumActiveReceivers())
+			{
+				UE_LOG(LogMetaSound, Verbose, TEXT("DataChannel '%s' of type '%s' shutting down with %d receivers active."), *InChannelName.ToString(), *InDataTypeName.ToString(), NumReceiversActive);
+			}
+
+			if (const int32 NumSendersActive = Channel->Get().GetNumActiveSenders())
+			{
+				UE_LOG(LogMetaSound, Verbose, TEXT("DataChannel '%s' of type '%s' shutting down with %d senders active."), *InChannelName.ToString(), *InDataTypeName.ToString(), NumSendersActive);
+			}
+		}
+
+		return DataChannelMap.Remove(ChannelKey) > 0;
+	}
+
 	TUniquePtr<IReceiver> FAddressRouter::RegisterNewReceiver(const FName& InDataTypeName, const FName& InChannelName, const FReceiverInitParams& InitParams)
 	{
-
 		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InDataTypeName, InChannelName, InitParams.OperatorSettings);
 
 		if (DataChannel.IsValid())
@@ -335,5 +360,4 @@ namespace Metasound
 			return NewRouter.RegisterNewSender(InDataTypeName, InChannelName, InitParams);
 		}
 	}
-
 }
