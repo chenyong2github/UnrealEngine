@@ -370,7 +370,7 @@ public:
 	virtual class IRHIComputeContext* RHIGetDefaultAsyncComputeContext() final override;
 	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) final override;
 
-	virtual IRHITransientResourceAllocator* RHICreateTransientResourceAllocator() final override;
+	virtual IRHITransientResourceAllocator* RHICreateTransientResourceAllocator() final;
 
 #if WITH_MGPU
 	virtual IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask)final override;
