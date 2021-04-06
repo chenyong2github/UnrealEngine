@@ -365,6 +365,8 @@ public:
 	inline uint8 GetDimensions() const { return Description.Dimensions; }
 	inline uint32 GetWidthInBlocks() const { return WidthInBlocks; }
 	inline uint32 GetHeightInBlocks() const { return HeightInBlocks; }
+	inline uint32 GetBlockWidthInTiles() const { return BlockWidthInTiles; }
+	inline uint32 GetBlockHeightInTiles() const { return BlockHeightInTiles; }
 	inline uint32 GetWidthInTiles() const { return BlockWidthInTiles * WidthInBlocks; }
 	inline uint32 GetHeightInTiles() const { return BlockHeightInTiles * HeightInBlocks; }
 	inline uint32 GetDepthInTiles() const { return DepthInTiles; }

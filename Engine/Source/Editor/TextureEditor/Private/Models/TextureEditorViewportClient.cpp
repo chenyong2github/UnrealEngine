@@ -66,7 +66,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 	
 	UTexture* Texture = TextureEditorPinned->GetTexture();
 	FVector2D Ratio = FVector2D(GetViewportHorizontalScrollBarRatio(), GetViewportVerticalScrollBarRatio());
-	FVector2D ViewportSize = FVector2D(TextureEditorViewportPtr.Pin()->GetViewport()->GetSizeXY().X, TextureEditorViewportPtr.Pin()->GetViewport()->GetSizeXY().Y);
+	FVector2D ViewportSize = FVector2D(TextureEditorViewportPtr.Pin()->GetViewport()->GetSizeXY());
 	FVector2D ScrollBarPos = GetViewportScrollBarPositions();
 	int32 YOffset = (Ratio.Y > 1.0f)? ((ViewportSize.Y - (ViewportSize.Y / Ratio.Y)) * 0.5f): 0;
 	int32 YPos = YOffset - ScrollBarPos.Y;
@@ -205,28 +205,21 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		if (bIsVirtualTexture && CVarEnableVTFeedback.GetValueOnAnyThread() != 0)
 		{
 			FVirtualTexture2DResource* VTResource = static_cast<FVirtualTexture2DResource*>(Texture->Resource);
-			const FVector2D ScreenSpaceSize = { (float)Width, (float)Height };
-			
-			// Calculate the rect of the texture that is visible on screen
-			// When the entire texture is visible, we pass -1 as dimensions (VirtualTextureUtils::CalculateVisibleTiles needs to calculate the effective texture size anyway so don't do it twice)
- 			auto ZeroOrAbsolute = [](int32 value) -> int32 { return value >= 0 ? 0 : FMath::Abs(value); };
-			auto GetCorrectDimension = [](int value, int32 viewportSize, int32 TextureSize) -> int32 { return value <= viewportSize ? TextureSize : viewportSize; };
-
-			const float Zoom = 1.0f / TextureEditorPinned->GetCustomZoomLevel();
-			const int32 VisibleXPos = FMath::FloorToInt(Zoom * -FMath::Min(0, XPos));
-			const int32 VisibleYPos = FMath::FloorToInt(Zoom * -FMath::Min(0, YPos));
-			
-			const FIntRect VisibleTextureRect = FIntRect(VisibleXPos, VisibleYPos,
-				VisibleXPos + GetCorrectDimension(Zoom * Width, Zoom * ViewportSize.X, VTResource->GetSizeX()),
-				VisibleYPos + GetCorrectDimension(Zoom * Height, Zoom * ViewportSize.Y, VTResource->GetSizeY()));
+			const FVector2D ScreenSpaceSize((float)Width, (float)Height);
+			const FVector2D ViewportPositon(-(float)XPos, -(float)YPos);
+			const FVector2D UV0 = TileItem.UV0;
+			const FVector2D UV1 = TileItem.UV1;
 
 			const ERHIFeatureLevel::Type InFeatureLevel = GMaxRHIFeatureLevel;
 			ENQUEUE_RENDER_COMMAND(MakeTilesResident)(
-				[InFeatureLevel, VTResource, ScreenSpaceSize, VisibleTextureRect, MipLevel](FRHICommandListImmediate& RHICmdList)
+				[InFeatureLevel, VTResource, ScreenSpaceSize, ViewportPositon, ViewportSize, UV0, UV1, MipLevel](FRHICommandListImmediate& RHICmdList)
 			{
 				// AcquireAllocatedVT() must happen on render thread
-				GetRendererModule().RequestVirtualTextureTilesForRegion(VTResource->AcquireAllocatedVT(), ScreenSpaceSize, VisibleTextureRect, MipLevel);
-				GetRendererModule().LoadPendingVirtualTextureTiles(RHICmdList, InFeatureLevel);
+				IAllocatedVirtualTexture* AllocatedVT = VTResource->AcquireAllocatedVT();
+
+				IRendererModule& RenderModule = GetRendererModule();
+				RenderModule.RequestVirtualTextureTilesForRegion(AllocatedVT, ScreenSpaceSize, ViewportPositon, ViewportSize, UV0, UV1, MipLevel);
+				RenderModule.LoadPendingVirtualTextureTiles(RHICmdList, InFeatureLevel);
 			});
 		}
 	}

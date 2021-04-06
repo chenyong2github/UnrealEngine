@@ -21,8 +21,6 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 	, RefCount(1)
 	, FrameAllocated(InFrame)
 	, Space(nullptr)
-	, VirtualPageX(~0u)
-	, VirtualPageY(~0u)
 {
 	check(IsInRenderingThread());
 	FMemory::Memzero(TextureLayers);
@@ -363,8 +361,8 @@ static inline uint32 BitcastFloatToUInt32(float v)
 
 void FAllocatedVirtualTexture::GetPackedPageTableUniform(FUintVector4* OutUniform) const
 {
-	const uint32 vPageX = FMath::ReverseMortonCode2(VirtualAddress);
-	const uint32 vPageY = FMath::ReverseMortonCode2(VirtualAddress >> 1);
+	const uint32 vPageX = VirtualPageX;
+	const uint32 vPageY = VirtualPageY;
 	const uint32 vPageSize = GetVirtualTileSize();
 	const uint32 PageBorderSize = GetTileBorderSize();
 	const uint32 WidthInPages = GetWidthInTiles();

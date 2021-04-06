@@ -60,9 +60,6 @@ public:
 	inline uint32 GetProducerTextureLayerMaskForPageTableLayer(uint32 InLayerIndex) const { return UniquePageTableLayers[InLayerIndex].ProducerTextureLayerMask; }
 	inline uint32 GetProducerPhysicalGroupIndexForPageTableLayer(uint32 InLayerIndex) const { return UniquePageTableLayers[InLayerIndex].ProducerPhysicalGroupIndex; }
 
-	inline uint32 GetVirtualPageX() const { return VirtualPageX; }
-	inline uint32 GetVirtualPageY() const { return VirtualPageY; }
-
 private:
 	uint32 AddUniqueProducer(FVirtualTextureProducerHandle const& InHandle, const FVirtualTextureProducer* InProducer);
 	uint32 AddUniquePhysicalSpace(FVirtualTexturePhysicalSpace* InPhysicalSpace, uint32 InUniqueProducerIndex, uint32 InProducerPhysicalSpaceIndex);
@@ -101,7 +98,4 @@ private:
 		uint8 PhysicalTextureIndex;
 	};
 	FTextureLayerDesc TextureLayers[VIRTUALTEXTURE_SPACE_MAXLAYERS];
-
-	uint32 VirtualPageX;
-	uint32 VirtualPageY;
 };

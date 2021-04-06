@@ -267,8 +267,9 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 
 void FTextureEditorToolkit::CalculateTextureDimensions( uint32& Width, uint32& Height, uint32& Depth, uint32& ArraySize ) const
 {
-	Width = Texture->Source.GetSizeX();
-	Height = Texture->Source.GetSizeY();
+	const FIntPoint LogicalSize = Texture->Source.GetLogicalSize();
+	Width = LogicalSize.X;
+	Height = LogicalSize.Y;
 	Depth = IsVolumeTexture() ? Texture->Source.GetNumLayers() : 0;
 	ArraySize = (Is2DArrayTexture() || IsCubeTexture()) ? Texture->Source.GetNumLayers() : 0;
 

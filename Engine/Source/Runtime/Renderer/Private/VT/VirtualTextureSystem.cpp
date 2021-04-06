@@ -849,29 +849,36 @@ void FVirtualTextureSystem::RequestTiles(const FVector2D& InScreenSpaceSize, int
 {
 	check(IsInRenderingThread());
 
+	FScopeLock Lock(&RequestedTilesLock);
+
 	for (const auto& Pair : AllocatedVTs)
 	{
-		RequestTilesForRegion(Pair.Value, InScreenSpaceSize, FIntRect(), InMipLevel);
+		const IAllocatedVirtualTexture* AllocatedVT = Pair.Value;
+		if (InMipLevel < 0)
+		{
+			const uint32 vMaxLevel = AllocatedVT->GetMaxLevel();
+			const float vLevel = ComputeMipLevel(AllocatedVT, InScreenSpaceSize);
+			const int32 vMipLevelDown = FMath::Clamp((int32)FMath::FloorToInt(vLevel), 0, (int32)vMaxLevel);
+			RequestTilesInternal(AllocatedVT, vLevel);
+			if (vMipLevelDown + 1u <= vMaxLevel)
+			{
+				// Need to fetch 2 levels to support trilinear filtering
+				RequestTilesInternal(AllocatedVT, vMipLevelDown);
+			}
+		}
+		else
+		{
+			RequestTilesInternal(AllocatedVT, InMipLevel);
+		}
 	}
 }
 
-void FVirtualTextureSystem::RequestTilesForRegion(const IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, const FIntRect& InTextureRegion, int32 InMipLevel)
+void FVirtualTextureSystem::RequestTilesForRegion(IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, const FVector2D& InViewportPosition, const FVector2D& InViewportSize, const FVector2D& InUV0, const FVector2D& InUV1, int32 InMipLevel)
 {
-	FIntRect TextureRegion(InTextureRegion);
-	if (TextureRegion.IsEmpty())
-	{
-		TextureRegion.Max.X = AllocatedVT->GetWidthInPixels();
-		TextureRegion.Max.Y = AllocatedVT->GetHeightInPixels();
-	}
-	else
-	{
-		TextureRegion.Clip(FIntRect(0, 0, AllocatedVT->GetWidthInPixels(), AllocatedVT->GetHeightInPixels()));
-	}
-
 	if (InMipLevel >= 0)
 	{
 		FScopeLock Lock(&RequestedTilesLock);
-		RequestTilesForRegionInternal(AllocatedVT, TextureRegion, InMipLevel);
+		RequestTilesForRegionInternal(AllocatedVT, InScreenSpaceSize, InViewportPosition, InViewportSize, InUV0, InUV1, InMipLevel);
 	}
 	else
 	{
@@ -880,11 +887,11 @@ void FVirtualTextureSystem::RequestTilesForRegion(const IAllocatedVirtualTexture
 		const int32 vMipLevelDown = FMath::Clamp((int32)FMath::FloorToInt(vLevel), 0, (int32)vMaxLevel);
 
 		FScopeLock Lock(&RequestedTilesLock);
-		RequestTilesForRegionInternal(AllocatedVT, TextureRegion, vMipLevelDown);
+		RequestTilesForRegionInternal(AllocatedVT, InScreenSpaceSize, InViewportPosition, InViewportSize, InUV0, InUV1, vMipLevelDown);
 		if (vMipLevelDown + 1u <= vMaxLevel)
 		{
 			// Need to fetch 2 levels to support trilinear filtering
-			RequestTilesForRegionInternal(AllocatedVT, TextureRegion, vMipLevelDown + 1u);
+			RequestTilesForRegionInternal(AllocatedVT, InScreenSpaceSize, InViewportPosition, InViewportSize, InUV0, InUV1, vMipLevelDown + 1u);
 		}
 	}
 }
@@ -920,22 +927,67 @@ void FVirtualTextureSystem::LoadPendingTiles(FRDGBuilder& GraphBuilder, ERHIFeat
 	}
 }
 
-void FVirtualTextureSystem::RequestTilesForRegionInternal(const IAllocatedVirtualTexture* AllocatedVT, const FIntRect& InTextureRegion, uint32 vLevel)
+void FVirtualTextureSystem::RequestTilesInternal(const IAllocatedVirtualTexture* AllocatedVT, int32 InMipLevel)
 {
-	const FIntRect TextureRegionForLevel(InTextureRegion.Min.X >> vLevel, InTextureRegion.Min.Y >> vLevel, InTextureRegion.Max.X >> vLevel, InTextureRegion.Max.Y >> vLevel);
-	const FIntRect TileRegionForLevel = FIntRect::DivideAndRoundUp(TextureRegionForLevel, AllocatedVT->GetVirtualTileSize());
+	const int32 MipWidthInTiles = FMath::Max<int32>(AllocatedVT->GetWidthInTiles() >> InMipLevel, 1);
+	const int32 MipHeightInTiles = FMath::Max<int32>(AllocatedVT->GetHeightInTiles() >> InMipLevel, 1);
+	const uint32 vBaseTileX = AllocatedVT->GetVirtualPageX() >> InMipLevel;
+	const uint32 vBaseTileY = AllocatedVT->GetVirtualPageY() >> InMipLevel;
+
+	for (int32 TilePositionY = 0; TilePositionY < MipHeightInTiles; TilePositionY++)
+	{
+		const uint32 vGlobalTileY = vBaseTileY + TilePositionY;
+		for (int32 TilePositionX = 0; TilePositionX < MipWidthInTiles; TilePositionX++)
+		{
+			const uint32 vGlobalTileX = vBaseTileX + TilePositionX;
+			const uint32 EncodedTile = EncodePage(AllocatedVT->GetSpaceID(), InMipLevel, vGlobalTileX, vGlobalTileY);
+			RequestedPackedTiles.Add(EncodedTile);
+		}
+	}
+}
+
+static int32 WrapTilePosition(int32 Position, int32 Size)
+{
+	const int32 Result = Position % Size;
+	return (Result >= 0) ? Result : Result + Size;
+}
+
+void FVirtualTextureSystem::RequestTilesForRegionInternal(const IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, const FVector2D& InViewportPosition, const FVector2D& InViewportSize, const FVector2D& InUV0, const FVector2D& InUV1, int32 InMipLevel)
+{
+	// Determine the screen-space coordinates of the texture we're trying to display
+	const float SrcPositionX0 = FMath::Max(InViewportPosition.X, 0.0f);
+	const float SrcPositionY0 = FMath::Max(InViewportPosition.Y, 0.0f);
+	const float SrcPositionX1 = FMath::Min(InViewportPosition.X + InViewportSize.X, InScreenSpaceSize.X);
+	const float SrcPositionY1 = FMath::Min(InViewportPosition.Y + InViewportSize.Y, InScreenSpaceSize.Y);
+
+	const int32 WidthInBlocks = AllocatedVT->GetWidthInBlocks();
+	const int32 HeightInBlocks = AllocatedVT->GetHeightInBlocks();
+
+	// Map coordinates to UV space
+	const float PositionU0 = FMath::Lerp(InUV0.X, InUV1.X, SrcPositionX0 / InScreenSpaceSize.X) / WidthInBlocks;
+	const float PositionV0 = FMath::Lerp(InUV0.Y, InUV1.Y, SrcPositionY0 / InScreenSpaceSize.Y) / HeightInBlocks;
+	const float PositionU1 = FMath::Lerp(InUV0.X, InUV1.X, SrcPositionX1 / InScreenSpaceSize.X) / WidthInBlocks;
+	const float PositionV1 = FMath::Lerp(InUV0.Y, InUV1.Y, SrcPositionY1 / InScreenSpaceSize.Y) / HeightInBlocks;
+
+	// Map UVs to tile coordinates
+	const int32 MipWidthInTiles = FMath::Max<int32>(AllocatedVT->GetWidthInTiles() >> InMipLevel, 1);
+	const int32 MipHeightInTiles = FMath::Max<int32>(AllocatedVT->GetHeightInTiles() >> InMipLevel, 1);
+	const int32 TilePositionX0 = FMath::FloorToInt(FMath::Min(PositionU0, PositionU1) * MipWidthInTiles);
+	const int32 TilePositionY0 = FMath::FloorToInt(FMath::Min(PositionV0, PositionV1) * MipHeightInTiles);
+	const int32 TilePositionX1 = FMath::CeilToInt(FMath::Max(PositionU0, PositionU1) * MipWidthInTiles);
+	const int32 TilePositionY1 = FMath::CeilToInt(FMath::Max(PositionV0, PositionV1) * MipHeightInTiles);
 
 	// RequestedPackedTiles stores packed tiles with vPosition shifted relative to current mip level
-	const uint32 vBaseTileX = FMath::ReverseMortonCode2(AllocatedVT->GetVirtualAddress()) >> vLevel;
-	const uint32 vBaseTileY = FMath::ReverseMortonCode2(AllocatedVT->GetVirtualAddress() >> 1) >> vLevel;
+	const uint32 vBaseTileX = AllocatedVT->GetVirtualPageX() >> InMipLevel;
+	const uint32 vBaseTileY = AllocatedVT->GetVirtualPageY() >> InMipLevel;
 
-	for (uint32 TileY = TileRegionForLevel.Min.Y; TileY < (uint32)TileRegionForLevel.Max.Y; ++TileY)
+	for (int32 TilePositionY = TilePositionY0; TilePositionY < TilePositionY1; TilePositionY++)
 	{
-		const uint32 vGlobalTileY = vBaseTileY + TileY;
-		for (uint32 TileX = TileRegionForLevel.Min.X; TileX < (uint32)TileRegionForLevel.Max.X; ++TileX)
+		const uint32 vGlobalTileY = vBaseTileY + WrapTilePosition(TilePositionY, MipHeightInTiles);
+		for (int32 TilePositionX = TilePositionX0; TilePositionX < TilePositionX1; TilePositionX++)
 		{
-			const uint32 vGlobalTileX = vBaseTileX + TileX;
-			const uint32 EncodedTile = EncodePage(AllocatedVT->GetSpaceID(), vLevel, vGlobalTileX, vGlobalTileY);
+			const uint32 vGlobalTileX = vBaseTileX + WrapTilePosition(TilePositionX, MipWidthInTiles);
+			const uint32 EncodedTile = EncodePage(AllocatedVT->GetSpaceID(), InMipLevel, vGlobalTileX, vGlobalTileY);
 			RequestedPackedTiles.Add(EncodedTile);
 		}
 	}
