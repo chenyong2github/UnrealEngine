@@ -136,6 +136,7 @@ namespace Chaos
 		{
 			if (InShape == MShapesArray[Index].Get())
 			{
+				MShapesArray.RemoveAt(Index);
 				FoundIndex = Index;
 				break;
 			}
@@ -143,7 +144,7 @@ namespace Chaos
 
 		if (MNonFrequentData.Read().Geometry()->GetType() == FImplicitObjectUnion::StaticType())
 		{
-			// if we are currently a union then add the new geometry to this union
+			// if we are currently a union then remove geometry from this union
 			MNonFrequentData.Modify(true, MDirtyFlags, Proxy, [FoundIndex](auto& Data)
 				{
 					if (Data.AccessGeometry())
