@@ -6,33 +6,33 @@
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
-class FWindowsReadRequest;
-class FWindowsAsyncReadFileHandle;
+class FMicrosoftReadRequest;
+class FMicrosoftAsyncReadFileHandle;
 
 #if !defined(USE_WINAPI_CREATEFILE2)
 	#define USE_WINAPI_CREATEFILE2 0
 #endif
 
-class FWindowsReadRequestWorker : public FNonAbandonableTask
+class FMicrosoftReadRequestWorker : public FNonAbandonableTask
 {
-	FWindowsReadRequest& ReadRequest;
+	FMicrosoftReadRequest& ReadRequest;
 public:
-	FWindowsReadRequestWorker(FWindowsReadRequest* InReadRequest)
+	FMicrosoftReadRequestWorker(FMicrosoftReadRequest* InReadRequest)
 		: ReadRequest(*InReadRequest)
 	{
 	}
 	void DoWork();
 	FORCEINLINE TStatId GetStatId() const
 	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FWindowsReadRequestWorker, STATGROUP_ThreadPoolAsyncTasks);
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FMicrosoftReadRequestWorker, STATGROUP_ThreadPoolAsyncTasks);
 	}
 };
 
-extern CORE_API TLockFreePointerListUnordered<void, PLATFORM_CACHE_LINE_SIZE> WindowsAsyncIOEventPool;
+extern CORE_API TLockFreePointerListUnordered<void, PLATFORM_CACHE_LINE_SIZE> MicrosoftAsyncIOEventPool;
 
 HANDLE GetIOPooledEvent()
 {
-	void *Popped = WindowsAsyncIOEventPool.Pop();
+	void *Popped = MicrosoftAsyncIOEventPool.Pop();
 	HANDLE Result = Popped ? (HANDLE)UPTRINT(Popped) : INVALID_HANDLE_VALUE;
 	if (Result == INVALID_HANDLE_VALUE)
 	{
@@ -46,14 +46,14 @@ void FreeIOPooledEvent(HANDLE ToFree)
 {
 	check(ToFree != INVALID_HANDLE_VALUE && (void*)(UPTRINT)ToFree); //awkwardly using void* to store handles, hope we don't ever have a zero handle :)
 	ResetEvent(ToFree);
-	WindowsAsyncIOEventPool.Push((void*)(UPTRINT)ToFree);
+	MicrosoftAsyncIOEventPool.Push((void*)(UPTRINT)ToFree);
 }
 
 
-class FWindowsReadRequest : public IAsyncReadRequest
+class FMicrosoftReadRequest : public IAsyncReadRequest
 {
-	FAsyncTask<FWindowsReadRequestWorker>* Task;
-	FWindowsAsyncReadFileHandle* Owner;
+	FAsyncTask<FMicrosoftReadRequestWorker>* Task;
+	FMicrosoftAsyncReadFileHandle* Owner;
 	int64 Offset;
 	int64 BytesToRead;
 	int64 FileSize;
@@ -64,7 +64,7 @@ class FWindowsReadRequest : public IAsyncReadRequest
 	int64 AlignedBytesToRead;
 	OVERLAPPED OverlappedIO;
 public:
-	FWindowsReadRequest(FWindowsAsyncReadFileHandle* InOwner, FAsyncFileCallBack* CompleteCallback, uint8* InUserSuppliedMemory, int64 InOffset, int64 InBytesToRead, int64 InFileSize, HANDLE InHandle, EAsyncIOPriorityAndFlags InPriorityAndFlags)
+	FMicrosoftReadRequest(FMicrosoftAsyncReadFileHandle* InOwner, FAsyncFileCallBack* CompleteCallback, uint8* InUserSuppliedMemory, int64 InOffset, int64 InBytesToRead, int64 InFileSize, HANDLE InHandle, EAsyncIOPriorityAndFlags InPriorityAndFlags)
 		: IAsyncReadRequest(CompleteCallback, false, InUserSuppliedMemory)
 		, Task(nullptr)
 		, Owner(InOwner)
@@ -102,12 +102,12 @@ public:
 				if (NumMessages < 10)
 				{
 					NumMessages++;
-					UE_LOG(LogTemp, Log, TEXT("FWindowsReadRequest request was not aligned. This is expected with loose files, but not a pak file."));
+					UE_LOG(LogTemp, Log, TEXT("FMicrosoftReadRequest request was not aligned. This is expected with loose files, but not a pak file."));
 				}
 				else if (NumMessages == 10)
 				{
 					NumMessages++;
-					UE_LOG(LogTemp, Log, TEXT("LAST NOTIFICATION THIS RUN: FWindowsReadRequest request was not aligned."));
+					UE_LOG(LogTemp, Log, TEXT("LAST NOTIFICATION THIS RUN: FMicrosoftReadRequest request was not aligned."));
 				}
 				TempMemory = (uint8*)FMemory::Malloc(AlignedBytesToRead);
 				INC_MEMORY_STAT_BY(STAT_AsyncFileMemory, AlignedBytesToRead);
@@ -123,7 +123,7 @@ public:
 
 			if (Offset + BytesToRead > FileSize || AlignedOffset < 0 || AlignedBytesToRead < 1)
 			{
-				UE_LOG(LogTemp, Fatal, TEXT("FWindowsReadRequest bogus request Offset = %lld BytesToRead = %lld AlignedOffset = %lld AlignedBytesToRead = %lld FileSize = %lld File = %s"), Offset, BytesToRead, AlignedOffset, AlignedBytesToRead, FileSize, GetFileNameForErrorMessagesAndPanicRetry());
+				UE_LOG(LogTemp, Fatal, TEXT("FMicrosoftReadRequest bogus request Offset = %lld BytesToRead = %lld AlignedOffset = %lld AlignedBytesToRead = %lld FileSize = %lld File = %s"), Offset, BytesToRead, AlignedOffset, AlignedBytesToRead, FileSize, GetFileNameForErrorMessagesAndPanicRetry());
 			}
 
 			{
@@ -139,15 +139,15 @@ public:
 				uint32 ErrorCode = GetLastError();
 				if (ErrorCode != ERROR_IO_PENDING)
 				{
-					UE_LOG(LogTemp, Fatal, TEXT("FWindowsReadRequest ReadFile Failed! Error code = %x"), ErrorCode);
+					UE_LOG(LogTemp, Fatal, TEXT("FMicrosoftReadRequest ReadFile Failed! Error code = %x"), ErrorCode);
 				}
 			}
 
-			Task = new FAsyncTask<FWindowsReadRequestWorker>(this);
+			Task = new FAsyncTask<FMicrosoftReadRequestWorker>(this);
 			Start();
 		}
 	}
-	virtual ~FWindowsReadRequest();
+	virtual ~FMicrosoftReadRequest();
 
 	bool CheckForPrecache();
 	const TCHAR* GetFileNameForErrorMessagesAndPanicRetry();
@@ -167,14 +167,14 @@ public:
 		bool bFailed = false;
 		FString FailedMessage;
 
-		extern bool GTriggerFailedWindowsRead;
+		extern bool GTriggerFailedMicrosoftRead;
 
-		if (GTriggerFailedWindowsRead || !GetOverlappedResult(FileHandle, &OverlappedIO, (LPDWORD)&BytesRead, TRUE))
+		if (GTriggerFailedMicrosoftRead || !GetOverlappedResult(FileHandle, &OverlappedIO, (LPDWORD)&BytesRead, TRUE))
 		{
 			TRACE_PLATFORMFILE_END_READ(&OverlappedIO, 0);
-			GTriggerFailedWindowsRead = false;
+			GTriggerFailedMicrosoftRead = false;
 			uint32 ErrorCode = GetLastError();
-			FailedMessage = FString::Printf(TEXT("FWindowsReadRequest GetOverlappedResult Code = %x Offset = %lld Size = %lld FileSize = %lld File = %s"), ErrorCode, AlignedOffset, AlignedBytesToRead, FileSize, GetFileNameForErrorMessagesAndPanicRetry());
+			FailedMessage = FString::Printf(TEXT("FMicrosoftReadRequest GetOverlappedResult Code = %x Offset = %lld Size = %lld FileSize = %lld File = %s"), ErrorCode, AlignedOffset, AlignedBytesToRead, FileSize, GetFileNameForErrorMessagesAndPanicRetry());
 			bFailed = true;
 		}
 		else
@@ -184,7 +184,7 @@ public:
 		if (!bFailed && int64(BytesRead) < BytesToRead + (Offset - AlignedOffset))
 		{
 			uint32 ErrorCode = GetLastError();
-			FailedMessage = FString::Printf(TEXT("FWindowsReadRequest Short Read Code = %x BytesRead = %lld Offset = %lld AlignedOffset = %lld BytesToRead = %lld Size = %lld File = %s"), ErrorCode, int64(BytesRead), Offset, AlignedOffset, BytesToRead, FileSize, GetFileNameForErrorMessagesAndPanicRetry());
+			FailedMessage = FString::Printf(TEXT("FMicrosoftReadRequest Short Read Code = %x BytesRead = %lld Offset = %lld AlignedOffset = %lld BytesToRead = %lld Size = %lld File = %s"), ErrorCode, int64(BytesRead), Offset, AlignedOffset, BytesToRead, FileSize, GetFileNameForErrorMessagesAndPanicRetry());
 			bFailed = true;
 		}
 
@@ -327,15 +327,15 @@ public:
 
 };
 
-void FWindowsReadRequestWorker::DoWork()
+void FMicrosoftReadRequestWorker::DoWork()
 {
 	ReadRequest.PerformRequest();
 }
 
-class FWindowsSizeRequest : public IAsyncReadRequest
+class FMicrosoftSizeRequest : public IAsyncReadRequest
 {
 public:
-	FWindowsSizeRequest(FAsyncFileCallBack* CompleteCallback, int64 InFileSize)
+	FMicrosoftSizeRequest(FAsyncFileCallBack* CompleteCallback, int64 InFileSize)
 		: IAsyncReadRequest(CompleteCallback, true, nullptr)
 	{
 		Size = InFileSize;
@@ -354,10 +354,10 @@ public:
 	}
 };
 
-class FWindowsFailedRequest : public IAsyncReadRequest
+class FMicrosoftFailedRequest : public IAsyncReadRequest
 {
 public:
-	FWindowsFailedRequest(FAsyncFileCallBack* CompleteCallback)
+	FMicrosoftFailedRequest(FAsyncFileCallBack* CompleteCallback)
 		: IAsyncReadRequest(CompleteCallback, false, nullptr)
 	{
 		SetComplete();
@@ -376,20 +376,20 @@ public:
 };
 
 
-class FWindowsAsyncReadFileHandle final : public IAsyncReadFileHandle
+class FMicrosoftAsyncReadFileHandle final : public IAsyncReadFileHandle
 {
 public:
 	HANDLE FileHandle;
 	int64 FileSize;
 	FString FileNameForErrorMessagesAndPanicRetry;
 private:
-	TArray<FWindowsReadRequest*> LiveRequests; // linear searches could be improved
+	TArray<FMicrosoftReadRequest*> LiveRequests; // linear searches could be improved
 
 	FCriticalSection LiveRequestsCritical;
 	FCriticalSection HandleCacheCritical;
 public:
 
-	FWindowsAsyncReadFileHandle(HANDLE InFileHandle, const TCHAR* InFileNameForErrorMessagesAndPanicRetry)
+	FMicrosoftAsyncReadFileHandle(HANDLE InFileHandle, const TCHAR* InFileNameForErrorMessagesAndPanicRetry)
 		: FileHandle(InFileHandle)
 		, FileSize(-1)
 		, FileNameForErrorMessagesAndPanicRetry(InFileNameForErrorMessagesAndPanicRetry)
@@ -401,7 +401,7 @@ public:
 			FileSize = LI.QuadPart;
 		}
 	}
-	~FWindowsAsyncReadFileHandle()
+	~FMicrosoftAsyncReadFileHandle()
 	{
 #if DO_CHECK
 		FScopeLock Lock(&LiveRequestsCritical);
@@ -422,7 +422,7 @@ public:
 		(void)CloseResult;
 #endif
 	}
-	void RemoveRequest(FWindowsReadRequest* Req)
+	void RemoveRequest(FMicrosoftReadRequest* Req)
 	{
 		FScopeLock Lock(&LiveRequestsCritical);
 		verify(LiveRequests.Remove(Req) == 1);
@@ -431,7 +431,7 @@ public:
 	{
 		FScopeLock Lock(&LiveRequestsCritical);
 		uint8* Result = nullptr;
-		for (FWindowsReadRequest* Req : LiveRequests)
+		for (FMicrosoftReadRequest* Req : LiveRequests)
 		{
 			Result = Req->GetContainedSubblock(UserSuppliedMemory, InOffset, InBytesToRead);
 			if (Result)
@@ -443,13 +443,13 @@ public:
 	}
 	virtual IAsyncReadRequest* SizeRequest(FAsyncFileCallBack* CompleteCallback = nullptr) override
 	{
-		return new FWindowsSizeRequest(CompleteCallback, FileSize);
+		return new FMicrosoftSizeRequest(CompleteCallback, FileSize);
 	}
 	virtual IAsyncReadRequest* ReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags = AIOP_Normal, FAsyncFileCallBack* CompleteCallback = nullptr, uint8* UserSuppliedMemory = nullptr) override
 	{
 		if (FileHandle != INVALID_HANDLE_VALUE)
 		{
-			FWindowsReadRequest* Result = new FWindowsReadRequest(this, CompleteCallback, UserSuppliedMemory, Offset, BytesToRead, FileSize, FileHandle, PriorityAndFlags);
+			FMicrosoftReadRequest* Result = new FMicrosoftReadRequest(this, CompleteCallback, UserSuppliedMemory, Offset, BytesToRead, FileSize, FileHandle, PriorityAndFlags);
 			if (PriorityAndFlags & AIOP_FLAG_PRECACHE) // only precache requests are tracked for possible reuse
 			{
 				FScopeLock Lock(&LiveRequestsCritical);
@@ -457,11 +457,11 @@ public:
 			}
 			return Result;
 		}
-		return new FWindowsFailedRequest(CompleteCallback);
+		return new FMicrosoftFailedRequest(CompleteCallback);
 	}
 };
 
-FWindowsReadRequest::~FWindowsReadRequest()
+FMicrosoftReadRequest::~FMicrosoftReadRequest()
 {
 	if (Task)
 	{
@@ -496,7 +496,7 @@ FWindowsReadRequest::~FWindowsReadRequest()
 	Owner = nullptr;
 }
 
-bool FWindowsReadRequest::CheckForPrecache()
+bool FMicrosoftReadRequest::CheckForPrecache()
 {
 	if ((PriorityAndFlags & AIOP_FLAG_PRECACHE) == 0)  // only non-precache requests check for existing blocks to copy from 
 	{
@@ -512,7 +512,7 @@ bool FWindowsReadRequest::CheckForPrecache()
 	return false;
 }
 
-const TCHAR* FWindowsReadRequest::GetFileNameForErrorMessagesAndPanicRetry()
+const TCHAR* FMicrosoftReadRequest::GetFileNameForErrorMessagesAndPanicRetry()
 {
 	return *Owner->FileNameForErrorMessagesAndPanicRetry;
 }
