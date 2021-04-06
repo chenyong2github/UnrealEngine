@@ -32,7 +32,7 @@ void FGeneralProjectSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 	FString ProjectThumbnail_AutomaticImagePath = FPaths::ProjectSavedDir() / TEXT("AutoScreenshot.png");
 	if (!FPaths::FileExists(ProjectThumbnail_AutomaticImagePath))
 	{
-		ProjectThumbnail_AutomaticImagePath = FPaths::EngineContentDir() / TEXT("Editor") / TEXT("Slate") / TEXT("GameProjectDialog") / TEXT("default_game_thumbnail_192x.png");
+		ProjectThumbnail_AutomaticImagePath = FPaths::EngineContentDir() / TEXT("Editor") / TEXT("Slate") / TEXT("GameProjectDialog") / TEXT("default_game_thumbnail.png");
 	}
 
 	ImageCategory.AddCustomRow(ProjectThumbnailDesc)
