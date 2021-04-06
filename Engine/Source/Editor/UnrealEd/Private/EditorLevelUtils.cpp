@@ -1298,4 +1298,13 @@ void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, b
 	ForEachWorlds(InWorld, [&OutWorlds](UWorld* World) { OutWorlds.AddUnique(World); return true; }, bIncludeInWorld, bOnlyEditorVisible);
 }
 
+const TArray<ULevel*> UEditorLevelUtils::GetLevels(UWorld* World)
+{
+	if (!World)
+	{
+		return TArray<ULevel*>();
+	}
+	return World->GetLevels();
+}
+
 #undef LOCTEXT_NAMESPACE
