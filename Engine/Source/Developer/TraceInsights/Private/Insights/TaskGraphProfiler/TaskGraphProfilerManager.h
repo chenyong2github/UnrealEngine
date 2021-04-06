@@ -10,6 +10,17 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/IUnrealInsightsModule.h"
 
+namespace Insights
+{
+
+class STaskTableTreeView;
+
+struct FTaskGraphProfilerTabs
+{
+	// Tab identifiers
+	static const FName TaskTableTreeViewTabID;
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * This class manages the Task Graph Profiler state and settings.
@@ -44,6 +55,9 @@ public:
 	virtual void UnregisterMajorTabs() override;
 	virtual void OnWindowClosedEvent() override {}
 
+	TSharedRef<SDockTab> SpawnTab_TaskTableTreeView(const FSpawnTabArgs& Args);
+	void OnTaskTableTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
 	//////////////////////////////////////////////////
 	bool GetIsAvailable() { return bIsAvailable; }
 
@@ -52,6 +66,8 @@ public:
 private:
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
+
+	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
 
 private:
 	bool bIsInitialized;
@@ -66,4 +82,11 @@ private:
 
 	/** A shared pointer to the global instance of the Task Graph Profiler manager. */
 	static TSharedPtr<FTaskGraphProfilerManager> Instance;
+
+	TWeakPtr<FTabManager> TimingTabManager;
+
+	TSharedPtr<Insights::STaskTableTreeView> TaskTableTreeView;
 };
+
+} // namespace Insights
+

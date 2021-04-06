@@ -7,9 +7,22 @@
 #include "TraceServices/Model/TasksProfiler.h"
 #include "Async/TaskGraphInterfaces.h"
 
+#include "Insights/InsightsStyle.h"
+#include "Insights/TaskGraphProfiler/ViewModels/TaskTable.h"
+#include "Insights/TaskGraphProfiler/Widgets/STaskTableTreeView.h"
+#include "Insights/TimingProfilerManager.h"
+#include "Insights/Widgets/STimingProfilerWindow.h"
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "TaskGraphProfilerManager"
+
+namespace Insights
+{
+
+const FName FTaskGraphProfilerTabs::TaskTableTreeViewTabID(TEXT("TaskTableTreeView"));
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TSharedPtr<FTaskGraphProfilerManager> FTaskGraphProfilerManager::Instance = nullptr;
 
@@ -57,6 +70,12 @@ void FTaskGraphProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FTaskGraphProfilerManager::Tick);
 	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
+
+	FOnRegisterMajorTabExtensions* TimingProfilerLayoutExtension = InsightsModule.FindMajorTabLayoutExtension(FInsightsManagerTabs::TimingProfilerTabId);
+	if (TimingProfilerLayoutExtension)
+	{
+		TimingProfilerLayoutExtension->AddRaw(this, &FTaskGraphProfilerManager::RegisterTimingProfilerLayoutExtensions);
+	}
 
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &FTaskGraphProfilerManager::OnSessionChanged);
 	OnSessionChanged();
@@ -114,8 +133,10 @@ bool FTaskGraphProfilerManager::Tick(float DeltaTime)
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 			const TraceServices::ITasksProvider* TasksProvider = TraceServices::ReadTasksProvider(*Session.Get());
-			if (TasksProvider && TasksProvider->GetNumTasks() > 0)
+			TSharedPtr<FTabManager> TabManagerShared = TimingTabManager.Pin();
+			if (TasksProvider && TasksProvider->GetNumTasks() > 0 && TabManagerShared.IsValid())
 			{
+				TabManagerShared->TryInvokeTab(FTaskGraphProfilerTabs::TaskTableTreeViewTabID);
 				bIsAvailable = true;
 			}
 
@@ -151,5 +172,51 @@ void FTaskGraphProfilerManager::OnSessionChanged()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskGraphProfilerManager::RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender)
+{
+	TimingTabManager = InOutExtender.GetTabManager();
+
+	FInsightsMinorTabConfig& MinorTabConfig = InOutExtender.AddMinorTabConfig();
+	MinorTabConfig.TabId = FTaskGraphProfilerTabs::TaskTableTreeViewTabID;
+	MinorTabConfig.TabLabel = LOCTEXT("TaskTableTreeViewTabTitle", "Tasks");
+	MinorTabConfig.TabTooltip = LOCTEXT("TaskTableTreeViewTabTitleTooltip", "Opens the Task Table Tree View tab, that allows Task Graph profilling.");
+	MinorTabConfig.TabIcon = FSlateIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimersView.Icon.Small"));
+	MinorTabConfig.OnSpawnTab = FOnSpawnTab::CreateRaw(this, &FTaskGraphProfilerManager::SpawnTab_TaskTableTreeView);
+
+	InOutExtender.GetLayoutExtender().ExtendLayout(FTimingProfilerTabs::StatsCountersID
+		, ELayoutExtensionPosition::After
+		, FTabManager::FTab(FTaskGraphProfilerTabs::TaskTableTreeViewTabID, ETabState::ClosedTab));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> FTaskGraphProfilerManager::SpawnTab_TaskTableTreeView(const FSpawnTabArgs& Args)
+{
+	TSharedRef<FTaskTable> TaskTable = MakeShared<FTaskTable>();
+	TaskTable->Reset();
+
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
+		[
+			SAssignNew(TaskTableTreeView, STaskTableTreeView, TaskTable)
+		];
+
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FTaskGraphProfilerManager::OnTaskTableTreeViewTabClosed));
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskGraphProfilerManager::OnTaskTableTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	TaskTableTreeView.Reset();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace Insights
 
 #undef LOCTEXT_NAMESPACE

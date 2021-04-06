@@ -436,4 +436,19 @@ namespace TraceServices
 	{
 		return Tasks.Num();
 	}
+
+	void FTasksProvider::EnumerateTasks(double StartTime, double EndTime, TaskCallback Callback) const
+	{
+		// A naive implementation for now
+		for (const FTaskInfo& Task : Tasks)
+		{
+			if (Task.CreatedTimestamp <= EndTime && Task.FinishedTimestamp >= StartTime)
+			{
+				if (Callback(Task) == ETaskEnumerationResult::Stop)
+				{
+					break;
+				}
+			}
+		}
+	}
 }

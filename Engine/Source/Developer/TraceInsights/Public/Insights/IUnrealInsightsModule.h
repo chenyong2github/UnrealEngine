@@ -257,6 +257,8 @@ public:
 	/** Finds a major tab config for the specified id. */
 	virtual const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const = 0;
 
+	virtual FOnRegisterMajorTabExtensions* FindMajorTabLayoutExtension(const FName& InMajorTabId) = 0;
+
 	/** Sets the ini path for saving persistent layout data. */
 	virtual void SetUnrealInsightsLayoutIni(const FString& InIniPath) = 0;
 

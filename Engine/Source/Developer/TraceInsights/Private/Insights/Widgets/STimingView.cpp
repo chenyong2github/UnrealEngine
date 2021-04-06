@@ -4169,14 +4169,14 @@ void STimingView::ContextMenu_ShowTaskDependecies_Execute()
 
 bool STimingView::ContextMenu_ShowTaskDependecies_CanExecute()
 {
-	return FTaskGraphProfilerManager::Get()->GetIsAvailable();
+	return Insights::FTaskGraphProfilerManager::Get()->GetIsAvailable();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool STimingView::ContextMenu_ShowTaskDependecies_IsChecked()
 {
-	return FTaskGraphProfilerManager::Get()->GetIsAvailable() && bShowEventRelations;
+	return Insights::FTaskGraphProfilerManager::Get()->GetIsAvailable() && bShowEventRelations;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

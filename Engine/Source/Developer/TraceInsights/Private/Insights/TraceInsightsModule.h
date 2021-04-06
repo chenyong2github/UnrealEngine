@@ -63,7 +63,7 @@ public:
 
 	virtual const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const override;
 
-	const FOnRegisterMajorTabExtensions* FindMajorTabLayoutExtension(const FName& InMajorTabId) const;
+	FOnRegisterMajorTabExtensions* FindMajorTabLayoutExtension(const FName& InMajorTabId);
 
 	/** Retrieve ini path for saving persistent layout data. */
 	static const FString& GetUnrealInsightsLayoutIni();

@@ -72,10 +72,18 @@ namespace TraceServices
 		double FinishedTimestamp = FTaskInfo::InvalidTimestamp;
 	};
 
+	enum class ETaskEnumerationResult
+	{
+		Continue,
+		Stop,
+	};
+
 	// query interface to tasks info
 	class ITasksProvider : public IProvider
 	{
 	public:
+		typedef TFunctionRef<ETaskEnumerationResult(const FTaskInfo& Task)> TaskCallback;
+
 		virtual ~ITasksProvider() = default;
 
 		// returns a task for given thread and timestamp, if any, otherwise `nullptr`
@@ -88,6 +96,9 @@ namespace TraceServices
 
 		// returns the number of tasks stored in the provider
 		virtual int64 GetNumTasks() const = 0;
+
+		// Calls the callback for each task stored in the provider with CreatedTimestamp <= EndTime and FinishedTimestamp >= StartTime
+		virtual void EnumerateTasks(double StartTime, double EndTime, TaskCallback Callback) const = 0;
 	};
 
 	TRACESERVICES_API const ITasksProvider* ReadTasksProvider(const IAnalysisSession& Session);

@@ -95,6 +95,8 @@ void FTimingProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule)
 	FTimingProfilerCommands::Register();
 	BindCommands();
 
+	InsightsModule.OnRegisterMajorTabExtension(FInsightsManagerTabs::TimingProfilerTabId);
+
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &FTimingProfilerManager::OnSessionChanged);
 	OnSessionChanged();
 }

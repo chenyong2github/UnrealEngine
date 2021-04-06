@@ -53,7 +53,7 @@ void FTraceInsightsModule::StartupModule()
 	RegisterComponent(FLoadingProfilerManager::CreateInstance());
 	RegisterComponent(FNetworkingProfilerManager::CreateInstance());
 	RegisterComponent(FMemoryProfilerManager::CreateInstance());
-	RegisterComponent(FTaskGraphProfilerManager::CreateInstance());
+	RegisterComponent(Insights::FTaskGraphProfilerManager::CreateInstance());
 
 	UnrealInsightsLayoutIni = FConfigCacheIni::GetDestIniFilename(TEXT("UnrealInsightsLayout"), nullptr, *FPaths::GeneratedConfigDir());
 }
@@ -365,7 +365,7 @@ const FInsightsMajorTabConfig& FTraceInsightsModule::FindMajorTabConfig(const FN
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FOnRegisterMajorTabExtensions* FTraceInsightsModule::FindMajorTabLayoutExtension(const FName& InMajorTabId) const
+FOnRegisterMajorTabExtensions* FTraceInsightsModule::FindMajorTabLayoutExtension(const FName& InMajorTabId)
 {
 	return MajorTabExtensionDelegates.Find(InMajorTabId);
 }
