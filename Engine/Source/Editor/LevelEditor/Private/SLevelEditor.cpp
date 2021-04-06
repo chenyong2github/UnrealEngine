@@ -1478,7 +1478,7 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(.4)
-					->SetHideTabWell(true)
+					->SetHideTabWell(false)
 					->AddTab("ContentBrowserTab1", ETabState::ClosedTab)
 					->AddTab(LevelEditorTabIds::OutputLog, ETabState::ClosedTab)
 				)
