@@ -893,8 +893,13 @@ public:
 	double GetElapsedTime() const { return ElapsedTime; }
 	void ResetElapsedTime() { ElapsedTime = 0.0; }
 
+	bool IsInTick() const { return bInTick; }
+
 private:
 	double						ElapsedTime;
+
+	/** Whether or not the NetDriver is ticking */
+	bool bInTick;
 
 public:
 	/** Last realtime a tick dispatch occurred. Used currently to try and diagnose timeout issues */

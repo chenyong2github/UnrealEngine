@@ -12362,6 +12362,16 @@ EBrowseReturnVal::Type UEngine::Browse( FWorldContext& WorldContext, FURL URL, F
 	Error = TEXT("");
 	WorldContext.TravelURL = TEXT("");
 
+	if (WorldContext.World() && WorldContext.World()->GetNetDriver())
+	{
+		const TCHAR* InTickErrorString = TEXT("Attempting to call UEngine::Browse and destroy the net driver while the net driver is ticking. Instead try using UWorld::ServerTravel or APlayerController::ClientTravel.");
+		if (!ensureMsgf(!WorldContext.World()->GetNetDriver()->IsInTick(), TEXT("%s"), InTickErrorString))
+		{
+			Error = InTickErrorString;
+			return EBrowseReturnVal::Failure;
+		}
+	}
+
 	// Convert .unreal link files.
 	const TCHAR* LinkStr = TEXT(".unreal");//!!
 	if( FCString::Strstr(*URL.Map,LinkStr)-*URL.Map==FCString::Strlen(*URL.Map)-FCString::Strlen(LinkStr) )
