@@ -24,9 +24,28 @@ public:
 	FSlateAttributeMetaData& operator=(const FSlateAttributeMetaData&) = delete;
 
 public:
+	/** @return the instance associated to the SWidget (if it exists). */
 	static FSlateAttributeMetaData* FindMetaData(const SWidget& OwningWidget);
+	/**
+	 * Update all the attributes.
+	 * Invalidate the widget if it has finished its construction phase.
+	 */
 	static void UpdateAttributes(SWidget& OwningWidget);
+	/**
+	 * Update attributes that are mark to be updated when the widget is collapsed.
+	 * Invalidate the widget if it has finished its construction phase.
+	 */
 	static void UpdateCollapsedAttributes(SWidget& OwningWidget);
+	/**
+	 * Update attributes that are mark to be updated when the widget is collapsed.
+	 * @param bAllowInvalidation if we should allow the widget to be invalidated.
+	 */
+	static void UpdateAttributes(SWidget& OwningWidget, bool bAllowInvalidation);
+	/**
+	 * Update attributes that are mark to be updated when the widget is collapsed.
+	 * @param bAllowInvalidation if we should allow the widget to be invalidated.
+	 */
+	static void UpdateCollapsedAttributes(SWidget& OwningWidget, bool bAllowInvalidation);
 
 public:
 	bool IsBound(const FSlateAttributeBase& Attribute) const
@@ -34,7 +53,9 @@ public:
 		return IndexOfAttribute(Attribute) != INDEX_NONE;
 	}
 
-	int32 RegisteredNum() const { return Attributes.Num(); }
+	int32 RegisteredAttributeCount() const { return Attributes.Num(); }
+
+	int32 RegisteredCollaspedAttributeCount() const { return CollaspedAttributeCounter; }
 
 private:
 	using ESlateAttributeType = SlateAttributePrivate::ESlateAttributeType;
@@ -51,7 +72,7 @@ private:
 private:
 	void RegisterAttributeImpl(SWidget& OwningWidget, FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Getter);
 	bool UnregisterAttributeImpl(const FSlateAttributeBase& Attribute);
-	void UpdateAttributes(SWidget& OwningWidget, bool bOnlyCollapsed);
+	void UpdateAttributes(SWidget& OwningWidget, bool bOnlyCollapsed, bool bAllowInvalidation);
 
 private:
 	int32 IndexOfAttribute(const FSlateAttributeBase& Attribute) const

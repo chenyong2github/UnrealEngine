@@ -701,7 +701,10 @@ public:
 	void SetCanTick(bool bInCanTick) { bInCanTick ? AddUpdateFlags(EWidgetUpdateFlags::NeedsTick) : RemoveUpdateFlags(EWidgetUpdateFlags::NeedsTick); }
 	bool GetCanTick() const { return HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick); }
 
+	/** @return true if the widgets has any bound slate attribute. */
 	bool HasRegisteredSlateAttribute() const { return bHasRegisteredSlateAttribute; }
+	/** @return true if the widgets will update its registered slate attributes automatically or they need to be updated manually. */
+	bool IsAttributesUpdatesEnabled() const { return bEnabledAttributesUpdate; }
 
 	const FSlateWidgetPersistentState& GetPersistentState() const { return PersistentState; }
 	const FWidgetProxyHandle GetProxyHandle() const { return FastPathProxyHandle; }
@@ -1095,7 +1098,14 @@ public:
 		bCachedVolatile = bForceVolatile || ComputeVolatility();
 	}
 
+	UE_DEPRECATED(5.0, "InvalidatePrepass is deprecated. Use the Invalidate(EInvalidateWidgetReason::Prepass) or use MarkPrepassAsDirty()")
 	void InvalidatePrepass();
+
+	/**
+	 * In fast path, if the widget is mark, do a full Prepass on its next update to calculate it's desired size.
+	 * This does not invalidate the widget.
+	 */
+	void MarkPrepassAsDirty() { bNeedsPrepass = true; }
 
 protected:
 
@@ -1487,6 +1497,9 @@ protected:
 	/** Construct a SWidget based on initial parameters. */
 	void SWidgetConstruct(const FSlateBaseNamedArgs& Args);
 
+	/** Is the widget construction is completed (did we called completed the Construct() function) */
+	bool IsConstructionCompleted() const { return bIsDeclarativeSyntaxConstructionCompleted; }
+
 	/** 
 	 * Find the geometry of a descendant widget. This method assumes that WidgetsToFind are a descendants of this widget.
 	 * Note that not all widgets are guaranteed to be found; OutResult will contain null entries for missing widgets.
@@ -1701,8 +1714,11 @@ private:
 	/** Is there at least one SlateAttribute currently registered. */
 	uint8 bHasRegisteredSlateAttribute : 1;
 
-	/** Prevents invalidation while we are in the construction phase. */
-	uint8 bPauseAttributeInvalidation : 1;
+	/** Are bound Slate Attributes will be updated once per frame. */
+	uint8 bEnabledAttributesUpdate : 1;
+
+	/** The SNew or SAssignedNew construction is completed. */
+	uint8 bIsDeclarativeSyntaxConstructionCompleted : 1;
 
 protected:
 	uint8 bHasCustomPrepass : 1;

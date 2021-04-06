@@ -103,7 +103,7 @@ bool FWidgetProxy::ProcessPostInvalidation(FSlateInvalidationWidgetPostHeap& Upd
 		FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
 		if (SWidget* ParentWidgetPtr = ParentProxy.GetWidget())
 		{
-			ParentWidgetPtr->InvalidatePrepass();
+			ParentWidgetPtr->MarkPrepassAsDirty();
 			ParentProxy.CurrentInvalidateReason |= EInvalidateWidgetReason::Layout;
 #if WITH_SLATE_DEBUGGING
 			FSlateDebugging::BroadcastWidgetInvalidate(ParentWidgetPtr, WidgetPtr, EInvalidateWidgetReason::Layout);
@@ -231,7 +231,7 @@ int32 FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, FSlateWindowElementList
 		{
 			if (WidgetPtr->ShouldInvalidatePrepassDueToVolatility())
 			{
-				WidgetPtr->InvalidatePrepass();
+				WidgetPtr->MarkPrepassAsDirty();
 			}
 			WidgetPtr->SlatePrepass(WidgetPtr->GetPrepassLayoutScaleMultiplier());
 		}

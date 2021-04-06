@@ -107,8 +107,7 @@ void SRichTextBlock::OnArrangeChildren(const FGeometry& AllottedGeometry, FArran
 void SRichTextBlock::SetText( const TAttribute<FText>& InTextAttr )
 {
 	BoundText = InTextAttr;
-	Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	InvalidatePrepass();
+	Invalidate(EInvalidateWidget::LayoutAndVolatility|EInvalidateWidgetReason::Prepass);
 }
 
 void SRichTextBlock::SetHighlightText( const TAttribute<FText>& InHighlightText )
@@ -136,8 +135,7 @@ void SRichTextBlock::SetWrapTextAt(const TAttribute<float>& InWrapTextAt)
 
 void SRichTextBlock::SetAutoWrapText(const TAttribute<bool>& InAutoWrapText)
 {
-	SetAttribute(AutoWrapText, InAutoWrapText, EInvalidateWidgetReason::Layout);
-	InvalidatePrepass();
+	SetAttribute(AutoWrapText, InAutoWrapText, EInvalidateWidgetReason::Prepass);
 }
 
 void SRichTextBlock::SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& InWrappingPolicy)
@@ -188,8 +186,7 @@ void SRichTextBlock::SetDecoratorStyleSet(const ISlateStyle* NewDecoratorStyleSe
 void SRichTextBlock::SetTextBlockScale(const float NewTextBlockScale)
 {
 	TextBlockScale = NewTextBlockScale;
-	Invalidate(EInvalidateWidget::Layout);
-	InvalidatePrepass();
+	Invalidate(EInvalidateWidget::Prepass);
 }
 
 void SRichTextBlock::Refresh()

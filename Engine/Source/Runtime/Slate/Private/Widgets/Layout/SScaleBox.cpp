@@ -89,8 +89,7 @@ bool SScaleBox::CustomPrepass(float LayoutScaleMultiplier)
 
 	if (bNeedsNormalizingPrepassOrLocalGeometry)
 	{
-		ChildSlotWidget.Invalidate(EInvalidateWidgetReason::Layout);
-		ChildSlotWidget.InvalidatePrepass();
+		ChildSlotWidget.Invalidate(EInvalidateWidgetReason::Prepass);
 	}
 
 	// Extract the incoming scale out of the layout scale if 
@@ -268,8 +267,7 @@ int32 SScaleBox::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 
 		if (DoesScaleRequireNormalizingPrepassOrLocalGeometry())
 		{
-			const_cast<SScaleBox*>(this)->Invalidate(EInvalidateWidgetReason::Layout);
-			const_cast<SScaleBox*>(this)->InvalidatePrepass();
+			const_cast<SScaleBox*>(this)->Invalidate(EInvalidateWidgetReason::Prepass);
 		}
 	}
 
@@ -337,8 +335,7 @@ void SScaleBox::SetStretchDirection(EStretchDirection::Type InStretchDirection)
 {
 	if (SetAttribute(StretchDirection, TAttribute<EStretchDirection::Type>(InStretchDirection), EInvalidateWidgetReason::Layout))
 	{
-		Invalidate(EInvalidateWidgetReason::Layout);
-		InvalidatePrepass();
+		Invalidate(EInvalidateWidgetReason::Prepass);
 	}
 }
 
@@ -354,10 +351,9 @@ void SScaleBox::SetStretch(EStretch::Type InStretch)
 
 void SScaleBox::SetUserSpecifiedScale(float InUserSpecifiedScale)
 {
-	if (SetAttribute(UserSpecifiedScale, TAttribute<float>(InUserSpecifiedScale), EInvalidateWidgetReason::Layout))
+	if (SetAttribute(UserSpecifiedScale, TAttribute<float>(InUserSpecifiedScale), EInvalidateWidgetReason::Prepass))
 	{
-		Invalidate(EInvalidateWidgetReason::Layout);
-		InvalidatePrepass();
+		Invalidate(EInvalidateWidgetReason::Prepass);
 	}
 }
 
@@ -365,7 +361,7 @@ void SScaleBox::SetIgnoreInheritedScale(bool InIgnoreInheritedScale)
 {
 	if (SetAttribute(IgnoreInheritedScale, TAttribute<bool>(InIgnoreInheritedScale), EInvalidateWidgetReason::Layout))
 	{
-		InvalidatePrepass();
+		Invalidate(EInvalidateWidgetReason::Prepass);
 	}
 }
 
@@ -459,8 +455,7 @@ void SScaleBox::RefreshSafeZoneScale()
 
 	SafeZoneScale = 1.f - ScaleDownBy;
 
-	Invalidate(EInvalidateWidgetReason::Layout);
-	InvalidatePrepass();
+	Invalidate(EInvalidateWidgetReason::Prepass);
 }
 
 #if WITH_EDITOR

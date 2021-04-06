@@ -6,7 +6,7 @@
 SLATE_IMPLEMENT_WIDGET(SDPIScaler)
 void SDPIScaler::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
 {
-	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "DPIScale", DPIScaleAttribute, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "DPIScale", DPIScaleAttribute, EInvalidateWidgetReason::Prepass);
 }
 
 SDPIScaler::SDPIScaler()
@@ -70,10 +70,7 @@ void SDPIScaler::SetContent(TSharedRef<SWidget> InContent)
 
 void SDPIScaler::SetDPIScale(TAttribute<float> InDPIScale)
 {
-	if (DPIScaleAttribute.Assign(*this, MoveTemp(InDPIScale), 1.f))
-	{
-		InvalidatePrepass();
-	}
+	DPIScaleAttribute.Assign(*this, MoveTemp(InDPIScale), 1.f);
 }
 
 float SDPIScaler::GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const

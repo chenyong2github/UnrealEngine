@@ -238,8 +238,7 @@ void FSlateInvalidationRoot::InvalidateRootChildOrder(const SWidget* Investigato
 
 	// Invalidate all proxy handles
 	FastWidgetPathList->Reset();
-	InvalidationRootWidget->InvalidatePrepass();
-	InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Layout);
+	InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Prepass);
 	bNeedsSlowPath = true;
 
 #if WITH_SLATE_DEBUGGING
@@ -250,8 +249,7 @@ void FSlateInvalidationRoot::InvalidateRootChildOrder(const SWidget* Investigato
 
 void FSlateInvalidationRoot::InvalidateRootLayout(const SWidget* Investigator)
 {
-	InvalidationRootWidget->InvalidatePrepass();
-	InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Layout);
+	InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Prepass);
 	bNeedsSlowPath = true;
 
 #if WITH_SLATE_DEBUGGING
@@ -276,7 +274,7 @@ void FSlateInvalidationRoot::InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWi
 				bChildOrderInvalidated = true;
 				if (!InvalidationRootWidget->Advanced_IsWindow())
 				{
-					InvalidationRootWidget->InvalidatePrepass();
+					InvalidationRootWidget->MarkPrepassAsDirty();
 				}
 
 				if (!GSlateEnableGlobalInvalidation && !InvalidationRootWidget->Advanced_IsWindow())
@@ -521,8 +519,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 
 		// Add the root to the update list (to prepass and paint it)
 		check(RootWidget->GetProxyHandle().IsValid(&RootWidget.Get()));
-		RootWidget->InvalidatePrepass();
-		InvalidateWidget(RootWidget->FastPathProxyHandle.GetProxy(), EInvalidateWidgetReason::Layout);
+		RootWidget->Invalidate(EInvalidateWidgetReason::Prepass);
 	}
 	else
 	{
@@ -660,7 +657,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 #endif
 
 							FastWidgetPathList->ProcessAttributeRegistrationInvalidation(InvalidationWidget);
-							if (WidgetPtr->HasRegisteredSlateAttribute())
+							if (WidgetPtr->HasRegisteredSlateAttribute() && WidgetPtr->IsAttributesUpdatesEnabled())
 							{
 								// This should be the next Attribute to update
 								AttributeItt.Seek(InvalidationWidget.Index);
@@ -962,8 +959,6 @@ void FSlateInvalidationRoot::HandleInvalidateAllWidgets(bool bClearResourcesImme
 void FSlateInvalidationRoot::Advanced_ResetInvalidation(bool bClearResourcesImmediately)
 {
 	InvalidateRootChildOrder();
-
-	InvalidationRootWidget->InvalidatePrepass();
 
 	if (bClearResourcesImmediately)
 	{

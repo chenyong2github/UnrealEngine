@@ -229,7 +229,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			OrderCounter = 0;
 			bWasUpdate = false;
 			ReturnValue = 4;
-			WidgetParent->InvalidatePrepass();
+			WidgetParent->MarkPrepassAsDirty();
 			WidgetParent->SlatePrepass(1.f);
 			AddErrorIfFalse(WidgetParent->IntAttributeA.Get() == 2, TEXT("A It is not the expected value."));
 			AddErrorIfFalse(WidgetParent->IntAttributeB.Get() == 1, TEXT("B It is not the expected value."));
@@ -244,7 +244,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			WidgetParent->IntAttributeC.Assign(WidgetParent.Get(), MakeAttributeLambda(UpdateLambda));
 			AddErrorIfFalse(!bWasUpdate, TEXT("C should not have be updated."));
 			AddErrorIfFalse(WidgetParent->IntAttributeC.Get() == 4, TEXT("C It is not the expected value."));
-			WidgetParent->InvalidatePrepass();
+			WidgetParent->MarkPrepassAsDirty();
 			WidgetParent->SlatePrepass(1.f);
 			AddErrorIfFalse(bWasUpdate, TEXT("C should be updated."));
 			AddErrorIfFalse(WidgetParent->IntAttributeC.Get() == 5, TEXT("C It is not the expected value."));
@@ -254,7 +254,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			OrderCounter = 0;
 			bWasUpdate = false;
 			ReturnValue = 10;	//10 show that C didn't change
-			WidgetParent->InvalidatePrepass();
+			WidgetParent->MarkPrepassAsDirty();
 			WidgetParent->SlatePrepass(1.f);
 			AddErrorIfFalse(WidgetParent->IntAttributeA.Get() == 2, TEXT("A It is not the expected value."));
 			AddErrorIfFalse(WidgetParent->IntAttributeB.Get() == 1, TEXT("B It is not the expected value."));
@@ -271,7 +271,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			OrderCounter = 0;
 			bWasUpdate = false;
 			ReturnValue = 10;
-			WidgetParent->InvalidatePrepass();
+			WidgetParent->MarkPrepassAsDirty();
 			WidgetParent->SlatePrepass(1.f);
 			AddErrorIfFalse(WidgetParent->IntAttributeA.Get() == 2, TEXT("A It is not the expected value."));
 			AddErrorIfFalse(WidgetParent->IntAttributeB.Get() == 1, TEXT("B It is not the expected value."));
@@ -287,7 +287,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			OrderCounter = 0;
 			bWasUpdate = false;
 			ReturnValue = 10;
-			WidgetParent->InvalidatePrepass();
+			WidgetParent->MarkPrepassAsDirty();
 			WidgetParent->SlatePrepass(1.f);
 			AddErrorIfFalse(!bWasUpdate, TEXT("C should not be updated."));
 		}
@@ -364,7 +364,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			OrderCounter = 0;
 			bWasUpdate = false;
 			ReturnValue = 4;
-			WidgetChild->InvalidatePrepass();
+			WidgetChild->MarkPrepassAsDirty();
 			WidgetChild->SlatePrepass(1.f);
 			AddErrorIfFalse(WidgetChild->IntAttributeA.Get() == 2 || WidgetChild->IntAttributeA.Get() == 3, TEXT("A It is not the expected value."));
 			AddErrorIfFalse(WidgetChild->IntAttributeB.Get() == 1, TEXT("B It is not the expected value."));
@@ -381,7 +381,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			OrderCounter = 0;
 			bWasUpdate = false;
 			ReturnValue = 4;
-			WidgetChild->InvalidatePrepass();
+			WidgetChild->MarkPrepassAsDirty();
 			WidgetChild->SlatePrepass(1.f);
 			AddErrorIfFalse(WidgetChild->IntAttributeA.Get() == 2 || WidgetChild->IntAttributeA.Get() == 3, TEXT("A It is not the expected value."));
 			AddErrorIfFalse(WidgetChild->IntAttributeB.Get() == 1, TEXT("B It is not the expected value."));

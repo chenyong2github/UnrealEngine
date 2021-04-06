@@ -213,7 +213,8 @@ SWidget::SWidget()
 	, bInvisibleDueToParentOrSelfVisibility(false)
 	, bNeedsPrepass(true)
 	, bHasRegisteredSlateAttribute(false)
-	, bPauseAttributeInvalidation(true)
+	, bEnabledAttributesUpdate(true)
+	, bIsDeclarativeSyntaxConstructionCompleted(false)
 	, bHasCustomPrepass(false)
 	, bHasRelativeLayoutScale(false)
 	, bVolatilityAlwaysInvalidatesPrepass(false)
@@ -358,6 +359,7 @@ void SWidget::SWidgetConstruct(const FSlateBaseNamedArgs& Args)
 	bForceVolatile = Args._ForceVolatile;
 	Clipping = Args._Clipping;
 	FlowDirectionPreference = Args._FlowDirectionPreference;
+	bEnabledAttributesUpdate = Args._EnabledAttributesUpdate;
 	MetaData.Append(Args.MetaData);
 
 	if (Args._ToolTip.IsSet())
@@ -690,9 +692,7 @@ void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 
 void SWidget::InvalidatePrepass()
 {
-	SLATE_CROSS_THREAD_CHECK();
-
-	bNeedsPrepass = true;
+	MarkPrepassAsDirty();
 }
 
 void SWidget::InvalidateChildRemovedFromTree(SWidget& Child)
@@ -1195,7 +1195,13 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 
 	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::ChildOrder) || !PrepassLayoutScaleMultiplier.IsSet())
 	{
-		InvalidatePrepass();
+		MarkPrepassAsDirty();
+	}
+
+	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::Prepass))
+	{
+		bNeedsPrepass = true;
+		InvalidateReason |= EInvalidateWidgetReason::Layout;
 	}
 
 	if(FastPathProxyHandle.IsValid(this))
@@ -1594,7 +1600,7 @@ void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
 {
 	PrepassLayoutScaleMultiplier = InLayoutScaleMultiplier;
 
-	if (HasRegisteredSlateAttribute() && !GSlateIsOnFastProcessInvalidation)
+	if (HasRegisteredSlateAttribute() && IsAttributesUpdatesEnabled() && !GSlateIsOnFastProcessInvalidation)
 	{
 		FSlateAttributeMetaData::UpdateAttributes(*this);
 	}
@@ -1633,28 +1639,33 @@ void SWidget::Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChil
 
 		const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
 
-		if (Child->Visibility.Get() != EVisibility::Collapsed)
+		if (Child->GetVisibility() != EVisibility::Collapsed)
 		{
 			// Recur: Descend down the widget tree.
 			Child->Prepass_Internal(ChildLayoutScaleMultiplier);
 		}
 		else
 		{
-			if (HasRegisteredSlateAttribute() && !GSlateIsOnFastProcessInvalidation)
+			bool bIsCollapsed = true;
+			if (Child->HasRegisteredSlateAttribute() && Child->IsAttributesUpdatesEnabled() && !GSlateIsOnFastProcessInvalidation)
 			{
-				FSlateAttributeMetaData::UpdateCollapsedAttributes(*this);
-				if (Child->Visibility.Get() != EVisibility::Collapsed)
-				{
-					// Recur: Descend down the widget tree.
-					Child->Prepass_Internal(ChildLayoutScaleMultiplier);
-				}
+				FSlateAttributeMetaData::UpdateCollapsedAttributes(Child.Get());
+				bIsCollapsed = Child->GetVisibility() == EVisibility::Collapsed;
 			}
 
-			// If the child widget is collapsed, we need to store the new layout scale it will have when 
-			// it is finally visible and invalidate it's prepass so that it gets that when its visibility
-			// is finally invalidated.
-			Child->InvalidatePrepass();
-			Child->PrepassLayoutScaleMultiplier = ChildLayoutScaleMultiplier;
+			if (bIsCollapsed)
+			{
+				// If the child widget is collapsed, we need to store the new layout scale it will have when 
+				// it is finally visible and invalidate it's prepass so that it gets that when its visibility
+				// is finally invalidated.
+				Child->MarkPrepassAsDirty();
+				Child->PrepassLayoutScaleMultiplier = ChildLayoutScaleMultiplier;
+			}
+			else
+			{
+				// Recur: Descend down the widget tree.
+				Child->Prepass_Internal(ChildLayoutScaleMultiplier);
+			}
 		}
 	}
 }

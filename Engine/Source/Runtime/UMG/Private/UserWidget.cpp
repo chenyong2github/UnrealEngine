@@ -1409,7 +1409,7 @@ void UUserWidget::PostTickActionsAndAnimation(float InDeltaTime)
 		TSharedPtr<SWidget> CachedWidget = GetCachedWidget();
 		if (CachedWidget.IsValid())
 		{
-			CachedWidget->InvalidatePrepass();
+			CachedWidget->Invalidate(EInvalidateWidgetReason::Prepass);
 		}
 	}
 

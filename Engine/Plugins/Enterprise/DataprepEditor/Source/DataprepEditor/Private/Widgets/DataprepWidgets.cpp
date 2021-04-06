@@ -409,7 +409,7 @@ void SDataprepDetailsView::OnObjectReplaced(const TMap<UObject*, UObject*>& Repl
 void SDataprepDetailsView::ForceRefresh()
 {
 	// ueent_hotfix Hotfix for 4.24 (Remove the ui flickering)
-	InvalidatePrepass();
+	Invalidate(EInvalidateWidgetReason::Prepass);
 	bRefreshObjectToDisplay = true;
 }
 

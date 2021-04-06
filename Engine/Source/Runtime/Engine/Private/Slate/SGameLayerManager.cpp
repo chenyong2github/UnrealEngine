@@ -497,8 +497,7 @@ void SGameLayerManager::AddOrUpdatePlayerLayers(const FGeometry& AllottedGeometr
 
 	if (CachedInverseDPIScale != InverseDPIScale)
 	{
-		InvalidatePrepass();
-		Invalidate(EInvalidateWidget::Layout);
+		Invalidate(EInvalidateWidget::Prepass);
 		CachedInverseDPIScale = InverseDPIScale;
 	}
 

@@ -53,7 +53,7 @@ void FSlateAttributeMetaData::RegisterAttribute(SWidget& OwningWidget, FSlateAtt
 		NewAttributeMetaData->RegisterAttributeImpl(OwningWidget, Attribute, AttributeType, MoveTemp(Wrapper));
 		OwningWidget.bHasRegisteredSlateAttribute = true;
 		OwningWidget.MetaData.Insert(NewAttributeMetaData, 0);
-		if (!OwningWidget.bPauseAttributeInvalidation)
+		if (OwningWidget.IsConstructionCompleted() && OwningWidget.IsAttributesUpdatesEnabled())
 		{
 			OwningWidget.Invalidate(EInvalidateWidgetReason::AttributeRegistration);
 		}
@@ -136,7 +136,7 @@ bool FSlateAttributeMetaData::UnregisterAttribute(SWidget& OwningWidget, const F
 			check(bResult); // if the num is 0 then we should have remove an item.
 			OwningWidget.bHasRegisteredSlateAttribute = false;
 			OwningWidget.MetaData.RemoveAtSwap(0);
-			if (!OwningWidget.bPauseAttributeInvalidation)
+			if (OwningWidget.IsConstructionCompleted() && OwningWidget.IsAttributesUpdatesEnabled())
 			{
 				OwningWidget.Invalidate(EInvalidateWidgetReason::AttributeRegistration);
 			}
@@ -181,7 +181,7 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 	//N.B. no needs to set the bUpatedManually in this case because
 	//	1. they are in construction, so they will all be called anyway
 	//	2. they are in WidgetList, so the SlateAttribute.Set will not be called
-	if (OwningWidget.bPauseAttributeInvalidation)
+	if (!OwningWidget.IsConstructionCompleted())
 	{
 		return;
 	}
@@ -244,27 +244,39 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 
 void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget)
 {
-	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
-	{
-		AttributeMetaData->UpdateAttributes(OwningWidget, false);
-	}
+	UpdateAttributes(OwningWidget, OwningWidget.IsConstructionCompleted());
 }
 
 
 void FSlateAttributeMetaData::UpdateCollapsedAttributes(SWidget& OwningWidget)
+{
+	UpdateCollapsedAttributes(OwningWidget, OwningWidget.IsConstructionCompleted());	
+}
+
+
+void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, bool bAllowInvalidation)
+{
+	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
+	{
+		AttributeMetaData->UpdateAttributes(OwningWidget, false, bAllowInvalidation);
+	}
+}
+
+
+void FSlateAttributeMetaData::UpdateCollapsedAttributes(SWidget& OwningWidget, bool bAllowInvalidation)
 {
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
 		// Does it have any collapsed attributes
 		if (AttributeMetaData->CollaspedAttributeCounter > 0)
 		{
-			AttributeMetaData->UpdateAttributes(OwningWidget, true);
+			AttributeMetaData->UpdateAttributes(OwningWidget, true, bAllowInvalidation);
 		}
 	}
 }
 
 
-void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, bool bOnlyCollapsed)
+void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, bool bOnlyCollapsed, bool bAllowInvalidation)
 {
 	EInvalidateWidgetReason InvalidationReason = EInvalidateWidgetReason::None;
 	for (int32 Index = 0; Index < Attributes.Num(); ++Index)
@@ -306,7 +318,7 @@ void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, bool bOnly
 		ISlateAttributeGetter::FUpdateAttributeResult Result = GetterItem.Getter->UpdateAttribute(OwningWidget);
 		GetterItem.bUpdatedOnce = true;
 		GetterItem.bUpdatedThisFrame = Result.bInvalidationRequested;
-		if (Result.bInvalidationRequested && !OwningWidget.bPauseAttributeInvalidation)
+		if (Result.bInvalidationRequested && bAllowInvalidation)
 		{
 			InvalidationReason |= GetterItem.GetInvalidationReason(OwningWidget, Result.InvalidationReason);
 		}
@@ -321,7 +333,7 @@ void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, bool bOnly
 	}
 	bHasUpdatedManuallyFlagToReset = false;
 
-	if (!OwningWidget.bPauseAttributeInvalidation)
+	if (bAllowInvalidation)
 	{
 		OwningWidget.Invalidate(InvalidationReason);
 	}
@@ -341,7 +353,7 @@ void FSlateAttributeMetaData::UpdateAttribute(SWidget& OwningWidget, FSlateAttri
 			ISlateAttributeGetter::FUpdateAttributeResult Result = GetterItem.Getter->UpdateAttribute(OwningWidget);
 			if (Result.bInvalidationRequested)
 			{
-				if (!OwningWidget.bPauseAttributeInvalidation)
+				if (OwningWidget.IsConstructionCompleted())
 				{
 					OwningWidget.Invalidate(GetterItem.GetInvalidationReason(OwningWidget, Result.InvalidationReason));
 				}

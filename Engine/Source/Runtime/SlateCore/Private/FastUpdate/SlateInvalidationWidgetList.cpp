@@ -268,7 +268,7 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Rec
 	bool bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
 
 	bool bUpdateSlateAttribute = false;
-	if (Widget->HasRegisteredSlateAttribute())
+	if (Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled())
 	{
 
 		// The list is already sorted at this point. Add to the end.
@@ -276,10 +276,9 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Rec
 
 		// Update attributes now because the visibility flag may change
 		{
-			Widget->bPauseAttributeInvalidation = true;
 			if (bParentAndSelfVisible)
 			{
-				FSlateAttributeMetaData::UpdateAttributes(Widget.Get());
+				FSlateAttributeMetaData::UpdateAttributes(Widget.Get(), false);
 				bUpdateSlateAttribute = true;
 
 				Visibility = Widget->GetVisibility();
@@ -287,19 +286,18 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Rec
 			}
 			else if (bParentVisible)
 			{
-				FSlateAttributeMetaData::UpdateCollapsedAttributes(Widget.Get());
+				FSlateAttributeMetaData::UpdateCollapsedAttributes(Widget.Get(), false);
 				bUpdateSlateAttribute = true;
 
 				Visibility = Widget->GetVisibility();
 				bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
 				if (bParentAndSelfVisible)
 				{
-					FSlateAttributeMetaData::UpdateAttributes(Widget.Get());
+					FSlateAttributeMetaData::UpdateAttributes(Widget.Get(), false);
 					Visibility = Widget->GetVisibility();
 					bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
 				}
 			}
-			Widget->bPauseAttributeInvalidation = false;
 		}
 	}
 
@@ -580,7 +578,7 @@ void FSlateInvalidationWidgetList::ProcessAttributeRegistrationInvalidation(cons
 	SWidget* WidgetPtr = InvalidationWidget.GetWidget();
 	check(WidgetPtr);
 
-	if (WidgetPtr->HasRegisteredSlateAttribute())
+	if (WidgetPtr->HasRegisteredSlateAttribute() && WidgetPtr->IsAttributesUpdatesEnabled())
 	{
 		Data[InvalidationWidget.Index.ArrayIndex].ElementIndexList_WidgetWithRegisteredSlateAttribute.InsertUnique(InvalidationWidget.Index.ElementIndex);
 	}
@@ -1274,7 +1272,7 @@ FSlateInvalidationWidgetList::FCutResult FSlateInvalidationWidgetList::_CutArray
 				Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewWidgetIndex, SortIndex, GenerationNumber });
 
 				// Check for ElementIndexList
-				if (Widget->HasRegisteredSlateAttribute())
+				if (Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled())
 				{
 					Data[NewArrayIndex].ElementIndexList_WidgetWithRegisteredSlateAttribute.AddUnsorted(NewElementIndex);
 				}
@@ -1592,7 +1590,7 @@ bool FSlateInvalidationWidgetList::VerifyElementIndexList() const
 		int32 Index = 0;
 		const_cast<FSlateInvalidationWidgetList*>(this)->ForEachWidget([&](const SWidget* Widget)
 			{
-				if (Widget->HasRegisteredSlateAttribute())
+				if (Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled())
 				{
 					WidgetListWithForEachWidget.Add(Widget);
 				}
@@ -1623,7 +1621,8 @@ bool FSlateInvalidationWidgetList::VerifyElementIndexList() const
 				const FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = ArrayNode.ElementList[ElementIndex];
 				if (const SWidget* Widget = InvalidationWidget.GetWidget())
 				{
-					if (!Widget->HasRegisteredSlateAttribute())
+					const bool bShouldBeThere = Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled();
+					if (!bShouldBeThere)
 					{
 						UE_LOG(LogSlate, Warning, TEXT("ElementIndex '%d' in the array of sort value '%d' should not be there since widget '%s' doesn't have registered SlateAttribute.")
 							, ElementIndex, ArrayNode.SortOrder

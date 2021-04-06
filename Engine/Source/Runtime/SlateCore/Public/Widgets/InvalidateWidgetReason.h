@@ -47,6 +47,11 @@ enum class EInvalidateWidgetReason : uint8
 	AttributeRegistration = 1 << 6,
 
 	/**
+	 * Re-cache desired size of all of this widget's children recursively (this implies layout)
+	 */
+	Prepass = 1 << 7,
+
+	/**
 	 * Use Paint invalidation if you're changing a normal property involving painting or sizing.
 	 * Additionally if the property that was changed affects Volatility in anyway, it's important
 	 * that you invalidate volatility so that it can be recalculated and cached.

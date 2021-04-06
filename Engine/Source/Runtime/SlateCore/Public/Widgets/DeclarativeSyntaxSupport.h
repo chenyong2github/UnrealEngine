@@ -782,12 +782,14 @@ struct FSlateBaseNamedArgs
 	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(FText, ToolTipText);
 	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(TSharedPtr<IToolTip>, ToolTip);
 	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(TOptional<EMouseCursor::Type>, Cursor);
-	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(bool, IsEnabled) = true;
 	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(EVisibility, Visibility) = EVisibility::Visible;
-	SLATE_PRIVATE_ARGUMENT_VARIABLE(float, RenderOpacity) = 1.f;
+	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(bool, IsEnabled) = true;
 	SLATE_PRIVATE_ARGUMENT_VARIABLE(bool, ForceVolatile) = false;
+	/** If true, bound Slate Attributes will be updated once per frame. */
+	SLATE_PRIVATE_ARGUMENT_VARIABLE(bool, EnabledAttributesUpdate) = true;
 	SLATE_PRIVATE_ARGUMENT_VARIABLE(EWidgetClipping, Clipping) = EWidgetClipping::Inherit;
 	SLATE_PRIVATE_ARGUMENT_VARIABLE(EFlowDirectionPreference, FlowDirectionPreference) = EFlowDirectionPreference::Inherit;
+	SLATE_PRIVATE_ARGUMENT_VARIABLE(float, RenderOpacity) = 1.f;
 	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(TOptional<FSlateRenderTransform>, RenderTransform);
 	SLATE_PRIVATE_ATTRIBUTE_VARIABLE(FVector2D, RenderTransformPivot) = FVector2D::ZeroVector;
 	SLATE_PRIVATE_ARGUMENT_VARIABLE(FName, Tag);
@@ -808,10 +810,10 @@ struct TSlateBaseNamedArgs : public FSlateBaseNamedArgs
 	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(TOptional<EMouseCursor::Type>, Cursor)
 	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(bool, IsEnabled)
 	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(EVisibility, Visibility)
-	SLATE_PRIVATE_ARGUMENT_FUNCTION(float, RenderOpacity)
 	SLATE_PRIVATE_ARGUMENT_FUNCTION(bool, ForceVolatile)
 	SLATE_PRIVATE_ARGUMENT_FUNCTION(EWidgetClipping, Clipping)
 	SLATE_PRIVATE_ARGUMENT_FUNCTION(EFlowDirectionPreference, FlowDirectionPreference)
+	SLATE_PRIVATE_ARGUMENT_FUNCTION(float, RenderOpacity)
 	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(TOptional<FSlateRenderTransform>, RenderTransform)
 	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(FVector2D, RenderTransformPivot)
 	SLATE_PRIVATE_ARGUMENT_FUNCTION(FName, Tag)
@@ -1099,8 +1101,8 @@ struct TSlateDecl
 	{
 		_Widget->SWidgetConstruct(InArgs);
 		_RequiredArgs.CallConstruct(_Widget, InArgs);
-		_Widget->bPauseAttributeInvalidation = false;
 		_Widget->CacheVolatility();
+		_Widget->bIsDeclarativeSyntaxConstructionCompleted = true;
 
 		return _Widget;
 	}
