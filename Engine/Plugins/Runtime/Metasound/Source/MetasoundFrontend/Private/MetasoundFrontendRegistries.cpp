@@ -365,12 +365,14 @@ namespace Metasound
 
 					for (UObject* InObject : InObjectArray)
 					{
+						Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.CreateAudioProxy(InObject);
+
 						if (InObject)
 						{
-							Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.CreateAudioProxy(InObject);
 							ensureAlwaysMsgf(ProxyPtr.IsValid(), TEXT("UObject failed to create a valid proxy!"));
-							ProxyArray.Add(MoveTemp(ProxyPtr));
 						}
+
+						ProxyArray.Add(MoveTemp(ProxyPtr));
 					}
 
 					return Metasound::FLiteral(MoveTemp(ProxyArray));
