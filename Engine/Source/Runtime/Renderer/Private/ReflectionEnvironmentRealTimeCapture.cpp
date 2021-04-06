@@ -290,6 +290,9 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	// view used for the sky capture change unpredictably and potentially cause temporal artifacts.
 	//
 	// Also ignore viewfamilies without the Atmosphere showflag enabled as the sky capture may fail otherwise.
+	//
+	// Note that as a consequence, if the scene only has Scene Captures and/or no views with the atmosphere showflag enabled, 
+	// then Sky Capture will not work.
 	if (MainView.bIsSceneCapture || !MainView.Family->EngineShowFlags.Atmosphere)
 	{
 		return;
