@@ -378,10 +378,7 @@ public:
 	}
 
 	// FlushType: Flush RHI Thread
-	virtual void* RHILockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
-	{
-		return RHI->RHILockBuffer(RHICmdList, Buffer, Offset, SizeRHI, LockMode);
-	}
+	virtual void* RHILockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final;
 
 	// FlushType: Flush RHI Thread
 	virtual void RHIUnlockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer) override final
@@ -1308,6 +1305,12 @@ public:
 
 	virtual FBufferRHIRef CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo) override final
 	{
+		if (CreateInfo.ResourceArray && RHICmdList.IsInsideRenderPass())
+		{
+			FString Msg = FString::Printf(TEXT("Creating buffers with initial data during a render pass is not supported, buffer name: \"%s\""), CreateInfo.DebugName);
+			RHI_VALIDATION_CHECK(false, *Msg);
+		}
+
 		FBufferRHIRef Buffer = RHI->CreateBuffer_RenderThread(RHICmdList, Size, Usage, Stride, ResourceState, CreateInfo);
 		Buffer->InitBarrierTracking(ResourceState, CreateInfo.DebugName);
 		return Buffer;

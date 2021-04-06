@@ -312,12 +312,10 @@ inline void FVulkanResourceMultiBuffer::InternalUnlock(FVulkanCommandListContext
 	VulkanRHI::FStagingBuffer* StagingBuffer = PendingLock.StagingBuffer;
 	PendingLock.StagingBuffer = nullptr;
 
-	FVulkanCmdBuffer* Cmd = Context.GetCommandBufferManager()->GetUploadCmdBuffer();
-	if (!Cmd->HasBegun())
-	{
-		Cmd->Begin();
-	}
-	ensure(Cmd->IsOutsideRenderPass());
+	// We need to do this on the active command buffer instead of using an upload command buffer. The high level code sometimes reuses the same
+	// buffer in sequences of upload / dispatch, upload / dispatch, so we need to order the copy commands correctly with respect to the dispatches.
+	FVulkanCmdBuffer* Cmd = Context.GetCommandBufferManager()->GetActiveCmdBuffer();
+	check(Cmd && Cmd->IsOutsideRenderPass());
 	VkCommandBuffer CmdBuffer = Cmd->GetHandle();
 
 	VulkanRHI::DebugHeavyWeightBarrier(CmdBuffer, 16);

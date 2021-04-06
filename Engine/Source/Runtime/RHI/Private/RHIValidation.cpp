@@ -342,6 +342,37 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHIT
 	return RHI->RHICreateTransition(Transition, CreateInfo);
 }
 
+namespace RHIValidation
+{
+	static inline FString GetReasonString_LockBufferInsideRenderPass(FResource* Buffer)
+	{
+		const TCHAR* DebugName = Buffer->GetDebugName();
+		return FString::Printf(TEXT("Locking non-volatile buffers for writing inside a render pass is not allowed. Resource: \"%s\" (0x%p)."), DebugName ? DebugName : TEXT("Unnamed"), Buffer);
+	}
+}
+
+void* FValidationRHI::RHILockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+{
+	using namespace RHIValidation;
+
+	if ((Buffer->GetUsage() & BUF_Volatile) == 0 && LockMode == RLM_WriteOnly)
+	{
+		bool bIsInsideRenderPass;
+		if (RHICmdList.IsTopOfPipe())
+		{
+			bIsInsideRenderPass = RHICmdList.IsInsideRenderPass();
+		}
+		else
+		{
+			FValidationContext& Ctx = static_cast<FValidationContext&>(RHICmdList.GetContext());
+			bIsInsideRenderPass = Ctx.State.bInsideBeginRenderPass;
+		}
+		RHI_VALIDATION_CHECK(!bIsInsideRenderPass, *GetReasonString_LockBufferInsideRenderPass(Buffer));
+	}
+
+	return RHI->RHILockBuffer(RHICmdList, Buffer, Offset, SizeRHI, LockMode);
+}
+
 void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
 {
 	// Report failures only once per session, since many of them will happen repeatedly. This is similar to what ensure() does, but
