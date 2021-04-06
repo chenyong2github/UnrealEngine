@@ -449,6 +449,12 @@ void FPhysicsAssetEditor::OnAssetReimport(UObject* Object)
 
 void FPhysicsAssetEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
+	// if simulating ignore update request
+	if (SharedData->bRunningSimulation)
+	{
+		return;
+	}
+
 	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
 	// Update bounds bodies and setup when bConsiderForBounds was changed
