@@ -445,14 +445,24 @@ void ULidarPointCloud::GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPo
 	GetPointsInBox_Internal(SelectedPoints, Box, bVisibleOnly);
 }
 
+void ULidarPointCloud::GetPointsInConvexVolume(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
+{
+	GetPointsInConvexVolume_Internal(SelectedPoints, ConvexVolume, bVisibleOnly);
+}
+
+void ULidarPointCloud::GetPointsInConvexVolume(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
+{
+	GetPointsInConvexVolume_Internal(SelectedPoints, ConvexVolume, bVisibleOnly);
+}
+
 void ULidarPointCloud::GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
 {
-	GetPointsInFrustum_Internal(SelectedPoints, Frustum, bVisibleOnly);
+	GetPointsInConvexVolume_Internal(SelectedPoints, Frustum, bVisibleOnly);
 }
 
 void ULidarPointCloud::GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
 {
-	GetPointsInFrustum_Internal(SelectedPoints, Frustum, bVisibleOnly);
+	GetPointsInConvexVolume_Internal(SelectedPoints, Frustum, bVisibleOnly);
 }
 
 TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsAsCopies(bool bReturnWorldSpace, int32 StartIndex, int32 Count) const
@@ -1348,9 +1358,9 @@ void ULidarPointCloud::GetPointsInBox_Internal(TArray<FLidarPointCloudPoint*, T>
 }
 
 template <typename T>
-void ULidarPointCloud::GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+void ULidarPointCloud::GetPointsInConvexVolume_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
 {
-	Octree.GetPointsInFrustum(SelectedPoints, Frustum, bVisibleOnly);
+	Octree.GetPointsInConvexVolume(SelectedPoints, ConvexVolume, bVisibleOnly);
 }
 
 template <typename T>

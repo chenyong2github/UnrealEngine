@@ -1058,10 +1058,10 @@ void FLidarPointCloudOctree::GetPointsInBox_Internal(TArray<const FLidarPointClo
 }
 
 template <typename T>
-void FLidarPointCloudOctree::GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+void FLidarPointCloudOctree::GetPointsInConvexVolume_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
 {
 	SelectedPoints.Reset();
-	PROCESS_IN_FRUSTUM({ SelectedPoints.Add(Point); });
+	PROCESS_IN_CONVEX_VOLUME({ SelectedPoints.Add(Point); });
 }
 
 template <typename T>
@@ -1198,14 +1198,24 @@ void FLidarPointCloudOctree::GetPointsInBox(TArray<const FLidarPointCloudPoint*>
 	GetPointsInBox_Internal(SelectedPoints, Box, bVisibleOnly);
 }
 
-void FLidarPointCloudOctree::GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+void FLidarPointCloudOctree::GetPointsInConvexVolume(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
 {
-	GetPointsInFrustum_Internal(SelectedPoints, Frustum, bVisibleOnly);
+	GetPointsInConvexVolume_Internal(SelectedPoints, ConvexVolume, bVisibleOnly);
+}
+
+void FLidarPointCloudOctree::GetPointsInConvexVolume(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
+{
+	GetPointsInConvexVolume_Internal(SelectedPoints, ConvexVolume, bVisibleOnly);
 }
 
 void FLidarPointCloudOctree::GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
 {
-	GetPointsInFrustum_Internal(SelectedPoints, Frustum, bVisibleOnly);
+	GetPointsInConvexVolume_Internal(SelectedPoints, Frustum, bVisibleOnly);
+}
+
+void FLidarPointCloudOctree::GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+{
+	GetPointsInConvexVolume_Internal(SelectedPoints, Frustum, bVisibleOnly);
 }
 
 void FLidarPointCloudOctree::GetPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform* LocalToWorld, int64 StartIndex /*= 0*/, int64 Count /*= -1*/) const
@@ -1635,9 +1645,20 @@ void FLidarPointCloudOctree::MarkRenderDataDirty()
 	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, true);
 }
 
+void FLidarPointCloudOctree::MarkRenderDataInSphereDirty(const FSphere& Sphere)
+{
+	const FBox Box(Sphere.Center - FVector(Sphere.W), Sphere.Center + FVector(Sphere.W));
+	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, NODE_IN_BOX);
+}
+
+void FLidarPointCloudOctree::MarkRenderDataInConvexVolumeDirty(const FConvexVolume& ConvexVolume)
+{
+	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, NODE_IN_CONVEX_VOLUME);
+}
+
 void FLidarPointCloudOctree::MarkRenderDataInFrustumDirty(const FConvexVolume& Frustum)
 {
-	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, NODE_IN_FRUSTUM);
+	MarkRenderDataInConvexVolumeDirty(Frustum);
 }
 
 void FLidarPointCloudOctree::Initialize(const FVector& InExtent)

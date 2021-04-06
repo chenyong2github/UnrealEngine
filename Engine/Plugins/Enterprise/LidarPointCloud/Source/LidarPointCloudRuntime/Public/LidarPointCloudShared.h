@@ -563,7 +563,7 @@ private:
 };
 
 /** Used for Raycasting */
-struct FLidarPointCloudRay
+struct LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudRay
 {
 public:
 	FVector Origin;
@@ -577,6 +577,11 @@ public:
 	FLidarPointCloudRay(const FVector& Origin, const FVector& Direction) : Origin(Origin)
 	{
 		SetDirection(Direction);
+	}
+
+	static FORCEINLINE FLidarPointCloudRay FromLocations(const FVector& Origin, const FVector& Destination)
+	{
+		return FLidarPointCloudRay(Origin, (Destination - Origin).GetSafeNormal());
 	}
 
 	FLidarPointCloudRay& TransformBy(const FTransform& Transform)

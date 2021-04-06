@@ -361,9 +361,9 @@ public:
 	void GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 	void GetPointsInBox(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 
-	/** Populates the array with the list of points within the given frustum. */
-	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
-	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	/** Populates the array with the list of points within the given convex volume. */
+	void GetPointsInConvexVolume(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
+	void GetPointsInConvexVolume(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
 
 	/** Populates the given array with copies of points from the tree */
 	void GetPointsAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FTransform* LocalToWorld, int64 StartIndex = 0, int64 Count = -1) const;
@@ -457,8 +457,11 @@ public:
 	/** Marks render data of all nodes as dirty. */
 	void MarkRenderDataDirty();
 
-	/** Marks render data of all nodes within the given frustum as dirty. */
-	void MarkRenderDataInFrustumDirty(const FConvexVolume& Frustum);
+	/** Marks render data of all nodes within the given sphere as dirty. */
+	void MarkRenderDataInSphereDirty(const FSphere& Sphere);
+	
+	/** Marks render data of all nodes within the given convex volume as dirty. */
+	void MarkRenderDataInConvexVolumeDirty(const FConvexVolume& ConvexVolume);
 
 	/** Initializes the Octree properties. */
 	void Initialize(const FVector& InExtent);
@@ -536,6 +539,15 @@ public:
 	 */
 	void ReleaseAllNodes(bool bIncludePersistent);
 
+	//~ Begin Deprecated
+	UE_DEPRECATED(4.27, "Use GetPointsInConvexVolume instead.")
+	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	UE_DEPRECATED(4.27, "Use GetPointsInConvexVolume instead.")
+	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	UE_DEPRECATED(4.27, "Use MarkRenderDataInConvexVolumeDirty instead.")
+	void MarkRenderDataInFrustumDirty(const FConvexVolume& Frustum);
+	//~ End Deprecated
+
 private:
 	void RefreshAllocatedSize();
 
@@ -551,7 +563,7 @@ private:
 	template <typename T>
 	void GetPointsInBox_Internal(TArray<const FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const;
 	template <typename T>
-	void GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	void GetPointsInConvexVolume_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
 	template <typename T>
 	void GetPointsAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& Points, const FTransform* LocalToWorld, int64 StartIndex = 0, int64 Count = -1) const;
 	template <typename T>

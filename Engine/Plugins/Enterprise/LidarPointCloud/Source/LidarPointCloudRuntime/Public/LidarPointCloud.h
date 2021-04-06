@@ -179,6 +179,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	int32 GetNumNodes() const { return Octree.GetNumNodes(); }
 
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
+	FORCEINLINE float GetEstimatedPointSpacing() const { return Octree.GetEstimatedPointSpacing(); }
+
 	/** Returns the amount of memory in MB used to store the point cloud. */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	int32 GetDataSize() const;
@@ -252,11 +255,11 @@ public:
 	void GetPointsInBox(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 
 	/**
-	 * Populates the array with the list of points within the given frustum.
-	 * Frustum is assumed to include the LocationOffset of the asset
+	 * Populates the array with the list of points within the given convex volume.
+	 * The volume is assumed to include the LocationOffset of the asset
 	 */
-	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
-	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	void GetPointsInConvexVolume(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
+	void GetPointsInConvexVolume(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
 
 	/**
 	 * Returns an array with copies of points from the tree
@@ -581,6 +584,13 @@ public:
 
 	UBodySetup* GetBodySetup();
 
+	//~ Begin Deprecated
+	UE_DEPRECATED(4.27, "Use GetPointsInConvexVolume instead.")
+	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	UE_DEPRECATED(4.27, "Use GetPointsInConvexVolume instead.")
+	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	//~ End Deprecated
+
 public:
 	/** Aligns provided clouds based on the relative offset between their Original Coordinates. Retains overall centering of the group. */
 	static void AlignClouds(TArray<ULidarPointCloud*> PointCloudsToAlign);
@@ -629,7 +639,7 @@ private:
 	template <typename T>
 	void GetPointsInBox_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 	template <typename T>
-	void GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	void GetPointsInConvexVolume_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
 	template <typename T>
 	void GetPointsAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& Points, bool bReturnWorldSpace, int64 StartIndex = 0, int64 Count = -1) const;
 	template <typename T>
