@@ -41,8 +41,9 @@ public class Embree3 : ModuleRules
 
 			PublicIncludePaths.Add(Path.Combine(IncludeDir, "include"));
 			PublicAdditionalLibraries.Add(Path.Combine(SDKDir, "libembree.so"));
+			PublicAdditionalLibraries.Add(Path.Combine(SDKDir, "libembree3.so.3"));
 			RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree.so"));
-			RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree.so.2"));
+			RuntimeDependencies.Add(Path.Combine(SDKDir, "libembree3.so.3"));
 			PublicDefinitions.Add("USE_EMBREE=1");
 		}
 		else
