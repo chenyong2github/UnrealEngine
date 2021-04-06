@@ -700,14 +700,16 @@ void FD3D12CommandContextBase::WaitForTransitionFences(TArrayView<const FRHITran
 void FD3D12CommandContextBase::UpdateMemoryStats()
 {
 #if PLATFORM_WINDOWS && STATS
-	DXGI_QUERY_VIDEO_MEMORY_INFO LocalVideoMemoryInfo;
-	ParentAdapter->GetLocalVideoMemoryInfo(&LocalVideoMemoryInfo);
+	// Refresh captured memory info.
+	ParentAdapter->UpdateMemoryInfo();
 
-	const int64 Budget = LocalVideoMemoryInfo.Budget;
-	const int64 AvailableSpace = Budget - int64(LocalVideoMemoryInfo.CurrentUsage);
-	SET_MEMORY_STAT(STAT_D3D12UsedVideoMemory, LocalVideoMemoryInfo.CurrentUsage);
-	SET_MEMORY_STAT(STAT_D3D12AvailableVideoMemory, AvailableSpace);
-	SET_MEMORY_STAT(STAT_D3D12TotalVideoMemory, Budget);
+	const FD3D12MemoryInfo& MemoryInfo = ParentAdapter->GetMemoryInfo();
+
+	SET_MEMORY_STAT(STAT_D3D12UsedVideoMemory, MemoryInfo.LocalMemoryInfo.CurrentUsage);
+	SET_MEMORY_STAT(STAT_D3D12UsedSystemMemory, MemoryInfo.NonLocalMemoryInfo.CurrentUsage);
+	SET_MEMORY_STAT(STAT_D3D12AvailableVideoMemory, MemoryInfo.AvailableLocalMemory);
+	SET_MEMORY_STAT(STAT_D3D12DemotedVideoMemory, MemoryInfo.DemotedLocalMemory);
+	SET_MEMORY_STAT(STAT_D3D12TotalVideoMemory, MemoryInfo.LocalMemoryInfo.Budget);
 
 	uint64 MaxTexAllocWastage = 0;
 	for (uint32 GPUIndex : GPUMask)

@@ -218,7 +218,6 @@ void FD3D12Adapter::Initialize(FD3D12DynamicRHI* RHI)
 	OwningRHI = RHI;
 }
 
-
 /** Callback function called when the GPU crashes, when Aftermath is enabled */
 static void D3D12AftermathCrashCallback(const void* InGPUCrashDump, const uint32_t InGPUCrashDumpSize, void* InUserData)
 {
@@ -1215,13 +1214,40 @@ FD3D12FastConstantAllocator& FD3D12Adapter::GetTransientUniformBufferAllocator()
 	});
 }
 
-void FD3D12Adapter::GetLocalVideoMemoryInfo(DXGI_QUERY_VIDEO_MEMORY_INFO* LocalVideoMemoryInfo)
+void FD3D12Adapter::UpdateMemoryInfo()
 {
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+	const uint64 UpdateFrame = FrameFence != nullptr ? FrameFence->GetCurrentFence() : 0;
+
+	// Avoid spurious query calls if we have already captured this frame.
+	if (MemoryInfo.UpdateFrameNumber == UpdateFrame)
+	{
+		return;
+	}
+
+	// Update the frame number that the memory is captured from.
+	MemoryInfo.UpdateFrameNumber = UpdateFrame;
+
 	TRefCountPtr<IDXGIAdapter3> Adapter3;
 	VERIFYD3D12RESULT(GetAdapter()->QueryInterface(IID_PPV_ARGS(Adapter3.GetInitReference())));
 
-	VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, LocalVideoMemoryInfo));
+	VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &MemoryInfo.LocalMemoryInfo));
+	VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &MemoryInfo.NonLocalMemoryInfo));
+
+	// Over budget?
+	if (MemoryInfo.LocalMemoryInfo.CurrentUsage > MemoryInfo.LocalMemoryInfo.Budget)
+	{
+		MemoryInfo.AvailableLocalMemory = 0;
+		MemoryInfo.DemotedLocalMemory = MemoryInfo.LocalMemoryInfo.CurrentUsage - MemoryInfo.LocalMemoryInfo.Budget;
+	}
+	else
+	{
+		MemoryInfo.AvailableLocalMemory = MemoryInfo.LocalMemoryInfo.Budget - MemoryInfo.LocalMemoryInfo.CurrentUsage;
+		MemoryInfo.DemotedLocalMemory = 0;
+	}
+
+	// Update global RHI state (for warning output, etc.)
+	GDemotedLocalMemorySize = MemoryInfo.DemotedLocalMemory;
 
 	if (!GVirtualMGPU)
 	{
@@ -1229,8 +1255,15 @@ void FD3D12Adapter::GetLocalVideoMemoryInfo(DXGI_QUERY_VIDEO_MEMORY_INFO* LocalV
 		{
 			DXGI_QUERY_VIDEO_MEMORY_INFO TempVideoMemoryInfo;
 			VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(Index, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &TempVideoMemoryInfo));
-			LocalVideoMemoryInfo->Budget = FMath::Min(LocalVideoMemoryInfo->Budget, TempVideoMemoryInfo.Budget);
-			LocalVideoMemoryInfo->CurrentUsage = FMath::Min(LocalVideoMemoryInfo->CurrentUsage, TempVideoMemoryInfo.CurrentUsage);
+
+			DXGI_QUERY_VIDEO_MEMORY_INFO TempSystemMemoryInfo;
+			VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(Index, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &TempSystemMemoryInfo));
+			
+			MemoryInfo.LocalMemoryInfo.Budget = FMath::Min(MemoryInfo.LocalMemoryInfo.Budget, TempVideoMemoryInfo.Budget);
+			MemoryInfo.LocalMemoryInfo.CurrentUsage = FMath::Min(MemoryInfo.LocalMemoryInfo.CurrentUsage, TempVideoMemoryInfo.CurrentUsage);
+
+			MemoryInfo.NonLocalMemoryInfo.Budget = FMath::Min(MemoryInfo.NonLocalMemoryInfo.Budget, TempSystemMemoryInfo.Budget);
+			MemoryInfo.NonLocalMemoryInfo.CurrentUsage = FMath::Min(MemoryInfo.NonLocalMemoryInfo.CurrentUsage, TempSystemMemoryInfo.CurrentUsage);
 		}
 	}
 #endif

@@ -8,10 +8,12 @@ D3D12RHICommon.h: Common D3D12 RHI definitions for Windows.
 
 DECLARE_STATS_GROUP(TEXT("D3D12RHI"), STATGROUP_D3D12RHI, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Memory"), STATGROUP_D3D12Memory, STATCAT_Advanced);
-DECLARE_STATS_GROUP(TEXT("D3D12RHI: Memory (Buffers)"), STATGROUP_D3D12MemoryBuffer, STATCAT_Advanced);
-DECLARE_STATS_GROUP(TEXT("D3D12RHI: Memory (Transient)"), STATGROUP_D3D12MemoryTransient, STATCAT_Advanced);
+DECLARE_STATS_GROUP(TEXT("D3D12RHI: Resources"), STATGROUP_D3D12Resources, STATCAT_Advanced);
+DECLARE_STATS_GROUP(TEXT("D3D12RHI: Allocations"), STATGROUP_D3D12Allocations, STATCAT_Advanced);
+DECLARE_STATS_GROUP(TEXT("D3D12RHI: Allocations (Transient)"), STATGROUP_D3D12TransientAllocations, STATCAT_Advanced);
+DECLARE_STATS_GROUP(TEXT("D3D12RHI: Allocations (Buffer)"), STATGROUP_D3D12BufferAllocations, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Pipeline State (PSO)"), STATGROUP_D3D12PipelineState, STATCAT_Advanced);
-DECLARE_STATS_GROUP(TEXT("D3D12RHI: Descriptor Heap (GPU visible)"), STATGROUP_D3D12DescriptorHeap, STATCAT_Advanced);
+DECLARE_STATS_GROUP(TEXT("D3D12RHI: Descriptor Heap (GPU Visible)"), STATGROUP_D3D12DescriptorHeap, STATCAT_Advanced);
 
 #include "Windows/WindowsHWrapper.h"
 #include "D3D12RHI.h"

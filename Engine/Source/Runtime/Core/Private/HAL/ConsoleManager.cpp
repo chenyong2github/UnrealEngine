@@ -2682,6 +2682,12 @@ static TAutoConsoleVariable<int32> CVarPrecomputedVisibilityWarning(
 	TEXT("If set to 1, a warning will be displayed when rendering a scene from a view point without precomputed visibility."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarDemotedLocalMemoryWarning(
+	TEXT("r.DemotedLocalMemoryWarning"),
+	1,
+	TEXT("If set to 1, a warning will be displayed when local memory has been demoted to system memory."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarFeatureLevelPreview(
 	TEXT("r.FeatureLevelPreview"),
 	0,

@@ -59,62 +59,63 @@ DECLARE_CYCLE_STAT_WITH_FLAGS_EXTERN(TEXT("Clear MRT time"), STAT_D3D12ClearMRT,
 DECLARE_CYCLE_STAT_EXTERN(TEXT("ExecuteCommandList time"), STAT_D3D12ExecuteCommandListTime, STATGROUP_D3D12RHI, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("WaitForFence time"), STAT_D3D12WaitForFenceTime, STATGROUP_D3D12RHI, );
 
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Used Video Memory"), STAT_D3D12UsedVideoMemory, STATGROUP_D3D12Memory, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Available Video Memory"), STAT_D3D12AvailableVideoMemory, STATGROUP_D3D12Memory, );
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Total Video Memory"), STAT_D3D12TotalVideoMemory, STATGROUP_D3D12Memory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Available Video Memory"), STAT_D3D12AvailableVideoMemory, STATGROUP_D3D12Memory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Demoted Video Memory"), STAT_D3D12DemotedVideoMemory, STATGROUP_D3D12Memory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Used Video Memory"), STAT_D3D12UsedVideoMemory, STATGROUP_D3D12Memory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Used System Memory"), STAT_D3D12UsedSystemMemory, STATGROUP_D3D12Memory, );
 
-DECLARE_MEMORY_STAT_EXTERN(TEXT("RenderTarget StandAlone Allocated"), STAT_D3D12RenderTargetStandAloneAllocated, STATGROUP_D3D12Memory, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("UAVTexture StandAlone Allocated"), STAT_D3D12UAVTextureStandAloneAllocated, STATGROUP_D3D12Memory, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture StandAlone Allocated"), STAT_D3D12TextureStandAloneAllocated, STATGROUP_D3D12Memory, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("UAVBuffer StandAlone Allocated"), STAT_D3D12UAVBufferStandAloneAllocated, STATGROUP_D3D12Memory, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer StandAlone Allocated"), STAT_D3D12BufferStandAloneAllocated, STATGROUP_D3D12Memory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("RenderTarget StandAlone Allocated"), STAT_D3D12RenderTargetStandAloneAllocated, STATGROUP_D3D12Resources, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("UAVTexture StandAlone Allocated"), STAT_D3D12UAVTextureStandAloneAllocated, STATGROUP_D3D12Resources, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture StandAlone Allocated"), STAT_D3D12TextureStandAloneAllocated, STATGROUP_D3D12Resources, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("UAVBuffer StandAlone Allocated"), STAT_D3D12UAVBufferStandAloneAllocated, STATGROUP_D3D12Resources, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer StandAlone Allocated"), STAT_D3D12BufferStandAloneAllocated, STATGROUP_D3D12Resources, );
 
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("RenderTarget StandAlone Allocated"), STAT_D3D12RenderTargetStandAloneCount, STATGROUP_D3D12Memory, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("UAVTexture StandAlone Allocated"), STAT_D3D12UAVTextureStandAloneCount, STATGROUP_D3D12Memory, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Texture StandAlone Allocated"), STAT_D3D12TextureStandAloneCount, STATGROUP_D3D12Memory, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("UAVBuffer StandAlone Allocated"), STAT_D3D12UAVBufferStandAloneCount, STATGROUP_D3D12Memory, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Buffer StandAlone Allocated"), STAT_D3D12BufferStandAloneCount, STATGROUP_D3D12Memory, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("RenderTarget StandAlone Allocated"), STAT_D3D12RenderTargetStandAloneCount, STATGROUP_D3D12Resources, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("UAVTexture StandAlone Allocated"), STAT_D3D12UAVTextureStandAloneCount, STATGROUP_D3D12Resources, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Texture StandAlone Allocated"), STAT_D3D12TextureStandAloneCount, STATGROUP_D3D12Resources, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("UAVBuffer StandAlone Allocated"), STAT_D3D12UAVBufferStandAloneCount, STATGROUP_D3D12Resources, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Buffer StandAlone Allocated"), STAT_D3D12BufferStandAloneCount, STATGROUP_D3D12Resources, );
 
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Allocator Allocated"), STAT_D3D12TextureAllocatorAllocated, STATGROUP_D3D12Memory, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Allocator Unused"), STAT_D3D12TextureAllocatorUnused, STATGROUP_D3D12Memory, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Texture Allocator Allocated"), STAT_D3D12TextureAllocatorCount, STATGROUP_D3D12Memory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Allocator Allocated"), STAT_D3D12TextureAllocatorAllocated, STATGROUP_D3D12Allocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Allocator Unused"), STAT_D3D12TextureAllocatorUnused, STATGROUP_D3D12Allocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Texture Allocator Allocated"), STAT_D3D12TextureAllocatorCount, STATGROUP_D3D12Allocations, );
 
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("View DescriptorHeap Memory (SRV, CBV, UAV)"), STAT_ViewOnlineDescriptorHeapMemory, STATGROUP_D3D12Memory, FPlatformMemory::MCR_GPUSystem, );
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Sampler DescriptorHeap Memory"), STAT_SamplerOnlineDescriptorHeapMemory, STATGROUP_D3D12Memory, FPlatformMemory::MCR_GPUSystem, );
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("View DescriptorHeap Memory (SRV, CBV, UAV)"), STAT_ViewOnlineDescriptorHeapMemory, STATGROUP_D3D12Allocations, FPlatformMemory::MCR_GPUSystem, );
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Sampler DescriptorHeap Memory"), STAT_SamplerOnlineDescriptorHeapMemory, STATGROUP_D3D12Allocations, FPlatformMemory::MCR_GPUSystem, );
 
-DECLARE_MEMORY_STAT_EXTERN(TEXT("BufferPool Memory Allocated"), STAT_D3D12BufferPoolMemoryAllocated, STATGROUP_D3D12Memory, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("BufferPool Memory Used"), STAT_D3D12BufferPoolMemoryUsed, STATGROUP_D3D12Memory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("BufferPool Memory Allocated"), STAT_D3D12BufferPoolMemoryAllocated, STATGROUP_D3D12Allocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("BufferPool Memory Used"), STAT_D3D12BufferPoolMemoryUsed, STATGROUP_D3D12Allocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("BufferPool Memory Free"), STAT_D3D12BufferPoolMemoryFree, STATGROUP_D3D12BufferAllocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("BufferPool Memory Alignment Waste"), STAT_D3D12BufferPoolAlignmentWaste, STATGROUP_D3D12BufferAllocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("BufferPool Page Count"), STAT_D3D12BufferPoolPageCount, STATGROUP_D3D12BufferAllocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("BufferPool Full Pages"), STAT_D3D12BufferPoolFullPages, STATGROUP_D3D12BufferAllocations, );
 
-DECLARE_MEMORY_STAT_EXTERN(TEXT("BufferPool Memory Free"), STAT_D3D12BufferPoolMemoryFree, STATGROUP_D3D12MemoryBuffer, ); 
-DECLARE_MEMORY_STAT_EXTERN(TEXT("BufferPool Memory Alignment Waste"), STAT_D3D12BufferPoolAlignmentWaste, STATGROUP_D3D12MemoryBuffer, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("BufferPool Page Count"), STAT_D3D12BufferPoolPageCount, STATGROUP_D3D12MemoryBuffer, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("BufferPool Full Pages"), STAT_D3D12BufferPoolFullPages, STATGROUP_D3D12MemoryBuffer, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Transient Memory Pool Allocated"), STAT_D3D12TransientMemoryPoolAllocated, STATGROUP_D3D12Allocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Transient Memory Frame Pool Used"), STAT_D3D12TransientMemoryFramePoolUsed, STATGROUP_D3D12Allocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Transient Memory Frame Committed Used"), STAT_D3D12TransientMemoryFrameCommittedUsed, STATGROUP_D3D12Allocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Transient Memory Pool Allocations"), STAT_D3D12TransientMemoryPoolAllocations, STATGROUP_D3D12Allocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Transient Memory Committed Allocations"), STAT_D3D12TransientMemoryCommittedAllocations, STATGROUP_D3D12Allocations, );
 
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Transient Memory Pool Allocated"), STAT_D3D12TransientMemoryPoolAllocated, STATGROUP_D3D12Memory, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Transient Memory Frame Pool Used"), STAT_D3D12TransientMemoryFramePoolUsed, STATGROUP_D3D12Memory, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Transient Memory Frame Committed Used"), STAT_D3D12TransientMemoryFrameCommittedUsed, STATGROUP_D3D12Memory, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Transient Memory Pool Allocations"), STAT_D3D12TransientMemoryPoolAllocations, STATGROUP_D3D12Memory, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Transient Memory Committed Allocations"), STAT_D3D12TransientMemoryCommittedAllocations, STATGROUP_D3D12Memory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer Memory Frame Used"), STAT_D3D12TransientMemoryBufferFrameUsed, STATGROUP_D3D12TransientAllocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer Memory Frame Total Requested"), STAT_D3D12TransientMemoryBufferFrameTotalRequested, STATGROUP_D3D12TransientAllocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer Memory Frame Committed Allocated"), STAT_D3D12TransientMemoryBufferFrameCommittedAllocated, STATGROUP_D3D12TransientAllocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Buffer Memory Pool Allocations"), STAT_D3D12TransientMemoryBufferPoolAllocations, STATGROUP_D3D12TransientAllocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Buffer Memory Allocations"), STAT_D3D12TransientMemoryBufferCommittedAllocations, STATGROUP_D3D12TransientAllocations, );
 
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer Memory Frame Used"), STAT_D3D12TransientMemoryBufferFrameUsed, STATGROUP_D3D12MemoryTransient, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer Memory Frame Total Requested"), STAT_D3D12TransientMemoryBufferFrameTotalRequested, STATGROUP_D3D12MemoryTransient, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer Memory Frame Committed Allocated"), STAT_D3D12TransientMemoryBufferFrameCommittedAllocated, STATGROUP_D3D12MemoryTransient, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Buffer Memory Pool Allocations"), STAT_D3D12TransientMemoryBufferPoolAllocations, STATGROUP_D3D12MemoryTransient, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Buffer Memory Allocations"), STAT_D3D12TransientMemoryBufferCommittedAllocations, STATGROUP_D3D12MemoryTransient, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Memory Frame Used"), STAT_D3D12TransientMemoryTextureFrameUsed, STATGROUP_D3D12TransientAllocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Memory Frame Total Requested"), STAT_D3D12TransientMemoryTextureFrameTotalRequested, STATGROUP_D3D12TransientAllocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Memory Frame Committed Allocated"), STAT_D3D12TransientMemoryTextureFrameCommittedAllocated, STATGROUP_D3D12TransientAllocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Texture Memory Pool Allocations"), STAT_D3D12TransientMemoryTexturePoolAllocations, STATGROUP_D3D12TransientAllocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Texture Memory Allocations"), STAT_D3D12TransientMemoryTextureCommittedAllocations, STATGROUP_D3D12TransientAllocations, );
 
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Memory Frame Used"), STAT_D3D12TransientMemoryTextureFrameUsed, STATGROUP_D3D12MemoryTransient, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Memory Frame Total Requested"), STAT_D3D12TransientMemoryTextureFrameTotalRequested, STATGROUP_D3D12MemoryTransient, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Memory Frame Committed Allocated"), STAT_D3D12TransientMemoryTextureFrameCommittedAllocated, STATGROUP_D3D12MemoryTransient, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Texture Memory Pool Allocations"), STAT_D3D12TransientMemoryTexturePoolAllocations, STATGROUP_D3D12MemoryTransient, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Texture Memory Allocations"), STAT_D3D12TransientMemoryTextureCommittedAllocations, STATGROUP_D3D12MemoryTransient, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("UploadPool Memory Allocated"), STAT_D3D12UploadPoolMemoryAllocated, STATGROUP_D3D12Allocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("UploadPool Memory Used"), STAT_D3D12UploadPoolMemoryUsed, STATGROUP_D3D12Allocations, );
 
-DECLARE_MEMORY_STAT_EXTERN(TEXT("UploadPool Memory Allocated"), STAT_D3D12UploadPoolMemoryAllocated, STATGROUP_D3D12Memory, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("UploadPool Memory Used"), STAT_D3D12UploadPoolMemoryUsed, STATGROUP_D3D12Memory, );
-
-DECLARE_MEMORY_STAT_EXTERN(TEXT("UploadPool Memory Free"), STAT_D3D12UploadPoolMemoryFree, STATGROUP_D3D12MemoryBuffer, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("UploadPool Memory Alignment Waste"), STAT_D3D12UploadPoolAlignmentWaste, STATGROUP_D3D12MemoryBuffer, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("UploadPool Page Count"), STAT_D3D12UploadPoolPageCount, STATGROUP_D3D12MemoryBuffer, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("UploadPool Full Pages"), STAT_D3D12UploadPoolFullPages, STATGROUP_D3D12MemoryBuffer, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("UploadPool Memory Free"), STAT_D3D12UploadPoolMemoryFree, STATGROUP_D3D12BufferAllocations, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("UploadPool Memory Alignment Waste"), STAT_D3D12UploadPoolAlignmentWaste, STATGROUP_D3D12BufferAllocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("UploadPool Page Count"), STAT_D3D12UploadPoolPageCount, STATGROUP_D3D12BufferAllocations, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("UploadPool Full Pages"), STAT_D3D12UploadPoolFullPages, STATGROUP_D3D12BufferAllocations, );
 
 /**
 * Detailed Descriptor heap stats
@@ -131,7 +132,6 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Sampler: Num reusable unique descrip
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("View: Num reserved descriptors"), STAT_NumReservedViewOnlineDescriptors, STATGROUP_D3D12DescriptorHeap, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Sampler: Num reserved descriptors"), STAT_NumReservedSamplerOnlineDescriptors, STATGROUP_D3D12DescriptorHeap, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Sampler: Num reused descriptors"), STAT_NumReusedSamplerOnlineDescriptors, STATGROUP_D3D12DescriptorHeap, );
-
 
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("View Global: Free Descriptors"), STAT_GlobalViewHeapFreeDescriptors, STATGROUP_D3D12DescriptorHeap, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("View Global: Reserved Descriptors"), STAT_GlobalViewHeapReservedDescriptors, STATGROUP_D3D12DescriptorHeap, );

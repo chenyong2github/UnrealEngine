@@ -71,6 +71,22 @@ struct FD3D12AdapterDesc
 	uint32 NumDeviceNodes{ 0 };
 };
 
+struct FD3D12MemoryInfo
+{
+	DXGI_QUERY_VIDEO_MEMORY_INFO LocalMemoryInfo{};
+	DXGI_QUERY_VIDEO_MEMORY_INFO NonLocalMemoryInfo{};
+
+	uint32 UpdateFrameNumber = ~uint32(0);
+
+	uint64 AvailableLocalMemory = 0;
+	uint64 DemotedLocalMemory = 0;
+
+	bool IsOverBudget() const
+	{
+		return DemotedLocalMemory > 0;
+	}
+};
+
 enum class ED3D12GPUCrashDebugginMode
 {
 	Disabled,
@@ -324,7 +340,8 @@ public:
 
 	void BlockUntilIdle();
 
-	void GetLocalVideoMemoryInfo(DXGI_QUERY_VIDEO_MEMORY_INFO* LocalVideoMemoryInfo);
+	void UpdateMemoryInfo();
+	FORCEINLINE const FD3D12MemoryInfo& GetMemoryInfo() const { return MemoryInfo; }
 
 	FORCEINLINE uint32 GetFrameCount() const { return FrameCounter; }
 
@@ -420,7 +437,7 @@ protected:
 	/** A Fence whos value increases every frame*/
 	TRefCountPtr<FD3D12ManualFence> FrameFence;
 
-	/** A Fence used to syncrhonize FD3D12GPUFence and FD3D12StagingBuffer */
+	/** A Fence used to synchronize FD3D12GPUFence and FD3D12StagingBuffer */
 	TRefCountPtr<FD3D12Fence> StagingFence;
 
 	FD3D12DeferredDeletionQueue DeferredDeletionQueue;
@@ -443,6 +460,8 @@ protected:
 	/** Tracked resource information. */
 	TMap<FD3D12ResourceLocation*, FTrackedAllocationData> TrackedAllocationData;
 	FCriticalSection TrackedAllocationDataCS;
+
+	FD3D12MemoryInfo MemoryInfo;
 
 #if D3D12_SUBMISSION_GAP_RECORDER
 	TArray<uint64> StartOfSubmissionTimestamps;

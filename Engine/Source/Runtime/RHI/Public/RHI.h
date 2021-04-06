@@ -541,6 +541,9 @@ extern RHI_API int64 GTexturePoolSize;
 /** In percent. If non-zero, the texture pool size is a percentage of GTotalGraphicsMemory. */
 extern RHI_API int32 GPoolSizeVRAMPercentage;
 
+/** Amount of local video memory demoted to system memory. In bytes. */
+extern RHI_API uint64 GDemotedLocalMemorySize;
+
 /** Some simple runtime stats, reset on every call to RHIBeginFrame */
 /** Num draw calls & primitives on previous frame (accurate on any thread)*/
 extern RHI_API int32 GNumDrawCallsRHI[MAX_NUM_GPUS];

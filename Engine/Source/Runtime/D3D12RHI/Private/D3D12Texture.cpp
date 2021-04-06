@@ -584,8 +584,8 @@ void FD3D12DynamicRHI::RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	if (GAdjustTexturePoolSizeBasedOnBudget)
 	{
-		DXGI_QUERY_VIDEO_MEMORY_INFO LocalVideoMemoryInfo;
-		GetAdapter().GetLocalVideoMemoryInfo(&LocalVideoMemoryInfo);
+		GetAdapter().UpdateMemoryInfo();
+		const DXGI_QUERY_VIDEO_MEMORY_INFO& LocalVideoMemoryInfo = GetAdapter().GetMemoryInfo().LocalMemoryInfo;
 
 		// Applications must explicitly manage their usage of physical memory and keep usage within the budget 
 		// assigned to the application process. Processes that cannot keep their usage within their assigned budgets 

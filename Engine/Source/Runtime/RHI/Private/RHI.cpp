@@ -989,6 +989,8 @@ RHI_API int32 volatile GCurrentRendertargetMemorySize = 0;
 RHI_API int64 GTexturePoolSize = 0 * 1024 * 1024;
 RHI_API int32 GPoolSizeVRAMPercentage = 0;
 
+RHI_API uint64 GDemotedLocalMemorySize = 0;
+
 RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num] = {SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms};
 
 // simple stats about draw calls. GNum is the previous frame and 
