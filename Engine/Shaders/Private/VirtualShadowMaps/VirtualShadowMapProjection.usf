@@ -308,23 +308,45 @@ FProjectLightResult ProjectLight(
 
 		// Hair strands voxel traversal to apply hair shadow on top of opaque geometry
 		#if HAS_HAIR_STRANDS
+		float3 RayStart = 0;
+		float3 RayEnd = 0;
+		bool bCastHairRay = false;
+		float4 Random = 0;
 		if (ShadowFactor > 0)
-		{		
-			#if DIRECTIONAL_LIGHT
-			const float VoxelShadowMaxDistance = 1000.0; // 100m shadow distance
-			const float3 LightPosition = Light.Direction * VoxelShadowMaxDistance + WorldPosition;
-			#else
-			const float3 LightPosition = Light.Position;
-			#endif
+		{
+			Random = ComputeRandom4(PixelPos);
+			uint RayIndex = min(Random.w * SMRTRayCount, SMRTRayCount - 1);
 
-			// Depth bias
-			// Origin is shifted 2 voxels away towards the light + a constant bias of the size of the voxel
-			float3 OriginPosition = WorldPosition;
-			const float4 Random = ComputeRandom4(PixelPos);
+		#if DIRECTIONAL_LIGHT
+			bCastHairRay = GenerateRayDirectional(
+				Light,
+				PixelPos,
+				TranslatedWorldPosition,
+				ContactShadowLengthWorld,
+				RayIndex,
+				SMRTRayCount,
+				RayStart,
+				RayEnd);
+		#else
+			bCastHairRay = GenerateRayLocalLight(
+				Light,
+				PixelPos,
+				TranslatedWorldPosition,
+				SMRTCotMaxRayAngleFromLight,
+				RayIndex,
+				SMRTRayCount,
+				RayStart,
+				RayEnd);
+		#endif
+		}
+
+		if (bCastHairRay)
+		{
+			// Jitter start position to mask/compensate coarse voxel resolution
 			{
 				const float PositionBiasScale = 0.5f;
 				const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Shadow * L + PositionBiasScale * (Random.xyz * 2 - 1));
-				OriginPosition += DepthBias;
+				RayStart += DepthBias;
 			}
 
 			const float DistanceThreshold = 100000.0f;
@@ -344,6 +366,7 @@ FProjectLightResult ProjectLight(
 			TraversalSettings.SteppingScale		= VirtualVoxel.SteppingScale_Shadow;
 			TraversalSettings.Random			= Random.xyz;
 			TraversalSettings.PixelRadius		= SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
+			TraversalSettings.bUseOpaqueVisibility = false;
 
 			const uint VoxelDescCount = VirtualVoxel.NodeDescCount;
 			for (uint VoxelDescIt=0; VoxelDescIt<VoxelDescCount; ++VoxelDescIt)
@@ -353,8 +376,8 @@ FProjectLightResult ProjectLight(
 
 				FHairTraversalResult Result = InitHairTraversalResult();
 				Result = ComputeHairCountVirtualVoxel(
-					OriginPosition,
-					LightPosition,
+					RayStart,
+					RayEnd,
 					CommonDesc,
 					NodeDesc,
 					VirtualVoxel.PageIndexBuffer,
@@ -362,6 +385,7 @@ FProjectLightResult ProjectLight(
 					VirtualVoxel.PageTexture,
 					TraversalSettings);
 
+				HitDistance = Result.HitT;
 				ShadowFactor = min(ShadowFactor, saturate(1 - Result.HairCount));
 			}
 		}

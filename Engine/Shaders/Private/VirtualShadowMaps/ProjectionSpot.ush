@@ -357,3 +357,64 @@ float TraceLocalLight(
 
 	return RayMissFactor;
 }
+
+// Generate ray based on light source geometry
+bool GenerateRayLocalLight(
+	FLightShaderParameters Light,
+	uint2 PixelPos,
+	float3 TranslatedWorldPosition,
+	float CotMaxRayAngleFromLight,
+	uint RayIndex,
+	uint RayCount,
+	inout float3 OutRayStart,
+	inout float3 OutRayEnd)
+{
+	const half3 N = GetGBufferDataUint(PixelPos, true).WorldNormal;
+	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+
+	float3 ToLight = Light.Position - WorldPosition;
+	float DistSqr = dot(ToLight, ToLight);
+	float Falloff = rcp(DistSqr + 1);
+
+	float InvDist = rsqrt(DistSqr);
+	float DistToLight = DistSqr * InvDist;
+
+	half3 ConeAxis = ToLight * InvDist;
+
+	half SinAlphaSqr = saturate(Pow2(Light.SourceRadius) * Falloff);
+	half SinAlpha = sqrt(SinAlphaSqr);
+	bool bBackFace = dot(N, ConeAxis) < -SinAlpha;
+
+	if (!bBackFace)
+	{
+		half ConeSin = Light.SourceRadius * InvDist;
+		half ConeCos = sqrt(1 - Pow2(ConeSin));
+
+		uint TileID = MortonEncode(PixelPos);
+		RandomSequence RandSequence;
+		// Combine pixel-level and sample-level bits into the sample index (visible structure will be hidden by owen scrambling of the index)
+		RandSequence.SampleIndex = reversebits((65536 * View.StateFrameIndex + TileID) * RayCount + RayIndex);
+		RandSequence.SampleSeed = 0; // always use the same sequence
+
+		float2 E = SobolSampler(RandSequence.SampleIndex, RandSequence.SampleSeed, 8).xy;
+		half2 LightUV = UniformSampleDiskConcentricApprox(E).xy;
+		LightUV *= ConeSin;
+
+		half SinTheta2 = dot(LightUV, LightUV);
+		half SinTheta = sqrt(SinTheta2);
+		half CosTheta = sqrt(1 - SinTheta2);
+
+		half3 Dir = TangentToWorld(half3(LightUV, CosTheta), ConeAxis);
+
+		// The further afield our rays go the poorer our approximation is as the "bend" due to our testing
+		// against a shadow map instead of along the ray increases. Thus we avoid going all the way to the light
+		// where the projection becomes extreme.
+
+		// Clip ray to max angle to limit penumbra sizes
+		float ClampedLength = DistToLight * 0.75 * saturate(1.5 / (CosTheta + CotMaxRayAngleFromLight * SinTheta));
+
+		OutRayStart = WorldPosition;
+		OutRayEnd = WorldPosition + Dir * ClampedLength;
+	}
+	return !bBackFace;
+}

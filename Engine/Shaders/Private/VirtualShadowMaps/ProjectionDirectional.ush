@@ -238,3 +238,35 @@ float TraceDirectional(
 	float RayMissFactor = float(RayMissCount) / float(SampleCount);
 	return RayMissFactor;
 }
+
+// Generate a ray based on directional light source geometry (e.g, source radius)
+bool GenerateRayDirectional(
+	FLightShaderParameters Light,
+	uint2 PixelPos,
+	float3 TranslatedWorldPosition,
+	float RayLengthScale,
+	uint RayIndex,
+	uint RayCount,
+	inout float3 OutRayStart,
+	inout float3 OutRayEnd)
+{
+	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
+	float DistanceFromViewOrigin = length(ViewPosition);
+
+	// Compute max ray length based on view depth
+	// This affects both how far we are willing to trace across the shadow map (for clipmaps this is related to view depth)
+	// and the maximum size a penumbra can be.
+	// Too high values will cause shadows to detach from their contact points (unless more samples are used).
+	// Too low values will greatly restrict how large penumbras can be in screen space.
+	float RayLength = RayLengthScale * DistanceFromViewOrigin;
+
+	RandomSequence RandSequence;
+	RandomSequence_Initialize(RandSequence, PixelPos, RayIndex, View.StateFrameIndexMod8, RayCount);
+	float2 E = RandomSequence_GenerateSample2D(RandSequence);
+
+	float3 RayDir = GetRandomDirectionalLightRayDir(Light, E);
+	OutRayStart = WorldPosition;
+	OutRayEnd = OutRayStart + RayDir * RayLength;
+	return true;
+}
