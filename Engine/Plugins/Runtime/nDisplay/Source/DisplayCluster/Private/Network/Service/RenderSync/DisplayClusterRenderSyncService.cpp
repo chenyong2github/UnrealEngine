@@ -46,7 +46,13 @@ void FDisplayClusterRenderSyncService::Shutdown()
 
 TUniquePtr<IDisplayClusterSession> FDisplayClusterRenderSyncService::CreateSession(FSocket* Socket, const FIPv4Endpoint& Endpoint, uint64 SessionId)
 {
-	return MakeUnique<FDisplayClusterSession<FDisplayClusterPacketInternal, true, true>>(Socket, this, this, SessionId, FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionId, *Endpoint.ToString()));
+	return MakeUnique<FDisplayClusterSession<FDisplayClusterPacketInternal, true, true>>(
+		Socket,
+		this,
+		this,
+		SessionId,
+		FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionId, *Endpoint.ToString()),
+		FDisplayClusterService::GetThreadPriority());
 }
 
 

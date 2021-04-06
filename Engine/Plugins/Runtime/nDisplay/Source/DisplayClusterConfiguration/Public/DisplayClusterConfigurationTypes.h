@@ -103,13 +103,47 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	TMap<FString, FString> Parameters;
+
+#if WITH_EDITORONLY_DATA
+	/**
+	 * When a custom policy is selected from the details panel.
+	 * This is needed in the event a custom policy is selected
+	 * but the custom type is a default policy. This allows users
+	 * to further customize default policies if necessary.
+	 */
+	UPROPERTY()
+	bool bIsCustom = false;
+#endif
+};
+
+/**
+ * All configuration UObjects should inherit from this class.
+ */
+UCLASS()
+class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationData_Base
+	: public UObject
+{
+	GENERATED_BODY()
+
+public:
+	// UObject
+	virtual void Serialize(FArchive& Ar) override;
+	// ~UObject
+
+protected:
+	/** Called before saving to collect objects which should be exported as a sub object block. */
+	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) {}
+
+private:
+	UPROPERTY(Export)
+	TArray<UObject*> ExportedObjects;
 };
 
 
 // Scene hierarchy
 UCLASS()
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationSceneComponent
-	: public UObject
+	: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
 
@@ -246,7 +280,7 @@ public:
 
 UCLASS()
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationScene
-	: public UObject
+	: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
 
@@ -262,6 +296,10 @@ public:
 
 	UPROPERTY()
 	TMap<FString, UDisplayClusterConfigurationSceneComponentMesh*> Meshes;
+
+protected:
+	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) override;
+
 };
 
 
@@ -271,6 +309,9 @@ USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMasterNodePorts
 {
 	GENERATED_BODY()
+
+public:
+	FDisplayClusterConfigurationMasterNodePorts();
 
 public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
@@ -319,6 +360,9 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationClusterSync
 	GENERATED_BODY()
 
 public:
+	FDisplayClusterConfigurationClusterSync();
+	
+public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationRenderSyncPolicy RenderSyncPolicy;
 
@@ -331,6 +375,9 @@ USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationNetworkSettings
 {
 	GENERATED_BODY()
+
+public:
+	FDisplayClusterConfigurationNetworkSettings();
 
 public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
@@ -358,12 +405,15 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationProjection
 	: public FDisplayClusterConfigurationPolymorphicEntity
 {
 	GENERATED_BODY()
+
+public:
+	FDisplayClusterConfigurationProjection();
 };
 
 
 UCLASS()
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationViewport
-	: public UObject
+	: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
 public:
@@ -371,6 +421,9 @@ public:
 
 	FOnPostEditChangeChainProperty OnPostEditChangeChainProperty;
 
+public:
+	UDisplayClusterConfigurationViewport();
+	
 private:
 #if WITH_EDITOR
 	// UObject interface
@@ -397,11 +450,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationRectangle Region;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	bool bFixedAspectRatio;
+#endif
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationProjection ProjectionPolicy;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bIsVisible;
+
+	UPROPERTY()
+	bool bIsEnabled;
+#endif
 };
 
 
@@ -413,9 +476,18 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostprocess
 };
 
 
+USTRUCT()
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationExternalImage
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = nDisplay)
+	FString ImagePath;
+};
+
 UCLASS()
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationClusterNode
-	: public UObject
+	: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
 
@@ -424,6 +496,9 @@ public:
 
 	FOnPostEditChangeChainProperty OnPostEditChangeChainProperty;
 
+public:
+	UDisplayClusterConfigurationClusterNode();
+	
 private:
 #if WITH_EDITOR
 	// UObject interface
@@ -432,7 +507,7 @@ private:
 #endif
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = nDisplay, meta = (DisplayName = "Host IP"))
 	FString Host;
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)
@@ -444,19 +519,84 @@ public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationRectangle WindowRect;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	bool bFixedAspectRatio;
+#endif
 
 	UPROPERTY()
 	TMap<FString, UDisplayClusterConfigurationViewport*> Viewports;
 
 	UPROPERTY()
 	TMap<FString, FDisplayClusterConfigurationPostprocess> Postprocess;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bIsVisible;
+
+	UPROPERTY()
+	bool bIsEnabled;
+
+	UPROPERTY(EditAnywhere, Category = nDisplay)
+	FDisplayClusterConfigurationExternalImage PreviewImage;
+#endif
+
+protected:
+	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) override;
+};
+
+UCLASS()
+class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationHostDisplayData : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostEditChangeChainProperty, const FPropertyChangedChainEvent&);
+
+	FOnPostEditChangeChainProperty OnPostEditChangeChainProperty;
+
+public:
+	UDisplayClusterConfigurationHostDisplayData();
+
+private:
+	#if WITH_EDITOR
+	// UObject interface
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	// End of UObject interface
+	#endif
+
+public:
+	UPROPERTY(EditAnywhere, Category = nDisplay)
+	FText HostName;
+
+	UPROPERTY(EditAnywhere, Category = nDisplay, meta = (EditCondition = "bAllowManualPlacement"))
+	FVector2D Position;
+
+	UPROPERTY(EditAnywhere, Category = nDisplay)
+	bool bAllowManualPlacement;
+
+	UPROPERTY(EditAnywhere, Category = nDisplay, meta = (EditCondition = "bAllowManualSizing"))
+	FVector2D HostResolution;
+
+	UPROPERTY(EditAnywhere, Category = nDisplay)
+	bool bAllowManualSizing;
+
+	UPROPERTY(EditAnywhere, Category = nDisplay)
+	FVector2D Origin;
+
+	UPROPERTY(EditAnywhere, Category = nDisplay)
+	FLinearColor Color;
+	
+	UPROPERTY()
+	bool bIsVisible;
+
+	UPROPERTY()
+	bool bIsEnabled;
 };
 
 UCLASS()
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationCluster
-	: public UObject
+	: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
 
@@ -472,6 +612,14 @@ public:
 
 	UPROPERTY()
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TMap<FString, UDisplayClusterConfigurationHostDisplayData*> HostDisplayData;
+#endif
+
+protected:
+	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) override;
 };
 
 
@@ -479,7 +627,7 @@ public:
 // Input
 UCLASS()
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationInputDevice
-	: public UObject
+	: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
 
@@ -565,7 +713,7 @@ public:
 
 UCLASS(autoexpandcategories = nDisplay)
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationInput
-	: public UObject
+	: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
 
@@ -584,6 +732,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	TArray<FDisplayClusterConfigurationInputBinding> InputBinding;
+
+protected:
+	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) override;
 };
 
 
@@ -612,9 +763,9 @@ struct FDisplayClusterConfigurationDataMetaInfo
 
 ////////////////////////////////////////////////////////////////
 // Main configuration data container
-UCLASS()
+UCLASS(Blueprintable, BlueprintType)
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationData
-	: public UObject
+	: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
 
@@ -635,13 +786,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationInfo Info;
 
-	UPROPERTY()
+	UPROPERTY(Export, VisibleAnywhere, Category = nDisplay)
 	UDisplayClusterConfigurationScene* Scene;
 
-	UPROPERTY()
+	UPROPERTY(Export, VisibleAnywhere, Category = nDisplay)
 	UDisplayClusterConfigurationCluster* Cluster;
 
-	UPROPERTY()
+	UPROPERTY(Export, VisibleAnywhere, Category = nDisplay)
 	UDisplayClusterConfigurationInput* Input;
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)
@@ -649,4 +800,19 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
+
+#if WITH_EDITORONLY_DATA
+
+public:
+	UPROPERTY()
+	FString PathToConfig;
+
+public:
+	const static TSet<FString> RenderSyncPolicies;
+
+	const static TSet<FString> InputSyncPolicies;
+
+	const static TSet<FString> ProjectionPoliсies;
+	
+#endif
 };

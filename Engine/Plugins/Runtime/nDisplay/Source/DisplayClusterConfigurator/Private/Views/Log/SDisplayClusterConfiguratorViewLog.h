@@ -7,7 +7,7 @@
 
 #include "EditorUndoClient.h"
 
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class SWidget;
 
 class SDisplayClusterConfiguratorViewLog
@@ -27,7 +27,7 @@ public:
 
 	~SDisplayClusterConfiguratorViewLog();
 
-	void Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<SWidget>& InListingWidget);
+	void Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit, const TSharedRef<SWidget>& InListingWidget);
 
 private:
 	TSharedPtr<SWidget> LogListingWidget;

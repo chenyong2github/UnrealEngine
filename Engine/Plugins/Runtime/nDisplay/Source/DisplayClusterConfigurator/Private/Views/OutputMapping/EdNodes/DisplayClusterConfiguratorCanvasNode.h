@@ -20,9 +20,14 @@ public:
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 	//~ End EdGraphNode Interface
 
-	void AddWindowNode(UDisplayClusterConfiguratorWindowNode* WindowNode);
-	const TArray<UDisplayClusterConfiguratorWindowNode*>& GetChildWindows() const;
+	//~ Begin UDisplayClusterConfiguratorBaseNode Interface
+	virtual void TickPosition() override;
+	virtual bool IsNodeAutoPositioned() const { return true; }
+	virtual bool IsNodeAutosized() const override { return true; }
+	//~ End UDisplayClusterConfiguratorBaseNode Interface
+
+	const FVector2D& GetResolution() const { return Resolution; }
 
 private:
-	TArray<UDisplayClusterConfiguratorWindowNode*> ChildWindows;
+	FVector2D Resolution;
 };

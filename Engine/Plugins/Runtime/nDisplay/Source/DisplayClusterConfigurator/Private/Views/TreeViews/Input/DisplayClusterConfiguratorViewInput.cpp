@@ -2,10 +2,10 @@
 
 #include "Views/TreeViews/Input/DisplayClusterConfiguratorViewInput.h"
 
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "Views/TreeViews/Input/DisplayClusterConfiguratorViewInputBuilder.h"
 
-FDisplayClusterConfiguratorViewInput::FDisplayClusterConfiguratorViewInput(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
+FDisplayClusterConfiguratorViewInput::FDisplayClusterConfiguratorViewInput(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 	: FDisplayClusterConfiguratorViewTree(InToolkit)
 {
 	TreeBuilder = MakeShared<FDisplayClusterConfiguratorViewInputBuilder>(InToolkit);

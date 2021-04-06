@@ -5,10 +5,8 @@
 #include "Interfaces/Views/IDisplayClusterConfiguratorBuilder.h"
 #include "Containers/ArrayView.h"
 
-class FTextFilterExpressionEvaluator;
 class IDisplayClusterConfiguratorTreeItem;
 class IDisplayClusterConfiguratorViewTree;
-enum class EDisplayClusterConfiguratorTreeFilterResult : uint8;
 
 /** Output struct for builders to use */
 struct DISPLAYCLUSTERCONFIGURATOR_API FDisplayClusterConfiguratorTreeBuilderOutput
@@ -83,22 +81,6 @@ private:
 	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& LinearItems;
 };
 
-
-/** Basic filter used when re-filtering the tree */
-struct FDisplayClusterConfiguratorTreeFilterArgs
-{
-	FDisplayClusterConfiguratorTreeFilterArgs(TSharedPtr<FTextFilterExpressionEvaluator> InTextFilter)
-		: TextFilter(InTextFilter)
-		, bFlattenHierarchyOnFilter(true)
-	{}
-
-	/** The text filter we are using, if any */
-	TSharedPtr<FTextFilterExpressionEvaluator> TextFilter;
-
-	/** Whether to flatten the hierarchy so filtered items appear in a linear list */
-	bool bFlattenHierarchyOnFilter;
-};
-
 /** 
  * Interface to implement to provide custom build logic to tree views 
  */
@@ -106,25 +88,12 @@ class IDisplayClusterConfiguratorTreeBuilder
 	: public IDisplayClusterConfiguratorBuilder
 {
 public:
-	/** Delegate used to filter an item. */
-	DECLARE_DELEGATE_RetVal_TwoParams(EDisplayClusterConfiguratorTreeFilterResult, FOnFilterConfiguratorTreeItem, const FDisplayClusterConfiguratorTreeFilterArgs& /*InArgs*/, const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& /*InItem*/);
-
-public:
 	/** Setup this builder with links to the tree */
-	virtual void Initialize(const TSharedRef<IDisplayClusterConfiguratorViewTree>& InConfiguratorTree, FOnFilterConfiguratorTreeItem InOnFilterTreeItem) = 0;
+	virtual void Initialize(const TSharedRef<IDisplayClusterConfiguratorViewTree>& InConfiguratorTree) = 0;
 
 	/**
 	 * Build an array of item tree items to display in the tree.
 	 * @param	Output			The items that are built by this builder
 	 */
 	virtual void Build(FDisplayClusterConfiguratorTreeBuilderOutput& Output) = 0;
-
-	/** Apply filtering to the tree items */
-	virtual void Filter(const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& InItems, TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& OutFilteredItems) = 0;
-
-	/** Allows the builder to contribute to filtering an item */
-	virtual EDisplayClusterConfiguratorTreeFilterResult FilterItem(const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& InItem) = 0;
-
-	/** Helper function for filtering */
-	virtual EDisplayClusterConfiguratorTreeFilterResult FilterRecursive(const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& InItem, TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& OutFilteredItems) = 0;
 };

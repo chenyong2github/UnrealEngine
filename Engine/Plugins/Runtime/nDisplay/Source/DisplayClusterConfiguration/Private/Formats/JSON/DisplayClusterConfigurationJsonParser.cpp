@@ -74,7 +74,7 @@ bool FDisplayClusterConfigurationJsonParser::SaveData(const UDisplayClusterConfi
 
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::ConvertDataToInternalTypes()
 {
-	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
+	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet | RF_Transactional);
 	check(Config && Config->Scene && Config->Input && Config->Cluster);
 
 	// Fill metadata
@@ -92,7 +92,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 		// Xforms
 		for (const auto& CfgComp : CfgJson.Scene.Xforms)
 		{
-			UDisplayClusterConfigurationSceneComponentXform* Comp = NewObject<UDisplayClusterConfigurationSceneComponentXform>(Config);
+			UDisplayClusterConfigurationSceneComponentXform* Comp = NewObject<UDisplayClusterConfigurationSceneComponentXform>(Config, NAME_None, RF_Transactional);
 			check(Comp);
 
 			// General
@@ -108,7 +108,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 		// Screens
 		for (const auto& CfgComp : CfgJson.Scene.Screens)
 		{
-			UDisplayClusterConfigurationSceneComponentScreen* Comp = NewObject<UDisplayClusterConfigurationSceneComponentScreen>(Config);
+			UDisplayClusterConfigurationSceneComponentScreen* Comp = NewObject<UDisplayClusterConfigurationSceneComponentScreen>(Config, NAME_None, RF_Transactional);
 			check(Comp);
 
 			// General
@@ -126,7 +126,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 		// Cameras
 		for (const auto& CfgComp : CfgJson.Scene.Cameras)
 		{
-			UDisplayClusterConfigurationSceneComponentCamera* Comp = NewObject<UDisplayClusterConfigurationSceneComponentCamera>(Config);
+			UDisplayClusterConfigurationSceneComponentCamera* Comp = NewObject<UDisplayClusterConfigurationSceneComponentCamera>(Config, NAME_None, RF_Transactional);
 			check(Comp);
 
 			// General
@@ -146,7 +146,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 		// Meshes
 		for (const auto& CfgComp : CfgJson.Scene.Meshes)
 		{
-			UDisplayClusterConfigurationSceneComponentMesh* Comp = NewObject<UDisplayClusterConfigurationSceneComponentMesh>(Config);
+			UDisplayClusterConfigurationSceneComponentMesh* Comp = NewObject<UDisplayClusterConfigurationSceneComponentMesh>(Config, NAME_None, RF_Transactional);
 			check(Comp);
 
 			// General
@@ -216,7 +216,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 		// Cluster nodes
 		for (const auto& CfgNode : CfgJson.Cluster.Nodes)
 		{
-			UDisplayClusterConfigurationClusterNode* Node = NewObject<UDisplayClusterConfigurationClusterNode>(Config);
+			UDisplayClusterConfigurationClusterNode* Node = NewObject<UDisplayClusterConfigurationClusterNode>(Config, *CfgNode.Key, RF_Transactional);
 			check(Node);
 
 			// Base parameters
@@ -228,7 +228,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 			// Viewports
 			for (const auto& CfgViewport : CfgNode.Value.Viewports)
 			{
-				UDisplayClusterConfigurationViewport* Viewport = NewObject<UDisplayClusterConfigurationViewport>(Config);
+				UDisplayClusterConfigurationViewport* Viewport = NewObject<UDisplayClusterConfigurationViewport>(Config, *CfgViewport.Key, RF_Transactional);
 				check(Viewport);
 
 				// Base parameters
@@ -275,7 +275,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 
 		if (CfgInput.Value.Type.Equals(DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceAnalog, ESearchCase::IgnoreCase))
 		{
-			UDisplayClusterConfigurationInputDeviceAnalog* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceAnalog>(Config);
+			UDisplayClusterConfigurationInputDeviceAnalog* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceAnalog>(Config, NAME_None, RF_Transactional);
 			check(InputDevice);
 
 			InputDevice->Address = Address;
@@ -286,7 +286,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 		}
 		else if (CfgInput.Value.Type.Equals(DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceButton, ESearchCase::IgnoreCase))
 		{
-			UDisplayClusterConfigurationInputDeviceButton* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceButton>(Config);
+			UDisplayClusterConfigurationInputDeviceButton* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceButton>(Config, NAME_None, RF_Transactional);
 			check(InputDevice);
 
 			InputDevice->Address = Address;
@@ -296,7 +296,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 		}
 		else if (CfgInput.Value.Type.Equals(DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceKeyboard, ESearchCase::IgnoreCase))
 		{
-			UDisplayClusterConfigurationInputDeviceKeyboard* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceKeyboard>(Config);
+			UDisplayClusterConfigurationInputDeviceKeyboard* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceKeyboard>(Config, NAME_None, RF_Transactional);
 			check(InputDevice);
 
 			InputDevice->Address = Address;
@@ -311,7 +311,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 		}
 		else if (CfgInput.Value.Type.Equals(DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceTracker, ESearchCase::IgnoreCase))
 		{
-			UDisplayClusterConfigurationInputDeviceTracker* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceTracker>(Config);
+			UDisplayClusterConfigurationInputDeviceTracker* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceTracker>(Config, NAME_None, RF_Transactional);
 			check(InputDevice);
 
 			InputDevice->Address = Address;

@@ -2,21 +2,20 @@
 
 #include "Views/TreeViews/Input/DisplayClusterConfiguratorViewInputBuilder.h"
 
-#include "DisplayClusterConfiguratorEditorData.h"
 #include "DisplayClusterConfigurationTypes.h"
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 
 #include "Views/TreeViews/Input/TreeItems/DisplayClusterConfiguratorTreeItemInput.h"
 
-FDisplayClusterConfiguratorViewInputBuilder::FDisplayClusterConfiguratorViewInputBuilder(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
+FDisplayClusterConfiguratorViewInputBuilder::FDisplayClusterConfiguratorViewInputBuilder(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 	: FDisplayClusterConfiguratorTreeBuilder(InToolkit)
 {}
 
 void FDisplayClusterConfiguratorViewInputBuilder::Build(FDisplayClusterConfiguratorTreeBuilderOutput& Output)
 {
-	if (UDisplayClusterConfiguratorEditorData* EditorDataPtr = ConfiguratorTreePtr.Pin()->GetEditorData())
+	if (UDisplayClusterConfigurationData* EditorDataPtr = ConfiguratorTreePtr.Pin()->GetEditorData())
 	{
 		if (UDisplayClusterConfigurationData* Config = ToolkitPtr.Pin()->GetConfig())
 		{

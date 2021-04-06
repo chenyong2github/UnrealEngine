@@ -23,15 +23,6 @@ public:
 
 public:
 	/**
-	* Game thread call. Initialize postprocess from config line
-	*
-	* @param CfgLine - Configuration line for this postprocess
-	*/
-	UE_DEPRECATED(4.26, "This function is deprecated. Use TMap based InitializePostProcess.")
-	virtual void InitializePostProcess(const FString& CfgLine)
-	{ }
-
-	/**
 	* Game thread call. Postprocess initialization
 	*
 	* @param Parameters - Configuration parameters
@@ -151,16 +142,6 @@ public:
 	*
 	* @param RHICmdList - RHI command list
 	* @param SrcTexture - Source texture
-	*/
-	UE_DEPRECATED(4.26, "Please use PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread with an extended argument list.")
-	virtual void PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
-	{ }
-
-	/**
-	* PP operation on a render target before warp&blend
-	*
-	* @param RHICmdList - RHI command list
-	* @param SrcTexture - Source texture
 	* @param RenderViewports - Viewports data
 	*/
 	virtual void PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const
@@ -175,16 +156,6 @@ public:
 	*/
 	virtual bool IsPostProcessRenderTargetAfterWarpBlendRequired()
 	{ return false; }
-
-	/**
-	* PP operation on a render target after warp&blend
-	*
-	* @param RHICmdList - RHI command list
-	* @param SrcTexture - Source texture
-	*/
-	UE_DEPRECATED(4.26, "Please use PerformPostProcessRenderTargetAfterWarpBlend_RenderThread with extended argument list.")
-	virtual void PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
-	{ }
 
 	/**
 	* PP operation on a render target after warp&blend

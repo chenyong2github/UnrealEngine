@@ -14,7 +14,7 @@ public:
 
 	FDisplayClusterConfiguratorTreeItemInput(const FName& InName,
 		const TSharedRef<IDisplayClusterConfiguratorViewTree>& InViewTree,
-		const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit,
+		const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit,
 		UObject* InObjectToEdit,
 		FString InIconStyle,
 		bool InbRoot = false);

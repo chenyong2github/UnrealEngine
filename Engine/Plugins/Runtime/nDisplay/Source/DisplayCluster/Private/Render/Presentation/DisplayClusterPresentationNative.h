@@ -13,10 +13,4 @@ class FDisplayClusterPresentationNative : public FDisplayClusterPresentationBase
 public:
 	FDisplayClusterPresentationNative(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy);
 	virtual ~FDisplayClusterPresentationNative();
-
-protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// FRHICustomPresent
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool Present(int32& InOutSyncInterval) override;
 };

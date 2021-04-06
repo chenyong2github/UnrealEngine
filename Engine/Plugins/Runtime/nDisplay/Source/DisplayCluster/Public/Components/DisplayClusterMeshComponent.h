@@ -10,7 +10,7 @@ class UStaticMeshComponent;
 
 
 /**
- * Mesh component
+ * Mesh component TODO: Delete this all together -- Static Mesh Components replace these.
  */
 UCLASS(ClassGroup = (DisplayCluster))
 class DISPLAYCLUSTER_API UDisplayClusterMeshComponent
@@ -33,7 +33,7 @@ public:
 	}
 
 protected:
-	virtual void ApplyConfigurationData();
+	virtual void ApplyConfigurationData() override;
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "DisplayCluster")

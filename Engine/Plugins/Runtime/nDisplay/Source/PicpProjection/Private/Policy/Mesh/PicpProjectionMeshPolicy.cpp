@@ -15,8 +15,8 @@
 #include "Misc/Paths.h"
 
 
-FPicpProjectionMeshPolicy::FPicpProjectionMeshPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
-	: FPicpProjectionMPCDIPolicy(ViewportId, Parameters)
+FPicpProjectionMeshPolicy::FPicpProjectionMeshPolicy(FPicpProjectionModule& InPicpProjectionModule, const FString& ViewportId, const TMap<FString, FString>& Parameters)
+	: FPicpProjectionMPCDIPolicy(InPicpProjectionModule, ViewportId, Parameters)
 {
 }
 
@@ -34,7 +34,7 @@ bool FPicpProjectionMeshPolicy::HandleAddViewport(const FIntPoint& InViewportSiz
 
 	// Finally, initialize internal views data container
 	Views.AddDefaulted(InViewsAmount);
-	ViewportSize = InViewportSize;
+	SetViewportSize(InViewportSize);
 
 	return true;
 }

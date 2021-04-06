@@ -45,16 +45,10 @@ void FDisplayClusterClusterNodeCtrlSlave::WaitForFrameEnd(double* ThreadWaitTime
 	ClusterSyncClient->WaitForFrameEnd(ThreadWaitTime, BarrierWaitTime);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetDeltaTime(float& DeltaSeconds)
+void FDisplayClusterClusterNodeCtrlSlave::GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime)
 {
 	check(ClusterSyncClient);
-	ClusterSyncClient->GetDeltaTime(DeltaSeconds);
-}
-
-void FDisplayClusterClusterNodeCtrlSlave::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)
-{
-	check(ClusterSyncClient);
-	ClusterSyncClient->GetFrameTime(FrameTime);
+	ClusterSyncClient->GetTimeData(InOutDeltaTime, InOutGameTime, InOutFrameTime);
 }
 
 void FDisplayClusterClusterNodeCtrlSlave::GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup)

@@ -31,7 +31,7 @@ public class DisplayCluster : ModuleRules
 				"SlateCore",
 				"Sockets",
 				"TextureShare",
-				"TextureShareCore",
+				"TextureShareCore"
 			});
 
 		if (Target.bBuildEditor == true)

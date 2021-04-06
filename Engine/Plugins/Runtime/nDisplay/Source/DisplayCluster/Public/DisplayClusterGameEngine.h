@@ -7,6 +7,7 @@
 #include "DisplayClusterEnums.h"
 #include "DisplayClusterConfigurationTypes.h"
 
+#include "Cluster/DisplayClusterClusterEvent.h"
 #include "DisplayClusterGameEngine.generated.h"
 
 
@@ -15,6 +16,7 @@ class IPDisplayClusterInputManager;
 class IDisplayClusterNodeController;
 class IDisplayClusterClusterSyncObject;
 class UDisplayClusterConfigurationData;
+
 
 /**
  * Extended game engine
@@ -26,7 +28,7 @@ class DISPLAYCLUSTER_API UDisplayClusterGameEngine
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UWorld* WorldContextObject = nullptr;
+	UObject* WorldContextObject = nullptr;
 
 public:
 	virtual void Init(class IEngineLoop* InEngineLoop) override;
@@ -40,10 +42,8 @@ public:
 		return OperationMode;
 	}
 
-	UWorld* GetWorld() const 
-	{ 
-		return WorldContextObject; 
-	};
+protected:
+	virtual void UpdateTimeAndHandleMaxTickRate() override;
 
 protected:
 	virtual bool InitializeInternals();
@@ -51,7 +51,17 @@ protected:
 	bool GetResolvedNodeId(const UDisplayClusterConfigurationData* ConfigData, FString& NodeId) const;
 
 private:
+	bool OutOfSync() const;
+	void ReceivedSync(const FString &Level, const FString &NodeId);
 
+	void CheckGameStartBarrier();
+	bool CanTick() const;
+
+	bool BarrierAvoidanceOn() const;
+
+	void GameSyncChange(const FDisplayClusterClusterEventJson& InEvent);
+
+private:
 	IPDisplayClusterClusterManager* ClusterMgr = nullptr;
 	IPDisplayClusterInputManager*   InputMgr = nullptr;
 
@@ -60,4 +70,7 @@ private:
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
 
 	EDisplayClusterOperationMode OperationMode = EDisplayClusterOperationMode::Disabled;
+	EDisplayClusterRunningMode  RunningMode = EDisplayClusterRunningMode::Startup;
+
+	TMap<FString, TSet<FString>> SyncMap;
 };

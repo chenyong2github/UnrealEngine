@@ -76,10 +76,7 @@ public:
 	virtual void WaitForFrameEnd(double* ThreadWaitTime, double* BarrierWaitTime) override
 	{ }
 
-	virtual void GetDeltaTime(float& DeltaSeconds) override
-	{ }
-
-	virtual void GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime) override
+	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) override
 	{ }
 
 	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override

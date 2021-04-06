@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "StereoRendering.h"
 
-
+class IDisplayClusterPresentation;
 struct FDisplayClusterRenderViewContext;
 class IDisplayClusterProjectionPolicy;
 class FDisplayClusterRenderViewport;
@@ -182,4 +182,17 @@ public:
 	* @return - Number of Views per Viewport.
 	*/
 	virtual uint32 GetViewsAmountPerViewport() const = 0;
+
+	/**
+	* Callback triggered when custom present handler was created
+	*/
+	DECLARE_EVENT(IDisplayClusterRenderDevice, FDisplayClusterRenderCustomPresentCreated);
+	virtual FDisplayClusterRenderCustomPresentCreated& OnDisplayClusterRenderCustomPresentCreated() = 0;
+
+	/**
+	* Returns current presentation handler
+	*
+	* @return - nullptr if failed
+	*/
+	virtual IDisplayClusterPresentation* GetPresentation() const = 0;
 };

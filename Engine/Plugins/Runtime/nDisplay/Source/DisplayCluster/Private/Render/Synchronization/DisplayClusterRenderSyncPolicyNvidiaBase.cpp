@@ -7,6 +7,8 @@
 #include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterTypesConverter.h"
 
+#include "DisplayClusterConfigurationStrings.h"
+
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "DynamicRHI.h"
@@ -14,50 +16,79 @@
 #pragma warning(push)
 #pragma warning (disable : 4005)
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include "dxgi.h"
+#include "dxgi1_3.h"
 #include "d3d11.h"
 #include "nvapi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 #pragma warning(pop)
 
+#include "Async/Async.h"
+
 
 // TEMPORARY DIAGNOSTICS START
 static TAutoConsoleVariable<int32> CVarNvidiaSyncDiagnosticsInit(
 	TEXT("nDisplay.sync.nvidia.diag.init"),
-	0,
+	1,
 	TEXT("NVAPI diagnostics: init\n")
 	TEXT("0 : disabled\n")
 	TEXT("1 : enabled\n")
 	,
-	ECVF_RenderThreadSafe
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarNvidiaSyncDiagnosticsPresent(
 	TEXT("nDisplay.sync.nvidia.diag.present"),
-	0,
+	1,
 	TEXT("NVAPI diagnostics: present\n")
 	TEXT("0 : disabled\n")
 	TEXT("1 : enabled\n")
 	,
-	ECVF_RenderThreadSafe
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarNvidiaSyncDiagnosticsLatency(
-	TEXT("nDisplay.sync.nvidia.diag.latency"),
+static TAutoConsoleVariable<int32> CVarNvidiaSyncDiagnosticsWaitQueue(
+	TEXT("nDisplay.sync.nvidia.diag.waitqueue"),
 	0,
-	TEXT("NVAPI diagnostics: latency\n")
+	TEXT("NVAPI diagnostics: wait queue\n")
 	TEXT("0 : disabled\n")
 	TEXT("1 : enabled\n")
 	,
-	ECVF_RenderThreadSafe
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarNvidiaSyncDiagnosticsCompletion(
+	TEXT("nDisplay.sync.nvidia.diag.completion"),
+	0,
+	TEXT("NVAPI diagnostics: frame completion\n")
+	TEXT("0 : disabled\n")
+	TEXT("1 : enabled\n")
+	,
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 // TEMPORARY DIAGNOSTICS END
+
+// CVarNvidiaPresentBarrierCountLimit is used to set the number of presentation cluster sync barriers before getting disabled.
+// It is meant to compensate for the fact that the node may not enter the Swap Group barrier on the first frame,
+// so an additional barrier may be necessary to ensure sync across the cluster.
+// This CVar may become obsolete when the driver can be queried to distinguish between pending and actually
+// having joined the swap group, which is not possible at the time, and the only indication of this is by looking at the
+// HUD that option 8 in ConfigureDriver.exe provides.
+static TAutoConsoleVariable<int32> CVarNvidiaPresentBarrierCountLimit(
+	TEXT("nDisplay.sync.nvidia.barriercountlimit"),
+	240,
+	TEXT("Sets a limit to the number of times a sync barrier is enforced before calling nvidia presentation.\n")
+	TEXT("Defaults to 240, which corresponds to 10s@24fps or 4s@60fps\n")
+	TEXT("    N <= 0 : No limit\n")
+	TEXT("    N >= 1 : The presentation sync barrier will only happen N times\n")
+	,
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
 
 
 namespace
 {
-	static IUnknown*       D3DDevice     = nullptr;
-	static IDXGISwapChain* DXGISwapChain = nullptr;
+	static IUnknown*        D3DDevice     = nullptr;
+	static IDXGISwapChain2* DXGISwapChain = nullptr;
 
 	static uint32 RequestedGroup   = 1;
 	static uint32 RequestedBarrier = 1;
@@ -94,6 +125,12 @@ FDisplayClusterRenderSyncPolicyNvidiaBase::~FDisplayClusterRenderSyncPolicyNvidi
 	}
 }
 
+FName FDisplayClusterRenderSyncPolicyNvidiaBase::GetName() const
+{
+	static const FName NvidiaPolicy = DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia;
+	return NvidiaPolicy;
+}
+
 bool FDisplayClusterRenderSyncPolicyNvidiaBase::SynchronizeClusterRendering(int32& InOutSyncInterval)
 {
 	// Initialize barriers at first call
@@ -101,11 +138,20 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::SynchronizeClusterRendering(int3
 	{
 		bNvDiagInit    = (CVarNvidiaSyncDiagnosticsInit.GetValueOnRenderThread() != 0);
 		bNvDiagPresent = (CVarNvidiaSyncDiagnosticsPresent.GetValueOnRenderThread() != 0);
-		bNvDiagLatency = (CVarNvidiaSyncDiagnosticsLatency.GetValueOnRenderThread() != 0);
-		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("NVAPI DIAG: init=%d present=%d latency=%d"), bNvDiagInit ? 1 : 0, bNvDiagPresent ? 1 : 0, bNvDiagLatency ? 1 : 0);
+		bNvDiagWaitQueue  = (CVarNvidiaSyncDiagnosticsWaitQueue.GetValueOnRenderThread() != 0);
+		bNvDiagCompletion = (CVarNvidiaSyncDiagnosticsCompletion.GetValueOnRenderThread() != 0);
 
-		// Use network barrier to guarantee that all NVIDIA barriers are initialized simultaneously
-		SyncBarrierRenderThread();
+		NvPresentBarrierCountLimit = CVarNvidiaPresentBarrierCountLimit.GetValueOnRenderThread();
+
+		UE_LOG(LogDisplayClusterRenderSync, Log, 
+			TEXT("NVAPI DIAG: init=%d present=%d waitqueue=%d completion=%d barriercountlimit=%d"), 
+			bNvDiagInit ? 1 : 0, 
+			bNvDiagPresent ? 1 : 0, 
+			bNvDiagWaitQueue ? 1 : 0, 
+			bNvDiagCompletion ? 1 : 0, 
+			NvPresentBarrierCountLimit
+		);
+
 		// Set up NVIDIA swap barrier
 		bNvApiBarrierSet = InitializeNvidiaSwapLock();
 	}
@@ -118,6 +164,13 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::SynchronizeClusterRendering(int3
 		return true;
 	}
 
+	// NVAPI Diagnostics: frame completion
+	// Wait unless frame rendering is finished
+	if (bNvDiagCompletion)
+	{
+		WaitForFrameCompletion();
+	}
+
 	// NVAPI Diagnostics: present
 	// Align all threads on the timescale before calling NvAPI_D3D1x_Present
 	// As a side-effect, it should avoid NvAPI_D3D1x_Present stuck on application kill
@@ -126,6 +179,17 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::SynchronizeClusterRendering(int3
 		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI DIAG: wait start"));
 		SyncBarrierRenderThread();
 		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI DIAG: wait end"));
+
+		// Disable barrier when it reaches the set limit.
+		if ((NvPresentBarrierCountLimit > 0) && (++NvPresentBarrierCount >= NvPresentBarrierCountLimit))
+		{
+			bNvDiagPresent = false;
+
+			UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, 
+				TEXT("NVAPI DIAG: Disabled present sync barrier after %d frames"),
+				NvPresentBarrierCount
+			);
+		}
 	}
 
 	if (bNvApiBarrierSet && D3DDevice && DXGISwapChain)
@@ -146,16 +210,37 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::SynchronizeClusterRendering(int3
 		}
 
 		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI: the frame has been presented successfully"));
-
-		// We presented current frame so no need to present it on higher level
-		return false;
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI: Can't synchronize frame presentation"));
-		// Something went wrong, let upper level present this frame
+		UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("NVAPI: Can't synchronize frame presentation"));
+		// Something went wrong, let the upper level present this frame
 		return true;
 	}
+
+	// NVAPI Diagnostics: latency
+	// Since we have frame latency set to 1, the frame queue will always be locked right after present call unless the frame is popped out
+	// on the closest V-blank. Knowing that, we simply wait unless the frame is empty and then trigger the game thread to start processing next frame.
+	if (bNvDiagWaitQueue && DXGISwapChain)
+	{
+		// If using maximum frame latency, need to manually block on present
+		HANDLE FrameLatencyWaitableObjectHandle = DXGISwapChain->GetFrameLatencyWaitableObject();
+		if (FrameLatencyWaitableObjectHandle != NULL)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay Wait for queue empty - 'V-blank');
+
+			// Block the current thread until the swap chain has finished presenting.
+			if (::WaitForSingleObject(FrameLatencyWaitableObjectHandle, (DWORD)1000) != WAIT_OBJECT_0)
+			{
+				UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("An error occurred while waiting for the empty frame queue"));
+			}
+
+			::CloseHandle(FrameLatencyWaitableObjectHandle);
+		}
+	}
+
+	// We presented current frame so no need to present it on higher level
+	return false;
 }
 
 bool FDisplayClusterRenderSyncPolicyNvidiaBase::InitializeNvidiaSwapLock()
@@ -165,7 +250,7 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::InitializeNvidiaSwapLock()
 	check(D3DDevice);
 	
 	// Get IDXGISwapChain
-	DXGISwapChain = static_cast<IDXGISwapChain*>(GEngine->GameViewport->Viewport->GetViewportRHI().GetReference()->GetNativeSwapChain());
+	DXGISwapChain = static_cast<IDXGISwapChain2*>(GEngine->GameViewport->Viewport->GetViewportRHI().GetReference()->GetNativeSwapChain());
 	check(DXGISwapChain);
 
 	if (!D3DDevice || !DXGISwapChain)
@@ -174,42 +259,17 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::InitializeNvidiaSwapLock()
 		return false;
 	}
 
-	// NVAPI Diagnostics: latency
-	// Here we set frame latency to 1 explicitly (a workaround for DX12)
-	if (bNvDiagLatency)
+	// Set frame latency
+	if (DXGISwapChain->SetMaximumFrameLatency(1) != S_OK)
 	{
-		TRefCountPtr<IDXGIDevice1> DXGIDevice;
-		D3DDevice->QueryInterface(IID_IDXGIDevice, (void**)DXGIDevice.GetInitReference());
-		DXGIDevice->SetMaximumFrameLatency(1);
-	}
-
-	// NVAPI Diagnostics: init
-	// Here we guarantee all the nodes initialize NVIDIA sync on the same frame interval on the timescale
-	if (bNvDiagInit)
-	{
-		IDXGIOutput* DXOutput = nullptr;
-		DXGISwapChain->GetContainingOutput(&DXOutput);
-		if (DXOutput)
-		{
-			UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI DIAG: init start"));
-
-			// Wait for the next V-blank interval
-			DXOutput->WaitForVBlank();
-			// Sleep a bit to make sure the V-blank period is over and none of the nodes will present a frame
-			FPlatformProcess::Sleep(0.001f);
-			// Sync on a network barrier just in case
-			SyncBarrierRenderThread();
-
-			UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI DIAG: init end"));
-		}
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't set maximum frame latency"));
 	}
 
 	NvU32 MaxGroups = 0;
 	NvU32 MaxBarriers = 0;
 
 	// Get amount of available groups and barriers
-	NvAPI_Status NvApiResult = NVAPI_ERROR;
-	NvApiResult = NvAPI_D3D1x_QueryMaxSwapGroup(D3DDevice, &MaxGroups, &MaxBarriers);
+	NvAPI_Status NvApiResult = NvAPI_D3D1x_QueryMaxSwapGroup(D3DDevice, &MaxGroups, &MaxBarriers);
 	if (NvApiResult != NVAPI_OK)
 	{
 		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("NVAPI: Couldn't query group/barrier limits, error code 0x%x"), NvApiResult);
@@ -224,8 +284,43 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::InitializeNvidiaSwapLock()
 		return false;
 	}
 
+	// Get requested barrier/group from config
 	DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString("SyncGroup"),   RequestedGroup);
 	DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString("SyncBarrier"), RequestedBarrier);
+
+	// NVAPI Diagnostics: init
+	// Here we initialize NVIDIA sync on the same frame interval on the timescale
+	if (bNvDiagInit)
+	{
+		IDXGIOutput* DXOutput = nullptr;
+		DXGISwapChain->GetContainingOutput(&DXOutput);
+		if (DXOutput)
+		{
+			UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI DIAG: init start"));
+
+			// Align all the threads on the same timeline. It's very likely all the nodes got free on the same side of a potential
+			// upcoming V-blank. Normally, the barrier synchronization takes up to 500 microseconds which is about 3% of frame time.
+			// So the probability of a situation where some nodes left the barrier before V-blank while others after is really low.
+			// However, it's still possible. And cluster restart should likely be successfull.
+			SyncBarrierRenderThread();
+
+			// Assuming all the nodes in the right place and have some time before V-blank. Let's wait untill it happend.
+			DXOutput->WaitForVBlank();
+
+			// We don't really know either we're at the very beginning of V-blank interval or in the end. Let's spend some time
+			// on the barrier to let V-blank interval over.
+			SyncBarrierRenderThread();
+
+			// Yes, the task scheduler can break the logic above by allocating CPU resources to this thread like 20ms later which
+			// makes us behind of the next V-blank for 60Hz output. And we probably should play around thread priorities to reduce
+			// probability of that. But hope we're good here. Usually the systems that use NVIDIA sync approach have a lot of CPU
+			// cores and don't run any other applications that compete for CPU.
+			// Moreover, we will initialize NVIDIA sync for all cluster nodes before presenting first frame. So the initialization
+			// process should be fine anyway.
+
+			UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI DIAG: init end"));
+		}
+	}
 
 	// Join swap group
 	NvApiResult = NvAPI_D3D1x_JoinSwapGroup(D3DDevice, DXGISwapChain, RequestedGroup, true);

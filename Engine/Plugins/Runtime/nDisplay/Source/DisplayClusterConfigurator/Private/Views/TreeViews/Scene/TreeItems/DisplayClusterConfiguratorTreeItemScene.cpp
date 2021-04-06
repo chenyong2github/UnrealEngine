@@ -2,7 +2,7 @@
 
 #include "Views/TreeViews/Scene/TreeItems/DisplayClusterConfiguratorTreeItemScene.h"
 
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 #include "Views/TreeViews/Scene/DisplayClusterConfiguratorViewSceneDragDrop.h"
@@ -12,7 +12,7 @@
 
 FDisplayClusterConfiguratorTreeItemScene::FDisplayClusterConfiguratorTreeItemScene(const FName& InName,
 	const TSharedRef<IDisplayClusterConfiguratorViewTree>& InViewTree,
-	const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit,
+	const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit,
 	UObject* InObjectToEdit,
 	FString InIconStyle,
 	bool InbRoot)

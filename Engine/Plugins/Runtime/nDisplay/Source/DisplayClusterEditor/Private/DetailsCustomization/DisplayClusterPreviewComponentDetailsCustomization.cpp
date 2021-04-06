@@ -20,8 +20,14 @@
 
 
 FDisplayClusterPreviewComponentDetailsCustomization::FDisplayClusterPreviewComponentDetailsCustomization()
-	: ProjPolicyOptionNone(MakeShared<FString>("None"))
+	: ProjPolicyOptionNone(MakeShared<FString>("None")), CategoryPolicy(nullptr), CategoryPreview(nullptr),
+	  CategoryParameters(nullptr)
 {
+}
+
+FDisplayClusterPreviewComponentDetailsCustomization::~FDisplayClusterPreviewComponentDetailsCustomization()
+{
+	RefreshDelegate.Unbind();
 }
 
 TSharedRef<IDetailCustomization> FDisplayClusterPreviewComponentDetailsCustomization::MakeInstance()
@@ -125,7 +131,7 @@ void FDisplayClusterPreviewComponentDetailsCustomization::BuildPreview()
 
 void FDisplayClusterPreviewComponentDetailsCustomization::BuildParams()
 {
-	if (EditedObject->ProjectionPolicyParameters)
+	if (EditedObject.IsValid() && EditedObject->ProjectionPolicyParameters)
 	{
 		CategoryParameters->AddExternalObjects(TArray<UObject*> { EditedObject->ProjectionPolicyParameters });
 	}
@@ -181,7 +187,12 @@ void FDisplayClusterPreviewComponentDetailsCustomization::AddProjectionPolicyRow
 void FDisplayClusterPreviewComponentDetailsCustomization::OnProjectionPolicyChanged(TSharedPtr<FString> ProjPolicy, ESelectInfo::Type SelectInfo)
 {
 	const FString NewValue = (ProjPolicy.IsValid() ? *ProjPolicy : *ProjPolicyOptionNone);
-	PropertyProjectionPolicy->SetValue(NewValue);
+	FString OldValue;
+	PropertyProjectionPolicy->GetValue(OldValue);
+	if (NewValue != OldValue)
+	{
+		PropertyProjectionPolicy->SetValue(NewValue);
+	}
 }
 
 FText FDisplayClusterPreviewComponentDetailsCustomization::GetSelectedProjPolicyText() const

@@ -4,11 +4,11 @@
 
 #include "Views/TreeViews/DisplayClusterConfiguratorViewTree.h"
 
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 
 class FDisplayClusterConfiguratorViewScene
 	: public FDisplayClusterConfiguratorViewTree
 {
 public:
-	FDisplayClusterConfiguratorViewScene(const TSharedRef<FDisplayClusterConfiguratorToolkit>& Toolkit);
+	FDisplayClusterConfiguratorViewScene(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit);
 };

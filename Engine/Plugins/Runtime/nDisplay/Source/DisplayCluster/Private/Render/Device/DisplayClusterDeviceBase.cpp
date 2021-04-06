@@ -154,7 +154,7 @@ void FDisplayClusterDeviceBase::PreTick(float DeltaSeconds)
 			check(SyncPolicy.IsValid());
 
 			// Create present handler
-			FDisplayClusterPresentationBase* const CustomPresentHandler = CreatePresentationObject(MainViewport, SyncPolicy);
+			CustomPresentHandler = CreatePresentationObject(MainViewport, SyncPolicy);
 			check(CustomPresentHandler);
 
 			const FViewportRHIRef& MainViewportRHI = MainViewport->GetViewportRHI();
@@ -163,6 +163,7 @@ void FDisplayClusterDeviceBase::PreTick(float DeltaSeconds)
 			{
 				MainViewportRHI->SetCustomPresent(CustomPresentHandler);
 				bIsCustomPresentSet = true;
+				OnDisplayClusterRenderCustomPresentCreated().Broadcast();
 			}
 			else
 			{
@@ -392,6 +393,11 @@ uint32 FDisplayClusterDeviceBase::GetViewsAmountPerViewport() const
 	return ViewsAmountPerViewport;
 }
 
+IDisplayClusterPresentation* FDisplayClusterDeviceBase::GetPresentation() const
+{
+	return CustomPresentHandler;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IStereoRendering
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -423,10 +429,12 @@ void FDisplayClusterDeviceBase::InitCanvasFromView(class FSceneView* InView, cla
 			check(SyncPolicy.IsValid());
 
 			// Create present handler
-			FDisplayClusterPresentationBase* const CustomPresentHandler = CreatePresentationObject(MainViewport, SyncPolicy);
+			CustomPresentHandler = CreatePresentationObject(MainViewport, SyncPolicy);
 			check(CustomPresentHandler);
 
 			MainViewport->GetViewportRHI()->SetCustomPresent(CustomPresentHandler);
+
+			OnDisplayClusterRenderCustomPresentCreated().Broadcast();
 		}
 
 		bIsCustomPresentSet = true;
@@ -581,9 +589,6 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 	SCOPED_GPU_STAT(RHICmdList, nDisplay_Device_RenderTexture);
 	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Device_RenderTexture);
 
-	//  Temporary for 4.26.X: this is a temporary solution to match hotfix requirements (no public API changes).
-	FScopeLock Lock(&PPAccessScope);
-
 	// Get registered PP operations map
 	const TMap<FString, IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperationsMap = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
 
@@ -612,21 +617,55 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 	if (bWarpBlendEnabled)
 	{
 		// Initializing the projection policy logic for the current frame before applying warp blending
+		{
+#if !UE_BUILD_SHIPPING
 		TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay BeginWarpBlend_RenderThread);
+#endif
+			// Iterate over viewports
+			for (int i = 0; i < RenderViewports.Num(); ++i)
+			{
+				// Iterate over views for the current viewport
+				if (RenderViewports[i].GetProjectionPolicy()->IsWarpBlendSupported())
+				{
+					for (uint32 j = 0; j < ViewsAmountPerViewport; ++j)
+					{
+						RenderViewports[i].GetProjectionPolicy()->BeginWarpBlend_RenderThread(j, RHICmdList, SrcTexture, RenderViewports[i].GetContext(j).RenderTargetRect);
+					}
+				}
+			}
+		}
 
+		// Performs warp&blend
+		{
+#if !UE_BUILD_SHIPPING
+			TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay ApplyWarpBlend_RenderThread);
+#endif
 		// Iterate over viewports
-		for (int32 ViewportIdx = 0; ViewportIdx < RenderViewports.Num(); ++ViewportIdx)
+			for (int i = 0; i < RenderViewports.Num(); ++i)
 		{
 			// Iterate over views for the current viewport
-			if (RenderViewports[ViewportIdx].GetProjectionPolicy()->IsWarpBlendSupported())
+				if (RenderViewports[i].GetProjectionPolicy()->IsWarpBlendSupported())
 			{
-				for (uint32 ViewIdx = 0; ViewIdx < ViewsAmountPerViewport; ++ViewIdx)
+					for (uint32 j = 0; j < ViewsAmountPerViewport; ++j)
 				{
-					RenderViewports[ViewportIdx].GetProjectionPolicy()->ApplyWarpBlend_RenderThread(
-						ViewIdx,
-						RHICmdList,
-						SrcTexture,
-						RenderViewports[ViewportIdx].GetContext(ViewIdx).RenderTargetRect);
+						RenderViewports[i].GetProjectionPolicy()->ApplyWarpBlend_RenderThread(j, RHICmdList, SrcTexture, RenderViewports[i].GetContext(j).RenderTargetRect);
+					}
+				}
+			}
+		}
+
+		// Completing the projection policy logic for the current frame after applying warp blending
+		{
+			// Iterate over viewports
+			for (int i = 0; i < RenderViewports.Num(); ++i)
+			{
+				// Iterate over views for the current viewport
+				if (RenderViewports[i].GetProjectionPolicy()->IsWarpBlendSupported())
+				{
+					for (uint32 j = 0; j < ViewsAmountPerViewport; ++j)
+					{
+						RenderViewports[i].GetProjectionPolicy()->EndWarpBlend_RenderThread(j, RHICmdList, SrcTexture, RenderViewports[i].GetContext(j).RenderTargetRect);
+					}
 				}
 			}
 		}
@@ -645,9 +684,6 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 
 	// Finally, copy the render target texture to the back buffer
 	CopyTextureToBackBuffer_RenderThread(RHICmdList, BackBuffer, SrcTexture, WindowSize);
-
-	// Temporary for 4.26.X: we need to release shared pointers stored inside FDisplayClusterPPInfo
-	FDisplayClusterDeviceBase_PostProcess::PPOperations.Reset();
 }
 
 int32 FDisplayClusterDeviceBase::GetDesiredNumberOfViews(bool bStereoRequested) const
@@ -749,15 +785,11 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 		}
 	}
 
+	// Pass UpdateViewport to all PP operations
+	TMap<FString, IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperationsMap = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
+	for (auto& it : PPOperationsMap)
 	{
-		FScopeLock Lock(&PPAccessScope);
-
-		// Pass UpdateViewport to all PP operations
-		TMap<FString, IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperationsMap = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
-		for (auto& it : PPOperationsMap)
-		{
-			it.Value.Operation->PerformUpdateViewport(Viewport, RenderViewports);
-		}
+		it.Value.Operation->PerformUpdateViewport(Viewport, RenderViewports);
 	}
 }
 

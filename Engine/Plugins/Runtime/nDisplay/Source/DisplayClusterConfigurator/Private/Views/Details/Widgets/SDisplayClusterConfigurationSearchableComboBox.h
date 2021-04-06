@@ -80,8 +80,16 @@ public:
 	 */
 	void Construct(const FArguments& InArgs);
 
-	/** Reset the source in the Combo Box List */
-	void ResetOptionsSource(const TArray<TSharedPtr<FString>>* NewOptionsSource);
+	/**
+	 * Reset the source in the Combo Box List. The options source is intelligently refreshed based on if the Source is the same or not.
+	 *
+	 * @param NewOptionsSource The options data to use. If null the original will be used.
+	 */
+	void ResetOptionsSource(const TArray<TSharedPtr<FString>>* NewOptionsSource = nullptr);
+
+protected:
+	/** Local version of parent class private variable `OptionsSource` */
+	const TArray< TSharedPtr<FString> >* DisplayClusterOptionsSource;
 };
 
 

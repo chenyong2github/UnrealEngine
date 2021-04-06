@@ -181,7 +181,7 @@ struct FDisplayClusterConfigurationTextInputSetup : public FDisplayClusterConfig
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct FDisplayClusterConfigurationTextGeneral : public FDisplayClusterConfigurationTextBase
 {
-	int32 SwapSyncPolicy = 0;
+	int32 SwapSyncPolicy = 1;
 	int32 NativeInputSyncPolicy = 1;
 
 	virtual FString ToString() const override;

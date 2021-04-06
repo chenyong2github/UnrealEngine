@@ -42,7 +42,7 @@ bool FDisplayClusterConfigurationTextParser::SaveData(const UDisplayClusterConfi
 
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::ConvertDataToInternalTypes()
 {
-	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
+	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet | RF_Transactional);
 	check(Config && Config->Scene && Config->Input && Config->Cluster);
 
 	// Fill metadata
@@ -57,7 +57,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 		// Scene nodes (Xforms)
 		for (const FDisplayClusterConfigurationTextSceneNode& CfgComp : CfgSceneNodes)
 		{
-			UDisplayClusterConfigurationSceneComponentXform* Comp = NewObject<UDisplayClusterConfigurationSceneComponentXform>(Config);
+			UDisplayClusterConfigurationSceneComponentXform* Comp = NewObject<UDisplayClusterConfigurationSceneComponentXform>(Config, NAME_None, RF_Transactional);
 			check(Comp);
 
 			// General
@@ -73,7 +73,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 		// Screens
 		for (const FDisplayClusterConfigurationTextScreen& CfgComp : CfgScreens)
 		{
-			UDisplayClusterConfigurationSceneComponentScreen* Comp = NewObject<UDisplayClusterConfigurationSceneComponentScreen>(Config);
+			UDisplayClusterConfigurationSceneComponentScreen* Comp = NewObject<UDisplayClusterConfigurationSceneComponentScreen>(Config, NAME_None, RF_Transactional);
 			check(Comp);
 
 			// General
@@ -91,7 +91,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 		// Cameras
 		for (const FDisplayClusterConfigurationTextCamera& CfgComp : CfgCameras)
 		{
-			UDisplayClusterConfigurationSceneComponentCamera* Comp = NewObject<UDisplayClusterConfigurationSceneComponentCamera>(Config);
+			UDisplayClusterConfigurationSceneComponentCamera* Comp = NewObject<UDisplayClusterConfigurationSceneComponentCamera>(Config, NAME_None, RF_Transactional);
 			check(Comp);
 
 			const EDisplayClusterConfigurationEyeStereoOffset EyeOffset = (CfgComp.ForceOffset == 0 ? EDisplayClusterConfigurationEyeStereoOffset::None :
@@ -177,7 +177,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 		// Nodes
 		for (const FDisplayClusterConfigurationTextClusterNode& CfgNode: CfgClusterNodes)
 		{
-			UDisplayClusterConfigurationClusterNode* Node = NewObject<UDisplayClusterConfigurationClusterNode>(Config);
+			UDisplayClusterConfigurationClusterNode* Node = NewObject<UDisplayClusterConfigurationClusterNode>(Config, *CfgNode.Id, RF_Transactional);
 			check(Node);
 
 			// Base parameters
@@ -218,7 +218,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 
 					if (CfgViewport)
 					{
-						UDisplayClusterConfigurationViewport* Viewport = NewObject<UDisplayClusterConfigurationViewport>(Config);
+						UDisplayClusterConfigurationViewport* Viewport = NewObject<UDisplayClusterConfigurationViewport>(Config, *ViewportId, RF_Transactional);
 						check(Viewport);
 
 						Viewport->BufferRatio = CfgViewport->BufferRatio;
@@ -345,7 +345,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 		// Aarsing analog device
 		if (CfgInputDevice.Type.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::DeviceAnalog, ESearchCase::IgnoreCase))
 		{
-			UDisplayClusterConfigurationInputDeviceAnalog* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceAnalog>(Config);
+			UDisplayClusterConfigurationInputDeviceAnalog* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceAnalog>(Config, NAME_None, RF_Transactional);
 			check(InputDevice);
 
 			InputDevice->Address = Address;
@@ -356,7 +356,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 		// Button device
 		else if (CfgInputDevice.Type.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::DeviceButtons, ESearchCase::IgnoreCase))
 		{
-			UDisplayClusterConfigurationInputDeviceButton* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceButton>(Config);
+			UDisplayClusterConfigurationInputDeviceButton* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceButton>(Config, NAME_None, RF_Transactional);
 			check(InputDevice);
 
 			InputDevice->Address = Address;
@@ -367,7 +367,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 		// Keyboard device
 		else if (CfgInputDevice.Type.Equals(FString(DisplayClusterConfigurationTextStrings::cfg::data::input::DeviceKeyboard), ESearchCase::IgnoreCase))
 		{
-			UDisplayClusterConfigurationInputDeviceKeyboard* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceKeyboard>(Config);
+			UDisplayClusterConfigurationInputDeviceKeyboard* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceKeyboard>(Config, NAME_None, RF_Transactional);
 			check(InputDevice);
 
 			InputDevice->Address = Address;
@@ -398,7 +398,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 		// Tracker device
 		else if (CfgInputDevice.Type.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::DeviceTracker, ESearchCase::IgnoreCase))
 		{
-			UDisplayClusterConfigurationInputDeviceTracker* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceTracker>(Config);
+			UDisplayClusterConfigurationInputDeviceTracker* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceTracker>(Config, NAME_None, RF_Transactional);
 			check(InputDevice);
 
 			InputDevice->Address = Address;

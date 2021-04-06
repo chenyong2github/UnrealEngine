@@ -13,7 +13,7 @@
 #include "Editor.h"
 #endif
 
-class FDisplayClusterActorRef
+class DISPLAYCLUSTER_API FDisplayClusterActorRef
 {
 public:
 	virtual ~FDisplayClusterActorRef()
@@ -162,7 +162,7 @@ protected:
 	mutable FCriticalSection DataGuard;
 };
 
-class FDisplayClusterSceneComponentRef
+class DISPLAYCLUSTER_API FDisplayClusterSceneComponentRef
 	: public FDisplayClusterActorRef
 {
 public:
@@ -182,40 +182,7 @@ public:
 
 	// Return component object ptr.
 	// For killed object ptr, reset and find component new object ptr by name and save to [mutable] ComponentPtr
-	USceneComponent* GetOrFindSceneComponent() const
-	{
-		FScopeLock lock(&DataGuard);
-
-		if (!IsDefinedSceneComponent())
-		{
-			return nullptr;
-		}
-
-		if (!ComponentPtr.IsValid())
-		{
-			ComponentPtr.Reset();
-
-			AActor* Actor = GetOrFindSceneActor();
-			if (Actor)
-			{
-				for (UActorComponent* ItActorComponent : Actor->GetComponents())
-				{
-					if (ItActorComponent->GetFName() == ComponentName)
-					{
-						USceneComponent* SceneComponent = Cast<USceneComponent>(ItActorComponent);
-						if (SceneComponent)
-						{
-							ComponentPtr = TWeakObjectPtr<USceneComponent>(SceneComponent);
-							return SceneComponent;
-						}
-					}
-				}
-				// Component not found. Actor structure changed??
-			}
-		}
-		
-		return ComponentPtr.Get();
-	}
+	USceneComponent* GetOrFindSceneComponent() const;
 
 	bool SetSceneComponent(USceneComponent* InComponent)
 	{

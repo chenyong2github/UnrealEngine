@@ -5,7 +5,7 @@
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorViewportNode.h"
 
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfiguratorStyle.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
@@ -15,12 +15,12 @@
 
 int32 const SDisplayClusterConfiguratorCanvasNode::DefaultZOrder = 0;
 
-void SDisplayClusterConfiguratorCanvasNode::Construct(const FArguments& InArgs, UDisplayClusterConfiguratorCanvasNode* InNode, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
+void SDisplayClusterConfiguratorCanvasNode::Construct(const FArguments& InArgs, UDisplayClusterConfiguratorCanvasNode* InNode, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {	
 	SDisplayClusterConfiguratorBaseNode::Construct(SDisplayClusterConfiguratorBaseNode::FArguments(), InNode, InToolkit);
 
-	// Inflate visible bounds by 1.05, ensures canvas borders are always visible and not covered by window nodes
-	CanvasScaleFactor = 1.05f;
+	// Add padding to the canvas node's rendered size, ensuring the borders are visible when wrapping its children
+	CanvasPadding = FMargin(75, 75, 75, 75);
 
 	UpdateGraphNode();
 }
@@ -77,42 +77,6 @@ void SDisplayClusterConfiguratorCanvasNode::UpdateGraphNode()
 	];
 }
 
-void SDisplayClusterConfiguratorCanvasNode::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	UDisplayClusterConfiguratorCanvasNode* CanvasEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorCanvasNode>();
-
-	// Resize canvas slot
-	FBox2D CanvasBounds;
-
-	// Loop through all windows
-	for (TArray<UDisplayClusterConfiguratorWindowNode*>::TConstIterator WindowIt(CanvasEdNode->GetChildWindows()); WindowIt; ++WindowIt)
-	{
-		UDisplayClusterConfiguratorWindowNode* WindowNode = *WindowIt;
-		if (!WindowNode->GetNodeSize().IsZero())
-		{
-			CanvasBounds += WindowNode->GetNodeBounds();
-		}
-	}
-
-	// Loop through all Viewport if all windows with size 0
-	if (!CanvasBounds.bIsValid)
-	{
-		for (TArray<UDisplayClusterConfiguratorWindowNode*>::TConstIterator WindowIt(CanvasEdNode->GetChildWindows()); WindowIt; ++WindowIt)
-		{
-			UDisplayClusterConfiguratorWindowNode* WindowNode = *WindowIt;
-			for (TArray<UDisplayClusterConfiguratorViewportNode*>::TConstIterator ViewportIt(WindowNode->GetChildViewports()); ViewportIt; ++ViewportIt)
-			{
-				UDisplayClusterConfiguratorViewportNode* ViewportNode = *ViewportIt;
-				CanvasBounds += ViewportNode->GetNodeBounds();
-			}
-		}
-	}
-
-	CanvasEdNode->NodePosX = CanvasBounds.Min.X;
-	CanvasEdNode->NodePosY = CanvasBounds.Min.Y;
-	CanvasEdNode->ResizeNode(CanvasBounds.GetSize());
-}
-
 void SDisplayClusterConfiguratorCanvasNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
 {
 	// Canvas node is not allowed to be moved in general, so add it to the node filter
@@ -123,69 +87,31 @@ void SDisplayClusterConfiguratorCanvasNode::MoveTo(const FVector2D& NewPosition,
 
 FVector2D SDisplayClusterConfiguratorCanvasNode::ComputeDesiredSize(float) const
 {
-	FVector2D NodeSize = GetSize();
-	FVector2D ScaledSize = FVector2D::ZeroVector;
-
-	if (NodeSize.X > NodeSize.Y)
-	{
-		ScaledSize.X = NodeSize.X * CanvasScaleFactor;
-		ScaledSize.Y = NodeSize.Y + (ScaledSize.X - NodeSize.X);
-	}
-	else
-	{
-		ScaledSize.Y = NodeSize.Y * CanvasScaleFactor;
-		ScaledSize.X = NodeSize.X + (ScaledSize.Y - NodeSize.Y);
-	}
-
-	return ScaledSize;
+	const FVector2D NodeSize = GetSize();
+	return FVector2D(NodeSize.X + CanvasPadding.Left + CanvasPadding.Right, NodeSize.Y + CanvasPadding.Top + CanvasPadding.Bottom);
 }
 
 FVector2D SDisplayClusterConfiguratorCanvasNode::GetPosition() const
 {
 	const FVector2D NodePosition = SDisplayClusterConfiguratorBaseNode::GetPosition();
-	const FVector2D NodeSize = GetSize();
-	const FVector2D ActualSize = GetDesiredSize();
 
-	// Offset node position by half of the new inflated size to re-center the canvas after it has been inflated by the scale factor
-	return NodePosition - (ActualSize - NodeSize) * 0.5f;
+	// Offset node position by the top and left margin of the canvas padding
+	return NodePosition - FVector2D(CanvasPadding.Left, CanvasPadding.Top);
 }
 
 TArray<FOverlayWidgetInfo> SDisplayClusterConfiguratorCanvasNode::GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const
 {
-	TArray<FOverlayWidgetInfo> Widgets = SGraphNode::GetOverlayWidgets(bSelected, WidgetSize);
+	TArray<FOverlayWidgetInfo> Widgets = SDisplayClusterConfiguratorBaseNode::GetOverlayWidgets(bSelected, WidgetSize);
 
 	const FVector2D TextSize = CanvasSizeTextWidget->GetDesiredSize();
 
 	FOverlayWidgetInfo Info;
-	Info.OverlayOffset = FVector2D((WidgetSize.X - TextSize.X) * 0.5f, WidgetSize.Y);
+	Info.OverlayOffset = FVector2D(0.5f * (WidgetSize.X - TextSize.X), WidgetSize.Y);
 	Info.Widget = CanvasSizeTextWidget;
 
 	Widgets.Add(Info);
 
 	return Widgets;
-}
-
-UObject* SDisplayClusterConfiguratorCanvasNode::GetEditingObject() const
-{
-	UDisplayClusterConfiguratorCanvasNode* CanvasEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorCanvasNode>();
-	return CanvasEdNode->GetObject();
-}
-
-void SDisplayClusterConfiguratorCanvasNode::OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem)
-{
-	UObject* SelectedObject = InTreeItem->GetObject();
-
-	// Select this node
-	if (UObject* NodeObject = GetEditingObject())
-	{
-		if (NodeObject == SelectedObject)
-		{
-			bIsObjectFocused = true;
-			return;
-		}
-	}
-
-	bIsObjectFocused = false;
 }
 
 const FSlateBrush* SDisplayClusterConfiguratorCanvasNode::GetSelectedBrush() const
@@ -208,8 +134,9 @@ FMargin SDisplayClusterConfiguratorCanvasNode::GetBackgroundPosition() const
 
 FText SDisplayClusterConfiguratorCanvasNode::GetCanvasSizeText() const
 {
-	const FVector2D NodeSize = GetSize();
-	return FText::Format(LOCTEXT("CanvasResolution", "Canvas Resolution {0} x {1}"), FText::AsNumber(FMath::RoundToInt(NodeSize.X)), FText::AsNumber(FMath::RoundToInt(NodeSize.Y)));
+	UDisplayClusterConfiguratorCanvasNode* CanvasNode = GetGraphNodeChecked<UDisplayClusterConfiguratorCanvasNode>();
+	const FVector2D& Resolution = CanvasNode->GetResolution();
+	return FText::Format(LOCTEXT("ClusterResolution", "Cluster Resolution {0} x {1}"), FText::AsNumber(FMath::RoundToInt(Resolution.X)), FText::AsNumber(FMath::RoundToInt(Resolution.Y)));
 }
 
 #undef LOCTEXT_NAMESPACE

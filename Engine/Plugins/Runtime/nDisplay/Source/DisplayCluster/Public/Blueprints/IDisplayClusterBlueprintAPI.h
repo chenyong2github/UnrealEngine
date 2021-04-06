@@ -67,20 +67,6 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is slave node"), Category = "DisplayCluster|Cluster")
 	virtual bool IsSlave() const = 0;
 
-	/** Returns true if current application is running in cluster mode. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is cluster mode", DeprecatedFunction, DeprecationMessage = "This feature is no longer supported."), Category = "DisplayCluster|Cluster")
-	virtual bool IsCluster()
-	{
-		return false;
-	}
-
-	/** Returns true if current application is running in standalone mode. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is standalone mode", DeprecatedFunction, DeprecationMessage = "This feature is no longer supported."), Category = "DisplayCluster|Cluster")
-	virtual bool IsStandalone()
-	{
-		return false;
-	}
-
 	/** Returns cluster node name of the current application instance. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get node ID"), Category = "DisplayCluster|Cluster")
 	virtual FString GetNodeId() const = 0;
@@ -97,16 +83,11 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Remove cluster event listener"), Category = "DisplayCluster|Cluster")
 	virtual void RemoveClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener> Listener) = 0;
 
-	/** Emits cluster event. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Emit cluster event", DeprecatedFunction, DeprecationMessage = "Please, use EmitClusterEventJson"), Category = "DisplayCluster|Cluster")
-	virtual void EmitClusterEvent(const FDisplayClusterClusterEvent& Event, bool MasterOnly)
-	{ }
-
-	/** Emits cluster event. */
+	/** Emits JSON cluster event. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Emit JSON cluster event"), Category = "DisplayCluster|Cluster")
 	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool bMasterOnly) = 0;
 
-	/** Emits cluster event. */
+	/** Emits binary cluster event. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Emit binary cluster event"), Category = "DisplayCluster|Cluster")
 	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) = 0;
 
@@ -311,39 +292,4 @@ public:
 	/** Returns a functor that determines if any given scene view extension should be active in the given context for the current frame */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Scene View Extension Is Active In Context Function"), Category = "DisplayCluster|Render")
 	virtual void SceneViewExtensionIsActiveInContextFunction(const TArray<FString>& ViewportIDs, FSceneViewExtensionIsActiveFunctor& OutIsActiveFunction) const = 0;
-
-public:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// Render/Camera API
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	/** Returns interpupillary distance (eye separation) for stereoscopic rendering. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get interpuppillary distance", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterCameraComponent."), Category = "DisplayCluster|Render|Camera")
-	virtual float GetInterpupillaryDistance(const FString& CameraID)
-	{
-		return 0.f;
-	}
-
-	/** Sets interpupillary distance (eye separation) for stereoscopic rendering. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set interpuppillary distance", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterCameraComponent."), Category = "DisplayCluster|Render|Camera")
-	virtual void SetInterpupillaryDistance(const FString& CameraID, float EyeDistance)
-	{ }
-
-	/** Gets Swap eye rendering state. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get eye swap", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterCameraComponent."), Category = "DisplayCluster|Render|Camera")
-	virtual bool GetEyesSwap(const FString& CameraID)
-	{
-		return false;
-	}
-
-	/** Sets Swap eye rendering state. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set eye swap", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterCameraComponent."), Category = "DisplayCluster|Render|Camera")
-	virtual void SetEyesSwap(const FString& CameraID, bool EyeSwapped)
-	{ }
-
-	/** Toggles current eye swap state. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Toggle eye swap", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterCameraComponent."), Category = "DisplayCluster|Render|Camera")
-	virtual bool ToggleEyesSwap(const FString& CameraID)
-	{
-		return false;
-	}
 };

@@ -28,4 +28,6 @@ public:
 
 	/** Show all nodes in the tree */
 	TSharedPtr< FUICommandInfo > ShowAllNodes;
+
+	TSharedPtr<FUICommandInfo> SetAsMaster;
 };

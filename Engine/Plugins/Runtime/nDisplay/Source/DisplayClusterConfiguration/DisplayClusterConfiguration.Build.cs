@@ -7,6 +7,8 @@ public class DisplayClusterConfiguration : ModuleRules
 {
 	public DisplayClusterConfiguration(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
+		DefaultBuildSettings = BuildSettingsVersion.V2;
+
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"DisplayCluster",

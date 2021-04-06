@@ -6,7 +6,7 @@
 #include "PicpProjectionOverlayViewport.h"
 #include "PicpProjectionOverlayLUT.h"
 
-class FPicpProjectionMPCDIPolicy;
+class FPicpProjectionPolicyBase;
 
 // This is data for shader
 class FPicpProjectionOverlayViewportData
@@ -86,14 +86,15 @@ public:
 	}
 
 public:
-	static void GenerateDebugContent(const FString& ViewportId, FPicpProjectionMPCDIPolicy* OutPolicy);
+	static void GenerateDebugContent(const FString& ViewportId, FPicpProjectionPolicyBase* OutPolicy);
 
-	void GetViewportData(const FString& ViewportId, FPicpProjectionMPCDIPolicy* OutPolicy, const FTransform& Origin2WorldTransform) const;
+	void GetViewportData(const FString& ViewportId, FPicpProjectionPolicyBase* OutPolicy, const FTransform& Origin2WorldTransform) const;
 	void Empty();
 
 public:
-	FPicpProjectionOverlayLUT                               LUTCorrection;   //@todo: Global LUT correction (Not implemented now)
-	TMap<FString, FPicpProjectionOverlayViewport>           ViewportsOver;   // Overlay under inner frame for all viewports by name
-	TMap<FString, FPicpProjectionOverlayViewport>           ViewportsUnder;  // Overlay on top of inner frame for all viewports by name
-	TArray<FPicpProjectionOverlayCamera>                    Cameras;         // Camera's overlay, in render order
+	FPicpProjectionOverlayLUT                     LUTCorrection;            //@todo: Global LUT correction (Not implemented now)
+	TMap<FString, FPicpProjectionOverlayViewport> ViewportsOver;            // Overlay under inner frame for all viewports by name
+	TMap<FString, FPicpProjectionOverlayViewport> ViewportsUnder;           // Overlay on top of inner frame for all viewports by name
+	TArray<FPicpProjectionOverlayCamera>          Cameras;                  // Camera's overlay, in render order
+	TArray<FString>                               ViewportsWithoutIncamera; // Viewport IDs to hide incamera
 };

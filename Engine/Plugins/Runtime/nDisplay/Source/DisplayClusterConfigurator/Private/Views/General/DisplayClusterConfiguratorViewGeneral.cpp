@@ -2,9 +2,9 @@
 
 #include "Views/General/DisplayClusterConfiguratorViewGeneral.h"
 #include "Views/General/SDisplayClusterConfiguratorViewGeneral.h"
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 
-FDisplayClusterConfiguratorViewGeneral::FDisplayClusterConfiguratorViewGeneral(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
+FDisplayClusterConfiguratorViewGeneral::FDisplayClusterConfiguratorViewGeneral(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 	: ToolkitPtr(InToolkit)
 {
 }
@@ -16,6 +16,11 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorViewGeneral::CreateWidget()
 		 SAssignNew(ViewDetails, SDisplayClusterConfiguratorViewGeneral, ToolkitPtr.Pin().ToSharedRef());
 	}
 
+	return ViewDetails.ToSharedRef();
+}
+
+TSharedRef<SWidget> FDisplayClusterConfiguratorViewGeneral::GetWidget()
+{
 	return ViewDetails.ToSharedRef();
 }
 

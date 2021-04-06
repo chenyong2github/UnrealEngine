@@ -21,6 +21,9 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool HandleAddViewport(const FIntPoint& ViewportSize, const uint32 ViewsAmount) override;
 
+	/** Parse the config data for a mesh id and try to retrieve it from the root actor. */
+	UStaticMeshComponent* GetStaticMeshComponent() const;
+	
 	virtual EWarpType GetWarpType() const override
 	{ return EWarpType::mesh; }
 

@@ -47,8 +47,10 @@ const FString ADisplayClusterRootActor::PreviewNodeNone = TEXT("None");
 
 void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
+	bool bReinitializeActor = false;
+	
 	// Config file has been changed, we should rebuild the nDisplay hierarchy
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FFilePath, FilePath))
 	{
@@ -62,8 +64,25 @@ void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			RebuildPreview();
 		});
 	}
+	else
+	{
+		bReinitializeActor = true;
+	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (bReinitializeActor)
+	{
+		InitializeRootActor();
+	}
+}
+
+void ADisplayClusterRootActor::PostEditMove(bool bFinished)
+{
+	// Don't update the preview with the config data if we're just moving the actor.
+	bDontUpdatePreviewData = true;
+	Super::PostEditMove(bFinished);
+	bDontUpdatePreviewData = false;
 }
 
 TSharedPtr<TMap<UObject*, FString>> ADisplayClusterRootActor::GenerateObjectsNamingMap() const
@@ -101,9 +120,80 @@ void ADisplayClusterRootActor::SelectComponent(const FString& SelectedComponent)
 	}
 }
 
-FString ADisplayClusterRootActor::GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const
+void ADisplayClusterRootActor::GeneratePreview()
 {
-	return FString::Printf(TEXT("%s - %s"), *NodeId, *ViewportId);
+	if (IsTemplate() || bDeferPreviewGeneration)
+	{
+		return;
+	}
+
+	TArray<UDisplayClusterPreviewComponent*> IteratedPreviewComponents;
+	
+	if (CurrentConfigData)
+	{
+		const bool bAllComponentsVisible = PreviewNodeId.Equals(ADisplayClusterRootActor::PreviewNodeAll, ESearchCase::IgnoreCase);
+
+		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& Node : CurrentConfigData->Cluster->Nodes)
+		{
+			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
+			{
+				if (bAllComponentsVisible || Node.Key.Equals(PreviewNodeId, ESearchCase::IgnoreCase))
+				{
+					const FString PreviewCompId = GeneratePreviewComponentName(Node.Key, Viewport.Key);
+					UDisplayClusterPreviewComponent* PreviewComp = PreviewComponents.FindRef(PreviewCompId);
+					if (!PreviewComp)
+					{
+						PreviewComp = NewObject<UDisplayClusterPreviewComponent>(this, FName(*PreviewCompId), RF_DuplicateTransient | RF_Transactional | RF_NonPIEDuplicateTransient);
+						check(PreviewComp);
+
+						AddInstanceComponent(PreviewComp);
+						PreviewComponents.Emplace(PreviewCompId, PreviewComp);
+					}
+
+					if (!bDontUpdatePreviewData)
+					{
+						PreviewComp->SetConfigData(this, Viewport.Value);
+					}
+					if (GetWorld() && !PreviewComp->IsRegistered())
+					{
+						PreviewComp->RegisterComponent();
+					}
+
+					PreviewComp->BuildPreview();
+
+					IteratedPreviewComponents.Add(PreviewComp);
+				}
+			}
+		}
+	}
+
+	// Cleanup unused components.
+	TArray<UDisplayClusterPreviewComponent*> AllPreviewComponents;
+	GetComponents<UDisplayClusterPreviewComponent>(AllPreviewComponents);
+	
+	for (UDisplayClusterPreviewComponent* ExistingComp : AllPreviewComponents)
+	{
+		if (!IteratedPreviewComponents.Contains(ExistingComp))
+		{
+			PreviewComponents.Remove(ExistingComp->GetName());
+			
+			RemoveInstanceComponent(ExistingComp);
+			ExistingComp->UnregisterComponent();
+			ExistingComp->DestroyComponent();
+		}
+	}
+
+	OnPreviewGenerated.ExecuteIfBound();
+}
+
+void ADisplayClusterRootActor::RebuildPreview()
+{
+	CleanupPreview();
+
+	if (!PreviewNodeId.Equals(ADisplayClusterRootActor::PreviewNodeNone, ESearchCase::IgnoreCase))
+	{
+		GeneratePreview();
+	}
 }
 
 void ADisplayClusterRootActor::CleanupPreview()
@@ -114,57 +204,19 @@ void ADisplayClusterRootActor::CleanupPreview()
 	{
 		if (CompPair.Value)
 		{
+			RemoveInstanceComponent(CompPair.Value);
 			CompPair.Value->UnregisterComponent();
 			CompPair.Value->DestroyComponent();
 		}
 	}
 
 	PreviewComponents.Reset();
+	OnPreviewDestroyed.ExecuteIfBound();
 }
 
-void ADisplayClusterRootActor::RebuildPreview()
+FString ADisplayClusterRootActor::GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const
 {
-	CleanupPreview();
-
-	if (!PreviewNodeId.Equals(ADisplayClusterRootActor::PreviewNodeNone, ESearchCase::IgnoreCase))
-	{
-		if (CurrentConfigData)
-		{
-			const bool bAllComponentsVisible = PreviewNodeId.Equals(ADisplayClusterRootActor::PreviewNodeAll, ESearchCase::IgnoreCase);
-
-			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& Node : CurrentConfigData->Cluster->Nodes)
-			{
-				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
-				{
-					if (bAllComponentsVisible || Node.Key.Equals(PreviewNodeId, ESearchCase::IgnoreCase))
-					{
-						const FString PreviewCompId = GeneratePreviewComponentName(Node.Key, Viewport.Key);
-						if (!PreviewComponents.Contains(PreviewCompId))
-						{
-							UDisplayClusterPreviewComponent* PreviewComp = NewObject<UDisplayClusterPreviewComponent>(this, FName(*PreviewCompId));
-							check(PreviewComp);
-
-							AddInstanceComponent(PreviewComp);
-
-							PreviewComp->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
-							PreviewComp->SetConfigData(this, Viewport.Value);
-							PreviewComp->RegisterComponent();
-							PreviewComp->BuildPreview();
-
-							PreviewComponents.Emplace(PreviewCompId, PreviewComp);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if (GIsEditor)
-	{
-		// Force SActorDetails redraw
-		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-		LevelEditor.BroadcastComponentsEdited();
-	}
+	return FString::Printf(TEXT("%s - %s"), *NodeId, *ViewportId);
 }
 
 UDisplayClusterPreviewComponent* ADisplayClusterRootActor::GetPreviewComponent(const FString& NodeId, const FString& ViewportId)

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Cluster/DisplayClusterClusterManager.h"
+#include "Cluster/DisplayClusterClusterEvent.h"
 #include "Cluster/DisplayClusterClusterEventHandler.h"
 
 #include "Cluster/IDisplayClusterClusterSyncObject.h"
@@ -53,7 +54,6 @@ FDisplayClusterClusterManager::~FDisplayClusterClusterManager()
 bool FDisplayClusterClusterManager::Init(EDisplayClusterOperationMode OperationMode)
 {
 	CurrentOperationMode = OperationMode;
-	
 	return true;
 }
 
@@ -174,11 +174,11 @@ void FDisplayClusterClusterManager::PreTick(float DeltaSeconds)
 		FScopeLock Lock(&ClusterEventsJsonCritSec);
 
 		ClusterEventsJsonPoolOut.Reset();
-		ClusterEventsJsonPoolOut = MoveTemp(ClusterEventsJsonPoolMain);
+		ClusterEventsJsonPoolOut = ClusterEventsJsonPoolMain;
 		ClusterEventsJsonPoolMain.Reset();
 
 		ClusterEventsJsonNonDiscardedPoolOut.Reset();
-		ClusterEventsJsonNonDiscardedPoolOut = MoveTemp(ClusterEventsJsonNonDiscardedPoolMain);
+		ClusterEventsJsonNonDiscardedPoolOut = ClusterEventsJsonNonDiscardedPoolMain;
 		ClusterEventsJsonNonDiscardedPoolMain.Reset();
 	}
 
@@ -187,11 +187,11 @@ void FDisplayClusterClusterManager::PreTick(float DeltaSeconds)
 		FScopeLock Lock(&ClusterEventsBinaryCritSec);
 
 		ClusterEventsBinaryPoolOut.Reset();
-		ClusterEventsBinaryPoolOut = MoveTemp(ClusterEventsBinaryPoolMain);
+		ClusterEventsBinaryPoolOut = ClusterEventsBinaryPoolMain;
 		ClusterEventsBinaryPoolMain.Reset();
 
 		ClusterEventsBinaryNonDiscardedPoolOut.Reset();
-		ClusterEventsBinaryNonDiscardedPoolOut = MoveTemp(ClusterEventsBinaryNonDiscardedPoolMain);
+		ClusterEventsBinaryNonDiscardedPoolOut = ClusterEventsBinaryNonDiscardedPoolMain;
 		ClusterEventsBinaryNonDiscardedPoolMain.Reset();
 	}
 
@@ -439,32 +439,32 @@ void FDisplayClusterClusterManager::ExportEventsData(TArray<TSharedPtr<FDisplayC
 	{
 		FScopeLock Lock(&ClusterEventsJsonCritSec);
 
-	// Export all system and non-system json events that have 'discard on repeat' flag
-	for (const auto& it : ClusterEventsJsonPoolOut)
-	{
+		// Export all system and non-system json events that have 'discard on repeat' flag
+		for (const auto& it : ClusterEventsJsonPoolOut)
+		{
 			TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>> JsonEventsToExport;
-		it.Value.GenerateValueArray(JsonEventsToExport);
-		JsonEvents.Append(JsonEventsToExport);
-	}
+			it.Value.GenerateValueArray(JsonEventsToExport);
+			JsonEvents.Append(JsonEventsToExport);
+		}
 
-	// Export all json events that don't have 'discard on repeat' flag
-	JsonEvents.Append(ClusterEventsJsonNonDiscardedPoolOut);
+		// Export all json events that don't have 'discard on repeat' flag
+		JsonEvents.Append(ClusterEventsJsonNonDiscardedPoolOut);
 	}
 
 	// Export binary events
 	{
 		FScopeLock Lock(&ClusterEventsBinaryCritSec);
 
-	// Export all binary events that have 'discard on repeat' flag
-	for (const auto& it : ClusterEventsBinaryPoolOut)
-	{
+		// Export all binary events that have 'discard on repeat' flag
+		for (const auto& it : ClusterEventsBinaryPoolOut)
+		{
 			TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> BinaryEventsToExport;
-		it.Value.GenerateValueArray(BinaryEventsToExport);
-		BinaryEvents.Append(BinaryEventsToExport);
-	}
+			it.Value.GenerateValueArray(BinaryEventsToExport);
+			BinaryEvents.Append(BinaryEventsToExport);
+		}
 
-	// Export all binary events that don't have 'discard on repeat' flag
-	BinaryEvents.Append(ClusterEventsBinaryNonDiscardedPoolOut);
+		// Export all binary events that don't have 'discard on repeat' flag
+		BinaryEvents.Append(ClusterEventsBinaryNonDiscardedPoolOut);
 	}
 }
 

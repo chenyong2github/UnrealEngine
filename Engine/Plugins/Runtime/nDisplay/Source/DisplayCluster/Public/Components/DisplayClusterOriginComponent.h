@@ -12,7 +12,7 @@ class UStaticMeshComponent;
 /**
  * Display cluster origin component (for in-Editor visualization)
  */
-UCLASS(ClassGroup = (DisplayCluster))
+UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent))
 class DISPLAYCLUSTER_API UDisplayClusterOriginComponent
 	: public UDisplayClusterSceneComponent
 {
@@ -22,6 +22,6 @@ public:
 	UDisplayClusterOriginComponent(const FObjectInitializer& ObjectInitializer);
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category = "DisplayCluster")
+	UPROPERTY()
 	UStaticMeshComponent* VisualizationComponent = nullptr;
 };

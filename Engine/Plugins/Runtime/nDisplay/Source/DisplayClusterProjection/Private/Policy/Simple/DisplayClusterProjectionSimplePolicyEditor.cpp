@@ -21,7 +21,6 @@ UDisplayClusterProjectionPolicySimpleParameters::UDisplayClusterProjectionPolicy
 	: Super()
 #if WITH_EDITOR
 	, RootActor(nullptr)
-	, Screen(nullptr)
 #endif
 {
 }
@@ -37,26 +36,26 @@ bool UDisplayClusterProjectionPolicySimpleParameters::Parse(ADisplayClusterRootA
 	}
 
 	// Get assigned screen ID
-	FString ScreenId;
-	if (!DisplayClusterHelpers::map::template ExtractValue(ConfigData.Parameters, DisplayClusterProjectionStrings::cfg::simple::Screen, ScreenId))
+	FString InScreenId;
+	if (!DisplayClusterHelpers::map::template ExtractValue(ConfigData.Parameters, DisplayClusterProjectionStrings::cfg::simple::Screen, InScreenId))
 	{
 		return false;
 	}
 
 	RootActor = InRootActor;
-	Screen    = InRootActor->GetScreenById(ScreenId);
+	ScreenId  = InScreenId;
 
-	return Screen != nullptr;
+	return HasScreenComponent();
 }
 
 
 void FDisplayClusterProjectionSimplePolicy::InitializePreview(UDisplayClusterProjectionPolicyParameters* PolicyParameters)
 {
 	UDisplayClusterProjectionPolicySimpleParameters* SimplePolicyParams = Cast<UDisplayClusterProjectionPolicySimpleParameters>(PolicyParameters);
-	if (SimplePolicyParams && SimplePolicyParams->Screen)
+	if (SimplePolicyParams && SimplePolicyParams->HasScreenComponent())
 	{
 		ViewData.AddDefaulted(1);
-		ScreenComp = SimplePolicyParams->Screen;
+		ScreenComp = SimplePolicyParams->GetScreenComponent();
 	}
 }
 
@@ -67,10 +66,12 @@ UDisplayClusterProjectionPolicyParameters* FDisplayClusterProjectionSimplePolicy
 
 UMeshComponent* FDisplayClusterProjectionSimplePolicy::BuildMeshPreview(UDisplayClusterProjectionPolicyParameters* PolicyParameters)
 {
-	UDisplayClusterProjectionPolicySimpleParameters* SimplePolicyParams = Cast<UDisplayClusterProjectionPolicySimpleParameters>(PolicyParameters);
-	if (SimplePolicyParams && SimplePolicyParams->Screen)
+	if(UDisplayClusterProjectionPolicySimpleParameters* SimplePolicyParams = Cast<UDisplayClusterProjectionPolicySimpleParameters>(PolicyParameters))
 	{
-		return SimplePolicyParams->Screen->VisScreenComponent;
+		if (UDisplayClusterScreenComponent* ScreenComponent = SimplePolicyParams->GetScreenComponent())
+		{
+			return ScreenComponent->VisScreenComponent;
+		}
 	}
 
 	return nullptr;
@@ -84,14 +85,20 @@ void FDisplayClusterProjectionSimplePolicy::RenderFrame(USceneComponent* Camera,
 		if (SimplePolicyParams)
 		{
 			FScopeLock Lock(&SimplePolicyParams->InternalsSyncScope);
-			if (SimplePolicyParams->Screen)
+			if (SimplePolicyParams->HasScreenComponent())
 			{
 				FDisplayClusterRenderingParameters PreviewParameters;
 
-				ScreenComp = SimplePolicyParams->Screen;
-
+				ScreenComp = SimplePolicyParams->GetScreenComponent();
+				
+				if (ScreenComp == nullptr)
+				{
+					// TODO: Verify deleting components in the editor cleans up this policy.
+					return;
+				}
+				
 				PreviewParameters.ViewLocation = Camera->GetComponentLocation();
-				PreviewParameters.ViewRotation = SimplePolicyParams->Screen->GetComponentRotation();
+				PreviewParameters.ViewRotation = ScreenComp->GetComponentRotation();
 				PreviewParameters.RenderTarget = RenderTarget;
 				PreviewParameters.RenderTargetRect = RenderRegion;
 				PreviewParameters.ProjectionPolicy = this;

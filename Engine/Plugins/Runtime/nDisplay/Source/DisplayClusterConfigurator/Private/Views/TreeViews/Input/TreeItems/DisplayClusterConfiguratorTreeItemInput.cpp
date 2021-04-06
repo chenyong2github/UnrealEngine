@@ -2,12 +2,12 @@
 
 #include "Views/TreeViews/Input/TreeItems/DisplayClusterConfiguratorTreeItemInput.h"
 
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 
 FDisplayClusterConfiguratorTreeItemInput::FDisplayClusterConfiguratorTreeItemInput(const FName& InName,
 	const TSharedRef<IDisplayClusterConfiguratorViewTree>& InViewTree,
-	const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit,
+	const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit,
 	UObject* InObjectToEdit,
 	FString InIconStyle,
 	bool InbRoot)

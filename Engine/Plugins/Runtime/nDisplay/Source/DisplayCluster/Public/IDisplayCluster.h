@@ -108,6 +108,14 @@ public:
 	DECLARE_EVENT(IDisplayCluster, FDisplayClusterEndSessionEvent);
 	virtual FDisplayClusterEndSessionEvent& OnDisplayClusterEndSession() = 0;
 
+	/** Called on start scene **/
+	DECLARE_EVENT(IDisplayCluster, FDisplayClusterStartSceneEvent);
+	virtual FDisplayClusterStartSceneEvent& OnDisplayClusterStartScene() = 0;
+
+	/** Called on end scene **/
+	DECLARE_EVENT(IDisplayCluster, FDisplayClusterEndSceneEvent);
+	virtual FDisplayClusterEndSceneEvent& OnDisplayClusterEndScene() = 0;
+
 	/** Called on DisplayCluster StartFrame **/
 	DECLARE_EVENT_OneParam(IDisplayCluster, FDisplayClusterStartFrameEvent, uint64);
 	virtual FDisplayClusterStartFrameEvent& OnDisplayClusterStartFrame() = 0;

@@ -26,6 +26,7 @@ struct FPicpFrameBlendingParameters
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	TArray<USceneCaptureComponent2D*> SourceFrames;
 
@@ -37,11 +38,13 @@ struct FPicpFrameBlendingParameters
 	{}
 };
 
+
 USTRUCT(BlueprintType, Category = "PICP")
 struct FPicpOverlayFrameBlendingPair
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	FString Id;
 
@@ -49,18 +52,20 @@ struct FPicpOverlayFrameBlendingPair
 	UTextureRenderTarget2D* SourceFrameCapture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
-	ECameraOverlayRenderMode OverlayBlendMode = ECameraOverlayRenderMode::Over;
+	ECameraOverlayRenderMode OverlayBlendMode;
 
 	FPicpOverlayFrameBlendingPair()
 		: SourceFrameCapture(nullptr)
 	{}
 };
 
+
 USTRUCT(BlueprintType, Category = "PICP")
 struct FPicpCameraChromakey
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	UTextureRenderTarget2D* ChromakeyOverlayFrame;
 
@@ -68,7 +73,7 @@ struct FPicpCameraChromakey
 	UTexture2D* ChromakeyMarkerTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
-	float ChromakeyMarkerScale = 1.f;
+	float ChromakeyMarkerScale = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	EChromakeyMarkerUVSource ChromakeyMarkerUVSource = EChromakeyMarkerUVSource::ScreenSpace;
@@ -79,22 +84,26 @@ struct FPicpCameraChromakey
 	{}
 };
 
+
 USTRUCT(BlueprintType, Category = "PICP")
 struct FPicpCameraBlendingParameters
 {
 	GENERATED_BODY()
 
+public:
+	/** Maximum NumMips, generated for camera texture. To disable set to 1. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
-	UTextureRenderTarget2D* CameraOverlayFrame;
+	int NumMips = 32;
 
+	/** Basic soft edges values */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
-	FVector  SoftEdge;    // Basic soft edges values
+	FVector  SoftEdge;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	UCineCameraComponent* CineCamera;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
-	float FieldOfViewMultiplier = 1.f;
+	float FieldOfViewMultiplier = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	FString RTTViewportId;
@@ -102,9 +111,12 @@ struct FPicpCameraBlendingParameters
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	FPicpCameraChromakey  CameraChromakey;
 
+	/** Assign any texture to override camera image*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
+	UTexture2D* CustomCameraTexture;
+
 	FPicpCameraBlendingParameters()
-		: CameraOverlayFrame(nullptr)
-		, SoftEdge(ForceInitToZero)
-		, CineCamera(nullptr)
-	{}
+		: CineCamera(nullptr)
+		, CustomCameraTexture(nullptr)
+	{ }
 };

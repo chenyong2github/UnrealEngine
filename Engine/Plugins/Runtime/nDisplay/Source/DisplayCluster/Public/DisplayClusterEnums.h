@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+
 #include "DisplayClusterEnums.generated.h"
 
 
@@ -28,3 +30,14 @@ enum class EDisplayClusterSyncGroup : uint8
 	Tick,
 	PostTick
 };
+
+/**
+ * UDisplayClusterGameEngine running state.
+ */
+enum class EDisplayClusterRunningMode : uint8
+{
+	Startup = 0,
+	Synced,
+	WaitingForSync,
+};
+

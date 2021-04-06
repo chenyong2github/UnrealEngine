@@ -7,6 +7,8 @@
 #include "IPicpProjection.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 
+#include "PicpProjectionStageCameraResource.h"
+
 class IDisplayClusterProjectionPolicyFactory;
 
 
@@ -46,9 +48,16 @@ public:
 	virtual void CaptureWarpTexture(UTextureRenderTarget2D* OutWarpRTT, const FString& ViewportId, const uint32 ViewIdx,  bool bCaptureNow) override;
 	virtual bool GetWarpFrustum(const FString& ViewportId, const uint32 ViewIdx, IMPCDI::FFrustum& OutFrustum, bool bIsCaptureWarpTextureFrustum) override;
 
+	bool FindOrAddStageCameraResource(const FString& StageCameraName, TSharedPtr<FPicpProjectionStageCameraResource>& OutStageCameraResource);
+
+private:
+	void ReleaseStageCameraResources();
+
 private:
 	// Available factories
 	TMap<FString, TSharedPtr<IDisplayClusterProjectionPolicyFactory>> ProjectionPolicyFactories;
 	// Subscribed event listeners
 	TArray<TScriptInterface<IPicpProjectionFrustumDataListener>>      PicpEventListeners;
+	// Stage cameras
+	TMap<FString, TSharedPtr<FPicpProjectionStageCameraResource>> StageCameraResources;
 };

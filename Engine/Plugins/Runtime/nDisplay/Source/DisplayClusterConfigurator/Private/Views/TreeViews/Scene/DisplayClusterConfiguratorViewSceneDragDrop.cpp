@@ -5,7 +5,7 @@
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 #include "Views/TreeViews/Scene/TreeItems/DisplayClusterConfiguratorTreeItemScene.h"
 
-TSharedRef<FDisplayClusterConfiguratorViewSceneDragDrop> FDisplayClusterConfiguratorViewSceneDragDrop::New(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<IDisplayClusterConfiguratorViewTree>& InViewTree, const TSharedRef<FDisplayClusterConfiguratorTreeItemScene>& InTreeItemScene)
+TSharedRef<FDisplayClusterConfiguratorViewSceneDragDrop> FDisplayClusterConfiguratorViewSceneDragDrop::New(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit, const TSharedRef<IDisplayClusterConfiguratorViewTree>& InViewTree, const TSharedRef<FDisplayClusterConfiguratorTreeItemScene>& InTreeItemScene)
 {
 	TSharedRef<FDisplayClusterConfiguratorViewSceneDragDrop> Operation = MakeShared<FDisplayClusterConfiguratorViewSceneDragDrop>();
 

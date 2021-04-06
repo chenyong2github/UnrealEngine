@@ -28,8 +28,7 @@ public:
 	}
 
 protected:
-	virtual void WaitForFrameCompletion()
-	{ }
+	virtual void WaitForFrameCompletion();
 
 private:
 	TMap<FString, FString> Parameters;

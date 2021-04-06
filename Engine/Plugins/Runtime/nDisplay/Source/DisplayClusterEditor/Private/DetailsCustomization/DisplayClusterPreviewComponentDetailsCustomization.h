@@ -19,7 +19,7 @@ class FDisplayClusterPreviewComponentDetailsCustomization : public IDetailCustom
 {
 public:
 	FDisplayClusterPreviewComponentDetailsCustomization();
-
+	~FDisplayClusterPreviewComponentDetailsCustomization();
 public:
 	static TSharedRef<IDetailCustomization> MakeInstance();
 

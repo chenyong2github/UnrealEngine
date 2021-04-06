@@ -19,7 +19,7 @@ FPicpProjectionModule::FPicpProjectionModule()
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory;
 
 	// Picp_MPCDI + Picp_MESH projections:
-	Factory = MakeShared<FPicpProjectionMPCDIPolicyFactory>();
+	Factory = MakeShared<FPicpProjectionMPCDIPolicyFactory>(*this);
 	ProjectionPolicyFactories.Emplace(PicpProjectionStrings::projection::PicpMPCDI, Factory);
 	ProjectionPolicyFactories.Emplace(PicpProjectionStrings::projection::PicpMesh,  Factory); // Add overried projection for mesh
 
@@ -72,6 +72,8 @@ void FPicpProjectionModule::ShutdownModule()
 			}
 		}
 	}
+
+	ReleaseStageCameraResources();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -269,6 +271,44 @@ void FPicpProjectionModule::SetViewport(const FString& Id, FRotator& OutViewRota
 	{
 		PicpEventListeners.Remove(EmptyListener);
 	}
+}
+
+void FPicpProjectionModule::ReleaseStageCameraResources()
+{
+	for (auto& It : StageCameraResources)
+	{
+		if (It.Value.IsValid())
+		{
+			It.Value.Reset();
+		}
+	}
+
+	StageCameraResources.Empty();
+}
+
+bool FPicpProjectionModule::FindOrAddStageCameraResource(const FString& StageCameraName, TSharedPtr<FPicpProjectionStageCameraResource>& OutStageCameraResource)
+{
+	TSharedPtr<FPicpProjectionStageCameraResource>* ExistStageCameraPoolGPU = StageCameraResources.Find(StageCameraName);
+	if (!ExistStageCameraPoolGPU)
+	{
+		TSharedPtr<FPicpProjectionStageCameraResource> NewStageCameraPoolGPU = MakeShared<FPicpProjectionStageCameraResource>();
+		StageCameraResources.Emplace(StageCameraName, NewStageCameraPoolGPU);
+		if (NewStageCameraPoolGPU.IsValid())
+		{
+			OutStageCameraResource = NewStageCameraPoolGPU;
+			return true;
+		}
+	}
+	else
+	{
+		if (ExistStageCameraPoolGPU->IsValid())
+		{
+			OutStageCameraResource = *ExistStageCameraPoolGPU;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 IMPLEMENT_MODULE(FPicpProjectionModule, PicpProjection)

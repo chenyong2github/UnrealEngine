@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StageSettings/PICPStageSettings.h"
-#include "Engine/TextureRenderTarget2D.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-
-TMap<FString, UTextureRenderTarget2D*> APICPStageSettings::RenderTargetCache;
-
+TMap<FString, TWeakObjectPtr<UTextureRenderTarget2D>> APICPStageSettings::RenderTargetCache;
 
 APICPStageSettings::APICPStageSettings()
 {
@@ -18,7 +16,15 @@ UTextureRenderTarget2D* APICPStageSettings::GetRenderTargetCached(const FString&
 
 	if (RenderTargetCache.Contains(RenderTextureId))
 	{
-		return RenderTargetCache[RenderTextureId];
+		TWeakObjectPtr<UTextureRenderTarget2D> WeakPtr = RenderTargetCache[RenderTextureId];
+		if (WeakPtr.IsValid())
+		{
+			return WeakPtr.Get();
+		}
+		else
+		{
+			RenderTargetCache.Remove(RenderTextureId);
+		}
 	}
 
 	return nullptr;

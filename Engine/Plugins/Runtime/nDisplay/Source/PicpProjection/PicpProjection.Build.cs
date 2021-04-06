@@ -23,6 +23,7 @@ public class PicpProjection : ModuleRules
 				"MPCDI",
 				"PicpMPCDI",
 				"RenderCore",
+				"Renderer",
 				"RHI"
 			});
 
@@ -30,6 +31,11 @@ public class PicpProjection : ModuleRules
 			new string[]
 			{
 				"DisplayClusterProjection"
+			});
+
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				"../../../../Source/Runtime/Renderer/Private"
 			});
 
 		if (Target.bBuildEditor == true)

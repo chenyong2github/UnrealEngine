@@ -29,7 +29,11 @@ void FDisplayClusterRenderSyncClient::WaitForSwapSync(double* ThreadWaitTime, do
 			DisplayClusterRenderSyncStrings::ProtocolName)
 	);
 
-	TSharedPtr<FDisplayClusterPacketInternal> Response = SendRecvPacket(Request);
+	TSharedPtr<FDisplayClusterPacketInternal> Response;
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(*FString::Printf(TEXT("nDisplay RenderSyncClient::%s"), *Request->GetName()), CpuChannel);
+		Response = SendRecvPacket(Request);
+	}
 
 	if (Response.IsValid())
 	{

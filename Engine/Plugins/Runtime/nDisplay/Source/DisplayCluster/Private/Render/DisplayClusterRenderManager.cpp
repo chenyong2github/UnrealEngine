@@ -34,7 +34,6 @@
 
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyFactoryInternal.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNone.h"
-#include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareGeneric.h"
 
 #include "Framework/Application/SlateApplication.h"
 
@@ -405,7 +404,7 @@ void FDisplayClusterRenderManager::GetRegisteredProjectionPolicies(TArray<FStrin
 }
 
 
-bool FDisplayClusterRenderManager::RegisterPostprocessOperation(const FString& InName, TSharedPtr<IDisplayClusterPostProcess>& InOperation, int InPriority /* = 0 */)
+bool FDisplayClusterRenderManager::RegisterPostprocessOperation(const FString& InName, TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& InOperation, int InPriority /* = 0 */)
 {
 	IDisplayClusterRenderManager::FDisplayClusterPPInfo PPInfo(InOperation, InPriority);
 	return RegisterPostprocessOperation(InName, PPInfo);
@@ -583,8 +582,12 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderManager::Create
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("No factory found for the requested synchronization policy <%s>. Using fallback 'generic' policy."), *SyncPolicyType);
-		NewSyncPolicy = MakeShared<FDisplayClusterRenderSyncPolicySoftwareGeneric>(FDisplayClusterRenderSyncPolicySoftwareGeneric::DefaultParameters);
+		UE_LOG(LogDisplayClusterRender, Log, TEXT("No factory found for the requested synchronization policy <%s>. Default Ethernet based will be used."), *SyncPolicyType);
+		NewSyncPolicy = SyncPolicyFactories[FString(DisplayClusterConfigurationStrings::config::cluster::render_sync::None)]->Create(
+			FString(DisplayClusterConfigurationStrings::config::cluster::render_sync::None),
+			RHIName,
+			TMap<FString, FString>()
+		);
 	}
 
 	return NewSyncPolicy;

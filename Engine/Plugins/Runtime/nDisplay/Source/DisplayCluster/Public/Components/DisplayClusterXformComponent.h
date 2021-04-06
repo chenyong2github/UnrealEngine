@@ -12,7 +12,7 @@ class UStaticMeshComponent;
 /**
  * Xform component
  */
-UCLASS(ClassGroup = (DisplayCluster))
+UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent))
 class DISPLAYCLUSTER_API UDisplayClusterXformComponent
 	: public UDisplayClusterSceneComponent
 {

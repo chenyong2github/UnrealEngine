@@ -6,6 +6,8 @@
 #include "Input/IPDisplayClusterInputManager.h"
 
 #include "DisplayClusterRootActor.h"
+#include "Blueprints/DisplayClusterBlueprintGeneratedClass.h"
+
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "Misc/DisplayClusterGlobals.h"
@@ -18,7 +20,7 @@
 #include "GameFramework/WorldSettings.h"
 
 #if WITH_EDITOR
-#include "Interfaces/IDisplayClusterConfiguratorToolkit.h"
+#include "Interfaces/IDisplayClusterConfiguratorBlueprintEditor.h"
 #endif
 
 
@@ -61,8 +63,35 @@ void UDisplayClusterSceneComponent::TickComponent( float DeltaTime, ELevelTick T
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
+bool UDisplayClusterSceneComponent::DoesComponentBelongToBlueprint() const
+{
+	bool bIsForBlueprint = false;
+	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner()))
+	{
+		if (RootActor->IsBlueprint())
+		{
+			bIsForBlueprint = true;
+		}
+	}
+	else if (GetTypedOuter<UDisplayClusterBlueprintGeneratedClass>() != nullptr || GetTypedOuter<UDynamicClass>() != nullptr)
+	{
+		bIsForBlueprint = true;
+	}
+	
+	return bIsForBlueprint;
+}
+
 void UDisplayClusterSceneComponent::ApplyConfigurationData()
 {
+	if (DoesComponentBelongToBlueprint())
+	{
+		/*
+			Blueprint already contains component information, position, and heirarchy.
+			When this isn't a blueprint (such as config data only or on initial import) we can apply config data.
+		*/
+		return;
+	}
+	
 	if (ConfigData)
 	{
 		TrackerId = ConfigData->TrackerId;
@@ -103,7 +132,8 @@ bool UDisplayClusterSceneComponent::IsSelected()
 	ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner());
 	if (RootActor)
 	{
-		TSharedPtr<IDisplayClusterConfiguratorToolkit> Toolkit = RootActor->GetToolkit().Pin();
+		// TODO: Refactor this. We shouldn't need to check the BlueprintEditor from the runtime module ever. -Patrick
+		TSharedPtr<IDisplayClusterConfiguratorBlueprintEditor> Toolkit = RootActor->GetToolkit().Pin();
 		if (Toolkit.IsValid())
 		{
 			const TArray<UObject*>& SelectedObjects = Toolkit->GetSelectedObjects();

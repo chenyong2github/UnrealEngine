@@ -8,7 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FDisplayClusterConfiguratorOutputMappingViewportSlot;
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class IDisplayClusterConfiguratorTreeItem;
 class SImage;
 class UDisplayClusterConfigurationViewport;
@@ -22,22 +22,22 @@ public:
 	{}
 	SLATE_END_ARGS()
 
+	~SDisplayClusterConfiguratorViewportNode();
+	
 	void Construct(const FArguments& InArgs,
 		UDisplayClusterConfiguratorViewportNode* InViewportNode,
-		const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+		const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit);
 
 	//~ Begin SGraphNode interface
 	virtual void UpdateGraphNode() override;
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter) override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ End of SGraphNode interface
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
-	virtual UObject* GetEditingObject() const override;
-	virtual void SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio) override;
-	virtual void OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem) override;
 	virtual bool IsNodeVisible() const override;
 	virtual int32 GetNodeLayerIndex() const override { return DefaultZOrder; }
+	virtual bool CanNodeOverlapSiblings() const override { return false; }
+	virtual bool CanNodeBeSnapAligned() const override { return true; }
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
 
 	void SetPreviewTexture(UTexture* InTexture);
@@ -45,16 +45,21 @@ public:
 private:
 	FSlateColor GetBackgroundColor() const;
 	const FSlateBrush* GetBackgroundBrush() const;
+	const FSlateBrush* GetNodeShadowBrush() const;
 	const FSlateBrush* GetBorderBrush() const;
+	FSlateColor GetTextBoxColor() const;
 	FText GetPositionAndSizeText() const;
 	FMargin GetBackgroundPosition() const;
 	FMargin GetAreaResizeHandlePosition() const;
+	EVisibility GetAreaResizeHandleVisibility() const;
 	bool IsAspectRatioFixed() const;
+	bool IsViewportLocked() const;
+	EVisibility GetLockIconVisibility() const;
 
 private:
 	FSlateBrush BackgroundActiveBrush;
 	TSharedPtr<SImage> BackgroundImage;
 
-private:
+public:
 	static const int32 DefaultZOrder;
 };

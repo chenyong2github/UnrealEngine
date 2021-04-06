@@ -12,7 +12,7 @@
 #include "DisplayClusterRootActor.generated.h"
 
 #if WITH_EDITOR
-class IDisplayClusterConfiguratorToolkit;
+class IDisplayClusterConfiguratorBlueprintEditor;
 class UDisplayClusterPreviewComponent;
 #endif
 
@@ -25,9 +25,6 @@ class UDisplayClusterSceneComponent;
 class UDisplayClusterScreenComponent;
 class UDisplayClusterXformComponent;
 class UDisplayClusterSyncTickComponent;
-
-// Deprecated
-class UDisplayClusterRootComponent;
 
 
 /**
@@ -49,38 +46,14 @@ public:
 
 public:
 	ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer);
-
-public:
-	UE_DEPRECATED(4.26, "This feature is no longer supported.")
-	inline UDisplayClusterRootComponent* GetDisplayClusterRootComponent() const
-	{
-		return nullptr;
-	}
-
-	UE_DEPRECATED(4.26, "This feature is no longer supported.")
-	bool GetShowProjectionScreens() const
-	{
-		return false;
-	}
-
-	UE_DEPRECATED(4.26, "This feature is no longer supported.")
-	void SetShowProjectionScreens(bool bShow)
-	{ }
-
-	UE_DEPRECATED(4.26, "This feature is no longer supported.")
-	UMaterial* GetProjectionScreenMaterial() const
-	{
-		return nullptr;
-	}
-
-	UE_DEPRECATED(4.26, "This feature is no longer supported.")
-	void SetProjectionScreenMaterial(UMaterial* NewMaterial)
-	{ }
+	~ADisplayClusterRootActor();
 
 public:
 	void InitializeFromConfig(const UDisplayClusterConfigurationData* ConfigData);
 	void InitializeFromConfig(const FString& ConfigFile);
-
+	void ApplyConfigDataToComponents();
+	void StoreConfigData(const UDisplayClusterConfigurationData* ConfigData);
+	UDisplayClusterConfigurationData* GetDefaultConfigDataFromAsset() const;
 public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Screens Amount"), Category = "DisplayCluster|Components")
 	int32 GetScreensAmount() const;
@@ -110,7 +83,7 @@ public:
 	int32 GetMeshesAmount() const;
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Mesh By ID"), Category = "DisplayCluster|Components")
-	UDisplayClusterMeshComponent* GetMeshById(const FString& MeshId) const;
+	UStaticMeshComponent* GetMeshById(const FString& MeshId) const;
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Meshes"), Category = "DisplayCluster|Components")
 	void GetAllMeshes(TMap<FString, UDisplayClusterMeshComponent*>& OutMeshes) const;
@@ -124,15 +97,25 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Xforms"), Category = "DisplayCluster|Components")
 	void GetAllXforms(TMap<FString, UDisplayClusterXformComponent*>& OutXforms) const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Components Amount"), Category = "DisplayCluster|Components")
+	UE_DEPRECATED(4.27, "Use 'GetComponentsByClass' instead and retrieve the length")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use 'GetComponentsByClass' instead and retrieve the length", DisplayName = "Get All Components Amount"), Category = "DisplayCluster|Components")
 	int32 GetComponentsAmount() const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Components"), Category = "DisplayCluster|Components")
+	UE_DEPRECATED(4.27, "Use 'GetComponentsByClass' instead")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use 'GetComponentsByClass' instead", DisplayName = "Get All Components"), Category = "DisplayCluster|Components")
 	void GetAllComponents(TMap<FString, UDisplayClusterSceneComponent*>& OutComponents) const;
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Component By ID"), Category = "DisplayCluster|Components")
 	UDisplayClusterSceneComponent* GetComponentById(const FString& ComponentId) const;
 
+	const UDisplayClusterConfigurationData* GetConfigData() const
+	{
+		return CurrentConfigData;
+	}
+
+	bool IsBlueprint() const;
+	UDisplayClusterSyncTickComponent* GetSyncTickComponent() const { return SyncTickComponent; }
+	
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// AActor
@@ -142,15 +125,17 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostLoad() override;
 	virtual void PostActorCreated() override;
+	virtual void BeginDestroy() override;
+	virtual void RerunConstructionScripts() override;
 
-protected:
+private:
 	TMap<FString, FDisplayClusterSceneComponentRef*> AllComponents;
 	TMap<FString, FDisplayClusterSceneComponentRef*> XformComponents;
 	TMap<FString, FDisplayClusterSceneComponentRef*> CameraComponents;
 	TMap<FString, FDisplayClusterSceneComponentRef*> ScreenComponents;
 	TMap<FString, FDisplayClusterSceneComponentRef*> MeshComponents;
 	FDisplayClusterSceneComponentRef DefaultCameraComponent;
-
+	
 protected:
 	// Initializes the actor on spawn and load
 	void InitializeRootActor();
@@ -158,7 +143,7 @@ protected:
 	virtual bool BuildHierarchy(const UDisplayClusterConfigurationData* ConfigData);
 	// Cleans current hierarchy
 	virtual void CleanupHierarchy();
-
+	virtual void ResetHierarchyMap();
 private:
 	template <typename TComp, typename TCfgData>
 	void SpawnComponents(const TMap<FString, TCfgData*>& InConfigData, TMap<FString, FDisplayClusterSceneComponentRef*>& OutTypedMap, TMap<FString, FDisplayClusterSceneComponentRef*>& OutAllMap);
@@ -179,7 +164,17 @@ private:
 
 	mutable FCriticalSection InternalsSyncScope;
 
-	UPROPERTY(Transient)
+	/**
+	 * Name of the CurrentConfigData asset. Only required if this is a parent of a DisplayClusterBlueprint.
+	 * The name is used to lookup the config data as a default sub-object, specifically in packaged builds.
+	 */
+	UPROPERTY()
+	FName ConfigDataName;
+
+	/**
+	 * If set from the DisplayCluster BP Compiler it will be loaded from the class default subobjects in run-time.
+	 */
+	UPROPERTY(Instanced, DuplicateTransient)
 	const UDisplayClusterConfigurationData* CurrentConfigData;
 
 	UPROPERTY()
@@ -219,17 +214,12 @@ public:
 		RebuildPreview();
 	}
 
-	const UDisplayClusterConfigurationData* GetConfigData() const
-	{
-		return CurrentConfigData;
-	}
-
-	TWeakPtr<IDisplayClusterConfiguratorToolkit> GetToolkit() const
+	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> GetToolkit() const
 	{
 		return ToolkitPtr;
 	}
 
-	void SetToolkit(TWeakPtr<IDisplayClusterConfiguratorToolkit> Toolkit)
+	void SetToolkit(TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> Toolkit)
 	{
 		ToolkitPtr = Toolkit;
 	}
@@ -239,18 +229,25 @@ public:
 	TSharedPtr<TMap<UObject*, FString>> GenerateObjectsNamingMap() const;
 	void SelectComponent(const FString& SelectedComponent);
 
+	void GeneratePreview();
+	void RebuildPreview();
+	void CleanupPreview();
+	
 protected:
 	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;
-
-	void CleanupPreview();
-	void RebuildPreview();
-
+	
 protected:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditMove(bool bFinished) override;
 #endif
 
 #if WITH_EDITORONLY_DATA
-protected:
+	DECLARE_DELEGATE(FOnPreviewUpdated);
+	
+public:
+	FOnPreviewUpdated& GetOnPreviewGenerated() { return OnPreviewGenerated; }
+	FOnPreviewUpdated& GetOnPreviewDestroyed() { return OnPreviewDestroyed; }
+	
 	UPROPERTY(EditAnywhere, Category = "Preview (Editor only)", meta = (DisplayName = "Preview Config File", FilePathFilter = "cfg;*.ndisplay"))
 	FFilePath PreviewConfigPath;
 
@@ -264,6 +261,14 @@ private:
 	UPROPERTY(Transient)
 	TMap<FString, UDisplayClusterPreviewComponent*> PreviewComponents;
 
-	TWeakPtr<IDisplayClusterConfiguratorToolkit> ToolkitPtr;
+	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
+
+	FOnPreviewUpdated OnPreviewGenerated;
+	FOnPreviewUpdated OnPreviewDestroyed;
+	
+	UPROPERTY(Transient)
+	bool bDeferPreviewGeneration;
+	
+	bool bDontUpdatePreviewData = false;
 #endif
 };

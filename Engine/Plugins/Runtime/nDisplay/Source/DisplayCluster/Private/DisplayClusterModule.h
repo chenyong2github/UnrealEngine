@@ -87,6 +87,12 @@ public:
 	virtual FDisplayClusterPostTickEvent& OnDisplayClusterPostTick() override
 	{ return DisplayClusterPostTickEvent; }
 
+	virtual FDisplayClusterStartSceneEvent& OnDisplayClusterStartScene() override
+	{ return DisplayClusterStartSceneEvent; }
+
+	virtual FDisplayClusterEndSceneEvent& OnDisplayClusterEndScene() override
+	{ return DisplayClusterEndSceneEvent; }
+
 private:
 	FDisplayClusterStartSessionEvent         DisplayClusterStartSessionEvent;
 	FDisplayClusterEndSessionEvent           DisplayClusterEndSessionEvent;
@@ -95,6 +101,8 @@ private:
 	FDisplayClusterPreTickEvent              DisplayClusterPreTickEvent;
 	FDisplayClusterTickEvent                 DisplayClusterTickEvent;
 	FDisplayClusterPostTickEvent             DisplayClusterPostTickEvent;
+	FDisplayClusterStartSceneEvent           DisplayClusterStartSceneEvent;
+	FDisplayClusterEndSceneEvent             DisplayClusterEndSceneEvent;
 
 private:
 	//////////////////////////////////////////////////////////////////////////////////////////////

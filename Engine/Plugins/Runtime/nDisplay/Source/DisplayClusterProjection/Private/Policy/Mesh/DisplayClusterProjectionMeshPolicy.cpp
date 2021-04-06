@@ -3,6 +3,7 @@
 #include "Policy/Mesh/DisplayClusterProjectionMeshPolicy.h"
 #include "DisplayClusterProjectionLog.h"
 #include "DisplayClusterProjectionStrings.h"
+#include "Misc/DisplayClusterHelpers.h"
 
 
 FDisplayClusterProjectionMeshPolicy::FDisplayClusterProjectionMeshPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
@@ -28,7 +29,48 @@ bool FDisplayClusterProjectionMeshPolicy::HandleAddViewport(const FIntPoint& InV
 	Views.AddDefaulted(InViewsAmount);
 	ViewportSize = InViewportSize;
 
+	/* TODO: Do something with the static mesh
+	UStaticMeshComponent* StaticMesh = GetStaticMeshComponent();
+	ensureAlways(StaticMesh);
+	*/
 	return true;
+}
+
+UStaticMeshComponent* FDisplayClusterProjectionMeshPolicy::GetStaticMeshComponent() const
+{
+	FString ComponentId;
+	// Get assigned mesh ID
+	if (!DisplayClusterHelpers::map::template ExtractValue(GetParameters(), DisplayClusterProjectionStrings::cfg::mesh::Component, ComponentId))
+	{
+		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("No component ID specified for projection policy of viewport '%s'"), *GetViewportId());
+		return nullptr;
+	}
+	
+	// Get game manager interface
+	const IDisplayClusterGameManager* const GameMgr = IDisplayCluster::Get().GetGameMgr();
+	if (!GameMgr)
+	{
+		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't get GameManager"));
+		return nullptr;
+	}
+
+	// Get our VR root
+	ADisplayClusterRootActor* const Root = GameMgr->GetRootActor();
+	if (!Root)
+	{
+		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't get a VR root object"));
+		return nullptr;
+	}
+
+	// Get mesh component
+	UStaticMeshComponent* MeshComponent = Root->GetMeshById(ComponentId);
+	if (!MeshComponent)
+	{
+		UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't initialize mesh component"));
+		return nullptr;
+	}
+
+	return MeshComponent;
 }
 
 bool FDisplayClusterProjectionMeshPolicy::AssignWarpMesh(UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent)

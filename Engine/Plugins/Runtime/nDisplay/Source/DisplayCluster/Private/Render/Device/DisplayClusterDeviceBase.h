@@ -35,7 +35,7 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterStereoDevice
+	// IDisplayClusterRenderDevice
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize() override;
 	virtual void StartScene(UWorld* InWorld) override;
@@ -58,6 +58,8 @@ public:
 	virtual bool GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) override;
 	virtual bool GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) override;
 	virtual uint32 GetViewsAmountPerViewport() const override;
+	virtual FDisplayClusterRenderCustomPresentCreated& OnDisplayClusterRenderCustomPresentCreated() override { return DisplayClusterRenderCustomPresentCreatedEvent; }
+	virtual IDisplayClusterPresentation* GetPresentation() const override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -185,7 +187,10 @@ protected:
 
 	// Data access synchronization
 	mutable FCriticalSection InternalsSyncScope;
-	// Temporary for 4.26.X: PP operations access sync.
-	// 4.27 will have a better solution
-	mutable FCriticalSection PPAccessScope;
+
+	// Pointer to the current presentation handler
+	FDisplayClusterPresentationBase* CustomPresentHandler = nullptr;
+
+	// Event triggered when custom present was created
+	FDisplayClusterRenderCustomPresentCreated DisplayClusterRenderCustomPresentCreatedEvent;
 };

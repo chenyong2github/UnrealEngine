@@ -7,6 +7,7 @@
 
 class IDisplayClusterProjectionPolicy;
 class UTextureRenderTarget2D;
+class UTexture2D;
 class UDisplayClusterConfigurationViewport;
 class UMaterial;
 class UMaterialInstanceDynamic;
@@ -36,10 +37,23 @@ public:
 
 	bool IsPreviewAvailable() const;
 
+	UDisplayClusterConfigurationViewport* GetViewportConfig() const
+	{
+		return ViewportConfig;
+	}
+
+	UMeshComponent* GetPreviewMesh() const
+	{
+		return PreviewMesh;
+	}
+	
 	UTextureRenderTarget2D* GetRenderTexture()
 	{
 		return RenderTarget;
 	}
+
+	/** Create and retrieve a render texture 2d from the render target. */
+	UTexture2D* GetOrCreateRenderTexture2D();
 
 	FIntPoint GetRenderTextureSize() const
 	{
@@ -87,6 +101,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void DestroyComponent(bool bPromoteChildren = false) override;
+	virtual void OnUnregister() override;
 
 protected:
 	void UpdateProjectionPolicy();
@@ -115,28 +130,33 @@ protected:
 	bool bApplyWarpBlend;
 
 private:
-	UPROPERTY(Transient)
+	UPROPERTY()
 	UDisplayClusterConfigurationViewport* ViewportConfig;
 
-	UPROPERTY(Transient)
+	UPROPERTY()
 	UMeshComponent* PreviewMesh;
 
-	UPROPERTY(Transient)
+	UPROPERTY()
 	UMaterial* OriginalMaterial;
 
-	UPROPERTY(Transient)
+	UPROPERTY()
 	UMaterial* PreviewMaterial;
 
-	UPROPERTY(Transient)
+	UPROPERTY()
 	UMaterialInstanceDynamic* PreviewMaterialInstance;
 
-	UPROPERTY(Transient)
+	UPROPERTY()
 	UDisplayClusterProjectionPolicyParameters* ProjectionPolicyParameters;
 
-	UPROPERTY(Transient)
+	UPROPERTY()
 	ADisplayClusterRootActor* RootActor;
+
+	UPROPERTY(Transient)
+	UTexture2D* RenderTexture;
 	
 	TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicyInstance;
 	TArray<FString> ProjectionPolicies;
+
+	bool bIsEditingProperty = false;
 #endif
 };

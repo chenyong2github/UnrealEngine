@@ -13,6 +13,10 @@
 #include "PicpProjectionStrings.h"
 #include "Overlay/PicpProjectionOverlayRender.h"
 
+#include "IDisplayCluster.h"
+#include "Render/IDisplayClusterRenderManager.h"
+#include "Render/Device/IDisplayClusterRenderDevice.h"
+
 
 int UPicpProjectionAPIImpl::GetViewportCount()
 {
@@ -48,18 +52,22 @@ void UPicpProjectionAPIImpl::ApplyBlurPostProcess(UTextureRenderTarget2D* InOutR
 	IPicpMPCDI::Get().ApplyBlur(InOutRenderTarget, TemporaryRenderTarget, KernelRadius, KernelScale, BlurType);
 }
 
-void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpCameraBlendingParameters> &CameraCaptures, const TArray<struct FPicpOverlayFrameBlendingPair> &OverlayCaptures)
+void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpCameraBlendingParameters> &CameraCaptures, const TArray<FString>& ViewportsWithoutIncamera, const TArray<struct FPicpOverlayFrameBlendingPair> &OverlayCaptures)
 {
+	// Create and allocate RTTs pool for all stage cameras
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	check(Manager);
+
+	IDisplayClusterRenderDevice* const RenderDevice = Manager->GetRenderDevice();
+	check(RenderDevice);
+
 	FPicpProjectionOverlayFrameData OverlayFrameData;
+
+	OverlayFrameData.ViewportsWithoutIncamera = ViewportsWithoutIncamera;
+
 	for (auto& CameraIt : CameraCaptures)
 	{
-		if (CameraIt.CameraOverlayFrame)
-		{
-			// Get camera view texture ref
-			FTextureRenderTargetResource*     CameraRTTRes = CameraIt.CameraOverlayFrame->GameThread_GetRenderTargetResource();
-			FTextureRenderTarget2DResource* CameraRTTRes2D = CameraRTTRes?((FTextureRenderTarget2DResource*)CameraRTTRes):nullptr;
-			FRHITexture* CameraRTTRes2DRHI = CameraRTTRes2D ? CameraRTTRes2D->GetTextureRHI() : nullptr;
-			if(CameraRTTRes2DRHI)
+		if (CameraIt.CineCamera)
 			{
 				// Get camera position, rotation and projection:
 				FRotator CameraRotation = CameraIt.CineCamera->K2_GetComponentRotation();
@@ -71,9 +79,24 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpCamer
 				FComposurePostMoveSettings ComposurePostMoveSettings;
 				FMatrix CameraPrj = ComposurePostMoveSettings.GetProjectionMatrix(CameraFOV, CameraAspectRatio);
 
+			// Add camera only if viewport exist
+			FIntRect CameraRect;
+			if (!CameraIt.RTTViewportId.IsEmpty() && RenderDevice->GetViewportRect(CameraIt.RTTViewportId, CameraRect))
+			{
 				// Create inner camera data
-				FPicpProjectionOverlayCamera NewCamera(CameraRotation, CameraLocation, CameraPrj, CameraRTTRes2DRHI, CameraIt.RTTViewportId);
+				FPicpProjectionOverlayCamera NewCamera(CameraRotation, CameraLocation, CameraPrj, CameraIt.RTTViewportId);
 				NewCamera.SoftEdge = CameraIt.SoftEdge;
+				NewCamera.NumMips = FMath::Max(1, CameraIt.NumMips);
+
+				NewCamera.CustomCameraTexture = nullptr; // disabled by default
+				if (CameraIt.CustomCameraTexture)
+				{
+					FTextureResource* CustomCameraTextureRTTRes = CameraIt.CustomCameraTexture->Resource;
+					if (CustomCameraTextureRTTRes)
+					{
+						NewCamera.CustomCameraTexture = CustomCameraTextureRTTRes->GetTexture2DRHI();
+					}
+				}
 
 				if (CameraIt.CameraChromakey.ChromakeyOverlayFrame)
 				{
@@ -90,7 +113,7 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpCamer
 							FTextureResource*     ChromakeyMarkerRTTRes = CameraIt.CameraChromakey.ChromakeyMarkerTexture->Resource;
 							if (ChromakeyMarkerRTTRes)
 							{
-								NewCamera.Chromakey.ChromakeyMarkerTexture    = ChromakeyMarkerRTTRes ? ChromakeyMarkerRTTRes->GetTexture2DRHI() : nullptr;
+								NewCamera.Chromakey.ChromakeyMarkerTexture = ChromakeyMarkerRTTRes->GetTexture2DRHI();
 								NewCamera.Chromakey.ChromakeyMarkerScale      = CameraIt.CameraChromakey.ChromakeyMarkerScale;
 
 								switch (CameraIt.CameraChromakey.ChromakeyMarkerUVSource)

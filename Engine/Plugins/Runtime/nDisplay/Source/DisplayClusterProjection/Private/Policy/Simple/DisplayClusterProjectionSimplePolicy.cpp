@@ -15,6 +15,18 @@
 #include "DisplayClusterProjectionStrings.h"
 
 
+#if WITH_EDITORONLY_DATA
+UDisplayClusterScreenComponent* UDisplayClusterProjectionPolicySimpleParameters::GetScreenComponent() const
+{
+	if (!RootActor)
+	{
+		return nullptr;
+	}
+
+	return RootActor->GetScreenById(ScreenId);
+}
+#endif
+
 FDisplayClusterProjectionSimplePolicy::FDisplayClusterProjectionSimplePolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
 	: FDisplayClusterProjectionPolicyBase(ViewportId, Parameters)
 {
@@ -105,8 +117,9 @@ bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(const uint32 Vie
 	const float f = ViewData[ViewIdx].FCP;
 
 	// Half-size
-	const float hw = ScreenComp->GetScreenSize().X / 2.f * ViewData[ViewIdx].WorldToMeters;
-	const float hh = ScreenComp->GetScreenSize().Y / 2.f * ViewData[ViewIdx].WorldToMeters;
+	const FVector2D SizeScaled = ScreenComp->GetScreenSizeScaled();
+	const float hw = SizeScaled.X / 2.f * ViewData[ViewIdx].WorldToMeters;
+	const float hh = SizeScaled.Y / 2.f * ViewData[ViewIdx].WorldToMeters;
 
 	// Screen data
 	const FVector  ScreenLoc = ScreenComp->GetComponentLocation();

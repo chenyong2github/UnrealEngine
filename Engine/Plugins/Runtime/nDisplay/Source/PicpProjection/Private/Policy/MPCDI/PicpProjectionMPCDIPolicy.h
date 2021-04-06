@@ -29,7 +29,7 @@ public:
 		Mesh
 	};
 
-	FPicpProjectionMPCDIPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters);
+	FPicpProjectionMPCDIPolicy(FPicpProjectionModule& InPicpProjectionModule, const FString& ViewportId, const TMap<FString, FString>& Parameters);
 	virtual ~FPicpProjectionMPCDIPolicy();
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,10 +46,6 @@ public:
 	virtual bool IsWarpBlendSupported() override;
 	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect) override;
 
-	void UpdateOverlayViewportData(FPicpProjectionOverlayFrameData& OverlayFrameData);
-	void SetOverlayData_RenderThread(const FPicpProjectionOverlayViewportData* Source);
-	void GetOverlayData_RenderThread(FPicpProjectionOverlayViewportData& Output);
-
 	void SetWarpTextureCapture(const uint32 ViewIdx, FRHITexture2D* target);
 	IMPCDI::FFrustum GetWarpFrustum(const uint32 ViewIdx, bool bIsCaptureWarpTextureFrustum);
 
@@ -57,35 +53,23 @@ public:
 	{ return EWarpType::MPCDI; }
 
 protected:
-	bool InitializeResources_RenderThread();
-	bool UpdateCameraTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FPicpProjectionOverlayViewportData& ViewportOverlayData);
-
-protected:
 	FString OriginCompId;
-	FIntPoint ViewportSize;
 
 	IPicpMPCDI& PicpMPCDIAPI;
-
 	IMPCDI& MPCDIAPI;
+
 	IMPCDI::FRegionLocator WarpRef;
 	mutable FCriticalSection WarpRefCS;
-
-	FPicpProjectionOverlayViewportData LocalOverlayViewportData;
-	mutable FCriticalSection LocalOverlayViewportDataCS;
 
 	struct FViewData
 	{
 		IMPCDI::FFrustum Frustum;
-		FTexture2DRHIRef RTTexture;
 
 		// Debug purpose:
 		FTexture2DRHIRef ExtWarpTexture;
 		IMPCDI::FFrustum ExtWarpFrustum;
-		FViewData() : RTTexture(nullptr), ExtWarpTexture(nullptr) {}
+		FViewData() : ExtWarpTexture(nullptr) {}
 	};
 
 	TArray<FViewData> Views;
-
-	mutable bool bIsRenderResourcesInitialized = false;
-	mutable FCriticalSection RenderingResourcesInitializationCS;
 };

@@ -19,7 +19,7 @@ public:
 
 	// Camera setup:
 	FString RTTViewportId;      // The viewport name, used to capture camera frame
-	FRHITexture* CameraTexture; // Texture to render
+	FRHITexture* CameraTexture = nullptr; // Texture to render
 	FMatrix Prj;                // Projection matrix
 
 	FPicpProjectionCameraChromakey Chromakey;
@@ -27,20 +27,18 @@ public:
 	FRotator ViewRot;
 	FVector  ViewLoc;
 
+	uint32 NumMips;
+
+	FRHITexture* CustomCameraTexture = nullptr; // override camera frame with this texture
+
 public:
-	FPicpProjectionOverlayCamera(const FRotator& CameraRotation, const FVector& CameraLocation, const FMatrix& CameraPrj, FRHITexture* CameraTextureRef, const FString& ViewportId)
+	FPicpProjectionOverlayCamera(const FRotator& CameraRotation, const FVector& CameraLocation, const FMatrix& CameraPrj, const FString& ViewportId)
 		: SoftEdge(0.1f, 0.1f, 0.1f)
 		, RTTViewportId(ViewportId)
-		, CameraTexture(CameraTextureRef)
 		, Prj(CameraPrj)
 		, ViewRot(CameraRotation)
 		, ViewLoc(CameraLocation)
 	{ }
-
-	inline bool IsCameraUsed() const
-	{
-		return (CameraTexture != nullptr) && CameraTexture->IsValid();
-	}
 
 	void Empty()
 	{ }

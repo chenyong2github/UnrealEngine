@@ -35,8 +35,12 @@ public:
 	ADisplayClusterRootActor* RootActor;
 
 	UPROPERTY(EditAnywhere, Category = "Simple")
-	UDisplayClusterScreenComponent* Screen;
+	FString ScreenId;
+	
 	FCriticalSection InternalsSyncScope;
+
+	UDisplayClusterScreenComponent* GetScreenComponent() const;
+	bool HasScreenComponent() const { return !ScreenId.IsEmpty(); }
 #endif
 };
 

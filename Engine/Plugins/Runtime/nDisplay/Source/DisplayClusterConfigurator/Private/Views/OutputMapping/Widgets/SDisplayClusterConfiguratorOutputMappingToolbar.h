@@ -6,8 +6,12 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SViewportToolBar.h"
 
+#include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
+
 class FExtender;
 class FUICommandList;
+class FDisplayClusterConfiguratorViewOutputMapping;
+class FMenuBuilder;
 
 class SDisplayClusterConfiguratorOutputMappingToolbar
 	: public SViewportToolBar
@@ -18,7 +22,7 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<FExtender>, Extenders)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TWeakPtr<FDisplayClusterConfiguratorViewOutputMapping>& InViewOutputMapping);
 
 	/**
 	 * Static: Creates a widget for the main tool bar
@@ -28,6 +32,42 @@ public:
 	TSharedRef< SWidget > MakeToolBar(const TSharedPtr< FExtender > InExtenders);
 
 private:
+	TSharedRef<SWidget> MakePositioningMenu();
+
+	TSharedRef<SWidget> MakeSnappingMenu();
+
+	bool IsSnappingEnabled() const;
+
+	bool IsAdjacentEdgeSnappingEnabled() const;
+	TOptional<int> GetAdjacentEdgePadding() const;
+	void SetAdjacentEdgePadding(int NewPadding);
+
+	TOptional<int> GetSnapProximity() const;
+	void SetSnapProximity(int NewSnapProximity);
+
+	TSharedRef<SWidget> MakeAdvancedMenu();
+
+	void MakeHostArrangementTypeSubMenu(FMenuBuilder& MenuBuilder);
+	bool IsHostArrangementTypeChecked(EHostArrangementType ArrangementType) const;
+	void SetHostArrangementType(EHostArrangementType ArrangementType);
+
+	TOptional<int> GetHostWrapThreshold() const;
+	void SetHostWrapThreshold(int NewWrapThreshold);
+
+	TOptional<int> GetHostGridSize() const;
+	void SetHostGridSize(int NewGridSize);
+
+	TSharedRef<SWidget> MakeViewScaleMenu();
+
+	bool IsViewScaleChecked(int32 Index) const;
+	void SetViewScale(int32 Index);
+	FText GetViewScaleText() const;
+
+private:
 	/** Command list */
 	TSharedPtr<FUICommandList> CommandList;
+	TWeakPtr<FDisplayClusterConfiguratorViewOutputMapping> ViewOutputMappingPtr;
+
+private:
+	static const TArray<float> ViewScales;
 };

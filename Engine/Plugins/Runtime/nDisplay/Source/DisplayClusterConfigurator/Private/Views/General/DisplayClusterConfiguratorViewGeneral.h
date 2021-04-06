@@ -4,7 +4,7 @@
 
 #include "Interfaces/Views/IDisplayClusterConfiguratorView.h"
 
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class SDisplayClusterConfiguratorViewGeneral;
 
 class FDisplayClusterConfiguratorViewGeneral
@@ -12,16 +12,17 @@ class FDisplayClusterConfiguratorViewGeneral
 {
 public:
 
-	FDisplayClusterConfiguratorViewGeneral(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+	FDisplayClusterConfiguratorViewGeneral(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit);
 
 public:
 	//~ Begin IDisplayClusterConfiguratorView Interface
 	virtual TSharedRef<SWidget> CreateWidget() override;
+	virtual TSharedRef<SWidget> GetWidget() override;
 	virtual void SetEnabled(bool bInEnabled) override;
 	//~ End IDisplayClusterConfiguratorView Interface
 
 private:
 	TSharedPtr<SDisplayClusterConfiguratorViewGeneral> ViewDetails;
 
-	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 };

@@ -41,6 +41,7 @@ public:
 	{
 		// Register for Cluster StartSession callback so everything is setup before launching interception
 		IDisplayCluster::Get().OnDisplayClusterStartSession().AddRaw(this, &FDisplayClusterMessageInterceptionModule::OnDisplayClusterStartSession);
+		IDisplayCluster::Get().OnDisplayClusterStartScene().AddRaw(this,&FDisplayClusterMessageInterceptionModule::OnNewSceneEvent);
 
 		// Setup console command to start/stop interception
 		StartMessageSyncCommand = MakeUnique<FAutoConsoleCommand>(
@@ -97,6 +98,36 @@ public:
 	}
 
 private:
+	void OnNewSceneEvent()
+	{
+		IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
+		if (bStartInterceptionRequested && !bSettingsSynchronizationDone && ClusterManager && ListenerDelegate.IsBound())
+		{
+			// If we receive a NewScene event then our previous sync event was lost due to flushing of
+			// the event queues during EndScene / NewScene.  Re-establish the event here:
+			ResendSyncEvent(ClusterManager);
+		}
+	}
+
+	void ResendSyncEvent(IDisplayClusterClusterManager* ClusterManager)
+			{
+				//Master will send out its interceptor settings to the cluster so everyone uses the same things
+				if (ClusterManager->IsMaster())
+				{
+					FString ExportedSettings;
+					const UDisplayClusterMessageInterceptionSettings* CurrentSettings = GetDefault<UDisplayClusterMessageInterceptionSettings>();
+					FMessageInterceptionSettings::StaticStruct()->ExportText(ExportedSettings, &CurrentSettings->InterceptionSettings, nullptr, nullptr, PPF_None, nullptr);
+
+					FDisplayClusterClusterEventJson SettingsEvent;
+					SettingsEvent.Category = DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventCategory;
+					SettingsEvent.Name = ClusterManager->GetNodeId();
+					SettingsEvent.bIsSystemEvent = true;
+					SettingsEvent.Parameters.FindOrAdd(DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventParameterSettings) = MoveTemp(ExportedSettings);
+			const bool bMasterOnly = true;
+					ClusterManager->EmitClusterEventJson(SettingsEvent, bMasterOnly);
+				}
+			}
+
 	void OnDisplayClusterStartSession()
 	{
 		if (IDisplayCluster::IsAvailable() && IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster)
@@ -110,23 +141,7 @@ private:
 			{
 				ListenerDelegate = FOnClusterEventJsonListener::CreateRaw(this, &FDisplayClusterMessageInterceptionModule::HandleClusterEvent);
 				ClusterManager->AddClusterEventJsonListener(ListenerDelegate);
-
-				//Master will send out its interceptor settings to the cluster so everyone uses the same things
-				if (ClusterManager->IsMaster())
-				{
-					FString ExportedSettings;
-					const UDisplayClusterMessageInterceptionSettings* CurrentSettings = GetDefault<UDisplayClusterMessageInterceptionSettings>();
-					FMessageInterceptionSettings::StaticStruct()->ExportText(ExportedSettings, &CurrentSettings->InterceptionSettings, nullptr, nullptr, PPF_None, nullptr);
-					
-					FDisplayClusterClusterEventJson SettingsEvent;
-					SettingsEvent.Category = DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventCategory;
-					SettingsEvent.Name = ClusterManager->GetNodeId();
-					SettingsEvent.bIsSystemEvent = true;
-					SettingsEvent.Parameters.FindOrAdd(DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventParameterSettings) = MoveTemp(ExportedSettings);
-
-					const bool bMasterOnly = true; 
-					ClusterManager->EmitClusterEventJson(SettingsEvent, bMasterOnly);
-				}
+				ResendSyncEvent(ClusterManager);
 			}
 
 			//Start with interception enabled
@@ -165,6 +180,7 @@ private:
 			{
 				if (bSettingsSynchronizationDone)
 				{
+					UE_LOG(LogDisplayClusterInterception, Display, TEXT("Sync received! Starting interception!"));
 					bStartInterceptionRequested = false;
 					Interceptor->Start(IMessagingModule::Get().GetDefaultBus().ToSharedRef());
 				}

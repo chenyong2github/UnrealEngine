@@ -55,10 +55,17 @@ namespace DisplayClusterProjectionStrings
 			static constexpr auto AngleB      = TEXT("b");
 		}
 
+		namespace camera
+		{
+			static constexpr auto Component = TEXT("camera_component");
+			static constexpr auto Native = TEXT("native");
+		}
+		
 		namespace mesh
 		{
-			static constexpr auto FileID   = TEXT("@UESM");
-			static constexpr auto BufferID = TEXT("@@Buf");
+			static constexpr auto FileID    = TEXT("@UESM");
+			static constexpr auto BufferID  = TEXT("@@Buf");
+			static constexpr auto Component = TEXT("mesh_component");
 		}
 
 		namespace domeprojection

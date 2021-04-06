@@ -36,14 +36,14 @@ TSharedPtr<IDisplayClusterProjectionPolicy> FPicpProjectionMPCDIPolicyFactory::C
 
 	if(!PolicyType.Compare(PicpProjectionStrings::projection::PicpMPCDI,ESearchCase::IgnoreCase))
 	{
-		TSharedPtr<FPicpProjectionPolicyBase> Result = MakeShared<FPicpProjectionMPCDIPolicy>(ViewportId, Parameters);
+		TSharedPtr<FPicpProjectionPolicyBase> Result = MakeShared<FPicpProjectionMPCDIPolicy>(PicpProjectionModule, ViewportId, Parameters);
 		PicpPolicy.Add(Result);
 		return StaticCastSharedPtr<IDisplayClusterProjectionPolicy>(Result);
 	}
 
 	if (!PolicyType.Compare(PicpProjectionStrings::projection::PicpMesh, ESearchCase::IgnoreCase))
 	{
-		TSharedPtr<FPicpProjectionPolicyBase> Result = MakeShared<FPicpProjectionMeshPolicy>(ViewportId, Parameters);
+		TSharedPtr<FPicpProjectionPolicyBase> Result = MakeShared<FPicpProjectionMeshPolicy>(PicpProjectionModule, ViewportId, Parameters);
 		PicpPolicy.Add(Result);
 		return StaticCastSharedPtr<IDisplayClusterProjectionPolicy>(Result);
 	}

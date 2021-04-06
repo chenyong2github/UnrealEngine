@@ -111,6 +111,18 @@ public:
 	}
 
 	/**
+	* Initializing the projection policy logic for the current frame before applying warp blending. Called if IsWarpBlendSupported() returns true
+	*
+	* @param ViewIdx      - Index of view that is being processed for this viewport
+	* @param RHICmdList   - RHI commands
+	* @param SrcTexture   - Source texture
+	* @param ViewportRect - Region of the SrcTexture to perform warp&blend operations
+	*
+	*/
+	virtual void BeginWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect)
+	{ }
+
+	/**
 	* Performs warp&blend. Called if IsWarpBlendSupported() returns true
 	*
 	* @param ViewIdx      - Index of view that is being processed for this viewport
@@ -122,6 +134,17 @@ public:
 	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect)
 	{ }
 
+	/**
+	* Completing the projection policy logic for the current frame after applying warp blending. Called if IsWarpBlendSupported() returns true
+	*
+	* @param ViewIdx      - Index of view that is being processed for this viewport
+	* @param RHICmdList   - RHI commands
+	* @param SrcTexture   - Source texture
+	* @param ViewportRect - Region of the SrcTexture to perform warp&blend operations
+	*
+	*/
+	virtual void EndWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect)
+	{ }
 
 #if WITH_EDITOR
 

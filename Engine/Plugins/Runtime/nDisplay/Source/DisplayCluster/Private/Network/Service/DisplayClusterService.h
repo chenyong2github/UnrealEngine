@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Network/DisplayClusterServer.h"
+#include "GenericPlatform/GenericPlatformAffinity.h"
+
 
 class FSocket;
 struct FIPv4Endpoint;
@@ -16,6 +18,10 @@ class FDisplayClusterService
 {
 public:
 	FDisplayClusterService(const FString& Name);
+
+public:
+	static EThreadPriority ConvertThreadPriorityFromCvarValue(int ThreadPriority);
+	static EThreadPriority GetThreadPriority();
 
 public:
 	// Returns true if requested Endpoint is a part of nDisplay cluster (listed in a config file)

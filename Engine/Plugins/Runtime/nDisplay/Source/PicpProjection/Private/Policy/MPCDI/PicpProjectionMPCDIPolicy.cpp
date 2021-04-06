@@ -17,6 +17,7 @@
 #include "Engine/RendererSettings.h"
 #include "Engine/TextureRenderTarget2D.h"
 
+#include "RenderTargetPool.h"
 
 static TAutoConsoleVariable<int32> CVarPicpShowFakeCamera(
 	TEXT("nDisplay.render.picp.ShowFakeCamera"),
@@ -27,8 +28,8 @@ static TAutoConsoleVariable<int32> CVarPicpShowFakeCamera(
 	ECVF_RenderThreadSafe
 );
 
-FPicpProjectionMPCDIPolicy::FPicpProjectionMPCDIPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
-	: FPicpProjectionPolicyBase(ViewportId, Parameters)
+FPicpProjectionMPCDIPolicy::FPicpProjectionMPCDIPolicy(FPicpProjectionModule& InPicpProjectionModule, const FString& ViewportId, const TMap<FString, FString>& Parameters)
+	: FPicpProjectionPolicyBase(InPicpProjectionModule, ViewportId, Parameters)
 	, PicpMPCDIAPI(IPicpMPCDI::Get())
 	, MPCDIAPI(IMPCDI::Get())
 {
@@ -86,7 +87,7 @@ bool FPicpProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& InViewportSi
 
 	// Finally, initialize internal views data container
 	Views.AddDefaulted(InViewsAmount);
-	ViewportSize = InViewportSize;
+	SetViewportSize(InViewportSize);
 
 	return true;
 }
@@ -122,11 +123,6 @@ bool FPicpProjectionMPCDIPolicy::CalculateView(const uint32 ViewIdx, FVector& In
 	IMPCDI::FFrustum& OutFrustum = Views[ViewIdx].Frustum;
 	OutFrustum.OriginLocation = LocalOrigin;
 	OutFrustum.OriginEyeOffset = LocalEyeOrigin - LocalOrigin;
-
-	if (Views[ViewIdx].RTTexture != nullptr)
-	{
-		OutFrustum.ViewportSize = Views[ViewIdx].RTTexture->GetSizeXY();
-	}
 
 	// Compute frustum
 	if (MPCDIAPI.ComputeFrustum(WarpRef, WorldScale, NCP, FCP, OutFrustum))
@@ -176,15 +172,16 @@ bool FPicpProjectionMPCDIPolicy::IsWarpBlendSupported()
 	return true;
 }
 
+static bool GetPooledSceneRTT_RenderThread(FRHICommandListImmediate& RHICmdList, const FString& ViewportName, const uint32 ViewIdx, FIntPoint Size, EPixelFormat Format, bool bSRGB, TRefCountPtr<IPooledRenderTarget>& OutPooledPicpSceneRTT)
+{
+	FPooledRenderTargetDesc OutputDesc(FPooledRenderTargetDesc::Create2DDesc(Size, Format, FClearValueBinding::None, bSRGB? TexCreate_SRGB: TexCreate_None, TexCreate_RenderTargetable, false));
+	GRenderTargetPool.FindFreeElement(RHICmdList, OutputDesc, OutPooledPicpSceneRTT, *FString::Printf(TEXT("nDisplayPicpSceneRTT_%s[%d]"), *ViewportName, ViewIdx));
+	return OutPooledPicpSceneRTT.IsValid();
+}
+
 void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect)
 {
 	check(IsInRenderingThread());
-
-	if (!InitializeResources_RenderThread())
-	{
-		UE_LOG(LogPicpProjectionMPCDI, Warning, TEXT("Couldn't initialize rendering resources"));
-		return;
-	}
 
 	FScopeLock lock(&WarpRefCS);
 	if (!WarpRef.IsValid())
@@ -192,11 +189,23 @@ void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewId
 		return;
 	}
 
+	bool bSRGB = ((SrcTexture->GetFlags() & TexCreate_SRGB) != 0);
+
+	TRefCountPtr<IPooledRenderTarget> WarpRenderTargetPool;
+	if (!GetPooledSceneRTT_RenderThread(RHICmdList, GetViewportId(), ViewIdx, GetViewportSize(), SrcTexture->GetFormat(), bSRGB, WarpRenderTargetPool))
+	{
+		// Error: Pooled RTT for scene not created
+		return;
+	}
+
+	FTexture2DRHIRef RHIWarpRenderTarget = (const FTexture2DRHIRef&)WarpRenderTargetPool->GetRenderTargetItem().TargetableTexture;
+
 	//Support runtime PFM reload
 	MPCDIAPI.ReloadAll_RenderThread();
 	
 	FPicpProjectionOverlayViewportData ViewportOverlayData;
 	GetOverlayData_RenderThread(ViewportOverlayData);
+	AssignStageCamerasTextures_RenderThread(ViewportOverlayData);
 
 	// Initialize shader input data
 	IMPCDI::FShaderInputData ShaderInputData;
@@ -208,8 +217,8 @@ void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewId
 	TextureWarpData.SrcTexture = SrcTexture;
 	TextureWarpData.SrcRect = ViewportRect;
 
-	TextureWarpData.DstTexture = Views[ViewIdx].RTTexture;
-	TextureWarpData.DstRect = FIntRect(FIntPoint(0, 0), ViewportSize);
+	TextureWarpData.DstTexture = RHIWarpRenderTarget;
+	TextureWarpData.DstRect = FIntRect(FIntPoint(0, 0), GetViewportSize());
 
 	TSharedPtr<FMPCDIData> MPCDIData = MPCDIAPI.GetMPCDIData(ShaderInputData);
 	if (!MPCDIData.IsValid())
@@ -218,9 +227,6 @@ void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewId
 		return;
 	}
 	
-	//@todo: copy one time per pass (for now textures coping many times - for each viewport)
-	UpdateCameraTexture_RenderThread(RHICmdList, SrcTexture, ViewportOverlayData);
-
 	//Execute composure
 	IPicpMPCDI::Get().ExecuteCompose();
 
@@ -231,7 +237,7 @@ void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewId
 		return;
 	}
 
-	// Copy result back to the render target
+	// Copy result back to the scene source
 	FResolveParams copyParams;
 	copyParams.DestArrayIndex = 0;
 	copyParams.SourceArrayIndex = 0;
@@ -246,95 +252,20 @@ void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewId
 	copyParams.DestRect.X2 = ViewportRect.Max.X;
 	copyParams.DestRect.Y2 = ViewportRect.Max.Y;
 
-	RHICmdList.CopyToResolveTarget(Views[ViewIdx].RTTexture, SrcTexture, copyParams);
+	RHICmdList.CopyToResolveTarget(RHIWarpRenderTarget, SrcTexture, copyParams);
 
-	if (Views[ViewIdx].ExtWarpTexture!=nullptr)
+	if (Views[ViewIdx].ExtWarpTexture != nullptr)
 	{
-		RHICmdList.CopyToResolveTarget(Views[ViewIdx].RTTexture, Views[ViewIdx].ExtWarpTexture, copyParams);
+		// Copy warp result back to ext texture (debug purpose)
+		RHICmdList.CopyToResolveTarget(RHIWarpRenderTarget, Views[ViewIdx].ExtWarpTexture, copyParams);
 		Views[ViewIdx].ExtWarpFrustum = Views[ViewIdx].Frustum; // Make snapshot of Frustum data for captured warp texture
 		Views[ViewIdx].ExtWarpTexture = nullptr; // Stop capture right now
 	}
+
+	// Flush RHI commands before PooledPicpSceneRTT released
+	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 }
 
-bool FPicpProjectionMPCDIPolicy::UpdateCameraTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FPicpProjectionOverlayViewportData& ViewportOverlayData)
-{
-	// Copy RTT viewport into camera texture RTT
-	bool bResult = true;
-	
-	if (ViewportOverlayData.IsAnyCameraUsed())
-	{
-		IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
-		check(Manager);
-
-		IDisplayClusterRenderDevice* const RenderDevice = Manager->GetRenderDevice();
-		check(RenderDevice);
-
-		//Copy all cameras RTT render to separate textures
-		for (auto& It : ViewportOverlayData.Cameras)
-		{
-			FIntRect RTTViewportRect;
-
-			bool RTTViewportFound = RenderDevice->GetViewportRect(It.RTTViewportId, RTTViewportRect);
-			if (RTTViewportFound)
-			{
-				FResolveParams RTTViewportCopyParams;
-				RTTViewportCopyParams.DestArrayIndex = 0;
-				RTTViewportCopyParams.SourceArrayIndex = 0;
-
-				RTTViewportCopyParams.Rect.X1 = RTTViewportRect.Min.X;
-				RTTViewportCopyParams.Rect.X2 = RTTViewportRect.Max.X;
-				RTTViewportCopyParams.Rect.Y1 = RTTViewportRect.Min.Y;
-				RTTViewportCopyParams.Rect.Y2 = RTTViewportRect.Max.Y;
-
-				RTTViewportCopyParams.DestRect.X1 = 0;
-				RTTViewportCopyParams.DestRect.Y1 = 0;
-				RTTViewportCopyParams.DestRect.X2 = It.CameraTexture->GetSizeXYZ().X;
-				RTTViewportCopyParams.DestRect.Y2 = It.CameraTexture->GetSizeXYZ().Y;
-
-				RHICmdList.CopyToResolveTarget(SrcTexture, It.CameraTexture, RTTViewportCopyParams);
-			}
-			else
-			{
-				UE_LOG(LogPicpProjectionMPCDI, Error, TEXT("PICP Policy: RTT Viewport '%s' is not set. Assign in PICPOverlayFrameBlendingParameters."), *It.RTTViewportId);
-				bResult = false;
-			};
-		}
-	}
-
-	return bResult;
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// FDisplayClusterProjectionMPCDIPolicy
-//////////////////////////////////////////////////////////////////////////////////////////////
-bool FPicpProjectionMPCDIPolicy::InitializeResources_RenderThread()
-{
-	check(IsInRenderingThread());
-
-	if (!bIsRenderResourcesInitialized)
-	{
-		FScopeLock lock(&RenderingResourcesInitializationCS);
-		if (!bIsRenderResourcesInitialized)
-		{
-			static const TConsoleVariableData<int32>* CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
-			static const EPixelFormat SceneTargetFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnRenderThread()));
-
-			// Create RT texture for viewport warp
-			for (auto& It : Views)
-			{
-				FRHIResourceCreateInfo CreateInfo;
-				FTexture2DRHIRef DummyTexRef;
-				RHICreateTargetableShaderResource2D(ViewportSize.X, ViewportSize.Y, SceneTargetFormat, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, It.RTTexture, DummyTexRef);
-			}
-
-			bIsRenderResourcesInitialized = true;
-		}
-	}
-
-	return bIsRenderResourcesInitialized;
-}
-
-//Picp api:
 void FPicpProjectionMPCDIPolicy::SetWarpTextureCapture(const uint32 ViewIdx, FRHITexture2D* target)
 {
 	if ((int)ViewIdx < Views.Num())
@@ -363,152 +294,4 @@ IMPCDI::FFrustum FPicpProjectionMPCDIPolicy::GetWarpFrustum(const uint32 ViewIdx
 	}
 	
 	return IMPCDI::FFrustum();
-}
-
-void FPicpProjectionMPCDIPolicy::UpdateOverlayViewportData(FPicpProjectionOverlayFrameData& OverlayFrameData)
-{
-	// Transform rotation to world space
-	const USceneComponent* const OriginComp = GetOriginComp();
-	const FTransform& World2LocalTransform = (OriginComp ? OriginComp->GetComponentTransform() : FTransform::Identity);
-
-	OverlayFrameData.GetViewportData(GetViewportId(), this, World2LocalTransform);
-}
-
-void FPicpProjectionMPCDIPolicy::SetOverlayData_RenderThread(const FPicpProjectionOverlayViewportData* Source)
-{
-	check(IsInRenderingThread());
-
-	if (Source)
-	{
-		FScopeLock lock(&LocalOverlayViewportDataCS);
-		LocalOverlayViewportData.Initialize(*Source); // Copy data on render thread
-	}
-}
-
-void FPicpProjectionMPCDIPolicy::GetOverlayData_RenderThread(FPicpProjectionOverlayViewportData& Output)
-{
-	check(IsInRenderingThread());
-
-	FScopeLock lock(&LocalOverlayViewportDataCS);
-	Output.Initialize(LocalOverlayViewportData);
-}
-
-
-void FPicpProjectionOverlayViewportData::Initialize(const FPicpProjectionOverlayViewportData& Source)
-{
-	// Clear prev data immediately
-	Empty();
-
-	LUTCorrection = Source.LUTCorrection;
-	ViewportOver  = Source.ViewportOver;
-	ViewportUnder = Source.ViewportUnder;
-
-	for (const auto& It : Source.Cameras)
-	{
-		Cameras.Add(It);
-	}
-}
-
-void FPicpProjectionOverlayViewportData::Empty()
-{
-	check(IsInRenderingThread());
-
-	LUTCorrection.Empty();
-	ViewportOver.Empty();
-	ViewportUnder.Empty();
-
-	for (auto& It : Cameras)
-	{
-		It.Empty();
-	}
-	
-	Cameras.Empty();
-}
-
-static void SetOverlayData_RenderThread(FRHICommandListImmediate& RHICmdList, FPicpProjectionMPCDIPolicy* Policy, FPicpProjectionOverlayViewportData* Source)
-{
-	Policy->SetOverlayData_RenderThread(Source);
-	// Remove used input data at the end of thread
-	if (Source)
-	{
-		delete Source;
-		Source = nullptr;
-	}
-}
-
-void FPicpProjectionOverlayFrameData::GetViewportData(const FString& ViewportId, FPicpProjectionMPCDIPolicy* OutPolicy, const FTransform& Origin2WorldTransform) const
-{
-	// Create input data for render thread (will be deleted inside render thread)
-	FPicpProjectionOverlayViewportData* GameThreadData = new FPicpProjectionOverlayViewportData();
-
-	// Copy LUT data:
-	GameThreadData->LUTCorrection = LUTCorrection;
-
-	// Copy cameras data:
-	for (const auto& It : Cameras) {
-		FPicpProjectionOverlayCamera Camera(It);
-
-		// Transform camera view matrix to cave space
-		Camera.ViewRot = Origin2WorldTransform.InverseTransformRotation(Camera.ViewRot.Quaternion()).Rotator();
-		Camera.ViewLoc = Origin2WorldTransform.InverseTransformPosition(Camera.ViewLoc);
-
-		GameThreadData->Cameras.Add(Camera);
-	}
-
-	// Copy overlays data:
-	if (ViewportsOver.Contains(ViewportId))
-	{
-		GameThreadData->ViewportOver = ViewportsOver[ViewportId];
-	}
-
-	if (ViewportsUnder.Contains(ViewportId))
-	{
-		GameThreadData->ViewportUnder = ViewportsUnder[ViewportId];
-	}
-
-	//Send data to render thread:
-	ENQUEUE_RENDER_COMMAND(SetOverlayData_RenderThread)(
-		[OutPolicy, GameThreadData](FRHICommandListImmediate& RHICmdList)
-	{
-		SetOverlayData_RenderThread(RHICmdList, OutPolicy, GameThreadData);
-	});
-}
-
-void FPicpProjectionOverlayFrameData::Empty()
-{
-	ViewportsOver.Empty();
-	ViewportsUnder.Empty();
-	Cameras.Empty();
-}
-
-FMatrix GetSimpleProjectionMatrix(float Fov, float ZNear, float ZFar)
-{
-	const float r = Fov / 2;
-	const float l = -r;
-	const float t = Fov / 2;
-	const float b = -t;
-
-	return DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(l, r, t, b, ZNear, ZFar);
-}
-
-void FPicpProjectionOverlayFrameData::GenerateDebugContent(const FString& ViewportId, FPicpProjectionMPCDIPolicy* OutPolicy)
-{
-	float Yaw = 45; // Floor rotation
-	float Fov = 10;
-
-	FPicpProjectionOverlayCamera DebugCamera(
-		FRotator(0, Yaw, 0),
-		FVector(0, 0, 0),
-		GetSimpleProjectionMatrix(Fov, 1, 20000),
-		GWhiteTexture->TextureRHI, TEXT("DebugInnerCameraViewport"));
-
-	FPicpProjectionOverlayViewportData* GameThreadData = new FPicpProjectionOverlayViewportData();
-	GameThreadData->Cameras.Add(DebugCamera);
-
-	//Send data to render thread:
-	ENQUEUE_RENDER_COMMAND(SetOverlayData_RenderThread)(
-		[OutPolicy, GameThreadData](FRHICommandListImmediate& RHICmdList)
-	{
-		SetOverlayData_RenderThread(RHICmdList, OutPolicy, GameThreadData);
-	});
 }

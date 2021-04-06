@@ -12,7 +12,7 @@ class UStaticMeshComponent;
 /**
  * Simple projection screen component
  */
-UCLASS(ClassGroup = (DisplayCluster))
+UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent))
 class DISPLAYCLUSTER_API UDisplayClusterScreenComponent
 	: public UDisplayClusterSceneComponent
 {
@@ -23,7 +23,16 @@ class DISPLAYCLUSTER_API UDisplayClusterScreenComponent
 public:
 	UDisplayClusterScreenComponent(const FObjectInitializer& ObjectInitializer);
 
+	virtual void PostLoad() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	
 public:
+	/** Return the screen size adjusted by its transform scale. */
+	UFUNCTION(BlueprintCallable, Category = "DisplayCluster")
+	FVector2D GetScreenSizeScaled() const;
+	
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get screen size"), Category = "DisplayCluster")
 	FVector2D GetScreenSize() const;
 
@@ -31,14 +40,23 @@ public:
 	void SetScreenSize(const FVector2D& Size);
 
 protected:
-	virtual void ApplyConfigurationData();
-
+	virtual void ApplyConfigurationData() override;
+	
 protected:
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster")
+#if WITH_EDITORONLY_DATA
+	friend class FDisplayClusterConfiguratorScreenDetailCustomization;
+
+	/** Adjust the size of the screen. */
+	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Size", AllowPreserveRatio))
+	FVector2D SizeCm;
+#endif
+
+	/** Automatically updated in the editor by SizeCm. */
+	UPROPERTY()
 	FVector2D Size;
 
-	UPROPERTY(VisibleAnywhere, Category = "DisplayCluster")
-	UStaticMeshComponent* VisScreenComponent = nullptr;
+	UPROPERTY(Instanced, DuplicateTransient)
+	UStaticMeshComponent* VisScreenComponent;
 
 #if WITH_EDITOR 
 public:

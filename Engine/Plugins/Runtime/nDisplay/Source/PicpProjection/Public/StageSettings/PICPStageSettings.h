@@ -4,10 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Engine/TextureRenderTarget2D.h"
+
 #include "PICPStageSettings.generated.h"
-
-class UTextureRenderTarget2D;
-
 
 UCLASS()
 class APICPStageSettings : public AActor
@@ -29,5 +28,5 @@ public:
 
 private:
 	mutable FCriticalSection InternalsSyncScope;
-	static TMap<FString, UTextureRenderTarget2D*> RenderTargetCache;
+	static TMap<FString, TWeakObjectPtr<UTextureRenderTarget2D>> RenderTargetCache;
 };

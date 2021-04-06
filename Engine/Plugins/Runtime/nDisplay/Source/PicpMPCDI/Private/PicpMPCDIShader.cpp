@@ -434,7 +434,7 @@ public:
 		if (MPCDIRegion->AlphaMap.IsValid())
 		{
 			RenderPassData.PSParameters.AlphaMapTexture = MPCDIRegion->AlphaMap.TextureRHI;
-			RenderPassData.PSParameters.AlphaMapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			RenderPassData.PSParameters.AlphaMapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			RenderPassData.PSParameters.AlphaEmbeddedGamma = MPCDIRegion->AlphaMap.GetEmbeddedGamma();
 
 			RenderPassData.PSPermutationVector.Set<PicpShaderPermutation::FPicpShaderAlphaMapBlending>(true);
@@ -443,7 +443,7 @@ public:
 		if (MPCDIRegion->BetaMap.IsValid())
 		{
 			RenderPassData.PSParameters.BetaMapTexture = MPCDIRegion->BetaMap.TextureRHI;
-			RenderPassData.PSParameters.BetaMapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			RenderPassData.PSParameters.BetaMapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 			RenderPassData.PSPermutationVector.Set<PicpShaderPermutation::FPicpShaderBetaMapBlending>(true);
 		}
@@ -458,7 +458,7 @@ public:
 		if (IsOverlayUnderUsed())
 		{
 			RenderPassData.PSParameters.OverlayUnderTexture = ViewportOverlayData->ViewportUnder.ViewportTexture;
-			RenderPassData.PSParameters.OverlayUnderSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			RenderPassData.PSParameters.OverlayUnderSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 			RenderPassData.PSPermutationVector.Set<PicpShaderPermutation::FPicpShaderOverlayUnder>(true);
 		}
@@ -466,7 +466,7 @@ public:
 		if (IsOverlayOverUsed())
 		{
 			RenderPassData.PSParameters.OverlayOverTexture = ViewportOverlayData->ViewportOver.ViewportTexture;
-			RenderPassData.PSParameters.OverlayOverSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			RenderPassData.PSParameters.OverlayOverSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 			RenderPassData.PSPermutationVector.Set<PicpShaderPermutation::FPicpShaderOverlayOver>(true);
 		}
@@ -501,7 +501,7 @@ public:
 		FMatrix InnerCameraProjectionMatrix = UVMatrix * MPCDIData->GetTextureMatrix() *MPCDIRegion->GetRegionMatrix();
 
 		RenderPassData.PSParameters.InnerCameraTexture = Camera.CameraTexture;
-		RenderPassData.PSParameters.InnerCameraSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		RenderPassData.PSParameters.InnerCameraSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		RenderPassData.PSParameters.InnerCameraProjectionMatrix = InnerCameraProjectionMatrix;
 		RenderPassData.PSParameters.InnerCameraSoftEdge = Camera.SoftEdge;
@@ -516,7 +516,7 @@ public:
 		if (Camera.Chromakey.IsChromakeyUsed())
 		{
 			RenderPassData.PSParameters.ChromakeyCameraTexture = Camera.Chromakey.ChromakeyTexture;
-			RenderPassData.PSParameters.ChromakeyCameraSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			RenderPassData.PSParameters.ChromakeyCameraSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 			RenderPassData.PSPermutationVector.Set<PicpShaderPermutation::FPicpShaderChromakey>(true);
 
@@ -534,7 +534,7 @@ public:
 		if (Camera.Chromakey.IsChromakeyMarkerUsed())
 		{
 			RenderPassData.PSParameters.ChromakeyMarkerTexture = Camera.Chromakey.ChromakeyMarkerTexture;
-			RenderPassData.PSParameters.ChromakeyMarkerSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+			RenderPassData.PSParameters.ChromakeyMarkerSampler = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 
 			RenderPassData.PSParameters.ChromakeyMarkerScale = Camera.Chromakey.ChromakeyMarkerScale;
 

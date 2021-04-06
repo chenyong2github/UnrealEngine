@@ -38,16 +38,12 @@ namespace DisplayClusterClusterSyncStrings
 		constexpr static auto ArgBarrierTime = "BarrierTime";
 	}
 
-	namespace GetDeltaTime
+	namespace GetTimeData
 	{
-		constexpr static auto Name = "GetDeltaTime";
-		constexpr static auto ArgDeltaSeconds = "DeltaSeconds";
-	}
-
-	namespace GetFrameTime
-	{
-		constexpr static auto Name = "GetFrameTime";
-		constexpr static auto ArgIsValid    = "IsValid";
+		constexpr static auto Name = "GetTimeData";
+		constexpr static auto ArgDeltaTime        = "DeltaTime";
+		constexpr static auto ArgGameTime         = "GameTime";
+		constexpr static auto ArgIsFrameTimeValid = "IsFrameTimeValid";
 		constexpr static auto ArgFrameTime  = "FrameTime";
 	}
 

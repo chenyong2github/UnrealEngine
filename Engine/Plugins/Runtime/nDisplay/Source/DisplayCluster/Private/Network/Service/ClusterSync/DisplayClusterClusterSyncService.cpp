@@ -59,7 +59,13 @@ void FDisplayClusterClusterSyncService::Shutdown()
 
 TUniquePtr<IDisplayClusterSession> FDisplayClusterClusterSyncService::CreateSession(FSocket* Socket, const FIPv4Endpoint& Endpoint, uint64 SessionId)
 {
-	return MakeUnique<FDisplayClusterSession<FDisplayClusterPacketInternal, true, true>>(Socket, this, this, SessionId, FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionId, *Endpoint.ToString()));
+	return MakeUnique<FDisplayClusterSession<FDisplayClusterPacketInternal, true, true>>(
+		Socket,
+		this,
+		this,
+		SessionId,
+		FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionId, *Endpoint.ToString()),
+		FDisplayClusterService::GetThreadPriority());
 }
 
 
@@ -135,29 +141,27 @@ TSharedPtr<FDisplayClusterPacketInternal> FDisplayClusterClusterSyncService::Pro
 
 		return Response;
 	}
-	else if (ReqName == DisplayClusterClusterSyncStrings::GetDeltaTime::Name)
+	else if (ReqName == DisplayClusterClusterSyncStrings::GetTimeData::Name)
 	{
-		// Get delta (float)
-		float DeltaSeconds = 0.0f;
-		GetDeltaTime(DeltaSeconds);
+		float DeltaTime = 0.0f;
+		double GameTime = 0.0f;
+		TOptional<FQualifiedFrameTime> FrameTime;
 
-		// Convert to hex string
-		const FString StrDeltaSeconds = DisplayClusterTypesConverter::template ToHexString(DeltaSeconds);
+		GetTimeData(DeltaTime, GameTime, FrameTime);
 
-		// Send the response
-		Response->SetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, DisplayClusterClusterSyncStrings::GetDeltaTime::ArgDeltaSeconds, StrDeltaSeconds);
-		return Response;
-	}
-	else if (ReqName == DisplayClusterClusterSyncStrings::GetFrameTime::Name)
-	{
-		TOptional<FQualifiedFrameTime> frameTime;
-		GetFrameTime(frameTime);
+		// Convert to hex strings
+		const FString StrDeltaTime = DisplayClusterTypesConverter::template ToHexString<float> (DeltaTime);
+		const FString StrGameTime  = DisplayClusterTypesConverter::template ToHexString<double>(GameTime);
 
-		Response->SetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, DisplayClusterClusterSyncStrings::GetFrameTime::ArgIsValid, frameTime.IsSet());
-		if (frameTime.IsSet())
+		Response->SetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, DisplayClusterClusterSyncStrings::GetTimeData::ArgDeltaTime, StrDeltaTime);
+		Response->SetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, DisplayClusterClusterSyncStrings::GetTimeData::ArgGameTime, StrGameTime);
+		Response->SetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, DisplayClusterClusterSyncStrings::GetTimeData::ArgIsFrameTimeValid, FrameTime.IsSet());
+		
+		if (FrameTime.IsSet())
 		{
-			Response->SetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, DisplayClusterClusterSyncStrings::GetFrameTime::ArgFrameTime, frameTime.GetValue());
+			Response->SetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, DisplayClusterClusterSyncStrings::GetTimeData::ArgFrameTime, FrameTime.GetValue());
 		}
+
 		return Response;
 	}
 	else if (ReqName == DisplayClusterClusterSyncStrings::GetSyncData::Name)
@@ -235,16 +239,10 @@ void FDisplayClusterClusterSyncService::WaitForFrameEnd(double* ThreadWaitTime, 
 	}
 }
 
-void FDisplayClusterClusterSyncService::GetDeltaTime(float& DeltaSeconds)
+void FDisplayClusterClusterSyncService::GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime)
 {
 	static IDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
-	return NodeController->GetDeltaTime(DeltaSeconds);
-}
-
-void FDisplayClusterClusterSyncService::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)
-{
-	static IDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
-	return NodeController->GetFrameTime(FrameTime);
+	return NodeController->GetTimeData(InOutDeltaTime, InOutGameTime, InOutFrameTime);
 }
 
 void FDisplayClusterClusterSyncService::GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup)

@@ -22,7 +22,7 @@ enum class EDisplayClusterEyeStereoOffset : uint8
 /**
  * Camera component
  */
-UCLASS(ClassGroup = (DisplayCluster))
+UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent))
 class DISPLAYCLUSTER_API UDisplayClusterCameraComponent
 	: public UDisplayClusterSceneComponent
 {
@@ -103,7 +103,7 @@ public:
 	}
 
 protected:
-	virtual void ApplyConfigurationData();
+	virtual void ApplyConfigurationData() override;
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "DisplayCluster")
@@ -115,7 +115,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "DisplayCluster")
 	EDisplayClusterEyeStereoOffset StereoOffset;
 
-	UPROPERTY(VisibleAnywhere, Category = "DisplayCluster")
+	UPROPERTY(Transient)
 	UStaticMeshComponent* VisCameraComponent = nullptr;
 
 #if WITH_EDITOR 

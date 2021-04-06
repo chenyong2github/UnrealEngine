@@ -48,8 +48,13 @@ bool FDisplayClusterPresentationBase::Present(int32& InOutSyncInterval)
 	{
 		// Update sync value with nDisplay value
 		InOutSyncInterval = GetSwapInt();
+		
+		OnDisplayClusterPresentationPreSynchronization_RHIThread().Broadcast();
+
 		// False results means we don't need to present current frame, the sync object already presented it
 		bNeedPresent = SyncPolicy->SynchronizeClusterRendering(InOutSyncInterval);
+
+		OnDisplayClusterPresentationPostSynchronization_RHIThread().Broadcast();
 	}
 
 	return bNeedPresent;

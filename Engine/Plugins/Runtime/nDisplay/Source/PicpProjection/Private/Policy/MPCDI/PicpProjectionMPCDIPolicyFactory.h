@@ -17,6 +17,10 @@ class FPicpProjectionMPCDIPolicyFactory
 	: public IDisplayClusterProjectionPolicyFactory
 {
 public:
+	FPicpProjectionMPCDIPolicyFactory(FPicpProjectionModule& InPicpProjectionModule)
+		: PicpProjectionModule(InPicpProjectionModule)
+	{ }
+
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicyFactory
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,4 +31,5 @@ public:
 
 private:
 	TArray<TSharedPtr<FPicpProjectionPolicyBase>> PicpPolicy;
+	FPicpProjectionModule& PicpProjectionModule;
 };

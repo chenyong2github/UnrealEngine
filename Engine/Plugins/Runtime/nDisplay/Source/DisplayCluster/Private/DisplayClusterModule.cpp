@@ -149,6 +149,8 @@ bool FDisplayClusterModule::StartScene(UWorld* InWorld)
 
 	check(InWorld);
 
+	DisplayClusterStartSceneEvent.Broadcast();
+
 	bool result = true;
 	auto it = Managers.CreateIterator();
 	while (result && it)
@@ -168,6 +170,8 @@ bool FDisplayClusterModule::StartScene(UWorld* InWorld)
 void FDisplayClusterModule::EndScene()
 {
 	UE_LOG(LogDisplayClusterModule, Log, TEXT("Stopping game..."));
+
+	DisplayClusterEndSceneEvent.Broadcast();
 
 	for (auto pMgr : Managers)
 	{

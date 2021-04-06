@@ -6,7 +6,7 @@
 
 #include "EditorUndoClient.h"
 
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class FDisplayClusterConfiguratorViewOutputMapping;
 class FUICommandList;
 class SDPIScaler;
@@ -22,18 +22,19 @@ class SDisplayClusterConfiguratorViewOutputMapping
 public:
 	SLATE_BEGIN_ARGS(SDisplayClusterConfiguratorViewOutputMapping)
 	{}
-
+		SLATE_ARGUMENT(TSharedPtr<FUICommandList>, AdditionalCommands)
 	SLATE_END_ARGS()
 
 public:
 	void Construct(
 		const FArguments& InArgs, 
-		const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, 
+		const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit, 
 		const TSharedRef<SDisplayClusterConfiguratorGraphEditor>& InGraphEditor, 
 		const TSharedRef<FDisplayClusterConfiguratorViewOutputMapping> InViewOutputMapping);
 
 	//~ Begin SWidget Interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	//~ End SWidget Interface
 
 private:
@@ -50,10 +51,15 @@ private:
 
 	EVisibility GetCursorPositionTextVisibility() const;
 
+	float GetViewScale() const;
+	FText GetViewScaleText() const;
+
 	void ZoomToFit();
 
+	float GetDPIScale() const;
+
 private:
-	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 
 	TWeakPtr<SDisplayClusterConfiguratorGraphEditor> GraphEditorPtr;
 
