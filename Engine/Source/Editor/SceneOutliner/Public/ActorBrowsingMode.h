@@ -39,6 +39,7 @@ public:
 	virtual bool ShowStatusBar() const override { return true; }
 	virtual bool ShowViewButton() const override { return true; }
 	virtual bool ShowFilterOptions() const override { return true; }
+	virtual bool CanDelete() const override;
 	virtual bool CanRename() const override;
 	virtual bool CanCut() const override;
 	virtual bool CanCopy() const override;

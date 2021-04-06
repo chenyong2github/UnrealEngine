@@ -717,6 +717,13 @@ FReply FActorBrowsingMode::OnKeyDown(const FKeyEvent& InKeyEvent)
 	return FReply::Unhandled();
 }
 
+bool FActorBrowsingMode::CanDelete() const
+{
+	const FSceneOutlinerItemSelection ItemSelection = SceneOutliner->GetSelection();
+	const uint32 NumberOfFolders = ItemSelection.Num<FFolderTreeItem>();
+	return (NumberOfFolders > 0 && NumberOfFolders == ItemSelection.Num());
+}
+
 bool FActorBrowsingMode::CanRename() const
 {
 	const FSceneOutlinerItemSelection ItemSelection = SceneOutliner->GetSelection();

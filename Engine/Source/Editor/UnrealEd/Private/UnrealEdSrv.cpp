@@ -2497,7 +2497,17 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 				UTypedElementSelectionSet* SelectionSet = LevelEditor->GetMutableElementSelectionSet();
 				
 				const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "DeleteElements", "Delete Elements"));
-				CommonActions->DeleteSelectedElements(SelectionSet, InWorld, FTypedElementDeletionOptions());
+				if (SelectionSet->GetNumSelectedElements() == 0)
+				{
+					// HACK: Call these directly for an empty selection so that folder deletion in the outliner still works
+					// TODO: Move this logic into FLevelEditorActionCallbacks and have it call into the outliner directly
+					FEditorDelegates::OnDeleteActorsBegin.Broadcast();
+					FEditorDelegates::OnDeleteActorsEnd.Broadcast();
+				}
+				else
+				{
+					CommonActions->DeleteSelectedElements(SelectionSet, InWorld, FTypedElementDeletionOptions());
+				}
 			}
 		}
 		return true;
