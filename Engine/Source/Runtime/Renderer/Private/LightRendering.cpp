@@ -1086,6 +1086,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRenderLightParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumetricCloudShadowAOParameters, CloudShadowAO)
 	RDG_TEXTURE_ACCESS(ShadowMaskTexture, ERHIAccess::SRVGraphics)
 	RDG_TEXTURE_ACCESS(LightingChannelsTexture, ERHIAccess::SRVGraphics)
+	// We reference all the Strata tiled resources we might need in this pass
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBufferSimple)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBufferComplex)
+	RDG_BUFFER_ACCESS(TileIndirectBufferSimple, ERHIAccess::IndirectArgs)
+	RDG_BUFFER_ACCESS(TileIndirectBufferComplex, ERHIAccess::IndirectArgs)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -1111,6 +1116,14 @@ void GetRenderLightParameters(
 	if (SceneDepthTexture)
 	{
 		Parameters.RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
+	}
+
+	if (Strata::ShouldPassesReadingStrataBeTiled(View.Family->GetFeatureLevel()))
+	{
+		Parameters.TileListBufferSimple = View.StrataSceneData->ClassificationTileListBufferSRV[EStrataTileMaterialType::ESimple];
+		Parameters.TileListBufferComplex = View.StrataSceneData->ClassificationTileListBufferSRV[EStrataTileMaterialType::EComplex];
+		Parameters.TileIndirectBufferSimple = View.StrataSceneData->ClassificationTileIndirectBuffer[EStrataTileMaterialType::ESimple];
+		Parameters.TileIndirectBufferComplex = View.StrataSceneData->ClassificationTileIndirectBuffer[EStrataTileMaterialType::EComplex];
 	}
 }
 
@@ -1259,7 +1272,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						RDG_EVENT_NAME("StandardDeferredLighting"),
 						PassParameters,
 						ERDGPassFlags::Raster,
-						[this, &View, &SortedLights, LightingChannelsTexture, StandardDeferredStart, AttenuationLightStart](FRHICommandList& RHICmdList)
+						[this, &View, &SortedLights, LightingChannelsTexture, StandardDeferredStart, AttenuationLightStart, PassParameters](FRHICommandList& RHICmdList)
 					{
 						// Draw non-shadowed non-light function lights without changing render targets between them
 						for (int32 LightIndex = StandardDeferredStart; LightIndex < AttenuationLightStart; LightIndex++)
@@ -1271,7 +1284,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 							SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 
 							// Render the light to the scene color buffer, using a 1x1 white texture as input
-							RenderLight(RHICmdList, View, LightSceneInfo, nullptr, TryGetRHI(LightingChannelsTexture), false, false);
+							RenderLight(RHICmdList, View, LightSceneInfo, PassParameters, nullptr, TryGetRHI(LightingChannelsTexture), false, false);
 						}
 					});
 				}
@@ -1959,7 +1972,7 @@ void FDeferredShadingSceneRenderer::RenderLightArrayForOverlapViewmode(
 		for (const FViewInfo& View : Views)
 		{
 			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-			RenderLight(RHICmdList, View, LightSceneInfo, nullptr, LightingChannelsTexture, true, false);
+			RenderLight(RHICmdList, View, LightSceneInfo, nullptr, nullptr, LightingChannelsTexture, true, false);
 		}
 	}
 }
@@ -2105,6 +2118,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 	FRHICommandList& RHICmdList,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
+	FRenderLightParameters* PassParameters,	// If this is null, it means we cannot use Strata tiles and fallback to previous behavior.
 	FRHITexture* ScreenShadowMaskTexture,
 	FRHITexture* LightingChannelsTexture,
 	bool bRenderOverlap, bool bIssueDrawEvent)
@@ -2119,7 +2133,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 	INC_DWORD_STAT(STAT_NumLightsUsingStandardDeferred);
 	SCOPED_CONDITIONAL_DRAW_EVENT(RHICmdList, StandardDeferredLighting, bIssueDrawEvent);
 
-	auto RenderInternalLight = [&](bool bStrataFastPath)
+	auto RenderInternalLight = [&]( bool bEnableStrataStencilTest, bool bEnableStrataTiledPass, uint32 StrataTileMaterialType)
 	{
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -2144,7 +2158,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 	FRenderLightParams RenderLightParams;
-	if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+	if (bEnableStrataStencilTest)
 	{
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
 			false, CF_Always,
@@ -2162,6 +2176,12 @@ void FDeferredShadingSceneRenderer::RenderLight(
 		// Turn DBT back off
 		GraphicsPSOInit.bDepthBounds = false;
 		TShaderMapRef<TDeferredLightVS<false> > VertexShader(View.ShaderMap);
+
+		Strata::FStrataTilePassVS::FParameters VSParameters;
+		Strata::FStrataTilePassVS::FPermutationDomain VSPermutationVector;
+		VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableDebug >(false);
+		VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableTexCoordScreenVector >(true);
+		TShaderMapRef<Strata::FStrataTilePassVS> StrataTilePassVertexShader(View.ShaderMap, VSPermutationVector);
 
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 
@@ -2213,31 +2233,47 @@ void FDeferredShadingSceneRenderer::RenderLight(
 			// Only directional lights are rendered in this path, so we only need to check if it is use to light the atmosphere
 			PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(bAtmospherePerPixelTransmittance);
 			PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance);
-			PermutationVector.Set< FDeferredLightPS::FStrataFastPath >(Strata::IsStrataEnabled() && Strata::IsClassificationEnabled() && bStrataFastPath);
+			PermutationVector.Set< FDeferredLightPS::FStrataFastPath >(StrataTileMaterialType == EStrataTileMaterialType::ESimple);
 
 			TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
+			if (bEnableStrataTiledPass)
+			{
+				Strata::FillUpTiledPassData((EStrataTileMaterialType)StrataTileMaterialType, View, VSParameters, GraphicsPSOInit.PrimitiveType);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = StrataTilePassVertexShader.GetVertexShader();
+			}
+
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, ScreenShadowMaskTexture, LightingChannelsTexture, &RenderLightParams, nullptr);
 		}
 
-		VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
-		RHICmdList.SetStencilRef(bStrataFastPath ? Strata::StencilBit : 0u);
+		RHICmdList.SetStencilRef(StrataTileMaterialType == EStrataTileMaterialType::ESimple ? Strata::StencilBit : 0u);
 
-		// Apply the directional light as a full screen quad
-		DrawRectangle(
-			RHICmdList,
-			0, 0,
-			View.ViewRect.Width(), View.ViewRect.Height(),
-			View.ViewRect.Min.X, View.ViewRect.Min.Y,
-			View.ViewRect.Width(), View.ViewRect.Height(),
-			View.ViewRect.Size(),
-			GetSceneTextureExtent(),
-			VertexShader,
-			EDRF_UseTriangleOptimization);
+		if (!bEnableStrataTiledPass)
+		{
+			VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
+
+			// Apply the directional light as a full screen quad
+			DrawRectangle(
+				RHICmdList,
+				0, 0,
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				View.ViewRect.Min.X, View.ViewRect.Min.Y,
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				View.ViewRect.Size(),
+				GetSceneTextureExtent(),
+				VertexShader,
+				EDRF_UseTriangleOptimization);
+		}
+		else
+		{
+			SetShaderParameters(RHICmdList, StrataTilePassVertexShader, StrataTilePassVertexShader.GetVertexShader(), VSParameters);
+
+			RHICmdList.DrawPrimitiveIndirect(VSParameters.TileIndirectBuffer->GetIndirectRHICallBuffer(), 0);
+		}
 	}
 	else
 	{
@@ -2279,7 +2315,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 			PermutationVector.Set< FDeferredLightPS::FHairLighting>(0);
 			PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >(false);
 			PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
-			PermutationVector.Set< FDeferredLightPS::FStrataFastPath >(Strata::IsStrataEnabled() && Strata::IsClassificationEnabled() && bStrataFastPath);
+			PermutationVector.Set< FDeferredLightPS::FStrataFastPath >(StrataTileMaterialType == EStrataTileMaterialType::ESimple);
 
 			TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
@@ -2291,7 +2327,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 		}
 
 		VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
-		RHICmdList.SetStencilRef(bStrataFastPath ? Strata::StencilBit : 0u);
+		RHICmdList.SetStencilRef(StrataTileMaterialType == EStrataTileMaterialType::ESimple ? Strata::StencilBit : 0u);
 
 		// Use DBT to allow work culling on shadow lights
 		if (GraphicsPSOInit.bDepthBounds)
@@ -2325,11 +2361,28 @@ void FDeferredShadingSceneRenderer::RenderLight(
 	}
 	};
 
+	const bool bStrataClassificationEnabled = Strata::IsStrataEnabled() && Strata::IsClassificationEnabled();
+	const bool bTilePassesReadingStrataEnabled = Strata::ShouldPassesReadingStrataBeTiled(Scene->GetFeatureLevel());
 
-	RenderInternalLight(false);
-	if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+	if (bStrataClassificationEnabled && bTilePassesReadingStrataEnabled && PassParameters != nullptr)
 	{
-		RenderInternalLight(true);
+		const bool bEnableStrataTiledPass = true;
+		const bool bEnableStrataStencilTest = false;
+
+		RenderInternalLight(bEnableStrataStencilTest, bEnableStrataTiledPass, EStrataTileMaterialType::ESimple);
+		RenderInternalLight(bEnableStrataStencilTest, bEnableStrataTiledPass, EStrataTileMaterialType::EComplex);
+	}
+	else
+	{
+		const bool bEnableStrataTiledPass = false;
+		const bool bEnableStrataStencilTest = bStrataClassificationEnabled;
+
+		RenderInternalLight(bEnableStrataStencilTest, bEnableStrataTiledPass, EStrataTileMaterialType::EComplex);
+		if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+		{
+			RenderInternalLight(bEnableStrataStencilTest, bEnableStrataTiledPass, EStrataTileMaterialType::ESimple);
+		}
+
 	}
 }
 
@@ -2357,12 +2410,13 @@ void FDeferredShadingSceneRenderer::RenderLight(
 			RDG_EVENT_NAME("StandardDeferredLighting"),
 			PassParameters,
 			PassFlags,
-			[this, &View, LightSceneInfo, ScreenShadowMaskTexture, LightingChannelsTexture, bRenderOverlap](FRHICommandList& RHICmdList)
+			[this, &View, LightSceneInfo, ScreenShadowMaskTexture, LightingChannelsTexture, bRenderOverlap, PassParameters](FRHICommandList& RHICmdList)
 		{
 			RenderLight(
 				RHICmdList,
 				View,
 				LightSceneInfo,
+				PassParameters,
 				TryGetRHI(ScreenShadowMaskTexture),
 				TryGetRHI(LightingChannelsTexture),
 				bRenderOverlap,

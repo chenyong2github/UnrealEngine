@@ -141,7 +141,7 @@ bool IsClassificationEnabled()
 
 bool ShouldPassesReadingStrataBeTiled(ERHIFeatureLevel::Type FeatureLevel)
 {
-	return FeatureLevel >= ERHIFeatureLevel::SM5 && CVarStrataClassificationPassesReadingStrataAreTiled.GetValueOnAnyThread() > 0;
+	return IsStrataEnabled() && IsClassificationEnabled() && FeatureLevel >= ERHIFeatureLevel::SM5 && CVarStrataClassificationPassesReadingStrataAreTiled.GetValueOnAnyThread() > 0;
 }
 
 uint32 GetStrataBufferTileSize()
@@ -535,8 +535,10 @@ void FillUpTiledPassData(
 	FStrataTilePassVS::FParameters& ParametersVS,
 	EPrimitiveType& PrimitiveType)
 {
-	const FIntPoint OutputResolution = View.ViewRect.Size();
-	ParametersVS.OutputResolutionAndInv = FVector4(OutputResolution.X, OutputResolution.Y, 1.0f / float(OutputResolution.X), 1.0f / float(OutputResolution.Y));
+	ParametersVS.OutputViewSizeAndInvSize = View.CachedViewUniformShaderParameters->ViewSizeAndInvSize;
+	ParametersVS.OutputBufferSizeAndInvSize = View.CachedViewUniformShaderParameters->BufferSizeAndInvSize;
+	ParametersVS.ViewScreenToTranslatedWorld = View.CachedViewUniformShaderParameters->ScreenToTranslatedWorld;
+
 	ParametersVS.TileListBuffer = View.StrataSceneData->ClassificationTileListBufferSRV[Type];
 	ParametersVS.TileIndirectBuffer = View.StrataSceneData->ClassificationTileIndirectBuffer[Type];
 
@@ -564,7 +566,10 @@ static void AddStrataInternalClassificationTilePass(
 	FStrataMaterialStencilTaggingPassPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FStrataMaterialStencilTaggingPassPS::FParameters>();
 	FillUpTiledPassData(TileMaterialType, View, ParametersPS->VS, StrataTilePrimitiveType);
 
-	TShaderMapRef<FStrataTilePassVS> VertexShader(View.ShaderMap);
+	FStrataTilePassVS::FPermutationDomain VSPermutationVector;
+	VSPermutationVector.Set< FStrataTilePassVS::FEnableDebug >(true);
+	VSPermutationVector.Set< FStrataTilePassVS::FEnableTexCoordScreenVector >(false);
+	TShaderMapRef<FStrataTilePassVS> VertexShader(View.ShaderMap, VSPermutationVector);
 	TShaderMapRef<FStrataMaterialStencilTaggingPassPS> PixelShader(View.ShaderMap);
 
 	// For debug purpose

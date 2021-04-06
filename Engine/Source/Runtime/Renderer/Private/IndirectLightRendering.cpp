@@ -1262,7 +1262,10 @@ static void AddSkyReflectionPass(
 	ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
 
 	EPrimitiveType StrataTilePrimitiveType = PT_TriangleList;
-	TShaderMapRef<Strata::FStrataTilePassVS> StrataTilePassVertexShader(View.ShaderMap);
+	Strata::FStrataTilePassVS::FPermutationDomain VSPermutationVector;
+	VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableDebug >(false);
+	VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableTexCoordScreenVector >(false);
+	TShaderMapRef<Strata::FStrataTilePassVS> StrataTilePassVertexShader(View.ShaderMap, VSPermutationVector);
 	PassParameters->VS.TileIndirectBuffer = nullptr;
 	PassParameters->VS.TileListBuffer = nullptr;
 	if (bEnableStrataTiledPass)

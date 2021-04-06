@@ -35,12 +35,12 @@ namespace LumenRadianceCache
 	class FRadianceCacheInputs;
 	class FRadianceCacheInterpolationParameters;
 }
+class FRenderLightParameters;
 
 struct FSceneWithoutWaterTextures;
 struct FHeightFogRenderingParameters;
 struct FRayTracingReflectionOptions;
 struct FHairStrandsTransmittanceMaskData;
-
 struct FTranslucencyLightingVolumeTextures;
 
 /**   
@@ -718,6 +718,7 @@ private:
 		FRHICommandList& RHICmdList,
 		const FViewInfo& View,
 		const FLightSceneInfo* LightSceneInfo,
+		FRenderLightParameters* PassParameters,
 		FRHITexture* ScreenShadowMaskTexture,
 		FRHITexture* LightingChannelTexture,
 		bool bRenderOverlap,

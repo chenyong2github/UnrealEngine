@@ -102,8 +102,17 @@ class FStrataTilePassVS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FStrataTilePassVS);
 	SHADER_USE_PARAMETER_STRUCT(FStrataTilePassVS, FGlobalShader);
 
+	class FEnableDebug : SHADER_PERMUTATION_BOOL("PERMUTATION_ENABLE_DEBUG");
+	class FEnableTexCoordScreenVector : SHADER_PERMUTATION_BOOL("PERMUTATION_ENABLE_TEXCOORD_SCREENVECTOR");
+	using FPermutationDomain = TShaderPermutationDomain<FEnableDebug, FEnableTexCoordScreenVector>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, OutputResolutionAndInv)
+		// It would be possible to use the ViewUniformBuffer instead of copying the data here, 
+		// but we would have to make sure the view UB is added to all passes using this parameter structure.
+		// We should not add it here to now have duplicated input UB.
+		SHADER_PARAMETER(FVector4, OutputViewSizeAndInvSize)
+		SHADER_PARAMETER(FVector4, OutputBufferSizeAndInvSize)
+		SHADER_PARAMETER(FMatrix, ViewScreenToTranslatedWorld)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBuffer)
 		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
