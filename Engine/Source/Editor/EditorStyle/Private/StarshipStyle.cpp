@@ -1356,7 +1356,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 	// About screen
 	if (IncludeEditorSpecificStyles())
 	{
-		Set( "AboutScreen.Background", new IMAGE_BRUSH( "About/Background", FVector2D(688,317), FLinearColor::White, ESlateBrushTileType::Both) );
+		Set( "AboutScreen.Background", new IMAGE_BRUSH( "About/Background", FVector2D(688,317) ) );
 		Set( "AboutScreen.UnrealLogo", new IMAGE_BRUSH_SVG( "About/UnrealLogo", FVector2D(40,40) ) );
 		Set( "AboutScreen.EpicGamesLogo", new IMAGE_BRUSH_SVG( "About/EpicGamesLogo", FVector2D(40,40) ) );
 		Set( "AboutScreen.TitleFont", DEFAULT_FONT( "Bold", 13) );

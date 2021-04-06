@@ -1712,6 +1712,8 @@ void FStarshipCoreStyle::SetupTableViewStyles(TSharedRef<FStyle>& Style)
 	const FTableViewStyle DefaultTreeViewStyle = FTableViewStyle();
 	Style->Set("ListView", DefaultTreeViewStyle);
 
+	Style->Set("SimpleListView", FTableViewStyle().SetBackgroundBrush(FSlateNoResource()));
+
 	const FTableViewStyle DefaultTableViewStyle = FTableViewStyle();
 	Style->Set("TreeView", DefaultTableViewStyle);
 
@@ -1741,6 +1743,34 @@ void FStarshipCoreStyle::SetupTableViewStyles(TSharedRef<FStyle>& Style)
 		.SetDropIndicator_Below(BOX_BRUSH("Common/DropZoneIndicator_Below", FMargin(10.0f / 16.0f, 0.f, 0.f, 10.0f / 16.0f), SelectionColor));
 
 	Style->Set("TableView.Row", DefaultTableRowStyle);
+
+
+	const FTableRowStyle SimpleTableRowStyle = FTableRowStyle()
+		.SetEvenRowBackgroundBrush(FSlateNoResource())
+		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::SelectHover))
+
+		.SetOddRowBackgroundBrush(FSlateNoResource())
+		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::SelectHover))
+
+		.SetSelectorFocusedBrush(BORDER_BRUSH("Common/Selector", FMargin(4.f / 16.f), SelectorColor))
+
+		.SetActiveBrush(FSlateColorBrush(FStyleColors::Select))
+		.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::Select))
+
+		.SetInactiveBrush(FSlateColorBrush(FStyleColors::SelectInactive))
+		.SetInactiveHoveredBrush(FSlateColorBrush(FStyleColors::SelectInactive))
+
+		.SetActiveHighlightedBrush(FSlateColorBrush(FStyleColors::SelectParent)) // This is the parent hightlight
+		.SetInactiveHighlightedBrush(FSlateColorBrush(FStyleColors::SelectParent))// This is the parent highlight
+
+		.SetTextColor(FStyleColors::Foreground)
+		.SetSelectedTextColor(FStyleColors::ForegroundInverted)
+
+		.SetDropIndicator_Above(BOX_BRUSH("Common/DropZoneIndicator_Above", FMargin(10.0f / 16.0f, 10.0f / 16.0f, 0, 0), SelectionColor))
+		.SetDropIndicator_Onto(BOX_BRUSH("Common/DropZoneIndicator_Onto", FMargin(4.0f / 16.0f), SelectionColor))
+		.SetDropIndicator_Below(BOX_BRUSH("Common/DropZoneIndicator_Below", FMargin(10.0f / 16.0f, 0, 0, 10.0f / 16.0f), SelectionColor));
+
+	Style->Set("SimpleTableView.Row", SimpleTableRowStyle);
 
 	const FTableRowStyle DarkTableRowStyle = FTableRowStyle(DefaultTableRowStyle)
 		.SetEvenRowBackgroundBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.0f, 0.0f, 0.0f, 0.1f)))

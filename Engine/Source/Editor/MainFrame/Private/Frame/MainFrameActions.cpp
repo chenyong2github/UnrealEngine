@@ -120,7 +120,7 @@ void FMainFrameCommands::RegisterCommands()
 	UI_COMMAND( OpenIDE, "Open IDE", "Opens your C++ code in an integrated development environment.", EUserInterfaceActionType::Button, FInputChord() );
 	ActionList->MapAction( OpenIDE, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::OpenIDE ), FCanExecuteAction::CreateStatic( &FMainFrameActionCallbacks::IsCodeProject ), FGetActionCheckState(), FIsActionButtonVisible::CreateStatic( &FMainFrameActionCallbacks::CanOpenIDE ) );
 
-	UI_COMMAND( ZipUpProject, "Zip Up Project", "Zips up the project into a zip file.", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( ZipUpProject, "Zip Project", "Zips the project into a zip file.", EUserInterfaceActionType::Button, FInputChord() );
 	ActionList->MapAction(ZipUpProject, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::ZipUpProject ), DefaultExecuteAction);
 
 	//UI_COMMAND( LocalizeProject, "Localize Project...", "Opens the dashboard for managing project localization data.", EUserInterfaceActionType::Button, FInputChord() );
@@ -629,7 +629,7 @@ void FMainFrameActionCallbacks::AboutUnrealEd_Execute()
 	TSharedPtr<SWindow> AboutWindow = 
 		SNew(SWindow)
 		.Title( AboutWindowTitle )
-		.ClientSize(FVector2D(600.f, 200.f))
+		.ClientSize(FVector2D(720.f, 538.f))
 		.SupportsMaximize(false) .SupportsMinimize(false)
 		.SizingRule( ESizingRule::FixedSize )
 		[

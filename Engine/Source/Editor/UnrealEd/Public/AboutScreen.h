@@ -58,22 +58,16 @@ private:
 	};
 
 	TArray< TSharedRef< FLineDefinition > > AboutLines;
-	TSharedPtr<SButton> UE4Button;
+	TSharedPtr<SButton> UEButton;
 	TSharedPtr<SButton> EpicGamesButton;
-	TSharedPtr<SButton> FacebookButton;
 
 	/** 
 	 * Makes the widget for the checkbox items in the list view 
 	 */
 	TSharedRef<ITableRow> MakeAboutTextItemWidget(TSharedRef<FLineDefinition> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
-	const FSlateBrush* GetUE4ButtonBrush() const;
-	const FSlateBrush* GetEpicGamesButtonBrush() const;
-	const FSlateBrush* GetFacebookButtonBrush() const;
-
-	FReply OnUE4ButtonClicked();
+	FReply OnUEButtonClicked();
 	FReply OnEpicGamesButtonClicked();
-	FReply OnFacebookButtonClicked();
 	FReply OnClose();
 };
 
