@@ -17,8 +17,8 @@ struct SCENEOUTLINER_API FActorDescTreeItem : ISceneOutlinerTreeItem
 	struct FActorDescHandle
 	{
 	public:
-		FActorDescHandle(const FWorldPartitionActorDesc* InActorDesc, UActorDescContainer* InContainer)
-			: ActorDesc(InActorDesc)
+		FActorDescHandle(const FGuid& ActorGuid, UActorDescContainer* InContainer)
+			: ActorDesc(InContainer, ActorGuid)
 			, Container(InContainer)
 		{
 		}
@@ -27,7 +27,7 @@ struct SCENEOUTLINER_API FActorDescTreeItem : ISceneOutlinerTreeItem
 		
 		const FWorldPartitionActorDesc* GetActorDesc() const
 		{
-			return Container.IsValid() ? ActorDesc : nullptr;
+			return Container.IsValid() ? ActorDesc.Get() : nullptr;
 		}
 
 		TWeakObjectPtr<UActorDescContainer> GetActorDescContainer() const
@@ -35,7 +35,7 @@ struct SCENEOUTLINER_API FActorDescTreeItem : ISceneOutlinerTreeItem
 			return Container;
 		}
 	private:
-		const FWorldPartitionActorDesc* ActorDesc;
+		FWorldPartitionHandle ActorDesc;
 		TWeakObjectPtr<UActorDescContainer> Container;
 	};
 
@@ -63,7 +63,7 @@ public:
 	static const FSceneOutlinerTreeItemType Type;
 
 	/** Construct this item from an actor desc */
-	FActorDescTreeItem(const FWorldPartitionActorDesc* InActorDesc, UActorDescContainer* Container);
+	FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* Container);
 
 	/* Begin ISceneOutlinerTreeItem Implementation */
 	virtual bool IsValid() const override { return ActorDescHandle.GetActorDesc() != nullptr; }

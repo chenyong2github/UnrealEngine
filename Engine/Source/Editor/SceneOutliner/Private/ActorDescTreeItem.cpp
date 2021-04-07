@@ -210,12 +210,11 @@ private:
 	}
 };
 
-FActorDescTreeItem::FActorDescTreeItem(const FWorldPartitionActorDesc* InActorDesc, UActorDescContainer* Container)
+FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* Container)
 	: ISceneOutlinerTreeItem(Type)
-	, ActorDescHandle(InActorDesc, Container)
+	, ActorDescHandle(InActorGuid, Container)
 {
-	check(InActorDesc != nullptr);
-	ID = FSceneOutlinerTreeItemID(InActorDesc->GetGuid());
+	ID = FSceneOutlinerTreeItemID(InActorGuid);
 }
 
 FSceneOutlinerTreeItemID FActorDescTreeItem::GetID() const
