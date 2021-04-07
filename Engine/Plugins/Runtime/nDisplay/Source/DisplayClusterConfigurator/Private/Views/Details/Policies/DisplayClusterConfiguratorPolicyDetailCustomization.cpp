@@ -98,7 +98,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::ResetProjectionPolicyOp
 	UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
 	check(ConfigurationViewport != nullptr);
 
-	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPoliсies)
+	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPolicies)
 	{
 		ProjectionPolicyOptions.Add(MakeShared<FString>(ProjectionPolicy));
 	}
@@ -244,7 +244,7 @@ bool FDisplayClusterConfiguratorProjectionCustomization::IsCustomTypeInConfig() 
 		return true;
 	}
 	
-	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPoliсies)
+	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPolicies)
 	{
 		if (ConfigurationViewport->ProjectionPolicy.Type.ToLower().Equals(ProjectionPolicy.ToLower()))
 		{
@@ -275,7 +275,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::OnTextCommittedInCustom
 	// Turning this off for now in case users want to customize individual parameters..
 	// Uncomment this to auto select a default policy if the user types one in the custom name field.
 	/*
-	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPoliсies)
+	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPolicies)
 	{
 		if (CustomPolicy.Equals(ProjectionPolicy))
 		{

@@ -812,7 +812,7 @@ public:
 
 	const static TSet<FString> InputSyncPolicies;
 
-	const static TSet<FString> ProjectionPoliсies;
+	const static TSet<FString> ProjectionPolicies;
 	
 #endif
 };

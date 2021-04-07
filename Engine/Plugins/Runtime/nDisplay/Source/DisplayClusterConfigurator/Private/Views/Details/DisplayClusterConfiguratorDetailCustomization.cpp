@@ -1016,9 +1016,9 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnTextCommittedIn
 
 	ConfigurationCluster->Sync.RenderSyncPolicy.Type = CustomPolicy;
 
-	// Check if the custom config same as any of the ProjectionPoliсies configs 
+	// Check if the custom config same as any of the ProjectionPolicies configs 
 	bIsCustomPolicy = true;
-	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPoliсies)
+	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPolicies)
 	{
 		if (CustomPolicy.Equals(ProjectionPolicy))
 		{

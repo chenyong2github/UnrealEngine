@@ -97,7 +97,7 @@ const TSet<FString> UDisplayClusterConfigurationData::InputSyncPolicies =
 	TEXT("None")
 };
 
-const TSet<FString> UDisplayClusterConfigurationData::ProjectionPoliсies =
+const TSet<FString> UDisplayClusterConfigurationData::ProjectionPolicies =
 {
 	TEXT("Simple"),
 	TEXT("Camera"),
