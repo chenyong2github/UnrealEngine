@@ -71,7 +71,7 @@ PakFileCompressionLevel_DebugDevelopment=3
 
 #include "OodleDataCompressionFormatPCH.h"
 
-DEFINE_LOG_CATEGORY_STATIC(OodleCompression, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(OodleDataCompression, Log, All);
 
 #define OODLE_DERIVEDDATA_VER TEXT("BA7AA26CD1C3498787A3F3AA53895042")
 
@@ -119,7 +119,7 @@ struct FOodleDataCompressionFormat : ICompressionFormat
 			OodleDecoderMemory[i] = FMemory::Malloc(OodleDecoderMemorySize);
 			if (OodleDecoderMemory[i] == NULL) 
 			{
-				UE_LOG(OodleCompression, Error, TEXT("FOodleDataCompressionFormat - Failed to allocate %d!"), OodleDecoderMemorySize);
+				UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat - Failed to allocate %d!"), OodleDecoderMemorySize);
 			}
 		}
 	}
@@ -139,7 +139,7 @@ struct FOodleDataCompressionFormat : ICompressionFormat
 			}
 			else
 			{
-				UE_LOG(OodleCompression, Error, TEXT("FOodleDataCompressionFormat - shutting down while in use?"));
+				UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat - shutting down while in use?"));
 			}
 		}
 	}
@@ -227,7 +227,7 @@ struct FOodleDataCompressionFormat : ICompressionFormat
 		void * DecoderMemory = FMemory::Malloc(DecoderMemorySize);
 		if (DecoderMemory == NULL) 
 		{
-			UE_LOG(OodleCompression, Error, TEXT("FOodleDataCompressionFormat::OodleDecode - Failed to allocate %d!"), DecoderMemorySize);
+			UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat::OodleDecode - Failed to allocate %d!"), DecoderMemorySize);
 			return 0;
 		}
 
@@ -264,7 +264,7 @@ struct FOodleDataCompressionFormat : ICompressionFormat
 		OO_SINTa Result = OodleLZ_Compress(Compressor, InUncompressedBuffer, InUncompressedSize, OutCompressedBuffer, CompressionLevel, &CompressionOptions);
 
 		// verbose log all compresses :
-		//UE_LOG(OodleCompression, Display, TEXT("Oodle Compress : %d -> %d"), UncompressedSize, Result);
+		//UE_LOG(OodleDataCompression, Display, TEXT("Oodle Compress : %d -> %d"), UncompressedSize, Result);
 		
 		if (Result <= 0)
 		{
@@ -414,7 +414,7 @@ class FOodleDataCompressionFormatModuleInterface : public IModuleInterface
 			bool bUseCompressionFormatOodle = FCString::Strifind(FCommandLine::Get(), TEXT("-compressionformats=oodle")) != NULL;
 			if ( bUseCompressionFormatOodle )			
 			{
-				UE_LOG(OodleCompression, Display, TEXT("Oodle v%s initializing with method=%s, level=%d=%s"), TEXT(OodleVersion), **MethodMap.FindKey(UsedCompressor), (int)UsedLevel, **LevelMap.FindKey(UsedLevel) );
+				UE_LOG(OodleDataCompression, Display, TEXT("Oodle v%s initializing with method=%s, level=%d=%s"), TEXT(OodleVersion), **MethodMap.FindKey(UsedCompressor), (int)UsedLevel, **LevelMap.FindKey(UsedLevel) );
 			}
 		}
 
