@@ -192,11 +192,10 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	// Long range constraints
 	if (Cloth->TetherStiffness)
 	{
-		check(TriangleMesh.GetNumElements() > 0);
-		// PerFormance note: The Per constraint version of this function is quite a bit faster for smaller assets
-		// There might be a cross-over point where the PerParticle version is faster: To be determined
+		const TMap<int32, TSet<int32>>& PointToNeighborsMap = TriangleMesh.GetPointToNeighborsMap();
+
 		ClothConstraints.SetLongRangeConstraints(
-			TriangleMesh.GetPointToNeighborsMap(),
+			PointToNeighborsMap,
 			Cloth->TetherStiffness,
 			Cloth->LimitScale,
 			Cloth->TetherMode,
