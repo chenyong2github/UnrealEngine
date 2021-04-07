@@ -3549,10 +3549,10 @@ void FSequencer::ModifyViewportClientView(FEditorViewportViewModifierParams& Par
 
 		const FVector PreviousViewLocation = PreviousCameraComponent ?
 			PreviousCameraComponent->GetComponentLocation() :
-			PreviousCameraActor->GetActorLocation();
+			(PreviousCameraActor ? PreviousCameraActor->GetActorLocation() : PreAnimatedViewportLocation);
 		const FRotator PreviousViewRotation = PreviousCameraComponent ?
 			PreviousCameraComponent->GetComponentRotation() :
-			PreviousCameraActor->GetActorRotation();
+			(PreviousCameraActor ? PreviousCameraActor->GetActorRotation() : PreAnimatedViewportRotation);
 
 		const FVector BlendedLocation = FMath::Lerp(PreviousViewLocation, PreAnimatedViewportLocation, BlendFactor);
 		const FRotator BlendedRotation = FMath::Lerp(PreviousViewRotation, PreAnimatedViewportRotation, BlendFactor);
