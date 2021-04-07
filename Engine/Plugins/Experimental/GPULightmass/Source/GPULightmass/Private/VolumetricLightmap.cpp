@@ -5,6 +5,7 @@
 #include "ScenePrivate.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "LightmapRayTracing.h"
+#include "PathTracingLightParameters.inl"
 #include "GPULightmassModule.h"
 #include "RHIGPUReadback.h"
 #include "LevelEditorViewport.h"
@@ -553,9 +554,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->ViewUniformBuffer = Scene->ReferenceView->ViewUniformBuffer;
 					PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
 
-					SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount);
-
-					PassParameters->SkyLight = CreateUniformBufferImmediate(SetupSkyLightParameters(Scene->LightSceneRenderState), EUniformBufferUsage::UniformBuffer_SingleFrame);
+					SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, PassParameters);
 
 					// TODO: find a way to share IES atlas with path tracer ...
 					PassParameters->IESTexture = GWhiteTexture->TextureRHI;

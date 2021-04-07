@@ -51,6 +51,7 @@ class FLightmapPathTracingRGS : public FGlobalShader
 	{
 		OutEnvironment.SetDefine(TEXT("GPreviewLightmapPhysicalTileSize"), GPreviewLightmapPhysicalTileSize);
 		OutEnvironment.SetDefine(TEXT("LIGHTMAP_PATH_TRACING_MAIN_RG"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_NEW_SKYDOME"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 	}
 
@@ -71,7 +72,13 @@ class FLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_SRV(StructuredBuffer<FGPUTileDescription>, BatchedTiles)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
 		SHADER_PARAMETER(uint32, SceneLightCount)
-		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
+		// Skylight
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightPdf)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SkylightTextureSampler)
+		SHADER_PARAMETER(float, SkylightInvResolution)
+		SHADER_PARAMETER(int32, SkylightMipCount)
+
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FIrradianceCachingParameters, IrradianceCachingParameters)
 		SHADER_PARAMETER_TEXTURE(Texture3D, IESTexture)
@@ -96,6 +103,7 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("GPreviewLightmapPhysicalTileSize"), GPreviewLightmapPhysicalTileSize);
+		OutEnvironment.SetDefine(TEXT("USE_NEW_SKYDOME"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 	}
 
@@ -124,7 +132,13 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1B)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
 		SHADER_PARAMETER(uint32, SceneLightCount)
-		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
+		// Skylight
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightPdf)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SkylightTextureSampler)
+		SHADER_PARAMETER(float, SkylightInvResolution)
+		SHADER_PARAMETER(int32, SkylightMipCount)
+
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FIrradianceCachingParameters, IrradianceCachingParameters)
 		SHADER_PARAMETER_TEXTURE(Texture3D, IESTexture)

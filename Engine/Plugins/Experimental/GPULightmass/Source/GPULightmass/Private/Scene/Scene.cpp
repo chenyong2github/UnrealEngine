@@ -599,9 +599,7 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 	NewSkyLightRenderState.Color = SkyLight->GetLightColor() * SkyLight->Intensity;
 	NewSkyLightRenderState.TextureDimensions = FIntPoint(SkyLight->GetProcessedSkyTexture()->GetSizeX(), SkyLight->GetProcessedSkyTexture()->GetSizeY());
 	NewSkyLightRenderState.IrradianceEnvironmentMap = SkyLight->GetIrradianceEnvironmentMap();
-#if RHI_RAYTRACING
-	NewSkyLightRenderState.ImportanceSamplingData = SkyLight->GetImportanceSamplingData();
-#endif
+
 	ENQUEUE_RENDER_COMMAND(AddLightRenderState)(
 		[&RenderState = RenderState, NewSkyLightRenderState = MoveTemp(NewSkyLightRenderState), ProcessedSkyTexture = SkyLight->GetProcessedSkyTexture()](FRHICommandListImmediate& RHICmdList) mutable
 	{
@@ -610,6 +608,8 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 		NewSkyLightRenderState.ProcessedTextureSampler = ProcessedSkyTexture->SamplerStateRHI;
 
 		NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Initialize(sizeof(FVector4), 7, 0, TEXT("SkyIrradianceEnvironmentMap"));
+
+		NewSkyLightRenderState.PrepareSkyTexture(RHICmdList);
 
 		// Set the captured environment map data
 		void* DataPtr = RHICmdList.LockStructuredBuffer(NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Buffer, 0, NewSkyLightRenderState.SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);

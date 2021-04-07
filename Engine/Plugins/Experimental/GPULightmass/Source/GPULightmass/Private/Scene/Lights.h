@@ -280,7 +280,13 @@ struct FSkyLightRenderState
 	FIntPoint TextureDimensions;
 	FSHVectorRGB3 IrradianceEnvironmentMap;
 	FRWBufferStructured SkyIrradianceEnvironmentMap;
-	const FSkyLightImportanceSamplingData* ImportanceSamplingData;
+
+	// New sky dome
+	void PrepareSkyTexture(FRHICommandListImmediate& RHICmdList);
+	float SkylightInvResolution;
+	int32 SkylightMipCount;
+	TRefCountPtr<IPooledRenderTarget> PathTracingSkylightTexture;
+	TRefCountPtr<IPooledRenderTarget> PathTracingSkylightPdf;
 };
 
 struct FSkyLightBuildInfo

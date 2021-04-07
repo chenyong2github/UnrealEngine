@@ -440,6 +440,76 @@ class FPathTracingIESAtlasCS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingIESAtlasCS, TEXT("/Engine/Private/PathTracing/PathTracingIESAtlas.usf"), TEXT("PathTracingIESAtlasCS"), SF_Compute);
 
+RENDERER_API void PrepareSkyTexture_Internal(
+	FRDGBuilder& GraphBuilder,
+	FReflectionUniformParameters& Parameters,
+	uint32 Size,
+	FLinearColor SkyColor,
+	bool UseMISCompensation,
+
+	// Out
+	FRDGTextureRef& SkylightTexture,
+	FRDGTextureRef& SkylightPdf,
+	float& SkylightInvResolution,
+	int32& SkylightMipCount
+)
+{
+	FRDGTextureDesc SkylightTextureDesc = FRDGTextureDesc::Create2D(
+		FIntPoint(Size, Size),
+		PF_A32B32G32R32F, // half precision might be ok?
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV);
+	SkylightTexture = GraphBuilder.CreateTexture(SkylightTextureDesc, TEXT("PathTracer.Skylight"), ERDGTextureFlags::None);
+	FRDGTextureDesc SkylightPdfDesc = FRDGTextureDesc::Create2D(
+		FIntPoint(Size, Size),
+		PF_R32_FLOAT, // half precision might be ok?
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV,
+		FMath::CeilLogTwo(Size) + 1);
+	SkylightPdf = GraphBuilder.CreateTexture(SkylightPdfDesc, TEXT("PathTracer.SkylightPdf"), ERDGTextureFlags::None);
+
+	SkylightInvResolution = 1.0f / Size;
+	SkylightMipCount = SkylightPdfDesc.NumMips;
+
+	// run a simple compute shader to sample the cubemap and prep the top level of the mipmap hierarchy
+	{
+		TShaderMapRef<FPathTracingSkylightPrepareCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		FPathTracingSkylightPrepareCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingSkylightPrepareCS::FParameters>();
+		PassParameters->SkyColor = FVector(SkyColor.R, SkyColor.G, SkyColor.B);
+		PassParameters->SkyLightCubemap0 = Parameters.SkyLightCubemap;
+		PassParameters->SkyLightCubemap1 = Parameters.SkyLightBlendDestinationCubemap;
+		PassParameters->SkyLightCubemapSampler0 = Parameters.SkyLightCubemapSampler;
+		PassParameters->SkyLightCubemapSampler1 = Parameters.SkyLightBlendDestinationCubemapSampler;
+		PassParameters->SkylightBlendFactor = Parameters.SkyLightParameters.W;
+		PassParameters->SkylightInvResolution = SkylightInvResolution;
+		PassParameters->SkylightTextureOutput = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SkylightTexture, 0));
+		PassParameters->SkylightTexturePdf = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SkylightPdf, 0));
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("SkylightPrepare"),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
+	}
+	FGenerateMips::ExecuteCompute(GraphBuilder, SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+
+	if (UseMISCompensation)
+	{
+		TShaderMapRef<FPathTracingSkylightMISCompensationCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		FPathTracingSkylightMISCompensationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingSkylightMISCompensationCS::FParameters>();
+		PassParameters->SkylightTexturePdfAverage = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(SkylightPdf, SkylightMipCount - 1));
+		PassParameters->SkylightTextureOutput = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SkylightTexture, 0));
+		PassParameters->SkylightTexturePdf = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SkylightPdf, 0));
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("SkylightMISCompensation"),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
+		FGenerateMips::ExecuteCompute(GraphBuilder, SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+	}
+}
+
 bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool UseMISCompensation, FPathTracingRG::FParameters* PathTracingParameters)
 {
 	PathTracingParameters->SkylightTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -483,60 +553,18 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 	// since we are resampled into an octahedral layout, we multiply the cubemap resolution by 2 to get roughly the same number of texels
 	uint32 Size = FMath::RoundUpToPowerOfTwo(2 * Scene->SkyLight->CaptureCubeMapResolution);
 
-	FRDGTextureDesc SkylightTextureDesc = FRDGTextureDesc::Create2D(
-		FIntPoint(Size, Size),
-		PF_A32B32G32R32F, // half precision might be ok?
-		FClearValueBinding::None,
-		TexCreate_ShaderResource | TexCreate_UAV);
-	PathTracingParameters->SkylightTexture = GraphBuilder.CreateTexture(SkylightTextureDesc, TEXT("PathTracer.Skylight"), ERDGTextureFlags::None);
-	FRDGTextureDesc SkylightPdfDesc = FRDGTextureDesc::Create2D(
-		FIntPoint(Size, Size),
-		PF_R32_FLOAT, // half precision might be ok?
-		FClearValueBinding::None,
-		TexCreate_ShaderResource | TexCreate_UAV,
-		FMath::CeilLogTwo(Size) + 1);
-	PathTracingParameters->SkylightPdf = GraphBuilder.CreateTexture(SkylightPdfDesc, TEXT("PathTracer.SkylightPdf"), ERDGTextureFlags::None);
-
-	PathTracingParameters->SkylightInvResolution = 1.0f / Size;
-	PathTracingParameters->SkylightMipCount = SkylightPdfDesc.NumMips;
-
-	// run a simple compute shader to sample the cubemap and prep the top level of the mipmap hierarchy
-	{
-		TShaderMapRef<FPathTracingSkylightPrepareCS> ComputeShader(View.ShaderMap);
-		FPathTracingSkylightPrepareCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingSkylightPrepareCS::FParameters>();
-		PassParameters->SkyColor = FVector(SkyColor.R, SkyColor.G, SkyColor.B);
-		PassParameters->SkyLightCubemap0 = Parameters.SkyLightCubemap;
-		PassParameters->SkyLightCubemap1 = Parameters.SkyLightBlendDestinationCubemap;
-		PassParameters->SkyLightCubemapSampler0 = Parameters.SkyLightCubemapSampler;
-		PassParameters->SkyLightCubemapSampler1 = Parameters.SkyLightBlendDestinationCubemapSampler;
-		PassParameters->SkylightBlendFactor = Parameters.SkyLightParameters.W;
-		PassParameters->SkylightInvResolution = PathTracingParameters->SkylightInvResolution;
-		PassParameters->SkylightTextureOutput = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(PathTracingParameters->SkylightTexture, 0));
-		PassParameters->SkylightTexturePdf = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(PathTracingParameters->SkylightPdf, 0));
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("SkylightPrepare"),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
-	}
-	FGenerateMips::ExecuteCompute(GraphBuilder, PathTracingParameters->SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-
-	if (UseMISCompensation)
-	{
-		TShaderMapRef<FPathTracingSkylightMISCompensationCS> ComputeShader(View.ShaderMap);
-		FPathTracingSkylightMISCompensationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingSkylightMISCompensationCS::FParameters>();
-		PassParameters->SkylightTexturePdfAverage = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(PathTracingParameters->SkylightPdf, PathTracingParameters->SkylightMipCount - 1));
-		PassParameters->SkylightTextureOutput = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(PathTracingParameters->SkylightTexture, 0));
-		PassParameters->SkylightTexturePdf = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(PathTracingParameters->SkylightPdf, 0));
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("SkylightMISCompensation"),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
-		FGenerateMips::ExecuteCompute(GraphBuilder, PathTracingParameters->SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-	}
+	PrepareSkyTexture_Internal(
+		GraphBuilder,
+		Parameters,
+		Size,
+		SkyColor,
+		UseMISCompensation,
+		// Out
+		PathTracingParameters->SkylightTexture,
+		PathTracingParameters->SkylightPdf,
+		PathTracingParameters->SkylightInvResolution,
+		PathTracingParameters->SkylightMipCount
+	);
 
 	// hang onto these for next time (if caching is enabled)
 	if (IsSkylightCachingEnabled)
