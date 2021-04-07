@@ -311,8 +311,8 @@ BxDFContext RefractClearCoatContext(BxDFContext Context)
 	float Eta = 1.0 / 1.5;
 	float RefractionBlendFactor = RefractBlendClearCoatApprox(Context.VoH);
 	float RefractionProjectionTerm = RefractionBlendFactor * Context.NoH;
-	RefractedContext.NoV = saturate(Eta * Context.NoV - RefractionProjectionTerm);
-	RefractedContext.NoL = saturate(Eta * Context.NoL - RefractionProjectionTerm);
+	RefractedContext.NoV = clamp(Eta * Context.NoV - RefractionProjectionTerm, 0.001, 1.0); // Due to CalcThinTransmission and Vis_SmithJointAniso, we need to make sure
+	RefractedContext.NoL = clamp(Eta * Context.NoL - RefractionProjectionTerm, 0.001, 1.0); // those values are not 0s to avoid NaNs.
 	RefractedContext.VoH = saturate(Eta * Context.VoH - RefractionBlendFactor);
 	RefractedContext.VoL = 2.0 * RefractedContext.VoH * RefractedContext.VoH - 1.0;
 	RefractedContext.NoH = Context.NoH;
@@ -349,17 +349,12 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 	half3 X = 0;
 	half3 Y = 0;
 
-	BRANCH
-	if (bHasAnisotropy)
-	{
-		X = GBuffer.WorldTangent;
-		Y = normalize(cross(N, X));
-		Init(Context, Nspec, X, Y, V, L);
-	}
-	else
-	{
-		Init(Context, Nspec, V, L);
-	}
+	//////////////////////////////
+	/// Top Layer
+	//////////////////////////////
+
+	// No anisotropy for the top layer
+	Init(Context, Nspec, V, L);
 	
 	// Modify SphereSinAlpha, knowing that it was previously manipulated by roughness of the under coat
 	// Note: the operation is not invertible for GBuffer.Roughness = 1.0, so roughness is clamped to 254.0/255.0
@@ -393,12 +388,20 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 		float Fr1 = D * Vis * F;
 		Lighting.Specular = ClearCoat * AreaLight.FalloffColor * (Falloff * NoL * Fr1);
 	}
+
+	// Restore previously changed SphereSinAlpha for the top layer. 
+	// Alpha needs to also be restored to the bottom layer roughness.
 	AreaLight.SphereSinAlpha = SphereSinAlpha;
+	Alpha = Pow2(GBuffer.Roughness);
 
 	// Incoming and exiting Fresnel terms are identical to incoming Fresnel term (VoH == HoL)
 	// float FresnelCoeff = (1.0 - F1) * (1.0 - F2);
 	float FresnelCoeff = 1.0 - F;
 	FresnelCoeff *= FresnelCoeff;
+
+	//////////////////////////////
+	/// Bottom Layer
+	//////////////////////////////
 
 	if (CLEAR_COAT_BOTTOM_NORMAL)
 	{
@@ -447,6 +450,13 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 	//   V2 = -V2;
 	//   BxDFContext BottomContext;
 	//   Init(BottomContext, N, X, Y, V2, L2);
+	if (bHasAnisotropy)
+	{
+		// Prepare the anisotropic Context to refract.
+		X = GBuffer.WorldTangent;
+		Y = normalize(cross(N, X));
+		Init(Context, Nspec, X, Y, V, L);
+	}
 	BxDFContext BottomContext = RefractClearCoatContext(Context);
 	BottomContext.VoH = AreaLight.bIsRect ? BottomContext.NoV : BottomContext.VoH;
 
