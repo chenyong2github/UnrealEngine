@@ -1397,6 +1397,10 @@ void FMacApplication::OnApplicationDidBecomeActive()
 		FGenericCrashContext::SetEngineData(TEXT("Platform.AppHasFocus"), TEXT("true"));
 #endif
 	}, @[ NSDefaultRunLoopMode ], false);
+	
+	// Call out to update isOnActiveSpace per FCocoaWindow when the app becomes active.  Works round unrespostive crash reporter on Catalina
+	// First call to isOnActiveSpace in OnActiveSpaceDidChange() during crash reporter startup returns false on Catalina but true on BigSur.
+	OnActiveSpaceDidChange();
 }
 
 void FMacApplication::OnApplicationWillResignActive()
