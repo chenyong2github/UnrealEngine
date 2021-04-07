@@ -3,6 +3,8 @@
 #include "RemoteControlProtocolModule.h"
 #include "RemoteControlProtocol.h"
 
+DEFINE_LOG_CATEGORY(LogRemoteControlProtocol);
+
 #define LOCTEXT_NAMESPACE "RemoteControlProtocol"
 
 void FRemoteControlProtocolModule::ShutdownModule()
@@ -30,6 +32,10 @@ TSharedPtr<IRemoteControlProtocol> FRemoteControlProtocolModule::GetProtocolByNa
 void FRemoteControlProtocolModule::AddProtocol(FName InProtocolName, TSharedRef<IRemoteControlProtocol> InProtocol)
 {
 	InProtocol->Init();
+
+	// Check for presence of required RangeInputTemplate property
+	checkf(InProtocol->GetRangeInputTemplateProperty(), TEXT("ScriptStruct for Protocol %s did not have the required RangeInputTemplate Property."), *InProtocolName.ToString());
+	
 	Protocols.Add(InProtocolName, MoveTemp(InProtocol));
 }
 

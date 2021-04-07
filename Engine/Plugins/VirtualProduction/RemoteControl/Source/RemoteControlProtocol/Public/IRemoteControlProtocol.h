@@ -15,7 +15,7 @@ using FRemoteControlProtocolEntityWeakPtr = TWeakPtr<TStructOnScope<FRemoteContr
 /**
  * Interface for remote control protocol
  */
-class IRemoteControlProtocol : public TSharedFromThis<IRemoteControlProtocol>
+class REMOTECONTROLPROTOCOL_API IRemoteControlProtocol : public TSharedFromThis<IRemoteControlProtocol>
 {
 public:
 	/** Virtual destructor */
@@ -35,6 +35,9 @@ public:
 
 	/** Get protocol specific Script Struct class */
 	virtual UScriptStruct* GetProtocolScriptStruct() const = 0;
+
+	/** Get range input template Property */
+	virtual FProperty* GetRangeInputTemplateProperty() const;
 
 	/**
 	 * Bind the protocol entity to the protocol
