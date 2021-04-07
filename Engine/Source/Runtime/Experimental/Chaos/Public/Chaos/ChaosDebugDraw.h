@@ -16,6 +16,8 @@ namespace Chaos
 		struct CHAOS_API FChaosDebugDrawSettings
 		{
 		public:
+			FChaosDebugDrawSettings();
+
 			FChaosDebugDrawSettings(
 				FRealSingle InArrowSize,
 				FRealSingle InBodyAxisLen,
