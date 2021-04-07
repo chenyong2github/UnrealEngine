@@ -4,6 +4,7 @@
 
 #include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyle.h"
+#include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
 
 namespace RemoteSessionStyle
@@ -18,14 +19,17 @@ namespace RemoteSessionStyle
 	static TUniquePtr<FSlateStyleSet> StyleInstance;
 }
 
-#define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(RemoteSessionStyle::StyleInstance->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+// This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but StyleSet->RootToContentDir is how this style is set up
+#define RootToContentDir RemoteSessionStyle::StyleInstance->RootToContentDir
 
 void FRemoteSessionEditorStyle::Register()
 {
 	RemoteSessionStyle::StyleInstance = MakeUnique<FSlateStyleSet>(RemoteSessionStyle::NAME_StyleName);
+	RemoteSessionStyle::StyleInstance->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 	RemoteSessionStyle::StyleInstance->SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Experimental/RemoteSession/Content/Editor/Icons/"));
 
 
+	RemoteSessionStyle::StyleInstance->Set("RemoteSessionStream", new IMAGE_BRUSH_SVG("RemoteSessionStream", RemoteSessionStyle::Icon16x16));
 	RemoteSessionStyle::StyleInstance->Set("TabIcons.RemoteSession.Small", new IMAGE_BRUSH("RemoteSession_Stream_16x", RemoteSessionStyle::Icon16x16));
 	RemoteSessionStyle::StyleInstance->Set("RemoteSessionStream.Stream", new IMAGE_BRUSH("RemoteSession_Stream_40x", RemoteSessionStyle::Icon40x40));
 	RemoteSessionStyle::StyleInstance->Set("RemoteSessionStream.Stop", new IMAGE_BRUSH("RemoteSession_Stop_40x", RemoteSessionStyle::Icon40x40));

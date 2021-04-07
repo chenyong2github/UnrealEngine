@@ -71,7 +71,7 @@ void STakeRecorderTabContent::SetupForRecording(UTakePreset* BasePreset)
 
 	CurrentMode    = ETakeRecorderPanelMode::NewRecording;
 	TitleAttribute = ITakeRecorderModule::TakeRecorderTabLabel;
-	IconAttribute  = FTakeRecorderStyle::Get().GetBrush("TakeRecorder.TabIcon");
+	IconAttribute  = FAppStyle::Get().GetBrush("SequenceRecorder.TabIcon");
 
 	// Null out the tab content to ensure that all references have been cleaned up before constructing the new one
 	ChildSlot [ SNullWidget::NullWidget ];

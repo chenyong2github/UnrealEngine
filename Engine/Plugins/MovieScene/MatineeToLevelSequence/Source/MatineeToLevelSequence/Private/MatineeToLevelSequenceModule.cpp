@@ -104,7 +104,7 @@ protected:
 				TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
 				const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-				const FSlateIcon Icon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.EditMatinee", "LevelEditor.EditMatinee.Small"));
+				const FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "LevelViewport.ToggleActorPilotCameraView");
 
 				LevelEditorTabManager->RegisterTabSpawner("MatineeToLevelSequence", FOnSpawnTab::CreateRaw(this, &FMatineeToLevelSequenceModule::CreateCameraShakeConverterTab))
 				.SetDisplayName(LOCTEXT("MatineeCameraShakeConverter", "Matinee Camera Shake Converter"))

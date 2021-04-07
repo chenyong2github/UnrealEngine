@@ -80,7 +80,7 @@ void SRemoteSessionStream::RegisterNomadTabSpawner()
 			.SetDisplayName(LOCTEXT("TabTitle", "Remote Session Stream"))
 			.SetTooltipText(LOCTEXT("TooltipText", "Stream a particular UMG to a Remote Session app."))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
-			.SetIcon(FSlateIcon(FRemoteSessionEditorStyle::GetStyleSetName(), "TabIcons.RemoteSession.Small"));
+			.SetIcon(FSlateIcon(FRemoteSessionEditorStyle::GetStyleSetName(), "RemoteSessionStream"));
 	};
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));

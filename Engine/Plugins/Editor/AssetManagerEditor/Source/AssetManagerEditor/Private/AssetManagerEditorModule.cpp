@@ -499,7 +499,7 @@ void FAssetManagerEditorModule::StartupModule()
 			.SetDisplayName(LOCTEXT("AssetAuditTitle", "Asset Audit"))
 			.SetTooltipText(LOCTEXT("AssetAuditTooltip", "Open Asset Audit window, allows viewing detailed information about assets."))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsAuditCategory())
-			.SetIcon(FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "GenericEditor.Tabs.Properties"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Audit"));
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ReferenceViewerTabName, FOnSpawnTab::CreateRaw(this, &FAssetManagerEditorModule::SpawnReferenceViewerTab))
 			.SetDisplayName(LOCTEXT("ReferenceViewerTitle", "Reference Viewer"))

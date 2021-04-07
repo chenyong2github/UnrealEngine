@@ -55,6 +55,7 @@ void UStylusInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		FOnSpawnTab::CreateUObject(this, &UStylusInputSubsystem::OnSpawnPluginTab))
 		.SetDisplayName(LOCTEXT("DebugTabTitle", "Stylus Input Debug"))
 		.SetTooltipText(LOCTEXT("DebugTabTooltip", "Debug panel to display current values of stylus inputs."))
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "StylusInputDebug.TabIcon"))
 		.SetGroup(MenuStructure.GetDeveloperToolsDebugCategory());
 }
 

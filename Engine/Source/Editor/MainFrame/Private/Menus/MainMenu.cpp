@@ -158,24 +158,7 @@ void FMainMenu::RegisterEditMenu()
 			}
 		}));
 
-		Section.AddDynamicEntry("SourceControlDyn", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
-		{
-			if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
-			{
-				// Choose specific files to submit
-				InSection.AddMenuEntry(FMainFrameCommands::Get().ViewChangelists, 
-					TAttribute<FText>(),
-					TAttribute<FText>(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.ChangelistsTab"));
-			}
-			else
-			{
-				InSection.AddMenuEntry(FMainFrameCommands::Get().ConnectToSourceControl, 
-					TAttribute<FText>(),
-					TAttribute<FText>(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Connect"));
-			}
-		}));
+		Section.AddMenuEntry(FMainFrameCommands::Get().ConnectToSourceControl);
 	}
 }
 
@@ -218,7 +201,7 @@ void FMainMenu::RegisterWindowMenu()
 		// Make sure at least one is enabled before creating the section
 		if (bLocalizationDashboard || bTranslationPicker)
 		{
-			FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"), FToolMenuInsert("WindowGlobalTabSpawners", EToolMenuInsertType::After));
+			FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"), FToolMenuInsert("WindowLayout", EToolMenuInsertType::Before));
 			{
 				// Localization Dashboard
 				if (bLocalizationDashboard)

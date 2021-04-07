@@ -173,7 +173,7 @@ public:
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(TaskGraphTabId, FOnSpawnTab::CreateRaw(this, &FProfileVisualizerModule::SpawnProfileVizualizerTab))
 			.SetDisplayName(NSLOCTEXT("ProfileVisualizerModule", "TabTitle", "Profile Data Visualizer"))
 			.SetTooltipText(NSLOCTEXT("ProfileVisualizerModule", "TooltipText", "Open the Profile Data Visualizer tab."))
-			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
+			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory())
 			.SetIcon(FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "Profiler.Tab"));
 #endif
 			

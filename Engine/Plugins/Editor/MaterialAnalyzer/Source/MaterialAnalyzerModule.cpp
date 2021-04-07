@@ -46,7 +46,7 @@ void FMaterialAnalyzerModule::StartupModule()
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsAuditCategory())
 		.SetDisplayName(LOCTEXT("TabTitle", "Material Analyzer"))
 		.SetTooltipText(LOCTEXT("TooltipText", "Opens Material Analyzer tool."))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "MaterialEditor.ToggleMaterialStats.Tab"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "MaterialEditor.ToggleMaterialStats.Tab"));
 }
 
 TSharedRef<SDockTab> FMaterialAnalyzerModule::SpawnMaterialAnalyzerTab(const FSpawnTabArgs& SpawnTabArgs)

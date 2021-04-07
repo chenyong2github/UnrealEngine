@@ -25,6 +25,7 @@
 #include "LevelEditorMenuContext.h"
 #include "Engine/Selection.h"
 #include "SSCSEditorMenuContext.h"
+#include "GameplayInsightsStyle.h"
 #include "SSCSEditor.h"
 #endif
 
@@ -82,6 +83,8 @@ void FGameplayInsightsModule::StartupModule()
 
 		FInsightsMajorTabConfig TimingProfilerConfig;
 		TimingProfilerConfig.TabLabel = LOCTEXT("AnimationInsightsTabName", "Animation Insights");
+		TimingProfilerConfig.TabIcon = FSlateIcon(FGameplayInsightsStyle::Get().GetStyleSetName(), "AnimationInsights.TabIcon");
+
 		TimingProfilerConfig.TabTooltip = LOCTEXT("AnimationInsightsTabTooltip", "Open the Animation Insights tab.");
 		TimingProfilerConfig.Layout = FTabManager::NewLayout("GameplayInsightsTimingLayout_v1.2")
 		->AddArea

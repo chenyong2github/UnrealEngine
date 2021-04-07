@@ -4,6 +4,10 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateStyleMacros.h"
+
+// This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but StyleSet->RootToContentDir is how this style is set up
+#define RootToContentDir StyleSet->RootToContentDir
 
 TSharedPtr< FSlateStyleSet > FWidgetReflectorStyle::StyleInstance = nullptr;
 
@@ -32,6 +36,7 @@ FName FWidgetReflectorStyle::GetStyleSetName()
 TSharedRef< FSlateStyleSet > FWidgetReflectorStyle::Create()
 {
 	const FVector2D Icon8x8(8.0f, 8.0f);
+	const FVector2D Icon16x16(16.0f, 16.0f);
 	const FVector2D Icon24x24(24.0f, 24.0f);
 
 	TSharedRef<FSlateStyleSet> StyleSet = MakeShareable(new FSlateStyleSet(FWidgetReflectorStyle::GetStyleSetName()));
@@ -41,9 +46,9 @@ TSharedRef< FSlateStyleSet > FWidgetReflectorStyle::Create()
 #if WITH_EDITOR
 	{
 		FButtonStyle Button = FButtonStyle()
-			.SetNormal(FSlateBoxBrush(StyleSet->RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.15f)))
-			.SetHovered(FSlateBoxBrush(StyleSet->RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.25f)))
-			.SetPressed(FSlateBoxBrush(StyleSet->RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.30f)))
+			.SetNormal(FSlateBoxBrush(RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.15f)))
+			.SetHovered(FSlateBoxBrush(RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.25f)))
+			.SetPressed(FSlateBoxBrush(RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.30f)))
 			.SetNormalPadding(FMargin(0, 0, 0, 1))
 			.SetPressedPadding(FMargin(0, 1, 0, 0));
 		StyleSet->Set("Button", Button);
@@ -70,14 +75,16 @@ TSharedRef< FSlateStyleSet > FWidgetReflectorStyle::Create()
 	}
 	
 	{
-		StyleSet->Set("Icon.FocusPicking", new FSlateImageBrush(StyleSet->RootToContentDir("Icons/SlateReflector/FocusPicking_24x.png"), Icon24x24));
-		StyleSet->Set("Icon.HitTestPicking", new FSlateImageBrush(StyleSet->RootToContentDir("Icons/SlateReflector/HitTestPicking_24x.png"), Icon24x24));
-		StyleSet->Set("Icon.VisualPicking", new FSlateImageBrush(StyleSet->RootToContentDir("Icons/SlateReflector/VisualPicking_24x.png"), Icon24x24));
+		StyleSet->Set("Icon.FocusPicking", new FSlateImageBrush(RootToContentDir("Icons/SlateReflector/FocusPicking_24x.png"), Icon24x24));
+		StyleSet->Set("Icon.HitTestPicking", new FSlateImageBrush(RootToContentDir("Icons/SlateReflector/HitTestPicking_24x.png"), Icon24x24));
+		StyleSet->Set("Icon.VisualPicking", new FSlateImageBrush(RootToContentDir("Icons/SlateReflector/VisualPicking_24x.png"), Icon24x24));
 
-		StyleSet->Set("Symbols.LeftArrow", new FSlateImageBrush(StyleSet->RootToContentDir("Common/LeftArrow.png"), Icon24x24));
-		StyleSet->Set("Symbols.RightArrow", new FSlateImageBrush(StyleSet->RootToContentDir("Common/SubmenuArrow.png"), Icon24x24));
-		StyleSet->Set("Symbols.UpArrow", new FSlateImageBrush(StyleSet->RootToContentDir("Common/UpArrow.png"), Icon24x24));
-		StyleSet->Set("Symbols.DownArrow", new FSlateImageBrush(StyleSet->RootToContentDir("Common/DownArrow.png"), Icon24x24));
+		StyleSet->Set("Symbols.LeftArrow", new FSlateImageBrush(RootToContentDir("Common/LeftArrow.png"), Icon24x24));
+		StyleSet->Set("Symbols.RightArrow", new FSlateImageBrush(RootToContentDir("Common/SubmenuArrow.png"), Icon24x24));
+		StyleSet->Set("Symbols.UpArrow", new FSlateImageBrush(RootToContentDir("Common/UpArrow.png"), Icon24x24));
+		StyleSet->Set("Symbols.DownArrow", new FSlateImageBrush(RootToContentDir("Common/DownArrow.png"), Icon24x24));
+
+		StyleSet->Set("WidgetReflector.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/Widget", Icon16x16));
 	}
 #endif
 

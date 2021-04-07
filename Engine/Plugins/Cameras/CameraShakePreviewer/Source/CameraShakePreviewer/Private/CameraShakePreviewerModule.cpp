@@ -86,7 +86,7 @@ void FCameraShakePreviewerModule::RegisterEditorTab()
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
 		const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-		const FSlateIcon Icon(FEditorStyle::GetStyleSetName(), "LevelViewport.ToggleActorPilotCameraView");
+		const FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "LevelViewport.ToggleActorPilotCameraView");
 
 		LevelEditorTabManager->RegisterTabSpawner("CameraShakePreviewer", FOnSpawnTab::CreateStatic(&FCameraShakePreviewerModule::CreateCameraShakePreviewerTab))
 			.SetDisplayName(LOCTEXT("CameraShakePreviewer", "Camera Shake Previewer"))

@@ -135,7 +135,7 @@ public:
 			FTabSpawnerEntry& SpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner("WidgetReflector", FOnSpawnTab::CreateRaw(this, &FSlateReflectorModuleImpl::MakeWidgetReflectorTab) )
 				.SetDisplayName(LOCTEXT("WidgetReflectorTitle", "Widget Reflector"))
 				.SetTooltipText(LOCTEXT("WidgetReflectorTooltipText", "Open the Widget Reflector tab."))
-				.SetIcon(FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "WidgetReflector.TabIcon"));
+				.SetIcon(FSlateIcon(FWidgetReflectorStyle::GetStyleSetName(), "WidgetReflector.TabIcon"));
 
 			if (WorkspaceGroup.IsValid())
 			{

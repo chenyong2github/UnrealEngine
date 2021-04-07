@@ -51,6 +51,7 @@ NIAGARAEDITOR_API FString RelativePathToPluginPath(const FString& RelativePath, 
 #define BOX_PLUGIN_BRUSH( RelativePath, ... ) FSlateBoxBrush( RelativePathToPluginPath( RelativePath, ".png"), __VA_ARGS__ )
 #define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
+#define IMAGE_PLUGIN_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush( RelativePathToPluginPath( RelativePath, ".svg" ), __VA_ARGS__ )
 
 const FVector2D Icon8x8(8.0f, 8.0f);
 const FVector2D Icon12x12(12.0f, 12.0f);
@@ -354,7 +355,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	{
 		const FVector2D Icon24x24(24.0f, 24.0f);
 
-		Style->Set("NiagaraEditor.Debugger.TabIcon", new IMAGE_CORE_BRUSH("Icons/icon_tab_DebugTools_16x", Icon16x16));
+		Style->Set("NiagaraEditor.Debugger.TabIcon", new IMAGE_PLUGIN_BRUSH_SVG("Icons/NiagaraDebugger", Icon16x16));
 		Style->Set("NiagaraEditor.Debugger.PlayIcon", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Play", Icon24x24));
 		Style->Set("NiagaraEditor.Debugger.SpeedIcon", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Speed", Icon24x24));
 		Style->Set("NiagaraEditor.Debugger.PauseIcon", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Pause", Icon24x24));

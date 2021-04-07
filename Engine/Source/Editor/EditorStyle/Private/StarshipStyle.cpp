@@ -919,7 +919,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "MessageLog.Tutorial", new IMAGE_BRUSH( "Icons/icon_Blueprint_Enum_16x", Icon16x16 ) );
 		Set( "MessageLog.Url", new IMAGE_BRUSH( "Icons/icon_world_16x", Icon16x16 ) );
 
-		Set( "MessageLog.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_MessageLog_16x", Icon16x16 ) );
+		Set( "MessageLog.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/MessageLog", Icon16x16 ) );
 		Set( "MessageLog.ListBorder", new BOX_BRUSH( "/Docking/AppTabContentArea", FMargin(4/16.0f) ) );
 	}
 
@@ -973,7 +973,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetColorAndOpacity( LogColor_Error )
 			);
 
-		Set("Log.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_OutputLog_16x", Icon16x16 ) );
+		Set("Log.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/OutputLog", Icon16x16 ) );
 
 		Set("Log.TextBox", FEditableTextBoxStyle(NormalEditableTextBoxStyle)
 			.SetBackgroundImageNormal( BOX_BRUSH( "Common/WhiteGroupBorder", FMargin(4.0f/16.0f) ) )
@@ -1002,27 +1002,18 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		Set("OutputLog.OpenInExternalEditor", new IMAGE_BRUSH("Icons/icon_Asset_Open_In_External_Editor_16x", Icon16x16));
 
 	}
-	// Performance Analysis Tools Window
+	// Debugging tools 
 	{
 		Set("PerfTools.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_PerfTools_16x", Icon16x16 ) );
+		Set("ClassViewer.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/Class", Icon16x16 ) );
+		Set("StructViewer.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/UserDefinedStruct", Icon16x16 ) );
+		Set("BlueprintDebugger.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/BlueprintDebugger", Icon16x16 ) );
+		Set("CollisionAnalyzer.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/Collision", Icon16x16));
+		Set("ObjectBrowser.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/ObjectsBrowser", Icon16x16 ) );
+		Set("PixelInspector.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/PixelInspector", Icon16x16 ) );
+		Set("StylusInputDebug.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/StylusInputBug", Icon16x16 ) );
 	}
 
-	// Class Viewer Window
-	{
-		Set("ClassViewer.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_ClassViewer_16x", Icon16x16 ) );
-	}
-
-	// Blueprint Debugger Window
-	{
-		Set("BlueprintDebugger.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/Debug", Icon16x16 ) );
-	}
-
-	// Collision Analyzer Window
-	{
-		Set("CollisionAnalyzer.TabIcon", new IMAGE_BRUSH("Icons/icon_ShowCollision_16x", Icon16x16));
-	}
-
-	// Developer Tools Menu
 	{
 		Set("DeveloperTools.MenuIcon", new IMAGE_BRUSH_SVG( "Starship/Common/DeveloperTools", Icon16x16 ) );
 	}
@@ -1060,7 +1051,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Session Frontend Window
 	{
-		Set("SessionFrontEnd.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_SessionFrontend_16x", Icon16x16 ) );
+		Set("SessionFrontEnd.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/SessionFrontend", Icon16x16 ) );
 		Set("SessionFrontEnd.Tabs.Tools", new IMAGE_BRUSH( "/Icons/icon_tab_Tools_16x", Icon16x16 ) );
 	}
 
@@ -1308,6 +1299,8 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "MainFrame.RecentProjects",       new IMAGE_BRUSH_SVG( "Starship/Common/ProjectsRecent", Icon16x16 ) );
 		Set( "MainFrame.RecentLevels",         new IMAGE_BRUSH_SVG( "Starship/Common/LevelRecent", Icon16x16 ) );
 		Set( "MainFrame.FavoriteLevels",       new IMAGE_BRUSH_SVG( "Starship/Common/LevelFavorite", Icon16x16 ) );
+		Set( "MainFrame.ZipUpProject", 		   new IMAGE_BRUSH_SVG( "Starship/Common/ZipProject", Icon16x16 ) );
+
 
 		Set( "MainFrame.ChooseFilesToSave",       new IMAGE_BRUSH_SVG( "Starship/Common/SaveChoose", Icon16x16 ) );
 		Set( "MainFrame.ConnectToSourceControl",  new IMAGE_BRUSH_SVG( "Starship/Common/SourceControl", Icon16x16 ) );
@@ -2281,7 +2274,7 @@ void FStarshipEditorStyle::FStyle::SetupSequencerStyles()
 	// Sequence recorder standalone UI
 	if (IncludeEditorSpecificStyles())
 	{
-		Set("SequenceRecorder.TabIcon", new IMAGE_BRUSH("SequenceRecorder/icon_tab_SequenceRecorder_16x", Icon16x16));
+		Set("SequenceRecorder.TabIcon", new IMAGE_BRUSH_SVG("Starship/Sequencer/SequenceRecorder", Icon16x16));
 		Set("SequenceRecorder.Common.RecordAll.Small", new IMAGE_BRUSH("SequenceRecorder/icon_RecordAll_40x", Icon20x20));
 		Set("SequenceRecorder.Common.RecordAll", new IMAGE_BRUSH("SequenceRecorder/icon_RecordAll_40x", Icon40x40));
 		Set("SequenceRecorder.Common.StopAll.Small", new IMAGE_BRUSH("SequenceRecorder/icon_StopAll_40x", Icon20x20));
@@ -2586,6 +2579,9 @@ void FStarshipEditorStyle::FStyle::SetupGeneralIcons()
 	Set("AssetEditor.CompileStatus.Overlay.Warning", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Warning_Badge", Icon20x20, FStyleColors::Warning));
 	Set("AssetEditor.CompileStatus.Overlay.Good", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Good_Badge", Icon20x20, FStyleColors::AccentGreen));
 	Set("AssetEditor.CompileStatus.Overlay.Error", new IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Fail_Badge", Icon20x20, FStyleColors::Error));
+
+	Set("Debug", new IMAGE_BRUSH_SVG( "Starship/Common/Debug", Icon16x16 ) );
+	Set("Modules", new IMAGE_BRUSH_SVG( "Starship/Common/Modules", Icon16x16 ) );
 }
 
 void FStarshipEditorStyle::FStyle::SetupWindowStyles()
@@ -3280,7 +3276,7 @@ void FStarshipEditorStyle::FStyle::SetupProfilerStyle()
 		Set( "Profiler.Group.16", new BOX_BRUSH( "Icons/Profiler/GroupBorder-16Gray", FMargin(4.0f/16.0f) ) );
 
 		// Profiler toolbar icons
-		Set( "Profiler.Tab", new IMAGE_BRUSH( "Icons/Profiler/Profiler_Tab_16x", Icon16x16 ) );
+		Set( "Profiler.Tab", new IMAGE_BRUSH_SVG( "Starship/Common/Visualizer", Icon16x16 ) );
 		Set( "Profiler.Tab.GraphView", new IMAGE_BRUSH( "Icons/Profiler/Profiler_Graph_View_Tab_16x", Icon16x16 ) );
 		Set( "Profiler.Tab.EventGraph", new IMAGE_BRUSH( "Icons/Profiler/profiler_OpenEventGraph_32x", Icon16x16 ) );
 		Set( "Profiler.Tab.FiltersAndPresets", new IMAGE_BRUSH( "Icons/Profiler/Profiler_Filter_Presets_Tab_16x", Icon16x16 ) );
@@ -4415,6 +4411,10 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 			Set( "LevelEditor.Tabs.Viewports",              new IMAGE_BRUSH_SVG("Starship/Common/Viewports", Icon16x16) );
 			Set( "LevelEditor.Tabs.HLOD",                   new IMAGE_BRUSH_SVG("Starship/Common/HierarchicalLODOutliner", Icon16x16) );
 			Set( "LevelEditor.Tabs.Debug",                  new IMAGE_BRUSH_SVG("Starship/Common/Bug", Icon16x16) );
+
+			Set( "LevelEditor.Audit",                  		new IMAGE_BRUSH_SVG("Starship/Common/AssetAudit", Icon16x16) );
+			Set( "LevelEditor.Profile",                  	new IMAGE_BRUSH_SVG("Starship/Common/Profile", Icon16x16) );
+			Set( "LevelEditor.Platforms",                  	new IMAGE_BRUSH_SVG("Starship/Common/DeviceManager", Icon16x16) );
 		}
 #endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 
@@ -4525,7 +4525,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "MergeActors.MeshMergingTool", new IMAGE_BRUSH_SVG( "Starship/MergeActors/MeshMerging_16", Icon16x16 ) );
 		Set( "MergeActors.MeshProxyTool", new IMAGE_BRUSH_SVG( "Starship/MergeActors/MeshProxy_16", Icon16x16 ) );
 		Set( "MergeActors.MeshInstancingTool", new IMAGE_BRUSH_SVG("Starship/AssetIcons/StaticMeshActor_16", Icon16x16 ) );
-		Set( "MergeActors.TabIcon", new IMAGE_BRUSH_SVG("Starship/MergeActors/MeshMerging_16", Icon16x16));
+		Set( "MergeActors.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/Merge", Icon16x16));
 		
 		Set( "PlacementBrowser.OptionsMenu", new IMAGE_BRUSH( "Icons/icon_Blueprint_Macro_16x", Icon16x16 ) );
 
@@ -6640,8 +6640,8 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 		Set( "MaterialEditor.SetCubePreview", new IMAGE_BRUSH( "Icons/AssetIcons/Cube_16x", Icon16x16) );
 		Set( "MaterialEditor.SetPreviewMeshFromSelection", new IMAGE_BRUSH_SVG( "Starship/AssetIcons/StaticMesh_64", Icon16x16 ) );
 		Set( "MaterialEditor.TogglePreviewGrid", new IMAGE_BRUSH_SVG( "Starship/Common/Grid", Icon16x16 ) );
-		Set( "MaterialEditor.ToggleMaterialStats", new IMAGE_BRUSH_SVG( "Starship/Common/Statistics", Icon20x20 ) );
-		Set( "MaterialEditor.ToggleMaterialStats.Tab", new IMAGE_BRUSH_SVG("Starship/Common/Statistics", Icon16x16));
+		Set( "MaterialEditor.ToggleMaterialStats", new IMAGE_BRUSH_SVG( "Starship/Common/MaterialAnalyzer", Icon20x20 ) );
+		Set( "MaterialEditor.ToggleMaterialStats.Tab", new IMAGE_BRUSH_SVG("Starship/Common/MaterialAnalyzer", Icon16x16));
 		Set( "MaterialEditor.TogglePlatformStats", new IMAGE_BRUSH_SVG( "Starship/MaterialEditor/PlatformStats", Icon20x20 ) );
 		Set("MaterialEditor.TogglePlatformStats.Tab", new IMAGE_BRUSH_SVG("Starship/MaterialEditor/PlatformStats", Icon16x16));
 		Set( "MaterialEditor.CameraHome", new IMAGE_BRUSH_SVG( "Starship/Common/Home", Icon20x20 ) );
@@ -7526,9 +7526,9 @@ void FStarshipEditorStyle::FStyle::SetupAutomationStyles()
 		Set( "DeviceDetails.Reboot", new IMAGE_BRUSH( "Icons/icon_DeviceReboot_40x", Icon40x40 ) );
 		Set( "DeviceDetails.Reboot.Small", new IMAGE_BRUSH( "Icons/icon_DeviceReboot_40x", Icon20x20 ) );
 
-		Set( "DeviceDetails.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_DeviceManager_16x", Icon16x16 ) );
+		Set( "DeviceDetails.TabIcon", new IMAGE_BRUSH_SVG( "Starship/Common/DeviceManager", Icon16x16 ) );
 		Set( "DeviceDetails.Tabs.Tools", new IMAGE_BRUSH( "/Icons/icon_tab_Tools_16x", Icon16x16 ) );
-		Set( "DeviceDetails.Tabs.ProfileEditor", new IMAGE_BRUSH( "/Icons/icon_tab_DeviceProfileEditor_16x", Icon16x16 ) );
+		Set( "DeviceDetails.Tabs.ProfileEditor", new IMAGE_BRUSH_SVG( "Starship/Common/DeviceProfiles", Icon16x16 ) );
 		Set( "DeviceDetails.Tabs.ProfileEditorSingleProfile", new IMAGE_BRUSH( "/Icons/icon_tab_DeviceProfileEditor_16x", Icon16x16 ) );
 	}
 

@@ -46,12 +46,6 @@ TSharedRef< FSlateStyleSet > FEditorDebugToolsStyle::Create()
 	// Gamma reference.
 	Style->Set("GammaReference", new IMAGE_PLUGIN_BRUSH("GammaReference", FVector2D(256, 128)));
 
-	// Debug Tools Window
-	Style->Set("DebugTools.TabIcon", new LOCAL_IMAGE_BRUSH("Icons/icon_tab_DebugTools_16x", Icon16x16));
-	
-	// Modules Window
-	Style->Set("Modules.TabIcon", new IMAGE_PLUGIN_BRUSH("icon_tab_Modules_16px", Icon16x16));
-
 	return Style;
 }
 

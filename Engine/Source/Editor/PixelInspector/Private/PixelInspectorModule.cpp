@@ -143,7 +143,7 @@ void FPixelInspectorModule::RegisterTabSpawner(const TSharedPtr<FWorkspaceItem>&
 		FTabSpawnerEntry& SpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner("LevelEditorPixelInspector", FOnSpawnTab::CreateRaw(this, &FPixelInspectorModule::MakePixelInspectorTab))
 			.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorPixelInspector", "Pixel Inspector"))
 			.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorPixelInspectorTooltipText", "Open the viewport pixel inspector tool."))
-			.SetIcon(FSlateIcon(FPixelInspectorStyle::Get()->GetStyleSetName(), "PixelInspector.TabIcon"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "PixelInspector.TabIcon"));
 
 		if (WorkspaceGroup.IsValid())
 		{
@@ -166,7 +166,7 @@ void FPixelInspectorModule::UnregisterTabSpawner()
 TSharedRef<SDockTab> FPixelInspectorModule::MakePixelInspectorTab(const FSpawnTabArgs&)
 {
 	TSharedRef<SDockTab> PixelInspectorTab = SNew(SDockTab)
-	.Icon(FPixelInspectorStyle::Get()->GetBrush("PixelInspector.TabIcon"))
+	.Icon(FAppStyle::Get().GetBrush("PixelInspector.TabIcon"))
 	.TabRole(ETabRole::NomadTab);
 	
 	PixelInspectorTab->SetContent(CreatePixelInspectorWidget());
