@@ -31,6 +31,9 @@ public:
 	bool ReloadGlobalShaders() const;
 
 private:
+	/** The time when this command was issued.  This isn't serialized to the cooking server. */
+	double RequestStartTime = 0.0;
+
 	/** The materials we send over the network and expect maps for on the return */
 	TArray<FString> MaterialsToLoad;
 

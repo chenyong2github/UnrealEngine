@@ -29,6 +29,9 @@ FODSCMessageHandler::FODSCMessageHandler(const TArray<FString>& InMaterials, ESh
 
 void FODSCMessageHandler::FillPayload(FArchive& Payload)
 {
+	// When did we start this request?
+	RequestStartTime = FPlatformTime::Seconds();
+
 	Payload << MaterialsToLoad;
 	uint32 ConvertedShaderPlatform = (uint32)ShaderPlatform;
 	Payload << ConvertedShaderPlatform;
@@ -38,6 +41,8 @@ void FODSCMessageHandler::FillPayload(FArchive& Payload)
 
 void FODSCMessageHandler::ProcessResponse(FArchive& Response)
 {
+	UE_LOG(LogODSC, Display, TEXT("Received response in %lf seconds."), FPlatformTime::Seconds() - RequestStartTime);
+
 	// pull back the compiled mesh material data (if any)
 	Response << OutMeshMaterialMaps;
 }
