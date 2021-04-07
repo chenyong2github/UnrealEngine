@@ -167,6 +167,16 @@ void UNiagaraDataInterfaceCollisionQuery::PostInitProperties()
 	}
 }
 
+void UNiagaraDataInterfaceCollisionQuery::PostLoad()
+{
+	Super::PostLoad();
+
+	if (MaxRayTraceCount)
+	{
+		MarkRenderDataDirty();
+	}
+}
+
 void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraDataInterface*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const
 {
 #if WITH_EDITOR
