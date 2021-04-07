@@ -1232,8 +1232,7 @@ namespace Gauntlet
 					ExitReason = string.Format("Tests exited with error code {0}", LogSummary.TestExitCode);
 				}
 
-				// tests failed but the process didn't
-				ExitCode = 0;
+				ExitCode = LogSummary.TestExitCode;
 			}
 			else if (LogSummary.EngineInitialized == false)
 			{
