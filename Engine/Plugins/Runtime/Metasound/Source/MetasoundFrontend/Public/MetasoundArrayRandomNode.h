@@ -199,9 +199,9 @@ namespace Metasound
 			WeightsArray = *InputWeightsArray;
 
 			const ArrayType& InputArrayRef = *InputArray;
-			int32 ArraySize = InputArrayRef.Num();
+			PrevArraySize = InputArrayRef.Num();
 
-			if (ArraySize > 0)
+			if (PrevArraySize > 0)
 			{
 				if (*bEnableSharedState)
 				{
@@ -216,7 +216,7 @@ namespace Metasound
 					InitSharedStateArgs Args;
 					Args.SharedStateId = SharedStateUniqueId;
 					Args.Seed = PrevSeedValue;
-					Args.NumElements = ArraySize;
+					Args.NumElements = PrevArraySize;
 					Args.NoRepeatOrder = PrevNoRepeatOrder;
 					Args.bIsPreviewSound = bIsPreviewSound;
 					Args.Weights = WeightsArray;
@@ -225,7 +225,7 @@ namespace Metasound
 				}
 				else
 				{
-					ArrayRandomGet = MakeUnique<FArrayRandomGet>(PrevSeedValue, ArraySize, WeightsArray, PrevNoRepeatOrder);
+					ArrayRandomGet = MakeUnique<FArrayRandomGet>(PrevSeedValue, PrevArraySize, WeightsArray, PrevNoRepeatOrder);
 				}
 			}
 			else
@@ -270,6 +270,30 @@ namespace Metasound
 			TriggerOnReset->AdvanceBlock();
 
 			const ArrayType& InputArrayRef = *InputArray;
+
+			// If the array size has changed, we need to reinit before getting the next value
+			if (PrevArraySize != InputArrayRef.Num())
+			{
+				PrevArraySize = InputArrayRef.Num();
+				if (PrevArraySize != 0)
+				{
+					if (!ArrayRandomGet.IsValid())
+					{
+						ArrayRandomGet = MakeUnique<FArrayRandomGet>(PrevSeedValue, PrevArraySize, WeightsArray, PrevNoRepeatOrder);
+					}
+					ArrayRandomGet->Init(PrevSeedValue, PrevArraySize, WeightsArray, PrevNoRepeatOrder);
+				}
+			}
+
+			if (PrevArraySize == 0)
+			{
+				if (!bHasLoggedEmptyArrayWarning)
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("Array Random Get has an empty array input."));
+					bHasLoggedEmptyArrayWarning = true;
+				}
+				return;
+			}
 
 			// Check for a seed change
 			if (PrevSeedValue != *SeedValue)
@@ -393,7 +417,9 @@ namespace Metasound
 		int32 PrevSeedValue = INDEX_NONE;
 		int32 PrevNoRepeatOrder = INDEX_NONE;
 		uint32 SharedStateUniqueId = INDEX_NONE;
+		int32 PrevArraySize = 0;
 		bool bIsPreviewSound = false;
+		bool bHasLoggedEmptyArrayWarning = false;
 	};
 
 	template<typename ArrayType>

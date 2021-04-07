@@ -94,6 +94,8 @@ namespace Metasound
 		, ScaleArrayOutput(FArrayScaleDegreeWriteRef::CreateNew())
 		, Settings(InSettings)
 	{
+		// prime our output array
+		Execute();
 	}
 
 
