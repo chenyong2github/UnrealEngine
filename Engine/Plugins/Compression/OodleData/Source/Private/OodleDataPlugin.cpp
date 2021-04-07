@@ -91,17 +91,17 @@ DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("Total oodle decodes w/ malloc"), STAT_Compr
 #endif
 
 
-struct FOodleCustomCompressor : ICompressionFormat
+struct FOodleDataCompressionFormat : ICompressionFormat
 {
 	OodleLZ_Compressor Compressor;
 	OodleLZ_CompressionLevel CompressionLevel;
 	OodleLZ_CompressOptions CompressionOptions;
+	int32 OodleDecoderMemorySize;
 
 	FCriticalSection OodleDecoderMutex[NUM_OODLE_DECODE_BUFFERS];
 	void * OodleDecoderMemory[NUM_OODLE_DECODE_BUFFERS];
-	int32 OodleDecoderMemorySize;
 
-	FOodleCustomCompressor(OodleLZ_Compressor InCompressor, OodleLZ_CompressionLevel InCompressionLevel, int InSpaceSpeedTradeoffBytes)
+	FOodleDataCompressionFormat(OodleLZ_Compressor InCompressor, OodleLZ_CompressionLevel InCompressionLevel, int InSpaceSpeedTradeoffBytes)
 	{
 		Compressor = InCompressor;
 		CompressionLevel = InCompressionLevel;
@@ -119,12 +119,12 @@ struct FOodleCustomCompressor : ICompressionFormat
 			OodleDecoderMemory[i] = FMemory::Malloc(OodleDecoderMemorySize);
 			if (OodleDecoderMemory[i] == NULL) 
 			{
-				UE_LOG(OodleCompression, Error, TEXT("FOodleCustomCompressor - Failed to allocate %d!"), OodleDecoderMemorySize);
+				UE_LOG(OodleCompression, Error, TEXT("FOodleDataCompressionFormat - Failed to allocate %d!"), OodleDecoderMemorySize);
 			}
 		}
 	}
 
-	virtual ~FOodleCustomCompressor() 
+	virtual ~FOodleDataCompressionFormat() 
 	{
 		for (int i = 0; i < NUM_OODLE_DECODE_BUFFERS; ++i)
 		{
@@ -139,7 +139,7 @@ struct FOodleCustomCompressor : ICompressionFormat
 			}
 			else
 			{
-				UE_LOG(OodleCompression, Error, TEXT("FOodleCustomCompressor - shutting down while in use?"));
+				UE_LOG(OodleCompression, Error, TEXT("FOodleDataCompressionFormat - shutting down while in use?"));
 			}
 		}
 	}
@@ -227,7 +227,7 @@ struct FOodleCustomCompressor : ICompressionFormat
 		void * DecoderMemory = FMemory::Malloc(DecoderMemorySize);
 		if (DecoderMemory == NULL) 
 		{
-			UE_LOG(OodleCompression, Error, TEXT("FOodleCustomCompressor::OodleDecode - Failed to allocate %d!"), DecoderMemorySize);
+			UE_LOG(OodleCompression, Error, TEXT("FOodleDataCompressionFormat::OodleDecode - Failed to allocate %d!"), DecoderMemorySize);
 			return 0;
 		}
 
@@ -306,7 +306,7 @@ struct FOodleCustomCompressor : ICompressionFormat
 };
 
 
-class FOodleDataPluginModuleInterface : public IModuleInterface
+class FOodleDataCompressionFormatModuleInterface : public IModuleInterface
 {
 
 	virtual void StartupModule() override
@@ -356,7 +356,7 @@ class FOodleDataPluginModuleInterface : public IModuleInterface
 				{ TEXT("Kraken"), OodleLZ_Compressor_Kraken },
 				{ TEXT("Leviathan"), OodleLZ_Compressor_Leviathan },
 				{ TEXT("Hydra"), OodleLZ_Compressor_Hydra },
-				// when adding here remember to update FOodleCustomCompressor::GetCompressorString()
+				// when adding here remember to update FOodleDataCompressionFormat::GetCompressorString()
 			};
 			TMap<FString, OodleLZ_CompressionLevel> LevelMap = 
 			{ 
@@ -391,7 +391,7 @@ class FOodleDataPluginModuleInterface : public IModuleInterface
 				{ TEXT("7"), OodleLZ_CompressionLevel_Optimal3 },
 				{ TEXT("8"), OodleLZ_CompressionLevel_Optimal4 },
 				{ TEXT("9"), OodleLZ_CompressionLevel_Optimal5 },
-				// when adding here remember to update FOodleCustomCompressor::GetCompressionLevelString()
+				// when adding here remember to update FOodleDataCompressionFormat::GetCompressionLevelString()
 			};
 
 			// override from command line :
@@ -425,7 +425,7 @@ class FOodleDataPluginModuleInterface : public IModuleInterface
 		// register the compression format :
 		//  this is used by the shipping game to decode any paks compressed with Oodle :
 
-		CompressionFormat = new FOodleCustomCompressor(UsedCompressor, UsedLevel, SpaceSpeedTradeoff);
+		CompressionFormat = new FOodleDataCompressionFormat(UsedCompressor, UsedLevel, SpaceSpeedTradeoff);
 
 		IModularFeatures::Get().RegisterModularFeature(COMPRESSION_FORMAT_FEATURE_NAME, CompressionFormat);
 	}
@@ -440,4 +440,4 @@ class FOodleDataPluginModuleInterface : public IModuleInterface
 	ICompressionFormat* CompressionFormat = nullptr;
 };
 
-IMPLEMENT_MODULE(FOodleDataPluginModuleInterface, OodleDataPlugin);
+IMPLEMENT_MODULE(FOodleDataCompressionFormatModuleInterface, OodleDataPlugin);
