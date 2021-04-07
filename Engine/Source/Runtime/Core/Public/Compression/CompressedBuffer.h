@@ -5,6 +5,7 @@
 #include "Memory/CompositeBuffer.h"
 #include "Memory/MemoryFwd.h"
 
+class FArchive;
 class FName;
 
 /**
@@ -19,9 +20,9 @@ public:
 	/**
 	 * Compress the buffer using the requested compression format.
 	 *
-	 * @param FormatName   One of NAME_None, NAME_LZ4.
+	 * @param FormatName   One of NAME_None, NAME_Default, NAME_LZ4.
 	 * @param RawData      Raw data to compress. NAME_None will reference owned raw data.
-	 * @return An owned compressed buffer, or empty on error.
+	 * @return An owned compressed buffer, or null on error.
 	 */
 	[[nodiscard]] CORE_API static FCompressedBuffer Compress(FName FormatName, const FCompositeBuffer& RawData);
 	[[nodiscard]] CORE_API static FCompressedBuffer Compress(FName FormatName, const FSharedBuffer& RawData);
@@ -29,18 +30,22 @@ public:
 	/**
 	 * Construct from a compressed buffer previously created by Compress().
 	 *
-	 * @return A compressed buffer, or empty on error, such as an invalid format or corrupt header.
+	 * @return A compressed buffer, or null on error, such as an invalid format or corrupt header.
 	 */
 	[[nodiscard]] CORE_API static FCompressedBuffer FromCompressed(const FCompositeBuffer& CompressedData);
 	[[nodiscard]] CORE_API static FCompressedBuffer FromCompressed(FCompositeBuffer&& CompressedData);
 	[[nodiscard]] CORE_API static FCompressedBuffer FromCompressed(const FSharedBuffer& CompressedData);
 	[[nodiscard]] CORE_API static FCompressedBuffer FromCompressed(FSharedBuffer&& CompressedData);
+	[[nodiscard]] CORE_API static FCompressedBuffer FromCompressed(FArchive& Ar);
 
-	/** Returns true if the compressed buffer is not empty. */
-	[[nodiscard]] inline explicit operator bool() const { return !IsEmpty(); }
+	/** Reset this to null. */
+	inline void Reset() { CompressedData.Reset(); }
 
-	/** Returns true if the compressed buffer is empty. */
-	[[nodiscard]] inline bool IsEmpty() const { return CompressedData.IsEmpty(); }
+	/** Returns true if the compressed buffer is not null. */
+	[[nodiscard]] inline explicit operator bool() const { return !IsNull(); }
+
+	/** Returns true if the compressed buffer is null. */
+	[[nodiscard]] inline bool IsNull() const { return CompressedData.IsNull(); }
 
 	/** Returns true if the composite buffer is owned. */
 	[[nodiscard]] inline bool IsOwned() const { return CompressedData.IsOwned(); }
@@ -49,14 +54,14 @@ public:
 	[[nodiscard]] inline FCompressedBuffer MakeOwned() const & { return FromCompressed(CompressedData.MakeOwned()); }
 	[[nodiscard]] inline FCompressedBuffer MakeOwned() && { return FromCompressed(MoveTemp(CompressedData).MakeOwned()); }
 
-	/** Returns a composite buffer containing the compressed data. May be empty. May not be owned. */
+	/** Returns a composite buffer containing the compressed data. May be null. May not be owned. */
 	[[nodiscard]] inline const FCompositeBuffer& GetCompressed() const & { return CompressedData; }
 	[[nodiscard]] inline FCompositeBuffer GetCompressed() && { return MoveTemp(CompressedData); }
 
-	/** Returns the size of the compressed data. Zero if this is empty. */
+	/** Returns the size of the compressed data. Zero if this is null. */
 	[[nodiscard]] inline uint64 GetCompressedSize() const { return CompressedData.GetSize(); }
 
-	/** Returns the size of the raw data. Zero on error or if this is empty. */
+	/** Returns the size of the raw data. Zero on error or if this is empty or null. */
 	[[nodiscard]] CORE_API uint64 GetRawSize() const;
 
 	/**
@@ -67,14 +72,14 @@ public:
 	/**
 	 * Decompress into an owned buffer.
 	 *
-	 * @return An owned buffer containing the raw data, or empty on error or if this is empty.
+	 * @return An owned buffer containing the raw data, or null on error.
 	 */
 	[[nodiscard]] CORE_API FSharedBuffer Decompress() const;
 
 	/**
 	 * Decompress into an owned composite buffer.
 	 *
-	 * @return An owned buffer containing the raw data, or empty on error or if this is empty.
+	 * @return An owned buffer containing the raw data, or null on error.
 	 */
 	[[nodiscard]] CORE_API FCompositeBuffer DecompressToComposite() const;
 

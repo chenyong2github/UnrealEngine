@@ -36,7 +36,7 @@ public:
 		}
 	}
 
-	/** Reset this to empty. */
+	/** Reset this to null. */
 	CORE_API void Reset();
 
 	/** Returns the total size of the composite buffer in bytes. */
@@ -45,11 +45,11 @@ public:
 	/** Returns the segments that the buffer is composed from. */
 	[[nodiscard]] inline TConstArrayView<FSharedBuffer> GetSegments() const { return Segments; }
 
-	/** Returns true if the composite buffer has a total size greater than zero. */
-	[[nodiscard]] inline explicit operator bool() const { return !IsEmpty(); }
+	/** Returns true if the composite buffer is not null. */
+	[[nodiscard]] inline explicit operator bool() const { return !IsNull(); }
 
-	/** Returns true if the composite buffer has a total size of zero. */
-	[[nodiscard]] inline bool IsEmpty() const { return Segments.IsEmpty() || GetSize() == 0; }
+	/** Returns true if the composite buffer is null. */
+	[[nodiscard]] inline bool IsNull() const { return Segments.IsEmpty(); }
 
 	/** Returns true if every segment in the composite buffer is owned. */
 	[[nodiscard]] CORE_API bool IsOwned() const;

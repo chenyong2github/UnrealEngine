@@ -6,6 +6,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/Crc.h"
+#include "Serialization/Archive.h"
 #include "Templates/Function.h"
 #include "UObject/NameTypes.h"
 
@@ -52,6 +53,8 @@ struct FHeader
 	uint32 BlockCount = 0;
 	/** The total size of the uncompressed data. */
 	uint64 TotalRawSize = 0;
+	/** The total size of the compressed data including the header. */
+	uint64 TotalCompressedSize = 0;
 
 	/** Checks validity of the buffer based on the magic number, method, and CRC-32. */
 	static bool IsValid(const FCompositeBuffer& CompressedData);
@@ -69,25 +72,47 @@ struct FHeader
 		return Header;
 	}
 
-	/** Write a header to a memory view that is at least sizeof(FHeader). */
-	void Write(FMutableMemoryView CompressedData) const
+	/**
+	 * Write a header to a memory view that is at least sizeof(FHeader).
+	 *
+	 * @param HeaderView   View of the header to write, including any method-specific header data.
+	 */
+	void Write(FMutableMemoryView HeaderView) const
 	{
 		FHeader Header = *this;
 		Header.ByteSwap();
-		CompressedData.CopyFrom(MakeMemoryView(&Header, &Header + 1));
+		HeaderView.CopyFrom(MakeMemoryView(&Header, &Header + 1));
+		Header.ByteSwap();
+		Header.Crc32 = CalculateCrc32(HeaderView);
+		Header.ByteSwap();
+		HeaderView.CopyFrom(MakeMemoryView(&Header, &Header + 1));
 	}
 
-private:
+	/** Calculate the CRC-32 from a view of a header including any method-specific header data. */
+	static uint32 CalculateCrc32(FMemoryView HeaderView)
+	{
+		uint32 Crc32 = 0;
+		constexpr uint64 MethodOffset = STRUCT_OFFSET(FHeader, Method);
+		for (FMemoryView View = HeaderView + MethodOffset; const uint64 ViewSize = View.GetSize();)
+		{
+			const int32 Size = static_cast<int32>(FMath::Min<uint64>(ViewSize, MAX_int32));
+			Crc32 = FCrc::MemCrc32(View.GetData(), Size, Crc32);
+			View += Size;
+		}
+		return Crc32;
+	}
+
 	void ByteSwap()
 	{
 		Magic = NETWORK_ORDER32(Magic);
 		Crc32 = NETWORK_ORDER32(Crc32);
 		BlockCount = NETWORK_ORDER32(BlockCount);
 		TotalRawSize = NETWORK_ORDER64(TotalRawSize);
+		TotalCompressedSize = NETWORK_ORDER64(TotalCompressedSize);
 	}
 };
 
-static_assert(sizeof(FHeader) == 24, "FHeader is the wrong size.");
+static_assert(sizeof(FHeader) == 32, "FHeader is the wrong size.");
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -97,35 +122,8 @@ public:
 	virtual FCompositeBuffer Compress(const FCompositeBuffer& RawData, uint64 BlockSize = DefaultBlockSize) const = 0;
 	virtual FCompositeBuffer Decompress(const FHeader& Header, const FCompositeBuffer& CompressedData) const = 0;
 	virtual bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView) const = 0;
-	virtual uint32 CalculateCrc32(const FHeader& Header, const FCompositeBuffer& CompressedData) const;
-
-protected:
-	static uint32 CalculateRangeCrc32(const FCompositeBuffer& CompressedData, uint64 Offset, uint64 Size, uint32 Crc32 = 0);
+	virtual uint64 GetHeaderSize(const FHeader& Header) const = 0;
 };
-
-uint32 FMethod::CalculateCrc32(const FHeader& Header, const FCompositeBuffer& CompressedData) const
-{
-	if (sizeof(FHeader) <= CompressedData.GetSize())
-	{
-		constexpr uint64 MethodOffset = STRUCT_OFFSET(FHeader, Method);
-		return CalculateRangeCrc32(CompressedData, MethodOffset, sizeof(FHeader) - MethodOffset);
-	}
-	return 0;
-}
-
-uint32 FMethod::CalculateRangeCrc32(const FCompositeBuffer& CompressedData, uint64 Offset, uint64 Size, uint32 Crc32)
-{
-	CompressedData.IterateRange(Offset, Size, [&Crc32](FMemoryView Crc32View)
-	{
-		while (const uint64 ViewSize = Crc32View.GetSize())
-		{
-			const int32 Crc32Size = static_cast<int32>(FMath::Min<uint64>(ViewSize, MAX_int32));
-			Crc32 = FCrc::MemCrc32(Crc32View.GetData(), Crc32Size, Crc32);
-			Crc32View += Crc32Size;
-		}
-	});
-	return Crc32;
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -138,21 +136,18 @@ public:
 		Header.Method = EMethod::None;
 		Header.BlockCount = 1;
 		Header.TotalRawSize = RawData.GetSize();
+		Header.TotalCompressedSize = Header.TotalRawSize + sizeof(FHeader);
 
 		FUniqueBuffer HeaderData = FUniqueBuffer::Alloc(sizeof(FHeader));
-		const FMutableMemoryView HeaderDataView = HeaderData;
-
-		FCompositeBuffer CompressedData(HeaderData.MoveToShared(), RawData.MakeOwned());
-		Header.Write(HeaderDataView);
-		Header.Crc32 = CalculateCrc32(Header, CompressedData);
-		Header.Write(HeaderDataView);
-		return CompressedData;
+		Header.Write(HeaderData);
+		return FCompositeBuffer(HeaderData.MoveToShared(), RawData.MakeOwned());
 	}
 
 	FCompositeBuffer Decompress(const FHeader& Header, const FCompositeBuffer& CompressedData) const final
 	{
 		if (Header.Method == EMethod::None &&
-			sizeof(FHeader) + Header.TotalRawSize == CompressedData.GetSize())
+			Header.TotalCompressedSize == CompressedData.GetSize() &&
+			Header.TotalCompressedSize == Header.TotalRawSize + sizeof(FHeader))
 		{
 			return CompressedData.Mid(sizeof(FHeader), Header.TotalRawSize).MakeOwned();
 		}
@@ -163,12 +158,18 @@ public:
 	{
 		if (Header.Method == EMethod::None &&
 			Header.TotalRawSize == RawView.GetSize() &&
-			sizeof(FHeader) + Header.TotalRawSize == CompressedData.GetSize())
+			Header.TotalCompressedSize == CompressedData.GetSize() &&
+			Header.TotalCompressedSize == Header.TotalRawSize + sizeof(FHeader))
 		{
 			CompressedData.CopyTo(RawView, sizeof(FHeader));
 			return true;
 		}
 		return false;
+	}
+
+	uint64 GetHeaderSize(const FHeader& Header) const final
+	{
+		return sizeof(FHeader);
 	}
 };
 
@@ -181,18 +182,12 @@ public:
 	FCompositeBuffer Decompress(const FHeader& Header, const FCompositeBuffer& CompressedData) const final;
 	bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView) const final;
 
-protected:
-	uint32 CalculateCrc32(const FHeader& Header, const FCompositeBuffer& CompressedData) const final
+	uint64 GetHeaderSize(const FHeader& Header) const final
 	{
-		const uint64 MetaSize = uint64(Header.BlockCount) * sizeof(uint32);
-		if (sizeof(FHeader) + MetaSize <= CompressedData.GetSize())
-		{
-			const uint32 BaseCrc32 = FMethod::CalculateCrc32(Header, CompressedData);
-			return CalculateRangeCrc32(CompressedData, sizeof(FHeader), MetaSize, BaseCrc32);
-		}
-		return 0;
+		return sizeof(FHeader) + sizeof(uint32) * uint64(Header.BlockCount);
 	}
 
+protected:
 	virtual EMethod GetMethod() const = 0;
 	virtual uint64 CompressBlockBound(uint64 RawSize) const = 0;
 	virtual bool CompressBlock(FMutableMemoryView& CompressedData, FMemoryView RawData) const = 0;
@@ -215,7 +210,6 @@ FCompositeBuffer FMethodBlock::Compress(const FCompositeBuffer& RawData, const u
 		BlockCount == 0 ? 0 :
 		BlockCount == 1 ? CompressBlockBound(RawSize) : CompressBlockBound(BlockSize) - BlockSize + RawSize;
 	FUniqueBuffer CompressedData = FUniqueBuffer::Alloc(CompressedDataSize);
-	const FMutableMemoryView CompressedDataView = CompressedData.GetView();
 
 	// Compress the raw data in blocks and store the raw data for incompressible blocks.
 	TArray64<uint32> CompressedBlockSizes;
@@ -223,7 +217,7 @@ FCompositeBuffer FMethodBlock::Compress(const FCompositeBuffer& RawData, const u
 	uint64 CompressedSize = 0;
 	{
 		FUniqueBuffer RawBlockCopy;
-		FMutableMemoryView CompressedBlocksView = CompressedDataView + sizeof(FHeader) + MetaSize;
+		FMutableMemoryView CompressedBlocksView = CompressedData.GetView() + sizeof(FHeader) + MetaSize;
 		for (uint64 RawOffset = 0; RawOffset < RawSize;)
 		{
 			const uint64 RawBlockSize = FMath::Min(RawSize - RawOffset, BlockSize);
@@ -261,26 +255,24 @@ FCompositeBuffer FMethodBlock::Compress(const FCompositeBuffer& RawData, const u
 
 	// Write the header and calculate the CRC-32.
 	Algo::ForEach(CompressedBlockSizes, [](uint32& Size) { Size = NETWORK_ORDER32(Size); });
-	CompressedDataView.Mid(sizeof(FHeader), MetaSize).CopyFrom(MakeMemoryView(CompressedBlockSizes));
-
-	const FMemoryView CompositeView = CompressedDataView.Left(sizeof(FHeader) + MetaSize + CompressedSize);
-	const FCompositeBuffer Composite(FSharedBuffer::MakeView(CompositeView, CompressedData.MoveToShared()));
+	CompressedData.GetView().Mid(sizeof(FHeader), MetaSize).CopyFrom(MakeMemoryView(CompressedBlockSizes));
 
 	FHeader Header;
 	Header.Method = GetMethod();
 	Header.BlockSizeExponent = static_cast<uint8>(FMath::FloorLog2_64(BlockSize));
 	Header.BlockCount = static_cast<uint32>(BlockCount);
 	Header.TotalRawSize = RawSize;
-	Header.Write(CompressedDataView);
-	Header.Crc32 = CalculateCrc32(Header, Composite);
-	Header.Write(CompressedDataView);
+	Header.TotalCompressedSize = sizeof(FHeader) + MetaSize + CompressedSize;
+	Header.Write(CompressedData.GetView().Left(sizeof(FHeader) + MetaSize));
 
-	return Composite;
+	const FMemoryView CompositeView = CompressedData.GetView().Left(Header.TotalCompressedSize);
+	return FCompositeBuffer(FSharedBuffer::MakeView(CompositeView, CompressedData.MoveToShared()));
 }
 
 FCompositeBuffer FMethodBlock::Decompress(const FHeader& Header, const FCompositeBuffer& CompressedData) const
 {
-	if (Header.BlockCount == 0)
+	if (Header.BlockCount == 0 || 
+		Header.TotalCompressedSize != CompressedData.GetSize())
 	{
 		return FCompositeBuffer();
 	}
@@ -391,7 +383,8 @@ FCompositeBuffer FMethodBlock::Decompress(const FHeader& Header, const FComposit
 
 bool FMethodBlock::TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView) const
 {
-	if (Header.TotalRawSize != RawView.GetSize())
+	if (Header.TotalRawSize != RawView.GetSize() ||
+		Header.TotalCompressedSize != CompressedData.GetSize())
 	{
 		return false;
 	}
@@ -506,7 +499,7 @@ static const FMethod* GetMethod(FName FormatName)
 	{
 		return GetMethod(EMethod::None);
 	}
-	if (FormatName == NAME_LZ4)
+	if (FormatName == NAME_LZ4 || FormatName == NAME_Default)
 	{
 		return GetMethod(EMethod::LZ4);
 	}
@@ -528,9 +521,11 @@ bool FHeader::IsValid(const FCompositeBuffer& CompressedData)
 		const FHeader Header = Read(CompressedData);
 		if (Header.Magic == FHeader::ExpectedMagic)
 		{
-			if (const FMethod* Method = GetMethod(Header.Method))
+			if (const FMethod* const Method = GetMethod(Header.Method))
 			{
-				if (Header.Crc32 == Method->CalculateCrc32(Header, CompressedData))
+				FUniqueBuffer HeaderCopy;
+				const FMemoryView HeaderView = CompressedData.ViewOrCopyRange(0, Method->GetHeaderSize(Header), HeaderCopy);
+				if (Header.Crc32 == FHeader::CalculateCrc32(HeaderView))
 				{
 					return true;
 				}
@@ -548,7 +543,7 @@ FCompressedBuffer FCompressedBuffer::Compress(FName FormatName, const FComposite
 {
 	using namespace UE::CompressedBuffer;
 	FCompressedBuffer Local;
-	if (const FMethod* Method = GetMethod(FormatName))
+	if (const FMethod* const Method = GetMethod(FormatName))
 	{
 		Local.CompressedData = Method->Compress(RawData);
 	}
@@ -588,6 +583,33 @@ FCompressedBuffer FCompressedBuffer::FromCompressed(FSharedBuffer&& InCompressed
 	return Local;
 }
 
+FCompressedBuffer FCompressedBuffer::FromCompressed(FArchive& Ar)
+{
+	using namespace UE::CompressedBuffer;
+	check(Ar.IsLoading());
+
+	if (sizeof(FHeader) > Ar.TotalSize() - Ar.Tell())
+	{
+		return FCompressedBuffer();
+	}
+
+	FHeader Header;
+	Ar.Serialize(&Header, sizeof(FHeader));
+	Header.ByteSwap();
+
+	if (Header.TotalCompressedSize + Ar.Tell() > Ar.TotalSize() + sizeof(FHeader))
+	{
+		return FCompressedBuffer();
+	}
+
+	FUniqueBuffer MutableBuffer = FUniqueBuffer::Alloc(Header.TotalCompressedSize);
+	Header.ByteSwap();
+	const FMutableMemoryView MutableView = MutableBuffer.GetView().CopyFrom(MakeMemoryView(&Header, &Header + 1));
+	Ar.Serialize(MutableView.GetData(), static_cast<int64>(MutableView.GetSize()));
+
+	return FromCompressed(MutableBuffer.MoveToShared());
+}
+
 uint64 FCompressedBuffer::GetRawSize() const
 {
 	return CompressedData ? UE::CompressedBuffer::FHeader::Read(CompressedData).TotalRawSize : 0;
@@ -599,7 +621,7 @@ bool FCompressedBuffer::TryDecompressTo(FMutableMemoryView RawView) const
 	if (CompressedData)
 	{
 		const FHeader Header = FHeader::Read(CompressedData);
-		if (const FMethod* Method = GetMethod(Header.Method))
+		if (const FMethod* const Method = GetMethod(Header.Method))
 		{
 			return Method->TryDecompressTo(Header, CompressedData, RawView);
 		}
@@ -613,7 +635,7 @@ FSharedBuffer FCompressedBuffer::Decompress() const
 	if (CompressedData)
 	{
 		const FHeader Header = FHeader::Read(CompressedData);
-		if (const FMethod* Method = GetMethod(Header.Method))
+		if (const FMethod* const Method = GetMethod(Header.Method))
 		{
 			if (Header.Method == EMethod::None)
 			{
@@ -635,7 +657,7 @@ FCompositeBuffer FCompressedBuffer::DecompressToComposite() const
 	if (CompressedData)
 	{
 		const FHeader Header = FHeader::Read(CompressedData);
-		if (const FMethod* Method = GetMethod(Header.Method))
+		if (const FMethod* const Method = GetMethod(Header.Method))
 		{
 			return Method->Decompress(Header, CompressedData);
 		}
