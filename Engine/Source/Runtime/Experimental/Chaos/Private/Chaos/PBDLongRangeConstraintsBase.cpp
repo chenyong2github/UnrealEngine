@@ -356,7 +356,6 @@ void FPBDLongRangeConstraintsBase::ComputeGeodesicConstraints(
 		{
 			return;  // No tethers on dynamic particles
 		}
-		TArray<Pair<FReal, int32>> ClosestElements;
 
 		// Find the closest seeds in each island
 		TArray<int32, TInlineAllocator<32>> ClosestSeeds;
