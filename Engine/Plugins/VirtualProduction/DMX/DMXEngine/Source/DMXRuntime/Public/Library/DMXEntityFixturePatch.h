@@ -32,7 +32,7 @@ class DMXRUNTIME_API UDMXEntityFixturePatch
 {
 	GENERATED_BODY()
 
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FDMXOnFixturePatchReceivedDMXDelegate, UDMXEntityFixturePatch* /** FixturePatch */, const FDMXNormalizedAttributeValueMap& /** ValuePerAttribute */);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDMXOnFixturePatchReceivedDMXDelegate, UDMXEntityFixturePatch*, FixturePatch, const FDMXNormalizedAttributeValueMap&, ValuePerAttribute);
 
 public:
 	UDMXEntityFixturePatch();
@@ -46,7 +46,7 @@ protected:
 	// ~Begin FTickableGameObject interface
 	virtual void Tick(float DeltaTime) override;
 	virtual bool IsTickable() const override;
-	virtual bool IsTickableInEditor() const override { return false; }
+	virtual bool IsTickableInEditor() const override;
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
 	// ~End FTickableGameObject interface
@@ -66,7 +66,8 @@ public:
 	/** Returns the last received DMX signal. */
 	const FDMXSignalSharedPtr& GetLastReceivedDMXSignal() const { return LastDMXSignal; }
 
-	/** Broadcasts when the patch received dmx, see DMXComponent for an example of use */
+	/** Broadcasts when the patch received dmx */
+	UPROPERTY(BlueprintAssignable, Category = "DMX");
 	FDMXOnFixturePatchReceivedDMXDelegate OnFixturePatchReceivedDMX;
 
 private:
@@ -132,7 +133,11 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Color when displayed in the fixture patch editor */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
-	FLinearColor EditorColor = FLinearColor(1.0f, 0.0f, 1.0f);
+	FLinearColor EditorColor;
+
+	/** If true, the patch receives dmx and raises the OnFixturePatchReceivedDMX event in editor */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
+	bool bReceiveDMXInEditor;
 #endif
 
 public:

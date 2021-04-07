@@ -29,6 +29,10 @@ UDMXEntityFixturePatch::UDMXEntityFixturePatch()
 	, ManualStartingAddress(1)
 	, AutoStartingAddress(1)
 	, ActiveMode(0)
+#if WITH_EDITORONLY_DATA
+	, EditorColor(FLinearColor(1.0f, 0.0f, 1.0f))
+	, bReceiveDMXInEditor(false)
+#endif // WITH_EDITORONLY_DATA
 {
 	CachedDMXValues.Reserve(DMX_UNIVERSE_SIZE);
 }
@@ -59,6 +63,15 @@ void UDMXEntityFixturePatch::Tick(float DeltaTime)
 bool UDMXEntityFixturePatch::IsTickable() const
 {
 	return OnFixturePatchReceivedDMX.IsBound();
+}	
+
+bool UDMXEntityFixturePatch::IsTickableInEditor() const
+{
+#if WITH_EDITORONLY_DATA
+	return OnFixturePatchReceivedDMX.IsBound() && bReceiveDMXInEditor;
+#elif 
+	return OnFixturePatchReceivedDMX.IsBound();
+#endif
 }
 
 ETickableTickType UDMXEntityFixturePatch::GetTickableTickType() const
