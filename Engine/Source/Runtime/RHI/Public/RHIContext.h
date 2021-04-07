@@ -577,6 +577,24 @@ public:
 
 	virtual void RHIEndRenderPass() = 0;
 
+	/** 
+	* Enable/begin recording for late-latching (for ulta-late uniform buffer patching for VR devices)
+	* @param RHICmdList		The command list
+	* @param FrameNumber	Frame number this is applied to.
+	*/
+	virtual void RHIBeginLateLatching(int32 FrameNumber)
+	{
+		/* empty default implementation */
+	}
+
+	/**
+	* End recording for late-latching (for ulta-late uniform buffer patching for VR devices)
+	*/
+	virtual void RHIEndLateLatching()
+	{
+		/* empty default implementation */
+	}
+
 	virtual void RHINextSubpass()
 	{
 	}

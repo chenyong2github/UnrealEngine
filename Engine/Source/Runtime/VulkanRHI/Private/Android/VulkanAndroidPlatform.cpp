@@ -473,6 +473,13 @@ void FVulkanAndroidPlatform::SetupMaxRHIFeatureLevelAndShaderPlatform(ERHIFeatur
 	}
 }
 
+bool FVulkanAndroidPlatform::SupportsUniformBufferPatching()
+{
+	// Only Allow it on ( Oculus + Vulkan + Android ) devices for now to reduce the impact on general system
+	// So far, the feature is designed on top of emulated UBs.
+	return !UseRealUBsOptimization(true) && FPlatformMisc::IsStandaloneStereoOnlyDevice();
+}
+
 bool FVulkanAndroidPlatform::FramePace(FVulkanDevice& Device, VkSwapchainKHR Swapchain, uint32 PresentID, VkPresentInfoKHR& Info)
 {
 	bool bVsyncMultiple = true;

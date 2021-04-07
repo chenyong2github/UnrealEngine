@@ -1421,6 +1421,8 @@ public:
 			ViewUniformShaderParameters);
 	}
 
+	void UpdateLateLatchData();
+
 	void SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters) const;
 	void SetupGlobalDistanceFieldUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters) const;
 	void SetupVolumetricFogUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters) const;
@@ -2163,6 +2165,9 @@ protected:
 	void UpdateTranslucentBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 	void UpdateDirectionalLightUniformBuffers(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 	void UpdateSkyReflectionUniformBuffer();
+
+	void BeginLateLatching(FRHICommandListImmediate& RHICmdList);
+	void EndLateLatching(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
 	FRHITexture* RenderForward(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> ViewList);
 	FRHITexture* RenderDeferred(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> ViewList, const FSortedLightSetSceneInfo& SortedLightSet);

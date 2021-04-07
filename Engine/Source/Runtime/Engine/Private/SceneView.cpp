@@ -2564,6 +2564,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	bIsHDR(false),
 	bRequireMultiView(false),
 	GammaCorrection(CVS.GammaCorrection),
+	bLateLatchingEnabled(false),
 	SecondaryViewFraction(1.0f),
 	SecondaryScreenPercentageMethod(ESecondaryScreenPercentageMethod::LowerPixelDensitySimulation),
 	ScreenPercentageInterface(nullptr),

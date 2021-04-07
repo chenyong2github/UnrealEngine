@@ -941,6 +941,10 @@ public:
 	float		WorldToMetersScale;
 	TOptional<FTransform> PreviousViewTransform;
 
+	/** View Pose corresponding to BaseHmdOrientation / BaseHmdLocation */
+	FVector		BaseHmdViewLocation;
+	FRotator	BaseHmdViewRotation;
+
 	// normally the same as ViewMatrices unless "r.Shadow.FreezeCamera" is activated
 	FViewMatrices ShadowViewMatrices;
 
@@ -1657,6 +1661,9 @@ public:
 	
 	/** Editor setting to allow designers to override the automatic expose. 0:Automatic, following indices: -4 .. +4 */
 	FExposureSettings ExposureSettings;
+
+	/** Enable LateLatching mechanism for this viewFamily */
+	bool bLateLatchingEnabled;
 
     /** Extensions that can modify view parameters on the render thread. */
     TArray<TSharedRef<class ISceneViewExtension, ESPMode::ThreadSafe> > ViewExtensions;

@@ -1949,6 +1949,28 @@ namespace OculusHMD
 		return GEngine && GEngine->IsStereoscopic3D(Context.Viewport);
 	}
 
+	bool FOculusHMD::LateLatchingEnabled() const
+	{
+#if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN && PLATFORM_ANDROID
+		// No LateLatching supported when occlusion culling is enabled due to mid frame submission
+		// No LateLatching supported for non Multi view ATM due to viewUniformBuffer reusing.
+		// The setting can be disabled in FOculusHMD::UpdateStereoRenderingParams
+		return Settings->bLateLatching;
+#else
+		return false;
+#endif
+	}
+
+
+	void FOculusHMD::PreLateLatchingViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+	{
+		CheckInRenderThread();
+		FGameFrame* CurrentFrame = GetFrame_RenderThread();
+		if (CurrentFrame)
+		{
+			CurrentFrame->Flags.bRTLateUpdateDone = false; // Allow LateLatching to update poses again
+		}
+	}
 
 	FOculusHMD::FOculusHMD(const FAutoRegister& AutoRegister)
 		: FHeadMountedDisplayBase(nullptr)
@@ -2491,6 +2513,19 @@ namespace OculusHMD
 		{
 			Layout = ovrpLayout_Array;
 			Settings->Flags.bIsUsingDirectMultiview = true;
+		}
+		else if (Settings->bLateLatching)
+		{
+			UE_CLOG(true, LogHMD, Error, TEXT("LateLatching can't be used when Multiview is off, force disabling."));
+			Settings->bLateLatching = false;
+		}
+
+		static const auto AllowOcclusionQueriesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowOcclusionQueries"));
+		const bool bAllowOcclusionQueries = AllowOcclusionQueriesCVar && (AllowOcclusionQueriesCVar->GetValueOnAnyThread() != 0);
+		if (bAllowOcclusionQueries && Settings->bLateLatching)
+		{
+			UE_CLOG(true, LogHMD, Error, TEXT("LateLatching can't used when Occlusion culling is on due to mid frame vkQueueSubmit, force disabling"));
+			Settings->bLateLatching = false;
 		}
 
 #endif
@@ -3560,6 +3595,7 @@ namespace OculusHMD
 		Settings->GPULevel = HMDSettings->GPULevel;
 		Settings->PixelDensityMin = HMDSettings->PixelDensityMin;
 		Settings->PixelDensityMax = HMDSettings->PixelDensityMax;
+		Settings->bLateLatching = HMDSettings->bLateLatching;
 	}
 
 	/// @endcond

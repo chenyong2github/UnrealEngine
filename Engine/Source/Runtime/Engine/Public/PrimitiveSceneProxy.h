@@ -559,9 +559,17 @@ public:
 	inline bool NeedsLevelAddedToWorldNotification() const { return bNeedsLevelAddedToWorldNotification; }
 	inline bool IsComponentLevelVisible() const { return bIsComponentLevelVisible; }
 	inline bool ShouldReceiveMobileCSMShadows() const { return bReceiveMobileCSMShadows; }
+	inline void SetPatchingFrameNumber(int32 FrameNumber)
+	{
+		if (GetUniformBuffer() != nullptr)
+		{
+			UniformBuffer->SetPatchingFrameNumber(FrameNumber);
+		}
+	}
 
 	/** Returns whether draws velocity in base pass. */
-	inline bool DrawsVelocity() const {
+	inline bool DrawsVelocity() const 
+	{
 		return IsMovable();
 	}
 

@@ -100,6 +100,7 @@ void FVulkanUniformBuffer::UpdateResourceTable(FRHIResource** Resources, int32 R
 
 FVulkanEmulatedUniformBuffer::FVulkanEmulatedUniformBuffer(const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation)
 	: FVulkanUniformBuffer(InLayout, Contents, InUsage, Validation)
+	, PatchingFrameNumber(-1)
 {
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
 	SCOPE_CYCLE_COUNTER(STAT_VulkanUniformBufferCreateTime);
@@ -341,6 +342,41 @@ FVulkanUniformBufferUploader::FVulkanUniformBufferUploader(FVulkanDevice* InDevi
 			CPUBuffer = new FVulkanRingBuffer(InDevice, PackedUniformsRingBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		}
 	}
+
+	bEnableUniformBufferPatching = false;
+	UniformBufferPatchingFrameNumber = -1;
+	if (FVulkanPlatform::SupportsUniformBufferPatching())
+		BufferPatchInfos.Reserve(1000);
+}
+
+void FVulkanUniformBufferUploader::ApplyUniformBufferPatching(bool bNeedAbort)
+{
+	int PatchCount = BufferPatchInfos.Num();
+
+	if (bNeedAbort)
+	{
+		for (int i = 0; i < PatchCount; i++)
+		{
+			FUniformBufferPatchInfo& PatchInfo = BufferPatchInfos[i];
+			FVulkanEmulatedUniformBuffer* Emulate = (FVulkanEmulatedUniformBuffer*)PatchInfo.SourceBuffer;
+			if (Emulate->GetPatchingFrameNumber() > 0)
+			{
+				Emulate->SetPatchingFrameNumber(-1);
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < PatchCount; i++)
+		{
+			FUniformBufferPatchInfo& PatchInfo = BufferPatchInfos[i];
+			ensureMsgf(PatchInfo.SourceBuffer != NULL, TEXT("PatchInfo.SourceBuffer can't be null"));
+			FVulkanEmulatedUniformBuffer* Emulate = (FVulkanEmulatedUniformBuffer*)PatchInfo.SourceBuffer;
+			FMemory::Memcpy(PatchInfo.DestBufferAddress, Emulate->ConstantData.GetData() + PatchInfo.SourceOffsetInFloats * sizeof(float), PatchInfo.SizeInFloats * sizeof(float));
+		}
+	}
+
+	BufferPatchInfos.Empty(BufferPatchInfos.Num());
 }
 
 FVulkanUniformBufferUploader::~FVulkanUniformBufferUploader()

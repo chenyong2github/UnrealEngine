@@ -55,6 +55,7 @@
 #include "MobileDeferredShadingPass.h"
 #include "PlanarReflectionSceneProxy.h"
 #include "SceneOcclusion.h"
+#include "VariableRateShadingImageManager.h"
 
 uint32 GetShadowQuality();
 
@@ -573,6 +574,46 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	bSubmitOffscreenRendering = (!bGammaSpace || bRenderToSceneColor) && CVarMobileFlushSceneColorRendering.GetValueOnAnyThread() != 0;
 }
 
+void FMobileSceneRenderer::BeginLateLatching(FRHICommandListImmediate& RHICmdList)
+{
+	SCOPED_NAMED_EVENT(BeginLateLatching, FColor::Orange);
+	uint32 FrameNumber = ViewFamily.FrameNumber;
+	Scene->UniformBuffers.ViewUniformBuffer->SetPatchingFrameNumber(FrameNumber);
+	Scene->UniformBuffers.InstancedViewUniformBuffer->SetPatchingFrameNumber(FrameNumber);
+	RHICmdList.BeginLateLatching(FrameNumber);
+}
+
+void FMobileSceneRenderer::EndLateLatching(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+{
+	SCOPED_NAMED_EVENT(ApplyLateLatching, FColor::Orange);
+
+	// Flush to reduce post latelatching overhead
+	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+
+	for (int32 ViewExt = 0; ViewExt < ViewFamily.ViewExtensions.Num(); ++ViewExt)
+	{
+		ViewFamily.ViewExtensions[ViewExt]->PreLateLatchingViewFamily_RenderThread(RHICmdList, ViewFamily);
+	}
+
+	for (int32 ViewExt = 0; ViewExt < ViewFamily.ViewExtensions.Num(); ++ViewExt)
+	{
+		ViewFamily.ViewExtensions[ViewExt]->LateLatchingViewFamily_RenderThread(RHICmdList, ViewFamily);
+		for (int ViewIndex = 0; ViewIndex < ViewFamily.Views.Num(); ViewIndex++)
+		{
+			ViewFamily.ViewExtensions[ViewExt]->LateLatchingView_RenderThread(RHICmdList, ViewFamily, Views[ViewIndex]);
+		}
+	}
+
+	for (int ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		Views[ViewIndex].UpdateLateLatchData();
+	}
+
+	Scene->UniformBuffers.CachedView = NULL;
+	Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+	RHICmdList.EndLateLatching();
+}
+
 /** 
 * Renders the view family. 
 */
@@ -639,6 +680,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneSim));
+
+	if (ViewFamily.bLateLatchingEnabled)
+	{
+		BeginLateLatching(RHICmdList);
+	}
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
@@ -904,6 +950,12 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneContext.SceneVelocity.SafeRelease();
 	}
 	
+	if (ViewFamily.bLateLatchingEnabled)
+	{
+		// LateLatching is only enabled with multiview
+		EndLateLatching(RHICmdList, Views[0]);
+	}
+
 	RenderFinish(GraphBuilder, ViewFamilyTexture);
 	GraphBuilder.Execute();
 
@@ -986,9 +1038,13 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 
 	FRHITexture* ShadingRateTexture = nullptr;
 	
-	if (SceneContext.IsShadingRateTextureTextureAllocated()	&& !View.bIsSceneCapture && !View.bIsReflectionCapture)
+	if (!View.bIsSceneCapture && !View.bIsReflectionCapture)
 	{
-		ShadingRateTexture = SceneContext.GetShadingRateTexture();
+		TRefCountPtr<IPooledRenderTarget> ShadingRateTarget = GVRSImageManager.GetMobileVariableRateShadingImage(ViewFamily);
+		if (ShadingRateTarget.IsValid())
+		{
+			ShadingRateTexture = ShadingRateTarget->GetRenderTargetItem().ShaderResourceTexture;
+		}
 	}
 
 	FRHIRenderPassInfo SceneColorRenderPassInfo(

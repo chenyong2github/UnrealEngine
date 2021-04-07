@@ -273,6 +273,12 @@ static TAutoConsoleVariable<int32> CVarEnableMultiGPUForkAndJoin(
 	ECVF_Default
 	);
 
+static TAutoConsoleVariable<int32> CVarEnableLateLatching(
+	TEXT("r.EnableLateLatching"),
+	1,
+	TEXT("Whether to allow late-latching functionality (currently only supported on Oculus Quest/Quest2)."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 /*-----------------------------------------------------------------------------
 	FParallelCommandListSet
 -----------------------------------------------------------------------------*/
@@ -1816,6 +1822,29 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.VTFeedbackBuffer = SceneContext.GetVirtualTextureFeedbackUAV();
 	ViewUniformShaderParameters.QuadOverdraw = SceneContext.GetQuadOverdrawBufferUAV();
 }
+
+void FViewInfo::UpdateLateLatchData()
+{
+	FBox VolumeBounds[TVC_MAX];
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(FRHICommandListExecutor::GetImmediateCommandList());
+	SetupUniformBufferParameters(
+		SceneContext,
+		VolumeBounds,
+		TVC_MAX,
+		*CachedViewUniformShaderParameters);
+
+	ViewUniformBuffer.UpdateUniformBufferImmediate(*CachedViewUniformShaderParameters);
+
+	FVector PreViewOrigin = CachedViewUniformShaderParameters->PrevPreViewTranslation;
+	FVector CurrentOrigin = CachedViewUniformShaderParameters->PreViewTranslation;
+
+	// Refresh for next frame, important for correct velocity buffer generation and some shader effects
+	if (this->ViewState)
+	{
+		this->ViewState->PrevFrameViewInfo.ViewMatrices = ViewMatrices;
+	}
+}
+
 
 void FViewInfo::InitRHIResources()
 {

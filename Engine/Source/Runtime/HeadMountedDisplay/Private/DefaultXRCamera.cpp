@@ -109,6 +109,10 @@ void FDefaultXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RHIC
 
 		if (TrackingSystem->GetCurrentPose(DeviceId, DeviceOrientation, DevicePosition))
 		{
+			// Recover pre stereo ViewLocation since it can be polluted in previous stereo View.UpdateViewMatrix()
+			View.ViewLocation = View.BaseHmdViewLocation;
+			View.ViewRotation = View.BaseHmdViewRotation;
+
 			const FQuat DeltaOrient = View.BaseHmdOrientation.Inverse() * DeviceOrientation;
 			View.ViewRotation = FRotator(View.ViewRotation.Quaternion() * DeltaOrient);
 
@@ -118,6 +122,12 @@ void FDefaultXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RHIC
 				const FVector DeltaPosition = DevicePosition - View.BaseHmdLocation;
 				View.ViewLocation += LocalDeltaControlOrientation.RotateVector(DeltaPosition);
 			}
+
+			// Save Base Pose for next delta transform in render thread since View.ViewLocation will be polluted in stereo UpdateViewMatrix()
+			View.BaseHmdLocation = DevicePosition;
+			View.BaseHmdOrientation = DeviceOrientation;
+			View.BaseHmdViewLocation = View.ViewLocation;
+			View.BaseHmdViewRotation = View.ViewRotation;
 		
 			View.UpdateViewMatrix();
 		}
@@ -152,6 +162,18 @@ void FDefaultXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImmediate
 	}
 	TrackingSystem->OnBeginRendering_RenderThread(RHICmdList, ViewFamily);
 
+	if (TrackingSystem->DoesSupportLateUpdate())
+	{
+		// The single point to enable and disable LateLatching
+		ViewFamily.bLateLatchingEnabled = TrackingSystem->LateLatchingEnabled();
+
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.EnableLateLatching"));
+		if (!CVar->GetValueOnAnyThread())
+		{
+			ViewFamily.bLateLatchingEnabled = false;
+		}
+	}
+
 	{
 		FQuat CurrentOrientation;
 		FVector CurrentPosition;
@@ -166,19 +188,76 @@ void FDefaultXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImmediate
 			const FTransform OldRelativeTransform(MainView->BaseHmdOrientation, MainView->BaseHmdLocation);
 			const FTransform CurrentRelativeTransform(CurrentOrientation, CurrentPosition);
 
-			LateUpdate.Apply_RenderThread(ViewFamily.Scene, OldRelativeTransform, CurrentRelativeTransform);
+			LateUpdate.Apply_RenderThread(ViewFamily.Scene, ViewFamily.bLateLatchingEnabled ? ViewFamily.FrameNumber : -1, OldRelativeTransform, CurrentRelativeTransform);
 			TrackingSystem->OnLateUpdateApplied_RenderThread(RHICmdList, CurrentRelativeTransform);
 
 			{
 				// Backwards compatibility during deprecation phase. Remove once IHeadMountedDisplay::BeginRendering_RenderThread has been removed.
 				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					auto HMD = TrackingSystem->GetHMDDevice();
+				auto HMD = TrackingSystem->GetHMDDevice();
 				if (HMD)
 				{
 					HMD->BeginRendering_RenderThread(CurrentRelativeTransform, RHICmdList, ViewFamily);
 				}
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
+		}
+	}
+}
+
+void FDefaultXRCamera::LateLatchingViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+{
+	FQuat DeviceOrientation;
+	FVector DevicePosition;
+
+	ensure(InViewFamily.bLateLatchingEnabled);
+	if (TrackingSystem->DoesSupportLateUpdate())
+	{
+		if (TrackingSystem->GetCurrentPose(DeviceId, DeviceOrientation, DevicePosition))
+		{
+			// Update Primitives
+			const FSceneView* MainView = InViewFamily.Views[0];
+			check(MainView);
+
+			const FTransform OldRelativeTransform(MainView->BaseHmdOrientation, MainView->BaseHmdLocation);
+			const FTransform CurrentRelativeTransform(DeviceOrientation, DevicePosition);
+			LateUpdate.Apply_RenderThread(InViewFamily.Scene, InViewFamily.FrameNumber, OldRelativeTransform, CurrentRelativeTransform);
+		}
+	}
+}
+
+
+void FDefaultXRCamera::LateLatchingView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily, FSceneView& View)
+{
+	FQuat DeviceOrientation;
+	FVector DevicePosition;
+
+	ensure(InViewFamily.bLateLatchingEnabled);
+	if (TrackingSystem->DoesSupportLateUpdate())
+	{
+		if (TrackingSystem->GetCurrentPose(DeviceId, DeviceOrientation, DevicePosition))
+		{
+			// Recover pre stereo ViewLocation since it can be polluted in previous stereo View.UpdateViewMatrix()
+			View.ViewLocation = View.BaseHmdViewLocation;
+			View.ViewRotation = View.BaseHmdViewRotation;
+
+			const FQuat DeltaOrient = View.BaseHmdOrientation.Inverse() * DeviceOrientation;
+			View.ViewRotation = FRotator(View.ViewRotation.Quaternion() * DeltaOrient);
+
+			if (bUseImplicitHMDPosition)
+			{
+				const FQuat LocalDeltaControlOrientation = View.ViewRotation.Quaternion() * DeviceOrientation.Inverse();
+				const FVector DeltaPosition = DevicePosition - View.BaseHmdLocation;
+				View.ViewLocation += LocalDeltaControlOrientation.RotateVector(DeltaPosition);
+			}
+
+			// Save Base Pose for next delta transform in render thread since View.ViewLocation will be polluted in stereo UpdateViewMatrix()
+			View.BaseHmdLocation = DevicePosition;
+			View.BaseHmdOrientation = DeviceOrientation;
+			View.BaseHmdViewLocation = View.ViewLocation;
+			View.BaseHmdViewRotation = View.ViewRotation;
+
+			View.UpdateViewMatrix();
 		}
 	}
 }
@@ -203,6 +282,8 @@ void FDefaultXRCamera::SetupView(FSceneViewFamily& InViewFamily, FSceneView& InV
 	{
 		InView.BaseHmdOrientation = DeviceOrientation;
 		InView.BaseHmdLocation = DevicePosition;
+		InView.BaseHmdViewLocation = InView.ViewLocation;
+		InView.BaseHmdViewRotation = InView.ViewRotation;
 	}
 }
 

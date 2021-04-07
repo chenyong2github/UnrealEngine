@@ -182,6 +182,21 @@ public:
 	virtual bool IsActiveThisFrame(class FViewport* InViewport) const { return true; }
 
 	/**
+	 * Called right before late latching on all view extensions
+	 */
+	virtual void PreLateLatchingViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {};
+
+	/**
+	 * Called to apply late latching per viewFamily
+	 */
+	virtual void LateLatchingViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {};
+
+	/**
+	 * Called to apply late latching per view
+	 */
+	virtual void LateLatchingView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily, FSceneView& View) {};
+
+	/**
 	 * Returning false disables the extension for the current frame in the given context. This will be queried each frame to determine if the extension wants to run.
 	 */
 	virtual bool IsActiveThisFrame(const FSceneViewExtensionContext& Context) const { return IsActiveThisFrame_Internal(Context); }

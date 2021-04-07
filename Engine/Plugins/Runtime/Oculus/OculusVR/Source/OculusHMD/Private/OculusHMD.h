@@ -213,7 +213,8 @@ public:
 	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 	virtual int32 GetPriority() const override;
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
-
+	virtual bool LateLatchingEnabled() const override;
+	virtual void PreLateLatchingViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 
 public:
 	FOculusHMD(const FAutoRegister&);

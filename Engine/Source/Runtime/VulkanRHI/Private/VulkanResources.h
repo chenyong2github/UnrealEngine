@@ -1086,6 +1086,14 @@ protected:
 struct FVulkanUniformBufferUploader : public VulkanRHI::FDeviceChild
 {
 public:
+	struct FUniformBufferPatchInfo
+	{
+		const class FVulkanUniformBuffer* SourceBuffer; // Todo replace it with a true buffer handle instead of pointer.
+		uint16 SourceOffsetInFloats;
+		uint16 SizeInFloats;
+		uint8* RESTRICT DestBufferAddress;
+	};
+
 	FVulkanUniformBufferUploader(FVulkanDevice* InDevice);
 	~FVulkanUniformBufferUploader();
 
@@ -1114,8 +1122,19 @@ public:
 		return CPUBuffer->GetBufferOffset();
 	}
 
+	inline TArray<FUniformBufferPatchInfo>& GetUniformBufferPatchInfo()
+	{
+		return BufferPatchInfos;
+	}
+
+	void ApplyUniformBufferPatching(bool bNeedAbort);
+	int32 UniformBufferPatchingFrameNumber;
+	bool bEnableUniformBufferPatching;
+	uint64 BeginPatchSubmitCounter;
+
 protected:
 	FVulkanRingBuffer* CPUBuffer;
+	TArray<FUniformBufferPatchInfo> BufferPatchInfos;
 	friend class FVulkanCommandListContext;
 };
 
@@ -1278,6 +1297,12 @@ public:
 	TArray<uint8> ConstantData;
 
 	void UpdateConstantData(const void* Contents, int32 ContentsSize);
+
+	virtual int32 GetPatchingFrameNumber() const override { return PatchingFrameNumber; };
+	virtual void SetPatchingFrameNumber(int32 FrameNumber) override { PatchingFrameNumber = FrameNumber; };
+
+protected:
+	uint32 PatchingFrameNumber;
 };
 
 class FVulkanRealUniformBuffer : public FVulkanUniformBuffer
@@ -1448,6 +1473,33 @@ public:
 	// One buffer is a chunk of bytes
 	typedef TArray<uint8> FPackedBuffer;
 
+	void LazyInitSrcUniformPatchingResources()
+	{
+		PackedBufferSegmentIndices.AddDefaulted(PackedUniformBuffers.Num());
+		PackedBufferSegmentSources.AddDefaulted(PackedUniformBuffers.Num());
+		PackedBufferSegmentFrameIndex.AddDefaulted(PackedUniformBuffers.Num());
+		CopyInfoRemapping.AddZeroed(EmulatedUBsCopyInfo.Num());
+		for (int32 RangeIndex = 0; RangeIndex < EmulatedUBsCopyRanges.Num(); ++RangeIndex)
+		{
+			uint32 Range = EmulatedUBsCopyRanges[RangeIndex];
+			uint16 Start = (Range >> 16) & 0xffff;
+			uint16 Count = Range & 0xffff;
+			for (int32 Index = Start; Index < Start + Count; ++Index)
+			{
+				const CrossCompiler::FUniformBufferCopyInfo& CopyInfo = EmulatedUBsCopyInfo[Index];
+				int32 PackedUniformBufferIndex = (int32)CopyInfo.DestUBIndex;
+				check(CopyInfo.SourceUBIndex == RangeIndex);
+				CopyInfoRemapping[Index] = PackedBufferSegmentIndices[PackedUniformBufferIndex].Num();
+				PackedBufferSegmentIndices[PackedUniformBufferIndex].Push(Index);
+
+				// Initialize as 0
+				PackedBufferSegmentFrameIndex[PackedUniformBufferIndex].Push(-1);
+				PackedBufferSegmentSources[PackedUniformBufferIndex].Push(NULL);
+			}
+		}
+		bSrcUniformPatchingResourceInitialized = true;
+	}
+
 	void Init(const FVulkanShaderHeader& InCodeHeader, uint64& OutPackedUniformBufferStagingMask)
 	{
 		PackedUniformBuffers.AddDefaulted(InCodeHeader.PackedUBs.Num());
@@ -1459,6 +1511,7 @@ public:
 		OutPackedUniformBufferStagingMask = ((uint64)1 << (uint64)InCodeHeader.PackedUBs.Num()) - 1;
 		EmulatedUBsCopyInfo = InCodeHeader.EmulatedUBsCopyInfo;
 		EmulatedUBsCopyRanges = InCodeHeader.EmulatedUBCopyRanges;
+		bSrcUniformPatchingResourceInitialized = false;
 	}
 
 	inline void SetPackedGlobalParameter(uint32 BufferIndex, uint32 ByteOffset, uint32 NumBytes, const void* RESTRICT NewValue, uint64& InOutPackedUniformBufferStagingDirty)
@@ -1480,7 +1533,7 @@ public:
 	}
 
 	// Copies a 'real' constant buffer into the packed globals uniform buffer (only the used ranges)
-	inline void SetEmulatedUniformBufferIntoPacked(uint32 BindPoint, const TArray<uint8>& ConstantData, uint64& NEWPackedUniformBufferStagingDirty)
+	inline void SetEmulatedUniformBufferIntoPacked(uint32 BindPoint, const TArray<uint8>& ConstantData, const FVulkanUniformBuffer* SrcBuffer, uint64& NEWPackedUniformBufferStagingDirty)
 	{
 		// Emulated UBs. Assumes UniformBuffersCopyInfo table is sorted by CopyInfo.SourceUBIndex
 		if (BindPoint < (uint32)EmulatedUBsCopyRanges.Num())
@@ -1505,6 +1558,21 @@ public:
 				}
 				while (RawSrc != RawSrcEnd);
 				NEWPackedUniformBufferStagingDirty = NEWPackedUniformBufferStagingDirty | ((uint64)(bChanged ? 1 : 0) << (uint64)CopyInfo.DestUBIndex);
+
+				// For Non-LateLatching Flaged buffer, GetPatchingFrameNumber() == -1
+				int32 PatchingFrameNumber = SrcBuffer->GetPatchingFrameNumber();
+				if (PatchingFrameNumber > 0)
+				{
+					if (!bSrcUniformPatchingResourceInitialized)
+					{
+						LazyInitSrcUniformPatchingResources();
+					}
+					MaskPackedBufferCopyInfoSegmentSource(SrcBuffer, PatchingFrameNumber, Index, CopyInfo.DestUBIndex);
+				}
+				else if (bSrcUniformPatchingResourceInitialized)
+				{
+					MaskPackedBufferCopyInfoSegmentSource(NULL, -1, Index, CopyInfo.DestUBIndex);
+				}
 			}
 		}
 	}
@@ -1514,12 +1582,68 @@ public:
 		return PackedUniformBuffers[Index];
 	}
 
+	inline void RecordUniformBufferPatch(TArray<FVulkanUniformBufferUploader::FUniformBufferPatchInfo>& PostBindingPatches, int32 FrameNumber, int32 PackedBufferIndex, uint8* RESTRICT OffsetedCPUAddress) const
+	{
+		if (bSrcUniformPatchingResourceInitialized)
+		{
+			for (int i = 0; i < PackedBufferSegmentIndices[PackedBufferIndex].Num(); i++)
+			{
+				if (PackedBufferSegmentFrameIndex[PackedBufferIndex][i] == FrameNumber)
+				{
+					// ensure(PackedBufferSegmentSources[PackedBufferIndex][i] != NULL);
+					const CrossCompiler::FUniformBufferCopyInfo& CopyInfo = EmulatedUBsCopyInfo[PackedBufferSegmentIndices[PackedBufferIndex][i]];
+					FVulkanUniformBufferUploader::FUniformBufferPatchInfo PatchInfo;
+					PatchInfo.DestBufferAddress = OffsetedCPUAddress + CopyInfo.DestOffsetInFloats * sizeof(float);
+					PatchInfo.SizeInFloats = CopyInfo.SizeInFloats;
+					PatchInfo.SourceOffsetInFloats = CopyInfo.SourceOffsetInFloats;
+					PatchInfo.SourceBuffer = PackedBufferSegmentSources[PackedBufferIndex][i];
+					PostBindingPatches.Push(PatchInfo);
+				}
+			}
+		}
+	}
+
+	inline void MaskPackedBufferCopyInfoSegmentSource(const FVulkanUniformBuffer* SrcBuffer, const int32 PatchingFrameNumber, int EmulatedUBsCopyInfoIndex, int PackedBufferIndex)
+	{
+		int PackedSegIndex = CopyInfoRemapping[EmulatedUBsCopyInfoIndex];
+		PackedBufferSegmentFrameIndex[PackedBufferIndex][PackedSegIndex] = PatchingFrameNumber;
+		PackedBufferSegmentSources[PackedBufferIndex][PackedSegIndex] = SrcBuffer;
+
+		// Validation
+		// ensureMsgf(PackedSegIndex == PackedBufferSegmentIndices[PackedBufferIndex][PackedSegIndex], TEXT("Mismatch: PackedBufferSegmentIndices %d EmulatedUBsCopyInfoIndex %d"), PackedBufferSegmentIndices[PackedBufferIndex][PackedSegIndex], PackedSegIndex);
+	}
+
 protected:
 	TArray<FPackedBuffer>									PackedUniformBuffers;
 
 	// Copies to Shader Code Header (shaders may be deleted when we use this object again)
 	TArray<CrossCompiler::FUniformBufferCopyInfo>			EmulatedUBsCopyInfo;
 	TArray<uint32>											EmulatedUBsCopyRanges;
+
+	// Pre-built static structure, Only created in lazy-initialization
+	// Purpose: Translate EmulatedUBsCopyInfoIndex into PackedSegIndex, so given an EmulatedUBsCopyInfoIndex, we know where it goes in the PackedUniformBuffers
+	// It has the same dimension with EmulatedUBsCopyInfo array
+	// Example: if we have an CopyInfoIndex for EmulatedUBsCopyInfo[*], we can found it is corresponding segment postion 
+	// SegIndex = CopyInfoRemapping[CopyInfoIndex] in the packedUniformBuffer
+	// So  PackedBufferSegmentIndices[PackedBufferIndex][SegIndex] is pointing back to CopyInfoIndex
+	//     PackedBufferSegmentSources[PackedBufferIndex][SegIndex] is pointing to the src uniform buffer
+	//     PackedBufferSegmentFrameIndex[PackedBufferIndex][SegIndex] to the frameIndex last time latched
+	// Note: here PackedBufferIndex is the PackedUniformBuffers ( CopyInfo.DestUBIndex )
+	TArray<int>	CopyInfoRemapping;
+
+	// Pre-built static structure, Only created in lazy-initialization from shader compiler meta data
+	// Purpose: A representation of packedUnformBuffer segments, the returned value is used to index EmulatedUBsCopyInfo
+	// Example: for a given PackedUniformBufferIndex, we can iterate through all packed segments by 
+	// iterating PackedBufferSegmentIndices[PackedUniformBufferIndex][*], then
+	// retIndex = PackedBufferSegmentIndices[PackedUniformBufferIndex][*], retIndex can be used to read  EmulatedUBsCopyInfo[retIndex]
+	TArray<TArray<int>>	PackedBufferSegmentIndices;
+
+	// Dynamic: works like a dirty mask for updateDescriptorSet to detect if we need post binding patching
+	// Same dimension with PackedBufferSegmentIndices, they are PackedBuffer point of view data structure as well
+	TArray<TArray<const FVulkanUniformBuffer*>>					PackedBufferSegmentSources;
+	TArray<TArray<int32>>										PackedBufferSegmentFrameIndex;
+	bool bSrcUniformPatchingResourceInitialized = false;
+
 };
 
 class FVulkanStagingBuffer : public FRHIStagingBuffer

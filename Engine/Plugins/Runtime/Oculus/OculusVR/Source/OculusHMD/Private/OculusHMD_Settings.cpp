@@ -27,6 +27,7 @@ FSettings::FSettings() :
 	, HandTrackingSupport(EHandTrackingSupport::ControllersOnly)
 	, ColorScale(ovrpVector4f{1,1,1,1})
 	, ColorOffset(ovrpVector4f{0,0,0,0})
+	, bLateLatching(false)
 	, bApplyColorScaleAndOffsetToAllLayers(false)
 {
 	Flags.Raw = 0;

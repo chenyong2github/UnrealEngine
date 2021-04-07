@@ -114,6 +114,8 @@ public:
 		return !RequiresMobileRenderer();
 	}
 
+	static bool SupportsUniformBufferPatching();
+
 	// Assume most devices can't use the extra cores for running parallel tasks
 	static bool SupportParallelRenderingTasks() { return false; }
 

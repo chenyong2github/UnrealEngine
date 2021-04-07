@@ -520,7 +520,7 @@ void FMotionDelayClient::Apply_RenderThread(FSceneInterface* Scene)
 {
 	for (const FTargetTransform& Transform : TargetTransforms_RenderThread)
 	{
-		Transform.DelayTarget->LateUpdate.Apply_RenderThread(Scene, Transform.RestoreTransform, Transform.DelayTransform);
+		Transform.DelayTarget->LateUpdate.Apply_RenderThread(Scene, -1, Transform.RestoreTransform, Transform.DelayTransform);
 	}
 }
 
@@ -529,7 +529,7 @@ void FMotionDelayClient::Restore_RenderThread(FSceneInterface* Scene)
 {
 	for (const FTargetTransform& Transform : TargetTransforms_RenderThread)
 	{
-		Transform.DelayTarget->LateUpdate.Apply_RenderThread(Scene, Transform.DelayTransform, Transform.RestoreTransform);
+		Transform.DelayTarget->LateUpdate.Apply_RenderThread(Scene, -1, Transform.DelayTransform, Transform.RestoreTransform);
 	}
 }
 

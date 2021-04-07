@@ -1162,6 +1162,28 @@ FRHICOMMAND_MACRO(FRHICommandEndRenderPass)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandBeginLateLatching)
+{
+	int32 FrameNumber;
+
+	FRHICommandBeginLateLatching(int32 InFrameNumber)
+		:FrameNumber(InFrameNumber)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase & CmdList);
+};
+
+
+FRHICOMMAND_MACRO(FRHICommandEndLateLatching)
+{
+	FRHICommandEndLateLatching()
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 FRHICOMMAND_MACRO(FRHICommandNextSubpass)
 {
 	FRHICommandNextSubpass()
@@ -4728,6 +4750,30 @@ public:
 	 * @param bNeedReleaseRefs - whether Release need to be called on RHI resources referenced by update infos
 	 */
 	void UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num, bool bNeedReleaseRefs);
+
+	FORCEINLINE void BeginLateLatching(int32 FrameNumber)
+	{
+		if (Bypass())
+		{
+			GetContext().RHIBeginLateLatching(FrameNumber);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandBeginLateLatching)(FrameNumber);
+		}
+	}
+
+	FORCEINLINE void EndLateLatching()
+	{
+		if (Bypass())
+		{
+			GetContext().RHIEndLateLatching();
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandEndLateLatching)();
+		}
+	}
 };
 
 class FRHICommandListScopedFlushAndExecute

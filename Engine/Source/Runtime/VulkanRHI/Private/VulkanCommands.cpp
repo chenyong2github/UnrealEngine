@@ -534,7 +534,7 @@ inline void FVulkanCommandListContext::SetShaderUniformBuffer(ShaderStage::EStag
 		else
 		{
 			const FVulkanEmulatedUniformBuffer* EmulatedUniformBuffer = static_cast<const FVulkanEmulatedUniformBuffer*>(UniformBuffer);
-			PendingGfxState->SetUniformBufferConstantData(Stage, BufferIndex, EmulatedUniformBuffer->ConstantData);
+			PendingGfxState->SetUniformBufferConstantData(Stage, BufferIndex, EmulatedUniformBuffer->ConstantData, EmulatedUniformBuffer);
 		}
 	}
 
@@ -614,7 +614,7 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIComputeShader* Com
 		else
 		{
 			const FVulkanEmulatedUniformBuffer* EmulatedUniformBuffer = static_cast<const FVulkanEmulatedUniformBuffer*>(UniformBuffer);
-			State.SetUniformBufferConstantData(BufferIndex, EmulatedUniformBuffer->ConstantData);
+			State.SetUniformBufferConstantData(BufferIndex, EmulatedUniformBuffer->ConstantData, EmulatedUniformBuffer);
 		}
 	}
 
@@ -1079,4 +1079,31 @@ void* FVulkanCommandContextContainer::operator new(size_t Size)
 void FVulkanCommandContextContainer::operator delete(void* RawMemory)
 {
 	FMemory::Free(RawMemory);
+}
+
+void FVulkanCommandListContext::RHIBeginLateLatching(int32 FrameNumber)
+{
+	UniformBufferUploader->bEnableUniformBufferPatching = true;
+	UniformBufferUploader->UniformBufferPatchingFrameNumber = FrameNumber;
+	UniformBufferUploader->BeginPatchSubmitCounter = GetQueue()->GetSubmitCount();
+}
+
+void FVulkanCommandListContext::RHIEndLateLatching()
+{
+	// If Mid-Frame Submission happens, we should disable actual patching since GPU had probably already started consuming the data.
+	bool bNeedAbortPatching = (GetQueue()->GetSubmitCount() != UniformBufferUploader->BeginPatchSubmitCounter);
+	if (bNeedAbortPatching)
+	{
+		// Log once every 100 frames.
+		static int32 logCounter = 0;
+		if (logCounter % 100 == 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Warning: Late Latching aborting mid frame, SumbitCount Start %d End %d"), UniformBufferUploader->BeginPatchSubmitCounter, GetQueue()->GetSubmitCount());
+		}
+		logCounter++;
+	}
+
+	UniformBufferUploader->ApplyUniformBufferPatching(bNeedAbortPatching);
+	UniformBufferUploader->bEnableUniformBufferPatching = false;
+	UniformBufferUploader->UniformBufferPatchingFrameNumber = -1;
 }

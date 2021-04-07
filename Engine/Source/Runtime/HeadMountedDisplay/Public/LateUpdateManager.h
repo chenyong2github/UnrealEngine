@@ -23,7 +23,7 @@ public:
 	bool GetSkipLateUpdate_RenderThread() const { return UpdateStates[LateUpdateRenderReadIndex].bSkip; }
 
 	/** Apply the late update delta to the cached components */
-	void Apply_RenderThread(FSceneInterface* Scene, const FTransform& OldRelativeTransform, const FTransform& NewRelativeTransform);
+	void Apply_RenderThread(FSceneInterface* Scene, const int32 FrameNumber, const FTransform& OldRelativeTransform, const FTransform& NewRelativeTransform);
 
 private:
 
