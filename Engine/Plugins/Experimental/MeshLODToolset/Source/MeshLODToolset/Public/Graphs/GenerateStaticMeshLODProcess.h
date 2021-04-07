@@ -68,52 +68,56 @@ struct FGenerateStaticMeshLODProcessSettings
 
 	// Filter settings
 
-	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Detail Filtering"))
+	/** Group layer to use for filtering out detail before processing */
+	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Detail filter group layer"))
 	FName FilterGroupLayer = FName(TEXT("PreFilterGroups"));
 
 	// Thicken settings
 
+	/** Weight map used during mesh thickening */
 	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Thicken weight map name"))
 	FName ThickenWeightMapName = FName(TEXT("ThickenWeightMap"));
 
+	/** Amount to thicken the mesh prior to Solidifying. The thicken weight map values are multiplied by this value. */
 	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	float ThickenAmount = 0.0f;
 
 	// Solidify settings
 
+	/** Target number of voxels along the maximum dimension for Solidify operation */
 	UPROPERTY(EditAnywhere, Category = Solidify, meta = (UIMin = "8", UIMax = "1024", ClampMin = "8", ClampMax = "1024", DisplayName="Voxel Resolution"))
 	int SolidifyVoxelResolution = 64;
 
+	/** Winding number threshold to determine what is considered inside the mesh during Solidify */
 	UPROPERTY(EditAnywhere, Category = Solidify, AdvancedDisplay, meta = (UIMin = "0.1", UIMax = ".9", ClampMin = "-10", ClampMax = "10"))
 	float WindingThreshold = 0.5f;
 
 
 	// Morphology settings
 
-	//UPROPERTY(EditAnywhere, Category = Morphology, meta = (DisplayName = "Voxel Resolution"))
-	//int MorphologyVoxelResolution = 64;
-
+	/** Offset distance in the Morpohological Closure operation */
 	UPROPERTY(EditAnywhere, Category = Morphology, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", DisplayName = "Closure Distance"))
 	float ClosureDistance = 1.0f;
 
 
 	// Simplify settings
-
+	/** Target triangle count after simplification */
 	UPROPERTY(EditAnywhere, Category = Simplify, meta = (UIMin = "1", ClampMin = "1", DisplayName = "Simplify Tri Count"))
 	int SimplifyTriangleCount = 500;
 
 
 	// UV settings
-
+	/** Maximum number of charts to create in AutoUV */
 	UPROPERTY(EditAnywhere, Category = AutoUV, meta = (DisplayName = "AutoUV Charts", UIMin = 0, UIMax = 1000))
 	int NumAutoUVCharts = 0;
 
 
 	// Bake Settings
-
+	/** Resolution for normal map and texture baking */
 	UPROPERTY(EditAnywhere, Category = Baking , meta = (DisplayName = "Bake Image Res"))
 	EGenerateStaticMeshLODBakeResolution BakeResolution = EGenerateStaticMeshLODBakeResolution::Resolution512;
 
+	/** How far away from the output mesh to search for input mesh during baking */
 	UPROPERTY(EditAnywhere, Category = Baking, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", DisplayName = "Bake Thickness"))
 	float BakeThickness = 5.0f;
 
@@ -124,33 +128,36 @@ struct FGenerateStaticMeshLODProcessSettings
 
 
 	// Simple collision generator settings
-
+	/** Type of simple collision objects to produce */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (DisplayName = "Collision Type"))
 	EGenerateStaticMeshLODSimpleCollisionGeometryType CollisionType = EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls;
 
 	// Convex Hull Settings
-
+	/** Target triangle count for each convex hull after simplification */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (NoSpinbox = "true", DisplayName = "Convex Tri Count",
 														  EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls"))
 	int ConvexTriangleCount = 50;
 
+	/** Whether to subsample input vertices using a regular grid before computing the convex hull */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls"))
 	bool bPrefilterVertices = true;
 
-	/** Grid resolution (along the maximum-length axis) */
+	/** Grid resolution (along the maximum-length axis) for subsampling before computing the convex hull */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (NoSpinbox = "true", EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls && bPrefilterVertices", UIMin = 4, UIMax = 100))
 	int PrefilterGridResolution = 10;
 
 
 	// Swept Convex Hull Settings
-
+	/** Whether to simplify polygons used for swept convex hulls */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::SweptHulls"))
 	bool bSimplifyPolygons = true;
 
+	/** Target minumum edge length for simplified swept convex hulls */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (NoSpinbox = "true", UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "100000",
 														  EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::SweptHulls"))
 	float HullTolerance = 0.1;
 
+	/** Which axis to sweep along when computing swept convex hulls */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::SweptHulls"))
 	EGenerateStaticMeshLODProjectedHullAxisMode SweepAxis = EGenerateStaticMeshLODProjectedHullAxisMode::SmallestVolume;
 
@@ -175,9 +182,11 @@ public:
 	const FString& GetSourceAssetPath() const { return SourceAssetPath; }
 	const FString& GetSourceAssetFolder() const { return SourceAssetFolder; }
 	const FString& GetSourceAssetName() const { return SourceAssetName; }
-	static FString GetDefaultDerivedAssetSuffix() { return TEXT("_AutoLOD"); }
 
-	void CalculateDerivedPathName(FString NewAssetSuffix);
+	static FString GetDefaultDerivedAssetSuffix() { return TEXT("_AutoLOD"); }
+	const FString& GetDerivedAssetName() const { return DerivedAssetName; }
+
+	void CalculateDerivedPathName(const FString& NewAssetBaseName, const FString& NewAssetSuffix);
 
 	bool ComputeDerivedSourceData(FProgressCancel* Progress);
 	const FDynamicMesh3& GetDerivedLOD0Mesh() const { return DerivedLODMesh; }
@@ -251,8 +260,11 @@ protected:
 	TArray<FSourceMaterialInfo> SourceMaterials;
 
 	FString DerivedSuffix;
-	FString DerivedAssetFolder;
 	FString DerivedAssetPath;
+	FString DerivedAssetFolder;
+	FString DerivedAssetName;
+	FString DerivedAssetNameNoSuffix;
+	
 
 	FDynamicMesh3 DerivedLODMesh;				// the new generated LOD0 mesh
 	UE::Geometry::FMeshTangentsd DerivedLODMeshTangents;		// Tangents for DerivedLODMesh

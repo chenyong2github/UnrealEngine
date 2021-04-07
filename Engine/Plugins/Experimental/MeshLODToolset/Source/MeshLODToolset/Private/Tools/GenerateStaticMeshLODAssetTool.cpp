@@ -236,7 +236,8 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	BasicProperties = NewObject<UGenerateStaticMeshLODAssetToolProperties>(this);
 	AddToolPropertySource(BasicProperties);
 	BasicProperties->RestoreProperties(this);
-	BasicProperties->OutputName = AssetGenerationUtil::GetComponentAssetBaseName(TargetComponentInterface(0)->GetOwnerComponent());
+	FString FullPathWithExtension = UEditorAssetLibrary::GetPathNameForLoadedAsset(StaticMesh);
+	BasicProperties->NewAssetName = FPaths::GetBaseFilename(FullPathWithExtension, true);
 	BasicProperties->GeneratedSuffix = TEXT("_AutoLOD");
 	BasicProperties->GeneratorSettings = GenerateProcess->GetCurrentSettings();
 	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.FilterGroupLayer, [this](FName) { OnSettingsModified(); });
@@ -399,7 +400,7 @@ void UGenerateStaticMeshLODAssetTool::UpdateCollisionVisualization()
 void UGenerateStaticMeshLODAssetTool::CreateNewAsset()
 {
 	check(PreviewWithBackgroundCompute->HaveValidResult());
-	GenerateProcess->CalculateDerivedPathName(BasicProperties->GeneratedSuffix);
+	GenerateProcess->CalculateDerivedPathName(BasicProperties->NewAssetName, BasicProperties->GeneratedSuffix);
 
 	check(GenerateProcess->GraphEvalCriticalSection.TryLock());		// No ops should be running
 	GenerateProcess->WriteDerivedAssetData();
@@ -411,13 +412,13 @@ void UGenerateStaticMeshLODAssetTool::CreateNewAsset()
 void UGenerateStaticMeshLODAssetTool::UpdateExistingAsset()
 {
 	check(PreviewWithBackgroundCompute->HaveValidResult());
-	GenerateProcess->CalculateDerivedPathName(BasicProperties->GeneratedSuffix);
+	GenerateProcess->CalculateDerivedPathName(BasicProperties->NewAssetName, BasicProperties->GeneratedSuffix);
 
 	check(GenerateProcess->GraphEvalCriticalSection.TryLock());		// No ops should be running
 
 	// only updated HD source if we have no HD source asset. Otherwise we are overwriting with existing lowpoly LOD0.
 	bool bUpdateHDSource =
-		BasicProperties->bSaveAsHDSource &&
+		BasicProperties->bSaveInputAsHiResSource &&
 		(GenerateProcess->GetSourceStaticMesh()->IsHiResMeshDescriptionValid() == false);
 
 	GenerateProcess->UpdateSourceAsset(bUpdateHDSource);

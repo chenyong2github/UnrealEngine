@@ -381,7 +381,7 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 	SourceAssetFolder = FPaths::GetPath(SourceAssetPath);
 	SourceAssetName = FPaths::GetBaseFilename(FullPathWithExtension, true);
 
-	CalculateDerivedPathName(GetDefaultDerivedAssetSuffix());
+	CalculateDerivedPathName(SourceAssetName, GetDefaultDerivedAssetSuffix());
 
 	InitializeGenerator();
 
@@ -389,17 +389,23 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 }
 
 
-
-
-void UGenerateStaticMeshLODProcess::CalculateDerivedPathName(FString NewAssetSuffix)
+void UGenerateStaticMeshLODProcess::CalculateDerivedPathName(const FString& NewAssetBaseName, const FString& NewAssetSuffix)
 {
+	DerivedAssetNameNoSuffix = FPaths::MakeValidFileName(NewAssetBaseName);
+	if (DerivedAssetNameNoSuffix.Len() == 0)
+	{
+		DerivedAssetNameNoSuffix = SourceAssetName;
+	}
+
 	DerivedSuffix = FPaths::MakeValidFileName(NewAssetSuffix);
 	if (DerivedSuffix.Len() == 0)
 	{
 		DerivedSuffix = GetDefaultDerivedAssetSuffix();
 	}
-	DerivedAssetPath = FString::Printf(TEXT("%s%s"), *GetSourceAssetPath(), *DerivedSuffix);
-	DerivedAssetFolder = FPaths::GetPath(DerivedAssetPath);
+
+	DerivedAssetName = FString::Printf(TEXT("%s%s"), *DerivedAssetNameNoSuffix, *DerivedSuffix);
+	DerivedAssetFolder = SourceAssetFolder;
+	DerivedAssetPath = FPaths::Combine(DerivedAssetFolder, DerivedAssetName);
 }
 
 
@@ -898,7 +904,7 @@ void UGenerateStaticMeshLODProcess::WriteDerivedTextures(bool bCreatingNewStatic
 			FTexture2DBuilder::CopyPlatformDataToSourceData(DerivedNormalMapTex, FTexture2DBuilder::ETextureType::NormalMap);
 
 			// write asset
-			bool bWriteOK = WriteDerivedTexture(DerivedNormalMapTex, SourceAssetName + TEXT("_NormalMap"), bCreatingNewStaticMeshAsset);
+			bool bWriteOK = WriteDerivedTexture(DerivedNormalMapTex, DerivedAssetNameNoSuffix + TEXT("_NormalMap"), bCreatingNewStaticMeshAsset);
 			ensure(bWriteOK);
 		}
 	}

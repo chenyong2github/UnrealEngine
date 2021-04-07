@@ -62,19 +62,22 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolProperties : public UInt
 	GENERATED_BODY()
 
 public:
+
+	/** Whether to modify the static mesh in place or create a new one. */
 	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
 	EGenerateLODAssetOutputMode OutputMode = EGenerateLODAssetOutputMode::UpdateExistingAsset;
 
-	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
-	FString OutputName;
-
 	/** Base name for newly-generated asset */
+	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty, EditCondition = "OutputMode == EGenerateLODAssetOutputMode::CreateNewAsset"))
+	FString NewAssetName;
+
+	/** Suffix to append to newly-generated assets */
 	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
 	FString GeneratedSuffix;
 
-	/** If true, the high-resolution input mesh is stored as HD source mesh in the Asset */
+	/** If this is checked and the asset doesn't already have a HiRes source, the input mesh will be stored as the HiRes source */
 	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (EditCondition = "OutputMode == EGenerateLODAssetOutputMode::UpdateExistingAsset"))
-	bool bSaveAsHDSource = true;
+	bool bSaveInputAsHiResSource = true;
 
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FGenerateStaticMeshLODProcessSettings GeneratorSettings;
@@ -82,6 +85,7 @@ public:
 	// ------------
 	// Code copied from UPolygroupLayersProperties
 
+	/** Group layer to use for partitioning the mesh for simple collision generation */
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (GetOptions = GetGroupLayersFunc))
 	FName CollisionGroupLayerName = TEXT("Default");
 
