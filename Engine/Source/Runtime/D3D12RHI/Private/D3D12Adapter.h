@@ -347,7 +347,7 @@ public:
 
 	void TrackAllocationData(FD3D12ResourceLocation* InAllocation, uint64 InAllocationSize);
 	void ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAllocation);
-	void DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool bWithCallstack);
+	void DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool bResidentOnly, bool bWithCallstack);
 
 #if D3D12_SUBMISSION_GAP_RECORDER
 	FD3D12SubmissionGapRecorder SubmissionGapRecorder;
