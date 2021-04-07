@@ -49,7 +49,7 @@ struct FMappedTexturePage
 	FTexturePage Page;
 	uint32 pAddress : 16;
 	uint32 PhysicalSpaceID : 12;
-	uint32 vLevel : 4;
+	uint32 Local_vLevel : 4;
 };
 
 /**
@@ -98,7 +98,7 @@ public:
 	/**
 	* Map the physical address to a specific virtual address.
 	*/
-	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress);
+	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress);
 
 	void		GetMappedPagesInRange(uint32 vAddress, uint32 Width, uint32 Height, TArray<FMappedTexturePage>& OutMappedPages) const;
 
@@ -141,7 +141,7 @@ private:
 			{
 				uint32 pAddress : 16;
 				uint32 PhysicalSpaceID : 12;
-				uint32 vLevel : 4;
+				uint32 Local_vLevel : 4;
 			};
 		};
 	};

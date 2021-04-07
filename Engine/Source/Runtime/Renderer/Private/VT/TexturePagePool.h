@@ -133,7 +133,7 @@ public:
 	/**
 	* Map the physical address to a specific virtual address.
 	*/
-	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress);
+	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress);
 
 private:
 	// Allocate 24 bits to store next/prev indices, pack layer index into 8 bits
