@@ -157,11 +157,6 @@ bool FStaticMeshCompilingManager::IsAsyncStaticMeshCompilationEnabled() const
 		return false;
 	}
 
-	if (GetRunningCommandletClass() && (GetRunningCommandletClass()->GetName() == TEXT("WrangleContentCommandlet")))
-	{
-		return false;
-	}
-
 	StaticMeshCompilingManagerImpl::EnsureInitializedCVars();
 
 	return CVarAsyncStaticMeshStandard.AsyncCompilation.GetValueOnAnyThread() != 0;
