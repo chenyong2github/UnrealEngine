@@ -163,6 +163,11 @@ namespace Metasound
 				return DataTypeInfo.FindChecked(InDataTypeName);
 			}
 
+			virtual bool IsRegisteredDataType(FName InDataTypeName) const override
+			{
+				return DataTypeInfo.Contains(InDataTypeName);
+			}
+
 			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const override
 			{
 				for (const TPair<FName, FEditorDataType>& Pair : DataTypeInfo)

@@ -7,7 +7,6 @@
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphUtilities.h"
-#include "MetasoundEditorModule.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "Templates/Function.h"

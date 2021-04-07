@@ -653,42 +653,42 @@ namespace Metasound
 
 	// Disable transmission of audio formats
 	template<>
-	struct TIsTransmittable<FMonoAudioFormat>
+	struct TEnableTransmissionNodeRegistration<FMonoAudioFormat>
 	{
 		static constexpr bool Value = false;
 	};
 
 	template<>
-	struct TIsTransmittable<FStereoAudioFormat>
+	struct TEnableTransmissionNodeRegistration<FStereoAudioFormat>
 	{
 		static constexpr bool Value = false;
 	};
 
-	// Disable auto converts using audio format construtors
+	// Disable auto converts using audio format constructors
 	template<typename FromDataType>
-	struct TIsAutoConvertible<FromDataType, FMonoAudioFormat>
+	struct TEnableAutoConverterNodeRegistration<FromDataType, FMonoAudioFormat>
 	{
-		static constexpr bool bIsConvertible = std::is_convertible<FromDataType, FAudioBuffer>::value;
-
-		static constexpr bool bIsFromArithmeticType = std::is_arithmetic<FromDataType>::value;
-
-	public:
-
-		static constexpr bool Value = bIsConvertible && (!bIsFromArithmeticType);
+		static constexpr bool Value = !std::is_arithmetic<FromDataType>::value;
 	};
 
 	template<typename FromDataType>
-	struct TIsAutoConvertible<FromDataType, FStereoAudioFormat>
+	struct TEnableAutoConverterNodeRegistration<FromDataType, FStereoAudioFormat>
 	{
-		static constexpr bool bIsConvertible = std::is_convertible<FromDataType, FAudioBuffer>::value;
-
-		static constexpr bool bIsFromArithmeticType = std::is_arithmetic<FromDataType>::value;
-
-	public:
-
-		static constexpr bool Value = bIsConvertible && (!bIsFromArithmeticType);
+		static constexpr bool Value = !std::is_arithmetic<FromDataType>::value;
 	};
 
+	// Disable arrays of audio formats
+	template<>
+	struct TEnableAutoArrayTypeRegistration<FMonoAudioFormat>
+	{
+		static constexpr bool Value = false;
+	};
+
+	template<>
+	struct TEnableAutoArrayTypeRegistration<FStereoAudioFormat>
+	{
+		static constexpr bool Value = false;
+	};
 }
 
 // Data type registration has to happen after TInputNode<> and TOutputNode<> specializations

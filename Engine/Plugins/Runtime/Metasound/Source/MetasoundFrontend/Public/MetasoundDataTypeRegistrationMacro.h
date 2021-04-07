@@ -28,52 +28,80 @@
 
 namespace Metasound
 {
-	// Helper utility to test if we can transmit a datatype between a send and a receive node.
-	template <typename TDataType>
-	struct TIsTransmittable
+	/** Enables or disables automatic registration of array types given a 
+	 * MetaSound data type. By default this is true, and all data types will have
+	 * an associated TArray<DataType> registered if it is supported. */
+	template<typename ... Type>
+	struct TEnableAutoArrayTypeRegistration
 	{
-	private:
-		static constexpr bool bIsCopyConstructible = std::is_copy_constructible<TDataType>::value;
-		static constexpr bool bIsCopyAssignable = std::is_copy_assignable<TDataType>::value;
-
-		// TODO: audio types were intended to be send/receive nodes but they require 
-		// template specialization.  TIsTransmittable should ask the Send and Receive nodes
-		// if they are transmittable rather than attempting to do the logic for all
-		// types here. 
-		//static constexpr bool bIsAudioDataType = TIsDerivedFrom<TDataType, IAudioDataType>::Value;
-
-		static constexpr bool bCanBeTransmitted = bIsCopyConstructible && bIsCopyAssignable;
-
-	public:
-
-		static constexpr bool Value = bCanBeTransmitted;
+		static constexpr bool Value = true;
 	};
 
-	// Specialization of TIsTransmittable<> for TArray to handle lax TArray copy constructor 
-	// definition. This can be removed once updates to TArray are merged into the same codebase.
-	// TODO: delete me eventually.
-	template<typename TElementType>
-	struct TIsTransmittable<TArray<TElementType>>
+	/** Enables or disables automatic registration of auto conversion nodes given a 
+	 * MetaSound data type. By default this is true, and all data types will have
+	 * associated conversion nodes registered based upon the data types supported
+	 * constructors and implicit conversions. */
+	template<typename ... Type>
+	struct TEnableAutoConverterNodeRegistration
 	{
-		// Depend on copy constructor of elements to determine whether TArray is copy constructible
-		// and copy assignable. Definitions for TArray copy construction and copy assignment are
-		// defined by default whether or not the TArray element types support them. This logic
-		// skips checking the TArray object itselt and instead checks the TArray element type
-		// directly.
-
-		static constexpr bool Value = TIsTransmittable<TElementType>::Value;
+		static constexpr bool Value = true;
 	};
 
-	// Determines whether an auto converter node will be registered to convert 
-	// between two types. 
-	template<typename TFromDataType, typename TToDataType>
-	struct TIsAutoConvertible
+	/** Enables or disables send and receive node registration for a given MetaSound
+	 * data type. By default this is true and all data types supported by the transmission
+	 * system will have associated send and receive nodes. */
+	template<typename ... Type>
+	struct TEnableTransmissionNodeRegistration
 	{
-		static constexpr bool Value = std::is_convertible<TFromDataType, TToDataType>::value;
+		static constexpr bool Value = true;
 	};
 
 	namespace MetasoundDataTypeRegistrationPrivate
 	{
+
+		// Helper utility to test if we can transmit a datatype between a send and a receive node.
+		template <typename TDataType>
+		struct TIsTransmittable
+		{
+		private:
+			static constexpr bool bIsCopyConstructible = std::is_copy_constructible<TDataType>::value;
+			static constexpr bool bIsCopyAssignable = std::is_copy_assignable<TDataType>::value;
+
+			// TODO: audio types were intended to be send/receive nodes but they require 
+			// template specialization.  TIsTransmittable should ask the Send and Receive nodes
+			// if they are transmittable rather than attempting to do the logic for all
+			// types here. 
+			//static constexpr bool bIsAudioDataType = TIsDerivedFrom<TDataType, IAudioDataType>::Value;
+
+			static constexpr bool bCanBeTransmitted = bIsCopyConstructible && bIsCopyAssignable;
+
+		public:
+
+			static constexpr bool Value = bCanBeTransmitted;
+		};
+
+		// Specialization of TIsTransmittable<> for TArray to handle lax TArray copy constructor 
+		// definition. This can be removed once updates to TArray are merged into the same codebase.
+		// TODO: delete me eventually.
+		template<typename TElementType>
+		struct TIsTransmittable<TArray<TElementType>>
+		{
+			// Depend on copy constructor of elements to determine whether TArray is copy constructible
+			// and copy assignable. Definitions for TArray copy construction and copy assignment are
+			// defined by default whether or not the TArray element types support them. This logic
+			// skips checking the TArray object itselt and instead checks the TArray element type
+			// directly.
+
+			static constexpr bool Value = TIsTransmittable<TElementType>::Value;
+		};
+
+		// Determines whether an auto converter node will be registered to convert 
+		// between two types. 
+		template<typename TFromDataType, typename TToDataType>
+		struct TIsAutoConvertible
+		{
+			static constexpr bool Value = std::is_convertible<TFromDataType, TToDataType>::value;
+		};
 		// Returns the Array version of a literal type if it exists.
 		template<ELiteralType LiteralType>
 		struct TLiteralArrayEnum 
@@ -152,8 +180,11 @@ namespace Metasound
 		template<typename TDataType, typename TEnableIf<TIsTransmittable<TDataType>::Value, bool>::Type = true>
 		void AttemptToRegisterSendAndReceiveNodes()
 		{
-			ensureAlways(RegisterNodeWithFrontend<Metasound::TSendNode<TDataType>>());
-			ensureAlways(RegisterNodeWithFrontend<Metasound::TReceiveNode<TDataType>>());
+			if (TEnableTransmissionNodeRegistration<TDataType>::Value)
+			{
+				ensureAlways(RegisterNodeWithFrontend<Metasound::TSendNode<TDataType>>());
+				ensureAlways(RegisterNodeWithFrontend<Metasound::TReceiveNode<TDataType>>());
+			}
 		}
 
 		template<typename TDataType, typename TEnableIf<!TIsTransmittable<TDataType>::Value, bool>::Type = true>
@@ -170,15 +201,18 @@ namespace Metasound
 		{
 			using FConverterNode = Metasound::TAutoConverterNode<TFromDataType, TToDataType>;
 
-			const FNodeClassMetadata& Metadata = FConverterNode::GetAutoConverterNodeMetadata();
-			const Metasound::Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(Metadata);
-
-			if (!std::is_same<TFromDataType, TToDataType>::value && !FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(Key))
+			if (TEnableAutoConverterNodeRegistration<TFromDataType, TToDataType>::Value)
 			{
-				ensureAlways(RegisterNodeWithFrontend<FConverterNode>(Metadata));
-				
-				bool bSucessfullyRegisteredConversionNode = RegisterConversionNode<FConverterNode, TFromDataType, TToDataType>(FConverterNode::GetInputName(), FConverterNode::GetOutputName(), Metadata);
-				ensureAlways(bSucessfullyRegisteredConversionNode);
+				const FNodeClassMetadata& Metadata = FConverterNode::GetAutoConverterNodeMetadata();
+				const Metasound::Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(Metadata);
+
+				if (!std::is_same<TFromDataType, TToDataType>::value && !FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(Key))
+				{
+					ensureAlways(RegisterNodeWithFrontend<FConverterNode>(Metadata));
+					
+					bool bSucessfullyRegisteredConversionNode = RegisterConversionNode<FConverterNode, TFromDataType, TToDataType>(FConverterNode::GetInputName(), FConverterNode::GetOutputName(), Metadata);
+					ensureAlways(bSucessfullyRegisteredConversionNode);
+				}
 			}
 		}
 
@@ -384,10 +418,14 @@ namespace Metasound
 			using namespace MetasoundDataTypeRegistrationPrivate;
 			using TArrayType = TArray<TDataType>;
 
-			bool bSuccess = RegisterDataTypeWithFrontendInternal<TArrayType, TLiteralArrayEnum<PreferredArgType>::Value, UClassToUse>();
-			bSuccess = bSuccess && RegisterArrayNodes<TArrayType>();
+			if (TEnableAutoArrayTypeRegistration<TDataType>::Value)
+			{
+				bool bSuccess = RegisterDataTypeWithFrontendInternal<TArrayType, TLiteralArrayEnum<PreferredArgType>::Value, UClassToUse>();
+				bSuccess = bSuccess && RegisterArrayNodes<TArrayType>();
+				return bSuccess;
+			}
 
-			return bSuccess;
+			return true;
 		}
 	}
 	

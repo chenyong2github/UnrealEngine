@@ -9,18 +9,28 @@
 
 namespace Metasound
 {
+	// Disable registration of converter nodes which convert to enums
 	template<typename FromDataType, typename EnumType, EnumType DefaultValue>
-	struct TIsAutoConvertible<FromDataType, TEnum<EnumType, DefaultValue>>
+	struct TEnableAutoConverterNodeRegistration<FromDataType, TEnum<EnumType, DefaultValue>>
 	{
 		static constexpr bool Value = false;
 	};
 
+	// Disable registration of converter nodes which convert from enums
 	template<typename ToDataType, typename EnumType, EnumType DefaultValue>
-	struct TIsAutoConvertible<TEnum<EnumType, DefaultValue>, ToDataType>
+	struct TEnableAutoConverterNodeRegistration<TEnum<EnumType, DefaultValue>, ToDataType>
 	{
 		static constexpr bool Value = false;
 	};
 
+	// Disable arrays of enums
+	template<typename EnumType, EnumType DefaultValue>
+	struct TEnableAutoArrayTypeRegistration<TEnum<EnumType, DefaultValue>>
+	{
+		static constexpr bool Value = false;
+	};
+
+	// Disable array nodes of enums
 	template<typename EnumType, EnumType DefaultValue>
 	struct TEnableArrayNodes<TEnum<EnumType, DefaultValue>>
 	{
@@ -29,7 +39,7 @@ namespace Metasound
 
 	// Specialization of TIsTransmittable<> to disable transmission of enums.
 	template<typename EnumType, EnumType DefaultValue>
-	struct TIsTransmittable<TEnum<EnumType, DefaultValue>>
+	struct TEnableTransmissionNodeRegistration<TEnum<EnumType, DefaultValue>>
 	{
 	public:
 		static constexpr bool Value = false;

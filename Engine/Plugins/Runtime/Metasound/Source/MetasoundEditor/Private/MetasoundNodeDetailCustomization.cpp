@@ -70,6 +70,14 @@ namespace Metasound
 			static const FName DataTypeNameIdentifier = "DataTypeName";
 			static const FName ProxyGeneratorClassNameIdentifier = "GeneratorClass";
 
+			/** Set of input types which are valid registered types, but should
+			 * not show up as an input type option in the MetaSound editor. */
+			static const TSet<FName> HiddenInputTypeNames =
+			{
+				"Audio:Mono",
+				"Audio:Stereo"
+			};
+
 			void ExecuteInputTrigger(UMetasoundEditorGraphInputLiteral* Literal)
 			{
 				if (!Literal)
@@ -524,14 +532,27 @@ namespace Metasound
 				CurrentTypeName.LeftChopInline(VariableCustomizationPrivate::ArrayIdentifier.Len());
 			}
 
-			DataTypeNames.Reset();
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+
+			// Not all types have an equivalent array type. Base types without array
+			// types should have the "Is Array" checkbox disabled. 
+			const bool bIsArrayTypeRegisteredForCurrentType = EditorModule.IsRegisteredDataType(FName(CurrentTypeName + VariableCustomizationPrivate::ArrayIdentifier));
+
+			DataTypeNames.Reset();
 			EditorModule.IterateDataTypes([&](const FEditorDataType& EditorDataType)
 			{
+				using namespace VariableCustomizationPrivate;
+
 				const FString TypeName = EditorDataType.RegistryInfo.DataTypeName.ToString();
 
 				// Array types are handles separately via checkbox
 				if (TypeName.EndsWith(VariableCustomizationPrivate::ArrayIdentifier))
+				{
+					return;
+				}
+
+				// Hidden input types should be omitted from the drop down.
+				if (HiddenInputTypeNames.Contains(EditorDataType.RegistryInfo.DataTypeName))
 				{
 					return;
 				}
@@ -589,6 +610,7 @@ namespace Metasound
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(DataTypeArrayCheckbox, SCheckBox)
+					.IsEnabled(bIsArrayTypeRegisteredForCurrentType)
 					.IsChecked_Lambda([this, InGraphVariable]()
 					{
 						return OnGetDataTypeArrayCheckState(InGraphVariable);
@@ -786,17 +808,45 @@ namespace Metasound
 		{
 			if (ItemSelected.IsValid() && !ItemSelected->IsEmpty() && InGraphVariable.IsValid())
 			{
-				FString DataTypeString = *ItemSelected.Get();
+				IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+
+				FName BaseDataTypeName = FName(*ItemSelected.Get());
+				FName ArrayDataTypeName = FName(*ItemSelected.Get() + VariableCustomizationPrivate::ArrayIdentifier);
+
+				FName NewDataTypeName;
+
+				// Update data type based on "Is Array" checkbox and support for arrays.
+				// If an array type is not supported, default to the base data type.
 				if (DataTypeArrayCheckbox->GetCheckedState() == ECheckBoxState::Checked)
 				{
-					DataTypeString += VariableCustomizationPrivate::ArrayIdentifier;
+					if (EditorModule.IsRegisteredDataType(ArrayDataTypeName))
+					{
+						NewDataTypeName = ArrayDataTypeName;
+					}
+					else
+					{
+						check(EditorModule.IsRegisteredDataType(BaseDataTypeName));
+						NewDataTypeName = BaseDataTypeName;
+					}
+				}
+				else
+				{
+					if (EditorModule.IsRegisteredDataType(BaseDataTypeName))
+					{
+						NewDataTypeName = BaseDataTypeName;
+					}
+					else
+					{
+						check(EditorModule.IsRegisteredDataType(ArrayDataTypeName));
+						NewDataTypeName = ArrayDataTypeName;
+					}
 				}
 
 				// Have to stop playback to avoid attempting to change live edit data on invalid input type.
 				check(GEditor);
 				GEditor->ResetPreviewAudioComponent();
 
-				InGraphVariable->SetDataType(FName(DataTypeString));
+				InGraphVariable->SetDataType(NewDataTypeName);
 
 				// Required to rebuild the literal details customization.
 				// This is seemingly dangerous (as the Builder's raw ptr is cached),

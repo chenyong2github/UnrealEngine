@@ -12,30 +12,25 @@
 
 namespace Metasound
 {
+	// Disable audio buffer arrays.
+	template<>
+	struct TEnableAutoArrayTypeRegistration<FAudioBuffer>
+	{
+		static constexpr bool Value = false;
+	};
+
 	// Disable auto-conversion using the FAudioBuffer(int32) constructor
 	template<typename FromDataType>
-	struct TIsAutoConvertible<FromDataType, FAudioBuffer>
+	struct TEnableAutoConverterNodeRegistration<FromDataType, FAudioBuffer>
 	{
-		static constexpr bool bIsConvertible = std::is_convertible<FromDataType, FAudioBuffer>::value;
-
-		static constexpr bool bIsFromArithmeticType = std::is_arithmetic<FromDataType>::value;
-
-	public:
-
-		static constexpr bool Value = bIsConvertible && (!bIsFromArithmeticType);
+		static constexpr bool Value = !std::is_arithmetic<FromDataType>::value;
 	};
 
 	// Disable auto-conversions based on FTrigger implicit converters
 	template<typename ToDataType>
-	struct TIsAutoConvertible<FTrigger, ToDataType>
+	struct TEnableAutoConverterNodeRegistration<FTrigger, ToDataType>
 	{
-		static constexpr bool bIsConvertible = std::is_convertible<FTrigger, ToDataType>::value;
-
-		static constexpr bool bIsToArithmeticType = std::is_arithmetic<ToDataType>::value;
-
-	public:
-
-		static constexpr bool Value = bIsConvertible && (!bIsToArithmeticType);
+		static constexpr bool Value = !std::is_arithmetic<ToDataType>::value;
 	};
 }
 
