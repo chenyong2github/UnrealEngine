@@ -680,6 +680,11 @@ namespace UnrealBuildTool
 			return IOSArchitecture;
 		}
 
+		public override string GetFolderNameForArchitecture(string Architecture)
+		{
+			return IOSArchitecture;
+		}
+
 		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference ProjectFile, ReadOnlyTargetRules Target)
 		{
 			List<FileReference> BinaryPaths = new List<FileReference>();
