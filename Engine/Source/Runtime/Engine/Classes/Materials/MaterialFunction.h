@@ -147,7 +147,7 @@ public:
 	virtual UMaterialFunctionInterface* GetBaseFunction() override { return this; }
 	virtual const UMaterialFunctionInterface* GetBaseFunction() const override { return this; }
 #if WITH_EDITORONLY_DATA
-	virtual const TArray<UMaterialExpression*>* GetFunctionExpressions() const override { return &static_cast<const TArray<UMaterialExpression*>&>(FunctionExpressions); }
+	virtual const TArray<TObjectPtr<UMaterialExpression>>* GetFunctionExpressions() const override { return &FunctionExpressions; }
 #endif
 	virtual const FString* GetDescription() const override { return &Description; }
 

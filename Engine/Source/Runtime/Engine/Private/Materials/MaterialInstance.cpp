@@ -5075,32 +5075,35 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 
 #if WITH_EDITOR
 
-void FindCollectionExpressionRecursive(TArray<FGuid>& OutGuidList, const TArray<UMaterialExpression*>& InMaterialExpression)
+void FindCollectionExpressionRecursive(TArray<FGuid>& OutGuidList, const TArray<TObjectPtr<UMaterialExpression>>& InMaterialExpression)
 {
 	for (int32 ExpressionIndex = 0; ExpressionIndex < InMaterialExpression.Num(); ExpressionIndex++)
 	{
-		const UMaterialExpression* ExpressionPtr = InMaterialExpression[ExpressionIndex];
-		const UMaterialExpressionCollectionParameter* CollectionPtr = Cast<UMaterialExpressionCollectionParameter>(ExpressionPtr);
-		const UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(ExpressionPtr);
-		const UMaterialExpressionMaterialAttributeLayers* MaterialLayers = Cast<UMaterialExpressionMaterialAttributeLayers>(ExpressionPtr);
-
-		if (CollectionPtr)
+		if (!InMaterialExpression[ExpressionIndex])
 		{
+			continue;
+		}
+
+		if (InMaterialExpression[ExpressionIndex].IsA<UMaterialExpressionCollectionParameter>())
+		{
+			const UMaterialExpressionCollectionParameter* CollectionPtr = (UMaterialExpressionCollectionParameter*)InMaterialExpression[ExpressionIndex].Get();
 			if (CollectionPtr->Collection)
 			{
 				OutGuidList.Add(CollectionPtr->Collection->StateId);
 			}
 			return;
 		}
-		else if (MaterialFunctionCall && MaterialFunctionCall->MaterialFunction)
+		else if (InMaterialExpression[ExpressionIndex].IsA<UMaterialExpressionMaterialFunctionCall>())
 		{
-			if (const TArray<UMaterialExpression*>* FunctionExpressions = MaterialFunctionCall->MaterialFunction->GetFunctionExpressions())
+			const UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall = (UMaterialExpressionMaterialFunctionCall*)InMaterialExpression[ExpressionIndex].Get();
+			if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = MaterialFunctionCall->MaterialFunction->GetFunctionExpressions())
 			{
 				FindCollectionExpressionRecursive(OutGuidList, *FunctionExpressions);
 			}
 		}
-		else if (MaterialLayers)
+		else if (InMaterialExpression[ExpressionIndex].IsA<UMaterialExpressionMaterialAttributeLayers>())
 		{
+			const UMaterialExpressionMaterialAttributeLayers* MaterialLayers = (UMaterialExpressionMaterialAttributeLayers*)InMaterialExpression[ExpressionIndex].Get();
 			const TArray<UMaterialFunctionInterface*>& Layers = MaterialLayers->GetLayers();
 			const TArray<UMaterialFunctionInterface*>& Blends = MaterialLayers->GetBlends();
 
@@ -5108,7 +5111,7 @@ void FindCollectionExpressionRecursive(TArray<FGuid>& OutGuidList, const TArray<
 			{
 				if (Layer)
 				{
-					if (const TArray<UMaterialExpression*>* FunctionExpressions = Layer->GetFunctionExpressions())
+					if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Layer->GetFunctionExpressions())
 					{
 						FindCollectionExpressionRecursive(OutGuidList, *FunctionExpressions);
 					}
@@ -5119,7 +5122,7 @@ void FindCollectionExpressionRecursive(TArray<FGuid>& OutGuidList, const TArray<
 			{
 				if (Blend)
 				{
-					if (const TArray<UMaterialExpression*>* FunctionExpressions = Blend->GetFunctionExpressions())
+					if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Blend->GetFunctionExpressions())
 					{
 						FindCollectionExpressionRecursive(OutGuidList, *FunctionExpressions);
 					}
@@ -5143,7 +5146,7 @@ void UMaterialInstance::AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& 
 		{
 			if (Layer)
 			{
-				if (const TArray<UMaterialExpression*>* FunctionExpressions = Layer->GetFunctionExpressions())
+				if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Layer->GetFunctionExpressions())
 				{
 					FindCollectionExpressionRecursive(OutIds, *FunctionExpressions);
 				}
@@ -5153,7 +5156,7 @@ void UMaterialInstance::AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& 
 		{
 			if (Blend)
 			{
-				if (const TArray<UMaterialExpression*>* FunctionExpressions = Blend->GetFunctionExpressions())
+				if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Blend->GetFunctionExpressions())
 				{
 					FindCollectionExpressionRecursive(OutIds, *FunctionExpressions);
 				}

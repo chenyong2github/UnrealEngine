@@ -687,12 +687,12 @@ void FVTConversionWorker::DoConvert()
 			MaterialTask.EnterProgressFrame();
 
 			bool FuncModified = false;
-			const TArray<UMaterialExpression*> *Expressions = Func->GetFunctionExpressions();
-			for (UMaterialExpression *Expr : *Expressions)
+			const TArray<TObjectPtr<UMaterialExpression>> *Expressions = Func->GetFunctionExpressions();
+			for (TObjectPtr<UMaterialExpression> Expr : *Expressions)
 			{
-				UMaterialExpressionTextureBase *TexExpr = Cast<UMaterialExpressionTextureBase>(Expr);
-				if (TexExpr)
+				if (Expr && Expr.IsA<UMaterialExpressionTextureBase>())
 				{
+					UMaterialExpressionTextureBase* TexExpr = (UMaterialExpressionTextureBase*)Expr.Get();
 					if (Textures.Contains(TexExpr->Texture))
 					{
 						UE_LOG(LogVirtualTextureConversion, Display, TEXT("Adjusting sampler %s."), *TexExpr->GetName());

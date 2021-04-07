@@ -153,12 +153,12 @@ namespace
 				Task.EnterProgressFrame();
 
 				bool bFunctionModified = false;
-				const TArray<UMaterialExpression*> *Expressions = Function->GetFunctionExpressions();
-				for (UMaterialExpression *Expression : *Expressions)
+				const TArray<TObjectPtr<UMaterialExpression>> *Expressions = Function->GetFunctionExpressions();
+				for (TObjectPtr<UMaterialExpression> Expression : *Expressions)
 				{
-					UMaterialExpressionRuntimeVirtualTextureSample* RVTSampleExpression = Cast<UMaterialExpressionRuntimeVirtualTextureSample>(Expression);
-					if (RVTSampleExpression)
+					if (Expression && Expression.IsA<UMaterialExpressionRuntimeVirtualTextureSample>())
 					{
+						UMaterialExpressionRuntimeVirtualTextureSample* RVTSampleExpression = (UMaterialExpressionRuntimeVirtualTextureSample*)Expression.Get();
 						if (RuntimeVirtualTexture == RVTSampleExpression->VirtualTexture)
 						{
 							if (RVTSampleExpression->InitVirtualTextureDependentSettings())

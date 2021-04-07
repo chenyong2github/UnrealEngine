@@ -138,7 +138,7 @@ public:
 		PURE_VIRTUAL(UMaterialFunctionInterface::GetBaseFunction,return nullptr;);
 
 #if WITH_EDITORONLY_DATA
-	virtual const TArray<UMaterialExpression*>* GetFunctionExpressions() const
+	virtual const TArray<TObjectPtr<UMaterialExpression>>* GetFunctionExpressions() const
 		PURE_VIRTUAL(UMaterialFunctionInterface::GetFunctionExpressions,return nullptr;);
 #endif // WITH_EDITORONLY_DATA
 
@@ -162,18 +162,18 @@ public:
 		if (const UMaterialFunctionInterface* ParameterFunction = GetBaseFunction())
 		{
 			const UClass* TargetClass = UMaterialExpressionMaterialFunctionCall::StaticClass();
-			for (UMaterialExpression* Expression : *ParameterFunction->GetFunctionExpressions())
+			for (TObjectPtr<UMaterialExpression> Expression : *ParameterFunction->GetFunctionExpressions())
 			{
-				if (const UMaterialExpressionMaterialFunctionCall* FunctionExpression = (Expression && Expression->IsA(TargetClass)) ? (const UMaterialExpressionMaterialFunctionCall*)Expression : nullptr)
+				if (const UMaterialExpressionMaterialFunctionCall* FunctionExpression = (Expression && Expression.IsA(TargetClass)) ? (const UMaterialExpressionMaterialFunctionCall*)Expression.Get() : nullptr)
 				{
 					if (FunctionExpression->MaterialFunction)
 					{
 						FunctionExpression->MaterialFunction->GetAllParameterInfo<const ExpressionType>(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
 					}
 				}
-				else if (const ExpressionType* ParameterExpression = Cast<const ExpressionType>(Expression))
+				else if (Expression && Expression.IsA<const ExpressionType>())
 				{
-					ParameterExpression->GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
+					((const ExpressionType*)Expression.Get())->GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
 				}
 			}
 

@@ -139,7 +139,7 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 	}
 
 #if WITH_EDITORONLY_DATA
-	virtual const TArray<UMaterialExpression*>* GetFunctionExpressions() const override
+	virtual const TArray<TObjectPtr<UMaterialExpression>>* GetFunctionExpressions() const override
 	{
 		const UMaterialFunctionInterface* BaseFunction = GetBaseFunction();
 		return BaseFunction ? BaseFunction->GetFunctionExpressions() : nullptr;

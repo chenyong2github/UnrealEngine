@@ -309,8 +309,8 @@ void FMaterialInstanceEditor::InitEditorForMaterialFunction(UMaterialFunctionIns
 	{
 		BaseFunction = Instance->GetBaseFunction();
 	}
-	const TArray<UMaterialExpression*>* FunctionExpressions = BaseFunction ? BaseFunction->GetFunctionExpressions() : nullptr;
-	FunctionMaterialProxy->Expressions = FunctionExpressions ? *FunctionExpressions : TArray<UMaterialExpression*>();
+	const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = BaseFunction ? BaseFunction->GetFunctionExpressions() : nullptr;
+	FunctionMaterialProxy->Expressions = FunctionExpressions ? *FunctionExpressions : TArray<TObjectPtr<UMaterialExpression>>();
 
 	// Set expressions to be used with preview material
 	bool bSetPreviewExpression = false;

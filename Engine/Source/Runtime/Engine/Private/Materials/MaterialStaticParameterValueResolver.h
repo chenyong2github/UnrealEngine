@@ -72,9 +72,9 @@ public:
 				auto GetExpressionParameterByNamePredicate =
 					[this, &PendingParametersForFunction, &ParameterIndicesForFunction, &ParametersAndOwners, TargetClass](UMaterialFunctionInterface* InFunction) -> bool
 				{
-					for (UMaterialExpression* FunctionExpression : *InFunction->GetFunctionExpressions())
+					for (TObjectPtr<UMaterialExpression> FunctionExpression : *InFunction->GetFunctionExpressions())
 					{
-						if (ParameterType* ExpressionParameter = (FunctionExpression && FunctionExpression->IsA(TargetClass)) ? (ParameterType*)FunctionExpression : nullptr)
+						if (ParameterType* ExpressionParameter = (FunctionExpression && FunctionExpression.IsA(TargetClass)) ? (ParameterType*)FunctionExpression.Get() : nullptr)
 						{
 							for (int32 FunctionParameterIdx = 0; FunctionParameterIdx < ParameterIndicesForFunction.Num(); ++FunctionParameterIdx)
 							{

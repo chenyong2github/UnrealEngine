@@ -1838,7 +1838,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/* Helper function to help finding expression GUID taking into account UMaterialExpressionMaterialFunctionCall */
 	template<typename ExpressionType>
-	ExpressionType* FindExpressionByGUIDRecursive(const FGuid &InGUID, const TArray<UMaterialExpression*>& InMaterialExpression)
+	ExpressionType* FindExpressionByGUIDRecursive(const FGuid &InGUID, const TArray<TObjectPtr<UMaterialExpression>>& InMaterialExpression)
 	{
 		for (int32 ExpressionIndex = 0; ExpressionIndex < InMaterialExpression.Num(); ExpressionIndex++)
 		{
@@ -1853,7 +1853,7 @@ private:
 			}
 			else if (MaterialFunctionCall && MaterialFunctionCall->MaterialFunction)
 			{
-				if (const TArray<UMaterialExpression*>* FunctionExpressions = MaterialFunctionCall->MaterialFunction->GetFunctionExpressions())
+				if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = MaterialFunctionCall->MaterialFunction->GetFunctionExpressions())
 				{
 					if (ExpressionType* Expression = FindExpressionByGUIDRecursive<ExpressionType>(InGUID, *FunctionExpressions))
 					{
@@ -1870,7 +1870,7 @@ private:
 				{
 					if (Layer)
 					{
-						if (const TArray<UMaterialExpression*>* FunctionExpressions = Layer->GetFunctionExpressions())
+						if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Layer->GetFunctionExpressions())
 						{
 							if (ExpressionType* Expression = FindExpressionByGUIDRecursive<ExpressionType>(InGUID, *FunctionExpressions))
 							{
@@ -1884,7 +1884,7 @@ private:
 				{
 					if (Blend)
 					{
-						if (const TArray<UMaterialExpression*>* FunctionExpressions = Blend->GetFunctionExpressions())
+						if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Blend->GetFunctionExpressions())
 						{
 							if (ExpressionType* Expression = FindExpressionByGUIDRecursive<ExpressionType>(InGUID, *FunctionExpressions))
 							{
@@ -1922,9 +1922,9 @@ private:
 			return false;
 		};
 
-		for (UMaterialExpression* Expression : Expressions)
+		for (TObjectPtr<UMaterialExpression>& Expression : Expressions)
 		{
-			if (TrySetParameterValue(Cast<ParameterType>(Expression)))
+			if (TrySetParameterValue((Expression && Expression.IsA<ParameterType>()) ? (ParameterType*)Expression.Get() : nullptr))
 			{
 				return true;
 			}
@@ -1938,12 +1938,12 @@ private:
 
 					for (UMaterialFunctionInterface* Function : Functions)
 					{
-						const TArray<UMaterialExpression*>* ExpressionPtr = Function->GetFunctionExpressions();
+						const TArray<TObjectPtr<UMaterialExpression>>* ExpressionPtr = Function->GetFunctionExpressions();
 						if (ExpressionPtr)
 						{
-							for (UMaterialExpression* FunctionExpression : *ExpressionPtr)
+							for (TObjectPtr<UMaterialExpression> FunctionExpression : *ExpressionPtr)
 							{
-								if (TrySetParameterValue(Cast<ParameterType>(FunctionExpression)))
+								if (TrySetParameterValue((FunctionExpression && FunctionExpression.IsA<ParameterType>()) ? (ParameterType*)FunctionExpression.Get() : nullptr))
 								{
 									return true;
 								}
