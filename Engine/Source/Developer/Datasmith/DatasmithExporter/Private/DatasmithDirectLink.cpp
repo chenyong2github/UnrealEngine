@@ -24,7 +24,7 @@ public:
 	FDatasmithDirectLinkImpl()
 		: Endpoint(MakeShared<DirectLink::FEndpoint, ESPMode::ThreadSafe>(TEXT("DatasmithExporter")))
 	{
-		check(DirectLink::ValidateCommunicationStatus() == DirectLink::ECS_NoIssue);
+		check(DirectLink::ValidateCommunicationStatus() == DirectLink::ECommunicationStatus::NoIssue);
 		Endpoint->SetVerbose();
 		// #ue_directlink_integration app specific endpoint name, and source name.
 	}
