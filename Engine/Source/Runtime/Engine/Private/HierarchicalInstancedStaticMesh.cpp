@@ -1758,7 +1758,8 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 					if (Force >= 0)
 					{
 						Force = FMath::Clamp(Force, 0, NumLODs - 1);
-						InstanceParams.AddRun(Force, Force, FirstUnbuiltIndex, FirstUnbuiltIndex + UnbuiltInstanceCount);
+						int32 LastInstanceIndex = FirstUnbuiltIndex + UnbuiltInstanceCount - 1;
+						InstanceParams.AddRun(Force, Force, FirstUnbuiltIndex, LastInstanceIndex);
 					}
 					else
 					{
@@ -1817,20 +1818,23 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 							{
 								if (MinLOD < NumLODs)
 								{
-									InstanceParams.AddRun(MinLOD, MinLOD, FirstIndexInRun + FirstUnbuiltIndex, (Index - 1) + FirstUnbuiltIndex);
+									int32 LastInstanceIndex = (Index - 1) + FirstUnbuiltIndex;
+									InstanceParams.AddRun(MinLOD, MinLOD, FirstIndexInRun + FirstUnbuiltIndex, LastInstanceIndex);
 								}
 								MinLOD = TempMinLOD;
 								FirstIndexInRun = Index;
 							}
 						}
-						InstanceParams.AddRun(MinLOD, MinLOD, FirstIndexInRun + FirstUnbuiltIndex, FirstIndexInRun + FirstUnbuiltIndex + UnbuiltInstanceCount);
+						int32 LastInstanceIndex = FirstIndexInRun + FirstUnbuiltIndex + UnbuiltInstanceCount - 1;
+						InstanceParams.AddRun(MinLOD, MinLOD, FirstIndexInRun + FirstUnbuiltIndex, LastInstanceIndex);
 					}
 				}
 				else
 				{
 					// more than 1000, render them all at lowest LOD (until we have an updated tree)
 					const int8 LowestLOD = (RenderData->LODResources.Num() - 1);
-					InstanceParams.AddRun(LowestLOD, LowestLOD, FirstUnbuiltIndex, FirstUnbuiltIndex + UnbuiltInstanceCount);
+					int32 LastInstanceIndex = FirstUnbuiltIndex + UnbuiltInstanceCount - 1;
+					InstanceParams.AddRun(LowestLOD, LowestLOD, FirstUnbuiltIndex, LastInstanceIndex);
 				}
 				FillDynamicMeshElements(Collector, ElementParams, InstanceParams);
 			}
@@ -2380,7 +2384,12 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 	
 		int32 InitialBufferOffset = InstanceCountToRender - InstanceReorderTable.Num(); // Until the build is done, we need to always add at the end of the buffer/reorder table
 		InstanceReorderTable.Add(InitialBufferOffset + InstanceIndex); // add to the end until the build is completed
-		++InstanceCountToRender;
+
+		// CPU access is required for in-place render data modifications
+		if (PerInstanceRenderData.IsValid() && PerInstanceRenderData->InstanceBuffer.RequireCPUAccess)
+		{
+			++InstanceCountToRender;
+		}
 
 		InstanceUpdateCmdBuffer.AddInstance(InstanceTransform.ToMatrixWithScale());
 
