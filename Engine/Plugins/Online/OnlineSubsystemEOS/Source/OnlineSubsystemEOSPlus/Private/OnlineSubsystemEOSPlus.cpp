@@ -33,6 +33,13 @@ bool FOnlineSubsystemEOSPlus::Init()
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed to get the platform OSS"));
 		return false;
 	}
+	if (BaseOSS->GetSubsystemName() == EOS_SUBSYSTEM ||
+		BaseOSS->GetSubsystemName() == EOSPLUS_SUBSYSTEM)
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed due to circular configuration"));
+		BaseOSS = nullptr;
+		return false;
+	}
 	EosOSS = IOnlineSubsystem::Get(EOS_SUBSYSTEM);
 	if (EosOSS == nullptr)
 	{
