@@ -109,7 +109,7 @@ FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
 		float LightDistanceSquared = dot(LightDirection, LightDirection);
 		LightRadiance *= ComputeAttenuationFalloff(LightDistanceSquared, LightId);
 #if CAPSULE_SOLIDANGLE_SAMPLING
-		float Pdf = 1.0 / CapsuleGetSphericalBounds(LightDirection, Axis, LightRadius, SourceLength).GetSolidAngle();
+		float Pdf = 1.0 / GetCapsuleBoundsSolidAngle(CapsuleGetSphericalBounds(LightDirection, Axis, LightRadius, SourceLength));
 #else
 		float3 Normal = CapsuleNormal(Ray.Origin + t * Ray.Direction, LightPosition, Axis * SourceLength);
 
@@ -153,7 +153,7 @@ FLightSample CapsuleLight_SampleLight(
 	float3 LightDirection = GetPosition(LightId) - WorldPos;
 	FCapsuleSphericalBounds CapsuleBounds = CapsuleGetSphericalBounds(LightDirection, Axis, Radius, SourceLength);
 
-	float4 Result = CapsuleBounds.Sample(RandSample.yz);
+	float4 Result = SampleCapsuleBounds(CapsuleBounds, RandSample.yz);
 
 	float3 L = Result.xyz;
 	float SolidAngle = Result.w;
