@@ -1302,9 +1302,6 @@ RENDERCORE_API void RenderUtilsInit()
 	{
 		GBasePassVelocityPlatformMask = 0;
 	}
-	{
-		GBasePassVelocityPlatformMask = 0;
-	}
 #endif // WITH_EDITOR
 
 	// Run-time ray tracing support depends on the following factors:
