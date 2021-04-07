@@ -212,7 +212,7 @@ FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FCapsuleL
 
 				if( Capsule.Length > 0 )
 				{
-					float3 ToArea = CapsuleBounds.Sample(E).xyz;
+					float3 ToArea = SampleCapsuleBounds(CapsuleBounds, E).xyz;
 					L = normalize( ToArea );
 					H = normalize( V + L );
 				}
@@ -240,8 +240,8 @@ FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FCapsuleL
 				float PDF[] =
 				{
 					NoL / PI,
-					D_GGX( Pow4(GBuffer.Roughness), NoH ) * NoH / (4 * VoH),
-					1.0 / CapsuleBounds.GetSolidAngle(),
+					D_GGX(Pow4(GBuffer.Roughness), NoH) * NoH / (4 * VoH),
+					1.0 / GetCapsuleBoundsSolidAngle(CapsuleBounds)
 				};
 
 				if( Capsule.Length == 0 )

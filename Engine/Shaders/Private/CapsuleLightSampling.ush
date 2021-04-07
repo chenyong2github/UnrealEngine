@@ -17,26 +17,26 @@ struct FCapsuleSphericalBounds
 	float3 ConeAxis;
 	float ConeSinThetaMax2;
 	float ConeSolidAngle;
-
-	float GetSolidAngle()
-	{
-		// See explanation in UniformSampleConeRobust
-		return min(SphericalRect.SolidAngle, ConeSolidAngle);
-	}
-
-	// return world space direction within the cone
-	float4 Sample(float2 E)
-	{
-		if (ConeSolidAngle < SphericalRect.SolidAngle)
-		{
-			return float4(TangentToWorld(UniformSampleConeRobust(E, ConeSinThetaMax2).xyz, ConeAxis), ConeSolidAngle);
-		}
-		else
-		{
-			return float4(normalize(UniformSampleSphericalRect(E, SphericalRect)), SphericalRect.SolidAngle);
-		}
-	}
 };
+
+// return the smallest of the two possible bounding shapes
+float GetCapsuleBoundsSolidAngle(FCapsuleSphericalBounds Bounds)
+{
+	return min(Bounds.SphericalRect.SolidAngle, Bounds.ConeSolidAngle);
+}
+
+// return world space direction within the cone and solidangle
+float4 SampleCapsuleBounds(FCapsuleSphericalBounds Bounds, float2 E)
+{
+	if (Bounds.ConeSolidAngle < Bounds.SphericalRect.SolidAngle)
+	{
+		return float4(TangentToWorld(UniformSampleConeRobust(E, Bounds.ConeSinThetaMax2).xyz, Bounds.ConeAxis), Bounds.ConeSolidAngle);
+	}
+	else
+	{
+		return float4(normalize(UniformSampleSphericalRect(E, Bounds.SphericalRect)), Bounds.SphericalRect.SolidAngle);
+	}
+}
 
 // Given a bounding rectangle of a capsule, compute a bounding cone
 FCapsuleSphericalBounds CapsuleGetSphericalBounds(float3 Origin, float3 Axis, float Radius, float Length)
