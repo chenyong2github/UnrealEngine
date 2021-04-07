@@ -1,29 +1,24 @@
 @echo off
 
-echo This batch file enables Oodle as a packet handler by modifying config files.
+echo This batch file, enables the Oodle plugin, and enables it as a packet handler.
 echo.
 
 
-REM This batch file can only work from within the Oodle folder.
-REM assume you are in \Engine\Plugins\OodleNetwork
-set BaseFolder="..\..\.."
+REM This batch file should be run from \engine\plugins\compression\oodlenetwork
+set BaseFolder="..\..\..\.."
 
-if exist %BaseFolder:"=%\Engine goto SetUE4Editor
+if exist %BaseFolder:"=%\Engine goto SetUEEditor
 
-set /p BaseFolder=Type the base folder of UnrealEngine: 
-
-if exist %BaseFolder:"=%\Engine goto SetUE4Editor
-
-echo Could not locate Engine folder. 
+echo Could not locate Engine folder. This .bat must be run from \engine\plugins\compression\oodlenetwork
 goto End
 
 
-:SetUE4Editor
-set UE4EditorLoc="%BaseFolder:"=%\Engine\Binaries\Win64\UE4Editor.exe"
+:SetUEEditor
+set UEEditorLoc="%BaseFolder:"=%\Engine\Binaries\Win64\UE4Editor.exe"
 
-if exist %UE4EditorLoc:"=% goto GetGame
+if exist %UEEditorLoc:"=% goto GetGame
 
-echo Could not locate UE4Editor.exe
+echo Could not locate UEEditor.exe
 goto End
 
 
@@ -31,6 +26,25 @@ goto End
 set /p GameName=Type the name of the game you are working with: 
 echo.
 
+
+
+:EnablePlugin
+set EnableCommandletParms=-run=plugin enable Oodle
+set FinalEnableCmdLine=%GameName:"=% %EnableCommandletParms% -forcelogflush
+
+echo Executing plugin enable commandlet - commandline:
+echo %FinalEnableCmdLine%
+
+@echo on
+%UEEditorLoc:"=% %FinalEnableCmdLine%
+@echo off
+echo.
+
+
+if %errorlevel%==0 goto EnableHandler
+
+echo WARNING! Detected error, plugin may not have been enabled. Will attempt to run Oodle enable commandlet.
+pause
 
 
 :EnableHandler
@@ -42,7 +56,7 @@ echo Executing Oodle PacketHandler enable commandlet - commandline:
 echo %FinalHandlerCmdLine%
 
 @echo on
-%UE4EditorLoc:"=% %FinalHandlerCmdLine%
+%UEEditorLoc:"=% %FinalHandlerCmdLine%
 @echo off
 echo.
 

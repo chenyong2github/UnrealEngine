@@ -4,7 +4,6 @@
 
 // @todo #JohnB: Separate module-based header code, from other class implementations, so that you can setup the PCH.h file correctly
 
-#include "Runtime/Launch/Resources/Version.h"
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "PacketHandler.h"

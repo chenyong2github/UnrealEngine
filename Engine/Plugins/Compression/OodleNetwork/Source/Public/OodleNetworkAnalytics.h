@@ -6,11 +6,7 @@
 #include "CoreMinimal.h"
 
 #include "Runtime/Launch/Resources/Version.h"
-#if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 24
 #include "Net/Core/Analytics/NetAnalytics.h"
-#else
-#include "NetAnalytics.h"
-#endif
 
 
 /**

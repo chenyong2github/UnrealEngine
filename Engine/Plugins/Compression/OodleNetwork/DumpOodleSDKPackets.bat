@@ -4,20 +4,19 @@ echo This batch file, goes through the fully automated process of building Oodle
 echo.
 
 
-REM This batch file can only work from within the Oodle folder.
-REM assume you are in \Engine\Plugins\OodleNetwork
-set BaseFolder="..\..\.."
+REM This batch file should be run from \engine\plugins\compression\oodlenetwork
+set BaseFolder="..\..\..\.."
 
-if exist %BaseFolder:"=%\Engine goto SetUE4Editor
+if exist %BaseFolder:"=%\Engine goto SetUEEditor
 
-echo Could not locate Engine folder. This .bat must be located within UE4\Engine\Plugins\Runtime\PacketHandlers\CompressionComponents\Oodle
+echo Could not locate Engine folder. This .bat must be run from \engine\plugins\compression\oodlenetwork
 goto End
 
 
-:SetUE4Editor
-set UE4EditorLoc="%BaseFolder:"=%\Engine\Binaries\Win64\UE4Editor.exe"
+:SetUEEditor
+set UEEditorLoc="%BaseFolder:"=%\Engine\Binaries\Win64\UE4Editor.exe"
 
-if exist %UE4EditorLoc:"=% goto GetGame
+if exist %UEEditorLoc:"=% goto GetGame
 
 echo Could not locate UE4Editor.exe
 goto End
@@ -37,7 +36,7 @@ echo Executing dictionary generation commandlet - commandline:
 echo %FinalGenCmdLine%
 
 @echo on
-%UE4EditorLoc:"=% %FinalGenCmdLine%
+%UEEditorLoc:"=% %FinalGenCmdLine%
 @echo off
 echo.
 

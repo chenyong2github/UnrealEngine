@@ -6,11 +6,6 @@
 // Maximum size of compress/decompress buffers (just under 2GB, due to max int32 value)
 #define MAX_COMPRESS_BUFFER (1024 * 1024 * 2047)
 
-// @todo #JohnB: Remove after Oodle update, and after checking with Luigi
-#define OODLE_DICTIONARY_SLACK 65536
-
-// @todo #JohnB: Deprecate all pre-CAPTURE_VER_PACKETCOUNT file versions, after a short period
-
 
 /**
  * FOodleCompressedData

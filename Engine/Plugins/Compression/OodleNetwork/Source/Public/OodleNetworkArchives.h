@@ -359,7 +359,7 @@ public:
 #endif // !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 
 /**
- * Archive for handling UE4 Oodle dictionary (.udic) files
+ * Archive for handling UE Oodle dictionary (.udic) files
  */
 class FOodleNetworkDictionaryArchive : public FOodleNetworkArchiveBase
 {
