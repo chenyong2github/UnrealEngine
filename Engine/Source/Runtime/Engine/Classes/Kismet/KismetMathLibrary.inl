@@ -3351,6 +3351,12 @@ FRotator UKismetMathLibrary::Quat_Rotator(const FQuat& Q)
 }
 
 KISMET_MATH_FORCEINLINE
+FQuat UKismetMathLibrary::Conv_RotatorToQuaternion(FRotator InRot)
+{
+	return InRot.Quaternion();
+}
+
+KISMET_MATH_FORCEINLINE
 float UKismetMathLibrary::Quat_Size(const FQuat& Q)
 {
 	return Q.Size();
