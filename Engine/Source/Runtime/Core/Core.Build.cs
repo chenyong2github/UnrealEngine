@@ -76,6 +76,11 @@ public class Core : ModuleRules
 				PrivateDefinitions.Add("USE_BUNDLED_DBGHELP=0");
 			}
 			PrivateDefinitions.Add("YIELD_BETWEEN_TASKS=1");
+
+			if (Target.WindowsPlatform.bPixProfilingEnabled && Target.Configuration != UnrealTargetConfiguration.Shipping)
+			{
+				PrivateDependencyModuleNames.Add("WinPixEventRuntime");
+			}
 		}
 		else if ((Target.Platform == UnrealTargetPlatform.HoloLens))
 		{
