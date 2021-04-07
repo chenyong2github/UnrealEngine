@@ -734,10 +734,10 @@ namespace Metasound
 				{
 					PlayTime = 0.0;
 
-					UObject* CommObject = PreviewComp->GetCommunicationInterface().GetObject();
-					if (ensure(CommObject))
+					UObject* ParamInterfaceObject = PreviewComp->GetParameterInterface().GetObject();
+					if (ensure(ParamInterfaceObject))
 					{
-						SetPreviewID(CommObject->GetUniqueID());
+						SetPreviewID(ParamInterfaceObject->GetUniqueID());
 					}
 
 					if (MetasoundAudioBus.IsValid())
@@ -847,11 +847,11 @@ namespace Metasound
 				{
 					// TODO: fix how identifying the parameter to update is determined. It should not be done
 					// with a "DisplayName" but rather the vertex Guid.
-					if (TScriptInterface<IAudioCommunicationInterface> CommInterface = PreviewComponent->GetCommunicationInterface())
+					if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent->GetParameterInterface())
 					{
 						Metasound::Frontend::FConstNodeHandle NodeHandle = InputNode->GetConstNodeHandle();
 						Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
-						CommInterface->Trigger(*VertexKey);
+						ParamInterface->Trigger(*VertexKey);
 					}
 				}
 			}

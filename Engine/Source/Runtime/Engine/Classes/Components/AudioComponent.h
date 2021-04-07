@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Audio/AudioParameterInterface.h"
 #include "Components/SceneComponent.h"
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
@@ -13,7 +14,6 @@
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "Quartz/AudioMixerClockHandle.h"
 #include "Quartz/AudioMixerQuantizedCommands.h"
-#include "Sound/AudioCommunicationInterface.h"
 
 #include "AudioComponent.generated.h"
 
@@ -530,10 +530,11 @@ public:
 	void SetFloatParameter(FName InName, float InFloat);
 
 	UPROPERTY(Transient)
-	TScriptInterface<IAudioCommunicationInterface> CommunicationInterface;
+	TScriptInterface<IAudioParameterInterface> ParameterInterface;
 
-	UFUNCTION(BlueprintCallable, Category = "Communications")
-	TScriptInterface<IAudioCommunicationInterface> GetCommunicationInterface() const;
+	/** Retrieves the parameter interface to set parameters on sound types that support parameterization (ex. MetaSounds if plugin is enabled). */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Parameters")
+	TScriptInterface<IAudioParameterInterface> GetParameterInterface() const;
 
 	/** Allows the designer to set the Wave Parameter on the SoundCue whose name matches the name indicated.
 	 * @param InName The name of the Wave to set. It must match the name set in SoundCue's WaveParam Node

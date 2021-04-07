@@ -1,19 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/AudioComponent.h"
-#include "Audio.h"
-#include "Engine/Texture2D.h"
 #include "ActiveSound.h"
-#include "AudioThread.h"
+#include "Audio.h"
+#include "Audio/AudioComponentParameterization.h"
 #include "AudioDevice.h"
-#include "DSP/VolumeFader.h"
-#include "Sound/SoundNodeAttenuation.h"
-#include "Sound/SoundCue.h"
+#include "AudioThread.h"
 #include "Components/BillboardComponent.h"
-#include "UObject/FrameworkObjectVersion.h"
-#include "Misc/App.h"
+#include "DSP/VolumeFader.h"
+#include "Engine/Texture2D.h"
 #include "Kismet/GameplayStatics.h"
-#include "Sound/AudioComponentCommuncation.h"
+#include "Misc/App.h"
+#include "Sound/SoundCue.h"
+#include "Sound/SoundNodeAttenuation.h"
+#include "UObject/FrameworkObjectVersion.h"
 
 DECLARE_CYCLE_STAT(TEXT("AudioComponent Play"), STAT_AudioComp_Play, STATGROUP_Audio);
 
@@ -99,9 +99,9 @@ UAudioComponent* UAudioComponent::GetAudioComponentFromID(uint64 AudioComponentI
 
 void UAudioComponent::BeginDestroy()
 {
-	if (CommunicationInterface)
+	if (ParameterInterface)
 	{
-		CommunicationInterface->Shutdown();
+		ParameterInterface->Shutdown();
 	}
 
 	if (IsActive() && Sound && Sound->IsLooping())
@@ -504,11 +504,10 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 
 			AudioDevice->GetMaxDistanceAndFocusFactor(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
 
-			// Create communications object.
-			if (!CommunicationInterface)
+			if (!ParameterInterface)
 			{
-				static const FName InterfaceName("AudioComponentCommunication");
-				CommunicationInterface = NewObject<UAudioComponentCommunication>(this, InterfaceName);
+				static const FName InterfaceName("AudioComponentParameterization");
+				ParameterInterface = NewObject<UAudioComponentParameterization>(this, InterfaceName);
 			}
 
 			FActiveSound NewActiveSound;
@@ -764,10 +763,10 @@ void UAudioComponent::Stop()
 
 	if (bIsPreviewSound)
 	{
-		if (CommunicationInterface)
+		if (ParameterInterface)
 		{
-			CommunicationInterface->Shutdown();
-			CommunicationInterface = nullptr;
+			ParameterInterface->Shutdown();
+			ParameterInterface = nullptr;
 		}
 	}
 
@@ -1128,9 +1127,9 @@ void UAudioComponent::SetFloatParameter( const FName InName, const float InFloat
 	}
 }
 
-TScriptInterface<IAudioCommunicationInterface> UAudioComponent::GetCommunicationInterface() const
+TScriptInterface<IAudioParameterInterface> UAudioComponent::GetParameterInterface() const
 {
-	return CommunicationInterface;
+	return ParameterInterface;
 }
 
 void UAudioComponent::SetWaveParameter( const FName InName, USoundWave* InWave )

@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+#include "Audio/AudioComponentParameterization.h"
 
+#include "ActiveSound.h"
 #include "Audio.h"
 #include "AudioDevice.h"
-#include "ActiveSound.h"
 #include "AudioThread.h"
 #include "Components/AudioComponent.h"
 #include "IAudioExtensionPlugin.h"
-#include "Sound/AudioComponentCommuncation.h"
 
-void UAudioComponentCommunication::Shutdown()
+
+void UAudioComponentParameterization::Shutdown()
 {
 	if (UAudioComponent* OwningComponent = Cast<UAudioComponent>(GetOuter()))
 	{
@@ -29,59 +30,59 @@ void UAudioComponentCommunication::Shutdown()
 	}
 }
 
-void UAudioComponentCommunication::BeginDestroy()
+void UAudioComponentParameterization::BeginDestroy()
 {
 	Shutdown();
 	Super::BeginDestroy();
 }
 
-void UAudioComponentCommunication::Trigger(FName InName)
+void UAudioComponentParameterization::Trigger(FName InName)
 {
 	// Trigger is just a (true) bool param currently.
 	SetValue(InName, true);
 }
 
-void UAudioComponentCommunication::SetBool(FName InName, bool InValue)
+void UAudioComponentParameterization::SetBool(FName InName, bool InValue)
 {
 	SetValue(InName, InValue);
 }
 
-void UAudioComponentCommunication::SetBoolArray(FName InName, const TArray<bool>& InValue)
+void UAudioComponentParameterization::SetBoolArray(FName InName, const TArray<bool>& InValue)
 {
 	SetValue(InName, InValue);
 }
 
-void UAudioComponentCommunication::SetInt(FName InName, int32 InValue)
+void UAudioComponentParameterization::SetInt(FName InName, int32 InValue)
 {
 	SetValue(InName, InValue);
 }
 
-void UAudioComponentCommunication::SetIntArray(FName InName, const TArray<int32>& InValue)
+void UAudioComponentParameterization::SetIntArray(FName InName, const TArray<int32>& InValue)
 {
 	SetValue(InName, InValue);
 }
 
-void UAudioComponentCommunication::SetFloat(FName InName, float InValue)
+void UAudioComponentParameterization::SetFloat(FName InName, float InValue)
 {
 	SetValue(InName, InValue);
 }
 
-void UAudioComponentCommunication::SetFloatArray(FName InName, const TArray<float>& InValue)
+void UAudioComponentParameterization::SetFloatArray(FName InName, const TArray<float>& InValue)
 {
 	SetValue(InName, InValue);
 }
 
-void UAudioComponentCommunication::SetString(FName InName, const FString& InValue)
+void UAudioComponentParameterization::SetString(FName InName, const FString& InValue)
 {
 	SetValue(InName, InValue);
 }
 
-void UAudioComponentCommunication::SetStringArray(FName InName, const TArray<FString>& InValue)
+void UAudioComponentParameterization::SetStringArray(FName InName, const TArray<FString>& InValue)
 {
 	SetValue(InName, InValue);
 }
 
-void UAudioComponentCommunication::SetObject(FName InName, UObject* InValue)
+void UAudioComponentParameterization::SetObject(FName InName, UObject* InValue)
 {
 	IAudioProxyDataFactory* ObjectAsFactory = Cast<USoundWave>(InValue);	// FIXME. Possible to query for IAudioProxy support? Metasound used SFINAE
 
@@ -99,7 +100,7 @@ void UAudioComponentCommunication::SetObject(FName InName, UObject* InValue)
 	}
 }
 
-void UAudioComponentCommunication::SetObjectArray(FName InName, const TArray<UObject*>& InValue)
+void UAudioComponentParameterization::SetObjectArray(FName InName, const TArray<UObject*>& InValue)
 {
 	static FName ProxySubsystemName = TEXT("Metasound");
 	Audio::FProxyDataInitParams ProxyInitParams;
@@ -120,7 +121,7 @@ void UAudioComponentCommunication::SetObjectArray(FName InName, const TArray<UOb
 }
 
 template<typename T>
-void UAudioComponentCommunication::SetValue(FName InName, T&& InX)
+void UAudioComponentParameterization::SetValue(FName InName, T&& InX)
 {
 	if (InName == NAME_None)
 	{

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SMetasoundGraphNode.h"
 
+#include "Audio/AudioParameterInterface.h"
+#include "Components/AudioComponent.h"
 #include "EditorStyleSet.h"
 #include "GraphEditorSettings.h"
 #include "IDocumentation.h"
@@ -10,11 +12,13 @@
 #include "KismetPins/SGraphPinNum.h"
 #include "KismetPins/SGraphPinObject.h"
 #include "KismetPins/SGraphPinString.h"
+#include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundTrigger.h"
 #include "NodeFactory.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
@@ -22,10 +26,12 @@
 #include "SGraphNode.h"
 #include "SGraphPin.h"
 #include "SLevelOfDetailBranchNode.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateColor.h"
 #include "TutorialMetaData.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SBoxPanel.h"
@@ -33,6 +39,7 @@
 #include "Widgets/SWidget.h"
 #include "SGraphPinComboBox.h"
 #include "SMetasoundEnumPin.h"
+#include "UObject/ScriptInterface.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGraphNode"
 
@@ -42,6 +49,66 @@ void SMetasoundGraphNode::Construct(const FArguments& InArgs, class UEdGraphNode
 	GraphNode = InNode;
 	SetCursor(EMouseCursor::CardinalCross);
 	UpdateGraphNode();
+}
+
+void SMetasoundGraphNode::ExecuteInputTrigger(UMetasoundEditorGraphInputLiteral& Literal)
+{
+	UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(Literal.GetOuter());
+	if (!ensure(Input))
+	{
+		return;
+	}
+
+	// If modifying graph not currently being previewed, do not forward request
+	if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(Input->GetOuter()))
+	{
+		if (!Graph->IsPreviewing())
+		{
+			return;
+		}
+	}
+
+	if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
+	{
+		if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent->GetParameterInterface())
+		{
+			// TODO: fix how identifying the parameter to update is determined. It should not be done
+			// with a "DisplayName" but rather the vertex Guid.
+			Metasound::Frontend::FConstNodeHandle NodeHandle = Input->GetConstNodeHandle();
+			Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
+			ParamInterface->Trigger(*VertexKey);
+		}
+	}
+}
+
+TSharedRef<SWidget> SMetasoundGraphNode::CreateTriggerSimulationWidget(UMetasoundEditorGraphInputLiteral& InputLiteral)
+{
+	return SNew(SHorizontalBox)
+	+ SHorizontalBox::Slot()
+	.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+	.HAlign(HAlign_Left)
+	.VAlign(VAlign_Center)
+	[
+		SNew(SButton)
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+		.OnClicked_Lambda([LiteralPtr = TWeakObjectPtr<UMetasoundEditorGraphInputLiteral>(&InputLiteral)]()
+		{
+			if (LiteralPtr.IsValid())
+			{
+				ExecuteInputTrigger(*LiteralPtr.Get());
+			}
+			return FReply::Handled();
+		})
+		.ToolTipText(LOCTEXT("TriggerTestToolTip", "Executes trigger if currently previewing MetaSound."))
+		.ForegroundColor(FSlateColor::UseForeground())
+		.ContentPadding(0)
+		.IsFocusable(false)
+		[
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.CircleArrowDown"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
+		]
+	];
 }
 
 void SMetasoundGraphNode::CreateOutputSideAddButton(TSharedPtr<SVerticalBox> OutputBox)
@@ -65,8 +132,7 @@ void SMetasoundGraphNode::CreateOutputSideAddButton(TSharedPtr<SVerticalBox> Out
 
 UMetasoundEditorGraphNode& SMetasoundGraphNode::GetMetasoundNode()
 {
-	check(GraphNode);
-	return *Cast<UMetasoundEditorGraphNode>(GraphNode);
+	return *CastChecked<UMetasoundEditorGraphNode>(GraphNode);
 }
 
 const UMetasoundEditorGraphNode& SMetasoundGraphNode::GetMetasoundNode() const
@@ -295,6 +361,42 @@ FReply SMetasoundGraphNode::OnAddPin()
 	GetMetasoundNode().CreateInputPin();
 
 	return FReply::Handled();
+}
+
+FName SMetasoundGraphNode::GetLiteralDataType() const
+{
+	using namespace Metasound::Frontend;
+
+	FName TypeName;
+
+	// Just take last type.  If more than one, all types are the same.
+	const UMetasoundEditorGraphNode& Node = GetMetasoundNode();
+	Node.GetNodeHandle()->IterateConstOutputs([InTypeName = &TypeName](FConstOutputHandle OutputHandle)
+	{
+		*InTypeName = OutputHandle->GetDataType();
+	});
+
+	return TypeName;
+}
+
+TSharedRef<SWidget> SMetasoundGraphNode::CreateTitleRightWidget()
+{
+	const FName TypeName = GetLiteralDataType();
+	if (TypeName == Metasound::GetMetasoundDataTypeName<Metasound::FTrigger>())
+	{
+		if (UMetasoundEditorGraphInputNode* Node = Cast<UMetasoundEditorGraphInputNode>(&GetMetasoundNode()))
+		{
+			if (UMetasoundEditorGraphInput* Input = Node->Input)
+			{
+				if (Input->Literal)
+				{
+					return CreateTriggerSimulationWidget(*Input->Literal);
+				}
+			}
+		}
+	}
+
+	return SGraphNode::CreateTitleRightWidget();
 }
 
 TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()

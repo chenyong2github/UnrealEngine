@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Audio/AudioParameterInterface.h"
 #include "CoreMinimal.h"
 #include "MetasoundEditor.h"
 #include "MetasoundFrontendController.h"
@@ -8,7 +9,6 @@
 #include "MetasoundFrontendLiteral.h"
 #include "MetasoundSource.h"
 #include "MetasoundUObjectRegistry.h"
-#include "Sound/AudioCommunicationInterface.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptInterface.h"
 
@@ -59,7 +59,7 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInputLiteral : public UObject
 	GENERATED_BODY()
 
 public:
-	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioCommunicationInterface>& InCommInterface) const
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 	{
 	}
 
@@ -96,7 +96,7 @@ public:
 	UMetasoundEditorGraphInputLiteral* Literal;
 
 	void UpdateDocumentInput(bool bPostTransaction = true);
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioCommunicationInterface>& InCommInterface) const;
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const;
 
 	void OnDataTypeChanged() override;
 	void OnLiteralChanged(bool bPostTransaction = true);
@@ -139,7 +139,7 @@ public:
 
 private:
 	// Preview ID is the Unique ID provided by the UObject that implements
-	// a sound's CommunicationInterface when a sound begins playing.
+	// a sound's ParameterInterface when a sound begins playing.
 	uint32 PreviewID = INDEX_NONE;
 
 	UPROPERTY()

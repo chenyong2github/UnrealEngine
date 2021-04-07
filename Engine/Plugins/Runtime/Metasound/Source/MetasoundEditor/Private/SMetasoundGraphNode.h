@@ -12,6 +12,7 @@
 // Forward Declarations
 class SGraphPin;
 class SVerticalBox;
+class UMetasoundEditorGraphInputLiteral;
 class UMetasoundEditorGraphNode;
 
 
@@ -34,11 +35,17 @@ protected:
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
 	virtual const FSlateBrush* GetNodeBodyBrush() const override;
+	virtual TSharedRef<SWidget> CreateTitleRightWidget() override;
 	virtual EVisibility IsAddPinButtonVisible() const override;
 	virtual FReply OnAddPin() override;
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter) override;
 	virtual void SetDefaultTitleAreaWidget(TSharedRef<SOverlay> DefaultTitleAreaWidget) override;
 
+	FName GetLiteralDataType() const;
 	UMetasoundEditorGraphNode& GetMetasoundNode();
 	const UMetasoundEditorGraphNode& GetMetasoundNode() const;
+
+public:
+	static void ExecuteInputTrigger(UMetasoundEditorGraphInputLiteral& Literal);
+	static TSharedRef<SWidget> CreateTriggerSimulationWidget(UMetasoundEditorGraphInputLiteral& Literal);
 };

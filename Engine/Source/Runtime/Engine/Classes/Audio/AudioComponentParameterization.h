@@ -1,22 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
-#include "AudioCommunicationInterface.h"
+#include "Audio/AudioParameterInterface.h"
 #include "UObject/Object.h"
 
-#include "AudioComponentCommuncation.generated.h"
+#include "AudioComponentParameterization.generated.h"
+
 
 UCLASS()
-class ENGINE_API UAudioComponentCommunication	: public UObject
-												, public IAudioCommunicationInterface
+class ENGINE_API UAudioComponentParameterization : public UObject , public IAudioParameterInterface
 {
 	GENERATED_BODY()
 
 protected:
 	virtual void BeginDestroy() override;
 
-	// IAudioCommunicationInterface
+	// IAudioParameterInterface
 	void Shutdown() override;
 
 	void Trigger(FName InName) override;

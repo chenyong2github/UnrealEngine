@@ -13,6 +13,7 @@
 #include "IDetailGroup.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundDataReference.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphInputNodes.h"
@@ -26,6 +27,7 @@
 #include "PropertyHandle.h"
 #include "PropertyRestriction.h"
 #include "SlateCore/Public/Styling/SlateColor.h"
+#include "SMetasoundGraphNode.h"
 #include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
@@ -65,8 +67,6 @@ namespace Metasound
 			static const FText InputNameText = LOCTEXT("Input_Name", "Input Name");
 			static const FText OutputNameText = LOCTEXT("Output_Name", "Output Name");
 
-			static const FName TriggerTypeName = "Trigger";
-
 			static const FName DataTypeNameIdentifier = "DataTypeName";
 			static const FName ProxyGeneratorClassNameIdentifier = "GeneratorClass";
 
@@ -77,41 +77,6 @@ namespace Metasound
 				"Audio:Mono",
 				"Audio:Stereo"
 			};
-
-			void ExecuteInputTrigger(UMetasoundEditorGraphInputLiteral* Literal)
-			{
-				if (!Literal)
-				{
-					return;
-				}
-
-				UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(Literal->GetOuter());
-				if (!ensure(Input))
-				{
-					return;
-				}
-
-				// If modifying graph not currently being previewed, do not forward request
-				if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(Input->GetOuter()))
-				{
-					if (!Graph->IsPreviewing())
-					{
-						return;
-					}
-				}
-
-				if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
-				{
-					if (TScriptInterface<IAudioCommunicationInterface> CommInterface = PreviewComponent->GetCommunicationInterface())
-					{
-						// TODO: fix how identifying the parameter to update is determined. It should not be done
-						// with a "DisplayName" but rather the vertex Guid.
-						Metasound::Frontend::FConstNodeHandle NodeHandle = Input->GetConstNodeHandle();
-						Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
-						CommInterface->Trigger(*VertexKey);
-					}
-				}
-			}
 		}
 
 		void FMetasoundInputBoolDetailCustomization::CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle)
@@ -127,7 +92,7 @@ namespace Metasound
 
 		FText FMetasoundInputBoolDetailCustomization::GetPropertyNameOverride() const
 		{
-			if (DataTypeName == VariableCustomizationPrivate::TriggerTypeName)
+			if (DataTypeName == Metasound::GetMetasoundDataTypeName<Metasound::FTrigger>())
 			{
 				return LOCTEXT("TriggerInput_SimulateTitle", "Simulate");
 			}
@@ -145,41 +110,20 @@ namespace Metasound
 				if (ValueProperty.IsValid())
 				{
 					// Not a trigger, so just display as underlying literal type (bool)
-					if (DataTypeName != VariableCustomizationPrivate::TriggerTypeName)
+					if (DataTypeName != Metasound::GetMetasoundDataTypeName<Metasound::FTrigger>())
 					{
 						return ValueProperty->CreatePropertyValueWidget();
 					}
 
-					return
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-						.VAlign(VAlign_Center)
-						[
-							SNew(SButton)
-							.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-							.OnClicked_Lambda([ValueProperty]()
-							{
-								TArray<UObject*> OuterObjects;
-								ValueProperty->GetOuterObjects(OuterObjects);
-								for (UObject* Object : OuterObjects)
-								{
-									UMetasoundEditorGraphInputLiteral* Literal = Cast<UMetasoundEditorGraphInputLiteral>(Object);
-									VariableCustomizationPrivate::ExecuteInputTrigger(Literal);
-								}
-								return FReply::Handled();
-							})
-							.ToolTipText(LOCTEXT("TriggerTestToolTip", "Executes trigger if currently previewing Metasound."))
-							.ForegroundColor(FSlateColor::UseForeground())
-							.ContentPadding(0)
-							.IsFocusable(false)
-							[
-								SNew(SImage)
-								.Image(FAppStyle::Get().GetBrush("Icons.CircleArrowDown"))
-								.ColorAndOpacity(FSlateColor::UseForeground())
-							]
-						];
+					TArray<UObject*> OuterObjects;
+					ValueProperty->GetOuterObjects(OuterObjects);
+					for (UObject* Object : OuterObjects)
+					{
+						if (UMetasoundEditorGraphInputLiteral* Literal = Cast<UMetasoundEditorGraphInputLiteral>(Object))
+						{
+							return SMetasoundGraphNode::CreateTriggerSimulationWidget(*Literal);
+						}
+					}
 				}
 			}
 
