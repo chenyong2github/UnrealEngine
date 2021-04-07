@@ -184,7 +184,7 @@ FHairTraversalResult InternalComputeHairCountVoxel(
 	TraversalSettings.bDebugEnabled = bDebugEnabled;
 	TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale_Environment;
 	TraversalSettings.PixelRadius = PixelRadius;
-	TraversalSettings.bUseOccupancy = View.GeneralPurposeTweak > 0;
+	TraversalSettings.bUseOccupancy = false;
 
 	return ComputeHairCountVirtualVoxel(
 		WorldPosition,
