@@ -815,7 +815,7 @@ namespace iPhonePackager
                     Log("RPC Commands: SetExec, InstallProvision, MakeApp, DeleteIPA, Copy, Kill, Strip, Zip, GenDSYM");
                     Log("");
                     Log("Sample commandlines:");
-                    Log(" ... iPhonePackager Deploy UDKGame Release");
+                    Log(" ... iPhonePackager Deploy UnrealGame Release");
                     Log(" ... iPhonePackager RPC SwordGame Shipping MakeApp");
                     return (int)ErrorCodes.Error_Arguments;
                 }

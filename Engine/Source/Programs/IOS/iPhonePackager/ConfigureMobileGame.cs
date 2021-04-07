@@ -51,13 +51,13 @@ namespace iPhonePackager
 
 			if (!Helper.GetString("CFBundleName", out BundleName))
 			{
-				BundleName = "MyUDKGame";
+				BundleName = "MyUnrealGame";
 				Helper.SetString("CFBundleName", BundleName);
 			}
 
 			if (!Helper.GetString("CFBundleDisplayName", out BundleDisplayName))
 			{
-				BundleDisplayName = "UDK Game";
+				BundleDisplayName = "Unreal Game";
 				Helper.SetString("CFBundleDisplayName", BundleDisplayName);
 			}
 
