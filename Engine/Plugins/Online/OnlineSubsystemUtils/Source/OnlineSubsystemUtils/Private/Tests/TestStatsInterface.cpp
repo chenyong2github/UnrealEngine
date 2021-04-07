@@ -5,41 +5,6 @@
 #include "Interfaces/OnlineIdentityInterface.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
-//
-///**
-// *	Example of a Stats write object
-// */
-//class TestStatsWrite : public FOnlineStatsWrite
-//{
-//public:
-//	TestStatsWrite()
-//	{
-//		// Default properties
-//		new (StatsNames) FName(TEXT("TestStats"));
-//		RatedStat = "TestIntStat1";
-//		DisplayFormat = EStatsFormat::Number;
-//		SortMethod = EStatsSort::Descending;
-//		UpdateMethod = EStatsUpdateMethod::KeepBest;
-//	}
-//};
-//
-///**
-// *	Example of a Stats read object
-// */
-//class TestStatsRead : public FOnlineStatsRead
-//{
-//public:
-//	TestStatsRead(const FString& InStatsName, const FString& InSortedColumn, const TMap<FString, EOnlineKeyValuePairDataType::Type>& InColumns)
-//	{
-//		StatsName = FName(InStatsName);
-//		SortedColumn = FName(InSortedColumn);
-//
-//		for (TPair<FString, EOnlineKeyValuePairDataType::Type> Column : InColumns)
-//		{
-//			new (ColumnMetadata) FColumnMetaData(FName(Column.Key), Column.Value);
-//		}
-//	}
-//};
 
 FTestStatsInterface::FTestStatsInterface(const FString& InSubsystem) :
 	Subsystem(InSubsystem),
@@ -48,27 +13,15 @@ FTestStatsInterface::FTestStatsInterface(const FString& InSubsystem) :
 	TestPhase(0),
 	LastTestPhase(-1)
 {
-	//// Define delegates
-	//StatsFlushDelegate = FOnStatsFlushCompleteDelegate::CreateRaw(this, &FTestStatsInterface::OnStatsFlushComplete);
-	//StatsReadCompleteDelegate = FOnStatsReadCompleteDelegate::CreateRaw(this, &FTestStatsInterface::OnStatsReadComplete);
-	//StatsReadRankCompleteDelegate = FOnStatsReadCompleteDelegate::CreateRaw(this, &FTestStatsInterface::OnStatsRankReadComplete);
-	//StatsReadRankUserCompleteDelegate = FOnStatsReadCompleteDelegate::CreateRaw(this, &FTestStatsInterface::OnStatsUserRankReadComplete);
+
 }
 
 FTestStatsInterface::~FTestStatsInterface()
 {
-	if (Stats.IsValid())
-	{
-		//Statss->ClearOnStatsReadCompleteDelegate_Handle(StatsReadCompleteDelegateHandle);
-		//Statss->ClearOnStatsReadCompleteDelegate_Handle(StatsReadRankCompleteDelegateHandle);
-		//Statss->ClearOnStatsReadCompleteDelegate_Handle(StatsReadRankUserCompleteDelegateHandle);
-		//Statss->ClearOnStatsFlushCompleteDelegate_Handle(StatsFlushDelegateHandle);
-	}
-
 	Stats = NULL;
 }
 
-void FTestStatsInterface::Test(UWorld* InWorld) //todo: add more params to thi
+void FTestStatsInterface::Test(UWorld* InWorld)
 {
 	OnlineSub = Online::GetSubsystem(InWorld, FName(*Subsystem));
 	if (!OnlineSub)
@@ -95,33 +48,49 @@ void FTestStatsInterface::Test(UWorld* InWorld) //todo: add more params to thi
 	}
 }
 
-void FTestStatsInterface::TestFromConfig(UWorld* InWorld)
-{
-	// todo: implement
-	delete this;
-}
-
 void FTestStatsInterface::WriteStats()
 {
 	TArray<FOnlineStatsUserUpdatedStats> Writes;
 
-	int64 NewScore = 535;
+	int64 NewScore = 999;
 	FVariantData NewScoreData;
 	NewScoreData.SetValue(NewScore);
 
+	int64 NewFrags = 53;
+	FVariantData NewFragsData;
+	NewFragsData.SetValue(NewFrags);
+
+	int64 NewDeaths = 24;
+	FVariantData NewDeathsData;
+	NewDeathsData.SetValue(NewDeaths);
+
+	int64 NewMatchesPlayed = 3;
+	FVariantData NewMatchesPlayedData;
+	NewMatchesPlayedData.SetValue(NewMatchesPlayed);
+
+	UE_LOG_ONLINE_STATS(Log, TEXT("FTestStatsInterface::WriteStats()"));
+	UE_LOG_ONLINE_STATS(Log, TEXT("	- ShooterAllTimeMatchResultsScore is being set to %ll"), NewScore);
+	UE_LOG_ONLINE_STATS(Log, TEXT("	- ShooterAllTimeMatchResultsFrags is being incremented by %ll"), NewFrags);
+	UE_LOG_ONLINE_STATS(Log, TEXT("	- ShooterAllTimeMatchResultsDeaths is being set to the largest of its existing value and %ll"), NewDeaths);
+	UE_LOG_ONLINE_STATS(Log, TEXT("	- ShooterAllTimeMatchResultsMatchesPlayed is being set to the smallest of its existng value and %ll"), NewMatchesPlayed);
+
 	FOnlineStatsUserUpdatedStats& Write1 = Writes.Emplace_GetRef(UserId.ToSharedRef());
-	Write1.Stats.Add(TEXT("ShooterAllTimeMatchResultsScore"), FOnlineStatUpdate(NewScoreData, FOnlineStatUpdate::EOnlineStatModificationType::Set)); 
+	Write1.Stats.Add(TEXT("ShooterAllTimeMatchResultsScore"), FOnlineStatUpdate(NewScoreData, FOnlineStatUpdate::EOnlineStatModificationType::Set));
+	Write1.Stats.Add(TEXT("ShooterAllTimeMatchResultsFrags"), FOnlineStatUpdate(NewFragsData, FOnlineStatUpdate::EOnlineStatModificationType::Sum));
+	Write1.Stats.Add(TEXT("ShooterAllTimeMatchResultsDeaths"), FOnlineStatUpdate(NewDeathsData, FOnlineStatUpdate::EOnlineStatModificationType::Largest));
+	Write1.Stats.Add(TEXT("ShooterAllTimeMatchResultsMatchesPlayed"), FOnlineStatUpdate(NewMatchesPlayedData, FOnlineStatUpdate::EOnlineStatModificationType::Smallest));
 
 	// Write it to the buffers
 	Stats->UpdateStats(UserId.ToSharedRef(), Writes, FOnlineStatsUpdateStatsComplete::CreateLambda([this](const FOnlineError& Error) {
 		UE_LOG_ONLINE_STATS(Log, TEXT("Write test finish"));
-		TestPhase++;				
-	}));
-}
+		TestPhase++;
 
-void FTestStatsInterface::PrintStats()
-{
-	//TODO
+		if(!Error.bSucceeded)
+		{
+			UE_LOG_ONLINE_STATS(Error, TEXT("WriteStats test failed: %s"), *Error.GetErrorMessage().ToString());
+			bOverallSuccess = false;
+		}
+	}));
 }
 
 void FTestStatsInterface::ReadStats()
@@ -129,17 +98,27 @@ void FTestStatsInterface::ReadStats()
 	Stats->QueryStats(UserId.ToSharedRef(), UserId.ToSharedRef(), FOnlineStatsQueryUserStatsComplete::CreateLambda([this](const FOnlineError& Error,  const TSharedPtr<const FOnlineStatsUserStats>& QueriedStats)
 	{
 		UE_LOG_ONLINE_STATS(Log, TEXT("Read test finish with %d queried stats"), QueriedStats->Stats.Num());
-		for(const TPair<FString, FOnlineStatValue>& StatReads : QueriedStats->Stats)
-		{
-			UE_LOG_ONLINE_STATS(Log, TEXT("Stat name %s has value %s"), *StatReads.Key, *StatReads.Value.ToString());
-		}
 
-		TSharedPtr<const FOnlineStatsUserStats> ReadUserStats = Stats->GetStats(UserId.ToSharedRef());
-		for (const TPair<FString, FOnlineStatValue>& StatReads : ReadUserStats->Stats)
+
+		if (!Error.bSucceeded)
 		{
-			UE_LOG_ONLINE_STATS(Log, TEXT("Read Stat name %s has value %s"), *StatReads.Key, *StatReads.Value.ToString());
+			UE_LOG_ONLINE_STATS(Error, TEXT("ReadStats test failed: %s"), *Error.GetErrorMessage().ToString());
+			bOverallSuccess = false;
 		}
-		TestPhase++;
+		else
+		{
+			for (const TPair<FString, FOnlineStatValue>& StatReads : QueriedStats->Stats)
+			{
+				UE_LOG_ONLINE_STATS(Log, TEXT("Stat name %s has value %s"), *StatReads.Key, *StatReads.Value.ToString());
+			}
+
+			TSharedPtr<const FOnlineStatsUserStats> ReadUserStats = Stats->GetStats(UserId.ToSharedRef());
+			for (const TPair<FString, FOnlineStatValue>& StatReads : ReadUserStats->Stats)
+			{
+				UE_LOG_ONLINE_STATS(Log, TEXT("Read Stat name %s has value %s"), *StatReads.Key, *StatReads.Value.ToString());
+			}
+			TestPhase++;
+		}
 	}));
 }
 
@@ -152,7 +131,7 @@ bool FTestStatsInterface::Tick(float DeltaTime)
 		if (!bOverallSuccess)
 		{
 			UE_LOG_ONLINE_STATS(Log, TEXT("Testing failed in phase %d"), LastTestPhase);
-			TestPhase = 2;
+			TestPhase = 3;
 		}
 
 		LastTestPhase = TestPhase;
@@ -160,40 +139,18 @@ bool FTestStatsInterface::Tick(float DeltaTime)
 		switch (TestPhase)
 		{
 		case 0:
-			UE_LOG_ONLINE_STATS(Log, TEXT("// Beginning Write (writing matches to 535)"));
-			WriteStats();
-			break;
-		case 1:
-			UE_LOG_ONLINE_STATS(Log, TEXT("// Beginning ReadStats (reading self)"));
+			UE_LOG_ONLINE_STATS(Log, TEXT("// Beginning ReadStats (reading self, pre-write)"));
 			ReadStats();
 			break;
-		/*case 3:
-			UE_LOG_ONLINE_Stats(Log, TEXT("// Beginning ReadStatssFriends"));
-			ReadStatssFriends();
+		case 1:
+			UE_LOG_ONLINE_STATS(Log, TEXT("// Beginning Write (writing matches to 999)"));
+			WriteStats();
 			break;
-		case 4:
-			UE_LOG_ONLINE_Stats(Log, TEXT("// Beginning ReadStatssRank polling users from 1 to 8"));
-			ReadStatssRank(3, 5);
-			break;
-		case 5:
-			UE_LOG_ONLINE_Stats(Log, TEXT("// Beginning ReadStatssUser polling all users +- 5 spaces from the local user"));
-			ReadStatssUser(*UserId, 5);
-			break;
-		case 6:
-		{
-			if (FindRankUserId.IsEmpty())
-			{
-				++TestPhase;
-				UE_LOG_ONLINE_Stats(Log, TEXT("Test will be skipping arbitrary lookup as an id was not provided."));
-				return true;
-			}
-			else
-			{
-				UE_LOG_ONLINE_Stats(Log, TEXT("// Beginning ReadStatssUser polling all users +- 1 from the designated user (%s)"), *FindRankUserId);
-				ReadStatssUser(1);
-			}
-		} break;*/
 		case 2:
+			UE_LOG_ONLINE_STATS(Log, TEXT("// Beginning ReadStats (reading self, post-write)"));
+			ReadStats();
+			break;
+		case 3:
 			UE_LOG_ONLINE_STATS(Log, TEXT("TESTING COMPLETE Success:%s!"), bOverallSuccess ? TEXT("true") : TEXT("false"));
 			delete this;
 			return false;
