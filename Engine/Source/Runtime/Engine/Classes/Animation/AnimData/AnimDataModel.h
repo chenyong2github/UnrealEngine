@@ -380,7 +380,8 @@ private:
 	}
 
 private:
-	void GenerateTransientData();
+	void GenerateTransientData() const;
+	void CheckTransientData() const;
 
 	UPROPERTY(Transient)
 	int32 BracketCounter = 0;
@@ -423,16 +424,18 @@ private:
 private:
 	/** Transient data, kept around for backward-compatibility */
 	UPROPERTY(Transient, VisibleAnywhere, Category = "Animation Data Model")
-	TArray<FRawAnimSequenceTrack> RawAnimationTracks;
+	mutable TArray<FRawAnimSequenceTrack> RawAnimationTracks;
 
 	UPROPERTY(Transient, VisibleAnywhere, Category = "Animation Data Model")
-	TArray<FName> RawAnimationTrackNames;
+	mutable TArray<FName> RawAnimationTrackNames;
 
 	UPROPERTY(Transient, VisibleAnywhere, Category = "Animation Data Model")
-	TArray<FTrackToSkeletonMap> RawAnimationTrackSkeletonMappings;
+	mutable TArray<FTrackToSkeletonMap> RawAnimationTrackSkeletonMappings;
+
+	mutable bool bHasTransientDataBeenGenerated = false;
 
 	UPROPERTY(Transient, VisibleAnywhere, Category = "Animation Data Model")
-	FRawCurveTracks RawCurveTracks;
+	mutable FRawCurveTracks RawCurveTracks;
 
 	friend class UAnimDataController;
 	friend class FAnimDataControllerTestBase;
