@@ -1,27 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if PLATFORM_WINDOWS && defined(_WIN64)
+#if defined(UE_LIBRARY_ENABLED) && UE_LIBRARY_ENABLED
+
+#if !PLATFORM_WINDOWS || !defined(_WIN64)
+	#error "UELibrary is currently only supported under 64-bit Windows"
+#endif
+
+#if !IS_MONOLITHIC
+	#error "UELibrary is expected to be built monolithically"
+#endif
 
 #include "UELibrary.h"
 
-#include "Modules/ModuleManager.h"
-#include "Windows/WindowsApplication.h"
-#include "LaunchEngineLoop.h"
+#include "Windows/WindowsHWrapper.h"
 #include "Containers/StringConv.h"
 
 #define UELIBRARY_DLL_EXPORT
 #include "UELibraryAPI.h"
 #undef UELIBRARY_DLL_EXPORT
 
-#if WITH_EDITOR
-#include "UnrealEdGlobals.h"
-#endif
-
-extern LAUNCH_API int32 LaunchWindowsStartup(HINSTANCE hInInstance, HINSTANCE hPrevInstance, char*, int32 nCmdShow, const TCHAR* CmdLine);
-extern LAUNCH_API void LaunchWindowsShutdown();
-
+// From Launch
+extern int32 LaunchWindowsStartup(HINSTANCE hInInstance, HINSTANCE hPrevInstance, char*, int32 nCmdShow, const TCHAR* CmdLine);
+extern void LaunchWindowsShutdown();
 extern void EngineTick();
 extern void EngineExit();
+
+// From ApplicationCore
+extern LRESULT WindowsApplication_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 namespace UE
 {
@@ -125,8 +130,6 @@ int UELibrary_Tick()
 
 #if WINDOWS_USE_FEATURE_LAUNCH
 
-#include "Windows/WindowsApplication.h"
-
 LRESULT UELibrary_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	// Do default handling if the library isn't initialized
@@ -136,7 +139,7 @@ LRESULT UELibrary_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	else
 	{
-		return FWindowsApplication::AppWndProc(hWnd, message, wParam, lParam);
+		return WindowsApplication_WndProc(hWnd, message, wParam, lParam);
 	}
 }
 
@@ -156,4 +159,4 @@ int UELibrary_Shutdown()
 	return 0;
 }
 
-#endif // #if PLATFORM_WINDOWS && defined(_WIN64)
+#endif // #if defined(UE_LIBRARY_ENABLED) && UE_LIBRARY_ENABLED

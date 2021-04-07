@@ -3,7 +3,7 @@
 #pragma once
 
 #ifndef _WIN64
-	#error "UELibrary is currently only supported under Windows"
+	#error "UELibrary is currently only supported under 64-bit Windows"
 #endif
 
 #ifdef UELIBRARY_DLL_EXPORT

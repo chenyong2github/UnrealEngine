@@ -10,9 +10,10 @@ public class UELibrary : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "Engine", "InputCore" });
 
-		if (Target.Platform != UnrealTargetPlatform.Mac && Target.Platform != UnrealTargetPlatform.Linux)
-		{
-			PrivateDependencyModuleNames.AddRange(new string[] { "Launch", "ApplicationCore" });
-		}
+		// We depend on these modules, but can't explicitly state that for module ordering
+		// reasons.  Instead, we extern those other modules' functions and call them directly,
+		// which works because the UELibrary is only expected to be built as monolithic, so
+		// there are no *_API issues.
+		// PrivateDependencyModuleNames.AddRange(new string[] { "Launch", "ApplicationCore" });
 	}
 }
