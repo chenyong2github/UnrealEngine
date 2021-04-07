@@ -703,7 +703,15 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 		}	
 	}
 
-	NewIssues.Append(MessageManagerIssues);
+	if (GetIsHidden())
+	{
+		// Hidden inputs should not generate issues because they are impossible for the user to see.
+		NewIssues.Empty();
+	}
+	else
+	{
+		NewIssues.Append(MessageManagerIssues);
+	}
 }
 
 class UNiagaraStackFunctionInputUtilities
