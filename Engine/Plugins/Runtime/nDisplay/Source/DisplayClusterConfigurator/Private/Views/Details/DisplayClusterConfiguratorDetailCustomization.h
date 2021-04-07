@@ -28,9 +28,11 @@ class UDisplayClusterConfigurationViewport;
 class UDisplayClusterConfigurationSceneComponentMesh;
 class UDisplayClusterScreenComponent;
 
+template<typename OptionType>
+class SComboBox;
+
 template<typename NumericType>
 class SSpinBox;
-
 
 /**
  * Base UCLASS Detail Customization
