@@ -1626,25 +1626,8 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 					int TileIndexY = (In_AttributeIndex / {NumTiles}.x) % {NumTiles}.y;
 					int TileIndexZ = In_AttributeIndex / ({NumTiles}.x * {NumTiles}.y);		
 					
-					float3 UVW =
-					{
-						In_UnitX / {NumTiles}.x + 1.0*TileIndexX/{NumTiles}.x,
-						In_UnitY / {NumTiles}.y + 1.0*TileIndexY/{NumTiles}.y,
-						In_UnitZ / {NumTiles}.z + 1.0*TileIndexZ/{NumTiles}.y
-					};
-					float3 TileMin =
-					{
-						(TileIndexX * {NumCellsName}.x + 0.5) / ({NumTiles}.x * {NumCellsName}.x),
-						(TileIndexY * {NumCellsName}.y + 0.5) / ({NumTiles}.y * {NumCellsName}.y),
-						(TileIndexZ * {NumCellsName}.z + 0.5) / ({NumTiles}.z * {NumCellsName}.z)
-					};
-					float3 TileMax =
-					{
-						((TileIndexX + 1) * {NumCellsName}.x - 0.5) / ({NumTiles}.x * {NumCellsName}.x),
-						((TileIndexY + 1) * {NumCellsName}.y - 0.5) / ({NumTiles}.y * {NumCellsName}.y),
-						((TileIndexZ + 1) * {NumCellsName}.z - 0.5) / ({NumTiles}.z * {NumCellsName}.z)
-					};
-					UVW = clamp(UVW, TileMin, TileMax);
+					float3 UVW = clamp(float3(In_UnitX, In_UnitY, In_UnitZ), .5 / {NumCellsName}, 1. - .5 / {NumCellsName});
+					UVW = (UVW + float3(TileIndexX, TileIndexY, TileIndexZ)) / {NumTiles};
 
 					Out_Val = {Grid}.SampleLevel({SamplerName}, UVW, 0);
 				}
