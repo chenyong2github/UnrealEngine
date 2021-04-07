@@ -129,6 +129,8 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	// traverse all graphs and try to clear out orphan pins
 	TArray<URigVMGraph*> VisitedGraphs;
 	VisitedGraphs.Add(InGraph);
+
+	int32 NodesWithOrphanPins = 0;
 	for(int32 GraphIndex=0; GraphIndex<VisitedGraphs.Num(); GraphIndex++)
 	{
 		URigVMGraph* VisitedGraph = VisitedGraphs[GraphIndex];
@@ -139,6 +141,7 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 			{
 				static const FString LinkedMessage = TEXT("Node @@ uses pins that no longer exist. Please rewire the links and re-compile.");
 				Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, LinkedMessage);
+				NodesWithOrphanPins++;
 			}
 
 			if(URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(ModelNode))
@@ -149,6 +152,11 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 				}
 			}
 		}
+	}
+
+	if(NodesWithOrphanPins > 0)
+	{
+		return false;
 	}
 #endif
 	

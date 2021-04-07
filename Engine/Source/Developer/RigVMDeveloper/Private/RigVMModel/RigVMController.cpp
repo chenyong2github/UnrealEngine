@@ -7589,7 +7589,7 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 		URigVMPin* SourcePin = Link->GetSourcePin();
 		URigVMPin* TargetPin = Link->GetTargetPin();
 
-		if((SourcePin != nullptr) && (TargetPin != nullptr))
+		if(bSetupOrphanedPins && (SourcePin != nullptr) && (TargetPin != nullptr))
 		{
 			if (!URigVMPin::CanLink(SourcePin, TargetPin, nullptr, nullptr))
 			{
