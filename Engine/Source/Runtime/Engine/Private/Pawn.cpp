@@ -588,15 +588,15 @@ void APawn::UnPossessed()
 
 void APawn::NotifyControllerChanged()
 {
-	ReceiveControllerChanged(LastController, Controller);
-	ReceiveControllerChangedDelegate.Broadcast(this, LastController, Controller);
+	ReceiveControllerChanged(PreviousController, Controller);
+	ReceiveControllerChangedDelegate.Broadcast(this, PreviousController, Controller);
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
 		GameInstance->GetOnPawnControllerChanged().Broadcast(this, Controller);
 	}
 
 	// Update the cached controller
-	LastController = Controller;
+	PreviousController = Controller;
 }
 
 class UNetConnection* APawn::GetNetConnection() const

@@ -166,7 +166,7 @@ public:
 
 	/** Previous controller that was controlling this pawn since the last controller change notification */
 	UPROPERTY(transient)
-	TObjectPtr<AController> LastController;
+	TObjectPtr<AController> PreviousController;
 
 	/** Max difference between pawn's Rotation.Yaw and GetDesiredRotation().Yaw for pawn to be considered as having reached its desired rotation */
 	float AllowedYawError;
