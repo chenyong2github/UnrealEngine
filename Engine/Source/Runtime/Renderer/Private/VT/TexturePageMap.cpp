@@ -105,7 +105,7 @@ uint32 FTexturePageMap::FindNearestPageLevel(uint8 vLogSize, uint32 vAddress) co
 	const uint32 Index = FindNearestPageIndex(vLogSize, vAddress);
 	if (Index != ~0u)
 	{
-		return Pages[Index].vLevel;
+		return Pages[Index].Local_vLevel;
 	}
 	return 0xff;
 }
@@ -133,7 +133,7 @@ void FTexturePageMap::UnmapPage(FVirtualTextureSystem* System, FVirtualTextureSp
 			// No reason to queue a page table update to invalid pAddress, just leave it alone for now, it will be updated when the page is remapped
 			check(Pages[AncestorIndex].PhysicalSpaceID == Pages[PageIndex].PhysicalSpaceID);
 			const FVirtualTexturePhysicalSpace* PhysicalSpace = System->GetPhysicalSpace(Pages[AncestorIndex].PhysicalSpaceID);
-			const uint8 Ancestor_vLevel = Pages[AncestorIndex].vLevel;
+			const uint8 Ancestor_vLevel = Pages[AncestorIndex].Local_vLevel;
 			Space->QueueUpdate(LayerIndex, vLogSize, vAddress, Ancestor_vLevel, PhysicalSpace->GetPhysicalLocation(Pages[AncestorIndex].pAddress));
 		}
 	}
@@ -170,7 +170,7 @@ void FTexturePageMap::UnmapPage(FVirtualTextureSystem* System, FVirtualTextureSp
 	SortedKeysDirty = true;
 }
 
-void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress)
+void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress)
 {
 #if DO_GUARD_SLOW
 	const uint32 PrevPageIndex = FindPageIndex(vLogSize, vAddress);
@@ -183,7 +183,7 @@ void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysic
 	FPageEntry& Entry = Pages[PageIndex];
 	Entry.Page = Page;
 	Entry.pAddress = pAddress;
-	Entry.vLevel = vLevel;
+	Entry.Local_vLevel = Local_vLevel;
 	Entry.PhysicalSpaceID = PhysicalSpace->GetID();
 
 	++MappedPageCount;
@@ -197,7 +197,7 @@ void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysic
 		// Map new page
 		const uint16 Hash = MurmurFinalize32(Page.Packed);
 		HashTable.Add(Hash, PageIndex);
-		Space->QueueUpdate(LayerIndex, vLogSize, vAddress, vLevel, PhysicalSpace->GetPhysicalLocation(pAddress));
+		Space->QueueUpdate(LayerIndex, vLogSize, vAddress, Local_vLevel, PhysicalSpace->GetPhysicalLocation(pAddress));
 	}
 
 	SortedKeysDirty = true;
@@ -228,7 +228,7 @@ void FTexturePageMap::GetMappedPagesInRange(uint32 vAddress, uint32 Width, uint3
 				OutPage.Page = Entry.Page;
 				OutPage.pAddress = Entry.pAddress;
 				OutPage.PhysicalSpaceID = Entry.PhysicalSpaceID;
-				OutPage.vLevel = Entry.vLevel;
+				OutPage.Local_vLevel = Entry.Local_vLevel;
 			}
 		}
 

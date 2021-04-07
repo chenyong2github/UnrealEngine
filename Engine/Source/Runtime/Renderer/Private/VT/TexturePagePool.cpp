@@ -326,11 +326,11 @@ uint32 FTexturePagePool::GetNumVisiblePages(uint32 Frame) const
 	return Count;
 }
 
-void FTexturePagePool::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress)
+void FTexturePagePool::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress)
 {
 	check(pAddress < NumPages);
 	FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(PageTableLayerIndex);
-	PageMap.MapPage(Space, PhysicalSpace, vLogSize, vAddress, vLevel, pAddress);
+	PageMap.MapPage(Space, PhysicalSpace, vLogSize, vAddress, Local_vLevel, pAddress);
 
 	++NumPagesMapped;
 
@@ -444,3 +444,4 @@ void FTexturePagePool::RemapPages(FVirtualTextureSystem* System, uint8 SpaceID, 
 		}
 	}
 }
+

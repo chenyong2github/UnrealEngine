@@ -36,8 +36,8 @@ inline bool operator!=(const FMappingRequest& Lhs, const FMappingRequest& Rhs) {
 union FDirectMappingRequest
 {
 	inline FDirectMappingRequest() {}
-	inline FDirectMappingRequest(uint8 InSpaceID, uint16 InPhysicalSpaceID, uint8 InPageTableLayerIndex, uint8 InLogSize, uint32 InAddress, uint8 InLevel, uint16 InPhysicalAddress)
-		: vAddress(InAddress), vLevel(InLevel), SpaceID(InSpaceID), pAddress(InPhysicalAddress), PhysicalSpaceID(InPhysicalSpaceID), Local_vLevel(InLogSize), PageTableLayerIndex(InPageTableLayerIndex)
+	inline FDirectMappingRequest(uint8 InSpaceID, uint16 InPhysicalSpaceID, uint8 InPageTableLayerIndex, uint32 InAddress, uint8 InLevel, uint8 InLocalLevel, uint16 InPhysicalAddress)
+		: vAddress(InAddress), vLevel(InLevel), SpaceID(InSpaceID), pAddress(InPhysicalAddress), PhysicalSpaceID(InPhysicalSpaceID), Local_vLevel(InLocalLevel), PageTableLayerIndex(InPageTableLayerIndex)
 	{}
 
 	uint64 PackedValue;
@@ -109,7 +109,7 @@ public:
 
 	void AddMappingRequest(uint16 LoadRequestIndex, uint8 ProducerPhysicalGroupIndex, uint8 SpaceID, uint8 PageTableLayerIndex, uint32 vAddress, uint8 vLevel, uint8 Local_vLevel);
 
-	void AddDirectMappingRequest(uint8 InSpaceID, uint16 InPhysicalSpaceID, uint8 InPageTableLayerIndex, uint8 InLogSize, uint32 InAddress, uint8 InLevel, uint16 InPhysicalAddress);
+	void AddDirectMappingRequest(uint8 InSpaceID, uint16 InPhysicalSpaceID, uint8 InPageTableLayerIndex, uint32 InAddress, uint8 InLevel, uint8 InLocalLevel, uint16 InPhysicalAddress);
 	void AddDirectMappingRequest(const FDirectMappingRequest& Request);
 
 	void AddContinuousUpdateRequest(const FVirtualTextureLocalTile& Request);
@@ -237,9 +237,9 @@ inline void FUniqueRequestList::AddMappingRequest(uint16 LoadRequestIndex, uint8
 	}
 }
 
-inline void FUniqueRequestList::AddDirectMappingRequest(uint8 InSpaceID, uint16 InPhysicalSpaceID, uint8 InPageTableLayerIndex, uint8 InLogSize, uint32 InAddress, uint8 InLevel, uint16 InPhysicalAddress)
+inline void FUniqueRequestList::AddDirectMappingRequest(uint8 InSpaceID, uint16 InPhysicalSpaceID, uint8 InPageTableLayerIndex, uint32 InAddress, uint8 InLevel, uint8 InLocalLevel, uint16 InPhysicalAddress)
 {
-	const FDirectMappingRequest Request(InSpaceID, InPhysicalSpaceID, InPageTableLayerIndex, InLogSize, InAddress, InLevel, InPhysicalAddress);
+	const FDirectMappingRequest Request(InSpaceID, InPhysicalSpaceID, InPageTableLayerIndex, InAddress, InLevel, InLocalLevel, InPhysicalAddress);
 	AddDirectMappingRequest(Request);
 }
 
