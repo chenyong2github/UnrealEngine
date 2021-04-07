@@ -6159,23 +6159,27 @@ void RecompileShadersForRemote(
 		return;
 	}
 
+	UE_LOG(LogShaders, Display, TEXT(""));
+	UE_LOG(LogShaders, Display, TEXT("********************************"));
+	UE_LOG(LogShaders, Display, TEXT("Received compile shader request."));
+
 	const bool bPreviousState = GShaderCompilingManager->IsShaderCompilationSkipped();
 	GShaderCompilingManager->SkipShaderCompilation(false);
 
 	TArray<FName> DesiredShaderFormats;
 	TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
 
-	UE_LOG(LogShaders, Display, TEXT("Loading %d materials..."), MaterialsToLoad.Num());
+	UE_LOG(LogShaders, Verbose, TEXT("Loading %d materials..."), MaterialsToLoad.Num());
 	// make sure all materials the client has loaded will be processed
 	TArray<UMaterialInterface*> MaterialsToCompile;
 
 	for (int32 Index = 0; Index < MaterialsToLoad.Num(); Index++)
 	{
-		UE_LOG(LogShaders, Display, TEXT("   --> %s"), *MaterialsToLoad[Index]);
+		UE_LOG(LogShaders, Verbose, TEXT("   --> %s"), *MaterialsToLoad[Index]);
 		MaterialsToCompile.Add(LoadObject<UMaterialInterface>(NULL, *MaterialsToLoad[Index]));
 	}
 
-	UE_LOG(LogShaders, Display, TEXT("  Done!"))
+	UE_LOG(LogShaders, Verbose, TEXT("  Done!"))
 
 	// figure out which shaders are out of date
 	TArray<const FShaderType*> OutdatedShaderTypes;
@@ -6198,9 +6202,9 @@ void RecompileShadersForRemote(
 
 	for (const FODSCRequestPayload& payload: ShadersToRecompile)
 	{
-		UE_LOG(LogShaders, Display, TEXT("Material: %s "), *payload.MaterialName);
-		UE_LOG(LogShaders, Display, TEXT("VFType: %s "), *payload.VertexFactoryName);
-		UE_LOG(LogShaders, Display, TEXT("Pipeline: %s "), *payload.PipelineName);
+		UE_LOG(LogShaders, Display, TEXT(""));
+		UE_LOG(LogShaders, Display, TEXT("\tMaterial:    %s "), *payload.MaterialName);
+		UE_LOG(LogShaders, Display, TEXT("\tVF Type:     %s "), *payload.VertexFactoryName);
 
 		MaterialsToCompile.Add(LoadObject<UMaterialInterface>(NULL, *payload.MaterialName));
 
@@ -6218,7 +6222,7 @@ void RecompileShadersForRemote(
 
 		for (const FString& ShaderTypeName : payload.ShaderTypeNames)
 		{
-			UE_LOG(LogShaders, Display, TEXT("\tShaderType: %s"), *ShaderTypeName);
+			UE_LOG(LogShaders, Display, TEXT("\tShader Type: %s"), *ShaderTypeName);
 
 			const FShaderType* ShaderType = FShaderType::GetShaderTypeByName(*ShaderTypeName);
 			if (ShaderType)
@@ -6277,6 +6281,9 @@ void RecompileShadersForRemote(
 			}
 		}
 	}
+
+	UE_LOG(LogShaders, Display, TEXT(""));
+	UE_LOG(LogShaders, Display, TEXT("Finished shader compile request."));
 
 	// Restore compilation state.
 	GShaderCompilingManager->SkipShaderCompilation(bPreviousState);

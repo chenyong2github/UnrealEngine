@@ -7995,7 +7995,7 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 	// if we aren't in the game thread, we need to push this over to the game thread and wait for it to finish
 	if (!IsInGameThread())
 	{
-		UE_LOG(LogCook, Display, TEXT("Got a recompile request on non-game thread"));
+		UE_LOG(LogCook, Verbose, TEXT("Got a recompile request on non-game thread"));
 
 		// make a new request
 		UE::Cook::FRecompileRequest* Request = new UE::Cook::FRecompileRequest;
@@ -8011,7 +8011,7 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 			FPlatformProcess::Sleep(0);
 		}
 		delete Request;
-		UE_LOG(LogCook, Display, TEXT("Completed recompile..."));
+		UE_LOG(LogCook, Verbose, TEXT("Completed recompile..."));
 
 		// at this point, we are done on the game thread, and ModifiedFiles will have been filled out
 		return;
