@@ -2108,6 +2108,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 
 	ControlRig->SetBoneInitialTransformsFromRefSkeleton(Skeleton->GetReferenceSkeleton());
 	ControlRig->RequestSetup();
+	ControlRig->Evaluate_AnyThread();
 
 	for (int32 Index = 0; Index < NumberOfFrames; ++Index)
 	{
