@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OodleArchives.h"
-#include "OodleHandlerComponent.h"
+#include "OodleNetworkArchives.h"
+#include "OodleNetworkHandlerComponent.h"
 
 // Maximum size of compress/decompress buffers (just under 2GB, due to max int32 value)
 #define MAX_COMPRESS_BUFFER (1024 * 1024 * 2047)
@@ -16,7 +16,7 @@
  * FOodleCompressedData
  */
 
-void FOodleArchiveBase::FOodleCompressedData::Serialize(FArchive& Ar)
+void FOodleNetworkArchiveBase::FOodleCompressedData::Serialize(FArchive& Ar)
 {
 	Ar << Offset;
 	Ar << CompressedLength;
@@ -25,10 +25,10 @@ void FOodleArchiveBase::FOodleCompressedData::Serialize(FArchive& Ar)
 
 
 /**
- * FOodleArchiveBase
+ * FOodleNetworkArchiveBase
  */
 
-bool FOodleArchiveBase::SerializeOodleCompressData(FOodleCompressedData& OutDataInfo, uint8* Data, uint32 DataBytes)
+bool FOodleNetworkArchiveBase::SerializeOodleCompressData(FOodleCompressedData& OutDataInfo, uint8* Data, uint32 DataBytes)
 {
 	bool bSuccess = true;
 
@@ -54,7 +54,7 @@ bool FOodleArchiveBase::SerializeOodleCompressData(FOodleCompressedData& OutData
 	return bSuccess;
 }
 
-bool FOodleArchiveBase::SerializeOodleDecompressData(FOodleCompressedData& DataInfo, uint8*& OutData, uint32& OutDataBytes,
+bool FOodleNetworkArchiveBase::SerializeOodleDecompressData(FOodleCompressedData& DataInfo, uint8*& OutData, uint32& OutDataBytes,
 														bool bOutDataSlack/*=false*/)
 {
 	check(OutData == nullptr);
@@ -157,7 +157,7 @@ void FPacketCaptureArchive::SerializePacket(void* PacketData, uint32& PacketSize
 		// Max 128MB packet - excessive, but this is not meant to be a perfect security check
 		if (PacketBufferSize < PacketSize || !ensure(PacketSize <= 134217728))
 		{
-			UE_LOG(OodleHandlerComponentLog, Warning, TEXT("Bad PacketSize value '%i' in loading packet capture file"), PacketSize);
+			UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("Bad PacketSize value '%i' in loading packet capture file"), PacketSize);
 			SetError();
 
 			return;
@@ -165,7 +165,7 @@ void FPacketCaptureArchive::SerializePacket(void* PacketData, uint32& PacketSize
 
 		if (PacketSize > (InnerArchive.TotalSize() - InnerArchive.Tell()))
 		{
-			UE_LOG(OodleHandlerComponentLog, Warning, TEXT("PacketSize '%i' greater than remaining file data '%i'. Truncated file? ")
+			UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("PacketSize '%i' greater than remaining file data '%i'. Truncated file? ")
 					TEXT("(run server with -forcelogflush to reduce chance of truncated capture files)"),
 					PacketSize, (InnerArchive.TotalSize() - InnerArchive.Tell()));
 
@@ -217,7 +217,7 @@ void FPacketCaptureArchive::AppendPacketFile(FPacketCaptureArchive& InPacketFile
 
 		if (InPacketFile.IsError())
 		{
-			UE_LOG(OodleHandlerComponentLog, Warning, TEXT("Error reading packet capture data. Skipping rest of file."));
+			UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("Error reading packet capture data. Skipping rest of file."));
 
 			break;
 		}
@@ -281,7 +281,7 @@ uint32 FPacketCaptureArchive::GetPacketCount()
 			}
 			else
 			{
-				UE_LOG(OodleHandlerComponentLog, Warning, TEXT("Skipping packet file because it is malformed."));
+				UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("Skipping packet file because it is malformed."));
 			}
 		}
 	}
@@ -295,7 +295,7 @@ uint32 FPacketCaptureArchive::GetPacketCount()
  * FDictionaryHeader
  */
 
-void FOodleDictionaryArchive::FDictionaryHeader::SerializeHeader(FOodleDictionaryArchive& Ar)
+void FOodleNetworkDictionaryArchive::FDictionaryHeader::SerializeHeader(FOodleNetworkDictionaryArchive& Ar)
 {
 	bool bSuccess = true;
 
@@ -326,11 +326,11 @@ void FOodleDictionaryArchive::FDictionaryHeader::SerializeHeader(FOodleDictionar
 
 
 /**
- * FOodleDictionaryArchive
+ * FOodleNetworkDictionaryArchive
  */
 
-FOodleDictionaryArchive::FOodleDictionaryArchive(FArchive& InInnerArchive)
-	: FOodleArchiveBase(InInnerArchive)
+FOodleNetworkDictionaryArchive::FOodleNetworkDictionaryArchive(FArchive& InInnerArchive)
+	: FOodleNetworkArchiveBase(InInnerArchive)
 	, Header()
 {
 	if (IsSaving())
@@ -340,19 +340,19 @@ FOodleDictionaryArchive::FOodleDictionaryArchive(FArchive& InInnerArchive)
 	}
 }
 
-void FOodleDictionaryArchive::SetDictionaryHeaderValues(int32 InHashTableSize)
+void FOodleNetworkDictionaryArchive::SetDictionaryHeaderValues(int32 InHashTableSize)
 {
 	check(IsSaving());
 
 	Header.HashTableSize = InHashTableSize;
 }
 
-void FOodleDictionaryArchive::SerializeHeader()
+void FOodleNetworkDictionaryArchive::SerializeHeader()
 {
 	Header.SerializeHeader(*this);
 }
 
-void FOodleDictionaryArchive::SerializeDictionaryAndState(uint8*& DictionaryData, uint32& DictionaryBytes,
+void FOodleNetworkDictionaryArchive::SerializeDictionaryAndState(uint8*& DictionaryData, uint32& DictionaryBytes,
 															uint8*& CompactCompresorState, uint32& CompactCompressorStateBytes)
 {
 	if (IsLoading())

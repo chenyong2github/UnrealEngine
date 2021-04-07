@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "OodleHandlerComponent.h"
+#include "OodleNetworkHandlerComponent.h"
 #include "Commandlets/Commandlet.h"
 
-#include "OodleTrainerCommandlet.generated.h"
+#include "OodleNetworkTrainerCommandlet.generated.h"
 
 // don't compile this in for non-editor
 #define USE_OODLE_TRAINER_COMMANDLET (WITH_EDITOR)
@@ -61,7 +61,7 @@
  *		- @todo #JohnB: Only implement, if deciding to actually capture/track this kind of data
  */
 UCLASS(config=Editor)
-class UOodleTrainerCommandlet : public UCommandlet
+class UOodleNetworkTrainerCommandlet : public UCommandlet
 {
 	GENERATED_BODY()
 
@@ -95,7 +95,7 @@ public:
 	bool bNoTrials;
 
 public:
-	UOodleTrainerCommandlet(const FObjectInitializer& ObjectInitializer);
+	UOodleNetworkTrainerCommandlet(const FObjectInitializer& ObjectInitializer);
 
 	virtual int32 Main(const FString& Params) override;
 
@@ -194,11 +194,11 @@ private:
 
 #if USE_OODLE_TRAINER_COMMANDLET && (!UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING)
 /**
- * FOodleDictionaryGenerator
+ * FOodleNetworkDictionaryGenerator
  *
  * This class encapsulates dictionary generation, and splits it into multiple stages for readability
  */
-class FOodleDictionaryGenerator
+class FOodleNetworkDictionaryGenerator
 {
 	/** Input/Parameter variables */
 private:
@@ -255,7 +255,7 @@ public:
 	/**
 	 * Base constructor
 	 */
-	FOodleDictionaryGenerator()
+	FOodleNetworkDictionaryGenerator()
 		: OutputDictionaryFile()
 		, bCompressionTest(false)
 		, HashTableSize(0)

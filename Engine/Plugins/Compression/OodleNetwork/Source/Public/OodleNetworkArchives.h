@@ -33,7 +33,7 @@
  *
  * Contains some common code, such as Oodle file compression, and helper structs/types, for archive writing/navigation
  */
-class FOodleArchiveBase : public FArchiveProxy
+class FOodleNetworkArchiveBase : public FArchiveProxy
 {
 protected:
 	/**
@@ -86,7 +86,7 @@ protected:
 		 * @param Ar		The archive being serialized to
 		 * @param InValue	The new value
 		 */
-		FORCEINLINE void Set(FOodleArchiveBase& Ar, Type InValue)
+		FORCEINLINE void Set(FOodleNetworkArchiveBase& Ar, Type InValue)
 		{
 			Value = InValue;
 
@@ -165,7 +165,7 @@ public:
 	/**
 	 * Base constructor
 	 */
-	FOodleArchiveBase(FArchive& InInnerArchive)
+	FOodleNetworkArchiveBase(FArchive& InInnerArchive)
 		: FArchiveProxy(InInnerArchive)
 	{
 		bImmediateFlush = FParse::Param(FCommandLine::Get(), TEXT("FORCELOGFLUSH"));
@@ -259,7 +259,7 @@ public:
 /**
  * Archive for handling packet capture (.ucap) files
  */
-class FPacketCaptureArchive : public FOodleArchiveBase
+class FPacketCaptureArchive : public FOodleNetworkArchiveBase
 {
 protected:
 	/**
@@ -315,7 +315,7 @@ public:
 	 * Base constructor
 	 */
 	FPacketCaptureArchive(FArchive& InInnerArchive)
-		: FOodleArchiveBase(InInnerArchive)
+		: FOodleNetworkArchiveBase(InInnerArchive)
 		, Header()
 	{
 		if (IsSaving())
@@ -361,7 +361,7 @@ public:
 /**
  * Archive for handling UE4 Oodle dictionary (.udic) files
  */
-class FOodleDictionaryArchive : public FOodleArchiveBase
+class FOodleNetworkDictionaryArchive : public FOodleNetworkArchiveBase
 {
 public:
 	/**
@@ -409,7 +409,7 @@ public:
 		 *
 		 * @param Ar	The dictionary archive to serialize to/from
 		 */
-		void SerializeHeader(FOodleDictionaryArchive& Ar);
+		void SerializeHeader(FOodleNetworkDictionaryArchive& Ar);
 	};
 
 
@@ -420,7 +420,7 @@ public:
 	/**
 	 * Base constructor
 	 */
-	FOodleDictionaryArchive(FArchive& InInnerArchive);
+	FOodleNetworkDictionaryArchive(FArchive& InInnerArchive);
 
 	/**
 	 * Sets dictionary header values, that should be set prior to serializing the header to file

@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 // Includes
-#include "OodleAnalytics.h"
-#include "OodleHandlerComponent.h"
+#include "OodleNetworkAnalytics.h"
+#include "OodleNetworkHandlerComponent.h"
 #include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"
 
 
 /**
- * FOodleAnalyticsVars
+ * FOodleNetworkAnalyticsVars
  */
 
-FOodleAnalyticsVars::FOodleAnalyticsVars()
+FOodleNetworkAnalyticsVars::FOodleNetworkAnalyticsVars()
 	: FLocalNetAnalyticsStruct()
 	, InCompressedNum(0)
 	, InNotCompressedNum(0)
@@ -32,12 +32,12 @@ FOodleAnalyticsVars::FOodleAnalyticsVars()
 	, OutBeforeCompressedLengthTotal(0)
 	, OutNotCompressedFailedLengthTotal(0)
 	, OutNotCompressedSkippedLengthTotal(0)
-	, NumOodleHandlers(0)
-	, NumOodleHandlersCompressionEnabled(0)
+	, NumOodleNetworkHandlers(0)
+	, NumOodleNetworkHandlersCompressionEnabled(0)
 {
 }
 
-bool FOodleAnalyticsVars::operator == (const FOodleAnalyticsVars& A) const
+bool FOodleNetworkAnalyticsVars::operator == (const FOodleNetworkAnalyticsVars& A) const
 {
 	return A.InCompressedNum == InCompressedNum &&
 		A.InNotCompressedNum == InNotCompressedNum &&
@@ -58,11 +58,11 @@ bool FOodleAnalyticsVars::operator == (const FOodleAnalyticsVars& A) const
 		A.OutBeforeCompressedLengthTotal == OutBeforeCompressedLengthTotal &&
 		A.OutNotCompressedFailedLengthTotal == OutNotCompressedFailedLengthTotal &&
 		A.OutNotCompressedSkippedLengthTotal == OutNotCompressedSkippedLengthTotal &&
-		A.NumOodleHandlers == NumOodleHandlers &&
-		A.NumOodleHandlersCompressionEnabled == NumOodleHandlersCompressionEnabled;
+		A.NumOodleNetworkHandlers == NumOodleNetworkHandlers &&
+		A.NumOodleNetworkHandlersCompressionEnabled == NumOodleNetworkHandlersCompressionEnabled;
 }
 
-void FOodleAnalyticsVars::CommitAnalytics(FOodleAnalyticsVars& AggregatedData)
+void FOodleNetworkAnalyticsVars::CommitAnalytics(FOodleNetworkAnalyticsVars& AggregatedData)
 {
 	AggregatedData.InCompressedNum += InCompressedNum;
 	AggregatedData.InNotCompressedNum += InNotCompressedNum;
@@ -83,8 +83,8 @@ void FOodleAnalyticsVars::CommitAnalytics(FOodleAnalyticsVars& AggregatedData)
 	AggregatedData.OutBeforeCompressedLengthTotal += OutBeforeCompressedLengthTotal;
 	AggregatedData.OutNotCompressedFailedLengthTotal += OutNotCompressedFailedLengthTotal;
 	AggregatedData.OutNotCompressedSkippedLengthTotal += OutNotCompressedSkippedLengthTotal;
-	AggregatedData.NumOodleHandlers += NumOodleHandlers;
-	AggregatedData.NumOodleHandlersCompressionEnabled += NumOodleHandlersCompressionEnabled;
+	AggregatedData.NumOodleNetworkHandlers += NumOodleNetworkHandlers;
+	AggregatedData.NumOodleNetworkHandlersCompressionEnabled += NumOodleNetworkHandlersCompressionEnabled;
 }
 
 
@@ -94,7 +94,7 @@ void FOodleAnalyticsVars::CommitAnalytics(FOodleAnalyticsVars& AggregatedData)
 
 void FOodleNetAnalyticsData::SendAnalytics()
 {
-	FOodleAnalyticsVars NullVars;
+	FOodleNetworkAnalyticsVars NullVars;
 	const TSharedPtr<IAnalyticsProvider>& AnalyticsProvider = Aggregator->GetAnalyticsProvider();
 
 	// Only send analytics if there is something to send
@@ -163,44 +163,44 @@ void FOodleNetAnalyticsData::SendAnalytics()
 			int8 OutAttemptedSavingsWithOverheadPercentTotal = (1.0 - ((double)OutPostAttemptedWithOverheadLengthTotal / (double)OutPreAttemptedLengthTotal)) * 100.0;
 
 
-		uint32 NumOodleHandlersCompressionDisabled = NumOodleHandlers - NumOodleHandlersCompressionEnabled;
+		uint32 NumOodleNetworkHandlersCompressionDisabled = NumOodleNetworkHandlers - NumOodleNetworkHandlersCompressionEnabled;
 
 
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT("Oodle Analytics:"));
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InCompressedNum: %llu"), InCompressedNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InNotCompressedNum: %llu"), InNotCompressedNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InCompressedWithOverheadLengthTotal: %llu"), InCompressedWithOverheadLengthTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InCompressedLengthTotal: %llu"), InCompressedLengthTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InDecompressedLengthTotal: %llu"), InDecompressedLengthTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InNotCompressedLengthTotal: %llu"), InNotCompressedLengthTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutCompressedNum: %llu"), OutCompressedNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedFailedNum: %llu"), OutNotCompressedFailedNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedFailedAckOnlyNum: %llu"), OutNotCompressedFailedAckOnlyNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedFailedKeepAliveNum: %llu"), OutNotCompressedFailedKeepAliveNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedBoundedNum: %llu"), OutNotCompressedBoundedNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedFlaggedNum: %llu"), OutNotCompressedFlaggedNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedSkippedNum: %llu"), OutNotCompressedSkippedNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedClientDisabledNum: %llu"), OutNotCompressedClientDisabledNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedTooSmallNum: %llu"), OutNotCompressedTooSmallNum);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutCompressedWithOverheadLengthTotal: %llu"), OutCompressedWithOverheadLengthTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutCompressedLengthTotal: %llu"), OutCompressedLengthTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutBeforeCompressedLengthTotal: %llu"), OutBeforeCompressedLengthTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedFailedLengthTotal: %llu"), OutNotCompressedFailedLengthTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedSkippedLengthTotal: %llu"), OutNotCompressedSkippedLengthTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutNotCompressedNumTotal: %llu"), OutNotCompressedNumTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InSavingsPercentTotal: %i"), InSavingsPercentTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutSavingsPercentTotal: %i"), OutSavingsPercentTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InSavingsBytesTotal: %lli"), InSavingsBytesTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutSavingsBytesTotal: %lli"), OutSavingsBytesTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InSavingsWithOverheadPercentTotal: %i"), InSavingsWithOverheadPercentTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutSavingsWithOverheadPercentTotal: %i"), OutSavingsWithOverheadPercentTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InSavingsWithOverheadBytesTotal: %lli"), InSavingsWithOverheadBytesTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutSavingsWithOverheadBytesTotal: %lli"), OutSavingsWithOverheadBytesTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InAttemptedSavingsWithOverheadPercentTotal: %i"), InAttemptedSavingsWithOverheadPercentTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutAttemptedSavingsWithOverheadPercentTotal: %i"), OutAttemptedSavingsWithOverheadPercentTotal);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - NumOodleHandlers: %i"), NumOodleHandlers);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - NumOodleHandlersCompressionEnabled: %i"), NumOodleHandlersCompressionEnabled);
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - NumOodleHandlersCompressionDisabled: %i"), NumOodleHandlersCompressionDisabled);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("Oodle Analytics:"));
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InCompressedNum: %llu"), InCompressedNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InNotCompressedNum: %llu"), InNotCompressedNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InCompressedWithOverheadLengthTotal: %llu"), InCompressedWithOverheadLengthTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InCompressedLengthTotal: %llu"), InCompressedLengthTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InDecompressedLengthTotal: %llu"), InDecompressedLengthTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InNotCompressedLengthTotal: %llu"), InNotCompressedLengthTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutCompressedNum: %llu"), OutCompressedNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedFailedNum: %llu"), OutNotCompressedFailedNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedFailedAckOnlyNum: %llu"), OutNotCompressedFailedAckOnlyNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedFailedKeepAliveNum: %llu"), OutNotCompressedFailedKeepAliveNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedBoundedNum: %llu"), OutNotCompressedBoundedNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedFlaggedNum: %llu"), OutNotCompressedFlaggedNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedSkippedNum: %llu"), OutNotCompressedSkippedNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedClientDisabledNum: %llu"), OutNotCompressedClientDisabledNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedTooSmallNum: %llu"), OutNotCompressedTooSmallNum);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutCompressedWithOverheadLengthTotal: %llu"), OutCompressedWithOverheadLengthTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutCompressedLengthTotal: %llu"), OutCompressedLengthTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutBeforeCompressedLengthTotal: %llu"), OutBeforeCompressedLengthTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedFailedLengthTotal: %llu"), OutNotCompressedFailedLengthTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedSkippedLengthTotal: %llu"), OutNotCompressedSkippedLengthTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutNotCompressedNumTotal: %llu"), OutNotCompressedNumTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InSavingsPercentTotal: %i"), InSavingsPercentTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutSavingsPercentTotal: %i"), OutSavingsPercentTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InSavingsBytesTotal: %lli"), InSavingsBytesTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutSavingsBytesTotal: %lli"), OutSavingsBytesTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InSavingsWithOverheadPercentTotal: %i"), InSavingsWithOverheadPercentTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutSavingsWithOverheadPercentTotal: %i"), OutSavingsWithOverheadPercentTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InSavingsWithOverheadBytesTotal: %lli"), InSavingsWithOverheadBytesTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutSavingsWithOverheadBytesTotal: %lli"), OutSavingsWithOverheadBytesTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InAttemptedSavingsWithOverheadPercentTotal: %i"), InAttemptedSavingsWithOverheadPercentTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - OutAttemptedSavingsWithOverheadPercentTotal: %i"), OutAttemptedSavingsWithOverheadPercentTotal);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - NumOodleNetworkHandlers: %i"), NumOodleNetworkHandlers);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - NumOodleNetworkHandlersCompressionEnabled: %i"), NumOodleNetworkHandlersCompressionEnabled);
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - NumOodleNetworkHandlersCompressionDisabled: %i"), NumOodleNetworkHandlersCompressionDisabled);
 
 
 		static const FString EZAttrib_InCompressedNum = TEXT("InCompressedNum");
@@ -234,9 +234,9 @@ void FOodleNetAnalyticsData::SendAnalytics()
 		static const FString EZAttrib_OutSavingsWithOverheadBytesTotal = TEXT("OutSavingsWithOverheadBytesTotal");
 		static const FString EZAttrib_InAttemptedSavingsWithOverheadPercentTotal = TEXT("InAttemptedSavingsWithOverheadPercentTotal");
 		static const FString EZAttrib_OutAttemptedSavingsWithOverheadPercentTotal = TEXT("OutAttemptedSavingsWithOverheadPercentTotal");
-		static const FString EZAttrib_NumOodleHandlers = TEXT("NumOodleHandlers");
-		static const FString EZAttrib_NumOodleHandlersCompressionEnabled = TEXT("NumOodleHandlersCompressionEnabled");
-		static const FString EZAttrib_NumOodleHandlersCompressionDisabled = TEXT("NumOodleHandlersCompressionDisabled");
+		static const FString EZAttrib_NumOodleNetworkHandlers = TEXT("NumOodleNetworkHandlers");
+		static const FString EZAttrib_NumOodleNetworkHandlersCompressionEnabled = TEXT("NumOodleNetworkHandlersCompressionEnabled");
+		static const FString EZAttrib_NumOodleNetworkHandlersCompressionDisabled = TEXT("NumOodleNetworkHandlersCompressionDisabled");
 
 		const TArray<FAnalyticsEventAttribute> EventAttributes = MakeAnalyticsEventAttributeArray(
 			EZAttrib_InCompressedNum, InCompressedNum,
@@ -270,9 +270,9 @@ void FOodleNetAnalyticsData::SendAnalytics()
 			EZAttrib_OutSavingsWithOverheadBytesTotal, OutSavingsWithOverheadBytesTotal,
 			EZAttrib_InAttemptedSavingsWithOverheadPercentTotal, InAttemptedSavingsWithOverheadPercentTotal,
 			EZAttrib_OutAttemptedSavingsWithOverheadPercentTotal, OutAttemptedSavingsWithOverheadPercentTotal,
-			EZAttrib_NumOodleHandlers, NumOodleHandlers,
-			EZAttrib_NumOodleHandlersCompressionEnabled, NumOodleHandlersCompressionEnabled,
-			EZAttrib_NumOodleHandlersCompressionDisabled, NumOodleHandlersCompressionDisabled
+			EZAttrib_NumOodleNetworkHandlers, NumOodleNetworkHandlers,
+			EZAttrib_NumOodleNetworkHandlersCompressionEnabled, NumOodleNetworkHandlersCompressionEnabled,
+			EZAttrib_NumOodleNetworkHandlersCompressionDisabled, NumOodleNetworkHandlersCompressionDisabled
 		);
 
 		AnalyticsProvider->RecordEvent(GetAnalyticsEventName(), EventAttributes);

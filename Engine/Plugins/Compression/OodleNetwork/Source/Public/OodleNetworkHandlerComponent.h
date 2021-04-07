@@ -9,13 +9,12 @@
 #include "Stats/Stats.h"
 #include "PacketHandler.h"
 #include "UObject/CoreNet.h"
-#include "OodleAnalytics.h"
-#include "OodleArchives.h"
+#include "OodleNetworkAnalytics.h"
+#include "OodleNetworkArchives.h"
 
 #include "oodle2net.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(OodleHandlerComponentLog, Log, All);
-
+DECLARE_LOG_CATEGORY_EXTERN(OodleNetworkHandlerComponentLog, Log, All);
 
 // The maximum packet size that this component can handle - UNetConnection's should never allow MaxPacket to exceed MAX_PACKET_SIZE
 #define MAX_OODLE_PACKET_BYTES	MAX_PACKET_SIZE
@@ -209,7 +208,7 @@ public:
 /**
  * The mode that the Oodle packet handler should operate in
  */
-enum EOodleHandlerMode
+enum EOodleNetworkHandlerMode
 {
 	Capturing,	// Stores packet captures for the server
 	Release		// Compresses packet data, based on the dictionary file
@@ -218,7 +217,7 @@ enum EOodleHandlerMode
 /**
  * Encapsulates Oodle dictionary data loaded from file, to be wrapped in a shared pointer (auto-deleting when no longer in use)
  */
-struct FOodleDictionary
+struct FOodleNetworkDictionary
 {
 	/** Size of the hash table used for the dictionary */
 	uint32 HashTableSize;
@@ -243,25 +242,25 @@ struct FOodleDictionary
 
 
 private:
-	FOodleDictionary()
+	FOodleNetworkDictionary()
 	{
 	}
 
-	FOodleDictionary(const FOodleDictionary&) = delete;
-	FOodleDictionary& operator=(const FOodleDictionary&) = delete;
+	FOodleNetworkDictionary(const FOodleNetworkDictionary&) = delete;
+	FOodleNetworkDictionary& operator=(const FOodleNetworkDictionary&) = delete;
 
 public:
 
 	/**
 	 * Base constructor
 	 */
-	FOodleDictionary(uint32 InHashTableSize, uint8* InDictionaryData, uint32 InDictionarySize, OodleNetwork1_Shared* InSharedDictionary,
+	FOodleNetworkDictionary(uint32 InHashTableSize, uint8* InDictionaryData, uint32 InDictionarySize, OodleNetwork1_Shared* InSharedDictionary,
 						uint32 InSharedDictionarySize, OodleNetwork1UDP_State* InInitialCompressorState, uint32 InCompressorStateSize);
 
 	/**
 	 * Base destructor
 	 */
-	~FOodleDictionary();
+	~FOodleNetworkDictionary();
 };
 
 
@@ -270,14 +269,14 @@ public:
  *
  * Implementation uses trained/dictionary-based UDP compression.
  */
-class OODLEHANDLERCOMPONENT_API OodleHandlerComponent : public HandlerComponent
+class OODLENETWORKHANDLERCOMPONENT_API OodleNetworkHandlerComponent : public HandlerComponent
 {
 public:
 	/** Initializes default data */
-	OodleHandlerComponent();
+	OodleNetworkHandlerComponent();
 
 	/** Default Destructor */
-	~OodleHandlerComponent();
+	~OodleNetworkHandlerComponent();
 
 	virtual void CountBytes(FArchive& Ar) const override;
 
@@ -298,19 +297,19 @@ public:
 	void RemoteInitializeDictionaries();
 
 	/**
-	 * Initializes FOodleDictionary data, from the specified dictionary file
+	 * Initializes FOodleNetworkDictionary data, from the specified dictionary file
 	 *
 	 * @param FilePath			The dictionary file path
-	 * @param OutDictionary		The FOodleDictionary shared pointer to write to
+	 * @param OutDictionary		The FOodleNetworkDictionary shared pointer to write to
 	 */
-	void InitializeDictionary(FString FilePath, TSharedPtr<FOodleDictionary>& OutDictionary);
+	void InitializeDictionary(FString FilePath, TSharedPtr<FOodleNetworkDictionary>& OutDictionary);
 
 	/**
-	 * Frees the local reference to FOodleDictionary data, and removes it from memory if it was the last reference
+	 * Frees the local reference to FOodleNetworkDictionary data, and removes it from memory if it was the last reference
 	 *
-	 * @param InDictionary		The FOodleDictionary shared pointer being freed
+	 * @param InDictionary		The FOodleNetworkDictionary shared pointer being freed
 	 */
-	void FreeDictionary(TSharedPtr<FOodleDictionary>& InDictionary);
+	void FreeDictionary(TSharedPtr<FOodleNetworkDictionary>& InDictionary);
 
 	/**
 	 * Resolves and returns the default dictionary file paths.
@@ -397,17 +396,17 @@ protected:
 	TNetAnalyticsDataPtr<FOodleNetAnalyticsData> NetAnalyticsData;
 
 	/** Whether or not Oodle analytics is enabled - cached from NetAnalyticsData, for fast checking */
-	bool bOodleAnalytics;
+	bool bOodleNetworkAnalytics;
 
 #if !UE_BUILD_SHIPPING
 public:
 #endif
 
 	/** Server (Outgoing) dictionary data */
-	TSharedPtr<FOodleDictionary> ServerDictionary;
+	TSharedPtr<FOodleNetworkDictionary> ServerDictionary;
 
 	/** Client (Incoming - relative to server) dictionary data */
-	TSharedPtr<FOodleDictionary> ClientDictionary;
+	TSharedPtr<FOodleNetworkDictionary> ClientDictionary;
 
 	/** Whether or not InitializeDictionaries was ever called */
 	bool bInitializedDictionaries;

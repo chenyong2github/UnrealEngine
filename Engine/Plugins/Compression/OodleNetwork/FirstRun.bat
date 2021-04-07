@@ -34,7 +34,7 @@ echo.
 
 
 :EnableHandler
-set HandlerCommandletParms=-run=OodleTrainerCommandlet enable
+set HandlerCommandletParms=-run=OodleNetworkTrainerCommandlet enable
 set FinalHandlerCmdLine=%GameName:"=% %HandlerCommandletParms% -forcelogflush
 
 

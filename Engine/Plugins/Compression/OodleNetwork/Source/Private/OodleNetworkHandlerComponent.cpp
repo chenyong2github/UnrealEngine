@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OodleHandlerComponent.h"
+#include "OodleNetworkHandlerComponent.h"
 #include "Misc/CoreMisc.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformFilemanager.h"
@@ -11,8 +11,8 @@
 #include "Misc/EngineVersion.h"
 #include "UObject/Package.h"
 
-#include "OodleTrainerCommandlet.h"
-#include "OodleAnalytics.h"
+#include "OodleNetworkTrainerCommandlet.h"
+#include "OodleNetworkAnalytics.h"
 
 #if !UE_BUILD_SHIPPING
 #include "EngineGlobals.h"
@@ -22,7 +22,7 @@
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
 
-DEFINE_LOG_CATEGORY(OodleHandlerComponentLog);
+DEFINE_LOG_CATEGORY(OodleNetworkHandlerComponentLog);
 
 #ifndef OODLE_HANDLER_VERBOSE_LOG
 //#define OODLE_HANDLER_VERBOSE_LOG	0
@@ -38,10 +38,10 @@ DEFINE_LOG_CATEGORY(OodleHandlerComponentLog);
 // @todo #JohnB: If you could unwrap the analytics data shared pointer, by guaranteeing its lifetime, that would be a good optimization,
 //					as the multithreaded version is presently a bit expensive
 
-#define OODLE_INI_SECTION TEXT("OodleHandlerComponent")
+#define OODLE_INI_SECTION TEXT("OodleNetworkHandlerComponent")
 
 // @todo #JohnB: Remove after Oodle update, and after checking with Luigi
-#define OODLE_DICTIONARY_SLACK 65536 // Refers to bOutDataSlack in OodleArchives.cpp
+#define OODLE_DICTIONARY_SLACK 65536 // Refers to bOutDataSlack in OodleNetworkArchives.cpp
 
 
 #if STATS
@@ -75,7 +75,7 @@ FString GOodleSaveDir = TEXT("");
 FString GOodleContentDir = TEXT("");
 
 
-typedef TMap<FString, TSharedPtr<FOodleDictionary>> FDictionaryMap;
+typedef TMap<FString, TSharedPtr<FOodleNetworkDictionary>> FDictionaryMap;
 
 /** Persistent map of loaded dictionaries */
 static FDictionaryMap DictionaryMap;
@@ -88,8 +88,8 @@ static bool bOodleForceEnable = false;
 /** Whether or not compression is presently force-disabled (does not affect decompression i.e. incoming packets, only outgoing) */
 static bool bOodleCompressionDisabled = false;
 
-/** Stores a runtime list of active OodleHandlerComponent's - for debugging/testing code */
-static TArray<OodleHandlerComponent*> OodleComponentList;
+/** Stores a runtime list of active OodleNetworkHandlerComponent's - for debugging/testing code */
+static TArray<OodleNetworkHandlerComponent*> OodleComponentList;
 #endif
 
 
@@ -116,7 +116,7 @@ TAutoConsoleVariable<FString> CVarOodleClientEnableMode(
 // @todo #JohnB: Remove after Oodle update, and after checking with Luigi
 static OO_BOOL STDCALL UEOodleDisplayAssert(const char* File, const int Line, const char* Function, const char* Message)
 {
-	UE_LOG(OodleHandlerComponentLog, Log, TEXT("Oodle Assert: File: %s, Line: %i, Function: %s, Message: %s"), UTF8_TO_TCHAR(File),
+	UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("Oodle Assert: File: %s, Line: %i, Function: %s, Message: %s"), UTF8_TO_TCHAR(File),
 			Line, UTF8_TO_TCHAR(Function), UTF8_TO_TCHAR(Message));
 
 	// @todo #JohnB: Get a good repro for this, and test it
@@ -145,7 +145,7 @@ FORCEINLINE void SerializeOodlePacketSize(FBitWriter& Writer, uint32 PacketSize)
 	{
 		Writer.SetError();
 
-		UE_LOG(OodleHandlerComponentLog, Error, TEXT("Oodle attempted to process zero-size packet."));
+		UE_LOG(OodleNetworkHandlerComponentLog, Error, TEXT("Oodle attempted to process zero-size packet."));
 	}
 }
 
@@ -248,10 +248,10 @@ void FOodleNetStats::ResetStats()
 
 
 /**
- * FOodleDictionary
+ * FOodleNetworkDictionary
  */
 
-FOodleDictionary::FOodleDictionary(uint32 InHashTableSize, uint8* InDictionaryData, uint32 InDictionarySize,
+FOodleNetworkDictionary::FOodleNetworkDictionary(uint32 InHashTableSize, uint8* InDictionaryData, uint32 InDictionarySize,
 									OodleNetwork1_Shared* InSharedDictionary, uint32 InSharedDictionarySize,
 									OodleNetwork1UDP_State* InInitialCompressorState, uint32 InCompressorStateSize)
 	: HashTableSize(InHashTableSize)
@@ -270,7 +270,7 @@ FOodleDictionary::FOodleDictionary(uint32 InHashTableSize, uint8* InDictionaryDa
 #endif
 }
 
-FOodleDictionary::~FOodleDictionary()
+FOodleNetworkDictionary::~FOodleNetworkDictionary()
 {
 #if STATS
 	DEC_DWORD_STAT(STAT_Oodle_DictionaryCount);
@@ -297,11 +297,11 @@ FOodleDictionary::~FOodleDictionary()
 
 
 /**
- * OodleHandlerComponent
+ * OodleNetworkHandlerComponent
  */
 
-OodleHandlerComponent::OodleHandlerComponent()
-	: HandlerComponent(FName(TEXT("OodleHandlerComponent")))
+OodleNetworkHandlerComponent::OodleNetworkHandlerComponent()
+	: HandlerComponent(FName(TEXT("OodleNetworkHandlerComponent")))
 	, bEnableOodle(false)
 	, ServerEnableMode(EOodleEnableMode::AlwaysEnabled)
 	, ClientEnableMode(EOodleEnableMode::AlwaysEnabled)
@@ -313,7 +313,7 @@ OodleHandlerComponent::OodleHandlerComponent()
 #endif
 	, OodleReservedPacketBits(0)
 	, NetAnalyticsData()
-	, bOodleAnalytics(false)
+	, bOodleNetworkAnalytics(false)
 	, ServerDictionary()
 	, ClientDictionary()
 	, bInitializedDictionaries(false)
@@ -325,7 +325,7 @@ OodleHandlerComponent::OodleHandlerComponent()
 #endif
 }
 
-OodleHandlerComponent::~OodleHandlerComponent()
+OodleNetworkHandlerComponent::~OodleNetworkHandlerComponent()
 {
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 	OodleComponentList.Remove(this);
@@ -338,7 +338,7 @@ OodleHandlerComponent::~OodleHandlerComponent()
 	FreeDictionary(ClientDictionary);
 }
 
-void OodleHandlerComponent::CountBytes(FArchive& Ar) const
+void OodleNetworkHandlerComponent::CountBytes(FArchive& Ar) const
 {
 	HandlerComponent::CountBytes(Ar);
 
@@ -346,9 +346,9 @@ void OodleHandlerComponent::CountBytes(FArchive& Ar) const
 	Ar.CountBytes(SizeOfThis, SizeOfThis);
 }
 
-void OodleHandlerComponent::InitFirstRunConfig()
+void OodleNetworkHandlerComponent::InitFirstRunConfig()
 {
-	// Check that the OodleHandlerComponent section exists, and if not, init with defaults
+	// Check that the OodleNetworkHandlerComponent section exists, and if not, init with defaults
 	if (!GConfig->DoesSectionExist(OODLE_INI_SECTION, GEngineIni))
 	{
 		GConfig->SetBool(OODLE_INI_SECTION, TEXT("bEnableOodle"), true, GEngineIni);
@@ -365,10 +365,10 @@ void OodleHandlerComponent::InitFirstRunConfig()
 	}
 }
 
-void OodleHandlerComponent::Initialize()
+void OodleNetworkHandlerComponent::Initialize()
 {
 	#if OODLE_HANDLER_VERBOSE_LOG
-	UE_LOG(OodleHandlerComponentLog, Log, TEXT("OodleHandlerComponent::Initialize"));
+	UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("OodleNetworkHandlerComponent::Initialize"));
 	#endif
 
 	// Reset stats
@@ -381,12 +381,12 @@ void OodleHandlerComponent::Initialize()
 	GConfig->GetBool(OODLE_INI_SECTION, TEXT("bEnableOodle"), bEnableOodle, GEngineIni);
 	
 	#if OODLE_HANDLER_VERBOSE_LOG
-	UE_LOG(OodleHandlerComponentLog, Log, TEXT("OodleHandlerComponent::bEnableOodle = %s"), bEnableOodle ? TEXT("yes") : TEXT("no"));
+	UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("OodleNetworkHandlerComponent::bEnableOodle = %s"), bEnableOodle ? TEXT("yes") : TEXT("no"));
 	#endif
 
 	if (!bEnableOodle && bOodleForceEnable)
 	{
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT("Force-enabling Oodle from commandline."));
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("Force-enabling Oodle from commandline."));
 		bEnableOodle = true;
 	}
 
@@ -407,7 +407,7 @@ void OodleHandlerComponent::Initialize()
 			}
 			else
 			{
-				UE_LOG(OodleHandlerComponentLog, Error, TEXT("Failed to parse EOodleEnableMode value '%s'"), *ModeStr);
+				UE_LOG(OodleNetworkHandlerComponentLog, Error, TEXT("Failed to parse EOodleEnableMode value '%s'"), *ModeStr);
 			}
 
 			return bSuccess;
@@ -442,7 +442,7 @@ void OodleHandlerComponent::Initialize()
 
 	if (!bUseDictionaryIfPresent && bOodleForceEnable)
 	{
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT("Force-enabling 'bUseDictionaryIfPresent', due to -Oodle on commandline."));
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("Force-enabling 'bUseDictionaryIfPresent', due to -Oodle on commandline."));
 		bUseDictionaryIfPresent = true;
 	}
 #endif
@@ -455,7 +455,7 @@ void OodleHandlerComponent::Initialize()
 		bCaptureMode = FParse::Param(FCommandLine::Get(), TEXT("OodleCapturing"));
 		
 		#if OODLE_HANDLER_VERBOSE_LOG
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT("OodleHandlerComponent::bCaptureMode = %s"), bCaptureMode ? TEXT("yes") : TEXT("no"));
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("OodleNetworkHandlerComponent::bCaptureMode = %s"), bCaptureMode ? TEXT("yes") : TEXT("no"));
 		#endif
 
 		if (bCaptureMode)
@@ -464,7 +464,7 @@ void OodleHandlerComponent::Initialize()
 			FParse::Value(FCommandLine::Get(), TEXT("CapturePercentage="), CapturePercentage);
 
 			int32 RandNum = FMath::RandRange(0, 100);
-			UE_LOG(OodleHandlerComponentLog, Log, TEXT("Enabling Oodle capture mode. Random number is: %d, Capture Percentage is: %d, random number must be less than capture percentage to capture."), RandNum, CapturePercentage);
+			UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("Enabling Oodle capture mode. Random number is: %d, Capture Percentage is: %d, random number must be less than capture percentage to capture."), RandNum, CapturePercentage);
 			if (RandNum <= CapturePercentage)
 			{
 				InitializePacketLogs();
@@ -474,7 +474,7 @@ void OodleHandlerComponent::Initialize()
 
 		// in shipping build
 		#if OODLE_HANDLER_VERBOSE_LOG
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT("build config does not allow -OodleCapturing"));
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("build config does not allow -OodleCapturing"));
 		#endif
 
 #endif
@@ -509,14 +509,14 @@ void OodleHandlerComponent::Initialize()
 		}
 		else
 		{
-			LowLevelFatalError(TEXT("Failed to determine OodleHandlerComponent reserved packet bits."));
+			LowLevelFatalError(TEXT("Failed to determine OodleNetworkHandlerComponent reserved packet bits."));
 		}
 	}
 
 	Initialized();
 }
 
-void OodleHandlerComponent::InitializeDictionaries()
+void OodleNetworkHandlerComponent::InitializeDictionaries()
 {
 	FString ServerDictionaryPath;
 	FString ClientDictionaryPath;
@@ -546,34 +546,34 @@ void OodleHandlerComponent::InitializeDictionaries()
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 		if (bCaptureMode)
 		{
-			UE_LOG(OodleHandlerComponentLog, Warning, TEXT("Failed to load Oodle dictionaries. Continuing due to capture mode."));
+			UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("Failed to load Oodle dictionaries. Continuing due to capture mode."));
 		}
 		else
 #endif
 		{
 			//LowLevelFatalError(TEXT("Failed to load Oodle dictionaries."));
 
-  			UE_LOG(OodleHandlerComponentLog, Warning, TEXT("Failed to load Oodle dictionaries."));
+  			UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("Failed to load Oodle dictionaries."));
   			bInitializedDictionaries = false;
 		}
 	}
 }
 
-void OodleHandlerComponent::RemoteInitializeDictionaries()
+void OodleNetworkHandlerComponent::RemoteInitializeDictionaries()
 {
 	InitializeDictionaries();
 
-	if (bOodleAnalytics && NetAnalyticsData.IsValid())
+	if (bOodleNetworkAnalytics && NetAnalyticsData.IsValid())
 	{
-		FOodleAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData();
+		FOodleNetworkAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData();
 
-		AnalyticsVars->NumOodleHandlersCompressionEnabled++;
+		AnalyticsVars->NumOodleNetworkHandlersCompressionEnabled++;
 	}
 }
 
-void OodleHandlerComponent::InitializeDictionary(FString FilePath, TSharedPtr<FOodleDictionary>& OutDictionary)
+void OodleNetworkHandlerComponent::InitializeDictionary(FString FilePath, TSharedPtr<FOodleNetworkDictionary>& OutDictionary)
 {
-	TSharedPtr<FOodleDictionary>* DictionaryRef = DictionaryMap.Find(FilePath);
+	TSharedPtr<FOodleNetworkDictionary>* DictionaryRef = DictionaryMap.Find(FilePath);
 
 	// Load the dictionary, if it's not yet loaded
 	if (DictionaryRef == nullptr)
@@ -582,7 +582,7 @@ void OodleHandlerComponent::InitializeDictionary(FString FilePath, TSharedPtr<FO
 
 		if (ReadArc != nullptr)
 		{
-			FOodleDictionaryArchive BoundArc(*ReadArc);
+			FOodleNetworkDictionaryArchive BoundArc(*ReadArc);
 
 			uint8* DictionaryData = nullptr;
 			uint32 DictionaryBytes = 0;
@@ -594,7 +594,7 @@ void OodleHandlerComponent::InitializeDictionary(FString FilePath, TSharedPtr<FO
 
 			if (!BoundArc.IsError())
 			{
-				UE_LOG(OodleHandlerComponentLog, Log, TEXT("Loading dictionary file: %s"), *FilePath);
+				UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("Loading dictionary file: %s"), *FilePath);
 
 				// Uncompact the compressor state
 				uint32 CompressorStateSize = OodleNetwork1UDP_State_Size();
@@ -612,7 +612,7 @@ void OodleHandlerComponent::InitializeDictionary(FString FilePath, TSharedPtr<FO
 
 
 				// Now add the dictionary data to the map
-				FOodleDictionary* NewDictionary = new FOodleDictionary(HashTableSize, DictionaryData, DictionaryBytes, SharedDictionary,
+				FOodleNetworkDictionary* NewDictionary = new FOodleNetworkDictionary(HashTableSize, DictionaryData, DictionaryBytes, SharedDictionary,
 																		SharedDictionarySize, CompressorState, CompressorStateSize);
 
 				DictionaryRef = &DictionaryMap.Add(FilePath, MakeShareable(NewDictionary));
@@ -625,7 +625,7 @@ void OodleHandlerComponent::InitializeDictionary(FString FilePath, TSharedPtr<FO
 			}
 			else
 			{
-				UE_LOG(OodleHandlerComponentLog, Warning, TEXT("Error loading dictionary file: %s"), *FilePath);
+				UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("Error loading dictionary file: %s"), *FilePath);
 
 				if (DictionaryData != nullptr)
 				{
@@ -654,11 +654,11 @@ void OodleHandlerComponent::InitializeDictionary(FString FilePath, TSharedPtr<FO
 	}
 }
 
-void OodleHandlerComponent::FreeDictionary(TSharedPtr<FOodleDictionary>& InDictionary)
+void OodleNetworkHandlerComponent::FreeDictionary(TSharedPtr<FOodleNetworkDictionary>& InDictionary)
 {
 	if (InDictionary.IsValid())
 	{
-		// The dictionary is always referenced within DictionaryMap, so 2 represents last ref within an OodleHandlerComponent
+		// The dictionary is always referenced within DictionaryMap, so 2 represents last ref within an OodleNetworkHandlerComponent
 		bool bLastDictionaryRef = InDictionary.GetSharedReferenceCount() == 2;
 
 		if (bLastDictionaryRef)
@@ -677,7 +677,7 @@ void OodleHandlerComponent::FreeDictionary(TSharedPtr<FOodleDictionary>& InDicti
 	}
 }
 
-bool OodleHandlerComponent::GetDictionaryPaths(FString& OutServerDictionary, FString& OutClientDictionary, bool bFailFatal/*=true*/)
+bool OodleNetworkHandlerComponent::GetDictionaryPaths(FString& OutServerDictionary, FString& OutClientDictionary, bool bFailFatal/*=true*/)
 {
 	bool bSuccess = false;
 
@@ -701,7 +701,7 @@ bool OodleHandlerComponent::GetDictionaryPaths(FString& OutServerDictionary, FSt
 		}
 		else
 		{
-			UE_LOG(OodleHandlerComponentLog, Warning, TEXT("%s"), Msg);
+			UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("%s"), Msg);
 		}
 
 		bSuccess = false;
@@ -730,7 +730,7 @@ bool OodleHandlerComponent::GetDictionaryPaths(FString& OutServerDictionary, FSt
 			}
 			else
 			{
-				UE_LOG(OodleHandlerComponentLog, Warning, TEXT("%s"), Msg);
+				UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("%s"), Msg);
 			}
 
 			bSuccess = false;
@@ -753,7 +753,7 @@ bool OodleHandlerComponent::GetDictionaryPaths(FString& OutServerDictionary, FSt
 }
 
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
-bool OodleHandlerComponent::FindFallbackDictionaries(FString& OutServerDictionary, FString& OutClientDictionary,
+bool OodleNetworkHandlerComponent::FindFallbackDictionaries(FString& OutServerDictionary, FString& OutClientDictionary,
 														bool bTestOnly/*=false*/)
 {
 	bool bSuccess = false;
@@ -806,7 +806,7 @@ bool OodleHandlerComponent::FindFallbackDictionaries(FString& OutServerDictionar
 
 			if (!bTestOnly)
 			{
-				UE_LOG(OodleHandlerComponentLog, Log,
+				UE_LOG(OodleNetworkHandlerComponentLog, Log,
 						TEXT("Searched for Oodle dictionary files, and selected the following non-default dictionaries:"));
 			}
 
@@ -827,14 +827,14 @@ bool OodleHandlerComponent::FindFallbackDictionaries(FString& OutServerDictionar
 
 				if (!bTestOnly)
 				{
-					UE_LOG(OodleHandlerComponentLog, Log, TEXT("WARNING: Using the same dictionary for both server/client!"));
+					UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("WARNING: Using the same dictionary for both server/client!"));
 				}
 			}
 
 			if (!bTestOnly)
 			{
-				UE_LOG(OodleHandlerComponentLog, Log, TEXT("   Server: %s"), *OutServerDictionary);
-				UE_LOG(OodleHandlerComponentLog, Log, TEXT("   Client: %s"), *OutClientDictionary);
+				UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("   Server: %s"), *OutServerDictionary);
+				UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("   Client: %s"), *OutClientDictionary);
 			}
 		}
 	}
@@ -842,7 +842,7 @@ bool OodleHandlerComponent::FindFallbackDictionaries(FString& OutServerDictionar
 	return bSuccess;
 }
 
-void OodleHandlerComponent::InitializePacketLogs()
+void OodleNetworkHandlerComponent::InitializePacketLogs()
 {
 	// @todo #JohnB: Convert this code so that just one capture file is used for all connections, per session
 	//					(could set it up much like the dictionary sharing code)
@@ -854,7 +854,7 @@ void OodleHandlerComponent::InitializePacketLogs()
 		FString BaseFilename;
 		
 		#if OODLE_HANDLER_VERBOSE_LOG
-		UE_LOG(OodleHandlerComponentLog, Log, TEXT("ReadOutputLogDirectory : %s"), *ReadOutputLogDirectory );
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("ReadOutputLogDirectory : %s"), *ReadOutputLogDirectory );
 		#endif
 
 		PlatformFile.CreateDirectoryTree(*ReadOutputLogDirectory);
@@ -904,7 +904,7 @@ void OodleHandlerComponent::InitializePacketLogs()
 	}
 }
 
-void OodleHandlerComponent::FreePacketLogs()
+void OodleNetworkHandlerComponent::FreePacketLogs()
 {
 	if (OutPacketLog != nullptr)
 	{
@@ -930,12 +930,12 @@ void OodleHandlerComponent::FreePacketLogs()
 }
 #endif
 
-bool OodleHandlerComponent::IsValid() const
+bool OodleNetworkHandlerComponent::IsValid() const
 {
 	return true;
 }
 
-void OodleHandlerComponent::Incoming(FBitReader& Packet)
+void OodleNetworkHandlerComponent::Incoming(FBitReader& Packet)
 {
 #if !UE_BUILD_SHIPPING
 	// Oodle must be the first HandlerComponent to process incoming packets, so does not support bit-shifted reads
@@ -957,7 +957,7 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 				RemoteInitializeDictionaries();
 			}
 
-			FOodleDictionary* CurDict = (bIsServer ? ClientDictionary.Get() : ServerDictionary.Get());
+			FOodleNetworkDictionary* CurDict = (bIsServer ? ClientDictionary.Get() : ServerDictionary.Get());
 
 			if (CurDict != nullptr)
 			{
@@ -969,7 +969,7 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 				if ( DecompressedLength == 0 )
 				{
 #if !UE_BUILD_SHIPPING
-					UE_LOG(OodleHandlerComponentLog, Error,
+					UE_LOG(OodleNetworkHandlerComponentLog, Error,
 						TEXT("Couldn't SerializeOodlePacketSize"), 0);
 #endif
 					return;
@@ -1009,7 +1009,7 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 						if (!bSuccess)
 						{
 #if !UE_BUILD_SHIPPING
-							UE_LOG(OodleHandlerComponentLog, Error, TEXT("Error decoding Oodle network data."));
+							UE_LOG(OodleNetworkHandlerComponentLog, Error, TEXT("Error decoding Oodle network data."));
 #endif
 
 							// Packets which fail to compress are detected before send, and bCompressedPacket is disabled;
@@ -1020,7 +1020,7 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 					else
 					{
 #if !UE_BUILD_SHIPPING
-						UE_LOG(OodleHandlerComponentLog, Error, TEXT("Error serializing received packet data"));
+						UE_LOG(OodleNetworkHandlerComponentLog, Error, TEXT("Error serializing received packet data"));
 #endif
 
 						Packet.SetError();
@@ -1042,9 +1042,9 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 						GOodleNetStats.IncomingStats(CompressedLength, DecompressedLength);
 #endif
 
-						if (bOodleAnalytics && NetAnalyticsData.IsValid())
+						if (bOodleNetworkAnalytics && NetAnalyticsData.IsValid())
 						{
-							FOodleAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData();
+							FOodleNetworkAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData();
 
 							AnalyticsVars->InCompressedNum++;
 							AnalyticsVars->InCompressedWithOverheadLengthTotal += BeforeDecompressedLength;
@@ -1060,7 +1060,7 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 				else
 				{
 #if !UE_BUILD_SHIPPING
-					UE_LOG(OodleHandlerComponentLog, Error,
+					UE_LOG(OodleNetworkHandlerComponentLog, Error,
 							TEXT("Received packet with DecompressedLength (%i) >= MAX_OODLE_PACKET_SIZE"), DecompressedLength);
 #endif
 
@@ -1076,9 +1076,9 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 		}
 		else
 		{
-			if (bOodleAnalytics && NetAnalyticsData.IsValid())
+			if (bOodleNetworkAnalytics && NetAnalyticsData.IsValid())
 			{
-				FOodleAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData();
+				FOodleNetworkAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData();
 				uint32 PacketSize = Packet.GetBytesLeft();
 
 				AnalyticsVars->InNotCompressedNum++;
@@ -1100,7 +1100,7 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 	}
 }
 
-void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Traits)
+void OodleNetworkHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Traits)
 {
 	// @todo #JohnB: Implement bAllowCompression trait flag
 
@@ -1122,13 +1122,13 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 		// @todo Oodle CB : static buffer, ugly, not thread safe
 		//	 presumably this function must be called single threaded as there's lots of non-thread-safe stuff
 		//	clarify that and clean this up
-		//	don't use static buffers, put them in the OodleHandlerComponent
+		//	don't use static buffers, put them in the OodleNetworkHandlerComponent
 		static uint8 UncompressedData[MAX_OODLE_BUFFER];
 		static uint8 CompressedData[MAX_OODLE_BUFFER];
 
-		FOodleAnalyticsVars* AnalyticsVars = (bOodleAnalytics && NetAnalyticsData.IsValid()) ? NetAnalyticsData->GetLocalData() : nullptr;
+		FOodleNetworkAnalyticsVars* AnalyticsVars = (bOodleNetworkAnalytics && NetAnalyticsData.IsValid()) ? NetAnalyticsData->GetLocalData() : nullptr;
 		const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
-		FOodleDictionary* CurDict = (bIsServer ? ServerDictionary.Get() : ClientDictionary.Get());
+		FOodleNetworkDictionary* CurDict = (bIsServer ? ServerDictionary.Get() : ClientDictionary.Get());
 		uint32 MinSizeForCompression = CVarOodleMinSizeForCompression.GetValueOnAnyThread();
 		uint32 UncompressedBytes = Packet.GetNumBytes();
 		bool bSkipCompressionClientDisabled = false;
@@ -1280,7 +1280,7 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 				}
 				else
 				{
-					UE_LOG(OodleHandlerComponentLog, Error, TEXT("Compressed packet larger than uncompressed packet! (%u vs %u)"),
+					UE_LOG(OodleNetworkHandlerComponentLog, Error, TEXT("Compressed packet larger than uncompressed packet! (%u vs %u)"),
 							CompressedBytes, UncompressedBytes);
 
 					Packet.Reset();
@@ -1289,7 +1289,7 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 			}
 			else
 			{
-				UE_LOG(OodleHandlerComponentLog, Error, TEXT("Failed to compress packet of size: %u bytes (%u bits)"),
+				UE_LOG(OodleNetworkHandlerComponentLog, Error, TEXT("Failed to compress packet of size: %u bytes (%u bits)"),
 						UncompressedBytes, UncompressedBits);
 
 				Packet.Reset();
@@ -1324,14 +1324,14 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 	}
 }
 
-bool OodleHandlerComponent::IsCompressionActive() const
+bool OodleNetworkHandlerComponent::IsCompressionActive() const
 {
 	bool bResult = false;
 
 	if (bEnableOodle && Handler)
 	{
 		const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
-		FOodleDictionary* CurDict = (bIsServer ? ServerDictionary.Get() : ClientDictionary.Get());
+		FOodleNetworkDictionary* CurDict = (bIsServer ? ServerDictionary.Get() : ClientDictionary.Get());
 
 		const bool bSkipCompression =
 #if !UE_BUILD_SHIPPING
@@ -1351,12 +1351,12 @@ bool OodleHandlerComponent::IsCompressionActive() const
 	return bResult;
 }
 
-int32 OodleHandlerComponent::GetReservedPacketBits() const
+int32 OodleNetworkHandlerComponent::GetReservedPacketBits() const
 {
 	return bEnableOodle ? OodleReservedPacketBits : 0;
 }
 
-void OodleHandlerComponent::NotifyAnalyticsProvider()
+void OodleNetworkHandlerComponent::NotifyAnalyticsProvider()
 {
 	if (!NetAnalyticsData.IsValid())
 	{
@@ -1379,20 +1379,20 @@ void OodleHandlerComponent::NotifyAnalyticsProvider()
 		// This depends upon NetAnalyticsData only being initialized once, so that this component is not counted more than once
 		if (NetAnalyticsData.IsValid())
 		{
-			if (FOodleAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData())
+			if (FOodleNetworkAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData())
 			{
-				AnalyticsVars->NumOodleHandlers++;
+				AnalyticsVars->NumOodleNetworkHandlers++;
 
 				// If compression's already enabled, count it here - as InitializeDictionaries may happen before NetAnalyticsData is set
 				if (IsCompressionActive())
 				{
-					AnalyticsVars->NumOodleHandlersCompressionEnabled++;
+					AnalyticsVars->NumOodleNetworkHandlersCompressionEnabled++;
 				}
 			}
 		}
 	}
 
-	bOodleAnalytics = NetAnalyticsData.IsValid();
+	bOodleNetworkAnalytics = NetAnalyticsData.IsValid();
 }
 
 #if !UE_BUILD_SHIPPING
@@ -1403,7 +1403,7 @@ static bool OodleExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 
 	#if OODLE_HANDLER_VERBOSE_LOG
-	UE_LOG(OodleHandlerComponentLog, Log, TEXT("OodleExec") );
+	UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("OodleExec") );
 	#endif
 
 	bool bReturnVal = false;
@@ -1439,7 +1439,7 @@ static bool OodleExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 #if USE_OODLE_TRAINER_COMMANDLET
 				if (bOodleForceEnable)
 				{
-					UOodleTrainerCommandlet::HandleEnable();
+					UOodleNetworkTrainerCommandlet::HandleEnable();
 				}
 #endif
 			}
@@ -1543,7 +1543,7 @@ static bool OodleExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				}
 
 
-				for (OodleHandlerComponent* CurComp : OodleComponentList)
+				for (OodleNetworkHandlerComponent* CurComp : OodleComponentList)
 				{
 					if (CurComp != nullptr)
 					{
@@ -1555,7 +1555,7 @@ static bool OodleExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 							}
 							else
 							{
-								Ar.Logf(TEXT("An OodleHandlerComponent already had loaded dictionaries."));
+								Ar.Logf(TEXT("An OodleNetworkHandlerComponent already had loaded dictionaries."));
 							}
 						}
 						else
@@ -1634,7 +1634,7 @@ static bool OodleExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 			}
 
 
-			for (OodleHandlerComponent* CurComp : OodleComponentList)
+			for (OodleNetworkHandlerComponent* CurComp : OodleComponentList)
 			{
 				if (CurComp != nullptr)
 				{
@@ -1670,7 +1670,7 @@ FStaticSelfRegisteringExec OodleExecRegistration(&OodleExec);
 
 TSharedPtr<HandlerComponent> FOodleComponentModuleInterface::CreateComponentInstance(FString& Options)
 {
-	return MakeShareable(new OodleHandlerComponent);
+	return MakeShareable(new OodleNetworkHandlerComponent);
 }
 
 
@@ -1679,7 +1679,7 @@ void FOodleComponentModuleInterface::StartupModule()
 {
 
 	#if OODLE_HANDLER_VERBOSE_LOG
-	UE_LOG(OodleHandlerComponentLog, Log, TEXT("FOodleComponentModuleInterface::StartupModule") );
+	UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("FOodleComponentModuleInterface::StartupModule") );
 	#endif
 
 	// If Oodle is force-enabled on the commandline, execute the commandlet-enable command, which also adds to the PacketHandler list
@@ -1689,7 +1689,7 @@ void FOodleComponentModuleInterface::StartupModule()
   	//if (bOodleForceEnable)
 	if (bOodleForceEnable)
 	{
-		UOodleTrainerCommandlet::HandleEnable();
+		UOodleNetworkTrainerCommandlet::HandleEnable();
 	}
 #endif
 
@@ -1708,5 +1708,5 @@ void FOodleComponentModuleInterface::ShutdownModule()
 // 	OodlePlugins_SetAssertion(nullptr);
 }
 
-IMPLEMENT_MODULE( FOodleComponentModuleInterface, OodleHandlerComponent );
+IMPLEMENT_MODULE( FOodleComponentModuleInterface, OodleNetworkHandlerComponent );
 

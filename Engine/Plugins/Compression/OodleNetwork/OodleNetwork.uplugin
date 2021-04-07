@@ -15,7 +15,7 @@
 
   "Modules": [
     {
-      "Name": "OodleHandlerComponent",
+      "Name": "OodleNetworkHandlerComponent",
       "Type": "Runtime",
       "LoadingPhase": "Default",
 	  "BlacklistPlatforms": [ 

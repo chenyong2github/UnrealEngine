@@ -14,22 +14,22 @@
 
 
 /**
- * Simple container class for separating the analytics related variables from OodleHandlerComponent
+ * Simple container class for separating the analytics related variables from OodleNetworkHandlerComponent
  */
-struct FOodleAnalyticsVars : public FLocalNetAnalyticsStruct
+struct FOodleNetworkAnalyticsVars : public FLocalNetAnalyticsStruct
 {
 public:
 	/**
 	 * Default Constructor
 	 */
-	FOodleAnalyticsVars();
+	FOodleNetworkAnalyticsVars();
 
-	bool operator == (const FOodleAnalyticsVars& A) const;
+	bool operator == (const FOodleNetworkAnalyticsVars& A) const;
 
 	/**
 	 * Implements the TThreadedNetAnalyticsData CommitAnalytics interface
 	 */
-	void CommitAnalytics(FOodleAnalyticsVars& AggregatedData);
+	void CommitAnalytics(FOodleNetworkAnalyticsVars& AggregatedData);
 
 
 public:
@@ -94,11 +94,11 @@ public:
 	uint64 OutNotCompressedSkippedLengthTotal;
 
 
-	/** The number of OodleHandlerComponent's running during the lifetime of the analytics aggregator (i.e. NetDriver lifetime). */
-	uint32 NumOodleHandlers;
+	/** The number of OodleNetworkHandlerComponent's running during the lifetime of the analytics aggregator (i.e. NetDriver lifetime). */
+	uint32 NumOodleNetworkHandlers;
 
-	/** The number of OodleHandlerComponent's that had packet compression enabled. */
-	uint32 NumOodleHandlersCompressionEnabled;
+	/** The number of OodleNetworkHandlerComponent's that had packet compression enabled. */
+	uint32 NumOodleNetworkHandlersCompressionEnabled;
 };
 
 /**
@@ -106,9 +106,9 @@ public:
  */
 struct FOodleNetAnalyticsData :
 #if NET_ANALYTICS_MULTITHREADING
-	public TThreadedNetAnalyticsData<FOodleAnalyticsVars>
+	public TThreadedNetAnalyticsData<FOodleNetworkAnalyticsVars>
 #else
-	public FNetAnalyticsData, public FOodleAnalyticsVars
+	public FNetAnalyticsData, public FOodleNetworkAnalyticsVars
 #endif
 {
 public:
@@ -116,7 +116,7 @@ public:
 
 
 #if !NET_ANALYTICS_MULTITHREADING
-	FOodleAnalyticsVars* GetLocalData()
+	FOodleNetworkAnalyticsVars* GetLocalData()
 	{
 		return this;
 	}

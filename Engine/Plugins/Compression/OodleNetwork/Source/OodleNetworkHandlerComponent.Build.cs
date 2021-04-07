@@ -4,7 +4,7 @@ using System.IO;
 using System.Collections.Generic;
 using UnrealBuildTool;
 
-public class OodleHandlerComponent : ModuleRules 
+public class OodleNetworkHandlerComponent : ModuleRules 
 {
 	protected virtual string OodleVersion { get { return "2.9.0"; } }
 
@@ -19,7 +19,7 @@ public class OodleHandlerComponent : ModuleRules
 	protected virtual string IncludeDirectory { get { return Path.Combine(ModuleDirectory, "..", "Sdks", OodleVersion, "include"); } }
 
 
-	public OodleHandlerComponent(ReadOnlyTargetRules Target) : base(Target)
+	public OodleNetworkHandlerComponent(ReadOnlyTargetRules Target) : base(Target)
 	{
 		ShortName = "OodleNetworkPlugin";
 
@@ -32,7 +32,7 @@ public class OodleHandlerComponent : ModuleRules
 		PublicDependencyModuleNames.Add("Engine");
 		PublicDependencyModuleNames.Add("Analytics");
 
-		PrivatePCHHeaderFile = "Private/OodleHandlerComponentPCH.h";
+		PrivatePCHHeaderFile = "Private/OodleNetworkHandlerComponentPCH.h";
 
 		// We depend on the .udic files, otherwise those dictionaries don't pass-through to final builds!
 		RuntimeDependencies.Add("$(ProjectDir)/Content/Oodle/...", StagedFileType.UFS);

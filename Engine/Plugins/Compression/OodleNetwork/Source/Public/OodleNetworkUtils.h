@@ -13,7 +13,7 @@ namespace OodleUtils
 	* @param OutBuffer		The destination buffer for uncompressed data
 	* @return				Whether or not decompression succeeded
 	*/
-	OODLEHANDLERCOMPONENT_API bool DecompressReplayData(const TArray<uint8>& InCompressed, TArray< uint8 >& OutBuffer);
+	OODLENETWORKHANDLERCOMPONENT_API bool DecompressReplayData(const TArray<uint8>& InCompressed, TArray< uint8 >& OutBuffer);
 
 	/**
 	* Compress replay data using Oodle, for use by INetworkReplayStreamer streamers
@@ -22,6 +22,6 @@ namespace OodleUtils
 	* @param OutCompressed	The destination buffer for compressed data (prefixed with size and uncompressed size)
 	* @return				Whether or not compression succeeded
 	*/
-	OODLEHANDLERCOMPONENT_API bool CompressReplayData(const TArray<uint8>& InBuffer, TArray< uint8 >& OutCompressed);
+	OODLENETWORKHANDLERCOMPONENT_API bool CompressReplayData(const TArray<uint8>& InBuffer, TArray< uint8 >& OutCompressed);
 };
 
