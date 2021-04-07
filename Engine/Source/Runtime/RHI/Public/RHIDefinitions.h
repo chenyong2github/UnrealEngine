@@ -1612,7 +1612,7 @@ enum class EAsyncComputeBudget
 
 inline bool IsPCPlatform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5 || Platform == SP_PCD3D_ES3_1 ||
+	return Platform == SP_PCD3D_SM5 ||
 		Platform == SP_OPENGL_PCES3_1 ||
 		Platform == SP_METAL_SM5 ||
 		Platform == SP_VULKAN_PCES3_1 || Platform == SP_VULKAN_SM5 || Platform == SP_METAL_MACES3_1 || Platform == SP_METAL_MRT_MAC 
@@ -1624,7 +1624,6 @@ inline bool IsMobilePlatform(const EShaderPlatform Platform)
 {
 	return 
 		Platform == SP_METAL || Platform == SP_METAL_MACES3_1 || Platform == SP_METAL_TVOS
-		|| Platform == SP_PCD3D_ES3_1
 		|| Platform == SP_OPENGL_PCES3_1 || Platform == SP_OPENGL_ES3_1_ANDROID
 		|| Platform == SP_VULKAN_ES3_1_ANDROID || Platform == SP_VULKAN_PCES3_1 || Platform == SP_VULKAN_ES3_1_LUMIN
 		|| Platform == SP_SWITCH_FORWARD
@@ -1709,7 +1708,6 @@ inline bool IsD3DPlatform(const FStaticShaderPlatform Platform)
 	switch (Platform)
 	{
 	case SP_PCD3D_SM5:
-	case SP_PCD3D_ES3_1:
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	case SP_XBOXONE_D3D12_REMOVED:
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1744,7 +1742,6 @@ inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatfo
 	case SP_METAL:
 	case SP_METAL_TVOS:
 	case SP_METAL_MACES3_1:
-	case SP_PCD3D_ES3_1:
 	case SP_OPENGL_PCES3_1:
 	case SP_VULKAN_PCES3_1:
 	case SP_VULKAN_ES3_1_ANDROID:

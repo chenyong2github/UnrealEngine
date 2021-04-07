@@ -437,7 +437,6 @@ struct FByteAddressBuffer
 	void Initialize(const TCHAR* InDebugName, uint32 InNumBytes, uint32 AdditionalUsage = 0)
 	{
 		NumBytes = InNumBytes;
-		check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
 		check( NumBytes % 4 == 0 );
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		Buffer = RHICreateStructuredBuffer(4, NumBytes, BUF_ShaderResource | BUF_ByteAddressBuffer | AdditionalUsage, ERHIAccess::SRVMask, CreateInfo);

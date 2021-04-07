@@ -141,6 +141,7 @@ struct FDFObjectBounds
 
 uint NumSceneObjects;
 StructuredBuffer<float4> SceneObjectBounds;
+SamplerState DistanceFieldSampler;
 
 FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 {
@@ -403,6 +404,15 @@ float GetVPLOcclusion(float3 BentNormalAO, float3 NormalizedVectorToVPL, float V
 	return Visibility;
 }
 
+float SampleDistanceFieldBrickTexture(float3 UV)
+{
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+	return Texture3DSampleLevel(DistanceFieldBrickTexture, GlobalBilinearWrappedSampler, UV, 0).x;
+#else
+	return Texture3DSampleLevel(DistanceFieldBrickTexture, DistanceFieldSampler, UV, 0).x;
+#endif
+}
+
 // Returns a Volume space signed distance to the mesh's surface
 // This distance is clamped to the band of the current mip
 float SampleSparseMeshSignedDistanceField(float3 SampleVolumePosition, FDFAssetData DFAssetData)
@@ -431,7 +441,8 @@ float SampleSparseMeshSignedDistanceField(float3 SampleVolumePosition, FDFAssetD
 			BrickIndex >> (DistanceFieldBrickAtlasSizeLog2.x + DistanceFieldBrickAtlasSizeLog2.y));
 
 		float3 AtlasUV = (BrickOffset * DistanceFieldBrickSize + BrickLocalUV) * DistanceFieldBrickAtlasTexelSize;
-		float EncodedDistanceField = Texture3DSampleLevel(DistanceFieldBrickTexture, GlobalBilinearWrappedSampler, AtlasUV, 0).x;
+		float EncodedDistanceField = SampleDistanceFieldBrickTexture(AtlasUV);
+
 		DistanceField = EncodedDistanceField * DFAssetData.DistanceFieldToVolumeScaleBias.x + DFAssetData.DistanceFieldToVolumeScaleBias.y;
 	}
 
@@ -499,13 +510,21 @@ Texture2D HFVisibilityTexture;
 
 float SampleHeightFieldAtlas(float2 UV)
 {
+#if SUPPORTS_INDEPENDENT_SAMPLERS
 	float4 SampleValue = Texture2DSampleLevel(HeightFieldTexture, GlobalBilinearWrappedSampler, UV, 0);
+#else
+	float4 SampleValue = Texture2DSampleLevel(HeightFieldTexture, DistanceFieldSampler, UV, 0);
+#endif
 	return DecodePackedHeight(SampleValue.xy);
 }
 
 float SampleHFVisibilityTexture(float2 UV)
 {
+#if SUPPORTS_INDEPENDENT_SAMPLERS
 	return Texture2DSampleLevel(HFVisibilityTexture, GlobalBilinearWrappedSampler, UV, 0).r;
+#else
+	return Texture2DSampleLevel(HFVisibilityTexture, DistanceFieldSampler, UV, 0).r;
+#endif
 }
 
 float2 HeightFieldAtlasTexelSize;
