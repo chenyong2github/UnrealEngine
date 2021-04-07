@@ -478,21 +478,27 @@ half3 EnvBRDF( half3 SpecularColor, half Roughness, half NoV )
 	return GF;
 }
 
-half3 EnvBRDFApprox( half3 SpecularColor, half Roughness, half NoV )
+half2 EnvBRDFApproxLazarov(half Roughness, half NoV)
 {
 	// [ Lazarov 2013, "Getting More Physical in Call of Duty: Black Ops II" ]
 	// Adaptation to fit our G term.
 	const half4 c0 = { -1, -0.0275, -0.572, 0.022 };
 	const half4 c1 = { 1, 0.0425, 1.04, -0.04 };
 	half4 r = Roughness * c0 + c1;
-	half a004 = min( r.x * r.x, exp2( -9.28 * NoV ) ) * r.x + r.y;
-	half2 AB = half2( -1.04, 1.04 ) * a004 + r.zw;
+	half a004 = min(r.x * r.x, exp2(-9.28 * NoV)) * r.x + r.y;
+	half2 AB = half2(-1.04, 1.04) * a004 + r.zw;
+	return AB;
+}
+
+half3 EnvBRDFApprox( half3 SpecularColor, half Roughness, half NoV )
+{
+	half2 AB = EnvBRDFApproxLazarov(Roughness, NoV);
 
 	// Anything less than 2% is physically impossible and is instead considered to be shadowing
 	// Note: this is needed for the 'specular' show flag to work, since it uses a SpecularColor of 0
-	AB.y *= saturate( 50.0 * SpecularColor.g );
+	float F90 = saturate(50.0 * SpecularColor.g);
 
-	return SpecularColor * AB.x + AB.y;
+	return SpecularColor * AB.x + F90 * AB.y;
 }
 
 half EnvBRDFApproxNonmetal( half Roughness, half NoV )
