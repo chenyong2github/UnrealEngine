@@ -232,7 +232,7 @@ void OpenMap(const TArray<FString>& Args)
 	}
 }
 
-FAutoConsoleCommand OpenMapAndFocusActorCmd(
+FAutoConsoleCommand OpenMapAndFocusActorPIETestsCmd(
 	TEXT("Automate.OpenMap"),
 	TEXT("Opens a map."),
 	FConsoleCommandWithArgsDelegate::CreateStatic(OpenMap)
