@@ -173,10 +173,7 @@ bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, FCa
 				const FName VariableName = FName(SourceString.RightChop(DotIndex + 1));
 
 				// Find data interface
-				FNiagaraSystemInstanceControllerPtr SystemInstanceController = PreviewComponent->GetSystemInstanceController();
-				check(SystemInstanceController.IsValid());
-
-				FNiagaraSystemInstance* SystemInstance = SystemInstanceController->GetSoloSystemInstance();
+				FNiagaraSystemInstance* SystemInstance = PreviewComponent->GetSystemInstance();
 				const FNiagaraSystemInstanceID SystemInstanceID = SystemInstance->GetId();
 				for (auto EmitterInstance : SystemInstance->GetEmitters())
 				{
@@ -213,13 +210,7 @@ bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, FCa
 			const FString EmitterName = SourceString.LeftChop(SourceString.Len() - DotIndex);
 			const FName AttributeName = FName(SourceString.RightChop(DotIndex + 1));
 
-			FNiagaraSystemInstanceControllerPtr SystemInstanceController = PreviewComponent->GetSystemInstanceController();
-			if (!ensure(SystemInstanceController.IsValid()))
-			{
-				return false;
-			}
-
-			FNiagaraSystemInstance* SystemInstance = SystemInstanceController->GetSoloSystemInstance();
+			FNiagaraSystemInstance* SystemInstance = PreviewComponent->GetSystemInstance();
 			if ( !ensure(SystemInstance) )
 			{
 				return false;
