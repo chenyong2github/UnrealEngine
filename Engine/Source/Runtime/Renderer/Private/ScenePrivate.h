@@ -2613,6 +2613,7 @@ public:
 	TBitArray<> PrimitivesAlwaysVisible;
 
 #if WITH_EDITOR
+	/** Packed bit array of primitives which are selected in the editor. */
 	TBitArray<> PrimitivesSelected;
 #endif
 

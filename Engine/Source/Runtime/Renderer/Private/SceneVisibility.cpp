@@ -917,16 +917,17 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 		//we can't allow the prim history insertion array to realloc or it will invalidate pointers in the other output arrays.
 		const bool bCanAllocPrimHistory = bSingleThreaded || InsertPrimitiveOcclusionHistory->Num() < InsertPrimitiveOcclusionHistory->Max();		
 
+	#if WITH_EDITOR
 		if (GIsEditor)
 		{
-			FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[BitIt.GetIndex()];
-
-			if (PrimitiveSceneInfo->Proxy->IsSelected())
+			if (Scene->PrimitivesSelected[BitIt.GetIndex()])
 			{
 				// to render occluded outline for selected objects
 				bCanBeOccluded = false;
 			}
 		}
+	#endif
+
 		int32 NumSubQueries = 1;
 		bool bSubQueries = false;
 		const TArray<FBoxSphereBounds>* SubBounds = nullptr;
@@ -3167,42 +3168,41 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 		FXSystem->PreInitViews(GraphBuilder, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
 	}
 
+#if WITH_EDITOR
 	// Draw lines to lights affecting this mesh if its selected.
 	if (ViewFamily.EngineShowFlags.LightInfluences)
 	{
-		for (TArray<FPrimitiveSceneInfo*>::TConstIterator It(Scene->Primitives); It; ++It)
+		for (TConstSetBitIterator<> It(Scene->PrimitivesSelected); It; ++It)
 		{
-			const FPrimitiveSceneInfo* PrimitiveSceneInfo = *It;
-			if (PrimitiveSceneInfo->Proxy->IsSelected())
+			const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[It.GetIndex()];
+			FLightPrimitiveInteraction *LightList = PrimitiveSceneInfo->LightList;
+			while (LightList)
 			{
-				FLightPrimitiveInteraction *LightList = PrimitiveSceneInfo->LightList;
-				while (LightList)
+				const FLightSceneInfo* LightSceneInfo = LightList->GetLight();
+
+				bool bDynamic = true;
+				bool bRelevant = false;
+				bool bLightMapped = true;
+				bool bShadowMapped = false;
+				PrimitiveSceneInfo->Proxy->GetLightRelevance(LightSceneInfo->Proxy, bDynamic, bRelevant, bLightMapped, bShadowMapped);
+
+				if (bRelevant)
 				{
-					const FLightSceneInfo* LightSceneInfo = LightList->GetLight();
-
-					bool bDynamic = true;
-					bool bRelevant = false;
-					bool bLightMapped = true;
-					bool bShadowMapped = false;
-					PrimitiveSceneInfo->Proxy->GetLightRelevance(LightSceneInfo->Proxy, bDynamic, bRelevant, bLightMapped, bShadowMapped);
-
-					if (bRelevant)
+					// Draw blue for light-mapped lights and orange for dynamic lights
+					const FColor LineColor = bLightMapped ? FColor(0,140,255) : FColor(255,140,0);
+					for (int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 					{
-						// Draw blue for light-mapped lights and orange for dynamic lights
-						const FColor LineColor = bLightMapped ? FColor(0,140,255) : FColor(255,140,0);
-						for (int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
-						{
-							FViewInfo& View = Views[ViewIndex];
-							FViewElementPDI LightInfluencesPDI(&View,nullptr,&View.DynamicPrimitiveCollector);
-							LightInfluencesPDI.DrawLine(PrimitiveSceneInfo->Proxy->GetBounds().Origin, LightSceneInfo->Proxy->GetLightToWorld().GetOrigin(), LineColor, SDPG_World);
-						}
+						FViewInfo& View = Views[ViewIndex];
+						FViewElementPDI LightInfluencesPDI(&View,nullptr,&View.DynamicPrimitiveCollector);
+						LightInfluencesPDI.DrawLine(PrimitiveSceneInfo->Proxy->GetBounds().Origin, LightSceneInfo->Proxy->GetLightToWorld().GetOrigin(), LineColor, SDPG_World);
 					}
-					LightList = LightList->GetNextLight();
 				}
+				LightList = LightList->GetNextLight();
 			}
 		}
 	}
-	
+#endif
+
 #if UE_BUILD_SHIPPING
 	const bool bFreezeTemporalHistories = false;
 	const bool bFreezeTemporalSequences = false;
