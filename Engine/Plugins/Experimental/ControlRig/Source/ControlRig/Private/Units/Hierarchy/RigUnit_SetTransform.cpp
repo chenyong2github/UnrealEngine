@@ -47,14 +47,13 @@ FRigUnit_SetTransform_Execute()
 					// for controls - set the control offset transform instead
 					if(bInitial && (CachedIndex.GetKey().Type == ERigElementType::Control))
 					{
-						FRigUnit_SetControlOffset::StaticExecute(RigVMExecuteContext, CachedIndex.GetKey().Name, Transform, Space, CachedIndex, ExecuteContext, Context);
+						FTransform TransformMutable = Transform;
+						FRigUnit_SetControlOffset::StaticExecute(RigVMExecuteContext, CachedIndex.GetKey().Name, TransformMutable, Space, CachedIndex, ExecuteContext, Context);
 						
 						if (ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
 						{
 							Hierarchy->SetLocalTransformByIndex(CachedIndex, FTransform::Identity, true, bPropagateToChildren);
 							Hierarchy->SetLocalTransformByIndex(CachedIndex, FTransform::Identity, false, bPropagateToChildren);
-
-							
 						}
 						return;
 					}

@@ -30,7 +30,7 @@ struct CONTROLRIG_API FRigUnit_SetControlOffset : public FRigUnitMutable
 	/**
 	 * The offse transform to set for the control
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, Output))
 	FTransform Offset;
 
 	/**
