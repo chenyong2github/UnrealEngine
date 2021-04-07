@@ -29,7 +29,7 @@ echo.
 
 
 :EnablePlugin
-set EnableCommandletParms=-run=plugin enable Oodle
+set EnableCommandletParms=-run=plugin enable OodleNetwork
 set FinalEnableCmdLine=%GameName:"=% %EnableCommandletParms% -forcelogflush
 
 echo Executing plugin enable commandlet - commandline:

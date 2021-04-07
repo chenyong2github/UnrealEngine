@@ -1368,11 +1368,11 @@ void OodleNetworkHandlerComponent::NotifyAnalyticsProvider()
 
 			if (bIsServer)
 			{
-				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FOodleNetAnalyticsData, TEXT("Oodle.Stats"));
+				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FOodleNetAnalyticsData, TEXT("OodleNetwork.Stats"));
 			}
 			else
 			{
-				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FClientOodleNetAnalyticsData, TEXT("Oodle.ClientStats"));
+				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FClientOodleNetAnalyticsData, TEXT("OodleNetwork.ClientStats"));
 			}
 		}
 
@@ -1698,14 +1698,10 @@ void FOodleComponentModuleInterface::StartupModule()
 	GOodleSaveDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("Oodle")));
 	GOodleContentDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::ProjectContentDir(), TEXT("Oodle")));
 
-// 	// @todo #JohnB: Remove after Oodle update, and after checking with Luigi
-// 	OodlePlugins_SetAssertion(&UEOodleDisplayAssert);
 }
 
 void FOodleComponentModuleInterface::ShutdownModule()
 {
-// 	// @todo #JohnB: Remove after Oodle update, and after checking with Luigi
-// 	OodlePlugins_SetAssertion(nullptr);
 }
 
 IMPLEMENT_MODULE( FOodleComponentModuleInterface, OodleNetworkHandlerComponent );

@@ -44,33 +44,33 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Reserved Oodle (bits)"), STAT_Packet
 #endif
 
 
-DECLARE_STATS_GROUP(TEXT("Oodle"), STATGROUP_Oodle, STATCAT_Advanced)
+DECLARE_STATS_GROUP(TEXT("OodleNetwork"), STATGROUP_OodleNetwork, STATCAT_Advanced)
 
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Out Rate Raw (bytes)"), STAT_Oodle_OutRaw, STATGROUP_Oodle, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Out Rate Compressed (bytes)"), STAT_Oodle_OutCompressed, STATGROUP_Oodle, );
-DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Out Rate Savings %"), STAT_Oodle_OutSavings, STATGROUP_Oodle, );
-DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Out Total Savings %"), STAT_Oodle_OutTotalSavings, STATGROUP_Oodle, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Out Rate Raw (bytes)"), STAT_Oodle_OutRaw, STATGROUP_OodleNetwork, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Out Rate Compressed (bytes)"), STAT_Oodle_OutCompressed, STATGROUP_OodleNetwork, );
+DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Out Rate Savings %"), STAT_Oodle_OutSavings, STATGROUP_OodleNetwork, );
+DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Out Total Savings %"), STAT_Oodle_OutTotalSavings, STATGROUP_OodleNetwork, );
 
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle In Rate Raw (bytes)"), STAT_Oodle_InRaw, STATGROUP_Oodle, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle In Rate Compressed (bytes)"), STAT_Oodle_InCompressed, STATGROUP_Oodle, );
-DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle In Rate Savings %"), STAT_Oodle_InSavings, STATGROUP_Oodle, );
-DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle In Total Savings %"), STAT_Oodle_InTotalSavings, STATGROUP_Oodle, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle In Rate Raw (bytes)"), STAT_Oodle_InRaw, STATGROUP_OodleNetwork, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle In Rate Compressed (bytes)"), STAT_Oodle_InCompressed, STATGROUP_OodleNetwork, );
+DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle In Rate Savings %"), STAT_Oodle_InSavings, STATGROUP_OodleNetwork, );
+DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle In Total Savings %"), STAT_Oodle_InTotalSavings, STATGROUP_OodleNetwork, );
 
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Compress Fail Num (0% savings)"), STAT_Oodle_CompressFailSavings, STATGROUP_Oodle, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Compress Fail Num (size limit)"), STAT_Oodle_CompressFailSize, STATGROUP_Oodle, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Compress Fail Num (0% savings)"), STAT_Oodle_CompressFailSavings, STATGROUP_OodleNetwork, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Compress Fail Num (size limit)"), STAT_Oodle_CompressFailSize, STATGROUP_OodleNetwork, );
 
 // @todo #JohnB: Implement (e.g. deliberately skipping VOIP)
-//DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Compress Skip Num"), STAT_Oodle_CompressSkip, STATGROUP_Oodle, );
+//DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Compress Skip Num"), STAT_Oodle_CompressSkip, STATGROUP_OodleNetwork, );
 
 #if !UE_BUILD_SHIPPING
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Oodle Out Compress Time"), STAT_Oodle_OutCompressTime, STATGROUP_Oodle, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Oodle In Decompress Time"), STAT_Oodle_InDecompressTime, STATGROUP_Oodle, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Oodle Out Compress Time"), STAT_Oodle_OutCompressTime, STATGROUP_OodleNetwork, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Oodle In Decompress Time"), STAT_Oodle_InDecompressTime, STATGROUP_OodleNetwork, );
 #endif
 
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Dictionary Count"), STAT_Oodle_DictionaryCount, STATGROUP_Oodle, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Oodle Dictionary Bytes"), STAT_Oodle_DictionaryBytes, STATGROUP_Oodle, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Oodle Shared Bytes"), STAT_Oodle_SharedBytes, STATGROUP_Oodle, );
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Oodle State Bytes"), STAT_Oodle_StateBytes, STATGROUP_Oodle, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Oodle Dictionary Count"), STAT_Oodle_DictionaryCount, STATGROUP_OodleNetwork, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Oodle Dictionary Bytes"), STAT_Oodle_DictionaryBytes, STATGROUP_OodleNetwork, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Oodle Shared Bytes"), STAT_Oodle_SharedBytes, STATGROUP_OodleNetwork, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Oodle State Bytes"), STAT_Oodle_StateBytes, STATGROUP_OodleNetwork, );
 
 #endif // STATS
 

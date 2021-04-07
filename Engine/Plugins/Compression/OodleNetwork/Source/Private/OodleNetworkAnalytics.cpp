@@ -166,7 +166,7 @@ void FOodleNetAnalyticsData::SendAnalytics()
 		uint32 NumOodleNetworkHandlersCompressionDisabled = NumOodleNetworkHandlers - NumOodleNetworkHandlersCompressionEnabled;
 
 
-		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("Oodle Analytics:"));
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("OodleNetwork Analytics:"));
 		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InCompressedNum: %llu"), InCompressedNum);
 		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InNotCompressedNum: %llu"), InNotCompressedNum);
 		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT(" - InCompressedWithOverheadLengthTotal: %llu"), InCompressedWithOverheadLengthTotal);
@@ -281,10 +281,10 @@ void FOodleNetAnalyticsData::SendAnalytics()
 
 const TCHAR* FOodleNetAnalyticsData::GetAnalyticsEventName() const
 {
-	return TEXT("Oodle.Stats");
+	return TEXT("OodleNetwork.Stats");
 }
 
 const TCHAR* FClientOodleNetAnalyticsData::GetAnalyticsEventName() const
 {
-	return TEXT("Oodle.ClientStats");
+	return TEXT("OodleNetwork.ClientStats");
 }
