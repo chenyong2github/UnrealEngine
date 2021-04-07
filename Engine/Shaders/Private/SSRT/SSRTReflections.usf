@@ -183,7 +183,13 @@ void ScreenSpaceReflections(
 	const float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
 
 #if SUPPORTS_ANISOTROPIC_MATERIALS
-	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, N, V);
+	// We do not need to execute ModifyGGXAnisotropicNormalRoughness in order to handle anisotropy on clear coat material.
+	// This is because SSR is only tracing the top layer which we consider to not have any anisotropy. This is when ClearCoat is 1.
+	// When clear coat decreases, we smoothly fades in the anisotropy influence from the bottom layer.
+	const float ClearCoat = GBuffer.CustomData.x;
+	const float AnisotropyBlendValue = GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT ? ClearCoat : 0.0f;
+	const float SSRAnisotropy = lerp(GBuffer.Anisotropy, 0.0f, AnisotropyBlendValue);
+	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, SSRAnisotropy, GBuffer.Roughness, N, V);
 #endif
 	
 	float Roughness = GetRoughness(GBuffer);

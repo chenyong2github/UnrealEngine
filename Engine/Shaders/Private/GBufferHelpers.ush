@@ -5,6 +5,7 @@
 
 #include "SceneTexturesCommon.ush"
 #include "SceneTextureParameters.ush"
+#include "DeferredShadingCommon.ush"
 
 float SquareInline(float X)
 {
@@ -373,7 +374,8 @@ void AdjustBaseColorAndSpecularColorForSubsurfaceProfileLightingCopyHack(inout f
 
 void GBufferPostDecode(inout FGBufferData Ret, bool bChecker, bool bGetNormalizedNormal)
 {
-	Ret.CustomData = !(Ret.SelectiveOutputMask & 0x1) ? Ret.CustomData : 0.0f;
+	Ret.CustomData = HasCustomGBufferData(Ret.ShadingModelID) ? Ret.CustomData : 0.0f;
+
 	Ret.PrecomputedShadowFactors = !(Ret.SelectiveOutputMask & 0x2) ? Ret.PrecomputedShadowFactors : ((Ret.SelectiveOutputMask & 0x4) ? 0.0f : 1.0f);
 	Ret.Velocity = !(Ret.SelectiveOutputMask & 0x8) ? Ret.Velocity : 0.0f;
 	bool bHasAnisotropy = (Ret.SelectiveOutputMask & 0x1);

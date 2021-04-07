@@ -215,6 +215,8 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 
 	float3 N = GBuffer.WorldNormal;
 
+	const float3 SavedTopLayerNormal = N;
+
 #if SUPPORTS_ANISOTROPIC_MATERIALS
 	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, N, V);
 #endif
@@ -279,8 +281,16 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 		const float ClearCoat			= GBuffer.CustomData.x;
 		const float ClearCoatRoughness	= GBuffer.CustomData.y;
 
+		// Restore saved values needed for the top layer.
+		GBuffer.WorldNormal = SavedTopLayerNormal;
+		// Recompute some values unaffected by anistropy for the top layer
+		N = GBuffer.WorldNormal;
+		R = 2 * dot(V, N) * N - V;
+		NoV = saturate(dot(N, V));
+		R = GetOffSpecularPeakReflectionDir(N, R, ClearCoatRoughness);
+
 		// TODO EnvBRDF should have a mask param
-		float2 AB = PreIntegratedGF.SampleLevel( PreIntegratedGFSampler, float2( NoV, GBuffer.Roughness ), 0 ).rg;
+		float2 AB = PreIntegratedGF.SampleLevel( PreIntegratedGFSampler, float2( NoV, ClearCoatRoughness), 0 ).rg;
 		Color.rgb *= SpecularColor * AB.x + AB.y * saturate( 50 * SpecularColor.g ) * (1 - ClearCoat);
 		
 		// F_Schlick
