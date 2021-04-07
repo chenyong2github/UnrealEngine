@@ -44,7 +44,6 @@ static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureDepthBuffer(
 	ECVF_RenderThreadSafe);
 
 
-
 class FDownsampleCubeFaceCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FDownsampleCubeFaceCS);
@@ -286,19 +285,13 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 {
 	check(SkyLight && SkyLight->bRealTimeCaptureEnabled && !SkyLight->bHasStaticLighting);
 
-	// Ignore scene captures because it is common for them to not capture every frame, and it would make the 
-	// view used for the sky capture change unpredictably and potentially cause temporal artifacts.
-	//
-	// Also ignore viewfamilies without the Atmosphere showflag enabled as the sky capture may fail otherwise.
-	//
-	// Note that as a consequence, if the scene only has Scene Captures and/or no views with the atmosphere showflag enabled, 
-	// then Sky Capture will not work.
-	if (MainView.bIsSceneCapture || !MainView.Family->EngineShowFlags.Atmosphere)
+	// Ignore viewfamilies without the Atmosphere showflag enabled as the sky capture may fail otherwise.
+	if (!MainView.Family->EngineShowFlags.Atmosphere)
 	{
 		return;
 	}
 
-	// Only run for the first viewfamily of each frame (that is not a scene capture), for efficiency and consistency.
+	// Only run for the first viewfamily of each frame, for efficiency and consistency.
 	{
 		const bool bIsNewFrame = GFrameNumberRenderThread != RealTimeSlicedReflectionCaptureFrameNumber;
 		RealTimeSlicedReflectionCaptureFrameNumber = GFrameNumberRenderThread;
@@ -321,7 +314,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	CubeView.FOV = 90.0f;
 	// Note: We cannot override exposure because sky input texture are using exposure
 
-	// DYNAMIC PRIMITIVES - We empty the CubeView dynamic primitive list to make sure UploadDynamicPrimitiveShaderDataForViewInternal is going through the cheap fast path only updating unfirm buffer.
+	// DYNAMIC PRIMITIVES - We empty the CubeView dynamic primitive list to make sure UploadDynamicPrimitiveShaderDataForViewInternal is going through the cheap fast path only updating uniform buffer.
 	// This means we cannot render procedurally animated meshes into the real-time sky capture as of today.
 	CubeView.DynamicPrimitiveShaderData.Empty();
 
@@ -439,7 +432,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 					CloudRC.CloudVolumeMaterialProxy = CloudVolumeMaterialProxy;
 					CloudRC.SceneDepthZ = GSystemTextures.MaxFP16Depth;
 
-					CloudRC.MainView = &CubeView; /// This is only accessing data that is not changing between view oerientation. Such data are accessed from the ViewUniformBuffer. See CubeView comment above.
+					CloudRC.MainView = &CubeView; /// This is only accessing data that is not changing between view orientation. Such data are accessed from the ViewUniformBuffer. See CubeView comment above.
 
 					CloudRC.bShouldViewRenderVolumetricRenderTarget = false;
 					CloudRC.bIsReflectionRendering = true;
