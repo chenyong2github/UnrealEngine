@@ -1517,12 +1517,6 @@ RENDERCORE_API bool SupportsDesktopTemporalAA(const FStaticShaderPlatform Platfo
 /** Returns whether DBuffer decals are enabled for a given shader platform */
 RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform)
 {
-	// Disabled for standard mobile renderer path.
- 	if (IsMobilePlatform(Platform) && !IsMobileDeferredShadingEnabled(Platform))
- 	{
- 		return false;
- 	}
-
 	extern RENDERCORE_API uint64 GDBufferPlatformMask;
 	return !!(GDBufferPlatformMask & (1ull << Platform));
 }
