@@ -494,13 +494,12 @@ public:
 	/**
 	 * Parse Class's annotated headers and optionally its child classes.  Marks the class as CLASS_Parsed.
 	 *
-	 * @param	AllClasses			the class tree containing all classes in the current package
 	 * @param	HeaderParser		the header parser
 	 * @param	SourceFile			Source file info.
 	 *
 	 * @return	Result enumeration.
 	 */
-	static ECompilationResult::Type ParseHeaders(FClasses& AllClasses, FHeaderParser& HeaderParser, FUnrealSourceFile* SourceFile);
+	static ECompilationResult::Type ParseHeaders(FHeaderParser& HeaderParser, FUnrealSourceFile* SourceFile);
 
 protected:
 	friend struct FScriptLocation;
@@ -702,7 +701,7 @@ protected:
 	bool IsBitfieldProperty(ELayoutMacroType LayoutMacroType);
 
 	// Parse the parameter list of a function or delegate declaration
-	void ParseParameterList(FClasses& AllClasses, UFunction* Function, bool bExpectCommaBeforeName = false, TMap<FName, FString>* MetaData = NULL);
+	void ParseParameterList(UFunction* Function, bool bExpectCommaBeforeName = false, TMap<FName, FString>* MetaData = NULL);
 
 	// Modify token to fix redirected types if needed
 	void RedirectTypeIdentifier(FToken& Token) const;
@@ -735,13 +734,12 @@ protected:
 	/**
 	 * Parse rest of the module's source files.
 	 *
-	 * @param	AllClasses The class tree containing all classes in the current package.
 	 * @param	ModulePackage Current package.
 	 * @param	HeaderParser The header parser.
 	 *
 	 * @return	Result enumeration.
 	 */
-	static ECompilationResult::Type ParseRestOfModulesSourceFiles(FClasses& AllClasses, UPackage* ModulePackage, FHeaderParser& HeaderParser);
+	static ECompilationResult::Type ParseRestOfModulesSourceFiles(UPackage* ModulePackage, FHeaderParser& HeaderParser);
 
 	//@TODO: Remove this method
 	static void ParseClassName(const TCHAR* Temp, FString& ClassName);
@@ -783,24 +781,23 @@ protected:
 	/**
 	 * Parses given source file.
 	 *
-	 * @param AllClasses The class tree for current package.
 	 * @param SourceFile Source file to parse.
 	 *
 	 * @returns Compilation result enum.
 	 */
-	ECompilationResult::Type ParseHeader(FClasses& AllClasses, FUnrealSourceFile* SourceFile);
-	void CompileDirective(FClasses& AllClasses);
+	ECompilationResult::Type ParseHeader(FUnrealSourceFile* SourceFile);
+	void CompileDirective();
 	void FinalizeScriptExposedFunctions(UClass* Class);
 	UEnum* CompileEnum();
-	UScriptStruct* CompileStructDeclaration(FClasses& AllClasses);
-	bool CompileDeclaration(FClasses& AllClasses, TArray<UDelegateFunction*>& DelegatesToFixup, FToken& Token);
+	UScriptStruct* CompileStructDeclaration();
+	bool CompileDeclaration(TArray<UDelegateFunction*>& DelegatesToFixup, FToken& Token);
 
 	/** Skip C++ (noexport) declaration. */
 	bool SkipDeclaration(FToken& Token);
 	/** Similar to MatchSymbol() but will return to the exact location as on entry if the symbol was not found. */
 	bool SafeMatchSymbol(const TCHAR Match);
-	void HandleOneInheritedClass(FClasses& AllClasses, UClass* Class, FString&& InterfaceName);
-	FClass* ParseClassNameDeclaration(FClasses& AllClasses, FString& DeclaredClassName, FString& RequiredAPIMacroIfPresent);
+	void HandleOneInheritedClass(UClass* Class, FString&& InterfaceName);
+	FClass* ParseClassNameDeclaration(FString& DeclaredClassName, FString& RequiredAPIMacroIfPresent);
 
 	/** The property style of a variable declaration being parsed */
 	struct EPropertyDeclarationStyle
@@ -828,18 +825,18 @@ protected:
 	template<typename T>
 	UDelegateFunction* CreateDelegateFunction(const FFuncInfo &FuncInfo) const;	
 
-	UClass* CompileClassDeclaration(FClasses& AllClasses);
-	UDelegateFunction* CompileDelegateDeclaration(FClasses& AllClasses, const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
-	void CompileFunctionDeclaration(FClasses& AllClasses);
-	void CompileVariableDeclaration (FClasses& AllClasses, UStruct* Struct);
-	void CompileInterfaceDeclaration(FClasses& AllClasses);
-	void CompileRigVMMethodDeclaration(FClasses& AllClasses, UStruct* Struct);
+	UClass* CompileClassDeclaration();
+	UDelegateFunction* CompileDelegateDeclaration(const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
+	void CompileFunctionDeclaration();
+	void CompileVariableDeclaration (UStruct* Struct);
+	void CompileInterfaceDeclaration();
+	void CompileRigVMMethodDeclaration(UStruct* Struct);
 	void ParseRigVMMethodParameters(UStruct* Struct);
 
-	FClass* ParseInterfaceNameDeclaration(FClasses& AllClasses, FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
-	bool TryParseIInterfaceClass(FClasses& AllClasses);
+	FClass* ParseInterfaceNameDeclaration(FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
+	bool TryParseIInterfaceClass();
 
-	bool CompileStatement(FClasses& AllClasses, TArray<UDelegateFunction*>& DelegatesToFixup);
+	bool CompileStatement(TArray<UDelegateFunction*>& DelegatesToFixup);
 
 	// Checks to see if a particular kind of command is allowed on this nesting level.
 	bool IsAllowedInThisNesting(ENestAllowFlags AllowFlags);
@@ -856,7 +853,6 @@ protected:
 	/**
 	 * Parses a variable or return value declaration and determines the variable type and property flags.
 	 *
-	 * @param   AllClasses                the class tree for CurrentPackage
 	 * @param   Scope                     struct to create the property in
 	 * @param   VarProperty               will be filled in with type and property flag data for the property declaration that was parsed
 	 * @param   Disallow                  contains a mask of variable modifiers that are disallowed in this context
@@ -866,7 +862,6 @@ protected:
 	 * @param   ParsedVarIndexRange       The source text [Start, End) index range for the parsed type.
 	 */
 	void GetVarType(
-		FClasses&                       AllClasses,
 		FScope*							Scope,
 		FPropertyBase&                  VarProperty,
 		EPropertyFlags                  Disallow,
@@ -932,7 +927,7 @@ protected:
 
 	const TCHAR* NestTypeName( ENestType NestType );
 
-	FClass* GetQualifiedClass(const FClasses& AllClasses, const TCHAR* Thing);
+	FClass* GetQualifiedClass(const TCHAR* Thing);
 
 	/**
 	 * Increase the nesting level, setting the new top nesting level to
@@ -949,19 +944,17 @@ protected:
 	 * Tasks that need to be done after popping function declaration
 	 * from parsing stack.
 	 *
-	 * @param AllClasses The class tree for current package.
 	 * @param PoppedFunction Function that have just been popped.
 	 */
-	void PostPopFunctionDeclaration(FClasses& AllClasses, UFunction* PoppedFunction);
+	void PostPopFunctionDeclaration(UFunction* PoppedFunction);
 
 	/**
 	 * Tasks that need to be done after popping interface definition
 	 * from parsing stack.
 	 *
-	 * @param AllClasses The class tree for current package.
 	 * @param CurrentInterface Interface that have just been popped.
 	 */
-	void PostPopNestInterface(FClasses& AllClasses, UClass* CurrentInterface);
+	void PostPopNestInterface(UClass* CurrentInterface);
 
 	/**
 	 * Tasks that need to be done after popping class definition
@@ -977,12 +970,11 @@ protected:
 	 *
 	 * @todo: this function will no longer be required once the post-parse fixup phase is added (TTPRO #13256)
 	 *
-	 * @param	AllClasses			the class tree for CurrentPackage
 	 * @param	Struct				the struct to validate delegate properties for
 	 * @param	Scope				the current scope
 	 * @param	DelegateCache		cached map of delegates that have already been found; used for faster lookup.
 	 */
-	void FixupDelegateProperties(FClasses& AllClasses, UStruct* ValidationScope, FScope& Scope, TMap<FName, UFunction*>& DelegateCache);
+	void FixupDelegateProperties(UStruct* ValidationScope, FScope& Scope, TMap<FName, UFunction*>& DelegateCache);
 
 	// Retry functions.
 	void InitScriptLocation( FScriptLocation& Retry );

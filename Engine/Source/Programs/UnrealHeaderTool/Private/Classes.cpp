@@ -62,39 +62,7 @@ FClass* FClasses::GetRootClass() const
 	return UObjectClass;
 }
 
-bool FClasses::IsDependentOn(const FClass* Suspect, const FClass* Source) const
-{
-	check(Suspect != Source);
-	TSet<const FClass*> VisitedDpendencies;
-	return IsDependentOn(Suspect, Source, VisitedDpendencies);
-}
-
-bool FClasses::IsDependentOn(const FClass* Suspect, const FClass* Source, TSet<const FClass*>& VisitedDpendencies) const
-{
-	// Children are all implicitly dependent on their parent, that is, children require their parent
-	// to be compiled first therefore if the source is a parent of the suspect, the suspect is
-	// dependent on the source.
-	if (Suspect->IsChildOf(Source))
-	{
-		return true;
-	}
-
-	// Prevent circular #includes from causing infinite recursion
-	// Note that although it may mean there's a circular dependency somewhere, it does not
-	// necessarily mean it's the one we're looking for
-	if (VisitedDpendencies.Contains(Suspect))
-	{
-		return false;
-	}
-	else
-	{
-		VisitedDpendencies.Add(Suspect);
-	}
-
-	return false;
-}
-
-FClass* FClasses::FindClass(const TCHAR* ClassName) const
+FClass* FClasses::FindClass(const TCHAR* ClassName)
 {
 	check(ClassName);
 
@@ -113,29 +81,7 @@ FClass* FClasses::FindClass(const TCHAR* ClassName) const
 	return nullptr;
 }
 
-TArray<FClass*> FClasses::GetDerivedClasses(FClass* Parent) const
-{
-	const FClassTree* ClassLeaf = ClassTree.FindNode(Parent);
-	TArray<const FClassTree*> ChildLeaves;
-	ClassLeaf->GetChildClasses(ChildLeaves);
-
-	TArray<FClass*> Result;
-	Result.Reserve(ChildLeaves.Num());
-	for (const FClassTree* Node : ChildLeaves)
-	{
-		Result.Add((FClass*)Node->GetClass());
-	}
-
-	return Result;
-}
-
-FClass* FClasses::FindAnyClass(const TCHAR* ClassName) const
-{
-	check(ClassName);
-	return (FClass*)FindObject<UClass>(ANY_PACKAGE, ClassName);
-}
-
-FClass* FClasses::FindScriptClassOrThrow(const FString& InClassName) const
+FClass* FClasses::FindScriptClassOrThrow(const FString& InClassName)
 {
 	FString ErrorMsg;
 	if (FClass* Result = FindScriptClass(InClassName, &ErrorMsg))
@@ -149,7 +95,7 @@ FClass* FClasses::FindScriptClassOrThrow(const FString& InClassName) const
 	return 0;
 }
 
-FClass* FClasses::FindScriptClass(const FString& InClassName, FString* OutErrorMsg) const
+FClass* FClasses::FindScriptClass(const FString& InClassName, FString* OutErrorMsg)
 {
 	// Strip the class name of its prefix and then do a search for the class
 	FString ClassNameStripped = GetClassNameWithPrefixRemoved(InClassName);
@@ -202,16 +148,6 @@ TArray<FClass*> FClasses::GetClassesInPackage(const UPackage* InPackage) const
 }
 
 #if WIP_UHT_REFACTOR
-
-void FClasses::ChangeParentClass(FClass* Class)
-{
-	ClassTree.ChangeParentClass(Class);
-}
-
-bool FClasses::ContainsClass(const FClass* Class) const
-{
-	return !!ClassTree.FindNode(const_cast<FClass*>(Class));
-}
 
 void FClasses::Validate()
 {

@@ -396,7 +396,7 @@ void FClassDeclarationMetaData::MergeClassCategories(FClass* Class)
 	AutoExpandCategories.Append(MoveTemp(ParentAutoExpandCategories));
 }
 
-void FClassDeclarationMetaData::MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags, FClass* Class, const FClasses& AllClasses)
+void FClassDeclarationMetaData::MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags, FClass* Class)
 {
 	if (WantsToBePlaceable)
 	{
@@ -412,7 +412,7 @@ void FClassDeclarationMetaData::MergeAndValidateClassFlags(const FString& Declar
 	Class->ClassFlags |= ClassFlags;
 	Class->ClassConfigName = FName(*ConfigName);
 
-	SetAndValidateWithinClass(Class, AllClasses);
+	SetAndValidateWithinClass(Class);
 	SetAndValidateConfigName(Class);
 
 	if (!!(Class->ClassFlags & CLASS_EditInlineNew))
@@ -495,12 +495,12 @@ void FClassDeclarationMetaData::SetAndValidateConfigName(FClass* Class)
 	}
 }
 
-void FClassDeclarationMetaData::SetAndValidateWithinClass(FClass* Class, const FClasses& AllClasses)
+void FClassDeclarationMetaData::SetAndValidateWithinClass(FClass* Class)
 {
 	// Process all of the class specifiers
 	if (ClassWithin.IsEmpty() == false)
 	{
-		UClass* RequiredWithinClass = AllClasses.FindClass(*ClassWithin);
+		UClass* RequiredWithinClass = FClasses::FindClass(*ClassWithin);
 		if (!RequiredWithinClass)
 		{
 			FError::Throwf(TEXT("Within class '%s' not found."), *ClassWithin);

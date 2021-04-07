@@ -8,7 +8,6 @@
 #include "UObject/Class.h"
 
 class FClass;
-class FClasses;
 struct FPropertySpecifier;
 
 /** Structure that holds class meta data generated from its UCLASS declaration */
@@ -55,13 +54,13 @@ public:
 	* @param	Class Class to merge flags for
 	* @param  AllClasses All known classes
 	*/
-	void MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags, FClass* Class, const FClasses& AllClasses);
+	void MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags, FClass* Class);
 private:
 
 	/** Merges all 'show' categories */
 	void MergeShowCategories();
 	/** Sets and validates 'within' property */
-	void SetAndValidateWithinClass(FClass* Class, const FClasses& AllClasses);
+	void SetAndValidateWithinClass(FClass* Class);
 	/** Sets and validates 'ConfigName' property */
 	void SetAndValidateConfigName(FClass* Class);
 
