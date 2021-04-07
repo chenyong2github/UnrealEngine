@@ -12,6 +12,7 @@
 #include "Layout/WidgetPath.h"
 #include "AssetRegistryModule.h"
 #include "Types/ReflectionMetadata.h"
+#include "Types/SlateAttributeMetaData.h"
 #include "FastUpdate/SlateInvalidationRoot.h"
 
 #define LOCTEXT_NAMESPACE "WidgetReflectorNode"
@@ -174,6 +175,16 @@ bool FLiveWidgetReflectorNode::GetWidgetIsInvalidationRoot() const
 	return FWidgetReflectorNodeUtils::GetWidgetIsInvalidationRoot(Widget.Pin());
 }
 
+int32 FLiveWidgetReflectorNode::GetWidgetAttributeCount() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetAttributeCount(Widget.Pin());
+}
+
+int32 FLiveWidgetReflectorNode::GetWidgetCollapsedAttributeCount() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetCollapsedAttributeCount(Widget.Pin());
+}
+
 FText FLiveWidgetReflectorNode::GetWidgetReadableLocation() const
 {
 	return FWidgetReflectorNodeUtils::GetWidgetReadableLocation(Widget.Pin());
@@ -259,6 +270,8 @@ FSnapshotWidgetReflectorNode::FSnapshotWidgetReflectorNode(const FArrangedWidget
 	, CachedWidgetReadableLocation(FWidgetReflectorNodeUtils::GetWidgetReadableLocation(InArrangedWidget.Widget))
 	, CachedWidgetFile(FWidgetReflectorNodeUtils::GetWidgetFile(InArrangedWidget.Widget))
 	, CachedWidgetLineNumber(FWidgetReflectorNodeUtils::GetWidgetLineNumber(InArrangedWidget.Widget))
+	, CachedWidgetAttributeCount(FWidgetReflectorNodeUtils::GetWidgetAttributeCount(InArrangedWidget.Widget))
+	, CachedWidgetCollapsedAttributeCount(FWidgetReflectorNodeUtils::GetWidgetCollapsedAttributeCount(InArrangedWidget.Widget))
 	, CachedWidgetAssetData(FWidgetReflectorNodeUtils::GetWidgetAssetData(InArrangedWidget.Widget))
 	, CachedWidgetDesiredSize(FWidgetReflectorNodeUtils::GetWidgetDesiredSize(InArrangedWidget.Widget))
 	, CachedWidgetForegroundColor(FWidgetReflectorNodeUtils::GetWidgetForegroundColor(InArrangedWidget.Widget))
@@ -349,6 +362,16 @@ FString FSnapshotWidgetReflectorNode::GetWidgetFile() const
 int32 FSnapshotWidgetReflectorNode::GetWidgetLineNumber() const
 {
 	return CachedWidgetLineNumber;
+}
+
+int32 FSnapshotWidgetReflectorNode::GetWidgetAttributeCount() const
+{
+	return CachedWidgetAttributeCount;
+}
+
+int32 FSnapshotWidgetReflectorNode::GetWidgetCollapsedAttributeCount() const
+{
+	return CachedWidgetCollapsedAttributeCount;
 }
 
 bool FSnapshotWidgetReflectorNode::HasValidWidgetAssetData() const
@@ -918,6 +941,30 @@ bool FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(const TSharedPtr<const 
 bool FWidgetReflectorNodeUtils::GetWidgetIsInvalidationRoot(const TSharedPtr<const SWidget>& InWidget)
 {
 	return InWidget.IsValid() ? InWidget->Advanced_IsInvalidationRoot() : false;
+}
+
+int32 FWidgetReflectorNodeUtils::GetWidgetAttributeCount(const TSharedPtr<const SWidget>& InWidget)
+{
+	if (InWidget.IsValid())
+	{
+		if (FSlateAttributeMetaData* MetaData = FSlateAttributeMetaData::FindMetaData(*InWidget.Get()))
+		{
+			return MetaData->RegisteredAttributeCount();
+		}
+	}
+	return 0;
+}
+
+int32 FWidgetReflectorNodeUtils::GetWidgetCollapsedAttributeCount(const TSharedPtr<const SWidget>& InWidget)
+{
+	if (InWidget.IsValid())
+	{
+		if (FSlateAttributeMetaData* MetaData = FSlateAttributeMetaData::FindMetaData(*InWidget.Get()))
+		{
+			return MetaData->RegisteredCollaspedAttributeCount();
+		}
+	}
+	return 0;
 }
 
 FText FWidgetReflectorNodeUtils::GetWidgetClippingText(const TSharedPtr<const SWidget>& InWidget)

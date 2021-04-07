@@ -75,7 +75,9 @@ void SReflectorToolTipWidget::Construct( const FArguments& InArgs )
 		BuildLabelAndValue(LOCTEXT("NeedsTick", "Needs Tick"), { this, &SReflectorToolTipWidget::GetNeedsTick });
 		BuildLabelAndValue(LOCTEXT("IsVolatile", "Is Volatile"), { this, &SReflectorToolTipWidget::GetIsVolatile });
 		BuildLabelAndValue(LOCTEXT("IsVolatileIndirectly", "Is Volatile Indirectly"), { this, &SReflectorToolTipWidget::GetIsVolatileIndirectly });
-		BuildLabelAndValue(LOCTEXT("HasActiveTimers", "Has Active Timers"), { this, &SReflectorToolTipWidget::GetHasActiveTimers });
+		BuildLabelAndValue(LOCTEXT("HasActiveTimers", "Has Active Timer"), { this, &SReflectorToolTipWidget::GetHasActiveTimers });
+		BuildLabelAndValue(LOCTEXT("HasRegisteredAttribute", "Attribute Count"), { this, &SReflectorToolTipWidget::GetAttributeCount });
+		BuildLabelAndValue(LOCTEXT("HasCollapsedAttribute", "Collapsed Attribute Count"), { this, &SReflectorToolTipWidget::GetCollapsedAttributeCount });
 
 		if (bIsInsideInvalidationRoot)
 		{

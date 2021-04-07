@@ -69,6 +69,16 @@ private:
 		return (WidgetInfo->GetWidgetHasActiveTimers()) ? TrueText : FalseText;
 	}
 
+	FText GetAttributeCount() const
+	{
+		return FText::AsNumber(WidgetInfo->GetWidgetAttributeCount());
+	}
+
+	FText GetCollapsedAttributeCount() const
+	{
+		return FText::AsNumber(WidgetInfo->GetWidgetCollapsedAttributeCount());
+	}
+
 	FText GetIsVisible() const
 	{
 		return (WidgetInfo->GetWidgetVisible()) ? TrueText : FalseText;
