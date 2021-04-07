@@ -60,6 +60,11 @@ public:
 	static FAnyRayTracingPassEnabled& AnyRayTracingPassEnabled();
 	static FPrepareRayTracing& PrepareRayTracing();
 	static FRenderDiffuseIndirectLight& RenderDiffuseIndirectLight();
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	DECLARE_MULTICAST_DELEGATE_FourParams(FRenderDiffuseIndirectVisualizations, const FScene& /*Scene*/, const FViewInfo& /*View*/, FRDGBuilder& /*GraphBuilder*/, FGlobalIlluminationExperimentalPluginResources& /*Resources*/);
+	static FRenderDiffuseIndirectVisualizations& RenderDiffuseIndirectVisualizations();
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 };
 
 /**
@@ -266,6 +271,11 @@ private:
 		struct FHairStrandsRenderingData* HairDatas);
 
 	void RenderDeferredReflectionsAndSkyLightingHair(FRDGBuilder& GraphBuilder, struct FHairStrandsRenderingData* HairDatas);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	/** Renders debug visualizations for global illumination plugins (experimental). */
+	void RenderGlobalIlluminationExperimentalPluginVisualizations(FRDGBuilder& GraphBuilder, FRDGTextureRef LightingChannelsTexture);
+#endif
 
 	/** Computes DFAO, modulates it to scene color (which is assumed to contain diffuse indirect lighting), and stores the output bent normal for use occluding specular. */
 	void RenderDFAOAsIndirectShadowing(

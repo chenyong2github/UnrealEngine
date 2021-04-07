@@ -282,6 +282,14 @@ FGlobalIlluminationExperimentalPluginDelegates::FRenderDiffuseIndirectLight& FGl
 	return GIExperimentalPluginRenderDiffuseIndirectLightDelegate;
 }
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+static FGlobalIlluminationExperimentalPluginDelegates::FRenderDiffuseIndirectVisualizations GIExperimentalPluginRenderDiffuseIndirectVisualizationsDelegate;
+FGlobalIlluminationExperimentalPluginDelegates::FRenderDiffuseIndirectVisualizations& FGlobalIlluminationExperimentalPluginDelegates::RenderDiffuseIndirectVisualizations()
+{
+	return GIExperimentalPluginRenderDiffuseIndirectVisualizationsDelegate;
+}
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
 const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderPlatform ShaderPlatform)
 {
 	if (IsForwardShadingEnabled(ShaderPlatform))
@@ -2242,6 +2250,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		// Render diffuse sky lighting and reflections that only operate on opaque pixels
 		RenderDeferredReflectionsAndSkyLighting(GraphBuilder, SceneTextures, SceneColorTexture, DynamicBentNormalAOTexture, VelocityTexture, HairDatas);
+		
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		// Renders debug visualizations for global illumination plugins (experimental)
+		RenderGlobalIlluminationExperimentalPluginVisualizations(GraphBuilder, LightingChannelsTexture);	
+#endif
 
 		SceneColorTexture = FRDGTextureMSAA(AddSubsurfacePass(GraphBuilder, SceneTextures, Views, SceneColorTexture.Target));
 

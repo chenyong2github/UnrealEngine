@@ -1050,3 +1050,31 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(
 		}
 	}
 }
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+void FDeferredShadingSceneRenderer::RenderGlobalIlluminationExperimentalPluginVisualizations(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef LightingChannelsTexture)
+{
+	// Early out if GI plugins aren't enabled
+	if (!CVarGlobalIlluminationExperimentalPluginEnable.GetValueOnRenderThread()) return;
+	
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+
+	// Get the resources passed to GI plugins
+	FGlobalIlluminationExperimentalPluginResources GIPluginResources;
+	GIPluginResources.GBufferA = SceneContext.GBufferA;
+	GIPluginResources.GBufferB = SceneContext.GBufferB;
+	GIPluginResources.GBufferC = SceneContext.GBufferC;
+	GIPluginResources.LightingChannelsTexture = LightingChannelsTexture;
+	GIPluginResources.SceneDepthZ = SceneContext.SceneDepthZ;
+	GIPluginResources.SceneColor = SceneContext.GetSceneColor();
+
+	// Render visualizations to all views by calling the GI plugin's delegate
+	FGlobalIlluminationExperimentalPluginDelegates::FRenderDiffuseIndirectVisualizations& PRVDelegate = FGlobalIlluminationExperimentalPluginDelegates::RenderDiffuseIndirectVisualizations();
+	for (int32 ViewIndexZ = 0; ViewIndexZ < Views.Num(); ViewIndexZ++)
+	{
+		PRVDelegate.Broadcast(*Scene, Views[ViewIndexZ], GraphBuilder, GIPluginResources);
+	}
+}
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
