@@ -189,6 +189,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	TArray<FNiagaraSpawnShortcut> GraphCreationShortcuts;
 
+	/** Enables the Niagara Baker to be used within the system editor. */
+	UPROPERTY(config, EditAnywhere, Category = Experimental)
+	bool bEnableBaker = false;
+
 	TArray<float> GetPlaybackSpeeds() const;
 
 	/** Gets whether or not auto-compile is enabled in the editors. */

@@ -8,9 +8,9 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
 
-#include "NiagaraFlipbookSettings.h"
+#include "NiagaraBakerSettings.h"
 
-class FNiagaraFlipbookViewModel : public TSharedFromThis<FNiagaraFlipbookViewModel>, public FGCObject
+class FNiagaraBakerViewModel : public TSharedFromThis<FNiagaraBakerViewModel>, public FGCObject
 {
 public:
 	struct FDisplayData
@@ -23,14 +23,14 @@ public:
 		int32		FrameIndex = 0;
 	};
 
-	FNiagaraFlipbookViewModel();
-	~FNiagaraFlipbookViewModel();
+	FNiagaraBakerViewModel();
+	~FNiagaraBakerViewModel();
 
 	void Initialize(TWeakPtr<class FNiagaraSystemViewModel> WeakSystemViewModel);
 
 	TSharedPtr<class SWidget> GetWidget();
 
-	void RenderFlipbook();
+	void RenderBaker();
 
 	void RefreshView();
 
@@ -40,10 +40,10 @@ public:
 	void SetDisplayTimeFromNormalized(float NormalizeTime);
 
 	class UNiagaraComponent* GetPreviewComponent() const;
-	class UNiagaraFlipbookSettings* GetFlipbookSettings() const;
-	const class UNiagaraFlipbookSettings* GetFlipbookGeneratedSettings() const;
+	class UNiagaraBakerSettings* GetBakerSettings() const;
+	const class UNiagaraBakerSettings* GetBakerGeneratedSettings() const;
 
-	const struct FNiagaraFlipbookTextureSettings* GetPreviewTextureSettings() const;
+	const struct FNiagaraBakerTextureSettings* GetPreviewTextureSettings() const;
 
 	bool RenderView(const FRenderTarget* RenderTarget, FCanvas* Canvas, float WorldTime, int32 iOutputTextureIndex, bool bFillCanvas = false) const;
 
@@ -55,7 +55,7 @@ private:
 	TSharedPtr<class FAdvancedPreviewScene> AdvancedPreviewScene;
 
 	TWeakPtr<FNiagaraSystemViewModel> WeakSystemViewModel;
-	TSharedPtr<class SNiagaraFlipbookWidget> Widget;
+	TSharedPtr<class SNiagaraBakerWidget> Widget;
 
 	int32 PreviewTextureIndex = 0;
 };

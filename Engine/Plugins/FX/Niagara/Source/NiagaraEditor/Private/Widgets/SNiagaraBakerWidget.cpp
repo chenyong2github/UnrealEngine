@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SNiagaraFlipbookWidget.h"
-#include "SNiagaraFlipbookTimelineWidget.h"
-#include "SNiagaraFlipbookViewport.h"
+#include "SNiagaraBakerWidget.h"
+#include "SNiagaraBakerTimelineWidget.h"
+#include "SNiagaraBakerViewport.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
-#include "ViewModels/NiagaraFlipbookViewModel.h"
+#include "ViewModels/NiagaraBakerViewModel.h"
 
 #include "Modules/ModuleManager.h"
 #include "Widgets/SBoxPanel.h"
@@ -16,13 +16,13 @@
 #include "EditorWidgetsModule.h"
 #include "PropertyEditorModule.h"
 
-#define LOCTEXT_NAMESPACE "NiagaraFlipbookWidget"
+#define LOCTEXT_NAMESPACE "NiagaraBakerWidget"
 
 //////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////
 
-void SNiagaraFlipbookWidget::Construct(const FArguments& InArgs)
+void SNiagaraBakerWidget::Construct(const FArguments& InArgs)
 {
 	WeakViewModel = InArgs._WeakViewModel;
 
@@ -34,17 +34,17 @@ void SNiagaraFlipbookWidget::Construct(const FArguments& InArgs)
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::Get().LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
 
-	FlipbookSettingsDetails = PropertyModule.CreateDetailView(DetailsArgs);
+	BakerSettingsDetails = PropertyModule.CreateDetailView(DetailsArgs);
 
 	// Transport control args
 	{
 		FTransportControlArgs TransportControlArgs;
 		TransportControlArgs.OnGetPlaybackMode.BindLambda([&]() -> EPlaybackMode::Type { return bIsPlaying ? EPlaybackMode::PlayingForward : EPlaybackMode::Stopped; } );
-		TransportControlArgs.OnBackwardEnd.BindSP(this, &SNiagaraFlipbookWidget::OnTransportBackwardEnd);
-		TransportControlArgs.OnBackwardStep.BindSP(this, &SNiagaraFlipbookWidget::OnTransportBackwardStep);
-		TransportControlArgs.OnForwardPlay.BindSP(this, &SNiagaraFlipbookWidget::OnTransportForwardPlay);
-		TransportControlArgs.OnForwardStep.BindSP(this, &SNiagaraFlipbookWidget::OnTransportForwardStep);
-		TransportControlArgs.OnForwardEnd.BindSP(this, &SNiagaraFlipbookWidget::OnTransportForwardEnd);
+		TransportControlArgs.OnBackwardEnd.BindSP(this, &SNiagaraBakerWidget::OnTransportBackwardEnd);
+		TransportControlArgs.OnBackwardStep.BindSP(this, &SNiagaraBakerWidget::OnTransportBackwardStep);
+		TransportControlArgs.OnForwardPlay.BindSP(this, &SNiagaraBakerWidget::OnTransportForwardPlay);
+		TransportControlArgs.OnForwardStep.BindSP(this, &SNiagaraBakerWidget::OnTransportForwardStep);
+		TransportControlArgs.OnForwardEnd.BindSP(this, &SNiagaraBakerWidget::OnTransportForwardEnd);
 
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::BackwardEnd));
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::BackwardStep));
@@ -69,7 +69,7 @@ void SNiagaraFlipbookWidget::Construct(const FArguments& InArgs)
 			SNew(SOverlay)
 			+ SOverlay::Slot()
 			[
-				SAssignNew(ViewportWidget, SNiagaraFlipbookViewport)
+				SAssignNew(ViewportWidget, SNiagaraBakerViewport)
 				.WeakViewModel(WeakViewModel)
 			]
 		]
@@ -88,7 +88,7 @@ void SNiagaraFlipbookWidget::Construct(const FArguments& InArgs)
 			]
 			+SHorizontalBox::Slot()
 			[
-				SAssignNew(TimelineWidget, SNiagaraFlipbookTimelineWidget)
+				SAssignNew(TimelineWidget, SNiagaraBakerTimelineWidget)
 				.WeakViewModel(WeakViewModel)
 			]
 		]
@@ -96,7 +96,7 @@ void SNiagaraFlipbookWidget::Construct(const FArguments& InArgs)
 		+SVerticalBox::Slot()
 		.FillHeight(0.40f)
 		[
-			FlipbookSettingsDetails.ToSharedRef()
+			BakerSettingsDetails.ToSharedRef()
 		]
 	];
 
@@ -106,29 +106,29 @@ void SNiagaraFlipbookWidget::Construct(const FArguments& InArgs)
 		{
 			if ( UNiagaraSystem* NiagaraSystem = PreviewComponent->GetAsset() )
 			{
-				FlipbookSettingsDetails->SetObject(NiagaraSystem->GetFlipbookSettings());
+				BakerSettingsDetails->SetObject(NiagaraSystem->GetBakerSettings());
 			}
 		}
 	}
 }
 
-FText SNiagaraFlipbookWidget::GetSelectedTextureAsText() const
+FText SNiagaraBakerWidget::GetSelectedTextureAsText() const
 {
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		if ( const UNiagaraFlipbookSettings* FlipbookSettings = ViewModel->GetFlipbookSettings() )
+		if ( const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings() )
 		{
 			const int32 PrevewTextureIndex = ViewModel->GetPreviewTextureIndex();
-			if ( FlipbookSettings->OutputTextures.IsValidIndex(PrevewTextureIndex) )
+			if ( BakerSettings->OutputTextures.IsValidIndex(PrevewTextureIndex) )
 			{
 				FString TextureName;
-				if (FlipbookSettings->OutputTextures[PrevewTextureIndex].OutputName.IsNone())
+				if (BakerSettings->OutputTextures[PrevewTextureIndex].OutputName.IsNone())
 				{
 					TextureName = FString::Printf(TEXT("Output Texture %d"), PrevewTextureIndex);
 				}
 				else
 				{
-					TextureName = FlipbookSettings->OutputTextures[PrevewTextureIndex].OutputName.ToString();
+					TextureName = BakerSettings->OutputTextures[PrevewTextureIndex].OutputName.ToString();
 				}
 				return FText::FromString(TextureName);
 			}
@@ -137,21 +137,21 @@ FText SNiagaraFlipbookWidget::GetSelectedTextureAsText() const
 	return FText::FromString(FString(TEXT("No Texture")));
 }
 
-void SNiagaraFlipbookWidget::Tick(const FGeometry& AllottedGeometry, const double CurrentTime, const float DeltaTime)
+void SNiagaraBakerWidget::Tick(const FGeometry& AllottedGeometry, const double CurrentTime, const float DeltaTime)
 {
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
 		float StartSeconds = 0.0f;
 		float DurationSeconds = 0.0f;
-		if (const UNiagaraFlipbookSettings* GeneratedSettings = GetFlipbookGeneratedSettings())
+		if (const UNiagaraBakerSettings* GeneratedSettings = GetBakerGeneratedSettings())
 		{
 			StartSeconds = GeneratedSettings->StartSeconds;
 			DurationSeconds = GeneratedSettings->DurationSeconds;
 		}
-		else if (UNiagaraFlipbookSettings* FlipbookSettings = GetFlipbookSettings())
+		else if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 		{
-			StartSeconds = FlipbookSettings->StartSeconds;
-			DurationSeconds = FlipbookSettings->DurationSeconds;
+			StartSeconds = BakerSettings->StartSeconds;
+			DurationSeconds = BakerSettings->DurationSeconds;
 		}
 
 		if ( DurationSeconds > 0.0f )
@@ -173,40 +173,40 @@ void SNiagaraFlipbookWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 	}
 }
 
-void SNiagaraFlipbookWidget::SetPreviewRelativeTime(float RelativeTime)
+void SNiagaraBakerWidget::SetPreviewRelativeTime(float RelativeTime)
 {
 	bIsPlaying = false;
 	PreviewRelativeTime = RelativeTime;
 }
 
-FReply SNiagaraFlipbookWidget::OnCapture()
+FReply SNiagaraBakerWidget::OnCapture()
 {
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		ViewModel->RenderFlipbook();
+		ViewModel->RenderBaker();
 	}
 	return FReply::Handled();
 }
 
-UNiagaraFlipbookSettings* SNiagaraFlipbookWidget::GetFlipbookSettings() const
+UNiagaraBakerSettings* SNiagaraBakerWidget::GetBakerSettings() const
 {
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		return ViewModel->GetFlipbookSettings();
+		return ViewModel->GetBakerSettings();
 	}
 	return nullptr;
 }
 
-const UNiagaraFlipbookSettings* SNiagaraFlipbookWidget::GetFlipbookGeneratedSettings() const
+const UNiagaraBakerSettings* SNiagaraBakerWidget::GetBakerGeneratedSettings() const
 {
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		return ViewModel->GetFlipbookGeneratedSettings();
+		return ViewModel->GetBakerGeneratedSettings();
 	}
 	return nullptr;
 }
 
-FReply SNiagaraFlipbookWidget::OnTransportBackwardEnd()
+FReply SNiagaraBakerWidget::OnTransportBackwardEnd()
 {
 	bIsPlaying = false;
 	PreviewRelativeTime = 0.0f;
@@ -214,12 +214,12 @@ FReply SNiagaraFlipbookWidget::OnTransportBackwardEnd()
 	return FReply::Handled();
 }
 
-FReply SNiagaraFlipbookWidget::OnTransportBackwardStep()
+FReply SNiagaraBakerWidget::OnTransportBackwardStep()
 {
 	bIsPlaying = false;
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		if(UNiagaraFlipbookSettings* Settings = ViewModel->GetFlipbookSettings())
+		if(UNiagaraBakerSettings* Settings = ViewModel->GetBakerSettings())
 		{
 			const auto DisplayData = Settings->GetDisplayInfo(PreviewRelativeTime, Settings->bPreviewLooping);
 			const int NumFrames = Settings->GetNumFrames();
@@ -231,18 +231,18 @@ FReply SNiagaraFlipbookWidget::OnTransportBackwardStep()
 	return FReply::Handled();
 }
 
-FReply SNiagaraFlipbookWidget::OnTransportForwardPlay()
+FReply SNiagaraBakerWidget::OnTransportForwardPlay()
 {
 	bIsPlaying = !bIsPlaying;
 	return FReply::Handled();
 }
 
-FReply SNiagaraFlipbookWidget::OnTransportForwardStep()
+FReply SNiagaraBakerWidget::OnTransportForwardStep()
 {
 	bIsPlaying = false;
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		if (UNiagaraFlipbookSettings* Settings = ViewModel->GetFlipbookSettings())
+		if (UNiagaraBakerSettings* Settings = ViewModel->GetBakerSettings())
 		{
 			const auto DisplayData = Settings->GetDisplayInfo(PreviewRelativeTime, Settings->bPreviewLooping);
 			const int NumFrames = Settings->GetNumFrames();
@@ -254,12 +254,12 @@ FReply SNiagaraFlipbookWidget::OnTransportForwardStep()
 	return FReply::Handled();
 }
 
-FReply SNiagaraFlipbookWidget::OnTransportForwardEnd()
+FReply SNiagaraBakerWidget::OnTransportForwardEnd()
 {
 	bIsPlaying = false;
-	if (UNiagaraFlipbookSettings* FlipbookSettings = GetFlipbookSettings())
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 	{
-		PreviewRelativeTime = FlipbookSettings->DurationSeconds;
+		PreviewRelativeTime = BakerSettings->DurationSeconds;
 	}
 
 	return FReply::Handled();

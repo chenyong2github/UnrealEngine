@@ -5,16 +5,16 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class FNiagaraFlipbookViewModel;
-class SNiagaraFlipbookViewport;
-class SNiagaraFlipbookTimelineWidget;
+class FNiagaraBakerViewModel;
+class SNiagaraBakerViewport;
+class SNiagaraBakerTimelineWidget;
 class IDetailsView;
 
-class SNiagaraFlipbookWidget : public SCompoundWidget
+class SNiagaraBakerWidget : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SNiagaraFlipbookWidget) {}
-		SLATE_ARGUMENT(TWeakPtr<FNiagaraFlipbookViewModel>, WeakViewModel)
+	SLATE_BEGIN_ARGS(SNiagaraBakerWidget) {}
+		SLATE_ARGUMENT(TWeakPtr<FNiagaraBakerViewModel>, WeakViewModel)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -26,8 +26,8 @@ public:
 	TSharedRef<SWidget> MakeTextureSelectionWidget() const;
 	FText GetSelectedTextureAsText() const;
 
-	class UNiagaraFlipbookSettings* GetFlipbookSettings() const;
-	const class UNiagaraFlipbookSettings* GetFlipbookGeneratedSettings() const;
+	class UNiagaraBakerSettings* GetBakerSettings() const;
+	const class UNiagaraBakerSettings* GetBakerGeneratedSettings() const;
 
 	void SetPreviewRelativeTime(float RelativeTime);
 
@@ -38,10 +38,10 @@ public:
 	FReply OnTransportForwardEnd();
 
 private:
-	TWeakPtr<FNiagaraFlipbookViewModel>			WeakViewModel;
-	TSharedPtr<SNiagaraFlipbookViewport>		ViewportWidget;
-	TSharedPtr<SNiagaraFlipbookTimelineWidget>	TimelineWidget;
-	TSharedPtr<IDetailsView>					FlipbookSettingsDetails;
+	TWeakPtr<FNiagaraBakerViewModel>			WeakViewModel;
+	TSharedPtr<SNiagaraBakerViewport>		ViewportWidget;
+	TSharedPtr<SNiagaraBakerTimelineWidget>	TimelineWidget;
+	TSharedPtr<IDetailsView>					BakerSettingsDetails;
 	TSharedPtr<SWidget>							TransportControls;
 
 	bool										bIsPlaying = true;

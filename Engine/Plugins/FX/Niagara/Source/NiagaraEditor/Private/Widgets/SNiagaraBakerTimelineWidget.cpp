@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SNiagaraFlipbookTimelineWidget.h"
-//#include "SNiagaraFlipbookViewport.h"
+#include "SNiagaraBakerTimelineWidget.h"
+//#include "SNiagaraBakerViewport.h"
 //#include "NiagaraEditorCommon.h"
 //#include "NiagaraComponent.h"
 //#include "NiagaraSystem.h"
-#include "ViewModels/NiagaraFlipbookViewModel.h"
+#include "ViewModels/NiagaraBakerViewModel.h"
 
 #include "Fonts/FontMeasure.h"
 //#include "Modules/ModuleManager.h"
@@ -14,14 +14,14 @@
 //#include "Widgets/SViewport.h"
 //#include "PropertyEditorModule.h"
 
-#define LOCTEXT_NAMESPACE "NiagaraFlipbookTimelineWidget"
+#define LOCTEXT_NAMESPACE "NiagaraBakerTimelineWidget"
 
-void SNiagaraFlipbookTimelineWidget::Construct(const FArguments& InArgs)
+void SNiagaraBakerTimelineWidget::Construct(const FArguments& InArgs)
 {
 	WeakViewModel = InArgs._WeakViewModel;
 }
 
-int32 SNiagaraFlipbookTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+int32 SNiagaraBakerTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	auto ViewModel = WeakViewModel.Pin();
 	if ( !ViewModel )
@@ -29,8 +29,8 @@ int32 SNiagaraFlipbookTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeo
 		return LayerId;
 	}
 
-	const UNiagaraFlipbookSettings* FlipbookSettings = ViewModel->GetFlipbookSettings();
-	if ( !FlipbookSettings )
+	const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
+	if ( !BakerSettings )
 	{
 		return LayerId;
 	}
@@ -46,8 +46,8 @@ int32 SNiagaraFlipbookTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeo
 	static const FLinearColor SelectedBarColor(FLinearColor::White);
 
 	// Gather information to display
-	const int NumFrames = FlipbookSettings->GetNumFrames();
-	const auto FlipbookDisplayData = FlipbookSettings->GetDisplayInfo(RelativeTime, FlipbookSettings->bPreviewLooping);
+	const int NumFrames = BakerSettings->GetNumFrames();
+	const auto BakerDisplayData = BakerSettings->GetDisplayInfo(RelativeTime, BakerSettings->bPreviewLooping);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Draw boxes to show frames
@@ -63,7 +63,7 @@ int32 SNiagaraFlipbookTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeo
 			{
 				const FVector2D BoxLocation(UStep * float(i), 0.0f);
 				const FVector2D BoxSize(UStep, AllottedGeometry.Size.Y);
-				const FLinearColor& Tint = (i == FlipbookDisplayData.FrameIndexA) ? CurrentTint : BoxTints[i & 1];
+				const FLinearColor& Tint = (i == BakerDisplayData.FrameIndexA) ? CurrentTint : BoxTints[i & 1];
 				FSlateDrawElement::MakeBox(OutDrawElements, RetLayerId++, AllottedGeometry.ToPaintGeometry(BoxLocation, BoxSize), BoxBrush, ESlateDrawEffect::None, Tint);
 			}
 		}
@@ -79,7 +79,7 @@ int32 SNiagaraFlipbookTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeo
 		TArray<FVector2D> LinePoints;
 		LinePoints.AddUninitialized(2);
 
-		const float LineXPos = AllottedGeometry.Size.X * FlipbookDisplayData.NormalizedTime;
+		const float LineXPos = AllottedGeometry.Size.X * BakerDisplayData.NormalizedTime;
 		LinePoints[0] = FVector2D(LineXPos, 0.0f);
 		LinePoints[1] = FVector2D(LineXPos, AllottedGeometry.Size.Y);
 
@@ -95,7 +95,7 @@ int32 SNiagaraFlipbookTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeo
 	return RetLayerId;
 }
 
-FReply SNiagaraFlipbookTimelineWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SNiagaraBakerTimelineWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	if ( auto ViewModel = WeakViewModel.Pin() )
 	{
@@ -110,17 +110,17 @@ FReply SNiagaraFlipbookTimelineWidget::OnMouseButtonDown(const FGeometry& MyGeom
 	return FReply::Unhandled();
 }
 
-//FReply SNiagaraFlipbookTimelineWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+//FReply SNiagaraBakerTimelineWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 //{
 //	return FReply::Unhandled();
 //}
 //
-//FReply SNiagaraFlipbookTimelineWidget::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+//FReply SNiagaraBakerTimelineWidget::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 //{
 //	return FReply::Unhandled();
 //}
 
-FVector2D SNiagaraFlipbookTimelineWidget::ComputeDesiredSize(float) const
+FVector2D SNiagaraBakerTimelineWidget::ComputeDesiredSize(float) const
 {
 	return FVector2D(8.0f, 8.0f);
 }

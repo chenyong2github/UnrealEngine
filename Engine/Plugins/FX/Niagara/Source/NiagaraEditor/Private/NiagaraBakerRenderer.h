@@ -5,12 +5,12 @@
 #include "CoreMinimal.h"
 
 class UNiagaraComponent;
-class UNiagaraFlipbookSettings;
+class UNiagaraBakerSettings;
 class UNiagaraSystem;
 class UTextureRenderTarget2D;
 class FCanvas;
 
-struct FNiagaraFlipbookRenderer
+struct FNiagaraBakerRenderer
 {
 public:
 	enum class ERenderType
@@ -22,8 +22,8 @@ public:
 	};
 
 public:
-	FNiagaraFlipbookRenderer(UNiagaraComponent* PreviewComponent, float WorldTime);
-	FNiagaraFlipbookRenderer(UNiagaraComponent* PreviewComponent, UNiagaraFlipbookSettings* FlipbookSettings, float WorldTime);
+	FNiagaraBakerRenderer(UNiagaraComponent* PreviewComponent, float WorldTime);
+	FNiagaraBakerRenderer(UNiagaraComponent* PreviewComponent, UNiagaraBakerSettings* BakerSettings, float WorldTime);
 
 	bool IsValid() const;
 
@@ -36,6 +36,6 @@ public:
 
 private:
 	UNiagaraComponent* PreviewComponent = nullptr;
-	UNiagaraFlipbookSettings* FlipbookSettings = nullptr;
+	UNiagaraBakerSettings* BakerSettings = nullptr;
 	float WorldTime = 0.0f;
 };

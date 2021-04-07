@@ -69,7 +69,7 @@
 #include "NiagaraClipboard.h"
 #include "NiagaraMessageManager.h"
 #include "NiagaraComponentBroker.h"
-#include "NiagaraFlipbookSettings.h"
+#include "NiagaraBakerSettings.h"
 #include "ContentBrowserModule.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
@@ -102,7 +102,7 @@
 #include "Customizations/NiagaraTypeCustomizations.h"
 #include "Customizations/NiagaraComponentRendererPropertiesDetails.h"
 #include "Customizations/NiagaraDebugHUDCustomization.h"
-#include "Customizations/NiagaraFlipbookSettingsDetails.h"
+#include "Customizations/NiagaraBakerSettingsDetails.h"
 #include "Customizations/NiagaraOutlinerCustomization.h"
 
 #include "NiagaraComponent.h"
@@ -883,8 +883,8 @@ void FNiagaraEditorModule::StartupModule()
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraDebugHUDVariableCustomization::MakeInstance));
 
 	PropertyModule.RegisterCustomPropertyTypeLayout(
-		FNiagaraFlipbookTextureSource::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraFlipbookTextureSourceDetails::MakeInstance));
+		FNiagaraBakerTextureSource::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraBakerTextureSourceDetails::MakeInstance));
 
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraDebugHUDSettingsData::StaticStruct()->GetFName(),

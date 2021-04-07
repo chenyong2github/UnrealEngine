@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SNiagaraFlipbookViewport.h"
-#include "ViewModels/NiagaraFlipbookViewModel.h"
-#include "SNiagaraFlipbookViewportToolbar.h"
-#include "NiagaraFlipbookRenderer.h"
+#include "SNiagaraBakerViewport.h"
+#include "ViewModels/NiagaraBakerViewModel.h"
+#include "SNiagaraBakerViewportToolbar.h"
+#include "NiagaraBakerRenderer.h"
 #include "NiagaraComponent.h"
 
 #include "Engine/Font.h"
@@ -16,14 +16,14 @@
 #include "ImageUtils.h"
 #include "SEditorViewportToolBarMenu.h"
 
-#define LOCTEXT_NAMESPACE "NiagaraFlipbookViewport"
+#define LOCTEXT_NAMESPACE "NiagaraBakerViewport"
 
 //////////////////////////////////////////////////////////////////////////
 
-class FNiagaraFlipbookViewportClient : public FEditorViewportClient
+class FNiagaraBakerViewportClient : public FEditorViewportClient
 {
 public:
-	FNiagaraFlipbookViewportClient(const TSharedRef<SNiagaraFlipbookViewport>& InOwnerViewport)
+	FNiagaraBakerViewportClient(const TSharedRef<SNiagaraBakerViewport>& InOwnerViewport)
 		: FEditorViewportClient(nullptr, nullptr, StaticCastSharedRef<SEditorViewport>(InOwnerViewport))
 	{
 		SetViewportType(ELevelViewportType::LVT_OrthoXZ);
@@ -33,8 +33,8 @@ public:
 	{
 		// Only allow movement when in preview mode
 		auto ViewModel = WeakViewModel.Pin();
-		UNiagaraFlipbookSettings* FlipbookSettings = ViewModel ? ViewModel->GetFlipbookSettings() : nullptr;
-		if ( bShowPreview && FlipbookSettings )
+		UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
+		if ( bShowPreview && BakerSettings )
 		{
 			bool bForwardKeyState = false;
 			bool bBackwardKeyState = false;
@@ -65,7 +65,7 @@ public:
 				bFocus |= Viewport->KeyState(FEditorViewportCommands::Get().FocusViewportToSelection->GetActiveChord(ChordIndex)->Key);
 			}
 
-			if ( FlipbookSettings->IsOrthographic() )
+			if ( BakerSettings->IsOrthographic() )
 			{
 				LocalMovement.X += bLeftKeyState ? KeyboardMoveSpeed : 0.0f;
 				LocalMovement.X -= bRightKeyState ? KeyboardMoveSpeed : 0.0f;
@@ -99,10 +99,10 @@ public:
 	{
 		// Viewport movement only enabled when preview is enabled otherwise there is no feedback
 		auto ViewModel = WeakViewModel.Pin();
-		UNiagaraFlipbookSettings* FlipbookSettings = ViewModel ? ViewModel->GetFlipbookSettings() : nullptr;
-		if ( bShowPreview && FlipbookSettings && (Key == EKeys::MouseX || Key == EKeys::MouseY) )
+		UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
+		if ( bShowPreview && BakerSettings && (Key == EKeys::MouseX || Key == EKeys::MouseY) )
 		{
-			if (FlipbookSettings->IsOrthographic())
+			if (BakerSettings->IsOrthographic())
 			{
 				if (InViewport->KeyState(EKeys::RightMouseButton))
 				{
@@ -162,16 +162,16 @@ public:
 
 		// Apply local movement
 		auto ViewModel = WeakViewModel.Pin();
-		UNiagaraFlipbookSettings* FlipbookSettings = ViewModel ? ViewModel->GetFlipbookSettings() : nullptr;
-		if ( FlipbookSettings )
+		UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
+		if ( BakerSettings )
 		{
-			const FMatrix ViewMatrix = FlipbookSettings->GetViewMatrix().Inverse();
+			const FMatrix ViewMatrix = BakerSettings->GetViewMatrix().Inverse();
 			const FVector XAxis = ViewMatrix.GetUnitAxis(EAxis::X);
 			const FVector YAxis = ViewMatrix.GetUnitAxis(EAxis::Y);
 			const FVector ZAxis = ViewMatrix.GetUnitAxis(EAxis::Z);
 
 			FVector WorldMovement = FVector::ZeroVector;
-			if (FlipbookSettings->IsOrthographic())
+			if (BakerSettings->IsOrthographic())
 			{
 				const FVector2D MoveSpeed = GetPreviewOrthoUnits();
 
@@ -179,11 +179,11 @@ public:
 				WorldMovement -= LocalMovement.Y * MoveSpeed.Y * YAxis;
 				//WorldMovement += LocalMovement.Z * MoveSpeed * ZAxis;
 
-				FlipbookSettings->CameraViewportLocation[(int)FlipbookSettings->CameraViewportMode] += WorldMovement;
+				BakerSettings->CameraViewportLocation[(int)BakerSettings->CameraViewportMode] += WorldMovement;
 			}
 			else
 			{
-				FRotator& WorldRotation = FlipbookSettings->CameraViewportRotation[(int)FlipbookSettings->CameraViewportMode];
+				FRotator& WorldRotation = BakerSettings->CameraViewportRotation[(int)BakerSettings->CameraViewportMode];
 				WorldRotation.Yaw = FRotator::ClampAxis(WorldRotation.Yaw + LocalRotation.X);
 				WorldRotation.Roll = FMath::Clamp(WorldRotation.Roll + LocalRotation.Y, 0.0f, 180.0f);
 
@@ -191,28 +191,28 @@ public:
 				WorldMovement -= LocalMovement.X * MoveSpeed * XAxis;
 				WorldMovement -= LocalMovement.Y * MoveSpeed * YAxis;
 				//WorldMovement -= LocalMovement.Z * MoveSpeed * ZAxis;
-				FlipbookSettings->CameraViewportLocation[(int)FlipbookSettings->CameraViewportMode] += WorldMovement;
+				BakerSettings->CameraViewportLocation[(int)BakerSettings->CameraViewportMode] += WorldMovement;
 
-				FlipbookSettings->CameraOrbitDistance = FMath::Max(FlipbookSettings->CameraOrbitDistance + LocalMovement.Z, 0.01f);
+				BakerSettings->CameraOrbitDistance = FMath::Max(BakerSettings->CameraOrbitDistance + LocalMovement.Z, 0.01f);
 			}
 
 			if (!FMath::IsNearlyZero(LocalZoom))
 			{
-				if (FlipbookSettings->IsPerspective())
+				if (BakerSettings->IsPerspective())
 				{
-					FlipbookSettings->CameraFOV = FMath::Clamp(FlipbookSettings->CameraFOV + LocalZoom, 0.001f, 179.0f);
+					BakerSettings->CameraFOV = FMath::Clamp(BakerSettings->CameraFOV + LocalZoom, 0.001f, 179.0f);
 				}
 				else
 				{
-					FlipbookSettings->CameraOrthoWidth = FMath::Max(FlipbookSettings->CameraOrthoWidth + LocalZoom, 1.0f);
+					BakerSettings->CameraOrthoWidth = FMath::Max(BakerSettings->CameraOrthoWidth + LocalZoom, 1.0f);
 				}
 			}
 
 			if (!FMath::IsNearlyZero(LocalAspect))
 			{
-				if (FlipbookSettings->bUseCameraAspectRatio)
+				if (BakerSettings->bUseCameraAspectRatio)
 				{
-					FlipbookSettings->CameraAspectRatio = FMath::Max(FlipbookSettings->CameraAspectRatio + (LocalAspect / 50.0f), 0.01f);
+					BakerSettings->CameraAspectRatio = FMath::Max(BakerSettings->CameraAspectRatio + (LocalAspect / 50.0f), 0.01f);
 				}
 			}
 		}
@@ -244,23 +244,23 @@ public:
 		const float FontHeight = DisplayFont->GetMaxCharHeight() + 1.0f;
 		const FVector2D TextStartOffset(5.0f, 30.0f);
 
-		const UNiagaraFlipbookSettings* FlipbookSettings = ViewModel->GetFlipbookSettings();
-		const UNiagaraFlipbookSettings* FlipbookGeneratedSettings = ViewModel->GetFlipbookGeneratedSettings();
+		const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
+		const UNiagaraBakerSettings* BakerGeneratedSettings = ViewModel->GetBakerGeneratedSettings();
 		const int32 PreviewTextureIndex = ViewModel->GetPreviewTextureIndex();
 
 		// Determine view rects
 		PreviewViewRect = FIntRect();
-		FlipbookViewRect = FIntRect();
+		BakerViewRect = FIntRect();
 		{
 			const FIntRect ViewRect = Canvas->GetViewRect();
 			const int32 Border = 3;
-			const int32 ViewWidth = bShowPreview && bShowFlipbook ? (ViewRect.Width() >> 1) - Border : ViewRect.Width();
+			const int32 ViewWidth = bShowPreview && bShowBaker ? (ViewRect.Width() >> 1) - Border : ViewRect.Width();
 
 			if (bShowPreview)
 			{
-				if (FlipbookSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
+				if (BakerSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
 				{
-					PreviewViewRect = ConstrainRect(FIntRect(ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Min.X + ViewWidth, ViewRect.Max.Y), FlipbookSettings->OutputTextures[PreviewTextureIndex].FrameSize);
+					PreviewViewRect = ConstrainRect(FIntRect(ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Min.X + ViewWidth, ViewRect.Max.Y), BakerSettings->OutputTextures[PreviewTextureIndex].FrameSize);
 				}
 				else
 				{
@@ -268,15 +268,15 @@ public:
 				}
 			}
 
-			if ( bShowFlipbook )
+			if ( bShowBaker )
 			{
-				if (FlipbookGeneratedSettings && FlipbookGeneratedSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
+				if (BakerGeneratedSettings && BakerGeneratedSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
 				{
-					FlipbookViewRect = ConstrainRect(FIntRect(ViewRect.Max.X - ViewWidth, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y), FlipbookGeneratedSettings->OutputTextures[PreviewTextureIndex].FrameSize);
+					BakerViewRect = ConstrainRect(FIntRect(ViewRect.Max.X - ViewWidth, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y), BakerGeneratedSettings->OutputTextures[PreviewTextureIndex].FrameSize);
 				}
 				else
 				{
-					FlipbookViewRect = FIntRect(ViewRect.Max.X - ViewWidth, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y);
+					BakerViewRect = FIntRect(ViewRect.Max.X - ViewWidth, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y);
 				}
 			}
 		}
@@ -288,10 +288,10 @@ public:
 
 			const float WorldTime = CurrentTime;
 			FVector2D TextPosition(PreviewViewRect.Min.X + TextStartOffset.X, PreviewViewRect.Min.Y + TextStartOffset.Y);
-			if (FlipbookSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
+			if (BakerSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
 			{
 				// Ensure render target is the correct size
-				const FNiagaraFlipbookTextureSettings& OutputTexture = FlipbookSettings->OutputTextures[PreviewTextureIndex];
+				const FNiagaraBakerTextureSettings& OutputTexture = BakerSettings->OutputTextures[PreviewTextureIndex];
 				if ( !RealtimeRenderTarget || RealtimeRenderTarget->SizeX != OutputTexture.FrameSize.X || RealtimeRenderTarget->SizeY != OutputTexture.FrameSize.Y )
 				{
 					if (RealtimeRenderTarget == nullptr)
@@ -305,12 +305,12 @@ public:
 
 				// Seek to correct time and render
 				UNiagaraComponent* PreviewComponent = ViewModel->GetPreviewComponent();
-				PreviewComponent->SetSeekDelta(FlipbookSettings->GetSeekDelta());
+				PreviewComponent->SetSeekDelta(BakerSettings->GetSeekDelta());
 				PreviewComponent->SeekToDesiredAge(WorldTime);
-				PreviewComponent->TickComponent(FlipbookSettings->GetSeekDelta(), ELevelTick::LEVELTICK_All, nullptr);
+				PreviewComponent->TickComponent(BakerSettings->GetSeekDelta(), ELevelTick::LEVELTICK_All, nullptr);
 
-				FNiagaraFlipbookRenderer FlipbookRenderer(PreviewComponent, WorldTime);
-				FlipbookRenderer.RenderView(RealtimeRenderTarget, PreviewTextureIndex);
+				FNiagaraBakerRenderer BakerRenderer(PreviewComponent, WorldTime);
+				BakerRenderer.RenderView(RealtimeRenderTarget, PreviewTextureIndex);
 
 				const FVector2D HalfPixel(0.5f / float(OutputTexture.FrameSize.X), 0.5f / float(OutputTexture.FrameSize.Y));
 				Canvas->DrawTile(
@@ -340,31 +340,31 @@ public:
 			}
 		}
 
-		// Render Flipbook
-		if ( bShowFlipbook)
+		// Render Baker
+		if ( bShowBaker)
 		{
-			ClearViewArea(Canvas, FlipbookViewRect);
+			ClearViewArea(Canvas, BakerViewRect);
 
-			const bool bFlipbookValid =
-				(FlipbookGeneratedSettings != nullptr) &&
-				FlipbookGeneratedSettings->OutputTextures.IsValidIndex(PreviewTextureIndex) &&
-				(FlipbookGeneratedSettings->OutputTextures[PreviewTextureIndex].GeneratedTexture != nullptr);
-			FVector2D TextPosition(FlipbookViewRect.Min.X + TextStartOffset.X, FlipbookViewRect.Min.Y + TextStartOffset.Y);
+			const bool bBakerValid =
+				(BakerGeneratedSettings != nullptr) &&
+				BakerGeneratedSettings->OutputTextures.IsValidIndex(PreviewTextureIndex) &&
+				(BakerGeneratedSettings->OutputTextures[PreviewTextureIndex].GeneratedTexture != nullptr);
+			FVector2D TextPosition(BakerViewRect.Min.X + TextStartOffset.X, BakerViewRect.Min.Y + TextStartOffset.Y);
 
-			if (bFlipbookValid)
+			if (bBakerValid)
 			{
-				const auto DisplayData = FlipbookGeneratedSettings->GetDisplayInfo(CurrentTime - FlipbookGeneratedSettings->StartSeconds, FlipbookGeneratedSettings->bPreviewLooping);
-				const FNiagaraFlipbookTextureSettings& OutputTexture = FlipbookGeneratedSettings->OutputTextures[PreviewTextureIndex];
+				const auto DisplayData = BakerGeneratedSettings->GetDisplayInfo(CurrentTime - BakerGeneratedSettings->StartSeconds, BakerGeneratedSettings->bPreviewLooping);
+				const FNiagaraBakerTextureSettings& OutputTexture = BakerGeneratedSettings->OutputTextures[PreviewTextureIndex];
 
 				const FIntPoint TextureSize = FIntPoint(FMath::Max(OutputTexture.GeneratedTexture->GetSizeX(), 1), FMath::Max(OutputTexture.GeneratedTexture->GetSizeY(), 1));
-				const FIntPoint FramesPerDimension = FlipbookGeneratedSettings->FramesPerDimension;
+				const FIntPoint FramesPerDimension = BakerGeneratedSettings->FramesPerDimension;
 				const FIntPoint FrameIndexA = FIntPoint(DisplayData.FrameIndexA % FramesPerDimension.X, DisplayData.FrameIndexA / FramesPerDimension.X);
 				const FIntPoint FrameIndexB = FIntPoint(DisplayData.FrameIndexB % FramesPerDimension.X, DisplayData.FrameIndexB / FramesPerDimension.X);
 				const FIntPoint FramePixelA = FIntPoint(FrameIndexA.X * OutputTexture.FrameSize.X, FrameIndexA.Y * OutputTexture.FrameSize.Y);
 				const FIntPoint FramePixelB = FIntPoint(FrameIndexB.X * OutputTexture.FrameSize.X, FrameIndexB.Y * OutputTexture.FrameSize.Y);
 
 				Canvas->DrawTile(
-					FlipbookViewRect.Min.X, FlipbookViewRect.Min.Y, FlipbookViewRect.Width(), FlipbookViewRect.Height(),
+					BakerViewRect.Min.X, BakerViewRect.Min.Y, BakerViewRect.Width(), BakerViewRect.Height(),
 					(float(FramePixelA.X) + 0.5f) / float(TextureSize.X), (float(FramePixelA.Y) + 0.5f) / float(TextureSize.Y), (float(FramePixelA.X + OutputTexture.FrameSize.X) - 0.5f) / float(TextureSize.X), (float(FramePixelA.Y + OutputTexture.FrameSize.Y) - 0.5f) / float(TextureSize.Y),
 					FLinearColor::White,
 					OutputTexture.GeneratedTexture->Resource,
@@ -374,13 +374,13 @@ public:
 				// Display info text
 				if (bShowInfoText)
 				{
-					Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Flipbook"), DisplayFont, FLinearColor::White);
+					Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Baker"), DisplayFont, FLinearColor::White);
 					TextPosition.Y += FontHeight;
 
-					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d) Frame(%d/%d)"), PreviewTextureIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y, DisplayData.FrameIndexA, FlipbookGeneratedSettings->GetNumFrames()), DisplayFont, FLinearColor::White);
+					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d) Frame(%d/%d)"), PreviewTextureIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y, DisplayData.FrameIndexA, BakerGeneratedSettings->GetNumFrames()), DisplayFont, FLinearColor::White);
 					TextPosition.Y += FontHeight;
 
-					if (!FlipbookGeneratedSettings->Equals(*FlipbookSettings))
+					if (!BakerGeneratedSettings->Equals(*BakerSettings))
 					{
 						Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, TEXT("Warning: Out Of Date"), DisplayFont, FLinearColor::White);
 						TextPosition.Y += FontHeight;
@@ -389,7 +389,7 @@ public:
 			}
 			else
 			{
-				Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Flipbook Not Generated"), DisplayFont, FLinearColor::White);
+				Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Baker Not Generated"), DisplayFont, FLinearColor::White);
 				TextPosition.Y += FontHeight;
 				}
 		}
@@ -456,25 +456,25 @@ public:
 	void FocusCamera()
 	{
 		auto ViewModel = WeakViewModel.Pin();
-		UNiagaraFlipbookSettings* FlipbookSettings = ViewModel ? ViewModel->GetFlipbookSettings() : nullptr;
+		UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
 		UNiagaraComponent* NiagaraComponent = ViewModel->GetPreviewComponent();
-		if ( bShowPreview && FlipbookSettings && NiagaraComponent )
+		if ( bShowPreview && BakerSettings && NiagaraComponent )
 		{
 			//-TODO: Should take aspect ratio into account here
 			const FBoxSphereBounds ComponentBounds = NiagaraComponent->CalcBounds(NiagaraComponent->GetComponentTransform());
-			if ( FlipbookSettings->IsOrthographic() )
+			if ( BakerSettings->IsOrthographic() )
 			{
-				FlipbookSettings->CameraViewportLocation[(int)FlipbookSettings->CameraViewportMode] = ComponentBounds.Origin;
-				FlipbookSettings->CameraOrthoWidth = ComponentBounds.SphereRadius * 2.0f;
+				BakerSettings->CameraViewportLocation[(int)BakerSettings->CameraViewportMode] = ComponentBounds.Origin;
+				BakerSettings->CameraOrthoWidth = ComponentBounds.SphereRadius * 2.0f;
 			}
 			else
 			{
-				const float HalfFOVRadians = FMath::DegreesToRadians(FlipbookSettings->CameraFOV) * 0.5f;
+				const float HalfFOVRadians = FMath::DegreesToRadians(BakerSettings->CameraFOV) * 0.5f;
 				const float CameraDistance = ComponentBounds.SphereRadius / FMath::Tan(HalfFOVRadians);
-				//const FVector CameraOffset = FlipbookSettings->GetViewMatrix().Inverse().GetUnitAxis(EAxis::Z) * CameraDistance;
-				//FlipbookSettings->CameraViewportLocation[(int)ENiagaraFlipbookViewMode::Perspective] = ComponentBounds.Origin - CameraOffset;
-				FlipbookSettings->CameraViewportLocation[(int)FlipbookSettings->CameraViewportMode] = ComponentBounds.Origin;
-				FlipbookSettings->CameraOrbitDistance = CameraDistance;
+				//const FVector CameraOffset = BakerSettings->GetViewMatrix().Inverse().GetUnitAxis(EAxis::Z) * CameraDistance;
+				//BakerSettings->CameraViewportLocation[(int)ENiagaraBakerViewMode::Perspective] = ComponentBounds.Origin - CameraOffset;
+				BakerSettings->CameraViewportLocation[(int)BakerSettings->CameraViewportMode] = ComponentBounds.Origin;
+				BakerSettings->CameraOrbitDistance = CameraDistance;
 			}
 		}
 	}
@@ -484,10 +484,10 @@ public:
 		FVector2D OrthoUnits = FVector2D::ZeroVector;
 
 		auto ViewModel = WeakViewModel.Pin();
-		const UNiagaraFlipbookSettings* FlipbookSettings = ViewModel ? ViewModel->GetFlipbookSettings() : nullptr;
-		if (FlipbookSettings && (PreviewViewRect.Area() > 0))
+		const UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
+		if (BakerSettings && (PreviewViewRect.Area() > 0))
 		{
-			OrthoUnits = FlipbookSettings->GetOrthoSize(ViewModel->GetPreviewTextureIndex());
+			OrthoUnits = BakerSettings->GetOrthoSize(ViewModel->GetPreviewTextureIndex());
 			OrthoUnits.X = OrthoUnits.X / float(PreviewViewRect.Width());
 			OrthoUnits.Y = OrthoUnits.Y / float(PreviewViewRect.Height());
 		}
@@ -514,7 +514,7 @@ public:
 	float										PerspectiveMoveSpeed = 2.0f;
 
 	FIntRect									PreviewViewRect;
-	FIntRect									FlipbookViewRect;
+	FIntRect									BakerViewRect;
 
 	bool										bShowCheckerBoard = true;
 	UTexture2D*									CheckerboardTexture = nullptr;
@@ -526,16 +526,16 @@ public:
 
 	bool										bShowInfoText = true;
 	bool										bShowPreview = true;
-	bool										bShowFlipbook = true;
+	bool										bShowBaker = true;
 
-	TWeakPtr<FNiagaraFlipbookViewModel>			WeakViewModel;
+	TWeakPtr<FNiagaraBakerViewModel>			WeakViewModel;
 	float										CurrentTime = 0.0f;
 	float										DeltaTime = 0.0f;
 };
 
 //////////////////////////////////////////////////////////////////////////
 
-void SNiagaraFlipbookViewport::Construct(const FArguments& InArgs)
+void SNiagaraBakerViewport::Construct(const FArguments& InArgs)
 {
 	WeakViewModel = InArgs._WeakViewModel;
 
@@ -547,24 +547,24 @@ void SNiagaraFlipbookViewport::Construct(const FArguments& InArgs)
 	SEditorViewport::Construct(ParentArgs);
 }
 
-TSharedRef<FEditorViewportClient> SNiagaraFlipbookViewport::MakeEditorViewportClient()
+TSharedRef<FEditorViewportClient> SNiagaraBakerViewport::MakeEditorViewportClient()
 {
-	ViewportClient = MakeShareable(new FNiagaraFlipbookViewportClient(SharedThis(this)));
+	ViewportClient = MakeShareable(new FNiagaraBakerViewportClient(SharedThis(this)));
 	ViewportClient->WeakViewModel = WeakViewModel;
 
 	return ViewportClient.ToSharedRef();
 }
 
-TSharedPtr<SWidget> SNiagaraFlipbookViewport::MakeViewportToolbar()
+TSharedPtr<SWidget> SNiagaraBakerViewport::MakeViewportToolbar()
 {
 	return
-		SNew(SNiagaraFlipbookViewportToolbar)
+		SNew(SNiagaraBakerViewportToolbar)
 		.WeakViewModel(WeakViewModel)
 		.WeakViewport(SharedThis(this));
 	;
 }
 
-void SNiagaraFlipbookViewport::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SNiagaraBakerViewport::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	ViewportClient->bNeedsRedraw = true;
 
@@ -575,104 +575,104 @@ void SNiagaraFlipbookViewport::Tick(const FGeometry& AllottedGeometry, const dou
 	}
 }
 
-TSharedRef<SEditorViewport> SNiagaraFlipbookViewport::GetViewportWidget()
+TSharedRef<SEditorViewport> SNiagaraBakerViewport::GetViewportWidget()
 {
 	return SharedThis(this);
 }
 
-TSharedPtr<FExtender> SNiagaraFlipbookViewport::GetExtenders() const
+TSharedPtr<FExtender> SNiagaraBakerViewport::GetExtenders() const
 {
 	TSharedPtr<FExtender> Result(MakeShareable(new FExtender));
 	return Result;
 }
 
-void SNiagaraFlipbookViewport::OnFloatingButtonClicked()
+void SNiagaraBakerViewport::OnFloatingButtonClicked()
 {
 }
 
-bool SNiagaraFlipbookViewport::IsInfoTextEnabled() const
+bool SNiagaraBakerViewport::IsInfoTextEnabled() const
 {
 	return ViewportClient->bShowInfoText;
 }
 
-void SNiagaraFlipbookViewport::SetInfoTextEnabled(bool bEnabled)
+void SNiagaraBakerViewport::SetInfoTextEnabled(bool bEnabled)
 {
 	ViewportClient->bShowInfoText = bEnabled;
 }
 
-bool SNiagaraFlipbookViewport::IsPreviewViewEnabled() const
+bool SNiagaraBakerViewport::IsPreviewViewEnabled() const
 {
 	return ViewportClient->bShowPreview;
 }
 
-void SNiagaraFlipbookViewport::SetPreviewViewEnabled(bool bEnabled)
+void SNiagaraBakerViewport::SetPreviewViewEnabled(bool bEnabled)
 {
 	ViewportClient->bShowPreview = bEnabled;
 }
 
-bool SNiagaraFlipbookViewport::IsFlipbookViewEnabled() const
+bool SNiagaraBakerViewport::IsBakerViewEnabled() const
 {
-	return ViewportClient->bShowFlipbook;
+	return ViewportClient->bShowBaker;
 }
 
-void SNiagaraFlipbookViewport::SetFlipbookViewEnabled(bool bEnabled)
+void SNiagaraBakerViewport::SetBakerViewEnabled(bool bEnabled)
 {
-	ViewportClient->bShowFlipbook = bEnabled;
+	ViewportClient->bShowBaker = bEnabled;
 }
 
-void SNiagaraFlipbookViewport::RefreshView(const float CurrentTime, const float DeltaTime)
+void SNiagaraBakerViewport::RefreshView(const float CurrentTime, const float DeltaTime)
 {
 	ViewportClient->CurrentTime = CurrentTime;
 	ViewportClient->DeltaTime = DeltaTime;
 }
 
-ENiagaraFlipbookViewMode SNiagaraFlipbookViewport::GetCameraMode() const
+ENiagaraBakerViewMode SNiagaraBakerViewport::GetCameraMode() const
 {
 	if ( auto ViewModel = WeakViewModel.Pin() )
 	{
-		const UNiagaraFlipbookSettings* FlipbookSettings = ViewModel->GetFlipbookSettings();
-		return FlipbookSettings->CameraViewportMode;
+		const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
+		return BakerSettings->CameraViewportMode;
 	}
 	// Should never happen
 	checkf(false, TEXT("No ViewModel present"));
-	return ENiagaraFlipbookViewMode::Perspective;
+	return ENiagaraBakerViewMode::Perspective;
 }
 
-void SNiagaraFlipbookViewport::SetCameraMode(ENiagaraFlipbookViewMode Mode)
+void SNiagaraBakerViewport::SetCameraMode(ENiagaraBakerViewMode Mode)
 {
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		UNiagaraFlipbookSettings* FlipbookSettings = ViewModel->GetFlipbookSettings();
-		FlipbookSettings->CameraViewportMode = Mode;
+		UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
+		BakerSettings->CameraViewportMode = Mode;
 	}
 }
 
-bool SNiagaraFlipbookViewport::IsCameraMode(ENiagaraFlipbookViewMode Mode) const
+bool SNiagaraBakerViewport::IsCameraMode(ENiagaraBakerViewMode Mode) const
 {
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		const UNiagaraFlipbookSettings* FlipbookSettings = ViewModel->GetFlipbookSettings();
-		return FlipbookSettings->CameraViewportMode == Mode;
+		const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
+		return BakerSettings->CameraViewportMode == Mode;
 	}
 	return false;
 }
 
-FText SNiagaraFlipbookViewport::GetCameraModeText(ENiagaraFlipbookViewMode Mode) const
+FText SNiagaraBakerViewport::GetCameraModeText(ENiagaraBakerViewMode Mode) const
 {
 	switch (Mode)
 	{
-		case ENiagaraFlipbookViewMode::Perspective:		return LOCTEXT("Perspective", "Perspective");
-		case ENiagaraFlipbookViewMode::OrthoFront:		return LOCTEXT("OrthoFront", "Front");
-		case ENiagaraFlipbookViewMode::OrthoBack:		return LOCTEXT("OrthoBack", "Back");
-		case ENiagaraFlipbookViewMode::OrthoLeft:		return LOCTEXT("OrthoLeft", "Left");
-		case ENiagaraFlipbookViewMode::OrthoRight:		return LOCTEXT("OrthoRight", "Right");
-		case ENiagaraFlipbookViewMode::OrthoTop:		return LOCTEXT("OrthoTop", "Top");
-		case ENiagaraFlipbookViewMode::OrthoBottom:		return LOCTEXT("OrthoBottom", "Bottom");
+		case ENiagaraBakerViewMode::Perspective:		return LOCTEXT("Perspective", "Perspective");
+		case ENiagaraBakerViewMode::OrthoFront:		return LOCTEXT("OrthoFront", "Front");
+		case ENiagaraBakerViewMode::OrthoBack:		return LOCTEXT("OrthoBack", "Back");
+		case ENiagaraBakerViewMode::OrthoLeft:		return LOCTEXT("OrthoLeft", "Left");
+		case ENiagaraBakerViewMode::OrthoRight:		return LOCTEXT("OrthoRight", "Right");
+		case ENiagaraBakerViewMode::OrthoTop:		return LOCTEXT("OrthoTop", "Top");
+		case ENiagaraBakerViewMode::OrthoBottom:		return LOCTEXT("OrthoBottom", "Bottom");
 		default:										return LOCTEXT("Error", "Error");
 	}
 }
 
-FName SNiagaraFlipbookViewport::GetCameraModeIconName(ENiagaraFlipbookViewMode Mode) const
+FName SNiagaraBakerViewport::GetCameraModeIconName(ENiagaraBakerViewMode Mode) const
 {
 	static FName PerspectiveIcon("EditorViewport.Perspective");
 	static FName TopIcon("EditorViewport.Top");
@@ -684,18 +684,18 @@ FName SNiagaraFlipbookViewport::GetCameraModeIconName(ENiagaraFlipbookViewMode M
 
 	switch (Mode)
 	{
-		case ENiagaraFlipbookViewMode::Perspective:		return PerspectiveIcon;
-		case ENiagaraFlipbookViewMode::OrthoFront:		return FrontIcon;
-		case ENiagaraFlipbookViewMode::OrthoBack:		return BackIcon;
-		case ENiagaraFlipbookViewMode::OrthoLeft:		return LeftIcon;
-		case ENiagaraFlipbookViewMode::OrthoRight:		return RightIcon;
-		case ENiagaraFlipbookViewMode::OrthoTop:		return TopIcon;
-		case ENiagaraFlipbookViewMode::OrthoBottom:		return BottomIcon;
+		case ENiagaraBakerViewMode::Perspective:		return PerspectiveIcon;
+		case ENiagaraBakerViewMode::OrthoFront:		return FrontIcon;
+		case ENiagaraBakerViewMode::OrthoBack:		return BackIcon;
+		case ENiagaraBakerViewMode::OrthoLeft:		return LeftIcon;
+		case ENiagaraBakerViewMode::OrthoRight:		return RightIcon;
+		case ENiagaraBakerViewMode::OrthoTop:		return TopIcon;
+		case ENiagaraBakerViewMode::OrthoBottom:		return BottomIcon;
 		default:										return PerspectiveIcon;
 	}
 }
 
-const struct FSlateBrush* SNiagaraFlipbookViewport::GetActiveCameraModeIcon() const
+const struct FSlateBrush* SNiagaraBakerViewport::GetActiveCameraModeIcon() const
 {
 	return FEditorStyle::GetBrush(GetCameraModeIconName(GetCameraMode()));
 }

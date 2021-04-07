@@ -2879,13 +2879,13 @@ void FNiagaraParameterDataSetBindingCollection::BuildInternal(const TArray<FNiag
 	Int32Offsets.Shrink();
 }
 
-UNiagaraFlipbookSettings* UNiagaraSystem::GetFlipbookSettings()
+UNiagaraBakerSettings* UNiagaraSystem::GetBakerSettings()
 {
-	if ( FlipbookSettings == nullptr )
+	if ( BakerSettings == nullptr )
 	{
-		FlipbookSettings = NewObject<UNiagaraFlipbookSettings>(this, "FlipbookSettings", RF_Transactional);
+		BakerSettings = NewObject<UNiagaraBakerSettings>(this, "BakerSettings", RF_Transactional);
 	}
-	return FlipbookSettings;
+	return BakerSettings;
 }
 #endif
 

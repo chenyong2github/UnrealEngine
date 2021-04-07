@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SNiagaraFlipbookViewportToolbar.h"
-#include "SNiagaraFlipbookViewport.h"
-#include "ViewModels/NiagaraFlipbookViewModel.h"
+#include "SNiagaraBakerViewportToolbar.h"
+#include "SNiagaraBakerViewport.h"
+#include "ViewModels/NiagaraBakerViewModel.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -16,9 +16,9 @@
 #include "SEditorViewportToolBarMenu.h"
 #include "SEditorViewportToolBarButton.h"
 
-#define LOCTEXT_NAMESPACE "SNiagaraFlipbookViewportToolbar"
+#define LOCTEXT_NAMESPACE "SNiagaraBakerViewportToolbar"
 
-void SNiagaraFlipbookViewportToolbar::Construct(const FArguments& InArgs)
+void SNiagaraBakerViewportToolbar::Construct(const FArguments& InArgs)
 {
 	static const FName DefaultForegroundName("DefaultForeground");
 	const FMargin ToolbarSlotPadding(2.0f, 2.0f);
@@ -28,7 +28,7 @@ void SNiagaraFlipbookViewportToolbar::Construct(const FArguments& InArgs)
 	WeakViewport = InArgs._WeakViewport;
 
 	TSharedPtr<SHorizontalBox> MainBoxPtr;
-	SNiagaraFlipbookViewport* Viewport = WeakViewport.Pin().Get();
+	SNiagaraBakerViewport* Viewport = WeakViewport.Pin().Get();
 	check(Viewport != nullptr);
 
 	ChildSlot
@@ -57,7 +57,7 @@ void SNiagaraFlipbookViewportToolbar::Construct(const FArguments& InArgs)
 		.ParentToolBar(SharedThis(this))
 		.Cursor(EMouseCursor::Default)
 		.Image("EditorViewportToolBar.MenuDropdown")
-		.OnGetMenuContent(this, &SNiagaraFlipbookViewportToolbar::GenerateOptionsMenu)
+		.OnGetMenuContent(this, &SNiagaraBakerViewportToolbar::GenerateOptionsMenu)
 	];
 
 	// Camera Selection
@@ -68,9 +68,9 @@ void SNiagaraFlipbookViewportToolbar::Construct(const FArguments& InArgs)
 		SNew(SEditorViewportToolbarMenu)
 		.ParentToolBar(SharedThis(this))
 		.Cursor(EMouseCursor::Default)
-		.Label(Viewport, &SNiagaraFlipbookViewport::GetActiveCameraModeText)
-		.LabelIcon(Viewport, &SNiagaraFlipbookViewport::GetActiveCameraModeIcon)
-		.OnGetMenuContent(this, &SNiagaraFlipbookViewportToolbar::GenerateCameraMenu)
+		.Label(Viewport, &SNiagaraBakerViewport::GetActiveCameraModeText)
+		.LabelIcon(Viewport, &SNiagaraBakerViewport::GetActiveCameraModeIcon)
+		.OnGetMenuContent(this, &SNiagaraBakerViewportToolbar::GenerateCameraMenu)
 	];
 
 	// Capture button
@@ -88,13 +88,13 @@ void SNiagaraFlipbookViewportToolbar::Construct(const FArguments& InArgs)
 				{
 					if ( auto ViewModel = WeakViewModel.Pin() )
 					{
-						ViewModel->RenderFlipbook();
+						ViewModel->RenderBaker();
 					}
 					return FReply::Handled();
 				}
 			)
 		)
-		.ToolTipText(LOCTEXT("CaptureToolTip", "Captures the flipbook."))
+		.ToolTipText(LOCTEXT("CaptureToolTip", "Captures the Baker."))
 		.Content()
 		[
 			SNew(STextBlock)
@@ -107,7 +107,7 @@ void SNiagaraFlipbookViewportToolbar::Construct(const FArguments& InArgs)
 	SViewportToolBar::Construct(SViewportToolBar::FArguments());
 }
 
-TSharedRef<SWidget> SNiagaraFlipbookViewportToolbar::GenerateOptionsMenu() const
+TSharedRef<SWidget> SNiagaraBakerViewportToolbar::GenerateOptionsMenu() const
 {
 	const bool bInShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, nullptr);
@@ -169,8 +169,8 @@ TSharedRef<SWidget> SNiagaraFlipbookViewportToolbar::GenerateOptionsMenu() const
 			EUserInterfaceActionType::ToggleButton
 		);
 		MenuBuilder.AddMenuEntry(
-			FText(LOCTEXT("ShowFlipbook", "Flipbook")),
-			FText(LOCTEXT("ShowFlipbookTooltip", "When enabled shows a the generated flipbook texture.")),
+			FText(LOCTEXT("ShowBaker", "Baker")),
+			FText(LOCTEXT("ShowBakerTooltip", "When enabled shows a the generated Baker texture.")),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda(
@@ -178,7 +178,7 @@ TSharedRef<SWidget> SNiagaraFlipbookViewportToolbar::GenerateOptionsMenu() const
 					{ 
 						if ( auto Viewport = WeakViewport.Pin())
 						{
-							Viewport->SetFlipbookViewEnabled(!Viewport->IsFlipbookViewEnabled());
+							Viewport->SetBakerViewEnabled(!Viewport->IsBakerViewEnabled());
 						}
 					}
 				),
@@ -187,7 +187,7 @@ TSharedRef<SWidget> SNiagaraFlipbookViewportToolbar::GenerateOptionsMenu() const
 					[WeakViewport = WeakViewport]()
 					{
 						auto Viewport = WeakViewport.Pin();
-						return Viewport && Viewport->IsFlipbookViewEnabled();
+						return Viewport && Viewport->IsBakerViewEnabled();
 					}
 				)
 			),
@@ -201,17 +201,17 @@ TSharedRef<SWidget> SNiagaraFlipbookViewportToolbar::GenerateOptionsMenu() const
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("TextureSelection", "Texture Selection"));
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		const UNiagaraFlipbookSettings* FlipbookSettings = ViewModel->GetFlipbookSettings();
-		for ( int32 i=0; i < FlipbookSettings->OutputTextures.Num(); ++i )
+		const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
+		for ( int32 i=0; i < BakerSettings->OutputTextures.Num(); ++i )
 		{
 			FString TextureName;
-			if ( FlipbookSettings->OutputTextures[i].OutputName.IsNone() )
+			if ( BakerSettings->OutputTextures[i].OutputName.IsNone() )
 			{
 				TextureName = FString::Printf(TEXT("Output Texture %d"), i);
 			}
 			else
 			{
-				TextureName = FlipbookSettings->OutputTextures[i].OutputName.ToString();
+				TextureName = BakerSettings->OutputTextures[i].OutputName.ToString();
 			}
 
 			MenuBuilder.AddMenuEntry(
@@ -247,25 +247,25 @@ TSharedRef<SWidget> SNiagaraFlipbookViewportToolbar::GenerateOptionsMenu() const
 	return MenuBuilder.MakeWidget();
 }
 
-TSharedRef<SWidget> SNiagaraFlipbookViewportToolbar::GenerateCameraMenu() const
+TSharedRef<SWidget> SNiagaraBakerViewportToolbar::GenerateCameraMenu() const
 {
-	SNiagaraFlipbookViewport* Viewport = WeakViewport.Pin().Get();
+	SNiagaraBakerViewport* Viewport = WeakViewport.Pin().Get();
 	check(Viewport != nullptr);
 
 	const bool bInShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, nullptr);
 
-	for ( int i=0; i < (int)ENiagaraFlipbookViewMode::Num; ++i )
+	for ( int i=0; i < (int)ENiagaraBakerViewMode::Num; ++i )
 	{
-		ENiagaraFlipbookViewMode ViewMode = ENiagaraFlipbookViewMode(i);
+		ENiagaraBakerViewMode ViewMode = ENiagaraBakerViewMode(i);
 		MenuBuilder.AddMenuEntry(
 			Viewport->GetCameraModeText(ViewMode),
 			FText(),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), Viewport->GetCameraModeIconName(ViewMode)),
 			FUIAction(
-				FExecuteAction::CreateSP(Viewport, &SNiagaraFlipbookViewport::SetCameraMode, ViewMode),
+				FExecuteAction::CreateSP(Viewport, &SNiagaraBakerViewport::SetCameraMode, ViewMode),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(Viewport, &SNiagaraFlipbookViewport::IsCameraMode, ViewMode)
+				FIsActionChecked::CreateSP(Viewport, &SNiagaraBakerViewport::IsCameraMode, ViewMode)
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton

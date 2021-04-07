@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraFlipbookSettings.h"
+#include "NiagaraBakerSettings.h"
 
 #include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
 
-bool FNiagaraFlipbookTextureSettings::Equals(const FNiagaraFlipbookTextureSettings& Other) const
+bool FNiagaraBakerTextureSettings::Equals(const FNiagaraBakerTextureSettings& Other) const
 {
 	return
 		OutputName == Other.OutputName &&
@@ -15,22 +15,22 @@ bool FNiagaraFlipbookTextureSettings::Equals(const FNiagaraFlipbookTextureSettin
 		TextureSize == Other.TextureSize;
 }
 
-UNiagaraFlipbookSettings::UNiagaraFlipbookSettings(const FObjectInitializer& Init)
+UNiagaraBakerSettings::UNiagaraBakerSettings(const FObjectInitializer& Init)
 	: Super(Init)
 {
 	bRenderComponentOnly = true;
 	OutputTextures.AddDefaulted();
 
-	for ( int i=0; i < (int)ENiagaraFlipbookViewMode::Num; ++i )
+	for ( int i=0; i < (int)ENiagaraBakerViewMode::Num; ++i )
 	{
 		CameraViewportLocation[i] = FVector::ZeroVector;
 		CameraViewportRotation[i] = FRotator::ZeroRotator;
 	}
-	CameraViewportLocation[(int)ENiagaraFlipbookViewMode::Perspective] = FVector(0.0f, -200.0f, 0.0f);
-	CameraViewportRotation[(int)ENiagaraFlipbookViewMode::Perspective] = FRotator(180.0f, 0.0f, 90.0f);
+	CameraViewportLocation[(int)ENiagaraBakerViewMode::Perspective] = FVector(0.0f, -200.0f, 0.0f);
+	CameraViewportRotation[(int)ENiagaraBakerViewMode::Perspective] = FRotator(180.0f, 0.0f, 90.0f);
 }
 
-bool UNiagaraFlipbookSettings::Equals(const UNiagaraFlipbookSettings& Other) const
+bool UNiagaraBakerSettings::Equals(const UNiagaraBakerSettings& Other) const
 {
 	if (OutputTextures.Num() != Other.OutputTextures.Num())
 	{
@@ -45,7 +45,7 @@ bool UNiagaraFlipbookSettings::Equals(const UNiagaraFlipbookSettings& Other) con
 		}
 	}
 
-	for ( int i=0; i < (int)ENiagaraFlipbookViewMode::Num; ++i )
+	for ( int i=0; i < (int)ENiagaraBakerViewMode::Num; ++i )
 	{
 		if ( !CameraViewportLocation[i].Equals(Other.CameraViewportLocation[i]) ||
 			 !CameraViewportRotation[i].Equals(Other.CameraViewportRotation[i]) )
@@ -69,7 +69,7 @@ bool UNiagaraFlipbookSettings::Equals(const UNiagaraFlipbookSettings& Other) con
 		bRenderComponentOnly == Other.bRenderComponentOnly;
 }
 
-float UNiagaraFlipbookSettings::GetAspectRatio(int32 iOutputTextureIndex) const
+float UNiagaraBakerSettings::GetAspectRatio(int32 iOutputTextureIndex) const
 {
 	if (OutputTextures.IsValidIndex(iOutputTextureIndex))
 	{
@@ -79,12 +79,12 @@ float UNiagaraFlipbookSettings::GetAspectRatio(int32 iOutputTextureIndex) const
 	return 1.0f;
 }
 
-FVector2D UNiagaraFlipbookSettings::GetOrthoSize(int32 iOutputTextureIndex) const
+FVector2D UNiagaraBakerSettings::GetOrthoSize(int32 iOutputTextureIndex) const
 {
 	return FVector2D(CameraOrthoWidth, CameraOrthoWidth * GetAspectRatio(iOutputTextureIndex));
 }
 
-FVector UNiagaraFlipbookSettings::GetCameraLocation() const
+FVector UNiagaraBakerSettings::GetCameraLocation() const
 {
 	if (IsPerspective())
 	{
@@ -97,17 +97,17 @@ FVector UNiagaraFlipbookSettings::GetCameraLocation() const
 	}
 }
 
-FMatrix UNiagaraFlipbookSettings::GetViewMatrix() const
+FMatrix UNiagaraBakerSettings::GetViewMatrix() const
 {
 	FMatrix ViewportMatrix;
 	switch (CameraViewportMode)
 	{
-		case ENiagaraFlipbookViewMode::OrthoFront:	ViewportMatrix = FMatrix(-FVector::ZAxisVector, -FVector::XAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
-		case ENiagaraFlipbookViewMode::OrthoBack:	ViewportMatrix = FMatrix( FVector::ZAxisVector,  FVector::XAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
-		case ENiagaraFlipbookViewMode::OrthoLeft:	ViewportMatrix = FMatrix(-FVector::XAxisVector,  FVector::ZAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
-		case ENiagaraFlipbookViewMode::OrthoRight:	ViewportMatrix = FMatrix( FVector::XAxisVector, -FVector::ZAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
-		case ENiagaraFlipbookViewMode::OrthoTop:	ViewportMatrix = FMatrix( FVector::XAxisVector, -FVector::YAxisVector, -FVector::ZAxisVector, FVector::ZeroVector); break;
-		case ENiagaraFlipbookViewMode::OrthoBottom:	ViewportMatrix = FMatrix(-FVector::XAxisVector, -FVector::YAxisVector,  FVector::ZAxisVector, FVector::ZeroVector); break;
+		case ENiagaraBakerViewMode::OrthoFront:	ViewportMatrix = FMatrix(-FVector::ZAxisVector, -FVector::XAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
+		case ENiagaraBakerViewMode::OrthoBack:	ViewportMatrix = FMatrix( FVector::ZAxisVector,  FVector::XAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
+		case ENiagaraBakerViewMode::OrthoLeft:	ViewportMatrix = FMatrix(-FVector::XAxisVector,  FVector::ZAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
+		case ENiagaraBakerViewMode::OrthoRight:	ViewportMatrix = FMatrix( FVector::XAxisVector, -FVector::ZAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
+		case ENiagaraBakerViewMode::OrthoTop:	ViewportMatrix = FMatrix( FVector::XAxisVector, -FVector::YAxisVector, -FVector::ZAxisVector, FVector::ZeroVector); break;
+		case ENiagaraBakerViewMode::OrthoBottom:	ViewportMatrix = FMatrix(-FVector::XAxisVector, -FVector::YAxisVector,  FVector::ZAxisVector, FVector::ZeroVector); break;
 
 		default: ViewportMatrix = FMatrix::Identity; break;
 	}
@@ -115,9 +115,9 @@ FMatrix UNiagaraFlipbookSettings::GetViewMatrix() const
 	return FInverseRotationMatrix(CameraViewportRotation[(int)CameraViewportMode]) * ViewportMatrix;
 }
 
-FMatrix UNiagaraFlipbookSettings::GetProjectionMatrixForTexture(int32 iOutputTextureIndex) const
+FMatrix UNiagaraBakerSettings::GetProjectionMatrixForTexture(int32 iOutputTextureIndex) const
 {
-	if (CameraViewportMode == ENiagaraFlipbookViewMode::Perspective)
+	if (CameraViewportMode == ENiagaraBakerViewMode::Perspective)
 	{
 		const float AspectRatio = GetAspectRatio(iOutputTextureIndex);
 		const float HalfXFOV = FMath::DegreesToRadians(CameraFOV) * 0.5f;
@@ -132,7 +132,7 @@ FMatrix UNiagaraFlipbookSettings::GetProjectionMatrixForTexture(int32 iOutputTex
 	}
 }
 
-UNiagaraFlipbookSettings::FDisplayInfo UNiagaraFlipbookSettings::GetDisplayInfo(float Time, bool bLooping) const
+UNiagaraBakerSettings::FDisplayInfo UNiagaraBakerSettings::GetDisplayInfo(float Time, bool bLooping) const
 {
 	FDisplayInfo DisplayInfo;
 	DisplayInfo.NormalizedTime = FMath::Max(Time / DurationSeconds, 0.0f);
@@ -147,11 +147,11 @@ UNiagaraFlipbookSettings::FDisplayInfo UNiagaraFlipbookSettings::GetDisplayInfo(
 	return DisplayInfo;
 }
 
-void UNiagaraFlipbookSettings::PostLoad()
+void UNiagaraBakerSettings::PostLoad()
 {
 	Super::PostLoad();
 
-	for (FNiagaraFlipbookTextureSettings& Texture : OutputTextures)
+	for (FNiagaraBakerTextureSettings& Texture : OutputTextures)
 	{
 		if ( Texture.GeneratedTexture )
 		{
@@ -161,19 +161,19 @@ void UNiagaraFlipbookSettings::PostLoad()
 }
 
 #if WITH_EDITORONLY_DATA
-void UNiagaraFlipbookSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void UNiagaraBakerSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	bool bComputeOutputTextureSizes = false;
 	if ( PropertyChangedEvent.MemberProperty != nullptr )
 	{
-		//if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FNiagaraFlipbookTextureSettings))
-		if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraFlipbookSettings, OutputTextures))
+		//if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FNiagaraBakerTextureSettings))
+		if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, OutputTextures))
 		{
 			bComputeOutputTextureSizes = true;
 		}
-		else if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraFlipbookSettings, FramesPerDimension))
+		else if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, FramesPerDimension))
 		{
 			FramesPerDimension.X = FMath::Max(FramesPerDimension.X, 1);
 			FramesPerDimension.Y = FMath::Max(FramesPerDimension.Y, 1);
@@ -184,7 +184,7 @@ void UNiagaraFlipbookSettings::PostEditChangeProperty(struct FPropertyChangedEve
 	// Recompute output texture sizes as something was modified which could impact it
 	if (bComputeOutputTextureSizes)
 	{
-		for (FNiagaraFlipbookTextureSettings& OutputTexture : OutputTextures)
+		for (FNiagaraBakerTextureSettings& OutputTexture : OutputTextures)
 		{
 			if (OutputTexture.bUseFrameSize)
 			{

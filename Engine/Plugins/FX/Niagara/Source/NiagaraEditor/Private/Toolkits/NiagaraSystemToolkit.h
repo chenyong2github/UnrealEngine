@@ -30,7 +30,7 @@ class ISequencer;
 class FNiagaraMessageLogViewModel;
 class FNiagaraSystemToolkitParameterPanelViewModel;
 class FNiagaraScriptStatsViewModel;
-class FNiagaraFlipbookViewModel;
+class FNiagaraBakerViewModel;
 
 /** Viewer/editor for a NiagaraSystem
 */
@@ -125,7 +125,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_SystemOverview(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_ScratchPad(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_ScriptStats(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_Flipbook(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Baker(const FSpawnTabArgs& Args);
 
 	/** Builds the toolbar widget */
 	void ExtendToolbar();	
@@ -155,7 +155,7 @@ private:
 	void OnSystemSelectionChanged();
 	void OnViewModelRequestFocusTab(FName TabName);
 
-	void RenderFlipbook();
+	void RenderBaker();
 
 	TSharedRef<SWidget> GenerateBoundsMenuContent(TSharedRef<FUICommandList> InCommandList);
 	TSharedRef<SWidget> GenerateStatConfigMenuContent(TSharedRef<FUICommandList> InCommandList);
@@ -192,8 +192,8 @@ private:
 	/** Display for script stats on selected platforms */
 	TSharedPtr<FNiagaraScriptStatsViewModel> ScriptStats;
 
-	/** Flipbook preview */
-	TSharedPtr<FNiagaraFlipbookViewModel> FlipbookViewModel;
+	/** Baker preview */
+	TSharedPtr<FNiagaraBakerViewModel> BakerViewModel;
 
 	/** The command list for this editor */
 	TSharedPtr<FUICommandList> EditorCommands;
@@ -229,7 +229,7 @@ public:
 	static const FName SystemOverviewTabID;
 	static const FName ScratchPadTabID;
 	static const FName ScriptStatsTabID;
-	static const FName FlipbookTabID;
+	static const FName BakerTabID;
 
 private:
 	static bool bShowLibraryOnly;

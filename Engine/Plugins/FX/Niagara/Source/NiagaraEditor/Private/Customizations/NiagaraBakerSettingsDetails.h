@@ -8,24 +8,24 @@
 #include "IPropertyTypeCustomization.h"
 #include "PropertyHandle.h"
 
-#include "NiagaraFlipbookSettingsDetails.generated.h"
+#include "NiagaraBakerSettingsDetails.generated.h"
 
 class IDetailLayoutBuilder;
 
 USTRUCT()
-struct FNiagaraFlipbookTextureSourceAction : public FEdGraphSchemaAction
+struct FNiagaraBakerTextureSourceAction : public FEdGraphSchemaAction
 {
 	GENERATED_BODY()
 
 	// Simple type info
-	static FName StaticGetTypeId() { static FName Type("FNiagaraFlipbookTextureSourceAction"); return Type; }
+	static FName StaticGetTypeId() { static FName Type("FNiagaraBakerTextureSourceAction"); return Type; }
 	virtual FName GetTypeId() const override { return StaticGetTypeId(); }
 
-	FNiagaraFlipbookTextureSourceAction()
+	FNiagaraBakerTextureSourceAction()
 		: FEdGraphSchemaAction()
 	{}
 
-	FNiagaraFlipbookTextureSourceAction(FName InBindingName, FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords)
+	FNiagaraBakerTextureSourceAction(FName InBindingName, FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords)
 		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords))
 		, BindingName(InBindingName)
 	{}
@@ -40,7 +40,7 @@ struct FNiagaraFlipbookTextureSourceAction : public FEdGraphSchemaAction
 	FName BindingName;
 };
 
-class FNiagaraFlipbookTextureSourceDetails : public IPropertyTypeCustomization
+class FNiagaraBakerTextureSourceDetails : public IPropertyTypeCustomization
 {
 public:
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
@@ -48,7 +48,7 @@ public:
 
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
-		return MakeShared<FNiagaraFlipbookTextureSourceDetails>();
+		return MakeShared<FNiagaraBakerTextureSourceDetails>();
 	}
 
 private:
@@ -62,8 +62,8 @@ private:
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 };
 
-///** Details customization for flipbook texture settings. */
-//class FNiagaraFlipbookTextureSettingsDetails : public IPropertyTypeCustomization
+///** Details customization for Baker texture settings. */
+//class FNiagaraBakerTextureSettingsDetails : public IPropertyTypeCustomization
 //{
 //public:
 //	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
@@ -72,8 +72,8 @@ private:
 //	static TSharedRef<IDetailCustomization> MakeInstance();
 //};
 //
-///** Details customization for flipbook settings. */
-//class FNiagaraFlipbookSettingsDetails : public IDetailCustomization
+///** Details customization for Baker settings. */
+//class FNiagaraBakerSettingsDetails : public IDetailCustomization
 //{
 //public:
 //	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraFlipbookRenderer.h"
+#include "NiagaraBakerRenderer.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 
@@ -16,36 +16,36 @@
 #include "LegacyScreenPercentageDriver.h"
 #include "PackageTools.h"
 
-namespace NiagaraFlipbookRendererLocal
+namespace NiagaraBakerRendererLocal
 {
 	const FString STRING_BufferVisualization("BufferVisualization");
 	const FString STRING_EmitterDI("EmitterDI");
 	const FString STRING_EmitterParticles("EmitterParticles");
 }
 
-FNiagaraFlipbookRenderer::FNiagaraFlipbookRenderer(UNiagaraComponent* InPreviewComponent, float InWorldTime)
+FNiagaraBakerRenderer::FNiagaraBakerRenderer(UNiagaraComponent* InPreviewComponent, float InWorldTime)
 	: PreviewComponent(InPreviewComponent)
 	, WorldTime(InWorldTime)
 {
 	if ( PreviewComponent && PreviewComponent->GetAsset() )
 	{
-		FlipbookSettings = PreviewComponent->GetAsset()->GetFlipbookSettings();
+		BakerSettings = PreviewComponent->GetAsset()->GetBakerSettings();
 	}
 }
 
-FNiagaraFlipbookRenderer::FNiagaraFlipbookRenderer(UNiagaraComponent* InPreviewComponent, UNiagaraFlipbookSettings* InFlipbookSettings, float InWorldTime)
+FNiagaraBakerRenderer::FNiagaraBakerRenderer(UNiagaraComponent* InPreviewComponent, UNiagaraBakerSettings* InBakerSettings, float InWorldTime)
 	: PreviewComponent(InPreviewComponent)
-	, FlipbookSettings(InFlipbookSettings)
+	, BakerSettings(InBakerSettings)
 	, WorldTime(InWorldTime)
 {
 }
 
-bool FNiagaraFlipbookRenderer::IsValid() const
+bool FNiagaraBakerRenderer::IsValid() const
 {
-	return PreviewComponent && FlipbookSettings;
+	return PreviewComponent && BakerSettings;
 }
 
-bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, int32 iOutputTextureIndex) const
+bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, int32 iOutputTextureIndex) const
 {
 	if (!IsValid())
 	{
@@ -62,9 +62,9 @@ bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, 
 	Canvas.Clear(FLinearColor::Transparent);
 
 	bool bRendered = false;
-	if (FlipbookSettings->OutputTextures.IsValidIndex(iOutputTextureIndex))
+	if (BakerSettings->OutputTextures.IsValidIndex(iOutputTextureIndex))
 	{
-		const FNiagaraFlipbookTextureSettings& OutputTextureSettings = FlipbookSettings->OutputTextures[iOutputTextureIndex];
+		const FNiagaraBakerTextureSettings& OutputTextureSettings = BakerSettings->OutputTextures[iOutputTextureIndex];
 		const FIntRect ViewRect = FIntRect(0, 0, OutputTextureSettings.FrameSize.X, OutputTextureSettings.FrameSize.Y);
 		bRendered = RenderView(RenderTarget, &Canvas, iOutputTextureIndex, ViewRect);
 	}
@@ -72,16 +72,16 @@ bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, 
 	return bRendered;
 }
 
-bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, FCanvas* Canvas, int32 iOutputTextureIndex, FIntRect ViewRect) const
+bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, FCanvas* Canvas, int32 iOutputTextureIndex, FIntRect ViewRect) const
 {
-	using namespace NiagaraFlipbookRendererLocal;
+	using namespace NiagaraBakerRendererLocal;
 
 	if (!IsValid())
 	{
 		return false;
 	}
 
-	if (!FlipbookSettings->OutputTextures.IsValidIndex(iOutputTextureIndex))
+	if (!BakerSettings->OutputTextures.IsValidIndex(iOutputTextureIndex))
 	{
 		return false;
 	}
@@ -94,7 +94,7 @@ bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, 
 	UWorld* World = PreviewComponent->GetWorld();
 	check(World);
 
-	const FNiagaraFlipbookTextureSettings& OutputTextureSettings = FlipbookSettings->OutputTextures[iOutputTextureIndex];
+	const FNiagaraBakerTextureSettings& OutputTextureSettings = BakerSettings->OutputTextures[iOutputTextureIndex];
 
 	// Validate the rect
 	if ( ViewRect.Area() <= 0 )
@@ -136,10 +136,10 @@ bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, 
 			FSceneViewInitOptions ViewInitOptions;
 			ViewInitOptions.SetViewRectangle(ViewRect);
 			ViewInitOptions.ViewFamily = &ViewFamily;
-			ViewInitOptions.ViewOrigin = FlipbookSettings->GetCameraLocation();
-			ViewInitOptions.ViewRotationMatrix = FlipbookSettings->GetViewMatrix();
-			ViewInitOptions.ProjectionMatrix = FlipbookSettings->GetProjectionMatrixForTexture(iOutputTextureIndex);
-			if (FlipbookSettings->bRenderComponentOnly)
+			ViewInitOptions.ViewOrigin = BakerSettings->GetCameraLocation();
+			ViewInitOptions.ViewRotationMatrix = BakerSettings->GetViewMatrix();
+			ViewInitOptions.ProjectionMatrix = BakerSettings->GetProjectionMatrixForTexture(iOutputTextureIndex);
+			if (BakerSettings->bRenderComponentOnly)
 			{
 				ViewInitOptions.ShowOnlyPrimitives.Emplace();
 				ViewInitOptions.ShowOnlyPrimitives->Add(PreviewComponent->ComponentId);
@@ -159,7 +159,7 @@ bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, 
 		// Data Interface
 		case ERenderType::DataInterface:
 		{
-			if (UNiagaraSystem* NiagaraSystem = FlipbookSettings->GetTypedOuter<UNiagaraSystem>())
+			if (UNiagaraSystem* NiagaraSystem = BakerSettings->GetTypedOuter<UNiagaraSystem>())
 			{
 				// Gather data interface / attribute name
 				FString SourceString = SourceName.ToString();
@@ -173,7 +173,10 @@ bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, 
 				const FName VariableName = FName(SourceString.RightChop(DotIndex + 1));
 
 				// Find data interface
-				FNiagaraSystemInstance* SystemInstance = PreviewComponent->GetSystemInstance();
+				FNiagaraSystemInstanceControllerPtr SystemInstanceController = PreviewComponent->GetSystemInstanceController();
+				check(SystemInstanceController.IsValid());
+
+				FNiagaraSystemInstance* SystemInstance = SystemInstanceController->GetSoloSystemInstance();
 				const FNiagaraSystemInstanceID SystemInstanceID = SystemInstance->GetId();
 				for (auto EmitterInstance : SystemInstance->GetEmitters())
 				{
@@ -210,13 +213,19 @@ bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, 
 			const FString EmitterName = SourceString.LeftChop(SourceString.Len() - DotIndex);
 			const FName AttributeName = FName(SourceString.RightChop(DotIndex + 1));
 
-			FNiagaraSystemInstance* SystemInstace = PreviewComponent->GetSystemInstance();
-			if ( !ensure(SystemInstace) )
+			FNiagaraSystemInstanceControllerPtr SystemInstanceController = PreviewComponent->GetSystemInstanceController();
+			if (!ensure(SystemInstanceController.IsValid()))
 			{
 				return false;
 			}
 
-			for ( const auto& EmitterInstance : SystemInstace->GetEmitters() )
+			FNiagaraSystemInstance* SystemInstance = SystemInstanceController->GetSoloSystemInstance();
+			if ( !ensure(SystemInstance) )
+			{
+				return false;
+			}
+
+			for ( const auto& EmitterInstance : SystemInstance->GetEmitters() )
 			{
 				UNiagaraEmitter* NiagaraEmitter = EmitterInstance->GetCachedEmitter();
 				if ( !NiagaraEmitter || (NiagaraEmitter->GetUniqueEmitterName() != EmitterName) )
@@ -280,9 +289,9 @@ bool FNiagaraFlipbookRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, 
 	return false;
 }
 
-FNiagaraFlipbookRenderer::ERenderType FNiagaraFlipbookRenderer::GetRenderType(FName SourceName, FName& OutName)
+FNiagaraBakerRenderer::ERenderType FNiagaraBakerRenderer::GetRenderType(FName SourceName, FName& OutName)
 {
-	using namespace NiagaraFlipbookRendererLocal;
+	using namespace NiagaraBakerRendererLocal;
 
 	OutName = FName();
 	if (SourceName.IsNone())
@@ -326,9 +335,9 @@ FNiagaraFlipbookRenderer::ERenderType FNiagaraFlipbookRenderer::GetRenderType(FN
 	return ERenderType::None;
 }
 
-TArray<FName> FNiagaraFlipbookRenderer::GatherAllRenderOptions(UNiagaraSystem* NiagaraSystem)
+TArray<FName> FNiagaraBakerRenderer::GatherAllRenderOptions(UNiagaraSystem* NiagaraSystem)
 {
-	using namespace NiagaraFlipbookRendererLocal;
+	using namespace NiagaraBakerRendererLocal;
 
 	TArray<FName> RendererOptions;
 

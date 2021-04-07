@@ -7,15 +7,15 @@
 #include "Styling/SlateColor.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
-#include "SNiagaraFlipbookViewport.h"
+#include "SNiagaraBakerViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
 
-class SNiagaraFlipbookViewportToolbar : public SViewportToolBar//SCommonEditorViewportToolbarBase
+class SNiagaraBakerViewportToolbar : public SViewportToolBar//SCommonEditorViewportToolbarBase
 {
 public:
-	SLATE_BEGIN_ARGS(SNiagaraFlipbookViewportToolbar) {}
-		SLATE_ARGUMENT(TWeakPtr<class FNiagaraFlipbookViewModel>, WeakViewModel)
-		SLATE_ARGUMENT(TWeakPtr<class SNiagaraFlipbookViewport>, WeakViewport)
+	SLATE_BEGIN_ARGS(SNiagaraBakerViewportToolbar) {}
+		SLATE_ARGUMENT(TWeakPtr<class FNiagaraBakerViewModel>, WeakViewModel)
+		SLATE_ARGUMENT(TWeakPtr<class SNiagaraBakerViewport>, WeakViewport)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -24,6 +24,6 @@ public:
 	TSharedRef<SWidget> GenerateCameraMenu() const;
 
 private:
-	TWeakPtr<class FNiagaraFlipbookViewModel>	WeakViewModel;
-	TWeakPtr<class SNiagaraFlipbookViewport>	WeakViewport;
+	TWeakPtr<class FNiagaraBakerViewModel>	WeakViewModel;
+	TWeakPtr<class SNiagaraBakerViewport>	WeakViewport;
 };

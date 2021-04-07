@@ -8,10 +8,10 @@
 #include "UObject/Object.h"
 #include "Engine/TextureRenderTarget2D.h"
 
-#include "NiagaraFlipbookSettings.generated.h"
+#include "NiagaraBakerSettings.generated.h"
 
 UENUM()
-enum class ENiagaraFlipbookViewMode
+enum class ENiagaraBakerViewMode
 {
 	Perspective,
 	OrthoFront,
@@ -24,7 +24,7 @@ enum class ENiagaraFlipbookViewMode
 };
 
 USTRUCT()
-struct FNiagaraFlipbookTextureSource
+struct FNiagaraBakerTextureSource
 {
 	GENERATED_BODY()
 
@@ -33,7 +33,7 @@ struct FNiagaraFlipbookTextureSource
 };
 
 USTRUCT()
-struct FNiagaraFlipbookTextureSettings
+struct FNiagaraBakerTextureSettings
 {
 	GENERATED_BODY()
 
@@ -43,7 +43,7 @@ struct FNiagaraFlipbookTextureSettings
 	
 	/** Source visualization we should capture, i.e. Scene Color, World Normal, etc */
 	UPROPERTY(EditAnywhere, Category = "Texture")
-	FNiagaraFlipbookTextureSource SourceBinding;
+	FNiagaraBakerTextureSource SourceBinding;
 
 	UPROPERTY(EditAnywhere, Category = "Texture", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bUseFrameSize : 1;
@@ -64,11 +64,15 @@ struct FNiagaraFlipbookTextureSettings
 	UPROPERTY(EditAnywhere, Category = "Texture")
 	UTexture2D* GeneratedTexture = nullptr;
 
-	bool Equals(const FNiagaraFlipbookTextureSettings& Other) const;
+	bool Equals(const FNiagaraBakerTextureSettings& Other) const;
+
+	FNiagaraBakerTextureSettings() :
+		bUseFrameSize(false)
+	{}
 };
 
 UCLASS()
-class NIAGARA_API UNiagaraFlipbookSettings : public UObject
+class NIAGARA_API UNiagaraBakerSettings : public UObject
 {
 	GENERATED_BODY()
 
@@ -81,7 +85,7 @@ public:
 		float Interp;
 	};
 
-	UNiagaraFlipbookSettings(const FObjectInitializer& Init);
+	UNiagaraBakerSettings(const FObjectInitializer& Init);
 
 	/**
 	This is the start time of the simultion where we being the capture.
@@ -112,30 +116,30 @@ public:
 
 	/** List of output textures we will generated. */
 	UPROPERTY(EditAnywhere, Category = "Texture")
-	TArray<FNiagaraFlipbookTextureSettings> OutputTextures;
+	TArray<FNiagaraBakerTextureSettings> OutputTextures;
 
-	/** Current active viewport we will render the flipbook from. */
+	/** Current active viewport we will render from. */
 	UPROPERTY(EditAnywhere, Category = "Camera")
-	ENiagaraFlipbookViewMode CameraViewportMode = ENiagaraFlipbookViewMode::Perspective;
+	ENiagaraBakerViewMode CameraViewportMode = ENiagaraBakerViewMode::Perspective;
 
 	/** Per viewport camera position.. */
 	UPROPERTY(EditAnywhere, Category = "Camera")
-	FVector CameraViewportLocation[(int)ENiagaraFlipbookViewMode::Num];
+	FVector CameraViewportLocation[(int)ENiagaraBakerViewMode::Num];
 
 	/** Per viewport camera rotation.. */
 	UPROPERTY(EditAnywhere, Category = "Camera")
-	FRotator CameraViewportRotation[(int)ENiagaraFlipbookViewMode::Num];
+	FRotator CameraViewportRotation[(int)ENiagaraBakerViewMode::Num];
 
 	/** Perspective camera orbit distance. */
-	UPROPERTY(EditAnywhere, Category = "Camera", meta = (EditCondition = "CameraViewportMode == ENiagaraFlipbookViewMode::Perspective", ClampMin = "0.01"))
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (EditCondition = "CameraViewportMode == ENiagaraBakerViewMode::Perspective", ClampMin = "0.01"))
 	float CameraOrbitDistance = 200.f;
 
 	/** Camera FOV to use when in perspective mode. */
-	UPROPERTY(EditAnywhere, Category = "Camera", meta=(EditCondition="CameraViewportMode == ENiagaraFlipbookViewMode::Perspective", ClampMin="1.0", ClampMax="180.0"))
+	UPROPERTY(EditAnywhere, Category = "Camera", meta=(EditCondition="CameraViewportMode == ENiagaraBakerViewMode::Perspective", ClampMin="1.0", ClampMax="180.0"))
 	float CameraFOV = 90.0f;
 
 	/** Camera Orthographic width to use with in orthographic mode. */
-	UPROPERTY(EditAnywhere, Category = "Camera", meta = (EditCondition = "CameraViewportMode != ENiagaraFlipbookViewMode::Perspective", ClampMin="1.0"))
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (EditCondition = "CameraViewportMode != ENiagaraBakerViewMode::Perspective", ClampMin="1.0"))
 	float CameraOrthoWidth = 512.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Camera", meta = (PinHiddenByDefault, InlineEditConditionToggle))
@@ -157,7 +161,7 @@ public:
 	//UPROPERTY(EditAnywhere, Category = "Environment", meta = (EditCondition = "bLoadLevel"))
 	//TSoftObjectPtr<class ULevel> LevelEnvironment;
 
-	bool Equals(const UNiagaraFlipbookSettings& Other) const;
+	bool Equals(const UNiagaraBakerSettings& Other) const;
 
 	int GetNumFrames() const { return FramesPerDimension.X * FramesPerDimension.Y; }
 
@@ -169,8 +173,8 @@ public:
 	FMatrix GetViewMatrix() const;
 	FMatrix GetProjectionMatrixForTexture(int32 iOutputTextureIndex) const;
 
-	bool IsOrthographic() const { return CameraViewportMode != ENiagaraFlipbookViewMode::Perspective; }
-	bool IsPerspective() const { return CameraViewportMode == ENiagaraFlipbookViewMode::Perspective; }
+	bool IsOrthographic() const { return CameraViewportMode != ENiagaraBakerViewMode::Perspective; }
+	bool IsPerspective() const { return CameraViewportMode == ENiagaraBakerViewMode::Perspective; }
 
 	// Get display info, the input time is expected to tbe relative, i.e. StartDuration is not taking into account
 	FDisplayInfo GetDisplayInfo(float Time, bool bLooping) const;

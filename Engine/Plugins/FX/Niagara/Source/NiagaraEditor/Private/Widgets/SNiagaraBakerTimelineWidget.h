@@ -5,11 +5,11 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SNiagaraFlipbookTimelineWidget : public SCompoundWidget
+class SNiagaraBakerTimelineWidget : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SNiagaraFlipbookTimelineWidget) {}
-		SLATE_ARGUMENT(TWeakPtr<class FNiagaraFlipbookViewModel>, WeakViewModel)
+	SLATE_BEGIN_ARGS(SNiagaraBakerTimelineWidget) {}
+		SLATE_ARGUMENT(TWeakPtr<class FNiagaraBakerViewModel>, WeakViewModel)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -25,6 +25,6 @@ public:
 	void SetRelativeTime(float InRelativeTime) { RelativeTime = InRelativeTime; }
 
 private:
-	TWeakPtr<class FNiagaraFlipbookViewModel>	WeakViewModel;
+	TWeakPtr<class FNiagaraBakerViewModel>	WeakViewModel;
 	float										RelativeTime;
 };

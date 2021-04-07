@@ -6,16 +6,16 @@
 #include "SEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
 
-#include "NiagaraFlipbookSettings.h"
+#include "NiagaraBakerSettings.h"
 
-class FNiagaraFlipbookViewModel;
-class FNiagaraFlipbookViewportClient;
+class FNiagaraBakerViewModel;
+class FNiagaraBakerViewportClient;
 
-class SNiagaraFlipbookViewport : public SEditorViewport, public ICommonEditorViewportToolbarInfoProvider
+class SNiagaraBakerViewport : public SEditorViewport, public ICommonEditorViewportToolbarInfoProvider
 {
 public:
-	SLATE_BEGIN_ARGS(SNiagaraFlipbookViewport) {}
-		SLATE_ARGUMENT(TWeakPtr<FNiagaraFlipbookViewModel>, WeakViewModel)
+	SLATE_BEGIN_ARGS(SNiagaraBakerViewport) {}
+		SLATE_ARGUMENT(TWeakPtr<FNiagaraBakerViewModel>, WeakViewModel)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -40,20 +40,20 @@ public:
 	bool IsPreviewViewEnabled() const;
 	void SetPreviewViewEnabled(bool bEnabled);
 
-	bool IsFlipbookViewEnabled() const;
-	void SetFlipbookViewEnabled(bool bEnabled);
+	bool IsBakerViewEnabled() const;
+	void SetBakerViewEnabled(bool bEnabled);
 
-	ENiagaraFlipbookViewMode GetCameraMode() const;
-	void SetCameraMode(ENiagaraFlipbookViewMode Mode);
-	bool IsCameraMode(ENiagaraFlipbookViewMode Mode) const;
+	ENiagaraBakerViewMode GetCameraMode() const;
+	void SetCameraMode(ENiagaraBakerViewMode Mode);
+	bool IsCameraMode(ENiagaraBakerViewMode Mode) const;
 
-	FText GetCameraModeText(ENiagaraFlipbookViewMode Mode) const;
-	FName GetCameraModeIconName(ENiagaraFlipbookViewMode Mode) const;
+	FText GetCameraModeText(ENiagaraBakerViewMode Mode) const;
+	FName GetCameraModeIconName(ENiagaraBakerViewMode Mode) const;
 
 	FText GetActiveCameraModeText() const { return GetCameraModeText(GetCameraMode()); }
 	const struct FSlateBrush* GetActiveCameraModeIcon() const;
 
 private:
-	TWeakPtr<FNiagaraFlipbookViewModel>			WeakViewModel;
-	TSharedPtr<FNiagaraFlipbookViewportClient>	ViewportClient;
+	TWeakPtr<FNiagaraBakerViewModel>			WeakViewModel;
+	TSharedPtr<FNiagaraBakerViewportClient>	ViewportClient;
 };

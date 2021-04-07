@@ -402,8 +402,8 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 		Style->Set("NiagaraEditor.Debugger.Outliner.Toolbar", OutlinerToolBarButton);
 	}
 
-	// Flipbook
-	Style->Set("NiagaraEditor.Flipbook", new IMAGE_PLUGIN_BRUSH("Icons/Flipbook/FlipbookIcon", Icon40x40));
+	// Baker
+	Style->Set("NiagaraEditor.Baker", new IMAGE_PLUGIN_BRUSH("Icons/Baker/BakerIcon", Icon40x40));
 
 	Style->Set("NiagaraEditor.CommonColors.System", FLinearColor(FColor(1, 202, 252)));
 	Style->Set("NiagaraEditor.CommonColors.Emitter", FLinearColor(FColor(241, 99, 6)));

@@ -12,7 +12,7 @@
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraEmitterHandle.h"
-#include "NiagaraFlipbookSettings.h"
+#include "NiagaraBakerSettings.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraEffectType.h"
@@ -512,9 +512,9 @@ public:
 	FORCEINLINE int32& GetActiveInstancesCount() { return ActiveInstances; }
 
 #if WITH_EDITORONLY_DATA
-	UNiagaraFlipbookSettings* GetFlipbookSettings();
-	const UNiagaraFlipbookSettings* GetFlipbookGeneratedSettings() const { return FlipbookGeneratedSettings; }
-	void SetFlipbookGeneratedSettings(UNiagaraFlipbookSettings* Settings) { FlipbookGeneratedSettings = Settings; }
+	UNiagaraBakerSettings* GetBakerSettings();
+	const UNiagaraBakerSettings* GetBakerGeneratedSettings() const { return BakerGeneratedSettings; }
+	void SetBakerGeneratedSettings(UNiagaraBakerSettings* Settings) { BakerGeneratedSettings = Settings; }
 #endif
 
 private:
@@ -634,13 +634,13 @@ protected:
 	float WarmupTickDelta;
 
 #if WITH_EDITORONLY_DATA
-	/** Settings used when generating the flipbook */
+	/** Settings used inside the baker */
 	UPROPERTY(Export)
-	UNiagaraFlipbookSettings* FlipbookSettings;
+	UNiagaraBakerSettings* BakerSettings;
 
-	/** Generated flipbook settings, will be null until we have generated at least once. */
+	/** Generated data baker settings, will be null until we have generated at least once. */
 	UPROPERTY(Export)
-	UNiagaraFlipbookSettings* FlipbookGeneratedSettings;
+	UNiagaraBakerSettings* BakerGeneratedSettings;
 #endif
 
 	UPROPERTY()
