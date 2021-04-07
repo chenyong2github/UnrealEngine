@@ -465,6 +465,19 @@ FRigVMMemoryContainer::~FRigVMMemoryContainer()
 	Reset();
 }
 
+bool FRigVMMemoryContainer::CopyRegisters(const FRigVMMemoryContainer &InOther)
+{
+	ensure(Registers.Num() == InOther.Registers.Num());
+	for (int32 Index = 0; Index < Registers.Num(); ++Index)
+	{
+		if (!Copy(Index, Index, &InOther))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 FRigVMMemoryContainer& FRigVMMemoryContainer::operator= (const FRigVMMemoryContainer &InOther)
 {
 	Reset();
@@ -1189,6 +1202,17 @@ bool FRigVMMemoryContainer::Copy(
 	{
 		FRigVMByteArray* ArrayStorage = (FRigVMByteArray*)SourcePtr;
 		SourcePtr = ArrayStorage->GetData();
+	}
+
+	// TODO: preventing crash when TargetPtr has not been allocated 
+	if (TargetPtr == nullptr && Target.IsNestedDynamic())
+	{
+		uint8* Ptr = (uint8*)&Data[Target.GetWorkByteIndex()];
+		FRigVMNestedByteArray& Storage = *(FRigVMNestedByteArray*)Ptr;
+		Storage.SetNum(Target.SliceCount);
+		Storage[InTargetSliceIndex].SetNumZeroed(SourceElementCount * Source.ElementSize);
+		Copy(InTargetRegisterIndex, INDEX_NONE, Source.Type, SourcePtr, Storage[InTargetSliceIndex].GetData(), Source.ElementSize * SourceElementCount);
+		return true;
 	}
 
 	ERigVMRegisterType TargetType = Target.Type;

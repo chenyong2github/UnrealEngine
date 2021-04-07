@@ -554,6 +554,7 @@ public:
 	FRigVMMemoryContainer(const FRigVMMemoryContainer& Other);
 	~FRigVMMemoryContainer();
 
+	bool CopyRegisters(const FRigVMMemoryContainer &InOther);
 	FRigVMMemoryContainer& operator= (const FRigVMMemoryContainer &InOther);
 
 	// returns the memory type of this container

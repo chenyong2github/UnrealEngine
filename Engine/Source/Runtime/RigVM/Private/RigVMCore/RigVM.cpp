@@ -189,7 +189,7 @@ void URigVM::Empty()
 	CachedMemoryHandles.Empty();
 }
 
-void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemory, bool bReferenceByteCode, bool bCopyExternalVariables)
+void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemory, bool bReferenceByteCode, bool bCopyExternalVariables, bool bCopyDynamicRegisters)
 {
 	check(InVM);
 
@@ -205,7 +205,14 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 
 	if(InVM->WorkMemoryPtr == &InVM->WorkMemoryStorage)
 	{
-		WorkMemoryStorage = InVM->WorkMemoryStorage;
+		if (bCopyDynamicRegisters)
+		{
+			WorkMemoryStorage.CopyRegisters(InVM->WorkMemoryStorage);
+		}
+		else
+		{
+			WorkMemoryStorage = InVM->WorkMemoryStorage;			
+		}
 		WorkMemoryPtr = &WorkMemoryStorage;
 	}
 	else
