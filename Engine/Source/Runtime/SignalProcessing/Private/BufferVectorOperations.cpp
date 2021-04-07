@@ -168,6 +168,10 @@ namespace Audio
 
 	void BufferSetToConstantInplace(float* RESTRICT InBuffer, int32 NumSamples, float InConstant)
 	{
+		checkf(NumSamples >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (NumSamples % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<const float*>(InBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+
 		const VectorRegister Constant = VectorLoadFloat1(&InConstant);
 
 		for (int32 i = 0; i < NumSamples; i += 4)

@@ -187,6 +187,7 @@ namespace Metasound
 		if ((*Scale).IsEmpty())
 		{
 			*MidiNoteOut = *MidiNoteIn;
+			return;
 		}
 
 		// calculate new output and cache values if needed
