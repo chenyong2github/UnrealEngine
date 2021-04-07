@@ -488,6 +488,20 @@ private:
 
 					TcpMessagingModule->AddOutgoingConnection(FString::Printf(TEXT("127.0.0.1:%d"), NewDeviceInfo.HostMessageBusPort));
 				}
+
+				// Add reverse port forwarding
+				uint16 ReversePortMappings[] = {
+					41899,	// Network file server, DEFAULT_TCP_FILE_SERVING_PORT in NetworkMessage.h
+					1980,	// Unreal Insights data collection, TraceInsightsModule.cpp
+					0		// end of list
+					};
+
+				for (int32 Idx=0; ReversePortMappings[Idx] > 0; Idx++)
+				{
+					FString DeviceCommand = FString::Printf(TEXT("-s %s reverse tcp:%d tcp:%d"), *NewDeviceInfo.SerialNumber, ReversePortMappings[Idx], ReversePortMappings[Idx]);
+					// It doesn't really matter if a mapping already exists. There is no listening local port so no contention between multiple editor instances
+					ExecuteAdbCommand(*DeviceCommand, nullptr, nullptr);
+				}
 			}
 
 			// add the device to the map
