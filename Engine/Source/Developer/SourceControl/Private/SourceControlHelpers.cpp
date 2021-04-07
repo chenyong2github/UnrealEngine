@@ -1597,7 +1597,7 @@ bool USourceControlHelpers::GetAssetDataFromFileHistory(FSourceControlStatePtr I
 
 FScopedSourceControl::FScopedSourceControl()
 {
-	bInitSourceControl = !ISourceControlModule::Get().GetProvider().IsEnabled();
+	bInitSourceControl = !ISourceControlModule::Get().GetProvider().IsAvailable();
 	if (bInitSourceControl)
 	{
 		ISourceControlModule::Get().GetProvider().Init();
