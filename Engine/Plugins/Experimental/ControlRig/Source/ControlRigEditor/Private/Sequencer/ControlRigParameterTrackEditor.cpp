@@ -1414,9 +1414,9 @@ void FControlRigParameterTrackEditor::AddTrackForComponent(USceneComponent* InCo
 {
 	if (USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(InComponent))
 	{
-		if (SkelMeshComp->SkeletalMesh && !SkelMeshComp->SkeletalMesh->GetDefaultAnimatingRig().IsNull())
+		if (!SkelMeshComp->GetDefaultAnimatingRig().IsNull())
 		{
-			UObject* Object = SkelMeshComp->SkeletalMesh->GetDefaultAnimatingRig().LoadSynchronous();
+			UObject* Object = SkelMeshComp->GetDefaultAnimatingRig().LoadSynchronous();
 			if (Object != nullptr && (Object->IsA<UControlRigBlueprint>() || Object->IsA<UControlRigComponent>()))
 			{
 				FGuid Binding = GetSequencer()->GetHandleToObject(InComponent, true /*bCreateHandle*/);

@@ -770,6 +770,11 @@ protected:
 	/** If true, will play cloth in editor */
 	UPROPERTY(AdvancedDisplay, EditInstanceOnly, transient, Category = SkeletalMesh)
 	uint8 bUpdateClothInEditor : 1;
+
+	/** If true, DefaultAnimatingRigOverride will be used. If false, use the DefaultAnimatingRig in the SkeletalMesh */
+	UPROPERTY(AdvancedDisplay,EditAnywhere, Category = SkeletalMesh, meta = (InlineEditConditionToggle))
+	uint8 bOverrideDefaultAnimatingRig : 1;
+
 #endif
 
 	/** If true, OnSyncComponentToRBPhysics() notify will be called */
@@ -2485,6 +2490,30 @@ public:
 	FDelegateHandle RegisterOnTeleportDelegate(const FOnSkelMeshTeleported& Delegate);
 	void UnregisterOnTeleportDelegate(const FDelegateHandle& DelegateHandle);
 
+private:
+
+#if WITH_EDITORONLY_DATA
+
+	/** Default Animating Rig to Use if bOverrideDefaultAnimatingRig is true */
+	UPROPERTY(EditAnywhere, Category = AnimationRig, BlueprintGetter = GetDefaultAnimatingRigOverride, BlueprintSetter = SetDefaultAnimatingRigOverride, meta = (AllowedClasses = "ControlRigBlueprint"), meta = (editcondition = "bOverrideDefaultAnimatingRig"))
+	TSoftObjectPtr<UObject> DefaultAnimatingRigOverride;
+
+#endif
+
+#if WITH_EDITOR
+public:
+
+	UFUNCTION(BlueprintSetter)
+	void SetDefaultAnimatingRigOverride(TSoftObjectPtr<UObject> InAnimatingRig);
+
+	UFUNCTION(BlueprintGetter)
+	TSoftObjectPtr<UObject> GetDefaultAnimatingRigOverride() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	TSoftObjectPtr<UObject> GetDefaultAnimatingRig() const;
+
+
+#endif
 private:
 
 	/** Multicaster fired when this component creates physics state (in case external objects rely on physics state)*/

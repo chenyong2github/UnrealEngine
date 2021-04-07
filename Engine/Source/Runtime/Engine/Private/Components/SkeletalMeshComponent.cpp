@@ -241,6 +241,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 #if WITH_EDITORONLY_DATA
 	DefaultPlayRate_DEPRECATED = 1.0f;
 	bDefaultPlaying_DEPRECATED = true;
+	bOverrideDefaultAnimatingRig = false;
 #endif
 	bEnablePhysicsOnDedicatedServer = UPhysicsSettings::Get()->bSimulateSkeletalMeshOnDedicatedServer;
 	bEnableUpdateRateOptimizations = false;
@@ -1093,7 +1094,34 @@ void USkeletalMeshComponent::LoadedFromAnotherClass(const FName& OldClassName)
 		}
 	}
 }
+
+TSoftObjectPtr<UObject> USkeletalMeshComponent::GetDefaultAnimatingRig() const
+{
+	if (bOverrideDefaultAnimatingRig)
+	{
+		return DefaultAnimatingRigOverride;
+	}
+	if (SkeletalMesh)
+	{
+		return SkeletalMesh->GetDefaultAnimatingRig();
+	}
+	return nullptr;
+}
+
+void USkeletalMeshComponent::SetDefaultAnimatingRigOverride(TSoftObjectPtr<UObject> InAnimatingRig) 
+{
+	DefaultAnimatingRigOverride = InAnimatingRig;
+}
+
+TSoftObjectPtr<UObject> USkeletalMeshComponent::GetDefaultAnimatingRigOverride() const
+{
+	return DefaultAnimatingRigOverride;
+}
+
 #endif // WITH_EDITOR
+
+
+
 
 bool USkeletalMeshComponent::ShouldOnlyTickMontages(const float DeltaTime) const
 {
