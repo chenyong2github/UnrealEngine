@@ -55,7 +55,6 @@
 #include "MobileDeferredShadingPass.h"
 #include "PlanarReflectionSceneProxy.h"
 #include "SceneOcclusion.h"
-#include "VariableRateShadingImageManager.h"
 
 uint32 GetShadowQuality();
 
@@ -1038,13 +1037,9 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 
 	FRHITexture* ShadingRateTexture = nullptr;
 	
-	if (!View.bIsSceneCapture && !View.bIsReflectionCapture)
+	if (SceneContext.IsShadingRateTextureTextureAllocated() && !View.bIsSceneCapture && !View.bIsReflectionCapture)
 	{
-		TRefCountPtr<IPooledRenderTarget> ShadingRateTarget = GVRSImageManager.GetMobileVariableRateShadingImage(ViewFamily);
-		if (ShadingRateTarget.IsValid())
-		{
-			ShadingRateTexture = ShadingRateTarget->GetRenderTargetItem().ShaderResourceTexture;
-		}
+		ShadingRateTexture = SceneContext.GetShadingRateTexture();
 	}
 
 	FRHIRenderPassInfo SceneColorRenderPassInfo(
