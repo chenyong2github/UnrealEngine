@@ -3,6 +3,7 @@
 #pragma once
 #include "CoreMinimal.h"
 
+#include "RendererInterface.h"
 #include "RHI.h"
 #include "RHICommandList.h"
 #include "RHIResources.h"
