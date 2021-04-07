@@ -61,9 +61,11 @@ static int32 GHairVisibilityComputeRaster = 0;
 static int32 GHairVisibilityComputeRaster_MaxSamplePerPixel = 1;
 static float GHairVisibilityComputeRaster_MeanSamplePerPixel = 1;
 static int32 GHairVisibilityComputeRaster_MaxPixelCount = 64;
+static int32 GHairVisibilityComputeRaster_Stochastic = 0;
 static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRaster(TEXT("r.HairStrands.Visibility.ComputeRaster"), GHairVisibilityComputeRaster, TEXT("Hair Visiblity uses raster compute."), ECVF_Scalability | ECVF_RenderThreadSafe);
 static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRaster_MaxSamplePerPixel(TEXT("r.HairStrands.Visibility.ComputeRaster.SamplePerPixel"), GHairVisibilityComputeRaster_MaxSamplePerPixel, TEXT("Define the number of sampler per pixel using raster compute."));
 static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRaster_MaxPixelCount(TEXT("r.HairStrands.Visibility.ComputeRaster.MaxPixelCount"), GHairVisibilityComputeRaster_MaxPixelCount, TEXT("Define the maximal length rasterize in compute."));
+static FAutoConsoleVariableRef CVarHairVisibilityComputeRaster_Stochastic(TEXT("r.HairStrands.Visibility.ComputeRaster.Stochastic"), GHairVisibilityComputeRaster_Stochastic, TEXT("Enable stochastic compute rasterization (faster, but more prone to aliasting). Experimental."));
 
 static float GHairStrandsFullCoverageThreshold = 0.98f;
 static FAutoConsoleVariableRef CVarHairStrandsFullCoverageThreshold(TEXT("r.HairStrands.Visibility.FullCoverageThreshold"), GHairStrandsFullCoverageThreshold, TEXT("Define the coverage threshold at which a pixel is considered fully covered."));
@@ -2876,8 +2878,9 @@ class FVisiblityRasterComputeCS : public FGlobalShader
 
 	class FRasterAtomic : SHADER_PERMUTATION_INT("PERMUTATION_RASTER_ATOMIC", 4);
 	class FSPP : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_SPP", 1, 2, 4); 
-	class FCulling : SHADER_PERMUTATION_INT("PERMUTATION_CULLING", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FRasterAtomic, FSPP, FCulling>;
+	class FCulling : SHADER_PERMUTATION_BOOL("PERMUTATION_CULLING");
+	class FStochastic : SHADER_PERMUTATION_BOOL("PERMUTATION_STOCHASTIC");
+	using FPermutationDomain = TShaderPermutationDomain<FRasterAtomic, FSPP, FCulling, FStochastic>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MacroGroupId)
@@ -3014,6 +3017,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	}
 
 	// Create and set the uniform buffer
+	const bool bStochasticRaster = GHairVisibilityComputeRaster_Stochastic > 0;
 	const bool bEnableMSAA = false;
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformShaderParameters;
 	SetUpViewHairRenderInfo(ViewInfo, bEnableMSAA, ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo, ViewInfo.CachedViewUniformShaderParameters->HairRenderInfoBits, ViewInfo.CachedViewUniformShaderParameters->HairComponents);
@@ -3040,11 +3044,12 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 		PermutationVector0.Set<FVisiblityRasterComputeCS::FRasterAtomic>(0);
 	}
 #endif
+	PermutationVector0.Set<FVisiblityRasterComputeCS::FStochastic>(bStochasticRaster);
 	PermutationVector0.Set<FVisiblityRasterComputeCS::FSPP>(SamplePerPixelCount);
 	PermutationVector1 = PermutationVector0; 
 
-	PermutationVector0.Set<FVisiblityRasterComputeCS::FCulling>(0);
-	PermutationVector1.Set<FVisiblityRasterComputeCS::FCulling>(1);
+	PermutationVector0.Set<FVisiblityRasterComputeCS::FCulling>(false);
+	PermutationVector1.Set<FVisiblityRasterComputeCS::FCulling>(true);
 	TShaderMapRef<FVisiblityRasterComputeCS> ComputeShader_CullingOff(ViewInfo.ShaderMap, PermutationVector0);
 	TShaderMapRef<FVisiblityRasterComputeCS> ComputeShader_CullingOn (ViewInfo.ShaderMap, PermutationVector1);
 
