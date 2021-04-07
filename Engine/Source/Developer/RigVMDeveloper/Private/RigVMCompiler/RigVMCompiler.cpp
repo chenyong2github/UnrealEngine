@@ -124,6 +124,34 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	}
 	OutOperands->Reset();
 
+#if WITH_EDITOR
+
+	// traverse all graphs and try to clear out orphan pins
+	TArray<URigVMGraph*> VisitedGraphs;
+	VisitedGraphs.Add(InGraph);
+	for(int32 GraphIndex=0; GraphIndex<VisitedGraphs.Num(); GraphIndex++)
+	{
+		URigVMGraph* VisitedGraph = VisitedGraphs[GraphIndex];
+		for(URigVMNode* ModelNode : VisitedGraph->GetNodes())
+		{
+			FRigVMControllerGraphGuard Guard(InController, VisitedGraph);
+			if(!InController->RemoveUnusedOrphanedPins(ModelNode, true))
+			{
+				static const FString LinkedMessage = TEXT("Node @@ uses pins that no longer exist. Please rewire the links and re-compile.");
+				Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, LinkedMessage);
+			}
+
+			if(URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(ModelNode))
+			{
+				if(URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph())
+				{
+					VisitedGraphs.AddUnique(ContainedGraph);
+				}
+			}
+		}
+	}
+#endif
+	
 	OutVM->ClearExternalVariables();
 	for (const FRigVMExternalVariable& ExternalVariable : InExternalVariables)
 	{

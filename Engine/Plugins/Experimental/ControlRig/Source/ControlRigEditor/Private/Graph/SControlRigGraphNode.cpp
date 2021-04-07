@@ -865,6 +865,11 @@ FSlateColor SControlRigGraphNode::GetPinTextColor(TWeakPtr<SGraphPin> GraphPin) 
 {
 	if(GraphPin.IsValid())
 	{
+		if (GraphPin.Pin()->GetPinObj()->bOrphanedPin)
+		{
+			return FLinearColor::Red;
+		}
+
 		// If there is no schema there is no owning node (or basically this is a deleted node)
 		if (GraphNode)
 		{

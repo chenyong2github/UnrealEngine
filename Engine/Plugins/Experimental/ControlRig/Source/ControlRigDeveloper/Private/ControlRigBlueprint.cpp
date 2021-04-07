@@ -69,6 +69,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	bRecompileOnLoad = 0;
 	bAutoRecompileVM = true;
 	bVMRecompilationRequired = false;
+	bIsCompiling = false;
 	VMRecompilationBracket = 0;
 
 	Model = ObjectInitializer.CreateDefaultSubobject<URigVMGraph>(this, TEXT("RigVMModel"));
@@ -92,6 +93,12 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	bExposesAnimatableControls = false;
 
 	VMCompileSettings.ASTSettings.ReportDelegate.BindUObject(this, &UControlRigBlueprint::HandleReportFromCompiler);
+
+#if WITH_EDITOR
+	CompileLog.SetSourcePath(GetPathName());
+	CompileLog.bLogDetailedResults = false;
+	CompileLog.EventDisplayThresholdMs = false;
+#endif
 
 	Hierarchy = CreateDefaultSubobject<URigHierarchy>(TEXT("Hierarchy"));
 	HierarchyController = CreateDefaultSubobject<URigHierarchyController>(TEXT("HierarchyController"));
@@ -496,11 +503,12 @@ void UControlRigBlueprint::PostLoad()
 	{
 		for (URigVMGraph* GraphToDetach : GraphsToDetach)
 		{
-			GetOrCreateController(GraphToDetach)->DetachLinksFromPinObjects();
+			URigVMController* Controller = GetOrCreateController(GraphToDetach);
+			Controller->DetachLinksFromPinObjects();
 			TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
 			for (URigVMNode* Node : Nodes)
 			{
-				GetOrCreateController(GraphToDetach)->RepopulatePinsOnNode(Node);
+				Controller->RepopulatePinsOnNode(Node, true, false, true);
 			}
 		}
 		SetupPinRedirectorsForBackwardsCompatibility();
@@ -508,7 +516,13 @@ void UControlRigBlueprint::PostLoad()
 
 	for (URigVMGraph* GraphToDetach : GraphsToDetach)
 	{
-		GetOrCreateController(GraphToDetach)->ReattachLinksToPinObjects(true /* follow redirectors */);
+		URigVMController* Controller = GetOrCreateController(GraphToDetach);
+		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true);
+		
+		for(URigVMNode* Node : GraphToDetach->GetNodes())
+		{
+			Controller->RemoveUnusedOrphanedPins(Node, false);
+		}
 	}
 
 	// perform backwards compat value upgrades
@@ -549,6 +563,9 @@ void UControlRigBlueprint::PostLoad()
 		}
 	}	
 
+	CompileLog.Messages.Reset();
+	CompileLog.NumErrors = CompileLog.NumWarnings = 0;
+	
 	RecompileVM();
 	RequestControlRigInit();
 
@@ -567,6 +584,12 @@ void UControlRigBlueprint::PostLoad()
 
 void UControlRigBlueprint::RecompileVM()
 {
+	if(bIsCompiling)
+	{
+		return;
+	}
+	TGuardValue<bool> CompilingGuard(bIsCompiling, true);
+	
 	bErrorsDuringCompilation = false;
 
 	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
@@ -605,12 +628,19 @@ void UControlRigBlueprint::RecompileVM()
 		UserData.Add(FRigVMUserDataArray(&InitContextPtr, 1));
 		UserData.Add(FRigVMUserDataArray(&UpdateContextPtr, 1));
 
+		CompileLog.Messages.Reset();
+		CompileLog.NumErrors = CompileLog.NumWarnings = 0;
+
 		URigVMCompiler* Compiler = URigVMCompiler::StaticClass()->GetDefaultObject<URigVMCompiler>();
 		Compiler->Settings = VMCompileSettings;
-		Compiler->Compile(Model, GetController(), CDO->VM, CDO->GetExternalVariablesImpl(false), UserData, &PinToOperandMap);
+		Compiler->Compile(Model, GetOrCreateController(), CDO->VM, CDO->GetExternalVariablesImpl(false), UserData, &PinToOperandMap);
 
 		if (bErrorsDuringCompilation)
 		{
+			if(CDO->VM)
+			{
+				VMCompiledEvent.Broadcast(this, CDO->VM);
+			}
 			return;
 		}
 
@@ -673,48 +703,73 @@ void UControlRigBlueprint::DecrementVMRecompileBracket()
 
 void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage)
 {
+	UObject* SubjectForMessage = InSubject;
+	if(URigVMNode* ModelNode = Cast<URigVMNode>(SubjectForMessage))
+	{
+		if(UControlRigBlueprint* RigBlueprint = ModelNode->GetTypedOuter<UControlRigBlueprint>())
+		{
+			if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(RigBlueprint->GetEdGraph(ModelNode->GetGraph())))
+			{
+				if(UEdGraphNode* EdNode = EdGraph->FindNodeForModelNodeName(ModelNode->GetFName()))
+				{
+					SubjectForMessage = EdNode;
+				}
+			}
+		}
+	}
+
+	FCompilerResultsLog* Log = CurrentMessageLog ? CurrentMessageLog : &CompileLog;
 	if (InSeverity == EMessageSeverity::Error)
 	{
 		Status = BS_Error;
 		MarkPackageDirty();
 
-#if WITH_EDITOR
-		FNotificationInfo Info(FText::FromString(InMessage));
-		Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Error"));
-		Info.bFireAndForget = true;
-		Info.FadeOutDuration = 5.0f;
-		Info.ExpireDuration = 8.0f;
-		TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
-		NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
-#endif
+		if(InMessage.Contains(TEXT("@@")))
+		{
+			Log->Error(*InMessage, SubjectForMessage);
+		}
+		else
+		{
+			Log->Error(*InMessage);
+		}
 
+		BroadCastReportCompilerMessage(InSeverity, InSubject, InMessage);
 		FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Error, *InMessage, *FString());
 		bErrorsDuringCompilation = true;
 	}
 	else if (InSeverity == EMessageSeverity::Warning)
 	{
+		if(InMessage.Contains(TEXT("@@")))
+		{
+			Log->Warning(*InMessage, SubjectForMessage);
+		}
+		else
+		{
+			Log->Warning(*InMessage);
+		}
+
+		BroadCastReportCompilerMessage(InSeverity, InSubject, InMessage);
 		FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Warning, *InMessage, *FString());
 	}
 	else
 	{
+		if(InMessage.Contains(TEXT("@@")))
+		{
+			Log->Note(*InMessage, SubjectForMessage);
+		}
+		else
+		{
+			Log->Note(*InMessage);
+		}
+
 		UE_LOG(LogControlRigDeveloper, Display, TEXT("%s"), *InMessage);
 	}
 
-	if (URigVMNode* Node = Cast<URigVMNode>(InSubject))
+	if (UControlRigGraphNode* EdGraphNode = Cast<UControlRigGraphNode>(SubjectForMessage))
 	{
-		if (URigVMGraph* Graph = Node->GetGraph())
-		{
-			if (UControlRigGraph* EdGraph = Cast<UControlRigGraph>(GetEdGraph(Graph)))
-			{
-				if (UControlRigGraphNode* EdGraphNode = Cast<UControlRigGraphNode>(EdGraph->FindNodeForModelNodeName(Node->GetFName())))
-				{
-					EdGraphNode->ErrorType = (int32)InSeverity;
-					EdGraphNode->ErrorMsg = InMessage;
-					EdGraphNode->bHasCompilerMessage = EdGraphNode->ErrorType <= int32(EMessageSeverity::Info);
-
-				}
-			}
-		}
+		EdGraphNode->ErrorType = (int32)InSeverity;
+		EdGraphNode->ErrorMsg = InMessage;
+		EdGraphNode->bHasCompilerMessage = EdGraphNode->ErrorType <= int32(EMessageSeverity::Info);
 	}
 }
 
@@ -2822,6 +2877,11 @@ void UControlRigBlueprint::BroadcastPostEditChangeChainProperty(FPropertyChanged
 void UControlRigBlueprint::BroadcastRequestLocalizeFunctionDialog(URigVMLibraryNode* InFunction, bool bForce)
 {
 	RequestLocalizeFunctionDialog.Broadcast(InFunction, this, bForce);
+}
+
+void UControlRigBlueprint::BroadCastReportCompilerMessage(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage)
+{
+	ReportCompilerMessageEvent.Broadcast(InSeverity, InSubject, InMessage);
 }
 
 #endif

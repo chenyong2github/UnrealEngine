@@ -78,6 +78,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "IMessageLogListing.h"
 #include "SControlRigFunctionLocalizationWidget.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
@@ -128,6 +129,7 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->OnGraphImported().RemoveAll(this);
 		RigBlueprint->OnPostEditChangeChainProperty().RemoveAll(this);
 		RigBlueprint->OnRequestLocalizeFunctionDialog().RemoveAll(this);
+		RigBlueprint->OnReportCompilerMessage().RemoveAll(this);
 	}
 
 	if (NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr)
@@ -375,6 +377,14 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	FControlRigBlueprintUtils::HandleRefreshAllNodes(InControlRigBlueprint);
 
 	bControlRigEditorInitialized = true;
+
+	if (ControlRigBlueprints.Num() > 0)
+	{
+		if(ControlRigBlueprints[0]->Status == BS_Error)
+		{
+			Compile();
+		}
+	}
 }
 
 void FControlRigEditor::BindCommands()
@@ -1287,6 +1297,8 @@ void FControlRigEditor::Compile()
 			return;
 		}
 
+		RigBlueprint->CompileLog.Messages.Reset();
+
 		FString LastDebuggedObjectName = GetCustomDebugObjectLabel(RigBlueprint->GetObjectBeingDebugged());
 		RigBlueprint->SetObjectBeingDebugged(nullptr);
 
@@ -1966,6 +1978,13 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 
 void FControlRigEditor::HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM)
 {
+	if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(InBlueprint))
+	{
+		CompilerResultsListing->ClearMessages();
+		CompilerResultsListing->AddMessages(RigBlueprint->CompileLog.Messages);
+		RigBlueprint->CompileLog.Messages.Reset();
+		RigBlueprint->CompileLog.NumErrors = RigBlueprint->CompileLog.NumWarnings = 0;  
+	}
 }
 
 void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
@@ -2096,7 +2115,6 @@ void FControlRigEditor::CreateEditorModeManager()
 	SetAssetEditorModeManager(ModeManager.Get());
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
-
 
 void FControlRigEditor::Tick(float DeltaTime)
 {

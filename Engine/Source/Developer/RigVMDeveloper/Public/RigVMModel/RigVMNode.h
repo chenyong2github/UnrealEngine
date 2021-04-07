@@ -68,6 +68,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	URigVMPin* FindPin(const FString& InPinPath) const;
 
+	// Returns all of the top-level orphaned Pins of this Node.
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+    virtual const TArray<URigVMPin*>& GetOrphanedPins() const;
+
+	// Returns true if the node has orphaned pins - which leads to a compiler error
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
+    FORCEINLINE bool HasOrphanedPins() const { return GetOrphanedPins().Num() > 0; }
+
 	// Returns the Graph of this Node
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	URigVMGraph* GetGraph() const;
@@ -226,6 +234,9 @@ private:
 
 	UPROPERTY()
 	TArray<URigVMPin*> Pins;
+
+	UPROPERTY()
+	TArray<URigVMPin*> OrphanedPins;
 
 	int32 GetSliceContextBracket;
 

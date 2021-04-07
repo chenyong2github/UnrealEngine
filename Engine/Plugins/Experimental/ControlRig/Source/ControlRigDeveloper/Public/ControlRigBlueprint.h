@@ -22,6 +22,7 @@
 
 #if WITH_EDITOR
 #include "Kismet2/Kismet2NameValidators.h"
+#include "Kismet2/CompilerResultsLog.h"
 #endif
 
 #include "ControlRigBlueprint.generated.h"
@@ -38,6 +39,7 @@ DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnNodeDoubleClicked, UControlRigB
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnGraphImported, UEdGraph*);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnPostEditChangeChainProperty, FPropertyChangedChainEvent&);
 DECLARE_EVENT_ThreeParams(UControlRigBlueprint, FOnLocalizeFunctionDialogRequested, URigVMLibraryNode*, UControlRigBlueprint*, bool);
+DECLARE_EVENT_ThreeParams(UControlRigBlueprint, FOnReportCompilerMessage, EMessageSeverity::Type, UObject*, const FString&);
 
 USTRUCT()
 struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionArg
@@ -394,6 +396,9 @@ private:
 	bool bVMRecompilationRequired;
 
 	UPROPERTY(transient)
+	bool bIsCompiling;
+
+	UPROPERTY(transient)
 	int32 VMRecompilationBracket;
 
 	UPROPERTY(transient)
@@ -491,15 +496,20 @@ public:
 	FOnLocalizeFunctionDialogRequested& OnRequestLocalizeFunctionDialog() { return RequestLocalizeFunctionDialog; }
 	void BroadcastRequestLocalizeFunctionDialog(URigVMLibraryNode* InFunction, bool bForce = false);
 
+	FOnReportCompilerMessage& OnReportCompilerMessage() { return ReportCompilerMessageEvent; }
+	void BroadCastReportCompilerMessage(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage);
+
 private:
 
 	FOnExternalVariablesChanged ExternalVariablesChangedEvent;
 	void BroadcastExternalVariablesChangedEvent();
+	FCompilerResultsLog CompileLog;
 
 	FOnNodeDoubleClicked NodeDoubleClickedEvent;
 	FOnGraphImported GraphImportedEvent;
 	FOnPostEditChangeChainProperty PostEditChangeChainPropertyEvent;
 	FOnLocalizeFunctionDialogRequested RequestLocalizeFunctionDialog;
+	FOnReportCompilerMessage ReportCompilerMessageEvent;
 
 #endif
 

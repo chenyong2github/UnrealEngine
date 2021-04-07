@@ -145,7 +145,28 @@ URigVMPin* URigVMNode::FindPin(const FString& InPinPath) const
 			return Pin->FindSubPin(Right);
 		}
 	}
+
+	if(Left.StartsWith(URigVMPin::OrphanPinPrefix))
+	{
+		for (URigVMPin* Pin : OrphanedPins)
+		{
+			if (Pin->GetName() == Left)
+			{
+				if (Right.IsEmpty())
+				{
+					return Pin;
+				}
+				return Pin->FindSubPin(Right);
+			}
+		}
+	}
+	
 	return nullptr;
+}
+
+const TArray<URigVMPin*>& URigVMNode::GetOrphanedPins() const
+{
+	return OrphanedPins;
 }
 
 URigVMGraph* URigVMNode::GetGraph() const

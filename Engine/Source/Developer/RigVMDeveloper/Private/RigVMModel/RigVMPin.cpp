@@ -47,6 +47,7 @@ URigVMPin* URigVMInjectionInfo::GetPin() const
 
 const URigVMPin::FPinOverrideMap URigVMPin::EmptyPinOverrideMap;
 const URigVMPin::FPinOverride URigVMPin::EmptyPinOverride = URigVMPin::FPinOverride(FRigVMASTProxy(), EmptyPinOverrideMap);
+const FString URigVMPin::OrphanPinPrefix = TEXT("Orphan::");
 
 bool URigVMPin::SplitPinPathAtStart(const FString& InPinPath, FString& LeftMost, FString& Right)
 {
@@ -865,6 +866,18 @@ FRigVMExternalVariable URigVMPin::ToExternalVariable() const
 	ExternalVariable.Memory = nullptr;
 
 	return ExternalVariable;
+}
+
+bool URigVMPin::IsOrphanPin() const
+{
+	if(URigVMPin* RootPin = GetRootPin())
+	{
+		if(RootPin != this)
+		{
+			return RootPin->IsOrphanPin();
+		}
+	}
+	return GetNode()->OrphanedPins.Contains(this); 
 }
 
 void URigVMPin::UpdateCPPTypeObjectIfRequired() const

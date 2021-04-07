@@ -359,6 +359,9 @@ public:
 	// Returns an external variable matching this pin's type
 	FRigVMExternalVariable ToExternalVariable() const;
 
+	// Returns true if the pin has been orphaned
+	bool IsOrphanPin() const;
+
 private:
 
 	void UpdateCPPTypeObjectIfRequired() const;
@@ -418,6 +421,8 @@ private:
 
 	UPROPERTY()
 	FString BoundVariablePath;
+
+	static const FString OrphanPinPrefix;
 
 	friend class URigVMController;
 	friend class URigVMGraph;

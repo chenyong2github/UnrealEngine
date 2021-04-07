@@ -493,7 +493,7 @@ URigVMVariableNode* URigVMController::AddVariableNodeFromObjectPath(const FName&
 	return AddVariableNode(InVariableName, InCPPType, CPPTypeObject, bIsGetter, InDefaultValue, InPosition, InNodeName, bSetupUndoRedo);
 }
 
-void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo)
+void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bSetupOrphanPinss)
 {
 	if (!IsValidGraph())
 	{
@@ -539,9 +539,6 @@ void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName&
 							ValuePin->Modify();
 						}
 
-						BreakAllLinks(ValuePin, ValuePin->GetDirection() == ERigVMPinDirection::Input, bSetupUndoRedo);
-						BreakAllLinksRecursive(ValuePin, ValuePin->GetDirection() == ERigVMPinDirection::Input, false, bSetupUndoRedo);
-
 						// if this is an unsupported datatype...
 						if (InCPPType == FName(NAME_None).ToString())
 						{
@@ -549,24 +546,12 @@ void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName&
 							return;
 						}
 
-						ValuePin->CPPType = InCPPType;
-						ValuePin->CPPTypeObject = InCPPTypeObject;
-						ValuePin->CPPTypeObjectPath = *InCPPTypeObject->GetPathName();
-
-						TArray<URigVMPin*> SubPins = ValuePin->GetSubPins();
-						for(URigVMPin * SubPin : SubPins)
+						FString CPPTypeObjectPath;
+						if(InCPPTypeObject)
 						{
-							ValuePin->SubPins.Remove(SubPin);
+							CPPTypeObjectPath = InCPPTypeObject->GetPathName();
 						}
-
-						if (ValuePin->IsStruct())
-						{
-							FString DefaultValue = ValuePin->DefaultValue;
-							CreateDefaultValueForStructIfRequired(ValuePin->GetScriptStruct(), DefaultValue);
-							AddPinsForStruct(ValuePin->GetScriptStruct(), ValuePin->GetNode(), ValuePin, ValuePin->Direction, DefaultValue, false);
-						}
-
-						Notify(ERigVMGraphNotifType::PinTypeChanged, ValuePin);
+						ChangePinType(ValuePin, InCPPType, *CPPTypeObjectPath, bSetupUndoRedo, bSetupOrphanPinss);
 					}
 				}
 			}
@@ -6021,7 +6006,7 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 	return true;
 }
 
-bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo)
+bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins)
 {
 	if (!IsValidGraph())
 	{
@@ -6062,7 +6047,7 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 	if (bSetupUndoRedo)
 	{
 		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), bSetupUndoRedo);
-		if (!ChangePinType(Pin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo))
+		if (!ChangePinType(Pin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo, bSetupOrphanPins))
 		{
 			if (bSetupUndoRedo)
 			{
@@ -6076,14 +6061,14 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 	{
 		if (URigVMPin* EntryPin = EntryNode->FindPin(Pin->GetName()))
 		{
-			ChangePinType(EntryPin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo);
+			ChangePinType(EntryPin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo, bSetupOrphanPins);
 		}
 	}
 	if (URigVMFunctionReturnNode* ReturnNode = Graph->GetReturnNode())
 	{
 		if (URigVMPin* ReturnPin = ReturnNode->FindPin(Pin->GetName()))
 		{
-			ChangePinType(ReturnPin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo);
+			ChangePinType(ReturnPin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo, bSetupOrphanPins);
 		}
 	}
 
@@ -6100,7 +6085,7 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 					if (URigVMPin* ReferencedNodePin = FunctionReferencePtr->FindPin(Pin->GetName()))
 					{
 						FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
-						ChangePinType(ReferencedNodePin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo);
+						ChangePinType(ReferencedNodePin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo, bSetupOrphanPins);
 					}
 				}
 			}
@@ -7547,7 +7532,7 @@ int32 URigVMController::DetachLinksFromPinObjects(const TArray<URigVMLink*>* InL
 	return Links.Num();
 }
 
-int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, const TArray<URigVMLink*>* InLinks, bool bNotify)
+int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, const TArray<URigVMLink*>* InLinks, bool bNotify, bool bSetupOrphanedPins)
 {
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
@@ -7603,6 +7588,83 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 
 		URigVMPin* SourcePin = Link->GetSourcePin();
 		URigVMPin* TargetPin = Link->GetTargetPin();
+
+		if((SourcePin != nullptr) && (TargetPin != nullptr))
+		{
+			if (!URigVMPin::CanLink(SourcePin, TargetPin, nullptr, nullptr))
+			{
+				if(SourcePin->GetNode()->HasOrphanedPins() && bSetupOrphanedPins)
+				{
+					SourcePin = nullptr;
+				}
+				else if(TargetPin->GetNode()->HasOrphanedPins() && bSetupOrphanedPins)
+				{
+					TargetPin = nullptr;
+				}
+				else
+				{
+					ReportWarningf(TEXT("Unable to re-create link %s -> %s"), *Link->SourcePinPath, *Link->TargetPinPath);
+					TargetPin->Links.Remove(Link);
+					SourcePin->Links.Remove(Link);
+					continue;
+				}
+			}
+		}
+
+		if(bSetupOrphanedPins)
+		{
+			bool bRelayedBackToOrphanPin = false;
+			for(int32 PinIndex=0; PinIndex<2; PinIndex++)
+			{
+				URigVMPin*& PinToFind = PinIndex == 0 ? SourcePin : TargetPin;
+				
+				if(PinToFind == nullptr)
+				{
+					const FString& PinPathToFind = PinIndex == 0 ? Link->SourcePinPath : Link->TargetPinPath;
+					FString NodeName, RemainingPinPath;
+					URigVMPin::SplitPinPathAtStart(PinPathToFind, NodeName, RemainingPinPath);
+					check(!NodeName.IsEmpty() && !RemainingPinPath.IsEmpty());
+
+					URigVMNode* Node = Graph->FindNode(NodeName);
+					if(Node == nullptr)
+					{
+						continue;
+					}
+
+					RemainingPinPath = FString::Printf(TEXT("%s%s"), *URigVMPin::OrphanPinPrefix, *RemainingPinPath);
+					PinToFind = Node->FindPin(RemainingPinPath);
+
+					if(PinToFind != nullptr)
+					{
+						if(PinIndex == 0)
+						{
+							Link->SourcePinPath = PinToFind->GetPinPath();
+							Link->SourcePin = nullptr;
+							SourcePin = Link->GetSourcePin();
+						}
+						else
+						{
+							Link->TargetPinPath = PinToFind->GetPinPath();
+							Link->TargetPin = nullptr;
+							TargetPin = Link->GetTargetPin();
+						}
+						bRelayedBackToOrphanPin = true;
+					}
+				}
+			}
+
+			if(bRelayedBackToOrphanPin && (SourcePin != nullptr) && (TargetPin != nullptr))
+			{
+				if (!URigVMPin::CanLink(SourcePin, TargetPin, nullptr, nullptr))
+				{
+					ReportWarningf(TEXT("Unable to re-create link %s -> %s"), *Link->SourcePinPath, *Link->TargetPinPath);
+					TargetPin->Links.Remove(Link);
+					SourcePin->Links.Remove(Link);
+					continue;
+				}
+			}
+		}
+		
 		if (SourcePin == nullptr)
 		{
 			ReportWarningf(TEXT("Unable to re-create link %s -> %s"), *Link->SourcePinPath, *Link->TargetPinPath);
@@ -7857,7 +7919,7 @@ bool URigVMController::ShouldRedirectPin(const FString& InOldPinPath, FString& I
 	return false;
 }
 
-void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCoreRedirectors, bool bNotify)
+void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCoreRedirectors, bool bNotify, bool bSetupOrphanedPins)
 {
 	if (InNode == nullptr)
 	{
@@ -7871,6 +7933,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	URigVMFunctionReturnNode* ReturnNode = Cast<URigVMFunctionReturnNode>(InNode);
 	URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InNode);
 	URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(InNode);
+	URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InNode);
 
 	TGuardValue<bool> EventuallySuspendNotifs(bSuspendNotifications, !bNotify);
 	FScopeLock Lock(&PinPathCoreRedirectorsLock);
@@ -7898,13 +7961,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	// step 2/3: clear pins on the node and repopulate the node with new pins
 	if (UnitNode != nullptr)
 	{
-		TArray<URigVMPin*> Pins = InNode->GetPins();
-		for (URigVMPin* Pin : Pins)
-		{
-			RemovePin(Pin, false, bNotify);
-		}
-		InNode->Pins.Reset();
-		Pins.Reset();
+		RemovePinsDuringRepopulate(UnitNode, UnitNode->Pins, bNotify, bSetupOrphanedPins);
 
 		UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct();
 		if (ScriptStruct == nullptr)
@@ -7930,23 +7987,25 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		CreateDefaultValueForStructIfRequired(ScriptStruct, ExportedDefaultValue);
 		AddPinsForStruct(ScriptStruct, UnitNode, nullptr, ERigVMPinDirection::Invalid, ExportedDefaultValue, false, bNotify);
 	}
-	else if (RerouteNode != nullptr)
+	else if ((RerouteNode != nullptr) || (VariableNode != nullptr))
 	{
-		if (RerouteNode->GetPins().Num() == 0)
+		if (InNode->GetPins().Num() == 0)
 		{
 			return;
 		}
 
-		URigVMPin* ValuePin = RerouteNode->Pins[0];
-
-		// only repopulate the value pin, which may host a struct
-		TArray<URigVMPin*> Pins = ValuePin->SubPins;
-		for (URigVMPin* Pin : Pins)
+		URigVMPin* ValuePin = nullptr;
+		if(RerouteNode)
 		{
-			RemovePin(Pin, false, bNotify);
+			ValuePin = RerouteNode->Pins[0];
 		}
-		ValuePin->SubPins.Reset();
-		Pins.Reset();
+		else
+		{
+			ValuePin = VariableNode->FindPin(URigVMVariableNode::ValueName);
+		}
+		check(ValuePin);
+		
+		RemovePinsDuringRepopulate(InNode, ValuePin->SubPins, bNotify, bSetupOrphanedPins);
 
 		if (ValuePin->IsStruct())
 		{
@@ -7955,17 +8014,17 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 			{
 				ReportErrorf(
 					TEXT("Control Rig '%s', Node '%s' has no struct assigned. Do you have a broken redirect?"),
-					*RerouteNode->GetOutermost()->GetPathName(),
-					*RerouteNode->GetName()
+					*InNode->GetOutermost()->GetPathName(),
+					*InNode->GetName()
 				);
 
-				RemoveNode(RerouteNode, false, true);
+				RemoveNode(InNode, false, true);
 				return;
 			}
 
 			FString ExportedDefaultValue;
 			CreateDefaultValueForStructIfRequired(ScriptStruct, ExportedDefaultValue);
-			AddPinsForStruct(ScriptStruct, RerouteNode, ValuePin, ValuePin->Direction, ExportedDefaultValue, false);
+			AddPinsForStruct(ScriptStruct, InNode, ValuePin, ValuePin->Direction, ExportedDefaultValue, false);
 		}
 	}
 	else if (EntryNode || ReturnNode)
@@ -7973,14 +8032,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode->GetGraph()->GetOuter()))
 		{
 			bool bIsEntryNode = EntryNode != nullptr;
-
-			TArray<URigVMPin*> Pins = InNode->GetPins();
-			for (URigVMPin* Pin : Pins)
-			{
-				RemovePin(Pin, false, bNotify);
-			}
-			InNode->Pins.Reset();
-			Pins.Reset();
+			RemovePinsDuringRepopulate(InNode, InNode->Pins, bNotify, bSetupOrphanedPins);
 
 			TArray<URigVMPin*> SortedLibraryPins;
 
@@ -8054,7 +8106,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
 		for (URigVMNode* ContainedNode : CollapseNode->GetContainedNodes())
 		{
-			RepopulatePinsOnNode(ContainedNode, bFollowCoreRedirectors);
+			RepopulatePinsOnNode(ContainedNode, bFollowCoreRedirectors, bNotify, bSetupOrphanedPins);
 		}
 	}
 	else if (FunctionRefNode)
@@ -8064,13 +8116,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 			// we want to make sure notify the graph of a potential name change
 			// when repopulating the function ref node
 			Notify(ERigVMGraphNotifType::NodeRenamed, FunctionRefNode);
-
-			TArray<URigVMPin*> Pins = InNode->GetPins();
-			for (URigVMPin* Pin : Pins)
-			{
-				RemovePin(Pin, false, bNotify);
-			}
-			InNode->Pins.Reset();
+			RemovePinsDuringRepopulate(InNode, InNode->Pins, bNotify, bSetupOrphanedPins);
 
 			TMap<FString, FPinState> ReferencedPinStates = GetPinStates(ReferencedNode);
 
@@ -8105,6 +8151,111 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		InjectionInfo->InputPin = InNode->FindPin(InjectionInputPinName.ToString());
 		InjectionInfo->OutputPin = InNode->FindPin(InjectionOutputPinName.ToString());
 	}
+}
+
+void URigVMController::RemovePinsDuringRepopulate(URigVMNode* InNode, TArray<URigVMPin*>& InPins, bool bNotify, bool bSetupOrphanedPins)
+{
+	TArray<URigVMPin*> Pins = InPins;
+	for (URigVMPin* Pin : Pins)
+	{
+		if(bSetupOrphanedPins && !Pin->IsExecuteContext())
+		{
+			URigVMPin* RootPin = Pin->GetRootPin();
+			const FString OrphanedName = FString::Printf(TEXT("%s%s"), *URigVMPin::OrphanPinPrefix, *RootPin->GetName());
+
+			URigVMPin* OrphanedRootPin = nullptr;
+			
+			for(URigVMPin* OrphanedPin : InNode->OrphanedPins)
+			{
+				if(OrphanedPin->GetName() == OrphanedName)
+				{
+					OrphanedRootPin = OrphanedPin;
+					break;
+				}
+			}
+
+			if(OrphanedRootPin == nullptr)
+			{
+				if(Pin->IsRootPin()) // if we are passing root pins we can reparent them directly
+				{
+					RootPin->DisplayName = RootPin->GetFName();
+					RootPin->Rename(*OrphanedName, nullptr, REN_ForceNoResetLoaders);
+					InNode->Pins.Remove(RootPin);
+
+					if(bNotify)
+					{
+						Notify(ERigVMGraphNotifType::PinRemoved, RootPin);
+					}
+
+					InNode->OrphanedPins.Add(RootPin);
+
+					if(bNotify)
+					{
+						Notify(ERigVMGraphNotifType::PinAdded, RootPin);
+					}
+				}
+				else // while if we are iterating over sub pins - we should reparent them
+				{
+					OrphanedRootPin = NewObject<URigVMPin>(RootPin->GetNode(), *OrphanedName);
+					ConfigurePinFromPin(OrphanedRootPin, RootPin);
+					OrphanedRootPin->DisplayName = RootPin->GetFName();
+				
+					OrphanedRootPin->GetNode()->OrphanedPins.Add(OrphanedRootPin);
+
+					if(bNotify)
+					{
+						Notify(ERigVMGraphNotifType::PinAdded, OrphanedRootPin);
+					}
+				}
+			}
+
+			if(!Pin->IsRootPin() && (OrphanedRootPin != nullptr))
+			{
+				Pin->Rename(nullptr, OrphanedRootPin, REN_ForceNoResetLoaders);
+				RootPin->SubPins.Remove(Pin);
+				OrphanedRootPin->SubPins.Add(Pin);
+			}
+		}
+	}
+
+	for (URigVMPin* Pin : Pins)
+	{
+		if(!Pin->IsOrphanPin())
+		{
+			RemovePin(Pin, false, bNotify);
+		}
+	}
+	InPins.Reset();
+}
+
+bool URigVMController::RemoveUnusedOrphanedPins(URigVMNode* InNode, bool bNotify)
+{
+	if(!InNode->HasOrphanedPins())
+	{
+		return true;
+	}
+	
+	TArray<URigVMPin*> RemainingOrphanPins;
+	for(int32 PinIndex=0; PinIndex < InNode->OrphanedPins.Num(); PinIndex++)
+	{
+		URigVMPin* OrphanedPin = InNode->OrphanedPins[PinIndex];
+
+		const int32 NumSourceLinks = OrphanedPin->GetSourceLinks(true).Num(); 
+		const int32 NumTargetLinks = OrphanedPin->GetTargetLinks(true).Num();
+
+		if(NumSourceLinks + NumTargetLinks == 0)
+		{
+			RemovePin(OrphanedPin, false, bNotify);
+		}
+		else
+		{
+			RemainingOrphanPins.Add(OrphanedPin);
+		}
+	}
+
+	InNode->OrphanedPins = RemainingOrphanPins;
+	
+	return !InNode->HasOrphanedPins();
 }
 
 #endif
@@ -8223,6 +8374,9 @@ TMap<FString, FString> URigVMController::GetRedirectedPinPaths(URigVMNode* InNod
 URigVMController::FPinState URigVMController::GetPinState(URigVMPin* InPin) const
 {
 	FPinState State;
+	State.Direction = InPin->GetDirection();
+	State.CPPType = InPin->GetCPPType();
+	State.CPPTypeObject = InPin->GetCPPTypeObject();
 	State.DefaultValue = InPin->GetDefaultValue();
 	State.BoundVariable = InPin->GetBoundVariablePath();
 	State.bIsExpanded = InPin->IsExpanded();
@@ -8552,7 +8706,7 @@ bool URigVMController::ChangePinType(const FString& InPinPath, const FString& In
 	return false;
 }
 
-bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo)
+bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins)
 {
 	if (InPin->CPPType == InCPPType)
 	{
@@ -8582,14 +8736,40 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 		ActionStack->BeginAction(Action);
 	}
 
+	TArray<URigVMLink*> Links;
+
 	if (bSetupUndoRedo)
 	{
-		BreakAllLinks(InPin, true, true);
-		BreakAllLinks(InPin, false, true);
-		BreakAllLinksRecursive(InPin, true, false, true);
-		BreakAllLinksRecursive(InPin, false, false, true);
-
+		if(!bSetupOrphanPins)
+		{
+			BreakAllLinks(InPin, true, true);
+			BreakAllLinks(InPin, false, true);
+			BreakAllLinksRecursive(InPin, true, false, true);
+			BreakAllLinksRecursive(InPin, false, false, true);
+		}
 		ActionStack->AddAction(FRigVMChangePinTypeAction(InPin, InCPPType, InCPPTypeObjectPath));
+	}
+	
+	if(bSetupOrphanPins)
+	{
+		Links.Append(InPin->GetSourceLinks(true));
+		Links.Append(InPin->GetTargetLinks(true));
+		DetachLinksFromPinObjects(&Links, true);
+
+		const FString OrphanedName = FString::Printf(TEXT("%s%s"), *URigVMPin::OrphanPinPrefix, *InPin->GetName());
+		if(InPin->GetNode()->FindPin(OrphanedName) == nullptr)
+		{
+			URigVMPin* OrphanedPin = NewObject<URigVMPin>(InPin->GetNode(), *OrphanedName);
+			ConfigurePinFromPin(OrphanedPin, InPin);
+			OrphanedPin->DisplayName = InPin->GetFName();
+
+			if(OrphanedPin->IsStruct())
+			{
+				AddPinsForStruct(OrphanedPin->GetScriptStruct(), OrphanedPin->GetNode(), OrphanedPin, OrphanedPin->Direction, OrphanedPin->GetDefaultValue(), false, true);
+			}
+				
+			InPin->GetNode()->OrphanedPins.Add(OrphanedPin);
+		}
 	}
 
 	TArray<URigVMPin*> Pins = InPin->SubPins;
@@ -8597,8 +8777,9 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 	{
 		RemovePin(Pin, false, true);
 	}
+	
 	InPin->SubPins.Reset();
-
+	
 	InPin->CPPType = InCPPType;
 	InPin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	InPin->CPPTypeObject = CPPTypeObject;
@@ -8617,6 +8798,12 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 	if (bSetupUndoRedo)
 	{
 		ActionStack->EndAction(Action);
+	}
+
+	if(Links.Num() > 0)
+	{
+		ReattachLinksToPinObjects(false, &Links, true, true);
+		RemoveUnusedOrphanedPins(InPin->GetNode(), true);
 	}
 
 	return true;

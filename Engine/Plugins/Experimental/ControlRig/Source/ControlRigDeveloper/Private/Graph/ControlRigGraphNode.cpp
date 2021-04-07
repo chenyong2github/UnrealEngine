@@ -139,8 +139,6 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 	// Clear previously set messages
 	ErrorMsg.Reset();
 
-	// @TODO: support pin orphaning/conversions for upgrades/deprecations?
-
 	// Move the existing pins to a saved array
 	TArray<UEdGraphPin*> OldPins(Pins);
 	Pins.Reset();
@@ -201,7 +199,6 @@ void UControlRigGraphNode::ReallocatePinsDuringReconstruction(const TArray<UEdGr
 void UControlRigGraphNode::RewireOldPinsToNewPins(TArray<UEdGraphPin*>& InOldPins, TArray<UEdGraphPin*>& InNewPins)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	// @TODO: we should account for redirectors, orphaning etc. here too!
 
 	for(UEdGraphPin* OldPin : InOldPins)
 	{
@@ -334,32 +331,36 @@ void UControlRigGraphNode::AllocateDefaultPins()
 
 	if (URigVMNode* ModelNode = GetModelNode())
 	{
-		for (URigVMPin* ModelPin : ModelNode->GetPins())
+		for(int32 PinListIndex=0; PinListIndex<2; PinListIndex++)
 		{
-			if (ModelPin->ShowInDetailsPanelOnly())
+			const TArray<URigVMPin*>& ModelPins = PinListIndex == 0 ? ModelNode->GetPins() : ModelNode->GetOrphanedPins();
+			for (URigVMPin* ModelPin : ModelPins)
 			{
-				continue;
-			}
-			if (ModelPin->GetDirection() == ERigVMPinDirection::IO)
-			{
-				if (ModelPin->IsStruct())
+				if (ModelPin->ShowInDetailsPanelOnly())
 				{
-					if (ModelPin->GetScriptStruct()->IsChildOf(FRigVMExecuteContext::StaticStruct()))
-					{
-						ExecutePins.Add(ModelPin);
-						continue;
-					}
+					continue;
 				}
-				InputOutputPins.Add(ModelPin);
-			}
-			else if (ModelPin->GetDirection() == ERigVMPinDirection::Input || 
-				ModelPin->GetDirection() == ERigVMPinDirection::Visible)
-			{
-				InputPins.Add(ModelPin);
-			}
-			else if (ModelPin->GetDirection() == ERigVMPinDirection::Output)
-			{
-				OutputPins.Add(ModelPin);
+				if (ModelPin->GetDirection() == ERigVMPinDirection::IO)
+				{
+					if (ModelPin->IsStruct())
+					{
+						if (ModelPin->GetScriptStruct()->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+						{
+							ExecutePins.Add(ModelPin);
+							continue;
+						}
+					}
+					InputOutputPins.Add(ModelPin);
+				}
+				else if (ModelPin->GetDirection() == ERigVMPinDirection::Input || 
+                    ModelPin->GetDirection() == ERigVMPinDirection::Visible)
+				{
+					InputPins.Add(ModelPin);
+				}
+				else if (ModelPin->GetDirection() == ERigVMPinDirection::Output)
+				{
+					OutputPins.Add(ModelPin);
+				}
 			}
 		}
 	}
@@ -413,6 +414,7 @@ void UControlRigGraphNode::CreateInputPins(URigVMPin* InParentPin)
 			{
 				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
 				Pair.InputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::Input;
+				Pair.InputPin->bOrphanedPin = ModelPin->IsOrphanPin() ? 1 : 0; 
 
 				SetupPinDefaultsFromModel(Pair.InputPin);
 
@@ -444,6 +446,7 @@ void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin, bool bH
 				Pair.InputPin->bHidden = bHidden;
 				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
 				Pair.InputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::IO;
+				Pair.InputPin->bOrphanedPin = ModelPin->IsOrphanPin() ? 1 : 0; 
 
 				SetupPinDefaultsFromModel(Pair.InputPin);
 
@@ -463,6 +466,7 @@ void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin, bool bH
 				Pair.OutputPin->bHidden = bHidden;
 				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
 				Pair.OutputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::IO;
+				Pair.OutputPin->bOrphanedPin = ModelPin->IsOrphanPin() ? 1 : 0; 
 
 				if (InParentPin != nullptr)
 		{
@@ -501,6 +505,7 @@ void UControlRigGraphNode::CreateOutputPins(URigVMPin* InParentPin)
 			{
 				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
 				Pair.OutputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::Output;
+				Pair.OutputPin->bOrphanedPin = ModelPin->IsOrphanPin() ? 1 : 0; 
 
 				if (InParentPin != nullptr)
 	{

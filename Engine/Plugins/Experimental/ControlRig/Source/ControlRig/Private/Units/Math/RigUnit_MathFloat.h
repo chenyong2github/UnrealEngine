@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Units/Math/RigUnit_MathBase.h"
+#include "RigUnit_MathBase.h"
 #include "RigUnit_MathFloat.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Float", MenuDescSuffix="(Float)"))

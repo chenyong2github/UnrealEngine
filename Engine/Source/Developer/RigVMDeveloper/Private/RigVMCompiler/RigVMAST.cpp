@@ -978,6 +978,12 @@ FRigVMExprAST* FRigVMParserAST::TraverseMutableNode(const FRigVMASTProxy& InNode
 		return SubjectToExpression.FindChecked(InNodeProxy);
 	}
 
+	URigVMNode* Node = InNodeProxy.GetSubjectChecked<URigVMNode>();
+	if(Node->HasOrphanedPins())
+	{
+		return nullptr;
+	}
+
 	FRigVMExprAST* NodeExpr = CreateExpressionForNode(InNodeProxy, InParentExpr);
 	if (NodeExpr)
 	{
@@ -988,7 +994,6 @@ FRigVMExprAST* FRigVMParserAST::TraverseMutableNode(const FRigVMASTProxy& InNode
 
 		TraversePins(InNodeProxy, NodeExpr);
 
-		URigVMNode* Node = InNodeProxy.GetSubjectChecked<URigVMNode>();
 		for (URigVMPin* SourcePin : Node->GetPins())
 		{
 			if (SourcePin->GetDirection() == ERigVMPinDirection::Output || SourcePin->GetDirection() == ERigVMPinDirection::IO)
@@ -1043,6 +1048,12 @@ FRigVMExprAST* FRigVMParserAST::TraverseNode(const FRigVMASTProxy& InNodeProxy, 
 		return nullptr;
 	
 	}
+
+	if(Node->HasOrphanedPins())
+	{
+		return nullptr;
+	}
+	
 	if (SubjectToExpression.Contains(InNodeProxy))
 	{
 		FRigVMExprAST* NodeExpr = SubjectToExpression.FindChecked(InNodeProxy);
