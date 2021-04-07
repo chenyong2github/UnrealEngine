@@ -3641,7 +3641,37 @@ public partial class Project : CommandUtils
 			if (Params.CookOnTheFly || Params.FileServer)
 			{
 				FileHostParams += "-filehostip=";
-				bool FirstParam = true;
+				// add localhost first for platforms using redirection
+				const string LocalHost = "127.0.0.1";
+				if (!IsNullOrEmpty(Params.Port))
+				{
+					bool FirstParam = true;
+					foreach (var Port in Params.Port)
+					{
+						if (!FirstParam)
+						{
+							FileHostParams += "+";
+						}
+						FirstParam = false;
+						string[] PortProtocol = Port.Split(new char[] { ':' });
+						if (PortProtocol.Length > 1)
+						{
+							FileHostParams += String.Format("{0}://{1}:{2}", PortProtocol[0], LocalHost, PortProtocol[1]);
+						}
+						else
+						{
+							FileHostParams += LocalHost;
+							FileHostParams += ":";
+							FileHostParams += Params.Port;
+						}
+
+					}
+				}
+				else
+				{
+					// use default port
+					FileHostParams += LocalHost;
+				}
 				if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 				{
 					NetworkInterface[] Interfaces = NetworkInterface.GetAllNetworkInterfaces();
@@ -3658,11 +3688,7 @@ public partial class Project : CommandUtils
 									{
 										foreach (var Port in Params.Port)
 										{
-											if (!FirstParam)
-											{
-												FileHostParams += "+";
-											}
-											FirstParam = false;
+											FileHostParams += "+";
 											string[] PortProtocol = Port.Split(new char[] { ':' });
 											if (PortProtocol.Length > 1)
 											{
@@ -3679,12 +3705,7 @@ public partial class Project : CommandUtils
 									}
 									else
 									{
-										if (!FirstParam)
-										{
-											FileHostParams += "+";
-										}
-										FirstParam = false;
-
+										FileHostParams += "+";
 										// use default port
 										FileHostParams += IP.UnicastAddresses[Index].Address.ToString();
 									}
@@ -3710,11 +3731,7 @@ public partial class Project : CommandUtils
 									{
 										foreach (var Port in Params.Port)
 										{
-											if (!FirstParam)
-											{
-												FileHostParams += "+";
-											}
-											FirstParam = false;
+											FileHostParams += "+";
 											string[] PortProtocol = Port.Split(new char[] { ':' });
 											if (PortProtocol.Length > 1)
 											{
@@ -3730,55 +3747,14 @@ public partial class Project : CommandUtils
 									}
 									else
 									{
-										if (!FirstParam)
-										{
-											FileHostParams += "+";
-										}
-										FirstParam = false;
-
+										FileHostParams += "+";
 										// use default port
 										FileHostParams += IP.UnicastAddresses[Index].Address.ToString();
 									}
-
 								}
 							}
 						}
 					}
-				}
-				const string LocalHost = "127.0.0.1";
-				if (!IsNullOrEmpty(Params.Port))
-				{
-					foreach (var Port in Params.Port)
-					{
-						if (!FirstParam)
-						{
-							FileHostParams += "+";
-						}
-						FirstParam = false;
-						string[] PortProtocol = Port.Split(new char[] { ':' });
-						if (PortProtocol.Length > 1)
-						{
-							FileHostParams += String.Format("{0}://{1}:{2}", PortProtocol[0], LocalHost, PortProtocol[1]);
-						}
-						else
-						{
-							FileHostParams += LocalHost;
-							FileHostParams += ":";
-							FileHostParams += Params.Port;
-						}
-
-					}
-				}
-				else
-				{
-					if (!FirstParam)
-					{
-						FileHostParams += "+";
-					}
-					FirstParam = false;
-
-					// use default port
-					FileHostParams += LocalHost;
 				}
 				FileHostParams += " ";
 			}
