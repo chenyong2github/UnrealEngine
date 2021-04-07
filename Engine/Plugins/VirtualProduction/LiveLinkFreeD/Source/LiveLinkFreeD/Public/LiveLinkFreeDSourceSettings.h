@@ -47,17 +47,6 @@ enum class EFreeDDefaultConfigs : uint8
 	Ncam
 };
 
-UENUM(BlueprintType)
-enum class EFreeDAxisRemap : uint8
-{
-	PositiveX,
-	NegativeX,
-	PositiveY,
-	NegativeY,
-	PositiveZ,
-	NegativeZ
-};
-
 UCLASS()
 class LIVELINKFREED_API ULiveLinkFreeDSourceSettings : public ULiveLinkSourceSettings
 {
@@ -71,18 +60,6 @@ public:
 	/** Default configurations for specific manufacturers */
 	UPROPERTY(EditAnywhere, Category = "Source")
 	EFreeDDefaultConfigs DefaultConfig = EFreeDDefaultConfigs::Generic;
-
-	/** X axis remap settings*/
-	UPROPERTY(EditAnywhere, Category = "Source")
-	EFreeDAxisRemap RemapXAxis = EFreeDAxisRemap::PositiveY;
-
-	/** Y axis remap settings*/
-	UPROPERTY(EditAnywhere, Category = "Source")
-	EFreeDAxisRemap RemapYAxis = EFreeDAxisRemap::PositiveX;
-
-	/** Z axis remap settings*/
-	UPROPERTY(EditAnywhere, Category = "Source")
-	EFreeDAxisRemap RemapZAxis = EFreeDAxisRemap::PositiveZ;
 
 	/** Raw focus distance (in cm) encoder parameters for this camera - 24 bits max */
 	UPROPERTY(EditAnywhere, Category = "Source")
