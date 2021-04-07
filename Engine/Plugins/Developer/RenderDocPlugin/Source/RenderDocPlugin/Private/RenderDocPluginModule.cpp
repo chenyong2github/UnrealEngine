@@ -308,7 +308,10 @@ void FRenderDocPluginModule::StartupModule()
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FRenderDocPluginModule::CapturePIE)
 	);
 
-	EditorExtensions = new FRenderDocPluginEditorExtension(this);
+	if (!IsRunningCommandlet())
+	{
+		EditorExtensions = new FRenderDocPluginEditorExtension(this);
+	}
 #endif // WITH_EDITOR
 
 	UE_LOG(RenderDocPlugin, Log, TEXT("RenderDoc plugin is ready!"));
