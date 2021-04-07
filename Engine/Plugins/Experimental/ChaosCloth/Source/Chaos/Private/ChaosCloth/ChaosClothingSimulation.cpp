@@ -1764,7 +1764,7 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 
 		if (const FPBDLongRangeConstraints* const LongRangeConstraints = ClothConstraints.GetLongRangeConstraints().Get())
 		{
-			for (const TPBDLongRangeConstraints<float, 3>::FTether& Tether : LongRangeConstraints->GetTethers())
+			for (const FPBDLongRangeConstraints::FTether& Tether : LongRangeConstraints->GetTethers())
 			{
 				const int32 KinematicIndex = Tether.Start;
 				const int32 DynamicIndex = Tether.End;

@@ -21,7 +21,7 @@ public:
 		const FDynamicParticles& Particles,
 		const TMap<int32, TSet<int32>>& PointToNeighbors,
 		const int32 MaxNumTetherIslands = 4,
-		const FReal Stiffness = (FReal)1.,
+		const FReal InStiffness = (FReal)1.,
 		const FReal LimitScale = (FReal)1.,
 		const EMode InMode = EMode::Geodesic)
 		: FPBDLongRangeConstraintsBase(Particles, PointToNeighbors, MaxNumTetherIslands, InStiffness, LimitScale, InMode) {}
