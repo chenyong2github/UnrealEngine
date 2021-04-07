@@ -15,6 +15,7 @@
 
 #pragma warning(push)
 #pragma warning (disable : 4005) 	// Disable macro redefinition warning for compatibility with Windows SDK 8+
+#include "Windows/WindowsHWrapper.h"
 #include "ThirdParty/Windows/DirectX/Include/DXGI.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/HideWindowsPlatformTypes.h"
