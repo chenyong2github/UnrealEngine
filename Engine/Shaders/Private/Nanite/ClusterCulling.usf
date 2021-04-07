@@ -1076,8 +1076,8 @@ void CalculateSafeRasterizerArgs()
 		
 		// TODO: Write status back to CPU so we can warn the user when this happens and r.Nanite.MaxVisibleClusters needs to be adjusted higher.	
 
-		const int MaxClustersSW = max((int)MaxVisibleClusters - NumClustersHW, 0);
-		const int MaxClustersHW = max((int)MaxVisibleClusters - NumClustersSW, 0);
+		const int MaxClustersSW = max((int)MaxVisibleClusters - ClusterOffsetSW - TotalClustersHW, 0);
+		const int MaxClustersHW = max((int)MaxVisibleClusters - ClusterOffsetHW - TotalClustersSW, 0);
 
 		NumClustersSW = min(NumClustersSW, MaxClustersSW);
 		NumClustersHW = min(NumClustersHW, MaxClustersHW);
