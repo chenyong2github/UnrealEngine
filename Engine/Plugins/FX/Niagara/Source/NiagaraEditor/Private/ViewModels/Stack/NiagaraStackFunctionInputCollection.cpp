@@ -48,7 +48,7 @@ void UNiagaraStackFunctionInputCollection::Initialize(
 {
 	checkf(ModuleNode == nullptr && InputFunctionCallNode == nullptr, TEXT("Can not set the node more than once."));
 	FString InputCollectionStackEditorDataKey = FString::Printf(TEXT("%s-Inputs"), *InInputFunctionCallNode.NodeGuid.ToString(EGuidFormats::DigitsWithHyphens));
-	Super::Initialize(InRequiredEntryData, false, InOwnerStackItemEditorDataKey, InputCollectionStackEditorDataKey);
+	Super::Initialize(InRequiredEntryData, InOwnerStackItemEditorDataKey, InputCollectionStackEditorDataKey);
 	ModuleNode = &InModuleNode;
 	InputFunctionCallNode = &InInputFunctionCallNode;
 	InputFunctionCallNode->OnInputsChanged().AddUObject(this, &UNiagaraStackFunctionInputCollection::OnFunctionInputsChanged);
@@ -220,8 +220,8 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 			? InputMetaData->CategoryName
 			: UncategorizedName;
 
-		bool IsVisible = !HiddenPins.Contains(InputPin);
-		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, false, IsVisible };
+		bool bIsInputHidden = HiddenPins.Contains(InputPin);
+		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, false, bIsInputHidden };
 		int32 Index = InputDataCollection.Add(InputData);
 
 		// set up the data for the parent-child mapping
@@ -278,8 +278,8 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 			? InputMetaData->CategoryName
 			: UncategorizedName;
 
-		bool IsVisible = !HiddenSwitchPins.Contains(InputPin);
-		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, true, IsVisible };
+		bool bIsInputHidden = HiddenSwitchPins.Contains(InputPin);
+		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, true, bIsInputHidden };
 		int32 Index = InputDataCollection.Add(InputData);
 
 		// set up the data for the parent-child mapping
@@ -400,7 +400,7 @@ void UNiagaraStackFunctionInputCollection::AddInputToCategory(const FInputData& 
 		}
 		NewChildren.Add(InputCategory);
 	}
-	InputCategory->AddInput(InputData.Pin->PinName, InputData.Type, InputData.bIsStatic ? EStackParameterBehavior::Static : EStackParameterBehavior::Dynamic, InputData.bIsVisible, InputData.bIsChild);
+	InputCategory->AddInput(InputData.Pin->PinName, InputData.Type, InputData.bIsStatic ? EStackParameterBehavior::Static : EStackParameterBehavior::Dynamic, InputData.bIsHidden, InputData.bIsChild);
 }
 
 UNiagaraStackEntry::FStackIssueFix UNiagaraStackFunctionInputCollection::GetNodeRemovalFix(UEdGraphPin* PinToRemove, FText FixDescription)

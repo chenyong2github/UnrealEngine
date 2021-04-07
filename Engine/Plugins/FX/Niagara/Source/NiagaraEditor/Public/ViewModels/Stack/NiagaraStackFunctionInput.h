@@ -260,9 +260,6 @@ public:
 	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
 	virtual bool HasFrontDivider() const override;
 
-	/** If false then the stack parameter is not visible */
-	bool bIsVisible = true;
-
 protected:
 	//~ UNiagaraStackEntry interface
 	virtual void FinalizeInternal() override;
@@ -299,7 +296,7 @@ private:
 	void RefreshValues();
 
 	/** Refreshes additional state for this input which comes from input metadata. */
-	void RefreshFromMetaData();
+	void RefreshFromMetaData(TArray<FStackIssue>& NewIssues);
 
 	/** Called whenever the graph which generated this input changes. */
 	void OnGraphChanged(const struct FEdGraphEditAction& InAction);

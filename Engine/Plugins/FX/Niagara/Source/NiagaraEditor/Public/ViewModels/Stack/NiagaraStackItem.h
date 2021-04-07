@@ -56,6 +56,8 @@ protected:
 private:
 	bool FilterAdvancedChildren(const UNiagaraStackEntry& Child) const;
 
+	bool FilterHiddenChildren(const UNiagaraStackEntry& Child) const;
+
 	void ToggleShowAdvanced();
 
 protected:
@@ -74,11 +76,15 @@ class NIAGARAEDITOR_API UNiagaraStackItemContent : public UNiagaraStackEntry
 	GENERATED_BODY()
 
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData, bool bInIsAdvanced, FString InOwningStackItemEditorDataKey, FString InStackEditorDataKey);
+	void Initialize(FRequiredEntryData InRequiredEntryData, FString InOwningStackItemEditorDataKey, FString InStackEditorDataKey);
 
 	virtual EStackRowStyle GetStackRowStyle() const override;
 
 	bool GetIsAdvanced() const;
+
+	bool GetIsHidden() const;
+
+	void SetIsHidden(bool bInIsHidden);
 
 	// Returns true if this stack entry was changed by a user and differs from the default value
 	virtual bool HasOverridenContent() const;
@@ -91,9 +97,12 @@ protected:
 private:
 	bool FilterAdvancedChildren(const UNiagaraStackEntry& Child) const;
 
+	bool FilterHiddenChildren(const UNiagaraStackEntry& Child) const;
+
 private:
 	FString OwningStackItemEditorDataKey;
 	bool bIsAdvanced;
+	bool bIsHidden;
 };
 
 UCLASS()
@@ -102,7 +111,7 @@ class NIAGARAEDITOR_API UNiagaraStackItemTextContent : public UNiagaraStackItemC
 	GENERATED_BODY()
 
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData, FText InDisplayText, bool bInIsAdvanced, FString InOwningStackItemEditorDataKey);
+	void Initialize(FRequiredEntryData InRequiredEntryData, FText InDisplayText, FString InOwningStackItemEditorDataKey);
 
 	virtual FText GetDisplayName() const override;
 

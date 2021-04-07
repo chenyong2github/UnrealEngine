@@ -190,7 +190,7 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 				if (EmptyAssignmentNodeMessage == nullptr)
 				{
 					EmptyAssignmentNodeMessage = NewObject<UNiagaraStackItemTextContent>(this);
-					EmptyAssignmentNodeMessage->Initialize(CreateDefaultChildRequiredData(), EmptyAssignmentNodeMessageText, false, GetStackEditorDataKey());
+					EmptyAssignmentNodeMessage->Initialize(CreateDefaultChildRequiredData(), EmptyAssignmentNodeMessageText, GetStackEditorDataKey());
 				}
 				NewChildren.Add(EmptyAssignmentNodeMessage);
 			}
@@ -917,9 +917,9 @@ bool UNiagaraStackModuleItem::FilterOutputCollection(const UNiagaraStackEntry& C
 {
 	if (Child.IsA<UNiagaraStackModuleItemOutputCollection>())
 	{
-		TArray<UNiagaraStackEntry*> FilteredChildren;
-		Child.GetFilteredChildren(FilteredChildren);
-		if (FilteredChildren.Num() != 0)
+		TArray<UNiagaraStackEntry*> ChildFilteredChildren;
+		Child.GetFilteredChildren(ChildFilteredChildren);
+		if (ChildFilteredChildren.Num() != 0)
 		{
 			return true;
 		}
@@ -945,9 +945,9 @@ bool UNiagaraStackModuleItem::FilterLinkedInputCollection(const UNiagaraStackEnt
 {
 	if (Child.IsA<UNiagaraStackModuleItemLinkedInputCollection>())
 	{
-		TArray<UNiagaraStackEntry*> FilteredChildren;
-		Child.GetFilteredChildren(FilteredChildren);
-		if (FilteredChildren.Num() != 0)
+		TArray<UNiagaraStackEntry*> ChildFilteredChildren;
+		Child.GetFilteredChildren(ChildFilteredChildren);
+		if (ChildFilteredChildren.Num() != 0)
 		{
  			return true;
 		}

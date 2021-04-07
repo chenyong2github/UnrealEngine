@@ -22,7 +22,7 @@ void UNiagaraStackObject::Initialize(FRequiredEntryData InRequiredEntryData, UOb
 {
 	checkf(Object == nullptr, TEXT("Can only initialize once."));
 	FString ObjectStackEditorDataKey = FString::Printf(TEXT("%s-%s"), *InOwnerStackItemEditorDataKey, *InObject->GetName());
-	Super::Initialize(InRequiredEntryData, false, InOwnerStackItemEditorDataKey, ObjectStackEditorDataKey);
+	Super::Initialize(InRequiredEntryData, InOwnerStackItemEditorDataKey, ObjectStackEditorDataKey);
 	Object = InObject;
 	OwningNiagaraNode = InOwningNiagaraNode;
 }

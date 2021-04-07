@@ -73,7 +73,7 @@ private:
 		int32 SortKey;
 		FText Category;
 		bool bIsStatic;
-		bool bIsVisible;
+		bool bIsHidden;
 
 		TArray<FInputData*> Children;
 		bool bIsChild = false;

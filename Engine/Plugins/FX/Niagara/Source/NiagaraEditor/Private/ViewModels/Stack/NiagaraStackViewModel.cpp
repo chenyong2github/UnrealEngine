@@ -421,6 +421,8 @@ void UNiagaraStackViewModel::SearchTick()
 		}
 		if (ItemsToSearch.Num() == 0)
 		{
+			// The search can change the child filtering so refresh it when the search finishes.
+			RootEntry->RefreshFilteredChildren();
 			SearchCompletedDelegate.Broadcast();
 		}
 	}
@@ -518,7 +520,7 @@ void UNiagaraStackViewModel::SetShowAllAdvanced(bool bInShowAllAdvanced)
 	}
 
 	InvalidateSearchResults();
-	StructureChangedDelegate.Broadcast();
+	RootEntry->RefreshFilteredChildren();
 }
 
 bool UNiagaraStackViewModel::GetShowOutputs() const

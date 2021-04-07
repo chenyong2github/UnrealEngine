@@ -115,10 +115,9 @@ void UNiagaraStackFunctionInput::Initialize(
 	FString InOwnerStackItemEditorDataKey)
 {
 	checkf(OwningModuleNode.IsValid() == false && OwningFunctionCallNode.IsValid() == false, TEXT("Can only initialize once."));
-	bool bInputIsAdvanced = false;
 	ParameterBehavior = InParameterBehavior;
 	FString InputStackEditorDataKey = FString::Printf(TEXT("%s-Input-%s"), *InInputFunctionCallNode.NodeGuid.ToString(EGuidFormats::DigitsWithHyphens), *InInputParameterHandle.ToString());
-	Super::Initialize(InRequiredEntryData, bInputIsAdvanced, InOwnerStackItemEditorDataKey, InputStackEditorDataKey);
+	Super::Initialize(InRequiredEntryData, InOwnerStackItemEditorDataKey, InputStackEditorDataKey);
 	OwningModuleNode = &InModuleNode;
 	OwningFunctionCallNode = &InInputFunctionCallNode;
 	OwningFunctionCallInitialScript = OwningFunctionCallNode->FunctionScript;
@@ -491,7 +490,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 	AliasedInputParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(InputParameterHandle, OwningFunctionCallNode.Get());
 	RapidIterationParameter = CreateRapidIterationVariable(AliasedInputParameterHandle.GetParameterHandleString());
 
-	RefreshFromMetaData();
+	RefreshFromMetaData(NewIssues);
 	RefreshValues();
 
 	if (InputValues.DynamicNode.IsValid())
@@ -903,7 +902,7 @@ void UNiagaraStackFunctionInput::RefreshValues()
 	ValueChangedDelegate.Broadcast();
 }
 
-void UNiagaraStackFunctionInput::RefreshFromMetaData()
+void UNiagaraStackFunctionInput::RefreshFromMetaData(TArray<FStackIssue>& NewIssues)
 {
 	InputMetaData.Reset();
 	if (OwningFunctionCallNode->IsA<UNiagaraNodeAssignment>())
@@ -946,19 +945,33 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 			bShowEditConditionInline = false;
 		}
 
-		if (EditConditionError.IsEmpty() == false && bIsVisible)
+		if (EditConditionError.IsEmpty() == false)
 		{
-			UE_LOG(LogNiagaraEditor, Warning, TEXT("Edit condition failed to bind.  Function: %s Input: %s Message: %s"), 
-				*OwningFunctionCallNode->GetFunctionName(), *InputParameterHandle.GetName().ToString(), *EditConditionError.ToString());
+			NewIssues.Add(FStackIssue(
+				EStackIssueSeverity::Info,
+				LOCTEXT("EditConditionErrorShort", "Edit condition error"),
+				FText::Format(LOCTEXT("EditConditionErrorLongFormat", "Edit condition failed to bind.  Function: {0} Input: {1} Message: {2}"), 
+					OwningFunctionCallNode->GetNodeTitle(ENodeTitleType::ListView), 
+					FText::FromName(InputParameterHandle.GetName()),
+					EditConditionError),
+				GetStackEditorDataKey(),
+				true));
 		}
 
 		FText VisibleConditionError;
 		VisibleCondition.Refresh(InputMetaData->VisibleCondition, VisibleConditionError);
 
-		if (VisibleConditionError.IsEmpty() == false && bIsVisible)
+		if (VisibleConditionError.IsEmpty() == false)
 		{
-			UE_LOG(LogNiagaraEditor, Warning, TEXT("Visible condition failed to bind.  Function: %s Input: %s Message: %s"),
-				*OwningFunctionCallNode->GetFunctionName(), *InputParameterHandle.GetName().ToString(), *VisibleConditionError.ToString());
+			NewIssues.Add(FStackIssue(
+				EStackIssueSeverity::Info,
+				LOCTEXT("VisibleConditionErrorShort", "Visible condition error"),
+				FText::Format(LOCTEXT("VisibleConditionErrorLongFormat", "Visible condition failed to bind.  Function: {0} Input: {1} Message: {2}"),
+					OwningFunctionCallNode->GetNodeTitle(ENodeTitleType::ListView),
+					FText::FromName(InputParameterHandle.GetName()),
+					VisibleConditionError),
+				GetStackEditorDataKey(),
+				true));
 		}
 
 		bIsInlineEditConditionToggle = InputType == FNiagaraTypeDefinition::GetBoolDef() && 
@@ -1987,7 +2000,7 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 
 bool UNiagaraStackFunctionInput::GetShouldPassFilterForVisibleCondition() const
 {
-	return bIsVisible && (GetHasVisibleCondition() == false || GetVisibleConditionEnabled());
+	return GetHasVisibleCondition() == false || GetVisibleConditionEnabled();
 }
 
 const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFunctionInput(UObject* InOuter) const

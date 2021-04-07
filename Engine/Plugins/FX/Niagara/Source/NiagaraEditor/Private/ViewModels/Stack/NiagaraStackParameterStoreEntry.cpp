@@ -40,9 +40,8 @@ void UNiagaraStackParameterStoreEntry::Initialize(
 	FNiagaraTypeDefinition InInputType,
 	FString InOwnerStackItemEditorDataKey)
 {
-	bool bParameterIsAdvanced = false;
 	FString ParameterStackEditorDataKey = FString::Printf(TEXT("Parameter-%s"), *InInputParameterHandle);
-	Super::Initialize(InRequiredEntryData, bParameterIsAdvanced, InOwnerStackItemEditorDataKey, ParameterStackEditorDataKey);
+	Super::Initialize(InRequiredEntryData, InOwnerStackItemEditorDataKey, ParameterStackEditorDataKey);
 	DisplayName = FText::FromString(InInputParameterHandle);
 	ParameterName = *InInputParameterHandle;
 	InputType = InInputType;
