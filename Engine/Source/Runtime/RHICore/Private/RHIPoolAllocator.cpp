@@ -197,10 +197,11 @@ uint32 FRHIMemoryPool::GetAlignedOffset(uint32 InOffset, uint32 InPoolAlignment,
 }
 
 
-FRHIMemoryPool::FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment, EFreeListOrder InFreeListOrder) :
+FRHIMemoryPool::FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment, ERHIPoolResourceTypes InSupportedResourceTypes, EFreeListOrder InFreeListOrder) :
 	PoolIndex(InPoolIndex), 
 	PoolSize(InPoolSize), 
 	PoolAlignment(InPoolAlignment),
+	SupportedResourceTypes(InSupportedResourceTypes),
 	FreeListOrder(InFreeListOrder),
 	FreeSize(0), 
 	AligmnentWaste(0), 
@@ -256,8 +257,10 @@ void FRHIMemoryPool::Destroy()
 }
 
 
-bool FRHIMemoryPool::TryAllocate(uint32 InSizeInBytes, uint32 InAllocationAlignment, FRHIPoolAllocationData& AllocationData)
+bool FRHIMemoryPool::TryAllocate(uint32 InSizeInBytes, uint32 InAllocationAlignment, ERHIPoolResourceTypes InAllocationResourceType, FRHIPoolAllocationData& AllocationData)
 {
+	check(IsResourceTypeSupported(InAllocationResourceType));
+
 	int32 FreeBlockIndex = FindFreeBlock(InSizeInBytes, InAllocationAlignment);
 	if (FreeBlockIndex != INDEX_NONE)
 	{
@@ -341,7 +344,7 @@ void FRHIMemoryPool::TryClear(FRHIPoolAllocator* InAllocator, uint32 InMaxCopySi
 			// Try find pool to move requested allocation (in desired order already)
 			for (FRHIMemoryPool* TargetPool : InTargetPools)
 			{
-				if (TargetPool->TryAllocate(SizeToAllocate, AllocationAlignment, TempTargetAllocation))
+				if (TargetPool->TryAllocate(SizeToAllocate, AllocationAlignment, SupportedResourceTypes, TempTargetAllocation))
 				{
 					// RHI specific handling of the actual defrag request
 					InAllocator->HandleDefragRequest(BlockToMove, TempTargetAllocation);
@@ -565,7 +568,7 @@ void FRHIPoolAllocator::Destroy()
 }
 
 
-bool FRHIPoolAllocator::TryAllocateInternal(uint32 InSizeInBytes, uint32 InAllocationAlignment, FRHIPoolAllocationData& AllocationData)
+bool FRHIPoolAllocator::TryAllocateInternal(uint32 InSizeInBytes, uint32 InAllocationAlignment, ERHIPoolResourceTypes InAllocationResourceType, FRHIPoolAllocationData& AllocationData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRHIPoolAllocator::TryAllocateInternal);
 
@@ -575,7 +578,7 @@ bool FRHIPoolAllocator::TryAllocateInternal(uint32 InSizeInBytes, uint32 InAlloc
 	for (int32 PoolIndex : PoolAllocationOrder)
 	{
 		FRHIMemoryPool* Pool = Pools[PoolIndex];
-		if (Pool != nullptr && !Pool->IsFull() && Pool->TryAllocate(InSizeInBytes, InAllocationAlignment, AllocationData))
+		if (Pool != nullptr && Pool->IsResourceTypeSupported(InAllocationResourceType) && !Pool->IsFull() && Pool->TryAllocate(InSizeInBytes, InAllocationAlignment, InAllocationResourceType, AllocationData))
 		{
 			return true;
 		}
@@ -594,16 +597,16 @@ bool FRHIPoolAllocator::TryAllocateInternal(uint32 InSizeInBytes, uint32 InAlloc
 
 	if (NewPoolIndex >= 0)
 	{
-		Pools[NewPoolIndex] = CreateNewPool(NewPoolIndex, InSizeInBytes);
+		Pools[NewPoolIndex] = CreateNewPool(NewPoolIndex, InSizeInBytes, InAllocationResourceType);
 	}
 	else
 	{
 		NewPoolIndex = Pools.Num();		
-		Pools.Add(CreateNewPool(NewPoolIndex, InSizeInBytes));
+		Pools.Add(CreateNewPool(NewPoolIndex, InSizeInBytes, InAllocationResourceType));
 		PoolAllocationOrder.Add(NewPoolIndex);
 	}
 
-	return Pools[NewPoolIndex]->TryAllocate(InSizeInBytes, InAllocationAlignment, AllocationData);
+	return Pools[NewPoolIndex]->TryAllocate(InSizeInBytes, InAllocationAlignment, InAllocationResourceType, AllocationData);
 }
 
 

@@ -16,6 +16,18 @@ class FRHIPoolResource
 
 
 /**
+@brief Resource type supported by the pools (can be any or all)
+**/
+enum class ERHIPoolResourceTypes
+{
+	Buffers			= 0x1,
+	RTDSTextures	= 0x2,
+	NonRTDSTextures = 0x4,
+	All				= Buffers | RTDSTextures | NonRTDSTextures,
+};
+
+
+/**
 @brief Pool allocator internal data
 **/
 struct RHICORE_API FRHIPoolAllocationData
@@ -118,7 +130,7 @@ public:
 	};
 
 	// Constructor
-	FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment, EFreeListOrder InFreeListOrder);
+	FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment, ERHIPoolResourceTypes InSupportedResourceTypes, EFreeListOrder InFreeListOrder);
 	virtual ~FRHIMemoryPool();
 
 	// Setup/Shutdown
@@ -126,7 +138,7 @@ public:
 	virtual void Destroy();
 
 	// AllocationData functions: allocate, free, move, ...
-	bool TryAllocate(uint32 InSizeInBytes, uint32 InAllocationAlignment, FRHIPoolAllocationData& AllocationData);
+	bool TryAllocate(uint32 InSizeInBytes, uint32 InAllocationAlignment, ERHIPoolResourceTypes InAllocationResourceType, FRHIPoolAllocationData& AllocationData);
 	void Deallocate(FRHIPoolAllocationData& AllocationData);
 
 	// Bookkeeping and clearing
@@ -139,6 +151,8 @@ public:
 	uint64 GetUsedSize() const { return (PoolSize - FreeSize); }
 	uint32 GetAlignmentWaste() const { return AligmnentWaste; }
 	uint32 GetAllocatedBlocks() const { return AllocatedBlocks; }
+	ERHIPoolResourceTypes GetSupportedResourceTypes() const { return SupportedResourceTypes; }
+	bool IsResourceTypeSupported(ERHIPoolResourceTypes InType) const { return EnumHasAnyFlags(SupportedResourceTypes, InType); }
 	bool IsEmpty() const { return GetUsedSize() == 0; }
 	bool IsFull() const { return FreeSize == 0; }
 
@@ -164,6 +178,7 @@ protected:
 	int16 PoolIndex;
 	const uint64 PoolSize;
 	const uint32 PoolAlignment;
+	const ERHIPoolResourceTypes SupportedResourceTypes;
 	const EFreeListOrder FreeListOrder;
 
 	// Stats
@@ -210,11 +225,11 @@ public:
 protected:
 		
 	// Supported allocator operations
-	bool TryAllocateInternal(uint32 InSizeInBytes, uint32 InAllocationAlignment, FRHIPoolAllocationData& AllocationData);
+	bool TryAllocateInternal(uint32 InSizeInBytes, uint32 InAllocationAlignment, ERHIPoolResourceTypes InAllocationResourceType, FRHIPoolAllocationData& AllocationData);
 	void DeallocateInternal(FRHIPoolAllocationData& AllocationData);
 	
 	// Helper function to create a new platform specific pool
-	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize) = 0;
+	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize, ERHIPoolResourceTypes InAllocationResourceType) = 0;
 
 	// Handle a rhi specific defrag op
 	friend class FRHIMemoryPool;

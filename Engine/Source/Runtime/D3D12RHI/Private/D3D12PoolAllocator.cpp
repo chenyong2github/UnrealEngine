@@ -26,8 +26,8 @@ static FAutoConsoleVariableRef CVarD3D12MinPoolAllocationSizeToTrack(
 //-----------------------------------------------------------------------------
 
 FD3D12MemoryPool::FD3D12MemoryPool(FD3D12Device* ParentDevice, FRHIGPUMask VisibleNodes, const FD3D12ResourceInitConfig& InInitConfig, const FString& InName,
-	EResourceAllocationStrategy InAllocationStrategy, int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment, EFreeListOrder InFreeListOrder)
-	: FRHIMemoryPool(InPoolIndex, InPoolSize, InPoolAlignment, InFreeListOrder), FD3D12DeviceChild(ParentDevice), FD3D12MultiNodeGPUObject(ParentDevice->GetGPUMask(), VisibleNodes)
+	EResourceAllocationStrategy InAllocationStrategy, int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment, ERHIPoolResourceTypes InSupportedResourceTypes, EFreeListOrder InFreeListOrder)
+	: FRHIMemoryPool(InPoolIndex, InPoolSize, InPoolAlignment, InSupportedResourceTypes, InFreeListOrder), FD3D12DeviceChild(ParentDevice), FD3D12MultiNodeGPUObject(ParentDevice->GetGPUMask(), VisibleNodes)
 	, InitConfig(InInitConfig), Name(InName), AllocationStrategy(InAllocationStrategy), LastUsedFrameFence(0)
 {
 }
@@ -281,9 +281,24 @@ void FD3D12PoolAllocator::AllocateResource(D3D12_HEAP_TYPE InHeapType, const D3D
 			check(InDesc.Flags == InitConfig.ResourceFlags);
 		}
 
+		// Find the correct allocation resource type
+		ERHIPoolResourceTypes AllocationResourceType;
+		if (InDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+		{
+			AllocationResourceType = ERHIPoolResourceTypes::Buffers;
+		}
+		else if (EnumHasAnyFlags(InDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+		{
+			AllocationResourceType = ERHIPoolResourceTypes::RTDSTextures;
+		}
+		else
+		{
+			AllocationResourceType = ERHIPoolResourceTypes::NonRTDSTextures;
+		}
+
 		// Try to allocate in one of the pools
 		FRHIPoolAllocationData& AllocationData = ResourceLocation.GetPoolAllocatorPrivateData().PoolData;
-		verify(TryAllocateInternal(InSize, AllocationAlignment, AllocationData));
+		verify(TryAllocateInternal(InSize, AllocationAlignment, AllocationResourceType, AllocationData));
 
 		// Setup the resource location
 		ResourceLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eSubAllocation);
@@ -420,7 +435,7 @@ void FD3D12PoolAllocator::DeallocateResource(FD3D12ResourceLocation& ResourceLoc
 }
 
 
-FRHIMemoryPool* FD3D12PoolAllocator::CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize)
+FRHIMemoryPool* FD3D12PoolAllocator::CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize, ERHIPoolResourceTypes InAllocationResourceType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FD3D12PoolAllocator::CreateNewPool);
 
@@ -434,7 +449,7 @@ FRHIMemoryPool* FD3D12PoolAllocator::CreateNewPool(int16 InPoolIndex, uint32 InM
 	}
 
 	FD3D12MemoryPool* NewPool = new FD3D12MemoryPool(GetParentDevice(),	GetVisibilityMask(), InitConfig,
-		Name, AllocationStrategy, InPoolIndex, PoolSize, PoolAlignment, FreeListOrder);
+		Name, AllocationStrategy, InPoolIndex, PoolSize, PoolAlignment, InAllocationResourceType, FreeListOrder);
 	NewPool->Init();
 	return NewPool;
 }

@@ -63,9 +63,9 @@ class FD3D12TransientMemoryPool : public FD3D12MemoryPool
 {
 public:
 
-	FD3D12TransientMemoryPool(FD3D12Device* ParentDevice, FRHIGPUMask VisibleNodes, const FD3D12ResourceInitConfig& InInitConfig, const FString& Name,
+	FD3D12TransientMemoryPool(FD3D12Device* ParentDevice, FRHIGPUMask VisibleNodes, const FD3D12ResourceInitConfig& InInitConfig, ERHIPoolResourceTypes InSupportedResourceTypes, const FString& Name,
 		EResourceAllocationStrategy InAllocationStrategy, int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment) :
-		FD3D12MemoryPool(ParentDevice, VisibleNodes, InInitConfig, Name, InAllocationStrategy, InPoolIndex, InPoolSize, InPoolAlignment, FRHIMemoryPool::EFreeListOrder::SortByOffset) { }
+		FD3D12MemoryPool(ParentDevice, VisibleNodes, InInitConfig, Name, InAllocationStrategy, InPoolIndex, InPoolSize, InPoolAlignment, InSupportedResourceTypes, FRHIMemoryPool::EFreeListOrder::SortByOffset) { }
 	virtual ~FD3D12TransientMemoryPool();
 
 	void ResetPool();
@@ -125,7 +125,7 @@ public:
 	void EndFrame();
 
 	// Get or creation functions from cached resources
-	FD3D12TransientMemoryPool* GetOrCreateMemoryPool(int16 InPoolIndex, uint32 InMinimumAllocationSize);
+	FD3D12TransientMemoryPool* GetOrCreateMemoryPool(int16 InPoolIndex, uint32 InMinimumAllocationSize, ERHIPoolResourceTypes InAllocationResourceType);
 	void ReleaseMemoryPool(FD3D12TransientMemoryPool* InMemoryPool);
 	FD3D12PooledTextureData GetPooledTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName);
 	FD3D12PooledBufferData GetPooledBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName);
@@ -155,6 +155,7 @@ private:
 	uint64 DefaultPoolSize;
 	uint32 PoolAlignment;
 	uint64 MaxAllocationSize;
+	bool bMergedTypeHeapSupported;
 
 	// Critical section to lock access to the pools & resource caches
 	FCriticalSection CS;
@@ -205,7 +206,7 @@ private:
 
 	// Override placed resource allocation helper function to get from cache if available
 	virtual FD3D12Resource* CreatePlacedResource(const FRHIPoolAllocationData& InAllocationData, const D3D12_RESOURCE_DESC& InDesc, D3D12_RESOURCE_STATES InCreateState, ED3D12ResourceStateMode InResourceStateMode, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName) override;
-	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize) override;
+	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize, ERHIPoolResourceTypes InAllocationResourceType) override;
 
 	// Shared allocation/deallocation helper
 	FD3D12BaseShaderResource* GetBaseShaderResource(FRHITexture* InRHITexture);

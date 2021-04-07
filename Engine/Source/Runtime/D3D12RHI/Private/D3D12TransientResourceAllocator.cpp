@@ -220,6 +220,9 @@ FD3D12TransientMemoryPoolManager::FD3D12TransientMemoryPoolManager(FD3D12Device*
 	: FD3D12DeviceChild(InDevice)
 	, FD3D12MultiNodeGPUObject(InDevice->GetGPUMask(), VisibleNodes)
 {
+	// Does the device support Heap Tier 2 - merged heaps for buffers & textures
+	bMergedTypeHeapSupported = (InDevice->GetParentAdapter()->GetResourceHeapTier() == D3D12_RESOURCE_HEAP_TIER_2);
+
 	// texture only interesting in VRAM for now
 	InitConfig.HeapType = D3D12_HEAP_TYPE_DEFAULT;
 
@@ -227,7 +230,7 @@ FD3D12TransientMemoryPoolManager::FD3D12TransientMemoryPoolManager(FD3D12Device*
 	InitConfig.ResourceFlags = D3D12_RESOURCE_FLAG_NONE;
 	InitConfig.InitialResourceState = D3D12_RESOURCE_STATE_COMMON;
 
-	// Support RT and UAV for now (Tier 2 support) - need to add different pools for Tier 1
+	// By default the manager and allocator support all resource types
 	InitConfig.HeapFlags = D3D12_HEAP_FLAGS(0); // 0 means nothing is denied
 
 	DefaultPoolSize = GD3D12TransientAllocatorDefaultPoolSizeInMB * 1024 * 1024;
@@ -279,7 +282,7 @@ void FD3D12TransientMemoryPoolManager::EndFrame()
 }
 
 
-FD3D12TransientMemoryPool* FD3D12TransientMemoryPoolManager::GetOrCreateMemoryPool(int16 InPoolIndex, uint32 InMinimumAllocationSize)
+FD3D12TransientMemoryPool* FD3D12TransientMemoryPoolManager::GetOrCreateMemoryPool(int16 InPoolIndex, uint32 InMinimumAllocationSize, ERHIPoolResourceTypes InAllocationResourceType)
 {
 	FScopeLock Lock(&CS);
 
@@ -289,7 +292,7 @@ FD3D12TransientMemoryPool* FD3D12TransientMemoryPoolManager::GetOrCreateMemoryPo
 	for (int32 PoolIndex = 0; PoolIndex < Pools.Num(); ++PoolIndex)
 	{
 		FD3D12TransientMemoryPool* Pool = Pools[PoolIndex];
-		if (Pool->GetPoolSize() >= InMinimumAllocationSize)
+		if (Pool->GetPoolSize() >= InMinimumAllocationSize && Pool->IsResourceTypeSupported(InAllocationResourceType))
 		{			
 			MemoryPool = Pool;
 			MemoryPool->SetPoolIndex(InPoolIndex);
@@ -312,7 +315,32 @@ FD3D12TransientMemoryPool* FD3D12TransientMemoryPoolManager::GetOrCreateMemoryPo
 			PoolSize = FMath::Min(FMath::RoundUpToPowerOfTwo(InMinimumAllocationSize), (uint32)MaxAllocationSize);
 		}
 
-		MemoryPool = new FD3D12TransientMemoryPool(GetParentDevice(), GetVisibilityMask(), InitConfig,
+		// If merged heap types are not supported then create a resource type specific heap
+		FD3D12ResourceInitConfig PoolInitConfig = InitConfig;		
+		if (!bMergedTypeHeapSupported)
+		{
+			switch (InAllocationResourceType)
+			{
+			case ERHIPoolResourceTypes::Buffers:
+			{
+				PoolInitConfig.HeapFlags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+				break;
+			}
+			case ERHIPoolResourceTypes::RTDSTextures:
+			{
+				PoolInitConfig.HeapFlags = D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES;
+				break;
+			}
+			case ERHIPoolResourceTypes::NonRTDSTextures:
+			{
+				PoolInitConfig.HeapFlags = D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+				break;
+			}
+			}
+		}
+		ERHIPoolResourceTypes SupportedResourceTypes = bMergedTypeHeapSupported ? ERHIPoolResourceTypes::All : InAllocationResourceType;
+
+		MemoryPool = new FD3D12TransientMemoryPool(GetParentDevice(), GetVisibilityMask(), PoolInitConfig, SupportedResourceTypes,
 			TEXT("TransientResourceMemoryPool"), EResourceAllocationStrategy::kPlacedResource, InPoolIndex, PoolSize, PoolAlignment);
 		MemoryPool->Init();
 
@@ -819,10 +847,10 @@ void FD3D12TransientResourceAllocator::Freeze(FRHICommandListImmediate&)
 }
 
 
-FRHIMemoryPool* FD3D12TransientResourceAllocator::CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize)
+FRHIMemoryPool* FD3D12TransientResourceAllocator::CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize, ERHIPoolResourceTypes InAllocationResourceType)
 {
 	// Get pool from manager - don't reallocate each time
-	return GetParentDevice()->GetTransientMemoryPoolManager().GetOrCreateMemoryPool(InPoolIndex, InMinimumAllocationSize);
+	return GetParentDevice()->GetTransientMemoryPoolManager().GetOrCreateMemoryPool(InPoolIndex, InMinimumAllocationSize, InAllocationResourceType);
 }
 
 
