@@ -125,7 +125,7 @@ public:
 	void EndFrame();
 
 	// Get or creation functions from cached resources
-	FD3D12TransientMemoryPool* GetOrCreateMemoryPool(int16 InPoolIndex);
+	FD3D12TransientMemoryPool* GetOrCreateMemoryPool(int16 InPoolIndex, uint32 InMinimumAllocationSize);
 	void ReleaseMemoryPool(FD3D12TransientMemoryPool* InMemoryPool);
 	FD3D12PooledTextureData GetPooledTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName);
 	FD3D12PooledBufferData GetPooledBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName);
@@ -133,7 +133,7 @@ public:
 
 	// Get the pool creation members
 	const FD3D12ResourceInitConfig& GetInitConfig() const { return InitConfig; }
-	uint64 GetPoolSize() const { return PoolSize; }
+	uint64 GetDefaultPoolSize() const { return DefaultPoolSize; }
 	uint32 GetPoolAlignment() const { return PoolAlignment; }
 	uint64 GetMaxAllocationSize() const { return MaxAllocationSize; }
 
@@ -152,7 +152,7 @@ private:
 
 	// Pool creation members
 	FD3D12ResourceInitConfig InitConfig;
-	uint64 PoolSize;
+	uint64 DefaultPoolSize;
 	uint32 PoolAlignment;
 	uint64 MaxAllocationSize;
 

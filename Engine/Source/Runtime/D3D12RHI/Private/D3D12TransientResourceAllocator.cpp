@@ -3,13 +3,20 @@
 #include "D3D12RHIPrivate.h"
 #include "D3D12TransientResourceAllocator.h"
 
-//PRAGMA_DISABLE_OPTIMIZATION
+PRAGMA_DISABLE_OPTIMIZATION
 
-static int32 GD3D12TransientAllocatorPoolSizeInMB = 128;
+static int32 GD3D12TransientAllocatorDefaultPoolSizeInMB = 64;
 static FAutoConsoleVariableRef CVarD3D12TransientAllocatorPoolSizeInMB(
-	TEXT("d3d12.TransientAllocator.PoolSizeInMB"),
-	GD3D12TransientAllocatorPoolSizeInMB,
-	TEXT("Size of a D3D12 transient allocator pool in MB (Default 128)"),
+	TEXT("d3d12.TransientAllocator.DefaultPoolSizeInMB"),
+	GD3D12TransientAllocatorDefaultPoolSizeInMB,
+	TEXT("Default size of a D3D12 transient allocator pool in MB (Default 128)"),
+	ECVF_ReadOnly);
+
+static int32 GD3D12TransientAllocatorMaxAllocationSizeInMB = 512;
+static FAutoConsoleVariableRef CVarD3D12TransientAllocatorMaxAllocationSizeInMB(
+	TEXT("d3d12.TransientAllocator.MaxPoolSizeInMB"),
+	GD3D12TransientAllocatorMaxAllocationSizeInMB,
+	TEXT("Max size of an D3D12 transient allocation in MB (Default 512)"),
 	ECVF_ReadOnly);
 
 static int32 GD3D12TransientAllocatorPoolTextures = 1;
@@ -177,7 +184,7 @@ void FD3D12TransientMemoryPool::ReleaseResource(FD3D12Resource* InResource, FRHI
 
 	uint64 AllocationOffset = InReleasedAllocationData.GetOffset();
 	uint64 AllocationSize = InReleasedAllocationData.GetSize();
-	
+
 	// Placed resource object is 'never' freed - it can be reused again this or next frame
 	// Will only be destroyed when the allocator is destroyed
 	FResourceCreateState CreateState;
@@ -188,7 +195,7 @@ void FD3D12TransientMemoryPool::ReleaseResource(FD3D12Resource* InResource, FRHI
 	uint64 CreateStateHash = CreateState.GetHash();
 	check(CachedResourceMap.Find(CreateStateHash) == nullptr);
 	CachedResourceMap.Add(CreateStateHash, InResource);
-
+	
 	// Track this resource so aliasing barriers can be added if used again
 	ActiveResourceData ResourceData;
 	ResourceData.AllocationRange = FInt64Range(AllocationOffset, AllocationOffset + AllocationSize);
@@ -225,9 +232,9 @@ FD3D12TransientMemoryPoolManager::FD3D12TransientMemoryPoolManager(FD3D12Device*
 	// Support RT and UAV for now (Tier 2 support) - need to add different pools for Tier 1
 	InitConfig.HeapFlags = D3D12_HEAP_FLAGS(0); // 0 means nothing is denied
 
-	PoolSize = GD3D12TransientAllocatorPoolSizeInMB * 1024 * 1024;
+	DefaultPoolSize = GD3D12TransientAllocatorDefaultPoolSizeInMB * 1024 * 1024;
 	PoolAlignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-	MaxAllocationSize = PoolSize;
+	MaxAllocationSize = GD3D12TransientAllocatorMaxAllocationSizeInMB * 1024 * 1024;
 }
 
 
@@ -274,19 +281,38 @@ void FD3D12TransientMemoryPoolManager::EndFrame()
 }
 
 
-FD3D12TransientMemoryPool* FD3D12TransientMemoryPoolManager::GetOrCreateMemoryPool(int16 InPoolIndex)
+FD3D12TransientMemoryPool* FD3D12TransientMemoryPoolManager::GetOrCreateMemoryPool(int16 InPoolIndex, uint32 InMinimumAllocationSize)
 {
 	FScopeLock Lock(&CS);
 
 	FD3D12TransientMemoryPool* MemoryPool = nullptr;
-	if (Pools.Num() > 0)
+
+	// Try and find a pool which fits this allocations (sort by size so will take best fit)
+	for (int32 PoolIndex = 0; PoolIndex < Pools.Num(); ++PoolIndex)
 	{
-		MemoryPool = Pools.Pop(false);
-		MemoryPool->SetPoolIndex(InPoolIndex);
+		FD3D12TransientMemoryPool* Pool = Pools[PoolIndex];
+		if (Pool->GetPoolSize() >= InMinimumAllocationSize)
+		{			
+			MemoryPool = Pool;
+			MemoryPool->SetPoolIndex(InPoolIndex);
+			Pools.RemoveAt(PoolIndex);
+			break;
+		}
 	}
-	else
+
+	// couldn't find a pool?
+	if (MemoryPool == nullptr)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::AllocateTransientMemoryPool);
+
+		// Find out the pool size - use default, but if allocation doesn't fit then round up to next power of 2
+		// so it 'always' fits the pool allocator
+		uint32 PoolSize = DefaultPoolSize;
+		if (InMinimumAllocationSize > PoolSize)
+		{
+			check(InMinimumAllocationSize <= MaxAllocationSize);
+			PoolSize = FMath::Min(FMath::RoundUpToPowerOfTwo(InMinimumAllocationSize), (uint32)MaxAllocationSize);
+		}
 
 		MemoryPool = new FD3D12TransientMemoryPool(GetParentDevice(), GetVisibilityMask(), InitConfig,
 			TEXT("TransientResourceMemoryPool"), EResourceAllocationStrategy::kPlacedResource, InPoolIndex, PoolSize, PoolAlignment);
@@ -313,7 +339,19 @@ void FD3D12TransientMemoryPoolManager::ReleaseMemoryPool(FD3D12TransientMemoryPo
 {
 	FScopeLock Lock(&CS);
 	InMemoryPool->ResetPool();
-	Pools.Add(InMemoryPool);
+
+	// sorted insert
+	int32 InsertIndex = 0;
+	for (; InsertIndex < Pools.Num(); ++InsertIndex)
+	{
+		// First by size then by last frame usage
+		if (Pools[InsertIndex]->GetPoolSize() >= InMemoryPool->GetPoolSize() &&
+			Pools[InsertIndex]->GetLastUsedFrameFence() <= InMemoryPool->GetLastUsedFrameFence())
+		{
+			break;
+		}
+	}
+	Pools.Insert(InMemoryPool, InsertIndex);
 }
 
 
@@ -481,7 +519,7 @@ FD3D12TransientResourceAllocator::FD3D12TransientResourceAllocator(FD3D12Transie
 		InMemoryPoolManager.GetInitConfig(),
 		TEXT("FD3D12TransientResourceAllocator"),
 		EResourceAllocationStrategy::kPlacedResource,
-		InMemoryPoolManager.GetPoolSize(),
+		InMemoryPoolManager.GetDefaultPoolSize(),
 		InMemoryPoolManager.GetPoolAlignment(),
 		InMemoryPoolManager.GetMaxAllocationSize(),
 		FRHIMemoryPool::EFreeListOrder::SortByOffset,
@@ -510,7 +548,7 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 	FD3D12PooledTextureData TextureData = PoolManager.GetPooledTexture(InCreateInfo, InDebugName);
 
 	FD3D12BaseShaderResource* BaseShaderResource = nullptr;
-	
+
 	ERHIAccess InitialState = ERHIAccess::UAVMask;
 	if (EnumHasAnyFlags(InCreateInfo.Flags, TexCreate_RenderTargetable))
 	{
@@ -786,7 +824,7 @@ void FD3D12TransientResourceAllocator::Freeze(FRHICommandListImmediate&)
 FRHIMemoryPool* FD3D12TransientResourceAllocator::CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize)
 {
 	// Get pool from manager - don't reallocate each time
-	return GetParentDevice()->GetTransientMemoryPoolManager().GetOrCreateMemoryPool(InPoolIndex);
+	return GetParentDevice()->GetTransientMemoryPoolManager().GetOrCreateMemoryPool(InPoolIndex, InMinimumAllocationSize);
 }
 
 
