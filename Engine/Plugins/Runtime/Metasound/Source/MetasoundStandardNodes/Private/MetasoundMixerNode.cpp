@@ -62,7 +62,7 @@ namespace Metasound
 					}
 
 					// gain scalar
-					InputInterface.Add(TInputDataVertexModel<float>(GetGainInputName(InputIndex), GetGainInputDescription(InputIndex)));
+					InputInterface.Add(TInputDataVertexModel<float>(GetGainInputName(InputIndex), GetGainInputDescription(InputIndex), 1.0f));
 				}
 
 				// outputs
