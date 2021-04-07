@@ -187,16 +187,26 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 {
 	TextWidget = InTextWidget;
 	TextEntry = FText::FromString(TEXT(""));
-	if(CachedTextContents != nil)
+	if(CachedTextContents != nil && CachedTextContents != TextContents)
 	{
 		[CachedTextContents release];
+		CachedTextContents = nil;
 	}
-	if(CachedPlaceholderContents != nil)
+	if(CachedPlaceholderContents != nil && CachedPlaceholderContents != PlaceholderContents)
 	{
 		[CachedPlaceholderContents release];
+		CachedPlaceholderContents = nil;
 	}
-	CachedTextContents = [TextContents copy];
-	CachedPlaceholderContents = [PlaceholderContents copy];
+
+	if(CachedTextContents != TextContents)
+	{
+		CachedTextContents = [TextContents copy];
+	}
+	if(CachedPlaceholderContents != PlaceholderContents)
+	{
+		CachedPlaceholderContents = [PlaceholderContents copy];
+	}
+
 	CachedKeyboardConfig = KeyboardConfig;
 	bWantsToShow = true;
 
