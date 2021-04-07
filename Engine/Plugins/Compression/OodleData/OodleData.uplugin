@@ -16,7 +16,7 @@
 
   "Modules": [
     {
-      "Name": "OodleDataPlugin",
+      "Name": "OodleDataCompressionFormat",
       "Type": "RuntimeAndProgram",
       "LoadingPhase": "EarliestPossible",
       "WhitelistPrograms": [ "UnrealPak" ],

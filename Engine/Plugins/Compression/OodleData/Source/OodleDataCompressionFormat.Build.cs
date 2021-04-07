@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using UnrealBuildTool;
 
-public class OodleDataPlugin : ModuleRules
+public class OodleDataCompressionFormat : ModuleRules
 {
 	protected virtual string OodleVersion { get { return "2.9.0"; } }
 
@@ -20,13 +20,13 @@ public class OodleDataPlugin : ModuleRules
 	protected virtual string IncludeDirectory { get { return Path.Combine(ModuleDirectory, "..", "Sdks", OodleVersion, "include"); } }
 
 
-	public OodleDataPlugin(ReadOnlyTargetRules Target) : base(Target)
+	public OodleDataCompressionFormat(ReadOnlyTargetRules Target) : base(Target)
 	{
-		ShortName = "OodleDataPlugin";
+		ShortName = "OodleDataCompressionFormat";
 
         PublicIncludePaths.Add(IncludeDirectory);
 
-        PrivatePCHHeaderFile = "Private/OodleDataPluginPCH.h";
+        PrivatePCHHeaderFile = "Private/OodleDataCompressionFormatPCH.h";
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]

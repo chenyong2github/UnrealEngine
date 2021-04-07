@@ -69,7 +69,7 @@ PakFileCompressionLevel_DebugDevelopment=3
 #include "Settings/ProjectPackagingSettings.h"
 #endif
 
-#include "OodleDataPluginPCH.h"
+#include "OodleDataCompressionFormatPCH.h"
 
 DEFINE_LOG_CATEGORY_STATIC(OodleCompression, Log, All);
 
@@ -440,4 +440,4 @@ class FOodleDataCompressionFormatModuleInterface : public IModuleInterface
 	ICompressionFormat* CompressionFormat = nullptr;
 };
 
-IMPLEMENT_MODULE(FOodleDataCompressionFormatModuleInterface, OodleDataPlugin);
+IMPLEMENT_MODULE(FOodleDataCompressionFormatModuleInterface, OodleDataCompressionFormat);
