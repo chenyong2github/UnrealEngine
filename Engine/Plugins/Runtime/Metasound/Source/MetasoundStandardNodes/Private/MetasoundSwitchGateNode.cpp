@@ -10,7 +10,7 @@
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundVertex.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_SwitchGateNode"
 
 // pending array support...
 //REGISTER_METASOUND_DATATYPE(Metasound::FAudioBufferArray, "Audio:BufferArray")

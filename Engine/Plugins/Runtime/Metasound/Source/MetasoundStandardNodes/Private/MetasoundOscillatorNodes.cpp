@@ -16,7 +16,7 @@
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_OscillatorNodes"
 
 namespace Metasound
 {			

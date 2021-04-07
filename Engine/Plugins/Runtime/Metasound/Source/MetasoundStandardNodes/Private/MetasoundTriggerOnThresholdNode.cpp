@@ -14,7 +14,7 @@
 #include "MetasoundVertex.h"
 #include "MetasoundStandardNodesCategories.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_ThresholdNode"
 
 namespace Metasound
 {

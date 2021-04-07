@@ -10,7 +10,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundParamHelper.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_MaxNode"
 
 namespace Metasound
 {

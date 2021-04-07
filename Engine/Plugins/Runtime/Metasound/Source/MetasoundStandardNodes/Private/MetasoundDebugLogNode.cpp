@@ -7,7 +7,7 @@
 #include "MetasoundTrigger.h"
 #include "MetasoundPrimitives.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_DebugLogNode"
 
 namespace Metasound
 {

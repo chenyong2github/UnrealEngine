@@ -10,7 +10,7 @@
 #include "MetasoundAudioBuffer.h"
 #include "DSP/WaveShaper.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_WaveShaperNode"
 
 namespace Metasound
 {

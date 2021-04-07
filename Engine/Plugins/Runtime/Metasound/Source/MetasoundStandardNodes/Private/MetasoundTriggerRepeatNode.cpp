@@ -18,7 +18,7 @@
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundParamHelper.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_RepeatNode"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_TriggerRepeatNode"
 
 namespace Metasound
 {

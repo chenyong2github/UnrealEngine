@@ -15,7 +15,7 @@
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundTrigger.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_TriggerRouter"
 
 #define REGISTER_TRIGGER_ROUTE_NODE(DataType, Number) \
 	using FTriggerRouteNode##DataType##_##Number = TTriggerRouteNode<DataType, Number>; \

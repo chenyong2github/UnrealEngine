@@ -15,7 +15,7 @@
 #include "DSP/Dsp.h"
 #include "MetasoundParamHelper.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_ADEnvelopeNode"
 
 namespace Metasound
 {

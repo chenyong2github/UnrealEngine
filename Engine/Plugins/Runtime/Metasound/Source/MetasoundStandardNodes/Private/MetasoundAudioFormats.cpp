@@ -10,7 +10,7 @@
 #include "MetasoundLiteral.h"
 #include "MetasoundOutputNode.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_AudioFormats"
 
 namespace Metasound
 {

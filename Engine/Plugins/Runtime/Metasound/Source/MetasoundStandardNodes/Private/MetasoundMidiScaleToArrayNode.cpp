@@ -17,7 +17,7 @@
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundBasicFilterNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_MidiScaleToArray"
 
 namespace Metasound
 {

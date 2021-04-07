@@ -9,7 +9,7 @@
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTime.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_BPMToSeconds"
 
 namespace Metasound
 {

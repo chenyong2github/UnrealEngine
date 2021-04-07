@@ -17,7 +17,7 @@
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundParamHelper.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_TriggerPipe"
 
 namespace Metasound
 {

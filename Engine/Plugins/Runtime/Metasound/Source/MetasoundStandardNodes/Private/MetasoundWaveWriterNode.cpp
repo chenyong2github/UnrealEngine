@@ -13,7 +13,7 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_WaveWriterNode"
 
 namespace Metasound
 {	

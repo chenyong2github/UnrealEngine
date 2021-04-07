@@ -14,7 +14,7 @@
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundFacade.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_DelayNode"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_StereoDelayNode"
 
 namespace Metasound
 {

@@ -15,7 +15,7 @@
 #include "MetasoundVertex.h"
 #include "DSP/EnvelopeFollower.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_EnvelopeFollower"
 
 namespace Metasound
 {

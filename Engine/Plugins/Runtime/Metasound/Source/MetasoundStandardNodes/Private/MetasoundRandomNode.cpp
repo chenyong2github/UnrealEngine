@@ -5,7 +5,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundNodeRegistrationMacro.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_RandomNode"
 
 namespace Metasound
 {
