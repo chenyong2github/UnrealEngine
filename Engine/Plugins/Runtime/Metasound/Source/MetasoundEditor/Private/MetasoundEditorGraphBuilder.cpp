@@ -368,12 +368,6 @@ namespace Metasound
 		{
 			using namespace Frontend;
 
-			FMetasoundFrontendLiteral PinDataTypeDefaultLiteral;
-			if (!GetPinDefaultLiteral(InInputPin, PinDataTypeDefaultLiteral))
-			{
-				return;
-			}
-
 			FInputHandle InputHandle = GetInputHandleFromPin(&InInputPin);
 			if (!ensure(InputHandle->IsValid()))
 			{
@@ -381,45 +375,7 @@ namespace Metasound
 			}
 
 			FOutputHandle OutputHandle = InputHandle->GetCurrentlyConnectedOutput();
-			if (!OutputHandle->IsValid())
-			{
-				const FName TypeName = InputHandle->GetDataType();
-				const FString NewInputName = GenerateUniqueInputName(InMetasound);
-				Frontend::FNodeHandle NewInputNode = AddInputNodeHandle(InMetasound, NewInputName, TypeName, FText::GetEmpty(), EMetasoundFrontendNodeStyleDisplayVisibility::Hidden, &PinDataTypeDefaultLiteral);
-
-				Frontend::FGraphHandle GraphHandle = InNodeHandle->GetOwningGraph();
-				const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NewInputNode->GetNodeName());
-				if (bForcePinValueAsDefault)
-				{
-					GraphHandle->SetDefaultInput(VertexID, PinDataTypeDefaultLiteral);
-				}
-				// Hack fix for triggers having special aspect in that they hide the default
-				// literal picker, but require a default value for graph synchronization purposes.
-				else if (InInputPin.PinType.PinCategory == PinCategoryTrigger)
-				{
-					FMetasoundFrontendLiteral DefaultTriggerLiteral;
-					DefaultTriggerLiteral.Set(false);
-					GraphHandle->SetDefaultInput(VertexID, DefaultTriggerLiteral);
-					InInputPin.DefaultValue = DefaultTriggerLiteral.ToString();
-				}
-				else if (const FMetasoundFrontendLiteral* DefaultLiteral = InputHandle->GetDefaultLiteral())
-				{
-					if (DefaultLiteral->IsValid())
-					{
-						GraphHandle->SetDefaultInput(VertexID, *DefaultLiteral);
-						InInputPin.DefaultValue = DefaultLiteral->ToString();
-					}
-				}
-
-				TArray<FOutputHandle> OutputHandles = NewInputNode->GetOutputs();
-				if (ensure(OutputHandles.Num() == 1))
-				{
-					OutputHandle = OutputHandles[0];
-				}
-
-				ensure(InputHandle->Connect(*OutputHandle));
-			}
-			else
+			if (OutputHandle->IsValid())
 			{
 				FNodeHandle InputNode = OutputHandle->GetOwningNode();
 				if (IsLiteralInput(InputNode))
@@ -427,7 +383,59 @@ namespace Metasound
 					Frontend::FGraphHandle GraphHandle = InputNode->GetOwningGraph();
 					const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(InputNode->GetNodeName());
 
-					GraphHandle->SetDefaultInput(VertexID, PinDataTypeDefaultLiteral);
+					FMetasoundFrontendLiteral PinDataTypeDefaultLiteral;
+					if (GetPinDefaultLiteral(InInputPin, PinDataTypeDefaultLiteral))
+					{
+						GraphHandle->SetDefaultInput(VertexID, PinDataTypeDefaultLiteral);
+					}
+				}
+				return;
+			}
+
+			const FName TypeName = InputHandle->GetDataType();
+			const FString NewInputName = GenerateUniqueInputName(InMetasound);
+			Frontend::FNodeHandle NewInputNode = INodeController::GetInvalidHandle();
+
+			if (bForcePinValueAsDefault)
+			{
+				FMetasoundFrontendLiteral PinDataTypeDefaultLiteral;
+				if (GetPinDefaultLiteral(InInputPin, PinDataTypeDefaultLiteral))
+				{
+					NewInputNode = AddInputNodeHandle(InMetasound, NewInputName, TypeName, FText::GetEmpty(), EMetasoundFrontendNodeStyleDisplayVisibility::Hidden, &PinDataTypeDefaultLiteral);
+				}
+			}
+			else
+			{
+				NewInputNode = AddInputNodeHandle(InMetasound, NewInputName, TypeName, FText::GetEmpty(), EMetasoundFrontendNodeStyleDisplayVisibility::Hidden);
+
+				Frontend::FGraphHandle GraphHandle = InNodeHandle->GetOwningGraph();
+				const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NewInputNode->GetNodeName());
+
+				FMetasoundFrontendLiteral DefaultLiteral;
+
+				// If the node's input is set/not the base implementation (none), set the new graph input's value/pin's default value to the node input's default literal.
+				const FMetasoundFrontendLiteral* NodeInputDefault = InputHandle->GetDefaultLiteral();
+				if (NodeInputDefault && NodeInputDefault->GetType() != EMetasoundFrontendLiteralType::None)
+				{
+					DefaultLiteral = *NodeInputDefault;
+				}
+				// Otherwise, get the class default for the given input node's type, and set the new graph input's value/input pin's default to that.
+				else
+				{
+					const Metasound::FLiteral Literal = Frontend::GetDefaultParamForDataType(TypeName);
+					DefaultLiteral.SetFromLiteral(Literal);
+				}
+				InInputPin.DefaultValue = DefaultLiteral.ToString();
+				GraphHandle->SetDefaultInput(VertexID, DefaultLiteral);
+			}
+
+			if (NewInputNode->IsValid())
+			{
+				TArray<FOutputHandle> OutputHandles = NewInputNode->GetOutputs();
+				if (ensure(OutputHandles.Num() == 1))
+				{
+					OutputHandle = OutputHandles[0];
+					ensure(InputHandle->Connect(*OutputHandle));
 				}
 			}
 		}
@@ -662,10 +670,7 @@ namespace Metasound
 
 				if (InDefaultValue)
 				{
-					if (InDefaultValue->GetType() != EMetasoundFrontendLiteralType::None && InDefaultValue->GetType() != EMetasoundFrontendLiteralType::Invalid)
-					{
-						GraphHandle->SetDefaultInput(VertexID, *InDefaultValue);
-					}
+					GraphHandle->SetDefaultInput(VertexID, *InDefaultValue);
 				}
 				else
 				{

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SMetasoundEnumPin.h"
+#include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
 #include "ScopedTransaction.h"
 
@@ -82,6 +83,18 @@ void SMetasoundEnumPin::ComboBoxSelectionChanged(TSharedPtr<int32> NewSelection,
 		FString EnumValueString = FString::FromInt(EnumValue);
 		if (GraphPinObj->GetDefaultAsString() != EnumValueString)
 		{
+			const FScopedTransaction Transaction(NSLOCTEXT("MetaSoundEditor", "ChangeEnumPinValue", "Change MetaSound Node Default Input Enum Value"));
+			GraphPinObj->Modify();
+
+			if (UMetasoundEditorGraphNode* MetaSoundNode = Cast<UMetasoundEditorGraphNode>(GraphPinObj->GetOwningNode()))
+			{
+				if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(MetaSoundNode->GetGraph()))
+				{
+					Graph->Modify();
+					Graph->GetMetasoundChecked().Modify();
+				}
+			}
+
 			//Set new selection
 			GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, EnumValueString);
 		}
