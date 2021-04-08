@@ -202,4 +202,9 @@ public:
 	 * Raised when the "View Options" combo button is clicked and its menu is being opened
 	 */
 	virtual void FillViewOptionsMenu(FMenuBuilder& MenuBuilder) = 0;
+
+	/**
+	 * @return The watermark text to display in the bottom right corner of the tree view
+	 */
+	virtual FText GetCornerText() const = 0;
 };

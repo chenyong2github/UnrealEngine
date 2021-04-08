@@ -178,6 +178,11 @@ void FDisplayClusterConfiguratorViewCluster::FillAddNewMenu(FMenuBuilder& MenuBu
 	MenuBuilder.AddMenuEntry(ConfiguratorCommands.AddNewViewport);
 }
 
+FText FDisplayClusterConfiguratorViewCluster::GetCornerText() const
+{
+	return LOCTEXT("CornerText", "STEP 2");
+}
+
 void FDisplayClusterConfiguratorViewCluster::OnClusterChanged()
 {
 	ClearSelection();

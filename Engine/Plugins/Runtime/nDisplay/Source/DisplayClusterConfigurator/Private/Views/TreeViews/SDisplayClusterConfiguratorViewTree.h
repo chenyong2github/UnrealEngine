@@ -154,6 +154,11 @@ protected:
 	 */
 	virtual TSharedRef<SWidget> CreateViewOptionsMenuContent();
 
+	/**
+	 * @return The watermark text to display in the bottom right corner
+	 */
+	virtual FText GetCornerText() const;
+
 protected:
 	/** Current text typed into NameFilterBox */
 	FText FilterText;

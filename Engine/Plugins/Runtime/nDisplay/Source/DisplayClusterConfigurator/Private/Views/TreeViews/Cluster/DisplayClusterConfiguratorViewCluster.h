@@ -32,6 +32,7 @@ public:
 	virtual void BindPinnableCommands(FUICommandList_Pinnable& CommandList) override;
 	virtual bool ShowAddNewButton() const override { return true; }
 	virtual void FillAddNewMenu(FMenuBuilder& MenuBuilder) override;
+	virtual FText GetCornerText() const override;
 	//~ End FDisplayClusterConfiguratorViewTree interface
 
 private:

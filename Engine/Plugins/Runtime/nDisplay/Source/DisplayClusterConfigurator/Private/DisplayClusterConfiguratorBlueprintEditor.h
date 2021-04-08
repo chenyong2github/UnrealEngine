@@ -69,6 +69,8 @@ public:
 	TSharedPtr<SDockTab> GetViewportTab() const { return ViewportTab; }
 	TSharedPtr<FEditorViewportTabContent> GetViewportTabContent() const { return ViewportTabContent; }
 	
+	TSharedPtr<SWidget> GetSCSEditorWrapper() const { return SCSEditorWrapper; }
+
 	TSharedPtr<FDisplayClusterConfiguratorToolbar> GetConfiguratorToolbar() const { return ConfiguratorToolbar; }
 
 	/** Syncs shared properties between viewports. */
@@ -146,6 +148,8 @@ protected:
 
 	TSharedRef<SWidget> CreateSCSEditorExtensionWidget(FWeakObjectPtr ExtensionContext);
 
+	void CreateSCSEditorWrapper();
+
 private:
 	/** True only during SCS selection change. */
 	bool bSCSEditorSelecting;
@@ -186,6 +190,8 @@ private:
 	TSharedPtr<SDockTab> ViewportTab;
 	/* Tracking the active viewports in this editor. */
 	TSharedPtr<FEditorViewportTabContent> ViewportTabContent;
+
+	TSharedPtr<SWidget> SCSEditorWrapper;
 
 	TSharedPtr<FExtender> MenuExtender;
 	TSharedPtr<FExtender> ToolbarExtender;

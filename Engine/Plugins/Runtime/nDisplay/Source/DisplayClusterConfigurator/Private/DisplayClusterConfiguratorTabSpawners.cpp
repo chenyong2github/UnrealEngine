@@ -89,7 +89,7 @@ FDisplayClusterSCSSummoner::FDisplayClusterSCSSummoner(TSharedPtr<FDisplayCluste
 TSharedRef<SWidget> FDisplayClusterSCSSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
 	check(BlueprintEditor.IsValid());
-	return BlueprintEditor.Pin()->GetSCSEditor().ToSharedRef();
+	return BlueprintEditor.Pin()->GetSCSEditorWrapper().ToSharedRef();
 }
 
 FDisplayClusterSCSViewportSummoner::FDisplayClusterSCSViewportSummoner(

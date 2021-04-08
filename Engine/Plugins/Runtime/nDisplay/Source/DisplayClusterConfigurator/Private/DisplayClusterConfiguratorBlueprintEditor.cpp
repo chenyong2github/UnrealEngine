@@ -47,6 +47,7 @@
 #include "Tools/BaseAssetToolkit.h"
 #include "Engine/Selection.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Docking/SDockableTab.h"
 #include "HAL/ConsoleManager.h"
@@ -157,6 +158,8 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 
 	SetSCSEditorUICustomization(FDisplayClusterBlueprintEditorSCSEditorUICustomization::GetInstance());
 	
+	CreateSCSEditorWrapper();
+
 	if (UPanelExtensionSubsystem* PanelExtensionSubsystem = GEditor->GetEditorSubsystem<UPanelExtensionSubsystem>())
 	{
 		if (!PanelExtensionSubsystem->IsPanelFactoryRegistered(SCSEditorExtensionIdentifier))
@@ -1095,6 +1098,26 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 			})
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.AddComponent")))
 			.ToolTipText(LOCTEXT("AddComponent_Tooltip", "Adds a new component to this actor"))
+		];
+}
+
+void FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorWrapper()
+{
+	SCSEditorWrapper = SAssignNew(SCSEditorWrapper, SOverlay)
+		+SOverlay::Slot()
+		[
+			SCSEditor.ToSharedRef()
+		]
+
+		+SOverlay::Slot()
+		.Padding(10)
+		.VAlign(VAlign_Bottom)
+		.HAlign(HAlign_Right)
+		[
+			SNew(STextBlock)
+			.Visibility(EVisibility::HitTestInvisible)
+			.TextStyle(FEditorStyle::Get(), "Graph.CornerText")
+			.Text(LOCTEXT("CornerText","STEP 1"))
 		];
 }
 

@@ -228,6 +228,17 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 					]
 				]
 			]
+
+			+ SOverlay::Slot()
+			.Padding(10)
+			.VAlign(VAlign_Bottom)
+			.HAlign(HAlign_Right)
+			[
+				SNew(STextBlock)
+				.Visibility(EVisibility::HitTestInvisible)
+				.TextStyle(FEditorStyle::Get(), "Graph.CornerText")
+				.Text(this, &SDisplayClusterConfiguratorViewTree::GetCornerText)
+			]
 		],
 		InToolkit);
 
@@ -485,6 +496,17 @@ TSharedRef<SWidget> SDisplayClusterConfiguratorViewTree::CreateViewOptionsMenuCo
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+FText SDisplayClusterConfiguratorViewTree::GetCornerText() const
+{
+	TSharedPtr<IDisplayClusterConfiguratorViewTree> ViewTree = ViewTreePtr.Pin();
+	if (ViewTree.IsValid())
+	{
+		return ViewTree->GetCornerText();
+	}
+
+	return FText::GetEmpty();
 }
 
 #undef LOCTEXT_NAMESPACE

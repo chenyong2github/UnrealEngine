@@ -836,11 +836,15 @@ void SDisplayClusterConfiguratorGraphEditor::Construct(const FArguments& InArgs,
 	GraphEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::OnSelectedNodesChanged);
 	GraphEvents.OnCreateNodeOrPinMenu = SGraphEditor::FOnCreateNodeOrPinMenu::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::OnCreateNodeOrPinMenu);
 
+	FGraphAppearanceInfo AppearanceInfo;
+	AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText", "STEP 3");
+
 	SGraphEditor::FArguments Arguments;
 	Arguments._GraphToEdit = InArgs._GraphToEdit;
 	Arguments._AdditionalCommands = CommandList;
 	Arguments._IsEditable = true;
 	Arguments._GraphEvents = GraphEvents;
+	Arguments._Appearance = AppearanceInfo;
 
 	SGraphEditor::Construct(Arguments);
 

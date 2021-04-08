@@ -63,6 +63,7 @@ public:
 	virtual void FillFilterOptionsMenu(FMenuBuilder& MenuBuilder) override { }
 	virtual bool ShowViewOptionsButton() const override { return false; }
 	virtual void FillViewOptionsMenu(FMenuBuilder& MenuBuilder) override { }
+	virtual FText GetCornerText() const override { return FText::GetEmpty(); }
 	//~ IDisplayClusterConfiguratorViewTree
 
 protected:
