@@ -17,6 +17,8 @@ limitations under the License.
 #ifndef RESONANCE_AUDIO_UTILS_WAV_READER_H_
 #define RESONANCE_AUDIO_UTILS_WAV_READER_H_
 
+#include "HAL/PlatformCrt.h"
+
 #include <cstdint>
 #include <istream>
 
