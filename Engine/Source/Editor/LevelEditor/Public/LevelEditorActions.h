@@ -588,7 +588,7 @@ public:
 
 	TSharedPtr< FUICommandInfo > ToggleFeatureLevelPreview;
 
-	TMap <FName, TSharedPtr<FUICommandInfo>> PreviewPlatformOverrides;
+	TArray<TSharedPtr<FUICommandInfo>> PreviewPlatformOverrides;
 	
 	///**
 	// * Mode Commands                   

@@ -938,6 +938,7 @@ public:
 
 	/** Add a global node to the root that will have a chance to emit actor rep lists for all connections */
 	void AddGlobalGraphNode(UReplicationGraphNode* GraphNode);
+	void RemoveGlobalGraphNode(UReplicationGraphNode* GraphNode);
 	
 	/** Associate a node to a specific connection. When this connection replicates, this GraphNode will get a chance to add. */
 	void AddConnectionGraphNode(UReplicationGraphNode* GraphNode, UNetReplicationGraphConnection* ConnectionManager);

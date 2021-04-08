@@ -1323,7 +1323,7 @@ namespace UnrealBuildTool
 
 					if (Arch == "-arm64")
 					{
-						Arguments += " -DPLATFORM_ENABLE_VECTORINTRINSICS_NEON=1";
+						Arguments += " -DPLATFORM_ENABLE_VECTORINTRINSICS_NEON=1 -DPLATFORM_ENABLE_VECTORINTRINSICS=1";
 					}
 
 					if(CompileEnvironment.bCompileISPC)

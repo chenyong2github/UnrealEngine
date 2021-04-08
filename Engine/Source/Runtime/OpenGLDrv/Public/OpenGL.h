@@ -139,6 +139,8 @@ public:
 	static FORCEINLINE bool SupportsSeparateShaderObjects()				{ return false; }
 	static FORCEINLINE bool SupportsProgramBinary()						{ return false; }
 	
+	static FORCEINLINE bool SupportsASTCDecodeMode()					{ return false; }
+
 	static FORCEINLINE GLenum GetDepthFormat()							{ return GL_DEPTH_COMPONENT16; }
 	static FORCEINLINE GLenum GetShadowDepthFormat()					{ return GL_DEPTH_COMPONENT16; }
 
@@ -629,4 +631,8 @@ protected:
 #define GL_STORAGE_PRIVATE_APPLE          0x85BD
 #define GL_STORAGE_CACHED_APPLE           0x85BE
 #define GL_STORAGE_SHARED_APPLE           0x85BF
+#endif
+
+#ifndef TEXTURE_ASTC_DECODE_PRECISION_EXT
+#define TEXTURE_ASTC_DECODE_PRECISION_EXT 0x8F69
 #endif

@@ -1321,7 +1321,7 @@ bool UContentBrowserAssetDataSource::CanHandleDragDropEvent(const FContentBrowse
 		if (TSharedPtr<FExternalDragOperation> ExternalDragDropOp = InDragDropEvent.GetOperationAs<FExternalDragOperation>())
 		{
 			TOptional<EMouseCursor::Type> NewDragCursor;
-			if (!ContentBrowserAssetData::CanModifyPath(AssetTools, FolderPayload->GetInternalPath(), nullptr))
+			if (!ExternalDragDropOp->HasFiles() || !ContentBrowserAssetData::CanModifyPath(AssetTools, FolderPayload->GetInternalPath(), nullptr))
 			{
 				NewDragCursor = EMouseCursor::SlashedCircle;
 			}
@@ -1356,7 +1356,7 @@ bool UContentBrowserAssetDataSource::HandleDragDropOnItem(const FContentBrowserI
 		if (TSharedPtr<FExternalDragOperation> ExternalDragDropOp = InDragDropEvent.GetOperationAs<FExternalDragOperation>())
 		{
 			FText ErrorMsg;
-			if (ContentBrowserAssetData::CanModifyPath(AssetTools, FolderPayload->GetInternalPath(), &ErrorMsg))
+			if (ExternalDragDropOp->HasFiles() && ContentBrowserAssetData::CanModifyPath(AssetTools, FolderPayload->GetInternalPath(), &ErrorMsg))
 			{
 				// Delay import until next tick to avoid blocking the process that files were dragged from
 				GEditor->GetEditorSubsystem<UImportSubsystem>()->ImportNextTick(ExternalDragDropOp->GetFiles(), FolderPayload->GetInternalPath().ToString());

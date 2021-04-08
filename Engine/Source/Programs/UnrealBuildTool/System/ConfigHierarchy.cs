@@ -685,7 +685,7 @@ namespace UnrealBuildTool
 							Value.Append(Chars[Idx]);
 						}
 					}
-					else
+					else if (Chars[Idx] != ')' && Chars[Idx] != ',')
 					{
 						Properties = null;
 						return false;
@@ -734,6 +734,155 @@ namespace UnrealBuildTool
 			return true;
 		}
 
+
+		/// <summary>
+		/// Attempts to parse the given line as a UE4 config array (eg. ("one", "two", "three") ).
+		/// </summary>
+		/// <param name="Line">Line of text to parse</param>
+		/// <param name="Array">Receives array for the config array</param>
+		/// <returns>True if an array was parsed, false otherwise</returns>
+		public static bool TryParse(string Line, out string[]? Array)
+		{
+			// Convert the string to a zero-terminated array, to make parsing easier.
+			char[] Chars = new char[Line.Length + 1];
+			Line.CopyTo(0, Chars, 0, Line.Length);
+
+			// Get the opening paren
+			int Idx = 0;
+			while(Char.IsWhiteSpace(Chars[Idx]))
+			{
+				Idx++;
+			}
+			if(Chars[Idx] != '(')
+			{
+				Array = null;
+				return false;
+			}
+
+			// Read to the next token
+			Idx++;
+			while(Char.IsWhiteSpace(Chars[Idx]))
+			{
+				Idx++;
+			}
+
+			// Create the list to receive the new items
+			List<string> NewArray = new List<string>();
+
+			// Read a sequence items
+			StringBuilder Value = new StringBuilder();
+			if(Chars[Idx] != ')')
+			{
+				for (;;)
+				{
+					// Skip whitespace
+					while (Char.IsWhiteSpace(Chars[Idx]))
+					{
+						Idx++;
+					}
+
+					// Parse the value
+					Value.Clear();
+					if (Char.IsLetterOrDigit(Chars[Idx]) || Chars[Idx] == '_' || Chars[Idx] == '-')
+					{
+						while (Char.IsLetterOrDigit(Chars[Idx]) || Chars[Idx] == '_' || Chars[Idx] == '-' || Chars[Idx] == '.')
+						{
+							Value.Append(Chars[Idx]);
+							Idx++;
+						}
+					}
+					else if (Chars[Idx] == '\"')
+					{
+						Idx++;
+						for(; Chars[Idx] != '\"'; Idx++)
+						{
+							if (Chars[Idx] == '\0')
+							{
+								Array = null;
+								return false;
+							}
+							else
+							{
+								Value.Append(Chars[Idx]);
+							}
+						}
+						Idx++;
+					}
+					else if (Chars[Idx] == '(')
+					{
+						Value.Append(Chars[Idx++]);
+
+						bool bInQuotes = false;
+						for (int Nesting = 1; Nesting > 0; Idx++)
+						{
+							if (Chars[Idx] == '\0')
+							{
+								Array = null;
+								return false;
+							}
+							else if (Chars[Idx] == '(' && !bInQuotes)
+							{
+								Nesting++;
+							}
+							else if (Chars[Idx] == ')' && !bInQuotes)
+							{
+								Nesting--;
+							}
+							else if (Chars[Idx] == '\"' || Chars[Idx] == '\'')
+							{
+								bInQuotes ^= true;
+							}
+							Value.Append(Chars[Idx]);
+						}
+					}					
+					else
+					{
+						Array = null;
+						return false;
+					}
+
+					// Store the item
+					NewArray.Add(Value.ToString());
+
+					// Move to the separator
+					while(Char.IsWhiteSpace(Chars[Idx]))
+					{
+						Idx++;
+					}
+					if(Chars[Idx] == ')')
+					{
+						break;
+					}
+					if(Chars[Idx] != ',')
+					{
+						Array = null;
+						return false;
+					}
+
+					// Move to the next field
+					Idx++;
+					while (Char.IsWhiteSpace(Chars[Idx]))
+					{
+						Idx++;
+					}
+				}
+			}
+
+			// Make sure we're at the end of the string
+			Idx++;
+			while(Char.IsWhiteSpace(Chars[Idx]))
+			{
+				Idx++;
+			}
+			if(Chars[Idx] != '\0')
+			{
+				Array = null;
+				return false;
+			}
+
+			Array = NewArray.ToArray();
+			return true;
+		}
 
 		class ConfigLayerExpansion
 		{

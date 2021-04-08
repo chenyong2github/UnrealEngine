@@ -2215,11 +2215,12 @@ inline uniform FVector4 VectorCross(const uniform FVector4& Vec1, const uniform 
 
 inline FVector VectorCross(const FVector& Vec1, const FVector& Vec2)
 {
-	const FVector A_YZXW = VectorSwizzle(Vec1, 1,2,0);
-	const FVector B_ZXYW = VectorSwizzle(Vec2, 2,0,1);
-	const FVector A_ZXYW = VectorSwizzle(Vec1, 2,0,1);
-	const FVector B_YZXW = VectorSwizzle(Vec2, 1,2,0);
-	return (A_YZXW * B_ZXYW) - (A_ZXYW * B_YZXW);
+	FVector Tmp0 = VectorSwizzle(Vec2, 1,2,0);
+	FVector Tmp1 = VectorSwizzle(Vec1, 1,2,0);
+	Tmp0 = Tmp0 * Vec1;
+	Tmp1 = Tmp1 * Vec2;
+	const FVector Tmp2 = Tmp0 - Tmp1;
+	return VectorSwizzle(Tmp2, 1,2,0);
 }
 
 inline FVector VectorCross(const uniform FVector& Vec1, const FVector& Vec2)
@@ -2234,11 +2235,12 @@ inline FVector VectorCross(const uniform FVector& Vec1, const FVector& Vec2)
 
 inline uniform FVector VectorCross(const uniform FVector& Vec1, const uniform FVector& Vec2)
 {
-	const uniform FVector A_YZXW = VectorSwizzle(Vec1, 1,2,0);
-	const uniform FVector B_ZXYW = VectorSwizzle(Vec2, 2,0,1);
-	const uniform FVector A_ZXYW = VectorSwizzle(Vec1, 2,0,1);
-	const uniform FVector B_YZXW = VectorSwizzle(Vec2, 1,2,0);
-	return (A_YZXW * B_ZXYW) - (A_ZXYW * B_YZXW);
+	uniform FVector Tmp0 = VectorSwizzle(Vec2, 1,2,0);
+	uniform FVector Tmp1 = VectorSwizzle(Vec1, 1,2,0);
+	Tmp0 = Tmp0 * Vec1;
+	Tmp1 = Tmp1 * Vec2;
+	const uniform FVector Tmp2 = Tmp0 - Tmp1;
+	return VectorSwizzle(Tmp2, 1,2,0);
 }
 
 inline uniform FVector8 VectorCross(const uniform FVector8& Vec1, const uniform FVector8& Vec2)
@@ -2552,13 +2554,36 @@ inline uniform FVector4 VectorTruncate(const uniform FVector4 &X)
 	return *((uniform FVector4 *uniform)&Result);
 }
 
+inline uniform FVector4 VectorNegate(const uniform FVector4 &A)
+{
+	varying float S0, Result;
+	*((uniform FVector4 *uniform)&S0) = *((uniform FVector4 *uniform)&A);
+
+	Result = floatbits(intbits(S0) ^ SIGN_BIT);
+
+	return *((uniform FVector4 *uniform)&Result);
+}
+
+inline uniform FVector VectorNegate(const uniform FVector &A)
+{
+	varying float S0, Result;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&A);
+
+	Result = floatbits(intbits(S0) ^ SIGN_BIT);
+
+	return *((uniform FVector *uniform)&Result);
+}
+
 inline uniform FVector4 VectorMod(const uniform FVector4& X, const uniform FVector4& Y)
 {
 	const uniform FVector4 Div = VectorDivide(X, Y);
 	// Floats where abs(f) >= 2^23 have no fractional portion, and larger values would overflow VectorTruncate.
 	const uniform FVector4 NoFractionMask = VectorCompareGE(VectorAbs(Div), FloatNonFractional);
 	const uniform FVector4 Temp = VectorSelect(NoFractionMask, Div, VectorTruncate(Div));
-	return VectorSubtract(X, VectorMultiply(Y, Temp));
+	const uniform FVector4 Result = VectorSubtract(X, VectorMultiply(Y, Temp));
+	// Clamp to [-AbsY, AbsY] because of possible failures for very large numbers (>1e10) due to precision loss.
+	const uniform FVector4 AbsY = VectorAbs(Y);
+	return VectorMax(VectorNegate(AbsY), VectorMin(Result, AbsY));
 }
 
 /**
@@ -2630,26 +2655,6 @@ inline uniform FVector4 VectorLerp(const uniform FVector4 &A, const uniform FVec
 {
 	const uniform FVector4 Delta = VectorSubtract(B, A);
 	return VectorMultiplyAdd(Alpha, Delta, A);
-}
-
-inline uniform FVector4 VectorNegate(const uniform FVector4 &A)
-{
-	varying float S0, Result;
-	*((uniform FVector4 *uniform)&S0) = *((uniform FVector4 *uniform)&A);
-
-	Result = floatbits(intbits(S0) ^ SIGN_BIT);
-
-	return *((uniform FVector4 *uniform)&Result);
-}
-
-inline uniform FVector VectorNegate(const uniform FVector &A)
-{
-	varying float S0, Result;
-	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&A);
-
-	Result = floatbits(intbits(S0) ^ SIGN_BIT);
-
-	return *((uniform FVector *uniform)&Result);
 }
 
 inline float VectorSizeSquared(const FVector4 &A)

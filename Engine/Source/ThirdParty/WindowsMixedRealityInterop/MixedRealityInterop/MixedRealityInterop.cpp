@@ -3743,6 +3743,9 @@ namespace WindowsMixedReality
 							}
 
 							ReportConnectionStatus(MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer);
+
+							// Fully disconnect from remote device to ensure we're in a clean state for the next connection.
+							DisconnectFromDevice();
 						});
 
 				remoteSpeech = m_remoteContext.GetRemoteSpeech();

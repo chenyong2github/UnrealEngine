@@ -42,13 +42,17 @@ protected:
 	TSharedPtr<IPropertyHandle> PropTraceShape;
 	TSharedPtr<IPropertyHandle> PropTraceChannel;
 	TSharedPtr<IPropertyHandle> PropTraceChannelSerialized;
+	TSharedPtr<IPropertyHandle> PropTraceProfileName;
 
 	void OnTraceChannelChanged();
+	void OnTraceProfileChanged();
 	void OnTraceModeChanged(int32 Index);
 	TSharedRef<SWidget> OnGetTraceModeContent();
 	FText GetCurrentTraceModeDesc() const;
 	FText GetShortDescription() const;
 
+	EVisibility GetGeometryByChannelVisibility() const;
+	EVisibility GetGeometryByProfileVisibility() const;
 	EVisibility GetGeometryVisibility() const;
 	EVisibility GetNavigationVisibility() const;
 	EVisibility GetProjectionVisibility() const;

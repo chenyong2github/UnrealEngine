@@ -34,7 +34,7 @@ DECLARE_CYCLE_STAT(TEXT("Submit Tasks"), STAT_ProcessRequests_SubmitTasks, STATG
 DECLARE_CYCLE_STAT(TEXT("Wait Tasks"), STAT_ProcessRequests_WaitTasks, STATGROUP_VirtualTexturing);
 
 DECLARE_CYCLE_STAT(TEXT("Queue Adaptive Requests"), STAT_ProcessRequests_QueueAdaptiveRequests, STATGROUP_VirtualTexturing);
-DECLARE_CYCLE_STAT(TEXT("Finalize Adaptive Requests"), STAT_ProcessRequests_FinalizeAdaptiveRequests, STATGROUP_VirtualTexturing);
+DECLARE_CYCLE_STAT(TEXT("Finalize Adaptive Requests"), STAT_ProcessRequests_UpdateAdaptiveAllocations, STATGROUP_VirtualTexturing);
 
 DECLARE_CYCLE_STAT(TEXT("Feedback Map"), STAT_FeedbackMap, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Feedback Analysis"), STAT_FeedbackAnalysis, STATGROUP_VirtualTexturing);
@@ -1035,6 +1035,18 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureSystem::Update);
 	SCOPE_CYCLE_COUNTER(STAT_VirtualTextureSystem_Update);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTexture);
+	
+	// Update Adaptive VTs. This can trigger allocation/destruction of VTs and must happen before the flush below.
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_UpdateAdaptiveAllocations);
+		for (uint32 ID = 0; ID < MaxSpaces; ID++)
+		{
+			if (AdaptiveVTs[ID])
+			{
+				AdaptiveVTs[ID]->UpdateAllocations(this, GraphBuilder.RHICmdList, Frame);
+			}
+		}
+	}
 
 	if (bFlushCaches)
 	{
@@ -1077,18 +1089,6 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 		{
 			// Each RVT will call FVirtualTextureSystem::FlushCache()
 			Scene->FlushDirtyRuntimeVirtualTextures();
-		}
-	}
-
-	// Update Adaptive VTs
-	{
-		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_FinalizeAdaptiveRequests);
-		for (uint32 ID = 0; ID < MaxSpaces; ID++)
-		{
-			if (AdaptiveVTs[ID])
-			{
-				AdaptiveVTs[ID]->UpdateAllocations(this, GraphBuilder.RHICmdList, Frame);
-			}
 		}
 	}
 

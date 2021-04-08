@@ -89,16 +89,14 @@ typedef FUnixPlatformTypes FPlatformTypes;
 	#define PLATFORM_HAS_BSD_SOCKET_FEATURE_CLOSE_ON_EXEC	1
 #endif // LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 
-// only enable vectorintrinsics on x86(-64) for now
 #if defined(_M_IX86) || defined(__i386__) || defined(_M_X64) || defined(__x86_64__) || defined (__amd64__) 
 	#define PLATFORM_ENABLE_VECTORINTRINSICS		1
-#else
-	#define PLATFORM_ENABLE_VECTORINTRINSICS		0
 #endif // defined(_M_IX86) || defined(__i386__) || defined(_M_X64) || defined(__x86_64__) || defined (__amd64__) 
 
 #if PLATFORM_LINUXAARCH64
 	// Enable NEON intrinsics for ARM64 builds
 	#define PLATFORM_ENABLE_VECTORINTRINSICS_NEON	1
+	#define PLATFORM_ENABLE_VECTORINTRINSICS		1
 #endif
 
 // We do not currently compile with -msse4 or higher on Unix or Linux
@@ -107,6 +105,9 @@ typedef FUnixPlatformTypes FPlatformTypes;
 #endif
 #ifndef PLATFORM_ALWAYS_HAS_SSE4_1 // May be set from UnrealBuildTool
 	#define PLATFORM_ALWAYS_HAS_SSE4_1							0
+#endif
+#ifndef PLATFORM_ALWAYS_HAS_FMA3
+	#define PLATFORM_ALWAYS_HAS_FMA3							0
 #endif
 
 

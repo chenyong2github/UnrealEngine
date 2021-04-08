@@ -2,14 +2,24 @@
 
 #pragma once
 
+#include "DatasmithSketchUpCommon.h"
+
+// Datasmith SDK.
+#include "Containers/UnrealString.h"
+
+class IDatasmithTextureElement;
+
 namespace DatasmithSketchUp
 {
+	class FExportContext;
 	class FTexture;
 	class FTextureImageFile;
 
 	class FTextureImageFile
 	{
 	public:
+		FTextureImageFile() : bInvalidated(true) {}
+
 		FString TextureName;
 		FString TextureFileName;
 		TSharedPtr<IDatasmithTextureElement> TextureElement; // Texture element is created once per texture image file
@@ -17,8 +27,9 @@ namespace DatasmithSketchUp
 		TSet<TSharedPtr<FTexture>> Textures;  // textures, using this image
 		static TSharedPtr<FTextureImageFile> Create(TSharedPtr<FTexture> Texture);
 
-
 		void Update(FExportContext& Context);
+
+		uint8 bInvalidated:1;
 	};
 
 	// Represents texture instantiated for Datasmith

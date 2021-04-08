@@ -81,6 +81,7 @@ protected:
 	// ~SCurveEditorView Interface
 	virtual bool GetPointsWithinWidgetRange(const FSlateRect& WidgetRectangle, TArray<FCurvePointHandle>* OutPoints) const override;
 	virtual bool GetCurveWithinWidgetRange(const FSlateRect& WidgetRectangle, TArray<FCurvePointHandle>* OutPoints) const override;
+	virtual TOptional<FCurveModelID> GetHoveredCurve() const override;
 
 	virtual void PaintView(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const;
 
@@ -114,7 +115,6 @@ private:
 	/** Updates our distance to all of the curves we represent. */
 	void UpdateCurveProximities(FVector2D MousePixel);
 
-	TOptional<FCurveModelID> GetHoveredCurve() const;
 	TOptional<FCurvePointHandle> HitPoint(FVector2D MousePixel) const;
 
 	bool IsToolTipEnabled() const;
@@ -126,6 +126,7 @@ private:
 	void AddKeyAtScrubTime(TSet<FCurveModelID> ForCurves);
 	void AddKeyAtMousePosition(TSet<FCurveModelID> ForCurves);
 	void AddKeyAtTime(const TSet<FCurveModelID>& ToCurves, double InTime);
+	void PasteKeys(TSet<FCurveModelID> ToCurves);
 
 	void OnCurveEditorToolChanged(FCurveEditorToolID InToolId);
 

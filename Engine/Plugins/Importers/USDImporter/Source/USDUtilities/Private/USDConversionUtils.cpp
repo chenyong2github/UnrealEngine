@@ -227,14 +227,26 @@ template USDUTILITIES_API pxr::VtArray< pxr::GfVec3f >	UsdUtils::GetUsdValue< px
 template USDUTILITIES_API pxr::VtArray< float >			UsdUtils::GetUsdValue< pxr::VtArray< float > >( const pxr::UsdAttribute& Attribute, pxr::UsdTimeCode TimeCode );
 template USDUTILITIES_API pxr::VtArray< int >			UsdUtils::GetUsdValue< pxr::VtArray< int > >( const pxr::UsdAttribute& Attribute, pxr::UsdTimeCode TimeCode );
 
-pxr::TfToken UsdUtils::GetUsdStageAxis( const pxr::UsdStageRefPtr& Stage )
+pxr::TfToken UsdUtils::GetUsdStageUpAxis( const pxr::UsdStageRefPtr& Stage )
 {
 	return pxr::UsdGeomGetStageUpAxis( Stage );
 }
 
-void UsdUtils::SetUsdStageAxis( const pxr::UsdStageRefPtr& Stage, pxr::TfToken Axis )
+EUsdUpAxis UsdUtils::GetUsdStageUpAxisAsEnum( const pxr::UsdStageRefPtr& Stage )
+{
+	pxr::TfToken UpAxisToken = pxr::UsdGeomGetStageUpAxis( Stage );
+	return UpAxisToken == pxr::UsdGeomTokens->z ? EUsdUpAxis::ZAxis : EUsdUpAxis::YAxis;
+}
+
+void UsdUtils::SetUsdStageUpAxis( const pxr::UsdStageRefPtr& Stage, pxr::TfToken Axis )
 {
 	pxr::UsdGeomSetStageUpAxis( Stage, Axis );
+}
+
+void UsdUtils::SetUsdStageUpAxis( const pxr::UsdStageRefPtr& Stage, EUsdUpAxis Axis )
+{
+	pxr::TfToken UpAxisToken = Axis == EUsdUpAxis::ZAxis ? pxr::UsdGeomTokens->z : pxr::UsdGeomTokens->y;
+	SetUsdStageUpAxis( Stage, UpAxisToken );
 }
 
 float UsdUtils::GetUsdStageMetersPerUnit( const pxr::UsdStageRefPtr& Stage )

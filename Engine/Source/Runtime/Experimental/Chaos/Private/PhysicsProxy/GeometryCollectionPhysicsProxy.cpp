@@ -172,7 +172,7 @@ void PopulateSimulatedParticle(
 	// Setup Mass
 	//
 	{
-		Handle->SetObjectState(Chaos::EObjectStateType::Uninitialized);
+		Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Uninitialized);
 
 		if (!CHAOS_ENSURE_MSG(FMath::IsWithinInclusive(MassIn, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp),
 			TEXT("Clamped mass[%3.5f] to range [%3.5f,%3.5f]"), MassIn, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp))

@@ -245,7 +245,7 @@ namespace UnrealBuildTool
 			// check if OS update invalidated our build
 			Target.bCheckSystemHeadersForModification = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux);
 
-			Target.bCompileISPC = Target.Architecture.StartsWith("x86_64");
+			Target.bCompileISPC = true;
 		}
 
 		/// <summary>

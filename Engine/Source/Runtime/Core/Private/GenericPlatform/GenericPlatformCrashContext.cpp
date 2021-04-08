@@ -1011,6 +1011,12 @@ void FGenericCrashContext::SetEngineData(const FString& Key, const FString& Valu
 	}
 }
 
+/** Get arbitrary engine data from the crash context */
+const FString* FGenericCrashContext::GetEngineData(const FString& Key)
+{
+	return NCached::EngineData.Find(Key);
+}
+
 void FGenericCrashContext::ResetGameData()
 {
 	NCached::GameData.Reset();
@@ -1042,6 +1048,12 @@ void FGenericCrashContext::SetGameData(const FString& Key, const FString& Value)
 		});
 		OldVal = Value;
 	}
+}
+
+/** Get arbitrary game data from the crash context */
+const FString* FGenericCrashContext::GetGameData(const FString& Key)
+{
+	return NCached::GameData.Find(Key);
 }
 
 void FGenericCrashContext::AddPlugin(const FString& PluginDesc)

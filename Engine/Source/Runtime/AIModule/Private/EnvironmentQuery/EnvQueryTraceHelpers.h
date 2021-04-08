@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/EngineTypes.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "AI/Navigation/NavigationTypes.h"
@@ -25,22 +26,37 @@ namespace FEQSHelpers
 	{
 		UWorld* World;
 		const FVector Extent;
-		const FCollisionQueryParams Params;
+		const FCollisionQueryParams QueryParams;
+		FCollisionResponseParams ResponseParams;
 		enum ECollisionChannel Channel;
 		ETraceMode TraceMode;
 		TArray<uint8> TraceHits;
 
 		FBatchTrace(UWorld* InWorld, enum ECollisionChannel InChannel, const FCollisionQueryParams& InParams,
 			const FVector& InExtent, ETraceMode InTraceMode)
-			: World(InWorld), Extent(InExtent), Params(InParams), Channel(InChannel), TraceMode(InTraceMode)
+			: World(InWorld), Extent(InExtent), QueryParams(InParams), Channel(InChannel), TraceMode(InTraceMode)
 		{
 
 		}
 
+		FBatchTrace(UWorld* InWorld, const FEnvTraceData& TraceData, const FCollisionQueryParams& InParams,
+			const FVector& InExtent, ETraceMode InTraceMode)
+			: World(InWorld), Extent(InExtent), QueryParams(InParams), TraceMode(InTraceMode)
+		{
+			if (TraceData.TraceMode == EEnvQueryTrace::GeometryByProfile)
+			{
+				UCollisionProfile::GetChannelAndResponseParams(TraceData.TraceProfileName, Channel, ResponseParams);
+			}
+			else
+			{
+				Channel = UEngineTypes::ConvertToCollisionChannel(TraceData.TraceChannel);
+			}
+		}
+		
 		FORCEINLINE_DEBUGGABLE bool RunLineTrace(const FVector& StartPos, const FVector& EndPos, FVector& HitPos)
 		{
 			FHitResult OutHit;
-			const bool bHit = World->LineTraceSingleByChannel(OutHit, StartPos, EndPos, Channel, Params);
+			const bool bHit = World->LineTraceSingleByChannel(OutHit, StartPos, EndPos, Channel, QueryParams, ResponseParams);
 			HitPos = OutHit.Location;
 			return bHit;
 		}
@@ -48,7 +64,7 @@ namespace FEQSHelpers
 		FORCEINLINE_DEBUGGABLE bool RunSphereTrace(const FVector& StartPos, const FVector& EndPos, FVector& HitPos)
 		{
 			FHitResult OutHit;
-			const bool bHit = World->SweepSingleByChannel(OutHit, StartPos, EndPos, FQuat::Identity, Channel, FCollisionShape::MakeSphere(Extent.X), Params);
+			const bool bHit = World->SweepSingleByChannel(OutHit, StartPos, EndPos, FQuat::Identity, Channel, FCollisionShape::MakeSphere(Extent.X), QueryParams, ResponseParams);
 			HitPos = OutHit.Location;
 			return bHit;
 		}
@@ -56,7 +72,7 @@ namespace FEQSHelpers
 		FORCEINLINE_DEBUGGABLE bool RunCapsuleTrace(const FVector& StartPos, const FVector& EndPos, FVector& HitPos)
 		{
 			FHitResult OutHit;
-			const bool bHit = World->SweepSingleByChannel(OutHit, StartPos, EndPos, FQuat::Identity, Channel, FCollisionShape::MakeCapsule(Extent.X, Extent.Z), Params);
+			const bool bHit = World->SweepSingleByChannel(OutHit, StartPos, EndPos, FQuat::Identity, Channel, FCollisionShape::MakeCapsule(Extent.X, Extent.Z), QueryParams, ResponseParams);
 			HitPos = OutHit.Location;
 			return bHit;
 		}
@@ -64,7 +80,7 @@ namespace FEQSHelpers
 		FORCEINLINE_DEBUGGABLE bool RunBoxTrace(const FVector& StartPos, const FVector& EndPos, FVector& HitPos)
 		{
 			FHitResult OutHit;
-			const bool bHit = World->SweepSingleByChannel(OutHit, StartPos, EndPos, FQuat((EndPos - StartPos).Rotation()), Channel, FCollisionShape::MakeBox(Extent), Params);
+			const bool bHit = World->SweepSingleByChannel(OutHit, StartPos, EndPos, FQuat((EndPos - StartPos).Rotation()), Channel, FCollisionShape::MakeBox(Extent), QueryParams, ResponseParams);
 			HitPos = OutHit.Location;
 			return bHit;
 		}

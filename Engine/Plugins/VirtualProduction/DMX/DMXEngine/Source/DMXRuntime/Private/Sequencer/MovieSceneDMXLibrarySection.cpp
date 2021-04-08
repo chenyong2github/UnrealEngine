@@ -25,7 +25,7 @@ void FDMXFixturePatchChannel::SetFixturePatch(UDMXEntityFixturePatch* InPatch)
 		ActiveMode = InPatch->ActiveMode;
 	}
 
-	FixturePatchReference.SetEntity(InPatch);
+	Reference.SetEntity(InPatch);
 	UpdateNumberOfChannels();
 }
 
@@ -34,7 +34,7 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 	// Test if the patch is still being what was recorded
 	bool bValidPatchChannel = true;
 
-	UDMXEntityFixturePatch* Patch = FixturePatchReference.GetFixturePatch();
+	UDMXEntityFixturePatch* Patch = Reference.GetFixturePatch();
 
 	if (Patch == nullptr || !Patch->IsValidLowLevelFast())
 	{
@@ -167,7 +167,7 @@ FDMXCachedFunctionChannelInfo::FDMXCachedFunctionChannelInfo(const TArray<FDMXFi
 	const FDMXFixtureFunctionChannel& FunctionChannel = FixturePatchChannel.FunctionChannels[FunctionChannelIndex];
 	
 	// Valid patch
-	UDMXEntityFixturePatch* FixturePatch = FixturePatchChannel.FixturePatchReference.GetFixturePatch();
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchChannel.Reference.GetFixturePatch();
 	if (FixturePatch == nullptr || !FixturePatch->IsValidLowLevelFast())
 	{
 		UE_LOG(MovieSceneDMXLibrarySectionLog, Error, TEXT("%S: A Fixture Patch is null."), __FUNCTION__);
@@ -381,7 +381,7 @@ void UMovieSceneDMXLibrarySection::RemoveFixturePatch(UDMXEntityFixturePatch* In
 {
 	int32 PatchIndex = FixturePatchChannels.IndexOfByPredicate([InPatch](const FDMXFixturePatchChannel& PatchChannel)
 		{
-			return PatchChannel.FixturePatchReference.GetFixturePatch() == InPatch;
+			return PatchChannel.Reference.GetFixturePatch() == InPatch;
 		});
 
 	if (PatchIndex != INDEX_NONE)
@@ -399,7 +399,7 @@ void UMovieSceneDMXLibrarySection::RemoveFixturePatch(const FName& InPatchName)
 
 	for (const FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		if (UDMXEntityFixturePatch* Patch = PatchChannel.FixturePatchReference.GetFixturePatch())
+		if (UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch())
 		{
 			if (Patch->GetDisplayName().Equals(TargetPatchName))
 			{
@@ -413,7 +413,7 @@ void UMovieSceneDMXLibrarySection::RemoveFixturePatch(const FName& InPatchName)
 bool UMovieSceneDMXLibrarySection::ContainsFixturePatch(UDMXEntityFixturePatch* InPatch) const
 {
 	int32 PatchIndex = FixturePatchChannels.IndexOfByPredicate([InPatch](const FDMXFixturePatchChannel& PatchChannel) {
-			return PatchChannel.FixturePatchReference.GetFixturePatch() == InPatch;
+			return PatchChannel.Reference.GetFixturePatch() == InPatch;
 		});
 
 	return PatchIndex != INDEX_NONE;
@@ -440,7 +440,7 @@ void UMovieSceneDMXLibrarySection::SetFixturePatchActiveMode(UDMXEntityFixturePa
 	// Find the PatchChannel object that represents the passed in Patch
 	for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		UDMXEntityFixturePatch* Patch = PatchChannel.FixturePatchReference.GetFixturePatch();
+		UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
 		if (Patch == InPatch)
 		{
 			PatchChannel.ActiveMode = InActiveMode;
@@ -468,7 +468,7 @@ void UMovieSceneDMXLibrarySection::ToggleFixturePatchChannel(UDMXEntityFixturePa
 	// Find the PatchChannel object that represents the passed in Patch
 	for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		UDMXEntityFixturePatch* Patch = PatchChannel.FixturePatchReference.GetFixturePatch();
+		UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
 		if (Patch == InPatch)
 		{
 			PatchChannel.UpdateNumberOfChannels();
@@ -490,7 +490,7 @@ void UMovieSceneDMXLibrarySection::ToggleFixturePatchChannel(const FName& InPatc
 
 	for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		if (UDMXEntityFixturePatch* Patch = PatchChannel.FixturePatchReference.GetFixturePatch())
+		if (UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch())
 		{
 			if (Patch->GetDisplayName().Equals(TargetPatchName))
 			{
@@ -549,7 +549,7 @@ bool UMovieSceneDMXLibrarySection::GetFixturePatchChannelEnabled(UDMXEntityFixtu
 	// Find the PatchChannel object that represents the passed in Patch
 	for (const FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		UDMXEntityFixturePatch* Patch = PatchChannel.FixturePatchReference.GetFixturePatch();
+		UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
 		if (Patch == InPatch &&
 			PatchChannel.FunctionChannels.IsValidIndex(InChannelIndex))
 		{
@@ -568,7 +568,7 @@ TArray<UDMXEntityFixturePatch*> UMovieSceneDMXLibrarySection::GetFixturePatches(
 	for (const FDMXFixturePatchChannel& PatchRef : FixturePatchChannels)
 	{
 		// Add only valid patches
-		if (UDMXEntityFixturePatch* Patch = PatchRef.FixturePatchReference.GetFixturePatch())
+		if (UDMXEntityFixturePatch* Patch = PatchRef.Reference.GetFixturePatch())
 		{
 			if (!Patch->IsValidLowLevelFast())
 			{
@@ -584,7 +584,7 @@ FDMXFixturePatchChannel* UMovieSceneDMXLibrarySection::GetPatchChannel(UDMXEntit
 {
 	return 
 		FixturePatchChannels.FindByPredicate([Patch](const FDMXFixturePatchChannel& Channel) {
-			return Channel.FixturePatchReference.GetFixturePatch() == Patch;
+			return Channel.Reference.GetFixturePatch() == Patch;
 		});
 }
 
@@ -597,7 +597,7 @@ void UMovieSceneDMXLibrarySection::RebuildPlaybackCache() const
 	// Cache channel data to streamline performance
 	for (int32 IndexPatchChannel = 0; IndexPatchChannel < FixturePatchChannels.Num(); IndexPatchChannel++)
 	{
-		if (UDMXEntityFixturePatch* FixturePatch = FixturePatchChannels[IndexPatchChannel].FixturePatchReference.GetFixturePatch())
+		if (UDMXEntityFixturePatch* FixturePatch = FixturePatchChannels[IndexPatchChannel].Reference.GetFixturePatch())
 		{
 			if (UDMXLibrary* Library = FixturePatch->GetParentLibrary())
 			{
@@ -637,7 +637,7 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 	{
 		PatchChannel.UpdateNumberOfChannels(bResetDefaultChannelValues);
 
-		const UDMXEntityFixturePatch* Patch = PatchChannel.FixturePatchReference.GetFixturePatch();
+		const UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
 		if (Patch == nullptr || !Patch->IsValidLowLevelFast())
 		{
 			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%S: Removing a null Patch"), __FUNCTION__);

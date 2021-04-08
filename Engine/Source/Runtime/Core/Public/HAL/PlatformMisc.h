@@ -177,3 +177,25 @@ public:
 #define SCOPED_PROFILER_COLOR(...)
 
 #endif
+
+// For timing OnEnterBackground tasks. This can be time sensitive on some platforms
+class CORE_API FScopedEnterBackgroundEvent
+{
+public:
+
+	FScopedEnterBackgroundEvent(const TCHAR* Text)
+	{
+		FPlatformMisc::BeginEnterBackgroundEvent(Text);
+	}
+
+	~FScopedEnterBackgroundEvent()
+	{
+		FPlatformMisc::EndEnterBackgroundEvent();
+	}
+};
+
+// Note: we don't use ANONYMOUS_VARIABLE here because we might want to view the event in a crash dump watch window
+#define SCOPED_ENTER_BACKGROUND_EVENT(Name)	\
+	FScopedEnterBackgroundEvent EnterBackgroundEvent_##Name##_(TEXT(#Name)); \
+	QUICK_SCOPE_CYCLE_COUNTER(Name);
+

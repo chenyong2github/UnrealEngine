@@ -155,21 +155,6 @@ struct FNiagaraOutlinerTreeEmitterItem : public FNiagaraOutlinerTreeItem
 	}
 };
 
-class FNiagaraOutlinerCustomization : public IDetailCustomization
-{
-public:
-	static TSharedRef<IDetailCustomization> MakeInstance()
-	{
-		return MakeShareable(new FNiagaraOutlinerCustomization());
-	}
-
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
-
-	TSharedPtr<SNiagaraOutlinerTree> OutlinerTree;
-};
-
-
 // A widget representing all the Niagara outliner data
 class SNiagaraOutlinerTree : public SCompoundWidget
 {

@@ -133,12 +133,18 @@ namespace Chaos
 
 		/** Creates a new sim callback object of the type given. Caller expected to free using FreeSimCallbackObject_External*/
 		template <typename TSimCallbackObjectType>
-		TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External(bool bContactModification = false)
+		inline TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External(bool bContactModification = false, bool bRegisterRewindCallback = false)
 		{
 			auto NewCallbackObject = new TSimCallbackObjectType();
 			RegisterSimCallbackObject_External(NewCallbackObject, bContactModification);
+			if (bRegisterRewindCallback)
+			{
+				EnqueueSimcallbackRewindRegisteration(NewCallbackObject);
+			}
 			return NewCallbackObject;
 		}
+
+		void EnqueueSimcallbackRewindRegisteration(ISimCallbackObject* Callback);
 
 		void UnregisterAndFreeSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
 		{

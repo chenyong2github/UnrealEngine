@@ -11,10 +11,28 @@
 
 REMOTECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControl, Log, All);
 
+class IRemoteControlReplicator;
 class IStructDeserializerBackend;
 class IStructSerializerBackend;
 class URemoteControlPreset;
 struct FExposedProperty;
+struct FRemoteControlProperty;
+
+/**
+ * Delegate called to initialize an exposed entity metadata entry registered with the RegisterDefaultEntityMetadata method.
+ * Use RemoteControlPreset::GetExposedEntity to retrieve the entity that will contain the metadata.
+ * The delegate return value will be put into metadata map for the metadata key that was used when registering the default metadata entry.
+ */
+DECLARE_DELEGATE_RetVal_TwoParams(FString /*Value*/, FEntityMetadataInitializer, URemoteControlPreset* /*Preset*/, const FGuid& /*EntityId*/);
+
+/**
+ * Deserialize payload type. It using for replication
+ */
+enum class ERCPayloadType : uint8
+{
+	Cbor,
+	Json
+};
 
 /**
  * Reference to a function in a UObject
@@ -209,6 +227,18 @@ public:
 	virtual bool ResolveObjectProperty(ERCAccess AccessType, UObject* Object, FRCFieldPathInfo PropertyPath, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) = 0;
 
 	/**
+	 * Registers a remote control replicator for bypassing the payload to replicator instead applying directly
+	 * @param InReplicator Instance of the replicator class.
+	 */
+	virtual void RegisterReplicator(TSharedRef<IRemoteControlReplicator> InReplicator) = 0;
+
+	/**
+	 * remove replicator by given name
+	 * @param ReplicatorName replicator name.
+	 */
+	virtual void UnregisterReplicator(FName ReplicatorName) = 0;
+
+	/**
 	 * Serialize the Object Reference into the specified backend.
 	 * @param ObjectAccess the object reference to serialize, it should be a read access reference.
 	 * @param Backend the struct serializer backend to use to serialize the object properties.
@@ -220,16 +250,19 @@ public:
 	 * Deserialize the Object Reference from the specified backend.
 	 * @param ObjectAccess the object reference to deserialize into, it should be a write access reference. if the object is WRITE_TRANSACTION_ACCESS, the setting will be wrapped in a transaction.
 	 * @param Backend the struct deserializer backend to use to deserialize the object properties.
+	 * @param InPayloadType the payload type archive.
+	 * @param InReplicatePayload the payload reference archive for the replication.
 	 * @return true if the deserialization succeeded
 	 */
-	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend) = 0;
+	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InReplicatePayload = TArray<uint8>()) = 0;
 
 	/**
 	 * Reset the property or the object the Object Reference is pointing to
 	 * @param ObjectAccess the object reference to reset, it should be a write access reference
+	 * @param bReplicate replication flag, if that is set to true it should follow the replication path
 	 * @return true if the reset succeeded.
 	 */
-	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess) = 0;
+	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bReplicate = false) = 0;
 
 	/**
 	 * Resolve the underlying function from a preset.
@@ -254,4 +287,24 @@ public:
 	 * Get all the presets currently registered with the module.
 	 */
 	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) = 0;
+
+	/**
+	 * Get the map of registered default entity metadata initializers. 
+	 */
+	virtual const TMap<FName, FEntityMetadataInitializer>& GetDefaultMetadataInitializers() const = 0;
+	
+	/**
+	 * Register a default entity metadata which will show up in an entity's detail panel.
+	 * The initializer will be called upon an entity being exposed or when a preset is loaded in
+	 * order to update all existing entities that don't have that metadata key.
+	 * @param MetadataKey The desired metadata key.
+	 * @param MetadataInitializer The delegate to call to handle initializing the metadata.
+	 */
+	virtual bool RegisterDefaultEntityMetadata(FName MetadataKey, FEntityMetadataInitializer MetadataInitializer) = 0;
+
+	/**
+	 * Unregister a default entity metadata.
+	 * @param MetadataKey The metadata entry to unregister.
+	 */
+	virtual void UnregisterDefaultEntityMetadata(FName MetadataKey) = 0;
 };

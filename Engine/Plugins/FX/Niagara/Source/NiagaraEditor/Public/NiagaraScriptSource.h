@@ -28,11 +28,6 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 	virtual bool IsSynchronized(const FGuid& InChangeId) override;
 	virtual void MarkNotSynchronized(FString Reason) override;
 
-	virtual UNiagaraScriptSourceBase* MakeRecursiveDeepCopy(UObject* DestOuter, TMap<const UObject*, UObject*>& ExistingConversions) const override;
-
-	/** Determine if there are any external dependencies wrt to scripts and ensure that those dependencies are sucked into the existing package.*/
-	virtual void SubsumeExternalDependencies(TMap<const UObject*, UObject*>& ExistingConversions) override;
-
 	virtual FGuid GetChangeID();
 
 	virtual void ComputeVMCompilationId(struct FNiagaraVMExecutableDataId& Id, ENiagaraScriptUsage InUsage, const FGuid& InUsageId, bool bForceRebuild = false) const override;

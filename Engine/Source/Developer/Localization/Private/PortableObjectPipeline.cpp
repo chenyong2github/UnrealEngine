@@ -362,11 +362,10 @@ namespace
 				PopulateBasicPOFileEntry(*PoEntry, ManifestEntry->Namespace.GetString(), Context.Key.GetString(), Context.KeyMetadataObj, ExportedSource.Text, ExportedTranslation.Text, InTextCollapseMode, InPOFormat);
 
 				//@TODO: We support additional metadata entries that can be translated.  How do those fit in the PO file format?  Ex: isMature
-				const FString PORefString = ConvertSrcLocationToPORef(Context.SourceLocation);
-				PoEntry->AddReference(PORefString); // Source location.
+				PoEntry->AddReference(Context.SourceLocation); // Source location.
 
 				PoEntry->AddExtractedComment(GetConditionedKeyForExtractedComment(Context.Key.GetString())); // "Notes from Programmer" in the form of the Key.
-				PoEntry->AddExtractedComment(GetConditionedReferenceForExtractedComment(PORefString)); // "Notes from Programmer" in the form of the Source Location, since this comes in handy too and OneSky doesn't properly show references, only comments.
+				PoEntry->AddExtractedComment(GetConditionedReferenceForExtractedComment(Context.SourceLocation)); // "Notes from Programmer" in the form of the Source Location, since this comes in handy too and OneSky doesn't properly show references, only comments.
 
 				TArray<FString> InfoMetaDataStrings;
 				if (Context.InfoMetadataObj.IsValid())
@@ -684,14 +683,6 @@ FString PortableObjectPipeline::ConditionPOStringForArchive(const FString& InStr
 	Result.ReplaceInline(TEXT("\\\""), TEXT("\""), ESearchCase::CaseSensitive);
 	Result.ReplaceInline(TEXT("\\\\"), TEXT("\\"), ESearchCase::CaseSensitive);
 	return Result;
-}
-
-FString PortableObjectPipeline::ConvertSrcLocationToPORef(const FString& InSrcLocation)
-{
-	// Source location format: /Path1/Path2/file.cpp - line 123
-	// PO Reference format: /Path1/Path2/file.cpp:123
-	// @TODO: Note, we assume the source location format here but it could be arbitrary.
-	return InSrcLocation.Replace(TEXT(" - line "), TEXT(":"), ESearchCase::CaseSensitive);
 }
 
 FString PortableObjectPipeline::GetConditionedKeyForExtractedComment(const FString& Key)

@@ -244,8 +244,9 @@ void UNiagaraNodeAssignment::GenerateScript()
 	if (FunctionScript == nullptr)
 	{
 		FunctionScript = NewObject<UNiagaraScript>(this, FName(*(TRANSLATOR_SET_VARIABLES_UNDERSCORE_STR + NodeGuid.ToString())), RF_Transactional);
+		FunctionScript->CheckVersionDataAvailable();
 		FunctionScript->SetUsage(ENiagaraScriptUsage::Module);
-		FunctionScript->Description = LOCTEXT("AssignmentNodeDesc", "Sets one or more variables in the stack.");
+		GetScriptData()->Description = LOCTEXT("AssignmentNodeDesc", "Sets one or more variables in the stack.");
 		InitializeScript(FunctionScript);
 		UpdateUsageBitmaskFromOwningScript();
 		ComputeNodeName();
@@ -405,7 +406,7 @@ void UNiagaraNodeAssignment::AddParameter(FNiagaraVariable InVar, FString InDefa
 	// Since we blow away the graph, we need to cache *everything* we create potentially.
 	Modify();
 	FunctionScript->Modify();
-	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(FunctionScript->GetSource());
+	UNiagaraScriptSource* Source = GetFunctionScriptSource();
 	Source->Modify();
 	Source->NodeGraph->Modify();
 	for (UEdGraphNode* Node : Source->NodeGraph->Nodes)
@@ -430,7 +431,7 @@ void UNiagaraNodeAssignment::RemoveParameter(const FNiagaraVariable& InVar)
 	// Since we blow away the graph, we need to cache *everything* we create potentially.
 	Modify();
 	FunctionScript->Modify();
-	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(FunctionScript->GetSource());
+	UNiagaraScriptSource* Source = GetFunctionScriptSource();
 	Source->Modify();
 	Source->NodeGraph->Modify();
 	for (UEdGraphNode* Node : Source->NodeGraph->Nodes)
@@ -454,19 +455,19 @@ void UNiagaraNodeAssignment::RemoveParameter(const FNiagaraVariable& InVar)
 
 void UNiagaraNodeAssignment::UpdateUsageBitmaskFromOwningScript()
 {
-	FunctionScript->ModuleUsageBitmask = CalculateScriptUsageBitmask();
+	FunctionScript->GetScriptData(SelectedScriptVersion)->ModuleUsageBitmask = CalculateScriptUsageBitmask();
 }
 
 void UNiagaraNodeAssignment::InitializeScript(UNiagaraScript* NewScript)
 {
 	if (NewScript != NULL)
 	{		
-		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(NewScript->GetSource());
+		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(NewScript->GetLatestSource());
 
 		if (nullptr == Source)
 		{
 			Source = NewObject<UNiagaraScriptSource>(NewScript, NAME_None, RF_Transactional);
-			NewScript->SetSource(Source);
+			NewScript->SetSource(Source, SelectedScriptVersion);
 		}
 
 		UNiagaraGraph* CreatedGraph = Source->NodeGraph;
@@ -760,7 +761,7 @@ bool UNiagaraNodeAssignment::RenameAssignmentTarget(FName OldName, FName NewName
 			if (FunctionScript != nullptr)
 			{
 				FunctionScript->Modify();
-				FunctionScript->GetSource()->Modify();
+				GetFunctionScriptSource()->Modify();
 			}
 
 			AssignmentTarget.SetName(NewName);

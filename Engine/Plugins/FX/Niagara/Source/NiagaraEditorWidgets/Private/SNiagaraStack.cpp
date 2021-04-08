@@ -273,6 +273,7 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 	NameColumnWidth = .3f;
 	ContentColumnWidth = .7f;
 	StackCommandContext = MakeShared<FNiagaraStackCommandContext>();
+	bSynchronizeExpansionPending = true;
 
 	ChildSlot
 	[
@@ -310,6 +311,7 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 
 void SNiagaraStack::SynchronizeTreeExpansion()
 {
+	bSynchronizeExpansionPending = false;
 	TArray<UNiagaraStackEntry*> EntriesToProcess(StackViewModel->GetRootEntryAsArray());
 	while (EntriesToProcess.Num() > 0)
 	{
@@ -411,7 +413,6 @@ FReply SNiagaraStack::ScrollToNextMatch()
 		}
 
 		ExpandAllInPath(CurrentSearchResults[NextMatchIndex].EntryPath);
-		SynchronizeTreeExpansion();
 	}
 
 	AddSearchScrollOffset(1);
@@ -444,7 +445,6 @@ FReply SNiagaraStack::ScrollToPreviousMatch()
 				}
 			}
 		}
-		SynchronizeTreeExpansion();
 	}
 
 	// move current match to the previous one in the StackTree, wrap around
@@ -615,7 +615,6 @@ void SNiagaraStack::ExpandSearchResults()
 			}
 		}
 	}
-	SynchronizeTreeExpansion();
 }
 
 void SNiagaraStack::OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
@@ -877,12 +876,17 @@ FReply SNiagaraStack::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& In
 
 void SNiagaraStack::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
+	// Update the stack view model and synchronize the expansion state before the parent tick to ensure that the state is up to date before ticking child widgets.
 	if (StackViewModel)
 	{
 		StackViewModel->Tick();
 	}
+	if (bSynchronizeExpansionPending)
+	{
+		SynchronizeTreeExpansion();
+	}
+
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
 
@@ -1073,7 +1077,7 @@ void SNiagaraStack::OnContentColumnWidthChanged(float Width)
 
 void SNiagaraStack::StackStructureChanged()
 {
-	SynchronizeTreeExpansion();
+	bSynchronizeExpansionPending = true;
 	StackTree->RequestTreeRefresh();
 	HeaderList->RequestListRefresh();
 }

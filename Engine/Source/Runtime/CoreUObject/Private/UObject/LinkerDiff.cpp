@@ -118,7 +118,9 @@ void FLinkerDiff::GenerateSummaryDiff(FLinker* LHSLinker, FLinker* RHSLinker)
 	//COMPARE_MEMBER(LHSSummary, RHSSummary, SearchableNamesOffset);
 	//COMPARE_MEMBER(LHSSummary, RHSSummary, ThumbnailTableOffset);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	COMPARE_MEMBER(LHSSummary, RHSSummary, Guid);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 	COMPARE_MEMBER(LHSSummary, RHSSummary, PersistentGuid);
 #endif
@@ -457,7 +459,9 @@ void FLinkerDiff::GenerateExportDiff(FLinker* LHSLinker, const FLinkerExportObje
 
 	COMPARE_MEMBER(LHSExport.Export, RHSExport.Export, ObjectFlags);
 	COMPARE_MEMBER(LHSExport.Export, RHSExport.Export, SerialSize);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	COMPARE_MEMBER(LHSExport.Export, RHSExport.Export, PackageGuid);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	COMPARE_MEMBER(LHSExport.Export, RHSExport.Export, PackageFlags);
 	COMPARE_MEMBER(LHSExport.Export, RHSExport.Export, SerializationBeforeSerializationDependencies);
 	COMPARE_MEMBER(LHSExport.Export, RHSExport.Export, CreateBeforeSerializationDependencies);

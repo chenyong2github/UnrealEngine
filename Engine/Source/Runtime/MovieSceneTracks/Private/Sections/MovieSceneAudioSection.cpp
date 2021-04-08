@@ -27,6 +27,11 @@ struct FAudioChannelEditorData
 namespace
 {
 	float AudioDeprecatedMagicNumber = TNumericLimits<float>::Lowest();
+
+	FFrameNumber GetStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, FFrameNumber StartOffset, FFrameNumber StartFrame)
+	{
+		return StartOffset + TrimTime.Time.FrameNumber - StartFrame;
+	}
 }
 
 UMovieSceneAudioSection::UMovieSceneAudioSection( const FObjectInitializer& ObjectInitializer )
@@ -137,12 +142,6 @@ void UMovieSceneAudioSection::PostLoad()
 		StartFrameOffset = ConvertFrameTime(FFrameTime::FromDecimal(DisplayRate.AsDecimal() * StartOffsetToUpgrade.GetValue()), DisplayRate, TickResolution).FrameNumber;
 	}
 }
-
-FFrameNumber GetStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, FFrameNumber StartOffset, FFrameNumber StartFrame)
-{
-	return StartOffset + TrimTime.Time.FrameNumber - StartFrame;
-}
-
 	
 TOptional<TRange<FFrameNumber> > UMovieSceneAudioSection::GetAutoSizeRange() const
 {

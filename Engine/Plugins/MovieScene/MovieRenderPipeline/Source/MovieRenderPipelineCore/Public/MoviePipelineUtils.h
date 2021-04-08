@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Engine/Scene.h"
 #include "Engine/Engine.h"
+#include "MovieRenderPipelineDataTypes.h"
 
 // Forward Declare
 class UClass;
@@ -34,6 +35,9 @@ static UWorld* FindCurrentWorld()
 
 	return World;
 }
+
+MOVIERENDERPIPELINECORE_API void GetPassCompositeData(FMoviePipelineMergerOutputFrame* InMergedOutputFrame, TArray<MoviePipeline::FCompositePassInfo>& OutCompositedPasses);
+
 }
 
 #define MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(InOutVariable, CVarName, OverrideValue, bUseOverride) \
@@ -111,4 +115,9 @@ namespace UE
 		MOVIERENDERPIPELINECORE_API TArray<UClass*> FindMoviePipelineSettingClasses();
 		MOVIERENDERPIPELINECORE_API EAntiAliasingMethod GetEffectiveAntiAliasingMethod(const UMoviePipelineAntiAliasingSetting* InSetting);
 	}
+}
+
+namespace MoviePipeline
+{
+	MOVIERENDERPIPELINECORE_API void GetOutputStateFormatArgs(FMoviePipelineFormatArgs& InOutFinalFormatArgs, const FString FrameNumber, const FString FrameNumberShot, const FString FrameNumberRel, const FString FrameNumberShotRel, const FString CameraName, const FString ShotName);
 }

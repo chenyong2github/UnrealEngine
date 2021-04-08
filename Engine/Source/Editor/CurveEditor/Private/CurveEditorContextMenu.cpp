@@ -48,6 +48,9 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 			if (!bIsReadOnly)
 			{
 				// Modify Data
+				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
+				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
+				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
 				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
 
 				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().FlattenTangents);
@@ -68,6 +71,9 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 
 			// Filters
 			MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
+			
+			// View
+			MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().ZoomToFit);
 		}
 		MenuBuilder.EndSection();
 	}
@@ -89,7 +95,10 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 				if (!HoveredCurve->IsReadOnly())
 				{
 					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().AddKeyHovered);
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().PasteKeysHovered);
 
+					MenuBuilder.AddMenuSeparator();
+					
 					MenuBuilder.AddSubMenu(LOCTEXT("PreExtrapText", "Pre-Extrap"), FText(), FNewMenuDelegate::CreateLambda(
 						[](FMenuBuilder& SubMenu)
 						{
@@ -118,6 +127,8 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 				// Filters
 				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
 
+				// View
+				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().ZoomToFit);
 			}
 			MenuBuilder.EndSection();
 		}
@@ -154,6 +165,9 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 					// Filters
 					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
 				}
+
+				// View
+				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().ZoomToFit);
 			}
 			MenuBuilder.EndSection();
 		}

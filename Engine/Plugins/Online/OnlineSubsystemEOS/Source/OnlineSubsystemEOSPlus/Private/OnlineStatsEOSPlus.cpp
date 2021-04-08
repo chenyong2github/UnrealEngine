@@ -5,7 +5,7 @@
 #include "OnlineSubsystemEOSPlus.h"
 #include "EOSSettings.h"
 
-void FOnlineStatsEOSPlus::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TSharedRef<const FUniqueNetId> StatsUser, const FOnlineStatsQueryUserStatsComplete& Delegate)
+void FOnlineStatsEOSPlus::QueryStats(const FUniqueNetIdRef LocalUserId, const FUniqueNetIdRef StatsUser, const FOnlineStatsQueryUserStatsComplete& Delegate)
 {
 	IOnlineStatsPtr Stats = EOSPlus->BaseOSS->GetStatsInterface();
 	if (Stats.IsValid())
@@ -14,7 +14,7 @@ void FOnlineStatsEOSPlus::QueryStats(const TSharedRef<const FUniqueNetId> LocalU
 	}
 }
 
-void FOnlineStatsEOSPlus::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& StatUsers, const TArray<FString>& StatNames, const FOnlineStatsQueryUsersStatsComplete& Delegate)
+void FOnlineStatsEOSPlus::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray<FUniqueNetIdRef>& StatUsers, const TArray<FString>& StatNames, const FOnlineStatsQueryUsersStatsComplete& Delegate)
 {
 	IOnlineStatsPtr Stats = EOSPlus->BaseOSS->GetStatsInterface();
 	if (Stats.IsValid())
@@ -23,7 +23,7 @@ void FOnlineStatsEOSPlus::QueryStats(const TSharedRef<const FUniqueNetId> LocalU
 	}
 }
 
-TSharedPtr<const FOnlineStatsUserStats> FOnlineStatsEOSPlus::GetStats(const TSharedRef<const FUniqueNetId> StatsUserId) const
+TSharedPtr<const FOnlineStatsUserStats> FOnlineStatsEOSPlus::GetStats(const FUniqueNetIdRef StatsUserId) const
 {
 	IOnlineStatsPtr Stats = EOSPlus->BaseOSS->GetStatsInterface();
 	if (Stats.IsValid())
@@ -35,7 +35,7 @@ TSharedPtr<const FOnlineStatsUserStats> FOnlineStatsEOSPlus::GetStats(const TSha
 
 FOnlineStatsUpdateStatsComplete IgnoredStatsComplete;
 
-void FOnlineStatsEOSPlus::UpdateStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate)
+void FOnlineStatsEOSPlus::UpdateStats(const FUniqueNetIdRef LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate)
 {
 	// This one is the one that will fire the delegate upon completion
 	IOnlineStatsPtr Stats = EOSPlus->BaseOSS->GetStatsInterface();
@@ -55,7 +55,7 @@ void FOnlineStatsEOSPlus::UpdateStats(const TSharedRef<const FUniqueNetId> Local
 }
 
 #if !UE_BUILD_SHIPPING
-void FOnlineStatsEOSPlus::ResetStats(const TSharedRef<const FUniqueNetId> StatsUserId)
+void FOnlineStatsEOSPlus::ResetStats(const FUniqueNetIdRef StatsUserId)
 {
 	// Only need to forward to the base since EOS doesn't support this
 	IOnlineStatsPtr Stats = EOSPlus->BaseOSS->GetStatsInterface();

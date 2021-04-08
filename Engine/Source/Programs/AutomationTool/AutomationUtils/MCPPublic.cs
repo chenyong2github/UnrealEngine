@@ -829,6 +829,10 @@ namespace EpicGames.MCP.Automation
 			/// Contains a list of custom float arguments to be embedded in the generated manifest file.
 			/// </summary>
 			public List<KeyValuePair<string, float>> CustomFloatArgs;
+			/// <summary>
+			/// File path to a file containing parameters for bpt to use (can be used in combination with parameters above, no duplicates)
+			/// </summary>
+			public string CommandLineFile;
 		}
 
 		public class LabelBinaryOptions
@@ -873,6 +877,10 @@ namespace EpicGames.MCP.Automation
 			/// Specifies the id of the product being uploaded.
 			/// </summary>
 			public string ProductId;
+			/// <summary>
+			/// File path to a file containing parameters for bpt to use (can be used in combination with parameters above, no duplicates)
+			/// </summary>
+			public string CommandLineFile;
 		}
 
 		public class ListBinariesOptions
@@ -917,6 +925,10 @@ namespace EpicGames.MCP.Automation
 			/// name of json formated output file to dump the binaries to
 			/// </summary>
 			public string OutputFile;
+			/// <summary>
+			/// File path to a file containing parameters for bpt to use (can be used in combination with parameters above, no duplicates)
+			/// </summary>
+			public string CommandLineFile;
 		}
 
 		public class ListBinariesOutput
@@ -971,10 +983,6 @@ namespace EpicGames.MCP.Automation
 			/// </summary>
 			public string BuildVersion;
 			/// <summary>
-			/// Used as part of the build version string.
-			/// </summary>
-			public MCPPlatform Platform;
-			/// <summary>
 			/// Specifies the client id allocated to you by Epic for uploading binaries to Epic's services.
 			/// </summary>
 			public string ClientId;
@@ -994,6 +1002,10 @@ namespace EpicGames.MCP.Automation
 			/// Specifies the id of the product being uploaded.
 			/// </summary>
 			public string ProductId;
+			/// <summary>
+			/// File path to a file containing parameters for bpt to use (can be used in combination with parameters above, no duplicates)
+			/// </summary>
+			public string CommandLineFile;
 		}
 
 

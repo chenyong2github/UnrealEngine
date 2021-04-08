@@ -7,6 +7,7 @@
 #include "IMediaEventSink.h"
 #include "Misc/ScopeLock.h"
 
+#include "WmfMediaTracks.h"
 #include "WmfMediaUtils.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -80,6 +81,7 @@ FWmfMediaSession::~FWmfMediaSession()
 
 void FWmfMediaSession::GetEvents(TArray<EMediaEvent>& OutEvents)
 {
+#if WMFMEDIA_PLAYER_VERSION == 1
 #if WMFMEDIASESSION_USE_WINDOWS7FASTFORWARDENDHACK
 	if (CurrentDuration > FTimespan::Zero())
 	{
@@ -98,6 +100,7 @@ void FWmfMediaSession::GetEvents(TArray<EMediaEvent>& OutEvents)
 		}
 	}
 #endif
+#endif // WMFMEDIA_PLAYER_VERSION == 1
 
 	EMediaEvent Event;
 
@@ -107,6 +110,14 @@ void FWmfMediaSession::GetEvents(TArray<EMediaEvent>& OutEvents)
 	}
 }
 
+#if WMFMEDIA_PLAYER_VERSION >= 2
+
+void FWmfMediaSession::SetTracks(TSharedPtr<FWmfMediaTracks, ESPMode::ThreadSafe> InTracks)
+{
+	Tracks = InTracks;
+}
+
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 
 bool FWmfMediaSession::Initialize(bool LowLatency)
 {
@@ -948,6 +959,18 @@ bool FWmfMediaSession::CommitTime(FTimespan Time)
 		return false;
 	}
 
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	// If the rate is 0, then tell the tracks about the seek.
+	if (SessionRate == 0.0f)
+	{
+		TSharedPtr<FWmfMediaTracks, ESPMode::ThreadSafe> TracksPinned = Tracks.Pin();
+		if (TracksPinned.IsValid())
+		{
+			TracksPinned->SeekStarted(Time);
+		}
+	}
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
+
 	PendingChanges = true;
 
 	return true;
@@ -1218,6 +1241,7 @@ void FWmfMediaSession::HandleError(HRESULT EventStatus)
 
 void FWmfMediaSession::HandleSessionEnded()
 {
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FWmfMediaSession::HandleSessionEnded ShouldLoop:%d"), ShouldLoop);
 	DeferredEvents.Enqueue(EMediaEvent::PlaybackEndReached);
 
 	SessionState = EMediaState::Stopped;

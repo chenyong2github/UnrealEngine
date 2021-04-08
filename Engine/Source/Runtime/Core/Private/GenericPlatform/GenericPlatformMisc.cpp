@@ -33,9 +33,10 @@
 #include "Templates/Function.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/LazySingleton.h"
-
+#include <atomic>
 #include "Misc/UProjectInfo.h"
 #include "Internationalization/Culture.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #if UE_ENABLE_ICU
 	THIRD_PARTY_INCLUDES_START
@@ -44,6 +45,207 @@
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogGenericPlatformMisc, Log, All);
+
+
+#if (CSV_PROFILER && !UE_BUILD_SHIPPING)
+bool GTrackCsvNamedEvents = false;
+static FAutoConsoleVariableRef CVarTrackCsvNamedEvents(
+	TEXT("r.TrackCsvNamedEvents"),
+	GTrackCsvNamedEvents,
+	TEXT("Whether to record named events in the csv profiler"),
+	ECVF_Default
+);
+static std::atomic<uint32> GNamedEventMarkers(0L);
+#endif
+
+
+#define LOG_NAMED_EVENTS 0
+#if LOG_NAMED_EVENTS
+struct FNameEventEntry
+{
+	FNameEventEntry()
+		: FrameCount(0)
+		, MaxFrameCount(0)
+		, Total(0) {}
+
+	uint64 FrameCount;
+	uint64 MaxFrameCount;
+	uint64 Total;
+};
+
+struct FLogNameEventStats
+{
+	enum class EOutputSort : uint8
+	{
+		SORTTYPE_Spike,
+		SORTTYPE_Average,
+		SORTTYPE_Total,
+	};
+
+	FLogNameEventStats()
+	{
+		MaxOutput = 100;
+		SortingType = EOutputSort::SORTTYPE_Spike;
+		StartFrame = 0;
+	}
+
+	void Init()
+	{
+		GConfig->GetArray(TEXT("SystemSettings"), TEXT("LogNamedEventFilters"), NamedEventExclusions, GEngineIni);
+	}
+
+	void Dump()
+	{
+		FScopeLock Lock(&NamedEventsCriticalSection);
+
+		int32 LogCount = (MaxOutput < 0) ? NamedEventsMap.Num() : MaxOutput;
+		float CurrentFrameCount = (float)GFrameCounter;
+		
+		UE_LOG(LogGenericPlatformMisc, Log, TEXT("*********Log Named Events *********"));
+		UE_LOG(LogGenericPlatformMisc, Log, TEXT("******* Top %i NamedEvents"), LogCount);
+		
+		if (SortingType == EOutputSort::SORTTYPE_Total)
+		{
+			NamedEventsMap.ValueSort([&](const FNameEventEntry& A, const FNameEventEntry& B) { return A.Total > B.Total; });
+		}
+		else if (SortingType == EOutputSort::SORTTYPE_Average)
+		{
+			NamedEventsMap.ValueSort([&](const FNameEventEntry& A, const FNameEventEntry& B) { return (float)A.Total / (CurrentFrameCount - (float)StartFrame) > (float)B.Total / (CurrentFrameCount - (float)StartFrame); });
+		}
+		else 
+		{
+			NamedEventsMap.ValueSort([&](const FNameEventEntry& A, const FNameEventEntry& B) { return A.MaxFrameCount > B.MaxFrameCount; });
+		}
+
+		uint64 Total = 0;
+		int32 Index = 0;
+
+		for (const TPair<FName, FNameEventEntry>& Pair : NamedEventsMap)
+		{
+			if (Index <= LogCount)
+			{
+				UE_LOG(LogGenericPlatformMisc, Log, TEXT("%s : Max: %lu Total: %lu Avg: %f"), *(Pair.Key.ToString()), Pair.Value.MaxFrameCount, Pair.Value.Total, (float)Pair.Value.Total / (CurrentFrameCount - (float)StartFrame));
+			}
+			Total += Pair.Value.Total;
+			Index++;
+		}
+		UE_LOG(LogGenericPlatformMisc, Log, TEXT("***********************************"));
+		UE_LOG(LogGenericPlatformMisc, Log, TEXT("Total Unique NamedEvents: %i"), NamedEventsMap.Num());
+		UE_LOG(LogGenericPlatformMisc, Log, TEXT("Average NamedEvents per frame: %f"), (float)Total / (CurrentFrameCount - (float)StartFrame));
+		UE_LOG(LogGenericPlatformMisc, Log, TEXT("*********Log Named Events *********"));
+	}
+
+	void Reset()
+	{
+		FScopeLock Lock(&NamedEventsCriticalSection);
+		NamedEventsMap.Empty();
+		StartFrame = GFrameCounter;
+	}
+
+	void ParseSortType(const FString& Arg)
+	{
+		if (Arg.Equals(TEXT("Avg"), ESearchCase::IgnoreCase))
+		{
+			SortingType = EOutputSort::SORTTYPE_Average;
+		}
+		else if (Arg.Equals(TEXT("Spike"), ESearchCase::IgnoreCase))
+		{
+			SortingType = EOutputSort::SORTTYPE_Spike;
+		}
+		else if(Arg.Equals(TEXT("Total"), ESearchCase::IgnoreCase))
+		{
+			SortingType = EOutputSort::SORTTYPE_Total;
+		}
+		else
+		{
+			UE_LOG(LogGenericPlatformMisc, Log, TEXT("LogNamadEvent: Bad Sort argument. Option: Avg, Spike or Total"));
+		}
+	}
+
+	void LogEntry(const FString& Text)
+	{
+		// check for exclusion markers that we dont want to track each frames 
+	    // Ex: Frame 1, Frame 2, Frame 3
+		// You can specify +LogNamedEventFilters="Frame *" in the DefaultEngine.ini to exlude them 
+		for (FString& Exclusion : NamedEventExclusions)
+		{
+			if (Text.MatchesWildcard(Exclusion))
+			{
+				return;
+			}
+		}
+		FScopeLock Lock(&NamedEventsCriticalSection);
+		FNameEventEntry& StatNameEvent = NamedEventsMap.FindOrAdd(FName(Text));
+		StatNameEvent.FrameCount++;
+	}
+
+	void BeginFrame()
+	{
+		uint64 FrameCount = 0;
+		FScopeLock Lock(&NamedEventsCriticalSection);
+		for (TPair<FName, FNameEventEntry>& Pair : NamedEventsMap)
+		{
+			FNameEventEntry& Data = Pair.Value;
+			if (Data.FrameCount > Data.MaxFrameCount)
+			{
+				Data.MaxFrameCount = Data.FrameCount;
+			}
+			Data.Total += Data.FrameCount;
+			Data.FrameCount = 0;
+		}
+	}
+
+	int32 MaxOutput;
+	uint64 StartFrame;
+	EOutputSort SortingType;
+
+	TMap<FName, FNameEventEntry> NamedEventsMap;
+	TArray<FString> NamedEventExclusions;
+	FCriticalSection NamedEventsCriticalSection;
+};
+static FLogNameEventStats LogNameEventStats;
+
+static FAutoConsoleCommand GLogNamedEventsCmd(
+	TEXT("LogNamedEvents"),
+	TEXT("Log named events Commands. LogNamedEvents Dump, Reset, Sort [Avg|Spike|Total], MaxOutput [int value]"),
+		FConsoleCommandWithArgsDelegate::CreateStatic([](const TArray<FString>& Args)
+		{
+			bool bDumpNamedEvent = false;
+
+			if (Args.Num() >= 1)
+			{
+				if (Args[0].Compare(FString(TEXT("Reset")), ESearchCase::IgnoreCase) == 0)
+				{
+					LogNameEventStats.StartFrame = GFrameCounter;
+					LogNameEventStats.Reset();
+				}
+				else if (Args[0].Compare(FString(TEXT("Dump")), ESearchCase::IgnoreCase) == 0)
+				{
+					LogNameEventStats.Dump();
+				}
+				else if (Args[0].Compare(FString(TEXT("Sort")), ESearchCase::IgnoreCase) == 0)
+				{
+					if (Args.Num() == 2)
+					{
+						LogNameEventStats.ParseSortType(Args[1]);
+					}
+				}
+				else if (Args[0].Compare(FString(TEXT("MaxOutput")), ESearchCase::IgnoreCase) == 0)
+				{
+					if (Args.Num() == 2)
+					{
+						LogNameEventStats.MaxOutput = FCString::Atoi(*Args[1]);
+					}
+				}
+				else
+				{
+					UE_LOG(LogGenericPlatformMisc, Log, TEXT("LogNamadEvent: Bad argument. Option: Reset, Dump, Sort [Avg,Sort,Total] or MaxOutput [int]"));
+				}
+			}
+		}
+	)
+);
+#endif//LOG_NAMED_EVENTS
 
 /** Holds an override path if a program has special needs */
 FString OverrideProjectDir;
@@ -495,6 +697,45 @@ void FGenericPlatformMisc::RaiseException(uint32 ExceptionCode)
 #endif
 }
 
+template<typename CharType>
+void FGenericPlatformMisc::StatNamedEvent(const CharType* Text)
+{
+#if (CSV_PROFILER && !UE_BUILD_SHIPPING)
+	if (GTrackCsvNamedEvents)
+	{
+		++GNamedEventMarkers;
+	}
+#endif
+#if LOG_NAMED_EVENTS
+	FString NamedEvent(Text);
+	LogNameEventStats.LogEntry(NamedEvent);
+#endif
+}
+
+template CORE_API void FGenericPlatformMisc::StatNamedEvent<ANSICHAR>(const ANSICHAR* Text);
+template CORE_API void FGenericPlatformMisc::StatNamedEvent<TCHAR>(const TCHAR* Text);
+
+void FGenericPlatformMisc::TickStatNamedEvents()
+{
+#if (CSV_PROFILER && !UE_BUILD_SHIPPING)
+	if (GTrackCsvNamedEvents)
+	{
+		int32 NamedEventCount = GNamedEventMarkers.exchange(0);
+		CSV_CUSTOM_STAT_GLOBAL(NamedEventMarkers, NamedEventCount, ECsvCustomStatOp::Set);
+	}
+#endif
+#if LOG_NAMED_EVENTS
+	LogNameEventStats.BeginFrame();
+#endif 
+}
+
+void FGenericPlatformMisc::LogNameEventStatsInit()
+{
+#if LOG_NAMED_EVENTS
+	LogNameEventStats.Init();
+#endif
+}
+
 void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANSICHAR* Text)
 {
 #if UE_EXTERNAL_PROFILING_ENABLED
@@ -876,37 +1117,50 @@ void FGenericPlatformMisc::AddAdditionalRootDirectory(const FString& RootDir)
 	RootDirectories.Add(NewRootDirectory);
 }
 
+static void MakeEngineDir(FString& OutEngineDir)
+{
+	// See if we are a root-level project
+	FString DefaultEngineDir = TEXT("../../../Engine/");
+#if PLATFORM_DESKTOP
+#if !defined(DISABLE_CWD_CHANGES) || DISABLE_CWD_CHANGES == 0
+	FPlatformProcess::SetCurrentWorkingDirectoryToBaseDir();
+#endif
+
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+	const TCHAR* BaseDir = FPlatformProcess::BaseDir();
+
+	//@todo. Need to have a define specific for this scenario??
+	FString DirToTry = BaseDir / DefaultEngineDir / TEXT("Binaries");
+	if (PlatformFile.DirectoryExists(*DirToTry))
+	{
+		OutEngineDir = MoveTemp(DefaultEngineDir);
+		return;
+	}
+
+	if (GForeignEngineDir)
+	{
+		DirToTry = FString(GForeignEngineDir) / TEXT("Binaries");
+		if (PlatformFile.DirectoryExists(*DirToTry))
+		{
+			OutEngineDir = GForeignEngineDir;
+			return;
+		}
+	}
+
+	// Temporary work-around for legacy dependency on ../../../ (re Lightmass)
+	UE_LOG(LogGenericPlatformMisc, Warning, TEXT("Failed to determine engine directory: Defaulting to %s"), *OutEngineDir);
+#endif
+
+	OutEngineDir = MoveTemp(DefaultEngineDir);
+}
+
 const TCHAR* FGenericPlatformMisc::EngineDir()
 {
 	FString& EngineDirectory = TLazySingleton<FStaticData>::Get().EngineDirectory;
 	if (EngineDirectory.Len() == 0)
 	{
-		// See if we are a root-level project
-		FString DefaultEngineDir = TEXT("../../../Engine/");
-#if PLATFORM_DESKTOP
-#if !defined(DISABLE_CWD_CHANGES) || DISABLE_CWD_CHANGES == 0
-		FPlatformProcess::SetCurrentWorkingDirectoryToBaseDir();
-#endif
-
-		//@todo. Need to have a define specific for this scenario??
-		if (FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FPlatformProcess::BaseDir() / DefaultEngineDir / TEXT("Binaries"))))
-		{
-			EngineDirectory = DefaultEngineDir;
-		}
-		else if (GForeignEngineDir != NULL && FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FString(GForeignEngineDir) / TEXT("Binaries"))))
-		{
-			EngineDirectory = GForeignEngineDir;
-		}
-
-		if (EngineDirectory.Len() == 0)
-		{
-			// Temporary work-around for legacy dependency on ../../../ (re Lightmass)
-			EngineDirectory = DefaultEngineDir;
-			UE_LOG(LogGenericPlatformMisc, Warning, TEXT("Failed to determine engine directory: Defaulting to %s"), *EngineDirectory);
-		}
-#else
-		EngineDirectory = DefaultEngineDir;
-#endif
+		MakeEngineDir(EngineDirectory);
 	}
 	return *EngineDirectory;
 }

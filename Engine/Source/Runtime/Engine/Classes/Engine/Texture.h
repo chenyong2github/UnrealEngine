@@ -143,18 +143,6 @@ enum ETextureCompressionQuality
 	TCQ_MAX,
 };
 
-UENUM()
-enum ETextureLossyCompressionAmount
-{
-	TLCA_Default		UMETA(DisplayName = "Default"),
-	TLCA_None			UMETA(DisplayName = "No lossy compression"),
-	TLCA_Lowest			UMETA(DisplayName = "Lowest (Best image quality, largest filesize)"),
-	TLCA_Low			UMETA(DisplayName = "Low"),
-	TLCA_Medium			UMETA(DisplayName = "Medium"),
-	TLCA_High			UMETA(DisplayName = "High"),
-	TLCA_Highest		UMETA(DisplayName = "Highest (Worst image quality, smallest filesize)"),
-};
-
 USTRUCT()
 struct FTextureSourceBlock
 {

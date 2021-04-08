@@ -27,8 +27,15 @@ class UDataprepReferenceSelectionTransform : public UDataprepSelectionTransform
 {
 	GENERATED_BODY()
 
+	UDataprepReferenceSelectionTransform()
+		: bAllowIndirectReferences(false)
+	{}
+
 protected:
 	virtual void OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects) override;
+
+	UPROPERTY(EditAnywhere, Category = "HierarchySelectionOptions", meta = (ToolTip = "Include assets referenced/used by assets directly referenced/used by selected objects"))
+	bool bAllowIndirectReferences;
 };
 
 UCLASS(Category = SelectionTransform, Meta = (DisplayName = "Select Referencers", ToolTip = "Return all the assets using/referencing the objects from previous filtering"))

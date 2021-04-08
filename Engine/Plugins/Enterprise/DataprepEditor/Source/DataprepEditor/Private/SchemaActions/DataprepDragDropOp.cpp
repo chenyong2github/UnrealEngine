@@ -311,7 +311,7 @@ FText FDataprepDragDropOp::GetMessageText()
 	}
 	else
 	{
-		LastMessageText = LOCTEXT("DataprepActionStepNode_NotImplemented", "Operation not implemented yet");
+		LastMessageText = LOCTEXT("DataprepActionStepNode_NotImplemented", "Operation not allowed");
 	}
 
 	return LastMessageText;
@@ -396,7 +396,7 @@ FReply FDataprepDragDropOp::DoDropOnActionStep(UDataprepGraphActionStepNode* Tar
 							if(!bCopyRequested)
 							{
 								int32 ActionIndex = INDEX_NONE;
-								bTransactionSuccessful &= FDataprepCoreUtils::RemoveStep(SourceActionAsset, StepIndex, ActionIndex);
+								bTransactionSuccessful &= FDataprepCoreUtils::RemoveStep(SourceActionAsset, StepIndex, ActionIndex, false);
 							}
 
 							bTransactionSuccessful &= TargetActionAsset->InsertStep( SourceActionStepPtr.Get(), TargetActionStepNode->GetStepIndex() );
@@ -452,6 +452,15 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 
 	int32 ActionInsertIndex = TrackNodePtr.Pin()->GetActionIndex(InsertIndex);
 
+	if (DraggedNodeWidgets.Num() > 0)
+	{
+		TSharedPtr<SDataprepGraphActionNode> ParentNodePtr = DraggedNodeWidgets[0]->GetParentNode().Pin();
+		if (ParentNodePtr.IsValid() && ParentNodePtr->GetExecutionOrder() < InsertIndex)
+		{
+			ActionInsertIndex = TrackNodePtr.Pin()->GetActionIndex(InsertIndex + 1);
+		}
+	}
+
 	if(DraggedSteps.Num() > 0)
 	{
 		FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
@@ -492,7 +501,7 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 				{
 					if(Entry.Key)
 					{
-						bTransactionSuccessful &= FDataprepCoreUtils::RemoveSteps(Entry.Key, Entry.Value, ActionIndex);
+						bTransactionSuccessful &= FDataprepCoreUtils::RemoveSteps(Entry.Key, Entry.Value, ActionIndex, false);
 					}
 				}
 			}
@@ -592,7 +601,7 @@ FReply FDataprepDragDropOp::DoDropOnActionAsset(UDataprepGraphActionNode* Target
 						if(!bCopyRequested)
 						{
 							int32 ActionIndex = INDEX_NONE;
-							bTransactionSuccessful &= FDataprepCoreUtils::RemoveStep(SourceActionAsset, StepIndex, ActionIndex);
+							bTransactionSuccessful &= FDataprepCoreUtils::RemoveStep(SourceActionAsset, StepIndex, ActionIndex, false);
 						}
 
 						bTransactionSuccessful &= TargetActionAsset->AddStep( SourceActionStepPtr.Get() ) != INDEX_NONE;

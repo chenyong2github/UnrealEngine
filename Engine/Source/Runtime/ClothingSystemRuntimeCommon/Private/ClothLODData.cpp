@@ -51,18 +51,24 @@ bool FClothLODDataCommon::Serialize(FArchive& Ar)
 			ParameterMasks_DEPRECATED[i].MigrateTo(PointWeightMaps[i]);
 		}
 		ParameterMasks_DEPRECATED.Empty();
-#endif // WITH_EDITORONLY_DATA
 
-#if WITH_CHAOS
-		// Rebuild surface points so that the legacy Apex convex collision data can also be used with Chaos
-		for (auto& Convex : CollisionData.Convexes)
+		// Migrate Convex Planes from the legacy Apex collision (used for box collision)
+		// Note: This code is not enough to get Apex convex working (it's missing surface points and face indices),
+		//       but it is better to keep the data alive for now in case the Apex deprecation causes any issues.
+		for (FClothCollisionPrim_Convex& Convex : CollisionData.Convexes)
 		{
-			if (!Convex.SurfacePoints.Num())
+			const int32 NumDeprecatedPlanes = Convex.Planes_DEPRECATED.Num();
+			if (NumDeprecatedPlanes)
 			{
-				Convex.RebuildSurfacePoints();
+				Convex.Faces.SetNum(NumDeprecatedPlanes);
+				for (int32 FaceIndex = 0; FaceIndex < NumDeprecatedPlanes; ++FaceIndex)
+				{
+					Convex.Faces[FaceIndex].Plane = Convex.Planes_DEPRECATED[FaceIndex];
+				}
+				Convex.Planes_DEPRECATED.Empty();
 			}
 		}
-#endif // #if WITH_CHAOS
+#endif // WITH_EDITORONLY_DATA
 	}
 	return true;
 }

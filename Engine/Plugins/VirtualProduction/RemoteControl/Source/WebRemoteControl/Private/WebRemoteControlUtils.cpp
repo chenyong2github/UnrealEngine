@@ -2,8 +2,9 @@
 
 #include "WebRemoteControlUtils.h"
 #include "HttpServerRequest.h"
-#include "UObject/StructOnScope.h"
+#include "Misc/Base64.h"
 #include "Serialization/JsonReader.h"
+#include "UObject/StructOnScope.h"
 
 
 namespace RemotePayloadSerializer
@@ -92,14 +93,27 @@ namespace RemotePayloadSerializer
 	{
 		FRCJsonStructSerializerBackend Backend(Writer, EStructSerializerBackendFlags::Default);
 		TSharedPtr<TJsonWriter<ANSICHAR>> JsonWriter = TJsonWriter<ANSICHAR>::Create(&Writer);
+		TArray<FString>* ContentTypeHeaders = Response->Headers.Find(TEXT("Content-Type"));
+		const bool bIsBinaryData = ContentTypeHeaders && ContentTypeHeaders->Contains(TEXT("image/png"));
 
 		JsonWriter->WriteObjectStart();
 		JsonWriter->WriteValue(TEXT("RequestId"), RequestId);
 		JsonWriter->WriteValue(TEXT("ResponseCode"), static_cast<int32>(Response->Code));
 		JsonWriter->WriteIdentifierPrefix(TEXT("ResponseBody"));
+	
 		if (Response->Body.Num())
 		{
-			Writer.Serialize((void*)Response->Body.GetData(), Response->Body.Num());
+			if (!bIsBinaryData)
+			{
+				Writer.Serialize((void*)Response->Body.GetData(), Response->Body.Num());
+			}
+			else
+			{
+				FString Base64String = FBase64::Encode(Response->Body);
+				TArray<uint8> WorkingBuffer;
+				WebRemoteControlUtils::ConvertToUTF8(Base64String, WorkingBuffer);
+				Writer.Serialize((void*)WorkingBuffer.GetData(), WorkingBuffer.Num());
+			}
 		}
 		else
 		{

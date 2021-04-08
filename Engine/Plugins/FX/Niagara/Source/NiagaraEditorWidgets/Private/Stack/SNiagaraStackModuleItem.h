@@ -39,9 +39,13 @@ private:
 
 	EVisibility GetRefreshVisibility() const;
 
+	EVisibility GetVersionSelectionMenuVisibility() const;
+
 	FReply ScratchButtonPressed() const;
 	
 	TSharedRef<SWidget> RaiseActionMenuClicked();
+	
+	TSharedRef<SWidget> GetVersionSelectorDropdownMenu();
 
 	bool CanRaiseActionMenu() const;
 
@@ -50,6 +54,8 @@ private:
 	FReply RefreshClicked();
 
 	FReply OnModuleItemDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
+
+	FSlateColor GetVersionSelectorColor() const;
 
 	bool OnModuleItemAllowDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
 
@@ -62,6 +68,8 @@ private:
 	bool GetLibraryOnly() const;
 
 	void SetLibraryOnly(bool bInLibraryOnly);
+
+	void SwitchToVersion(FNiagaraAssetVersion Version);
 
 private:
 	UNiagaraStackModuleItem* ModuleItem;

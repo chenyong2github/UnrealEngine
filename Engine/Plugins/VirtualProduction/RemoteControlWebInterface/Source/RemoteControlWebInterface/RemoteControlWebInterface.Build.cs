@@ -26,6 +26,9 @@ public class RemoteControlWebInterface : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"EditorStyle",
+					"EditorWidgets",
+					"PropertyEditor",
+					"RemoteControl",
 					"RemoteControlUI",
 					"Settings",
 					"UnrealEd"

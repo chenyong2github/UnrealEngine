@@ -12,16 +12,15 @@
 * scalar implementation, so the scalar code is maintained and enabled when vector intrinsics are off.
 */
 //Currently disabled because FBoneAtom became FTransform and we want to iterate quickly on it.
-#define ENABLE_VECTORIZED_FBONEATOM		0 //PLATFORM_ENABLE_VECTORINTRINSICS && !__ARM_NEON__ && 1 // currently no support for VectorPermute needed for the boneatoms
 #define ENABLE_VECTORIZED_TRANSFORM		PLATFORM_ENABLE_VECTORINTRINSICS
 
-#if ENABLE_VECTORIZED_FBONEATOM || ENABLE_VECTORIZED_TRANSFORM		
+#if ENABLE_VECTORIZED_TRANSFORM		
 
 /**
 * The ScalarRegister class wraps the concept of a 'float-in-vector', allowing common scalar operations like bone
 * weight calculations to be done in vector registers.  This will avoid some LHS hazards that arise when mixing float
 * and vector math on some platforms.  However, doing the math for four elements is slower if the vector operations are
-* being emulated on a scalar FPU, so ScalarRegister is defined to float when ENABLE_VECTORIZED_FBONEATOM == 0.
+* being emulated on a scalar FPU, so ScalarRegister is defined to float when ENABLE_VECTORIZED_TRANSFORM == 0.
 */
 class ScalarRegister
 {

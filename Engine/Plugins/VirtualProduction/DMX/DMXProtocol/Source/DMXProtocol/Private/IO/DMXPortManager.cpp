@@ -16,8 +16,7 @@ TUniquePtr<FDMXPortManager> FDMXPortManager::CurrentManager;
 
 FDMXPortManager::~FDMXPortManager()
 {
-	// If this check is hit, the manager never was shut down
-	check(!CurrentManager.IsValid());
+	checkf(!CurrentManager.IsValid(), TEXT("ShutdownManager was not called"));
 }
 
 FDMXPortManager& FDMXPortManager::Get()
@@ -29,12 +28,82 @@ FDMXPortManager& FDMXPortManager::Get()
 	return *CurrentManager;
 }
 
-FDMXPortSharedRef FDMXPortManager::FindPortByGuidChecked(const FGuid& PortGuid) const
+FDMXInputPortSharedRef FDMXPortManager::CreateInputPort()
+{
+	FDMXInputPortSharedRef NewInputPort = FDMXInputPort::Create();
+	InputPorts.Add(NewInputPort);
+
+	OnPortsChanged.Broadcast();
+
+	return NewInputPort;
+}
+
+FDMXInputPortSharedRef FDMXPortManager::GetOrCreateInputPortFromConfig(const FDMXInputPortConfig& InputPortConfig)
+{
+	// The config needs a valid guid
+	check(InputPortConfig.GetPortGuid().IsValid());
+
+	FDMXInputPortSharedPtr ExistingPort = FindInputPortByGuid(InputPortConfig.GetPortGuid());
+	if (ExistingPort.IsValid())
+	{
+		return ExistingPort.ToSharedRef();
+	}
+
+	FDMXInputPortSharedRef NewInputPort = FDMXInputPort::CreateFromConfig(InputPortConfig);
+	InputPorts.Add(NewInputPort);
+
+	OnPortsChanged.Broadcast();
+
+	return NewInputPort;
+}
+
+void FDMXPortManager::RemoveInputPortChecked(const FGuid& PortGuid)
+{
+	FDMXInputPortSharedRef InputPort = FindInputPortByGuidChecked(PortGuid);
+	InputPorts.Remove(InputPort);
+}
+
+FDMXOutputPortSharedRef FDMXPortManager::CreateOutputPort()
+{
+	FDMXOutputPortSharedRef NewOutputPort = FDMXOutputPort::Create();
+	OutputPorts.Add(NewOutputPort);
+
+	OnPortsChanged.Broadcast();
+
+	return NewOutputPort;
+}
+
+FDMXOutputPortSharedRef FDMXPortManager::GetOrCreateOutputPortFromConfig(const FDMXOutputPortConfig& OutputPortConfig)
+{
+	// The config needs a valid guid
+	check(OutputPortConfig.GetPortGuid().IsValid());
+
+	FDMXOutputPortSharedPtr ExistingPort = FindOutputPortByGuid(OutputPortConfig.GetPortGuid());
+	if (ExistingPort.IsValid())
+	{
+		return ExistingPort.ToSharedRef();
+	}
+
+	FDMXOutputPortSharedRef NewOutputPort = FDMXOutputPort::CreateFromConfig(OutputPortConfig);
+	OutputPorts.Add(NewOutputPort);
+
+	OnPortsChanged.Broadcast();
+
+	return NewOutputPort;
+}
+
+void FDMXPortManager::RemoveOutputPortChecked(const FGuid& PortGuid)
+{
+	FDMXOutputPortSharedRef OutputPort = FindOutputPortByGuidChecked(PortGuid);
+	OutputPorts.Remove(OutputPort);
+}
+
+FDMXPortSharedPtr FDMXPortManager::FindPortByGuid(const FGuid& PortGuid) const
 {
 	const FDMXInputPortSharedRef* InputPortPtr =
 		InputPorts.FindByPredicate([&PortGuid](const FDMXInputPortSharedRef& InputPort) {
 		return InputPort->GetPortGuid() == PortGuid;
-			});
+	});
 
 	if (InputPortPtr)
 	{
@@ -44,7 +113,32 @@ FDMXPortSharedRef FDMXPortManager::FindPortByGuidChecked(const FGuid& PortGuid) 
 	const FDMXOutputPortSharedRef* OutputPortPtr =
 		OutputPorts.FindByPredicate([&PortGuid](const FDMXOutputPortSharedRef& OutputPort) {
 		return OutputPort->GetPortGuid() == PortGuid;
-			});
+	});
+
+	if (OutputPortPtr)
+	{
+		return (*OutputPortPtr);
+	}
+
+	return nullptr;
+}
+
+FDMXPortSharedRef FDMXPortManager::FindPortByGuidChecked(const FGuid& PortGuid) const
+{
+	const FDMXInputPortSharedRef* InputPortPtr =
+		InputPorts.FindByPredicate([&PortGuid](const FDMXInputPortSharedRef& InputPort) {
+		return InputPort->GetPortGuid() == PortGuid;
+	});
+
+	if (InputPortPtr)
+	{
+		return (*InputPortPtr);
+	}
+
+	const FDMXOutputPortSharedRef* OutputPortPtr =
+		OutputPorts.FindByPredicate([&PortGuid](const FDMXOutputPortSharedRef& OutputPort) {
+		return OutputPort->GetPortGuid() == PortGuid;
+	});
 
 	if (OutputPortPtr)
 	{
@@ -57,144 +151,148 @@ FDMXPortSharedRef FDMXPortManager::FindPortByGuidChecked(const FGuid& PortGuid) 
 	return InvalidPtr.ToSharedRef();
 }
 
+FDMXInputPortSharedPtr FDMXPortManager::FindInputPortByGuid(const FGuid& PortGuid) const
+{
+	const FDMXInputPortSharedRef* InputPortPtr =
+		InputPorts.FindByPredicate([&PortGuid](const FDMXInputPortSharedRef& InputPort) {
+		return InputPort->GetPortGuid() == PortGuid;
+	});
+
+	if (InputPortPtr)
+	{
+		return (*InputPortPtr);
+	}
+
+	return nullptr;
+}
+
+FDMXInputPortSharedRef FDMXPortManager::FindInputPortByGuidChecked(const FGuid& PortGuid) const
+{
+	const FDMXInputPortSharedRef* InputPortPtr =
+		InputPorts.FindByPredicate([&PortGuid](const FDMXInputPortSharedRef& InputPort) {
+		return InputPort->GetPortGuid() == PortGuid;
+	});
+
+	if (InputPortPtr)
+	{
+		return (*InputPortPtr);
+	}
+
+	// Check failed
+	checkNoEntry();
+	FDMXInputPortSharedPtr InvalidPtr;
+	return InvalidPtr.ToSharedRef();
+}
+
+FDMXOutputPortSharedPtr FDMXPortManager::FindOutputPortByGuid(const FGuid& PortGuid) const
+{
+	const FDMXOutputPortSharedRef* OutputPortPtr =
+		OutputPorts.FindByPredicate([&PortGuid](const FDMXOutputPortSharedRef& OutputPort) {
+		return OutputPort->GetPortGuid() == PortGuid;
+	});
+
+	if (OutputPortPtr)
+	{
+		return (*OutputPortPtr);
+	}
+
+	return nullptr;
+}
+
+FDMXOutputPortSharedRef FDMXPortManager::FindOutputPortByGuidChecked(const FGuid& PortGuid) const
+{
+	const FDMXOutputPortSharedRef* OutputPortPtr =
+		OutputPorts.FindByPredicate([&PortGuid](const FDMXOutputPortSharedRef& OutputPort) {
+		return OutputPort->GetPortGuid() == PortGuid;
+	});
+
+	if (OutputPortPtr)
+	{
+		return (*OutputPortPtr);
+	}
+
+	// Check failed
+	checkNoEntry();
+	FDMXOutputPortSharedPtr InvalidPtr;
+	return InvalidPtr.ToSharedRef();
+}
+
+void FDMXPortManager::UpdateFromProtocolSettings()
+{
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+
+	// Remove Ports that no longer exist in settings
+	TArray<FDMXInputPortSharedRef> CachedInputPorts = InputPorts;
+	for (const FDMXInputPortSharedRef& InputPort : CachedInputPorts)
+	{
+		const FGuid& PortGuid = InputPort->GetPortGuid();
+		const FDMXInputPortConfig* ExistingInputPortConfig = ProtocolSettings->InputPortConfigs.FindByPredicate([PortGuid](const FDMXInputPortConfig& InputPortConfig) {
+			return InputPortConfig.GetPortGuid() == PortGuid;
+			});
+
+		if (!ExistingInputPortConfig &&
+			PortGuidsFromProtocolSettings.Contains(PortGuid))
+		{
+			InputPorts.Remove(InputPort);
+			PortGuidsFromProtocolSettings.Remove(PortGuid);
+
+			OnPortsChanged.Broadcast();
+		}
+	}
+
+	TArray<FDMXOutputPortSharedRef> CachedOutputPorts = OutputPorts;
+	for (const FDMXOutputPortSharedRef& OutputPort : CachedOutputPorts)
+	{
+		const FGuid& PortGuid = OutputPort->GetPortGuid();
+		const FDMXOutputPortConfig* ExistingOutputPortConfig = ProtocolSettings->OutputPortConfigs.FindByPredicate([PortGuid](const FDMXOutputPortConfig& OutputPortConfig) {
+			return OutputPortConfig.GetPortGuid() == PortGuid;
+		});
+
+		if (!ExistingOutputPortConfig &&
+			PortGuidsFromProtocolSettings.Contains(PortGuid))
+		{
+			OutputPorts.Remove(OutputPort);
+			PortGuidsFromProtocolSettings.Remove(PortGuid);
+
+			OnPortsChanged.Broadcast();
+		}
+	}
+
+	// Add newly created ports and update existing ones
+	for (FDMXInputPortConfig& InputPortConfig : ProtocolSettings->InputPortConfigs)
+	{
+		FDMXInputPortSharedRef InputPort = GetOrCreateInputPortFromConfig(InputPortConfig);
+
+		InputPort->UpdateFromConfig(InputPortConfig);
+
+		PortGuidsFromProtocolSettings.AddUnique(InputPort->GetPortGuid());
+	}
+
+	for (FDMXOutputPortConfig& OutputPortConfig : ProtocolSettings->OutputPortConfigs)
+	{
+		FDMXOutputPortSharedRef OutputPort = GetOrCreateOutputPortFromConfig(OutputPortConfig);
+
+		OutputPort->UpdateFromConfig(OutputPortConfig);
+
+		PortGuidsFromProtocolSettings.AddUnique(OutputPort->GetPortGuid());
+	}
+}
+
 void FDMXPortManager::StartupManager()
 {
-	UE_LOG(LogDMXProtocol, Log, TEXT("Startup DMXPortManager"));
+	UE_LOG(LogDMXProtocol, Verbose, TEXT("Starting up DMXPortManager"));
 
 	check(!CurrentManager.IsValid());
 	CurrentManager = MakeUnique<FDMXPortManager>();
-	CurrentManager->StartupManagerInternal();
+
+	FDMXPortManager::Get().UpdateFromProtocolSettings();
 }
 
 void FDMXPortManager::ShutdownManager()
 {
-	UE_LOG(LogDMXProtocol, Log, TEXT("Shutdown DMXPortManager"));
+	UE_LOG(LogDMXProtocol, Verbose, TEXT("Shutting down DMXPortManager"));
 
 	check(CurrentManager.IsValid());
-	CurrentManager->ShutdownManagerInternal();
 	
 	CurrentManager.Reset();
-}
-
-#if WITH_EDITOR
-void FDMXPortManager::NotifyPortConfigChanged(const FGuid& PortGuid)
-{
-	check(PortGuid.IsValid());
-
-	const FDMXInputPortSharedRef* InputPortPtr =
-		InputPorts.FindByPredicate([&PortGuid](const FDMXInputPortSharedRef& InputPort) {
-			return InputPort->GetPortGuid() == PortGuid;
-		});
-
-	if (InputPortPtr)
-	{
-		(*InputPortPtr)->UpdateFromConfig();
-		return;
-	}
-
-	const FDMXOutputPortSharedRef* OutputPortPtr =
-		OutputPorts.FindByPredicate([&PortGuid](const FDMXOutputPortSharedRef& InputPort) {
-			return InputPort->GetPortGuid() == PortGuid;
-		});
-
-	if (OutputPortPtr)
-	{
-		(*OutputPortPtr)->UpdateFromConfig();
-		return;
-	}
-
-	EditorEditedPort.Broadcast(PortGuid);
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
-void FDMXPortManager::NotifyPortConfigArraysChanged()
-{
-	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-	check(ProtocolSettings);
-
-	// Add new ports
-	for (FDMXInputPortConfig& InputPortConfig : ProtocolSettings->InputPortConfigs)
-	{
-		if (!InputPortConfig.IsInitialized())
-		{
-			SetupInputPort(InputPortConfig);
-		}
-	}
-
-	for (FDMXOutputPortConfig& OutputPortConfig : ProtocolSettings->OutputPortConfigs)
-	{
-		if (!OutputPortConfig.IsInitialized())
-		{
-			SetupOutputPort(OutputPortConfig);
-		}
-	}
-
-	// Remove deleted ports
-	InputPorts.RemoveAll([ProtocolSettings](const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort) {
-
-		const bool bPortExists = ProtocolSettings->InputPortConfigs.ContainsByPredicate([&InputPort](const FDMXInputPortConfig& PortConfig) {
-			return PortConfig.GetPortGuid() == InputPort->GetPortGuid();
-		});
-	
-		return bPortExists;
-	});
-
-	OutputPorts.RemoveAll([ProtocolSettings](const TSharedPtr<FDMXOutputPort, ESPMode::ThreadSafe>& OutputPort) {
-
-		const bool bPortExists = ProtocolSettings->OutputPortConfigs.ContainsByPredicate([&OutputPort](const FDMXOutputPortConfig& PortConfig) {
-			return PortConfig.GetPortGuid() == OutputPort->GetPortGuid();
-		});
-	
-		return bPortExists;
-	});
-
-	EditorChangedPorts.Broadcast();
-}
-#endif // WITH_EDITOR
-
-void FDMXPortManager::StartupManagerInternal()
-{
-	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-	check(ProtocolSettings);
-
-	for (FDMXInputPortConfig& InputPortConfig : ProtocolSettings->InputPortConfigs)
-	{
-		SetupInputPort(InputPortConfig);
-	}
-
-	for (FDMXOutputPortConfig& OutputPortConfig : ProtocolSettings->OutputPortConfigs)
-	{
-		SetupOutputPort(OutputPortConfig);
-	}
-}
-
-void FDMXPortManager::ShutdownManagerInternal()
-{
-	InputPorts.Reset();
-	OutputPorts.Reset();
-}
-
-void FDMXPortManager::SetupInputPort(FDMXInputPortConfig& MutablePortConfig)
-{
-	FDMXInputPortSharedRef InputPort = MakeShared<FDMXInputPort, ESPMode::ThreadSafe>();
-	InputPorts.Add(InputPort);
-
-	// Init the config and acquire its Port Guid
-	FGuid PortGuid = MutablePortConfig.Initialize();
-
-	// Init the port with the Port Config's Port Guid
-	InputPort->Initialize(PortGuid);
-}
-
-void FDMXPortManager::SetupOutputPort(FDMXOutputPortConfig& MutablePortConfig)
-{
-	FDMXOutputPortSharedRef OutputPort = MakeShared<FDMXOutputPort, ESPMode::ThreadSafe>();
-	OutputPorts.Add(OutputPort);
-
-	// Init the config and acquire its Port Guid
-	FGuid PortGuid = MutablePortConfig.Initialize();
-
-	// Init the port with the Port Config's Port Guid
-	OutputPort->Initialize(PortGuid);
 }

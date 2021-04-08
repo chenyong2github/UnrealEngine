@@ -19,6 +19,7 @@
 #include "PropertyTextUtilities.h"
 #include "EditorSupportDelegates.h"
 #include "UObject/ConstructorHelpers.h"
+#include "InstancedReferenceSubobjectHelper.h"
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -2464,6 +2465,9 @@ void FPropertyNode::NotifyPostChange( FPropertyChangedEvent& InPropertyChangedEv
 	FObjectPropertyNode* ObjectNode = FindObjectItemParent();
 	if( ObjectNode )
 	{
+		TWeakPtr<FObjectPropertyNode> ObjectNodeAsWeakPtr = ObjectNode->SharedThis<FObjectPropertyNode>(ObjectNode);
+		TWeakPtr<FPropertyNode> ThisAsWeakPtr = AsShared();
+
 		FProperty* CurProperty = InPropertyChangedEvent.Property;
 
 		// Fire ULevel::LevelDirtiedEvent when falling out of scope.
@@ -2483,44 +2487,65 @@ void FPropertyNode::NotifyPostChange( FPropertyChangedEvent& InPropertyChangedEv
 			for (int32 CurrentObjectIndex = 0; CurrentObjectIndex < Containers.Num(); ++CurrentObjectIndex)
 			{
 				UObject* Object = Containers[CurrentObjectIndex].Get();
-				// It is possible that the PostChange for the first object deletes the second object, so
-				// we must check to make sure the object still exists first.
-				if (Object)
+
+				// Use a scope to ensure that only local variable are use in the loop.
+				//Since this object can be destroyed in this loop.
+				auto ScopePostEditChange = [&PropertyChain, &InPropertyChangedEvent, &CurProperty, &CurrentObjectIndex, &LevelDirtyCallback] (UObject* Object)
 				{
-					if (PropertyChain->Num() == 0)
+					// It is possible that the PostChange for the first object deletes the second object, so
+					// we must check to make sure the object still exists first.
+					if (Object)
 					{
-						//copy 
-						FPropertyChangedEvent ChangedEvent = InPropertyChangedEvent;
-						if (CurProperty != InPropertyChangedEvent.Property)
+						if (PropertyChain->Num() == 0)
 						{
-							//parent object node property.  Reset other internals and leave the event type as unspecified
-							ChangedEvent = FPropertyChangedEvent(CurProperty, InPropertyChangedEvent.ChangeType);
+							//copy 
+							FPropertyChangedEvent ChangedEvent = InPropertyChangedEvent;
+							if (CurProperty != InPropertyChangedEvent.Property)
+							{
+								//parent object node property.  Reset other internals and leave the event type as unspecified
+								ChangedEvent = FPropertyChangedEvent(CurProperty, InPropertyChangedEvent.ChangeType);
+							}
+							ChangedEvent.ObjectIteratorIndex = CurrentObjectIndex;
+							if (Object)
+							{
+								Object->PostEditChangeProperty(ChangedEvent);
+							}
 						}
-						ChangedEvent.ObjectIteratorIndex = CurrentObjectIndex;
-						if (Object)
+						else
 						{
-							Object->PostEditChangeProperty(ChangedEvent);
+							FPropertyChangedEvent ChangedEvent = InPropertyChangedEvent;
+							if (CurProperty != InPropertyChangedEvent.Property)
+							{
+								//parent object node property.  Reset other internals and leave the event type as unspecified
+								ChangedEvent = FPropertyChangedEvent(CurProperty, InPropertyChangedEvent.ChangeType);
+							}
+							FPropertyChangedChainEvent ChainEvent(*PropertyChain, ChangedEvent);
+							ChainEvent.ObjectIteratorIndex = CurrentObjectIndex;
+							if (Object)
+							{
+								Object->PostEditChangeChainProperty(ChainEvent);
+							}
 						}
+						LevelDirtyCallback.Request();
 					}
-					else
-					{
-						FPropertyChangedEvent ChangedEvent = InPropertyChangedEvent;
-						if (CurProperty != InPropertyChangedEvent.Property)
-						{
-							//parent object node property.  Reset other internals and leave the event type as unspecified
-							ChangedEvent = FPropertyChangedEvent(CurProperty, InPropertyChangedEvent.ChangeType);
-						}
-						FPropertyChangedChainEvent ChainEvent(*PropertyChain, ChangedEvent);
-						ChainEvent.ObjectIteratorIndex = CurrentObjectIndex;
-						if (Object)
-						{
-							Object->PostEditChangeChainProperty(ChainEvent);
-						}
-					}
-					LevelDirtyCallback.Request();
-				}
+				};
+				ScopePostEditChange(Object);
 			}
 
+			if (!ThisAsWeakPtr.IsValid())
+			{
+				UE_LOG(LogPropertyNode, Error, TEXT("The FPropertyNode got destroy while processing the PostEditChangeProperty or PostEditChangeChainProperty."));
+				// Redraw viewports
+				FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+				return;
+			}
+
+			if (!ObjectNodeAsWeakPtr.IsValid())
+			{
+				ObjectNode = nullptr;
+				UE_LOG(LogPropertyNode, Error, TEXT("Object for property '%s, was valid before the PostEditChange callback and now it's invalid"), *Property->GetName());
+				break;
+			}
 
 			// Pass this property to the parent's PostEditChange call.
 			CurProperty = ObjectNode->GetStoredProperty();
@@ -2990,6 +3015,46 @@ void FPropertyNode::GatherInstancesAffectedByContainerPropertyChange(UObject* Mo
 	}
 }
 
+void FPropertyNode::DuplicateArrayEntry(FProperty* NodeProperty, FScriptArrayHelper& ArrayHelper, int32 Index)
+{
+	ArrayHelper.InsertValues(Index);
+
+	void* SrcAddress = ArrayHelper.GetRawPtr(Index + 1);
+	void* DestAddress = ArrayHelper.GetRawPtr(Index);
+
+	check(SrcAddress && DestAddress);
+
+	// Copy the selected item's value to the new item.
+	NodeProperty->CopyCompleteValue(DestAddress, SrcAddress);
+
+	if (FObjectProperty* ObjProp = CastField<FObjectProperty>(NodeProperty))
+	{
+		if (ObjProp->HasAnyPropertyFlags(CPF_InstancedReference))
+		{
+			UObject* CurrentObject = ObjProp->GetObjectPropertyValue(DestAddress);
+
+			// Make a deep copy
+			UObject* DuplicatedObject = DuplicateObject(CurrentObject, CurrentObject->GetOuter());
+			ObjProp->SetObjectPropertyValue(SrcAddress, DuplicatedObject);
+		}
+	}
+	else if (NodeProperty->HasAnyPropertyFlags(CPF_ContainsInstancedReference))
+	{
+		// If this is a container with instanced references within it the new entry will reference the old subobjects
+		// Go through and duplicate the subobjects so that each container has unique instances
+		FInstancedPropertyPath NodePropertyPath(NodeProperty);
+		FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject<void*>(
+			NodePropertyPath,
+			SrcAddress,
+			[](const FInstancedSubObjRef& Ref, void* PropertyValueAddress)
+			{
+				UObject* Obj = Ref;
+				((FObjectProperty*)Ref.PropertyPath.Head())->SetObjectPropertyValue(PropertyValueAddress, DuplicateObject(Obj, Obj->GetOuter()));
+			}
+		);
+	}
+}
+
 void FPropertyNode::PropagateContainerPropertyChange( UObject* ModifiedObject, const void* OriginalContainerAddr, const TArray<UObject*>& AffectedInstances, EPropertyArrayChangeType::Type ChangeType, int32 Index, int32 SwapIndex /*= INDEX_NONE*/)
 {
 	check(OriginalContainerAddr);
@@ -3068,10 +3133,7 @@ void FPropertyNode::PropagateContainerPropertyChange( UObject* ModifiedObject, c
 				ArrayHelper.RemoveValues(ArrayIndex, 1);
 				break;
 			case EPropertyArrayChangeType::Duplicate:
-				ArrayHelper.InsertValues(ArrayIndex, 1);
-				// Copy the selected item's value to the new item.
-				NodeProperty->CopyCompleteValue(ArrayHelper.GetRawPtr(ArrayIndex), ArrayHelper.GetRawPtr(ArrayIndex + 1));
-				Object->InstanceSubobjectTemplates();
+				DuplicateArrayEntry(NodeProperty, ArrayHelper, ArrayIndex);
 				break;
 			case EPropertyArrayChangeType::Swap:
 				if (SwapIndex != INDEX_NONE)

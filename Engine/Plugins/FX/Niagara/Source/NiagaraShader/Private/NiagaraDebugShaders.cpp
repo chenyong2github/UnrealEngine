@@ -203,7 +203,7 @@ void NiagaraDebugShaders::DrawDebugLines(
 		RDG_EVENT_NAME("NiagaraDrawDebugLines"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[VertexShader, PixelShader, LineInstanceCount, PassParameters](FRHICommandListImmediate& RHICmdList)
+		[VertexShader, PixelShader, LineInstanceCount, PassParameters, ViewRect=View.ViewRect](FRHICommandListImmediate& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -218,6 +218,7 @@ void NiagaraDebugShaders::DrawDebugLines(
 
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VSParameters);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PSParameters);
+			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 			RHICmdList.DrawPrimitive(0, 2, LineInstanceCount);
 		}
 	);
@@ -242,7 +243,7 @@ void NiagaraDebugShaders::DrawDebugLines(
 		RDG_EVENT_NAME("NiagaraDrawDebugLines"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[VertexShader, PixelShader, ArgsBuffer, PassParameters](FRHICommandListImmediate& RHICmdList)
+		[VertexShader, PixelShader, ArgsBuffer, PassParameters, ViewRect=View.ViewRect](FRHICommandListImmediate& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -257,6 +258,7 @@ void NiagaraDebugShaders::DrawDebugLines(
 
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VSParameters);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PSParameters);
+			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 			RHICmdList.DrawPrimitiveIndirect(ArgsBuffer, 0);
 		}
 	);

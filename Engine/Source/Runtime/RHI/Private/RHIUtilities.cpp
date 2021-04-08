@@ -177,7 +177,7 @@ struct FRHIFrameOffsetThread : public FRunnable
 
 			int32 SyncInterval = RHIGetSyncInterval();
 			double TargetFrameTimeInSeconds = double(SyncInterval) / double(FPlatformMisc::GetMaxRefreshRate());
-			double SlackInSeconds = RHIGetSyncSlackMS() / 1000.0;
+			double SlackInSeconds = FMath::Min(RHIGetSyncSlackMS() / 1000.0, TargetFrameTimeInSeconds);			// Clamp slack sync time to at most one full frame interval
 			double TargetFlipTime = (NewFlipFrame.VBlankTimeInSeconds + TargetFrameTimeInSeconds) - SlackInSeconds;
 
 			double Timeout = FMath::Max(0.0, TargetFlipTime - FPlatformTime::Seconds());

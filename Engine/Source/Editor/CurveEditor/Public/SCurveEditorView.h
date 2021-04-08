@@ -156,6 +156,10 @@ public:
 	virtual bool GetCurveWithinWidgetRange(const FSlateRect& WidgetRectangle, TArray<FCurvePointHandle>* OutPoints) const
 	{ return false; }
 
+	/**
+	 * Retrieve the id of the hovered curve
+	 */
+	virtual TOptional<FCurveModelID> GetHoveredCurve() const { return TOptional<FCurveModelID>(); }
 
 	/**
 	 * Bind UI commands for this view

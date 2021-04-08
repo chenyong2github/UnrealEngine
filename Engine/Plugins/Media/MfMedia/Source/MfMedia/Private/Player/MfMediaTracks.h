@@ -14,7 +14,7 @@
 #include "Internationalization/Text.h"
 #include "Math/IntPoint.h"
 #include "Math/Range.h"
-#include "Windows/COMPointer.h"
+#include "Microsoft/COMPointer.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#include "Windows/WindowsHWrapper.h"

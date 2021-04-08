@@ -570,7 +570,7 @@ public:
 
 	uint8 *Lock(uint32 InOffset, uint32 InSize, bool bReadOnly, bool bDiscard)
 	{
-		//SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLMapBufferTime);
+		SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLMapBufferTime);
 		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		check(InOffset + InSize <= this->GetSize());
 		//check( LockBuffer == NULL );	// Only one outstanding lock is allowed at a time!
@@ -1523,6 +1523,7 @@ private:
 	{
 		auto DeleteGLResources = [OpenGLRHI = this->OpenGLRHI, Resource = this->GetRawResourceName(), SRVResource = this->SRVResource, Target = this->Target, Flags = this->GetFlags(), Aliased = this->IsAliased()]()
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_OpenGLDeleteGLTextureTime);
 			VERIFY_GL_SCOPE();
 			if (Resource != 0)
 			{

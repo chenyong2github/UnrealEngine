@@ -347,13 +347,13 @@ public:
 
 	FString GetChoiceDataForKey(const FString& ParamKey) const
 	{
-		const FConversationNodeParameterPair* NodeParameter = ChoiceReference.NodeParameters.FindByPredicate([=](const FConversationNodeParameterPair& Pair) { return Pair.Name.Equals(ParamKey); });
+		const FConversationNodeParameterPair* NodeParameter = ChoiceReference.NodeParameters.FindByPredicate([=](const FConversationNodeParameterPair& Pair) { return Pair.Name.Equals(ParamKey, ESearchCase::IgnoreCase); });
 		if (NodeParameter)
 		{
 			return NodeParameter->Value;
 		}
 
-		const FConversationNodeParameterPair* ExtraDataParameter = ExtraData.FindByPredicate([=](const FConversationNodeParameterPair& Pair) { return Pair.Name.Equals(ParamKey); });
+		const FConversationNodeParameterPair* ExtraDataParameter = ExtraData.FindByPredicate([=](const FConversationNodeParameterPair& Pair) { return Pair.Name.Equals(ParamKey, ESearchCase::IgnoreCase); });
 		if (ExtraDataParameter)
 		{
 			return ExtraDataParameter->Value;

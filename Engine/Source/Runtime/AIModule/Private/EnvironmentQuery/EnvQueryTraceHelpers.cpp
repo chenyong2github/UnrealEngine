@@ -286,13 +286,12 @@ void FEQSHelpers::RunRaycastsOnNavHitOnlyWalls(const ANavigationData& NavData, c
 	{
 		check(NavData.GetWorld());
 
-		ECollisionChannel TraceCollisionChannel = UEngineTypes::ConvertToCollisionChannel(TraceData.TraceChannel);
 		FVector TraceExtent(TraceData.ExtentX, TraceData.ExtentY, TraceData.ExtentZ);
 
 		FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(EnvQueryTrace), TraceData.bTraceComplex);
 		TraceParams.AddIgnoredActors(IgnoredActors);
 
-		FBatchTrace TraceHelper(NavData.GetWorld(), TraceCollisionChannel, TraceParams, TraceExtent, TraceMode);
+		FBatchTrace TraceHelper(NavData.GetWorld(), TraceData, TraceParams, TraceExtent, TraceMode);
 		FVector HitPos(FVector::ZeroVector);
 
 		switch (TraceData.TraceShape)
@@ -398,13 +397,12 @@ void FEQSHelpers::RunNavProjection(const ANavigationData& NavData, const UObject
 
 void FEQSHelpers::RunPhysRaycasts(UWorld* World, const FEnvTraceData& TraceData, const FVector& SourcePt, TArray<FNavLocation>& Points, const TArray<AActor*>& IgnoredActors, const ETraceMode TraceMode)
 {
-	ECollisionChannel TraceCollisionChannel = UEngineTypes::ConvertToCollisionChannel(TraceData.TraceChannel);
 	FVector TraceExtent(TraceData.ExtentX, TraceData.ExtentY, TraceData.ExtentZ);
 
 	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(EnvQueryTrace), TraceData.bTraceComplex);
 	TraceParams.AddIgnoredActors(IgnoredActors);
 
-	FBatchTrace BatchOb(World, TraceCollisionChannel, TraceParams, TraceExtent, TraceMode);
+	FBatchTrace BatchOb(World, TraceData, TraceParams, TraceExtent, TraceMode);
 
 	switch (TraceData.TraceShape)
 	{
@@ -431,12 +429,11 @@ void FEQSHelpers::RunPhysRaycasts(UWorld* World, const FEnvTraceData& TraceData,
 
 void FEQSHelpers::RunPhysProjection(UWorld* World, const FEnvTraceData& TraceData, TArray<FNavLocation>& Points, const ETraceMode TraceMode)
 {
-	ECollisionChannel TraceCollisionChannel = UEngineTypes::ConvertToCollisionChannel(TraceData.TraceChannel);
 	FVector TraceExtent(TraceData.ExtentX, TraceData.ExtentY, TraceData.ExtentZ);
 
 	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(EnvQueryTrace), TraceData.bTraceComplex);
 
-	FBatchTrace BatchOb(World, TraceCollisionChannel, TraceParams, TraceExtent, TraceMode);
+	FBatchTrace BatchOb(World, TraceData, TraceParams, TraceExtent, TraceMode);
 
 	switch (TraceData.TraceShape)
 	{
@@ -463,12 +460,11 @@ void FEQSHelpers::RunPhysProjection(UWorld* World, const FEnvTraceData& TraceDat
 
 void FEQSHelpers::RunPhysProjection(UWorld* World, const FEnvTraceData& TraceData, TArray<FNavLocation>& Points, TArray<uint8>& TraceHits)
 {
-	ECollisionChannel TraceCollisionChannel = UEngineTypes::ConvertToCollisionChannel(TraceData.TraceChannel);
 	FVector TraceExtent(TraceData.ExtentX, TraceData.ExtentY, TraceData.ExtentZ);
 
 	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(EnvQueryTrace), TraceData.bTraceComplex);
 
-	FBatchTrace BatchOb(World, TraceCollisionChannel, TraceParams, TraceExtent, ETraceMode::Keep);
+	FBatchTrace BatchOb(World, TraceData, TraceParams, TraceExtent, ETraceMode::Keep);
 	BatchOb.TraceHits.AddZeroed(Points.Num());
 
 	switch (TraceData.TraceShape)

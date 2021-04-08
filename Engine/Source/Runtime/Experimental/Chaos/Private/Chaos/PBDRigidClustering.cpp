@@ -1257,24 +1257,24 @@ namespace Chaos
 				for (const auto& ActiveCluster : GetTopLevelClusterParents() )
 				{
 					if (!ActiveCluster->Disabled())
+				{
+					if (ActiveCluster->ClusterIds().NumChildren > 0) //active index is a cluster
 					{
-						if (ActiveCluster->ClusterIds().NumChildren > 0) //active index is a cluster
-						{
 							TArray<FRigidHandle>& ParentToChildren = MChildren[ActiveCluster];
 							for (FRigidHandle Child : ParentToChildren)
-							{
+						{
 								if (FClusterHandle ClusteredChild = Child->CastToClustered())
+							{
+								if (ClusteredChild->Strain() <= 0.f)
 								{
-									if (ClusteredChild->Strain() <= 0.f)
-									{
-										ClusteredChild->CollisionImpulse() = FLT_MAX;
-										MCollisionImpulseArrayDirty = true;
-									}
+									ClusteredChild->CollisionImpulse() = FLT_MAX;
+									MCollisionImpulseArrayDirty = true;
 								}
 							}
 						}
 					}
 				}
+			}
 			}
 
 			if (MCollisionImpulseArrayDirty)
@@ -1425,40 +1425,40 @@ namespace Chaos
 		if (FClusterHandle ClusteredCurrentNode = InParent->CastToClustered())
 		{
 			if (MChildren.Contains(ClusteredCurrentNode) && MChildren[ClusteredCurrentNode].Num())
-			{
-				// TQueue is a linked list, which has no preallocator.
-				TQueue<Chaos::FPBDRigidParticleHandle*> Queue;
+		{
+			// TQueue is a linked list, which has no preallocator.
+			TQueue<Chaos::FPBDRigidParticleHandle*> Queue;
 				for (Chaos::FPBDRigidParticleHandle* Child : MChildren[ClusteredCurrentNode])
-				{
-					Queue.Enqueue(Child);
-				}
+			{
+				Queue.Enqueue(Child);
+			}
 
-				Chaos::FPBDRigidParticleHandle* CurrentHandle;
-				while (Queue.Dequeue(CurrentHandle) && ObjectState == EObjectStateType::Dynamic)
-				{
+			Chaos::FPBDRigidParticleHandle* CurrentHandle;
+			while (Queue.Dequeue(CurrentHandle) && ObjectState == EObjectStateType::Dynamic)
+			{
 					if (FClusterHandle CurrentClusterHandle = CurrentHandle->CastToClustered())
 					{
-						// @question : Maybe we should just store the leaf node bodies in a
-						// map, that will require Memory(n*log(n))
+				// @question : Maybe we should just store the leaf node bodies in a
+				// map, that will require Memory(n*log(n))
 						if (MChildren.Contains(CurrentClusterHandle))
-						{
+				{
 							for( Chaos::FPBDRigidParticleHandle* Child : MChildren[CurrentClusterHandle])
-							{
-								Queue.Enqueue(Child);
-							}
-						}
-					}
-
-					const EObjectStateType CurrState = CurrentHandle->ObjectState();
-					if (CurrState == EObjectStateType::Kinematic)
 					{
-						ObjectState = EObjectStateType::Kinematic;
-					}
-					else if (CurrState == EObjectStateType::Static)
-					{
-						ObjectState = EObjectStateType::Static;
+						Queue.Enqueue(Child);
 					}
 				}
+					}
+
+				const EObjectStateType CurrState = CurrentHandle->ObjectState();
+				if (CurrState == EObjectStateType::Kinematic)
+				{
+					ObjectState = EObjectStateType::Kinematic;
+				}
+				else if (CurrState == EObjectStateType::Static)
+				{
+					ObjectState = EObjectStateType::Static;
+				}
+			}
 
 				MEvolution.SetParticleObjectState(ClusteredCurrentNode, ObjectState);
 			}

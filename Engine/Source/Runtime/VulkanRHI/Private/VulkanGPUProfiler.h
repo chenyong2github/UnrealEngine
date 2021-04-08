@@ -47,7 +47,7 @@ public:
 	/**
 	 * Initializes all Vulkan resources.
 	 */
-	void Initialize();
+	void Initialize(uint32 PoolSize = 8);
 
 	/**
 	 * Releases all Vulkan resources.
@@ -73,7 +73,10 @@ private:
 	/** Whether we are currently timing the GPU: between StartTiming() and EndTiming(). */
 	bool bIsTiming;
 	bool bEndTimestampIssued;
-
+	uint64 PreviousFrame = UINT64_MAX;
+	uint64 PreviousTime = 0;
+	uint32 NumPendingQueries = 0;
+	TQueue<uint32> PendingQueries;
 	FVulkanCommandListContext* CmdContext;
 	FVulkanTimingQueryPool* Pool = nullptr;
 };

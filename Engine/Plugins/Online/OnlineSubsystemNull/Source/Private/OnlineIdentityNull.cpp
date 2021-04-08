@@ -86,7 +86,7 @@ bool FOnlineIdentityNull::Login(int32 LocalUserNum, const FOnlineAccountCredenti
 		{
 			FString RandomUserId = GenerateRandomUserId(LocalUserNum);
 
-			FUniqueNetIdNull NewUserId(RandomUserId);
+			const FUniqueNetIdRef NewUserId = FUniqueNetIdNull::Create(RandomUserId);
 			UserAccountPtr = MakeShareable(new FUserOnlineAccountNull(RandomUserId));
 			UserAccountPtr->UserAttributes.Add(USER_ATTR_ID, RandomUserId);
 
@@ -98,17 +98,14 @@ bool FOnlineIdentityNull::Login(int32 LocalUserNum, const FOnlineAccountCredenti
 		}
 		else
 		{
-			const FUniqueNetIdNull* UniqueIdStr = (FUniqueNetIdNull*)(UserId->Get());
-			TSharedRef<FUserOnlineAccountNull>* TempPtr = UserAccounts.Find(*UniqueIdStr);
-			check(TempPtr);
-			UserAccountPtr = *TempPtr;
+			UserAccountPtr = UserAccounts.FindChecked(UserId->ToSharedRef());
 		}
 	}
 
 	if (!ErrorStr.IsEmpty())
 	{
 		UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Login request failed. %s"), *ErrorStr);
-		TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdNull(), ErrorStr);
+		TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdNull::EmptyId(), ErrorStr);
 		return false;
 	}
 
@@ -122,7 +119,7 @@ bool FOnlineIdentityNull::Logout(int32 LocalUserNum)
 	if (UserId.IsValid())
 	{
 		// remove cached user account
-		UserAccounts.Remove(FUniqueNetIdNull(*UserId));
+		UserAccounts.Remove(UserId.ToSharedRef());
 		// remove cached user id
 		UserIds.Remove(LocalUserNum);
 		// not async but should call completion delegate anyway
@@ -181,9 +178,7 @@ TSharedPtr<FUserOnlineAccount> FOnlineIdentityNull::GetUserAccount(const FUnique
 {
 	TSharedPtr<FUserOnlineAccount> Result;
 
-	FUniqueNetIdNull StringUserId(UserId);
-	const TSharedRef<FUserOnlineAccountNull>* FoundUserAccount = UserAccounts.Find(StringUserId);
-	if (FoundUserAccount != NULL)
+	if (const TSharedRef<FUserOnlineAccountNull>* FoundUserAccount = UserAccounts.Find(UserId.AsShared()))
 	{
 		Result = *FoundUserAccount;
 	}
@@ -195,7 +190,7 @@ TArray<TSharedPtr<FUserOnlineAccount> > FOnlineIdentityNull::GetAllUserAccounts(
 {
 	TArray<TSharedPtr<FUserOnlineAccount> > Result;
 	
-	for (TMap<FUniqueNetIdNull, TSharedRef<FUserOnlineAccountNull>>::TConstIterator It(UserAccounts); It; ++It)
+	for (TUniqueNetIdMap<TSharedRef<FUserOnlineAccountNull>>::TConstIterator It(UserAccounts); It; ++It)
 	{
 		Result.Add(It.Value());
 	}

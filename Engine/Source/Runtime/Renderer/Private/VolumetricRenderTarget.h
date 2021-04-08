@@ -15,6 +15,7 @@
 class FScene;
 class FViewInfo;
 struct FSceneWithoutWaterTextures;
+struct FMinimalSceneTextures;
 
 void InitVolumetricRenderTargetForViews(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views);
 
@@ -31,17 +32,20 @@ void ComposeVolumetricRenderTargetOverScene(
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthResolveTexture,
 	bool bShouldRenderSingleLayerWater,
-	const FSceneWithoutWaterTextures& WaterPassData);
+	const FSceneWithoutWaterTextures& WaterPassData,
+	const FMinimalSceneTextures& SceneTextures);
 
 void ComposeVolumetricRenderTargetOverSceneUnderWater(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<FViewInfo> Views,
-	const FSceneWithoutWaterTextures& WaterPassData);
+	const FSceneWithoutWaterTextures& WaterPassData,
+	const FMinimalSceneTextures& SceneTextures);
 
 void ComposeVolumetricRenderTargetOverSceneForVisualization(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<FViewInfo> Views,
-	FRDGTextureRef SceneColorTexture);
+	FRDGTextureRef SceneColorTexture,
+	const FMinimalSceneTextures& SceneTextures);
 
 bool ShouldViewRenderVolumetricCloudRenderTarget(const FViewInfo& ViewInfo);
 bool IsVolumetricRenderTargetEnabled();

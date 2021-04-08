@@ -44,7 +44,7 @@ float2 GetInputUV(float2 OutputUV)
 	}
 }
 
-[numthreads(THREADGROUPSIZE_X, THREADGROUPSIZE_Y, THREADGROUPSIZE_Z)]
+[numthreads(THREADGROUPSIZE, THREADGROUPSIZE, 1)]
 void YCbCrToLinearRGB(uint3 ThreadId : SV_DispatchThreadID)
 {
 	float2 iResolution = float2(OutputTextureSize.x, OutputTextureSize.y);

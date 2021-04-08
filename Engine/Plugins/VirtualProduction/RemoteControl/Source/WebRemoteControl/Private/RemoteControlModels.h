@@ -98,7 +98,6 @@ struct FRCPropertyDescription
 		//Write the type name
 		Type = ValueProperty->GetCPPType();
 
-
 #if WITH_EDITOR
 		Metadata = Property->GetMetaDataMap() ? RemoteControlModels::SanitizeMetadata(*Property->GetMetaDataMap()) : TMap<FName, FString>();
 		Description = Property->GetMetaData("ToolTip");
@@ -191,12 +190,15 @@ struct FRCFunctionDescription
 		}
 	}
 	
+	/** Name of the function. */
 	UPROPERTY()
 	FString Name;
 	
+	/** Description for the function. */
 	UPROPERTY()
 	FString Description;
 	
+	/** The function's arguments. */
 	UPROPERTY()
 	TArray<FRCPropertyDescription> Arguments;
 };
@@ -208,18 +210,29 @@ struct FRCExposedPropertyDescription
 
 	FRCExposedPropertyDescription() = default;
 	
-	FRCExposedPropertyDescription(const FRemoteControlProperty& RCProperty, const FProperty* InUnderlyingProperty)
+	FRCExposedPropertyDescription(const FRemoteControlProperty& RCProperty)
 		: DisplayName(RCProperty.GetLabel())
 	{
-		checkSlow(InUnderlyingProperty);
-		UnderlyingProperty = InUnderlyingProperty;
+		UnderlyingProperty = RCProperty.GetProperty();
+		Metadata = RCProperty.GetMetadata();
+		Id = RCProperty.GetId().ToString();
 	}
-	
+
+	/** The label displayed in the remote control panel for this exposed property. */
 	UPROPERTY()
 	FName DisplayName;
-	
+
+	/** Unique identifier for the exposed property. */
+	UPROPERTY()
+	FString Id;
+
+	/** The underlying exposed property. */
 	UPROPERTY()
 	FRCPropertyDescription UnderlyingProperty;
+
+	/** Metadata specific to this exposed property. */
+	UPROPERTY()
+	TMap<FName, FString> Metadata;
 };
 
 
@@ -232,13 +245,20 @@ struct FRCExposedFunctionDescription
 
 	FRCExposedFunctionDescription(const FRemoteControlFunction& Function)
 		: DisplayName(Function.GetLabel())
+		, Id(Function.GetId().ToString())
 		, UnderlyingFunction(Function.Function)
 	{
 	}
-	
+
+	/** The label displayed in the remote control panel for this exposed property. */
 	UPROPERTY()
 	FName DisplayName;
+
+	/** Unique identifier for the exposed function. */
+	UPROPERTY()
+	FString Id;
 	
+	/** The underlying exposed function. */
 	UPROPERTY()
 	FRCFunctionDescription UnderlyingFunction;
 };
@@ -259,16 +279,18 @@ struct FRCActorDescription
 		Name = InActor->GetName();
 #endif
 		Path = InActor->GetPathName();
-
 		Class = InActor->GetClass()->GetName();
 	}
 
+	/** The label of the actor. */
 	UPROPERTY()
 	FString Name;
 
+	/** The object path of the actor. */
 	UPROPERTY()
 	FString Path;
 
+	/** The class of the actor. */
 	UPROPERTY()
 	FString Class;
 };
@@ -287,11 +309,19 @@ struct FRCExposedActorDescription
 		{
 			UnderlyingActor = FRCActorDescription{ Actor };
 		}
+
+		Id = InExposedActor.GetId().ToString();
 	}
 
+	/** The label displayed in the remote control panel for this exposed actor. */
 	UPROPERTY()
 	FName DisplayName;
+	
+	/** Unique identifier for the exposed actor. */
+    UPROPERTY()
+    FString Id;
 
+	/** The underlying exposed actor. */
 	UPROPERTY()
 	FRCActorDescription UnderlyingActor;
 };
@@ -344,7 +374,7 @@ private:
 		{
 			if (FProperty* Property = RCProperty->GetProperty())
 			{
-				ExposedProperties.Emplace(*RCProperty, Property);	
+				ExposedProperties.Emplace(*RCProperty);	
 			}
 		}
 		else if (TSharedPtr<const FRemoteControlFunction> RCFunction = Preset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())

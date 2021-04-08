@@ -26,6 +26,7 @@ public:
 	TSharedPtr<FUICommandInfo> Discard;
 	TSharedPtr<FUICommandInfo> Compile;
 	TSharedPtr<FUICommandInfo> RefreshNodes;
+	TSharedPtr<FUICommandInfo> ModuleVersioning;
 	TSharedPtr<FUICommandInfo> ResetSimulation;
 	TSharedPtr<FUICommandInfo> SelectNextUsage;
 	TSharedPtr<FUICommandInfo> CreateAssetFromSelection;

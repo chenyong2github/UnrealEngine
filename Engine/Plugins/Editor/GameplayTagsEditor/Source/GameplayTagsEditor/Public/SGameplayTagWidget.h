@@ -103,6 +103,9 @@ public:
 
 private:
 
+	/** Verify the tags are all valid and if not prompt the user. */
+	void VerifyAssetTagValidity();
+
 	/* Filters the tree view based on the current filter text. */
 	void FilterTagTree();
 
@@ -291,12 +294,6 @@ private:
 	 * @param bExapnd	If true, expand the node; Otherwise, collapse the node
 	 */
 	void SetTagNodeItemExpansion(TSharedPtr<FGameplayTagNode> Node, bool bExpand);
-	
-	/**
-	 * Helper function to ensure the tag assets are only tagged with valid tags from
-	 * the global library. Strips any invalid tags.
-	 */
-	void VerifyAssetTagValidity();
 
 	/** Load settings for the tags*/
 	void LoadSettings();

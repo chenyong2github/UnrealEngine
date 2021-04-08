@@ -13,6 +13,45 @@ DECLARE_CYCLE_STAT(TEXT("Input Port Tick"), STAT_DMXInputPortTick, STATGROUP_DMX
 
 #define LOCTEXT_NAMESPACE "DMXInputPort"
 
+FDMXInputPortSharedRef FDMXInputPort::Create()
+{
+	FDMXInputPortSharedRef NewInputPort = MakeShared<FDMXInputPort, ESPMode::ThreadSafe>();
+
+	NewInputPort->PortGuid = FGuid::NewGuid();
+
+	UDMXProtocolSettings* Settings = GetMutableDefault<UDMXProtocolSettings>();
+	check(Settings);
+
+	NewInputPort->bReceiveDMXEnabled = Settings->IsReceiveDMXEnabled();
+
+	// Bind to receive dmx changes
+	Settings->OnSetReceiveDMXEnabled.AddThreadSafeSP(NewInputPort, &FDMXInputPort::OnSetReceiveDMXEnabled);
+
+	return NewInputPort;
+}
+
+FDMXInputPortSharedRef FDMXInputPort::CreateFromConfig(const FDMXInputPortConfig& InputPortConfig)
+{
+	// Port Configs are expected to have a valid guid always
+	check(InputPortConfig.GetPortGuid().IsValid());
+
+	FDMXInputPortSharedRef NewInputPort = MakeShared<FDMXInputPort, ESPMode::ThreadSafe>();
+
+	NewInputPort->PortGuid = InputPortConfig.GetPortGuid();
+
+	UDMXProtocolSettings* Settings = GetMutableDefault<UDMXProtocolSettings>();
+	check(Settings);
+
+	NewInputPort->bReceiveDMXEnabled = Settings->IsReceiveDMXEnabled();
+
+	// Bind to receive dmx changes
+	Settings->OnSetReceiveDMXEnabled.AddThreadSafeSP(NewInputPort, &FDMXInputPort::OnSetReceiveDMXEnabled);
+
+	NewInputPort->UpdateFromConfig(InputPortConfig);
+
+	return NewInputPort;
+}
+
 FDMXInputPort::~FDMXInputPort()
 {
 	// All Inputs need to be explicitly removed before destruction 
@@ -23,47 +62,43 @@ FDMXInputPort::~FDMXInputPort()
 	check(!bRegistered);
 }
 
-void FDMXInputPort::Initialize(const FGuid& InPortGuid)
+void FDMXInputPort::UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig)
 {
-	UDMXProtocolSettings* Settings = GetMutableDefault<UDMXProtocolSettings>();
-	check(Settings);
-
-	// Bind to receive dmx changes
-	bReceiveDMXEnabled = Settings->IsReceiveDMXEnabled();
-	Settings->OnSetReceiveDMXEnabled.AddThreadSafeSP(this, &FDMXInputPort::OnSetReceiveDMXEnabled);
-
-	PortGuid = InPortGuid;
-
-	UpdateFromConfig();
-}
-
-void FDMXInputPort::UpdateFromConfig()
-{
-	const FDMXInputPortConfig& InputPortConfig = *FindInputPortConfigChecked();
-
 	// Find if the port needs update its registration with the protocol
 	const bool bNeedsUpdateRegistration = [this, &InputPortConfig]()
 	{
-		if (IsRegistered())
+		if (!IsRegistered())
 		{
-			FName ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
-			if (ProtocolName == InputPortConfig.ProtocolName ||
-				Address == InputPortConfig.Address ||
-				CommunicationType == InputPortConfig.CommunicationType)
-			{
-				return false;
-			}
+			return true;
+		}
+
+		FName ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
+
+		if (ProtocolName == InputPortConfig.ProtocolName &&
+			DeviceAddress == InputPortConfig.DeviceAddress &&
+			CommunicationType == InputPortConfig.CommunicationType)
+		{
+			return false;
 		}
 
 		return true;
 	}();
+
+	// Unregister the port if required before the new protocol is set
+	if (bNeedsUpdateRegistration)
+	{
+		if (IsRegistered())
+		{
+			Unregister();
+		}
+	}
 
 	Protocol = IDMXProtocol::Get(InputPortConfig.ProtocolName);
 
 	// Copy properties from the config into the base class
 	CommunicationType = InputPortConfig.CommunicationType;
 	ExternUniverseStart = InputPortConfig.ExternUniverseStart;
-	Address = InputPortConfig.Address;
+	DeviceAddress = InputPortConfig.DeviceAddress;
 	LocalUniverseStart = InputPortConfig.LocalUniverseStart;
 	NumUniverses = InputPortConfig.NumUniverses;
 	PortName = InputPortConfig.PortName;
@@ -71,11 +106,6 @@ void FDMXInputPort::UpdateFromConfig()
 	// Re-register the port if required
 	if (bNeedsUpdateRegistration)
 	{
-		if (IsRegistered())
-		{
-			Unregister();
-		}
-
 		if (IsValidPortSlow())
 		{
 			Register();

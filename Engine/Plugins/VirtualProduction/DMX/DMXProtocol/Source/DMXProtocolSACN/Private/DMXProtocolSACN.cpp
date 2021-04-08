@@ -2,19 +2,16 @@
 
 #include "DMXProtocolSACN.h"
 
-#include "DMXProtocolBlueprintLibrary.h"
-#include "DMXProtocolSettings.h"
+#include "DMXProtocolSACNConstants.h"
+#include "DMXProtocolSACNReceiver.h"
+#include "DMXProtocolSACNSender.h"
 #include "DMXStats.h"
 #include "IO/DMXInputPort.h"
-#include "Packets/DMXProtocolE131PDUPacket.h"
+#include "IO/DMXOutputPort.h"
 
-#include "Common/UdpSocketBuilder.h"
-#include "Misc/CoreDelegates.h"
-#include "Misc/App.h"
-#include "Serialization/BufferArchive.h"
+#include "SocketSubsystem.h"
 
 
-// Stats
 DECLARE_CYCLE_STAT(TEXT("SACN Packages Enqueue To Send"), STAT_SACNPackagesEnqueueToSend, STATGROUP_DMX);
 
 const TArray<EDMXCommunicationType> FDMXProtocolSACN::InputPortCommunicationTypes = TArray<EDMXCommunicationType>(
@@ -24,7 +21,7 @@ const TArray<EDMXCommunicationType> FDMXProtocolSACN::InputPortCommunicationType
 
 const TArray<EDMXCommunicationType> FDMXProtocolSACN::OutputPortCommunicationTypes = TArray<EDMXCommunicationType>(
 	{ 
-		EDMXCommunicationType::Broadcast, 
+		EDMXCommunicationType::Multicast, 
 		EDMXCommunicationType::Unicast 
 	});
 
@@ -44,7 +41,8 @@ bool FDMXProtocolSACN::Shutdown()
 
 bool FDMXProtocolSACN::Tick(float DeltaTime)
 {
-	return true;
+	checkNoEntry();
+	return false;
 }
 
 bool FDMXProtocolSACN::IsEnabled() const
@@ -92,22 +90,137 @@ int32 FDMXProtocolSACN::MakeValidUniverseID(int32 DesiredUniverseID) const
 bool FDMXProtocolSACN::RegisterInputPort(const TSharedRef<FDMXInputPort, ESPMode::ThreadSafe>& InputPort)
 {
 	check(!InputPort->IsRegistered());
-
 	check(!CachedInputPorts.Contains(InputPort));
+
+	const FString& NetworkInterfaceAddress = InputPort->GetDeviceAddress();
+	const EDMXCommunicationType CommunicationType = InputPort->GetCommunicationType();
+
+	// Try to use an existing receiver or create a new one
+	TSharedPtr<FDMXProtocolSACNReceiver> Receiver = FindExistingReceiver(NetworkInterfaceAddress, CommunicationType);
+	if (!Receiver.IsValid())
+	{
+		Receiver = FDMXProtocolSACNReceiver::TryCreate(SharedThis(this), NetworkInterfaceAddress);
+	}
+
+	if (!Receiver.IsValid())
+	{
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Could not create Art-Net receiver for input port %s"), *InputPort->GetPortName());
+
+		return false;
+	}
+
+	Receivers.Add(Receiver);
+
+	Receiver->AssignInputPort(InputPort);
 	CachedInputPorts.Add(InputPort);
 
-	return false;
+	return true;
 }
 
 void FDMXProtocolSACN::UnregisterInputPort(const TSharedRef<FDMXInputPort, ESPMode::ThreadSafe>& InputPort)
 {
 	check(CachedInputPorts.Contains(InputPort));
 	CachedInputPorts.Remove(InputPort);
+
+	TSharedPtr<FDMXProtocolSACNReceiver> UnusedReceiver;
+	for (const TSharedPtr<FDMXProtocolSACNReceiver>& Receiver : Receivers)
+	{
+		if (Receiver->ContainsInputPort(InputPort))
+		{
+			Receiver->UnassignInputPort(InputPort);
+
+			if (Receiver->GetNumAssignedInputPorts() == 0)
+			{
+				UnusedReceiver = Receiver;
+			}
+			break;
+		}
+	}
+
+	if (UnusedReceiver.IsValid())
+	{
+		Receivers.Remove(UnusedReceiver);
+	}
 }
 
 TSharedPtr<IDMXSender> FDMXProtocolSACN::RegisterOutputPort(const TSharedRef<FDMXOutputPort, ESPMode::ThreadSafe>& OutputPort)
 {
-	return nullptr;
+	check(!OutputPort->IsRegistered());
+	check(!CachedOutputPorts.Contains(OutputPort));
+
+	const FString& NetworkInterfaceAddress = OutputPort->GetDeviceAddress();
+	EDMXCommunicationType CommunicationType = OutputPort->GetCommunicationType();
+
+	// Try to use an existing receiver or create a new one
+	TSharedPtr<FDMXProtocolSACNSender> Sender;
+	if (!Sender.IsValid())
+	{
+		if (CommunicationType == EDMXCommunicationType::Broadcast)
+		{
+			Sender = FindExistingMulticastSender(NetworkInterfaceAddress);
+			
+			if (!Sender.IsValid())
+			{
+				Sender = FDMXProtocolSACNSender::TryCreateMulticastSender(SharedThis(this), NetworkInterfaceAddress);
+			}
+		}
+		else if (CommunicationType == EDMXCommunicationType::Unicast)
+		{
+			const FString& UnicastAddress = OutputPort->GetDestinationAddress();
+
+			Sender = FindExistingUnicastSender(NetworkInterfaceAddress, UnicastAddress);
+
+			if (!Sender.IsValid())
+			{
+				Sender = FDMXProtocolSACNSender::TryCreateUnicastSender(SharedThis(this), NetworkInterfaceAddress, UnicastAddress);
+			}
+		}
+		else
+		{
+			// Invalid Communication Type
+			checkNoEntry();
+		}
+	}
+
+	if (!Sender.IsValid())
+	{
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Could not create Art-Net sender for output port %s"), *OutputPort->GetPortName());
+
+		return nullptr;
+	}
+
+	Senders.Add(Sender);
+
+	Sender->AssignOutputPort(OutputPort);
+	CachedOutputPorts.Add(OutputPort);
+
+	return Sender;
+}
+
+void FDMXProtocolSACN::UnregisterOutputPort(const TSharedRef<FDMXOutputPort, ESPMode::ThreadSafe>& OutputPort)
+{
+	check(CachedOutputPorts.Contains(OutputPort));
+	CachedOutputPorts.Remove(OutputPort);
+
+	TSharedPtr<FDMXProtocolSACNSender> UnusedSender;
+	for (const TSharedPtr<FDMXProtocolSACNSender>& Sender : Senders)
+	{
+		if (Sender->ContainsOutputPort(OutputPort))
+		{
+			Sender->UnassignOutputPort(OutputPort);
+
+			if (Sender->GetNumAssignedOutputPorts() == 0)
+			{
+				UnusedSender = Sender;
+			}
+			break;
+		}
+	}
+
+	if (UnusedSender.IsValid())
+	{
+		Senders.Remove(UnusedSender);
+	}
 }
 
 bool FDMXProtocolSACN::IsCausingLoopback(EDMXCommunicationType InCommunicationType)
@@ -115,7 +228,41 @@ bool FDMXProtocolSACN::IsCausingLoopback(EDMXCommunicationType InCommunicationTy
 	return false;
 }
 
-void FDMXProtocolSACN::UnregisterOutputPort(const TSharedRef<FDMXOutputPort, ESPMode::ThreadSafe>& OutputPort)
+TSharedPtr<FDMXProtocolSACNSender> FDMXProtocolSACN::FindExistingMulticastSender(const FString& NetworkInterfaceAddress) const
 {
+	for (const TSharedPtr<FDMXProtocolSACNSender>& Sender : Senders)
+	{
+		if (Sender->EqualsEndpoint(NetworkInterfaceAddress, NetworkInterfaceAddress))
+		{
+			return Sender;
+		}
+	}
 
+	return nullptr;
+}
+
+TSharedPtr<FDMXProtocolSACNSender> FDMXProtocolSACN::FindExistingUnicastSender(const FString& NetworkInterfaceAddress, const FString& DestinationAddress) const
+{
+	for (const TSharedPtr<FDMXProtocolSACNSender>& Sender : Senders)
+	{
+		if (Sender->EqualsEndpoint(NetworkInterfaceAddress, DestinationAddress))
+		{
+			return Sender;
+		}
+	}
+
+	return nullptr;
+}
+
+TSharedPtr<FDMXProtocolSACNReceiver> FDMXProtocolSACN::FindExistingReceiver(const FString& IPAddress, EDMXCommunicationType CommunicationType) const
+{
+	for (const TSharedPtr<FDMXProtocolSACNReceiver>& Receiver : Receivers)
+	{
+		if (Receiver->EqualsEndpoint(IPAddress))
+		{
+			return Receiver;
+		}
+	}
+
+	return nullptr;
 }

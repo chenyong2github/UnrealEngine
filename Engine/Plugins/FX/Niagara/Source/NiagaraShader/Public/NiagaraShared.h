@@ -53,20 +53,28 @@ public:
 	{
 		Severity = FNiagaraCompileEventSeverity::Log;
 		Message = FString();
+		ShortDescription = FString();
+		bDismissable = true;
 		NodeGuid = FGuid();
 		PinGuid = FGuid();
 		StackGuids.Empty();
 	}
-
-	FNiagaraCompileEvent(FNiagaraCompileEventSeverity InSeverity, const FString& InMessage, FGuid InNodeGuid = FGuid(), FGuid InPinGuid = FGuid(), const TArray<FGuid>& InCallstackGuids = TArray<FGuid>())
-		: Severity(InSeverity), Message(InMessage), NodeGuid(InNodeGuid), PinGuid(InPinGuid), StackGuids(InCallstackGuids) {}
-
+ 
+	FNiagaraCompileEvent(FNiagaraCompileEventSeverity InSeverity, const FString& InMessage, FString InShortDescription = FString(), bool bInDismissable = true,FGuid InNodeGuid = FGuid(), FGuid InPinGuid = FGuid(), const TArray<FGuid>& InCallstackGuids = TArray<FGuid>())
+		: Severity(InSeverity), Message(InMessage), ShortDescription(InShortDescription), bDismissable(bInDismissable), NodeGuid(InNodeGuid), PinGuid(InPinGuid), StackGuids(InCallstackGuids) {}
+ 
 	/** Whether or not this is an error, warning, or info*/
 	UPROPERTY()
 	FNiagaraCompileEventSeverity Severity;
-	/* The message itself*/
+	/** The message itself*/
 	UPROPERTY()
 	FString Message;
+	/** A short, optional description of the event. */
+	UPROPERTY()
+	FString ShortDescription;
+	/** Whether or not this event is dismissable or not */
+	UPROPERTY()
+	bool bDismissable;
 	/** The node guid that generated the compile event*/
 	UPROPERTY()
 	FGuid NodeGuid;

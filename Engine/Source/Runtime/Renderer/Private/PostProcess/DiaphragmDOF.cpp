@@ -1267,7 +1267,9 @@ class FDiaphragmDOFRecombineCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneSeparateCoc)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneSeparateTranslucency)
-		SHADER_PARAMETER_SAMPLER(SamplerState, SceneSeparateTranslucencySampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneSeparateTranslucencyModulateColor)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, LowResDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, FullResDepthTexture)
 
 		// Half res convolution textures.
 		SHADER_PARAMETER(FVector4, ConvolutionInputSize)
@@ -1275,6 +1277,7 @@ class FDiaphragmDOFRecombineCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_STRUCT(FDOFConvolutionTextures, ForegroundHoleFillingConvolution)
 		SHADER_PARAMETER_STRUCT(FDOFConvolutionTextures, SlightOutOfFocusConvolution)
 		SHADER_PARAMETER_STRUCT(FDOFConvolutionTextures, BackgroundConvolution)
+		SHADER_PARAMETER(FVector2D, SeparateTranslucencyTextureLowResExtentInverse)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, SceneColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DebugOutput)
@@ -2616,6 +2619,8 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		PermutationVector.Set<FDiaphragmDOFRecombineCS::FQualityDim>(RecombineQuality);
 
 		FRDGTextureRef SeparateTranslucency = SeparateTranslucencyTextures.GetColorForRead(GraphBuilder);
+		FRDGTextureRef SeparateTranslucencyDepth = SeparateTranslucencyTextures.GetDepthForRead(GraphBuilder);
+		FRDGTextureRef SeparateTranslucencyModulateColor = SeparateTranslucencyTextures.GetColorModulateForRead(GraphBuilder);
 
 		FDiaphragmDOFRecombineCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiaphragmDOFRecombineCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
@@ -2637,13 +2642,19 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;
 		PassParameters->SceneSeparateCoc = FullResGatherInputTextures.SeparateCoc; // TODO looks useless.
 		PassParameters->SceneSeparateTranslucency = SeparateTranslucency;
-		PassParameters->SceneSeparateTranslucencySampler = bScaleSeparateTranslucency ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->SceneSeparateTranslucencyModulateColor = SeparateTranslucencyModulateColor;
 		
 		PassParameters->ConvolutionInputSize = FVector4(RefBufferSize.X, RefBufferSize.Y, 1.0f / RefBufferSize.X, 1.0f / RefBufferSize.Y);
 		PassParameters->ForegroundConvolution = ForegroundConvolutionTextures;
 		PassParameters->ForegroundHoleFillingConvolution = ForegroundHoleFillingConvolutionTextures;
 		PassParameters->SlightOutOfFocusConvolution = SlightOutOfFocusConvolutionTextures;
 		PassParameters->BackgroundConvolution = BackgroundConvolutionTextures;
+
+		// Separate translucency upsampling
+		PassParameters->FullResDepthTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(SceneTextures.SceneDepthTexture, ERDGTextureMetaDataAccess::Depth));
+		PassParameters->LowResDepthTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(SeparateTranslucencyDepth, ERDGTextureMetaDataAccess::Depth));
+		const FIntPoint LowResExtent = SeparateTranslucency->Desc.Extent;
+		PassParameters->SeparateTranslucencyTextureLowResExtentInverse = FVector2D(1.0f / LowResExtent.X, 1.0f / LowResExtent.Y);
 
 		if (!bGatherForeground && !bGatherBackground)
 		{

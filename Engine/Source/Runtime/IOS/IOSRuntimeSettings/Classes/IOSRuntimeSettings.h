@@ -268,9 +268,9 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (ConfigHierarchyEditable))
 	FString RemoteServerOverrideBuildPath;
 
-	// The install directory of DeltaCopy.
+	// The install directory of cwrsync.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bUseRSync", ConfigHierarchyEditable))
-	FIOSBuildResourceDirectory DeltaCopyInstallPath;
+	FIOSBuildResourceDirectory CwRsyncInstallPath;
 
 	// The existing location of an SSH Key found by Unreal Engine.
 	UPROPERTY(VisibleAnywhere, Category = "Build", meta = (DisplayName = "Found Existing SSH permissions file"))

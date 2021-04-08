@@ -34,14 +34,22 @@ void FUniformBufferStaticSlotRegistry::RegisterSlot(FName SlotName)
 #define VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
 
 #if VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME
-static TMap<FName, FName> GlobalShaderVariableToStructMap;
+TMap<FName, FName> & GetGlobalShaderVariableToStructMap()
+{
+	static TMap<FName, FName> GlobalShaderVariableToStructMap;
+	return GlobalShaderVariableToStructMap;
+}
 #endif
 
-static TLinkedList<FShaderParametersMetadata*>* GUniformStructList = nullptr;
-static TMap<uint32, FShaderParametersMetadata*> GLayoutHashStructMap;
+TMap<uint32, FShaderParametersMetadata*> & GetLayoutHashStructMap()
+{
+	static TMap<uint32, FShaderParametersMetadata*> GLayoutHashStructMap;
+	return GLayoutHashStructMap;
+}
 
 TLinkedList<FShaderParametersMetadata*>*& FShaderParametersMetadata::GetStructList()
 {
+	static TLinkedList<FShaderParametersMetadata*>* GUniformStructList = nullptr;
 	return GUniformStructList;
 }
 
@@ -98,7 +106,7 @@ FShaderParametersMetadata* FindUniformBufferStructByFName(FName StructName)
 
 FShaderParametersMetadata* FindUniformBufferStructByLayoutHash(uint32 Hash)
 {
-	return GLayoutHashStructMap.FindRef(Hash);
+	return GetLayoutHashStructMap().FindRef(Hash);
 }
 
 const TCHAR* const kShaderParameterMacroNames[] = {
@@ -312,6 +320,15 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	{
 		check(ShaderVariableName);
 	}
+	
+	// must ensure the global classes are full initialized before us
+	//	so that they destruct after us
+	#if VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME
+	GetGlobalShaderVariableToStructMap();
+	#endif
+	GetLayoutHashStructMap();
+	GetStructList();
+	GetNameStructMap();
 
 	if (UseCase == EUseCase::UniformBuffer && !bForceCompleteInitialization)
 	{
@@ -328,7 +345,7 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 		FName ShaderVariableFName(ShaderVariableName);
 
 		// Verify that the global variable name is unique so that we can disambiguate when reflecting from shader source.
-		if (FName* StructFName = GlobalShaderVariableToStructMap.Find(ShaderVariableFName))
+		if (FName* StructFName = GetGlobalShaderVariableToStructMap().Find(ShaderVariableFName))
 		{
 			checkf(
 				false,
@@ -340,7 +357,7 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 				*StructFName->GetPlainNameString());
 		}
 
-		GlobalShaderVariableToStructMap.Add(ShaderVariableFName, StructTypeFName);
+		GetGlobalShaderVariableToStructMap().Add(ShaderVariableFName, StructTypeFName);
 #endif
 	}
 	else
@@ -354,6 +371,11 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 
 FShaderParametersMetadata::~FShaderParametersMetadata()
 {
+	// FShaderParametersMetadata are objects at file scope
+	//	this destructor can run at process exit
+	// it touches globals like GlobalShaderVariableToStructMap and GLayoutHashStructMap
+	//	must ensure they are not already be destructed
+
 	if (GlobalListLink.IsLinked())
 	{
 		check(UseCase == EUseCase::UniformBuffer);
@@ -361,12 +383,12 @@ FShaderParametersMetadata::~FShaderParametersMetadata()
 		GetNameStructMap().Remove(ShaderVariableHashedName);
 
 #if VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME
-		GlobalShaderVariableToStructMap.Remove(FName(ShaderVariableName, FNAME_Find));
+		GetGlobalShaderVariableToStructMap().Remove(FName(ShaderVariableName, FNAME_Find));
 #endif
 
 		if (bLayoutInitialized)
 		{
-			GLayoutHashStructMap.Remove(GetLayout().GetHash());
+			GetLayoutHashStructMap().Remove(GetLayout().GetHash());
 		}
 	}
 }
@@ -743,7 +765,7 @@ void FShaderParametersMetadata::InitializeLayout()
 
 	if (UseCase == EUseCase::UniformBuffer)
 	{
-		GLayoutHashStructMap.Emplace(Layout.GetHash(), this);
+		GetLayoutHashStructMap().Emplace(Layout.GetHash(), this);
 	}
 
 	bLayoutInitialized = true;

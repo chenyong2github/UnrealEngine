@@ -12,12 +12,6 @@ class STextBlock;
 class SWidgetSwitcher;
 
 
-enum class EDMXIPEditWidgetMode
-{
-	LocalAdapterAddresses,
-	EditableTextBox
-};
-
 /**
  * Helper widget that draws a local IP address in a combobox.
  */
@@ -26,12 +20,9 @@ class SDMXIPAddressEditWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXIPAddressEditWidget)
-		: _Mode(EDMXIPEditWidgetMode::LocalAdapterAddresses)
 		{}
 
 		SLATE_ARGUMENT(FString, InitialValue)
-
-		SLATE_ARGUMENT(EDMXIPEditWidgetMode, Mode)
 
 		SLATE_EVENT(FSimpleDelegate, OnIPAddressSelected)
 
@@ -44,33 +35,12 @@ public:
 	/** Returns the selected IP Address */
 	TSharedPtr<FString> GetSelectedIPAddress() const;
 
-	/** Sets the current widget mode */
-	void SetEditMode(EDMXIPEditWidgetMode NewMode);
-
 private:
-	/** Sets the current widget mode, but doesn't raise an external event, useful for initialization */
-	void SetEditModeInternal(EDMXIPEditWidgetMode NewMode);
-
-	/** Called when the ip address was commited in the editable text block */
-	void OnIPAddressCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
-
 	/** Called when an ip address was selected by any widget */
 	void OnIpAddressSelectedInChild();
 
-	/** Widget Switcher to switch between widgets for each mode */
-	TSharedPtr<SWidgetSwitcher> WidgetSwitcher;
-
 	/** ComboBox shown when in local adapter mode */
 	TSharedPtr<class SDMXLocalAdapterAddressComboBox> LocalAdapterAddressComboBox;
-
-	/** Editable text block for the editable mode */
-	TSharedPtr<SEditableTextBox> IPAddressEditableTextBox;
-
-	/** The text in the editable text block, as String */
-	FString EditableTextBoxString;
-
-	/** Mode currently in use */
-	EDMXIPEditWidgetMode Mode;
 
 	/** Delegate executed when a local IP address was selected */
 	FSimpleDelegate OnIPAddressSelected;

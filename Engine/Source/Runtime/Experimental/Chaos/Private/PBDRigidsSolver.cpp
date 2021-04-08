@@ -468,15 +468,10 @@ namespace Chaos
 
 			});
 
-			// Get the physics thread-handle from the proxy, and then delete the proxy.
-			//
-			// NOTE: We have to delete the proxy from its derived version, because the
-			// base destructor is protected. This makes everything just a bit uglier,
-			// maybe that extra safety is not needed if we continue to contain all
-			// references to proxy instances entirely in Chaos?
 			FGeometryParticleHandle* Handle = Proxy->GetHandle_LowLevel();
 			Proxy->SetHandle(nullptr);
-			PendingDestroyPhysicsProxy.Add(Proxy);
+			const int32 OffsetForRewind = MRewindData ? MRewindData->Capacity() : 0;
+			PendingDestroyPhysicsProxy.Add(  FPendingDestroyInfo{Proxy, GetCurrentFrame() + OffsetForRewind});
 			
 			//If particle was created and destroyed before commands were enqueued just skip. I suspect we can skip entire lambda, but too much code to verify right now
 
@@ -662,12 +657,16 @@ namespace Chaos
 
 	void FPBDRigidsSolver::DestroyPendingProxies_Internal()
 	{
-		for (auto Proxy : PendingDestroyPhysicsProxy)
+		for(int32 Idx = PendingDestroyPhysicsProxy.Num() - 1; Idx >= 0; --Idx)
 		{
-			ensure(Proxy->GetHandle_LowLevel() == nullptr);	//should have already cleared this out
-			delete Proxy;
+			FPendingDestroyInfo& Info = PendingDestroyPhysicsProxy[Idx];
+			if(Info.DestroyOnStep <= GetCurrentFrame() || IsShuttingDown())
+			{
+				ensure(Info.Proxy->GetHandle_LowLevel() == nullptr);	//should have already cleared this out
+				delete Info.Proxy;
+				PendingDestroyPhysicsProxy.RemoveAtSwap(Idx);
+			}
 		}
-		PendingDestroyPhysicsProxy.Reset();
 
 		bool bResetCollisionConstraints=false;
 		for (auto Proxy : PendingDestroyGeometryCollectionPhysicsProxy)
@@ -839,29 +838,37 @@ namespace Chaos
 				Handle->GTGeometryParticle() = Proxy->GetParticle_LowLevel();
 			}
 
-			if(RewindData)
+			if(Proxy->GetHandle_LowLevel())
 			{
-				//may want to remove branch by templatizing lambda
-				if(RewindData->IsResim())
+				if (RewindData)
 				{
-					RewindData->PushGTDirtyData<true>(*Manager,DataIdx,Dirty);
-				} else
-				{
-					RewindData->PushGTDirtyData<false>(*Manager,DataIdx,Dirty);
+					//may want to remove branch by templatizing lambda
+					if (RewindData->IsResim())
+					{
+						RewindData->PushGTDirtyData<true>(*Manager, DataIdx, Dirty, ShapeDirtyData);
+					}
+					else
+					{
+						RewindData->PushGTDirtyData<false>(*Manager, DataIdx, Dirty, ShapeDirtyData);
+					}
 				}
-			}
 
-			Proxy->PushToPhysicsState(*Manager,DataIdx,Dirty,ShapeDirtyData,*GetEvolution());
+				Proxy->PushToPhysicsState(*Manager, DataIdx, Dirty, ShapeDirtyData, *GetEvolution());
+			}
+			else
+			{
+				//The only valid time for a handle to not exist is during a resim, when the proxy was already deleted
+				//Another way would be to sanitize pending push data, but this would be expensive
+				ensure(RewindData && RewindData->IsResim());
+			}
 
 			if(bIsNew)
 			{
 				auto Handle = Proxy->GetHandle_LowLevel();
 				Handle->SetPhysicsProxy(Proxy);
 				GetEvolution()->CreateParticle(Handle);
-				Proxy->SetInitialized(true);
+				Proxy->SetInitialized(GetCurrentFrame());
 			}
-
-			Dirty.Clear(*Manager,DataIdx,ShapeDirtyData);
 		};
 
 		if(RewindData)

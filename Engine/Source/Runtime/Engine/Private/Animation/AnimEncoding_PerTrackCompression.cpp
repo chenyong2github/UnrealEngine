@@ -713,6 +713,10 @@ void AEFPerTrackCompressionCodec::GetBoneAtomScale(
 
 #if USE_ANIMATION_CODEC_BATCH_SOLVER
 
+#if INTEL_ISPC
+static_assert(sizeof(ispc::BoneTrackPair) == sizeof(BoneTrackPair), "sizeof(ispc::BoneTrackPair) != sizeof(BoneTrackPair)");
+#endif
+
 /**
  * Decompress all requested rotation components from an Animation Sequence
  *

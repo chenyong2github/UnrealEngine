@@ -160,7 +160,7 @@ private:
 	void RefreshTopLevelViewModels();
 	void RefreshHasIssues();
 	void OnSystemCompiled();
-	void OnEmitterCompiled();
+	void OnEmitterCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion);
 	void EmitterParentRemoved();
 	/** Called by the tick function to perform partial search */
 	void SearchTick();

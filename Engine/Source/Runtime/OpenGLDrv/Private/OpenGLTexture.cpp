@@ -479,6 +479,11 @@ void FOpenGLDynamicRHI::InitializeGLTexture(FRHITexture* Texture, uint32 SizeX, 
 	}
 }
 
+static inline bool IsAstcLdrRGBAFormat(GLenum Format)
+{
+	return Format >= GL_COMPRESSED_RGBA_ASTC_4x4_KHR && Format <= GL_COMPRESSED_RGBA_ASTC_12x12_KHR;
+}
+
 void FOpenGLDynamicRHI::InitializeGLTextureInternal(GLuint TextureID, FRHITexture* Texture, uint32 SizeX, const uint32 SizeY, const bool bCubeTexture, const bool bArrayTexture, const bool bIsExternal, const uint8 Format, const uint32 NumMips, const uint32 NumSamples, const uint32 ArraySize, const ETextureCreateFlags Flags, const FClearValueBinding& InClearValue, FResourceBulkDataInterface* BulkData)
 {
 	VERIFY_GL_SCOPE();
@@ -549,6 +554,14 @@ void FOpenGLDynamicRHI::InitializeGLTextureInternal(GLuint TextureID, FRHITextur
 		{
 			glTexParameteri(Target, GL_TEXTURE_SWIZZLE_R, GL_BLUE);
 			glTexParameteri(Target, GL_TEXTURE_SWIZZLE_B, GL_RED);
+		}
+
+		if (FOpenGL::SupportsASTCDecodeMode())
+		{
+			if (IsAstcLdrRGBAFormat(GLFormat.InternalFormat[bSRGB]))
+			{
+				glTexParameteri(Target, TEXTURE_ASTC_DECODE_PRECISION_EXT, GL_RGBA8);
+			}
 		}
 
 		if (bArrayTexture)
@@ -1250,6 +1263,7 @@ void TOpenGLTexture<RHIResourceType>::TryEvictGLResource()
 
 		if (CanBeEvicted())
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_OpenGLTryEvictGLResource);
 			DeleteGLResource();
 
 			// create a new texture id.

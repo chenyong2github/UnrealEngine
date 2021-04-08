@@ -12,9 +12,21 @@
 #include "ScopedTransaction.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraSettings.h"
-#include "ToolMenu.h"
+#include "ContentBrowserModule.h"
+#include "IContentBrowserSingleton.h"
+#include "Engine/UserDefinedEnum.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor/EditorEngine.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeStaticSwitch"
+
+namespace NiagaraStaticSwitchCVars
+{
+	static bool bEnabledAutoRefreshOldStaticSwitches = false;
+	static FAutoConsoleVariableRef CVarEnableAutoRefreshOldStaticSwitches(TEXT("Niagara.StaticSwitch.EnableAutoRefreshOldStaticSwitches"), bEnabledAutoRefreshOldStaticSwitches, 
+		TEXT("Enables auto refresh for old static switch nodes on post load and updates to enum assets. Enable this and cook assets to check how many old nodes operate on outdated enums"));
+}
 
 UNiagaraNodeStaticSwitch::UNiagaraNodeStaticSwitch(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer), InputParameterName(FName(TEXT("Undefined parameter name"))), IsValueSet(false), SwitchValue(0)
@@ -72,7 +84,8 @@ TArray<int32> UNiagaraNodeStaticSwitch::GetOptionValues() const
 	}
 	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer)
 	{
-		for(int32 Counter = 0; Counter < NumOptionsPerVariable; Counter++)
+		int32 NewOptionsCount = FMath::Max(2, NumOptionsPerVariable);
+		for(int32 Counter = 0; Counter < NewOptionsCount; Counter++)
 		{
 			OptionValues.Add(Counter);
 		}
@@ -93,6 +106,19 @@ TArray<int32> UNiagaraNodeStaticSwitch::GetOptionValues() const
 	}
 
 	return OptionValues;
+}
+
+void UNiagaraNodeStaticSwitch::PreChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
+{
+	// do nothing
+}
+
+void UNiagaraNodeStaticSwitch::PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
+{
+	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && Changed == SwitchTypeData.Enum && (SwitchTypeData.bAutoRefreshEnabled == true || NiagaraStaticSwitchCVars::bEnabledAutoRefreshOldStaticSwitches))
+	{
+		RefreshFromExternalChanges();
+	}
 }
 
 FName UNiagaraNodeStaticSwitch::GetOptionPinName(const FNiagaraVariable& Variable, int32 Value) const
@@ -207,55 +233,18 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 
-	// create the input pins which differ in count depending on the switch type
-	if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Bool)
-	{
-		NumOptionsPerVariable = 2;
-		for (FNiagaraVariable& Var : OutputVars)
-		{
-			AddOptionPin(Var, 1);
-			
-		}
-		for (FNiagaraVariable& Var : OutputVars)
-		{
-			AddOptionPin(Var, 0);
-		}
-		GetNiagaraGraph()->AddParameter(FNiagaraVariable(GetInputType(), InputParameterName), true);
-	}
-	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer)
-	{
-		for (int32 i = 0; i < NumOptionsPerVariable; i++)
-		{
-			for (FNiagaraVariable& Var : OutputVars)
-			{
-				AddOptionPin(Var, i);
-			}
-		}
-		GetNiagaraGraph()->AddParameter(FNiagaraVariable(GetInputType(), InputParameterName), true);
-	}
-	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
-	{
-		UEnum* Enum = SwitchTypeData.Enum;
-		
-		int32 NextNaturalIndex = 0;
-		for (int32 EnumIndex = 0; EnumIndex < Enum->NumEnums() - 1; ++EnumIndex)
-		{
-			bool const bShouldBeHidden = ShouldHideEnumEntry(Enum, EnumIndex);
+	TArray<int32> OptionValues = GetOptionValues();
+	NumOptionsPerVariable = OptionValues.Num();
 
-			if (!bShouldBeHidden)
-			{
-				NextNaturalIndex++;
-				for (const FNiagaraVariable& Variable : OutputVars)
-				{
-					AddOptionPin(Variable, Enum->GetValueByIndex(EnumIndex));
-				}
-			}
+	for (int32 i = 0; i < NumOptionsPerVariable; i++)
+	{
+		for (const FNiagaraVariable& Variable : OutputVars)
+		{
+			AddOptionPin(Variable, OptionValues[i]);
 		}
-		
-		NumOptionsPerVariable = NextNaturalIndex;
-		
-		GetNiagaraGraph()->AddParameter(FNiagaraVariable(GetInputType(), InputParameterName), true);
 	}
+		
+	GetNiagaraGraph()->AddParameter(FNiagaraVariable(GetInputType(), InputParameterName), true);
 	
 	// create the output pins
 	for (int32 Index = 0; Index < OutputVars.Num(); Index++)
@@ -370,8 +359,24 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 			// do a sanity check here if the number of pins actually matches the enum count (which might have changed in the meantime without us noticing)
 			FPinCollectorArray LocalOutputPins;
 			GetOutputPins(LocalOutputPins);
+
+			LocalOutputPins.RemoveAll([](UEdGraphPin* Pin)
+			{
+				return Pin->bOrphanedPin == true;
+			});
+
+			// remove the add pin from the count
 			int32 OutputPinCount = LocalOutputPins.Num() - 1;
-			if (OutputPinCount > 0 && OutputPinCount * NumOptionsPerVariable != InputPinCount)
+
+			if(OptionValues.Num() != NumOptionsPerVariable)
+			{
+				if (Translator)
+				{
+					Translator->Error(FText::Format(LOCTEXT("InvalidSwitchEnumDefinition", "Number of valid enum entries: {0}. Expected. {1}. Please refresh the node."), FText::FromString(FString::FromInt(OptionValues.Num())), FText::FromString(FString::FromInt(NumOptionsPerVariable))), this, nullptr);
+				}
+			}
+			// if we have at least one output pin, check if input pin count and output pin count match up
+			if (OutputPinCount > 0 && OutputPinCount * OptionValues.Num() != InputPinCount)
 			{
 				if (Translator)
 				{
@@ -396,8 +401,73 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 	return Success;
 }
 
-void UNiagaraNodeStaticSwitch::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeStaticSwitch::CheckForOutdatedEnum(FHlslNiagaraTranslator* Translator)
 {
+	// we check during compilation if the node is using outdated enum information and log it
+	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
+	{
+		TArray<UEdGraphPin*> InputPins;
+		GetInputPins(InputPins);
+
+		InputPins.RemoveAll([](UEdGraphPin* Pin)
+		{
+			return Pin->bOrphanedPin == true;
+		});
+
+		// this gets the new option values so we can retrieve the new pin names
+		TArray<int32> OptionValues = GetOptionValues();
+
+		// collect the new pin names
+		TArray<FName> NewPinNames;
+		for(int32 OptionIndex = 0; OptionIndex < OptionValues.Num(); OptionIndex++)
+		{
+			for(const FNiagaraVariable& Variable : OutputVars)
+			{
+				FName UpdatedPinName = GetOptionPinName(Variable, OptionValues[OptionIndex]);
+				NewPinNames.Add(UpdatedPinName);		
+			}
+		}
+
+		// this checks the current, possibly outdated, state for consistency. Should never be unequal but we are making sure.
+		if (InputPins.Num() != NumOptionsPerVariable * OutputVars.Num())
+		{
+			Translator->Message(FNiagaraCompileEventSeverity::Error, LOCTEXT("InternalCalculationPinCountError", "An internal calculation error has occured. Please refresh the node."), this, nullptr);
+		}
+
+		// this checks the new, up to date pin count against the old pin count
+		if(NewPinNames.Num() != InputPins.Num())
+		{
+			if(NewPinNames.Num() == 0)
+			{
+				Translator->Message(FNiagaraCompileEventSeverity::Log, LOCTEXT("EmptyEnumEntries", "A static switch either has no enum assigned or the enum has no entries. A node refresh is advised."), this, nullptr, FString(), true);
+			}
+			else
+			{
+				Translator->Message(FNiagaraCompileEventSeverity::Log, LOCTEXT("PinCountMismatch", "Static switch pins reflect outdated enum entries. While the static switch is fully functional, a node refresh is advised."), this, nullptr, FString(), true);
+			}
+		}
+		else
+		{
+			bool bAnyPinNameChangeDetected = false;
+			for(int32 Index = 0; Index < NewPinNames.Num(); Index++)
+			{
+				if(!NewPinNames[Index].ToString().Equals(InputPins[Index]->PinName.ToString()))
+				{
+					bAnyPinNameChangeDetected = true;
+					break;
+				}
+			}
+
+			if (bAnyPinNameChangeDetected)
+			{
+				Translator->Message(FNiagaraCompileEventSeverity::Log, LOCTEXT("EnumPinNameChangeDetected", "Static switch pins reflect outdated enum entries. While the static switch is fully functional, a node refresh is advised."), this, nullptr, FString(), true);
+			}
+		}
+	}
+}
+
+void UNiagaraNodeStaticSwitch::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+{	
 	UNiagaraNode::Compile(Translator, Outputs);
 }
 
@@ -501,6 +571,15 @@ void UNiagaraNodeStaticSwitch::PostLoad()
 			UE_LOG(LogNiagaraEditor, Log, TEXT("Static switch constant \"%s\" in \"%s\" didn't have static switch meta-data conversion set properly. Fixing now."), *InputParameterName.ToString(), *GetPathName())
 			Var->Metadata.SetIsStaticSwitch(true);
 			MarkNodeRequiresSynchronization(TEXT("Static switch metadata updated"), true);
+		}
+	}
+
+	if(SwitchTypeData.bAutoRefreshEnabled == true || NiagaraStaticSwitchCVars::bEnabledAutoRefreshOldStaticSwitches)
+	{
+		// we assume something changed externally if the input pins are outdated; i.e. the assigned enum changed or value order changed
+		if(AreInputPinsOutdated())
+		{
+			RefreshFromExternalChanges();
 		}
 	}
 }
@@ -614,9 +693,37 @@ void UNiagaraNodeStaticSwitch::GetNodeContextMenuActions(UToolMenu* Menu, UGraph
 		FToolMenuSection& Section = Menu->FindOrAddSection("Node");
 
 		Section.AddMenuEntry(
+			"BrowseToEnum",
+			FText::Format(LOCTEXT("BrowseToEnumLabel", "Browse to {0}"), FText::FromString(SwitchTypeData.Enum->GetName())),
+			LOCTEXT("BrowseToEnumTooltip", "Browses to the enum in the content browser."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([=]()
+			{
+				FContentBrowserModule& Module = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+				Module.Get().SyncBrowserToAssets({ FAssetData(SwitchTypeData.Enum) });
+			}) , FCanExecuteAction::CreateLambda([=]()
+			{
+				return Cast<UUserDefinedEnum>(SwitchTypeData.Enum) != nullptr;
+			})));
+
+
+		Section.AddMenuEntry(
+			"OpenEnum",
+			FText::Format(LOCTEXT("OpenEnumLabel", "Open {0}"), FText::FromString(SwitchTypeData.Enum->GetName())),
+			LOCTEXT("OpenEnumTooltip", "Opens up the enum asset."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([=]()
+			{
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SwitchTypeData.Enum);
+			}),	FCanExecuteAction::CreateLambda([=]()
+			{
+				return Cast<UUserDefinedEnum>(SwitchTypeData.Enum) != nullptr;
+			})));
+			
+		Section.AddMenuEntry(
 			"AddEnumAsNiagaraType",
-			FText::Format(LOCTEXT("AddEnumToTypesLabel", "Add enum {0} to Niagara type registry"), FText::FromString(SwitchTypeData.Enum->GetName())),
-			LOCTEXT("AddEnumToTypesTooltip", "Adds the enum to the list of Niagara types so it can be used as a parameter."), 
+			FText::Format(LOCTEXT("AddEnumToTypesLabel", "Add enum {0} to user added enums"), FText::FromString(SwitchTypeData.Enum->GetName())),
+			LOCTEXT("AddEnumToTypesTooltip", "Adds the enum to the list of user added enums so it can be used as a parameter."), 
 			FSlateIcon(), 
 			FUIAction(FExecuteAction::CreateLambda([=]()
 			{

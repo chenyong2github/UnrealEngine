@@ -338,7 +338,7 @@ bool FCborAutomationTest::RunTest(const FString& Parameters)
 /**
  * Check the performance of reading/writing CBOR with byte swapped.
  */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCborByteSwapPerformanceTest, "System.Core.Serialization.CBORByteSwapPerformance", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::PerfFilter )
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCborByteSwapPerformanceTest, "System.Core.Serialization.CBORByteSwapPerformance", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::PerfFilter | EAutomationTestFlags::Disabled)
 
 bool FCborByteSwapPerformanceTest::RunTest(const FString& Parameters)
 {

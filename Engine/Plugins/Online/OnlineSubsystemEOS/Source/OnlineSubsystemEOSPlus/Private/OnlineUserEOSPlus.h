@@ -17,6 +17,9 @@ class FOnlineSubsystemEOSPlus;
 
 #define BASE_NETID_TYPE_SIZE 1
 
+using FUniqueNetIdEOSPlusPtr = TSharedPtr<const class FUniqueNetIdEOSPlus, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdEOSPlusRef = TSharedRef<const class FUniqueNetIdEOSPlus, UNIQUENETID_ESPMODE>;
+
 /**
  * Unique net id wrapper for a EOS plus another account id. The underlying string is a combination
  * of both account ids concatenated
@@ -25,11 +28,14 @@ class FUniqueNetIdEOSPlus :
 	public FUniqueNetIdString
 {
 public:
-	FUniqueNetIdEOSPlus()
+	template<typename... TArgs>
+	static FUniqueNetIdEOSPlusRef Create(TArgs&&... Args)
 	{
+		return MakeShared<FUniqueNetIdEOSPlus, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
 	}
 
-	explicit FUniqueNetIdEOSPlus(TSharedPtr<const FUniqueNetId> InBaseUniqueNetId, TSharedPtr<const FUniqueNetId> InEOSUniqueNetId);
+	/** Allow MakeShared to see private constructors */
+	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdEOSPlus>;
 
 // FUniqueNetId interface
 	virtual const uint8* GetBytes() const override;
@@ -37,21 +43,26 @@ public:
 	virtual bool IsValid() const override;
 // ~FUniqueNetId interface
 
-	TSharedPtr<const FUniqueNetId> GetBaseNetId() const
+	FUniqueNetIdPtr GetBaseNetId() const
 	{
 		return BaseUniqueNetId;
 	}
 
-	TSharedPtr<const FUniqueNetId> GetEOSNetId() const
+	FUniqueNetIdPtr GetEOSNetId() const
 	{
 		return EOSUniqueNetId;
 	}
 
 private:
-	TSharedPtr<const FUniqueNetId> BaseUniqueNetId;
-	TSharedPtr<const FUniqueNetId> EOSUniqueNetId;
+	explicit FUniqueNetIdEOSPlus(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId);
+
+	FUniqueNetIdPtr BaseUniqueNetId;
+	FUniqueNetIdPtr EOSUniqueNetId;
 	TArray<uint8> RawBytes;
 };
+
+using FUniqueNetIdBinaryPtr = TSharedPtr<const class FUniqueNetIdBinary, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdBinaryRef = TSharedRef<const class FUniqueNetIdBinary, UNIQUENETID_ESPMODE>;
 
 class FUniqueNetIdBinary :
 	public FUniqueNetId
@@ -59,18 +70,14 @@ class FUniqueNetIdBinary :
 public:
 	virtual ~FUniqueNetIdBinary() = default;
 
-	FUniqueNetIdBinary(const TArray<uint8>& InRawBytes, const FName InType)
-		: RawBytes(InRawBytes)
-		, Type(InType)
+	template<typename... TArgs>
+	static FUniqueNetIdBinaryRef Create(TArgs&&... Args)
 	{
+		return MakeShared<FUniqueNetIdBinary, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
 	}
 
-	FUniqueNetIdBinary(const uint8* InRawBytes, const int32 InSize, const FName InType)
-		: Type(InType)
-	{
-		RawBytes.AddZeroed(InSize);
-		FMemory::Memcpy(RawBytes.GetData(), InRawBytes, InSize);
-	}
+	/** Allow MakeShared to see private constructors */
+	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdBinary>;
 
 	virtual FName GetType() const override
 	{
@@ -115,6 +122,19 @@ public:
 protected:
 	TArray<uint8> RawBytes;
 	FName Type;
+
+	FUniqueNetIdBinary(const TArray<uint8>& InRawBytes, const FName InType)
+		: RawBytes(InRawBytes)
+		, Type(InType)
+	{
+	}
+
+	FUniqueNetIdBinary(const uint8* InRawBytes, const int32 InSize, const FName InType)
+		: Type(InType)
+	{
+		RawBytes.AddZeroed(InSize);
+		FMemory::Memcpy(RawBytes.GetData(), InRawBytes, InSize);
+	}
 };
 
 template<class AggregateUserType>
@@ -134,19 +154,19 @@ public:
 	}
 
 // FOnlineUser interface
-	virtual TSharedRef<const FUniqueNetId> GetUserId() const override
+	virtual FUniqueNetIdRef GetUserId() const override
 	{
-		TSharedPtr<const FUniqueNetId> BaseNetId;
+		FUniqueNetIdPtr BaseNetId;
 		if (IsBaseItemValid())
 		{
 			BaseNetId = BaseItem->GetUserId();
 		}
-		TSharedPtr<const FUniqueNetId> EOSNetId;
+		FUniqueNetIdPtr EOSNetId;
 		if (IsEOSItemValid())
 		{
 			EOSNetId = EOSItem->GetUserId();
 		}
-		return MakeShared<FUniqueNetIdEOSPlus>(BaseNetId, EOSNetId);
+		return FUniqueNetIdEOSPlus::Create(BaseNetId, EOSNetId);
 	}
 
 	virtual FString GetRealName() const override
@@ -351,9 +371,9 @@ public:
 	virtual bool AutoLogin(int32 LocalUserNum) override;
 	virtual TSharedPtr<FUserOnlineAccount> GetUserAccount(const FUniqueNetId& UserId) const override;
 	virtual TArray<TSharedPtr<FUserOnlineAccount>> GetAllUserAccounts() const override;
-	virtual TSharedPtr<const FUniqueNetId> GetUniquePlayerId(int32 LocalUserNum) const override;
-	virtual TSharedPtr<const FUniqueNetId> CreateUniquePlayerId(uint8* Bytes, int32 Size) override;
-	virtual TSharedPtr<const FUniqueNetId> CreateUniquePlayerId(const FString& Str) override;
+	virtual FUniqueNetIdPtr GetUniquePlayerId(int32 LocalUserNum) const override;
+	virtual FUniqueNetIdPtr CreateUniquePlayerId(uint8* Bytes, int32 Size) override;
+	virtual FUniqueNetIdPtr CreateUniquePlayerId(const FString& Str) override;
 	virtual ELoginStatus::Type GetLoginStatus(int32 LocalUserNum) const override;
 	virtual ELoginStatus::Type GetLoginStatus(const FUniqueNetId& UserId) const override;
 	virtual FString GetPlayerNickname(int32 LocalUserNum) const override;
@@ -416,14 +436,14 @@ PACKAGE_SCOPE:
 	void OnInviteAborted(const FUniqueNetId& UserId, const FUniqueNetId& FriendId);
 	void OnFriendRemoved(const FUniqueNetId& UserId, const FUniqueNetId& FriendId);
 
-	TSharedPtr<FUniqueNetIdEOSPlus> GetNetIdPlus(const FString& SourceId);
-	TSharedPtr<const FUniqueNetId> GetBaseNetId(const FString& SourceId);
-	TSharedPtr<const FUniqueNetId> GetEOSNetId(const FString& SourceId);
+	FUniqueNetIdEOSPlusPtr GetNetIdPlus(const FString& SourceId);
+	FUniqueNetIdPtr GetBaseNetId(const FString& SourceId);
+	FUniqueNetIdPtr GetEOSNetId(const FString& SourceId);
 
 private:
 	void AddPlayer(int32 LocalUserNum);
 	void RemovePlayer(int32 LocalUserNum);
-	TSharedPtr<FUniqueNetIdEOSPlus> AddRemotePlayer(TSharedPtr<const FUniqueNetId> BaseNetId, TSharedPtr<const FUniqueNetId> EOSNetId);
+	FUniqueNetIdEOSPlusPtr AddRemotePlayer(FUniqueNetIdPtr BaseNetId, FUniqueNetIdPtr EOSNetId);
 	TSharedRef<FOnlineFriendPlus> AddFriend(TSharedRef<FOnlineFriend> Friend);
 	TSharedRef<FOnlineFriendPlus> GetFriend(TSharedRef<FOnlineFriend> Friend);
 	TSharedRef<FOnlineRecentPlayer> AddRecentPlayer(TSharedRef<FOnlineRecentPlayer> Player);
@@ -442,12 +462,12 @@ private:
 	IOnlinePresencePtr EOSPresenceInterface;
 
 	/** Maps of net ids */
-	TMap<FString, TSharedPtr<FUniqueNetIdEOSPlus>> BaseNetIdToNetIdPlus;
-	TMap<FString, TSharedPtr<FUniqueNetIdEOSPlus>> EOSNetIdToNetIdPlus;
-	TMap<FString, TSharedPtr<const FUniqueNetId>> NetIdPlusToBaseNetId;
-	TMap<FString, TSharedPtr<const FUniqueNetId>> NetIdPlusToEOSNetId;
-	TMap<FString, TSharedPtr<FUniqueNetIdEOSPlus>> NetIdPlusToNetIdPlus;
-	TMap<int32, TSharedPtr<FUniqueNetIdEOSPlus>> LocalUserNumToNetIdPlus;
+	TMap<FString, FUniqueNetIdEOSPlusPtr> BaseNetIdToNetIdPlus;
+	TMap<FString, FUniqueNetIdEOSPlusPtr> EOSNetIdToNetIdPlus;
+	TMap<FString, FUniqueNetIdPtr> NetIdPlusToBaseNetId;
+	TMap<FString, FUniqueNetIdPtr> NetIdPlusToEOSNetId;
+	TMap<FString, FUniqueNetIdEOSPlusPtr> NetIdPlusToNetIdPlus;
+	TMap<int32, FUniqueNetIdEOSPlusPtr> LocalUserNumToNetIdPlus;
 
 	/** Online user variants maps */
 	TMap<FString, TSharedRef<FOnlineUserAccountPlus>> NetIdPlusToUserAccountMap;

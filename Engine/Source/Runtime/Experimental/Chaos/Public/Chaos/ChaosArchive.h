@@ -228,6 +228,17 @@ public:
 		}
 	}
 
+	template <typename T, ESPMode Mode>
+	void SerializeConstPtr(TSharedPtr<const T, Mode>& Obj)
+	{
+		TSerializablePtr<T> Copy = MakeSerializable(Obj);
+		SerializePtr(Copy);
+		if (IsLoading())
+		{
+			Obj = Context->ToSharedPointerHelper<T, Mode>(Copy);
+		}
+	}
+
 #if CHAOS_MEMORY_TRACKING
 	virtual void Serialize(void* V, int64 Length) override
 	{

@@ -1330,7 +1330,10 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 		{
 			static FText GetPreviewModeText()
 			{
-				const FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewPlatformName);
+				const FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().FindByPredicate([](const FPreviewPlatformMenuItem& TestItem)
+					{
+						return GEditor->PreviewPlatform.PreviewPlatformName == TestItem.PlatformName && GEditor->PreviewPlatform.PreviewShaderFormatName == TestItem.ShaderFormat;
+					});
 				return Item ? Item->IconText : FText();
 			}
 
@@ -1362,7 +1365,10 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 			static FSlateIcon GetPreviewModeIcon()
 			{
-				const FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewPlatformName);
+				const FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().FindByPredicate([](const FPreviewPlatformMenuItem& TestItem)
+					{
+						return GEditor->PreviewPlatform.PreviewPlatformName == TestItem.PlatformName && GEditor->PreviewPlatform.PreviewShaderFormatName == TestItem.ShaderFormat;
+					});
 				if(Item)
 				{
 					return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? Item->ActiveIconName : Item->InactiveIconName);
@@ -1519,9 +1525,9 @@ static void MakeShaderModelPreviewMenu( UToolMenu* InMenu )
 	FToolMenuSection& Section = InMenu->AddSection("EditorPreviewMode", LOCTEXT("EditorPreviewModeDevices", "Preview Devices"));
 
 	// Preview platforms discovered from ITargetPlatforms.
-	for (auto It = FLevelEditorCommands::Get().PreviewPlatformOverrides.CreateConstIterator(); It; ++It)
+	for (auto& Item : FLevelEditorCommands::Get().PreviewPlatformOverrides)
 	{
-		Section.AddMenuEntry(It.Value());
+		Section.AddMenuEntry(Item);
 	}
 
 #undef LOCTEXT_NAMESPACE

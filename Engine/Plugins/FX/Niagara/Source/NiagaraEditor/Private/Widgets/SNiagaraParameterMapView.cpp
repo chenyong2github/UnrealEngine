@@ -1075,7 +1075,8 @@ void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 	{
 		if (UNiagaraScript* Script = Cast<UNiagaraScript>(Object))
 		{
-			AddGraph(Script->GetSource());
+			FGuid Version = SelectedScriptObjects->GetAdditionalSelectionInfo() ? *(FGuid*)SelectedScriptObjects->GetAdditionalSelectionInfo() : FGuid();
+			AddGraph(Script->GetSource(Version));
 			break;
 		}
 		else if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Object))
@@ -1085,7 +1086,7 @@ void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 		else if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Object))
 		{
 			CachedSystem = System;
-			AddGraph(System->GetSystemSpawnScript()->GetSource());
+			AddGraph(System->GetSystemSpawnScript()->GetLatestSource());
 			UserParameterStoreChangedHandle = System->GetExposedParameters().AddOnChangedHandler(
 				FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP(this, &SNiagaraParameterMapView::OnSystemParameterStoreChanged));
 			AddedParameterStoreChangedHandle = System->EditorOnlyAddedParameters.AddOnChangedHandler(
@@ -1123,7 +1124,7 @@ void SNiagaraParameterMapView::GetAllGraphsInSystem(TArray<UNiagaraGraph*>& OutR
 	{
 		return;
 	}
-	UNiagaraScriptSource* SystemSource = Cast<UNiagaraScriptSource>(CachedSystem->GetSystemSpawnScript()->GetSource());
+	UNiagaraScriptSource* SystemSource = Cast<UNiagaraScriptSource>(CachedSystem->GetSystemSpawnScript()->GetLatestSource());
 	OutResult.Add(SystemSource->NodeGraph);
 
 	for (int i = 0; i < CachedSystem->GetNumEmitters(); i++)
@@ -2183,7 +2184,7 @@ void SNiagaraAddParameterMenu::CollectAllActions(FGraphActionListBuilderBase& Ou
 			UNiagaraScript* Script = Cast<UNiagaraScript>(Source->GetOuter());
 			if (Script)
 			{
-				TArray<ENiagaraScriptUsage> Usages = Script->GetSupportedUsageContexts();
+				TArray<ENiagaraScriptUsage> Usages = Script->GetLatestScriptData()->GetSupportedUsageContexts();
 				if (!Usages.Contains(ENiagaraScriptUsage::ParticleEventScript) && 
 					!Usages.Contains(ENiagaraScriptUsage::ParticleSpawnScript) && 
 					!Usages.Contains(ENiagaraScriptUsage::ParticleUpdateScript))

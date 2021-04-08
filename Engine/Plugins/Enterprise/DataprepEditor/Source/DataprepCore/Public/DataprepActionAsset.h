@@ -71,6 +71,11 @@ public:
 		return StepObject;
 	}
 
+	const UDataprepParameterizableObject* GetStepObject() const
+	{
+		return StepObject;
+	}
+
 	TSoftClassPtr<UDataprepParameterizableObject> GetPathOfStepObjectClass()
 	{
 		return PathOfStepObjectClass;
@@ -321,16 +326,18 @@ public:
 	/**
 	 * Remove a step from the action
 	 * @param Index The index of the step to remove
+	 * @param bDiscardParametrization If true, remove parameterization associated with action steps
 	 * @return True if a step was removed
 	 */
-	bool RemoveStep(int32 Index);
+	bool RemoveStep(int32 Index, bool bDiscardParametrization = true);
 
 	/**
 	 * Remove an array of steps from the action
 	 * @param Indices Array of step indices to remove
+	 * @param bDiscardParametrization If true, remove parameterization associated with action steps
 	 * @return True if at least one step has been removed
 	 */
-	bool RemoveSteps(const TArray<int32>& Indices);
+	bool RemoveSteps(const TArray<int32>& Indices, bool bDiscardParametrization = true);
 
 	/**
 	 * Allow an observer to be notified when the steps order changed that also include adding and removing steps
@@ -450,6 +457,9 @@ private:
 
 	/** Add an asset to the execution context */
 	void AddAssetToContext( UObject* NewAsset, const TCHAR* DesiredName );
+
+	/** Creates a copy af action step, including its parameterization */
+	UDataprepActionStep* DuplicateStep(const UDataprepActionStep* InActionStep);
 
 	/** Array of operations and/or filters constituting this action */
 	UPROPERTY()

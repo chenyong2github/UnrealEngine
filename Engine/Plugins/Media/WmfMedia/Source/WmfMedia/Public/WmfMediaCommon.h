@@ -43,7 +43,7 @@
 		const GUID MF_LOW_LATENCY = { 0x9c27891a, 0xed7a, 0x40e1, { 0x88, 0xe8, 0xb2, 0x27, 0x27, 0xa0, 0x24, 0xee } };
 	#endif
 
-	#include "Windows/COMPointer.h"
+	#include "Microsoft/COMPointer.h"
 	#include "Windows/HideWindowsPlatformTypes.h"
 
 #elif PLATFORM_WINDOWS && !UE_SERVER

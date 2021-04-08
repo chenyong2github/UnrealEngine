@@ -20,7 +20,7 @@ bool UPixelStreamerInputComponent::OnCommand(const FString& Descriptor)
 	FString ConsoleCommand;
 	bool bSuccess = false;
 	GetJsonStringValue(Descriptor, TEXT("ConsoleCommand"), ConsoleCommand, bSuccess);
-	if (!bSuccess)
+	if (bSuccess)
 	{
 		return GEngine->Exec(GetWorld(), *ConsoleCommand);
 	}

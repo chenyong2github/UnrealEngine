@@ -19,7 +19,7 @@
 #pragma comment(lib, "mfuuid")
 
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include "Windows/COMPointer.h"
+#include "Microsoft/COMPointer.h"
 
 #include <windows.h>
 #include <shlwapi.h>

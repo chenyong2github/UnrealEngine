@@ -502,16 +502,31 @@ bool FTextLocalizationResource::ShouldReplaceEntry(const FTextKey& Namespace, co
 
 #if !NO_LOGGING && !UE_BUILD_SHIPPING
 	// Equal priority entries won't replace, but may log a conflict
-	static const bool bLogConflict = FParse::Param(FCommandLine::Get(), TEXT("LogLocalizationConflicts")) || !GIsBuildMachine;
-	if (bLogConflict)
 	{
 		const bool bDidConflict = CurrentEntry.SourceStringHash != NewEntry.SourceStringHash || !CurrentEntry.LocalizedString.Equals(NewEntry.LocalizedString, ESearchCase::CaseSensitive);
-		UE_CLOG(bDidConflict, LogTextLocalizationResource, Warning,
-			TEXT("Localization resource contains conflicting entries for (Namespace: %s, Key: %s). First: \"%s\" (0x%08x, %s). Second: \"%s\" (0x%08x, %s)."),
-			Namespace.GetChars(), Key.GetChars(),
-			*CurrentEntry.LocalizedString, CurrentEntry.SourceStringHash, CurrentEntry.LocResID.GetChars(),
-			*NewEntry.LocalizedString, NewEntry.SourceStringHash, NewEntry.LocResID.GetChars()
-		);
+		if (bDidConflict)
+		{
+			const FString LogMsg = FString::Printf(TEXT("Text translation conflict for namespace \"%s\" and key \"%s\". The current translation is \"%s\" (from \"%s\" and source hash 0x%08x) and the conflicting translation of \"%s\" (from \"%s\" and source hash 0x%08x) will be ignored."), 
+				Namespace.GetChars(),
+				Key.GetChars(),
+				*CurrentEntry.LocalizedString,
+				CurrentEntry.LocResID.GetChars(),
+				CurrentEntry.SourceStringHash,
+				*NewEntry.LocalizedString,
+				NewEntry.LocResID.GetChars(),
+				NewEntry.SourceStringHash
+				);
+
+			static const bool bLogConflictAsWarning = FParse::Param(FCommandLine::Get(), TEXT("LogLocalizationConflicts")) || !GIsBuildMachine;
+			if (bLogConflictAsWarning)
+			{
+				UE_LOG(LogTextLocalizationResource, Warning, TEXT("%s"), *LogMsg);
+			}
+			else
+			{
+				UE_LOG(LogTextLocalizationResource, Log, TEXT("%s"), *LogMsg);
+			}
+		}
 	}
 #endif
 

@@ -1525,6 +1525,7 @@ namespace EditorUtilities
 						{
 							if( !ModifiedObjects.Contains(TargetComponent) )
 							{
+								TargetComponent->UnregisterComponent();
 								TargetComponent->SetFlags(RF_Transactional);
 								TargetComponent->Modify();
 								ModifiedObjects.Add(TargetComponent);

@@ -33,13 +33,13 @@ struct REMOTECONTROL_API FRemoteControlField : public FRemoteControlEntity
 	 * @param SectionObjects The top level objects of the section.
 	 * @return The list of UObjects that own the exposed field.
 	 */
+	UE_DEPRECATED(4.27, "Please use GetBoundObjects.")
 	TArray<UObject*> ResolveFieldOwners(const TArray<UObject*>& SectionObjects) const;
 
-	/**
-	 * Resolve the field's owners using this field's remote control bindings.
-	 * @return The list of UObjects that own the exposed field.
-	 */
-	TArray<UObject*> ResolveFieldOwners() const;
+	//~ Begin FRemoteControlEntity interface
+	virtual void BindObject(UObject* InObjectToBind) override;
+	virtual bool CanBindObject(const UObject* InObjectToBind) const override;
+	//~ End FRemoteControlEntity interface
 
 public:
 	/**
@@ -60,7 +60,6 @@ public:
 	UPROPERTY()
 	FRCFieldPathInfo FieldPathInfo;
 
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FString> ComponentHierarchy_DEPRECATED;
@@ -74,11 +73,19 @@ public:
 	 */
 	UPROPERTY()
 	TSet<FRemoteControlProtocolBinding> ProtocolBinding;
-
+	
+protected:
+	/**
+	 * The class of the object that can have this property.
+	 */
+	UPROPERTY()
+	FSoftClassPath OwnerClass;
 
 protected:
 	FRemoteControlField(URemoteControlPreset* InPreset, EExposedFieldType InType, FName InLabel, FRCFieldPathInfo InFieldPathInfo, const TArray<URemoteControlBinding*> InBindings);
 
+	void PostSerialize(const FArchive& Ar);
+	
 private:
 #if WITH_EDITORONLY_DATA
 	/**
@@ -106,6 +113,12 @@ public:
 
 	FRemoteControlProperty(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo InFieldPathInfo, const TArray<URemoteControlBinding*>& InBindings);
 
+	//~ Begin FRemoteControlEntity interface
+	virtual uint32 GetUnderlyingEntityIdentifier() const override;
+	virtual UClass* GetSupportedBindingClass() const override;
+	virtual bool IsBound() const override;
+	//~ End FRemoteControlEntity interface
+
 	/**
 	 * Get the underlying property.
 	 * @return The exposed property or nullptr if it couldn't be resolved.
@@ -114,7 +127,7 @@ public:
 	FProperty* GetProperty() const;
 	
 	/** Handle metadata initialization. */
-	void PostSerialize(FArchive& Ar);
+	void PostSerialize(const FArchive& Ar);
 	
 public:
 	/** Key for the metadata's Min entry. */
@@ -141,7 +154,18 @@ struct REMOTECONTROL_API FRemoteControlFunction : public FRemoteControlField
 	FRemoteControlFunction(FName InLabel, FRCFieldPathInfo FieldPathInfo, UFunction* InFunction);
 
 	FRemoteControlFunction(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo InFieldPathInfo, UFunction* InFunction, const TArray<URemoteControlBinding*>& InBindings);
-	 
+
+	//~ Begin FRemoteControlEntity interface
+	virtual uint32 GetUnderlyingEntityIdentifier() const override;
+	virtual UClass* GetSupportedBindingClass() const override;
+	virtual bool IsBound() const override;
+	//~ End FRemoteControlEntity interface
+
+	friend FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction);
+	bool Serialize(FArchive& Ar);
+	void PostSerialize(const FArchive& Ar);
+	
+public:
 	/**
 	 * The exposed function.
 	 */
@@ -153,20 +177,17 @@ struct REMOTECONTROL_API FRemoteControlFunction : public FRemoteControlField
 	 */
 	TSharedPtr<class FStructOnScope> FunctionArguments;
 
-	friend FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction);
-	bool Serialize(FArchive& Ar);
-
 private:
 	/** Parse function metadata to get the function`s default parameters */
 	void AssignDefaultFunctionArguments();
 };
 
-
 template<> struct TStructOpsTypeTraits<FRemoteControlFunction> : public TStructOpsTypeTraitsBase2<FRemoteControlFunction>
 {
 	enum
 	{
-		WithSerializer = true
+		WithSerializer = true,
+		WithPostSerialize = true
 	};
 };
 
@@ -174,6 +195,6 @@ template<> struct TStructOpsTypeTraits<FRemoteControlProperty> : public TStructO
 {
 	enum
 	{
-		WithPostSerializer = true
+		WithPostSerialize = true
     };
 };

@@ -28,14 +28,14 @@ void FOnlineAchievementsEOSPlus::OnAchievementUnlocked(const FUniqueNetId& Playe
 	TriggerOnAchievementUnlockedDelegates(PlayerId, AchievementId);
 }
 
-TSharedPtr<FUniqueNetIdEOSPlus> FOnlineAchievementsEOSPlus::GetNetIdPlus(const FString& SourceId)
+FUniqueNetIdEOSPlusPtr FOnlineAchievementsEOSPlus::GetNetIdPlus(const FString& SourceId)
 {
 	return EOSPlus->UserInterfacePtr->GetNetIdPlus(SourceId);
 }
 
 void FOnlineAchievementsEOSPlus::WriteAchievements(const FUniqueNetId& PlayerId, FOnlineAchievementsWriteRef& WriteObject, const FOnAchievementsWrittenDelegate& Delegate)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(PlayerId.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(PlayerId.ToString());
 	if (!NetIdPlus.IsValid())
 	{
 		UE_LOG_ONLINE(Warning, TEXT("FOnlineAchievementsEOSPlus::WriteAchievements() failed due to unknown user (%s)"), *PlayerId.ToString());
@@ -58,7 +58,7 @@ void FOnlineAchievementsEOSPlus::WriteAchievements(const FUniqueNetId& PlayerId,
 
 void FOnlineAchievementsEOSPlus::QueryAchievements(const FUniqueNetId& PlayerId, const FOnQueryAchievementsCompleteDelegate& Delegate)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(PlayerId.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(PlayerId.ToString());
 	if (!NetIdPlus.IsValid() || !NetIdPlus->GetBaseNetId().IsValid())
 	{
 		UE_LOG_ONLINE(Warning, TEXT("FOnlineAchievementsEOSPlus::QueryAchievements() failed due to unknown user (%s)"), *PlayerId.ToString());
@@ -70,7 +70,7 @@ void FOnlineAchievementsEOSPlus::QueryAchievements(const FUniqueNetId& PlayerId,
 
 void FOnlineAchievementsEOSPlus::QueryAchievementDescriptions(const FUniqueNetId& PlayerId, const FOnQueryAchievementsCompleteDelegate& Delegate)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(PlayerId.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(PlayerId.ToString());
 	if (!NetIdPlus.IsValid() || !NetIdPlus->GetBaseNetId().IsValid())
 	{
 		UE_LOG_ONLINE(Warning, TEXT("FOnlineAchievementsEOSPlus::QueryAchievementDescriptions() failed due to unknown user (%s)"), *PlayerId.ToString());
@@ -82,7 +82,7 @@ void FOnlineAchievementsEOSPlus::QueryAchievementDescriptions(const FUniqueNetId
 
 EOnlineCachedResult::Type FOnlineAchievementsEOSPlus::GetCachedAchievement(const FUniqueNetId& PlayerId, const FString& AchievementId, FOnlineAchievement& OutAchievement)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(PlayerId.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(PlayerId.ToString());
 	if (!NetIdPlus.IsValid() || !NetIdPlus->GetBaseNetId().IsValid())
 	{
 		UE_LOG_ONLINE(Warning, TEXT("FOnlineAchievementsEOSPlus::GetCachedAchievement() failed due to unknown user (%s)"), *PlayerId.ToString());
@@ -94,7 +94,7 @@ EOnlineCachedResult::Type FOnlineAchievementsEOSPlus::GetCachedAchievement(const
 
 EOnlineCachedResult::Type FOnlineAchievementsEOSPlus::GetCachedAchievements(const FUniqueNetId& PlayerId, TArray<FOnlineAchievement>& OutAchievements)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(PlayerId.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(PlayerId.ToString());
 	if (!NetIdPlus.IsValid() || !NetIdPlus->GetBaseNetId().IsValid())
 	{
 		UE_LOG_ONLINE(Warning, TEXT("FOnlineAchievementsEOSPlus::GetCachedAchievements() failed due to unknown user (%s)"), *PlayerId.ToString());

@@ -1497,7 +1497,7 @@ void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRDGBuilder& Gra
 void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer()
 {
 	FSkyLightSceneProxy* SkyLight = nullptr;
-	if (Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.Num() == 0
+	if (Scene->ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Num() == 0
 		&& Scene->SkyLight
 		&& Scene->SkyLight->ProcessedTexture
 		&& Scene->SkyLight->ProcessedTexture->TextureRHI

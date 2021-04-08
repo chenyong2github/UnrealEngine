@@ -705,13 +705,21 @@ void GetNiagaraParticleTangents(FVertexFactoryInput Input, in FInterpVtxData Int
 	Intermediates.GeoUp = cross(Intermediates.TangentY, Intermediates.TangentX);
 	Intermediates.GeoRight = Intermediates.TangentX;
 	
-	Intermediates.TangentZ = NiagaraRibbonVFLooseParameters.Shape > 1 ? Intermediates.GeoUp : Facing; // Intermediates.GeoUp;
+	Intermediates.TangentZ = NiagaraRibbonVFLooseParameters.Shape >= 1 ? Intermediates.GeoUp : Facing; // Intermediates.GeoUp;
 	
 	
 	
 	float2 SliceVertexNormals = UnpackParticleVertexNormal(Input.InterpVtxId);
 	
+	
+	
 	Intermediates.TangentZ = normalize((Intermediates.TangentZ * SliceVertexNormals.y + Intermediates.TangentX * SliceVertexNormals.x));
+	
+	// Flip the normal only for multiplane shape if the normal is looking away from the camera.
+	// This lets us still render as two sided, but at least gets the normals corrected so the plane faces the camera.
+	float3 ViewNormal = normalize(ResolvedView.WorldCameraOrigin - Intermediates.Position);	
+	Intermediates.TangentZ *= (NiagaraRibbonVF.ShouldFlipNormalToView > 0 && dot(ViewNormal, Intermediates.TangentZ) < 0) ? -1 : 1;
+	
 	Intermediates.TangentX = cross(Intermediates.TangentZ, Intermediates.TangentY);
 	
 }

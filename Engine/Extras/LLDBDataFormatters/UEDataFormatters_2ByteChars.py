@@ -39,6 +39,27 @@ def UETCharSummaryProvider(valobj,dict):
         Expr = '(char16_t&)(%s)' % Data
         ValRef = valobj.CreateValueFromExpression('string', Expr)
         Val = ValRef.GetSummary()
+    elif Type.IsArrayType():
+        DataVal = valobj.GetChildAtIndex(0).GetValueAsUnsigned(0)
+        if DataVal == 0:
+            Val = 'NULL'
+        else:
+            Expr = '(char16_t*)(%s)' % valobj.GetAddress()
+            ValRef = valobj.CreateValueFromExpression('string', Expr)
+            Val = ValRef.GetSummary()
+    return Val
+	
+def UESignedCharSummaryProvider(valobj,dict):
+    Data = valobj.GetValue()
+    Val = valobj.GetSummary()
+    Type = valobj.GetType().GetUnqualifiedType()
+    DataVal = valobj.GetValueAsUnsigned(0)
+    if DataVal == 0:
+        Val = 'NULL'
+    else:
+        Expr = '(char*)(%s)' % Data
+        ValRef = valobj.CreateValueFromExpression('string', Expr)
+        Val = ValRef.GetSummary()
     return Val
 
 def UEFStringSummaryProvider(valobj,dict):
@@ -653,6 +674,7 @@ def UEMapSummaryProvider(valobj,dict):
 
 def __lldb_init_module(debugger,dict):
     debugger.HandleCommand('type summary add -F UEDataFormatters_2ByteChars.UETCharSummaryProvider -e TCHAR -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters_2ByteChars.UESignedCharSummaryProvider -e "signed char *" -w UEDataFormatters')
     debugger.HandleCommand('type summary add -F UEDataFormatters_2ByteChars.UEFStringSummaryProvider -e -x "FString$" -w UEDataFormatters')
     debugger.HandleCommand('type summary add -F UEDataFormatters_2ByteChars.UEFNameEntrySummaryProvider -e -x "FNameEntry$" -w UEDataFormatters')
     debugger.HandleCommand('type summary add -F UEDataFormatters_2ByteChars.UEFNameSummaryProvider -e -x "FName$" -w UEDataFormatters')

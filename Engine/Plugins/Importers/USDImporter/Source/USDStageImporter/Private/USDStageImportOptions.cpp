@@ -18,7 +18,8 @@ UUsdStageImportOptions::UUsdStageImportOptions(const FObjectInitializer& ObjectI
 
 	PurposesToImport = (int32) (EUsdPurpose::Default | EUsdPurpose::Proxy | EUsdPurpose::Render | EUsdPurpose::Guide);
 	ImportTime = 0.0f;
-	MetersPerUnit = 0.01f;
+	StageOptions.MetersPerUnit = 0.01f;
+	StageOptions.UpAxis = EUsdUpAxis::ZAxis;
 
 	bReuseIdenticalAssets = true;
 	ExistingActorPolicy = EReplaceActorPolicy::Replace;

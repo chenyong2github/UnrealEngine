@@ -348,11 +348,13 @@ public:
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 
 	/** GPU simulation  functionality */
+#if WITH_EDITORONLY_DATA
+	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
-	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+#endif
+	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	/** Update the source component */
 	void ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance);
@@ -577,6 +579,9 @@ public:
 	/** Check if we have a global interpolation */
 	void HasGlobalInterpolation(FVectorVMContext& Context);
 
+	/** Check if we need a rest pose update */
+	void NeedRestUpdate(FVectorVMContext& Context);
+
 	/** Eval the skinned position given a rest position*/
 	void EvalSkinnedPosition(FVectorVMContext& Context);
 
@@ -618,6 +623,9 @@ public:
 
 	/** Param to check if the roots have been attached to the skin */
 	static const FString InterpolationModeName;
+
+	/** Param to check if we need to update the rest pose */
+	static const FString RestUpdateName;
 
 	/** boolean to check if we need to rest the simulation*/
 	static const FString ResetSimulationName;

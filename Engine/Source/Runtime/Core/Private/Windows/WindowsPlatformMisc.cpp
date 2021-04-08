@@ -506,6 +506,8 @@ void FWindowsPlatformMisc::PlatformPreInit()
 
 void FWindowsPlatformMisc::PlatformInit()
 {
+	FGenericPlatformMisc::LogNameEventStatsInit();
+
 #if defined(_MSC_VER) && _MSC_VER == 1800 && PLATFORM_64BITS
 	// Work around bug in the VS 2013 math libraries in 64bit on certain windows versions. http://connect.microsoft.com/VisualStudio/feedback/details/811093 has details, remove this when runtime libraries are fixed
 	_set_FMA3_enable(0);
@@ -818,6 +820,8 @@ void FWindowsPlatformMisc::CustomNamedStat(const ANSICHAR* Text, float Value, co
 
 void FWindowsPlatformMisc::BeginNamedEventFrame()
 {
+	FGenericPlatformMisc::TickStatNamedEvents();
+
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::FrameStart();
 #endif
@@ -825,6 +829,8 @@ void FWindowsPlatformMisc::BeginNamedEventFrame()
 
 void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR* Text)
 {
+	FGenericPlatformMisc::StatNamedEvent(Text);
+
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #elif UE_EXTERNAL_PROFILING_ENABLED
@@ -834,6 +840,8 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 
 void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANSICHAR* Text)
 {
+	FGenericPlatformMisc::StatNamedEvent(Text);
+
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #elif UE_EXTERNAL_PROFILING_ENABLED

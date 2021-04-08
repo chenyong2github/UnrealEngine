@@ -219,6 +219,8 @@ public:
 
 	bool RunSpeedTest(double InSkipTestsIfSeeksExceedMS, double& OutSeekTimeMS, double& OutReadSpeedMBs, double& OutWriteSpeedMBs) const
 	{
+		SCOPED_BOOT_TIMING("RunSpeedTest");
+
 		//  files of increasing size. Most DDC data falls within this range so we don't want to skew by reading 
 		// large amounts of data. Ultimately we care most about latency anyway.
 		const int FileSizes[] = { 4, 8, 16, 64, 128, 256 };

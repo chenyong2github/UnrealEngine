@@ -790,7 +790,9 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		SaveContext.GetPackage()->LinkerCustomVersion = SaveContext.Linker->GetCustomVersions();
 	}
 	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SaveContext.Linker->Summary.Guid = SaveContext.IsKeepGuid() ? SaveContext.GetPackage()->GetGuid() : SaveContext.GetPackage()->MakeNewGuid();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 	SaveContext.Linker->Summary.PersistentGuid = SaveContext.GetPackage()->GetPersistentGuid();
 #endif
@@ -883,7 +885,9 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 				Export.PackageFlags = Package->GetPackageFlags();
 				if (!Package->HasAnyPackageFlags(PKG_ServerSideOnly))
 				{
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					Export.PackageGuid = Package->GetGuid();
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 			}
 		}

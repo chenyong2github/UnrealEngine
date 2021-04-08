@@ -179,6 +179,11 @@ void FPositionVertexBuffer::ClearMetaData()
 	Stride = NumVertices = 0;
 }
 
+bool FPositionVertexBuffer::GetAllowCPUAccess() const
+{
+	return VertexData ? VertexData->GetAllowCPUAccess() : false;
+}
+
 /**
 * Specialized assignment operator, only used when importing LOD's.  
 */

@@ -277,6 +277,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Ribbon Shape")
 	ENiagaraRibbonShapeMode Shape;
 
+	/** Double geometry count, to allow for correct geometry on both sides of MultiPlane. With this off, 
+	  * MultiPlane will switch normals based on view direction, but this could potentially cause issues in some materials 
+	  */
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::MultiPlane"))
+	bool bEnableAccurateGeometry;
+
 	/** Tessellation factor to apply to the width of the ribbon.
 	* Ranges from 1 to 16. Greater values increase amount of tessellation.
 	*/

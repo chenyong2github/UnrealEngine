@@ -86,6 +86,12 @@ bool UEditorDataprepAssetLibrary::ExecuteDataprep(UDataprepAssetInterface* Datap
 {
 	if( DataprepAssetInterface )
 	{
+		if ( nullptr == DataprepAssetInterface->GetConsumer() )
+		{
+			UE_LOG( LogDataprepEditorScripting, Error, TEXT("Cannot execute recipe: no Dataprep consumer found.") )
+			return false;
+		}
+		
 		TSharedPtr<IDataprepLogger> Logger;
 		TSharedPtr<IDataprepProgressReporter> Reporter;
 

@@ -45,6 +45,12 @@ void FQosInterface::BeginQosEvaluation(UWorld* World, const TSharedPtr<IAnalytic
 	RegionManager->BeginQosEvaluation(World, AnalyticsProvider, OnComplete);
 }
 
+bool FQosInterface::IsQosEvaluationInProgress() const
+{
+	check(RegionManager);
+	return RegionManager->IsQosEvaluationInProgress();
+}
+
 FString FQosInterface::GetRegionId() const
 {
 	check(RegionManager);

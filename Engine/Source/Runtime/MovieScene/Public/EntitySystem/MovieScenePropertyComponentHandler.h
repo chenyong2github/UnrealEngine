@@ -405,6 +405,9 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 			return;
 		}
 
+		FEntityManager& EntityManager = Blender->GetLinker()->EntityManager;
+		EntityManager.LockDown();
+
 		constexpr int32 NumComposites = sizeof...(CompositeTypes);
 		check(Composites.Num() == NumComposites);
 
@@ -437,7 +440,6 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		TOptionalComponentReader<StorageType> InitialValueComponent;
 		if (InParams.PropertyEntityID)
 		{
-			const FEntityManager& EntityManager = Blender->GetLinker()->EntityManager;
 			TComponentTypeID<StorageType> InitialValueType = PropertyDefinition.InitialValueType.ReinterpretCast<StorageType>();
 			InitialValueComponent = EntityManager.ReadComponent(InParams.PropertyEntityID, InitialValueType);
 		}
@@ -469,6 +471,8 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 				*RecomposedComposite = AlignedOutput.Value.Recompose(EntityID, NewComposite, InitialValueComposite);
 			}
 		}
+
+		EntityManager.ReleaseLockDown();
 	}
 
 	virtual void RecomposeBlendChannel(const FPropertyDefinition& PropertyDefinition, const FPropertyCompositeDefinition& Composite, const FFloatDecompositionParams& InParams, UMovieSceneBlenderSystem* Blender, float InCurrentValue, TArrayView<float> OutResults) override
@@ -480,6 +484,9 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		{
 			return;
 		}
+
+		FEntityManager& EntityManager = Blender->GetLinker()->EntityManager;
+		EntityManager.LockDown();
 
 		FAlignedDecomposedFloat AlignedOutput;
 
@@ -496,7 +503,6 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		TOptionalComponentReader<StorageType> InitialValueComponent;
 		if (InParams.PropertyEntityID)
 		{
-			const FEntityManager& EntityManager = Blender->GetLinker()->EntityManager;
 			TComponentTypeID<StorageType> InitialValueType = PropertyDefinition.InitialValueType.ReinterpretCast<StorageType>();
 			InitialValueComponent = EntityManager.ReadComponent(InParams.PropertyEntityID, InitialValueType);
 		}
@@ -519,6 +525,8 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 			float* RecomposedComposite = reinterpret_cast<float*>(Result + Composite.CompositeOffset);
 			*RecomposedComposite = AlignedOutput.Value.Recompose(EntityID, NewComposite, InitialValueComposite);
 		}
+
+		EntityManager.ReleaseLockDown();
 	}
 
 	virtual void RebuildOperational(const FPropertyDefinition& PropertyDefinition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, FPropertyComponentArrayView OutResult) override

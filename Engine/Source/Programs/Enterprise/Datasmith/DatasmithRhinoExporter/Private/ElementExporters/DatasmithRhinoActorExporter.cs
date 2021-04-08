@@ -113,6 +113,10 @@ namespace DatasmithRhino.ElementExporters
 					}
 				}
 			}
+			else if(Node is DatasmithActorCameraInfo ActorCameraInfo)
+			{
+				ExportedActor = CreateCameraActor(ActorCameraInfo);
+			}
 			else if(!Node.bIsRoot)
 			{
 				// This node has no RhinoObject (likely a layer), export an empty Actor.
@@ -135,6 +139,9 @@ namespace DatasmithRhino.ElementExporters
 					{
 						SyncMeshActor(MeshActor, Node, MeshInfo);
 					}
+					break;
+				case FDatasmithFacadeActorCamera CameraActor:
+					SyncCameraActor(Node, CameraActor);
 					break;
 				default:
 					SyncEmptyActor(Node, DatasmithActor);
@@ -230,6 +237,12 @@ namespace DatasmithRhino.ElementExporters
 			}
 		}
 
+		private static FDatasmithFacadeActorCamera CreateCameraActor(DatasmithActorCameraInfo InCameraInfo)
+		{
+			string HashedName = FDatasmithFacadeElement.GetStringHash(InCameraInfo.Name);
+			return new FDatasmithFacadeActorCamera(HashedName);
+		}
+
 		private static void SyncLightActor(DatasmithActorInfo InNode, FDatasmithFacadeActorLight LightActor)
 		{
 			LightObject RhinoLightObject = InNode.RhinoCommonObject as LightObject;
@@ -284,6 +297,19 @@ namespace DatasmithRhino.ElementExporters
 
 			float[] MatrixArray = InNode.WorldTransform.ToFloatArray(false);
 			LightActor.SetWorldTransform(MatrixArray);
+		}
+
+		private static void SyncCameraActor(DatasmithActorInfo ActorInfo, FDatasmithFacadeActorCamera CameraActor)
+		{
+			ViewportInfo Viewport = ActorInfo.RhinoCommonObject as ViewportInfo;
+			CameraActor.SetLabel(ActorInfo.UniqueLabel);
+
+			CameraActor.SetAspectRatio((float)Viewport.FrustumAspect);
+			CameraActor.SetFocalLength((float)Viewport.Camera35mmLensLength);
+
+			CameraActor.SetCameraPosition((float)Viewport.CameraLocation.X, (float)Viewport.CameraLocation.Y, (float)Viewport.CameraLocation.Z);
+			CameraActor.SetCameraRotation((float)Viewport.CameraDirection.X, (float)Viewport.CameraDirection.Y, (float)Viewport.CameraDirection.Z,
+				(float)Viewport.CameraUp.X, (float)Viewport.CameraUp.Y, (float)Viewport.CameraUp.Z);
 		}
 
 		private static void AddActorToParent(FDatasmithFacadeActor InDatasmithActor, DatasmithActorInfo InNode, FDatasmithFacadeScene InDatasmithScene)

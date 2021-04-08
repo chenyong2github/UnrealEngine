@@ -18,7 +18,7 @@
 #include "Misc/StringBuilder.h"
 #include "Algo/LevenshteinDistance.h"
 
-DECLARE_LOG_CATEGORY_CLASS(LogAssetSearch, Log, All);
+DEFINE_LOG_CATEGORY(LogAssetSearch);
 
 FString ConvertToFullTextSearchQuery(const FString& QueryText);
 

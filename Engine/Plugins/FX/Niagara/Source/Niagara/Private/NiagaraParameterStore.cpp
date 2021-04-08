@@ -1037,6 +1037,18 @@ void FNiagaraParameterStore::PostLoad()
 		}
 		ParameterOffsets.Empty();
 	}
+
+	// Check if the parameter guid mapping got tainted somehow and clear it if so
+	TSet<FGuid> SeenGuids;
+	for (const auto& Entry : ParameterGuidMapping)
+	{
+		if (SeenGuids.Contains(Entry.Value))
+		{
+			ParameterGuidMapping.Empty();
+			break;
+		}
+		SeenGuids.Add(Entry.Value);
+	}
 #endif
 
 	// Not always required if NIAGARA_VARIABLE_LEXICAL_SORTING

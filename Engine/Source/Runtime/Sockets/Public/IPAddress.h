@@ -10,7 +10,7 @@
 /**
  * Represents an internet address. All data is in network byte order
  */
-class FInternetAddr
+class SOCKETS_API FInternetAddr
 {
 protected:
 	/** Hidden on purpose */
@@ -171,6 +171,8 @@ public:
 	{
 		return NAME_None;
 	}
+
+	virtual void DumpAddrData() const;
 };
 
 /**

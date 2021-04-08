@@ -148,7 +148,7 @@ EValidatorResult FKismetNameValidator::IsValid(const FName& Name, bool /* bOrigi
 	{
 		ValidatorResult = EValidatorResult::TooLong;
 	}
-	else if(Name != NAME_None || Name.ToString().Len() <= NAME_SIZE)
+	else
 	{
 		// If it is in the names list then it is already in use.
 		if(!Names.Contains(Name))

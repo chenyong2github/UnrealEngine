@@ -39,6 +39,7 @@ struct FNiagaraSkelMeshDIFunctionVersion
 		RemoveUvSetFromMapping = 5,
 		AddedEnabledUvMapping = 6,
 		AddedValidConnectivity = 7,
+		AddedInputBardCoordToGetFilteredTriangleAt = 8,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -2068,7 +2069,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 			}
 
 			//-TODO: If the DI does not use unfiltered bones we can skip adding them here...
-			TStringBuilder<256> MissingBones;
+			TStringBuilder<256> MissingFilteredBones;
 
 			FilteredAndUnfilteredBones.Reserve(RefSkel.GetNum());
 
@@ -2078,11 +2079,14 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				const int32 Bone = RefSkel.FindBoneIndex(BoneName);
 				if (Bone == INDEX_NONE)
 				{
-					if (MissingBones.Len() > 0)
+					if ( FNiagaraUtilities::LogVerboseWarnings() )
 					{
-						MissingBones.Append(TEXT(", "));
+						if (MissingFilteredBones.Len() > 0)
+						{
+							MissingFilteredBones.Append(TEXT(", "));
+						}
+						MissingFilteredBones.Append(BoneName.ToString());
 					}
-					MissingBones.Append(BoneName.ToString());
 				}
 				else
 				{
@@ -2117,9 +2121,9 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				}
 			}
 
-			if (MissingBones.Len() > 0)
+			if (MissingFilteredBones.Len() > 0)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from bones that don't exist in it's skeleton. Mesh(%s) Bones(%s) System(%s)"), *GetFullNameSafe(Mesh), MissingBones.ToString(), *GetFullNameSafe(SystemInstance->GetSystem()));
+				UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from filtered bones that don't exist in it's skeleton. Mesh(%s) Bones(%s) System(%s)"), *GetFullNameSafe(Mesh), MissingFilteredBones.ToString(), *GetFullNameSafe(SystemInstance->GetSystem()));
 			}
 		}
 		else
@@ -2162,22 +2166,25 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				FilteredSocketTransforms[i].Append(FilteredSocketTransforms[0]);
 			}
 
-			TStringBuilder<512> MissingSockets;
-			for (FName SocketName : FilteredSockets)
+			if ( FNiagaraUtilities::LogVerboseWarnings() )
 			{
-				if (Mesh->FindSocket(SocketName) == nullptr)
+				TStringBuilder<512> MissingSockets;
+				for (FName SocketName : FilteredSockets)
 				{
-					if (MissingSockets.Len() != 0)
+					if (Mesh->FindSocket(SocketName) == nullptr)
 					{
-						MissingSockets.Append(TEXT(", "));
+						if (MissingSockets.Len() != 0)
+						{
+							MissingSockets.Append(TEXT(", "));
+						}
+						MissingSockets.Append(SocketName.ToString());
 					}
-					MissingSockets.Append(SocketName.ToString());
 				}
-			}
 
-			if (MissingSockets.Len() > 0)
-			{
-				UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from sockets that don't exist in it's skeleton. Mesh(%s) Sockets(%s) System(%s)"), *GetFullNameSafe(Mesh), MissingSockets.ToString(), *GetFullNameSafe(SystemInstance->GetSystem()));
+				if (MissingSockets.Len() > 0)
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from filtered sockets that don't exist in it's skeleton. Mesh(%s) Sockets(%s) System(%s)"), *GetFullNameSafe(Mesh), MissingSockets.ToString(), *GetFullNameSafe(SystemInstance->GetSystem()));
+				}
 			}
 		}
 
@@ -2472,14 +2479,16 @@ bool UNiagaraDataInterfaceSkeletalMesh::CanEditChange(const FProperty* InPropert
 
 void UNiagaraDataInterfaceSkeletalMesh::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	const int32 FirstFunction = OutFunctions.Num();
+
 	GetTriangleSamplingFunctions(OutFunctions);
 	GetVertexSamplingFunctions(OutFunctions);
 	GetSkeletonSamplingFunctions(OutFunctions);
 
 #if WITH_EDITORONLY_DATA
-	for (FNiagaraFunctionSignature& Function : OutFunctions)
+	for ( int i=FirstFunction; i < OutFunctions.Num(); ++i )
 	{
-		Function.FunctionVersion = FNiagaraSkelMeshDIFunctionVersion::LatestVersion;
+		OutFunctions[i].FunctionVersion = FNiagaraSkelMeshDIFunctionVersion::LatestVersion;
 	}
 #endif
 }
@@ -2896,11 +2905,7 @@ const FString UNiagaraDataInterfaceSkeletalMesh::InstancePrevRotationName(TEXT("
 const FString UNiagaraDataInterfaceSkeletalMesh::InstanceInvDeltaTimeName(TEXT("InstanceInvDeltaTime_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::EnabledFeaturesName(TEXT("EnabledFeatures_"));
 
-void UNiagaraDataInterfaceSkeletalMesh::GetCommonHLSL(FString& OutHLSL)
-{
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSkeletalMesh.ush\"\n");
-}
-
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceSkeletalMesh::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	if (!Super::AppendCompileHash(InVisitor))
@@ -2914,6 +2919,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::AppendCompileHash(FNiagaraCompileHashVis
 
 	return true;
 }
+#endif
 
 void UNiagaraDataInterfaceSkeletalMesh::ModifyCompilationEnvironment(struct FShaderCompilerEnvironment& OutEnvironment) const
 {
@@ -2922,6 +2928,12 @@ void UNiagaraDataInterfaceSkeletalMesh::ModifyCompilationEnvironment(struct FSha
 	OutEnvironment.SetDefine(TEXT("DISKELMESH_BONE_INFLUENCES"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuMaxInfluences));
 	OutEnvironment.SetDefine(TEXT("DISKELMESH_PROBALIAS_FORMAT"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuUniformSamplingFormat));
 	OutEnvironment.SetDefine(TEXT("DISKELMESH_ADJ_INDEX_FORMAT"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_AdjacencyTriangleIndexFormat));
+}
+
+#if WITH_EDITORONLY_DATA
+void UNiagaraDataInterfaceSkeletalMesh::GetCommonHLSL(FString& OutHLSL)
+{
+	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSkeletalMesh.ush\"\n");
 }
 
 bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
@@ -3005,7 +3017,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredTriangleAtName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (int FilteredIndex, out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_GetFilteredTriangleAt(DIContext, FilteredIndex, OutCoord.Tri, OutCoord.BaryCoord); }");
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (int FilteredIndex, in float3 BaryCoord, out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_GetFilteredTriangleAt(DIContext, FilteredIndex, OutCoord.Tri); OutCoord.BaryCoord = BaryCoord; }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3210,7 +3222,6 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 	return true;
 }
 
-#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
 {
 	bool bWasChanged = false;
@@ -3370,17 +3381,26 @@ bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSign
 		}
 	}
 
+	if (FunctionSignature.FunctionVersion < FNiagaraSkelMeshDIFunctionVersion::AddedInputBardCoordToGetFilteredTriangleAt)
+	{
+		if ( FunctionSignature.Name == FSkeletalMeshInterfaceHelper::GetFilteredTriangleAtName )
+		{
+			FunctionSignature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("BaryCoord"))).SetValue(FVector(1.0f / 3.0f));
+			bWasChanged = true;
+		}
+	}
+
 	// Set latest version
 	FunctionSignature.FunctionVersion = FNiagaraSkelMeshDIFunctionVersion::LatestVersion;
 
 	return bWasChanged;
 }
-#endif
 
 void UNiagaraDataInterfaceSkeletalMesh::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	OutHLSL += TEXT("DISKELMESH_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
+#endif
 
 void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse)
 {

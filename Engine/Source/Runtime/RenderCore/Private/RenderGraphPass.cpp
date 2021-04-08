@@ -104,6 +104,8 @@ FRHIRenderPassInfo FRDGParameterStruct::GetRenderPassInfo() const
 	RenderPassInfo.SubpassHint = RenderTargets.SubpassHint;
 	RenderPassInfo.MultiViewCount = RenderTargets.MultiViewCount;
 	RenderPassInfo.ShadingRateTexture = RenderTargets.ShadingRateTexture ? RenderTargets.ShadingRateTexture->GetRHI() : nullptr;
+	// @todo: should define this as a state that gets passed through? Max seems appropriate for now.
+	RenderPassInfo.ShadingRateTextureCombiner = RenderPassInfo.ShadingRateTexture.IsValid() ? VRSRB_Max : VRSRB_Passthrough;
 
 	return RenderPassInfo;
 }

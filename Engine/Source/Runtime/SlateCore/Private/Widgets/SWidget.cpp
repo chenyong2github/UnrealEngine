@@ -58,9 +58,11 @@ DEFINE_STAT(STAT_SlateTickWidgets);
 DEFINE_STAT(STAT_SlatePrepass);
 DEFINE_STAT(STAT_SlateTotalWidgets);
 DEFINE_STAT(STAT_SlateSWidgetAllocSize);
-DEFINE_STAT(STAT_SlateGetMetaData);
 
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+DEFINE_STAT(STAT_SlateGetMetaData);
 DECLARE_CYCLE_STAT(TEXT("SWidget::CreateStatID"), STAT_Slate_CreateStatID, STATGROUP_Slate);
+#endif
 
 template <typename AnnotationType>
 class TWidgetSparseAnnotation
@@ -131,7 +133,9 @@ static FAutoConsoleVariableRef CVarSlateEnsureAllVisibleWidgetsPaint(TEXT("Slate
 
 void SWidget::CreateStatID() const
 {
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	SCOPE_CYCLE_COUNTER(STAT_Slate_CreateStatID);
+#endif
 
 	const FString LongName = FReflectionMetaData::GetWidgetDebugInfo(this);
 

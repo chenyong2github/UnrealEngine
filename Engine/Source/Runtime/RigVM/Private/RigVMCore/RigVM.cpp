@@ -167,6 +167,8 @@ void URigVM::Reset()
 	ByteCodePtr = &ByteCodeStorage;
 
 	InvalidateCachedMemory();
+	
+	CachedDebugWatchRegisters.Reset();
 }
 
 void URigVM::Empty()
@@ -187,6 +189,8 @@ void URigVM::Empty()
 	CachedMemory.Empty();
 	FirstHandleForInstruction.Empty();
 	CachedMemoryHandles.Empty();
+
+	CachedDebugWatchRegisters.Empty();
 }
 
 void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemory, bool bReferenceByteCode, bool bCopyExternalVariables, bool bCopyDynamicRegisters)
@@ -725,6 +729,8 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 	Context.OpaqueArguments = AdditionalArguments;
 	Context.ExternalVariables = ExternalVariables;
 
+	CacheDebugWatchRegisters();
+	
 	while (Instructions.IsValidIndex(Context.InstructionIndex))
 	{
 		const FRigVMInstruction& Instruction = Instructions[Context.InstructionIndex];
@@ -993,6 +999,8 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 	Context.SliceOffsets.AddZeroed(Instructions.Num());
 	Context.OpaqueArguments = AdditionalArguments;
 	Context.ExternalVariables = ExternalVariables;
+
+	ClearDebugWatchRegisterMemory();
 
 	if (!InEntryName.IsNone())
 	{
@@ -1713,6 +1721,50 @@ FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FStrin
 }
 
 #endif
+
+void URigVM::CacheDebugWatchRegisters()
+{
+	FRigVMMemoryContainer* WorkMemory = CachedMemory[(int32)ERigVMMemoryType::Work];
+
+	if (WorkMemory)
+	{
+		CachedDebugWatchRegisters.Reset();
+		for (int32 RegisterIndex = 0; RegisterIndex < WorkMemoryPtr->Registers.Num(); RegisterIndex++)
+		{
+			FRigVMRegister& Register = WorkMemory->Registers[RegisterIndex];
+			if (Register.Name.ToString().StartsWith("DebugWatch:"))
+			{
+				ensure(Register.IsDynamic());
+
+				CachedDebugWatchRegisters.Add(&Register); 
+			}
+		}
+	} 
+}
+
+void URigVM::ClearDebugWatchRegisterMemory()
+{
+	FRigVMMemoryContainer* WorkMemory = CachedMemory[(int32)ERigVMMemoryType::Work];
+
+	if (WorkMemory)
+	{ 
+		for (const FRigVMRegister* Register : CachedDebugWatchRegisters)
+		{ 
+			ensure(Register->IsDynamic());
+			
+			if (!Register->IsArray())
+			{
+				FRigVMByteArray* VMMemoryPtr = (FRigVMByteArray*)(&(WorkMemory->Data[Register->GetWorkByteIndex()]));
+				VMMemoryPtr->Reset();
+			}
+			else
+			{ 
+				FRigVMNestedByteArray* VMMemoryPtr = (FRigVMNestedByteArray*)(&(WorkMemory->Data[Register->GetWorkByteIndex()]));
+				VMMemoryPtr->Reset();
+			}
+		}	
+	} 
+}
 
 void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecute)
 {

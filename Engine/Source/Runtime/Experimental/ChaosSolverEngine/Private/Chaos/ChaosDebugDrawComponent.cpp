@@ -196,6 +196,8 @@ void UChaosDebugDrawComponent::BeginPlay()
 
 #if CHAOS_DEBUG_DRAW
 	Chaos::FDebugDrawQueue::GetInstance().SetConsumerActive(this, bInPlay);
+
+	ChaosDebugDraw_Enabled_Changed(&(*CVarChaos_DebugDraw_Enabled));
 #endif
 }
 

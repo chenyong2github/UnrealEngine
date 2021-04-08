@@ -14,13 +14,8 @@
 template <typename FuncType>
 class TFunction;
 
-#if PLATFORM_ANDROID_ARM64
-	#define PLATFORM_BREAK()	raise(SIGTRAP)
-#elif PLATFORM_ANDROID_ARM
-	#define PLATFORM_BREAK()	__asm__("trap")
-#else
-	#define PLATFORM_BREAK()	__asm__("int $3")
-#endif
+
+#define PLATFORM_BREAK()	raise(SIGTRAP)
 
 #define UE_DEBUG_BREAK_IMPL()	PLATFORM_BREAK()
 
@@ -97,6 +92,7 @@ public:
 	static int32 NumberOfCores();
 	static int32 NumberOfCoresIncludingHyperthreads();
 	static bool SupportsLocalCaching();
+	static void CreateGuid(struct FGuid& Result);
 	static void SetCrashHandler(void (* CrashHandler)(const FGenericCrashContext& Context));
 	// NOTE: THIS FUNCTION IS DEFINED IN ANDROIDOPENGL.CPP
 	static void GetValidTargetPlatforms(class TArray<class FString>& TargetPlatformNames);
@@ -195,6 +191,7 @@ public:
 	static int GetAndroidBuildVersion();
 #endif
 	static bool IsSupportedAndroidDevice();
+	static void SetForceUnsupported(bool bInOverride);
 	static TMap<FString, FString> GetConfigRulesTMap();
 	static FString* GetConfigRulesVariable(const FString& Key);
 

@@ -409,7 +409,7 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 	ObjectRef.PropertyPathInfo = RemoteControlProperty->FieldPathInfo.ToString();
 
 	bool bSuccess = true;
-	for (UObject* Object : RemoteControlProperty->ResolveFieldOwners())
+	for (UObject* Object : RemoteControlProperty->GetBoundObjects())
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, ObjectRef.PropertyPathInfo, ObjectRef);
 

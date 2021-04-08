@@ -6,7 +6,7 @@
 #include "HAL/PlatformMisc.h"
 // Code including this header is responsible for including the correct platform-specific header for SSE intrinsics.
 
-#if !PLATFORM_ENABLE_VECTORINTRINSICS
+#if !PLATFORM_ENABLE_VECTORINTRINSICS || PLATFORM_ENABLE_VECTORINTRINSICS_NEON
 
 template<class Base>
 struct TUnrealPlatformMathSSEBase : public Base

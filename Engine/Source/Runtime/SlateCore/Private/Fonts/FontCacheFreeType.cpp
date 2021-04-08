@@ -598,13 +598,20 @@ unsigned long FFreeTypeFace::FFTStreamHandler::ReadData(FT_Stream InStream, unsi
 
 #if WITH_FREETYPE
 
-bool FFreeTypeGlyphCache::FindOrCache(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale, FCachedGlyphData& OutCachedGlyphData)
+FFreeTypeGlyphCache::FFreeTypeGlyphCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
+	: Face(InFace)
+	, LoadFlags(InLoadFlags)
+	, FontSize(InFontSize)
+	, FontScale(InFontScale)
+	, GlyphDataMap()
 {
-	const FCachedGlyphKey CachedGlyphKey(InFace, InGlyphIndex, InLoadFlags, InFontSize, InFontScale);
+}
 
+bool FFreeTypeGlyphCache::FindOrCache(const uint32 InGlyphIndex, FCachedGlyphData& OutCachedGlyphData)
+{
 	// Try and find the data from the cache...
 	{
-		const FCachedGlyphData* FoundCachedGlyphData = CachedGlyphDataMap.Find(CachedGlyphKey);
+		const FCachedGlyphData* FoundCachedGlyphData = GlyphDataMap.Find(InGlyphIndex);
 		if (FoundCachedGlyphData)
 		{
 			OutCachedGlyphData = *FoundCachedGlyphData;
@@ -613,50 +620,46 @@ bool FFreeTypeGlyphCache::FindOrCache(FT_Face InFace, const uint32 InGlyphIndex,
 	}
 
 	// No cached data, go ahead and add an entry for it...
-	FT_Error Error = FreeTypeUtils::LoadGlyph(InFace, InGlyphIndex, InLoadFlags, InFontSize, InFontScale);
+	FT_Error Error = FreeTypeUtils::LoadGlyph(Face, InGlyphIndex, LoadFlags, FontSize, FontScale);
 	if (Error == 0)
 	{
 		OutCachedGlyphData = FCachedGlyphData();
-		OutCachedGlyphData.Height = InFace->height;
-		OutCachedGlyphData.GlyphMetrics = InFace->glyph->metrics;
-		OutCachedGlyphData.SizeMetrics = InFace->size->metrics;
+		OutCachedGlyphData.Height = Face->height;
+		OutCachedGlyphData.GlyphMetrics = Face->glyph->metrics;
+		OutCachedGlyphData.SizeMetrics = Face->size->metrics;
 
-		if (InFace->glyph->outline.n_points > 0)
+		if (Face->glyph->outline.n_points > 0)
 		{
-			const int32 NumPoints = static_cast<int32>(InFace->glyph->outline.n_points);
+			const int32 NumPoints = static_cast<int32>(Face->glyph->outline.n_points);
 			OutCachedGlyphData.OutlinePoints.Reserve(NumPoints);
 			for (int32 PointIndex = 0; PointIndex < NumPoints; ++PointIndex)
 			{
-				OutCachedGlyphData.OutlinePoints.Add(InFace->glyph->outline.points[PointIndex]);
+				OutCachedGlyphData.OutlinePoints.Add(Face->glyph->outline.points[PointIndex]);
 			}
 		}
 
-		CachedGlyphDataMap.Add(CachedGlyphKey, OutCachedGlyphData);
+		GlyphDataMap.Emplace(InGlyphIndex, OutCachedGlyphData);
 		return true;
 	}
 
 	return false;
 }
 
-#endif // WITH_FREETYPE
 
-void FFreeTypeGlyphCache::FlushCache()
+FFreeTypeAdvanceCache::FFreeTypeAdvanceCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
+	: Face(InFace)
+	, LoadFlags(InLoadFlags)
+	, FontSize(InFontSize)
+	, FontScale(InFontScale)
+	, AdvanceMap()
 {
-#if WITH_FREETYPE
-	CachedGlyphDataMap.Empty();
-#endif // WITH_FREETYPE
 }
 
-
-#if WITH_FREETYPE
-
-bool FFreeTypeAdvanceCache::FindOrCache(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale, FT_Fixed& OutCachedAdvance)
+bool FFreeTypeAdvanceCache::FindOrCache(const uint32 InGlyphIndex, FT_Fixed& OutCachedAdvance)
 {
-	const FCachedAdvanceKey CachedAdvanceKey(InFace, InGlyphIndex, InLoadFlags, InFontSize, InFontScale);
-
 	// Try and find the advance from the cache...
 	{
-		const FT_Fixed* FoundCachedAdvance = CachedAdvanceMap.Find(CachedAdvanceKey);
+		const FT_Fixed* FoundCachedAdvance = AdvanceMap.Find(InGlyphIndex);
 		if (FoundCachedAdvance)
 		{
 			OutCachedAdvance = *FoundCachedAdvance;
@@ -664,52 +667,43 @@ bool FFreeTypeAdvanceCache::FindOrCache(FT_Face InFace, const uint32 InGlyphInde
 		}
 	}
 
-	FreeTypeUtils::ApplySizeAndScale(InFace, InFontSize, InFontScale);
+	FreeTypeUtils::ApplySizeAndScale(Face, FontSize, FontScale);
 
 	// No cached data, go ahead and add an entry for it...
-	FT_Error Error = FT_Get_Advance(InFace, InGlyphIndex, InLoadFlags, &OutCachedAdvance);
+	const FT_Error Error = FT_Get_Advance(Face, InGlyphIndex, LoadFlags, &OutCachedAdvance);
 	if (Error == 0)
 	{
-		if (!FT_IS_SCALABLE(InFace) && FT_HAS_FIXED_SIZES(InFace))
+		if (!FT_IS_SCALABLE(Face) && FT_HAS_FIXED_SIZES(Face))
 		{
 			// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
-			OutCachedAdvance = FT_MulFix(OutCachedAdvance, ((InLoadFlags & FT_LOAD_VERTICAL_LAYOUT) ? InFace->size->metrics.y_scale : InFace->size->metrics.x_scale));
+			OutCachedAdvance = FT_MulFix(OutCachedAdvance, ((LoadFlags & FT_LOAD_VERTICAL_LAYOUT) ? Face->size->metrics.y_scale : Face->size->metrics.x_scale));
 		}
 
-		CachedAdvanceMap.Add(CachedAdvanceKey, OutCachedAdvance);
+		AdvanceMap.Add(InGlyphIndex, OutCachedAdvance);
 		return true;
 	}
 
 	return false;
 }
 
-#endif // WITH_FREETYPE
 
-void FFreeTypeAdvanceCache::FlushCache()
+FFreeTypeKerningCache::FFreeTypeKerningCache(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale)
+	: Face(InFace)
+	, KerningFlags(InKerningFlags)
+	, FontSize(InFontSize)
+	, FontScale(InFontScale)
+	, KerningMap()
 {
-#if WITH_FREETYPE
-	CachedAdvanceMap.Empty();
-#endif // WITH_FREETYPE
+	check(Face);
+	check(FT_HAS_KERNING(InFace));
 }
-
-
-#if WITH_FREETYPE
-
-bool FFreeTypeKerningPairCache::FindOrCache(FT_Face InFace, const FKerningPair& InKerningPair, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale, FT_Vector& OutKerning)
+bool FFreeTypeKerningCache::FindOrCache(const uint32 InFirstGlyphIndex, const uint32 InSecondGlyphIndex, FT_Vector& OutKerning)
 {
-	// Skip the cache if the font itself doesn't have kerning
-	if (!FT_HAS_KERNING(InFace))
-	{
-		OutKerning.x = 0;
-		OutKerning.y = 0;
-		return true;
-	}
-
-	const FCachedKerningPairKey CachedKerningPairKey(InFace, InKerningPair, InKerningFlags, InFontSize, InFontScale);
+	const FKerningPair KerningPair(InFirstGlyphIndex, InSecondGlyphIndex);
 
 	// Try and find the kerning from the cache...
 	{
-		const FT_Vector* FoundCachedKerning = CachedKerningPairMap.Find(CachedKerningPairKey);
+		const FT_Vector* FoundCachedKerning = KerningMap.Find(KerningPair);
 		if (FoundCachedKerning)
 		{
 			OutKerning = *FoundCachedKerning;
@@ -717,34 +711,75 @@ bool FFreeTypeKerningPairCache::FindOrCache(FT_Face InFace, const FKerningPair& 
 		}
 	}
 
-	FreeTypeUtils::ApplySizeAndScale(InFace, InFontSize, InFontScale);
+	FreeTypeUtils::ApplySizeAndScale(Face, FontSize, FontScale);
 
 	// No cached data, go ahead and add an entry for it...
-	FT_Error Error = FT_Get_Kerning(InFace, InKerningPair.FirstGlyphIndex, InKerningPair.SecondGlyphIndex, InKerningFlags, &OutKerning);
+	const FT_Error Error = FT_Get_Kerning(Face, InFirstGlyphIndex, InSecondGlyphIndex, KerningFlags, &OutKerning);
 	if (Error == 0)
 	{
-		if (InKerningFlags != FT_KERNING_UNSCALED)
+		if (KerningFlags != FT_KERNING_UNSCALED)
 		{
-			if (!FT_IS_SCALABLE(InFace) && FT_HAS_FIXED_SIZES(InFace))
+			if (!FT_IS_SCALABLE(Face) && FT_HAS_FIXED_SIZES(Face))
 			{
 				// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
-				OutKerning.x = FT_MulFix(OutKerning.x, InFace->size->metrics.x_scale);
-				OutKerning.y = FT_MulFix(OutKerning.y, InFace->size->metrics.y_scale);
+				OutKerning.x = FT_MulFix(OutKerning.x, Face->size->metrics.x_scale);
+				OutKerning.y = FT_MulFix(OutKerning.y, Face->size->metrics.y_scale);
 			}
 		}
 
-		CachedKerningPairMap.Add(CachedKerningPairKey, OutKerning);
+		KerningMap.Add(KerningPair, OutKerning);
 		return true;
 	}
 
 	return false;
 }
 
+TSharedRef<FFreeTypeGlyphCache> FFreeTypeCacheDirectory::GetGlyphCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
+{
+	const FFontKey Key(InFace, InLoadFlags, InFontSize, InFontScale);
+	TSharedPtr<FFreeTypeGlyphCache>& Entry = GlyphCacheMap.FindOrAdd(Key);
+	if (!Entry)
+	{
+		Entry = MakeShared<FFreeTypeGlyphCache>(InFace, InLoadFlags, InFontSize, InFontScale);
+	}
+	return Entry.ToSharedRef();
+}
+
+TSharedRef<FFreeTypeAdvanceCache> FFreeTypeCacheDirectory::GetAdvanceCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
+{
+	const FFontKey Key(InFace, InLoadFlags, InFontSize, InFontScale);
+	TSharedPtr<FFreeTypeAdvanceCache>& Entry = AdvanceCacheMap.FindOrAdd(Key);
+	if (!Entry)
+	{
+		Entry = MakeShared<FFreeTypeAdvanceCache>(InFace, InLoadFlags, InFontSize, InFontScale);
+	}
+	return Entry.ToSharedRef();
+}
+
+TSharedPtr<FFreeTypeKerningCache> FFreeTypeCacheDirectory::GetKerningCache(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale)
+{
+	// Check if this font has kerning as not all fonts do.
+	// We also can't perform kerning between two separate font faces
+	if (InFace && FT_HAS_KERNING(InFace))
+	{
+		const FFontKey Key(InFace, FT_KERNING_DEFAULT, InFontSize, InFontScale);
+		TSharedPtr<FFreeTypeKerningCache>& Entry = KerningCacheMap.FindOrAdd(Key);
+		if (!Entry)
+		{
+			Entry = MakeShared<FFreeTypeKerningCache>(InFace, FT_KERNING_DEFAULT, InFontSize, InFontScale);
+		}
+		return Entry;
+	}
+	return nullptr;
+}
+
 #endif // WITH_FREETYPE
 
-void FFreeTypeKerningPairCache::FlushCache()
+void FFreeTypeCacheDirectory::FlushCache()
 {
 #if WITH_FREETYPE
-	CachedKerningPairMap.Empty();
+	GlyphCacheMap.Empty();
+	AdvanceCacheMap.Empty();
+	KerningCacheMap.Empty();
 #endif // WITH_FREETYPE
 }

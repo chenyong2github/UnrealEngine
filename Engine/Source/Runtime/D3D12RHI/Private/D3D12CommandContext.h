@@ -68,6 +68,7 @@ protected:
 	const bool bIsDefaultContext;
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FD3D12CommandContext : public FD3D12CommandContextBase, public FD3D12DeviceChild
 {
 public:
@@ -307,9 +308,7 @@ public:
 #endif
 	virtual void RHISetDepthBounds(float MinDepth, float MaxDepth) final override;
     virtual void RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner) final override;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
     virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner) final override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	virtual void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred) final override;
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
@@ -470,12 +469,14 @@ private:
 
 	TArray<FRHIUniformBuffer*> GlobalUniformBuffers;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 // This class is a shim to get AFR working. Currently the upper engine only queries for the 'Immediate Context'
 // once. However when in AFR we need to switch which context is active every frame so we return an instance of this class
 // as the default context so that we can control when to swap which device we talk to.
 // Because IRHICommandContext is pure virtual we can return the normal FD3D12CommandContext when not using mGPU thus there
 // is no additional overhead for the common case i.e. 1 GPU.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FD3D12CommandContextRedirector final : public FD3D12CommandContextBase
 {
 public:
@@ -697,12 +698,10 @@ public:
 		ContextRedirect(RHISetShadingRate(ShadingRate, Combiner));
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FORCEINLINE virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner) final override
 	{
 		checkf(false, TEXT("RHISetShadingRateImage API is deprecated. Use the ShadingRateImage attachment in the RHISetRenderTargetsInfo struct instead."));
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FORCEINLINE virtual void RHIWaitForTemporalEffect(const FName& InEffectName) final AFR_API_OVERRIDE
 	{
@@ -850,6 +849,8 @@ private:
 	FRHIGPUMask PhysicalGPUMask;
 	FD3D12CommandContext* PhysicalContexts[MAX_NUM_GPUS];
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 
 class FD3D12TemporalEffect : public FD3D12AdapterChild
 {

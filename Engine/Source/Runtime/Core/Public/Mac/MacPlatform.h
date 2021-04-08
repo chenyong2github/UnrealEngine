@@ -50,7 +50,7 @@ typedef FMacPlatformTypes FPlatformTypes;
 //#define PLATFORM_EXCEPTIONS_DISABLED				!PLATFORM_DESKTOP
 #define PLATFORM_SEH_EXCEPTIONS_DISABLED				1
 #define PLATFORM_SUPPORTS_PRAGMA_PACK				1
-#define PLATFORM_ENABLE_VECTORINTRINSICS			PLATFORM_MAC_X86
+#define PLATFORM_ENABLE_VECTORINTRINSICS			1
 #define PLATFORM_ENABLE_VECTORINTRINSICS_NEON       PLATFORM_MAC_ARM64
 #ifndef PLATFORM_MAYBE_HAS_SSE4_1  // May be set from UnrealBuildTool
 	#define PLATFORM_MAYBE_HAS_SSE4_1				PLATFORM_MAC_X86
@@ -60,6 +60,10 @@ typedef FMacPlatformTypes FPlatformTypes;
 // If your title has raised the minspec to sse4, you can define PLATFORM_ALWAYS_HAS_SSE4_1 to 1
 #ifndef PLATFORM_ALWAYS_HAS_SSE4_1 // May be set from UnrealBuildTool
 	#define PLATFORM_ALWAYS_HAS_SSE4_1				0
+#endif
+// FMA3 support was added starting from Intel Haswell
+#ifndef PLATFORM_ALWAYS_HAS_FMA3
+	#define PLATFORM_ALWAYS_HAS_FMA3				0
 #endif
 //#define PLATFORM_USE_LS_SPEC_FOR_WIDECHAR			1
 #define PLATFORM_USE_SYSTEM_VSWPRINTF				0

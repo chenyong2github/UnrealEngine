@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/ChaosCachingPlugin.h"
-
 #include "Chaos/Adapters/GeometryCollectionComponentCacheAdapter.h"
 #include "Chaos/Adapters/StaticMeshComponentCacheAdapter.h"
 #include "CoreMinimal.h"
@@ -11,7 +10,7 @@ IMPLEMENT_MODULE(IChaosCachingPlugin, ChaosCaching)
 
 DEFINE_LOG_CATEGORY(LogChaosCache)
 
-void IChaosCachingPlugin::StartupModule() 
+void IChaosCachingPlugin::StartupModule()
 {
 	GeometryCollectionAdapter = MakeUnique<Chaos::FGeometryCollectionCacheAdapter>();
 	StaticMeshAdapter = MakeUnique<Chaos::FStaticMeshCacheAdapter>();

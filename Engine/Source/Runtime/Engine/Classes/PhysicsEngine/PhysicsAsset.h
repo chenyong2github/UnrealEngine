@@ -94,7 +94,7 @@ enum class EPhysicsAssetSolverType: uint8
  * @see USkeletalMesh
  */
 
-UCLASS(hidecategories=Object, BlueprintType, MinimalAPI)
+UCLASS(hidecategories=Object, BlueprintType, MinimalAPI, Config=Game, PerObjectConfig)
 class UPhysicsAsset : public UObject, public IInterface_PreviewMeshProvider
 {
 	GENERATED_UCLASS_BODY()
@@ -145,7 +145,7 @@ class UPhysicsAsset : public UObject, public IInterface_PreviewMeshProvider
 public:
 
 	/** [Chaos Only] Recommended solver settings. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = SolverSettings)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = SolverSettings, Config)
 	FSolverIterations SolverIterations;
 
 	/** [Chaos Only] Solver type used in physics asset editor. */

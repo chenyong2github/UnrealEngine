@@ -93,9 +93,6 @@ public:
 		return GetHandle_LowLevel() == nullptr ? nullptr : (const Chaos::FRigidBodyHandle_Internal*)this;
 	}
 
-	/**/
-	const FInitialState& GetInitialState() const;
-
 	//Returns the underlying physics thread particle. Note this should only be needed for internal book keeping type tasks. API may change, use GetPhysicsThreadAPI instead
 	FParticleHandle* GetHandle_LowLevel()
 	{
@@ -137,8 +134,9 @@ public:
 	/**/
 	bool IsDirty();
 
-	bool IsInitialized() const { return bInitialized; }
-	void SetInitialized(bool InInitialized) { bInitialized = InInitialized; }
+	bool IsInitialized() const { return InitializedOnStep != INDEX_NONE; }
+	void SetInitialized(const int32 InitializeStep) { InitializedOnStep = InitializeStep; }
+	int32 GetInitializedStep() const { return InitializedOnStep; }
 
 	/**/
 	Chaos::EWakeEventEntry GetWakeEvent() const;
@@ -172,11 +170,7 @@ public:
 	virtual UObject* GetOwner() const override { return Owner; }
 	
 private:
-	bool bInitialized;
-	TArray<int32> InitializedIndices;
-
-private:
-	FInitialState InitialState;
+	int32 InitializedOnStep = INDEX_NONE;
 
 protected:
 	TUniquePtr<PARTICLE_TYPE> Particle;
@@ -190,7 +184,7 @@ private:
 	int32 PullDataInterpIdx_External;
 
 	//use static Create
-	FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner = nullptr, FInitialState InitialState = FInitialState());
+	FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner = nullptr);
 };
 
 namespace Chaos
@@ -219,6 +213,14 @@ public:
 	const FVec3& X() const { return ReadRef([](auto* Particle) -> const auto& { return Particle->X(); }); }
 	void SetX(const FVec3& InX, bool bInvalidate = true) { Write([&InX, bInvalidate, this](auto* Particle)
 	{
+		if (bInvalidate)
+		{
+			auto Dyn = Particle->CastToRigidParticle();
+			if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping)
+			{
+				SetObjectStateHelper(*GetProxy(), *Dyn, EObjectStateType::Dynamic, true);
+			}
+		}
 		Particle->SetX(InX, bInvalidate);
 		if(bExternal)
 		{
@@ -233,6 +235,14 @@ public:
 	const FRotation3& R() const { return ReadRef([](auto* Particle) -> const auto& { return Particle->R(); }); }
 	void SetR(const FRotation3& InR, bool bInvalidate = true){ Write([&InR, bInvalidate, this](auto* Particle)
 	{
+			if (bInvalidate)
+			{
+				auto Dyn = Particle->CastToRigidParticle();
+				if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping)
+				{
+					SetObjectStateHelper(*GetProxy(), *Dyn, EObjectStateType::Dynamic, true);
+				}
+			}
 			Particle->SetR(InR, bInvalidate);
 			if(bExternal)
 			{
@@ -279,6 +289,15 @@ public:
 		{
 			if (auto Kinematic = Particle->CastToKinematicParticle())
 			{
+				if (bInvalidate)
+				{
+					auto Dyn = Particle->CastToRigidParticle();
+					if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping && !InV.IsNearlyZero())
+					{
+						SetObjectStateHelper(*GetProxy(), *Dyn, EObjectStateType::Dynamic, true);
+					}
+				}
+
 				if (bExternal)
 				{
 					if (InV == FVec3(0))	//should we use an explicit API instead?
@@ -316,6 +335,15 @@ public:
 		{
 			if (auto Kinematic = Particle->CastToKinematicParticle())
 			{
+				if (bInvalidate)
+				{
+					auto Dyn = Particle->CastToRigidParticle();
+					if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping && !InW.IsNearlyZero())
+					{
+						SetObjectStateHelper(*GetProxy(), *Dyn, EObjectStateType::Dynamic, true);
+					}
+				}
+
 				if (bExternal)
 				{
 					if (InW == FVec3(0))	//should we use an explicit API instead?
@@ -454,11 +482,19 @@ public:
 
 	void AddForce(const FVec3& InForce, bool bInvalidate = true)
 	{
-		Write([&InForce, bInvalidate](auto* Particle)
+		Write([&InForce, bInvalidate, this](auto* Particle)
 		{
 			if (auto* Rigid = Particle->CastToRigidParticle())
 			{
-				Rigid->AddForce(InForce, bInvalidate);
+				if (Rigid->ObjectState() == EObjectStateType::Sleeping || Rigid->ObjectState() == EObjectStateType::Dynamic)
+				{
+					if (bInvalidate)
+					{
+						SetObjectStateHelper(*GetProxy(), *Rigid, EObjectStateType::Dynamic, true);
+					}
+
+					Rigid->AddForce(InForce, bInvalidate);
+				}
 			}
 		});
 	}
@@ -478,11 +514,19 @@ public:
 
 	void AddTorque(const FVec3& InTorque, bool bInvalidate = true)
 	{
-		Write([&InTorque, bInvalidate](auto* Particle)
+		Write([&InTorque, bInvalidate, this](auto* Particle)
 		{
 			if (auto* Rigid = Particle->CastToRigidParticle())
 			{
-				Rigid->AddTorque(InTorque, bInvalidate);
+				if (Rigid->ObjectState() == EObjectStateType::Sleeping || Rigid->ObjectState() == EObjectStateType::Dynamic)
+				{
+					if (bInvalidate)
+					{
+						SetObjectStateHelper(*GetProxy(), *Rigid, EObjectStateType::Dynamic, true);
+					}
+
+					Rigid->AddTorque(InTorque, bInvalidate);
+				}
 			}
 		});
 	}
@@ -502,11 +546,18 @@ public:
 
 	void SetLinearImpulse(const FVec3& InLinearImpulse, bool bInvalidate = true)
 	{
-		Write([&InLinearImpulse, bInvalidate](auto* Particle)
+		Write([&InLinearImpulse, bInvalidate, this](auto* Particle)
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
-				Rigid->SetLinearImpulse(InLinearImpulse, bInvalidate);
+				if (Rigid->ObjectState() == EObjectStateType::Sleeping || Rigid->ObjectState() == EObjectStateType::Dynamic)
+				{
+					if (bInvalidate)
+					{
+						SetObjectStateHelper(*GetProxy(), *Rigid, EObjectStateType::Dynamic, true);
+					}
+					Rigid->SetLinearImpulse(InLinearImpulse, bInvalidate);
+				}
 			}
 		});
 	}
@@ -526,11 +577,18 @@ public:
 
 	void SetAngularImpulse(const FVec3& InAngularImpulse, bool bInvalidate = true)
 	{
-		Write([&InAngularImpulse, bInvalidate](auto* Particle)
+		Write([&InAngularImpulse, bInvalidate, this](auto* Particle)
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
-				Rigid->SetAngularImpulse(InAngularImpulse, bInvalidate);
+				if (Rigid->ObjectState() == EObjectStateType::Sleeping || Rigid->ObjectState() == EObjectStateType::Dynamic)
+				{
+					if (bInvalidate)
+					{
+						SetObjectStateHelper(*GetProxy(), *Rigid, EObjectStateType::Dynamic, true);
+					}
+					Rigid->SetAngularImpulse(InAngularImpulse, bInvalidate);
+				}
 			}
 		});
 	}
@@ -745,7 +803,7 @@ public:
 					}
 				}
 
-				Rigid->SetObjectState(InState, bAllowEvents, bInvalidate);
+				SetObjectStateHelper(*this, *Rigid, InState, bAllowEvents, bInvalidate);
 			}
 		});
 	}
@@ -901,6 +959,7 @@ public:
 		VerifyContext();
 		if (TPBDRigidParticle<FReal, 3>*Rigid = GetParticle_LowLevel()->CastToRigidParticle())
 		{
+
 			Rigid->ClearForces(bInvalidate);
 		}
 	}

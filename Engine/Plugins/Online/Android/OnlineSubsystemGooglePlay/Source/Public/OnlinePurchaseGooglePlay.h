@@ -87,7 +87,7 @@ public:
 		const FOnPurchaseCheckoutComplete& InCheckoutCompleteDelegate = FOnPurchaseCheckoutComplete()
 		)
 		: CheckoutRequest(InCheckoutRequest)
-		, UserId(InUserId)
+		, UserId(FUniqueNetIdGooglePlay::Cast(InUserId.AsShared()))
 		, CheckoutCompleteDelegate(InCheckoutCompleteDelegate)
 	{
 		PendingPurchaseInfo.TransactionState = InPendingTransactionState;
@@ -109,7 +109,7 @@ public:
 	/** Checkout info for the pending order */
 	const FPurchaseCheckoutRequest CheckoutRequest;
 	/** User for the pending order */
-	const FUniqueNetIdGooglePlay UserId;
+	const FUniqueNetIdGooglePlayRef UserId;
 	/** Delegate to call on completion */
 	const FOnPurchaseCheckoutComplete CheckoutCompleteDelegate;
 	/** Tracks the current state of the order */

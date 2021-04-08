@@ -303,14 +303,6 @@ UNiagaraDataInterfaceMeshRendererInfo::UNiagaraDataInterfaceMeshRendererInfo(FOb
 	MarkRenderDataDirty();
 }
 
-UNiagaraDataInterfaceMeshRendererInfo::~UNiagaraDataInterfaceMeshRendererInfo()
-{
-	if (MeshRenderer)
-	{
-		FNDIMeshRendererInfo::Release(*MeshRenderer, Info);
-	}
-}
-
 void UNiagaraDataInterfaceMeshRendererInfo::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -336,6 +328,16 @@ void UNiagaraDataInterfaceMeshRendererInfo::PostLoad()
 
 		Info = FNDIMeshRendererInfo::Acquire(*MeshRenderer);
 		MarkRenderDataDirty();
+	}
+}
+
+void UNiagaraDataInterfaceMeshRendererInfo::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	if (MeshRenderer)
+	{
+		FNDIMeshRendererInfo::Release(*MeshRenderer, Info);
 	}
 }
 
@@ -419,6 +421,7 @@ bool UNiagaraDataInterfaceMeshRendererInfo::Equals(const UNiagaraDataInterface* 
 	return MeshRenderer == OtherTyped->MeshRenderer;
 }
 
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceMeshRendererInfo::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	const FStringFormatOrderedArguments Args = {
@@ -483,6 +486,7 @@ bool UNiagaraDataInterfaceMeshRendererInfo::GetFunctionHLSL(const FNiagaraDataIn
 
 	return false;
 }
+#endif
 
 #if WITH_EDITOR
 

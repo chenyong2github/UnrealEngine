@@ -257,7 +257,7 @@ TSharedRef<SWidget> SDDCInformation::GetComplexDataGrid()
 				.Text(FText::FromString(SingleDecimalFormat(TotalGetMB) + TEXT(" MB")))
 			];
 
-			double HitPercentage = 100.0 * (TotalGets_Hit / (double)TotalGets);
+			const double HitPercentage = TotalGets > 0 ? (100.0 * (TotalGets_Hit / (double)TotalGets)) : 0.0;
 
 			Panel->AddSlot(3, Row)
 			.HAlign(HAlign_Right)

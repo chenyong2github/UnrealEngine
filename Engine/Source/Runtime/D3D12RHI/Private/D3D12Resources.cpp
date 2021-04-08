@@ -973,27 +973,83 @@ void FD3D12ResourceLocation::UnlockPoolData()
 //	FD3D12 Resource Barrier Batcher
 /////////////////////////////////////////////////////////////////////
 
+// Workaround for FORT-357614. Flickering can be seen unless RTV-to-SRV barriers are separated
+static int32 GD3D12SeparateRTV2SRVTransitions = 0;
+static FAutoConsoleVariableRef CVarD3D12SeparateRTV2SRVTransitions(
+	TEXT("d3d12.SeparateRTV2SRVTranstions"),
+	GD3D12SeparateRTV2SRVTransitions,
+	TEXT("Whether to submit RTV-to-SRV transition barriers through a separate API call"));
+
+static void RecordResourceBarriersToCommandList(
+	ID3D12GraphicsCommandList* pCommandList,
+	const D3D12_RESOURCE_BARRIER* Barriers,
+	int32 NumBarriers,
+	int32 BarrierBatchMax)
+{
+	if (NumBarriers > BarrierBatchMax)
+	{
+		while (NumBarriers > 0)
+		{
+			int32 DispatchNum = FMath::Min(NumBarriers, BarrierBatchMax);
+			pCommandList->ResourceBarrier(DispatchNum, Barriers);
+			Barriers += BarrierBatchMax;
+			NumBarriers -= BarrierBatchMax;
+		}
+	}
+	else
+	{
+		pCommandList->ResourceBarrier(NumBarriers, Barriers);
+	}
+}
+
+void ResourceBarriersSeparateRTV2SRV(
+	ID3D12GraphicsCommandList* pCommandList,
+	const TArray<D3D12_RESOURCE_BARRIER>& Barriers,
+	int32 BarrierBatchMax)
+{
+	if (!GD3D12SeparateRTV2SRVTransitions)
+	{
+		RecordResourceBarriersToCommandList(pCommandList, Barriers.GetData(), Barriers.Num(), BarrierBatchMax);
+	}
+	else
+	{
+		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<4>> RTV2SRVBarriers;
+		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<8>> OtherBarriers;
+
+		for (int32 Index = 0; Index < Barriers.Num(); ++Index)
+		{
+			const D3D12_RESOURCE_BARRIER& Barrier = Barriers[Index];
+
+			if (Barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION
+				&& Barrier.Transition.StateBefore == D3D12_RESOURCE_STATE_RENDER_TARGET
+				&& Barrier.Transition.StateAfter == (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE))
+			{
+				RTV2SRVBarriers.Add(Barrier);
+			}
+			else
+			{
+				OtherBarriers.Add(Barrier);
+			}
+		}
+
+		if (RTV2SRVBarriers.Num() > 0)
+		{
+			RecordResourceBarriersToCommandList(pCommandList, RTV2SRVBarriers.GetData(), RTV2SRVBarriers.Num(), BarrierBatchMax);
+		}
+
+		if (OtherBarriers.Num() > 0)
+		{
+			RecordResourceBarriersToCommandList(pCommandList, OtherBarriers.GetData(), OtherBarriers.Num(), BarrierBatchMax);
+		}
+	}
+}
+
 void FD3D12ResourceBarrierBatcher::Flush(FD3D12Device* Device, ID3D12GraphicsCommandList* pCommandList, int32 BarrierBatchMax)
 {
 	if (Barriers.Num())
 	{
 		check(pCommandList);
-		if (Barriers.Num() > BarrierBatchMax)
-		{
-			int Num = Barriers.Num();
-			D3D12_RESOURCE_BARRIER* Ptr = Barriers.GetData();
-			while (Num > 0)
-			{
-				int DispatchNum = FMath::Min(Num, BarrierBatchMax);
-				pCommandList->ResourceBarrier(DispatchNum, Ptr);
-				Ptr += BarrierBatchMax;
-				Num -= BarrierBatchMax;
-			}
-		}
-		else
-		{
-			pCommandList->ResourceBarrier(Barriers.Num(), Barriers.GetData());
-		}
+		ResourceBarriersSeparateRTV2SRV(pCommandList, Barriers, BarrierBatchMax);
 	}
 
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
@@ -1001,22 +1057,7 @@ void FD3D12ResourceBarrierBatcher::Flush(FD3D12Device* Device, ID3D12GraphicsCom
 	{
 		check(pCommandList);
 		FD3D12ScopedTimedIntervalQuery BarrierScopeTimer(Device->GetBackBufferWriteBarrierTracker(), pCommandList);
-		if (BackBufferBarriers.Num() > BarrierBatchMax)
-		{
-			int Num = BackBufferBarriers.Num();
-			D3D12_RESOURCE_BARRIER* Ptr = BackBufferBarriers.GetData();
-			while (Num > 0)
-			{
-				int DispatchNum = FMath::Min(Num, BarrierBatchMax);
-				pCommandList->ResourceBarrier(DispatchNum, Ptr);
-				Ptr += BarrierBatchMax;
-				Num -= BarrierBatchMax;
-			}
-		}
-		else
-		{
-			pCommandList->ResourceBarrier(BackBufferBarriers.Num(), BackBufferBarriers.GetData());
-		}
+		RecordResourceBarriersToCommandList(pCommandList, BackBufferBarriers.GetData(), BackBufferBarriers.Num(), BarrierBatchMax);
 	}
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 

@@ -746,6 +746,7 @@ void FConcertClientWorkspace::OnEndFrame()
 			bPendingStopIgnoringActivityOnRestore = false;
 		}
 	}
+	LiveSession->GetSessionDatabase().UpdateAsynchronousTasks();
 }
 
 void FConcertClientWorkspace::HandleWorkspaceSyncEndpointEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncEndpointEvent& Event)

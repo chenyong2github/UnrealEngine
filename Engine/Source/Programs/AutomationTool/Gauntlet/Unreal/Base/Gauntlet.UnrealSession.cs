@@ -122,6 +122,11 @@ namespace Gauntlet
 		public bool IsDummy() { return RoleModifier == ERoleModifier.Dummy; }
 
 		/// <summary>
+		/// Whether this role should be responsible only for installing the build and not monitoring a process.
+		/// </summary>
+		public bool InstallOnly { get; set; }
+
+		/// <summary>
 		/// Is this role Null? 
 		/// </summary>
 		public bool IsNullRole() { return RoleModifier == ERoleModifier.Null; }
@@ -190,7 +195,7 @@ namespace Gauntlet
 				RequiredBuildFlags |= BuildFlags.Packaged;
 			}
 
-
+			InstallOnly = false;
 			Options = InOptions;
             FilesToCopy = new List<UnrealFileToCopy>();
 			CommandLineParams = new GauntletCommandLine();
@@ -365,7 +370,7 @@ namespace Gauntlet
 			// Kill any remaining client processes
 			if (ClientApps != null)
 			{
-				List<IAppInstance> RunningApps = ClientApps.Where(App => App.HasExited == false).ToList();
+				List<IAppInstance> RunningApps = ClientApps.Where(App =>( App != null && App.HasExited == false)).ToList();
 
 				if (RunningApps.Count > 0)
 				{
@@ -384,10 +389,10 @@ namespace Gauntlet
 			}
 
 			// kill anything that's left
-			RunningRoles.Where(R => R.AppInstance.HasExited == false).ToList().ForEach(R => R.AppInstance.Kill());
+			RunningRoles.Where(R => !R.Role.InstallOnly && R.AppInstance.HasExited == false).ToList().ForEach(R => R.AppInstance.Kill());
 
 			// Wait for it all to end
-			RunningRoles.ToList().ForEach(R => R.AppInstance.WaitForExit());
+			RunningRoles.Where(R => !R.Role.InstallOnly).ToList().ForEach(R => R.AppInstance.WaitForExit());
 
 			Thread.Sleep(3000);
 		}
@@ -479,7 +484,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Devices that were reserved for our session
 		/// </summary>
-		protected List<ITargetDevice> ReservedDevices { get; set; }
+		public List<ITargetDevice> ReservedDevices { get; protected set; }
 		
 		/// <summary>
 		/// Constructor that takes a build source and a number of roles
@@ -908,7 +913,10 @@ namespace Gauntlet
 					foreach (var InstallRoleKV in InstallsToRoles)
 					{
 						IAppInstall CurrentInstall = InstallRoleKV.Key;
-
+						if (InstallRoleKV.Value.InstallOnly)
+						{	RunningRoles.Add(new UnrealSessionInstance.RoleInstance(InstallRoleKV.Value, null));
+							continue;
+						}
 						bool Success = false;
 
 						try
@@ -1274,7 +1282,7 @@ namespace Gauntlet
 
 				string DestPath = Path.Combine(OutputPath, FolderName);
 
-				if (!App.Role.IsNullRole())
+				if (!App.Role.IsNullRole() && !App.Role.InstallOnly )
 				{
 					Log.VeryVerbose("Calling SaveRoleArtifacts, Role: {0}  Artifact Path: {1}", App.ToString(), App.AppInstance.ArtifactPath);
 					var Artifacts = SaveRoleArtifacts(Context, App, DestPath);

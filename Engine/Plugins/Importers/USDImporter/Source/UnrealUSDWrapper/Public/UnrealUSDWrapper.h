@@ -74,12 +74,6 @@ enum class EUsdSubdivisionScheme
 
 };
 
-enum class EUsdUpAxis : uint8
-{
-	YAxis,
-	ZAxis,
-};
-
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EUsdPurpose : int32
 {

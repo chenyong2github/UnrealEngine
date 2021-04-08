@@ -13,6 +13,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "Windows/WindowsPlatformMisc.h"
 #include "Windows/WindowsPlatformStackWalk.h"
 #endif
+#include "Modules/ModuleManager.h"
 
 #if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS)
 	#include "amd_ags.h"
@@ -50,23 +51,35 @@ static FAutoConsoleVariableRef CVarGapRecorderUseBlockingCall(
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
-// Enabled in debug and development mode while sorting out D3D12 stability issues
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
-static int32 GD3D12GPUCrashDebuggingMode = 0;
+static int32 GD3D12EnableGPUBreadCrumbs = 0;
+static int32 GD3D12EnableNvAftermath = 0;
+static int32 GD3D12EnableDRED = 0;
 #else
-static int32 GD3D12GPUCrashDebuggingMode = 1;
+static int32 GD3D12EnableGPUBreadCrumbs = 1;
+static int32 GD3D12EnableNvAftermath = 1;
+static int32 GD3D12EnableDRED = 0;
 #endif // UE_BUILD_SHIPPING || UE_BUILD_TEST
 
-static TAutoConsoleVariable<int32> CVarD3D12GPUCrashDebuggingMode(
-	TEXT("r.D3D12.GPUCrashDebuggingMode"),
-	GD3D12GPUCrashDebuggingMode,
-	TEXT("Enable GPU crash debugging: tracks the current GPU state and logs information what operations the GPU executed last.\n")
-	TEXT("Optionally generate a GPU crash dump as well (on nVidia hardware only)):\n")
-	TEXT(" 0: GPU crash debugging disabled (default in shipping and test builds)\n")
-	TEXT(" 1: Minimal overhead GPU crash debugging (default in development builds)\n")
-	TEXT(" 2: Enable all available GPU crash debugging options (DRED, Aftermath, ...)\n"),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly
-);
+static FAutoConsoleVariableRef CVarD3D12EnableGPUBreadCrumbs(
+	TEXT("r.D3D12.BreadCrumbs"),
+	GD3D12EnableGPUBreadCrumbs,
+	TEXT("Enable minimal overhead GPU Breadcrumbs to track the current GPU state and logs information what operations the GPU executed last.\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+static FAutoConsoleVariableRef CVarD3D12EnableNvAftermath(
+	TEXT("r.D3D12.NvAfterMath"),
+	GD3D12EnableNvAftermath,
+	TEXT("Enable NvAftermath to track the current GPU state and logs information what operations the GPU executed last.\n")
+	TEXT("Only works on nVidia hardware and will dump GPU crashdumps as well.\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+static FAutoConsoleVariableRef CVarD3D12EnableDRED(
+	TEXT("r.D3D12.DRED"),
+	GD3D12EnableDRED,
+	TEXT("Enable DRED GPU Crash debugging mode to track the current GPU state and logs information what operations the GPU executed last.")
+	TEXT("Has GPU overhead but gives the most information on the current GPU state when it crashes or hangs.\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 static bool CheckD3DStoredMessages()
 {
@@ -171,7 +184,7 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	, bHeapNotZeroedSupported(false)
 	, VRSTileSize(0)
 	, bDebugDevice(false)
-	, GPUCrashDebuggingMode(ED3D12GPUCrashDebugginMode::Disabled)
+	, GPUCrashDebuggingModes(ED3D12GPUCrashDebuggingModes::None)
 	, bDeviceRemoved(false)
 	, Desc(DescIn)
 	, RootSignatureManager(this)
@@ -232,37 +245,67 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 #if PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING && D3D12_PROFILING_ENABLED)
 	
-	// Two ways to enable GPU crash debugging, command line or the r.GPUCrashDebugging variable
-	// Note: If intending to change this please alert game teams who use this for user support.
-	// GPU crash debugging will enable DRED and Aftermath if available
+	// Multiple ways to enable the different D3D12 crash debugging modes:
+	// - via RHI independent r.GPUCrashDebugging cvar: by default enable low overhead breadcrumbs and NvAftermath are enabled
+	// - via 'gpucrashdebugging' command line argument: enable all possible GPU crash debug modes (minor performance impact)
+	// - via 'r.D3D12.BreadCrumbs', 'r.D3D12.AfterMath' or 'r.D3D12.Dred' each type of GPU crash debugging mode can be enabled
+	// - via '-gpubreadcrumbs(=0)', '-nvaftermath(=0)' or '-dred(=0)' command line argument: each type of gpu crash debugging mode can enabled/disabled
 	if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
 	{
-		GPUCrashDebuggingMode = ED3D12GPUCrashDebugginMode::Full;
+		GPUCrashDebuggingModes = ED3D12GPUCrashDebuggingModes::All;
 	}
 	else
 	{
-		static IConsoleVariable* GPUCrashDebugging = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
-		if (GPUCrashDebugging)
+		// Parse the specific GPU crash debugging cvars and enable the different modes
+		const auto ParseCVar = [this](const TCHAR* CVarName, ED3D12GPUCrashDebuggingModes DebuggingMode)
 		{
-			GPUCrashDebuggingMode = (GPUCrashDebugging->GetInt() > 0) ? ED3D12GPUCrashDebugginMode::Full : ED3D12GPUCrashDebugginMode::Disabled;
-		}
+			IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(CVarName);
+			if (ConsoleVariable && ConsoleVariable->GetInt() > 0)
+			{
+				EnumAddFlags(GPUCrashDebuggingModes, DebuggingMode);
+			}
+		};
+		ParseCVar(TEXT("r.GPUCrashDebugging"), ED3D12GPUCrashDebuggingModes((int)ED3D12GPUCrashDebuggingModes::BreadCrumbs | (int)ED3D12GPUCrashDebuggingModes::NvAftermath));
+		ParseCVar(TEXT("r.D3D12.BreadCrumbs"), ED3D12GPUCrashDebuggingModes::BreadCrumbs);
+		ParseCVar(TEXT("r.D3D12.NvAfterMath"), ED3D12GPUCrashDebuggingModes::NvAftermath);
+		ParseCVar(TEXT("r.D3D12.DRED"), ED3D12GPUCrashDebuggingModes::DRED);
 
-		// Still disabled then check the D3D specific cvar for minimal tracking
-		if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Disabled)
+		// Enable/disable specific crash debugging modes if requested via command line argument
+		const auto ParseCommandLine = [this](const TCHAR* CommandLineArgument, ED3D12GPUCrashDebuggingModes DebuggingMode)
 		{
-			auto* GPUCrashDebuggingModeVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.D3D12.GPUCrashDebuggingMode"));
-			int32 GPUCrashDebuggingModeValue = GPUCrashDebuggingModeVar ? GPUCrashDebuggingModeVar->GetValueOnAnyThread() : -1;
-			if (GPUCrashDebuggingModeValue >= 0 && GPUCrashDebuggingModeValue <= (int)ED3D12GPUCrashDebugginMode::Full)
-				GPUCrashDebuggingMode = (ED3D12GPUCrashDebugginMode)GPUCrashDebuggingModeValue;
-		}
+			int32 Value = 0;
+			if (FParse::Value(FCommandLine::Get(), *FString::Printf(TEXT("%s="), CommandLineArgument), Value))
+			{
+				if (Value > 0)
+				{
+					EnumAddFlags(GPUCrashDebuggingModes, DebuggingMode);
+				}
+				else
+				{
+					EnumRemoveFlags(GPUCrashDebuggingModes, DebuggingMode);
+				}
+			}
+			else  if (FParse::Param(FCommandLine::Get(), CommandLineArgument))
+			{
+				EnumAddFlags(GPUCrashDebuggingModes, DebuggingMode);
+			}
+		};
+		ParseCommandLine(TEXT("gpubreadcrumbs"), ED3D12GPUCrashDebuggingModes::BreadCrumbs);
+		ParseCommandLine(TEXT("nvaftermath"), ED3D12GPUCrashDebuggingModes::NvAftermath);
+		ParseCommandLine(TEXT("dred"), ED3D12GPUCrashDebuggingModes::DRED);
+	}
+
+	// Submit draw events when any crash debugging mode is enabled
+	if (GPUCrashDebuggingModes != ED3D12GPUCrashDebuggingModes::None)
+	{
+		SetEmitDrawEvents(true);
 	}
 
 #if NV_AFTERMATH
 	if (IsRHIDeviceNVIDIA())
 	{
 		// GPUcrash dump handler must be attached prior to device creation
-		static IConsoleVariable* GPUCrashDump = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDump"));
-		if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full || FParse::Param(FCommandLine::Get(), TEXT("gpucrashdump")) || (GPUCrashDump && GPUCrashDump->GetInt()))
+		if (EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::NvAftermath))
 		{
 			HANDLE CurrentThread = ::GetCurrentThread();
 
@@ -319,7 +362,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 		
 	// Setup DRED if requested
-	if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full || FParse::Param(FCommandLine::Get(), TEXT("dred")))
+	if (EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::DRED))
 	{
 		ID3D12DeviceRemovedExtendedDataSettings* DredSettings = nullptr;
 		HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&DredSettings));
@@ -455,7 +498,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 #if NV_AFTERMATH
 	// Enable aftermath when GPU crash debugging is enabled
-	if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full && GDX12NVAfterMathEnabled)
+	if (EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::NvAftermath) && GDX12NVAfterMathEnabled)
 	{
 		if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 		{
@@ -812,6 +855,12 @@ void FD3D12Adapter::InitializeDevices()
 
 						GRHISupportsRayTracingPSOAdditions = true;
 					}
+				}
+				else if (D3D12Caps5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED 
+					&& FModuleManager::Get().IsModuleLoaded("RenderDocPlugin")
+					&& !FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
+				{
+					UE_LOG(LogD3D12RHI, Warning, TEXT("Ray Tracing is disabled because the RenderDoc plugin is currently not compatible with D3D12 ray tracing."));
 				}
 			}
 

@@ -2187,6 +2187,8 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 	{
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleExpandCollapseNodes);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleExpandCollapseNodesAndDescendants);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ExpandAllNodes);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().CollapseAllNodes);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SortAllNodesAndDescendants);
 	}
 	MenuBuilder.EndSection();

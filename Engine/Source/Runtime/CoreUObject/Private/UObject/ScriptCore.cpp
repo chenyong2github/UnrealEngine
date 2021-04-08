@@ -68,14 +68,11 @@ static FAutoConsoleVariableRef CVarScriptRecurseLimit(
 );
 
 #if PER_FUNCTION_SCRIPT_STATS
-static int32 GMaxFunctionStatDepth = -1;
+static int32 GMaxFunctionStatDepth = MAX_uint8;
 static FAutoConsoleVariableRef CVarMaxFunctionStatDepth(
 	TEXT("bp.MaxFunctionStatDepth"),
 	GMaxFunctionStatDepth,
-	TEXT("Script stack threshold for recording per function stats.\n")
-	TEXT("-1: Record all function stats (default)\n")
-	TEXT("0: Record no function stats\n")
-	TEXT(">0: Record functions with depth < MaxFunctionStatDepth \n"),
+	TEXT("Script stack threshold for recording per function stats.\n"),
 	ECVF_Default
 );
 #endif
@@ -934,7 +931,8 @@ DEFINE_FUNCTION(UObject::execCallMathFunction)
 	checkSlow(NewContext);
 	{
 #if PER_FUNCTION_SCRIPT_STATS
-		FScopeCycleCounterUObject FunctionScope(Function);
+		const bool bShouldTrackFunction = Stack.DepthCounter <= GMaxFunctionStatDepth;
+		FScopeCycleCounterUObject FunctionScope(bShouldTrackFunction ? Function : nullptr);
 #endif // PER_FUNCTION_SCRIPT_STATS
 
 		// CurrentNativeFunction is used so far only by FLuaContext::InvokeScriptFunction
@@ -950,7 +948,7 @@ IMPLEMENT_VM_FUNCTION(EX_CallMath, execCallMathFunction);
 void UObject::CallFunction( FFrame& Stack, RESULT_DECL, UFunction* Function )
 {
 #if PER_FUNCTION_SCRIPT_STATS
-	const bool bShouldTrackFunction = Stats::IsThreadCollectingData();
+	const bool bShouldTrackFunction = (Stack.DepthCounter <= GMaxFunctionStatDepth) && Stats::IsThreadCollectingData();
 	FScopeCycleCounterUObject FunctionScope(bShouldTrackFunction ? Function : nullptr);
 #endif // PER_FUNCTION_SCRIPT_STATS
 
@@ -1137,7 +1135,7 @@ void ProcessLocalFunction(UObject* Context, UFunction* Fn, FFrame& Stack, RESULT
 	else
 	{
 #if PER_FUNCTION_SCRIPT_STATS
-		const bool bShouldTrackFunction = Stats::IsThreadCollectingData();
+		const bool bShouldTrackFunction = (Stack.DepthCounter <= GMaxFunctionStatDepth) && Stats::IsThreadCollectingData();
 		FScopeCycleCounterUObject FunctionScope(bShouldTrackFunction ? Fn : nullptr);
 #endif // PER_FUNCTION_SCRIPT_STATS
 		ProcessScriptFunction(Context, Fn, Stack, RESULT_PARAM, ProcessLocalScriptFunction);
@@ -1830,7 +1828,7 @@ bool FScriptAuditExec::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar
 // which can taint profiling results:
 #define LIGHTWEIGHT_PROCESS_EVENT_COUNTER 0 && !DO_BLUEPRINT_GUARD
 
-#if LIGHTWEIGHT_PROCESS_EVENT_COUNTER || PER_FUNCTION_SCRIPT_STATS
+#if LIGHTWEIGHT_PROCESS_EVENT_COUNTER
 thread_local int32 ProcessEventCounter = 0;
 #endif
 
@@ -1881,17 +1879,8 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 	}
 	checkSlow((Function->ParmsSize == 0) || (Parms != NULL));
 
-#if DO_BLUEPRINT_GUARD
-	FBlueprintContextTracker& BlueprintContextTracker = FBlueprintContextTracker::Get();
-	const int32 ProcessEventDepth = BlueprintContextTracker.GetScriptEntryTag();
-	BlueprintContextTracker.EnterScriptContext(this, Function);
-#elif PER_FUNCTION_SCRIPT_STATS || LIGHTWEIGHT_PROCESS_EVENT_COUNTER
-	const int32 ProcessEventDepth = ProcessEventCounter;
-	TGuardValue<int32> PECounter(ProcessEventCounter, ProcessEventCounter + 1);
-#endif
-
 #if PER_FUNCTION_SCRIPT_STATS
-	const bool bShouldTrackFunction = (GMaxFunctionStatDepth == -1 || ProcessEventDepth < GMaxFunctionStatDepth) && Stats::IsThreadCollectingData();
+	const bool bShouldTrackFunction = Stats::IsThreadCollectingData();
 	FScopeCycleCounterUObject FunctionScope(bShouldTrackFunction ? Function : nullptr);
 #endif // PER_FUNCTION_SCRIPT_STATS
 
@@ -1901,10 +1890,15 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 #endif
 
 #if LIGHTWEIGHT_PROCESS_EVENT_COUNTER
+	TGuardValue<int32> PECounter(ProcessEventCounter, ProcessEventCounter + 1);
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && ProcessEventCounter == 1);
 #endif
 
 #if DO_BLUEPRINT_GUARD
+	FBlueprintContextTracker& BlueprintContextTracker = FBlueprintContextTracker::Get();
+	const int32 ProcessEventDepth = BlueprintContextTracker.GetScriptEntryTag();
+	BlueprintContextTracker.EnterScriptContext(this, Function);
+
 	// Only start stat if this is the top level context
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && BlueprintContextTracker.GetScriptEntryTag() == 1);
 #endif

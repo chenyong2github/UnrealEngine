@@ -218,7 +218,6 @@ void UNiagaraGraph::PostLoad()
 	// Assume that all externally referenced assets have changed, so update to match. They will return true if they have changed.
 	TArray<UNiagaraNode*> NiagaraNodes;
 	GetNodesOfClass<UNiagaraNode>(NiagaraNodes);
-	bool bAnyExternalChanges = false;
 	for (UNiagaraNode* NiagaraNode : NiagaraNodes)
 	{
 		UObject* ReferencedAsset = NiagaraNode->GetReferencedAsset();
@@ -226,11 +225,7 @@ void UNiagaraGraph::PostLoad()
 		{
 			ReferencedAsset->ConditionalPostLoad();
 			NiagaraNode->ConditionalPostLoad();
-			if (NiagaraNode->RefreshFromExternalChanges())
-			{
-				bAnyExternalChanges = true;
-				
-			}
+			NiagaraNode->RefreshFromExternalChanges();
 		}
 		else
 		{
@@ -1615,9 +1610,16 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 			NewScriptVariable->Variable = NewParameter;
 			NewScriptVariable->DefaultMode = (*OldScriptVariable)->DefaultMode;
 			NewScriptVariable->DefaultBinding = (*OldScriptVariable)->DefaultBinding;
+			MetaData.CreateNewGuid();
+			NewScriptVariable->Metadata = MetaData;
 			VariableToScriptVariable.Add(NewParameter, NewScriptVariable);
 		}
-		VariableToScriptVariable.Remove(Parameter);
+
+		const FNiagaraGraphParameterReferenceCollection* ReferenceCollection = GetParameterReferenceMap().Find(Parameter);
+		if (ReferenceCollection && ReferenceCollection->ParameterReferences.Num() <= 1)
+		{
+			VariableToScriptVariable.Remove(Parameter);
+		}
 	}
 	// Either set the new meta-data or use the existing meta-data.
 	if (!NewScriptVariableFound)
@@ -1878,6 +1880,32 @@ bool UNiagaraGraph::HasParameterMapParameters()const
 	return false;
 }
 
+bool UNiagaraGraph::GetPropertyMetadata(FName PropertyName, FString& OutValue) const
+{
+	const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& MetaDataMap = GetAllMetaData();
+	auto Iter = MetaDataMap.CreateConstIterator();
+	while (Iter)
+	{
+		// TODO: This should never be null, but somehow it is in some assets so guard this to prevent crashes
+		// until we have better repro steps.
+		if (Iter.Value() != nullptr)
+		{
+			auto PropertyIter = Iter.Value()->Metadata.PropertyMetaData.CreateConstIterator();
+			while (PropertyIter)
+			{
+				if (PropertyIter.Key() == PropertyName)
+				{
+					OutValue = PropertyIter.Value();
+					return true;
+				}
+				++PropertyIter;
+			}
+		}
+		++Iter;
+	}
+	return false;
+}
+
 bool UNiagaraGraph::HasNumericParameters()const
 {
 	TArray<FNiagaraVariable> Inputs;
@@ -1914,16 +1942,6 @@ void UNiagaraGraph::NotifyGraphNeedsRecompile()
 void UNiagaraGraph::NotifyGraphDataInterfaceChanged()
 {
 	OnDataInterfaceChangedDelegate.Broadcast();
-}
-
-void UNiagaraGraph::SubsumeExternalDependencies(TMap<const UObject*, UObject*>& ExistingConversions)
-{
-	TArray<UNiagaraNode*> NiagaraNodes;
-	GetNodesOfClass<UNiagaraNode>(NiagaraNodes);
-	for (UNiagaraNode* NiagaraNode : NiagaraNodes)
-	{
-		NiagaraNode->SubsumeExternalDependencies(ExistingConversions);
-	}
 }
 
 FNiagaraTypeDefinition UNiagaraGraph::GetCachedNumericConversion(class UEdGraphPin* InPin)

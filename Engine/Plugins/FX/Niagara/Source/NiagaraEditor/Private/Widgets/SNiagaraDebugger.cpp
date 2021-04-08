@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraDebugger.h"
+#include "Editor/EditorStyle/Private/SlateEditorStyle.h"
 #include "NiagaraEditorStyle.h"
 
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
@@ -28,6 +29,7 @@
 #include "NiagaraEditorModule.h"
 #include "Customizations/NiagaraDebugHUDCustomization.h"
 #include "Customizations/NiagaraOutlinerCustomization.h"
+#include "IStructureDetailsView.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraDebugger"
 
@@ -220,15 +222,353 @@ namespace NiagaraOutlinerTab
 {
 	static const FName TabName = FName(TEXT("OutlinerTab"));
 
+	static TSharedRef<SWidget> MakeOutlinerToolbar(TSharedPtr<FNiagaraDebugger>& Debugger)
+	{
+		if (!Debugger.IsValid())
+		{
+			return SNullWidget::NullWidget;
+		}
+		UNiagaraOutliner* Outliner = Debugger->GetOutliner();
+		if (!ensure(Outliner))
+		{
+			return SNullWidget::NullWidget;
+		}
+
+		FToolBarBuilder ToolbarBuilder(MakeShareable(new FUICommandList), FMultiBoxCustomization::None);
+		UNiagaraDebugHUDSettings* Settings = GetMutableDefault<UNiagaraDebugHUDSettings>();
+		ToolbarBuilder.BeginSection("Capture Settings");
+
+		// Capture controls
+		{
+			// Capture button
+			{
+				ToolbarBuilder.AddToolBarButton(
+					FUIAction(FExecuteAction::CreateLambda([Debugger]() 
+					{
+						if (UNiagaraOutliner* Outliner = Debugger->GetOutliner())
+						{
+							Outliner->CaptureSettings.bTriggerCapture = true;
+							Outliner->OnChanged();
+						}
+					})),
+					NAME_None,
+					LOCTEXT("Capture", "Capture"),
+					LOCTEXT("CaptureTooltip", "Triggers a capture of outliner info from the connected session."),
+					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.Outliner.Capture"),
+					EUserInterfaceActionType::Button
+				);
+			}
+
+			// Gather Perf Toggle
+			{
+				ToolbarBuilder.AddToolBarButton(
+					FUIAction(
+						FExecuteAction::CreateLambda([Debugger]() 
+						{
+							if (UNiagaraOutliner* Outliner = Debugger->GetOutliner())
+							{
+								Outliner->CaptureSettings.bGatherPerfData ^= 1;
+								Outliner->OnChanged();
+							}
+						}),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateLambda([Debugger]() { return Debugger->GetOutliner()->CaptureSettings.bGatherPerfData; })
+					),
+					NAME_None,
+					LOCTEXT("GatherOutlinerPerfData", "Perf"),
+					LOCTEXT("GatherOutlinerPerfDataTooltip", "Gather Performance data during outliner capture."),
+					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.Outliner.CapturePerf"),
+					EUserInterfaceActionType::ToggleButton
+				);
+			}
+
+ 			// Capture delay
+ 			{
+				TSharedRef<SWidget> DelayWidget = SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.Padding(FMargin(3.0, 0.0f, 3.0f, 0.0f))
+				.ToolTipText(LOCTEXT("OutlinerDelayTooltip", "Number of frames to delay between a capture being triggered and it being taken.\nThis provides time to affect the scene and also defines the length of time performance data is gathered."))				
+				[
+					SNew(SEditableTextBox)
+					.OnTextCommitted(FOnTextCommitted::CreateLambda([Debugger](const FText& InText, ETextCommit::Type CommitInfo)
+					{
+						if (UNiagaraOutliner* Outliner = Debugger->GetOutliner())
+						{
+							LexFromString(Outliner->CaptureSettings.CaptureDelayFrames, *InText.ToString());
+							Outliner->OnChanged();
+						}
+					}))
+					.Text(MakeAttributeLambda([Debugger]()
+					{
+						if (UNiagaraOutliner* Outliner = Debugger->GetOutliner())
+						{
+							return FText::AsNumber(Outliner->CaptureSettings.CaptureDelayFrames);
+						}
+						return FText::GetEmpty();
+					}))					
+				];
+				ToolbarBuilder.AddToolBarWidget(DelayWidget, LOCTEXT("OutlinerDelay", "Delay"));
+			}
+		}
+
+		ToolbarBuilder.AddSeparator();
+
+		//View Settings
+		{
+			// View Mode
+			{
+				auto GetViewModeText = [Debugger]()
+				{
+					UEnum* Enum = StaticEnum<ENiagaraOutlinerViewModes>();
+					check(Enum);
+					if (UNiagaraOutliner* Outliner = Debugger->GetOutliner())
+					{
+						ENiagaraOutlinerViewModes ViewMode = Outliner->ViewSettings.ViewMode;
+						return Enum->GetDisplayNameTextByValue((int32)ViewMode);
+					}
+					return FText::GetEmpty();
+				};
+				auto GetViewModeMenu = [Debugger]()
+				{
+					FMenuBuilder MenuBuilder(true, NULL);
+					UEnum* Enum = StaticEnum<ENiagaraOutlinerViewModes>();
+					check(Enum);
+					if (UNiagaraOutliner* Outliner = Debugger->GetOutliner())
+					{
+						for (int32 i = 0; i < Enum->NumEnums() - 1; ++i)
+						{
+							FUIAction ItemAction(FExecuteAction::CreateLambda([Debugger, NewMode=(ENiagaraOutlinerViewModes)Enum->GetValueByIndex(i)]
+							{
+								if (UNiagaraOutliner* Outliner = Debugger->GetOutliner())
+								{
+									Outliner->ViewSettings.ViewMode = NewMode;
+									Outliner->OnChanged();
+								}
+							}));
+							MenuBuilder.AddMenuEntry(Enum->GetDisplayNameTextByIndex(i), Enum->GetToolTipTextByIndex(i), FSlateIcon(), ItemAction);
+						}
+					}
+
+					return MenuBuilder.MakeWidget();
+				};
+
+				TSharedRef<SWidget> ViewModeWidget = SNew(SComboButton)
+					.OnGetMenuContent(FOnGetContent::CreateLambda(GetViewModeMenu))
+					.ButtonStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Debugger.Outliner.Toolbar")
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.ToolTipText(LOCTEXT("ViewMode", "View Mode"))
+						.Text(MakeAttributeLambda(GetViewModeText))
+					];
+
+				ToolbarBuilder.AddToolBarWidget(ViewModeWidget, LOCTEXT("OutlinerViewMode", "View Mode"));
+			}
+
+			ToolbarBuilder.AddSeparator();
+
+			//Filters
+			{
+				FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+				TSharedPtr<FStructOnScope> FiltersData = MakeShared<FStructOnScope>(FNiagaraOutlinerFilterSettings::StaticStruct(), (uint8*)&Outliner->ViewSettings.FilterSettings);
+		
+				FDetailsViewArgs DetailsViewArgs;
+				DetailsViewArgs.bAllowSearch = false;
+				DetailsViewArgs.bShowScrollBar = false;
+				DetailsViewArgs.bHideSelectionTip = true;
+				DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+				DetailsViewArgs.NotifyHook = Outliner;
+				DetailsViewArgs.ColumnWidth = 0.4f;
+				TSharedRef<IStructureDetailsView> FilterDetails = PropertyEditorModule.CreateStructureDetailView(
+						DetailsViewArgs,
+						FStructureDetailsViewArgs(),
+						nullptr);
+			
+				FilterDetails->SetStructureData(FiltersData);
+
+				auto OnFiltersChanged = [Debugger, FiltersData](const FPropertyChangedEvent& PropertyChangedEvent)
+				{
+					if (Debugger.IsValid() && FiltersData.IsValid())
+					{
+						Debugger->GetOutliner()->OnChanged();
+					}
+				};
+				FilterDetails->GetOnFinishedChangingPropertiesDelegate().AddLambda(OnFiltersChanged);				
+
+				TSharedRef<SMenuAnchor> FiltersMenu = SNew(SMenuAnchor)
+				.Method(EPopupMethod::UseCurrentWindow)
+				.Placement(MenuPlacement_ComboBox)
+				.OnGetMenuContent(FOnGetContent::CreateLambda([Debugger, FiltersData, FilterDetails]()
+				{
+					return SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+						.Padding(FMargin(2))
+						[
+							FilterDetails->GetWidget().ToSharedRef()
+						];
+				}));
+				
+				FiltersMenu->SetContent(
+					SNew(SButton)				
+					.ButtonStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Debugger.Outliner.Toolbar")
+					.ForegroundColor(FSlateColor::UseForeground())
+					.OnClicked_Lambda([FiltersMenu]() -> FReply 
+					{
+						FiltersMenu->SetIsOpen(true);
+						return FReply::Handled();
+					})
+					[
+						SNew(SImage)
+						.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Debugger.Outliner.Filter"))
+					]
+				);
+
+				ToolbarBuilder.AddToolBarWidget(FiltersMenu, LOCTEXT("OutlinerFiltersLabel", "Filters"));
+			}
+			
+			ToolbarBuilder.AddSeparator();
+
+			// Sorting
+			{
+				//Sort Descending
+				{
+					ToolbarBuilder.AddToolBarButton(
+					FUIAction(
+						FExecuteAction::CreateLambda([Debugger]()
+							{
+								if (Debugger.IsValid())
+								{
+									Debugger->GetOutliner()->ViewSettings.bSortDescending ^= 1;
+									Debugger->GetOutliner()->OnChanged();
+								}
+							}),
+						FCanExecuteAction(),
+								FIsActionChecked::CreateLambda([Debugger]() 
+								{
+									if(Debugger.IsValid())
+									{
+										return Debugger->GetOutliner()->ViewSettings.bSortDescending; 
+									}
+									return false;
+								})
+								),
+								NAME_None,
+								LOCTEXT("SortDecsending", "Descending"),
+								LOCTEXT("SortDecsendingTooltip", "Sort Descending or Ascending"),
+								FSlateIcon(FSlateEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+								EUserInterfaceActionType::ToggleButton
+								);
+				}
+
+				//Sort Mode
+				{
+					auto GetSortModeText = [Debugger]()
+					{
+						UEnum* Enum = StaticEnum<ENiagaraOutlinerSortMode>();
+						if (Debugger.IsValid() && Enum)
+						{
+							ENiagaraOutlinerSortMode SortMode = Debugger->GetOutliner()->ViewSettings.SortMode;
+							return Enum->GetDisplayNameTextByValue((int32)SortMode);
+						}
+						return FText::GetEmpty();
+					};
+					auto GetSortModeMenu = [Debugger]()
+					{
+						FMenuBuilder MenuBuilder(true, NULL);
+						UEnum* Enum = StaticEnum<ENiagaraOutlinerSortMode>();
+						if (Debugger.IsValid() && Enum)
+						{
+							for (int32 i = 0; i < Enum->NumEnums() - 1; ++i)
+							{
+								FUIAction ItemAction(FExecuteAction::CreateLambda([Debugger, NewMode = (ENiagaraOutlinerSortMode)Enum->GetValueByIndex(i)]
+								{
+									if (Debugger.IsValid())
+									{
+										Debugger->GetOutliner()->ViewSettings.SortMode = NewMode;
+										Debugger->GetOutliner()->OnChanged();
+									}
+								}));
+								MenuBuilder.AddMenuEntry(Enum->GetDisplayNameTextByIndex(i), Enum->GetToolTipTextByIndex(i), FSlateIcon(), ItemAction);
+							}
+						}
+
+						return MenuBuilder.MakeWidget();
+					};
+
+					TSharedRef<SWidget> SortModeWidget = SNew(SComboButton)
+						.OnGetMenuContent(FOnGetContent::CreateLambda(GetSortModeMenu))
+						.ButtonStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Debugger.Outliner.Toolbar")
+						.ButtonContent()
+						[
+							SNew(STextBlock)
+							.ToolTipText(LOCTEXT("SortMode", "Sort Mode"))
+							.Text(MakeAttributeLambda(GetSortModeText))
+						];
+
+					ToolbarBuilder.AddToolBarWidget(SortModeWidget, LOCTEXT("OutlinerSortMode", "Sort Mode"));
+				}
+			}
+
+			ToolbarBuilder.AddSeparator();
+
+			//Time units
+			{
+				auto GetUnitsText = [Debugger]()
+				{
+					UEnum* Enum = StaticEnum<ENiagaraOutlinerTimeUnits>();
+					if (Debugger.IsValid() && Enum)
+					{
+						ENiagaraOutlinerTimeUnits TimeUnits = Debugger->GetOutliner()->ViewSettings.TimeUnits;
+						return Enum->GetDisplayNameTextByValue((int32)TimeUnits);
+					}
+					return FText::GetEmpty();
+				};
+				auto GetUnitsMenu = [Debugger]()
+				{
+					FMenuBuilder MenuBuilder(true, NULL);
+					UEnum* Enum = StaticEnum<ENiagaraOutlinerTimeUnits>();
+					if (Debugger.IsValid() && Enum)
+					{
+						for (int32 i = 0; i < Enum->NumEnums() - 1; ++i)
+						{
+							FUIAction ItemAction(FExecuteAction::CreateLambda([Debugger, NewMode=(ENiagaraOutlinerTimeUnits)Enum->GetValueByIndex(i)]
+							{
+								if (Debugger.IsValid())
+								{
+									Debugger->GetOutliner()->ViewSettings.TimeUnits = NewMode;
+									Debugger->GetOutliner()->OnChanged();
+								}
+							}));
+							MenuBuilder.AddMenuEntry(Enum->GetDisplayNameTextByIndex(i), Enum->GetToolTipTextByIndex(i), FSlateIcon(), ItemAction);
+						}
+					}
+
+					return MenuBuilder.MakeWidget();
+				};
+
+				TSharedRef<SWidget> UnitsWidget = SNew(SComboButton)
+					.OnGetMenuContent(FOnGetContent::CreateLambda(GetUnitsMenu))
+					.ButtonStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Debugger.Outliner.Toolbar")
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.ToolTipText(LOCTEXT("TimeUnits", "Units"))
+						.Text(MakeAttributeLambda(GetUnitsText))
+					];
+
+				ToolbarBuilder.AddToolBarWidget(UnitsWidget, LOCTEXT("OutlinerTimeUnits", "Units"));
+			}
+		}
+
+		ToolbarBuilder.EndSection();
+
+		return ToolbarBuilder.MakeWidget();
+	}
+
 	static void RegisterTabSpawner(const TSharedPtr<FTabManager>& TabManager, TSharedPtr<FNiagaraDebugger>& Debugger)
 	{
-		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
- 		FDetailsViewArgs DetailsArgs;
- 		DetailsArgs.bHideSelectionTip = true;
- 		TSharedPtr<IDetailsView> OutlinerDetails = PropertyModule.CreateDetailView(DetailsArgs);
- 
- 		OutlinerDetails->SetObject(Debugger->GetOutliner());
+		TSharedRef<SWidget> OutlinerToolbar = MakeOutlinerToolbar(Debugger);
 
 		TabManager->RegisterTabSpawner(
 			TabName,
@@ -239,17 +579,14 @@ namespace NiagaraOutlinerTab
 						.TabRole(ETabRole::PanelTab)
 						.Label(LOCTEXT("OutlinerTitle", "FX Outliner"))
 						[
-							SNew(SSplitter)
-							.Orientation(Orient_Vertical)
-							+ SSplitter::Slot()
-							.SizeRule(SSplitter::ESizeRule::FractionOfParent)
-							.Value(.4f)
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
 							[
-								OutlinerDetails.ToSharedRef()
+								OutlinerToolbar
 							]
-							+ SSplitter::Slot()
-							.SizeRule(SSplitter::ESizeRule::FractionOfParent)
-							.Value(.6f)
+ 							+ SVerticalBox::Slot()
+							.Padding(2.0)
 							[
 								SNew(SNiagaraOutlinerTree, Debugger)
 							]

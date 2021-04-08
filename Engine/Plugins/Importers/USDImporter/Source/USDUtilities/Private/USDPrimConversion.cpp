@@ -62,16 +62,23 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	{
 		if ( StageInfo.UpAxis == EUsdUpAxis::YAxis )
 		{
-			AdditionalRotation = FRotator(0.0f, -90.f, 0.0f);
+			AdditionalRotation = FRotator( 0.0f, -90.f, 0.0f );
 		}
 		else
 		{
-			AdditionalRotation = FRotator(-90.0f, -90.f, 0.0f);
+			AdditionalRotation = FRotator( -90.0f, -90.f, 0.0f );
 		}
 	}
 	else if ( Xformable.GetPrim().IsA< pxr::UsdLuxLight >() )
 	{
-		AdditionalRotation = FRotator( 0.f, -90.f, 0.f ); // UE emits light in +X, USD emits in -Z
+		if ( StageInfo.UpAxis == EUsdUpAxis::YAxis )
+		{
+			AdditionalRotation = FRotator( 0.0f, -90.f, 0.0f );
+		}
+		else
+		{
+			AdditionalRotation = FRotator( -90.0f, -90.f, 0.0f );
+		}
 	}
 
 	OutTransform = FTransform( AdditionalRotation ) * UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix );
@@ -275,15 +282,19 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 	{
 		AdditionalRotation = FTransform( FRotator( 0.0f, 90.f, 0.0f ) );
 
-		if ( UsdUtils::GetUsdStageAxis( Stage ) == pxr::UsdGeomTokens->z )
+		if ( UsdUtils::GetUsdStageUpAxis( Stage ) == pxr::UsdGeomTokens->z )
 		{
 			AdditionalRotation *= FTransform( FRotator( 90.0f, 0.f, 0.0f ) );
 		}
 	}
 	else if ( const ULightComponent* LightComponent = Cast< ULightComponent >( SceneComponent ) )
 	{
-		const FRotator LightRotation( 0.f, 90.f, 0.f ); // UE emits light in +X, USD emits in -Z
-		AdditionalRotation = FTransform( LightRotation );
+		AdditionalRotation = FTransform( FRotator( 0.0f, 90.f, 0.0f ) );
+
+		if ( UsdUtils::GetUsdStageUpAxis( Stage ) == pxr::UsdGeomTokens->z )
+		{
+			AdditionalRotation *= FTransform( FRotator( 90.0f, 0.f, 0.0f ) );
+		}
 	}
 
 	RelativeTransform = AdditionalRotation * RelativeTransform;

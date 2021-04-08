@@ -14,6 +14,12 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
+#include "Engine/UserDefinedEnum.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor/EditorEngine.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeSelect"
 
@@ -83,7 +89,6 @@ void UNiagaraNodeSelect::ChangeSelectorPinType(FNiagaraTypeDefinition Type)
 	{
 		SelectorPin->bOrphanedPin = true;
 	}
-
 	
 	ReallocatePins(true);
 }
@@ -191,52 +196,15 @@ void UNiagaraNodeSelect::AddPinSearchMetaDataInfo(const UEdGraphPin* Pin, TArray
 void UNiagaraNodeSelect::AllocateDefaultPins()
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-	
-	// create the option pin infos based on the selector pin type. This will restore removed pins and the original order
-	const FNiagaraTypeDefinition SelectorTypeDefinition = SelectorPinType;
-	if (SelectorTypeDefinition.IsEnum())
-	{		
-		UEnum* Enum = SelectorTypeDefinition.GetEnum();
-		
-		int32 OptionCount = 0;
-		for (int32 EnumIndex = 0; EnumIndex < Enum->NumEnums() - 1; ++EnumIndex)
-		{
-			bool const bShouldBeHidden = ShouldHideEnumEntry(Enum, EnumIndex);
-	
-			if (!bShouldBeHidden)
-			{
-				OptionCount++;
-				for (const FNiagaraVariable& Variable : OutputVars)
-				{
-					AddOptionPin(Variable, EnumIndex);		
-				}
-			}
-		}
-		
-		NumOptionsPerVariable = OptionCount;
-	}
-	else if(SelectorTypeDefinition == FNiagaraTypeDefinition::GetIntDef())
-	{
-		NumOptionsPerVariable = FMath::Max(2, NumOptionsPerVariable);
-		for(int32 Index = 0; Index < NumOptionsPerVariable; Index++)
-		{
-			for(const FNiagaraVariable& Variable : OutputVars)
-			{
-				AddOptionPin(Variable, Index);
-			}
-		}
-	}
-	else if(SelectorTypeDefinition == FNiagaraTypeDefinition::GetBoolDef())
-	{
-		NumOptionsPerVariable = 2;
-		for(const FNiagaraVariable& Variable : OutputVars)
-		{
-			AddOptionPin(Variable, 0);
-		}
 
+	TArray<int32> OptionValues = GetOptionValues();
+	NumOptionsPerVariable = OptionValues.Num();
+
+	for(int32 OptionIndex = 0; OptionIndex < OptionValues.Num(); OptionIndex++)
+	{
 		for(const FNiagaraVariable& Variable : OutputVars)
 		{
-			AddOptionPin(Variable, 1);
+			AddOptionPin(Variable, OptionValues[OptionIndex]);
 		}
 	}
 
@@ -281,6 +249,54 @@ void UNiagaraNodeSelect::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverT
 	}
 }
 
+void UNiagaraNodeSelect::PostLoad()
+{
+	Super::PostLoad();
+	
+	// we assume something changed externally if the input pins are outdated; i.e. the assigned enum changed or value order changed
+	if (AreInputPinsOutdated())
+	{
+		RefreshFromExternalChanges();
+	}
+}
+
+void UNiagaraNodeSelect::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
+{
+	Super::GetNodeContextMenuActions(Menu, Context);
+
+	if (SelectorPinType.IsEnum() && SelectorPinType.GetEnum())
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection("Node");
+
+		Section.AddMenuEntry(
+			"BrowseToEnum",
+			FText::Format(LOCTEXT("BrowseToEnumLabel", "Browse to {0}"), FText::FromString(SelectorPinType.GetEnum()->GetName())),
+			LOCTEXT("BrowseToEnumTooltip", "Browses to the enum in the content browser."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([=]()
+			{
+				FContentBrowserModule& Module = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+				Module.Get().SyncBrowserToAssets({ FAssetData(SelectorPinType.GetEnum()) });
+			}), FCanExecuteAction::CreateLambda([=]()
+			{
+				return Cast<UUserDefinedEnum>(SelectorPinType.GetEnum()) != nullptr;
+			})));
+
+		Section.AddMenuEntry(
+			"OpenEnum",
+			FText::Format(LOCTEXT("OpenEnumLabel", "Open {0}"), FText::FromString(SelectorPinType.GetEnum()->GetName())),
+			LOCTEXT("OpenEnumTooltip", "Opens up the enum asset."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([=]()
+			{
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SelectorPinType.GetEnum());
+			}), FCanExecuteAction::CreateLambda([=]()
+			{
+				return Cast<UUserDefinedEnum>(SelectorPinType.GetEnum()) != nullptr;
+			})));
+	}
+}
+
 void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {	
 	const UEdGraphPin* SelectorPin = GetSelectorPin();
@@ -304,7 +320,6 @@ void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int3
 	{
 		OptionValues.Add(SelectorValues[Index]);
 	}
-
 
 	for (int32 SelectorValueIndex = 0; SelectorValueIndex < NumOptionsPerVariable; SelectorValueIndex++)
 	{
@@ -409,12 +424,6 @@ void UNiagaraNodeSelect::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> InputBox)
 	];
 }
 
-bool UNiagaraNodeSelect::RefreshFromExternalChanges()
-{
-	ReallocatePins();
-	return true;
-}
-
 void UNiagaraNodeSelect::GetWildcardPinHoverConnectionTextAddition(const UEdGraphPin* WildcardPin, const UEdGraphPin* OtherPin, ECanCreateConnectionResponse ConnectionResponse, FString& OutString) const
 {
 	if(ConnectionResponse == ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
@@ -512,7 +521,7 @@ void UNiagaraNodeSelect::PostChange(const UUserDefinedEnum* Changed, FEnumEditor
 {
 	if (SelectorPinType.GetEnum() == Changed)
 	{
-		ReallocatePins(true);
+		RefreshFromExternalChanges();
 	}
 }
 
@@ -647,11 +656,12 @@ TArray<int32> UNiagaraNodeSelect::GetOptionValues() const
 
 	if(SelectorPinType == FNiagaraTypeDefinition::GetBoolDef())
 	{
-		SelectorValues = { 0, 1 };
+		SelectorValues = { 1, 0 };
 	}
 	else if(SelectorPinType == FNiagaraTypeDefinition::GetIntDef())
 	{
-		for(int32 Index = 0; Index < NumOptionsPerVariable; Index++)
+		int32 NewOptionsCount = FMath::Max(2, NumOptionsPerVariable);
+		for(int32 Index = 0; Index < NewOptionsCount; Index++)
 		{
 			SelectorValues.Add(Index);
 		}

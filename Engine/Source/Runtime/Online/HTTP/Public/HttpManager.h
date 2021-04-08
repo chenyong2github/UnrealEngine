@@ -193,6 +193,8 @@ protected:
 	/** Queue of tasks to run on the game thread */
 	TQueue<TFunction<void()>, EQueueMode::Mpsc> GameThreadQueue;
 
+	bool bFlushing;
+
 PACKAGE_SCOPE:
 
 	/** Used to lock access to add/remove/find requests */

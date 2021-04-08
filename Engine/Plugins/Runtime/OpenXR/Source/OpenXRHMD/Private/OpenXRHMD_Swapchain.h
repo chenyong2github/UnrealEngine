@@ -22,8 +22,6 @@ public:
 	XrSwapchain GetHandle() { return Handle; }
 
 protected:
-	virtual void ReleaseResources_RHIThread() override final;
-
 	XrSwapchain Handle;
 };
 

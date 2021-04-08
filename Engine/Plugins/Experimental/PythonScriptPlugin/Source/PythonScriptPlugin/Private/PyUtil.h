@@ -569,16 +569,16 @@ namespace PyUtil
 	bool EnableDeveloperWarnings();
 
 	/**
-	 * Log any pending Python error (will also clear the error).
-	 * @return The error text that was logged.
+	 * Log and clear any pending Python error, optionally retrieving the error text that was logged.
+	 * @return True if Python was in an error state, false otherwise.
 	 */
-	FString LogPythonError(const bool bInteractive = false);
+	bool LogPythonError(FString* OutError = nullptr, const bool bInteractive = false);
 
 	/**
-	 * Re-throw any pending Python error via FFrame::KismetExecutionMessage (will also clear the error).
-	 * @return The error text that was thrown.
+	 * Re-throw and clear any pending Python error via FFrame::KismetExecutionMessage, optionally retrieving the error text that was thrown.
+	 * @return True if Python was in an error state, false otherwise.
 	 */
-	FString ReThrowPythonError();
+	bool ReThrowPythonError(FString* OutError = nullptr);
 }
 
 #endif	// WITH_PYTHON

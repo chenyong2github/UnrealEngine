@@ -9,12 +9,12 @@
 #if WITH_DIRECTXMATH
 #define SIMD_ALIGNMENT (16)
 #include "Math/UnrealMathDirectX.h"
-#elif PLATFORM_ENABLE_VECTORINTRINSICS
-#define SIMD_ALIGNMENT (16)
-#include "Math/UnrealMathSSE.h"
 #elif PLATFORM_ENABLE_VECTORINTRINSICS_NEON
 #define SIMD_ALIGNMENT (16)
 #include "Math/UnrealMathNeon.h"
+#elif PLATFORM_ENABLE_VECTORINTRINSICS
+#define SIMD_ALIGNMENT (16)
+#include "Math/UnrealMathSSE.h"
 #else
 #define SIMD_ALIGNMENT (4)
 #include "Math/UnrealMathFPU.h"

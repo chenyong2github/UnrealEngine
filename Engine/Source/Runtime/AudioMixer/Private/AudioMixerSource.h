@@ -137,6 +137,7 @@ namespace Audio
 
 		// Mapping of channel map types to channel maps. Determined by what submixes this source sends its audio to.
 		Audio::AlignedFloatBuffer ChannelMap;
+		FRWLock ChannelMapLock;
 
 		float PreviousAzimuth;
 		mutable float PreviousPlaybackPercent;

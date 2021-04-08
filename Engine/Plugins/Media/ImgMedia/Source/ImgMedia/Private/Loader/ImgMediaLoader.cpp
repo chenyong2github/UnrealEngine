@@ -236,12 +236,19 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 	{
 		FTimespan StartTime = TimeRange.GetLowerBoundValue().Time;
 		FTimespan EndTime = TimeRange.GetUpperBoundValue().Time;
+		check(TimeRange.GetLowerBoundValue() <= TimeRange.GetUpperBoundValue());
 
 		if (bIsLoopingEnabled)
 		{
 			// Modulo with sequence duration to take care of looping.
 			StartTime = ModuloTime(StartTime);
 			EndTime = ModuloTime(EndTime);
+
+			// If we get an EndTime before the StartTime, the end was precisely on the end of the media data -> we adjust this for simpler code below
+			if (EndTime < StartTime)
+			{
+				EndTime += SequenceDuration;
+			}
 		}
 
 		// Get start and end frame indices for this time range.
@@ -764,12 +771,13 @@ void FImgMediaLoader::FindMips(const FString& SequencePath)
 	FString BaseName = FPaths::GetCleanFilename(SequenceDir);
 	FString ParentDir = FPaths::GetPath(SequenceDir);
 	
-	// Is this a mipmap level, i.e. ends with something like _2048?
+	// Is this a mipmap level, i.e. something like 256x256?
 	int32 Index = 0;
-	bool FoundDelimeter = SequenceDir.FindLastChar(TEXT('_'), Index);
+	bool FoundDelimeter = SequenceDir.FindLastChar(TEXT('x'), Index);
 	if (FoundDelimeter)
 	{
 		// Loop over all mip levels.
+		FString BaseMipDir = FPaths::GetPath(SequenceDir);
 		FString MipLevelString = SequenceDir.RightChop(Index + 1);
 		int32 MipLevel = FCString::Atoi(*MipLevelString);
 		while (MipLevel > 1)
@@ -778,8 +786,7 @@ void FImgMediaLoader::FindMips(const FString& SequencePath)
 			MipLevel /= 2;
 
 			// Try and find files for this mip level.
-			FString BaseMipDir = SequenceDir.LeftChop(SequenceDir.Len() - Index - 1);
-			FString MipDir = BaseMipDir.Append(FString::FromInt(MipLevel));
+			FString MipDir = FPaths::Combine(BaseMipDir, FString::Printf(TEXT("%dx%d"), MipLevel, MipLevel));
 			TArray<FString> MipFiles;
 			FindFiles(MipDir, MipFiles);
 

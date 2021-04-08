@@ -49,7 +49,7 @@ public:
 	// Returns true if the controller may be used.
 	virtual bool IsSupported() = 0;
 
-	// Returns the name of the controller. Used for logging propuses.
+	// Returns the name of the controller. Used for logging purposes.
 	virtual const FString GetName() = 0;
 
 	virtual void Tick(float DeltaSeconds){}

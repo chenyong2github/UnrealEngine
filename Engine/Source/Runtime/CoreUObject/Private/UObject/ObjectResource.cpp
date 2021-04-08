@@ -48,7 +48,6 @@ FObjectExport::FObjectExport()
 , bExportLoadFailed(false)
 , DynamicType(EDynamicType::NotDynamicExport)
 , bWasFiltered(false)
-, PackageGuid(FGuid(0, 0, 0, 0))
 , PackageFlags(0)
 , FirstExportDependency(-1)
 , SerializationBeforeSerializationDependencies(0)
@@ -75,7 +74,6 @@ FObjectExport::FObjectExport( UObject* InObject, bool bInNotAlwaysLoadedForEdito
 , bExportLoadFailed(false)
 , DynamicType(EDynamicType::NotDynamicExport)
 , bWasFiltered(false)
-, PackageGuid(FGuid(0, 0, 0, 0))
 , PackageFlags(0)
 , FirstExportDependency(-1)
 , SerializationBeforeSerializationDependencies(0)
@@ -148,7 +146,9 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 	Record << SA_VALUE(TEXT("bNotForClient"), E.bNotForClient);
 	Record << SA_VALUE(TEXT("bNotForServer"), E.bNotForServer);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Record << SA_VALUE(TEXT("PackageGuid"), E.PackageGuid);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Record << SA_VALUE(TEXT("PackageFlags"), E.PackageFlags);
 
 	if (BaseArchive.UE4Ver() >= VER_UE4_LOAD_FOR_EDITOR_GAME)
@@ -227,7 +227,9 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectTextExport& E)
 	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bNotForClient"), E.Export.bNotForClient, false);
 	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bNotForServer"), E.Export.bNotForServer, false);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("PackageGuid"), E.Export.PackageGuid, FGuid());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("PackageFlags"), E.Export.PackageFlags, 0);
 
 	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bNotAlwaysLoadedForEditorGame"), E.Export.bNotAlwaysLoadedForEditorGame, false);

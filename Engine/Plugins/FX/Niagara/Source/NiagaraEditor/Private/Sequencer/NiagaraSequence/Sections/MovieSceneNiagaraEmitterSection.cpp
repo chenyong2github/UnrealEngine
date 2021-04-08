@@ -123,7 +123,7 @@ TSharedPtr<FStructOnScope> GetKeyStruct(TMovieSceneChannelHandle<FMovieSceneNiag
 
 bool UMovieSceneNiagaraEmitterSection::TryAddModule(UNiagaraNodeFunctionCall& InModule, FText& OutErrorMessage)
 {
-	FString* TimelineModeValue = InModule.FunctionScript->ScriptMetaData.Find(TimelineModeKey);
+	FString* TimelineModeValue = InModule.GetScriptData()->ScriptMetaData.Find(TimelineModeKey);
 
 	if (TimelineModeValue == nullptr)
 	{
@@ -421,7 +421,7 @@ void UMovieSceneNiagaraEmitterSection::UpdateKeyModulesFromSection(FChannelAndMo
 		TArray<UNiagaraScript*> BinderDependentScripts;
 		BinderDependentScripts.Add(SystemUpdateScript);
 
-		UNiagaraScriptSource* EmitterUpdateSource = CastChecked<UNiagaraScriptSource>(EmitterUpdateScript->GetSource());
+		UNiagaraScriptSource* EmitterUpdateSource = CastChecked<UNiagaraScriptSource>(EmitterUpdateScript->GetLatestSource());
 		UNiagaraNodeOutput* EmitterUpdateOutputNode = EmitterUpdateSource->NodeGraph->FindOutputNode(ENiagaraScriptUsage::EmitterUpdateScript);
 		
 		bool bRequired = true;

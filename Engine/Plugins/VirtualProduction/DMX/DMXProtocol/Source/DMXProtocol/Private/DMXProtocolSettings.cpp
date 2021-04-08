@@ -4,10 +4,10 @@
 
 #include "DMXProtocolBlueprintLibrary.h"
 #include "DMXProtocolConstants.h"
+#include "IO/DMXInputPort.h"
+#include "IO/DMXOutputPort.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXPortManager.h"
-
-#include "Misc/ScopeLock.h"
 
 
 UDMXProtocolSettings::UDMXProtocolSettings()
@@ -15,8 +15,8 @@ UDMXProtocolSettings::UDMXProtocolSettings()
 	, ReceivingRefreshRate(DMX_RATE)
 	, bDefaultSendDMXEnabled(true)
 	, bDefaultReceiveDMXEnabled(true)
-	, bOverrideReceiveDMXEnabled(true)
 	, bOverrideSendDMXEnabled(true)	
+	, bOverrideReceiveDMXEnabled(true)
 {
 	FixtureCategories =
 	{
@@ -138,11 +138,13 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 
 		FDMXAttributeName::OnValuesChanged.Broadcast();
 	}
-	else if (
-		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs)	||
+	else if	(
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs))
 	{
-		FDMXPortManager::Get().NotifyPortConfigArraysChanged();
+		FDMXPortManager::Get().UpdateFromProtocolSettings();
+
+		OnPortConfigsChanged.Broadcast();
 	}
 
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
@@ -162,3 +164,4 @@ void UDMXProtocolSettings::OverrideReceiveDMXEnabled(bool bEnabled)
 
 	OnSetReceiveDMXEnabled.Broadcast(bEnabled);
 }
+

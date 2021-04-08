@@ -591,6 +591,13 @@ protected:
 	UPROPERTY(ReplicatedUsing=OnRep_Owner)
 	TObjectPtr<AActor> Owner;
 
+#if WITH_EDITOR
+	/**
+	 * Used to track changes to Owner during Undo events.
+	 */
+	TWeakObjectPtr<AActor> IntermediateOwner = nullptr;
+#endif
+
 protected:
 	/** Used to specify the net driver to replicate on (NAME_None || NAME_GameNetDriver is the default net driver) */
 	UPROPERTY()
@@ -2383,7 +2390,7 @@ protected:
 	void SyncReplicatedPhysicsSimulation();
 
 public:
-	/** 
+	/**
 	 * Set the owner of this Actor, used primarily for network replication. 
 	 * @param NewOwner	The Actor who takes over ownership of this Actor
 	 */
@@ -3115,7 +3122,7 @@ public:
 	bool IsInPersistentLevel(bool bIncludeLevelStreamingPersistent = false) const;
 
 	/** Getter for the cached world pointer, will return null if the actor is not actually spawned in a level */
-	virtual UWorld* GetWorld() const override;
+	virtual UWorld* GetWorld() const override final;
 
 	/** Get the timer instance from the actors world */
 	class FTimerManager& GetWorldTimerManager() const;

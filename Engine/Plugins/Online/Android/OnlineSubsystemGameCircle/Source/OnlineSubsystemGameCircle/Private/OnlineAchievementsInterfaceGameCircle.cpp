@@ -22,7 +22,7 @@ void FOnlineAchievementsGameCircle::QueryAchievements(const FUniqueNetId& Player
 		return;
 	}
 
-	AmazonGames::AchievementsClientInterface::getAchievements(new FOnlineGetAchievementsCallback(AndroidSubsystem, FUniqueNetIdGameCircle(PlayerId), Delegate));
+	AmazonGames::AchievementsClientInterface::getAchievements(new FOnlineGetAchievementsCallback(AndroidSubsystem, FUniqueNetIdGameCircle::Cast(PlayerId), Delegate));
 }
 
 void FOnlineAchievementsGameCircle::QueryAchievementDescriptions(const FUniqueNetId& PlayerId, const FOnQueryAchievementsCompleteDelegate& Delegate)

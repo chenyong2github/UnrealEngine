@@ -13,6 +13,7 @@
 #include "Templates/SharedPointer.h"
 
 struct FDMXInputPortConfig;
+class FDMXPortManager;
 class FDMXRawListener;
 
 
@@ -21,29 +22,37 @@ class FDMXRawListener;
  *
  * To input DMX into your objects, refer to DMXRawListener and DMXTickedUniverseListener.
  *
- * See DMXPortManager for an overview of the port system.
+ * Can only be constructed via DMXPortManger, see FDMXPortManager::CreateInputPort and FDMXPortManager::CreateInputPortFromConfig
+
  */
 class DMXPROTOCOL_API FDMXInputPort
 	: public FDMXPort
 	, public FTickableGameObject
 {
+	// Friend DMXPortManager so no other object can create instances
+	friend FDMXPortManager;
+
 	// Friend Raw Listener so it can add and remove themselves to the port
 	friend FDMXRawListener;
+
+protected:
+	/** Creates an output port that is not tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
+	static FDMXInputPortSharedRef Create();
+
+	/** Creates an output port tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
+	static FDMXInputPortSharedRef CreateFromConfig(const FDMXInputPortConfig& InputPortConfig);
 
 public:
 	virtual ~FDMXInputPort();
 
-	// ~Begin DMXPort Interface 
+	/** Updates the Port to use the config of the InputPortConfig */
+	void UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig);
 
 public:
-	/** Initializes the port, called from DMXPortManager */
-	virtual void Initialize(const FGuid& InPortGuid) override;
+	// ~Begin DMXPort Interface 
 
 	/** Returns true if the port is successfully registered with its protocol */
 	virtual bool IsRegistered() const override;
-
-	/** Updates the DMXPort from the PortConfig with corresponding Guid */
-	virtual void UpdateFromConfig() override;
 
 	/** Returns the Guid of the Port */
 	virtual const FGuid& GetPortGuid() const override;

@@ -16,6 +16,11 @@ void FUserWidgetPool::SetWorld(UWorld* InOwningWorld)
 	OwningWorld = InOwningWorld;
 }
 
+void FUserWidgetPool::SetDefaultPlayerController(APlayerController* InDefaultPlayerController)
+{
+	DefaultPlayerController = InDefaultPlayerController;
+}
+
 void FUserWidgetPool::RebuildWidgets()
 {
 	for (UUserWidget* Widget : ActiveWidgets)

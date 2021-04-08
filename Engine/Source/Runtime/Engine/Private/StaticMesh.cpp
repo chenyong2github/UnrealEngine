@@ -821,6 +821,21 @@ void FStaticMeshLODResources::GetResourceSizeEx(FResourceSizeEx& CumulativeResou
 	CumulativeResourceSize.AddUnknownMemoryBytes(Sections.GetAllocatedSize());
 }
 
+SIZE_T FStaticMeshLODResources::GetCPUAccessMemoryOverhead() const
+{
+	int32 NumIndices = IndexBuffer.GetAllowCPUAccess() ? IndexBuffer.GetNumIndices() : 0;
+	if (AdditionalIndexBuffers)
+	{
+		NumIndices += AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetAllowCPUAccess() ? AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetNumIndices() : 0;
+		NumIndices += AdditionalIndexBuffers->ReversedIndexBuffer.GetAllowCPUAccess() ? AdditionalIndexBuffers->ReversedIndexBuffer.GetNumIndices() : 0;
+		NumIndices += AdditionalIndexBuffers->WireframeIndexBuffer.GetAllowCPUAccess() ? AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() : 0;
+	}
+	return NumIndices * (IndexBuffer.Is32Bit() ? 4 : 2) +
+		(VertexBuffers.StaticMeshVertexBuffer.GetAllowCPUAccess() ? VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() : 0) +
+		(VertexBuffers.PositionVertexBuffer.GetAllowCPUAccess() ? VertexBuffers.PositionVertexBuffer.GetStride() * VertexBuffers.PositionVertexBuffer.GetNumVertices() : 0) +
+		(VertexBuffers.ColorVertexBuffer.GetAllowCPUAccess() ? VertexBuffers.ColorVertexBuffer.GetStride() * VertexBuffers.ColorVertexBuffer.GetNumVertices() : 0);
+}
+
 int32 FStaticMeshLODResources::GetNumTriangles() const
 {
 	int32 NumTriangles = 0;
@@ -2659,7 +2674,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 		LLM_SCOPE_BYNAME(TEXT("AssetCompilation/StaticMesh"));
 
 		COOK_STAT(auto Timer = StaticMeshCookStats::UsageStats.TimeSyncWork());
-		int32 T0 = FPlatformTime::Cycles();
+		double T0 = FPlatformTime::Seconds();
 		int32 NumLODs = Owner->GetNumSourceModels();
 		const FStaticMeshLODGroup& LODGroup = LODSettings.GetLODGroup(Owner->LODGroup);
 		const FString KeySuffix = BuildStaticMeshDerivedDataKeySuffix(TargetPlatform, Owner, LODGroup);
@@ -2751,9 +2766,9 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 				GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, Owner->GetPathName());
 			}
 
-			int32 T1 = FPlatformTime::Cycles();
+			double T1 = FPlatformTime::Seconds();
 			UE_LOG(LogStaticMesh,Log,TEXT("Built static mesh [%.2fs] %s"),
-				FPlatformTime::ToMilliseconds(T1-T0) / 1000.0f,
+				T1-T0,
 				*Owner->GetPathName()
 				);
 			FPlatformAtomics::InterlockedAdd(&StaticMeshDerivedDataTimings::BuildCycles, T1 - T0);
@@ -3117,6 +3132,21 @@ void FStaticMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 		NextCachedRenderData->GetResourceSizeEx(CumulativeResourceSize);
 	}
 #endif // #if WITH_EDITORONLY_DATA
+}
+
+SIZE_T FStaticMeshRenderData::GetCPUAccessMemoryOverhead() const
+{
+	SIZE_T Result = 0;
+
+	for (int32 LODIndex = 0; LODIndex < LODResources.Num(); ++LODIndex)
+	{
+		Result += LODResources[LODIndex].GetCPUAccessMemoryOverhead();
+	}
+
+#if WITH_EDITORONLY_DATA
+	Result += NextCachedRenderData ? NextCachedRenderData->GetCPUAccessMemoryOverhead() : 0;
+#endif
+	return Result;
 }
 
 int32 UStaticMesh::GetNumVertices(int32 LODIndex) const

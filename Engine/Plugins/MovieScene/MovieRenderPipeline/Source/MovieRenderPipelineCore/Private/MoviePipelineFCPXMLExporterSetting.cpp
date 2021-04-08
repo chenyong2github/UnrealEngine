@@ -27,7 +27,7 @@ void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 	// Use our file name format on the end of the shared common directory.
 	FString FileNameFormatString = OutputSetting->OutputDirectory.Path / FileNameFormat;
 	
-	FStringFormatNamedArguments FormatOverrides;
+	TMap<FString, FString> FormatOverrides;
 	FormatOverrides.Add(TEXT("ext"), TEXT("xml"));
 
 	// Create a full absolute path

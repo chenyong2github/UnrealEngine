@@ -400,7 +400,7 @@ public:
 
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << MGeometry;
+		Ar.SerializeConstPtr(MGeometry);
 	}
 
 	template <typename TOther>
@@ -417,7 +417,7 @@ public:
 	template <typename TOther>
 	bool IsEqual(const TOther& Other) const
 	{
-		return Geometry() == Other.SharedGeometryLowLevel()
+		return Geometry() == Other.Geometry()
 			&& UniqueIdx() == Other.UniqueIdx()
 			&& SpatialIdx() == Other.SpatialIdx()
 #if CHAOS_CHECKED
@@ -431,10 +431,12 @@ public:
 		return IsEqual(Other);
 	}
 
-	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& AccessGeometry() { return MGeometry; }
-	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& Geometry() const { return MGeometry;}
-	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MGeometry;}
-	void SetGeometry(const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& InGeometry) { MGeometry = InGeometry;}
+	//This function is not thread safe, don't use it (geometry is shared across threads). Leaving here for existing code, but needs to be removed
+	FImplicitObject* AccessGeometryDangerous() const { return const_cast<FImplicitObject*>(MGeometry.Get()); }
+
+	TSerializablePtr<FImplicitObject> Geometry() const { return TSerializablePtr<const FImplicitObject>(MGeometry);}
+	const TSharedPtr<const FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MGeometry;}
+	void SetGeometry(const TSharedPtr<const FImplicitObject,ESPMode::ThreadSafe>& InGeometry) { MGeometry = InGeometry;}
 
 	const FUniqueIdx& UniqueIdx() const { return MUniqueIdx; }
 	void SetUniqueIdx(FUniqueIdx InIdx){ MUniqueIdx = InIdx; }
@@ -447,7 +449,7 @@ public:
 	void SetDebugName(FName InName) { MDebugName = InName; }
 #endif
 private:
-	TSharedPtr<FImplicitObject,ESPMode::ThreadSafe> MGeometry;
+	TSharedPtr<const FImplicitObject,ESPMode::ThreadSafe> MGeometry;
 	FUniqueIdx MUniqueIdx;
 	FSpatialAccelerationIdx MSpatialIdx;
 
@@ -1264,6 +1266,12 @@ public:
 		{
 			Manager.GetShapePool<T,PropName>().GetElement(Idx) = Val;
 		}
+	}
+
+	template <EShapeProperty PropName>
+	bool IsDirty() const
+	{
+		return Flags.IsDirty(ShapePropToFlag(PropName));
 	}
 
 	void Clear(FDirtyPropertiesManager& Manager, int32 Idx)

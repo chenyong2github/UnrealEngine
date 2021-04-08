@@ -1441,6 +1441,8 @@ const Audio::FAudioDebugger& FAudioDeviceManager::GetDebugger() const
 
 void FAudioDeviceManager::AppWillEnterBackground()
 {
+	SCOPED_ENTER_BACKGROUND_EVENT(STAT_FAudioDeviceManager_AppWillEnterBackground);
+
 	// Flush all commands to the audio thread and the audio render thread:
 	if (GCVarFlushAudioRenderCommandsOnSuspend)
 	{

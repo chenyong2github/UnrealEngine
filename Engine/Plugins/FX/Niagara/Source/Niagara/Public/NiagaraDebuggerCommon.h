@@ -78,13 +78,17 @@ struct FNiagaraOutlinerSystemInstanceData
 	uint32 bPendingKill : 1;
 	
 	UPROPERTY(VisibleAnywhere, Category = "State")
-	ENCPoolMethod PoolMethod;
+	ENCPoolMethod PoolMethod = ENCPoolMethod::None;
 
 	UPROPERTY(VisibleAnywhere, Category = "Performance")
 	FNiagaraOutlinerTimingData AverageTime;
 
 	UPROPERTY(VisibleAnywhere, Category = "Performance")
 	FNiagaraOutlinerTimingData MaxTime;
+
+	FNiagaraOutlinerSystemInstanceData() :
+		bPendingKill(false)
+	{}
 
 	//TODO:
 	//Tick info, solo, tick group etc.

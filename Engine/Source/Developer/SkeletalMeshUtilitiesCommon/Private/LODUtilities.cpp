@@ -605,7 +605,7 @@ FVector GetBaryCentric(const FVector& Point, const FVector& A, const FVector& B,
 struct FTriangleElement
 {
 	FBox2D UVsBound;
-	FBox PositionBound;
+	FBoxCenterAndExtent PositionBound;
 	TArray<FSoftSkinVertex> Vertices;
 	TArray<uint32> Indexes;
 	uint32 TriangleIndex;
@@ -1182,8 +1182,13 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 
 	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
 	IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
+	if (!MeshReduction)
+	{
+		UE_ASSET_LOG(LogLODUtilities, Warning, SkeletalMesh, TEXT("Cannot reduce skeletalmesh LOD because there is no active reduction plugin."));
+		return;
+	}
 
-	check (MeshReduction && MeshReduction->IsSupported());
+	check (MeshReduction->IsSupported());
 
 
 	if (DesiredLOD == 0
@@ -1625,7 +1630,9 @@ void MatchVertexIndexUsingPosition(
 		const SkeletalMeshImportData::FTriangle& Triangle = ImportDataDest.Faces[FaceIndexDest];
 		FTriangleElement TriangleElement;
 		TriangleElement.UVsBound.Init();
-		TriangleElement.PositionBound.Init();
+
+		FBox TrianglePositionBound;
+		TrianglePositionBound.Init();
 
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
@@ -1638,10 +1645,11 @@ void MatchVertexIndexUsingPosition(
 			SoftSkinVertex.UVs[0] = ImportDataDest.Wedges[WedgeIndexDest].UVs[0];
 			TriangleElement.Vertices.Add(SoftSkinVertex);
 			TriangleElement.UVsBound += SoftSkinVertex.UVs[0];
-			TriangleElement.PositionBound += SoftSkinVertex.Position;
+			TrianglePositionBound += SoftSkinVertex.Position;
 			BaseMeshPositionBound += SoftSkinVertex.Position;
 		}
-		BaseMeshPositionBound += TriangleElement.PositionBound;
+		BaseMeshPositionBound += TrianglePositionBound;
+		TriangleElement.PositionBound = FBoxCenterAndExtent(TrianglePositionBound);
 		TriangleElement.TriangleIndex = FaceIndexDest;
 		TrianglesDest.Add(TriangleElement);
 	}
@@ -2316,7 +2324,12 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 		IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
 		//This will load all necessary module before kicking the multi threaded reduction
 		IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
-		check(MeshReduction && MeshReduction->IsSupported());
+		if (!MeshReduction)
+		{
+			UE_ASSET_LOG(LogLODUtilities, Warning, SkeletalMesh, TEXT("Cannot reduce skeletalmesh LOD because there is no active reduction plugin."));
+			return;
+		}
+		check(MeshReduction->IsSupported());
 
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
 

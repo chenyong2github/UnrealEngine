@@ -13,7 +13,7 @@
 /**
  * Template Sequence Editor settings.
  */
-UCLASS(config=BaseTemplateSequenceSettings)
+UCLASS(config=EditorPerProjectUserSettings)
 class UTemplateSequenceEditorSettings
 	: public UObject
 {
@@ -22,5 +22,9 @@ class UTemplateSequenceEditorSettings
 public:
 
 	UTemplateSequenceEditorSettings(const FObjectInitializer& ObjectInitializer);
+
+	/** Whether to show "outdated assets" by default in the camera animation track's asset picker. */
+	UPROPERTY(config)
+	bool bShowOutdatedAssetsInCameraAnimationTrackEditor = false;
 };
 

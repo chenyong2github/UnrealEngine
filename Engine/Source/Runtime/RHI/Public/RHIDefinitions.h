@@ -381,8 +381,11 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	FGenericDataDrivenShaderPlatformInfo()
 	{
 		FMemory::Memzero(this, sizeof(*this));
-		MaxFeatureLevel = ERHIFeatureLevel::Num;
+
+		SetDefaultValues();
 	}
+
+	void SetDefaultValues();
 
 public:
 	static void Initialize();

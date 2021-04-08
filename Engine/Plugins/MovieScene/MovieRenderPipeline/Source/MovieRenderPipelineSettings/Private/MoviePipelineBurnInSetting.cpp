@@ -7,6 +7,7 @@
 #include "MoviePipelineBurnInWidget.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineMasterConfig.h"
+#include "MoviePipelineBlueprintLibrary.h"
 #include "MoviePipeline.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "MoviePipelineOutputBuilder.h"
@@ -49,7 +50,7 @@ void UMoviePipelineBurnInSetting::RenderSample_GameThreadImpl(const FMoviePipeli
 		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputBuilder = GetPipeline()->OutputBuilder;
 
 		ENQUEUE_RENDER_COMMAND(BurnInRenderTargetResolveCommand)(
-			[InSampleState, BackbufferRenderTarget, OutputBuilder](FRHICommandListImmediate& RHICmdList)
+			[InSampleState, bComposite = bCompositeOntoFinalImage, BackbufferRenderTarget, OutputBuilder](FRHICommandListImmediate& RHICmdList)
 		{
 			FIntRect SourceRect = FIntRect(0, 0, BackbufferRenderTarget->GetSizeXY().X, BackbufferRenderTarget->GetSizeXY().Y);
 
@@ -66,7 +67,8 @@ void UMoviePipelineBurnInSetting::RenderSample_GameThreadImpl(const FMoviePipeli
 			FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("BurnInOverlay"));
 			FrameData->SampleState = InSampleState;
 			FrameData->bRequireTransparentOutput = true;
-			FrameData->SortingOrder = 3;
+			FrameData->SortingOrder = 4;
+			FrameData->bCompositeToFinalImage = bComposite;
 
 			TUniquePtr<FImagePixelData> PixelData = MakeUnique<TImagePixelData<FColor>>(InSampleState.BackbufferSize, TArray64<FColor>(MoveTemp(RawPixels)), FrameData);
 
@@ -82,7 +84,7 @@ void UMoviePipelineBurnInSetting::SetupImpl(const MoviePipeline::FMoviePipelineR
 		return;
 	}
 
-	OutputResolution = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>()->OutputResolution;
+	OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipeline()->GetPipelineMasterConfig(), GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()]);
 	int32 MaxResolution = GetMax2DTextureDimension();
 	if (OutputResolution.X > MaxResolution || OutputResolution.Y > MaxResolution)
 	{
@@ -95,6 +97,8 @@ void UMoviePipelineBurnInSetting::SetupImpl(const MoviePipeline::FMoviePipelineR
 	ensureAlwaysMsgf(BurnIn, TEXT("Failed to load burnin class: '%s'."), *BurnInClass.GetAssetPathString());
 
 	BurnInWidgetInstance = CreateWidget<UMoviePipelineBurnInWidget>(GetWorld(), BurnIn);
+	
+	
 
 	VirtualWindow = SNew(SVirtualWindow).Size(FVector2D(OutputResolution.X, OutputResolution.Y));
 	VirtualWindow->SetContent(BurnInWidgetInstance->TakeWidget());

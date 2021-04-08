@@ -41,7 +41,7 @@
 	#include <mfidl.h>
 	#include <Mfreadwrite.h>
 
-	#include "Windows/COMPointer.h"
+	#include "Microsoft/COMPointer.h"
 	#include "Windows/HideWindowsPlatformTypes.h"
 
 #elif PLATFORM_WINDOWS && !UE_SERVER

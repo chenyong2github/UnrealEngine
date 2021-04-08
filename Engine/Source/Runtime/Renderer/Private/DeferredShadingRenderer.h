@@ -41,6 +41,7 @@ struct FSceneWithoutWaterTextures;
 struct FHeightFogRenderingParameters;
 struct FRayTracingReflectionOptions;
 struct FHairStrandsTransmittanceMaskData;
+struct FVolumetricFogLocalLightFunctionInfo;
 struct FTranslucencyLightingVolumeTextures;
 
 /**   
@@ -778,6 +779,7 @@ private:
 	void RenderLightFunctionForVolumetricFog(
 		FRDGBuilder& GraphBuilder,
 		FViewInfo& View,
+		const FSceneTextures& SceneTextures,
 		FIntVector VolumetricFogGridSize,
 		float VolumetricFogMaxDistance,
 		FMatrix& OutLightFunctionWorldToShadow,
@@ -793,7 +795,8 @@ private:
 		float VolumetricFogDistance,
 		bool bVoxelizeEmissive);
 
-	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder);
+	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures);
 
 	void VisualizeVolumetricLightmap(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 

@@ -211,7 +211,7 @@ void UOnlineHotfixManager::PostInitProperties()
 {
 #if !UE_BUILD_SHIPPING
 	FParse::Value(FCommandLine::Get(), TEXT("HOTFIXPREFIX="), DebugPrefix);
-	if (!DebugPrefix.IsEmpty())
+	if (!DebugPrefix.IsEmpty() && !DebugPrefix.EndsWith(HOTFIX_SEPARATOR))
 	{
 		DebugPrefix += HOTFIX_SEPARATOR;
 	}

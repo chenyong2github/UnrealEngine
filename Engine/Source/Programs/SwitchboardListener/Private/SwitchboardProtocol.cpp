@@ -14,6 +14,10 @@
 #include "Serialization/JsonWriter.h"
 
 
+DECLARE_LOG_CATEGORY_EXTERN(LogSwitchboardProtocol, Verbose, All);
+DEFINE_LOG_CATEGORY(LogSwitchboardProtocol);
+
+
 FString CreateMessage(const FString& InStateDescription, bool bInState, const TMap<FString, FString>& InAdditionalFields)
 {
 	FString Message;
@@ -93,6 +97,24 @@ FString CreateSendFileToClientFailedMessage(const FString& InSourcePath, const F
 	return CreateMessage(TEXT("receive file complete"), false, { { TEXT("source"), InSourcePath }, { TEXT("error"), InError } });
 }
 
+FString CreateRedeployStatusMessage(const FGuid& InMessageID, bool bAck, const FString& Status)
+{
+	return CreateMessage(TEXT("redeploy server status"), bAck, { { TEXT("id"), InMessageID.ToString() }, { TEXT("status"), Status } });
+}
+
+
+// This logs an error with some context in the event the field is missing.
+TSharedPtr<FJsonValue> TryGetCommandRequiredField(const TSharedPtr<FJsonObject>& CommandObj, const FString& FieldName)
+{
+	TSharedPtr<FJsonValue> Field = CommandObj->TryGetField(FieldName);
+	if (!Field)
+	{
+		UE_LOG(LogSwitchboardProtocol, Error, TEXT("\"%s\" command missing required field \"%s\""),
+			*CommandObj->GetStringField(TEXT("command")).ToLower(), *FieldName);
+	}
+	return Field;
+}
+
 bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask, bool& bOutEcho)
 {
 	TSharedRef<TJsonReader<TCHAR>> Reader = FJsonStringReader::Create(InCommand);
@@ -128,13 +150,23 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 	const FString CommandName = CommandField->AsString().ToLower();
 	if (CommandName == TEXT("start"))
 	{
-		TSharedPtr<FJsonValue> ExeField = JsonData->TryGetField(TEXT("exe"));
-		TSharedPtr<FJsonValue> ArgsField = JsonData->TryGetField(TEXT("args"));
-		TSharedPtr<FJsonValue> NameField = JsonData->TryGetField(TEXT("name"));
-		TSharedPtr<FJsonValue> CallerField = JsonData->TryGetField(TEXT("caller"));
-		TSharedPtr<FJsonValue> WorkingDirField = JsonData->TryGetField(TEXT("working_dir"));
-		TSharedPtr<FJsonValue> UpdateClientsWithStdoutField = JsonData->TryGetField(TEXT("bUpdateClientsWithStdout"));
-		TSharedPtr<FJsonValue> ForceWindowFocusField = JsonData->TryGetField(TEXT("bForceWindowFocus"));
+		TSharedPtr<FJsonValue> ExeField = TryGetCommandRequiredField(JsonData, TEXT("exe"));
+		TSharedPtr<FJsonValue> ArgsField = TryGetCommandRequiredField(JsonData, TEXT("args"));
+		TSharedPtr<FJsonValue> NameField = TryGetCommandRequiredField(JsonData, TEXT("name"));
+		TSharedPtr<FJsonValue> CallerField = TryGetCommandRequiredField(JsonData, TEXT("caller"));
+		TSharedPtr<FJsonValue> WorkingDirField = TryGetCommandRequiredField(JsonData, TEXT("working_dir"));
+		TSharedPtr<FJsonValue> UpdateClientsWithStdoutField = TryGetCommandRequiredField(JsonData, TEXT("bUpdateClientsWithStdout"));
+
+		if (!ExeField || !ArgsField || !NameField || !CallerField || !WorkingDirField || !UpdateClientsWithStdoutField)
+		{
+			return false;
+		}
+
+		int32 PriorityModifier = 0;
+		if (TSharedPtr<FJsonValue> PriorityModifierField = JsonData->TryGetField(TEXT("priority_modifier")))
+		{
+			PriorityModifierField->TryGetNumber(PriorityModifier);
+		}
 
 		OutTask = MakeUnique<FSwitchboardStartTask>(
 			MessageID,
@@ -145,17 +177,17 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 			CallerField->AsString(),
 			WorkingDirField->AsString(),
 			UpdateClientsWithStdoutField->AsBool(),
-			ForceWindowFocusField->AsBool()
+			PriorityModifier
 		);
 
 		return true;
 	}
 	else if (CommandName == TEXT("kill"))
 	{
-		TSharedPtr<FJsonValue> UUIDField = JsonData->TryGetField(TEXT("uuid"));
+		TSharedPtr<FJsonValue> UUIDField = TryGetCommandRequiredField(JsonData, TEXT("uuid"));
 
 		FGuid ProgramID;
-		if (FGuid::Parse(UUIDField->AsString(), ProgramID))
+		if (UUIDField.IsValid() && FGuid::Parse(UUIDField->AsString(), ProgramID))
 		{
 			OutTask = MakeUnique<FSwitchboardKillTask>(MessageID, InEndpoint, ProgramID);
 			return true;
@@ -163,8 +195,8 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 	}
 	else if (CommandName == TEXT("send file"))
 	{
-		TSharedPtr<FJsonValue> DestinationField = JsonData->TryGetField(TEXT("destination"));
-		TSharedPtr<FJsonValue> FileContentField = JsonData->TryGetField(TEXT("content"));
+		TSharedPtr<FJsonValue> DestinationField = TryGetCommandRequiredField(JsonData, TEXT("destination"));
+		TSharedPtr<FJsonValue> FileContentField = TryGetCommandRequiredField(JsonData, TEXT("content"));
 		
 		if (DestinationField.IsValid() && FileContentField.IsValid())
 		{
@@ -174,7 +206,7 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 	}
 	else if (CommandName == TEXT("receive file"))
 	{
-		TSharedPtr<FJsonValue> SourceField = JsonData->TryGetField(TEXT("source"));
+		TSharedPtr<FJsonValue> SourceField = TryGetCommandRequiredField(JsonData, TEXT("source"));
 
 		if (SourceField.IsValid())
 		{
@@ -194,35 +226,32 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 	}
 	else if (CommandName == TEXT("get sync status"))
 	{
-		TSharedPtr<FJsonValue> UUIDField = JsonData->TryGetField(TEXT("uuid"));
+		TSharedPtr<FJsonValue> UUIDField = TryGetCommandRequiredField(JsonData, TEXT("uuid"));
 
 		FGuid ProgramID;
-
-		if (FGuid::Parse(UUIDField->AsString(), ProgramID))
+		if (UUIDField.IsValid() && FGuid::Parse(UUIDField->AsString(), ProgramID))
 		{
 			OutTask = MakeUnique<FSwitchboardGetSyncStatusTask>(MessageID, InEndpoint, ProgramID);
 			return true;
 		}
 	}
-	else if (CommandName == TEXT("forcefocus"))
+	else if (CommandName == TEXT("redeploy listener"))
 	{
-		TSharedPtr<FJsonValue> PidField = JsonData->TryGetField(TEXT("pid"));
+		TSharedPtr<FJsonValue> Sha1Field = TryGetCommandRequiredField(JsonData, TEXT("sha1"));
+		TSharedPtr<FJsonValue> FileContentField = TryGetCommandRequiredField(JsonData, TEXT("content"));
 
-		uint32 Pid;
-
-		if (PidField.IsValid() && PidField->TryGetNumber(Pid))
+		if (Sha1Field.IsValid() && FileContentField.IsValid())
 		{
-			OutTask = MakeUnique<FSwitchboardForceFocusTask>(MessageID, InEndpoint, Pid);
+			OutTask = MakeUnique<FSwitchboardRedeployListenerTask>(MessageID, InEndpoint, Sha1Field->AsString(), FileContentField->AsString());
 			return true;
 		}
 	}
 	else if (CommandName == TEXT("fixExeFlags"))
 	{
-		TSharedPtr<FJsonValue> UUIDField = JsonData->TryGetField(TEXT("uuid"));
+		TSharedPtr<FJsonValue> UUIDField = TryGetCommandRequiredField(JsonData, TEXT("uuid"));
 
 		FGuid ProgramID;
-
-		if (FGuid::Parse(UUIDField->AsString(), ProgramID))
+		if (UUIDField.IsValid() && FGuid::Parse(UUIDField->AsString(), ProgramID))
 		{
 			OutTask = MakeUnique<FSwitchboardFixExeFlagsTask>(MessageID, InEndpoint, ProgramID);
 			return true;

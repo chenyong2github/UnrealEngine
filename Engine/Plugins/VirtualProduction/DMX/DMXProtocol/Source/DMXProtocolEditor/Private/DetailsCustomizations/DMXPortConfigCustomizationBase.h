@@ -3,10 +3,9 @@
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
-
 #include "DMXProtocolCommon.h"
-
 #include "CoreMinimal.h"
+#include "Layout/Visibility.h"
 
 enum class EDMXCommunicationType : uint8;
 class SDMXCommunicationTypeComboBox;
@@ -24,6 +23,11 @@ class FDMXPortConfigCustomizationBase
 	: public IPropertyTypeCustomization
 {
 protected:
+	/** Constructor */
+	FDMXPortConfigCustomizationBase()
+		: DestinationAddressVisibility(EVisibility::Visible)
+	{}
+
 	// ~Begin IPropertyTypecustomization Interface
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
@@ -35,8 +39,8 @@ protected:
 	/** Returns the name of the Communication Type property */
 	virtual FName GetCommunicationTypePropertyNameChecked() const = 0;
 
-	/** Returns the name of the Address property */
-	virtual FName GetAddressPropertyNameChecked() const = 0;
+	/** Returns the name of the Device Address property */
+	virtual FName GetDeviceAddressPropertyNameChecked() const = 0;
 
 	/** Returns the name of the Port Guid property */
 	virtual FName GetPortGuidPropertyNameChecked() const = 0;
@@ -55,10 +59,6 @@ protected:
 
 	/** Gets the IP Address */
 	FString GetIPAddress() const;
-
-public:
-	/** Notifies others that the port config has changed */
-	void NotifyEditorChangedPortConfig();
 
 private:
 	/** Generates the customized Protocol Name row */
@@ -82,18 +82,24 @@ private:
 	/** Called when a Communication Type was selected */
 	void OnCommunicationTypeSelected();
 
+	/** Called when the Destination Address visibility needs to be updated */
+	void UpdateDestinationAddressVisibility();
+
 private:
 	/** Property handle to the ProtocolName property */
 	TSharedPtr<IPropertyHandle> ProtocolNameHandle;
 
 	/** Property handle to the IPAddress property */
-	TSharedPtr<IPropertyHandle> AddressHandle;
+	TSharedPtr<IPropertyHandle> DeviceAddressHandle;
 
 	/** Property handle to the CommunicationType property */
 	TSharedPtr<IPropertyHandle> CommunicationTypeHandle;
 
 	/** Property handle to the PortGuid property */
 	TSharedPtr<IPropertyHandle> PortGuidHandle;
+
+	/** Visibility of the destination address */
+	EVisibility DestinationAddressVisibility;
 
 	/** ComboBox to select a protocol name */
 	TSharedPtr<SDMXProtocolNameComboBox> ProtocolNameComboBox;

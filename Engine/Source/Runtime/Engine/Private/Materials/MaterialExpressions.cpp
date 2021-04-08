@@ -87,6 +87,7 @@
 #include "Materials/MaterialExpressionDesaturation.h"
 #include "Materials/MaterialExpressionDistance.h"
 #include "Materials/MaterialExpressionDistanceCullFade.h"
+#include "Materials/MaterialExpressionDistanceFieldsRenderingSwitch.h"
 #include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionDotProduct.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
@@ -11560,6 +11561,75 @@ void UMaterialExpressionDistanceCullFade::GetCaption(TArray<FString>& OutCaption
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionDistanceFieldsRenderingSwitch
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionDistanceFieldsRenderingSwitch::UMaterialExpressionDistanceFieldsRenderingSwitch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_DistanceFieldsRendering;
+		FConstructorStatics()
+			: NAME_DistanceFieldsRendering(LOCTEXT("DistanceFieldsRendering", "DistanceFieldsRendering"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_DistanceFieldsRendering);
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionDistanceFieldsRenderingSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Yes.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing DistanceFieldsRenderingSwitch input 'Yes'"));
+	}
+
+	if (!No.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing DistanceFieldsRenderingSwitch input 'No'"));
+	}
+
+	if (!IsMobilePlatform(Compiler->GetShaderPlatform()))
+	{
+		return (IsUsingDistanceFields(Compiler->GetShaderPlatform()))? Yes.Compile(Compiler) : No.Compile(Compiler);
+	}
+
+    if (IsMobileDistanceFieldEnabled(Compiler->GetShaderPlatform()))
+    {
+        return Yes.Compile(Compiler);
+    }
+
+	return No.Compile(Compiler);
+}
+
+bool UMaterialExpressionDistanceFieldsRenderingSwitch::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	for (FExpressionInput* ExpressionInput : GetInputs())
+	{
+		if (ExpressionInput->GetTracedInput().Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UMaterialExpressionDistanceFieldsRenderingSwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("DistanceFieldsRenderingSwitch"));
+}
+
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionActorPositionWS
 ///////////////////////////////////////////////////////////////////////////////
 UMaterialExpressionActorPositionWS::UMaterialExpressionActorPositionWS(const FObjectInitializer& ObjectInitializer)
@@ -19474,6 +19544,7 @@ UMaterialExpressionCloudSampleAttribute::UMaterialExpressionCloudSampleAttribute
 	Outputs.Add(FExpressionOutput(TEXT("Altitude")));
 	Outputs.Add(FExpressionOutput(TEXT("AltitudeInLayer")));
 	Outputs.Add(FExpressionOutput(TEXT("NormAltitudeInLayer")));
+	Outputs.Add(FExpressionOutput(TEXT("ShadowSampleDistance")));
 #endif
 }
 
@@ -19492,6 +19563,10 @@ int32 UMaterialExpressionCloudSampleAttribute::Compile(class FMaterialCompiler* 
 	{
 		return Compiler->GetCloudSampleNormAltitudeInLayer();
 	}
+	else if (OutputIndex == 3)
+	{
+		return Compiler->GetCloudSampleShadowSampleDistance();
+	}
 
 	return Compiler->Errorf(TEXT("Invalid input parameter"));
 }
@@ -19503,7 +19578,7 @@ void UMaterialExpressionCloudSampleAttribute::GetCaption(TArray<FString>& OutCap
 
 void UMaterialExpressionCloudSampleAttribute::GetExpressionToolTip(TArray<FString>& OutToolTip)
 {
-	ConvertToMultilineToolTip(TEXT("Cloud sample attributes.\nCloudSampleAltitude is the sample atlitude relative to the planet ground (centimeters).\nCloudSampleAltitudeInLayer is the sample atlitude relative to the cloud layer bottom altitude (centimeters).\nCloudSampleNormAltitudeInLayer is the normalised sample altitude within the cloud layer (0=bottom, 1=top)."), 80, OutToolTip);
+	ConvertToMultilineToolTip(TEXT("Cloud sample attributes.\n- Altitude is the sample atlitude relative to the planet ground (centimeters).\n- AltitudeInLayer is the sample atlitude relative to the cloud layer bottom altitude (centimeters).\n- NormAltitudeInLayer is the normalised sample altitude within the cloud layer (0=bottom, 1=top).\n- ShadowSampleDistance is 0.0 if the sample is used to trace the cloud in view (primary view ray sample). If it is used to trace volumetric shadows, then it is greater than 0.0 and it represents the shadow sample distance in centimeter from the primary view ray sample (during secondary ray marching or Beer shadow map generation): This can help tweaking the shadow strength, skip some code using dynamic branching or sample texture lower mipmaps."), 80, OutToolTip);
 }
 
 #endif // WITH_EDITOR

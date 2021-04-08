@@ -604,26 +604,29 @@ static bool OnlineExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 						
 						if (!FParse::Token(Cmd, LeaderboardName, false) || !FParse::Token(Cmd, SortedColumn, false))
 						{
-							UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("Command parameters not found. Command syntax is 'LEADERBOARDS LeaderboardName SortedColumn ColumnNName ColumnNFormat ... UserID"));
+							// If the user didn't pass in any parameters, try to get them from the config file instead.
+							(new FTestLeaderboardInterface(SubName))->TestFromConfig(InWorld);
 						}
-
-						TMap<FString, EOnlineKeyValuePairDataType::Type> Columns;
-						FString ColumnName;
-						while (FParse::Token(Cmd, ColumnName, false))
+						else
 						{
-							FString ColumnFormat;
-							if(FParse::Token(Cmd, ColumnFormat, false))
+							TMap<FString, EOnlineKeyValuePairDataType::Type> Columns;
+							FString ColumnName;
+							while (FParse::Token(Cmd, ColumnName, false))
 							{
-								Columns.Add(ColumnName, EOnlineKeyValuePairDataType::FromString(ColumnFormat));
+								FString ColumnFormat;
+								if (FParse::Token(Cmd, ColumnFormat, false))
+								{
+									Columns.Add(ColumnName, EOnlineKeyValuePairDataType::FromString(ColumnFormat));
+								}
+								else
+								{
+									UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("Setting %s as UserId for LEADERBOARDS TEST"), *ColumnName);
+									UserId = ColumnName;
+								}
 							}
-							else
-							{
-								UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("Setting %s as UserId for LEADERBOARDS TEST"), *ColumnName);
-								UserId = ColumnName;
-							}
-						}
 
-						(new FTestLeaderboardInterface(SubName))->Test(InWorld, LeaderboardName, SortedColumn, MoveTemp(Columns), UserId);
+							(new FTestLeaderboardInterface(SubName))->Test(InWorld, LeaderboardName, SortedColumn, MoveTemp(Columns), UserId);
+						}
 						bWasHandled = true;
 					}
 					else if (FParse::Command(&Cmd, TEXT("STATS")))

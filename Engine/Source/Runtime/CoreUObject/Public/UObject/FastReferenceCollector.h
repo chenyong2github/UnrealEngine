@@ -18,6 +18,9 @@
 
 struct FStackEntry;
 
+/** Token stream stack overflow checks are not enabled in test and shipping configs */
+#define UE_ENABLE_TOKENSTREAM_STACKOVERFLOW_CHECKS (!(UE_BUILD_TEST || UE_BUILD_SHIPPING) || 0)
+
 /*=============================================================================
 	FastReferenceCollector.h: Unreal realtime garbage collection helpers
 =============================================================================*/
@@ -622,6 +625,67 @@ private:
 	}
 
 	/**
+	 * Helper class to manage GC token stram stack 
+	 */
+	class FTokenStreamStack
+	{
+		/** Allocated stack memory */
+		TArray<FStackEntry> Stack;
+		/** Current stack frame */
+		FStackEntry* CurrentFrame = nullptr;
+#if UE_ENABLE_TOKENSTREAM_STACKOVERFLOW_CHECKS
+		/** Number of used stack frames (for debugging) */
+		int32 NumberOfUsedStackFrames = 0;
+#endif // UE_ENABLE_TOKENSTREAM_STACKOVERFLOW_CHECKS
+
+	public:
+
+		FTokenStreamStack()
+		{
+			Stack.AddUninitialized(FGCReferenceTokenStream::GetMaxStackSize());
+		}
+
+		/** Initializes the stack and returns its first frame */
+		FORCEINLINE FStackEntry* Initialize()
+		{
+#if UE_ENABLE_TOKENSTREAM_STACKOVERFLOW_CHECKS
+			NumberOfUsedStackFrames = 1;
+#endif // UE_ENABLE_TOKENSTREAM_STACKOVERFLOW_CHECKS
+			// Grab te first frame. From now on we'll be using it instead of TArray to move to the next one and back
+			// in order to skip any extra internal TArray checks and overhead
+			CurrentFrame = GetBottomFrame();
+			return CurrentFrame;
+		}
+
+		/** Returns the frame at the bottom of the stack (the first one) */
+		FORCEINLINE FStackEntry* GetBottomFrame()
+		{
+			return Stack.GetData();
+		}
+
+		/** Advances to the next frame on the stack */
+		FORCEINLINE FStackEntry* Push()
+		{
+			checkSlow(NumberOfUsedStackFrames > 0); // sanity check to make sure Push() gets called after Initialize()
+#if UE_ENABLE_TOKENSTREAM_STACKOVERFLOW_CHECKS
+			NumberOfUsedStackFrames++;
+			UE_CLOG(NumberOfUsedStackFrames > Stack.Num(), LogGarbage, Fatal, TEXT("Ran out of stack space for GC Token Stream. FGCReferenceTokenStream::GetMaxStackSize() = %d must be miscalculated. Verify EmitReferenceInfo code."), FGCReferenceTokenStream::GetMaxStackSize());
+#endif // UE_ENABLE_TOKENSTREAM_STACKOVERFLOW_CHECKS
+			return ++CurrentFrame;
+		}
+
+		/** Pops back to the previous frame on the stack */
+		FORCEINLINE FStackEntry* Pop()
+		{
+#if UE_ENABLE_TOKENSTREAM_STACKOVERFLOW_CHECKS
+			NumberOfUsedStackFrames--;
+			UE_CLOG(NumberOfUsedStackFrames < 1, LogGarbage, Fatal, TEXT("GC token stream stack Pop() was called too many times. Probably a Push() call is missing for one of the tokens."));
+#endif // UE_ENABLE_TOKENSTREAM_STACKOVERFLOW_CHECKS
+			return --CurrentFrame;
+		}
+	};
+
+	/**
 	 * Traverses UObject token stream to find existing references
 	 *
 	 * @param InObjectsToSerializeArray Objects to process
@@ -643,8 +707,7 @@ private:
 		TArray<UObject*>& NewObjectsToSerialize = NewObjectsToSerializeStruct.ObjectsToSerialize;
 
 		// Presized "recursion" stack for handling arrays and structs.
-		TArray<FStackEntry> Stack;
-		Stack.AddUninitialized(128); //@todo rtgc: need to add code handling more than 128 layers of recursion or at least assert
+		FTokenStreamStack Stack;
 
 		// it is necessary to have at least one extra item in the array memory block for the iffy prefetch code, below
 		ObjectsToSerialize.Reserve(ObjectsToSerialize.Num() + 1);
@@ -701,7 +764,7 @@ private:
 				uint32 ReferenceTokenStreamIndex = 0;
 
 				// Create stack entry and initialize sane values.
-				FStackEntry* RESTRICT StackEntry = Stack.GetData();
+				FStackEntry* RESTRICT StackEntry = Stack.Initialize();
 				uint8* StackEntryData = (uint8*)CurrentObject;
 				StackEntry->Data = StackEntryData;
 				StackEntry->ContainerType = GCRT_None;
@@ -754,7 +817,7 @@ private:
 						else
 						{
 							StackEntry->ContainerType = GCRT_None;
-							StackEntry--;
+							StackEntry = Stack.Pop();
 							StackEntryData = StackEntry->Data;
 						}
 					}
@@ -800,7 +863,7 @@ private:
 					{
 						// We're dealing with a dynamic array of structs.
 						const FScriptArray& Array = *((FScriptArray*)(StackEntryData + ReferenceInfo.Offset));
-						StackEntry++;
+						StackEntry = Stack.Push();
 						StackEntryData = (uint8*)Array.GetData();
 						StackEntry->Data = StackEntryData;
 						StackEntry->Stride = TokenStream->ReadStride(TokenStreamIndex);
@@ -828,7 +891,7 @@ private:
 					{
 						// We're dealing with a dynamic array of structs.
 						const FFreezableScriptArray& Array = *((FFreezableScriptArray*)(StackEntryData + ReferenceInfo.Offset));
-						StackEntry++;
+						StackEntry = Stack.Push();
 						StackEntryData = (uint8*)Array.GetData();
 						StackEntry->Data = StackEntryData;
 						StackEntry->Stride = TokenStream->ReadStride(TokenStreamIndex);
@@ -875,7 +938,7 @@ private:
 					{
 						// We're dealing with a fixed size array
 						uint8* PreviousData = StackEntryData;
-						StackEntry++;
+						StackEntry = Stack.Push();
 						StackEntryData = PreviousData;
 						StackEntry->Data = PreviousData;
 						StackEntry->Stride = TokenStream->ReadStride(TokenStreamIndex);
@@ -908,7 +971,7 @@ private:
 						FMapProperty* MapProperty = (FMapProperty*)TokenStream->ReadPointer(TokenStreamIndex);
 						TokenStreamIndex++; // GCRT_EndOfPointer
 
-						StackEntry++;
+						StackEntry = Stack.Push();
 						StackEntry->ContainerType = GCRT_AddTMapReferencedObjects;
 						StackEntry->ContainerIndex = 0;
 						StackEntry->ContainerProperty = MapProperty;
@@ -953,7 +1016,7 @@ private:
 						FSetProperty* SetProperty = (FSetProperty*)TokenStream->ReadPointer(TokenStreamIndex);
 						TokenStreamIndex++; // GCRT_EndOfPointer
 
-						StackEntry++;
+						StackEntry = Stack.Push();
 						StackEntry->ContainerProperty = SetProperty;
 						StackEntry->ContainerPtr = SetPtr;
 						StackEntry->ContainerType = GCRT_AddTSetReferencedObjects;
@@ -1041,7 +1104,7 @@ private:
 						{
 							// It's set - push a stack entry for processing the value
 							// This is somewhat suboptimal since there is only ever just one value, but this approach avoids any changes to the surrounding code
-							StackEntry++;
+							StackEntry = Stack.Push();
 							StackEntryData += ReferenceInfo.Offset;
 							StackEntry->Data = StackEntryData;
 							StackEntry->Stride = ValueSize;
@@ -1229,7 +1292,7 @@ private:
 				}
 				}
 EndLoop:
-				check(StackEntry == Stack.GetData());
+				check(StackEntry == Stack.GetBottomFrame());
 
 				if (IsParallel() && NewObjectsToSerialize.Num() >= MinDesiredObjectsPerSubTask)
 				{

@@ -583,6 +583,39 @@ void UAbilitySystemComponent::CheckForClearedAbilities()
 		{
 			if (AbilitySpec.AssignedHandle.IsValid() && FindAbilitySpecFromHandle(AbilitySpec.AssignedHandle) == nullptr)
 			{
+				bool bIsPendingAdd = false;
+				for (const FAbilityListLockActiveChange* ActiveChange : AbilityListLockActiveChanges)
+				{
+					for (const FGameplayAbilitySpec& PendingSpec : ActiveChange->Adds)
+					{
+						if (PendingSpec.Handle == AbilitySpec.AssignedHandle)
+						{
+							bIsPendingAdd = true;
+							break;
+						}
+					}
+
+					if (bIsPendingAdd)
+					{
+						break;
+					}
+				}
+
+				for (const FGameplayAbilitySpec& PendingSpec : AbilityPendingAdds)
+				{
+					if (PendingSpec.Handle == AbilitySpec.AssignedHandle)
+					{
+						bIsPendingAdd = true;
+						break;
+					}
+				}
+
+				if (bIsPendingAdd)
+				{
+					ABILITY_LOG(Verbose, TEXT("Skipped clearing AssignedHandle %s from GE %s / %s, as it is pending being added."), *AbilitySpec.AssignedHandle.ToString(), *ActiveGE.GetDebugString(), *ActiveGE.Handle.ToString());
+					continue;
+				}
+
 				ABILITY_LOG(Verbose, TEXT("::CheckForClearedAbilities is clearing AssignedHandle %s from GE %s / %s"), *AbilitySpec.AssignedHandle.ToString(), *ActiveGE.GetDebugString(), *ActiveGE.Handle.ToString() );
 				AbilitySpec.AssignedHandle = FGameplayAbilitySpecHandle();
 			}
@@ -596,10 +629,12 @@ void UAbilitySystemComponent::IncrementAbilityListLock()
 }
 void UAbilitySystemComponent::DecrementAbilityListLock()
 {
-	if (--AbilityScopeLockCount == 0)
+	if (--AbilityScopeLockCount == 0 &&
+		(AbilityPendingAdds.Num() > 0 || AbilityPendingRemoves.Num() > 0))
 	{
-		TArray<FGameplayAbilitySpec, TInlineAllocator<2> > LocalPendingAdds(MoveTemp(AbilityPendingAdds));
-		for (FGameplayAbilitySpec& Spec : LocalPendingAdds)
+		FAbilityListLockActiveChange ActiveChange(*this, AbilityPendingAdds, AbilityPendingRemoves);
+
+		for (FGameplayAbilitySpec& Spec : ActiveChange.Adds)
 		{
 			if (Spec.bActivateOnce)
 			{
@@ -611,8 +646,7 @@ void UAbilitySystemComponent::DecrementAbilityListLock()
 			}
 		}
 
-		TArray<FGameplayAbilitySpecHandle, TInlineAllocator<2> > LocalPendingRemoves(MoveTemp(AbilityPendingRemoves));
-		for (FGameplayAbilitySpecHandle& Handle : LocalPendingRemoves)
+		for (FGameplayAbilitySpecHandle& Handle : ActiveChange.Removes)
 		{
 			ClearAbility(Handle);
 		}
@@ -1633,6 +1667,8 @@ void UAbilitySystemComponent::RemoteEndOrCancelAbility(FGameplayAbilitySpecHandl
 
 			for (auto Instance : Instances)
 			{
+				UE_CLOG(Instance == nullptr, LogAbilitySystem, Fatal, TEXT("UAbilitySystemComponent::RemoteEndOrCancelAbility null instance for %s"), *GetNameSafe(AbilitySpec->Ability));
+
 				// Check if the ability is the same prediction key (can both by 0) and has been confirmed. If so cancel it.
 				if (Instance->GetCurrentActivationInfoRef().GetActivationPredictionKey() == ActivationInfo.GetActivationPredictionKey())
 				{

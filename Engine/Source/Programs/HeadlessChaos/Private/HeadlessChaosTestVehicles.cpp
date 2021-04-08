@@ -1278,13 +1278,13 @@ namespace ChaosTest
 		return Plane.Raycast(RayStart, Direction, Length, 0, OutTime, OutPosition, OutNormal, FaceIndex);
 	}
 
-	void AddForceAtPosition(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FVector& InForce, const FVector& InPosition)
+	void AddForceAtPosition(FPBDRigidsEvolutionGBF& Evolution, TPBDRigidParticleHandle<FReal, 3>* Rigid, const FVector& InForce, const FVector& InPosition)
 	{
 		const Chaos::FVec3& CurrentForce = Rigid->F();
 		const Chaos::FVec3& CurrentTorque = Rigid->Torque();
 		const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
 
-		Rigid->SetObjectState(EObjectStateType::Dynamic);
+		Evolution.SetParticleObjectState(Rigid, EObjectStateType::Dynamic);
 
 		const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(InPosition - WorldCOM, InForce);
 		Rigid->SetF(CurrentForce + InForce);
@@ -1405,7 +1405,7 @@ namespace ChaosTest
 				if (bHit)
 				{
 					FVector SusForce = Suspension.GetSuspensionForceVector(BodyTM);
-					AddForceAtPosition(Dynamic, SusForce, Start);
+					AddForceAtPosition(Evolution, Dynamic, SusForce, Start);
 				}
 			}
 

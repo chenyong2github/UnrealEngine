@@ -48,6 +48,7 @@ public:
 	FGuid AddOutput(FNiagaraTypeDefinition Type, const FName& Name);
 	bool ShouldHideEnumEntry(UEnum* Enum, int32 Index) const;
 
+	bool AreInputPinsOutdated() const;
 protected:
 	/** Use this function to add an option pin in allocation or insertion. Optionally at a specific slot. */
 	void AddOptionPin(const FNiagaraVariable& OutputVariable, int32 Value, int32 InsertionSlot = INDEX_NONE);
@@ -60,7 +61,7 @@ protected:
 	
 	/** Ideally we wouldn't need this due to the separators but to maintain backwards compatibility pin names needs to stay consistent with what they were */
 	virtual FName GetOptionPinName(const FNiagaraVariable& Variable, int32 Value) const;
-
+	
 	//~ Begin UNiagaraNodeWithDynamicPins Interface
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override;

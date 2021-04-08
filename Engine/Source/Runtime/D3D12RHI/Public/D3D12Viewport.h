@@ -131,6 +131,9 @@ public:
 	}
 #endif // WITH_MGPU
 
+	void OnResumeRendering();
+	void OnSuspendRendering();
+
 	static DXGI_FORMAT GetRenderTargetFormat(EPixelFormat PixelFormat)
 	{
 		DXGI_FORMAT	DXFormat = (DXGI_FORMAT)GPixelFormats[PixelFormat].PlatformFormat;

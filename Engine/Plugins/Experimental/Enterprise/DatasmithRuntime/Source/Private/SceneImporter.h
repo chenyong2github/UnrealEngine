@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "DatasmithRuntime.h"
 #include "DirectLinkCommon.h"
 #include "DirectLinkEndpoint.h"
 
@@ -20,7 +21,6 @@
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/WeakObjectPtr.h"
 
-class ADatasmithRuntimeActor;
 class IDatasmithActorElement;
 class IDatasmithElement;
 class IDatasmithCameraActorElement;
@@ -91,15 +91,17 @@ namespace DatasmithRuntime
 
 		MeshComponentCreate     = 0x00000100,
 		LightComponentCreate    = 0x00000200,
+		ComponentFinalize       = 0x00000400,
+		ComputeCollision        = 0x00000800,
 
-		MaterialAssign          = 0x00000400,
-		TextureAssign           = 0x00000800,
+		MaterialAssign          = 0x00001000,
+		TextureAssign           = 0x00002000,
 
-		DeleteComponent         = 0x00001000,
-		DeleteAsset             = 0x00002000,
-		GarbageCollect          = 0x00004000,
+		DeleteComponent         = 0x00010000,
+		DeleteAsset             = 0x00020000,
+		GarbageCollect          = 0x00040000,
 
-		NonAsyncTasks           = LightComponentCreate | MeshComponentCreate | MaterialAssign | TextureCreate | TextureAssign,
+		NonAsyncTasks           = LightComponentCreate | MeshComponentCreate | MaterialAssign | TextureCreate | TextureAssign | ComponentFinalize,
 		DeleteTasks             = DeleteComponent | DeleteAsset,
 
 		AllTasks                = 0xffffffff
@@ -112,8 +114,9 @@ namespace DatasmithRuntime
 		Unknown        = 0x00,
 		Processed      = 0x01,
 		Completed      = 0x02,
-		Building       = 0x04,
-		PendingDelete  = 0x08,
+		Skipped        = 0x04,
+		Building       = 0x08,
+		PendingDelete  = 0x10,
 		AllStates      = 0xff
 	};
 
@@ -463,10 +466,9 @@ namespace DatasmithRuntime
 		/**
 		 * Start the import process of a scene
 		 * @param InSceneElement: Datasmith scene to import
-		 * @param SourceHandle: DirectLink source associated with the incoming scene
-		 * The SourceHandle is used to update or not the camera contained in the scene
+		 * @param Options: Options to use for the import process
 		 */
-		void StartImport(TSharedRef< IDatasmithScene > InSceneElement);
+		void StartImport(TSharedRef< IDatasmithScene > InSceneElement, const FDatasmithRuntimeImportOptions& Options);
 
 		/** Abort the on going import process then delete all created assets and actors */
 		void Reset(bool bIsNewScene);
@@ -560,6 +562,9 @@ namespace DatasmithRuntime
 		/** Create the FAssetData based on the associated Datasmith material element */
 		EActionResult::Type ProcessMaterial(FSceneGraphId MaterialId);
 
+		/** Add and populate the FActorData created for the incoming Datasmith actor element */
+		void CreateActorComponent(FActorData& ActorData, const TSharedPtr< IDatasmithActorElement >& ActorElement);
+
 		/** Add and populate a FTextureData associated with the incoming Datasmith texture element */
 		void ProcessTextureData(FSceneGraphId TextureId);
 
@@ -587,8 +592,10 @@ namespace DatasmithRuntime
 		/** Create and add a light component to the root component based on the type of the identified Datasmith element */
 		EActionResult::Type CreateLightComponent(FSceneGraphId ActorId);
 
-		/** Helper method to set up the properties common to all types of light components */
-		void SetupLightComponent(FActorData& ActorData, ULightComponent* LightComponent, IDatasmithLightActorElement* LightElement);
+		void FinalizeComponent(FActorData& ActorData);
+
+		/** Calls when an element on which an asset or actor depends on has changed */
+		void ProcessDependency(const TSharedPtr<IDatasmithElement>& Element);
 
 		/** Add a new task to the given queue */
 		void AddToQueue(int32 WhichQueue, FActionTask&& ActionTask)
@@ -620,6 +627,8 @@ namespace DatasmithRuntime
 			}
 		}
 
+		FActorData& FindOrAddActorData(const TSharedPtr< IDatasmithActorElement >& ActorElement);
+
 	private:
 		/** DatasmithRuntime actor associated with this importer */
 		TWeakObjectPtr<USceneComponent> RootComponent;
@@ -644,13 +653,16 @@ namespace DatasmithRuntime
 		/** Mapping between Datasmith texture element's identifiers and their associated FActorData object */
 		TMap< FSceneGraphId, FTextureData > TextureDataList;
 
+		/** Mapping between Datasmith asset elements and their dependent elements */
+		TMap< FSceneGraphId, FReferencer > DependencyList;
+
 		/** Set of Datasmith mesh element's identifiers to process */
 		TSet< FSceneGraphId > MeshElementSet;
 
 		/** Set of Datasmith material element's identifiers to process */
 		TSet< FSceneGraphId > MaterialElementSet;
 
-		/** Set of Datasmith material element's identifiers to process */
+		/** Set of Datasmith texture element's identifiers to process */
 		TSet< FSceneGraphId > TextureElementSet;
 
 		/** Mapping between Datasmith mesh element's identifiers and their lightmap weights */
@@ -666,6 +678,9 @@ namespace DatasmithRuntime
 
 		/** Indicated a incremental update has been requested */
 		uint8 bIncrementalUpdate:1;
+
+		/** Specifies options to use during the import */
+		FDatasmithRuntimeImportOptions ImportOptions;
 
 		/** Miscellaneous counters used to report progress */
 		float& OverallProgress;

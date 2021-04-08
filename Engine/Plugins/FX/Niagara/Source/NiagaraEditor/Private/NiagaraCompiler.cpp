@@ -224,12 +224,13 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 								DupeScript = bNeedsCompilation ? PrecompileDuplicateObject<UNiagaraScript>(FunctionScript, InNode, FunctionScript->GetFName()) : FunctionScript;
 								if (bNeedsCompilation)
 								{
-									if (DupeScript->GetSource()->GetOuter() != DupeScript)
+									if (DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion)->GetOuter() != DupeScript)
 									{
-										DupeScript->SetSource(DuplicateObject<UNiagaraScriptSource>(CastChecked<UNiagaraScriptSource>(DupeScript->GetSource()), DupeScript, DupeScript->GetSource()->GetFName()));
+										UNiagaraScriptSource* DupeScriptSource = CastChecked<UNiagaraScriptSource>(DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion));
+										DupeScript->SetSource(DuplicateObject<UNiagaraScriptSource>(DupeScriptSource, DupeScript, DupeScript->GetLatestSource()->GetFName()), FunctionCallNode->SelectedScriptVersion);
 									}
 								}
-								ProcessedGraph = Cast<UNiagaraScriptSource>(DupeScript->GetSource())->NodeGraph;
+								ProcessedGraph = Cast<UNiagaraScriptSource>(DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion))->NodeGraph;
 								if (bNeedsCompilation)
 								{
 									FEdGraphUtilities::MergeChildrenGraphsIn(ProcessedGraph, ProcessedGraph, /*bRequireSchemaMatch=*/ true);
@@ -255,7 +256,7 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 						else if (bHasNumericParams)
 						{
 							UNiagaraScript* DupeScript = bNeedsCompilation ? PrecompileDuplicateObject<UNiagaraScript>(FunctionScript, InNode, FunctionScript->GetFName()) : FunctionScript;
-							ProcessedGraph = Cast<UNiagaraScriptSource>(DupeScript->GetSource())->NodeGraph;
+							ProcessedGraph = Cast<UNiagaraScriptSource>(DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion))->NodeGraph;
 							if (bNeedsCompilation)
 							{
 								FEdGraphUtilities::MergeChildrenGraphsIn(ProcessedGraph, ProcessedGraph, /*bRequireSchemaMatch=*/ true);
@@ -644,7 +645,7 @@ bool ScriptSourceNeedsCompiling(UNiagaraScriptSource* InSource, TArray<UNiagaraS
 	return true;
 }
 
-TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorModule::Precompile(UObject* InObj)
+TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorModule::Precompile(UObject* InObj, FGuid Version)
 {
 	TArray<UNiagaraScript*> InCompilingScripts;
 	UNiagaraScript* Script = Cast<UNiagaraScript>(InObj);
@@ -687,7 +688,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 
 	if (Script)
 	{
-		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Script->GetSource());
+		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Script->GetSource(Version));
 		bool bNeedsCompilation = ScriptSourceNeedsCompiling(Source, InCompilingScripts);
 		BasePtr->DeepCopyGraphs(Source, Script->GetUsage(), EmptyResolver, bNeedsCompilation);
 		const TArray<FNiagaraVariable> EncounterableVariables;
@@ -705,7 +706,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		TArray<FNiagaraVariable> EncounterableVars(OriginalExposedParams);
 
 		// Create an array of variables that we *did* encounter when traversing the graphs.
-		check(System->GetSystemSpawnScript()->GetSource() == System->GetSystemUpdateScript()->GetSource());
+		check(System->GetSystemSpawnScript()->GetLatestSource() == System->GetSystemUpdateScript()->GetLatestSource());
 
 		// First deep copy all the emitter graphs referenced by the system so that we can later hook up emitter handles in the system traversal.
 		BasePtr->EmitterData.Empty();
@@ -730,7 +731,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		// Now deep copy the system graphs, skipping traversal into any emitter references.
 		{
 			FCompileConstantResolver ConstantResolver(System, ENiagaraScriptUsage::SystemSpawnScript);
-			UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(System->GetSystemSpawnScript()->GetSource());
+			UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(System->GetSystemSpawnScript()->GetLatestSource());
 			bool bNeedsCompilation = ScriptSourceNeedsCompiling(Source, InCompilingScripts);
 			BasePtr->DeepCopyGraphs(Source, ENiagaraScriptUsage::SystemSpawnScript, ConstantResolver, bNeedsCompilation);
 			BasePtr->FinishPrecompile(Source, EncounterableVars, ENiagaraScriptUsage::SystemSpawnScript, ConstantResolver, nullptr);

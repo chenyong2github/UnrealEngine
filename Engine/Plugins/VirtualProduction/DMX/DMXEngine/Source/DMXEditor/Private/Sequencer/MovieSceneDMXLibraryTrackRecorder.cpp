@@ -76,7 +76,7 @@ TWeakObjectPtr<UMovieSceneDMXLibraryTrack> UMovieSceneDMXLibraryTrackRecorder::C
 		// TODO: Legacy code, I'm not sure if this ever made sense
 		for (FDMXFixturePatchChannel& FixturePatchChannel : DMXLibrarySection->GetMutableFixturePatchChannels())
 		{
-			if (FixturePatchRefs.Contains(FixturePatchChannel.FixturePatchReference.GetFixturePatch()))
+			if (FixturePatchRefs.Contains(FixturePatchChannel.Reference.GetFixturePatch()))
 			{
 				for (FDMXFixtureFunctionChannel& FunctionChannel : FixturePatchChannel.FunctionChannels)
 				{

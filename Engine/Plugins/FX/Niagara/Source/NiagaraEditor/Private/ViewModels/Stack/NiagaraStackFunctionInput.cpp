@@ -1,55 +1,53 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
-#include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
-#include "ViewModels/Stack/NiagaraStackObject.h"
-#include "ViewModels/NiagaraScratchPadViewModel.h"
-#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
-#include "NiagaraNodeFunctionCall.h"
-#include "NiagaraNodeAssignment.h"
-#include "NiagaraNodeParameterMapGet.h"
-#include "NiagaraNodeParameterMapSet.h"
-#include "NiagaraNodeOutput.h"
-#include "NiagaraScript.h"
-#include "NiagaraScriptSource.h"
-#include "NiagaraGraph.h"
+
+#include "AssetRegistryModule.h"
 #include "EdGraphSchema_Niagara.h"
-#include "NiagaraEditorUtilities.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "NiagaraSystemScriptViewModel.h"
-#include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
-#include "NiagaraScriptGraphViewModel.h"
-#include "NiagaraStackEditorData.h"
+#include "Editor.h"
+#include "INiagaraEditorTypeUtilities.h"
+#include "NiagaraClipboard.h"
 #include "NiagaraComponent.h"
 #include "NiagaraConstants.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
-#include "NiagaraScriptMergeManager.h"
-#include "NiagaraNodeCustomHlsl.h"
+#include "NiagaraConvertInPlaceUtilityBase.h"
 #include "NiagaraEditorModule.h"
-#include "NiagaraRendererProperties.h"
-#include "ViewModels/Stack/NiagaraParameterHandle.h"
+#include "NiagaraEditorUtilities.h"
 #include "NiagaraEmitter.h"
-#include "NiagaraClipboard.h"
-#include "Toolkits/NiagaraSystemToolkit.h"
+#include "NiagaraGraph.h"
 #include "NiagaraMessageManager.h"
 #include "NiagaraMessages.h"
 #include "NiagaraMessageUtilities.h"
-
+#include "NiagaraNodeAssignment.h"
+#include "NiagaraNodeCustomHlsl.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraNodeOutput.h"
+#include "NiagaraNodeParameterMapGet.h"
+#include "NiagaraNodeParameterMapSet.h"
+#include "NiagaraRendererProperties.h"
+#include "NiagaraScript.h"
+#include "NiagaraScriptGraphViewModel.h"
+#include "NiagaraScriptMergeManager.h"
+#include "NiagaraScriptSource.h"
+#include "NiagaraScriptVariable.h"
+#include "NiagaraStackEditorData.h"
+#include "NiagaraSystemScriptViewModel.h"
+#include "ScopedTransaction.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
-#include "ScopedTransaction.h"
-#include "Editor.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
 #include "UObject/StructOnScope.h"
-#include "AssetRegistryModule.h"
-#include "EdGraph/EdGraphPin.h"
-#include "INiagaraEditorTypeUtilities.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraParameterHandle.h"
+#include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
-#include "Framework/Notifications/NotificationManager.h"
+#include "ViewModels/Stack/NiagaraStackObject.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "NiagaraConvertInPlaceUtilityBase.h"
-
-#include "NiagaraScriptVariable.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
@@ -117,10 +115,9 @@ void UNiagaraStackFunctionInput::Initialize(
 	FString InOwnerStackItemEditorDataKey)
 {
 	checkf(OwningModuleNode.IsValid() == false && OwningFunctionCallNode.IsValid() == false, TEXT("Can only initialize once."));
-	bool bInputIsAdvanced = false;
 	ParameterBehavior = InParameterBehavior;
 	FString InputStackEditorDataKey = FString::Printf(TEXT("%s-Input-%s"), *InInputFunctionCallNode.NodeGuid.ToString(EGuidFormats::DigitsWithHyphens), *InInputParameterHandle.ToString());
-	Super::Initialize(InRequiredEntryData, bInputIsAdvanced, InOwnerStackItemEditorDataKey, InputStackEditorDataKey);
+	Super::Initialize(InRequiredEntryData, InOwnerStackItemEditorDataKey, InputStackEditorDataKey);
 	OwningModuleNode = &InModuleNode;
 	OwningFunctionCallNode = &InInputFunctionCallNode;
 	OwningFunctionCallInitialScript = OwningFunctionCallNode->FunctionScript;
@@ -139,7 +136,7 @@ void UNiagaraStackFunctionInput::Initialize(
 			SourceScript = AffectedScript;
 			RapidIterationParametersChangedHandle = SourceScript->RapidIterationParameters.AddOnChangedHandler(
 				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraStackFunctionInput::OnRapidIterationParametersChanged));
-			SourceScript->GetSource()->OnChanged().AddUObject(this, &UNiagaraStackFunctionInput::OnScriptSourceChanged);
+			SourceScript->GetLatestSource()->OnChanged().AddUObject(this, &UNiagaraStackFunctionInput::OnScriptSourceChanged);
 			break;
 		}
 	}
@@ -185,7 +182,7 @@ void UNiagaraStackFunctionInput::FinalizeInternal()
 	if (SourceScript.IsValid())
 	{
 		SourceScript->RapidIterationParameters.RemoveOnChangedHandler(RapidIterationParametersChangedHandle);
-		SourceScript->GetSource()->OnChanged().RemoveAll(this);
+		SourceScript->GetLatestSource()->OnChanged().RemoveAll(this);
 	}
 
 	if (MessageManagerRegistrationKey.IsValid())
@@ -406,7 +403,7 @@ FText UNiagaraStackFunctionInput::GetCollapsedStateText() const
 					}
 					Arguments.Add(ChildText);
 				}
-				CollapsedTextCache = FText::Format(InputValues.DynamicNode->FunctionScript->CollapsedViewFormat, Arguments);
+				CollapsedTextCache = FText::Format(InputValues.DynamicNode->GetScriptData()->CollapsedViewFormat, Arguments);
 			}
 			break;
 		case EValueMode::Linked:
@@ -445,22 +442,22 @@ FText UNiagaraStackFunctionInput::GetValueToolTip() const
 			break;
 		}
 		case EValueMode::DefaultFunction:
-			if (InputValues.DefaultFunctionNode->FunctionScript != nullptr)
+			if (InputValues.DefaultFunctionNode->GetScriptData() != nullptr)
 			{
-				ValueToolTipCache = InputValues.DefaultFunctionNode->FunctionScript->Description;
+				ValueToolTipCache = InputValues.DefaultFunctionNode->GetScriptData()->Description;
 			}
 			break;
 		case EValueMode::Dynamic:
-			if (UNiagaraScript* FunctionScript = InputValues.DynamicNode->FunctionScript)
+			if (FVersionedNiagaraScriptData* ScriptData = InputValues.DynamicNode->GetScriptData())
 			{
 				FText FunctionName = FText::FromString(FName::NameToDisplayString(InputValues.DynamicNode->GetFunctionName(), false));
-				if (FunctionScript->Description.IsEmptyOrWhitespace())
+				if (ScriptData->Description.IsEmptyOrWhitespace())
 				{
 					ValueToolTipCache = FText::Format(FText::FromString("Compiled Name: {0}"), FunctionName);
 				}
 				else
 				{
-					ValueToolTipCache = FText::Format(FText::FromString("{0}\n\nCompiled Name: {1}"), FunctionScript->Description, FunctionName);
+					ValueToolTipCache = FText::Format(FText::FromString("{0}\n\nCompiled Name: {1}"), ScriptData->Description, FunctionName);
 				}
 			}
 			break;
@@ -493,7 +490,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 	AliasedInputParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(InputParameterHandle, OwningFunctionCallNode.Get());
 	RapidIterationParameter = CreateRapidIterationVariable(AliasedInputParameterHandle.GetParameterHandleString());
 
-	RefreshFromMetaData();
+	RefreshFromMetaData(NewIssues);
 	RefreshValues();
 
 	if (InputValues.DynamicNode.IsValid())
@@ -534,7 +531,8 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 	if (InputValues.Mode == EValueMode::Dynamic && InputValues.DynamicNode.IsValid())
 	{
 		UNiagaraScript* FunctionScript = InputValues.DynamicNode->FunctionScript;
-		if (FunctionScript != nullptr)
+		FVersionedNiagaraScriptData* ScriptData = InputValues.DynamicNode->GetScriptData();
+		if (ScriptData != nullptr)
 		{
 			UNiagaraStackFunctionInputCollection* DynamicInputEntry = FindCurrentChildOfTypeByPredicate<UNiagaraStackFunctionInputCollection>(CurrentChildren,
 				[=](UNiagaraStackFunctionInputCollection* CurrentFunctionInputEntry)
@@ -550,35 +548,35 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 				DynamicInputEntry->SetShouldShowInStack(false);
 			}
 
-			if (FunctionScript != nullptr)
+			if (ScriptData != nullptr)
 			{
-				if (FunctionScript->bDeprecated)
+				if (ScriptData->bDeprecated)
 				{
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("ScriptName"), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
 
-					if (FunctionScript->DeprecationRecommendation != nullptr)
+					if (ScriptData->DeprecationRecommendation != nullptr)
 					{
-						Args.Add(TEXT("Recommendation"), FText::FromString(FunctionScript->DeprecationRecommendation->GetPathName()));
+						Args.Add(TEXT("Recommendation"), FText::FromString(ScriptData->DeprecationRecommendation->GetPathName()));
 					}
 
-					if (FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					if (ScriptData->DeprecationMessage.IsEmptyOrWhitespace() == false)
 					{
-						Args.Add(TEXT("Message"), FunctionScript->DeprecationMessage);
+						Args.Add(TEXT("Message"), ScriptData->DeprecationMessage);
 					}
 
 					FText FormatString = LOCTEXT("DynamicInputScriptDeprecationUnknownLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated.");
 
-					if (FunctionScript->DeprecationRecommendation != nullptr &&
-						FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					if (ScriptData->DeprecationRecommendation != nullptr &&
+						ScriptData->DeprecationMessage.IsEmptyOrWhitespace() == false)
 					{
 						FormatString = LOCTEXT("DynamicInputScriptDeprecationMessageAndRecommendationLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Reason:\n{Message}.\nSuggested replacement: {Recommendation}");
 					}
-					else if (FunctionScript->DeprecationRecommendation != nullptr)
+					else if (ScriptData->DeprecationRecommendation != nullptr)
 					{
 						FormatString = LOCTEXT("DynamicInputScriptDeprecationLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Suggested replacement: {Recommendation}");
 					}
-					else if (FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					else if (ScriptData->DeprecationMessage.IsEmptyOrWhitespace() == false)
 					{
 						FormatString = LOCTEXT("DynamicInputScriptDeprecationMessageLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Reason:\n{Message}");
 					}
@@ -600,27 +598,27 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 								FStackIssueFixDelegate::CreateLambda([this]() { this->Reset(); }))
 						}));
 
-					if (FunctionScript->DeprecationRecommendation != nullptr)
+					if (ScriptData->DeprecationRecommendation != nullptr)
 					{
 						NewIssues[AddIdx].InsertFix(0,
 							FStackIssueFix(
 							LOCTEXT("SelectNewDynamicInputScriptFixUseRecommended", "Use recommended replacement"),
-							FStackIssueFixDelegate::CreateLambda([this, FunctionScript]() 
+							FStackIssueFixDelegate::CreateLambda([this, ScriptData]() 
 								{ 
-									if (FunctionScript->DeprecationRecommendation->GetUsage() != ENiagaraScriptUsage::DynamicInput)
+									if (ScriptData->DeprecationRecommendation->GetUsage() != ENiagaraScriptUsage::DynamicInput)
 									{
 										FNiagaraEditorUtilities::WarnWithToastAndLog(LOCTEXT("FailedDynamicInputDeprecationReplacement", "Failed to replace dynamic input as recommended replacement script is not a dynamic input!"));
 										return;
 									}
-									ReassignDynamicInputScript(FunctionScript->DeprecationRecommendation); 
+									ReassignDynamicInputScript(ScriptData->DeprecationRecommendation); 
 								})));
 					}
 				}
 
-				if (FunctionScript->bExperimental)
+				if (ScriptData->bExperimental)
 				{
 					FText ErrorMessage;
-					if (FunctionScript->ExperimentalMessage.IsEmptyOrWhitespace())
+					if (ScriptData->ExperimentalMessage.IsEmptyOrWhitespace())
 					{
 						ErrorMessage = FText::Format(LOCTEXT("DynamicInputScriptExperimental", "The script asset for the dynamic input {0} is experimental, use with care!"), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
 					}
@@ -628,7 +626,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 					{
 						FFormatNamedArguments Args;
 						Args.Add(TEXT("Function"), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
-						Args.Add(TEXT("Message"), FunctionScript->ExperimentalMessage);
+						Args.Add(TEXT("Message"), ScriptData->ExperimentalMessage);
 						ErrorMessage = FText::Format(LOCTEXT("DynamicInputScriptExperimentalReason", "The script asset for the dynamic input {Function} is experimental, reason: {Message}."), Args);
 					}
 
@@ -640,12 +638,12 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 						true));
 				}
 
-				if (!FunctionScript->NoteMessage.IsEmptyOrWhitespace())
+				if (!ScriptData->NoteMessage.IsEmptyOrWhitespace())
 				{
 					FStackIssue NoteIssue = FStackIssue(
 						EStackIssueSeverity::Info,
 						LOCTEXT("DynamicInputScriptNoteShort", "Input Usage Note"),
-						FunctionScript->NoteMessage,
+						ScriptData->NoteMessage,
 						GetStackEditorDataKey(),
 						true);
 					NoteIssue.SetIsExpandedByDefault(false);
@@ -705,7 +703,15 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 		}	
 	}
 
-	NewIssues.Append(MessageManagerIssues);
+	if (GetIsHidden())
+	{
+		// Hidden inputs should not generate issues because they are impossible for the user to see.
+		NewIssues.Empty();
+	}
+	else
+	{
+		NewIssues.Append(MessageManagerIssues);
+	}
 }
 
 class UNiagaraStackFunctionInputUtilities
@@ -881,7 +887,7 @@ void UNiagaraStackFunctionInput::RefreshValues()
 			}
 
 			// we check if variable guid is already available in the parameter store and update it if that's not the case
-			if (InputMetaData.IsSet() && !SourceScript->RapidIterationParameters.ParameterGuidMapping.Contains(RapidIterationParameter))
+			if (InputMetaData.IsSet())
 			{
 				SourceScript->RapidIterationParameters.ParameterGuidMapping.Add(RapidIterationParameter, InputMetaData->GetVariableGuid());
 			}
@@ -901,7 +907,7 @@ void UNiagaraStackFunctionInput::RefreshValues()
 	ValueChangedDelegate.Broadcast();
 }
 
-void UNiagaraStackFunctionInput::RefreshFromMetaData()
+void UNiagaraStackFunctionInput::RefreshFromMetaData(TArray<FStackIssue>& NewIssues)
 {
 	InputMetaData.Reset();
 	if (OwningFunctionCallNode->IsA<UNiagaraNodeAssignment>())
@@ -920,7 +926,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 	else if (OwningFunctionCallNode->FunctionScript != nullptr)
 	{
 		// Otherwise just get it from the defining graph.
-		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->FunctionScript->GetSource())->NodeGraph;
+		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->GetFunctionScriptSource())->NodeGraph;
 		FNiagaraVariable InputVariable(InputType, InputParameterHandle.GetParameterHandleString());
 		InputMetaData = FunctionGraph->GetMetaData(InputVariable);
 	}
@@ -944,19 +950,33 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 			bShowEditConditionInline = false;
 		}
 
-		if (EditConditionError.IsEmpty() == false && bIsVisible)
+		if (EditConditionError.IsEmpty() == false)
 		{
-			UE_LOG(LogNiagaraEditor, Warning, TEXT("Edit condition failed to bind.  Function: %s Input: %s Message: %s"), 
-				*OwningFunctionCallNode->GetFunctionName(), *InputParameterHandle.GetName().ToString(), *EditConditionError.ToString());
+			NewIssues.Add(FStackIssue(
+				EStackIssueSeverity::Info,
+				LOCTEXT("EditConditionErrorShort", "Edit condition error"),
+				FText::Format(LOCTEXT("EditConditionErrorLongFormat", "Edit condition failed to bind.  Function: {0} Input: {1} Message: {2}"), 
+					OwningFunctionCallNode->GetNodeTitle(ENodeTitleType::ListView), 
+					FText::FromName(InputParameterHandle.GetName()),
+					EditConditionError),
+				GetStackEditorDataKey(),
+				true));
 		}
 
 		FText VisibleConditionError;
 		VisibleCondition.Refresh(InputMetaData->VisibleCondition, VisibleConditionError);
 
-		if (VisibleConditionError.IsEmpty() == false && bIsVisible)
+		if (VisibleConditionError.IsEmpty() == false)
 		{
-			UE_LOG(LogNiagaraEditor, Warning, TEXT("Visible condition failed to bind.  Function: %s Input: %s Message: %s"),
-				*OwningFunctionCallNode->GetFunctionName(), *InputParameterHandle.GetName().ToString(), *VisibleConditionError.ToString());
+			NewIssues.Add(FStackIssue(
+				EStackIssueSeverity::Info,
+				LOCTEXT("VisibleConditionErrorShort", "Visible condition error"),
+				FText::Format(LOCTEXT("VisibleConditionErrorLongFormat", "Visible condition failed to bind.  Function: {0} Input: {1} Message: {2}"),
+					OwningFunctionCallNode->GetNodeTitle(ENodeTitleType::ListView),
+					FText::FromName(InputParameterHandle.GetName()),
+					VisibleConditionError),
+				GetStackEditorDataKey(),
+				true));
 		}
 
 		bIsInlineEditConditionToggle = InputType == FNiagaraTypeDefinition::GetBoolDef() && 
@@ -1255,7 +1275,7 @@ void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript
 	TArray<UNiagaraNodeOutput*> OutputNodes;
 	auto MatchesInputType = [this, &InputPins, &OutputNodes](UNiagaraScript* Script)
 	{
-		UNiagaraScriptSource* DynamicInputScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource());
+		UNiagaraScriptSource* DynamicInputScriptSource = Cast<UNiagaraScriptSource>(Script->GetLatestSource());
 		OutputNodes.Reset();
 		DynamicInputScriptSource->NodeGraph->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
 		if (OutputNodes.Num() == 1)
@@ -1465,6 +1485,7 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 		FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetNiagaraGraph());
 	}
 
+	RefreshChildren();
 	RefreshValues();
 }
 
@@ -1720,7 +1741,12 @@ void UNiagaraStackFunctionInput::OnMessageManagerRefresh(const TArray<TSharedRef
 	{
 		for (TSharedRef<const INiagaraMessage> Message : NewMessages)
 		{
-			MessageManagerIssues.Add(FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey()));
+			FStackIssue Issue = FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey());
+			if (MessageManagerIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
+				{ return NewIssue.GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); }) == false)
+			{
+				MessageManagerIssues.Add(Issue);	
+			}
 		}
 	}
 }
@@ -1909,6 +1935,10 @@ void UNiagaraStackFunctionInput::SetIsDynamicInputScriptReassignmentPending(bool
 
 void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* DynamicInputScript)
 {
+	if (DynamicInputScript == nullptr)
+	{
+		return;
+	}
 	if (ensureMsgf(InputValues.Mode == EValueMode::Dynamic && InputValues.DynamicNode != nullptr && InputValues.DynamicNode->GetClass() == UNiagaraNodeFunctionCall::StaticClass(),
 		TEXT("Can not reassign the dynamic input script when tne input doesn't have a valid dynamic input.")))
 	{
@@ -1920,13 +1950,15 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 
 		UNiagaraClipboardContent* OldClipboardContent = nullptr;
 		UNiagaraScript* OldScript = InputValues.DynamicNode->FunctionScript;
-		if (DynamicInputScript->ConversionUtility != nullptr)
+		FVersionedNiagaraScriptData* ScriptData = DynamicInputScript->GetLatestScriptData();
+		if (ScriptData->ConversionUtility != nullptr)
 		{
 			OldClipboardContent = UNiagaraClipboardContent::Create();
 			Copy(OldClipboardContent);
 		}
 
 		InputValues.DynamicNode->FunctionScript = DynamicInputScript;
+		InputValues.DynamicNode->SelectedScriptVersion = DynamicInputScript && DynamicInputScript->IsVersioningEnabled() ? DynamicInputScript->GetExposedVersion().VersionGuid : FGuid();
 
 		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
 		RefreshChildren();
@@ -1943,9 +1975,9 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		InputValues.DynamicNode->MarkNodeRequiresSynchronization(TEXT("Dynamic input script reassigned."), true);
 		RefreshChildren();
 		
-		if (DynamicInputScript->ConversionUtility != nullptr && OldClipboardContent != nullptr)
+		if (ScriptData->ConversionUtility != nullptr && OldClipboardContent != nullptr)
 		{
-			UNiagaraConvertInPlaceUtilityBase* ConversionUtility = NewObject< UNiagaraConvertInPlaceUtilityBase>(GetTransientPackage(), DynamicInputScript->ConversionUtility);
+			UNiagaraConvertInPlaceUtilityBase* ConversionUtility = NewObject< UNiagaraConvertInPlaceUtilityBase>(GetTransientPackage(), ScriptData->ConversionUtility);
 
 			UNiagaraClipboardContent* NewClipboardContent = UNiagaraClipboardContent::Create();
 			Copy(NewClipboardContent);
@@ -1973,7 +2005,7 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 
 bool UNiagaraStackFunctionInput::GetShouldPassFilterForVisibleCondition() const
 {
-	return bIsVisible && (GetHasVisibleCondition() == false || GetVisibleConditionEnabled());
+	return GetHasVisibleCondition() == false || GetVisibleConditionEnabled();
 }
 
 const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFunctionInput(UObject* InOuter) const
@@ -2375,7 +2407,7 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 	UNiagaraScriptVariable* InputScriptVariable = nullptr;
 	if (OwningFunctionCallNode->FunctionScript != nullptr)
 	{
-		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->FunctionScript->GetSource())->NodeGraph;
+		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->GetFunctionScriptSource())->NodeGraph;
 		InputScriptVariable = FunctionGraph->GetScriptVariable(InputParameterHandle.GetParameterHandleString());
 	}
 

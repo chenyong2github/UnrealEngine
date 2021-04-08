@@ -28,7 +28,7 @@ void UEnvQueryGenerator_ProjectedPoints::ProjectAndFilterNavPoints(TArray<FNavLo
 		FEQSHelpers::RunNavProjection(*NavData, *Querier, ProjectionData, Points, FEQSHelpers::ETraceMode::Discard);
 	}
 
-	if (ProjectionData.TraceMode == EEnvQueryTrace::Geometry)
+	if (ProjectionData.TraceMode == EEnvQueryTrace::GeometryByChannel || ProjectionData.TraceMode == EEnvQueryTrace::GeometryByProfile)
 	{
 		FEQSHelpers::RunPhysProjection(QueryInstance.World, ProjectionData, Points);
 	}

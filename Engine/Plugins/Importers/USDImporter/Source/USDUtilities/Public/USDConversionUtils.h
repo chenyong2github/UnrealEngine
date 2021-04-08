@@ -36,6 +36,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 #endif // #if USE_USD_SDK
 
 class UUsdAssetImportData;
+enum class EUsdUpAxis : uint8;
 namespace UE
 {
 	class FUsdPrim;
@@ -78,8 +79,11 @@ namespace UsdUtils
 	template< typename ValueType >
 	USDUTILITIES_API ValueType GetUsdValue( const pxr::UsdAttribute& Attribute, pxr::UsdTimeCode TimeCode );
 
-	USDUTILITIES_API pxr::TfToken GetUsdStageAxis( const pxr::UsdStageRefPtr& Stage );
-	USDUTILITIES_API void SetUsdStageAxis( const pxr::UsdStageRefPtr& Stage, pxr::TfToken Axis );
+	USDUTILITIES_API pxr::TfToken GetUsdStageUpAxis( const pxr::UsdStageRefPtr& Stage );
+	USDUTILITIES_API EUsdUpAxis GetUsdStageUpAxisAsEnum( const pxr::UsdStageRefPtr& Stage );
+
+	USDUTILITIES_API void SetUsdStageUpAxis( const pxr::UsdStageRefPtr& Stage, pxr::TfToken Axis );
+	USDUTILITIES_API void SetUsdStageUpAxis( const pxr::UsdStageRefPtr& Stage, EUsdUpAxis Axis );
 
 	USDUTILITIES_API float GetUsdStageMetersPerUnit( const pxr::UsdStageRefPtr& Stage );
 	USDUTILITIES_API void SetUsdStageMetersPerUnit( const pxr::UsdStageRefPtr& Stage, float MetersPerUnit );

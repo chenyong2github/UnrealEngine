@@ -3,6 +3,7 @@
 
 #include "CADOptions.h"
 
+#include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
@@ -149,6 +150,20 @@ void GetCleanFilenameAndExtension(const FString& InFilePath, FString& OutFilenam
 		BaseFile.Split(TEXT("."), &OutFilename, &OutExtension, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 		OutExtension = OutExtension + TEXT(".*");
 	}
+}
+
+uint32 FFileDescription::GetFileHash()
+{
+	FFileStatData FileStatData = IFileManager::Get().GetStatData(*OriginalPath);
+
+	FDateTime ModificationTime = FileStatData.ModificationTime;
+
+	uint32 FileHash = GetTypeHash(*Name);
+	FileHash = HashCombine(FileHash, GetTypeHash(*Configuration));
+	FileHash = HashCombine(FileHash, GetTypeHash(FileStatData.FileSize));
+	FileHash = HashCombine(FileHash, GetTypeHash(ModificationTime));
+
+	return FileHash;
 }
 
 }

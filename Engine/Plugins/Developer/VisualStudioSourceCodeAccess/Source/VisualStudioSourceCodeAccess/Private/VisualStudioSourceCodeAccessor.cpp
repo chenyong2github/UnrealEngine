@@ -29,7 +29,7 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
 	#include <unknwn.h>
-	#include "Windows/COMPointer.h"
+	#include "Microsoft/COMPointer.h"
 	#include "Setup.Configuration.h"
 	#include <tlhelp32.h>
 	#include <wbemidl.h>

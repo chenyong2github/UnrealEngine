@@ -29,7 +29,7 @@ bool FNiagaraStackFunctionInputBinder::TryBind(
 	bool bInIsRequired,
 	FText& OutErrorMessage)
 {
-	UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(InFunctionCallNode->FunctionScript->GetSource())->NodeGraph;
+	UNiagaraGraph* FunctionGraph = InFunctionCallNode->GetCalledGraph();
 
 	FInputMatchesPredicate InputMatches;
 	InputMatches.BindLambda([=](FNiagaraVariable InputVariable)
@@ -179,7 +179,7 @@ bool FNiagaraStackFunctionInputBinder::IsValid() const
 {
 	if (Script.IsValid())
 	{
-		if (ValidScriptGraphChangeIdForOverridePin != Script->GetSource()->GetChangeID() ||
+		if (ValidScriptGraphChangeIdForOverridePin != Script->GetSource(FunctionCallNode->SelectedScriptVersion)->GetChangeID() ||
 			ValidScriptGraphChangeIdForDefaultPin != GetChangeIdFromFunctionScript())
 		{
 			RefreshGraphPins();
@@ -222,7 +222,7 @@ UNiagaraNodeFunctionCall* FNiagaraStackFunctionInputBinder::GetFunctionCallNode(
 TArray<uint8> FNiagaraStackFunctionInputBinder::GetData() const
 {
 	checkf(Script.IsValid(), TEXT("Bound script is not valid"));
-	if (ValidScriptGraphChangeIdForOverridePin != Script->GetSource()->GetChangeID() ||
+	if (ValidScriptGraphChangeIdForOverridePin != Script->GetSource(FunctionCallNode->SelectedScriptVersion)->GetChangeID() ||
 		ValidScriptGraphChangeIdForDefaultPin != GetChangeIdFromFunctionScript())
 	{
 		RefreshGraphPins();
@@ -282,7 +282,7 @@ void FNiagaraStackFunctionInputBinder::SetData(const uint8* InValue, int32 InSiz
 			OverridePin->DefaultValue = PinDefaultValue;
 
 			Cast<UNiagaraNode>(OverridePin->GetOwningNode())->MarkNodeRequiresSynchronization(TEXT("OverridePin Default Value Changed"), true);
-			ValidScriptGraphChangeIdForOverridePin = Script->GetSource()->GetChangeID();
+			ValidScriptGraphChangeIdForOverridePin = Script->GetSource(FunctionCallNode->SelectedScriptVersion)->GetChangeID();
 			ValidScriptGraphChangeIdForDefaultPin = GetChangeIdFromFunctionScript();
 		}
 	}
@@ -290,16 +290,16 @@ void FNiagaraStackFunctionInputBinder::SetData(const uint8* InValue, int32 InSiz
 
 FGuid FNiagaraStackFunctionInputBinder::GetChangeIdFromFunctionScript() const
 {
-	if (FunctionCallNode->FunctionScript != nullptr && FunctionCallNode->FunctionScript->GetSource() != nullptr)
+	if (FunctionCallNode->FunctionScript != nullptr && FunctionCallNode->GetFunctionScriptSource() != nullptr)
 	{
-		return FunctionCallNode->FunctionScript->GetSource()->GetChangeID();
+		return FunctionCallNode->GetFunctionScriptSource()->GetChangeID();
 	}
 	return FGuid();
 }
 
 void FNiagaraStackFunctionInputBinder::RefreshGraphPins() const
 {
-	if (FunctionCallNode.IsValid() == false || FunctionCallNode->FunctionScript == nullptr || FunctionCallNode->FunctionScript->GetSource() == nullptr)
+	if (FunctionCallNode.IsValid() == false || FunctionCallNode->FunctionScript == nullptr || FunctionCallNode->GetFunctionScriptSource() == nullptr)
 	{
 		OverridePin = nullptr;
 		DefaultPin = nullptr;
@@ -314,7 +314,7 @@ void FNiagaraStackFunctionInputBinder::RefreshGraphPins() const
 	{
 		DefaultPin = FunctionCallNode->FindStaticSwitchInputPin(InputName);
 	}
-	ValidScriptGraphChangeIdForOverridePin = Script->GetSource()->GetChangeID();
+	ValidScriptGraphChangeIdForOverridePin = Script->GetSource(FunctionCallNode->SelectedScriptVersion)->GetChangeID();
 	ValidScriptGraphChangeIdForDefaultPin = GetChangeIdFromFunctionScript();
 }
 

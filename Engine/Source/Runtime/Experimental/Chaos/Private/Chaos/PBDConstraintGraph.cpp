@@ -282,14 +282,13 @@ void FPBDConstraintGraph::AddConstraint(const uint32 InContainerId, FConstraintH
 	}
 }
 
-
 void FPBDConstraintGraph::RemoveConstraint(const uint32 InContainerId, FConstraintHandle* InConstraintHandle, const TVector<FGeometryParticleHandle*, 2>& ConstrainedParticles)
 {
 	check(InConstraintHandle);
 
 	int32* PNodeIndex0 = (ConstrainedParticles[0]) ? ParticleToNodeIndex.Find(ConstrainedParticles[0]) : nullptr;
 	int32* PNodeIndex1 = (ConstrainedParticles[1]) ? ParticleToNodeIndex.Find(ConstrainedParticles[1]) : nullptr;
-	if (ensure(PNodeIndex0 || PNodeIndex1) )
+	if (ensure(PNodeIndex0 || PNodeIndex1))
 	{
 		// we need to find the edge index that matches this constraint
 		// we could go through the entire edge list and find the matching InContainerId, 

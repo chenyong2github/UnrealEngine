@@ -76,11 +76,11 @@ void FNiagaraEmitterHandle::SetName(FName InName, UNiagaraSystem& InOwnerSystem)
 	if (Instance->SetUniqueEmitterName(Name.ToString()))
 	{
  #if WITH_EDITOR
-		if (InOwnerSystem.GetSystemSpawnScript() && InOwnerSystem.GetSystemSpawnScript()->GetSource())
+		if (InOwnerSystem.GetSystemSpawnScript() && InOwnerSystem.GetSystemSpawnScript()->GetLatestSource())
 		{
 			// Just invalidate the system scripts here. The emitter scripts have their important variables 
 			// changed in the SetUniqueEmitterName method above.
-			InOwnerSystem.GetSystemSpawnScript()->GetSource()->MarkNotSynchronized(TEXT("EmitterHandleRenamed"));
+			InOwnerSystem.GetSystemSpawnScript()->GetLatestSource()->MarkNotSynchronized(TEXT("EmitterHandleRenamed"));
 		}
 #endif
 	}
@@ -98,10 +98,10 @@ bool FNiagaraEmitterHandle::SetIsEnabled(bool bInIsEnabled, UNiagaraSystem& InOw
 		bIsEnabled = bInIsEnabled;
 
 #if WITH_EDITOR
-		if (InOwnerSystem.GetSystemSpawnScript() && InOwnerSystem.GetSystemSpawnScript()->GetSource())
+		if (InOwnerSystem.GetSystemSpawnScript() && InOwnerSystem.GetSystemSpawnScript()->GetLatestSource())
 		{
 			// We need to get the NiagaraNodeEmitters to update their enabled state based on what happened.
-			InOwnerSystem.GetSystemSpawnScript()->GetSource()->RefreshFromExternalChanges();
+			InOwnerSystem.GetSystemSpawnScript()->GetLatestSource()->RefreshFromExternalChanges();
 
 			// Need to cause us to recompile in the future if necessary...
 			FString InvalidateReason = TEXT("Emitter enabled changed.");

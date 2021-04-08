@@ -92,15 +92,7 @@ public:
 	FRHIUniformBuffer* MovablePointLightUniformBuffer[MAX_BASEPASS_DYNAMIC_POINT_LIGHTS];
 };
 
-static bool ShouldCacheShaderByPlatformAndOutputFormat(EShaderPlatform Platform, EOutputFormat OutputFormat)
-{
-	bool bSupportsMobileHDR = IsMobileHDR();
-	bool bShaderUsesLDR = (OutputFormat == LDR_GAMMA_32);
-
-	// only cache this shader if the LDR/HDR output matches what we currently support.  IsMobileHDR can't change, so we don't need
-	// the LDR shaders if we are doing HDR, and vice-versa.
-	return (bShaderUsesLDR && !bSupportsMobileHDR) || (!bShaderUsesLDR && bSupportsMobileHDR);
-}
+bool ShouldCacheShaderByPlatformAndOutputFormat(EShaderPlatform Platform, EOutputFormat OutputFormat);
 
 template<typename LightMapPolicyType>
 class TMobileBasePassShaderElementData : public FMeshMaterialShaderElementData
@@ -326,9 +318,6 @@ public:
 	/** Initialization constructor. */
 	TMobileBasePassPSBaseType(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) : Super(Initializer) {}
 	TMobileBasePassPSBaseType() {}
-
-	
-	
 };
 
 
@@ -395,24 +384,35 @@ public:
 		const bool bMobileDynamicPointLightsUseStaticBranch = MobileBasePass::MobileDynamicPointLightsUseStaticBranchIniValue.Get(Parameters.Platform);
 		const int32 MobileNumDynamicPointLights = MobileBasePass::MobileNumDynamicPointLightsIniValue.Get(Parameters.Platform);
 		const int32 MobileSkyLightPermutationOptions = MobileSkyLightPermutationCVar->GetValueOnAnyThread();
+		const bool bDeferredShading = IsMobileDeferredShadingEnabled(Parameters.Platform);
+		
+		const bool bIsLit = Parameters.MaterialParameters.ShadingModels.IsLit();
+		const bool bMaterialUsesForwardShading = bIsLit && 
+			(IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) || Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater));
 
-		const bool bIsUnlit = Parameters.MaterialParameters.ShadingModels.IsUnlit();
-
-		// Only compile skylight version for lit materials on mobile (Metal) or higher
-		const bool bShouldCacheBySkylight = !bEnableSkyLight || !bIsUnlit;
+		// Only compile skylight version for lit materials
+		const bool bShouldCacheBySkylight = !bEnableSkyLight || bIsLit;
 
 		// Only compile skylight permutations when they are enabled
-		if (!bIsUnlit && !UseSkylightPermutation(bEnableSkyLight, MobileSkyLightPermutationOptions))
+		if (bIsLit && !UseSkylightPermutation(bEnableSkyLight, MobileSkyLightPermutationOptions))
 		{
 			return false;
 		}
 
+		// Deferred shading does not need SkyLight and PointLight permutations
+		// TODO: skip skylight permutations for deferred
+		const bool bShouldCacheByShading = (!bDeferredShading || bMaterialUsesForwardShading) || (NumMovablePointLights == 0);
+
 		const bool bShouldCacheByNumDynamicPointLights =
 			(NumMovablePointLights == 0 ||
-			(!bIsUnlit && NumMovablePointLights == INT32_MAX && bMobileDynamicPointLightsUseStaticBranch && MobileNumDynamicPointLights > 0) ||	// single shader for variable number of point lights
-				(!bIsUnlit && NumMovablePointLights <= MobileNumDynamicPointLights && !bMobileDynamicPointLightsUseStaticBranch));				// unique 1...N point light shaders
+			(bIsLit && NumMovablePointLights == INT32_MAX && bMobileDynamicPointLightsUseStaticBranch && MobileNumDynamicPointLights > 0) ||	// single shader for variable number of point lights
+				(bIsLit && NumMovablePointLights <= MobileNumDynamicPointLights && !bMobileDynamicPointLightsUseStaticBranch));				// unique 1...N point light shaders
 
-		return TMobileBasePassPSBaseType<LightMapPolicyType>::ShouldCompilePermutation(Parameters) && ShouldCacheShaderByPlatformAndOutputFormat(Parameters.Platform, OutputFormat) && bShouldCacheBySkylight && bShouldCacheByNumDynamicPointLights;
+		return TMobileBasePassPSBaseType<LightMapPolicyType>::ShouldCompilePermutation(Parameters) && 
+				ShouldCacheShaderByPlatformAndOutputFormat(Parameters.Platform, OutputFormat) && 
+				bShouldCacheBySkylight && 
+				bShouldCacheByNumDynamicPointLights &&
+				bShouldCacheByShading;
 	}
 	
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -426,7 +426,10 @@ public:
 		OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_HDR"), OutputFormat == HDR_LINEAR_64 ? 1u : 0u);
 		if (NumMovablePointLights == INT32_MAX)
 		{
-			OutEnvironment.SetDefine(TEXT("MAX_DYNAMIC_POINT_LIGHTS"), (uint32)MAX_BASEPASS_DYNAMIC_POINT_LIGHTS);
+			static auto* MobileNumDynamicPointLightsCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileNumDynamicPointLights"));
+			const int32 MaxDynamicPointLights = FMath::Clamp(MobileNumDynamicPointLightsCVar->GetValueOnAnyThread(), 0, MAX_BASEPASS_DYNAMIC_POINT_LIGHTS);
+			
+			OutEnvironment.SetDefine(TEXT("MAX_DYNAMIC_POINT_LIGHTS"), (uint32)MaxDynamicPointLights);
 			OutEnvironment.SetDefine(TEXT("VARIABLE_NUM_DYNAMIC_POINT_LIGHTS"), (uint32)1);
 		}
 		else

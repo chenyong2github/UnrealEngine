@@ -357,6 +357,7 @@ void UEnvQueryManager::Tick(float DeltaTime)
 #endif
 
 	const float ExecutionTimeWarningSeconds = 0.025f;
+	const float HandlingResultTimeWarningSeconds = 0.025f;
 
 	float TimeLeft = MaxAllowedTestingTime;
 	int32 QueriesFinishedDuringUpdate = 0;
@@ -419,6 +420,16 @@ void UEnvQueryManager::Tick(float DeltaTime)
 						QueryInstancePtr->FinishDelegate.ExecuteIfBound(QueryInstance);
 
 						ResultHandlingDuration = FPlatformTime::Seconds() - ResultHandlingStartTime;
+
+						// Always log if FinishDelegate took too long to handle the result
+						if (ResultHandlingDuration > HandlingResultTimeWarningSeconds)
+						{
+							FName FunctionName(TEXT("Unavailable"));
+	#if USE_DELEGATE_TRYGETBOUNDFUNCTIONNAME
+							FunctionName = QueryInstancePtr->FinishDelegate.TryGetBoundFunctionName();
+	#endif // USE_DELEGATE_TRYGETBOUNDFUNCTIONNAME
+							UE_LOG(LogEQS, Warning, TEXT("FinishDelegate for EQS query %s took %f seconds and is over handling time limit warning of %f. Delegate info: object = %s method = %s"), *QueryInstancePtr->QueryName, ResultHandlingDuration, HandlingResultTimeWarningSeconds , *GetNameSafe(QueryInstancePtr->FinishDelegate.GetUObject()), *FunctionName.ToString());
+						}
 					}
 
 					++QueriesFinishedDuringUpdate;

@@ -4,9 +4,12 @@
 #include "USDValueConversion.h"
 
 #include "USDConversionUtils.h"
+#include "USDErrorUtils.h"
 #include "USDLog.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/VtValue.h"
 
 #include "Containers/StringConv.h"
@@ -190,6 +193,8 @@ namespace UsdToUnreal
 
 		OutValue.SourceType = UsdUtils::EUsdBasicDataTypes::None;
 		OutValue.Entries.Reset();
+		OutValue.bIsArrayValued = false;
+		OutValue.bIsEmpty = true;
 
 		// We consider a success returning an empty value if our input value was also empty
 		if ( InValue.IsEmpty() )
@@ -197,164 +202,200 @@ namespace UsdToUnreal
 			return true;
 		}
 
+		OutValue.bIsEmpty = false;
+		OutValue.bIsArrayValued = InValue.IsArrayValued();
+
 		const VtValue& UsdValue = InValue.GetUsdValue();
 		const TfType& UnderlyingType = UsdValue.GetType();
 
-		if ( UnderlyingType == SdfValueTypeNames->Bool.GetType() )
+#pragma push_macro("CHECK_TYPE")
+#define CHECK_TYPE(T) UnderlyingType.IsA<T>() || UnderlyingType.IsA<VtArray<T>>()
+
+		if ( CHECK_TYPE(bool) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Bool;
 			ConvertSimpleValue<bool, bool>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->UChar.GetType() )
+		else if ( CHECK_TYPE(uint8_t) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Uchar;
 			ConvertSimpleValue<uint8, uint8_t>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Int.GetType() )
+		else if ( CHECK_TYPE(int32_t) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Int;
 			ConvertSimpleValue<int32, int32_t>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->UInt.GetType() )
+		else if ( CHECK_TYPE(uint32_t) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Uint;
 			ConvertSimpleValue<uint32, uint32_t>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Int64.GetType() )
+		else if ( CHECK_TYPE(int64_t) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Int64;
 			ConvertSimpleValue<int64, int64_t>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->UInt64.GetType() )
+		else if ( CHECK_TYPE(uint64_t) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Uint64;
 			ConvertSimpleValue<uint64, uint64_t>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Half.GetType() )
+		else if ( CHECK_TYPE(GfHalf) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Half;
 			ConvertSimpleValue<float, GfHalf>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Float.GetType() )
+		else if ( CHECK_TYPE(float) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Float;
 			ConvertSimpleValue<float, float>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Double.GetType() )
+		else if ( CHECK_TYPE(double) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Double;
 			ConvertSimpleValue<double, double>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->TimeCode.GetType() )
+		else if ( CHECK_TYPE(SdfTimeCode) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Timecode;
 			ConvertSimpleValue<double, SdfTimeCode>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->String.GetType() )
+		else if ( CHECK_TYPE(std::string) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::String;
 			ConvertSimpleValue<FString, std::string>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Token.GetType() )
+		else if ( CHECK_TYPE(TfToken) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Token;
 			ConvertSimpleValue<FString, TfToken>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Asset.GetType() )
+		else if ( CHECK_TYPE(SdfAssetPath) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Asset;
 			ConvertSimpleValue<FString, SdfAssetPath>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Matrix2d.GetType() )
+		else if ( CHECK_TYPE(GfMatrix2d) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Matrix2d;
 			ConvertMatrixValue<GfMatrix2d>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Matrix3d.GetType() )
+		else if ( CHECK_TYPE(GfMatrix3d) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Matrix3d;
 			ConvertMatrixValue<GfMatrix3d>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Matrix4d.GetType() )
+		else if ( CHECK_TYPE(GfMatrix4d) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Matrix4d;
 			ConvertMatrixValue<GfMatrix4d>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Quatd.GetType() )
+		else if ( CHECK_TYPE(GfQuatd) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Quatd;
 			ConvertQuatValue<double, GfQuatd>(UsdValue, OutValue);
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Quatf.GetType() )
+		else if ( CHECK_TYPE(GfQuatf) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Quatf;
 			ConvertQuatValue<float, GfQuatf>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Quath.GetType() )
+		else if ( CHECK_TYPE(GfQuath) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Quath;
 			ConvertQuatValue<float, GfQuath>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Double2.GetType() )
+		else if ( CHECK_TYPE(GfVec2d) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Double2;
 			ConvertVecValue<double, GfVec2d>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Float2.GetType() )
+		else if ( CHECK_TYPE(GfVec2f) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Float2;
 			ConvertVecValue<float, GfVec2f>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Half2.GetType() )
+		else if ( CHECK_TYPE(GfVec2h) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Half2;
 			ConvertVecValue<float, GfVec2h>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Int2.GetType() )
+		else if ( CHECK_TYPE(GfVec2i) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Int2;
 			ConvertVecValue<int32, GfVec2i>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Double3.GetType() )
+		else if ( CHECK_TYPE(GfVec3d) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Double3;
 			ConvertVecValue<double, GfVec3d>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Float3.GetType() )
+		else if ( CHECK_TYPE(GfVec3f) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Float3;
 			ConvertVecValue<float, GfVec3f>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Half3.GetType() )
+		else if ( CHECK_TYPE(GfVec3h) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Half3;
 			ConvertVecValue<float, GfVec3h>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Int3.GetType() )
+		else if ( CHECK_TYPE(GfVec3i) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Int3;
 			ConvertVecValue<int32, GfVec3i>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Double4.GetType() )
+		else if ( CHECK_TYPE(GfVec4d) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Double4;
 			ConvertVecValue<double, GfVec4d>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Float4.GetType() )
+		else if ( CHECK_TYPE(GfVec4f) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Float4;
 			ConvertVecValue<float, GfVec4f>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Half4.GetType() )
+		else if ( CHECK_TYPE(GfVec4h) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Half4;
 			ConvertVecValue<float, GfVec4h>( UsdValue, OutValue );
 		}
-		else if ( UnderlyingType == SdfValueTypeNames->Int4.GetType() )
+		else if ( CHECK_TYPE(GfVec4i) )
 		{
 			OutValue.SourceType = EUsdBasicDataTypes::Int4;
 			ConvertVecValue<int32, GfVec4i>( UsdValue, OutValue );
 		}
+		// These types should only appear within metadata, and don't support arrays.
+		// There are more of them (e.g. pxr/usd/usd/crateDataTypes.h), but these are the most common.
+		// Also check pxr/usd/sdf/types.cpp for where these are defined. These are simple enums
+		else if ( UnderlyingType.IsA<SdfPermission>() )
+		{
+			OutValue.SourceType = EUsdBasicDataTypes::Int;
+			ConvertSimpleValue<int32, SdfPermission>( UsdValue, OutValue );
+		}
+		else if ( UnderlyingType.IsA<SdfSpecifier>() )
+		{
+			OutValue.SourceType = EUsdBasicDataTypes::Int;
+			ConvertSimpleValue<int32, SdfSpecifier>( UsdValue, OutValue );
+		}
+		else if ( UnderlyingType.IsA<SdfVariability>() )
+		{
+			OutValue.SourceType = EUsdBasicDataTypes::Int;
+			ConvertSimpleValue<int32, SdfVariability>( UsdValue, OutValue );
+		}
+		else if ( UnderlyingType.IsA<SdfSpecType>() )
+		{
+			OutValue.SourceType = EUsdBasicDataTypes::Int;
+			ConvertSimpleValue<int32, SdfSpecType>( UsdValue, OutValue );
+		}
+		else
+		{
+			return false;
+		}
+
+#undef CHECK_TYPE
+#pragma pop_macro("CHECK_TYPE")
 
 		return true;
 #else
@@ -374,7 +415,7 @@ namespace UnrealToUsdImpl
 	template<typename UEElementType, typename USDElementType, typename Func>
 	void ConvertInner( const UsdUtils::FConvertedVtValue& InValue, pxr::VtValue& OutValue, Func Function )
 	{
-		if ( InValue.IsArrayValued() )
+		if ( InValue.bIsArrayValued )
 		{
 			pxr::VtArray<USDElementType> Array;
 			Array.reserve( InValue.Entries.Num() );
@@ -647,6 +688,8 @@ FArchive& operator<<( FArchive& Ar, UsdUtils::FConvertedVtValue& Struct )
 {
 	Ar << Struct.Entries;
 	Ar << Struct.SourceType;
+	Ar << Struct.bIsArrayValued;
+	Ar << Struct.bIsEmpty;
 	return Ar;
 }
 
@@ -801,8 +844,24 @@ namespace UsdUtils
 	FString Stringify( const UE::FVtValue& Value )
 	{
 #if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
 		const pxr::VtValue& UsdValue = Value.GetUsdValue();
 		return UsdToUnreal::ConvertString( pxr::TfStringify( UsdValue ) );
+#else
+		return FString();
+#endif // USE_USD_SDK
+	}
+
+	FString GetImpliedTypeName( const UE::FVtValue& Value )
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		const pxr::VtValue& UsdValue = Value.GetUsdValue();
+		pxr::SdfValueTypeName TypeName = pxr::SdfSchema::GetInstance().FindType( UsdValue.GetType() );
+
+		return UsdToUnreal::ConvertToken( TypeName.GetAsToken() );
 #else
 		return FString();
 #endif // USE_USD_SDK

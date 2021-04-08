@@ -119,14 +119,14 @@ void FOnlineIdentityAmazon::TickLogin(float DeltaTime)
 				}
 				else
 				{
-					TriggerOnLoginCompleteDelegates(LocalUserNumPendingLogin, false, FUniqueNetIdAmazon(TEXT("")), FString(TEXT("RegisterUser() failed to parse the user registration results")));
+					TriggerOnLoginCompleteDelegates(LocalUserNumPendingLogin, false, *FUniqueNetIdAmazon::EmptyId(), FString(TEXT("RegisterUser() failed to parse the user registration results")));
 				}
 			}
 			// Trigger the delegate if we hit the timeout limit
 			else if (TotalCheckElapsedTime > MaxCheckElapsedTime)
 			{
 				bHasLoginOutstanding = false;
-				TriggerOnLoginCompleteDelegates(LocalUserNumPendingLogin, false, FUniqueNetIdAmazon(TEXT("")), FString(TEXT("RegisterUser() timed out without getting the data")));
+				TriggerOnLoginCompleteDelegates(LocalUserNumPendingLogin, false, *FUniqueNetIdAmazon::EmptyId(), FString(TEXT("RegisterUser() timed out without getting the data")));
 			}
 		}
 		// Reset our time trackers if we are done ticking for now
@@ -247,7 +247,7 @@ bool FOnlineIdentityAmazon::Login(int32 LocalUserNum, const FOnlineAccountCreden
 	}
 	if (!bWasSuccessful)
 	{
-		TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdAmazon(TEXT("")), FString(TEXT("RegisterUser() failed")));
+		TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdAmazon::EmptyId(), FString(TEXT("RegisterUser() failed")));
 	}
 	return bWasSuccessful;
 }

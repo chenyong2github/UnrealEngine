@@ -133,10 +133,11 @@ void USocialDebugTools::Login(const FString& Instance, const FOnlineAccountCrede
 							{
 								ContextTmp.PresenceReceivedDelegateHandle = OnlinePresence->AddOnPresenceReceivedDelegate_Handle(PresenceDelegate);
 
-								FOnlineUserPresenceStatus Status;
+								FOnlinePresenceSetPresenceParameters Status;
 								Status.State = EOnlinePresenceState::Online;
 								Status.StatusStr = FString(TEXT("Golem:")) + Instance;
-								OnlinePresence->SetPresence(UserId, Status);
+								Status.Properties.Emplace(); // Intentionally empty to clear out existing fields
+								OnlinePresence->SetPresence(UserId, MoveTemp(Status));
 							}
 							else
 							{

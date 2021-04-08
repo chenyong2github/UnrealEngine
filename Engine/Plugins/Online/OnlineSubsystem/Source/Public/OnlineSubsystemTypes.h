@@ -832,60 +832,19 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdStringRef Create(TArgs&&... Args)
 	{
-		return MakeShareable(new FUniqueNetIdString(Forward<TArgs>(Args)...));
+		return MakeShared<FUniqueNetIdString, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
 	}
 
-	// Define these to increase visibility to public (from parent's protected)
-	FUniqueNetIdString() = default;
+	/** Allow MakeShared to see private constructors */
+	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdString>;
 
-	FUniqueNetIdString(FUniqueNetIdString&&) = default;
-	FUniqueNetIdString(const FUniqueNetIdString&) = default;
-	FUniqueNetIdString& operator=(FUniqueNetIdString&&) = default;
-	FUniqueNetIdString& operator=(const FUniqueNetIdString&) = default;
+	static FUniqueNetIdStringRef& EmptyId()
+	{
+		static FUniqueNetIdStringRef EmptyId(Create());
+		return EmptyId;
+	}
 
 	virtual ~FUniqueNetIdString() = default;
-
-	/**
-	 * Constructs this object with the specified net id
-	 *
-	 * @param InUniqueNetId the id to set ours to
-	 */
-	explicit FUniqueNetIdString(const FString& InUniqueNetId)
-		: UniqueNetIdStr(InUniqueNetId)
-		, Type(NAME_Unset)
-	{
-	}
-
-	/**
-	 * Constructs this object with the specified net id
-	 *
-	 * @param InUniqueNetId the id to set ours to
-	 */
-	explicit FUniqueNetIdString(FString&& InUniqueNetId)
-		: UniqueNetIdStr(MoveTemp(InUniqueNetId))
-		, Type(NAME_Unset)
-	{
-	}
-
-	/**
-	 * Constructs this object with the string value of the specified net id
-	 *
-	 * @param Src the id to copy
-	 */
-	explicit FUniqueNetIdString(const FUniqueNetId& Src)
-		: UniqueNetIdStr(Src.ToString())
-		, Type(Src.GetType())
-	{
-	}
-
-	/** 
-	* don.eubanks - Including a constructor that allows for type passing to make transitioning easier, if we determine we want to abstract-ify this class, this constructor will be removed
-	*/
-	FUniqueNetIdString(const FString& InUniqueNetId, const FName InType)
-		: UniqueNetIdStr(InUniqueNetId)
-		, Type(InType)
-	{
-	}
 
 	// IOnlinePlatformData
 
@@ -931,6 +890,52 @@ public:
 	{
 		return ::GetTypeHash(A.UniqueNetIdStr);
 	}
+
+	// Public constructors are deprecated, but we are piggybacking on the ESPMode deprecation and making these public in ESPMode::Fast and protected in ESPMode::ThreadSafe
+UNIQUENETID_CONSTRUCTORVIS:
+	FUniqueNetIdString() = default;
+
+	/**
+	 * Constructs this object with the specified net id
+	 *
+	 * @param InUniqueNetId the id to set ours to
+	 */
+	explicit FUniqueNetIdString(const FString & InUniqueNetId)
+		: UniqueNetIdStr(InUniqueNetId)
+		, Type(NAME_Unset)
+	{
+	}
+
+	/**
+	 * Constructs this object with the specified net id
+	 *
+	 * @param InUniqueNetId the id to set ours to
+	 */
+	explicit FUniqueNetIdString(FString && InUniqueNetId)
+		: UniqueNetIdStr(MoveTemp(InUniqueNetId))
+		, Type(NAME_Unset)
+	{
+	}
+
+	/**
+	 * Constructs this object with the string value of the specified net id
+	 *
+	 * @param Src the id to copy
+	 */
+	explicit FUniqueNetIdString(const FUniqueNetId & Src)
+		: UniqueNetIdStr(Src.ToString())
+		, Type(Src.GetType())
+	{
+	}
+
+	/**
+	* don.eubanks - Including a constructor that allows for type passing to make transitioning easier, if we determine we want to abstract-ify this class, this constructor will be removed
+	*/
+	FUniqueNetIdString(const FString & InUniqueNetId, const FName InType)
+		: UniqueNetIdStr(InUniqueNetId)
+		, Type(InType)
+	{
+	}
 };
 
 
@@ -943,10 +948,44 @@ public: \
 	template<typename... TArgs> \
 	static SUBCLASSNAME##Ref Create(TArgs&&... Args) \
 	{ \
-		return MakeShareable(new SUBCLASSNAME(Forward<TArgs>(Args)...)); \
+		return MakeShared<SUBCLASSNAME, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...); \
 	} \
+	friend class SharedPointerInternals::TIntrusiveReferenceController<SUBCLASSNAME>; \
+	static SUBCLASSNAME##Ref Cast(const FUniqueNetIdRef& InNetId) \
+	{ \
+		check(InNetId->GetType() == TYPE); \
+		return StaticCastSharedRef<const SUBCLASSNAME>(InNetId); \
+	} \
+	static SUBCLASSNAME##Ptr Cast(const FUniqueNetIdPtr& InNetId) \
+	{ \
+		if(InNetId.IsValid()) \
+		{ \
+			check(InNetId->GetType() == TYPE); \
+			return StaticCastSharedPtr<const SUBCLASSNAME>(InNetId); \
+		} \
+		return nullptr; \
+	} \
+	static const SUBCLASSNAME& Cast(const FUniqueNetId& InNetId) \
+	{ \
+		check(InNetId.GetType() == TYPE); \
+		return static_cast<const SUBCLASSNAME&>(InNetId); \
+	} \
+	SUBCLASSNAME##Ref AsShared() const \
+	{ \
+		return StaticCastSharedRef<const SUBCLASSNAME>(FUniqueNetId::AsShared()); \
+	} \
+	friend uint32 GetTypeHash(const SUBCLASSNAME& A) \
+	{ \
+		return ::GetTypeHash(A.UniqueNetIdStr); \
+	} \
+	static const SUBCLASSNAME##Ref& EmptyId() \
+	{ \
+		static const SUBCLASSNAME##Ref EmptyId(Create()); \
+		return EmptyId; \
+	} \
+UNIQUENETID_CONSTRUCTORVIS: \
 	SUBCLASSNAME() \
-		: FUniqueNetIdString()	 \
+		: FUniqueNetIdString() \
 	{ \
 		Type = TYPE; \
 	} \
@@ -962,15 +1001,6 @@ public: \
 		: FUniqueNetIdString(Src) \
 	{ \
 		check(GetType() == TYPE); \
-	} \
-	friend uint32 GetTypeHash(const SUBCLASSNAME& A) \
-	{ \
-		return ::GetTypeHash(A.UniqueNetIdStr); \
-	} \
-	static const SUBCLASSNAME##Ref& EmptyId() \
-	{ \
-		static const SUBCLASSNAME##Ref EmptyId = SUBCLASSNAME::Create(); \
-		return EmptyId; \
 	} \
 };
 

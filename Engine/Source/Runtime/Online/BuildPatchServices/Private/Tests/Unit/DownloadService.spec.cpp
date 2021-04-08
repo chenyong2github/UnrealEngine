@@ -176,7 +176,7 @@ void FDownloadServiceSpec::Define()
 					}
 				});
 
-				It("should cancel if it had already started.", [this]()
+				xIt("should cancel if it had already started.", [this]()
 				{
 					DoTicksUntilCreated();
 					DownloadService->RequestCancel(MadeRequestId);

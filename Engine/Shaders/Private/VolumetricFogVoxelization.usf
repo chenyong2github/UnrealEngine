@@ -17,6 +17,8 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
+#include "VolumetricCloudMaterialPixelCommon.ush"
+
 #define VolumetricFog VoxelizeVolumePass.VolumetricFog
 
 uint VoxelizationPassIndex;
@@ -300,6 +302,18 @@ void VoxelizePS(
 	float ValidRegionMask = 1;
 
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants.FactoryInterpolants, SvPosition);
+
+#if CLOUD_LAYER_PIXEL_SHADER
+	FCloudLayerParameters CloudLayerParams = GetCloudLayerParams(
+		VoxelizeVolumePass.RenderVolumetricCloudParametersCloudLayerCenterKm, VoxelizeVolumePass.RenderVolumetricCloudParametersPlanetRadiusKm,
+		VoxelizeVolumePass.RenderVolumetricCloudParametersBottomRadiusKm, VoxelizeVolumePass.RenderVolumetricCloudParametersTopRadiusKm);
+	const float NotShadowSample = 0.0f;
+	float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+	float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
+	float3 AbsoluteWorldPosition = TranslatedWorldPosition.xyz - ResolvedView.PreViewTranslation.xyz;
+	UpdateMaterialCloudParam(MaterialParameters, AbsoluteWorldPosition, ResolvedView, CloudLayerParams, NotShadowSample);
+#endif
+
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
 

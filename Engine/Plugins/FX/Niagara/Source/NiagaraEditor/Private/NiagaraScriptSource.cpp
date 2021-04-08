@@ -105,33 +105,6 @@ void UNiagaraScriptSource::PostLoad()
 	}
 }
 
-UNiagaraScriptSourceBase* UNiagaraScriptSource::MakeRecursiveDeepCopy(UObject* DestOuter, TMap<const UObject*, UObject*>& ExistingConversions) const
-{
-	check(GetOuter() != DestOuter);
-	EObjectFlags Flags = RF_AllFlags & ~RF_Standalone & ~RF_Public; // Remove Standalone and Public flags.
-	ResetLoaders(GetTransientPackage()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
-	GetTransientPackage()->LinkerCustomVersion.Empty();
-
-	UNiagaraScriptSource*	ScriptSource = CastChecked<UNiagaraScriptSource>(StaticDuplicateObject(this, GetTransientPackage(), NAME_None, Flags));
-	check(ScriptSource->HasAnyFlags(RF_Standalone) == false);
-	check(ScriptSource->HasAnyFlags(RF_Public) == false);
-
-	ScriptSource->Rename(nullptr, DestOuter, REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-	UE_LOG(LogNiagaraEditor, Warning, TEXT("MakeRecursiveDeepCopy %s"), *ScriptSource->GetFullName());
-	ExistingConversions.Add(this, ScriptSource);
-
-	ScriptSource->SubsumeExternalDependencies(ExistingConversions);
-	return ScriptSource;
-}
-
-void UNiagaraScriptSource::SubsumeExternalDependencies(TMap<const UObject*, UObject*>& ExistingConversions)
-{
-	if (NodeGraph)
-	{
-		NodeGraph->SubsumeExternalDependencies(ExistingConversions);
-	}
-}
-
 bool UNiagaraScriptSource::IsSynchronized(const FGuid& InChangeId)
 {
 	if (NodeGraph)
@@ -218,8 +191,7 @@ void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNode* Node, FNiagaraPa
 	GetStackFunctionInputPins(*FunctionCallNode, ModuleInputPins, HiddenModulePins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 
 	// the rapid iteration parameters and the function input pins use different variable naming schemes, so most of this is just used to convert one name to the other 
-	UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionCallNode->FunctionScript->GetSource());
-	UNiagaraGraph* Graph = Source->NodeGraph;
+	UNiagaraGraph* Graph = FunctionCallNode->GetCalledGraph();
 	const UEdGraphSchema_Niagara* NiagaraSchema = Graph->GetNiagaraSchema();
 	const FString UniqueEmitterName = Emitter ? Emitter->GetUniqueEmitterName() : FString();
 

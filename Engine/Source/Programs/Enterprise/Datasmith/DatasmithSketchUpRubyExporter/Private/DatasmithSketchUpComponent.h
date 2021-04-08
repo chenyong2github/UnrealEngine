@@ -18,7 +18,7 @@ namespace DatasmithSketchUp
 
 	class FCamera;
 	class FComponentDefinition;
-	class FComponentDefinition;
+	class FComponentInstance;
 	class FEntities;
 	class FEntitiesGeometry;
 	class FEntity;
@@ -36,28 +36,41 @@ namespace DatasmithSketchUp
 			: ParentNode(nullptr)
 			, Entity(InEntity)
 			, Depth(0)
+			,  bVisibilityInvalidated(true)
+			,  bPropertiesInvalidated(true)
+			,  bMeshActorsInvalidated(true)
+			,  bHierarchyInvalidated(true)
 		{}
 
 		FNodeOccurence(FNodeOccurence* InParentNode, FEntity& InEntity)
 			: ParentNode(InParentNode)
 			, Entity(InEntity)
 			, Depth(InParentNode->Depth + 1)
+			, bVisibilityInvalidated(true)
+			, bPropertiesInvalidated(true)
+			, bMeshActorsInvalidated(true)
+			, bHierarchyInvalidated(true)
 		{}
 
 		// Update node hierarchy, bForceUpdate - to make update node and descendants when transform changes
+		void UpdateVisibility(FExportContext& Context);
 		void Update(FExportContext& Context);
 
-		void CreateMeshActors(FExportContext& Context); // Create Datasmith Mesh Actors for meshes in the node's Entities
+		void AddChildOccurrence(FExportContext& Context, FComponentInstance& ComponentInstance);
 
-		void InvalidateProperties(FExportContext& Context); // Invalidate name and transform. Invalidate propagates down the hierarchy - child transforms depend on the parent
+		void UpdateMeshActors(FExportContext& Context); // Create/Free Datasmith Mesh Actors for meshes in the node's Entities
 
-		void ToDatasmith(FExportContext& Context);
+		void InvalidateProperties(); // Invalidate name and transform. Invalidate propagates down the hierarchy - child transforms depend on the parent
+		void InvalidateMeshActors();
+		void SetVisibility(bool);
+
+		void ToDatasmith(FExportContext& Context); // Build actor hierarchy 
 
 		FString GetActorName();
 
 		FString GetActorLabel();
 
-		void Remove(FExportContext& Context);
+		void RemoveOccurrence(FExportContext& Context);
 
 		FNodeOccurence* ParentNode;
 
@@ -70,6 +83,7 @@ namespace DatasmithSketchUp
 		SUTransformation WorldTransform;
 		FMaterialIDType InheritedMaterialID;
 		SULayerRef EffectiveLayerRef = SU_INVALID;
+		bool bVisible = true; // Computed visibility for this occurrence(affecting descendants)
 
 		// Datasmith elements this Node spawns
 		FString DatasmithActorName;
@@ -78,8 +92,13 @@ namespace DatasmithSketchUp
 		TSharedPtr<IDatasmithMetaDataElement> DatasmithMetadataElement;
 		TArray<TSharedPtr<IDatasmithMeshActorElement>> MeshActors; // Mesh actors for Loose geometry
 
-
-		bool bPropertiesInvalidated = true; // Whether this occurrence properties(transform, name) need to be updated
+		// Flags indicating which Datasmith elements need to be updated from SketchUp
+		// todo: do we really need so many flags for node? Just one flag to rebuild whole hierarchy of Datasmith actors?
+		// Note - this doesn't mean that all needs to be recreated, literally, reuse if possible. 
+		uint8 bVisibilityInvalidated:1;
+		uint8 bPropertiesInvalidated:1; // Whether this occurrence properties(transform, name) need to be updated
+		uint8 bMeshActorsInvalidated:1; // Whether this occurrence MeshActors need updating. Happens initially when node was added and when node geometry is invalidated
+		uint8 bHierarchyInvalidated:1; // Children need to be rebuilt
 	};
 
 	// For SketchUp's Definition that provides access to Entities and converts to Datasmith
@@ -87,12 +106,23 @@ namespace DatasmithSketchUp
 	{
 	public:
 
+		FDefinition()
+			: bMeshesAdded(false)
+			, bGeometryInvalidated(true)
+		{}
+
+
 		virtual ~FDefinition() {}
 
 		virtual void Parse(FExportContext& Context) = 0;
 		virtual void CreateActor(FExportContext& Context, FNodeOccurence& Node) = 0; // Create Datasmith actor for node occurrence
 		virtual void UpdateGeometry(FExportContext& Context) = 0; // Convert definition's Entities geometry to Datasmith Mesh
-		virtual void InvalidateInstancesGeometry(FExportContext& Context) = 0; // Mark that all instances(and their occurrences) need to be updated
+
+		void EntityVisible(FEntity* Entity, bool bVisible);
+
+		// Modfication methods
+		virtual void AddInstance(FExportContext& Context, TSharedPtr<FComponentInstance> Instance) = 0; // Register child CompoenntInstance Entity of Definition's Entities
+		virtual void InvalidateInstancesGeometry(FExportContext& Context) = 0; // Mark that all instances(and their occurrences) needed to be updated
 
 		virtual FString GetSketchupSourceGUID() = 0;
 		virtual FString GetSketchupSourceName() = 0;
@@ -107,22 +137,16 @@ namespace DatasmithSketchUp
 			bGeometryInvalidated = true;
 		}
 
-		void UpdateDefinition(FExportContext& Context)
-		{
-			if (bGeometryInvalidated)
-			{
-				UpdateGeometry(Context);
-				InvalidateInstancesGeometry(Context); // Make sure instances keep up with definition changes
-				bGeometryInvalidated = false;
-			}
-		}
+		void UpdateDefinition(FExportContext& Context);
 
 	protected:
 		virtual void BuildNodeNames(FNodeOccurence& Node) = 0;
 
 		TSharedPtr<DatasmithSketchUp::FEntities> Entities;
 
-		bool bGeometryInvalidated = true;
+		TSet<FEntity*> VisibleEntities;
+		uint8 bMeshesAdded:1;
+		uint8 bGeometryInvalidated:1;
 	};
 
 
@@ -139,13 +163,22 @@ namespace DatasmithSketchUp
 		void CreateActor(FExportContext& Context, FNodeOccurence& Node) override;
 		void BuildNodeNames(FNodeOccurence& Node) override;
 		void UpdateGeometry(FExportContext& Context) override;
+
+		void AddInstance(FExportContext& Context, TSharedPtr<FComponentInstance> Instance);
 		void InvalidateInstancesGeometry(FExportContext& Context) override;
+
 		FString GetSketchupSourceGUID() override;
 		FString GetSketchupSourceName()  override;
 		// End FDefinition
 
+
+		// Register/unregister instanced of this definition
+		void LinkComponentInstance(FComponentInstance* ComponentInstance);
+		void UnlinkComponentInstance(FComponentInstance* ComponentInstance);
+
 		// Source SketchUp component ID.
 		FComponentDefinitionIDType SketchupSourceID;
+		TSet<FComponentInstance*> Instances;
 
 	private:
 		SUComponentDefinitionRef ComponentDefinitionRef;
@@ -165,7 +198,10 @@ namespace DatasmithSketchUp
 		void CreateActor(FExportContext& Context, FNodeOccurence& Node) override;
 		void BuildNodeNames(FNodeOccurence& Node) override;
 		void UpdateGeometry(FExportContext& Context) override;
+
+		void AddInstance(FExportContext& Context, TSharedPtr<FComponentInstance> Instance);
 		void InvalidateInstancesGeometry(FExportContext& Context) override;
+
 		FString GetSketchupSourceGUID() override;
 		FString GetSketchupSourceName()  override;
 		// End FDefinition
@@ -186,6 +222,8 @@ namespace DatasmithSketchUp
 
 		void UpdateGeometry(FExportContext& Context);
 		void CleanEntitiesGeometry(FExportContext& Context);
+		void AddMeshesToDatasmithScene(FExportContext& Context);
+		void RemoveMeshesFromDatasmithScene(FExportContext& Context);
 
 		TSharedPtr<IDatasmithMeshElement> CreateMeshElement(FExportContext& Context, FDatasmithMesh& DatasmithMesh);
 
@@ -196,13 +234,7 @@ namespace DatasmithSketchUp
 		// Source SketchUp component entities.
 		SUEntitiesRef EntitiesRef = SU_INVALID;
 
-		// Number of component instances in the source SketchUp entities.
-		size_t SourceComponentInstanceCount;
-
-		// Number of groups in the source SketchUp entities.
-		size_t SourceGroupCount;
-
-		TSharedPtr<DatasmithSketchUp::FEntitiesGeometry> EntitiesGeometry;
+		TSharedPtr<FEntitiesGeometry> EntitiesGeometry;
 	};
 
 	// Represents an SketchUp's Entities'(not Entity's!) loose geometry
@@ -234,46 +266,44 @@ namespace DatasmithSketchUp
 	{
 	public:
 
+		FEntity() 
+			: bGeometryInvalidated(true)
+			, bPropertiesInvalidated(true)
+		{}
+
 		virtual ~FEntity() {}
 
 		virtual FDefinition* GetDefinition() = 0;
 		virtual bool GetAssignedMaterial(FMaterialIDType& MaterialId) = 0; // Get material of this entity
-		virtual void UpdateOccurrencesGeometry(FExportContext& Context) = 0;
+		virtual void InvalidateOccurrencesGeometry(FExportContext& Context) = 0;
 		virtual void UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node); // Update occurrence of this entity
 		virtual void InvalidateOccurrencesProperties(FExportContext& Context) = 0;
 		virtual int64 GetPersistentId() = 0;
 		virtual FString GetName() = 0;
+		virtual void UpdateOccurrenceVisibility(FExportContext& Context, FNodeOccurence&) = 0;
+		virtual void DeleteOccurrence(FExportContext& Context, FNodeOccurence* Node) = 0;
+
+		void EntityOccurrenceVisible(FNodeOccurence* Node, bool bUses);
+
 
 		// Invalidates transform, name
 		void InvalidateEntityProperties()
 		{
 			bPropertiesInvalidated = true;
 		}
-		bool bPropertiesInvalidated = true;
 
 		void InvalidateEntityGeometry()
 		{
 			bGeometryInvalidated = true;
 		}
-		bool bGeometryInvalidated = true;
 
-		void UpdateEntity(FExportContext& Context)
-		{
-			if (bGeometryInvalidated)
-			{
-				UpdateOccurrencesGeometry(Context);
-				bGeometryInvalidated = false;
-			}
+		void UpdateEntityProperties(FExportContext& Context);
+		void UpdateEntityGeometry(FExportContext& Context);
 
-			if (bPropertiesInvalidated)
-			{
-				// We can't just update Occurrence properties
-				// When transform changes each node needs its parent transform to be already calculated 
-				// So we postpone occurrence nodes updates until we do update with respect to hierarchy(top first)
-				InvalidateOccurrencesProperties(Context);
-				bPropertiesInvalidated = false;
-			}
-		}
+		TSet<FNodeOccurence*> VisibleNodes;
+
+		uint8 bGeometryInvalidated:1;
+		uint8 bPropertiesInvalidated:1;
 	};
 
 	class FComponentInstance : public FEntity
@@ -291,20 +321,30 @@ namespace DatasmithSketchUp
 		// >>> FEntity
 		FDefinition* GetDefinition() override;
 		bool GetAssignedMaterial(FMaterialIDType& MaterialId) override;
-		void UpdateOccurrencesGeometry(FExportContext& Context) override;
+		void InvalidateOccurrencesGeometry(FExportContext& Context) override;
 		void UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node) override;
 		void InvalidateOccurrencesProperties(FExportContext& Context) override;
 		int64 GetPersistentId() override;
 		FString GetName() override;
+		void UpdateOccurrenceVisibility(FExportContext& Context, FNodeOccurence&) override;
+		void DeleteOccurrence(FExportContext& Context, FNodeOccurence* Node) override;
 		// <<< FEntity
 
+
+		void RemoveComponentInstance(FExportContext& Context);
+
 		// Create an occurrence of this ComponentInstance (component instance can appear multiple times in SketchUp hierarchy)
-		TSharedRef<FNodeOccurence> CreateNodeOccurrence(FExportContext& Context, FNodeOccurence& ParentNode);
+		FNodeOccurence& CreateNodeOccurrence(FExportContext& Context, FNodeOccurence& ParentNode);
 		void RemoveOccurrences(FExportContext& Context);
 
-	private:
 		FComponentInstanceIDType GetComponentInstanceId();
+		SUComponentInstanceRef GetComponentInstanceRef(); 
 
+		bool RetrieveHidden(); // Retrieve SketchUp value of Hidden flag
+
+		bool bHidden = false; // S
+
+		TArray<FNodeOccurence*> Occurrences;
 	};
 
 	class FModel : public FEntity
@@ -315,11 +355,13 @@ namespace DatasmithSketchUp
 		// >>> FEntity
 		virtual FDefinition* GetDefinition() override;
 		bool GetAssignedMaterial(FMaterialIDType& MaterialId) override;
-		void UpdateOccurrencesGeometry(FExportContext& Context) override;
+		void InvalidateOccurrencesGeometry(FExportContext& Context) override;
 		// void UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node) override;
 		void InvalidateOccurrencesProperties(FExportContext& Context) override;
 		int64 GetPersistentId() override;
 		FString GetName() override;
+		void UpdateOccurrenceVisibility(FExportContext& Context, FNodeOccurence&) override;
+		void DeleteOccurrence(FExportContext& Context, FNodeOccurence* Node) override;
 		// <<< FEntity
 	private:
 		FModelDefinition& Definition;

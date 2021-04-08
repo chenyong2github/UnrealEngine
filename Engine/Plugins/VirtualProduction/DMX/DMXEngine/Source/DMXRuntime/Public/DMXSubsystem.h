@@ -6,10 +6,10 @@
 #include "UObject/NoExportTypes.h"
 #include "DMXProtocolTypes.h"
 #include "DMXTypes.h"
+#include "IO/DMXInputPortReference.h"
+#include "IO/DMXOutputPortReference.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "Library/DMXInputPortReference.h"
-#include "Library/DMXOutputPortReference.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "DMXSubsystem.generated.h"
 

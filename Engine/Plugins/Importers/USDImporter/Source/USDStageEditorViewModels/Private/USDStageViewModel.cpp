@@ -6,6 +6,7 @@
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
+#include "USDLog.h"
 #include "USDStageActor.h"
 #include "USDStageImportContext.h"
 #include "USDStageImporterModule.h"
@@ -107,11 +108,18 @@ void FUsdStageViewModel::OpenStage( const TCHAR* FilePath )
 		UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
 	}
 
-	UsdStageActor->Modify();
+	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
+	{
+		StageActor->Modify();
 
-	UsdStageActor->RootLayer.FilePath = FilePath;
-	FPropertyChangedEvent RootLayerPropertyChangedEvent( FindFieldChecked< FProperty >( UsdStageActor->GetClass(), FName("RootLayer") ) );
-	UsdStageActor->PostEditChangeProperty( RootLayerPropertyChangedEvent );
+		StageActor->RootLayer.FilePath = FilePath;
+		FPropertyChangedEvent RootLayerPropertyChangedEvent( FindFieldChecked< FProperty >( StageActor->GetClass(), FName("RootLayer") ) );
+		StageActor->PostEditChangeProperty( RootLayerPropertyChangedEvent );
+	}
+	else
+	{
+		UE_LOG(LogUsd, Error, TEXT("Failed to find a AUsdStageActor that could open stage '%s'!"), FilePath);
+	}
 }
 
 void FUsdStageViewModel::ReloadStage()
@@ -246,7 +254,8 @@ void FUsdStageViewModel::ImportStage()
 		ImportContext.ImportOptions->PurposesToImport = StageActor->PurposesToLoad;
 		ImportContext.ImportOptions->RenderContextToImport = StageActor->RenderContext;
 		ImportContext.ImportOptions->ImportTime = StageActor->GetTime();
-		ImportContext.ImportOptions->MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
+		ImportContext.ImportOptions->StageOptions.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
+		ImportContext.ImportOptions->StageOptions.UpAxis = UsdUtils::GetUsdStageUpAxisAsEnum( UsdStage );
 		ImportContext.bReadFromStageCache = true; // So that we import whatever the user has open right now, even if the file has changes
 
 		const FString RootPath = UsdStage.GetRootLayer().GetRealPath();

@@ -1484,8 +1484,7 @@ void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer(
 
 void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer()
 {
-	// The update is invalid if the lighting cache allocation was not in a functional state.
-	if (bIndirectLightingCacheBufferDirty && (!IndirectLightingCacheAllocation || (Scene->IndirectLightingCache.IsInitialized() && IndirectLightingCacheAllocation->bHasEverUpdatedSingleSample)))
+	if (bIndirectLightingCacheBufferDirty)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateIndirectLightingCacheBuffer);
 
@@ -1501,7 +1500,8 @@ void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer()
 				Scene->GetFrameNumber(),
 				&Scene->VolumetricLightmapSceneData);
 		}
-		else if (IndirectLightingCacheAllocation)
+		// The update is invalid if the lighting cache allocation was not in a functional state.
+		else if (IndirectLightingCacheAllocation && (Scene->IndirectLightingCache.IsInitialized() && IndirectLightingCacheAllocation->bHasEverUpdatedSingleSample))
 		{
 			UpdateIndirectLightingCacheBuffer(
 				&Scene->IndirectLightingCache,

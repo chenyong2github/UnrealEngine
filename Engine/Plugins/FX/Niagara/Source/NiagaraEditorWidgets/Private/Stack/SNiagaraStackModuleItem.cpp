@@ -1,40 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stack/SNiagaraStackModuleItem.h"
-#include "NiagaraEditorWidgetsStyle.h"
-#include "NiagaraEditorStyle.h"
-#include "NiagaraActions.h"
-#include "NiagaraConstants.h"
-#include "NiagaraNodeFunctionCall.h"
-#include "NiagaraNodeOutput.h"
-#include "NiagaraNodeAssignment.h"
-#include "Stack/SNiagaraStackItemGroupAddMenu.h"
-#include "ViewModels/Stack/NiagaraStackModuleItem.h"
-#include "ViewModels/Stack/NiagaraStackViewModel.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/NiagaraScratchPadViewModel.h"
-#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Images/SImage.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Application/SlateApplication.h"
-#include "SDropTarget.h"
-#include "NiagaraEditorUtilities.h"
-#include "SGraphActionMenu.h"
-#include "NiagaraEditorWidgetsUtilities.h"
-#include "Subsystems/AssetEditorSubsystem.h"
+
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
-#include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
-#include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
+#include "NiagaraActions.h"
+#include "NiagaraConstants.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraEditorStyle.h"
+#include "NiagaraEditorUtilities.h"
+#include "NiagaraEditorWidgetsStyle.h"
+#include "NiagaraEditorWidgetsUtilities.h"
+#include "NiagaraNodeAssignment.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraNodeOutput.h"
+#include "ScopedTransaction.h"
+#include "SDropTarget.h"
+#include "SGraphActionMenu.h"
 #include "SNiagaraGraphActionWidget.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackModuleItem"
 
@@ -59,7 +57,8 @@ FReply SNiagaraStackModuleItem::OnMouseButtonDoubleClick(const FGeometry& InMyGe
 	{
 		if (ModuleFunctionCall.FunctionScript->IsAsset() || GbShowNiagaraDeveloperWindows > 0)
 		{
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(const_cast<UNiagaraScript*>(ToRawPtr(ModuleFunctionCall.FunctionScript)));
+			ModuleFunctionCall.FunctionScript->VersionToOpenInEditor = ModuleFunctionCall.SelectedScriptVersion;
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ToRawPtr(ModuleFunctionCall.FunctionScript));
 			return FReply::Handled();
 		}
 		else if (ModuleItem->IsScratchModule())
@@ -105,6 +104,31 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 			]
 		];
 	}
+
+	// Version selector
+	HorizontalBox->AddSlot()
+    .VAlign(VAlign_Center)
+    .AutoWidth()
+    [
+        SNew(SComboButton)
+        .HasDownArrow(false)
+        .ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+        .ForegroundColor(FSlateColor::UseForeground())
+        .OnGetMenuContent(this, &SNiagaraStackModuleItem::GetVersionSelectorDropdownMenu)
+        .ContentPadding(FMargin(2))
+        .ToolTipText(LOCTEXT("VersionTooltip", "Change the version of this module script"))
+        .HAlign(HAlign_Center)
+        .VAlign(VAlign_Center)
+        .Visibility(this, &SNiagaraStackModuleItem::GetVersionSelectionMenuVisibility)
+        .ButtonContent()
+        [
+	        SNew(STextBlock)
+	        .Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+	        .ColorAndOpacity(this, &SNiagaraStackModuleItem::GetVersionSelectorColor)
+	        .Text(FEditorFontGlyphs::Random)
+        ]
+    ];
+	
 	// Add menu.
 	HorizontalBox->AddSlot()
 	.VAlign(VAlign_Center)
@@ -149,6 +173,21 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 	];
 }
 
+FSlateColor SNiagaraStackModuleItem::GetVersionSelectorColor() const
+{
+	UNiagaraScript* Script = ModuleItem->GetModuleNode().FunctionScript;
+	
+	if (Script && Script->IsVersioningEnabled())
+	{
+		FVersionedNiagaraScriptData* ScriptData = Script->GetScriptData(ModuleItem->GetModuleNode().SelectedScriptVersion);
+		if (ScriptData && ScriptData->Version < Script->GetExposedVersion())
+		{
+			return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.IconColor.VersionUpgrade");
+		}
+	}
+	return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor");
+}
+
 TSharedRef<SWidget> SNiagaraStackModuleItem::AddContainerForRowWidgets(TSharedRef<SWidget> RowWidgets)
 {
 	return SNew(SDropTarget)
@@ -176,7 +215,29 @@ EVisibility SNiagaraStackModuleItem::GetRaiseActionMenuVisibility() const
 
 EVisibility SNiagaraStackModuleItem::GetRefreshVisibility() const
 {
-	return ModuleItem->CanRefresh() ? EVisibility::Visible : EVisibility::Collapsed;
+	bool bShowRefresh = false;
+	if (UNiagaraGraph* Graph = ModuleItem->GetModuleNode().GetCalledGraph())
+	{
+		FString OutVal;
+		bShowRefresh = Graph->GetPropertyMetadata(TEXT("DisplayNameArg0"), OutVal);
+	}
+	return bShowRefresh && ModuleItem->CanRefresh() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SNiagaraStackModuleItem::GetVersionSelectionMenuVisibility() const
+{
+	if (!ModuleItem->CanMoveAndDelete())
+	{
+		// if the module is inherited we do not allow version changes, in that case only the parent emitter can define the module version
+		return EVisibility::Collapsed;	
+	}
+	
+	UNiagaraScript* Script = ModuleItem->GetModuleNode().FunctionScript;
+	if (Script && Script->IsVersioningEnabled() && Script->GetAllAvailableVersions().Num() > 1)
+	{
+		return EVisibility::Visible;
+	}
+	return EVisibility::Collapsed;
 }
 
 FReply SNiagaraStackModuleItem::ScratchButtonPressed() const
@@ -235,6 +296,46 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::RaiseActionMenuClicked()
 		return MenuWidget;
 	}
 	return SNullWidget::NullWidget;
+}
+
+void SNiagaraStackModuleItem::SwitchToVersion(FNiagaraAssetVersion Version)
+{
+	FScopedTransaction ScopedTransaction(LOCTEXT("NiagaraChangeVersion_Transaction", "Changing module version"));
+	ModuleItem->GetModuleNode().ChangeScriptVersion(Version.VersionGuid, true);
+	ModuleItem->Refresh();
+}
+
+TSharedRef<SWidget> SNiagaraStackModuleItem::GetVersionSelectorDropdownMenu()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
+
+	UNiagaraScript* Script = ModuleItem->GetModuleNode().FunctionScript;
+	TArray<FNiagaraAssetVersion> AssetVersions = Script->GetAllAvailableVersions();
+	for (FNiagaraAssetVersion& Version : AssetVersions)
+	{
+		if (!Version.bIsVisibleInVersionSelector)
+        {
+        	continue;
+        }
+		FVersionedNiagaraScriptData* ScriptData = Script->GetScriptData(Version.VersionGuid);
+		bool bIsSelected = ModuleItem->GetModuleNode().SelectedScriptVersion == Version.VersionGuid;
+		
+		FText Tooltip = LOCTEXT("NiagaraSelectVersion_Tooltip", "Select this version to use for the module");
+		if (!ScriptData->VersionChangeDescription.IsEmpty())
+		{
+			Tooltip = FText::Format(LOCTEXT("NiagaraSelectVersionChangelist_Tooltip", "Select this version to use for the module. Change description for this version:\n{0}"), ScriptData->VersionChangeDescription);
+		}
+		
+		FUIAction UIAction(FExecuteAction::CreateSP(this, &SNiagaraStackModuleItem::SwitchToVersion, Version),
+        FCanExecuteAction(),
+        FIsActionChecked::CreateLambda([bIsSelected]() { return bIsSelected; }));
+        FText Format = (Version == Script->GetExposedVersion()) ? FText::FromString("{0}.{1}*") : FText::FromString("{0}.{1}");
+        FText Label = FText::Format(Format, Version.MajorVersion, Version.MinorVersion);
+		MenuBuilder.AddMenuEntry(Label, Tooltip, FSlateIcon(), UIAction, NAME_None, EUserInterfaceActionType::RadioButton);	
+	}
+
+	return MenuBuilder.MakeWidget();
 }
 
 class SNiagaraActionMenuExpander : public SExpanderArrow
@@ -342,7 +443,7 @@ void SNiagaraStackModuleItem::CollectModuleActions(FGraphActionListBuilderBase& 
 	for (const FAssetData& ModuleAsset : ModuleAssets)
 	{
 		FText Category;
-		ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Category), Category);
+		ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Category), Category);
 		if (Category.IsEmptyOrWhitespace())
 		{
 			Category = LOCTEXT("ModuleNotCategorized", "Uncategorized Modules");
@@ -353,11 +454,11 @@ void SNiagaraStackModuleItem::CollectModuleActions(FGraphActionListBuilderBase& 
 		FText DisplayName = FNiagaraEditorUtilities::FormatScriptName(ModuleAsset.AssetName, bIsInLibrary);
 
 		FText AssetDescription;
-		ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Description), AssetDescription);
+		ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Description), AssetDescription);
 		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(AssetDescription, ModuleAsset.ObjectPath, bIsInLibrary);
 
 		FText Keywords;
-		ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Keywords), Keywords);
+		ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Keywords), Keywords);
 
 		TSharedPtr<FNiagaraMenuAction> ModuleAction(new FNiagaraMenuAction(Category, DisplayName, Description, 0, Keywords,
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateStatic(&ReassignModuleScript, ModuleItem, ModuleAsset)));

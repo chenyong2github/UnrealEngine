@@ -74,6 +74,10 @@ public:
 
 
 	FPhysicsSolverBase* GetSolver() { return Solver; }
+
+	// Rewind API
+	virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) { ensure(false); return INDEX_NONE; }
+	virtual void ApplyCorrections(int32 PhysicsStep, FSimCallbackInput* Input) { ensure(false); }
 	
 protected:
 

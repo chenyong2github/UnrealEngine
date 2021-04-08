@@ -16,7 +16,7 @@ namespace PlatformInfo
 {
 	TArray<FName> AllPlatformGroupNames;
 	TArray<FName> AllVanillaPlatformNames;
-	TMap<FName, FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
+	TArray<FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
 
 	namespace
 	{
@@ -105,10 +105,10 @@ FTargetPlatformInfo::FTargetPlatformInfo(const FString& InIniPlatformName, EBuil
 	{
 		VanillaPlatformInfoArray.Add(this);
 		AllVanillaPlatformNames.AddUnique(Name);
-	}
 
-	// add perview platform menu items from DDPI
-	PreviewPlatformMenuItems.Append(DataDrivenPlatformInfo->PreviewPlatformMenuItems);
+		// add preview platform menu items from DDPI
+		PreviewPlatformMenuItems.Append(DataDrivenPlatformInfo->PreviewPlatformMenuItems);
+	}
 }
 
 
@@ -178,7 +178,7 @@ const TArray<FName>& GetAllVanillaPlatformNames()
 	return PlatformInfo::AllVanillaPlatformNames;
 }
 
-const TMap<FName, FPreviewPlatformMenuItem>& GetPreviewPlatformMenuItems()
+const TArray<FPreviewPlatformMenuItem>& GetPreviewPlatformMenuItems()
 {
 	return PlatformInfo::PreviewPlatformMenuItems;
 }

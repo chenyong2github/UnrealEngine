@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteControlField.h"
+
+#include "Components/ActorComponent.h"
+#include "GameFramework/Actor.h"
 #include "RemoteControlObjectVersion.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlBinding.h"
@@ -33,22 +36,64 @@ TArray<UObject*> FRemoteControlField::ResolveFieldOwners(const TArray<UObject*>&
 	return ResolvedObjects;
 }
 
-TArray<UObject*> FRemoteControlField::ResolveFieldOwners() const
+void FRemoteControlField::BindObject(UObject* InObjectToBind)
 {
-	TArray<UObject*> Objects;
-	Objects.Reserve(Bindings.Num());
-	for (const TWeakObjectPtr<URemoteControlBinding>& Obj : Bindings)
+	if (!InObjectToBind)
 	{
-		if (Obj.IsValid())
+		return;
+	}
+	
+	if (UClass* ResolvedOwnerClass = GetSupportedBindingClass())
+	{
+		if (InObjectToBind->GetClass()->IsChildOf(ResolvedOwnerClass))
 		{
-			if (UObject* ResolvedObject = Obj->Resolve())
+			FRemoteControlEntity::BindObject(InObjectToBind);
+		}
+		else if (AActor* Actor = Cast<AActor>(InObjectToBind))
+		{
+			// Attempt finding a matching component if the object is an actor.
+			FRemoteControlEntity::BindObject(Actor->GetComponentByClass(ResolvedOwnerClass));
+		}
+	}
+}
+
+bool FRemoteControlField::CanBindObject(const UObject* InObjectToBind) const
+{
+	if (InObjectToBind)
+	{
+		if (UClass* ResolvedOwnerClass = GetSupportedBindingClass())
+		{
+			if (InObjectToBind->GetClass()->IsChildOf(ResolvedOwnerClass))
 			{
-				Objects.Add(ResolvedObject);	
+				return true;
+			}
+			
+			if (ResolvedOwnerClass->IsChildOf<UActorComponent>())
+			{
+				if (const AActor* Actor = Cast<AActor>(InObjectToBind))
+				{
+					return !!Actor->GetComponentByClass(ResolvedOwnerClass);
+				}
+				return false;
 			}
 		}
 	}
-	
-	return Objects;
+	return false;
+}
+
+void FRemoteControlField::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		int32 CustomVersion = Ar.CustomVer(FRemoteControlObjectVersion::GUID);
+		if (CustomVersion < FRemoteControlObjectVersion::AddedRebindingFunctionality)
+		{
+			if (OwnerClass.IsNull())
+			{
+				OwnerClass = GetSupportedBindingClass();
+			}
+		}
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -108,13 +153,19 @@ FRemoteControlProperty::FRemoteControlProperty(URemoteControlPreset* InPreset, F
 	: FRemoteControlField(InPreset, EExposedFieldType::Property, InLabel, MoveTemp(InFieldPathInfo), InBindings)
 {
 	InitializeMetadata();
+	OwnerClass = GetSupportedBindingClass();
+}
+
+uint32 FRemoteControlProperty::GetUnderlyingEntityIdentifier() const
+{
+	return FieldPathInfo.PathHash;
 }
 
 FProperty* FRemoteControlProperty::GetProperty() const
 {
 	// Make a copy in order to preserve constness.
 	FRCFieldPathInfo FieldPathCopy = FieldPathInfo;
-	TArray<UObject*> Objects = ResolveFieldOwners();
+	TArray<UObject*> Objects = GetBoundObjects();
 	if (Objects.Num() && FieldPathCopy.Resolve(Objects[0]))
 	{
 		FRCFieldResolvedData Data = FieldPathCopy.GetResolvedData();
@@ -123,8 +174,10 @@ FProperty* FRemoteControlProperty::GetProperty() const
 	return nullptr;
 }
 
-void FRemoteControlProperty::PostSerialize(FArchive& Ar)
+void FRemoteControlProperty::PostSerialize(const FArchive& Ar)
 {
+	FRemoteControlField::PostSerialize(Ar);
+
 	if (Ar.IsLoading())
 	{
 		if (!UserMetadata.Contains(MetadataKey_Min)
@@ -135,12 +188,53 @@ void FRemoteControlProperty::PostSerialize(FArchive& Ar)
 	}
 }
 
+UClass* FRemoteControlProperty::GetSupportedBindingClass() const
+{
+	if (UClass* Class = OwnerClass.TryLoadClass<UObject>())
+	{
+		return Class;	
+	}
+	
+	if (FProperty* Property = GetProperty())
+	{
+		return Property->GetOwnerClass();
+	}
+	return nullptr;
+}
+
+bool FRemoteControlProperty::IsBound() const
+{
+	return !!GetProperty();
+}
+
 void FRemoteControlProperty::InitializeMetadata()
 {
 #if WITH_EDITOR
+	auto SupportsMinMax = [] (FProperty* Property)
+	{
+		if (!Property)
+		{
+			return false;
+		}
+
+		if (Property->IsA<FNumericProperty>())
+		{
+			return !(Property->IsA<FByteProperty>() && CastFieldChecked<FByteProperty>(Property)->IsEnum());
+		}
+
+		if (Property->IsA<FStructProperty>())
+		{
+			UStruct* Struct = CastFieldChecked<FStructProperty>(Property)->Struct;
+			return Struct->IsChildOf(TBaseStructure<FVector>::Get())
+				|| Struct->IsChildOf(TBaseStructure<FRotator>::Get());
+		}
+
+		return false;
+	};
+	
 	if (FProperty* Property = GetProperty())
 	{
-		if (Property->IsA<FNumericProperty>())
+		if (SupportsMinMax(Property))
 		{
 			const FString& UIMin = Property->GetMetaData(TEXT("UIMin"));
 			const FString& UIMax = Property->GetMetaData(TEXT("UIMax"));
@@ -166,6 +260,7 @@ FRemoteControlFunction::FRemoteControlFunction(FName InLabel, FRCFieldPathInfo F
 	FunctionArguments = MakeShared<FStructOnScope>(Function);
 	Function->InitializeStruct(FunctionArguments->GetStructMemory());
 	AssignDefaultFunctionArguments();
+	OwnerClass = GetSupportedBindingClass();
 }
 
 FRemoteControlFunction::FRemoteControlFunction(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo InFieldPathInfo, UFunction* InFunction, const TArray<URemoteControlBinding*>& InBindings)
@@ -176,6 +271,12 @@ FRemoteControlFunction::FRemoteControlFunction(URemoteControlPreset* InPreset, F
 	FunctionArguments = MakeShared<FStructOnScope>(Function);
 	Function->InitializeStruct(FunctionArguments->GetStructMemory());
 	AssignDefaultFunctionArguments();
+	OwnerClass = GetSupportedBindingClass();
+}
+
+uint32 FRemoteControlFunction::GetUnderlyingEntityIdentifier() const
+{
+	return Function ? GetTypeHash(Function->GetName()) : 0;
 }
 
 bool FRemoteControlFunction::Serialize(FArchive& Ar)
@@ -185,6 +286,46 @@ bool FRemoteControlFunction::Serialize(FArchive& Ar)
 		Ar << *this;
 	}
 	return true;
+}
+
+void FRemoteControlFunction::PostSerialize(const FArchive& Ar)
+{
+	FRemoteControlField::PostSerialize(Ar);
+}
+
+UClass* FRemoteControlFunction::GetSupportedBindingClass() const
+{
+	if (UClass* Class = OwnerClass.TryLoadClass<UObject>())
+	{
+		return Class;	
+	}
+
+	if (Function)
+	{
+		return Function->GetOwnerClass();
+	}
+	return nullptr;
+}
+
+bool FRemoteControlFunction::IsBound() const
+{
+	if (!Function)
+	{
+		return false;
+	}
+	
+	TArray<UObject*> BoundObjects = GetBoundObjects();
+	if (!BoundObjects.Num())
+	{
+		return false;
+	}
+	
+	if (UClass* SupportedClass = GetSupportedBindingClass())
+	{
+		return BoundObjects.ContainsByPredicate([SupportedClass](UObject* Object){ return Object->GetClass()->IsChildOf(SupportedClass);});
+	}
+
+	return false;
 }
 
 void FRemoteControlFunction::AssignDefaultFunctionArguments()

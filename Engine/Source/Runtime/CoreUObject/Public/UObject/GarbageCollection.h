@@ -243,6 +243,22 @@ struct COREUOBJECT_API FGCReferenceTokenStream
 	}
 
 	/**
+	 * Increments the stack size requirement for this stream
+	 */
+	void SetStackSize(int32 InStackSize)
+	{
+		StackSize = InStackSize;
+	}
+
+	/**
+	 * Returns the stack size required by this stream
+	 */
+	int32 GetStackSize() const
+	{
+		return StackSize;
+	}
+
+	/**
 	 * Prepends passed in stream to existing one.
 	 *
 	 * @param Other	stream to concatenate
@@ -406,6 +422,17 @@ struct COREUOBJECT_API FGCReferenceTokenStream
 	FTokenInfo GetTokenInfo(int32 TokenIndex) const;
 #endif
 
+	/** Sets the maximum stack size required by all token streams */
+	static void SetMaxStackSize(int32 InNewSize)
+	{
+		MaxStackSize = InNewSize;
+	}
+
+	/** Gets the maximum stack size required by all token streams */
+	FORCEINLINE static int32 GetMaxStackSize()
+	{
+		return MaxStackSize;
+	}
 private:
 
 	/**
@@ -428,6 +455,10 @@ private:
 
 	/** Token array */
 	TArray<uint32> Tokens;
+	/** Stack size required by this token stream */
+	int32 StackSize = 0;
+	/** Maximum stack size for TFastReferenceCollector */
+	static int32 MaxStackSize;
 #if ENABLE_GC_OBJECT_CHECKS
 	/** 
 	 * Name of the proprty that emitted the associated token or token type (pointer etc).

@@ -25,12 +25,10 @@ private:
 	static FDelegateHandle ModulesChangedHandle;
 };
 
+// globals without thread protection must be accessed only from GameThread
 FDelegateHandle FSubsystemModuleWatcher::ModulesChangedHandle;
-
-
-
-TArray<FSubsystemCollectionBase*> FSubsystemCollectionBase::SubsystemCollections;
-TMap<FName, TArray<TSubclassOf<UDynamicSubsystem>>> FSubsystemCollectionBase::DynamicSystemModuleMap;
+static TArray<FSubsystemCollectionBase*> GlobalSubsystemCollections;
+static TMap<FName, TArray<TSubclassOf<UDynamicSubsystem>>> GlobalDynamicSystemModuleMap;
 
 FSubsystemCollectionBase::FSubsystemCollectionBase()
 	: Outer(nullptr)
@@ -102,7 +100,10 @@ void FSubsystemCollectionBase::Initialize(UObject* NewOuter)
 	{
 		check(!bPopulating); //Populating collections on multiple threads?
 		
-		if (SubsystemCollections.Num() == 0)
+		//non-thread-safe use of Global lists, must be from GameThread:
+		check(IsInGameThread());
+
+		if (GlobalSubsystemCollections.Num() == 0)
 		{
 			FSubsystemModuleWatcher::InitializeModuleWatcher();
 		}
@@ -111,7 +112,7 @@ void FSubsystemCollectionBase::Initialize(UObject* NewOuter)
 
 		if (BaseType->IsChildOf(UDynamicSubsystem::StaticClass()))
 		{
-			for (const TPair<FName, TArray<TSubclassOf<UDynamicSubsystem>>>& SubsystemClasses : DynamicSystemModuleMap)
+			for (const TPair<FName, TArray<TSubclassOf<UDynamicSubsystem>>>& SubsystemClasses : GlobalDynamicSystemModuleMap)
 			{
 				for (const TSubclassOf<UDynamicSubsystem>& SubsystemClass : SubsystemClasses.Value)
 				{
@@ -134,15 +135,36 @@ void FSubsystemCollectionBase::Initialize(UObject* NewOuter)
 		}
 
 		// Statically track collections
-		SubsystemCollections.Add(this);
+		GlobalSubsystemCollections.Add(this);
 	}
+}
+
+FSubsystemCollectionBase::~FSubsystemCollectionBase()
+{
+	// Deinitialize should have been called before reaching GC object destruction phase
+	//  fix users that failed to call it!
+	// 
+	// TEMP disabled check so we can run without errors for now
+	// @todo fix the underlying issue and turn this check back on
+	//checkf( Outer == nullptr , TEXT("FSubsystemCollectionBase destructor called before Deinitialize!\n") );
+
+	// ensure that it is called even if client didn't
+	//	otherwise a deleted pointer is left in GlobalSubsystemCollections
+	Deinitialize();
 }
 
 void FSubsystemCollectionBase::Deinitialize()
 {
+	//non-thread-safe use of Global lists, must be from GameThread:
+	check(IsInGameThread());
+
+	// already Deinitialize'd :
+	if ( Outer == nullptr )
+		return;
+
 	// Remove static tracking 
-	SubsystemCollections.Remove(this);
-	if (SubsystemCollections.Num() == 0)
+	GlobalSubsystemCollections.Remove(this);
+	if (GlobalSubsystemCollections.Num() == 0)
 	{
 		FSubsystemModuleWatcher::DeinitializeModuleWatcher();
 	}
@@ -153,7 +175,7 @@ void FSubsystemCollectionBase::Deinitialize()
 	{
 		UClass* KeyClass = Iter.Key();
 		USubsystem* Subsystem = Iter.Value();
-		if (Subsystem->GetClass() == KeyClass)
+		if ( Subsystem != nullptr && Subsystem->GetClass() == KeyClass)
 		{
 			Subsystem->Deinitialize();
 			Subsystem->InternalOwningSubsystem = nullptr;
@@ -230,7 +252,10 @@ void FSubsystemCollectionBase::RemoveAndDeinitializeSubsystem(USubsystem* Subsys
 
 void FSubsystemCollectionBase::AddAllInstances(UClass* SubsystemClass)
 {
-	for (FSubsystemCollectionBase* SubsystemCollection : SubsystemCollections)
+	//non-thread-safe use of Global lists, must be from GameThread:
+	check(IsInGameThread());
+
+	for (FSubsystemCollectionBase* SubsystemCollection : GlobalSubsystemCollections)
 	{
 		if (SubsystemClass->IsChildOf(SubsystemCollection->BaseType))
 		{
@@ -274,6 +299,9 @@ void FSubsystemModuleWatcher::OnModulesChanged(FName ModuleThatChanged, EModuleC
 
 void FSubsystemModuleWatcher::InitializeModuleWatcher()
 {
+	//non-thread-safe use of Global lists, must be from GameThread:
+	check(IsInGameThread());
+
 	check(!ModulesChangedHandle.IsValid());
 
 	// Add Loaded Modules
@@ -290,7 +318,7 @@ void FSubsystemModuleWatcher::InitializeModuleWatcher()
 				const FName ModuleName = FPackageName::GetShortFName(ClassPackage->GetFName());
 				if (FModuleManager::Get().IsModuleLoaded(ModuleName))
 				{
-					TArray<TSubclassOf<UDynamicSubsystem>>& ModuleSubsystemClasses = FSubsystemCollectionBase::DynamicSystemModuleMap.FindOrAdd(ModuleName);
+					TArray<TSubclassOf<UDynamicSubsystem>>& ModuleSubsystemClasses = GlobalDynamicSystemModuleMap.FindOrAdd(ModuleName);
 					ModuleSubsystemClasses.Add(SubsystemClass);
 				}
 			}
@@ -311,7 +339,10 @@ void FSubsystemModuleWatcher::DeinitializeModuleWatcher()
 
 void FSubsystemModuleWatcher::AddClassesForModule(const FName& InModuleName)
 {
-	check(!FSubsystemCollectionBase::DynamicSystemModuleMap.Contains(InModuleName));
+	//non-thread-safe use of Global lists, must be from GameThread:
+	check(IsInGameThread());
+
+	check(! GlobalDynamicSystemModuleMap.Contains(InModuleName));
 
 	// Find the class package for this module
 	const UPackage* const ClassPackage = FindPackage(nullptr, *(FString("/Script/") + InModuleName.ToString()));
@@ -334,18 +365,21 @@ void FSubsystemModuleWatcher::AddClassesForModule(const FName& InModuleName)
 	}
 	if (SubsystemClasses.Num() > 0)
 	{
-		FSubsystemCollectionBase::DynamicSystemModuleMap.Add(InModuleName, MoveTemp(SubsystemClasses));
+		GlobalDynamicSystemModuleMap.Add(InModuleName, MoveTemp(SubsystemClasses));
 	}
 }
 void FSubsystemModuleWatcher::RemoveClassesForModule(const FName& InModuleName)
 {
-	TArray<TSubclassOf<UDynamicSubsystem>>* SubsystemClasses = FSubsystemCollectionBase::DynamicSystemModuleMap.Find(InModuleName);
+	//non-thread-safe use of Global lists, must be from GameThread:
+	check(IsInGameThread());
+
+	TArray<TSubclassOf<UDynamicSubsystem>>* SubsystemClasses = GlobalDynamicSystemModuleMap.Find(InModuleName);
 	if (SubsystemClasses)
 	{
 		for (TSubclassOf<UDynamicSubsystem>& SubsystemClass : *SubsystemClasses)
 		{
 			FSubsystemCollectionBase::RemoveAllInstances(SubsystemClass);
 		}
-		FSubsystemCollectionBase::DynamicSystemModuleMap.Remove(InModuleName);
+		GlobalDynamicSystemModuleMap.Remove(InModuleName);
 	}
 }

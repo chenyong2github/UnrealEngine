@@ -72,6 +72,9 @@ UObject* FLevelSequenceEditorSpawnRegister::SpawnObject(FMovieSceneSpawnable& Sp
 	
 	if (AActor* NewActor = Cast<AActor>(NewObject))
 	{
+		// Mark as replay rewindable so it persists while a replay is going on in PIE.
+		NewActor->bReplayRewindable = true;
+
 		// Add an entry to the tracked objects map to keep track of this object (so that it can be saved when modified)
 		TrackedObjects.Add(NewActor, FTrackedObjectState(TemplateID, Spawnable.GetGuid()));
 

@@ -17,12 +17,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithExporter",
 					"DatasmithExporterUI",
 					"DatasmithFacade",
-
-					// Network layer
-					"UdpMessaging",
-					"MessagingCommon",
-					"Messaging",
-					"RemoteImportMessaging",
+					"UdpMessaging", // required for DirectLink networking
 				}
 			);
 

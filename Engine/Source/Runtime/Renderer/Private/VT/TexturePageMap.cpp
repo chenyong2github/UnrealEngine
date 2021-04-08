@@ -137,6 +137,7 @@ void FTexturePageMap::UnmapPage(FVirtualTextureSystem* System, FVirtualTextureSp
 			Space->QueueUpdate(LayerIndex, vLogSize, vAddress, Ancestor_vLevel, PhysicalSpace->GetPhysicalLocation(Pages[AncestorIndex].pAddress));
 		}
 	}
+	
 
 	// Deal with case where SortedAddIndexes has not been processed yet.
 	bool bFoundInAddIndexes = false;

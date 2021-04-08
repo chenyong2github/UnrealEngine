@@ -4,15 +4,31 @@
 
 #include "Library/DMXObjectBase.h"
 
+#include "IO/DMXInputPortReference.h"
+#include "IO/DMXOutputPortReference.h"
 #include "Library/DMXEntity.h"
-#include "Library/DMXInputPortReference.h"
-#include "Library/DMXOutputPortReference.h"
 
 #include "Templates/SubclassOf.h"
 #include "Misc/Guid.h"
 
 #include "DMXLibrary.generated.h"
 
+
+/** Custom struct of in put and output port references for custom details customization with an enabled state */
+USTRUCT(BlueprintType)
+struct DMXRUNTIME_API FDMXLibraryPortReferences
+{
+	GENERATED_BODY()
+
+public:
+	/** Map of input port references of a Library */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonTransactional, Category = "DMX", Meta = (DisplayName = "Input Ports"))
+	TArray<FDMXInputPortReference> InputPortReferences;
+
+	/** Output ports of the Library of a Library */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonTransactional, Category = "DMX", Meta = (DisplayName = "Output Ports"))
+	TArray<FDMXOutputPortReference> OutputPortReferences;
+};
 
 /** Called when the list of entities is changed by either adding or removing entities */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntitiesUpdated, class UDMXLibrary*);
@@ -24,12 +40,15 @@ class DMXRUNTIME_API UDMXLibrary
 	GENERATED_BODY()
 
 public:
+	UDMXLibrary();
+
+protected:
 	// ~Begin UObject Interface
 	virtual void PostLoad() override;
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	// ~End UObject Interface
 
@@ -161,49 +180,26 @@ public:
 	/** Returns all ports as a set, slower than GetInputPorts and GetOutputPorts. */
 	TSet<FDMXPortSharedRef> GenerateAllPortsSet() const;
 
-	/** Returns the property name of the input port references array */
-	FName GetInputPortReferencesPropertyName() const { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, InputPortReferences); }
-
-	/** Returns the property name of the output port references array */
-	FName GetOutputPortReferencesPropertyName() const { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, OutputPortReferences); }
-
-	/** Broadcast when the ports changed */
-	FSimpleMulticastDelegate OnPortsChanged;
+	/** Returns the name of the Ports property. */
+	static FName GetPortReferencesPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, PortReferences); }
 
 protected:
 	/** Updates the ports from what's set in the Input and Output Port References arrays */
 	void UpdatePorts();
 
-	/** Input ports of the Library */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonTransactional, Category = "DMX", Meta = (DisplayName = "Input Ports"))
-	TArray<FDMXInputPortReference> InputPortReferences;
-
-	/** Output ports of the Library */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonTransactional, Category = "DMX", Meta = (DisplayName = "Output Ports"))
-	TArray<FDMXOutputPortReference> OutputPortReferences;
-
-private:
 #if WITH_EDITOR
-	/** Helper to return the last index of a duplicate in the port reference arrays. Only expect one duplicate since the user cannot property change many */
-	template <typename PortReferenceType>
-	const int32 GetLastIndexOfDuplicatePortReference(const TArray<PortReferenceType>& PortReferenceArray) const
-	{
-		for (int32 FirstIndex = 0; FirstIndex < PortReferenceArray.Num(); FirstIndex++)
-		{
-			const PortReferenceType& TestedElement = PortReferenceArray[FirstIndex];
-			const int32 LastIndex = PortReferenceArray.FindLastByPredicate([TestedElement](const PortReferenceType& PortRef) {
-				return &PortRef != &TestedElement;
-				});
-			if (FirstIndex != LastIndex)
-			{
-				// Either the valid last index or INDEX_NONE
-				return LastIndex;
-			}
-		}
-		return INDEX_NONE;
-	}
+	/** 
+	 * Upgrades libraries that use controllers (before 4.27) to use ports instead (from 4.27 on). 
+	 * Creates corresponding ports if they do not exist yet. 
+	 */
+	void UpgradeFromControllersToPorts();
 #endif // WITH_EDITOR
 
+	/** Input ports of the Library */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonTransactional, Category = "DMX", Meta = (ShowOnlyInnerProperties))
+	FDMXLibraryPortReferences PortReferences;
+
+private:
 	/** All Fixture Types and Fixture Patches in the library */
 	UPROPERTY()
 	TArray<UDMXEntity*> Entities;

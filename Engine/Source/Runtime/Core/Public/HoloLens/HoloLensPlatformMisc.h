@@ -91,6 +91,8 @@ struct CORE_API FHoloLensMisc : public FGenericPlatformMisc
 
 	static void GetValidTargetPlatforms(TArray<FString>& TargetPlatformNames);
 
+	static bool VerifyWindowsVersion(uint32 MajorVersion, uint32 MinorVersion, uint32 BuildNumber = 0);
+
 private:
 
 	/** character buffer containing the last protocol activation URI */

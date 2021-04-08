@@ -479,7 +479,7 @@ void SDataprepGraphEditor::DeleteSelectedNodes()
 		{
 			if (ActionNode->CanUserDeleteNode() && ActionNode->GetDataprepActionAsset())
 			{
-				ActionsToDelete.Add(ActionNode->GetExecutionOrder());
+				ActionsToDelete.Add(DataprepAssetPtr->GetActionIndex(ActionNode->GetDataprepActionAsset()));
 				ActionAssets.Add(ActionNode->GetDataprepActionAsset());
 			}
 		}
@@ -876,63 +876,102 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 	
 	if (bIsActionGroupNode)
 	{
-		const UDataprepGraphActionGroupNode* ActionGroupNode = Cast<UDataprepGraphActionGroupNode>(InGraphNode);
+		TArray<const UDataprepGraphActionGroupNode*> ActionGroupNodes;
 
-		FUIAction BreakGroupAction;
-		BreakGroupAction.ExecuteAction.BindLambda([this, ActionGroupNode]() 
+		ActionGroupNodes.Add(Cast<UDataprepGraphActionGroupNode>(InGraphNode));
+
+		// Check if we have other selected nodes and if they are group nodes as well
+		FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+
+		for (UObject* Node : SelectedNodes)
 		{
-			const FScopedTransaction Transaction(NSLOCTEXT("BreakActions", "BreakActions", "Ungroup Actions"));
-
-			DataprepAssetPtr->Modify();
-
-			for (int32 Index = 0; Index < ActionGroupNode->GetActionsCount(); ++Index)
+			if ( Node )
 			{
-				UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
-				Action->Modify();
-				Action->GetAppearance()->Modify();
-				Action->GetAppearance()->GroupId = INDEX_NONE;
+				if (UDataprepGraphActionGroupNode* ActionGroupNode = Cast<UDataprepGraphActionGroupNode>(Node))
+				{
+					ActionGroupNodes.Add(ActionGroupNode);
+				}
+				else
+				{
+					// Selection does not consist of group nodes only: halt
+					ActionGroupNodes.Empty();
+					break;
+				}
 			}
-			NotifyGraphChanged();
-		});
+		}
 
-		const bool bShouldDisable = ActionGroupNode->IsGroupEnabled();
-		const FText EnableOrDisableText = bShouldDisable ? FText::FromString("Disable") : FText::FromString("Enable");
-		FUIAction EnableOrDisableGroupAction;
-		EnableOrDisableGroupAction.ExecuteAction.BindLambda([this, ActionGroupNode, bShouldDisable, EnableOrDisableText]() 
+		if (ActionGroupNodes.Num() > 0)
 		{
-			if (ActionGroupNode->GetActionsCount() > 0)
+			FUIAction BreakGroupAction;
+			BreakGroupAction.ExecuteAction.BindLambda([this, ActionGroupNodes]() 
+			{
+				const FScopedTransaction Transaction(NSLOCTEXT("BreakActions", "BreakActions", "Ungroup Actions"));
+
+				DataprepAssetPtr->Modify();
+
+				for (int32 GroupNodeIndex = 0; GroupNodeIndex < ActionGroupNodes.Num(); ++GroupNodeIndex)
+				{
+					const UDataprepGraphActionGroupNode* ActionGroupNode = ActionGroupNodes[GroupNodeIndex];
+
+					for (int32 Index = 0; Index < ActionGroupNode->GetActionsCount(); ++Index)
+					{
+						UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
+						Action->Modify();
+						Action->GetAppearance()->Modify();
+						Action->GetAppearance()->GroupId = INDEX_NONE;
+					}
+				}
+				NotifyGraphChanged();
+			});
+
+			const bool bShouldDisable = ActionGroupNodes[0]->IsGroupEnabled();
+			const FText EnableOrDisableText = bShouldDisable ? FText::FromString("Disable") : FText::FromString("Enable");
+			FUIAction EnableOrDisableGroupAction;
+			EnableOrDisableGroupAction.ExecuteAction.BindLambda([this, ActionGroupNodes, bShouldDisable, EnableOrDisableText]() 
 			{
 				const FScopedTransaction Transaction(FText::Format(NSLOCTEXT("EnableOrDisableGroup", "EnableOrDisableGroup", "{0} Action Group"), EnableOrDisableText));
 
 				DataprepAssetPtr->Modify();
 
-				for (int32 Index = 0; Index < ActionGroupNode->GetActionsCount(); ++Index)
+				for (int32 GroupNodeIndex = 0; GroupNodeIndex < ActionGroupNodes.Num(); ++GroupNodeIndex)
 				{
-					UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
-					Action->Modify();
-					Action->GetAppearance()->Modify();
-					Action->GetAppearance()->bGroupIsEnabled = !bShouldDisable;
+					const UDataprepGraphActionGroupNode* ActionGroupNode = ActionGroupNodes[GroupNodeIndex];
+
+					if (ActionGroupNode->GetActionsCount() > 0)
+					{
+						for (int32 Index = 0; Index < ActionGroupNode->GetActionsCount(); ++Index)
+						{
+							UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
+							Action->Modify();
+							Action->GetAppearance()->Modify();
+							Action->GetAppearance()->bGroupIsEnabled = !bShouldDisable;
+						}
+					}
 				}
 
 				NotifyGraphChanged();
+			});
+
+			MenuBuilder->BeginSection( FName( TEXT("CommonSection") ), LOCTEXT("CommonSection", "Common") );
+			{
+				MenuBuilder->AddMenuEntry(LOCTEXT( "BreakGroup", "Ungroup Actions" ),
+										  LOCTEXT( "BreakGroupTooltip", "Break group to single actions" ),
+										  FSlateIcon(),
+										  BreakGroupAction);
+
+				MenuBuilder->AddMenuEntry( FText::Format( LOCTEXT( "EnableOrDisableEnableGroupLabel", "{0} Action Group" ), EnableOrDisableText ),
+										   FText::Format( LOCTEXT( "EnableOrDisableEnableGroupTooltip", "{0} Action Group" ), EnableOrDisableText ),
+										   FSlateIcon(),
+										   EnableOrDisableGroupAction);
 			}
-		});
+			MenuBuilder->EndSection();
 
-		MenuBuilder->BeginSection( FName( TEXT("CommonSection") ), LOCTEXT("CommonSection", "Common") );
-		{
-			MenuBuilder->AddMenuEntry(LOCTEXT( "BreakGroup", "Ungroup Actions" ),
-									  LOCTEXT( "BreakGroupTooltip", "Break group to single actions" ),
-									  FSlateIcon(),
-									  BreakGroupAction);
-
-			MenuBuilder->AddMenuEntry( FText::Format( LOCTEXT( "EnableOrDisableEnableGroupLabel", "{0} Action Group" ), EnableOrDisableText ),
-									   FText::Format( LOCTEXT( "EnableOrDisableEnableGroupTooltip", "{0} Action Group" ), EnableOrDisableText ),
-									   FSlateIcon(),
-									   EnableOrDisableGroupAction);
+			return FActionMenuContent(MenuBuilder->MakeWidget());
 		}
-		MenuBuilder->EndSection();
-
-		return FActionMenuContent(MenuBuilder->MakeWidget());
+		else
+		{
+			return FActionMenuContent(SNullWidget::NullWidget, SNullWidget::NullWidget);
+		}
 	}
 	else if( bIsActionNode || FirstStepNode )
 	{

@@ -41,7 +41,11 @@ namespace LensInterpolationUtils
 		, float DeltaMaxFocus
 		, float DeltaMinZoom
 		, float DeltaMaxZoom
-		, const void* DataA, const void* DataB, const void* DataC, const void* DataD, void* DataResult)
+		, const void* DataA
+		, const void* DataB
+		, const void* DataC
+		, const void* DataD
+		, void* DataResult)
 	{
 		const Type* ValuePtrA = StructProperty->ContainerPtrToValuePtr<Type>(DataA);
 		const Type* ValuePtrB = StructProperty->ContainerPtrToValuePtr<Type>(DataB);
@@ -66,10 +70,53 @@ namespace LensInterpolationUtils
 			FProperty* Property = *Itt;
 
 			//Add support for arrays if required
-			check(CastField<FArrayProperty>(Property) == nullptr);
-			check(Property->ArrayDim == 1);
+			if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+			{
+				//ArrayProps have an ArrayDim of 1 but just to be sure...
+				for (int32 DimIndex = 0; DimIndex < ArrayProperty->ArrayDim; ++DimIndex)
+				{
+					const void* FrameDataA = Property->ContainerPtrToValuePtr<const void>(DataA, DimIndex);
+					const void* FrameDataB = Property->ContainerPtrToValuePtr<const void>(DataB, DimIndex);
+					const void* FrameDataC = Property->ContainerPtrToValuePtr<const void>(DataC, DimIndex);
+					const void* FrameDataD = Property->ContainerPtrToValuePtr<const void>(DataD, DimIndex);
+					void* DataResult = Property->ContainerPtrToValuePtr<void>(OutFrameData, DimIndex);
 
-			BilinearInterpolateProperty(Property, MainCoefficient, DeltaMinFocus, DeltaMaxFocus, DeltaMinZoom, DeltaMaxZoom, DataA, DataB, DataC, DataD, OutFrameData);
+					FScriptArrayHelper ArrayHelperA(ArrayProperty, FrameDataA);
+					FScriptArrayHelper ArrayHelperB(ArrayProperty, FrameDataB);
+					FScriptArrayHelper ArrayHelperC(ArrayProperty, FrameDataC);
+					FScriptArrayHelper ArrayHelperD(ArrayProperty, FrameDataD);
+					FScriptArrayHelper ArrayHelperResult(ArrayProperty, DataResult);
+
+					const int32 MinValue = FMath::Min(ArrayHelperA.Num(), FMath::Min(ArrayHelperB.Num(), FMath::Min(ArrayHelperC.Num(), FMath::Min(ArrayHelperD.Num(), ArrayHelperResult.Num()))));
+					for (int32 ArrayIndex = 0; ArrayIndex < MinValue; ++ArrayIndex)
+					{
+						BilinearInterpolateProperty(ArrayProperty->Inner, MainCoefficient, DeltaMinFocus, DeltaMaxFocus, DeltaMinZoom, DeltaMaxZoom
+							, ArrayHelperA.GetRawPtr(ArrayIndex)
+							, ArrayHelperB.GetRawPtr(ArrayIndex)
+							, ArrayHelperC.GetRawPtr(ArrayIndex)
+							, ArrayHelperD.GetRawPtr(ArrayIndex)
+							, ArrayHelperResult.GetRawPtr(ArrayIndex));
+					}
+				}
+			}
+			else if (Property->ArrayDim > 1)
+			{
+				for (int32 DimIndex = 0; DimIndex < Property->ArrayDim; ++DimIndex)
+				{
+					const void* FrameDataA = Property->ContainerPtrToValuePtr<const void>(DataA, DimIndex);
+					const void* FrameDataB = Property->ContainerPtrToValuePtr<const void>(DataB, DimIndex);
+					const void* FrameDataC = Property->ContainerPtrToValuePtr<const void>(DataC, DimIndex);
+					const void* FrameDataD = Property->ContainerPtrToValuePtr<const void>(DataD, DimIndex);
+					void* DataResult = Property->ContainerPtrToValuePtr<void>(OutFrameData, DimIndex);
+
+					BilinearInterpolateProperty(Property, MainCoefficient, DeltaMinFocus, DeltaMaxFocus, DeltaMinZoom, DeltaMaxZoom, FrameDataA, FrameDataB, FrameDataC, FrameDataD, DataResult);
+				}
+			}
+			else
+			{
+				BilinearInterpolateProperty(Property, MainCoefficient, DeltaMinFocus, DeltaMaxFocus, DeltaMinZoom, DeltaMaxZoom, DataA, DataB, DataC, DataD, OutFrameData);
+			}
+
 		}
 	}
 
@@ -174,11 +221,41 @@ namespace LensInterpolationUtils
 		{
 			FProperty* Property = *Itt;
 
-			//Add support for arrays if required
-			check(CastField<FArrayProperty>(Property) == nullptr);
-			check(Property->ArrayDim == 1);
+			if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+			{
+				//ArrayProps have an ArrayDim of 1 but just to be sure...
+				for (int32 DimIndex = 0; DimIndex < ArrayProperty->ArrayDim; ++DimIndex)
+				{
+					const void* Data0 = ArrayProperty->ContainerPtrToValuePtr<const void>(InFrameDataA, DimIndex);
+					const void* Data1 = ArrayProperty->ContainerPtrToValuePtr<const void>(InFrameDataB, DimIndex);
+					void* DataResult = ArrayProperty->ContainerPtrToValuePtr<void>(OutFrameData, DimIndex);
 
-			InterpolateProperty(Property, InBlendWeight, InFrameDataA, InFrameDataB, OutFrameData);
+					FScriptArrayHelper ArrayHelperA(ArrayProperty, Data0);
+					FScriptArrayHelper ArrayHelperB(ArrayProperty, Data1);
+					FScriptArrayHelper ArrayHelperResult(ArrayProperty, DataResult);
+
+					const int32 MinValue = FMath::Min(ArrayHelperA.Num(), FMath::Min(ArrayHelperB.Num(), ArrayHelperResult.Num()));
+					for (int32 ArrayIndex = 0; ArrayIndex < MinValue; ++ArrayIndex)
+					{
+						InterpolateProperty(ArrayProperty->Inner, InBlendWeight, ArrayHelperA.GetRawPtr(ArrayIndex), ArrayHelperB.GetRawPtr(ArrayIndex), ArrayHelperResult.GetRawPtr(ArrayIndex));
+					}
+				}
+			}
+			else if (Property->ArrayDim > 1)
+			{
+				for (int32 DimIndex = 0; DimIndex < Property->ArrayDim; ++DimIndex)
+				{
+					const void* Data0 = Property->ContainerPtrToValuePtr<const void>(InFrameDataA, DimIndex);
+					const void* Data1 = Property->ContainerPtrToValuePtr<const void>(InFrameDataB, DimIndex);
+					void* DataResult = Property->ContainerPtrToValuePtr<void>(OutFrameData, DimIndex);
+
+					InterpolateProperty(Property, InBlendWeight, Data0, Data1, DataResult);
+				}
+			}
+			else
+			{
+				InterpolateProperty(Property, InBlendWeight, InFrameDataA, InFrameDataB, OutFrameData);
+			}
 		}
 	}
 
@@ -287,7 +364,7 @@ namespace LensInterpolationUtils
 			const FEncoderPoint& PointB = InSourceData[PointBIndex];
 
 			const float BlendingFactor = GetBlendFactor(InNormalizedValue, PointA.NormalizedValue, PointB.NormalizedValue);
-			OutEvaluatedValue = BlendValue(BlendingFactor, PointA.NormalizedValue, PointB.NormalizedValue);
+			OutEvaluatedValue = BlendValue(BlendingFactor, PointA.ValueInPhysicalUnits, PointB.ValueInPhysicalUnits);
 			return true;
 		}
 
@@ -296,7 +373,8 @@ namespace LensInterpolationUtils
 
 	float GetBlendFactor(float InValue, float ValueA, float ValueB)
 	{
-		check(InValue >= ValueA && InValue <= ValueB);
+		//Keep input in range
+		InValue = FMath::Clamp(InValue, ValueA, ValueB);
 
 		const float Divider = ValueB - ValueA;
 		if (!FMath::IsNearlyZero(Divider))

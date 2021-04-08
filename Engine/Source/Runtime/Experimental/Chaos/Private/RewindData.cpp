@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RewindData.h"
+#include "PBDRigidsSolver.h"
 
 namespace Chaos
 {
@@ -210,7 +211,7 @@ bool SimWritablePropsMayChange(const TGeometryParticleHandle<FReal,3>& Handle)
 	return ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping;
 }
 
-void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDirtyProxy& Dirty)
+void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDirtyProxy& Dirty, const FShapeDirtyData* ShapeDirtyData)
 {
 	//syncs the data before it was made dirty
 	//for sim-writable props this is only possible if those props are immutable from the sim side (sleeping, not simulated, etc...)
@@ -261,6 +262,23 @@ void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDi
 		});
 	}
 
+	//shape properties
+	for (int32 ShapeDataIdx : Dirty.ShapeDataIndices)
+	{
+		const FShapeDirtyData& ShapeData = ShapeDirtyData[ShapeDataIdx];
+		const int32 ShapeIdx = ShapeData.GetShapeIdx();
+		
+		FPerShapeDataStateBase& ShapeState = ShapesArrayState.FindOrAdd(ShapeIdx);
+
+		if (ShapeData.IsDirty<EShapeProperty::CollisionData>())
+		{
+			ShapeState.CollisionData.Write(Handle->ShapesArray()[ShapeIdx]->GetCollisionData());
+		}
+		if (ShapeData.IsDirty<EShapeProperty::Materials>())
+		{
+			ShapeState.MaterialData.Write(Handle->ShapesArray()[ShapeIdx]->GetMaterialData());
+		}
+	}
 }
 
 void FGeometryParticleStateBase::SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticleHandle& InHandle,const FGeometryParticleStateBase& RewindState)
@@ -354,6 +372,36 @@ bool FGeometryParticleStateBase::CoalesceState(const FGeometryParticleStateBase&
 		bCoalesced = true;
 	}
 
+	//TODO: this assumes geometry is never modified. Geometry modification has various issues in higher up Chaos code. Need stable shape id
+	//For now iterate over all the dirty shapes in latest and see if they have any new dirty properties. This assumes shape indices refer to the same shapes
+	//Note, the shapes array only include dirty shapes (or clean shapes that came before it in the array), so the size of the array may not match
+
+	const TArray<FPerShapeDataStateBase>& LatestShapes = LatestState.ShapesArrayState.PerShapeData;
+	TArray<FPerShapeDataStateBase>& Shapes = ShapesArrayState.PerShapeData;
+
+	if(LatestShapes.Num() > Shapes.Num())
+	{
+		//add clean shapes
+		Shapes.SetNum(LatestShapes.Num());
+	}
+
+	for(int32 ShapeIdx = 0; ShapeIdx < LatestShapes.Num(); ++ShapeIdx)
+	{
+		const FPerShapeDataStateBase& LatestShape = LatestShapes[ShapeIdx];
+		FPerShapeDataStateBase& Shape = Shapes[ShapeIdx];
+		if(!Shape.CollisionData.IsSet() && LatestShape.CollisionData.IsSet())
+		{
+			Shape.CollisionData = LatestShape.CollisionData;
+			bCoalesced = true;
+		}
+
+		if(!Shape.MaterialData.IsSet() && LatestShape.MaterialData.IsSet())
+		{
+			Shape.MaterialData = LatestShape.MaterialData;
+			bCoalesced = true;
+		}
+	}
+	
 	//dynamics do not coalesce since they are always written when dirty
 
 	return bCoalesced;
@@ -467,6 +515,11 @@ bool FRewindData::RewindToFrame(int32 Frame)
 			}
 		}
 
+		if(DirtyParticleInfo.InitializedOnStep > Frame)
+		{
+			//hasn't initialized yet, so disable
+			Solver->GetEvolution()->DisableParticle(DirtyParticleInfo.GetPTParticle());
+		}
 	}
 
 	CurFrame = Frame;
@@ -506,7 +559,7 @@ FGeometryParticleState FRewindData::GetPastStateAtFrame(const FGeometryParticleH
 	{
 		if(const FGeometryParticleStateBase* State = GetStateAtFrameImp(*Info,Frame))
 		{
-			return FGeometryParticleState(*State,Handle);
+			return FGeometryParticleState(State,Handle);
 		}
 	}
 
@@ -518,7 +571,6 @@ FGeometryParticleState FRewindData::GetPastStateAtFrame(const FGeometryParticleH
 EFutureQueryResult FRewindData::GetFutureStateAtFrame(FGeometryParticleState& OutState,int32 Frame) const
 {
 	ensure(IsResim());
-	ensure(IsInGameThread());
 	const FGeometryParticleHandle& Handle = OutState.GetHandle();
 
 	if(const FDirtyParticleInfo* Info = FindParticle(Handle.UniqueIdx()))
@@ -530,7 +582,7 @@ EFutureQueryResult FRewindData::GetFutureStateAtFrame(FGeometryParticleState& Ou
 
 		if(const FGeometryParticleStateBase* State = GetStateAtFrameImp(*Info,Frame))
 		{
-			OutState.SetState(*State);
+			OutState.SetState(State);
 			return EFutureQueryResult::Ok;
 		}
 	}
@@ -692,7 +744,7 @@ void FRewindData::CoalesceBack(TCircularBuffer<FFrameInfo>& Frames,int32 LatestI
 void FRewindData::PrepareFrame(int32 NumDirtyParticles)
 {
 	FFrameManagerInfo& Info = Managers[CurFrame];
-	if(Info.Manager == nullptr)
+	if(Info.Manager == nullptr || Info.FrameCreatedFor != CurFrame)
 	{
 		Info.Manager = MakeUnique<FDirtyPropertiesManager>();
 	}
@@ -715,7 +767,7 @@ void FRewindData::PrepareFrameForPTDirty(int32 NumActiveParticles)
 }
 
 template <bool bResim>
-void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty)
+void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty, const FShapeDirtyData* ShapeDirtyData)
 {
 	const int32 DestDataIdx = SrcDataIdx + DataIdxOffset;
 	//This records changes enqueued by GT.
@@ -729,10 +781,10 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 	FDirtyPropData DestManagerWrapper(Managers[CurFrame].Manager.Get(),DestDataIdx);
 	bNeedsSave = true;
 
-	auto ProcessProxy = [this,&SrcManagerWrapper,SrcDataIdx,Dirty,&DestManagerWrapper](const auto Proxy)
+	auto ProcessProxy = [this,&SrcManagerWrapper,SrcDataIdx,Dirty,&DestManagerWrapper, ShapeDirtyData](const auto Proxy)
 	{
 		const auto PTParticle = Proxy->GetHandle_LowLevel();
-		FDirtyParticleInfo& Info = FindOrAddParticle(*PTParticle);
+		FDirtyParticleInfo& Info = FindOrAddParticle(*PTParticle, Proxy->IsInitialized() ? INDEX_NONE : CurFrame);
 		Info.LastDirtyFrame = CurFrame;
 		Info.GTDirtyOnFrame[CurFrame].SetWave(CurFrame,CurWave);
 
@@ -771,7 +823,7 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 			if(!bResim || FramesSaved > 0)
 			{
 				FGeometryParticleStateBase& LatestState = Info.AddFrame(CurFrame-1);
-				LatestState.SyncPrevFrame(DestManagerWrapper,Dirty);
+				LatestState.SyncPrevFrame(DestManagerWrapper,Dirty, ShapeDirtyData);
 				CoalesceBack(Info.Frames,CurFrame-1);
 			}
 		}
@@ -873,7 +925,7 @@ const FGeometryParticleStateBase* FRewindData::GetStateAtFrameImp(const FDirtyPa
 	return nullptr;
 }
 
-FRewindData::FDirtyParticleInfo& FRewindData::FindOrAddParticle(TGeometryParticleHandle<FReal,3>& PTParticle)
+FRewindData::FDirtyParticleInfo& FRewindData::FindOrAddParticle(TGeometryParticleHandle<FReal,3>& PTParticle, const int32 InitializedOnFrame)
 {
 	const FUniqueIdx UniqueIdx = PTParticle.UniqueIdx();
 	if(FDirtyParticleInfo* Info = FindParticle(UniqueIdx))
@@ -885,6 +937,11 @@ FRewindData::FDirtyParticleInfo& FRewindData::FindOrAddParticle(TGeometryParticl
 	UE_ASSUME(GTUnsafeParticle != nullptr);
 	const int32 DirtyIdx = AllDirtyParticles.Add(FDirtyParticleInfo(*GTUnsafeParticle,PTParticle,UniqueIdx,CurFrame,Managers.Capacity()));
 	ParticleToAllDirtyIdx.Add(UniqueIdx,DirtyIdx);
+	if(InitializedOnFrame != INDEX_NONE)
+	{
+		ensure(AllDirtyParticles[DirtyIdx].InitializedOnStep == INDEX_NONE);	//initializing now, shouldn't have this marked already
+		AllDirtyParticles[DirtyIdx].InitializedOnStep = InitializedOnFrame;
+	}
 
 	return AllDirtyParticles[DirtyIdx];
 }
@@ -955,8 +1012,8 @@ TArray<FDesyncedParticleInfo> FRewindData::ComputeDesyncInfo() const
 	return Results;
 }
 
-template void FRewindData::PushGTDirtyData<true>(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty);
-template void FRewindData::PushGTDirtyData<false>(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty);
+template void FRewindData::PushGTDirtyData<true>(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty, const FShapeDirtyData* DirtyShapesData);
+template void FRewindData::PushGTDirtyData<false>(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty, const FShapeDirtyData* DirtyShapesData);
 
 template void FRewindData::PushPTDirtyData<true>(TPBDRigidParticleHandle<FReal,3>& Rigid,const int32 SrcDataIdx);
 template void FRewindData::PushPTDirtyData<false>(TPBDRigidParticleHandle<FReal,3>& Rigid,const int32 SrcDataIdx);

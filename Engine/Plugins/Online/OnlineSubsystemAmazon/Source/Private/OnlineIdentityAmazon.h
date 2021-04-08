@@ -39,7 +39,7 @@ public:
 	// FUserOnlineAccountAmazon
 
 	FUserOnlineAccountAmazon(const FString& InUserId=TEXT(""), const FString& InSecretKey=TEXT(""), const FString& InAuthTicket=TEXT("")) 
-		: UserIdPtr(new FUniqueNetIdAmazon(InUserId))
+		: UserIdPtr(FUniqueNetIdAmazon::Create(InUserId))
 		, UserId(InUserId)
 		, SecretKey(InSecretKey)
 		, AuthTicket(InAuthTicket)

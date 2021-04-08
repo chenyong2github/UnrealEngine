@@ -49,6 +49,11 @@ static FAutoConsoleVariableRef CVarHairStrandsLoadAsset(TEXT("r.HairStrands.Load
 static int32 GEnableGroomAsyncLoad = 0;
 static FAutoConsoleVariableRef CVarGroomAsyncLoad(TEXT("r.HairStrands.AsyncLoad"), GEnableGroomAsyncLoad, TEXT("Allow groom asset to be loaded asynchronously in the editor"));
 
+static TAutoConsoleVariable<int32> GHairStrandsWarningLogVerbosity(
+	TEXT("r.HairStrands.Log"),
+	-1,
+	TEXT("Enable warning log report for groom related asset (0: no logging, 1: error only, 2: error & warning only, other: all logs). By default all logging are enabled (-1). Value needs to be set at startup time."));
+
 // Editor async groom load can be useful in a workflow that consists mostly of loading grooms from a hot DDC
 static int32 GHairStrandsDDCLogEnable = 0;
 static FAutoConsoleVariableRef CVarHairStrandsDDCLogEnable(TEXT("r.HairStrands.DDCLog"), GHairStrandsDDCLogEnable, TEXT("Enable DDC logging for groom assets and groom binding assets"));
@@ -61,6 +66,20 @@ bool IsHairStrandsDDCLogEnable()
 static int32 GHairMaxSimulatedLOD = -1;
 static FAutoConsoleVariableRef CVarHairMaxSimulatedLOD(TEXT("r.HairStrands.MaxSimulatedLOD"), GHairMaxSimulatedLOD, TEXT("Maximum hair LOD to be simulated"));
 static bool IsHairLODSimulationEnabled(const int32 LODIndex) { return (LODIndex >= 0 && (GHairMaxSimulatedLOD < 0 || (GHairMaxSimulatedLOD >= 0 && LODIndex <= GHairMaxSimulatedLOD))); }
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
+void UpdateHairStrandsLogVerbosity()
+{
+	const int32 Verbosity = GHairStrandsWarningLogVerbosity->GetInt();
+	switch (Verbosity)
+	{
+	case 0:  UE_SET_LOG_VERBOSITY(LogHairStrands, NoLogging); break;
+	case 1:  UE_SET_LOG_VERBOSITY(LogHairStrands, Error); break;
+	case 2:  UE_SET_LOG_VERBOSITY(LogHairStrands, Warning); break;
+	default: UE_SET_LOG_VERBOSITY(LogHairStrands, Log); break;
+	};
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -358,6 +377,8 @@ UGroomAsset::UGroomAsset(const FObjectInitializer& ObjectInitializer)
 
 	MinLOD.Default = 0;
 	DisableBelowMinLodStripping.Default = false;
+
+	UpdateHairStrandsLogVerbosity();
 }
 
 bool UGroomAsset::HasGeometryType(uint32 GroupIndex, EGroomGeometryType Type) const

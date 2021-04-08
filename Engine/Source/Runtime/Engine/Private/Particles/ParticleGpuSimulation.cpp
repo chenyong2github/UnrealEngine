@@ -4808,7 +4808,6 @@ void FFXSystem::SimulateGPUParticles(
 
 			// Determine which vector fields affect this simulation and build the appropriate parameters.
 			{
-				SCOPE_CYCLE_COUNTER(STAT_GPUParticleVFCullTime);
 				FVectorFieldUniformParameters VectorFieldParameters;
 				const FBox SimulationBounds = Simulation->Bounds;
 

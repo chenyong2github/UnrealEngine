@@ -40,8 +40,8 @@ void SScreenShotBrowser::Construct( const FArguments& InArgs,  IScreenShotManage
 
 	ComparisonRoot = FPaths::ConvertRelativePathToFull(ReportPath);
 	bReportsChanged = true;
-	// Show all things by default so it's not confusing if a user sees an empty list after a test
-	bDisplayingSuccess = true;
+	// Show Errors and New images, but hide Successful images (ie unchanged ones) because fails and new images are the actionable items
+	bDisplayingSuccess = false;
 	bDisplayingError = true;
 	bDisplayingNew = true;
 	ReportFilterString = FString();

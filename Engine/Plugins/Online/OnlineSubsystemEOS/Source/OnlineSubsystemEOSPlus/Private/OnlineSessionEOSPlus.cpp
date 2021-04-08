@@ -82,27 +82,27 @@ FOnlineSessionEOSPlus::~FOnlineSessionEOSPlus()
 	}
 }
 
-TSharedPtr<FUniqueNetIdEOSPlus> FOnlineSessionEOSPlus::GetNetIdPlus(const FString& SourceId)
+FUniqueNetIdEOSPlusPtr FOnlineSessionEOSPlus::GetNetIdPlus(const FString& SourceId)
 {
 	return EOSPlus->UserInterfacePtr->GetNetIdPlus(SourceId);
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineSessionEOSPlus::GetBaseNetId(const FString& SourceId)
+FUniqueNetIdPtr FOnlineSessionEOSPlus::GetBaseNetId(const FString& SourceId)
 {
 	return EOSPlus->UserInterfacePtr->GetBaseNetId(SourceId);
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineSessionEOSPlus::GetEOSNetId(const FString& SourceId)
+FUniqueNetIdPtr FOnlineSessionEOSPlus::GetEOSNetId(const FString& SourceId)
 {
 	return EOSPlus->UserInterfacePtr->GetEOSNetId(SourceId);
 }
 
-TArray<TSharedRef<const FUniqueNetId>> FOnlineSessionEOSPlus::GetBaseNetIds(const TArray<TSharedRef<const FUniqueNetId>>& Players)
+TArray<FUniqueNetIdRef> FOnlineSessionEOSPlus::GetBaseNetIds(const TArray<FUniqueNetIdRef>& Players)
 {
-	TArray<TSharedRef<const FUniqueNetId>> BaseIds;
-	for (TSharedRef<const FUniqueNetId> SourceId : Players)
+	TArray<FUniqueNetIdRef> BaseIds;
+	for (FUniqueNetIdRef SourceId : Players)
 	{
-		TSharedPtr<const FUniqueNetId> BaseId = GetBaseNetId(SourceId->ToString());
+		FUniqueNetIdPtr BaseId = GetBaseNetId(SourceId->ToString());
 		if (BaseId.IsValid())
 		{
 			BaseIds.Add(BaseId.ToSharedRef());
@@ -111,12 +111,12 @@ TArray<TSharedRef<const FUniqueNetId>> FOnlineSessionEOSPlus::GetBaseNetIds(cons
 	return BaseIds;
 }
 
-TArray<TSharedRef<const FUniqueNetId>> FOnlineSessionEOSPlus::GetEOSNetIds(const TArray<TSharedRef<const FUniqueNetId>>& Players)
+TArray<FUniqueNetIdRef> FOnlineSessionEOSPlus::GetEOSNetIds(const TArray<FUniqueNetIdRef>& Players)
 {
-	TArray<TSharedRef<const FUniqueNetId>> EOSIds;
-	for (TSharedRef<const FUniqueNetId> SourceId : Players)
+	TArray<FUniqueNetIdRef> EOSIds;
+	for (FUniqueNetIdRef SourceId : Players)
 	{
-		TSharedPtr<const FUniqueNetId> EOSId = GetEOSNetId(SourceId->ToString());
+		FUniqueNetIdPtr EOSId = GetEOSNetId(SourceId->ToString());
 		if (EOSId.IsValid())
 		{
 			EOSIds.Add(EOSId.ToSharedRef());
@@ -125,7 +125,7 @@ TArray<TSharedRef<const FUniqueNetId>> FOnlineSessionEOSPlus::GetEOSNetIds(const
 	return EOSIds;
 }
 
-void FOnlineSessionEOSPlus::OnSessionUserInviteAcceptedBase(const bool bWasSuccessful, const int32 ControllerId, TSharedPtr<const FUniqueNetId> UserId, const FOnlineSessionSearchResult& InviteResult)
+void FOnlineSessionEOSPlus::OnSessionUserInviteAcceptedBase(const bool bWasSuccessful, const int32 ControllerId, FUniqueNetIdPtr UserId, const FOnlineSessionSearchResult& InviteResult)
 {
 	if (!bWasSuccessful || !UserId.IsValid() || !InviteResult.IsValid())
 	{
@@ -141,23 +141,23 @@ void FOnlineSessionEOSPlus::OnSessionUserInviteAcceptedBase(const bool bWasSucce
 			UE_LOG_ONLINE(Error, TEXT("Failed to get EOS session id from base session"));
 			return;
 		}
-		TSharedPtr<const FUniqueNetId> SessionId = EOSSessionInterface->CreateSessionIdFromString(SessionIdStr);
+		FUniqueNetIdPtr SessionId = EOSSessionInterface->CreateSessionIdFromString(SessionIdStr);
 		if (!SessionId.IsValid())
 		{
 			UE_LOG_ONLINE(Error, TEXT("Failed to get EOS session unique id from EOS session interface"));
 			return;
 		}
-		TSharedPtr<const FUniqueNetId> EOSUserId = EOSPlus->EosOSS->GetIdentityInterface()->GetUniquePlayerId(ControllerId);
+		FUniqueNetIdPtr EOSUserId = EOSPlus->EosOSS->GetIdentityInterface()->GetUniquePlayerId(ControllerId);
 		if (!EOSUserId.IsValid())
 		{
 			UE_LOG_ONLINE(Error, TEXT("Failed to get EOS user id (%d)"), ControllerId);
 			return;
 		}
 		// Do a search for the EOS session
-		EOSSessionInterface->FindSessionById(*EOSUserId, *SessionId, FUniqueNetIdString(),
+		EOSSessionInterface->FindSessionById(*EOSUserId, *SessionId, *FUniqueNetIdString::EmptyId(),
 			FOnSingleSessionResultCompleteDelegate::CreateLambda([this, UserId](int32 LocalUserNum, bool bWasSuccessful, const FOnlineSessionSearchResult& EOSResult)
 			{
-				TSharedPtr<const FUniqueNetId> PlusUserId = EOSPlus->UserInterfacePtr->GetUniquePlayerId(LocalUserNum);
+				FUniqueNetIdPtr PlusUserId = EOSPlus->UserInterfacePtr->GetUniquePlayerId(LocalUserNum);
 				// Now that we have the proper session trigger the invite
 				TriggerOnSessionUserInviteAcceptedDelegates(bWasSuccessful, LocalUserNum, PlusUserId, EOSResult);
 			}));
@@ -168,7 +168,7 @@ void FOnlineSessionEOSPlus::OnSessionUserInviteAcceptedBase(const bool bWasSucce
 	}
 }
 
-void FOnlineSessionEOSPlus::OnSessionUserInviteAcceptedEOS(const bool bWasSuccessful, const int32 ControllerId, TSharedPtr<const FUniqueNetId> UserId, const FOnlineSessionSearchResult& InviteResult)
+void FOnlineSessionEOSPlus::OnSessionUserInviteAcceptedEOS(const bool bWasSuccessful, const int32 ControllerId, FUniqueNetIdPtr UserId, const FOnlineSessionSearchResult& InviteResult)
 {
 	if (!bWasSuccessful || !UserId.IsValid() || !InviteResult.IsValid())
 	{
@@ -181,8 +181,8 @@ void FOnlineSessionEOSPlus::OnSessionUserInviteAcceptedEOS(const bool bWasSucces
 
 void FOnlineSessionEOSPlus::OnSessionInviteReceivedBase(const FUniqueNetId& UserId, const FUniqueNetId& FromId, const FString& AppId, const FOnlineSessionSearchResult& InviteResult)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> Id = GetNetIdPlus(UserId.ToString());
-	TSharedPtr<FUniqueNetIdEOSPlus> FriendId = GetNetIdPlus(FromId.ToString());
+	FUniqueNetIdEOSPlusPtr Id = GetNetIdPlus(UserId.ToString());
+	FUniqueNetIdEOSPlusPtr FriendId = GetNetIdPlus(FromId.ToString());
 	if (!Id.IsValid() || !Id->GetEOSNetId().IsValid() || !FriendId.IsValid() || !InviteResult.IsValid())
 	{
 		return;
@@ -197,14 +197,14 @@ void FOnlineSessionEOSPlus::OnSessionInviteReceivedBase(const FUniqueNetId& User
 			UE_LOG_ONLINE(Error, TEXT("Failed to get EOS session id from base session"));
 			return;
 		}
-		TSharedPtr<const FUniqueNetId> SessionId = EOSSessionInterface->CreateSessionIdFromString(SessionIdStr);
+		FUniqueNetIdPtr SessionId = EOSSessionInterface->CreateSessionIdFromString(SessionIdStr);
 		if (!SessionId.IsValid())
 		{
 			UE_LOG_ONLINE(Error, TEXT("Failed to get EOS session unique id from EOS session interface"));
 			return;
 		}
 		// Do a search for the EOS session
-		EOSSessionInterface->FindSessionById(*Id->GetEOSNetId(), *SessionId, FUniqueNetIdString(),
+		EOSSessionInterface->FindSessionById(*Id->GetEOSNetId(), *SessionId, *FUniqueNetIdString::EmptyId(),
 			FOnSingleSessionResultCompleteDelegate::CreateLambda([this, Id, FriendId, AppStr = FString(AppId)](int32 LocalUserNum, bool bWasSuccessful, const FOnlineSessionSearchResult& EOSResult)
 			{
 				// Now that we have the proper session trigger the invite
@@ -219,8 +219,8 @@ void FOnlineSessionEOSPlus::OnSessionInviteReceivedBase(const FUniqueNetId& User
 
 void FOnlineSessionEOSPlus::OnSessionInviteReceivedEOS(const FUniqueNetId& UserId, const FUniqueNetId& FromId, const FString& AppId, const FOnlineSessionSearchResult& InviteResult)
 {
-	TSharedPtr<const FUniqueNetId> Id = GetNetIdPlus(UserId.ToString());
-	TSharedPtr<const FUniqueNetId> FriendId = GetNetIdPlus(FromId.ToString());
+	FUniqueNetIdPtr Id = GetNetIdPlus(UserId.ToString());
+	FUniqueNetIdPtr FriendId = GetNetIdPlus(FromId.ToString());
 	if (!Id.IsValid() || !FriendId.IsValid() || !InviteResult.IsValid())
 	{
 		return;
@@ -232,7 +232,7 @@ void FOnlineSessionEOSPlus::OnSessionInviteReceivedEOS(const FUniqueNetId& UserI
 
 void FOnlineSessionEOSPlus::OnSessionFailure(const FUniqueNetId& Player, ESessionFailure::Type Failure)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> PlusId = GetNetIdPlus(Player.ToString());
+	FUniqueNetIdEOSPlusPtr PlusId = GetNetIdPlus(Player.ToString());
 	if (!PlusId.IsValid())
 	{
 		return;
@@ -328,7 +328,7 @@ bool FOnlineSessionEOSPlus::CreateSession(int32 HostingPlayerNum, FName SessionN
 
 bool FOnlineSessionEOSPlus::CreateSession(const FUniqueNetId& HostingPlayerId, FName SessionName, const FOnlineSessionSettings& NewSessionSettings)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> Id = GetNetIdPlus(HostingPlayerId.ToString());
+	FUniqueNetIdEOSPlusPtr Id = GetNetIdPlus(HostingPlayerId.ToString());
 	if (!Id.IsValid() || !Id->GetEOSNetId().IsValid())
 	{
 		OnCreateSessionComplete(SessionName, false);
@@ -416,14 +416,14 @@ bool FOnlineSessionEOSPlus::IsPlayerInSession(FName SessionName, const FUniqueNe
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(UniqueId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(UniqueId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
 		}
 		return EOSSessionInterface->IsPlayerInSession(SessionName, *Id);
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(UniqueId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(UniqueId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
@@ -431,7 +431,7 @@ bool FOnlineSessionEOSPlus::IsPlayerInSession(FName SessionName, const FUniqueNe
 	return BaseSessionInterface->IsPlayerInSession(SessionName, *Id);
 }
 
-bool FOnlineSessionEOSPlus::StartMatchmaking(const TArray<TSharedRef<const FUniqueNetId>>& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings)
+bool FOnlineSessionEOSPlus::StartMatchmaking(const TArray<FUniqueNetIdRef>& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings)
 {
 	if (bUseEOSSessions)
 	{
@@ -459,7 +459,7 @@ bool FOnlineSessionEOSPlus::CancelMatchmaking(const FUniqueNetId& SearchingPlaye
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(SearchingPlayerId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(SearchingPlayerId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
@@ -469,7 +469,7 @@ bool FOnlineSessionEOSPlus::CancelMatchmaking(const FUniqueNetId& SearchingPlaye
 			return false;
 		}
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(SearchingPlayerId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(SearchingPlayerId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
@@ -490,14 +490,14 @@ bool FOnlineSessionEOSPlus::FindSessions(const FUniqueNetId& SearchingPlayerId, 
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(SearchingPlayerId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(SearchingPlayerId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
 		}
 		return EOSSessionInterface->FindSessions(*Id, SearchSettings);
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(SearchingPlayerId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(SearchingPlayerId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
@@ -509,24 +509,24 @@ bool FOnlineSessionEOSPlus::FindSessionById(const FUniqueNetId& SearchingUserId,
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(SearchingUserId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(SearchingUserId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
 		}
-		TSharedPtr<const FUniqueNetId> Friend = GetEOSNetId(FriendId.ToString());
+		FUniqueNetIdPtr Friend = GetEOSNetId(FriendId.ToString());
 		if (!Friend.IsValid())
 		{
 			return false;
 		}
 		return EOSSessionInterface->FindSessionById(*Id, SessionId, *Friend, CompletionDelegate);
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(SearchingUserId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(SearchingUserId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
 	}
-	TSharedPtr<const FUniqueNetId> Friend = GetBaseNetId(FriendId.ToString());
+	FUniqueNetIdPtr Friend = GetBaseNetId(FriendId.ToString());
 	if (!Friend.IsValid())
 	{
 		return false;
@@ -568,7 +568,7 @@ bool FOnlineSessionEOSPlus::JoinSession(const FUniqueNetId& PlayerId, FName Sess
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(PlayerId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(PlayerId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
@@ -578,7 +578,7 @@ bool FOnlineSessionEOSPlus::JoinSession(const FUniqueNetId& PlayerId, FName Sess
 			return false;
 		}
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(PlayerId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(PlayerId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
@@ -599,24 +599,24 @@ bool FOnlineSessionEOSPlus::FindFriendSession(const FUniqueNetId& LocalUserId, c
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(LocalUserId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(LocalUserId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
 		}
-		TSharedPtr<const FUniqueNetId> FriendId = GetEOSNetId(Friend.ToString());
+		FUniqueNetIdPtr FriendId = GetEOSNetId(Friend.ToString());
 		if (!FriendId.IsValid())
 		{
 			return false;
 		}
 		return EOSSessionInterface->FindFriendSession(*Id, *FriendId);
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(LocalUserId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(LocalUserId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
 	}
-	TSharedPtr<const FUniqueNetId> FriendId = GetBaseNetId(Friend.ToString());
+	FUniqueNetIdPtr FriendId = GetBaseNetId(Friend.ToString());
 	if (!FriendId.IsValid())
 	{
 		return false;
@@ -624,18 +624,18 @@ bool FOnlineSessionEOSPlus::FindFriendSession(const FUniqueNetId& LocalUserId, c
 	return BaseSessionInterface->FindFriendSession(*Id, *FriendId);
 }
 
-bool FOnlineSessionEOSPlus::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& FriendList)
+bool FOnlineSessionEOSPlus::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<FUniqueNetIdRef>& FriendList)
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(LocalUserId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(LocalUserId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
 		}
 		return EOSSessionInterface->FindFriendSession(*Id, GetEOSNetIds(FriendList));
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(LocalUserId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(LocalUserId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
@@ -647,14 +647,14 @@ bool FOnlineSessionEOSPlus::SendSessionInviteToFriend(int32 LocalUserNum, FName 
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> FriendId = GetEOSNetId(Friend.ToString());
+		FUniqueNetIdPtr FriendId = GetEOSNetId(Friend.ToString());
 		if (!FriendId.IsValid())
 		{
 			return false;
 		}
 		return EOSSessionInterface->SendSessionInviteToFriend(LocalUserNum, SessionName, *FriendId);
 	}
-	TSharedPtr<const FUniqueNetId> FriendId = GetBaseNetId(Friend.ToString());
+	FUniqueNetIdPtr FriendId = GetBaseNetId(Friend.ToString());
 	if (!FriendId.IsValid())
 	{
 		return false;
@@ -666,24 +666,24 @@ bool FOnlineSessionEOSPlus::SendSessionInviteToFriend(const FUniqueNetId& LocalU
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(LocalUserId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(LocalUserId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
 		}
-		TSharedPtr<const FUniqueNetId> FriendId = GetEOSNetId(Friend.ToString());
+		FUniqueNetIdPtr FriendId = GetEOSNetId(Friend.ToString());
 		if (!FriendId.IsValid())
 		{
 			return false;
 		}
 		return EOSSessionInterface->SendSessionInviteToFriend(*Id, SessionName, *FriendId);
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(LocalUserId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(LocalUserId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
 	}
-	TSharedPtr<const FUniqueNetId> FriendId = GetBaseNetId(Friend.ToString());
+	FUniqueNetIdPtr FriendId = GetBaseNetId(Friend.ToString());
 	if (!FriendId.IsValid())
 	{
 		return false;
@@ -691,7 +691,7 @@ bool FOnlineSessionEOSPlus::SendSessionInviteToFriend(const FUniqueNetId& LocalU
 	return BaseSessionInterface->SendSessionInviteToFriend(*Id, SessionName, *FriendId);
 }
 
-bool FOnlineSessionEOSPlus::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray<TSharedRef<const FUniqueNetId>>& Friends)
+bool FOnlineSessionEOSPlus::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray<FUniqueNetIdRef>& Friends)
 {
 	if (bUseEOSSessions)
 	{
@@ -700,18 +700,18 @@ bool FOnlineSessionEOSPlus::SendSessionInviteToFriends(int32 LocalUserNum, FName
 	return BaseSessionInterface->SendSessionInviteToFriends(LocalUserNum, SessionName, GetBaseNetIds(Friends));
 }
 
-bool FOnlineSessionEOSPlus::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray<TSharedRef<const FUniqueNetId>>& Friends)
+bool FOnlineSessionEOSPlus::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray<FUniqueNetIdRef>& Friends)
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(LocalUserId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(LocalUserId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
 		}
 		return EOSSessionInterface->SendSessionInviteToFriends(*Id, SessionName, GetEOSNetIds(Friends));
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(LocalUserId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(LocalUserId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
@@ -750,7 +750,7 @@ bool FOnlineSessionEOSPlus::RegisterPlayer(FName SessionName, const FUniqueNetId
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(PlayerId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(PlayerId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
@@ -760,7 +760,7 @@ bool FOnlineSessionEOSPlus::RegisterPlayer(FName SessionName, const FUniqueNetId
 			return false;
 		}
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(PlayerId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(PlayerId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
@@ -768,7 +768,7 @@ bool FOnlineSessionEOSPlus::RegisterPlayer(FName SessionName, const FUniqueNetId
 	return BaseSessionInterface->RegisterPlayer(SessionName, *Id, bWasInvited);
 }
 
-bool FOnlineSessionEOSPlus::RegisterPlayers(FName SessionName, const TArray<TSharedRef<const FUniqueNetId>>& Players, bool bWasInvited)
+bool FOnlineSessionEOSPlus::RegisterPlayers(FName SessionName, const TArray<FUniqueNetIdRef>& Players, bool bWasInvited)
 {
 	if (bUseEOSSessions)
 	{
@@ -784,7 +784,7 @@ bool FOnlineSessionEOSPlus::UnregisterPlayer(FName SessionName, const FUniqueNet
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(PlayerId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(PlayerId.ToString());
 		if (!Id.IsValid())
 		{
 			return false;
@@ -794,7 +794,7 @@ bool FOnlineSessionEOSPlus::UnregisterPlayer(FName SessionName, const FUniqueNet
 			return false;
 		}
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(PlayerId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(PlayerId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
@@ -802,7 +802,7 @@ bool FOnlineSessionEOSPlus::UnregisterPlayer(FName SessionName, const FUniqueNet
 	return BaseSessionInterface->UnregisterPlayer(SessionName, *Id);
 }
 
-bool FOnlineSessionEOSPlus::UnregisterPlayers(FName SessionName, const TArray<TSharedRef<const FUniqueNetId>>& Players)
+bool FOnlineSessionEOSPlus::UnregisterPlayers(FName SessionName, const TArray<FUniqueNetIdRef>& Players)
 {
 	if (bUseEOSSessions)
 	{
@@ -820,7 +820,7 @@ void FOnlineSessionEOSPlus:: RegisterLocalPlayer(const FUniqueNetId& PlayerId, F
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(PlayerId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(PlayerId.ToString());
 		if (Id.IsValid())
 		{
 			EOSSessionInterface->RegisterLocalPlayer(*Id, SessionName, Delegate);
@@ -830,7 +830,7 @@ void FOnlineSessionEOSPlus:: RegisterLocalPlayer(const FUniqueNetId& PlayerId, F
 			Delegate.ExecuteIfBound(PlayerId, EOnJoinSessionCompleteResult::UnknownError);
 		}
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(PlayerId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(PlayerId.ToString());
 	if (!Id.IsValid())
 	{
 		return;
@@ -844,7 +844,7 @@ void FOnlineSessionEOSPlus:: UnregisterLocalPlayer(const FUniqueNetId& PlayerId,
 {
 	if (bUseEOSSessions)
 	{
-		TSharedPtr<const FUniqueNetId> Id = GetEOSNetId(PlayerId.ToString());
+		FUniqueNetIdPtr Id = GetEOSNetId(PlayerId.ToString());
 		if (Id.IsValid())
 		{
 			EOSSessionInterface->UnregisterLocalPlayer(*Id, SessionName, Delegate);
@@ -854,7 +854,7 @@ void FOnlineSessionEOSPlus:: UnregisterLocalPlayer(const FUniqueNetId& PlayerId,
 			Delegate.ExecuteIfBound(PlayerId, false);
 		}
 	}
-	TSharedPtr<const FUniqueNetId> Id = GetBaseNetId(PlayerId.ToString());
+	FUniqueNetIdPtr Id = GetBaseNetId(PlayerId.ToString());
 	if (!Id.IsValid())
 	{
 		return;
@@ -917,7 +917,7 @@ bool FOnlineSessionEOSPlus::HasPresenceSession()
 	return BaseSessionInterface->HasPresenceSession();
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineSessionEOSPlus::CreateSessionIdFromString(const FString& SessionIdStr)
+FUniqueNetIdPtr FOnlineSessionEOSPlus::CreateSessionIdFromString(const FString& SessionIdStr)
 {
 	if (bUseEOSSessions)
 	{

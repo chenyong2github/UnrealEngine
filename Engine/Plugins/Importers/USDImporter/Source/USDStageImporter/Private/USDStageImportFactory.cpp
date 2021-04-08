@@ -6,7 +6,6 @@
 #include "USDErrorUtils.h"
 #include "USDStageImporterModule.h"
 #include "USDStageImportOptions.h"
-#include "USDStageImportOptionsWindow.h"
 
 #include "AssetRegistryModule.h"
 #include "AssetSelection.h"

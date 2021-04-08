@@ -335,6 +335,7 @@ struct FObjectExport : public FObjectResource
 	 * this is the GUID for the original package file
 	 * Serialized
 	 */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and FObjectExport::PackageGuid will be removed.")
 	FGuid			PackageGuid;
 
 	/** If this object is a top level package (which must have been forced into the export table via OBJECTMARK_ForceTagExp)
@@ -358,6 +359,14 @@ struct FObjectExport : public FObjectResource
 	 */
 	COREUOBJECT_API FObjectExport();
 	FObjectExport(UObject* InObject, bool bInNotAlwaysLoadedForEditorGame = true);
+
+	// Workaround for clang deprecation warnings for deprecated PackageGuid member in implicit constructors
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FObjectExport(FObjectExport&&) = default;
+	FObjectExport(const FObjectExport&) = default;
+	FObjectExport& operator=(FObjectExport&&) = default;
+	FObjectExport& operator=(const FObjectExport&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Resets the stored Object and any transient flags */
 	COREUOBJECT_API void ResetObject();

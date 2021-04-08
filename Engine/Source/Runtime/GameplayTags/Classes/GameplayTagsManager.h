@@ -9,6 +9,7 @@
 #include "UObject/ScriptMacros.h"
 #include "GameplayTagContainer.h"
 #include "Engine/DataTable.h"
+#include "Templates/UniquePtr.h"
 
 #include "GameplayTagsManager.generated.h"
 
@@ -129,6 +130,35 @@ struct GAMEPLAYTAGS_API FGameplayTagSource
 
 	static FName GetTransientEditorName();
 #endif
+};
+
+/** Struct describing the places to look for ini search paths */
+struct FGameplayTagSearchPathInfo
+{
+	/** Which sources should be loaded from this path */
+	TArray<FName> SourcesInPath;
+
+	/** Config files to load from, will normally correspond to FoundSources */
+	TArray<FString> TagIniList;
+
+	/** True if this path has already been searched */
+	bool bWasSearched = false;
+
+	/** True if the tags in sources have been added to the current tree */
+	bool bWasAddedToTree = false;
+
+	FORCEINLINE void Reset()
+	{
+		SourcesInPath.Reset();
+		TagIniList.Reset();
+		bWasSearched = false;
+		bWasAddedToTree = false;
+	}
+
+	FORCEINLINE bool IsValid()
+	{
+		return bWasSearched && bWasAddedToTree;
+	}
 };
 
 /** Simple tree node for gameplay tags, this stores metadata about specific tags */
@@ -260,7 +290,6 @@ private:
 	friend class UGameplayTagsManager;
 	friend class SGameplayTagWidget;
 };
-
 
 /** Holds data about the tag dictionary, is in a singleton UObject */
 UCLASS(config=Engine)
@@ -433,6 +462,9 @@ public:
 	/** Loads tag inis contained in the specified path */
 	void AddTagIniSearchPath(const FString& RootDir);
 
+	/** Gets all the current directories to look for tag sources in */
+	void GetTagSourceSearchPaths(TArray<FString>& OutPaths);
+
 	/** Helper function to construct the gameplay tag tree */
 	void ConstructGameplayTagTree();
 
@@ -595,9 +627,6 @@ public:
 	/** Refresh the gameplaytag tree due to an editor change */
 	void EditorRefreshGameplayTagTree();
 
-	/** Gets all the current directories to look for tag sources in */
-	void GetTagSourceSearchPaths(TArray<FString>& OutPaths);
-
 	/** Gets a Tag Container containing all of the tags in the hierarchy that are children of this tag, and were explicitly added to the dictionary */
 	FGameplayTagContainer RequestGameplayTagChildrenInDictionary(const FGameplayTag& GameplayTag) const;
 #if WITH_EDITORONLY_DATA
@@ -719,9 +748,6 @@ private:
 	/** Constructs the net indices for each tag */
 	void ConstructNetIndex();
 
-	/** Reads the restricted config info from the specified ini */
-	void GetRestrictedConfigsFromIni(const FString& IniFilePath, TArray<struct FRestrictedConfigInfo>& OutRestrictedConfigs) const;
-
 	/** Marks all of the nodes that descend from CurNode as having an ancestor node that has a source conflict. */
 	void MarkChildrenOfNodeConflict(TSharedPtr<FGameplayTagNode> CurNode);
 
@@ -734,6 +760,17 @@ private:
 	}
 
 	void InvalidateNetworkIndex() { bNetworkIndexInvalidated = true; }
+
+	// Tag Sources
+	///////////////////////////////////////////////////////
+
+	/** These are the old native tags that use to be resisted via a function call with no specific site/ownership. */
+	TSet<FName> LegacyNativeTags;
+
+	/** Map of all config directories to load tag inis from */
+	TMap<FString, FGameplayTagSearchPathInfo> RegisteredSearchPaths;
+
+
 
 	/** Roots of gameplay tag nodes */
 	TSharedPtr<FGameplayTagNode> GameplayRootTag;
@@ -748,13 +785,7 @@ private:
 	UPROPERTY()
 	TMap<FName, FGameplayTagSource> TagSources;
 
-	/** List of native tags to add when reconstructing tree */
-	TSet<FName> NativeTagsToAdd;
-
 	TSet<FName> RestrictedGameplayTagSourceNames;
-
-	/** Specific list of found ini files to load tags out of */
-	TArray<FString> ExtraTagIniList;
 
 	bool bIsConstructingGameplayTagTree = false;
 
@@ -780,9 +811,6 @@ private:
 
 	// Transient editor-only tags to support quick-iteration PIE workflows
 	TSet<FName> TransientEditorTags;
-
-	/** List of additional tag config root directories to search */
-	TArray<FString> TagIniSearchPaths;
 #endif
 
 	/** Sorted list of nodes, used for network replication */
@@ -795,9 +823,6 @@ private:
 	/** Holds all of the valid gameplay-related tags that can be applied to assets */
 	UPROPERTY()
 	TArray<TObjectPtr<UDataTable>> GameplayTagTables;
-
-	/** The map of ini-configured tag redirectors */
-	TMap<FName, FGameplayTag> TagRedirects;
 
 	const static FName NAME_Categories;
 	const static FName NAME_GameplayTagFilter;

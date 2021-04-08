@@ -2,15 +2,19 @@
 
 #include "SkeletalMeshExporterUSD.h"
 
+#include "SkeletalMeshExporterUSDOptions.h"
 #include "USDConversionUtils.h"
 #include "USDMemory.h"
+#include "USDOptionsWindow.h"
 #include "USDSkeletalDataConversion.h"
 #include "USDTypesConversion.h"
+
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
+#include "AssetExportTask.h"
 #include "Engine/SkeletalMesh.h"
 
 USkeletalMeshExporterUsd::USkeletalMeshExporterUsd()
@@ -36,12 +40,40 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 {
 #if USE_USD_SDK
 	USkeletalMesh* SkeletalMesh = CastChecked< USkeletalMesh >( Object );
+	if ( !SkeletalMesh )
+	{
+		return false;
+	}
+
+	USkeletalMeshExporterUSDOptions* Options = nullptr;
+	if ( ExportTask )
+	{
+		Options = Cast<USkeletalMeshExporterUSDOptions>( ExportTask->Options );
+	}
+	if ( !Options && ( !ExportTask || !ExportTask->bAutomated ) )
+	{
+		Options = GetMutableDefault<USkeletalMeshExporterUSDOptions>();
+		if ( Options )
+		{
+			const bool bIsImport = false;
+			const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
+			if ( !bContinue )
+			{
+				return false;
+			}
+		}
+	}
 
 	UE::FUsdStage UsdStage = UnrealUSDWrapper::NewStage( *UExporter::CurrentFilename );
-
 	if ( !UsdStage )
 	{
 		return false;
+	}
+
+	if ( Options )
+	{
+		UsdUtils::SetUsdStageMetersPerUnit( UsdStage, Options->StageOptions.MetersPerUnit );
+		UsdUtils::SetUsdStageUpAxis( UsdStage, Options->StageOptions.UpAxis );
 	}
 
 	FString RootPrimPath = ( TEXT( "/" ) + SkeletalMesh->GetName() );

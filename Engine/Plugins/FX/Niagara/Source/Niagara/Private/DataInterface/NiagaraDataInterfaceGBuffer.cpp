@@ -166,11 +166,7 @@ void UNiagaraDataInterfaceGBuffer::GetFunctions(TArray<FNiagaraFunctionSignature
 	}
 }
 
-void UNiagaraDataInterfaceGBuffer::GetCommonHLSL(FString& OutHLSL)
-{
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceGBuffer.ush\"\n");
-}
-
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceGBuffer::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	if (!Super::AppendCompileHash(InVisitor))
@@ -180,6 +176,12 @@ bool UNiagaraDataInterfaceGBuffer::AppendCompileHash(FNiagaraCompileHashVisitor*
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceGBufferHLSLSource"), Hash.ToString());
 	return true;
 }
+
+void UNiagaraDataInterfaceGBuffer::GetCommonHLSL(FString& OutHLSL)
+{
+	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceGBuffer.ush\"\n");
+}
+
 bool UNiagaraDataInterfaceGBuffer::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	using namespace NiagaraDataInterfaceGBufferLocal;
@@ -204,3 +206,4 @@ bool UNiagaraDataInterfaceGBuffer::GetFunctionHLSL(const FNiagaraDataInterfaceGP
 
 	return false;
 }
+#endif

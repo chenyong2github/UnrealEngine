@@ -173,24 +173,25 @@ public:
 		Final phase of system instance tick. Must be executed on the game thread. 
 		Returns whether the Finalize was actually done. It's possible for the finalize in a task to have already been done earlier on the GT by a WaitForAsyncAndFinalize call.
 	*/
-	bool FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded = true);
+	void FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded = true);
 
 	void GenerateAndSubmitGPUTick();
 	void InitGPUTick(FNiagaraGPUSystemTick& OutTick);
 
-	/**
-		Blocks until any async work for this system instance has completed, must be called on the GameThread.
-		This will NOT call finalize on the instance, be very careful when using to avoid leaving the instance in an undefined state.
-		Note: This only waits for the instance to be safe to touch, it does not wait for the owning system simulation to be safe.
-	*/
-	void WaitForAsyncTickDoNotFinalize(bool bEnsureComplete = false);
+	void SetPendingFinalize(FNiagaraSystemInstanceFinalizeRef InFinalizeRef) { FinalizeRef = InFinalizeRef; }
+	bool HasPendingFinalize() const { return FinalizeRef.IsPending(); }
 
 	/**
-		Blocks until any async work for this system instance has completed, must be called on the GameThread.
-		This will call finalize if required by the instance and can therefore complete leaving removing the instance from the owning system simulation.
-		Note: This only waits for the instance to be safe to touch, it does not wait for the owning system simulation to be safe.
+	Wait for any pending concurrent work to complete, must be called on the GameThread.
+	This will NOT call finalize on the instance so can leave a dangling finalize task.
 	*/
-	void WaitForAsyncTickAndFinalize(bool bEnsureComplete = false);
+	void WaitForConcurrentTickDoNotFinalize(bool bEnsureComplete = false);
+
+	/**
+	Wait for any pending concurrent work to complete, must be called on the GameThread.
+	The instance will be finalized if pending, this can complete the instance and remove it from the system simulation.
+	*/
+	void WaitForConcurrentTickAndFinalize(bool bEnsureComplete = false);
 
 	/** Handles completion of the system and returns true if the system is complete. */
 	bool HandleCompletion();
@@ -338,12 +339,6 @@ public:
 	static bool DeallocateSystemInstance(FNiagaraSystemInstancePtr& SystemInstanceAllocation);
 	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }*/
 	bool HasGPUEmitters() { return bHasGPUEmitters;  }
-
-	FORCEINLINE void BeginAsyncWork()
-	{
-		bAsyncWorkInProgress = true;
-		bNeedsFinalize = true;
-	}
 
 	void TickInstanceParameters_GameThread(float DeltaSeconds);
 
@@ -512,9 +507,6 @@ private:
 	/** The system contains data interfaces that can have tick group prerequisites. */
 	uint32 bDataInterfacesHaveTickPrereqs : 1;
 
-	/** True if we require a call to FinalizeTick_GameThread(). Typically this is called from a GT task but can be called in WaitForAsync. */
-	uint32 bNeedsFinalize : 1;
-
 	uint32 bDataInterfacesInitialized : 1;
 
 	uint32 bAlreadyBound : 1;
@@ -534,8 +526,11 @@ private:
 	/** If async work was running when we request an Activate we will store the reset mode and perform in finalize to avoid stalling the GameThread. */
 	EResetMode DeferredResetMode = EResetMode::None;
 
-	/** True if we have async work in flight. */
-	volatile bool bAsyncWorkInProgress;
+	/** Graph event to track pending concurrent work. */
+	FGraphEventRef ConcurrentTickGraphEvent;
+
+	/** When using concurrent ticking this will be valid until it's complete. */
+	FNiagaraSystemInstanceFinalizeRef FinalizeRef;
 
 	/** Cached delta time, written during Tick_GameThread and used during other phases. */
 	float CachedDeltaSeconds;

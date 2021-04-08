@@ -50,6 +50,7 @@ namespace DatasmithSketchUp
 		FMaterialOccurrence& RegisterInstance(FNodeOccurence*);
 
 		void Update(FExportContext& Context); // create datasmith elements for material occurrences
+		void Remove(FExportContext& Context);
 
 		bool IsUsed()
 		{

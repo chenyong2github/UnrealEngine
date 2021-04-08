@@ -4,6 +4,8 @@
 	RayTracingDynamicMesh.usf
 =============================================================================*/
 
+#define RAY_TRACING_DYNAMIC_MESH_SHADER_VERSION 0xFA5CE282  // Change to force shader compilation of this shader
+
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"

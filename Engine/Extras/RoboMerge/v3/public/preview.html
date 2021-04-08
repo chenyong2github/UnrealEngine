@@ -16,7 +16,7 @@
 
 	<script>
 		$(() => {
-			doPreview({{ cl }}, '{{ bot }}');
+			doPreview('{{ &query }}');
 		});
 
 	</script>
@@ -27,13 +27,13 @@
 
 		<div id="error-panel" style="display:none;"> <!-- show or hide in script -->
 			<div class="alert alert-warning" role="alert">
-Errors attempting to preview <tt>{{ bot }}.branchmap.json</tt> from <a href="https://p4-swarm.epicgames.net/changes/{{ cl }}" target="_blank">CL#{{ cl }}</a>
+Errors attempting to preview <span class="bots"></span> from <a href="https://p4-swarm.epicgames.net/changes/{{ cl }}" target="_blank">CL#{{ cl }}</a>
 			</div>
 			<pre></pre>
 		</div>
 		<div id="success-panel" style="display:none;">
 			<div class="alert alert-success" role="alert">
-Graph for <tt>{{ bot }}.branchmap.json</tt> from <a href="https://p4-swarm.epicgames.net/changes/{{ cl }}" target="_blank">CL#{{ cl }}</a>
+Graph for <span class="bots"></span> from <a href="https://p4-swarm.epicgames.net/changes/{{ cl }}" target="_blank">CL#{{ cl }}</a>
 			</div>
 			<div id="graph"></div>
 		</div>

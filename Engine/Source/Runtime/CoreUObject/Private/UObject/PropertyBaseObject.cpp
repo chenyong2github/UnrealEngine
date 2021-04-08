@@ -353,14 +353,24 @@ const TCHAR* FObjectPropertyBase::ImportText_Internal( const TCHAR* InBuffer, vo
 
 	if (Result && (PortFlags & PPF_InstanceSubobjects) != 0 && HasAnyPropertyFlags(CPF_InstancedReference))
 	{
+		FName DesiredName = Result->GetFName();
+
 		// If an object currently exists with the same name as the imported object that is to be instanced
-		// it will be renamed out of the way
-		if (UObject* ExistingObject = static_cast<UObject*>(FindObjectWithOuter(Parent, nullptr, Result->GetFName())))
+		// 
+		if (UObject* ExistingObject = static_cast<UObject*>(FindObjectWithOuter(Parent, nullptr, DesiredName)))
 		{
 			ExistingObject->Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 		}
 
-		Result = DuplicateObject<UObject>(Result, Parent, Result->GetFName());
+		Result = DuplicateObject<UObject>(Result, Parent, DesiredName);
+		if (Parent->IsTemplate())
+		{
+			Result->SetFlags(RF_ArchetypeObject);
+		}
+		else
+		{
+			Result->ClearFlags(RF_ArchetypeObject);
+		}
 	}
 
 	SetObjectPropertyValue(Data, Result);

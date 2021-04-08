@@ -1537,7 +1537,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			// Previs level streaming volumes in the Editor.
 			if ( ViewportClient->IsPerspective() && GetDefault<ULevelEditorViewportSettings>()->bLevelStreamingVolumePrevis )
 			{
-				bool bProcessViewer = false;
 				const FVector& ViewLocation = ViewportClient->GetViewLocation();
 
 				// Iterate over streaming levels and compute whether the ViewLocation is in their associated volumes.
@@ -1591,7 +1590,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 						if ( bFoundValidVolume && StreamingLevel->GetShouldBeVisibleInEditor() != bStreamingLevelShouldBeVisible )
 						{
 							StreamingLevel->SetShouldBeVisibleInEditor(bStreamingLevelShouldBeVisible);
-							bProcessViewer = true;
 						}
 					}
 				}
@@ -1599,20 +1597,18 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				// Simulate world composition streaming while in editor world
 				if (EditorContext.World()->WorldComposition)
 				{
-					if (EditorContext.World()->WorldComposition->UpdateEditorStreamingState(ViewLocation))
-					{
-						bProcessViewer = true;
-					}
+					EditorContext.World()->WorldComposition->UpdateEditorStreamingState(ViewLocation);
 				}
-				
-				// Call UpdateLevelStreaming if the visibility of any streaming levels was modified.
-				if ( bProcessViewer )
-				{
-					EditorContext.World()->UpdateLevelStreaming();
-					FEditorDelegates::RefreshPrimitiveStatsBrowser.Broadcast();
-				}
+
 				break;
 			}
+		}
+
+		// Call UpdateLevelStreaming if some streaming levels needs consideration. i.e Visibility has changed
+		if (EditorContext.World()->HasStreamingLevelsToConsider())
+		{
+			EditorContext.World()->UpdateLevelStreaming();
+			FEditorDelegates::RefreshPrimitiveStatsBrowser.Broadcast();
 		}
 	}
 

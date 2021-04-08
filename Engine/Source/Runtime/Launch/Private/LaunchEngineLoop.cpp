@@ -4947,6 +4947,9 @@ void FEngineLoop::Tick()
 				FlushPendingDeleteRHIResources_RenderThread();
 			});
 
+		// Don't pump messages if we're running embedded as the outer application
+		// will pass us messages instead.
+		if (!GUELibraryOverrideSettings.bIsEmbedded)
 		{
 			//QUICK_SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
 			FPlatformApplicationMisc::PumpMessages(true);

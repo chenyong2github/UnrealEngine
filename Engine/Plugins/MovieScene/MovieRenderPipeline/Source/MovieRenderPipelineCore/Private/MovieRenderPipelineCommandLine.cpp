@@ -197,7 +197,7 @@ bool FMovieRenderPipelineCoreModule::IsTryingToRenderMovieFromCommandLine(FStrin
 *
 *
 *	Option 1: Simple Command Line Render.
-*		- Level Sequence (Required unless you pass an entire Queue asset, passed via -MoviePipeline="/Game/...")
+*		- Level Sequence (Required unless you pass an entire Queue asset, passed via -LevelSequence="/Game/...")
 *		- Preset or Queue to use (A preset is required if using a Level Sequence above, passed via -MoviePipelineConfig="/Game/...")
 *		- Will render on current map
 *		ie: 

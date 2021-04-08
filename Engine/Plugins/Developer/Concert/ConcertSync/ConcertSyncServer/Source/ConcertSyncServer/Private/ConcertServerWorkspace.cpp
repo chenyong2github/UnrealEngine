@@ -112,6 +112,8 @@ void FConcertServerWorkspace::HandleTick(IConcertServerSession& InSession, float
 			ManualSyncEndpointIter.RemoveCurrent();
 		}
 	}
+
+	LiveSession->GetSessionDatabase().UpdateAsynchronousTasks();
 }
 
 void FConcertServerWorkspace::HandleSessionClientChanged(IConcertServerSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo)
@@ -896,9 +898,13 @@ void FConcertServerWorkspace::AddTransactionActivity(const FConcertSyncTransacti
 	if (LiveSession->GetSessionDatabase().AddTransactionActivity(InTransactionActivity, ActivityId, EventId))
 	{
 		PostActivityAdded(ActivityId);
-		SyncCommandQueue->QueueCommand(LiveSyncEndpoints, [this, SyncActivityId = ActivityId](const FConcertServerSyncCommandQueue::FSyncCommandContext& InSyncCommandContext, const FGuid& InEndpointId)
+		SyncCommandQueue->QueueCommand([this, SyncActivityId = ActivityId](const FConcertServerSyncCommandQueue::FSyncCommandContext& InSyncCommandContext, const FGuid& InEndpointId)
 		{
-			SendSyncTransactionActivityEvent(InEndpointId, SyncActivityId, InSyncCommandContext.GetNumRemainingCommands());
+			TOptional<FConcertWorkspaceSyncActivityEvent> Event = SyncTransactionActivityEvent(SyncActivityId, InSyncCommandContext.GetNumRemainingCommands());
+			if (Event)
+			{
+				LiveSession->GetSession().SendCustomEvent(Event.GetValue(), LiveSyncEndpoints, EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
+			}
 		});
 	}
 	else
@@ -907,7 +913,7 @@ void FConcertServerWorkspace::AddTransactionActivity(const FConcertSyncTransacti
 	}
 }
 
-void FConcertServerWorkspace::SendSyncTransactionActivityEvent(const FGuid& InTargetEndpointId, const int64 InSyncActivityId, const int32 InNumRemainingSyncEvents, const bool InLiveOnly) const
+TOptional<FConcertWorkspaceSyncActivityEvent> FConcertServerWorkspace::SyncTransactionActivityEvent(const int64 InSyncActivityId, const int32 InNumRemainingSyncEvents, const bool InLiveOnly) const
 {
 	FConcertSyncTransactionActivity SyncActivity;
 	if (LiveSession->GetSessionDatabase().GetActivity(InSyncActivityId, SyncActivity))
@@ -927,11 +933,21 @@ void FConcertServerWorkspace::SendSyncTransactionActivityEvent(const FGuid& InTa
 		FConcertWorkspaceSyncActivityEvent SyncEvent;
 		SyncEvent.NumRemainingSyncEvents = InNumRemainingSyncEvents;
 		SyncEvent.Activity.SetTypedPayload(SyncActivity);
-		LiveSession->GetSession().SendCustomEvent(SyncEvent, InTargetEndpointId, EConcertMessageFlags::ReliableOrdered);
+		return MoveTemp(SyncEvent);
 	}
 	else
 	{
 		UE_LOG(LogConcert, Error, TEXT("Failed to get transaction activity '%s' from live session '%s': %s"), *LexToString(InSyncActivityId), *LiveSession->GetSession().GetName(), *LiveSession->GetSessionDatabase().GetLastError());
+	}
+	return {};
+}
+
+void FConcertServerWorkspace::SendSyncTransactionActivityEvent(const FGuid& InTargetEndpointId, const int64 InSyncActivityId, const int32 InNumRemainingSyncEvents, const bool InLiveOnly) const
+{
+	TOptional<FConcertWorkspaceSyncActivityEvent> SyncEvent = SyncTransactionActivityEvent(InSyncActivityId, InNumRemainingSyncEvents, InLiveOnly);
+	if (SyncEvent)
+	{
+		LiveSession->GetSession().SendCustomEvent(SyncEvent.GetValue(), InTargetEndpointId, EConcertMessageFlags::ReliableOrdered);
 	}
 }
 

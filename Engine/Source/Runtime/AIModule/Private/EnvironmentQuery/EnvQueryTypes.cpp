@@ -145,7 +145,7 @@ FText FEnvTraceData::ToText(FEnvTraceData::EDescriptionMode DescMode) const
 {
 	FText Desc;
 
-	if (TraceMode == EEnvQueryTrace::Geometry)
+	if (TraceMode == EEnvQueryTrace::GeometryByChannel || TraceMode == EEnvQueryTrace::GeometryByProfile)
 	{
 		FNumberFormattingOptions NumberFormatOptions;
 		NumberFormatOptions.MaximumFractionalDigits = 2;
@@ -246,7 +246,7 @@ FText FEnvTraceData::ToText(FEnvTraceData::EDescriptionMode DescMode) const
 
 void FEnvTraceData::SetGeometryOnly()
 {
-	TraceMode = EEnvQueryTrace::Geometry;
+	TraceMode = EEnvQueryTrace::GeometryByChannel;
 	bCanTraceOnGeometry = true;
 	bCanTraceOnNavMesh = false;
 	bCanDisableTrace = false;

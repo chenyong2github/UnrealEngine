@@ -10,6 +10,7 @@
 
 #include "Async/Future.h"
 #include "Containers/Queue.h"
+#include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 
 #include <atomic>
@@ -39,12 +40,6 @@ struct FUpdateContext
 
 namespace DatasmithRuntime
 {
-	struct FTranslationResult
-	{
-		TSharedPtr<IDatasmithScene>      SceneElement;
-		TSharedPtr<IDatasmithTranslator> Translator;
-	};
-
 	class FTranslationJob
 	{
 	public:
@@ -100,6 +95,46 @@ namespace DatasmithRuntime
 // UHT doesn't really like operator ::
 using FDatasmithSceneReceiver_ISceneChangeListener = FDatasmithSceneReceiver::ISceneChangeListener;
 
+UENUM(BlueprintType)
+enum class EBuildHierarchyMethod : uint8
+{
+	None,
+	Simplified,
+	Unfiltered,
+};
+
+USTRUCT(BlueprintType)
+struct FDatasmithRuntimeImportOptions
+{
+	GENERATED_BODY()
+
+	/** Tessellation options for CAD import */
+	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
+	FDatasmithTessellationOptions TessellationOptions;
+
+	/**
+	 * Indicates whether a hierarchy of actors should be built or not.
+	 * In the case a hierarchy is built, it can be simplified to minimize the number of actors created
+	 * By default, a simplified hierarchy is built
+	 */
+	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
+	EBuildHierarchyMethod BuildHierarchy = EBuildHierarchyMethod::Simplified;
+
+	/**
+	 * Indicates the type of collision for components
+	 * Set to ECollisionEnabled::NoCollision (no collision) by default
+	 */
+	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
+	TEnumAsByte<ECollisionEnabled::Type> BuildCollisions = ECollisionEnabled::NoCollision;
+
+	/**
+	 * Indicates whether meta-data should be imported or not
+	 * Meta-data are not imported by default
+	 */
+	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
+	bool bImportMetaData = false;
+};
+
 UCLASS(meta = (DisplayName = "Datasmith Destination"))
 class DATASMITHRUNTIME_API ADatasmithRuntimeActor
 	: public AActor
@@ -135,7 +170,7 @@ public:
 	FString GetSourceName();
 
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
-	bool OpenConnectionWIndex(int32 SourceIndex);
+	bool OpenConnectionWithIndex(int32 SourceIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
 	void CloseConnection();
@@ -152,8 +187,11 @@ public:
 	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
 	FString LoadedScene;
 
+	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
+	FDatasmithRuntimeImportOptions ImportOptions;
+
 	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
-	FDatasmithTessellationOptions TessellationOptions;
+	FString ExternalFile;
 
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
 	bool IsReceiving() { return bReceivingStarted; }
@@ -164,7 +202,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
 	bool LoadFile(const FString& FilePath);
 
-	void SetScene(TSharedPtr<IDatasmithScene> SceneElement);
+	void SetScene(TSharedPtr<IDatasmithScene> InSceneElement) { SceneElement = InSceneElement; }
+
+	void ApplyNewScene();
 
 	virtual void OnImportEnd();
 
@@ -179,7 +219,8 @@ private:
 
 	TSharedPtr<DatasmithRuntime::FDestinationProxy> DirectLinkHelper;
 
-	DatasmithRuntime::FTranslationResult TranslationResult;
+	TSharedPtr<IDatasmithScene>      SceneElement;
+	TSharedPtr<IDatasmithTranslator> Translator;
 
 	std::atomic_bool bNewScene;
 	std::atomic_bool bReceivingStarted;

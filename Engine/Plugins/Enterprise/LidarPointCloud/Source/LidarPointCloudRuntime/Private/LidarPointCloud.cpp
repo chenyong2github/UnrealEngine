@@ -56,12 +56,19 @@ public:
 
 	virtual void Tick(float DeltaTime) override
 	{
+		TArray<UPackage*> TopLevelPackages;
+
 		for (TWeakObjectPtr<UPackage> Package : PackagesToReload)
 		{
-			if (UPackage* PackageRaw = Package.Get())
+			if (UPackage* PackagePtr = Package.Get())
 			{
-				UPackageTools::ReloadPackages({ PackageRaw });
+				TopLevelPackages.Add(PackagePtr);
 			}
+		}
+
+		if (TopLevelPackages.Num() > 0)
+		{
+			UPackageTools::ReloadPackages(TopLevelPackages);
 		}
 
 		PackagesToReload.Reset();

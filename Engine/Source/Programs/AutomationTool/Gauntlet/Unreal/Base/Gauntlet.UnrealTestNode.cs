@@ -531,7 +531,7 @@ namespace Gauntlet
 					UnrealTargetPlatform SessionPlatform = TestRole.PlatformOverride ?? RoleContext.Platform;
 
 					UnrealSessionRole SessionRole = new UnrealSessionRole(RoleContext.Type, SessionPlatform, RoleContext.Configuration, TestRole.CommandLine);
-
+					SessionRole.InstallOnly = TestRole.InstallOnly;
 					SessionRole.CommandLineParams = TestRole.CommandLineParams;
  					SessionRole.RoleModifier = TestRole.RoleType;
 					SessionRole.Constraint = UseContextConstraint ? Context.Constraint : new UnrealTargetConstraint(SessionPlatform);

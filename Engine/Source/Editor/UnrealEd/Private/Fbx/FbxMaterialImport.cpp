@@ -434,7 +434,7 @@ void UnFbx::FFbxImporter::FixupMaterial( const FbxSurfaceMaterial& FbxMaterial, 
 
 FString UnFbx::FFbxImporter::GetMaterialFullName(const FbxSurfaceMaterial& FbxMaterial) const
 {
-	FString MaterialFullName = UTF8_TO_TCHAR(MakeName(FbxMaterial.GetName()));
+	FString MaterialFullName = MakeName(FbxMaterial.GetName());
 
 	if (MaterialFullName.Len() > 6)
 	{

@@ -290,7 +290,11 @@ private:
 	};
 
 	/** Media sample array used as dequeue to store extra samples when video sample queue is full */
+#if WMFMEDIA_PLAYER_VERSION == 1
 	TArray<FQueuedSample> SampleQueue;
+#else // WMFMEDIA_PLAYER_VERSION == 1
+	TQueue<FQueuedSample> SampleQueue;
+#endif // WMFMEDIA_PLAYER_VERSION == 1
 };
 
 #endif

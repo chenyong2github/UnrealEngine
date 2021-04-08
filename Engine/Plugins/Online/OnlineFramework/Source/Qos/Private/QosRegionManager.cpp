@@ -84,6 +84,7 @@ UQosRegionManager::UQosRegionManager(const FObjectInitializer& ObjectInitializer
 
 void UQosRegionManager::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 {
+	UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::PostReloadConfig] begin"));
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		for (int32 RegionIdx = RegionOptions.Num() - 1; RegionIdx >= 0; RegionIdx--)
@@ -99,6 +100,7 @@ void UQosRegionManager::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 				}
 			}
 
+			UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::PostReloadConfig] RegionId '%s' found in RegionDefinitions? %d"), *RegionOption.Definition.RegionId, bFound);
 			if (!bFound)
 			{
 				// Old value needs to be removed, preserve order
@@ -121,6 +123,8 @@ void UQosRegionManager::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 				}
 			}
 
+			UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::PostReloadConfig] RegionId '%s' found in RegionOptions? %d"), *RegionDef.RegionId, bFound);
+
 			if (!bFound)
 			{
 				// Add new value not in old list
@@ -129,6 +133,7 @@ void UQosRegionManager::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 			}
 		}
 
+		UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::PostReloadConfig] firing OnQoSSettingsChanged delegate"));
 		OnQoSSettingsChangedDelegate.ExecuteIfBound();
 
 		// Validate the current region selection (skipped if a selection has never been attempted)
@@ -224,11 +229,13 @@ void UQosRegionManager::BeginQosEvaluation(UWorld* World, const TSharedPtr<IAnal
 {
 	check(World);
 
+	UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::BeginQosEvaluation] starting!"));
 	// There are valid cached results, use them
 	if ((RegionOptions.Num() > 0) &&
 		(QosEvalResult == EQosCompletionResult::Success) &&
 		(FDateTime::UtcNow() - LastCheckTimestamp).GetTotalSeconds() <= LAST_REGION_EVALUATION)
 	{
+		UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::BeginQosEvaluation] cached results are valid (from %.2f sec ago), using those"), (FDateTime::UtcNow() - LastCheckTimestamp).GetTotalSeconds());
 		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([OnComplete]()
 		{
 			OnComplete.ExecuteIfBound();
@@ -242,6 +249,7 @@ void UQosRegionManager::BeginQosEvaluation(UWorld* World, const TSharedPtr<IAnal
 	// if we're already evaluating, simply return
 	if (Evaluator == nullptr)
 	{
+		UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::BeginQosEvaluation] no eval in progress, creating new evaluator"));
 		// create a new evaluator and start the process of running
 		Evaluator = NewObject<UQosEvaluator>();
 		Evaluator->AddToRoot();
@@ -255,8 +263,14 @@ void UQosRegionManager::BeginQosEvaluation(UWorld* World, const TSharedPtr<IAnal
 	}
 }
 
+bool UQosRegionManager::IsQosEvaluationInProgress() const
+{
+	return Evaluator != nullptr;
+}
+
 void UQosRegionManager::OnQosEvaluationComplete(EQosCompletionResult Result, const TArray<FDatacenterQosInstance>& DatacenterInstances)
 {
+	UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::OnQosEvaluationComplete] eval has completed"));
 	// toss the evaluator
 	if (Evaluator != nullptr)
 	{
@@ -473,8 +487,8 @@ void UQosRegionManager::TrySetDefaultRegion()
 
 			if (!SetSelectedRegion(BestRegionId))
 			{
-				UE_LOG(LogQos, Warning, TEXT("Unable to set a good region!"));
-				UE_LOG(LogQos, Warning, TEXT("Wanted to set %s, failed to fall back to %s"), *GetRegionId(), *BestRegionId);
+				UE_LOG(LogQos, Warning, TEXT("Unable to set a good region!  Wanted to set '%s'; fall back to '%s' failed; current selected: '%s'"),
+					*GetRegionId(), *BestRegionId, *SelectedRegionId);
 				DumpRegionStats();
 			}
 		}
@@ -736,6 +750,7 @@ void UQosRegionManager::DumpRegionStats() const
 
 void UQosRegionManager::RegisterQoSSettingsChangedDelegate(const FSimpleDelegate& OnQoSSettingsChanged)
 {
+	UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::RegisterQoSSettingsChangedDelegate] delegate was replaced"));
 	// add to the completion delegate
 	OnQoSSettingsChangedDelegate = OnQoSSettingsChanged;
 }

@@ -318,7 +318,7 @@ void FStaticMeshStreamOut::CheckReferencesAndDiscardCPUData(const FContext& Cont
 		++NumReferenceChecks;
 		if (NumReferenceChecks >= GStreamingMaxReferenceChecks)
 		{
-			UE_LOG(LogContentStreaming, Log, TEXT("[%s] Streamed out LODResources references are not getting released."), *Mesh->GetName());
+			UE_LOG(LogContentStreaming, Warning, TEXT("[%s] Streamed out LODResources references are not getting released."), *Mesh->GetName());
 		}
 
 		bDeferExecution = true;

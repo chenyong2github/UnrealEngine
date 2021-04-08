@@ -73,3 +73,13 @@ bool FSocket::SetRetrieveTimestamp(bool bRetrieveTimestamp/*=true*/)
 {
 	return false;
 }
+
+bool FSocket::SetIpPktInfo(bool bEnable)
+{
+	return false;
+}
+
+bool FSocket::RecvFromWithPktInfo(uint8* Data, int32 BufferSize, int32& BytesRead, FInternetAddr& Source, FInternetAddr& Destination, ESocketReceiveFlags::Type Flags)
+{
+	return false;
+}

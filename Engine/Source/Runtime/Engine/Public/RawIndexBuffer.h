@@ -253,6 +253,11 @@ public:
 		return IndexStorage.GetAllocatedSize();
 	}
 
+	FORCEINLINE bool GetAllowCPUAccess() const
+	{
+		return IndexStorage.GetAllowCPUAccess();
+	}
+
 	/** == GetNumIndices() * (b32Bit ? 4 : 2) */
 	int32 GetIndexDataSize() const { return IndexStorage.Num(); }
 

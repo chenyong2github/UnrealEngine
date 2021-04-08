@@ -15,31 +15,7 @@
 //#include "ChaosVehiclesEditorDetails.h"
 #include "ChaosVehicleManager.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 IMPLEMENT_MODULE( IChaosVehiclesEditorPlugin, ChaosVehiclesEditor )
-
-
-void IChaosVehiclesEditorPlugin::PhysSceneInit(FPhysScene* PhysScene)
-{
-#if WITH_CHAOS
-	new FChaosVehicleManager(PhysScene);
-#endif // WITH_PHYSX
-}
-
-void IChaosVehiclesEditorPlugin::PhysSceneTerm(FPhysScene* PhysScene)
-{
-#if WITH_CHAOS
-	FChaosVehicleManager* VehicleManager = FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene);
-	if (VehicleManager != nullptr)
-	{
-		VehicleManager->DetachFromPhysScene(PhysScene);
-		delete VehicleManager;
-		VehicleManager = nullptr;
-	}
-#endif // WITH_PHYSX
-}
-
 
 
 
@@ -47,8 +23,6 @@ void IChaosVehiclesEditorPlugin::StartupModule()
 {
 	//OnUpdatePhysXMaterialHandle = FPhysicsDelegates::OnUpdatePhysXMaterial.AddRaw(this, &FPhysXVehiclesPlugin::UpdatePhysXMaterial);
 	//OnPhysicsAssetChangedHandle = FPhysicsDelegates::OnPhysicsAssetChanged.AddRaw(this, &FPhysXVehiclesPlugin::PhysicsAssetChanged);
-	OnPhysSceneInitHandle = FPhysicsDelegates::OnPhysSceneInit.AddRaw(this, &IChaosVehiclesEditorPlugin::PhysSceneInit);
-	OnPhysSceneTermHandle = FPhysicsDelegates::OnPhysSceneTerm.AddRaw(this, &IChaosVehiclesEditorPlugin::PhysSceneTerm);
 
 	FChaosVehiclesEditorStyle::Get();
 
@@ -70,8 +44,6 @@ void IChaosVehiclesEditorPlugin::ShutdownModule()
 {
 	//FPhysicsDelegates::OnUpdatePhysXMaterial.Remove(OnUpdatePhysXMaterialHandle);
 	//FPhysicsDelegates::OnPhysicsAssetChanged.Remove(OnPhysicsAssetChangedHandle);
-	FPhysicsDelegates::OnPhysSceneInit.Remove(OnPhysSceneInitHandle);
-	FPhysicsDelegates::OnPhysSceneTerm.Remove(OnPhysSceneTermHandle);
 
 	if (UObjectInitialized())
 	{
@@ -84,5 +56,3 @@ void IChaosVehiclesEditorPlugin::ShutdownModule()
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.UnregisterCustomPropertyTypeLayout("ChaosDebugSubstepControl");
 }
-
-PRAGMA_ENABLE_OPTIMIZATION

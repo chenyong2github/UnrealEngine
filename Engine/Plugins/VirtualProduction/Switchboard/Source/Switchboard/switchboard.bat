@@ -1,6 +1,12 @@
 @echo off
 setlocal
-call:main "%~dp0.thirdparty\python"
+
+REM pushd and %CD% are used to normalize the relative path to a shorter absolute path.
+pushd %~dp0..\..\..\..\..\Extras\ThirdPartyNotUE\SwitchboardThirdParty
+set _provisiondir="%CD%\Python"
+popd
+
+call:main %_provisiondir%
 endlocal
 goto:eof
 
@@ -139,4 +145,4 @@ goto:eof
 
 ::------------------------------------------------------------------------------
 :start_sb
-start .\.thirdparty\python\current\pythonw.exe -m switchboard
+start "Switchboard" %_provisiondir%\current\pythonw.exe -m switchboard

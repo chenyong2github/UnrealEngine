@@ -78,5 +78,42 @@ namespace UE
 			return AntiAliasingMethod;
 		}
 	}
+}
+
+namespace MoviePipeline
+{
+	void GetPassCompositeData(FMoviePipelineMergerOutputFrame* InMergedOutputFrame, TArray<MoviePipeline::FCompositePassInfo>& OutCompositedPasses)
+	{
+		for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
+		{
+			FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
+			if (Payload->bCompositeToFinalImage)
+			{
+				// Burn in data should always be 8 bit values, this is assumed later when we composite.
+				check(RenderPassData.Value->GetType() == EImagePixelType::Color);
+
+				FCompositePassInfo& Info = OutCompositedPasses.AddDefaulted_GetRef();
+				Info.PassIdentifier = RenderPassData.Key;
+				Info.PixelData = RenderPassData.Value->CopyImageData();
+			}
+		}
+	}
+
+	void GetOutputStateFormatArgs(FMoviePipelineFormatArgs& InOutFinalFormatArgs, const FString FrameNumber, const FString FrameNumberShot, const FString FrameNumberRel, const FString FrameNumberShotRel, const FString CameraName, const FString ShotName)
+	{
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number"), FrameNumber);
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number_shot"), FrameNumberShot);
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number_rel"), FrameNumberRel);
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number_shot_rel"), FrameNumberShotRel);
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("camera_name"), CameraName);
+		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("shot_name"), ShotName);
+
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/sequenceFrameNumber"), FrameNumber);
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/shotFrameNumber"), FrameNumberShot);
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/sequenceFrameNumberRelative"), FrameNumberRel);
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/shotFrameNumberRelative"), FrameNumberShotRel);
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/cameraName"), CameraName);
+		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/shotName"), ShotName);
+	}
 
 }

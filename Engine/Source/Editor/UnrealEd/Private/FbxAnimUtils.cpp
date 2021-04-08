@@ -141,7 +141,7 @@ namespace FbxAnimUtils
 
 								const int32 BlendShapeChannelCount = BlendShape->GetBlendShapeChannelCount();
 
-								FString BlendShapeName = UTF8_TO_TCHAR(FbxImporter->MakeName(BlendShape->GetName()));
+								FString BlendShapeName = FbxImporter->MakeName(BlendShape->GetName());
 
 								for (int32 ChannelIndex = 0; ChannelIndex < BlendShapeChannelCount; ++ChannelIndex)
 								{
@@ -149,7 +149,7 @@ namespace FbxAnimUtils
 
 									if (Channel)
 									{
-										FString ChannelName = UTF8_TO_TCHAR(FbxImporter->MakeName(Channel->GetName()));
+										FString ChannelName = FbxImporter->MakeName(Channel->GetName());
 
 										// Maya adds the name of the blendshape and an underscore to the front of the channel name, so remove it
 										if (ChannelName.StartsWith(BlendShapeName))

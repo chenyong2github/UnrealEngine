@@ -5,6 +5,12 @@
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineMasterConfig.h"
 #include "MovieRenderPipelineCoreModule.h"
+#include "MoviePipelineUtils.h"
+#include "ImageWriteTask.h"
+#include "Misc/Paths.h"
+#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformFile.h"
+
 
 void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
 {
@@ -13,8 +19,28 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 
+	// Special case for extracting Burn Ins and Widget Renderer 
+	TArray<MoviePipeline::FCompositePassInfo> CompositedPasses;
+	MoviePipeline::GetPassCompositeData(InMergedOutputFrame, CompositedPasses);
+
 	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 	{
+		// Don't write out a composited pass in this loop, as it will be merged with the Final Image and not written separately. 
+		bool bSkip = false;
+		for (const MoviePipeline::FCompositePassInfo& CompositePass : CompositedPasses)
+		{
+			if (CompositePass.PassIdentifier == RenderPassData.Key)
+			{
+				bSkip = true;
+				break;
+			}
+		}
+
+		if (bSkip)
+		{
+			continue;
+		}
+
 		FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
 
 		// We need to resolve the filename format string. We combine the folder and file name into one long string first
@@ -27,7 +53,7 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 
 			// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
 			// overwrite the same file multiple times. Burn In overlays don't count because they get composited on top of an existing file.
-			const bool bIncludeRenderPass = InMergedOutputFrame->ImageOutputData.Num() > 1;
+			const bool bIncludeRenderPass = InMergedOutputFrame->ImageOutputData.Num() - CompositedPasses.Num() > 1;
 			const bool bTestFrameNumber = false;
 
 			UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
@@ -36,17 +62,34 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 			UE::MoviePipeline::RemoveFrameNumberFormatStrings(FileNameFormatString, true);
 
 			// Create specific data that needs to override 
-			FStringFormatNamedArguments FormatOverrides;
+			TMap<FString, FString> FormatOverrides;
 			FormatOverrides.Add(TEXT("render_pass"), RenderPassData.Key.Name);
 			FormatOverrides.Add(TEXT("ext"), GetFilenameExtension());
 
+			// The FinalVideoFileName is relative to the output directory (ie: if the user puts folders in to the filename path)
 			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, FinalVideoFileName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
 
-			FinalFilePath = OutputDirectory / FinalVideoFileName;
+			// Then we add the OutputDirectory, and resolve the filename format arguments again so the arguments in the directory get resolved.
+			FString FullFilepathFormatString = OutputDirectory / FileNameFormatString;
+			GetPipeline()->ResolveFilenameFormatArguments(FullFilepathFormatString, FormatOverrides, FinalFilePath, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
+
+			if (FPaths::IsRelative(FinalFilePath))
+			{
+				FinalFilePath = FPaths::ConvertRelativePathToFull(FinalFilePath);
+			}
+
+			// Ensure the directory is created
+			{
+				FString FolderPath = FPaths::GetPath(FinalFilePath);
+				IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+				PlatformFile.CreateDirectoryTree(*FolderPath);
+			}
 
 			// Create a deterministic clipname by file extension, and any trailing .'s
 			FMoviePipelineFormatArgs TempFormatArgs;
 			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, ClipName, TempFormatArgs, &InMergedOutputFrame->FrameOutputState);
+			FPaths::NormalizeFilename(ClipName);
 			ClipName.RemoveFromEnd(GetFilenameExtension());
 			ClipName.RemoveFromEnd(".");
 		}
@@ -94,8 +137,16 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 
 		//FGraphEventRef Event = Task.Execute([this, OutputWriter, RawRenderPassData]
 		//	{
+			if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("FinalImage")))
+			{
 				// Enqueue a encode for this frame onto our worker thread.
-				this->WriteFrame_EncodeThread(OutputWriter, RawRenderPassData);
+				this->WriteFrame_EncodeThread(OutputWriter, RawRenderPassData, MoveTemp(CompositedPasses));
+			}
+			else
+			{
+				TArray<MoviePipeline::FCompositePassInfo> Dummy;
+				this->WriteFrame_EncodeThread(OutputWriter, RawRenderPassData, MoveTemp(Dummy));
+			}
 		//	});
 		//OutstandingTasks.Add(Event);
 		

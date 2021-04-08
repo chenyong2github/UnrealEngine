@@ -88,8 +88,14 @@ FLidarPointCloudViewData::FLidarPointCloudViewData(bool bCompute)
 
 void FLidarPointCloudViewData::Compute()
 {
+	bool bForceSkipLocalPlayer = false;
+
+#if WITH_EDITOR
+	bForceSkipLocalPlayer = GIsEditor && GEditor && GEditor->bIsSimulatingInEditor;
+#endif
+
 	// Attempt to get the first local player's viewport
-	if (GEngine)
+	if (GEngine && !bForceSkipLocalPlayer)
 	{
 		ULocalPlayer* const LP = GEngine->FindFirstLocalPlayerFromControllerId(0);
 		if (LP && LP->ViewportClient)
@@ -304,15 +310,23 @@ void FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudLOD
 }
 
 /** Calculates the correct point budget to use for current frame */
-uint32 GetPointBudget(float DeltaTime, int64 NumPointsInFrustum)
+uint32 GetPointBudget(int64 NumPointsInFrustum)
 {
 	constexpr int32 NumFramesToAcumulate = 30;
+	constexpr int32 DeltaBudgetDeadzone = 10000;
 
 	static int64 CurrentPointBudget = 0;
 	static int64 LastDynamicPointBudget = 0;
 	static bool bLastFrameIncremental = false;
 	static FLidarPointCloudViewData LastViewData;
 	static TArray<float> AcumulatedFrameTime;
+	static double CurrentRealTime = 0;
+	static double LastRealTime = 0;
+	static double RealDeltaTime = 0;
+
+	CurrentRealTime = FPlatformTime::Seconds();
+	RealDeltaTime = CurrentRealTime - LastRealTime;
+	LastRealTime = CurrentRealTime;
 
 	if (AcumulatedFrameTime.Num() == 0)
 	{
@@ -348,14 +362,14 @@ uint32 GetPointBudget(float DeltaTime, int64 NumPointsInFrustum)
 			// Do not recalculate if just exiting incremental budget, to avoid spikes
 			if (!bLastFrameIncremental)
 			{
-				if (AcumulatedFrameTime.Add(DeltaTime) == NumFramesToAcumulate)
+				if (AcumulatedFrameTime.Add(RealDeltaTime) == NumFramesToAcumulate)
 				{
 					AcumulatedFrameTime.RemoveAt(0);
 				}
 
 				const float MaxTickRate = GEngine->GetMaxTickRate(0.001f, false);
 				const float RequestedTargetFPS = CVarTargetFPS.GetValueOnAnyThread();
-				const float TargetFPS = MaxTickRate > 0 ? FMath::Min(RequestedTargetFPS, MaxTickRate) : RequestedTargetFPS;
+				const float TargetFPS = GEngine->bUseFixedFrameRate ? GEngine->FixedFrameRate : (MaxTickRate > 0 ? FMath::Min(RequestedTargetFPS, MaxTickRate) : RequestedTargetFPS);
 
 				// The -0.5f is to prevent the system treating values as unachievable (as the frame time is usually just under)
 				const float AdjustedTargetFPS = FMath::Max(TargetFPS - 0.5f, 1.0f);
@@ -364,12 +378,16 @@ uint32 GetPointBudget(float DeltaTime, int64 NumPointsInFrustum)
 				CurrentFrameTimes.Sort();
 				const float AvgFrameTime = CurrentFrameTimes[CurrentFrameTimes.Num() / 2];
 
-				const int32 DeltaBudget = (1 / AdjustedTargetFPS - AvgFrameTime) * 10000000;
+				const int32 DeltaBudget = (1 / AdjustedTargetFPS - AvgFrameTime) * 10000000 * (GEngine->bUseFixedFrameRate ? 4 : 1);;
 
-				// Not having enough points in frustum to fill the requested budget would otherwise continually increase the value
-				if (DeltaBudget < 0 || NumPointsInFrustum >= CurrentPointBudget)
+				// Prevent constant small fluctuations, unless using fixed frame rate
+				if (GEngine->bUseFixedFrameRate || FMath::Abs(DeltaBudget) > DeltaBudgetDeadzone)
 				{
-					CurrentPointBudget += DeltaBudget;
+					// Not having enough points in frustum to fill the requested budget would otherwise continually increase the value
+					if (DeltaBudget < 0 || NumPointsInFrustum >= CurrentPointBudget)
+					{
+						CurrentPointBudget += DeltaBudget;
+					}
 				}
 			}
 		}
@@ -410,7 +428,7 @@ void FLidarPointCloudLODManager::Tick(float DeltaTime)
 
 	Time += DeltaTime;
 
-	const uint32 PointBudget = GetPointBudget(DeltaTime, NumPointsInFrustum.GetValue());
+	const uint32 PointBudget = GetPointBudget(NumPointsInFrustum.GetValue());
 
 	SET_DWORD_STAT(STAT_PointBudget, PointBudget);
 

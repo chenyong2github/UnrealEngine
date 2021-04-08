@@ -27,6 +27,10 @@
 #define MIN_HULL_VERT_DISTANCE		(0.1f)
 #define MIN_HULL_VALID_DIMENSION	(0.5f)
 
+#if INTEL_ISPC
+static_assert(sizeof(ispc::FBox) == sizeof(FBox), "sizeof(ispc::FBox) != sizeof(FBox)");
+static_assert(sizeof(ispc::FRotator) == sizeof(FRotator), "sizeof(ispc::FRotator) != sizeof(FRotator)");
+#endif
 
 ///////////////////////////////////////
 /////////// FKAggregateGeom ///////////
@@ -435,8 +439,18 @@ void FKConvexElem::GetPlanes(TArray<FPlane>& Planes) const
 			Planes.Add(Plane);
 		}
 	}
-#else
-	CHAOS_ENSURE(false); // TODO Implement in Chaos
+#elif WITH_CHAOS
+	using FChaosPlane = Chaos::TPlaneConcrete<float, 3>;
+	if(Chaos::FConvex* RawConvex = ChaosConvex.Get())
+	{
+		const int32 NumPlanes = RawConvex->NumPlanes();
+		for(int32 i = 0; i < NumPlanes; ++i)
+		{
+			const FChaosPlane& Plane = RawConvex->GetPlane(i);
+
+			Planes.Add({Plane.X(), Plane.Normal()});
+		}
+	}
 #endif
 }
 

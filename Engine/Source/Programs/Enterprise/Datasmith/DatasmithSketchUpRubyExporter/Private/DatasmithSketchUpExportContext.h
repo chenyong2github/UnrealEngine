@@ -46,30 +46,23 @@ namespace DatasmithSketchUp
 	public:
 		FComponentInstanceCollection(FExportContext& InContext) : Context(InContext) {}
 
-		TSharedPtr<FComponentInstance> AddComponentInstance(SUComponentInstanceRef InComponentInstanceRef);
+		TSharedPtr<FComponentInstance> AddComponentInstance(SUComponentInstanceRef InComponentInstanceRef); // Register ComponentInstanceRef in the collection
 		bool RemoveComponentInstance(FComponentInstanceIDType ComponentInstanceId);
-		void AddOccurrence(FComponentInstanceIDType ComponentInstanceID, const TSharedPtr<DatasmithSketchUp::FNodeOccurence>& Occurrence);
 
-		void InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID);
+		bool InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID);
 		void InvalidateComponentInstanceGeometry(FComponentInstanceIDType ComponentInstanceID);
-		void Update();
+		void UpdateProperties();
+		void UpdateGeometry();
 
 		TSharedPtr<FComponentInstance>* FindComponentInstance(FComponentInstanceIDType ComponentInstanceID)
 		{
 			return ComponentInstanceMap.Find(ComponentInstanceID);
 		}
 
-		TArray<TSharedPtr<DatasmithSketchUp::FNodeOccurence>>* GetOccurrencesForComponentInstance(FComponentInstanceIDType ComponentInstanceID)
-		{
-			return ComponentInstanceOccurencesMap.Find(ComponentInstanceID);
-		}
-
 	private:
 		FExportContext& Context;
 
 		TMap<FComponentInstanceIDType, TSharedPtr<FComponentInstance>> ComponentInstanceMap;
-
-		TMap<FComponentInstanceIDType, TArray<TSharedPtr<FNodeOccurence>>> ComponentInstanceOccurencesMap;
 	};
 
 	class FComponentDefinitionCollection
@@ -79,9 +72,11 @@ namespace DatasmithSketchUp
 
 		void PopulateFromModel(SUModelRef InSModelRef);
 
-		void AddComponentDefinition(SUComponentDefinitionRef InComponentDefinitionRef);
+		TSharedPtr<FComponentDefinition> AddComponentDefinition(SUComponentDefinitionRef InComponentDefinitionRef);
 
 		TSharedPtr<FComponentDefinition> GetComponentDefinition(SUComponentInstanceRef InSComponentInstanceRef);
+		TSharedPtr<FComponentDefinition> GetComponentDefinition(SUComponentDefinitionRef ComponentDefinitionRef);
+		TSharedPtr<FComponentDefinition>* FindComponentDefinition(FComponentDefinitionIDType ComponentDefinitionID);
 
 		void Update();
 
@@ -107,7 +102,7 @@ namespace DatasmithSketchUp
 		// Creates single Image File for each separate Texture that uses the same saved image file
 		void AddImageFileForTexture(TSharedPtr<FTexture> Texture); 
 
-		void ConvertToDatasmith();
+		void Update();
 
 	private:
 		FExportContext& Context;
@@ -157,6 +152,13 @@ namespace DatasmithSketchUp
 			SUModelRef InSModelRef // model containing SketchUp material definitions
 		);
 
+		TSharedPtr<FMaterial> CreateMaterial(SUMaterialRef SMaterialDefinitionRef);
+		void CreateMaterial(FMaterialIDType MaterialID);
+		void InvalidateMaterial(SUMaterialRef SMaterialDefinitionRef);
+		bool InvalidateMaterial(FMaterialIDType MateriadId);
+		bool RemoveMaterial(FEntityIDType EntityId);
+
+
 		TSharedPtr<DatasmithSketchUp::FMaterial>* Find(FMaterialIDType MaterialID)
 		{
 			return MaterialDefinitionMap.Find(MaterialID);
@@ -189,6 +191,9 @@ namespace DatasmithSketchUp
 
 		void Populate(); // Create Datasmith scene from the Model
 		void Update(); // Update Datasmith scene to reflect iterative changes done to the Model 
+
+		DatasmithSketchUp::FDefinition* GetEntityDefinition(SUEntityRef Entity);
+
 
 		SUModelRef ModelRef = SU_INVALID;
 

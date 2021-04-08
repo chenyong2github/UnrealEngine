@@ -44,7 +44,7 @@ THIRD_PARTY_INCLUDES_START
 #include "HLMediaLibrary/inc/HLMediaLibrary.h"
 THIRD_PARTY_INCLUDES_END
 
-#include "Windows/COMPointer.h"
+#include "Microsoft/COMPointer.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/HideWindowsPlatformTypes.h"

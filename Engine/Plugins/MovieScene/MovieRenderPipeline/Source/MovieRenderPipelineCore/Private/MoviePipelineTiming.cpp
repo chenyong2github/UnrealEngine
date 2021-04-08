@@ -640,7 +640,8 @@ void UMoviePipeline::TickProducingFrames()
 		// just disable rendering but otherwise let the game logic remain the same for evaluation consistency.
 		{
 			UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
-			CachedOutputState.bSkipRendering = ((CachedOutputState.OutputFrameNumber + OutputSettings->DEBUG_OutputFrameStepOffset) % OutputSettings->OutputFrameStep) != 0;
+			int32 OutputFrameStep = FMath::Max(1, OutputSettings->OutputFrameStep);
+			CachedOutputState.bSkipRendering = ((CachedOutputState.OutputFrameNumber + OutputSettings->DEBUG_OutputFrameStepOffset) % OutputFrameStep) != 0;
 		}
 		
 

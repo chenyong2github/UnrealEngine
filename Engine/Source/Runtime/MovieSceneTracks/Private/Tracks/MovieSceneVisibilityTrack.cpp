@@ -40,7 +40,10 @@ void UMovieSceneVisibilityTrack::PostLoad()
 #if WITH_EDITORONLY_DATA
 	for (UMovieSceneSection* Section : GetAllSections())
 	{
-		CastChecked<UMovieSceneBoolSection>(Section)->SetIsExternallyInverted(true);
+		if (Section)
+		{
+			CastChecked<UMovieSceneBoolSection>(Section)->SetIsExternallyInverted(true);
+		}
 	}
 #endif
 

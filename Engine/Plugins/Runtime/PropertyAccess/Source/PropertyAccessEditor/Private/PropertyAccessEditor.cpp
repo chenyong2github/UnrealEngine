@@ -49,8 +49,6 @@ struct FPropertyAccessEditorSystem
 	// The result of a segment resolve operation
 	enum class ESegmentResolveResult
 	{
-		Skipped,
-
 		Failed,
 
 		SucceededInternal,
@@ -116,7 +114,6 @@ struct FPropertyAccessEditorSystem
 		{
 			InSegment.Flags |= (uint16)EPropertyAccessSegmentFlags::WeakObject;
 			InSegment.Struct = WeakObjectProperty->PropertyClass;
-			Result = ESegmentResolveResult::SucceededExternal;
 			if(!InContext.bFinalSegment)
 			{
 				Result = ESegmentResolveResult::SucceededExternal;
@@ -127,7 +124,6 @@ struct FPropertyAccessEditorSystem
 		{
 			InSegment.Flags |= (uint16)EPropertyAccessSegmentFlags::SoftObject;
 			InSegment.Struct = SoftObjectProperty->PropertyClass;
-			Result = ESegmentResolveResult::SucceededExternal;
 			if(!InContext.bFinalSegment)
 			{
 				Result = ESegmentResolveResult::SucceededExternal;
@@ -167,7 +163,20 @@ struct FPropertyAccessEditorSystem
 		}
 
 		// Treat the function's return value as the struct/class we want to use for the next segment
-		return ResolveSegments_CheckProperty(InSegment, ReturnProperty, InContext);
+		ESegmentResolveResult Result = ResolveSegments_CheckProperty(InSegment, ReturnProperty, InContext);
+		if(Result != ESegmentResolveResult::Failed)
+		{
+			// See if a function's thread safety means it should be considered 'external'.
+			// Note that this logic means that an external (ie. thread unsafe) object dereference returned from ResolveSegments_CheckProperty
+			// can be overridden here if the function that returns the value promises that it is thread safe to access that object.
+			// An example of this is would be something like accessing the main anim BP from a linked anim BP, where it is 'safe' to access
+			// the other object while running animation updated on a worker thread.
+			const UClass* FunctionClass = InFunction->GetOuterUClass();
+			const bool bThreadSafe = InFunction->HasMetaData(TEXT("BlueprintThreadSafe")) || (FunctionClass && FunctionClass->HasMetaData(TEXT("BlueprintThreadSafe")) && !InFunction->HasMetaData(TEXT("NotBlueprintThreadSafe")));
+			Result = bThreadSafe ? ESegmentResolveResult::SucceededInternal : ESegmentResolveResult::SucceededExternal;
+		}
+
+		return Result;
 	}
 
 	// Called at compile time to build out a segments array

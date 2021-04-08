@@ -93,7 +93,7 @@ public:
 	void Refresh();
 
 	/** Expand or collapse nodes */
-	void ToggleExpandCollapseNodes(ETreeRecursion Recursion = ETreeRecursion::Recursive);
+	void ToggleExpandCollapseNodes(ETreeRecursion Recursion = ETreeRecursion::Recursive, bool bExpandAll = false, bool bCollapseAll = false);
 
 	/** Scroll this tree view by the specified number of slate units */
 	void ScrollByDelta(float DeltaInSlateUnits);
@@ -229,7 +229,7 @@ private:
 	TArray<TSharedPtr<SSequencerTreeView>> SlaveTreeViews;
 
 	/** The SSequencerTreeView object this SSequencerTreeView is slave to, or nullptr if not a slave */
-	TSharedPtr<SSequencerTreeView> MasterTreeView;
+	TWeakPtr<SSequencerTreeView> MasterTreeView;
 
 	/** When true, the sequencer selection is being updated from a change in the tree seleciton. */
 	bool bUpdatingSequencerSelection;

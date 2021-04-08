@@ -622,6 +622,7 @@ void SFindInBlueprints::Construct( const FArguments& InArgs, TSharedPtr<FBluepri
 				.OnTextChanged(this, &SFindInBlueprints::OnSearchTextChanged)
 				.OnTextCommitted(this, &SFindInBlueprints::OnSearchTextCommitted)
 				.Visibility(InArgs._bHideSearchBar? EVisibility::Collapsed : EVisibility::Visible)
+				.DelayChangeNotificationsWhileTyping(false)
 			]
 			+SHorizontalBox::Slot()
 			.Padding(4.f, 0.f, 2.f, 0.f)

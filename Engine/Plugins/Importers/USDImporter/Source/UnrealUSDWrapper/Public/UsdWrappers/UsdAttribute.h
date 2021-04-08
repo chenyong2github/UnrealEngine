@@ -60,11 +60,20 @@ namespace UE
 		operator const pxr::UsdAttribute&() const;
 #endif // #if USE_USD_SDK
 
+	// Wrapped pxr::UsdObject functions, refer to the USD SDK documentation
+	public:
+		bool GetMetadata( const TCHAR* Key, UE::FVtValue& Value ) const;
+		bool HasMetadata( const TCHAR* Key ) const;
+		bool SetMetadata( const TCHAR* Key, const UE::FVtValue& Value ) const;
+		bool ClearMetadata( const TCHAR* Key ) const;
+
 	// Wrapped pxr::UsdAttribute functions, refer to the USD SDK documentation
 	public:
 		FName GetName() const;
 		FName GetBaseName() const;
 		FName GetTypeName() const;
+
+		bool GetTimeSamples( TArray<double>& Times ) const;
 
 		bool HasValue() const;
 		bool HasFallbackValue() const;

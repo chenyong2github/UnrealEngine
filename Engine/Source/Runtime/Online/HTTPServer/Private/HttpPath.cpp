@@ -43,14 +43,13 @@ bool FHttpPath::IsValidPath() const
 		return 
 			(C <= 32) || (C >= 127) ||
 			(C == TEXT(' ')) ||	(C == TEXT('.')) ||	(C == TEXT(',')) ||
-			(C == TEXT(';')) ||	(C == TEXT(':')) || (C == TEXT('<')) ||
-			(C == TEXT('>')) ||	(C == TEXT(']')) ||	(C == TEXT('[')) ||
-			(C == TEXT('}')) ||	(C == TEXT('{')) ||	(C == TEXT('#')) ||
-			(C == TEXT('|')) ||	(C == TEXT('^')) ||	(C == TEXT('~')) ||
+			(C == TEXT('<')) || (C == TEXT('>')) ||	(C == TEXT(']')) ||
+			(C == TEXT('[')) || (C == TEXT('}')) ||	(C == TEXT('{')) ||
+			(C == TEXT('#')) || (C == TEXT('|')) ||	(C == TEXT('^')) ||
 			(C == TEXT('\\'));
 	}; 
 
-	return (INDEX_NONE == Path.FindLastCharByPredicate(IsInvalidUriChar, 0));
+	return (INDEX_NONE == Path.FindLastCharByPredicate(IsInvalidUriChar));
 }
 
 bool FHttpPath::IsRoot() const

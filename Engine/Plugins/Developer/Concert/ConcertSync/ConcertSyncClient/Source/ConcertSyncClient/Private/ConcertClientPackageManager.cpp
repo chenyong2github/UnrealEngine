@@ -536,6 +536,7 @@ bool FConcertClientPackageManager::CanHotReloadOrPurge() const
 
 void FConcertClientPackageManager::HotReloadPendingPackages()
 {
+	SCOPED_CONCERT_TRACE(FConcertClientPackageManager_HotReloadPendingPackages);
 	if (CanHotReloadOrPurge())
 	{
 		ConcertSyncClientUtil::HotReloadPackages(PackagesPendingHotReload);
@@ -545,6 +546,7 @@ void FConcertClientPackageManager::HotReloadPendingPackages()
 
 void FConcertClientPackageManager::PurgePendingPackages()
 {
+	SCOPED_CONCERT_TRACE(FConcertClientPackageManager_PurgePendingPackages);
 	if (CanHotReloadOrPurge())
 	{
 		ConcertSyncClientUtil::PurgePackages(PackagesPendingPurge);

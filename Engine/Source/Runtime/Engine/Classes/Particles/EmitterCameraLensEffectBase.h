@@ -11,12 +11,13 @@
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
 #include "Particles/Emitter.h"
+#include "Camera/CameraLensEffectInterface.h"
 #include "EmitterCameraLensEffectBase.generated.h"
 
 class APlayerCameraManager;
 
 UCLASS(abstract, Blueprintable)
-class ENGINE_API AEmitterCameraLensEffectBase : public AEmitter
+class ENGINE_API AEmitterCameraLensEffectBase : public AEmitter, public ICameraLensEffectInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -57,9 +58,8 @@ public:
 	 *  If an emitter class in this array is currently playing, do not play this effect.
 	 *  Useful for preventing multiple similar or expensive camera effects from playing simultaneously.
 	 */
-	UPROPERTY(EditDefaultsOnly, Category = EmitterCameraLensEffectBase)
-	TArray<TSubclassOf<class AEmitterCameraLensEffectBase> > EmittersToTreatAsSame;
-
+	UPROPERTY(EditDefaultsOnly, Category = EmitterCameraLensEffectBase, meta = (MustImplement = "CameraLensEffectInterface"))
+	TArray<TSubclassOf<AActor>> EmittersToTreatAsSame;
 public:
 	//~ Begin AActor Interface
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -67,21 +67,34 @@ public:
 	virtual void PostLoad() override;
 	//~ End AActor Interface
 
+	//~ Begin ICameraLensEffectInterface interface
+	virtual const FTransform& GetRelativeTransform() const override;
+	virtual float GetBaseFOV() const override;
+	virtual bool ShouldAllowMultipleInstances() const override;
+	virtual bool ResetWhenTriggered() const override;
+	virtual bool ShouldTreatEmitterAsSame(TSubclassOf<AActor> OtherEmitter) const override;
+
+	virtual void AdjustBaseFOV(float NewFOV);
+
 	/** Tell the emitter what camera it is attached to. */
-	virtual void RegisterCamera(APlayerCameraManager* C);
+	virtual void RegisterCamera(APlayerCameraManager* C) override;
+
+	virtual void NotifyWillBePooled() override;
 	
 	/** Called when this emitter is re-triggered, for bAllowMultipleInstances=false emitters. */
-	virtual void NotifyRetriggered();
+	virtual void NotifyRetriggered() override;
 
 	/** This will actually activate the lens Effect.  We want this separated from PostInitializeComponents so we can cache these emitters **/
-	virtual void ActivateLensEffect();
+	virtual void ActivateLensEffect() override;
 	
 	/** Deactivtes the particle system. If bDestroyOnSystemFinish is true, actor will die after particles are all dead. */
-	virtual void DeactivateLensEffect();
+	virtual void DeactivateLensEffect() override;
 	
 	/** Given updated camera information, adjust this effect to display appropriately. */
-	virtual void UpdateLocation(const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg);
+	virtual void UpdateLocation(const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg) override;
+	//~ End ICameraLensEffectInterface interface
 
+	UE_DEPRECATED(5.0, "ICameraLensEffectInterface::GetAttachedEmitterTransform is favored now")
 	static FTransform GetAttachedEmitterTransform(AEmitterCameraLensEffectBase const* Emitter, const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg);
 
 	/** Returns true if either particle system would loop forever when played */
@@ -91,5 +104,3 @@ private:
 	UPROPERTY()
 	float DistFromCamera_DEPRECATED;
 };
-
-

@@ -13,7 +13,7 @@ FOnlineAsyncTaskGooglePlayQueryAchievements::FOnlineAsyncTaskGooglePlayQueryAchi
 	const FUniqueNetIdGooglePlay& InUserId,
 	const FOnQueryAchievementsCompleteDelegate& InDelegate)
 	: FOnlineAsyncTaskBasic(InSubsystem)
-	, UserId(InUserId)
+	, UserId(InUserId.AsShared())
 	, Delegate(InDelegate)
 {
 }
@@ -32,7 +32,7 @@ void FOnlineAsyncTaskGooglePlayQueryAchievements::Finalize()
 
 void FOnlineAsyncTaskGooglePlayQueryAchievements::TriggerDelegates()
 {
-	Delegate.ExecuteIfBound(UserId, bWasSuccessful);
+	Delegate.ExecuteIfBound(*UserId, bWasSuccessful);
 }
 
 void FOnlineAsyncTaskGooglePlayQueryAchievements::Tick()

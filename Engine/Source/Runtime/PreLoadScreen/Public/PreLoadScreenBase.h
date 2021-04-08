@@ -6,9 +6,7 @@
 
 // Base implementation of the IPreLoadScreen that handles all the logic for controlling / updating the UI for PreLoadScreens.
 // Designed to be overriden by a game specific Plugin that calls FPreloadScreenManager::RegisterPreLoadScreen so that functions are called by the PreLoadScreenManager correctly.
-class PRELOADSCREEN_API FPreLoadScreenBase : 
-    public IPreLoadScreen 
-    //,public TSharedFromThis<FPreLoadScreenBase, ESPMode::ThreadSafe>
+class PRELOADSCREEN_API FPreLoadScreenBase : public IPreLoadScreen 
 {
 
     /**** IPreLoadScreen implementation ****/

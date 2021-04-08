@@ -656,6 +656,12 @@ EReimportResult::Type UDatasmithImportFactory::ReimportStaticMesh(UStaticMesh* M
 	ImportContext.Options->BaseOptions.AssetOptions = MeshImportData->AssetImportOptions;
 
 	ImportContext.SceneAsset = FDatasmithImporterUtils::FindDatasmithSceneForAsset( Mesh );
+	if (ImportContext.SceneAsset == nullptr)
+	{
+		bOperationCanceled = true;
+		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportStaticMesh error: no UDatasmithScene associated with asset %s. Aborting reimport."), *Mesh->GetName());
+		return EReimportResult::Failed;
+	}
 
 	// Restore additional import options
 	UDatasmithTranslatedSceneImportData* SceneAssetImportData = ExactCast<UDatasmithTranslatedSceneImportData>(ImportContext.SceneAsset->AssetImportData);

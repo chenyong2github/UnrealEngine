@@ -1733,17 +1733,21 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsFeatureLevelPreviewActive),
 		FIsActionButtonVisible::CreateStatic(FLevelEditorActionCallbacks::IsPreviewModeButtonVisible));
 
-	for (auto It = PlatformInfo::GetPreviewPlatformMenuItems().CreateConstIterator(); It; ++It)
+	const TArray<FPreviewPlatformMenuItem> MenuItems = PlatformInfo::GetPreviewPlatformMenuItems();
+	check(MenuItems.Num() == Commands.PreviewPlatformOverrides.Num());
+
+	for (int32 Index=0; Index < MenuItems.Num(); Index++)
 	{
-		EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(It.Value().ShaderFormat);
+		const FPreviewPlatformMenuItem& Item = MenuItems[Index];
+		EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(Item.ShaderFormat);
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
 		const bool IsMaxFL = FeatureLevel == GMaxRHIFeatureLevel;
 
 		bool AllowSetOnSwitch = FeatureLevel != GMaxRHIFeatureLevel;
-		FPreviewPlatformInfo PreviewFeatureLevelInfo(FeatureLevel, IsMaxFL ? NAME_None : It.Value().PlatformName, IsMaxFL ? NAME_None : It.Value().ShaderFormat, IsMaxFL ? NAME_None : It.Value().DeviceProfileName, AllowSetOnSwitch);
+		FPreviewPlatformInfo PreviewFeatureLevelInfo(FeatureLevel, IsMaxFL ? NAME_None : Item.PlatformName, IsMaxFL ? NAME_None : Item.ShaderFormat, IsMaxFL ? NAME_None : Item.DeviceProfileName, AllowSetOnSwitch);
 
 		ActionList.MapAction(
-			*Commands.PreviewPlatformOverrides.Find(It.Key()),
+			Commands.PreviewPlatformOverrides[Index],
 			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, PreviewFeatureLevelInfo),
 			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::CanExecutePreviewPlatform, PreviewFeatureLevelInfo),
 			FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, PreviewFeatureLevelInfo));

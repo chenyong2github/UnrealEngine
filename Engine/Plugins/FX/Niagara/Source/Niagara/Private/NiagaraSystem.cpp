@@ -3,32 +3,31 @@
 
 #include "NiagaraSystem.h"
 
-#include "NiagaraRendererProperties.h"
-#include "NiagaraRenderer.h"
+#include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraConstants.h"
-#include "NiagaraScriptSourceBase.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraEditorDataBase.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraModule.h"
+#include "NiagaraPrecompileContainer.h"
+#include "NiagaraRenderer.h"
+#include "NiagaraRendererProperties.h"
+#include "NiagaraScriptSourceBase.h"
+#include "NiagaraSettings.h"
+#include "NiagaraStats.h"
 #include "NiagaraTrace.h"
 #include "NiagaraTypes.h"
-#include "Modules/ModuleManager.h"
-#include "NiagaraEmitter.h"
-#include "UObject/Package.h"
-#include "NiagaraEmitterHandle.h"
-#include "AssetData.h"
-#include "NiagaraStats.h"
-#include "NiagaraEditorDataBase.h"
-#include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraWorldManager.h"
-#include "NiagaraEmitterInstanceBatcher.h"
-#include "NiagaraSettings.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "NiagaraPrecompileContainer.h"
-#include "ProfilingDebugging/CookStats.h"
 #include "Algo/RemoveIf.h"
 #include "Async/Async.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Modules/ModuleManager.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystem"
 
@@ -540,12 +539,12 @@ void UNiagaraSystem::PostLoad()
 			SystemSpawnScript->SetUsage(ENiagaraScriptUsage::SystemSpawnScript);
 			INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
 			SystemScriptSource = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultScriptSource(this);
-			SystemSpawnScript->SetSource(SystemScriptSource);
+			SystemSpawnScript->SetLatestSource(SystemScriptSource);
 		}
 		else
 		{
 			SystemSpawnScript->ConditionalPostLoad();
-			SystemScriptSource = SystemSpawnScript->GetSource();
+			SystemScriptSource = SystemSpawnScript->GetLatestSource();
 		}
 		AllSystemScripts.Add(SystemSpawnScript);
 
@@ -553,7 +552,7 @@ void UNiagaraSystem::PostLoad()
 		{
 			SystemUpdateScript = NewObject<UNiagaraScript>(this, "SystemUpdateScript", RF_Transactional);
 			SystemUpdateScript->SetUsage(ENiagaraScriptUsage::SystemUpdateScript);
-			SystemUpdateScript->SetSource(SystemScriptSource);
+			SystemUpdateScript->SetLatestSource(SystemScriptSource);
 		}
 		else
 		{
@@ -1716,8 +1715,8 @@ UNiagaraSystem::FOnSystemPostEditChange& UNiagaraSystem::OnSystemPostEditChange(
 
 void UNiagaraSystem::ForceGraphToRecompileOnNextCheck()
 {
-	check(SystemSpawnScript->GetSource() == SystemUpdateScript->GetSource());
-	SystemSpawnScript->GetSource()->ForceGraphToRecompileOnNextCheck();
+	check(SystemSpawnScript->GetLatestSource() == SystemUpdateScript->GetLatestSource());
+	SystemSpawnScript->GetLatestSource()->ForceGraphToRecompileOnNextCheck();
 
 	for (FNiagaraEmitterHandle Handle : EmitterHandles)
 	{
@@ -1913,7 +1912,7 @@ bool UNiagaraSystem::CompilationResultsValid(FNiagaraSystemCompileRequest& Compi
 				if (!bDependencyMet)
 				{
 					FNiagaraCompileEvent LinkerErrorEvent(
-						FNiagaraCompileEventSeverity::Error, Dependency.LinkerErrorMessage, Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids);
+						FNiagaraCompileEventSeverity::Error, Dependency.LinkerErrorMessage, FString(), false, Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids);
 					CompilePair.CompileResults->LastCompileEvents.Add(LinkerErrorEvent);
 					CompilePair.CompileResults->LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Error;
 				}
@@ -2150,11 +2149,11 @@ bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
 	COOK_STAT(auto Timer = NiagaraScriptCookStats::UsageStats.TimeSyncWork());
 
 	FNiagaraVMExecutableDataId NewID;
-	ScriptPair.CompiledScript->ComputeVMCompilationId(NewID);
+	ScriptPair.CompiledScript->ComputeVMCompilationId(NewID, FGuid());
 	ScriptPair.CompileId = NewID;
 
 	TArray<uint8> Data;
-	if (GetDerivedDataCacheRef().GetSynchronous(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), Data, GetPathName()))
+	if (GetDerivedDataCacheRef().GetSynchronous(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(FGuid()), Data, GetPathName()))
 	{
 		TSharedPtr<FNiagaraVMExecutableData> ExeData = MakeShared<FNiagaraVMExecutableData>();
 		if (ScriptPair.CompiledScript->BinaryToExecData(ScriptPair.CompiledScript, Data, *ExeData))
@@ -2269,7 +2268,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 
 	SCOPE_CYCLE_COUNTER(STAT_Niagara_System_Precompile);
 	
-	check(SystemSpawnScript->GetSource() == SystemUpdateScript->GetSource());
+	check(SystemSpawnScript->GetLatestSource() == SystemUpdateScript->GetLatestSource());
 	TArray<FNiagaraVariable> OriginalExposedParams;
 	GetExposedParameters().GetParameters(OriginalExposedParams);
 
@@ -2370,7 +2369,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 				UNiagaraPrecompileContainer* Container = NewObject<UNiagaraPrecompileContainer>(GetTransientPackage());
 				Container->System = this;
 				Container->Scripts = ScriptsNeedingCompile;
-				TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData = NiagaraModule.Precompile(Container);
+				TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData = NiagaraModule.Precompile(Container, FGuid());
 
 				if (SystemPrecompiledData.IsValid() == false)
 				{

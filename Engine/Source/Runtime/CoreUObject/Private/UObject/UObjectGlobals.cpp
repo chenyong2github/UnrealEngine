@@ -4852,7 +4852,9 @@ namespace UECodeGen_Private
 #endif
 
 		NewPackage->SetPackageFlags(Params.PackageFlags);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		NewPackage->SetGuid(FGuid(Params.BodyCRC, Params.DeclarationsCRC, 0u, 0u));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		for (UObject* (*const *SingletonFunc)() = Params.SingletonFuncArray, *(*const *SingletonFuncEnd)() = SingletonFunc + Params.NumSingletons; SingletonFunc != SingletonFuncEnd; ++SingletonFunc)
 		{

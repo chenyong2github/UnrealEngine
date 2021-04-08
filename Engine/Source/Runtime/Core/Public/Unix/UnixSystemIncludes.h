@@ -31,9 +31,9 @@
 #include <utime.h>
 #include <execinfo.h>
 #include <signal.h>
-#if PLATFORM_ENABLE_VECTORINTRINSICS
-#include <xmmintrin.h>
-#endif // PLATFORM_RASPBERRY
+#if PLATFORM_ENABLE_VECTORINTRINSICS && !PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+	#include <xmmintrin.h>
+#endif
 #include <sys/utsname.h>
 #include <libgen.h>
 

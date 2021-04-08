@@ -31,7 +31,7 @@ public:
  	{
 		check(SessionInfo.HostAddr.IsValid());
 		// Skip SessionType (assigned at creation)
-		Ar << SessionInfo.SessionId;
+		Ar << *SessionInfo.SessionId;
 		Ar << *SessionInfo.HostAddr;
 		return Ar;
  	}
@@ -67,7 +67,8 @@ public:
  	{
 		check(SessionInfo.HostAddr.IsValid());
 		// Skip SessionType (assigned at creation)
-		Ar >> SessionInfo.SessionId; 
+		SessionInfo.SessionId = FUniqueNetIdNull::Create();
+		Ar >> const_cast<FUniqueNetIdNull&>(*SessionInfo.SessionId);
 		Ar >> *SessionInfo.HostAddr;
 		return Ar;
  	}

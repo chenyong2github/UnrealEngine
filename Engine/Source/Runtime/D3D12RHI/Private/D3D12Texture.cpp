@@ -833,7 +833,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 
 	if (bTextureArray)
 	{
-		check(SizeZ <= GetMaxTextureArrayLayers());
+		check(SizeZ > 0 && SizeZ <= GetMaxTextureArrayLayers());
 	}
 
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateTextureTime);

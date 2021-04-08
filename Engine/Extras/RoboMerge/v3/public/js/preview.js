@@ -1,10 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 "use strict"
 
-function doit(cl, bot) {
-	$.get(`/preview?cl=${cl}&bot=${bot}`)
+function doit(query) {
+	$.get(query)
 	.then(data => {
-		$('#graph').append(showFlowGraph(JSON.parse(data).allBranches, bot.toUpperCase()));
+		const botNames = new Set
+		const allBranches = JSON.parse(data).allBranches
+		for (const branch of allBranches) {
+			botNames.add(branch.bot)
+		}
+		$('#graph').append(showFlowGraph(allBranches, []));
+		$('.bots').html([...botNames].map(s => `<tt>${s.toLowerCase()}</tt>`).join(', '))
 		$('#success-panel').show();
 	})
 	.catch(error => {

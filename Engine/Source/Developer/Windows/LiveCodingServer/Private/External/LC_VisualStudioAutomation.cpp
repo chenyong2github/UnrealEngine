@@ -9,7 +9,7 @@
 #include "LC_Thread.h"
 // BEGIN EPIC MOD
 #include "LC_Logging.h"
-#include "Windows/COMPointer.h"
+#include "Microsoft/COMPointer.h"
 // END EPIC MOD
 
 // BEGIN EPIC MOD

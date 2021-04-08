@@ -231,13 +231,42 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 		}
 	}
 
+	FString SectionSuffix = *FString::Printf(TEXT(" %s"), *UDeviceProfile::StaticClass()->GetName());
+
+#if WITH_EDITOR
+	TSet<FString> PreviewAllowlistCVars;
+	TSet<FString> PreviewDenylistCVars;
+	bool bFoundAllowDeny = false;
+	if (Mode == EDeviceProfileMode::DPM_PushCVars)
+	{
+		// Walk up the device profile tree to find the most specific device profile with a Denylist or Allowlist of cvars to apply, and use those Allow/Denylists.
+		for(FString CurrentProfileName = DeviceProfileName, CurrentSectionName = DeviceProfileName + SectionSuffix;
+			PreviewAllowlistCVars.Num()==0 && PreviewDenylistCVars.Num()==0 && !CurrentProfileName.IsEmpty() && AvailableProfiles.Contains(CurrentSectionName);
+			CurrentProfileName = GConfig->GetStr(*CurrentSectionName, TEXT("BaseProfileName"), GDeviceProfilesIni), CurrentSectionName = CurrentProfileName + SectionSuffix)
+		{
+			TArray<FString> TempAllowlist;
+			GConfig->GetArray(*CurrentSectionName, TEXT("PreviewAllowlistCVars"), TempAllowlist, GDeviceProfilesIni);
+			for( FString& Item : TempAllowlist)
+			{
+				PreviewAllowlistCVars.Add(Item);
+			}
+
+			TArray<FString> TempDenylist;
+			GConfig->GetArray(*CurrentSectionName, TEXT("PreviewDenylistCVars"), TempDenylist, GDeviceProfilesIni);
+			for (FString& Item : TempDenylist)
+			{
+				PreviewDenylistCVars.Add(Item);
+			}
+		}
+	}
+#endif
 	// For each device profile, starting with the selected and working our way up the BaseProfileName tree,
 	// Find all CVars and set them 
 	FString BaseDeviceProfileName = DeviceProfileName;
 	bool bReachedEndOfTree = BaseDeviceProfileName.IsEmpty();
 	while( bReachedEndOfTree == false ) 
 	{
-		FString CurrentSectionName = FString::Printf( TEXT("%s %s"), *BaseDeviceProfileName, *UDeviceProfile::StaticClass()->GetName() );
+		FString CurrentSectionName = BaseDeviceProfileName + SectionSuffix;
 		
 		// Check the profile was available.
 		bool bProfileExists = AvailableProfiles.Contains( CurrentSectionName );
@@ -316,6 +345,23 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 					{
 						if (!CVarsAlreadySetList.Find(CVarKey))
 						{
+#if WITH_EDITOR
+							if (Mode == EDeviceProfileMode::DPM_PushCVars)
+							{
+								if (PreviewDenylistCVars.Contains(CVarKey))
+								{
+									UE_LOG(LogInit, Log, TEXT("Skipping Device Profile CVar due to PreviewDenylistCVars: [[%s]]"), *CVarKey);
+									continue;
+								}
+
+								if (PreviewAllowlistCVars.Num() > 0 && !PreviewAllowlistCVars.Contains(CVarKey))
+								{
+									UE_LOG(LogInit, Log, TEXT("Skipping Device Profile CVar due to PreviewAllowlistCVars: [[%s]]"), *CVarKey);
+									continue;
+								}
+							}
+#endif
+
 							if (Mode == EDeviceProfileMode::DPM_PushCVars)
 							{
 								IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarKey);

@@ -181,6 +181,7 @@ private:
 #endif
 
 	/** GUID of package if it was loaded from disk. Changes at every save. */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and it will be removed.")
 	FGuid Guid;
 
 #if WITH_EDITORONLY_DATA
@@ -513,17 +514,20 @@ public:
 #endif
 
 	/** returns our Guid */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and GetGuid will be removed.")
 	FORCEINLINE FGuid GetGuid() const
 	{
 		return Guid;
 	}
 	/** makes our a new fresh Guid */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and MakeNewGuid will be removed.")
 	FORCEINLINE FGuid MakeNewGuid()
 	{
 		Guid = FGuid::NewGuid();
 		return Guid;
 	}
 	/** sets a specific Guid */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and SetGuid will be removed.")
 	FORCEINLINE void SetGuid(FGuid NewGuid)
 	{
 		Guid = NewGuid;

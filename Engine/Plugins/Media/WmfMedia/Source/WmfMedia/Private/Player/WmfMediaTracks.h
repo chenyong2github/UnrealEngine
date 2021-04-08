@@ -179,6 +179,16 @@ public:
 	 */
 	void Shutdown();
 
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	/**
+	 * Call this when seeking so that we will discard subsequent samples until
+	 * we find one that matches this seek time.
+	 *
+	 * @param InTime Seek time to wait for.
+	 */
+	void SeekStarted(const FTimespan& InTime);
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
+
 public:
 
 	//~ IMediaSamples interface
@@ -349,6 +359,14 @@ private:
 
 	/** The available video tracks. */
 	TArray<FTrack> VideoTracks;
+
+	/** Caches the value from GetDuration. */
+	FTimespan CachedDuration;
+
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	/** If set, then discard samples until we get this sample. */
+	TOptional<FTimespan> SeekTimeOptional;
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 };
 
 

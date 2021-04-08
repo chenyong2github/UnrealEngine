@@ -9,7 +9,6 @@
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXPortManager.h"
-#include "Library/DMXEntityFixtureType.h"
 
 #include "Engine/TextureRenderTarget2D.h"
 #include "Widgets/Layout/SBox.h"

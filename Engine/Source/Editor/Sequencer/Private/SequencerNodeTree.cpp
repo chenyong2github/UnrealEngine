@@ -1418,13 +1418,16 @@ bool FSequencerNodeTree::UpdateFilters()
 	bFilterUpdateRequested = false;
 
 	// Count the total number of display nodes
-	TSet<TSharedRef<FSequencerDisplayNode>> Nodes;
-	for (const TSharedRef<FSequencerDisplayNode>& Node : GetRootNodes())
-	{
-		SequencerHelpers::GetDescendantNodes(RootNode, Nodes);
-	}
+	DisplayNodeCount = 0;
 
-	DisplayNodeCount = Nodes.Num();
+	RootNode->Traverse_ParentFirst(
+		[this](FSequencerDisplayNode& InNode)
+		{
+			++this->DisplayNodeCount;
+			return true;
+		}
+		, false
+	);
 
 	// Return whether the new list of FilteredNodes is different than the previous list
 	return (PreviousFilteredNodes.Num() != FilteredNodes.Num() || !PreviousFilteredNodes.Includes(FilteredNodes));

@@ -7354,8 +7354,14 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 			}
 			NodesToSelect.Add(DisplayNode);
 		}
-		Selection.AddToSelection(NodesToSelect);
-		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
+
+		if (NodesToSelect.Num() > 0)
+		{
+			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
+		
+			Selection.AddToSelection(NodesToSelect);
+			Selection.RequestOutlinerNodeSelectionChangedBroadcast();
+		}
 	}
 	else if (Nodes.Num() > 0)
 	{
@@ -7417,8 +7423,14 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 			}
 			NodesToSelect.Add(DisplayNode);
 		}
-		Selection.AddToSelection(NodesToSelect);
-		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
+
+		if (NodesToSelect.Num() > 0)
+		{
+			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
+
+			Selection.AddToSelection(NodesToSelect);
+			Selection.RequestOutlinerNodeSelectionChangedBroadcast();
+		}
 	}
 	else if (Nodes.Num() > 0)
 	{
@@ -9436,7 +9448,19 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 
 	if (SelectedNodes.Num() == 0)
 	{
-		SelectedNodes = Selection.GetNodesWithSelectedKeysOrSections();
+		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : NodeTree->GetRootNodes())
+		{
+			TSet<TWeakObjectPtr<UMovieSceneSection>> Sections;
+			SequencerHelpers::GetAllSections(DisplayNode, Sections);
+			for (TWeakObjectPtr<UMovieSceneSection> Section : Sections)
+			{
+				if (Selection.GetSelectedSections().Contains(Section.Get()))
+				{
+					SelectedNodes.Add(DisplayNode);
+					break;
+				}
+			}
+		}
 	}
 
 	if (SelectedNodes.Num() == 0)
@@ -11147,6 +11171,19 @@ void FSequencer::ToggleExpandCollapseNodesAndDescendants()
 	SequencerWidget->GetTreeView()->ToggleExpandCollapseNodes(ETreeRecursion::Recursive);
 }
 
+void FSequencer::ExpandAllNodes()
+{
+	const bool bExpandAll = true;
+	const bool bCollapseAll = false;
+	SequencerWidget->GetTreeView()->ToggleExpandCollapseNodes(ETreeRecursion::Recursive, bExpandAll, bCollapseAll);
+}
+
+void FSequencer::CollapseAllNodes()
+{
+	const bool bExpandAll = false;
+	const bool bCollapseAll = true;
+	SequencerWidget->GetTreeView()->ToggleExpandCollapseNodes(ETreeRecursion::Recursive, bExpandAll, bCollapseAll);
+}
 
 void FSequencer::AddSelectedActors()
 {
@@ -12442,6 +12479,14 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleExpandCollapseNodesAndDescendants,
 		FExecuteAction::CreateSP(this, &FSequencer::ToggleExpandCollapseNodesAndDescendants));
+
+	SequencerCommandBindings->MapAction(
+		Commands.ExpandAllNodes,
+		FExecuteAction::CreateSP(this, &FSequencer::ExpandAllNodes));
+
+	SequencerCommandBindings->MapAction(
+		Commands.CollapseAllNodes,
+		FExecuteAction::CreateSP(this, &FSequencer::CollapseAllNodes));
 
 	SequencerCommandBindings->MapAction(
 		Commands.AddActorsToSequencer,

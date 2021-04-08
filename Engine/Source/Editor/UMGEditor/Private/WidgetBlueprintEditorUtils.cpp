@@ -421,53 +421,23 @@ bool FWidgetBlueprintEditorUtils::CanOpenSelectedWidgetsForEdit( TSet<FWidgetRef
 	return bCanOpenAllForEdit;
 }
 
-void FWidgetBlueprintEditorUtils::DeleteWidgets(UWidgetBlueprint* Blueprint, TSet<FWidgetReference> Widgets)
+void FWidgetBlueprintEditorUtils::DeleteWidgets(UWidgetBlueprint* Blueprint, TSet<FWidgetReference> Widgets, bool bSilentDelete /*=false*/)
 {
 	if ( Widgets.Num() > 0 )
 	{
 		// Check if the widgets are used in the graph
+		FScopedTransaction Transaction(LOCTEXT("RemoveWidget", "Remove Widget"));
 		TArray<UWidget*> UsedVariables;
+		TArray<FText> WidgetNames;
+		const bool bIncludeChildrenVariables = true;
+		FindUsedVariablesForWidgets(Widgets, Blueprint, UsedVariables, WidgetNames, bIncludeChildrenVariables);
+
+		if (!bSilentDelete && UsedVariables.Num()!= 0 && !ShouldContinueDeleteOperation(Blueprint, WidgetNames))
 		{
-			TSet<UWidget*> AllWidgets;
-			AllWidgets.Reserve(Widgets.Num());
-			for (const FWidgetReference& Item : Widgets)
-			{
-				AllWidgets.Add(Item.GetTemplate());
-
-				TArray<UWidget*> ChildWidgets;
-				UWidgetTree::GetChildWidgets(Item.GetTemplate(), ChildWidgets);
-				AllWidgets.Append(ChildWidgets);
-			}
-
-			TArray<FText> WidgetNames;
-			for (UWidget* Widget : AllWidgets)
-			{
-				if (FBlueprintEditorUtils::IsVariableUsed(Blueprint, Widget->GetFName()))
-				{
-					WidgetNames.Add(FText::FromName(Widget->GetFName()));
-					UsedVariables.Add(Widget);
-				}
-			}
-
-			if (UsedVariables.Num())
-			{
-				FText ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteVariableInUse", "One or more widgets are in use in the graph! Do you really want to delete them? \n {0}"),
-					FText::Join(LOCTEXT("ConfirmDeleteVariableInUsedDelimiter", " \n"), WidgetNames));
-
-				// Warn the user that this may result in data loss
-				FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("DeleteVar", "Delete widgets"), "DeleteWidgetsInUse_Warning");
-				Info.ConfirmText = LOCTEXT("DeleteVariable_Yes", "Yes");
-				Info.CancelText = LOCTEXT("DeleteVariable_No", "No");
-
-				FSuppressableWarningDialog DeleteVariableInUse(Info);
-				if (DeleteVariableInUse.ShowModal() == FSuppressableWarningDialog::Cancel)
-				{
-					return;
-				}
-			}
+			Transaction.Cancel();
+			return;
 		}
 
-		const FScopedTransaction Transaction(LOCTEXT("RemoveWidget", "Remove Widget"));
 		Blueprint->WidgetTree->SetFlags(RF_Transactional);
 		Blueprint->WidgetTree->Modify();
 		Blueprint->Modify();
@@ -536,6 +506,78 @@ void FWidgetBlueprintEditorUtils::DeleteWidgets(UWidgetBlueprint* Blueprint, TSe
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 		}
 	}
+}
+
+void FWidgetBlueprintEditorUtils::FindUsedVariablesForWidgets(const TSet<FWidgetReference>& Widgets, const UWidgetBlueprint* BP, TArray<UWidget*>& UsedVariables, TArray<FText>& WidgetNames, bool bIncludeVariablesOnChildren)
+{
+	TSet<UWidget*> AllWidgets;
+	AllWidgets.Reserve(Widgets.Num());
+	for (const FWidgetReference& Item : Widgets)
+	{
+		AllWidgets.Add(Item.GetTemplate());
+		if (bIncludeVariablesOnChildren)
+		{
+			TArray<UWidget*> ChildWidgets;
+			UWidgetTree::GetChildWidgets(Item.GetTemplate(), ChildWidgets);
+			AllWidgets.Append(ChildWidgets);
+		}
+	}
+
+	for (UWidget* Widget : AllWidgets)
+	{
+		if (FBlueprintEditorUtils::IsVariableUsed(BP, Widget->GetFName()))
+		{
+			WidgetNames.Add(FText::FromName(Widget->GetFName()));
+			UsedVariables.Add(Widget);
+		}
+	}
+}
+
+bool FWidgetBlueprintEditorUtils::ShouldContinueDeleteOperation(UWidgetBlueprint* BP, const TArray<FText>& WidgetNames)
+{
+	// If the Widget is used in the graph ask the user before we continue.
+	if (WidgetNames.Num())
+	{
+		FText ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteVariableInUse", "One or more widgets are in use in the graph! Do you really want to delete them? \n\n {0}"),
+			FText::Join(LOCTEXT("ConfirmDeleteVariableInUsedDelimiter", " \n "), WidgetNames));
+
+		// Warn the user that this may result in data loss
+		FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("DeleteVar", "Delete widgets"), "DeleteWidgetsInUse_Warning");
+		Info.ConfirmText = LOCTEXT("DeleteVariable_Yes", "Yes");
+		Info.CancelText = LOCTEXT("DeleteVariable_No", "No");
+
+		FSuppressableWarningDialog DeleteVariableInUse(Info);
+		if (DeleteVariableInUse.ShowModal() == FSuppressableWarningDialog::Cancel)
+		{
+			return false;
+		}
+	}
+			
+	return true;
+}
+
+
+bool FWidgetBlueprintEditorUtils::ShouldContinueReplaceOperation(UWidgetBlueprint* BP, const TArray<FText>& WidgetNames)
+{
+	// If the Widget is used in the graph ask the user before we continue.
+	if (WidgetNames.Num())
+	{
+		FText ConfirmDelete = FText::Format(LOCTEXT("ConfirmReplaceWidgetWithVariableInUse", "One or more widgets you want to replace are in use in the graph! Do you really want to replace them? \n\n {0}"),
+			FText::Join(LOCTEXT("ConfirmDeleteVariableInUsedDelimiter", " \n "), WidgetNames));
+
+		// Warn the user that this may result in data loss
+		FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("ReplaceWidgetVar", "Replace widgets"), "ReaplaceWidgetsInUse_Warning");
+		Info.ConfirmText = LOCTEXT("ReplaceWidget_Yes", "Yes");
+		Info.CancelText = LOCTEXT("ReplaceWidget_No", "No");
+
+		FSuppressableWarningDialog DeleteVariableInUse(Info);
+		if (DeleteVariableInUse.ShowModal() == FSuppressableWarningDialog::Cancel)
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 TScriptInterface<INamedSlotInterface> FWidgetBlueprintEditorUtils::FindNamedSlotHostForContent(UWidget* WidgetTemplate, UWidgetTree* WidgetTree)
@@ -748,7 +790,7 @@ void FWidgetBlueprintEditorUtils::WrapWidgets(TSharedRef<FWidgetBlueprintEditor>
 			if (NewWrapperWidget == nullptr || !NewWrapperWidget->CanAddMoreChildren())
 			{
 				NewWrapperWidget = CastChecked<UPanelWidget>(Template->Create(BP->WidgetTree));
-				NewWrapperWidget->SetDesignerFlags(BlueprintEditor->GetCurrentDesignerFlags());
+				NewWrapperWidget->SetDesignerFlags(BlueprintEditor->GetCurrentDesignerFlags());				
 
 				CurrentParent->SetFlags(RF_Transactional);
 				CurrentParent->Modify();
@@ -919,7 +961,7 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithSelectedTemplate(TSharedRef<F
 		FString ReplaceName = ThisWidget->GetName();
 		bool bIsGeneratedName = ThisWidget->IsGeneratedName();
 		// Rename the removed widget to the transient package so that it doesn't conflict with future widgets sharing the same name.
-		ThisWidget->Rename(nullptr, nullptr);
+		ThisWidget->Rename(nullptr, GetTransientPackage());
 
 		// Rename the new Widget to maintain the current name if it's not a generic name
 		if (!bIsGeneratedName)
@@ -962,7 +1004,7 @@ bool FWidgetBlueprintEditorUtils::CanBeReplacedWithTemplate(TSharedRef<FWidgetBl
 		}
 		UUserWidget* NewUserWidget = CastChecked<UUserWidget>(FWidgetTemplateBlueprintClass(SelectedUserWidget).Create(BP->WidgetTree));
 		const bool bFreeFromCircularRefs = BP->IsWidgetFreeFromCircularReferences(NewUserWidget);
-		NewUserWidget->Rename(nullptr, nullptr);
+		NewUserWidget->Rename(nullptr, GetTransientPackage());
 		return bFreeFromCircularRefs;
 	}
 
@@ -1003,11 +1045,26 @@ bool FWidgetBlueprintEditorUtils::CanBeReplacedWithTemplate(TSharedRef<FWidgetBl
 
 void FWidgetBlueprintEditorUtils::ReplaceWidgetWithChildren(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* BP, FWidgetReference Widget)
 {
+	FScopedTransaction Transaction(LOCTEXT("ReplaceWidgets", "Replace Widgets"));
+	
+	TSet<FWidgetReference> WidgetsToDelete;
+	WidgetsToDelete.Add(Widget);
+
+	TArray<UWidget*> UsedVariables;
+	TArray<FText> WidgetNames;
+
+	const bool bIncludeChildrenVariables = false;
+	FindUsedVariablesForWidgets(WidgetsToDelete, BP, UsedVariables, WidgetNames, bIncludeChildrenVariables);
+
+	if (UsedVariables.Num() != 0 && !ShouldContinueReplaceOperation(BP, WidgetNames))
+	{
+		Transaction.Cancel();
+		return;
+	}
+
 	if ( UPanelWidget* ExistingPanelTemplate = Cast<UPanelWidget>(Widget.GetTemplate()) )
 	{
 		UWidget* FirstChildTemplate = ExistingPanelTemplate->GetChildAt(0);
-
-		FScopedTransaction Transaction(LOCTEXT("ReplaceWidgets", "Replace Widgets"));
 
 		ExistingPanelTemplate->Modify();
 		FirstChildTemplate->Modify();
@@ -1036,8 +1093,9 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithChildren(TSharedRef<FWidgetBl
 			return;
 		}
 
-		// Rename the removed widget to the transient package so that it doesn't conflict with future widgets sharing the same name.
-		ExistingPanelTemplate->Rename(nullptr, nullptr);
+		// Delete the widget that has been replaced
+		const bool bForceDelete = true;
+		DeleteWidgets(BP, WidgetsToDelete, bForceDelete);
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 	}
@@ -1079,8 +1137,8 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithNamedSlot(TSharedRef<FWidgetB
 			return;
 		}
 
-		// Rename the removed widget to the transient package so that it doesn't conflict with future widgets sharing the same name.
-		WidgetTemplate->Rename(nullptr, nullptr);
+		// Remove the widget replaced
+		DeleteWidgets(BP, {Widget});
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 	}
@@ -1088,7 +1146,18 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithNamedSlot(TSharedRef<FWidgetB
 
 void FWidgetBlueprintEditorUtils::ReplaceWidgets(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* BP, TSet<FWidgetReference> Widgets, UClass* WidgetClass)
 {
-	const FScopedTransaction Transaction(LOCTEXT("ReplaceWidgets", "Replace Widgets"));
+	FScopedTransaction Transaction(LOCTEXT("ReplaceWidgets", "Replace Widgets"));
+
+	TArray<UWidget*> UsedVariables;
+	TArray<FText> WidgetNames;
+	const bool bIncludeChildrenVariables = false;
+	FindUsedVariablesForWidgets(Widgets, BP, UsedVariables, WidgetNames, bIncludeChildrenVariables);
+
+	if (UsedVariables.Num() != 0 && !ShouldContinueReplaceOperation(BP, WidgetNames))
+	{
+		Transaction.Cancel();
+		return;
+	}
 
 	TSharedPtr<FWidgetTemplateClass> Template = MakeShareable(new FWidgetTemplateClass(WidgetClass));
 
@@ -1134,12 +1203,11 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgets(TSharedRef<FWidgetBlueprintEdit
 		}
 
 		FString ReplaceName = ThisWidget->GetName();
-		bool bIsGeneratedName = ThisWidget->IsGeneratedName();
+		const bool bIsGeneratedName = ThisWidget->IsGeneratedName();
 
 		// Delete the widget that has been replaced
-		TSet<FWidgetReference> WidgetsToDelete;
-		WidgetsToDelete.Add(Item);
-		DeleteWidgets(BP, WidgetsToDelete);
+		const bool bForceDelete = true;
+		DeleteWidgets(BP, {Item}, bForceDelete);
 
 		// Rename the new Widget to maintain the current name if it's not a generic name
 		if (!bIsGeneratedName)

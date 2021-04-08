@@ -18,6 +18,8 @@
 #include "Misc/StringFormatArg.h"
 #include "MoviePipelineOutputBase.h"
 #include "MoviePipelineImageQuantization.h"
+#include "MoviePipelineWidgetRenderSetting.h"
+#include "MoviePipelineUtils.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("ImgSeqOutput_RecieveImageData"), STAT_ImgSeqRecieveImageData, STATGROUP_MoviePipeline);
@@ -41,31 +43,16 @@ bool UMoviePipelineImageSequenceOutputBase::HasFinishedProcessingImpl()
 	return Super::HasFinishedProcessingImpl() && (!FinalizeFence.IsValid() || FinalizeFence.WaitFor(0));
 }
 
-
 void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ImgSeqRecieveImageData);
 
 	check(InMergedOutputFrame);
 
-	UMoviePipelineBurnInSetting* BurnInSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineBurnInSetting>();
-	bool bCompositeBurnInOntoFinalImage = BurnInSettings ? BurnInSettings->bCompositeOntoFinalImage : false;
+	// Special case for extracting Burn Ins and Widget Renderer 
+	TArray<MoviePipeline::FCompositePassInfo> CompositedPasses;
+	MoviePipeline::GetPassCompositeData(InMergedOutputFrame, CompositedPasses);
 
-	// We do a little special handling for Burn In overlays if we are compositing them on top of the main image, otherwise we treat them as normal passes
-	TUniquePtr<FImagePixelData> BurnInImageData = nullptr;
-	if (bCompositeBurnInOntoFinalImage)
-	{
-		for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
-		{
-			if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")))
-			{
-				// Burn in data should always be 8 bit values, this is assumed later when we composite.
-				check(RenderPassData.Value->GetType() == EImagePixelType::Color);
-				BurnInImageData = RenderPassData.Value->CopyImageData();
-				break;
-			}
-		}
-	}
 
 	UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
@@ -76,8 +63,18 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 
 	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 	{
-		// Don't write out the burn in pass in this loop if it is being composited on the final image
-		if (bCompositeBurnInOntoFinalImage && RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")))
+		// Don't write out a composited pass in this loop, as it will be merged with the Final Image and not written separately. 
+		bool bSkip = false;
+		for (const MoviePipeline::FCompositePassInfo& CompositePass : CompositedPasses)
+		{
+			if (CompositePass.PassIdentifier == RenderPassData.Key)
+			{
+				bSkip = true;
+				break;
+			}
+		}
+
+		if (bSkip)
 		{
 			continue;
 		}
@@ -137,13 +134,13 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 
 			// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
 			// overwrite the same file multiple times. Burn In overlays don't count if they are getting composited on top of an existing file.
-			const bool bIncludeRenderPass = InMergedOutputFrame->ImageOutputData.Num() - (BurnInImageData ? 1 : 0) > 1;
+			const bool bIncludeRenderPass = InMergedOutputFrame->ImageOutputData.Num() - CompositedPasses.Num() > 1;
 			const bool bTestFrameNumber = true;
 
 			UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
 
 			// Create specific data that needs to override 
-			FStringFormatNamedArguments FormatOverrides;
+			TMap<FString, FString> FormatOverrides;
 			FormatOverrides.Add(TEXT("render_pass"), RenderPassData.Key.Name);
 			FormatOverrides.Add(TEXT("ext"), Extension);
 
@@ -167,19 +164,24 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 		TileImageTask->Filename = FinalFilePath;
 
 		// We composite before flipping the alpha so that it is consistent for all formats.
-		if (BurnInImageData && RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("FinalImage")))
+		if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("FinalImage")))
 		{
-			switch (QuantizedPixelData->GetType())
+			for (const MoviePipeline::FCompositePassInfo& CompositePass : CompositedPasses)
 			{
-			case EImagePixelType::Color:
-				TileImageTask->PixelPreProcessors.Add(TAsyncCompositeImage<FColor>(BurnInImageData->CopyImageData()));
-				break;
-			case EImagePixelType::Float16:
-				TileImageTask->PixelPreProcessors.Add(TAsyncCompositeImage<FFloat16Color>(BurnInImageData->CopyImageData()));
-				break;
-			case EImagePixelType::Float32:
-				TileImageTask->PixelPreProcessors.Add(TAsyncCompositeImage<FLinearColor>(BurnInImageData->CopyImageData()));
-				break;
+				// We don't need to copy the data here (even though it's being passed to a async system) because we already made a unique copy of the
+				// burn in/widget data when we decided to composite it.
+				switch (QuantizedPixelData->GetType())
+				{
+				case EImagePixelType::Color:
+					TileImageTask->PixelPreProcessors.Add(TAsyncCompositeImage<FColor>(CompositePass.PixelData->MoveImageDataToNew()));
+					break;
+				case EImagePixelType::Float16:
+					TileImageTask->PixelPreProcessors.Add(TAsyncCompositeImage<FFloat16Color>(CompositePass.PixelData->MoveImageDataToNew()));
+					break;
+				case EImagePixelType::Float32:
+					TileImageTask->PixelPreProcessors.Add(TAsyncCompositeImage<FLinearColor>(CompositePass.PixelData->MoveImageDataToNew()));
+					break;
+				}
 			}
 		}
 

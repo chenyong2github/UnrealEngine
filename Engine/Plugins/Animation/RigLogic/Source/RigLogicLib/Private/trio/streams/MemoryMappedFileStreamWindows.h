@@ -8,61 +8,10 @@
 #include "trio/streams/MemoryMappedFileStream.h"
 #include "trio/streams/StreamStatus.h"
 #include "trio/types/Aliases.h"
+#include "trio/utils/NativeString.h"
+#include "trio/utils/PlatformWindows.h"
 
 #include <pma/TypeDefs.h>
-
-#ifdef _MSC_VER
-    #pragma warning(push)
-    #pragma warning(disable : 4005 4365 4987)
-#endif
-
-#ifdef TRIO_CUSTOM_WINDOWS_H
-    #include TRIO_CUSTOM_WINDOWS_H
-#else
-    #define WIN32_LEAN_AND_MEAN
-    #define NOGDICAPMASKS
-    #define NOVIRTUALKEYCODES
-    #define NOWINMESSAGES
-    #define NOWINSTYLES
-    #define NOSYSMETRICS
-    #define NOMENUS
-    #define NOICONS
-    #define NOKEYSTATES
-    #define NOSYSCOMMANDS
-    #define NORASTEROPS
-    #define NOSHOWWINDOW
-    #define NOATOM
-    #define NOCLIPBOARD
-    #define NOCOLOR
-    #define NOCTLMGR
-    #define NODRAWTEXT
-    #define NOGDI
-    #define NOKERNEL
-    #define NOUSER
-    #define NONLS
-    #define NOMB
-    #define NOMEMMGR
-    #define NOMETAFILE
-    #define NOMINMAX
-    #define NOMSG
-    #define NOOPENFILE
-    #define NOSCROLL
-    #define NOSERVICE
-    #define NOSOUND
-    #define NOTEXTMETRIC
-    #define NOWH
-    #define NOWINOFFSETS
-    #define NOCOMM
-    #define NOKANJI
-    #define NOHELP
-    #define NOPROFILER
-    #define NODEFERWINDOWPOS
-    #define NOMCX
-    #include <windows.h>
-#endif  // TRIO_CUSTOM_WINDOWS_H
-#ifdef _MSC_VER
-    #pragma warning(pop)
-#endif
 
 #include <cstddef>
 #include <cstdint>
@@ -91,8 +40,6 @@ class MemoryMappedFileStreamWindows : public MemoryMappedFileStream {
         std::size_t write(Readable* source, std::size_t size) override;
         void flush() override;
         void resize(std::uint64_t size) override;
-        const char* path() const override;
-        AccessMode accessMode() const override;
 
         MemoryResource* getMemoryResource();
 
@@ -105,7 +52,7 @@ class MemoryMappedFileStreamWindows : public MemoryMappedFileStream {
 
     private:
         StreamStatus status;
-        pma::String<char> filePath;
+        NativeString filePath;
         AccessMode fileAccessMode;
         MemoryResource* memRes;
         HANDLE file;

@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "DetailLayoutBuilder.h"
-#include "Misc/Optional.h"
 #include "NiagaraTypes.h"
 #include "NiagaraGraph.h"
 
@@ -25,6 +23,11 @@ private:
 
 	void CopyMetadataFromCalledGraph(FNiagaraVariable FromVariable);
 	void CopyMetadataForNameOverride(FNiagaraVariable FromVariable, FNiagaraVariable ToVariable);
+
+	TSharedRef<SWidget> OnGetVersionMenuContent();
+	void SwitchToVersion(FNiagaraAssetVersion Version);
+	bool IsVersionSelected(FNiagaraAssetVersion Version) const;
+	FText GetVersionMenuLabel(FNiagaraAssetVersion Version) const;
 
 	UNiagaraGraph* GetNodeGraph();
 	UNiagaraGraph* GetCalledGraph();

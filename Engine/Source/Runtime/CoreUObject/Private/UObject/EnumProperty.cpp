@@ -187,11 +187,10 @@ bool FEnumProperty::NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data,
 	}
 	else
 	{
-        const uint64 MaxBits = ElementSize * 8;
-        const uint64 DesiredBits = FMath::CeilLogTwo64(Enum->GetMaxEnumValue() + 1);
-		Ar.SerializeBits(Data, FMath::Min(DesiredBits, MaxBits));
+		Ar.SerializeBits(Data, GetMaxNetSerializeBits());
 	}
-	return 1;
+
+	return true;
 }
 
 void FEnumProperty::Serialize( FArchive& Ar )
@@ -485,6 +484,14 @@ void FEnumProperty::GetInnerFields(TArray<FField*>& OutFields)
 		OutFields.Add(UnderlyingProp);
 		UnderlyingProp->GetInnerFields(OutFields);
 	}
+}
+
+uint64 FEnumProperty::GetMaxNetSerializeBits() const
+{
+	const uint64 MaxBits = ElementSize * 8;
+	const uint64 DesiredBits = FMath::CeilLogTwo64(Enum->GetMaxEnumValue() + 1);
+	
+	return FMath::Min(DesiredBits, MaxBits);
 }
 
 #include "UObject/DefineUPropertyMacros.h"

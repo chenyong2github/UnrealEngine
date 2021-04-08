@@ -23,6 +23,9 @@
 #undef IsMaximized
 #undef IsMinimized
 
+// Flag which guards an embedded engine instance overriding anything other than the first window.
+static bool GOverrideNextWnd = true;
+
 FWindowsWindow::~FWindowsWindow()
 {
 	// NOTE: The HWnd is invalid here!
@@ -165,6 +168,24 @@ void FWindowsWindow::Initialize( FWindowsApplication* const Application, const T
 		// Inflate the window size by the OS border
 		WindowWidth += BorderRect.right - BorderRect.left;
 		WindowHeight += BorderRect.bottom - BorderRect.top;
+	}
+
+	// In embedded mode, use the provided window handle instead of creating a new window
+	// and store the current client area dimensions for use later.
+	if (GUELibraryOverrideSettings.bIsEmbedded && GUELibraryOverrideSettings.WindowHandle && GOverrideNextWnd)
+	{
+		HWnd = *(HWND*)&GUELibraryOverrideSettings.WindowHandle;
+		GOverrideNextWnd = false;
+
+		RECT rect;
+		::GetClientRect(HWnd, &rect);
+		RegionWidth  = VirtualWidth = rect.right - rect.left;
+		RegionHeight = VirtualHeight = rect.bottom - rect.top;
+
+		GUELibraryOverrideSettings.WindowWidth  = RegionWidth;
+		GUELibraryOverrideSettings.WindowHeight = RegionHeight;
+
+		return;
 	}
 
 	// Creating the Window
@@ -455,6 +476,15 @@ void FWindowsWindow::ReshapeWindow( int32 NewX, int32 NewY, int32 NewWidth, int3
 	::GetWindowInfo( HWnd, &WindowInfo );
 
 	AspectRatio = (float)NewWidth / (float)NewHeight;
+
+	// Don't resize the window if it's been embedded inside another application, the
+	// outer application will take care of it.
+	if (GUELibraryOverrideSettings.bIsEmbedded && HWnd == *(HWND*)&GUELibraryOverrideSettings.WindowHandle && WindowMode == EWindowMode::Windowed)
+	{
+		RegionWidth  = VirtualWidth = NewWidth;
+		RegionHeight = VirtualHeight = NewHeight;
+		return;
+	}
 
 	// X,Y, Width, Height defines the top-left pixel of the client area on the screen
 	if( Definition->HasOSWindowBorder )

@@ -16,6 +16,7 @@ class FNiagaraDataSet;
 */
 class NIAGARA_API FNiagaraRendererComponents : public FNiagaraRenderer
 {
+	friend struct FNiagaraRendererComponentsOnObjectsReplacedHelper;
 public:
 
 	FNiagaraRendererComponents(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
@@ -79,4 +80,8 @@ private:
 
 	// all of the spawned components
 	TArray<FComponentPoolEntry> ComponentPool;
+
+#if WITH_EDITORONLY_DATA
+	struct FNiagaraRendererComponentsOnObjectsReplacedHelper* OnObjectsReplacedHandler = nullptr;
+#endif
 };

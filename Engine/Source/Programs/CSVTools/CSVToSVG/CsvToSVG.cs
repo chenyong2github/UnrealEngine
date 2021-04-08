@@ -25,7 +25,7 @@ namespace CSVTools
 {
     class Version
     {
-        private static string VersionString = "2.41";
+        private static string VersionString = "2.42";
         
         public static string Get() { return VersionString; }
     };
@@ -195,7 +195,6 @@ namespace CSVTools
         int maxHierarchyDepth = -1;
         char hierarchySeparator = '/';
         int colourOffset = 0;
-        int frameOffset = 0;
 
 		static string formatString =
             "Format: \n" +

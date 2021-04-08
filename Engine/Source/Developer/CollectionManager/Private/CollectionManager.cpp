@@ -712,7 +712,7 @@ void FCollectionManager::CreateUniqueCollectionName(const FName& BaseName, EColl
 bool FCollectionManager::IsValidCollectionName(const FString& CollectionName, ECollectionShareType::Type ShareType) const
 {
 	// Make sure we are not creating an FName that is too large
-	if (CollectionName.Len() > NAME_SIZE)
+	if (CollectionName.Len() >= NAME_SIZE)
 	{
 		LastError = FText::Format(LOCTEXT("Error_CollectionNameTooLong", "This collection name is too long ({0} characters), the maximum is {1}. Please choose a shorter name. Collection name: {2}"),
 			FText::AsNumber(CollectionName.Len()), FText::AsNumber(NAME_SIZE), FText::FromString(CollectionName));

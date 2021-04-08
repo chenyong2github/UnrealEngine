@@ -310,7 +310,7 @@ protected:
 
 	TRefCountPtr<FSkyTextureCubeResource> ProcessedSkyTexture;
 	FSHVectorRGB3 IrradianceEnvironmentMap;
-	float AverageBrightness;
+	float AverageBrightness=0.0f;
 
 #if RHI_RAYTRACING
 	TRefCountPtr<FSkyLightImportanceSamplingData> ImportanceSamplingData;

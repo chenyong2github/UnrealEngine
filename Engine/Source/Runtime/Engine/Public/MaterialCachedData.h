@@ -6,6 +6,7 @@
 #include "Materials/MaterialLayersFunctions.h"
 #include "Misc/Guid.h"
 #include "UObject/ObjectMacros.h"
+#include "SceneTypes.h"
 #include "MaterialCachedData.generated.h"
 
 class UTexture;
@@ -124,16 +125,16 @@ struct FStaticComponentMaskValue
 	FStaticComponentMaskValue(bool InR, bool InG, bool InB, bool InA) : R(InR), G(InG), B(InB), A(InA) {}
 
 	UPROPERTY()
-	bool R;
+	bool R = false;
 	
 	UPROPERTY()
-	bool G;
+	bool G = false;
 
 	UPROPERTY()
-	bool B;
+	bool B = false;
 
 	UPROPERTY()
-	bool A; 
+	bool A = false;
 };
 
 USTRUCT()

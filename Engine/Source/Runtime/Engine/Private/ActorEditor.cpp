@@ -102,7 +102,7 @@ void AActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 	{
 		FixupDataLayers();
 	}
-	
+
 	const bool bTransformationChanged = (MemberPropertyName == Name_RelativeLocation || MemberPropertyName == Name_RelativeRotation || MemberPropertyName == Name_RelativeScale3D);
 
 	// During SIE, allow components to reregistered and reconstructed in PostEditChangeProperty.
@@ -542,6 +542,7 @@ void AActor::PreEditUndo()
 		OwnedComponents.Empty();
 	}
 
+	IntermediateOwner = Owner;
 	// Since child actor components will rebuild themselves get rid of the Actor before we make changes
 	TInlineComponentArray<UChildActorComponent*> ChildActorComponents;
 	GetComponents(ChildActorComponents);
@@ -562,6 +563,14 @@ void AActor::PreEditUndo()
 
 bool AActor::InternalPostEditUndo()
 {
+	if (IntermediateOwner != Owner)
+	{
+		AActor* TempOwner = Owner;
+		Owner = IntermediateOwner.Get();
+		SetOwner(TempOwner);
+	}
+	IntermediateOwner = nullptr;
+
 	// Check if this Actor needs to be re-instanced
 	UClass* OldClass = GetClass();
 	if (OldClass->HasAnyClassFlags(CLASS_NewerVersionExists))

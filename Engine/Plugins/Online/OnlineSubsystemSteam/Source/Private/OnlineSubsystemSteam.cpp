@@ -575,8 +575,6 @@ bool FOnlineSubsystemSteam::IsEnabled() const
 	bool bEnableSteam = FOnlineSubsystemImpl::IsEnabled();
 	if (bEnableSteam)
 	{
-		// Steam doesn't support running both the server and client on the same machine
-		bEnableSteam = !FParse::Param(FCommandLine::Get(),TEXT("MultiprocessOSS"));
 #if UE_EDITOR
 		if (bEnableSteam)
 		{

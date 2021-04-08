@@ -31,6 +31,7 @@ class BatteryReceiver extends BroadcastReceiver
 	private int batteryLevel = 0;
 	private int batteryStatus = 0;
 	private int batteryTemperature = 0;
+	private long lastLogTime = 0;
 
 	private static native void dispatchEvent(int status, int level, int temperature);
 
@@ -55,7 +56,12 @@ class BatteryReceiver extends BroadcastReceiver
 				 level != batteryLevel ||
 				 temperature != batteryTemperature) 
 			{
-				GameActivity.Log.debug( "Battery: status = " + status + ", rawlevel = " + rawlevel + ", scale = " + scale );
+				long currentTime = System.currentTimeMillis();
+				if (level != batteryLevel || temperature != batteryTemperature || currentTime - lastLogTime > 60000)
+				{
+					GameActivity.Log.debug( "Battery: status = " + status + ", rawlevel = " + rawlevel + ", scale = " + scale );
+					lastLogTime = currentTime;
+				}
 
 				batteryStatus = status;
 				batteryLevel = level;

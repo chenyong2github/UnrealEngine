@@ -45,16 +45,16 @@ void FInstallBundleCache::RemoveBundle(EInstallBundleSourceType Source, FName Bu
 	}
 }
 
-TOptional<FInstallBundleCacheBundleInfo> FInstallBundleCache::GetBundleInfo(EInstallBundleSourceType Source, FName BundleName)
+TOptional<FInstallBundleCacheBundleInfo> FInstallBundleCache::GetBundleInfo(EInstallBundleSourceType Source, FName BundleName) const
 {
 	CSV_SCOPED_TIMING_STAT(InstallBundleManager, FInstallBundleCache_GetBundleInfo);
 
 	TOptional<FInstallBundleCacheBundleInfo> Ret;
 
-	TMap<EInstallBundleSourceType, FPerSourceBundleCacheInfo>* SourcesMap = PerSourceCacheInfo.Find(BundleName);
+	const TMap<EInstallBundleSourceType, FPerSourceBundleCacheInfo>* SourcesMap = PerSourceCacheInfo.Find(BundleName);
 	if (SourcesMap)
 	{
-		FPerSourceBundleCacheInfo* SourceInfo = SourcesMap->Find(Source);
+		const FPerSourceBundleCacheInfo* SourceInfo = SourcesMap->Find(Source);
 		if (SourceInfo)
 		{
 			FInstallBundleCacheBundleInfo& OutInfo = Ret.Emplace();
@@ -150,12 +150,12 @@ FInstallBundleCacheReserveResult FInstallBundleCache::Reserve(FName BundleName)
 	// sorted to the beginning.  We should be able to stop iterating sooner in that case.
 	CacheInfo.ValueSort([](const FBundleCacheInfo& A, const FBundleCacheInfo& B)
 	{
-		if (A.bHintReqeusted == B.bHintReqeusted)
+		if (A.IsHintRequested() == B.IsHintRequested())
 		{
 			return A.TimeStamp < B.TimeStamp;
 		}
 		
-		return !A.bHintReqeusted && B.bHintReqeusted;
+		return !A.IsHintRequested() && B.IsHintRequested();
 	});
 
 	uint64 CanFreeSpace = 0;
@@ -205,6 +205,42 @@ FInstallBundleCacheReserveResult FInstallBundleCache::Reserve(FName BundleName)
 	return Result;
 }
 
+FInstallBundleCacheFlushResult FInstallBundleCache::Flush(EInstallBundleSourceType* Source /*= nullptr*/)
+{
+	CSV_SCOPED_TIMING_STAT(InstallBundleManager, FInstallBundleCache_Flush);
+
+	FInstallBundleCacheFlushResult Result;
+
+	for (const TPair<FName, FBundleCacheInfo>& Pair : CacheInfo)
+	{
+		if (Pair.Value.State == ECacheState::Reserved)
+			continue;
+
+		if (Pair.Value.CurrentInstallSize == 0)
+			continue;
+
+		if (Source)
+		{
+			if (PerSourceCacheInfo.FindChecked(Pair.Key).Contains(*Source))
+			{
+				TArray<EInstallBundleSourceType>& SourcesToEvictFrom = Result.BundlesToEvict.Add(Pair.Key);
+				SourcesToEvictFrom.Add(*Source);
+			}
+		}
+		else
+		{
+			TArray<EInstallBundleSourceType>& SourcesToEvictFrom = Result.BundlesToEvict.Add(Pair.Key);
+			PerSourceCacheInfo.FindChecked(Pair.Key).GenerateKeyArray(SourcesToEvictFrom);
+		}
+	}
+
+#if INSTALLBUNDLE_CACHE_DUMP_INFO
+	GetStats(true);
+#endif // INSTALLBUNDLE_CACHE_DUMP_INFO
+
+	return Result;
+}
+
 bool FInstallBundleCache::Release(FName BundleName)
 {
 	CSV_SCOPED_TIMING_STAT(InstallBundleManager, FInstallBundleCache_Release);
@@ -220,8 +256,7 @@ bool FInstallBundleCache::Release(FName BundleName)
 		return true;
 	}
 
-	if (BundleInfo->State == ECacheState::Reserved || 
-		BundleInfo->State == ECacheState::PendingEvict)
+	if (BundleInfo->State == ECacheState::Reserved)
 	{
 		BundleInfo->State = ECacheState::Released;
 		return true;
@@ -254,6 +289,30 @@ bool FInstallBundleCache::SetPendingEvict(FName BundleName)
 	return false;
 }
 
+bool FInstallBundleCache::ClearPendingEvict(FName BundleName)
+{
+	CSV_SCOPED_TIMING_STAT(InstallBundleManager, FInstallBundleCache_ClearPendingEvict);
+
+	FBundleCacheInfo* BundleInfo = CacheInfo.Find(BundleName);
+	if (BundleInfo == nullptr)
+	{
+		return true;
+	}
+
+	if (BundleInfo->State == ECacheState::Released)
+	{
+		return true;
+	}
+
+	if (BundleInfo->State == ECacheState::PendingEvict)
+	{
+		BundleInfo->State = ECacheState::Released;
+		return true;
+	}
+
+	return false;
+}
+
 void FInstallBundleCache::HintRequested(FName BundleName, bool bRequested)
 {
 	CSV_SCOPED_TIMING_STAT(InstallBundleManager, FInstallBundleCache_HintRequested);
@@ -261,7 +320,15 @@ void FInstallBundleCache::HintRequested(FName BundleName, bool bRequested)
 	FBundleCacheInfo* BundleInfo = CacheInfo.Find(BundleName);
 	if (BundleInfo)
 	{
-		BundleInfo->bHintReqeusted = bRequested;
+		if (bRequested)
+		{
+			BundleInfo->HintReqeustedCount += 1;
+		}
+		else
+		{
+			BundleInfo->HintReqeustedCount -= 1;
+			check(BundleInfo->HintReqeustedCount >= 0);
+		}
 	}
 }
 

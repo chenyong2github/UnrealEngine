@@ -7,6 +7,7 @@
 #include "SMoviePipelineConfigPanel.h"
 #include "MovieRenderPipelineSettings.h"
 #include "MovieRenderPipelineStyle.h"
+#include "MoviePipelineBlueprintLibrary.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineMasterConfig.h"
@@ -20,8 +21,10 @@
 #include "Widgets/SWindow.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -645,6 +648,24 @@ void SMoviePipelineQueuePanel::OnImportSavedQueueAssest(const FAssetData& InPres
 		check(Subsystem);
 
 		Subsystem->GetQueue()->CopyFrom(SavedQueue);
+
+		// Update the shot list in case the stored queue being copied is out of date with the sequence
+		for (UMoviePipelineExecutorJob* Job : Subsystem->GetQueue()->GetJobs())
+		{
+			ULevelSequence* LoadedSequence = Cast<ULevelSequence>(Job->Sequence.TryLoad());
+			if (LoadedSequence)
+			{
+				bool bShotsChanged = false;
+				UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(LoadedSequence, Job, bShotsChanged);
+
+				if (bShotsChanged)
+				{
+					FNotificationInfo Info(LOCTEXT("QueueShotsUpdated", "Shots have changed since the queue was saved, please resave the queue"));
+					Info.ExpireDuration = 5.0f;
+					FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
+				}
+			}
+		}
 	}
 }
 

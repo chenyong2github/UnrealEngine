@@ -80,15 +80,14 @@
 
 static USkeletalMeshComponent* AcquireSkeletalMeshFromObject(UObject* BoundObject, TSharedPtr<ISequencer> SequencerPtr)
 {
-
 	if (AActor* Actor = Cast<AActor>(BoundObject))
 	{
-		for (UActorComponent* Component : Actor->GetComponents())
+		TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+		Actor->GetComponents(SkeletalMeshComponents);
+		
+		if (SkeletalMeshComponents.Num() == 1)
 		{
-			if (USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(Component))
-			{
-				return SkeletalMeshComp;
-			}
+			return SkeletalMeshComponents[0];
 		}
 	}
 	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(BoundObject))
@@ -121,24 +120,23 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 	*Object = BoundObject;
 	if (AActor* Actor = Cast<AActor>(BoundObject))
 	{
-		for (UActorComponent* Component : Actor->GetComponents())
+		TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+		Actor->GetComponents(SkeletalMeshComponents);
+		if (SkeletalMeshComponents.Num() == 1)
 		{
-			if (USkeleton* Skeleton = GetSkeletonFromComponent(Component))
-			{
-				return Skeleton;
-			}
+			return GetSkeletonFromComponent(SkeletalMeshComponents[0]);
 		}
+		SkeletalMeshComponents.Empty();
 
 		AActor* ActorCDO = Cast<AActor>(Actor->GetClass()->GetDefaultObject());
 		if (ActorCDO)
 		{
-			for (UActorComponent* Component : ActorCDO->GetComponents())
+			ActorCDO->GetComponents(SkeletalMeshComponents);
+			if (SkeletalMeshComponents.Num() == 1)
 			{
-				if (USkeleton* Skeleton = GetSkeletonFromComponent(Component))
-				{
-					return Skeleton;
-				}
+				return GetSkeletonFromComponent(SkeletalMeshComponents[0]);
 			}
+			SkeletalMeshComponents.Empty();
 		}
 
 		UBlueprintGeneratedClass* ActorBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(Actor->GetClass());
@@ -150,11 +148,16 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 			{
 				if (Node->ComponentClass->IsChildOf(USkeletalMeshComponent::StaticClass()))
 				{
-					if (USkeleton* Skeleton = GetSkeletonFromComponent(Node->GetActualComponentTemplate(ActorBlueprintGeneratedClass)))
+					if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Node->GetActualComponentTemplate(ActorBlueprintGeneratedClass)))
 					{
-						return Skeleton;
+						SkeletalMeshComponents.Add(SkeletalMeshComponent);
 					}
 				}
+			}
+
+			if (SkeletalMeshComponents.Num() == 1)
+			{
+				return GetSkeletonFromComponent(SkeletalMeshComponents[0]);
 			}
 		}
 	}
@@ -961,18 +964,24 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 						BakeSettings->bReduceKeys, BakeSettings->Tolerance);
 
 					//Turn Off Any Skeletal Animation Tracks
-					UMovieSceneSkeletalAnimationTrack* SkelTrack = Cast<UMovieSceneSkeletalAnimationTrack>(OwnerMovieScene->FindTrack(UMovieSceneSkeletalAnimationTrack::StaticClass(), ObjectBinding, NAME_None));
-					if (SkelTrack)
+					const FMovieSceneBinding* Binding = OwnerMovieScene->FindBinding(ObjectBinding);
+					if (Binding)
 					{
-						SkelTrack->Modify();
-						//can't just turn off the track so need to mute the sections
-						const TArray<UMovieSceneSection*>& Sections = SkelTrack->GetAllSections();
-						for (UMovieSceneSection* Section : Sections)
+						for (UMovieSceneTrack* MovieSceneTrack : Binding->GetTracks())
 						{
-							if (Section)
+							if (UMovieSceneSkeletalAnimationTrack* SkelTrack = Cast<UMovieSceneSkeletalAnimationTrack>(MovieSceneTrack))
 							{
-								Section->TryModify();
-								Section->SetIsActive(false);
+								SkelTrack->Modify();
+								//can't just turn off the track so need to mute the sections
+								const TArray<UMovieSceneSection*>& Sections = SkelTrack->GetAllSections();
+								for (UMovieSceneSection* Section : Sections)
+								{
+									if (Section)
+									{
+										Section->TryModify();
+										Section->SetIsActive(false);
+									}
+								}
 							}
 						}
 					}
@@ -1575,7 +1584,6 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 					TGuardValue<bool> Guard(bIsDoingSelection, true);
 
 					bool bSync = GetSequencer()->GetSequencerSettings()->ShouldSyncCurveEditorSelection();
-					GetSequencer()->SuspendSelectionBroadcast();
 					GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(false);
 					if (UnDisplayedChannels.Num() > 0)
 					{
@@ -1587,7 +1595,6 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 					}
 					GetSequencer()->RefreshTree();
 					GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(bSync);
-					GetSequencer()->ResumeSelectionBroadcast();
 				}
 				UnDisplayedChannels.SetNum(0);
 				DisplayedChannels.SetNum(0);
@@ -1981,45 +1988,11 @@ void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRi
 {
 	if (GetSequencer().IsValid())
 	{
-		return;
-	}
-	//also reconstruct channels if we have changed...
-	FName ControlRigName(*ControlRig->GetName());
-	if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
-	{
-		USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
-		if (!Component)
+		//If FK control rig on next tick we refresh the tree
+		if (ControlRig->IsA<UFKControlRig>())
 		{
-			return;
+			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 		}
-		bool bCreateTrack = false;
-		FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(Component);
-		FGuid ObjectHandle = HandleResult.Handle;
-		if (!ObjectHandle.IsValid())
-		{
-			return;
-		}
-
-		FFindOrCreateTrackResult TrackResult = FindOrCreateControlRigTrackForObject(ObjectHandle, ControlRig, ControlRigName, bCreateTrack);
-		UMovieSceneControlRigParameterTrack* Track = CastChecked<UMovieSceneControlRigParameterTrack>(TrackResult.Track, ECastCheckedType::NullAllowed);
-		if (Track)
-		{
-			TArray<UMovieSceneSection*> Sections = Track->GetAllSections();
-			for (UMovieSceneSection* IterSection : Sections)
-			{
-				UMovieSceneControlRigParameterSection* Section = Cast< UMovieSceneControlRigParameterSection>(IterSection);
-				if (Section)
-				{
-					Section->ReconstructChannelProxy(true);
-				}
-			}
-		}
-	}
-	
-	//if we are in an init force the sequence to run so we also reset and redraw.
-	if (InState == EControlRigState::Init)
-	{
-		GetSequencer()->RequestEvaluate();
 	}
 }
 

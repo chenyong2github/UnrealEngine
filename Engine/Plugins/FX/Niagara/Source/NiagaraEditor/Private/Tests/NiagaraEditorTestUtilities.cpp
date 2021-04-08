@@ -21,8 +21,8 @@ UNiagaraEmitter* FNiagaraEditorTestUtilities::CreateEmptyTestEmitter()
 
 	ScriptSource->NodeGraph = Graph;
 	Emitter->GraphSource = ScriptSource;
-	Emitter->SpawnScriptProps.Script->SetSource(ScriptSource);
-	Emitter->UpdateScriptProps.Script->SetSource(ScriptSource);
+	Emitter->SpawnScriptProps.Script->SetLatestSource(ScriptSource);
+	Emitter->UpdateScriptProps.Script->SetLatestSource(ScriptSource);
 
 	FNiagaraStackGraphUtilities::ResetGraphForOutput(*Graph, ENiagaraScriptUsage::EmitterSpawnScript, FGuid());
 	FNiagaraStackGraphUtilities::ResetGraphForOutput(*Graph, ENiagaraScriptUsage::EmitterUpdateScript, FGuid());

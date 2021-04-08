@@ -88,7 +88,7 @@ public:
 
 	/** Returns the index that the specified item is at. Will return the first found, or -1 for not found */
 	UFUNCTION(BlueprintCallable, Category = ListView)
-	int32 GetIndexForItem(UObject* Item) const;
+	int32 GetIndexForItem(const UObject* Item) const;
 
 	/** Removes all items from the list */
 	UFUNCTION(BlueprintCallable, Category = ListView)

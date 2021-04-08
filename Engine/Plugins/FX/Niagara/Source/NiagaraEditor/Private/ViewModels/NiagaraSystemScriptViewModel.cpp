@@ -1,26 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemScriptViewModel.h"
-#include "NiagaraSystem.h"
+
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraGraph.h"
-#include "NiagaraTypes.h"
-#include "NiagaraScriptSource.h"
-#include "ViewModels/NiagaraScriptViewModel.h"
-#include "NiagaraScriptGraphViewModel.h"
-#include "NiagaraScriptInputCollectionViewModel.h"
 #include "NiagaraNodeEmitter.h"
 #include "NiagaraNodeInput.h"
-#include "NiagaraDataInterface.h"
-#include "NiagaraScriptSourceBase.h"
-#include "EdGraphSchema_Niagara.h"
-#include "NiagaraNodeOutput.h"
-#include "GraphEditAction.h"
-#include "ViewModels/Stack/NiagaraStackEntry.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
+#include "NiagaraScriptInputCollectionViewModel.h"
+#include "NiagaraSystem.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 
 FNiagaraSystemScriptViewModel::FNiagaraSystemScriptViewModel()
 	: FNiagaraScriptViewModel(NSLOCTEXT("SystemScriptViewModel", "GraphName", "System"), ENiagaraParameterEditMode::EditAll)
@@ -30,7 +20,7 @@ FNiagaraSystemScriptViewModel::FNiagaraSystemScriptViewModel()
 void FNiagaraSystemScriptViewModel::Initialize(UNiagaraSystem& InSystem)
 {
 	System = &InSystem;
-	SetScript(System->GetSystemSpawnScript());
+	SetScript({System->GetSystemSpawnScript(), FGuid()});
 	System->OnSystemCompiled().AddSP(this, &FNiagaraSystemScriptViewModel::OnSystemVMCompiled);
 }
 
@@ -156,7 +146,7 @@ void FNiagaraSystemScriptViewModel::CompileSystem(bool bForce)
 	System->RequestCompile(bForce);
 }
 
-ENiagaraScriptCompileStatus FNiagaraSystemScriptViewModel::GetLatestCompileStatus()
+ENiagaraScriptCompileStatus FNiagaraSystemScriptViewModel::GetLatestCompileStatus(FGuid VersionGuid)
 {
 	TArray<UNiagaraScript*> SystemScripts;
 	SystemScripts.Add(System->GetSystemSpawnScript());
@@ -178,7 +168,7 @@ ENiagaraScriptCompileStatus FNiagaraSystemScriptViewModel::GetLatestCompileStatu
 			continue;
 		}
 
-		if (SystemScripts[i]->IsCompilable() && !SystemScripts[i]->AreScriptAndSourceSynchronized())
+		if (SystemScripts[i]->IsCompilable() && !SystemScripts[i]->AreScriptAndSourceSynchronized(VersionGuid))
 		{
 			bDirty = true;
 			break;

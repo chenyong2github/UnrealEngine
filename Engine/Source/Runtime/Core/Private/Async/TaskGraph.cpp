@@ -2340,14 +2340,17 @@ void FGraphEvent::DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedT
 		if (bSpawnGatherTask)
 		{
 			// create the Gather...this uses a special version of private CreateTask that "assumes" the subsequent list (which other threads might still be adding too).
-			DECLARE_CYCLE_STAT(TEXT("FNullGraphTask.DontCompleteUntil"),
-			STAT_FNullGraphTask_DontCompleteUntil,
-				STATGROUP_TaskGraphTasks);
+			DECLARE_CYCLE_STAT(TEXT("FNullGraphTask.DontCompleteUntil"), STAT_FNullGraphTask_DontCompleteUntil, STATGROUP_TaskGraphTasks);
 
 			ENamedThreads::Type LocalThreadToDoGatherOn = ENamedThreads::AnyHiPriThreadHiPriTask;
 			if (!GIgnoreThreadToDoGatherOn)
 			{
-				LocalThreadToDoGatherOn = ThreadToDoGatherOn;
+				//LocalThreadToDoGatherOn = ThreadToDoGatherOn;
+				ENamedThreads::Type CurrentThreadIndex = ENamedThreads::GetThreadIndex(CurrentThreadIfKnown);
+				if (CurrentThreadIndex <= ENamedThreads::ActualRenderingThread)
+				{
+					LocalThreadToDoGatherOn = CurrentThreadIndex;
+				}
 			}
 
 #if UE_TASK_TRACE_ENABLED

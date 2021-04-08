@@ -55,8 +55,7 @@ void SDMXPortSelector::Construct(const FArguments& InArgs)
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 	check(ProtocolSettings);
 
-	FDMXPortManager::Get().EditorEditedPort.AddSP(this, &SDMXPortSelector::EditorEditedPort);
-	FDMXPortManager::Get().EditorChangedPorts.AddSP(this, &SDMXPortSelector::EditorChangedPorts);
+	ProtocolSettings->OnPortConfigsChanged.AddSP(this, &SDMXPortSelector::OnPortConfigsChanged);
 
 	ChildSlot
 		[
@@ -184,33 +183,36 @@ void SDMXPortSelector::OnPortItemSelectionChanged(TSharedPtr<FDMXPortSelectorIte
 {
 	check(PortNameComboBox.IsValid());
 	check(PortNameTextBlock.IsValid());
-
-	if (Item->IsTitleRow())
+	
+	if (Item.IsValid())
 	{
-		// Restore the previous selection if possible
-		if (RestoreItem.IsValid())
+		if (Item->IsTitleRow())
 		{
-			PortNameComboBox->SetSelectedItem(RestoreItem);
-		}
-	}
-	else
-	{
-		// Only broadcast changes, but not the initial selection
-		bool bInitialSelection = !RestoreItem.IsValid();
-
-		if (Item.IsValid())
-		{
-			RestoreItem = Item;
-			PortNameTextBlock->SetText(FText::FromString(Item->GetItemName()));
+			// Restore the previous selection if possible
+			if (RestoreItem.IsValid())
+			{
+				PortNameComboBox->SetSelectedItem(RestoreItem);
+			}
 		}
 		else
 		{
-			PortNameTextBlock->SetText(LOCTEXT("SelectPortPrompt", "Please select a port"));
-		}
+			// Only broadcast changes, but not the initial selection
+			bool bInitialSelection = !RestoreItem.IsValid();
 
-		if (!bInitialSelection)
-		{
-			OnPortSelected.ExecuteIfBound();
+			if (Item.IsValid())
+			{
+				RestoreItem = Item;
+				PortNameTextBlock->SetText(FText::FromString(Item->GetItemName()));
+			}
+			else
+			{
+				PortNameTextBlock->SetText(LOCTEXT("SelectPortPrompt", "Please select a port"));
+			}
+
+			if (!bInitialSelection)
+			{
+				OnPortSelected.ExecuteIfBound();
+			}
 		}
 	}
 }
@@ -342,14 +344,7 @@ TSharedPtr<FDMXPortSelectorItem> SDMXPortSelector::GetFirstPortInComboBoxSource(
 	return PortItemPtr ? *PortItemPtr : nullptr;
 }
 
-void SDMXPortSelector::EditorEditedPort(const FGuid& PortGuid)
-{
-	check(PortNameComboBox.IsValid());
-
-	GenerateWidgetsFromPorts();
-}
-
-void SDMXPortSelector::EditorChangedPorts()
+void SDMXPortSelector::OnPortConfigsChanged()
 {
 	check(PortNameComboBox.IsValid());
 

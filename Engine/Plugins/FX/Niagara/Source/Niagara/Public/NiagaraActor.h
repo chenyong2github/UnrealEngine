@@ -7,18 +7,21 @@
 #include "GameFramework/Actor.h"
 #include "NiagaraActor.generated.h"
 
-UCLASS(MinimalAPI, hideCategories = (Activation, "Components|Activation", Input, Collision, "Game|Damage"), ComponentWrapperClass)
-class ANiagaraActor : public AActor
+UCLASS(hideCategories = (Activation, "Components|Activation", Input, Collision, "Game|Damage"), ComponentWrapperClass)
+class NIAGARA_API ANiagaraActor : public AActor
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+protected:
 
+	ANiagaraActor(const FObjectInitializer& ObjectInitializer);
+	
 public:
 
 	virtual void PostRegisterAllComponents() override;
 
 	/** Set true for this actor to self-destruct when the Niagara system finishes, false otherwise */
 	UFUNCTION(BlueprintCallable, Category=NiagaraActor)
-	NIAGARA_API void SetDestroyOnSystemFinish(bool bShouldDestroyOnSystemFinish);
+	void SetDestroyOnSystemFinish(bool bShouldDestroyOnSystemFinish);
 
 private:
 	/** Pointer to System component */
@@ -46,7 +49,7 @@ private:
 
 public:
 	/** Returns NiagaraComponent subobject **/
-	NIAGARA_API class UNiagaraComponent* GetNiagaraComponent() const { return NiagaraComponent; }
+	class UNiagaraComponent* GetNiagaraComponent() const { return NiagaraComponent; }
 #if WITH_EDITORONLY_DATA
 	/** Returns SpriteComponent subobject **/
 	class UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
@@ -60,7 +63,7 @@ public:
 	// End of AActor interface
 
 	/** Reset this actor in the level.*/
-	NIAGARA_API void ResetInLevel();
+	void ResetInLevel();
 #endif // WITH_EDITOR
 
 };

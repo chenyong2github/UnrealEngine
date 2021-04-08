@@ -76,6 +76,8 @@ static const uint32 GNumTokensPerPointer = sizeof(void*) / sizeof(uint32); //-V5
 
 FThreadSafeBool GIsGarbageCollecting(false);
 
+int32 FGCReferenceTokenStream::MaxStackSize = 1;
+
 /**
 * Call back into the async loading code to inform of the destruction of serialized objects
 */
@@ -1517,6 +1519,15 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, float TimeLimit)
 }
 
 #if UE_WITH_GC
+
+static int32 GAdditionalFinishDestroyTimeGC = 40;
+static FAutoConsoleVariableRef CVarAdditionalFinishDestroyTimeGC(
+	TEXT("gc.AdditionalFinishDestroyTimeGC"),
+	GAdditionalFinishDestroyTimeGC,
+	TEXT("Additional wait time in seconds to allow FinishDestroy to complete."),
+	ECVF_Default
+);
+
 bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
 {
 	const bool bMultithreadedPurge = !ShouldForceSingleThreadedGC() && GMultithreadedDestructionEnabled;
@@ -1690,7 +1701,7 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
 #if PLATFORM_IOS || PLATFORM_ANDROID
 						if(bPollTimeLimit && !bFinishDestroyTimeExtended && (FPlatformTime::Seconds() - GCStartTime) > MaxTimeForFinishDestroy )
 						{
-							MaxTimeForFinishDestroy = 30.0;
+							MaxTimeForFinishDestroy = GAdditionalFinishDestroyTimeGC; // was 30s, now CVar specified. see FORT-305812.
 							bFinishDestroyTimeExtended = true;
 #if USE_HITCH_DETECTION
 							GHitchDetected = true;
@@ -2362,9 +2373,10 @@ struct FGCReferenceFixedArrayTokenHelper
 	 * @param InStride					array type stride (e.g. sizeof(struct) or sizeof(UObject*))
 	 * @param InProperty                the property this array represents
 	 */
-	FGCReferenceFixedArrayTokenHelper(UClass& OwnerClass, int32 InOffset, int32 InCount, int32 InStride, const FProperty& InProperty)
+	FGCReferenceFixedArrayTokenHelper(UClass& OwnerClass, int32 InOffset, int32 InCount, int32 InStride, const FProperty& InProperty, FGCStackSizeHelper& InStackSizeHelper)
 		: ReferenceTokenStream(&OwnerClass.ReferenceTokenStream)
-	,	Count(InCount)
+		, StackSizeHelper(InStackSizeHelper)
+		, Count(InCount)
 	{
 		if( InCount > 1 )
 		{
@@ -2372,6 +2384,8 @@ struct FGCReferenceFixedArrayTokenHelper
 
 			OwnerClass.ReferenceTokenStream.EmitStride(InStride);
 			OwnerClass.ReferenceTokenStream.EmitCount(InCount);
+			// GCRT_FixedArray pushes a new stack frame in TFastReferenceCollector
+			StackSizeHelper.Push();
 		}
 	}
 
@@ -2381,12 +2395,15 @@ struct FGCReferenceFixedArrayTokenHelper
 		if( Count > 1 )
 		{
 			ReferenceTokenStream->EmitReturn();
+			StackSizeHelper.Pop();
 		}
 	}
 
 private:
 	/** Reference token stream used to emit to */
 	FGCReferenceTokenStream*	ReferenceTokenStream;
+	/** GC token stream stack size helper */
+	FGCStackSizeHelper&			StackSizeHelper;
 	/** Size of fixed array */
 	int32							Count;
 };
@@ -2396,7 +2413,7 @@ private:
  * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void FProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 }
 
@@ -2404,35 +2421,35 @@ void FProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<c
  * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void FObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
-	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(UObject*), *this);
+	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(UObject*), *this, StackSizeHelper);
 	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_Object);
 }
 
-void FWeakObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FWeakObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
-	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FWeakObjectPtr), *this);
+	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FWeakObjectPtr), *this, StackSizeHelper);
 	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_WeakObject);
 }
-void FLazyObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FLazyObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
-	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FLazyObjectPtr), *this);
+	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FLazyObjectPtr), *this, StackSizeHelper);
 	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_LazyObject);
 }
-void FSoftObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FSoftObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
-	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FSoftObjectPtr), *this);
+	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FSoftObjectPtr), *this, StackSizeHelper);
 	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_SoftObject);
 }
-void FDelegateProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FDelegateProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
-	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, this->ElementSize, *this);
+	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, this->ElementSize, *this, StackSizeHelper);
 	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_Delegate);
 }
-void FMulticastDelegateProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FMulticastDelegateProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
-	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, this->ElementSize, *this);
+	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, this->ElementSize, *this, StackSizeHelper);
 	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_MulticastDelegate);
 }
 
@@ -2440,7 +2457,7 @@ void FMulticastDelegateProperty::EmitReferenceInfo(UClass& OwnerClass, int32 Bas
  * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	if (Inner->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
 	{
@@ -2450,9 +2467,12 @@ void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
 		{
 			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), bUsesFreezableAllocator ? GCRT_ArrayStructFreezable : GCRT_ArrayStruct);
 
+			// GCRT_ArrayStruct and GCRT_ArrayStructFreezable push a new stack frame in TFastReferenceCollector
+			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper);
+
 			OwnerClass.ReferenceTokenStream.EmitStride(Inner->ElementSize);
 			const uint32 SkipIndexIndex = OwnerClass.ReferenceTokenStream.EmitSkipIndexPlaceholder();
-			Inner->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps);
+			Inner->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps, StackSizeHelper);
 			const uint32 SkipIndex = OwnerClass.ReferenceTokenStream.EmitReturn();
 			OwnerClass.ReferenceTokenStream.UpdateSkipIndexPlaceholder(SkipIndexIndex, SkipIndex);
 		}
@@ -2463,6 +2483,9 @@ void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
 		else if( Inner->IsA(FInterfaceProperty::StaticClass()) )
 		{
 			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), bUsesFreezableAllocator ? GCRT_ArrayStructFreezable : GCRT_ArrayStruct);
+
+			// GCRT_ArrayStruct and GCRT_ArrayStructFreezable push a new stack frame in TFastReferenceCollector
+			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper);
 
 			OwnerClass.ReferenceTokenStream.EmitStride(Inner->ElementSize);
 			const uint32 SkipIndexIndex = OwnerClass.ReferenceTokenStream.EmitSkipIndexPlaceholder();
@@ -2508,7 +2531,7 @@ void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
  * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void FMapProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FMapProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
 	{
@@ -2517,13 +2540,16 @@ void FMapProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArra
 		OwnerClass.ReferenceTokenStream.EmitPointer((const void*)this);
 		const uint32 SkipIndexIndex = OwnerClass.ReferenceTokenStream.EmitSkipIndexPlaceholder();
 
+		// GCRT_AddTMapReferencedObjects pushes a new stack frame in TFastReferenceCollector
+		FGCStackSizeHelperScope StackSizeScope(StackSizeHelper);
+
 		if (KeyProp->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
 		{
-			KeyProp->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps);
+			KeyProp->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps, StackSizeHelper);
 		}
 		if (ValueProp->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
 		{
-			ValueProp->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps);
+			ValueProp->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps, StackSizeHelper);
 		}
 
 		const uint32 SkipIndex = OwnerClass.ReferenceTokenStream.EmitReturn();
@@ -2535,7 +2561,7 @@ void FMapProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArra
 * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
 * to the passed in BaseOffset which is used by e.g. arrays of structs.
 */
-void FSetProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FSetProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
 	{
@@ -2543,8 +2569,11 @@ void FSetProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArra
 		OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_AddTSetReferencedObjects);
 		OwnerClass.ReferenceTokenStream.EmitPointer((const void*)this);
 
+		// GCRT_AddTSetReferencedObjects pushes a new stack frame in TFastReferenceCollector
+		FGCStackSizeHelperScope StackSizeScope(StackSizeHelper);
+
 		const uint32 SkipIndexIndex = OwnerClass.ReferenceTokenStream.EmitSkipIndexPlaceholder();
-		ElementProp->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps);
+		ElementProp->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps, StackSizeHelper);
 		const uint32 SkipIndex = OwnerClass.ReferenceTokenStream.EmitReturn();
 		OwnerClass.ReferenceTokenStream.UpdateSkipIndexPlaceholder(SkipIndexIndex, SkipIndex);
 	}
@@ -2555,14 +2584,14 @@ void FSetProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArra
  * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void FStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	check(Struct);
 	if (Struct->StructFlags & STRUCT_AddStructReferencedObjects)
 	{
 		UScriptStruct::ICppStructOps* CppStructOps = Struct->GetCppStructOps();
 		check(CppStructOps); // else should not have STRUCT_AddStructReferencedObjects
-		FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, ElementSize, *this);
+		FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, ElementSize, *this, StackSizeHelper);
 
 		OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_AddStructReferencedObjects);
 
@@ -2585,12 +2614,12 @@ void FStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TA
 	// If the struct has UObject properties (and only if) emit tokens for them
 	if (bHasPropertiesWithObjectReferences)
 	{
-		FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, ElementSize, *this);
+		FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, ElementSize, *this, StackSizeHelper);
 
 		FProperty* Property = Struct->PropertyLink;
 		while (Property)
 		{
-			Property->EmitReferenceInfo(OwnerClass, BaseOffset + GetOffset_ForGC(), EncounteredStructProps);
+			Property->EmitReferenceInfo(OwnerClass, BaseOffset + GetOffset_ForGC(), EncounteredStructProps, StackSizeHelper);
 			Property = Property->PropertyLinkNext;
 		}
 	}
@@ -2600,17 +2629,17 @@ void FStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TA
  * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void FInterfaceProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FInterfaceProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
-	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FScriptInterface), *this);
+	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FScriptInterface), *this, StackSizeHelper);
 
 	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_Object);
 }
 
-void FFieldPathProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+void FFieldPathProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	static_assert(sizeof(FFieldPath) == sizeof(TFieldPath<FProperty>), "TFieldPath should have the same size as the underlying FFieldPath");
-	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FFieldPath), *this);
+	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FFieldPath), *this, StackSizeHelper);
 	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_AddFieldPathReferencedObject);
 }
 
@@ -2711,12 +2740,21 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 			ClassFlags &= ~CLASS_TokenStreamAssembled;
 		}
 		TArray<const FStructProperty*> EncounteredStructProps;
-
-		// Iterate over properties defined in this class
-		for( TFieldIterator<FProperty> It(this,EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		
 		{
-			FProperty* Property = *It;
-			Property->EmitReferenceInfo(*this, 0, EncounteredStructProps);
+			FGCStackSizeHelper StackSizeHelper;
+			// We require at least one stack frame for token stream traversing
+			StackSizeHelper.Push();			
+
+			// Iterate over properties defined in this class
+			for (TFieldIterator<FProperty> It(this, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+			{
+				FProperty* Property = *It;
+				Property->EmitReferenceInfo(*this, 0, EncounteredStructProps, StackSizeHelper);
+			}
+
+			StackSizeHelper.Pop();
+			ReferenceTokenStream.SetStackSize(StackSizeHelper.GetMaxStackSize());
 		}
 
 		if (UClass* SuperClass = GetSuperClass())
@@ -2770,6 +2808,9 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 
 		check(!HasAnyClassFlags(CLASS_TokenStreamAssembled)); // recursion here is probably bad
 		ClassFlags |= CLASS_TokenStreamAssembled;
+
+		// Update the global maximum stack size after assembling the token stream of each class
+		FGCReferenceTokenStream::SetMaxStackSize(FMath::Max(FGCReferenceTokenStream::GetMaxStackSize(), ReferenceTokenStream.GetStackSize()));
 	}
 }
 
@@ -2810,6 +2851,8 @@ void FGCReferenceTokenStream::PrependStream( const FGCReferenceTokenStream& Othe
 	TempTokenDebugInfo.Append(TokenDebugInfo);
 	TokenDebugInfo = MoveTemp(TempTokenDebugInfo);
 #endif // ENABLE_GC_OBJECT_CHECKS
+
+	StackSize = FMath::Max(StackSize, Other.GetStackSize());
 }
 
 void FGCReferenceTokenStream::Fixup(void (*AddReferencedObjectsPtr)(UObject*, class FReferenceCollector&), bool bKeepOuterToken, bool bKeepClassToken)

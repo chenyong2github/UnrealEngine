@@ -1,37 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
-#include "ViewModels/Stack/NiagaraStackModuleItem.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
-#include "ViewModels/NiagaraScriptViewModel.h"
-#include "ViewModels/NiagaraScratchPadViewModel.h"
-#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
-#include "NiagaraScriptGraphViewModel.h"
-#include "NiagaraGraph.h"
-#include "NiagaraNodeOutput.h"
-#include "NiagaraNodeFunctionCall.h"
-#include "NiagaraNodeAssignment.h"
-#include "EdGraphSchema_Niagara.h"
-#include "ViewModels/Stack/NiagaraStackErrorItem.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
-#include "NiagaraConstants.h"
-#include "NiagaraStackEditorData.h"
-#include "NiagaraSystem.h"
-#include "NiagaraEmitterHandle.h"
-#include "NiagaraEditorSettings.h"
-#include "NiagaraClipboard.h"
-#include "Toolkits/NiagaraSystemToolkit.h"
 
-#include "Internationalization/Internationalization.h"
+#include "AssetRegistryModule.h"
+#include "EdGraphSchema_Niagara.h"
+#include "NiagaraClipboard.h"
+#include "NiagaraConstants.h"
+#include "NiagaraEditorSettings.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraGraph.h"
+#include "NiagaraNodeAssignment.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraNodeOutput.h"
+#include "NiagaraScriptGraphViewModel.h"
+#include "NiagaraStackEditorData.h"
 #include "ScopedTransaction.h"
-#include "Widgets/Notifications/SNotificationList.h"
+#include "DragAndDrop/AssetDragDropOp.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Internationalization/Internationalization.h"
-#include "DragAndDrop/AssetDragDropOp.h"
-#include "AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraStackErrorItem.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackScriptItemGroup"
 
@@ -41,7 +39,7 @@ public:
 	static TSharedRef<FScriptGroupAddAction> CreateAssetModuleAction(FAssetData AssetData)
 	{
 		FText Category;
-		AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Category), Category);
+		AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Category), Category);
 		if (Category.IsEmptyOrWhitespace())
 		{
 			Category = LOCTEXT("ModuleNotCategorized", "Uncategorized Modules");
@@ -52,27 +50,28 @@ public:
 		FText DisplayName = FNiagaraEditorUtilities::FormatScriptName(AssetData.AssetName, bIsInLibrary);
 
 		FText AssetDescription;
-		AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Description), AssetDescription);
+		AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Description), AssetDescription);
 		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(AssetDescription, AssetData.ObjectPath, bIsInLibrary);
 
 		FText Keywords;
-		AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Keywords), Keywords);
+		AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Keywords), Keywords);
 
 		return MakeShareable(new FScriptGroupAddAction(Category, DisplayName, Description, Keywords, FNiagaraVariable(), false, AssetData, nullptr, false, false));
 	}
 
 	static TSharedRef<FScriptGroupAddAction> CreateScriptModuleAction(UNiagaraScript* ModuleScript)
 	{
-		FText Category = ModuleScript->Category;
+		FVersionedNiagaraScriptData* ScriptData = ModuleScript->GetLatestScriptData();
+		FText Category = ScriptData->Category;
 		if (Category.IsEmptyOrWhitespace())
 		{
 			Category = LOCTEXT("ModuleNotCategorized", "Uncategorized Modules");
 		}
 
-		bool bIsInLibrary = ModuleScript->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
+		bool bIsInLibrary = ScriptData->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
 		FText DisplayName = FNiagaraEditorUtilities::FormatScriptName(ModuleScript->GetFName(), bIsInLibrary);
-		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(ModuleScript->Description, *ModuleScript->GetPathName(), bIsInLibrary);
-		FText Keywords = ModuleScript->Keywords;
+		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(ScriptData->Description, *ModuleScript->GetPathName(), bIsInLibrary);
+		FText Keywords = ScriptData->Keywords;
 
 		return MakeShareable(new FScriptGroupAddAction(Category, DisplayName, Description, Keywords, FNiagaraVariable(), false, FAssetData(), ModuleScript, false, false));
 	}
@@ -242,7 +241,7 @@ public:
 			UNiagaraScript* ScratchPadScript = ScratchPadScriptViewModel->GetOriginalScript();
 			if (ScratchPadScript->Usage == ENiagaraScriptUsage::Module)
 			{
-				TArray<ENiagaraScriptUsage> SupportedUsages = ScratchPadScript->GetSupportedUsageContexts();
+				TArray<ENiagaraScriptUsage> SupportedUsages = ScratchPadScript->GetLatestScriptData()->GetSupportedUsageContexts();
 				if (SupportedUsages.Contains(OutputNode->GetUsage()))
 				{
 					OutAddActions.Add(FScriptGroupAddAction::CreateScriptModuleAction(ScratchPadScript));
@@ -403,7 +402,7 @@ bool UNiagaraStackScriptItemGroup::TestCanPasteWithMessage(const UNiagaraClipboa
 				if (ClipboardFunctionScript != nullptr)
 				{
 					bValidFunction = true;
-					if (ClipboardFunctionScript->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
+					if (ClipboardFunctionScript->GetLatestScriptData()->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
 					{
 						bValidUsage = true;
 					}
@@ -778,7 +777,7 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 		return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantMoveModuleError", "This inherited module can't be moved."));
 	}
 
-	TArray<ENiagaraScriptUsage> SourceUsages = SourceModuleItem->GetModuleNode().FunctionScript->GetSupportedUsageContexts();
+	TArray<ENiagaraScriptUsage> SourceUsages = SourceModuleItem->GetModuleNode().GetScriptData()->GetSupportedUsageContexts();
 	if (SourceUsages.ContainsByPredicate([this](ENiagaraScriptUsage SourceUsage) { return UNiagaraScript::IsEquivalentUsage(ScriptUsage, SourceUsage); }) == false)
 	{
 		return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantMoveModuleByUsage", "This module can't be moved to this section of the\nstack because it's not valid for this usage context."));
@@ -870,7 +869,7 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 			return FDropRequestResponse(TOptional<EItemDropZone>(), FText::Format(LOCTEXT("CantDropNonModuleAssetFormat", "Can not drop asset {0} here because it is not a module script."), FText::FromString(AssetName)));
 		}
 
-		FString BitfieldTagValue = AssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
+		FString BitfieldTagValue = AssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, ModuleUsageBitmask));
 		int32 BitfieldValue = FCString::Atoi(*BitfieldTagValue);
 		TArray<ENiagaraScriptUsage> SupportedUsages = UNiagaraScript::GetSupportedUsageContextsForBitmask(BitfieldValue);
 		if (SupportedUsages.Contains(GetScriptUsage()) == false)
@@ -1079,7 +1078,7 @@ void UNiagaraStackScriptItemGroup::ChildRequestDeprecatedRecommendation(UNiagara
 	TargetChild->Modify();
 
 	// Step 1: Make a copy of the existing node so that we can perform surgery on it to update.
-	UNiagaraScript* TargetScript = TargetChild->GetModuleNode().FunctionScript->DeprecationRecommendation;
+	UNiagaraScript* TargetScript = TargetChild->GetModuleNode().GetScriptData()->DeprecationRecommendation;
 	if (TargetScript->GetUsage() != ENiagaraScriptUsage::Module)
 	{
 		// Early out if the deprecation recommendation asset is not module script usage.
@@ -1203,7 +1202,7 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 			case ENiagaraClipboardFunctionScriptMode::ScriptAsset:
 			{
 				UNiagaraScript* ClipboardFunctionScript = ClipboardFunction->Script.LoadSynchronous();
-				if (ClipboardFunctionScript != nullptr && ClipboardFunctionScript->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
+				if (ClipboardFunctionScript != nullptr && ClipboardFunctionScript->GetLatestScriptData()->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
 				{
 					UNiagaraScript* NewFunctionScript;
 					if (ClipboardFunctionScript->IsAsset() ||

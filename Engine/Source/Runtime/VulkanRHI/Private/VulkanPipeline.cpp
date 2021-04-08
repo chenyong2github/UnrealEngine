@@ -239,7 +239,7 @@ void FVulkanRHIGraphicsPipelineState::GetOrCreateShaderModules(FVulkanShader*con
 		FVulkanShader* Shader = Shaders[Index];
 		if (Shader)
 		{
-			ShaderModules[Index] = Shader->GetOrCreateHandle(Layout, Layout->GetDescriptorSetLayoutHash());
+			ShaderModules[Index] = Shader->GetOrCreateHandle(Desc, Layout, Layout->GetDescriptorSetLayoutHash());
 		}
 	}
 }

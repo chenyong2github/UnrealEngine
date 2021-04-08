@@ -56,7 +56,7 @@ struct FHairStrandsVisibilityViews;
 struct FSortedLightSetSceneInfo;
 enum class EVelocityPass : uint32;
 struct FStrataSceneData;
-
+class FTransientLightFunctionTextureAtlas;
 struct FSceneTexturesConfig;
 struct FMinimalSceneTextures;
 struct FSceneTextures;
@@ -728,6 +728,8 @@ class FForwardLightingViewResources
 {
 public:
 	FForwardLightData ForwardLightData;
+	const FLightSceneProxy* SelectedForwardDirectionalLightProxy = nullptr;
+
 	TUniformBufferRef<FForwardLightData> ForwardLightDataUniformBuffer;
 	FDynamicReadBuffer ForwardLocalLightBuffer;
 	FRWBuffer NumCulledLightsGrid;
@@ -776,6 +778,20 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 extern void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalData& Parameters);
 
+struct FTransientLightFunctionTextureAtlasTile
+{
+	bool bIsDefault;		// If true, then the atlas item generation can be skipped
+	FRDGTextureRef Texture;
+	FIntRect RectBound;
+	FVector4 MinMaxUvBound;
+};
+
+struct FVolumetricFogLocalLightFunctionInfo
+{
+	FTransientLightFunctionTextureAtlasTile AtlasTile;
+	FMatrix LightFunctionMatrix;
+};
+
 class FVolumetricFogViewResources
 {
 public:
@@ -783,12 +799,22 @@ public:
 
 	FRDGTextureRef IntegratedLightScatteringTexture = nullptr;
 
+	// TODO: right now the lightfunction atlas is dedicated to the volumetric fog.
+	// Later we could put the allocated atlas tiles on FLightSceneInfo and uploaded as light data on GPU
+	// so that the lightfunction atlas can be used for forward rendering or tiled lighting.
+	// For this to work we would also need to add the default white light functoin as an atlas item.
+	// Note: this is not a smart pointer since it is allocated using the GraphBuilder frame transient memory.
+	FTransientLightFunctionTextureAtlas* TransientLightFunctionTextureAtlas = nullptr;
+
+	TMap<FLightSceneInfo*, FVolumetricFogLocalLightFunctionInfo> LocalLightFunctionData;
+
 	FVolumetricFogViewResources()
 	{}
 
 	void Release()
 	{
 		IntegratedLightScatteringTexture = nullptr;
+		TransientLightFunctionTextureAtlas = nullptr;
 	}
 };
 

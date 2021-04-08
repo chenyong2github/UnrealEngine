@@ -122,6 +122,27 @@ namespace UE
 	{
 		return Impl->PxrVtValue.Get();
 	}
+#endif // #if USE_USD_SDK
+
+	FString FVtValue::GetTypeName() const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+
+		return FString( ANSI_TO_TCHAR( Impl->PxrVtValue.Get().GetTypeName().c_str() ) );
+#else
+		return FString();
+#endif // #if USE_USD_SDK
+	}
+
+	bool FVtValue::IsArrayValued() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrVtValue.Get().IsArrayValued();
+#else
+		return true;
+#endif // #if USE_USD_SDK
+	}
 
 	bool FVtValue::IsEmpty() const
 	{
@@ -131,6 +152,4 @@ namespace UE
 		return true;
 #endif // #if USE_USD_SDK
 	}
-
-#endif // #if USE_USD_SDK
 }

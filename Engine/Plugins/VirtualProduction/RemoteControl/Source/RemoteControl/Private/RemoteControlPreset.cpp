@@ -14,6 +14,7 @@
 #include "RemoteControlActor.h"
 #include "RemoteControlBinding.h"
 #include "RemoteControlObjectVersion.h"
+#include "RemoteControlPresetRebindingManager.h"
 #include "StructDeserializer.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -466,7 +467,7 @@ TOptional<FExposedProperty> FRemoteControlTarget::ResolveExposedProperty(FGuid P
 
 	if (TOptional<FRemoteControlProperty> RCProperty = GetProperty(PropertyId))
 	{
-		TArray<UObject*> FieldOwners = RCProperty->ResolveFieldOwners(ResolveBoundObjects());
+		TArray<UObject*> FieldOwners = RCProperty->GetBoundObjects();
 		if (FieldOwners.Num() && FieldOwners[0])
 		{
 			//Always resolve exposed property. We might have been pointing to an array element that has been deleted
@@ -595,6 +596,7 @@ FProperty* FRemoteControlTarget::FindPropertyRecursive(UStruct* Container, TArra
 
 URemoteControlPreset::URemoteControlPreset()
 	: Layout(FRemoteControlPresetLayout{ this })
+	, RebindingManager(MakePimpl<FRemoteControlPresetRebindingManager>()) 
 {
 	Registry = CreateDefaultSubobject<URemoteControlExposeRegistry>(FName("ExposeRegistry"));
 }
@@ -630,6 +632,12 @@ void URemoteControlPreset::PostLoad()
 	CacheFieldsData();
 
 	CacheFieldLayoutData();
+
+	RebindingManager->Rebind(this);
+
+	InitializeEntitiesMetadata();
+
+	RegisterEntityDelegates();
 }
 
 void URemoteControlPreset::BeginDestroy()
@@ -728,7 +736,7 @@ TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* O
 
 TWeakPtr<FRemoteControlFunction> URemoteControlPreset::ExposeFunction(UObject* Object, UFunction* Function, FRemoteControlPresetExposeArgs Args)
 {
-	if (!Object || !Function || !Object->GetClass()->FindFunctionByName(Function->GetFName()))
+	if (!Object || !Function || !Object->GetClass() || !Object->GetClass()->FindFunctionByName(Function->GetFName()))
 	{
 		return nullptr;
 	}
@@ -741,7 +749,9 @@ TWeakPtr<FRemoteControlFunction> URemoteControlPreset::ExposeFunction(UObject* O
 TSharedPtr<FRemoteControlEntity> URemoteControlPreset::Expose(FRemoteControlEntity&& Entity, UScriptStruct* EntityType, const FGuid& GroupId)
 {
 	TSharedPtr<FRemoteControlEntity> RCEntity = Registry->AddExposedEntity(MoveTemp(Entity), EntityType);
-
+	InitializeEntityMetadata(RCEntity);
+	
+	RCEntity->OnEntityModifiedDelegate.BindUObject(this, &URemoteControlPreset::OnEntityModified);
 	FRemoteControlPresetGroup* Group = Layout.GetGroup(GroupId);
 	if (!Group)
 	{
@@ -752,6 +762,7 @@ TSharedPtr<FRemoteControlEntity> URemoteControlPreset::Expose(FRemoteControlEnti
 	CachedData.LayoutGroupId = Group->Id;
 
 	Layout.AddField(Group->Id, RCEntity->GetId());
+	
 	OnEntityExposed().Broadcast(this, RCEntity->GetId());
 
 	return RCEntity;
@@ -816,6 +827,48 @@ URemoteControlBinding* URemoteControlPreset::FindOrAddBinding(const TSoftObjectP
 	return NewBinding;
 }
 
+void URemoteControlPreset::OnEntityModified(const FGuid& EntityId)
+{
+	PerFrameUpdatedEntities.Add(EntityId);
+}
+
+void URemoteControlPreset::InitializeEntitiesMetadata()
+{
+	for (const TSharedPtr<FRemoteControlEntity>& Entity : Registry->GetExposedEntities())
+	{
+		InitializeEntityMetadata(Entity);
+	}
+}
+
+void URemoteControlPreset::InitializeEntityMetadata(const TSharedPtr<FRemoteControlEntity>& Entity)
+{
+	if (!Entity)
+	{
+		return;
+	}
+    	
+    const TMap<FName, FEntityMetadataInitializer>& Initializers = IRemoteControlModule::Get().GetDefaultMetadataInitializers();
+    for (const TPair<FName, FEntityMetadataInitializer>& Entry : Initializers)
+    {
+    	if (Entry.Value.IsBound())
+    	{
+    		// Don't reset the metadata entry if already present.
+    		if (!Entity->UserMetadata.Contains(Entry.Key))
+    		{
+    			Entity->UserMetadata.Add(Entry.Key, Entry.Value.Execute(this, Entity->GetId()));
+    		}
+    	}
+    }
+}
+
+void URemoteControlPreset::RegisterEntityDelegates()
+{
+	for (const TSharedPtr<FRemoteControlEntity>& Entity : Registry->GetExposedEntities())
+	{
+		Entity->OnEntityModifiedDelegate.BindUObject(this, &URemoteControlPreset::OnEntityModified);
+	}
+}
+
 TOptional<FRemoteControlFunction> URemoteControlPreset::GetFunction(FName FunctionLabel) const
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -833,7 +886,6 @@ TOptional<FRemoteControlFunction> URemoteControlPreset::GetFunction(FGuid Functi
 
 	return OptionalFunction;
 }
-
 
 TOptional<FRemoteControlProperty> URemoteControlPreset::GetProperty(FName PropertyLabel) const
 {
@@ -864,7 +916,7 @@ TOptional<FExposedProperty> URemoteControlPreset::ResolveExposedProperty(FName P
 	if (TSharedPtr<FRemoteControlProperty> RCProp = Registry->GetExposedEntity<FRemoteControlProperty>(GetExposedEntityId(PropertyLabel)))
 	{
 		OptionalExposedProperty = FExposedProperty();
-		OptionalExposedProperty->OwnerObjects = RCProp->ResolveFieldOwners();
+		OptionalExposedProperty->OwnerObjects = RCProp->GetBoundObjects();
 		OptionalExposedProperty->Property = RCProp->GetProperty();
 	}
 
@@ -878,7 +930,7 @@ TOptional<FExposedFunction> URemoteControlPreset::ResolveExposedFunction(FName F
 	{
 		OptionalExposedFunction = FExposedFunction();
 		OptionalExposedFunction->DefaultParameters = RCProp->FunctionArguments;
-		OptionalExposedFunction->OwnerObjects = RCProp->ResolveFieldOwners();
+		OptionalExposedFunction->OwnerObjects = RCProp->GetBoundObjects();
 		OptionalExposedFunction->Function = RCProp->Function;
 	}
 
@@ -960,7 +1012,7 @@ TArray<UObject*> URemoteControlPreset::ResolvedBoundObjects(FName FieldLabel)
 
 	if (TSharedPtr<FRemoteControlField> Field = Registry->GetExposedEntity<FRemoteControlField>(GetExposedEntityId(FieldLabel)))
 	{
-		Objects = Field->ResolveFieldOwners();
+		Objects = Field->GetBoundObjects();
 	}
 
 	return Objects;
@@ -1022,7 +1074,7 @@ void URemoteControlPreset::ConvertFieldsToRemoveComponentChain()
 			{
 				if (Property.ComponentHierarchy_DEPRECATED.Num())
 				{
-					TArray<UObject*> TargetObjects = Property.ResolveFieldOwners(Target.ResolveBoundObjects());
+					TArray<UObject*> TargetObjects = Property.GetBoundObjects();
 					for (UObject* TargetObject : TargetObjects)
 					{
 						ObjectAndProperties.FindOrAdd(TargetObject).Add(Property);
@@ -1481,17 +1533,19 @@ void URemoteControlPreset::RegisterDelegates()
 	FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &URemoteControlPreset::OnReplaceObjects);
 
 	FCoreDelegates::OnEndFrame.AddUObject(this, &URemoteControlPreset::OnEndFrame);
+
+	FEditorDelegates::MapChange.AddUObject(this, &URemoteControlPreset::OnMapChange);
 #endif
 }
 
 void URemoteControlPreset::UnregisterDelegates()
 {
 #if WITH_EDITOR
+	FEditorDelegates::MapChange.RemoveAll(this);
+
 	FCoreDelegates::OnEndFrame.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
-	FCoreUObjectDelegates::OnPreObjectPropertyChanged.RemoveAll(this);
-	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
-
+	
 	FEditorDelegates::EndPIE.RemoveAll(this);
 	FEditorDelegates::PostPIEStarted.RemoveAll(this);
 
@@ -1554,7 +1608,6 @@ void URemoteControlPreset::OnPieEvent(bool)
 			PerFrameUpdatedEntities.Add(Entity->GetId());
 		}	
 	}));
-	
 }
 
 void URemoteControlPreset::OnReplaceObjects(const TMap<UObject*, UObject*>& ReplacementObjectMap)
@@ -1598,6 +1651,16 @@ void URemoteControlPreset::OnEndFrame()
 		OnEntitiesUpdatedDelegate.Broadcast(this, PerFrameUpdatedEntities);
 		PerFrameUpdatedEntities.Empty();
 	}
+}
+
+void URemoteControlPreset::OnMapChange(uint32)
+{
+	// Delay the rebinding in order for the old actor points to be invalid, and for the new actors to be valid in the current map.
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+		{
+			RebindingManager->Rebind(this);
+			Algo::Transform(Registry->GetExposedEntities(), PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
+		}));
 }
 
 #endif

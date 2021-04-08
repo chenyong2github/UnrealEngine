@@ -1224,26 +1224,22 @@ static const TCHAR* CharToEscapeSeqMap[][2] =
 
 static const uint32 MaxSupportedEscapeChars = UE_ARRAY_COUNT(CharToEscapeSeqMap);
 
-FString FString::ReplaceCharWithEscapedChar(const TArray<TCHAR>* Chars/*=nullptr*/) &&
+void FString::ReplaceCharWithEscapedCharInline(const TArray<TCHAR>* Chars/*=nullptr*/)
 {
 	if ( Len() > 0 && (Chars == nullptr || Chars->Num() > 0) )
 	{
-		FString Result(*this);
 		for ( int32 ChIdx = 0; ChIdx < MaxSupportedEscapeChars; ChIdx++ )
 		{
 			if ( Chars == nullptr || Chars->Contains(*(CharToEscapeSeqMap[ChIdx][0])) )
 			{
 				// use ReplaceInline as that won't create a copy of the string if the character isn't found
-				Result.ReplaceInline(CharToEscapeSeqMap[ChIdx][0], CharToEscapeSeqMap[ChIdx][1]);
+				ReplaceInline(CharToEscapeSeqMap[ChIdx][0], CharToEscapeSeqMap[ChIdx][1]);
 			}
 		}
-		return Result;
 	}
-
-	return *this;
 }
 
-FString FString::ReplaceEscapedCharWithChar(const TArray<TCHAR>* Chars/*=nullptr*/) &&
+void FString::ReplaceEscapedCharWithCharInline(const TArray<TCHAR>* Chars/*=nullptr*/)
 {
 	if ( Len() > 0 && (Chars == nullptr || Chars->Num() > 0) )
 	{
@@ -1257,8 +1253,6 @@ FString FString::ReplaceEscapedCharWithChar(const TArray<TCHAR>* Chars/*=nullptr
 			}
 		}
 	}
-
-	return MoveTemp(*this);
 }
 
 /** 

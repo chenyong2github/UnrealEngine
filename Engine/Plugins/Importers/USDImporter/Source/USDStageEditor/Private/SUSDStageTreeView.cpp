@@ -10,6 +10,7 @@
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/SdfChangeBlock.h"
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
@@ -68,7 +69,7 @@ public:
 			.OnVerifyTextChanged( this, &FUsdStageNameColumn::OnTextUpdated, TreeItem )
 			.IsReadOnly_Lambda( [ TreeItem ]()
 			{
-				return !TreeItem || TreeItem->UsdPrim;
+				return !TreeItem->bIsRenamingExistingPrim && (!TreeItem || TreeItem->UsdPrim);
 			} );
 
 		TreeItem->RenameRequestEvent.BindSP( &Item.Get(), &SInlineEditableTextBlock::EnterEditingMode );
@@ -560,6 +561,18 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 		);
 
 		PrimOptions.AddMenuEntry(
+			LOCTEXT( "RenamePrim", "Rename Prim" ),
+			LOCTEXT( "RenamePrim_ToolTip", "Renames the prim" ),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRenamePrim ),
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanExecutePrimAction )
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		PrimOptions.AddMenuEntry(
 			LOCTEXT("RemovePrim", "Remove Prim"),
 			LOCTEXT("RemovePrim_ToolTip", "Removes the prim and its children"),
 			FSlateIcon(),
@@ -680,12 +693,33 @@ void SUsdStageTreeView::OnAddPrim()
 	RequestTreeRefresh();
 }
 
+void SUsdStageTreeView::OnRenamePrim()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	if ( MySelectedItems.Num() > 0 )
+	{
+		FUsdPrimViewModelRef TreeItem = MySelectedItems[ 0 ];
+
+		TreeItem->bIsRenamingExistingPrim = true;
+		PendingRenameItem = TreeItem;
+		RequestScrollIntoView( TreeItem );
+	}
+}
+
 void SUsdStageTreeView::OnRemovePrim()
 {
 	if ( !UsdStageActor.IsValid() )
 	{
 		return;
 	}
+
+	FScopedTransaction Transaction( LOCTEXT( "RemovePrimTransaction", "Remove prims'" ) );
 
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
 
@@ -892,6 +926,10 @@ void SUsdStageTreeView::OnTreeItemScrolledIntoView( FUsdPrimViewModelRef TreeIte
 
 void SUsdStageTreeView::OnPrimNameCommitted( const FUsdPrimViewModelRef& ViewModel, const FText& InPrimName )
 {
+	// Reset this regardless of how we exit this function
+	const bool bRenamingExistingPrim = ViewModel->bIsRenamingExistingPrim;
+	ViewModel->bIsRenamingExistingPrim = false;
+
 	if ( InPrimName.IsEmptyOrWhitespace() )
 	{
 		// Escaped out of initially setting a prim name
@@ -911,7 +949,47 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdPrimViewModelRef& ViewMod
 		return;
 	}
 
+	if ( bRenamingExistingPrim )
 	{
+		FScopedTransaction Transaction( LOCTEXT( "RenamePrimTransaction", "Rename a prim" ) );
+
+		UE::FSdfChangeBlock ChangeBlock;
+
+		// e.g. "/Root/OldPrim/"
+		FString OldPath = ViewModel->UsdPrim.GetPrimPath().GetString();
+
+		// e.g. "NewPrim"
+		FString NewNameStr = InPrimName.ToString();
+
+		const bool bDidRename = ViewModel->RenamePrim( *NewNameStr );
+
+		// Preserve the expansion states before our ChangeBlock's destructor triggers
+		// notices that will refresh the tree view
+		if ( bDidRename )
+		{
+			// e.g. "/Root/NewPrim"
+			FString NewPath = FString::Printf( TEXT( "%s/%s" ), *FPaths::GetPath( OldPath ), *NewNameStr );
+			TMap<FString, bool> PairsToAdd;
+			for ( TMap<FString, bool>::TIterator It( TreeItemExpansionStates ); It; ++It )
+			{
+				// e.g. "/Root/OldPrim/SomeChild"
+				FString SomePrimPath = It->Key;
+				if ( SomePrimPath.RemoveFromStart( OldPath ) )  // e.g. "/SomeChild"
+				{
+					// e.g. "/Root/NewPrim/SomeChild"
+					SomePrimPath = NewPath + SomePrimPath;
+					PairsToAdd.Add( SomePrimPath, It->Value );
+
+					It.RemoveCurrent();
+				}
+			}
+			TreeItemExpansionStates.Append( PairsToAdd );
+		}
+	}
+	else
+	{
+		FScopedTransaction Transaction( LOCTEXT( "AddPrimTransaction", "Add a new prim" ) );
+
 		ViewModel->DefinePrim( *InPrimName.ToString() );
 
 		const bool bResync = true;
@@ -959,7 +1037,7 @@ void SUsdStageTreeView::OnPrimNameUpdated(const FUsdPrimViewModelRef& TreeItem, 
 
 		UE::FSdfPath NewPrimPath = ParentPrimPath.AppendChild( *NameStr );
 		const UE::FUsdPrim& Prim = Stage.GetPrimAtPath( NewPrimPath );
-		if ( Prim )
+		if ( Prim && Prim != TreeItem->UsdPrim )
 		{
 			ErrorMessage = LOCTEXT("DuplicatePrimName", "A Prim with this name already exists!");
 			return;

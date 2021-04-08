@@ -1620,4 +1620,30 @@ public:
 	/** PredictionKeys, see more info in GameplayPrediction.h. This has to come *last* in all replicated properties on the AbilitySystemComponent to ensure OnRep/callback order. */
 	UPROPERTY(Replicated)
 	FReplicatedPredictionKeyMap ReplicatedPredictionKeyMap;
+
+protected:
+
+	struct FAbilityListLockActiveChange
+	{
+		FAbilityListLockActiveChange(UAbilitySystemComponent& InAbilitySystemComp,
+									 TArray<FGameplayAbilitySpec, TInlineAllocator<2> >& PendingAdds,
+									 TArray<FGameplayAbilitySpecHandle, TInlineAllocator<2> >& PendingRemoves) :
+			AbilitySystemComp(InAbilitySystemComp),
+			Adds(MoveTemp(PendingAdds)),
+			Removes(MoveTemp(PendingRemoves))
+		{
+			AbilitySystemComp.AbilityListLockActiveChanges.Add(this);
+		}
+
+		~FAbilityListLockActiveChange()
+		{
+			AbilitySystemComp.AbilityListLockActiveChanges.Remove(this);
+		}
+
+		UAbilitySystemComponent& AbilitySystemComp;
+		TArray<FGameplayAbilitySpec, TInlineAllocator<2> > Adds;
+		TArray<FGameplayAbilitySpecHandle, TInlineAllocator<2> > Removes;
+	};
+
+	TArray<FAbilityListLockActiveChange*> AbilityListLockActiveChanges;
 };

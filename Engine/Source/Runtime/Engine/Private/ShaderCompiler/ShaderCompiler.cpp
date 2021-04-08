@@ -2711,6 +2711,25 @@ bool FShaderCompilingManager::AllTargetPlatformSupportsRemoteShaderCompiling()
 IDistributedBuildController* FShaderCompilingManager::FindRemoteCompilerController() const
 {
 	TArray<IDistributedBuildController*> AvailableControllers = IModularFeatures::Get().GetModularFeatureImplementations<IDistributedBuildController>(IDistributedBuildController::GetModularFeatureType());
+
+	auto FindXGE = [](IDistributedBuildController* Controller)
+	{
+		return Controller != nullptr
+			&& Controller->GetName().StartsWith("XGE");
+	};
+
+	// Prefer XGE
+	if (IDistributedBuildController** ControllerPtr = AvailableControllers.FindByPredicate(FindXGE))
+	{
+		IDistributedBuildController* Controller = *ControllerPtr;
+		if (Controller && Controller->IsSupported())
+		{
+			Controller->InitializeController();
+			return Controller;
+		}
+	}
+
+	// Fall back on whatever is available
 	for (IDistributedBuildController* Controller : AvailableControllers)
 	{
 		if (Controller != nullptr && Controller->IsSupported())
@@ -2719,6 +2738,7 @@ IDistributedBuildController* FShaderCompilingManager::FindRemoteCompilerControll
 			return Controller;
 		}
 	}
+
 	return nullptr;
 }
 

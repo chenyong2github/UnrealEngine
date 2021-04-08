@@ -587,7 +587,11 @@ TSharedPtr<FFbxSceneInfo> UFbxSceneImportFactory::ConvertSceneInfo(void* VoidFbx
 		MeshInfoPtr->OptionName = DefaultOptionName;
 
 		MeshInfoPtr->IsLod = MeshInfoPtr->LODLevel > 0;
-		MeshInfoPtr->IsCollision = MeshInfoPtr->Name.Contains(TEXT("UCX")) || MeshInfoPtr->Name.Contains(TEXT("UBX")) || MeshInfoPtr->Name.Contains(TEXT("MCDCX")) || MeshInfoPtr->Name.Contains(TEXT("USP")) || MeshInfoPtr->Name.Contains(TEXT("UCP"));
+		MeshInfoPtr->IsCollision = MeshInfoPtr->Name.Contains(TEXT("UCX"), ESearchCase::IgnoreCase)
+			|| MeshInfoPtr->Name.Contains(TEXT("UBX"), ESearchCase::IgnoreCase)
+			|| MeshInfoPtr->Name.Contains(TEXT("MCDCX"), ESearchCase::IgnoreCase)
+			|| MeshInfoPtr->Name.Contains(TEXT("USP"), ESearchCase::IgnoreCase)
+			|| MeshInfoPtr->Name.Contains(TEXT("UCP"), ESearchCase::IgnoreCase);
 
 		SceneInfoPtr->MeshInfo.Add(MeshInfoPtr);
 	}
@@ -2294,7 +2298,7 @@ UObject* UFbxSceneImportFactory::ImportANode(void* VoidFbxImporter, TArray<void*
 		ParentName.Empty();
 	}
 	
-	FbxString NodeName(FFbxImporter->MakeName(Nodes[0]->GetName()));
+	FString NodeName = FFbxImporter->MakeName(Nodes[0]->GetName());
 	//Find the scene node info in the hierarchy
 	if (!FindSceneNodeInfo(SceneInfo, Nodes[0]->GetUniqueID(), OutNodeInfo) || !OutNodeInfo->AttributeInfo.IsValid())
 	{
@@ -2316,8 +2320,8 @@ UObject* UFbxSceneImportFactory::ImportANode(void* VoidFbxImporter, TArray<void*
 
 	UObject* NewObject = nullptr;
 	// skip collision models
-	if (NodeName.Find("UCX") != -1 || NodeName.Find("MCDCX") != -1 ||
-		NodeName.Find("UBX") != -1 || NodeName.Find("USP") != -1 || NodeName.Find("UCP") != -1)
+	if (NodeName.Contains(TEXT("UCX"), ESearchCase::IgnoreCase) || NodeName.Contains(TEXT("MCDCX"), ESearchCase::IgnoreCase) ||
+		NodeName.Contains(TEXT("UBX"), ESearchCase::IgnoreCase) || NodeName.Contains(TEXT("USP"), ESearchCase::IgnoreCase) || NodeName.Contains(TEXT("UCP"), ESearchCase::IgnoreCase))
 	{
 		return nullptr;
 	}

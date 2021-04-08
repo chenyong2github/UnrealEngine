@@ -41,10 +41,18 @@ int32 UDataprepTriangleCountFetcher::Fetch_Implementation(const UObject* Object,
 				{
 					if ( const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>( ActorComponent ) )
 					{
-						TriangleCount = GetStaticMeshTriangleCount( StaticMeshComponent->GetStaticMesh() );
+						TriangleCount += GetStaticMeshTriangleCount( StaticMeshComponent->GetStaticMesh() );
 						bOutFetchSucceded = true;
 					}
 				}
+			}
+		}
+		else if ( const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>( Object ) )
+		{
+			if ( const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh() )
+			{
+				TriangleCount = GetStaticMeshTriangleCount( StaticMesh );
+				bOutFetchSucceded = true;
 			}
 		}
 		else if ( const UStaticMesh* StaticMesh = Cast<const UStaticMesh>( Object ) )
@@ -99,12 +107,20 @@ int32 UDataprepVertexCountFetcher::Fetch_Implementation(const UObject* Object, b
 				{
 					if ( const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>(ActorComponent) )
 					{
-						VertexCount = GetStaticMeshVertexCount( StaticMeshComponent->GetStaticMesh() );
+						VertexCount += GetStaticMeshVertexCount( StaticMeshComponent->GetStaticMesh() );
 						bOutFetchSucceded = true;
 					}
 				}
 			}
-		} 
+		}
+		else if ( const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>( Object ) )
+		{
+			if ( const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh() )
+			{
+				VertexCount = GetStaticMeshVertexCount( StaticMesh );
+				bOutFetchSucceded = true;
+			}
+		}
 		else if ( const UStaticMesh* StaticMesh = Cast<const UStaticMesh>(Object) )
 		{
 			VertexCount = GetStaticMeshVertexCount(StaticMesh);

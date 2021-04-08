@@ -84,6 +84,10 @@ namespace DatasmithRhino.Utils
 			{
 				DefaultName = "material";
 			}
+			else if (InCommonObject is ViewportInfo)
+			{
+				DefaultName = "camera";
+			}
 			else
 			{
 				DefaultName = "unknown";
@@ -102,6 +106,20 @@ namespace DatasmithRhino.Utils
 			string TargetName = !string.IsNullOrEmpty(InModelComponent.Name)
 				? InModelComponent.Name
 				: GetDefaultTypeName(InModelComponent);
+
+			return TargetName;
+		}
+
+		/// <summary>
+		/// Gives the non-unique "base" name for the given model component.
+		/// </summary>
+		/// <param name="InModelComponent"></param>
+		/// <returns></returns>
+		public static string GetTargetName(ViewInfo InNamedView)
+		{
+			string TargetName = !string.IsNullOrEmpty(InNamedView.Name)
+				? InNamedView.Name
+				: GetDefaultTypeName(InNamedView.Viewport);
 
 			return TargetName;
 		}

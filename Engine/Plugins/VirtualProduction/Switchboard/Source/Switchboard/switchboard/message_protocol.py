@@ -1,17 +1,15 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-import base64
-import json
-import uuid
+import base64, json, uuid
 
 def create_start_process_message(
-    prog_path, 
-    prog_args, 
-    prog_name, 
-    caller, 
-    update_clients_with_stdout, 
-    working_dir = "",
-    force_window_focus = False,
+    prog_path: str,
+    prog_args: str,
+    prog_name: str,
+    caller: str,
+    update_clients_with_stdout: bool, 
+    working_dir: str = "",
+    priority_modifier: int = 0
 ):
     cmd_id = uuid.uuid4()
     start_cmd = {
@@ -20,10 +18,10 @@ def create_start_process_message(
         'exe': prog_path, 
         'args': prog_args, 
         'name': prog_name, 
-        'caller':caller,
+        'caller': caller,
         'working_dir': working_dir,
         'bUpdateClientsWithStdout' : update_clients_with_stdout,
-        'bForceWindowFocus' : force_window_focus,
+        'priority_modifier': priority_modifier,
     }
     message = json.dumps(start_cmd).encode() + b'\x00'
     return (cmd_id, message)
@@ -86,10 +84,11 @@ def create_get_sync_status_message(program_id):
     message = json.dumps(cmd).encode() + b'\x00'
     return (cmd_id, message)
 
-def create_forcefocus_message(pid):
+def create_redeploy_listener_message(base64listener: str, sha1digest: str):
+    ''' Sends a command to replace the remote server's listener executable. '''
     cmd_id = uuid.uuid4()
-    cmd = {'command': 'forcefocus', 'id': str(cmd_id), 'pid': pid}
-    message = json.dumps(cmd).encode() + b'\x00'
+    redeploy_cmd = {'command': 'redeploy listener', 'id': str(cmd_id), 'sha1': sha1digest, 'content': base64listener}
+    message = json.dumps(redeploy_cmd).encode() + b'\x00'
     return (cmd_id, message)
 
 def create_fixExeFlags_message(puuid):

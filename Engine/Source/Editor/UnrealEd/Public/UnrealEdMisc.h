@@ -307,6 +307,9 @@ public:
 	/** Get the path to the executable that runs the editor */
 	FString GetProjectEditorBinaryPath();
 
+	/** Finds a map using only the map name, no extension, no path, also caches it for faster lookup next time. */
+	FString FindMapFileFromPartialName(const FString& PartialMapName);
+
 private:
 	void PreSaveWorld(class UWorld* World, FObjectPreSaveContext ObjectSaveContext);
 
@@ -316,7 +319,7 @@ private:
 	/** Stores whether or not the current map build was cancelled. */
 	bool bCancelBuild;
 
-	/** Whenther the system has been initialised */
+	/** Has the system has been initialized? */
 	bool bInitialized;
 
 	/** The name of a pending project.  When the editor shuts down it will switch to this project if not empty */ 

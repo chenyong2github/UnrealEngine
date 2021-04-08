@@ -39,7 +39,7 @@ FNiagaraScriptOutputCollectionViewModel::~FNiagaraScriptOutputCollectionViewMode
 	}
 }
 
-void FNiagaraScriptOutputCollectionViewModel::SetScripts(TArray<UNiagaraScript*> InScripts)
+void FNiagaraScriptOutputCollectionViewModel::SetScripts(TArray<FVersionedNiagaraScript>& InScripts)
 {
 	// Remove callback on previously held graph.
 	if (Graph.IsValid())
@@ -49,21 +49,21 @@ void FNiagaraScriptOutputCollectionViewModel::SetScripts(TArray<UNiagaraScript*>
 	}
 
 	Scripts.Empty();
-	for (UNiagaraScript* Script : InScripts)
+	for (FVersionedNiagaraScript& VersionedScript : InScripts)
 	{
-		Scripts.Add(Script);
-		check(Script->GetSource() == InScripts[0]->GetSource());
+		Scripts.Add(VersionedScript.ToWeakPtr());
+		check(VersionedScript.Script->GetSource(VersionedScript.Version) == InScripts[0].Script->GetSource(InScripts[0].Version));
 	}
 
 	OutputNode = nullptr;
-	if (Scripts.Num() > 0 && Scripts[0].IsValid() && Scripts[0]->GetSource())
+	if (Scripts.Num() > 0 && Scripts[0].Script.IsValid() && Scripts[0].Script->GetSource(Scripts[0].Version))
 	{
-		Graph = Cast<UNiagaraScriptSource>(Scripts[0]->GetSource())->NodeGraph;
+		Graph = Cast<UNiagaraScriptSource>(Scripts[0].Script->GetSource(Scripts[0].Version))->NodeGraph;
 		OnGraphChangedHandle = Graph->AddOnGraphChangedHandler(
 			FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScriptOutputCollectionViewModel::OnGraphChanged));
 		OnRecompileHandle = Graph->AddOnGraphNeedsRecompileHandler(
 			FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScriptOutputCollectionViewModel::OnGraphChanged));
-		bCanHaveNumericParameters = Scripts[0]->IsStandaloneScript();
+		bCanHaveNumericParameters = Scripts[0].Script->IsStandaloneScript();
 
 		if (Scripts.Num() == 1)
 		{
@@ -205,10 +205,10 @@ bool FNiagaraScriptOutputCollectionViewModel::SupportsType(const FNiagaraTypeDef
 		return false;
 	}
 
-	if (Scripts.Num() == 1 && Scripts[0] != nullptr)
+	if (Scripts.Num() == 1 && Scripts[0].Script.IsValid())
 	{
 		// We only support parameter map outputs for modules.
-		if (Scripts[0]->GetUsage() == ENiagaraScriptUsage::Module)
+		if (Scripts[0].Script->GetUsage() == ENiagaraScriptUsage::Module)
 		{
 			if (Type != FNiagaraTypeDefinition::GetParameterMapDef())
 			{

@@ -22,6 +22,7 @@ public class AndroidPlatform : Platform
 	private const int DeployMaxParallelCommands = 6;
 
     private const string TargetAndroidLocation = "obb/";
+	private const string TargetAndroidTemp = "/data/local/tmp/";
 
 	public AndroidPlatform()
 		: base(UnrealTargetPlatform.Android)
@@ -1066,10 +1067,10 @@ public class AndroidPlatform : Platform
         {
 			// If it is a distribution build, push to $STORAGE/Android/obb folder instead of $STORAGE/obb folder.
 			// Note that $STORAGE/Android/obb will be the folder that contains the obb if you download the app from playstore.
-			string OBBInstallCommand = bNoObbInstall ? "shell 'rm -r $EXTERNAL_STORAGE/" + DeviceObbName + "'" : "push " + Path.GetFileName(ObbName) + " $STORAGE/" + (bIsDistribution ? "Download/" : "") + DeviceObbName;
-			string PatchInstallCommand = bNoPatchInstall ? "shell 'rm -r $EXTERNAL_STORAGE/" + DevicePatchName + "'" : "push " + Path.GetFileName(PatchName) + " $STORAGE/" + (bIsDistribution ? "Download/" : "") + DevicePatchName;
-			string Overflow1InstallCommand = bNoOverflow1Install ? "shell 'rm -r $EXTERNAL_STORAGE/" + DeviceOverflow1Name + "'" : "push " + Path.GetFileName(Overflow1Name) + " $STORAGE/" + (bIsDistribution ? "Download/" : "") + DeviceOverflow1Name;
-			string Overflow2InstallCommand = bNoOverflow2Install ? "shell 'rm -r $EXTERNAL_STORAGE/" + DeviceOverflow2Name + "'" : "push " + Path.GetFileName(Overflow2Name) + " $STORAGE/" + (bIsDistribution ? "Download/" : "") + DeviceOverflow2Name;
+			string OBBInstallCommand = bNoObbInstall ? "shell 'rm -r $EXTERNAL_STORAGE/" + DeviceObbName + "'" : "push " + Path.GetFileName(ObbName) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DeviceObbName;
+			string PatchInstallCommand = bNoPatchInstall ? "shell 'rm -r $EXTERNAL_STORAGE/" + DevicePatchName + "'" : "push " + Path.GetFileName(PatchName) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DevicePatchName;
+			string Overflow1InstallCommand = bNoOverflow1Install ? "shell 'rm -r $EXTERNAL_STORAGE/" + DeviceOverflow1Name + "'" : "push " + Path.GetFileName(Overflow1Name) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DeviceOverflow1Name;
+			string Overflow2InstallCommand = bNoOverflow2Install ? "shell 'rm -r $EXTERNAL_STORAGE/" + DeviceOverflow2Name + "'" : "push " + Path.GetFileName(Overflow2Name) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DeviceOverflow2Name;
 
 			LogInformation("Writing shell script for install with {0}", bPackageDataInsideApk ? "data in APK" : "separate obb");
             BatchLines = new string[] {
@@ -1089,7 +1090,7 @@ public class AndroidPlatform : Platform
                         "\techo",
 						bNeedGrantStoragePermission ? "\techo Grant READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE to the apk for reading OBB or game file in external storage." : "",
 						bNeedGrantStoragePermission ? "\t$ADB $DEVICE " + ReadPermissionGrantCommand : "",
-						bNeedGrantStoragePermission ?"\t$ADB $DEVICE " + WritePermissionGrantCommand : "",
+						bNeedGrantStoragePermission ? "\t$ADB $DEVICE " + WritePermissionGrantCommand : "",
 						bDisablePerfHarden ? "\t$ADB $DEVICE " + DisablePerfHardenCommand : "",
                         "\techo",
 						"\techo Removing old data. Failures here are usually fine - indicating the files were not on the device.",
@@ -1107,8 +1108,8 @@ public class AndroidPlatform : Platform
 						!bHaveOverflow1 ? "" : (bPackageDataInsideApk ? "" : "\t$ADB $DEVICE " + Overflow1InstallCommand),
 						!bHaveOverflow2 ? "" : (bPackageDataInsideApk ? "" : "\t$ADB $DEVICE " + Overflow2InstallCommand),
 						bDontMoveOBB ? "" : "\t\t$ADB $DEVICE shell mkdir $STORAGE/Android/" + TargetAndroidLocation + PackageName, // don't check for error since installing may create the obb directory
-						bDontMoveOBB ? "" : "\t\t$ADB $DEVICE shell cp $STORAGE/Download/" + TargetAndroidLocation + PackageName + "/* $STORAGE/Android/" + TargetAndroidLocation + PackageName,
-						bDontMoveOBB ? "" : "\t\t$ADB $DEVICE shell rm -r $STORAGE/Download/" + TargetAndroidLocation + PackageName,
+						bDontMoveOBB ? "" : "\t\t$ADB $DEVICE shell mv " + TargetAndroidTemp + TargetAndroidLocation + PackageName + " $STORAGE/Android/" + TargetAndroidLocation,
+						bDontMoveOBB ? "" : "\t\t$ADB $DEVICE shell rm -r " + TargetAndroidTemp + TargetAndroidLocation,
 						"\t\techo",
 						"\t\techo Installation successful",
 						"\t\texit 0",
@@ -1126,10 +1127,10 @@ public class AndroidPlatform : Platform
         }
         else
         {
-			string OBBInstallCommand = bNoObbInstall ? "shell rm -r %STORAGE%/" + DeviceObbName : "push " + Path.GetFileName(ObbName) + " %STORAGE%/" + (bIsDistribution ? "Download/" : "") + DeviceObbName;
-			string PatchInstallCommand = bNoPatchInstall ? "shell rm -r %STORAGE%/" + DevicePatchName : "push " + Path.GetFileName(PatchName) + " %STORAGE%/" + (bIsDistribution ? "Download/" : "") + DevicePatchName;
-			string Overflow1InstallCommand = bNoOverflow1Install ? "shell rm -r %STORAGE%/" + DeviceOverflow1Name : "push " + Path.GetFileName(Overflow1Name) + " %STORAGE%/" + (bIsDistribution ? "Download/" : "") + DeviceOverflow1Name;
-			string Overflow2InstallCommand = bNoOverflow2Install ? "shell rm -r %STORAGE%/" + DeviceOverflow2Name : "push " + Path.GetFileName(Overflow2Name) + " %STORAGE%/" + (bIsDistribution ? "Download/" : "") + DeviceOverflow2Name;
+			string OBBInstallCommand = bNoObbInstall ? "shell rm -r %STORAGE%/" + DeviceObbName : "push " + Path.GetFileName(ObbName) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DeviceObbName;
+			string PatchInstallCommand = bNoPatchInstall ? "shell rm -r %STORAGE%/" + DevicePatchName : "push " + Path.GetFileName(PatchName) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DevicePatchName;
+			string Overflow1InstallCommand = bNoOverflow1Install ? "shell rm -r %STORAGE%/" + DeviceOverflow1Name : "push " + Path.GetFileName(Overflow1Name) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DeviceOverflow1Name;
+			string Overflow2InstallCommand = bNoOverflow2Install ? "shell rm -r %STORAGE%/" + DeviceOverflow2Name : "push " + Path.GetFileName(Overflow2Name) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DeviceOverflow2Name;
 
 			LogInformation("Writing bat for install with {0}", bPackageDataInsideApk ? "data in APK" : "separate OBB");
             BatchLines = new string[] {
@@ -1164,9 +1165,9 @@ public class AndroidPlatform : Platform
 						!bHaveOverflow2 ? "" : (bPackageDataInsideApk ? "" : "%ADB% %DEVICE% " + Overflow2InstallCommand),
 						!bHaveOverflow2 ? "" : (bPackageDataInsideApk ? "" : "if \"%ERRORLEVEL%\" NEQ \"0\" goto Error"),
 						bDontMoveOBB ? "" : "%ADB% %DEVICE% shell mkdir %STORAGE%/Android/" + TargetAndroidLocation + PackageName, // don't check for error since installing may create the obb directory
-						bDontMoveOBB ? "" : "%ADB% %DEVICE% shell cp %STORAGE%/Download/" + TargetAndroidLocation + PackageName + "/* %STORAGE%/Android/" + TargetAndroidLocation + PackageName,
+						bDontMoveOBB ? "" : "%ADB% %DEVICE% shell mv " + TargetAndroidTemp + TargetAndroidLocation + PackageName + " %STORAGE%/Android/" + TargetAndroidLocation,
 						bDontMoveOBB ? "" : "if \"%ERRORLEVEL%\" NEQ \"0\" goto Error",
-						bDontMoveOBB ? "" : "%ADB% %DEVICE% shell rm -r %STORAGE%/Download/" + TargetAndroidLocation + PackageName,
+						bDontMoveOBB ? "" : "%ADB% %DEVICE% shell rm -r " + TargetAndroidTemp + TargetAndroidLocation,
 						"@echo.",
 						bNeedGrantStoragePermission ? "@echo Grant READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE to the apk for reading OBB file or game file in external storage." : "",
 						bNeedGrantStoragePermission ? "%ADB% %DEVICE% " + ReadPermissionGrantCommand : "",

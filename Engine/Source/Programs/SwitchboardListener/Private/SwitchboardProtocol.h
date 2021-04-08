@@ -32,6 +32,9 @@ FString CreateSendFileToClientCompletedMessage(const FString& InSourcePath, cons
 FString CreateSendFileToClientFailedMessage(const FString& InSourcePath, const FString& InError);
 
 FString CreateSyncStatusMessage(const FSyncStatus& SyncStatus);
+
+FString CreateRedeployStatusMessage(const FGuid& InMessageID, bool bAck, const FString& Status);
+
 //~
 
 bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask, bool& bOutEcho);

@@ -897,9 +897,9 @@ struct TkDOPNode
 			if ( SubIndex >= 0 )
 			{
 				bHit = true;
-				Check.LocalHitNormal.X = VectorGetComponent(TriangleSOA.Normals.X, SubIndex);
-				Check.LocalHitNormal.Y = VectorGetComponent(TriangleSOA.Normals.Y, SubIndex);
-				Check.LocalHitNormal.Z = VectorGetComponent(TriangleSOA.Normals.Z, SubIndex);
+				Check.LocalHitNormal.X = VectorGetComponentDynamic(TriangleSOA.Normals.X, SubIndex);
+				Check.LocalHitNormal.Y = VectorGetComponentDynamic(TriangleSOA.Normals.Y, SubIndex);
+				Check.LocalHitNormal.Z = VectorGetComponentDynamic(TriangleSOA.Normals.Z, SubIndex);
 				Check.Result->Item = TriangleSOA.Payload[SubIndex];
 				Check.HitNodeIndex = History.GetOldestNode();
 

@@ -44,6 +44,9 @@ protected:
 
 	/** protected constructor - Use the FSubsystemCollection<TBaseType> class */
 	FSubsystemCollectionBase();
+	
+	/** destructor will be called from virtual ~FGCObject in GC cleanup **/
+	virtual ~FSubsystemCollectionBase();
 
 	/** Get a Subsystem by type */
 	USubsystem* GetSubsystemInternal(UClass* SubsystemClass) const;
@@ -77,9 +80,6 @@ private:
 
 	/** Remove Instances of the specified Subsystem class from all existing SubsystemCollections of the correct type */
 	static void RemoveAllInstances(UClass* SubsystemClass);
-
-	static TArray<FSubsystemCollectionBase*> SubsystemCollections;
-	static TMap<FName, TArray<TSubclassOf<UDynamicSubsystem>>> DynamicSystemModuleMap;
 };
 
 template<typename TBaseType>

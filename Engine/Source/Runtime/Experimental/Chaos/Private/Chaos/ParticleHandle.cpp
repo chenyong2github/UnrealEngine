@@ -9,9 +9,23 @@
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "Chaos/CastingUtilities.h"
+#include "PBDRigidsSolver.h"
 
 namespace Chaos
 {
+	void SetObjectStateHelper(IPhysicsProxyBase& Proxy, FPBDRigidParticleHandle& Rigid, EObjectStateType InState, bool bAllowEvents, bool bInvalidate)
+	{
+		if (auto PhysicsSolver = Proxy.GetSolver<Chaos::FPBDRigidsSolver>())
+		{
+			PhysicsSolver->GetEvolution()->SetParticleObjectState(&Rigid, InState);
+		}
+		else
+		{
+			//not in solver so just set it directly (can this possibly happen?)
+			Rigid.SetObjectStateLowLevel(InState);
+		}
+	}
+
 	template <typename T, int d>
 	void Chaos::TGeometryParticle<T, d>::MapImplicitShapes()
 	{
@@ -29,7 +43,7 @@ namespace Chaos
 			}
 		}
 
-		auto& Geometry = MNonFrequentData.Read().Geometry();
+		auto Geometry = MNonFrequentData.Read().Geometry();
 		if (Geometry)
 		{
 			int32 CurrentShapeIndex = INDEX_NONE;
@@ -112,9 +126,9 @@ namespace Chaos
 			// if we are currently a union then add the new geometry to this union
 			MNonFrequentData.Modify(true, MDirtyFlags, Proxy, [&Objects](auto& Data)
 				{
-					if (Data.AccessGeometry())
+					if (Data.AccessGeometryDangerous())
 					{
-						if (FImplicitObjectUnion* Union = Data.AccessGeometry()->template GetObject<FImplicitObjectUnion>())
+						if (FImplicitObjectUnion* Union = Data.AccessGeometryDangerous()->template GetObject<FImplicitObjectUnion>())
 						{
 							Union->Combine(Objects);
 						}
@@ -147,9 +161,9 @@ namespace Chaos
 			// if we are currently a union then remove geometry from this union
 			MNonFrequentData.Modify(true, MDirtyFlags, Proxy, [FoundIndex](auto& Data)
 				{
-					if (Data.AccessGeometry())
+					if (Data.Geometry())
 					{
-						if (FImplicitObjectUnion* Union = Data.AccessGeometry()->template GetObject<FImplicitObjectUnion>())
+						if (FImplicitObjectUnion* Union = Data.AccessGeometryDangerous()->template GetObject<FImplicitObjectUnion>())
 						{
 							Union->RemoveAt(FoundIndex);
 						}

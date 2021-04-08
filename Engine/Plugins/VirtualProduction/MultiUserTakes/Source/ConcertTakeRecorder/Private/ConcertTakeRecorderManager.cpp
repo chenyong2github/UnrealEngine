@@ -17,7 +17,6 @@
 #include "IConcertSessionHandler.h"
 #include "IConcertSyncClientModule.h"
 #include "ConcertSyncArchives.h"
-#include "ConcertSyncSettings.h"
 #include "ConcertTakeRecorderStyle.h"
 
 #include "ITakeRecorderModule.h"
@@ -61,7 +60,7 @@
 DEFINE_LOG_CATEGORY(LogConcertTakeRecorder);
 
 // Enable Take Syncing
-static int32 bConcertEnableTakeRecorderSync = 0;
+static int32 bConcertEnableTakeRecorderSync = 1;
 static FAutoConsoleVariableRef  CVarEnableTakeSync(TEXT("Concert.EnableTakeRecorderSync"), bConcertEnableTakeRecorderSync, TEXT("Enable Concert Take Recorder Syncing."));
 
 #define LOCTEXT_NAMESPACE "ConcertTakeRecorder"
@@ -86,10 +85,8 @@ FConcertTakeRecorderManager::FConcertTakeRecorderManager()
 		}
 
 		ConcertClient->OnSessionConnectionChanged().AddRaw(this, &FConcertTakeRecorderManager::OnSessionConnectionChanged);
-		CacheTakeSyncFolderFiltered();
 		RegisterExtensions();
 
-		FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FConcertTakeRecorderManager::OnObjectModified);
 		UTakeRecorder::OnRecordingInitialized().AddRaw(this, &FConcertTakeRecorderManager::OnTakeRecorderInitialized);
 	}
 	else
@@ -213,11 +210,13 @@ void FConcertTakeRecorderManager::RegisterExtensions()
 
 void FConcertTakeRecorderManager::UnregisterExtensions()
 {
-	ITakeRecorderModule& Module = FTakeRecorderRecorderManagerGetModule();
-
-	Module.GetToolbarExtensionGenerators().RemoveAll(this);
-	Module.GetRecordButtonExtensionGenerators().RemoveAll(this);
-	Module.GetRecordErrorCheckGenerator().RemoveAll(this);
+	ITakeRecorderModule* TakeRecorder = FModuleManager::Get().GetModulePtr<ITakeRecorderModule>("TakeRecorder");
+	if (TakeRecorder)
+	{
+		TakeRecorder->GetToolbarExtensionGenerators().RemoveAll(this);
+		TakeRecorder->GetRecordButtonExtensionGenerators().RemoveAll(this);
+		TakeRecorder->GetRecordErrorCheckGenerator().RemoveAll(this);
+	}
 
 	FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
 	if (PropertyEditorModule)
@@ -240,7 +239,7 @@ EVisibility FConcertTakeRecorderManager::GetMultiUserIconVisibility() const
 		return Value ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
 	};
 
-	if (TakePreset && !bIsRecording && TakeSync->bSyncTakeRecordingTransactions
+	if (WeakSession.IsValid() && TakePreset && !bIsRecording && TakeSync->bSyncTakeRecordingTransactions
 		&& IsTakeSyncEnabled() && CanAnyRecord())
 	{
 		ULevelSequence* LevelSequence = TakePreset->GetLevelSequence();
@@ -289,14 +288,6 @@ void FConcertTakeRecorderManager::CreateExtensionWidget(TArray<TSharedRef<SWidge
 					SNew(SImage)
 					.Image(FConcertTakeRecorderStyle::Get()->GetBrush("Concert.TakeRecorder.SyncTakes.Small"))
  				]
-			]
-			+ SOverlay::Slot()
-			[
-				SNew(STextBlock)
-				.Visibility_Raw(this, &FConcertTakeRecorderManager::HandleTakeSyncWarningVisibility)
-				.ToolTipText_Raw(this, &FConcertTakeRecorderManager::GetWarningText)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
-				.Text(FEditorFontGlyphs::Exclamation_Triangle)
 			]
 		]
 	);
@@ -650,7 +641,7 @@ bool FConcertTakeRecorderManager::CanRecord() const
 
 bool FConcertTakeRecorderManager::IsTakeSyncEnabled() const
 {
-	return bConcertEnableTakeRecorderSync > 0 && bTakeSyncFolderFiltered;
+	return bConcertEnableTakeRecorderSync > 0;
 }
 
 ECheckBoxState FConcertTakeRecorderManager::IsTakeSyncChecked() const
@@ -660,11 +651,6 @@ ECheckBoxState FConcertTakeRecorderManager::IsTakeSyncChecked() const
 
 void FConcertTakeRecorderManager::HandleTakeSyncCheckBox(ECheckBoxState State) const
 {
-	if (!bTakeSyncFolderFiltered)
-	{
-		return;
-	}
-
 	if (State == ECheckBoxState::Checked)
 	{
 		bConcertEnableTakeRecorderSync = 1;
@@ -680,46 +666,6 @@ void FConcertTakeRecorderManager::HandleTakeSyncCheckBox(ECheckBoxState State) c
 EVisibility FConcertTakeRecorderManager::HandleTakeSyncButtonVisibility() const
 {
 	return  WeakSession.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-FText FConcertTakeRecorderManager::GetWarningText() const
-{
-	return LOCTEXT("WarningLabel", "The take recorder root save directory must be added to the Multi-User transaction exclude filter in order to synchronize transactions.");
-}
-
-EVisibility FConcertTakeRecorderManager::HandleTakeSyncWarningVisibility() const
-{
-	return WeakSession.IsValid() && !bTakeSyncFolderFiltered ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-void FConcertTakeRecorderManager::OnObjectModified(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (ObjectBeingModified == GetDefault<UConcertSyncConfig>() || ObjectBeingModified == GetDefault<UTakeRecorderProjectSettings>())
-	{
-		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPackageClassFilter, ContentPaths)
-			|| PropertyChangedEvent.GetPropertyName() == TEXT("Path"))
-		{
-			CacheTakeSyncFolderFiltered();
-		}
-	}
-}
-
-void FConcertTakeRecorderManager::CacheTakeSyncFolderFiltered()
-{
-	bTakeSyncFolderFiltered = false;
-
-	const FString& RootTakeSaveDir = GetDefault<UTakeRecorderProjectSettings>()->Settings.RootTakeSaveDir.Path;
-
-	for (const FPackageClassFilter& Filter : GetDefault<UConcertSyncConfig>()->ExcludePackageClassFilters)
-	{
-		for (const FString& ContentPath : Filter.ContentPaths)
-		{
-			if (RootTakeSaveDir.MatchesWildcard(ContentPath))
-			{
-				bTakeSyncFolderFiltered = true;
-			}
-		}
-	}
 }
 
 void FConcertTakeRecorderManager::SendInitialState(IConcertClientSession& Session)

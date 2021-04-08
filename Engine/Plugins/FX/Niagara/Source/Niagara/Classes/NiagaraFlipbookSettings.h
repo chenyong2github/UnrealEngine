@@ -65,6 +65,10 @@ struct FNiagaraFlipbookTextureSettings
 	UTexture2D* GeneratedTexture = nullptr;
 
 	bool Equals(const FNiagaraFlipbookTextureSettings& Other) const;
+
+	FNiagaraFlipbookTextureSettings() :
+		bUseFrameSize(false)
+	{}
 };
 
 UCLASS()

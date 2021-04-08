@@ -16,7 +16,7 @@ enum class EPreLoadScreenTypes : uint8
 // Interface that defines the class that handles all the logic for controlling / displaying a particular PreLoadScreen.
 // Designed to be implemented in a Plugin that calls FPreLoadScreenManager::RegisterPreLoadScreen so that functions are called by PreLoadScreenManager correctly.
 // Really should probably inherit from FPreLoadScreenBase instead of this class for more functionality
-class IPreLoadScreen //: public TSharedFromThis<IPreLoadScreen, ESPMode::ThreadSafe>
+class IPreLoadScreen : public TSharedFromThis<IPreLoadScreen>
 {
 public:
 	virtual ~IPreLoadScreen() = default;

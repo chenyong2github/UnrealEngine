@@ -21,6 +21,7 @@ namespace Chaos
 	extern CHAOS_API bool TriMeshPerPolySupport;
 
 	class FCapsule;
+	class FTriangle;
 	class FConvex;
 	class FTriangle;
 	struct FMTDInfo;

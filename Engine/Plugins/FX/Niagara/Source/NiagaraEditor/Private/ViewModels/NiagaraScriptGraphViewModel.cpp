@@ -44,6 +44,11 @@ FText FNiagaraScriptGraphViewModel::GetDisplayName() const
 	return DisplayName.Get();
 }
 
+void FNiagaraScriptGraphViewModel::SetDisplayName(FText NewName)
+{
+	DisplayName.Set(NewName);
+}
+
 UNiagaraScriptSource* FNiagaraScriptGraphViewModel::GetScriptSource()
 {
 	return ScriptSource.Get();

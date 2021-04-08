@@ -4253,6 +4253,8 @@ void FHlslNiagaraTranslator::UpdateStaticSwitchConstants(UEdGraphNode* Node)
 {
 	if (UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node))
 	{
+		SwitchNode->CheckForOutdatedEnum(this);
+		
 		TArray<UNiagaraNodeStaticSwitch*> NodesToUpdate;
 		NodesToUpdate.Add(SwitchNode);
 
@@ -6291,7 +6293,7 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 		ScriptUsage = FunctionNode->FunctionScript->GetUsage();
 		Name = FunctionNode->FunctionScript->GetName();
 		FullName = FunctionNode->FunctionScript->GetFullName();
-		Source = CastChecked<UNiagaraScriptSource>(FunctionNode->FunctionScript->GetSource());
+		Source = FunctionNode->GetFunctionScriptSource();
 		check(Source->GetOutermost() == GetTransientPackage());
 	}
 	else if (Signature.bRequiresExecPin)
@@ -8192,14 +8194,14 @@ FString FHlslNiagaraTranslator::NodePinToMessage(FText MessageText, const UNiaga
 	return MessageString;
 }
 
-void FHlslNiagaraTranslator::Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
+void FHlslNiagaraTranslator::Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* InNode, const UEdGraphPin* Pin, FString ShortDescription, bool bDismissable)
 {
 	const UNiagaraNode* CurContextNode = ActiveHistoryForFunctionCalls.GetCallingContext();
 	const UNiagaraNode* TargetNode = InNode ? InNode : CurContextNode;
-
+ 
 	FString MessageString = NodePinToMessage(MessageText, TargetNode, Pin);
-	TranslateResults.CompileEvents.Add(FNiagaraCompileEvent(Severity, MessageString, TargetNode ? TargetNode->NodeGuid : FGuid(), Pin ? Pin->PersistentGuid : FGuid(), GetCallstackGuids()));
-
+	TranslateResults.CompileEvents.Add(FNiagaraCompileEvent(Severity, MessageString, ShortDescription, bDismissable, TargetNode ? TargetNode->NodeGuid : FGuid(), Pin ? Pin->PersistentGuid : FGuid(), GetCallstackGuids()));
+ 
 	if (Severity == FNiagaraCompileEventSeverity::Error)
 	{
 		TranslateResults.NumErrors++;
@@ -8209,15 +8211,15 @@ void FHlslNiagaraTranslator::Message(FNiagaraCompileEventSeverity Severity, FTex
 		TranslateResults.NumWarnings++;
 	}
 }
-
-void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
+ 
+void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* InNode, const UEdGraphPin* Pin, FString ShortDescription, bool bDismissable)
 {
-	Message(FNiagaraCompileEventSeverity::Error, ErrorText, InNode, Pin);
+	Message(FNiagaraCompileEventSeverity::Error, ErrorText, InNode, Pin, ShortDescription, bDismissable);
 }
-
-void FHlslNiagaraTranslator::Warning(FText WarningText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
+ 
+void FHlslNiagaraTranslator::Warning(FText WarningText, const UNiagaraNode* InNode, const UEdGraphPin* Pin, FString ShortDescription, bool bDismissable)
 {
-	Message(FNiagaraCompileEventSeverity::Warning, WarningText, InNode, Pin);
+	Message(FNiagaraCompileEventSeverity::Warning, WarningText, InNode, Pin, ShortDescription, bDismissable);
 }
 
 

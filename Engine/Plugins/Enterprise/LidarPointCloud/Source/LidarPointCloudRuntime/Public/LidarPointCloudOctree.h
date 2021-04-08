@@ -9,6 +9,7 @@
 #include "Meshing/LidarPointCloudMeshing.h"
 #include "HAL/ThreadSafeCounter64.h"
 #include "Misc/ScopeLock.h"
+#include "Containers/Queue.h"
 #include "ConvexVolume.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "Serialization/BulkData.h"

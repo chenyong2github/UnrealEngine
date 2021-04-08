@@ -340,6 +340,15 @@ void UReplicationGraph::AddGlobalGraphNode(UReplicationGraphNode* GraphNode)
 	GlobalGraphNodes.Add(GraphNode);
 }
 
+void UReplicationGraph::RemoveGlobalGraphNode(UReplicationGraphNode* GraphNode)
+{
+	if(GraphNode)
+	{
+		GlobalGraphNodes.RemoveSwap(GraphNode);
+		PrepareForReplicationNodes.RemoveSwap(GraphNode);
+	}
+}
+
 void UReplicationGraph::AddConnectionGraphNode(UReplicationGraphNode* GraphNode, UNetReplicationGraphConnection* ConnectionManager)
 {
 	ConnectionManager->AddConnectionGraphNode(GraphNode);

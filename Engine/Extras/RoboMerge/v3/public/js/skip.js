@@ -1,4 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
+function goHome() {
+    location.href = '/' + location.hash
+}
+
 function skipVerify() {
     addOnBeforeUnload('Leaving this page will abort the skip action')
     let queryParams = processQueryParameters(['bot', 'branch', 'cl', 'edge'], ["reason"])
@@ -21,7 +26,7 @@ function skipVerify() {
     let cancelButton = $('<button type="button" class="btn btn-lg btn-info">').text(`Cancel`).appendTo(buttonDiv)
     cancelButton.click(function() {
         removeOnBeforeUnload()
-        window.location.href='/'
+        goHome()
     })
 
     // Perform skip

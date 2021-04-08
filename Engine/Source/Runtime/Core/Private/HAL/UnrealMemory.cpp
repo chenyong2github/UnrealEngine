@@ -27,6 +27,7 @@
 #include "HAL/MallocPoisonProxy.h"
 #include "HAL/MallocDoubleFreeFinder.h"
 #include "HAL/MallocFrameProfiler.h"
+#include "HAL/MallocStomp2.h"
 
 #if MALLOC_GT_HOOKS
 
@@ -361,6 +362,10 @@ static int FMemory_GCreateMalloc_ThreadUnsafe()
 		GMalloc = GMallocProfiler;
 #endif
 	}
+
+#if WITH_MALLOC_STOMP2
+	GMalloc = FMallocStomp2::OverrideIfEnabled(GMalloc);
+#endif
 
 	// if the allocator is already thread safe, there is no need for the thread safe proxy
 	if (!GMalloc->IsInternallyThreadSafe())

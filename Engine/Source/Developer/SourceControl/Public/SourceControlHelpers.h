@@ -50,58 +50,58 @@ public:
 
 	/** Indicates whether this source control state has valid information (true) or not (false) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsValid;
+	bool bIsValid=false;
 
 	/** Determine if we know anything about the source control state of this file */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsUnknown;
+	bool bIsUnknown = false;
 
 	/** Determine if this file can be checked in. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bCanCheckIn;
+	bool bCanCheckIn = false;
 
 	/** Determine if this file can be checked out */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bCanCheckOut;
+	bool bCanCheckOut = false;
 
 	/** Determine if this file is checked out */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsCheckedOut;
+	bool bIsCheckedOut = false;
 
 	/** Determine if this file is up-to-date with the version in source control */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsCurrent;
+	bool bIsCurrent = false;
 
 	/** Determine if this file is under source control */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsSourceControlled;
+	bool bIsSourceControlled = false;
 
 	/**
 	 * Determine if this file is marked for add
 	 * @note	if already checked in then not considered mid add
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsAdded;
+	bool bIsAdded = false;
 
 	/** Determine if this file is marked for delete */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsDeleted;
+	bool bIsDeleted = false;
 
 	/** Determine if this file is ignored by source control */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsIgnored;
+	bool bIsIgnored = false;
 
 	/** Determine if source control allows this file to be edited */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bCanEdit;
+	bool bCanEdit = false;
 
 	/** Determine if source control allows this file to be deleted. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bCanDelete;
+	bool bCanDelete = false;
 
 	/** Determine if this file is modified compared to the version in source control. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsModified;
+	bool bIsModified = false;
 
 	/** 
 	 * Determine if this file can be added to source control (i.e. is part of the directory 
@@ -112,15 +112,15 @@ public:
 
 	/** Determine if this file is in a conflicted state */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsConflicted;
+	bool bIsConflicted = false;
 
 	/** Determine if this file can be reverted, i.e. discard changes and the file will no longer be checked-out. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bCanRevert;
+	bool bCanRevert = false;
 
 	/** Determine if this file is checked out by someone else */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bIsCheckedOutOther;
+	bool bIsCheckedOutOther = false;
 
 	/**
 	 * Get name of other user who this file already checked out or "" if no other user has it checked out

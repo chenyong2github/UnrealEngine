@@ -1125,6 +1125,10 @@ bool FPluginManager::ConfigureEnabledPlugins()
 
 		PluginsToConfigure.Empty();
 	}
+	else 
+	{
+		bHaveAllRequiredPlugins = true;
+	}
 	return bHaveAllRequiredPlugins;
 #else
 	return true;

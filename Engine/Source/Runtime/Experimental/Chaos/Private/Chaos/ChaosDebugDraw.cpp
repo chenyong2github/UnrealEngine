@@ -135,7 +135,7 @@ namespace Chaos
 			const FAABB3 WorldQueryBounds = FAABB3(WorldQueryCenter - FVec3(WorldQueryRadius), WorldQueryCenter + FVec3(WorldQueryRadius));
 			const FAABB3 LocalQueryBounds = WorldQueryBounds.InverseTransformedAABB(ShapeTransform);
 
-			Shape->VisitTriangles(LocalQueryBounds, [&](const TTriangle<FReal>& Tri)
+			Shape->VisitTriangles(LocalQueryBounds, [&](const FTriangle& Tri)
 				{
 					FVec3 A = ShapeTransform.TransformPosition(Tri[0]);
 					FVec3 B = ShapeTransform.TransformPosition(Tri[1]);
@@ -153,7 +153,7 @@ namespace Chaos
 			const FAABB3 WorldQueryBounds = FAABB3(WorldQueryCenter - FVec3(WorldQueryRadius), WorldQueryCenter + FVec3(WorldQueryRadius));
 			const FAABB3 LocalQueryBounds = WorldQueryBounds.InverseTransformedAABB(ShapeTransform);
 
-			Shape->VisitTriangles(LocalQueryBounds, [&](const TTriangle<FReal>& Tri)
+			Shape->VisitTriangles(LocalQueryBounds, [&](const FTriangle& Tri)
 			{
 				FVec3 A = ShapeTransform.TransformPosition(Tri[0]);
 				FVec3 B = ShapeTransform.TransformPosition(Tri[1]);

@@ -12,11 +12,17 @@ class UMoviePipelineBurnInWidget;
 namespace MoviePipeline { struct FMoviePipelineRenderPassInitSettings; }
 
 UCLASS(Blueprintable)
-class UMoviePipelineWidgetRenderer : public UMoviePipelineRenderPass
+class MOVIERENDERPIPELINESETTINGS_API UMoviePipelineWidgetRenderer : public UMoviePipelineRenderPass
 {
 	GENERATED_BODY()
 
 protected:
+	UMoviePipelineWidgetRenderer()
+		: UMoviePipelineRenderPass()
+		, bCompositeOntoFinalImage(true)
+	{
+	}
+
 	// UMoviePipelineRenderPass Interface
 	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
 	virtual void TeardownImpl() override;
@@ -24,12 +30,15 @@ protected:
 	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) override;
 	// ~UMoviePipelineRenderPass Interface
 
+public:
+	/** If true, the widget renderer image will be composited into the Final Image pass. Doesn't apply to multi-layer EXR files. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "MoviePipelineBurnInWidget"), Category = "Widget Settings")
+	bool bCompositeOntoFinalImage;
 
 public:
 #if WITH_EDITOR
-	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "WidgetRendererSettingDisplayName", "UI Renderer (Non-Composited)"); }
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "WidgetRendererSettingDisplayName", "UI Renderer"); }
 	virtual FText GetCategoryText() const { return NSLOCTEXT("MovieRenderPipeline", "WidgetRendererSettingCategoryName", "Rendering"); }
-	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override;
 #endif
 	virtual bool IsValidOnShots() const override { return false; }
 	virtual bool IsValidOnMaster() const override { return true; }

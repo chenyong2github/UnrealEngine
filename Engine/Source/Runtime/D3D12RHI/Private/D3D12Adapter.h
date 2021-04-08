@@ -87,12 +87,16 @@ struct FD3D12MemoryInfo
 	}
 };
 
-enum class ED3D12GPUCrashDebugginMode
+enum class ED3D12GPUCrashDebuggingModes
 {
-	Disabled,
-	Minimal,
-	Full
+	None				= 0x0,
+	BreadCrumbs			= 0x1,
+	NvAftermath			= 0x2,
+	DRED				= 0x4,
+
+	All					= BreadCrumbs | NvAftermath | DRED,
 };
+ENUM_CLASS_FLAGS(ED3D12GPUCrashDebuggingModes)
 
 // Represents a set of linked D3D12 device nodes (LDA i.e 1 or more identical GPUs). In most cases there will be only 1 node, however if the system supports
 // SLI/Crossfire and the app enables it an Adapter will have 2 or more nodes. This class will own anything that can be shared
@@ -124,7 +128,7 @@ public:
 	FORCEINLINE void SetDeviceRemoved(bool value) { bDeviceRemoved = value; }
 	FORCEINLINE const bool IsDeviceRemoved() const { return bDeviceRemoved; }
 	FORCEINLINE const bool IsDebugDevice() const { return bDebugDevice; }
-	FORCEINLINE const ED3D12GPUCrashDebugginMode GetGPUCrashDebuggingMode() const { return GPUCrashDebuggingMode; }
+	FORCEINLINE const ED3D12GPUCrashDebuggingModes GetGPUCrashDebuggingModes() const { return GPUCrashDebuggingModes; }
 	FORCEINLINE FD3D12DynamicRHI* GetOwningRHI() { return OwningRHI; }
 	FORCEINLINE const D3D12_RESOURCE_HEAP_TIER GetResourceHeapTier() const { return ResourceHeapTier; }
 	FORCEINLINE const D3D12_RESOURCE_BINDING_TIER GetResourceBindingTier() const { return ResourceBindingTier; }
@@ -400,8 +404,8 @@ protected:
 	/** Running with debug device */
 	bool bDebugDevice;
 
-	/** GPU Crash debugging mode */
-	ED3D12GPUCrashDebugginMode GPUCrashDebuggingMode;
+	/** GPU Crash debugging modes */
+	ED3D12GPUCrashDebuggingModes GPUCrashDebuggingModes;
 
 	/** True if the device being used has been removed. */
 	bool bDeviceRemoved;

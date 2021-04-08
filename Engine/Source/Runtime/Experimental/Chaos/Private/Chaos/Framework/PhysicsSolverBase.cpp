@@ -145,7 +145,17 @@ namespace Chaos
 	{
 	}
 
-	FPhysicsSolverBase::~FPhysicsSolverBase() = default;
+	FPhysicsSolverBase::~FPhysicsSolverBase()
+	{
+		//reset history buffer before freeing any unremoved callback objects
+		MarshallingManager.SetHistoryLength_Internal(0);
+
+		//if any callback objects are still registered, just delete them here
+		for(ISimCallbackObject* CallbackObject : SimCallbackObjects)
+		{
+			delete CallbackObject;
+		}
+	}
 
 	void FPhysicsSolverBase::DestroySolver(FPhysicsSolverBase& InSolver)
 	{
@@ -207,6 +217,17 @@ namespace Chaos
 		SpatialData.SyncTimestamp = MarshallingManager.GetExternalTimestamp_External();
 	}
 
+	void FPhysicsSolverBase::EnqueueSimcallbackRewindRegisteration(ISimCallbackObject* Callback)
+	{
+		EnqueueCommandImmediate([this, Callback]()
+		{
+			if (ensure(MRewindCallback.IsValid()))
+			{
+				MRewindCallback->RegisterRewindableSimCallback_Internal(Callback);
+			}
+		});
+	}
+
 #if !UE_BUILD_SHIPPING
 	void FPhysicsSolverBase::SetStealAdvanceTasks_ForTesting(bool bInStealAdvanceTasksForTesting)
 	{
@@ -247,7 +268,7 @@ namespace Chaos
 	
 	void FPhysicsSolverBase::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback)
 	{
-		MRewindData = MakeUnique<FRewindData>(NumFrames, InUseCollisionResimCache, ((FPBDRigidsSolver*)this)->GetCurrentFrame()); // FIXME
+		MRewindData = MakeUnique<FRewindData>(((FPBDRigidsSolver*)this), NumFrames, InUseCollisionResimCache, ((FPBDRigidsSolver*)this)->GetCurrentFrame()); // FIXME
 		bUseCollisionResimCache = InUseCollisionResimCache;
 		MRewindCallback = MoveTemp(RewindCallback);
 		MarshallingManager.SetHistoryLength_Internal(NumFrames);

@@ -279,6 +279,11 @@ public:
 	void BeginQosEvaluation(UWorld* World, const TSharedPtr<IAnalyticsProvider>& AnalyticsProvider, const FSimpleDelegate& OnComplete);
 
 	/**
+	 * Returns true if Qos is in the process of being evaluated
+	 */
+	bool IsQosEvaluationInProgress() const;
+
+	/**
 	 * Get the region ID for this instance, checking ini and commandline overrides.
 	 * 
 	 * Dedicated servers will have this value specified on the commandline

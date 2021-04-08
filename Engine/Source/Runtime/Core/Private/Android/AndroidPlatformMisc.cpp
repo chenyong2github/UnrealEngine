@@ -973,6 +973,119 @@ bool FAndroidMisc::SupportsLocalCaching()
 
 }
 
+static int SysGetRandomSupported = -1;
+
+// http://man7.org/linux/man-pages/man2/getrandom.2.html
+// getrandom() was introduced in version 3.17 of the Linux kernel
+//   and glibc version 2.25.
+
+// Check known platforms if SYS_getrandom isn't defined
+#if !defined(SYS_getrandom)
+	#if PLATFORM_CPU_X86_FAMILY && PLATFORM_64BITS
+		#define SYS_getrandom 318
+	#elif PLATFORM_CPU_X86_FAMILY && !PLATFORM_64BITS
+		#define SYS_getrandom 355
+	#elif PLATFORM_CPU_ARM_FAMILY && PLATFORM_64BITS
+		#define SYS_getrandom 278
+	#elif PLATFORM_CPU_ARM_FAMILY && !PLATFORM_64BITS
+		#define SYS_getrandom 384
+	#endif
+#endif // !defined(SYS_getrandom)
+
+namespace
+{
+#if defined(SYS_getrandom)
+
+#if !defined(GRND_NONBLOCK)
+	#define GRND_NONBLOCK 0x0001
+#endif
+
+	int SysGetRandom(void *buf, size_t buflen)
+	{
+		if (SysGetRandomSupported < 0)
+		{
+			int Ret = syscall(SYS_getrandom, buf, buflen, GRND_NONBLOCK);
+
+			// If -1 is returned with ENOSYS, kernel doesn't support getrandom
+			SysGetRandomSupported = ((Ret == -1) && (errno == ENOSYS)) ? 0 : 1;
+		}
+
+		return SysGetRandomSupported ?
+			syscall(SYS_getrandom, buf, buflen, GRND_NONBLOCK) : -1;
+	}
+
+#else
+
+	int SysGetRandom(void *buf, size_t buflen)
+	{
+		return -1;
+	}
+
+#endif // !SYS_getrandom
+}
+
+/**
+ * Try to use SYS_getrandom which would be the fastest, otherwise fall back to 
+ * use /proc/sys/kernel/random/uuid to get GUID; do NOT use JNI since this may be called too early
+ */
+void  FAndroidMisc::CreateGuid(struct FGuid& Result)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FGenericPlatformMisc_CreateGuid);
+
+	static bool bGetRandomFailed = false;
+	static bool bProcUUIDFailed = false;
+
+	if (!bGetRandomFailed)
+	{
+		int BytesRead = SysGetRandom(&Result, sizeof(Result));
+
+		if (BytesRead == sizeof(Result))
+		{
+			// https://tools.ietf.org/html/rfc4122#section-4.4
+			// https://en.wikipedia.org/wiki/Universally_unique_identifier
+			//
+			// The 4 bits of digit M indicate the UUID version, and the 1â€“3
+			//   most significant bits of digit N indicate the UUID variant.
+			// xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx
+			Result[1] = (Result[1] & 0xffff0fff) | 0x00004000; // version 4
+			Result[2] = (Result[2] & 0x3fffffff) | 0x80000000; // variant 1
+			return;
+		}
+		bGetRandomFailed = true;
+	}
+
+#define FROM_HEX(_a) ( (_a) <= '9' ? (_a) - '0' : (_a) <= 'F' ?  (_a) - 'A' + 10 : (_a) - 'a' + 10 )
+
+	if (!bProcUUIDFailed)
+	{
+		int32 Handle = open("/proc/sys/kernel/random/uuid", O_RDONLY);
+		if (Handle != -1)
+		{
+			char LineBuffer[36];
+			int ReadBytes = read(Handle, LineBuffer, 36);
+			close(Handle);
+			if (ReadBytes == 36)
+			{
+				Result.A = FROM_HEX(LineBuffer[0]) << 28 | FROM_HEX(LineBuffer[1]) << 24 | FROM_HEX(LineBuffer[2]) << 20 | FROM_HEX(LineBuffer[3]) << 16 |
+					FROM_HEX(LineBuffer[4]) << 12 | FROM_HEX(LineBuffer[5]) << 8 | FROM_HEX(LineBuffer[6]) << 4 | FROM_HEX(LineBuffer[7]);
+				Result.B = FROM_HEX(LineBuffer[9]) << 28 | FROM_HEX(LineBuffer[10]) << 24 | FROM_HEX(LineBuffer[11]) << 20 | FROM_HEX(LineBuffer[12]) << 16 |
+					FROM_HEX(LineBuffer[14]) << 12 | FROM_HEX(LineBuffer[15]) << 8 | FROM_HEX(LineBuffer[16]) << 4 | FROM_HEX(LineBuffer[17]);
+				Result.C = FROM_HEX(LineBuffer[19]) << 28 | FROM_HEX(LineBuffer[20]) << 24 | FROM_HEX(LineBuffer[21]) << 20 | FROM_HEX(LineBuffer[22]) << 16 |
+					FROM_HEX(LineBuffer[24]) << 12 | FROM_HEX(LineBuffer[25]) << 8 | FROM_HEX(LineBuffer[26]) << 4 | FROM_HEX(LineBuffer[27]);
+				Result.D = FROM_HEX(LineBuffer[28]) << 28 | FROM_HEX(LineBuffer[29]) << 24 | FROM_HEX(LineBuffer[30]) << 20 | FROM_HEX(LineBuffer[31]) << 16 |
+					FROM_HEX(LineBuffer[32]) << 12 | FROM_HEX(LineBuffer[33]) << 8 | FROM_HEX(LineBuffer[34]) << 4 | FROM_HEX(LineBuffer[35]);
+				return;
+			}
+		}
+		bProcUUIDFailed = true;
+	}
+
+#undef FROM_HEX
+
+	// fall back to generic CreateGuid
+	FGenericPlatformMisc::CreateGuid(Result);
+}
+
 /**
  * Good enough default crash reporter.
  */
@@ -1707,6 +1820,12 @@ int32 FAndroidMisc::GetAndroidBuildVersion()
 }
 #endif
 
+static bool bForceUnsupported = false;
+void FAndroidMisc::SetForceUnsupported(bool bInOverride)
+{
+	bForceUnsupported = bInOverride;
+}
+
 #if USE_ANDROID_JNI
 bool FAndroidMisc::IsSupportedAndroidDevice()
 {
@@ -1732,12 +1851,12 @@ bool FAndroidMisc::IsSupportedAndroidDevice()
 			}
 		}
 	}
-	return bSupported;
+	return bForceUnsupported ? false : bSupported;
 }
 #else
 bool FAndroidMisc::IsSupportedAndroidDevice()
 {
-	return true;
+	return !bForceUnsupported;
 }
 #endif
 

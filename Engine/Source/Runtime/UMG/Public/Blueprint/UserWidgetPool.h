@@ -8,6 +8,8 @@
 
 #include "UserWidgetPool.generated.h"
 
+class APlayerController;
+
 /**
  * Pools UUserWidget instances to minimize UObject and SWidget allocations for UMG elements with dynamic entries.
  *
@@ -32,6 +34,13 @@ public:
 
 	/** In the case that you don't have an owner widget, you should set a world to your pool, or it won't be able to construct widgets. */
 	void SetWorld(UWorld* OwningWorld);
+
+	/**
+	 * In the case a pool has no owner widget, a default player controller can optionally be specified allowing greater control  
+	 * in split screen scenarios. The following priority rules are applied when determining the controller which should own created widgets:
+	 * Controller of owning widget (if set) > Default player controller (if set) > First local player controller from world.
+	 */
+	void SetDefaultPlayerController(APlayerController* InDefaultPlayerController);
 
 	/** Triggers RebuildWidget on all currently active UserWidget instances */
 	void RebuildWidgets();
@@ -114,6 +123,10 @@ private:
 			{
 				WidgetInstance = CreateWidget(OwningWidgetPtr, WidgetClass);
 			}
+			else if (APlayerController* PlayerControllerPtr = DefaultPlayerController.Get())
+			{
+				WidgetInstance = CreateWidget(PlayerControllerPtr, WidgetClass);
+			}
 			else
 			{
 				WidgetInstance = CreateWidget(OwningWorld.Get(), WidgetClass);
@@ -146,5 +159,6 @@ private:
 
 	TWeakObjectPtr<UWidget> OwningWidget;
 	TWeakObjectPtr<UWorld> OwningWorld;
+	TWeakObjectPtr<APlayerController> DefaultPlayerController;
 	TMap<UUserWidget*, TSharedPtr<SWidget>> CachedSlateByWidgetObject;
 };

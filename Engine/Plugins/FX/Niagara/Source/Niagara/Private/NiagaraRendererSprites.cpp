@@ -838,7 +838,6 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 
 void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const
 {
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 	PARTICLE_PERF_STAT_CYCLES_RT(SceneProxy->PerfStatsContext, GetDynamicMeshElements);
 	check(SceneProxy);
 
@@ -870,6 +869,8 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 			return;
 		}
 	}
+
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 
 #if STATS
 	FScopeCycleCounter EmitterStatsCounter(EmitterStatID);
@@ -953,7 +954,6 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		return;
 	}
 
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 	check(SceneProxy);
 
 	FNiagaraDynamicDataSprites *DynamicDataSprites = static_cast<FNiagaraDynamicDataSprites*>(DynamicDataRender);
@@ -973,6 +973,8 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	{
 		return;
 	}
+
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 
 	uint32 NumInstances = SourceMode == ENiagaraRendererSourceDataMode::Particles ? SourceParticleData->GetNumInstances() : 1;
 

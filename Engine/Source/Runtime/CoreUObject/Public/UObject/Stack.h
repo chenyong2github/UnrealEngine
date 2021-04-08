@@ -110,6 +110,11 @@ public:
 	UFunction* CurrentNativeFunction;
 
 	bool bArrayContextFailed;
+
+#if PER_FUNCTION_SCRIPT_STATS
+	/** Increment for each PreviousFrame on the stack (Max 255) */
+	uint8 DepthCounter;
+#endif
 public:
 
 	// Constructors.
@@ -219,9 +224,18 @@ inline FFrame::FFrame( UObject* InObject, UFunction* InNode, void* InLocals, FFr
 	, PropertyChainForCompiledIn(InPropertyChainForCompiledIn)
 	, CurrentNativeFunction(NULL)
 	, bArrayContextFailed(false)
+#if PER_FUNCTION_SCRIPT_STATS
+	, DepthCounter(0)
+#endif
 {
 #if DO_BLUEPRINT_GUARD
 	FBlueprintContextTracker::Get().ScriptStack.Push(this);
+#endif
+#if PER_FUNCTION_SCRIPT_STATS
+	if (InPreviousFrame)
+	{
+		DepthCounter = (InPreviousFrame->DepthCounter < MAX_uint8) ? InPreviousFrame->DepthCounter + 1 : MAX_uint8;
+	}
 #endif
 }
 

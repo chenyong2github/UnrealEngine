@@ -10,7 +10,6 @@
 #include "Modules/ModuleManager.h"
 #include "ChaosVehicleManager.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
 
 IMPLEMENT_MODULE( IChaosVehiclesPlugin, ChaosVehicles )
 
@@ -51,4 +50,3 @@ void IChaosVehiclesPlugin::ShutdownModule()
 	FPhysicsDelegates::OnPhysSceneTerm.Remove(OnPhysSceneTermHandle);
 }
 
-PRAGMA_ENABLE_OPTIMIZATION

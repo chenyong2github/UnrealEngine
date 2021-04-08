@@ -2058,7 +2058,7 @@ void UNiagaraScriptConversionContext::Init(const FAssetData& InNiagaraScriptAsse
 	// Gather the inputs to this script and add them to the lookup table for validating UNiagaraScriptConversionContextInputs that are set.
 	TArray<UNiagaraNodeInput*> InputNodes;
 
-	const UNiagaraGraph* ScriptSourceGraph = static_cast<UNiagaraScriptSource*>(Script->GetSource())->NodeGraph;
+	const UNiagaraGraph* ScriptSourceGraph = static_cast<UNiagaraScriptSource*>(Script->GetLatestSource())->NodeGraph;
 	const TMap<FNiagaraVariable, FInputPinsAndOutputPins> VarToPinsMap = ScriptSourceGraph->CollectVarsToInOutPinsMap();
 	for (auto It = VarToPinsMap.CreateConstIterator(); It; ++It)
 	{

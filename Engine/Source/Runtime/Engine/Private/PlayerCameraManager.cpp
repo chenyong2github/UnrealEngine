@@ -23,6 +23,8 @@
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
 #include "GameFramework/GameNetworkManager.h"
 #include "TimerManager.h"
+#include "Camera/CameraLensEffectInterface.h"
+#include "UObject/ScriptInterface.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayerCameraManager, Log, All);
 
@@ -1258,18 +1260,27 @@ void APlayerCameraManager::ApplyWorldOffset(const FVector& InOffset, bool bWorld
 	PendingViewTarget.POV.Location.DiagnosticCheckNaN(TEXT("APlayerCameraManager::ApplyWorldOffset: PendingViewTarget.POV.Location"));
 }
 
-AEmitterCameraLensEffectBase* APlayerCameraManager::FindCameraLensEffect(TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass)
+TScriptInterface<class ICameraLensEffectInterface> APlayerCameraManager::FindGenericCameraLensEffect(TSubclassOf<AActor> LensEffectEmitterClass)
 {
 	for (int32 i = 0; i < CameraLensEffects.Num(); ++i)
 	{
-		AEmitterCameraLensEffectBase* LensEffect = CameraLensEffects[i];
-		if (LensEffect &&
-			!LensEffect->IsPendingKill() &&
-			( (LensEffect->GetClass() == LensEffectEmitterClass) ||
-			(LensEffect->EmittersToTreatAsSame.Find(LensEffectEmitterClass) != INDEX_NONE) ||
-			(GetDefault<AEmitterCameraLensEffectBase>(LensEffectEmitterClass)->EmittersToTreatAsSame.Find(LensEffect->GetClass()) != INDEX_NONE ) ) )
+		const TScriptInterface<class ICameraLensEffectInterface> LensEffectInterface = CameraLensEffects[i];
+		const UObject* LensEffectObject = LensEffectInterface.GetObject();
+
+		// we have to use GetMutableDefault here because TScriptInterface cannot handle a const UObject* and requires a non-const qualified pointer.
+		const TScriptInterface<class ICameraLensEffectInterface> OtherEffectDefaultInterface = GetMutableDefault<AActor>(LensEffectEmitterClass);
+
+		// if the lens effect in our list is valid, and either it treats the requested effect as the same
+		// or if the requested effect would treat our existing lens effect as the same...
+		if (LensEffectObject 
+		&& !LensEffectObject->IsPendingKill()
+		&& (  (LensEffectObject->GetClass() == LensEffectEmitterClass)
+		    ||(LensEffectInterface->ShouldTreatEmitterAsSame(LensEffectEmitterClass))
+		    ||(OtherEffectDefaultInterface && OtherEffectDefaultInterface->ShouldTreatEmitterAsSame(LensEffectObject->GetClass()))
+		   ))
 		{
-			return LensEffect;
+			// then, we can just recycle this
+			return LensEffectInterface;
 		}
 	}
 
@@ -1277,23 +1288,26 @@ AEmitterCameraLensEffectBase* APlayerCameraManager::FindCameraLensEffect(TSubcla
 }
 
 
-AEmitterCameraLensEffectBase* APlayerCameraManager::AddCameraLensEffect(TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass)
+TScriptInterface<class ICameraLensEffectInterface> APlayerCameraManager::AddGenericCameraLensEffect(TSubclassOf<AActor> LensEffectEmitterClass)
 {
 	if (LensEffectEmitterClass != NULL)
 	{
-		AEmitterCameraLensEffectBase* LensEffect = NULL;
-		const AEmitterCameraLensEffectBase* LensEffectClassDefaultObject = GetDefault<AEmitterCameraLensEffectBase>(LensEffectEmitterClass);
-		if (LensEffectClassDefaultObject && !LensEffectClassDefaultObject->bAllowMultipleInstances)
-		{
-			LensEffect = FindCameraLensEffect(LensEffectEmitterClass);
+		TScriptInterface<class ICameraLensEffectInterface> SpawnedLensEffectInterface = NULL;
 
-			if (LensEffect != NULL)
+		const TScriptInterface<class ICameraLensEffectInterface> DesiredLensEffect_DefaultInterface = GetMutableDefault<AActor>(LensEffectEmitterClass);
+		const AActor* DesiredLensEffect_DefaultObject = Cast<AActor>(DesiredLensEffect_DefaultInterface.GetObject());
+
+		if (DesiredLensEffect_DefaultInterface && !DesiredLensEffect_DefaultInterface->ShouldAllowMultipleInstances())
+		{
+			SpawnedLensEffectInterface = FindGenericCameraLensEffect(LensEffectEmitterClass);
+
+			if (SpawnedLensEffectInterface != NULL)
 			{
-				LensEffect->NotifyRetriggered();
+				SpawnedLensEffectInterface->NotifyRetriggered();
 			}
 		}
 
-		if (LensEffect == NULL)
+		if (SpawnedLensEffectInterface == NULL)
 		{
 			// spawn with viewtarget as the owner so bOnlyOwnerSee works as intended
 			FActorSpawnParameters SpawnInfo;
@@ -1301,28 +1315,35 @@ AEmitterCameraLensEffectBase* APlayerCameraManager::AddCameraLensEffect(TSubclas
 			SpawnInfo.Instigator = GetInstigator();
 			SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save these into a map
+
+			// RegisterCamera should occur before BeginPlay IMO, to do that we have to defer construction
+			SpawnInfo.bDeferConstruction = true;
 			
-			AEmitterCameraLensEffectBase const* const EmitterCDO = LensEffectEmitterClass->GetDefaultObject<AEmitterCameraLensEffectBase>();
+			AActor const* const EmitterCDO = LensEffectEmitterClass->GetDefaultObject<AActor>();
 			FVector CamLoc;
 			FRotator CamRot;
 			GetCameraViewPoint(CamLoc, CamRot);
-			FTransform SpawnTransform = AEmitterCameraLensEffectBase::GetAttachedEmitterTransform(EmitterCDO, CamLoc, CamRot, GetFOVAngle());
-			
-			LensEffect = GetWorld()->SpawnActor<AEmitterCameraLensEffectBase>(LensEffectEmitterClass, SpawnTransform, SpawnInfo);
-			if (LensEffect != NULL)
+			FTransform SpawnTransform = ICameraLensEffectInterface::GetAttachedEmitterTransform(EmitterCDO, CamLoc, CamRot, GetFOVAngle());
+
+			SpawnedLensEffectInterface = GetWorld()->SpawnActor<AActor>(LensEffectEmitterClass, SpawnTransform, SpawnInfo);
+
+			if (SpawnedLensEffectInterface != NULL)
 			{
-				LensEffect->RegisterCamera(this);
-				CameraLensEffects.Add(LensEffect);
+				SpawnedLensEffectInterface->RegisterCamera(this);
+				CameraLensEffects.Add(SpawnedLensEffectInterface);
+
+				// since SpawnActor didn't fail (SpawnedLensEffectInterface was not nullptr), this check is safe.
+				CastChecked<AActor>(SpawnedLensEffectInterface.GetObject(), ECastCheckedType::NullChecked)->FinishSpawning(SpawnTransform, true);
 			}
 		}
 		
-		return LensEffect;
+		return SpawnedLensEffectInterface;
 	}
 
 	return NULL;
 }
 
-void APlayerCameraManager::RemoveCameraLensEffect(AEmitterCameraLensEffectBase* Emitter)
+void APlayerCameraManager::RemoveGenericCameraLensEffect(TScriptInterface<class ICameraLensEffectInterface> Emitter)
 {
 	CameraLensEffects.Remove(Emitter);
 }
@@ -1331,12 +1352,34 @@ void APlayerCameraManager::ClearCameraLensEffects()
 {
 	for (int32 i = 0; i < CameraLensEffects.Num(); ++i)
 	{
-		CameraLensEffects[i]->Destroy();
+		if (AActor* ActorEffect = Cast<AActor>(CameraLensEffects[i].GetObject()))
+		{
+			ActorEffect->Destroy();
+		}
 	}
 
 	// empty the array.  unnecessary, since destruction will call RemoveCameraLensEffect,
 	// but this gets it done in one fell swoop.
 	CameraLensEffects.Empty();
+}
+
+AEmitterCameraLensEffectBase* APlayerCameraManager::FindCameraLensEffect(TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass)
+{
+	static_assert(TIsDerivedFrom<AEmitterCameraLensEffectBase, ICameraLensEffectInterface>::IsDerived, "Unexpected: AEmitterCameraLensEffectBase does not implement ICameraLensEffectInterface! Partial engine merge?");
+	return CastChecked<AEmitterCameraLensEffectBase>(FindGenericCameraLensEffect(LensEffectEmitterClass).GetObject(), ECastCheckedType::NullAllowed);
+}
+
+AEmitterCameraLensEffectBase* APlayerCameraManager::AddCameraLensEffect(TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass)
+{
+	static_assert(TIsDerivedFrom<AEmitterCameraLensEffectBase, ICameraLensEffectInterface>::IsDerived, "Unexpected: AEmitterCameraLensEffectBase does not implement ICameraLensEffectInterface! Partial engine merge?");
+	return CastChecked<AEmitterCameraLensEffectBase>(AddGenericCameraLensEffect(LensEffectEmitterClass).GetObject(), ECastCheckedType::NullAllowed);
+}
+
+void APlayerCameraManager::RemoveCameraLensEffect(AEmitterCameraLensEffectBase* Emitter)
+{
+	static_assert(TIsDerivedFrom<AEmitterCameraLensEffectBase, ICameraLensEffectInterface>::IsDerived, "Unexpected: AEmitterCameraLensEffectBase does not implement ICameraLensEffectInterface! Partial engine merge?");
+	TScriptInterface<ICameraLensEffectInterface> LensEffect{Emitter};
+	RemoveGenericCameraLensEffect(LensEffect);
 }
 
 /** ------------------------------------------------------------

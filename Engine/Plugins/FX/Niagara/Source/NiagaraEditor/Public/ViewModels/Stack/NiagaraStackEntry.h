@@ -314,7 +314,13 @@ public:
 
 	FOnAlternateDisplayNameChanged& OnAlternateDisplayNameChanged();
 
+	/** Recursively refreshes the children for the current stack entry.  This may cause children to be added or removed and will automatically cause the filtered 
+	children to be refreshed. This will also cause the structure changed delegate to be broadcast. */
 	void RefreshChildren();
+
+	/** Invalidates the cached filtered children so that the filters will be run the next time that GetFilteredChildren is called.  This should be called any time
+	a change to the data is made which will affect how children are filtered.  This will also cause the structure changed delegate to be broadcast. */
+	void RefreshFilteredChildren();
 
 	FDelegateHandle AddChildFilter(FOnFilterChild ChildFilter);
 	void RemoveChildFilter(FDelegateHandle FilterHandle);
@@ -452,6 +458,8 @@ private:
 	void RefreshStackErrorChildren();
 
 	void IssueModified();
+
+	void InvalidateFilteredChildren();
 	
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
 	TWeakPtr<FNiagaraEmitterViewModel> EmitterViewModel;
@@ -475,6 +483,10 @@ private:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UNiagaraStackEntry>> Children;
+
+	mutable bool bFilterChildrenPending;
+
+	mutable TArray<UNiagaraStackEntry*> FilteredChildren;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UNiagaraStackErrorItem>> ErrorChildren;

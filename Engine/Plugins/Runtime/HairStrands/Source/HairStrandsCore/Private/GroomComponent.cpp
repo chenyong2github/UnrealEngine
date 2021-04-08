@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved. 
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomComponent.h"
 #include "GeometryCacheComponent.h"
@@ -212,8 +212,8 @@ enum class EHairMaterialCompatibility : uint8
 
 static EHairMaterialCompatibility IsHairMaterialCompatible(UMaterialInterface* MaterialInterface, ERHIFeatureLevel::Type FeatureLevel, EHairGeometryType GeometryType)
 {
-	// Hair material and opaque material are enforced for strands material as the strands system is tailored for this type of shading 
-	// (custom packing of material attributes). However this is not needed/required for cards/meshes, when the relaxation for these type 
+	// Hair material and opaque material are enforced for strands material as the strands system is tailored for this type of shading
+	// (custom packing of material attributes). However this is not needed/required for cards/meshes, when the relaxation for these type
 	// of goemetry
 	if (MaterialInterface)
 	{
@@ -252,7 +252,7 @@ static EHairMaterialCompatibility IsHairMaterialCompatible(UMaterialInterface* M
 
 inline int32 GetMaterialIndexWithFallback(int32 SlotIndex)
 {
-	// Default policy: if no slot index has been bound, fallback on slot 0. If there is no 
+	// Default policy: if no slot index has been bound, fallback on slot 0. If there is no
 	// slot, the material will fallback on the default material.
 	return SlotIndex != INDEX_NONE ? SlotIndex : 0;
 }
@@ -314,14 +314,14 @@ struct FHairCardsVertexFactories
 			Out.LODMapping.Add(LODIndirectIndex);
 		}
 	}
-	
+
 	const FHairCardsVertexFactory* GetVertexFactory(uint32 GroupIndex, uint32 LODIndex, bool bIsCurrent0, EHairGeometryType GeometryType) const
 	{
 		const FHairCardsVertexFactory* Out = nullptr;
 		if (bIsCurrent0)
 		{
 			if (GroupIndex < uint32(Instances.Num()) && LODIndex < uint32(Instances[GroupIndex].LODMapping.Num()))
-			{	
+			{
 				const int32 IndirectLODIndex = Instances[GroupIndex].LODMapping[LODIndex];
 				if (IndirectLODIndex != -1)
 				{
@@ -441,7 +441,7 @@ public:
 	FHairStrandsSceneProxy(UGroomComponent* Component)
 		: FPrimitiveSceneProxy(Component)
 		, StrandsVertexFactory(Component->HairGroupInstances, GetScene().GetFeatureLevel(), "FStrandsHairSceneProxy")
-		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))	
+		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
 	{
 		// Forcing primitive uniform as we don't support robustly GPU scene data
 		bVFRequiresPrimitiveUniformBuffer = true;
@@ -472,7 +472,7 @@ public:
 		const int32 GroupCount = Component->GroomAsset->GetNumHairGroups();
 		check(Component->GroomAsset->HairGroupsData.Num() == Component->HairGroupInstances.Num());
 		for (int32 GroupIt=0; GroupIt<GroupCount; GroupIt++)
-		{	
+		{
 			const bool bIsVisible = Component->GroomAsset->HairGroupsInfo[GroupIt].bIsVisible;
 
 			const FHairGroupData& InGroupData = Component->GroomAsset->HairGroupsData[GroupIt];
@@ -764,10 +764,10 @@ public:
 		}
 	}
 #endif
-	
+
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
-	{		
-		const EShaderPlatform Platform = ViewFamily.GetShaderPlatform();		
+	{
+		const EShaderPlatform Platform = ViewFamily.GetShaderPlatform();
 		if (!IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Platform) &&
 			!IsHairStrandsEnabled(EHairStrandsShaderType::Cards, Platform) &&
 			!IsHairStrandsEnabled(EHairStrandsShaderType::Meshes, Platform))
@@ -852,11 +852,11 @@ public:
 	}
 
 	FMeshBatch* CreateMeshBatch(
-		const FSceneView* View, 
+		const FSceneView* View,
 		const FSceneViewFamily& ViewFamily,
-		FMeshElementCollector& Collector, 
+		FMeshElementCollector& Collector,
 		const FHairGroup& GroupData,
-		const FHairGroupInstance* Instance, 
+		const FHairGroupInstance* Instance,
 		uint32 GroupIndex,
 		FMaterialRenderProxy* Strands_MaterialProxy) const
 	{
@@ -980,7 +980,7 @@ public:
 			BatchElement.IndirectArgsBuffer = nullptr;
 			BatchElement.IndirectArgsOffset = 0;
 		}
-		
+
 		// Setup our vertex factor custom data
 		BatchElement.VertexFactoryUserData = const_cast<void*>(reinterpret_cast<const void*>(Instance->HairGroupPublicData));
 
@@ -996,7 +996,7 @@ public:
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
-	{		
+	{
 		TArray<FHairGroupInstance*> Instances = StrandsVertexFactory.GetData().Instances;
 
 		bool bUseCardsOrMesh = false;
@@ -1068,7 +1068,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	Mobility = EComponentMobility::Movable;
 	bIsGroomAssetCallbackRegistered = false;
 	bIsGroomBindingAssetCallbackRegistered = false;
-	SourceSkeletalMesh = nullptr; 
+	SourceSkeletalMesh = nullptr;
 	NiagaraComponents.Empty();
 	PhysicsAsset = nullptr;
 	bCanEverAffectNavigation = false;
@@ -1232,7 +1232,7 @@ static void InternalUpdateHairSimulation(UGroomComponent* GroomComponent, const 
 	GroomComponent->UpdateSimulatedGroups();
 }
 
-void UGroomComponent::UpdateHairSimulation()  
+void UGroomComponent::UpdateHairSimulation()
 {
 	InternalUpdateHairSimulation(this, true);
 }
@@ -1252,7 +1252,7 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBi
 #if WITH_EDITORONLY_DATA
 		if (InBinding && !InBinding->IsValid())
 		{
-			// The binding could be invalid if the groom asset was previously invalid. 
+			// The binding could be invalid if the groom asset was previously invalid.
 			// This will re-fetch the binding data from the DDC to make it valid
 			InBinding->InvalidateBinding();
 		}
@@ -1383,13 +1383,13 @@ void UGroomComponent::SetForcedLOD(int32 LODIndex)
 	}
 }
 
-int32 UGroomComponent::GetNumLODs() const 
-{ 
-	return GroomAsset ? GroomAsset->GetLODCount() : 0; 
+int32 UGroomComponent::GetNumLODs() const
+{
+	return GroomAsset ? GroomAsset->GetLODCount() : 0;
 }
 
-int32 UGroomComponent::GetForcedLOD() const 
-{ 
+int32 UGroomComponent::GetForcedLOD() const
+{
 	if (GroomGroupsDesc.Num() > 0)
 	{
 		return GroomGroupsDesc[0].LODForcedIndex;
@@ -1493,7 +1493,7 @@ FBoxSphereBounds UGroomComponent::CalcBounds(const FTransform& InLocalToWorld) c
 					LocalBounds += GroupData.Strands.Data.BoundingBox;
 				}
 				else if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards) && GroupData.Cards.HasValidData())
-				{ 
+				{
 					LocalBounds += GroupData.Cards.GetBounds();
 				}
 				else if (IsHairStrandsEnabled(EHairStrandsShaderType::Meshes) && GroupData.Meshes.HasValidData())
@@ -1772,7 +1772,7 @@ void UGroomComponent::UpdateSimulatedGroups()
 	if (HairGroupInstances.Num()>0)
 	{
 		const uint32 Id = ComponentId.PrimIDValue;
-		
+
 		const bool bIsStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands);
 
 		// For now use the force LOD to drive enabling/disabling simulation & RBF
@@ -1850,11 +1850,11 @@ static UGeometryCacheComponent* ValidateBindingAsset(
 
 // Return a non-null skeletal mesh Component if the binding asset is compatible with the current component
 static USkeletalMeshComponent* ValidateBindingAsset(
-	UGroomAsset* GroomAsset, 
-	UGroomBindingAsset* BindingAsset, 
-	USkeletalMeshComponent* SkeletalMeshComponent, 
-	bool bIsBindingReloading, 
-	bool bValidationEnable, 
+	UGroomAsset* GroomAsset,
+	UGroomBindingAsset* BindingAsset,
+	USkeletalMeshComponent* SkeletalMeshComponent,
+	bool bIsBindingReloading,
+	bool bValidationEnable,
 	const USceneComponent* Component)
 {
 	if (!GroomAsset || !BindingAsset || !SkeletalMeshComponent)
@@ -2105,7 +2105,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		// Not needed anymore
 		//const bool bDynamicResources = IsHairStrandsSimulationEnable() || IsHairStrandsBindingEnable();
 
-		// Sim data 
+		// Sim data
 		// Simulation guides are used for two purposes:
 		// * Physics simulation
 		// * RBF deformation.
@@ -2229,7 +2229,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				HairGroupInstance->Strands.DeformedRootResource = new FHairStrandsDeformedRootResource(HairGroupInstance->Strands.RestRootResource, EHairStrandsResourcesType::Strands);
 				BeginInitResource(HairGroupInstance->Strands.DeformedRootResource);
 			}
-		
+
 			HairGroupInstance->Strands.RestResource = GroupData.Strands.RestResource;
 			if (bNeedDynamicResources)
 			{
@@ -2259,8 +2259,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				check(StrandsLODCount <= LODScreenSizes.Num());
 				check(StrandsLODCount <= LODVisibilities.Num());
 				for (int32 LODIt = 0; LODIt < StrandsLODCount; ++LODIt)
-				{ 
-					// ClusterCullingData seriazlizes only the screen size related to strands geometry. 
+				{
+					// ClusterCullingData seriazlizes only the screen size related to strands geometry.
 					// Other type of geometry are not serizalized, and so won't match
 					if (GroomAsset->HairGroupsLOD[GroupIt].LODs[LODIt].GeometryType == EGroomGeometryType::Strands)
 					{
@@ -2694,7 +2694,7 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 
 	if (RegisteredMeshComponent)
 		{
-			// When a skeletal object with projection is enabled, activate the refresh of the bounding box to 
+			// When a skeletal object with projection is enabled, activate the refresh of the bounding box to
 			// insure the component/proxy bounding box always lies onto the actual skinned mesh
 			MarkRenderTransformDirty();
 		}
@@ -2703,7 +2703,7 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
 		[Id, SkinLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
-	{		
+	{
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
 
@@ -2765,7 +2765,7 @@ void UGroomComponent::PreEditChange(FProperty* PropertyAboutToChange)
 		// Remove the callback on the GroomAsset about to be replaced
 		if (bIsGroomAssetCallbackRegistered && GroomAsset)
 		{
-			GroomAsset->GetOnGroomAssetChanged().RemoveAll(this); 
+			GroomAsset->GetOnGroomAssetChanged().RemoveAll(this);
 			GroomAsset->GetOnGroomAssetResourcesChanged().RemoveAll(this);
 		}
 		bIsGroomAssetCallbackRegistered = false;
@@ -2782,7 +2782,7 @@ void UGroomComponent::PreEditChange(FProperty* PropertyAboutToChange)
 	}
 }
 
-void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) 
+void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
@@ -2805,17 +2805,17 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	bool bIsEventProcess = false;
 
 	// If the raytracing flag change, then force to recreate resources
-	// Update the raytracing resources only if the groom asset hasn't changed. Otherwise the group desc might be 
-	// invalid. If the groom asset has change, the raytracing resources will be correctly be rebuild witin the 
+	// Update the raytracing resources only if the groom asset hasn't changed. Otherwise the group desc might be
+	// invalid. If the groom asset has change, the raytracing resources will be correctly be rebuild witin the
 	// InitResources function
 	bool bRayTracingGeometryChanged = false;
 	#if RHI_RAYTRACING
 	if (GroomAsset && !bAssetChanged)
 	{
 		for (const FHairGroupInstance* Instance : HairGroupInstances)
-		{		
+		{
 			const FHairGroupDesc GroupDesc = GetGroomGroupsDesc(GroomAsset, this, Instance->Debug.GroupIndex);
-			const bool bRecreate =  
+			const bool bRecreate =
 				(Instance->Strands.RenRaytracingResource == nullptr && GroupDesc.bUseHairRaytracingGeometry) ||
 				(Instance->Strands.RenRaytracingResource != nullptr && !GroupDesc.bUseHairRaytracingGeometry);
 			if (bRecreate)
@@ -2867,7 +2867,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, LODBias) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, bUseStableRasterization) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, bScatterSceneLighting))
-	{	
+	{
 		UpdateHairGroupsDescAndInvalidateRenderState();
 		bIsEventProcess = true;
 	}
@@ -2912,7 +2912,7 @@ void UGroomComponent::ValidateMaterials(bool bMapCheck) const
 {
 	if (!GroomAsset)
 		return;
-	
+
 	FString Name = "";
 	if (GetOwner())
 	{

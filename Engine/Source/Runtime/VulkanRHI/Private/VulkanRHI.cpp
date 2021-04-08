@@ -65,13 +65,12 @@ TAutoConsoleVariable<int32> GRHIThreadCvar(
 	TEXT("2 to use multiple RHI Thread\n")
 );
 
-int32 GVulkanInputAttachmentShaderRead = -1;
+int32 GVulkanInputAttachmentShaderRead = 0;
 static FAutoConsoleVariableRef GCVarInputAttachmentShaderRead(
 	TEXT("r.Vulkan.InputAttachmentShaderRead"),
 	GVulkanInputAttachmentShaderRead,
 	TEXT("Whether to use VK_ACCESS_SHADER_READ_BIT an input attachments to workaround rendering issues\n")
-	TEXT("-1 decide automatically (default)\n")
-	TEXT("0 use: VK_ACCESS_INPUT_ATTACHMENT_READ_BIT\n")
+	TEXT("0 use: VK_ACCESS_INPUT_ATTACHMENT_READ_BIT (default)\n")
 	TEXT("1 use: VK_ACCESS_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_SHADER_READ_BIT\n"),
 	ECVF_ReadOnly
 );
@@ -717,6 +716,7 @@ void FVulkanDynamicRHI::InitInstance()
 		// Initialize the RHI capabilities.
 		GRHISupportsFirstInstance = true;
 		GRHISupportsDynamicResolution = FVulkanPlatform::SupportsDynamicResolution();
+		GRHISupportsFrameCyclesBubblesRemoval = true;
 		GSupportsDepthBoundsTest = Device->GetPhysicalFeatures().depthBounds != 0;
 		GSupportsRenderTargetFormat_PF_G8 = false;	// #todo-rco
 		GRHISupportsTextureStreaming = true;
@@ -866,12 +866,6 @@ void FVulkanDynamicRHI::InitInstance()
 
 #endif
 
-		if (Device->GetVendorId() == EGpuVendorId::Qualcomm && GVulkanInputAttachmentShaderRead == -1)
-		{
-			GVulkanInputAttachmentShaderRead = 1;
-		}
-		UE_CLOG((GVulkanInputAttachmentShaderRead == 1), LogVulkanRHI, Display, TEXT("Using VK_ACCESS_SHADER_READ_BIT workaround for input attachments."));
-		
 		// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
 		GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
 		GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
@@ -943,7 +937,6 @@ void FVulkanCommandListContext::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,
 
 	RHI->DrawingViewport = nullptr;
 
-	ReadAndCalculateGPUFrameTime();
 	WriteBeginTimestamp(CommandBufferManager->GetActiveCmdBuffer());
 }
 
@@ -951,6 +944,8 @@ void FVulkanCommandListContext::RHIEndFrame()
 {
 	check(IsImmediate());
 	//FRCLog::Printf(FString::Printf(TEXT("FVulkanCommandListContext::RHIEndFrame()")));
+	
+	ReadAndCalculateGPUFrameTime();
 
 	GetGPUProfiler().EndFrame();
 
@@ -1710,7 +1705,8 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 			SubpassDep.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
 			if (GVulkanInputAttachmentShaderRead == 1)
 			{
-				SubpassDep.dstAccessMask|= VK_ACCESS_SHADER_READ_BIT; // this is not required, but flickers on some device without
+				// this is not required, but might flicker on some devices without
+				SubpassDep.dstAccessMask|= VK_ACCESS_SHADER_READ_BIT;
 			}
 			SubpassDep.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 		}

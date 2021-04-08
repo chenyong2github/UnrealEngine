@@ -51,13 +51,13 @@ public:
 	{}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MagicLeap")
-	EMagicLeapHeadTrackingMode Mode;
+	EMagicLeapHeadTrackingMode Mode= EMagicLeapHeadTrackingMode::Unknown;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MagicLeap")
-	EMagicLeapHeadTrackingError Error;
+	EMagicLeapHeadTrackingError Error= EMagicLeapHeadTrackingError::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MagicLeap")
-	float Confidence;
+	float Confidence=0.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -78,31 +78,31 @@ struct MAGICLEAP_API FMagicLeapGraphicsClientPerformanceInfo
 public:
 	/** The average frame start CPU to composition acquisition of the frame, in milliseconds. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
-	float FrameStartCPUCompAcquireCPUTimeMs;
+	float FrameStartCPUCompAcquireCPUTimeMs=0.0f;
 
 	/** The average frame start CPU to frame end GPU, in milliseconds. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
-	float FrameStartCPUFrameEndGPUTimeMs;
+	float FrameStartCPUFrameEndGPUTimeMs = 0.0f;
 
 	/** The average frame cadence, CPU start to CPU start, in milliseconds. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
-	float FrameStartCPUFrameStartCPUTimeMs;
+	float FrameStartCPUFrameStartCPUTimeMs = 0.0f;
 
 	/** The average frame CPU duration, in milliseconds. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
-	float FrameDurationCPUTimeMs;
+	float FrameDurationCPUTimeMs = 0.0f;
 
 	/** The average frame GPU duration, in milliseconds. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
-	float FrameDurationGPUTimeMs;
+	float FrameDurationGPUTimeMs = 0.0f;
 
 	/** The average CPU duration for internal operations per frame, in milliseconds. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
-	float FrameInternalDurationCPUTimeMs;
+	float FrameInternalDurationCPUTimeMs = 0.0f;
 
 	/** The average GPU duration for internal operations per frame, in milliseconds. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MagicLeap|Performance")
-	float FrameInternalDurationGPUTimeMs;
+	float FrameInternalDurationGPUTimeMs = 0.0f;
 };
 
 UCLASS(ClassGroup = MagicLeap)

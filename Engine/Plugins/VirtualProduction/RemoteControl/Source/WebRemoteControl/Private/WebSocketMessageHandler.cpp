@@ -488,7 +488,7 @@ bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPre
 				{
 					JsonWriter->WriteValue(TEXT("PropertyLabel"), *Property.GetLabel().ToString());
 
-					for (UObject* Object : Property.ResolveFieldOwners())
+					for (UObject* Object : Property.GetBoundObjects())
 					{
 						bHasProperty = true;
 

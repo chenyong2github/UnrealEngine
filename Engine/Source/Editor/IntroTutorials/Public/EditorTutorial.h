@@ -243,7 +243,7 @@ class INTROTUTORIALS_API UEditorTutorial : public UObject
 
 	/** Sorting priority, used by the tutorial browser */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "Tutorial")
-	int32 SortOrder;
+	int32 SortOrder=0;
 
 	/** Icon name for this tutorial, used when presented to the user in the tutorial browser. This is a name for the icon in the Slate editor style. Only used if there isn't a valid texture to use. */
 	UPROPERTY(EditAnywhere, Category="Tutorial")

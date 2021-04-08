@@ -6,9 +6,9 @@
 #include "UObject/CoreOnline.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineAchievementsInterface.h"
+#include "OnlineUserEOSPlus.h"
 
 class FOnlineSubsystemEOSPlus;
-class FUniqueNetIdEOSPlus;
 
 /**
  * Interface for mirroring platform achievements to EOS achievements
@@ -38,7 +38,7 @@ PACKAGE_SCOPE:
 	void OnAchievementUnlocked(const FUniqueNetId& PlayerId, const FString& AchievementId);
 
 private:
-	TSharedPtr<FUniqueNetIdEOSPlus> GetNetIdPlus(const FString& SourceId);
+	FUniqueNetIdEOSPlusPtr GetNetIdPlus(const FString& SourceId);
 
 	/** Reference to the owning EOS plus subsystem */
 	FOnlineSubsystemEOSPlus* EOSPlus;

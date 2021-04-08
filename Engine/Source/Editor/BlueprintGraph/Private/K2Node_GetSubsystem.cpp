@@ -12,6 +12,7 @@
 #include "Subsystems/EngineSubsystem.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
+#include "Subsystems/AudioEngineSubsystem.h"
 #include "EditorSubsystem.h"
 #include "Subsystems/SubsystemBlueprintLibrary.h"
 #include "Subsystems/EditorSubsystemBlueprintLibrary.h"
@@ -142,6 +143,10 @@ void UK2Node_GetSubsystem::ExpandNode(class FKismetCompilerContext& CompilerCont
 	{
 		Get_FunctionName = GET_FUNCTION_NAME_CHECKED(USubsystemBlueprintLibrary, GetLocalPlayerSubsystem);
 	}
+	else if (CustomClass->IsChildOf<UAudioEngineSubsystem>())
+	{
+		Get_FunctionName = GET_FUNCTION_NAME_CHECKED(USubsystemBlueprintLibrary, GetAudioEngineSubsystem);
+	}
 	else
 	{
 		CompilerContext.MessageLog.Error(*NSLOCTEXT("K2Node", "GetSubsystem_Error", "Node @@ must have a class specified.").ToString(), GetSubsystemNode);
@@ -217,6 +222,7 @@ void UK2Node_GetSubsystem::GetMenuActions(FBlueprintActionDatabaseRegistrar& Act
 	GetDerivedClasses(UGameInstanceSubsystem::StaticClass(), Subclasses);
 	GetDerivedClasses(UWorldSubsystem::StaticClass(), Subclasses);
 	GetDerivedClasses(ULocalPlayerSubsystem::StaticClass(), Subclasses);
+	GetDerivedClasses(UAudioEngineSubsystem::StaticClass(), Subclasses);
 
 	auto CustomizeCallback = [](UEdGraphNode* Node, bool bIsTemplateNode, UClass* Subclass)
 	{
@@ -257,6 +263,10 @@ FText UK2Node_GetSubsystem::GetMenuCategory() const
 	{
 		return NSLOCTEXT("K2Node", "GetSubsystem_WorldSubsystemsMenuCategory", "World Subsystems");
 	}
+	else if (CustomClass->IsChildOf<UAudioEngineSubsystem>())
+	{
+		return NSLOCTEXT("K2Node", "GetSubsystem_AudioEngineSubsystemsMenuCategory", "AudioEngine Subsystems");
+	}
 
 	return NSLOCTEXT("K2Node", "GetSubsystem_InvalidSubsystemTypeMenuCategory", "Invalid Subsystem Type");
 }
@@ -273,6 +283,10 @@ FText UK2Node_GetSubsystem::GetTooltipText() const
 		else if (CustomClass->IsChildOf<UWorldSubsystem>())
 		{
 			SubsystemTypeText = NSLOCTEXT("K2Node", "GetSubsystem_WorldSubsystemTooltip", "World Subsystem");
+		}
+		else if (CustomClass->IsChildOf<UAudioEngineSubsystem>())
+		{
+			SubsystemTypeText = NSLOCTEXT("K2Node", "GetSubsystem_AudioEngineSubsystemTooltip", "AudioEngine Subsystem");
 		}
 		else
 		{

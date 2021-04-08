@@ -28,7 +28,7 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 
 	if ( InUsdStageActor )
 	{
-		InUsdStageActor->GetUsdListener().GetOnStageInfoChanged().AddSP(this, &SUsdStageInfo::OnStageInfoChanged );
+		InUsdStageActor->GetUsdListener().GetOnObjectsChanged().AddSP(this, &SUsdStageInfo::OnObjectsChanged );
 	}
 
 	ChildSlot
@@ -102,7 +102,7 @@ SUsdStageInfo::~SUsdStageInfo()
 {
 	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
 	{
-		StageActor->GetUsdListener().GetOnStageInfoChanged().RemoveAll( this );
+		StageActor->GetUsdListener().GetOnObjectsChanged().RemoveAll( this );
 	}
 }
 
@@ -118,9 +118,31 @@ FText SUsdStageInfo::GetMetersPerUnit() const
 	}
 }
 
-void SUsdStageInfo::OnStageInfoChanged( const TArray<FString>& ChangedFields )
+void SUsdStageInfo::OnObjectsChanged( const UsdUtils::FObjectChangesByPath& InfoChanges, const UsdUtils::FObjectChangesByPath& ResyncChanges )
 {
-	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
+	bool bHasStageChanges = false;
+	for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& Change : InfoChanges )
+	{
+		if ( Change.Key == TEXT( "/" ) )
+		{
+			bHasStageChanges = true;
+			break;
+		}
+	}
+	if ( !bHasStageChanges )
+	{
+		for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& Change : ResyncChanges )
+		{
+			if ( Change.Key == TEXT( "/" ) )
+			{
+				bHasStageChanges = true;
+				break;
+			}
+		}
+	}
+
+	AUsdStageActor* StageActor = UsdStageActor.Get();
+	if ( bHasStageChanges && StageActor )
 	{
 		RefreshStageInfos( StageActor );
 	}

@@ -299,6 +299,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 		FViewInfo& View = Views[ViewIndex];
 		FForwardLightData& ForwardLightData = View.ForwardLightingResources->ForwardLightData;
 		ForwardLightData = FForwardLightData();
+		View.ForwardLightingResources->SelectedForwardDirectionalLightProxy = nullptr;
 
 		TArray<FForwardLocalLightData, SceneRenderingAllocator> ForwardLocalLightData;
 		TArray<int32, SceneRenderingAllocator>  LocalLightVisibleLightInfosIndex;
@@ -445,7 +446,8 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 
 						float VolumetricScatteringIntensity = LightProxy->GetVolumetricScatteringIntensity();
 
-						if (LightNeedsSeparateInjectionIntoVolumetricFog(LightSceneInfo, VisibleLightInfos[LightSceneInfo->Id]))
+						if (LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(LightSceneInfo, VisibleLightInfos[LightSceneInfo->Id]) 
+							|| (LightNeedsSeparateInjectionIntoVolumetricFogForLightFunction(LightSceneInfo) && CheckForLightFunction(LightSceneInfo)))
 						{
 							// Disable this lights forward shading volumetric scattering contribution
 							VolumetricScatteringIntensity = 0;
@@ -474,6 +476,8 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 					}
 					else if (SortedLightInfo.SortKey.Fields.LightType == LightType_Directional && ViewFamily.EngineShowFlags.DirectionalLights)
 					{
+						View.ForwardLightingResources->SelectedForwardDirectionalLightProxy = LightProxy;
+
 						ForwardLightData.HasDirectionalLight = 1;
 						ForwardLightData.DirectionalLightColor = LightParameters.Color;
 						ForwardLightData.DirectionalLightVolumetricScatteringIntensity = LightProxy->GetVolumetricScatteringIntensity();

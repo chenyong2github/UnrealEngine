@@ -156,14 +156,22 @@ class FComposeSeparateTranslucencyPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FComposeSeparateTranslucencyPS);
 	SHADER_USE_PARAMETER_STRUCT(FComposeSeparateTranslucencyPS, FGlobalShader);
 
+	class FNearestDepthNeighborUpsampling : SHADER_PERMUTATION_INT("PERMUTATION_NEARESTDEPTHNEIGHBOR", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FNearestDepthNeighborUpsampling>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector4, SeparateTranslucencyBilinearUVMinMax)
+		SHADER_PARAMETER(FVector2D, LowResExtentInverse)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparateTranslucency)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SeparateTranslucencySampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparateModulation)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SeparateModulationSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LowResDepthTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LowResDepthSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FullResDepthTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, FullResDepthSampler)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -176,7 +184,9 @@ class FComposeSeparateTranslucencyPS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FComposeSeparateTranslucencyPS, "/Engine/Private/ComposeSeparateTranslucency.usf", "MainPS", SF_Pixel);
 
-FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColor, const FSeparateTranslucencyTextures& SeparateTranslucencyTextures)
+extern bool GetUseTranslucencyNearestDepthNeighborUpsample(float DownsampleScale);
+
+FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth, const FSeparateTranslucencyTextures& SeparateTranslucencyTextures)
 {
 	// if nothing is rendered into the separate translucency, then just return the existing Scenecolor
 	if (!SeparateTranslucencyTextures.IsColorValid() && !SeparateTranslucencyTextures.IsColorModulateValid())
@@ -197,12 +207,15 @@ FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder,
 
 	const FIntRect SeparateTranslucencyRect = SeparateTranslucencyTextures.GetDimensions().GetViewport(View.ViewRect).Rect;
 	const bool bScaleSeparateTranslucency = SeparateTranslucencyRect != View.ViewRect;
+	const float SeparateTranslucencyExtentXInv = 1.0f / float(SeparateTranslucency->Desc.Extent.X);
+	const float SeparateTranslucencyExtentYInv = 1.0f / float(SeparateTranslucency->Desc.Extent.Y);
 
 	FComposeSeparateTranslucencyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeSeparateTranslucencyPS::FParameters>();
-	PassParameters->SeparateTranslucencyBilinearUVMinMax.X = (SeparateTranslucencyRect.Min.X + 0.5f) / float(SeparateTranslucency->Desc.Extent.X);
-	PassParameters->SeparateTranslucencyBilinearUVMinMax.Y = (SeparateTranslucencyRect.Min.Y + 0.5f) / float(SeparateTranslucency->Desc.Extent.Y);
-	PassParameters->SeparateTranslucencyBilinearUVMinMax.Z = (SeparateTranslucencyRect.Max.X - 0.5f) / float(SeparateTranslucency->Desc.Extent.X);
-	PassParameters->SeparateTranslucencyBilinearUVMinMax.W = (SeparateTranslucencyRect.Max.Y - 0.5f) / float(SeparateTranslucency->Desc.Extent.Y);
+	PassParameters->SeparateTranslucencyBilinearUVMinMax.X = (SeparateTranslucencyRect.Min.X + 0.5f) * SeparateTranslucencyExtentXInv;
+	PassParameters->SeparateTranslucencyBilinearUVMinMax.Y = (SeparateTranslucencyRect.Min.Y + 0.5f) * SeparateTranslucencyExtentYInv;
+	PassParameters->SeparateTranslucencyBilinearUVMinMax.Z = (SeparateTranslucencyRect.Max.X - 0.5f) * SeparateTranslucencyExtentXInv;
+	PassParameters->SeparateTranslucencyBilinearUVMinMax.W = (SeparateTranslucencyRect.Max.Y - 0.5f) * SeparateTranslucencyExtentYInv;
+	PassParameters->LowResExtentInverse = FVector2D(SeparateTranslucencyExtentXInv, SeparateTranslucencyExtentYInv);
 	PassParameters->SceneColor = SceneColor;
 	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	PassParameters->SeparateTranslucency = SeparateTranslucency;
@@ -212,7 +225,16 @@ FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder,
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(NewSceneColor, ERenderTargetLoadAction::ENoAction);
 
-	TShaderMapRef<FComposeSeparateTranslucencyPS> PixelShader(View.ShaderMap);
+	PassParameters->LowResDepthTexture = SeparateTranslucencyTextures.GetDepthForRead(GraphBuilder);
+	PassParameters->LowResDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	PassParameters->FullResDepthTexture = SceneDepth;
+	PassParameters->FullResDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+	FComposeSeparateTranslucencyPS::FPermutationDomain PermutationVector;
+	const float DownsampleScale = float(SeparateTranslucency->Desc.Extent.X) / float(SceneColor->Desc.Extent.X);
+	PermutationVector.Set<FComposeSeparateTranslucencyPS::FNearestDepthNeighborUpsampling>(GetUseTranslucencyNearestDepthNeighborUpsample(DownsampleScale) ? 1 : 0);
+
+	TShaderMapRef<FComposeSeparateTranslucencyPS> PixelShader(View.ShaderMap, PermutationVector);
 	FPixelShaderUtils::AddFullscreenPass(
 		GraphBuilder,
 		View.ShaderMap,
@@ -495,7 +517,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			// DOF passes were not added, therefore need to compose Separate translucency manually.
 			if (LocalSceneColorTexture == SceneColor.Texture)
 			{
-				LocalSceneColorTexture = AddSeparateTranslucencyCompositionPass(GraphBuilder, View, SceneColor.Texture, *Inputs.SeparateTranslucencyTextures);
+				LocalSceneColorTexture = AddSeparateTranslucencyCompositionPass(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture, *Inputs.SeparateTranslucencyTextures);
 			}
 
 			SceneColor.Texture = LocalSceneColorTexture;
@@ -833,7 +855,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		PassSequence.SetEnabled(EPass::VisualizeDepthOfField, false);
 		PassSequence.Finalize();
 
-		SceneColor.Texture = AddSeparateTranslucencyCompositionPass(GraphBuilder, View, SceneColor.Texture, *Inputs.SeparateTranslucencyTextures);
+		SceneColor.Texture = AddSeparateTranslucencyCompositionPass(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture, *Inputs.SeparateTranslucencyTextures);
 
 		SceneColorBeforeTonemap = SceneColor;
 

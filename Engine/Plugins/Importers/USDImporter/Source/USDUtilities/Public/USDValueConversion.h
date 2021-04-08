@@ -10,6 +10,8 @@
 namespace UE
 {
 	class FVtValue;
+	class FUsdStage;
+	class FSdfLayer;
 }
 
 namespace UsdUtils
@@ -72,10 +74,9 @@ namespace UsdUtils
 	{
 		TArray<FConvertedVtValueEntry> Entries;
 
-		// Note that for a VtArray<float> the SourceType would be Float, and IsArray would be true
 		EUsdBasicDataTypes SourceType = EUsdBasicDataTypes::None;
-
-		bool IsArrayValued() const { return Entries.Num() > 1; }
+		bool bIsArrayValued = false;
+		bool bIsEmpty = false;  // Helps differentiating between empty arrays and having actually no value
 	};
 }
 
@@ -94,6 +95,16 @@ namespace UnrealToUsd
 
 namespace UsdUtils
 {
+	/** Uses USD to stringify the underlying pxr::VtValue */
 	USDUTILITIES_API FString Stringify( const UE::FVtValue& Value );
+
+	/**
+	 * Returns the name of the SdfValueTypeName object for the type of Value
+	 *
+	 * Note that this is the "Value type token" (e.g. will be something like 'matrix4d' or 'double2', and not 'GfMatrix4d' or 'GfVec2d')
+	 * Note that this may not be the correct SdfValueTypeName for the *attribute*, it's just the implied type of the value (e.g. for an
+	 * attribute with SdfValueTypeName 'normal3d', it's VtValues would have underlying type 'GfVec3d', and so this function would return 'double3')
+	 */
+	USDUTILITIES_API FString GetImpliedTypeName( const UE::FVtValue& Value );
 }
 

@@ -151,6 +151,27 @@ namespace UE_NetConnectionPrivate
 		return FMath::TruncToInt((ClockTimeInSeconds - FMath::FloorToDouble(ClockTimeInSeconds)) * 1000.0);
 	}
 	
+	// Attempts to add two values while detecting and preventing 32-bit signed integer overflow and underflow, used for QueuedBits.
+	// Returns true if an overflow would have occurred, false if not.
+	bool Add_DetectOverflow_Clamp(int64 Original, int64 Change, int32& Result)
+	{
+		const int64 Result64 = Original + Change;
+
+		if (Result64 > std::numeric_limits<int32>::max())
+		{
+			Result = std::numeric_limits<int32>::max();
+			return true;
+		}
+
+		if (Result64 < std::numeric_limits<int32>::min())
+		{
+			Result = std::numeric_limits<int32>::min();
+			return true;
+		}
+
+		Result = static_cast<int32>(Result64);
+		return false;
+	}
 }
 
 // ChannelRecord Implementation
@@ -1571,7 +1592,12 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		
 		++OutPacketId; 
 
-		QueuedBits += (PacketBytes * 8);
+		int32 NewQueuedBits = 0;
+		const bool bWouldOverflow = UE_NetConnectionPrivate::Add_DetectOverflow_Clamp(QueuedBits, PacketBytes * 8, NewQueuedBits);
+		
+		ensureMsgf(!bWouldOverflow, TEXT("UNetConnection::FlushNet: QueuedBits overflow detected! QueuedBits: %d, PacketBytes: %d"), QueuedBits, PacketBytes);
+
+		QueuedBits = NewQueuedBits;
 
 		OutBytes += PacketBytes;
 		OutTotalBytes += PacketBytes;
@@ -3697,11 +3723,27 @@ void UNetConnection::Tick(float DeltaSeconds)
 	}
 
 	float DeltaBits = CurrentNetSpeed * BandwidthDeltaTime * 8.f;
-	QueuedBits -= FMath::TruncToInt(DeltaBits);
-	float AllowedLag = 2.f * DeltaBits;
-	if (QueuedBits < -AllowedLag)
+
+	int32 NewQueuedBits = 0;
+	const int64 DeltaQueuedBits = -FMath::TruncToInt(DeltaBits);
+	const bool bWouldOverflow = UE_NetConnectionPrivate::Add_DetectOverflow_Clamp(QueuedBits, DeltaQueuedBits, NewQueuedBits);
+
+	ensureMsgf(!bWouldOverflow, TEXT("UNetConnection::Tick: QueuedBits overflow detected! QueuedBits: %d, change: %lld, BandwidthDeltaTime: %.4f, DesiredTickRate: %.2f"),
+		QueuedBits, DeltaQueuedBits, BandwidthDeltaTime, DesiredTickRate);
+
+	QueuedBits = NewQueuedBits;
+
+	const int64 AllowedLag = 2 * DeltaQueuedBits;
+	
+	if (QueuedBits < AllowedLag)
 	{
-		QueuedBits = FMath::TruncToInt(-AllowedLag);
+		int32 NewAllowedLag = 0;
+		const bool bAllowedLagOverflow = UE_NetConnectionPrivate::Add_DetectOverflow_Clamp(0, AllowedLag, NewAllowedLag);
+
+		ensureMsgf(!bAllowedLagOverflow, TEXT("UNetConnection::Tick: AllowedLag overflow detected! AllowedLag: %lld, BandwidthDeltaTime: %.4f, DesiredTickRate: %.2f"),
+			AllowedLag, BandwidthDeltaTime, DesiredTickRate);
+
+		QueuedBits = NewAllowedLag;
 	}
 
 	bFlushedNetThisFrame = false;

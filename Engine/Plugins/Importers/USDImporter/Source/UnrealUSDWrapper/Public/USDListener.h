@@ -6,22 +6,87 @@
 #include "Containers/Map.h"
 #include "Delegates/Delegate.h"
 
+#include "UsdWrappers/VtValue.h"
+
 class FUsdListenerImpl;
 
 namespace UE
 {
 	class FUsdStage;
-	class FVtValue;
 }
 
 namespace UsdUtils
 {
+	/** Analogous to pxr::SdfChangeList::Entry::_Flags */
+	struct FPrimChangeFlags
+	{
+		bool bDidChangeIdentifier : 1;
+		bool bDidChangeResolvedPath : 1;
+		bool bDidReplaceContent : 1;
+		bool bDidReloadContent : 1;
+		bool bDidReorderChildren : 1;
+		bool bDidReorderProperties : 1;
+		bool bDidRename : 1;
+		bool bDidChangePrimVariantSets : 1;
+		bool bDidChangePrimInheritPaths : 1;
+		bool bDidChangePrimSpecializes : 1;
+		bool bDidChangePrimReferences : 1;
+		bool bDidChangeAttributeTimeSamples : 1;
+		bool bDidChangeAttributeConnection : 1;
+		bool bDidChangeRelationshipTargets : 1;
+		bool bDidAddTarget : 1;
+		bool bDidRemoveTarget : 1;
+		bool bDidAddInertPrim : 1;
+		bool bDidAddNonInertPrim : 1;
+		bool bDidRemoveInertPrim : 1;
+		bool bDidRemoveNonInertPrim : 1;
+		bool bDidAddPropertyWithOnlyRequiredFields : 1;
+		bool bDidAddProperty : 1;
+		bool bDidRemovePropertyWithOnlyRequiredFields : 1;
+		bool bDidRemoveProperty : 1;
+
+		FPrimChangeFlags()
+		{
+			FMemory::Memset( this, 0, sizeof( *this ) );
+		}
+	};
+
 	/**
-	 * Maps from prim property paths to the values stored by those fields. "/" signifies the property is actually stage metadata, like metersPerUnit or upAxis.
-	 * Note that for consistency we *always* have a field token at the end (almost always ".default", but can be "variability", "timeSamples", etc.).
-	 * Example keys: "/Root/MyPrim.some_field.timeSamples", "/Root/Parent/SomePrim.kind.default", "/.metersPerUnit.default", "/.upAxis.default", etc.
+	 * Analogous to pxr::SdfChangeList::Entry::InfoChange, describes a change to an attribute.
+	 * Here we break off PropertyName and Field for simplicity
 	 */
-	using FUsdFieldValueMap = TMap<FString, UE::FVtValue>;
+	struct FAttributeChange
+	{
+		FString PropertyName;	// metersPerUnit, kind, upAxis, etc.
+		FString Field;			// default, variability, timeSamples, etc.
+		UE::FVtValue OldValue;	// Can be empty when we create a new attribute opinion
+		UE::FVtValue NewValue;	// Can be empty when we clear an existing attribute opinion
+	};
+
+	/** Analogous to pxr::SdfChangeList::SubLayerChangeType, describes a change to a sublayer */
+	enum ESubLayerChangeType
+	{
+		SubLayerAdded,
+		SubLayerRemoved,
+		SubLayerOffset
+	};
+
+	/** Analogous to pxr::SdfChangeList::Entry, describes a generic change to an object */
+	struct FObjectChangeNotice
+	{
+		TArray<FAttributeChange> AttributeChanges;
+		FPrimChangeFlags Flags;
+		FString OldPath;							// Empty if Flags.bDidRename is not set
+		FString OldIdentifier;						// Empty if Flags.bDIdChangeIdentifier is not set
+		TArray<TPair<FString, ESubLayerChangeType>> SubLayerChanges;
+	};
+
+	/**
+	 * Describes USD object changes by object path.
+	 * The only difference to the USD data structures is that we store them by object path here for convenience, so
+	 * the key can be "/" to signify a stage change, or something like "/MyRoot/SomePrim" to indicate a particular prim change
+	 */
+	using FObjectChangesByPath = TMap<FString, TArray<FObjectChangeNotice>>;
 }
 
 /**
@@ -53,17 +118,19 @@ public:
 
 	using FPrimsChangedList = TMap< FString, bool >;
 	DECLARE_EVENT_OneParam( FUsdListener, FOnPrimsChanged, const FPrimsChangedList& );
+	UE_DEPRECATED( 4.27, "This event is deprecated, prefer FOnObjectsChanged instead" )
 	FOnPrimsChanged& GetOnPrimsChanged();
 
 	using FStageChangedFields = TArray< FString >;
 	DECLARE_EVENT_OneParam( FUsdListener, FOnStageInfoChanged, const FStageChangedFields& );
+	UE_DEPRECATED( 4.27, "This event is deprecated, prefer FOnObjectsChanged instead (stage changes are the same as changes to the pseudoroot a.k.a. '/')" )
 	FOnStageInfoChanged& GetOnStageInfoChanged();
 
 	DECLARE_EVENT_OneParam( FUsdListener, FOnLayersChanged, const TArray< FString >& );
 	FOnLayersChanged& GetOnLayersChanged();
 
-	DECLARE_EVENT_TwoParams( FUsdListener, FOnFieldsChanged, const UsdUtils::FUsdFieldValueMap& /** OldValues */, const UsdUtils::FUsdFieldValueMap& /** NewValues */ );
-	FOnFieldsChanged& GetOnFieldsChanged();
+	DECLARE_EVENT_TwoParams( FUsdListener, FOnObjectsChanged, const UsdUtils::FObjectChangesByPath& /* InfoChanges */, const UsdUtils::FObjectChangesByPath& /* ResyncChanges */ );
+	FOnObjectsChanged& GetOnObjectsChanged();
 
 private:
 	TUniquePtr< FUsdListenerImpl > Impl;

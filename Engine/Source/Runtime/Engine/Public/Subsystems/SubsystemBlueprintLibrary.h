@@ -7,6 +7,7 @@
 #include "Subsystems/EngineSubsystem.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
+#include "Subsystems/AudioEngineSubsystem.h"
 
 #include "SubsystemBlueprintLibrary.generated.h"
 
@@ -32,6 +33,10 @@ public:
 	/** Get a World Subsystem from the World associated with the provided context */
 	UFUNCTION(BlueprintPure, Category = "GameInstance Subsystems", meta = (WorldContext = "ContextObject", BlueprintInternalUseOnly = "true"))
 	static UWorldSubsystem* GetWorldSubsystem(UObject* ContextObject, TSubclassOf<UWorldSubsystem> Class);
+
+	/** Get an AudioEngine Subsystem from the AudioDevice associated with the provided context */
+	UFUNCTION(BlueprintPure, Category = "AudioEngine Subsystems", meta = (WorldContext = "ContextObject", BlueprintInternalUseOnly = "true"))
+	static UAudioEngineSubsystem* GetAudioEngineSubsystem(UObject* ContextObject, TSubclassOf<UAudioEngineSubsystem> Class);
 
 	/** 
 	 * Get a Local Player Subsystem from the LocalPlayer associated with the provided context

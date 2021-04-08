@@ -619,7 +619,7 @@ void FOnlineSessionEOS::OnLobbyMemberUpdateReceived(const EOS_LobbyId& LobbyId, 
 			FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
 			if (Session)
 			{
-				TSharedPtr<const FUniqueNetId> UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
+				FUniqueNetIdPtr UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
 
 				if (Session->SessionSettings.MemberSettings.Contains(UniqueNetId->AsShared()))
 				{
@@ -672,7 +672,7 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
 						if (Session)
 						{
-							TSharedPtr<const FUniqueNetId> UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
+							FUniqueNetIdPtr UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
 
 							RegisterPlayer(Session->SessionName, *UniqueNetId, false);
 
@@ -698,7 +698,7 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
 						if (Session)
 						{
-							TSharedPtr<const FUniqueNetId> UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
+							FUniqueNetIdPtr UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
 
 							UnregisterPlayer(Session->SessionName, *UniqueNetId);
 
@@ -725,8 +725,8 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						{
 							int32 DefaultLocalUser = EOSSubsystem->UserManager->GetDefaultLocalUser();
 
-							TSharedPtr<const FUniqueNetId> RemovedUserNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
-							TSharedPtr<const FUniqueNetId> LocalPlayerNetId = EOSSubsystem->UserManager->GetUniquePlayerId(DefaultLocalUser);
+							FUniqueNetIdPtr RemovedUserNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
+							FUniqueNetIdPtr LocalPlayerNetId = EOSSubsystem->UserManager->GetUniquePlayerId(DefaultLocalUser);
 
 							if (*LocalPlayerNetId == *RemovedUserNetId)
 							{
@@ -750,8 +750,8 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						{
 							int32 DefaultLocalUser = EOSSubsystem->UserManager->GetDefaultLocalUser();
 
-							TSharedPtr<const FUniqueNetId> NewOwnerUniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
-							TSharedPtr<const FUniqueNetId> LocalPlayerUniqueNetId = EOSSubsystem->UserManager->GetUniquePlayerId(DefaultLocalUser);
+							FUniqueNetIdPtr NewOwnerUniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
+							FUniqueNetIdPtr LocalPlayerUniqueNetId = EOSSubsystem->UserManager->GetUniquePlayerId(DefaultLocalUser);
 
 							if (*LocalPlayerUniqueNetId == *NewOwnerUniqueNetId)
 							{
@@ -3626,7 +3626,7 @@ void FOnlineSessionEOS::AddLobbySearchResult(EOS_HLobbyDetails LobbyDetailsHandl
 
 			EOSSubsystem->UserManager->GetEpicAccountIdAsync(TargetUserId, [this, LobbyDetailsHandle, &SearchResult](const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& EpicAccountId)
 				{
-					TSharedPtr<const FUniqueNetId> UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
+					FUniqueNetIdPtr UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
 
 					if (!SearchResult.Session.SessionSettings.MemberSettings.Contains(UniqueNetId->AsShared()))
 					{

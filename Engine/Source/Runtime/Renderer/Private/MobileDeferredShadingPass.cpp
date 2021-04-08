@@ -89,14 +89,15 @@ class FMobileDirectLightFunctionPS : public FMaterialShader
 		return true;
 	}
 
-	static FPermutationDomain BuildPermutationVector(const FViewInfo& View)
+	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bDirectionalLight)
 	{
+		bool bUseClustered = bDirectionalLight && GMobileUseClusteredDeferredShading != 0;
 		bool bApplySky = View.Family->EngineShowFlags.SkyLighting;
-		int32 ShadowQuality = (int32)GetShadowQuality();
+		int32 ShadowQuality = bDirectionalLight ? (int32)GetShadowQuality() : 0;
 		int32 NumReflectionCaptures = View.NumBoxReflectionCaptures + View.NumSphereReflectionCaptures;
-
+		
 		FPermutationDomain PermutationVector;
-		PermutationVector.Set<FMobileDirectLightFunctionPS::FUseClustred>(GMobileUseClusteredDeferredShading != 0);
+		PermutationVector.Set<FMobileDirectLightFunctionPS::FUseClustred>(bUseClustered);
 		PermutationVector.Set<FMobileDirectLightFunctionPS::FApplySkyReflection>(bApplySky);
 		PermutationVector.Set<FMobileDirectLightFunctionPS::FApplyCSM>(ShadowQuality > 0);
 		PermutationVector.Set<FMobileDirectLightFunctionPS::FApplyReflection>(NumReflectionCaptures > 0);
@@ -209,11 +210,6 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	{
 		DirectionalLight = Scene.MobileDirectionalLights[ChannelIdx];
 	}
-	
-	if (DirectionalLight == nullptr)
-	{
-		return;
-	}
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -231,11 +227,11 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	
 	const FMaterialRenderProxy* LightFunctionMaterialProxy = nullptr;
-	if (View.Family->EngineShowFlags.LightFunctions)
+	if (View.Family->EngineShowFlags.LightFunctions && DirectionalLight)
 	{
 		LightFunctionMaterialProxy = DirectionalLight->Proxy->GetLightFunctionMaterial();
 	}
-	FMobileDirectLightFunctionPS::FPermutationDomain PermutationVector = FMobileDirectLightFunctionPS::BuildPermutationVector(View);
+	FMobileDirectLightFunctionPS::FPermutationDomain PermutationVector = FMobileDirectLightFunctionPS::BuildPermutationVector(View, DirectionalLight != nullptr);
 	FCachedLightMaterial LightMaterial;
 	TShaderRef<FMobileDirectLightFunctionPS> PixelShader;
 	GetLightMaterial(DefaultLightMaterial, LightFunctionMaterialProxy, PermutationVector.ToDimensionValueId(), LightMaterial, PixelShader);
@@ -264,12 +260,15 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	}
 	PassParameters.PlanarReflection = TUniformBufferRef<FPlanarReflectionUniformParameters>::CreateUniformBufferImmediate(PlanarReflectionUniformParameters, UniformBuffer_SingleDraw);
 
-	const bool bUseMovableLight = DirectionalLight && !DirectionalLight->Proxy->HasStaticShadowing();
-	PassParameters.LightFunctionParameters2 = FVector(DirectionalLight->Proxy->GetLightFunctionFadeDistance(), DirectionalLight->Proxy->GetLightFunctionDisabledBrightness(), bUseMovableLight ? 1.0f : 0.0f);
-	const FVector Scale = DirectionalLight->Proxy->GetLightFunctionScale();
-	// Switch x and z so that z of the user specified scale affects the distance along the light direction
-	const FVector InverseScale = FVector(1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X);
-	PassParameters.WorldToLight = DirectionalLight->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));
+	if (DirectionalLight)
+	{
+		const bool bUseMovableLight = DirectionalLight && !DirectionalLight->Proxy->HasStaticShadowing();
+		PassParameters.LightFunctionParameters2 = FVector(DirectionalLight->Proxy->GetLightFunctionFadeDistance(), DirectionalLight->Proxy->GetLightFunctionDisabledBrightness(), bUseMovableLight ? 1.0f : 0.0f);
+		const FVector Scale = DirectionalLight->Proxy->GetLightFunctionScale();
+		// Switch x and z so that z of the user specified scale affects the distance along the light direction
+		const FVector InverseScale = FVector(1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X);
+		PassParameters.WorldToLight = DirectionalLight->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));
+	}
 	FMobileDirectLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, LightMaterial.MaterialProxy, *LightMaterial.Material, PassParameters);
 	
 	RHICmdList.SetStencilRef(StencilRef);

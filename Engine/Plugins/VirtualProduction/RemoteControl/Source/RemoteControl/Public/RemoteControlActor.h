@@ -31,7 +31,24 @@ struct REMOTECONTROL_API FRemoteControlActor : public FRemoteControlEntity
 			Path = InBindings[0]->Resolve();
 		}
 	}
+	
+	//~	Begin RemoteControlEntityInterface 
+	virtual void BindObject(UObject* InObjectToBind) override
+	{
+		if (InObjectToBind && InObjectToBind->IsA<AActor>())
+		{
+			SetActor(CastChecked<AActor>(InObjectToBind));
+		}
+	}
 
+	virtual uint32 GetUnderlyingEntityIdentifier() const override
+	{
+		return GetTypeHash(Path);
+	}
+	
+    virtual UClass* GetSupportedBindingClass() const override { return AActor::StaticClass(); }
+	//~ End RemoteControlEntityInterface
+	
 	AActor* GetActor() const
 	{
 		if (Bindings.Num() && Bindings[0].IsValid())

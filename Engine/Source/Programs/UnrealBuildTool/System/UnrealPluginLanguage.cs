@@ -391,6 +391,9 @@ namespace UnrealBuildTool
 	 * 	<!-- optional additions to GameActivity onCreate metadata reading in GameActivity.java -->
 	 * 	<gameActivityReadMetadata> </gameActivityReadMetadata>
 	 * 
+	 * 	<!-- optional additions to the very earliest point in GameActivity onCreate in GameActivity.java -->
+	 *	<gameActivityOnCreateBeginningAdditions> </gameActivityOnCreateBeginningAdditions>
+	 *	
 	 *	<!-- optional additions to GameActivity onCreate in GameActivity.java -->
 	 *	<gameActivityOnCreateAdditions> </gameActivityOnCreateAdditions>
 	 * 	

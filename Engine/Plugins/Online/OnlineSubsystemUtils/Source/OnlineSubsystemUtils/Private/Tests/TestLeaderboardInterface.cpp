@@ -101,6 +101,98 @@ void FTestLeaderboardInterface::Test(UWorld* InWorld, const FString& InLeaderboa
 	Columns = MoveTemp(InColumns);
 }
 
+void FTestLeaderboardInterface::TestFromConfig(UWorld* InWorld)
+{
+	OnlineSub = Online::GetSubsystem(InWorld, FName(*Subsystem));
+	if (!OnlineSub)
+	{
+		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Failed to get online subsystem for %s"), *Subsystem);
+
+		bOverallSuccess = false;
+		return;
+	}
+
+	if (OnlineSub->GetIdentityInterface().IsValid())
+	{
+		UserId = OnlineSub->GetIdentityInterface()->GetUniquePlayerId(0);
+	}
+
+	// Cache interfaces
+	Leaderboards = OnlineSub->GetLeaderboardsInterface();
+	if (!Leaderboards.IsValid())
+	{
+		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Failed to get online leaderboards interface for %s"), *Subsystem);
+
+		bOverallSuccess = false;
+		return;
+	}
+
+	FString ConfigLeaderboardName;
+	FString ConfigSortedColumn;
+	TArray<FString> ConfigAllColumns;
+	TArray<FString> ConfigAllColumnTypes;
+	FString ConfigWriteColumnName;
+	FString ConfigUserLookup;
+
+	if (!GConfig->GetString(TEXT("TestLeaderboardInterface"), TEXT("LeaderboardName"), ConfigLeaderboardName, GEngineIni))
+	{
+		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Config setup for leaderboards had no LeaderboardName!"));
+		bOverallSuccess = false;
+		return;
+	}
+
+	if (!GConfig->GetString(TEXT("TestLeaderboardInterface"), TEXT("LeaderboardSortedColumn"), ConfigSortedColumn, GEngineIni))
+	{
+		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Config setup for leaderboards had no LeaderboardSortedColumn!"));
+		bOverallSuccess = false;
+		return;
+	}
+
+	if (!GConfig->GetArray(TEXT("TestLeaderboardInterface"), TEXT("LeaderboardColumns"), ConfigAllColumns, GEngineIni))
+	{
+		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Config setup for leaderboards had no LeaderboardColumns!"));
+		bOverallSuccess = false;
+		return;
+	}
+
+	if (!GConfig->GetArray(TEXT("TestLeaderboardInterface"), TEXT("LeaderboardColumnTypes"), ConfigAllColumnTypes, GEngineIni))
+	{
+		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Config setup for leaderboards had no LeaderboardColumnTypes!"));
+		bOverallSuccess = false;
+		return;
+	}
+
+	if (!GConfig->GetString(TEXT("TestLeaderboardInterface"), TEXT("LeaderboardWriteColumnName"), ConfigWriteColumnName, GEngineIni))
+	{
+		// write test is optional
+	}
+
+	if (!GConfig->GetString(TEXT("TestLeaderboardInterface"), TEXT("LeaderboardUserIdLookup"), ConfigUserLookup, GEngineIni))
+	{
+		// user id lookup is optional
+	}
+
+	if(ConfigAllColumns.Num() != ConfigAllColumnTypes.Num())
+	{
+		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Differing numbers of columns vs column types!!"));
+		bOverallSuccess = false;
+		return;
+	}
+
+	LeaderboardName = ConfigLeaderboardName;
+	SortedColumn = ConfigSortedColumn;
+	WriteColumn = ConfigWriteColumnName;
+	FindRankUserId = ConfigUserLookup;
+	
+	for(int i = 0; i < ConfigAllColumns.Num(); i++)
+	{
+		FString& ColumnName = ConfigAllColumns[i];
+		FString& ColumnType = ConfigAllColumnTypes[i];
+
+		Columns.Add(ColumnName, EOnlineKeyValuePairDataType::FromString(ColumnType));
+	}
+}
+
 void FTestLeaderboardInterface::WriteLeaderboards()
 {
 	TestLeaderboardWrite WriteObject;
@@ -134,11 +226,11 @@ void FTestLeaderboardInterface::PrintLeaderboards()
 	for (int32 RowIdx = 0; RowIdx < ReadObject->Rows.Num(); ++RowIdx)
 	{
 		const FOnlineStatsRow& StatsRow = ReadObject->Rows[RowIdx];
-		UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("Leaderboard stats for: Nickname = %s, Rank = %d"), *StatsRow.NickName, StatsRow.Rank);
+		UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("   Leaderboard stats for: Nickname = %s, Rank = %d"), *StatsRow.NickName, StatsRow.Rank);
 
 		for (FStatsColumnArray::TConstIterator It(StatsRow.Columns); It; ++It)
 		{
-			UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("  %s = %s"), *It.Key().ToString(), *It.Value().ToString());
+			UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("     %s = %s"), *It.Key().ToString(), *It.Value().ToString());
 		}
 	}
 }
@@ -261,21 +353,35 @@ bool FTestLeaderboardInterface::Tick( float DeltaTime )
 		switch(TestPhase)
 		{
 		case 0:
-			WriteLeaderboards();
+			if(FindRankUserId.IsEmpty())
+			{
+				UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("Test will be skipping write test as a column was not provided."));
+				++TestPhase;
+				return true;
+			}
+			else
+			{
+				WriteLeaderboards();
+			}
 			break;
 		case 1:
+			UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("// Beginning FlushLeaderboards"));
 			FlushLeaderboards();
 			break;
 		case 2:
+			UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("// Beginning ReadLeaderboards (reading self)"));
 			ReadLeaderboards();
 			break;
 		case 3:
+			UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("// Beginning ReadLeaderboardsFriends"));
 			ReadLeaderboardsFriends();
 			break;
 		case 4:
+			UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("// Beginning ReadLeaderboardsRank polling users from 1 to 8"));
 			ReadLeaderboardsRank(3, 5);
 			break;
 		case 5:
+			UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("// Beginning ReadLeaderboardsUser polling all users +- 5 spaces from the local user"));
 			ReadLeaderboardsUser(*UserId, 5);
 			break;
 		case 6:
@@ -288,6 +394,7 @@ bool FTestLeaderboardInterface::Tick( float DeltaTime )
 			}
 			else
 			{
+				UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("// Beginning ReadLeaderboardsUser polling all users +- 1 from the designated user (%s)"), *FindRankUserId);
 				ReadLeaderboardsUser(1);
 			}
 		} break;

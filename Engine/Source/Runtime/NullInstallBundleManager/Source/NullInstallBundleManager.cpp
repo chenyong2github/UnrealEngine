@@ -68,6 +68,12 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return MakeValue(FInstallBundleRequestInfo());
 	}
 
+	virtual EInstallBundleResult FlushCache(FInstallBundleSourceOrCache SourceOrCache, FInstallBundleManagerFlushCacheCompleteDelegate Callback, ELogVerbosity::Type LogVerbosityOverride = ELogVerbosity::NoLogging) override
+	{
+		Callback.ExecuteIfBound();
+		return EInstallBundleResult::OK;
+	}
+
 	virtual void RequestRemoveContentOnNextInit(TArrayView<const FName> RemoveNames, TArrayView<const FName> KeepNames = TArrayView<const FName>()) override
 	{
 	}

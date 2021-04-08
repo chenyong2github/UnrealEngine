@@ -31,7 +31,7 @@ public:
 	virtual void Tick() override;
 
 private:
-	FUniqueNetIdGooglePlay UserId;
+	FUniqueNetIdGooglePlayRef UserId;
 	FOnQueryAchievementsCompleteDelegate Delegate;
 	gpg::AchievementManager::FetchAllResponse Response;
 };

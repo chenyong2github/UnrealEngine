@@ -10,6 +10,7 @@
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Algo/Find.h"
 #include "UObject/LinkerLoad.h"
+#include "Misc/NetworkVersion.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -97,8 +98,16 @@ void FByteProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, 
 }
 bool FByteProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData ) const
 {
-	Ar.SerializeBits( Data, Enum ? FMath::CeilLogTwo(Enum->GetMaxEnumValue()) : 8 );
-	return 1;
+	if (Ar.EngineNetVer() < HISTORY_ENUM_SERIALIZATION_COMPAT)
+	{
+		Ar.SerializeBits(Data, Enum ? FMath::CeilLogTwo(Enum->GetMaxEnumValue()) : 8);
+	}
+	else
+	{
+		Ar.SerializeBits(Data, GetMaxNetSerializeBits());
+	}
+
+	return true;
 }
 void FByteProperty::Serialize( FArchive& Ar )
 {
@@ -441,6 +450,14 @@ const TCHAR* FByteProperty::ImportText_Internal( const TCHAR* InBuffer, void* Da
 UEnum* FByteProperty::GetIntPropertyEnum() const
 {
 	return Enum;
+}
+
+uint64 FByteProperty::GetMaxNetSerializeBits() const
+{
+	const uint64 MaxBits = 8;
+	const uint64 DesiredBits = Enum ? FMath::CeilLogTwo64(Enum->GetMaxEnumValue() + 1) : MaxBits;
+
+	return FMath::Min(DesiredBits, MaxBits);
 }
 
 #include "UObject/DefineUPropertyMacros.h"

@@ -25,7 +25,7 @@
 	bool bOverallSuccess;
 
 	/** Logged in UserId */
-	TSharedPtr<const FUniqueNetId> UserId;
+	FUniqueNetIdPtr UserId;
 
 	/** Convenient access to the Stats interfaces */
 	IOnlineStatsPtr Stats;

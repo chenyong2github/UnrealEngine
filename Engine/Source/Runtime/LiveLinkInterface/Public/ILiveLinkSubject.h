@@ -42,6 +42,16 @@ public:
 	/** List of available translator the subject can use. */
 	virtual const TArray<ULiveLinkFrameTranslator::FWorkerSharedPtr> GetFrameTranslators() const = 0;
 
+
+	/** Whether this subject is rebroadcasted */
+	virtual bool IsRebroadcasted() const = 0;
+
+	/** When rebroadcasting, has the static data been rebroadcasted? */
+	virtual bool HasStaticDataBeenRebroadcasted() const = 0;
+
+	/** Sets the static data for this subject as rebroadcasted */
+	virtual void SetStaticDataAsRebroadcasted(const bool bInSent) = 0;
+
 protected:
 	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const = 0;
 

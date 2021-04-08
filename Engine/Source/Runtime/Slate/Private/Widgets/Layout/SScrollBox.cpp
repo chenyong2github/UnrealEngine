@@ -24,11 +24,15 @@ void SScrollPanel::Construct(const FArguments& InArgs, const TArray<SScrollBox::
 		Children.Add(InSlots[SlotIndex]);
 	}
 	Orientation = InArgs._Orientation;
+	BackPadScrolling = InArgs._BackPadScrolling;
+	FrontPadScrolling = InArgs._FrontPadScrolling;
 }
 
 void SScrollPanel::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const
 {
-	float CurChildOffset = -PhysicalOffset;
+	float ScrollPadding = Orientation == Orient_Vertical ? AllottedGeometry.GetLocalSize().Y : AllottedGeometry.GetLocalSize().X;
+	float CurChildOffset = -PhysicalOffset; 
+	CurChildOffset += BackPadScrolling ? ScrollPadding : 0;
 
 	for (int32 SlotIndex = 0; SlotIndex < Children.Num(); ++SlotIndex)
 	{
@@ -70,6 +74,11 @@ FVector2D SScrollPanel::ComputeDesiredSize(float) const
 			}
 		}
 	}
+
+	float ScrollPadding = Orientation == Orient_Vertical ? GetTickSpaceGeometry().GetLocalSize().Y : GetTickSpaceGeometry().GetLocalSize().X;
+	float& SizeSideToPad = Orientation == Orient_Vertical ? ThisDesiredSize.Y : ThisDesiredSize.X;
+	SizeSideToPad += BackPadScrolling ? ScrollPadding : 0;
+	SizeSideToPad += FrontPadScrolling ? ScrollPadding : 0;
 
 	return ThisDesiredSize;
 }
@@ -128,6 +137,8 @@ void SScrollBox::Construct( const FArguments& InArgs )
 	ConsumeMouseWheel = InArgs._ConsumeMouseWheel;
 	TickScrollDelta = 0;
 	AllowOverscroll = InArgs._AllowOverscroll;
+	BackPadScrolling = InArgs._BackPadScrolling;
+	FrontPadScrolling = InArgs._FrontPadScrolling;
 	bAnimateWheelScrolling = InArgs._AnimateWheelScrolling;
 	WheelScrollMultiplier = InArgs._WheelScrollMultiplier;
 	NavigationScrollPadding = InArgs._NavigationScrollPadding;
@@ -158,7 +169,9 @@ void SScrollBox::Construct( const FArguments& InArgs )
 
 	SAssignNew(ScrollPanel, SScrollPanel, InArgs.Slots)
 		.Clipping(InArgs._Clipping)
-		.Orientation(Orientation);
+		.Orientation(Orientation)
+		.BackPadScrolling(BackPadScrolling)
+		.FrontPadScrolling(FrontPadScrolling);
 
 	if (Orientation == Orient_Vertical)
 	{

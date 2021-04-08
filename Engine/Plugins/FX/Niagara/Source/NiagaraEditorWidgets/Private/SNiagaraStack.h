@@ -133,4 +133,6 @@ private:
 	TSharedPtr<SSearchBox> SearchBox;
 
 	TSharedPtr<FNiagaraStackCommandContext> StackCommandContext;
+
+	bool bSynchronizeExpansionPending;
 };

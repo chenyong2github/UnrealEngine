@@ -73,7 +73,7 @@ void UEnvQueryTest_Project::RunTest(FEnvQueryInstance& QueryInstance) const
 			}
 		}
 	}
-	else if (ProjectionData.TraceMode == EEnvQueryTrace::Geometry)
+	else if (ProjectionData.TraceMode == EEnvQueryTrace::GeometryByChannel || ProjectionData.TraceMode == EEnvQueryTrace::GeometryByProfile)
 	{
 		TArray<FNavLocation> Workload;
 		TArray<uint8> TraceHits;

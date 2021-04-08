@@ -51,6 +51,9 @@ public:
 	FRDGTextureMSAA GetColorModulateForWrite(FRDGBuilder& GraphBuilder);
 	FRDGTextureRef  GetColorModulateForRead(FRDGBuilder& GraphBuilder) const;
 
+	FRDGTextureMSAA GetDepthForWrite(FRDGBuilder& GraphBuilder);
+	FRDGTextureRef  GetDepthForRead(FRDGBuilder& GraphBuilder) const;
+
 	FRDGTextureMSAA GetForWrite(FRDGBuilder& GraphBuilder, ETranslucencyPass::Type TranslucencyPass);
 
 	const FSeparateTranslucencyDimensions& GetDimensions() const
@@ -62,6 +65,7 @@ private:
 	FSeparateTranslucencyDimensions Dimensions;
 	FRDGTextureMSAA ColorTexture;
 	FRDGTextureMSAA ColorModulateTexture;
+	FRDGTextureMSAA DepthTexture;
 };
 
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(Translucency);

@@ -1743,6 +1743,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		
 		// read the configuration file (configrules.bin.png)
 		int configRulesVersion = 0;
+		variables.put("configRulesVersion", Integer.toString(configRulesVersion));
 		BufferedReader reader = null;
 		InputStream stream = getConfigRulesStream(ProjectName);
 		if (stream != null)
@@ -1783,6 +1784,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 						if (line.startsWith("// version:"))
 						{
 							configRulesVersion = Integer.parseInt(line.substring(11));
+							variables.put("configRulesVersion", Integer.toString(configRulesVersion));
+							Log.debug("ConfigRules version: " + configRulesVersion);
 						}
 						continue;
 					}
@@ -2263,12 +2266,15 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	@Override
 	public void onCreate(Bundle savedInstanceState)
 	{
+		_activity = this;
+		InternalFilesDir = getFilesDir().getAbsolutePath() + "/";
+		ExternalFilesDir = getExternalFilesDir(null).getAbsolutePath() + "/";
+		//$${gameActivityOnCreateBeginningAdditions}$$
 		Logger.RegisterCallback(this);
 
 		// Grab a reference to the asset manager
 		AssetManagerReference = this.getAssets();
 
-		_activity = this;
 		super.onCreate(savedInstanceState);
 
 		sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -2276,8 +2282,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 		gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
 
-		InternalFilesDir = getFilesDir().getAbsolutePath() + "/";
-		ExternalFilesDir = getExternalFilesDir(null).getAbsolutePath() + "/";
 
 		// disable autofill to avoid possible Android 10 crash (android.view.autofill.AutofillManager.ensureServiceClientAddedIfNeededLocked() SyncResultReceiver$TimeoutException)
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)

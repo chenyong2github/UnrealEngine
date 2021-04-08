@@ -552,7 +552,7 @@ FReply FSceneViewport::AcquireFocusAndCapture(FIntPoint MousePosition, EFocusCau
 bool FSceneViewport::IsCurrentlyGameViewport()
 {
 	// Either were game code only or were are currently play in editor.
-	return (FApp::IsGame() && !GIsEditor) || IsPlayInEditorViewport();
+	return (FApp::IsGame() && !GIsEditor && ViewportClient == GEngine->GameViewport) || IsPlayInEditorViewport();
 }
 
 FReply FSceneViewport::OnMouseButtonUp( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent )
@@ -1424,22 +1424,25 @@ bool FSceneViewport::HasFixedSize() const
 
 void FSceneViewport::SetFixedViewportSize(uint32 NewViewportSizeX, uint32 NewViewportSizeY)
 {
-	if (NewViewportSizeX > 0 && NewViewportSizeY > 0)
+	if (ViewportWidget.IsValid())
 	{
-		bForceViewportSize = true;
-		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
-		if (Window.IsValid())
+		if (NewViewportSizeX > 0 && NewViewportSizeY > 0)
 		{
-			ResizeViewport(NewViewportSizeX, NewViewportSizeY, Window->GetWindowMode());
+			bForceViewportSize = true;
+			TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
+			if (Window.IsValid())
+			{
+				ResizeViewport(NewViewportSizeX, NewViewportSizeY, Window->GetWindowMode());
+			}
 		}
-	}
-	else
-	{
-		bForceViewportSize = false;
-		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
-		if (Window.IsValid())
+		else
 		{
-			Window->Invalidate(EInvalidateWidget::PaintAndVolatility);
+			bForceViewportSize = false;
+			TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
+			if (Window.IsValid())
+			{
+				Window->Invalidate(EInvalidateWidget::PaintAndVolatility);
+			}
 		}
 	}
 }

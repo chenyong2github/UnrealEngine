@@ -615,6 +615,11 @@ double ISocketSubsystem::TranslatePacketTimestamp(const FPacketTimestamp& Timest
 	return 0.0;
 }
 
+bool ISocketSubsystem::IsRecvFromWithPktInfoSupported() const
+{
+	return false;
+}
+
 //////////////////////////////////
 // SocketSubsystem Testing
 /////////////////////////////////

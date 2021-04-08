@@ -114,9 +114,10 @@ public:
 	 * @param	ActionAsset		Action asset to perform the operation on
 	 * @param	Indices			Array of step's indices to remove.
 	 * @param	ActionIndex		Set to INDEX_NONE if the action was not removed from its owning Dataprep asset. Valid index otherwise.
+	 * @param	bDiscardParametrization If true, discrad parameterization associated with the action steps
 	 * @return  Returns true if the removal was successful, false otherwise
 	 */
-	static bool RemoveSteps(UDataprepActionAsset* ActionAsset, const TArray<int32>& Indices, int32& ActionIndex );
+	static bool RemoveSteps(UDataprepActionAsset* ActionAsset, const TArray<int32>& Indices, int32& ActionIndex, bool bDiscardParametrization = true );
 
 	/**
 	 * Helper function to remove a step from an action.
@@ -124,11 +125,12 @@ public:
 	 * 
 	 * @param	ActionAsset		Action asset to perform the operation on
 	 * @param	Index			Index of the step to remove.
+	 * @param	bDiscardParametrization If true, discrad parameterization associated with the action step
 	 * @param	ActionIndex		Set to INDEX_NONE if the action was not removed from its owning Dataprep asset. Valid index otherwise.
 	 */
-	static bool RemoveStep(UDataprepActionAsset* ActionAsset, int32 Index, int32& ActionIndex)
+	static bool RemoveStep(UDataprepActionAsset* ActionAsset, int32 Index, int32& ActionIndex, bool bDiscardParametrization = true)
 	{
-		return RemoveSteps(ActionAsset, { Index }, ActionIndex);
+		return RemoveSteps(ActionAsset, { Index }, ActionIndex, bDiscardParametrization);
 	}
 
 	class DATAPREPCORE_API FDataprepLogger : public IDataprepLogger

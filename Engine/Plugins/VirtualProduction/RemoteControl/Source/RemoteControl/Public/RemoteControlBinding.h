@@ -92,9 +92,14 @@ public:
 	 */
 	void SetBoundObject(const TSoftObjectPtr<ULevel>& Level, const TSoftObjectPtr<UObject>& BoundObject);
 
+	/**
+	 * Initialize this binding to be used with the new current level.
+	 * Copies the binding from the last successful resolve in case the level was duplicated.
+	 */
+	void InitializeForNewLevel();
+
 private:
 	TSoftObjectPtr<UObject> FindObjectFromCurrentWorld() const;
-
 
 private:
 	/**
@@ -102,6 +107,13 @@ private:
 	 */
 	UPROPERTY()
 	TMap<TSoftObjectPtr<ULevel>, TSoftObjectPtr<UObject>> BoundObjectMap;
+
+	/**
+	 * Caches the last level that had a successful resolve.
+	 * Used to decide which level to use when reinitializing this binding in a new level.
+	 */
+	UPROPERTY()
+	mutable TSoftObjectPtr<ULevel> LevelWithLastSuccessfulResolve;
 
 private:
 	/** Get the current world. */

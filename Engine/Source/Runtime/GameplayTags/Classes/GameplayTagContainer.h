@@ -209,6 +209,7 @@ protected:
 	FName TagName;
 
 	friend class UGameplayTagsManager;
+	friend class FGameplayTagRedirectors;
 	friend class FNativeGameplayTag;
 	friend struct FGameplayTagContainer;
 	friend struct FGameplayTagNode;
@@ -671,6 +672,7 @@ protected:
 	TArray<FGameplayTag> ParentTags;
 
 	friend class UGameplayTagsManager;
+	friend class FGameplayTagRedirectors;
 	friend struct FGameplayTagQuery;
 	friend struct FGameplayTagQueryExpression;
 	friend struct FGameplayTagNode;

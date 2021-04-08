@@ -116,9 +116,9 @@ FString FDMXEditorUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InE
 		int32 CountLength = Count > 0 ? (int32)FGenericPlatformMath::LogX(10.0f, Count) + 2 : 2;
 
 		// If the length of the final string will be too long, cut off the end so we can fit the number
-		if (CountLength + BaseName.Len() > NAME_SIZE)
+		if (CountLength + BaseName.Len() >= NAME_SIZE)
 		{
-			BaseName = BaseName.Left(NAME_SIZE - CountLength);
+			BaseName = BaseName.Left(NAME_SIZE - CountLength - 1);
 		}
 
 		FinalName = FString::Printf(TEXT("%s_%d"), *BaseName, Count);
@@ -227,7 +227,7 @@ bool FDMXEditorUtils::AddEntity(UDMXLibrary* InLibrary, const FString& NewEntity
 
 bool FDMXEditorUtils::ValidateEntityName(const FString& NewEntityName, const UDMXLibrary* InLibrary, UClass* InEntityClass, FText& OutReason)
 {
-	if (NewEntityName.Len() > NAME_SIZE)
+	if (NewEntityName.Len() >= NAME_SIZE)
 	{
 		OutReason = LOCTEXT("NameTooLong", "The name is too long");
 		return false;

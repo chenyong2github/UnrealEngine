@@ -67,6 +67,14 @@ public:
 	/**  Disable to stop scrollbars from activating inertial overscrolling */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
 	bool AllowOverscroll;
+
+	/** Whether to back pad this scroll box, allowing user to scroll backward until child contents are no longer visible */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
+	bool BackPadScrolling;
+
+	/** Whether to front pad this scroll box, allowing user to scroll forward until child contents are no longer visible */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
+	bool FrontPadScrolling;
 	
 	/** True to lerp smoothly when wheel scrolling along the scroll box */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")

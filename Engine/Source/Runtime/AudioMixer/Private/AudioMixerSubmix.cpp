@@ -1045,7 +1045,7 @@ namespace Audio
 		// Mix all submix audio into this submix's input scratch buffer
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixChildren);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixChildren);
+			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixChildren, (ChildSubmixes.Num() > 0));
 
 			// First loop this submix's child submixes mixing in their output into this submix's dry/wet buffers.
 			TArray<uint32> ToRemove;
@@ -1073,7 +1073,7 @@ namespace Audio
 
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSource);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSource);
+			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSource, (MixerSourceVoices.Num() > 0));
 
 			// Loop through this submix's sound sources
 			for (const auto& MixerSourceVoiceIter : MixerSourceVoices)
@@ -1394,7 +1394,7 @@ namespace Audio
 		// Mix all source sends into OutputAudio.
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldSources);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSoundfieldSources);
+			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSoundfieldSources, (MixerSourceVoices.Num() > 0));
 
 			check(SoundfieldStreams.Mixer.IsValid());
 
@@ -1425,7 +1425,7 @@ namespace Audio
 		// Run soundfield processors.
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldProcessors);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSoundfieldProcessors);
+			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSoundfieldProcessors, (SoundfieldStreams.EffectProcessors.Num() > 0));
 
 			for (auto& EffectData : SoundfieldStreams.EffectProcessors)
 			{

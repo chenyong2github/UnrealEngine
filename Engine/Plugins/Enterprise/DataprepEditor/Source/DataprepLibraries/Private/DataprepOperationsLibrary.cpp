@@ -205,6 +205,18 @@ void UDataprepOperationsLibrary::SubstituteMaterial(const TArray<UObject*>& Sele
 					}
 				}
 			}
+			else if (UMeshComponent* MeshComponent = Cast< UMeshComponent >(Object))
+			{
+				int32 MaterialCount = FMath::Max( MeshComponent->GetNumOverrideMaterials(), MeshComponent->GetNumMaterials() );
+
+				for (int32 Index = 0; Index < MaterialCount; ++Index)
+				{
+					if (MeshComponent->GetMaterial(Index) == MaterialToReplace)
+					{
+						MeshComponent->SetMaterial(Index, MaterialSubstitute);
+					}
+				}
+			}
 			else if (UStaticMesh* StaticMesh = Cast< UStaticMesh >(Object))
 			{
 				DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );

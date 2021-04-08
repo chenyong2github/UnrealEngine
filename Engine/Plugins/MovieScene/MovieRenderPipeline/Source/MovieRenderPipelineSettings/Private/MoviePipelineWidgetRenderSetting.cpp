@@ -6,6 +6,7 @@
 #include "MoviePipelineBurnInWidget.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineMasterConfig.h"
+#include "MoviePipelineBlueprintLibrary.h"
 #include "MoviePipeline.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "MoviePipelineOutputBuilder.h"
@@ -45,7 +46,7 @@ void UMoviePipelineWidgetRenderer::RenderSample_GameThreadImpl(const FMoviePipel
 		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputBuilder = GetPipeline()->OutputBuilder;
 
 		ENQUEUE_RENDER_COMMAND(BurnInRenderTargetResolveCommand)(
-			[InSampleState, BackbufferRenderTarget, OutputBuilder](FRHICommandListImmediate& RHICmdList)
+			[InSampleState, bComposite = bCompositeOntoFinalImage, BackbufferRenderTarget, OutputBuilder](FRHICommandListImmediate& RHICmdList)
 		{
 			FIntRect SourceRect = FIntRect(0, 0, BackbufferRenderTarget->GetSizeXY().X, BackbufferRenderTarget->GetSizeXY().Y);
 
@@ -62,7 +63,8 @@ void UMoviePipelineWidgetRenderer::RenderSample_GameThreadImpl(const FMoviePipel
 			FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("ViewportUI"));
 			FrameData->SampleState = InSampleState;
 			FrameData->bRequireTransparentOutput = true;
-			FrameData->SortingOrder = 4;
+			FrameData->SortingOrder = 3;
+			FrameData->bCompositeToFinalImage = bComposite;
 
 			TUniquePtr<FImagePixelData> PixelData = MakeUnique<TImagePixelData<FColor>>(InSampleState.BackbufferSize, TArray64<FColor>(MoveTemp(RawPixels)), FrameData);
 
@@ -77,7 +79,9 @@ void UMoviePipelineWidgetRenderer::SetupImpl(const MoviePipeline::FMoviePipeline
 	RenderTarget->ClearColor = FLinearColor::Transparent;
 
 	bool bInForceLinearGamma = false;
-	FIntPoint OutputResolution = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>()->OutputResolution;
+
+	FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipeline()->GetPipelineMasterConfig(), GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()]);
+
 	int32 MaxResolution = GetMax2DTextureDimension();
 	if (OutputResolution.X > MaxResolution || OutputResolution.Y > MaxResolution)
 	{
@@ -99,10 +103,3 @@ void UMoviePipelineWidgetRenderer::TeardownImpl()
 	WidgetRenderer = nullptr;
 	RenderTarget = nullptr;
 }
-
-#if WITH_EDITOR
-FText UMoviePipelineWidgetRenderer::GetFooterText(UMoviePipelineExecutorJob* InJob) const
-{ 
-	return NSLOCTEXT("MovieRenderPipeline", "WidgetRenderSetting_NoCompositeWarning", "This will render widgets added to the Viewport to a separate texture with alpha. This is currently not composited onto the final image, and will need to be combined in post.");
-}
-#endif

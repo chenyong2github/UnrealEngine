@@ -140,7 +140,7 @@ void UpdateInternalBuffer(const uint32 ElementCount, const BufferType* InputData
 
 		if(bInitField)
 		{
-			OutputBuffer.Initialize(TEXT("FPhysicsFieldResource"), sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
+			OutputBuffer.Initialize(TEXT("FPhysicsFieldResource"),sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
 		}
 
 		void* OutputData = RHILockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);

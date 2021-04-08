@@ -936,6 +936,7 @@ protected:
 	virtual int32 GetCloudSampleAltitude() override;
 	virtual int32 GetCloudSampleAltitudeInLayer() override;
 	virtual int32 GetCloudSampleNormAltitudeInLayer() override;
+	virtual int32 GetCloudSampleShadowSampleDistance() override;
 	virtual int32 GetVolumeSampleConservativeDensity() override;
 
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override;

@@ -172,6 +172,234 @@ namespace ChaosTest {
 		});
 	}
 
+	struct FRewindCallbackTestHelper : public IRewindCallback
+	{
+		FRewindCallbackTestHelper(const int32 InNumPhysicsSteps, const int32 InRewindToStep = 0)
+			: NumPhysicsSteps(InNumPhysicsSteps)
+			, RewindToStep(InRewindToStep)
+		{
+		}
+
+		virtual int32 TriggerRewindIfNeeded_Internal(int32 LatestStepCompleted) override
+		{
+			if (LatestStepCompleted + 1 == NumPhysicsSteps && bRewound == false)
+			{
+				return RewindToStep;
+			}
+
+			return INDEX_NONE;
+		}
+
+		virtual void PreResimStep_Internal(int32 Step, bool bFirst) override
+		{
+			bRewound = true;
+			PreFunc(Step);
+		}
+
+		virtual void PostResimStep_Internal(int32 Step) override
+		{
+			PostFunc(Step);
+		}
+
+		int32 NumPhysicsSteps;
+		int32 RewindToStep;
+		bool bRewound = false;
+		TFunction<void(int32)> PreFunc = [](int32) {};
+		TFunction<void(int32)> PostFunc = [](int32) {};
+	};
+
+	template <typename TSolver>
+	FRewindCallbackTestHelper* RegisterCallbackHelper(TSolver* Solver, const int32 NumPhysicsSteps, const int32 RewindTo = 0)
+	{
+		auto Callback = MakeUnique<FRewindCallbackTestHelper>(NumPhysicsSteps, RewindTo);
+		FRewindCallbackTestHelper* Result = Callback.Get();
+		Solver->SetRewindCallback(MoveTemp(Callback));
+		return Result;
+	}
+
+	GTEST_TEST(AllTraits, RewindTest_AddImpulseFromGT)
+	{
+		//We expect anything that came from GT to automatically be reapplied during rewind
+		//This is for things that come outside of the net prediction system, like a teleport
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		{
+			const int32 LastGameStep = 20;
+			FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver, FMath::TruncToInt(LastGameStep / SimDt));
+			Helper->PostFunc = [Proxy, SimDt](int32 Step)
+			{
+				const int32 GameStep = SimDt <= 1 ? Step * SimDt : (Step + 1) * SimDt;
+				if (GameStep < 5)
+				{
+					EXPECT_EQ(Proxy->GetPhysicsThreadAPI()->V()[2], 0);
+				}
+				else
+				{
+					EXPECT_EQ(Proxy->GetPhysicsThreadAPI()->V()[2], 100);
+				}
+			};
+
+			auto& Particle = Proxy->GetGameThreadAPI();
+			Particle.SetGravityEnabled(false);
+
+
+			for (int Step = 0; Step <= LastGameStep; ++Step)
+			{
+				if (Step == 5)
+				{
+					Particle.SetLinearImpulse(FVec3(0, 0, 100));
+				}
+
+				TickSolverHelper(Solver);
+			}
+		});
+	}
+
+	GTEST_TEST(AllTraits, RewindTest_DeleteFromGT)
+	{
+		//GT writes of a deleted particle should be ignored during a resim (not crash)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				const int32 LastGameStep = 20;
+				RegisterCallbackHelper(Solver, FMath::TruncToInt(LastGameStep / SimDt));
+				auto& Particle = Proxy->GetGameThreadAPI();
+				Particle.SetGravityEnabled(false);
+
+
+				for (int Step = 0; Step <= LastGameStep; ++Step)
+				{
+					if (Step == 5)
+					{
+						Particle.SetLinearImpulse(FVec3(0, 0, 100));
+					}
+
+					if(Step == 15)
+					{
+						Solver->UnregisterObject(Proxy);
+					}
+
+					TickSolverHelper(Solver);
+				}
+			});
+	}
+
+	GTEST_TEST(AllTraits, RewindTest_ResimBeforeCreation)
+	{
+		//GT creates object half way through sim - we want to make sure resim properly ignores this
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				const int32 LastGameStep = 20;
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver, FMath::TruncToInt(LastGameStep / SimDt));
+				Helper->PostFunc = [Proxy, SimDt](int32 Step)
+				{
+					//simple movement without hitting object until we hit floor, should not ever hit sphere
+					const FReal NoHitZ = 100 - (Step + 1) * SimDt * 10;
+					if (NoHitZ > 40)
+					{
+						EXPECT_EQ(Proxy->GetPhysicsThreadAPI()->X()[2], NoHitZ);
+					}
+					else
+					{
+						EXPECT_GE(Proxy->GetPhysicsThreadAPI()->X()[2], 35);	//floor should stop us (gave 5 units of error for solver)
+					}
+				};
+
+				auto& Particle = Proxy->GetGameThreadAPI();
+				Particle.SetGravityEnabled(false);
+				ChaosTest::SetParticleSimDataToCollide({ Proxy->GetParticle_LowLevel() });
+
+
+				Particle.SetX(FVec3(0, 0, 100));
+				Particle.SetV(FVec3(0, 0, -10));
+
+				auto SphereGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
+				FSingleParticlePhysicsProxy* SecondSphere = nullptr;
+
+				auto FloorGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100, -100, 0), FVec3(100, 100, 30)));
+				FSingleParticlePhysicsProxy* Floor = nullptr;
+
+				for (int Step = 0; Step <= LastGameStep; ++Step)
+				{
+					if(Step == 5)
+					{
+						// Make blocking floor
+						Floor = FSingleParticlePhysicsProxy::Create(Chaos::FGeometryParticle::CreateParticle());
+						auto& FloorParticle = Floor->GetGameThreadAPI();
+
+						FloorParticle.SetGeometry(FloorGeom);
+						Solver->RegisterObject(Floor);
+
+						ChaosTest::SetParticleSimDataToCollide({ Floor->GetParticle_LowLevel() });
+					}
+					if (Step == 15)
+					{
+						// Make particles
+						SecondSphere = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
+						auto& SecondSphereParticle = SecondSphere->GetGameThreadAPI();
+
+						SecondSphereParticle.SetGravityEnabled(false);
+						SecondSphereParticle.SetX(FVec3(0, 0, 80));	//if resim doesn't disable, this will be in the Sphere's way even though it didn't exist yet
+						SecondSphereParticle.SetGeometry(SphereGeom);
+						Solver->RegisterObject(SecondSphere);
+
+						ChaosTest::SetParticleSimDataToCollide({ SecondSphere->GetParticle_LowLevel() });
+					}
+
+					TickSolverHelper(Solver);
+				}
+
+				Solver->UnregisterObject(SecondSphere);
+				Solver->UnregisterObject(Floor);
+			});
+	}
+
+	GTEST_TEST(AllTraits, RewindTest_ResimShapeFilter)
+	{
+		//GT modifies filter after object passes through, want to make sure resim restores this state correctly
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				const int32 LastGameStep = 20;
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver, FMath::TruncToInt(LastGameStep / SimDt));
+				Helper->PostFunc = [Proxy, SimDt](int32 Step)
+				{
+					//simple movement without hitting object
+					const FReal NoHitZ = 100 - (Step + 1) * SimDt * 10;
+					EXPECT_EQ(Proxy->GetPhysicsThreadAPI()->X()[2], NoHitZ);
+				};
+
+				auto& Particle = Proxy->GetGameThreadAPI();
+				Particle.SetGravityEnabled(false);
+				ChaosTest::SetParticleSimDataToCollide({ Proxy->GetParticle_LowLevel() });
+
+
+				Particle.SetX(FVec3(0, 0, 100));
+				Particle.SetV(FVec3(0, 0, -10));
+
+				auto SphereGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
+				FSingleParticlePhysicsProxy* SecondSphere = nullptr;
+
+				// Make particles
+				SecondSphere = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
+				auto& SecondSphereParticle = SecondSphere->GetGameThreadAPI();
+
+				SecondSphereParticle.SetGravityEnabled(false);
+				SecondSphereParticle.SetX(FVec3(0, 0, 10));	//if resim doesn't reset collision, this will be in the Sphere's way
+				SecondSphereParticle.SetGeometry(SphereGeom);
+				Solver->RegisterObject(SecondSphere);
+
+				for (int Step = 0; Step <= LastGameStep; ++Step)
+				{
+					if (Step == 15)
+					{
+						//enable collision after particle passed
+						ChaosTest::SetParticleSimDataToCollide({ SecondSphere->GetParticle_LowLevel() });
+					}
+
+					TickSolverHelper(Solver);
+				}
+
+				Solver->UnregisterObject(SecondSphere);
+			});
+	}
 
 	GTEST_TEST(AllTraits, RewindTest_AddForce)
 	{
@@ -394,51 +622,6 @@ namespace ChaosTest {
 				ExpectedXZ += ExpectedVZ * SimDt;
 			}
 		});
-	}
-
-	struct FRewindCallbackTestHelper : public IRewindCallback
-	{
-		FRewindCallbackTestHelper(const int32 InNumPhysicsSteps, const int32 InRewindToStep = 0)
-			: NumPhysicsSteps(InNumPhysicsSteps)
-			, RewindToStep(InRewindToStep)
-		{
-		}
-
-		virtual int32 TriggerRewindIfNeeded_Internal(int32 LatestStepCompleted) override
-		{
-			if (LatestStepCompleted + 1 == NumPhysicsSteps && bRewound == false)
-			{
-				return RewindToStep;
-			}
-
-			return INDEX_NONE;
-		}
-
-		virtual void PreResimStep_Internal(int32 Step, bool bFirst) override
-		{
-			bRewound = true;
-			PreFunc(Step);
-		}
-
-		virtual void PostResimStep_Internal(int32 Step) override
-		{
-			PostFunc(Step);
-		}
-
-		int32 NumPhysicsSteps;
-		int32 RewindToStep;
-		bool bRewound = false;
-		TFunction<void (int32)> PreFunc;
-		TFunction<void(int32)> PostFunc;
-	};
-
-	template <typename TSolver>
-	FRewindCallbackTestHelper* RegisterCallbackHelper(TSolver* Solver, const int32 NumPhysicsSteps, const int32 RewindTo = 0)
-	{
-		auto Callback = MakeUnique<FRewindCallbackTestHelper>(NumPhysicsSteps, RewindTo);
-		FRewindCallbackTestHelper* Result = Callback.Get();
-		Solver->SetRewindCallback(MoveTemp(Callback));
-		return Result;
 	}
 
 	struct FSimCallbackHelperInput : FSimCallbackInput

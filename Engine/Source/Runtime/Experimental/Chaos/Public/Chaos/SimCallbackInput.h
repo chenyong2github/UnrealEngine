@@ -5,6 +5,10 @@
 #include "Chaos/Defines.h"
 #include "Chaos/Core.h"
 
+class FNetBitReader;
+class FNetBitWriter;
+class APlayerController;
+
 namespace Chaos
 {
 
@@ -39,9 +43,12 @@ struct FSimCallbackInput
 		NumSteps = InNumSteps;
 	}
 
+	virtual bool NetSendInputCmd(FNetBitWriter& Ar) { return false; }
+	virtual bool NetRecvInputCmd(APlayerController* PC, FNetBitReader& Ar) { return false; }
+
 protected:
 	// Do not delete directly, use FreeInputData_Internal
-	~FSimCallbackInput() = default;
+	virtual ~FSimCallbackInput() = default;
 
 private:
 	int32 NumSteps;	//the number of steps this input belongs to

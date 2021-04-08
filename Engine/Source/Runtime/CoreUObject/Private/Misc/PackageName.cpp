@@ -1375,7 +1375,9 @@ bool FPackageName::DoesPackageExist(const FPackagePath& PackagePath, const FGuid
 		*PackageReader << Summary;
 
 		// Compare Guids
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (PackageReader->IsError() || Summary.Guid != *Guid)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			return false;
 		}
@@ -1408,7 +1410,7 @@ bool FPackageName::SearchForPackageOnDisk(const FString& PackageName, FString* O
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPackageName::SearchForPackageOnDisk);
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FPackageName::SearchForPackageOnDisk"), STAT_PackageName_SearchForPackageOnDisk, STATGROUP_LoadTime);
-	
+
 	// This function may take a long time to complete, so suspend heartbeat measure while we're here
 	FSlowHeartBeatScope SlowHeartBeatScope;
 

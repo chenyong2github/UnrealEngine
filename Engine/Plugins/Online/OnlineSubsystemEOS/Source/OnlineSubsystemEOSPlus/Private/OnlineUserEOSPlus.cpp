@@ -65,7 +65,7 @@ static inline FName ToOSSName(EOSSValue OSSValue)
 	return NULL_SUBSYSTEM;
 }
 
-inline FString BuildEOSPlusStringId(TSharedPtr<const FUniqueNetId> InBaseUniqueNetId, TSharedPtr<const FUniqueNetId> InEOSUniqueNetId)
+inline FString BuildEOSPlusStringId(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId)
 {
 	FString StrId = InBaseUniqueNetId.IsValid() ? InBaseUniqueNetId->ToString() : TEXT("");
 	StrId += TEXT("_+_");
@@ -73,7 +73,7 @@ inline FString BuildEOSPlusStringId(TSharedPtr<const FUniqueNetId> InBaseUniqueN
 	return StrId;
 }
 
-FUniqueNetIdEOSPlus::FUniqueNetIdEOSPlus(TSharedPtr<const FUniqueNetId> InBaseUniqueNetId, TSharedPtr<const FUniqueNetId> InEOSUniqueNetId)
+FUniqueNetIdEOSPlus::FUniqueNetIdEOSPlus(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId)
 	: FUniqueNetIdString(BuildEOSPlusStringId(InBaseUniqueNetId, InEOSUniqueNetId))
 	, BaseUniqueNetId(InBaseUniqueNetId)
 	, EOSUniqueNetId(InEOSUniqueNetId)
@@ -200,7 +200,7 @@ FOnlineUserEOSPlus::~FOnlineUserEOSPlus()
 	}
 }
 
-TSharedPtr<FUniqueNetIdEOSPlus> FOnlineUserEOSPlus::GetNetIdPlus(const FString& SourceId)
+FUniqueNetIdEOSPlusPtr FOnlineUserEOSPlus::GetNetIdPlus(const FString& SourceId)
 {
 	if (NetIdPlusToNetIdPlus.Contains(SourceId))
 	{
@@ -217,7 +217,7 @@ TSharedPtr<FUniqueNetIdEOSPlus> FOnlineUserEOSPlus::GetNetIdPlus(const FString& 
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetBaseNetId(const FString& SourceId)
+FUniqueNetIdPtr FOnlineUserEOSPlus::GetBaseNetId(const FString& SourceId)
 {
 	if (NetIdPlusToBaseNetId.Contains(SourceId))
 	{
@@ -226,7 +226,7 @@ TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetBaseNetId(const FString& S
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetEOSNetId(const FString& SourceId)
+FUniqueNetIdPtr FOnlineUserEOSPlus::GetEOSNetId(const FString& SourceId)
 {
 	if (NetIdPlusToEOSNetId.Contains(SourceId))
 	{
@@ -315,7 +315,7 @@ void FOnlineUserEOSPlus::OnLoginComplete(int32 LocalUserNum, bool bWasSuccessful
 	}
 
 	AddPlayer(LocalUserNum);
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = LocalUserNumToNetIdPlus[LocalUserNum];
+	FUniqueNetIdEOSPlusPtr NetIdPlus = LocalUserNumToNetIdPlus[LocalUserNum];
 	check(NetIdPlus.IsValid());
 
 	TriggerOnLoginCompleteDelegates(LocalUserNum, bWasSuccessful, *NetIdPlus, Error);
@@ -333,9 +333,9 @@ void FOnlineUserEOSPlus::AddPlayer(int32 LocalUserNum)
 		RemovePlayer(LocalUserNum);
 	}
 
-	TSharedPtr<const FUniqueNetId> BaseNetId = BaseIdentityInterface->GetUniquePlayerId(LocalUserNum);
-	TSharedPtr<const FUniqueNetId> EOSNetId = EOSIdentityInterface->GetUniquePlayerId(LocalUserNum);
-	TSharedPtr<FUniqueNetIdEOSPlus> PlusNetId = MakeShared<FUniqueNetIdEOSPlus>(BaseNetId, EOSNetId);
+	FUniqueNetIdPtr BaseNetId = BaseIdentityInterface->GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr EOSNetId = EOSIdentityInterface->GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdEOSPlusPtr PlusNetId = FUniqueNetIdEOSPlus::Create(BaseNetId, EOSNetId);
 
 	BaseNetIdToNetIdPlus.Add(BaseNetId->ToString(), PlusNetId);
 	EOSNetIdToNetIdPlus.Add(EOSNetId->ToString(), PlusNetId);
@@ -351,9 +351,9 @@ void FOnlineUserEOSPlus::AddPlayer(int32 LocalUserNum)
 	NetIdPlusToUserAccountMap.Add(PlusNetId->ToString(), PlusAccount);
 }
 
-TSharedPtr<FUniqueNetIdEOSPlus> FOnlineUserEOSPlus::AddRemotePlayer(TSharedPtr<const FUniqueNetId> BaseNetId, TSharedPtr<const FUniqueNetId> EOSNetId)
+FUniqueNetIdEOSPlusPtr FOnlineUserEOSPlus::AddRemotePlayer(FUniqueNetIdPtr BaseNetId, FUniqueNetIdPtr EOSNetId)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> PlusNetId = MakeShared<FUniqueNetIdEOSPlus>(BaseNetId, EOSNetId);
+	FUniqueNetIdEOSPlusPtr PlusNetId = FUniqueNetIdEOSPlus::Create(BaseNetId, EOSNetId);
 
 	BaseNetIdToNetIdPlus.Add(BaseNetId->ToString(), PlusNetId);
 	EOSNetIdToNetIdPlus.Add(EOSNetId->ToString(), PlusNetId);
@@ -372,9 +372,9 @@ void FOnlineUserEOSPlus::RemovePlayer(int32 LocalUserNum)
 		return;
 	}
 
-	TSharedPtr<const FUniqueNetId> BaseNetId = BaseIdentityInterface->GetUniquePlayerId(LocalUserNum);
-	TSharedPtr<const FUniqueNetId> EOSNetId = EOSIdentityInterface->GetUniquePlayerId(LocalUserNum);
-	TSharedPtr<FUniqueNetIdEOSPlus> PlusNetId = LocalUserNumToNetIdPlus[LocalUserNum];
+	FUniqueNetIdPtr BaseNetId = BaseIdentityInterface->GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr EOSNetId = EOSIdentityInterface->GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdEOSPlusPtr PlusNetId = LocalUserNumToNetIdPlus[LocalUserNum];
 
 	// Remove the user account first
 	TSharedPtr<FOnlineUserAccountPlus> PlusAccount = NetIdPlusToUserAccountMap[PlusNetId->ToString()];
@@ -422,7 +422,7 @@ TArray<TSharedPtr<FUserOnlineAccount>> FOnlineUserEOSPlus::GetAllUserAccounts() 
 	return Result;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetUniquePlayerId(int32 LocalUserNum) const
+FUniqueNetIdPtr FOnlineUserEOSPlus::GetUniquePlayerId(int32 LocalUserNum) const
 {
 	if (LocalUserNumToNetIdPlus.Contains(LocalUserNum))
 	{
@@ -431,7 +431,7 @@ TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetUniquePlayerId(int32 Local
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::CreateUniquePlayerId(uint8* Bytes, int32 Size)
+FUniqueNetIdPtr FOnlineUserEOSPlus::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
 	if (Size < EOS_NETID_BYTE_SIZE)
 	{
@@ -439,7 +439,7 @@ TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::CreateUniquePlayerId(uint8* B
 		return nullptr;
 	}
 	// We know that the first EOS_NETID_BYTE_SIZE bytes are the EOS ids, so the rest is the platform id
-	TSharedPtr<const FUniqueNetId> EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(Bytes, EOS_NETID_BYTE_SIZE);
+	FUniqueNetIdPtr EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(Bytes, EOS_NETID_BYTE_SIZE);
 	int32 BaseByteOffset = EOS_NETID_BYTE_SIZE;
 	int32 PlatformIdSize = Size - BaseByteOffset - BASE_NETID_TYPE_SIZE;
 	if (PlatformIdSize < 0)
@@ -451,7 +451,7 @@ TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::CreateUniquePlayerId(uint8* B
 	BaseByteOffset += BASE_NETID_TYPE_SIZE;
 	FName OSSName = ToOSSName((EOSSValue)OSSType);
 	FName BaseOSSName = EOSPlus->BaseOSS->GetSubsystemName();
-	TSharedPtr<const FUniqueNetId> BaseNetId = nullptr;
+	FUniqueNetIdPtr BaseNetId = nullptr;
 	if (BaseOSSName == OSSName)
 	{
 		BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(Bytes + BaseByteOffset, PlatformIdSize);
@@ -459,13 +459,13 @@ TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::CreateUniquePlayerId(uint8* B
 	else
 	{
 		// Just create the pass through version that holds the other platform data but doesn't interpret it
-		BaseNetId = MakeShared<FUniqueNetIdBinary>(Bytes + BaseByteOffset, PlatformIdSize, OSSName);
+		BaseNetId = FUniqueNetIdBinary::Create(Bytes + BaseByteOffset, PlatformIdSize, OSSName);
 	}
 	
 	return AddRemotePlayer(BaseNetId, EOSNetId);
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::CreateUniquePlayerId(const FString& Str)
+FUniqueNetIdPtr FOnlineUserEOSPlus::CreateUniquePlayerId(const FString& Str)
 {
 	// Split <id>_+_<id2> into two strings
 	int32 FoundAt = Str.Find(TEXT("_+_"));
@@ -475,8 +475,8 @@ TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::CreateUniquePlayerId(const FS
 		return nullptr;
 	}
 
-	TSharedPtr<const FUniqueNetId> BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(Str.Left(FoundAt));
-	TSharedPtr<const FUniqueNetId> EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(Str.Right(Str.Len() - FoundAt - 3));
+	FUniqueNetIdPtr BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(Str.Left(FoundAt));
+	FUniqueNetIdPtr EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(Str.Right(Str.Len() - FoundAt - 3));
 
 	return AddRemotePlayer(BaseNetId, EOSNetId);
 }
@@ -559,12 +559,12 @@ void FOnlineUserEOSPlus::OnOutgoingInviteSent()
 
 void FOnlineUserEOSPlus::OnInviteReceived(const FUniqueNetId& UserId, const FUniqueNetId& FriendId)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(UserId.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (!NetIdPlus.IsValid())
 	{
 		return;
 	}
-	TSharedPtr<FUniqueNetIdEOSPlus> FriendNetIdPlus = GetNetIdPlus(FriendId.ToString());
+	FUniqueNetIdEOSPlusPtr FriendNetIdPlus = GetNetIdPlus(FriendId.ToString());
 	if (!FriendNetIdPlus.IsValid())
 	{
 		return;
@@ -574,12 +574,12 @@ void FOnlineUserEOSPlus::OnInviteReceived(const FUniqueNetId& UserId, const FUni
 
 void FOnlineUserEOSPlus::OnInviteAccepted(const FUniqueNetId& UserId, const FUniqueNetId& FriendId)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(UserId.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (!NetIdPlus.IsValid())
 	{
 		return;
 	}
-	TSharedPtr<FUniqueNetIdEOSPlus> FriendNetIdPlus = GetNetIdPlus(FriendId.ToString());
+	FUniqueNetIdEOSPlusPtr FriendNetIdPlus = GetNetIdPlus(FriendId.ToString());
 	if (!FriendNetIdPlus.IsValid())
 	{
 		return;
@@ -589,12 +589,12 @@ void FOnlineUserEOSPlus::OnInviteAccepted(const FUniqueNetId& UserId, const FUni
 
 void FOnlineUserEOSPlus::OnInviteRejected(const FUniqueNetId& UserId, const FUniqueNetId& FriendId)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(UserId.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (!NetIdPlus.IsValid())
 	{
 		return;
 	}
-	TSharedPtr<FUniqueNetIdEOSPlus> FriendNetIdPlus = GetNetIdPlus(FriendId.ToString());
+	FUniqueNetIdEOSPlusPtr FriendNetIdPlus = GetNetIdPlus(FriendId.ToString());
 	if (!FriendNetIdPlus.IsValid())
 	{
 		return;
@@ -604,12 +604,12 @@ void FOnlineUserEOSPlus::OnInviteRejected(const FUniqueNetId& UserId, const FUni
 
 void FOnlineUserEOSPlus::OnInviteAborted(const FUniqueNetId& UserId, const FUniqueNetId& FriendId)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(UserId.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (!NetIdPlus.IsValid())
 	{
 		return;
 	}
-	TSharedPtr<FUniqueNetIdEOSPlus> FriendNetIdPlus = GetNetIdPlus(FriendId.ToString());
+	FUniqueNetIdEOSPlusPtr FriendNetIdPlus = GetNetIdPlus(FriendId.ToString());
 	if (!FriendNetIdPlus.IsValid())
 	{
 		return;
@@ -619,12 +619,12 @@ void FOnlineUserEOSPlus::OnInviteAborted(const FUniqueNetId& UserId, const FUniq
 
 void FOnlineUserEOSPlus::OnFriendRemoved(const FUniqueNetId& UserId, const FUniqueNetId& FriendId)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(UserId.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (!NetIdPlus.IsValid())
 	{
 		return;
 	}
-	TSharedPtr<FUniqueNetIdEOSPlus> FriendNetIdPlus = GetNetIdPlus(FriendId.ToString());
+	FUniqueNetIdEOSPlusPtr FriendNetIdPlus = GetNetIdPlus(FriendId.ToString());
 	if (!FriendNetIdPlus.IsValid())
 	{
 		return;
@@ -695,8 +695,8 @@ bool FOnlineUserEOSPlus::DeleteFriend(int32 LocalUserNum, const FUniqueNetId& Fr
 
 TSharedRef<FOnlineFriendPlus> FOnlineUserEOSPlus::AddFriend(TSharedRef<FOnlineFriend> Friend)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = nullptr;
-	TSharedRef<const FUniqueNetId> NetId = Friend->GetUserId();
+	FUniqueNetIdEOSPlusPtr NetIdPlus = nullptr;
+	FUniqueNetIdRef NetId = Friend->GetUserId();
 	if (NetId->GetType() == TEXT("EOS"))
 	{
 		// Grab or make a NetIdPlus
@@ -706,7 +706,7 @@ TSharedRef<FOnlineFriendPlus> FOnlineUserEOSPlus::AddFriend(TSharedRef<FOnlineFr
 		}
 		else
 		{
-			NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(nullptr, NetId);
+			NetIdPlus = FUniqueNetIdEOSPlus::Create(nullptr, NetId);
 			EOSNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
 		}
 		// Build a new friend plus and map them in
@@ -721,7 +721,7 @@ TSharedRef<FOnlineFriendPlus> FOnlineUserEOSPlus::AddFriend(TSharedRef<FOnlineFr
 	}
 	else
 	{
-		NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(NetId, nullptr);
+		NetIdPlus = FUniqueNetIdEOSPlus::Create(NetId, nullptr);
 		BaseNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
 	}
 	// Build a new friend plus and map them in
@@ -732,7 +732,7 @@ TSharedRef<FOnlineFriendPlus> FOnlineUserEOSPlus::AddFriend(TSharedRef<FOnlineFr
 
 TSharedRef<FOnlineFriendPlus> FOnlineUserEOSPlus::GetFriend(TSharedRef<FOnlineFriend> Friend)
 {
-	TSharedRef<const FUniqueNetId> NetId = Friend->GetUserId();
+	FUniqueNetIdRef NetId = Friend->GetUserId();
 	if (NetIdPlusToFriendMap.Contains(NetId->ToString()))
 	{
 		return NetIdPlusToFriendMap[NetId->ToString()];
@@ -812,8 +812,8 @@ bool FOnlineUserEOSPlus::QueryRecentPlayers(const FUniqueNetId& UserId, const FS
 
 TSharedRef<FOnlineRecentPlayer> FOnlineUserEOSPlus::AddRecentPlayer(TSharedRef<FOnlineRecentPlayer> Player)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = nullptr;
-	TSharedRef<const FUniqueNetId> NetId = Player->GetUserId();
+	FUniqueNetIdEOSPlusPtr NetIdPlus = nullptr;
+	FUniqueNetIdRef NetId = Player->GetUserId();
 	if (NetId->GetType() == TEXT("EOS"))
 	{
 		// Grab or make a NetIdPlus
@@ -823,7 +823,7 @@ TSharedRef<FOnlineRecentPlayer> FOnlineUserEOSPlus::AddRecentPlayer(TSharedRef<F
 		}
 		else
 		{
-			NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(nullptr, NetId);
+			NetIdPlus = FUniqueNetIdEOSPlus::Create(nullptr, NetId);
 			EOSNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
 		}
 		// Build a new recent player plus and map them in
@@ -838,7 +838,7 @@ TSharedRef<FOnlineRecentPlayer> FOnlineUserEOSPlus::AddRecentPlayer(TSharedRef<F
 	}
 	else
 	{
-		NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(NetId, nullptr);
+		NetIdPlus = FUniqueNetIdEOSPlus::Create(NetId, nullptr);
 		BaseNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
 	}
 	// Build a new recent player plus and map them in
@@ -849,7 +849,7 @@ TSharedRef<FOnlineRecentPlayer> FOnlineUserEOSPlus::AddRecentPlayer(TSharedRef<F
 
 TSharedRef<FOnlineRecentPlayer> FOnlineUserEOSPlus::GetRecentPlayer(TSharedRef<FOnlineRecentPlayer> Player)
 {
-	TSharedRef<const FUniqueNetId> NetId = Player->GetUserId();
+	FUniqueNetIdRef NetId = Player->GetUserId();
 	if (NetIdPlusToRecentPlayerMap.Contains(NetId->ToString()))
 	{
 		return NetIdPlusToRecentPlayerMap[NetId->ToString()];
@@ -905,8 +905,8 @@ bool FOnlineUserEOSPlus::QueryBlockedPlayers(const FUniqueNetId& UserId)
 
 TSharedRef<FOnlineBlockedPlayer> FOnlineUserEOSPlus::AddBlockedPlayer(TSharedRef<FOnlineBlockedPlayer> Player)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = nullptr;
-	TSharedRef<const FUniqueNetId> NetId = Player->GetUserId();
+	FUniqueNetIdEOSPlusPtr NetIdPlus = nullptr;
+	FUniqueNetIdRef NetId = Player->GetUserId();
 	if (NetId->GetType() == TEXT("EOS"))
 	{
 		if (EOSNetIdToNetIdPlus.Contains(NetId->ToString()))
@@ -915,7 +915,7 @@ TSharedRef<FOnlineBlockedPlayer> FOnlineUserEOSPlus::AddBlockedPlayer(TSharedRef
 		}
 		else
 		{
-			NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(nullptr, NetId);
+			NetIdPlus = FUniqueNetIdEOSPlus::Create(nullptr, NetId);
 			EOSNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
 		}
 		TSharedRef<FOnlineBlockedPlayerPlus> PlayerPlus = MakeShared<FOnlineBlockedPlayerPlus>(nullptr, Player);
@@ -928,7 +928,7 @@ TSharedRef<FOnlineBlockedPlayer> FOnlineUserEOSPlus::AddBlockedPlayer(TSharedRef
 	}
 	else
 	{
-		NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(NetId, nullptr);
+		NetIdPlus = FUniqueNetIdEOSPlus::Create(NetId, nullptr);
 		BaseNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
 	}
 	TSharedRef<FOnlineBlockedPlayerPlus> PlayerPlus = MakeShared<FOnlineBlockedPlayerPlus>(Player, nullptr);
@@ -938,7 +938,7 @@ TSharedRef<FOnlineBlockedPlayer> FOnlineUserEOSPlus::AddBlockedPlayer(TSharedRef
 
 TSharedRef<FOnlineBlockedPlayer> FOnlineUserEOSPlus::GetBlockedPlayer(TSharedRef<FOnlineBlockedPlayer> Player)
 {
-	TSharedRef<const FUniqueNetId> NetId = Player->GetUserId();
+	FUniqueNetIdRef NetId = Player->GetUserId();
 	if (NetIdPlusToBlockedPlayerMap.Contains(NetId->ToString()))
 	{
 		return NetIdPlusToBlockedPlayerMap[NetId->ToString()];
@@ -1026,7 +1026,7 @@ void FOnlineUserEOSPlus::OnPresenceArrayUpdated(const FUniqueNetId& UserId, cons
 
 void FOnlineUserEOSPlus::SetPresence(const FUniqueNetId& User, const FOnlineUserPresenceStatus& Status, const FOnPresenceTaskCompleteDelegate& Delegate)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(User.ToString());
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(User.ToString());
 	if (!NetIdPlus.IsValid())
 	{
 		UE_LOG_ONLINE(Error, TEXT("Failed to find user (%s) in net id plus to base net id map"), *User.ToString());

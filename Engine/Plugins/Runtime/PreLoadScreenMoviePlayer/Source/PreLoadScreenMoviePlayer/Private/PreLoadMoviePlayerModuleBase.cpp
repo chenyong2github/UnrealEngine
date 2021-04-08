@@ -34,7 +34,7 @@ void FPreLoadMoviePlayerScreenModuleBase::CleanUpMovieStreamer()
 
 void FPreLoadMoviePlayerScreenModuleBase::StartupModule()
 {
-    MoviePreLoadScreen = MakeShareable(new FPreLoadMoviePlayerScreenBase());
+    MoviePreLoadScreen = MakeShared<FPreLoadMoviePlayerScreenBase>();
     
     if (FPreLoadScreenManager::Get())
     {

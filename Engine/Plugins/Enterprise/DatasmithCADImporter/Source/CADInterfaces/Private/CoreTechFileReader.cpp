@@ -23,11 +23,8 @@
 #include "CADOptions.h"
 
 #include "DatasmithUtils.h"
-#include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Text.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
 #include "Templates/TypeHash.h"
 
 namespace CADLibrary 
@@ -44,20 +41,6 @@ namespace CADLibrary
 		bool GetColor(uint32 ColorHash, FColor& OutColor);
 		bool GetMaterial(uint32 MaterialID, FCADMaterial& OutMaterial);
 		int32 GetIntegerParameterDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName);
-	}
-
-
-	uint32 FCoreTechFileReader::GetFileHash()
-	{
-		FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.Path);
-
-		FDateTime ModificationTime = FileStatData.ModificationTime;
-
-		uint32 FileHash = GetTypeHash(FileDescription);
-		FileHash = HashCombine(FileHash, GetTypeHash(FileStatData.FileSize));
-		FileHash = HashCombine(FileHash, GetTypeHash(ModificationTime));
-
-		return FileHash;
 	}
 
 	FArchiveMaterial& FCoreTechFileReader::FindOrAddMaterial(CT_MATERIAL_ID MaterialId)
@@ -331,7 +314,7 @@ namespace CADLibrary
 #ifndef DATASMITH_CAD_IGNORE_CACHE
 		if (!Context.CachePath.IsEmpty())
 		{
-			uint32 FileHash = GetFileHash();
+			uint32 FileHash = FileDescription.GetFileHash();
 			FString CTFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
 			FString CTFilePath = FPaths::Combine(Context.CachePath, TEXT("cad"), CTFileName + TEXT(".ct"));
 			if(CTFilePath != FileDescription.Path)
@@ -623,7 +606,8 @@ namespace CADLibrary
 				// is the external reference is the current file ? 
 				// Yes => this is an unloaded part that will be imported with CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT Option
 				// No => the external reference is realy external... 
-				if (FPaths::IsSamePath(ExternalRefFullPath, FileDescription.Path))
+				FString ExternalName = FPaths::GetCleanFilename(ExternalRefFullPath);
+				if (ExternalName == FileDescription.Name)
 				{
 					Configuration = FString::Printf(TEXT("%d"), InternalId);
 				}

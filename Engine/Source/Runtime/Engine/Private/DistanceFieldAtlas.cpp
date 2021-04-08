@@ -174,7 +174,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDeriv
 
 		BeginCacheMeshCardRepresentation(TargetPlatform, Mesh, RenderData, DistanceFieldKey, /*OptionalSourceMeshData*/ nullptr);
 	}
-	else
+	else if (GDistanceFieldAsyncQueue)
 	{
 		// We don't actually build the resource until later, so only track the cycles used here.
 		COOK_STAT(Timer.TrackCyclesOnly());

@@ -278,8 +278,10 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) { return false; }
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) { return false; }
 
+#if WITH_EDITORONLY_DATA
 	/** Allows the generic class defaults version of this class to specify any dependencies/version/etc that might invalidate the compile. It should never depend on the value of specific properties.*/
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+#endif
 
 	/** Allows data interfaces to influence the compilation of GPU shaders and is only called on the CDO object not the instance. */
 	virtual void ModifyCompilationEnvironment(struct FShaderCompilerEnvironment& OutEnvironment) const {}
@@ -351,6 +353,7 @@ public:
 	/** Determines if this type definition matches to a known data interface type.*/
 	static bool IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef);
 
+#if WITH_EDITORONLY_DATA
 	/** Allows data interfaces to provide common functionality that will be shared across interfaces on that type. */
 	virtual void GetCommonHLSL(FString& OutHLSL)
 	{
@@ -365,7 +368,6 @@ public:
 		return false;
 	}
 
-#if WITH_EDITORONLY_DATA
 	/**
 	Allows data interfaces the opportunity to rename / change the function signature and perform an upgrade.
 	Return true if the signature was modified and we need to refresh the pins / name, etc.

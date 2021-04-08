@@ -284,15 +284,19 @@ bool UNiagaraDataInterfaceVelocityGrid::Equals(const UNiagaraDataInterface* Othe
 	return (OtherTyped->GridSize == GridSize);
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceVelocityGrid::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	if (!Super::AppendCompileHash(InVisitor))
+	{
 		return false;
+	}
 
 	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfaceVelocityGrid.ush")), EShaderPlatform::SP_PCD3D_SM5);
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceVelocityGridHLSLSource"), Hash.ToString());
 	return true;
 }
+#endif
 
 void UNiagaraDataInterfaceVelocityGrid::PostInitProperties()
 {
@@ -518,6 +522,7 @@ void UNiagaraDataInterfaceVelocityGrid::UpdateGridTransform(FVectorVMContext& Co
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceVelocityGrid::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	FNDIVelocityGridParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
@@ -573,6 +578,7 @@ void UNiagaraDataInterfaceVelocityGrid::GetParameterDefinitionHLSL(const FNiagar
 {
 	OutHLSL += TEXT("DIVelocityGrid_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
+#endif
 
 void UNiagaraDataInterfaceVelocityGrid::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {

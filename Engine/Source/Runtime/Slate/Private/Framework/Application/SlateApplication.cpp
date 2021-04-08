@@ -760,6 +760,9 @@ FSlateApplication::FSlateApplication()
 	FModuleManager::Get().LoadModule(TEXT("Settings"));
 #endif
 
+	// If we are embedded inside another app then we never need to be "active"
+	bAppIsActive = !GUELibraryOverrideSettings.bIsEmbedded;
+
 	SetupPhysicalSensitivities();
 
 	if (GConfig)
@@ -1156,7 +1159,10 @@ static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 			WindowToPrepass->Resize(WindowToPrepass->GetDesiredSizeDesktopPixels());
 		}
 
-		for ( const TSharedRef<SWindow>& ChildWindow : WindowToPrepass->GetChildWindows() )
+		// Note: Iterate over copy since num children can change during resize above.
+		FMemMark Mark(FMemStack::Get());
+		TArray<TSharedRef<SWindow>, TMemStackAllocator<>> ChildWindows(WindowToPrepass->GetChildWindows());
+		for (const TSharedRef<SWindow>& ChildWindow : ChildWindows)
 		{
 			PrepassWindowAndChildren(ChildWindow);
 		}
@@ -6341,6 +6347,11 @@ bool FSlateApplication::OnApplicationActivationChanged( const bool IsActive )
 
 void FSlateApplication::ProcessApplicationActivationEvent(bool InAppActivated)
 {
+	if (GUELibraryOverrideSettings.bIsEmbedded)
+	{
+		return;
+	}
+
 	const bool UserSwitchedAway = bAppIsActive && !InAppActivated;
 
 	bAppIsActive = InAppActivated;

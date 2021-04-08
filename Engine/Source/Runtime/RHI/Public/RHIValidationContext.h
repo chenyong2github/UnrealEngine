@@ -810,13 +810,6 @@ public:
 		RHIContext->RHISetShadingRate(ShadingRate, Combiner);
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner) override final
-	{
-		checkf(false, TEXT("RHISetShadingRateImage API is deprecated. Use the ShadingRateImage attachment in the RHISetRenderTargetsInfo struct instead."));
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) override final
 	{
 		RHIContext->RHIPushEvent(Name, Color);
@@ -841,7 +834,9 @@ public:
 		{
 			FRHIRenderPassInfo::FColorEntry& RTV = State.RenderPassInfo.ColorRenderTargets[RTVIndex];
 			if (RTV.RenderTarget == nullptr)
+			{
 				continue;
+			}
 
 			uint32 ArraySlice = RTV.ArraySlice;
 			uint32 NumArraySlices = 1;
@@ -879,7 +874,17 @@ public:
 			bool bIsStencilFormat = IsStencilFormat(DSV.DepthStencilTarget->GetFormat());
 			checkf(bIsStencilFormat, TEXT("Stencil read/write is enabled but depth stencil texture doesn't have a stencil plane."));
 			if (bIsStencilFormat)
+			{
 				Tracker->Assert(DSV.DepthStencilTarget->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Stencil), 1), StencilAccess);
+			}
+		}
+
+		// assert shading-rate attachment is in the correct mode and format.
+		if (State.RenderPassInfo.ShadingRateTexture.IsValid())
+		{
+			FTextureRHIRef ShadingRateTexture = State.RenderPassInfo.ShadingRateTexture;
+			checkf(ShadingRateTexture->GetFormat() == GRHIVariableRateShadingImageFormat, TEXT("Shading rate texture is bound, but is not the correct format for this RHI."));
+			Tracker->Assert(ShadingRateTexture->GetViewIdentity(0, 0, 0, 0, 0, 0), ERHIAccess::ShadingRateSource);
 		}
 
 		RHIContext->RHIBeginRenderPass(InInfo, InName);

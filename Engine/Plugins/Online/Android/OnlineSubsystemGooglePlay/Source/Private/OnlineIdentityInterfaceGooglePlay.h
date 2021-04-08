@@ -30,7 +30,7 @@ private:
 	bool bRegisteringUser;
 
 	/** UID for this identity */
-	TSharedPtr< const FUniqueNetIdGooglePlay > UniqueNetId;
+	FUniqueNetIdGooglePlayPtr UniqueNetId;
 
 	struct FPendingConnection
 	{
@@ -49,9 +49,9 @@ PACKAGE_SCOPE:
 	FOnlineIdentityGooglePlay(FOnlineSubsystemGooglePlay* InSubsystem);
 
 	/** Allow individual interfaces to access the currently signed-in user's id */
-	TSharedPtr<const FUniqueNetIdGooglePlay> GetCurrentUserId() const { return UniqueNetId; }
+	FUniqueNetIdGooglePlayPtr GetCurrentUserId() const { return UniqueNetId; }
 
-	void SetCurrentUserId(TSharedPtr<const FUniqueNetIdGooglePlay> InUniqueNetId) { UniqueNetId = InUniqueNetId; }
+	void SetCurrentUserId(FUniqueNetIdGooglePlayPtr InUniqueNetId) { UniqueNetId = InUniqueNetId; }
 
 	/** Called from ExternalUIInterface to set UniqueId and PlayerAlias after authentication */
 	void SetPlayerDataFromFetchSelfResponse(const gpg::Player& PlayerData);

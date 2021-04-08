@@ -56,6 +56,8 @@ public:
 	/** All children of these classes will be included unless filtered out by another setting. */
 	TSet< const UClass* > AllowedChildrenOfClasses;
 
+	const UClass* RequiredInterface = nullptr;
+
 	bool bAllowAbstractClasses = true;
 
 	virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs ) override
@@ -72,6 +74,8 @@ public:
 			Result &= !ClassPackage->ContainsMap() || ClassPackage == GraphPinOutermostPackage;
 			Result &= !InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown);
 			Result &= bAllowAbstractClasses || !InClass->HasAnyClassFlags(CLASS_Abstract);
+			// either there is not a required interface, or our target class DOES implement that interface
+			Result &= (RequiredInterface == nullptr || InClass->ImplementsInterface(RequiredInterface));
 		}
 
 		return Result;
@@ -81,7 +85,9 @@ public:
 	{
 		return (InFilterFuncs->IfInChildOfClassesSet( AllowedChildrenOfClasses, InUnloadedClassData) != EFilterReturn::Failed) 
 			&& (!InUnloadedClassData->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown))
-			&& (bAllowAbstractClasses || !InUnloadedClassData->HasAnyClassFlags(CLASS_Abstract));
+			&& (bAllowAbstractClasses || !InUnloadedClassData->HasAnyClassFlags(CLASS_Abstract))
+			// either there is not a required interface, or our target class DOES implement that interface
+			&& (RequiredInterface == nullptr || InUnloadedClassData->ImplementsInterface(RequiredInterface));
 	}
 };
 
@@ -118,6 +124,15 @@ TSharedRef<SWidget> SGraphPinClass::GenerateAssetPicker()
 
 	Filter->AllowedChildrenOfClasses.Add(PinRequiredParentClass);
 	Filter->GraphPinOutermostPackage = GraphPinObj->GetOuter()->GetOutermost();
+
+	if (UEdGraphNode* ParentNode = GraphPinObj->GetOwningNode())
+	{
+		FString PossibleInterface = ParentNode->GetPinMetaData(GraphPinObj->PinName, TEXT("MustImplement"));
+		if (!PossibleInterface.IsEmpty())
+		{
+			Filter->RequiredInterface = FindObject<UClass>(ANY_PACKAGE, *PossibleInterface);
+		}
+	}
 
 	return
 		SNew(SBox)

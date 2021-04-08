@@ -2712,7 +2712,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 
 		if (!FbxMesh->IsTriangleMesh())
 		{
-			FString NodeName = UTF8_TO_TCHAR(MakeName(Node->GetName()));
+			FString NodeName = MakeName(Node->GetName());
 			UE_LOG(LogFbx, Display, TEXT("Triangulating mesh %s for collision model"), *NodeName);
 
 			const bool bReplace = true;

@@ -84,7 +84,7 @@ public:
 	/**
 	 * Get the exposed entities of a certain type.
 	 */
-	template <typename EntityType>
+	template <typename EntityType = FRemoteControlEntity>
 	TArray<TSharedPtr<EntityType>> GetExposedEntities()
 	{
 		static_assert(TIsDerivedFrom<EntityType, FRemoteControlEntity>::Value, "EntityType must derive from FRemoteControlEntity.");

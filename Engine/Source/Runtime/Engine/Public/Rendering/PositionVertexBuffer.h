@@ -93,6 +93,7 @@ public:
 	{
 		return NumVertices;
 	}
+	bool GetAllowCPUAccess() const;
 
 	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
 	FBufferRHIRef CreateRHIBuffer_RenderThread();

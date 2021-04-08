@@ -8,7 +8,7 @@ namespace UnrealBuildTool.Rules
 	public class USDExporter : ModuleRules
 	{
 		public USDExporter(ReadOnlyTargetRules Target) : base(Target)
-        {
+		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -17,31 +17,34 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"UnrealUSDWrapper"
 				}
-				);
+			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"EditorFramework",
-                    "EditorStyle",
-                    "GeometryCache",
+					"EditorStyle",
+					"GeometryCache",
+					"PropertyEditor",
+					"RawMesh",
+					"RenderCore",
+					"RHI",
 					"InputCore",
 					"JsonUtilities",
+					"LevelSequence",
 					"MaterialBaking", // So that we can use some of the export option properties
 					"MeshDescription",
 					"MeshUtilities",
 					"MessageLog",
-                    "PropertyEditor",
 					"PythonScriptPlugin",
-                    "RawMesh",
-                    "RenderCore",
-                    "RHI",
 					"Slate",
 					"SlateCore",
 					"UnrealEd",
+					"USDClasses",
+					"USDStageImporter", // For USDOptionsWindow
 					"USDUtilities",
                 }
-				);
+			);
 		}
 	}
 }

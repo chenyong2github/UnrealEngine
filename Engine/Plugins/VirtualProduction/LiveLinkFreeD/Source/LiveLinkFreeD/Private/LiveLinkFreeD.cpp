@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkFreeD.h"
-#include "LiveLinkFreeDSource.h"
-#include "Features/IModularFeatures.h"
-#include "ILiveLinkClient.h"
-#include "LiveLinkFreeDSourceSettings.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkFreeDModule"
 

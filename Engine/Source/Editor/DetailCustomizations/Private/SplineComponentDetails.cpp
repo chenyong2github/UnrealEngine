@@ -229,6 +229,7 @@ private:
 	void OnEndSlider(float);
 
 	USplineComponent* SplineComp;
+	USplineComponent* SplineCompArchetype;
 	TSet<int32> SelectedKeys;
 
 	TSharedValue<float> InputKey;
@@ -275,8 +276,18 @@ FSplinePointDetails::FSplinePointDetails(USplineComponent* InOwningSplineCompone
 		}
 	}
 
-	SplineComp = InOwningSplineComponent;
-	check(SplineComp);
+	check(InOwningSplineComponent);
+	if (InOwningSplineComponent->IsTemplate())
+	{
+		// For blueprints, SplineComp will be set to the preview actor in UpdateValues().
+		SplineComp = nullptr;
+		SplineCompArchetype = InOwningSplineComponent;
+	}
+	else
+	{
+		SplineComp = InOwningSplineComponent;
+		SplineCompArchetype = nullptr;
+	}
 
 	bAlreadyWarnedInvalidIndex = false;
 }
@@ -671,8 +682,12 @@ void FSplinePointDetails::Tick(float DeltaTime)
 
 void FSplinePointDetails::UpdateValues()
 {
+	// Always update the spline component based on the spline component visualizer's currently edited component.
+	SplineComp = SplineVisualizer.IsValid() ? SplineVisualizer->GetEditedSplineComponent() : nullptr;
+
 	if (!SplineComp || !SplineVisualizer.IsValid())
 	{
+		SplineComp = nullptr;
 		return;
 	}
 
@@ -857,6 +872,13 @@ void FSplinePointDetails::OnSetPosition(float NewValue, ETextCommit::Type Commit
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsPosition().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point location: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsPosition().Points.Num());
+			continue;
+		}
+
 		if (bEditingLocationAbsolute)
 		{
 			const FTransform SplineToWorld = SplineComp->GetComponentToWorld();
@@ -898,6 +920,13 @@ void FSplinePointDetails::OnSetArriveTangent(float NewValue, ETextCommit::Type C
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsPosition().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point arrive tangent: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsPosition().Points.Num());
+			continue;
+		}
+
 		FVector PointTangent = SplineComp->GetSplinePointsPosition().Points[Index].ArriveTangent;
 		PointTangent.SetComponentForAxis(Axis, NewValue);
 		SplineComp->GetSplinePointsPosition().Points[Index].ArriveTangent = PointTangent;
@@ -927,6 +956,13 @@ void FSplinePointDetails::OnSetLeaveTangent(float NewValue, ETextCommit::Type Co
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsPosition().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point leave tangent: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsPosition().Points.Num());
+			continue;
+		}
+
 		FVector PointTangent = SplineComp->GetSplinePointsPosition().Points[Index].LeaveTangent;
 		PointTangent.SetComponentForAxis(Axis, NewValue);
 		SplineComp->GetSplinePointsPosition().Points[Index].LeaveTangent = PointTangent;
@@ -956,6 +992,13 @@ void FSplinePointDetails::OnSetRotation(float NewValue, ETextCommit::Type Commit
 	FQuat NewRotationRelative;
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsRotation().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point rotation: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsRotation().Points.Num());
+			continue;
+		}
+
 		FInterpCurvePoint<FVector>& EditedPoint = SplineComp->GetSplinePointsPosition().Points[Index];
 		FInterpCurvePoint<FQuat>& EditedRotPoint = SplineComp->GetSplinePointsRotation().Points[Index];
 		const FQuat CurrentRotationRelative = EditedRotPoint.OutVal;
@@ -1022,6 +1065,13 @@ void FSplinePointDetails::OnSetScale(float NewValue, ETextCommit::Type CommitInf
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsScale().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point scale: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsScale().Points.Num());
+			continue;
+		}
+
 		FVector PointScale = SplineComp->GetSplinePointsScale().Points[Index].OutVal;
 		PointScale.SetComponentForAxis(Axis, NewValue);
 		SplineComp->GetSplinePointsScale().Points[Index].OutVal = PointScale;
@@ -1064,6 +1114,13 @@ void FSplinePointDetails::OnSplinePointTypeChanged(TSharedPtr<FString> NewValue,
 
 	for (int32 Index : SelectedKeys)
 	{
+		if (Index < 0 || Index >= SplineComp->GetSplinePointsPosition().Points.Num())
+		{
+			UE_LOG(LogSplineComponentDetails, Error, TEXT("Set spline point type: invalid index %d in selected points for spline component %s which contains %d spline points."),
+				Index, *SplineComp->GetPathName(), SplineComp->GetSplinePointsPosition().Points.Num());
+			continue;
+		}
+
 		SplineComp->GetSplinePointsPosition().Points[Index].InterpMode = Mode;
 	}
 
@@ -1077,12 +1134,14 @@ void FSplinePointDetails::OnSplinePointTypeChanged(TSharedPtr<FString> NewValue,
 
 USplineComponent* FSplinePointDetails::GetSplineComponentToVisualize() const
 {
-	if (SplineComp->IsTemplate())
+	if (SplineCompArchetype) 
 	{
+		check(SplineCompArchetype->IsTemplate());
+
 		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 
 		const UClass* BPClass;
-		if (const AActor* OwningCDO = SplineComp->GetOwner())
+		if (const AActor* OwningCDO = SplineCompArchetype->GetOwner())
 		{
 			// Native component template
 			BPClass = OwningCDO->GetClass();
@@ -1090,7 +1149,7 @@ USplineComponent* FSplinePointDetails::GetSplineComponentToVisualize() const
 		else
 		{
 			// Non-native component template
-			BPClass = Cast<UClass>(SplineComp->GetOuter());
+			BPClass = Cast<UClass>(SplineCompArchetype->GetOuter());
 		}
 
 		if (BPClass)
@@ -1101,7 +1160,7 @@ USplineComponent* FSplinePointDetails::GetSplineComponentToVisualize() const
 				{
 					const AActor* PreviewActor = BlueprintEditor->GetPreviewActor();
 					TArray<UObject*> Instances;
-					SplineComp->GetArchetypeInstances(Instances);
+					SplineCompArchetype->GetArchetypeInstances(Instances);
 
 					for (UObject* Instance : Instances)
 					{
@@ -1125,14 +1184,25 @@ USplineComponent* FSplinePointDetails::GetSplineComponentToVisualize() const
 
 FReply FSplinePointDetails::OnSelectFirstLastSplinePoint(bool bFirst)
 {
-	if (SplineComp && SplineVisualizer.IsValid())
+	if (SplineVisualizer.IsValid())
 	{
-		if (USplineComponent* SplineCompToVisualize = GetSplineComponentToVisualize())
+		bool bActivateComponentVis = false;
+
+		if (!SplineComp)
 		{
-			if (SplineVisualizer->HandleSelectFirstLastSplinePoint(SplineCompToVisualize, bFirst))
+			SplineComp = GetSplineComponentToVisualize();
+			bActivateComponentVis = true;
+		}
+
+		if (SplineComp)
+		{
+			if (SplineVisualizer->HandleSelectFirstLastSplinePoint(SplineComp, bFirst))
 			{
-				TSharedPtr<FComponentVisualizer> Visualizer = StaticCastSharedPtr<FComponentVisualizer>(SplineVisualizer);
-				GUnrealEd->ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, Visualizer);
+				if (bActivateComponentVis)
+				{
+					TSharedPtr<FComponentVisualizer> Visualizer = StaticCastSharedPtr<FComponentVisualizer>(SplineVisualizer);
+					GUnrealEd->ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, Visualizer);
+				}
 			}
 		}
 	}
@@ -1150,14 +1220,25 @@ FReply FSplinePointDetails::OnSelectPrevNextSplinePoint(bool bNext, bool bAddToS
 
 FReply FSplinePointDetails::OnSelectAllSplinePoints()
 {
-	if (SplineComp && SplineVisualizer.IsValid())
+	if (SplineVisualizer.IsValid())
 	{
-		if (USplineComponent* SplineCompToVisualize = GetSplineComponentToVisualize())
+		bool bActivateComponentVis = false;
+
+		if (!SplineComp)
 		{
-			if (SplineVisualizer->HandleSelectAllSplinePoints(SplineCompToVisualize))
+			SplineComp = GetSplineComponentToVisualize();
+			bActivateComponentVis = true;
+		}
+
+		if (SplineComp)
+		{
+			if (SplineVisualizer->HandleSelectAllSplinePoints(SplineComp))
 			{
-				TSharedPtr<FComponentVisualizer> Visualizer = StaticCastSharedPtr<FComponentVisualizer>(SplineVisualizer);
-				GUnrealEd->ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, Visualizer);
+				if (bActivateComponentVis)
+				{
+					TSharedPtr<FComponentVisualizer> Visualizer = StaticCastSharedPtr<FComponentVisualizer>(SplineVisualizer);
+					GUnrealEd->ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, Visualizer);
+				}
 			}
 		}
 	}

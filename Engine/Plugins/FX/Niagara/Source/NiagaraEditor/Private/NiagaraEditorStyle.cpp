@@ -361,6 +361,18 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 		Style->Set("NiagaraEditor.Debugger.PauseIcon", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Pause", Icon24x24));
 		Style->Set("NiagaraEditor.Debugger.LoopIcon", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Loop", Icon24x24));
 		Style->Set("NiagaraEditor.Debugger.StepIcon", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Step", Icon24x24));
+
+		Style->Set("NiagaraEditor.Debugger.Outliner.Capture", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Capture", Icon24x24));
+		Style->Set("NiagaraEditor.Debugger.Outliner.CapturePerf", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Perf_40x", Icon24x24));
+		Style->Set("NiagaraEditor.Debugger.Outliner.Filter", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Filter_24x", Icon24x24));
+
+		FButtonStyle OutlinerToolBarButton = FButtonStyle()
+			.SetNormal(BOX_BRUSH("Common/FlatButton", FMargin(4 / 16.0f), FLinearColor(0.0f, 0.0f, 0.0f, 0.0f)))
+			.SetHovered(BOX_BRUSH("Common/FlatButton", FMargin(4 / 16.0f), SelectionColor))
+			.SetPressed(BOX_BRUSH("Common/FlatButton", FMargin(4 / 16.0f), SelectionColor_Pressed))
+			.SetNormalPadding(FMargin(0, 0, 0, 1))
+			.SetPressedPadding(FMargin(0, 1, 0, 0));
+		Style->Set("NiagaraEditor.Debugger.Outliner.Toolbar", OutlinerToolBarButton);
 	}
 
 	// Flipbook

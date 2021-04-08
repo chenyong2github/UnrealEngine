@@ -6936,7 +6936,7 @@ bool FMaterialEditor::OnVerifyNodeTextCommit(const FText& NewText, UEdGraphNode*
 	UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(NodeBeingChanged);
 	if( MaterialNode && MaterialNode->MaterialExpression && MaterialNode->MaterialExpression->IsA<UMaterialExpressionParameter>() )
 	{
-		if( NewText.ToString().Len() > NAME_SIZE )
+		if( NewText.ToString().Len() >= NAME_SIZE )
 		{
 			OutErrorMessage = FText::Format( LOCTEXT("MaterialEditorExpressionError_NameTooLong", "Parameter names must be less than {0} characters"), FText::AsNumber(NAME_SIZE));
 			bValid = false;

@@ -97,6 +97,10 @@ private:
 
 	TSharedRef<SWidget> OnGetAvailableHandleMenu();
 
+	TSharedRef<SWidget> GetVersionSelectorDropdownMenu();
+	void SwitchToVersion(FNiagaraAssetVersion Version);
+	FSlateColor GetVersionSelectorColor() const;
+
 	void OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedActions, ESelectInfo::Type InSelectionType);
 
 	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions);

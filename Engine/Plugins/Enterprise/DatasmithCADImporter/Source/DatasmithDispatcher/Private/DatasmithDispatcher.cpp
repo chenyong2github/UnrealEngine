@@ -139,6 +139,10 @@ void FDatasmithDispatcher::Process(bool bWithProcessor)
 		bWithProcessor &= FPaths::FileExists(WorkerPath);
 	}
 
+#ifdef CAD_DISPATCHER_DEBUG
+	bWithProcessor = false;
+#endif //CAD_TRANSLATOR_DEBUG
+
 	if (bWithProcessor)
 	{
 		SpawnHandlers();

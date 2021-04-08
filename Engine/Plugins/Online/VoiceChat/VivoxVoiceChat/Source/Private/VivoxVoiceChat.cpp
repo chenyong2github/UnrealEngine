@@ -446,6 +446,8 @@ void FVivoxVoiceChatUser::Login(FPlatformUserId PlatformId, const FString& Playe
 
 	OnVoiceChatLoginCompleteDelegate = Delegate;
 
+	VIVOXVOICECHATUSER_LOG(Log, TEXT("Logging In PlayerName=%s"), *PlayerName);
+
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.Login(LoginSession.AccountName, TCHAR_TO_ANSI(*Credentials));
 	if (Status.IsError())
@@ -613,6 +615,8 @@ void FVivoxVoiceChatUser::JoinChannel(const FString& ChannelName, const FString&
 	ChannelSession.ChannelType = ChannelType;
 	ChannelSession.ChannelUri = VivoxVoiceChat.CreateChannelUri(ChannelName, ChannelType, Channel3dProperties);
 	ChannelSession.JoinDelegate = Delegate;
+
+	VIVOXVOICECHATUSER_LOG(Log, TEXT("Joining Channel %s"), *ChannelName)
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.JoinChannel(LoginSession.AccountName, ChannelSession.ChannelUri, TCHAR_TO_ANSI(*ChannelCredentials));
@@ -2620,6 +2624,8 @@ void FVivoxVoiceChat::Connect(const FOnVoiceChatConnectCompleteDelegate& Delegat
 			}
 			else
 			{
+				UE_LOG(LogVivoxVoiceChat, Log, TEXT("Connecting"));
+
 				VivoxClientApi::Uri BackendUri(TCHAR_TO_ANSI(*VivoxServerUrl));
 				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 				VivoxClientApi::VCSStatus Status = VivoxClientConnection.Connect(BackendUri);

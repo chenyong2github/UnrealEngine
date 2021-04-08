@@ -168,11 +168,6 @@ namespace UnrealBuildTool
 		string AppName = "";
 
 		/// <summary>
-		/// Architectures supported for Mac
-		/// </summary>
-		string[] SupportedMacArchitectures = { "x86_64", "arm64" };
-
-		/// <summary>
 		/// Architectures supported for iOS
 		/// </summary>
 		string[] SupportedIOSArchitectures = { "arm64" };
@@ -473,7 +468,7 @@ namespace UnrealBuildTool
 							}
 
 							string IOSRuntimeVersion, TVOSRuntimeVersion;
-							AppendPlatformConfiguration(ConfigSection, null, ExtensionInfo.Name, UProjectPath, false, bSupportIOS, bSupportTVOS, out IOSRuntimeVersion, out TVOSRuntimeVersion);
+							AppendPlatformConfiguration(ConfigSection, Configuration, ExtensionInfo.Name, UProjectPath, false, bSupportIOS, bSupportTVOS, out IOSRuntimeVersion, out TVOSRuntimeVersion);
 
 							ConfigSection.Append("\t\t\t};" + ProjectFileGenerator.NewLine);
 							ConfigSection.Append("\t\t\tname = \"" + ConfigName + "\";" + ProjectFileGenerator.NewLine);
@@ -972,20 +967,131 @@ namespace UnrealBuildTool
 			Content.Append("\t\t};" + ProjectFileGenerator.NewLine);
 		}
 
-		private void AppendPlatformConfiguration(StringBuilder Content, FileReference MacExecutablePath, string TargetName, FileReference ProjectFile, bool bSupportMac, bool bSupportIOS, bool bSupportTVOS, out string IOSRunTimeVersion, out string TVOSRunTimeVersion, string BinariesSubDir = "/Payload")
+		// cache for the below function
+		Dictionary<string, IEnumerable<string>> CachedMacProjectArcitectures = new Dictionary<string, IEnumerable<string>>();
+
+		/// <summary>
+		/// Returns the Mac architectures that should be configured for the provided target. If the target has a project we'll adhere
+		/// to whether it's set as Intel/Universal/Apple unless the type is blacklisted (pretty much just Editor)
+		/// 
+		/// If the target has no project we'll support whitelisted targets for installed builds and all non-editor architectures 
+		/// for source builds. Not all programs are going to compile for Apple Silicon, but being able to build and fail is useful...
+		/// </summary>
+		/// <param name="Config">Build config for the target we're generating</param>
+		/// <param name="InProjectFile">Path to the project file, or null if the target has no project</param>
+		/// <returns></returns>
+		IEnumerable<string> GetSupportedMacArchitectures(XcodeBuildConfig Config, FileReference InProjectFile)
 		{
+			// All architectures supported
+			IEnumerable<string> AllArchitectures = new[] { MacExports.IntelArchitecture, MacExports.AppleArchitecture};			
+
+			// Add a way on the command line of forcing a project file with all architectures (there isn't a good way to let this be
+			// set and checked where we can access it).
+			bool ForceAllArchitectures = Environment.GetCommandLineArgs().Contains("AllArchitectures", StringComparer.OrdinalIgnoreCase);
+
+			if (ForceAllArchitectures)
+			{
+				return AllArchitectures;
+			}
+
+			string TargetName = Config.BuildTarget;
+
+			// First time seeing this target?
+			if (!CachedMacProjectArcitectures.ContainsKey(TargetName))
+			{
+				// Default to Intel
+				IEnumerable<string> TargetArchitectures = new[] { MacExports.IntelArchitecture };
+
+				// These targets are known to work so are whitelisted
+				bool IsWhiteListed = MacExports.TargetsWhitelistedForAppleSilicon.Contains(TargetName, StringComparer.OrdinalIgnoreCase);
+
+				// These target types are known to never work so are blacklisted. This is mostly to avoid generating an arm64 editor config for 
+				// a code project that is set to be universal
+				bool IsBlacklisted = MacExports.TargetTypesBlacklistedForAppleSilicon.Contains(Config.ProjectTarget.TargetRules.Type);
+
+				// check whitelists and blacklists
+				if (IsWhiteListed)
+				{
+					TargetArchitectures = AllArchitectures;
+				}
+				else if (IsBlacklisted)
+				{
+					TargetArchitectures = new[] { MacExports.IntelArchitecture };
+				}
+				else
+				{
+					// if no project file then this is a non-whitelisted tool/program. Default to Intel for installed builds because we know all of that works. 
+					if (InProjectFile == null)
+					{
+						// For misc tools we default to Intel for installed builds because we know all of that works. 
+						TargetArchitectures = UnrealBuildTool.IsEngineInstalled() ? new[] { MacExports.IntelArchitecture } : AllArchitectures;
+					}
+					else
+					{
+						// For project targets we default to Intel then check the project settings. Note the editor target will have
+						// been blacklisted above already.
+						TargetArchitectures = new[] { MacExports.IntelArchitecture };
+
+						// Look at the project engine config to see if it has specified a default editor target
+						FileReference EngineIniFile = FileReference.Combine(InProjectFile.Directory, "Config", "DefaultEngine.ini");
+
+						if (FileReference.Exists(EngineIniFile))
+						{
+							ConfigFile ProjectDefaultEngineIni;
+							ConfigCache.TryReadFile(EngineIniFile, out ProjectDefaultEngineIni);
+							if (ProjectDefaultEngineIni != null)
+							{
+								// read the MacTargetSettings where the user picks an architecture set to target
+								ConfigFileSection Section;
+								if (ProjectDefaultEngineIni.TryGetSection("/Script/MacTargetPlatform.MacTargetSettings", out Section))
+								{
+									ConfigLine Line;
+									if (Section.TryGetLine("TargetArchitecture", out Line))
+									{
+										if (Line.Value.IndexOf("Universal", StringComparison.OrdinalIgnoreCase) >= 0)
+										{
+											TargetArchitectures = AllArchitectures;
+										}
+										else if (Line.Value.IndexOf("Intel", StringComparison.OrdinalIgnoreCase) >= 0)
+										{
+											TargetArchitectures = new[] { MacExports.IntelArchitecture };
+										}
+										else if (Line.Value.IndexOf("Apple", StringComparison.OrdinalIgnoreCase) >= 0)
+										{
+											TargetArchitectures = new[] { MacExports.AppleArchitecture };
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+
+				// Cache this so we don't need to keep checking this file
+				CachedMacProjectArcitectures.Add(TargetName, TargetArchitectures);
+			}
+
+			return CachedMacProjectArcitectures[TargetName];
+		}
+
+		private void AppendPlatformConfiguration(StringBuilder Content, XcodeBuildConfig Config, string TargetName, FileReference ProjectFile, bool bSupportMac, bool bSupportIOS, bool bSupportTVOS, out string IOSRunTimeVersion, out string TVOSRunTimeVersion, string BinariesSubDir = "/Payload")
+		{
+			FileReference MacExecutablePath = Config.MacExecutablePath;
+
 			string UEDir = ConvertPath(Path.GetFullPath(Directory.GetCurrentDirectory() + "../../.."));
 			string MacExecutableDir = bSupportMac ? ConvertPath(MacExecutablePath.Directory.FullName) : "";
 			string MacExecutableFileName = bSupportMac ? MacExecutablePath.GetFileName() : "";
 
+			// Get Mac architectures supported by this project
+			IEnumerable<string> SupportedMacArchitectures = GetSupportedMacArchitectures(Config, ProjectFile);
+
 			IOSRunTimeVersion = null;
 			TVOSRunTimeVersion = null;
-
 
 			// shortcut for mac only
 			if (bSupportMac && !bSupportIOS && !bSupportTVOS)
 			{
-				Content.Append("\t\t\t\tVALID_ARCHS = \"" + string.Join(" ", this.SupportedMacArchitectures) + "\";" + ProjectFileGenerator.NewLine);
+				Content.Append("\t\t\t\tVALID_ARCHS = \"" + string.Join(" ", SupportedMacArchitectures) + "\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tSUPPORTED_PLATFORMS = \"macosx\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tPRODUCT_NAME = \"" + MacExecutableFileName + "\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tCONFIGURATION_BUILD_DIR = \"" + MacExecutableDir + "\";" + ProjectFileGenerator.NewLine);
@@ -999,7 +1105,6 @@ namespace UnrealBuildTool
 
 				string IOSRunTimeDevices = null;
 				string TVOSRunTimeDevices = null;
-				IEnumerable<string> ValidArchs = bSupportMac ? this.SupportedMacArchitectures : new[] {""};
 				string SupportedPlatforms = bSupportMac ? "macosx" : "";
 
 				bool bAutomaticSigning = false;
@@ -1018,7 +1123,6 @@ namespace UnrealBuildTool
 					IOSProvisioningData ProvisioningData = IOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					IOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					IOSRunTimeDevices = ProjectSettings.RuntimeDevices;
-					ValidArchs = ValidArchs.Union(this.SupportedIOSArchitectures);
 					SupportedPlatforms += " iphoneos";
 					bAutomaticSigning = ProjectSettings.bAutomaticSigning;
 					if (!bAutomaticSigning)
@@ -1037,7 +1141,6 @@ namespace UnrealBuildTool
 					TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					TVOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					TVOSRunTimeDevices = ProjectSettings.RuntimeDevices;
-					ValidArchs = ValidArchs.Union(this.SupportedIOSArchitectures);
 					SupportedPlatforms += " appletvos";
 					if (!bAutomaticSigning)
 					{
@@ -1048,7 +1151,6 @@ namespace UnrealBuildTool
 					TVOS_BUNDLE = ProjectSettings.BundleIdentifier;
                 }
 
-				Content.Append("\t\t\t\tVALID_ARCHS = \"" + string.Join(" ", ValidArchs) + "\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tSUPPORTED_PLATFORMS = \"" + SupportedPlatforms.Trim() + "\";" + ProjectFileGenerator.NewLine);
 				if (bAutomaticSigning)
 				{
@@ -1056,6 +1158,7 @@ namespace UnrealBuildTool
 				}
 				if (IOSRunTimeVersion != null)
 				{
+					Content.Append("\t\t\t\t\"VALID_ARCHS[sdk=iphoneos*]\" = \"" + string.Join(" ", this.SupportedIOSArchitectures) + "\";" + ProjectFileGenerator.NewLine);
 					Content.Append("\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = " + IOSRunTimeVersion + ";" + ProjectFileGenerator.NewLine);
 					Content.Append("\t\t\t\t\"PRODUCT_NAME[sdk=iphoneos*]\" = \"" + TargetName + "\";" + ProjectFileGenerator.NewLine); // @todo: change to Path.GetFileName(Config.IOSExecutablePath) when we stop using payload
 					Content.Append("\t\t\t\t\"TARGETED_DEVICE_FAMILY[sdk=iphoneos*]\" = \"" + IOSRunTimeDevices + "\";" + ProjectFileGenerator.NewLine);
@@ -1076,6 +1179,7 @@ namespace UnrealBuildTool
 				}
                 if (TVOSRunTimeVersion != null)
 				{
+					Content.Append("\t\t\t\t\"VALID_ARCHS[sdk=appletvos*]\" = \"" + string.Join(" ", this.SupportedIOSArchitectures) + "\";" + ProjectFileGenerator.NewLine);
 					Content.Append("\t\t\t\tTVOS_DEPLOYMENT_TARGET = " + TVOSRunTimeVersion + ";" + ProjectFileGenerator.NewLine);
 					Content.Append("\t\t\t\t\"PRODUCT_NAME[sdk=appletvos*]\" = \"" + TargetName + "\";" + ProjectFileGenerator.NewLine); // @todo: change to Path.GetFileName(Config.TVOSExecutablePath) when we stop using payload
 					Content.Append("\t\t\t\t\"TARGETED_DEVICE_FAMILY[sdk=appletvos*]\" = \"" + TVOSRunTimeDevices + "\";" + ProjectFileGenerator.NewLine);
@@ -1096,9 +1200,10 @@ namespace UnrealBuildTool
 				}
 				if (bSupportMac)
 				{
+					Content.Append("\t\t\t\t\"VALID_ARCHS[sdk=macosx*]\" = \"" + string.Join(" ", SupportedMacArchitectures) + "\";" + ProjectFileGenerator.NewLine);
 					Content.Append("\t\t\t\t\"PRODUCT_NAME[sdk=macosx*]\" = \"" + MacExecutableFileName + "\";" + ProjectFileGenerator.NewLine);
-                Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=macosx*]\" = \"" + MacExecutableDir + "\";" + ProjectFileGenerator.NewLine);
-				Content.Append("\t\t\t\t\"SDKROOT[sdk=macosx]\" = macosx;" + ProjectFileGenerator.NewLine);
+					Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=macosx*]\" = \"" + MacExecutableDir + "\";" + ProjectFileGenerator.NewLine);
+					Content.Append("\t\t\t\t\"SDKROOT[sdk=macosx]\" = macosx;" + ProjectFileGenerator.NewLine);
 				}
 
 				if (bIsUnrealGame || bIsUE4Client)
@@ -1158,7 +1263,7 @@ namespace UnrealBuildTool
 			string MacExecutableFileName = Config.MacExecutablePath.GetFileName();
 
 			string IOSRunTimeVersion, TVOSRunTimeVersion;
-			AppendPlatformConfiguration(Content, Config.MacExecutablePath, Config.BuildTarget, ProjectFile, true, !bMacOnly, !bMacOnly, out IOSRunTimeVersion, out TVOSRunTimeVersion);
+			AppendPlatformConfiguration(Content, Config, Config.BuildTarget, ProjectFile, true, !bMacOnly, !bMacOnly, out IOSRunTimeVersion, out TVOSRunTimeVersion);
 
 			if (!bMacOnly)
 			{
@@ -1320,7 +1425,7 @@ namespace UnrealBuildTool
 			Content.Append("\t\t};" + ProjectFileGenerator.NewLine);
 		}
 
-		private void AppendLegacyTargetBuildConfiguration(StringBuilder Content, XcodeBuildConfig Config, string ConfigGuid)
+		private void AppendLegacyTargetBuildConfiguration(StringBuilder Content, XcodeBuildConfig Config, string ConfigGuid, FileReference ProjectFile)
 		{
 			bool bMacOnly = true;
 			if (Config.ProjectTarget.TargetRules != null && XcodeProjectFileGenerator.ProjectFilePlatform.HasFlag(XcodeProjectFileGenerator.XcodeProjectFilePlatform.iOS))
@@ -1331,17 +1436,20 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Get Mac architectures supported by this project
+			IEnumerable<string> SupportedMacArchitectures = GetSupportedMacArchitectures(Config, ProjectFilePath);
+
 			Content.Append("\t\t" + ConfigGuid + " /* \"" + Config.DisplayName + "\" */ = {" + ProjectFileGenerator.NewLine);
 			Content.Append("\t\t\tisa = XCBuildConfiguration;" + ProjectFileGenerator.NewLine);
 			Content.Append("\t\t\tbuildSettings = {" + ProjectFileGenerator.NewLine);
 			if (bMacOnly)
 			{
-				Content.Append("\t\t\t\tVALID_ARCHS = \"" + string.Join(" ", this.SupportedMacArchitectures) + "\";" + ProjectFileGenerator.NewLine);
+				Content.Append("\t\t\t\tVALID_ARCHS = \"" + string.Join(" ", SupportedMacArchitectures) + "\";" + ProjectFileGenerator.NewLine);
 				Content.Append("\t\t\t\tSUPPORTED_PLATFORMS = \"macosx\";" + ProjectFileGenerator.NewLine);
 			}
 			else
 			{
-				IEnumerable<string> ValidArchs = this.SupportedMacArchitectures;
+				IEnumerable<string> ValidArchs = SupportedMacArchitectures;
 				string SupportedPlatforms = "macosx";
 				if (InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.IOS, EProjectType.Code))
 				{
@@ -1385,7 +1493,7 @@ namespace UnrealBuildTool
 
 			foreach (KeyValuePair<string, XcodeBuildConfig> Config in BuildTargetBuildConfigs)
 			{
-				AppendLegacyTargetBuildConfiguration(Content, Config.Value, Config.Key);
+				AppendLegacyTargetBuildConfiguration(Content, Config.Value, Config.Key, GameProjectPath);
 			}
 
 			foreach (KeyValuePair<string, XcodeBuildConfig> Config in IndexTargetBuildConfigs)

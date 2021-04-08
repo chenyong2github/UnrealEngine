@@ -71,6 +71,11 @@ TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> IInstallBundleMan
 	return RequestReleaseContent(MakeArrayView(&ReleaseName, 1), Flags, KeepNames, LogVerbosityOverride);
 }
 
+EInstallBundleResult IInstallBundleManager::FlushCache(FInstallBundleManagerFlushCacheCompleteDelegate Callback, ELogVerbosity::Type LogVerbosityOverride /*= ELogVerbosity::NoLogging*/)
+{
+	return FlushCache({}, MoveTemp(Callback), LogVerbosityOverride);
+}
+
 void IInstallBundleManager::RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<const FName> KeepNames /*= TArrayView<const FName>()*/)
 {
 	RequestRemoveContentOnNextInit(MakeArrayView(&RemoveName, 1), KeepNames);

@@ -139,6 +139,12 @@ void UBakeMeshAttributeMapsTool::Setup()
 		PreviewMaterial = UMaterialInstanceDynamic::Create(Material, GetToolManager());
 		DynamicMeshComponent->SetOverrideRenderMaterial(PreviewMaterial);
 	}
+	UMaterial* BentNormalMaterial = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/BakeBentNormalPreviewMaterial"));
+	check(BentNormalMaterial);
+	if (Material != nullptr)
+	{
+		BentNormalPreviewMaterial = UMaterialInstanceDynamic::Create(BentNormalMaterial, GetToolManager());
+	}
 
 	bIsBakeToSelf = (Targets.Num() == 1);
 
@@ -182,9 +188,13 @@ void UBakeMeshAttributeMapsTool::Setup()
 	SetToolPropertySourceEnabled(OcclusionMapProps, false);
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->OcclusionRays, [this](int32) { bResultValid = false; });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->MaxDistance, [this](float) { bResultValid = false; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->SpreadAngle, [this](float) { bResultValid = false; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->Distribution, [this](EOcclusionMapDistribution) { bResultValid = false; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->Preview, [this](EOcclusionMapPreview) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->BlurRadius, [this](float) { bResultValid = false; });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->bGaussianBlur, [this](float) { bResultValid = false; });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->BiasAngle, [this](float) { bResultValid = false; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->NormalSpace, [this](ENormalMapSpace) { bResultValid = false; });
 
 
 	CurvatureMapProps = NewObject<UBakedCurvatureMapToolProperties>(this);
@@ -228,7 +238,12 @@ void UBakeMeshAttributeMapsTool::Setup()
 
 bool UBakeMeshAttributeMapsTool::CanAccept() const
 {
-	return Settings->Result != nullptr;
+	bool bCanAccept = Settings->Result.Num() > 0;
+	for (UTexture2D* Result : Settings->Result)
+	{
+		bCanAccept = bCanAccept && Result;
+	}
+	return bCanAccept;
 }
 
 
@@ -264,44 +279,47 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 					break;
 
 				case EBakeMapType::TangentSpaceNormalMap:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::NormalMap);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::NormalMap);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
 						FString::Printf(TEXT("%s_Normals"), *BaseName), StaticMeshAsset);
 					break;
 
-				case EBakeMapType::AmbientOcclusion:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::AmbientOcclusion);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+				case EBakeMapType::Occlusion:
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::AmbientOcclusion);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
 						FString::Printf(TEXT("%s_Occlusion"), *BaseName), StaticMeshAsset);
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[1], FTexture2DBuilder::ETextureType::NormalMap);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[1],
+						FString::Printf(TEXT("%s_BentNormal"), *BaseName), StaticMeshAsset);
 					break;
 
 				case EBakeMapType::Curvature:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
 						FString::Printf(TEXT("%s_Curvature"), *BaseName), StaticMeshAsset);
 					break;
 
 				case EBakeMapType::NormalImage:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
 						FString::Printf(TEXT("%s_NormalImg"), *BaseName), StaticMeshAsset);
 					break;
 
 				case EBakeMapType::FaceNormalImage:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
 						FString::Printf(TEXT("%s_FaceNormalImg"), *BaseName), StaticMeshAsset);
 					break;
 
 				case EBakeMapType::PositionImage:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
 						FString::Printf(TEXT("%s_PositionImg"), *BaseName), StaticMeshAsset);
 					break;
 
 				case EBakeMapType::Texture2DImage:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
 						FString::Printf(TEXT("%s_TextureImg"), *BaseName), StaticMeshAsset);
 					break;
 				}
@@ -418,10 +436,10 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	switch (Settings->MapType)
 	{
 		default:
-	case EBakeMapType::TangentSpaceNormalMap:
+		case EBakeMapType::TangentSpaceNormalMap:
 			UpdateResult_Normal();
 			break;
-		case EBakeMapType::AmbientOcclusion:
+		case EBakeMapType::Occlusion:
 			UpdateResult_Occlusion();
 			break;
 		case EBakeMapType::Curvature:
@@ -486,24 +504,54 @@ void UBakeMeshAttributeMapsTool::UpdateResult_Occlusion()
 	OcclusionMapSettings.Dimensions = Dimensions;
 	OcclusionMapSettings.MaxDistance = (OcclusionMapProps->MaxDistance == 0) ? TNumericLimits<float>::Max() : OcclusionMapProps->MaxDistance;
 	OcclusionMapSettings.OcclusionRays = OcclusionMapProps->OcclusionRays;
+	OcclusionMapSettings.SpreadAngle = OcclusionMapProps->SpreadAngle;
+	OcclusionMapSettings.Distribution = OcclusionMapProps->Distribution;
 	OcclusionMapSettings.BlurRadius = (OcclusionMapProps->bGaussianBlur) ? OcclusionMapProps->BlurRadius : 0.0;
 	OcclusionMapSettings.BiasAngle = OcclusionMapProps->BiasAngle;
+	OcclusionMapSettings.NormalSpace = OcclusionMapProps->NormalSpace;
 
 	if ( !(CachedOcclusionMapSettings == OcclusionMapSettings) )
 	{
 		FMeshOcclusionMapBaker OcclusionBaker;
 		OcclusionBaker.SetCache(BakeCache.Get());
+		OcclusionBaker.BaseMeshTangents = BaseMeshTangents.Get();
 		OcclusionBaker.NumOcclusionRays = OcclusionMapSettings.OcclusionRays;
+		OcclusionBaker.MaxDistance = OcclusionMapSettings.MaxDistance;
+		OcclusionBaker.SpreadAngle = OcclusionMapSettings.SpreadAngle;
 		OcclusionBaker.BlurRadius = OcclusionMapSettings.BlurRadius;
 		OcclusionBaker.BiasAngleDeg = OcclusionMapSettings.BiasAngle;
-		OcclusionBaker.MaxDistance = OcclusionMapSettings.MaxDistance;
+		switch (OcclusionMapSettings.Distribution)
+		{
+		case EOcclusionMapDistribution::Cosine:
+			OcclusionBaker.Distribution = FMeshOcclusionMapBaker::EDistribution::Cosine;
+			break;
+		case EOcclusionMapDistribution::Uniform:
+			OcclusionBaker.Distribution = FMeshOcclusionMapBaker::EDistribution::Uniform;
+			break;
+		}
+		switch (OcclusionMapSettings.NormalSpace)
+		{
+		case ENormalMapSpace::Tangent:
+			OcclusionBaker.NormalSpace = FMeshOcclusionMapBaker::ESpace::Tangent;
+			break;
+		case ENormalMapSpace::Object:
+			OcclusionBaker.NormalSpace = FMeshOcclusionMapBaker::ESpace::Object;
+			break;
+		}
 		OcclusionBaker.Bake();
 
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::AmbientOcclusion, Dimensions);
-		TextureBuilder.Copy(*OcclusionBaker.GetResult());
+		TextureBuilder.Copy(*OcclusionBaker.GetResult(FMeshOcclusionMapBaker::EResult::AmbientOcclusion));
 		TextureBuilder.Commit(false);
 		CachedOcclusionMap = TextureBuilder.GetTexture2D();
+
+		FTexture2DBuilder TextureNormalBuilder;
+		TextureNormalBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, Dimensions);
+		TextureNormalBuilder.Copy(*OcclusionBaker.GetResult(FMeshOcclusionMapBaker::EResult::BentNormal));
+		TextureNormalBuilder.Commit(false);
+		CachedBentNormalMap = TextureNormalBuilder.GetTexture2D();
+
 		CachedOcclusionMapSettings = OcclusionMapSettings;
 	}
 }
@@ -789,28 +837,42 @@ void UBakeMeshAttributeMapsTool::UpdateResult_Texture2DImage()
 
 void UBakeMeshAttributeMapsTool::UpdateVisualization()
 {
+	DynamicMeshComponent->SetOverrideRenderMaterial(PreviewMaterial);
 	switch (Settings->MapType)
 	{
 	default:
-		Settings->Result = nullptr;
+		Settings->Result[0] = nullptr;
 		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
 		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
 		break;
 	case EBakeMapType::TangentSpaceNormalMap:
-		Settings->Result = CachedNormalMap;
+		Settings->Result[0] = CachedNormalMap;
 		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), CachedNormalMap);
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
 		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
 		break;
-	case EBakeMapType::AmbientOcclusion:
-		Settings->Result = CachedOcclusionMap;
-		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
-		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), CachedOcclusionMap);
-		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
+	case EBakeMapType::Occlusion:
+		Settings->Result[0] = CachedOcclusionMap;
+		Settings->Result[1] = CachedBentNormalMap;
+		switch (OcclusionMapProps->Preview)
+		{
+		case EOcclusionMapPreview::AmbientOcclusion:
+			PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
+			PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), CachedOcclusionMap);
+			PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
+			break;
+		case EOcclusionMapPreview::BentNormal:
+			BentNormalPreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
+			BentNormalPreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), CachedOcclusionMap);
+			BentNormalPreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
+			BentNormalPreviewMaterial->SetTextureParameterValue(TEXT("BentNormalMap"), CachedBentNormalMap);
+			DynamicMeshComponent->SetOverrideRenderMaterial(BentNormalPreviewMaterial);
+			break;
+		}
 		break;
 	case EBakeMapType::Curvature:
-		Settings->Result = CachedCurvatureMap;
+		Settings->Result[0] = CachedCurvatureMap;
 		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
 		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), CachedCurvatureMap);
@@ -819,14 +881,14 @@ void UBakeMeshAttributeMapsTool::UpdateVisualization()
 	case EBakeMapType::NormalImage:
 	case EBakeMapType::FaceNormalImage:
 	case EBakeMapType::PositionImage:
-		Settings->Result = CachedMeshPropertyMap;
+		Settings->Result[0] = CachedMeshPropertyMap;
 		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
 		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), CachedMeshPropertyMap);
 		break;
 
 	case EBakeMapType::Texture2DImage:
-		Settings->Result = CachedTexture2DImageMap;
+		Settings->Result[0] = CachedTexture2DImageMap;
 		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
 		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), CachedTexture2DImageMap);
@@ -843,13 +905,16 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 	SetToolPropertySourceEnabled(CurvatureMapProps, false);
 	SetToolPropertySourceEnabled(Texture2DProps, false);
 
+	Settings->Result.Empty();
+	Settings->Result.Add(nullptr);
 	switch (Settings->MapType)
 	{
 	case EBakeMapType::TangentSpaceNormalMap:
 		SetToolPropertySourceEnabled(NormalMapProps, true);
 		break;
-	case EBakeMapType::AmbientOcclusion:
+	case EBakeMapType::Occlusion:
 		SetToolPropertySourceEnabled(OcclusionMapProps, true);
+		Settings->Result.Add(nullptr); // Extra slot for BentNormalMap
 		break;
 	case EBakeMapType::Curvature:
 		SetToolPropertySourceEnabled(CurvatureMapProps, true);

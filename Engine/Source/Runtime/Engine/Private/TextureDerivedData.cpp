@@ -165,6 +165,11 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempGuid = FGuid(0x2C9DF7E3, 0xBC9D413B, 0xBF963C7A, 0x3F27E8B1); // Guid reserved for bForceAlphaChannel feature
 		Ar << TempGuid;
 	}
+	//Settings.LossyCompressionAmount
+	//Settings.CompressionQuality
+
+	//note : LossyCompressionAmount and CompressionQuality are not put in DDC key
+	// it is up to textureformats that use them to put them in
 }
 
 /**
@@ -444,8 +449,13 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bChromaKeyTexture = Texture.bChromaKeyTexture;
 	OutBuildSettings.ChromaKeyThreshold = Texture.ChromaKeyThreshold;
 	OutBuildSettings.CompressionQuality = Texture.CompressionQuality - 1; // translate from enum's 0 .. 5 to desired compression (-1 .. 4, where -1 is default while 0 .. 4 are actual quality setting override)
-	// TODO - get default value from config/CVAR/LODGroup?
-	OutBuildSettings.LossyCompressionAmount = (Texture.LossyCompressionAmount == TLCA_Default) ? TLCA_Lowest : Texture.LossyCompressionAmount.GetValue();
+	
+	OutBuildSettings.LossyCompressionAmount = Texture.LossyCompressionAmount.GetValue();
+
+	// if LossyCompressionAmount is Default, inherit from LODGroup :
+	const FTextureLODGroup& LODGroup = TextureLODSettings.GetTextureLODGroup(Texture.LODGroup);
+	if ( OutBuildSettings.LossyCompressionAmount == TLCA_Default )
+		OutBuildSettings.LossyCompressionAmount = LODGroup.LossyCompressionAmount;
 
 	OutBuildSettings.Downscale = 1.0f;
 	if (MipGenSettings == TMGS_NoMipmaps && 
@@ -625,7 +635,7 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 		if (UE_LOG_ACTIVE(LogTexture,Verbose) || bDDCError)
 		{
 			if (LogString.IsEmpty())
-			{
+		{
 				LogString = FString::Printf(
 					TEXT("Storing texture in DDC:\n  Name: %s\n  Key: %s\n  Format: %s\n"),
 					*FString(TextureName),
@@ -1391,14 +1401,14 @@ bool FTexturePlatformData::AreDerivedMipsAvailable() const
 	for (const FTexture2DMipMap& Mip : Mips)
 	{
 		if (!Mip.DerivedDataKey.IsEmpty())
-		{
+	{
 			MipKeys.Add(Mip.DerivedDataKey);
 		}
 	}
 	if (IsInGameThread())
-	{
+		{
 		return GetDerivedDataCacheRef().AllCachedDataProbablyExists(MipKeys);
-	}
+		}
 	else
 	{
 		// When using a shared DDC and performing async loading, 
@@ -1416,14 +1426,14 @@ bool FTexturePlatformData::AreDerivedVTChunksAvailable() const
 	for (const FVirtualTextureDataChunk& Chunk : VTData->Chunks)
 	{
 		if (!Chunk.DerivedDataKey.IsEmpty())
-		{
+	{
 			ChunkKeys.Add(Chunk.DerivedDataKey);
 		}
 	}
 	if (IsInGameThread())
-	{
+		{
 		return GetDerivedDataCacheRef().AllCachedDataProbablyExists(ChunkKeys);
-	}
+		}
 	else
 	{
 		// When using a shared DDC and performing async loading, 
@@ -1851,25 +1861,25 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 		}
 
 		for (int32 SettingsIndex = 0; SettingsIndex < BuildSettingsToCache.Num(); ++SettingsIndex)
-		{
-			// UE_LOG(LogTemp, Warning, TEXT("Caching data for texture %s with id %s"), *GetName(), *DerivedDataKey);
-			uint32 CurrentCacheFlags = CacheFlags;
-			// if the cached data key exists already then we don't need to allowasync build
-			// if it doesn't then allow async builds
-			if (!BuildSettingsProbablyCached[SettingsIndex])
 			{
-				CurrentCacheFlags |= ETextureCacheFlags::AllowAsyncBuild;
-				CurrentCacheFlags |= ETextureCacheFlags::AllowAsyncLoading;
-			}
+				// UE_LOG(LogTemp, Warning, TEXT("Caching data for texture %s with id %s"), *GetName(), *DerivedDataKey);
+				uint32 CurrentCacheFlags = CacheFlags;
+				// if the cached data key exists already then we don't need to allowasync build
+				// if it doesn't then allow async builds
+			if (!BuildSettingsProbablyCached[SettingsIndex])
+					{
+						CurrentCacheFlags |= ETextureCacheFlags::AllowAsyncBuild;
+						CurrentCacheFlags |= ETextureCacheFlags::AllowAsyncLoading;
+					}
 
-			FTexturePlatformData* PlatformDataToCache;
-			PlatformDataToCache = new FTexturePlatformData();
-			PlatformDataToCache->Cache(
-				*this,
-				BuildSettingsToCache[SettingsIndex].GetData(),
-				CurrentCacheFlags,
-				nullptr
-				);
+				FTexturePlatformData* PlatformDataToCache;
+				PlatformDataToCache = new FTexturePlatformData();
+				PlatformDataToCache->Cache(
+					*this,
+					BuildSettingsToCache[SettingsIndex].GetData(),
+					CurrentCacheFlags,
+					nullptr
+					);
 			CookedPlatformData.Add(BuildSettingsCacheKeys[SettingsIndex], PlatformDataToCache);
 		}
 	}
@@ -1998,7 +2008,7 @@ bool UTexture::IsAsyncCacheComplete() const
 		if (RunningPlatformData)
 		{
 			if (RunningPlatformData->AsyncTask != nullptr && !RunningPlatformData->AsyncTask->IsWorkDone())
-			{
+		{
 				return false;
 			}
 		}

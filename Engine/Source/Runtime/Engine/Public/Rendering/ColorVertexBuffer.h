@@ -100,6 +100,7 @@ public:
 	{
 		return NumVertices;
 	}
+	bool GetAllowCPUAccess() const;
 
 	/** Useful for memory profiling. */
 	ENGINE_API uint32 GetAllocatedSize() const;

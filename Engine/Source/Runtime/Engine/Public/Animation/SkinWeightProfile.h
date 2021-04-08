@@ -154,6 +154,7 @@ struct ENGINE_API FSkinWeightProfilesData
 	void ReleaseResources();
 
 	SIZE_T GetResourcesSize() const;
+	SIZE_T GetCPUAccessMemoryOverhead() const;
 
 	friend FArchive& operator<<(FArchive& Ar, FSkinWeightProfilesData& OverrideData);
 

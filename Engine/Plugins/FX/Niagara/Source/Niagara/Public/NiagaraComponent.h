@@ -506,7 +506,6 @@ public:
 
 #if WITH_EDITOR
 	void PostLoadNormalizeOverrideNames();
-
 	FOnSystemInstanceChanged& OnSystemInstanceChanged() { return OnSystemInstanceChangedDelegate; }
 
 	FOnSynchronizedWithAssetParameters& OnSynchronizedWithAssetParameters() { return OnSynchronizedWithAssetParametersDelegate; }

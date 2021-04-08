@@ -25,7 +25,7 @@
  *
  *	Object.AsJsonValue();
  *
- * produces {"Array": [7., "Hello", true], 13.}
+ * produces {"Array": [7., "Hello", true], "Number": 13.}
  */
 
 class FJsonDomBuilder

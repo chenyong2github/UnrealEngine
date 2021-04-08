@@ -295,7 +295,6 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 	 
 	LoadSettings();
 
-	// Strip any invalid tags from the assets being edited
 	VerifyAssetTagValidity();
 }
 
@@ -1038,73 +1037,6 @@ void SGameplayTagWidget::SetTagNodeItemExpansion(TSharedPtr<FGameplayTagNode> No
 	}
 }
 
-void SGameplayTagWidget::VerifyAssetTagValidity()
-{
-	FGameplayTagContainer LibraryTags;
-
-	// Create a set that is the library of all valid tags
-	TArray< TSharedPtr<FGameplayTagNode> > NodeStack;
-
-	UGameplayTagsManager& TagsManager = UGameplayTagsManager::Get();
-	
-	TagsManager.GetFilteredGameplayRootTags(TEXT(""), NodeStack);
-
-	while (NodeStack.Num() > 0)
-	{
-		TSharedPtr<FGameplayTagNode> CurNode = NodeStack.Pop();
-		if (CurNode.IsValid())
-		{
-			LibraryTags.AddTag(CurNode->GetCompleteTag());
-			NodeStack.Append(CurNode->GetChildTagNodes());
-		}
-	}
-
-	// Find and remove any tags on the asset that are no longer in the library
-	for (int32 ContainerIdx = 0; ContainerIdx < TagContainers.Num(); ++ContainerIdx)
-	{
-		UObject* OwnerObj = TagContainers[ContainerIdx].TagContainerOwner.Get();
-		FGameplayTagContainer* Container = TagContainers[ContainerIdx].TagContainer;
-
-		if (Container)
-		{
-			FGameplayTagContainer EditableContainer = *Container;
-
-			// Use a set instead of a container so we can find and remove None tags
-			TSet<FGameplayTag> InvalidTags;
-
-			for (auto It = Container->CreateConstIterator(); It; ++It)
-			{
-				FGameplayTag TagToCheck = *It;
-
-				// Check redirectors, these will get fixed on load time
-				UGameplayTagsManager::Get().RedirectSingleGameplayTag(TagToCheck, nullptr);
-
-				if (!LibraryTags.HasTagExact(TagToCheck))
-				{
-					InvalidTags.Add(*It);
-				}
-			}
-			if (InvalidTags.Num() > 0)
-			{
-				FString InvalidTagNames;
-
-				for (auto InvalidIter = InvalidTags.CreateConstIterator(); InvalidIter; ++InvalidIter)
-				{
-					EditableContainer.RemoveTag(*InvalidIter);
-					InvalidTagNames += InvalidIter->ToString() + TEXT("\n");
-				}
-				SetContainer(Container, &EditableContainer, OwnerObj);
-
-				FFormatNamedArguments Arguments;
-				Arguments.Add(TEXT("Objects"), FText::FromString( InvalidTagNames ));
-				FText DialogText = FText::Format( LOCTEXT("GameplayTagWidget_InvalidTags", "Invalid Tags that have been removed: \n\n{Objects}"), Arguments );
-				FText DialogTitle = LOCTEXT("GameplayTagWidget_Warning", "Warning");
-				FMessageDialog::Open( EAppMsgType::Ok, DialogText, &DialogTitle );
-			}
-		}
-	}
-}
-
 void SGameplayTagWidget::LoadSettings()
 {
 	MigrateSettings();
@@ -1450,6 +1382,54 @@ void SGameplayTagWidget::OpenRenameGameplayTagDialog(TSharedPtr<FGameplayTagNode
 TSharedPtr<SWidget> SGameplayTagWidget::GetWidgetToFocusOnOpen()
 {
 	return SearchTagBox;
+}
+
+void SGameplayTagWidget::VerifyAssetTagValidity()
+{
+	UGameplayTagsManager& TagsManager = UGameplayTagsManager::Get();
+
+	// Find and remove any tags on the asset that are no longer in the library
+	for (int32 ContainerIdx = 0; ContainerIdx < TagContainers.Num(); ++ContainerIdx)
+	{
+		UObject* OwnerObj = TagContainers[ContainerIdx].TagContainerOwner.Get();
+		FGameplayTagContainer* Container = TagContainers[ContainerIdx].TagContainer;
+
+		if (Container)
+		{
+			FGameplayTagContainer EditableContainer = *Container;
+
+			// Use a set instead of a container so we can find and remove None tags
+			TSet<FGameplayTag> InvalidTags;
+
+			for (auto It = Container->CreateConstIterator(); It; ++It)
+			{
+				FGameplayTag TagToCheck = *It;
+
+				if (!UGameplayTagsManager::Get().RequestGameplayTag(TagToCheck.GetTagName(), false).IsValid())
+				{
+					InvalidTags.Add(*It);
+				}
+			}
+
+			if (InvalidTags.Num() > 0)
+			{
+				FString InvalidTagNames;
+
+				for (auto InvalidIter = InvalidTags.CreateConstIterator(); InvalidIter; ++InvalidIter)
+				{
+					EditableContainer.RemoveTag(*InvalidIter);
+					InvalidTagNames += InvalidIter->ToString() + TEXT("\n");
+				}
+				SetContainer(Container, &EditableContainer, OwnerObj);
+
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("Objects"), FText::FromString(InvalidTagNames));
+				FText DialogText = FText::Format(LOCTEXT("GameplayTagWidget_InvalidTags", "Invalid Tags that have been removed: \n\n{Objects}"), Arguments);
+				FText DialogTitle = LOCTEXT("GameplayTagWidget_Warning", "Warning");
+				FMessageDialog::Open(EAppMsgType::Ok, DialogText, &DialogTitle);
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

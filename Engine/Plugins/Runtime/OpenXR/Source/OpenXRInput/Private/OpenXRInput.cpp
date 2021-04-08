@@ -255,7 +255,9 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 	Controllers.Add(EControllerHand::Right, FOpenXRController(ActionSet, "Right Controller"));
 
 	// Generate a map of all supported interaction profiles
+	XrPath SimpleControllerPath = GetPath(Instance, "/interaction_profiles/khr/simple_controller");
 	TMap<FString, FInteractionProfile> Profiles;
+	Profiles.Add("SimpleController", FInteractionProfile(SimpleControllerPath, true));
 	Profiles.Add("Daydream", FInteractionProfile(GetPath(Instance, "/interaction_profiles/google/daydream_controller"), false));
 	Profiles.Add("Vive", FInteractionProfile(GetPath(Instance, "/interaction_profiles/htc/vive_controller"), true));
 	Profiles.Add("MixedReality", FInteractionProfile(GetPath(Instance, "/interaction_profiles/microsoft/motion_controller"), true));
@@ -336,17 +338,14 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 			);
 	}
 
-	bool bGripAndAimBindingsAdded = false;
-
 	for (TPair<FString, FInteractionProfile>& Pair : Profiles)
 	{
 		FInteractionProfile& Profile = Pair.Value;
 
 		// Only suggest interaction profile bindings if the developer has provided bindings for them
-		if (Profile.Bindings.Num() > 0)
+		// An exception is made for the Simple Controller Profile which is always bound as a fallback
+		if (Profile.Bindings.Num() > 0 || Profile.Path == SimpleControllerPath)
 		{
-			bGripAndAimBindingsAdded = true;
-
 			// Add the bindings for the controller pose and haptics
 			Profile.Bindings.Add(XrActionSuggestedBinding {
 				Controllers[EControllerHand::Left].GripAction, GetPath(Instance, "/user/hand/left/input/grip/pose")
@@ -379,32 +378,6 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 			InteractionProfile.suggestedBindings = Profile.Bindings.GetData();
 			XR_ENSURE(xrSuggestInteractionProfileBindings(Instance, &InteractionProfile));
 		}
-	}
-	
-	// If we have no profile bindings at all we will bind grip/aim to the Kronos Simple Controller profile, so that motion controller grip/aim poses function by default.
-	if (!bGripAndAimBindingsAdded)
-	{
-		TArray<XrActionSuggestedBinding> Bindings;
-		Bindings.Add(XrActionSuggestedBinding{
-			Controllers[EControllerHand::Left].GripAction, GetPath(Instance, "/user/hand/left/input/grip/pose")
-			});
-		Bindings.Add(XrActionSuggestedBinding{
-			Controllers[EControllerHand::Right].GripAction, GetPath(Instance, "/user/hand/right/input/grip/pose")
-			});
-		Bindings.Add(XrActionSuggestedBinding{
-			Controllers[EControllerHand::Left].AimAction, GetPath(Instance, "/user/hand/left/input/aim/pose")
-			});
-		Bindings.Add(XrActionSuggestedBinding{
-			Controllers[EControllerHand::Right].AimAction, GetPath(Instance, "/user/hand/right/input/aim/pose")
-			});
-
-		XrInteractionProfileSuggestedBinding InteractionProfile;
-		InteractionProfile.type = XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING;
-		InteractionProfile.next = nullptr;
-		InteractionProfile.interactionProfile = GetPath(Instance, "/interaction_profiles/khr/simple_controller");
-		InteractionProfile.countSuggestedBindings = Bindings.Num();
-		InteractionProfile.suggestedBindings = Bindings.GetData();
-		XR_ENSURE(xrSuggestInteractionProfileBindings(Instance, &InteractionProfile));
 	}
 
 	Controllers[EControllerHand::Left].AddActionDevices(OpenXRHMD);

@@ -14,8 +14,11 @@
 DEFINE_LOG_CATEGORY_STATIC(LogUObjectHash, Log, All);
 
 DECLARE_CYCLE_STAT( TEXT( "GetObjectsOfClass" ), STAT_Hash_GetObjectsOfClass, STATGROUP_UObjectHash );
+
+#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
 DECLARE_CYCLE_STAT( TEXT( "HashObject" ), STAT_Hash_HashObject, STATGROUP_UObjectHash );
 DECLARE_CYCLE_STAT( TEXT( "UnhashObject" ), STAT_Hash_UnhashObject, STATGROUP_UObjectHash );
+#endif
 
 #if UE_GC_TRACK_OBJ_AVAILABLE
 DEFINE_STAT( STAT_Hash_NumObjects );
@@ -1260,11 +1263,12 @@ bool ClassHasInstancesAsyncLoading(const UClass* ClassToLookFor)
 
 void HashObject(UObjectBase* Object)
 {
-	SCOPE_CYCLE_COUNTER( STAT_Hash_HashObject );
-
 	FName Name = Object->GetFName();
 	if (Name != NAME_None)
 	{
+#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
+		SCOPE_CYCLE_COUNTER(STAT_Hash_HashObject);
+#endif
 		int32 Hash = 0;
 
 		FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
@@ -1301,11 +1305,12 @@ void HashObject(UObjectBase* Object)
  */
 void UnhashObject(UObjectBase* Object)
 {
-	SCOPE_CYCLE_COUNTER(STAT_Hash_UnhashObject);
-
 	FName Name = Object->GetFName();
 	if (Name != NAME_None)
 	{
+#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
+		SCOPE_CYCLE_COUNTER(STAT_Hash_UnhashObject);
+#endif
 		int32 Hash = 0;
 		int32 NumRemoved = 0;
 

@@ -23,7 +23,8 @@ public class Niagara : ModuleRules
 				"AudioPlatformConfiguration",
 				"SignalProcessing",
 				"ApplicationCore",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"HeadMountedDisplay",
 			}
         );
 

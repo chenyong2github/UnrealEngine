@@ -49,7 +49,7 @@ UENUM()
 enum class EBakeMapType
 {
 	TangentSpaceNormalMap,
-	AmbientOcclusion,
+	Occlusion,
 	Curvature,
 	Texture2DImage,
 	NormalImage,
@@ -104,10 +104,19 @@ public:
 	TArray<FString> UVLayerNamesList;
 
 	UPROPERTY(VisibleAnywhere, Category = MapSettings, meta = (TransientToolProperty))
-	UTexture2D* Result;
+	TArray<UTexture2D*> Result;
 
 };
 
+
+UENUM()
+enum class ENormalMapSpace
+{
+	/** Tangent space */
+	Tangent UMETA(DisplayName = "Tangent space"),
+	/** Object space */
+	Object UMETA(DisplayName = "Object space")
+};
 
 
 UCLASS()
@@ -119,30 +128,65 @@ public:
 };
 
 
+UENUM()
+enum class EOcclusionMapDistribution
+{
+	/** Uniform occlusion rays */
+	Uniform UMETA(DisplayName = "Uniform"),
+	/** Cosine weighted occlusion rays */
+	Cosine UMETA(DisplayName = "Cosine")
+};
+
+UENUM()
+enum class EOcclusionMapPreview
+{
+	/** Ambient Occlusion */
+	AmbientOcclusion UMETA(DisplayName = "Ambient Occlusion"),
+	/** Bent Normal */
+	BentNormal UMETA(DisplayName = "Bent Normal")
+};
+
+
 UCLASS()
 class MESHMODELINGTOOLS_API UBakedOcclusionMapToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
-	/** Number of AO rays */
+	/** Occlusion map output to preview */
+	UPROPERTY(EditAnywhere, Category = OcclusionMap)
+	EOcclusionMapPreview Preview = EOcclusionMapPreview::AmbientOcclusion;
+
+	/** Number of occlusion rays */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "1", UIMax = "1024", ClampMin = "0", ClampMax = "50000"))
 	int32 OcclusionRays = 16;
 
-	/** Maximum AO distance (0 = infinity) */
+	/** Maximum occlusion distance (0 = infinity) */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0.0", UIMax = "1000.0", ClampMin = "0.0", ClampMax = "99999999.0"))
 	float MaxDistance = 0;
 
-	/** Whether or not to apply Gaussian Blur to computed AO Map (recommended) */
+	/** Maximum spread angle of occlusion rays. */
+	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0", UIMax = "180.0", ClampMin = "0", ClampMax = "180.0"))
+	float SpreadAngle = 180.0;
+
+	/** Angular distribution of occlusion rays in the spread angle. */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap)
+	EOcclusionMapDistribution Distribution = EOcclusionMapDistribution::Cosine;
+
+	/** Whether or not to apply Gaussian Blur to computed AO Map (recommended) */
+	UPROPERTY(EditAnywhere, Category = "OcclusionMap|Ambient Occlusion")
 	bool bGaussianBlur = true;
 
 	/** Pixel Radius of Gaussian Blur Kernel */
-	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = "OcclusionMap|Ambient Occlusion", meta = (UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
 	float BlurRadius = 2.25;
 
 	/** Contribution of AO rays that are within this angle (degrees) from horizontal are attenuated. This reduces faceting artifacts. */
-	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0", UIMax = "45.0", ClampMin = "0", ClampMax = "89.9"))
+	UPROPERTY(EditAnywhere, Category = "OcclusionMap|Ambient Occlusion", meta = (UIMin = "0", UIMax = "45.0", ClampMin = "0", ClampMax = "89.9"))
 	float BiasAngle = 15.0;
+
+	/** Coordinate space of the bent normal map. */
+	UPROPERTY(EditAnywhere, Category = "OcclusionMap|Bent Normal")
+	ENormalMapSpace NormalSpace = ENormalMapSpace::Tangent;
 };
 
 
@@ -307,6 +351,9 @@ protected:
 	UPROPERTY()
 	UMaterialInstanceDynamic* PreviewMaterial;
 
+    UPROPERTY()
+	UMaterialInstanceDynamic* BentNormalPreviewMaterial;
+
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> BaseMeshDescription;
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	UE::Geometry::FDynamicMesh3 BaseMesh;
@@ -365,17 +412,29 @@ protected:
 		FImageDimensions Dimensions;
 		int32 OcclusionRays;
 		float MaxDistance;
+		float SpreadAngle;
+		EOcclusionMapDistribution Distribution;
 		float BlurRadius;
 		float BiasAngle;
+		ENormalMapSpace NormalSpace;
 
 		bool operator==(const FOcclusionMapSettings& Other) const
 		{
-			return Dimensions == Other.Dimensions && OcclusionRays == Other.OcclusionRays && MaxDistance == Other.MaxDistance && BlurRadius == Other.BlurRadius && BiasAngle == Other.BiasAngle;
+			return Dimensions == Other.Dimensions &&
+				OcclusionRays == Other.OcclusionRays &&
+				MaxDistance == Other.MaxDistance &&
+				SpreadAngle == Other.SpreadAngle &&
+				Distribution == Other.Distribution &&
+				BlurRadius == Other.BlurRadius &&
+				BiasAngle == Other.BiasAngle &&
+				NormalSpace == Other.NormalSpace;
 		}
 	};
 	FOcclusionMapSettings CachedOcclusionMapSettings;
 	UPROPERTY()
 	UTexture2D* CachedOcclusionMap;
+	UPROPERTY()
+	UTexture2D* CachedBentNormalMap;
 
 	void UpdateResult_Occlusion();
 

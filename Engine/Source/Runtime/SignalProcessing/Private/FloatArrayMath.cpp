@@ -45,7 +45,9 @@ namespace Audio
 				Total = VectorAdd(Total, VectorData);
 			}
 
-			OutSum = VectorGetComponent(Total, 0) + VectorGetComponent(Total, 1) + VectorGetComponent(Total, 2) + VectorGetComponent(Total, 3);
+			MS_ALIGN(16) float Val[4] GCC_ALIGN(16);
+			VectorStoreAligned(Total, Val);
+			OutSum = Val[0] + Val[1] + Val[2] + Val[3];
 		}
 
 		if (NumNotToSimd)

@@ -349,6 +349,8 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 
 	DeviceID = InDeviceID;
 
+	InitializeSubsystemCollection();
+
 	bool bDeferStartupPrecache = false;
 
 	PluginListeners.Reset();
@@ -753,6 +755,9 @@ void FAudioDevice::Teardown()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.RemoveAll(this);
+
+	SubsystemCollection.Deinitialize();
+	SubsystemCollectionRoot.Reset();
 }
 
 void FAudioDevice::Suspend(bool bGameTicking)
@@ -2155,6 +2160,15 @@ void FAudioDevice::InitSoundSources()
 			FreeSources.Add(Source);
 		}
 	}
+}
+
+void FAudioDevice::InitializeSubsystemCollection()
+{
+	SubsystemCollectionRoot.Reset(NewObject<UAudioSubsystemCollectionRoot>(GetTransientPackage()));
+	check(SubsystemCollectionRoot.IsValid());
+
+	SubsystemCollectionRoot->SetAudioDeviceID(DeviceID);
+	SubsystemCollection.Initialize(SubsystemCollectionRoot.Get());
 }
 
 void FAudioDevice::SetDefaultBaseSoundMix(USoundMix* SoundMix)
@@ -5590,6 +5604,16 @@ void FAudioDevice::FCreateComponentParams::SetLocation(const FVector InLocation)
 	{
 		UE_LOG(LogAudio, Warning, TEXT("AudioComponents created without a World cannot have a location."));
 	}
+}
+
+bool FAudioDevice::FCreateComponentParams::ShouldUseAttenuation() const
+{
+	if (AudioDevice)
+	{
+		return AudioDevice->ShouldUseAttenuation(World);
+	}
+
+	return true;
 }
 
 UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, UWorld* World, AActor* Actor, bool bPlay, bool bStopWhenOwnerDestroyed, const FVector* Location, USoundAttenuation* AttenuationSettings, USoundConcurrency* ConcurrencySettings)

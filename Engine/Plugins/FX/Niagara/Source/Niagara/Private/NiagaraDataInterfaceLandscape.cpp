@@ -685,11 +685,7 @@ void UNiagaraDataInterfaceLandscape::ProvidePerInstanceDataForRenderThread(void*
 	}
 }
 
-void UNiagaraDataInterfaceLandscape::GetCommonHLSL(FString& OutHLSL)
-{
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceLandscape.ush\"\n");
-}
-
+#if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceLandscape::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	if (!Super::AppendCompileHash(InVisitor))
@@ -702,6 +698,11 @@ bool UNiagaraDataInterfaceLandscape::AppendCompileHash(FNiagaraCompileHashVisito
 
 	return true;
 
+}
+
+void UNiagaraDataInterfaceLandscape::GetCommonHLSL(FString& OutHLSL)
+{
+	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceLandscape.ush\"\n");
 }
 
 void UNiagaraDataInterfaceLandscape::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -734,6 +735,7 @@ bool UNiagaraDataInterfaceLandscape::GetFunctionHLSL(const FNiagaraDataInterface
 
 	return false;
 }
+#endif
 
 bool UNiagaraDataInterfaceLandscape::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {

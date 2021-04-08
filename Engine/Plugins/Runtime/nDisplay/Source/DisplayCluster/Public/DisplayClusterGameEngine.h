@@ -16,7 +16,6 @@ class IDisplayClusterNodeController;
 class IDisplayClusterClusterSyncObject;
 class UDisplayClusterConfigurationData;
 
-
 /**
  * Extended game engine
  */
@@ -25,6 +24,9 @@ class DISPLAYCLUSTER_API UDisplayClusterGameEngine
 	: public UGameEngine
 {
 	GENERATED_BODY()
+
+	UPROPERTY()
+	UWorld* WorldContextObject = nullptr;
 
 public:
 	virtual void Init(class IEngineLoop* InEngineLoop) override;
@@ -38,12 +40,18 @@ public:
 		return OperationMode;
 	}
 
+	UWorld* GetWorld() const 
+	{ 
+		return WorldContextObject; 
+	};
+
 protected:
 	virtual bool InitializeInternals();
 	EDisplayClusterOperationMode DetectOperationMode() const;
 	bool GetResolvedNodeId(const UDisplayClusterConfigurationData* ConfigData, FString& NodeId) const;
 
 private:
+
 	IPDisplayClusterClusterManager* ClusterMgr = nullptr;
 	IPDisplayClusterInputManager*   InputMgr = nullptr;
 

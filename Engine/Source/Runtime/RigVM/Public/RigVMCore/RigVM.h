@@ -551,6 +551,15 @@ private:
 	FName FirstEntryEventInQueue;
 #endif
 
+	TArray<FRigVMRegister*> CachedDebugWatchRegisters;
+	
+	// debug watch register memory needs to be cleared for each execution
+	// cache the registers so that we can directly use them during Execute()
+	void CacheDebugWatchRegisters();
+	
+	// debug watch register memory needs to be cleared for each execution
+	void ClearDebugWatchRegisterMemory();
+	
 	void CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecute = false);
 
 	int32 ExecutingThreadId;

@@ -138,6 +138,8 @@ public partial class Project : CommandUtils
 			foreach (var Entry in ResponseFile)
 			{
 				string Line = String.Format("\"{0}\" \"{1}\"", Entry.Key, Entry.Value);
+
+				// explicitly exclude some file types from compression
 				if (Compressed && !Path.GetExtension(Entry.Key).Contains(".mp4") && !Path.GetExtension(Entry.Key).Contains("ushaderbytecode") && !Path.GetExtension(Entry.Key).Contains("upipelinecache"))
 				{
 					Line += " -compress";
@@ -814,7 +816,7 @@ public partial class Project : CommandUtils
 					string PlatformExtensionName = SC.StageTargetPlatform.PlatformType.ToString();
 					PlatformExtensionsToStage.Add(PlatformExtensionName);
 
-					DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo Info = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(PlatformExtensionName);
+					DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo Info = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(SC.StageTargetPlatform.PlatformType);
 					if (Info != null && Info.IniParentChain != null)
 					{
 						PlatformExtensionsToStage.AddRange(Info.IniParentChain);
@@ -2198,23 +2200,127 @@ public partial class Project : CommandUtils
 		const string OutputFilenameExtension = ".pak";
 
 		// read some compression settings from the project (once, shared across all pak commands)
+
 		ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType);
-		string CompressionFormats = "";
-		if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionFormats", out CompressionFormats))
+
+		// in standard runs, ProjectPackagingSettings/bCompressed is read by the program invoking this script
+		//	and used to pass "-compressed" on the command line
+		// so typically "-compressed" == ProjectPackagingSettings/bCompressed
+		// if ProjectPackagingSettings/bCompressed is true, but "-compressed" was not passed, we now turn it on
+		// if ProjectPackagingSettings/bCompressed is true but you really don't want compression, use "-forceuncompressed"
+		bool bCompressed_ProjectPackagingSettings = false;
+		PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bCompressed", out bCompressed_ProjectPackagingSettings);
+
+		bool bForceUseProjectCompressionFormatIgnoreHardwareOverride = false;// do we want to override HW compression with project? if so, read it below
+		PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bForceUseProjectCompressionFormatIgnoreHardwareOverride", out bForceUseProjectCompressionFormatIgnoreHardwareOverride);
+
+		string HardwareCompressionFormat = null;
+		if ( ! bForceUseProjectCompressionFormatIgnoreHardwareOverride )
 		{
-			if (!string.IsNullOrWhiteSpace(CompressionFormats))
+			DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo DDPI = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(SC.StageTargetPlatform.IniPlatformType);
+			if (DDPI != null)
 			{
-				CompressionFormats = " -compressionformats=" + CompressionFormats;
+				HardwareCompressionFormat = DDPI.HardwareCompressionFormat;
+			}
+		}
+
+		// get the compression format from platform or the project
+		string CompressionFormats;
+		if (!string.IsNullOrEmpty(HardwareCompressionFormat))
+		{
+			LogInformation("Overriding to HardwareCompressionFormat = {0}",HardwareCompressionFormat);
+			CompressionFormats = HardwareCompressionFormat;
+		}
+		else
+		{
+			PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionFormats", out CompressionFormats);
+			// empty CompressionFormats string means "use default" eg. zlib
+		}
+
+		if (Params.ForceUncompressed)
+		{
+			//-ForceUncompressed on the command line means really don't do it even if the ini or DDPI say to do it
+			Params.Compressed = false;
+			bCompressed_ProjectPackagingSettings = false;
+		}
+
+		if (CompressionFormats == "None" || CompressionFormats == "none")
+		{
+			// rather than pass "-compressed" + format=None through to UnrealPak/iostore
+			//	just turn off compression
+			if (Params.Compressed)
+			{
+				//LogInformation(" -compressed was on command line but override to None, turning OFF!");
+				Params.Compressed = false;
+			}
+		}
+		else if (!Params.Compressed && bCompressed_ProjectPackagingSettings)
+		{
+			//LogInformation(" -compressed was not on command line but was in ini, turning on!");
+			Params.Compressed = true;
+		}
+
+		// Params.Compressed is done being changed; push it to the PakParams list :
+		// note this is a change of behavior; PakParams.bCompressed could have been true from a Chunk Manifest
+		//	even though compression was otherwise turned off
+		// we now overwrite that with the overall compression setting
+		//	this should always be an improvement in behavior
+		foreach (CreatePakParams PakParams in PakParamsList)
+		{
+			PakParams.bCompressed = Params.Compressed;
+		}
+
+		if (Params.Compressed && !string.IsNullOrWhiteSpace(CompressionFormats))
+		{
+			CompressionFormats = " -compressionformats=" + CompressionFormats;
+		}
+		else
+		{
+			CompressionFormats = "";
+		}
+
+		string AdditionalCompressionOptionsOnCommandLine = "";
+		if (Params.Compressed)
+		{
+			// the game may want to control compression settings, but since it may be in a plugin that checks the commandline for the settings, we need to pass
+			// the settings directly on the UnrealPak commandline, and not put it into the batch file lines (plugins can't get the unrealpak command list, and
+			// there's not a great way to communicate random strings down into the plugins during plugin init time)
+			PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PakFileAdditionalCompressionOptions", out AdditionalCompressionOptionsOnCommandLine);
+
+			//LogInformation("PakFileAdditionalCompressionOptions = {0}", AdditionalCompressionOptionsOnCommandLine);
+
+			string CompressionMethod;
+			PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionMethod", out CompressionMethod);
+			if (!string.IsNullOrWhiteSpace(CompressionMethod))
+			{
+				//LogInformation("CompressionMethod = {0}", CompressionMethod);
+				CompressionFormats += " -compressmethod=" + CompressionMethod;
+			}
+
+			// get the encoder compression effort level based on the cook type
+			int CompressionLevel = 0;
+			// GetInt32 fills out with = 0 if not found
+			if (Params.Distribution)
+			{
+				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionLevel_Distribution", out CompressionLevel);
+			}
+			else if (SC.StageTargetConfigurations.Any(Config => Config == UnrealTargetConfiguration.Test || Config == UnrealTargetConfiguration.Shipping))
+			{
+				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionLevel_TestShipping", out CompressionLevel);
+			}
+			else
+			{
+				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionLevel_DebugDevelopment", out CompressionLevel);
+			}
+
+			if (CompressionLevel != 0)
+			{
+				//LogInformation(" CompressionLevel = {0}", CompressionLevel);
+				CompressionFormats += " -compresslevel=" + CompressionLevel;
 			}
 		}
 
 		Func<string, string> GetPostFix = PakFilename => GetPakFilePostFix(bShouldGeneratePatch, Params.HasIterateSharedCookedBuild, PlatformGameConfig, PakFilename);
-
-		// the game may want to control compression settings, but since it may be in a plugin that checks the commandline for the settings, we need to pass
-		// the settings directly on the UnrealPak commandline, and not put it into the batch file lines (plugins can't get the unrealpak command list, and
-		// there's not a great way to communicate random strings down into the plugins during plugin init time)
-		string AdditionalCompressionOptionsOnCommandLine = "";
-		PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PakFileAdditionalCompressionOptions", out AdditionalCompressionOptionsOnCommandLine);
 
 		List<string> Commands = new List<string>();
 		List<string> LogNames = new List<string>();
@@ -2566,6 +2672,8 @@ public partial class Project : CommandUtils
 							}
 							else if (!Path.GetExtension(Entry.Key).Contains(".uexp"))
 							{
+								// all other extensions go in Pak not iostore
+								//	for example the compression-excluded extensions (ini,res) go in here
 								UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
 							}
 
@@ -2578,7 +2686,7 @@ public partial class Project : CommandUtils
 							ContainerPatchSourcePath = CombinePaths(Params.GetBasedOnReleaseVersionPath(SC, Params.Client), ContainerWildcard);
 						}
 						bool bGenerateDiffPatch = bShouldGeneratePatch && !ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName);
-						bool bCompressContainers = PakParams.bCompressed || Params.AdditionalIoStoreOptions.Contains("-compressed");
+						bool bCompressContainers = PakParams.bCompressed;
 
 						IoStoreCommands.Add(GetIoStoreCommandArguments(
 							IoStoreResponseFile,

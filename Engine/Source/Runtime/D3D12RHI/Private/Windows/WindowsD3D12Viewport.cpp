@@ -623,4 +623,12 @@ void FD3D12Viewport::SetHDRTVMode(bool bEnableHDR, EDisplayGamut DisplayGamut, f
 	}
 }
 
+
+void FD3D12Viewport::OnResumeRendering()
+{}
+
+
+void FD3D12Viewport::OnSuspendRendering()
+{}
+
 #include "Windows/HideWindowsPlatformTypes.h"

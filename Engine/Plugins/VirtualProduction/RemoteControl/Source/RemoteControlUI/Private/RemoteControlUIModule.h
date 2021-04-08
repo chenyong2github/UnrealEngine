@@ -41,8 +41,10 @@ public:
 
 	//~ Begin IRemoteControlUIModule interface
 	virtual FOnGenerateExtensions& GetExtensionGenerators() override { return ExtensionsGenerator; }
-	virtual FGuid AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon) override;
-	virtual void RemovePropertyFilter(const FGuid& FilterId) override;
+	virtual FDelegateHandle AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon) override;
+	virtual void RemovePropertyFilter(const FDelegateHandle& FilterDelegateHandle) override;
+	virtual void RegisterMetadataCustomization(FName MetadataKey, FOnCustomizeMetadataEntry OnCustomizeCallback) override;
+	virtual void UnregisterMetadataCustomization(FName MetadataKey) override;
 	//~ End IRemoteControlUIModule interface
 
 	/**
@@ -58,6 +60,14 @@ public:
 	 * @return the input 
 	 */
 	TSharedRef<SRCPanelInputBindings> CreateInputBindingsPanel(URemoteControlPreset* Preset);
+
+	/**
+	 * Get the map of entity metadata entry customizations.
+	 */
+	const TMap<FName, FOnCustomizeMetadataEntry>& GetEntityMetadataCustomizations() const
+	{
+		return ExternalEntityMetadataCustomizations;
+	}
 
 private:
 	/**
@@ -130,5 +140,8 @@ private:
 	FOnGenerateExtensions ExtensionsGenerator;
 
 	/** Filters added by other plugins queried to determine if a property should display an expose icon. */
-	TMap<FGuid, FOnDisplayExposeIcon> ExternalFilterDelegates;
+	TMap<FDelegateHandle, FOnDisplayExposeIcon> ExternalFilterDelegates;
+
+	/** Map of metadata key to customization handler. */
+	TMap<FName, FOnCustomizeMetadataEntry> ExternalEntityMetadataCustomizations;
 };

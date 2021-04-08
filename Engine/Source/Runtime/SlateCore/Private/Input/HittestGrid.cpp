@@ -9,10 +9,14 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogHittestDebug, Display, All);
 
+#define UE_SLATE_ENABLE_HITTEST_STATS !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+#if UE_SLATE_ENABLE_HITTEST_STATS
 DECLARE_CYCLE_STAT(TEXT("HitTestGrid AddWidget"), STAT_SlateHTG_AddWidget, STATGROUP_Slate);
 DECLARE_CYCLE_STAT(TEXT("HitTestGrid RemoveWidget"), STAT_SlateHTG_RemoveWidget, STATGROUP_Slate);
 DECLARE_CYCLE_STAT(TEXT("HitTestGrid Clear"), STAT_SlateHTG_Clear, STATGROUP_Slate);
 DECLARE_CYCLE_STAT(TEXT("HitTestGrid GetCollapsedWidgets"), STAT_SlateHTG_GetCollapsedWidgets, STATGROUP_Slate);
+#endif
 
 #define LOCTEXT_NAMESPACE "HittestGrid"
 #define UE_SLATE_HITTESTGRID_ARRAYSIZEMAX 0
@@ -262,7 +266,9 @@ void FHittestGrid::Clear()
 
 void FHittestGrid::ClearInternal(int32 TotalCells)
 {
+#if UE_SLATE_ENABLE_HITTEST_STATS
 	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_Clear);
+#endif
 	Cells.Reset(TotalCells);
 	Cells.SetNum(TotalCells);
 
@@ -680,7 +686,9 @@ void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchP
 		return;
 	}
 
+#if UE_SLATE_ENABLE_HITTEST_STATS
 	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_AddWidget);
+#endif
 
 	// Track the widget and identify it's Widget Index
 	FGeometry GridSpaceGeometry = InWidget->GetPaintSpaceGeometry();
@@ -738,7 +746,9 @@ void FHittestGrid::RemoveWidget(const TSharedRef<SWidget>& InWidget)
 
 void FHittestGrid::RemoveWidget(const SWidget* InWidget)
 {
+#if UE_SLATE_ENABLE_HITTEST_STATS
 	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_RemoveWidget);
+#endif
 
 	int32 WidgetIndex = INDEX_NONE;
 	if (WidgetMap.RemoveAndCopyValue(InWidget, WidgetIndex))
@@ -891,8 +901,9 @@ FHittestGrid::FIndexAndDistance FHittestGrid::GetHitIndexFromCellIndex(const FGr
 #define UE_VERIFY_WIDGET_VALIDITE 0
  void FHittestGrid::GetCollapsedWidgets(FCollapsedWidgetsArray& OutResult, const int32 X, const int32 Y) const
  {
+#if UE_SLATE_ENABLE_HITTEST_STATS
 	 SCOPE_CYCLE_COUNTER(STAT_SlateHTG_GetCollapsedWidgets);
-
+#endif
 	 const int32 CellIndex = Y * NumCells.X + X;
 	 check(Cells.IsValidIndex(CellIndex));
 
@@ -1084,3 +1095,4 @@ TArray<FHittestGrid::FWidgetSortData> FHittestGrid::GetAllWidgetSortDatas() cons
 
 #undef UE_SLATE_HITTESTGRID_ARRAYSIZEMAX
 #undef LOCTEXT_NAMESPACE
+#undef UE_SLATE_ENABLE_HITTEST_STATS

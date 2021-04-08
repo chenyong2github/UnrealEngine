@@ -10,7 +10,7 @@
 
 class SViewport;
 
-class FPreLoadMoviePlayerScreenBase : public FPreLoadScreenBase, public TSharedFromThis<FPreLoadMoviePlayerScreenBase>
+class FPreLoadMoviePlayerScreenBase : public FPreLoadScreenBase
 {
 public:
 

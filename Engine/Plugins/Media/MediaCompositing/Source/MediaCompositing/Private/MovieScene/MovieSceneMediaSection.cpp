@@ -5,6 +5,13 @@
 
 #define LOCTEXT_NAMESPACE "MovieSceneMediaSection"
 
+namespace
+{
+	FFrameNumber GetStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, FFrameNumber StartOffset, FFrameNumber StartFrame)
+	{
+		return StartOffset + TrimTime.Time.FrameNumber - StartFrame;
+	}
+}
 
 /* UMovieSceneMediaSection interface
  *****************************************************************************/
@@ -29,6 +36,43 @@ void UMovieSceneMediaSection::PostInitProperties()
 
 	// media tracks have some preroll by default to precache frames
 	SetPreRollFrames( (0.5 * TickResolution).RoundToFrame().Value );
+}
+
+void UMovieSceneMediaSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys)
+{
+	if (TryModify())
+	{
+		if (bTrimLeft)
+		{
+			StartFrameOffset = HasStartFrame() ? GetStartOffsetAtTrimTime(TrimTime, StartFrameOffset, GetInclusiveStartFrame()) : 0;
+		}
+
+		Super::TrimSection(TrimTime, bTrimLeft, bDeleteKeys);
+	}
+}
+
+UMovieSceneSection* UMovieSceneMediaSection::SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys)
+{
+	const FFrameNumber InitialStartFrameOffset = StartFrameOffset;
+
+	const FFrameNumber NewOffset = HasStartFrame() ? GetStartOffsetAtTrimTime(SplitTime, StartFrameOffset, GetInclusiveStartFrame()) : 0;
+
+	UMovieSceneSection* NewSection = Super::SplitSection(SplitTime, bDeleteKeys);
+	if (NewSection != nullptr)
+	{
+		UMovieSceneMediaSection* NewMediaSection = Cast<UMovieSceneMediaSection>(NewSection);
+		NewMediaSection->StartFrameOffset = NewOffset;
+	}
+
+	// Restore original offset modified by splitting
+	StartFrameOffset = InitialStartFrameOffset;
+
+	return NewSection;
+}
+
+TOptional<FFrameTime> UMovieSceneMediaSection::GetOffsetTime() const
+{
+	return TOptional<FFrameTime>(StartFrameOffset);
 }
 
 #undef LOCTEXT_NAMESPACE

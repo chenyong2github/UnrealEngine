@@ -571,7 +571,7 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 		OldScriptChildNodes = OldScriptNode->GetChildNodes();
 	}
 
-	UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script.GetSource());
+	UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script.GetLatestSource());
 	if (ScriptSource != nullptr)
 	{
 		UNiagaraNodeOutput* OutputNode = ScriptSource->NodeGraph->FindEquivalentOutputNode(Script.GetUsage(), Script.GetUsageId());

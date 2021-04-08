@@ -8202,29 +8202,12 @@ AEmitterCameraLensEffectBase::AEmitterCameraLensEffectBase(const FObjectInitiali
 
 FTransform AEmitterCameraLensEffectBase::GetAttachedEmitterTransform(AEmitterCameraLensEffectBase const* Emitter, const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg)
 {
-	if (Emitter)
-	{
-		// adjust for FOV
-		// base dist uses BaseFOV which is set on the indiv camera lens effect class
-		FTransform RelativeTransformAdjustedForFOV = Emitter->RelativeTransform;
-		FVector AdjustedRelativeLoc = RelativeTransformAdjustedForFOV.GetLocation();
-		AdjustedRelativeLoc.X *= FMath::Tan(Emitter->BaseFOV*0.5f*PI / 180.f) / FMath::Tan(CamFOVDeg*0.5f*PI / 180.f);
-		RelativeTransformAdjustedForFOV.SetLocation(AdjustedRelativeLoc);
-
-		FTransform const CameraToWorld(CamRot, CamLoc);
-
-		// RelativeTransform is "effect to camera"
-		FTransform const EffectToWorld = RelativeTransformAdjustedForFOV * CameraToWorld;
-
-		return EffectToWorld;
-	}
-
-	return FTransform::Identity;
+	return ICameraLensEffectInterface::GetAttachedEmitterTransform(Emitter, CamLoc, CamRot, CamFOVDeg);
 }
 
 void AEmitterCameraLensEffectBase::UpdateLocation(const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg)
 {
-	FTransform const EffectToWorld = GetAttachedEmitterTransform(this, CamLoc, CamRot, CamFOVDeg);
+	FTransform const EffectToWorld = ICameraLensEffectInterface::GetAttachedEmitterTransform(this, CamLoc, CamRot, CamFOVDeg);
 	SetActorTransform(EffectToWorld);
 }
 
@@ -8232,7 +8215,7 @@ void AEmitterCameraLensEffectBase::EndPlay(const EEndPlayReason::Type EndPlayRea
 {
 	if (BaseCamera != NULL)
 	{
-		BaseCamera->RemoveCameraLensEffect(this);
+		BaseCamera->RemoveGenericCameraLensEffect(this);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -8326,6 +8309,47 @@ bool AEmitterCameraLensEffectBase::IsLooping() const
 	}
 
 	return false;
+}
+
+
+
+const FTransform& AEmitterCameraLensEffectBase::GetRelativeTransform() const
+{
+	return RelativeTransform;
+}
+
+
+float AEmitterCameraLensEffectBase::GetBaseFOV() const
+{
+	return BaseFOV;
+}
+
+
+bool AEmitterCameraLensEffectBase::ShouldAllowMultipleInstances() const
+{
+	return bAllowMultipleInstances;
+}
+
+
+bool AEmitterCameraLensEffectBase::ResetWhenTriggered() const
+{
+	return bResetWhenRetriggered;
+}
+
+
+bool AEmitterCameraLensEffectBase::ShouldTreatEmitterAsSame(TSubclassOf<AActor> OtherEmitter) const
+{
+	return OtherEmitter && (OtherEmitter == GetClass() || EmittersToTreatAsSame.Find(OtherEmitter) != INDEX_NONE);
+}
+
+void AEmitterCameraLensEffectBase::NotifyWillBePooled()
+{
+	bDestroyOnSystemFinish = false;
+}
+
+void AEmitterCameraLensEffectBase::AdjustBaseFOV(float NewFOV)
+{
+	BaseFOV = NewFOV;
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -1955,30 +1955,63 @@ JNI_METHOD void Java_com_epicgames_unreal_NativeCalls_AllowSleep(JNIEnv* jenv, j
 	FEmbeddedCommunication::AllowSleep(*Requester);
 }
 
+#if !BUILD_EMBEDDED_APP
+DEFINE_LOG_CATEGORY_STATIC(LogJava, Log, All);
+#endif
+
 JNI_METHOD void Java_com_epicgames_unreal_NativeCalls_UELogError(JNIEnv* jenv, jobject thiz, jstring InString)
 {
 	const auto chars = jenv->GetStringUTFChars(InString, 0);
+#if BUILD_EMBEDDED_APP
 	FEmbeddedCommunication::UELogError(UTF8_TO_TCHAR(chars));
+#else
+	if (GLog && UE_LOG_ACTIVE(LogJava, Error))
+	{
+		GLog->Log("LogJava", ELogVerbosity::Error, UTF8_TO_TCHAR(chars));
+	}
+#endif
 	jenv->ReleaseStringUTFChars(InString, chars);
 }
 
 JNI_METHOD void Java_com_epicgames_unreal_NativeCalls_UELogWarning(JNIEnv* jenv, jobject thiz, jstring InString)
 {
 	const auto chars = jenv->GetStringUTFChars(InString, 0);
+#if BUILD_EMBEDDED_APP
 	FEmbeddedCommunication::UELogWarning(UTF8_TO_TCHAR(chars));
+#else
+	if (GLog && UE_LOG_ACTIVE(LogJava, Warning))
+	{
+		GLog->Log("LogJava", ELogVerbosity::Warning, UTF8_TO_TCHAR(chars));
+	}
+#endif
 	jenv->ReleaseStringUTFChars(InString, chars);
 }
+
 JNI_METHOD void Java_com_epicgames_unreal_NativeCalls_UELogLog(JNIEnv* jenv, jobject thiz, jstring InString)
 {
 	const auto chars = jenv->GetStringUTFChars(InString, 0);
+#if BUILD_EMBEDDED_APP
 	FEmbeddedCommunication::UELogLog(UTF8_TO_TCHAR(chars));
+#else
+	if (GLog && UE_LOG_ACTIVE(LogJava, Log))
+	{
+		GLog->Log("LogJava", ELogVerbosity::Log, UTF8_TO_TCHAR(chars));
+	}
+#endif
 	jenv->ReleaseStringUTFChars(InString, chars);
 }
 
 JNI_METHOD void Java_com_epicgames_unreal_NativeCalls_UELogVerbose(JNIEnv* jenv, jobject thiz, jstring InString)
 {
 	const auto chars = jenv->GetStringUTFChars(InString, 0);
+#if BUILD_EMBEDDED_APP
 	FEmbeddedCommunication::UELogVerbose(UTF8_TO_TCHAR(chars));
+#else
+	if (GLog && UE_LOG_ACTIVE(LogJava, Verbose))
+	{
+		GLog->Log("LogJava", ELogVerbosity::Verbose, UTF8_TO_TCHAR(chars));
+	}
+#endif
 	jenv->ReleaseStringUTFChars(InString, chars);
 }
 

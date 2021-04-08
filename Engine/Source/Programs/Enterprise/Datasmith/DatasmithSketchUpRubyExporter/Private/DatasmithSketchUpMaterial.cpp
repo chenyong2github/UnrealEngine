@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DatasmithSketchUpCommon.h"
+#include "DatasmithSketchUpMaterial.h"
 
+#include "DatasmithSketchUpCommon.h"
 #include "DatasmithSketchUpComponent.h"
 #include "DatasmithSketchUpExportContext.h"
-#include "DatasmithSketchUpMaterial.h"
 #include "DatasmithSketchUpMesh.h"
 #include "DatasmithSketchUpString.h"
 #include "DatasmithSketchUpSummary.h"
@@ -226,14 +226,58 @@ TSharedPtr<FMaterialOccurrence> FMaterial::CreateDefaultMaterial(FExportContext&
 	return MakeShared<FMaterialOccurrence>(DatasmithMaterialElementPtr);
 }
 
+void FMaterial::Remove(FExportContext& Context)
+{
+
+	if (MaterialDirectlyAppliedToMeshes)
+
+	{
+		Context.DatasmithScene->RemoveMaterial(MaterialDirectlyAppliedToMeshes->DatasmithElement);
+	}
+
+	if (MaterialInheritedByNodes)
+	{
+		Context.DatasmithScene->RemoveMaterial(MaterialInheritedByNodes->DatasmithElement);
+	}
+
+}
 
 void FMaterial::Update(FExportContext& Context)
 {
 	FExtractedMaterial ExtractedMaterial(Context, MaterialRef);
 	EntityId = ExtractedMaterial.SketchupSourceID.EntityID;
-	MaterialDirectlyAppliedToMeshes = MakeShared<FMaterialOccurrence>(CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.LocalizedMaterialName, false));
-	MaterialInheritedByNodes = MakeShared<FMaterialOccurrence>(CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.InheritedMaterialName, true));
+
+
+	{
+		TSharedPtr<IDatasmithBaseMaterialElement> Element = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.LocalizedMaterialName, false);
+
+		if (MaterialDirectlyAppliedToMeshes)
+		{
+			Context.DatasmithScene->RemoveMaterial(MaterialDirectlyAppliedToMeshes->DatasmithElement);
+			MaterialDirectlyAppliedToMeshes->DatasmithElement = Element;
+		}
+		else
+		{
+			MaterialDirectlyAppliedToMeshes = MakeShared<FMaterialOccurrence>(Element);
+		}
+	}
+
+	{
+		TSharedPtr<IDatasmithBaseMaterialElement> Element = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.InheritedMaterialName, true);
+
+		if (MaterialInheritedByNodes)
+		{
+			Context.DatasmithScene->RemoveMaterial(MaterialInheritedByNodes->DatasmithElement);
+			MaterialInheritedByNodes->DatasmithElement = Element;
+		}
+		else
+		{
+			MaterialInheritedByNodes = MakeShared<FMaterialOccurrence>(Element);
+		}
+	}
 }
+
+
 
 FMaterialOccurrence& FMaterial::RegisterGeometry(FEntitiesGeometry* Geom)
 {

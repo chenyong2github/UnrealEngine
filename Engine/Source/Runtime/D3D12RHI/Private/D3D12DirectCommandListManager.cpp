@@ -391,7 +391,7 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 	check(ReadyLists.IsEmpty());
 	checkf(NumCommandLists <= 0xffff, TEXT("Exceeded maximum supported command lists"));
 
-	bool bFullGPUCrashDebugging = (Adapter->GetGPUCrashDebuggingMode() == ED3D12GPUCrashDebugginMode::Full);
+	bool bFullGPUCrashDebugging = (Adapter->GetGPUCrashDebuggingModes() == ED3D12GPUCrashDebuggingModes::All);
 
 	D3D12_COMMAND_QUEUE_DESC CommandQueueDesc = {};
 	CommandQueueDesc.Flags = (bFullGPUCrashDebugging || CVarD3D12GPUTimeout.GetValueOnAnyThread() == 0) 
@@ -415,7 +415,7 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 	}
 
 	// setup the bread crumb data to track GPU progress on this command queue when GPU crash debugging is enabled
-	if (Adapter->GetGPUCrashDebuggingMode() != ED3D12GPUCrashDebugginMode::Disabled)
+	if (EnumHasAnyFlags(Adapter->GetGPUCrashDebuggingModes(), ED3D12GPUCrashDebuggingModes::BreadCrumbs))
 	{		
 		// QI for the ID3DDevice3 - manual buffer write from command line only supported on 1709+
 		TRefCountPtr<ID3D12Device3> D3D12Device3;
@@ -999,22 +999,9 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 			BackBufferBarrierDescs.Empty();
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 			{
-				if (BarrierDescs.Num() > BarrierBatchMax)
-				{
-					int Num = BarrierDescs.Num();
-					D3D12_RESOURCE_BARRIER* Ptr = BarrierDescs.GetData();
-					while (Num > 0)
-					{
-						const int DispatchNum = FMath::Min(Num, BarrierBatchMax);
-						hResourceBarrierList->ResourceBarrier(DispatchNum, Ptr);
-						Ptr += BarrierBatchMax;
-						Num -= BarrierBatchMax;
-					}
-				}
-				else
-				{
-					hResourceBarrierList->ResourceBarrier(BarrierDescs.Num(), BarrierDescs.GetData());
-				}
+				extern void ResourceBarriersSeparateRTV2SRV(ID3D12GraphicsCommandList*, const TArray<D3D12_RESOURCE_BARRIER>&, int32);
+
+				ResourceBarriersSeparateRTV2SRV(hResourceBarrierList.GraphicsCommandList(), BarrierDescs, BarrierBatchMax);
 			}
 		}
 

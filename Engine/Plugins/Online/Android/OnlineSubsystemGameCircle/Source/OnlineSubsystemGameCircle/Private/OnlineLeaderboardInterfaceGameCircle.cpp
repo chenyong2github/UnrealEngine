@@ -264,12 +264,11 @@ void FOnlineLeaderboardsGameCircle::OnReadFriendsListComplete(int32 LocalPlayer,
 void FOnlineLeaderboardsGameCircle::GetScoreForNextPlayer(const char *const LeaderboardID)
 {
 	check(PlayersToQuery.Num() > 0);
-	const FUniqueNetIdGameCircle NetIdString(PlayersToQuery[0]->ToString());
 
-	UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Getting Score for Player Id - %s . %s"), *PlayersToQuery[0]->ToString(), *NetIdString.UniqueNetIdStr);
+	UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Getting Score for Player Id - %s"), *PlayersToQuery[0]->ToString());
 
 	AmazonGames::LeaderboardsClientInterface::getScoreForPlayer(LeaderboardID, 
-																FOnlineSubsystemGameCircle::ConvertFStringToStdString(NetIdString.UniqueNetIdStr).c_str(),
+																FOnlineSubsystemGameCircle::ConvertFStringToStdString(*PlayersToQuery[0]->ToString()).c_str(),
 																AmazonGames::GLOBAL_ALL_TIME,
 																new FOnlineGetPlayerScoreCallback(Subsystem));
 }

@@ -37,9 +37,17 @@ enum class ETickStage
 	Max
 };
 
+struct FNiagaraUAVPoolAccessScope
+{
+	FNiagaraUAVPoolAccessScope(class NiagaraEmitterInstanceBatcher& InBatcher);
+	~FNiagaraUAVPoolAccessScope();
+private:
+	class NiagaraEmitterInstanceBatcher& Batcher;
+};
+
 class NiagaraEmitterInstanceBatcher : public FFXSystemInterface
 {
-	friend class FNiagaraGPUInstanceCountManager; // for access to the EmptyUAV pool
+	friend FNiagaraUAVPoolAccessScope;
 
 public:
 	using FNiagaraTransitionList = TArray<FRHITransitionInfo, TMemStackAllocator<>>;
@@ -150,8 +158,10 @@ public:
 	/** Loop over all data interfaces and call the postsimulate methods */
 	void PostSimulateInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, const FNiagaraShaderScript* ShaderScript) const;
 
-	NIAGARA_API FRHIUnorderedAccessView* GetEmptyRWBufferFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const { return GetEmptyUAVFromPool(RHICmdList, Format, false); }
-	NIAGARA_API FRHIUnorderedAccessView* GetEmptyRWTextureFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const { return GetEmptyUAVFromPool(RHICmdList, Format, true); }
+	/** Grab a temporary dummy RW buffer from the pool.  Note: When doing this outside of Niagara you must be within a FNiagaraUAVPoolAccessScope. */
+	NIAGARA_API FRHIUnorderedAccessView* GetEmptyRWBufferFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const;
+	/** Grab a temporary dummy RW texture from the pool.  Note: When doing this outside of Niagara you must be within a FNiagaraUAVPoolAccessScope. */
+	NIAGARA_API FRHIUnorderedAccessView* GetEmptyRWTextureFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const;
 
 	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
 	virtual FGPUSortManager* GetGPUSortManager() const override;
@@ -302,16 +312,19 @@ private:
 
 	struct DummyUAVPool
 	{
+		~DummyUAVPool();
+
 		int32 NextFreeIndex = 0;
 		TArray<DummyUAV> UAVs;
 	};
 
+	uint32 DummyUAVAccessCounter = 0;
 	mutable TMap<EPixelFormat, DummyUAVPool> DummyBufferPool;
 	mutable TMap<EPixelFormat, DummyUAVPool> DummyTexturePool;
 
-	NIAGARA_API FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture) const;
+	FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture) const;
 	void ResetEmptyUAVPool(TMap<EPixelFormat, DummyUAVPool>& UAVMap);
-	void ResetEmptyUAVPools(FRHICommandList& RHICmdList);
+	void ResetEmptyUAVPools();
 
 	uint32 NumTicksThatRequireDistanceFieldData = 0;
 	uint32 NumTicksThatRequireDepthBuffer = 0;

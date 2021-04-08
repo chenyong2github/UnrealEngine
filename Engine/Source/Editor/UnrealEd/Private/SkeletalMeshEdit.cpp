@@ -375,7 +375,7 @@ bool UnFbx::FFbxImporter::IsValidAnimationData(TArray<FbxNode*>& SortedLinks, TA
 		// debug purpose
 		for (int32 BoneIndex = 0; BoneIndex < SortedLinks.Num(); BoneIndex++)
 		{
-			FString BoneName = UTF8_TO_TCHAR(MakeName(SortedLinks[BoneIndex]->GetName()));
+			FString BoneName = MakeName(SortedLinks[BoneIndex]->GetName());
 			UE_LOG(LogFbx, Log, TEXT("SortedLinks :(%d) %s"), BoneIndex, *BoneName );
 		}
 
@@ -435,7 +435,7 @@ void UnFbx::FFbxImporter::FillAndVerifyBoneNames(USkeleton* Skeleton, TArray<Fbx
 	// copy to the data
 	for (int32 BoneIndex = 0; BoneIndex < TrackNum; BoneIndex++)
 	{
-		OutRawBoneNames[BoneIndex] = FName(*FSkeletalMeshImportData::FixupBoneName( UTF8_TO_TCHAR(MakeName(SortedLinks[BoneIndex]->GetName())) ));
+		OutRawBoneNames[BoneIndex] = FName(*FSkeletalMeshImportData::FixupBoneName( MakeName(SortedLinks[BoneIndex]->GetName()) ));
 	}
 
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
@@ -1655,7 +1655,7 @@ void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimI
 
 				const int32 BlendShapeChannelCount = BlendShape->GetBlendShapeChannelCount();
 
-				FString BlendShapeName = UTF8_TO_TCHAR(MakeName(BlendShape->GetName()));
+				FString BlendShapeName = MakeName(BlendShape->GetName());
 
 				// see below where this is used for explanation...
 				const bool bMightBeBadMAXFile = (BlendShapeName == FString("Morpher"));
@@ -1667,7 +1667,7 @@ void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimI
 
 					if (Channel)
 					{
-						FString ChannelName = UTF8_TO_TCHAR(MakeName(Channel->GetName()));
+						FString ChannelName = MakeName(Channel->GetName());
 						// Maya adds the name of the blendshape and an underscore or point to the front of the channel name, so remove it
 						// Also avoid to endup with a empty name, we prefer having the Blendshapename instead of nothing
 						if (ChannelName.StartsWith(BlendShapeName) && ChannelName.Len() > BlendShapeName.Len())
@@ -1680,7 +1680,7 @@ void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimI
 							FbxShape* TargetShape = Channel->GetTargetShapeCount() > 0 ? Channel->GetTargetShape(0) : nullptr;
 							if (TargetShape)
 							{
-								FString TargetShapeName = UTF8_TO_TCHAR(MakeName(TargetShape->GetName()));
+								FString TargetShapeName = MakeName(TargetShape->GetName());
 								ChannelName = TargetShapeName.IsEmpty() ? ChannelName : TargetShapeName;
 							}
 						}

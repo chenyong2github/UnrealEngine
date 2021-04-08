@@ -153,6 +153,9 @@ bool GIsReconstructingBlueprintInstances = false;
 /** True if actors and objects are being re-instanced. */
 bool GIsReinstancing = false;
 
+/** Settings for when using UE as a library */
+FUELibraryOverrideSettings GUELibraryOverrideSettings;
+
 /**
  * If true, we are running an editor script that should not prompt any dialog modal. The default value of any model will be used.
  * This is used when running an editor utility blueprint or script like Python and we don't want an OK dialog to pop while the script is running.

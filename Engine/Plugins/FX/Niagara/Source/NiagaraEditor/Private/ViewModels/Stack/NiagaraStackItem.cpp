@@ -15,6 +15,7 @@ void UNiagaraStackItem::Initialize(FRequiredEntryData InRequiredEntryData, FStri
 {
 	Super::Initialize(InRequiredEntryData, InStackEditorDataKey);
 	AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackItem::FilterAdvancedChildren));
+	AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackItem::FilterHiddenChildren));
 }
 
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackItem::GetStackRowStyle() const
@@ -122,6 +123,12 @@ bool UNiagaraStackItem::FilterAdvancedChildren(const UNiagaraStackEntry& Child) 
 	}
 }
 
+bool UNiagaraStackItem::FilterHiddenChildren(const UNiagaraStackEntry& Child) const
+{
+	const UNiagaraStackItemContent* ItemContent = Cast<UNiagaraStackItemContent>(&Child);
+	return ItemContent == nullptr || ItemContent->GetIsHidden() == false;
+}
+
 void UNiagaraStackItem::ToggleShowAdvanced()
 {
 	bool bCurrentShowAdvanced = GetStackEditorData().GetStackItemShowAdvanced(GetStackEditorDataKey(), false);
@@ -129,12 +136,14 @@ void UNiagaraStackItem::ToggleShowAdvanced()
 	OnStructureChanged().Broadcast();
 }
 
-void UNiagaraStackItemContent::Initialize(FRequiredEntryData InRequiredEntryData, bool bInIsAdvanced, FString InOwningStackItemEditorDataKey, FString InStackEditorDataKey)
+void UNiagaraStackItemContent::Initialize(FRequiredEntryData InRequiredEntryData, FString InOwningStackItemEditorDataKey, FString InStackEditorDataKey)
 {
 	Super::Initialize(InRequiredEntryData, InStackEditorDataKey);
 	OwningStackItemEditorDataKey = InOwningStackItemEditorDataKey;
-	bIsAdvanced = bInIsAdvanced;
+	bIsAdvanced = false;
+	bIsHidden = false;
 	AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackItemContent::FilterAdvancedChildren));
+	AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackItemContent::FilterHiddenChildren));
 }
 
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackItemContent::GetStackRowStyle() const
@@ -145,6 +154,22 @@ UNiagaraStackEntry::EStackRowStyle UNiagaraStackItemContent::GetStackRowStyle() 
 bool UNiagaraStackItemContent::GetIsAdvanced() const
 {
 	return bIsAdvanced;
+}
+
+bool UNiagaraStackItemContent::GetIsHidden() const
+{
+	return bIsHidden;
+}
+
+
+void UNiagaraStackItemContent::SetIsHidden(bool bInIsHidden)
+{
+	if (bIsHidden != bInIsHidden)
+	{
+		// When changing is hidden, invalidate the structure so that the filters run again.
+		bIsHidden = bInIsHidden;
+		OnStructureChanged().Broadcast();
+	}
 }
 
 bool UNiagaraStackItemContent::HasOverridenContent() const
@@ -180,9 +205,15 @@ bool UNiagaraStackItemContent::FilterAdvancedChildren(const UNiagaraStackEntry& 
 	}
 }
 
-void UNiagaraStackItemTextContent::Initialize(FRequiredEntryData InRequiredEntryData, FText InDisplayText, bool bInIsAdvanced, FString InOwningStackItemEditorDataKey)
+bool UNiagaraStackItemContent::FilterHiddenChildren(const UNiagaraStackEntry& Child) const
 {
-	Super::Initialize(InRequiredEntryData, bInIsAdvanced, InOwningStackItemEditorDataKey, InOwningStackItemEditorDataKey + InDisplayText.ToString());
+	const UNiagaraStackItemContent* ItemContent = Cast<UNiagaraStackItemContent>(&Child);
+	return ItemContent == nullptr || ItemContent->GetIsHidden() == false;
+}
+
+void UNiagaraStackItemTextContent::Initialize(FRequiredEntryData InRequiredEntryData, FText InDisplayText, FString InOwningStackItemEditorDataKey)
+{
+	Super::Initialize(InRequiredEntryData, InOwningStackItemEditorDataKey, InOwningStackItemEditorDataKey + InDisplayText.ToString());
 	DisplayText = InDisplayText;
 }
 

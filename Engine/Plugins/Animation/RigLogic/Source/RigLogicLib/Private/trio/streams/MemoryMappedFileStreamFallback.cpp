@@ -68,14 +68,6 @@ std::uint64_t MemoryMappedFileStreamFallback::size() {
     return stream->size();
 }
 
-const char* MemoryMappedFileStreamFallback::path() const {
-    return stream->path();
-}
-
-AccessMode MemoryMappedFileStreamFallback::accessMode() const {
-    return stream->accessMode();
-}
-
 MemoryResource* MemoryMappedFileStreamFallback::getMemoryResource() {
     return memRes;
 }

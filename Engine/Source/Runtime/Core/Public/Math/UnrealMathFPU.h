@@ -1160,6 +1160,11 @@ FORCEINLINE float VectorGetComponent(VectorRegister Vec, uint32 ComponentIndex)
 	return (((float*)&(Vec))[ComponentIndex]);
 }
 
+FORCEINLINE float VectorGetComponentDynamic(VectorRegister Vec, uint32 ComponentIndex)
+{
+	return (((float*)&(Vec))[ComponentIndex]);
+}
+
 
 /**
  * Sets the control register.

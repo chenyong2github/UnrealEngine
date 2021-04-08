@@ -185,6 +185,7 @@ void SUsdStage::SetupStageActorDelegates()
 				if ( this->UsdStageTreeView )
 				{
 					this->UsdStageTreeView->RefreshPrim( PrimPath, bResync );
+					UsdStageTreeView->RequestTreeRefresh();
 				}
 
 				const bool bViewingTheUpdatedPrim = SelectedPrimPath.Equals( PrimPath, ESearchCase::IgnoreCase );
@@ -196,6 +197,11 @@ void SUsdStage::SetupStageActorDelegates()
 					 ( bViewingTheUpdatedPrim || ( bViewingStageProperties && bStageUpdated ) ) )
 				{
 					this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetUsdStage(), *PrimPath );
+				}
+
+				if ( PrimPath == TEXT("/") && this->UsdStageInfoWidget )
+				{
+					this->UsdStageInfoWidget->RefreshStageInfos( ViewModel.UsdStageActor.Get() );
 				}
 			}
 		);
@@ -213,17 +219,6 @@ void SUsdStage::SetupStageActorDelegates()
 				}
 
 				this->Refresh();
-			}
-		);
-
-		// Fired when the currently opened stage changes its info (e.g. startTimeSeconds, framesPerSecond, etc.)
-		OnStageInfoChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnStageInfoChanged().AddLambda(
-			[ this ]( const TArray< FString >& ChangedFields )
-			{
-				if ( this->UsdStageInfoWidget )
-				{
-					this->UsdStageInfoWidget->RefreshStageInfos( ViewModel.UsdStageActor.Get() );
-				}
 			}
 		);
 
@@ -258,7 +253,6 @@ void SUsdStage::ClearStageActorDelegates()
 		ViewModel.UsdStageActor->OnActorDestroyed.Remove ( OnActorDestroyedHandle );
 
 		ViewModel.UsdStageActor->GetUsdListener().GetOnStageEditTargetChanged().Remove( OnStageEditTargetChangedHandle );
-		ViewModel.UsdStageActor->GetUsdListener().GetOnStageInfoChanged().Remove( OnStageInfoChangedHandle );
 	}
 }
 

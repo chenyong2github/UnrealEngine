@@ -216,7 +216,8 @@ namespace EEnvQueryTrace
 	{
 		None,
 		Navigation,
-		Geometry,
+		GeometryByChannel,
+		GeometryByProfile,
 		NavigationOverLedges
 	};
 }
@@ -324,7 +325,7 @@ struct AIMODULE_API FEnvTraceData
 	FEnvTraceData() :
 		VersionNum(0), 
 		ProjectDown(1024.0f), ProjectUp(1024.0f), ExtentX(10.0f), ExtentY(10.0f), ExtentZ(10.0f),
-		PostProjectionVerticalOffset(0.0f),	TraceChannel(TraceTypeQuery1), SerializedChannel(ECC_WorldStatic),
+		PostProjectionVerticalOffset(0.0f),	TraceChannel(TraceTypeQuery1), SerializedChannel(ECC_WorldStatic), TraceProfileName(NAME_None),
 		TraceShape(EEnvTraceShape::Line), TraceMode(EEnvQueryTrace::None),
 		bTraceComplex(false), bOnlyBlockingHits(true),
 		bCanTraceOnNavMesh(true), bCanTraceOnGeometry(true), bCanDisableTrace(true), bCanProjectDown(false)
@@ -373,6 +374,10 @@ struct AIMODULE_API FEnvTraceData
 	/** geometry trace channel for serialization purposes */
 	UPROPERTY(EditDefaultsOnly, Category=Trace)
 	TEnumAsByte<enum ECollisionChannel> SerializedChannel;
+
+	/** geometry trace profile */
+	UPROPERTY(EditDefaultsOnly, Category = Trace)
+	FName TraceProfileName;
 
 	/** shape used for geometry tracing */
 	UPROPERTY(EditDefaultsOnly, Category=Trace)

@@ -11,6 +11,7 @@
 #include "HAL/PlatformAffinity.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
+#include "Engine/EngineTypes.h"
 
 #ifndef WITH_XMA2
 #define WITH_XMA2 0
@@ -248,6 +249,7 @@ namespace Audio
 
 	void FMixerPlatformXAudio2::Suspend()
 	{
+		SCOPED_ENTER_BACKGROUND_EVENT(STAT_FMixerPlatformXAudio2_Suspend);
 		if( !bIsSuspended )
 		{				
 			if( XAudio2System )
@@ -1063,6 +1065,11 @@ namespace Audio
 		return AudioStreamInfo.DeviceInfo;
 	}
 
+	FString FMixerPlatformXAudio2::GetCurrentDeviceName() const
+	{
+		return AudioStreamInfo.DeviceInfo.Name;
+	}
+
 	bool FMixerPlatformXAudio2::CloseAudioStream()
 	{
 		if (!bIsInitialized || AudioStreamInfo.StreamState == EAudioOutputStreamState::Closed)
@@ -1168,6 +1175,28 @@ namespace Audio
 
 			return MoveAudioStreamToNewAudioDevice(NewAudioDeviceId);
 		}
+		return false;
+	}
+
+	bool FMixerPlatformXAudio2::RequestDeviceSwap(const FString& DeviceID)
+	{
+		if (!AllowDeviceSwap())
+		{
+			return false;
+		}
+
+		if (AudioDeviceSwapCriticalSection.TryLock())
+		{
+			UE_LOG(LogAudioMixer, Display, TEXT("Swapping audio render device to new device: %s."), *GetCurrentDeviceName());
+
+			NewAudioDeviceId = DeviceID;
+			bMoveAudioStreamToNewAudioDevice = true;
+
+			AudioDeviceSwapCriticalSection.Unlock();
+
+			return true;
+		}
+
 		return false;
 	}
 
@@ -1286,7 +1315,7 @@ namespace Audio
 				AudioStreamInfo.DeviceInfo.NumChannels,
 				AudioStreamInfo.DeviceInfo.SampleRate,
 				0,
-				nullptr,
+				*AudioStreamInfo.DeviceInfo.DeviceId,
 				nullptr,
 				AudioCategory_GameEffects));
 #endif
@@ -1314,10 +1343,10 @@ namespace Audio
 			// If we don't have any hardware playback devices available, use the null device callback to render buffers.
 			StartRunningNullDevice();
 		}
-
+		
 #endif // #if PLATFORM_WINDOWS
 
-		return true;
+		return true; 
 	}
 
 	void FMixerPlatformXAudio2::ResumePlaybackOnNewDevice()

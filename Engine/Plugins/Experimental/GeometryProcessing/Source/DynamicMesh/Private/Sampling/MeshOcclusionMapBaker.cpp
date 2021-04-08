@@ -20,9 +20,19 @@ void FMeshOcclusionMapBaker::Bake()
 
 	double BiasDotThreshold = FMathd::Cos(FMathd::Clamp(90.0 - BiasAngleDeg, 0.0, 90.0) * FMathd::DegToRad);
 
-	// precompute ray directions for AO
-	TSphericalFibonacci<double> Points(2 * NumOcclusionRays);
+	// Precompute occlusion ray directions
 	TArray<FVector3d> RayDirections;
+	THemisphericalFibonacci<double>::EDistribution Dist = THemisphericalFibonacci<double>::EDistribution::Cosine;
+	switch (Distribution)
+	{
+	case EDistribution::Uniform:
+		Dist = THemisphericalFibonacci<double>::EDistribution::Uniform;
+		break;
+	case EDistribution::Cosine:
+		Dist = THemisphericalFibonacci<double>::EDistribution::Cosine;
+		break;
+	}
+	THemisphericalFibonacci<double> Points(NumOcclusionRays, Dist);
 	for (int32 k = 0; k < Points.Num(); ++k)
 	{
 		FVector3d P = Points[k];
@@ -32,7 +42,19 @@ void FMeshOcclusionMapBaker::Bake()
 		}
 	}
 
-	// 
+	// Map occlusion ray hemisphere to conical area (SpreadAngle/2)
+	double ConicalAngle = FMathd::Clamp(SpreadAngle * 0.5, 0.0001, 90.0);
+	for (int32 k = 0; k < RayDirections.Num(); ++k)
+	{
+		FVector3d& RayDir = RayDirections[k];
+		double RayAngle = AngleD(RayDir,FVector3d::UnitZ());
+		FVector3d RayCross = RayDir.Cross(FVector3d::UnitZ());
+		double RotationAngle = RayAngle - FMathd::Lerp(0.0, ConicalAngle, RayAngle / 90.0);
+		FQuaterniond Rotation(RayCross, RotationAngle, true);
+		RayDir = Rotation * RayDir;
+	}
+
+	// Randomized rotation of occlusion rays about the normal
 	FRandomStream RotationGen(31337);
 	FCriticalSection RotationLock;
 	auto GetRandomRotation = [&RotationGen, &RotationLock]() {
@@ -42,9 +64,19 @@ void FMeshOcclusionMapBaker::Bake()
 		return Angle;
 	};
 
-
-	auto OcclusionSampleFunction = [&](const FMeshImageBakingCache::FCorrespondenceSample& SampleData)
+	auto OcclusionSampleFunction = [&](const FMeshImageBakingCache::FCorrespondenceSample& SampleData, double& OutOcclusion, FVector3d& OutNormal)
 	{
+		// Fallback normal if invalid Tri or fully occluded
+		FVector3d DefaultNormal = FVector3d::UnitZ();
+		switch (NormalSpace)
+		{
+		case ESpace::Tangent:
+			break;
+		case ESpace::Object:
+			DefaultNormal = SampleData.BaseNormal;
+			break;
+		}
+
 		int32 DetailTriID = SampleData.DetailTriID;
 		if (DetailMesh->IsTriangle(DetailTriID))
 		{
@@ -53,6 +85,12 @@ void FMeshOcclusionMapBaker::Bake()
 			FVector3d DetailTriNormal;
 			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailTriNormal.X);
 			Normalize(DetailTriNormal);
+
+			FVector3d BaseTangentX, BaseTangentY;
+			BaseMeshTangents->GetInterpolatedTriangleTangent(
+				SampleData.BaseSample.TriangleIndex,
+				SampleData.BaseSample.BaryCoords,
+				BaseTangentX, BaseTangentY);
 
 			FVector3d DetailBaryCoords = SampleData.DetailBaryCoords;
 			FVector3d DetailPos = DetailMesh->GetTriBaryPoint(DetailTriID, DetailBaryCoords.X, DetailBaryCoords.Y, DetailBaryCoords.Z);
@@ -66,7 +104,9 @@ void FMeshOcclusionMapBaker::Bake()
 			QueryOptions.MaxDistance = MaxDistance;
 
 			double AccumOcclusion = 0;
-			double TotalWeight = 0;
+			FVector3d AccumNormal(FVector3d::Zero());
+			double TotalPointWeight = 0;
+			double TotalNormalWeight = 0;
 			for (FVector3d SphereDir : RayDirections)
 			{
 				FRay3d OcclusionRay(DetailPos, SurfaceFrame.FromFrameVector(SphereDir));
@@ -81,36 +121,67 @@ void FMeshOcclusionMapBaker::Bake()
 					PointWeight = FMathd::Lerp(0.0, 1.0, FMathd::Clamp(BiasDot / BiasDotThreshold, 0.0, 1.0));
 					PointWeight *= PointWeight;
 				}
-				TotalWeight += PointWeight;
+				TotalPointWeight += PointWeight;
+
+				FVector3d BentNormal = OcclusionRay.Direction;
+				switch (NormalSpace)
+				{
+				case ESpace::Tangent:
+				{
+					// compute normal in tangent space
+					double dx = BentNormal.Dot(BaseTangentX);
+					double dy = BentNormal.Dot(BaseTangentY);
+					double dz = BentNormal.Dot(SampleData.BaseNormal);
+					BentNormal = FVector3d(dx, dy, dz);;
+					break;
+				}
+				case ESpace::Object:
+					break;
+				}
+				TotalNormalWeight += 1.0;
 
 				if (DetailSpatial->TestAnyHitTriangle(OcclusionRay, QueryOptions))
 				{
 					AccumOcclusion += PointWeight;
 				}
+				else
+				{
+					AccumNormal += BentNormal;
+				}
 			}
 
-			AccumOcclusion = (TotalWeight > 0.0001) ? (AccumOcclusion / TotalWeight) : 0.0;
-			return AccumOcclusion;
+			AccumOcclusion = (TotalPointWeight > 0.0001) ? (AccumOcclusion / TotalPointWeight) : 0.0;
+			AccumNormal = (TotalNormalWeight > 0.0 && AccumNormal.Length() > 0.0) ? Normalized(AccumNormal / TotalNormalWeight) : DefaultNormal;
+			OutOcclusion = AccumOcclusion;
+			OutNormal = AccumNormal;
+			return;
 		}
-		return 0.0;
+		OutOcclusion = 0.0;
+		OutNormal = DefaultNormal;
 	};
 
 	OcclusionBuilder = MakeUnique<TImageBuilder<FVector3f>>();
 	OcclusionBuilder->SetDimensions(BakeCache->GetDimensions());
+	NormalBuilder = MakeUnique<TImageBuilder<FVector3f>>();
+	NormalBuilder->SetDimensions(BakeCache->GetDimensions());
 
 	BakeCache->EvaluateSamples([&](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)
 	{
-		double Occlusion = OcclusionSampleFunction(Sample);
+		double Occlusion = 0.0;
+		FVector3d BentNormal;
+		OcclusionSampleFunction(Sample, Occlusion, BentNormal);
 		FVector3f OcclusionColor = FMathd::Clamp(1.0f - (float)Occlusion, 0.0f, 1.0f) * FVector3f::One();
 		OcclusionBuilder->SetPixel(Coords, OcclusionColor);
+		FVector3f NormalColor = (FVector3f(BentNormal.X, BentNormal.Y, BentNormal.Z) + FVector3f::One()) * 0.5;
+		NormalBuilder->SetPixel(Coords, NormalColor);
 	});
 
 	const FImageOccupancyMap& Occupancy = *BakeCache->GetOccupancyMap();
-
 	for (int64 k = 0; k < Occupancy.GutterTexels.Num(); k++)
 	{
 		TPair<int64, int64> GutterTexel = Occupancy.GutterTexels[k];
 		OcclusionBuilder->CopyPixel(GutterTexel.Value, GutterTexel.Key);
+		NormalBuilder->CopyPixel(GutterTexel.Value, GutterTexel.Key);
 	}
 
 	if (BlurRadius > 0.01)

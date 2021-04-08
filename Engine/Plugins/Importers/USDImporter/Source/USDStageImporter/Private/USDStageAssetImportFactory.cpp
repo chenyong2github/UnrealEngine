@@ -8,7 +8,6 @@
 #include "USDStageImporter.h"
 #include "USDStageImporterModule.h"
 #include "USDStageImportOptions.h"
-#include "USDStageImportOptionsWindow.h"
 
 #include "ActorFactories/ActorFactoryStaticMesh.h"
 #include "AssetImportTask.h"

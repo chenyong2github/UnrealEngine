@@ -10,14 +10,12 @@
 #include "DMXProtocolBlueprintLibrary.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityReference.h"
-#include "Library/DMXInputPortReference.h"
 #include "Library/DMXEntity.h"
 #include "Game/DMXComponent.h"
 #include "Commands/DMXEditorCommands.h"
 #include "AssetTools/AssetTypeActions_DMXEditorLibrary.h"
 #include "Customizations/DMXEditorPropertyEditorCustomization.h"
-#include "Customizations/DMXInputPortReferenceCustomization.h"
-#include "Customizations/DMXOutputPortReferenceCustomization.h"
+#include "Customizations/DMXLibraryPortReferencesCustomization.h"
 #include "Sequencer/DMXLibraryTrackEditor.h"
 #include "Sequencer/TakeRecorderDMXLibrarySource.h"
 #include "Sequencer/Customizations/TakeRecorderDMXLibrarySourceEditorCustomization.h"
@@ -221,14 +219,13 @@ void FDMXEditorModule::RegisterPropertyTypeCustomizations()
 	RegisterCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXAttributeName>>));
 	RegisterCustomPropertyTypeLayout("EDMXPixelMappingDistribution", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXPixelMappingDistributionCustomization>));
 
-	// Customization for the Port Reference type
-	RegisterCustomPropertyTypeLayout(FDMXInputPortReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXInputPortReferenceCustomization::MakeInstance));
-	RegisterCustomPropertyTypeLayout(FDMXOutputPortReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXOutputPortReferenceCustomization::MakeInstance));
-
 	// Customizations for the Entity Reference types
 	RegisterCustomPropertyTypeLayout(FDMXEntityFixtureTypeRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
 	RegisterCustomPropertyTypeLayout(FDMXEntityFixturePatchRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
 	
+	// Customization for the DMXLibraryPortReferences struct type
+	RegisterCustomPropertyTypeLayout(FDMXLibraryPortReferences::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXLibraryPortReferencesCustomization>));
+
 	// DMXLibrary TakeRecorder AddAllPatchesButton customization
 	RegisterCustomPropertyTypeLayout(FAddAllPatchesButton::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXLibraryRecorderAddAllPatchesButtonCustomization>));
 

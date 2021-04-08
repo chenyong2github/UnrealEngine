@@ -134,7 +134,7 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNi
 		UNiagaraSystem* Sys = InEmitter->GetTypedOuter<UNiagaraSystem>();
 		if (Sys)
 		{
-			Source = Cast<UNiagaraScriptSource>(Sys->GetSystemUpdateScript()->GetSource()); 
+			Source = Cast<UNiagaraScriptSource>(Sys->GetSystemUpdateScript()->GetLatestSource()); 
 			if (Source)
 			{
 				Histories.Append(UNiagaraNodeParameterMapBase::GetParameterMaps(Source->NodeGraph));
@@ -1278,7 +1278,7 @@ TArray<FName> FNiagaraDataInterfaceBindingCustomization::GetNames() const
 			TArray<UNiagaraGraph*> Graphs;
 			for (const UNiagaraScript* Script : AllScripts)
 			{
-				const UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Script->GetSource());
+				const UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Script->GetLatestSource());
 				if (Source)
 				{
 					Graphs.AddUnique(Source->NodeGraph);

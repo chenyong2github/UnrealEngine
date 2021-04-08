@@ -281,7 +281,7 @@ void ThreadImpl::yield()
 }
 
 #if PX_PS4
-uint32_t setAffinityMaskPS4(pthread_t, uint32_t);
+uint32_t setAffinityMaskSony(pthread_t, uint32_t);
 #endif
 
 uint32_t ThreadImpl::setAffinityMask(uint32_t mask)
@@ -297,7 +297,7 @@ uint32_t ThreadImpl::setAffinityMask(uint32_t mask)
 	if(getThread(this)->state == _PxThreadStarted)
 	{
 #if PX_PS4
-		prevMask = setAffinityMaskPS4(getThread(this)->thread, mask);
+		prevMask = setAffinityMaskSony(getThread(this)->thread, mask);
 #elif PX_EMSCRIPTEN
 		// not supported
 #elif !PX_APPLE_FAMILY // Apple doesn't support syscall with getaffinity and setaffinity

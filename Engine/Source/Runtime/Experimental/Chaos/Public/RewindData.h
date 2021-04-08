@@ -84,165 +84,263 @@ private:
 	}
 };
 
+template <typename T, EShapeProperty PropName>
+class TPerShapeDataStateProperty
+{
+public:
+	const T& Read() const
+	{
+		check(bSet);
+		return Val;
+	}
+
+	void Write(const T& InVal)
+	{
+		bSet = true;
+		Val = InVal;
+	}
+
+	bool IsSet() const
+	{
+		return bSet;
+	}
+
+private:
+	T Val;
+	bool bSet = false;
+};
+
+struct FPerShapeDataStateBase
+{
+	TPerShapeDataStateProperty<FCollisionData, EShapeProperty::CollisionData> CollisionData;
+	TPerShapeDataStateProperty<FMaterialData, EShapeProperty::Materials> MaterialData;
+
+	//helper functions for shape API
+	template <typename TParticle>
+	static const FCollisionFilterData& GetQueryData(const FPerShapeDataStateBase* State, const TParticle& Particle, int32 ShapeIdx) { return State && State->CollisionData.IsSet() ? State->CollisionData.Read().QueryData : Particle.ShapesArray()[ShapeIdx]->GetQueryData(); }
+	/*const FCollisionFilterData& GetSimData() const { return CollisionData.Read().SimData; }
+	
+	TSerializablePtr<FImplicitObject> GetGeometry() const { return Geometry; }
+	const TArray<FMaterialHandle>& GetMaterials() const { return Materials.Read().Materials; }
+	const TArray<FMaterialMaskHandle>& GetMaterialMasks() const { return Materials.Read().MaterialMasks; }
+	const TArray<uint32>& GetMaterialMaskMaps() const { return Materials.Read().MaterialMaskMaps; }
+	const TArray<FMaterialHandle>& GetMaterialMaskMapMaterials() const { return Materials.Read().MaterialMaskMapMaterials; }*/
+};
+
+class FPerShapeDataState
+{
+public:
+	FPerShapeDataState(const FPerShapeDataStateBase* InState, const FGeometryParticleHandle& InParticle, const int32 InShapeIdx)
+	: State(InState)
+	, Particle(InParticle)
+	, ShapeIdx(InShapeIdx)
+	{
+	}
+
+	const FCollisionFilterData& GetQueryData() const { return FPerShapeDataStateBase::GetQueryData(State, Particle, ShapeIdx); }
+private:
+	const FPerShapeDataStateBase* State;
+	const FGeometryParticleHandle& Particle;
+	const int32 ShapeIdx;
+
+};
+
+struct FShapesArrayStateBase
+{
+	TArray<FPerShapeDataStateBase> PerShapeData;
+
+	FPerShapeDataStateBase& FindOrAdd(const int32 ShapeIdx)
+	{
+		if(ShapeIdx >= PerShapeData.Num())
+		{
+			const int32 NumNeededToAdd = ShapeIdx + 1 - PerShapeData.Num();
+			PerShapeData.AddDefaulted(NumNeededToAdd);
+		}
+		return PerShapeData[ShapeIdx];
+
+	}
+};
+
+template <typename TParticle>
+class TShapesArrayState
+{
+public:
+	TShapesArrayState(const TParticle& InParticle, const FShapesArrayStateBase* InState)
+		: Particle(InParticle)
+		, State(InState)
+	{}
+
+	FPerShapeDataState operator[](const int32 ShapeIdx) const { return FPerShapeDataState{ State && ShapeIdx < State->PerShapeData.Num() ? &State->PerShapeData[ShapeIdx] : nullptr, Particle, ShapeIdx }; }
+private:
+	const TParticle& Particle;
+	const FShapesArrayStateBase* State;
+};
+
 class FGeometryParticleStateBase
 {
 public:
 	template <typename TParticle>
-	const FVec3& X(const TParticle& Particle) const
+	static const FVec3& X(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return ParticlePositionRotation.IsSet() ? ParticlePositionRotation.Read().X() : Particle.X();
+		return State && State->ParticlePositionRotation.IsSet() ? State->ParticlePositionRotation.Read().X() : Particle.X();
 	}
 
 	template <typename TParticle>
-	const FRotation3& R(const TParticle& Particle) const
+	static const FRotation3& R(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return ParticlePositionRotation.IsSet() ? ParticlePositionRotation.Read().R() : Particle.R();
+		return State && State->ParticlePositionRotation.IsSet() ? State->ParticlePositionRotation.Read().R() : Particle.R();
 	}
 	
 	template <typename TParticle>
-	const FVec3& V(const TParticle& Particle) const
+	static const FVec3& V(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return Velocities.IsSet() ? Velocities.Read().V() : Particle.CastToKinematicParticle()->V();
+		return State && State->Velocities.IsSet() ? State->Velocities.Read().V() : Particle.CastToKinematicParticle()->V();
 	}
 
 	template <typename TParticle>
-	const FVec3& W(const TParticle& Particle) const
+	static const FVec3& W(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return Velocities.IsSet() ? Velocities.Read().W() : Particle.CastToKinematicParticle()->W();
+		return State && State->Velocities.IsSet() ? State->Velocities.Read().W() : Particle.CastToKinematicParticle()->W();
 	}
 
 	template <typename TParticle>
-	FReal LinearEtherDrag(const TParticle& Particle) const
+	static FReal LinearEtherDrag(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().LinearEtherDrag() : Particle.CastToRigidParticle()->LinearEtherDrag();
+		return State && State->DynamicsMisc.IsSet() ? State->DynamicsMisc.Read().LinearEtherDrag() : Particle.CastToRigidParticle()->LinearEtherDrag();
 	}
 
 	template <typename TParticle>
-	FReal AngularEtherDrag(const TParticle& Particle) const
+	static FReal AngularEtherDrag(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().AngularEtherDrag() : Particle.CastToRigidParticle()->AngularEtherDrag();
+		return State && State->DynamicsMisc.IsSet() ? State->DynamicsMisc.Read().AngularEtherDrag() : Particle.CastToRigidParticle()->AngularEtherDrag();
 	}
 
 	template <typename TParticle>
-	FReal MaxLinearSpeedSq(const TParticle& Particle) const
+	static FReal MaxLinearSpeedSq(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().MaxLinearSpeedSq() : Particle.CastToRigidParticle()->MaxLinearSpeedSq();
+		return State && State->DynamicsMisc.IsSet() ? State->DynamicsMisc.Read().MaxLinearSpeedSq() : Particle.CastToRigidParticle()->MaxLinearSpeedSq();
 	}
 
 	template <typename TParticle>
-	FReal MaxAngularSpeedSq(const TParticle& Particle) const
+	static FReal MaxAngularSpeedSq(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().MaxAngularSpeedSq() : Particle.CastToRigidParticle()->MaxAngularSpeedSq();
+		return State && State->DynamicsMisc.IsSet() ? State->DynamicsMisc.Read().MaxAngularSpeedSq() : Particle.CastToRigidParticle()->MaxAngularSpeedSq();
 	}
 
 	template <typename TParticle>
-	EObjectStateType ObjectState(const TParticle& Particle) const
+	static EObjectStateType ObjectState(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().ObjectState() : Particle.CastToRigidParticle()->ObjectState();
+		return State && State->DynamicsMisc.IsSet() ? State->DynamicsMisc.Read().ObjectState() : Particle.CastToRigidParticle()->ObjectState();
 	}
 
 	template <typename TParticle>
-	bool GravityEnabled(const TParticle& Particle) const
+	static bool GravityEnabled(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().GravityEnabled() : Particle.CastToRigidParticle()->GravityEnabled();
+		return State && State->DynamicsMisc.IsSet() ? State->DynamicsMisc.Read().GravityEnabled() : Particle.CastToRigidParticle()->GravityEnabled();
 	}
 
 	template <typename TParticle>
-	bool CCDEnabled(const TParticle& Particle) const
+	static bool CCDEnabled(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().CCDEnabled() : Particle.CastToRigidParticle()->CCDEnabled();
+		return State && State->DynamicsMisc.IsSet() ? State->DynamicsMisc.Read().CCDEnabled() : Particle.CastToRigidParticle()->CCDEnabled();
 	}
 
 	template <typename TParticle>
-	int32 CollisionGroup(const TParticle& Particle) const
+	static int32 CollisionGroup(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().CollisionGroup() : Particle.CastToRigidParticle()->CollisionGroup();
+		return State && State->DynamicsMisc.IsSet() ? State->DynamicsMisc.Read().CollisionGroup() : Particle.CastToRigidParticle()->CollisionGroup();
 	}
 
 	template <typename TParticle>
-	const FVec3& CenterOfMass(const TParticle& Particle) const
+	static const FVec3& CenterOfMass(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return MassProps.IsSet() ? MassProps.Read().CenterOfMass() : Particle.CastToRigidParticle()->CenterOfMass();
+		return State && State->MassProps.IsSet() ? State->MassProps.Read().CenterOfMass() : Particle.CastToRigidParticle()->CenterOfMass();
 	}
 
 	template <typename TParticle>
-	const FRotation3& RotationOfMass(const TParticle& Particle) const
+	static const FRotation3& RotationOfMass(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return MassProps.IsSet() ? MassProps.Read().RotationOfMass() : Particle.CastToRigidParticle()->RotationOfMass();
+		return State && State->MassProps.IsSet() ? State->MassProps.Read().RotationOfMass() : Particle.CastToRigidParticle()->RotationOfMass();
 	}
 
 	template <typename TParticle>
-	const FMatrix33& I(const TParticle& Particle) const
+	static const FMatrix33& I(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return MassProps.IsSet() ? MassProps.Read().I() : Particle.CastToRigidParticle()->I();
+		return State && State->MassProps.IsSet() ? State->MassProps.Read().I() : Particle.CastToRigidParticle()->I();
 	}
 
 	template <typename TParticle>
-	const FMatrix33& InvI(const TParticle& Particle) const
+	static const FMatrix33& InvI(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return MassProps.IsSet() ? MassProps.Read().InvI() : Particle.CastToRigidParticle()->InvI();
+		return State && State->MassProps.IsSet() ? State->MassProps.Read().InvI() : Particle.CastToRigidParticle()->InvI();
 	}
 
 	template <typename TParticle>
-	FReal M(const TParticle& Particle) const
+	static FReal M(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return MassProps.IsSet() ? MassProps.Read().M() : Particle.CastToRigidParticle()->M();
+		return State && State->MassProps.IsSet() ? State->MassProps.Read().M() : Particle.CastToRigidParticle()->M();
 	}
 
 	template <typename TParticle>
-	FReal InvM(const TParticle& Particle) const
+	static FReal InvM(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return MassProps.IsSet() ? MassProps.Read().InvM() : Particle.CastToRigidParticle()->InvM();
+		return State && State->MassProps.IsSet() ? State->MassProps.Read().InvM() : Particle.CastToRigidParticle()->InvM();
 	}
 
 	template <typename TParticle>
-	TSerializablePtr<FImplicitObject> Geometry(const TParticle& Particle) const
+	static TSerializablePtr<FImplicitObject> Geometry(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return NonFrequentData.IsSet() ? MakeSerializable(NonFrequentData.Read().Geometry()) : Particle.Geometry();
+		return State && State->NonFrequentData.IsSet() ? State->NonFrequentData.Read().Geometry() : Particle.Geometry();
 	}
 
 	template <typename TParticle>
-	FUniqueIdx UniqueIdx(const TParticle& Particle) const
+	static FUniqueIdx UniqueIdx(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return NonFrequentData.IsSet() ? NonFrequentData.Read().UniqueIdx() : Particle.UniqueIdx();
+		return State && State->NonFrequentData.IsSet() ? State->NonFrequentData.Read().UniqueIdx() : Particle.UniqueIdx();
 	}
 	
 	template <typename TParticle>
-	FSpatialAccelerationIdx SpatialIdx(const TParticle& Particle) const
+	static FSpatialAccelerationIdx SpatialIdx(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return NonFrequentData.IsSet() ? NonFrequentData.Read().SpatialIdx() : Particle.SpatialIdx();
+		return State && State->NonFrequentData.IsSet() ? State->NonFrequentData.Read().SpatialIdx() : Particle.SpatialIdx();
 	}
 
 #if CHAOS_CHECKED
 	template <typename TParticle>
-	FName DebugName(const TParticle& Particle) const
+	static FName DebugName(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return NonFrequentData.IsSet() ? NonFrequentData.Read().DebugName() : Particle.DebugName();
+		return State && State->NonFrequentData.IsSet() ? State->NonFrequentData.Read().DebugName() : Particle.DebugName();
 	}
 #endif
 
 	template <typename TParticle>
-	const FVec3& F(const TParticle& Particle) const
+	static const FVec3& F(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return Dynamics.IsSet() ? Dynamics.Read().F() : Particle.CastToRigidParticle()->F();
+		return State && State->Dynamics.IsSet() ? State->Dynamics.Read().F() : Particle.CastToRigidParticle()->F();
 	}
 
 	template <typename TParticle>
-	const FVec3& Torque(const TParticle& Particle) const
+	static const FVec3& Torque(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return Dynamics.IsSet() ? Dynamics.Read().Torque() : Particle.CastToRigidParticle()->Torque();
+		return State && State->Dynamics.IsSet() ? State->Dynamics.Read().Torque() : Particle.CastToRigidParticle()->Torque();
 	}
 
 	template <typename TParticle>
-	const FVec3& LinearImpulse(const TParticle& Particle) const
+	static const FVec3& LinearImpulse(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return Dynamics.IsSet() ? Dynamics.Read().LinearImpulse() : Particle.CastToRigidParticle()->LinearImpulse();
+		return State && State->Dynamics.IsSet() ? State->Dynamics.Read().LinearImpulse() : Particle.CastToRigidParticle()->LinearImpulse();
 	}
 
 	template <typename TParticle>
-	const FVec3& AngularImpulse(const TParticle& Particle) const
+	static const FVec3& AngularImpulse(const FGeometryParticleStateBase* State, const TParticle& Particle)
 	{
-		return Dynamics.IsSet() ? Dynamics.Read().AngularImpulse() : Particle.CastToRigidParticle()->AngularImpulse();
+		return State && State->Dynamics.IsSet() ? State->Dynamics.Read().AngularImpulse() : Particle.CastToRigidParticle()->AngularImpulse();
+	}
+
+	template <typename TParticle>
+	static TShapesArrayState<TParticle> ShapesArray(const FGeometryParticleStateBase* State, const TParticle& Particle)
+	{
+		return TShapesArrayState<TParticle>{ Particle, State ? &State->ShapesArrayState : nullptr };
 	}
 
 	void SyncSimWritablePropsFromSim(FDirtyPropData Manager,const TPBDRigidParticleHandle<FReal,3>& Rigid);
@@ -251,7 +349,7 @@ public:
 	
 	template <typename TParticle>
 	void SyncToParticle(TParticle& Particle) const;
-	void SyncPrevFrame(FDirtyPropData& Manager,const FDirtyProxy& Dirty);
+	void SyncPrevFrame(FDirtyPropData& Manager,const FDirtyProxy& Dirty, const FShapeDirtyData* ShapeData);
 	void SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticleHandle& InParticle,const FGeometryParticleStateBase& RewindState);
 	bool CoalesceState(const FGeometryParticleStateBase& LatestState);
 	bool IsDesynced(const FConstDirtyPropData& SrcManager,const TGeometryParticleHandle<FReal,3>& Handle,const FParticleDirtyFlags Flags) const;
@@ -265,6 +363,8 @@ private:
 	TParticleStateProperty<FParticleDynamicMisc,EParticleProperty::DynamicMisc> DynamicsMisc;
 	TParticleStateProperty<FParticleMassProps,EParticleProperty::MassProps> MassProps;
 	TParticleStateProperty<FKinematicTarget, EParticleProperty::KinematicTarget> KinematicTarget;
+
+	FShapesArrayStateBase ShapesArrayState;
 };
 
 class FGeometryParticleState
@@ -276,7 +376,7 @@ public:
 	{
 	}
 
-	FGeometryParticleState(const FGeometryParticleStateBase& InState, const FGeometryParticleHandle& InParticle)
+	FGeometryParticleState(const FGeometryParticleStateBase* InState, const FGeometryParticleHandle& InParticle)
 	: Particle(InParticle)
 	, State(InState)
 	{
@@ -284,134 +384,139 @@ public:
 
 	const FVec3& X() const
 	{
-		return State.X(Particle);
+		return FGeometryParticleStateBase::X(State, Particle);
 	}
 
 	const FRotation3& R() const
 	{
-		return State.R(Particle);
+		return FGeometryParticleStateBase::R(State, Particle);
 	}
 
 	const FVec3& V() const
 	{
-		return State.V(Particle);
+		return FGeometryParticleStateBase::V(State, Particle);
 	}
 
 	const FVec3& W() const
 	{
-		return State.W(Particle);
+		return FGeometryParticleStateBase::W(State, Particle);
 	}
 
 	FReal LinearEtherDrag() const
 	{
-		return State.LinearEtherDrag(Particle);
+		return FGeometryParticleStateBase::LinearEtherDrag(State, Particle);
 	}
 
 	FReal AngularEtherDrag() const
 	{
-		return State.AngularEtherDrag(Particle);
+		return FGeometryParticleStateBase::AngularEtherDrag(State, Particle);
 	}
 
 	FReal MaxLinearSpeedSq() const
 	{
-		return State.MaxLinearSpeedSq(Particle);
+		return FGeometryParticleStateBase::MaxLinearSpeedSq(State, Particle);
 	}
 
 	FReal MaxAngularSpeedSq() const
 	{
-		return State.MaxAngularSpeedSq(Particle);
+		return FGeometryParticleStateBase::MaxAngularSpeedSq(State, Particle);
 	}
 
 	EObjectStateType ObjectState() const
 	{
-		return State.ObjectState(Particle);
+		return FGeometryParticleStateBase::ObjectState(State, Particle);
 	}
 
 	bool GravityEnabled() const
 	{
-		return State.GravityEnabled(Particle);
+		return FGeometryParticleStateBase::GravityEnabled(State, Particle);
 	}
 
 	bool CCDEnabled() const
 	{
-		return State.CCDEnabled(Particle);
+		return FGeometryParticleStateBase::CCDEnabled(State, Particle);
 	}
 
 	int32 CollisionGroup() const
 	{
-		return State.CollisionGroup(Particle);
+		return FGeometryParticleStateBase::CollisionGroup(State, Particle);
 	}
 
 	const FVec3& CenterOfMass() const
 	{
-		return State.CenterOfMass(Particle);
+		return FGeometryParticleStateBase::CenterOfMass(State, Particle);
 	}
 
 	const FRotation3& RotationOfMass() const
 	{
-		return State.RotationOfMass(Particle);
+		return FGeometryParticleStateBase::RotationOfMass(State, Particle);
 	}
 
 	const FMatrix33& I() const
 	{
-		return State.I(Particle);
+		return FGeometryParticleStateBase::I(State, Particle);
 	}
 
 	const FMatrix33& InvI() const
 	{
-		return State.InvI(Particle);
+		return FGeometryParticleStateBase::InvI(State, Particle);
 	}
 
 	FReal M() const
 	{
-		return State.M(Particle);
+		return FGeometryParticleStateBase::M(State, Particle);
 	}
 
 	FReal InvM() const
 	{
-		return State.InvM(Particle);
+		return FGeometryParticleStateBase::InvM(State, Particle);
 	}
 
 	TSerializablePtr<FImplicitObject> Geometry() const
 	{
-		return State.Geometry(Particle);
+		return FGeometryParticleStateBase::Geometry(State, Particle);
 	}
 
 	FUniqueIdx UniqueIdx() const
 	{
-		return State.UniqueIdx(Particle);
+		return FGeometryParticleStateBase::UniqueIdx(State, Particle);
 	}
 
 	FSpatialAccelerationIdx SpatialIdx() const
 	{
-		return State.SpatialIdx(Particle);
+		return FGeometryParticleStateBase::SpatialIdx(State, Particle);
 	}
 
 #if CHAOS_CHECKED
 	FName DebugName() const
 	{
-		return State.DebugName(Particle);
+		return FGeometryParticleStateBase::DebugName(State, Particle);
 	}
 #endif
 
 	const FVec3& F() const
 	{
-		return State.F(Particle);
+		return FGeometryParticleStateBase::F(State, Particle);
 	}
 
 	const FVec3& Torque() const
 	{
-		return State.Torque(Particle);
+		return FGeometryParticleStateBase::Torque(State, Particle);
 	}
 
 	const FVec3& LinearImpulse() const
 	{
-		return State.LinearImpulse(Particle);
+		return FGeometryParticleStateBase::LinearImpulse(State, Particle);
 	}
 
 	const FVec3& AngularImpulse() const
 	{
-		return State.AngularImpulse(Particle);
+		return FGeometryParticleStateBase::AngularImpulse(State, Particle);
+	}
+
+	TShapesArrayState<FGeometryParticleHandle> ShapesArray() const
+	{
+		return FGeometryParticleStateBase::ShapesArray(State, Particle);
 	}
 
 	const FGeometryParticleHandle& GetHandle() const
@@ -419,19 +524,19 @@ public:
 		return Particle;
 	}
 
-	void SetState(const FGeometryParticleStateBase& InState)
+	void SetState(const FGeometryParticleStateBase* InState)
 	{
 		State = InState;
 	}
 
 	bool IsDesynced(const FConstDirtyPropData& SrcManager, const TGeometryParticleHandle<FReal,3>& Handle, const FParticleDirtyFlags Flags) const
 	{
-		return State.IsDesynced(SrcManager,Handle,Flags);
+		return State->IsDesynced(SrcManager,Handle,Flags);
 	}
 
 private:
 	const FGeometryParticleHandle& Particle;
-	FGeometryParticleStateBase State;
+	const FGeometryParticleStateBase* State = nullptr;
 };
 
 enum class EFutureQueryResult
@@ -447,11 +552,14 @@ struct FDesyncedParticleInfo
 	ESyncState MostDesynced;	//Indicates the most desynced this particle got during resim (could be that it was soft desync and then went back to normal)
 };
 
+class FPBDRigidsSolver;
+
 class FRewindData
 {
 public:
-	FRewindData(int32 NumFrames, bool InResimOptimization, int32 InCurrentFrame)
+	FRewindData(FPBDRigidsSolver* InSolver, int32 NumFrames, bool InResimOptimization, int32 InCurrentFrame)
 	: Managers(NumFrames+1)	//give 1 extra for saving at head
+	, Solver(InSolver)
 	, CurFrame(InCurrentFrame)
 	, LatestFrame(-1)
 	, CurWave(1)
@@ -544,7 +652,7 @@ public:
 
 	void PrepareFrameForPTDirty(int32 NumActiveParticles);
 	template <bool bResim>
-	void PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty);
+	void PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty, const FShapeDirtyData* ShapeDirtyData);
 
 	template <bool bResim>
 	void PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Rigid,const int32 SrcDataIdx);
@@ -676,7 +784,7 @@ private:
 		//Note that this is not exactly the same as which frame this manager represents. 
 		//A manager can have data for two frames at once, the important part is just knowing which frame it was created on so we know whether the physics data can rely on it
 		//Consider the case where nothing is dirty from GT and then an object moves from the simulation, in that case it needs a manager to record the data into
-		int32 FrameCreatedFor;
+		int32 FrameCreatedFor = INDEX_NONE;
 		FReal DeltaTime;
 	};
 
@@ -689,6 +797,7 @@ private:
 	public:
 		FUniqueIdx CachedUniqueIdx;	//Needed when manipulating on physics thread and Particle data cannot be read
 		int32 LastDirtyFrame;	//Track how recently this was made dirty
+		int32 InitializedOnStep = INDEX_NONE;	//if not INDEX_NONE, it indicates we saw initialization during rewind history window
 		bool bDesync;
 		ESyncState MostDesynced;	//Tracks the most desynced this has become (soft desync can go back to being clean, but we still want to know)
 
@@ -754,11 +863,12 @@ private:
 		return nullptr;
 	}
 
-	FDirtyParticleInfo& FindOrAddParticle(TGeometryParticleHandle<FReal,3>& PTParticle);
+	FDirtyParticleInfo& FindOrAddParticle(TGeometryParticleHandle<FReal,3>& PTParticle, const int32 InitializedOnFrame = INDEX_NONE);
 	
 	TArrayAsMap<FUniqueIdx,int32> ParticleToAllDirtyIdx;
 	TCircularBuffer<FFrameManagerInfo> Managers;
 	TArray<FDirtyParticleInfo> AllDirtyParticles;
+	FPBDRigidsSolver* Solver;
 	int32 CurFrame;
 	int32 LatestFrame;
 	uint8 CurWave;
@@ -799,5 +909,7 @@ public:
 	*   Usually to simulate external systems that ran in lock step with the physics sim
 	*/
 	virtual void PostResimStep_Internal(int32 PhysicsStep){}
+
+	virtual void RegisterRewindableSimCallback_Internal(ISimCallbackObject* Callback) { ensure(false); }
 };
 }

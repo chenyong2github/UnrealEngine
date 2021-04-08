@@ -256,7 +256,8 @@ void UEnvQueryGenerator_OnCircle::GenerateItemsForCircle(uint8* ContextRawData, 
 			break;
 		}
 
-		case EEnvQueryTrace::Geometry:
+		case EEnvQueryTrace::GeometryByChannel:
+		case EEnvQueryTrace::GeometryByProfile:
 		{
 			FEQSHelpers::RunPhysRaycasts(OutQueryInstance.World, TraceData, CenterLocation, ItemCandidates, IgnoredActors);
 			break;

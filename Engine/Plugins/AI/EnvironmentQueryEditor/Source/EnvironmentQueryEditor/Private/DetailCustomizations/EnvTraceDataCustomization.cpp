@@ -42,6 +42,7 @@ void FEnvTraceDataCustomization::CustomizeHeader( TSharedRef<class IPropertyHand
 	PropTraceShape = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnvTraceData,TraceShape));
 	PropTraceChannel = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnvTraceData, TraceChannel));
 	PropTraceChannelSerialized = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnvTraceData, SerializedChannel));
+	PropTraceProfileName = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnvTraceData, TraceProfileName));
 	CacheTraceModes(StructPropertyHandle);
 }
 
@@ -76,10 +77,13 @@ void FEnvTraceDataCustomization::CustomizeChildren( TSharedRef<class IPropertyHa
 	// geometry props
 	PropTraceChannel->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FEnvTraceDataCustomization::OnTraceChannelChanged));
 	StructBuilder.AddProperty(PropTraceChannel.ToSharedRef())
-		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FEnvTraceDataCustomization::GetGeometryVisibility)));
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FEnvTraceDataCustomization::GetGeometryByChannelVisibility)));
 
 	StructBuilder.AddProperty(PropTraceShape.ToSharedRef())
-		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FEnvTraceDataCustomization::GetGeometryVisibility)));
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FEnvTraceDataCustomization::GetGeometryByChannelVisibility)));
+
+	StructBuilder.AddProperty(PropTraceProfileName.ToSharedRef())
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FEnvTraceDataCustomization::GetGeometryByProfileVisibility)));
 
 	// common props
 	TSharedPtr<IPropertyHandle> PropExtX = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnvTraceData,ExtentX));
@@ -148,7 +152,8 @@ void FEnvTraceDataCustomization::CacheTraceModes(TSharedRef<class IPropertyHandl
 	}
 	if (bCanGeometry)
 	{
-		TraceModes.Add(FTextIntPair(TraceModeEnum->GetDisplayNameTextByValue(EEnvQueryTrace::Geometry), EEnvQueryTrace::Geometry));
+		TraceModes.Add(FTextIntPair(TraceModeEnum->GetDisplayNameTextByValue(EEnvQueryTrace::GeometryByChannel), EEnvQueryTrace::GeometryByChannel));
+		TraceModes.Add(FTextIntPair(TraceModeEnum->GetDisplayNameTextByValue(EEnvQueryTrace::GeometryByProfile), EEnvQueryTrace::GeometryByProfile));
 	}
 	if (bCanGeometry && bCanNavMesh && !bCanShowProjection)
 	{
@@ -211,8 +216,12 @@ FText FEnvTraceDataCustomization::GetShortDescription() const
 
 	switch (ActiveMode)
 	{
-	case EEnvQueryTrace::Geometry:
-		Desc = LOCTEXT("TraceGeom","geometry trace");
+	case EEnvQueryTrace::GeometryByChannel:
+		Desc = LOCTEXT("TraceGeomByChannel","geometry trace by channel");
+		break;
+
+	case EEnvQueryTrace::GeometryByProfile:
+		Desc = LOCTEXT("TraceGeomByProfile", "geometry trace by profile");
 		break;
 
 	case EEnvQueryTrace::Navigation:
@@ -233,9 +242,19 @@ FText FEnvTraceDataCustomization::GetShortDescription() const
 	return Desc;
 }
 
+EVisibility FEnvTraceDataCustomization::GetGeometryByChannelVisibility() const
+{
+	return (ActiveMode == EEnvQueryTrace::GeometryByChannel || ActiveMode == EEnvQueryTrace::NavigationOverLedges) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility FEnvTraceDataCustomization::GetGeometryByProfileVisibility() const
+{
+	return (ActiveMode == EEnvQueryTrace::GeometryByProfile) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
 EVisibility FEnvTraceDataCustomization::GetGeometryVisibility() const
 {
-	return (ActiveMode == EEnvQueryTrace::Geometry || ActiveMode == EEnvQueryTrace::NavigationOverLedges) ? EVisibility::Visible : EVisibility::Collapsed;
+	return (ActiveMode == EEnvQueryTrace::GeometryByChannel || ActiveMode == EEnvQueryTrace::GeometryByProfile || ActiveMode == EEnvQueryTrace::NavigationOverLedges) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility FEnvTraceDataCustomization::GetNavigationVisibility() const
@@ -255,7 +274,7 @@ EVisibility FEnvTraceDataCustomization::GetExtentX() const
 		// radius
 		return EVisibility::Visible;
 	}
-	else if (ActiveMode == EEnvQueryTrace::Geometry)
+	else if (ActiveMode == EEnvQueryTrace::GeometryByChannel || ActiveMode == EEnvQueryTrace::GeometryByProfile)
 	{
 		uint8 EnumValue;
 		PropTraceShape->GetValue(EnumValue);
@@ -268,7 +287,7 @@ EVisibility FEnvTraceDataCustomization::GetExtentX() const
 
 EVisibility FEnvTraceDataCustomization::GetExtentY() const
 {
-	if (ActiveMode == EEnvQueryTrace::Geometry || (ActiveMode == EEnvQueryTrace::NavigationOverLedges && bCanShowProjection == false))
+	if (ActiveMode == EEnvQueryTrace::GeometryByChannel || ActiveMode == EEnvQueryTrace::GeometryByProfile || (ActiveMode == EEnvQueryTrace::NavigationOverLedges && bCanShowProjection == false))
 	{
 		uint8 EnumValue;
 		PropTraceShape->GetValue(EnumValue);
@@ -281,7 +300,7 @@ EVisibility FEnvTraceDataCustomization::GetExtentY() const
 
 EVisibility FEnvTraceDataCustomization::GetExtentZ() const
 {
-	if (ActiveMode == EEnvQueryTrace::Geometry || (ActiveMode == EEnvQueryTrace::NavigationOverLedges && bCanShowProjection == false))
+	if (ActiveMode == EEnvQueryTrace::GeometryByChannel || ActiveMode == EEnvQueryTrace::GeometryByProfile || (ActiveMode == EEnvQueryTrace::NavigationOverLedges && bCanShowProjection == false))
 	{
 		uint8 EnumValue;
 		PropTraceShape->GetValue(EnumValue);

@@ -93,7 +93,8 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 	return nullptr;
 }
 
-void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInstancedPropertyPath& PropertyPath, const uint8* ContainerAddress, TFunctionRef<void(const FInstancedSubObjRef& Ref)> OutObjects)
+template<typename T>
+void FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject(FInstancedPropertyPath& PropertyPath, T ContainerAddress, TFunctionRef<void(const FInstancedSubObjRef&, T)> ObjRefFunc)
 {
 	check(ContainerAddress);
 	const FProperty* TargetProp = PropertyPath.Head();
@@ -109,10 +110,10 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 		FScriptArrayHelper ArrayHelper(ArrayProperty, ContainerAddress);
 		for (int32 ElementIndex = 0; ElementIndex < ArrayHelper.Num(); ++ElementIndex)
 		{
-			const uint8* ValueAddress = ArrayHelper.GetRawPtr(ElementIndex);
+			T ValueAddress = ArrayHelper.GetRawPtr(ElementIndex);
 
 			PropertyPath.Push(ArrayProperty->Inner, ElementIndex);
-			GetInstancedSubObjects_Inner(PropertyPath, ValueAddress, OutObjects);
+			ForEachInstancedSubObject(PropertyPath, ValueAddress, ObjRefFunc);
 			PropertyPath.Pop();
 		}
 	}
@@ -127,15 +128,15 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 		FScriptMapHelper MapHelper(MapProperty, ContainerAddress);
 		for (int32 ElementIndex = 0; ElementIndex < MapHelper.Num(); ++ElementIndex)
 		{
-			const uint8* KeyAddress = MapHelper.GetKeyPtr(ElementIndex);
-			const uint8* ValueAddress = MapHelper.GetValuePtr(ElementIndex);
+			T KeyAddress = MapHelper.GetKeyPtr(ElementIndex);
+			T ValueAddress = MapHelper.GetValuePtr(ElementIndex);
 
 			PropertyPath.Push(MapProperty->KeyProp, ElementIndex);
-			GetInstancedSubObjects_Inner(PropertyPath, KeyAddress, OutObjects);
+			ForEachInstancedSubObject(PropertyPath, KeyAddress, ObjRefFunc);
 			PropertyPath.Pop();
 
 			PropertyPath.Push(MapProperty->ValueProp, ElementIndex);
-			GetInstancedSubObjects_Inner(PropertyPath, ValueAddress, OutObjects);
+			ForEachInstancedSubObject(PropertyPath, ValueAddress, ObjRefFunc);
 			PropertyPath.Pop();
 		}
 	}
@@ -150,10 +151,10 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 		FScriptSetHelper SetHelper(SetProperty, ContainerAddress);
 		for (int32 ElementIndex = 0; ElementIndex < SetHelper.Num(); ++ElementIndex)
 		{
-			const uint8* ValueAddress = SetHelper.GetElementPtr(ElementIndex);
+			T ValueAddress = SetHelper.GetElementPtr(ElementIndex);
 
 			PropertyPath.Push(SetProperty->ElementProp, ElementIndex);
-			GetInstancedSubObjects_Inner(PropertyPath, ValueAddress, OutObjects);
+			ForEachInstancedSubObject(PropertyPath, ValueAddress, ObjRefFunc);
 			PropertyPath.Pop();
 		}
 	}
@@ -169,10 +170,10 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 		{
 			for (int32 ArrayIdx = 0; ArrayIdx < StructProp->ArrayDim; ++ArrayIdx)
 			{
-				const uint8* ValueAddress = StructProp->ContainerPtrToValuePtr<uint8>(ContainerAddress, ArrayIdx);
+				T ValueAddress = StructProp->ContainerPtrToValuePtr<uint8>(ContainerAddress, ArrayIdx);
 
 				PropertyPath.Push(StructProp, ArrayIdx);
-				GetInstancedSubObjects_Inner(PropertyPath, ValueAddress, OutObjects);
+				ForEachInstancedSubObject(PropertyPath, ValueAddress, ObjRefFunc);
 				PropertyPath.Pop();
 			}
 		}
@@ -185,11 +186,14 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 			if (UObject* ObjectValue = ObjectProperty->GetObjectPropertyValue(ContainerAddress))
 			{
 				// don't need to push to PropertyPath, since this property is already at its head
-				OutObjects(FInstancedSubObjRef(ObjectValue, PropertyPath));
+				ObjRefFunc(FInstancedSubObjRef(ObjectValue, PropertyPath), ContainerAddress);
 			}
 		}
 	}
 }
+
+template ENGINE_API void FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject<void*>(FInstancedPropertyPath& PropertyPath, void* ContainerAddress, TFunctionRef<void(const FInstancedSubObjRef&, void*)> ObjRefFunc);
+template ENGINE_API void FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject<const void*>(FInstancedPropertyPath& PropertyPath, const void* ContainerAddress, TFunctionRef<void(const FInstancedSubObjRef&, const void*)> ObjRefFunc);
 
 void FFindInstancedReferenceSubobjectHelper::Duplicate(UObject* OldObject, UObject* NewObject, TMap<UObject*, UObject*>& ReferenceReplacementMap, TArray<UObject*>& DuplicatedObjects)
 {

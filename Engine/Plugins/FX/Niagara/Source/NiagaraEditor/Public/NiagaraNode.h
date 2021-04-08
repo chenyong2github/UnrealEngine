@@ -110,9 +110,6 @@ public:
 	/** Convert the type of an existing numeric pin to a more known type.*/
 	virtual bool ConvertNumericPinToType(UEdGraphPin* InGraphPin, FNiagaraTypeDefinition TypeDef);
 
-	/** Determine if there are any external dependencies wrt to scripts and ensure that those dependencies are sucked into the existing package.*/
-	virtual void SubsumeExternalDependencies(TMap<const UObject*, UObject*>& ExistingConversions) {};
-
 	/** Determine whether or not a pin should be renamable. */
 	virtual bool IsPinNameEditable(const UEdGraphPin* GraphPinObj) const { return false; }
 

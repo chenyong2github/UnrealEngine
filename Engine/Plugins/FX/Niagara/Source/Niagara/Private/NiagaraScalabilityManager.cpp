@@ -43,20 +43,23 @@ static int32 GetMaxUpdatesPerFrame(const UNiagaraEffectType* EffectType, int32 I
 		if (UpdateCount > GScalabilityMaxUpdatesPerFrame)
 		{
 #if !NO_LOGGING
-			static TSet<const void*> MessagedEffectTypeSet;
-
-			bool AlreadyAdded = false;
-			MessagedEffectTypeSet.Add(EffectType, &AlreadyAdded);
-
-			if (!AlreadyAdded)
+			if (FNiagaraUtilities::LogVerboseWarnings())
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("NiagaraScalabilityManager needs to process %d updates (will be clamped to %d) for EffectType - %s - (%d items, %f period (s), %f delta (s)"),
-					UpdateCount,
-					GScalabilityMaxUpdatesPerFrame,
-					*EffectType->GetName(),
-					ItemsRemaining,
-					UpdatePeriod,
-					DeltaSeconds);
+				static TSet<const void*> MessagedEffectTypeSet;
+
+				bool AlreadyAdded = false;
+				MessagedEffectTypeSet.Add(EffectType, &AlreadyAdded);
+
+				if (!AlreadyAdded)
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("NiagaraScalabilityManager needs to process %d updates (will be clamped to %d) for EffectType - %s - (%d items, %f period (s), %f delta (s)"),
+						UpdateCount,
+						GScalabilityMaxUpdatesPerFrame,
+						*EffectType->GetName(),
+						ItemsRemaining,
+						UpdatePeriod,
+						DeltaSeconds);
+				}
 			}
 #endif // !NO_LOGGING
 			UpdateCount = GScalabilityMaxUpdatesPerFrame;

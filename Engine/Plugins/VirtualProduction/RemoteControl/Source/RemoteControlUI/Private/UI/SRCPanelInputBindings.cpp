@@ -50,10 +50,6 @@ void SRCPanelInputBindings::Construct(const FArguments& InArgs, URemoteControlPr
 			// Status, Protocol picker
 			SNew(SBox)
 			.Padding(10.f)
-			[
-				SNew(STextBlock)
-				.Text(INVTEXT("Top bar"))
-			]
 		]
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
@@ -82,18 +78,15 @@ void SRCPanelInputBindings::Construct(const FArguments& InArgs, URemoteControlPr
 					.Padding(5.f)
 					[
 						SNew(SVerticalBox)
+						// Exposed Entity details view.
 						+ SVerticalBox::Slot()
 						.FillHeight(0.6f)
 						[
 							CreateEntityDetailsView()
 						]
+						// Protocol settings should go here
 						+ SVerticalBox::Slot()
 						.FillHeight(0.4f)
-						[
-							// Input Mapping details view.
-							SNew(STextBlock)
-							.Text(INVTEXT("Bottom Right bar"))
-						]
 					]
 				]
 			]

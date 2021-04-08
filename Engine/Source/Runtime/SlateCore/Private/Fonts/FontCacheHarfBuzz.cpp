@@ -103,27 +103,23 @@ hb_user_data_key_t UserDataKey;
 
 struct FUserData
 {
-	FUserData(const int32 InFontSize, const float InFontScale, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache, const hb_font_extents_t& InHarfBuzzFontExtents)
+	FUserData(const int32 InFontSize, const float InFontScale, FFreeTypeCacheDirectory* InFTCacheDirectory, const hb_font_extents_t& InHarfBuzzFontExtents)
 		: FontSize(InFontSize)
 		, FontScale(InFontScale)
-		, FTGlyphCache(InFTGlyphCache)
-		, FTAdvanceCache(InFTAdvanceCache)
-		, FTKerningPairCache(InFTKerningPairCache)
+		, FTCacheDirectory(InFTCacheDirectory)
 		, HarfBuzzFontExtents(InHarfBuzzFontExtents)
 	{
 	}
 
 	int32 FontSize;
 	float FontScale;
-	FFreeTypeGlyphCache* FTGlyphCache;
-	FFreeTypeAdvanceCache* FTAdvanceCache;
-	FFreeTypeKerningPairCache* FTKerningPairCache;
+	FFreeTypeCacheDirectory* FTCacheDirectory;
 	hb_font_extents_t HarfBuzzFontExtents;
 };
 
-void* CreateUserData(const int32 InFontSize, const float InFontScale, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache, const hb_font_extents_t& InHarfBuzzFontExtents)
+void* CreateUserData(const int32 InFontSize, const float InFontScale, FFreeTypeCacheDirectory* InFTCacheDirectory, const hb_font_extents_t& InHarfBuzzFontExtents)
 {
-	return new FUserData(InFontSize, InFontScale, InFTGlyphCache, InFTAdvanceCache, InFTKerningPairCache, InHarfBuzzFontExtents);
+	return new FUserData(InFontSize, InFontScale, InFTCacheDirectory, InHarfBuzzFontExtents);
 }
 
 void DestroyUserData(void* UserData)
@@ -216,6 +212,7 @@ void get_glyph_h_advances(hb_font_t* InFont, void* InFontData, unsigned int InCo
 
 	const uint8* GlyphIndexRawBuffer = (const uint8*)InGlyphIndexBuffer;
 	uint8* AdvanceRawBuffer = (uint8*)OutAdvanceBuffer;
+	TSharedRef<FFreeTypeAdvanceCache> AdvanceCache = UserDataPtr->FTCacheDirectory->GetAdvanceCache(FreeTypeFace, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale);
 
 	for (unsigned int ItemIndex = 0; ItemIndex < InCount; ++ItemIndex)
 	{
@@ -223,7 +220,7 @@ void get_glyph_h_advances(hb_font_t* InFont, void* InFontData, unsigned int InCo
 		hb_position_t* OutAdvancePtr = (hb_position_t*)AdvanceRawBuffer;
 
 		FT_Fixed CachedAdvanceData = 0;
-		if (UserDataPtr->FTAdvanceCache->FindOrCache(FreeTypeFace, *GlyphIndexPtr, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale, CachedAdvanceData))
+		if (AdvanceCache->FindOrCache(*GlyphIndexPtr, CachedAdvanceData))
 		{
 			*OutAdvancePtr = ((CachedAdvanceData * ScaleMultiplier) + (1<<9)) >> 10;
 		}
@@ -265,6 +262,7 @@ void get_glyph_v_advances(hb_font_t* InFont, void* InFontData, unsigned int InCo
 
 	const uint8* GlyphIndexRawBuffer = (const uint8*)InGlyphIndexBuffer;
 	uint8* AdvanceRawBuffer = (uint8*)OutAdvanceBuffer;
+	TSharedRef<FFreeTypeAdvanceCache> AdvanceCache = UserDataPtr->FTCacheDirectory->GetAdvanceCache(FreeTypeFace, FreeTypeFlags | FT_LOAD_VERTICAL_LAYOUT, UserDataPtr->FontSize, UserDataPtr->FontScale);
 
 	for (unsigned int ItemIndex = 0; ItemIndex < InCount; ++ItemIndex)
 	{
@@ -272,7 +270,7 @@ void get_glyph_v_advances(hb_font_t* InFont, void* InFontData, unsigned int InCo
 		hb_position_t* OutAdvancePtr = (hb_position_t*)AdvanceRawBuffer;
 
 		FT_Fixed CachedAdvanceData = 0;
-		if (UserDataPtr->FTAdvanceCache->FindOrCache(FreeTypeFace, *GlyphIndexPtr, FreeTypeFlags | FT_LOAD_VERTICAL_LAYOUT, UserDataPtr->FontSize, UserDataPtr->FontScale, CachedAdvanceData))
+		if (AdvanceCache->FindOrCache(*GlyphIndexPtr, CachedAdvanceData))
 		{
 			// Note: FreeType's vertical metrics grows downward while other FreeType coordinates have a Y growing upward. Hence the extra negation.
 			*OutAdvancePtr = ((-CachedAdvanceData * ScaleMultiplier) + (1<<9)) >> 10;
@@ -301,8 +299,9 @@ hb_bool_t get_glyph_v_origin(hb_font_t* InFont, void* InFontData, hb_codepoint_t
 	const int32 FreeTypeFlags = get_ft_flags(InFont);
 	const FUserData* UserDataPtr = static_cast<FUserData*>(hb_font_get_user_data(InFont, &UserDataKey));
 
+	TSharedRef<FFreeTypeGlyphCache> GlyphCache = UserDataPtr->FTCacheDirectory->GetGlyphCache(FreeTypeFace, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale);
 	FFreeTypeGlyphCache::FCachedGlyphData CachedGlyphData;
-	if (UserDataPtr->FTGlyphCache->FindOrCache(FreeTypeFace, InGlyphIndex, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale, CachedGlyphData))
+	if (GlyphCache->FindOrCache(InGlyphIndex, CachedGlyphData))
 	{
 		// Note: FreeType's vertical metrics grows downward while other FreeType coordinates have a Y growing upward. Hence the extra negation.
 		*OutX = CachedGlyphData.GlyphMetrics.horiBearingX -   CachedGlyphData.GlyphMetrics.vertBearingX;
@@ -333,10 +332,14 @@ hb_position_t get_glyph_h_kerning(hb_font_t* InFont, void* InFontData, hb_codepo
 	FT_Face FreeTypeFace = get_ft_face(InFont);
 	const FUserData* UserDataPtr = static_cast<FUserData*>(hb_font_get_user_data(InFont, &UserDataKey));
 
-	FT_Vector KerningVector;
-	if (UserDataPtr->FTKerningPairCache->FindOrCache(FreeTypeFace, FFreeTypeKerningPairCache::FKerningPair(InLeftGlyphIndex, InRightGlyphIndex), FT_KERNING_DEFAULT, UserDataPtr->FontSize, UserDataPtr->FontScale, KerningVector))
+	TSharedPtr<FFreeTypeKerningCache> KerningCache = UserDataPtr->FTCacheDirectory->GetKerningCache(FreeTypeFace, FT_KERNING_DEFAULT, UserDataPtr->FontSize, UserDataPtr->FontScale);
+	if (KerningCache)
 	{
-		return KerningVector.x;
+		FT_Vector KerningVector;
+		if (KerningCache->FindOrCache(InLeftGlyphIndex, InRightGlyphIndex, KerningVector))
+		{
+			return KerningVector.x;
+		}
 	}
 
 	return 0;
@@ -348,8 +351,9 @@ hb_bool_t get_glyph_extents(hb_font_t* InFont, void* InFontData, hb_codepoint_t 
 	const int32 FreeTypeFlags = get_ft_flags(InFont);
 	const FUserData* UserDataPtr = static_cast<FUserData*>(hb_font_get_user_data(InFont, &UserDataKey));
 
+	TSharedRef<FFreeTypeGlyphCache> GlyphCache = UserDataPtr->FTCacheDirectory->GetGlyphCache(FreeTypeFace, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale);
 	FFreeTypeGlyphCache::FCachedGlyphData CachedGlyphData;
-	if (UserDataPtr->FTGlyphCache->FindOrCache(FreeTypeFace, InGlyphIndex, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale, CachedGlyphData))
+	if (GlyphCache->FindOrCache(InGlyphIndex, CachedGlyphData))
 	{
 		OutExtents->x_bearing	=  CachedGlyphData.GlyphMetrics.horiBearingX;
 		OutExtents->y_bearing	=  CachedGlyphData.GlyphMetrics.horiBearingY;
@@ -384,8 +388,9 @@ hb_bool_t get_glyph_contour_point(hb_font_t* InFont, void* InFontData, hb_codepo
 	const int32 FreeTypeFlags = get_ft_flags(InFont);
 	const FUserData* UserDataPtr = static_cast<FUserData*>(hb_font_get_user_data(InFont, &UserDataKey));
 
+	TSharedRef<FFreeTypeGlyphCache> GlyphCache = UserDataPtr->FTCacheDirectory->GetGlyphCache(FreeTypeFace, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale);
 	FFreeTypeGlyphCache::FCachedGlyphData CachedGlyphData;
-	if (UserDataPtr->FTGlyphCache->FindOrCache(FreeTypeFace, InGlyphIndex, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale, CachedGlyphData))
+	if (GlyphCache->FindOrCache(InGlyphIndex, CachedGlyphData))
 	{
 		if (InPointIndex < static_cast<unsigned int>(CachedGlyphData.OutlinePoints.Num()))
 		{
@@ -404,14 +409,10 @@ hb_bool_t get_glyph_contour_point(hb_font_t* InFont, void* InFontData, hb_codepo
 
 #endif // WITH_FREETYPE && WITH_HARFBUZZ
 
-FHarfBuzzFontFactory::FHarfBuzzFontFactory(FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache)
-	: FTGlyphCache(InFTGlyphCache)
-	, FTAdvanceCache(InFTAdvanceCache)
-	, FTKerningPairCache(InFTKerningPairCache)
+FHarfBuzzFontFactory::FHarfBuzzFontFactory(FFreeTypeCacheDirectory* InFTCacheDirectory)
+	: FTCacheDirectory(InFTCacheDirectory)
 {
-	check(FTGlyphCache);
-	check(FTAdvanceCache);
-	check(FTKerningPairCache);
+	check(FTCacheDirectory);
 
 #if WITH_HARFBUZZ
 	CustomHarfBuzzFuncs = hb_font_funcs_create();
@@ -492,7 +493,7 @@ hb_font_t* FHarfBuzzFontFactory::CreateFont(const FFreeTypeFace& InFace, const u
 	hb_font_set_user_data(
 		HarfBuzzFont, 
 		&HarfBuzzFontFunctions::UserDataKey, 
-		HarfBuzzFontFunctions::CreateUserData(InFontSize, InFontScale, FTGlyphCache, FTAdvanceCache, FTKerningPairCache, HarfBuzzFontExtents),
+		HarfBuzzFontFunctions::CreateUserData(InFontSize, InFontScale, FTCacheDirectory, HarfBuzzFontExtents),
 		&HarfBuzzFontFunctions::DestroyUserData, 
 		true
 		);

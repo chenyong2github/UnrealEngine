@@ -128,8 +128,28 @@ struct FDataDrivenPlatformInfo
 	bool Freezing_bAlignBases = false;
 	bool Freezing_bWithRayTracing = false;
 
+	// True if users will actually interact with this plaform, IE: not a GDK
+	bool bIsInteractablePlatform = false;
+
+	// True if this platform has a non-generic gamepad specifically associated with it
+	bool bHasDedicatedGamepad = false;
+
+	// True if this platform handles input via standard keyboard layout by default, translates to PC platform
+	bool bDefaultInputStandardKeyboard = false;
+
+	// Input-related settings
+	bool bInputSupportConfigurable = false;
+	FString DefaultInputType = "Gamepad";
+	bool bSupportsMouseAndKeyboard = false;
+	bool bSupportsGamepad = true;
+	bool bCanChangeGamepadType = true;
+	bool bSupportsTouch = false;
+
 	// PreviewPlatform menu items added in this DDPI ini
-	TMap<FName, struct FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
+	TArray<struct FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
+	
+	// the compression format that this platform wants; overrides game unless bForceUseProjectCompressionFormat
+	FString HardwareCompressionFormat;
 
 	// NOTE: add more settings here (and read them in in the LoadDDPIIniSettings() function in the .cpp)
 

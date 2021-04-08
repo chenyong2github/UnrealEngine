@@ -212,9 +212,17 @@ FAutomationUtilsGameplayAutomationScreenshotInstance::FAutomationUtilsGameplayAu
 			HardwareDetailsString.RightChopInline(1, false);
 		}
 
+		// We need a unique ID for filenames from this run. We used to use GetDeviceId() but that is not guaranteed to return
+		// a valid string on some platforms.
+		FString DeviceIdString = FPlatformMisc::GetDeviceId();
+		if (DeviceIdString.IsEmpty())
+		{
+			DeviceIdString = FGuid::NewGuid().ToString(EGuidFormats::Short).ToLower();
+		}
+
 		//now plop that back onto the path we're building
 		DeterminedPath = DeterminedPath / HardwareDetailsString;
-		DeterminedPath = DeterminedPath / FPlatformMisc::GetDeviceId() + TEXT(".png");
+		DeterminedPath = DeterminedPath / DeviceIdString + TEXT(".png");
 
 		//Remove as many noisy rendering conditions as we can until the screenshot has been taken
 		AutomationViewExtension = FSceneViewExtensions::NewExtension<FAutomationUtilsGameplayViewExtension>();

@@ -17,6 +17,20 @@ const FGameplayTagQuery FGameplayTagQuery::EmptyQuery;
 
 DEFINE_STAT(STAT_FGameplayTagContainer_DoesTagContainerMatch);
 
+DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::RemoveTagByExplicitName"), STAT_FGameplayTagContainer_RemoveTagByExplicitName, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::FillParentTags"), STAT_FGameplayTagContainer_FillParentTags, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::GetGameplayTagParents"), STAT_FGameplayTagContainer_GetGameplayTagParents, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::Filter"), STAT_FGameplayTagContainer_Filter, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::AppendTags"), STAT_FGameplayTagContainer_AppendTags, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::AppendMatchingTags"), STAT_FGameplayTagContainer_AppendMatchingTags, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::AddTag"), STAT_FGameplayTagContainer_AddTag, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::RemoveTag"), STAT_FGameplayTagContainer_RemoveTag, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::RemoveTags"), STAT_FGameplayTagContainer_RemoveTags, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTag::GetSingleTagContainer"), STAT_FGameplayTag_GetSingleTagContainer, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTag::MatchesTag"), STAT_FGameplayTag_MatchesTag, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTag::MatchesAny"), STAT_FGameplayTag_MatchesAny, STATGROUP_GameplayTags);
+DECLARE_CYCLE_STAT(TEXT("FGameplayTag::NetSerialize"), STAT_FGameplayTag_NetSerialize, STATGROUP_GameplayTags);
+
 static bool GEnableGameplayTagDetailedStats = false;
 static FAutoConsoleVariableRef CVarGameplayTagDetailedStats(TEXT("GameplayTags.EnableDetailedStats"), GEnableGameplayTagDetailedStats, TEXT("Runtime toggle for verbose CPU profiling stats"), ECVF_Default);
 
@@ -563,12 +577,11 @@ bool FGameplayTagContainer::ComplexHasTag(FGameplayTag const& TagToCheck, TEnumA
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::RemoveTagByExplicitName"), STAT_FGameplayTagContainer_RemoveTagByExplicitName, STATGROUP_GameplayTags);
-
 bool FGameplayTagContainer::RemoveTagByExplicitName(const FName& TagName)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_RemoveTagByExplicitName);
 
+	// TODO NDarnell Why are we doing this instead of just return RemoveTag(FGameplayTag(TagName));
 	for (auto GameplayTag : this->GameplayTags)
 	{
 		if (GameplayTag.GetTagName() == TagName)
@@ -611,8 +624,6 @@ FORCEINLINE_DEBUGGABLE void FGameplayTagContainer::AddParentsForTag(const FGamep
 	}
 }
 
-DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::FillParentTags"), STAT_FGameplayTagContainer_FillParentTags, STATGROUP_GameplayTags);
-
 void FGameplayTagContainer::FillParentTags()
 {
 	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_FillParentTags);
@@ -624,8 +635,6 @@ void FGameplayTagContainer::FillParentTags()
 		AddParentsForTag(Tag);
 	}
 }
-
-DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::GetGameplayTagParents"), STAT_FGameplayTagContainer_GetGameplayTagParents, STATGROUP_GameplayTags);
 
 FGameplayTagContainer FGameplayTagContainer::GetGameplayTagParents() const
 {
@@ -642,8 +651,6 @@ FGameplayTagContainer FGameplayTagContainer::GetGameplayTagParents() const
 
 	return ResultContainer;
 }
-
-DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::Filter"), STAT_FGameplayTagContainer_Filter, STATGROUP_GameplayTags);
 
 FGameplayTagContainer FGameplayTagContainer::Filter(const FGameplayTagContainer& OtherContainer) const
 {
@@ -684,8 +691,6 @@ bool FGameplayTagContainer::MatchesQuery(const FGameplayTagQuery& Query) const
 	return Query.Matches(*this);
 }
 
-DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::AppendTags"), STAT_FGameplayTagContainer_AppendTags, STATGROUP_GameplayTags);
-
 void FGameplayTagContainer::AppendTags(FGameplayTagContainer const& Other)
 {
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_AppendTags, GEnableGameplayTagDetailedStats);
@@ -705,9 +710,6 @@ void FGameplayTagContainer::AppendTags(FGameplayTagContainer const& Other)
 	}
 }
 
-DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::AppendMatchingTags"), STAT_FGameplayTagContainer_AppendMatchingTags, STATGROUP_GameplayTags);
-
-
 void FGameplayTagContainer::AppendMatchingTags(FGameplayTagContainer const& OtherA, FGameplayTagContainer const& OtherB)
 {
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_AppendMatchingTags, GEnableGameplayTagDetailedStats);
@@ -720,8 +722,6 @@ void FGameplayTagContainer::AppendMatchingTags(FGameplayTagContainer const& Othe
 		}
 	}
 }
-
-DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::AddTag"), STAT_FGameplayTagContainer_AddTag, STATGROUP_GameplayTags);
 
 static UGameplayTagsManager* CachedTagManager = nullptr;
 
@@ -783,8 +783,6 @@ bool FGameplayTagContainer::AddLeafTag(const FGameplayTag& TagToAdd)
 	return true;
 }
 
-DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::RemoveTag"), STAT_FGameplayTagContainer_RemoveTag, STATGROUP_GameplayTags);
-
 bool FGameplayTagContainer::RemoveTag(const FGameplayTag& TagToRemove, bool bDeferParentTags)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_RemoveTag);
@@ -802,8 +800,6 @@ bool FGameplayTagContainer::RemoveTag(const FGameplayTag& TagToRemove, bool bDef
 	}
 	return false;
 }
-
-DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::RemoveTags"), STAT_FGameplayTagContainer_RemoveTags, STATGROUP_GameplayTags);
 
 void FGameplayTagContainer::RemoveTags(const FGameplayTagContainer& TagsToRemove)
 {
@@ -1064,8 +1060,6 @@ FText FGameplayTagContainer::ToMatchingText(EGameplayContainerMatchType MatchTyp
 	return FText::Format(MatchingDescription[DescriptionIndex], Arguments);
 }
 
-DECLARE_CYCLE_STAT(TEXT("FGameplayTag::GetSingleTagContainer"), STAT_FGameplayTag_GetSingleTagContainer, STATGROUP_GameplayTags);
-
 const FGameplayTagContainer& FGameplayTag::GetSingleTagContainer() const
 {
 	SCOPE_CYCLE_COUNTER(STAT_FGameplayTag_GetSingleTagContainer);
@@ -1098,8 +1092,6 @@ FGameplayTagContainer FGameplayTag::GetGameplayTagParents() const
 	return UGameplayTagsManager::Get().RequestGameplayTagParents(*this);
 }
 
-DECLARE_CYCLE_STAT(TEXT("FGameplayTag::MatchesTag"), STAT_FGameplayTag_MatchesTag, STATGROUP_GameplayTags);
-
 bool FGameplayTag::MatchesTag(const FGameplayTag& TagToCheck) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_FGameplayTag_MatchesTag);
@@ -1116,8 +1108,6 @@ bool FGameplayTag::MatchesTag(const FGameplayTag& TagToCheck) const
 
 	return false;
 }
-
-DECLARE_CYCLE_STAT(TEXT("FGameplayTag::MatchesAny"), STAT_FGameplayTag_MatchesAny, STATGROUP_GameplayTags);
 
 bool FGameplayTag::MatchesAny(const FGameplayTagContainer& ContainerToCheck) const
 {
@@ -1161,8 +1151,6 @@ FGameplayTag FGameplayTag::RequestDirectParent() const
 	return UGameplayTagsManager::Get().RequestGameplayTagDirectParent(*this);
 }
 
-DECLARE_CYCLE_STAT(TEXT("FGameplayTag::NetSerialize"), STAT_FGameplayTag_NetSerialize, STATGROUP_GameplayTags);
-
 bool FGameplayTag::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1202,7 +1190,7 @@ static TSharedPtr<FNetFieldExportGroup> CreateNetfieldExportGroupForNetworkGamep
 
 bool FGameplayTag::NetSerialize_Packed(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
-	SCOPE_CYCLE_COUNTER(STAT_FGameplayTag_NetSerialize);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_FGameplayTag_NetSerialize, GEnableGameplayTagDetailedStats);
 
 	UGameplayTagsManager& TagManager = UGameplayTagsManager::Get();
 

@@ -11,8 +11,11 @@
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
+	#include "pxr/usd/sdf/schema.h"
+	#include "pxr/usd/usd/schemaRegistry.h"
 	#include "pxr/usd/usd/attribute.h"
 	#include "pxr/usd/usd/prim.h"
+	#include "pxr/usd/usd/schemaBase.h"
 #include "USDIncludesEnd.h"
 
 #endif // #if USE_USD_SDK
@@ -173,6 +176,44 @@ namespace UE
 	{
 #if USE_USD_SDK
 		return Impl->PxrUsdPrim.Get().IsGroup();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	TArray<FName> FUsdPrim::GetAppliedSchemas() const
+	{
+		TArray<FName> AppliedSchemas;
+
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		std::vector<pxr::TfToken> UsdAppliedSchemas = Impl->PxrUsdPrim.Get().GetAppliedSchemas();
+		AppliedSchemas.Reserve(UsdAppliedSchemas.size());
+
+		for ( const pxr::TfToken& UsdSchema : UsdAppliedSchemas )
+		{
+			AppliedSchemas.Add( ANSI_TO_TCHAR( UsdSchema.GetString().c_str() ) );
+		}
+#endif // #if USE_USD_SDK
+
+		return AppliedSchemas;
+	}
+
+	bool FUsdPrim::HasAPI( FName SchemaType, TOptional<FName> InstanceName ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		pxr::TfType Type = pxr::UsdSchemaRegistry::GetTypeFromName( pxr::TfToken( TCHAR_TO_ANSI( *SchemaType.ToString() ) ) );
+		if ( Type.IsUnknown() )
+		{
+			return false;
+		}
+
+		pxr::TfToken UsdInstanceName = InstanceName.IsSet() ? pxr::TfToken( TCHAR_TO_ANSI( *InstanceName.GetValue().ToString() ) ) : pxr::TfToken();
+
+		return Impl->PxrUsdPrim.Get().HasAPI( Type, UsdInstanceName );
 #else
 		return false;
 #endif // #if USE_USD_SDK
@@ -340,6 +381,41 @@ namespace UE
 		return FUsdAttribute( Impl->PxrUsdPrim.Get().GetAttribute( pxr::TfToken( TCHAR_TO_ANSI( AttrName ) ) ) );
 #else
 		return FUsdAttribute{};
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::HasAttribute( const TCHAR* AttrName ) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdPrim.Get().HasAttribute( pxr::TfToken( TCHAR_TO_ANSI( AttrName ) ) );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	FUsdAttribute FUsdPrim::CreateAttribute( const TCHAR* AttrName, FName TypeName ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+
+		return FUsdAttribute(
+			Impl->PxrUsdPrim.Get().CreateAttribute(
+				pxr::TfToken( TCHAR_TO_ANSI( AttrName ) ),
+				pxr::SdfSchema::GetInstance().FindType( TCHAR_TO_ANSI( *TypeName.ToString() ) )
+			)
+		);
+#else
+		return FUsdAttribute{};
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::RemoveProperty( FName PropName ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+		return Impl->PxrUsdPrim.Get().RemoveProperty( pxr::TfToken( TCHAR_TO_ANSI( *PropName.ToString() ) ) );
+#else
+		return false;
 #endif // #if USE_USD_SDK
 	}
 }

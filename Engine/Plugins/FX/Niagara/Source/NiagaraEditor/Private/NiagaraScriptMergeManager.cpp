@@ -1001,6 +1001,8 @@ bool FNiagaraScriptStackDiffResults::IsEmpty() const
 		AddedOtherModules.Num() == 0 &&
 		MovedBaseModules.Num() == 0 &&
 		MovedOtherModules.Num() == 0 &&
+		ChangedVersionBaseModules.Num() == 0 &&
+		ChangedVersionOtherModules.Num() == 0 &&
 		EnabledChangedBaseModules.Num() == 0 &&
 		EnabledChangedOtherModules.Num() == 0 &&
 		RemovedBaseInputOverrides.Num() == 0 &&
@@ -1182,9 +1184,9 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ForceI
 		// First gather all the graphs used by this emitter..
 		for (UNiagaraScript* Script : Scripts)
 		{
-			if (Script != nullptr && Script->GetSource() != nullptr)
+			if (Script != nullptr && Script->GetLatestSource() != nullptr)
 			{
-				UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource());
+				UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetLatestSource());
 				if (ScriptSource != nullptr)
 				{
 					Graphs.AddUnique(ScriptSource->NodeGraph);
@@ -2059,6 +2061,12 @@ void FNiagaraScriptMergeManager::DiffScriptStacks(TSharedRef<FNiagaraScriptStack
 			DiffResults.EnabledChangedOtherModules.Add(CommonValuePair.OtherValue);
 		}
 
+		if (CommonValuePair.BaseValue->GetFunctionCallNode()->SelectedScriptVersion != CommonValuePair.OtherValue->GetFunctionCallNode()->SelectedScriptVersion)
+		{
+			DiffResults.ChangedVersionBaseModules.Add(CommonValuePair.BaseValue);
+			DiffResults.ChangedVersionOtherModules.Add(CommonValuePair.OtherValue);
+		}
+
 		UNiagaraScript* BaseFunctionScript = CommonValuePair.BaseValue->GetFunctionCallNode()->FunctionScript;
 		UNiagaraScript* OtherFunctionScript = CommonValuePair.OtherValue->GetFunctionCallNode()->FunctionScript;
 		bool bFunctionScriptsMatch = BaseFunctionScript == OtherFunctionScript;
@@ -2726,6 +2734,15 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 		BaseScriptStackAdapter->GetOutputNode()->SetUsage(DiffResults.ChangedOtherUsage.GetValue());
 	}
 
+	// Update module versions
+	for (int i = 0; i < DiffResults.ChangedVersionOtherModules.Num(); i++)
+	{
+		TSharedRef<FNiagaraStackFunctionMergeAdapter> BaseModule = DiffResults.ChangedVersionBaseModules[i];
+		TSharedRef<FNiagaraStackFunctionMergeAdapter> ChangedModule = DiffResults.ChangedVersionOtherModules[i];
+		FGuid NewScriptVersion = BaseModule->GetFunctionCallNode()->SelectedScriptVersion;
+		ChangedModule->GetFunctionCallNode()->ChangeScriptVersion(NewScriptVersion, true);
+	}
+
 	// Apply the graph actions.
 	for (TSharedRef<FNiagaraStackFunctionMergeAdapter> RemoveModule : RemoveModules)
 	{
@@ -2859,7 +2876,7 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyE
 			AddedEventScriptProperties.Script = NewObject<UNiagaraScript>(BaseEmitter, MakeUniqueObjectName(BaseEmitter, UNiagaraScript::StaticClass(), "EventScript"), EObjectFlags::RF_Transactional);
 			AddedEventScriptProperties.Script->SetUsage(ENiagaraScriptUsage::ParticleEventScript);
 			AddedEventScriptProperties.Script->SetUsageId(AddedEventHandler->GetUsageId());
-			AddedEventScriptProperties.Script->SetSource(EmitterSource);
+			AddedEventScriptProperties.Script->SetLatestSource(EmitterSource);
 			BaseEmitter->AddEventHandler(AddedEventScriptProperties);
 
 			FGuid PreferredOutputNodeGuid = AddedEventHandler->GetOutputNode()->NodeGuid;
@@ -2873,10 +2890,10 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyE
 			}
 
 			// Force the base compile id of the new event handler to match the added instance event handler.
-			UNiagaraScriptSource* AddedEventScriptSourceFromDiff = Cast<UNiagaraScriptSource>(AddedEventHandler->GetEventScriptProperties()->Script->GetSource());
+			UNiagaraScriptSource* AddedEventScriptSourceFromDiff = Cast<UNiagaraScriptSource>(AddedEventHandler->GetEventScriptProperties()->Script->GetLatestSource());
 			UNiagaraGraph* AddedEventScriptGraphFromDiff = AddedEventScriptSourceFromDiff->NodeGraph;
 			FGuid ScriptBaseIdFromDiff = AddedEventScriptGraphFromDiff->GetBaseId(ENiagaraScriptUsage::ParticleEventScript, AddedEventHandler->GetUsageId());
-			UNiagaraScriptSource* AddedEventScriptSource = Cast<UNiagaraScriptSource>(AddedEventScriptProperties.Script->GetSource());
+			UNiagaraScriptSource* AddedEventScriptSource = Cast<UNiagaraScriptSource>(AddedEventScriptProperties.Script->GetLatestSource());
 			UNiagaraGraph* AddedEventScriptGraph = AddedEventScriptSource->NodeGraph;
 			AddedEventScriptGraph->ForceBaseId(ENiagaraScriptUsage::ParticleEventScript, AddedEventHandler->GetUsageId(), ScriptBaseIdFromDiff);
 
@@ -2965,7 +2982,7 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 			AddedSimulationStage->Script = NewObject<UNiagaraScript>(AddedSimulationStage, MakeUniqueObjectName(AddedSimulationStage, UNiagaraScript::StaticClass(), "SimulationStage"), EObjectFlags::RF_Transactional);
 			AddedSimulationStage->Script->SetUsage(ENiagaraScriptUsage::ParticleSimulationStageScript);
 			AddedSimulationStage->Script->SetUsageId(AddedOtherSimulationStage->GetUsageId());
-			AddedSimulationStage->Script->SetSource(EmitterSource);
+			AddedSimulationStage->Script->SetLatestSource(EmitterSource);
 			BaseEmitter->AddSimulationStage(AddedSimulationStage);
 
 			int32 TargetIndex = FMath::Min(AddedOtherSimulationStage->GetSimulationStageIndex(), BaseEmitter->GetSimulationStages().Num() - 1);
@@ -2982,10 +2999,10 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 			}
 
 			// Force the base compile id of the new shader stage to match the added instance shader stage.
-			UNiagaraScriptSource* AddedSimulationStageSourceFromDiff = Cast<UNiagaraScriptSource>(AddedOtherSimulationStage->GetSimulationStage()->Script->GetSource());
+			UNiagaraScriptSource* AddedSimulationStageSourceFromDiff = Cast<UNiagaraScriptSource>(AddedOtherSimulationStage->GetSimulationStage()->Script->GetLatestSource());
 			UNiagaraGraph* AddedSimulationStageGraphFromDiff = AddedSimulationStageSourceFromDiff->NodeGraph;
 			FGuid ScriptBaseIdFromDiff = AddedSimulationStageGraphFromDiff->GetBaseId(ENiagaraScriptUsage::ParticleSimulationStageScript, AddedOtherSimulationStage->GetUsageId());
-			UNiagaraScriptSource* AddedSimulationStageSource = Cast<UNiagaraScriptSource>(AddedSimulationStage->Script->GetSource());
+			UNiagaraScriptSource* AddedSimulationStageSource = Cast<UNiagaraScriptSource>(AddedSimulationStage->Script->GetLatestSource());
 			UNiagaraGraph* AddedSimulationStageGraph = AddedSimulationStageSource->NodeGraph;
 			AddedSimulationStageGraph->ForceBaseId(ENiagaraScriptUsage::ParticleSimulationStageScript, AddedOtherSimulationStage->GetUsageId(), ScriptBaseIdFromDiff);
 

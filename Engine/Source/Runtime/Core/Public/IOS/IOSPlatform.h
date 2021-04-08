@@ -50,7 +50,8 @@ typedef FIOSPlatformTypes FPlatformTypes;
 #define PLATFORM_BUILTIN_VERTEX_HALF_FLOAT				0
 #define PLATFORM_SUPPORTS_MULTIPLE_NATIVE_WINDOWS		0
 #define PLATFORM_ALLOW_NULL_RHI							1
-#define PLATFORM_ENABLE_VECTORINTRINSICS_NEON			PLATFORM_64BITS // disable vector intrinsics to make it compatible with 32-bit in Xcode 8.3
+#define PLATFORM_ENABLE_VECTORINTRINSICS				1
+#define PLATFORM_ENABLE_VECTORINTRINSICS_NEON			1
 #define PLATFORM_SUPPORTS_STACK_SYMBOLS					1
 #define PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK			1 // movies will start before engine is initalized
 #define PLATFORM_USE_FULL_TASK_GRAPH					0 // @todo platplug: not platplug, but should investigate soon anyway

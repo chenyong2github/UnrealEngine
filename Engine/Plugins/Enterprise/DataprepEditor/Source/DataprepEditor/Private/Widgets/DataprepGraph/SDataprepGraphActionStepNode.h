@@ -54,6 +54,8 @@ public:
 
 	void SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode);
 
+	TWeakPtr<SDataprepGraphActionNode> GetParentNode() const { return ParentNodePtr; }
+
 private:
 	/**
 	 * Returns a color depending whether the action step is selected or not

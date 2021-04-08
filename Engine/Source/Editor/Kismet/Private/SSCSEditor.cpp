@@ -3489,7 +3489,7 @@ bool SSCS_RowWidget::OnNameTextVerifyChanged(const FText& InNewText, FText& OutE
 				OutErrorMessage = LOCTEXT("RenameFailed_EngineReservedName", "This name is reserved for engine use.");
 				return false;
 			}
-			else if (NewTextStr.Len() > NAME_SIZE)
+			else if (NewTextStr.Len() >= NAME_SIZE)
 			{
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("CharCount"), NAME_SIZE);

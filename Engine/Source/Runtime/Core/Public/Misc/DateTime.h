@@ -82,7 +82,7 @@ public:
 	/**
 	 * Creates and initializes a new instance with the specified number of ticks.
 	 *
-	 * @param Ticks The ticks representing the date and time.
+	 * @param InTicks The ticks representing the date and time.
 	 */
 	FDateTime(int64 InTicks)
 		: Ticks(InTicks)
@@ -178,7 +178,7 @@ public:
 	/**
 	 * Compares this date with the given date for equality.
 	 *
-	 * @param other The date to compare with.
+	 * @param Other The date to compare with.
 	 * @return true if the dates are equal, false otherwise.
 	 */
 	bool operator==(const FDateTime& Other) const
@@ -189,7 +189,7 @@ public:
 	/**
 	 * Compares this date with the given date for inequality.
 	 *
-	 * @param other The date to compare with.
+	 * @param Other The date to compare with.
 	 * @return true if the dates are not equal, false otherwise.
 	 */
 	bool operator!=(const FDateTime& Other) const
@@ -200,7 +200,7 @@ public:
 	/**
 	 * Checks whether this date is greater than the given date.
 	 *
-	 * @param other The date to compare with.
+	 * @param Other The date to compare with.
 	 * @return true if this date is greater, false otherwise.
 	 */
 	bool operator>(const FDateTime& Other) const
@@ -211,7 +211,7 @@ public:
 	/**
 	 * Checks whether this date is greater than or equal to the date span.
 	 *
-	 * @param other The date to compare with.
+	 * @param Other The date to compare with.
 	 * @return true if this date is greater or equal, false otherwise.
 	 */
 	bool operator>=(const FDateTime& Other) const
@@ -222,7 +222,7 @@ public:
 	/**
 	 * Checks whether this date is less than the given date.
 	 *
-	 * @param other The date to compare with.
+	 * @param Other The date to compare with.
 	 * @return true if this date is less, false otherwise.
 	 */
 	bool operator<(const FDateTime& Other) const
@@ -233,7 +233,7 @@ public:
 	/**
 	 * Checks whether this date is less than or equal to the given date.
 	 *
-	 * @param other The date to compare with.
+	 * @param Other The date to compare with.
 	 * @return true if this date is less or equal, false otherwise.
 	 */
 	bool operator<=(const FDateTime& Other) const
@@ -414,7 +414,7 @@ public:
 	/**
 	 * Gets the time elapsed since midnight of this date.
 	 *
-	 * @param Time of day since midnight.
+	 * @return Time of day since midnight.
 	 * @see GetDayOfWeek, GetDayOfYear, GetMonthOfYear
 	 */
 	FTimespan GetTimeOfDay() const
@@ -445,7 +445,7 @@ public:
 	/**
 	 * Gets whether this date's time is in the afternoon.
 	 *
-	 * @param true if it is in the afternoon, false otherwise.
+	 * @return true if it is in the afternoon, false otherwise.
 	 * @see IsMorning
 	 */
 	bool IsAfternoon() const
@@ -456,7 +456,7 @@ public:
 	/**
 	 * Gets whether this date's time is in the morning.
 	 *
-	 * @param true if it is in the morning, false otherwise.
+	 * @return true if it is in the morning, false otherwise.
 	 * @see IsAfternoon
 	 */
 	bool IsMorning() const

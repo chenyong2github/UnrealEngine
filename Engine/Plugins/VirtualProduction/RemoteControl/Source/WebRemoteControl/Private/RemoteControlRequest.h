@@ -432,6 +432,22 @@ struct FSetPresetMetadataRequest : public FRCRequest
 	FString Value;
 };
 
+/**
+ * Holds a request to set a metadata field.
+ */
+USTRUCT()
+struct FSetEntityMetadataRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FSetEntityMetadataRequest() = default;
+
+	/**
+	 * The new value for the metadata field.
+	 */
+	UPROPERTY()
+	FString Value;
+};
 
 /**
  * Holds a request to get an asset's thumbnail.

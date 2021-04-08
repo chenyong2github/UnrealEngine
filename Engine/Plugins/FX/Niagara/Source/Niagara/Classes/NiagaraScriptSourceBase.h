@@ -91,11 +91,6 @@ class UNiagaraScriptSourceBase : public UObject
 	/** Determines if the input change id is equal to the current source graph's change id.*/
 	virtual bool IsSynchronized(const FGuid& InChangeId) { return true; }
 
-	virtual UNiagaraScriptSourceBase* MakeRecursiveDeepCopy(UObject* DestOuter, TMap<const UObject*, UObject*>& ExistingConversions) const { return nullptr; }
-
-	/** Determine if there are any external dependencies wrt to scripts and ensure that those dependencies are sucked into the existing package.*/
-	virtual void SubsumeExternalDependencies(TMap<const UObject*, UObject*>& ExistingConversions) {}
-
 	/** Enforce that the source graph is now out of sync with the script.*/
 	virtual void MarkNotSynchronized(FString Reason) {}
 

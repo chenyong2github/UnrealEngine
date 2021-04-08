@@ -3,6 +3,7 @@
 #include "DataprepGeometryOperations.h"
 
 #include "DataprepOperationsLibraryUtil.h"
+#include "DataprepAssetUserData.h"
 #include "DynamicMeshAABBTree3.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "DynamicMeshEditor.h"
@@ -487,6 +488,8 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 
 	TArray<UObject*> ModifiedStaticMeshes;
 
+	TArray<UStaticMeshComponent*> CutawayStaticMeshes;
+
 	// Cut static meshes
 	
 	if (StaticMeshesSet.Num() > 0)
@@ -513,7 +516,7 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 			}
 		}
 
-		PerformCutting(false, StaticMeshes, CutPlaneTransforms, ReferencingComponentsToUpdate, ModifiedStaticMeshes);
+		PerformCutting(false, StaticMeshes, CutPlaneTransforms, ReferencingComponentsToUpdate, ModifiedStaticMeshes, CutawayStaticMeshes);
 	}
 
 	// Cut static mesh components
@@ -538,8 +541,47 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 			}
 		}
 
-		PerformCutting(true, StaticMeshes, CutPlaneTransforms, ReferencingComponentsToUpdate, ModifiedStaticMeshes);
+		PerformCutting(true, StaticMeshes, CutPlaneTransforms, ReferencingComponentsToUpdate, ModifiedStaticMeshes, CutawayStaticMeshes);
 	}
+
+	// Remove actors that have no valid static mesh as a result of the cutting
+	TSet<UObject*> ActorsToRemove;
+	for (UStaticMeshComponent* CutoffComponent : CutawayStaticMeshes)
+	{
+		if (AActor* Owner = CutoffComponent->GetOwner())
+		{
+			TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
+			Owner->GetComponents<UStaticMeshComponent>(ComponentArray, true);
+
+			bool bMeshActorIsValid = false;
+
+			for(UStaticMeshComponent* MeshComponent : ComponentArray)
+			{
+				if (!MeshComponent || MeshComponent == CutoffComponent)
+				{
+					continue; // We know this component does not have a mesh
+				}
+
+				if (MeshComponent->GetStaticMesh() && MeshComponent->GetStaticMesh()->GetSourceModels().Num() > 0)
+				{
+					bMeshActorIsValid = true;
+					break;
+				}
+			}
+
+			if (!bMeshActorIsValid)
+			{
+				ActorsToRemove.Add(Owner);
+			}
+			else
+			{
+				CutoffComponent->DestroyComponent();
+			}
+		}
+	}
+
+	DeleteObjects(ActorsToRemove.Array());
+
 	if (ModifiedStaticMeshes.Num() > 0)
 	{
 		AssetsModified(MoveTemp(ModifiedStaticMeshes));
@@ -575,7 +617,8 @@ void UDataprepPlaneCutOperation::PerformCutting(
 	TArray<UStaticMesh*>& InStaticMeshes, 
 	const TArray<FTransform>& InCutPlaneTransforms, 
 	TArray<TArray<UStaticMeshComponent*>>& InReferencingComponentsToUpdate,
-	TArray<UObject*>& OutModifiedStaticMeshes)
+	TArray<UObject*>& OutModifiedStaticMeshes, 
+	TArray<UStaticMeshComponent*>& OutCutawayMeshes)
 {
 	TArray<TUniquePtr<FDynamicMesh3>> Results;
 	Results.SetNum(InStaticMeshes.Num());
@@ -602,6 +645,7 @@ void UDataprepPlaneCutOperation::PerformCutting(
 			{
 				Component->SetStaticMesh(nullptr);
 				Component->MarkRenderStateDirty();
+				OutCutawayMeshes.Add(Component);
 			}
 			continue;
 		}
@@ -659,7 +703,7 @@ void UDataprepPlaneCutOperation::PerformCutting(
 							AStaticMeshActor* NewActor = Cast<AStaticMeshActor>(CreateActor(AStaticMeshActor::StaticClass(), FString()));
 							check(NewActor);
 
-							const AActor* OriginalActor = ComponentTarget->GetOwner<AActor>();
+							AActor* OriginalActor = ComponentTarget->GetOwner<AActor>();
 							check(OriginalActor);
 
 							NewActor->SetActorLabel(OriginalActor->GetActorLabel() + "_Below");
@@ -668,6 +712,37 @@ void UDataprepPlaneCutOperation::PerformCutting(
 
 							// Create new mesh component and set as root of NewActor.
 							UStaticMeshComponent* NewMeshComponent = FinalizeStaticMeshActor(NewActor, NewMeshName, MeshDescription.Get(), Materials.Num(), StaticMesh);
+							
+							NewMeshComponent->SetMobility(ComponentTarget->Mobility);
+							NewMeshComponent->SetVisibility(ComponentTarget->IsVisible());
+							NewMeshComponent->ComponentTags = ComponentTarget->ComponentTags;
+							
+							// Add dataprep user data
+							if (ComponentTarget->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) && 
+								NewMeshComponent->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()))
+							{
+								IInterface_AssetUserData* OriginalAssetUserDataInterface = Cast< IInterface_AssetUserData >(ComponentTarget);
+								IInterface_AssetUserData* NewAssetUserDataInterface = Cast< IInterface_AssetUserData >(NewMeshComponent);
+
+								if (OriginalAssetUserDataInterface && NewAssetUserDataInterface)
+								{
+									if (const TArray<UAssetUserData*>* UserDataArray = OriginalAssetUserDataInterface->GetAssetUserDataArray())
+									{
+										for ( UAssetUserData* UserData : *UserDataArray )
+										{
+											if (UserData)
+											{
+												UObject* NewUserDataOuter = (UserData->GetOuter() == ComponentTarget) ? NewMeshComponent : UserData->GetOuter();
+												UAssetUserData* NewUserData = DuplicateObject<UAssetUserData>(UserData, NewUserDataOuter);
+												NewAssetUserDataInterface->AddAssetUserData(NewUserData);
+											}
+										}
+									}
+								}
+							}
+
+							NewActor->Tags = OriginalActor->Tags;
+							NewActor->Layers = OriginalActor->Layers;
 
 							// Keep the newly created actor at the same level in hierarchy as the original one
 							AActor* Parent = OriginalActor->GetAttachParentActor();

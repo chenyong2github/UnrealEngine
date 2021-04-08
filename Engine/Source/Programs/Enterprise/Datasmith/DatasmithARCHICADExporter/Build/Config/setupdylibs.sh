@@ -1,0 +1,60 @@
+#!/bin/sh
+
+ConfigPath=`dirname "$0"`
+projectPath=$ConfigPath/..
+
+RelativeEnginePath=$projectPath/../../../../../../../Engine
+EnginePath=`python -c "import os; print(os.path.realpath('$RelativeEnginePath'))"`
+
+if [ -z ${UE_SDKS_ROOT+x} ]; then
+    echo "UE_SDKS_ROOT is unset";
+    exit;
+fi
+
+if [ ! -f "$ConfigPath/SDKsRoot.xcconfig" ]; then
+    echo "Create $ConfigPath/SDKsRoot.xcconfig"
+    echo UESDKRoot = $UE_SDKS_ROOT > "$ConfigPath/SDKsRoot.xcconfig"
+    echo UE_Engine = $EnginePath >> "$ConfigPath/SDKsRoot.xcconfig"
+fi
+
+OurDylibFolder=$projectPath/Dylibs
+
+mkdir -p "$OurDylibFolder"
+
+dylibLibFreeImage=libfreeimage-3.18.0.dylib
+
+if [[ "$EnginePath/Binaries/ThirdParty/FreeImage/Mac/$dylibLibFreeImage" -nt "$OurDylibFolder/$dylibLibFreeImage" ]]; then
+	if [ -f "$OurDylibFolder/$dylibLibFreeImage" ]; then
+		unlink "$OurDylibFolder/$dylibLibFreeImage"
+	fi
+fi
+if [ ! -f "$OurDylibFolder/$dylibLibFreeImage" ]; then
+    echo "Copy $dylibLibFreeImage"
+    cp "$EnginePath/Binaries/ThirdParty/FreeImage/Mac/$dylibLibFreeImage" "$OurDylibFolder"
+	chmod +w "$OurDylibFolder/$dylibLibFreeImage"
+    install_name_tool -id @loader_path/$dylibLibFreeImage "$OurDylibFolder/$dylibLibFreeImage"
+fi
+
+SetUpDll() {
+	DylibName=$1
+	OriginalDylibPath="$EnginePath/Binaries/Mac/DatasmithUE4ArchiCAD/$DylibName"
+
+	if [[ "$OriginalDylibPath" -nt "$OurDylibFolder/$DylibName" ]]; then
+		if [ -f "$OurDylibFolder/$DylibName" ]; then
+			unlink "$OurDylibFolder/$DylibName"
+		fi
+	fi
+	if [ ! -f "$OurDylibFolder/$DylibName" ]; then
+		if [ -f "$OriginalDylibPath" ]; then
+			echo "Copy $DylibName"
+			cp "$OriginalDylibPath" "$OurDylibFolder"
+			install_name_tool -id @loader_path/$DylibName "$OurDylibFolder/$DylibName"
+			install_name_tool -change @rpath/$dylibLibFreeImage @loader_path/$dylibLibFreeImage "$OurDylibFolder/$DylibName"
+		else
+			echo "Missing $DylibName"
+		fi
+	fi
+}
+
+SetUpDll DatasmithUE4ArchiCAD.dylib
+SetUpDll DatasmithUE4ArchiCAD-Mac-Debug.dylib

@@ -9,6 +9,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "OpenColorIOColorSpace.h"
+#include "Async/ParallelFor.h"
 #include "MovieRenderPipelineDataTypes.generated.h"
 
 class UMovieSceneCinematicShotSection;
@@ -29,6 +30,7 @@ class FMoviePipelineOutputMerger;
 class FRenderTarget;
 class UMoviePipeline;
 struct FMoviePipelineFormatArgs;
+class UMoviePipelineExecutorShot;
 
 namespace Audio { class FMixerSubmix; }
 
@@ -598,7 +600,7 @@ public:
 	FTimecode EffectiveTimeCode;
 
 	/** Metadata to attach to the output file (if supported by the output container) */
-	FStringFormatNamedArguments FileMetadata;
+	TMap<FString, FString> FileMetadata;
 
 
 	int32 CurrentShotSourceFrameNumber;
@@ -633,24 +635,113 @@ public:
 	{
 		return GetTypeHash(OutputState.OutputFrameNumber);
 	}
-	void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs, const int32 InZeroPadCount, const int32 InFrameNumberOffset, const bool bForceRelFrameNumbers) const;
 };
 
+USTRUCT(BlueprintType)
 struct FMoviePipelineFormatArgs
 {
+	GENERATED_BODY()
+
 	FMoviePipelineFormatArgs()
 		: InJob(nullptr)
 	{
 	}
 
 	/** A set of Key/Value pairs for output filename format strings (without {}) and their values. */
-	FStringFormatNamedArguments FilenameArguments;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	TMap<FString, FString> FilenameArguments;
 
 	/** A set of Key/Value pairs for file metadata for file formats that support metadata. */
-	FStringFormatNamedArguments FileMetadata;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	TMap<FString, FString> FileMetadata;
 
 	/** Which job is this for? Some settings are specific to the level sequence being rendered. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	class UMoviePipelineExecutorJob* InJob;
+};
+
+USTRUCT(BlueprintType)
+struct FMoviePipelineFilenameResolveParams
+{
+	GENERATED_BODY()
+
+	FMoviePipelineFilenameResolveParams()
+		: FrameNumber(0)
+		, FrameNumberShot(0)
+		, FrameNumberRel(0)
+		, FrameNumberShotRel(0)
+		, ZeroPadFrameNumberCount(0)
+		, bForceRelativeFrameNumbers(false)
+		, InitializationTime(0)
+		, InitializationVersion(0)
+		, Job(nullptr)
+		, ShotOverride(nullptr)
+		, AdditionalFrameNumberOffset(0)
+	{
+	}
+	
+	/** Frame Number for the Master (matching what you see in the Sequencer timeline. ie: If the Sequence PlaybackRange starts on 50, this value would be 50 on the first frame.*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 FrameNumber;
+	
+	/** Frame Number for the Shot (matching what you would see in Sequencer at the sub-sequence level. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 FrameNumberShot;
+	
+	/** Frame Number for the Master (relative to 0, not what you would see in the Sequencer timeline. ie: If sequence PlaybackRange starts on 50, this value would be 0 on the first frame. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 FrameNumberRel;
+	
+	/** Frame Number for the Shot (relative to 0, not what you would see in the Sequencer timeline. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 FrameNumberShotRel;
+	
+	/** Name used by the {camera_name} format tag. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FString CameraName;
+	
+	/** Name used by the {shot_name} format tag. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FString ShotName;
+
+	/** When converitng frame numbers to strings, how many digits should we pad them up to? ie: 5 => 0005 with a count of 4. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 ZeroPadFrameNumberCount;
+
+	/** If true, force format strings (like {frame_number}) to resolve using the relative version. Used when slow-mo is detected as frame numbers would overlap. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	bool bForceRelativeFrameNumbers;
+
+	/** 
+	* A map between "{format}" tokens and their values. These are applied after the auto-generated ones from the system,
+	* which allows the caller to override things like {.ext} depending or {render_pass} which have dummy names by default.
+	*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	TMap<FString, FString> FileNameFormatOverrides;
+
+	/** A key/value pair that maps metadata names to their values. Output is only supported in exr formats at the moment. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	TMap<FString, FString> FileMetadata;
+
+	/** The initialization time for this job. Used to resolve time-based format arguments. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FDateTime InitializationTime;
+
+	/** The version for this job. Used to resolve version format arguments. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 InitializationVersion;
+
+	/** Required. This is the job all of the settings should be pulled from.*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	UMoviePipelineExecutorJob* Job;
+
+	/** Optional. If specified, settings will be pulled from this shot (if overriden by the shot). If null, always use the master configuration in the job. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	UMoviePipelineExecutorShot* ShotOverride;
+
+	/** Additional offset added onto the offset provided by the Output Settings in the Job. Required for some internal things (FCPXML). */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	int32 AdditionalFrameNumberOffset;
 };
 
 /**
@@ -721,6 +812,9 @@ public:
 	/** How much is this sample offset, taking padding into account. */
 	FIntPoint OverlappedOffset;
 
+	/** Use overscan percentage to extend render region beyond the set resolution.  */
+	float OverscanPercentage;
+
 	/** 
 	* The gamma space to apply accumulation in. During accumulation, pow(x,AccumulationGamma) is applied
 	* and pow(x,1/AccumulationGamma) is applied after accumulation is finished. 1.0 means no change."
@@ -787,10 +881,12 @@ struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<F
 	bool bRequireTransparentOutput;
 
 	int32 SortingOrder;
+	bool bCompositeToFinalImage;
 
 	FImagePixelDataPayload()
 		: bRequireTransparentOutput(false)
 		, SortingOrder(TNumericLimits<int32>::Max())
+		, bCompositeToFinalImage(false)
 	{}
 
 	/** Is this the first tile of an image and we should start accumulating? */
@@ -888,4 +984,148 @@ namespace MoviePipeline
 		/** An array of active submixes we are recording for this shot. Gets cleared when recording stops on a shot. */
 		TArray<TWeakPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>> ActiveSubmixes;
 	};
+
+	struct FCompositePassInfo
+	{
+		FCompositePassInfo() {}
+
+		FMoviePipelinePassIdentifier PassIdentifier;
+		TUniquePtr<FImagePixelData> PixelData;
+	};
 }
+
+/**
+ * A pixel preprocessor for use with FImageWriteTask::PixelPreProcessor that does a simple alpha blend of the provided image onto the
+ * target pixel data. This isn't very general purpose.
+ */
+template<typename PixelType> struct TAsyncCompositeImage;
+
+template<>
+struct TAsyncCompositeImage<FColor>
+{
+	TAsyncCompositeImage(TUniquePtr<FImagePixelData>&& InPixelData)
+		: ImageToComposite(MoveTemp(InPixelData))
+	{}
+
+	void operator()(FImagePixelData* PixelData)
+	{
+		check(PixelData->GetType() == EImagePixelType::Color);
+		check(ImageToComposite && ImageToComposite->GetType() == EImagePixelType::Color);
+		if (!ensureMsgf(ImageToComposite->GetSize() == PixelData->GetSize(), TEXT("Cannot composite images of different sizes! Source: (%d,%d) Target: (%d,%d)"),
+			ImageToComposite->GetSize().X, ImageToComposite->GetSize().Y, PixelData->GetSize().X, PixelData->GetSize().Y))
+		{
+			return;
+		}
+
+
+		TImagePixelData<FColor>* DestColorData = static_cast<TImagePixelData<FColor>*>(PixelData);
+		TImagePixelData<FColor>* SrcColorData = static_cast<TImagePixelData<FColor>*>(ImageToComposite.Get());
+
+		ParallelFor(DestColorData->GetSize().Y,
+			[&](int32 ScanlineIndex = 0)
+			{
+				for (int64 ColumnIndex = 0; ColumnIndex < DestColorData->GetSize().X; ColumnIndex++)
+				{
+					int64 DstIndex = int64(ScanlineIndex) * int64(DestColorData->GetSize().X) + int64(ColumnIndex);
+
+					FColor& Dst = DestColorData->Pixels[DstIndex];
+					FColor& Src = SrcColorData->Pixels[DstIndex];
+
+					float SourceAlpha = Src.A / 255.f;
+					FColor Out;
+					Out.A = FMath::Clamp(Src.A + FMath::RoundToInt(Dst.A * (1.f - SourceAlpha)), 0, 255);
+					Out.R = FMath::Clamp(Src.R + FMath::RoundToInt(Dst.R * (1.f - SourceAlpha)), 0, 255);
+					Out.G = FMath::Clamp(Src.G + FMath::RoundToInt(Dst.G * (1.f - SourceAlpha)), 0, 255);
+					Out.B = FMath::Clamp(Src.B + FMath::RoundToInt(Dst.B * (1.f - SourceAlpha)), 0, 255);
+					Dst = Out;
+				}
+			});
+	}
+
+	TUniquePtr<FImagePixelData> ImageToComposite;
+};
+
+template<>
+struct TAsyncCompositeImage<FFloat16Color>
+{
+	TAsyncCompositeImage(TUniquePtr<FImagePixelData>&& InPixelData)
+		: ImageToComposite(MoveTemp(InPixelData))
+	{}
+
+	void operator()(FImagePixelData* PixelData)
+	{
+		check(PixelData->GetType() == EImagePixelType::Float16);
+		check(ImageToComposite && ImageToComposite->GetType() == EImagePixelType::Color);
+		if (!ensureMsgf(ImageToComposite->GetSize() == PixelData->GetSize(), TEXT("Cannot composite images of different sizes! Source: (%d,%d) Target: (%d,%d)"),
+			ImageToComposite->GetSize().X, ImageToComposite->GetSize().Y, PixelData->GetSize().X, PixelData->GetSize().Y))
+		{
+			return;
+		}
+
+		TImagePixelData<FFloat16Color>* DestColorData = static_cast<TImagePixelData<FFloat16Color>*>(PixelData);
+		TImagePixelData<FColor>* SrcColorData = static_cast<TImagePixelData<FColor>*>(ImageToComposite.Get());
+		ParallelFor(DestColorData->GetSize().Y,
+			[&](int32 ScanlineIndex = 0)
+			{
+				for (int64 ColumnIndex = 0; ColumnIndex < DestColorData->GetSize().X; ColumnIndex++)
+				{
+					int64 DstIndex = int64(ScanlineIndex) * int64(DestColorData->GetSize().X) + int64(ColumnIndex);
+					FFloat16Color& Dst = DestColorData->Pixels[DstIndex];
+					FColor& Src = SrcColorData->Pixels[DstIndex];
+
+					float SourceAlpha = Src.A / 255.f;
+					FFloat16Color Out;
+					Out.A = (Src.A / 255.f) + (Dst.A * (1.f - SourceAlpha));
+					Out.R = (Src.R / 255.f) + (Dst.R * (1.f - SourceAlpha));
+					Out.G = (Src.G / 255.f) + (Dst.G * (1.f - SourceAlpha));
+					Out.B = (Src.B / 255.f) + (Dst.B * (1.f - SourceAlpha));
+					Dst = Out;
+				}
+			});
+	}
+
+	TUniquePtr<FImagePixelData> ImageToComposite;
+};
+
+template<>
+struct TAsyncCompositeImage<FLinearColor>
+{
+	TAsyncCompositeImage(TUniquePtr<FImagePixelData>&& InPixelData)
+		: ImageToComposite(MoveTemp(InPixelData))
+	{}
+
+	void operator()(FImagePixelData* PixelData)
+	{
+		check(PixelData->GetType() == EImagePixelType::Float32);
+		check(ImageToComposite && ImageToComposite->GetType() == EImagePixelType::Color);
+		if (!ensureMsgf(ImageToComposite->GetSize() == PixelData->GetSize(), TEXT("Cannot composite images of different sizes! Source: (%d,%d) Target: (%d,%d)"),
+			ImageToComposite->GetSize().X, ImageToComposite->GetSize().Y, PixelData->GetSize().X, PixelData->GetSize().Y))
+		{
+			return;
+		}
+
+		TImagePixelData<FLinearColor>* DestColorData = static_cast<TImagePixelData<FLinearColor>*>(PixelData);
+		TImagePixelData<FColor>* SrcColorData = static_cast<TImagePixelData<FColor>*>(ImageToComposite.Get());
+
+		ParallelFor(DestColorData->GetSize().Y,
+			[&](int32 ScanlineIndex = 0)
+			{
+				for (int64 ColumnIndex = 0; ColumnIndex < DestColorData->GetSize().X; ColumnIndex++)
+				{
+					int64 DstIndex = int64(ScanlineIndex) * int64(DestColorData->GetSize().X) + int64(ColumnIndex);
+					FLinearColor& Dst = DestColorData->Pixels[DstIndex];
+					FColor& Src = SrcColorData->Pixels[DstIndex];
+
+					float SourceAlpha = Src.A / 255.f;
+					FLinearColor Out;
+					Out.A = (Src.A / 255.f) + (Dst.A * (1.f - SourceAlpha));
+					Out.R = (Src.R / 255.f) + (Dst.R * (1.f - SourceAlpha));
+					Out.G = (Src.G / 255.f) + (Dst.G * (1.f - SourceAlpha));
+					Out.B = (Src.B / 255.f) + (Dst.B * (1.f - SourceAlpha));
+					Dst = Out;
+				}
+			});
+	}
+
+	TUniquePtr<FImagePixelData> ImageToComposite;
+};

@@ -25,7 +25,7 @@ protected:
 	// UMoviePipelineVideoOutputBase Interface
 	virtual TUniquePtr<MovieRenderPipeline::IVideoCodecWriter> Initialize_GameThread(const FString& InFileName, FIntPoint InResolution, EImagePixelType InPixelType, ERGBFormat InPixelFormat, uint8 InBitDepth, uint8 InNumChannels) override;
 	virtual void Initialize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter) override;
-	virtual void WriteFrame_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter, FImagePixelData* InPixelData) override;
+	virtual void WriteFrame_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter, FImagePixelData* InPixelData, TArray<MoviePipeline::FCompositePassInfo>&& InCompositePasses) override;
 	virtual void BeginFinalize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter);
 	virtual void Finalize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter);
 	virtual const TCHAR* GetFilenameExtension() const override { return TEXT("mov"); }
@@ -52,7 +52,7 @@ public:
 	bool bOverrideMaximumEncodingThreads;
 
 	/** What is the maximum number of threads the encoder should use to encode frames with? Zero means auto-determine based on hardware. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(UIMin=0, MinValue=0, EditCondition="bOverrideMaximumEncodingThreads"), Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(UIMin=0, ClampMin=0, EditCondition="bOverrideMaximumEncodingThreads"), Category = "Settings")
 	int32 MaxNumberOfEncodingThreads;
 
 protected:

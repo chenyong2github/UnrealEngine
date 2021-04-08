@@ -5,6 +5,12 @@
 #include "D3D12RHIBridge.h"
 #include "RHIValidation.h"
 
+static int32 GD3D12BatchResourceBarriers = 1;
+static FAutoConsoleVariableRef CVarD3D12BatchResourceBarriers(
+	TEXT("d3d12.BatchResourceBarriers"),
+	GD3D12BatchResourceBarriers,
+	TEXT("Whether to allow batching resource barriers"));
+
 static int64 GCommandListIDCounter = 0;
 static uint64 GenerateCommandListID()
 {
@@ -20,6 +26,11 @@ void FD3D12CommandListHandle::AddTransitionBarrier(FD3D12Resource* pResource, D3
 		CommandListData->CurrentOwningContext->numBarriers += NumAdded;
 
 		pResource->UpdateResidency(*this);
+
+		if (!GD3D12BatchResourceBarriers)
+		{
+			FlushResourceBarriers();
+		}
 	}
 	else
 	{
@@ -32,6 +43,11 @@ void FD3D12CommandListHandle::AddUAVBarrier()
 	check(CommandListData);
 	CommandListData->ResourceBarrierBatcher.AddUAV();
 	CommandListData->CurrentOwningContext->numBarriers++;
+
+	if (!GD3D12BatchResourceBarriers)
+	{
+		FlushResourceBarriers();
+	}
 }
 
 void FD3D12CommandListHandle::AddAliasingBarrier(FD3D12Resource* InResourceBefore, FD3D12Resource* InResourceAfter)
@@ -39,6 +55,11 @@ void FD3D12CommandListHandle::AddAliasingBarrier(FD3D12Resource* InResourceBefor
 	check(CommandListData);
 	CommandListData->ResourceBarrierBatcher.AddAliasingBarrier(InResourceBefore ? InResourceBefore->GetResource() : nullptr, InResourceAfter->GetResource());
 	CommandListData->CurrentOwningContext->numBarriers++;
+
+	if (!GD3D12BatchResourceBarriers)
+	{
+		FlushResourceBarriers();
+	}
 }
 
 void FD3D12CommandListHandle::Create(FD3D12Device* ParentDevice, D3D12_COMMAND_LIST_TYPE CommandListType, FD3D12CommandAllocator& CommandAllocator, FD3D12CommandListManager* InCommandListManager)

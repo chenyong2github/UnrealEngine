@@ -17,6 +17,7 @@ IMPLEMENT_MODULE( FDMXProtocolModule, DMXProtocol );
 
 #define LOCTEXT_NAMESPACE "DMXProtocolModule"
 
+
 const int32 FDMXProtocolModule::NumProtocols = 2;
 
 FDMXProtocolModule::FDMXProtocolModule()
@@ -157,6 +158,7 @@ void FDMXProtocolModule::OnProtocolsRegistered()
 	}
 #endif // WITH_EDITOR
 
+	// Start the port manager after settings are registered, so it can create its default ports from that
 	FDMXPortManager::StartupManager();
 }
 

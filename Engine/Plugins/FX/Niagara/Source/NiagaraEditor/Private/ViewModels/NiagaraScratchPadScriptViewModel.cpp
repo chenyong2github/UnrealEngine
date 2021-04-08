@@ -11,7 +11,6 @@
 #include "NiagaraEditorModule.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
 
-#include "ObjectTools.h"
 #include "ScopedTransaction.h"
 #include "Framework/Commands/UICommandList.h"
 
@@ -28,26 +27,26 @@ FNiagaraScratchPadScriptViewModel::FNiagaraScratchPadScriptViewModel()
 
 FNiagaraScratchPadScriptViewModel::~FNiagaraScratchPadScriptViewModel()
 {
-	if (EditScript != nullptr)
+	if (EditScript.Script != nullptr)
 	{
-		if (EditScript->GetSource() != nullptr)
+		if (EditScript.Script->GetLatestSource() != nullptr)
 		{
-			UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript->GetSource());
+			UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript.Script->GetLatestSource());
 			EditScriptSource->NodeGraph->RemoveOnGraphNeedsRecompileHandler(OnGraphNeedsRecompileHandle);
 		}
-		EditScript->OnPropertyChanged().RemoveAll(this);
-		EditScript = nullptr;
+		EditScript.Script->OnPropertyChanged().RemoveAll(this);
+		EditScript.Script = nullptr;
 	}
 }
 
 void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script)
 {
 	OriginalScript = Script;
-	EditScript = CastChecked<UNiagaraScript>(StaticDuplicateObject(Script, GetTransientPackage()));
+	EditScript.Script = CastChecked<UNiagaraScript>(StaticDuplicateObject(Script, GetTransientPackage()));
 	SetScript(EditScript);
-	UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript->GetSource());
+	UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript.Script->GetLatestSource());
 	OnGraphNeedsRecompileHandle = EditScriptSource->NodeGraph->AddOnGraphNeedsRecompileHandler(FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptGraphChanged));
-	EditScript->OnPropertyChanged().AddSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptPropertyChanged);
+	EditScript.Script->OnPropertyChanged().AddSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptPropertyChanged);
 	ParameterPanelCommands = MakeShared<FUICommandList>();
 	if (GbShowNiagaraDeveloperWindows)
 	{
@@ -67,7 +66,7 @@ void FNiagaraScratchPadScriptViewModel::Finalize()
 
 void FNiagaraScratchPadScriptViewModel::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObject(EditScript);
+	Collector.AddReferencedObject(EditScript.Script);
 }
 
 UNiagaraScript* FNiagaraScratchPadScriptViewModel::GetOriginalScript() const
@@ -75,7 +74,7 @@ UNiagaraScript* FNiagaraScratchPadScriptViewModel::GetOriginalScript() const
 	return OriginalScript;
 }
 
-UNiagaraScript* FNiagaraScratchPadScriptViewModel::GetEditScript() const
+const FVersionedNiagaraScript& FNiagaraScratchPadScriptViewModel::GetEditScript() const
 {
 	return EditScript;
 }
@@ -93,7 +92,7 @@ TSharedPtr<FUICommandList> FNiagaraScratchPadScriptViewModel::GetParameterPanelC
 FText FNiagaraScratchPadScriptViewModel::GetToolTip() const
 {
 	return FText::Format(LOCTEXT("ScratchPadScriptToolTipFormat", "Description: {0}{1}"),
-		EditScript->Description.IsEmptyOrWhitespace() ? LOCTEXT("NoDescription", "(none)") : EditScript->Description,
+		EditScript.GetScriptData()->Description.IsEmptyOrWhitespace() ? LOCTEXT("NoDescription", "(none)") : EditScript.GetScriptData()->Description,
 		bHasPendingChanges ? LOCTEXT("HasPendingChangesStatus", "\n* Has pending changes to apply") : FText());
 }
 
@@ -164,7 +163,7 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 	ResetLoaders(OriginalScript->GetOutermost()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
 	OriginalScript->GetOutermost()->LinkerCustomVersion.Empty();
 
-	OriginalScript = (UNiagaraScript*)StaticDuplicateObject(EditScript, OriginalScript->GetOuter(), OriginalScript->GetFName(),
+	OriginalScript = (UNiagaraScript*)StaticDuplicateObject(EditScript.Script, OriginalScript->GetOuter(), OriginalScript->GetFName(),
 		RF_AllFlags,
 		OriginalScript->GetClass());
 	bHasPendingChanges = false;

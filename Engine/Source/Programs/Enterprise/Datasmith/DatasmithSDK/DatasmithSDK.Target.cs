@@ -14,7 +14,7 @@ public class DatasmithSDKTarget : TargetRules
 		LaunchModuleName = "DatasmithSDK";
 		ExeBinariesSubFolder = "DatasmithSDK";
 
-		ExtraModuleNames.AddRange( new string[] { "DatasmithCore", "DatasmithExporter"} );
+		ExtraModuleNames.AddRange( new string[] { "DatasmithCore", "DatasmithExporter" } );
 
 		LinkType = TargetLinkType.Monolithic;
 		bShouldCompileAsDLL = true;
@@ -51,7 +51,7 @@ public class DatasmithSDKTarget : TargetRules
 			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Documentation\"
 		);
 
-		// Copy the header files
+		// Package our public headers
 		PostBuildCopy(
 			@"$(EngineDir)\Source\Runtime\Datasmith\DatasmithCore\Public\*.h",
 			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Public\"
@@ -65,6 +65,36 @@ public class DatasmithSDKTarget : TargetRules
 		PostBuildCopy(
 			@"$(EngineDir)\Source\Developer\Datasmith\DatasmithExporter\Public\*.h",
 			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Public\"
+		);
+
+		// Other headers we depend on, but that are not part of our public API:
+		PostBuildCopy(
+			@"$(EngineDir)\Source\Runtime\TraceLog\Public\*.h",
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
+		);
+		PostBuildCopy(
+			@"$(EngineDir)\Source\Runtime\TraceLog\Public\*.inl",
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
+		);
+
+		PostBuildCopy(
+			@"$(EngineDir)\Source\Runtime\Messaging\Public\*.h",
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
+		);
+
+		PostBuildCopy(
+			@"$(EngineDir)\Source\Runtime\Core\Public\*.h",
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
+		);
+
+		PostBuildCopy(
+			@"$(EngineDir)\Source\Runtime\Core\Public\*.inl",
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
+		);
+
+		PostBuildCopy(
+			@"$(EngineDir)\Source\Runtime\CoreUObject\Public\*.h",
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Private\"
 		);
 	}
 }

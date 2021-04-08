@@ -4,36 +4,21 @@
 
 #include "DMXProtocolModule.h"
 #include "DMXProtocolSettings.h"
+#include "DMXProtocolUtils.h"
 
 #include "EditorStyleSet.h"
-#include "IPAddress.h"
-#include "SocketSubsystem.h" 
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 
 
 void SDMXIPAddressEditWidget::Construct(const FArguments& InArgs)
 {
-	Mode = InArgs._Mode;
 	OnIPAddressSelected = InArgs._OnIPAddressSelected;
 
 	ChildSlot
 	[
-		SAssignNew(WidgetSwitcher, SWidgetSwitcher)
-		
-		+ SWidgetSwitcher::Slot()
-		[
-			SAssignNew(LocalAdapterAddressComboBox, SDMXLocalAdapterAddressComboBox)
-			.OnLocalAdapterAddressSelected(this, &SDMXIPAddressEditWidget::OnIpAddressSelectedInChild)
-		]
-
-		+ SWidgetSwitcher::Slot()
-		[
-			SAssignNew(IPAddressEditableTextBox, SEditableTextBox)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			.IsReadOnly(false)
-			.OnTextCommitted(this, &SDMXIPAddressEditWidget::OnIPAddressCommitted)
-		]
+		SAssignNew(LocalAdapterAddressComboBox, SDMXLocalAdapterAddressComboBox)
+		.OnLocalAdapterAddressSelected(this, &SDMXIPAddressEditWidget::OnIpAddressSelectedInChild)
 	];
 
 	const FString& InitialValue = InArgs._InitialValue;
@@ -52,78 +37,13 @@ void SDMXIPAddressEditWidget::Construct(const FArguments& InArgs)
 	{
 		LocalAdapterAddressComboBox->Select(LocalAdapterAddresses[0]);
 	}
-
-	// Set the initial value to the editable text block widget
-	IPAddressEditableTextBox->SetText(FText::FromString(InitialValue));
-
-	SetEditModeInternal(Mode);
 }
 
 TSharedPtr<FString> SDMXIPAddressEditWidget::GetSelectedIPAddress() const
 {
 	check(LocalAdapterAddressComboBox.IsValid());
-	check(IPAddressEditableTextBox.IsValid());
 
-	if (Mode == EDMXIPEditWidgetMode::LocalAdapterAddresses)
-	{
-		return LocalAdapterAddressComboBox->GetSelectedLocalAdapterAddress();
-	}
-	else if (Mode == EDMXIPEditWidgetMode::EditableTextBox)
-	{
-		return MakeShared<FString>(EditableTextBoxString);
-	}
-	else
-	{
-		// Unhandled mode
-		checkNoEntry();
-	}
-
-	return MakeShared<FString>();
-}
-
-void SDMXIPAddressEditWidget::SetEditMode(EDMXIPEditWidgetMode NewMode)
-{
-	if (Mode == NewMode)
-	{
-		return;
-	}
-
-	SetEditModeInternal(NewMode);
-
-	OnIpAddressSelectedInChild();
-}
-
-void SDMXIPAddressEditWidget::SetEditModeInternal(EDMXIPEditWidgetMode NewMode)
-{
-	check(WidgetSwitcher.IsValid());
-	check(LocalAdapterAddressComboBox.IsValid());
-
-	Mode = NewMode;
-	if (Mode == EDMXIPEditWidgetMode::LocalAdapterAddresses)
-	{
-		WidgetSwitcher->SetActiveWidget(LocalAdapterAddressComboBox.ToSharedRef());
-	}
-	else if (Mode == EDMXIPEditWidgetMode::EditableTextBox)
-	{
-		WidgetSwitcher->SetActiveWidget(IPAddressEditableTextBox.ToSharedRef());
-	}
-	else
-	{
-		// Unhandled mode
-		checkNoEntry();
-	}
-}
-
-void SDMXIPAddressEditWidget::OnIPAddressCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)
-{
-	check(IPAddressEditableTextBox.IsValid());
-
-	EditableTextBoxString = InNewText.ToString();
-
-	// Convert back to text to reflect lossy conversion
-	IPAddressEditableTextBox->SetText(FText::FromString(EditableTextBoxString));
-
-	OnIpAddressSelectedInChild();
+	return LocalAdapterAddressComboBox->GetSelectedLocalAdapterAddress();
 }
 
 void SDMXIPAddressEditWidget::OnIpAddressSelectedInChild()
@@ -186,23 +106,7 @@ TSharedRef<FString> SDMXLocalAdapterAddressComboBox::GetSelectedLocalAdapterAddr
 
 void SDMXLocalAdapterAddressComboBox::InitializeLocalAdapterAddresses()
 {
-#if PLATFORM_WINDOWS
-	// Add the default route IP Address, only for windows
-	const FString DefaultRouteLocalAdapterAddress = TEXT("0.0.0.0");
-	LocalAdapterAddressSource.Add(MakeShared<FString>(DefaultRouteLocalAdapterAddress));
-#endif 
-	// Add the local host IP address
-	const FString LocalHostIpAddress = TEXT("127.0.0.1");
-	LocalAdapterAddressSource.Add(MakeShared<FString>(LocalHostIpAddress));
-
-	TArray<TSharedPtr<FInternetAddr>> Addresses;
-	ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalAdapterAddresses(Addresses);
-	bool bFoundLocalHost = false;
-	for (TSharedPtr<FInternetAddr> Address : Addresses)
-	{
-		// Add unique, so in ase the OS call returns with the local host or default route IP, we don't add it twice
-		LocalAdapterAddressSource.AddUnique(MakeShared<FString>(Address->ToString(false)));
-	}
+	LocalAdapterAddressSource = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
 }
 	
 TSharedRef<SWidget> SDMXLocalAdapterAddressComboBox::GenerateLocalAdapterAddressComboBoxEntry(TSharedPtr<FString> InAddress)

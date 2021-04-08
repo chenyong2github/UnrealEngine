@@ -16,18 +16,9 @@ TEMP_UNIQUENETIDSTRING_SUBCLASS(FUniqueNetIdNull, NULL_SUBSYSTEM);
  */
 class FOnlineSessionInfoNull : public FOnlineSessionInfo
 {
-protected:
-	
 	/** Hidden on purpose */
-	FOnlineSessionInfoNull(const FOnlineSessionInfoNull& Src)
-	{
-	}
-
-	/** Hidden on purpose */
-	FOnlineSessionInfoNull& operator=(const FOnlineSessionInfoNull& Src)
-	{
-		return *this;
-	}
+	FOnlineSessionInfoNull(const FOnlineSessionInfoNull& Src) = delete;
+	FOnlineSessionInfoNull& operator=(const FOnlineSessionInfoNull& Src) = delete;
 
 PACKAGE_SCOPE:
 
@@ -43,7 +34,7 @@ PACKAGE_SCOPE:
 	/** The ip & port that the host is listening on (valid for LAN/GameServer) */
 	TSharedPtr<class FInternetAddr> HostAddr;
 	/** Unique Id for this session */
-	FUniqueNetIdNull SessionId;
+	FUniqueNetIdNullRef SessionId;
 
 public:
 
@@ -72,18 +63,18 @@ public:
 
 	virtual FString ToString() const override
 	{
-		return SessionId.ToString();
+		return SessionId->ToString();
 	}
 
 	virtual FString ToDebugString() const override
 	{
 		return FString::Printf(TEXT("HostIP: %s SessionId: %s"), 
 			HostAddr.IsValid() ? *HostAddr->ToString(true) : TEXT("INVALID"), 
-			*SessionId.ToDebugString());
+			*SessionId->ToDebugString());
 	}
 
 	virtual const FUniqueNetId& GetSessionId() const override
 	{
-		return SessionId;
+		return *SessionId;
 	}
 };

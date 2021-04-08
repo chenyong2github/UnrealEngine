@@ -72,6 +72,9 @@ public:
 	/** Return the resource size */
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);
 
+	/** Get the estimated memory overhead of buffers marked as NeedsCPUAccess. */
+	SIZE_T GetCPUAccessMemoryOverhead() const;
+
 	/** Returns true if this resource must be skinned on the CPU for the given feature level. */
 	ENGINE_API bool RequiresCPUSkinning(ERHIFeatureLevel::Type FeatureLevel) const;
 	

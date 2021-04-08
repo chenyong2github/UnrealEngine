@@ -112,8 +112,8 @@ FAutoConsoleCommandWithWorldAndArgs DumpNiagaraComponentsCommand(
 					return FString();
 				}();
 
-				UE_LOG(LogNiagara, Log, TEXT("=========================== Begin Niagara Dump ==========================="));
-				for (TObjectIterator<UNiagaraComponent> It; It; ++It)
+			UE_LOG(LogNiagara, Log, TEXT("=========================== Begin Niagara Dump ==========================="));
+			for (TObjectIterator<UNiagaraComponent> It; It; ++It)
 			{
 				UNiagaraComponent* Component = *It;
 				if ( Component->IsPendingKill() )
@@ -139,7 +139,7 @@ FAutoConsoleCommandWithWorldAndArgs DumpNiagaraComponentsCommand(
 
 				UE_LOG(LogNiagara, Log, TEXT("Component '%s' Asset '%s' Actor '%s' is %s"), *GetNameSafe(Component), *GetNameSafe(NiagaraSystem), *GetNameSafe(Component->GetTypedOuter<AActor>()), Component->IsActive() ? TEXT("Active") : TEXT("Inactive"));
 				if (FNiagaraSystemInstanceControllerPtr SystemInstanceController = Component->GetSystemInstanceController())
-						{
+				{
 					SystemInstanceController->DebugDump(bFullDump);
 				}
 			}
@@ -149,13 +149,13 @@ FAutoConsoleCommandWithWorldAndArgs DumpNiagaraComponentsCommand(
 );
 
 FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)
-		: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
-		, RuntimeCycleCount(nullptr)
+	: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
+	, RuntimeCycleCount(nullptr)
 #if WITH_PARTICLE_PERF_STATS
-		, PerfStatsContext(InComponent->GetPerfStatsContext())
+	, PerfStatsContext(InComponent->GetPerfStatsContext())
 #endif
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-		, PreviewLODDistance(-1.0f)
+	, PreviewLODDistance(-1.0f)
 #endif
 {
 	if (FNiagaraSystemInstanceControllerConstPtr SystemInstanceController = InComponent->GetSystemInstanceController())
@@ -184,8 +184,8 @@ void FNiagaraSceneProxy::DestroyRenderState_Concurrent()
 	if (RenderData)
 	{
 		RenderData->DestroyRenderState_Concurrent();
-						}
-					}
+	}
+}
 
 FNiagaraSceneProxy::~FNiagaraSceneProxy()
 {
@@ -208,10 +208,10 @@ void FNiagaraSceneProxy::CreateRenderThreadResources()
 {
 	if (RenderData)
 	{
-	LLM_SCOPE(ELLMTag::Niagara);
+		LLM_SCOPE(ELLMTag::Niagara);
 		RenderData->CreateRenderThreadResources(*Batcher);
-		}
 	}
+}
 
 void FNiagaraSceneProxy::OnTransformChanged()
 {
@@ -1164,9 +1164,9 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 
 	// Give renderers a chance to do some processing PostTick
 	if (auto NiagaraProxy = static_cast<FNiagaraSceneProxy*>(SceneProxy))
-				{
+	{
 		if (auto RenderData = NiagaraProxy->GetSystemRenderData())
-					{
+		{
 			SystemInstanceController->PostTickRenderers(*RenderData);
 		}
 	}
@@ -1257,9 +1257,9 @@ void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
 
 	// Give renderers a chance to handle completion
 	if (auto NiagaraProxy = static_cast<FNiagaraSceneProxy*>(SceneProxy))
-				{
+	{
 		if (auto RenderData = NiagaraProxy->GetSystemRenderData())
-					{
+		{
 			SystemInstanceController->NotifyRenderersComplete(*RenderData);
 		}
 	}
@@ -1498,7 +1498,7 @@ void UNiagaraComponent::OnEndOfFrameUpdateDuringTick()
 	Super::OnEndOfFrameUpdateDuringTick();
 	if (SystemInstanceController)
 	{
-		SystemInstanceController->WaitForAsyncTickAndFinalize();
+		SystemInstanceController->WaitForConcurrentTickAndFinalize();
 	}
 }
 
@@ -1530,9 +1530,9 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 	Super::SendRenderDynamicData_Concurrent();
 
 	if (FNiagaraSceneProxy* NiagaraProxy = static_cast<FNiagaraSceneProxy*>(SceneProxy))
-							{
+	{
 		if (FNiagaraSystemRenderData* RenderData = NiagaraProxy->GetSystemRenderData())
-			{
+		{
 			FNiagaraSystemRenderData::FSetDynamicDataCommandList SetDataCommands;
 			SystemInstanceController->GenerateSetDynamicDataCommands(SetDataCommands, *RenderData, *NiagaraProxy);
 		
@@ -1543,16 +1543,16 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 
 			ENQUEUE_RENDER_COMMAND(NiagaraSetDynamicData)(
 				[NiagaraProxy, CommandsRT = MoveTemp(SetDataCommands), PerfStatCtx=GetPerfStatsContext(), LocalPreviewLODDistance](FRHICommandListImmediate& RHICmdList)
-			{
-				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
-				PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_RT(PerfStatCtx, RenderUpdate, 1);
+				{
+					SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
+					PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_RT(PerfStatCtx, RenderUpdate, 1);
 
 					FNiagaraSystemRenderData::ExecuteDynamicDataCommands_RenderThread(CommandsRT);
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-				NiagaraProxy->PreviewLODDistance = LocalPreviewLODDistance;
+					NiagaraProxy->PreviewLODDistance = LocalPreviewLODDistance;
 #endif
-		}
+				}
 			);
 		}
 	}
@@ -1614,8 +1614,8 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 	if (SystemInstanceController.IsValid())
 	{
 		SystemInstanceController->GetUsedMaterials(OutMaterials);
-									}
-								}
+	}
+}
 
 void UNiagaraComponent::OnAttachmentChanged()
 {
@@ -1862,10 +1862,10 @@ TArray<FVector> UNiagaraComponent::GetNiagaraParticleValueVec3_DebugOnly(const F
 	if (SystemInstanceController.IsValid())
 	{
 		if (!SystemInstanceController->GetParticleValueVec3_DebugOnly(Values, EmitterName, FName(*InValueName)))
-				{
-					UE_LOG(LogNiagara, Warning, TEXT("Unable to find variable %s on %s per-particle data. Returning zeroes."), *InValueName, *GetPathName());
-				}
-				}
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Unable to find variable %s on %s per-particle data. Returning zeroes."), *InValueName, *GetPathName());
+		}
+	}
 	return Values;
 
 }
@@ -2811,9 +2811,12 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 		return;
 	}
 
-	if ( PoolingMethod != ENCPoolMethod::None )
+	if (FNiagaraUtilities::LogVerboseWarnings())
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("SetAsset called on pooled component '%s' Before '%s' New '%s', pleased fix calling code to not do this."), *GetFullNameSafe(this), *GetFullNameSafe(Asset), * GetFullNameSafe(InAsset));
+		if ( PoolingMethod != ENCPoolMethod::None )
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("SetAsset called on pooled component '%s' Before '%s' New '%s', pleased fix calling code to not do this."), *GetFullNameSafe(this), *GetFullNameSafe(Asset), * GetFullNameSafe(InAsset));
+		}
 	}
 
 #if WITH_EDITOR

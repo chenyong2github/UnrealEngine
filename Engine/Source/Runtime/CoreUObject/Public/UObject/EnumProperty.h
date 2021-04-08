@@ -78,6 +78,9 @@ public:
 		return UnderlyingProp;
 	}
 
+	// Returns the number of bits required by NetSerializeItem to encode this enum, based on the maximum value
+	uint64 GetMaxNetSerializeBits() const;
+
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 

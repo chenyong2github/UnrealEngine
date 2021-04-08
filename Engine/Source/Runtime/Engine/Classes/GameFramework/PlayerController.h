@@ -1044,9 +1044,12 @@ public:
 	 */
 	UFUNCTION(Reliable, Client)
 	void ClientSetViewTarget(class AActor* A, struct FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams());
-
-	/** Spawn a camera lens effect (e.g. blood). */
+	
+	/** Spawn a camera lens effect (e.g. blood). */	
 	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
+	void ClientSpawnGenericCameraLensEffect(UPARAM(meta=(MustImplement ="CameraLensEffectInterface")) TSubclassOf<class AActor>  LensEffectEmitterClass);
+
+	UFUNCTION(unreliable, client, Category="Game|Feedback", meta=(DeprecatedFunction, DeprecationMessage="Prefer the version taking ICameraLensEffectInterface (ClientSpawnGenericCameraLensEffect)"))
 	void ClientSpawnCameraLensEffect(TSubclassOf<class AEmitterCameraLensEffectBase>  LensEffectEmitterClass);
 
 	/** Removes all Camera Lens Effects. */
@@ -1997,4 +2000,73 @@ private:
 	/** If true, prevent any haptic effects from playing */
 	bool bDisableHaptics : 1;
 
+public: 
+
+	/**
+	 * Frame number exchange. This doesn't inherently do anything but is used by the network prediction physics system.
+	 * This may be moved out at some point.
+	 * 
+	 * This is meant ot provide a mechanism for client side prediction to correlate client input and server frame numbers.
+	 * Frame is a loose concept here. It doesn't necessary mean GFrameNumber. Its just an arbitrary increasing sequence of numbers that is used
+	 * to label disrete units of client->Server input. For example the main thread may tick at a high variable rate but input is generated at a fixed
+	 * step interval.
+	 */
+
+	struct FInputCmdBuffer
+	{
+		int32 HeadFrame() const { return LastWritten; }
+		TArray<uint8>& Write(int32 Frame) { LastWritten = Frame; return Buffer[Frame % Buffer.Num()]; }
+		const TArray<uint8>& Get(int32 Frame) const { return Buffer[Frame % Buffer.Num()]; }
+
+	private:
+		int32 LastWritten = INDEX_NONE;
+		TStaticArray<TArray<uint8>, 16> Buffer;
+	};
+
+	FInputCmdBuffer& GetInputBuffer() { return InputBuffer; }
+
+	// -------------------------------------------------------------------------
+	// Client
+	// -------------------------------------------------------------------------
+
+	struct FClientFrameInfo
+	{
+		int32 LastRecvInputFrame = INDEX_NONE;	// The latest inputcmd that the server acknowledged processing (this is our frame number that we gave them)
+		int32 LastRecvServerFrame = INDEX_NONE; // the latest ServerFrame number that the processing of LastRecvInputFrame happened on (SErver's local frame number)
+	};	
+
+	// Client pushes input data locally. RPC is sent here but also includes redundant data
+	void PushClientInput(int32 ClientInputFrame, TArray<uint8>& Data);
+
+	// Client says "Here is input frame number X" (and then calls other RPCs to deliver InputCmd payload)
+	UFUNCTION(Server, unreliable)
+	void ServerRecvClientInputFrame(int32 RecvClientInputFrame, const TArray<uint8>& Data);
+
+	const FClientFrameInfo& GetClientFrameInfo() const { return ClientFrameInfo; }
+
+	// -------------------------------------------------------------------------
+	// Server
+	// -------------------------------------------------------------------------
+
+	struct FServerFrameInfo
+	{
+		int32 LastProcessedInputFrame = INDEX_NONE;	// The last client frame number we processed. "processed" is arbitrary and we are informed about when commands are processed via SetServerProessedInputFrame
+		int32 LastLocalFrame = INDEX_NONE; // The local frame number that we processed the latest client input frame on. Again, processed is arbitrary and set via SetServerProessedInputFrame
+
+		int32 LastSentLocalFrame = INDEX_NONE;	// Tracks the latest LastLocalFrame that we sent to the client. Just to prevent redundandtly sending info via RPC
+
+		bool bFault = true;
+		int32 FaultLimit = 2;
+	};
+
+	// We call this in ::SendClientAdjustment to tell the client what the last processed input frame was for him and on what local frame number it was processed
+	UFUNCTION(Client, unreliable)
+	void ClientRecvServerAckFrame(int32 RecvClientInputFrame, int32 RecvServerFrameNumber);
+
+	FServerFrameInfo& GetServerFrameInfo() { return ServerFrameInfo; };
+private:
+
+	FInputCmdBuffer InputBuffer;
+	FClientFrameInfo ClientFrameInfo;
+	FServerFrameInfo ServerFrameInfo;
 };

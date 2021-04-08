@@ -139,6 +139,12 @@ public:
 	/** Expand/collapse nodes and descendants */
 	TSharedPtr< FUICommandInfo > ToggleExpandCollapseNodesAndDescendants;
 
+	/** Expand all nodes */
+	TSharedPtr< FUICommandInfo > ExpandAllNodes;
+
+	/** Collapse all nodes */
+	TSharedPtr< FUICommandInfo > CollapseAllNodes;
+
 	/** Sort all nodes and descendants */
 	TSharedPtr< FUICommandInfo > SortAllNodesAndDescendants;
 

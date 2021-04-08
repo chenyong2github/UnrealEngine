@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stack/SNiagaraStackItem.h"
+
+#include "EditorFontGlyphs.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorStyle.h"
 #include "EditorStyleSet.h"
@@ -147,7 +149,7 @@ EVisibility SNiagaraStackItem::GetResetToBaseButtonVisibility() const
 FText SNiagaraStackItem::GetResetToBaseButtonToolTipText() const
 {
 	FText CanResetToBaseMessage;
-	Item->TestCanCopyWithMessage(CanResetToBaseMessage);
+	Item->TestCanResetToBaseWithMessage(CanResetToBaseMessage);
 	return CanResetToBaseMessage;
 }
 

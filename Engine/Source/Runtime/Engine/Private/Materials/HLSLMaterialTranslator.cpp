@@ -8534,6 +8534,11 @@ int32 FHLSLMaterialTranslator::GetCloudSampleNormAltitudeInLayer()
 	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionCloudSampleNormAltitudeInLayer(Parameters)"));
 }
 
+int32 FHLSLMaterialTranslator::GetCloudSampleShadowSampleDistance()
+{
+	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionVolumeSampleShadowSampleDistance(Parameters)"));
+}
+
 int32 FHLSLMaterialTranslator::GetVolumeSampleConservativeDensity()
 {
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionVolumeSampleConservativeDensity(Parameters)"));

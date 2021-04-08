@@ -2,7 +2,7 @@
 
 #include "StereoLayerManager.h"
 
-bool GetLayerDescMember(IStereoLayers::FLayerDesc& Layer, IStereoLayers::FLayerDesc& OutLayerDesc)
+bool GetLayerDescMember(const IStereoLayers::FLayerDesc& Layer, IStereoLayers::FLayerDesc& OutLayerDesc)
 {
 	OutLayerDesc = Layer;
 	return true;

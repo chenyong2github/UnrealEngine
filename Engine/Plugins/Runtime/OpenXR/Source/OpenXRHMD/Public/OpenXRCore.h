@@ -71,6 +71,24 @@ FORCEINLINE XrTime ToXrTime(FTimespan Time)
 	return Time.GetTicks() * 100;
 }
 
+FORCEINLINE FIntRect ToFIntRect(XrRect2Di Rect)
+{
+	return FIntRect(Rect.offset.x, Rect.offset.y, Rect.offset.x + Rect.extent.width, Rect.offset.y + Rect.extent.height);
+}
+
+FORCEINLINE XrRect2Di ToXrRect(FIntRect Rect)
+{
+	return XrRect2Di{ { Rect.Min.X, Rect.Min.Y }, { Rect.Width(), Rect.Height() } };
+}
+
+FORCEINLINE XrExtent2Df ToXrExtent2D(FVector2D Vector, float Scale = 1.0f)
+{
+	if (Vector.IsZero())
+		return XrExtent2Df{ 0.0f, 0.0f };
+
+	return XrExtent2Df{ Vector.X / Scale, Vector.Y / Scale };
+}
+
 /** List all OpenXR global entry points used by Unreal. */
 #define ENUM_XR_ENTRYPOINTS_GLOBAL(EnumMacro) \
 	EnumMacro(PFN_xrEnumerateApiLayerProperties,xrEnumerateApiLayerProperties) \

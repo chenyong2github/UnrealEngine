@@ -6,7 +6,6 @@
 #include "Modules/ModuleManager.h"
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
-#include "Misc/ConfigCacheIni.h"
 #include "ISequencerModule.h"
 #include "ISettingsModule.h"
 #include "SequencerChannelInterface.h"
@@ -29,13 +28,11 @@
 #include "KismetPins/SGraphPinInteger.h"
 #include "KismetPins/SGraphPinVector.h"
 #include "KismetPins/SGraphPinVector2D.h"
-#include "KismetPins/SGraphPinObject.h"
 #include "KismetPins/SGraphPinColor.h"
 #include "KismetPins/SGraphPinBool.h"
 #include "Editor/GraphEditor/Private/KismetPins/SGraphPinEnum.h"
 #include "SNiagaraGraphPinNumeric.h"
 #include "SNiagaraGraphPinAdd.h"
-#include "NiagaraNodeConvert.h"
 #include "NiagaraNodeAssignment.h"
 #include "EdGraphSchema_Niagara.h"
 
@@ -43,7 +40,6 @@
 #include "TypeEditorUtilities/NiagaraIntegerTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraEnumTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraBoolTypeEditorUtilities.h"
-#include "TypeEditorUtilities/NiagaraFloatTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraVectorTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraColorTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraMatrixTypeEditorUtilities.h"
@@ -53,9 +49,7 @@
 #include "NiagaraEditorCommands.h"
 #include "PropertyEditorModule.h"
 #include "NiagaraSettings.h"
-#include "NiagaraModule.h"
 #include "NiagaraShaderModule.h"
-#include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceCurve.h"
 #include "NiagaraDataInterfaceVector2DCurve.h"
 #include "NiagaraDataInterfaceVectorCurve.h"
@@ -72,7 +66,6 @@
 #include "NiagaraTypes.h"
 #include "NiagaraSystemFactoryNew.h"
 #include "NiagaraSystemEditorData.h"
-#include "NiagaraEditorCommands.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraMessageManager.h"
 #include "NiagaraComponentBroker.h"
@@ -130,22 +123,14 @@
 #include "INiagaraEditorOnlyDataUtlities.h"
 
 #include "Editor.h"
-#include "Factories/Factory.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
-#include "Modules/ModuleManager.h"
-#include "Containers/ArrayView.h"
-#include "EditorReimportHandler.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "DeviceProfiles/DeviceProfile.h"
 #include "Containers/Ticker.h"
-#include "Framework/Docking/TabManager.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "NiagaraConstants.h"
 
 #include "ViewModels/Stack/NiagaraStackObjectIssueGenerator.h"
@@ -153,8 +138,6 @@
 #include "NiagaraEffectType.h"
 #include "SNiagaraSystemViewport.h"
 
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 #include "SNiagaraDebugger.h"
 
 #include "NiagaraPerfBaseline.h"
@@ -547,7 +530,7 @@ void DumpCompileIdDataForScript(UNiagaraScript* Script, int32 IndentLevel, FStri
 	FString Indent;
 	MakeIndent(IndentLevel, Indent);
 	Dump.Append(FString::Printf(TEXT("%sScript: %s\n"), *Indent, *Script->GetPathName()));
-	UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource());
+	UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetLatestSource());
 	TArray<UNiagaraNode*> Nodes;
 	ScriptSource->NodeGraph->GetNodesOfClass<UNiagaraNode>(Nodes);
 	for (UNiagaraNode* Node : Nodes)
@@ -907,8 +890,6 @@ void FNiagaraEditorModule::StartupModule()
 		FNiagaraDebugHUDSettingsData::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraDebugHUDSettingsDetailsCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomClassLayout(UNiagaraOutliner::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraOutlinerCustomization::MakeInstance));
-
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraOutlinerWorldData::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraOutlinerWorldDetailsCustomization::MakeInstance));
@@ -1075,9 +1056,9 @@ void FNiagaraEditorModule::StartupModule()
 		return GetCompilationResult(JobID, bWait);
 	}));
 
-	PrecompilerHandle = NiagaraModule.RegisterPrecompiler(INiagaraModule::FOnPrecompile::CreateLambda([this](UObject* InObj)
+	PrecompilerHandle = NiagaraModule.RegisterPrecompiler(INiagaraModule::FOnPrecompile::CreateLambda([this](UObject* InObj, FGuid Version)
 	{
-		return Precompile(InObj);
+		return Precompile(InObj, Version);
 	}));
 
 	TestCompileScriptCommand = IConsoleManager::Get().RegisterConsoleCommand(
@@ -1418,7 +1399,7 @@ const TArray<FNiagaraScriptHighlight>& FNiagaraEditorModule::GetCachedScriptAsse
 			if (ScriptAsset.IsAssetLoaded())
 			{
 				UNiagaraScript* Script = CastChecked<UNiagaraScript>(ScriptAsset.GetAsset());
-				for (const FNiagaraScriptHighlight& Highlight : Script->Highlights)
+				for (const FNiagaraScriptHighlight& Highlight : Script->GetLatestScriptData()->Highlights)
 				{
 					if (Highlight.IsValid())
 					{
@@ -1429,7 +1410,7 @@ const TArray<FNiagaraScriptHighlight>& FNiagaraEditorModule::GetCachedScriptAsse
 			else
 			{
 				FString HighlightsString;
-				if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Highlights), HighlightsString))
+				if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Highlights), HighlightsString))
 				{
 					TArray<FNiagaraScriptHighlight> Highlights;
 					FNiagaraScriptHighlight::JsonToArray(HighlightsString, Highlights);
@@ -1457,7 +1438,7 @@ void FNiagaraEditorModule::GetScriptAssetsMatchingHighlight(const FNiagaraScript
 		if (ScriptAsset.IsAssetLoaded())
 		{
 			UNiagaraScript* Script = CastChecked<UNiagaraScript>(ScriptAsset.GetAsset());
-			for (const FNiagaraScriptHighlight& Highlight : Script->Highlights)
+			for (const FNiagaraScriptHighlight& Highlight : Script->GetLatestScriptData()->Highlights)
 			{
 				if (Highlight == InHighlight)
 				{
@@ -1469,7 +1450,7 @@ void FNiagaraEditorModule::GetScriptAssetsMatchingHighlight(const FNiagaraScript
 		else
 		{
 			FString HighlightsString;
-			if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Highlights), HighlightsString))
+			if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Highlights), HighlightsString))
 			{
 				TArray<FNiagaraScriptHighlight> Highlights;
 				FNiagaraScriptHighlight::JsonToArray(HighlightsString, Highlights);

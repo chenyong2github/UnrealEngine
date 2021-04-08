@@ -408,7 +408,7 @@ public:
 	
 	void SetNonFrequentData(const FParticleNonFrequentData& InData)
 	{
-		SetSharedGeometry(InData.Geometry());
+		SetSharedGeometry(InData.SharedGeometryLowLevel());
 		SetUniqueIdx(InData.UniqueIdx());
 		SetSpatialIdx(InData.SpatialIdx());
 
@@ -431,9 +431,9 @@ public:
 	void SetGeometry(TSerializablePtr<FImplicitObject> InGeometry) { GeometryParticles->SetGeometry(ParticleIdx, InGeometry); }
 
 	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> SharedGeometry() const { return GeometryParticles->SharedGeometry(ParticleIdx); }
-	void SetSharedGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> InGeometry) { GeometryParticles->SetSharedGeometry(ParticleIdx, InGeometry); }
+	void SetSharedGeometry(TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe> InGeometry) { GeometryParticles->SetSharedGeometry(ParticleIdx, InGeometry); }
 
-	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> SharedGeometryLowLevel() const { return GeometryParticles->SharedGeometry(ParticleIdx); }
+	const TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return GeometryParticles->SharedGeometry(ParticleIdx); }
 
 	const TUniquePtr<FImplicitObject>& DynamicGeometry() const { return GeometryParticles->DynamicGeometry(ParticleIdx); }
 	void SetDynamicGeometry(TUniquePtr<FImplicitObject>&& Unique) { GeometryParticles->SetDynamicGeometry(ParticleIdx, MoveTemp(Unique)); }
@@ -874,7 +874,7 @@ public:
 	void SetToBeRemovedOnFracture(const bool bToBeRemovedOnFracture) { PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx) = bToBeRemovedOnFracture; }
 
 	EObjectStateType ObjectState() const { return PBDRigidParticles->ObjectState(ParticleIdx); }
-	void SetObjectState(EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = false) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
+
 	void SetObjectStateLowLevel(EObjectStateType InState) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
 	
 	bool Sleeping() const { return PBDRigidParticles->Sleeping(ParticleIdx); }
@@ -1656,7 +1656,7 @@ public:
 
 	virtual bool IsParticleValid() const
 	{
-		auto& Geometry = MNonFrequentData.Read().Geometry();
+		auto Geometry = MNonFrequentData.Read().Geometry();
 		return Geometry && Geometry->IsValidGeometry();	//todo: if we want support for sample particles without geometry we need to adjust this
 	}
 
@@ -1709,7 +1709,7 @@ public:
 
 	void RemoveShape(FPerShapeData* InShape, bool bWakeTouching);
 
-	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MNonFrequentData.Read().Geometry(); }
+	TSharedPtr<const FImplicitObject,ESPMode::ThreadSafe> SharedGeometryLowLevel() const { return MNonFrequentData.Read().SharedGeometryLowLevel(); }
 
 	void* UserData() const { return MUserData; }
 	void SetUserData(void* InUserData)
@@ -1724,8 +1724,8 @@ public:
 
 	void UpdateShapeBounds(const FTransform& Transform)
 	{
-		const TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& GeomShared = MNonFrequentData.Read().Geometry();
-		if (GeomShared.IsValid() && GeomShared->HasBoundingBox())
+		auto GeomShared = MNonFrequentData.Read().Geometry();
+		if (GeomShared && GeomShared->HasBoundingBox())
 		{
 			for (auto& Shape : MShapesArray)
 			{
@@ -1800,9 +1800,9 @@ public:
 	void SetIgnoreAnalyticCollisionsImp(FImplicitObject* Implicit, bool bIgnoreAnalyticCollisions);
 	void SetIgnoreAnalyticCollisions(bool bIgnoreAnalyticCollisions)
 	{
-		if (MNonFrequentData.Read().Geometry())
+		if (FImplicitObject* Implicit = MNonFrequentData.Read().AccessGeometryDangerous())
 		{
-			SetIgnoreAnalyticCollisionsImp(MNonFrequentData.Read().Geometry().Get(), bIgnoreAnalyticCollisions);
+			SetIgnoreAnalyticCollisionsImp(Implicit, bIgnoreAnalyticCollisions);
 		}
 	}
 
@@ -1945,9 +1945,9 @@ public:
 	//friend class FGeometryCollectionPhysicsProxy;
 	// This is only for use by ParticleData. This should be called only in one place,
 	// when the geometry is being copied from GT to PT.
-	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> GeometrySharedLowLevel() const
+	const TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe>& GeometrySharedLowLevel() const
 	{
-		return MNonFrequentData.Read().Geometry();
+		return MNonFrequentData.Read().SharedGeometryLowLevel();
 	}
 private:
 
@@ -2170,19 +2170,11 @@ public:
 	const TVector<T, d>& F() const { return MDynamics.Read().F(); }
 	void AddForce(const TVector<T, d>& InF, bool bInvalidate = true)
 	{
-		if (bInvalidate)
-		{
-			SetObjectState(EObjectStateType::Dynamic, true);
-		}
 		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InF](auto& Data){ Data.SetF(InF + Data.F());});
 	}
 
 	void ClearForces(bool bInvalidate = true)
 	{
-		if (bInvalidate)
-		{
-			SetObjectState(EObjectStateType::Dynamic, true);
-		}
 		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetF(FVec3(0)); });
 	}
 
@@ -2201,39 +2193,23 @@ public:
 	const TVector<T, d>& Torque() const { return MDynamics.Read().Torque(); }
 	void AddTorque(const TVector<T, d>& InTorque, bool bInvalidate=true)
 	{
-		if (bInvalidate)
-		{
-			SetObjectState(EObjectStateType::Dynamic, true);
-		}
 		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InTorque](auto& Data){ Data.SetTorque(InTorque + Data.Torque());});
 	}
 
 	void ClearTorques(bool bInvalidate = true)
 	{
-		if (bInvalidate)
-		{
-			SetObjectState(EObjectStateType::Dynamic, true);
-		}
 		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetTorque(FVec3(0)); });
 	}
 
 	const TVector<T, d>& LinearImpulse() const { return MDynamics.Read().LinearImpulse(); }
 	void SetLinearImpulse(const TVector<T, d>& InLinearImpulse, bool bInvalidate = true)
 	{
-		if (bInvalidate)
-		{
-			SetObjectState(EObjectStateType::Dynamic, true);
-		}
 		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InLinearImpulse](auto& Data){ Data.SetLinearImpulse(InLinearImpulse);});
 	}
 
 	const TVector<T, d>& AngularImpulse() const { return MDynamics.Read().AngularImpulse(); }
 	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse, bool bInvalidate = true)
 	{
-		if (bInvalidate)
-		{
-			SetObjectState(EObjectStateType::Dynamic, true);
-		}
 		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InAngularImpulse](auto& Data){ Data.SetAngularImpulse(InAngularImpulse);});
 	}
 
@@ -2469,28 +2445,12 @@ const TPBDRigidParticle<T, d>* TGeometryParticle<T, d>::CastToRigidParticle()  c
 template <typename T, int d>
 void TGeometryParticle<T, d>::SetX(const TVector<T, d>& InX, bool bInvalidate)
 {
-	if (bInvalidate)
-	{
-		TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
-		if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping)
-		{
-			Dyn->SetObjectState(EObjectStateType::Dynamic, true);
-		}
-	}
 	MXR.Modify(bInvalidate, MDirtyFlags, Proxy, [&InX](auto& Data) { Data.SetX(InX); });
 }
 
 template <typename T, int d>
 void TGeometryParticle<T, d>::SetR(const TRotation<T, d>& InR, bool bInvalidate)
 {
-	if (bInvalidate)
-	{
-		TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
-		if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping)
-		{
-			Dyn->SetObjectState(EObjectStateType::Dynamic, true);
-		}
-	}
 	MXR.Modify(bInvalidate, MDirtyFlags, Proxy, [&InR](auto& Data) { Data.SetR(InR); });
 }
 
@@ -2511,28 +2471,12 @@ EObjectStateType TKinematicGeometryParticle<T, d>::ObjectState() const
 template <typename T, int d>
 void TKinematicGeometryParticle<T, d>::SetV(const TVector<T, d>& InV, bool bInvalidate)
 {
-	if (bInvalidate)
-	{
-		TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
-		if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping && !InV.IsNearlyZero())
-		{
-			Dyn->SetObjectState(EObjectStateType::Dynamic, true);
-		}
-	}
 	MVelocities.Modify(bInvalidate, MDirtyFlags, Proxy, [&InV](auto& Data) { Data.SetV(InV); });
 }
 
 template <typename T, int d>
 void TKinematicGeometryParticle<T, d>::SetW(const TVector<T, d>& InW, bool bInvalidate)
 {
-	if (bInvalidate)
-	{
-		TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
-		if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping && !InW.IsNearlyZero())
-		{
-			Dyn->SetObjectState(EObjectStateType::Dynamic, true);
-		}
-	}
 	MVelocities.Modify(bInvalidate, MDirtyFlags, Proxy, [&InW](auto& Data) { Data.SetW(InW); });
 }
 
@@ -2661,6 +2605,14 @@ FORCEINLINE_DEBUGGABLE void FAccelerationStructureHandle::DebugDraw(const bool b
 	}
 }
 #endif
+
+inline void SetObjectStateHelper(IPhysicsProxyBase& Proxy, FPBDRigidParticle& Rigid, EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true)
+{
+	Rigid.SetObjectState(InState, bAllowEvents, bInvalidate);
+}
+
+CHAOS_API void SetObjectStateHelper(IPhysicsProxyBase& Proxy, FPBDRigidParticleHandle& Rigid, EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true);
+
 
 #if PLATFORM_MAC || PLATFORM_LINUX
 extern template class CHAOS_API TGeometryParticle<FReal, 3>;

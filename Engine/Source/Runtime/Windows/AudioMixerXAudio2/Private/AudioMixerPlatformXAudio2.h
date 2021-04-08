@@ -68,12 +68,14 @@ namespace Audio
 		virtual bool IsInitialized() const override;
 		virtual bool GetNumOutputDevices(uint32& OutNumOutputDevices) override;
 		virtual bool GetOutputDeviceInfo(const uint32 InDeviceIndex, FAudioPlatformDeviceInfo& OutInfo) override;
+		virtual FString GetCurrentDeviceName() const override;
 		virtual bool GetDefaultOutputDeviceIndex(uint32& OutDefaultDeviceIndex) const override;
 		virtual bool OpenAudioStream(const FAudioMixerOpenStreamParams& Params) override;
 		virtual bool CloseAudioStream() override;
 		virtual bool StartAudioStream() override;
 		virtual bool StopAudioStream() override;
 		virtual bool MoveAudioStreamToNewAudioDevice(const FString& InNewDeviceId) override;
+		virtual bool RequestDeviceSwap(const FString& DeviceID) override;
 		virtual void ResumePlaybackOnNewDevice() override;
 		virtual FAudioPlatformDeviceInfo GetPlatformDeviceInfo() const override;
 		virtual void SubmitBuffer(const uint8* Buffer) override;
@@ -142,6 +144,5 @@ namespace Audio
 		uint32 bIsDeviceOpen : 1;
 		uint32 bIsSuspended : 1;
 	};
-
 }
 

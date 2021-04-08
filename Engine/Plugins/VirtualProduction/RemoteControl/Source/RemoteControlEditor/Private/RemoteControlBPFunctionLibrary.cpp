@@ -31,10 +31,7 @@ void URemoteControlBPFunctionLibrary::ExposeProperty(URemoteControlPreset* Remot
 		{
 			if (TSharedPtr<FRemoteControlProperty> ExposedProperty = WeakProperty.Pin())
 			{
-				const bool bContainsProperty = ExposedProperty->Bindings.ContainsByPredicate([SourceObject](const TWeakObjectPtr<URemoteControlBinding>& Binding){ return Binding.IsValid() && Binding->IsBound(SourceObject); });
-					
-				if (ExposedProperty->FieldName == *Property
-					&& bContainsProperty) 
+				if (*Property == ExposedProperty->FieldName && ExposedProperty->GetBoundObjects().Contains(SourceObject)) 
 				{
 					bAlreadyExposed = true;
 					break;
@@ -73,9 +70,7 @@ void URemoteControlBPFunctionLibrary::ExposeFunction(URemoteControlPreset* Remot
 		{
 			if (TSharedPtr<FRemoteControlFunction> ExposedFunction = WeakFunction.Pin())
 			{
-				const bool bContainsFunction = ExposedFunction->Bindings.ContainsByPredicate([SourceObject](const TWeakObjectPtr<const URemoteControlBinding>& Binding){ return Binding.IsValid() && Binding->IsBound(SourceObject); });
-				if (ExposedFunction->FieldName == *Function
-                    && bContainsFunction) 
+				if (*Function == ExposedFunction->FieldName && ExposedFunction->GetBoundObjects().Contains(SourceObject)) 
 				{
 					bAlreadyExposed = true;
 					break;

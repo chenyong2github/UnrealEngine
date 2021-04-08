@@ -374,6 +374,11 @@ void FColorVertexBuffer::InitFromColorArray( const FColor *InColors, const uint3
 	Data = VertexData->GetDataPointer();
 }
 
+bool FColorVertexBuffer::GetAllowCPUAccess() const
+{
+	return VertexData ? VertexData->GetAllowCPUAccess() : false;
+}
+
 uint32 FColorVertexBuffer::GetAllocatedSize() const
 {
 	if(VertexData)

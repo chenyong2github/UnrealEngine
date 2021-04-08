@@ -469,7 +469,7 @@ public:
 
 	ENGINE_API int GetTexCoordSize();
 
-	FORCEINLINE_DEBUGGABLE bool GetAllowCPUAccess()
+	FORCEINLINE_DEBUGGABLE bool GetAllowCPUAccess() const
 	{
 		if (!TangentsData || !TexcoordData)
 			return false;

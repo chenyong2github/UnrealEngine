@@ -1190,6 +1190,7 @@ void FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(UEdGraphPin& O
 	FGraphNodeCreator<UNiagaraNodeFunctionCall> FunctionCallNodeCreator(*Graph);
 	UNiagaraNodeFunctionCall* FunctionCallNode = FunctionCallNodeCreator.CreateNode();
 	FunctionCallNode->FunctionScript = DynamicInput;
+	FunctionCallNode->SelectedScriptVersion = DynamicInput && DynamicInput->IsVersioningEnabled() ? DynamicInput->GetExposedVersion().VersionGuid : FGuid();
 	FunctionCallNodeCreator.Finalize();
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
@@ -1453,6 +1454,7 @@ UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(UN
 	FGraphNodeCreator<UNiagaraNodeFunctionCall> ModuleNodeCreator(*Graph);
 	UNiagaraNodeFunctionCall* NewModuleNode = ModuleNodeCreator.CreateNode();
 	NewModuleNode->FunctionScript = ModuleScript;
+	NewModuleNode->SelectedScriptVersion = ModuleScript && ModuleScript->IsVersioningEnabled() ? ModuleScript->GetExposedVersion().VersionGuid : FGuid();
 	ModuleNodeCreator.Finalize();
 
 	if (NewModuleNode->FunctionScript == nullptr)
@@ -1677,7 +1679,7 @@ FNiagaraVariable FNiagaraStackGraphUtilities::CreateRapidIterationParameter(cons
 
 void FNiagaraStackGraphUtilities::CleanUpStaleRapidIterationParameters(UNiagaraScript& Script, UNiagaraEmitter& OwningEmitter)
 {
-	UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(Script.GetSource());
+	UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(Script.GetLatestSource());
 	UNiagaraNodeOutput* OutputNode = Source->NodeGraph->FindOutputNode(Script.GetUsage(), Script.GetUsageId());
 	if (OutputNode != nullptr)
 	{
@@ -1755,17 +1757,6 @@ void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraT
 	}
 }
 
-bool DoesScriptAssetSupportUsage(const FAssetData& ScriptAsset, ENiagaraScriptUsage Usage)
-{
-	int32 ScriptUsageBitmask;
-	if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask), ScriptUsageBitmask))
-	{
-		TArray<ENiagaraScriptUsage> SupportedUsages = UNiagaraScript::GetSupportedUsageContextsForBitmask(ScriptUsageBitmask);
-		return SupportedUsages.Contains(Usage);
-	}
-	return false;
-}
-
 void FNiagaraStackGraphUtilities::GetModuleScriptAssetsByDependencyProvided(FName DependencyName, TOptional<ENiagaraScriptUsage> RequiredUsage, TArray<FAssetData>& OutAssets)
 {
 	FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions ScriptFilterOptions;
@@ -1779,7 +1770,7 @@ void FNiagaraStackGraphUtilities::GetModuleScriptAssetsByDependencyProvided(FNam
 	for (const FAssetData& ModuleAsset : ModuleAssets)
 	{
 		FString ProvidedDependenciesString;
-		if (ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ProvidedDependencies), ProvidedDependenciesString) && ProvidedDependenciesString.IsEmpty() == false)
+		if (ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, ProvidedDependencies), ProvidedDependenciesString) && ProvidedDependenciesString.IsEmpty() == false)
 		{
 			TArray<FString> DependencyStrings;
 			ProvidedDependenciesString.ParseIntoArray(DependencyStrings, TEXT(","));
@@ -2558,7 +2549,7 @@ bool FNiagaraStackGraphUtilities::ParameterAllowedInExecutionCategory(const FNam
 
 void FNiagaraStackGraphUtilities::RebuildEmitterNodes(UNiagaraSystem& System)
 {
-	UNiagaraScriptSource* SystemScriptSource = Cast<UNiagaraScriptSource>(System.GetSystemSpawnScript()->GetSource());
+	UNiagaraScriptSource* SystemScriptSource = Cast<UNiagaraScriptSource>(System.GetSystemSpawnScript()->GetLatestSource());
 	UNiagaraGraph* SystemGraph = SystemScriptSource->NodeGraph;
 	if (SystemGraph == nullptr)
 	{
@@ -2838,7 +2829,7 @@ void FNiagaraStackGraphUtilities::RenameReferencingParameters(UNiagaraSystem* Sy
 			}
 		}
 
-		if (UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource()))
+		if (UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetLatestSource()))
 		{
 			// rename all parameter map get nodes that use the parameter name
 			TArray<UNiagaraNodeParameterMapGet*> ParameterGetNodes;

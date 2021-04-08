@@ -8,6 +8,7 @@
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 #include "Camera/CameraTypes.h"
+#include "UObject/ScriptInterface.h"
 #include "PlayerCameraManager.generated.h"
 
 class AEmitterCameraLensEffectBase;
@@ -16,6 +17,7 @@ class FDebugDisplayInfo;
 class UCameraModifier;
 class UCameraShakeBase;
 class UCameraShakeSourceComponent;
+class ICameraLensEffectInterface;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAudioFadeChangeSignature, bool, bFadeOut, float, FadeTime);
 
@@ -341,7 +343,7 @@ protected:
 	// "Lens" effects (e.g. blood, dirt on camera)
 	/** CameraBlood emitter attached to this camera */
 	UPROPERTY(transient)
-	TArray<TObjectPtr<class AEmitterCameraLensEffectBase>> CameraLensEffects;
+	TArray<TScriptInterface<class ICameraLensEffectInterface>> CameraLensEffects;
 
 	/////////////////////
 	// Camera Modifiers
@@ -751,7 +753,7 @@ public:
 	//
 	
 	/** Returns first instance of a lens effect of the given class. */
-	virtual class AEmitterCameraLensEffectBase* FindCameraLensEffect(TSubclassOf<class AEmitterCameraLensEffectBase> LensEffectEmitterClass);
+	virtual TScriptInterface<class ICameraLensEffectInterface> FindGenericCameraLensEffect(UPARAM(meta=(MustImplement = "CameraLensEffectInterface")) TSubclassOf<AActor> LensEffectEmitterClass);
 	
 	/** 
 	 * Creates a camera lens effect of the given class on this camera. 
@@ -759,18 +761,31 @@ public:
 	 * @return Returns the new emitter actor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera")
-	virtual AEmitterCameraLensEffectBase* AddCameraLensEffect(TSubclassOf<class AEmitterCameraLensEffectBase> LensEffectEmitterClass);
+	virtual TScriptInterface<class ICameraLensEffectInterface> AddGenericCameraLensEffect(UPARAM(meta=(MustImplement = "CameraLensEffectInterface")) TSubclassOf<AActor> LensEffectEmitterClass);
 	
 	/** 
 	 * Removes the given lens effect from the camera. 
 	 * @param Emitter - the emitter actor to remove from the camera
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera")
-	virtual void RemoveCameraLensEffect(class AEmitterCameraLensEffectBase* Emitter);
+	virtual void RemoveGenericCameraLensEffect(TScriptInterface<class ICameraLensEffectInterface> Emitter);
 	
 	/** Removes all camera lens effects. */
 	UFUNCTION(BlueprintCallable, Category = "Camera")
 	virtual void ClearCameraLensEffects();
+
+	//
+	// Legacy Camera Lens Effect Functions
+	//
+
+	UE_DEPRECATED(5.0, "APlayerCameraManager::FindGenericCameraLensEffect is favored now, and this function forwards to that one.")
+	virtual AEmitterCameraLensEffectBase* FindCameraLensEffect(TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass);
+
+	UFUNCTION(meta = (DeprecatedFunction, DeprecationMessage = "APlayerCameraManager::AddGenericCameraLensEffect is favored now, and this function forwards to that one."))
+	virtual AEmitterCameraLensEffectBase* AddCameraLensEffect(TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass);
+
+	UFUNCTION(meta = (DeprecatedFunction, DeprecationMessage = "APlayerCameraManager::RemoveGenericCameraLensEffect is favored now, and this function forwards to that one."))
+	virtual void RemoveCameraLensEffect(AEmitterCameraLensEffectBase* Emitter);
 
 	//
 	// Camera Shakes.

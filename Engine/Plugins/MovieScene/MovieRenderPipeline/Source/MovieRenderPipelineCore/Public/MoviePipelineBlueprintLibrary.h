@@ -10,6 +10,7 @@
 // Forward Declare
 class UMoviePipeline;
 class UMovieSceneSequence;
+class UMoviePipelineSetting;
 
 UCLASS(meta = (ScriptName = "MoviePipelineLibrary"))
 class MOVIERENDERPIPELINECORE_API UMoviePipelineBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -35,6 +36,19 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	static UMovieSceneSequence* DuplicateSequence(UObject* Outer, UMovieSceneSequence* InSequence);
+
+	/**
+	* Resolves the provided InFormatString by converting {format_strings} into settings provided by the master config.
+	* @param	InFormatString		A format string (in the form of "{format_key1}_{format_key2}") to resolve.
+	* @param	InParams			The parameters to resolve the format string with. See FMoviePipelineFilenameResolveParams properties for details. 
+	*								Expected that you fill out all of the parameters so that they can be used to resolve strings, otherwise default
+	*								values may be used.
+	* @param	OutFinalPath		The final filepath based on a combination of the format string and the Resolve Params.
+	* @return	OutMergedFormatArgs	A merged set of Key/Value pairs for both Filename Arguments and Metadata that merges all the sources.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static void ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFilenameResolveParams& InParams, FString& OutFinalPath, FMoviePipelineFormatArgs& OutMergedFormatArgs);
+
 
 	/**
 	* Get the estimated amount of time remaining for the current pipeline. Based on looking at the total
@@ -113,9 +127,18 @@ public:
 
 	/** Scan the provided sequence in the job to see which camera cut sections we would try to render and update the job's shotlist. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	static void UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob);
+	static void UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob, bool& bShotsChanged);
 	
-	/** If version number is manually specifies, returns that, otherwise search the Output Directory for the highest version already existing an increments it by one. */
+	/**  If version number is manually specified by the Job, returns that. Otherwise search the Output Directory for the highest version already existing an increments it by one. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	static int32 ResolveVersionNumber(const UMoviePipeline* InMoviePipeline);
+	static int32 ResolveVersionNumber(FMoviePipelineFilenameResolveParams InParams);
+
+	/** In case of Overscan percentage being higher than 0 we render additional pixels. This function returns the resolution with overscan taken into account. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static FIntPoint GetEffectiveOutputResolution(UMoviePipelineMasterConfig* InMasterConfig, UMoviePipelineExecutorShot* InPipelineExecutorShot);
+
+	/** Allows access to a setting of provided type for specific shot. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static UMoviePipelineSetting* FindOrGetDefaultSettingForShot(TSubclassOf<UMoviePipelineSetting> InSettingType, const UMoviePipelineMasterConfig* InMasterConfig, const UMoviePipelineExecutorShot* InShot);
+
 };

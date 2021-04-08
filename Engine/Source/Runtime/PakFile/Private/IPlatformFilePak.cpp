@@ -6085,7 +6085,7 @@ bool FPakFile::EncodePakEntry(FArchive& Ar, const FPakEntry& InPakEntry, const F
 	bool bIsSize32BitSafe = PakEntry.Size <= MAX_uint32;
 	bool bIsUncompressedSize32BitSafe = PakEntry.UncompressedSize <= MAX_uint32;
 	
-	// compression block size is sent in the flags field for backwards compatibility (eg. when it is 64k)
+	// compression block size is sent in the flags field when it is 64k
 	// if not the maximum value of the packed field is sent as a flag (0x3F)
 	uint32 CompressionBlockSizePacked = (PakEntry.CompressionBlockSize >> 11) & 0x3F;
 	if ( (CompressionBlockSizePacked<<11) != PakEntry.CompressionBlockSize )
@@ -6252,7 +6252,7 @@ void FPakFile::DecodePakEntry(const uint8* SourcePtr, FPakEntry& OutEntry, const
 	uint32 CompressionBlocksCount = (Value >> 6) & 0xffff;
 	OutEntry.CompressionBlocks.Empty(CompressionBlocksCount);
 	OutEntry.CompressionBlocks.SetNum(CompressionBlocksCount);
-
+	
 	// Set CompressionBlockSize with conditional clamping
 	// this is probably not necessary but maintains past behavior
 	OutEntry.CompressionBlockSize = 0;

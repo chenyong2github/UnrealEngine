@@ -412,9 +412,23 @@ void FControlRigMathLibrary::SolveBasicTwoBoneIK(FTransform& BoneA, FTransform& 
 	FVector Axis = BoneA.TransformVectorNoScale(PrimaryAxis);
 	FVector Target1 = BoneB.GetLocation() - BoneA.GetLocation();
 
+	FVector BoneBLocation = BoneB.GetLocation();
 	if (!Target1.IsNearlyZero() && !Axis.IsNearlyZero())
 	{
 		Target1 = Target1.GetSafeNormal();
+
+		// If the elbow is placed in the segment between the root and the effector (the limb is completely extended)
+		// offset the elbow towards the pole vector in order to compute the rotations
+		{
+			FVector BaseDirection = (EffectorPos - RootPos).GetSafeNormal();
+			if (FMath::Abs(FVector::DotProduct(BaseDirection, Target1) - 1.0f) < KINDA_SMALL_NUMBER)
+			{
+				// Offset the bone location to use when calculating the rotations
+				BoneBLocation += (PoleVector - BoneBLocation).GetSafeNormal() * KINDA_SMALL_NUMBER*2.f;
+				Target1 = (BoneBLocation - BoneA.GetLocation()).GetSafeNormal();
+			}
+		}
+		
 		FQuat Rotation1 = FQuat::FindBetweenNormals(Axis, Target1);
 		BoneA.SetRotation((Rotation1 * BoneA.GetRotation()).GetNormalized());
 

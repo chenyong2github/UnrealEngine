@@ -1103,6 +1103,7 @@ namespace InstallBundleUtil
 
 		void FPersistentStatContainerBase::OnApp_EnteringBackground()
 		{
+			SCOPED_ENTER_BACKGROUND_EVENT(STAT_InstallBundle_OnApp_EnteringBackground);
 			OnBackground_HandleBundleStats();
 			OnBackground_HandleSessionStats();
 		}

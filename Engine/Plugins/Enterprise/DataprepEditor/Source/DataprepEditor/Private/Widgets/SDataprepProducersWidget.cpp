@@ -281,7 +281,7 @@ void SDataprepProducersWidget::Construct( const FArguments & InArgs, UDataprepAs
 				}))
 				.IsEnabled_Lambda([this]() 
 				{ 
-					if (DataprepImportProducersDelegate.IsBound() && DataprepImportProducersEnabledDelegate.IsBound())
+					if (AssetProducersPtr->GetProducersCount() > 0 && DataprepImportProducersDelegate.IsBound() && DataprepImportProducersEnabledDelegate.IsBound())
 					{
 						return DataprepImportProducersEnabledDelegate.IsBound();
 					}

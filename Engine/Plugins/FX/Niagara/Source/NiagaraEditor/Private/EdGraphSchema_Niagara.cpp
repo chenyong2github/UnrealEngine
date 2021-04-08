@@ -1,55 +1,48 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraphSchema_Niagara.h"
-#include "NiagaraEditorModule.h"
-#include "INiagaraEditorTypeUtilities.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ToolMenus.h"
-#include "ObjectEditorUtils.h"
-#include "NiagaraCommon.h"
-#include "NiagaraEditorCommon.h"
-#include "INiagaraCompiler.h"
-#include "NiagaraHlslTranslator.h"
-#include "NiagaraComponent.h"
-#include "ScopedTransaction.h"
-#include "NiagaraGraph.h"
+
+#include "AssetRegistryModule.h"
+#include "EdGraphNode_Comment.h"
 #include "GraphEditorSettings.h"
-#include "GraphEditorActions.h"
+#include "INiagaraEditorTypeUtilities.h"
+#include "NiagaraCommon.h"
+#include "NiagaraComponent.h"
 #include "NiagaraConstants.h"
-#include "NiagaraFunctionLibrary.h"
-#include "NiagaraScript.h"
-#include "NiagaraNodeOutput.h"
-#include "NiagaraNodeInput.h"
+#include "NiagaraDataInterface.h"
+#include "NiagaraEditorCommon.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEditorUtilities.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraGraph.h"
+#include "NiagaraHlslTranslator.h"
+#include "NiagaraNodeConvert.h"
+#include "NiagaraNodeCustomHlsl.h"
+#include "NiagaraNodeEmitter.h"
 #include "NiagaraNodeFunctionCall.h"
-#include "NiagaraNodeReadDataSet.h"
-#include "NiagaraNodeWriteDataSet.h"
+#include "NiagaraNodeInput.h"
+#include "NiagaraNodeOp.h"
+#include "NiagaraNodeOutput.h"
+#include "NiagaraNodeOutputTag.h"
+#include "NiagaraNodeParameterMapFor.h"
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
-#include "NiagaraNodeParameterMapFor.h"
-#include "NiagaraNodeCustomHlsl.h"
-#include "NiagaraNodeOp.h"
-#include "NiagaraNodeConvert.h"
-#include "NiagaraNodeOutputTag.h"
-#include "NiagaraEditorUtilities.h"
-#include "NiagaraDataInterface.h"
-#include "NiagaraNodeIf.h"
-#include "Misc/MessageDialog.h"
-#include "NiagaraScriptSource.h"
-#include "NiagaraEmitter.h"
-#include "NiagaraNodeEmitter.h"
-#include "NiagaraParameterCollection.h"
+#include "NiagaraNodeReadDataSet.h"
 #include "NiagaraNodeReroute.h"
-#include "NiagaraNodeUsageSelector.h"
-#include "Classes/EditorStyleSettings.h"
-#include "EdGraphNode_Comment.h"
-
-#include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
-#include "NiagaraNodeSimTargetSelector.h"
-#include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraNodeSelect.h"
+#include "NiagaraNodeStaticSwitch.h"
+#include "NiagaraNodeWriteDataSet.h"
+#include "NiagaraParameterCollection.h"
+#include "NiagaraScript.h"
+#include "NiagaraScriptSource.h"
+#include "ObjectEditorUtils.h"
+#include "ScopedTransaction.h"
+#include "ToolMenus.h"
+#include "Classes/EditorStyleSettings.h"
+#include "Framework/Commands/UIAction.h"
+#include "Misc/MessageDialog.h"
+#include "Modules/ModuleManager.h"
+#include "Textures/SlateIcon.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSchema"
 
@@ -266,11 +259,11 @@ const UNiagaraGraph* GetAlternateGraph(const UNiagaraGraph* NiagaraGraph)
 			{
 				if (EmitterProperties->SpawnScriptProps.Script == Script)
 				{
-					return CastChecked<UNiagaraScriptSource>(EmitterProperties->UpdateScriptProps.Script->GetSource())->NodeGraph;
+					return CastChecked<UNiagaraScriptSource>(EmitterProperties->UpdateScriptProps.Script->GetLatestSource())->NodeGraph;
 				}
 				else if (EmitterProperties->UpdateScriptProps.Script == Script)
 				{
-					return CastChecked<UNiagaraScriptSource>(EmitterProperties->SpawnScriptProps.Script->GetSource())->NodeGraph;
+					return CastChecked<UNiagaraScriptSource>(EmitterProperties->SpawnScriptProps.Script->GetLatestSource())->NodeGraph;
 				}
 			}
 		}
@@ -402,10 +395,10 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 	auto AddScriptFunctionAction = [&NewActions, OwnerOfTemporaries](const FText& Category, const FAssetData& ScriptAsset)
 	{
 		FText AssetDesc;
-		ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Description), AssetDesc);
+		ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Description), AssetDesc);
 
 		FText Keywords;
-		ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Keywords), Keywords);
+		ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Keywords), Keywords);
 
 		bool bIsInLibrary = FNiagaraEditorUtilities::IsScriptAssetInLibrary(ScriptAsset);
 		const FText MenuDesc = FNiagaraEditorUtilities::FormatScriptName(ScriptAsset.AssetName, bIsInLibrary);
@@ -910,6 +903,8 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		const FText UsageSelectorMenuDesc = LOCTEXT("NiagaraStaticSwitchMenuDesc", "Static Switch");
 		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, UtilMenuCat, UsageSelectorMenuDesc, TEXT("Static Switch"), FText::GetEmpty());
 		UNiagaraNodeStaticSwitch* Node = NewObject<UNiagaraNodeStaticSwitch>(OwnerOfTemporaries);
+		// new nodes should auto refresh
+		Node->SwitchTypeData.bAutoRefreshEnabled = true;
 		Action->NodeTemplate = Node;
 	}
 
@@ -1128,6 +1123,7 @@ void UEdGraphSchema_Niagara::DroppedAssetsOnGraph(const TArray<FAssetData>&Asset
 			FGraphNodeCreator<UNiagaraNodeStaticSwitch> SwitchNodeCreator(*Graph);
 			FString NewName = FString::Printf(TEXT("Switch on %s"), *Enum->GetName());
 			UNiagaraNodeStaticSwitch* SwitchNode = SwitchNodeCreator.CreateNode();
+			SwitchNode->NodePosX = GraphPosition.X;
 			SwitchNode->NodePosY = GraphPosition.Y + Offset * 50.f;
 			SwitchNode->InputParameterName = FName(NewName);
 			SwitchNode->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Enum;

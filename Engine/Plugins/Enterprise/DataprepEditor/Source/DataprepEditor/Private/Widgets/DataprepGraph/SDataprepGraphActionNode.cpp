@@ -256,8 +256,19 @@ public:
 		{
 			ParentTrackNodePtr.Pin()->OnDragLeave(DragDropEvent);
 
-			DragActionStepNodeOp->SetHoveredNode(ParentPtr.Pin()->GetNodeObj());
-			ParentPtr.Pin()->SetHoveredIndex( StepIndex );
+			if (UDataprepActionAsset* DataprepAction = ParentPtr.Pin()->GetDataprepAction())
+			{
+				if (DataprepAction->GetAppearance()->GroupId == INDEX_NONE)
+				{
+					DragActionStepNodeOp->SetHoveredNode(ParentPtr.Pin()->GetNodeObj());
+					ParentPtr.Pin()->SetHoveredIndex( StepIndex );
+				}
+				else
+				{
+					DragActionStepNodeOp->SetHoveredNode( nullptr );
+					ParentPtr.Pin()->SetHoveredIndex( INDEX_NONE );
+				}
+			}
 		}
 
 		SVerticalBox::OnDragEnter(MyGeometry, DragDropEvent);
@@ -268,8 +279,19 @@ public:
 		TSharedPtr<FDataprepDragDropOp> DragActionStepNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 		if(DragActionStepNodeOp.IsValid() && ParentPtr.IsValid())
 		{
-			DragActionStepNodeOp->SetHoveredNode(ParentPtr.Pin()->GetNodeObj());
-			ParentPtr.Pin()->SetHoveredIndex( StepIndex );
+			if (UDataprepActionAsset* DataprepAction = ParentPtr.Pin()->GetDataprepAction())
+			{
+				if (DataprepAction->GetAppearance()->GroupId == INDEX_NONE)
+				{
+					DragActionStepNodeOp->SetHoveredNode(ParentPtr.Pin()->GetNodeObj());
+					ParentPtr.Pin()->SetHoveredIndex( StepIndex );
+				}
+				else
+				{
+					DragActionStepNodeOp->SetHoveredNode( nullptr );
+					ParentPtr.Pin()->SetHoveredIndex( INDEX_NONE );
+				}
+			}
 
 			return FReply::Handled();
 		}

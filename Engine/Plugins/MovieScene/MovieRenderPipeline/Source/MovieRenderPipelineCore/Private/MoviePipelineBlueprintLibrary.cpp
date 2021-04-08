@@ -18,9 +18,12 @@
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "MovieSceneTimeHelpers.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineSetting.h"
 #include "MoviePipelineOutputSetting.h"
+#include "MoviePipelineCameraSetting.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
+#include "MoviePipelineUtils.h"
 
 // For camera settings
 #include "GameFramework/PlayerController.h"
@@ -401,6 +404,15 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 			if (!ExistingShot)
 			{
 				ExistingShot = NewObject<UMoviePipelineExecutorShot>(InJob);
+
+				if (InSection)
+				{
+					UE_LOG(LogMovieRenderPipeline, Log, TEXT("Generated new ShotInfo for Inner: %s Outer: %s (No existing shot found in the job)."), *CameraCutSection->GetPathName(), *InSection->GetPathName());
+				}
+			}
+			else if (InSection)
+			{
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Reusing existing ShotInfo for Inner: %s Outer: %s."), *CameraCutSection->GetPathName(), *InSection->GetPathName());
 			}
 
 			// It shouldn't be a duplicate but if it is then the rendering fails later so 
@@ -515,7 +527,7 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 	}
 }
 
-void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob)
+void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob, bool& bShotsChanged)
 {
 	if (!ensureMsgf(InSequence && InJob, TEXT("Cannot generate shot list for null sequence/job.")))
 	{
@@ -573,20 +585,24 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 		CreateExecutorShotsFromMovieScene(InSequence->GetMovieScene(), InSequence->GetMovieScene()->GetPlaybackRange(), FMovieSceneSequenceTransform(), InJob, nullptr, false, /*Out*/ NewShots);
 	}
 
-
 	// Now that we've read the job's shot mask we will clear it and replace it with only things still valid.
-	InJob->ShotInfo.Reset();
-	InJob->ShotInfo = NewShots;
+	if (InJob->ShotInfo != NewShots)
+	{
+		InJob->ShotInfo.Reset();
+		InJob->ShotInfo = NewShots;
+		bShotsChanged = true;
+	}
 }
 
-int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(const UMoviePipeline* InMoviePipeline)
+int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(FMoviePipelineFilenameResolveParams InParams)
 {
-	if (!InMoviePipeline)
+	if (!InParams.Job)
 	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot resolve Version Number without a Job to pull settings from."), ELogVerbosity::Error);
 		return -1;
 	}
 
-	UMoviePipelineOutputSetting* OutputSettings = InMoviePipeline->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSettings = InParams.Job->GetConfiguration()->FindSetting<UMoviePipelineOutputSetting>();
 	if (!OutputSettings->bAutoVersion)
 	{
 		return OutputSettings->VersionNumber;
@@ -597,10 +613,12 @@ int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(const UMoviePipeline*
 
 	FString FinalPath;
 	FMoviePipelineFormatArgs FinalFormatArgs;
-	FStringFormatNamedArguments Overrides;
-	Overrides.Add(TEXT("version"), TEXT("{version}")); // Force the Version string to stay as {version} so we can substring based on it later.
+	TMap<FString, FString> Overrides;
+	// Force the Version string to stay as {version} so we can substring based on it later.
+	InParams.FileNameFormatOverrides.Add(TEXT("version"), TEXT("{version}"));
+	
+	UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(FileNameFormatString, InParams, FinalPath, FinalFormatArgs);
 
-	InMoviePipeline->ResolveFilenameFormatArguments(FileNameFormatString, Overrides, FinalPath, FinalFormatArgs);
 	FinalPath = FPaths::ConvertRelativePathToFull(FinalPath);
 	FPaths::NormalizeFilename(FinalPath);
 
@@ -652,3 +670,206 @@ int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(const UMoviePipeline*
 
 	return 0;
 }
+
+FIntPoint UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(UMoviePipelineMasterConfig* InMasterConfig, UMoviePipelineExecutorShot* InPipelineExecutorShot)
+{
+	if (InMasterConfig && InPipelineExecutorShot)
+	{
+		UMoviePipelineOutputSetting* OutputSetting = InMasterConfig->FindSetting<UMoviePipelineOutputSetting>();
+		const UMoviePipelineCameraSetting* CameraSetting = Cast<const UMoviePipelineCameraSetting>(UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(UMoviePipelineCameraSetting::StaticClass(), InMasterConfig, InPipelineExecutorShot));
+		check(OutputSetting);
+		check(CameraSetting);
+		FIntPoint EffectiveResolution(OutputSetting->OutputResolution);
+		float ClampedOverscanPercentage = FMath::Clamp(CameraSetting->OverscanPercentage, 0.0f, 1.0f);
+		if (ClampedOverscanPercentage > 0.f)
+		{
+			float Scale = 1.f + ClampedOverscanPercentage;
+			EffectiveResolution.X = FMath::CeilToInt(((float)EffectiveResolution.X) * Scale);
+			EffectiveResolution.Y = FMath::CeilToInt(((float)EffectiveResolution.Y) * Scale);
+		}
+
+		return EffectiveResolution;
+	}
+
+	return FIntPoint();
+}
+
+
+UMoviePipelineSetting* UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(TSubclassOf<UMoviePipelineSetting> InSettingType, const UMoviePipelineMasterConfig* InMasterConfig, const UMoviePipelineExecutorShot* InShot)
+{
+	// Check to see if this setting is in the shot override, if it is we'll use the shot version of that.
+	if (InShot->GetShotOverrideConfiguration())
+	{
+		UMoviePipelineSetting* Setting = InShot->GetShotOverrideConfiguration()->FindSettingByClass(InSettingType);
+		if (Setting)
+		{
+			// If they specified the setting at all, respect the enabled setting. If it's not enabled, we return the
+			// default instead which is the same as if they hadn't added the setting at all.
+			return Setting->IsEnabled() ? Setting : InSettingType->GetDefaultObject<UMoviePipelineSetting>();
+		}
+	}
+
+	// If they didn't have a shot override, or the setting wasn't enabled, we'll check the master config.
+	UMoviePipelineSetting* Setting = InMasterConfig->FindSettingByClass(InSettingType);
+	if (Setting)
+	{
+		return Setting->IsEnabled() ? Setting : InSettingType->GetDefaultObject<UMoviePipelineSetting>();
+	}
+
+	// If no one overrode it, then we return the default.
+	return InSettingType->GetDefaultObject<UMoviePipelineSetting>();
+}
+
+static bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting)
+{
+	// Check if there is space on the output disk.
+	bool bIsFreeSpace = true;
+
+	uint64 TotalNumberOfBytes, NumberOfFreeBytes;
+	if (FPlatformMisc::GetDiskTotalAndFreeSpace(InFilename, TotalNumberOfBytes, NumberOfFreeBytes))
+	{
+		bIsFreeSpace = NumberOfFreeBytes > 64 * 1024 * 1024; // 64mb minimum
+	}
+	// ToDO: Infinite loop possible.
+	return bIsFreeSpace && (bOverwriteExisting || IFileManager::Get().FileSize(InFilename) == -1);
+}
+
+static FString GetPaddingFormatString(int32 InZeroPadCount, const int32 InFrameNumber)
+{
+	// Printf takes the - sign into account when you specify the number of digits to pad to
+	// so we bump it by one to make the negative sign come first (ie: -0001 instead of -001)
+	if (InFrameNumber < 0)
+	{
+		InZeroPadCount++;
+	}
+
+	return FString::Printf(TEXT("%0*d"), InZeroPadCount, InFrameNumber);
+}
+
+void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFilenameResolveParams& InParams, FString& OutFinalPath, FMoviePipelineFormatArgs& OutMergedFormatArgs)
+{
+	if (!InParams.Job)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot resolve Filename Format Arguments without a Job to pull settings from."), ELogVerbosity::Error);
+		return;
+	}
+
+	UMoviePipelineOutputSetting* OutputSetting = InParams.Job->GetConfiguration()->FindSetting<UMoviePipelineOutputSetting>();
+	check(OutputSetting);
+
+	// Gather all the variables
+	OutMergedFormatArgs.InJob = InParams.Job;
+
+	// Copy the file metadata from our InOutputState
+	OutMergedFormatArgs.FileMetadata = InParams.FileMetadata;
+
+	// Now get the settings from our config. This will expand the FileMetadata and assign the default values used in the UI.
+	InParams.Job->GetConfiguration()->GetFormatArguments(OutMergedFormatArgs, true);
+
+	// Big block of stuff that normally comes from the Output State
+	{
+		// Zero-pad our frame numbers when we format the strings. Some programs struggle when ingesting frames that 
+		// go 1,2,3,...,10,11. To work around this issue we allow the user to specify how many zeros they want to
+		// pad the numbers with, 0001, 0002, etc. We also allow offsetting the output frame numbers, this is useful
+		// when your sequence starts at zero and you use handle frames (which would cause negative output frame 
+		// numbers), so we allow the user to add a fixed amount to all output to ensure they are positive.
+		int32 FrameNumberOffset = OutputSetting->FrameNumberOffset + InParams.AdditionalFrameNumberOffset;
+		FString FrameNumber = GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumber + FrameNumberOffset); // Sequence Frame #
+		FString FrameNumberShot = GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumberShot + FrameNumberOffset); // Shot Frame #
+		FString FrameNumberRel = GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumberRel + FrameNumberOffset); // Relative to 0
+		FString FrameNumberShotRel = GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumberShotRel + FrameNumberOffset); // Relative to 0 within the shot.
+
+		// Ensure they used relative frame numbers in the output so they get the right number of output frames.
+		if (InParams.bForceRelativeFrameNumbers)
+		{
+			FrameNumber = FrameNumberRel;
+			FrameNumberShot = FrameNumberShotRel;
+		}
+		FString CameraName = InParams.ShotOverride ? InParams.ShotOverride->InnerName : FString();
+		CameraName = CameraName.Len() > 0 ? CameraName : TEXT("NoCamera");
+
+		FString ShotName = InParams.ShotOverride ? InParams.ShotOverride->OuterName : FString();
+		ShotName = ShotName.Len() > 0 ? ShotName : TEXT("NoShot");
+
+		MoviePipeline::GetOutputStateFormatArgs(OutMergedFormatArgs, FrameNumber, FrameNumberShot, FrameNumberRel, FrameNumberShotRel, CameraName, ShotName);
+	}
+
+	// And from ourself
+	{
+		OutMergedFormatArgs.FilenameArguments.Add(TEXT("date"), InParams.InitializationTime.ToString(TEXT("%Y.%m.%d")));
+		OutMergedFormatArgs.FilenameArguments.Add(TEXT("time"), InParams.InitializationTime.ToString(TEXT("%H.%M.%S")));
+
+		FString VersionText = FString::Printf(TEXT("v%0*d"), 3, InParams.InitializationVersion);
+
+		OutMergedFormatArgs.FilenameArguments.Add(TEXT("version"), VersionText);
+
+		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobDate"), InParams.InitializationTime.ToString(TEXT("%Y.%m.%d")));
+		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobTime"), InParams.InitializationTime.ToString(TEXT("%H.%M.%S")));
+		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobVersion"), FString::FromInt(InParams.InitializationVersion));
+		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobName"), InParams.Job->JobName);
+		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobAuthor"), InParams.Job->Author);
+
+		// By default, we don't want to show frame duplication numbers. If we need to start writing them,
+		// they need to come before the frame number (so that tools recognize them as a sequence).
+		OutMergedFormatArgs.FilenameArguments.Add(TEXT("file_dup"), FString());
+	}
+
+	// Apply any overrides from shots
+	if (InParams.ShotOverride && InParams.ShotOverride->GetShotOverrideConfiguration())
+	{
+		// ToDo
+		// InParams.ShotOverride->GetShotOverrideConfiguration()->GetFormatArguments(OutMergedFormatArgs, true);
+	}
+	// Overwrite the variables with overrides if needed. This allows different requesters to share the same variables (ie: filename extension, render pass name)
+	for (const TPair<FString, FString>& KVP : InParams.FileNameFormatOverrides)
+	{
+		OutMergedFormatArgs.FilenameArguments.Add(KVP.Key, KVP.Value);
+	}
+
+	// No extension should be provided at this point, because we need to tack the extension onto the end after appending numbers (in the event of no overwrites)
+	// We don't convert this to a full filename because sometimes this function is used to resolve just filenames without directories, and we can't tell if the
+	// caller wants a full filepath or just a filename.
+	FStringFormatNamedArguments NamedArgs;
+	for (const TPair<FString, FString>& Argument : OutMergedFormatArgs.FilenameArguments)
+	{
+		NamedArgs.Add(Argument.Key, Argument.Value);
+	}
+
+	FString BaseFilename = FString::Format(*InFormatString, NamedArgs);
+	FPaths::NormalizeFilename(BaseFilename);
+
+
+	// If we end with a "." character, remove it. The extension will put it back on. We can end up with this sometimes after resolving file format strings, ie:
+	// {sequence_name}.{frame_number} becomes {sequence_name}. for videos (which can't use frame_numbers).
+	BaseFilename.RemoveFromEnd(TEXT("."));
+
+	FString Extension = FString::Format(TEXT(".{ext}"), NamedArgs);
+
+
+	FString ThisTry = BaseFilename + Extension;
+
+	if (CanWriteToFile(*ThisTry, OutputSetting->bOverrideExistingOutput))
+	{
+		OutFinalPath = ThisTry;
+		return;
+	}
+
+	int32 DuplicateIndex = 2;
+	while (true)
+	{
+		OutMergedFormatArgs.FilenameArguments.Add(TEXT("file_dup"), FString::Printf(TEXT("_(%d)"), DuplicateIndex));
+
+		// Re-resolve the format string now that we've reassigned frame_dup to a number.
+		ThisTry = FString::Format(*InFormatString, NamedArgs) + Extension;
+
+		// If the file doesn't exist, we can use that, else, increment the index and try again
+		if (CanWriteToFile(*ThisTry, OutputSetting->bOverrideExistingOutput))
+		{
+			OutFinalPath = ThisTry;
+			return;
+		}
+
+		++DuplicateIndex;
+	}
+}
+

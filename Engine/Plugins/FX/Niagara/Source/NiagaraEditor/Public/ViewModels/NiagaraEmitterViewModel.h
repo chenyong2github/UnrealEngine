@@ -27,7 +27,7 @@ class FNiagaraEmitterViewModel : public TSharedFromThis<FNiagaraEmitterViewModel
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnEmitterChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnPropertyChanged);
-	DECLARE_MULTICAST_DELEGATE(FOnScriptCompiled);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnScriptCompiled, UNiagaraScript*, const FGuid&);
 	DECLARE_MULTICAST_DELEGATE(FOnParentRemoved);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnScriptGraphChanged, const FEdGraphEditAction&, const UNiagaraScript&);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnScriptParameterStoreChanged, const FNiagaraParameterStore&, const UNiagaraScript&);

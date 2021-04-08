@@ -155,7 +155,7 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	The random number is stored in a buffer accessible to materials through the PerInstanceRandom expression. If
 	this is set to zero (default), it will be populated automatically by the editor. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=InstancedStaticMeshComponent)
-	int32 InstancingRandomSeed;
+	int32 InstancingRandomSeed=0;
 
 	/** Distance from camera at which each instance begins to fade out. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Culling)

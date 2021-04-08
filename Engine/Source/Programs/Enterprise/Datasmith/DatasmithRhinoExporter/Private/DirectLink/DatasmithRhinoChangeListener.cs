@@ -237,6 +237,10 @@ namespace DatasmithRhino.DirectLink
 			{
 				ExportContext.OnModelUnitChange();
 			}
+			else
+			{
+				ExportContext.bDocumentPropertiesChanged = true;
+			}
 		}
 
 		public void AddActor(RhinoObject InObject)

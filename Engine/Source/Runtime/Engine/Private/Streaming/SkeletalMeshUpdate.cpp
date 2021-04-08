@@ -323,7 +323,7 @@ void FSkeletalMeshStreamOut::WaitForReferences(const FContext& Context)
 		++NumReferenceChecks;
 		if (NumReferenceChecks >= GStreamingMaxReferenceChecks)
 		{
-			UE_LOG(LogSkeletalMesh, Log, TEXT("[%s] Streamed out LODResources references are not getting released."), *Mesh->GetName());
+			UE_LOG(LogSkeletalMesh, Warning, TEXT("[%s] Streamed out LODResources references are not getting released."), *Mesh->GetName());
 		}
 
 		bDeferExecution = true;

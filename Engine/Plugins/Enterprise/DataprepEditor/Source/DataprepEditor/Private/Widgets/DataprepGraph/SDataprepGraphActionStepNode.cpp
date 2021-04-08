@@ -341,10 +341,20 @@ void SDataprepGraphActionStepNode::OnDragEnter(const FGeometry& MyGeometry, cons
 	{
 		ParentTrackNodePtr.Pin()->OnDragLeave(DragDropEvent);
 
-		// Inform the Drag and Drop operation that we are hovering over this node.
-		DragNodeOp->SetHoveredNode(GraphNode);
-		ParentNodePtr.Pin()->SetHoveredIndex(StepIndex);
-
+		if (UDataprepActionAsset* DataprepAction = ParentNodePtr.Pin()->GetDataprepAction())
+		{
+			if (DataprepAction->GetAppearance()->GroupId == INDEX_NONE)
+			{
+				// Inform the Drag and Drop operation that we are hovering over this node.
+				DragNodeOp->SetHoveredNode(GraphNode);
+				ParentNodePtr.Pin()->SetHoveredIndex(StepIndex);
+			}
+			else
+			{
+				DragNodeOp->SetHoveredNode(nullptr);
+				ParentNodePtr.Pin()->SetHoveredIndex(INDEX_NONE);
+			}
+		}
 		return;
 	}
 
@@ -357,10 +367,20 @@ FReply SDataprepGraphActionStepNode::OnDragOver(const FGeometry& MyGeometry, con
 	TSharedPtr<FDataprepDragDropOp> DragNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 	if (DragNodeOp.IsValid())
 	{
-		// Inform the Drag and Drop operation that we are hovering over this node.
-		DragNodeOp->SetHoveredNode(GraphNode);
-		ParentNodePtr.Pin()->SetHoveredIndex(StepIndex);
-
+		if (UDataprepActionAsset* DataprepAction = ParentNodePtr.Pin()->GetDataprepAction())
+		{
+			if (DataprepAction->GetAppearance()->GroupId == INDEX_NONE)
+			{
+				// Inform the Drag and Drop operation that we are hovering over this node.
+				DragNodeOp->SetHoveredNode(GraphNode);
+				ParentNodePtr.Pin()->SetHoveredIndex(StepIndex);
+			}
+			else
+			{
+				DragNodeOp->SetHoveredNode(nullptr);
+				ParentNodePtr.Pin()->SetHoveredIndex(INDEX_NONE);
+			}
+		}
 		return FReply::Handled();
 	}
 

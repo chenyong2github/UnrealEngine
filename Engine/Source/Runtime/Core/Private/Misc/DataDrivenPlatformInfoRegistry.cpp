@@ -234,7 +234,7 @@ static void ParsePreviewPlatforms(const FConfigFile& IniFile, FDataDrivenPlatfor
 			FName PlatformName = *GetSectionString(Section.Value, FName("PlatformName"));
 			checkf(PlatformName != NAME_None, TEXT("DataDrivenPlatformInfo section [%s] must specify a PlatformName"), *SectionName);
 
-			FPreviewPlatformMenuItem& Item = Info.PreviewPlatformMenuItems.FindOrAdd(PlatformName);
+			FPreviewPlatformMenuItem Item;
 			Item.PlatformName = PlatformName;
 			Item.ShaderFormat = *GetSectionString(Section.Value, FName("ShaderFormat"));
 			checkf(Item.ShaderFormat != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderFormat"), *SectionName);
@@ -246,6 +246,7 @@ static void ParsePreviewPlatforms(const FConfigFile& IniFile, FDataDrivenPlatfor
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuText")), Item.MenuText);
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuTooltip")), Item.MenuTooltip);
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("IconText")), Item.IconText);
+			Info.PreviewPlatformMenuItems.Add(Item);
 		}
 	}
 }
@@ -255,6 +256,7 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	DDPIGetBool(IniFile, TEXT("bIsConfidential"), Info.bIsConfidential);
 	DDPIGetBool(IniFile, TEXT("bIsFakePlatform"), Info.bIsFakePlatform);
 	DDPIGetString(IniFile, TEXT("AudioCompressionSettingsIniSectionName"), Info.AudioCompressionSettingsIniSectionName);
+	DDPIGetString(IniFile, TEXT("HardwareCompressionFormat"), Info.HardwareCompressionFormat);
 	DDPIGetStringArray(IniFile, TEXT("AdditionalRestrictedFolders"), Info.AdditionalRestrictedFolders);
 
 	DDPIGetBool(IniFile, TEXT("Freezing_b32Bit"), Info.Freezing_b32Bit);
@@ -269,6 +271,16 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	checkf(Info.GlobalIdentifier != FGuid(), TEXT("Platform %s didn't have a valid GlobalIdentifier set in DataDrivenPlatformInfo.ini"), *PlatformName.ToString());
 
 	// NOTE: add more settings here!
+	DDPIGetBool(IniFile, TEXT("bIsInteractablePlatform"), Info.bIsInteractablePlatform);
+	DDPIGetBool(IniFile, TEXT("bHasDedicatedGamepad"), Info.bHasDedicatedGamepad);
+	DDPIGetBool(IniFile, TEXT("bDefaultInputStandardKeyboard"), Info.bDefaultInputStandardKeyboard);
+
+	DDPIGetBool(IniFile, TEXT("bInputSupportConfigurable"), Info.bInputSupportConfigurable);
+	DDPIGetString(IniFile, TEXT("DefaultInputType"), Info.DefaultInputType);
+	DDPIGetBool(IniFile, TEXT("bSupportsMouseAndKeyboard"), Info.bSupportsMouseAndKeyboard);
+	DDPIGetBool(IniFile, TEXT("bSupportsGamepad"), Info.bSupportsGamepad);
+	DDPIGetBool(IniFile, TEXT("bCanChangeGamepadType"), Info.bCanChangeGamepadType);
+	DDPIGetBool(IniFile, TEXT("bSupportsTouch"), Info.bSupportsTouch);
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 

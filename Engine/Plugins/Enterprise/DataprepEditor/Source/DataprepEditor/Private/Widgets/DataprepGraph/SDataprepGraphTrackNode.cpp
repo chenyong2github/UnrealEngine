@@ -778,7 +778,20 @@ void SDataprepGraphTrackNode::OnEndNodeDrag(bool bDoDrop)
 				else if( DroppedNodeIndex != DraggedNodeIndex)
 				{
 					const int32 DraggedActionIndex = GetActionIndex(DraggedNodeIndex);
-					const int32 DroppedActionIndex = GetActionIndex(DroppedNodeIndex);
+
+					int32 DroppedActionIndex = DraggedActionIndex;
+					if (DroppedNodeIndex > DraggedNodeIndex)
+					{
+						for (int32 NodeIndex = DraggedNodeIndex + 1; NodeIndex <= DroppedNodeIndex; ++NodeIndex)
+						{
+							DroppedActionIndex += GetNumActions(NodeIndex);
+						}
+					}
+					else
+					{
+						DroppedActionIndex = GetActionIndex(DroppedNodeIndex);
+					}
+					
 					bTransactionSuccessful = DataprepAsset->MoveAction(DraggedActionIndex, DroppedActionIndex);
 				}
 				else

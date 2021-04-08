@@ -2,6 +2,7 @@
 
 #include "trio/streams/FileStreamImpl.h"
 
+#include "trio/utils/NativeString.h"
 #include "trio/utils/ScopedEnumEx.h"
 
 #include <pma/PolyAllocator.h>
@@ -27,12 +28,12 @@ namespace {
 
 constexpr std::size_t bufferSize = 4096ul;
 
-inline std::uint64_t getFileSizeStd(const char* path) {
+inline std::uint64_t getFileSizeStd(const NativeCharacter* path) {
     std::streamoff fileSize = std::ifstream(path, std::ios_base::ate | std::ios_base::binary).tellg();
     return (fileSize > 0 ? static_cast<std::uint64_t>(fileSize) : 0ul);
 }
 
-inline void ensureFileExistsStd(const char* path) {
+inline void ensureFileExistsStd(const NativeCharacter* path) {
     std::fstream file;
     file.open(path);
     if (file.fail()) {
@@ -58,10 +59,10 @@ void FileStream::destroy(FileStream* instance) {
 }
 
 FileStreamImpl::FileStreamImpl(const char* path_, AccessMode accessMode_, OpenMode openMode_, MemoryResource* memRes_) :
-    filePath{path_, memRes_},
+    filePath{NativeStringConverter::from(path_, memRes_)},
     fileAccessMode{accessMode_},
     fileOpenMode{openMode_},
-    fileSize{getFileSizeStd(path_)},
+    fileSize{getFileSizeStd(filePath.c_str())},
     memRes{memRes_} {
 }
 
@@ -198,18 +199,6 @@ std::size_t FileStreamImpl::write(Readable* source, std::size_t size) {
 
 std::uint64_t FileStreamImpl::size() {
     return fileSize;
-}
-
-const char* FileStreamImpl::path() const {
-    return filePath.c_str();
-}
-
-AccessMode FileStreamImpl::accessMode() const {
-    return fileAccessMode;
-}
-
-OpenMode FileStreamImpl::openMode() const {
-    return fileOpenMode;
 }
 
 MemoryResource* FileStreamImpl::getMemoryResource() {

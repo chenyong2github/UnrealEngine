@@ -22,12 +22,19 @@
 #endif
 
 #ifndef USE_EMISSIVE
-#define USE_EMISSIVE 0
+#define USE_EMISSIVE 1
 #endif
 
 RWTexture3D<float4> RWVBufferA;
 #if USE_EMISSIVE
 RWTexture3D<float4> RWVBufferB;
+#endif
+
+#ifndef USE_CLOUD_TRANSMITTANCE
+#define USE_CLOUD_TRANSMITTANCE 0
+#endif
+#if USE_CLOUD_TRANSMITTANCE
+#include "VolumetricCloudCommon.ush"
 #endif
 
 float ComputeDepthFromZSlice(float ZSlice)
@@ -199,6 +206,40 @@ int VirtualShadowMapId;
 #define INVERSE_SQUARED_FALLOFF 1
 #endif
 
+#if	USE_LIGHT_FUNCTION
+
+/** Matrix can be either WorldToShadow or WorldToLight depending on light type. */
+float4x4 LocalLightFunctionMatrix;
+float4 LightFunctionAtlasTileMinMaxUvBound;
+
+Texture2D LightFunctionAtlasTexture;
+SamplerState LightFunctionAtlasSampler;
+
+float GetLocalLightFunction(float3 WorldPosition, bool IsPointLight)
+{
+	float2 LightFunctionUV;
+	if (IsPointLight)
+	{
+		// Get vector from light to cell world pos.
+		float3 LightVec = normalize(WorldPosition - DeferredLightUniforms.Position);
+		// Transform and swizzle
+		LightVec = mul(float4(LightVec.xyz, 0), LocalLightFunctionMatrix).zyx; 
+		// Map to spherical coordinate
+		LightFunctionUV = float2((atan2Fast(LightVec.y, LightVec.x) + PI) / (2 * PI), acosFast(LightVec.z) / PI);
+	}
+	else
+	{
+		float4 HomogeneousShadowPosition = mul(float4(WorldPosition, 1), LocalLightFunctionMatrix);
+		HomogeneousShadowPosition.xyz /= HomogeneousShadowPosition.w;
+		LightFunctionUV = HomogeneousShadowPosition.xy;
+		LightFunctionUV.x = 1 - LightFunctionUV.x;
+		LightFunctionUV.y = 1 - LightFunctionUV.y;
+	}
+	
+	return Texture2DSampleLevel(LightFunctionAtlasTexture, LightFunctionAtlasSampler, LightFunctionAtlasTileMinMaxUvBound.xy + LightFunctionUV * (LightFunctionAtlasTileMinMaxUvBound.zw - LightFunctionAtlasTileMinMaxUvBound.xy), 0).x;
+}
+#endif
+
 Texture2D<float> ConservativeDepthTexture;
 float2 PrevConservativeDepthTextureSize;
 Texture2D<float> PrevConservativeDepthTexture;
@@ -312,16 +353,24 @@ void InjectShadowedLocalLightPS(
 			float CombinedAttenuation = Lighting * LightMask;
 			float ShadowFactor = 1.0f;
 
+			bool IsPointLight = LightData.bRadialLight && !LightData.bSpotLight;
+			
+#if ENABLE_SHADOW_COMPUTATION
 			if (CombinedAttenuation > 0)
 			{
 				bool bUnused = false;
-				ShadowFactor = ComputeVolumeShadowing(WorldPosition, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bUnused);
+				ShadowFactor = ComputeVolumeShadowing(WorldPosition, IsPointLight, LightData.bSpotLight, bUnused);
 
 #if VIRTUAL_SHADOW_MAP
 				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition);
 				ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
 #endif
 			}
+#endif
+	
+#if	USE_LIGHT_FUNCTION
+			ShadowFactor *= GetLocalLightFunction(WorldPosition, IsPointLight);
+#endif
 
 			OutScattering.rgb += LightColor * (PhaseFunction(PhaseG, dot(L, -CameraVector)) * CombinedAttenuation * ShadowFactor * VolumetricScatteringIntensity);
 				
@@ -334,9 +383,8 @@ void InjectShadowedLocalLightPS(
 }
 
 Texture3D<float4> VBufferA;
-#if USE_EMISSIVE
 Texture3D<float4> VBufferB;
-#endif
+uint UseEmissive;
 
 Texture3D<float4> LightScatteringHistory;
 SamplerState LightScatteringHistorySampler;
@@ -543,6 +591,11 @@ void LightScatteringCS(
 				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap( ForwardLightData.DirectionalLightVSM, WorldPosition );
 				ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
 #endif
+
+#if USE_CLOUD_TRANSMITTANCE
+				float OutOpticalDepth = 0.0f; 
+				ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(WorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
+#endif
 			}
 
 			ShadowFactor *= GetLightFunction(WorldPosition);
@@ -698,9 +751,11 @@ void LightScatteringCS(
 	float4 MaterialScatteringAndAbsorption = VBufferA[GridCoordinate];
 	float Extinction = MaterialScatteringAndAbsorption.w + Luminance(MaterialScatteringAndAbsorption.xyz);
 	float3 MaterialEmissive = 0.0f;
-#if USE_EMISSIVE
-	MaterialEmissive = VBufferB[GridCoordinate].xyz;
-#endif 
+	BRANCH
+	if (UseEmissive > 0)
+	{
+		MaterialEmissive = VBufferB[GridCoordinate].xyz;
+	}
 	float4 ScatteringAndExtinction = EncodeHDR(float4(LightScattering * MaterialScatteringAndAbsorption.xyz + MaterialEmissive, Extinction));
 
 #if USE_TEMPORAL_REPROJECTION

@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "DatasmithSketchUpCommon.h"
+
+
 namespace DatasmithSketchUpUtils
 {
 	namespace FromSketchUp

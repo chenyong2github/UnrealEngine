@@ -14,7 +14,7 @@
 
 FOnlineSessionInfoNull::FOnlineSessionInfoNull() :
 	HostAddr(NULL),
-	SessionId(TEXT("INVALID"))
+	SessionId(FUniqueNetIdNull::EmptyId())
 {
 }
 
@@ -41,7 +41,7 @@ void FOnlineSessionInfoNull::Init(const FOnlineSubsystemNull& Subsystem)
 
 	FGuid OwnerGuid;
 	FPlatformMisc::CreateGuid(OwnerGuid);
-	SessionId = FUniqueNetIdNull(OwnerGuid.ToString());
+	SessionId = FUniqueNetIdNull::Create(OwnerGuid.ToString());
 }
 
 /**
@@ -1070,13 +1070,13 @@ void FOnlineSessionNull::ReadSessionFromPacket(FNboSerializeFromBufferNull& Pack
 #endif
 
 	/** Owner of the session */
-	FUniqueNetIdNull* UniqueId = new FUniqueNetIdNull;
-	Packet >> *UniqueId
+	FUniqueNetIdNullRef OwningUserId = FUniqueNetIdNull::Create();
+	Packet >> const_cast<FUniqueNetIdNull&>(*OwningUserId)
 		>> Session->OwningUserName
 		>> Session->NumOpenPrivateConnections
 		>> Session->NumOpenPublicConnections;
 
-	Session->OwningUserId = MakeShareable(UniqueId);
+	Session->OwningUserId = OwningUserId;
 
 	// Allocate and read the connection data
 	FOnlineSessionInfoNull* NullSessionInfo = new FOnlineSessionInfoNull();

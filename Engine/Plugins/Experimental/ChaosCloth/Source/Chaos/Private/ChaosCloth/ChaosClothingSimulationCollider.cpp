@@ -206,43 +206,50 @@ void FClothingSimulationCollider::FLODData::Add(
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision convex on bone index %d."), BoneIndices[Index]);
 
 			TArray<TPlaneConcrete<FReal, 3>> Planes;
+			TArray<TArray<int32>> FaceIndices;
 
 			const int32 NumSurfacePoints = Convex.SurfacePoints.Num();
-			const int32 NumPlanes = Convex.Planes.Num();
+			const int32 NumFaces = Convex.Faces.Num();
 
 			if (NumSurfacePoints < 4)
 			{
 				UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision: not enough surface points."));
 			}
-			else if (NumPlanes < 4)
+			else if (NumFaces < 4)
 			{
-				UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision: not enough planes."));
+				UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision: not enough faces."));
 			}
 			else
 			{
 				// Retrieve convex planes
-				Planes.Reserve(NumPlanes);
-				for (const FPlane& Plane : Convex.Planes)
+				Planes.Reserve(NumFaces);
+				FaceIndices.Reserve(NumFaces);
+				for (const FClothCollisionPrim_ConvexFace& Face : Convex.Faces)
 				{
+					const FPlane& Plane = Face.Plane;
 					FPlane NormalizedPlane(Plane);
-					if (NormalizedPlane.Normalize())
-					{
-						const FVec3 Normal(static_cast<FVector>(NormalizedPlane));
-						const FVec3 Base = Normal * NormalizedPlane.W * InScale;
-
-						Planes.Add(TPlaneConcrete<FReal, 3>(Base, Normal));
-					}
-					else
+					if (!NormalizedPlane.Normalize())
 					{
 						UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision: bad plane normal."));
 						break;
 					}
+					if (!Face.Indices.Num())
+					{
+						UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision: no face indices, this asset might be using a deprecated Apex collision shape."));
+						break;
+					}
+					const FVec3 Normal(static_cast<FVector>(NormalizedPlane));
+					const FVec3 Base = Normal * NormalizedPlane.W * InScale;
+					Planes.Add(TPlaneConcrete<FReal, 3>(Base, Normal));
+					FaceIndices.Add(Face.Indices);
 				}
 			}
 
-			if (Planes.Num() == NumPlanes)
+			if (Planes.Num() == NumFaces)
 			{
-				// Retrieve particles
+				check(Planes.Num() == FaceIndices.Num());
+
+				// Retrieve the convex vertices and face indices
 				TArray<FVec3> Vertices;
 				Vertices.SetNum(NumSurfacePoints);
 				for (int32 ParticleIndex = 0; ParticleIndex < NumSurfacePoints; ++ParticleIndex)
@@ -251,7 +258,7 @@ void FClothingSimulationCollider::FLODData::Add(
 				}
 
 				// Setup the collision particle geometry
-				Solver->SetCollisionGeometry(ConvexOffset, Index, MakeUnique<FConvex>(MoveTemp(Planes), MoveTemp(Vertices)));
+				Solver->SetCollisionGeometry(ConvexOffset, Index, MakeUnique<FConvex>(MoveTemp(Planes), MoveTemp(FaceIndices), MoveTemp(Vertices)));
 			}
 			else
 			{
@@ -504,43 +511,34 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 			}
 
 #if !PLATFORM_LUMIN && !PLATFORM_ANDROID  // TODO(Kriss.Gossart): Compile on Android and fix whatever errors the following code is causing
+#if WITH_CHAOS  // Only the chaos build has access to the ChaosConvex property
 			// Add convexes
 			for (const FKConvexElem& ConvexElem : AggGeom.ConvexElems)
 			{
 				// Add stub for extracted collision data
 				FClothCollisionPrim_Convex Convex;
 				Convex.BoneIndex = MappedBoneIndex;
-#if PHYSICS_INTERFACE_PHYSX
-				// Collision bodies are stored in PhysX specific data structures so they can only be imported if we enable PhysX.
-				const physx::PxConvexMesh* const PhysXMesh = ConvexElem.GetConvexMesh();  // TODO(Kriss.Gossart): Deal with this legacy structure in a different place, so that there's only TConvex
-				const int32 NumPolygons = int32(PhysXMesh->getNbPolygons());
-				Convex.Planes.SetNumUninitialized(NumPolygons);
-				for (int32 i = 0; i < NumPolygons; ++i)
-				{
-					physx::PxHullPolygon Poly;
-					PhysXMesh->getPolygonData(i, Poly);
-					check(Poly.mNbVerts == 3);
-					const auto Indices = PhysXMesh->getIndexBuffer() + Poly.mIndexBase;
-
-					Convex.Planes[i] = FPlane(
-						ConvexElem.VertexData[Indices[0]],
-						ConvexElem.VertexData[Indices[1]],
-						ConvexElem.VertexData[Indices[2]]);
-				}
-
-				// Rebuild surface points
-				Convex.RebuildSurfacePoints();
-
-#elif WITH_CHAOS  // #if PHYSICS_INTERFACE_PHYSX
 				const FImplicitObject& ChaosConvexMesh = *ConvexElem.GetChaosConvexMesh();
 				const FConvex& ChaosConvex = ChaosConvexMesh.GetObjectChecked<FConvex>();
 
-				// Copy planes
-				const TArray<TPlaneConcrete<FReal, 3>>& Planes = ChaosConvex.GetFaces();
-				Convex.Planes.Reserve(Planes.Num());
-				for (const TPlaneConcrete<FReal, 3>& Plane : Planes)
+				// Copy faces' planes and indices
+				const TArray<TPlaneConcrete<FReal, 3>>& Faces = ChaosConvex.GetFaces();
+				Convex.Faces.SetNum(Faces.Num());
+				for (int32 FaceIndex = 0; FaceIndex < Faces.Num(); ++FaceIndex)
 				{
-					Convex.Planes.Add(FPlane(Plane.X(), Plane.Normal()));
+					FClothCollisionPrim_ConvexFace& Face = Convex.Faces[FaceIndex];
+
+					// Copy face plane
+					const TPlaneConcrete<FReal, 3>& PlaneConcrete = Faces[FaceIndex];
+					Face.Plane = FPlane(PlaneConcrete.X(), PlaneConcrete.Normal());
+
+					// Copy face indices
+					const int32 NumVertexIndices = ChaosConvex.NumPlaneVertices(FaceIndex);
+					Face.Indices.SetNum(NumVertexIndices);
+					for (int32 Vertex = 0; Vertex < NumVertexIndices; ++Vertex)
+					{
+						Face.Indices[Vertex] = ChaosConvex.GetPlaneVertex(FaceIndex, Vertex);
+					}
 				}
 
 				// Copy surface points
@@ -550,11 +548,11 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 				{
 					Convex.SurfacePoints.Add(ChaosConvex.GetVertex(ParticleIndex));
 				}
-#endif  // #if PHYSICS_INTERFACE_PHYSX #elif WITH_CHAOS
 
 				// Add extracted collision data
 				ClothCollisionData.Convexes.Add(Convex);
 			}
+#endif  // #if WITH_CHAOS
 #endif  // #if !PLATFORM_LUMIN && !PLATFORM_ANDROID
 
 		}  // End for PhysAsset->SkeletalBodySetups

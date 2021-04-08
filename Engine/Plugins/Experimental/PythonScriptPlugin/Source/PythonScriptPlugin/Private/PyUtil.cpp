@@ -1345,9 +1345,9 @@ bool EnableDeveloperWarnings()
 	return false;
 }
 
-FString BuildPythonError()
+bool FetchPythonError(FString& OutError)
 {
-	FString PythonErrorString;
+	OutError.Reset();
 
 	// This doesn't just call PyErr_Print as it also needs to work before stderr redirection has been set-up in Python
 	FPyObjectPtr PyExceptionType;
@@ -1356,7 +1356,41 @@ FString BuildPythonError()
 	PyErr_Fetch(&PyExceptionType.Get(), &PyExceptionValue.Get(), &PyExceptionTraceback.Get());
 	PyErr_NormalizeException(&PyExceptionType.Get(), &PyExceptionValue.Get(), &PyExceptionTraceback.Get());
 
-	bool bBuiltTraceback = false;
+	if (!PyExceptionType)
+	{
+		// No exception is pending, so nothing more to do!
+		return false;
+	}
+
+	if (PyExceptionType == PyExc_SystemExit && PyExceptionValue)
+	{
+		auto IsZeroExitCode = [](PyObject* PyCodeObj)
+		{
+			if (!PyCodeObj || PyCodeObj == Py_None)
+			{
+				// None implies a zero error code
+				return true;
+			}
+
+			int32 ExitCode = 0;
+			if (PyConversion::Nativize(PyCodeObj, ExitCode, PyConversion::ESetErrorState::No))
+			{
+				return ExitCode == 0;
+			}
+
+			return false;
+		};
+
+		PySystemExitObject* PySysExit = (PySystemExitObject*)PyExceptionValue.Get();
+		if (IsZeroExitCode(PySysExit->code))
+		{
+			// Trap and discard SystemExit with an exit code of zero, as it is designed to make the interpreter process exit (which doesn't make sense for an embedded interpreter)
+			// If someone wants to actually exit the editor itself, then there is another Unreal API function to let them do that
+			PyErr_Clear();
+			return false;
+		}
+	}
+
 	if (PyExceptionTraceback)
 	{
 		FPyObjectPtr PyTracebackModule = FPyObjectPtr::StealReference(PyImport_ImportModule("traceback"));
@@ -1369,8 +1403,6 @@ FString BuildPythonError()
 				FPyObjectPtr PyFormatExceptionResult = FPyObjectPtr::StealReference(PyObject_CallFunctionObjArgs(PyFormatExceptionFunc, PyExceptionType.Get(), PyExceptionValue.Get(), PyExceptionTraceback.Get(), nullptr));
 				if (PyFormatExceptionResult)
 				{
-					bBuiltTraceback = true;
-
 					if (PyList_Check(PyFormatExceptionResult))
 					{
 						const Py_ssize_t FormatExceptionResultSize = PyList_Size(PyFormatExceptionResult);
@@ -1381,32 +1413,42 @@ FString BuildPythonError()
 							{
 								if (FormatExceptionResultIndex > 0)
 								{
-									PythonErrorString += '\n';
+									OutError += '\n';
 								}
-								PythonErrorString += PyObjectToUEString(PyFormatExceptionResultItem);
+								OutError += PyObjectToUEString(PyFormatExceptionResultItem);
 							}
 						}
 					}
 					else
 					{
-						PythonErrorString += PyObjectToUEString(PyFormatExceptionResult);
+						OutError += PyObjectToUEString(PyFormatExceptionResult);
 					}
 				}
 			}
 		}
 	}
 
-	if (!bBuiltTraceback && PyExceptionValue)
+	if (OutError.IsEmpty() && PyExceptionValue)
 	{
 		if (PyExceptionType && PyType_Check(PyExceptionType))
 		{
 			FPyObjectPtr PyExceptionTypeName = FPyObjectPtr::StealReference(PyObject_GetAttrString(PyExceptionType, "__name__"));
-			PythonErrorString += FString::Printf(TEXT("%s: %s"), PyExceptionTypeName ? *PyObjectToUEString(PyExceptionTypeName) : *PyObjectToUEString(PyExceptionType), *PyObjectToUEString(PyExceptionValue));
+			OutError = FString::Printf(TEXT("%s: %s"), PyExceptionTypeName ? *PyObjectToUEString(PyExceptionTypeName) : *PyObjectToUEString(PyExceptionType), *PyObjectToUEString(PyExceptionValue));
 		}
 		else
 		{
-			PythonErrorString += PyObjectToUEString(PyExceptionValue);
+			OutError = PyObjectToUEString(PyExceptionValue);
 		}
+	}
+
+	if (OutError.IsEmpty())
+	{
+		OutError = PyObjectToUEString(PyExceptionType);
+	}
+
+	if (OutError.IsEmpty())
+	{
+		OutError = TEXT("<unknown exception>");
 	}
 
 	PyErr_Clear();
@@ -1421,14 +1463,17 @@ FString BuildPythonError()
 		}
 	}
 
-	return PythonErrorString;
+	check(!OutError.IsEmpty());
+	return true;
 }
 
-FString LogPythonError(const bool bInteractive)
+bool LogPythonError(FString* OutError, const bool bInteractive)
 {
-	const FString ErrorStr = BuildPythonError();
+	FString LocalErrorStr;
+	FString& ErrorStr = OutError ? *OutError : LocalErrorStr;
+	const bool bFetchedError = FetchPythonError(ErrorStr);
 
-	if (!ErrorStr.IsEmpty())
+	if (bFetchedError)
 	{
 		// Log the error
 		{
@@ -1449,19 +1494,21 @@ FString LogPythonError(const bool bInteractive)
 		}
 	}
 
-	return ErrorStr;
+	return bFetchedError;
 }
 
-FString ReThrowPythonError()
+bool ReThrowPythonError(FString* OutError)
 {
-	const FString ErrorStr = BuildPythonError();
+	FString LocalErrorStr;
+	FString& ErrorStr = OutError ? *OutError : LocalErrorStr;
+	const bool bFetchedError = FetchPythonError(ErrorStr);
 
-	if (!ErrorStr.IsEmpty())
+	if (bFetchedError)
 	{
 		FFrame::KismetExecutionMessage(*ErrorStr, ELogVerbosity::Error);
 	}
 
-	return ErrorStr;
+	return bFetchedError;
 }
 
 }

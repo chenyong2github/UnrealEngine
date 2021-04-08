@@ -94,6 +94,7 @@ typedef GLfloat GLdouble;
 #ifndef GL_TEXTURE_RECTANGLE
 #define GL_TEXTURE_RECTANGLE	0x84F5
 #endif
+
 /** For the shader stage bits that don't exist just use 0 */
 #define GL_GEOMETRY_SHADER_BIT				0x00000000
 #define GL_TESS_CONTROL_SHADER_BIT			0x00000000
@@ -231,6 +232,8 @@ struct FOpenGLES : public FOpenGLBase
 	// Turning this to false reverts back to not using vertex and index buffers
 	// for glDrawArrays() and glDrawElements() on dynamic data.
 	static FORCEINLINE bool SupportsFastBufferData() { return false; }
+
+	static FORCEINLINE bool SupportsASTCDecodeMode() { return bSupportsASTCDecodeMode; }
 
 	// Optional
 	static FORCEINLINE void BeginQuery(GLenum QueryType, GLuint QueryId)
@@ -803,6 +806,10 @@ protected:
 
 	/** Maximum number of MSAA samples supported on chip in tile memory, or 1 if not available */
 	static GLint MaxMSAASamplesTileMem;
+
+	/** GL_EXT_texture_compression_astc_decode_mode */
+	static bool bSupportsASTCDecodeMode;
+
 public:
 	/* This indicates failure when attempting to retrieve driver's binary representation of the hack program  */
 	static bool bBinaryProgramRetrievalFailed;

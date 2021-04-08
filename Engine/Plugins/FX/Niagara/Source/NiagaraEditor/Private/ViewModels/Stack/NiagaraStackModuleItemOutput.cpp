@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackModuleItemOutput.h"
-#include "NiagaraNodeFunctionCall.h"
+
 #include "NiagaraConstants.h"
-#include "NiagaraScriptSource.h"
 #include "NiagaraGraph.h"
-#include "EdGraphSchema_Niagara.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraScriptSource.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
@@ -37,8 +37,7 @@ FText UNiagaraStackModuleItemOutput::GetTooltipText() const
 	FNiagaraVariable ValueVariable(OutputType, OutputParameterHandle.GetParameterHandleString());
 	if (FunctionCallNode.IsValid() && FunctionCallNode->FunctionScript != nullptr)
 	{
-		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(FunctionCallNode->FunctionScript->GetSource());
-		const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+		UNiagaraScriptSource* Source = FunctionCallNode->GetFunctionScriptSource();
 		TOptional<FNiagaraVariableMetaData> MetaData;
 		if (FNiagaraConstants::IsNiagaraConstant(ValueVariable))
 		{

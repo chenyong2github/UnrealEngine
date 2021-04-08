@@ -25,6 +25,6 @@ public:
 	* is automatically started and it is important that the game is fully loaded before we do
 	* any work (such as evaluating frames for warm-up).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, meta = (UIMin = "0", MinValue = "0", UIMax = "150"), Category = "Startup")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, meta = (UIMin = "0", ClampMin = "0", UIMax = "150"), Category = "Startup")
 	int32 InitialDelayFrameCount;
 };

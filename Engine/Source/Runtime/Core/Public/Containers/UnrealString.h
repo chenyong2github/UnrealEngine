@@ -1991,13 +1991,22 @@ public:
 	 * The characters supported are: { \n, \r, \t, \', \", \\ }.
 	 *
 	 * @param	Chars	by default, replaces all supported characters; this parameter allows you to limit the replacement to a subset.
+	 */
+	void ReplaceCharWithEscapedCharInline( const TArray<TCHAR>* Chars = nullptr );
+
+	/**
+	 * Replaces certain characters with the "escaped" version of that character (i.e. replaces "\n" with "\\n").
+	 * The characters supported are: { \n, \r, \t, \', \", \\ }.
+	 *
+	 * @param	Chars	by default, replaces all supported characters; this parameter allows you to limit the replacement to a subset.
 	 *
 	 * @return	a string with all control characters replaced by the escaped version.
 	 */
 	UE_NODISCARD FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) const &
 	{
 		FString Result(*this);
-		return MoveTemp(Result).ReplaceCharWithEscapedChar(Chars);
+		Result.ReplaceCharWithEscapedCharInline(Chars);
+		return Result;
 	}
 
 	/**
@@ -2008,7 +2017,17 @@ public:
 	 *
 	 * @return	a string with all control characters replaced by the escaped version.
 	 */
-	UE_NODISCARD FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) &&;
+	UE_NODISCARD FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) &&
+	{
+		ReplaceCharWithEscapedCharInline(Chars);
+		return MoveTemp(*this);
+	}
+
+	/**
+	 * Removes the escape backslash for all supported characters, replacing the escape and character with the non-escaped version.  (i.e.
+	 * replaces "\\n" with "\n".  Counterpart to ReplaceCharWithEscapedCharInline().
+	 */
+	void ReplaceEscapedCharWithCharInline( const TArray<TCHAR>* Chars = nullptr );
 
 	/**
 	 * Removes the escape backslash for all supported characters, replacing the escape and character with the non-escaped version.  (i.e.
@@ -2018,7 +2037,8 @@ public:
 	UE_NODISCARD FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) const &
 	{
 		FString Result(*this);
-		return MoveTemp(Result).ReplaceEscapedCharWithChar(Chars);
+		Result.ReplaceEscapedCharWithCharInline(Chars);
+		return Result;
 	}
 
 	/**
@@ -2026,7 +2046,11 @@ public:
 	 * replaces "\\n" with "\n".  Counterpart to ReplaceCharWithEscapedChar().
 	 * @return copy of this string with replacement made
 	 */
-	UE_NODISCARD FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) &&;
+	UE_NODISCARD FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) &&
+	{
+		ReplaceEscapedCharWithCharInline(Chars);
+		return MoveTemp(*this);
+	}
 
 	/**
 	 * Replaces all instances of '\t' with TabWidth number of spaces

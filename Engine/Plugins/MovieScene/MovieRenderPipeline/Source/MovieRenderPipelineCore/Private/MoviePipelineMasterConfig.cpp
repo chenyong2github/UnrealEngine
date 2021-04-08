@@ -107,11 +107,11 @@ void UMoviePipelineMasterConfig::GetFormatArguments(FMoviePipelineFormatArgs& In
 
 		InOutFormatArgs.FilenameArguments.Add(TEXT("level_name"), LevelName);
 		InOutFormatArgs.FilenameArguments.Add(TEXT("sequence_name"), SequenceName);
-		InOutFormatArgs.FilenameArguments.Add(TEXT("frame_rate"), FrameRate);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("frame_rate"), FString::SanitizeFloat(FrameRate));
 
 		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/levelName"), LevelName);
 		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/sequenceName"), SequenceName);
-		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/frameRate"), FrameRate);
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/frameRate"), FString::SanitizeFloat(FrameRate));
 
 		
 		// Normally these are filled when resolving the file name by the job (so that the time is shared), but stub them in here so
@@ -127,9 +127,9 @@ void UMoviePipelineMasterConfig::GetFormatArguments(FMoviePipelineFormatArgs& In
 		UMoviePipelineOutputSetting* OutputSettings = FindSetting<UMoviePipelineOutputSetting>();
 		check(OutputSettings);
 
-		FMoviePipelineFrameOutputState BlankOutputState;
-		BlankOutputState.OutputFrameNumber = 0; // It gets initialized to -1 but looks funny in the UI since the actual output would be zero.
-		BlankOutputState.GetFilenameFormatArguments(InOutFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset, false);
+		// We use the FrameNumberOffset as the number for all of these so they can see it changing in the UI.
+		FString FramePlaceholderNumber = FString::Printf(TEXT("%0*d"), OutputSettings->ZeroPadFrameNumbers, OutputSetting->FrameNumberOffset);
+		MoviePipeline::GetOutputStateFormatArgs(InOutFormatArgs, FramePlaceholderNumber, FramePlaceholderNumber, FramePlaceholderNumber, FramePlaceholderNumber, TEXT("CameraName"), TEXT("ShotName"));
 	}
 
 	// Let each setting provide its own set of key/value pairs.

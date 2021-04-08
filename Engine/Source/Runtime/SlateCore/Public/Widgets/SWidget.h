@@ -52,7 +52,10 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("SWidget::Tick (Count)"), STAT_SlateNumTi
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Execute Active Timers"), STAT_SlateExecuteActiveTimers, STATGROUP_Slate, SLATECORE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Tick Widgets"), STAT_SlateTickWidgets, STATGROUP_Slate, SLATECORE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("SlatePrepass"), STAT_SlatePrepass, STATGROUP_Slate, SLATECORE_API);
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 DECLARE_CYCLE_STAT_EXTERN(TEXT("SWidget MetaData"), STAT_SlateGetMetaData, STATGROUP_Slate, SLATECORE_API);
+#endif
 
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Total Widgets"), STAT_SlateTotalWidgets, STATGROUP_SlateMemory, SLATECORE_API);
 DECLARE_MEMORY_STAT_EXTERN(TEXT("SWidget Total Allocated Size"), STAT_SlateSWidgetAllocSize, STATGROUP_SlateMemory, SLATECORE_API);
@@ -1304,7 +1307,9 @@ public:
 	template<typename MetaDataType>
 	TSharedPtr<MetaDataType> GetMetaData() const
 	{
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 		SCOPE_CYCLE_COUNTER(STAT_SlateGetMetaData);
+#endif
 		for (const auto& MetaDataEntry : MetaData)
 		{
 			if (MetaDataEntry->IsOfType<MetaDataType>())
@@ -1322,7 +1327,9 @@ public:
 	template<typename MetaDataType>
 	TArray<TSharedRef<MetaDataType>> GetAllMetaData() const
 	{
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 		SCOPE_CYCLE_COUNTER(STAT_SlateGetMetaData);
+#endif
 		TArray<TSharedRef<MetaDataType>> FoundMetaData;
 		for (const auto& MetaDataEntry : MetaData)
 		{

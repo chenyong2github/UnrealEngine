@@ -188,10 +188,8 @@ FReply SAddNewGameplayTagSourceWidget::OnAddNewSourceButtonPressed()
 			TagRoot = *TagRootsComboBox->GetSelectedItem().Get();
 		}
 
-		Manager.FindOrAddTagSource(*SourceNameTextBox->GetText().ToString(), EGameplayTagSourceType::TagList, TagRoot);
+		IGameplayTagsEditorModule::Get().AddNewGameplayTagSource(SourceNameTextBox->GetText().ToString(), TagRoot);
 	}
-
-	IGameplayTagsModule::OnTagSettingsChanged.Broadcast();
 
 	return FReply::Handled();
 }

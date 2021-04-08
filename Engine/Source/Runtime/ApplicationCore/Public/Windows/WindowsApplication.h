@@ -391,6 +391,7 @@ public:
 	virtual void SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property) override;
 
 protected:
+	friend LRESULT WindowsApplication_WndProc(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam);
 
 	/** Windows callback for message processing (forwards messages to the FWindowsApplication instance). */
 	static LRESULT CALLBACK AppWndProc(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam);

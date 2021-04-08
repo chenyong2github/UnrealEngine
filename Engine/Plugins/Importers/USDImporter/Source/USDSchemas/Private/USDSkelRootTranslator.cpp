@@ -515,13 +515,15 @@ namespace UsdSkelRootTranslatorImpl
 	/** Warning: This function will temporarily switch the active LOD variant if one exists, so it's *not* thread safe! */
 	void SetMaterialOverrides( const pxr::UsdPrim& SkelRootPrim, const TArray<UMaterialInterface*>& ExistingAssignments, UMeshComponent& MeshComponent, UUsdAssetCache& AssetCache, float Time, EObjectFlags Flags, bool bInterpretLODs )
 	{
+		FScopedUsdAllocs Allocs;
+
 		pxr::UsdSkelRoot SkelRoot{ SkelRootPrim };
 		if ( !SkelRoot )
 		{
 			return;
 		}
-
-		FScopedUsdAllocs Allocs;
+		pxr::SdfPath SkelRootPrimPath = SkelRootPrim.GetPath();
+		pxr::UsdStageRefPtr Stage = SkelRoot.GetPrim().GetStage();
 
 		TMap<int32, UsdUtils::FUsdPrimMaterialAssignmentInfo> LODIndexToMaterialInfoMap;
 		TMap<int32, TSet<UsdUtils::FUsdPrimMaterialSlot>> CombinedSlotsForLODIndex;
@@ -550,8 +552,6 @@ namespace UsdSkelRootTranslatorImpl
 
 			return true;
 		};
-
-		pxr::UsdStageRefPtr Stage = SkelRoot.GetPrim().GetStage();
 
 		TSet<FString> ProcessedLODParentPaths;
 
@@ -592,6 +592,9 @@ namespace UsdSkelRootTranslatorImpl
 			}
 		}
 
+		// Refresh reference to SkelRootPrim because variant switching potentially invalidated it
+		pxr::UsdPrim ValidSkelRootPrim = Stage->GetPrimAtPath( SkelRootPrimPath );
+
 		// Place the LODs in order as we can't have e.g. LOD0 and LOD2 without LOD1, and there's no reason downstream code needs to care about
 		// what LOD number these data originally wanted to be
 		TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo> LODIndexToAssignments;
@@ -601,7 +604,14 @@ namespace UsdSkelRootTranslatorImpl
 			LODIndexToAssignments.Add( MoveTemp( Entry.Value ) );
 		}
 
-		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo( SkelRootPrim, LODIndexToAssignments, ExistingAssignments, AssetCache, Time, Flags );
+		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
+			ValidSkelRootPrim,
+			LODIndexToAssignments,
+			ExistingAssignments,
+			AssetCache,
+			Time,
+			Flags
+		);
 
 		// Compare resolved materials with existing assignments, and create overrides if we need to
 		uint32 SkeletalMeshSlotIndex = 0;
@@ -619,7 +629,7 @@ namespace UsdSkelRootTranslatorImpl
 				}
 				else
 				{
-					UE_LOG( LogUsd, Error, TEXT( "Lost track of resolved material for slot '%d' of LOD '%d' for mesh '%s'" ), LODSlotIndex, LODIndex, *UsdToUnreal::ConvertPath( SkelRootPrim.GetPath() ) );
+					UE_LOG( LogUsd, Error, TEXT( "Lost track of resolved material for slot '%d' of LOD '%d' for mesh '%s'" ), LODSlotIndex, LODIndex, *UsdToUnreal::ConvertPath( ValidSkelRootPrim.GetPath() ) );
 					continue;
 				}
 
@@ -848,7 +858,7 @@ namespace UsdSkelRootTranslatorImpl
 							// Bone/CurveCompressionSettings. Undoing that transaction would call UAnimSequence::Serialize with nullptr values for both, which crashes.
 							// Besides, this particular asset type is only ever created when we import to content folder assets (so never for realtime), and
 							// in that case we don't need it to be transactional anyway
-							AnimSequence = NewObject<UAnimSequence>( GetTransientPackage(), *UsdToUnreal::ConvertString( SkelAnimPrim.GetName() ), Context->ObjectFlags & ~EObjectFlags::RF_Transactional );
+							AnimSequence = NewObject<UAnimSequence>( GetTransientPackage(), NAME_None, Context->ObjectFlags & ~EObjectFlags::RF_Transactional );
 							AnimSequence->SetSkeleton( SkeletalMesh->GetSkeleton() );
 
 							// This is read back in the USDImporter, so that if we ever import this AnimSequence we will always also import the SkeletalMesh for it

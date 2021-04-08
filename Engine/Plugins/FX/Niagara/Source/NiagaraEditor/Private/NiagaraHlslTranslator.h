@@ -528,9 +528,9 @@ public:
 
 	void WriteCompilerTag(int32 InputCompileResult, const UEdGraphPin* Pin);
 
-	void Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
-	virtual void Error(FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
-	virtual void Warning(FText WarningText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
+	void Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin, FString ShortDescription = FString(), bool bDismissable = false);
+	virtual void Error(FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin, FString ShortDescription = FString(), bool bDismissable = false);
+	virtual void Warning(FText WarningText, const UNiagaraNode* Node, const UEdGraphPin* Pin, FString ShortDescription = FString(), bool bDismissable = false);
 	void RegisterCompileDependency(const FNiagaraVariableBase& InVar, FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin, bool bEmitAsLinker);
 	FString NodePinToMessage(FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
 

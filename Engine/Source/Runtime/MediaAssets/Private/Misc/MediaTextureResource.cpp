@@ -198,6 +198,10 @@ namespace MediaTextureResourceHelpers
 		}
 	}
 
+	bool SupportsComputeMipGen(EPixelFormat InFormat)
+	{
+		return RHIRequiresComputeGenerateMips() && GDynamicRHI->RHIIsTypedUAVLoadSupported(InFormat);
+	}
 
 	EPixelFormat GetConvertedPixelFormat(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample)
 	{
@@ -466,7 +470,8 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			{
 				check(OutputTarget);
 
-				const EGenerateMipsPass GenerateMipsPass = EGenerateMipsPass::Compute;
+				const EGenerateMipsPass GenerateMipsPass =
+					MediaTextureResourceHelpers::SupportsComputeMipGen(OutputTarget->GetFormat()) ? EGenerateMipsPass::Compute : EGenerateMipsPass::Raster;
 
 				CacheRenderTarget(OutputTarget, TEXT("MipGeneration"), MipGenerationCache);
 
@@ -1169,7 +1174,11 @@ void FMediaTextureResource::CreateOutputRenderTarget(const FIntPoint & InDim, EP
 	if (InNumMips > 1)
 	{
 		// Make sure can have mips & the mip generator has what it needs to work
-		OutputCreateFlags |= (TexCreate_GenerateMipCapable | TexCreate_UAV);
+		OutputCreateFlags |= TexCreate_GenerateMipCapable;
+		if (MediaTextureResourceHelpers::SupportsComputeMipGen(InPixelFormat))
+		{
+			OutputCreateFlags |= TexCreate_UAV;
+		}
 
 		// Make sure we only set a number of mips that actually makes sense, given the sample size
 		uint8 MaxMips = FGenericPlatformMath::FloorToInt(FGenericPlatformMath::Log2(static_cast<float>(FGenericPlatformMath::Min(InDim.X, InDim.Y))));

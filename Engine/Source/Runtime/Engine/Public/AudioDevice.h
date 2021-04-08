@@ -20,6 +20,8 @@
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
 #include "Sound/SoundSourceBus.h"
+#include "Subsystems/AudioEngineSubsystem.h"
+#include "Subsystems/SubsystemCollection.h"
 #include "AudioVirtualLoop.h"
 #include "AudioMixer.h"
 #include "UObject/StrongObjectPtr.h"
@@ -699,6 +701,7 @@ public:
 		bool bStopWhenOwnerDestroyed;
 
 		void SetLocation(FVector Location);
+		bool ShouldUseAttenuation() const;
 
 	private:
 		UWorld* World;
@@ -825,6 +828,8 @@ protected:
 	 */
 	void InitSoundSources();
 
+	/** Create our subsystem collection root object and initailize subsystems */
+	void InitializeSubsystemCollection();
 
 public:
 	/**
@@ -930,7 +935,7 @@ public:
 	*/
 	bool GetDistanceSquaredToNearestListener(const FVector& Location, float& OutSqDistance) const;
 		
-		/**
+	/**
 	* Returns a position from the appropriate listener representation, depending on calling thread.
 	*
 	* @param	ListenerIndex	index of the listener or proxy
@@ -1770,6 +1775,43 @@ public:
 	FName GetAudioStateProperty(const FName& PropertyName) const;
 	void SetAudioStateProperty(const FName& PropertyName, const FName& PropertyValue);
 
+	/** Get a Subsystem of specified type */
+	UAudioEngineSubsystem* GetSubsystemBase(TSubclassOf<UAudioEngineSubsystem> SubsystemClass) const
+	{
+		return SubsystemCollection.GetSubsystem<UAudioEngineSubsystem>(SubsystemClass);
+	}
+
+	/** Get a Subsystem of specified type */
+	template <typename TSubsystemClass>
+	TSubsystemClass* GetSubsystem() const
+	{
+		return SubsystemCollection.GetSubsystem<TSubsystemClass>(TSubsystemClass::StaticClass());
+	}
+
+	/**
+	 * Get a Subsystem of specified type from the provided AudioDeviceHandle
+	 * returns nullptr if the Subsystem cannot be found or the AudioDeviceHandle is invalid
+	 */
+	template <typename TSubsystemClass>
+	static FORCEINLINE TSubsystemClass* GetSubsystem(const FAudioDeviceHandle& InHandle)
+	{
+		if (InHandle.IsValid())
+		{
+			return InHandle->GetSubsystem<TSubsystemClass>();
+		}
+		return nullptr;
+	}
+
+	/**
+	 * Gets all Subsystems of specified type, this is only necessary for interfaces that can have multiple implementations instanced at a time.
+	 * Do not hold onto this Array reference unless you are sure the lifetime is less than that of the audio device
+	 */
+	template <typename TSubsystemClass>
+	const TArray<TSubsystemClass*>& GetSubsystemArray() const
+	{
+		return SubsystemCollection.GetSubsystemArray<TSubsystemClass>(TSubsystemClass::StaticClass());
+	}
+
 public:
 
 	/** The number of sources to reserve for stopping sounds. */
@@ -1844,7 +1886,6 @@ private:
 	/** Next resource ID to assign out to a wave/buffer */
 	int32 NextResourceID;
 
-	/** Set of sources used to play sounds (platform will subclass these) */
 protected:
 	// Audio thread representation of listeners
 	TArray<FListener> Listeners;
@@ -1853,6 +1894,14 @@ protected:
 	TArray<FSoundSource*> FreeSources;
 
 private:
+
+	/** Anchor used to connect UAudioEngineSubsystems to FAudioDevice */
+	TStrongObjectPtr<UAudioSubsystemCollectionRoot> SubsystemCollectionRoot;
+
+	/** Subsystems tied to this device's lifecycle */
+	FSubsystemCollection<UAudioEngineSubsystem> SubsystemCollection;
+
+	/** Set of sources used to play sounds (platform will subclass these) */
 	TMap<FWaveInstance*, FSoundSource*>	WaveInstanceSourceMap;
 
 	/** Current properties of all sound classes */

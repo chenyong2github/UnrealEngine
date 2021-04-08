@@ -205,6 +205,9 @@ protected:
 	/** Notification for when the content browser has completed it's initial search */
 	void HandleItemDataDiscoveryComplete();
 
+	/** Query to see whether the given path is currently filtered from the view */
+	virtual bool PathIsFilteredFromViewBySearch(const FString& InPath) const;
+
 	/** Creates a list item for the tree view */
 	virtual TSharedRef<ITableRow> GenerateTreeRow(TSharedPtr<FTreeItem> TreeItem, const TSharedRef<STableViewBase>& OwnerTable);
 
@@ -423,6 +426,9 @@ private:
 
 	/** Handles updating the view when content items are changed */
 	virtual void HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUpdate> InUpdatedItems) override;
+
+	/** Query to see whether the given path is currently filtered from the view */
+	virtual bool PathIsFilteredFromViewBySearch(const FString& InPath) const override;
 
 private:
 	TArray<FString> RemovedByFolderMove;

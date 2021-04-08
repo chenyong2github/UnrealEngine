@@ -645,6 +645,14 @@ public:
 	static void BeginNamedEvent(const struct FColor& Color, const ANSICHAR* Text);
 
 	/**
+	 * Stats logging for named event 
+	 */
+	template<typename CharType>
+	static void StatNamedEvent(const CharType* Text);
+	static void TickStatNamedEvents();
+	static void LogNameEventStatsInit();
+
+	/**
 	 * Platform specific function for closing a named event that can be viewed in external tool
 	 */
 	static void EndNamedEvent();
@@ -658,6 +666,12 @@ public:
 	 */
 	static void BeginProfilerColor(const struct FColor& Color) {}
 	static void EndProfilerColor() {}
+
+	/**
+	 * Profiler enter background events. These are for timing backgrounding. Some platforms have a timeout for this
+	 */
+	static void BeginEnterBackgroundEvent(const TCHAR* Text) {}
+	static void EndEnterBackgroundEvent() {}
 
 
 	/** Indicates the start of a frame for named events */

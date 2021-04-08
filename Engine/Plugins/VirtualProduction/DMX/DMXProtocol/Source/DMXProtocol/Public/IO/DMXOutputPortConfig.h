@@ -25,13 +25,11 @@ struct DMXPROTOCOL_API FDMXOutputPortConfig
 	GENERATED_BODY()
 
 public:
+	/** Constructs a default config with an invalid guid */
 	FDMXOutputPortConfig();
 
-	/** Initializes properties that need initializataion. Returns the Port's Guid */
-	FGuid Initialize();
-
-	/** Returns true if the port is initialized */
-	bool IsInitialized() const;
+	/** Constructs a default config with a Guid */
+	explicit FDMXOutputPortConfig(const FGuid& InPortGuid);
 
 	/** The name displayed wherever the port can be displayed */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
@@ -45,9 +43,13 @@ public:
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
 	EDMXCommunicationType CommunicationType;
 
-	/** The IP address outbound DMX is directed at */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Target IP Address"))
-	FString Address; // Invariant of networking, may be a USB device in the future 
+	/** The IP address of the network interface card over which outbound DMX is sent */
+	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Network Interface Card IP Address"))
+	FString DeviceAddress;
+
+	/** For Unicast, the IP address outbound DMX is sent to */
+	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Destination IP Address"))
+	FString DestinationAddress; 
 
 	/** If true, the signals of output to this port is input into to the engine */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Input into Engine"))

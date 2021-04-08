@@ -1249,12 +1249,11 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		// make sure the list is sorted in ascending order
 		changes.sort((a, b) => a.change - b.change)
 
-		let doneCount = 0
-
-		for (const change of changes) {
+		for (let changeIndex = 0; changeIndex < changes.length; ++changeIndex) {
+			const change = changes[changeIndex]
 			const changeResult = await this._processAndMergeCl(availableEdges, change, false)
 
-			// If the integration failed, exit immediately.
+			// Exit immediately on syntax errors
 			if (this.isBlocked) {
 				return
 			}
@@ -1267,20 +1266,20 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			// Count this as processed to keep them up-to-date
 			for (const edgeBot of availableEdges.values()) {
 				if (edgeBot.isAvailable && edgeBot.lastCl < change.change && !(changeResult.skippedEdges && changeResult.skippedEdges.has(edgeBot.targetBranch.name))) {
-					edgeBot.lastCl = change.change
+					edgeBot.updateLastCl(changes, changeIndex) 
 				}
 			}
 
 			// yield if necessary - might be better to make this time-based
-			++doneCount;
-			if (maxChangesToProcess > 0 && doneCount === maxChangesToProcess) {
-				this.nodeBotLogger.info(`${this.branch.name} (${this.graphBotName}) yielding after ${doneCount} revisions`)
+			if (maxChangesToProcess > 0 && changeIndex === maxChangesToProcess) {
+				this.nodeBotLogger.info(`${this.branch.name} (${this.graphBotName}) yielding after ${maxChangesToProcess} revisions`)
 				return
 			}
 
 			// If we've been paused (or blocked?) while the previous change was being processed, stop now
+			// seems either very rare on impossible in practice
 			if (!this.isAvailable) {
-				this.nodeBotLogger.info(`Node is no longer available to process further changes. Yielding after ${doneCount} revisions`)
+				this.nodeBotLogger.info(`Node is no longer available to process further changes. Revisions processed: ${changeIndex}`)
 				return
 			}
 		}
@@ -1451,12 +1450,12 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 	}
 	private _sendBlockageEmail(blockage: Blockage) {
 		const recipients = new Recipients(blockage.owner)
-		const subject = `Change ${blockage.change.source_cl} caused blockage in ${this.fullName}`
-		const intro = `Robomerge encountered an error merging change ${blockage.change.source_cl} from branch ${blockage.change.branch.name}.`
+		const subject = `Change ${blockage.change.cl} caused blockage in ${this.fullName}`
+		const intro = `Robomerge encountered an error merging change ${blockage.change.cl} from branch ${blockage.change.branch.name}.`
 		const urls = this.getBlockageUrls(blockage)
 
 		// Begin contructing email message
-		let emailPreformattedText = `${blockage.failure.kind}!\n\nCL #${blockage.change.source_cl}: ${blockage.change.description}`
+		let emailPreformattedText = `${blockage.failure.kind}!\n\nCL #${blockage.change.cl}: ${blockage.change.description}`
 		if (blockage.failure.description) {
 			emailPreformattedText += `\n\n${blockage.failure.description}`
 		}

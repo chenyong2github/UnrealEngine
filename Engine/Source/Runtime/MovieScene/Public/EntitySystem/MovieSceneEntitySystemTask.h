@@ -263,7 +263,9 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 			return nullptr;
 		}
 
-		if (EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading)
+		// If this ensure triggers, we are not in the evaluation phase - the callee should be using RunInline_ or Iterate_ variants
+		const bool bRunInline = !ensure(EntityManager->IsLockedDown()) || EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading;
+		if (bRunInline)
 		{
 			TaskImpl Task{ Forward<TaskConstructionArgs>(InArgs)... };
 			TEntityAllocationTaskBase<TaskImpl, T...>(EntityManager, *this).Run(Task);
@@ -334,7 +336,9 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 			return nullptr;
 		}
 
-		if (EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading)
+		// If this ensure triggers, we are not in the evaluation phase - the callee should be using RunInline_ or Iterate_ variants
+		const bool bRunInline = !ensure(EntityManager->IsLockedDown()) || EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading;
+		if (bRunInline)
 		{
 			TaskImpl Task{ Forward<TaskConstructionArgs>(InArgs)... };
 			TEntityTaskBase<TaskImpl, T...>(EntityManager, *this).Run(Task);
@@ -342,7 +346,6 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 		}
 		else
 		{
-
 			FGraphEventArray GatheredPrereqs;
 			this->PopulatePrerequisites(Prerequisites, &GatheredPrereqs);
 
@@ -929,7 +932,9 @@ struct TFilteredEntityTask
 			return nullptr;
 		}
 
-		if (EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading)
+		// If this ensure triggers, we are not in the evaluation phase - the callee should be using RunInline_ or Iterate_ variants
+		const bool bRunInline = !ensure(EntityManager->IsLockedDown()) || EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading;
+		if (bRunInline)
 		{
 			TaskImpl Task{ Forward<TaskConstructionArgs>(InArgs)... };
 			TEntityAllocationTaskBase<TaskImpl, T...>(EntityManager, *this).Run(Task);
@@ -999,7 +1004,9 @@ struct TFilteredEntityTask
 			return nullptr;
 		}
 
-		if (EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading)
+		// If this ensure triggers, we are not in the evaluation phase - the callee should be using RunInline_ or Iterate_ variants
+		const bool bRunInline = !ensure(EntityManager->IsLockedDown()) || EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading;
+		if (bRunInline)
 		{
 			TaskImpl Task{ Forward<TaskConstructionArgs>(InArgs)... };
 			TEntityTaskBase<TaskImpl, T...>(EntityManager, *this).Run(Task);

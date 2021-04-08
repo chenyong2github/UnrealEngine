@@ -12,7 +12,7 @@ class HEADMOUNTEDDISPLAY_API FXRSwapChain : public TSharedFromThis<FXRSwapChain,
 {
 public:
 	FXRSwapChain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef& AliasedTexture);
-	virtual ~FXRSwapChain();
+	virtual ~FXRSwapChain() {}
 
 	const FTextureRHIRef& GetTextureRef() const { return RHITexture; }
 	FRHITexture* GetTexture() const { return RHITexture.GetReference(); }

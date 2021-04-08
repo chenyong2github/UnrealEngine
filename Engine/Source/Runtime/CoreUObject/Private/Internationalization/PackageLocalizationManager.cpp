@@ -70,11 +70,17 @@ void FPackageLocalizationManager::InitializeFromLazyCallback(FLazyInitFunc InLaz
 void FPackageLocalizationManager::InitializeFromCache(const TSharedRef<IPackageLocalizationCache>& InCache)
 {
 	ActiveCache = InCache;
+
+	// Only preemptively attempt to conditionally update the cache outside of the editor where such things
+	// will happen almost immediately in a localized game, where as in the editor it's a bunch of work that
+	// likely won't be used until using some localization menus in the editor.
+#if !WITH_EDITOR
 	ActiveCache->ConditionalUpdateCache();
 
 	// Allow the plugin manager to update the package localization cache by exposing access through a delegate.
 	// PluginManager is a Core class, but package localization functionality is added at the CoreUObject level.
 	IPluginManager::Get().SetUpdatePackageLocalizationCacheDelegate(IPluginManager::FUpdatePackageLocalizationCacheDelegate::CreateRaw(this, &FPackageLocalizationManager::ConditionalUpdateCache));
+#endif
 }
 
 void FPackageLocalizationManager::InitializeFromDefaultCache()

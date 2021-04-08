@@ -292,8 +292,13 @@ static UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, 
 {
 	UPackage* ImposterStaticMeshPackage = CreateOrRetrieveImposterMeshPackage(InComponent->GetStaticMesh());
 
+	const UStaticMesh* SourceImposterStaticMesh = InComponent->GetStaticMesh();
+	const FVector SourcePositiveBoundsExtension = SourceImposterStaticMesh->GetPositiveBoundsExtension();
+	const FVector SourceNegativeBoundsExtension = SourceImposterStaticMesh->GetNegativeBoundsExtension();
+	const bool SourceHasBoundsExtension = !SourcePositiveBoundsExtension.IsZero() || !SourceNegativeBoundsExtension.IsZero();
+
 	// check if our asset exists
-	const FString ImposterStaticMeshName = GetImposterMeshName(InComponent->GetStaticMesh());
+	const FString ImposterStaticMeshName = GetImposterMeshName(SourceImposterStaticMesh);
 	UStaticMesh* ImposterStaticMesh = FindObject<UStaticMesh>(ImposterStaticMeshPackage, *ImposterStaticMeshName);
 	bool bMeshChanged = false;
 
@@ -358,6 +363,13 @@ static UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, 
 			*ImposterMeshDesc = SourceMeshDesc;
 			bMeshChanged = true;
 		}
+
+		// Validate source bounds extensions haven't changed
+		if (!bMeshChanged && SourceHasBoundsExtension)
+		{
+			bMeshChanged = !SourcePositiveBoundsExtension.Equals(ImposterStaticMesh->GetNegativeBoundsExtension()) ||
+						   !SourceNegativeBoundsExtension.Equals(ImposterStaticMesh->GetPositiveBoundsExtension());
+		}
 	}
 
 	if (bMeshChanged)
@@ -370,16 +382,26 @@ static UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, 
 
 		ImposterStaticMesh->PostEditChange();
 
-		// Our imposters meshes are flat, but they actually represent a volume.
-		// Extend the imposter bounds using the original mesh bounds.
-		if (ImposterStaticMesh->GetBoundingBox().GetVolume() == 0)
+		// If the source has source bounds extensions, apply them unchanged
+		if (SourceHasBoundsExtension)
 		{
-			const FBox StaticMeshBox = ImposterStaticMesh->GetBoundingBox();
-			const FBox CombinedBox = StaticMeshBox + InComponent->GetStaticMesh()->GetBoundingBox();
-			ImposterStaticMesh->SetPositiveBoundsExtension((CombinedBox.Max - StaticMeshBox.Max));
-			ImposterStaticMesh->SetNegativeBoundsExtension((StaticMeshBox.Min - CombinedBox.Min));
-			ImposterStaticMesh->CalculateExtendedBounds();
+			ImposterStaticMesh->SetPositiveBoundsExtension(SourceImposterStaticMesh->GetPositiveBoundsExtension());
+			ImposterStaticMesh->SetNegativeBoundsExtension(SourceImposterStaticMesh->GetNegativeBoundsExtension());
 		}
+		else
+		{
+			// Our imposters meshes are flat, but they actually represent a volume.
+			// Extend the imposter bounds using the original mesh bounds.
+			if (ImposterStaticMesh->GetBoundingBox().GetVolume() == 0)
+			{
+				const FBox StaticMeshBox = ImposterStaticMesh->GetBoundingBox();
+				const FBox CombinedBox = StaticMeshBox + SourceImposterStaticMesh->GetBoundingBox();
+				ImposterStaticMesh->SetPositiveBoundsExtension((CombinedBox.Max - StaticMeshBox.Max));
+				ImposterStaticMesh->SetNegativeBoundsExtension((StaticMeshBox.Min - CombinedBox.Min));
+			}
+		}
+
+		ImposterStaticMesh->CalculateExtendedBounds();
 
 		ImposterStaticMesh->MarkPackageDirty();
 	}

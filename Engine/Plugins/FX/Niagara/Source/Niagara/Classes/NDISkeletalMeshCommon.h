@@ -57,9 +57,9 @@ struct FSkeletalMeshAccessorHelper
 		return Mesh != nullptr;
 	}
 
-	FORCEINLINE bool IsSkinAccessible() const
+	FORCEINLINE bool IsLODAccessible() const
 	{
-		return SkinWeightBuffer != nullptr;
+		return LODData != nullptr;
 	}
 
 	USkeletalMeshComponent* Comp = nullptr;

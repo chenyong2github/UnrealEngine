@@ -253,28 +253,23 @@ half GetPrimaryPrecomputedShadowMask(VTPageTableResult LightmapVTPageTableResult
 		GetShadowMapCoordinate(Interpolants, ShadowMapCoordinate, LightmapDataIndex);
 
 		// Fetch the distance field data
-#if LIGHTMAP_VT_ENABLED
-		half DistanceField = SampleLightmapVT(LightmapVTPageTableResult, 2u, LightmapDataIndex, LightmapResourceCluster.VTStaticShadowTexture, LightmapResourceCluster.StaticShadowTextureSampler);
-#else
-		half DistanceField = Texture2DSample(LightmapResourceCluster.StaticShadowTexture, LightmapResourceCluster.StaticShadowTextureSampler, ShadowMapCoordinate).r;
-#endif
+		#if LIGHTMAP_VT_ENABLED
+			half DistanceField = SampleLightmapVT(LightmapVTPageTableResult, 2u, LightmapDataIndex, LightmapResourceCluster.VTStaticShadowTexture, LightmapResourceCluster.StaticShadowTextureSampler);
+		#else
+			half DistanceField = Texture2DSample(LightmapResourceCluster.StaticShadowTexture, LightmapResourceCluster.StaticShadowTextureSampler, ShadowMapCoordinate).r;
+		#endif
 		float4 InvUniformPenumbraSizes = GetLightmapData(LightmapDataIndex).InvUniformPenumbraSizes;
 		float DistanceFieldBias = -.5f * InvUniformPenumbraSizes.x + .5f;
 		// Compute shadow factors by scaling and biasing the distance
 		half ShadowFactor = saturate( DistanceField * InvUniformPenumbraSizes.x + DistanceFieldBias );
 		return GetLightmapData(LightmapDataIndex).StaticShadowMapMasks.r * ShadowFactor * ShadowFactor;
-
 	#elif MOVABLE_DIRECTIONAL_LIGHT
-		// Do this before checking for lightmaps as we might have a lightmap + directional light
-		//@mw todo
-		// TODO: Filter shadowmap
-		return 1;
-
+		// Do this before checking for lightmaps as we might have a lightmap + movable directional light
+		return 1.0f;
 	#elif HQ_TEXTURE_LIGHTMAP || LQ_TEXTURE_LIGHTMAP
-
 		// Mark as shadowed for lightmapped objects with no shadowmap
 		// This is necessary because objects inside a light's influence that were determined to be completely shadowed won't be rendered with STATICLIGHTING_TEXTUREMASK==1
-		return 0;
+		return 0.0f;
 	#else
 		#if CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING
 			// output per-primitive directional light shadowing if requested
@@ -283,7 +278,7 @@ half GetPrimaryPrecomputedShadowMask(VTPageTableResult LightmapVTPageTableResult
 				return IndirectLightingCache.DirectionalLightShadowing;
 			}
 		#endif
-
-		return 1;
 	#endif
+
+	return 1.0f;
 }

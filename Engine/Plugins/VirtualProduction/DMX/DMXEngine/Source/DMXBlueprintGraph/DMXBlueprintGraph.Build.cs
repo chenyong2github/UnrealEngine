@@ -41,7 +41,6 @@ public class DMXBlueprintGraph : ModuleRules
                 "BlueprintGraph",
                 "GraphEditor",
                 "DMXEditor",
-				"DMXProtocolEditor"
             }
 		);
 	}

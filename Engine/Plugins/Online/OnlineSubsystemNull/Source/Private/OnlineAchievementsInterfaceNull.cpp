@@ -31,8 +31,7 @@ void FOnlineAchievementsNull::WriteAchievements(const FUniqueNetId& PlayerId, FO
 		return;
 	}
 
-	FUniqueNetIdNull NullId(PlayerId);
-	const TArray<FOnlineAchievement> * PlayerAch = PlayerAchievements.Find(NullId);
+	const TArray<FOnlineAchievement> * PlayerAch = PlayerAchievements.Find(PlayerId.AsShared());
 	if (NULL == PlayerAch)
 	{
 		// achievements haven't been read for a player
@@ -69,8 +68,7 @@ void FOnlineAchievementsNull::QueryAchievements( const FUniqueNetId& PlayerId, c
 		return;
 	}
 
-	FUniqueNetIdNull NullId(PlayerId);
-	if (!PlayerAchievements.Find(NullId))
+	if (!PlayerAchievements.Find(PlayerId.AsShared()))
 	{
 		// copy for a new player
 		TArray<FOnlineAchievement> AchievementsForPlayer;
@@ -81,7 +79,7 @@ void FOnlineAchievementsNull::QueryAchievements( const FUniqueNetId& PlayerId, c
 			AchievementsForPlayer.Add( Achievements[ AchIdx ] );
 		}
 
-		PlayerAchievements.Add(NullId, AchievementsForPlayer);
+		PlayerAchievements.Add(PlayerId.AsShared(), AchievementsForPlayer);
 	}
 
 	Delegate.ExecuteIfBound(PlayerId, true);
@@ -118,8 +116,7 @@ EOnlineCachedResult::Type FOnlineAchievementsNull::GetCachedAchievement(const FU
 		return EOnlineCachedResult::NotFound;
 	}
 
-	FUniqueNetIdNull NullId(PlayerId);
-	const TArray<FOnlineAchievement> * PlayerAch = PlayerAchievements.Find(NullId);
+	const TArray<FOnlineAchievement> * PlayerAch = PlayerAchievements.Find(PlayerId.AsShared());
 	if (NULL == PlayerAch)
 	{
 		// achievements haven't been read for a player
@@ -148,8 +145,7 @@ EOnlineCachedResult::Type FOnlineAchievementsNull::GetCachedAchievements(const F
 		return EOnlineCachedResult::NotFound;
 	}
 
-	FUniqueNetIdNull NullId(PlayerId);
-	const TArray<FOnlineAchievement> * PlayerAch = PlayerAchievements.Find(NullId);
+	const TArray<FOnlineAchievement> * PlayerAch = PlayerAchievements.Find(PlayerId.AsShared());
 	if (NULL == PlayerAch)
 	{
 		// achievements haven't been read for a player
@@ -195,8 +191,7 @@ bool FOnlineAchievementsNull::ResetAchievements(const FUniqueNetId& PlayerId)
 		return false;
 	}
 
-	FUniqueNetIdNull NullId(PlayerId);
-	TArray<FOnlineAchievement> * PlayerAch = PlayerAchievements.Find(NullId);
+	TArray<FOnlineAchievement> * PlayerAch = PlayerAchievements.Find(PlayerId.AsShared());
 	if (NULL == PlayerAch)
 	{
 		// achievements haven't been read for a player

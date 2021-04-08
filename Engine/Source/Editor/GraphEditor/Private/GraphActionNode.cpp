@@ -244,7 +244,7 @@ void FGraphActionNode::GetLeafNodes(TArray< TSharedPtr<FGraphActionNode> >& OutL
 {
 	for (TSharedPtr<FGraphActionNode> const& ChildNode : Children)
 	{
-		if (ChildNode->IsCategoryNode())
+		if (ChildNode->IsCategoryNode() || ChildNode->IsSectionHeadingNode())
 		{
 			ChildNode->GetLeafNodes(OutLeafArray);
 		}

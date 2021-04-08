@@ -1118,7 +1118,9 @@ FString ConvertItemToText(const FObjectImport& Import, FLinkerLoad* Linker)
 bool CompareTableItem(FLinkerLoad* SourceLinker, FLinkerLoad* DestLinker, const FObjectExport& SourceExport, const FObjectExport& DestExport)
 {
 	if (SourceExport.ObjectName != DestExport.ObjectName ||
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		SourceExport.PackageGuid != DestExport.PackageGuid ||
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		SourceExport.PackageFlags != DestExport.PackageFlags ||
 		SourceExport.ObjectFlags != DestExport.ObjectFlags ||
 		SourceExport.SerialSize != DestExport.SerialSize ||
@@ -1216,7 +1218,9 @@ FString ConvertItemToText(const FObjectExport& Export, FLinkerLoad* Linker)
 		*GetTableKeyForIndex(Linker, Export.TemplateIndex),
 		(int32)Export.ObjectFlags,
 		Export.SerialSize,
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		*Export.PackageGuid.ToString(),
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Export.PackageFlags,
 		Export.bForcedExport,
 		Export.bNotForClient,

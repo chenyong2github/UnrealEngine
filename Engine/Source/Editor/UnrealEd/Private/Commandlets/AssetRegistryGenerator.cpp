@@ -393,25 +393,43 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 
 	bool bHaveGameOpenOrder = false;
 	// if a game open order can be found then use that to sort the filenames
-
-	// FPaths::ConvertRelativePathToFull(FString::Printf(TEXT("../../../FortniteGame/Build/%s/FileOpenOrder/GameOpenOrder.log"), *Platform));
-	FString OpenOrderFullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), Platform, TEXT("FileOpenOrder"), TEXT("GameOpenOrder.log"))); 
-	UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Looking for game openorder in dir %s"), *OpenOrderFullPath);
 	FPakOrderMap OrderMap;
-	if (bEnableGameOpenOrderSort && IFileManager::Get().FileExists(*OpenOrderFullPath) )
+	if (bEnableGameOpenOrderSort)
 	{
-		OrderMap.ProcessOrderFile(*OpenOrderFullPath);
-
-		UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found game open order %s using it to sort input files"), *OpenOrderFullPath);
-		bHaveGameOpenOrder = true;
+		for (int32 SubOrderFile = 0; SubOrderFile < 10; ++SubOrderFile)
+		{
+			FString OpenOrderFileName = TEXT("GameOpenOrder.log");
+			if (SubOrderFile > 0)
+			{
+				OpenOrderFileName = FString::Printf(TEXT("GameOpenOrder_%d.log"), SubOrderFile);
+			}
+			FString OpenOrderFullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), Platform, TEXT("FileOpenOrder"), OpenOrderFileName));
+			UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Looking for game openorder in dir %s"), *OpenOrderFullPath);
+			if (IFileManager::Get().FileExists(*OpenOrderFullPath))
+			{
+				OrderMap.ProcessOrderFile(*OpenOrderFullPath, SubOrderFile!=0);
+				UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found game open order %s using it to sort input files"), *OpenOrderFullPath);
+				bHaveGameOpenOrder = true;
+			}
+		}
+		
 	}
 	if (bUseSecondaryOpenOrder)
 	{
-		FString SecondaryOpenOrderFullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), Platform, TEXT("FileOpenOrder"), TEXT("CookerOpenOrder.log")));
-		UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Looking for secondary openorder in dir %s"), *SecondaryOpenOrderFullPath);
-		if(IFileManager::Get().FileExists(*SecondaryOpenOrderFullPath))
+		for (int32 SubOrderFile = 0; SubOrderFile < 10; ++SubOrderFile)
 		{
-			OrderMap.ProcessOrderFile(*SecondaryOpenOrderFullPath, true);
+			FString OpenOrderFileName = TEXT("CookerOpenOrder.log");
+			if (SubOrderFile > 0)
+			{
+				OpenOrderFileName = FString::Printf(TEXT("CookerOpenOrder_%d.log"), SubOrderFile);
+			}
+			FString OpenOrderFullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), Platform, TEXT("FileOpenOrder"), OpenOrderFileName));
+			UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Looking for secondary openorder in dir %s"), *OpenOrderFullPath);
+			if (IFileManager::Get().FileExists(*OpenOrderFullPath))
+			{
+				OrderMap.ProcessOrderFile(*OpenOrderFullPath, true);
+				UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found secondary open order %s using it to sort input files"), *OpenOrderFullPath);
+			}
 		}
 	}
 
@@ -849,7 +867,9 @@ void FAssetRegistryGenerator::UpdateKeptPackagesDiskData(const TArray<FName>& In
 			continue;
 		}
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (PackageData->PackageGuid != PreviousPackageData->PackageGuid)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			continue;
 		}
@@ -981,7 +1001,9 @@ void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPac
 		{
 			NewPackages.Add(PackageName);
 		}
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		else if (CurrentPackageData->PackageGuid == PreviousPackageData->PackageGuid)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			if (PreviousPackageData->DiskSize < 0)
 			{

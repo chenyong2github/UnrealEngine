@@ -4,10 +4,16 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Engine/World.h"
 #include "Chaos/Core.h"
+#include "Chaos/Particles.h"
+#include "Components/ActorComponent.h"
+#include "UObject/ObjectKey.h"
 
 #include "NetworkPhysics.generated.h"
 
+NETWORKPREDICTION_API DECLARE_LOG_CATEGORY_EXTERN(LogNetworkPhysics, Log, All);
+
 struct FNetworkPhysicsRewindCallback;
+class FMockObjectManager;
 
 // PhysicsState that is networked and marshelled between GT and PT
 USTRUCT()
@@ -22,6 +28,7 @@ struct FNetworkPhysicsState
 	int32 LocalManagedHandle;
 
 	// Physics State
+	Chaos::EObjectStateType ObjectState = Chaos::EObjectStateType::Uninitialized;
 	Chaos::FVec3 Location;
 	Chaos::FRotation3 Rotation;
 	Chaos::FVec3 LinearVelocity;
@@ -41,12 +48,16 @@ struct FNetworkPhysicsState
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
+		uint8 ObjStateByte = (uint8)ObjectState;
+		Ar << ObjStateByte;
+		ObjectState = (Chaos::EObjectStateType)ObjStateByte;
+
+		// Fixme: quantize
 		Ar << Frame;
 		Ar << Location;
 		Ar << Rotation;
 		Ar << LinearVelocity;
 		Ar << AngularVelocity;
-
 		return true;
 	}
 };
@@ -60,6 +71,15 @@ struct TStructOpsTypeTraits<FNetworkPhysicsState> : public TStructOpsTypeTraitsB
 		WithIdentical = true,
 	};
 };
+
+class NETWORKPREDICTION_API INetworkPhysicsSubsystem
+{
+public:
+	virtual ~INetworkPhysicsSubsystem() = default;
+	virtual void PostNetRecv(UWorld* World, int32 LocalOffset, int32 LastProcessedFrame) = 0;
+	virtual void PreNetSend(UWorld* World, float DeltaSeconds) = 0;
+};
+
 
 UCLASS()
 class NETWORKPREDICTION_API UNetworkPhysicsManager : public UWorldSubsystem
@@ -82,6 +102,16 @@ public:
 	void RegisterPhysicsProxy(FNetworkPhysicsState* State);
 	void UnregisterPhysicsProxy(FNetworkPhysicsState* State);
 
+	template<typename T>
+	T* RegisterSubsystem(TUniquePtr<INetworkPhysicsSubsystem>&& Sys) {  return (T*)SubSystems.Emplace_GetRef(T::GetName(), MoveTemp(Sys)).Value.Get(); }
+
+	template<typename T>
+	T* GetSubsystem()
+	{
+		auto* Pair = SubSystems.FindByPredicate([](const TPair<FName, TUniquePtr<INetworkPhysicsSubsystem>>& E) { return E.Key == T::GetName(); });
+		return Pair ? (T*)Pair->Value.Get() : nullptr;
+	};
+
 private:
 
 	FNetworkPhysicsRewindCallback* RewindCallback;
@@ -96,25 +126,6 @@ private:
 	TSparseArray<FNetworkPhysicsState*> ManagedPhysicsStates;
 	int32 LastFreeIndex = 0;
 	int32 UniqueHandleCounter = 0;
-};
-
-
-// ========================================================================================
-
-// Helper component for testing
-
-UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTION_API UNetworkPhysicsComponent : public UActorComponent
-{
-	GENERATED_BODY()
-
-public:
-
-	UNetworkPhysicsComponent();
-
-	virtual void InitializeComponent() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
-	UPROPERTY(Replicated, transient)
-	FNetworkPhysicsState NetworkPhysicsState;
+	
+	TArray<TPair<FName, TUniquePtr<INetworkPhysicsSubsystem>>> SubSystems;
 };

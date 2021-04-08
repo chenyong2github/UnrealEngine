@@ -322,6 +322,7 @@ bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) 
 }
 
 
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceCurveBase::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	OutHLSL += TEXT("\n");
@@ -344,6 +345,7 @@ void UNiagaraDataInterfaceCurveBase::GetParameterDefinitionHLSL(const FNiagaraDa
 	OutHLSL += FString::Printf(TEXT("float SampleCurve_%s(float T)\n{\n\treturn %s[(uint)T];\n}\n"), *ParamInfo.DataInterfaceHLSLSymbol, *BufferName);
 	OutHLSL += TEXT("\n");
 }
+#endif
 
 //FReadBuffer& UNiagaraDataInterfaceCurveBase::GetCurveLUTGPUBuffer()
 //{

@@ -17,7 +17,6 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPinIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
 
-public:
 	FNiagaraScratchPadScriptViewModel();
 
 	~FNiagaraScratchPadScriptViewModel();
@@ -30,7 +29,7 @@ public:
 
 	UNiagaraScript* GetOriginalScript() const;
 
-	UNiagaraScript* GetEditScript() const;
+	const FVersionedNiagaraScript& GetEditScript() const;
 
 	TSharedPtr<INiagaraParameterPanelViewModel> GetParameterPanelViewModel() const;
 
@@ -79,16 +78,12 @@ private:
 
 	void OnScriptPropertyChanged(FPropertyChangedEvent& PropertyChangedEvent);
 
-private:
 	bool bIsPendingRename;
-
 	bool bIsPinned;
-
 	float EditorHeight;
 
-	UNiagaraScript* OriginalScript;
-
-	UNiagaraScript* EditScript;
+	UNiagaraScript* OriginalScript = nullptr;
+	FVersionedNiagaraScript EditScript;
 
 	bool bHasPendingChanges;
 
@@ -100,7 +95,7 @@ private:
 	FOnRenamed OnRenamedDelegate;
 	FOnPinnedChanged OnPinnedChangedDelegate;
 	FOnChangesApplied OnChangesAppliedDelegate;
-	FSimpleDelegate OnRequestDiscardChangesDelegate;
+	FSimpleDelegate		OnRequestDiscardChangesDelegate;
 
 	FOnNodeIDFocusRequested OnNodeIDFocusRequestedDelegate;
 	FOnPinIDFocusRequested OnPinIDFocusRequestedDelegate;

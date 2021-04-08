@@ -439,7 +439,9 @@ void UDiffAssetRegistriesCommandlet::ConsistencyCheck(const FString& OldPath, co
 		}
 		else
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (Data->PackageGuid != PrevData->PackageGuid)
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				GuidModified.Add(Name);
 			}
@@ -1166,7 +1168,9 @@ void UDiffAssetRegistriesCommandlet::DiffAssetRegistries(const FString& OldPath,
 				New.Add(Name);
 				RecordAdd(Name, *Data);
 			}
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			else if (Data->PackageGuid != PrevData->PackageGuid)
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				Modified.Add(Name);
 			}
@@ -1240,7 +1244,9 @@ void UDiffAssetRegistriesCommandlet::DiffAssetRegistries(const FString& OldPath,
 			{
 				RecordEdit(Name, *Data, *PrevData);
 				AssetPathFlags.FindOrAdd(Name) |= EAssetFlags::HashChange;
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				if (Data->PackageGuid != PrevData->PackageGuid)
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				{
 					AssetPathFlags.FindOrAdd(Name) |= EAssetFlags::GuidChange;
 				}

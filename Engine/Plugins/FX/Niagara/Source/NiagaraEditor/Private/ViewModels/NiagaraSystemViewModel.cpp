@@ -889,7 +889,7 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 				WarningCount++;
 			}
 
-			MessageManager->AddMessageJob(MakeUnique<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)), ScriptInfo.OwningScriptNameString), SystemMessageLogGuidKey.GetValue());
+			MessageManager->AddMessageJob(MakeUnique<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)), FGuid(), ScriptInfo.OwningScriptNameString), SystemMessageLogGuidKey.GetValue());
 		}
 
 		// Check if there are any GPU compile errors and if so push them.
@@ -911,7 +911,7 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 					WarningCount++;
 				}
 				FNiagaraCompileEvent CompileEvent = FNiagaraCompileEvent(Severity, String);
-				MessageManager->AddMessageJob(MakeUnique<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)),
+				MessageManager->AddMessageJob(MakeUnique<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)), FGuid(),
 					ScriptInfo.OwningScriptNameString), SystemMessageLogGuidKey.GetValue());
 			}
 		}
@@ -1623,7 +1623,7 @@ void FNiagaraSystemViewModel::EmitterPropertyChanged()
 	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 }
 
-void FNiagaraSystemViewModel::ScriptCompiled()
+void FNiagaraSystemViewModel::ScriptCompiled(UNiagaraScript*, const FGuid&)
 {
 	bCompilePendingCompletion = true;
 	//ReInitializeSystemInstances();

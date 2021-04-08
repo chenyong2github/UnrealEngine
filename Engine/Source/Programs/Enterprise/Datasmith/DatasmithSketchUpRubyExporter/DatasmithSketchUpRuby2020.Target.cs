@@ -2,7 +2,7 @@
 
 using UnrealBuildTool;
 
-[SupportedPlatforms("Win64")]
+[SupportedPlatforms("Win64", "Mac")]
 public abstract class DatasmithSketchUpRubyBaseTarget : TargetRules
 {
 	public DatasmithSketchUpRubyBaseTarget(TargetInfo Target)
@@ -46,13 +46,13 @@ public abstract class DatasmithSketchUpRubyBaseTarget : TargetRules
 		// Copy plugin dll
 		PostBuildSteps.Add(string.Format("echo F|xcopy /Y /R /F \"{0}\" \"{1}\"",
 			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/{1}.dll", ExeBinariesSubFolder, OutputName),
-			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/UnrealDatasmithSketchUp2020/{1}.so", ExeBinariesSubFolder, OutputName)
+			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/UnrealDatasmithSketchUp/DatasmithSketchUpRuby.so", ExeBinariesSubFolder, OutputName)
 			));
 
 		// Copy resources
 		PostBuildSteps.Add(string.Format("echo D|xcopy /Y /R /F /S \"{0}\" \"{1}\"",
 			string.Format(@"$(EngineDir)/Source/Programs/Enterprise/Datasmith/DatasmithSketchUpRubyExporter/Resources/Windows"),
-			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/UnrealDatasmithSketchUp2020/Resources", ExeBinariesSubFolder)
+			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/UnrealDatasmithSketchUp/Resources", ExeBinariesSubFolder)
 			));
 	}
 

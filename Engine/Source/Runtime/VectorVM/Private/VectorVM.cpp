@@ -78,7 +78,7 @@ namespace VectorVMConstants
 
 // helper function wrapping the SSE3 shuffle operation.  Currently implemented for PS4/XB1/Neon, the
 // rest will just use the FPU version so as to not push the requirements up to SSE3 (currently SSE2)
-#if PLATFORM_ENABLE_VECTORINTRINSICS && (PLATFORM_PS4 || PLATFORM_XBOXONE)
+#if PLATFORM_ENABLE_VECTORINTRINSICS && PLATFORM_ALWAYS_HAS_SSE4_1
 #define VectorIntShuffle( Vec, Mask )	_mm_shuffle_epi8( (Vec), (Mask) )
 #elif PLATFORM_ENABLE_VECTORINTRINSICS_NEON
 /**
@@ -833,23 +833,8 @@ struct FVectorKernelDivSafe : public TBinaryVectorKernel<FVectorKernelDivSafe>
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
 	{
-	#if defined(__SCE__)
-		float Src0F[4];
-		float Src1F[4];
-		float DstF[4];
-		VectorStore(Src0, Src0F);
-		VectorStore(Src1, Src1F);
-
-		DstF[0] = FMath::Abs(Src1F[0]) > SMALL_NUMBER ? Src0F[0] / Src1F[0] : 0.0f;
-		DstF[1] = FMath::Abs(Src1F[1]) > SMALL_NUMBER ? Src0F[1] / Src1F[1] : 0.0f;
-		DstF[2] = FMath::Abs(Src1F[2]) > SMALL_NUMBER ? Src0F[2] / Src1F[2] : 0.0f;
-		DstF[3] = FMath::Abs(Src1F[3]) > SMALL_NUMBER ? Src0F[3] / Src1F[3] : 0.0f;
-
-		*Dst = VectorLoad(DstF);
-	#else
 		VectorRegister ValidMask = VectorCompareGT(VectorAbs(Src1), GlobalVectorConstants::SmallNumber);
 		*Dst = VectorSelect(ValidMask, VectorDivide(Src0, Src1), GlobalVectorConstants::FloatZero);
-	#endif
 	}
 };
 
@@ -1078,14 +1063,7 @@ struct FVectorKernelMod : public TBinaryVectorKernel<FVectorKernelMod>
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
 	{
-	#if defined(__SCE__)
-		VectorRegister ModResult = VectorMod(Src0, Src1);
-		VectorRegister ModResultMinusSec1 = VectorSubtract(ModResult, Src1);
-		VectorRegister SelectMask = VectorCompareLT(VectorAbs(ModResult), VectorAbs(Src1));
-		*Dst = VectorSelect(SelectMask, ModResult, ModResultMinusSec1);
-	#else
 		*Dst = VectorMod(Src0, Src1);
-	#endif
 	}
 };
 

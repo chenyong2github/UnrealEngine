@@ -25,6 +25,7 @@ FHttpManager::FHttpManager()
 	, Thread(nullptr)
 	, CorrelationIdMethod(FHttpManager::GetDefaultCorrelationIdMethod())
 {
+	bFlushing = false;
 }
 
 FHttpManager::~FHttpManager()
@@ -136,12 +137,16 @@ FHttpThread* FHttpManager::CreateHttpThread()
 void FHttpManager::Flush(bool bShutdown)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpManager_Flush);
+	bFlushing = true;
 
 	FScopeLock ScopeLock(&RequestLock);
-	double MaxFlushTimeSeconds = 5.0; // default to generous limit
-	GConfig->GetDouble(TEXT("HTTP"), TEXT("MaxFlushTimeSeconds"), MaxFlushTimeSeconds, GEngineIni);
+	double FlushTimeSoftLimitSeconds = 5.0; // default to generous limit
+	GConfig->GetDouble(TEXT("HTTP"), TEXT("FlushTimeSoftLimitSeconds"), FlushTimeSoftLimitSeconds, GEngineIni);
 
-	bool bAlwaysCancelRequestsOnFlush = false; // Default to not immediately cancelling
+	double FlushTimeHardLimitSeconds = -1.0; // default to no limit
+	GConfig->GetDouble(TEXT("HTTP"), TEXT("FlushTimeHardLimitSeconds"), FlushTimeHardLimitSeconds, GEngineIni);
+
+	bool bAlwaysCancelRequestsOnFlush = false; // Default to not immediately canceling
 	GConfig->GetBool(TEXT("HTTP"), TEXT("bAlwaysCancelRequestsOnFlush"), bAlwaysCancelRequestsOnFlush, GEngineIni);
 
 	float SecondsToSleepForOutstandingRequests = 0.5f;
@@ -168,11 +173,13 @@ void FHttpManager::Flush(bool bShutdown)
 	double LastTime = BeginWaitTime;
 	double StallWarnTime = BeginWaitTime + 0.5;
 	UE_LOG(LogHttp, Display, TEXT("cleaning up %d outstanding Http requests."), Requests.Num());
-	while (Requests.Num() > 0)
+	double AppTime = FPlatformTime::Seconds();
+	while (Requests.Num() > 0 && (FlushTimeHardLimitSeconds < 0 || (AppTime - BeginWaitTime < FlushTimeHardLimitSeconds)))
 	{
-		const double AppTime = FPlatformTime::Seconds();
-		//UE_LOG(LogHttp, Display, TEXT("Waiting for %0.2f seconds. Limit:%0.2f seconds"), (AppTime - BeginWaitTime), MaxFlushTimeSeconds);
-		if (bAlwaysCancelRequestsOnFlush || (bShutdown && MaxFlushTimeSeconds > 0 && (AppTime - BeginWaitTime > MaxFlushTimeSeconds)))
+		SCOPED_ENTER_BACKGROUND_EVENT(STAT_FHttpManager_Flush_Iteration);
+		AppTime = FPlatformTime::Seconds();
+		//UE_LOG(LogHttp, Display, TEXT("Waiting for %0.2f seconds. Limit:%0.2f seconds"), (AppTime - BeginWaitTime), FlushTimeSoftLimitSeconds);
+		if (bAlwaysCancelRequestsOnFlush || (bShutdown && FlushTimeSoftLimitSeconds > 0 && (AppTime - BeginWaitTime > FlushTimeSoftLimitSeconds)))
 		{
 			if (bAlwaysCancelRequestsOnFlush)
 			{
@@ -186,6 +193,7 @@ void FHttpManager::Flush(bool bShutdown)
 			for (TArray<TSharedRef<IHttpRequest, ESPMode::ThreadSafe>>::TIterator It(Requests); It; ++It)
 			{
 				TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request = *It;
+				FScopedEnterBackgroundEvent(*Request->GetURL());
 				if (IsEngineExitRequested())
 				{
 					ensureMsgf(Request.IsUnique(), TEXT("Dangling HTTP request! This may cause undefined behaviour or crash during module shutdown!"));
@@ -219,7 +227,11 @@ void FHttpManager::Flush(bool bShutdown)
 				check(!FPlatformHttp::UsesThreadedHttp());
 			}
 		}
+		AppTime = FPlatformTime::Seconds();
 	}
+
+	UE_CLOG((FlushTimeHardLimitSeconds > 0 && (AppTime - BeginWaitTime > FlushTimeHardLimitSeconds)), LogHttp, Warning, TEXT("HTTTManager::Flush exceeded hard limit %.3fs time  %.3fs"), FlushTimeHardLimitSeconds, AppTime - BeginWaitTime);
+	bFlushing = false;
 }
 
 bool FHttpManager::Tick(float DeltaSeconds)
@@ -267,7 +279,7 @@ void FHttpManager::FlushTick(float DeltaSeconds)
 void FHttpManager::AddRequest(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request)
 {
 	FScopeLock ScopeLock(&RequestLock);
-
+	check(!bFlushing);
 	Requests.Add(Request);
 }
 
@@ -280,6 +292,7 @@ void FHttpManager::RemoveRequest(const TSharedRef<IHttpRequest, ESPMode::ThreadS
 
 void FHttpManager::AddThreadedRequest(const TSharedRef<IHttpThreadedRequest, ESPMode::ThreadSafe>& Request)
 {
+	check(!bFlushing);
 	check(Thread);
 	{
 		FScopeLock ScopeLock(&RequestLock);

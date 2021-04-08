@@ -51,6 +51,7 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	, UV1AgeOffsetMode_DEPRECATED(ENiagaraRibbonAgeOffsetMode::Scale)
 #endif
 	, Shape(ENiagaraRibbonShapeMode::Plane)
+	, bEnableAccurateGeometry(false)
 	, WidthSegmentationCount(1)
 	, MultiPlaneCount(2)
 	, TubeSubdivisions(3)
@@ -327,7 +328,8 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 
 bool UNiagaraRibbonRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
 {
-	if (InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
+	if (InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace) ||
+		InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
 		InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespace) ||
 		InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
 	{

@@ -66,6 +66,7 @@
 #include "Engine/NetworkObjectList.h"
 #include "GameFramework/GameSession.h"
 #include "GameMapsSettings.h"
+#include "Particles/EmitterCameraLensEffectBase.h"
 
 DEFINE_LOG_CATEGORY(LogPlayerController);
 
@@ -1651,6 +1652,12 @@ void APlayerController::ClientSetCameraFade_Implementation(bool bEnableFading, F
 
 void APlayerController::SendClientAdjustment()
 {
+	if (ServerFrameInfo.LastProcessedInputFrame != INDEX_NONE && ServerFrameInfo.LastProcessedInputFrame != ServerFrameInfo.LastSentLocalFrame)
+	{
+		ServerFrameInfo.LastSentLocalFrame = ServerFrameInfo.LastProcessedInputFrame;
+		ClientRecvServerAckFrame(ServerFrameInfo.LastProcessedInputFrame, ServerFrameInfo.LastLocalFrame);
+	}
+
 	if (AcknowledgedPawn != GetPawn() && !GetSpectatorPawn())
 	{
 		return;
@@ -1667,6 +1674,39 @@ void APlayerController::SendClientAdjustment()
 			NetworkPredictionInterface->SendClientAdjustment();
 		}
 	}
+}
+
+namespace UE_NETWORK_PHYSICS
+{
+	int32 NumRedundantCmds=3;
+	FAutoConsoleVariableRef CVarNumRedundantCmds(TEXT("np2.NumRedundantCmds"), NumRedundantCmds, TEXT("Number of redundant user cmds to send per frame"));
+}
+
+void APlayerController::PushClientInput(int32 InRecvClientInputFrame, TArray<uint8>& Data)
+{
+	InputBuffer.Write(InRecvClientInputFrame) = MoveTemp(Data);
+
+	// Do the RPC right here, including the redundant send. This should probably be time based and managed somewhere else like in Tick eventually
+	for (int32 Frame = FMath::Max(1, InRecvClientInputFrame-UE_NETWORK_PHYSICS::NumRedundantCmds+1); Frame <= InRecvClientInputFrame; ++Frame)
+	{
+		ServerRecvClientInputFrame(Frame, InputBuffer.Get(Frame));
+	}
+}
+
+void APlayerController::ServerRecvClientInputFrame_Implementation(int32 InRecvClientInputFrame, const TArray<uint8>& Data)
+{
+	for (int32 DroppedFrame = InputBuffer.HeadFrame()+1; DroppedFrame < InRecvClientInputFrame && DroppedFrame > 0; ++DroppedFrame)
+	{
+		InputBuffer.Write(DroppedFrame) = InputBuffer.Get(DroppedFrame-1);
+	}
+
+	InputBuffer.Write(InRecvClientInputFrame) = MoveTemp(const_cast<TArray<uint8>&>(Data));
+}
+
+void APlayerController::ClientRecvServerAckFrame_Implementation(int32 InClientInputFrame, int32 InServerFrameNumber)
+{
+	ClientFrameInfo.LastRecvInputFrame = InClientInputFrame;
+	ClientFrameInfo.LastRecvServerFrame = InServerFrameNumber;
 }
 
 /// @cond DOXYGEN_WARNINGS
@@ -4370,11 +4410,20 @@ void APlayerController::ClientStopCameraAnim_Implementation(UCameraAnim* AnimToS
 	}
 }
 
+
+void APlayerController::ClientSpawnGenericCameraLensEffect_Implementation(TSubclassOf<class AActor> LensEffectEmitterClass)
+{
+	if (PlayerCameraManager != NULL)
+	{
+		PlayerCameraManager->AddGenericCameraLensEffect(*LensEffectEmitterClass);
+	}
+}
+
 void APlayerController::ClientSpawnCameraLensEffect_Implementation( TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass )
 {
 	if (PlayerCameraManager != NULL)
 	{
-		PlayerCameraManager->AddCameraLensEffect(LensEffectEmitterClass);
+		PlayerCameraManager->AddGenericCameraLensEffect(*LensEffectEmitterClass);
 	}
 }
 

@@ -29,11 +29,10 @@ enum AssetPackErrorCode {
   ///
   /// This could be caused by multiple reasons:
   /// - The app isn't published in the Play Store.
-  /// - The app version code isn't published in the Play Store.
-  ///   Note: an older version may exist.
-  /// - The user doesn't own the app, i.e. hasn't installed it in the Play
-  /// Store.
-  /// - The user doesn't have access to the app, e.g. alpha track.
+  /// - The app version code isn't published in the Play Store. Note: an older
+  /// version may exist.
+  /// - The app is only available on a testing track that the user doesn't have
+  /// access to, for example internal testing.
   ASSET_PACK_APP_UNAVAILABLE = -1,
 
   /// The requested asset pack isn't available for this app version.
@@ -54,8 +53,9 @@ enum AssetPackErrorCode {
   /// Network error. Unable to obtain asset pack details.
   ASSET_PACK_NETWORK_ERROR = -6,
 
-  /// Download not permitted under current device circumstances, e.g. app in
-  /// background or device not signed into a Google account.
+  /// Download isn't permitted under current device circumstances, for example
+  /// the app is running in the background or the device isn't signed into a
+  /// Google account.
   ASSET_PACK_ACCESS_DENIED = -7,
 
   /// Asset packs download failed due to insufficient storage.
@@ -68,8 +68,8 @@ enum AssetPackErrorCode {
   /// waiting for Wi-Fi.
   ASSET_PACK_NETWORK_UNRESTRICTED = -12,
 
-  /// The app is not owned by any user on this device. An app is "owned" if it
-  /// has been acquired from Play.
+  /// The app isn't owned by any user on this device. An app is "owned" if it
+  /// has been acquired from the Play Store.
   ASSET_PACK_APP_NOT_OWNED = -13,
 
   /// Unknown error downloading asset pack.
@@ -154,7 +154,7 @@ enum AssetPackStorageMethod {
   /// Nothing is known, perhaps due to an error.
   ASSET_PACK_STORAGE_UNKNOWN = 100,
 
-  /// The asset pack is not installed.
+  /// The asset pack isn't installed.
   ASSET_PACK_STORAGE_NOT_INSTALLED = 101,
 };
 
@@ -188,26 +188,26 @@ typedef struct AssetPackLocation_ AssetPackLocation;
 /// In case of failure the Asset Pack API is unavailable, and there will be an
 /// error in logcat. The most common reason for failure is that the PlayCore AAR
 /// is missing or some of its classes/methods weren't retained by ProGuard.
-/// @param jvm The app's single JavaVM, e.g. from ANativeActivity's "vm" field.
-/// @param android_context An Android Context, e.g. from ANativeActivity's
-/// "clazz" field.
+/// @param jvm The app's single JavaVM, for example  from ANativeActivity's "vm"
+/// field.
+/// @param android_context An Android Context, for example  from
+/// ANativeActivity's "clazz" field.
 /// @return ASSET_PACK_NO_ERROR if initialization succeeded.
 /// @see AssetPackManager_destroy
 AssetPackErrorCode AssetPackManager_init(JavaVM* jvm, jobject android_context);
 
-/// Frees up memory allocated for the Asset Pack API.
-///
-/// Does nothing if AssetPackManager_init() hasn't been called.
+/// Frees up memory allocated for the Asset Pack API. Does nothing if
+/// AssetPackManager_init() hasn't been called.
 void AssetPackManager_destroy();
 
-/// Should be called in ANativeActivity ANativeActivityCallbacks's onResume.
-/// Internally, this registers a state update listener.
-/// @return ASSET_PACK_NO_ERROR if the call is successful.
+/// Registers an internal state update listener. Must be called in
+/// ANativeActivity ANativeActivityCallbacks's onResume, or equivalent.
+/// @return ASSET_PACK_NO_ERROR if the call succeeded, or an error if not.
 AssetPackErrorCode AssetPackManager_onResume();
 
-/// Should be called in ANativeActivity ANativeActivityCallbacks's onPause.
-/// Internally, this deregisters a state update listener.
-/// @return ASSET_PACK_NO_ERROR if the call is successful.
+/// Deregisters an internal state update listener. Must be called in
+/// ANativeActivity ANativeActivityCallbacks's onPause, or equivalent.
+/// @return ASSET_PACK_NO_ERROR if the call succeeded, or an error if not.
 AssetPackErrorCode AssetPackManager_onPause();
 
 /// Asynchronously requests download info about the specified asset packs. Use
@@ -234,8 +234,8 @@ AssetPackErrorCode AssetPackManager_requestDownload(const char** asset_packs,
 /// this method.
 /// @param asset_packs An array of asset pack names.
 /// @param num_asset_packs The length of the asset_packs array.
-/// @return Always ASSET_PACK_NO_ERROR, except in the case of an invalid call,
-/// e.g. ASSET_PACK_INITIALIZATION_NEEDED or ASSET_PACK_INVALID_REQUEST.
+/// @return Always ASSET_PACK_NO_ERROR, except in the case of an invalid call
+/// such as ASSET_PACK_INITIALIZATION_NEEDED or ASSET_PACK_INVALID_REQUEST.
 AssetPackErrorCode AssetPackManager_cancelDownload(const char** asset_packs,
                                                    size_t num_asset_packs);
 
@@ -303,8 +303,8 @@ uint64_t AssetPackDownloadState_getTotalBytesToDownload(
 /// download apps over Wi-Fi. By showing this dialog, your app can ask the user
 /// if they accept downloading the asset pack over cellular data instead of
 /// waiting for Wi-Fi.
-/// @param android_activity An Android Activity, e.g. from ANativeActivity's
-/// "clazz" field.
+/// @param android_activity An Android Activity, for example from
+/// ANativeActivity's "clazz" field.
 /// @return ASSET_PACK_NO_ERROR if the dialog is shown. Call
 /// AssetPackManager_getShowCellularDataConfirmationStatus() to get the dialog
 /// result.
@@ -341,9 +341,7 @@ AssetPackStorageMethod AssetPackLocation_getStorageMethod(
     AssetPackLocation* location);
 
 /// Gets a file path to the directory containing the asset pack's unpackaged
-/// assets.
-///
-/// The files found in this path should not be modified.
+/// assets. The files found in this path should not be modified.
 ///
 /// The string returned here is owned by the AssetPackManager implementation and
 /// will be freed by calling AssetPackLocation_destroy().

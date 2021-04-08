@@ -78,8 +78,10 @@ public:
 	bool IsPlayingThisGame() const;
 	
 	virtual bool CanReceiveOfflineInvite() const { return false; }
+	virtual int64 GetInteractionScore() const { return 0;  }
 	virtual int64 GetCustomSortValuePrimary() const { return 0; }
 	virtual int64 GetCustomSortValueSecondary() const { return 0; }
+	virtual int64 GetCustomSortValueTertiary() const { return 0; }
 
 	bool SetUserLocalAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, const FString& AttrValue);
 	bool GetUserAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, FString& OutAttrValue) const;

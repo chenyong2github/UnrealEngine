@@ -215,7 +215,7 @@ void EnumerateTextureAccess(FRDGParameterStruct PassParameters, ERDGPassFlags Pa
 
 			if (FRDGTextureRef Texture = RenderTargets.ShadingRateTexture)
 			{
-				AccessFunction(nullptr, Texture, ERHIAccess::SRVGraphics, RenderTargetAccess, Texture->GetSubresourceRangeSRV());
+				AccessFunction(nullptr, Texture, ERHIAccess::ShadingRateSource, RenderTargetAccess, Texture->GetSubresourceRangeSRV());
 			}
 		}
 		break;
@@ -702,7 +702,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 
 	Texture->bExternal = true;
 	Texture->AccessInitial = AccessInitial;
-	Texture->AccessFinal = kDefaultAccessFinal;
+	Texture->AccessFinal = EnumHasAnyFlags(ExternalTextureRHI->GetFlags(), TexCreate_Foveation)? ERHIAccess::ShadingRateSource : kDefaultAccessFinal;
 	Texture->FirstPass = GetProloguePassHandle();
 
 	FRDGTextureSubresourceState& TextureState = Texture->GetState();

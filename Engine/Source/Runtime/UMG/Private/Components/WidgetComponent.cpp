@@ -489,7 +489,7 @@ public:
 
 	void RenderCollision(UBodySetup* InBodySetup, FMeshElementCollector& Collector, int32 ViewIndex, const FEngineShowFlags& EngineShowFlags, const FBoxSphereBounds& InBounds, bool bRenderInEditor) const
 	{
-		if ( InBodySetup && InBodySetup->IsValidLowLevel() )
+		if ( InBodySetup )
 		{
 			bool bDrawCollision = EngineShowFlags.Collision && IsCollisionEnabled();
 
@@ -669,6 +669,11 @@ void UWidgetComponent::Serialize(FArchive& Ar)
 	}
 }
 
+bool UWidgetComponent::CanBeInCluster() const
+{
+	return false;
+}
+
 void UWidgetComponent::BeginPlay()
 {
 	SetComponentTickEnabled(TickMode != ETickMode::Disabled);
@@ -718,10 +723,6 @@ void UWidgetComponent::UpdateMaterialInstance()
 
 	UMaterialInterface* BaseMaterial = GetMaterial(0);
 	MaterialInstance = UMaterialInstanceDynamic::Create(BaseMaterial, this);
-	if (MaterialInstance)
-	{
-		MaterialInstance->AddToCluster(this);
-	}
 	UpdateMaterialInstanceParameters();
 
 	MarkRenderStateDirty();

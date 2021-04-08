@@ -133,6 +133,7 @@ FString GetRHIAccessName(ERHIAccess Access)
 			case ERHIAccess::CopyDest:            return TEXT("CopyDest");
 			case ERHIAccess::ResolveDst:          return TEXT("ResolveDst");
 			case ERHIAccess::DSVWrite:            return TEXT("DSVWrite");
+			case ERHIAccess::ShadingRateSource:	  return TEXT("ShadingRateSource");
 			case ERHIAccess::BVHRead:             return TEXT("BVHRead");
 			case ERHIAccess::BVHWrite:            return TEXT("BVHWrite");
 			case ERHIAccess::Discard:             return TEXT("Discard");
@@ -1699,16 +1700,38 @@ static inline FString GetSectionString(const FConfigSection& Section, FName Key)
 	return Section.FindRef(Key).GetValue();
 }
 
-// Gets a bool from a section, or false if it didn't exist
-static inline bool GetSectionBool(const FConfigSection& Section, FName Key)
+// Gets a bool from a section.  It returns the original value if the setting does not exist
+static inline bool GetSectionBool(const FConfigSection& Section, FName Key, bool OriginalValue)
 {
-	return FCString::ToBool(*GetSectionString(Section, Key));
+	const FConfigValue* ConfigValue = Section.Find(Key);
+	if (ConfigValue != nullptr)
+	{
+		return FCString::ToBool(*ConfigValue->GetValue());
+	}
+	else
+	{
+		return OriginalValue;
+	}
 }
 
-// Gets a bool from a section, or false if it didn't exist
-static inline uint32 GetSectionUint(const FConfigSection& Section, FName Key)
+// Gets an integer from a section.  It returns the original value if the setting does not exist
+static inline uint32 GetSectionUint(const FConfigSection& Section, FName Key, uint32 OriginalValue)
 {
-	return (uint32)FCString::Atoi(*GetSectionString(Section, Key));
+	const FConfigValue* ConfigValue = Section.Find(Key);
+	if (ConfigValue != nullptr)
+	{
+		return (uint32)FCString::Atoi(*ConfigValue->GetValue());
+	}
+	else
+	{
+		return OriginalValue;
+	}
+}
+
+void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
+{
+	MaxFeatureLevel = ERHIFeatureLevel::Num;
+	bSupportsMSAA = true;
 }
 
 void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info)
@@ -1716,57 +1739,66 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.Language = *GetSectionString(Section, "Language");
 	GetFeatureLevelFromName(*GetSectionString(Section, "MaxFeatureLevel"), Info.MaxFeatureLevel);
 
-	Info.bIsMobile = GetSectionBool(Section, "bIsMobile");
-	Info.bIsMetalMRT = GetSectionBool(Section, "bIsMetalMRT");
-	Info.bIsPC = GetSectionBool(Section, "bIsPC");
-	Info.bIsConsole = GetSectionBool(Section, "bIsConsole");
-	Info.bIsAndroidOpenGLES = GetSectionBool(Section, "bIsAndroidOpenGLES");
-	Info.bSupportsMobileMultiView = GetSectionBool(Section, "bSupportsMobileMultiView");
-	Info.bSupportsArrayTextureCompression = GetSectionBool(Section, "bSupportsArrayTextureCompression");
-	Info.bSupportsDistanceFields = GetSectionBool(Section, "bSupportsDistanceFields");
-	Info.bSupportsDiaphragmDOF = GetSectionBool(Section, "bSupportsDiaphragmDOF");
-	Info.bSupportsRGBColorBuffer = GetSectionBool(Section, "bSupportsRGBColorBuffer");
-	Info.bSupportsCapsuleShadows = GetSectionBool(Section, "bSupportsCapsuleShadows");
-	Info.bSupportsVolumetricFog = GetSectionBool(Section, "bSupportsVolumetricFog");
-	Info.bSupportsIndexBufferUAVs = GetSectionBool(Section, "bSupportsIndexBufferUAVs");
-	Info.bSupportsInstancedStereo = GetSectionBool(Section, "bSupportsInstancedStereo");
-	Info.bSupportsMultiView = GetSectionBool(Section, "bSupportsMultiView");
-	Info.bSupportsMSAA = GetSectionBool(Section, "bSupportsMSAA");
-	Info.bSupports4ComponentUAVReadWrite = GetSectionBool(Section, "bSupports4ComponentUAVReadWrite");
-	Info.bSupportsRenderTargetWriteMask = GetSectionBool(Section, "bSupportsRenderTargetWriteMask");
-	Info.bSupportsRayTracing = GetSectionBool(Section, "bSupportsRayTracing");
-	Info.bSupportsRayTracingIndirectInstanceData = GetSectionBool(Section, "bSupportsRayTracingIndirectInstanceData");
-	Info.bSupportsPathTracing = GetSectionBool(Section, "bSupportsPathTracing");
-	Info.bSupportsGPUSkinCache = GetSectionBool(Section, "bSupportsGPUSkinCache");
-	Info.bSupportsByteBufferComputeShaders = GetSectionBool(Section, "bSupportsByteBufferComputeShaders");
-	Info.bSupportsGPUScene = GetSectionBool(Section, "bSupportsGPUScene");
-	Info.bSupportsPrimitiveShaders = GetSectionBool(Section, "bSupportsPrimitiveShaders");
-	Info.bSupportsUInt64ImageAtomics = GetSectionBool(Section, "bSupportsUInt64ImageAtomics");
-	Info.bRequiresVendorExtensionsForAtomics = GetSectionBool(Section, "bRequiresVendorExtensionsForAtomics");
-	Info.bSupportsNanite = GetSectionBool(Section, "bSupportsNanite");
-	Info.bSupportsLumenGI = GetSectionBool(Section, "bSupportsLumenGI");
-	Info.bSupportsSSDIndirect = GetSectionBool(Section, "bSupportsSSDIndirect");
-	Info.bSupportsTemporalHistoryUpscale = GetSectionBool(Section, "bSupportsTemporalHistoryUpscale");
-	Info.bSupportsRTIndexFromVS = GetSectionBool(Section, "bSupportsRTIndexFromVS");
-	Info.bSupportsIntrinsicWaveOnce = GetSectionBool(Section, "bSupportsIntrinsicWaveOnce");
-	Info.bSupportsConservativeRasterization = GetSectionBool(Section, "bSupportsConservativeRasterization");
-	Info.bSupportsWaveOperations = GetSectionBool(Section, "bSupportsWaveOperations");
-	Info.bRequiresExplicit128bitRT = GetSectionBool(Section, "bRequiresExplicit128bitRT");
-	Info.bSupportsGen5TemporalAA = GetSectionBool(Section, "bSupportsGen5TemporalAA");
-	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");
-	Info.bNeedsOfflineCompiler = GetSectionBool(Section, "bNeedsOfflineCompiler");
-	Info.bSupportsComputeFramework = GetSectionBool(Section, "bSupportsComputeFramework");
-	Info.bSupportsAnisotropicMaterials = GetSectionBool(Section, "bSupportsAnisotropicMaterials");
-	Info.bSupportsDualSourceBlending = GetSectionBool(Section, "bSupportsDualSourceBlending");
-	Info.bRequiresGeneratePrevTransformBuffer = GetSectionBool(Section, "bRequiresGeneratePrevTransformBuffer");
-	Info.bRequiresRenderTargetDuringRaster = GetSectionBool(Section, "bRequiresRenderTargetDuringRaster");
-	Info.bRequiresDisableForwardLocalLights = GetSectionBool(Section, "bRequiresDisableForwardLocalLights");
-	Info.bCompileSignalProcessingPipeline = GetSectionBool(Section, "bCompileSignalProcessingPipeline");
-	Info.bSupportsTessellation = GetSectionBool(Section, "bSupportsTessellation");
-	Info.bSupportsMeshShaders = GetSectionBool(Section, "bSupportsMeshShaders");
-	Info.bSupportsPerPixelDBufferMask = GetSectionBool(Section, "bSupportsPerPixelDBufferMask");
-	Info.bIsHlslcc = GetSectionBool(Section, "bIsHlslcc");
-	Info.NumberOfComputeThreads = GetSectionUint(Section, "NumberOfComputeThreads");
+#define GET_SECTION_BOOL_HELPER(SettingName)	\
+	Info.SettingName = GetSectionBool(Section, #SettingName, Info.SettingName)
+#define GET_SECTION_INT_HELPER(SettingName)	\
+	Info.SettingName = GetSectionUint(Section, #SettingName, Info.SettingName)
+
+	GET_SECTION_BOOL_HELPER(bIsMobile);
+	GET_SECTION_BOOL_HELPER(bIsMetalMRT);
+	GET_SECTION_BOOL_HELPER(bIsPC);
+	GET_SECTION_BOOL_HELPER(bIsConsole);
+	GET_SECTION_BOOL_HELPER(bIsAndroidOpenGLES);
+	GET_SECTION_BOOL_HELPER(bSupportsMobileMultiView);
+	GET_SECTION_BOOL_HELPER(bSupportsArrayTextureCompression);
+	GET_SECTION_BOOL_HELPER(bSupportsDistanceFields);
+	GET_SECTION_BOOL_HELPER(bSupportsDiaphragmDOF);
+	GET_SECTION_BOOL_HELPER(bSupportsRGBColorBuffer);
+	GET_SECTION_BOOL_HELPER(bSupportsCapsuleShadows);
+	GET_SECTION_BOOL_HELPER(bSupportsVolumetricFog);
+	GET_SECTION_BOOL_HELPER(bSupportsIndexBufferUAVs);
+	GET_SECTION_BOOL_HELPER(bSupportsInstancedStereo);
+	GET_SECTION_BOOL_HELPER(bSupportsMultiView);
+	GET_SECTION_BOOL_HELPER(bSupportsMSAA);
+	GET_SECTION_BOOL_HELPER(bSupports4ComponentUAVReadWrite);
+	GET_SECTION_BOOL_HELPER(bSupportsRenderTargetWriteMask);
+	GET_SECTION_BOOL_HELPER(bSupportsRayTracing);
+	GET_SECTION_BOOL_HELPER(bSupportsRayTracingIndirectInstanceData);
+	GET_SECTION_BOOL_HELPER(bSupportsPathTracing);
+	GET_SECTION_BOOL_HELPER(bSupportsGPUSkinCache);
+	GET_SECTION_BOOL_HELPER(bSupportsByteBufferComputeShaders);
+	GET_SECTION_BOOL_HELPER(bSupportsGPUScene);
+	GET_SECTION_BOOL_HELPER(bSupportsPrimitiveShaders);
+	GET_SECTION_BOOL_HELPER(bSupportsUInt64ImageAtomics);
+	GET_SECTION_BOOL_HELPER(bRequiresVendorExtensionsForAtomics);
+	GET_SECTION_BOOL_HELPER(bSupportsNanite);
+	GET_SECTION_BOOL_HELPER(bSupportsLumenGI);
+	GET_SECTION_BOOL_HELPER(bSupportsSSDIndirect);
+	GET_SECTION_BOOL_HELPER(bSupportsTemporalHistoryUpscale);
+	GET_SECTION_BOOL_HELPER(bSupportsRTIndexFromVS);
+	GET_SECTION_BOOL_HELPER(bSupportsIntrinsicWaveOnce);
+	GET_SECTION_BOOL_HELPER(bSupportsConservativeRasterization);
+	GET_SECTION_BOOL_HELPER(bSupportsWaveOperations);
+	GET_SECTION_BOOL_HELPER(bRequiresExplicit128bitRT);
+	GET_SECTION_BOOL_HELPER(bSupportsGen5TemporalAA);
+	GET_SECTION_BOOL_HELPER(bTargetsTiledGPU);
+	GET_SECTION_BOOL_HELPER(bNeedsOfflineCompiler);
+	GET_SECTION_BOOL_HELPER(bSupportsComputeFramework);
+	GET_SECTION_BOOL_HELPER(bSupportsAnisotropicMaterials);
+	GET_SECTION_BOOL_HELPER(bSupportsDualSourceBlending);
+	GET_SECTION_BOOL_HELPER(bRequiresGeneratePrevTransformBuffer);
+	GET_SECTION_BOOL_HELPER(bRequiresRenderTargetDuringRaster);
+	GET_SECTION_BOOL_HELPER(bRequiresDisableForwardLocalLights);
+	GET_SECTION_BOOL_HELPER(bCompileSignalProcessingPipeline);
+	GET_SECTION_BOOL_HELPER(bSupportsTessellation);
+	GET_SECTION_BOOL_HELPER(bSupportsMeshShaders);
+	GET_SECTION_BOOL_HELPER(bSupportsPerPixelDBufferMask);
+	GET_SECTION_BOOL_HELPER(bIsHlslcc);
+	GET_SECTION_INT_HELPER(NumberOfComputeThreads);
+
+#undef GET_SECTION_BOOL_HELPER
+#undef GET_SECTION_INT_HELPER
+
 #if WITH_EDITOR
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("FriendlyName")), Info.FriendlyName);
 #endif

@@ -1386,7 +1386,7 @@ namespace ImportCompareHelper
 					continue;
 				}
 				FbxSurfaceMaterial* SurfaceMaterial = Node->GetMaterial(MaterialIndex);
-				FName SurfaceMaterialName = FName(UTF8_TO_TCHAR(FFbxImporter->MakeName(SurfaceMaterial->GetName())));
+				FName SurfaceMaterialName = FName(*(FFbxImporter->MakeName(SurfaceMaterial->GetName())));
 				if (!NodeMaterialNames.Contains(SurfaceMaterialName))
 				{
 					FMaterialData& MaterialData = MaterialCompareData.ResultAsset.AddDefaulted_GetRef();
@@ -1415,7 +1415,7 @@ namespace ImportCompareHelper
 
 	void FillRecursivelySkeletonCompareData(const FbxNode *ParentNode, FSkeletonTreeNode& SkeletonTreeNode, const UnFbx::FFbxImporter* FFbxImporter)
 	{
-		SkeletonTreeNode.JointName = FName(UTF8_TO_TCHAR(FFbxImporter->MakeName(ParentNode->GetName())));
+		SkeletonTreeNode.JointName = FName(*(FFbxImporter->MakeName(ParentNode->GetName())));
 		for (int32 ChildIndex = 0; ChildIndex < ParentNode->GetChildCount(); ChildIndex++)
 		{
 			FSkeletonTreeNode& ChildNode = SkeletonTreeNode.Childrens.AddDefaulted_GetRef();

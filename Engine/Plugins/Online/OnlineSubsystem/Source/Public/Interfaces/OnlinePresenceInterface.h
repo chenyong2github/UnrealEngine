@@ -173,6 +173,40 @@ public:
 };
 
 /**
+ * Parameters to IOnlinePresence::SetPresence. Similar to FOnlineUserPresenceStatus, but fields requesting update must be explicitly set.
+ */
+struct FOnlinePresenceSetPresenceParameters
+{
+public:
+	/** Updated status string */
+	TOptional<FString> StatusStr;
+	/** Updated state */
+	TOptional<EOnlinePresenceState::Type> State;
+	/** Updated properties. Note that this will update all properties, not just the subset specified in Properties. */
+	TOptional<FPresenceProperties> Properties;
+
+	FString ToDebugString() const
+	{
+		FString PropertiesStr;
+		if (Properties.IsSet())
+		{
+			for (const TPair<FPresenceKey, FVariantData>& Pair : Properties.GetValue())
+			{
+				PropertiesStr += FString::Printf(TEXT("\n%s : %s"), *Pair.Key, *Pair.Value.ToString());
+			}
+		}
+		else
+		{
+			PropertiesStr = TEXT("Unset");
+		}
+		return FString::Printf(TEXT("FOnlinePresenceSetPresenceParameters {State: %s, Status: %s, Properties: %s}"), 
+			State.IsSet() ? EOnlinePresenceState::ToString(State.GetValue()) : TEXT("Unset"),
+			StatusStr.IsSet() ? *StatusStr.GetValue() : TEXT("Unset"), 
+			*PropertiesStr);
+	}
+};
+
+/**
  * Presence info for an online user returned via IOnlinePresence interface
  */
 class FOnlineUserPresence
@@ -281,6 +315,15 @@ public:
 	 * @param Delegate The delegate to be executed when the potentially asynchronous set operation completes.
 	 */
 	virtual void SetPresence(const FUniqueNetId& User, const FOnlineUserPresenceStatus& Status, const FOnPresenceTaskCompleteDelegate& Delegate = FOnPresenceTaskCompleteDelegate()) = 0;
+
+	/**
+	 * Starts an async task that sets presence information for the user.
+	 *
+	 * @param User The unique id of the user whose presence is being set.
+	 * @param Status The collection of state and key/value pairs to set as the user's presence data.
+	 * @param Delegate The delegate to be executed when the potentially asynchronous set operation completes.
+	 */
+	virtual void ONLINESUBSYSTEM_API SetPresence(const FUniqueNetId& User, FOnlinePresenceSetPresenceParameters&& Parameters, const FOnPresenceTaskCompleteDelegate& Delegate = FOnPresenceTaskCompleteDelegate());
 
 	/**
 	 * Starts an async operation that will update the cache with presence data from all users in the Users array.

@@ -25,7 +25,7 @@ void FOnlineAchievementsGooglePlay::QueryAchievements(const FUniqueNetId& Player
 		return;
 	}
 
-	auto QueryTask = new FOnlineAsyncTaskGooglePlayQueryAchievements(AndroidSubsystem, FUniqueNetIdGooglePlay(PlayerId), Delegate);
+	auto QueryTask = new FOnlineAsyncTaskGooglePlayQueryAchievements(AndroidSubsystem, FUniqueNetIdGooglePlay::Cast(PlayerId), Delegate);
 	AndroidSubsystem->QueueAsyncTask(QueryTask);
 }
 
@@ -148,7 +148,7 @@ void FOnlineAchievementsGooglePlay::WriteAchievements( const FUniqueNetId& Playe
 	// Kick off a query if we don't have valid data.
 	if (GoogleAchievements.status != ResponseStatus::VALID)
 	{
-		auto QueryTask = new FOnlineAsyncTaskGooglePlayQueryAchievements(AndroidSubsystem, FUniqueNetIdGooglePlay(PlayerId),
+		auto QueryTask = new FOnlineAsyncTaskGooglePlayQueryAchievements(AndroidSubsystem, FUniqueNetIdGooglePlay::Cast(PlayerId),
 			FOnQueryAchievementsCompleteDelegate::CreateRaw(
 				this,
 				&FOnlineAchievementsGooglePlay::FinishAchievementWrite,

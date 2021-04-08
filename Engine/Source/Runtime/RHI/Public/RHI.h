@@ -891,7 +891,10 @@ enum class ERHIAccess
 	// Invalid released state (transient resources)
 	Discard					= 1 << 17,
 
-	Last = Discard,
+	// Shading Rate Source
+	ShadingRateSource	= 1 << 18,
+
+	Last = ShadingRateSource,
 	None = Unknown,
 	Mask = (Last << 1) - 1,
 
@@ -905,7 +908,7 @@ enum class ERHIAccess
 	ReadOnlyExclusiveMask = CPURead | Present | IndirectArgs | VertexOrIndexBuffer | SRVGraphics | SRVCompute | CopySrc | ResolveSrc | BVHRead,
 
 	// A mask of all bits representing read-only states which may be combined with other write states.
-	ReadOnlyMask = ReadOnlyExclusiveMask | DSVRead,
+	ReadOnlyMask = ReadOnlyExclusiveMask | DSVRead | ShadingRateSource,
 
 	// A mask of all bits representing readable states which may also include writable states.
 	ReadableMask = ReadOnlyMask | UAVMask,

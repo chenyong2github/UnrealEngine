@@ -179,10 +179,14 @@ namespace Chaos
 			CollisionData.Modify(true,DirtyFlags,Proxy, ShapeIdx,[InTraceFlag](FCollisionData& Data){ Data.CollisionTraceType = InTraceFlag; });
 		}
 
+		const FCollisionData& GetCollisionData() const { return CollisionData.Read(); }
+
 		void SetCollisionData(const FCollisionData& Data)
 		{
 			CollisionData.Write(Data,true,DirtyFlags,Proxy, ShapeIdx);
 		}
+
+		const FMaterialData& GetMaterialData() const { return Materials.Read(); }
 
 		void SetMaterialData(const FMaterialData& Data)
 		{
@@ -473,7 +477,7 @@ namespace Chaos
 
 		CHAOS_API const TUniquePtr<FImplicitObject>& DynamicGeometry(const int32 Index) const { return MDynamicGeometry[Index]; }
 
-		CHAOS_API const TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
+		CHAOS_API const TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
 
 		CHAOS_API const FShapesArray& ShapesArray(const int32 Index) const { return MShapesArray[Index]; }
 
@@ -492,7 +496,7 @@ namespace Chaos
 		}
 
 		// Set a shared geometry. Note that X and R must be initialized before calling this function.
-		CHAOS_API void SetSharedGeometry(const int32 Index, TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> InShared)
+		CHAOS_API void SetSharedGeometry(const int32 Index, TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe> InShared)
 		{
 			check(!DynamicGeometry(Index));	// If dynamic geometry exists we should not be setting shared geometry on top
 			MGeometry[Index] = MakeSerializable(InShared);
@@ -745,7 +749,7 @@ public:
 		// MSharedGeometry entries are owned by the solver, shared between *representations* of a particle.
 		// This is NOT for sharing geometry resources between particle's A and B, this is for sharing the
 		// geometry between particle A's various representations.
-		TArrayCollectionArray<TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>> MSharedGeometry;
+		TArrayCollectionArray<TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe>> MSharedGeometry;
 		// MDynamicGeometry entries are used for geo which is by the evolution. It is not set from the game side.
 		TArrayCollectionArray<TUniquePtr<FImplicitObject>> MDynamicGeometry;
 		TArrayCollectionArray<TSerializablePtr<TGeometryParticleHandle<T, d>>> MGeometryParticleHandle;

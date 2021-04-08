@@ -7,7 +7,7 @@ public class GooglePAD : ModuleRules
 {
 	public GooglePAD(ReadOnlyTargetRules Target) : base(Target)
 	{
-		string NDKVersion = "ndk21.3.6528147";
+		string NDKVersion = "ndk21.4.7075529";
 		
 		PublicIncludePaths.AddRange(
 			new string[] {

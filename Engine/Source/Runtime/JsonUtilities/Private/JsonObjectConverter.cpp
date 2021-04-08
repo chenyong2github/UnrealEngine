@@ -142,6 +142,12 @@ TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, co
 						}
 					}
 
+					// Coerce camelCase map keys for Enum/FName properties
+					if (CastField<FEnumProperty>(MapProperty->KeyProp) ||
+						CastField<FNameProperty>(MapProperty->KeyProp))
+					{
+						KeyString = FJsonObjectConverter::StandardizeCase(KeyString);
+					}
 					Out->SetField(KeyString, ValueElement);
 				}
 

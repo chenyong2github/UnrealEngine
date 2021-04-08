@@ -313,10 +313,16 @@ namespace Gauntlet
 			FilesToCopy = new List<UnrealFileToCopy>();
 			AdditionalArtifactDirectories = new List<EIntendedBaseCopyDirectory>();
 			RoleType = ERoleModifier.None;
+			InstallOnly = false;
 			CommandLineParams = new GauntletCommandLine();
 		}
 
 		public ERoleModifier RoleType { get; set; }
+
+		/// <summary>
+		/// Whether this role should be responsible only for installing the build and not monitoring a process.
+		/// </summary>
+		public bool InstallOnly { get; set; }
 
 		/// <summary>
 		/// Type of process this role represents

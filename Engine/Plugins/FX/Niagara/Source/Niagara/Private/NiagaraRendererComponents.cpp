@@ -145,6 +145,57 @@ void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uin
 
 //////////////////////////////////////////////////////////////////////////
 
+#if WITH_EDITORONLY_DATA
+struct FNiagaraRendererComponentsOnObjectsReplacedHelper
+{
+	FNiagaraRendererComponentsOnObjectsReplacedHelper(FNiagaraRendererComponents* InOwner)
+		: Owner(InOwner)
+	{
+		if ( GEditor )
+		{
+			if ( IsInGameThread() )
+			{
+				FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FNiagaraRendererComponentsOnObjectsReplacedHelper::OnObjectsReplacedCallback);
+			}
+			else
+			{
+				AsyncTask(ENamedThreads::GameThread, [Object = this]() { FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(Object, &FNiagaraRendererComponentsOnObjectsReplacedHelper::OnObjectsReplacedCallback); });
+			}
+		}
+	}
+
+	~FNiagaraRendererComponentsOnObjectsReplacedHelper()
+	{
+		if ( GEditor )
+		{
+			check(IsInGameThread());
+			FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
+		}
+	}
+
+	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap)
+	{
+		FScopeLock ThreadGuard(&CallbackLock);
+		if ( Owner != nullptr )
+		{
+			Owner->OnObjectsReplacedCallback(ReplacementsMap);
+		}
+	}
+
+	void Release()
+	{
+		FScopeLock ThreadGuard(&CallbackLock);
+		Owner = nullptr;
+		AsyncTask(ENamedThreads::GameThread, [Object=this]() { delete Object; });
+	}
+
+	FCriticalSection CallbackLock;
+	FNiagaraRendererComponents* Owner = nullptr;
+};
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+
 FNiagaraRendererComponents::FNiagaraRendererComponents(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
 {
@@ -153,9 +204,11 @@ FNiagaraRendererComponents::FNiagaraRendererComponents(ERHIFeatureLevel::Type Fe
 
 	ComponentPool.Reserve(Properties->ComponentCountLimit);
 
-#if WITH_EDITOR
-	// for the component renderer we need to listen for class changes so we can clean up old component renderer instances
-	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FNiagaraRendererComponents::OnObjectsReplacedCallback);
+#if WITH_EDITORONLY_DATA
+	if (GEditor)
+	{
+		OnObjectsReplacedHandler = new FNiagaraRendererComponentsOnObjectsReplacedHelper(this);
+	}
 #endif
 }
 
@@ -165,19 +218,29 @@ FNiagaraRendererComponents::~FNiagaraRendererComponents()
 	check(ComponentPool.Num() == 0);
 
 #if WITH_EDITORONLY_DATA
-	if (GEditor)
+	if ( OnObjectsReplacedHandler )
 	{
-		FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
+		OnObjectsReplacedHandler->Release();
+		OnObjectsReplacedHandler = nullptr;
 	}
 #endif
 }
 
 void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
 {
+#if WITH_EDITORONLY_DATA
+	// Release replace handler
+	if (OnObjectsReplacedHandler)
+	{
+		OnObjectsReplacedHandler->Release();
+		OnObjectsReplacedHandler = nullptr;
+	}
+#endif
+
 	// Rendering resources are being destroyed, but the component pool and their owner actor must be destroyed on the game thread
 	AsyncTask(
 		ENamedThreads::GameThread,
-		[this, Pool_GT = MoveTemp(ComponentPool), Owner_GT = MoveTemp(SpawnedOwner)]()
+		[Pool_GT = MoveTemp(ComponentPool), Owner_GT = MoveTemp(SpawnedOwner)]()
 		{
 			// we do not reset ParticlesWithComponents here because it's possible the render state is destroyed without destroying the renderer. In this case we want to know which particles
 			// had spawned some components previously
@@ -191,16 +254,11 @@ void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
 
 			if (AActor* OwnerActor = Owner_GT.Get())
 			{
-				SpawnedOwner.Reset();
 				OwnerActor->Destroy();
 			}
-
-#if WITH_EDITOR
-			// TODO: This has the potential to race, as renderers are destroyed on the render thread, but it should be a rarity
-			FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
-#endif
 		}
 	);
+	SpawnedOwner.Reset();
 }
 
 /** Update render data buffer from attributes */

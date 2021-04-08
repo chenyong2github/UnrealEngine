@@ -1738,7 +1738,7 @@ namespace Audio
 	void FMixerSourceManager::ComputeSourceBuffersForIdRange(const bool bGenerateBuses, const int32 SourceIdStart, const int32 SourceIdEnd)
 	{
 		CSV_SCOPED_TIMING_STAT(Audio, SourceBuffers);
-		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceBuffers);
+		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceBuffers, (SourceIdStart < SourceIdEnd));
 
 		const double AudioRenderThreadTime = MixerDevice->GetAudioRenderThreadTime();
 		const double AudioClockDelta = MixerDevice->GetAudioClockDelta();
@@ -2155,7 +2155,7 @@ namespace Audio
 	void FMixerSourceManager::ComputePostSourceEffectBufferForIdRange(bool bGenerateBuses, const int32 SourceIdStart, const int32 SourceIdEnd)
 	{
 		CSV_SCOPED_TIMING_STAT(Audio, SourceEffectsBuffers);
-		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceEffectBuffers);
+		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceEffectBuffers, (SourceIdStart < SourceIdEnd));
 
 		const bool bIsDebugModeEnabled = DebugSoloSources.Num() > 0;
 
@@ -2402,7 +2402,7 @@ namespace Audio
 	void FMixerSourceManager::ComputeOutputBuffersForIdRange(const bool bGenerateBuses, const int32 SourceIdStart, const int32 SourceIdEnd)
 	{
 		CSV_SCOPED_TIMING_STAT(Audio, SourceOutputBuffers);
-		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceOutputBuffers);
+		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceOutputBuffers, (SourceIdStart < SourceIdEnd));
 
 		for (int32 SourceId = SourceIdStart; SourceId < SourceIdEnd; ++SourceId)
 		{

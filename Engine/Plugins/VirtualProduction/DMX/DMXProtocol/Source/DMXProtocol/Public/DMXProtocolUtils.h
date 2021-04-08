@@ -8,6 +8,9 @@
 class DMXPROTOCOL_API FDMXProtocolUtils
 {
 public:
+	/** Returns an array of local network interfaces */
+	static TArray<TSharedPtr<FString>> GetLocalNetworkInterfaceCardIPs();
+
 	/**
 	 * Generates a unique name given a base one and a list of existing ones, by appending an index to
 	 * existing names. If InBaseName is an empty String, it returns "Default name".

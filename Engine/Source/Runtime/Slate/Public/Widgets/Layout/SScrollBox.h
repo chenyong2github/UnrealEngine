@@ -109,6 +109,8 @@ public:
 		, _ScrollBarThickness(FVector2D(_Style->BarThickness, _Style->BarThickness))
 		, _ScrollBarPadding(2.0f)
 		, _AllowOverscroll(EAllowOverscroll::Yes)
+		, _BackPadScrolling(false)
+		, _FrontPadScrolling(false)
 		, _AnimateWheelScrolling(false)
 		, _WheelScrollMultiplier(1.f)
 		, _NavigationDestination(EDescendantScrollDestination::IntoView)
@@ -145,6 +147,10 @@ public:
 		SLATE_ARGUMENT( FMargin, ScrollBarPadding )
 
 		SLATE_ARGUMENT(EAllowOverscroll, AllowOverscroll);
+
+		SLATE_ARGUMENT(bool, BackPadScrolling);
+
+		SLATE_ARGUMENT(bool, FrontPadScrolling);
 
 		SLATE_ARGUMENT(bool, AnimateWheelScrolling);
 
@@ -359,6 +365,12 @@ protected:
 	/** Whether to permit overscroll on this scroll box */
 	EAllowOverscroll AllowOverscroll;
 
+	/** Whether to back pad this scroll box, allowing user to scroll backward until child contents are no longer visible */
+	bool BackPadScrolling;
+
+	/** Whether to front pad this scroll box, allowing user to scroll forward until child contents are no longer visible */
+	bool FrontPadScrolling;
+
 	/**
 	 * The amount of padding to ensure exists between the item being navigated to, at the edge of the
 	 * scrollbox.  Use this if you want to ensure there's a preview of the next item the user could scroll to.
@@ -438,6 +450,8 @@ public:
 	}
 
 	SLATE_ARGUMENT(EOrientation, Orientation)
+	SLATE_ARGUMENT(bool, BackPadScrolling)
+	SLATE_ARGUMENT(bool, FrontPadScrolling)
 
 		SLATE_END_ARGS()
 
@@ -483,4 +497,6 @@ private:
 private:
 
 	EOrientation Orientation;
+	bool BackPadScrolling;
+	bool FrontPadScrolling;
 };

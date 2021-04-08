@@ -175,14 +175,16 @@ void UHLODProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	{
 		if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
 		{
-			UWorld* World = Cast<UWorld>(OwningMap.ToSoftObjectPath().ResolveObject());
-			for (AActor* Actor : World->PersistentLevel->Actors)
+			if (UWorld* World = Cast<UWorld>(OwningMap.ToSoftObjectPath().ResolveObject()))
 			{
-				if (ALODActor* LODActor = Cast<ALODActor>(Actor))
+				for (AActor* Actor : World->PersistentLevel->Actors)
 				{
-					if (LODActor->ProxyDesc && LODActor->ProxyDesc->GetOutermost() == GetOutermost())
+					if (ALODActor* LODActor = Cast<ALODActor>(Actor))
 					{
-						LODActor->ProxyDesc->Key = UHLODProxy::GenerateKeyForActor(LODActor);
+						if (LODActor->ProxyDesc && LODActor->ProxyDesc->GetOutermost() == GetOutermost())
+						{
+							LODActor->ProxyDesc->Key = UHLODProxy::GenerateKeyForActor(LODActor);
+						}
 					}
 				}
 			}
@@ -697,6 +699,13 @@ void UHLODProxy::RemoveAssets(const FHLODProxyMesh& ProxyMesh)
 		if (StaticMesh->GetOutermost() == Outermost)
 		{
 			DestroyObject(StaticMesh);
+		}
+
+		// Notify the LOD Actor that the static mesh just marked for deletion is no longer usable,
+		// so that it regenerates its render thread state to no longer point to the deleted mesh.
+		if (ALODActor* LODActor = ProxyMesh.GetLODActor().Get())
+		{
+			LODActor->SetStaticMesh(nullptr);
 		}
 	}
 }

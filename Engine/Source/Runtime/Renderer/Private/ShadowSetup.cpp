@@ -3878,7 +3878,6 @@ struct FGatherShadowPrimitivesPacket
 	void AnyThreadTask()
 	{
 		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_GatherShadowPrimitivesPacket);
 
 		if (NodeIndex != INDEX_NONE)
 		{

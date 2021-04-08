@@ -4263,7 +4263,7 @@ bool FAsyncPackage::AreAllDependenciesFullyLoadedInternal(FAsyncPackage* Package
 {
 	for (UPackage* ImportPackage : Package->ImportedPackages)
 	{
-		if (VisitedPackages.Contains(ImportPackage))
+		if (!ImportPackage || VisitedPackages.Contains(ImportPackage))
 		{
 			continue;
 		}
@@ -5256,6 +5256,7 @@ void FAsyncPackage::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObjects(ReferencedObjects);
 	Collector.AddReferencedObjects(DeferredFinalizeObjects);
 	Collector.AddReferencedObjects(PackageObjLoaded);
+	Collector.AddReferencedObjects(ImportedPackages);
 }
 
 void FAsyncPackage::AddObjectReference(UObject* InObject)
@@ -5562,7 +5563,7 @@ EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, b
 				// We can only continue to PostLoad if all imported packages finished serializing their exports
 				for (UPackage* ImportedPackage : ImportedPackages)
 				{
-					if (ImportedPackage->LinkerLoad && ImportedPackage->LinkerLoad->AsyncRoot && !static_cast<FAsyncPackage*>(ImportedPackage->LinkerLoad->AsyncRoot)->bAllExportsSerialized)
+					if (ImportedPackage && ImportedPackage->LinkerLoad && ImportedPackage->LinkerLoad->AsyncRoot && !static_cast<FAsyncPackage*>(ImportedPackage->LinkerLoad->AsyncRoot)->bAllExportsSerialized)
 					{
 						LoadingState = EAsyncPackageState::PendingImports;
 						break;

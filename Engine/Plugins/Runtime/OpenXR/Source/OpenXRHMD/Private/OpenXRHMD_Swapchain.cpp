@@ -5,34 +5,19 @@
 #include "OpenXRPlatformRHI.h"
 #include "XRThreadUtils.h"
 
-UE_TRACE_CHANNEL_EXTERN(OpenXRChannel)
-
 FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle) :
 	FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture),
 	Handle(InHandle)
 {
 }
 
-FOpenXRSwapchain::~FOpenXRSwapchain() {
-	if (IsInGameThread())
-	{
-		ExecuteOnRenderThread([this]()
-		{
-			ExecuteOnRHIThread([this]()
-			{
-				ReleaseResources_RHIThread();
-			});
-		});
-	}
-	else
-	{
-		ExecuteOnRHIThread([this]()
-		{
-			ReleaseResources_RHIThread();
-		});
-	}
+FOpenXRSwapchain::~FOpenXRSwapchain() 
+{
+	XR_ENSURE(xrDestroySwapchain(Handle));
 }
 
+// TODO: This function should be renamed to IncrementSwapChainIndex_RenderThread.
+// Name change is currently blocked on runtimes still requiring this on the RHI thread.
 void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
 {
 	check(IsInRenderingThread() || IsInRHIThread());
@@ -86,12 +71,6 @@ void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 	ReleaseInfo.type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO;
 	ReleaseInfo.next = nullptr;
 	XR_ENSURE(xrReleaseSwapchainImage(Handle, &ReleaseInfo));
-}
-
-void FOpenXRSwapchain::ReleaseResources_RHIThread()
-{
-	FXRSwapChain::ReleaseResources_RHIThread();
-	XR_ENSURE(xrDestroySwapchain(Handle));
 }
 
 uint8 GetNearestSupportedSwapchainFormat(XrSession InSession, uint8 RequestedFormat, TFunction<uint32(uint8)> ToPlatformFormat = nullptr)
@@ -182,7 +161,7 @@ XrSwapchain CreateSwapchain(XrSession InSession, uint32 PlatformFormat, uint32 S
 	XrSwapchainCreateInfo info;
 	info.type = XR_TYPE_SWAPCHAIN_CREATE_INFO;
 	info.next = nullptr;
-	info.createFlags = 0;
+	info.createFlags = Flags & TexCreate_Dynamic ? 0 : XR_SWAPCHAIN_CREATE_STATIC_IMAGE_BIT;
 	info.usageFlags = Usage;
 	info.format = PlatformFormat;
 	info.sampleCount = NumSamples;

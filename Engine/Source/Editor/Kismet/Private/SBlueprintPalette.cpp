@@ -477,9 +477,9 @@ private:
 		{
 			return false;
 		}
-		else if( InNewText.ToString().Len() > NAME_SIZE )
+		else if( InNewText.ToString().Len() >= NAME_SIZE )
 		{
-			OutErrorMessage = LOCTEXT("RenameFailed_NameTooLong", "Names must have fewer than 100 characters!");
+			OutErrorMessage = FText::Format(LOCTEXT("RenameFailed_NameTooLong", "Names must have fewer than {0} characters!"), NAME_SIZE);
 		}
 		else
 		{
@@ -488,7 +488,7 @@ private:
 			{
 				if(AssetInfo.AssetName.ToString() == InNewText.ToString())
 				{
-					OutErrorMessage = FText::FromString(TEXT("Asset name already in use!"));
+					OutErrorMessage = LOCTEXT("RenameFailed_AlreadyInUse", "Asset name already in use!");
 					return false;
 				}
 			}

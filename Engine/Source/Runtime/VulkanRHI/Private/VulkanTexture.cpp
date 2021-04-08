@@ -2523,10 +2523,6 @@ FVulkanTexture2D::FVulkanTexture2D(FTextureRHIRef& SrcTextureRHI, const FVulkanT
 
 FVulkanTexture2D::~FVulkanTexture2D()
 {
-	if ((Surface.UEFlags & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0)
-	{
-		Surface.Device->GetImmediateContext().NotifyDeletedRenderTarget(Surface.Image);
-	}
 }
 
 FVulkanTexture2DArray::FVulkanTexture2DArray(FVulkanDevice& Device, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess InResourceState, const FRHIResourceCreateInfo& CreateInfo)
@@ -2570,10 +2566,6 @@ FVulkanTextureCube::FVulkanTextureCube(FTextureRHIRef& SrcTextureRHI, const FVul
 
 FVulkanTextureCube::~FVulkanTextureCube()
 {
-	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0) 
-	{
-		Surface.Device->GetImmediateContext().NotifyDeletedRenderTarget(Surface.Image);
-	}
 }
 
 
@@ -2585,10 +2577,6 @@ FVulkanTexture3D::FVulkanTexture3D(FVulkanDevice& Device, EPixelFormat Format, u
 
 FVulkanTexture3D::~FVulkanTexture3D()
 {
-	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0) 
-	{
-		Surface.Device->GetImmediateContext().NotifyDeletedRenderTarget(Surface.Image);
-	}
 }
 
 /*-----------------------------------------------------------------------------

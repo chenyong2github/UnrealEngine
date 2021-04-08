@@ -2990,6 +2990,7 @@ void UAssetManager::ScanPrimaryAssetTypesFromConfig()
 
 	StartBulkScanning();
 
+	double LastPumpTime = FPlatformTime::Seconds();
 	for (FPrimaryAssetTypeInfo TypeInfo : Settings.PrimaryAssetTypesToScan)
 	{
 		// This function also fills out runtime data on the copy
@@ -3004,7 +3005,11 @@ void UAssetManager::ScanPrimaryAssetTypesFromConfig()
 
 		SetPrimaryAssetTypeRules(TypeInfo.PrimaryAssetType, TypeInfo.Rules);
 
-		FPlatformApplicationMisc::PumpMessages(IsInGameThread());
+		if (FPlatformTime::Seconds() > (LastPumpTime + 0.033f))
+		{
+			FPlatformApplicationMisc::PumpMessages(IsInGameThread());
+			LastPumpTime = FPlatformTime::Seconds();
+		}
 	}
 
 	StopBulkScanning();

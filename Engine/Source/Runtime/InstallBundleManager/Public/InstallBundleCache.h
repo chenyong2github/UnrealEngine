@@ -34,6 +34,11 @@ struct FInstallBundleCacheReserveResult
 	EInstallBundleCacheReserveResult Result = EInstallBundleCacheReserveResult::Success;
 };
 
+struct FInstallBundleCacheFlushResult
+{
+	TMap<FName, TArray<EInstallBundleSourceType>> BundlesToEvict;
+};
+
 struct FInstallBundleCacheStats
 {
 	FName CacheName;
@@ -50,12 +55,14 @@ public:
 
 	void Init(FInstallBundleCacheInitInfo InitInfo);
 
+	FName GetName() { return CacheName; }
+
 	// Add a bundle to the cache.  
 	void AddOrUpdateBundle(EInstallBundleSourceType Source, const FInstallBundleCacheBundleInfo& AddInfo);
 
 	void RemoveBundle(EInstallBundleSourceType Source, FName BundleName);
 
-	TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(EInstallBundleSourceType Source, FName BundleName);
+	TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(EInstallBundleSourceType Source, FName BundleName) const;
 
 	// Return the total size of the cache
 	uint64 GetSize() const;
@@ -68,10 +75,15 @@ public:
 	// Called from bundle manager
 	FInstallBundleCacheReserveResult Reserve(FName BundleName);
 
+	// Called from bundle manager, returns all bundles that can be evicted
+	FInstallBundleCacheFlushResult Flush(EInstallBundleSourceType* Source = nullptr);
+
 	// Called from bundle manager to make the files for this bundle eligible for eviction
 	bool Release(FName BundleName);
 
 	bool SetPendingEvict(FName BundleName);
+
+	bool ClearPendingEvict(FName BundleName);
 
 	// Hint to the cache that this bundle is requested, and we should prefer to evict non-requested bundles if possible
 	void HintRequested(FName BundleName, bool bRequested);
@@ -106,7 +118,9 @@ private:
 		uint64 CurrentInstallSize = 0;
 		FDateTime TimeStamp = FDateTime::MinValue();
 		ECacheState State = ECacheState::Released;
-		bool bHintReqeusted = false; // Hint to the cache that this bundle is requested, and we should prefer to evict non-requested bundles if possible
+		int32 HintReqeustedCount = 0; // Hint to the cache that this bundle is requested, and we should prefer to evict non-requested bundles if possible
+
+		bool IsHintRequested() const { return HintReqeustedCount > 0; }
 
 		uint64 GetSize() const
 		{

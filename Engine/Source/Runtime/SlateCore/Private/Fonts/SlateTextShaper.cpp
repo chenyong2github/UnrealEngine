@@ -87,22 +87,18 @@ struct FHarfBuzzTextSequenceEntry
 } // anonymous namespace
 
 
-FSlateTextShaper::FSlateTextShaper(FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache, FCompositeFontCache* InCompositeFontCache, FSlateFontRenderer* InFontRenderer, FSlateFontCache* InFontCache)
-	: FTGlyphCache(InFTGlyphCache)
-	, FTAdvanceCache(InFTAdvanceCache)
-	, FTKerningPairCache(InFTKerningPairCache)
+FSlateTextShaper::FSlateTextShaper(FFreeTypeCacheDirectory* InFTCacheDirectory, FCompositeFontCache* InCompositeFontCache, FSlateFontRenderer* InFontRenderer, FSlateFontCache* InFontCache)
+	: FTCacheDirectory(InFTCacheDirectory)
 	, CompositeFontCache(InCompositeFontCache)
 	, FontRenderer(InFontRenderer)
 	, FontCache(InFontCache)
 	, TextBiDiDetection(TextBiDi::CreateTextBiDi())
 	, GraphemeBreakIterator(FBreakIterator::CreateCharacterBoundaryIterator())
 #if WITH_HARFBUZZ
-	, HarfBuzzFontFactory(FTGlyphCache, FTAdvanceCache, FTKerningPairCache)
+	, HarfBuzzFontFactory(FTCacheDirectory)
 #endif // WITH_HARFBUZZ
 {
-	check(FTGlyphCache);
-	check(FTAdvanceCache);
-	check(FTKerningPairCache);
+	check(FTCacheDirectory);
 	check(CompositeFontCache);
 	check(FontRenderer);
 	check(FontCache);
@@ -376,13 +372,15 @@ void FSlateTextShaper::PerformKerningOnlyTextShaping(const TCHAR* InText, const 
 
 			FreeTypeUtils::ApplySizeAndScale(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), InFontInfo.Size, FinalFontScale);
 			TSharedRef<FShapedGlyphFaceData> ShapedGlyphFaceData = MakeShared<FShapedGlyphFaceData>(KerningOnlyTextSequenceEntry.FaceAndMemory, GlyphFlags, InFontInfo.Size, FinalFontScale);
+			TSharedPtr<FFreeTypeKerningCache> KerningCache = FTCacheDirectory->GetKerningCache(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), FT_KERNING_DEFAULT, InFontInfo.Size, FinalFontScale);
+			TSharedRef<FFreeTypeAdvanceCache> AdvanceCache = FTCacheDirectory->GetAdvanceCache(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), GlyphFlags, InFontInfo.Size, FinalFontScale);
 
 			for (int32 SequenceCharIndex = 0; SequenceCharIndex < KerningOnlyTextSequenceEntry.TextLength; ++SequenceCharIndex)
 			{
 				const int32 CurrentCharIndex = KerningOnlyTextSequenceEntry.TextStartIndex + SequenceCharIndex;
 				const TCHAR CurrentChar = InText[CurrentCharIndex];
 
-				if (!InsertSubstituteGlyphs(InText, CurrentCharIndex, ShapedGlyphFaceData, OutGlyphsToRender, LetterSpacingScaled))
+				if (!InsertSubstituteGlyphs(InText, CurrentCharIndex, ShapedGlyphFaceData, AdvanceCache, OutGlyphsToRender, LetterSpacingScaled))
 				{
 					uint32 GlyphIndex = FT_Get_Char_Index(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), CurrentChar);
 
@@ -395,7 +393,7 @@ void FSlateTextShaper::PerformKerningOnlyTextShaping(const TCHAR* InText, const 
 					int16 XAdvance = 0;
 					{
 						FT_Fixed CachedAdvanceData = 0;
-						if (FTAdvanceCache->FindOrCache(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), GlyphIndex, GlyphFlags, InFontInfo.Size, FinalFontScale, CachedAdvanceData))
+						if (AdvanceCache->FindOrCache(GlyphIndex, CachedAdvanceData))
 						{
 							XAdvance = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int16>((CachedAdvanceData + (1<<9)) >> 10);
 						}
@@ -429,7 +427,7 @@ void FSlateTextShaper::PerformKerningOnlyTextShaping(const TCHAR* InText, const 
 						if (ShapedGlyphEntry.bIsVisible)
 						{
 							FT_Vector KerningVector;
-							if (FTKerningPairCache->FindOrCache(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), FFreeTypeKerningPairCache::FKerningPair(PreviousShapedGlyphEntry.GlyphIndex, ShapedGlyphEntry.GlyphIndex), FT_KERNING_DEFAULT, InFontInfo.Size, FinalFontScale, KerningVector))
+							if (KerningCache && KerningCache->FindOrCache(PreviousShapedGlyphEntry.GlyphIndex, ShapedGlyphEntry.GlyphIndex, KerningVector))
 							{
 								const int8 Kerning = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int8>(KerningVector.x);
 								PreviousShapedGlyphEntry.XAdvance += Kerning;
@@ -653,6 +651,8 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 
 			hb_font_t* HarfBuzzFont = HarfBuzzFontFactory.CreateFont(*HarfBuzzTextSequenceEntry.FaceAndMemory, GlyphFlags, InFontInfo.Size, FinalFontScale);
 			TSharedRef<FShapedGlyphFaceData> ShapedGlyphFaceData = MakeShared<FShapedGlyphFaceData>(HarfBuzzTextSequenceEntry.FaceAndMemory, GlyphFlags, InFontInfo.Size, FinalFontScale);
+			TSharedPtr<FFreeTypeKerningCache> KerningCache = FTCacheDirectory->GetKerningCache(HarfBuzzTextSequenceEntry.FaceAndMemory->GetFace(), FT_KERNING_DEFAULT, InFontInfo.Size, FinalFontScale);
+			TSharedRef<FFreeTypeAdvanceCache> AdvanceCache = FTCacheDirectory->GetAdvanceCache(HarfBuzzTextSequenceEntry.FaceAndMemory->GetFace(), ShapedGlyphFaceData->GlyphFlags, InFontInfo.Size, FinalFontScale);
 
 			for (const FHarfBuzzTextSequenceEntry::FSubSequenceEntry& HarfBuzzTextSubSequenceEntry : HarfBuzzTextSequenceEntry.SubSequence)
 			{
@@ -677,7 +677,7 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 
 					const int32 CurrentCharIndex = static_cast<int32>(HarfBuzzGlyphInfo.cluster);
 					const TCHAR CurrentChar = InText[CurrentCharIndex];
-					if (!InsertSubstituteGlyphs(InText, CurrentCharIndex, ShapedGlyphFaceData, OutGlyphsToRender, LetterSpacingScaled))
+					if (!InsertSubstituteGlyphs(InText, CurrentCharIndex, ShapedGlyphFaceData, AdvanceCache, OutGlyphsToRender, LetterSpacingScaled))
 					{
 						const int32 CurrentGlyphEntryIndex = OutGlyphsToRender.AddDefaulted();
 						FShapedGlyphEntry& ShapedGlyphEntry = OutGlyphsToRender[CurrentGlyphEntryIndex];
@@ -707,7 +707,7 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 							if (ShapedGlyphEntry.bIsVisible)
 							{
 								FT_Vector KerningVector;
-								if (FTKerningPairCache->FindOrCache(HarfBuzzTextSequenceEntry.FaceAndMemory->GetFace(), FFreeTypeKerningPairCache::FKerningPair(PreviousShapedGlyphEntry.GlyphIndex, ShapedGlyphEntry.GlyphIndex), FT_KERNING_DEFAULT, InFontInfo.Size, FinalFontScale, KerningVector))
+								if (KerningCache && KerningCache->FindOrCache(PreviousShapedGlyphEntry.GlyphIndex, ShapedGlyphEntry.GlyphIndex, KerningVector))
 								{
 									PreviousShapedGlyphEntry.Kerning = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int8>(KerningVector.x);
 								}
@@ -836,9 +836,9 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 
 #endif // WITH_HARFBUZZ
 
-bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 InCharIndex, const TSharedRef<FShapedGlyphFaceData>& InShapedGlyphFaceData, TArray<FShapedGlyphEntry>& OutGlyphsToRender, const int16 InLetterSpacingScaled) const
+bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 InCharIndex, const TSharedRef<FShapedGlyphFaceData>& InShapedGlyphFaceData, const TSharedRef<FFreeTypeAdvanceCache>& AdvanceCache, TArray<FShapedGlyphEntry>& OutGlyphsToRender, const int16 InLetterSpacingScaled) const
 {
-	auto GetSpaceGlyphIndexAndAdvance = [this, &InShapedGlyphFaceData](uint32& OutSpaceGlyphIndex, int16& OutSpaceXAdvance)
+	auto GetSpaceGlyphIndexAndAdvance = [this, &InShapedGlyphFaceData, &AdvanceCache](uint32& OutSpaceGlyphIndex, int16& OutSpaceXAdvance)
 	{
 		OutSpaceGlyphIndex = 0;
 		OutSpaceXAdvance = 0;
@@ -850,7 +850,7 @@ bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 I
 				OutSpaceGlyphIndex = FT_Get_Char_Index(FTFace->GetFace(), TEXT(' '));
 
 				FT_Fixed CachedAdvanceData = 0;
-				if (FTAdvanceCache->FindOrCache(FTFace->GetFace(), OutSpaceGlyphIndex, InShapedGlyphFaceData->GlyphFlags, InShapedGlyphFaceData->FontSize, InShapedGlyphFaceData->FontScale, CachedAdvanceData))
+				if (AdvanceCache->FindOrCache(OutSpaceGlyphIndex, CachedAdvanceData))
 				{
 					OutSpaceXAdvance = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int16>((CachedAdvanceData + (1<<9)) >> 10);
 				}

@@ -67,29 +67,35 @@ int64 GDDCMisses = 0;
 class FThreadLocalScratchSpace
 {
 public:
+
 	static FThreadLocalScratchSpace& Get()
 	{
 		static FThreadLocalScratchSpace Result;
 		return Result;
 	}
-	struct FScratchSpace
-		: public FTlsAutoCleanup
+	struct FScratchSpace 
 	{
 	public:
 		FScratchSpace()
 		{
 			Size = 0;
 			Buffer = nullptr;
+			Next = nullptr;
 		}
-
-		virtual ~FScratchSpace()
-		{
-			CleanUp();
-		}
-
 		int64 Size;
 		uint8* Buffer;
 		TArray<uint8> Array;
+		FScratchSpace * Next; // Link is protected by Lock
+
+		virtual ~FScratchSpace()
+		{
+			// should be a NOP, CleanUpAll is called manually before we destruct
+			//	if we destruct before CleanUpAll the linked list points to freed memory
+			//	could call CleanUpAll here to prevent that
+			//	just assert instead
+			check( Buffer == nullptr );
+			CleanUp();
+		}
 
 		void Embiggen(int64 NewSize)
 		{
@@ -101,10 +107,14 @@ public:
 		}
 		void CleanUp()
 		{
+			if ( Buffer )
+			{
 			FMemory::Free(Buffer);
 			Buffer = nullptr;
+			}
 			Size = 0;
 			Array.Empty();
+			// do NOT clear Next
 		}
 	};
 
@@ -113,19 +123,24 @@ public:
 		ScratchSpace = (FScratchSpace*)FPlatformTLS::GetTlsValue(TLSSlot);
 		if (ScratchSpace == nullptr)
 		{
-			ScratchSpace = new FScratchSpace();
-			ScratchSpace->Register();
+			ScratchSpace = new FScratchSpace;
 			FPlatformTLS::SetTlsValue(TLSSlot, (void*)ScratchSpace);
+
+			FScopeLock Lock(&ScratchSpacesLinkLock);
+			ScratchSpace->Next = ScratchSpacesLink;
+			ScratchSpacesLink = ScratchSpace;
 		}
 	}
 
-	void CleanUp()
+	void CleanUpAll()
 	{
-		FScratchSpace* ScratchSpace = (FScratchSpace*)FPlatformTLS::GetTlsValue(TLSSlot);
-		if (ScratchSpace)
+		// free scratch memory of all threads scratch spaces :
+		//	(they must all be quiescent now)
+
+		FScopeLock Lock(&ScratchSpacesLinkLock);
+		for(FScratchSpace * Link = ScratchSpacesLink;Link != nullptr;Link = Link->Next)
 		{
-			delete ScratchSpace;
-			FPlatformTLS::SetTlsValue(TLSSlot, nullptr);
+			Link->CleanUp();
 		}
 	}
 private:
@@ -133,9 +148,14 @@ private:
 	FThreadLocalScratchSpace()
 	{
 		TLSSlot = FPlatformTLS::AllocTlsSlot();
+		ScratchSpacesLink = nullptr;
 	}
 
 	uint32 TLSSlot;
+	uint8 PadForFalseSharing[60];
+	FCriticalSection  ScratchSpacesLinkLock;
+	FScratchSpace * ScratchSpacesLink;
+	// ScratchSpacesLinkLock protects ScratchSpacesLink and the Next field of FScratchSpace
 };
 
 
@@ -487,7 +507,8 @@ struct FPakCommandLineParameters
 	bool bFallbackOrderForNonUassetFiles;
 	bool bAsyncCompression;
 	bool bAlignFilesLargerThanBlock;	// Align files that are larger than block size
-	bool bForceCompress; // Force all files that request compression to be compressed, even if that results in a larger file size
+
+	bool bForceCompress; // Force all files that request compression to be compressed, even if that results in a larger file size DEPRECATED
 	bool bFileRegions; // Enables the processing and output of cook file region metadata, used during packaging on some platforms.
 };
 
@@ -1071,6 +1092,7 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 	if (FParse::Param(CmdLine, TEXT("ForceCompress")))
 	{
 		CmdLineParameters.bForceCompress = true;
+		UE_LOG(LogPakFile, Warning, TEXT("-ForceCompress is deprecated.  It will be removed in a future release."));
 	}
 
 	if (FParse::Param(CmdLine, TEXT("FileRegions")))
@@ -1117,9 +1139,14 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 		FParse::Value(CmdLine, TEXT("-outputchangedfiles="), CmdLineParameters.ChangedFilesOutputFilename);
 
 		bool bCompress = FParse::Param(CmdLine, TEXT("compress"));
-		bool bEncrypt = FParse::Param(CmdLine, TEXT("encrypt"));
+		if ( bCompress )
+		{
+			// the correct way to enable compression is via bCompressed in UProjectPackagingSettings
+			//	which passes -compressed to CopyBuildToStaging and writes the response file
+			UE_LOG(LogPakFile, Warning, TEXT("-compress is deprecated, use -compressed with UAT instead"));
+		}
 
-		
+		bool bEncrypt = FParse::Param(CmdLine, TEXT("encrypt"));		
 
 		if (CmdLineParameters.GeneratePatch)
 		{
@@ -1904,17 +1931,17 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	{
 		// log the methods and indexes
 		// we're going to prefer to use only index [0] so we want that to be our favorite compressor
-		FString log_line(TEXT("CompressionFormats in priority order: "));
+		FString FormatLogLine(TEXT("CompressionFormats in priority order: "));
 		for (int32 MethodIndex = 0; MethodIndex < CmdLineParameters.CompressionFormats.Num(); MethodIndex++)
 		{
 			FName CompressionMethod = CompressionFormatsAndNone[MethodIndex];
 			if ( MethodIndex > 0 )
 			{
-				log_line += TEXT(", ");
+				FormatLogLine += TEXT(", ");
 			}
-			log_line += CompressionMethod.ToString();
+			FormatLogLine += CompressionMethod.ToString();
 		}
-		UE_LOG(LogPakFile, Display, TEXT("%s"), *log_line);
+		UE_LOG(LogPakFile, Display, TEXT("%s"), *FormatLogLine);
 	}
 
 	TArray<FString> ExtensionsToNotUsePluginCompression;
@@ -2003,17 +2030,18 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 			}
 
 			bool bSomeCompressionSucceeded = false;
-			
-			// if first method (oodle) doesn't compress, do NOT try other methods (zlib)
-			// if Oodle refused to compress it was not an error, it was a choice because we didn't like compressing that file
+
+			// if first method (oodle) doesn't compress, don't try other methods (zlib)
+			// if Oodle refused to compress it was not an error, it was a choice because Oodle didn't think
+			//  compressing that file was worth the decode time
 			//	we do NOT want Zlib to then get enabled for that file!
 			for (int32 MethodIndex = 0; MethodIndex < 1; MethodIndex++)
-			//for (int32 MethodIndex = 0; MethodIndex < CompressionFormats->Num(); MethodIndex++)
 			{
 				CompressionMethod = (*CompressionFormats)[MethodIndex];
 
 				// because compression is a plugin, certain files need to be loadable out of pak files before plugins are loadable
 				// (like .uplugin files). for these, we enforce a non-plugin compression - zlib
+				//	note that those file types are also excluded from iostore, so still go through this pak system
 				bool bForceCompressionFormat = false;
 				if (NoPluginCompressionExtensions->Find(FPaths::GetExtension(FileToAdd->Source)) != nullptr ||
 					NoPluginCompressionFileNames->Find(FPaths::GetCleanFilename(FileToAdd->Source)) != nullptr)
@@ -2038,14 +2066,14 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 						bNotEnoughCompression = (OriginalFileSize - CompressedFileBuffer.TotalCompressedSize) < 1024;
 						if ( ! bNotEnoughCompression )
 						{
-							// Check the compression ratio, if it's too low just store uncompressed. Also take into account read size
-							// if we still save 64KB it's probably worthwhile compressing, as that saves a file read operation in the runtime.
-							// TODO: drive this threshold from the command line
-							float PercentLess = ((float)CompressedFileBuffer.TotalCompressedSize / (OriginalFileSize / 100.f));
+					// Check the compression ratio, if it's too low just store uncompressed. Also take into account read size
+					// if we still save 64KB it's probably worthwhile compressing, as that saves a file read operation in the runtime.
+								// TODO: drive this threshold from the command line
+					float PercentLess = ((float)CompressedFileBuffer.TotalCompressedSize / (OriginalFileSize / 100.f));
 							bNotEnoughCompression = (PercentLess > 90.f) && ((OriginalFileSize - CompressedFileBuffer.TotalCompressedSize) < 65536);
 						}
-					}
-
+					}				
+				
 					const bool bIsLastCompressionFormat = MethodIndex == CompressionFormats->Num() - 1;
 					if (bNotEnoughCompression && (!bForceCompress || !bIsLastCompressionFormat))
 					{
@@ -2145,21 +2173,21 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		{
 			AsyncCompressors[LaunchFileIndex].Init(&FilesToAdd[LaunchFileIndex], CmdLineParameters, &NoPluginCompressionExtensions, &NoPluginCompressionFileNames);
 			
-			if (bRunAsync)
-			{
+		if (bRunAsync)
+		{
 				if (FilesToAdd[LaunchFileIndex].bNeedsCompression)
-				{
+			{
 					(new FAutoDeleteAsyncTask<FRunCompressionTask>(&AsyncCompressors[LaunchFileIndex]))->StartBackgroundTask();
-				}
-				else
-				{
-					// call compress function inline 
-					// it won't do anything except for initialize some internal variables used in the non compressed path
-					// we don't want to pass these to a different thread as they may cause congestion with legitimate tasks
+			}
+			else
+			{
+				// call compress function inline 
+				// it won't do anything except for initialize some internal variables used in the non compressed path
+				// we don't want to pass these to a different thread as they may cause congestion with legitimate tasks
 					AsyncCompressors[LaunchFileIndex].Compress();
-				}
 			}
 		}
+	}
 		NextLaunchIndex = LaunchFileIndexEnd;
 
 		bool bDeleted = FilesToAdd[FileIndex].bIsDeleteRecord;
@@ -2451,7 +2479,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	FMemory::Free(ReadBuffer);
 	ReadBuffer = NULL;
 
-	FThreadLocalScratchSpace::Get().CleanUp();
+	FThreadLocalScratchSpace::Get().CleanUpAll();
 	
 	// log per-compressor stats :
 	for (int32 MethodIndex = 0; MethodIndex < CompressionFormatsAndNone_Num; MethodIndex++)

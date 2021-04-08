@@ -285,13 +285,9 @@ void USocialToolkit::SetLocalUserOnlineState(EOnlinePresenceState::Type OnlineSt
 			 TSharedPtr<FOnlineUserPresence> CurrentPresence;
 			 PresenceInterface->GetCachedPresence(*LocalUserId, CurrentPresence);
 
-			 FOnlineUserPresenceStatus NewStatus;
-			 if (CurrentPresence.IsValid())
-			 {
-				 NewStatus = CurrentPresence->Status;
-			 }
+			 FOnlinePresenceSetPresenceParameters NewStatus;
 			 NewStatus.State = OnlineState;
-			 PresenceInterface->SetPresence(*LocalUserId, NewStatus);
+			 PresenceInterface->SetPresence(*LocalUserId, MoveTemp(NewStatus));
 		 }
 	}
 }
@@ -307,18 +303,14 @@ void USocialToolkit::AddLocalUserOnlineProperties(FPresenceProperties OnlineProp
 			TSharedPtr<FOnlineUserPresence> CurrentPresence;
 			PresenceInterface->GetCachedPresence(*LocalUserId, CurrentPresence);
 
-			FOnlineUserPresenceStatus NewStatus;
-			if (CurrentPresence.IsValid())
-			{
-				NewStatus = CurrentPresence->Status;
-			}
-			
+			FOnlinePresenceSetPresenceParameters NewStatus;
+			NewStatus.Properties.Emplace(CurrentPresence.IsValid() ? CurrentPresence->Status.Properties : FPresenceProperties());
 			for (TPair<FPresenceKey, FVariantData>& Pair : OnlineProperties)
 			{
-				NewStatus.Properties.Emplace(MoveTemp(Pair.Key), MoveTemp(Pair.Value));
+				NewStatus.Properties->Emplace(MoveTemp(Pair.Key), MoveTemp(Pair.Value));
 			}
 
-			PresenceInterface->SetPresence(*LocalUserId, NewStatus);
+			PresenceInterface->SetPresence(*LocalUserId, MoveTemp(NewStatus));
 		}
 	}
 }
@@ -870,6 +862,15 @@ void USocialToolkit::HandlePresenceReceived(const FUniqueNetId& UserId, const TS
 	if (USocialUser* UpdatedUser = FindUser(UserId.AsShared()))
 	{
 		UpdatedUser->NotifyPresenceChanged(SubsystemType);
+
+		if (UpdatedUser->IsFriend())
+		{
+			QueueUserDependentActionInternal(UserId.AsShared(), ESocialSubsystem::Primary,
+				[this, NewPresence](USocialUser& SocialUser)
+				{
+					OnFriendPresenceDidChange(SocialUser, NewPresence, ESocialSubsystem::Primary);
+				});
+		}
 	}
 	else if (SubsystemType == ESocialSubsystem::Platform)
 	{

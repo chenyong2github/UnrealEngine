@@ -313,7 +313,6 @@ struct FNiagaraScriptDataUsageInfo
 	bool bReadsAttributeData;
 };
 
-
 USTRUCT()
 struct NIAGARA_API FNiagaraFunctionSignature
 {
@@ -391,6 +390,12 @@ struct NIAGARA_API FNiagaraFunctionSignature
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(meta = (SkipForCompileHash = true))
 	FText Description;
+
+	UPROPERTY(meta = (SkipForCompileHash = true))
+	TMap<FNiagaraVariableBase, FText> InputDescriptions;
+
+	UPROPERTY(meta = (SkipForCompileHash = true))
+	TMap<FNiagaraVariableBase, FText> OutputDescriptions;
 #endif
 
 	FNiagaraFunctionSignature() 
@@ -411,8 +416,6 @@ struct NIAGARA_API FNiagaraFunctionSignature
 
 	FNiagaraFunctionSignature(FName InName, TArray<FNiagaraVariable>& InInputs, TArray<FNiagaraVariable>& InOutputs, FName InSource, bool bInRequiresContext, bool bInMemberFunction)
 		: Name(InName)
-		, Inputs(InInputs)
-		, Outputs(InOutputs)
 		, bRequiresContext(bInRequiresContext)
 		, bRequiresExecPin(false)
 		, bMemberFunction(bInMemberFunction)
@@ -426,28 +429,17 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, ContextStageMinIndex(INDEX_NONE)
 		, ContextStageMaxIndex(INDEX_NONE)
 	{
-
-	}
-
-	FNiagaraFunctionSignature(FName InName, TArray<FNiagaraVariable>& InInputs, TArray<FNiagaraVariable>& InOutputs, FName InSource, bool bInRequiresContext, bool bInMemberFunction, TMap<FName, FName>& InFunctionSpecifiers)
-		: Name(InName)
-		, Inputs(InInputs)
-		, Outputs(InOutputs)
-		, bRequiresContext(bInRequiresContext)
-		, bRequiresExecPin(false)
-		, bMemberFunction(bInMemberFunction)
-		, bExperimental(false)
-		, bSupportsCPU(true)
-		, bSupportsGPU(true)
-		, bWriteFunction(false)
-		, bSoftDeprecatedFunction(false)
-		, bHidden(false)
-		, ModuleUsageBitmask(0)
-		, ContextStageMinIndex(INDEX_NONE)
-		, ContextStageMaxIndex(INDEX_NONE)
-		, FunctionSpecifiers(InFunctionSpecifiers)
-	{
-
+		Inputs.Reserve(InInputs.Num());
+		for (FNiagaraVariable& Var : InInputs)
+		{
+			Inputs.Add(Var);
+		}
+		
+		Outputs.Reserve(InOutputs.Num());
+		for (FNiagaraVariable& Var : InOutputs)
+		{
+			Outputs.Add(Var);
+		}
 	}
 
 	bool operator==(const FNiagaraFunctionSignature& Other) const
@@ -486,12 +478,35 @@ struct NIAGARA_API FNiagaraFunctionSignature
 
 	FString GetName()const { return Name.ToString(); }
 
+	void AddInput(FNiagaraVariable InputVar, FText Tooltip = FText())
+	{
+		Inputs.Add(InputVar);
+	#if WITH_EDITORONLY_DATA
+		if (!Tooltip.IsEmpty())
+		{
+			InputDescriptions.Add(InputVar, Tooltip);
+		}
+	#endif
+	}
+
+	void AddOutput(FNiagaraVariable OutputVar, const FText& Tooltip = FText())
+	{
+		Outputs.Add(OutputVar);
+	#if WITH_EDITORONLY_DATA
+		if (!Tooltip.IsEmpty())
+		{
+			OutputDescriptions.Add(OutputVar, Tooltip);
+		}
+	#endif
+	}
+
 	void SetDescription(const FText& Desc)
 	{
 	#if WITH_EDITORONLY_DATA
 		Description = Desc;
 	#endif
 	}
+	
 	FText GetDescription() const
 	{
 	#if WITH_EDITORONLY_DATA
@@ -500,10 +515,9 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		return FText::FromName(Name);
 	#endif
 	}
+	
 	bool IsValid()const { return Name != NAME_None && (Inputs.Num() > 0 || Outputs.Num() > 0); }
 };
-
-
 
 USTRUCT()
 struct NIAGARA_API FNiagaraScriptDataInterfaceInfo
@@ -1079,6 +1093,13 @@ namespace FNiagaraUtilities
 	{
 		return SupportsComputeShaders(ShaderPlatform);
 	}
+
+	// When enabled log more information for the end user
+#if NO_LOGGING
+	inline bool LogVerboseWarnings() { return false; }
+#else
+	bool LogVerboseWarnings();
+#endif
 
 	// Whether GPU particles are currently allowed. Could change depending on config and runtime switches.
 	bool AllowGPUParticles(EShaderPlatform ShaderPlatform);

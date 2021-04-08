@@ -14,7 +14,7 @@ struct FScalarParameterAtlasData
 	GENERATED_BODY()
 public:
 	UPROPERTY(Transient)
-	bool bIsUsedAsAtlasPosition;
+	bool bIsUsedAsAtlasPosition=false;
 
 	UPROPERTY(Transient)
 	TSoftObjectPtr<class UCurveLinearColor> Curve;
@@ -32,8 +32,8 @@ public:
 	UPROPERTY(EditAnywhere, Category=DEditorScalarParameterValue)
 	float ParameterValue;
 
-	float SliderMin;
-	float SliderMax;
+	float SliderMin=0.0f;
+	float SliderMax = 0.0f;
 
 	UPROPERTY(Transient)
 	FScalarParameterAtlasData AtlasData;

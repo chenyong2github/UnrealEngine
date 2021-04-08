@@ -2935,7 +2935,10 @@ bool UHierarchicalInstancedStaticMeshComponent::BuildTreeIfOutdated(bool Async, 
 
 			GetStaticMesh()->ConditionalPostLoad();
 
-			if (Async)
+			// Trying to do async processing on the begin play does not work, as this will be dirty but not ready for rendering
+			const bool bForceSync = (NumBuiltInstances == 0 && GetWorld() && !GetWorld()->HasBegunPlay());
+
+			if (Async && !bForceSync)
 			{
 				if (IsAsyncBuilding())
 				{
@@ -3247,7 +3250,7 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 			if (!bForceTreeBuild)
 			{
 				// Create PerInstanceRenderData either from current data or pre-built instance buffer
-				InitPerInstanceRenderData(true, InstanceDataBuffers.Release());
+				InitPerInstanceRenderData(true, InstanceDataBuffers.Get());
 				NumBuiltRenderInstances = PerInstanceRenderData->InstanceBuffer_GameThread->GetNumInstances();
 				InstanceCountToRender = NumBuiltInstances;
 			}

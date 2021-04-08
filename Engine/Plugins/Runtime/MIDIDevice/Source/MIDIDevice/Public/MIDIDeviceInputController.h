@@ -31,6 +31,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnMIDIProgramChange, class UMIDID
 /** Callback function for received MIDI Channel Aftertouch event */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnMIDIChannelAftertouch, class UMIDIDeviceInputController*, MIDIDeviceController, int32, Timestamp, int32, Channel, int32, Amount);
 
+/** Callback function for any kind of MIDI Event */
+DECLARE_MULTICAST_DELEGATE_SixParams(FOnMIDIRawEvent, class UMIDIDeviceInputController* /* MIDIDeviceController */, int32 /* Timestamp */, int32 /* Type */, int32 /* Channel */, int32 /* MessageData1 */, int32 /* MessageData2 */);
+
 
 UCLASS(BlueprintType)
 class MIDIDEVICE_API UMIDIDeviceInputController : public UObject
@@ -69,6 +72,9 @@ public:
 	/** Register with this to receive incoming MIDI Channel Aftertouch events from this device */
 	UPROPERTY(BlueprintAssignable, Category = "MIDI Device Input Controller")
 	FOnMIDIChannelAftertouch OnMIDIChannelAftertouch;
+
+	/** Register with this to receive all of the MIDI events from this device */
+	FOnMIDIRawEvent OnMIDIRawEvent;
 
 	/** Called from UMIDIDeviceManager after the controller is created to get it ready to use.  Don't call this directly. */
 	void StartupDevice(const int32 InitDeviceID, const int32 InitMIDIBufferSize, bool& bOutWasSuccessful);

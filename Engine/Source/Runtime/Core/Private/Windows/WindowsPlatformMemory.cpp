@@ -20,6 +20,7 @@
 #include "HAL/MallocBinned.h"
 #include "HAL/MallocBinned2.h"
 #include "HAL/MallocBinned3.h"
+#include "HAL/MallocStomp2.h"
 #include "Windows/WindowsHWrapper.h"
 
 #pragma warning(disable:6250)
@@ -166,6 +167,12 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 		AllocatorToUse = EMemoryAllocatorToUse::Stomp;
 	}
 #endif // WITH_MALLOC_STOMP
+#if WITH_MALLOC_STOMP2
+	if (FCString::Stristr(CommandLine, TEXT("-stomp2malloc")))
+	{
+		GMallocStomp2Enabled = true;
+	}
+#endif // WITH_MALLOC_STOMP2
 #endif // !UE_BUILD_SHIPPING
 
 	switch (AllocatorToUse)

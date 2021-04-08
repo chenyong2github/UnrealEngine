@@ -16,6 +16,7 @@
 	"Installed" : false,
 	"SupportedTargetPlatforms": [
 		"Win64",
+		"Linux",
 		"Android",
 		"HoloLens"
 	],
@@ -26,6 +27,7 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
+				"Linux",
 				"Android",
 				"HoloLens"
 			]
@@ -36,6 +38,7 @@
 			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win64",
+				"Linux",
 				"Android",
 				"HoloLens"
 			]
@@ -46,6 +49,7 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
+				"Linux",
 				"Android",
 				"HoloLens"
 			]

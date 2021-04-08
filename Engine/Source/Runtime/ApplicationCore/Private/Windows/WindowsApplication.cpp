@@ -878,12 +878,17 @@ EWindowTransparency FWindowsApplication::GetWindowTransparencySupport() const
 #endif
 }
 
-
-LRESULT CALLBACK FWindowsApplication::AppWndProc(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam)
+// Defined as a global so that it can be extern'd by UELibrary
+LRESULT WindowsApplication_WndProc(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam)
 {
 	ensure( IsInGameThread() );
 
 	return WindowsApplication->ProcessMessage( hwnd, msg, wParam, lParam );
+}
+
+LRESULT CALLBACK FWindowsApplication::AppWndProc(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam)
+{
+	return WindowsApplication_WndProc( hwnd, msg, wParam, lParam );
 }
 
 int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam )

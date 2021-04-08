@@ -398,7 +398,7 @@ namespace Audio
 		/**
 		 * Returns the name of the currently used audio device.
 		 */
-		virtual FString GetCurrentDeviceName() { return CurrentDeviceName; }
+		virtual FString GetCurrentDeviceName() const { return CurrentDeviceName; }
 
 		/**
 		 * Can be used to look up the current index for a given device name.
@@ -427,6 +427,9 @@ namespace Audio
 
 		/** Resets the audio stream to use a new audio device with the given device ID (empty string means default). */
 		virtual bool MoveAudioStreamToNewAudioDevice(const FString& InNewDeviceId) { return true;  }
+
+		/** Sends a command to swap which output device is being used */
+		virtual bool RequestDeviceSwap(const FString& DeviceID) { return false; }
 
 		/** Returns the platform device info of the currently open audio stream. */
 		virtual FAudioPlatformDeviceInfo GetPlatformDeviceInfo() const = 0;

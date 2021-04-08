@@ -352,7 +352,9 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 	OutDependencyData.PackageName = FName(*PackageNameString);
 	FAssetPackageData& PackageData = OutDependencyData.PackageData;
 	PackageData.DiskSize = PackageFileSize;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PackageData.PackageGuid = PackageFileSummary.Guid;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	PackageData.SetCustomVersions(PackageFileSummary.GetCustomVersionContainer().GetAllVersions());
 	PackageData.FileVersionUE4 = PackageFileSummary.GetFileVersionUE4();
 	PackageData.FileVersionLicenseeUE4 = PackageFileSummary.GetFileVersionLicenseeUE4();

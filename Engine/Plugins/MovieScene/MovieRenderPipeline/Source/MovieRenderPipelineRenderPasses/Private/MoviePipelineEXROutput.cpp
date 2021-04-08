@@ -128,10 +128,18 @@ bool FEXRImageWriteTask::WriteToDisk()
 		// Data Window specifies how much data is in the actual file, ie: 1920x1080
 		IMATH_NAMESPACE::Box2i DataWindow = IMATH_NAMESPACE::Box2i(IMATH_NAMESPACE::V2i(0,0), IMATH_NAMESPACE::V2i(Width - 1, Height - 1));
 		
+		float BorderRatio = FMath::Clamp((OverscanPercentage / (1.0f + OverscanPercentage)) / 2.0f, 0.0f, 0.5f);
+		int32 OverscanBorderWidth = FMath::RoundToInt(Width * BorderRatio);
+		int32 OverscanBorderHeight = FMath::RoundToInt(Height * BorderRatio);
+
+		// Taking Overscan into account.
+		IMATH_NAMESPACE::V2i TopLeft = IMATH_NAMESPACE::V2i(OverscanBorderWidth, OverscanBorderHeight);
+		IMATH_NAMESPACE::V2i BottomRight = IMATH_NAMESPACE::V2i(Width - OverscanBorderWidth - 1, Height - OverscanBorderHeight - 1);
+
 		// Display Window specifies the total 'visible' area of the output file. 
 		// The Display Window always starts at 0,0, but Data Window can go negative to
 		// support having pixels out of bounds (such as camera overscan).
-		IMATH_NAMESPACE::Box2i DisplayWindow = IMATH_NAMESPACE::Box2i(IMATH_NAMESPACE::V2i(0,0), IMATH_NAMESPACE::V2i(Width - 1, Height - 1));
+		IMATH_NAMESPACE::Box2i DisplayWindow = IMATH_NAMESPACE::Box2i(TopLeft, BottomRight);
 		
 		Imf::Header Header(DisplayWindow, DataWindow, 1, Imath::V2f(0, 0), 1, Imf::LineOrder::INCREASING_Y, FileCompression);
 		
@@ -351,7 +359,12 @@ void FEXRImageWriteTask::AddFileMetadata(Imf::Header& InHeader)
 	IOpenExrRTTIModule* OpenExrModule = FModuleManager::LoadModulePtr<IOpenExrRTTIModule>(RTTIExtensionModuleName);
 	if (OpenExrModule)
 	{
-		OpenExrModule->AddFileMetadata(FileMetadata, InHeader);
+		TMap<FString, FStringFormatArg> NewMap;
+		for (const TPair<FString, FString>& Metadata : FileMetadata)
+		{
+			NewMap.Add(Metadata.Key, Metadata.Value);
+		}
+		OpenExrModule->AddFileMetadata(NewMap, InHeader);
 	}
 }
 
@@ -407,7 +420,7 @@ void UMoviePipelineImageSequenceOutput_EXR::OnReceiveImageDataImpl(FMoviePipelin
 			UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
 
 			// Create specific data that needs to override 
-			FStringFormatNamedArguments FormatOverrides;
+			TMap<FString, FString> FormatOverrides;
 			FormatOverrides.Add(TEXT("render_pass"), TEXT("")); // Render Passes are included inside the exr file by named layers.
 			FormatOverrides.Add(TEXT("ext"), Extension);
 
@@ -465,6 +478,7 @@ void UMoviePipelineImageSequenceOutput_EXR::OnReceiveImageDataImpl(FMoviePipelin
 				// Only check the main image pass for transparent output since that's generally considered the 'preview'.
 				FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
 				bRequiresTransparentOutput = Payload->bRequireTransparentOutput;
+				MultiLayerImageTask->OverscanPercentage = Payload->SampleState.OverscanPercentage;
 			}
 			else
 			{

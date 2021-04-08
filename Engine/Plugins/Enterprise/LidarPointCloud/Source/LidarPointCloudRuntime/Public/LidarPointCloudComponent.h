@@ -87,6 +87,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
 	bool bUseScreenSizeScaling;
 
+	/**
+	 * If set to > 0, it attempts to close gaps between points.
+	 * Setting this too high may cause visual artifacts.
+	 * This setting may interfere with AO
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (ClampMin = "0.0"))
+	float GapFillingStrength;
+
 	/** Specifies which source to use for point colors. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
 	ELidarPointCloudColorationMode ColorSource;

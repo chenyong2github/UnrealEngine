@@ -12,6 +12,7 @@ void FNiagaraEditorCommands::RegisterCommands()
 	UI_COMMAND(Discard, "Discard", "Discard unsaved changes from the current object.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(Compile, "Compile", "Compile the current scripts", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(RefreshNodes, "Refresh", "Refreshes the current graph nodes, and updates pins due to external changes.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ModuleVersioning, "Versioning", "Manage different versions of a module script.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(SelectNextUsage, "Select Next Usage", "Selects the next usage of the selected item.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CreateAssetFromSelection, "Create Asset...", "Creates an asset from the current selection.", EUserInterfaceActionType::Button, FInputChord());
 

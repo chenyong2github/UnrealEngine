@@ -35,7 +35,7 @@ public:
 	// FUserOnlineAccountNull
 
 	FUserOnlineAccountNull(const FString& InUserId=TEXT("")) 
-		: UserIdPtr(new FUniqueNetIdNull(InUserId))
+		: UserIdPtr(FUniqueNetIdNull::Create(InUserId))
 	{ }
 
 	virtual ~FUserOnlineAccountNull()
@@ -106,7 +106,7 @@ private:
 	TMap<int32, FUniqueNetIdPtr> UserIds;
 
 	/** Ids mapped to locally registered users */
-	TMap<FUniqueNetIdNull, TSharedRef<FUserOnlineAccountNull>> UserAccounts;
+	TUniqueNetIdMap<TSharedRef<FUserOnlineAccountNull>> UserAccounts;
 };
 
 typedef TSharedPtr<FOnlineIdentityNull, ESPMode::ThreadSafe> FOnlineIdentityNullPtr;

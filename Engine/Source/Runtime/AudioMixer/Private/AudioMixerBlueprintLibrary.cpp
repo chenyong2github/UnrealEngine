@@ -16,6 +16,62 @@
 // This is our global recording task:
 static TUniquePtr<Audio::FAudioRecordingData> RecordingData;
 
+FAudioOutputDeviceInfo::FAudioOutputDeviceInfo(const Audio::FAudioPlatformDeviceInfo& InDeviceInfo) :
+	Name(InDeviceInfo.Name),
+	DeviceId(InDeviceInfo.DeviceId),
+	NumChannels(InDeviceInfo.NumChannels),
+	SampleRate(InDeviceInfo.SampleRate),
+	Format(EAudioMixerStreamDataFormatType(InDeviceInfo.Format)),
+	bIsSystemDefault(InDeviceInfo.bIsSystemDefault)
+{
+	for (int32 i = 0; i < NumChannels; ++i)
+	{
+		OutputChannelArray.Add(EAudioMixerChannelType(InDeviceInfo.OutputChannelArray[i]));
+	}
+
+}
+
+FString UAudioMixerBlueprintLibrary::Conv_AudioOutputDeviceInfoToString(const FAudioOutputDeviceInfo& InDeviceInfo)
+{
+	FString output = FString::Printf(TEXT("Device Name: %s, \nDevice Id: %s, \nNum Channels: %u, \nSample Rate: %u, \nFormat: %s,  \nIs System Default: %u, \n"),
+		*InDeviceInfo.Name, *InDeviceInfo.DeviceId, InDeviceInfo.NumChannels, InDeviceInfo.SampleRate,
+		*DataFormatAsString(EAudioMixerStreamDataFormatType(InDeviceInfo.Format)), InDeviceInfo.bIsSystemDefault);
+
+	output.Append("Output Channel Array: \n");
+
+	for (int32 i = 0; i < InDeviceInfo.NumChannels; ++i)
+	{
+		if (i < InDeviceInfo.OutputChannelArray.Num())
+		{
+			output += FString::Printf(TEXT("	%d: %s \n"), i, ToString(InDeviceInfo.OutputChannelArray[i]));
+		}
+	}
+
+	return output;
+}
+
+FString DataFormatAsString(EAudioMixerStreamDataFormatType type)
+{
+	switch (type)
+	{
+	case EAudioMixerStreamDataFormatType::Unknown:
+		return FString("Unknown");
+		break;
+	case EAudioMixerStreamDataFormatType::Float:
+		return FString("Float");
+		break;
+	case EAudioMixerStreamDataFormatType::Int16:
+		return FString("Int16");
+		break;
+	case EAudioMixerStreamDataFormatType::Unsupported:
+		return FString("Unsupported");
+		break;
+	default:
+		return FString("Invalid Format Type");
+	}
+}
+
+
 void UAudioMixerBlueprintLibrary::AddMasterSubmixEffect(const UObject* WorldContextObject, USoundEffectSubmixPreset* SubmixEffectPreset)
 {
 	if (!SubmixEffectPreset)
@@ -604,3 +660,102 @@ bool UAudioMixerBlueprintLibrary::IsAudioBusActive(const UObject* WorldContextOb
 	}
 }
 
+void UAudioMixerBlueprintLibrary::GetAvailableAudioOutputDevices(const UObject* WorldContextObject, const FOnAudioOutputDevicesObtained& OnObtainDevicesEvent)
+{
+	if (!IsInAudioThread())
+	{
+		//Send this over to the audio thread, with the same settings
+		FAudioThread::RunCommandOnAudioThread([WorldContextObject, OnObtainDevicesEvent]()
+		{
+			GetAvailableAudioOutputDevices(WorldContextObject, OnObtainDevicesEvent);
+		}); 
+
+		return;
+	}
+
+	TArray<FAudioOutputDeviceInfo> OutputDeviceInfos; //The array of audio device info to return
+
+	//Verifies its safe to access the audio mixer device interface
+	Audio::FMixerDevice* AudioMixerDevice = FAudioDeviceManager::GetAudioMixerDeviceFromWorldContext(WorldContextObject);
+	if (AudioMixerDevice)
+	{
+		Audio::IAudioMixerPlatformInterface* MixerPlatform = AudioMixerDevice->GetAudioMixerPlatform();
+
+		//Retrieve information on available devices
+		if (MixerPlatform)
+		{
+			uint32 NumOutputDevices = 0;
+
+			MixerPlatform->GetNumOutputDevices(NumOutputDevices);
+
+			for (uint32 i = 0; i < NumOutputDevices; ++i)
+			{
+				Audio::FAudioPlatformDeviceInfo DeviceInfo;
+
+				MixerPlatform->GetOutputDeviceInfo(i, DeviceInfo);
+
+				OutputDeviceInfos.Add(FAudioOutputDeviceInfo(DeviceInfo));
+			}
+		}
+	}
+
+	//Call delegate event, and send the info there
+	OnObtainDevicesEvent.Execute(OutputDeviceInfos);
+}
+
+void UAudioMixerBlueprintLibrary::GetCurrentAudioOutputDeviceName(const UObject* WorldContextObject, const FOnMainAudioOutputDeviceObtained& OnObtainCurrentDeviceEvent)
+{
+	if (!IsInAudioThread())
+	{
+		//Send this over to the audio thread, with the same settings
+		FAudioThread::RunCommandOnAudioThread([WorldContextObject, OnObtainCurrentDeviceEvent]()
+			{
+				GetCurrentAudioOutputDeviceName(WorldContextObject, OnObtainCurrentDeviceEvent);
+			});
+
+		return;
+	}
+
+	TArray<FAudioOutputDeviceInfo> toReturn; //The array of audio device info to return
+
+	//Verifies its safe to access the audio mixer device interface
+	Audio::FMixerDevice* AudioMixerDevice = FAudioDeviceManager::GetAudioMixerDeviceFromWorldContext(WorldContextObject);
+	if (AudioMixerDevice)
+	{
+		Audio::IAudioMixerPlatformInterface* MixerPlatform = AudioMixerDevice->GetAudioMixerPlatform();
+
+		//Call delegate event, and send the info there
+		OnObtainCurrentDeviceEvent.Execute(MixerPlatform->GetCurrentDeviceName());
+	}
+
+}
+
+void UAudioMixerBlueprintLibrary::SwapAudioOutputDevice(const UObject* WorldContextObject, const FAudioOutputDeviceInfo& NewDevice, const FOnCompletedDeviceSwap& OnCompletedDeviceSwap)
+{
+	if (!IsInAudioThread())
+	{
+		//Send this over to the audio thread, with the same settings
+		FAudioThread::RunCommandOnAudioThread([WorldContextObject, NewDevice, OnCompletedDeviceSwap]()
+		{
+			SwapAudioOutputDevice(WorldContextObject, NewDevice, OnCompletedDeviceSwap);
+		});
+
+		return;
+	}
+
+	//Verifies its safe to access the audio mixer device interface
+	Audio::FMixerDevice* AudioMixerDevice = FAudioDeviceManager::GetAudioMixerDeviceFromWorldContext(WorldContextObject);
+	if (AudioMixerDevice)
+	{
+		Audio::IAudioMixerPlatformInterface* MixerPlatform = AudioMixerDevice->GetAudioMixerPlatform();
+
+		//Send message to swap device
+		if (MixerPlatform)
+		{
+			bool result = MixerPlatform->RequestDeviceSwap(NewDevice.DeviceId);
+
+			//Call delegate event, and send the info there
+			OnCompletedDeviceSwap.Execute(result);
+		}
+	}
+}

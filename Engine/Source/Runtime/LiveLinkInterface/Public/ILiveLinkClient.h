@@ -217,6 +217,9 @@ public:
 	/** Whether or not the subject's data is time synchronized or not */
 	virtual bool IsSubjectTimeSynchronized(FLiveLinkSubjectName SubjectName) const = 0;
 
+	/** Whether the subject key points to a virtual subject */
+	virtual bool IsVirtualSubject(const FLiveLinkSubjectKey& SubjectKey) const = 0;
+
 	/** Get the role of a subject from a specific source */
 	virtual TSubclassOf<ULiveLinkRole> GetSubjectRole(const FLiveLinkSubjectKey& SubjectKey) const = 0;
 

@@ -27,15 +27,19 @@ FSlateTextureAtlasRHI::~FSlateTextureAtlasRHI( )
 }
 
 
+FSlateShaderResource* FSlateTextureAtlasRHI::GetAtlasTexture() const
+{
+	return AtlasTexture;
+}
+
 /* FSlateTextureAtlasRHI interface
  *****************************************************************************/
 
-void FSlateTextureAtlasRHI::ReleaseAtlasTexture( )
+void FSlateTextureAtlasRHI::ReleaseResources()
 {
 	bNeedsUpdate = false;
 	BeginReleaseResource(AtlasTexture);
 }
-
 
 void FSlateTextureAtlasRHI::UpdateTexture_RenderThread( FSlateTextureData* RenderThreadData )
 {
@@ -47,14 +51,23 @@ void FSlateTextureAtlasRHI::UpdateTexture_RenderThread( FSlateTextureData* Rende
 	}
 
 	check(AtlasTexture->IsInitialized());
+	
+	const TArray<uint8>& RawBytes = RenderThreadData->GetRawBytes();
+	const uint8 * RawBytesPtr = RawBytes.GetData();
+	
+	if ( RawBytesPtr != nullptr )
+	{
+		uint32 DestStride;
+		uint8* TempData = (uint8*)RHILockTexture2D(AtlasTexture->GetTypedResource(), 0, RLM_WriteOnly, /*out*/ DestStride, false);
+		// check(DestStride == (RenderThreadData->GetBytesPerPixel() * RenderThreadData->GetWidth())); // Temporarily disable check
 
-	uint32 DestStride;
-	uint8* TempData = (uint8*)RHILockTexture2D(AtlasTexture->GetTypedResource(), 0, RLM_WriteOnly, /*out*/ DestStride, false);
-	// check(DestStride == (RenderThreadData->GetBytesPerPixel() * RenderThreadData->GetWidth())); // Temporarily disable check
+		if ( TempData != nullptr )
+		{
+			FMemory::Memcpy(TempData, RawBytesPtr, RenderThreadData->GetBytesPerPixel() * RenderThreadData->GetWidth() * RenderThreadData->GetHeight());
 
-	FMemory::Memcpy(TempData, RenderThreadData->GetRawBytes().GetData(), RenderThreadData->GetBytesPerPixel() * RenderThreadData->GetWidth() * RenderThreadData->GetHeight());
-
-	RHIUnlockTexture2D(AtlasTexture->GetTypedResource(), 0, false);
+			RHIUnlockTexture2D(AtlasTexture->GetTypedResource(), 0, false);
+		}
+	}
 
 	delete RenderThreadData;
 }

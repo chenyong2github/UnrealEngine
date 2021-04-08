@@ -57,7 +57,7 @@ bool FOnlineIdentityGooglePlay::Login(int32 LocalUserNum, const FOnlineAccountCr
 	}
 	else
 	{
-		TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdGooglePlay(TEXT("")), FString("Already trying to login"));
+		TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdGooglePlay::EmptyId(), FString("Already trying to login"));
 	}
 	
 	return bStartedLogin;

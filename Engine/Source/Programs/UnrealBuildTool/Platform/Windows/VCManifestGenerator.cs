@@ -539,6 +539,19 @@ namespace UnrealBuildTool
 			return "ms-resource:" + ResourceEntryName;
 		}
 
+		protected string AddExternalResourceEntry(string ResourceEntryName, string DefaultValue, Dictionary<string,string> CultureIdToCultureValues)
+		{
+			DefaultResourceWriter.AddResource(ResourceEntryName, DefaultValue);
+
+			foreach( KeyValuePair<string,string> CultureIdToCultureValue in CultureIdToCultureValues)
+			{
+				var Writer = PerCultureResourceWriters[CultureIdToCultureValue.Key];
+				Writer.AddResource(ResourceEntryName, CultureIdToCultureValue.Value);
+			}
+
+			return "ms-resource:" + ResourceEntryName;
+		}
+
 		protected string AddDebugResourceString(string ResourceEntryName, string Value)
 		{
 			DefaultResourceWriter.AddResource(ResourceEntryName, Value);

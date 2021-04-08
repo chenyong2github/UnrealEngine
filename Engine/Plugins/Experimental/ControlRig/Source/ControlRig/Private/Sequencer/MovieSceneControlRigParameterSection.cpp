@@ -2094,6 +2094,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 		EndFrame = StartFrame + EndFrame;
 		SetEndFrame(EndFrame);
 	}
+	ControlRig->Modify();
 
 	const int32 NumberOfFrames = FrameRate.AsFrameTime(Length).CeilToFrame().Value + 1;
 	FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
@@ -2102,6 +2103,25 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	FScopedSlowTask Progress(NumberOfFrames + ExtraProgress, LOCTEXT("BakingToControlRig_SlowTask", "Baking To Control Rig..."));	
 	Progress.MakeDialog(true);
 
+	//Make sure we are reset and run setup event  before evaluating
+	/*
+	TArray<FRigElementKey>ControlsToReset = ControlRig->GetHierarchy()->GetAllKeys(true, ERigElementType::Control);
+	for (const FRigElementKey& ControlToReset : ControlsToReset)
+	{
+		if (ControlToReset.Type == ERigElementType::Control)
+		{
+			FRigControlElement* ControlElement = ControlRig->FindControl(ControlToReset.Name);
+			if (ControlElement && !ControlElement->Settings.bIsTransientControl)
+			{
+				const FTransform InitialLocalTransform = ControlRig->GetHierarchy()->GetInitialLocalTransform(ControlToReset);
+				ControlRig->GetHierarchy()->SetLocalTransform(ControlToReset, InitialLocalTransform);
+			}
+		}
+	}
+	SourceBones.ResetTransforms();
+	SourceCurves.ResetValues();
+	ControlRig->Execute(EControlRigState::Update, TEXT("Setup"));
+	*/
 	const UAnimDataModel* DataModel = AnimSequence->GetDataModel();
 	const FAnimationCurveData& CurveData = DataModel->GetCurveData();
 	const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();

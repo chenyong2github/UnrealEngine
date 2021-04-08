@@ -31,6 +31,7 @@
 
 #include "Application/SlateApplicationBase.h"
 #include "ToolMenus.h"
+#include <Misc/PathViews.h>
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -339,8 +340,15 @@ void SPathView::SetSelectedPaths(const TArray<FString>& Paths)
 		return;
 	}
 
-	// Clear the search box so the selected paths will be visible
-	SearchPtr->ClearSearch();
+	// Clear the search box if it potentially hides a path we want to select
+	for (const FString& Path : Paths)
+	{
+		if (PathIsFilteredFromViewBySearch(Path))
+		{
+			SearchPtr->ClearSearch();
+			break;
+		}
+	}
 
 	// Prevent the selection changed delegate since the invoking code requested it
 	FScopedPreventTreeItemChangedDelegate DelegatePrevention( SharedThis(this) );
@@ -502,14 +510,15 @@ TSharedPtr<FTreeItem> SPathView::AddFolderItem(FContentBrowserItemData&& InItem,
 	TSharedPtr<FTreeItem> ParentTreeItem;
 	TArray<TSharedPtr<FTreeItem>>* CurrentTreeItems = &TreeRootItems;
 
-	FString CurrentPathStr = TEXT("/");
+	TStringBuilder<512> CurrentPathStr;
+	CurrentPathStr.Append(TEXT("/"));
 	for (int32 PathItemIndex = 0; PathItemIndex < PathItemList.Num(); ++PathItemIndex)
 	{
 		const bool bIsLeafmostItem = PathItemIndex == PathItemList.Num() - 1;
 
 		const FString FolderNameStr = PathItemList[PathItemIndex];
 		const FName FolderName = *FolderNameStr;
-		CurrentPathStr /= FolderNameStr;
+		FPathViews::Append(CurrentPathStr, FolderNameStr);
 
 		// Try and find an existing tree item
 		TSharedPtr<FTreeItem> CurrentTreeItem;
@@ -775,8 +784,15 @@ void SPathView::SyncToItems(TArrayView<const FContentBrowserItem> ItemsToSync, c
 
 void SPathView::SyncToVirtualPaths(TArrayView<const FName> VirtualPathsToSync, const bool bAllowImplicitSync)
 {
-	// Clear the filter
-	SearchPtr->ClearSearch();
+	// Clear the search box if it potentially hides a path we want to select
+	for (const FName& VirtualPathToSync : VirtualPathsToSync)
+	{
+		if (PathIsFilteredFromViewBySearch(VirtualPathToSync.ToString()))
+		{
+			SearchPtr->ClearSearch();
+			break;
+		}
+	}
 
 	TArray<TSharedPtr<FTreeItem>> SyncTreeItems;
 	{
@@ -798,6 +814,9 @@ void SPathView::SyncToVirtualPaths(TArrayView<const FName> VirtualPathsToSync, c
 
 	if ( SyncTreeItems.Num() > 0 )
 	{
+		// Batch the selection changed event
+		FScopedSelectionChangedEvent ScopedSelectionChangedEvent(SharedThis(this));
+
 		if (bAllowImplicitSync)
 		{
 			// Prune the current selection so that we don't unnecessarily change the path which might disorientate the user.
@@ -842,13 +861,13 @@ void SPathView::SyncToVirtualPaths(TArrayView<const FName> VirtualPathsToSync, c
 			RecursiveExpandParents(*ItemIt);
 			TreeViewPtr->SetItemSelection(*ItemIt, true);
 		}
+	}
 
-		// > 0 as some may have been popped off in the code above
-		if (SyncTreeItems.Num() > 0)
-		{
-			// Scroll the first item into view if applicable
-			TreeViewPtr->RequestScrollIntoView(SyncTreeItems[0]);
-		}
+	// > 0 as some may have been popped off in the code above
+	if (SyncTreeItems.Num() > 0)
+	{
+		// Scroll the first item into view if applicable
+		TreeViewPtr->RequestScrollIntoView(SyncTreeItems[0]);
 	}
 }
 
@@ -1710,6 +1729,13 @@ void SPathView::HandleItemDataDiscoveryComplete()
 	PendingInitialPaths.Empty();
 }
 
+bool SPathView::PathIsFilteredFromViewBySearch(const FString& InPath) const
+{
+	return !SearchBoxFolderFilter->GetRawFilterText().IsEmpty()
+		&& !SearchBoxFolderFilter->PassesFilter(InPath)
+		&& !FindItemRecursive(*InPath);
+}
+
 void SPathView::HandleSettingChanged(FName PropertyName)
 {
 	if ((PropertyName == GET_MEMBER_NAME_CHECKED(UContentBrowserSettings, DisplayEmptyFolders)) ||
@@ -2071,6 +2097,12 @@ void SFavoritePathView::HandleItemDataUpdated(TArrayView<const FContentBrowserIt
 	}
 
 	UE_LOG(LogContentBrowser, VeryVerbose, TEXT("FavoritePathView - HandleItemDataUpdated completed in %0.4f seconds for %d items"), FPlatformTime::Seconds() - HandleItemDataUpdatedStartTime, InUpdatedItems.Num());
+}
+
+bool SFavoritePathView::PathIsFilteredFromViewBySearch(const FString& InPath) const
+{
+	return SPathView::PathIsFilteredFromViewBySearch(InPath)
+		&& ContentBrowserUtils::IsFavoriteFolder(InPath);
 }
 
 void SFavoritePathView::FixupFavoritesFromExternalChange(TArrayView<const AssetViewUtils::FMovedContentFolder> MovedFolders)

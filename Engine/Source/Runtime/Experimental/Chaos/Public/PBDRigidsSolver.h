@@ -355,8 +355,15 @@ namespace Chaos
 		THandleArray<FChaosPhysicsMaterial> SimMaterials;
 		THandleArray<FChaosPhysicsMaterialMask> SimMaterialMasks;
 
-		TArray<FSingleParticlePhysicsProxy*> PendingDestroyPhysicsProxy;
+		struct FPendingDestroyInfo
+		{
+			FSingleParticlePhysicsProxy* Proxy;
+			int32 DestroyOnStep;
+		};
+
+		TArray<FPendingDestroyInfo> PendingDestroyPhysicsProxy;
 		TArray<FGeometryCollectionPhysicsProxy*> PendingDestroyGeometryCollectionPhysicsProxy;
+
 
 		void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);
 		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushData) override;

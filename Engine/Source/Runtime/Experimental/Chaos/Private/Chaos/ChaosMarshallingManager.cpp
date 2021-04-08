@@ -23,7 +23,10 @@ FChaosMarshallingManager::FChaosMarshallingManager()
 	PreparePullData();
 }
 
-FChaosMarshallingManager::~FChaosMarshallingManager() = default;
+FChaosMarshallingManager::~FChaosMarshallingManager()
+{
+	SetHistoryLength_Internal(0);	//ensure anything in pending history is cleared
+}
 
 void FChaosMarshallingManager::FinalizePullData_Internal(int32 LastExternalTimestampConsumed, FReal SimStartTime, FReal DeltaTime)
 {
@@ -119,6 +122,16 @@ FPushPhysicsData* FChaosMarshallingManager::StepInternalTime_External()
 
 void FChaosMarshallingManager::FreeData_Internal(FPushPhysicsData* PushData)
 {
+	//TODO: we know entire manager is cleared, so we can probably just iterate over its pools and reset
+	//instead of going through dirty proxies. If perf matters fix this
+	FDirtyPropertiesManager* Manager = &PushData->DirtyPropertiesManager;
+	FShapeDirtyData* ShapeDirtyData = PushData->DirtyProxiesDataBuffer.GetShapesDirtyData();
+
+	PushData->DirtyProxiesDataBuffer.ForEachProxy([Manager, ShapeDirtyData](int32 DataIdx, FDirtyProxy& Dirty)
+	{
+		Dirty.Clear(*Manager, DataIdx, ShapeDirtyData);
+	});
+
 	PushData->Reset();
 	PushDataPool.Enqueue(PushData);
 }
@@ -142,6 +155,7 @@ void FPushPhysicsData::Reset()
 		delete CallbackToRemove;
 	}
 
+	DirtyProxiesDataBuffer.Reset();
 	SimCallbackInputs.Reset();
 	SimCallbackObjectsToRemove.Reset();
 	ResetForHistory();
@@ -149,7 +163,6 @@ void FPushPhysicsData::Reset()
 
 void FPushPhysicsData::ResetForHistory()
 {
-	DirtyProxiesDataBuffer.Reset();
 	SimCommands.Reset();
 	SimCallbackObjectsToAdd.Reset();
 }
@@ -174,7 +187,8 @@ void FChaosMarshallingManager::SetHistoryLength_Internal(int32 InHistoryLength)
 	//make sure late entries are pruned
 	if(HistoryQueue_Internal.Num() > HistoryLength)
 	{
-		for(int32 Idx = HistoryLength; Idx < HistoryQueue_Internal.Num(); ++Idx)
+		//need to go from oldest to latest (back to front) since we may delete callback at latest, but still have inputs for it to free from earlier frames
+		for(int32 Idx = HistoryQueue_Internal.Num() - 1; Idx >= HistoryLength; --Idx)
 		{
 			FreeData_Internal(HistoryQueue_Internal[Idx]);
 		}

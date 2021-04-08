@@ -7,6 +7,7 @@
 #include "Evaluation/MovieSceneCameraShakeTemplate.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "UObject/Object.h"
+#include "GameFramework/Actor.h"
 #include "MatineeCameraShake.generated.h"
 
 class AActor;
@@ -278,7 +279,7 @@ protected:
 	float InitialFOVSinOffset;
 
 	/** Temp actor to use for playing camera anims. Used when playing a camera anim in non-gameplay context, e.g. in the editor */
-	AActor* TempCameraActorForCameraAnims;
+	TWeakObjectPtr<AActor> TempCameraActorForCameraAnims;
 
 	/** Sequence shake pattern for when using a sequence instead of a camera anim */
 	UPROPERTY(Instanced)

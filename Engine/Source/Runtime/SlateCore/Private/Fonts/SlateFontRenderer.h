@@ -57,7 +57,7 @@ void AppendGlyphFlags(const FFreeTypeFace& InFace, const FFontData& InFontData, 
 class FSlateFontRenderer
 {
 public:
-	FSlateFontRenderer(const FFreeTypeLibrary* InFTLibrary, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeKerningPairCache* InFTKerningPairCache, FCompositeFontCache* InCompositeFontCache);
+	FSlateFontRenderer(const FFreeTypeLibrary* InFTLibrary, FFreeTypeCacheDirectory* InFTCacheDirectory, FCompositeFontCache* InCompositeFontCache);
 
 	/**
 	 * @return The global max height for any character in the default font
@@ -97,9 +97,20 @@ public:
 	 * @param InSize		The size of the font to draw
 	 * @param First			The first character in the pair
 	 * @param Second		The second character in the pair
+	 * @param InScale		The scale at which the font is being drawn
 	 * @return The kerning amount, 0 if no kerning
 	 */
 	int8 GetKerning(const FFontData& InFontData, const int32 InSize, TCHAR First, TCHAR Second, const float InScale) const;
+
+	/**
+	 * Retrieves the kerning cache object used to retrieve kerning amounts between glyphs
+	 *
+	 * @param InFontData	The font that used to draw the string with the first and second characters
+	 * @param InSize		The size of the font to draw
+	 * @param InScale		The scale at which the font is being drawn
+	 * @return A pointer object referring to the kerning cache matching the given parameters, invalid/null if no kerning is performed
+	 */
+	TSharedPtr<FFreeTypeKerningCache> GetKerningCache(const FFontData& InFontData, const int32 InSize, const float InScale) const;
 
 	/**
 	 * Whether or not the specified character, within the specified font, can be loaded with the specified maximum font fallback level
@@ -150,7 +161,6 @@ private:
 #endif // WITH_FREETYPE
 
 	const FFreeTypeLibrary* FTLibrary;
-	FFreeTypeGlyphCache* FTGlyphCache;
-	FFreeTypeKerningPairCache* FTKerningPairCache;
+	FFreeTypeCacheDirectory* FTCacheDirectory;
 	FCompositeFontCache* CompositeFontCache;
 };

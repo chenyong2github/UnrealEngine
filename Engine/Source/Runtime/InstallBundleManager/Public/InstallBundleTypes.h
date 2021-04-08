@@ -256,6 +256,7 @@ enum class EInstallBundleSourceUpdateBundleInfoResult : uint32
 	AlreadyMounted,
 	AlreadyRequested,
 	IllegalStartupBundle,
+	IllegalCacheStatus,
 	Count,
 };
 
@@ -277,7 +278,7 @@ struct FInstallBundleSourceUpdateContentResultInfo
 	uint64 CurrentInstallSize = 0;
 	FDateTime LastAccessTime = FDateTime::MinValue(); // If cached, used to decide eviction order
 
-	bool bContentWasInstalled = false;
+	bool bContentWasInstalled = false; // If true, the source did work to update the content
 	
 	bool DidBundleSourceDoWork() const { return (ContentPaths.Num() != 0);} 
 };

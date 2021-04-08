@@ -50,16 +50,26 @@ void FRemoteControlUIModule::ShutdownModule()
 	FRemoteControlPanelStyle::Shutdown();
 }
 
-FGuid FRemoteControlUIModule::AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon)
+FDelegateHandle FRemoteControlUIModule::AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon)
 {
-	FGuid FilterId = FGuid::NewGuid();
-	ExternalFilterDelegates.Add(FilterId, MoveTemp(OnDisplayExposeIcon));
-	return FilterId;
+	FDelegateHandle Handle = OnDisplayExposeIcon.GetHandle();
+	ExternalFilterDelegates.Add(Handle, MoveTemp(OnDisplayExposeIcon));
+	return Handle;
 }
 
-void FRemoteControlUIModule::RemovePropertyFilter(const FGuid& FilterId)
+void FRemoteControlUIModule::RemovePropertyFilter(const FDelegateHandle& Handle)
 {
-	ExternalFilterDelegates.Remove(FilterId);
+	ExternalFilterDelegates.Remove(Handle);
+}
+
+void FRemoteControlUIModule::RegisterMetadataCustomization(FName MetadataKey, FOnCustomizeMetadataEntry OnCustomizeCallback)
+{
+	ExternalEntityMetadataCustomizations.FindOrAdd(MetadataKey) = MoveTemp(OnCustomizeCallback);
+}
+
+void FRemoteControlUIModule::UnregisterMetadataCustomization(FName MetadataKey)
+{
+	ExternalEntityMetadataCustomizations.Remove(MetadataKey);
 }
 
 TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel(URemoteControlPreset* Preset)
@@ -291,7 +301,7 @@ bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const TSharedRef<IPropertyH
 		}
 	}
 
-	for (const TPair<FGuid, FOnDisplayExposeIcon>& DelegatePair : ExternalFilterDelegates)
+	for (const TPair<FDelegateHandle, FOnDisplayExposeIcon>& DelegatePair : ExternalFilterDelegates)
 	{
 		if (DelegatePair.Value.IsBound())
 		{

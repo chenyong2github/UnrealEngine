@@ -616,7 +616,7 @@ namespace Chaos
 					{
 						if (RigidHandle->Sleeping())
 						{
-							RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+							RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
 						}
 						RigidHandle->F() += ResultsView[Index.Result];
 					}
@@ -635,7 +635,7 @@ namespace Chaos
 					{
 						if (RigidHandle->Sleeping())
 						{
-							RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+							RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
 						}
 						RigidHandle->Torque() += ResultsView[Index.Result];
 					}

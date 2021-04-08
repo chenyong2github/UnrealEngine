@@ -66,9 +66,9 @@ int32 UListView::GetNumItems() const
 	return ListItems.Num();
 }
 
-int32 UListView::GetIndexForItem(UObject* Item) const
+int32 UListView::GetIndexForItem(const UObject* Item) const
 {
-	return ListItems.Find(Item);
+	return ListItems.IndexOfByKey(Item);
 }
 
 void UListView::ClearListItems()

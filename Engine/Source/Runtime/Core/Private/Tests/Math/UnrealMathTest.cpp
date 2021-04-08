@@ -1282,6 +1282,12 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 				LogTest(TEXT("SinCos (Cos): Ref vs Fast"), TestVectorsEqual_ComponentWiseError(C[0], C[1], SinCosTolerance));
 				LogTest(TEXT("SinCos (Sin): Ref vs Vec"), TestVectorsEqual_ComponentWiseError(S[0], S[2], SinCosTolerance));
 				LogTest(TEXT("SinCos (Cos): Ref vs Vec"), TestVectorsEqual_ComponentWiseError(C[0], C[2], SinCosTolerance));
+
+				S[2] = VectorSin(VAngles);
+				LogTest(TEXT("VectorSin: Ref vs Vec"), TestVectorsEqual_ComponentWiseError(S[0], S[2], 0.001091f));
+
+				C[2] = VectorCos(VAngles);
+				LogTest(TEXT("VectorCos: Ref vs Vec"), TestVectorsEqual_ComponentWiseError(C[0], C[2], 0.001091f));
 			}
 		}
 	}
@@ -1316,7 +1322,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			FRotator(+360.0f, -720.0f, 1080.0f),
 			FRotator(+360.0f + 1.0f, -720.0f + 1.0f, 1080.0f + 1.0f),
 			FRotator(+360.0f + Nudge, -720.0f - Nudge, 1080.0f - Nudge),
-			FRotator(+360.0f * 1e10f, -720.0f * 1000000.0f, 1080.0f * 12345.f),
+			//FRotator(+360.0f * 1e10f, -720.0f * 1000000.0f, 1080.0f * 12345.f),	//this breaks when underlying math operations use HW FMA
 			FRotator(+8388608.f, +8388608.f - 1.1f, -8388608.f - 1.1f),
 			FRotator(+8388608.f + Nudge, +8388607.9f, -8388607.9f)
 		};

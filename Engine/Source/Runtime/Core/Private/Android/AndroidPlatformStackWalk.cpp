@@ -14,6 +14,11 @@
 #include <android/log.h>
 #include "Android/AndroidSignals.h"
 
+#include <android/log.h>
+
+#include "Misc/OutputDevice.h"
+#include "Logging/LogMacros.h"
+
 #define HAS_LIBUNWIND PLATFORM_ANDROID_ARM64 && !PLATFORM_LUMIN
 
 #if HAS_LIBUNWIND

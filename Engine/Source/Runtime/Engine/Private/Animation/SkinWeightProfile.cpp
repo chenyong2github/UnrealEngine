@@ -549,6 +549,16 @@ SIZE_T FSkinWeightProfilesData::GetResourcesSize() const
 	return SummedSize;
 }
 
+SIZE_T FSkinWeightProfilesData::GetCPUAccessMemoryOverhead() const
+{
+	SIZE_T Result = 0;
+	for (typename TMap<FName, FSkinWeightVertexBuffer*>::TConstIterator It(ProfileNameToBuffer); It; ++It)
+	{
+		Result += It->Value->GetNeedsCPUAccess() ? It->Value->GetVertexDataSize() : 0;
+	}
+	return Result;
+}
+
 void FSkinWeightProfilesData::SerializeMetaData(FArchive& Ar)
 {
 	TArray<FName, TInlineAllocator<8>> ProfileNames;

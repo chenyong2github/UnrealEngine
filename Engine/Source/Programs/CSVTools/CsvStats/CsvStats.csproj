@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="CommandLineTool.cs" />
     <Compile Include="CsvStats.cs" />
+    <Compile Include="MetadataQueryBuilder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

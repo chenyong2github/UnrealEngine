@@ -466,6 +466,9 @@ public:
 
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 
+	/** Get the estimated memory overhead of buffers marked as NeedsCPUAccess. */
+	SIZE_T GetCPUAccessMemoryOverhead() const;
+
 	/** Return the triangle count of this LOD. */
 	ENGINE_API int32 GetNumTriangles() const;
 
@@ -694,6 +697,9 @@ public:
 
 	/** Compute the size of this resource. */
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
+
+	/** Get the estimated memory overhead of buffers marked as NeedsCPUAccess. */
+	SIZE_T GetCPUAccessMemoryOverhead() const;
 
 	/** Allocate LOD resources. */
 	ENGINE_API void AllocateLODResources(int32 NumLODs);

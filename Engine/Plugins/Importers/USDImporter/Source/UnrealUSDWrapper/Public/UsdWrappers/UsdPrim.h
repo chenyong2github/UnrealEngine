@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Misc/Optional.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
 
 #if USE_USD_SDK
 
@@ -66,6 +68,10 @@ namespace UE
 		bool IsModel() const;
 		bool IsGroup() const;
 
+		TArray<FName> GetAppliedSchemas() const;
+
+		bool HasAPI( FName SchemaType, TOptional<FName> InstanceName = {} ) const;
+
 		const FSdfPath GetPrimPath() const;
 		FUsdStage GetStage() const;
 
@@ -85,8 +91,12 @@ namespace UE
 		void Load();
 		void Unload();
 
+		bool RemoveProperty( FName PropName ) const;
+
+		FUsdAttribute CreateAttribute( const TCHAR* AttrName, FName TypeName ) const;
 		TArray< FUsdAttribute > GetAttributes() const;
 		FUsdAttribute GetAttribute(const TCHAR* AttrName) const;
+		bool HasAttribute(const TCHAR* AttrName) const;
 
 	private:
 		TUniquePtr< Internal::FUsdPrimImpl > Impl;
