@@ -1057,6 +1057,7 @@ void FixupLinkedOutputs(UNiagaraNode* StartNode)
 
 		if (UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node))
 		{
+			FunctionNode->ConditionalPostLoad();
 			FunctionNode->FixupPinNames();
 		}
 		
