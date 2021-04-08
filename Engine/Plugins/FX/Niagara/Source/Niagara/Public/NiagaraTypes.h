@@ -1084,7 +1084,6 @@ public:
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
 	static UEnum* GetScriptContextEnum() { return ScriptContextEnum; }
 	static UEnum* GetParameterPanelCategoryEnum() { return ParameterPanelCategoryEnum; }
-	static UEnum* GetFunctionDebugStateEnum() { return FunctionDebugStateEnum; }
 
 	static UEnum* GetParameterScopeEnum() { return ParameterScopeEnum; }
 
@@ -1163,8 +1162,6 @@ private:
 
 	static UEnum* ParameterScopeEnum;
 	static UEnum* ParameterPanelCategoryEnum;
-
-	static UEnum* FunctionDebugStateEnum;
 
 	static UScriptStruct* ParameterMapStruct;
 	static UScriptStruct* IDStruct;

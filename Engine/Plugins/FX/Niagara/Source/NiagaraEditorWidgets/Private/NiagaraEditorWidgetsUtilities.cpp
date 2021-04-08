@@ -282,15 +282,6 @@ void ToggleEnabledState(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
 	}
 }
 
-void ToggleShouldDebugDraw(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
-{
-	UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(StackItemWeak.Get());
-	if (ModuleItem != nullptr)
-	{
-		ModuleItem->SetDebugDrawEnabled(!ModuleItem->IsDebugDrawEnabled());
-	}
-}
-
 bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackItem& StackItem)
 {
 	if (StackItem.SupportsChangeEnabled())
@@ -310,22 +301,6 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBu
 					NAME_None,
 					EUserInterfaceActionType::Check);
 			}
-
-			UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(&StackItem);
-			if (ModuleItem)
-			{
-				FUIAction Action(FExecuteAction::CreateStatic(&ToggleShouldDebugDraw, TWeakObjectPtr<UNiagaraStackItem>(&StackItem)),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateUObject(ModuleItem, &UNiagaraStackModuleItem::IsDebugDrawEnabled));
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("ShouldDebugDraw", "Enable Debug Draw"),
-					LOCTEXT("ToggleShouldDebugDrawToolTip", "Toggle debug draw enable/disabled"),
-					FSlateIcon(),
-					Action,
-					NAME_None,
-					EUserInterfaceActionType::Check);
-			}
-
 		}
 		MenuBuilder.EndSection();
 		return true;

@@ -104,9 +104,6 @@ public:
 		SetIsEnabledInternal(bEnabled);
 	}
 
-	bool IsDebugDrawEnabled() const;
-	void SetDebugDrawEnabled(bool bInEnabled);
-
 protected:
 	FOnRequestDeprecationRecommended DeprecationDelegate;
 

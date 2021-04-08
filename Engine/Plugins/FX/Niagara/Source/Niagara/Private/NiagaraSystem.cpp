@@ -83,7 +83,6 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , bBakeOutRapidIterationOnCook(true)
 , bTrimAttributes(false)
 , bTrimAttributesOnCook(true)
-, bDisableAllDebugSwitches(false)
 #endif
 , bFixedBounds(false)
 #if WITH_EDITORONLY_DATA
@@ -389,8 +388,6 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 
 		bBakeOutRapidIteration = bBakeOutRapidIteration || bBakeOutRapidIterationOnCook;
 		bTrimAttributes = bTrimAttributes || bTrimAttributesOnCook;
-
-		bDisableAllDebugSwitches = true;
 	}
 #endif
 }

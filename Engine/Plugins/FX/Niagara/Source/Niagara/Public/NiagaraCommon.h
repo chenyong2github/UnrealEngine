@@ -1369,10 +1369,3 @@ enum class ENCPoolMethod : uint8
 	*/
 	FreeInPool UMETA(Hidden),
 };
-
-UENUM()
-enum class ENiagaraFunctionDebugState : uint8
-{
-	NoDebug,
-	Basic,
-};

@@ -38,8 +38,6 @@ enum class ECheckBoxState : uint8;
 struct FNiagaraNamespaceMetadata;
 class FNiagaraParameterHandle;
 
-enum class ENiagaraFunctionDebugState : uint8;
-
 namespace FNiagaraEditorUtilities
 {
 	/** Determines if the contents of two sets matches */

@@ -716,7 +716,6 @@ TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNi
 	// Set the static switch values so we traverse the correct node paths
 	FPinCollectorArray InputPins;
 	FunctionCallNode.GetInputPins(InputPins);
-
 	FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, ConstantResolver);
 
 	// Find the start node for the traversal
@@ -2189,7 +2188,7 @@ void SetInputValue(
 		bool bRapidIterationParameterSet = false;
 		if (FNiagaraStackGraphUtilities::IsRapidIterationType(Value.Type))
 		{
-			FCompileConstantResolver ConstantResolver = EmitterViewModel ? FCompileConstantResolver(EmitterViewModel->GetEmitter(), FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(InputFunctionCallNode)->GetUsage(), InputFunctionCallNode.DebugState) : FCompileConstantResolver();
+			FCompileConstantResolver ConstantResolver = EmitterViewModel ? FCompileConstantResolver(EmitterViewModel->GetEmitter(), FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(InputFunctionCallNode)->GetUsage()) : FCompileConstantResolver();
 			UEdGraphPin* DefaultPin = InputFunctionCallNode.FindParameterMapDefaultValuePin(ModuleHandle.GetParameterHandleString(), SourceScript.GetUsage(), ConstantResolver);
 			if (DefaultPin->LinkedTo.Num() == 0)
 			{
@@ -2715,7 +2714,7 @@ void FNiagaraStackGraphUtilities::GatherRenamedStackFunctionOutputVariableNames(
 
 	TArray<FNiagaraVariable> OutputVariables;
 	TArray<FNiagaraVariable> OutputVariablesWithOriginalAliasesIntact;
-	FCompileConstantResolver ConstantResolver(Emitter, ENiagaraScriptUsage::Function, FunctionCallNode.DebugState);
+	FCompileConstantResolver ConstantResolver(Emitter, ENiagaraScriptUsage::Function);
 	FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(FunctionCallNode, ConstantResolver, OutputVariables, OutputVariablesWithOriginalAliasesIntact);
 
 	for (FNiagaraVariable& OutputVariableWithOriginalAliasesIntact : OutputVariablesWithOriginalAliasesIntact)
@@ -2749,7 +2748,7 @@ void FNiagaraStackGraphUtilities::GatherRenamedStackFunctionInputAndOutputVariab
 
 	TArray<FNiagaraVariable> Variables;
 	TArray<FNiagaraVariable> VariablesWithOriginalAliasesIntact;
-	FCompileConstantResolver ConstantResolver(Emitter, ENiagaraScriptUsage::Function, FunctionCallNode.DebugState);
+	FCompileConstantResolver ConstantResolver(Emitter, ENiagaraScriptUsage::Function);
 	FNiagaraStackGraphUtilities::GetStackFunctionInputAndOutputVariables(FunctionCallNode, ConstantResolver, Variables, VariablesWithOriginalAliasesIntact);
 
 	for (FNiagaraVariable& Variable : VariablesWithOriginalAliasesIntact)

@@ -84,13 +84,6 @@ public:
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FGuid PreviousScriptVersion;
 
-	UPROPERTY()
-	ENiagaraFunctionDebugState DebugState;
-
-	/** Controls whether the debug state of the current function gets propagated into this function call. */
-	UPROPERTY(EditAnywhere, Category = "Debug")
-	bool bInheritDebugStatus = true;
-
 	bool ScriptIsValid() const;
 
 	//Begin UObject interface

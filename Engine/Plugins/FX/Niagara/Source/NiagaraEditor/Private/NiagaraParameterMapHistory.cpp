@@ -1533,14 +1533,6 @@ void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
 
 bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) const
 {
-	if (OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetFunctionDebugStateEnum(), TEXT("Function.DebugState")))
-	{
-		FNiagaraInt32 EnumValue;
-		EnumValue.Value = (uint8)GetDebugState();
-		OutConstant.SetValue(EnumValue);
-		return true;
-	}
-
 	// handle translator case
 	if (Translator)
 	{
@@ -1605,23 +1597,7 @@ bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) co
 		OutConstant.SetValue(EnumValue);
 		return true;
 	}
-
 	return false;
-}
-
-ENiagaraFunctionDebugState FCompileConstantResolver::GetDebugState() const
-{
-	const UNiagaraSystem* CurrentSystem =  System? System : (Emitter ? Cast<UNiagaraSystem>(Emitter->GetOuter()) : nullptr);
-	bool bDisableDebug = CurrentSystem ? CurrentSystem->bDisableAllDebugSwitches : false;
-	return bDisableDebug ? ENiagaraFunctionDebugState::NoDebug : DebugState;
-}
-
-
-ENiagaraFunctionDebugState FCompileConstantResolver::SetDebugState(ENiagaraFunctionDebugState InDebugState)
-{
-	ENiagaraFunctionDebugState OldState = DebugState;
-	DebugState = InDebugState; 
-	return OldState;
 }
 
 #undef LOCTEXT_NAMESPACE
