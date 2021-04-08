@@ -215,21 +215,21 @@ class DeviceUnreal(Device):
 
     csettings = {
         'buffer_size': Setting(
-            attr_name="buffer_size", 
-            nice_name="Buffer Size", 
-            value=1024, 
+            attr_name="buffer_size",
+            nice_name="Buffer Size",
+            value=1024,
             tool_tip="Buffer size used for communication with SwitchboardListener",
         ),
         'command_line_arguments': Setting(
-            attr_name="command_line_arguments", 
-            nice_name='Command Line Arguments', 
-            value="", 
+            attr_name="command_line_arguments",
+            nice_name='Command Line Arguments',
+            value="",
             tool_tip=f'Additional command line arguments for the engine',
         ),
         'exec_cmds': Setting(
-            attr_name="exec_cmds", 
-            nice_name='ExecCmds', 
-            value="", 
+            attr_name="exec_cmds",
+            nice_name='ExecCmds',
+            value="",
             tool_tip=f'ExecCmds to be passed. No need for outer double quotes.',
         ),
         'dp_cvars': Setting(
@@ -239,30 +239,30 @@ class DeviceUnreal(Device):
             tool_tip="Device profile console variables (comma separated)."
         ),
         'port': Setting(
-            attr_name="port", 
-            nice_name="Listener Port", 
-            value=2980, 
+            attr_name="port",
+            nice_name="Listener Port",
+            value=2980,
             tool_tip="Port of SwitchboardListener"
         ),
         'roles_filename': Setting(
-            attr_name="roles_filename", 
-            nice_name="Roles Filename", 
-            value="VPRoles.ini", 
+            attr_name="roles_filename",
+            nice_name="Roles Filename",
+            value="VPRoles.ini",
             tool_tip="File that stores VirtualProduction roles. Default: Config/Tags/VPRoles.ini",
         ),
         'stage_session_id': Setting(
-            attr_name="stage_session_id", 
+            attr_name="stage_session_id",
             nice_name="Stage Session ID",
             value=0,
             tool_tip="An ID that groups Stage Monitor providers and monitors. Instances with different Session IDs are invisible to each other in Stage Monitor.",
         ),
         'ue4_exe': Setting(
-            attr_name="editor_exe", 
-            nice_name="UE4 Editor filename", 
+            attr_name="editor_exe",
+            nice_name="UE4 Editor filename",
             value="UE4Editor.exe",
         ),
         'max_gpu_count': Setting(
-            attr_name="max_gpu_count", 
+            attr_name="max_gpu_count",
             nice_name="Number of GPUs",
             value=1,
             possible_values=list(range(1, 17)),
@@ -274,7 +274,13 @@ class DeviceUnreal(Device):
             value=sb_utils.PriorityModifier.Normal.name,
             possible_values=[p.name for p in sb_utils.PriorityModifier],
             tool_tip="Used to override the priority of the process.",
-        )
+        ),
+        'auto_decline_package_recovery': Setting(
+            attr_name='auto_decline_package_recovery',
+            nice_name='Skip Package Recovery',
+            value=False,
+            tool_tip='Automatically DISCARDS auto-saved packages at startup, skipping the restore prompt. Useful in multi-user scenarios, where restoring from auto-save may be undesirable.',
+        ),
     }
 
     unreal_started_signal = QtCore.Signal()
@@ -403,6 +409,7 @@ class DeviceUnreal(Device):
             DeviceUnreal.csettings['dp_cvars'],
             DeviceUnreal.csettings['max_gpu_count'],
             DeviceUnreal.csettings['priority_modifier'],
+            DeviceUnreal.csettings['auto_decline_package_recovery'],
             CONFIG.ENGINE_DIR,
             CONFIG.SOURCE_CONTROL_WORKSPACE,
             CONFIG.UPROJECT_PATH,
@@ -947,6 +954,9 @@ class DeviceUnreal(Device):
 
         if len(dp_cvars):
             command_line_args += f' -DPCVars="{dp_cvars}" '
+
+        if DeviceUnreal.csettings['auto_decline_package_recovery'].get_value(self.name):
+            command_line_args += ' -AutoDeclinePackageRecovery'
 
         args = f'"{CONFIG.UPROJECT_PATH.get_value(self.name)}" {map_name} {command_line_args}'
         return args
