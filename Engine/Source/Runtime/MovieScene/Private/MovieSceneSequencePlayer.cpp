@@ -759,11 +759,6 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 
 		float DeltaTimeForFunction = DeltaSeconds;
 
-		if (LastTickGameTimeSeconds.IsSet() && LastTickGameTimeSeconds.GetValue() >= 0.f)
-		{
-			DeltaTimeForFunction = CurrentWorldTime - LastTickGameTimeSeconds.GetValue();
-		}
-
 		TimeController->Tick(DeltaTimeForFunction, PlayRate);
 
 		if (World)

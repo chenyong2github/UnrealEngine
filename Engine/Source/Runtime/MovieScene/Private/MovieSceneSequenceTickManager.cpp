@@ -52,13 +52,18 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 	check(World != nullptr);
 	check(LatentActionManager.IsEmpty());
 	
+	const bool bIsPaused = World->IsPaused();
+
 	for (int32 i = SequenceActors.Num() - 1; i >= 0; --i)
 	{
 		if (AActor* SequenceActor = SequenceActors[i])
 		{
-			check(SequenceActor->GetWorld() == World);
-			SequenceActor->Tick(DeltaSeconds);
-			bHasTasks = true;
+			if (!bIsPaused || SequenceActor->GetTickableWhenPaused())
+			{
+				check(SequenceActor->GetWorld() == World);
+				SequenceActor->Tick(DeltaSeconds);
+				bHasTasks = true;
+			}
 		}
 	}
 
