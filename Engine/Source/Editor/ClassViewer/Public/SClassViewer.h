@@ -177,8 +177,7 @@ private:
 	/** Expands all of the root nodes */
 	virtual void ExpandRootNodes();
 
-	/** Returns the foreground color for the view button */
-	FSlateColor GetViewButtonForegroundColor() const;
+
 
 	/** Handler for when the view combo button is clicked */
 	TSharedRef<SWidget> GetViewButtonContent();

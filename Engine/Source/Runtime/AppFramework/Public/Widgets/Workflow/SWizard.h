@@ -17,6 +17,7 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/SlateDelegates.h"
+#include "Styling/AppStyle.h"
 
 /**
  * Delegate type for getting the next page to show.
@@ -165,11 +166,10 @@ public:
 public:
 
 	SLATE_BEGIN_ARGS(SWizard)
-		: _ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
-		, _CancelButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
-		, _FinishButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
-		, _ButtonTextStyle(&FCoreStyle::Get().GetWidgetStyle< FTextBlockStyle >("NormalText"))
-		, _ForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
+		: _ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SecondaryButton"))
+		, _CancelButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SecondaryButton"))
+		, _FinishButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("PrimaryButton"))
+		, _ButtonTextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("DialogButtonText"))
 		, _CanFinish(true)
 		, _FinishButtonText(NSLOCTEXT("SWizard", "DefaultFinishButtonText", "Finish"))
 		, _FinishButtonToolTip(NSLOCTEXT("SWizard", "DefaultFinishButtonTooltip", "Finish the wizard"))
@@ -198,9 +198,6 @@ public:
 
 		/** The text style used by the buttons. */
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, ButtonTextStyle)
-
-		/** The text style used by the buttons. */
-		SLATE_ARGUMENT(FSlateColor, ForegroundColor)
 
 		/** Holds a flag indicating whether the 'Finish' button is enabled. */
 		SLATE_ATTRIBUTE(bool, CanFinish)

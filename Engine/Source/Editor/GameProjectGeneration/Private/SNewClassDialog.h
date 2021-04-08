@@ -103,11 +103,11 @@ private:
 	/** Handler for when a class was picked in the full class tree */
 	void OnAdvancedClassSelected(UClass* Class);
 
-	/** Gets the check box state for the full class list */
-	ECheckBoxState IsFullClassTreeChecked() const;
+	/** Gets the boolean for the full class list */
+	bool IsFullClassTreeShown() const;
 
-	/** Gets the check box state for the full class list */
-	void OnFullClassTreeChanged(ECheckBoxState NewCheckedState);
+	/** Sets the boolean for the full class list */
+	void OnFullClassTreeChanged(bool bInShowFullClassTree);
 
 	/** Gets the visibility of the basic class list */
 	EVisibility GetBasicParentClassVisibility() const;
@@ -184,10 +184,10 @@ private:
 	FSlateColor GetClassLocationTextColor(GameProjectUtils::EClassLocation InLocation) const;
 
 	/** Checks to see if the given class location is active based on the current value of NewClassPath */
-	ECheckBoxState IsClassLocationActive(GameProjectUtils::EClassLocation InLocation) const;
+	GameProjectUtils::EClassLocation IsClassLocationActive() const;
 
 	/** Update the value of NewClassPath so that it uses the given class location */
-	void OnClassLocationChanged(ECheckBoxState InCheckedState, GameProjectUtils::EClassLocation InLocation);
+	void OnClassLocationChanged(GameProjectUtils::EClassLocation InLocation);
 
 	/** Checks the current class name/path for validity and updates cached values accordingly */
 	void UpdateInputValidity();

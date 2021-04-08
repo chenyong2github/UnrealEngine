@@ -1590,6 +1590,7 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 					.Text(InitOptions.ViewerTitleString)
 				]
 			]
+
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
@@ -1601,11 +1602,29 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 					FiltersWidget
 				]
 				+ SHorizontalBox::Slot()
-				.Padding(2.0f, 2.0f)
+				.Padding(2.0f, 2.0f, 6.0f, 2.0f)
 				[
 					SAssignNew(SearchBox, SSearchBox)
 					.OnTextChanged( this, &SClassViewer::OnFilterTextChanged )
 					.OnTextCommitted( this, &SClassViewer::OnFilterTextCommitted )
+				]
+				// View mode combo button
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.0f, 2.0f)
+				[
+					SAssignNew(ViewOptionsComboButton, SComboButton)
+					.ContentPadding(0)
+					.ForegroundColor(FSlateColor::UseForeground())
+					.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+					.HasDownArrow(false)
+					.OnGetMenuContent(this, &SClassViewer::GetViewButtonContent)
+					.ButtonContent()
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
 				]
 			]
 
@@ -1661,47 +1680,11 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 			// Bottom panel
 			+ SVerticalBox::Slot()
 			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
 			[
-				SNew(SHorizontalBox)
-
-				// Asset count
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.f)
-				.VAlign(VAlign_Center)
-				.Padding(8, 0)
-				[
-					SNew(STextBlock)
-					.Text(this, &SClassViewer::GetClassCountText)
-				]
-
-				// View mode combo button
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SAssignNew(ViewOptionsComboButton, SComboButton)
-					.ContentPadding(0)
-					.ForegroundColor(this, &SClassViewer::GetViewButtonForegroundColor)
-					.ButtonStyle(FEditorStyle::Get(), "ToggleButton") // Use the tool bar item style for this button
-					.OnGetMenuContent(this, &SClassViewer::GetViewButtonContent)
-					.ButtonContent()
-					[
-						SNew(SHorizontalBox)
-							+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						[
-							SNew(SImage).Image(FEditorStyle::GetBrush("GenericViewButton"))
-						]
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(2, 0, 0, 0)
-						.VAlign(VAlign_Center)
-						[
-							SNew(STextBlock).Text(LOCTEXT("ViewButton", "View Options"))
-						]
-					]
-				]
+				SNew(STextBlock)
+				.Text(this, &SClassViewer::GetClassCountText)
 			]
 		]
 	];
@@ -1924,14 +1907,6 @@ const TArray< TSharedPtr< FClassViewerNode > > SClassViewer::GetSelectedItems() 
 const int SClassViewer::GetNumItems() const
 {
 	return NumClasses;
-}
-
-FSlateColor SClassViewer::GetViewButtonForegroundColor() const
-{
-	static const FName InvertedForegroundName("InvertedForeground");
-	static const FName DefaultForegroundName("DefaultForeground");
-
-	return ViewOptionsComboButton->IsHovered() ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FEditorStyle::GetSlateColor(DefaultForegroundName);
 }
 
 TSharedRef<SWidget> SClassViewer::GetViewButtonContent()
