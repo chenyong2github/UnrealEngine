@@ -13,6 +13,7 @@
 #include "SceneTextureParameters.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "SceneViewExtension.h"
+#include "VariableRateShadingImageManager.h"
 #include "OneColorShader.h"
 #include "ClearQuad.h"
 
@@ -946,6 +947,8 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	// Render targets bindings should remain constant at this point.
 	FRenderTargetBindingSlots BasePassRenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
 	BasePassRenderTargets.DepthStencil = FDepthStencilBinding(BasePassDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, ExclusiveDepthStencil);
+
+	BasePassRenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, ViewFamily, nullptr, EVRSType::None);
 
 	AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_BasePass));
 	RenderBasePassInternal(GraphBuilder, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardShadowMaskTexture, bDoParallelBasePass, bRenderLightmapDensity);

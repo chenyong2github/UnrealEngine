@@ -197,8 +197,7 @@ protected:
 		DefaultColorClear(FClearValueBinding::Black),
 		DefaultDepthClear(FClearValueBinding::DepthFar),
 		bHMDAllocatedDepthTarget(false),
-		bKeepDepthContent(true),
-		bAllocatedShadingRateTexture(false)
+		bKeepDepthContent(true)
 		{
 			FMemory::Memset(LargestDesiredSizes, 0);
 #if PREVENT_RENDERTARGET_SIZE_THRASHING
@@ -339,7 +338,6 @@ public:
 	const FTexture2DRHIRef& GetGBufferETexture() const { return (const FTexture2DRHIRef&)GBufferE->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferFTexture() const { return (const FTexture2DRHIRef&)GBufferF->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferVelocityTexture() const { return (const FTexture2DRHIRef&)SceneVelocity->GetRenderTargetItem().ShaderResourceTexture; }
-	const FTexture2DRHIRef& GetShadingRateTexture() const { return (const FTexture2DRHIRef&)ShadingRateTexture->GetRenderTargetItem().ShaderResourceTexture; }
 
 	const FTextureRHIRef& GetSceneColorSurface() const;
 	const FTexture2DRHIRef& GetSceneDepthSurface() const							{ return (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().TargetableTexture; }
@@ -453,7 +451,6 @@ public:
 	void ReleaseSceneColor();
 	
 	ERHIFeatureLevel::Type GetCurrentFeatureLevel() const { return CurrentFeatureLevel; }
-	bool IsShadingRateTextureTextureAllocated() const { return bAllocatedShadingRateTexture;  }
 
 private: // Get...() methods instead of direct access
 	// 0 before BeginRenderingSceneColor and after tone mapping in deferred shading
@@ -524,9 +521,6 @@ public:
 	/** Depth for editor primitives */
 	TRefCountPtr<IPooledRenderTarget> EditorPrimitivesDepth;
 
-	/** Texture to control variable resolution rendering */
-	TRefCountPtr<IPooledRenderTarget> ShadingRateTexture;
-
 	/** Virtual Texture feedback buffer bound as UAV during the base pass */
 	FVertexBufferRHIRef VirtualTextureFeedback;
 	FUnorderedAccessViewRHIRef VirtualTextureFeedbackUAV;
@@ -591,12 +585,8 @@ private:
 	/** Allocates render targets for use with the current shading path. */
 	void AllocateRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews);
 
-
 	/** Allocates common depth render targets that are used by both mobile and deferred rendering paths */
 	void AllocateCommonDepthTargets(FRHICommandList& RHICmdList);
-
-	/** Allocates a texture for controlling variable resolution rendering. */
-	void AllocateShadingRateTexture(FRHICommandList& RHICmdList);
 
 	/** Determine the appropriate render target dimensions. */
 	FIntPoint ComputeDesiredSize(const FSceneViewFamily& ViewFamily);
@@ -706,9 +696,6 @@ private:
 
 	/** True if the contents of the depth buffer must be kept for post-processing. When this is false, the depth buffer can be allocated as memoryless on mobile platforms which support it. */
 	bool bKeepDepthContent;
-
-	/** True if the a variable resolution texture is allocated to control sampling or shading rate */
-	bool bAllocatedShadingRateTexture;
 
 	/** True if scenecolor and depth should be multiview-allocated */
 	bool bRequireMultiView;

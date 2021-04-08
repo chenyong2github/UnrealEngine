@@ -269,7 +269,6 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, SkySHIrradianceMap(GRenderTargetPool.MakeSnapshot(SnapshotSource.SkySHIrradianceMap))
 	, EditorPrimitivesColor(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesColor))
 	, EditorPrimitivesDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesDepth))
-	, ShadingRateTexture(GRenderTargetPool.MakeSnapshot(SnapshotSource.ShadingRateTexture))
 	, bScreenSpaceAOIsValid(SnapshotSource.bScreenSpaceAOIsValid)
 	, bCustomDepthIsValid(SnapshotSource.bCustomDepthIsValid)
 	, GBufferRefCount(SnapshotSource.GBufferRefCount)
@@ -298,7 +297,6 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, DefaultDepthClear(SnapshotSource.DefaultDepthClear)
 	, bHMDAllocatedDepthTarget(SnapshotSource.bHMDAllocatedDepthTarget)
 	, bKeepDepthContent(SnapshotSource.bKeepDepthContent)
-	, bAllocatedShadingRateTexture(SnapshotSource.bAllocatedShadingRateTexture)
 	, bRequireMultiView(SnapshotSource.bRequireMultiView)
 {
 	FMemory::Memcpy(LargestDesiredSizes, SnapshotSource.LargestDesiredSizes);
@@ -1372,7 +1370,6 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	// on mobile we don't do on demand allocation of SceneColor yet (in other platforms it's released in the Tonemapper Process())
 	AllocSceneColor(RHICmdList);
 	AllocateCommonDepthTargets(RHICmdList);
-	AllocateShadingRateTexture(RHICmdList);
 	AllocateVirtualTextureFeedbackBuffer(RHICmdList);
 	AllocateDebugViewModeTargets(RHICmdList);
 }
@@ -1585,33 +1582,6 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 	if (SceneDepthZ && !SceneStencilSRV)
 	{
 		SceneStencilSRV = RHICreateShaderResourceView((FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().TargetableTexture, 0, 1, PF_X24_G8);
-	}
-}
-
-void FSceneRenderTargets::AllocateShadingRateTexture(FRHICommandList& RHICmdList)
-{
-	// Only do any work if the RHI/Device supports VRS in some form.
-	if (!GRHISupportsAttachmentVariableRateShading)		// TODO: Check if the stereo rendering device supports the shading rate image data type.
-	{
-		return;
-	}
-
-	const bool bStereo = GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled();
-	IStereoRenderTargetManager* const StereoRenderTargetManager = bStereo ? GEngine->StereoRenderingDevice->GetRenderTargetManager() : nullptr;
-
-	FTexture2DRHIRef Texture;
-	FIntPoint TextureSize;
-
-	// Allocate variable resolution texture for VR foveation if supported
-	if (StereoRenderTargetManager && StereoRenderTargetManager->NeedReAllocateShadingRateTexture(ShadingRateTexture))
-	{
-		ShadingRateTexture.SafeRelease();
-
-		bAllocatedShadingRateTexture = StereoRenderTargetManager->AllocateShadingRateTexture(0, BufferSize.X, BufferSize.Y, PF_R8G8, 0, TexCreate_None, TexCreate_None, Texture, TextureSize);
-		if (bAllocatedShadingRateTexture)
-		{
-			ShadingRateTexture = CreateRenderTarget(Texture, TEXT("ShadingRate"));
-		}
 	}
 }
 
@@ -2030,8 +2000,6 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	EditorPrimitivesColor.SafeRelease();
 	EditorPrimitivesDepth.SafeRelease();
 
-	ShadingRateTexture.SafeRelease();
-
 	SceneDepthAux.SafeRelease();
 }
 
@@ -2299,18 +2267,7 @@ bool FSceneRenderTargets::AreShadingPathRenderTargetsAllocated(ESceneColorFormat
 
 bool FSceneRenderTargets::IsAllocateRenderTargetsRequired() const
 {
-	bool bAllocateRequired = false;
-
-	const bool bStereo = GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled();
-	IStereoRenderTargetManager* const StereoRenderTargetManager = bStereo ? GEngine->StereoRenderingDevice->GetRenderTargetManager() : nullptr;
-
-	// HMD controlled foveation textures may be destroyed externally and need a new allocation
-	if (StereoRenderTargetManager && StereoRenderTargetManager->NeedReAllocateShadingRateTexture(ShadingRateTexture))
-	{
-		bAllocateRequired = true;
-	}
-	
-	return bAllocateRequired || !AreShadingPathRenderTargetsAllocated(GetSceneColorFormatType()) || !AreRenderTargetClearsValid(GetSceneColorFormatType());
+	return !AreShadingPathRenderTargetsAllocated(GetSceneColorFormatType()) || !AreRenderTargetClearsValid(GetSceneColorFormatType());
 }
 
 /*-----------------------------------------------------------------------------
