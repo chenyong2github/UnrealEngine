@@ -83,6 +83,59 @@ namespace RemoteControlUtil
 				InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) && (InAccessType == ERCAccess::READ_ACCESS || !InProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly)) :
 				InProperty->HasAnyPropertyFlags(CPF_Edit) && (InAccessType == ERCAccess::READ_ACCESS || !InProperty->HasAnyPropertyFlags(CPF_EditConst)));
 	};
+
+	FARFilter GetBasePresetFilter()
+	{
+		FARFilter Filter;
+        Filter.bIncludeOnlyOnDiskAssets = false;
+        Filter.ClassNames = { URemoteControlPreset::StaticClass()->GetFName() };
+        Filter.bRecursivePaths = true;
+        Filter.PackagePaths = { TEXT("/") };
+		
+		return Filter;
+	}
+	
+	void GetAllPresetAssets(TArray<FAssetData>& OutAssets)
+	{
+		IAssetRegistry& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.GetAssets(GetBasePresetFilter(), OutAssets);
+	}
+
+	URemoteControlPreset* GetFirstPreset(const FARFilter& Filter)
+	{
+		IAssetRegistry& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		
+		TArray<FAssetData> Assets;
+		AssetRegistry.GetAssets(Filter, Assets);
+
+		return Assets.Num() ? CastChecked<URemoteControlPreset>(Assets[0].GetAsset()) : nullptr;
+	}
+
+	URemoteControlPreset* GetPresetById(const FGuid& Id)
+	{
+		FARFilter Filter = GetBasePresetFilter();
+		Filter.TagsAndValues.Add(FName("PresetId"), Id.ToString());
+		return GetFirstPreset(Filter);
+	}
+
+	URemoteControlPreset* GetPresetByName(FName PresetName)
+	{
+		FARFilter Filter = GetBasePresetFilter();
+		Filter.PackageNames = { PresetName };
+		return GetFirstPreset(Filter);
+	}
+
+	FGuid GetPresetId(const FAssetData& PresetAsset)
+	{
+		FGuid Id;
+		FAssetDataTagMapSharedView::FFindTagResult Result = PresetAsset.TagsAndValues.FindTag(FName("PresetId"));
+		if (Result.IsSet())
+		{
+			Id = FGuid{Result.GetValue()};
+		}
+
+		return Id;
+	}
 }
 
 /**
@@ -91,15 +144,28 @@ namespace RemoteControlUtil
 class FRemoteControlModule : public IRemoteControlModule
 {
 public:
-
 	virtual void StartupModule() override
 	{
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
+		if (AssetRegistry.IsLoadingAssets())
+		{
+			AssetRegistry.OnFilesLoaded().AddRaw(this, &FRemoteControlModule::CachePresets);
+		}
+		else
+		{
+			CachePresets();
+		}
 	}
 
 	virtual void ShutdownModule() override
 	{
+		if (FModuleManager::Get().IsModuleLoaded(AssetRegistryConstants::ModuleName))
+		{
+			IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
+			AssetRegistry.OnFilesLoaded().RemoveAll(this);
+		}
 	}
-
+	
 	virtual FOnPresetRegistered& OnPresetRegistered() override
 	{
 		return OnPresetRegisteredDelegate;
@@ -114,12 +180,13 @@ public:
 	bool RegisterPreset(FName Name, URemoteControlPreset* Preset)
 	{
 		check(Preset);
-		if (RegisteredPresetMap.Contains(Name))
+		if (CachedPresetsByName.Contains(Name))
 		{
 			return false;
 		}
 
-		RegisteredPresetMap.Add(Name, Preset);
+		CachedPresetsByName.Add(Name, Preset);
+		CachedPresetNamesById.Add(Preset->GetPresetId(), Name);
 		OnPresetRegistered().Broadcast(Name);
 		return true;
 	}
@@ -128,7 +195,16 @@ public:
 	void UnregisterPreset(FName Name)
 	{
 		OnPresetUnregistered().Broadcast(Name);
-		RegisteredPresetMap.Remove(Name);
+		if (FAssetData* PresetAsset = CachedPresetsByName.Find(Name))
+		{
+			FGuid PresetId = RemoteControlUtil::GetPresetId(*PresetAsset);
+			if (PresetId.IsValid())
+			{
+				CachedPresetNamesById.Remove(PresetId);
+			}
+		}
+		
+		CachedPresetsByName.Remove(Name);
 	}
 
 	virtual bool ResolveCall(const FString& ObjectPath, const FString& FunctionName, FRCCallReference& OutCallRef, FString* OutErrorText) override
@@ -547,39 +623,56 @@ public:
 
 	virtual URemoteControlPreset* ResolvePreset(FName PresetName) const override
 	{
-		if (const TSoftObjectPtr<URemoteControlPreset>* Preset = RegisteredPresetMap.Find(PresetName))
+		if (const FAssetData* Asset = CachedPresetsByName.Find(PresetName))
 		{
-			return Preset->LoadSynchronous();
+			return Cast<URemoteControlPreset>(Asset->GetAsset());
 		}
 
+		if (URemoteControlPreset* FoundPreset = RemoteControlUtil::GetPresetByName(PresetName))
+		{
+			CachedPresetsByName.Emplace(PresetName, FoundPreset);
+			return FoundPreset;
+		}
+		
+		return nullptr;
+	}
+	
+	virtual URemoteControlPreset* ResolvePreset(const FGuid& PresetId) const override
+	{
+		if (const FName* AssetName = CachedPresetNamesById.Find(PresetId))
+		{
+			if (FAssetData* Asset = CachedPresetsByName.Find(*AssetName))
+			{
+				return Cast<URemoteControlPreset>(Asset->GetAsset());
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("Preset id should be cached if the asset name already is."));
+			}
+	
+		}
+
+		if (URemoteControlPreset* FoundPreset = RemoteControlUtil::GetPresetById(PresetId))
+		{
+			CachedPresetNamesById.Emplace(PresetId, FoundPreset->GetName());
+			return FoundPreset;
+		}
+		
 		return nullptr;
 	}
 
-	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) override
+	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) const override
 	{
-		if (!bHasDoneInitialPresetSearch)
-		{
-			bHasDoneInitialPresetSearch = true;
-			FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-			FARFilter Filter;
-			Filter.bIncludeOnlyOnDiskAssets = true;
-			Filter.ClassNames = { URemoteControlPreset::StaticClass()->GetFName() };
-			Filter.bRecursivePaths = true;
-			Filter.PackagePaths = { TEXT("/Game") };
-			TArray<FAssetData> Assets;
-			AssetRegistry.GetAssets(Filter, Assets);
-
-			for (const FAssetData& AssetData : Assets)
-			{
-				RegisteredPresetMap.Emplace(AssetData.AssetName, AssetData.ToSoftObjectPath());
-			}
-		}
-
-		return RegisteredPresetMap.GenerateValueArray(OutPresets);
+		OutPresets.Reserve(CachedPresetsByName.Num());
+		Algo::Transform(CachedPresetsByName, OutPresets,[this](const TPair<FName, FAssetData>& Entry){ return Cast<URemoteControlPreset>(Entry.Value.GetAsset()); });
 	}
 
-	virtual const TMap<FName, FEntityMetadataInitializer>& GetDefaultMetadataInitializers() const
+	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets) const override
+	{
+		CachedPresetsByName.GenerateValueArray(OutPresetAssets);
+	}
+
+	virtual const TMap<FName, FEntityMetadataInitializer>& GetDefaultMetadataInitializers() const override
 	{
 		return DefaultMetadataInitializers;
 	}
@@ -600,9 +693,30 @@ public:
 	}
 
 private:
+	void CachePresets()
+	{
+		TArray<FAssetData> Assets;
+		RemoteControlUtil::GetAllPresetAssets(Assets);
+			
+		for (const FAssetData& AssetData : Assets)
+		{
+			CachedPresetsByName.Add(AssetData.AssetName, AssetData);
+			
+			FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
+			if (PresetId.IsValid())
+			{
+				CachedPresetNamesById.Add(MoveTemp(PresetId), AssetData.AssetName);
+			}
+		}
+	}
+
+private:
 	
-	/** Map of all preset assets */
-	TMap<FName, TSoftObjectPtr<URemoteControlPreset>> RegisteredPresetMap;
+	/** Cache of preset names to preset assets */
+	mutable TMap<FName, FAssetData> CachedPresetsByName;
+
+	/** Cache of ids to preset names. */
+	mutable TMap<FGuid, FName> CachedPresetNamesById;
 
 	/** Map of registered default metadata initializers. */
 	TMap<FName, FEntityMetadataInitializer> DefaultMetadataInitializers;
@@ -612,9 +726,6 @@ private:
 
 	/** Delegate for preset unregistration */
 	FOnPresetUnregistered OnPresetUnregisteredDelegate;
-
-	/** Whether the module has already scanned for existing preset assets. */
-	bool bHasDoneInitialPresetSearch = false;
 
 	/** Set of all replicator instances */
 	TSet<TSharedPtr<IRemoteControlReplicator>> RemoteControlReplicatorSet;

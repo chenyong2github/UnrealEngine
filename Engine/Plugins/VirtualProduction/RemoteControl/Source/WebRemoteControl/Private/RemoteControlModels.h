@@ -407,16 +407,32 @@ struct FRCPresetDescription
 
 		Name = Preset->GetName();
 		Path = Preset->GetPathName();
+		Id = Preset->GetPresetId().ToString();
 
 		Algo::Transform(Preset->Layout.GetGroups(), Groups, [Preset](const FRemoteControlPresetGroup& Group) { return FRCPresetLayoutGroupDescription{ Preset, Group }; });
 	}
 
+	/**
+	 * Name of the preset.
+	 */
 	UPROPERTY()
 	FString Name;
 
+	/**
+	 * Name of the preset.
+	 */
 	UPROPERTY()
 	FString Path;
 
+	/**
+	 * Unique identifier for the preset, can be used to make requests to the API.
+	 */
+	UPROPERTY()
+	FString Id;
+
+	/**
+	 * The groups containing exposed entities.
+	 */
 	UPROPERTY()
 	TArray<FRCPresetLayoutGroupDescription> Groups;
 };
@@ -428,17 +444,30 @@ struct FRCShortPresetDescription
 
 	FRCShortPresetDescription() = default;
 
-	FRCShortPresetDescription(const TSoftObjectPtr<URemoteControlPreset>& Preset)
+	FRCShortPresetDescription(const FAssetData& PresetAsset)
 	{
-		Name = Preset.GetAssetName();
-		Path = Preset.GetLongPackageName() + TEXT(".") + Name;
+		Name = PresetAsset.AssetName;
+		Id = PresetAsset.GetTagValueRef<FGuid>(FName("PresetId")).ToString();
+		Path = PresetAsset.ObjectPath;
 	}
 
+	/**
+	 * Name of the preset.
+	 */
 	UPROPERTY()
-	FString Name;
+	FName Name;
 
+	/**
+	 * Unique identifier for the preset, can be used to make requests to the API.
+	 */
 	UPROPERTY()
-	FString Path;
+	FString Id;
+
+	/**
+	 * Object path of the preset.
+	 */
+	UPROPERTY()
+	FName Path;
 };
 
 USTRUCT()

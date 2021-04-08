@@ -23,6 +23,9 @@ struct FRemoteControlObjectVersion
 
 		// ExposedEntities can now be rebound.
 		AddedRebindingFunctionality,
+
+		// Added property/function flags to RemoteControlField
+		AddedFieldFlags,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

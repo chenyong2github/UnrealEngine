@@ -38,11 +38,14 @@ struct FListPresetsResponse
 	
 	FListPresetsResponse() = default;
 
-	FListPresetsResponse(const TArray<TSoftObjectPtr<URemoteControlPreset>>& InPresets)
+	FListPresetsResponse(const TArray<FAssetData>& InPresets)
 	{
 		Presets.Append(InPresets);
 	}
-	
+
+	/**
+	 * The list of available remote control presets. 
+	 */
 	UPROPERTY()
 	TArray<FRCShortPresetDescription> Presets;
 };

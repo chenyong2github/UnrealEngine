@@ -277,17 +277,29 @@ public:
 	virtual TOptional<struct FExposedProperty> ResolvePresetProperty(const FResolvePresetFieldArgs& Args) const = 0;
 
 	/**
-	 * Get a preset that's in the current level using its name.
+	 * Get a preset using its name.
 	 * @arg PresetName name of the preset to resolve.
 	 * @return the preset if found.
 	 */
 	virtual URemoteControlPreset* ResolvePreset(FName PresetName) const = 0;
 
 	/**
+     * Get a preset using its id.
+     * @arg PresetId id of the preset to resolve.
+     * @return the preset if found.
+     */
+	virtual URemoteControlPreset* ResolvePreset(const FGuid& PresetId) const = 0;
+
+	/**
 	 * Get all the presets currently registered with the module.
 	 */
-	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) = 0;
+	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) const = 0;
 
+	/**
+	 * Get all the preset asset currently registered with the module.
+	 */
+	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets) const = 0;
+	
 	/**
 	 * Get the map of registered default entity metadata initializers. 
 	 */

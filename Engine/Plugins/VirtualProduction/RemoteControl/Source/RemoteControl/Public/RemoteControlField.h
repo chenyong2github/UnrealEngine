@@ -43,6 +43,9 @@ struct REMOTECONTROL_API FRemoteControlField : public FRemoteControlEntity
 	virtual bool CanBindObject(const UObject* InObjectToBind) const override;
 	//~ End FRemoteControlEntity interface
 
+	/**	Returns whether the field is only available in editor. */
+	bool IsEditorOnly() const { return bIsEditorOnly; }
+
 public:
 	/**
 	 * The field's type.
@@ -78,14 +81,17 @@ public:
 	
 protected:
 	/**
-	 * The class of the object that can have this property.
+	 * The class of the object that can have this field.
 	 */
 	UPROPERTY()
 	FSoftClassPath OwnerClass;
 
+	/** Whether the field is only available in editor. */
+	UPROPERTY()
+	bool bIsEditorOnly = false;
+
 protected:
 	FRemoteControlField(URemoteControlPreset* InPreset, EExposedFieldType InType, FName InLabel, FRCFieldPathInfo InFieldPathInfo, const TArray<URemoteControlBinding*> InBindings);
-
 	void PostSerialize(const FArchive& Ar);
 	
 private:
@@ -134,7 +140,10 @@ public:
 	 */
 	TSharedPtr<IRemoteControlPropertyHandle> GetPropertyHandle() const;
 	
-	/** Handle metadata initialization. */
+	/** Returns whether the property is editable in a packaged build. */
+	bool IsEditableInPackaged() const { return bIsEditableInPackaged; }
+
+	bool Serialize(FArchive& Ar);
 	void PostSerialize(const FArchive& Ar);
 	
 public:
@@ -146,6 +155,11 @@ public:
 private:
 	/** Assign the default metadata for this exposed property. (ie. Min, Max...) */
 	void InitializeMetadata();
+
+private:
+	/** Whether the property is blueprint read only. */
+	UPROPERTY()
+	bool bIsEditableInPackaged = false;
 };
 
 /**
@@ -169,6 +183,9 @@ struct REMOTECONTROL_API FRemoteControlFunction : public FRemoteControlField
 	virtual bool IsBound() const override;
 	//~ End FRemoteControlEntity interface
 
+	/** Returns whether the function is callable in a packaged build. */
+	bool IsCallableInPackaged() const { return bIsCallableInPackaged; }
+
 	friend FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction);
 	bool Serialize(FArchive& Ar);
 	void PostSerialize(const FArchive& Ar);
@@ -184,6 +201,11 @@ public:
 	 * The function arguments.
 	 */
 	TSharedPtr<class FStructOnScope> FunctionArguments;
+
+private:
+	/** Whether the function is callable in a packaged build. */
+	UPROPERTY()
+	bool bIsCallableInPackaged = false;	
 
 private:
 	/** Parse function metadata to get the function`s default parameters */
@@ -203,6 +225,7 @@ template<> struct TStructOpsTypeTraits<FRemoteControlProperty> : public TStructO
 {
 	enum
 	{
+		WithSerializer = true,
 		WithPostSerialize = true
     };
 };

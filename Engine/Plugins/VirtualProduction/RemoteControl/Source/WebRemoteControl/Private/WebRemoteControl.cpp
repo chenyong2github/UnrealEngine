@@ -74,14 +74,25 @@ namespace WebRemoteControl
 		{
 			return nullptr;
 		}
-		
-		FGuid EntityId = Preset->GetExposedEntityId(*PropertyLabelOrId);
-		if (!EntityId.IsValid())
+
+		FGuid Id{PropertyLabelOrId};
+        if (Id.IsValid())
+        {
+        	return Preset->GetExposedEntity<EntityType>(Id).Pin();
+        }
+
+		return Preset->GetExposedEntity<EntityType>(Preset->GetExposedEntityId(*PropertyLabelOrId)).Pin();
+	}
+
+	URemoteControlPreset* GetPreset(FString PresetNameOrId)
+	{
+		FGuid Id{PresetNameOrId};
+		if (Id.IsValid())
 		{
-			EntityId = FGuid{PropertyLabelOrId};
+			return IRemoteControlModule::Get().ResolvePreset(Id);
 		}
 
-		return EntityId.IsValid() ? Preset->GetExposedEntity<EntityType>(EntityId).Pin() : nullptr;
+		return IRemoteControlModule::Get().ResolvePreset(*PresetNameOrId);
 	}
 }
 
@@ -626,7 +637,7 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 	Args.PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 	Args.FieldLabel = Request.PathParams.FindChecked(TEXT("functionname"));
 
-	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*Args.PresetName);
+	URemoteControlPreset* Preset = WebRemoteControl::GetPreset(*Args.PresetName);
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
@@ -761,7 +772,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 	Args.PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 	Args.FieldLabel = Request.PathParams.FindChecked(TEXT("propertyname"));
 
-	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*Args.PresetName);
+	URemoteControlPreset* Preset = WebRemoteControl::GetPreset(*Args.PresetName);
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
@@ -834,7 +845,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	Args.PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 	Args.FieldLabel = Request.PathParams.FindChecked(TEXT("propertyname"));
 	
-	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*Args.PresetName);
+	URemoteControlPreset* Preset = WebRemoteControl::GetPreset(*Args.PresetName);
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
@@ -921,7 +932,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertyRoute(const FHt
 	FString PropertyName = Request.PathParams.FindChecked(TEXT("propertyname"));
 	FRCFieldPathInfo FieldPath{PropertyName};
 
-	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*PresetName);
+	URemoteControlPreset* Preset = WebRemoteControl::GetPreset(*PresetName);
 
 	if (Preset == nullptr)
 	{
@@ -983,7 +994,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertiesRoute(const F
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 	FString ActorRCLabel = Request.PathParams.FindChecked(TEXT("actor"));
 
-	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*PresetName);
+	URemoteControlPreset* Preset = WebRemoteControl::GetPreset(*PresetName);
 
 	if (Preset == nullptr)
 	{
@@ -1044,7 +1055,7 @@ bool FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute(const FHt
 	FString PropertyName = Request.PathParams.FindChecked(TEXT("propertyname"));
 	FRCFieldPathInfo FieldPath{ PropertyName };
 
-	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*PresetName);
+	URemoteControlPreset* Preset = WebRemoteControl::GetPreset(*PresetName);
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
@@ -1120,7 +1131,7 @@ bool FWebRemoteControlModule::HandleGetPresetRoute(const FHttpServerRequest& Req
 
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 
-	if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(FName(*PresetName)))
+	if (URemoteControlPreset* Preset = WebRemoteControl::GetPreset(PresetName))
 	{
 		WebRemoteControlUtils::SerializeResponse(FGetPresetResponse{ Preset }, Response->Body);
 		Response->Code = EHttpServerResponseCodes::Ok;
@@ -1139,10 +1150,10 @@ bool FWebRemoteControlModule::HandleGetPresetsRoute(const FHttpServerRequest& Re
 {
 	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok);
 
-	TArray<TSoftObjectPtr<URemoteControlPreset>> Presets;
-	IRemoteControlModule::Get().GetPresets(Presets);
+	TArray<FAssetData> PresetAssets;
+	IRemoteControlModule::Get().GetPresetAssets(PresetAssets);
 
-	WebRemoteControlUtils::SerializeResponse(FListPresetsResponse{ Presets }, Response->Body);
+	WebRemoteControlUtils::SerializeResponse(FListPresetsResponse{ PresetAssets }, Response->Body);
 
 	OnComplete(MoveTemp(Response));
 	return true;
@@ -1237,7 +1248,7 @@ bool FWebRemoteControlModule::HandleGetMetadataRoute(const FHttpServerRequest& R
 
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 
-	if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(FName(*PresetName)))
+	if (URemoteControlPreset* Preset = WebRemoteControl::GetPreset(PresetName))
 	{
 		WebRemoteControlUtils::SerializeResponse(FGetMetadataResponse{Preset->Metadata}, Response->Body);
 		Response->Code = EHttpServerResponseCodes::Ok;
@@ -1259,7 +1270,7 @@ bool FWebRemoteControlModule::HandleMetadataFieldOperationsRoute(const FHttpServ
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 	FString MetadataField = Request.PathParams.FindChecked(TEXT("metadatafield"));
 
-	if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(FName(*PresetName)))
+	if (URemoteControlPreset* Preset = WebRemoteControl::GetPreset(PresetName))
 	{
 		if (Request.Verb == EHttpServerRequestVerbs::VERB_GET)
 		{
@@ -1319,7 +1330,7 @@ bool FWebRemoteControlModule::HandleEntityMetadataOperationsRoute(const FHttpSer
 	FString Label = Request.PathParams.FindChecked(TEXT("label"));
 	FString Key = Request.PathParams.FindChecked(TEXT("key"));
 	
-	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*PresetName);
+	URemoteControlPreset* Preset = WebRemoteControl::GetPreset(*PresetName);
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;

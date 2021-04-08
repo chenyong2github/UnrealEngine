@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SRCPanelExposedField.h"
-#include "SRCPanelExposedField.h"
 
 #include "Algo/Transform.h"
+#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Framework/SlateDelegates.h"
 #include "IDetailTreeNode.h"
@@ -14,14 +14,15 @@
 #include "RemoteControlField.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
+#include "RemoteControlUISettings.h"
+#include "ScopedTransaction.h"
 #include "SRCPanelDragHandle.h"
 #include "SRCPanelTreeNode.h"
 #include "SRemoteControlPanel.h"
 #include "Styling/SlateBrush.h"
-#include "ScopedTransaction.h"
 #include "UObject/Object.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
@@ -261,6 +262,47 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidget>& InWidget)
 {
 	PanelTreeNode::FMakeNodeWidgetArgs Args;
+
+	FText WarningMessage;
+
+	if (GetDefault<URemoteControlUISettings>()->bDisplayInEditorOnlyWarnings)
+	{
+		bool bIsEditorOnly = false,
+            bIsEditableInPackaged = true,
+            bIsCallableInPackaged = true;
+		
+		if (TSharedPtr<FRemoteControlField> RCField = GetRemoteControlField().Pin())
+		{
+			bIsEditorOnly = RCField->IsEditorOnly();
+			if (RCField->FieldType == EExposedFieldType::Property)
+			{
+				bIsEditableInPackaged = StaticCastSharedPtr<FRemoteControlProperty>(RCField)->IsEditableInPackaged();
+			}
+			else
+			{
+				bIsCallableInPackaged = StaticCastSharedPtr<FRemoteControlFunction>(RCField)->IsCallableInPackaged();
+			}
+		}
+
+		FTextBuilder Builder;
+		if (bIsEditorOnly)
+		{
+			Builder.AppendLine(LOCTEXT("EditorOnlyWarning", "This field will be unavailable in packaged projects."));
+		}
+
+		if (!bIsEditableInPackaged)
+		{
+			Builder.AppendLine(LOCTEXT("NotEditableInPackagedWarning", "This property will not be editable in packaged projects."));
+		}
+
+		if (!bIsCallableInPackaged)
+		{
+			Builder.AppendLine(LOCTEXT("NotCallableInPackagedWarning", "This function will not be callable in packaged projects."));
+		}
+		
+		WarningMessage = Builder.ToText();
+	}
+	
 	Args.DragHandle = SNew(SBox)
 		.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Hidden)
 		[
@@ -268,11 +310,27 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 			.Widget(AsShared())
 		];
 
-	Args.NameWidget = SAssignNew(NameTextBox, SInlineEditableTextBlock)
-		.Text(FText::FromName(CachedLabel))
-		.OnTextCommitted(this, &SRCPanelExposedField::OnLabelCommitted)
-		.OnVerifyTextChanged(this, &SRCPanelExposedField::OnVerifyItemLabelChanged)
-		.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); });
+	Args.NameWidget = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.Padding(0.f, 0.f, 2.0f, 0.f)
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Visibility(!WarningMessage.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
+            .TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+            .Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+            .ToolTipText(WarningMessage)
+            .Text(FEditorFontGlyphs::Exclamation_Triangle)
+		]
+		+ SHorizontalBox::Slot()
+		[
+			SAssignNew(NameTextBox, SInlineEditableTextBlock)
+			.Text(FText::FromName(CachedLabel))
+			.OnTextCommitted(this, &SRCPanelExposedField::OnLabelCommitted)
+			.OnVerifyTextChanged(this, &SRCPanelExposedField::OnVerifyItemLabelChanged)
+			.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); })
+		];
 
 	Args.RenameButton = SNew(SButton)
 		.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
@@ -403,7 +461,12 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 				TArray<TSharedPtr<SRCPanelFieldChildNode>> ChildNodes;
 				for (TFieldIterator<FProperty> It(RCFunction->Function); It; ++It)
 				{
-					if (!It->HasAnyPropertyFlags(CPF_Parm) || It->HasAnyPropertyFlags(CPF_OutParm | CPF_ReturnParm))
+					bool bMustHaveParmFlag = !RCFunction->Function->HasAnyFunctionFlags(FUNC_Native);
+					const bool Param = It->HasAnyPropertyFlags(CPF_Parm);
+					const bool OutParam = It->HasAnyPropertyFlags(CPF_OutParm) && !It->HasAnyPropertyFlags(CPF_ConstParm);
+					const bool ReturnParam = It->HasAnyPropertyFlags(CPF_ReturnParm);
+
+					if (!Param || OutParam || ReturnParam)
 					{
 						continue;
 					}

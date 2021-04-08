@@ -432,7 +432,7 @@ private:
 /**
  * Holds targets that contain exposed functions and properties.
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, EditInlineNew)
 class REMOTECONTROL_API URemoteControlPreset : public UObject
 {
 public:
@@ -455,11 +455,6 @@ public:
 	 */
 	const FGuid& GetPresetId() const { return PresetId; }
 
-	/**
-	 * Create unique preset's ID.
-	 */
-	void CreatePresetId();
-		                                          
 	/**
 	 * Get this preset's targets.
 	 */
@@ -817,7 +812,7 @@ private:
 	
 private:
 	/** Preset unique ID */
-	UPROPERTY()
+	UPROPERTY(AssetRegistrySearchable)
 	FGuid PresetId;
 
 	/** The mappings of alias to targets. */

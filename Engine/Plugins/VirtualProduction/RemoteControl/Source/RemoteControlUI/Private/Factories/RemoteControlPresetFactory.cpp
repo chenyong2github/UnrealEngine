@@ -14,9 +14,7 @@ URemoteControlPresetFactory::URemoteControlPresetFactory()
 
 UObject* URemoteControlPresetFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	URemoteControlPreset* RemoteControlPreset = NewObject<URemoteControlPreset>(InParent, Name, Flags);
-	RemoteControlPreset->CreatePresetId();
-	return RemoteControlPreset;
+	return NewObject<URemoteControlPreset>(InParent, Name, Flags);
 }
 
 bool URemoteControlPresetFactory::ShouldShowInNewMenu() const

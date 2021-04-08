@@ -596,7 +596,8 @@ FProperty* FRemoteControlTarget::FindPropertyRecursive(UStruct* Container, TArra
 
 URemoteControlPreset::URemoteControlPreset()
 	: Layout(FRemoteControlPresetLayout{ this })
-	, RebindingManager(MakePimpl<FRemoteControlPresetRebindingManager>()) 
+	, PresetId(FGuid::NewGuid())
+	, RebindingManager(MakePimpl<FRemoteControlPresetRebindingManager>())
 {
 	Registry = CreateDefaultSubobject<URemoteControlExposeRegistry>(FName("ExposeRegistry"));
 }
@@ -652,14 +653,6 @@ void URemoteControlPreset::PostRename(UObject* OldOuter, const FName OldName)
 	Super::PostRename(OldOuter, OldName);
 	IRemoteControlModule::Get().UnregisterPreset(OldName);
 	IRemoteControlModule::Get().RegisterPreset(GetFName(), this);
-}
-
-void URemoteControlPreset::CreatePresetId()
-{
-	if (!PresetId.IsValid())
-	{
-		PresetId = FGuid::NewGuid();
-	}
 }
 
 FName URemoteControlPreset::GetOwnerAlias(FGuid FieldId) const
