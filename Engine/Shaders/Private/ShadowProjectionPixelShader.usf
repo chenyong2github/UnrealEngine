@@ -39,6 +39,10 @@
 	#define FEATURE_GATHER4 0
 #endif
 
+#if MODULATED_SHADOWS
+	#define MobileSceneTextures MobileBasePass.SceneTextures
+#endif
+
 #include "ShadowProjectionCommon.ush"
 #include "ShadowFilteringCommon.ush"
 #if USE_PCSS

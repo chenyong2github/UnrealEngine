@@ -43,9 +43,7 @@ static TAutoConsoleVariable<int32> CVarMobileMaxVisibleMovableSpotLightsShadow(
 	TEXT("The max number of visible spotlighs can cast shadow sorted by screen size, should be as less as possible for performance reason"),
 	ECVF_RenderThreadSafe);
 
-// Specify a unique slot for mobile base pass because some rendering in the mobile base pass (e.g. modulated shadow and ViewExtensions) use SceneTextures uniform buffer, but the SceneTextures uniform buffer and MobileBasePass uniform buffer share the same slot
-IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(MobileBasePass);
-IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileBasePassUniformParameters, "MobileBasePass", MobileBasePass);
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileBasePassUniformParameters, "MobileBasePass", SceneTextures);
 
 static TAutoConsoleVariable<int32> CVarMobileUseHWsRGBEncoding(
 	TEXT("r.Mobile.UseHWsRGBEncoding"),
