@@ -67,11 +67,12 @@ bool UDMXEntityFixturePatch::IsTickable() const
 
 bool UDMXEntityFixturePatch::IsTickableInEditor() const
 {
+	const bool bHasListener = OnFixturePatchReceivedDMX.IsBound();
+
 #if WITH_EDITORONLY_DATA
-	return OnFixturePatchReceivedDMX.IsBound() && bReceiveDMXInEditor;
-#elif 
-	return OnFixturePatchReceivedDMX.IsBound();
+	return bHasListener && bReceiveDMXInEditor;
 #endif
+	return bHasListener; 
 }
 
 ETickableTickType UDMXEntityFixturePatch::GetTickableTickType() const
