@@ -38,10 +38,10 @@ namespace Metasound
 		public:
 			static const FName PinCategoryAudio;
 			static const FName PinCategoryBoolean;
-			static const FName PinCategoryDouble;
+			//static const FName PinCategoryDouble;
 			static const FName PinCategoryFloat;
 			static const FName PinCategoryInt32;
-			static const FName PinCategoryInt64;
+			//static const FName PinCategoryInt64;
 			static const FName PinCategoryObject;
 			static const FName PinCategoryString;
 			static const FName PinCategoryTrigger;

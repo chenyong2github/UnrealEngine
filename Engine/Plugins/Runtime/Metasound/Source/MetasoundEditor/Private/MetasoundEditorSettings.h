@@ -35,8 +35,8 @@ public:
 	FLinearColor BooleanPinTypeColor;
 
 	/** Double pin type color */
-	UPROPERTY(EditAnywhere, config, Category = PinColors)
-	FLinearColor DoublePinTypeColor;
+	//UPROPERTY(EditAnywhere, config, Category = PinColors)
+	//FLinearColor DoublePinTypeColor;
 
 	/** Floating-point pin type color */
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
@@ -47,8 +47,8 @@ public:
 	FLinearColor IntPinTypeColor;
 
 	/** Integer64 pin type color */
-	UPROPERTY(EditAnywhere, config, Category = PinColors)
-	FLinearColor Int64PinTypeColor;
+	//UPROPERTY(EditAnywhere, config, Category = PinColors)
+	//FLinearColor Int64PinTypeColor;
 
 	/** Object pin type color */
 	UPROPERTY(EditAnywhere, config, Category=PinColors)

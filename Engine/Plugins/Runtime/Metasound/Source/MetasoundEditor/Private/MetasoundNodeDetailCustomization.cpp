@@ -75,7 +75,8 @@ namespace Metasound
 			static const TSet<FName> HiddenInputTypeNames =
 			{
 				"Audio:Mono",
-				"Audio:Stereo"
+				"Audio:Stereo",
+				"Trigger:Array"
 			};
 		}
 
@@ -480,20 +481,21 @@ namespace Metasound
 
 			// Not all types have an equivalent array type. Base types without array
 			// types should have the "Is Array" checkbox disabled. 
-			const bool bIsArrayTypeRegisteredForCurrentType = EditorModule.IsRegisteredDataType(FName(CurrentTypeName + VariableCustomizationPrivate::ArrayIdentifier));
+			const FName ArrayType = *(CurrentTypeName + VariableCustomizationPrivate::ArrayIdentifier);
+			const bool bIsArrayTypeRegistered = EditorModule.IsRegisteredDataType(ArrayType);
+			const bool bIsArrayTypeRegisteredHidden = VariableCustomizationPrivate::HiddenInputTypeNames.Contains(ArrayType);
 
 			DataTypeNames.Reset();
 			EditorModule.IterateDataTypes([&](const FEditorDataType& EditorDataType)
 			{
-				using namespace VariableCustomizationPrivate;
+				const FString TypeName = EditorDataType.RegistryInfo.DataTypeName.ToString(); 
 
-				const FString TypeName = EditorDataType.RegistryInfo.DataTypeName.ToString();
-
-				// Array types are handles separately via checkbox
+				// Array types are handled separately via checkbox
 				if (TypeName.EndsWith(VariableCustomizationPrivate::ArrayIdentifier))
 				{
 					return;
 				}
+
 
 				TSharedPtr<FString> TypeStrPtr = MakeShared<FString>(TypeName);
 				if (TypeName == CurrentTypeName)
@@ -502,7 +504,7 @@ namespace Metasound
 				}
 
 				// Hidden input types should be omitted from the drop down.
-				if (!HiddenInputTypeNames.Contains(EditorDataType.RegistryInfo.DataTypeName))
+				if (!VariableCustomizationPrivate::HiddenInputTypeNames.Contains(EditorDataType.RegistryInfo.DataTypeName))
 				{
 					DataTypeNames.Add(TypeStrPtr);
 				}
@@ -553,7 +555,7 @@ namespace Metasound
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(DataTypeArrayCheckbox, SCheckBox)
-					.IsEnabled(bIsArrayTypeRegisteredForCurrentType)
+					.IsEnabled(bIsArrayTypeRegistered && !bIsArrayTypeRegisteredHidden)
 					.IsChecked_Lambda([this, InGraphVariable]()
 					{
 						return OnGetDataTypeArrayCheckState(InGraphVariable);

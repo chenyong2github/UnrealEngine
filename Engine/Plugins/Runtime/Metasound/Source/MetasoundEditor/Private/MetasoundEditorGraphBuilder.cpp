@@ -35,10 +35,10 @@ namespace Metasound
 	{
 		const FName FGraphBuilder::PinCategoryAudio = "audio";
 		const FName FGraphBuilder::PinCategoryBoolean = "bool";
-		const FName FGraphBuilder::PinCategoryDouble = "double";
+		//const FName FGraphBuilder::PinCategoryDouble = "double";
 		const FName FGraphBuilder::PinCategoryFloat = "float";
 		const FName FGraphBuilder::PinCategoryInt32 = "int";
-		const FName FGraphBuilder::PinCategoryInt64 = "int64";
+		//const FName FGraphBuilder::PinCategoryInt64 = "int64";
 		const FName FGraphBuilder::PinCategoryObject = "object";
 		const FName FGraphBuilder::PinCategoryString = "string";
 		const FName FGraphBuilder::PinCategoryTrigger = "trigger";
@@ -240,20 +240,20 @@ namespace Metasound
 				return Settings->IntPinTypeColor;
 			}
 
-			if (PinType.PinCategory == PinCategoryInt64)
-			{
-				return Settings->Int64PinTypeColor;
-			}
+			//if (PinType.PinCategory == PinCategoryInt64)
+			//{
+			//	return Settings->Int64PinTypeColor;
+			//}
 
 			if (PinType.PinCategory == PinCategoryString)
 			{
 				return Settings->StringPinTypeColor;
 			}
 
-			if (PinType.PinCategory == PinCategoryDouble)
-			{
-				return Settings->DoublePinTypeColor;
-			}
+			//if (PinType.PinCategory == PinCategoryDouble)
+			//{
+			//	return Settings->DoublePinTypeColor;
+			//}
 
 			if (PinType.PinCategory == PinCategoryObject)
 			{

@@ -11,7 +11,7 @@
 #include "IDetailCustomization.h"
 #include "ISettingsModule.h"
 #include "Metasound.h"
-#include "MetasoundSource.h"
+#include "MetasoundAudioBuffer.h"
 #include "MetasoundAssetTypeActions.h"
 #include "MetasoundDetailCustomization.h"
 #include "MetasoundEditorGraph.h"
@@ -22,6 +22,9 @@
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundNodeDetailCustomization.h"
+#include "MetasoundSource.h"
+#include "MetasoundTime.h"
+#include "MetasoundTrigger.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"
@@ -69,6 +72,8 @@ namespace Metasound
 				static const FVector2D Icon16 = FVector2D(16.0f, 16.0f);
 				static const FVector2D Icon64 = FVector2D(64.0f, 64.0f);
 
+				const FVector2D Icon15x11(15.0f, 11.0f);
+
 				// Metasound Editor
 				{
 					// Actions
@@ -87,6 +92,9 @@ namespace Metasound
 					// Graph Editor
 					Set("MetasoundEditor.Graph.Node.Body.Input", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_input_body_64x.png")), FVector2D(114.0f, 64.0f)));
 					Set("MetasoundEditor.Graph.Node.Body.Default", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_default_body_64x.png")), FVector2D(64.0f, 64.0f)));
+
+					Set("MetasoundEditor.Graph.TriggerPin.Connected", new IMAGE_BRUSH(TEXT("Graph/pin_trigger_connected"), Icon15x11));
+					Set("MetasoundEditor.Graph.TriggerPin.Disconnected", new IMAGE_BRUSH(TEXT("Graph/pin_trigger_disconnected"), Icon15x11));
 
 					Set("MetasoundEditor.Graph.Node.Math.Add", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_add_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Divide", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_divide_40x.png")), Icon40x40));
@@ -196,7 +204,7 @@ namespace Metasound
 					FName PinSubCategory;
 
 					// Execution path triggers are specialized
-					if (DataTypeName == "Trigger")
+					if (DataTypeName == Frontend::GetDataTypeName<FTrigger>())
 					{
 						PinCategory = FGraphBuilder::PinCategoryTrigger;
 					}
@@ -204,10 +212,10 @@ namespace Metasound
 					// GraphEditor by default designates specialized connection
 					// specification for Int64, so use it even though literal is
 					// boiled down to int32
-					else if (DataTypeName == "Int64")
-					{
-						PinCategory = FGraphBuilder::PinCategoryInt64;
-					}
+					//else if (DataTypeName == Frontend::GetDataTypeName<int64>())
+					//{
+					//	PinCategory = FGraphBuilder::PinCategoryInt64;
+					//}
 
 					// Primitives
 					else
@@ -228,17 +236,13 @@ namespace Metasound
 
 								// Doubles use the same preferred literal
 								// but different colorization
-								if (DataTypeName == "Double")
-								{
-									PinCategory = FGraphBuilder::PinCategoryDouble;
-								}
+								//if (DataTypeName == Frontend::GetDataTypeName<double>())
+								//{
+								//	PinCategory = FGraphBuilder::PinCategoryDouble;
+								//}
 
 								// Differentiate stronger numeric types associated with audio
-								if (DataTypeName == "Frequency"
-									|| DataTypeName == "Time"
-									|| DataTypeName == "Time:HighResolution"
-									|| DataTypeName == "Time:SampleResolution"
-								)
+								if (DataTypeName == Frontend::GetDataTypeName<FTime>())
 								{
 									PinSubCategory = FGraphBuilder::PinSubCategoryTime;
 								}
@@ -272,7 +276,7 @@ namespace Metasound
 							{
 								// Audio types are ubiquitous, so added as subcategory
 								// to be able to stylize connections (i.e. wire color & wire animation)
-								if (DataTypeName == "Audio")
+								if (DataTypeName == Frontend::GetDataTypeName<FAudioBuffer>())
 								{
 									PinCategory = FGraphBuilder::PinCategoryAudio;
 								}
