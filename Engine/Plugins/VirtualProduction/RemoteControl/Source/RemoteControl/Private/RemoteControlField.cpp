@@ -7,6 +7,8 @@
 #include "RemoteControlObjectVersion.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlBinding.h"
+#include "RemoteControlPreset.h"
+#include "RemoteControlPropertyHandle.h"
 #include "UObject/Class.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
@@ -172,6 +174,16 @@ FProperty* FRemoteControlProperty::GetProperty() const
 		return Data.Field;
 	}
 	return nullptr;
+}
+
+TSharedPtr<IRemoteControlPropertyHandle> FRemoteControlProperty::GetPropertyHandle() const 
+{
+	TSharedPtr<FRemoteControlProperty> ThisPtr = Owner->GetExposedEntity<FRemoteControlProperty>(GetId()).Pin();
+	FProperty* Property = GetProperty();
+	const int32 ArrayIndex = Property->ArrayDim != 1 ? -1 : 0;
+	constexpr FProperty* ParentProperty = nullptr;
+	const TCHAR* ParentFieldPath = TEXT("");
+	return FRemoteControlPropertyHandle::GetPropertyHandle(ThisPtr, Property, ParentProperty, ParentFieldPath, ArrayIndex);
 }
 
 void FRemoteControlProperty::PostSerialize(const FArchive& Ar)

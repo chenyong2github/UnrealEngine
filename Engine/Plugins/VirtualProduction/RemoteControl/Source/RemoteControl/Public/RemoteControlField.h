@@ -7,6 +7,8 @@
 #include "RemoteControlProtocolBinding.h"
 #include "RemoteControlField.generated.h"
 
+class IRemoteControlPropertyHandle;
+
 /**
  * The type of the exposed field.
  */
@@ -125,6 +127,12 @@ public:
 	 * @note This field's binding must be valid to get the property.
 	 */
 	FProperty* GetProperty() const;
+
+	/**
+	 * Get the property handle with ability set and get property value directly.
+	 * @return The property handle for exposed property.
+	 */
+	TSharedPtr<IRemoteControlPropertyHandle> GetPropertyHandle() const;
 	
 	/** Handle metadata initialization. */
 	void PostSerialize(const FArchive& Ar);

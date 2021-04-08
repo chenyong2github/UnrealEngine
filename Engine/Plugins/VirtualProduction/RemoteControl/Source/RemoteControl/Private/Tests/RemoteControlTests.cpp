@@ -77,7 +77,7 @@ namespace RemoteControlTest
 	}
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRemoteControlPresetIntegrationTest, "Plugin.RemoteControl", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRemoteControlPresetIntegrationTest, "Plugin.RemoteControl.Expose", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FRemoteControlPresetIntegrationTest::RunTest(const FString& Parameters)
 {
 	// Test expose whole container
@@ -98,8 +98,10 @@ bool FRemoteControlPresetIntegrationTest::RunTest(const FString& Parameters)
 	RemoteControlTest::TestExposeContainerElement(*this, GET_TEST_PROP(IntSet),			 FString::Printf(TEXT("%s.%s[0]"),		 *GET_TEST_PROP(IntSet)->GetName(), *GET_TEST_PROP(IntSet)->GetName()), true);
 	RemoteControlTest::TestExposeContainerElement(*this, GET_TEST_PROP(IntMap),			 FString::Printf(TEXT("%s.%s_Value[0]"), *GET_TEST_PROP(IntMap)->GetName(), *GET_TEST_PROP(IntMap)->GetName()), true);
 	
-	// Test exposing map with key indexing
 	FProperty* RProperty = TBaseStructure<FColor>::Get()->FindPropertyByName(TEXT("R"));
+	// Test exposing map with array indexing
+	RemoteControlTest::TestExposeContainerElement(*this, RProperty, FString::Printf(TEXT("%s.%s_Value[0].Color.R"), *GET_TEST_PROP(IntInnerStructMap)->GetName(), *GET_TEST_PROP(IntInnerStructMap)->GetName()), true);
+	// Test exposing map with key indexing
 	RemoteControlTest::TestExposeContainerElement(*this, RProperty,	FString::Printf(TEXT("%s[\"mykey\"].R"), *GET_TEST_PROP(StringColorMap)->GetName()));
 	return true;
 }
