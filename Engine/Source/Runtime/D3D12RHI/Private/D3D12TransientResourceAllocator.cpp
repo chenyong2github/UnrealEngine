@@ -619,7 +619,10 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		CreateInfo.ClearValueBinding = InCreateInfo.ClearValue;
 
-		FRHITexture* RHITexture = nullptr;
+		// Force transient flag
+		ETextureCreateFlags CreationFlags = InCreateInfo.Flags;
+		CreationFlags |= TexCreate_Transient;
+
 		switch (InCreateInfo.Dimension)
 		{
 		case ETextureDimension::Texture2D:
@@ -627,7 +630,7 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 			const bool bTextureArray = false;
 			const bool bCubeTexture = false;
 			ID3D12ResourceAllocator* ResourceAllocator = this;
-			FD3D12Texture2D* Texture2D = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture2D<FD3D12BaseTexture2D>(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, 1, bTextureArray, bCubeTexture, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.NumSamples, InCreateInfo.Flags, InitialState, CreateInfo, ResourceAllocator);
+			FD3D12Texture2D* Texture2D = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture2D<FD3D12BaseTexture2D>(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, 1, bTextureArray, bCubeTexture, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.NumSamples, CreationFlags, InitialState, CreateInfo, ResourceAllocator);
 			TextureData.RHITexture = Texture2D;
 			TextureData.ResourceDesc = Texture2D->GetResource()->GetDesc();
 			TextureData.ClearValue = Texture2D->GetResource()->GetClearValue();
@@ -640,7 +643,7 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 		{
 			// Only support 2d textures for now
 			ID3D12ResourceAllocator* ResourceAllocator = this;
-			FD3D12Texture3D* Texture3D = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture3D(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, InCreateInfo.Depth, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.Flags, InitialState, CreateInfo, ResourceAllocator);
+			FD3D12Texture3D* Texture3D = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture3D(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, InCreateInfo.Depth, InCreateInfo.Format, InCreateInfo.NumMips, CreationFlags, InitialState, CreateInfo, ResourceAllocator);
 			TextureData.RHITexture = Texture3D;
 			TextureData.ResourceDesc = Texture3D->GetResource()->GetDesc();
 			TextureData.ClearValue = Texture3D->GetResource()->GetClearValue();
@@ -656,7 +659,7 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 			const bool bTextureArray = false;
 			const bool bCubeTexture = true;
 			ID3D12ResourceAllocator* ResourceAllocator = this;
-			FD3D12TextureCube* TextureCube = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture2D<FD3D12BaseTextureCube>(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, 6, bTextureArray, bCubeTexture, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.NumSamples, InCreateInfo.Flags, InitialState, CreateInfo, ResourceAllocator);
+			FD3D12TextureCube* TextureCube = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture2D<FD3D12BaseTextureCube>(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, 6, bTextureArray, bCubeTexture, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.NumSamples, CreationFlags, InitialState, CreateInfo, ResourceAllocator);
 			TextureData.RHITexture = TextureCube;
 			TextureData.ResourceDesc = TextureCube->GetResource()->GetDesc();
 			TextureData.ClearValue = TextureCube->GetResource()->GetClearValue();
@@ -694,6 +697,10 @@ FRHIBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBufferCreat
 
 	FD3D12Buffer* Buffer = nullptr;
 
+	// Force transient flag
+	EBufferUsageFlags UsageFlags = InCreateInfo.Usage;
+	UsageFlags |= BUF_Transient;
+
 	// Found something?
 	if (BufferData.RHIBuffer)
 	{
@@ -701,7 +708,6 @@ FRHIBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBufferCreat
 		Buffer = FD3D12DynamicRHI::ResourceCast((FRHIBuffer*)BufferData.RHIBuffer);
 		check(!Buffer->ResourceLocation.IsValid());
 
-		EBufferUsageFlags UsageFlags = InCreateInfo.Usage;
 		D3D12_RESOURCE_DESC Desc;
 		uint32 Alignment;
 		FD3D12Buffer::GetResourceDescAndAlignment(InCreateInfo.Size, InCreateInfo.Stride, UsageFlags, Desc, Alignment);
@@ -718,7 +724,7 @@ FRHIBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBufferCreat
 	{
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		ID3D12ResourceAllocator* ResourceAllocator = this;
-		Buffer = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Buffer(nullptr, InCreateInfo.Size, InCreateInfo.Usage, InCreateInfo.Stride, InitialState, CreateInfo, ResourceAllocator);
+		Buffer = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Buffer(nullptr, InCreateInfo.Size, UsageFlags, InCreateInfo.Stride, InitialState, CreateInfo, ResourceAllocator);
 		BufferData.RHIBuffer = Buffer;
 		BufferData.CreateInfo = InCreateInfo;
 	}

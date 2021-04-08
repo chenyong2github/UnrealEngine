@@ -212,8 +212,8 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 	const bool bIsDynamic = (InUsage & BUF_AnyDynamic) ? true : false;
 	const uint32 FirstGPUIndex = CreateInfo.GPUMask.GetFirstIndex();
 
-	// Transient resources don't get any actual D3D12 resource asigned at this point yet
-	bool bIsTransient = GSupportsTransientResourceAliasing && (InUsage & BUF_Transient);
+	// Transient flag set?
+	bool bIsTransient = (InUsage & BUF_Transient);
 	
 	// Does this resource support tracking?
 	const bool bSupportResourceStateTracking = !bIsDynamic && FD3D12DefaultBufferAllocator::IsPlacedResource(InDesc.Flags, InResourceStateMode);
@@ -341,7 +341,11 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 		CreateInfo.ResourceArray->Discard();
 	}
 
-	UpdateBufferStats(GetBufferStats(InUsage), BufferOut->ResourceLocation.GetSize());
+	// Don't update stats for transient resources
+	if (!bIsTransient)
+	{
+		UpdateBufferStats(GetBufferStats(InUsage), BufferOut->ResourceLocation.GetSize());
+	}
 
 	return BufferOut;
 }

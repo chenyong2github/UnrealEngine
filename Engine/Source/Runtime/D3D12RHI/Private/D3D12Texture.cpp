@@ -419,20 +419,24 @@ void FD3D12TextureStats::D3D12TextureAllocated(FD3D12Texture3D& Texture)
 
 	if (D3D12Texture3D)
 	{
-		const D3D12_RESOURCE_DESC& Desc = D3D12Texture3D->GetDesc();
-		const D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo = Texture.GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
-		const int64 TextureSize = AllocationInfo.SizeInBytes;
+		// Don't update state for virtual or transient textures	
+		if (!EnumHasAnyFlags(Texture.GetFlags(), TexCreate_Virtual | TexCreate_Transient))
+		{
+			const D3D12_RESOURCE_DESC& Desc = D3D12Texture3D->GetDesc();
+			const D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo = Texture.GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
+			const int64 TextureSize = AllocationInfo.SizeInBytes;
 
-		Texture.SetMemorySize(TextureSize);
+			Texture.SetMemorySize(TextureSize);
 
-		UpdateD3D12TextureStats(Desc, TextureSize, true, false, Texture.IsStreamable());
+			UpdateD3D12TextureStats(Desc, TextureSize, true, false, Texture.IsStreamable());
 
 #if PLATFORM_WINDOWS
-		// On Windows there is no way to hook into the low level d3d allocations and frees.
-		// This means that we must manually add the tracking here.
-		LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, Texture.GetResource()->GetResource(), Texture.GetMemorySize(), ELLMTag::GraphicsPlatform));
-		LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, Texture.GetResource()->GetResource(), Texture.GetMemorySize(), ELLMTag::Textures));
+			// On Windows there is no way to hook into the low level d3d allocations and frees.
+			// This means that we must manually add the tracking here.
+			LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, Texture.GetResource()->GetResource(), Texture.GetMemorySize(), ELLMTag::GraphicsPlatform));
+			LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, Texture.GetResource()->GetResource(), Texture.GetMemorySize(), ELLMTag::Textures));
 #endif
+		}
 	}
 }
 
@@ -442,18 +446,22 @@ void FD3D12TextureStats::D3D12TextureDeleted(FD3D12Texture3D& Texture)
 
 	if (D3D12Texture3D)
 	{
-		const D3D12_RESOURCE_DESC& Desc = D3D12Texture3D->GetDesc();
-		const int64 TextureSize = Texture.GetMemorySize();
-		if (TextureSize > 0)
+		// Don't update state for virtual or transient textures	
+		if (!EnumHasAnyFlags(Texture.GetFlags(), TexCreate_Virtual | TexCreate_Transient))
 		{
-			UpdateD3D12TextureStats(Desc, -TextureSize, true, false, Texture.IsStreamable());
+			const D3D12_RESOURCE_DESC& Desc = D3D12Texture3D->GetDesc();
+			const int64 TextureSize = Texture.GetMemorySize();
+			if (TextureSize > 0)
+			{
+				UpdateD3D12TextureStats(Desc, -TextureSize, true, false, Texture.IsStreamable());
 
 #if PLATFORM_WINDOWS
-			// On Windows there is no way to hook into the low level d3d allocations and frees.
-			// This means that we must manually add the tracking here.
-			LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Texture.GetResource()->GetResource()));
-			LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, Texture.GetResource()->GetResource()));
+				// On Windows there is no way to hook into the low level d3d allocations and frees.
+				// This means that we must manually add the tracking here.
+				LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Texture.GetResource()->GetResource()));
+				LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, Texture.GetResource()->GetResource()));
 #endif
+			}
 		}
 	}
 }
@@ -892,8 +900,8 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 		ClearValuePtr = &ClearValue;
 	}
 
-	// Transient resources don't get any actual D3D12 resource asigned at this point yet
-	bool bIsTransient = GSupportsTransientResourceAliasing && (Flags & TexCreate_Transient);
+	// Check if transient
+	bool bIsTransient = EnumHasAnyFlags(Flags, TexCreate_Transient);
 
 	// The state this resource will be in when it leaves this function
 	const FD3D12Resource::FD3D12ResourceTypeHelper Type(TextureDesc, D3D12_HEAP_TYPE_DEFAULT);
@@ -1191,8 +1199,8 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 	check(!(Flags & TexCreate_ResolveTargetable));
 	check(Flags & TexCreate_ShaderResource);
 
-	// Transient resources don't get any actual D3D12 resource asigned at this point yet
-	bool bIsTransient = GSupportsTransientResourceAliasing && (Flags & TexCreate_Transient);
+	// Is transient
+	bool bIsTransient = EnumHasAnyFlags(Flags, TexCreate_Transient);
 
 	D3D12_CLEAR_VALUE *ClearValuePtr = nullptr;
 	D3D12_CLEAR_VALUE ClearValue;
