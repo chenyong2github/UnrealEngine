@@ -42,7 +42,7 @@ void FDetailsDiff::HighlightProperty(const FPropertySoftPath& PropertyName)
 	DetailsView->HighlightProperty(ResolvedProperty);
 }
 
-TSharedRef< SWidget > FDetailsDiff::DetailsWidget()
+TSharedRef< IDetailsView > FDetailsDiff::DetailsWidget() const
 {
 	return DetailsView.ToSharedRef();
 }

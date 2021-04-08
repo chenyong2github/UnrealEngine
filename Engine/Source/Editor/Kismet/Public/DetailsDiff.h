@@ -21,7 +21,7 @@ public:
 	void HighlightProperty( const FPropertySoftPath& PropertyName );
 
 	/** Returns actual widget that is used to display details */
-	TSharedRef< SWidget > DetailsWidget();
+	TSharedRef< IDetailsView > DetailsWidget() const;
 
 	/** Returns object being displayed */
 	const UObject* GetDisplayedObject() const { return DisplayedObject; }

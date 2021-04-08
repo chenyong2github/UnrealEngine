@@ -24,6 +24,7 @@
 #include "WidgetBlueprint.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Algo/Transform.h"
 
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -259,6 +260,24 @@ public:
 		, NewDetails(InNewObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
 	{
 		OldDetails.DiffAgainst(NewDetails, DifferingProperties, true);
+
+		TSet<FPropertyPath> PropertyPaths;
+		Algo::Transform(DifferingProperties, PropertyPaths,
+			[&InOldObject](const FSingleObjectDiffEntry& DiffEntry)
+			{
+				return DiffEntry.Identifier.ResolvePath(InOldObject);
+			});
+
+		OldDetails.DetailsWidget()->UpdatePropertiesWhitelist(PropertyPaths);
+
+		PropertyPaths.Reset();
+		Algo::Transform(DifferingProperties, PropertyPaths,
+			[&InNewObject](const FSingleObjectDiffEntry& DiffEntry)
+			{
+				return DiffEntry.Identifier.ResolvePath(InNewObject);
+			});
+
+		NewDetails.DetailsWidget()->UpdatePropertiesWhitelist(PropertyPaths);
 	}
 
 	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override
