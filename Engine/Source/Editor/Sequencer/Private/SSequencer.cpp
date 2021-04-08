@@ -2208,6 +2208,7 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 	FMenuBuilder MenuBuilder( true, SequencerPtr.Pin()->GetCommandBindings() );
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 
+	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().TogglePilotCamera );
 	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleAutoScroll );
 	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleShowRangeSlider );
 	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleShowSelectedNodesOnly );

@@ -2074,6 +2074,81 @@ void FSequencer::OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChanne
 
 }
 
+void FSequencer::OnTogglePilotCamera()
+{
+	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	{
+		if (LevelVC != nullptr && LevelVC->AllowsCinematicControl() && LevelVC->GetViewMode() != VMI_Unknown)
+		{
+			bool bLockedAny = false;
+
+			// If locked to the camera cut track, pilot the camera that the camera cut track is locked to
+			if (IsPerspectiveViewportCameraCutEnabled())
+			{
+				SetPerspectiveViewportCameraCutEnabled(false);
+
+				if (LevelVC->GetCinematicActorLock().HasValidLockedActor())
+				{
+					LevelVC->SetActorLock(LevelVC->GetCinematicActorLock().GetLockedActor());
+					LevelVC->SetCinematicActorLock(nullptr);
+					LevelVC->bLockedCameraView = true;
+					LevelVC->UpdateViewForLockedActor();
+					LevelVC->Invalidate();
+					bLockedAny = true;
+				}
+			}
+			else if (!LevelVC->GetActorLock().HasValidLockedActor())
+			{
+				// If NOT piloting, and was previously piloting a camera, start piloting that previous camera
+				if (LevelVC->GetPreviousActorLock().HasValidLockedActor())
+				{
+					LevelVC->SetCinematicActorLock(nullptr);
+					LevelVC->SetActorLock(LevelVC->GetPreviousActorLock().GetLockedActor());
+					LevelVC->bLockedCameraView = true;
+					LevelVC->UpdateViewForLockedActor();
+					LevelVC->Invalidate();
+					bLockedAny = true;
+				}
+				// If NOT piloting, and was previously locked to the camera cut track, start piloting the camera that the camera cut track was previously locked to
+				else if (LevelVC->GetPreviousCinematicActorLock().HasValidLockedActor())
+				{
+					LevelVC->SetCinematicActorLock(nullptr);
+					LevelVC->SetActorLock(LevelVC->GetPreviousCinematicActorLock().GetLockedActor());
+					LevelVC->bLockedCameraView = true;
+					LevelVC->UpdateViewForLockedActor();
+					LevelVC->Invalidate();
+					bLockedAny = true;
+				}
+			}
+			
+			if (!bLockedAny)
+			{
+				LevelVC->SetCinematicActorLock(nullptr);
+				LevelVC->SetActorLock(nullptr);
+				LevelVC->bLockedCameraView = false;
+				LevelVC->UpdateViewForLockedActor();
+				LevelVC->Invalidate();
+			}
+		}
+	}
+}
+
+bool FSequencer::IsPilotCamera() const
+{
+	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	{
+		if (LevelVC != nullptr && LevelVC->AllowsCinematicControl() && LevelVC->GetViewMode() != VMI_Unknown)
+		{
+			if (LevelVC->GetActorLock().HasValidLockedActor())
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void FSequencer::BakeTransform()
 {
 	UMovieScene* FocusedMovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
@@ -13093,6 +13168,12 @@ void FSequencer::BindCommands()
 		Commands.AddScaleKey,
 		FExecuteAction::CreateSP(this, &FSequencer::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::Scale),
 		FCanExecuteAction::CreateSP(this, &FSequencer::CanAddTransformKeysForSelectedObjects));
+
+	SequencerCommandBindings->MapAction(
+		Commands.TogglePilotCamera,
+		FExecuteAction::CreateSP(this, &FSequencer::OnTogglePilotCamera),
+		FCanExecuteAction::CreateLambda( [] { return true; } ),
+		FIsActionChecked::CreateSP(this, &FSequencer::IsPilotCamera));
 
 	// copy subset of sequencer commands to shared commands
 	*SequencerSharedBindings = *SequencerCommandBindings;

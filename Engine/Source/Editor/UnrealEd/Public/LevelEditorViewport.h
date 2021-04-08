@@ -553,6 +553,22 @@ public:
 	 */
 	void SetCinematicActorLock(const FLevelViewportActorLock& InActorLock);
 
+	/**
+	 * Gets the previous actor lock. This is the actor locked to the viewport via the viewport menus.
+	 */
+	const FLevelViewportActorLock& GetPreviousActorLock() const
+	{
+		return PreviousActorLocks.ActorLock;
+	}
+
+	/**
+	 * Get the previous actor locked to the viewport by cinematic tools like Sequencer.
+	 */
+	const FLevelViewportActorLock& GetPreviousCinematicActorLock() const
+	{
+		return PreviousActorLocks.CinematicActorLock;
+	}
+
 	/** 
 	 * Set the actor locked to the viewport by Matinee.
 	 */
@@ -919,6 +935,7 @@ private:
 		FLevelViewportActorLock ActorLock;
 	};
 	FActorLockStack ActorLocks;
+	FActorLockStack PreviousActorLocks;
 
 	/** Caching for expensive FindViewComponentForActor. Invalidated once per Tick. */
 	static TMap<TObjectKey<AActor>, TWeakObjectPtr<UActorComponent>> ViewComponentForActorCache;

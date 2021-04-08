@@ -487,6 +487,9 @@ public:
 	bool CanAddTransformKeysForSelectedObjects() const;
 	void OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel);
 
+	void OnTogglePilotCamera();
+	bool IsPilotCamera() const;
+
 	/** Get the visibility of the record button */
 	EVisibility GetRecordButtonVisibility() const;
 

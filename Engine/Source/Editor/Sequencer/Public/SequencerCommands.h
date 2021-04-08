@@ -409,7 +409,8 @@ public:
 	/** Sets a scale key at the current time for the selected actor */
 	TSharedPtr< FUICommandInfo > AddScaleKey;
 
-
+	/** Toggle piloting the last camera or the camera cut camera */
+	TSharedPtr< FUICommandInfo > TogglePilotCamera;
 
 	/**
 	 * Initialize commands
