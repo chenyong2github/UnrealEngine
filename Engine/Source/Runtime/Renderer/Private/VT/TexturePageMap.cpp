@@ -77,9 +77,9 @@ FPhysicalSpaceIDAndAddress FTexturePageMap::FindPagePhysicalSpaceIDAndAddress(ui
 	return FindPagePhysicalSpaceIDAndAddress(CheckPage, Hash);
 }
 
-uint32 FTexturePageMap::FindNearestPageIndex(uint8 vLogSize, uint32 vAddress) const
+uint32 FTexturePageMap::FindNearestPageIndex(uint8 vLogSize, uint32 vAddress, uint8 MaxLevel) const
 {
-	while (vLogSize < 16)
+	while (vLogSize <= MaxLevel)
 	{
 		const uint32 Index = FindPageIndex(vLogSize, vAddress);
 		if (Index != ~0u)
@@ -96,13 +96,13 @@ uint32 FTexturePageMap::FindNearestPageIndex(uint8 vLogSize, uint32 vAddress) co
 
 uint32 FTexturePageMap::FindNearestPageAddress(uint8 vLogSize, uint32 vAddress) const
 {
-	const uint32 Index = FindNearestPageIndex(vLogSize, vAddress);
+	const uint32 Index = FindNearestPageIndex(vLogSize, vAddress, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE - 1u);
 	return Index != ~0u ? Pages[Index].pAddress : ~0u;
 }
 
 uint32 FTexturePageMap::FindNearestPageLevel(uint8 vLogSize, uint32 vAddress) const
 {
-	const uint32 Index = FindNearestPageIndex(vLogSize, vAddress);
+	const uint32 Index = FindNearestPageIndex(vLogSize, vAddress, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE - 1u);
 	if (Index != ~0u)
 	{
 		return Pages[Index].Local_vLevel;
@@ -116,7 +116,8 @@ void FTexturePageMap::UnmapPage(FVirtualTextureSystem* System, FVirtualTextureSp
 	check(PageIndex != ~0u);
 
 	const FTexturePage Page(vLogSize, vAddress);
-	check(Pages[PageIndex].Page == Page);
+	const FPageEntry& Entry = Pages[PageIndex];
+	check(Entry.Page == Page);
 
 	// Unmap old page
 	const uint16 Hash = MurmurFinalize32(Page.Packed);
@@ -126,15 +127,16 @@ void FTexturePageMap::UnmapPage(FVirtualTextureSystem* System, FVirtualTextureSp
 	{
 		const uint32 Parent_vLogSize = vLogSize + 1;
 		const uint32 Parent_vAddress = vAddress & (~0u << (vDimensions * Parent_vLogSize));
-		const uint32 AncestorIndex = FindNearestPageIndex(Parent_vLogSize, Parent_vAddress);
+		const uint32 AncestorIndex = FindNearestPageIndex(Parent_vLogSize, Parent_vAddress, Entry.MaxLevel);
 		if (AncestorIndex != ~0u)
 		{
 			// Root page should typically be locked in memory, so we should always find some valid ancestor pAddress, unless the entire VT is being released
 			// No reason to queue a page table update to invalid pAddress, just leave it alone for now, it will be updated when the page is remapped
-			check(Pages[AncestorIndex].PhysicalSpaceID == Pages[PageIndex].PhysicalSpaceID);
-			const FVirtualTexturePhysicalSpace* PhysicalSpace = System->GetPhysicalSpace(Pages[AncestorIndex].PhysicalSpaceID);
-			const uint8 Ancestor_vLevel = Pages[AncestorIndex].Local_vLevel;
-			Space->QueueUpdate(LayerIndex, vLogSize, vAddress, Ancestor_vLevel, PhysicalSpace->GetPhysicalLocation(Pages[AncestorIndex].pAddress));
+			const FPageEntry& AncestorPage = Pages[AncestorIndex];
+			check(AncestorPage.PackedProducerHandle == Entry.PackedProducerHandle);
+			check(AncestorPage.PhysicalSpaceID == Entry.PhysicalSpaceID);
+			const FVirtualTexturePhysicalSpace* PhysicalSpace = System->GetPhysicalSpace(AncestorPage.PhysicalSpaceID);
+			Space->QueueUpdate(LayerIndex, vLogSize, vAddress, AncestorPage.Local_vLevel, PhysicalSpace->GetPhysicalLocation(AncestorPage.pAddress));
 		}
 	}
 	
@@ -169,21 +171,40 @@ void FTexturePageMap::UnmapPage(FVirtualTextureSystem* System, FVirtualTextureSp
 	--MappedPageCount;
 
 	SortedKeysDirty = true;
+
 }
 
-void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress)
+void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint32 PackedProducerHandle, uint8 MaxLevel, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress)
 {
 #if DO_GUARD_SLOW
 	const uint32 PrevPageIndex = FindPageIndex(vLogSize, vAddress);
 	checkSlow(PrevPageIndex == ~0u);
 #endif // DO_GUARD_SLOW
 
+#if DO_CHECK
+	// If there's already an ancestor page mapped, make sure it's from the same producer/physical space
+	if (vLogSize < MaxLevel)
+	{
+		const uint32 Parent_vLogSize = vLogSize + 1;
+		const uint32 Parent_vAddress = vAddress & (~0u << (vDimensions * Parent_vLogSize));
+		const uint32 AncestorIndex = FindNearestPageIndex(Parent_vLogSize, Parent_vAddress, MaxLevel);
+		if (AncestorIndex != ~0u)
+		{
+			const FPageEntry& AncestorPage = Pages[AncestorIndex];
+			check(AncestorPage.PackedProducerHandle == PackedProducerHandle);
+			check(AncestorPage.PhysicalSpaceID == PhysicalSpace->GetID());
+		}
+	}
+#endif // DO_CHECK
+
 	const FTexturePage Page(vLogSize, vAddress);
 	const uint32 PageIndex = AcquirePage();
 	check(PageIndex > 0u);
 	FPageEntry& Entry = Pages[PageIndex];
 	Entry.Page = Page;
+	Entry.PackedProducerHandle = PackedProducerHandle;
 	Entry.pAddress = pAddress;
+	Entry.MaxLevel = MaxLevel;
 	Entry.Local_vLevel = Local_vLevel;
 	Entry.PhysicalSpaceID = PhysicalSpace->GetID();
 
@@ -206,10 +227,11 @@ void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysic
 
 void FTexturePageMap::GetMappedPagesInRange(uint32 vAddress, uint32 Width, uint32 Height, TArray<FMappedTexturePage>& OutMappedPages) const
 {
-	const uint32 Size = FMath::Max(Width, Height);
-	const uint32 vAddressMax = vAddress + FMath::Square(Size);
 	const uint32 vTileX0 = FMath::ReverseMortonCode2(vAddress);
 	const uint32 vTileY0 = FMath::ReverseMortonCode2(vAddress >> 1);
+	const uint32 vTileX1 = vTileX0 + Width;
+	const uint32 vTileY1 = vTileY0 + Height;
+	const uint32 vAddressMax = FMath::MortonCode2(vTileX1) | (FMath::MortonCode2(vTileY1) << 1);
 
 	uint32 PageIndex = Pages[PageListHead_Mapped].NextIndex;
 	uint32 CheckPageCount = 0u;
@@ -222,8 +244,8 @@ void FTexturePageMap::GetMappedPagesInRange(uint32 vAddress, uint32 Width, uint3
 			const uint32 vTileY = FMath::ReverseMortonCode2(Entry.Page.vAddress >> 1);
 			if (vTileX >= vTileX0 &&
 				vTileY >= vTileY0 &&
-				vTileX < vTileX0 + Width &&
-				vTileY < vTileY0 + Height)
+				vTileX < vTileX1 &&
+				vTileY < vTileY1)
 			{
 				FMappedTexturePage& OutPage = OutMappedPages.AddDefaulted_GetRef();
 				OutPage.Page = Entry.Page;

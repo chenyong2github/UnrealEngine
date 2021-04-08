@@ -133,7 +133,7 @@ public:
 	/**
 	* Map the physical address to a specific virtual address.
 	*/
-	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress);
+	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 MaxLevel, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress);
 
 private:
 	// Allocate 24 bits to store next/prev indices, pack layer index into 8 bits
@@ -141,18 +141,14 @@ private:
 
 	struct FPageMapping
 	{
-		union
-		{
-			uint32 PackedValues;
-			struct
-			{
-				uint32 vAddress : 24;
-				uint32 vLogSize : 4;
-				uint32 SpaceID : 4;
-			};
-		};
-	
-		uint32 NextIndex;
+		uint32 vAddress : 24;
+		uint32 vLogSize : 4;
+		uint32 SpaceID : 4;
+
+		uint32 NextIndex : 24;
+		uint32 MaxLevel : 4;
+		uint32 Pad : 4;
+
 		uint32 PrevIndex : 24;
 		uint32 PageTableLayerIndex : 8;
 	};
@@ -167,6 +163,8 @@ private:
 			uint32 Local_vLevel : 4;
 			uint32 GroupIndex : 4;
 		};
+
+		FVirtualTextureProducerHandle GetProducerHandle() const { return FVirtualTextureProducerHandle(PackedProducerHandle); }
 	};
 
 	static uint16 GetPageHash(const FPageEntry& Entry);

@@ -98,7 +98,7 @@ public:
 	/**
 	* Map the physical address to a specific virtual address.
 	*/
-	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress);
+	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint32 PackedProducerHandle, uint8 MaxLevel, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress);
 
 	void		GetMappedPagesInRange(uint32 vAddress, uint32 Width, uint32 Height, TArray<FMappedTexturePage>& OutMappedPages) const;
 
@@ -115,7 +115,7 @@ private:
 	uint64		EqualRange(uint32 Min, uint32 Max, uint32 SearchKey, uint32 Mask) const;
 
 	uint32		FindPageIndex(uint8 vLogSize, uint32 vAddress) const;
-	uint32		FindNearestPageIndex(uint8 vLogSize, uint32 vAddress) const;
+	uint32		FindNearestPageIndex(uint8 vLogSize, uint32 vAddress, uint8 MaxLevel) const;
 
 	uint32		LayerIndex;
 	uint32		vDimensions;
@@ -136,11 +136,13 @@ private:
 		uint32 PrevIndex;
 		union
 		{
-			uint32 Packed;
+			uint64 Packed;
 			struct 
 			{
+				uint32 PackedProducerHandle;
 				uint32 pAddress : 16;
-				uint32 PhysicalSpaceID : 12;
+				uint32 PhysicalSpaceID : 8;
+				uint32 MaxLevel : 4;
 				uint32 Local_vLevel : 4;
 			};
 		};
