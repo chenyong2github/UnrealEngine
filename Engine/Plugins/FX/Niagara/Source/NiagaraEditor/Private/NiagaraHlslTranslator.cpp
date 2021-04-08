@@ -761,18 +761,23 @@ FString FHlslNiagaraTranslator::BuildParameterMapHlslDefinitions(TArray<FNiagara
 		TArray<FNiagaraVariable> Vars = OtherOutputParamMapHistories[ParamMapIdx].Variables;
 		for (const FNiagaraVariableBase& Var : CompileOptions.AdditionalVariables)
 		{
-			bool bAddVar = true;
+			uint32 Uses = 0;
 			if (FNiagaraParameterMapHistory::IsPreviousValue(Var))
 			{
 				FNiagaraVariable Source = FNiagaraParameterMapHistory::GetSourceForPreviousValue(FNiagaraVariable(Var));
-				if (!UniqueVariables.Contains(Source))
-				{
-					// Disallow the addition previous values if its source is not used
-					bAddVar = false;
+				for (int32 ParamMapIdxTest = 0; ParamMapIdxTest < OtherOutputParamMapHistories.Num(); ParamMapIdxTest++)
+				{				
+
+					if (OtherOutputParamMapHistories[ParamMapIdxTest].Variables.Contains(Source))
+					{
+						// Disallow the addition previous values if its source is not used
+						Uses++;
+						break;
+					}
 				}
 			}
 
-			if (bAddVar)
+			if (Uses > 0)
 			{
 				Vars.AddUnique(FNiagaraVariable(Var.GetType(), Var.GetName()));
 			}
