@@ -1540,7 +1540,7 @@ void FPoseDataContainer::DeleteTrack(int32 TrackIndex)
 	}
 
 	Tracks.RemoveAt(TrackIndex);
-	for (auto& Pose : Poses)
+	for (FPoseData& Pose : Poses)
 	{
 		int32* BufferIndex = Pose.TrackToBufferIndex.Find(TrackIndex);
 		if (BufferIndex)
@@ -1549,6 +1549,14 @@ void FPoseDataContainer::DeleteTrack(int32 TrackIndex)
 			Pose.TrackToBufferIndex.Remove(TrackIndex);
 		}
 
+		// Update indices according to the new buffer order
+		for (TPair<int32, int32>& TrackToBufferIndex : Pose.TrackToBufferIndex)
+		{
+			if (*BufferIndex <= TrackToBufferIndex.Value)
+			{
+				TrackToBufferIndex.Value--;
+			}
+		}
 #if WITH_EDITOR
 		// if not editor, they can't save this data, so it will run again when editor runs
 		Pose.SourceLocalSpacePose.RemoveAt(TrackIndex);
