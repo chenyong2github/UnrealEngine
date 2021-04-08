@@ -1530,9 +1530,21 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 			}
 
 			FRayTracingGeometryInitializer Initializer;
-			static const FName DebugName("FSkeletalMeshObjectGPUSkin");
-			static int32 DebugNumber = 0;
-			Initializer.DebugName = FName(DebugName, DebugNumber++);
+			
+		#if !UE_BUILD_SHIPPING
+			FName OwnerName = SkinCacheEntry->GPUSkin->DebugName;
+			if (OwnerName.IsValid())
+			{
+				Initializer.DebugName = OwnerName;
+			}
+			else
+		#endif
+			{
+				static const FName DefaultDebugName("FSkeletalMeshObjectGPUSkin");
+				static int32 DebugNumber = 0;
+				Initializer.DebugName = FName(DefaultDebugName, DebugNumber++);
+			}
+
 			Initializer.IndexBuffer = IndexBufferRHI;
 			Initializer.TotalPrimitiveCount = TrianglesCount;
 			Initializer.GeometryType = RTGT_Triangles;

@@ -32,6 +32,9 @@ FSkeletalMeshObject::FSkeletalMeshObject(USkinnedMeshComponent* InMeshComponent,
 #if RHI_RAYTRACING
 , bRequireRecreatingRayTracingGeometry(false)
 #endif
+#if !UE_BUILD_SHIPPING
+, DebugName(InMeshComponent->SkeletalMesh->GetFName())
+#endif // !UE_BUILD_SHIPPING
 #if WITH_EDITORONLY_DATA
 ,   SectionIndexPreview(InMeshComponent->GetSectionPreview())
 ,   MaterialIndexPreview(InMeshComponent->GetMaterialPreview())
