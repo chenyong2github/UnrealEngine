@@ -182,6 +182,11 @@ void FConcertSyncClient::RegisterConcertSyncHandlers(TSharedRef<IConcertClientSe
 	}
 }
 
+IConcertClientTransactionBridge* FConcertSyncClient::GetTransactionBridge() const
+{
+	return TransactionBridge;
+}
+
 void FConcertSyncClient::UnregisterConcertSyncHandlers(TSharedRef<IConcertClientSession> InSession)
 {
 #if WITH_EDITOR
