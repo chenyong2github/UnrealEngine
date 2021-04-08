@@ -13,19 +13,20 @@ class CONTEXTUALANIMATION_API UContextualAnimSceneAsset : public UContextualAnim
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
-	TMap<FName, FContextualAnimTrack> DataContainer;
+	TMap<FName, FContextualAnimCompositeTrack> DataContainer;
 
 	UContextualAnimSceneAsset(const FObjectInitializer& ObjectInitializer);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
-	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
-	virtual UClass* GetPreviewActorClassForRole(const FName& Role) const override;
+	virtual const FContextualAnimTrackSettings* GetTrackSettings(const FName& Role) const override;
 	
-	virtual EContextualAnimJoinRule GetJoinRuleForRole(const FName& Role) const override;
-	
-	const FContextualAnimTrack* FindTrack(const FName& Role) const;
+	virtual const FContextualAnimData* GetAnimDataForRoleAtIndex(const FName& Role, int32 Index) const override;
+
+	virtual void ForEachAnimData(FForEachAnimDataFunction Function) const override;
+
+	virtual bool Query(const FName& Role, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const override;
+
+	//@TODO: Temp until have a roles asset
+	virtual TArray<FName> GetRoles() const override;
 };

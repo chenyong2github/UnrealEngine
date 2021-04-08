@@ -5,9 +5,14 @@
 #include "Animation/AnimMontage.h"
 #include "Containers/ArrayView.h"
 #include "AnimNotifyState_MotionWarping.h"
+#include "ContextualAnimUtilities.h"
 #include "RootMotionModifier.h"
 
 DEFINE_LOG_CATEGORY(LogContextualAnim);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+TAutoConsoleVariable<int32> FContextualAnimCVars::CVarDrawDebugIKTargets(TEXT("a.ContextualAnim.DrawDebugIKTargets"), 0, TEXT("Draw Debug IK Targets"), ECVF_Cheat);
+#endif
 
 const FContextualAnimData FContextualAnimData::EmptyAnimData = FContextualAnimData();
 
@@ -167,4 +172,22 @@ float FContextualAnimData::FindBestAnimStartTime(const FVector& LocalLocation) c
 	}
 
 	return BestTime;
+}
+
+FTransform FContextualAnimCompositeTrack::GetRootTransformForAnimDataAtIndex(int32 Index) const
+{
+	if(AnimDataContainer.IsValidIndex(Index))
+	{
+		const FContextualAnimData& AnimData = AnimDataContainer[Index];
+		if (AnimData.Animation)
+		{
+			return (Settings.MeshToComponent.Inverse() * (UContextualAnimUtilities::ExtractRootTransformFromAnimation(AnimData.Animation, 0.f) * AnimData.MeshToScene));
+		}
+		else
+		{
+			return Settings.MeshToComponent.Inverse() * AnimData.MeshToScene;
+		}
+	}
+
+	return FTransform::Identity;
 }

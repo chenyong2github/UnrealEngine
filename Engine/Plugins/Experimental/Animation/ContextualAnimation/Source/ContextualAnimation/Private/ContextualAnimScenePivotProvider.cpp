@@ -25,19 +25,19 @@ UContextualAnimScenePivotProvider_Default::UContextualAnimScenePivotProvider_Def
 {
 }
 
-FTransform UContextualAnimScenePivotProvider_Default::CalculateScenePivot_Source() const
+FTransform UContextualAnimScenePivotProvider_Default::CalculateScenePivot_Source(int32 AnimDataIndex) const
 {
 	FTransform ScenePivot = FTransform::Identity;
 
 	if(const UContextualAnimSceneAsset* SceneAsset = Cast<UContextualAnimSceneAsset>(GetSceneAsset()))
 	{
-		if(const FContextualAnimTrack* PrimaryTrack = SceneAsset->DataContainer.Find(PrimaryRole))
+		if(const FContextualAnimCompositeTrack* PrimaryTrack = SceneAsset->DataContainer.Find(PrimaryRole))
 		{
-			if(const FContextualAnimTrack* SecondaryTrack = SceneAsset->DataContainer.Find(SecondaryRole))
+			if(const FContextualAnimCompositeTrack* SecondaryTrack = SceneAsset->DataContainer.Find(SecondaryRole))
 			{
-				const FTransform PrimaryTransform = SceneAsset->ExtractTransformFromAnimData(PrimaryTrack->AnimData, 0.f);
-				const FTransform SecondaryTransform = SceneAsset->ExtractTransformFromAnimData(SecondaryTrack->AnimData, 0.f);
-
+				const FTransform PrimaryTransform = PrimaryTrack->GetRootTransformForAnimDataAtIndex(AnimDataIndex);
+				const FTransform SecondaryTransform = SecondaryTrack->GetRootTransformForAnimDataAtIndex(AnimDataIndex);
+				
 				ScenePivot.SetLocation(FMath::Lerp<FVector>(PrimaryTransform.GetLocation(), SecondaryTransform.GetLocation(), Weight));
 				ScenePivot.SetRotation((SecondaryTransform.GetLocation() - PrimaryTransform.GetLocation()).GetSafeNormal2D().ToOrientationQuat());
 			}
@@ -51,15 +51,12 @@ FTransform UContextualAnimScenePivotProvider_Default::CalculateScenePivot_Runtim
 {
 	FTransform ScenePivot = FTransform::Identity;
 
-	if(const UContextualAnimSceneAsset* SceneAsset = Cast<UContextualAnimSceneAsset>(GetSceneAsset()))
+	if (const AActor* PrimaryActor = SceneActorMap.Find(PrimaryRole)->GetActor())
 	{
-		if(const AActor* PrimaryActor = SceneActorMap.Find(PrimaryRole)->GetActor())
+		if (const AActor* SecondaryActor = SceneActorMap.Find(SecondaryRole)->GetActor())
 		{
-			if (const AActor* SecondaryActor = SceneActorMap.Find(SecondaryRole)->GetActor())
-			{
-				ScenePivot.SetLocation(FMath::Lerp<FVector>(PrimaryActor->GetActorLocation(), SecondaryActor->GetActorLocation(), Weight));
-				ScenePivot.SetRotation((SecondaryActor->GetActorLocation() - PrimaryActor->GetActorLocation()).GetSafeNormal2D().ToOrientationQuat());
-			}
+			ScenePivot.SetLocation(FMath::Lerp<FVector>(PrimaryActor->GetActorLocation(), SecondaryActor->GetActorLocation(), Weight));
+			ScenePivot.SetRotation((SecondaryActor->GetActorLocation() - PrimaryActor->GetActorLocation()).GetSafeNormal2D().ToOrientationQuat());
 		}
 	}
 
@@ -74,15 +71,15 @@ UContextualAnimScenePivotProvider_RelativeTo::UContextualAnimScenePivotProvider_
 {
 }
 
-FTransform UContextualAnimScenePivotProvider_RelativeTo::CalculateScenePivot_Source() const
+FTransform UContextualAnimScenePivotProvider_RelativeTo::CalculateScenePivot_Source(int32 AnimDataIndex) const
 {
 	FTransform ScenePivot = FTransform::Identity;
 
 	if (const UContextualAnimSceneAsset* SceneAsset = Cast<UContextualAnimSceneAsset>(GetSceneAsset()))
 	{
-		if(const FContextualAnimTrack* RelativeToTrack = SceneAsset->DataContainer.Find(RelativeToRole))
+		if(const FContextualAnimCompositeTrack* Track = SceneAsset->DataContainer.Find(RelativeToRole))
 		{
-			ScenePivot = SceneAsset->ExtractTransformFromAnimData(RelativeToTrack->AnimData, 0.f);
+			ScenePivot = Track->GetRootTransformForAnimDataAtIndex(AnimDataIndex);
 		}
 	}
 
@@ -93,14 +90,11 @@ FTransform UContextualAnimScenePivotProvider_RelativeTo::CalculateScenePivot_Run
 {
 	FTransform ScenePivot = FTransform::Identity;
 
-	if (const UContextualAnimSceneAsset* SceneAsset = Cast<UContextualAnimSceneAsset>(GetSceneAsset()))
+	if (const FContextualAnimSceneActorData* Data = SceneActorMap.Find(RelativeToRole))
 	{
-		if(const FContextualAnimSceneActorData* Data = SceneActorMap.Find(RelativeToRole))
+		if (const AActor* Actor = Data->GetActor())
 		{
-			if(const AActor* Actor = Data->GetActor())
-			{
-				ScenePivot = Actor->GetActorTransform();
-			}
+			ScenePivot = Actor->GetActorTransform();
 		}
 	}
 

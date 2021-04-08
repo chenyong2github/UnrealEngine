@@ -1,19 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimManager.h"
-#include "ContextualAnimTypes.h"
 #include "ContextualAnimActorInterface.h"
 #include "ContextualAnimSceneInstance.h"
 #include "DrawDebugHelpers.h"
 #include "ContextualAnimSceneAsset.h"
 #include "ContextualAnimCompositeSceneAsset.h"
 #include "ContextualAnimation.h"
+#include "ContextualAnimSceneActorComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/Actor.h"
+
+DECLARE_CYCLE_STAT(TEXT("ContextualAnim FindClosestSceneActorComp"), STAT_ContextualAnim_FindClosestSceneActorComp, STATGROUP_Anim);
 
 UContextualAnimManager::UContextualAnimManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-
 }
 
 UContextualAnimManager* UContextualAnimManager::Get(const UWorld* World)
@@ -21,9 +23,72 @@ UContextualAnimManager* UContextualAnimManager::Get(const UWorld* World)
 	return (World) ? FContextualAnimationModule::GetManager(World) : nullptr;
 }
 
+UContextualAnimManager* UContextualAnimManager::GetContextualAnimManager(UObject* WorldContextObject)
+{
+	return Get(GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull));
+}
+
 UWorld* UContextualAnimManager::GetWorld()const
 {
 	return CastChecked<UWorld>(GetOuter());
+}
+
+ETickableTickType UContextualAnimManager::GetTickableTickType() const
+{
+	//@TODO: Switch to Conditional and use IsTickable to determine whether to tick. It should only tick when scene instances are active
+	return (HasAnyFlags(RF_ClassDefaultObject)) ? ETickableTickType::Never : ETickableTickType::Always;
+}
+TStatId UContextualAnimManager::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UContextualAnimManager, STATGROUP_Tickables);
+}
+
+void UContextualAnimManager::RegisterSceneActorComponent(UContextualAnimSceneActorComponent* SceneActorComp)
+{
+	if(SceneActorComp)
+	{
+		SceneActorCompContainer.Add(SceneActorComp);
+	}
+}
+
+void UContextualAnimManager::UnregisterSceneActorComponent(UContextualAnimSceneActorComponent* SceneActorComp)
+{
+	if (SceneActorComp)
+	{
+		SceneActorCompContainer.Remove(SceneActorComp);
+	}
+}
+
+UContextualAnimSceneActorComponent* UContextualAnimManager::FindClosestSceneActorCompToActor(const AActor* Actor) const
+{
+	SCOPE_CYCLE_COUNTER(STAT_ContextualAnim_FindClosestSceneActorComp);
+
+	//@TODO: Implement some space partitioning to reduce the cost of this search (a 2D grid might be enough)
+
+	UContextualAnimSceneActorComponent* ClosestSceneActorComp = nullptr;
+	if(Actor)
+	{
+		const FVector TestLocation = Actor->GetActorLocation();
+
+		float BestDistanceSq = MAX_FLT;
+		for (UContextualAnimSceneActorComponent* SceneActorComp : SceneActorCompContainer)
+		{
+			check(SceneActorComp);
+			check(SceneActorComp->GetOwner());
+
+			if(SceneActorComp->GetOwner() != Actor)
+			{
+				const float DistanceSq = FVector::DistSquared(SceneActorComp->GetComponentLocation(), TestLocation);
+				if (DistanceSq < BestDistanceSq)
+				{
+					BestDistanceSq = DistanceSq;
+					ClosestSceneActorComp = SceneActorComp;
+				}
+			}
+		}
+	}
+
+	return ClosestSceneActorComp;
 }
 
 void UContextualAnimManager::Tick(float DeltaTime)
@@ -66,7 +131,7 @@ UContextualAnimSceneInstance* UContextualAnimManager::GetSceneWithActor(AActor* 
 	return nullptr;
 }
 
-bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAssetBase* SceneAsset, const TMap<FName, AActor*>& Bindings)
+bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAssetBase* SceneAsset, const FContextualAnimSceneBindings& Bindings)
 {
 	if (SceneAsset == nullptr)
 	{
@@ -75,89 +140,60 @@ bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAssetBase* 
 	}
 
 	TMap<FName, FContextualAnimSceneActorData> SceneActorMap;
-	SceneActorMap.Reserve(Bindings.Num());
+	SceneActorMap.Reserve(Bindings.RoleToActorMap.Num());
 
-	// @TODO: Add virtual function in the asset class that resolve the bindings for us
-	if (const UContextualAnimSceneAsset* SimpleScene = Cast<const UContextualAnimSceneAsset>(SceneAsset))
+	// Find primary actor first so we can perform queries relative to it
+	AActor* const* PrimaryActorPtr = Bindings.RoleToActorMap.Find(SceneAsset->PrimaryRole);
+	if (PrimaryActorPtr == nullptr)
 	{
-		for (const auto& Pair : Bindings)
-		{
-			FName RoleToBind = Pair.Key;
-			AActor* ActorToBind = Pair.Value;
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Attempting to bind an invalid actor to the primary role. SceneAsset: %s Role: %s"),
+			*GetNameSafe(SceneAsset), *SceneAsset->PrimaryRole.ToString());
 
-			if(ActorToBind == nullptr)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Attempting to bind an invalid actor. SceneAsset: %s Role: %s"), 
-				*GetNameSafe(SceneAsset), *RoleToBind.ToString());
-
-				return false;
-			}
-
-			const FContextualAnimTrack* Track = SimpleScene->FindTrack(RoleToBind);
-			if(Track == nullptr)
-			{
-				UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Invalid Track. SceneAsset: %s Role: %s"),
-				*GetNameSafe(SceneAsset), *RoleToBind.ToString());
-
-				return false;
-			}
-
-			SceneActorMap.Add(RoleToBind, FContextualAnimSceneActorData(ActorToBind, &Track->AnimData));
-		}
+		return false;
 	}
-	else if (const UContextualAnimCompositeSceneAsset* CompositeScene = Cast<const UContextualAnimCompositeSceneAsset>(SceneAsset))
+
+	AActor* PrimaryActor = *PrimaryActorPtr;
+	const UContextualAnimSceneActorComponent* PrimarySceneActorComp = PrimaryActor->FindComponentByClass<UContextualAnimSceneActorComponent>();
+	const FTransform ToWorldTransform = PrimarySceneActorComp ? PrimarySceneActorComp->GetComponentTransform() : PrimaryActor->GetActorTransform();
+
+	for (const auto& Pair : Bindings.RoleToActorMap)
 	{
-		// Bind the Primary Role first so we can perform the query relative to it
-		FContextualAnimSceneActorData PrimaryData;
-		for (const auto& Pair : Bindings)
+		FName RoleToBind = Pair.Key;
+		AActor* ActorToBind = Pair.Value;
+
+		if (ActorToBind == nullptr)
 		{
-			if (Pair.Key == CompositeScene->PrimaryRole)
-			{
-				PrimaryData.Actor = Pair.Value;
-				PrimaryData.AnimDataPtr = &CompositeScene->InteractableTrack.AnimData;
+			UE_LOG(LogTemp, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Attempting to bind an invalid actor. SceneAsset: %s Role: %s"),
+				*GetNameSafe(SceneAsset), *RoleToBind.ToString());
 
-				if (!PrimaryData.Actor.IsValid())
-				{
-					UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Attempting to bind an invalid actor to the primary role. SceneAsset: %s Role: %s"),
-						*GetNameSafe(SceneAsset), *CompositeScene->PrimaryRole.ToString());
-
-					return false;
-				}
-
-				if (PrimaryData.AnimDataPtr == nullptr)
-				{
-					UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Invalid Track. SceneAsset: %s Role: %s"),
-						*GetNameSafe(SceneAsset), *CompositeScene->PrimaryRole.ToString());
-
-					return false;
-				}
-
-				SceneActorMap.Add(Pair.Key, PrimaryData);
-
-				break;
-			}
+			return false;
 		}
 
-		for (const auto& Pair : Bindings)
+		// Primary role is already bound
+		if (RoleToBind != SceneAsset->PrimaryRole)
 		{
-			FName RoleToBind = Pair.Key;
-			AActor* ActorToBind = Pair.Value;
+			int32 AnimDataIndex = INDEX_NONE;
+			float AnimStartTime = 0.f;
 
-			if (ActorToBind == nullptr)
+			// Attempt to use AnimDataIndex and AnimStartTime supplied with the bindings
+			if (Bindings.AnimDataIndex != INDEX_NONE)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Attempting to bind an invalid actor. SceneAsset: %s Role: %s"),
-					*GetNameSafe(SceneAsset), *RoleToBind.ToString());
+				if (SceneAsset->GetAnimDataForRoleAtIndex(RoleToBind, Bindings.AnimDataIndex) == nullptr)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Invalid AnimDataIndex. SceneAsset: %s Role: %s AnimDataIndex: %d"),
+						*GetNameSafe(SceneAsset), *RoleToBind.ToString(), Bindings.AnimDataIndex);
 
-				return false;
+					return false;
+				}
+
+				AnimDataIndex = Bindings.AnimDataIndex;
+				AnimStartTime = Bindings.AnimStartTime;
 			}
-
-			// Primary role was already bound
-			if (RoleToBind != CompositeScene->PrimaryRole)
+			// Query for best animation to use
+			else
 			{
-				FTransform ToWorldTransform = PrimaryData.GetTransform();
-
 				FContextualAnimQueryResult Result;
-				const bool bQueryResult = CompositeScene->QueryData(Result, FContextualAnimQueryParams(ActorToBind, true, true), ToWorldTransform);
+				const bool bQueryResult = SceneAsset->Query(RoleToBind, Result, FContextualAnimQueryParams(ActorToBind, true, true), ToWorldTransform);
 				if (bQueryResult == false)
 				{
 					UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Can't find Track for actor. SceneAsset: %s Role: %s Actor: %s"),
@@ -166,12 +202,26 @@ bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAssetBase* 
 					return false;
 				}
 
-				SceneActorMap.Add(RoleToBind, FContextualAnimSceneActorData(ActorToBind, &CompositeScene->InteractorTrack.AnimDataContainer[Result.DataIndex], Result.AnimStartTime));
+				AnimDataIndex = Result.DataIndex;
+				AnimStartTime = Result.AnimStartTime;
+			}
+
+			//@TODO: Fix this for +2 actors interactions. AnimStartTime must be calculated only once and then everyone should use it.
+
+			SceneActorMap.Add(RoleToBind, FContextualAnimSceneActorData(ActorToBind, SceneAsset->GetAnimDataForRoleAtIndex(RoleToBind, AnimDataIndex), SceneAsset->GetTrackSettings(RoleToBind), AnimStartTime));
+
+			if (!SceneActorMap.Contains(SceneAsset->PrimaryRole))
+			{
+				SceneActorMap.Add(SceneAsset->PrimaryRole, FContextualAnimSceneActorData(PrimaryActor,
+					SceneAsset->GetAnimDataForRoleAtIndex(SceneAsset->PrimaryRole, AnimDataIndex), 
+					SceneAsset->GetTrackSettings(SceneAsset->PrimaryRole), AnimStartTime)
+				);
 			}
 		}
 	}
 
-	UContextualAnimSceneInstance* NewInstance = NewObject<UContextualAnimSceneInstance>(this);
+	UClass* Class = SceneAsset->SceneInstanceClass;
+	UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 	NewInstance->SceneAsset = SceneAsset;
 	NewInstance->SceneActorMap = MoveTemp(SceneActorMap);
 	NewInstance->Start();
@@ -180,6 +230,66 @@ bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAssetBase* 
 	Instances.Add(NewInstance);
 
 	return true;
+}
+
+bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAssetBase* SceneAsset, AActor* PrimaryActor, const TSet<UContextualAnimSceneActorComponent*>& SceneActorComps)
+{
+	if (SceneAsset == nullptr)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Invalid Scene Asset"));
+		return false;
+	}
+
+	if (PrimaryActor == nullptr || IsActorInAnyScene(PrimaryActor))
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::TryStartScene. Can't start scene. Reason: Invalid PrimaryActor or already in another scene. PrimaryActor: %s"), *GetNameSafe(PrimaryActor));
+		return false;
+	}
+
+	const TArray<FName>& Roles = SceneAsset->GetRoles();
+
+	FContextualAnimSceneBindings Bindings;
+	Bindings.RoleToActorMap.Add(SceneAsset->PrimaryRole, PrimaryActor);
+
+	const UContextualAnimSceneActorComponent* PrimarySceneActorComp = PrimaryActor->FindComponentByClass<UContextualAnimSceneActorComponent>();
+	const FTransform ToWorldTransform = PrimarySceneActorComp ? PrimarySceneActorComp->GetComponentTransform() : PrimaryActor->GetActorTransform();
+
+	for (UContextualAnimSceneActorComponent* SceneActorComp : SceneActorComps)
+	{
+		if (SceneActorComp && SceneActorComp->GetOwner())
+		{
+			AActor* ActorToBind = SceneActorComp->GetOwner();
+			if(PrimaryActor != ActorToBind && !IsActorInAnyScene(ActorToBind))
+			{
+				for (const FName& RoleToBind : Roles)
+				{
+					if (!Bindings.RoleToActorMap.Contains(RoleToBind))
+					{
+						FContextualAnimQueryResult Result;
+						if (SceneAsset->Query(RoleToBind, Result, FContextualAnimQueryParams(ActorToBind, true, true), ToWorldTransform))
+						{
+							Bindings.RoleToActorMap.Add(RoleToBind, ActorToBind);
+
+							if (Bindings.AnimDataIndex != INDEX_NONE)
+							{
+								Bindings.AnimDataIndex = Result.DataIndex;
+								Bindings.AnimStartTime = Result.AnimStartTime;
+							}
+
+							break;
+						}
+					}
+				}
+
+				if (Roles.Num() == Bindings.RoleToActorMap.Num())
+				{
+					return TryStartScene(SceneAsset, Bindings);
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 bool UContextualAnimManager::TryStopSceneWithActor(AActor* Actor)

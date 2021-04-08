@@ -9,33 +9,6 @@
 
 struct FContextualAnimData;
 
-USTRUCT(BlueprintType)
-struct FContextualAnimDistanceParam
-{
-	GENERATED_BODY()
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
-	float Value = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
-	float MinDistance = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
-	float MaxDistance = 0.f;
-};
-
-USTRUCT(BlueprintType)
-struct FContextualAnimAngleParam
-{
-	GENERATED_BODY()
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Defaults")
-	float Value = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	float Tolerance = 0.f;
-};
-
 UCLASS(BlueprintType, EditInlineNew)
 class CONTEXTUALANIMATION_API UContextualAnimMetadata : public UObject
 {
@@ -44,18 +17,27 @@ class CONTEXTUALANIMATION_API UContextualAnimMetadata : public UObject
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	float OffsetFromOrigin = 0.f;
+	FVector2D OriginOffset;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FContextualAnimDistanceParam Distance;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "-180", ClampMax = "180", UIMin = "-180", UIMax = "180"))
+	float DirectionOffset = 0.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FContextualAnimAngleParam Angle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "0", UIMin = "0"))
+	float MaxDistance = 0.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FContextualAnimAngleParam Facing;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "0", UIMin = "0"))
+	float NearWidth = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "0", UIMin = "0"))
+	float FarWidth = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "-180", ClampMax = "180", UIMin = "-180", UIMax = "180"))
+	float Facing = 0.f;
 
 	UContextualAnimMetadata(const FObjectInitializer& ObjectInitializer);
 
 	class UContextualAnimSceneAssetBase* GetSceneAssetOwner() const;
+
+	bool DoesQuerierPassConditions(const FContextualAnimQuerier& Querier, const FContextualAnimQueryContext& Context, const FTransform& EntryTransform) const;
+
 };

@@ -17,6 +17,7 @@
 #include "ContextualAnimSceneActorComponent.h"
 #include "GameFramework/Character.h"
 #include "ContextualAnimMetadata.h"
+#include "ContextualAnimSceneInstance.h"
 
 const FEditorModeID FContextualAnimEdMode::EM_ContextualAnimEdModeId = TEXT("EM_ContextualAnimEdMode");
 
@@ -91,7 +92,7 @@ void FContextualAnimEdMode::Tick(FEditorViewportClient* ViewportClient, float De
 				if (UContextualAnimSceneAsset* Asset = GetContextualAnimEdModeToolkit()->GetSettings()->SceneAsset)
 				{
 					DrawDebugCoordinateSystem(GetWorld(), PreviewManager->ScenePivot.GetLocation(), PreviewManager->ScenePivot.Rotator(), 50.f, false, 0.f, 0, 1.f);
-					UContextualAnimUtilities::DrawDebugScene(GetWorld(), Asset, PreviewManager->Time, PreviewManager->ScenePivot, FColor::White, 0.f, 1.f);
+					UContextualAnimUtilities::DrawDebugScene(GetWorld(), Asset, PreviewManager->AnimDataIndex, PreviewManager->Time, PreviewManager->ScenePivot, FColor::White, 0.f, 1.f);
 				}
 			}
 
@@ -116,35 +117,20 @@ bool FContextualAnimEdMode::InputKey(FEditorViewportClient* ViewportClient, FVie
 			UContextualAnimSceneAsset* Asset = GetContextualAnimEdModeToolkit()->GetSettings()->SceneAsset;
 			if (Asset && PreviewManager->PreviewActors.Num() > 0)
 			{
-				Manager->TryStartScene(Asset, PreviewManager->PreviewActors);
+				FContextualAnimSceneBindings Bindings;
+				Bindings.RoleToActorMap = PreviewManager->PreviewActors;
+				Manager->TryStartScene(Asset, Bindings);
 			}
 			else
 			{
-				UContextualAnimSceneActorComponent* Comp = nullptr;
-
-				TArray<UPrimitiveComponent*> OverlappingComps;
-				PreviewManager->TestCharacter->GetOverlappingComponents(OverlappingComps);
-
-				for (UPrimitiveComponent* OverlappingComp : OverlappingComps)
-				{
-					if (OverlappingComp && OverlappingComp->GetClass()->IsChildOf<UContextualAnimSceneActorComponent>())
-					{
-						Comp = Cast<UContextualAnimSceneActorComponent>(OverlappingComp);
-						break;
-					}
-				}
-
-				if (Comp)
-				{
-					TMap<FName, AActor*> Bindings;
-					Bindings.Add(UContextualAnimCompositeSceneAsset::InteractableRoleName, Comp->GetOwner());
-					Bindings.Add(UContextualAnimCompositeSceneAsset::InteractorRoleName, PreviewManager->TestCharacter.Get());
-
-					UContextualAnimManager::Get(GetWorld())->TryStartScene(Comp->SceneAsset, Bindings);
+				if (UContextualAnimSceneActorComponent* Comp = Manager->FindClosestSceneActorCompToActor(PreviewManager->TestCharacter.Get()))
+				{	
+					Manager->TryStartScene(Comp->SceneAsset, Comp->GetOwner(), Manager->GetSceneActorCompContainer());
 				}
 				else
 				{
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("WARNING: The preview actor is not overlapping any interactable")));
+					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("WARNING: Can't find any SceneActor to interact with")));
+					UE_LOG(LogContextualAnim, Warning, TEXT("WARNING: Can't find any SceneActor to interact with"));
 				}
 			}
 		}
@@ -169,18 +155,25 @@ bool FContextualAnimEdMode::HandleClick(FEditorViewportClient* InViewportClient,
 	if (!GEditor->IsSimulatingInEditor())
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("WARNING. You are not in Simulating Mode")));
+		UE_LOG(LogContextualAnim, Warning, TEXT("WARNING. You are not in Simulating Mode"));
+
 		return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
 	}
 
 	FHitResult HitResult;
 	GetHitResultUnderCursor(HitResult, InViewportClient, Click);
 
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("INFO: HandleClick: IsValidHit: %d Actor: %s Location: %s"),
-		HitResult.IsValidBlockingHit(), *GetNameSafe(HitResult.GetActor()), *HitResult.ImpactPoint.ToString()));
+	const FString Message = FString::Printf(TEXT("INFO: HandleClick: IsValidHit: %d Actor: %s Location: %s"),
+		HitResult.IsValidBlockingHit(), *GetNameSafe(HitResult.GetActor()), *HitResult.ImpactPoint.ToString());
+
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, Message);
+	UE_LOG(LogContextualAnim, Warning, TEXT("%s"), *Message);
 
 	if (!HitResult.IsValidBlockingHit())
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("WARNING. HitResult from click event is not a valid blocking hit.")));
+		UE_LOG(LogContextualAnim, Warning, TEXT("WARNING. HitResult from click event is not a valid blocking hit."));
+
 		return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
 	}	
 	

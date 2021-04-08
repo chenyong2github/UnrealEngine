@@ -56,25 +56,28 @@ void UContextualAnimPreviewManager::SpawnPreviewActors(const UContextualAnimScen
 
 		for (const auto& Entry : SceneAsset->DataContainer)
 		{
-			const FName& Role = Entry.Key;
-			const FContextualAnimData& Data = Entry.Value.AnimData;
-
-			const FTransform SpawnTransform = (Data.AlignmentData.ExtractTransformAtTime(0, 0.f) * SceneOrigin);
-
-			UClass* PreviewClass = SceneAsset->GetPreviewActorClassForRole(Role);
-			if(!PreviewClass && DefaultPreviewClass)
+			if(Entry.Value.AnimDataContainer.Num() > 0)
 			{
-				PreviewClass = DefaultPreviewClass.Get();
-			}
+				const FName& Role = Entry.Key;
+				const FContextualAnimData& Data = Entry.Value.AnimDataContainer[0];
 
-			AActor* PreviewActor = SpawnPreviewActor(PreviewClass, SpawnTransform);
-			if (PreviewActor)
-			{
-				PreviewActors.Add(Role, PreviewActor);
+				const FTransform SpawnTransform = (Data.AlignmentData.ExtractTransformAtTime(0, 0.f) * SceneOrigin);
 
-				if (!TestCharacter.IsValid())
+				UClass* PreviewClass = SceneAsset->GetTrackSettings(Role)->PreviewActorClass;
+				if (!PreviewClass && DefaultPreviewClass)
 				{
-					TestCharacter = Cast<ACharacter>(PreviewActor);
+					PreviewClass = DefaultPreviewClass.Get();
+				}
+
+				AActor* PreviewActor = SpawnPreviewActor(PreviewClass, SpawnTransform);
+				if (PreviewActor)
+				{
+					PreviewActors.Add(Role, PreviewActor);
+
+					if (!TestCharacter.IsValid())
+					{
+						TestCharacter = Cast<ACharacter>(PreviewActor);
+					}
 				}
 			}
 		}

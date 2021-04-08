@@ -12,6 +12,8 @@
 #include "ContextualAnimTypes.h"
 #include "ContextualAnimSceneAsset.h"
 #include "Misc/MemStack.h"
+#include "GameFramework/Character.h"
+#include "ContextualAnimActorInterface.h"
 
 void UContextualAnimUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCompactPose& OutPose)
 {
@@ -52,6 +54,27 @@ FTransform UContextualAnimUtilities::ExtractRootMotionFromAnimation(const UAnimS
 	if (const UAnimSequence* Anim = Cast<UAnimSequence>(Animation))
 	{
 		return Anim->ExtractRootMotionFromRange(StartTime, EndTime);
+	}
+
+	return FTransform::Identity;
+}
+
+FTransform UContextualAnimUtilities::ExtractRootTransformFromAnimation(const UAnimSequenceBase* Animation, float Time)
+{
+	if (const UAnimMontage* AnimMontage = Cast<UAnimMontage>(Animation))
+	{
+		if (const FAnimSegment* Segment = AnimMontage->SlotAnimTracks[0].AnimTrack.GetSegmentAtTime(Time))
+		{
+			if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Segment->AnimReference))
+			{
+				const float AnimSequenceTime = Segment->ConvertTrackPosToAnimPos(Time);
+				return AnimSequence->ExtractRootTrackTransform(AnimSequenceTime, nullptr);
+			}
+		}
+	}
+	else if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Animation))
+	{
+		return AnimSequence->ExtractRootTrackTransform(Time, nullptr);
 	}
 
 	return FTransform::Identity;
@@ -100,22 +123,76 @@ void UContextualAnimUtilities::DrawDebugPose(const UWorld* World, const UAnimSeq
 	}
 }
 
-void UContextualAnimUtilities::DrawDebugScene(const UWorld* World, const UContextualAnimSceneAsset* SceneAsset, float Time, const FTransform& ToWorldTransform, const FColor& Color, float LifeTime, float Thickness)
+void UContextualAnimUtilities::DrawDebugScene(const UWorld* World, const UContextualAnimSceneAsset* SceneAsset, int32 AnimDataIndex, float Time, const FTransform& ToWorldTransform, const FColor& Color, float LifeTime, float Thickness)
 {
 	if (World && SceneAsset)
 	{
 		for(const auto& Pair : SceneAsset->DataContainer)
 		{
-			const FContextualAnimTrack& Track = Pair.Value;
-			const FTransform Transform = (SceneAsset->MeshToComponent * Track.AnimData.GetAlignmentTransformAtTime(Time)) * ToWorldTransform;
-			if(const UAnimMontage* Animation = Track.AnimData.Animation)
+			if (Pair.Value.AnimDataContainer.IsValidIndex(AnimDataIndex))
 			{
-				DrawDebugPose(World, Animation, Time, Transform, Color, LifeTime, Thickness);
-			}
-			else
-			{
-				DrawDebugCoordinateSystem(World, Transform.GetLocation(), Transform.Rotator(), 50.f, false, LifeTime, 0, Thickness);
+				const FContextualAnimData& AnimData = Pair.Value.AnimDataContainer[AnimDataIndex];
+				const FTransform Transform = (Pair.Value.Settings.MeshToComponent * AnimData.GetAlignmentTransformAtTime(Time)) * ToWorldTransform;
+				if (const UAnimMontage* Animation = AnimData.Animation)
+				{
+					DrawDebugPose(World, Animation, Time, Transform, Color, LifeTime, Thickness);
+				}
+				else
+				{
+					DrawDebugCoordinateSystem(World, Transform.GetLocation(), Transform.Rotator(), 50.f, false, LifeTime, 0, Thickness);
+				}
 			}
 		}
 	}
+}
+
+USkeletalMeshComponent* UContextualAnimUtilities::TryGetSkeletalMeshComponent(AActor* Actor)
+{
+	USkeletalMeshComponent* SkelMeshComp = nullptr;
+	if (Actor)
+	{
+		if (ACharacter* Character = Cast<ACharacter>(Actor))
+		{
+			SkelMeshComp = Character->GetMesh();
+		}
+		else if (Actor->GetClass()->ImplementsInterface(UContextualAnimActorInterface::StaticClass()))
+		{
+			SkelMeshComp = IContextualAnimActorInterface::Execute_GetMesh(Actor);
+		}
+		else
+		{
+			SkelMeshComp = Actor->FindComponentByClass<USkeletalMeshComponent>();
+		}
+	}
+
+	return SkelMeshComp;
+}
+
+UAnimInstance* UContextualAnimUtilities::TryGetAnimInstance(AActor* Actor)
+{
+	if (USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(Actor))
+	{
+		return SkelMeshComp->GetAnimInstance();
+	}
+
+	return nullptr;
+}
+
+void UContextualAnimUtilities::BP_Montage_GetSectionStartAndEndTime(const UAnimMontage* Montage, int32 SectionIndex, float& OutStartTime, float& OutEndTime)
+{
+	if(Montage)
+	{
+		Montage->GetSectionStartAndEndTime(SectionIndex, OutStartTime, OutEndTime);
+	}
+}
+
+float UContextualAnimUtilities::BP_Montage_GetSectionTimeLeftFromPos(const UAnimMontage* Montage, float Position)
+{
+	//UAnimMontage::GetSectionTimeLeftFromPos is not const :(
+	return Montage ? (const_cast<UAnimMontage*>(Montage))->GetSectionTimeLeftFromPos(Position) : -1.f;
+}
+
+float UContextualAnimUtilities::BP_Montage_GetSectionLength(const UAnimMontage* Montage, int32 SectionIndex)
+{
+	return Montage ? Montage->GetSectionLength(SectionIndex) : -1.f;
 }

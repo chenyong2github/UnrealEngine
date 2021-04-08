@@ -5,6 +5,7 @@
 #include "ContextualAnimMetadata.h"
 #include "Animation/AnimMontage.h"
 #include "UObject/ObjectSaveContext.h"
+#include "ContextualAnimScenePivotProvider.h"
 
 const FName UContextualAnimCompositeSceneAsset::InteractorRoleName = FName(TEXT("interactor"));
 const FName UContextualAnimCompositeSceneAsset::InteractableRoleName = FName(TEXT("interactable"));
@@ -15,21 +16,26 @@ UContextualAnimCompositeSceneAsset::UContextualAnimCompositeSceneAsset(const FOb
 	PrimaryRole = UContextualAnimCompositeSceneAsset::InteractableRoleName;
 }
 
-UClass* UContextualAnimCompositeSceneAsset::GetPreviewActorClassForRole(const FName& Role) const
+const FContextualAnimTrackSettings* UContextualAnimCompositeSceneAsset::GetTrackSettings(const FName& Role) const
 {
-	return Role == PrimaryRole ? InteractableTrack.Settings.PreviewActorClass : InteractorTrack.Settings.PreviewActorClass;
+	return Role == PrimaryRole ? &InteractableTrack.Settings : &InteractorTrack.Settings;
 }
 
-EContextualAnimJoinRule UContextualAnimCompositeSceneAsset::GetJoinRuleForRole(const FName& Role) const
+const FContextualAnimData* UContextualAnimCompositeSceneAsset::GetAnimDataForRoleAtIndex(const FName& Role, int32 Index) const
 {
-	return Role == PrimaryRole ? InteractableTrack.Settings.JoinRule : InteractorTrack.Settings.JoinRule;
-}
+	if(Role == UContextualAnimCompositeSceneAsset::InteractableRoleName)
+	{
+		return &InteractableTrack.AnimData;
+	}
+	else if(Role == UContextualAnimCompositeSceneAsset::InteractorRoleName)
+	{
+		if(InteractorTrack.AnimDataContainer.IsValidIndex(Index))
+		{
+			return &InteractorTrack.AnimDataContainer[Index];
+		}
+	}
 
-void UContextualAnimCompositeSceneAsset::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	Super::PreSave(TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	return nullptr;
 }
 
 void UContextualAnimCompositeSceneAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
@@ -40,131 +46,76 @@ void UContextualAnimCompositeSceneAsset::PreSave(FObjectPreSaveContext ObjectSav
 	// but any allocation from outside the game tick (like here when generating the alignment tracks off-line) must explicitly add a mark to avoid a leak 
 	FMemMark Mark(FMemStack::Get());
 
-	// Generate scene pivot for each alignment section
 	Super::PreSave(ObjectSaveContext);
 
-	// Generate alignment tracks relative to scene pivot
+	InteractableTrack.AnimData.Index = 0;
+
+	int32 NumAnimData = InteractorTrack.AnimDataContainer.Num();
+	for (int32 AnimDataIdx = 0; AnimDataIdx < NumAnimData; AnimDataIdx++)
+	{
+		InteractorTrack.AnimDataContainer[AnimDataIdx].Index = AnimDataIdx;
+	}
+
+	// Generate scene pivot for each alignment section
+	for (int32 AlignmentSectionIdx = 0; AlignmentSectionIdx < AlignmentSections.Num(); AlignmentSectionIdx++)
+	{
+		AlignmentSections[AlignmentSectionIdx].ScenePivots.Reset();
+
+		// We need to calculate scene pivot for each set of animations
+		for (int32 AnimDataIdx = 0; AnimDataIdx < NumAnimData; AnimDataIdx++)
+		{
+			if (AlignmentSections[AlignmentSectionIdx].ScenePivotProvider)
+			{
+				const FTransform ScenePivot = AlignmentSections[AlignmentSectionIdx].ScenePivotProvider->CalculateScenePivot_Source(AnimDataIdx);
+				AlignmentSections[AlignmentSectionIdx].ScenePivots.Add(ScenePivot);
+			}
+			else
+			{
+				AlignmentSections[AlignmentSectionIdx].ScenePivots.Add(FTransform::Identity);
+			}
+		}
+	}
+
 	for (FContextualAnimData& Data : InteractorTrack.AnimDataContainer)
 	{
-		GenerateAlignmentTracksRelativeToScenePivot(Data);
+		// Generate alignment tracks relative to scene pivot
+		GenerateAlignmentTracks(InteractorTrack.Settings, Data);
+
+		// Generate IK Targets
+		GenerateIKTargetTracks(InteractorTrack.Settings, Data);
 	}
+
+	UpdateRadius();
+}
+
+bool UContextualAnimCompositeSceneAsset::Query(const FName& Role, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const
+{
+	//@TODO: Intentionally ignoring Role param since it doesn't make sense for this asset. This is just a temp anyway until we remove this asset completely
+	return QueryCompositeTrack(&InteractorTrack, OutResult, QueryParams, ToWorldTransform);
 }
 
 bool UContextualAnimCompositeSceneAsset::QueryData(FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const
 {
-	OutResult.Reset();
+	return QueryCompositeTrack(&InteractorTrack, OutResult, QueryParams, ToWorldTransform);
+}
 
-	const FTransform QueryTransform = QueryParams.Querier.IsValid() ? QueryParams.Querier->GetActorTransform() : QueryParams.QueryTransform;
-
-	int32 DataIndex = INDEX_NONE;
-	if (QueryParams.bComplexQuery)
+void UContextualAnimCompositeSceneAsset::ForEachAnimData(FForEachAnimDataFunction Function) const
+{
+	if (Function(InteractableRoleName, InteractableTrack.AnimData) == EContextualAnimForEachResult::Break)
 	{
-		for (int32 Idx = 0; Idx < InteractorTrack.AnimDataContainer.Num(); Idx++)
-		{
-			const FContextualAnimData& Data = InteractorTrack.AnimDataContainer[Idx];
-
-			if (Data.Metadata)
-			{
-				const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * ToWorldTransform;
-
-				FVector Origin = ToWorldTransform.GetLocation();
-				FVector DirToEntry = (EntryTransform.GetLocation() - Origin).GetSafeNormal2D();
-
-				if (Data.Metadata->OffsetFromOrigin != 0.f)
-				{
-					Origin = Origin + DirToEntry * Data.Metadata->OffsetFromOrigin;
-				}
-
-				// Distance Test
-				//--------------------------------------------------
-				if (Data.Metadata->Distance.MaxDistance > 0.f || Data.Metadata->Distance.MinDistance > 0.f)
-				{
-					const float DistSq = FVector::DistSquared2D(Origin, QueryTransform.GetLocation());
-
-					if (Data.Metadata->Distance.MaxDistance > 0.f)
-					{
-						if (DistSq > FMath::Square(Data.Metadata->Distance.MaxDistance))
-						{
-							continue;
-						}
-					}
-
-					if (Data.Metadata->Distance.MinDistance > 0.f)
-					{
-						if (DistSq < FMath::Square(Data.Metadata->Distance.MinDistance))
-						{
-							continue;
-						}
-					}
-				}
-
-				// Angle Test
-				//--------------------------------------------------
-				if (Data.Metadata->Angle.Tolerance > 0.f)
-				{
-					//@TODO: Cache this
-					const float AngleCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Metadata->Angle.Tolerance), 0.f, PI));
-					const FVector ToTarget = (QueryTransform.GetLocation() - Origin).GetSafeNormal2D();
-					if (FVector::DotProduct(ToTarget, DirToEntry) < AngleCos)
-					{
-						continue;
-					}
-				}
-
-				// Facing Test
-				//--------------------------------------------------
-				if (Data.Metadata->Facing.Tolerance > 0.f)
-				{
-					//@TODO: Cache this
-					const float FacingCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Metadata->Facing.Tolerance), 0.f, PI));
-					const FVector ToTarget = (ToWorldTransform.GetLocation() - QueryTransform.GetLocation()).GetSafeNormal2D();
-					if (FVector::DotProduct(QueryTransform.GetRotation().GetForwardVector(), ToTarget) < FacingCos)
-					{
-						continue;
-					}
-				}
-			}
-
-			// Return the first item that passes all tests
-			DataIndex = Idx;
-			break;
-		}
-	}
-	else // Simple Query
-	{
-		float BestDistanceSq = MAX_FLT;
-		for (int32 Idx = 0; Idx < InteractorTrack.AnimDataContainer.Num(); Idx++)
-		{
-			const FContextualAnimData& Data = InteractorTrack.AnimDataContainer[Idx];
-
-			//@TODO: Convert querier location to local space instead
-			const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * ToWorldTransform;
-			const float DistSq = FVector::DistSquared2D(EntryTransform.GetLocation(), QueryTransform.GetLocation());
-			if (DistSq < BestDistanceSq)
-			{
-				BestDistanceSq = DistSq;
-				DataIndex = Idx;
-			}
-		}
+		return;
 	}
 
-	if (DataIndex != INDEX_NONE)
+	for (const FContextualAnimData& AnimData : InteractorTrack.AnimDataContainer)
 	{
-		const FContextualAnimData& ResultData = InteractorTrack.AnimDataContainer[DataIndex];
-
-		OutResult.DataIndex = DataIndex;
-		OutResult.Animation = ResultData.Animation;
-		OutResult.EntryTransform = ResultData.GetAlignmentTransformAtEntryTime() * ToWorldTransform;
-		OutResult.SyncTransform = ResultData.GetAlignmentTransformAtSyncTime() * ToWorldTransform;
-
-		if (QueryParams.bFindAnimStartTime)
+		if (Function(InteractorRoleName, AnimData) == EContextualAnimForEachResult::Break)
 		{
-			const FVector LocalLocation = (QueryTransform.GetRelativeTransform(ToWorldTransform)).GetLocation();
-			OutResult.AnimStartTime = ResultData.FindBestAnimStartTime(LocalLocation);
+			return;
 		}
-
-		return true;
 	}
+}
 
-	return false;
+TArray<FName> UContextualAnimCompositeSceneAsset::GetRoles() const 
+{ 
+	return { InteractableRoleName, InteractorRoleName }; 
 }

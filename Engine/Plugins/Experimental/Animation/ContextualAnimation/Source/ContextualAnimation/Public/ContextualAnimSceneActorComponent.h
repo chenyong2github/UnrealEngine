@@ -4,12 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Components/SphereComponent.h"
-#include "ContextualAnimCompositeSceneAsset.h"
+#include "ContextualAnimTypes.h"
 #include "ContextualAnimSceneActorComponent.generated.h"
 
 class UAnimInstance;
 class UAnimMontage;
 class AActor;
+class UContextualAnimSceneInstance;
+struct FContextualAnimSceneActorData;
 
 USTRUCT(BlueprintType)
 struct FContextualAnimDebugParams
@@ -23,17 +25,25 @@ struct FContextualAnimDebugParams
 	float DrawAlignmentTransformAtTime = 0.f;
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FContextualAnimSceneActorCompDelegate, class UContextualAnimSceneActorComponent*, SceneActorComponent);
+
 UCLASS(meta = (BlueprintSpawnableComponent))
-class CONTEXTUALANIMATION_API UContextualAnimSceneActorComponent : public USphereComponent
+class CONTEXTUALANIMATION_API UContextualAnimSceneActorComponent : public UPrimitiveComponent
 {
 	GENERATED_BODY()
 
 public:
 
-	UContextualAnimSceneActorComponent(const FObjectInitializer& ObjectInitializer);
+	/** Event that happens when the actor owner of this component joins an scene */
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FContextualAnimSceneActorCompDelegate OnJoinedSceneDelegate;
+
+	/** Event that happens when the actor owner of this component leave an scene */
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FContextualAnimSceneActorCompDelegate OnLeftSceneDelegate;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
-	UContextualAnimCompositeSceneAsset* SceneAsset;
+	class UContextualAnimSceneAssetBase* SceneAsset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
 	bool bEnableDebug;
@@ -41,9 +51,34 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug", meta = (ShowOnlyInnerProperties, EditCondition = "bEnableDebug"))
 	FContextualAnimDebugParams DebugParams;
 
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
+	UContextualAnimSceneActorComponent(const FObjectInitializer& ObjectInitializer);
 
-	UFUNCTION(BlueprintCallable, Category = "Contextual Animation System")
-	bool QueryData(const FContextualAnimQueryParams& QueryParams, FContextualAnimQueryResult& Result) const;
+	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
+	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+
+	/** Called from the scene instance when the actor owner of this component joins an scene */
+	void OnJoinedScene(const FContextualAnimSceneActorData* SceneActorData);
+	
+	/** Called from the scene instance when the actor owner of this component leave an scene */
+	void OnLeftScene(const FContextualAnimSceneActorData* SceneActorData);
+
+protected:
+
+	/** Ptr back to the scene actor data that represent us in the scene instance we are part of */
+	const FContextualAnimSceneActorData* SceneActorDataPtr = nullptr;
+
+	/** List of IKTarget for this frame */
+	UPROPERTY()
+	TArray<FContextualAnimIKTarget> IKTargets;
+
+	void UpdateIKTargets();
+
+	/** 
+	 * Event called right before owner's mesh ticks the pose when we are in a scene instance and IK Targets are required. 
+	 * Used to update IK Targets before animation need them 
+	 */
+	UFUNCTION()
+	void OnTickPose(class USkinnedMeshComponent* SkinnedMeshComponent, float DeltaTime, bool bNeedsValidRootMotion);
 };

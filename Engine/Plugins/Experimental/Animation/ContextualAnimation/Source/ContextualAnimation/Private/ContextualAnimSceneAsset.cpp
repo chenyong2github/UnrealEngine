@@ -1,24 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimSceneAsset.h"
-
 #include "AnimationRuntime.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimTypes.h"
 #include "ContextualAnimUtilities.h"
+#include "ContextualAnimMetadata.h"
 #include "UObject/ObjectSaveContext.h"
+#include "ContextualAnimScenePivotProvider.h"
 
 UContextualAnimSceneAsset::UContextualAnimSceneAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-}
-
-void UContextualAnimSceneAsset::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	Super::PreSave(TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 }
 
 void UContextualAnimSceneAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
@@ -29,95 +23,97 @@ void UContextualAnimSceneAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	// but any allocation from outside the game tick (like here when generating the alignment tracks off-line) must explicitly add a mark to avoid a leak 
 	FMemMark Mark(FMemStack::Get());
 
-	// Generate scene pivot for each alignment section
 	Super::PreSave(ObjectSaveContext);
-	
-	const FTransform MeshToComponentInverse = MeshToComponent.Inverse();
-	const float SampleInterval = 1.f / SampleRate;
 
-	TArray<FBoneIndexType> RequiredBoneIndexArray = { 0 };
-
+	// Set Index for each ContextualAnimData
+	int32 NumAnimData = 0;
 	for (auto& Entry : DataContainer)
 	{
-		// Generate alignment tracks relative to scene pivot
-		GenerateAlignmentTracksRelativeToScenePivot(Entry.Value.AnimData);
-
-		// Generate alignment tracks relative to other actors
-		const FName& Role = Entry.Key;
-		FContextualAnimData& AnimData = Entry.Value.AnimData;
-
-		const UAnimMontage* Animation = AnimData.Animation;
-
-		UE_LOG(LogContextualAnim, Log, TEXT("%s Generating Alignment Track Relative To Others for '%s' (Anim: %s)"), *GetNameSafe(this), *Role.ToString(), *GetNameSafe(Animation));
-
-		if (Animation)
+		NumAnimData = FMath::Max(NumAnimData, Entry.Value.AnimDataContainer.Num());
+		for (int32 AnimDataIdx = 0; AnimDataIdx < Entry.Value.AnimDataContainer.Num(); AnimDataIdx++)
 		{
-			FBoneContainer BoneContainer = FBoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *Animation->GetSkeleton());
+			Entry.Value.AnimDataContainer[AnimDataIdx].Index = AnimDataIdx;
+		}
+	}
 
-			for (const auto& OtherEntry : DataContainer)
+	// Generate scene pivot for each alignment section
+	for (int32 AlignmentSectionIdx = 0; AlignmentSectionIdx < AlignmentSections.Num(); AlignmentSectionIdx++)
+	{
+		AlignmentSections[AlignmentSectionIdx].ScenePivots.Reset();
+
+		// We need to calculate scene pivot for each set of animations
+		for (int32 AnimDataIdx = 0; AnimDataIdx < NumAnimData; AnimDataIdx++)
+		{
+			if (AlignmentSections[AlignmentSectionIdx].ScenePivotProvider)
 			{
-				const FName& OtherRole = OtherEntry.Key;
-				const FContextualAnimData& OtherAnimData = OtherEntry.Value.AnimData;
-
-				if (Role != OtherRole)
-				{
-					float Time = 0.f;
-					float EndTime = Animation->GetPlayLength();
-					int32 SampleIndex = 0;
-
-					AnimData.AlignmentData.Tracks.TrackNames.Add(OtherRole);
-					FRawAnimSequenceTrack& NewTrack = AnimData.AlignmentData.Tracks.AnimationTracks.AddZeroed_GetRef();
-
-					const UAnimMontage* OtherAnimation = OtherAnimData.Animation;
-					if (OtherAnimation)
-					{
-						FBoneContainer OtherBoneContainer = FBoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *OtherAnimation->GetSkeleton());
-
-						while (Time < EndTime)
-						{
-							Time = FMath::Clamp(SampleIndex * SampleInterval, 0.f, EndTime);
-							SampleIndex++;
-
-							FCSPose<FCompactPose> ComponentSpacePose;
-							UContextualAnimUtilities::ExtractComponentSpacePose(Animation, BoneContainer, Time, false, ComponentSpacePose);
-
-							FCSPose<FCompactPose> OtherComponentSpacePose;
-							UContextualAnimUtilities::ExtractComponentSpacePose(OtherAnimation, OtherBoneContainer, Time, false, OtherComponentSpacePose);
-
-							const FTransform RootTransform = MeshToComponentInverse * (ComponentSpacePose.GetComponentSpaceTransform(FCompactPoseBoneIndex(0)) * AnimData.MeshToScene);
-							const FTransform OtherRootTransform = MeshToComponentInverse * (OtherComponentSpacePose.GetComponentSpaceTransform(FCompactPoseBoneIndex(0)) * OtherAnimData.MeshToScene);
-							const FTransform RootRelativeToRef = RootTransform.GetRelativeTransform(OtherRootTransform);
-
-							NewTrack.PosKeys.Add(RootRelativeToRef.GetLocation());
-							NewTrack.RotKeys.Add(RootRelativeToRef.GetRotation());
-							NewTrack.ScaleKeys.Add(RootRelativeToRef.GetScale3D());
-						};
-					}
-
-					UE_LOG(LogContextualAnim, Log, TEXT("\t Relative To: '%s' (Anim: %s) NumKeys: %d"), *OtherRole.ToString(), *GetNameSafe(OtherAnimation), NewTrack.PosKeys.Num());
-				}
+				const FTransform ScenePivot = AlignmentSections[AlignmentSectionIdx].ScenePivotProvider->CalculateScenePivot_Source(AnimDataIdx);
+				AlignmentSections[AlignmentSectionIdx].ScenePivots.Add(ScenePivot);
+			}
+			else
+			{
+				AlignmentSections[AlignmentSectionIdx].ScenePivots.Add(FTransform::Identity);
 			}
 		}
 	}
-}
+	
 
-const FContextualAnimTrack* UContextualAnimSceneAsset::FindTrack(const FName& Role) const
-{
-	return DataContainer.Find(Role);
-}
-
-UClass* UContextualAnimSceneAsset::GetPreviewActorClassForRole(const FName& Role) const
-{
-	if (const FContextualAnimTrack* Result = FindTrack(Role))
+	for (auto& Entry : DataContainer)
 	{
-		return Result->Settings.PreviewActorClass;
+		for (FContextualAnimData& Data : Entry.Value.AnimDataContainer)
+		{
+			// Generate alignment tracks relative to scene pivot
+			GenerateAlignmentTracks(Entry.Value.Settings, Data);
+
+			// Generate IK Targets
+			GenerateIKTargetTracks(Entry.Value.Settings, Data);
+		}
+	}
+
+	UpdateRadius();
+}
+
+const FContextualAnimTrackSettings* UContextualAnimSceneAsset::GetTrackSettings(const FName& Role) const
+{
+	const FContextualAnimCompositeTrack* Track = DataContainer.Find(Role);
+	return Track ? &Track->Settings : nullptr;
+}
+
+const FContextualAnimData* UContextualAnimSceneAsset::GetAnimDataForRoleAtIndex(const FName& Role, int32 Index) const
+{
+	if(const FContextualAnimCompositeTrack* Track = DataContainer.Find(Role))
+	{
+		if(Track->AnimDataContainer.IsValidIndex(Index))
+		{
+			return &Track->AnimDataContainer[Index];
+		}
 	}
 
 	return nullptr;
 }
 
-EContextualAnimJoinRule UContextualAnimSceneAsset::GetJoinRuleForRole(const FName& Role) const
+void UContextualAnimSceneAsset::ForEachAnimData(FForEachAnimDataFunction Function) const
 {
-	const FContextualAnimTrack* Result = FindTrack(Role);
-	return Result ? Result->Settings.JoinRule : EContextualAnimJoinRule::Default;
+	for (const auto& Pair : DataContainer)
+	{
+		for (const FContextualAnimData& Data : Pair.Value.AnimDataContainer)
+		{
+			if (Function(Pair.Key, Data) == EContextualAnimForEachResult::Break)
+			{
+				return;
+			}
+		}
+	}
+}
+
+TArray<FName> UContextualAnimSceneAsset::GetRoles() const
+{
+	TArray<FName> Roles;
+	DataContainer.GetKeys(Roles);
+	return Roles;
+}
+
+bool UContextualAnimSceneAsset::Query(const FName& Role, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const
+{
+	const FContextualAnimCompositeTrack* Track = DataContainer.Find(Role);
+	return Track ? QueryCompositeTrack(Track, OutResult, QueryParams, ToWorldTransform) : false;
 }

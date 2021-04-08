@@ -18,7 +18,7 @@ public:
 
 	UContextualAnimScenePivotProvider(const FObjectInitializer& ObjectInitializer);
 
-	virtual FTransform CalculateScenePivot_Source() const { return FTransform::Identity; }
+	virtual FTransform CalculateScenePivot_Source(int32 AnimDataIndex) const { return FTransform::Identity; }
 	virtual FTransform CalculateScenePivot_Runtime(const TMap<FName, FContextualAnimSceneActorData>& SceneActorMap) const { return FTransform::Identity; }
 
 	const UContextualAnimSceneAssetBase* GetSceneAsset() const;
@@ -42,7 +42,7 @@ public:
 
 	UContextualAnimScenePivotProvider_Default(const FObjectInitializer& ObjectInitializer);
 
-	virtual FTransform CalculateScenePivot_Source() const override;
+	virtual FTransform CalculateScenePivot_Source(int32 AnimDataIndex) const override;
 	virtual FTransform CalculateScenePivot_Runtime(const TMap<FName, FContextualAnimSceneActorData>& SceneActorMap) const override;
 };
 
@@ -58,6 +58,6 @@ public:
 
 	UContextualAnimScenePivotProvider_RelativeTo(const FObjectInitializer& ObjectInitializer);
 
-	virtual FTransform CalculateScenePivot_Source() const override;
+	virtual FTransform CalculateScenePivot_Source(int32 AnimDataIndex) const override;
 	virtual FTransform CalculateScenePivot_Runtime(const TMap<FName, FContextualAnimSceneActorData>& SceneActorMap) const override;
 };

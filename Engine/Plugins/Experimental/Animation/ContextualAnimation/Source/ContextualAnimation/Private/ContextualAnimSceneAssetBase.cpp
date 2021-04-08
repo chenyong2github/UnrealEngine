@@ -12,69 +12,63 @@
 #include "ContextualAnimMetadata.h"
 #include "UObject/ObjectSaveContext.h"
 
+static FCompactPoseBoneIndex GetCompactPoseBoneIndexFromPose(const FCSPose<FCompactPose>& Pose, const FName& BoneName)
+{
+	const FBoneContainer& BoneContainer = Pose.GetPose().GetBoneContainer();
+	for (int32 Idx = Pose.GetPose().GetNumBones() - 1; Idx >= 0; Idx--)
+	{
+		if (BoneContainer.GetReferenceSkeleton().GetBoneName(BoneContainer.GetBoneIndicesArray()[Idx]) == BoneName)
+		{
+			return FCompactPoseBoneIndex(Idx);
+		}
+	}
+
+	checkf(false, TEXT("BoneName: %s Pose.Asset: %s Pose.NumBones: %d"), *BoneName.ToString(), *GetNameSafe(Pose.GetPose().GetBoneContainer().GetAsset()), Pose.GetPose().GetNumBones());
+	return FCompactPoseBoneIndex(INDEX_NONE);
+}
+
 UContextualAnimSceneAssetBase::UContextualAnimSceneAssetBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bDisableCollisionBetweenActors = true;
 	SampleRate = 15;
-	MeshToComponent = FTransform(FRotator(0.f, -90.f, 0.f));
 }
 
-FTransform UContextualAnimSceneAssetBase::ExtractTransformFromAnimData(const FContextualAnimData& AnimData, float Time) const
+void UContextualAnimSceneAssetBase::GenerateAlignmentTracks(const FContextualAnimTrackSettings& Settings, FContextualAnimData& AnimData)
 {
-	const FTransform MeshToComponentInverse = MeshToComponent.Inverse();
+	const FTransform MeshToComponentInverse = Settings.MeshToComponent.Inverse();
+	const float SampleInterval = 1.f / SampleRate;
+
+	// Initialize tracks for each alignment section
+	const int32 TotalTracks = AlignmentSections.Num();
+	AnimData.AlignmentData.Initialize(TotalTracks, SampleInterval);
+	for (int32 Idx = 0; Idx < AlignmentSections.Num(); Idx++)
+	{
+		AnimData.AlignmentData.Tracks.TrackNames.Add(AlignmentSections[Idx].SectionName);
+		AnimData.AlignmentData.Tracks.AnimationTracks.AddZeroed();
+	}
 
 	if (const UAnimMontage* Animation = AnimData.Animation)
 	{
-		FCSPose<FCompactPose> ComponentSpacePose;
-		UContextualAnimUtilities::ExtractComponentSpacePose(Animation, FBoneContainer({ 0 }, FCurveEvaluationOption(false), *Animation->GetSkeleton()), Time, false, ComponentSpacePose);
-		return MeshToComponentInverse * (ComponentSpacePose.GetComponentSpaceTransform(FCompactPoseBoneIndex(0)) * AnimData.MeshToScene);
-	}
-	else
-	{
-		return MeshToComponentInverse * AnimData.MeshToScene;
-	}
-}
-
-void UContextualAnimSceneAssetBase::GenerateAlignmentTracksRelativeToScenePivot(FContextualAnimData& AnimData)
-{
-	const FTransform MeshToComponentInverse = MeshToComponent.Inverse();
-	const float SampleInterval = 1.f / SampleRate;
-
-	const int32 TotalTracks = AlignmentSections.Num();
-	AnimData.AlignmentData.Tracks.AnimationTracks.Reset(TotalTracks);
-	AnimData.AlignmentData.Tracks.TrackNames.Reset(TotalTracks);
-	AnimData.AlignmentData.SampleInterval = SampleInterval;
-
-	const UAnimMontage* Animation = AnimData.Animation;
-	if (Animation)
-	{
-		TArray<FBoneIndexType> RequiredBoneIndexArray;
-		RequiredBoneIndexArray.Add(0);
-		FBoneContainer BoneContainer = FBoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *Animation->GetSkeleton());
-
-		for (int32 Idx = 0; Idx < AlignmentSections.Num(); Idx++)
+		float Time = 0.f;
+		float EndTime = Animation->GetPlayLength();
+		int32 SampleIndex = 0;
+		while (Time < EndTime)
 		{
-			float Time = 0.f;
-			float EndTime = Animation->GetPlayLength();
-			int32 SampleIndex = 0;
+			Time = FMath::Clamp(SampleIndex * SampleInterval, 0.f, EndTime);
+			SampleIndex++;
+			
+			const FTransform RootTransform = MeshToComponentInverse * (UContextualAnimUtilities::ExtractRootTransformFromAnimation(Animation, Time) * AnimData.MeshToScene);
 
-			AnimData.AlignmentData.Tracks.TrackNames.Add(AlignmentSections[Idx].SectionName);
-			FRawAnimSequenceTrack& SceneTrack = AnimData.AlignmentData.Tracks.AnimationTracks.AddZeroed_GetRef();
-			while (Time < EndTime)
+			for (int32 Idx = 0; Idx < AlignmentSections.Num(); Idx++)
 			{
-				Time = FMath::Clamp(SampleIndex * SampleInterval, 0.f, EndTime);
-				SampleIndex++;
+				FRawAnimSequenceTrack& SceneTrack = AnimData.AlignmentData.Tracks.AnimationTracks[Idx];
 
-				FCSPose<FCompactPose> ComponentSpacePose;
-				UContextualAnimUtilities::ExtractComponentSpacePose(Animation, BoneContainer, Time, false, ComponentSpacePose);
-
-				const FTransform RootTransform = MeshToComponentInverse * (ComponentSpacePose.GetComponentSpaceTransform(FCompactPoseBoneIndex(0)) * AnimData.MeshToScene);
-				const FTransform ScenePivotTransform = AlignmentSections[Idx].ScenePivot;
+				const FTransform ScenePivotTransform = AlignmentSections[Idx].ScenePivots[AnimData.Index];
 				const FTransform RootRelativeToScenePivot = RootTransform.GetRelativeTransform(ScenePivotTransform);
 
 				SceneTrack.PosKeys.Add(RootRelativeToScenePivot.GetLocation());
 				SceneTrack.RotKeys.Add(RootRelativeToScenePivot.GetRotation());
-				SceneTrack.ScaleKeys.Add(RootRelativeToScenePivot.GetScale3D());
 			}
 		}
 	}
@@ -86,37 +80,276 @@ void UContextualAnimSceneAssetBase::GenerateAlignmentTracksRelativeToScenePivot(
 			FRawAnimSequenceTrack& SceneTrack = AnimData.AlignmentData.Tracks.AnimationTracks.AddZeroed_GetRef();
 
 			const FTransform RootTransform = MeshToComponentInverse * AnimData.MeshToScene;
-			const FTransform ScenePivotTransform = AlignmentSections[Idx].ScenePivot;
+			const FTransform ScenePivotTransform = AlignmentSections[Idx].ScenePivots[AnimData.Index];
 			const FTransform RootRelativeToScenePivot = RootTransform.GetRelativeTransform(ScenePivotTransform);
 
 			SceneTrack.PosKeys.Add(RootRelativeToScenePivot.GetLocation());
 			SceneTrack.RotKeys.Add(RootRelativeToScenePivot.GetRotation());
-			SceneTrack.ScaleKeys.Add(RootRelativeToScenePivot.GetScale3D());
 		}
 	}
 }
 
-void UContextualAnimSceneAssetBase::PreSave(const class ITargetPlatform* TargetPlatform)
+void UContextualAnimSceneAssetBase::GenerateIKTargetTracks(const FContextualAnimTrackSettings& Settings, FContextualAnimData& AnimData)
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	Super::PreSave(TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	AnimData.IKTargetData.Empty();
+
+	if(Settings.IKTargetDefinitions.Num() == 0)
+	{
+		return;
+	}
+
+	if (const UAnimMontage* Animation = AnimData.Animation)
+	{
+		UE_LOG(LogContextualAnim, Log, TEXT("%s Generating IK Target Tracks. Animation: %s"), *GetNameSafe(this), *GetNameSafe(Animation));
+
+		const float SampleInterval = 1.f / SampleRate;
+
+		TArray<FBoneIndexType> RequiredBoneIndexArray;
+
+		// Helper structure to group pose extraction per target so we can extract the pose for all the bones that are relative to the same target in one pass
+		struct FPoseExtractionHelper
+		{
+			const FContextualAnimData* TargetAnimDataPtr = nullptr;
+			TArray<TTuple<FName, int32, FName, int32>> BonesData; //0: MyBoneName 1: MyBoneIndex, 2: TargetBoneName, 3 TargetBoneIndex
+		};
+		TMap<FName, FPoseExtractionHelper> PoseExtractionHelperMap;
+		PoseExtractionHelperMap.Reserve(Settings.IKTargetDefinitions.Num());
+
+		int32 TotalTracks = 0;
+		for (const FContextualAnimIKTargetDefinition& IKTargetDef : Settings.IKTargetDefinitions)
+		{
+			if (IKTargetDef.Provider == EContextualAnimIKTargetProvider::Autogenerated)
+			{
+				const FName TargetRole = IKTargetDef.AutoParams.TargetRole;
+				FPoseExtractionHelper* DataPtr = PoseExtractionHelperMap.Find(TargetRole);
+				if(DataPtr == nullptr)
+				{
+					// Find AnimData for target role. 
+					const FContextualAnimData* TargetAnimDataPtr = GetAnimDataForRoleAtIndex(TargetRole, AnimData.Index);
+					if (TargetAnimDataPtr == nullptr)
+					{
+						UE_LOG(LogContextualAnim, Warning, TEXT("\t Can't find AnimTrack for TargetRole '%s'"), *TargetRole.ToString());
+						continue;
+					}
+
+					DataPtr = &PoseExtractionHelperMap.Add(TargetRole);
+					DataPtr->TargetAnimDataPtr = TargetAnimDataPtr;
+				}
+				
+				//@TODO: Replace with the actual bone. We need a way to go from IKGoalName to BoneName
+				const FName BoneName = IKTargetDef.IKGoalName;
+				const int32 BoneIndex = Animation->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName);
+				if (BoneIndex == INDEX_NONE)
+				{
+					UE_LOG(LogContextualAnim, Warning, TEXT("\t Can't find BoneIndex. BoneName: %s Animation: %s Skel: %s"), 
+						*BoneName.ToString(), *GetNameSafe(Animation), *GetNameSafe(Animation->GetSkeleton()));
+
+					continue;
+				}
+
+				// Find TargetBoneIndex. Note that we add TargetBoneIndexeven if it is INDEX_NONE. In this case, my bone will be relative to the origin of the target actor. 
+				// This is to support cases where the target actor doesn't have animation or TargetBoneName is None
+				FName TargetBoneName = IKTargetDef.AutoParams.BoneName;
+				const UAnimMontage* TargetAnimation = DataPtr->TargetAnimDataPtr->Animation;
+				const int32 TargetBoneIndex = TargetAnimation ? TargetAnimation->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(TargetBoneName) : INDEX_NONE;
+				if (TargetBoneIndex == INDEX_NONE)
+				{
+					UE_LOG(LogContextualAnim, Log, TEXT("\t Can't find TargetBoneIndex. BoneName: %s Animation: %s Skel: %s. Track for this bone will be relative to the origin of the target role."),
+						*TargetBoneName.ToString(), *GetNameSafe(TargetAnimation), TargetAnimation ? *GetNameSafe(TargetAnimation->GetSkeleton()) : nullptr);
+
+					TargetBoneName = NAME_None;
+				}
+
+				RequiredBoneIndexArray.AddUnique(BoneIndex);
+
+				DataPtr->BonesData.Add(MakeTuple(BoneName, BoneIndex, TargetBoneName, TargetBoneIndex));
+				TotalTracks++;
+
+				UE_LOG(LogContextualAnim, Log, TEXT("\t Bone added for extraction. BoneName: %s (%d) TargetRole: %s TargetAnimation: %s TargetBone: %s (%d)"),
+					*BoneName.ToString(), BoneIndex, *TargetRole.ToString(), *GetNameSafe(TargetAnimation), *TargetBoneName.ToString(), TargetBoneIndex);
+			}
+		}
+
+		if(TotalTracks > 0)
+		{
+			// Complete bones chain and create bone container to extract pose from my animation
+			Animation->GetSkeleton()->GetReferenceSkeleton().EnsureParentsExistAndSort(RequiredBoneIndexArray);
+			FBoneContainer BoneContainer = FBoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *Animation->GetSkeleton());
+
+			// Initialize track container
+			AnimData.IKTargetData.Initialize(TotalTracks, SampleInterval);
+
+			// Initialize lookup map to go from track name to target role and bone (the bone this track is relative to)
+			AnimData.IKTargetTrackLookupMap.Empty(TotalTracks);
+
+			float Time = 0.f;
+			float EndTime = Animation->GetPlayLength();
+			int32 SampleIndex = 0;
+			while (Time < EndTime)
+			{
+				Time = FMath::Clamp(SampleIndex * SampleInterval, 0.f, EndTime);
+				SampleIndex++;
+
+				// Extract pose from my animation
+				FCSPose<FCompactPose> ComponentSpacePose;
+				UContextualAnimUtilities::ExtractComponentSpacePose(Animation, BoneContainer, Time, false, ComponentSpacePose);
+
+				// For each target role
+				for (auto& Data : PoseExtractionHelperMap)
+				{
+					// Extract pose from target animation if any
+					FCSPose<FCompactPose> OtherComponentSpacePose;
+					TArray<FBoneIndexType> OtherRequiredBoneIndexArray;
+					FBoneContainer OtherBoneContainer;
+					const UAnimMontage* OtherAnimation = Data.Value.TargetAnimDataPtr->Animation;
+					if (OtherAnimation)
+					{
+						// Prepare array with the indices of the bones to extract from target animation
+						OtherRequiredBoneIndexArray.Reserve(Data.Value.BonesData.Num());
+						for (int32 Idx = 0; Idx < Data.Value.BonesData.Num(); Idx++)
+						{
+							const int32 TargetBoneIndex = Data.Value.BonesData[Idx].Get<3>();
+							if (TargetBoneIndex != INDEX_NONE)
+							{
+								OtherRequiredBoneIndexArray.AddUnique(TargetBoneIndex);
+							}
+						}
+
+						if(OtherRequiredBoneIndexArray.Num() > 0)
+						{
+							// Complete bones chain and create bone container to extract pose form the target animation
+							OtherAnimation->GetSkeleton()->GetReferenceSkeleton().EnsureParentsExistAndSort(OtherRequiredBoneIndexArray);
+							OtherBoneContainer = FBoneContainer(OtherRequiredBoneIndexArray, FCurveEvaluationOption(false), *OtherAnimation->GetSkeleton());
+
+							// Extract pose from target animation
+							UContextualAnimUtilities::ExtractComponentSpacePose(OtherAnimation, OtherBoneContainer, Time, false, OtherComponentSpacePose);
+						}
+					}
+
+					for (int32 Idx = 0; Idx < Data.Value.BonesData.Num(); Idx++)
+					{
+						const FName TrackName = Data.Value.BonesData[Idx].Get<0>();
+						AnimData.IKTargetData.Tracks.TrackNames.Add(TrackName);
+						AnimData.IKTargetData.Tracks.AnimationTracks.AddZeroed();
+
+						// Add entry to the lookup table
+						auto& NewItem = AnimData.IKTargetTrackLookupMap.FindOrAdd(TrackName);
+						NewItem.RoleName = Data.Key;
+						NewItem.BoneName = Data.Value.BonesData[Idx].Get<2>();
+
+						// Get bone transform from my animation
+						const FName BoneName = Data.Value.BonesData[Idx].Get<0>();
+						const FCompactPoseBoneIndex BoneIndex = GetCompactPoseBoneIndexFromPose(ComponentSpacePose, BoneName);
+						const FTransform BoneTransform = (ComponentSpacePose.GetComponentSpaceTransform(BoneIndex) * AnimData.MeshToScene);
+
+						// Get bone transform from target animation
+						FTransform OtherBoneTransform = Data.Value.TargetAnimDataPtr->MeshToScene;
+						const FName TargetBoneName = Data.Value.BonesData[Idx].Get<2>();
+						if (TargetBoneName != NAME_None)
+						{
+							const FCompactPoseBoneIndex OtherBoneIndex = GetCompactPoseBoneIndexFromPose(OtherComponentSpacePose, TargetBoneName);
+							OtherBoneTransform = (OtherComponentSpacePose.GetComponentSpaceTransform(OtherBoneIndex) * Data.Value.TargetAnimDataPtr->MeshToScene);
+						}
+
+						// Get transform relative to target
+						const FTransform BoneRelativeToOther = BoneTransform.GetRelativeTransform(OtherBoneTransform);
+
+						// Add transform to the track
+						FRawAnimSequenceTrack& NewTrack = AnimData.IKTargetData.Tracks.AnimationTracks[Idx];
+						NewTrack.PosKeys.Add(BoneRelativeToOther.GetLocation());
+						NewTrack.RotKeys.Add(BoneRelativeToOther.GetRotation());
+
+						UE_LOG(LogContextualAnim, Verbose, TEXT("\t\t Animation: %s Time: %f BoneName: %s (T: %s) Target Animation: %s TargetBoneName: %s (T: %s)"),
+							*GetNameSafe(Animation), Time, *BoneName.ToString(), *BoneTransform.GetLocation().ToString(),
+							*GetNameSafe(OtherAnimation), *TargetBoneName.ToString(), *OtherBoneTransform.GetLocation().ToString());
+					}
+				}
+			}
+		}
+	}
+}
+
+void UContextualAnimSceneAssetBase::UpdateRadius()
+{
+	Radius = 0.f;
+	ForEachAnimData([this](const FName& Role, const FContextualAnimData& Data)
+		{
+			Radius = FMath::Max(Radius, (Data.GetAlignmentTransformAtEntryTime().GetLocation().Size()));
+			return EContextualAnimForEachResult::Continue;
+		});
+}
+
+bool UContextualAnimSceneAssetBase::QueryCompositeTrack(const FContextualAnimCompositeTrack* Track, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const
+{
+	OutResult.Reset();
+
+	const FTransform QueryTransform = QueryParams.Querier.IsValid() ? QueryParams.Querier->GetActorTransform() : QueryParams.QueryTransform;
+
+	int32 DataIndex = INDEX_NONE;
+	if (Track)
+	{
+		if (QueryParams.bComplexQuery)
+		{
+			for (int32 Idx = 0; Idx < Track->AnimDataContainer.Num(); Idx++)
+			{
+				const FContextualAnimData& Data = Track->AnimDataContainer[Idx];
+
+				if (Data.Metadata)
+				{
+					const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * ToWorldTransform;
+
+					if (!Data.Metadata->DoesQuerierPassConditions(FContextualAnimQuerier(QueryTransform), FContextualAnimQueryContext(ToWorldTransform), EntryTransform))
+					{
+						continue;
+					}
+				}
+
+				// Return the first item that passes all tests
+				DataIndex = Idx;
+				break;
+			}
+		}
+		else // Simple Query
+		{
+			float BestDistanceSq = MAX_FLT;
+			for (int32 Idx = 0; Idx < Track->AnimDataContainer.Num(); Idx++)
+			{
+				const FContextualAnimData& Data = Track->AnimDataContainer[Idx];
+
+				//@TODO: Convert querier location to local space instead
+				const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * ToWorldTransform;
+				const float DistSq = FVector::DistSquared2D(EntryTransform.GetLocation(), QueryTransform.GetLocation());
+				if (DistSq < BestDistanceSq)
+				{
+					BestDistanceSq = DistSq;
+					DataIndex = Idx;
+				}
+			}
+		}
+
+		if (DataIndex != INDEX_NONE)
+		{
+			const FContextualAnimData& ResultData = Track->AnimDataContainer[DataIndex];
+
+			OutResult.DataIndex = DataIndex;
+			OutResult.Animation = ResultData.Animation;
+			OutResult.EntryTransform = ResultData.GetAlignmentTransformAtEntryTime() * ToWorldTransform;
+			OutResult.SyncTransform = ResultData.GetAlignmentTransformAtSyncTime() * ToWorldTransform;
+
+			if (QueryParams.bFindAnimStartTime)
+			{
+				const FVector LocalLocation = (QueryTransform.GetRelativeTransform(ToWorldTransform)).GetLocation();
+				OutResult.AnimStartTime = ResultData.FindBestAnimStartTime(LocalLocation);
+			}
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void UContextualAnimSceneAssetBase::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	Super::PreSave(ObjectSaveContext);
-
-	// Generate scene pivot for each alignment section
-	for (int32 Idx = 0; Idx < AlignmentSections.Num(); Idx++)
-	{
-		if (AlignmentSections[Idx].ScenePivotProvider)
-		{
-			AlignmentSections[Idx].ScenePivot = AlignmentSections[Idx].ScenePivotProvider->CalculateScenePivot_Source();
-		}
-		else
-		{
-			AlignmentSections[Idx].ScenePivot = MeshToComponent.Inverse();
-		}
-	}
 }

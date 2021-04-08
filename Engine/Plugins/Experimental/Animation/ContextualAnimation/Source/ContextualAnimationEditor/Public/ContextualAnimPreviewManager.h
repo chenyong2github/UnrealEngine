@@ -24,6 +24,9 @@ public:
 	bool bDrawDebugScene;
 
 	UPROPERTY(EditAnywhere, Category = "Debug", meta = (EditCondition = "bDrawDebugScene"))
+	int32 AnimDataIndex = 0;
+
+	UPROPERTY(EditAnywhere, Category = "Debug", meta = (EditCondition = "bDrawDebugScene"))
 	float Time;
 
 	UPROPERTY(EditAnywhere, Category = "Debug", meta = (EditCondition = "bDrawDebugScene"))
