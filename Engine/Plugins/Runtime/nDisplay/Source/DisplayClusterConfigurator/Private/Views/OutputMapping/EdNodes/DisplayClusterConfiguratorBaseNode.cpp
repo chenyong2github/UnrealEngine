@@ -22,7 +22,14 @@ void UDisplayClusterConfiguratorBaseNode::PostEditUndo()
 	Super::PostEditUndo();
 
 	UpdateObject();
-	UpdateChildNodes();
+
+	// Don't update the child nodes if this node is auto-positioned because this node is probably in the undo stack as part of
+	// a change to a child, and we don't want to overwrite the child's undo. If the children need updating, it will be handled on
+	// the next position tick.
+	if (!IsNodeAutoPositioned())
+	{
+		UpdateChildNodes();
+	}
 }
 #endif
 
@@ -732,6 +739,61 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedSizeFromParent(const F
 			const FVector2D AllowedParentSizeChange = ParentMaxSize - ParentCurrentSize;
 			XShift -= DesiredParentSizeChange.X - AllowedParentSizeChange.X;
 			YShift -= DesiredParentSizeChange.Y - AllowedParentSizeChange.Y;
+		}
+
+		if (bFixedApsectRatio)
+		{
+			if (YShift * AspectRatio < XShift)
+			{
+				SizeChange = FVector2D(YShift * AspectRatio, YShift);
+			}
+			else
+			{
+				SizeChange = FVector2D(XShift, XShift / AspectRatio);
+			}
+		}
+		else
+		{
+			SizeChange = FVector2D(XShift, YShift);
+		}
+
+		BestSize += SizeChange;
+	}
+
+	return BestSize;
+}
+
+FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedSizeFromChildren(const FVector2D& InDesiredSize, const bool bFixedApsectRatio)
+{
+	FVector2D BestSize = InDesiredSize;
+	const FVector2D NodeSize = GetNodeSize();
+	const float AspectRatio = NodeSize.X / NodeSize.Y;
+	FVector2D SizeChange = BestSize - NodeSize;
+
+	// If desired size is bigger in both dimensions to the slot's current size, can return it immediately, as growing a slot can't cause any bound exceeding.
+	if (SizeChange > FVector2D::ZeroVector)
+	{
+		return BestSize;
+	}
+
+	const FBox2D ChildBounds = GetChildBounds();
+	FBox2D Bounds = GetNodeBounds(true);
+	Bounds.Max += SizeChange;
+
+	const bool bIsParentAutosized = Parent->IsNodeAutosized();
+
+	if (Bounds.Max.X < ChildBounds.Max.X || Bounds.Max.Y < ChildBounds.Max.Y)
+	{
+		float XShift = 0;
+		if (Bounds.Max.X < ChildBounds.Max.X)
+		{
+			XShift = ChildBounds.Max.X - Bounds.Max.X;
+		}
+
+		float YShift = 0;
+		if (Bounds.Max.Y < ChildBounds.Max.Y)
+		{
+			YShift = ChildBounds.Max.Y - Bounds.Max.Y;
 		}
 
 		if (bFixedApsectRatio)

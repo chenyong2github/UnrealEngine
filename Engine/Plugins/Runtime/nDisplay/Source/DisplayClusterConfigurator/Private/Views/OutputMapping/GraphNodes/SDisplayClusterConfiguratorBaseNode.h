@@ -125,6 +125,11 @@ public:
 	virtual bool CanNodeExceedParentBounds() const { return true; }
 
 	/**
+	 * @return Whether this node can be be smaller than the total bounds of its children
+	 */
+	virtual bool CanNodeEncroachChildBounds() const { return true; }
+
+	/**
 	 * @return Wether this node can be snap aligned when the user activates snap aligning
 	 */
 	virtual bool CanNodeBeSnapAligned() const { return false; }

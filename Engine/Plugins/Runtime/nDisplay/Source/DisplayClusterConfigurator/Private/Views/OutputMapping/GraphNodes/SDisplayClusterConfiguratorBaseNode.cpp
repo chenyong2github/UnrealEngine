@@ -204,6 +204,13 @@ void SDisplayClusterConfiguratorBaseNode::MoveTo(const FVector2D& NewPosition, F
 
 	if (!bIsNodeFiltered)
 	{
+		// If the parent node is being auto-positioned, add it to the undo stack here because we need to store its old position with the this node's old position
+		// so that if the move operation is undone, this node can appropriately reset the backing config object's position without requiring a full auto-positioning pass.
+		if (ParentEdNode && ParentEdNode->IsNodeAutoPositioned())
+		{
+			ParentEdNode->Modify();
+		}
+
 		EdNode->UpdateObject();
 		EdNode->UpdateChildNodes();
 	}
@@ -287,6 +294,11 @@ void SDisplayClusterConfiguratorBaseNode::SetNodeSize(const FVector2D InLocalSiz
 		BestSize = EdNode->FindBoundedSizeFromParent(BestSize, bFixedAspectRatio);
 	}
 
+	if (!CanNodeEncroachChildBounds())
+	{
+		BestSize = EdNode->FindBoundedSizeFromChildren(BestSize, bFixedAspectRatio);
+	}
+
 	if (!CanNodeOverlapSiblings() && !bIsOverlappingAllowed)
 	{
 		BestSize = EdNode->FindNonOverlappingSizeFromParent(BestSize, bFixedAspectRatio);
@@ -315,6 +327,13 @@ void SDisplayClusterConfiguratorBaseNode::SetNodeSize(const FVector2D InLocalSiz
 	}
 
 	GraphNode->ResizeNode(BestSize + AlignmentOffset);
+
+	// If the parent node is being auto-positioned, add it to the undo stack here because we need to store its old position with the this node's old position
+	// so that if the move operation is undone, this node can appropriately reset the backing config object's position without requiring a full auto-positioning pass.
+	if (ParentEdNode && ParentEdNode->IsNodeAutoPositioned())
+	{
+		ParentEdNode->Modify();
+	}
 }
 
 bool SDisplayClusterConfiguratorBaseNode::IsNodeVisible() const

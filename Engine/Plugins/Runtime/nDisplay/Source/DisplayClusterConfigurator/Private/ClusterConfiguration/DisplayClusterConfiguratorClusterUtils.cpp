@@ -514,6 +514,8 @@ bool FDisplayClusterConfiguratorClusterUtils::RenameClusterNode(UDisplayClusterC
 				return false;
 			}
 
+			const bool bIsMaster = IsClusterNodeMaster(ClusterNode);
+
 			ClusterNode->Modify();
 			ClusterNodeParent->Modify();
 
@@ -523,6 +525,12 @@ bool FDisplayClusterConfiguratorClusterUtils::RenameClusterNode(UDisplayClusterC
 			ClusterNodeParent->Nodes.Add(UniqueName, ClusterNode);
 
 			ClusterNode->Rename(*UniqueName, nullptr, REN_DontCreateRedirectors);
+
+			// If the cluster node was a master node before the rename, we need to update the master reference in the cluster with the new name
+			if (bIsMaster)
+			{
+				SetClusterNodeAsMaster(ClusterNode);
+			}
 
 			return true;
 		}

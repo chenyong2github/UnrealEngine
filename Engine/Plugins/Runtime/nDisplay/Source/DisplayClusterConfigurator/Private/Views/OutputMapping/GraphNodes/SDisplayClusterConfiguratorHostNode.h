@@ -32,6 +32,7 @@ public:
 	virtual void SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio) override;
 	virtual int32 GetNodeLayerIndex() const override { return DefaultZOrder; }
 	virtual bool CanNodeOverlapSiblings() const override { return false; }
+	virtual bool CanNodeEncroachChildBounds() const { return false; }
 	virtual bool CanNodeBeSnapAligned() const override { return true; }
 	//~ End SDisplayClusterConfiguratorBaseNode interface
 

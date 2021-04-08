@@ -2,7 +2,9 @@
 
 #include "DisplayClusterConfiguratorHostNodeArrangementHelper.h"
 
+#include "DisplayClusterConfigurationTypes.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorHostNode.h"
+#include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
 
 
 class FNodePlacer
@@ -50,7 +52,8 @@ public:
 
 	virtual FVector2D GetNextPosition(UDisplayClusterConfiguratorHostNode* Node) override
 	{
-		if (NextAvailablePosition.X + Node->NodeWidth > WrapThreshold)
+		// We can't wrap if the next available position is already at 0, since that indicates the node is the only node in the row.
+		if (NextAvailablePosition.X > 0 && NextAvailablePosition.X + Node->NodeWidth > WrapThreshold)
 		{
 			NextAvailablePosition.X = 0;
 			NextAvailablePosition.Y += MaxRowHeight + UDisplayClusterConfiguratorHostNode::VerticalSpanBetweenHosts;
@@ -239,14 +242,34 @@ void FDisplayClusterConfiguratorHostNodeArrangementHelper::PlaceNodes(const TArr
 		// Size the node now, as we need the bounds later for placing the automatically positioned nodes
 		if (!HostNode->CanUserResizeNode())
 		{
-			FBox2D HostBounds = HostNode->GetChildBounds();
-			FVector2D Size = FMath::Max(HostBounds.Max - HostNode->GetNodePosition(), FVector2D::ZeroVector);
+			FBox2D ChildBounds;
+			ChildBounds.Init();
 
-			if (HostNode->NodeWidth != Size.X || HostNode->NodeHeight != Size.Y)
+			for (UDisplayClusterConfiguratorBaseNode* ChildNode : HostNode->GetChildren())
 			{
-				HostNode->NodeWidth = Size.X;
-				HostNode->NodeHeight = Size.Y;
+				if (UDisplayClusterConfiguratorWindowNode* WindowNode = Cast<UDisplayClusterConfiguratorWindowNode>(ChildNode))
+				{
+					// Instead of using the child node's global position to compute the host size, use the raw window configuration data.
+					// This will give better results for specific edge cases such as undo operations for moving window nodes.
+					const FDisplayClusterConfigurationRectangle& WindowRect = WindowNode->GetCfgWindowRect();
+					if (WindowRect.W > 0 && WindowRect.H > 0)
+					{
+						ChildBounds += FBox2D(FVector2D(WindowRect.X, WindowRect.Y), FVector2D(WindowRect.X + WindowRect.W, WindowRect.Y + WindowRect.H));
+					}
+				}
+				else
+				{
+					if (!ChildNode->GetNodeSize().IsZero())
+					{
+						ChildBounds += ChildNode->GetNodeBounds();
+					}
+				}
 			}
+
+			FVector2D Size = FMath::Max(ChildBounds.Max + HostNode->GetHostOrigin(), FVector2D::ZeroVector);
+
+			HostNode->NodeWidth = Size.X;
+			HostNode->NodeHeight = Size.Y;
 		}
 
 		if (HostNode->CanUserMoveNode())
