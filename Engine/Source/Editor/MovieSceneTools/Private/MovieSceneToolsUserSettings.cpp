@@ -34,6 +34,7 @@ UMovieSceneUserImportFBXSettings::UMovieSceneUserImportFBXSettings(const FObject
 	bMatchByNameOnly = true;
 	bForceFrontXAxis = false;
 	bCreateCameras = true;
+	bReplaceTransformTrack = true;
 	bReduceKeys = true;
 	ReduceKeysTolerance = 0.001f;
 	bConvertSceneUnit = true;

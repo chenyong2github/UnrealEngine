@@ -79,6 +79,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Import)
 	bool bCreateCameras;
 
+	/** Whether to replace the existing transform track or create a new track/section */
+	UPROPERTY(EditAnywhere, config, Category=Import)
+	bool bReplaceTransformTrack;
+
 	/** Whether to remove keyframes within a tolerance from the imported tracks */
 	UPROPERTY(EditAnywhere, config, Category=Import)
 	bool bReduceKeys;

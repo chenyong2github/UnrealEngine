@@ -2445,7 +2445,19 @@ bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurves
 	TransformTrack->Modify();
 
 	bool bSectionAdded = false;
-	UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->FindOrAddSection(0, bSectionAdded));
+	UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->FindSection(0));
+	if (TransformSection && !ImportFBXSettings->bReplaceTransformTrack)
+	{
+		TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->CreateNewSection());
+		TransformSection->SetRowIndex(TransformTrack->GetMaxRowIndex()+1);
+		TransformTrack->AddSection(*TransformSection);
+		bSectionAdded = true;
+	}
+	else
+	{
+		TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->FindOrAddSection(0, bSectionAdded));
+	}
+
 	if (!TransformSection)
 	{
 		return false;
@@ -3259,7 +3271,7 @@ bool MovieSceneToolHelpers::ImportFBXWithDialog(UMovieSceneSequence* InSequence,
 		.Title(TitleText)
 		.HasCloseButton(true)
 		.SizingRule(ESizingRule::UserSized)
-		.ClientSize(FVector2D(400.0f, 200.0f))
+		.ClientSize(FVector2D(450.0f, 300.0f))
 		.AutoCenter(EAutoCenter::PreferredWorkArea)
 		.SupportsMinimize(false);
 
