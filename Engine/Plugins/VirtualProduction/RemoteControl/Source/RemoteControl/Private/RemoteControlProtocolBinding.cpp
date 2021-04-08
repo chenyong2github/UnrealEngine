@@ -57,6 +57,20 @@ namespace EntityInterpolation
 		return ValuePtrMap;
 	}
 
+	/** Wraps FMath::Lerp, allowing Protocol Binding specific specialization */
+	template< class T, class U > 
+	static T Lerp(const T& A, const T& B, const U& Alpha)
+	{
+		return FMath::Lerp(A, B, Alpha);
+	}
+
+	/** Specialization for bool, toggles at 0.5 Alpha instead of 1.0 */
+	template<>
+	bool Lerp(const bool& A, const bool& B, const float& Alpha)
+	{
+		return FMath::Lerp(A, B, Alpha > 0.5f);
+	}
+
 	template <typename ValueType, typename PropertyType, typename ProtocolValueType>
 	bool InterpolateValue(PropertyType* InProperty, FProperty* Outer, const TArray<TPair<const uint8*, const uint8*>>& InRangeMappingBuffers, ProtocolValueType InProtocolValue, ValueType& OutResultValue, int32 ArrayIndex)
 	{
@@ -105,7 +119,7 @@ namespace EntityInterpolation
 		// Normalize value to range for interpolation
 		const float Percentage = static_cast<float>(ClampProtocolValue - *RangeMin.Key) / static_cast<float>(*RangeMax.Key - *RangeMin.Key);
 
-		OutResultValue = FMath::Lerp(*RangeMin.Value, *RangeMax.Value, Percentage);
+		OutResultValue = Lerp(*RangeMin.Value, *RangeMax.Value, Percentage);
 
 		return true;
 	}
@@ -313,6 +327,26 @@ bool FRemoteControlProtocolMapping::operator==(FGuid InProtocolMappingId) const
 	return Id == InProtocolMappingId;
 }
 
+bool FRemoteControlProtocolMapping::CopyRawRangeData(const FProperty* InProperty, void* OutDestination)
+{
+	return CopyRawData(InterpolationRangePropertyData, InProperty, OutDestination);
+}
+
+bool FRemoteControlProtocolMapping::SetRawRangeData(URemoteControlPreset* InOwningPreset, const FProperty* InProperty, const void* InSource)
+{
+	return SetRawData(InOwningPreset, InterpolationRangePropertyData, InProperty, InSource);
+}
+
+bool FRemoteControlProtocolMapping::CopyRawMappingData(const FProperty* InProperty, void* OutDestination)
+{
+	return CopyRawData(InterpolationMappingPropertyData, InProperty, OutDestination);
+}
+
+bool FRemoteControlProtocolMapping::SetRawMappingData(URemoteControlPreset* InOwningPreset, const FProperty* InProperty, const void* InSource)
+{
+	return SetRawData(InOwningPreset, InterpolationMappingPropertyData, InProperty, InSource);
+}
+
 TSharedPtr<FStructOnScope> FRemoteControlProtocolMapping::GetMappingPropertyAsStructOnScope()
 {
 	if (FStructProperty* StructProperty = CastField<FStructProperty>(BoundPropertyPath.Get()))
@@ -325,6 +359,40 @@ TSharedPtr<FStructOnScope> FRemoteControlProtocolMapping::GetMappingPropertyAsSt
 
 	ensure(false);
 	return nullptr;
+}
+
+bool FRemoteControlProtocolMapping::CopyRawData(const TArray<uint8>& InSource, const FProperty* InProperty, void* OutDestination)
+{
+	if (const FBoolProperty* BoolProperty = CastField<FBoolProperty>(InProperty))
+	{
+		return CopyRawData<FBoolProperty>(InSource, BoolProperty, OutDestination);
+	}
+	if (const FNumericProperty* NumericProperty = CastField<FNumericProperty>(InProperty))
+	{
+		return CopyRawData<FNumericProperty>(InSource, NumericProperty, OutDestination);
+	}
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
+	{
+		return CopyRawData<FStructProperty>(InSource, StructProperty, OutDestination);
+	}
+	return false;
+}
+
+bool FRemoteControlProtocolMapping::SetRawData(URemoteControlPreset* InOwningPreset, TArray<uint8>& OutDestination, const FProperty* InProperty, const void* InSource)
+{
+	if (const FBoolProperty* BoolProperty = CastField<FBoolProperty>(InProperty))
+	{
+		return SetRawData<FBoolProperty>(InOwningPreset, OutDestination, BoolProperty, InSource);
+	}
+	if (const FNumericProperty* NumericProperty = CastField<FNumericProperty>(InProperty))
+	{
+		return SetRawData<FNumericProperty>(InOwningPreset, OutDestination, NumericProperty, InSource);
+	}
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
+	{
+		return SetRawData<FStructProperty>(InOwningPreset, OutDestination, StructProperty, InSource);
+	}
+	return false;
 }
 
 void FRemoteControlProtocolEntity::Init(URemoteControlPreset* InOwner, FGuid InPropertyId)

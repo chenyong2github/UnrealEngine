@@ -42,6 +42,9 @@ private:
 	/** Holds the field's details. */
 	TSharedPtr<class IStructureDetailsView> EntityDetailsView;
 
+	/** Holds the field's protocol details. */
+	TSharedPtr<SBox> EntityProtocolDetails;
+
 	/**
 	 * Pointer to the currently selected node.
 	 * Used in order to ensure that the generated details view keeps a valid pointer to the selected entity.

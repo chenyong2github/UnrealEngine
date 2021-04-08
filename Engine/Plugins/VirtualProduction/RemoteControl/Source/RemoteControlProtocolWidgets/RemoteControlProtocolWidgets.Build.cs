@@ -15,21 +15,21 @@ public class RemoteControlProtocolWidgets : ModuleRules
         );
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
-            "RemoteControlProtocol",
-            "RemoteControl",
-			"RemoteControlUI",
-			"Engine",
 			"Core",
 			"CoreUObject",
+			"EditorStyle",
+			"EditorSubsystem",
+			"EditorWidgets",
+			"Engine",
+			"GraphEditor",
+			"InputCore",
+			"Projects",
+			"PropertyEditor",
+			"RemoteControl",
+			"RemoteControlProtocol",
 			"Slate",
 			"SlateCore",
-			"InputCore",
-			"UnrealEd",
-			"GraphEditor",
-			"EditorStyle",
-			"PropertyEditor",
-			"Projects",
-            "EditorWidgets",
+			"UnrealEd"
 		});
 	}
 }

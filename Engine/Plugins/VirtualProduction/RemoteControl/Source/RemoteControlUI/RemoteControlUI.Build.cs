@@ -25,6 +25,7 @@ public class RemoteControlUI : ModuleRules
 				"InputCore",
 				"Projects",
 				"RemoteControl",
+				"RemoteControlProtocolWidgets",
 				"SceneOutliner",
 				"Slate",
 				"SlateCore",
