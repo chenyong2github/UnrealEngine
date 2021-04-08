@@ -68,88 +68,79 @@ namespace NiagaraDebugLocal
 	static FDelegateHandle	GDebugDrawHandle;
 	static int32			GDebugDrawHandleUsers = 0;
 
+	static TTuple<const TCHAR*, const TCHAR*, TFunction<void(FString)>> GDebugConsoleCommands[] =
+	{
+		// Main HUD commands
+		MakeTuple(TEXT("HudVerbosity="), TEXT("Set the HUD verbosity level"), [](FString Arg) {Settings.HudVerbosity = FMath::Clamp(ENiagaraDebugHudSystemVerbosity(FCString::Atoi(*Arg)), ENiagaraDebugHudSystemVerbosity::None, ENiagaraDebugHudSystemVerbosity::Verbose); }),
+		MakeTuple(TEXT("DisplayLocation="), TEXT("Set the display location of the HUD"),
+			[](FString Arg)
+			{
+				TArray<FString> Values;
+				Arg.ParseIntoArray(Values, TEXT(","));
+				if (Values.Num() > 0)
+				{
+					Settings.HUDLocation.X = FCString::Atof(*Values[0]);
+					if (Values.Num() > 1)
+					{
+						Settings.HUDLocation.Y = FCString::Atof(*Values[1]);
+					}
+				}
+			}
+		),
+		MakeTuple(TEXT("SystemFilter="), TEXT("Set the system filter"), [](FString Arg) {Settings.SystemFilter = Arg; Settings.bSystemFilterEnabled = !Arg.IsEmpty(); }),
+		MakeTuple(TEXT("EmitterFilter="), TEXT("Set the emitter filter"), [](FString Arg) {Settings.EmitterFilter = Arg; Settings.bEmitterFilterEnabled = !Arg.IsEmpty(); GCachedSystemVariables.Empty(); }),
+		MakeTuple(TEXT("ActorFilter="), TEXT("Set the actor filter"), [](FString Arg) {Settings.ActorFilter = Arg; Settings.bActorFilterEnabled = !Arg.IsEmpty(); }),
+		MakeTuple(TEXT("ComponentFilter="), TEXT("Set the component filter"), [](FString Arg) {Settings.ComponentFilter = Arg; Settings.bComponentFilterEnabled = !Arg.IsEmpty(); }),
+
+		MakeTuple(TEXT("ShowGlobalBudgetInfo="), TEXT("Shows global budget information"), [](FString Arg) {Settings.bShowGlobalBudgetInfo = FCString::Atoi(*Arg) != 0; }),
+
+		// System commands
+		MakeTuple(TEXT("SystemShowBounds="), TEXT("Show system bounds"), [](FString Arg) {Settings.bSystemShowBounds = FCString::Atoi(*Arg) != 0; }),
+		MakeTuple(TEXT("SystemShowActiveOnlyInWorld="), TEXT("When enabled only active systems are shown in world"), [](FString Arg) {Settings.bSystemShowActiveOnlyInWorld = FCString::Atoi(*Arg) != 0; }),
+		MakeTuple(TEXT("SystemVerbosity="), TEXT("Set the in world system verbosity"), [](FString Arg) {Settings.SystemVerbosity = FMath::Clamp(ENiagaraDebugHudSystemVerbosity(FCString::Atoi(*Arg)), ENiagaraDebugHudSystemVerbosity::None, ENiagaraDebugHudSystemVerbosity::Verbose); }),
+		MakeTuple(TEXT("SystemVariables="), TEXT("Set the system variables to display"), [](FString Arg) {FNiagaraDebugHUDVariable::InitFromString(Arg, Settings.SystemVariables); GCachedSystemVariables.Empty(); }),
+		MakeTuple(TEXT("ShowSystemVariables="), TEXT("Set system variables visibility"), [](FString Arg) {Settings.bShowSystemVariables = FCString::Atoi(*Arg) != 0; GCachedSystemVariables.Empty(); }),
+
+		// Particle commands
+		MakeTuple(TEXT("GpuReadback="), TEXT("Enables GPU readback support for particle attributes"), [](FString Arg) {Settings.bEnableGpuReadback = FCString::Atoi(*Arg) != 0;}),
+		MakeTuple(TEXT("ParticleVariables="), TEXT("Set the particle variables to display"), [](FString Arg) {FNiagaraDebugHUDVariable::InitFromString(Arg, Settings.ParticlesVariables); GCachedSystemVariables.Empty(); }),
+		MakeTuple(TEXT("ShowParticleVariables="), TEXT("Set Particle variables visibility"), [](FString Arg) {Settings.bShowParticleVariables = FCString::Atoi(*Arg) != 0; GCachedSystemVariables.Empty(); }),
+		MakeTuple(TEXT("MaxParticlesToDisplay="), TEXT("Maximum number of particles to show variables on"), [](FString Arg) {Settings.MaxParticlesToDisplay = FMath::Max(FCString::Atoi(*Arg), 0); }),
+		MakeTuple(TEXT("ShowParticlesVariablesWithSystem="), TEXT("When enabled particle variables are shown with the system display"), [](FString Arg) {Settings.bShowParticlesVariablesWithSystem = FCString::Atoi(*Arg) != 0; }),
+	};
+
 	static FAutoConsoleCommandWithWorldAndArgs CmdDebugHud(
 		TEXT("fx.Niagara.Debug.Hud"),
 		TEXT("Set options for debug hud display"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 			[](const TArray<FString>& Args, UWorld*)
 			{
-				if ( Args.Num() > 0 )
+				if ( Args.Num() == 0 )
 				{
-					for (FString Arg : Args)
+					UE_LOG(LogNiagara, Log, TEXT("fx.Niagara.Debug.Hud - CommandList"));
+					for ( const auto& Command : GDebugConsoleCommands )
 					{
-						if (Arg.RemoveFromStart(TEXT("HudVerbosity=")))
+						UE_LOG(LogNiagara, Log, TEXT(" \"%s\" %s"), Command.Get<0>(), Command.Get<1>());
+					}
+					return;
+				}
+
+				for ( FString Arg : Args )
+				{
+					bool bFound = false;
+					for (const auto& Command : GDebugConsoleCommands)
+					{
+						if ( Arg.RemoveFromStart(Command.Get<0>()) )
 						{
-							Settings.HudVerbosity = FMath::Clamp(ENiagaraDebugHudSystemVerbosity(FCString::Atoi(*Arg)), ENiagaraDebugHudSystemVerbosity::None, ENiagaraDebugHudSystemVerbosity::Verbose);
+							Command.Get<2>()(Arg);
+							bFound = true;
+							break;
 						}
-						else if (Arg.RemoveFromStart(TEXT("GpuReadback=")))
-						{
-							Settings.bEnableGpuReadback = FCString::Atoi(*Arg) != 0;
-						}
-						else if (Arg.RemoveFromStart(TEXT("DisplayLocation=")))
-						{
-							TArray<FString> Values;
-							Arg.ParseIntoArray(Values, TEXT(","));
-							if ( Values.Num() > 0 )
-							{
-								Settings.HUDLocation.X = FCString::Atof(*Values[0]);
-								if (Values.Num() > 1)
-								{
-									Settings.HUDLocation.Y = FCString::Atof(*Values[1]);
-								}
-							}
-						}
-						else if (Arg.RemoveFromStart(TEXT("SystemVerbosity=")))
-						{
-							Settings.SystemVerbosity = FMath::Clamp(ENiagaraDebugHudSystemVerbosity(FCString::Atoi(*Arg)), ENiagaraDebugHudSystemVerbosity::None, ENiagaraDebugHudSystemVerbosity::Verbose);
-						}
-						else if (Arg.RemoveFromStart(TEXT("SystemShowBounds=")))
-						{
-							Settings.bSystemShowBounds = FCString::Atoi(*Arg) != 0;
-						}
-						else if (Arg.RemoveFromStart(TEXT("SystemShowActiveOnlyInWorld=")))
-						{
-							Settings.bSystemShowActiveOnlyInWorld = FCString::Atoi(*Arg) != 0;
-						}
-						else if (Arg.RemoveFromStart(TEXT("SystemFilter=")))
-						{
-							Settings.SystemFilter = Arg;
-						}
-						else if (Arg.RemoveFromStart(TEXT("EmitterFilter=")))
-						{
-							Settings.EmitterFilter = Arg;
-							GCachedSystemVariables.Empty();
-						}
-						else if (Arg.RemoveFromStart(TEXT("ActorFilter=")))
-						{
-							Settings.ActorFilter = Arg;
-						}
-						else if (Arg.RemoveFromStart(TEXT("ComponentFilter=")))
-						{
-							Settings.ComponentFilter = Arg;
-						}
-						else if (Arg.RemoveFromStart(TEXT("SystemVariables=")))
-						{
-							FNiagaraDebugHUDVariable::InitFromString(Arg, Settings.SystemVariables);
-							GCachedSystemVariables.Empty();
-						}
-						else if (Arg.RemoveFromStart(TEXT("ParticleVariables=")))
-						{
-							FNiagaraDebugHUDVariable::InitFromString(Arg, Settings.ParticlesVariables);
-							GCachedSystemVariables.Empty();
-						}
-						else if (Arg.RemoveFromStart(TEXT("MaxParticlesToDisplay=")))
-						{
-							Settings.MaxParticlesToDisplay = FMath::Max(FCString::Atoi(*Arg), 0);
-						}
-						else if (Arg.RemoveFromStart(TEXT("ShowParticlesVariablesWithSystem=")))
-						{
-							Settings.bShowParticlesVariablesWithSystem = FCString::Atoi(*Arg) != 0;
-						}
-						if (Arg.RemoveFromStart(TEXT("ShowGlobalBudgetInfo=")))
-						{
-							Settings.bShowGlobalBudgetInfo = FCString::Atoi(*Arg) != 0;
-						}
+					}
+
+					if ( !bFound )
+					{
+						UE_LOG(LogNiagara, Warning, TEXT("Command '%s' not found"), *Arg);
 					}
 				}
 			}
