@@ -133,6 +133,7 @@ void GenerateShadingRateTexture(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint2 TexelCoord = DispatchThreadId.xy;
 	uint ShadingRateOut = 0;
 
+#if 0		// Disable for now since this breaks GLES 3_1 ("sampler arrays indexed with non-constant expressions is forbidden in GLSL 1.30 and later") and is currently unused anyway.
 	Texture2D<uint> CombineSourceIn[] =
 	{
 		CombineSourceIn_0,
@@ -151,6 +152,7 @@ void GenerateShadingRateTexture(uint3 DispatchThreadId : SV_DispatchThreadID)
 	{
 		ShadingRateOut = CombineShadingRates(ShadingRateOut, CombineSourceIn[Source][TexelCoord]);
 	}
+#endif
 
 	if ((ShadingRateAttachmentGenerationFlags & HMD_FIXED_FOVEATION) != 0)
 	{
