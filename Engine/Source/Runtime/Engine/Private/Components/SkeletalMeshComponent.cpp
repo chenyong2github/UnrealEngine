@@ -2138,6 +2138,7 @@ void USkeletalMeshComponent::HandleExistingParallelClothSimulation()
 
 	if(IsValidRef(ParallelClothTask))
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_EndParallelClothTask);
 		CSV_SCOPED_SET_WAIT_STAT(Cloth);
 
 		// There's a simulation in flight

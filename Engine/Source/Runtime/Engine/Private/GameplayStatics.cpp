@@ -1513,7 +1513,7 @@ UAudioComponent* UGameplayStatics::SpawnSoundAtLocation(const UObject* WorldCont
 		AudioComponent->SetWorldLocationAndRotation(Location, Rotation);
 		AudioComponent->SetVolumeMultiplier(VolumeMultiplier);
 		AudioComponent->SetPitchMultiplier(PitchMultiplier);
-		AudioComponent->bAllowSpatialization	= bIsInGameWorld;
+		AudioComponent->bAllowSpatialization	= Params.ShouldUseAttenuation();
 		AudioComponent->bIsUISound				= !bIsInGameWorld;
 		AudioComponent->bAutoDestroy			= bAutoDestroy;
 		AudioComponent->SubtitlePriority		= Sound->GetSubtitlePriority();
@@ -1598,7 +1598,7 @@ UAudioComponent* UGameplayStatics::SpawnSoundAttached(USoundBase* Sound, USceneC
 
 			AudioComponent->SetVolumeMultiplier(VolumeMultiplier);
 			AudioComponent->SetPitchMultiplier(PitchMultiplier);
-			AudioComponent->bAllowSpatialization = bIsInGameWorld;
+			AudioComponent->bAllowSpatialization = Params.ShouldUseAttenuation();
 			AudioComponent->bIsUISound = !bIsInGameWorld;
 			AudioComponent->bAutoDestroy = bAutoDestroy;
 			AudioComponent->SubtitlePriority = Sound->GetSubtitlePriority();
