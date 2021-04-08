@@ -933,7 +933,11 @@ void FDatasmithSceneXmlReader::ParseLight(FXmlNode* InNode, TSharedPtr<IDatasmit
 		{
 			TSharedRef< IDatasmithPointLightElement > PointLightElement = StaticCastSharedRef< IDatasmithPointLightElement >( OutElement.ToSharedRef() );
 
-			if (ChildNode->GetTag().Compare(DATASMITH_LIGHTSOURCESIZENAME, ESearchCase::IgnoreCase) == 0)
+			if (ChildNode->GetTag().Compare(DATASMITH_LIGHTATTENUATIONRADIUSNAME, ESearchCase::IgnoreCase) == 0)
+			{
+				PointLightElement->SetAttenuationRadius( FCString::Atof(*ChildNode->GetAttribute(TEXT("value"))) );
+			}
+			else if (ChildNode->GetTag().Compare(DATASMITH_LIGHTSOURCESIZENAME, ESearchCase::IgnoreCase) == 0)
 			{
 				PointLightElement->SetSourceRadius( FCString::Atof(*ChildNode->GetAttribute(TEXT("value"))) );
 			}
@@ -964,11 +968,7 @@ void FDatasmithSceneXmlReader::ParseLight(FXmlNode* InNode, TSharedPtr<IDatasmit
 		{
 			TSharedRef< IDatasmithSpotLightElement > SpotLightElement = StaticCastSharedRef< IDatasmithSpotLightElement >( OutElement.ToSharedRef() );
 
-			if (ChildNode->GetTag().Compare(DATASMITH_LIGHTATTENUATIONRADIUSNAME, ESearchCase::IgnoreCase) == 0)
-			{
-				SpotLightElement->SetAttenuationRadius( FCString::Atod(*ChildNode->GetAttribute(TEXT("value"))) );
-			}
-			else if (ChildNode->GetTag().Compare(DATASMITH_LIGHTINNERRADIUSNAME, ESearchCase::IgnoreCase) == 0)
+			if (ChildNode->GetTag().Compare(DATASMITH_LIGHTINNERRADIUSNAME, ESearchCase::IgnoreCase) == 0)
 			{
 				SpotLightElement->SetInnerConeAngle( FCString::Atod(*ChildNode->GetAttribute(TEXT("value"))) );
 			}

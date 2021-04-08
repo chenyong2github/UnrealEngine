@@ -297,7 +297,8 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 				}
 				else if ( IsTextureConnected( MaterialElement->GetNormal().GetExpression() ) )
 				{
-					if ( TextureElement->GetTextureMode() != EDatasmithTextureMode::Bump )
+					if ( TextureElement->GetTextureMode() != EDatasmithTextureMode::Bump
+					  && TextureElement->GetTextureMode() != EDatasmithTextureMode::NormalGreenInv)
 					{
 						TextureElement->SetTextureMode(EDatasmithTextureMode::Normal);
 					}
