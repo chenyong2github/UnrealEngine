@@ -119,6 +119,11 @@ FCacheUserToken UChaosCache::BeginRecord(UPrimitiveComponent* InComponent, FGuid
 			// Build a compatibility hash for the component state.
 			AdapterGuid = InAdapterId;
 
+			if (UPackage* Package = GetOutermost())
+			{
+				Package->SetDirtyFlag(true);
+			}
+
 			return FCacheUserToken(true, true, this);
 		}
 		else
