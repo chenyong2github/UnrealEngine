@@ -52,6 +52,7 @@ THIRD_PARTY_INCLUDES_END
 #undef Yield
 #undef IMediaEventSink
 #undef GetTempFileName
+#undef GetFreeSpace
 
 // Undefine all the atomics. AllowWindowsPlatformAtomics/HideWindowsPlatformAtomics temporarily defining these macros.
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
