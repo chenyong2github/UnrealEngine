@@ -1221,7 +1221,7 @@ bool FRigVMMemoryContainer::Copy(
 		FRigVMByteArray* ArrayStorage = (FRigVMByteArray*)TargetPtr;
 		TargetPtr = ArrayStorage->GetData();
 	}
-	else if (Target.IsNestedDynamic())
+	else if (TargetPtr && Target.IsNestedDynamic())
 	{
 #if WITH_EDITOR
 		ensure(InTargetRegisterOffset == INDEX_NONE);
