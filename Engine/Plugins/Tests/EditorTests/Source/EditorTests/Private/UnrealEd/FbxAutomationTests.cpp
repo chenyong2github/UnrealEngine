@@ -1910,13 +1910,11 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 			//When doing an import-reload we have to destroy the package since it was save
 			//But when we just have everything in memory a garbage collection pass is enough to
 			//delete assets.
-			const bool bShowConfirmation = false;
-			TArray<UObject*> ObjectToDelete;
 			if (TestPlan->Action != EFBXTestPlanActionType::ImportReload)
 			{
 				for (const FAssetData& AssetData : ImportedAssets)
 				{
-					UPackage *Package = AssetData.GetPackage();
+					UPackage* Package = AssetData.GetPackage();
 					if (Package != nullptr)
 					{
 						for (FThreadSafeObjectIterator It; It; ++It)
@@ -1926,14 +1924,12 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 							{
 								ExistingObject->ClearFlags(RF_Standalone | RF_Public);
 								ExistingObject->RemoveFromRoot();
-								ObjectToDelete.Add(ExistingObject);
+								ExistingObject->MarkPendingKill();
 							}
 
 						}
 					}
 				}
-				ObjectTools::ForceDeleteObjects(ObjectToDelete, bShowConfirmation);
-				ObjectToDelete.Empty();
 				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 			}
 
@@ -1941,6 +1937,8 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 			GlobalImportedObjects.Empty();
 			TArray<FAssetData> AssetsToDelete;
 			AssetRegistryModule.Get().GetAssetsByPath(FName(*PackagePath), AssetsToDelete, true);
+			const bool bShowConfirmation = false;
+			TArray<UObject*> ObjectToDelete;
 			for (const FAssetData& AssetData : AssetsToDelete)
 			{
 				UObject *Asset = AssetData.GetAsset();
