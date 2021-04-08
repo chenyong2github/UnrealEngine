@@ -1070,6 +1070,21 @@ void* FVulkanDynamicRHI::RHIGetNativeDevice()
 	return (void*)Device->GetInstanceHandle();
 }
 
+void* FVulkanDynamicRHI::RHIGetNativePhysicalDevice()
+{
+	return (void*)Device->GetPhysicalHandle();
+}
+
+void* FVulkanDynamicRHI::RHIGetNativeGraphicsQueue()
+{
+	return (void*)Device->GetGraphicsQueue()->GetHandle();
+}
+
+void* FVulkanDynamicRHI::RHIGetNativeComputeQueue()
+{
+	return (void*)Device->GetComputeQueue()->GetHandle();
+}
+
 void* FVulkanDynamicRHI::RHIGetNativeInstance()
 {
 	return (void*)GetInstance();
