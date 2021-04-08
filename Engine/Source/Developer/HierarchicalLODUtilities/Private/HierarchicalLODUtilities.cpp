@@ -44,6 +44,7 @@
 #include "Engine/HLODProxy.h"
 #include "HierarchicalLOD.h"
 #include "LevelUtils.h"
+#include "Materials/Material.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHierarchicalLODUtilities, Verbose, All);
 
@@ -633,10 +634,8 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 
 bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, UPackage* AssetsOuter, const FHierarchicalSimplification& LODSetup)
 {
-	UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial"), NULL, LOAD_None, NULL);
-	check(BaseMaterial);
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return BuildStaticMeshForLODActor(LODActor, AssetsOuter, LODSetup, BaseMaterial);
+	return BuildStaticMeshForLODActor(LODActor, AssetsOuter, LODSetup, GEngine->DefaultHLODFlattenMaterial);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 

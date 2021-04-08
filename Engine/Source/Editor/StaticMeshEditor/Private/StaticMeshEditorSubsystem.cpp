@@ -2181,7 +2181,7 @@ bool UStaticMeshEditorSubsystem::CreateProxyMeshActor(const TArray<class AStatic
 	MeshUtilities.CreateProxyMesh(
 		AllActors,                      // List of Actors to merge
 		MergeOptions.MeshProxySettings, // Merge settings
-		nullptr,                        // Base Material used for final proxy material. Note: nullptr for default impl: /Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial
+		nullptr,                        // Base Material used for final proxy material. Note: nullptr for default impl: GEngine->DefaultFlattenMaterial
 		nullptr,                        // Package for generated assets. Note: if nullptr, BasePackageName is used
 		PackageName,                    // Will be used for naming generated assets, in case InOuter is not specified ProxyBasePackageName will be used as long package name for creating new packages
 		FGuid::NewGuid(),               // Identify a job, First argument of the ProxyDelegate

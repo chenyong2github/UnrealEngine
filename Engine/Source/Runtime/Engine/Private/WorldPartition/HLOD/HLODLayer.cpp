@@ -29,7 +29,10 @@ UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 #endif
 {
 #if WITH_EDITORONLY_DATA
-	HLODMaterial = ConstructorHelpers::FObjectFinder<UMaterialInterface>(TEXT("/Engine/EngineMaterials/BaseFlattenMaterial")).Object;
+	if (!IsTemplate())
+	{
+		HLODMaterial = GEngine->DefaultHLODFlattenMaterial;
+	}
 #endif
 }
 

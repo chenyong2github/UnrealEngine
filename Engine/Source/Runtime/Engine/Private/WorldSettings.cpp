@@ -750,7 +750,7 @@ void AWorldSettings::InternalPostPropertyChanged(FName PropertyName)
 				const IMeshMergeUtilities& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
 				if (!Module.IsValidBaseMaterial(OverrideBaseMaterial.LoadSynchronous(), true))
 				{
-					OverrideBaseMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial"), NULL, LOAD_None, NULL);
+					OverrideBaseMaterial = GEngine->DefaultHLODFlattenMaterial;
 				}
 			}
 		}
@@ -766,7 +766,7 @@ void UHierarchicalLODSetup::PostEditChangeProperty(struct FPropertyChangedEvent&
 			const IMeshMergeUtilities& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
 			if (!Module.IsValidBaseMaterial(OverrideBaseMaterial.LoadSynchronous(), true))
 			{
-				OverrideBaseMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial"), NULL, LOAD_None, NULL);
+				OverrideBaseMaterial = GEngine->DefaultHLODFlattenMaterial;
 			}
 		}
 	}

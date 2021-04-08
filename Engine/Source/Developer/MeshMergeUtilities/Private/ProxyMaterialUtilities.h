@@ -19,13 +19,20 @@ namespace ProxyMaterialUtilities
 	bool b##a##Texture = FlattenMaterial.DoesPropertyContainData(EFlattenMaterialProperties::a) && !FlattenMaterial.IsPropertyConstant(EFlattenMaterialProperties::a); \
 	if ( b##a##Texture) \
 	{ \
+		FName TextureName(#a "Texture"); \
 		UTexture2D* a##Texture = b##a##Texture ? FMaterialUtilities::CreateTexture(InOuter, AssetBasePath + TEXT("T_") + AssetBaseName + TEXT("_" #a), FlattenMaterial.GetPropertySize(EFlattenMaterialProperties::a), FlattenMaterial.GetPropertySamples(EFlattenMaterialProperties::a), b, TEXTUREGROUP_HierarchicalLOD, RF_Public | RF_Standalone, c) : nullptr; \
+		UTexture* DefaultTexture = nullptr; \
+		OutMaterial->GetTextureParameterValue(TextureName, DefaultTexture); \
 		OutMaterial->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(#a "Texture"), a##Texture); \
 		FStaticSwitchParameter SwitchParameter; \
 		SwitchParameter.ParameterInfo.Name = "Use" #a; \
 		SwitchParameter.Value = true; \
 		SwitchParameter.bOverride = true; \
 		NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter); \
+		if (ensure(DefaultTexture)) \
+		{ \
+			a##Texture->VirtualTextureStreaming = DefaultTexture->VirtualTextureStreaming; \
+		} \
 		a##Texture->PostEditChange(); \
 		OutAssetsToSync.Add(a##Texture); \
 	} 
@@ -109,7 +116,7 @@ namespace ProxyMaterialUtilities
 		const IMeshMergeUtilities& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
 		if (!Module.IsValidBaseMaterial(InBaseMaterial, false))
 		{
-			BaseMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial"), NULL, LOAD_None, NULL);
+			BaseMaterial = GEngine->DefaultFlattenMaterial;
 		} 
 
 		UMaterialInstanceConstant* OutMaterial = FMaterialUtilities::CreateInstancedMaterial(BaseMaterial, InOuter, AssetBasePath + AssetBaseName, RF_Public | RF_Standalone);
@@ -249,9 +256,20 @@ namespace ProxyMaterialUtilities
 			SwitchParameter.bOverride = true;
 			NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 
+
+			const FName PackedTextureName(TEXT("PackedTexture"));
+
+			// Make sure the packed texture is a VT if required by the material.
+			UTexture* DefaultTexture = nullptr;
+			OutMaterial->GetTextureParameterValue(PackedTextureName, DefaultTexture);
+			if (ensure(DefaultTexture))
+			{
+				PackedTexture->VirtualTextureStreaming = DefaultTexture->VirtualTextureStreaming;
+				PackedTexture->PostEditChange();
+			}
+
 			// Set up switch and texture values
-			FMaterialParameterInfo ParameterInfo(TEXT("PackedTexture"));
-			OutMaterial->SetTextureParameterValueEditorOnly(ParameterInfo, PackedTexture);
+			OutMaterial->SetTextureParameterValueEditorOnly(PackedTextureName, PackedTexture);
 		}
 
 		// Emissive is a special case due to the scaling variable
@@ -277,8 +295,7 @@ namespace ProxyMaterialUtilities
 
 	static UMaterialInstanceConstant* CreateProxyMaterialInstance(UPackage* InOuter, const FMaterialProxySettings& InMaterialProxySettings, FFlattenMaterial& FlattenMaterial, const FString& AssetBasePath, const FString& AssetBaseName, TArray<UObject*>& OutAssetsToSync, FMaterialUpdateContext* MaterialUpdateContext = nullptr)
 	{
-		UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial"), NULL, LOAD_None, NULL);
-		return CreateProxyMaterialInstance(InOuter, InMaterialProxySettings, BaseMaterial, FlattenMaterial, AssetBasePath, AssetBasePath, OutAssetsToSync, MaterialUpdateContext);
+		return CreateProxyMaterialInstance(InOuter, InMaterialProxySettings, GEngine->DefaultFlattenMaterial, FlattenMaterial, AssetBasePath, AssetBasePath, OutAssetsToSync, MaterialUpdateContext);
 	}
 
 };

@@ -1009,6 +1009,20 @@ public:
 	/** A material used to render debug meshes. */
 	UPROPERTY()
 	TObjectPtr<class UMaterial> DebugEditorMaterial;
+
+	/** A material used to flatten materials. */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath DefaultFlattenMaterialName;
+
+	/** A material used to flatten materials to VT textures. */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath DefaultHLODFlattenMaterialName;
+
+	/** Materials used when flattening materials */
+	UPROPERTY()
+	TObjectPtr<class UMaterial> DefaultFlattenMaterial;
+	UPROPERTY()
+	TObjectPtr<class UMaterial> DefaultHLODFlattenMaterial;
 #endif
 
 	/** A material used to render debug opaque material. Used in various animation editor viewport features. */

@@ -54,7 +54,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogLODGenerator, Log, All);
 UHierarchicalLODSettings::UHierarchicalLODSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer), bForceSettingsInAllMaps(false), BaseMaterial(nullptr)
 {	
-	BaseMaterial = ConstructorHelpers::FObjectFinder<UMaterialInterface>(TEXT("/Engine/EngineMaterials/BaseFlattenMaterial")).Object;
+	if (!IsTemplate())
+	{
+		BaseMaterial = GEngine->DefaultHLODFlattenMaterial;
+	}
 }
 
 void UHierarchicalLODSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -66,7 +69,7 @@ void UHierarchicalLODSettings::PostEditChangeProperty(struct FPropertyChangedEve
 			const IMeshMergeUtilities& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
 			if (!Module.IsValidBaseMaterial(BaseMaterial.LoadSynchronous(), true))
 			{
-				BaseMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial"), NULL, LOAD_None, NULL);
+				BaseMaterial = GEngine->DefaultFlattenMaterial;
 			}
 		}
 	}

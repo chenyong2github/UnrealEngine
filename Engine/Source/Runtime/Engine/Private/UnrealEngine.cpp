@@ -2703,6 +2703,11 @@ void UEngine::InitializeObjectReferences()
 		}
 	}
 
+#if WITH_EDITORONLY_DATA
+	LoadSpecialMaterial(TEXT("DefaultFlattenMaterialName"), DefaultFlattenMaterialName.ToString(), DefaultFlattenMaterial, false);
+	LoadSpecialMaterial(TEXT("DefaultHLODFlattenMaterialName"), DefaultHLODFlattenMaterialName.ToString(), DefaultHLODFlattenMaterial, false);
+#endif
+
 	LoadEngineTexture(DefaultTexture, *DefaultTextureName.ToString());
 	LoadEngineTexture(DefaultDiffuseTexture, *DefaultDiffuseTextureName.ToString());
 	LoadEngineTexture(HighFrequencyNoiseTexture, *HighFrequencyNoiseTextureName.ToString());
