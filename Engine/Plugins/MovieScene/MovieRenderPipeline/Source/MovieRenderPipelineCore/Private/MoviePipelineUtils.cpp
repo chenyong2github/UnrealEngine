@@ -18,7 +18,7 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/Paths.h"
 #include "Misc/FrameRate.h"
-#include "MoviepipelineQueue.h"
+#include "MoviePipelineQueue.h"
 
 namespace UE
 {
