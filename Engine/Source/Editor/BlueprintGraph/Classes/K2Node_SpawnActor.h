@@ -42,7 +42,7 @@ class UK2Node_SpawnActor : public UK2Node
 	/** Create new pins to show properties on archetype */
 	void CreatePinsForClass(UClass* InClass);
 	/** See if this is a spawn variable pin, or a 'default' pin */
-	BLUEPRINTGRAPH_API bool IsSpawnVarPin(UEdGraphPin* Pin);
+	BLUEPRINTGRAPH_API bool IsSpawnVarPin(UEdGraphPin* Pin) const;
 
 	/** Get the then output pin */
 	BLUEPRINTGRAPH_API UEdGraphPin* GetThenPin() const;
