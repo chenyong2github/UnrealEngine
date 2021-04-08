@@ -88,7 +88,7 @@ namespace Generator
 		FunctionGenerateMap.Add(TEXT("mdl_base_rotation_translation_scale"), {&FFunctionGenerator::BaseRotationTranslationScale, 1});
 		FunctionGenerateMap.Add(TEXT("mdl_base_sellmeier_coefficients_ior"), {&FFunctionGenerator::BaseSellmeierCoefficientsIOR, 1});
 		FunctionGenerateMap.Add(TEXT("mdl_base_tangent_space_normal_texture"), {&FFunctionGenerator::BaseTangentSpaceNormalTexture, 4});
-		FunctionGenerateMap.Add(TEXT("mdl_base_texture_coordinate_info"), {&FFunctionGenerator::BaseTextureCoordinateInfo, 3});
+		FunctionGenerateMap.Add(TEXT("mdl_base_texture_coordinate_info"), {&FFunctionGenerator::BaseTextureCoordinateInfo, 4});
 		FunctionGenerateMap.Add(TEXT("mdl_base_tile_bump_texture"), {&FFunctionGenerator::BaseTileBumpTexture, 1});
 		FunctionGenerateMap.Add(TEXT("mdl_base_transform_coordinate"), {&FFunctionGenerator::BaseTransformCoordinate, 2});
 		FunctionGenerateMap.Add(TEXT("mdl_base_volume_coefficient"), {&FFunctionGenerator::BaseVolumeCoefficient, 1});
@@ -222,10 +222,6 @@ namespace Generator
 		FunctionGenerateMap.Add(TEXT("mdl_nvidia_distilling_support_refl_from_ior_color"), {&FFunctionGenerator::DistillingSupportReflFromIORFloat3, 3});
 		FunctionGenerateMap.Add(TEXT("mdl_nvidia_distilling_support_refl_from_ior_float"), {&FFunctionGenerator::DistillingSupportReflFromIORFloat, 1});
 
-		// Unreal Omni
-		FunctionGenerateMap.Add(TEXT("mdl_OmniUe4Base_tangent_space_normal"), { &FFunctionGenerator::UnrealTangentSpaceNormal, 1 });
-		FunctionGenerateMap.Add(TEXT("mdl_OmniUe4Translucent_get_translucent_opacity"), { &FFunctionGenerator::UnrealOpacityWeight, 1 });
-
 		// common functions generation
 		const FString EngineUtilityPath = TEXT("/Engine/Functions/Engine_MaterialFunctions02/Utility");
 		CommonFunctions.SetNum((int)ECommonFunction::Count);
@@ -248,6 +244,24 @@ namespace Generator
 		CommonFunctions[(int)ECommonFunction::VolumeAbsorptionColor]   = GetFunction(PluginMaterialsPath, TEXT("VolumeAbsorptionColor"));
 		CommonFunctions[(int)ECommonFunction::TranslucentOpacity]      = GetFunction(PluginMaterialsPath, TEXT("TranslucentOpacity"));
 		check(CommonFunctions.FindByPredicate([](const auto Fct) { return Fct == nullptr; }) == nullptr);
+
+		// OmniPBR noinline functions. These are annotated as noinline and require UE specific implementations.
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Function_unpack_normal_map"), { &FFunctionGenerator::UnrealTextureLookup, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Function_greyscale_texture_lookup"), { &FFunctionGenerator::UnrealTextureLookup, 1 });
+
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Base_tangent_space_normal"), { &FFunctionGenerator::UnrealTangentSpaceNormal, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Base_emissive_multiplier"), { &FFunctionGenerator::UnrealEmissiveMultiplier, 1 });
+
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Translucent_tangent_space_normal"), { &FFunctionGenerator::UnrealTangentSpaceNormal, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Translucent_emissive_multiplier"), { &FFunctionGenerator::UnrealEmissiveMultiplier, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Translucent_get_translucent_tint"), { &FFunctionGenerator::UnrealTranslucentGetTint, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Translucent_get_emissive_intensity"), { &FFunctionGenerator::UnrealTranslucentGetTint, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Translucent_get_translucent_opacity"), { &FFunctionGenerator::UnrealOpacityWeight, 1 });
+
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Subsurface_tangent_space_normal"), { &FFunctionGenerator::UnrealTangentSpaceNormal, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Subsurface_emissive_multiplier"), { &FFunctionGenerator::UnrealEmissiveMultiplier, 1 });
+
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Unlit_emissive_multiplier"), { &FFunctionGenerator::UnrealEmissiveMultiplier, 1 });
 	}
 
 	FFunctionLoader::~FFunctionLoader() {}
@@ -257,8 +271,20 @@ namespace Generator
 		FGenerationData* GenerationData = FunctionGenerateMap.Find(AssetName);
 		if (!GenerationData)
 		{
-			UE_LOG(LogMDLImporter, Warning, TEXT("Unkown function: %s"), *AssetName);
-			return nullptr;
+			for ( TMap< FString, FGenerationData >::TIterator It = NoInlineFunctionGenerateMap.CreateIterator(); It; ++It )
+			{
+				if ( AssetName.EndsWith( It.Key() ) )
+				{
+					GenerationData = &It.Value();
+					break;
+				}
+			}
+
+			if (!GenerationData)
+			{
+				UE_LOG(LogMDLImporter, Warning, TEXT("Unknown function: %s"), *AssetName);
+				return nullptr;
+			}
 		}
 
 		FString FunctionName = AssetName;

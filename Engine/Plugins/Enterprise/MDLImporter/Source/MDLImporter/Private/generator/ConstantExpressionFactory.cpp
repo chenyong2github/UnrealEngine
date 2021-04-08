@@ -150,8 +150,8 @@ namespace Generator
 					Common::FTextureProperty Property;
 					Property.Path = Mdl::Util::GetTextureFileName(MDLTexture.get());
 					float Gamma = MDLTexture->get_effective_gamma();
-					Property.bIsSRGB = Gamma != 1.0;
-					if (ProcessingNormapMap)
+					Property.bIsSRGB = Gamma != 1.0f;
+					if (bProcessingNormapMap)
 					{
 						Property.CompressionSettings = TC_Normalmap;
 					}

@@ -202,7 +202,7 @@ namespace Generator
 				// when expression up the call stack is a normalmap expression make (every)texture used under it
 				// treated as a normalmap
 				// store it as a normalmap and sample it as normal
-				if (ProcessingNormapMap)
+				if (bProcessingNormapMap)
 				{
 					if (Outputs.Num() == 1)
 					{
@@ -215,10 +215,18 @@ namespace Generator
 								if (UTexture2D* Texture = Cast<UTexture2D>(TextureExpression->Texture))
 								{
 									TextureExpression->SamplerType = Texture->VirtualTextureStreaming ? SAMPLERTYPE_VirtualNormal : SAMPLERTYPE_Normal;
-									Common::FTextureProperty Property;
-									Property.bIsSRGB = false;
-									Property.CompressionSettings = TC_Normalmap;
-									TextureFactory->UpdateTextureSettings(Cast<UTexture2D>(TextureExpression->Texture), Property);
+
+									if (!Texture->GetPathName().StartsWith(TEXT("/Engine")))
+									{
+										Common::FTextureProperty Property;
+										Property.bIsSRGB = false;
+										Property.CompressionSettings = TC_Normalmap;
+										TextureFactory->UpdateTextureSettings(Cast<UTexture2D>(TextureExpression->Texture), Property);
+									}
+									else
+									{
+										TextureExpression->Texture = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineMaterials/DefaultNormal.DefaultNormal"), nullptr, LOAD_None, nullptr);
+									}
 								}
 							}
 
@@ -993,10 +1001,10 @@ namespace Generator
 			ParameterExpressionFactory.SetProcessingNormapMap(false);
 		}
 
-		const mi::neuraylib::IFunction_definition::Semantics Semantic = FunctionDefinition->get_semantic();
+		mi::neuraylib::IFunction_definition::Semantics Semantic = FunctionDefinition->get_semantic();
 		HandleNormal(Semantic, Inputs);
 
-		if (FunctionName.StartsWith(TEXT("::base::texture_coordinate_info")))
+		if (FunctionName == "::base::texture_coordinate_info(float3,float3,float3)")
 		{
 			const mi::base::Handle<const mi::neuraylib::IType_list> ParameterTypes(FunctionDefinition->get_parameter_types());
 

@@ -58,6 +58,7 @@ namespace Generator
 		UMaterialFunctionFactoryNew*      FunctionFactory;
 		TUniquePtr<FFunctionGenerator>    FunctionGenerator;
 		TMap<FString, FGenerationData>    FunctionGenerateMap;
+		TMap<FString, FGenerationData>    NoInlineFunctionGenerateMap;
 		TMap<FString, UMaterialFunction*> LoadedFunctions;
 		TArray<UMaterialFunction*>        CommonFunctions;
 		FString                           FunctionsAssetPath;

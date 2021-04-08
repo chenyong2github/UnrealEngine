@@ -385,18 +385,22 @@ namespace Generator
 			{
 				auto Handle = mi::base::make_handle(Value.get_interface<const mi::neuraylib::IValue_texture>());
 				const mi::base::Handle<const mi::neuraylib::ITexture> MDLTexture(Transaction.access<mi::neuraylib::ITexture>(Handle->get_value()));
-				if (!MDLTexture)
-					return;
 
-				Common::FTextureProperty Property;
-				Property.Path    = Mdl::Util::GetTextureFileName(MDLTexture.get());
-				float Gamma      = MDLTexture->get_effective_gamma();
-				Property.bIsSRGB = Gamma != 1.0;
-				if (!FPaths::GetExtension(Property.Path).IsEmpty())
+				UTexture2D* Texture = nullptr;
+
+				if (MDLTexture)
 				{
-					UTexture2D* Texture = TextureFactory->CreateTexture(CurrentMaterial->GetOuter(), Property, CurrentMaterial->GetFlags(), &LogMessages);
-					Parameter.Add(NewMaterialExpressionTextureObjectParameter(CurrentMaterial, Name, Texture));
+					Common::FTextureProperty Property;
+					Property.Path    = Mdl::Util::GetTextureFileName(MDLTexture.get());
+					float Gamma      = MDLTexture->get_effective_gamma();
+					Property.bIsSRGB = Gamma != 1.0;
+					if (!FPaths::GetExtension(Property.Path).IsEmpty())
+					{
+						Texture = TextureFactory->CreateTexture(CurrentMaterial->GetOuter(), Property, CurrentMaterial->GetFlags(), &LogMessages);
+					}
 				}
+
+				Parameter.Add(NewMaterialExpressionTextureObjectParameter(CurrentMaterial, Name, Texture));
 			}
 			break;
 			case mi::neuraylib::IValue::VK_LIGHT_PROFILE:
