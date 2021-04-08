@@ -1332,6 +1332,11 @@ bool CheckPlatformDepthExtensionSupport(const XrInstanceProperties& InstanceProp
 		// No PF_DepthStencil compatible formats offered yet
 		return false;
 	}
+	else if (FCStringAnsi::Strstr(InstanceProps.runtimeName, "Windows Mixed Reality Runtime") && (FApp::GetGraphicsRHI() == TEXT("DirectX 12")))
+	{
+		// Temp: WMR missing depth layout transitions
+		return false;
+	}
 	return true;
 }
 
