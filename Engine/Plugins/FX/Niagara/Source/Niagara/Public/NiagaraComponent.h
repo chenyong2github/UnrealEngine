@@ -91,7 +91,7 @@ private:
 	 * - If this value is set in a non-deterministic way, it has the potential to break determinism of the entire system.
 	 * - This value is applied when emitters are activated/reset, and changing them while the emitter is active has no effect.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Randomness")
+	UPROPERTY(EditAnywhere, Category = "Randomness")
 	int32 RandomSeedOffset;
 
 	UPROPERTY()
