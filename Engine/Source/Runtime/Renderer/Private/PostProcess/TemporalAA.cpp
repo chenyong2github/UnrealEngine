@@ -20,7 +20,7 @@ const int32 GTemporalAATileSizeX = 8;
 const int32 GTemporalAATileSizeY = 8;
 
 TAutoConsoleVariable<int32> CVarTAAAlgorithm(
-	TEXT("r.TemporalAA.Algorithm"), 0,
+	TEXT("r.TemporalAA.Algorithm"), 1,
 	TEXT("Algorithm to use for Temporal AA\n")
 	TEXT(" 0: Gen 4 TAAU (default)\n")
 	TEXT(" 1: Gen 5 TAAU (experimental)"),
@@ -113,6 +113,11 @@ inline bool DoesPlatformSupportTemporalHistoryUpscale(EShaderPlatform Platform)
 
 inline bool DoesPlatformSupportGen5TAA(EShaderPlatform Platform)
 {
+	// TODO(Gen5TAA): alpha channel is not supported yet
+	if (IsPostProcessingWithAlphaChannelSupported())
+	{
+		return false;
+	}
 	return FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform);
 }
 

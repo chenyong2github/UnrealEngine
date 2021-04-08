@@ -529,8 +529,14 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		EditCondition = "DefaultFeatureAntiAliasing == EAntiAliasingMethod::AAM_TemporalAA",
 		ConsoleVariable = "r.TemporalAA.Upsampling", DisplayName = "Temporal Upsampling",
-		ToolTip = "Whether to do primary screen percentage with temporal AA or not."))
+		ToolTip = "Whether to do primary screen percentage upscale with Temporal AA pass or not."))
 	uint32 bTemporalUpsampling : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
+		EditCondition = "DefaultFeatureAntiAliasing == EAntiAliasingMethod::AAM_TemporalAA",
+		ConsoleVariable = "r.TemporalAA.Algorithm", DisplayName = "Temporal Anti-Aliasing for 5th generation of consoles",
+		ToolTip = "Whether to enable UE5's new Temporal Anti-Aliasing method. This new technique is mainly built for handling Nanite amount of details on screen and higher upscale quality with Temporal Upsampling and ScreenPercentage/Dynamic Resolution on desktops and 5th generation of consoles."))
+	uint32 bUseGen5TAA : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.AntiAliasing", DisplayName = "Anti-Aliasing Method",

@@ -322,10 +322,10 @@ static TAutoConsoleVariable<int32> CVarAllowTranslucencyAfterDOF(
 
 static TAutoConsoleVariable<int32> CVarEnableTemporalUpsample(
 	TEXT("r.TemporalAA.Upsampling"),
-	0,
+	1,
 	TEXT("Whether to do primary screen percentage with temporal AA or not.\n")
-	TEXT(" 0: use spatial upscale pass independently of TAA (default);\n")
-	TEXT(" 1: TemporalAA performs spatial and temporal upscale as screen percentage method."),
+	TEXT(" 0: use spatial upscale pass independently of TAA;\n")
+	TEXT(" 1: TemporalAA performs spatial and temporal upscale as screen percentage method (default)."),
 	ECVF_Default);
 
 // Conversion factor used when "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange" 
