@@ -23,6 +23,15 @@ struct SCENEOUTLINER_API FActorDescTreeItem : ISceneOutlinerTreeItem
 		{
 		}
 
+		~FActorDescHandle()
+		{
+			// HACK: prevent the destructor of the handle from accessing the deleted pointer if the container is invalid by manually resetting it.
+			if (!Container.IsValid())
+			{
+				ActorDesc.Reset();
+			}
+		}
+
 		bool IsValid() const { return Container.IsValid(); }
 		
 		const FWorldPartitionActorDesc* GetActorDesc() const

@@ -174,7 +174,12 @@ public:
 	{
 		return IsValid() ? ActorDesc->Get() : nullptr;
 	}
-		
+
+	FORCEINLINE void Reset()
+	{
+		ActorDesc = nullptr;
+	}
+	
 	friend FORCEINLINE uint32 GetTypeHash(const TWorldPartitionHandle<Impl>& HandleBase)
 	{
 		return ::PointerHash(HandleBase.ActorDesc);
