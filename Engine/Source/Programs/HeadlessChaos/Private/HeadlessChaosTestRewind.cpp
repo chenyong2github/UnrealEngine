@@ -282,6 +282,60 @@ namespace ChaosTest {
 			});
 	}
 
+	GTEST_TEST(AllTraits, RewindTest_ResimSleepChange)
+	{
+		//change object state on physics thread, and make sure the state change is properly recorded in rewind data
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				struct FRewindCallback : public IRewindCallback
+				{
+					FSingleParticlePhysicsProxy* Proxy;
+					FRewindData* RewindData;
+
+					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+					{
+						for (int32 Step = 0; Step < PhysicsStep; ++Step)
+						{
+							const EObjectStateType OldState = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step).ObjectState();
+							if (Step < 4)	//we set to sleep on step 3, which means we won't see it as input state until 4
+							{
+								EXPECT_EQ(OldState, EObjectStateType::Dynamic);
+							}
+							else
+							{
+								EXPECT_EQ(OldState, EObjectStateType::Sleeping);
+							}
+						}
+
+						if (PhysicsStep == 3)
+						{
+							Proxy->GetPhysicsThreadAPI()->SetObjectState(EObjectStateType::Sleeping);
+						}
+					}
+				};
+
+				const int32 LastGameStep = 32;
+				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
+
+				auto UniqueRewindCallback = MakeUnique<FRewindCallback>();
+				auto RewindCallback = UniqueRewindCallback.Get();
+				RewindCallback->Proxy = Proxy;
+				RewindCallback->RewindData = Solver->GetRewindData();
+
+				Solver->SetRewindCallback(MoveTemp(UniqueRewindCallback));
+
+				auto& Particle = Proxy->GetGameThreadAPI();
+				Particle.SetGravityEnabled(false);
+				Particle.SetV(FVec3(0, 0, 1));
+
+				for (int Step = 0; Step <= LastGameStep; ++Step)
+				{
+					TickSolverHelper(Solver);
+				}
+
+			});
+	}
+
 	GTEST_TEST(AllTraits, RewindTest_AddForce)
 	{
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)

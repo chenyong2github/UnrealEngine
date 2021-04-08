@@ -894,6 +894,11 @@ namespace Chaos
 			if(bIsNew)
 			{
 				auto Handle = Proxy->GetHandle_LowLevel();
+				if(auto Rigid = Handle->CastToRigidParticle())
+				{
+					Rigid->SetPreObjectStateLowLevel(Rigid->ObjectState());	//created this frame so pre is the initial value
+				}
+
 				AddParticleToProxy(Handle,Proxy);
 				GetEvolution()->CreateParticle(Handle);
 				Proxy->SetInitialized(GetCurrentFrame());
