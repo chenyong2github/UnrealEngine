@@ -606,6 +606,9 @@ namespace UnrealGameSync
 					List<string> SyncDepotPaths = new List<string>();
 					using(RecordCounter Counter = new RecordCounter(Progress, "Filtering files..."))
 					{
+						// Track the total new bytes that will be required on disk when syncing. Add an extra 100MB for padding.
+						long RequiredFreeSpace = 100 * 1024 * 1024;
+
 						foreach(string SyncPath in SyncPaths)
 						{
 							List<PerforceFileRecord> SyncRecords = new List<PerforceFileRecord>();
@@ -632,6 +635,7 @@ namespace UnrealGameSync
 								{
 									BatchBuilder.Add(String.Format("{0}@{1}", SyncRecord.DepotPath, PendingChangeNumber), SyncRecord.FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
+									RequiredFreeSpace += SyncRecord.FileSize;
 									continue;
 								}
 
@@ -649,10 +653,12 @@ namespace UnrealGameSync
 								}
 
 								// Make sure it's under the current directory. Not sure why this would happen, just being safe.
+								// This occurs for files returned from GetOpenFiles as SyncRecord.ClientPath is the client workspace path not local path.
 								if (!FullName.StartsWith(LocalRootPrefix, StringComparison.OrdinalIgnoreCase))
 								{
 									BatchBuilder.Add(String.Format("{0}@{1}", SyncRecord.DepotPath, PendingChangeNumber), SyncRecord.FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
+									RequiredFreeSpace += SyncRecord.FileSize;
 									continue;
 								}
 
@@ -668,12 +674,37 @@ namespace UnrealGameSync
 
 									SyncTree.IncludeFile(PerforceUtils.EscapePath(RelativePath), FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
+									RequiredFreeSpace += FileSize;
+									FileInfo LocalFileInfo = new FileInfo(FullName);
+
+									// If the file exists the required free space can be reduced as those bytes will be replaced.
+									if (LocalFileInfo.Exists)
+									{
+										RequiredFreeSpace -= LocalFileInfo.Length;
+									}
 								}
 								else
 								{
 									SyncTree.ExcludeFile(PerforceUtils.EscapePath(RelativePath));
 								}
 							}
+						}
+
+						try
+						{
+							DirectoryInfo LocalRootInfo = new DirectoryInfo(LocalRootPrefix);
+							DriveInfo Drive = new DriveInfo(LocalRootInfo.Root.FullName);
+
+							if (Drive.AvailableFreeSpace < RequiredFreeSpace)
+							{
+								Log.WriteLine("Syncing requires {0} which exceeds the {1} available free space on {2}.", EpicGames.Core.StringUtils.FormatBytesString(RequiredFreeSpace), EpicGames.Core.StringUtils.FormatBytesString(Drive.AvailableFreeSpace), Drive.Name);
+								StatusMessage = "Not enough available free space.";
+								return WorkspaceUpdateResult.FailedToSync;
+							}
+						}
+						catch (SystemException)
+						{
+							Log.WriteLine("Unable to check available free space for {0}.", LocalRootPrefix);
 						}
 					}
 					SyncTree.GetOptimizedSyncCommands(ClientRootPath, PendingChangeNumber, BatchBuilder);

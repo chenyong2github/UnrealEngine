@@ -17,6 +17,11 @@ namespace EpicGames.Core
 		static sbyte[] HexDigits;
 
 		/// <summary>
+		/// Array mapping human readable size of bytes, 1024^x. long max is within the range of Exabytes.
+		/// </summary>
+		static string[] ByteSizes = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
+
+		/// <summary>
 		/// Static constructor. Initializes the HexDigits array.
 		/// </summary>
 		static StringUtils()
@@ -407,6 +412,24 @@ namespace EpicGames.Core
 			{
 				return String;
 			}
+		}
+
+		/// <summary>
+		/// Formats bytes into a human readable string
+		/// </summary>
+		/// <param name="Bytes">The total number of bytes</param>
+		/// <param name="DecimalPlaces">The number of decimal places to round the resulting value</param>
+		/// <returns>Human readable string based on the value of Bytes</returns>
+		public static string FormatBytesString(long Bytes, int DecimalPlaces = 2)
+		{
+			if (Bytes == 0)
+			{
+				return $"0 {ByteSizes[0]}";
+			}
+			long BytesAbs = Math.Abs(Bytes);
+			int Power = Convert.ToInt32(Math.Floor(Math.Log(BytesAbs, 1024)));
+			double Value = Math.Round(BytesAbs / Math.Pow(1024, Power), DecimalPlaces);
+			return $"{(Math.Sign(Bytes) * Value)} {ByteSizes[Power]}";
 		}
 	}
 }
