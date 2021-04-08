@@ -32,8 +32,8 @@
 namespace FEnvironmentQueryHelper
 {
 	static const FString StatFileDescription = LOCTEXT("FileTypeDescription", "EQS Stat File").ToString();
-	static const FString LoadFileTypes = FString::Printf(TEXT("%s (*.ue4eqs)|*.ue4eqs"), *StatFileDescription);
-	static const FString SaveFileTypes = FString::Printf(TEXT("%s (*.ue4eqs)|*.ue4eqs"), *StatFileDescription);
+	static const FString LoadFileTypes = FString::Printf(TEXT("%s (*.ue_eqs)|*.ue_eqs"), *StatFileDescription);
+	static const FString SaveFileTypes = FString::Printf(TEXT("%s (*.ue_eqs)|*.ue_eqs"), *StatFileDescription);
 }
 
 const FName FEnvironmentQueryEditor::EQSUpdateGraphTabId(TEXT("EnvironmentQueryEditor_UpdateGraph"));

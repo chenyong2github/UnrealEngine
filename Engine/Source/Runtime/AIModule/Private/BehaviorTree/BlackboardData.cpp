@@ -155,7 +155,7 @@ void UBlackboardData::PostLoad()
 	Super::PostLoad();
 
 	// we cache some information based on Parent asset
-	// but while UE4 guarantees the Parent is already loaded
+	// but while UnrealEngine guarantees the Parent is already loaded
 	// it does not guarantee that it's PostLoad has been called
 	// Following is a little hack that's widely used in the
 	// engine to address this
