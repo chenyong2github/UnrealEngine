@@ -415,6 +415,9 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (SkipSystemResetOnChange = "true"))
 	uint32 bTrimAttributesOnCook : 1;
 
+	/** If true, forcefully disables all debug switches */
+	UPROPERTY(meta = (SkipSystemResetOnChange = "true"))
+	uint32 bDisableAllDebugSwitches : 1;
 #endif
 
 	/** Computes emitter priorities based on the dependency information. */

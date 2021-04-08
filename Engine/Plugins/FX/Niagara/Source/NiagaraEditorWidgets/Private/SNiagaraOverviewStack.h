@@ -44,6 +44,14 @@ private:
 
 	EVisibility GetEnabledCheckBoxVisibility(UNiagaraStackItem* Item) const;
 
+	EVisibility GetShouldDebugDrawStatusVisibility(UNiagaraStackItem* Item) const;
+
+	bool IsModuleDebugDrawEnabled(UNiagaraStackItem* Item) const;
+
+	const FSlateBrush* GetDebugIconBrush(UNiagaraStackItem* Item) const;
+
+	FReply ToggleModuleDebugDraw(UNiagaraStackItem* Item);
+
 	void OnSelectionChanged(UNiagaraStackEntry* InNewSelection, ESelectInfo::Type SelectInfo);
 
 	void SystemSelectionChanged();

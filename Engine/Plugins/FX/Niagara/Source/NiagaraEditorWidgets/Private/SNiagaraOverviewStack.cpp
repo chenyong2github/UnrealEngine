@@ -37,6 +37,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Widgets/Colors/SColorBlock.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
 
@@ -742,6 +743,19 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
             [
                 SNew(SNiagaraStackRowPerfWidget, Item)
             ]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonColorAndOpacity(FLinearColor::Transparent)
+				.ForegroundColor(FLinearColor::Transparent)
+				.ToolTipText(LOCTEXT("EnableDebugDrawCheckBoxToolTip", "Enable or disable debug drawing for this item."))
+				.OnClicked(this, &SNiagaraOverviewStack::ToggleModuleDebugDraw, StackItem)
+				[
+					SNew(SImage)
+					.Image(this, &SNiagaraOverviewStack::GetDebugIconBrush, StackItem)
+				]
+			]
 			// Enabled checkbox
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -868,6 +882,35 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 EVisibility SNiagaraOverviewStack::GetEnabledCheckBoxVisibility(UNiagaraStackItem* Item) const
 {
 	return Item->SupportsChangeEnabled() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SNiagaraOverviewStack::GetShouldDebugDrawStatusVisibility(UNiagaraStackItem* Item) const
+{
+	return IsModuleDebugDrawEnabled(Item) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+bool SNiagaraOverviewStack::IsModuleDebugDrawEnabled(UNiagaraStackItem* Item) const
+{
+	UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(Item);
+	return ModuleItem && ModuleItem->GetIsEnabled() && ModuleItem->IsDebugDrawEnabled();
+}
+
+const FSlateBrush* SNiagaraOverviewStack::GetDebugIconBrush(UNiagaraStackItem* Item) const
+{
+	return IsModuleDebugDrawEnabled(Item)? 
+		FEditorStyle::GetBrush(TEXT("Level.VisibleIcon16x")) :
+		FEditorStyle::GetBrush(TEXT("Level.NotVisibleIcon16x"));
+}
+
+FReply SNiagaraOverviewStack::ToggleModuleDebugDraw(UNiagaraStackItem* Item)
+{
+	UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(Item);
+	if (ModuleItem != nullptr)
+	{
+		ModuleItem->SetDebugDrawEnabled(!ModuleItem->IsDebugDrawEnabled());
+	}
+
+	return FReply::Handled();
 }
 
 void SNiagaraOverviewStack::OnSelectionChanged(UNiagaraStackEntry* InNewSelection, ESelectInfo::Type SelectInfo)
