@@ -8,6 +8,8 @@
 
 #include "Backends/CborStructDeserializerBackend.h"
 #include "CborWriter.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "UObject/TextProperty.h"
 
 namespace
