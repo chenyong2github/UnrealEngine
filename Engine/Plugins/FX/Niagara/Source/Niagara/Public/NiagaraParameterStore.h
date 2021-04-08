@@ -1251,7 +1251,7 @@ struct FNiagaraParameterDirectBinding<UObject*>
 		}
 	}
 
-	FORCEINLINE UObject* GetValue()const
+	FORCEINLINE UObject* GetValue() const
 	{
 		if (UObjectOffset != INDEX_NONE)
 		{
@@ -1259,6 +1259,19 @@ struct FNiagaraParameterDirectBinding<UObject*>
 			checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 			return BoundStore->GetUObject(UObjectOffset);
+		}
+		return nullptr;
+	}
+
+	template<class TObjectType>
+	FORCEINLINE TObjectType* GetValue() const
+	{
+		if (UObjectOffset != INDEX_NONE)
+		{
+			checkSlow(BoundVariable.GetType().IsUObject());
+			checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+
+			return Cast<TObjectType>(BoundStore->GetUObject(UObjectOffset));
 		}
 		return nullptr;
 	}

@@ -78,6 +78,21 @@ struct FNDIIntRenderTarget2DInstanceData_RenderThread
 	FSamplerStateRHIRef SamplerStateRHI;
 	FTextureRHIRef TextureRHI;
 	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
+#if STATS
+	void UpdateMemoryStats()
+	{
+		DEC_MEMORY_STAT_BY(STAT_NiagaraRenderTargetMemory, MemorySize);
+
+		MemorySize = 0;
+		if (FRHITexture* RHITexture = TextureRHI)
+		{
+			MemorySize = RHIComputeMemorySize(RHITexture);
+		}
+
+		INC_MEMORY_STAT_BY(STAT_NiagaraRenderTargetMemory, MemorySize);
+	}
+	uint64 MemorySize = 0;
+#endif
 };
 
 //////////////////////////////////////////////////////////////////////////

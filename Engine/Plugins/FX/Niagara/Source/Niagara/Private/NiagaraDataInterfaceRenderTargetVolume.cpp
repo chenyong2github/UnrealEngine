@@ -9,6 +9,7 @@
 
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraStats.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSettings.h"
 #if WITH_EDITOR
@@ -145,6 +146,25 @@ private:
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_RenderTargetVolume);
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceRenderTargetVolume, FNiagaraDataInterfaceParametersCS_RenderTargetVolume);
+
+/*--------------------------------------------------------------------------------------------------------------------------*/
+
+#if STATS
+void FRenderTargetVolumeRWInstanceData_RenderThread::UpdateMemoryStats()
+{
+	DEC_MEMORY_STAT_BY(STAT_NiagaraRenderTargetMemory, MemorySize);
+
+	MemorySize = 0;
+	if (FRHITexture* RHITexture = TextureRHI)
+	{
+		MemorySize = RHIComputeMemorySize(RHITexture);
+	}
+
+	INC_MEMORY_STAT_BY(STAT_NiagaraRenderTargetMemory, MemorySize);
+}
+#endif
+
+/*--------------------------------------------------------------------------------------------------------------------------*/
 
 UNiagaraDataInterfaceRenderTargetVolume::UNiagaraDataInterfaceRenderTargetVolume(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -352,6 +372,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::Equals(const UNiagaraDataInterface
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
 		OtherTyped->Size == Size &&
 		OtherTyped->OverrideRenderTargetFormat == OverrideRenderTargetFormat &&
+		OtherTyped->bInheritUserParameterSettings == bInheritUserParameterSettings &&
 		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
 
@@ -370,6 +391,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::CopyToInternal(UNiagaraDataInterfa
 
 	DestinationTyped->Size = Size;
 	DestinationTyped->OverrideRenderTargetFormat = OverrideRenderTargetFormat;
+	DestinationTyped->bInheritUserParameterSettings = bInheritUserParameterSettings;
 	DestinationTyped->bOverrideFormat = bOverrideFormat;
 #if WITH_EDITORONLY_DATA
 	DestinationTyped->bPreviewRenderTarget = bPreviewRenderTarget;
@@ -496,53 +518,6 @@ bool UNiagaraDataInterfaceRenderTargetVolume::InitPerInstanceData(void* PerInsta
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
 #endif
 
-	// Find or create the render target
-	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.GetValue())
-	{
-		if (UTextureRenderTargetVolume* UserTargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject))
-		{
-			InstanceData->TargetTexture = UserTargetTexture;
-		}
-		else
-		{
-			UE_LOG(LogNiagara, Error, TEXT("RenderTarget UserParam is a '%s' but is expected to be a UTextureRenderTargetVolume"), *GetNameSafe(UserParamObject->GetClass()));
-		}
-	}
-	if (InstanceData->TargetTexture == nullptr)
-	{
-		InstanceData->TargetTexture = NewObject<UTextureRenderTargetVolume>(this);
-		ManagedRenderTargets.Add(SystemInstance->GetId()) = InstanceData->TargetTexture;
-	}
-
-	InstanceData->TargetTexture->bCanCreateUAV = true;
-	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
-	InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
-	InstanceData->TargetTexture->UpdateResourceImmediate(true);
-
-	// Push Updates to Proxy
-	FNiagaraDataInterfaceProxyRenderTargetVolumeProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyRenderTargetVolumeProxy>();
-	ENQUEUE_RENDER_COMMAND(FUpdateData)
-	(
-		[RT_Proxy, RT_InstanceID=SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_TargetTexture= InstanceData->TargetTexture ? InstanceData->TargetTexture->GameThread_GetRenderTargetResource() : nullptr](FRHICommandListImmediate& RHICmdList)
-		{
-			check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(RT_InstanceID));
-			FRenderTargetVolumeRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(RT_InstanceID);
-
-			TargetData->Size = RT_InstanceData.Size;
-#if WITH_EDITORONLY_DATA
-			TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
-#endif
-			if (RT_TargetTexture)
-			{
-				if (FTextureRenderTargetVolumeResource* ResourceVolume = RT_TargetTexture->GetTextureRenderTargetVolumeResource())
-				{
-					TargetData->SamplerStateRHI = ResourceVolume->SamplerStateRHI;
-					TargetData->TextureRHI = ResourceVolume->GetTextureRHI();
-					TargetData->UnorderedAccessViewRHI = ResourceVolume->GetUnorderedAccessViewRHI();
-				}
-			}
-		}
-	);
 	return true;
 }
 
@@ -556,7 +531,14 @@ void UNiagaraDataInterfaceRenderTargetVolume::DestroyPerInstanceData(void* PerIn
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
 		[RT_Proxy, InstanceID=SystemInstance->GetId(), Batcher=SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 		{
-			//check(ThisProxy->SystemInstancesToProxyData.Contains(InstanceID));
+#if STATS
+			if (FRenderTargetVolumeRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID))
+			{
+				TargetData->SamplerStateRHI = nullptr;
+				TargetData->TextureRHI = nullptr;
+				TargetData->UpdateMemoryStats();
+			}
+#endif
 			RT_Proxy->SystemInstancesToProxyData_RT.Remove(InstanceID);
 		}
 	);
@@ -633,84 +615,119 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetSize(FVectorVMContext& Context)
 bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
 	FRenderTargetVolumeRWInstanceData_GameThread* InstanceData = static_cast<FRenderTargetVolumeRWInstanceData_GameThread*>(PerInstanceData);
+
+	// Pull from user parameter
+	UTextureRenderTargetVolume* UserTargetTexture = InstanceData->RTUserParamBinding.GetValue<UTextureRenderTargetVolume>();
+	if (UserTargetTexture && (InstanceData->TargetTexture != UserTargetTexture))
+	{
+		InstanceData->TargetTexture = UserTargetTexture;
+
+		extern int32 GNiagaraReleaseResourceOnRemove;
+		UTextureRenderTargetVolume* ExistingRenderTarget = nullptr;
+		if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
+		{
+			ExistingRenderTarget->ReleaseResource();
+		}
+	}
+
+	// Do we inherit the texture parameters from the user supplied texture?
+	if (bInheritUserParameterSettings)
+	{
+		if (UserTargetTexture)
+		{
+			InstanceData->Size.X = UserTargetTexture->SizeX;
+			InstanceData->Size.Y = UserTargetTexture->SizeY;
+			InstanceData->Size.Z = UserTargetTexture->SizeZ;
+			//if (UserTargetTexture->bAutoGenerateMips)
+			//{
+			//	// We have to take a guess at user intention
+			//	InstanceData->MipMapGeneration = MipMapGeneration == ENiagaraMipMapGeneration::Disabled ? ENiagaraMipMapGeneration::PostStage : MipMapGeneration;
+			//}
+			//else
+			//{
+			//	InstanceData->MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
+			//}
+			InstanceData->Format = InstanceData->TargetTexture->OverrideFormat;
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Error, TEXT("RenderTarget UserParam is required but invalid."));
+		}
+	}
+		
 	return false;
 }
 
 bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
+	// Update InstanceData as the texture may have changed
 	FRenderTargetVolumeRWInstanceData_GameThread* InstanceData = static_cast<FRenderTargetVolumeRWInstanceData_GameThread*>(PerInstanceData);
-
-	bool bUpdateRT = true;
-
 #if WITH_EDITORONLY_DATA
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
 #endif
 
-	// Update user parameter binding
-	bool bIsRenderTargetUserParam = false;
-	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.GetValue())
+	// Do we need to create a new texture?
+	if (!bInheritUserParameterSettings && (InstanceData->TargetTexture == nullptr))
 	{
-		if (UTextureRenderTargetVolume* UserTargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject))
-		{
-			bIsRenderTargetUserParam = true;
-			if (InstanceData->TargetTexture != UserTargetTexture)
-			{
-				InstanceData->TargetTexture = UserTargetTexture;
+		InstanceData->TargetTexture = NewObject<UTextureRenderTargetVolume>(this);
+		InstanceData->TargetTexture->bCanCreateUAV = true;
+		//InstanceData->TargetTexture->bAutoGenerateMips = InstanceData->MipMapGeneration != ENiagaraMipMapGeneration::Disabled;
+		InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
+		InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
+		InstanceData->TargetTexture->UpdateResourceImmediate(true);
 
-				extern int32 GNiagaraReleaseResourceOnRemove;
-				UTextureRenderTargetVolume* ExistingRenderTarget = nullptr;
-				if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
-				{
-					ExistingRenderTarget->ReleaseResource();
-				}
-			}
-		}
-		else
-		{
-			UE_LOG(LogNiagara, Error, TEXT("RenderTarget UserParam is a '%s' but is expected to be a UTextureRenderTargetVolume"), *GetNameSafe(UserParamObject->GetClass()));
-		}
+		ManagedRenderTargets.Add(SystemInstance->GetId()) = InstanceData->TargetTexture;
 	}
 
-	// Do we need to update the texture?
-	if (InstanceData->TargetTexture != nullptr)
+	// Do we need to update the existing texture?
+	if (InstanceData->TargetTexture)
 	{
-		if ((InstanceData->TargetTexture->SizeX != InstanceData->Size.X) || (InstanceData->TargetTexture->SizeY != InstanceData->Size.Y) || (InstanceData->TargetTexture->SizeZ != InstanceData->Size.Z) || (InstanceData->TargetTexture->OverrideFormat != InstanceData->Format) || !InstanceData->TargetTexture->bCanCreateUAV)
+		//const bool bAutoGenerateMips = InstanceData->MipMapGeneration != ENiagaraMipMapGeneration::Disabled;
+		if ((InstanceData->TargetTexture->SizeX != InstanceData->Size.X) || (InstanceData->TargetTexture->SizeY != InstanceData->Size.Y) || (InstanceData->TargetTexture->SizeZ != InstanceData->Size.Z) ||
+			(InstanceData->TargetTexture->OverrideFormat != InstanceData->Format) ||
+			!InstanceData->TargetTexture->bCanCreateUAV ||
+			//(InstanceData->TargetTexture->bAutoGenerateMips != bAutoGenerateMips) ||
+			!InstanceData->TargetTexture->Resource )
 		{
+			// resize RT to match what we need for the output
 			InstanceData->TargetTexture->bCanCreateUAV = true;
+			//InstanceData->TargetTexture->bAutoGenerateMips = bAutoGenerateMips;
 			InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
 			InstanceData->TargetTexture->UpdateResourceImmediate(true);
-			bUpdateRT = true;
 		}
 	}
 
-	// Update RenderThread data
+	//-TODO: We could avoid updating each frame if we cache the resource pointer or a serial number
+	bool bUpdateRT = true;
 	if (bUpdateRT)
 	{
 		FNiagaraDataInterfaceProxyRenderTargetVolumeProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyRenderTargetVolumeProxy>();
-		ENQUEUE_RENDER_COMMAND(FUpdateData)
+		FTextureRenderTargetResource* RT_TargetTexture = InstanceData->TargetTexture ? InstanceData->TargetTexture->GameThread_GetRenderTargetResource() : nullptr;
+		ENQUEUE_RENDER_COMMAND(NDIRenderTargetVolumeUpdate)
 		(
-			[RT_Proxy, RT_InstanceID=SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_TargetTexture=InstanceData->TargetTexture ? InstanceData->TargetTexture->GameThread_GetRenderTargetResource() : nullptr](FRHICommandListImmediate& RHICmdList)
+			[RT_Proxy, RT_InstanceID=SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_TargetTexture](FRHICommandListImmediate& RHICmdList)
 			{
-				FRenderTargetVolumeRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(RT_InstanceID);
-				if (ensureMsgf(TargetData != nullptr, TEXT("InstanceData was not found for %llu"), RT_InstanceID))
+				FRenderTargetVolumeRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.FindOrAdd(RT_InstanceID);
+				TargetData->Size = RT_InstanceData.Size;
+				//TargetData->MipMapGeneration = RT_InstanceData.MipMapGeneration;
+			#if WITH_EDITORONLY_DATA
+				TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
+			#endif
+				TargetData->SamplerStateRHI.SafeRelease();
+				TargetData->TextureRHI.SafeRelease();
+				TargetData->UnorderedAccessViewRHI.SafeRelease();
+				if (RT_TargetTexture)
 				{
-					TargetData->Size = RT_InstanceData.Size;
-#if WITH_EDITORONLY_DATA
-					TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
-#endif
-					TargetData->SamplerStateRHI.SafeRelease();
-					TargetData->TextureRHI.SafeRelease();
-					TargetData->UnorderedAccessViewRHI.SafeRelease();
-					if (RT_TargetTexture)
+					if (FTextureRenderTargetVolumeResource* ResourceVolume = RT_TargetTexture->GetTextureRenderTargetVolumeResource())
 					{
-						if (FTextureRenderTargetVolumeResource* ResourceVolume = RT_TargetTexture->GetTextureRenderTargetVolumeResource())
-						{
-							TargetData->SamplerStateRHI = ResourceVolume->SamplerStateRHI;
-							TargetData->TextureRHI = ResourceVolume->GetTextureRHI();
-							TargetData->UnorderedAccessViewRHI = ResourceVolume->GetUnorderedAccessViewRHI();
-						}
+						TargetData->SamplerStateRHI = ResourceVolume->SamplerStateRHI;
+						TargetData->TextureRHI = ResourceVolume->GetTextureRHI();
+						TargetData->UnorderedAccessViewRHI = ResourceVolume->GetUnorderedAccessViewRHI();
 					}
 				}
+			#if STATS
+				TargetData->UpdateMemoryStats();
+			#endif
 			}
 		);
 	}
