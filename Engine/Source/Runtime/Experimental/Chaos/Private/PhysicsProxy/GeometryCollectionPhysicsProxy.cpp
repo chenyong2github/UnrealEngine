@@ -1888,6 +1888,10 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	TArray<bool> InertiaComputationNeeded;
 	InertiaComputationNeeded.Init(false, NumGeometries);
 
+	// We skip very small geometry and log as a warning. To avoid log spamming, we wait
+	// until we complete the loop before reporting the skips.
+	bool bSkippedSmallGeometry = false;
+	
 	float TotalVolume = 0.f;
 	// The geometry group has a set of transform indices that maps a geometry index
 	// to a transform index, but only in the case where there is a 1-to-1 mapping 
@@ -1917,8 +1921,9 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				MassProperties.InertiaTensor = FMatrix33(1,1,1);
 				MassProperties.Mass = 1.0f; // start with unit mass, scaled later by density
 
-				if (!ensureMsgf(BoundingBox[GeometryIndex].GetExtent().GetAbsMin() > MinVolume, TEXT("Geometry too small to simulate. Idx (%d)"), GeometryIndex))
+				if (BoundingBox[GeometryIndex].GetExtent().GetAbsMin() < MinVolume)
 				{
+					bSkippedSmallGeometry = true;
 					CollectionSimulatableParticles[TransformGroupIndex] = false;	//do not simulate tiny particles
 					MassProperties.Mass = 0.f;
 					MassProperties.InertiaTensor = FMatrix33(0,0,0);
@@ -2008,6 +2013,11 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 		{
 			CollectionSimulatableParticles[TransformGroupIndex] = false;
 		}
+	}
+
+	if (bSkippedSmallGeometry)
+	{
+		UE_LOG(LogChaos, Warning, TEXT("Some geometry is too small to be simulated and has been skipped."));
 	}
 
 	//User provides us with total mass or density.
