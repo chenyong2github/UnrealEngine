@@ -1256,6 +1256,36 @@ namespace PropertyEditorHelpers
 			}
 		}
 	}
+
+	const TCHAR* GetPropertyOptionsMetaDataKey(const FProperty* Property)
+	{
+		// Only string and name properties can have options
+		if (Property->IsA(FStrProperty::StaticClass()) || Property->IsA(FNameProperty::StaticClass()))
+		{
+			const FProperty* OwnerProperty = Property->GetOwnerProperty();
+			if (OwnerProperty->HasMetaData(TEXT("GetOptions")))
+			{
+				return TEXT("GetOptions");
+			}
+
+			// Map properties can have separate options for keys and values
+			const FMapProperty* MapProperty = CastField<FMapProperty>(OwnerProperty);
+			if (MapProperty)
+			{
+				if (MapProperty->HasMetaData(TEXT("GetKeyOptions")) && MapProperty->KeyProp == Property)
+				{
+					return TEXT("GetKeyOptions");
+				}
+
+				if (MapProperty->HasMetaData(TEXT("GetValueOptions")) && MapProperty->ValueProp == Property)
+				{
+					return TEXT("GetValueOptions");
+				}
+			}
+		}
+
+		return nullptr;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -279,5 +279,11 @@ namespace PropertyEditorHelpers
 	bool IsVisibleStandaloneProperty(const FPropertyNode& PropertyNode, const FPropertyNode& ParentNode);
 
 	void OrderPropertiesFromMetadata(TArray<FProperty*>& Properties);
+
+	/**
+	* For properties that support options lists, returns the metadata key which holds the name of the UFunction to call.
+	* Returns nullptr if the property doesn't support, or doesn't have, options.
+	*/
+	const TCHAR* GetPropertyOptionsMetaDataKey(const FProperty* Property);
 }
 

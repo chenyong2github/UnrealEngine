@@ -515,6 +515,14 @@ namespace AutomationTool
 			get { return false; }
 		}
 
+		/// <summary>
+		/// Returns whether the platform requires the Manifest_*_.txt files to be copied to the staged directory.
+		/// </summary>
+		public virtual bool RequiresManifestFiles
+		{
+			get { return true; }
+		}
+
 		public virtual HashSet<StagedFileReference> GetFilesForCRCCheck()
 		{
 			string CmdLine = "UE4CommandLine.txt";

@@ -1585,34 +1585,39 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	public static void CopyManifestFilesToStageDir(Dictionary<StagedFileReference, FileReference> Mapping, DirectoryReference StageDir, DirectoryReference ManifestDir, string ManifestName, HashSet<StagedFileReference> CRCFiles, string PlatformName, List<string> IniKeyBlacklist, List<string> IniSectionBlacklist)
+	private static void CopyManifestFilesToStageDir(DeploymentContext SC, Dictionary<StagedFileReference, FileReference> Mapping, string ManifestName)
 	{
-		LogInformation("Copying {0} to staging directory: {1}", ManifestName, StageDir);
-		FileReference ManifestPath = null;
-		string ManifestFile = "";
-		if (!String.IsNullOrEmpty(ManifestName))
-		{
-			ManifestFile = "Manifest_" + ManifestName + "_" + PlatformName + ".txt";
-			ManifestPath = FileReference.Combine(ManifestDir, ManifestFile);
-			DeleteFile(ManifestPath.FullName);
-		}
+		LogInformation("Copying {0} to staging directory: {1}", ManifestName, SC.StageDirectory);
 		foreach (KeyValuePair<StagedFileReference, FileReference> Pair in Mapping)
 		{
 			FileReference Src = Pair.Value;
-			FileReference Dest = FileReference.Combine(StageDir, Pair.Key.Name);
+			FileReference Dest = FileReference.Combine(SC.StageDirectory, Pair.Key.Name);
 			if (Src != Dest)  // special case for things created in the staging directory, like the pak file
 			{
-				CopyFileIncremental(Src, Dest, IniKeyBlacklist:IniKeyBlacklist, IniSectionBlacklist:IniSectionBlacklist);
+				CopyFileIncremental(Src, Dest, IniKeyBlacklist: SC.IniKeyBlacklist, IniSectionBlacklist: SC.IniSectionBlacklist);
 			}
 		}
-		if (ManifestPath != null && Mapping.Count > 0)
+
+		if (Mapping.Count > 0)
 		{
-			DumpTargetManifest(Mapping, ManifestPath, StageDir, CRCFiles);
-			if (!FileReference.Exists(ManifestPath))
+			var ManifestPathStaged = FileReference.Combine(SC.DebugStageDirectory, $"Manifest_{ManifestName}_{SC.StageTargetPlatform.PlatformType}.txt");
+			var ManifestPathLog = FileReference.Combine(new DirectoryReference(CmdEnv.LogFolder), ManifestPathStaged.GetFileName());
+
+			DeleteFile(ManifestPathStaged.FullName);
+			DeleteFile(ManifestPathLog.FullName);
+
+			DumpTargetManifest(Mapping, ManifestPathLog, SC.StageDirectory, SC.StageTargetPlatform.GetFilesForCRCCheck());
+
+			if (!FileReference.Exists(ManifestPathLog))
 			{
-				throw new AutomationException("Failed to write manifest {0}", ManifestPath);
+				throw new AutomationException("Failed to write manifest {0}", ManifestPathLog);
 			}
-			CopyFile(ManifestPath.FullName, CombinePaths(CmdEnv.LogFolder, ManifestFile));
+
+			if (SC.StageTargetPlatform.RequiresManifestFiles)
+			{
+				// Also copy the manifest file to the staged directory
+				CopyFile(ManifestPathLog.FullName, ManifestPathStaged.FullName);
+			}
 		}
 	}
 
@@ -1641,7 +1646,7 @@ public partial class Project : CommandUtils
 
 	public static void CopyUsingStagingManifest(ProjectParams Params, DeploymentContext SC)
 	{
-		CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSFiles, SC.StageDirectory, SC.DebugStageDirectory, "NonUFSFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString(), SC.IniKeyBlacklist, SC.IniSectionBlacklist);
+		CopyManifestFilesToStageDir(SC, SC.FilesToStage.NonUFSFiles, "NonUFSFiles");
 
 		bool bStageUnrealFileSystemFiles = !Params.CookOnTheFly && !Params.UsePak(SC.StageTargetPlatform) && !Params.FileServer;
 		if (bStageUnrealFileSystemFiles)
@@ -1659,14 +1664,14 @@ public partial class Project : CommandUtils
 					throw new AutomationException("File '{0}' is set to be staged from '{1}' for project and '{2}' for crash reporter", Pair.Key, ExistingLocation, Pair.Value);
 				}
 			}
-			CopyManifestFilesToStageDir(UFSFiles, SC.StageDirectory, SC.DebugStageDirectory, "UFSFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString(), SC.IniKeyBlacklist, SC.IniSectionBlacklist);
+			CopyManifestFilesToStageDir(SC, UFSFiles, "UFSFiles");
 		}
 
 		// Copy debug files last
 		// they do not respect the DeployLowerCaseFilenames() setting, but if copied to a case-insensitive staging directory first they determine the casing for outer directories (like Engine/Content) 
 		if (!Params.NoDebugInfo)
 		{
-			CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSDebugFiles, SC.DebugStageDirectory, SC.DebugStageDirectory, "DebugFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString(), SC.IniKeyBlacklist, SC.IniSectionBlacklist);
+			CopyManifestFilesToStageDir(SC, SC.FilesToStage.NonUFSDebugFiles, "DebugFiles");
 		}
 	}
 
@@ -4216,7 +4221,7 @@ public partial class Project : CommandUtils
 				{
 					ApplyStagingManifest(Params, SC);
 
-					if (Params.Deploy)
+					if (Params.Deploy && SC.StageTargetPlatform.RequiresManifestFiles)
 					{
 						List<string> UFSManifests;
 						List<string> NonUFSManifests;
