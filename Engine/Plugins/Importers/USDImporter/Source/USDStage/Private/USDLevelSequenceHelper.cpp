@@ -240,7 +240,7 @@ private:
 	void HandleTransformTrackChange( const UMovieScene3DTransformTrack& TransformTrack, bool bIsMuteChange );
 	void HandleDisplayRateChange(const double DisplayRate);
 
-	bool bMonitorChanges; // Flag to handle or not changes done to the level sequence or one of its subobject
+	bool bMonitorChanges; // Flag to handle or not changes done to the level sequence or one of its subobjects
 
 	FDelegateHandle OnObjectTransactedHandle;
 	FDelegateHandle OnStageEditTargetChangedHandle;
@@ -965,6 +965,11 @@ void FUsdLevelSequenceHelperImpl::AddXformTrack( UUsdPrimTwin& PrimTwin, ULevelS
 
 void FUsdLevelSequenceHelperImpl::RemovePrim( const UUsdPrimTwin& PrimTwin )
 {
+	if ( !UsdStage )
+	{
+		return;
+	}
+
 	// We can't assume that the UsdPrim still exists in the stage, it might have been removed already so work from the PrimTwin PrimPath.
 
 	TSet< FName > PrimSequences;
@@ -1248,7 +1253,7 @@ void FUsdLevelSequenceHelperImpl::UpdateMovieSceneTimeRanges( UMovieScene& Movie
 
 void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event)
 {
-	if ( !MainLevelSequence || !bMonitorChanges || !Object || Object->IsPendingKill() )
+	if ( !MainLevelSequence || !bMonitorChanges || !Object || Object->IsPendingKill() || !UsdStage )
 	{
 		return;
 	}
@@ -1633,7 +1638,7 @@ FUsdLevelSequenceHelper::FUsdLevelSequenceHelper(TWeakObjectPtr<AUsdStageActor> 
 
 FUsdLevelSequenceHelper::FUsdLevelSequenceHelper()
 {
-	UsdSequencerImpl = nullptr;
+	UsdSequencerImpl = MakeUnique<FUsdLevelSequenceHelperImpl>();
 }
 
 FUsdLevelSequenceHelper::~FUsdLevelSequenceHelper() = default;
@@ -1655,11 +1660,6 @@ FUsdLevelSequenceHelper& FUsdLevelSequenceHelper::operator=(FUsdLevelSequenceHel
 
 ULevelSequence* FUsdLevelSequenceHelper::Init(const UE::FUsdStage& UsdStage)
 {
-	if ( !UsdSequencerImpl.IsValid() )
-	{
-		UsdSequencerImpl = MakeUnique<FUsdLevelSequenceHelperImpl>();
-	}
-
 	if ( UsdSequencerImpl.IsValid() )
 	{
 		return UsdSequencerImpl->Init(UsdStage);
@@ -1675,7 +1675,6 @@ void FUsdLevelSequenceHelper::Clear()
 	if ( UsdSequencerImpl.IsValid() )
 	{
 		UsdSequencerImpl->Clear();
-		UsdSequencerImpl = nullptr;
 	}
 }
 
