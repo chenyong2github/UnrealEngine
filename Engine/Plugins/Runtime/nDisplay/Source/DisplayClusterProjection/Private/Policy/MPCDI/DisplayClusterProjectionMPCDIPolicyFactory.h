@@ -16,11 +16,5 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicyFactory
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual TSharedPtr<IDisplayClusterProjectionPolicy> Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters) override;
-
-	TArray<TSharedPtr<FDisplayClusterProjectionPolicyBase>> GetPolicy();
-	TSharedPtr<FDisplayClusterProjectionPolicyBase>         GetPolicyByViewport(const FString& ViewportId);
-
-private:
-	TArray<TSharedPtr<FDisplayClusterProjectionPolicyBase>> Policy;
+	virtual TSharedPtr<IDisplayClusterProjectionPolicy> Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) override;
 };

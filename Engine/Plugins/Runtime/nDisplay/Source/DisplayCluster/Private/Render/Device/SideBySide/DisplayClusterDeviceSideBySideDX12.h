@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "Render/Device/SideBySide/DisplayClusterDeviceSideBySideBase.h"
-
+#include "Render/Device/DisplayClusterDeviceBase.h"
 
 /**
  * Side-by-side passive stereoscopic device
  */
 class FDisplayClusterDeviceSideBySideDX12
-	: public FDisplayClusterDeviceSideBySideBase
+	: public FDisplayClusterDeviceBase
 {
 public:
 	FDisplayClusterDeviceSideBySideDX12();

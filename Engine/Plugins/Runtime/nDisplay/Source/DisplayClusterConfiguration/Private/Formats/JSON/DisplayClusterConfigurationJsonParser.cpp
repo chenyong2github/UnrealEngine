@@ -232,12 +232,12 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 				check(Viewport);
 
 				// Base parameters
-				Viewport->BufferRatio = CfgViewport.Value.BufferRatio;
+				Viewport->RenderSettings.BufferRatio = CfgViewport.Value.BufferRatio;
 				Viewport->Camera      = CfgViewport.Value.Camera;
 				Viewport->Region      = FDisplayClusterConfigurationRectangle(CfgViewport.Value.Region.X, CfgViewport.Value.Region.Y, CfgViewport.Value.Region.W, CfgViewport.Value.Region.H);
 				Viewport->GPUIndex    = CfgViewport.Value.GPUIndex;
 				Viewport->bIsShared   = CfgViewport.Value.IsShared;
-				Viewport->bAllowCrossGPUTransfer = CfgViewport.Value.AllowCrossGPUTransfer;
+				//Viewport->bAllowCrossGPUTransfer = CfgViewport.Value.AllowCrossGPUTransfer;
 
 				// Projection policy
 				Viewport->ProjectionPolicy.Type       = CfgViewport.Value.ProjectionPolicy.Type;
@@ -546,8 +546,8 @@ bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UD
 				Viewport.Region   = FDisplayClusterConfigurationJsonRectangle(CfgViewport.Value->Region.X, CfgViewport.Value->Region.Y, CfgViewport.Value->Region.W, CfgViewport.Value->Region.H);
 				Viewport.GPUIndex = CfgViewport.Value->GPUIndex;
 				Viewport.IsShared = CfgViewport.Value->bIsShared;
-				Viewport.BufferRatio = CfgViewport.Value->BufferRatio;
-				Viewport.AllowCrossGPUTransfer = CfgViewport.Value->bAllowCrossGPUTransfer;
+				Viewport.BufferRatio = CfgViewport.Value->RenderSettings.BufferRatio;
+				//Viewport.AllowCrossGPUTransfer = CfgViewport.Value->bAllowCrossGPUTransfer;
 
 				// Projection policy
 				Viewport.ProjectionPolicy.Type = CfgViewport.Value->ProjectionPolicy.Type;

@@ -29,7 +29,7 @@ void FDisplayClusterConfigManager::Release()
 {
 }
 
-bool FDisplayClusterConfigManager::StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
+bool FDisplayClusterConfigManager::StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
 {
 	ClusterNodeId = InNodeId;
 

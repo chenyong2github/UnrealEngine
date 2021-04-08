@@ -16,6 +16,17 @@
 class DISPLAYCLUSTER_API FDisplayClusterActorRef
 {
 public:
+	FDisplayClusterActorRef()
+	{}
+
+	FDisplayClusterActorRef(const FDisplayClusterActorRef& InActorRef)
+		: WorldPtr(InActorRef.WorldPtr)
+		, ActorClassName(InActorRef.ActorClassName)
+		, ActorClassPtr(InActorRef.ActorClassPtr)
+		, ActorName(InActorRef.ActorName)
+		, ActorPtr(InActorRef.ActorPtr)
+	{}
+
 	virtual ~FDisplayClusterActorRef()
 	{ }
 
@@ -167,7 +178,14 @@ class DISPLAYCLUSTER_API FDisplayClusterSceneComponentRef
 {
 public:
 	FDisplayClusterSceneComponentRef()
+		: FDisplayClusterActorRef()
 	{ }
+
+	FDisplayClusterSceneComponentRef(const FDisplayClusterSceneComponentRef& InComponentRef)
+		: FDisplayClusterActorRef(InComponentRef)
+		, ComponentName(InComponentRef.ComponentName)
+		, ComponentPtr(InComponentRef.ComponentPtr)
+	{}
 
 	FDisplayClusterSceneComponentRef(USceneComponent* InComponent)
 	{

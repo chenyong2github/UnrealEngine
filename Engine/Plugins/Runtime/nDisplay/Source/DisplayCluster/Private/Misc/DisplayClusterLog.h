@@ -16,4 +16,5 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterNetwork,    Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterNetworkMsg, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterRender,     Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterRenderSync, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterViewport,   Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterBlueprint,  Log, All);

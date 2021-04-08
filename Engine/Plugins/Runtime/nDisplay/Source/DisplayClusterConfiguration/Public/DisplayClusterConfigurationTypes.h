@@ -7,77 +7,14 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
+#include "DisplayClusterConfigurationTypes_Base.h"
+#include "DisplayClusterConfigurationTypes_ICVFX.h"
+
 #include "DisplayClusterConfigurationTypes.generated.h"
 
 class UStaticMesh;
 struct FPropertyChangedChainEvent;
 
-
-UENUM()
-enum class EDisplayClusterConfigurationDataSource : uint8
-{
-	Text UMETA(DisplayName = "Text file"),
-	Json UMETA(DisplayName = "JSON file")
-};
-
-UENUM()
-enum class EDisplayClusterConfigurationKeyboardReflectionType : uint8
-{
-	None     UMETA(DisplayName = "No reflection"),
-	nDisplay UMETA(DisplayName = "nDisplay buttons only"),
-	Core     UMETA(DisplayName = "UE core keyboard events only"),
-	All      UMETA(DisplayName = "Both nDisplay and UE4 core events")
-};
-
-UENUM()
-enum class EDisplayClusterConfigurationTrackerMapping
-{
-	X    UMETA(DisplayName = "Positive X"),
-	NX   UMETA(DisplayName = "Negative X"),
-	Y    UMETA(DisplayName = "Positive Y"),
-	NY   UMETA(DisplayName = "Negative Y"),
-	Z    UMETA(DisplayName = "Positive Z"),
-	NZ   UMETA(DisplayName = "Negative Z")
-};
-
-
-UENUM()
-enum class EDisplayClusterConfigurationEyeStereoOffset : uint8
-{
-	None  UMETA(DisplayName = "No offset"),
-	Left  UMETA(DisplayName = "Left eye of a stereo pair"),
-	Right UMETA(DisplayName = "Right eye of a stereo pair")
-};
-
-USTRUCT()
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationRectangle
-{
-	GENERATED_BODY()
-
-public:
-	FDisplayClusterConfigurationRectangle()
-		: X(0), Y(0), W(0), H(0)
-	{ }
-
-	FDisplayClusterConfigurationRectangle(int32 _X, int32 _Y, int32 _W, int32 _H)
-		: X(_X), Y(_Y), W(_W), H(_H)
-	{ }
-
-	FDisplayClusterConfigurationRectangle(const FDisplayClusterConfigurationRectangle&) = default;
-
-public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	int32 X;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	int32 Y;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	int32 W;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	int32 H;
-};
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationInfo
@@ -91,54 +28,6 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = nDisplay)
 	FString Version;
 };
-
-USTRUCT()
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPolymorphicEntity
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FString Type;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	TMap<FString, FString> Parameters;
-
-#if WITH_EDITORONLY_DATA
-	/**
-	 * When a custom policy is selected from the details panel.
-	 * This is needed in the event a custom policy is selected
-	 * but the custom type is a default policy. This allows users
-	 * to further customize default policies if necessary.
-	 */
-	UPROPERTY()
-	bool bIsCustom = false;
-#endif
-};
-
-/**
- * All configuration UObjects should inherit from this class.
- */
-UCLASS()
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationData_Base
-	: public UObject
-{
-	GENERATED_BODY()
-
-public:
-	// UObject
-	virtual void Serialize(FArchive& Ar) override;
-	// ~UObject
-
-protected:
-	/** Called before saving to collect objects which should be exported as a sub object block. */
-	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) {}
-
-private:
-	UPROPERTY(Export)
-	TArray<UObject*> ExportedObjects;
-};
-
 
 // Scene hierarchy
 UCLASS()
@@ -400,73 +289,6 @@ public:
 };
 
 
-USTRUCT()
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationProjection
-	: public FDisplayClusterConfigurationPolymorphicEntity
-{
-	GENERATED_BODY()
-
-public:
-	FDisplayClusterConfigurationProjection();
-};
-
-
-UCLASS()
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationViewport
-	: public UDisplayClusterConfigurationData_Base
-{
-	GENERATED_BODY()
-public:
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostEditChangeChainProperty, const FPropertyChangedChainEvent&);
-
-	FOnPostEditChangeChainProperty OnPostEditChangeChainProperty;
-
-public:
-	UDisplayClusterConfigurationViewport();
-	
-private:
-#if WITH_EDITOR
-	// UObject interface
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	// End of UObject interface
-#endif
-
-public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FString Camera;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay, meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
-	float BufferRatio;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	int GPUIndex;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	bool bAllowCrossGPUTransfer;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	bool bIsShared;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FDisplayClusterConfigurationRectangle Region;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	bool bFixedAspectRatio;
-#endif
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FDisplayClusterConfigurationProjection ProjectionPolicy;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	bool bIsVisible;
-
-	UPROPERTY()
-	bool bIsEnabled;
-#endif
-};
-
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostprocess
@@ -498,6 +320,9 @@ public:
 
 public:
 	UDisplayClusterConfigurationClusterNode();
+
+	// Return all references to meshes from policy, and other
+	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
 	
 private:
 #if WITH_EDITOR
@@ -620,6 +445,10 @@ public:
 
 protected:
 	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) override;
+
+public:
+	// Return all references to meshes from policy, and other
+	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
 };
 
 
@@ -760,7 +589,6 @@ struct FDisplayClusterConfigurationDataMetaInfo
 	FString FilePath;
 };
 
-
 ////////////////////////////////////////////////////////////////
 // Main configuration data container
 UCLASS(Blueprintable, BlueprintType)
@@ -779,6 +607,9 @@ public:
 
 	bool GetPostprocess(const FString& NodeId, const FString& PostprocessId, FDisplayClusterConfigurationPostprocess& OutPostprocess) const;
 	bool GetProjectionPolicy(const FString& NodeId, const FString& ViewportId, FDisplayClusterConfigurationProjection& OutProjection) const;
+
+	// Return all references to meshes from policy, and other
+	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
 
 public:
 	FDisplayClusterConfigurationDataMetaInfo Meta;

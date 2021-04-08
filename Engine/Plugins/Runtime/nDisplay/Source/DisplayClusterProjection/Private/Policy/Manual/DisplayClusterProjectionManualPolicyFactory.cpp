@@ -5,12 +5,15 @@
 
 #include "DisplayClusterProjectionLog.h"
 
+#include "DisplayClusterConfigurationTypes.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyFactory
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionManualPolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters)
+TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionManualPolicyFactory::Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 {
-	UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Instantiating projection policy <%s>..."), *PolicyType);
-	return MakeShared<FDisplayClusterProjectionManualPolicy>(ViewportId, Parameters);
+	check(InConfigurationProjectionPolicy != nullptr);
+
+	UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Instantiating projection policy <%s> id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
+	return MakeShared<FDisplayClusterProjectionManualPolicy>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 }

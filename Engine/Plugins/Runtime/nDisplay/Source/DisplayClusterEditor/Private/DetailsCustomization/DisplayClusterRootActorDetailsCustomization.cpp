@@ -11,7 +11,9 @@
 #include "Widgets/Text/STextBlock.h"
 
 #include "DisplayClusterRootActor.h"
+#include "DisplayClusterConfigurationStrings.h"
 #include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterConfigurationTypes_Viewport.h"
 
 
 #define LOCTEXT_NAMESPACE "DisplayClusterRootActorDetailsCustomization"
@@ -50,7 +52,7 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	}
 
 	// Store preview category
-	CategoryPreview = &InLayoutBuilder.EditCategory("Preview (Editor only)");
+	CategoryPreview = &InLayoutBuilder.EditCategory("Display Cluster Preview (Editor only)");
 	check(CategoryPreview);
 
 	// Finally, do the customization
@@ -59,16 +61,8 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 
 void FDisplayClusterRootActorDetailsCustomization::BuildLayout()
 {
-	// We need to know when the preview config file is changed
-	TSharedRef<IPropertyHandle> PropertyConfigFile = LayoutBuilder->GetProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, PreviewConfigPath), ADisplayClusterRootActor::StaticClass());
-	check(PropertyConfigFile->IsValidHandle());
-	
-	PropertyConfigFile->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FDisplayClusterRootActorDetailsCustomization::OnPreviewConfigChanged));
-	
 	// Setup preivew cluster node ID combobox
 	AddNodeIdRow();
-	// Setup preview default camera ID combobox
-	AddDefaultCameraRow();
 }
 
 
@@ -136,8 +130,8 @@ bool FDisplayClusterRootActorDetailsCustomization::RebuildNodeIdOptionsList()
 	}
 
 	// Initialize special options
-	NodeIdOptionNone = MakeShared<FString>(ADisplayClusterRootActor::PreviewNodeNone);
-	NodeIdOptionAll  = MakeShared<FString>(ADisplayClusterRootActor::PreviewNodeAll);
+	NodeIdOptionAll  = MakeShared<FString>(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll);
+	NodeIdOptionNone = MakeShared<FString>(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone);
 
 	// Fill combobox with the options
 	NodeIdOptions.Reset();
@@ -180,40 +174,7 @@ FText FDisplayClusterRootActorDetailsCustomization::GetSelectedNodeIdText() cons
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterRootActorDetailsCustomization::AddDefaultCameraRow()
 {
-	// Hide PreviewDefaultCameraId property, it will be replaced with a combobox
-	PropertyDefaultCamera = LayoutBuilder->GetProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, PreviewDefaultCameraId), ADisplayClusterRootActor::StaticClass());
-	check(PropertyDefaultCamera->IsValidHandle());
-	LayoutBuilder->HideProperty(PropertyDefaultCamera);
-
-	if (!RebuildDefaultCameraOptionsList())
-	{
-		return;
-	}
-
-	// Create GUI representation
-	{
-		CategoryPreview->AddCustomRow(PropertyDefaultCamera->GetPropertyDisplayName())
-			.NameContent()
-			[
-				PropertyDefaultCamera->CreatePropertyNameWidget()
-			]
-			.ValueContent()
-			[
-				SAssignNew(DefaultCameraComboBox, SSearchableComboBox)
-				.OptionsSource(&DefaultCameraOptions)
-				.OnGenerateWidget(this, &FDisplayClusterRootActorDetailsCustomization::CreateComboWidget)
-				.OnSelectionChanged(this, &FDisplayClusterRootActorDetailsCustomization::OnDefaultCameraSelected)
-				.ContentPadding(2)
-				.Content()
-				[
-					SNew(STextBlock)
-					.Text(this, &FDisplayClusterRootActorDetailsCustomization::GetSelectedDefaultCameraText)
-				]
-			];
-	}
-
-	// Set combobox selected item (options list is not empty here)
-	DefaultCameraComboBox->SetSelectedItem(DefaultCameraOptions[0]);
+	//! remove 
 }
 
 bool FDisplayClusterRootActorDetailsCustomization::RebuildDefaultCameraOptionsList()

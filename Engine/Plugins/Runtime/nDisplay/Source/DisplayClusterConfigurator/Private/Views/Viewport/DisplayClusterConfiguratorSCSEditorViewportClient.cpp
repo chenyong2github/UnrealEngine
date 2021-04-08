@@ -6,6 +6,7 @@
 #include "DisplayClusterWorldOriginComponent.h"
 #include "Settings/DisplayClusterConfiguratorSettings.h"
 #include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterConfigurationStrings.h"
 
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterPreviewComponent.h"
@@ -1012,12 +1013,12 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::SyncShowPreview()
 		
 		if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(BlueprintEditorPtr.Pin()->GetPreviewActor()))
 		{
-			const FString CorrectShowPreviewValue = bShouldShowPreview ? ADisplayClusterRootActor::PreviewNodeAll : ADisplayClusterRootActor::PreviewNodeNone;
+			const FString CorrectShowPreviewValue = bShouldShowPreview ? DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll : DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone;
 			
 			if (CorrectShowPreviewValue != Actor->PreviewNodeId)
 			{
 				Actor->PreviewNodeId = CorrectShowPreviewValue;
-				Actor->RebuildPreview();
+				Actor->UpdatePreviewComponents();
 			}
 		}
 	}

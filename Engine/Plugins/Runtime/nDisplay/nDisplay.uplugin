@@ -41,22 +41,6 @@
 			]
 		},
 		{
-			"Name": "MPCDI",
-			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "OutputRemap",
-			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
-		},
-		{
 			"Name": "DisplayClusterProjection",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
@@ -73,17 +57,9 @@
 			]
 		},
 		{
-			"Name": "PicpMPCDI",
+			"Name": "DisplayClusterShaders",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "PicpProjection",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
 			]
@@ -106,14 +82,6 @@
 		},
 		{
 			"Name": "DisplayClusterConfigurator",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "DisplayClusterRendering",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [

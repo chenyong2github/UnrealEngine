@@ -16,7 +16,6 @@
 #include "CineCameraComponent.h"
 
 #include "DisplayClusterProjectionStrings.h"
-#include "MPCDI/Private/MPCDIStrings.h"
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -275,7 +274,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::OnTextCommittedInCustom
 	// Turning this off for now in case users want to customize individual parameters..
 	// Uncomment this to auto select a default policy if the user types one in the custom name field.
 	/*
-	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPolicies)
+	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPoliсies)
 	{
 		if (CustomPolicy.Equals(ProjectionPolicy))
 		{
@@ -655,20 +654,20 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMPCDIPolicy(UDisp
 	{
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoFile>(
 			"File",
-			DisplayClusterMPCDIStrings::cfg::File,
+			DisplayClusterProjectionStrings::cfg::mpcdi::File,
 			Blueprint,
 			ConfigurationViewportPtr.Get(),
 			TArray<FString>{"mpcdi"}));
 
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoText>(
 			"Buffer",
-			DisplayClusterMPCDIStrings::cfg::Buffer,
+			DisplayClusterProjectionStrings::cfg::mpcdi::Buffer,
 			Blueprint,
 			ConfigurationViewportPtr.Get()));
 
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoText>(
 			"Region",
-			DisplayClusterMPCDIStrings::cfg::Region,
+			DisplayClusterProjectionStrings::cfg::mpcdi::Region,
 			Blueprint,
 			ConfigurationViewportPtr.Get()));
 	}
@@ -676,47 +675,47 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMPCDIPolicy(UDisp
 	{
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoFile>(
 			"File",
-			DisplayClusterMPCDIStrings::cfg::FilePFM,
+			DisplayClusterProjectionStrings::cfg::mpcdi::FilePFM,
 			Blueprint,
 			ConfigurationViewportPtr.Get(),
 			TArray<FString>{"pfm"}));
 
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoFile>(
 			"Alpha Mask",
-			DisplayClusterMPCDIStrings::cfg::FileAlpha,
+			DisplayClusterProjectionStrings::cfg::mpcdi::FileAlpha,
 			Blueprint,
 			ConfigurationViewportPtr.Get(),
 			TArray<FString>{"png"}));
 		
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<float>>(
 			"Alpha Gamma",
-			DisplayClusterMPCDIStrings::cfg::AlphaGamma,
+			DisplayClusterProjectionStrings::cfg::mpcdi::AlphaGamma,
 			Blueprint,
 			ConfigurationViewportPtr.Get(), 1.f));
 
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoFile>(
 			"Beta Mask",
-			DisplayClusterMPCDIStrings::cfg::FileBeta,
+			DisplayClusterProjectionStrings::cfg::mpcdi::FileBeta,
 			Blueprint,
 			ConfigurationViewportPtr.Get(),
 			TArray<FString>{"png"}));
 
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<float>>(
 			"Scale",
-			DisplayClusterMPCDIStrings::cfg::WorldScale,
+			DisplayClusterProjectionStrings::cfg::mpcdi::WorldScale,
 			Blueprint,
 			ConfigurationViewportPtr.Get(), 1.f));
 		
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoBool>(
 			"Use Unreal Axis",
-			DisplayClusterMPCDIStrings::cfg::UseUnrealAxis,
+			DisplayClusterProjectionStrings::cfg::mpcdi::UseUnrealAxis,
 			Blueprint,
 			ConfigurationViewportPtr.Get()));
 	}
 	
 	TSharedPtr<FPolicyParameterInfoCombo> Origin = MakeShared<FPolicyParameterInfoComponentCombo>(
 		"Origin",
-		DisplayClusterMPCDIStrings::cfg::Origin,
+		DisplayClusterProjectionStrings::cfg::mpcdi::Origin,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		USceneComponent::StaticClass());

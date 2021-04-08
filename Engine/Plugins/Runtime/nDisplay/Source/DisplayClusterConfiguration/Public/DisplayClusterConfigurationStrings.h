@@ -4,6 +4,16 @@
 
 namespace DisplayClusterConfigurationStrings
 {
+	// GUI
+	namespace gui
+	{
+		namespace preview
+		{
+			static constexpr auto PreviewNodeAll = TEXT("All");
+			static constexpr auto PreviewNodeNone = TEXT("None");
+		}
+	}
+
 	// Command line arguments
 	namespace args
 	{

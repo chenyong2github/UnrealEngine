@@ -4,10 +4,15 @@
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterRootActor.h"
+
+#include "Components/DisplayClusterOriginComponent.h"
 #include "Components/DisplayClusterMeshComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
 #include "Components/DisplayClusterXformComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
+
+#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
+#include "Components/DisplayClusterICVFX_RefCineCameraComponent.h"
 
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
@@ -427,9 +432,14 @@ void SDisplayClusterConfiguratorComponentClassCombo::GenerateComponentClassList(
 
 	AddHeader("nDisplay Components");
 	
+	AddDCComp(UDisplayClusterOriginComponent::StaticClass());
 	AddDCComp(UDisplayClusterScreenComponent::StaticClass());
 	AddDCComp(UDisplayClusterXformComponent::StaticClass());
 	AddDCComp(UDisplayClusterCameraComponent::StaticClass());
+
+	AddHeader("nDisplay ICVFX Components");
+	AddDCComp(UDisplayClusterICVFX_CineCameraComponent::StaticClass());
+	AddDCComp(UDisplayClusterICVFX_RefCineCameraComponent::StaticClass());
 
 	int32 CompIterationIdx = 0;
 	for (const TSharedPtr<FComponentClassComboEntry>& Comp : *ComponentClassListPtr)

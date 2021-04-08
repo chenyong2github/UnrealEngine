@@ -58,7 +58,6 @@ bool FDisplayClusterInput::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevic
 	return false;
 }
 
-//!
 void FDisplayClusterInput::SetChannelValue( int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value )
 {
 	//dummy

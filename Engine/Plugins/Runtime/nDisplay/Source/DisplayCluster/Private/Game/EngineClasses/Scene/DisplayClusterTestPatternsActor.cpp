@@ -22,6 +22,10 @@
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterTypesConverter.h"
 
+#include "Render/Viewport/IDisplayClusterViewportManager.h"
+#include "Render/Viewport/IDisplayClusterViewport.h"
+#include "Render/Viewport/IDisplayClusterViewport_CustomPostProcessSettings.h"
+
 #include "UObject/ConstructorHelpers.h"
 
 
@@ -101,13 +105,19 @@ void ADisplayClusterTestPatternsActor::Tick(float DeltaSeconds)
 	if (OperationMode != EDisplayClusterOperationMode::Disabled)
 	{
 		static IPDisplayClusterRenderManager* const RenderMgr = GDisplayCluster->GetPrivateRenderMgr();
-		for (auto it = ViewportPPSettings.CreateConstIterator(); it; ++it)
+		IDisplayClusterRenderDevice* RenderDevice = RenderMgr->GetRenderDevice();
+		if (RenderDevice)
 		{
-			IDisplayClusterRenderDevice* RenderDevice = RenderMgr->GetRenderDevice();
-			if (RenderDevice)
+			IDisplayClusterViewportManager& ViewportManager = RenderDevice->GetViewportManager();
+
+			for (auto it = ViewportPPSettings.CreateConstIterator(); it; ++it)
 			{
-				// Assign current post-process settigns for each viewport
-				RenderDevice->SetOverridePostProcessingSettings(it->Key, it->Value, 1.f);
+				IDisplayClusterViewport* DesiredViewport = ViewportManager.FindViewport(it->Key);
+				if (DesiredViewport != nullptr)
+				{
+					// Assign current post-process settigns for each viewport
+					DesiredViewport->GetViewport_CustomPostProcessSettings().AddCustomPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override, it->Value);
+				}
 			}
 		}
 	}
@@ -128,7 +138,7 @@ void ADisplayClusterTestPatternsActor::InitializeInternals()
 		if (Node)
 		{
 			// For each local viewport create a PP settings structure with no PP material assigned
-			for (auto& it : Node->Viewports)
+			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& it : Node->Viewports)
 			{
 				ViewportPPSettings.Emplace(it.Key, CreatePPSettings(nullptr));
 			}

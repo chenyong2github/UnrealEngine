@@ -6,7 +6,6 @@
 #include "DetailsCustomization/DisplayClusterRootActorDetailsCustomization.h"
 
 #include "Components/DisplayClusterPreviewComponent.h"
-#include "DetailsCustomization/DisplayClusterPreviewComponentDetailsCustomization.h"
 
 #include "Settings/DisplayClusterEditorSettings.h"
 
@@ -58,7 +57,6 @@ void FDisplayClusterEditorModule::RegisterCustomizations()
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	PropertyEditorModule.RegisterCustomClassLayout(ADisplayClusterRootActor::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterRootActorDetailsCustomization::MakeInstance));
-	PropertyEditorModule.RegisterCustomClassLayout(UDisplayClusterPreviewComponent::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterPreviewComponentDetailsCustomization::MakeInstance));
 }
 
 void FDisplayClusterEditorModule::UnregisterCustomizations()
@@ -66,7 +64,6 @@ void FDisplayClusterEditorModule::UnregisterCustomizations()
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	PropertyEditorModule.UnregisterCustomClassLayout(ADisplayClusterRootActor::StaticClass()->GetFName());
-	PropertyEditorModule.UnregisterCustomClassLayout(UDisplayClusterPreviewComponent::StaticClass()->GetFName());
 }
 
 IMPLEMENT_MODULE(FDisplayClusterEditorModule, DisplayClusterEditor);

@@ -1,8 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterConfigurationTypes.h"
+
+#include "DisplayClusterConfigurationTypes_Base.h"
+#include "DisplayClusterConfigurationTypes_Viewport.h"
+#include "DisplayClusterConfigurationTypes_ICVFX.h"
+#include "DisplayClusterConfigurationTypes_PostRender.h"
+
 #include "DisplayClusterConfigurationLog.h"
 #include "DisplayClusterConfigurationStrings.h"
+#include "DisplayClusterProjectionStrings.h"
+
 #include "Formats/Text/DisplayClusterConfigurationTextTypes.h"
 
 #include "Engine/StaticMesh.h"
@@ -20,6 +28,11 @@
 #define SAVE_MAP(Map) \
 	SAVE_MAP_TO_ARRAY(Map, OutObjects); \
 	
+
+FIntRect FDisplayClusterConfigurationRectangle::ToRect() const
+{
+	return FIntRect(FIntPoint(X, Y), FIntPoint(X + W, Y + H));
+}
 
 void UDisplayClusterConfigurationInput::GetObjectsToExport(TArray<UObject*>& OutObjects)
 {
@@ -107,10 +120,6 @@ const TSet<FString> UDisplayClusterConfigurationData::ProjectionPolicies =
 	TEXT("DomeProjection"),
 	TEXT("VIOSO"),
 	TEXT("Manual"),
-	/* TODO: Are these needed?
-	TEXT("PICP_MPCDI"),
-	TEXT("PICP_Mesh"),
-	*/
 };
 
 #endif
@@ -120,22 +129,29 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 	Type = TEXT("simple");
 }
 
+UDisplayClusterConfigurationICVFX_CameraSettings::UDisplayClusterConfigurationICVFX_CameraSettings()
+{
+}
+
+UDisplayClusterConfigurationICVFX_StageSettings::UDisplayClusterConfigurationICVFX_StageSettings()
+	: DefaultFrameSize(2560, 1440)
+{
+}
+
 UDisplayClusterConfigurationViewport::UDisplayClusterConfigurationViewport()
 {
-	const FDisplayClusterConfigurationTextViewport DefaultValues;
-
-	BufferRatio = DefaultValues.BufferRatio;
-	GPUIndex = DefaultValues.GPUIndex;
-	bAllowCrossGPUTransfer = DefaultValues.AllowCrossGPUTransfer;
-	bIsShared = DefaultValues.IsShared;
-
 #if WITH_EDITORONLY_DATA
 	bIsVisible = true;
 	bIsEnabled = true;
 #endif
 }
 
+UDisplayClusterConfigurationViewportPreview::UDisplayClusterConfigurationViewportPreview()
+{
+}
+
 #if WITH_EDITOR
+
 void UDisplayClusterConfigurationViewport::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
@@ -278,4 +294,43 @@ FDisplayClusterConfigurationNetworkSettings::FDisplayClusterConfigurationNetwork
 	ConnectRetryDelay = DefaultValues.ClientConnectRetryDelay;
 	GameStartBarrierTimeout = DefaultValues.BarrierGameStartWaitTimeout;
 	FrameStartBarrierTimeout = FrameEndBarrierTimeout = RenderSyncBarrierTimeout = DefaultValues.BarrierWaitTimeout;
+}
+
+void UDisplayClusterConfigurationViewport::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
+{
+	// Collect all mesh references from projection policies
+	for (const TPair<FString, FString>& It : ProjectionPolicy.Parameters)
+	{
+		if (ProjectionPolicy.Type.Compare(DisplayClusterProjectionStrings::projection::Mesh, ESearchCase::IgnoreCase) == 0)
+		{
+			if (It.Key.Compare(DisplayClusterProjectionStrings::cfg::mesh::Component, ESearchCase::IgnoreCase) == 0)
+			{
+				OutMeshNames.Add(It.Value);
+			}
+		}
+	}
+}
+
+void UDisplayClusterConfigurationClusterNode::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
+{
+	for (const TPair<FString, UDisplayClusterConfigurationViewport*>& It : Viewports)
+	{
+		It.Value->GetReferencedMeshNames(OutMeshNames);
+	}
+}
+
+void UDisplayClusterConfigurationCluster::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
+{
+	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& It : Nodes)
+	{
+		It.Value->GetReferencedMeshNames(OutMeshNames);
+	}
+}
+
+void UDisplayClusterConfigurationData::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
+{
+	if (Cluster !=nullptr)
+	{
+		Cluster->GetReferencedMeshNames(OutMeshNames);
+	}
 }

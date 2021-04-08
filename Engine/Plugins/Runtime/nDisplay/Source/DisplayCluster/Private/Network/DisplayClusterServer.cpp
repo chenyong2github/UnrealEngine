@@ -168,7 +168,7 @@ void FDisplayClusterServer::NotifySessionClose(uint64 SessionId)
 
 	// We come here from a Session object so we can't delete it right now. The delete operation should
 	// be performed later when the session is completely finished and its working thread is closed.
-	// Here we store ID of the session and its death time to clean the resouces safely later.
+	// Here we store ID of the session and its death time to clean the resources safely later.
 	FPendingKillSessionInfo PendingKillSession;
 	PendingKillSession.SessionId = SessionId;
 	PendingKillSession.Time = FPlatformTime::Seconds();

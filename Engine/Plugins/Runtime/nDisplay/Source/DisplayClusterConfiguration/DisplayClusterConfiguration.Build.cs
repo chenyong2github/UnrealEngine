@@ -14,7 +14,9 @@ public class DisplayClusterConfiguration : ModuleRules
 				"DisplayCluster",
 				"DisplayClusterInput",
 				"DisplayClusterPostprocess",
-				"DisplayClusterProjection"
+				"DisplayClusterProjection",
+				"OpenColorIO",
+				"ActorLayerUtilities"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -23,7 +25,11 @@ public class DisplayClusterConfiguration : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"Json",
-				"JsonUtilities"
+				"JsonUtilities",
+				"OpenColorIO",
+				"ActorLayerUtilities"
 			});
+
+		PublicDefinitions.Add("WITH_OCIO=0");
 	}
 }

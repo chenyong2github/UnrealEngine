@@ -92,7 +92,9 @@ protected:
 
 private:
 	TWeakObjectPtr<AActor> CurrentPreviewActor;
-	uint8 TicksForPreviewRenderCapture;
+
+	// logic require signed number
+	int16 TicksForPreviewRenderCapture = -1;
 	
 	FDelegateHandle UpdateOutputMappingHandle;
 

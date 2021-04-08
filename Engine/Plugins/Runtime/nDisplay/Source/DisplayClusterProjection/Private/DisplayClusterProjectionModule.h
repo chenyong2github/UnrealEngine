@@ -31,7 +31,7 @@ public:
 	virtual void GetSupportedProjectionTypes(TArray<FString>& OutProjectionTypes) override;
 	virtual TSharedPtr<IDisplayClusterProjectionPolicyFactory> GetProjectionFactory(const FString& InProjectionType) override;
 
-	virtual bool AssignWarpMeshToViewport(const FString& ViewportId, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent) override;
+	virtual bool CameraPolicySetCamera(const TSharedPtr<IDisplayClusterProjectionPolicy>& InPolicy, UCameraComponent* const NewCamera, const FDisplayClusterProjectionCameraPolicySettings& CamersSettings) override;
 
 private:
 	// Available factories

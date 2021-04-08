@@ -3,6 +3,9 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
+
+#include "DisplayClusterConfigurationTypes_Base.h"
+
 #include "DisplayClusterPreviewComponent.generated.h"
 
 class IDisplayClusterProjectionPolicy;
@@ -16,7 +19,7 @@ class ADisplayClusterRootActor;
 class UMeshComponent;
 
 /**
- * Projection policy preview component (Editor)
+ * nDisplay Viewport preview component (Editor)
  */
 UCLASS(ClassGroup = (DisplayCluster))
 class DISPLAYCLUSTER_API UDisplayClusterPreviewComponent
@@ -31,132 +34,91 @@ public:
 
 #if WITH_EDITOR
 public:
-	void SetConfigData(ADisplayClusterRootActor* RootActor, UDisplayClusterConfigurationViewport* ViewportConfig);
-	void SetProjectionPolicy(const FString& ProjPolicy);
-	void BuildPreview();
+	virtual void OnComponentCreated() override;
+	virtual void DestroyComponent(bool bPromoteChildren = false) override;
+
+public:
+	bool InitializePreviewComponent(ADisplayClusterRootActor* RootActor, const FString& ViewportId, UDisplayClusterConfigurationViewport* ViewportConfig);
 
 	bool IsPreviewAvailable() const;
 
+	const FString& GetViewportId() const
+		{ return ViewportId; }
+
 	UDisplayClusterConfigurationViewport* GetViewportConfig() const
+		{ return ViewportConfig; }
+	
+	UTextureRenderTarget2D* GetRenderTargetTexture() const
 	{
-		return ViewportConfig;
+		return RenderTarget;
 	}
+
+	void UpdatePreviewResources();
+	void HandleRenderTargetTextureUpdate_RenderThread();
 
 	UMeshComponent* GetPreviewMesh() const
 	{
 		return PreviewMesh;
 	}
-	
-	UTextureRenderTarget2D* GetRenderTexture()
-	{
-		return RenderTarget;
-	}
 
 	/** Create and retrieve a render texture 2d from the render target. */
 	UTexture2D* GetOrCreateRenderTexture2D();
 
-	FIntPoint GetRenderTextureSize() const
-	{
-		return TextureSize;
-	}
+protected:
+	class IDisplayClusterViewport* GetCurrentViewport() const;
+	bool GetPreviewTextureSettings(FIntPoint& OutSize, float& OutGamma) const;
 
-	void SetRenderTextureSize(const FIntPoint& Size)
-	{
-		TextureSize = Size;
-	}
+	void UpdatePreviewRenderTarget();
+	bool UpdatePreviewMesh();
 
-	float GetRenderTextureGamma() const
-	{
-		return TextureGamma;
-	}
+	bool UpdatePreviewTexture();
+	void RemovePreviewTexture();
 
-	void SetRenderTextureGamma(float Gamma)
-	{
-		TextureGamma = Gamma;
-	}
-
-	int32 GetRefreshPeriod() const
-	{
-		return RefreshPeriod;
-	}
-
-	void SetRefreshPeriod(int32 Period)
-	{
-		RefreshPeriod = Period;
-		PrimaryComponentTick.TickInterval = RefreshPeriod / 1000.f;
-	}
-
-	bool GetWarpBlendEnabled() const
-	{
-		return bApplyWarpBlend;
-	}
-
-	void SetWarpBlendEnabled(bool bEnabled)
-	{
-		bApplyWarpBlend = bEnabled;
-	}
-
-public:
-	virtual void OnComponentCreated() override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	virtual void DestroyComponent(bool bPromoteChildren = false) override;
-	virtual void OnUnregister() override;
+	void InitializeInternals();
 
 protected:
-	void UpdateProjectionPolicy();
-	void UpdateRenderTarget();
-	void InitializeInternals();
-#endif
+	// Set to true, when RTT surface updated
+	bool bIsRenderTargetSurfaceChanged = false;
+	bool bIsEditingProperty = false;
+
+#endif /* WITH_EDITOR */
 
 #if WITH_EDITORONLY_DATA
 protected:
-	UPROPERTY(EditAnywhere, Category = "Policy")
-	FString ProjectionPolicy;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview", meta = (DisplayName = "Render Target"))
-	UTextureRenderTarget2D* RenderTarget;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Preview", meta = (DisplayName = "Render Target Size"))
-	FIntPoint TextureSize;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Preview", meta = (DisplayName = "Preview Gamma"))
-	float TextureGamma;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Preview", meta = (ClampMin = "0", ClampMax = "5000", UIMin = "0", UIMax = "5000"), meta = (DisplayName = "Refresh Period (ms)"))
-	int32 RefreshPeriod;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Preview", meta = (DisplayName = "Apply Warp&Blend"))
-	bool bApplyWarpBlend;
+		UTextureRenderTarget2D* RenderTarget;
 
 private:
+	// Saved mesh policy params
 	UPROPERTY()
-	UDisplayClusterConfigurationViewport* ViewportConfig;
+		FDisplayClusterConfigurationProjection WarpMeshSavedProjectionPolicy;
 
 	UPROPERTY()
-	UMeshComponent* PreviewMesh;
+		ADisplayClusterRootActor* RootActor = nullptr;
 
 	UPROPERTY()
-	UMaterial* OriginalMaterial;
+		FString ViewportId;
 
 	UPROPERTY()
-	UMaterial* PreviewMaterial;
+		UDisplayClusterConfigurationViewport* ViewportConfig = nullptr;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* PreviewMaterialInstance;
+		UMeshComponent* PreviewMesh = nullptr;
 
 	UPROPERTY()
-	UDisplayClusterProjectionPolicyParameters* ProjectionPolicyParameters;
+		UMaterial* OriginalMaterial = nullptr;
 
 	UPROPERTY()
-	ADisplayClusterRootActor* RootActor;
+		UMaterial* PreviewMaterial = nullptr;
+
+	UPROPERTY()
+		UMaterialInstanceDynamic* PreviewMaterialInstance = nullptr;
+
+	UPROPERTY()
+		bool bUseMeshUsePreviewMaterialInstance = false;
 
 	UPROPERTY(Transient)
-	UTexture2D* RenderTexture;
-	
-	TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicyInstance;
-	TArray<FString> ProjectionPolicies;
+		UTexture2D* PreviewTexture;
 
-	bool bIsEditingProperty = false;
-#endif
+#endif /*WITH_EDITORONLY_DATA*/
 };

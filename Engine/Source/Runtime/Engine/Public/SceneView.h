@@ -1132,6 +1132,13 @@ public:
 	 */
 	FVector4 LensPrincipalPointOffsetScale;
 
+	/** Whether to enable motion blur caused by camera movements */
+	TOptional<bool> bCameraMotionBlur;
+
+	/** Matrix overrides PrevViewToClip in the view uniform buffer.
+		Used for replacing motion blur caused by the current camera movements with a custom transform.*/
+	TOptional<FMatrix> ClipToPrevClipOverride;
+
 #if WITH_EDITOR
 	/** The set of (the first 64) groups' visibility info for this view */
 	uint64 EditorViewBitflag;
@@ -1665,8 +1672,8 @@ public:
 	/** Enable LateLatching mechanism for this viewFamily */
 	bool bLateLatchingEnabled;
 
-    /** Extensions that can modify view parameters on the render thread. */
-    TArray<TSharedRef<class ISceneViewExtension, ESPMode::ThreadSafe> > ViewExtensions;
+	/** Extensions that can modify view parameters on the render thread. */
+	TArray<TSharedRef<class ISceneViewExtension, ESPMode::ThreadSafe> > ViewExtensions;
 
 	// for r.DisplayInternals (allows for easy passing down data from main to render thread)
 	FDisplayInternalsData DisplayInternalsData;

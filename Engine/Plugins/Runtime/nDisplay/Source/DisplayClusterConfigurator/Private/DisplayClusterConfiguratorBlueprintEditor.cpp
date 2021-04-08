@@ -344,26 +344,28 @@ void FDisplayClusterConfiguratorBlueprintEditor::SyncViewports()
 
 void FDisplayClusterConfiguratorBlueprintEditor::RefreshDisplayClusterPreviewActor(bool bFullRefresh)
 {
-	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
-	{
-		RootActor->CleanupPreview();
-	}
-
 	UpdatePreviewActor(GetBlueprintObj(), bFullRefresh);
 
 	if (ADisplayClusterRootActor* PreviewActor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
 	{
 		check(LoadedBlueprint.IsValid());
-		PreviewActor->StoreConfigData(LoadedBlueprint->GetOrLoadConfig());
+		PreviewActor->UpdateConfigDataInstance(LoadedBlueprint->GetOrLoadConfig());
 	}
 
 	RequestOutputMappingPreviewUpdate();
 }
 
+
 void FDisplayClusterConfiguratorBlueprintEditor::RequestOutputMappingPreviewUpdate()
 {
-	const uint8 MaxTicksToCapture = 2;
-	TicksForPreviewRenderCapture = MaxTicksToCapture;
+	//@todo: now RootActor has handling func GetPreviewRenderTargetableTexture_RenderThread(), use it to sync texture surfaces update
+	const int16 MaxTicksToCapture = 2;
+
+	// Only if prev frame copied
+	if (TicksForPreviewRenderCapture <= 0)
+	{
+		TicksForPreviewRenderCapture = MaxTicksToCapture;
+	}
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::ReselectObjects()

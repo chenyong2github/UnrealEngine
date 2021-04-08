@@ -25,7 +25,7 @@ UDisplayClusterBlueprint* UDisplayClusterConfiguratorEditorSubsystem::ImportAsse
 	{
 		return nullptr;
 	}
-	RootActor->PreviewNodeId = ADisplayClusterRootActor::PreviewNodeAll;
+	RootActor->PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
 	UDisplayClusterBlueprint* NewBlueprint = FDisplayClusterConfiguratorUtils::CreateBlueprintFromRootActor(RootActor, InName, InParent);
 	NewBlueprint->LastEditedDocuments.Reset();

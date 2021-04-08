@@ -28,6 +28,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 
+
+
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorDetailCustomization"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -1016,7 +1018,7 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnTextCommittedIn
 
 	ConfigurationCluster->Sync.RenderSyncPolicy.Type = CustomPolicy;
 
-	// Check if the custom config same as any of the ProjectionPolicies configs 
+	// Check if the custom config same as any of the ProjectionPoliсies configs 
 	bIsCustomPolicy = true;
 	for (const FString& ProjectionPolicy : UDisplayClusterConfigurationData::ProjectionPolicies)
 	{

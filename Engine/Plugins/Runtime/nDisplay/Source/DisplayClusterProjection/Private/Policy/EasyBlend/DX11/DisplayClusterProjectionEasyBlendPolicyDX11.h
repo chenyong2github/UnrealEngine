@@ -14,8 +14,8 @@ class FDisplayClusterProjectionEasyBlendPolicyDX11
 	: public FDisplayClusterProjectionEasyBlendPolicyBase
 {
 public:
-	FDisplayClusterProjectionEasyBlendPolicyDX11(const FString& ViewportId, const TMap<FString, FString>& Parameters)
-		: FDisplayClusterProjectionEasyBlendPolicyBase(ViewportId, Parameters)
+	FDisplayClusterProjectionEasyBlendPolicyDX11(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+		: FDisplayClusterProjectionEasyBlendPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 	{ }
 
 protected:

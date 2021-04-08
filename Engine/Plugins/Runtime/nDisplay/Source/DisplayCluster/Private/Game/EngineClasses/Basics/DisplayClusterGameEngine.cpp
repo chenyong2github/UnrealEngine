@@ -84,6 +84,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 
 		FString ConfigPath;
 
+		
 		// Extract config path from command line
 		if (!ParseCommandArg(FCommandLine::Get(), DisplayClusterStrings::args::Config, ConfigPath))
 		{
@@ -94,7 +95,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		DisplayClusterHelpers::str::TrimStringValue(ConfigPath);
 
 		// Load config data
-		const UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigPath);
+		UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigPath);
 		if (!ConfigData)
 		{
 			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("An error occurred during loading the configuration file"));

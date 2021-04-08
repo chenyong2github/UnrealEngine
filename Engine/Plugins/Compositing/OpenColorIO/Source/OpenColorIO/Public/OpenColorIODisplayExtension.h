@@ -44,7 +44,7 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	//~End FGCObject interface
 
-	void SetDisplayConfiguration(FOpenColorIODisplayConfiguration& InDisplayConfiguration) { DisplayConfiguration = InDisplayConfiguration; };
+	void SetDisplayConfiguration(const FOpenColorIODisplayConfiguration& InDisplayConfiguration) { DisplayConfiguration = InDisplayConfiguration; };
 public:
 	/** Returns the ViewportClient this extension is currently attached to */
 	FViewportClient* GetAssociatedViewportClient() { return LinkedViewportClient; }

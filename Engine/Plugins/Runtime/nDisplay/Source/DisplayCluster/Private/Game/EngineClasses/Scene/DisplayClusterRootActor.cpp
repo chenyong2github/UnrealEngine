@@ -12,6 +12,12 @@
 #include "Components/DisplayClusterPreviewComponent.h"
 #include "Components/DisplayClusterSyncTickComponent.h"
 
+#include "Components/DisplayClusterRootComponent.h"
+#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
+#include "CineCameraComponent.h"
+#include "Components/DisplayClusterICVFX_RefCineCameraComponent.h"
+#include "Components/DisplayClusterSceneComponentSyncThis.h"
+
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "DisplayClusterConfigurationStrings.h"
 
@@ -39,12 +45,24 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 	, OperationMode(EDisplayClusterOperationMode::Disabled)
 {
 	// Root component
-	RootComponent = CreateDefaultSubobject<UDisplayClusterOriginComponent>(TEXT("DisplayClusterOrigin"));
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+
 	// A helper component to trigger nDisplay Tick() during Tick phase
 	SyncTickComponent = CreateDefaultSubobject<UDisplayClusterSyncTickComponent>(TEXT("DisplayClusterSyncTick"));
 
+	// A ICVFX Stage settings
+	StageSettings = CreateDefaultSubobject<UDisplayClusterConfigurationICVFX_StageSettings>(TEXT("StageSettings"));
+
+	// A render frame settings (allow control whole cluster rendering)
+	RenderFrameSettings = CreateDefaultSubobject<UDisplayClusterConfigurationRenderFrame>(TEXT("RenderFrameSettings"));
+
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
+
+#if WITH_EDITOR
+	Constructor_Editor();
+#endif
+
 	bFindCameraComponentWhenViewTarget = false;
 	bReplicates = false;
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
@@ -52,25 +70,42 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 
 ADisplayClusterRootActor::~ADisplayClusterRootActor()
 {
-#if WITH_EDITORONLY_DATA
-	OnPreviewGenerated.Unbind();
-	OnPreviewDestroyed.Unbind();
+#if WITH_EDITOR
+	Destructor_Editor();
 #endif
 }
 
-void ADisplayClusterRootActor::InitializeFromConfig(const UDisplayClusterConfigurationData* ConfigData)
+bool ADisplayClusterRootActor::IsRunningGameOrPIE() const
+{
+	if (!IsRunningGame())
+	{
+#if WITH_EDITOR
+		const UWorld* World = GetWorld();
+		return World && World->IsPlayInEditor();
+#else
+		return true;
+#endif;
+	}
+
+	return true;
+}
+
+void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData)
 {
 	// Clean up current hierarchy before building a new one
 	CleanupHierarchy();
 
 	if (ConfigData)
 	{
-		BuildHierarchy(ConfigData);
+		// Store new config data object
+		UpdateConfigDataInstance(ConfigData);
+
+		BuildHierarchy();
 
 #if WITH_EDITOR
 		if (GIsEditor && GetWorld())
 		{
-			RebuildPreview();
+			UpdatePreviewComponents();
 		}
 #endif
 	}
@@ -84,7 +119,7 @@ void ADisplayClusterRootActor::InitializeFromConfig(const FString& ConfigFile)
 	if (!ConfigFile.IsEmpty())
 	{
 		// Update config data
-		const UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigFile, this);
+		UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigFile, this);
 		if (ConfigData)
 		{
 			InitializeFromConfig(ConfigData);
@@ -103,12 +138,19 @@ void ADisplayClusterRootActor::ApplyConfigDataToComponents()
 	}
 }
 
-void ADisplayClusterRootActor::StoreConfigData(const UDisplayClusterConfigurationData* ConfigData)
+void ADisplayClusterRootActor::UpdateConfigDataInstance(UDisplayClusterConfigurationData* InConfigData)
 {
-	CurrentConfigData = ConfigData;
-	if (CurrentConfigData)
+	if (InConfigData == nullptr)
 	{
+		CurrentConfigData = nullptr;
+	}
+	else
+	{
+		if (CurrentConfigData != InConfigData)
+		{
+		CurrentConfigData = InConfigData;
 		ConfigDataName = CurrentConfigData->GetFName();
+		}
 	}
 }
 
@@ -127,6 +169,118 @@ UDisplayClusterConfigurationData* ADisplayClusterRootActor::GetDefaultConfigData
 	return nullptr;
 }
 
+template <typename TComp>
+void ImplCollectAllDescendantsClidren(TSet<FPrimitiveComponentId>& OutPrimitives, TComp* pComp)
+{
+#if WITH_EDITOR
+	USceneComponent* SceneComp = Cast<USceneComponent>(pComp);
+	if (SceneComp)
+	{
+		TArray<USceneComponent*> Childrens;
+		SceneComp->GetChildrenComponents(false, Childrens);
+		for (USceneComponent* ChildIt : Childrens)
+		{
+			// Hide attached visualization components
+			if (ChildIt->IsVisualizationComponent())
+			{
+				UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(ChildIt);
+				if (PrimComp)
+				{
+					OutPrimitives.Add(PrimComp->ComponentId);
+				}
+			}
+		}
+	}
+#endif
+}
+
+template <typename TComp>
+void ADisplayClusterRootActor::GetTypedPrimitives(TSet<FPrimitiveComponentId>& OutPrimitives, const TArray<FString>* InCompNames) const
+{
+	TArray<TComp*> TypedComponents;
+	GetComponents<TComp>(TypedComponents, true);
+
+	for (TComp*& CompIt : TypedComponents)
+	{
+		if (CompIt)
+		{
+			if (InCompNames != nullptr)
+			{
+				// add only comp from names list
+				for (const FString& NameIt : (*InCompNames))
+				{
+					if (CompIt->GetName() == NameIt)
+					{
+						UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(CompIt);
+						if (PrimComp)
+						{
+							OutPrimitives.Add(PrimComp->ComponentId);
+						}
+
+						ImplCollectAllDescendantsClidren(OutPrimitives, CompIt);
+						break;
+					}
+				}
+			}
+			else
+			{
+				UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(CompIt);
+				if (PrimComp)
+				{
+					OutPrimitives.Add(PrimComp->ComponentId);
+				}
+
+				ImplCollectAllDescendantsClidren(OutPrimitives, CompIt);
+			}
+
+		}
+	}
+}
+
+bool ADisplayClusterRootActor::FindPrimitivesByName(const TArray<FString>& InNames, TSet<FPrimitiveComponentId>& OutPrimitives)
+{
+	GetTypedPrimitives<UActorComponent>(OutPrimitives, &InNames);
+
+	return true;
+}
+
+bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponentId>& OutPrimitives)
+{
+	// Gather components no rendered in game
+	FScopeLock Lock(&InternalsSyncScope);
+
+	OutPrimitives.Empty();
+
+	if (CurrentConfigData)
+	{
+		TArray<FString> WarpMeshNames;
+		CurrentConfigData->GetReferencedMeshNames(WarpMeshNames);
+		if (WarpMeshNames.Num() > 0)
+		{
+			GetTypedPrimitives<UStaticMeshComponent>(OutPrimitives, &WarpMeshNames);
+		}
+	}
+
+	GetTypedPrimitives<UDisplayClusterCameraComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterSceneComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterICVFX_CineCameraComponent>(OutPrimitives);
+	GetTypedPrimitives<UCineCameraComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterICVFX_RefCineCameraComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterMeshComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterOriginComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterSceneComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterPreviewComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterRootComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterSceneComponentSync>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterSceneComponentSyncParent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterSceneComponentSyncThis>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterScreenComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterSyncTickComponent>(OutPrimitives);
+	GetTypedPrimitives<UDisplayClusterXformComponent>(OutPrimitives);
+
+	return OutPrimitives.Num() > 0;
+}
+
 void ADisplayClusterRootActor::InitializeRootActor()
 {
 	const UWorld* World = GetWorld();
@@ -141,22 +295,19 @@ void ADisplayClusterRootActor::InitializeRootActor()
 	if (!CurrentConfigData && !ConfigDataName.IsNone())
 	{
 		// Attempt load from embedded data.
-		CurrentConfigData = GetDefaultConfigDataFromAsset();
+		UpdateConfigDataInstance(GetDefaultConfigDataFromAsset());
 	}
-	
-#if WITH_EDITOR
-	bIsPIE = World->IsPlayInEditor();
-#endif
 
 	// Packaged, PIE and -game runtime
-	if (IsRunningGame() || bIsPIE)
+	if (IsRunningGameOrPIE())
 	{
 		if (CurrentConfigData)
 		{
 			ResetHierarchyMap();
-			BuildHierarchy(CurrentConfigData);
+			BuildHierarchy();
+
 #if WITH_EDITOR
-			GeneratePreview();
+			UpdatePreviewComponents();
 #endif
 			return;
 		}
@@ -164,7 +315,7 @@ void ADisplayClusterRootActor::InitializeRootActor()
 		IPDisplayClusterConfigManager* const ConfigMgr = (GDisplayCluster ? GDisplayCluster->GetPrivateConfigMgr() : nullptr);
 		if (ConfigMgr)
 		{
-			const UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
+			UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
 			if (ConfigData)
 			{
 				InitializeFromConfig(ConfigData);
@@ -178,30 +329,25 @@ void ADisplayClusterRootActor::InitializeRootActor()
 		if (CurrentConfigData)
 		{
 			ResetHierarchyMap();
-			BuildHierarchy(CurrentConfigData);
-			GeneratePreview();
+			BuildHierarchy();
+			UpdatePreviewComponents();
 			return;
 		}
-		
-		InitializeFromConfig(PreviewConfigPath.FilePath);
 	}
 #endif
 }
 
-bool ADisplayClusterRootActor::BuildHierarchy(const UDisplayClusterConfigurationData* ConfigData)
+bool ADisplayClusterRootActor::BuildHierarchy()
 {
-	check(ConfigData);
-
-	// Store new config data object
-	StoreConfigData(ConfigData);
+	check(CurrentConfigData);
 
 	if (!IsBlueprint())
 	{
 		// Spawn all components
-		SpawnComponents<UDisplayClusterXformComponent, UDisplayClusterConfigurationSceneComponentXform>(ConfigData->Scene->Xforms, XformComponents, AllComponents);
-		SpawnComponents<UDisplayClusterCameraComponent, UDisplayClusterConfigurationSceneComponentCamera>(ConfigData->Scene->Cameras, CameraComponents, AllComponents);
-		SpawnComponents<UDisplayClusterScreenComponent, UDisplayClusterConfigurationSceneComponentScreen>(ConfigData->Scene->Screens, ScreenComponents, AllComponents);
-		SpawnComponents<UDisplayClusterMeshComponent, UDisplayClusterConfigurationSceneComponentMesh>(ConfigData->Scene->Meshes, MeshComponents, AllComponents);
+		SpawnComponents<UDisplayClusterXformComponent, UDisplayClusterConfigurationSceneComponentXform>(CurrentConfigData->Scene->Xforms, XformComponents, AllComponents);
+		SpawnComponents<UDisplayClusterCameraComponent, UDisplayClusterConfigurationSceneComponentCamera>(CurrentConfigData->Scene->Cameras, CameraComponents, AllComponents);
+		SpawnComponents<UDisplayClusterScreenComponent, UDisplayClusterConfigurationSceneComponentScreen>(CurrentConfigData->Scene->Screens, ScreenComponents, AllComponents);
+		SpawnComponents<UDisplayClusterMeshComponent, UDisplayClusterConfigurationSceneComponentMesh>(CurrentConfigData->Scene->Meshes, MeshComponents, AllComponents);
 
 		if (GetWorld())
 		{
@@ -262,7 +408,7 @@ void ADisplayClusterRootActor::CleanupHierarchy()
 		ResetHierarchyMap();
 
 		// Invalidate current config as well
-		CurrentConfigData = nullptr;
+		UpdateConfigDataInstance(nullptr);
 	}
 }
 
@@ -302,7 +448,7 @@ void ADisplayClusterRootActor::BeginPlay()
 		IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr();
 		if (ConfigMgr)
 		{
-			const UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
+			UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
 			if (ConfigData)
 			{
 				SyncPolicyType = ConfigData->Cluster->Sync.InputSyncPolicy.Type;
@@ -332,16 +478,6 @@ void ADisplayClusterRootActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 {
-#if WITH_EDITOR
-	if (bDeferPreviewGeneration)
-	{
-		// Hack to generate preview components on instances during map load.
-		// TODO: See if we can move InitializeRootActor out of PostLoad.
-		bDeferPreviewGeneration = false;
-		GeneratePreview();
-	}
-#endif
-	
 	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
 		OperationMode == EDisplayClusterOperationMode::Editor)
 	{
@@ -383,16 +519,22 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 		}
 	}
 
+#if WITH_EDITOR
+	// Tick editor preview
+	Tick_Editor(DeltaSeconds);
+#endif
+
 	Super::Tick(DeltaSeconds);
 }
 
 void ADisplayClusterRootActor::PostLoad()
 {
 	Super::PostLoad();
+
 #if WITH_EDITOR
-	// Generating the preview on load for instances in the world can't be done on PostLoad, components may not have loaded flags present.
-	bDeferPreviewGeneration = true;
+	PostLoad_Editor();
 #endif
+
 	InitializeRootActor();
 }
 
@@ -405,10 +547,9 @@ void ADisplayClusterRootActor::PostActorCreated()
 void ADisplayClusterRootActor::BeginDestroy()
 {
 #if WITH_EDITOR
-	CleanupPreview();
-	OnPreviewGenerated.Unbind();
-	OnPreviewDestroyed.Unbind();
+	BeginDestroy_Editor();
 #endif
+
 	ResetHierarchyMap();
 	Super::BeginDestroy();
 }
@@ -416,8 +557,9 @@ void ADisplayClusterRootActor::BeginDestroy()
 void ADisplayClusterRootActor::RerunConstructionScripts()
 {
 	Super::RerunConstructionScripts();
+
 #if WITH_EDITOR
-	InitializeRootActor();
+	RerunConstructionScripts_Editor();
 #endif
 }
 

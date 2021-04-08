@@ -107,8 +107,9 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 		{
 			bIsNDisplayPIE = true;
 
-			// Load config data
-			const UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(RootActor->GetPreviewConfigPath());
+			// Get current config data from root actor:
+			UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData();
+
 			if (ConfigData)
 			{
 				if (!DisplayClusterModule->StartSession(ConfigData, ConfigData->Cluster->MasterNode.Id))

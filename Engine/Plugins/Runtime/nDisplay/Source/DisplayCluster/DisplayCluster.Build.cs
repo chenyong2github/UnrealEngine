@@ -7,6 +7,16 @@ public class DisplayCluster : ModuleRules
 {
 	public DisplayCluster(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"ActorLayerUtilities"
+			});
+
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				"../../../../Source/Runtime/Renderer/Private",
+			});
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"CinematicCamera",
@@ -25,13 +35,15 @@ public class DisplayCluster : ModuleRules
 				"Json",
 				"JsonUtilities",
 				"Networking",
+				"Renderer",
 				"RenderCore",
 				"RHI",
 				"Slate",
 				"SlateCore",
 				"Sockets",
 				"TextureShare",
-				"TextureShareCore"
+				"TextureShareCore",
+				"OpenColorIO",
 			});
 
 		if (Target.bBuildEditor == true)
@@ -48,6 +60,8 @@ public class DisplayCluster : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+
+		PublicDefinitions.Add("WITH_OCIO=0");
 
 		// 3rd party dependencies
 		AddThirdPartyDependencies(ROTargetRules);

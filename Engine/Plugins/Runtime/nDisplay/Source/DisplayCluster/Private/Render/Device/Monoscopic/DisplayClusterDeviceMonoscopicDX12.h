@@ -2,15 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Render/Device/DisplayClusterDeviceMonoscopicBase.h"
-
+#include "Render/Device/DisplayClusterDeviceBase.h"
 
 /**
  * Monoscopic render device (DirectX 12)
  */
 class FDisplayClusterDeviceMonoscopicDX12
-	: public FDisplayClusterDeviceMonoscopicBase
+	: public FDisplayClusterDeviceBase
 {
 public:
 	FDisplayClusterDeviceMonoscopicDX12();

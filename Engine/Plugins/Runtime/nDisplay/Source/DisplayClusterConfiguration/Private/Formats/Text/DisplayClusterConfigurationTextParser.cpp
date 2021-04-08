@@ -221,12 +221,12 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 						UDisplayClusterConfigurationViewport* Viewport = NewObject<UDisplayClusterConfigurationViewport>(Config, *ViewportId, RF_Transactional);
 						check(Viewport);
 
-						Viewport->BufferRatio = CfgViewport->BufferRatio;
+						Viewport->RenderSettings.BufferRatio = CfgViewport->BufferRatio;
 						Viewport->Camera      = CfgViewport->CameraId;
 						Viewport->Region      = FDisplayClusterConfigurationRectangle(CfgViewport->Loc.X, CfgViewport->Loc.Y, CfgViewport->Size.X, CfgViewport->Size.Y);
 						Viewport->GPUIndex    = CfgViewport->GPUIndex;
 						Viewport->bIsShared   = CfgViewport->IsShared;
-						Viewport->bAllowCrossGPUTransfer = CfgViewport->AllowCrossGPUTransfer;
+						//Viewport->bAllowCrossGPUTransfer = CfgViewport->AllowCrossGPUTransfer;
 
 						const FDisplayClusterConfigurationTextProjection* const CfgProjection = CfgProjections.FindByPredicate([&](const FDisplayClusterConfigurationTextProjection& Item)
 						{

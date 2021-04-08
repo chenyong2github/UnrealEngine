@@ -95,12 +95,12 @@ void FDisplayClusterConfiguratorKismetCompilerContext::CopyTermDefaultsToDefault
 		// Embed the config data directly on the default object as an instanced subobject. This is required so it can load properly in packaged builds.
 		UDisplayClusterConfigurationData* ConfigData = CastChecked<UDisplayClusterConfigurationData>(StaticDuplicateObject(BlueprintData, RootActor));
 		ConfigData->SetFlags(RF_ArchetypeObject | RF_Public);
-		RootActor->StoreConfigData(ConfigData);
+		RootActor->UpdateConfigDataInstance(ConfigData);
 	}
 
 	if (Blueprint->bIsNewlyCreated)
 	{
-		RootActor->PreviewNodeId = ADisplayClusterRootActor::PreviewNodeAll;
+		RootActor->PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 	}
 }
 

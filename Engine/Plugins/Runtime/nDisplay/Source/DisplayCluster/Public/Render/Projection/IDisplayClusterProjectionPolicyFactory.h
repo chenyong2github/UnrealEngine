@@ -21,10 +21,11 @@ public:
 	* Creates a projection policy instance
 	*
 	* @param PolicyType - Projection policy type, same as specified on registration (useful if the same factory is registered for multiple projection types)
-	* @param RHIName    - RHI name that the sync policy is requested for
-	* @param ViewportId - ID of a viewport the policy is requested for
+	* @param ProjectionPolicyId - ID of a policy
+	* @param InConfigurationProjectionPolicy - policy configuration
 	*
 	* @return - Projection policy instance
 	*/
-	virtual TSharedPtr<IDisplayClusterProjectionPolicy> Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters) = 0;
+	virtual TSharedPtr<IDisplayClusterProjectionPolicy> Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) = 0;
+	
 };

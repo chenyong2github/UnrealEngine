@@ -13,22 +13,29 @@ class FDisplayClusterProjectionDomeprojectionPolicyBase
 	: public FDisplayClusterProjectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionDomeprojectionPolicyBase(const FString& ViewportId, const TMap<FString, FString>& Parameters);
+	FDisplayClusterProjectionDomeprojectionPolicyBase(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
+
+	virtual const FString GetTypeId() const
+	{
+		return DisplayClusterProjectionStrings::projection::Domeprojection;
+	}
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicy
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void StartScene(UWorld* World) override;
-	virtual void EndScene() override;
-	virtual bool HandleAddViewport(const FIntPoint& ViewportSize, const uint32 ViewsAmount) override;
-	virtual void HandleRemoveViewport() override;
+	virtual bool HandleStartScene(class IDisplayClusterViewport* InViewport) override;
+	virtual void HandleEndScene(class IDisplayClusterViewport* InViewport) override;
 
-	virtual bool CalculateView(const uint32 ViewIdx, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
-	virtual bool GetProjectionMatrix(const uint32 ViewIdx, FMatrix& OutPrjMatrix) override;
+	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
+	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
 
 	virtual bool IsWarpBlendSupported() override;
-	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect) override;
+	virtual void ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy) override;
+	
+	// Request additional targetable resources for domeprojection  external warpblend
+	virtual bool ShouldUseAdditionalTargetableResource() const override
+	{ return true; }
 
 protected:
 	// Delegate view adapter instantiation to the RHI specific children

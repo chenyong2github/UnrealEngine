@@ -19,7 +19,7 @@ public:
 
 public:
 	// Returns current config data
-	virtual const UDisplayClusterConfigurationData* GetConfig() const = 0;
+	virtual UDisplayClusterConfigurationData* GetConfig() const = 0;
 
 public:
 	// Returns path of the config file that is currently used

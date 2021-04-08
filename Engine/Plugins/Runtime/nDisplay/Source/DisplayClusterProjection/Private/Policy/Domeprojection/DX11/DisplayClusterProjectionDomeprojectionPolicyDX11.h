@@ -14,8 +14,8 @@ class FDisplayClusterProjectionDomeprojectionPolicyDX11
 	: public FDisplayClusterProjectionDomeprojectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionDomeprojectionPolicyDX11(const FString& ViewportId, const TMap<FString, FString>& Parameters)
-		: FDisplayClusterProjectionDomeprojectionPolicyBase(ViewportId, Parameters)
+	FDisplayClusterProjectionDomeprojectionPolicyDX11(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+		: FDisplayClusterProjectionDomeprojectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 	{ }
 
 protected:

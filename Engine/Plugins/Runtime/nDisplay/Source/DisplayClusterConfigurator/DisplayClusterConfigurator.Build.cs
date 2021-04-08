@@ -7,15 +7,12 @@ public class DisplayClusterConfigurator : ModuleRules
 {
 	public DisplayClusterConfigurator(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
-		DefaultBuildSettings = BuildSettingsVersion.V2;
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"DisplayCluster",
 				"DisplayClusterConfiguration",
 				"DisplayClusterProjection",
-				"MPCDI",
 
 				"AdvancedPreviewScene",
 				"ApplicationCore",
@@ -30,7 +27,10 @@ public class DisplayClusterConfigurator : ModuleRules
 				"EditorSubsystem",
 				"EditorWidgets",
 				"Engine",
+				"ImageWrapper",
 				"InputCore",
+				"Kismet",
+				"KismetCompiler",
 				"MainFrame",
 				"MessageLog",
 				"PinnedCommandList",
@@ -42,9 +42,6 @@ public class DisplayClusterConfigurator : ModuleRules
 				"SlateCore",
 				"ToolMenus",
 				"UnrealEd",
-				"Kismet",
-				"KismetCompiler",
-				"ImageWrapper"
 			});
 	}
 }

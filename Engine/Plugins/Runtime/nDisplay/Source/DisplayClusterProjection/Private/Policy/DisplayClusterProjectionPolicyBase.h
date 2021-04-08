@@ -5,8 +5,9 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Misc/DisplayClusterObjectRef.h"
 
-class USceneComponent;
+#include "DisplayClusterProjectionStrings.h"
 
+class USceneComponent;
 
 /**
  * Base projection policy
@@ -15,15 +16,20 @@ class FDisplayClusterProjectionPolicyBase
 	: public IDisplayClusterProjectionPolicy
 {
 public:
-	FDisplayClusterProjectionPolicyBase(const FString& ViewportId, const TMap<FString, FString>& Parameters);
+	FDisplayClusterProjectionPolicyBase(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 	virtual ~FDisplayClusterProjectionPolicyBase() = 0;
 
-	const FString& GetViewportId() const
+	virtual const FString& GetId() const override
 	{
-		return PolicyViewportId;
+		return ProjectionPolicyId;
 	}
 
 	const USceneComponent* const GetOriginComp() const
+	{
+		return PolicyOriginComponentRef.GetOrFindSceneComponent();
+	}
+
+	USceneComponent* GetOriginComp()
 	{
 		return PolicyOriginComponentRef.GetOrFindSceneComponent();
 	}
@@ -43,13 +49,16 @@ public:
 		return Parameters;
 	}
 
+	virtual bool IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const override;
+
 protected:
-	void InitializeOriginComponent(const FString& OriginCopmId);
-	void ReleaseOriginComponent();
+	void InitializeOriginComponent(class IDisplayClusterViewport* InViewport, const FString& OriginCopmId);
+	void ReleaseOriginComponent(class IDisplayClusterViewport* InViewport);
 
 private:
 	// Added 'Policy' prefix to avoid "... hides class name ..." warnings in child classes
-	FString PolicyViewportId;
+	FString ProjectionPolicyId;
+
 	FString PolicyOriginCompId;
 	TMap<FString, FString> Parameters;
 	FDisplayClusterSceneComponentRef PolicyOriginComponentRef;
