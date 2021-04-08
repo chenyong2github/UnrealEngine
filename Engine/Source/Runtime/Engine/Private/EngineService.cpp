@@ -50,7 +50,7 @@ void FEngineService::SendPong( const TSharedRef<IMessageContext, ESPMode::Thread
 {
 	if (MessageEndpoint.IsValid())
 	{
-		FEngineServicePong* Message = new FEngineServicePong();
+		FEngineServicePong* Message = FMessageEndpoint::MakeMessage<FEngineServicePong>();
 
 		Message->EngineVersion = FNetworkVersion::GetNetworkCompatibleChangelist();
 		Message->InstanceId = FApp::GetInstanceId();

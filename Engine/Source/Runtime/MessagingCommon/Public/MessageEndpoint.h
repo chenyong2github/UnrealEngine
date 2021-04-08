@@ -517,6 +517,23 @@ public:
 public:
 
 	/**
+	 * Creates a message of the specified template type.
+	 *
+	 * Prefer using this helper rather than explicit new. See FEngineServicePong.
+	 *
+	 * @param Args The constructor arguments to the template type
+	 */
+	template<typename T, typename... InArgTypes>
+	static T* MakeMessage(InArgTypes&&... Args)
+	{
+		void* Buffer = FMemory::Malloc(sizeof(T));
+
+		T* Message = new (Buffer) T(::Forward<InArgTypes>(Args)...);
+
+		return Message;
+	}
+
+	/**
 	 * Immediately forwards a previously received message to the specified recipient.
 	 *
 	 * Messages can only be forwarded to endpoints within the same process.
