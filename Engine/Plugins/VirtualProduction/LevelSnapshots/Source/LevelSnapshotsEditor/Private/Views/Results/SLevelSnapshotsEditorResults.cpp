@@ -9,6 +9,7 @@
 #include "IPropertyRowGenerator.h"
 #include "LevelSnapshot.h"
 #include "LevelSnapshotsEditorStyle.h"
+#include "LevelSnapshotsLog.h"
 #include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsStats.h"
 #include "PropertyInfoHelpers.h"
@@ -23,6 +24,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -66,13 +68,28 @@ void FLevelSnapshotsEditorResultsRow::InitObjectRow(const TSharedPtr<IPropertyRo
 	WorldRowGenerator = InWorldRowGenerator;
 }
 
-void FLevelSnapshotsEditorResultsRow::InitPropertyRow(const FLevelSnapshotsEditorResultsRowPtr InContainingObjectGroup,
-	TSharedPtr<IPropertyHandle> InSnapshotHandle, TSharedPtr<IPropertyHandle> InWorldHandle, const bool bNewIsCounterpartValueSame)
+void FLevelSnapshotsEditorResultsRow::InitPropertyRowWithHandles(
+	const FLevelSnapshotsEditorResultsRowPtr InContainingObjectGroup,
+	TSharedPtr<IPropertyHandle> InSnapshotHandle, TSharedPtr<IPropertyHandle> InWorldHandle, 
+	const bool bNewIsCounterpartValueSame, const ELevelSnapshotsWidgetTypeCustomization InWidgetTypeCustomization)
 {
 	ContainingObjectGroup = InContainingObjectGroup;
 	SnapshotPropertyHandle = InSnapshotHandle;
 	WorldPropertyHandle = InWorldHandle;
 	bIsCounterpartValueSame = bNewIsCounterpartValueSame;
+	WidgetTypeCustomization = InWidgetTypeCustomization;
+}
+
+void FLevelSnapshotsEditorResultsRow::InitPropertyRowWithObjectsAndProperty(
+	const FLevelSnapshotsEditorResultsRowPtr InContainingObjectGroup,
+	UObject* InSnapshotObject, UObject* InWorldObject,
+	FProperty* InPropertyForCustomization, const ELevelSnapshotsWidgetTypeCustomization InWidgetTypeCustomization)
+{
+	ContainingObjectGroup = InContainingObjectGroup;
+	SnapshotObjectForCustomization = InSnapshotObject;
+	WorldObjectForCustomization = InWorldObject;
+	PropertyForCustomization = InPropertyForCustomization;
+	WidgetTypeCustomization = InWidgetTypeCustomization;
 }
 
 void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelectionMap& PropertySelectionMap)
@@ -126,7 +143,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 			TArray<FPropertyHandleHierarchy*> DirectChildren;
 		};
 
-		static void LoopOverProperties(
+		static TArray<TFieldPath<FProperty>> LoopOverProperties(
 			const TSharedPtr<IPropertyRowGenerator> InSnapshotRowGenerator, const TSharedPtr<IPropertyRowGenerator> InWorldRowGenerator, const FLevelSnapshotsEditorResultsRowPtr& InDirectParentRow, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter)
 		{
 			FPropertyHandleHierarchy* SnapshotHandleHierarchy = nullptr;
@@ -142,6 +159,8 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 				WorldHandleHierarchy = BuildPropertyHandleHierarchy(InWorldRowGenerator);
 			}
 
+			TArray<TFieldPath<FProperty>> PropertyRowsGenerated;
+
 			// We start with World Hierarchy because it's more likely that the user wants to update existing actors than add/delete snapshot ones
 			if (WorldHandleHierarchy)
 			{
@@ -150,16 +169,19 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 				{
 					if (FPropertyHandleHierarchy* ChildHierarchy = WorldHandleHierarchy->DirectChildren[ChildIndex])
 					{
-						LoopOverHandleHierarchiesAndCreateRowHierarchy(ChildHierarchy, InDirectParentRow, PropertiesThatPassFilter, SnapshotHandleHierarchy);
+						LoopOverHandleHierarchiesAndCreateRowHierarchy(
+							ChildHierarchy, InDirectParentRow.IsValid() ? InDirectParentRow : nullptr, PropertiesThatPassFilter, PropertyRowsGenerated, SnapshotHandleHierarchy);
 					}
 				}
 			}
+
+			return PropertyRowsGenerated;
 		}
 
 		/* Do not pass in the base hierarchy, only immediate children of the base hierarchy. */
-		static void LoopOverHandleHierarchiesAndCreateRowHierarchy(FPropertyHandleHierarchy* InHierarchy, const FLevelSnapshotsEditorResultsRowPtr& InDirectParentRow, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter, FPropertyHandleHierarchy* CounterpartHierarchy = nullptr)
+		static void LoopOverHandleHierarchiesAndCreateRowHierarchy(FPropertyHandleHierarchy* InHierarchy, const FLevelSnapshotsEditorResultsRowPtr& InDirectParentRow, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter, TArray<TFieldPath<FProperty>>& PropertyRowsGenerated, FPropertyHandleHierarchy* CounterpartHierarchy = nullptr)
 		{
-			if (!ensure(InHierarchy))
+			if (!ensure(InHierarchy) || !ensure(InDirectParentRow.IsValid()))
 			{
 				return;
 			}
@@ -226,7 +248,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 
 				const FLevelSnapshotsEditorResultsRowPtr& ContainingObjectGroup = InDirectParentRow;
 
-				NewProperty.InitPropertyRow(ContainingObjectGroup, CounterpartHandle ? CounterpartHandle : nullptr, Handle ? Handle : nullptr, bIsCounterpartValueSame);
+				NewProperty.InitPropertyRowWithHandles(ContainingObjectGroup, CounterpartHandle ? CounterpartHandle : nullptr, Handle ? Handle : nullptr, bIsCounterpartValueSame);
 
 				FLevelSnapshotsEditorResultsRowPtr SharedNewPropertyRow = MakeShared<FLevelSnapshotsEditorResultsRow>(NewProperty);
 
@@ -234,7 +256,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 				{
 					if (FPropertyHandleHierarchy* ChildHierarchy = InHierarchy->DirectChildren[ChildIndex])
 					{
-						LoopOverHandleHierarchiesAndCreateRowHierarchy(ChildHierarchy, SharedNewPropertyRow, PropertiesThatPassFilter, CounterpartHierarchy);
+						LoopOverHandleHierarchiesAndCreateRowHierarchy(ChildHierarchy, SharedNewPropertyRow, PropertiesThatPassFilter, PropertyRowsGenerated, CounterpartHierarchy);
 					}
 				}
 
@@ -246,6 +268,8 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 				else
 				{
 					InDirectParentRow->AddToChildRows(SharedNewPropertyRow);
+
+					PropertyRowsGenerated.Add(PropertyField);
 				}
 			}
 		}
@@ -342,11 +366,12 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 			return ReturnHierarchy;
 		}
 	};
+	
 	struct FLocalComponentLooper
 	{
 		struct FComponentHierarchy
 		{
-			FComponentHierarchy(USceneComponent* const& InComponent)
+			FComponentHierarchy(USceneComponent* InComponent)
 				: Component(InComponent) {};
 
 			const TWeakObjectPtr<USceneComponent> Component;
@@ -391,6 +416,9 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 
 		static int32 CreateNewHierarchyStructInLoop(const AActor* InActor, USceneComponent* SceneComponent, TArray<FComponentHierarchy*>& AllHierarchies)
 		{
+			check(InActor);
+			check(SceneComponent);
+			
 			FComponentHierarchy* NewHierarchy = new FComponentHierarchy(SceneComponent);
 
 			const int32 ReturnValue = AllHierarchies.Add(NewHierarchy);
@@ -427,7 +455,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 			TArray<FComponentHierarchy*> AllHierarchies;
 			AllHierarchies.Add(ReturnHierarchy);
 
-			TSet<UActorComponent*> AllActorComponents = SLevelSnapshotsEditorResults::GetAllAttachedComponents(InActor);
+			TSet<UActorComponent*> AllActorComponents = InActor->GetComponents();
 
 			for (UActorComponent* Component : AllActorComponents)
 			{
@@ -453,9 +481,110 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 			return ReturnHierarchy;
 		}
 
+		static void ForceBuildTransformRows(UActorComponent* InComponent, UActorComponent* CounterpartComponent, 
+			const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter, TArray<TFieldPath<FProperty>>& PropertyRowsGenerated, FLevelSnapshotsEditorResultsRowPtr SharedNewGroup)
+		{
+			struct Local
+			{
+				static void CreateTransformWidgetObjectForComponentGroup(
+					const FText DisplayName, UActorComponent* InComponent, UActorComponent* InCounterpartComponent, FProperty* InProperty, FLevelSnapshotsEditorResultsRowPtr SharedComponentGroup,
+					const ELevelSnapshotsWidgetTypeCustomization WidgetType)
+				{
+					check(InComponent);
+					check(InProperty);
+					check(SharedComponentGroup.IsValid());
+					
+					// Create property row
+					FLevelSnapshotsEditorResultsRow NewProperty(DisplayName, ELevelSnapshotsEditorResultsRowType::SingleProperty, ECheckBoxState::Checked, SharedComponentGroup);
+
+					const FLevelSnapshotsEditorResultsRowPtr& ContainingObjectGroup = SharedComponentGroup;
+
+					// There is no handle generated for the transform properties so handles are passed in nullptr
+					NewProperty.InitPropertyRowWithObjectsAndProperty(ContainingObjectGroup, InCounterpartComponent ? InCounterpartComponent : nullptr, InComponent, InProperty, WidgetType);
+
+					const FLevelSnapshotsEditorResultsRowPtr SharedNewPropertyRow = MakeShared<FLevelSnapshotsEditorResultsRow>(NewProperty);
+
+					SharedComponentGroup->AddToChildRows(SharedNewPropertyRow);
+				}
+			};
+
+			check(InComponent);
+			check(SharedNewGroup.IsValid());
+			
+			if (InComponent->IsA(USceneComponent::StaticClass()))
+			{
+				if (FProperty* LocationProperty = FindFProperty<FStructProperty>(InComponent->GetClass(), "RelativeLocation"))
+				{
+					if (PropertiesThatPassFilter.Contains(LocationProperty))
+					{
+						Local::CreateTransformWidgetObjectForComponentGroup(
+							FText::FromString("Relative Location"), InComponent, CounterpartComponent ? CounterpartComponent : nullptr, LocationProperty, SharedNewGroup, WidgetType_Location);
+
+						PropertyRowsGenerated.Add(LocationProperty);
+					}
+				}
+				else
+				{
+					UE_LOG(LogLevelSnapshots, Error, TEXT("%hs: No property found on Scene Component (%s) named RelativeLocation"), __FUNCTION__, *InComponent->GetName());
+				}
+
+				if (FProperty* RotationProperty = FindFProperty<FStructProperty>(InComponent->GetClass(), "RelativeRotation"))
+				{
+					if (PropertiesThatPassFilter.Contains(RotationProperty))
+					{
+						Local::CreateTransformWidgetObjectForComponentGroup(
+							FText::FromString("Relative Rotation"), InComponent, CounterpartComponent ? CounterpartComponent : nullptr, RotationProperty, SharedNewGroup, WidgetType_Rotation);
+
+						PropertyRowsGenerated.Add(RotationProperty);
+					}
+				}
+				else
+				{
+					UE_LOG(LogLevelSnapshots, Error, TEXT("%hs: No property found on Scene Component (%s) named RelativeRotation"), __FUNCTION__, *InComponent->GetName());
+				}
+
+				if (FProperty* ScaleProperty = FindFProperty<FStructProperty>(InComponent->GetClass(), "RelativeScale3D"))
+				{
+					if (PropertiesThatPassFilter.Contains(ScaleProperty))
+					{
+						Local::CreateTransformWidgetObjectForComponentGroup(
+							FText::FromString("Relative Scale"), InComponent, CounterpartComponent ? CounterpartComponent : nullptr, ScaleProperty, SharedNewGroup, WidgetType_Scale3D);
+
+						PropertyRowsGenerated.Add(ScaleProperty);
+					}
+				}
+				else
+				{
+					UE_LOG(LogLevelSnapshots, Error, TEXT("%hs: No property found on Scene Component (%s) named RelativeScale3D"), __FUNCTION__, *InComponent->GetName());
+				}
+			}
+		}
+		
+		static void BuildRowForUnsupportedProperty(
+			const FText DisplayName, UObject* InWorldObject, UObject* InSnapshotObject, FProperty* InProperty, FLevelSnapshotsEditorResultsRowPtr SharedObjectGroup)
+		{
+			check(InProperty);
+			check(SharedObjectGroup.IsValid());
+			
+			// Create property row
+			FLevelSnapshotsEditorResultsRow NewProperty(DisplayName, ELevelSnapshotsEditorResultsRowType::SingleProperty, ECheckBoxState::Checked, SharedObjectGroup);
+
+			const FLevelSnapshotsEditorResultsRowPtr& ContainingObjectGroup = SharedObjectGroup;
+
+			// There is no handle generated for the transform properties so handles are passed in nullptr
+			NewProperty.InitPropertyRowWithObjectsAndProperty(
+				ContainingObjectGroup, InSnapshotObject ? InSnapshotObject : nullptr, InWorldObject ? InWorldObject : nullptr, InProperty, ELevelSnapshotsWidgetTypeCustomization::WidgetType_UnsupportedProperty);
+
+			const FLevelSnapshotsEditorResultsRowPtr SharedNewPropertyRow = MakeShared<FLevelSnapshotsEditorResultsRow>(NewProperty);
+
+			SharedObjectGroup->AddToChildRows(SharedNewPropertyRow);
+		}
+
 		static void BuildNestedSceneComponentRowsRecursively(const FComponentHierarchy* InHierarchy, const TSet<UActorComponent*>& InCounterpartComponents,
 			FPropertyEditorModule& PropertyEditorModule, const FPropertySelectionMap& PropertySelectionMap, const TSharedPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow)
 		{
+			check(InHierarchy);
+
 			USceneComponent* CurrentComponent = InHierarchy->Component.Get();
 
 			if (const FPropertySelection* PropertySelection = PropertySelectionMap.GetSelectedProperties(CurrentComponent))
@@ -469,7 +598,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 
 					if (ComponentPropertyAsRow.IsValid())
 					{
-						for (FComponentHierarchy* const& ChildHierarchy : InHierarchy->DirectChildren)
+						for (const FComponentHierarchy* ChildHierarchy : InHierarchy->DirectChildren)
 						{
 							BuildNestedSceneComponentRowsRecursively(
 								ChildHierarchy, InCounterpartComponents, PropertyEditorModule, PropertySelectionMap, ComponentPropertyAsRow);
@@ -482,6 +611,8 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 		static FLevelSnapshotsEditorResultsRowPtr BuildComponentRow(UActorComponent* InComponent, const TSet<UActorComponent*>& InCounterpartComponents,
 			FPropertyEditorModule& PropertyEditorModule, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter, const FLevelSnapshotsEditorResultsRowPtr& InDirectParentRow)
 		{
+			check(InComponent);
+			
 			const FSoftObjectPath& ComponentSoftPath = InComponent;
 
 			check(ComponentSoftPath.IsValid());
@@ -506,7 +637,23 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 
 			FLevelSnapshotsEditorResultsRowPtr SharedNewGroup = MakeShared<FLevelSnapshotsEditorResultsRow>(NewComponentGroup);
 
-			FLocalPropertyLooper::LoopOverProperties(CounterpartRowGenerator, RowGenerator, SharedNewGroup, PropertiesThatPassFilter);
+			TArray<TFieldPath<FProperty>> PropertyRowsGenerated;
+
+			// Add Transform widgets if needed. They should come before other properties.
+			ForceBuildTransformRows(InComponent, CounterpartComponent, PropertiesThatPassFilter, PropertyRowsGenerated, SharedNewGroup);
+
+			PropertyRowsGenerated.Append(
+				FLocalPropertyLooper::LoopOverProperties(CounterpartRowGenerator, RowGenerator, SharedNewGroup, PropertiesThatPassFilter));
+
+			// Generate fallback rows for properties not supported by PropertyRowGenerator
+			for (TFieldPath<FProperty> FieldPath : PropertiesThatPassFilter)
+			{
+				if (!PropertyRowsGenerated.Contains(FieldPath))
+				{
+					BuildRowForUnsupportedProperty(
+						FText::FromString(FieldPath->GetAuthoredName()), InComponent, CounterpartComponent, FieldPath.Get(), SharedNewGroup);
+				}
+			}
 
 			if (SharedNewGroup->GetChildRows().IsValidIndex(0))
 			{
@@ -552,11 +699,15 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 	TArray<UActorComponent*> WorldActorNonSceneComponents;
 	const FLocalComponentLooper::FComponentHierarchy* WorldComponentHierarchy = FLocalComponentLooper::BuildComponentHierarchy(WorldActorLocal, WorldActorNonSceneComponents);
 
-	const TSet<UActorComponent*>& CounterpartComponents =
-		SLevelSnapshotsEditorResults::GetAllAttachedComponents(SnapshotActorLocal);
+	TSet<UActorComponent*> CounterpartComponents;
+
+	if (SnapshotActorLocal)
+	{
+		CounterpartComponents = SnapshotActorLocal->GetComponents();
+	}
 
 	// Non-scene actor components cannot be nested and have no children or parents, so we'll add them separately
-	for (UActorComponent* const& WorldComponent : WorldActorNonSceneComponents)
+	for (UActorComponent* WorldComponent : WorldActorNonSceneComponents)
 	{
 		if (WorldComponent)
 		{
@@ -582,7 +733,21 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 	{
 		if (PropertySelection->SelectedPropertyPaths.Num() > 0)
 		{
-			FLocalPropertyLooper::LoopOverProperties(SnapshotRowGenerator, WorldRowGenerator, SharedActorGroup, PropertySelection->SelectedPropertyPaths);
+			const TArray<TFieldPath<FProperty>>& PropertyRowsGenerated = FLocalPropertyLooper::LoopOverProperties(
+				SnapshotRowGenerator, WorldRowGenerator, SharedActorGroup, PropertySelection->SelectedPropertyPaths);
+			
+			// Generate fallback rows for properties not supported by 
+			for (TFieldPath<FProperty> FieldPath : PropertySelection->SelectedPropertyPaths)
+			{
+				if (!PropertyRowsGenerated.Contains(FieldPath))
+				{
+					FLocalComponentLooper::BuildRowForUnsupportedProperty(
+						FText::FromString(
+							FieldPath->GetAuthoredName()), 
+						WorldActorLocal ? WorldActorLocal : nullptr, SnapshotActorLocal ? SnapshotActorLocal : nullptr, 
+						FieldPath.Get(), SharedActorGroup);
+				}
+			}
 		}
 	}
 
@@ -747,6 +912,11 @@ const FLevelSnapshotsEditorResultsRowPtr& FLevelSnapshotsEditorResultsRow::GetCo
 	return ContainingObjectGroup;
 }
 
+FLevelSnapshotsEditorResultsRow::ELevelSnapshotsWidgetTypeCustomization FLevelSnapshotsEditorResultsRow::GetWidgetTypeCustomization() const
+{
+	return WidgetTypeCustomization;
+}
+
 bool FLevelSnapshotsEditorResultsRow::GetHasGeneratedChildren() const
 {
 	return bHasGeneratedChildren;
@@ -847,6 +1017,11 @@ UObject* FLevelSnapshotsEditorResultsRow::GetSnapshotObject() const
 	}
 	else
 	{
+		if (SnapshotObjectForCustomization.IsValid())
+		{
+			return SnapshotObjectForCustomization.Get();
+		}
+		
 		if (const TSharedPtr<IPropertyRowGenerator> RowGenerator = GetSnapshotRowGenerator())
 		{
 			const TArray<TWeakObjectPtr<UObject>> GeneratorObjects = RowGenerator->GetSelectedObjects();
@@ -877,6 +1052,11 @@ UObject* FLevelSnapshotsEditorResultsRow::GetWorldObject() const
 	}
 	else
 	{
+		if (WorldObjectForCustomization.IsValid())
+		{
+			return WorldObjectForCustomization.Get();
+		}
+		
 		if (const TSharedPtr<IPropertyRowGenerator> RowGenerator = GetWorldRowGenerator())
 		{
 			const TArray<TWeakObjectPtr<UObject>> GeneratorObjects = RowGenerator->GetSelectedObjects();
@@ -935,14 +1115,24 @@ const TSharedPtr<IPropertyRowGenerator>& FLevelSnapshotsEditorResultsRow::GetWor
 
 TFieldPath<FProperty> FLevelSnapshotsEditorResultsRow::GetPropertyPath() const
 {
-	TSharedPtr<IPropertyHandle> FirstHandle;
-	GetFirstValidPropertyHandle(FirstHandle);
-
-	if (FirstHandle.IsValid())
+	if (GetWidgetTypeCustomization() == WidgetType_NoCustomWidget)
 	{
-		if (FProperty* Property = FirstHandle->GetProperty())
+		TSharedPtr<IPropertyHandle> FirstHandle;
+		GetFirstValidPropertyHandle(FirstHandle);
+
+		if (FirstHandle.IsValid())
 		{
-			return TFieldPath<FProperty>(Property);
+			if (FProperty* Property = FirstHandle->GetProperty())
+			{
+				return TFieldPath<FProperty>(Property);
+			}
+		}
+	}
+	else
+	{
+		if (PropertyForCustomization->IsValidLowLevel())
+		{
+			return TFieldPath<FProperty>(PropertyForCustomization);
 		}
 	}
 
@@ -973,6 +1163,11 @@ FLevelSnapshotsEditorResultsRow::ELevelSnapshotsObjectType FLevelSnapshotsEditor
 	}
 
 	return ObjectType_None;
+}
+
+FProperty* FLevelSnapshotsEditorResultsRow::GetPropertyForCustomization() const
+{
+	return PropertyForCustomization;
 }
 
 bool FLevelSnapshotsEditorResultsRow::GetIsCounterpartValueSame() const
@@ -1302,37 +1497,6 @@ SLevelSnapshotsEditorResults::~SLevelSnapshotsEditorResults()
 	TreeViewPtr.Reset();
 }
 
-TSet<UActorComponent*> SLevelSnapshotsEditorResults::GetAllAttachedComponents(const AActor* InActor)
-{
-	TSet<UActorComponent*> AllActorComponents = InActor->GetComponents(); // Native components
-
-	for (UActorComponent* Component : InActor->GetInstanceComponents()) // Components per-instance
-	{
-		if (Component != nullptr)
-		{
-			AllActorComponents.Add(Component);
-		}
-	}
-
-	for (UActorComponent* Component : InActor->BlueprintCreatedComponents) // Components defined in blueprint
-	{
-		if (Component != nullptr)
-		{
-			AllActorComponents.Add(Component);
-		}
-	}
-
-	for (UActorComponent* Component : InActor->GetReplicatedComponents()) // Replicated Components
-	{
-		if (Component != nullptr)
-		{
-			AllActorComponents.Add(Component);
-		}
-	}
-
-	return AllActorComponents;
-}
-
 TOptional<ULevelSnapshot*> SLevelSnapshotsEditorResults::GetSelectedLevelSnapshot() const
 {
 	return ensure(EditorDataPtr.IsValid()) ? EditorDataPtr->GetActiveSnapshot() : TOptional<ULevelSnapshot*>();
@@ -1439,7 +1603,7 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 				{
 					PropertySelectionMap.RemoveObjectPropertiesFromMap(WorldActor);
 
-					for (UActorComponent* Component : GetAllAttachedComponents(WorldActor))
+					for (UActorComponent* Component : WorldActor->GetComponents())
 					{
 						PropertySelectionMap.RemoveObjectPropertiesFromMap(Component);
 					}
@@ -1547,10 +1711,10 @@ void SLevelSnapshotsEditorResults::GenerateTreeView()
 			continue;
 		}
 
-		//if (!ULevelSnapshot::IsActorDesirableForCapture(WorldActor))
-		//{
-		//	continue;
-		//}
+		if (!ULevelSnapshot::IsActorDesirableForCapture(WorldActor))
+		{
+			continue;
+		}
 		
 		// Get remaining properties after filter
 		if (UserFilters.IsValid() && WorldActor)
@@ -1576,7 +1740,7 @@ void SLevelSnapshotsEditorResults::GenerateTreeView()
 	}
 
 	PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties();
-
+	
 	SplitterManagerPtr = MakeShared<FLevelSnapshotsEditorResultsSplitterManager>(FLevelSnapshotsEditorResultsSplitterManager());
 
 	TreeViewPtr->RequestListRefresh();
@@ -1698,6 +1862,94 @@ void SLevelSnapshotsEditorResults::OnRowChildExpansionChange(TSharedPtr<FLevelSn
 
 void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const FLevelSnapshotsEditorResultsRowPtr InRow, const FLevelSnapshotsEditorResultsSplitterManagerPtr& InSplitterManagerPtr)
 {
+	struct FCustomPropertyWidgetGenerator
+	{
+		static TSharedPtr<SWidget> GenerateCustomWidget(const FLevelSnapshotsEditorResultsRowPtr Item, const FLevelSnapshotsEditorResultsRow::ELevelSnapshotsObjectType ObjectType)
+		{
+			const FLevelSnapshotsEditorResultsRow::ELevelSnapshotsWidgetTypeCustomization WidgetType = Item->GetWidgetTypeCustomization();
+
+			UObject* ObjectToPass = nullptr;;
+
+			if (ObjectType == FLevelSnapshotsEditorResultsRow::ObjectType_Snapshot)
+			{
+				ObjectToPass = Item->GetSnapshotObject();
+			}
+			else if (ObjectType == FLevelSnapshotsEditorResultsRow::ObjectType_World)
+			{
+				ObjectToPass = Item->GetWorldObject();
+			}
+
+			if (!ObjectToPass)
+			{
+				return nullptr;
+			}
+			
+			if (WidgetType == FLevelSnapshotsEditorResultsRow::WidgetType_Location)
+			{
+				return GenerateLocationWidget(ObjectToPass);
+			}
+			else if (WidgetType == FLevelSnapshotsEditorResultsRow::WidgetType_Rotation)
+			{
+				return GenerateRotationWidget(ObjectToPass);
+			}
+			else if (WidgetType == FLevelSnapshotsEditorResultsRow::WidgetType_Scale3D)
+			{
+				return GenerateScale3dWidget(ObjectToPass);
+			}
+			else if (WidgetType == FLevelSnapshotsEditorResultsRow::WidgetType_UnsupportedProperty)
+			{
+				return SNew(STextBlock).Text(FText::FromString("Unsupported Property"));
+			}
+
+			return nullptr;
+		}
+		
+		static TSharedPtr<SWidget> GenerateLocationWidget(UObject* InContainingObject)
+		{
+			const TFunction< TOptional<float>(USceneComponent*)> X_Function = [](USceneComponent* InSceneComponent) { return InSceneComponent->GetRelativeLocation().X; };
+			const TFunction< TOptional<float>(USceneComponent*)> Y_Function = [](USceneComponent* InSceneComponent) { return InSceneComponent->GetRelativeLocation().Y; };
+			const TFunction< TOptional<float>(USceneComponent*)> Z_Function = [](USceneComponent* InSceneComponent) { return InSceneComponent->GetRelativeLocation().Z; };
+			
+			return GenerateVectorWidget(InContainingObject, X_Function, Y_Function, Z_Function);
+		}
+
+		static TSharedPtr<SWidget> GenerateRotationWidget(UObject* InContainingObject)
+		{
+			const TFunction< TOptional<float>(USceneComponent*)> X_Function = [](USceneComponent* InSceneComponent) { return InSceneComponent->GetRelativeRotation().Roll; };
+			const TFunction< TOptional<float>(USceneComponent*)> Y_Function = [](USceneComponent* InSceneComponent) { return InSceneComponent->GetRelativeRotation().Pitch; };
+			const TFunction< TOptional<float>(USceneComponent*)> Z_Function = [](USceneComponent* InSceneComponent) { return InSceneComponent->GetRelativeRotation().Yaw; };
+
+			return GenerateVectorWidget(InContainingObject, X_Function, Y_Function, Z_Function);
+		}
+
+		static TSharedPtr<SWidget> GenerateScale3dWidget(UObject* InContainingObject)
+		{
+			const TFunction<TOptional<float>(USceneComponent*)> X_Function = [](USceneComponent* InSceneComponent) { return InSceneComponent->GetRelativeScale3D().X; };
+			const TFunction< TOptional<float>(USceneComponent*)> Y_Function = [](USceneComponent* InSceneComponent) { return InSceneComponent->GetRelativeScale3D().Y; };
+			const TFunction< TOptional<float>(USceneComponent*)> Z_Function = [](USceneComponent* InSceneComponent) { return InSceneComponent->GetRelativeScale3D().Z; };
+
+			return GenerateVectorWidget(InContainingObject, X_Function, Y_Function, Z_Function);
+		}
+
+		static TSharedPtr<SWidget> GenerateVectorWidget(UObject* InContainingObject, 
+			TFunction< TOptional<float>(USceneComponent*)> X_Function, TFunction< TOptional<float>(USceneComponent*)> Y_Function, TFunction< TOptional<float>(USceneComponent*)> Z_Function)
+		{
+			if (USceneComponent* AsSceneComponent = Cast<USceneComponent>(InContainingObject))
+			{
+				return SNew(SVectorInputBox)
+					.X_Lambda([AsSceneComponent, X_Function]() { return X_Function(AsSceneComponent); })
+					.Y_Lambda([AsSceneComponent, Y_Function]() { return Y_Function(AsSceneComponent); })
+					.Z_Lambda([AsSceneComponent, Z_Function]() { return Z_Function(AsSceneComponent); })
+					.bColorAxisLabels(true)
+					.AllowResponsiveLayout(true)
+					.IsEnabled(false)
+					.AllowSpin(false);
+			}
+
+			return nullptr;
+		}
+	};
+	
 	Item = InRow;
 	check(Item.IsValid());
 	
@@ -1799,110 +2051,131 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 		]
 	];
 
-	if (bHasValidHandle)
-	{
-		// Splitter Slot 0
-		SplitterPtr->SlotAt(0).OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetNameColumnSize);
+	// Create value widgets
 
-		const auto SlotDelegate0 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 0);;
-		SplitterPtr->SlotAt(0).SizeValue.Bind(SlotDelegate0);
+	// Splitter Slot 0
+	SplitterPtr->SlotAt(0).OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetNameColumnSize);
+
+	const auto SlotDelegate0 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 0);;
+	SplitterPtr->SlotAt(0).SizeValue.Bind(SlotDelegate0);
 		
-		// Splitter Slot 1
-		TSharedPtr<SWidget> SnapshotChildWidget;
+	// Splitter Slot 1
+	TSharedPtr<SWidget> SnapshotChildWidget;
 
-		if (const TSharedPtr<IPropertyHandle>& SnapshotPropertyHandle = Item->GetSnapshotPropertyHandle())
+	if (const TSharedPtr<IPropertyHandle>& SnapshotPropertyHandle = Item->GetSnapshotPropertyHandle())
+	{
+		if (RowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInMap)
 		{
-			if (RowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInMap)
+			TSharedRef<SSplitter> Splitter = SNew(SSplitter).ResizeMode(ESplitterResizeMode::FixedPosition);
+
+			const TSharedPtr<IPropertyHandle> KeyHandle = SnapshotPropertyHandle->GetKeyHandle();
+
+			if (KeyHandle.IsValid() && KeyHandle->IsValidHandle())
 			{
-				TSharedRef<SSplitter> Splitter = SNew(SSplitter).ResizeMode(ESplitterResizeMode::FixedPosition);
-
-				const TSharedPtr<IPropertyHandle> KeyHandle = SnapshotPropertyHandle->GetKeyHandle();
-
-				if (KeyHandle.IsValid() && KeyHandle->IsValidHandle())
-				{
-					Splitter->AddSlot()[KeyHandle->CreatePropertyValueWidget(false)];
-				}
-
-				Splitter->AddSlot()[SnapshotPropertyHandle->CreatePropertyValueWidget(false)];
-
-				SnapshotChildWidget = Splitter;
+				Splitter->AddSlot()[KeyHandle->CreatePropertyValueWidget(false)];
 			}
-			else
-			{
-				SnapshotChildWidget = SnapshotPropertyHandle->CreatePropertyValueWidget(false);
-			}
+
+			Splitter->AddSlot()[SnapshotPropertyHandle->CreatePropertyValueWidget(false)];
+
+			SnapshotChildWidget = Splitter;
 		}
-
-		if (!SnapshotChildWidget.IsValid())
+		else
 		{
-			SnapshotChildWidget = 
-				SNew(STextBlock)
-				.Text(LOCTEXT("LevelSnapshotsEditorResults_NoSnapshotPropertyFound", "No snapshot property found"));
+			SnapshotChildWidget = SnapshotPropertyHandle->CreatePropertyValueWidget(false);
 		}
-
-		SnapshotChildWidget->SetEnabled(false);
-
-		SplitterPtr->AddSlot()
-		[
-			SNew(SBox)
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(2, 0))
-			[
-				SnapshotChildWidget.ToSharedRef()
-			]
-		].OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize);
-
-		const auto SlotDelegate1 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 1);;
-		SplitterPtr->SlotAt(1).SizeValue.Bind(SlotDelegate1);
-
-		// Splitter Slot 2
-		TSharedPtr<SWidget> WorldChildWidget;
-
-		if (const TSharedPtr<IPropertyHandle>& WorldPropertyHandle = Item->GetWorldPropertyHandle())
-		{
-			if (RowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInMap)
-			{
-				TSharedRef<SSplitter> Splitter = SNew(SSplitter).ResizeMode(ESplitterResizeMode::FixedPosition);
-
-				const TSharedPtr<IPropertyHandle> KeyHandle = WorldPropertyHandle->GetKeyHandle();
-
-				if (KeyHandle.IsValid() && KeyHandle->IsValidHandle())
-				{
-					Splitter->AddSlot()[KeyHandle->CreatePropertyValueWidget(false)];
-				}
-
-				Splitter->AddSlot()[WorldPropertyHandle->CreatePropertyValueWidget(false)];
-
-				WorldChildWidget = Splitter;
-			}
-			else
-			{
-				WorldChildWidget = WorldPropertyHandle->CreatePropertyValueWidget(false);
-			}
-		}
-
-		if (!WorldChildWidget.IsValid())
-		{
-			WorldChildWidget = 
-				SNew(STextBlock)
-				.Text(LOCTEXT("LevelSnapshotsEditorResults_NoWorldPropertyFound", "No World property found"));
-		}
-
-		WorldChildWidget->SetEnabled(false);
-
-		SplitterPtr->AddSlot()
-		[
-			SNew(SBox)
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(2, 0))
-			[
-				WorldChildWidget.ToSharedRef()
-			]
-		].OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetWorldObjectColumnSize);
-
-		const auto SlotDelegate2 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 2);;
-		SplitterPtr->SlotAt(2).SizeValue.Bind(SlotDelegate2);
 	}
+	else
+	{
+		if (Item->DoesRowRepresentGroup())
+		{
+			SnapshotChildWidget = SNullWidget::NullWidget;
+		}
+		else
+		{
+			SnapshotChildWidget = FCustomPropertyWidgetGenerator::GenerateCustomWidget(Item, FLevelSnapshotsEditorResultsRow::ObjectType_Snapshot);
+		}
+	}
+
+	if (!SnapshotChildWidget.IsValid())
+	{
+		SnapshotChildWidget = 
+			SNew(STextBlock)
+			.Text(LOCTEXT("LevelSnapshotsEditorResults_NoSnapshotPropertyFound", "No snapshot property found"));
+	}
+
+	SnapshotChildWidget->SetEnabled(false);
+
+	SplitterPtr->AddSlot()
+	[
+		SNew(SBox)
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(2, 0))
+		[
+			SnapshotChildWidget.ToSharedRef()
+		]
+	].OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize);
+
+	const auto SlotDelegate1 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 1);;
+	SplitterPtr->SlotAt(1).SizeValue.Bind(SlotDelegate1);
+
+	// Splitter Slot 2
+	TSharedPtr<SWidget> WorldChildWidget;
+
+	if (const TSharedPtr<IPropertyHandle>& WorldPropertyHandle = Item->GetWorldPropertyHandle())
+	{
+		if (RowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInMap)
+		{
+			TSharedRef<SSplitter> Splitter = SNew(SSplitter).ResizeMode(ESplitterResizeMode::FixedPosition);
+
+			const TSharedPtr<IPropertyHandle> KeyHandle = WorldPropertyHandle->GetKeyHandle();
+
+			if (KeyHandle.IsValid() && KeyHandle->IsValidHandle())
+			{
+				Splitter->AddSlot()[KeyHandle->CreatePropertyValueWidget(false)];
+			}
+
+			Splitter->AddSlot()[WorldPropertyHandle->CreatePropertyValueWidget(false)];
+
+			WorldChildWidget = Splitter;
+		}
+		else
+		{
+			WorldChildWidget = WorldPropertyHandle->CreatePropertyValueWidget(false);
+		}
+	}
+	else
+	{
+		if (Item->DoesRowRepresentGroup())
+		{
+			WorldChildWidget = SNullWidget::NullWidget;
+		}
+		else
+		{
+			WorldChildWidget = FCustomPropertyWidgetGenerator::GenerateCustomWidget(Item, FLevelSnapshotsEditorResultsRow::ObjectType_World);
+		}
+	}
+
+	if (!WorldChildWidget.IsValid())
+	{
+		WorldChildWidget = 
+			SNew(STextBlock)
+			.Text(LOCTEXT("LevelSnapshotsEditorResults_NoWorldPropertyFound", "No World property found"));
+	}
+
+	WorldChildWidget->SetEnabled(false);
+
+	SplitterPtr->AddSlot()
+	[
+		SNew(SBox)
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(2, 0))
+		[
+			WorldChildWidget.ToSharedRef()
+		]
+	].OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetWorldObjectColumnSize);
+
+	const auto SlotDelegate2 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 2);;
+	SplitterPtr->SlotAt(2).SizeValue.Bind(SlotDelegate2);
 }
 
 SLevelSnapshotsEditorResultsRow::~SLevelSnapshotsEditorResultsRow()

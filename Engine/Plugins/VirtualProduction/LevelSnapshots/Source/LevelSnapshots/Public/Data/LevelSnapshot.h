@@ -21,6 +21,8 @@ public:
 	/* Should this actor supported for the snapshot system? */
 	static bool IsActorDesirableForCapture(const AActor* Actor);
 	static bool IsComponentDesirableForCapture(const UActorComponent* Component);
+	/* Whether this property is supported for restoring. */
+	static bool IsRestorableProperty(const FProperty* Property);
 	
 	
 	/* Applies this snapshot to the given world. We assume the world matches. SelectionSet specifies which properties to roll back. */
@@ -31,7 +33,7 @@ public:
 	
 
 	/* Checks whether the original actor has any properties that changed since the snapshot was taken.  */
-	bool HasOriginalChangedSinceSnapshot(AActor* SnapshotActor, AActor* WorldActor) const;
+	bool HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* SnapshotActor, AActor* WorldActor) const;
 	/**
 	* Checks whether the snapshot and original property value should be considered equal.
 	* Primitive properties are trivial. Special support is needed for object references.
@@ -42,8 +44,10 @@ public:
 	
 	/* Given an actor path in the world, gets the equivalent actor from the snapshot. */
 	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalActorPath);
-	/* Iterates all saved actors. */
-	void ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath)> HandleOriginalActorPath) const;
+	/* Gets the number of saved actors */
+	int32 GetNumSavedActors() const;
+	/* Iterates all saved actors.*/
+	void ForEachOriginalActor(TFunction<void (const FSoftObjectPath& ActorPath)> HandleOriginalActorPath) const;
 
 	
 	
@@ -75,18 +79,20 @@ private:
 	void LegacyApplySnapshotToWorld(ULevelSnapshotSelectionSet* SelectionSet);
 	
 	// Map of Actor Snapshots mapping from the object path to the actual snapshot
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
+	UPROPERTY(VisibleAnywhere, Category = "Snapshot|Deprecated")
 	TMap<FSoftObjectPath, FLevelSnapshot_Actor> ActorSnapshots;
 
 	/****************************** End legacy members ******************************/
 
 	
 	/* The world we will be adding temporary actors to */
-	TSharedPtr<FPreviewScene> TempActorWorld;
-	FDelegateHandle OnCleanWorldHandle;
+	UPROPERTY(Transient)
+	UWorld* SnapshotContainerWorld;
+	/* Callback to destroy our world when editor (editor build) or play (game builds) world is destroyed. */
+	FDelegateHandle OnWorldDestroyed;
 	
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
 	FWorldSnapshotData SerializedData;
 
 	/* Path of the map that the snapshot was taken in */

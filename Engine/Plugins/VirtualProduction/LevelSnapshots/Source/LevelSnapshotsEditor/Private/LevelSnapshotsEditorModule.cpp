@@ -2,6 +2,7 @@
 
 #include "LevelSnapshotsEditorModule.h"
 
+#include "LevelSnapshotsEditorProjectSettings.h"
 #include "NegatableFilter.h"
 #include "NegatableFilterDetailsCustomization.h"
 #include "LevelSnapshotsEditorCommands.h"
@@ -14,8 +15,10 @@
 #include "FileHelpers.h"
 #include "AssetTypeActions/AssetTypeActions_LevelSnapshot.h"
 #include "IAssetTools.h"
+#include "ISettingsModule.h"
 #include "LevelEditor.h"
 #include "LevelSnapshotsFunctionLibrary.h"
+#include "Editor/MainFrame/Private/Menus/SettingsMenu.h"
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
 
@@ -36,7 +39,11 @@ void FLevelSnapshotsEditorModule::StartupModule()
 	FLevelSnapshotsEditorCommands::Register();
 	
 	RegisterMenus();
-	RegisterEditorToolbar();
+	
+	if (RegisterProjectSettings() && ProjectSettingObjectPtr->bEnableLevelSnapshotsToolbarButton)
+	{
+		RegisterEditorToolbar();
+	}
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout( UNegatableFilter::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateLambda( []()
@@ -55,6 +62,12 @@ void FLevelSnapshotsEditorModule::ShutdownModule()
 	PropertyModule.UnregisterCustomClassLayout(UNegatableFilter::StaticClass()->GetFName());
 	
 	FLevelSnapshotsEditorCommands::Unregister();
+
+	// Unregister project settings
+	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+	{
+		SettingsModule.UnregisterSettings("Project", "Plugins", "Level Snapshots");
+	}
 }
 
 void FLevelSnapshotsEditorModule::RegisterMenus()
@@ -63,6 +76,24 @@ void FLevelSnapshotsEditorModule::RegisterMenus()
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MainFrame.MainMenu.Window");
 	FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", NSLOCTEXT("LevelSnapshots", "ExperimentalTabSpawnersHeading", "Experimental"), FToolMenuInsert("WindowGlobalTabSpawners", EToolMenuInsertType::After));
 	Section.AddMenuEntry("OpenLevelSnapshotsEditor", NSLOCTEXT("LevelSnapshots", "LevelSnapshotsEditor", "Level Snapshots Editor"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorModule::OpenSnapshotsEditor)));
+}
+
+bool FLevelSnapshotsEditorModule::RegisterProjectSettings()
+{
+	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+	{
+		LevelSnapshotsProjectSettingsPtr = SettingsModule.RegisterSettings("Project", "Plugins", "Level Snapshots",
+			NSLOCTEXT("LevelSnapshots", "LevelSnapshotsSettingsCategoryDisplayName", "Level Snapshots"),
+			NSLOCTEXT("LevelSnapshots", "LevelSnapshotsSettingsDescription", "Configure the Level Snapshots settings"),
+			GetMutableDefault<ULevelSnapshotsEditorProjectSettings>());
+
+		if (LevelSnapshotsProjectSettingsPtr.IsValid())
+		{
+			ProjectSettingObjectPtr = Cast<ULevelSnapshotsEditorProjectSettings>(LevelSnapshotsProjectSettingsPtr->GetSettingsObject());
+		}
+	}
+
+	return ProjectSettingObjectPtr.IsValid();
 }
 
 void FLevelSnapshotsEditorModule::RegisterEditorToolbar()
@@ -108,14 +139,14 @@ void FLevelSnapshotsEditorModule::MapEditorToolbarActions()
 
 	EditorToolbarButtonCommandList->MapAction(
 		FLevelSnapshotsEditorCommands::Get().LevelSnapshotsSettings,
-		FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorModule::OpenLevelSnapshotsSettings)
+		FExecuteAction::CreateStatic(&FLevelSnapshotsEditorModule::OpenLevelSnapshotsSettings)
 	);
 }
 
 void FLevelSnapshotsEditorModule::CreateEditorToolbarButton(FToolBarBuilder& Builder)
 {
 	Builder.AddToolBarButton(
-		FUIAction(FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorModule::CallTakeSnapshot)),
+		FUIAction(FExecuteAction::CreateStatic(&FLevelSnapshotsEditorModule::CallTakeSnapshot)),
 		NAME_None,
 		NSLOCTEXT("LevelSnapshots", "LevelSnapshots", "Level Snapshots"), // Set Text under image
 		NSLOCTEXT("LevelSnapshots", "LevelSnapshotsToolbarButtonTooltip", "Take snapshot with optional form"), //  Set tooltip
@@ -186,6 +217,7 @@ void FLevelSnapshotsEditorModule::OpenSnapshotsEditor()
 
 void FLevelSnapshotsEditorModule::OpenLevelSnapshotsSettings()
 {
+	FSettingsMenu::OpenSettings("Project", "Plugins", "Level Snapshots");
 }
 
 ULevelSnapshotsEditorData* FLevelSnapshotsEditorModule::AllocateTransientPreset()

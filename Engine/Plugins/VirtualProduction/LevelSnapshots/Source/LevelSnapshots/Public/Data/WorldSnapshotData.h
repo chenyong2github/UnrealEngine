@@ -29,7 +29,8 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	void SnapshotWorld(UWorld* World);
 	/* Applies the saved properties to WorldActor */
 	void ApplyToWorld(UWorld* WorldToApplyTo, ULevelSnapshotSelectionSet* PropertiesToSerialize);
-	
+
+	int32 GetNumSavedActors() const;
 	void ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath)> HandleOriginalActorPath) const;
 	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalObjectPath);
 

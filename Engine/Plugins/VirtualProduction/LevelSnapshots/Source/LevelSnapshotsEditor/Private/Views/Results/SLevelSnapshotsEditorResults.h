@@ -57,13 +57,32 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 		ObjectType_World
 	};
 
+	enum ELevelSnapshotsWidgetTypeCustomization
+	{
+		WidgetType_NoCustomWidget,
+		WidgetType_Location,
+		WidgetType_Rotation,
+		WidgetType_Scale3D,
+		WidgetType_UnsupportedProperty
+	};
+
 	~FLevelSnapshotsEditorResultsRow();
 	
 	FLevelSnapshotsEditorResultsRow(const FText InDisplayName, const ELevelSnapshotsEditorResultsRowType InRowType, const ECheckBoxState StartingWidgetCheckboxState, const FLevelSnapshotsEditorResultsRowPtr DirectParent = nullptr);
 
 	void InitActorRow(const TWeakObjectPtr<AActor>& InSnapshotActor, const TWeakObjectPtr<AActor>& InWorldActor);
 	void InitObjectRow(const TSharedPtr<IPropertyRowGenerator> InSnapshotRowGenerator, const TSharedPtr<IPropertyRowGenerator> InWorldRowGenerator);
-	void InitPropertyRow(const FLevelSnapshotsEditorResultsRowPtr InContainingObjectGroup, TSharedPtr<IPropertyHandle> InSnapshotHandle = nullptr, TSharedPtr<IPropertyHandle> InWorldHandle = nullptr, const bool bNewIsCounterpartValueSame = false);
+
+	// Only populate InWorldProperty and InSnapshotProperty if InWorldHandle is nullptr, such as when a handle is not created by PropertyRowGenerator
+	void InitPropertyRowWithHandles(
+		const FLevelSnapshotsEditorResultsRowPtr InContainingObjectGroup, 
+		TSharedPtr<IPropertyHandle> InSnapshotHandle, TSharedPtr<IPropertyHandle> InWorldHandle, 
+		const bool bNewIsCounterpartValueSame = false, const ELevelSnapshotsWidgetTypeCustomization InWidgetTypeCustomization = WidgetType_NoCustomWidget);
+
+	void InitPropertyRowWithObjectsAndProperty(
+		const FLevelSnapshotsEditorResultsRowPtr InContainingObjectGroup, 
+		UObject* InSnapshotObject, UObject* InWorldObject,
+		FProperty* InPropertyForCustomization, const ELevelSnapshotsWidgetTypeCustomization InWidgetTypeCustomization = WidgetType_Location);
 
 	void GenerateActorGroupChildren(FPropertySelectionMap& PropertySelectionMap);
 
@@ -97,6 +116,8 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 
 	const FLevelSnapshotsEditorResultsRowPtr& GetContainingObjectGroup() const;
 
+	ELevelSnapshotsWidgetTypeCustomization GetWidgetTypeCustomization() const;
+
 	bool GetHasGeneratedChildren() const;
 	void SetHasGeneratedChildren(const bool bNewGenerated);
 
@@ -122,6 +143,8 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	const TSharedPtr<IPropertyHandle>& GetSnapshotPropertyHandle() const;
 	const TSharedPtr<IPropertyHandle>& GetWorldPropertyHandle() const;
 	ELevelSnapshotsObjectType GetFirstValidPropertyHandle(TSharedPtr<IPropertyHandle>& OutHandle) const;
+
+	FProperty* GetPropertyForCustomization() const;
 
 	bool GetIsCounterpartValueSame() const;
 	void SetIsCounterpartValueSame(const bool bIsValueSame);
@@ -162,6 +185,9 @@ private:
 	/* This is the component, subobject or actor group to which this row belongs. If nullptr, this row is a top-level actor group. */
 	FLevelSnapshotsEditorResultsRowPtr ContainingObjectGroup = nullptr;
 
+	// Whether we will generate a custom widget for this row instead of using a handle from PropertyRowGenerator
+	ELevelSnapshotsWidgetTypeCustomization WidgetTypeCustomization = WidgetType_NoCustomWidget;
+
 	// Only applies to object groups - all of the property groups are generated with the rest of the single properties
 	bool bHasGeneratedChildren = false;
 
@@ -190,6 +216,12 @@ private:
 
 	TSharedPtr<IPropertyHandle> SnapshotPropertyHandle;
 	TSharedPtr<IPropertyHandle> WorldPropertyHandle;
+
+	/* In the event a property row does not have a generated handle, we will store objects and FProperty directly. Otherwise, FProperty should be retrieved from the Handles. */
+
+	TWeakObjectPtr<UObject> SnapshotObjectForCustomization;
+	TWeakObjectPtr<UObject> WorldObjectForCustomization;
+	FProperty* PropertyForCustomization;
 
 	/* Whether the snapshot and world object properties have the same value */
 	bool bIsCounterpartValueSame = false;
@@ -221,8 +253,6 @@ public:
 	void Construct(const FArguments& InArgs, ULevelSnapshotsEditorData* InEditorData);
 
 	~SLevelSnapshotsEditorResults();
-
-	static TSet<UActorComponent*> GetAllAttachedComponents(const AActor* InActor);
 
 	TOptional<ULevelSnapshot*> GetSelectedLevelSnapshot() const;
 

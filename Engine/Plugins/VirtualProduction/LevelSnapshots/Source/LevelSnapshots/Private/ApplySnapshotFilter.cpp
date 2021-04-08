@@ -207,7 +207,7 @@ FApplySnapshotFilter::ECheckSubproperties FApplySnapshotFilter::AnalyseProperty(
 	// Now we can ask user whether they care about the property
 	TArray<FString> PropertyPath = ContainerContext.AuthoredPathInformation;
 	PropertyPath.Add(PropertyInCommon->GetAuthoredName());
-	const bool bIsPropertyValid = EFilterResult::ShouldInclude(Filter->IsPropertyValid(
+	const bool bIsPropertyValid = EFilterResult::CanInclude(Filter->IsPropertyValid(
         { DeserializedSnapshotActor, WorldActor, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, PropertyInCommon, PropertyPath }
         ));
 						

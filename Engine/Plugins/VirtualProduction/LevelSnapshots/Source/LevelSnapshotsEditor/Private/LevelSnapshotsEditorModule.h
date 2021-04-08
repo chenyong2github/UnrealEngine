@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "ISettingsSection.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/SWidget.h"
 
+class ULevelSnapshotsEditorProjectSettings;
 class FToolBarBuilder;
 class FLevelSnapshotsEditorToolkit;
 class ULevelSnapshotsEditorData;
@@ -36,20 +39,21 @@ public:
 		SetUseCreationForm(!GetUseCreationForm());
 	}
 
-	void CallTakeSnapshot();
+	static void CallTakeSnapshot();
+	
+	static void OpenLevelSnapshotsSettings();
 
 private:
 	
 	void RegisterMenus();
-	
+
+	bool RegisterProjectSettings();
 	void RegisterEditorToolbar();
 	void MapEditorToolbarActions();
 	void CreateEditorToolbarButton(FToolBarBuilder& Builder);
 	TSharedRef<SWidget> FillEditorToolbarComboButtonMenuOptions(TSharedPtr<class FUICommandList> Commands);
 
-	
 	void OpenSnapshotsEditor();
-	void OpenLevelSnapshotsSettings();
 
 	ULevelSnapshotsEditorData* AllocateTransientPreset();
 
@@ -58,6 +62,9 @@ private:
 
 	/* Lives for as long as the UI is open. */
 	TWeakPtr<FLevelSnapshotsEditorToolkit> SnapshotEditorToolkit;
+
+	TSharedPtr<ISettingsSection> LevelSnapshotsProjectSettingsPtr;
+	TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> ProjectSettingObjectPtr;
 
 	bool bUseCreationForm = false;
 };

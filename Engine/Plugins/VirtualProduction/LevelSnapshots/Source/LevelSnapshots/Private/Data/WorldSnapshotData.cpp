@@ -10,11 +10,14 @@
 #include "TakeWorldObjectSnapshotArchive.h"
 
 #include "EngineUtils.h"
-
 #if WITH_EDITOR
 #include "Editor/UnrealEdEngine.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/ScopedSlowTask.h"
 #include "UnrealEdGlobals.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
 namespace
 {
@@ -76,14 +79,22 @@ void FWorldSnapshotData::SnapshotWorld(UWorld* World)
 	SerializedNames.Empty();
 	SerializedObjectReferences.Empty();
 	Subobjects.Empty();
+
+#if WITH_EDITOR
+	FScopedSlowTask TakeSnapshotTask(World->GetProgressDenominator(), LOCTEXT("TakeSnapshotKey", "Take snapshot"));
+	TakeSnapshotTask.MakeDialogDelayed(1.f);
+#endif
 	
 	for (TActorIterator<AActor> It(World, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
 	{
-		AActor* Actor = *It;
-
+#if WITH_EDITOR
+		TakeSnapshotTask.EnterProgressFrame();
+#endif
+		
+		AActor* Actor = *It; 
 		// For now only snapshot the actors which would be visible in the scene outliner to avoid complications with special hidden actors
 		// We'll also filter out actors of specific classes
-		if (ULevelSnapshot::IsActorDesirableForCapture(Actor)) 
+		if (ULevelSnapshot::IsActorDesirableForCapture(Actor))
 		{
 			ActorData.Add(Actor, FActorSnapshotData::SnapshotActor(Actor, *this));
 		}
@@ -96,11 +107,25 @@ void FWorldSnapshotData::ApplyToWorld(UWorld* WorldToApplyTo, ULevelSnapshotSele
 	{
 		return;
 	}
+
+	const TArray<FSoftObjectPath> SelectedPaths = PropertiesToSerialize->GetSelectedWorldObjectPaths();
+#if WITH_EDITOR
+	FScopedSlowTask ApplyToWorldTask(SelectedPaths.Num(), LOCTEXT("ApplyToWorldKey", "Apply to world"));
+	ApplyToWorldTask.MakeDialogDelayed(1.f, true);
+#endif
 	
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ApplySnapshotToWorld"), STAT_ApplySnapshotToWorld, STATGROUP_LevelSnapshots);
 	TSet<AActor*> EvaluatedActors;
-	for (const FSoftObjectPath& Path : PropertiesToSerialize->GetSelectedWorldObjectPaths())
+	for (const FSoftObjectPath& Path : SelectedPaths)
 	{
+#if WITH_EDITOR
+		ApplyToWorldTask.EnterProgressFrame();
+		if (ApplyToWorldTask.ShouldCancel())
+		{
+			return;
+		}
+#endif
+		
 		if (Path.IsValid())
 		{
 			AActor* OriginalWorldActor = nullptr;
@@ -142,6 +167,11 @@ void FWorldSnapshotData::ApplyToWorld(UWorld* WorldToApplyTo, ULevelSnapshotSele
 		GUnrealEd->UpdatePivotLocationForSelection();
 	}
 #endif
+}
+
+int32 FWorldSnapshotData::GetNumSavedActors() const
+{
+	return ActorData.Num();
 }
 
 void FWorldSnapshotData::ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath)> HandleOriginalActorPath) const
@@ -307,3 +337,5 @@ void FWorldSnapshotData::SerializeClassDefaultsInto(UObject* Object)
 			);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

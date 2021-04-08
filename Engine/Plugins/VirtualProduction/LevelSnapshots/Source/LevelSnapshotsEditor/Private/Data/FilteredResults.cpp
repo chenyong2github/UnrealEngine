@@ -10,8 +10,12 @@
 
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "Internationalization/Internationalization.h"
 #include "PropertyInfoHelpers.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Stats/StatsMisc.h"
+
+#define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
 UFilteredResults::UFilteredResults(const FObjectInitializer& ObjectInitializer)
 {
@@ -44,17 +48,22 @@ void UFilteredResults::UpdateFilteredResults()
 	{
 		return;
 	}
-
+ 
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UpdateFilteredResults"), STAT_UpdateFilteredResults, STATGROUP_LevelSnapshots);
 	CleanReferences();
-
+	
 	ULevelSnapshot* ActiveSnapshot = UserSelectedSnapshot.Get();
 	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> ModifiedWorldActorToDeserializedSnapshotActor;
 	TSet<TWeakObjectPtr<AActor>> ModifiedFilteredActors;
 	TSet<TWeakObjectPtr<AActor>> UnmodifiedUnfilteredActors;
+	
+	FScopedSlowTask DiffDeserializedActors(ActiveSnapshot->GetNumSavedActors(), LOCTEXT("DiffingActorsKey", "Diffing actors"));
+	DiffDeserializedActors.MakeDialogDelayed(1.f);
 
-	UserSelectedSnapshot->ForEachOriginalActor([this, ActiveSnapshot, &ModifiedWorldActorToDeserializedSnapshotActor, &ModifiedFilteredActors, &UnmodifiedUnfilteredActors](const FSoftObjectPath& OriginalActorPath)
+	UserSelectedSnapshot->ForEachOriginalActor([this, ActiveSnapshot, &ModifiedWorldActorToDeserializedSnapshotActor, &ModifiedFilteredActors, &UnmodifiedUnfilteredActors, &DiffDeserializedActors](const FSoftObjectPath& OriginalActorPath)
 	{
+		DiffDeserializedActors.EnterProgressFrame();
+		
         UObject* ResolvedWorldActor = OriginalActorPath.ResolveObject();
         if (!ResolvedWorldActor)
         {
@@ -68,10 +77,10 @@ void UFilteredResults::UpdateFilteredResults()
             TOptional<AActor*> DeserializedSnapshotActor = ActiveSnapshot->GetDeserializedActor(OriginalActorPath);
 			checkf(DeserializedSnapshotActor.Get(nullptr), TEXT("Failed to get TMap value for key %s. Is the snapshot corrupted?"), *OriginalActorPath.ToString());
         	
-            if (ActiveSnapshot->HasOriginalChangedSinceSnapshot(*DeserializedSnapshotActor, WorldActor))
+            if (ActiveSnapshot->HasOriginalChangedPropertiesSinceSnapshotWasTaken(*DeserializedSnapshotActor, WorldActor))
             {
                 const EFilterResult::Type ActorInclusionResult = UserFilters->IsActorValid(FIsActorValidParams(*DeserializedSnapshotActor, WorldActor));
-                if (EFilterResult::ShouldInclude(ActorInclusionResult))
+                if (EFilterResult::CanInclude(ActorInclusionResult))
                 {
                     ModifiedFilteredActors.Add(WorldActor);
                     ModifiedWorldActorToDeserializedSnapshotActor.Add({ WorldActor }, { *DeserializedSnapshotActor });
@@ -112,3 +121,5 @@ void UFilteredResults::SetSelectedWorld(UWorld* InWorld)
 	SelectedWorld = InWorld;
 	CleanReferences();
 }
+
+#undef LOCTEXT_NAMESPACE
