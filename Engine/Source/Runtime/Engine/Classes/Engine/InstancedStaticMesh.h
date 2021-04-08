@@ -487,6 +487,9 @@ public:
 #if WITH_EDITOR
 	,	bHasSelectedInstances(InComponent->SelectedInstances.Num() > 0)
 #endif
+#if RHI_RAYTRACING
+	,	CachedRayTracingLOD(-1)
+#endif
 	{
 		bVFRequiresPrimitiveUniformBuffer = true;
 		SetupProxy(InComponent);
@@ -526,7 +529,8 @@ public:
 	}
 
 	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) final override;
-	void SetupRayTracingDynamicInstances(int32 NumDynamicInstances);
+
+	void SetupRayTracingDynamicInstances(int32 NumDynamicInstances, int32 LOD);
 
 #endif
 
@@ -593,6 +597,8 @@ protected:
 	};
 
 	TArray<FRayTracingDynamicData> RayTracingDynamicData;
+
+	int32 CachedRayTracingLOD;
 #endif
 
 	/** Common path for the Get*MeshElement functions */

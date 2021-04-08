@@ -1363,9 +1363,9 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 	
 		
 
-		if (RayTracingDynamicData.Num() != SimulatedInstances)
+		if (RayTracingDynamicData.Num() != SimulatedInstances || LOD != CachedRayTracingLOD)
 		{
-			SetupRayTracingDynamicInstances(SimulatedInstances);
+			SetupRayTracingDynamicInstances(SimulatedInstances, LOD);
 		}
 		ActiveInstances.AddZeroed(SimulatedInstances);
 
@@ -1473,7 +1473,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 
 							const FStaticMeshLODResources& LODModel = RenderData->LODResources[LOD];
 
-							FRayTracingDynamicData &DynamicData = RayTracingDynamicData[0];
+							FRayTracingDynamicData &DynamicData = RayTracingDynamicData[DynamicInstanceIdx];
 
 							ActiveInstances[DynamicInstanceIdx] = OutRayTracingInstances.Num();
 							FRayTracingInstance &RayTracingInstance = OutRayTracingInstances.Add_GetRef(RayTracingWPOInstanceTemplate);
@@ -1497,7 +1497,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 									uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
 									DynamicData.DynamicGeometry.Initializer.TotalPrimitiveCount,
 									&DynamicData.DynamicGeometry,
-									&DynamicData.DynamicGeometryVertexBuffer,
+									nullptr,
 									true,
 									Passthrough
 								}
@@ -1531,7 +1531,9 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			{
 				FRayTracingInstance *DynamicInstance = nullptr;
 
-				if (ActiveInstances[0] == -1)
+				const int32 DynamicInstanceIdx = InstanceIdx % SimulatedInstances;
+
+				if (ActiveInstances[DynamicInstanceIdx] == -1)
 				{
 					// first case of this dynamic instance, setup the material and add it
 					FVector4 LocalTransform[3];
@@ -1541,9 +1543,9 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 
 					const FStaticMeshLODResources& LODModel = RenderData->LODResources[LOD];
 
-					FRayTracingDynamicData &DynamicData = RayTracingDynamicData[0];
+					FRayTracingDynamicData &DynamicData = RayTracingDynamicData[DynamicInstanceIdx];
 
-					ActiveInstances[0] = OutRayTracingInstances.Num();
+					ActiveInstances[DynamicInstanceIdx] = OutRayTracingInstances.Num();
 					FRayTracingInstance &RayTracingInstance = OutRayTracingInstances.Add_GetRef(RayTracingWPOInstanceTemplate);
 					RayTracingInstance.Geometry = &DynamicData.DynamicGeometry;
 					RayTracingInstance.InstanceTransforms.Reserve(InstanceCount);
@@ -1565,7 +1567,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 							uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
 							DynamicData.DynamicGeometry.Initializer.TotalPrimitiveCount,
 							&DynamicData.DynamicGeometry,
-							&DynamicData.DynamicGeometryVertexBuffer,
+							nullptr,
 							true,
 							Passthrough
 						}
@@ -1574,7 +1576,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 				}
 				else
 				{
-					DynamicInstance = &OutRayTracingInstances[ActiveInstances[0]];
+					DynamicInstance = &OutRayTracingInstances[ActiveInstances[DynamicInstanceIdx]];
 				}
 
 				DynamicInstance->InstanceTransforms.Add(InstanceTransform);
@@ -1607,20 +1609,20 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 }
 
 
-void FInstancedStaticMeshSceneProxy::SetupRayTracingDynamicInstances(int32 NumDynamicInstances)
+void FInstancedStaticMeshSceneProxy::SetupRayTracingDynamicInstances(int32 NumDynamicInstances, int32 LOD)
 {
-	uint32 LOD = GetCurrentFirstLODIdx_RenderThread();
-
-	if (RayTracingDynamicData.Num() > NumDynamicInstances)
+	if (RayTracingDynamicData.Num() > NumDynamicInstances || CachedRayTracingLOD != LOD)
 	{
-		//free the unused ones
-		for (int32 Item = NumDynamicInstances; Item < RayTracingDynamicData.Num(); Item++)
+		//free the unused/out of date entries
+
+		int32 FirstToFree = (CachedRayTracingLOD != LOD) ? 0 : NumDynamicInstances;
+		for (int32 Item = FirstToFree; Item < RayTracingDynamicData.Num(); Item++)
 		{
 			auto& DynamicRayTracingItem = RayTracingDynamicData[Item];
 			DynamicRayTracingItem.DynamicGeometry.ReleaseResource();
 			DynamicRayTracingItem.DynamicGeometryVertexBuffer.Release();
 		}
-		RayTracingDynamicData.SetNum(NumDynamicInstances);
+		RayTracingDynamicData.SetNum(FirstToFree);
 	}
 
 	if (RayTracingDynamicData.Num() < NumDynamicInstances)
@@ -1637,15 +1639,16 @@ void FInstancedStaticMeshSceneProxy::SetupRayTracingDynamicInstances(int32 NumDy
 			Initializer = LODModel.RayTracingGeometry.Initializer;
 			for (FRayTracingGeometrySegment& Segment : Initializer.Segments)
 			{
-				Segment.VertexBuffer = nullptr; // nullptr;
+				Segment.VertexBuffer = nullptr; 
 			}
 			Initializer.bAllowUpdate = true;
 			Initializer.bFastBuild = true;
 
-			DynamicData.DynamicGeometryVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FInstancedStaticMeshSceneProxy::RayTracingDynamicVertexBuffer"));
 			DynamicData.DynamicGeometry.InitResource();
 		}
 	}
+
+	CachedRayTracingLOD = LOD;
 }
 
 #endif
