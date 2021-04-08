@@ -271,19 +271,29 @@ bool UUsdConversionBlueprintContext::ConvertLandscapeProxyActorMesh( const ALand
 		return false;
 	}
 
-	int32 NumLODs = FMath::Max( FMath::Abs( HighestLOD - LowestLOD + 1 ), 1 );
+	// Make sure they're both >= 0 (the options dialog slider is clamped, but this may be called directly)
+	LowestLOD = FMath::Max( LowestLOD, 0 );
+	HighestLOD = FMath::Max( HighestLOD, 0 );
+
+	// Make sure Lowest <= Highest
+	int32 Temp = FMath::Min( LowestLOD, HighestLOD );
+	HighestLOD = FMath::Max( LowestLOD, HighestLOD );
+	LowestLOD = Temp;
+
+	// Make sure it's at least 1 LOD level
+	int32 NumLODs = FMath::Max( HighestLOD - LowestLOD + 1, 1 );
 
 	TArray<FMeshDescription> LODMeshDescriptions;
 	LODMeshDescriptions.SetNum( NumLODs );
 
-	for ( int32 LODIndex = LowestLOD; LODIndex <= HighestLOD; ++LODIndex )
+	for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
 	{
 		FMeshDescription& MeshDescription = LODMeshDescriptions[ LODIndex ];
 
 		FStaticMeshAttributes Attributes( MeshDescription );
 		Attributes.Register();
 
-		if ( !Actor->ExportToRawMesh( LODIndex, MeshDescription ) )
+		if ( !Actor->ExportToRawMesh( LODIndex + LowestLOD, MeshDescription ) )
 		{
 			UE_LOG( LogUsd, Error, TEXT( "Failed to convert LOD %d of landscape actor '%s''s mesh data" ), LODIndex, *Actor->GetName() );
 			return false;
