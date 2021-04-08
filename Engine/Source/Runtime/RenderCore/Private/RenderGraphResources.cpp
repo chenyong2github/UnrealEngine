@@ -257,7 +257,7 @@ void FRDGTexture::SetRHI(FRDGPooledTexture* InPooledTexture)
 void FRDGTexture::Finalize()
 {
 	checkf(NextOwner.IsNull() == !!bLastOwner, TEXT("NextOwner must match bLastOwner."));
-	checkf(((bExternal || bExtracted) && !bLastOwner) == false, TEXT("Both external and extracted resources must be the last owner of a resource."));
+	checkf(!bExtracted || bLastOwner, TEXT("Extracted resources must be the last owner of a resource."));
 
 	if (bLastOwner)
 	{
@@ -304,8 +304,8 @@ void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer)
 void FRDGBuffer::Finalize()
 {
 	// If these fire, the graph is not tracking state properly.
-	check(NextOwner.IsNull() == !!bLastOwner);
-	check(!((bExternal || bExtracted) && !bLastOwner));
+	checkf(NextOwner.IsNull() == !!bLastOwner, TEXT("NextOwner must match bLastOwner."));
+	checkf(!bExtracted || bLastOwner, TEXT("Extracted resources must be the last owner of a resource."));
 
 	if (bLastOwner)
 	{
