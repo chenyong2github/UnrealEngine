@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "ISceneOutlinerHierarchy.h"
 
+class FWorldPartitionActorDesc;
+
 class FActorHierarchy : public ISceneOutlinerHierarchy
 {
 public:
