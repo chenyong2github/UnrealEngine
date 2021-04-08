@@ -15,6 +15,8 @@
 
 #include "GroomComponent.generated.h"
 
+class UGroomCache;
+
 UCLASS(HideCategories = (Object, Physics, Activation, Mobility, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
 class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent, public ILODSyncInterface
 {
@@ -25,6 +27,9 @@ public:
 	/** Groom asset . */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "Groom")
 	UGroomAsset* GroomAsset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "GroomCache")
+	UGroomCache* GroomCache;
 
 	/** Niagara components that will be attached to the system*/
 	UPROPERTY(Transient)
@@ -184,6 +189,35 @@ public:
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	virtual int32 GetNumMaterials() const override;
 	//~ End UPrimitiveComponent Interface
+
+	/** GroomCache */
+	UGroomCache* GetGroomCache() const { return GroomCache; }
+	void SetGroomCache(UGroomCache* InGroomCache);
+
+	float GetGroomCacheDuration() const;
+
+	void SetManualTick(bool bInManualTick);
+	bool GetManualTick() const;
+	void TickAtThisTime(const float Time, bool bInIsRunning, bool bInBackwards, bool bInIsLooping);
+
+	void ResetAnimationTime();
+
+private:
+	void UpdateGroomCache(float Time);
+
+	UPROPERTY(EditAnywhere, Category = GroomCache)
+	bool bRunning;
+
+	UPROPERTY(EditAnywhere, Category = GroomCache)
+	bool bLooping;
+
+	UPROPERTY(EditAnywhere, Category = GroomCache)
+	bool bManualTick;
+
+	UPROPERTY(VisibleAnywhere, transient, Category = GroomCache)
+	float ElapsedTime;
+
+	TSharedPtr<class IGroomCacheBuffers, ESPMode::ThreadSafe> GroomCacheBuffers;
 
 private:
 	TArray<FHairGroupInstance*> HairGroupInstances;

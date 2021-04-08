@@ -31,7 +31,11 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"Renderer",
 					"PropertyEditor",
-					"RHI"
+					"RHI",
+					"LevelSequence",
+					"MovieScene",
+					"MovieSceneTools",
+					"Sequencer"
 				});
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 			 "FBX"

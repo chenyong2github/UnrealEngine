@@ -53,6 +53,8 @@ private:
 
 	TSharedPtr<FSlateStyleSet> StyleSet;
 
+	FDelegateHandle TrackEditorBindingHandle;
+
 public:
 
 	static FName GroomEditorAppIdentifier;

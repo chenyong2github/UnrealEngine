@@ -29,8 +29,12 @@ struct HAIRSTRANDSCORE_API FGroomBuilder
 	static void BuildData(UGroomAsset* GroomAsset);
 	static void BuildData(FHairStrandsDatas& RenData, FHairStrandsDatas& SimData, FHairStrandsInterpolationDatas& InterpolationData, const FHairInterpolationSettings& InterpolationSettings, const bool bBuildRen, const bool bBuildSim, const bool bBuildInterpolation, uint32 Seed);
 
+	/** Build data for fully functional GroomAsset including HairGroupData, render and interpolation data */
 	static bool BuildGroom(FProcessedHairDescription& ProcessedHairDescription, UGroomAsset* GroomAsset, uint32 GroupIndex);
 	static bool BuildGroom(const FHairDescription& HairDescription, UGroomAsset* GroomAsset);
+
+	/** Build only the HairGroupData */
+	static void BuildHairGroupData(FProcessedHairDescription& ProcessedHairDescription, const FHairGroupsInterpolation& InSettings, uint32 GroupIndex, FHairGroupData& OutHairGroupData);
 
 	static float ComputeGroomBoundRadius(const FProcessedHairDescription& Description);
 	static float ComputeGroomBoundRadius(const TArray<FHairGroupData>& HairGroupsData);

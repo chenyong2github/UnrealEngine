@@ -13,16 +13,20 @@
 #include "SlateOptMacros.h"
 #include "FbxHairTranslator.h"
 
-#include "GroomEditorCommands.h"
-#include "GroomEditorMode.h"
 #include "GroomAsset.h"
 #include "GroomBindingAsset.h"
+#include "GroomBindingDetailsCustomization.h"
+#include "GroomCacheImportOptions.h"
+#include "GroomCacheImportSettingsCustomization.h"
+#include "GroomCacheTrackEditor.h"
 #include "GroomComponentDetailsCustomization.h"
 #include "GroomCreateBindingOptions.h"
-#include "GroomBindingDetailsCustomization.h"
+#include "GroomEditorCommands.h"
+#include "GroomEditorMode.h"
 
 #include "AssetRegistryModule.h"
 #include "FileHelpers.h"
+#include "ISequencerModule.h"
 
 IMPLEMENT_MODULE(FGroomEditor, HairStrandsEditor);
 
@@ -109,6 +113,7 @@ void FGroomEditor::StartupModule()
 		PropertyModule.RegisterCustomClassLayout(UGroomComponent::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FGroomComponentDetailsCustomization::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout(UGroomBindingAsset::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FGroomBindingDetailsCustomization::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout(UGroomCreateBindingOptions::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FGroomCreateBindingDetailsCustomization::MakeInstance));
+		PropertyModule.RegisterCustomPropertyTypeLayout(FGroomCacheImportSettings::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGroomCacheImportSettingsCustomization::MakeInstance));
 	}
 
 	FGroomEditorCommands::Register();
@@ -125,16 +130,26 @@ void FGroomEditor::StartupModule()
 	Helper.RegisterAsset = RegisterAsset;
 	Helper.SaveAsset = SaveAsset;
 	FHairStrandsCore::RegisterAssetHelper(Helper);
+
+	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
+	TrackEditorBindingHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FGroomCacheTrackEditor::CreateTrackEditor));
 }
 
 void FGroomEditor::ShutdownModule()
 {
+	ISequencerModule* SequencerModulePtr = FModuleManager::Get().GetModulePtr<ISequencerModule>("Sequencer");
+	if (SequencerModulePtr)
+	{
+		SequencerModulePtr->UnRegisterTrackEditor(TrackEditorBindingHandle);
+	}
+
 	FEditorModeRegistry::Get().UnregisterMode(FGroomEditorMode::EM_GroomEditorModeId);
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.UnregisterCustomClassLayout(UGroomComponent::StaticClass()->GetFName());
 	PropertyModule.UnregisterCustomClassLayout(UGroomBindingAsset::StaticClass()->GetFName());
 	PropertyModule.UnregisterCustomClassLayout(UGroomCreateBindingOptions::StaticClass()->GetFName());
+	PropertyModule.UnregisterCustomPropertyTypeLayout(FGroomCacheImportSettings::StaticStruct()->GetFName());
 
 	// #ueent_todo: Unregister the translators
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
