@@ -58,7 +58,7 @@ bool InitializeOculusPluginWrapper(OculusPluginWrapper* wrapper)
 	{
 		// OVR_Plugin.h
 
-		OCULUS_BIND_ENTRY_POINT(PreInitialize3),
+		OCULUS_BIND_ENTRY_POINT(PreInitialize4),
 		OCULUS_BIND_ENTRY_POINT(GetInitialized),
 		OCULUS_BIND_ENTRY_POINT(Initialize6),
 		OCULUS_BIND_ENTRY_POINT(Shutdown2),
