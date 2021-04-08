@@ -52,8 +52,6 @@ struct FD3D12_GRAPHICS_PIPELINE_STATE_DESC
 	D3D12_SHADER_BYTECODE MS;
 	D3D12_SHADER_BYTECODE AS;
 	D3D12_SHADER_BYTECODE PS;
-	D3D12_SHADER_BYTECODE DS;
-	D3D12_SHADER_BYTECODE HS;
 	D3D12_SHADER_BYTECODE GS;
 #if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
 	D3D12_BLEND_DESC BlendState;
@@ -88,8 +86,6 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 	ShaderBytecodeHash VSHash;
 	ShaderBytecodeHash MSHash;
 	ShaderBytecodeHash ASHash;
-	ShaderBytecodeHash HSHash;
-	ShaderBytecodeHash DSHash;
 	ShaderBytecodeHash GSHash;
 	ShaderBytecodeHash PSHash;
 	uint32 InputLayoutHash;
@@ -109,8 +105,6 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 	const TArray<FShaderCodeVendorExtension>* VSExtensions;
 	const TArray<FShaderCodeVendorExtension>* MSExtensions;
 	const TArray<FShaderCodeVendorExtension>* ASExtensions;
-	const TArray<FShaderCodeVendorExtension>* HSExtensions;
-	const TArray<FShaderCodeVendorExtension>* DSExtensions;
 	const TArray<FShaderCodeVendorExtension>* GSExtensions;
 	const TArray<FShaderCodeVendorExtension>* PSExtensions;
 
@@ -121,9 +115,7 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 			MSExtensions != nullptr ||
 			ASExtensions != nullptr ||
 			PSExtensions != nullptr ||
-			GSExtensions != nullptr ||
-			HSExtensions != nullptr ||
-			DSExtensions != nullptr);
+			GSExtensions != nullptr);
 	}
 #else
 	FORCEINLINE bool HasVendorExtensions() const { return false; }
@@ -198,8 +190,6 @@ template <> struct equality_pipeline_state_desc<FD3D12LowLevelGraphicsPipelineSt
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.MS.BytecodeLength)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.AS.BytecodeLength)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.GS.BytecodeLength)
-		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.DS.BytecodeLength)
-		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.HS.BytecodeLength)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.InputLayout.NumElements)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.RTFormatArray.NumRenderTargets)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.DSVFormat)
@@ -232,8 +222,6 @@ template <> struct equality_pipeline_state_desc<FD3D12LowLevelGraphicsPipelineSt
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(ASHash)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(PSHash)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(GSHash)
-		PSO_IF_NOT_EQUAL_RETURN_FALSE(HSHash)
-		PSO_IF_NOT_EQUAL_RETURN_FALSE(DSHash)
 
 		if (lhs.Desc.InputLayout.pInputElementDescs != rhs.Desc.InputLayout.pInputElementDescs &&
 			lhs.Desc.InputLayout.NumElements)
@@ -256,8 +244,6 @@ template <> struct equality_pipeline_state_desc<FD3D12LowLevelGraphicsPipelineSt
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(ASExtensions);
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(PSExtensions);
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(GSExtensions);
-		PSO_IF_NOT_EQUAL_RETURN_FALSE(HSExtensions);
-		PSO_IF_NOT_EQUAL_RETURN_FALSE(DSExtensions);
 	#endif
 
 		return true;
@@ -394,13 +380,6 @@ struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState
 #else
 	FORCEINLINE class FD3D12MeshShader*				GetMeshShader() const { return nullptr; }
 	FORCEINLINE class FD3D12AmplificationShader*	GetAmplificationShader() const { return nullptr; }
-#endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	FORCEINLINE class FD3D12HullShader*     GetHullShader() const { return (FD3D12HullShader*)PipelineStateInitializer.BoundShaderState.HullShaderRHI; }
-	FORCEINLINE class FD3D12DomainShader*   GetDomainShader() const { return (FD3D12DomainShader*)PipelineStateInitializer.BoundShaderState.DomainShaderRHI; }
-#else
-	FORCEINLINE class FD3D12HullShader*     GetHullShader() const { return nullptr; }
-	FORCEINLINE class FD3D12DomainShader*   GetDomainShader() const { return nullptr; }
 #endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	FORCEINLINE class FD3D12GeometryShader* GetGeometryShader() const { return (FD3D12GeometryShader*)PipelineStateInitializer.BoundShaderState.GeometryShaderRHI; }

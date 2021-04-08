@@ -111,8 +111,6 @@ struct GraphicsPipelineCreationArgs_POD
 		SaveByteCode(Desc.Desc.AS);
 		SaveByteCode(Desc.Desc.PS);
 		SaveByteCode(Desc.Desc.GS);
-		SaveByteCode(Desc.Desc.HS);
-		SaveByteCode(Desc.Desc.DS);
 	}
 
 	void Destroy();

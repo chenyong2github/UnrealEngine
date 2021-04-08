@@ -40,8 +40,6 @@ DECLARE_ISBOUNDSHADER(MeshShader)
 DECLARE_ISBOUNDSHADER(AmplificationShader)
 DECLARE_ISBOUNDSHADER(PixelShader)
 DECLARE_ISBOUNDSHADER(GeometryShader)
-DECLARE_ISBOUNDSHADER(HullShader)
-DECLARE_ISBOUNDSHADER(DomainShader)
 DECLARE_ISBOUNDSHADER(ComputeShader)
 
 #define DECLARE_ISVALIDUNIFORMBUFFERHASH(ShaderType) inline void ValidateBoundUniformBuffer(FD3D12UniformBuffer* InUniformBuffer, FRHI##ShaderType* In##RHI, uint32 InBufferIndex) \
@@ -60,8 +58,6 @@ DECLARE_ISVALIDUNIFORMBUFFERHASH(MeshShader)
 DECLARE_ISVALIDUNIFORMBUFFERHASH(AmplificationShader)
 DECLARE_ISVALIDUNIFORMBUFFERHASH(PixelShader)
 DECLARE_ISVALIDUNIFORMBUFFERHASH(GeometryShader)
-DECLARE_ISVALIDUNIFORMBUFFERHASH(HullShader)
-DECLARE_ISVALIDUNIFORMBUFFERHASH(DomainShader)
 DECLARE_ISVALIDUNIFORMBUFFERHASH(ComputeShader)
 
 #if EXECUTE_DEBUG_COMMAND_LISTS
@@ -730,15 +726,11 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 	FD3D12GraphicsPipelineState* GraphicsPipelineState = FD3D12DynamicRHI::ResourceCast(GraphicsState);
 
 	// TODO: [PSO API] Every thing inside this scope is only necessary to keep the PSO shadow in sync while we convert the high level to only use PSOs
-	const bool bWasUsingTessellation = bUsingTessellation;
-	bUsingTessellation = GraphicsPipelineState->GetHullShader() && GraphicsPipelineState->GetDomainShader();
 	// Ensure the command buffers are reset to reduce the amount of data that needs to be versioned.
 	VSConstantBuffer.Reset();
 	MSConstantBuffer.Reset();
 	ASConstantBuffer.Reset();
 	PSConstantBuffer.Reset();
-	HSConstantBuffer.Reset();
-	DSConstantBuffer.Reset();
 	GSConstantBuffer.Reset();
 	
 	// @TODO : really should only discard the constants if the shader state has actually changed.
@@ -754,7 +746,7 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 		StateCache.SetShadingRate(GraphicsPipelineState->PipelineStateInitializer.ShadingRate, VRSRB_Passthrough);
 	}
 
-	StateCache.SetGraphicsPipelineState(GraphicsPipelineState, bUsingTessellation != bWasUsingTessellation);
+	StateCache.SetGraphicsPipelineState(GraphicsPipelineState);
 	StateCache.SetStencilRef(0);
 
 	if (bApplyAdditionalState)
@@ -762,8 +754,6 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 		ApplyStaticUniformBuffers(GraphicsPipelineState->GetVertexShader());
 		ApplyStaticUniformBuffers(GraphicsPipelineState->GetMeshShader());
 		ApplyStaticUniformBuffers(GraphicsPipelineState->GetAmplificationShader());
-		ApplyStaticUniformBuffers(GraphicsPipelineState->GetHullShader());
-		ApplyStaticUniformBuffers(GraphicsPipelineState->GetDomainShader());
 		ApplyStaticUniformBuffers(GraphicsPipelineState->GetGeometryShader());
 		ApplyStaticUniformBuffers(GraphicsPipelineState->GetPixelShader());
 	}
@@ -814,20 +804,6 @@ void FD3D12CommandContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, ui
 		FRHIAmplificationShader* AmplificationShaderRHI = static_cast<FRHIAmplificationShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(AmplificationShaderRHI);
 		StateCache.SetShaderResourceView<SF_Amplification>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
-	}
-	break;
-	case SF_Hull:
-	{
-		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(HullShaderRHI);
-		StateCache.SetShaderResourceView<SF_Hull>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
-	}
-	break;
-	case SF_Domain:
-	{
-		FRHIDomainShader* DomainShaderRHI = static_cast<FRHIDomainShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(DomainShaderRHI);
-		StateCache.SetShaderResourceView<SF_Domain>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
 	}
 	break;
 	case SF_Geometry:
@@ -929,20 +905,6 @@ void FD3D12CommandContext::RHISetShaderResourceViewParameter(FRHIGraphicsShader*
 		StateCache.SetShaderResourceView<SF_Amplification>(SRV, TextureIndex);
 	}
 	break;
-	case SF_Hull:
-	{
-		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(HullShaderRHI);
-		StateCache.SetShaderResourceView<SF_Hull>(SRV, TextureIndex);
-	}
-	break;
-	case SF_Domain:
-	{
-		FRHIDomainShader* DomainShaderRHI = static_cast<FRHIDomainShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(DomainShaderRHI);
-		StateCache.SetShaderResourceView<SF_Domain>(SRV, TextureIndex);
-	}
-	break;
 	case SF_Geometry:
 	{
 		FRHIGeometryShader* GeometryShaderRHI = static_cast<FRHIGeometryShader*>(ShaderRHI);
@@ -994,20 +956,6 @@ void FD3D12CommandContext::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI, ui
 		FRHIAmplificationShader* AmplificationShaderRHI = static_cast<FRHIAmplificationShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(AmplificationShaderRHI);
 		StateCache.SetSamplerState<SF_Amplification>(NewState, SamplerIndex);
-	}
-	break;
-	case SF_Hull:
-	{
-		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(HullShaderRHI);
-		StateCache.SetSamplerState<SF_Hull>(NewState, SamplerIndex);
-	}
-	break;
-	case SF_Domain:
-	{
-		FRHIDomainShader* DomainShaderRHI = static_cast<FRHIDomainShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(DomainShaderRHI);
-		StateCache.SetSamplerState<SF_Domain>(NewState, SamplerIndex);
 	}
 	break;
 	case SF_Geometry:
@@ -1068,24 +1016,6 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderR
 		VALIDATE_BOUND_UNIFORMBUFFER_HASH(Buffer, AmplificationShaderRHI, BufferIndex);
 		StateCache.SetConstantsFromUniformBuffer<SF_Amplification>(BufferIndex, Buffer);
 		Stage = SF_Amplification;
-	}
-	break;
-	case SF_Hull:
-	{
-		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(HullShaderRHI);
-		VALIDATE_BOUND_UNIFORMBUFFER_HASH(Buffer, HullShaderRHI, BufferIndex);
-		StateCache.SetConstantsFromUniformBuffer<SF_Hull>(BufferIndex, Buffer);
-		Stage = SF_Hull;
-	}
-	break;
-	case SF_Domain:
-	{
-		FRHIDomainShader* DomainShaderRHI = static_cast<FRHIDomainShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(DomainShaderRHI);
-		VALIDATE_BOUND_UNIFORMBUFFER_HASH(Buffer, DomainShaderRHI, BufferIndex);
-		StateCache.SetConstantsFromUniformBuffer<SF_Domain>(BufferIndex, Buffer);
-		Stage = SF_Domain;
 	}
 	break;
 	case SF_Geometry:
@@ -1162,20 +1092,6 @@ void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, 
 		FRHIAmplificationShader* AmplificationShaderRHI = static_cast<FRHIAmplificationShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(AmplificationShaderRHI);
 		ASConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
-	}
-	break;
-	case SF_Hull:
-	{
-		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(HullShaderRHI);
-		HSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
-	}
-	break;
-	case SF_Domain:
-	{
-		FRHIDomainShader* DomainShaderRHI = static_cast<FRHIDomainShader*>(ShaderRHI);
-		VALIDATE_BOUND_SHADER(DomainShaderRHI);
-		DSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
 	case SF_Geometry:
@@ -1591,23 +1507,6 @@ void FD3D12CommandContext::CommitNonComputeShaderConstants()
 		StateCache.SetConstantBuffer<SF_Amplification>(ASConstantBuffer, bDiscardSharedGraphicsConstants);
 	}
 
-	// Skip HS/DS CB updates in cases where tessellation isn't being used
-	// Note that this is *potentially* unsafe because bDiscardSharedGraphicsConstants is cleared at the
-	// end of the function, however we're OK for now because bDiscardSharedGraphicsConstants
-	// is always reset whenever bUsingTessellation changes in SetBoundShaderState()
-	if (bUsingTessellation)
-	{
-		if (GraphicPSO->bShaderNeedsGlobalConstantBuffer[SF_Hull])
-		{
-			StateCache.SetConstantBuffer<SF_Hull>(HSConstantBuffer, bDiscardSharedGraphicsConstants);
-		}
-
-		if (GraphicPSO->bShaderNeedsGlobalConstantBuffer[SF_Domain])
-		{
-			StateCache.SetConstantBuffer<SF_Domain>(DSConstantBuffer, bDiscardSharedGraphicsConstants);
-		}
-	}
-
 	if (GraphicPSO->bShaderNeedsGlobalConstantBuffer[SF_Geometry])
 	{
 		StateCache.SetConstantBuffer<SF_Geometry>(GSConstantBuffer, bDiscardSharedGraphicsConstants);
@@ -1892,14 +1791,6 @@ void FD3D12CommandContext::CommitGraphicsResourceTables()
 	if (PixelShader)
 	{
 		SetResourcesFromTables(PixelShader);
-	}
-	if (auto* Shader = GraphicPSO->GetHullShader())
-	{
-		SetResourcesFromTables(Shader);
-	}
-	if (auto* Shader = GraphicPSO->GetDomainShader())
-	{
-		SetResourcesFromTables(Shader);
 	}
 	if (auto* Shader = GraphicPSO->GetGeometryShader())
 	{

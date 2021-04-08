@@ -163,9 +163,6 @@ public:
 	/** When a new compute PSO is set, we discard all old constants set for the previous shader. */
 	bool bDiscardSharedComputeConstants;
 
-	/** Set to true when the current shading setup uses tessellation */
-	bool bUsingTessellation;
-
 	/** Used by variable rate shading to cache the current state of the combiners and the constant shading rate*/
 #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
 	D3D12_SHADING_RATE_COMBINER		VRSCombiners[D3D12_RS_SET_SHADING_RATE_COMBINER_COUNT];
@@ -209,8 +206,6 @@ public:
 	FD3D12ConstantBuffer VSConstantBuffer;
 	FD3D12ConstantBuffer MSConstantBuffer;
 	FD3D12ConstantBuffer ASConstantBuffer;
-	FD3D12ConstantBuffer HSConstantBuffer;
-	FD3D12ConstantBuffer DSConstantBuffer;
 	FD3D12ConstantBuffer PSConstantBuffer;
 	FD3D12ConstantBuffer GSConstantBuffer;
 	FD3D12ConstantBuffer CSConstantBuffer;

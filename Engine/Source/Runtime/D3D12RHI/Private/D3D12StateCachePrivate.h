@@ -137,8 +137,6 @@ struct FD3D12ResourceCache
 		Dirty(SF_Vertex, SlotMask);
 		Dirty(SF_Mesh, SlotMask);
 		Dirty(SF_Amplification, SlotMask);
-		Dirty(SF_Hull, SlotMask);
-		Dirty(SF_Domain, SlotMask);
 		Dirty(SF_Pixel, SlotMask);
 		Dirty(SF_Geometry, SlotMask);
 	}
@@ -262,7 +260,7 @@ struct FD3D12SamplerStateCache : public FD3D12ResourceCache<SamplerSlotMask>
 };
 
 
-static inline D3D_PRIMITIVE_TOPOLOGY GetD3D12PrimitiveType(uint32 PrimitiveType, bool bUsingTessellation)
+static inline D3D_PRIMITIVE_TOPOLOGY GetD3D12PrimitiveType(uint32 PrimitiveType)
 {
 	static const uint8 D3D12PrimitiveType[] =
 	{
@@ -310,19 +308,6 @@ static inline D3D_PRIMITIVE_TOPOLOGY GetD3D12PrimitiveType(uint32 PrimitiveType,
 		D3D_PRIMITIVE_TOPOLOGY_32_CONTROL_POINT_PATCHLIST, // PT_32_ControlPointPatchList
 	};
 	static_assert(UE_ARRAY_COUNT(D3D12PrimitiveType) == PT_Num, "Primitive lookup table is wrong size");
-
-	if (bUsingTessellation)
-	{
-		if (PrimitiveType == PT_TriangleList)
-		{
-			// This is the case for tessellation without AEN or other buffers, so just flip to 3 CPs
-			return D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST;
-		}
-		else/* if (PrimitiveType < PT_1_ControlPointPatchList)*/
-		{
-			checkf(PrimitiveType >= PT_1_ControlPointPatchList, TEXT("Invalid type specified for tessellated render, probably missing a case in FSkeletalMeshSceneProxy::DrawDynamicElementsByMaterial or FStaticMeshSceneProxy::GetMeshElement"));
-		}
-	}
 
 	D3D_PRIMITIVE_TOPOLOGY D3DType = (D3D_PRIMITIVE_TOPOLOGY) D3D12PrimitiveType[PrimitiveType];
 	checkf(D3DType, TEXT("Unknown primitive type: %u"), PrimitiveType);
@@ -460,10 +445,6 @@ protected:
 	DECLARE_SHADER_TRAITS(Amplification);
 #endif
 	DECLARE_SHADER_TRAITS(Pixel);
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	DECLARE_SHADER_TRAITS(Domain);
-	DECLARE_SHADER_TRAITS(Hull);
-#endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	DECLARE_SHADER_TRAITS(Geometry);
 #endif
@@ -766,24 +747,6 @@ public:
 #endif
 	}
 
-	D3D12_STATE_CACHE_INLINE void GetHullShader(FD3D12HullShader** Shader)
-	{
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		GetShader(Shader);
-#else
-		*Shader = nullptr;
-#endif
-	}
-
-	D3D12_STATE_CACHE_INLINE void GetDomainShader(FD3D12DomainShader** Shader)
-	{
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		GetShader(Shader);
-#else
-		*Shader = nullptr;
-#endif
-	}
-
 	D3D12_STATE_CACHE_INLINE void GetGeometryShader(FD3D12GeometryShader** Shader)
 	{
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
@@ -798,7 +761,7 @@ public:
 		GetShader(Shader);
 	}
 
-	D3D12_STATE_CACHE_INLINE void SetGraphicsPipelineState(FD3D12GraphicsPipelineState* GraphicsPipelineState, bool bTessellationChanged)
+	D3D12_STATE_CACHE_INLINE void SetGraphicsPipelineState(FD3D12GraphicsPipelineState* GraphicsPipelineState)
 	{
 		check(GraphicsPipelineState);
 		if (PipelineState.Graphics.CurrentPipelineStateObject != GraphicsPipelineState)
@@ -810,10 +773,6 @@ public:
 			SetShader(GraphicsPipelineState->GetAmplificationShader());
 #endif
 			SetShader(GraphicsPipelineState->GetPixelShader());
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			SetShader(GraphicsPipelineState->GetDomainShader());
-			SetShader(GraphicsPipelineState->GetHullShader());
-#endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			SetShader(GraphicsPipelineState->GetGeometryShader());
 #endif
@@ -828,11 +787,10 @@ public:
 			PipelineState.Graphics.CurrentPipelineStateObject = GraphicsPipelineState;
 
 			EPrimitiveType PrimitiveType = GraphicsPipelineState->PipelineStateInitializer.PrimitiveType;
-			if (PipelineState.Graphics.CurrentPrimitiveType != PrimitiveType || bTessellationChanged)
+			if (PipelineState.Graphics.CurrentPrimitiveType != PrimitiveType)
 			{
-				const bool bUsingTessellation = GraphicsPipelineState->GetHullShader() && GraphicsPipelineState->GetDomainShader();
 				PipelineState.Graphics.CurrentPrimitiveType = PrimitiveType;
-				PipelineState.Graphics.CurrentPrimitiveTopology = GetD3D12PrimitiveType(PrimitiveType, bUsingTessellation);
+				PipelineState.Graphics.CurrentPrimitiveTopology = GetD3D12PrimitiveType(PrimitiveType);
 				bNeedSetPrimitiveTopology = true;
 
 				static_assert(PT_Num == 38, "This computation needs to be updated, matching that of GetVertexCountForPrimitiveCount()");

@@ -112,7 +112,6 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, ED3D12Command
 	bOuterOcclusionQuerySubmitted(false),
 	bDiscardSharedGraphicsConstants(false),
 	bDiscardSharedComputeConstants(false),
-	bUsingTessellation(false),
 #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
 	VRSCombiners{ D3D12_SHADING_RATE_COMBINER_PASSTHROUGH, D3D12_SHADING_RATE_COMBINER_PASSTHROUGH },
 	VRSShadingRate(D3D12_SHADING_RATE_1X1),
@@ -125,8 +124,6 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, ED3D12Command
 	VSConstantBuffer(InParent, ConstantsAllocator),
 	MSConstantBuffer(InParent, ConstantsAllocator),
 	ASConstantBuffer(InParent, ConstantsAllocator),
-	HSConstantBuffer(InParent, ConstantsAllocator),
-	DSConstantBuffer(InParent, ConstantsAllocator),
 	PSConstantBuffer(InParent, ConstantsAllocator),
 	GSConstantBuffer(InParent, ConstantsAllocator),
 	CSConstantBuffer(InParent, ConstantsAllocator)
@@ -551,8 +548,6 @@ void FD3D12CommandContext::ClearState()
 		CurrentDepthTexture = nullptr;
 
 		CurrentDSVAccessType = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-
-		bUsingTessellation = false;
 	}
 }
 
@@ -560,8 +555,8 @@ void FD3D12CommandContext::ConditionalClearShaderResource(FD3D12ResourceLocation
 {
 	check(Resource);
 	StateCache.ClearShaderResourceViews<SF_Vertex>(Resource);
-	StateCache.ClearShaderResourceViews<SF_Hull>(Resource);
-	StateCache.ClearShaderResourceViews<SF_Domain>(Resource);
+	StateCache.ClearShaderResourceViews<SF_Mesh>(Resource);
+	StateCache.ClearShaderResourceViews<SF_Amplification>(Resource);
 	StateCache.ClearShaderResourceViews<SF_Pixel>(Resource);
 	StateCache.ClearShaderResourceViews<SF_Geometry>(Resource);
 	StateCache.ClearShaderResourceViews<SF_Compute>(Resource);

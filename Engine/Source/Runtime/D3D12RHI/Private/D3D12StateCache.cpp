@@ -47,8 +47,6 @@ inline bool operator!=(D3D12_CPU_DESCRIPTOR_HANDLE lhs, D3D12_CPU_DESCRIPTOR_HAN
 template void FD3D12StateCacheBase::SetShaderResourceView<SF_Vertex>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
 template void FD3D12StateCacheBase::SetShaderResourceView<SF_Mesh>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
 template void FD3D12StateCacheBase::SetShaderResourceView<SF_Amplification>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
-template void FD3D12StateCacheBase::SetShaderResourceView<SF_Hull>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
-template void FD3D12StateCacheBase::SetShaderResourceView<SF_Domain>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
 template void FD3D12StateCacheBase::SetShaderResourceView<SF_Geometry>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
 template void FD3D12StateCacheBase::SetShaderResourceView<SF_Pixel>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
 template void FD3D12StateCacheBase::SetShaderResourceView<SF_Compute>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
@@ -355,7 +353,7 @@ void FD3D12StateCacheBase::SetScissorRects(uint32 Count, const D3D12_RECT* const
 
 inline bool ShouldSkipStage(uint32 Stage)
 {
-	return ((Stage == SF_Mesh || Stage == SF_Amplification) && !GRHISupportsMeshShaders);
+	return ((Stage == SF_Mesh || Stage == SF_Amplification) && !GRHISupportsMeshShaders) || Stage == SF_Hull || Stage == SF_Domain;
 }
 
 template <ED3D12PipelineType PipelineType>
@@ -612,8 +610,6 @@ void FD3D12StateCacheBase::ApplyState()
 			CONDITIONAL_SET_SRVS(SF_Vertex);
 			CONDITIONAL_SET_SRVS(SF_Mesh);
 			CONDITIONAL_SET_SRVS(SF_Amplification);
-			CONDITIONAL_SET_SRVS(SF_Hull);
-			CONDITIONAL_SET_SRVS(SF_Domain);
 			CONDITIONAL_SET_SRVS(SF_Geometry);
 			CONDITIONAL_SET_SRVS(SF_Pixel);
 		}
@@ -649,8 +645,6 @@ void FD3D12StateCacheBase::ApplyState()
 			CONDITIONAL_SET_CBVS(SF_Vertex);
 			CONDITIONAL_SET_CBVS(SF_Mesh);
 			CONDITIONAL_SET_CBVS(SF_Amplification);
-			CONDITIONAL_SET_CBVS(SF_Hull);
-			CONDITIONAL_SET_CBVS(SF_Domain);
 			CONDITIONAL_SET_CBVS(SF_Geometry);
 			CONDITIONAL_SET_CBVS(SF_Pixel);
 		}
@@ -821,8 +815,6 @@ void FD3D12StateCacheBase::ApplySamplers(const FD3D12RootSignature* const pRootS
 		CONDITIONAL_SET_SAMPLERS(SF_Vertex);
 		CONDITIONAL_SET_SAMPLERS(SF_Mesh);
 		CONDITIONAL_SET_SAMPLERS(SF_Amplification);
-		CONDITIONAL_SET_SAMPLERS(SF_Hull);
-		CONDITIONAL_SET_SAMPLERS(SF_Domain);
 		CONDITIONAL_SET_SAMPLERS(SF_Geometry);
 		CONDITIONAL_SET_SAMPLERS(SF_Pixel);
 	}

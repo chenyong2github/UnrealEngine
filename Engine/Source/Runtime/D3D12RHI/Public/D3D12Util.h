@@ -64,8 +64,6 @@ enum EShaderVisibility
 {
 	SV_Vertex,
 	SV_Pixel,
-	SV_Hull,
-	SV_Domain,
 	SV_Geometry,
 	SV_Mesh,
 	SV_Amplification,

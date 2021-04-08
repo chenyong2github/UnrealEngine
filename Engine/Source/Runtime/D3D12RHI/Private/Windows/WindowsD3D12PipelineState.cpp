@@ -63,8 +63,6 @@ FD3D12_GRAPHICS_PIPELINE_STATE_STREAM FD3D12_GRAPHICS_PIPELINE_STATE_DESC::Pipel
 	Stream.PrimitiveTopologyType = this->PrimitiveTopologyType;
 	Stream.VS = this->VS;
 	Stream.GS = this->GS;
-	Stream.HS = this->HS;
-	Stream.DS = this->DS;
 	Stream.PS = this->PS;
 	Stream.BlendState = CD3DX12_BLEND_DESC(this->BlendState);
 	Stream.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC1(this->DepthStencilState);
@@ -109,8 +107,6 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC FD3D12_GRAPHICS_PIPELINE_STATE_DESC::Graphics
 	D.PrimitiveTopologyType = this->PrimitiveTopologyType;
 	D.VS = this->VS;
 	D.GS = this->GS;
-	D.HS = this->HS;
-	D.DS = this->DS;
 	D.PS = this->PS;
 	D.BlendState = this->BlendState;
 	D.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC1(this->DepthStencilState);
@@ -169,8 +165,6 @@ void GraphicsPipelineCreationArgs_POD::Destroy()
 	FMemory::Free((void*)Desc.Desc.AS.pShaderBytecode);
 	FMemory::Free((void*)Desc.Desc.PS.pShaderBytecode);
 	FMemory::Free((void*)Desc.Desc.GS.pShaderBytecode);
-	FMemory::Free((void*)Desc.Desc.HS.pShaderBytecode);
-	FMemory::Free((void*)Desc.Desc.DS.pShaderBytecode);
 }
 
 void FD3D12PipelineStateCache::OnPSOCreated(FD3D12PipelineState* PipelineState, const FD3D12LowLevelGraphicsPipelineStateDesc& Desc)
@@ -293,14 +287,6 @@ void FD3D12PipelineStateCache::RebuildFromDiskCache(ID3D12RootSignature* Graphic
 		if (PSODesc->PS.BytecodeLength)
 		{
 			DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&PSODesc->PS.pShaderBytecode, PSODesc->PS.BytecodeLength, bBackShadersWithSystemMemory);
-		}
-		if (PSODesc->DS.BytecodeLength)
-		{
-			DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&PSODesc->DS.pShaderBytecode, PSODesc->DS.BytecodeLength, bBackShadersWithSystemMemory);
-		}
-		if (PSODesc->HS.BytecodeLength)
-		{
-			DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&PSODesc->HS.pShaderBytecode, PSODesc->HS.BytecodeLength, bBackShadersWithSystemMemory);
 		}
 		if (PSODesc->GS.BytecodeLength)
 		{
@@ -441,14 +427,6 @@ void FD3D12PipelineStateCache::AddToDiskCache(const FD3D12LowLevelGraphicsPipeli
 		if (PsoDesc.PS.BytecodeLength)
 		{
 			DiskCache.AppendData((void*)PsoDesc.PS.pShaderBytecode, PsoDesc.PS.BytecodeLength);
-		}
-		if (PsoDesc.DS.BytecodeLength)
-		{
-			DiskCache.AppendData((void*)PsoDesc.DS.pShaderBytecode, PsoDesc.DS.BytecodeLength);
-		}
-		if (PsoDesc.HS.BytecodeLength)
-		{
-			DiskCache.AppendData((void*)PsoDesc.HS.pShaderBytecode, PsoDesc.HS.BytecodeLength);
 		}
 		if (PsoDesc.GS.BytecodeLength)
 		{
@@ -767,8 +745,6 @@ static void DumpGraphicsPSO(const FD3D12_GRAPHICS_PIPELINE_STATE_DESC& Desc, con
 		DumpShaderAsm(String, Desc.MS);
 		DumpShaderAsm(String, Desc.AS);
 		DumpShaderAsm(String, Desc.GS);
-		DumpShaderAsm(String, Desc.HS);
-		DumpShaderAsm(String, Desc.DS);
 		DumpShaderAsm(String, Desc.PS);
 	}
 
@@ -1027,8 +1003,6 @@ static void CreateGraphicsPipelineState(ID3D12PipelineState** PSO, FD3D12Adapter
 		MERGE_EXT(M);
 		MERGE_EXT(A);
 		MERGE_EXT(P);
-		MERGE_EXT(D);
-		MERGE_EXT(H);
 		MERGE_EXT(G);
 	#undef MERGE_EXT
 

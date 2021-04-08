@@ -35,14 +35,7 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	Desc.Desc.DepthStencilState = Initializer.DepthStencilState ? CD3DX12_DEPTH_STENCIL_DESC1(FD3D12DynamicRHI::ResourceCast(Initializer.DepthStencilState)->Desc) : CD3DX12_DEPTH_STENCIL_DESC1(D3D12_DEFAULT);
 #endif // !D3D12_USE_DERIVED_PSO
 
-	if (Initializer.BoundShaderState.HullShaderRHI && Initializer.BoundShaderState.DomainShaderRHI)
-	{
-		Desc.Desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
-	}
-	else
-	{
-		Desc.Desc.PrimitiveTopologyType = D3D12PrimitiveTypeToTopologyType(TranslatePrimitiveType(Initializer.PrimitiveType));
-	}
+	Desc.Desc.PrimitiveTopologyType = D3D12PrimitiveTypeToTopologyType(TranslatePrimitiveType(Initializer.PrimitiveType));
 
 	TranslateRenderTargetFormats(Initializer, Desc.Desc.RTFormatArray, Desc.Desc.DSVFormat);
 
@@ -66,8 +59,6 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	COPY_SHADER(M, Mesh);
 	COPY_SHADER(A, Amplification);
 	COPY_SHADER(P, Pixel);
-	COPY_SHADER(D, Domain);
-	COPY_SHADER(H, Hull);
 	COPY_SHADER(G, Geometry);
 #undef COPY_SHADER
 
@@ -84,8 +75,6 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	EXT_SHADER(M, Mesh);
 	EXT_SHADER(A, Amplification);
 	EXT_SHADER(P, Pixel);
-	EXT_SHADER(D, Domain);
-	EXT_SHADER(H, Hull);
 	EXT_SHADER(G, Geometry);
 #undef EXT_SHADER
 #endif
@@ -150,8 +139,6 @@ uint64 FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPip
 		ShaderBytecodeHash VSHash;
 		ShaderBytecodeHash MSHash;
 		ShaderBytecodeHash ASHash;
-		ShaderBytecodeHash HSHash;
-		ShaderBytecodeHash DSHash;
 		ShaderBytecodeHash GSHash;
 		ShaderBytecodeHash PSHash;
 		uint32 InputLayoutHash;
@@ -199,8 +186,6 @@ uint64 FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPip
 	PSOData->VSHash          = Desc.VSHash;
 	PSOData->MSHash          = Desc.MSHash;
 	PSOData->ASHash          = Desc.ASHash;
-	PSOData->HSHash          = Desc.HSHash;
-	PSOData->DSHash          = Desc.DSHash;
 	PSOData->GSHash          = Desc.GSHash;
 	PSOData->PSHash          = Desc.PSHash;
 	PSOData->InputLayoutHash = Desc.InputLayoutHash;
@@ -344,8 +329,6 @@ FD3D12GraphicsPipelineState::FD3D12GraphicsPipelineState(
 	bShaderNeedsGlobalConstantBuffer[SF_Mesh] = GetMeshShader() && GetMeshShader()->ResourceCounts.bGlobalUniformBufferUsed;
 	bShaderNeedsGlobalConstantBuffer[SF_Amplification] = GetAmplificationShader() && GetAmplificationShader()->ResourceCounts.bGlobalUniformBufferUsed;
 	bShaderNeedsGlobalConstantBuffer[SF_Pixel] = GetPixelShader() && GetPixelShader()->ResourceCounts.bGlobalUniformBufferUsed;
-	bShaderNeedsGlobalConstantBuffer[SF_Hull] = GetHullShader() && GetHullShader()->ResourceCounts.bGlobalUniformBufferUsed;
-	bShaderNeedsGlobalConstantBuffer[SF_Domain] = GetDomainShader() && GetDomainShader()->ResourceCounts.bGlobalUniformBufferUsed;
 	bShaderNeedsGlobalConstantBuffer[SF_Geometry] = GetGeometryShader() && GetGeometryShader()->ResourceCounts.bGlobalUniformBufferUsed;
 }
 

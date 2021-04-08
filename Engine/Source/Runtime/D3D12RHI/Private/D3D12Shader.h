@@ -112,38 +112,6 @@ public:
 	FShaderCodePackedResourceCounts ResourceCounts;
 };
 
-class FD3D12HullShader : public FRHIHullShader, public FD3D12ShaderData
-{
-public:
-	enum { StaticFrequency = SF_Hull };
-
-	/** The shader's bytecode. */
-	FD3D12ShaderBytecode ShaderBytecode;
-
-	FD3D12ShaderResourceTable ShaderResourceTable;
-
-	/** The shader's bytecode, with custom data in the last byte. */
-	TArray<uint8> Code;
-
-	FShaderCodePackedResourceCounts ResourceCounts;
-};
-
-class FD3D12DomainShader : public FRHIDomainShader, public FD3D12ShaderData
-{
-public:
-	enum { StaticFrequency = SF_Domain };
-
-	/** The shader's bytecode. */
-	FD3D12ShaderBytecode ShaderBytecode;
-
-	FD3D12ShaderResourceTable ShaderResourceTable;
-
-	/** The shader's bytecode, with custom data in the last byte. */
-	TArray<uint8> Code;
-
-	FShaderCodePackedResourceCounts ResourceCounts;
-};
-
 class FD3D12PixelShader : public FRHIPixelShader, public FD3D12ShaderData
 {
 public:
@@ -222,8 +190,6 @@ public:
 	FORCEINLINE FD3D12MeshShader*          GetMeshShader()          const { return (FD3D12MeshShader*)          CacheLink.GetMeshShader();          }
 	FORCEINLINE FD3D12AmplificationShader* GetAmplificationShader() const { return (FD3D12AmplificationShader*) CacheLink.GetAmplificationShader(); }
 	FORCEINLINE FD3D12PixelShader*         GetPixelShader()         const { return (FD3D12PixelShader*)         CacheLink.GetPixelShader();         }
-	FORCEINLINE FD3D12HullShader*          GetHullShader()          const { return (FD3D12HullShader*)          CacheLink.GetHullShader();          }
-	FORCEINLINE FD3D12DomainShader*        GetDomainShader()        const { return (FD3D12DomainShader*)        CacheLink.GetDomainShader();        }
 	FORCEINLINE FD3D12GeometryShader*      GetGeometryShader()      const { return (FD3D12GeometryShader*)      CacheLink.GetGeometryShader();      }
 };
 
@@ -274,16 +240,6 @@ template<>
 struct TD3D12ResourceTraits<FRHIGeometryShader>
 {
 	typedef FD3D12GeometryShader TConcreteType;
-};
-template<>
-struct TD3D12ResourceTraits<FRHIHullShader>
-{
-	typedef FD3D12HullShader TConcreteType;
-};
-template<>
-struct TD3D12ResourceTraits<FRHIDomainShader>
-{
-	typedef FD3D12DomainShader TConcreteType;
 };
 template<>
 struct TD3D12ResourceTraits<FRHIPixelShader>

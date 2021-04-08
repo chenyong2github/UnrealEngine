@@ -85,12 +85,6 @@ namespace D3D12ShaderUtils
 		Creator->AddTable(SF_Geometry, FRootSignatureCreator::SRV, MAX_SRVS);
 		Creator->AddTable(SF_Geometry, FRootSignatureCreator::CBV, MAX_CBS);
 		Creator->AddTable(SF_Geometry, FRootSignatureCreator::Sampler, MAX_SAMPLERS);
-		Creator->AddTable(SF_Hull, FRootSignatureCreator::SRV, MAX_SRVS);
-		Creator->AddTable(SF_Hull, FRootSignatureCreator::CBV, MAX_CBS);
-		Creator->AddTable(SF_Hull, FRootSignatureCreator::Sampler, MAX_SAMPLERS);
-		Creator->AddTable(SF_Domain, FRootSignatureCreator::SRV, MAX_SRVS);
-		Creator->AddTable(SF_Domain, FRootSignatureCreator::CBV, MAX_CBS);
-		Creator->AddTable(SF_Domain, FRootSignatureCreator::Sampler, MAX_SAMPLERS);
 		Creator->AddTable(SF_NumFrequencies, FRootSignatureCreator::UAV, MAX_UAVS);
 	}
 
@@ -117,10 +111,6 @@ namespace D3D12ShaderUtils
 			return D3D12_SHADER_VISIBILITY_PIXEL;
 		case SF_Geometry:
 			return D3D12_SHADER_VISIBILITY_GEOMETRY;
-		case SF_Domain:
-			return D3D12_SHADER_VISIBILITY_DOMAIN;
-		case SF_Hull:
-			return D3D12_SHADER_VISIBILITY_HULL;
 		default:
 			return D3D12_SHADER_VISIBILITY_ALL;
 		}

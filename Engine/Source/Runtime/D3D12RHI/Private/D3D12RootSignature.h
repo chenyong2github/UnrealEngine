@@ -19,14 +19,6 @@ enum ERootParameterKeys
 	GS_CBVs,
 	GS_RootCBVs,
 	GS_Samplers,
-	HS_SRVs,
-	HS_CBVs,
-	HS_RootCBVs,
-	HS_Samplers,
-	DS_SRVs,
-	DS_CBVs,
-	DS_RootCBVs,
-	DS_Samplers,
 	MS_SRVs,
 	MS_CBVs,
 	MS_RootCBVs,
@@ -129,8 +121,6 @@ public:
 		case SF_Amplification: return BindSlotMap[AS_Samplers];
 		case SF_Pixel: return BindSlotMap[PS_Samplers];
 		case SF_Geometry: return BindSlotMap[GS_Samplers];
-		case SF_Hull: return BindSlotMap[HS_Samplers];
-		case SF_Domain: return BindSlotMap[DS_Samplers];
 		case SF_Compute: return BindSlotMap[ALL_Samplers];
 
 		default: check(false);
@@ -147,8 +137,6 @@ public:
 		case SF_Amplification: return BindSlotMap[AS_SRVs];
 		case SF_Pixel: return BindSlotMap[PS_SRVs];
 		case SF_Geometry: return BindSlotMap[GS_SRVs];
-		case SF_Hull: return BindSlotMap[HS_SRVs];
-		case SF_Domain: return BindSlotMap[DS_SRVs];
 		case SF_Compute: return BindSlotMap[ALL_SRVs];
 
 		default: check(false);
@@ -165,8 +153,6 @@ public:
 		case SF_Amplification: return BindSlotMap[AS_CBVs];
 		case SF_Pixel: return BindSlotMap[PS_CBVs];
 		case SF_Geometry: return BindSlotMap[GS_CBVs];
-		case SF_Hull: return BindSlotMap[HS_CBVs];
-		case SF_Domain: return BindSlotMap[DS_CBVs];
 		case SF_Compute: return BindSlotMap[ALL_CBVs];
 
 		default: check(false);
@@ -183,8 +169,6 @@ public:
 		case SF_Amplification: return BindSlotMap[AS_RootCBVs];
 		case SF_Pixel: return BindSlotMap[PS_RootCBVs];
 		case SF_Geometry: return BindSlotMap[GS_RootCBVs];
-		case SF_Hull: return BindSlotMap[HS_RootCBVs];
-		case SF_Domain: return BindSlotMap[DS_RootCBVs];
 
 		case SF_NumFrequencies:
 		case SF_Compute: return BindSlotMap[ALL_RootCBVs];
@@ -213,8 +197,6 @@ public:
 	inline bool HasVS() const { return Stage[SF_Vertex].bVisible; }
 	inline bool HasMS() const { return Stage[SF_Mesh].bVisible; }
 	inline bool HasAS() const { return Stage[SF_Amplification].bVisible; }
-	inline bool HasHS() const { return Stage[SF_Hull].bVisible; }
-	inline bool HasDS() const { return Stage[SF_Domain].bVisible; }
 	inline bool HasGS() const { return Stage[SF_Geometry].bVisible; }
 	inline bool HasPS() const { return Stage[SF_Pixel].bVisible; }
 	inline bool HasCS() const { return Stage[SF_Compute].bVisible; }	// Root signatures can be used for Graphics and/or Compute because they exist in separate bind spaces.
@@ -248,8 +230,6 @@ private:
 		case SF_Amplification: pBindSlot = &BindSlotMap[AS_Samplers]; break;
 		case SF_Pixel: pBindSlot = &BindSlotMap[PS_Samplers]; break;
 		case SF_Geometry: pBindSlot = &BindSlotMap[GS_Samplers]; break;
-		case SF_Hull: pBindSlot = &BindSlotMap[HS_Samplers]; break;
-		case SF_Domain: pBindSlot = &BindSlotMap[DS_Samplers]; break;
 
 		case SF_Compute:
 		case SF_NumFrequencies: pBindSlot = &BindSlotMap[ALL_Samplers]; break;
@@ -274,8 +254,6 @@ private:
 		case SF_Amplification: pBindSlot = &BindSlotMap[AS_SRVs]; break;
 		case SF_Pixel: pBindSlot = &BindSlotMap[PS_SRVs]; break;
 		case SF_Geometry: pBindSlot = &BindSlotMap[GS_SRVs]; break;
-		case SF_Hull: pBindSlot = &BindSlotMap[HS_SRVs]; break;
-		case SF_Domain: pBindSlot = &BindSlotMap[DS_SRVs]; break;
 
 		case SF_Compute:
 		case SF_NumFrequencies: pBindSlot = &BindSlotMap[ALL_SRVs]; break;
@@ -300,8 +278,6 @@ private:
 		case SF_Amplification: pBindSlot = &BindSlotMap[AS_CBVs]; break;
 		case SF_Pixel: pBindSlot = &BindSlotMap[PS_CBVs]; break;
 		case SF_Geometry: pBindSlot = &BindSlotMap[GS_CBVs]; break;
-		case SF_Hull: pBindSlot = &BindSlotMap[HS_CBVs]; break;
-		case SF_Domain: pBindSlot = &BindSlotMap[DS_CBVs]; break;
 
 		case SF_Compute:
 		case SF_NumFrequencies: pBindSlot = &BindSlotMap[ALL_CBVs]; break;
@@ -327,8 +303,6 @@ private:
 		case SF_Amplification: pBindSlot = &BindSlotMap[AS_RootCBVs]; break;
 		case SF_Pixel: pBindSlot = &BindSlotMap[PS_RootCBVs]; break;
 		case SF_Geometry: pBindSlot = &BindSlotMap[GS_RootCBVs]; break;
-		case SF_Hull: pBindSlot = &BindSlotMap[HS_RootCBVs]; break;
-		case SF_Domain: pBindSlot = &BindSlotMap[DS_RootCBVs]; break;
 
 		case SF_Compute:
 		case SF_NumFrequencies: pBindSlot = &BindSlotMap[ALL_RootCBVs]; break;
