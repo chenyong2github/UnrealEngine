@@ -323,6 +323,7 @@ void SGraphActionMenu::Construct( const FArguments& InArgs, bool bIsReadOnly/* =
 			.Visibility(InArgs._OnGetFilterText.IsBound()? EVisibility::Collapsed : EVisibility::Visible)
 			.OnTextChanged( this, &SGraphActionMenu::OnFilterTextChanged )
 			.OnTextCommitted( this, &SGraphActionMenu::OnFilterTextCommitted )
+			.DelayChangeNotificationsWhileTyping(false)
 		]
 
 		// ACTION LIST
