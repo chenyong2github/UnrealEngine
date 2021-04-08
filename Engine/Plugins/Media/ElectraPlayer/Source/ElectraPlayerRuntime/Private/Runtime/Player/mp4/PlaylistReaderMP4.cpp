@@ -69,32 +69,6 @@ public:
 	virtual TSharedPtrTS<IManifest> GetManifest() override;
 
 private:
-	struct FReadBuffer
-	{
-		FReadBuffer()
-		{
-			Reset();
-		}
-		void Reset()
-		{
-			ReceiveBuffer.Reset();
-			ParsePos = 0;
-			bHasBeenAborted = false;
-		}
-		void Abort()
-		{
-			TSharedPtrTS<IElectraHttpManager::FReceiveBuffer>	CurrentBuffer = ReceiveBuffer;
-			if (CurrentBuffer.IsValid())
-			{
-				CurrentBuffer->Buffer.Abort();
-			}
-			bHasBeenAborted = true;
-		}
-		TSharedPtrTS<IElectraHttpManager::FReceiveBuffer>	ReceiveBuffer;
-		int64												ParsePos;
-		bool												bHasBeenAborted;
-	};
-
 	// Methods from IParserISO14496_12::IReader
 	virtual int64 ReadData(void* IntoBuffer, int64 NumBytesToRead) override;
 	virtual bool HasReachedEOF() const override;
@@ -102,6 +76,7 @@ private:
 	virtual int64 GetCurrentOffset() const override;
 	// Methods from IParserISO14496_12::IBoxCallback
 	virtual IParserISO14496_12::IBoxCallback::EParseContinuation OnFoundBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
+	virtual IParserISO14496_12::IBoxCallback::EParseContinuation OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
 
 	void StartWorkerThread();
 	void StopWorkerThread();
@@ -115,27 +90,43 @@ private:
 	int32 HTTPProgressCallback(const IElectraHttpManager::FRequest* Request);
 	void HTTPCompletionCallback(const IElectraHttpManager::FRequest* Request);
 
+	void ClearRequest();
+
+	void ReadNextChunk(int64 InFromOffset, int64 ChunkSize);
+
 	bool HasErrored() const
 	{
 		return bHasErrored;
 	}
 
-	IPlayerSessionServices*									PlayerSessionServices;
+	const int32 kChunkReadSize = 65536;
+
+	IPlayerSessionServices*									PlayerSessionServices = nullptr;
 	FString													MasterPlaylistURL;
 	FMediaEvent												WorkerThreadQuitSignal;
-	bool													bIsWorkerThreadStarted;
+	bool													bIsWorkerThreadStarted = false;
 
+	FCriticalSection										Lock;
+	TSharedPtrTS<IElectraHttpManager::FRequest> 			Request;
+	TSharedPtrTS<IElectraHttpManager::FReceiveBuffer> 		ReceiveBuffer;
 	TSharedPtrTS<IElectraHttpManager::FProgressListener>	ProgressListener;
-	FReadBuffer												ReadBuffer;
-	bool													bAbort;
-	bool													bHasErrored;
+	HTTP::FConnectionInfo									ConnectionInfo;
+	FPODRingbuffer 											Buffer;
+	int64													ParsePos = 0;
+	int64													ChunkReadOffset = 0;
+	int64													FileSize = -1;
+	bool													bChunkReadInProgress = false;
+
+	bool													bAbort = false;
+	bool													bHasErrored = false;
 
 	TSharedPtrTS<IParserISO14496_12>						MP4Parser;
-	bool													bFoundBoxFTYP;
-	bool													bFoundBoxMOOV;
-	bool													bFoundBoxSIDX;
-	bool													bFoundBoxMOOF;
-	bool													bFoundBoxMDAT;
+	bool													bFoundBoxFTYP = false;
+	bool													bFoundBoxMOOV = false;
+	bool													bFoundBoxSIDX = false;
+	bool													bFoundBoxMOOF = false;
+	bool													bFoundBoxMDAT = false;
+	bool													bIsFastStartable = false;
 
 	TSharedPtrTS<FManifestMP4Internal>						Manifest;
 	FErrorDetail											LastErrorDetail;
@@ -163,15 +154,6 @@ TSharedPtrTS<IPlaylistReader> IPlaylistReaderMP4::Create(IPlayerSessionServices*
 
 FPlaylistReaderMP4::FPlaylistReaderMP4()
 	: FMediaThread("ElectraPlayer::MP4 Playlist")
-	, PlayerSessionServices(nullptr)
-	, bIsWorkerThreadStarted(false)
-	, bAbort(false)
-	, bHasErrored(false)
-	, bFoundBoxFTYP(false)
-	, bFoundBoxMOOV(false)
-	, bFoundBoxSIDX(false)
-	, bFoundBoxMOOF(false)
-	, bFoundBoxMDAT(false)
 {
 }
 
@@ -193,15 +175,13 @@ TSharedPtrTS<IManifest> FPlaylistReaderMP4::GetManifest()
 void FPlaylistReaderMP4::Initialize(IPlayerSessionServices* InPlayerSessionServices)
 {
 	PlayerSessionServices = InPlayerSessionServices;
-	ProgressListener = MakeSharedTS<IElectraHttpManager::FProgressListener>();
-	ProgressListener->CompletionDelegate = Electra::MakeDelegate(this, &FPlaylistReaderMP4::HTTPCompletionCallback);
-	ProgressListener->ProgressDelegate   = Electra::MakeDelegate(this, &FPlaylistReaderMP4::HTTPProgressCallback);
+	Buffer.Reserve(kChunkReadSize);
 }
 
 void FPlaylistReaderMP4::Close()
 {
-	ReadBuffer.Abort();
 	bAbort = true;
+	ClearRequest();
 
 	StopWorkerThread();
 }
@@ -267,7 +247,7 @@ void FPlaylistReaderMP4::LoadAndParse(const FString& URL)
 	StartWorkerThread();
 }
 
-int32 FPlaylistReaderMP4::HTTPProgressCallback(const IElectraHttpManager::FRequest* Request)
+int32 FPlaylistReaderMP4::HTTPProgressCallback(const IElectraHttpManager::FRequest* InRequest)
 {
 	// Aborted?
 	return bAbort ? 1 : 0;
@@ -275,8 +255,78 @@ int32 FPlaylistReaderMP4::HTTPProgressCallback(const IElectraHttpManager::FReque
 
 void FPlaylistReaderMP4::HTTPCompletionCallback(const IElectraHttpManager::FRequest* InRequest)
 {
-	bHasErrored = InRequest->ConnectionInfo.StatusInfo.ErrorDetail.IsError();
+	bool bFailed = InRequest->ConnectionInfo.StatusInfo.ErrorDetail.IsError();
+	ConnectionInfo = InRequest->ConnectionInfo;
+	if (!bFailed)
+	{
+		// Set the size of the resource if we don't have it yet.
+		if (FileSize < 0)
+		{
+			IElectraHttpManager::FParams::FRange crh;
+			if (crh.ParseFromContentRangeResponse(InRequest->ConnectionInfo.ContentRangeHeader))
+			{
+				FileSize = crh.GetDocumentSize();
+			}
+		}
+
+		// Copy the read data across.
+		int32 NumRead = ReceiveBuffer->Buffer.Num();
+		Buffer.PushData(ReceiveBuffer->Buffer.GetLinearReadData(), NumRead);
+		if (FileSize >= 0 && ChunkReadOffset + NumRead >= FileSize)
+		{
+			Buffer.SetEOD();
+		}
+	}
+	bHasErrored = bFailed;
+	bChunkReadInProgress = false;
 }
+
+void FPlaylistReaderMP4::ClearRequest()
+{
+	FScopeLock lock(&Lock);
+	ProgressListener.Reset();
+	ReceiveBuffer.Reset();
+	if (Request.IsValid())
+	{
+		PlayerSessionServices->GetHTTPManager()->RemoveRequest(Request);
+		Request.Reset();
+	}
+}
+
+void FPlaylistReaderMP4::ReadNextChunk(int64 InFromOffset, int64 ChunkSize)
+{
+	ClearRequest();
+
+	FScopeLock lock(&Lock);
+	// Asked to go beyond the size of the file?
+	ChunkReadOffset = InFromOffset;
+	if (FileSize >= 0 && InFromOffset >= FileSize)
+	{
+		Buffer.SetEOD();
+		return;
+	}
+	ProgressListener = MakeSharedTS<IElectraHttpManager::FProgressListener>();
+	ProgressListener->CompletionDelegate = Electra::MakeDelegate(this, &FPlaylistReaderMP4::HTTPCompletionCallback);
+	ProgressListener->ProgressDelegate   = Electra::MakeDelegate(this, &FPlaylistReaderMP4::HTTPProgressCallback);
+
+	ReceiveBuffer = MakeSharedTS<IElectraHttpManager::FReceiveBuffer>();
+	ReceiveBuffer->Buffer.Reserve(ChunkSize);
+
+	Request = MakeSharedTS<IElectraHttpManager::FRequest>();
+	Request->Parameters.URL = MasterPlaylistURL;
+	Request->Parameters.Range.SetStart(InFromOffset);
+	int64 LastByte = InFromOffset + ChunkSize - 1;
+	if (FileSize >= 0 && LastByte > FileSize-1)
+	{
+		LastByte = FileSize - 1;
+	}
+	Request->Parameters.Range.SetEndIncluding(LastByte);
+	Request->ReceiveBuffer = ReceiveBuffer;
+	Request->ProgressListener = ProgressListener;
+	PlayerSessionServices->GetHTTPManager()->AddRequest(Request);
+}
+
+
 
 
 void FPlaylistReaderMP4::WorkerThread()
@@ -284,70 +334,53 @@ void FPlaylistReaderMP4::WorkerThread()
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
 	CSV_SCOPED_TIMING_STAT(ElectraPlayer, PlaylistReaderMP4_Worker);
 
-	ReadBuffer.Reset();
-	ReadBuffer.ReceiveBuffer = MakeSharedTS<IElectraHttpManager::FReceiveBuffer>();
-	ReadBuffer.ReceiveBuffer->Buffer.Reserve(1 << 20);
-	ReadBuffer.ReceiveBuffer->bEnableRingbuffer = true;
-
-	TSharedPtrTS<IElectraHttpManager::FRequest> HTTP(new IElectraHttpManager::FRequest);
-	HTTP->Parameters.URL = MasterPlaylistURL;
-	// Perform small reads of 256K ranges only. We just want to fetch the boxes up to the first 'mdat' and those should be fairly small.
-	HTTP->Parameters.SubRangeRequestSize = 256 << 10;
-	HTTP->ReceiveBuffer = ReadBuffer.ReceiveBuffer;
-	HTTP->ProgressListener = ProgressListener;
-	PlayerSessionServices->GetHTTPManager()->AddRequest(HTTP);
-
-	// Create the parser we need for parsing the "moov" box containing all the track information.
 	MP4Parser = IParserISO14496_12::CreateParser();
-
-	UEMediaError parseError = MP4Parser->ParseHeader(this, this, PlayerSessionServices);
-
-	ProgressListener.Reset();
-	PlayerSessionServices->GetHTTPManager()->RemoveRequest(HTTP);
+	UEMediaError parseError = MP4Parser->ParseHeader(this, this, PlayerSessionServices, nullptr);
+	ClearRequest();
 
 	if (parseError != UEMEDIA_ERROR_ABORTED)
 	{
-		const HTTP::FConnectionInfo* ConnInfo = &HTTP->ConnectionInfo;
-
 		// Notify the download of the "master playlist". This indicates the download only, not the parsing thereof.
-		PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistDownloadMessage::Create(ConnInfo, Playlist::EListType::Master, Playlist::ELoadType::Initial));
+		PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistDownloadMessage::Create(&ConnectionInfo, Playlist::EListType::Master, Playlist::ELoadType::Initial));
 		// Notify that the "master playlist" has been parsed, successfully or not.
-		PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, ConnInfo, Playlist::EListType::Master, Playlist::ELoadType::Initial));
+		PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, &ConnectionInfo, Playlist::EListType::Master, Playlist::ELoadType::Initial));
 
-		if (parseError == UEMEDIA_ERROR_OK)
+		if (parseError == UEMEDIA_ERROR_OK || parseError == UEMEDIA_ERROR_END_OF_STREAM)
 		{
 			// See that we have parsed all the boxes we need.
 			if (bFoundBoxFTYP && bFoundBoxMOOV)
 			{
+				if (!bIsFastStartable)
+				{
+					LogMessage(IInfoLog::ELevel::Info, FString::Printf(TEXT("The mp4 at \"%s\" is not fast-startable. Consider moving the 'moov' box in front of the 'mdat' for faster startup times."), *ConnectionInfo.EffectiveURL));
+				}
+
 				// Prepare the tracks in the stream that are of a supported codec.
 				parseError = MP4Parser->PrepareTracks(TSharedPtrTS<const IParserISO14496_12>());
 				if (parseError == UEMEDIA_ERROR_OK)
 				{
 					Manifest = MakeSharedTS<FManifestMP4Internal>(PlayerSessionServices);
-					FErrorDetail err = Manifest->Build(MP4Parser, MasterPlaylistURL, *ConnInfo);
+					FErrorDetail err = Manifest->Build(MP4Parser, MasterPlaylistURL, ConnectionInfo);
 
 					// Notify that the "variant playlists" are ready. There are no variants in an mp4, but this is the trigger that the playlists are all set up and are good to go now.
-					PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, ConnInfo, Playlist::EListType::Variant, Playlist::ELoadType::Initial));
+					PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, &ConnectionInfo, Playlist::EListType::Variant, Playlist::ELoadType::Initial));
 				}
 				else
 				{
-					PostError(FString::Printf(TEXT("Failed to parse tracks in mp4 \"%s\" with error %u"), *ConnInfo->EffectiveURL, parseError), ERRCODE_MP4_INVALID_FILE, UEMEDIA_ERROR_FORMAT_ERROR);
+					PostError(FString::Printf(TEXT("Failed to parse tracks in mp4 \"%s\" with error %u"), *ConnectionInfo.EffectiveURL, parseError), ERRCODE_MP4_INVALID_FILE, UEMEDIA_ERROR_FORMAT_ERROR);
 				}
 			}
 			else
 			{
 				// No moov box usually means this is not a fast-start file.
-				PostError(FString::Printf(TEXT("No moov box found before mdat in \"%s\". Make sure the video is fast-startable."), *ConnInfo->EffectiveURL), ERRCODE_MP4_INVALID_FILE, UEMEDIA_ERROR_FORMAT_ERROR);
+				PostError(FString::Printf(TEXT("No moov box found in \"%s\". This is not a valid file."), *ConnectionInfo.EffectiveURL), ERRCODE_MP4_INVALID_FILE, UEMEDIA_ERROR_FORMAT_ERROR);
 			}
 		}
 		else
 		{
-			PostError(FString::Printf(TEXT("Failed to parse mp4 \"%s\" with error %u"), *ConnInfo->EffectiveURL, parseError), ERRCODE_MP4_INVALID_FILE, UEMEDIA_ERROR_FORMAT_ERROR);
+			PostError(FString::Printf(TEXT("Failed to parse mp4 \"%s\" with error %u"), *ConnectionInfo.EffectiveURL, parseError), ERRCODE_MP4_INVALID_FILE, UEMEDIA_ERROR_FORMAT_ERROR);
 		}
 	}
-
-	HTTP.Reset();
-	ReadBuffer.Reset();
 
 	// This thread's work is done. We only wait for termination now.
 	WorkerThreadQuitSignal.Wait();
@@ -364,55 +397,70 @@ void FPlaylistReaderMP4::WorkerThread()
  * Reading must return the number of bytes asked to get, if necessary by blocking.
  * If a read error prevents reading the number of bytes -1 must be returned.
  *
- * @param ToBuffer Buffer into which to store the data bytes. If nullptr is passed the data must be skipped over.
- * @param NumBytes The number of bytes to read. Must not read more bytes and no less than requested.
+ * @param IntoBuffer Buffer into which to store the data bytes. If nullptr is passed the data must be skipped over.
+ * @param NumBytesToRead The number of bytes to read. Must not read more bytes and no less than requested.
  * @return The number of bytes read or -1 on a read error.
  */
-int64 FPlaylistReaderMP4::ReadData(void* ToBuffer, int64 NumBytes)
+int64 FPlaylistReaderMP4::ReadData(void* IntoBuffer, int64 NumBytesToRead)
 {
-	FPODRingbuffer& SourceBuffer = ReadBuffer.ReceiveBuffer->Buffer;
-
-	uint8* OutputBuffer = (uint8*)ToBuffer;
+	uint8* OutputBuffer = (uint8*)IntoBuffer;
 	// Do we have enough data in the ringbuffer to satisfy the read?
-	if (SourceBuffer.Num() >= NumBytes)
+	if (Buffer.Num() >= NumBytesToRead)
 	{
 		// Yes. Get the data and return.
-		int32 NumGot = SourceBuffer.PopData(OutputBuffer, NumBytes);
-		check(NumGot == NumBytes);
-		ReadBuffer.ParsePos += NumBytes;
-		return NumBytes;
+		int32 NumGot = Buffer.PopData(OutputBuffer, NumBytesToRead);
+		check(NumGot == NumBytesToRead);
+		ParsePos += NumBytesToRead;
+		return NumBytesToRead;
 	}
 	else
 	{
 		// Do not have enough data yet or we want to read more than the ringbuffer can hold.
-		int32 NumBytesToGo = NumBytes;
+		int32 NumBytesToGo = NumBytesToRead;
+		int64 NextChunkReadOffset = ParsePos;
 		while(NumBytesToGo > 0)
 		{
-			if (HasErrored() || SourceBuffer.WasAborted() || bAbort)
+			if (bHasErrored || bAbort)
 			{
 				return -1;
 			}
 			// EOD?
-			if (SourceBuffer.IsEndOfData())
+			if (Buffer.IsEndOfData())
 			{
 				return 0;
 			}
 
 			// Get whatever amount of data is currently available to free up the buffer for receiving more data.
-			int32 NumGot = SourceBuffer.PopData(OutputBuffer, NumBytesToGo);
+			int32 NumGot = Buffer.PopData(OutputBuffer, NumBytesToGo);
 			if ((NumBytesToGo -= NumGot) > 0)
 			{
 				if (OutputBuffer)
 				{
 					OutputBuffer += NumGot;
 				}
+				// Trigger read of next chunk of data.
+				if (!bChunkReadInProgress)
+				{
+					// Is the data to read actually used or is it skipped over?
+					if (OutputBuffer)
+					{
+						NextChunkReadOffset += NumGot;
+						ReadNextChunk(NextChunkReadOffset, kChunkReadSize);
+						bChunkReadInProgress = true;
+					}
+					else
+					{
+						// Data is not used, so do not request it.
+						break;
+					}
+				}
 				// Wait for data to arrive in the ringbuffer.
-				int32 WaitForBytes = NumBytesToGo > SourceBuffer.Capacity() ? SourceBuffer.Capacity() : NumBytesToGo;
-				SourceBuffer.WaitUntilSizeAvailable(WaitForBytes, 1000 * 100);
+				int32 WaitForBytes = NumBytesToGo > Buffer.Capacity() ? Buffer.Capacity() : NumBytesToGo;
+				Buffer.WaitUntilSizeAvailable(WaitForBytes, 1000 * 100);
 			}
 		}
-		ReadBuffer.ParsePos += NumBytes;
-		return NumBytes;
+		ParsePos += NumBytesToRead;
+		return NumBytesToRead;
 	}
 }
 
@@ -423,8 +471,7 @@ int64 FPlaylistReaderMP4::ReadData(void* ToBuffer, int64 NumBytes)
  */
 bool FPlaylistReaderMP4::HasReachedEOF() const
 {
-	FPODRingbuffer& SourceBuffer = ReadBuffer.ReceiveBuffer->Buffer;
-	return SourceBuffer.IsEndOfData();
+	return Buffer.IsEndOfData();
 }
 
 /**
@@ -434,7 +481,7 @@ bool FPlaylistReaderMP4::HasReachedEOF() const
  */
 bool FPlaylistReaderMP4::HasReadBeenAborted() const
 {
-	return bAbort || ReadBuffer.bHasBeenAborted;
+	return bAbort;
 }
 
 /**
@@ -446,7 +493,7 @@ bool FPlaylistReaderMP4::HasReadBeenAborted() const
  */
 int64 FPlaylistReaderMP4::GetCurrentOffset() const
 {
-	return ReadBuffer.ParsePos;
+	return ParsePos;
 }
 
 
@@ -463,35 +510,34 @@ IParserISO14496_12::IBoxCallback::EParseContinuation FPlaylistReaderMP4::OnFound
 	switch(Box)
 	{
 		case IParserISO14496_12::BoxType_ftyp:
-		{
 			bFoundBoxFTYP = true;
-			return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue;
-		}
+			break;
 		case IParserISO14496_12::BoxType_moov:
-		{
 			bFoundBoxMOOV = true;
-			return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue;
-		}
+			bIsFastStartable = !bFoundBoxMDAT;
+			break;
 		case IParserISO14496_12::BoxType_sidx:
-		{
 			bFoundBoxSIDX = true;
-			return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue;
-		}
+			break;
 		case IParserISO14496_12::BoxType_moof:
-		{
 			bFoundBoxMOOF = true;
 			return IParserISO14496_12::IBoxCallback::EParseContinuation::Stop;
-		}
 		case IParserISO14496_12::BoxType_mdat:
-		{
 			bFoundBoxMDAT = true;
-			return IParserISO14496_12::IBoxCallback::EParseContinuation::Stop;
-		}
+			break;
 		default:
-		{
-			return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue;
-		}
+			break;
 	}
+	return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue;
+}
+
+IParserISO14496_12::IBoxCallback::EParseContinuation FPlaylistReaderMP4::OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset)
+{
+	if (bFoundBoxMOOV)
+	{
+		return IParserISO14496_12::IBoxCallback::EParseContinuation::Stop;
+	}
+	return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue;
 }
 
 

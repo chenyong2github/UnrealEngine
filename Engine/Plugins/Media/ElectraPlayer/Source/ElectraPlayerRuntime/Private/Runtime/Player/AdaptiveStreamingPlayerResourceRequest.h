@@ -65,6 +65,9 @@ public:
 
 	virtual FHTTPResourceRequest& URL(const FString& InURL)
 	{ Request->Parameters.URL = InURL; return *this; }
+
+	virtual FHTTPResourceRequest& Verb(const FString& InVerb)
+	{ Request->Parameters.Verb = InVerb; return *this; }
 	
 	virtual FHTTPResourceRequest& Range(const FString& InRange)
 	{ Request->Parameters.Range.Set(InRange); return *this; }

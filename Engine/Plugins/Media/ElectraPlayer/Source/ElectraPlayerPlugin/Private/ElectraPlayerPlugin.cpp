@@ -322,24 +322,20 @@ bool FElectraPlayerPlugin::Open(const FString& Url, const IMediaOptions* Options
 
 	// Set up options to initialize the internal player with.
 	Electra::FParamDict PlayerOptions;
-	//	PlayerOptions.Set("initial_bitrate", Electra::FVariantValue((int64)2000000));
 
-		// Check for one-time initialization options that can't be changed during playback.
-		/*
-		int64 MinStreamFPS = Options->GetMediaOption(TEXT("MinStreamFPSForMediaStreaming"), (int64)-1);
-		if (MinStreamFPS > 0)
-		{
-			PlayerOptions.Set("min_stream_fps", Electra::FVariantValue(MinStreamFPS));
-			UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p][%p] IMediaPlayer::Open: Limiting min stream fps to %d"), this, AdaptivePlayer.Get(), (int32)MinStreamFPS);
-		}
-
-		int64 MaxStreamFPS = Options->GetMediaOption(TEXT("MaxStreamFPSForMediaStreaming"), (int64)-1);
-		if (MaxStreamFPS > 0)
-		{
-			PlayerOptions.Set("max_stream_fps", Electra::FVariantValue(MaxStreamFPS));
-			UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p][%p] IMediaPlayer::Open: Limiting max stream fps to %d"), this, AdaptivePlayer.Get(), (int32)MaxStreamFPS);
-		}
-		*/
+	// Check for one-time initialization options that can't be changed during playback.
+	int64 InitialStreamBitrate = Options->GetMediaOption(TEXT("ElectraInitialBitrate"), (int64)-1);
+	if (InitialStreamBitrate > 0)
+	{
+		PlayerOptions.Set("initial_bitrate", Electra::FVariantValue(InitialStreamBitrate));
+		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Using initial bitrate of %d bits/second"), this, (int32)InitialStreamBitrate);
+	}
+	FString MediaMimeType = Options->GetMediaOption(TEXT("mimetype"), FString());
+	if (MediaMimeType.Len())
+	{
+		PlayerOptions.Set("mime_type", Electra::FVariantValue(MediaMimeType));
+		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Setting media mime type to \"%s\""), this, *MediaMimeType);
+	}
 	int64 MaxVerticalHeight = Options->GetMediaOption(TEXT("MaxElectraVerticalResolution"), (int64)-1);
 	if (MaxVerticalHeight > 0)
 	{

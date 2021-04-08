@@ -614,7 +614,7 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 //		 Presently the assumption is that the init segment is not encrypted.
 
 				TSharedPtrTS<IParserISO14496_12> InitSegmentParser = IParserISO14496_12::CreateParser();
-				UEMediaError parseError = InitSegmentParser->ParseHeader(this, this, PlayerSessionService);
+				UEMediaError parseError = InitSegmentParser->ParseHeader(this, this, PlayerSessionService, nullptr);
 				if (parseError == UEMEDIA_ERROR_OK || parseError == UEMEDIA_ERROR_END_OF_STREAM)
 				{
 					// Parse the tracks of the init segment. We do this mainly to get to the CSD we might need should we have to insert filler data later.
@@ -880,7 +880,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				bool bIsFirstAU = true;
 				while(!bDone && !HasErrored() && !HasReadBeenAborted())
 				{
-					UEMediaError parseError = MP4Parser->ParseHeader(this, this, PlayerSessionService);
+					UEMediaError parseError = MP4Parser->ParseHeader(this, this, PlayerSessionService, MP4InitSegment.Get());
 					if (parseError == UEMEDIA_ERROR_OK)
 					{
 						parseError = MP4Parser->PrepareTracks(MP4InitSegment);
@@ -1533,6 +1533,10 @@ IParserISO14496_12::IBoxCallback::EParseContinuation FStreamReaderHLSfmp4::FStre
 	}
 }
 
+IParserISO14496_12::IBoxCallback::EParseContinuation FStreamReaderHLSfmp4::FStreamHandler::OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset)
+{
+	return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue;
+}
 
 
 } // namespace Electra

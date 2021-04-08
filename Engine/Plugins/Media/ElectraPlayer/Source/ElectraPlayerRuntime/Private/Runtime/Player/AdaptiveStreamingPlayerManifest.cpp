@@ -3,6 +3,7 @@
 #include "PlayerCore.h"
 #include "Misc/Paths.h"
 #include "Player/AdaptiveStreamingPlayerInternal.h"
+#include "Player/AdaptivePlayerOptionKeynames.h"
 #include "Player/HLS/PlaylistReaderHLS.h"
 #include "Player/mp4/PlaylistReaderMP4.h"
 #include "Player/DASH/PlaylistReaderDASH.h"
@@ -10,7 +11,6 @@
 #include "Utilities/StringHelpers.h"
 #include "Utilities/URLParser.h"
 #include "ParameterDictionary.h"
-
 
 
 namespace Electra
@@ -90,6 +90,32 @@ FString GetMIMETypeForURL(const FString &URL)
 
 
 
+void FAdaptiveStreamingPlayer::OnManifestGetMimeTypeComplete(TSharedPtrTS<FHTTPResourceRequest> InRequest)
+{
+	if (!InRequest->GetWasCanceled())
+	{
+		FString mimeType(TEXT("application/octet-stream"));
+		if (InRequest->GetError() == 0)
+		{
+			const HTTP::FConnectionInfo* ci = InRequest->GetConnectionInfo();
+			if (ci)
+			{
+				mimeType = ci->ContentType;
+			}
+		}
+		WorkerThread.SendLoadManifestMessage(ManifestURL, mimeType);
+	}
+}
+
+
+void FAdaptiveStreamingPlayer::InternalCancelLoadManifest()
+{
+	if (ManifestMimeTypeRequest.IsValid())
+	{
+		ManifestMimeTypeRequest->Cancel();
+		ManifestMimeTypeRequest.Reset();
+	}
+}
 
 
 //-----------------------------------------------------------------------------
@@ -101,9 +127,30 @@ FString GetMIMETypeForURL(const FString &URL)
  */
 void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FString& MimeType)
 {
+	// Remember the original request URL since we may lose the fragment part in requests.
+	ManifestURL = URL;
+	ManifestMimeTypeRequest.Reset();
 	if (CurrentState == EPlayerState::eState_Idle)
 	{
-		FString mimeType = Playlist::GetMIMETypeForURL(URL);
+		FString mimeType = MimeType;
+		if (GetOptions().HaveKey(OptionKeyMimeType))
+		{
+			mimeType = GetOptions().GetValue(OptionKeyMimeType).GetFString();
+		}
+		else if (mimeType.IsEmpty())
+		{
+			mimeType = Playlist::GetMIMETypeForURL(URL);
+		}
+		// If there is no mime type we need to issue a HTTP HEAD request in order to get the "Content-Type" header.
+		if (mimeType.IsEmpty() && (URL.StartsWith("https://", ESearchCase::CaseSensitive) || URL.StartsWith("http://", ESearchCase::CaseSensitive)))
+		{
+			ManifestMimeTypeRequest = MakeSharedTS<FHTTPResourceRequest>();
+			ManifestMimeTypeRequest->URL(URL);
+			ManifestMimeTypeRequest->Verb(TEXT("HEAD"));
+			ManifestMimeTypeRequest->Callback().BindThreadSafeSP(AsShared(), &FAdaptiveStreamingPlayer::OnManifestGetMimeTypeComplete);
+			ManifestMimeTypeRequest->StartGet(this);
+			return;
+		}
 		if (mimeType.Len())
 		{
 			check(!ManifestReader.IsValid());

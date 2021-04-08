@@ -241,6 +241,7 @@ private:
 		virtual int64 GetCurrentOffset() const override;
 		// Methods from IParserISO14496_12::IBoxCallback
 		virtual IParserISO14496_12::IBoxCallback::EParseContinuation OnFoundBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
+		virtual IParserISO14496_12::IBoxCallback::EParseContinuation OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
 	};
 
 	// Currently set to use 2 handlers, one for video and one for audio. This could become a pool of n if we need to stream

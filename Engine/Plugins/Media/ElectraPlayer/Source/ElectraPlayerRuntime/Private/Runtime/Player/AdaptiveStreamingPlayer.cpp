@@ -287,9 +287,9 @@ void FAdaptiveStreamingPlayer::StopWorkerThread()
 
 
 
-void FAdaptiveStreamingPlayer::LoadManifest(const FString& ManifestURL)
+void FAdaptiveStreamingPlayer::LoadManifest(const FString& InManifestURL)
 {
-	WorkerThread.SendLoadManifestMessage(ManifestURL, FString());
+	WorkerThread.SendLoadManifestMessage(InManifestURL, FString());
 }
 
 
@@ -1337,7 +1337,10 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 			// Handle decoder changes
 			HandleDecoderChanges();
 			// Handle entity cache expirations.
-			EntityCache->HandleEntityExpiration();
+			if (EntityCache.IsValid())
+			{
+				EntityCache->HandleEntityExpiration();
+			}
 		}
 	}
 
@@ -3114,6 +3117,7 @@ void FAdaptiveStreamingPlayer::InternalStop(bool bHoldCurrentFrame)
 void FAdaptiveStreamingPlayer::InternalClose()
 {
 	// No longer need the manifest reader/updater
+	InternalCancelLoadManifest();
 	if (ManifestReader.IsValid())
 	{
 		ManifestReader->Close();

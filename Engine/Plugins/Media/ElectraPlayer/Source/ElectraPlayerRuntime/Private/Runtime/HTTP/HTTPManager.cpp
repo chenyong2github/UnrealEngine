@@ -469,7 +469,14 @@ namespace Electra
 		Handle->HttpRequest->OnRequestProgress().BindThreadSafeSP(Handle->HttpsRequestCallbackWrapper.ToSharedRef(), &FHTTPCallbackWrapper::ReportRequestProgress);
 		Handle->HttpRequest->OnHeaderReceived().BindThreadSafeSP(Handle->HttpsRequestCallbackWrapper.ToSharedRef(), &FHTTPCallbackWrapper::ReportRequestHeaderReceived);
 		Handle->HttpRequest->SetURL(Request->Parameters.URL);
-		Handle->HttpRequest->SetVerb(TEXT("GET"));
+		if (!Request->Parameters.Verb.IsEmpty())
+		{
+			Handle->HttpRequest->SetVerb(Request->Parameters.Verb);
+		}
+		else
+		{
+			Handle->HttpRequest->SetVerb(TEXT("GET"));
+		}
 		Handle->HttpRequest->SetHeader(TEXT("User-Agent"), "X-UnrealEngine-Agent");
 		// Set accepted encoding first. If this is also present in custom headers let those overwrite it.
 		if (Request->Parameters.AcceptEncoding.IsSet())
