@@ -1045,6 +1045,9 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 		if (OnStereoStartup())
 		{
 			StartSession();
+
+			FApp::SetHasVRFocus(true);
+
 			return true;
 		}
 		return false;
@@ -1052,6 +1055,23 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 	else
 	{
 		GEngine->bForceDisableFrameRateSmoothing = false;
+
+		FApp::SetHasVRFocus(false);
+
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			if (FSceneViewport* SceneVP = FindSceneViewport())
+			{
+				TSharedPtr<SWindow> Window = SceneVP->FindWindow();
+				if (Window.IsValid())
+				{
+					Window->SetViewportSizeDrivenByWindow(true);
+				}
+			}
+		}
+#endif // WITH_EDITOR
+
 		return OnStereoTeardown();
 	}
 }
@@ -2032,6 +2052,21 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 		{
 			return false;
 		}
+
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			if (FSceneViewport* SceneVP = FindSceneViewport())
+			{
+				TSharedPtr<SWindow> Window = SceneVP->FindWindow();
+				if (Window.IsValid())
+				{
+					// Window continues to be processed when PIE spectator window is minimized
+					Window->SetIndependentViewportSize(FVector2D(SizeX, SizeY));
+				}
+			}
+		}
+#endif
 	}
 
 	// Grab the presentation texture out of the swapchain.
@@ -2355,6 +2390,8 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 					GEngine->SetMaxFPS(0);
 				}
 			}
+
+			FApp::SetUseVRFocus(SessionState.state == XR_SESSION_STATE_FOCUSED);
 
 			if (SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
 			{
