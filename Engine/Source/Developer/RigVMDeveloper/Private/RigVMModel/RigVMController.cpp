@@ -3299,6 +3299,11 @@ URigVMFunctionReferenceNode* URigVMController::PromoteCollapseNodeToFunctionRefe
 				AddLink(LinkPath.Key, LinkPath.Value, bSetupUndoRedo);
 			}
 		}
+
+		{
+			FRigVMControllerGraphGuard GraphGuard(this, FunctionDefinition->GetContainedGraph(), false);
+			ReattachLinksToPinObjects(false, nullptr, true, false);
+		}
 	}
 
 	if (bSetupUndoRedo)
