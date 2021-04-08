@@ -65,7 +65,6 @@
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "UObject/AsyncWorkSequence.h"
-#include "Serialization/BulkDataManifest.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTrackingOps.h"
@@ -4711,7 +4710,6 @@ IPackageStoreWriter::~IPackageStoreWriter() = default;
 FSavePackageContext::~FSavePackageContext()
 {
 	delete PackageStoreWriter;
-	delete BulkDataManifest;
 }
 
 #endif	// UE_WITH_SAVEPACKAGE

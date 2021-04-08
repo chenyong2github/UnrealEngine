@@ -82,7 +82,6 @@
 #include "Serialization/ArchiveStackTrace.h"
 #include "DistanceFieldAtlas.h"
 #include "Cooker/AsyncIODelete.h"
-#include "Serialization/BulkDataManifest.h"
 #include "MeshCardRepresentation.h"
 #include "Misc/PathViews.h"
 #include "String/Find.h"
@@ -7058,7 +7057,6 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 		const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
-		FPackageStoreBulkDataManifest* BulkDataManifest	= bIsDiffOnly == false ? new FPackageStoreBulkDataManifest(ResolvedProjectPath) : nullptr;
 		FPackageStoreWriter* PackageStoreWriter = nullptr;
 		if (IsUsingIoStore())
 		{
@@ -7071,7 +7069,7 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 		bool bLegacyBulkDataOffsets = false;
 		PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("LegacyBulkDataOffsets"), bLegacyBulkDataOffsets);
 
-		FSavePackageContext* SavePackageContext			= new FSavePackageContext(PackageStoreWriter, BulkDataManifest, bLegacyBulkDataOffsets);
+		FSavePackageContext* SavePackageContext = new FSavePackageContext(PackageStoreWriter, bLegacyBulkDataOffsets);
 		SavePackageContexts.Add(SavePackageContext);
 	}
 }
@@ -7085,10 +7083,6 @@ void UCookOnTheFlyServer::FinalizePackageStore()
 	{
 		if (PackageContext != nullptr)
 		{
-			if (PackageContext->BulkDataManifest != nullptr)
-			{
-				PackageContext->BulkDataManifest->Save();
-			}
 			if (PackageContext->PackageStoreWriter != nullptr)
 			{
 				PackageContext->PackageStoreWriter->Finalize();

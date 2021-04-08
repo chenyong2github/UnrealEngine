@@ -20,7 +20,6 @@
 #include "Misc/KeyChainUtilities.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/Archive.h"
-#include "Serialization/BulkDataManifest.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/BufferWriter.h"
@@ -602,22 +601,6 @@ static void CreateDiskLayout(
 	}
 }
 
-static EIoChunkType BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType Type)
-{
-	switch (Type)
-	{
-	case FPackageStoreBulkDataManifest::EBulkdataType::Normal:
-		return EIoChunkType::BulkData;
-	case FPackageStoreBulkDataManifest::EBulkdataType::Optional:
-		return EIoChunkType::OptionalBulkData;
-	case FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped:
-		return EIoChunkType::MemoryMappedBulkData;
-	default:
-		UE_LOG(LogIoStore, Error, TEXT("Invalid EBulkdataType (%d) found!"), Type);
-		return EIoChunkType::Invalid;
-	}
-}
-
 FContainerTargetSpec* AddContainer(
 	FName Name,
 	TArray<FContainerTargetSpec*>& Containers)
@@ -924,17 +907,17 @@ void InitializeContainerTargetsAndPackages(
 						if (CookedFileStatData->FileExt == FCookedFileStatData::UPtnl)
 						{
 							TargetFile.bIsOptionalBulkData = true;
-							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType::Optional), *TargetFile.TargetPath);
+							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::OptionalBulkData, *TargetFile.TargetPath);
 						}
 						else if (CookedFileStatData->FileExt == FCookedFileStatData::UMappedBulk)
 						{
 							TargetFile.bIsMemoryMappedBulkData = true;
 							TargetFile.bForceUncompressed = true;
-							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped), *TargetFile.TargetPath);
+							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::MemoryMappedBulkData, *TargetFile.TargetPath);
 						}
 						else
 						{
-							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType::Normal), *TargetFile.TargetPath);
+							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::BulkData, *TargetFile.TargetPath);
 						}
 						if (Package->FileName.IsEmpty())
 						{
@@ -1447,16 +1430,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 {
 	TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);
 
-	FPackageStoreBulkDataManifest BulkDataManifest(FString(Arguments.CookedDir) / FApp::GetProjectName());
-	if (!BulkDataManifest.Load())
-	{
-		UE_LOG(LogIoStore, Warning, TEXT("Failed to load Bulk Data manifest %s"), *BulkDataManifest.GetFilename());
-	}
-	else
-	{
-		UE_LOG(LogIoStore, Display, TEXT("Loaded Bulk Data manifest '%s'"), *BulkDataManifest.GetFilename());
-	}
-	
 #if OUTPUT_CHUNKID_DIRECTORY
 	ChunkIdCsv.CreateOutputFile(CookedDir);
 #endif

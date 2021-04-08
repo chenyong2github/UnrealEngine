@@ -18,7 +18,6 @@ class FArchive;
 class FIoBuffer;
 struct FObjectSaveContextData;
 class FPackagePath;
-class FPackageStoreBulkDataManifest;
 class FSavePackageContext;
 class FArchiveDiffMap;
 class FOutputDevice;
@@ -87,9 +86,8 @@ public:
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(IPackageStoreWriter* InPackageStoreWriter, FPackageStoreBulkDataManifest* InBulkDataManifest, bool InbForceLegacyOffsets)
+	FSavePackageContext(IPackageStoreWriter* InPackageStoreWriter, bool InbForceLegacyOffsets)
 	: PackageStoreWriter(InPackageStoreWriter) 
-	, BulkDataManifest(InBulkDataManifest)
 	, bForceLegacyOffsets(InbForceLegacyOffsets)
 	{
 	}
@@ -97,7 +95,6 @@ public:
 	COREUOBJECT_API ~FSavePackageContext();
 
 	IPackageStoreWriter* PackageStoreWriter;
-	FPackageStoreBulkDataManifest* BulkDataManifest;
 	bool bForceLegacyOffsets;
 };
 

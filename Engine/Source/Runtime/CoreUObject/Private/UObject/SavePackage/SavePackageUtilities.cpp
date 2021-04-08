@@ -15,7 +15,6 @@
 #include "Misc/ScopedSlowTask.h"
 #include "SaveContext.h"
 #include "Serialization/BulkData.h"
-#include "Serialization/BulkDataManifest.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "UObject/AsyncWorkSequence.h"
 #include "UObject/Class.h"
@@ -1967,11 +1966,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 	if (bRequestSaveByReference)
 	{
 		const TCHAR* FailureReason = nullptr;
-		if (SavePackageContext != nullptr && (SavePackageContext->BulkDataManifest != nullptr))
-		{
-			FailureReason = TEXT("SAVE_BulkDataByReference is incompatible with BulkDataManifest");
-		}
-		else if (Linker->bUpdatingLoadedPath)
+		if (Linker->bUpdatingLoadedPath)
 		{
 			FailureReason = TEXT("SAVE_BulkDataByReference is incompatible with bUpdatingLoadedPath");
 		}
@@ -2133,30 +2128,6 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 
 			BulkDataOffsetInFile = (BulkDataFlags & BULKDATA_NoOffsetFixUp) == 0 ? BulkStartOffset - StartOfBulkDataArea : BulkStartOffset;
 			BulkDataSizeOnDisk = BulkEndOffset - BulkStartOffset;
-
-			if (SavePackageContext != nullptr && SavePackageContext->BulkDataManifest != nullptr)
-			{
-				auto BulkDataTypeFromFlags = [](uint32 BulkDataFlags)
-				{
-					if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
-					{
-						return FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped;
-					}
-					else if (BulkDataFlags & BULKDATA_OptionalPayload)
-					{
-						return FPackageStoreBulkDataManifest::EBulkdataType::Optional;
-					}
-					else
-					{
-						check(!(BulkDataFlags & BULKDATA_WorkspaceDomainPayload));
-						return FPackageStoreBulkDataManifest::EBulkdataType::Normal;
-					}
-				};
-
-				const FPackageStoreBulkDataManifest::EBulkdataType Type = BulkDataTypeFromFlags(BulkDataStorageInfo.BulkDataFlags);
-				SavePackageContext->BulkDataManifest->AddFileAccess(Filename, Type,
-					BulkDataOffsetInFile /* Use the serialized offset as the ChunkId */, BulkStartOffset, BulkDataSizeOnDisk);
-			}
 
 			if (bUseFileRegions && BulkDataStorageInfo.BulkDataFileRegionType != EFileRegionType::None && BulkDataSizeOnDisk > 0)
 			{
