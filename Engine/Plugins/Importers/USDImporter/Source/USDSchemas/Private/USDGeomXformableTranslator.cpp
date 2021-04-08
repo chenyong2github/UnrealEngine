@@ -336,8 +336,14 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 			SceneComponent->GetOwner()->SetRootComponent( SceneComponent );
 		}
 
+		// If we're spawning into a level that is being streamed in, our construction scripts will be rerun, and may want to set the scene component
+		// location again. Since our spawned actors are already initialized, that may trigger a warning about the component not being movable,
+		// so we must force them movable here
+		const bool bIsAssociating = Context->Level && Context->Level->bIsAssociatingLevel;
+		const bool bParentIsMovable = Context->ParentComponent && Context->ParentComponent->Mobility == EComponentMobility::Movable;
+
 		// Don't call SetMobility as it would trigger a reregister, queuing unnecessary rhi commands since this is a brand new component
-		if ( Context->ParentComponent && Context->ParentComponent->Mobility == EComponentMobility::Movable )
+		if ( bIsAssociating || bParentIsMovable )
 		{
 			SceneComponent->Mobility = EComponentMobility::Movable;
 		}

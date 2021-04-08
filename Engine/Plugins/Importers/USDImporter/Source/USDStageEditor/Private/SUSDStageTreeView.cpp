@@ -330,7 +330,7 @@ void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
 		return;
 	}
 
-	if ( UE::FUsdStage UsdStage = UsdStageActor->GetUsdStage() )
+	if ( UE::FUsdStage UsdStage = const_cast< const AUsdStageActor* >( UsdStageActor.Get() )->GetUsdStage() )
 	{
 		if ( UE::FUsdPrim RootPrim = UsdStage.GetPseudoRoot() )
 		{

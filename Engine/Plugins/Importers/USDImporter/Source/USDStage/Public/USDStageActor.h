@@ -143,28 +143,30 @@ public:
 public:
 #if WITH_EDITOR
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	virtual void PreEditChange( FProperty* PropertyThatWillChange ) override;
+	virtual void PreEditUndo() override;
 #endif // WITH_EDITOR
 	virtual void PostDuplicate( bool bDuplicateForPIE ) override;
-	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void Destroyed() override;
 	virtual void PostActorCreated() override;
-	virtual void BeginPlay() override;
 
-	void OnLevelAddedToWorld(ULevel* Level, UWorld* World);
-	void OnLevelRemovedFromWorld(ULevel* Level, UWorld* World);
+	virtual void PostRegisterAllComponents() override;
+	virtual void PostUnregisterAllComponents() override;
 
 	void OnPreUsdImport( FString FilePath );
 	void OnPostUsdImport( FString FilePath );
 
 private:
 	void OpenUsdStage();
+	void CloseUsdStage();
+
 	void LoadUsdStage();
+	void UnloadUsdStage();
 
 	UUsdPrimTwin* GetRootPrimTwin();
 
 #if WITH_EDITOR
-	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);
 	void OnBeginPIE(bool bIsSimulating);
 	void OnPostPIEStarted(bool bIsSimulating);
 	void OnObjectsReplaced( const TMap<UObject*, UObject*>& ObjectReplacementMap );
@@ -238,8 +240,20 @@ protected:
 
 private:
 	UE::FUsdStage UsdStage;
-	FUsdListener UsdListener;
 
+	/**
+	 * We use PostRegisterAllComponents and PostUnregisterAllComponents as main entry points to decide when to load/unload
+	 * the USD stage. These are the three exceptions we must avoid though:
+	 *  - We don't want to load/unload when duplicating into PIE as we want our duplicated actors/components to go with us;
+	 *  - On the editor, the register/unregister functions are called from AActor::PostEditChangeProperty, and we obviously
+	 *    don't want to load/unload the stage on every single property edit.
+	 *  - We never want to load/unload actors and components on undo/redo: We always want to fetch them from the transaction buffer
+	 */
+	bool bIsTransitioningIntoPIE;
+	bool bIsModifyingAProperty;
+	bool bIsUndoRedoing;
+
+	FUsdListener UsdListener;
 	FUsdLevelSequenceHelper LevelSequenceHelper;
 
 	FDelegateHandle OnRedoHandle;

@@ -214,7 +214,9 @@ void SUsdStage::SetupStageActorDelegates()
 				{
 					if ( this->UsdPrimInfoWidget )
 					{
-						this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetUsdStage(), TEXT("/") );
+						// The cast here forces us to use the const version of GetUsdStage, that won't force-load the stage in case it isn't opened yet
+						const UE::FUsdStage& UsdStage = const_cast< const AUsdStageActor* >( ViewModel.UsdStageActor.Get() )->GetUsdStage();
+						this->UsdPrimInfoWidget->SetPrimPath( UsdStage, TEXT("/") );
 					}
 				}
 
