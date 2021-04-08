@@ -9,6 +9,7 @@
 
 #include "UObject/StrongObjectPtr.h"
 #include "ViewModels/ProtocolRangeViewModel.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/SRCProtocolRangeList.h"
 

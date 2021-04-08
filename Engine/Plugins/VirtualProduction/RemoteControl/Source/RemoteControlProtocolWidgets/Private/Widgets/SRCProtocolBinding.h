@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "SRCProtocolShared.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SRCProtocolRangeList;
 class FProtocolRangeViewModel;

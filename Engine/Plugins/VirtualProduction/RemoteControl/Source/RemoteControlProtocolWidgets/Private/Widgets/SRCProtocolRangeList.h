@@ -6,6 +6,7 @@
 
 
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SRCProtocolShared.h"
 
