@@ -18,6 +18,7 @@
 #include "DisplayNodes/SequencerSectionCategoryNode.h"
 #include "DisplayNodes/SequencerSectionKeyAreaNode.h"
 #include "IKeyArea.h"
+#include "DisplayNodes/SequencerFolderNode.h"
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "Sequencer.h"
 #include "SAnimationOutlinerTreeNode.h"
@@ -596,6 +597,22 @@ TSharedPtr<FSequencerTrackNode> FSequencerDisplayNode::FindParentTrackNode() con
 		if (CurrentParentNode->GetType() == ESequencerNode::Track)
 		{
 			return StaticCastSharedPtr<FSequencerTrackNode>(CurrentParentNode);
+		}
+		CurrentParentNode = CurrentParentNode->GetParent();
+	}
+
+	return nullptr;
+}
+
+
+TSharedPtr<FSequencerFolderNode> FSequencerDisplayNode::FindFolderNode() const
+{
+	TSharedPtr<FSequencerDisplayNode> CurrentParentNode = GetParent();
+	while (CurrentParentNode.IsValid())
+	{
+		if (CurrentParentNode->GetType() == ESequencerNode::Folder)
+		{
+			return StaticCastSharedPtr<FSequencerFolderNode>(CurrentParentNode);
 		}
 		CurrentParentNode = CurrentParentNode->GetParent();
 	}

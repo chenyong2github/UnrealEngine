@@ -556,9 +556,10 @@ public:
 	void MoveSelectedNodesToFolder(UMovieSceneFolder* DestinationFolder);
 
 	/** Called when a user executes the copy track menu item */
-	void CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, /*out*/ FString& ExportedText);
-	void CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& TrackNodes, /*out*/ FString& ExportedText);
-	void ExportObjectsToText(TArray<UObject*> ObjectsToExport, /*out*/ FString& ExportedText);
+	void CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
+	void CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& TrackNodes, const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
+	void CopySelectedFolders(const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
+	void ExportObjectsToText(const TArray<UObject*>& ObjectsToExport, /*out*/ FString& ExportedText);
 
 	/** Called when a user executes the paste track menu item */
 	bool CanPaste(const FString& TextToImport);
@@ -567,12 +568,14 @@ public:
 	 * @return Whether the paste event was handled
 	 */
 	bool DoPaste(bool bClearSelection = false);
-	bool PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
+	bool PasteTracks(const FString& TextToImport, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& InFolders, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
 	bool PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
-	bool PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
+	bool PasteFolders(const FString& TextToImport, UMovieSceneFolder* ParentFolder, TArray<UMovieSceneFolder*>& OutFolders, TArray<FNotificationInfo>& PasteErrors);
+	bool PasteObjectBindings(const FString& TextToImport, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& InFolders, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
 
 	void ImportTracksFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneCopyableTrack*>& ImportedTracks);
 	void ImportSectionsFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneSection*>& ImportedSections);
+	void ImportFoldersFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneFolder*>& ImportedFolders);
 	void ImportObjectBindingsFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneCopyableBinding*>& ImportedObjects);
 
 	/** Called when a user executes the active node menu item */
@@ -1112,7 +1115,7 @@ private:
 	void CalculateSelectedFolderAndPath(TArray<UMovieSceneFolder*>& OutSelectedParentFolders, FString& OutNewNodePath);
 
 	/** Returns the tail folder from the given Folder Path, creating each folder if needed. */
-	UMovieSceneFolder* CreateFoldersRecursively(const TArray<FString>& FolderPaths, int32 FolderPathIndex, UMovieScene* OwningMovieScene, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& FoldersToSearch);
+	UMovieSceneFolder* CreateFoldersRecursively(const TArray<FName>& FolderPath, int32 FolderPathIndex, UMovieScene* OwningMovieScene, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& FoldersToSearch);
 
 	/** Create set playback start transport control */
 	TSharedRef<SWidget> OnCreateTransportSetPlaybackStart();

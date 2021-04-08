@@ -115,6 +115,14 @@ void UMovieSceneFolder::RemoveChildMasterTrack( UMovieSceneTrack* InMasterTrack 
 }
 
 
+void UMovieSceneFolder::ClearChildMasterTracks()
+{
+	Modify();
+
+	ChildMasterTracks.Empty();
+}
+
+
 const TArray<FGuid>& UMovieSceneFolder::GetChildObjectBindings() const
 {
 	return ChildObjectBindings;
@@ -149,6 +157,13 @@ void UMovieSceneFolder::RemoveChildObjectBinding( const FGuid& InObjectBinding )
 	Modify();
 
 	ChildObjectBindings.Remove( InObjectBinding );
+}
+
+void UMovieSceneFolder::ClearChildObjectBindings()
+{
+	Modify();
+
+	ChildObjectBindings.Empty();
 }
 
 void UMovieSceneFolder::PostLoad()
@@ -240,6 +255,51 @@ UMovieSceneFolder* UMovieSceneFolder::FindFolderContaining(const FGuid& InObject
 	{
 		UMovieSceneFolder* Folder = ChildFolder->FindFolderContaining(InObjectBinding);
 		if (Folder != nullptr)
+		{
+			return Folder;
+		}
+	}
+
+	return nullptr;
+}
+
+void
+TraverseFolder(UMovieSceneFolder* Folder, TMap<UMovieSceneFolder*, UMovieSceneFolder*>& ChildToParentMap)
+{
+	for (UMovieSceneFolder* Child : Folder->GetChildFolders())
+	{
+		ChildToParentMap.Add(Child, Folder);
+
+		TraverseFolder(Child, ChildToParentMap);
+	}
+}
+
+void UMovieSceneFolder::CalculateFolderPath(UMovieSceneFolder* Folder, const TArray<UMovieSceneFolder*>& RootFolders, TArray<FName>& FolderPath)
+{
+	TMap<UMovieSceneFolder*, UMovieSceneFolder*> ChildToParentMap;
+	for (UMovieSceneFolder* RootFolder : RootFolders)
+	{
+		TraverseFolder(RootFolder, ChildToParentMap);
+	}
+
+	FolderPath.Add(Folder->GetFolderName());
+
+	UMovieSceneFolder* Parent = ChildToParentMap.Contains(Folder) ? ChildToParentMap[Folder] : nullptr;
+	while (Parent)
+	{
+		FolderPath.Insert(Parent->GetFolderName(), 0);
+
+		Parent = ChildToParentMap.Contains(Parent) ? ChildToParentMap[Parent] : nullptr;
+	}
+}
+
+UMovieSceneFolder* UMovieSceneFolder::GetFolderWithPath(const TArray<FName>& InFolderPath, const TArray<UMovieSceneFolder*>& InFolders, const TArray<UMovieSceneFolder*>& RootFolders)
+{
+	for (UMovieSceneFolder* Folder : InFolders)
+	{
+		TArray<FName> FolderPath;
+		UMovieSceneFolder::CalculateFolderPath(Folder, RootFolders, FolderPath);
+		if (FolderPath == InFolderPath)
 		{
 			return Folder;
 		}

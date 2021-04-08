@@ -3896,19 +3896,19 @@ FGuid FindUnspawnedObjectGuid(UObject& InObject, UMovieSceneSequence& Sequence)
 	return FGuid();
 }
 
-UMovieSceneFolder* FSequencer::CreateFoldersRecursively(const TArray<FString>& FolderPaths, int32 FolderPathIndex, UMovieScene* OwningMovieScene, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& FoldersToSearch)
+UMovieSceneFolder* FSequencer::CreateFoldersRecursively(const TArray<FName>& FolderPath, int32 FolderPathIndex, UMovieScene* OwningMovieScene, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& FoldersToSearch)
 {
 	// An empty folder path won't create a folder
-	if (FolderPaths.Num() == 0)
+	if (FolderPath.Num() == 0)
 	{
 		return ParentFolder;
 	}
 
-	check(FolderPathIndex < FolderPaths.Num());
+	check(FolderPathIndex < FolderPath.Num());
 
 	// Look to see if there's already a folder with the right name
 	UMovieSceneFolder* FolderToUse = nullptr;
-	FName DesiredFolderName = FName(*FolderPaths[FolderPathIndex]);
+	FName DesiredFolderName = FolderPath[FolderPathIndex];
 
 	for (UMovieSceneFolder* Folder : FoldersToSearch)
 	{
@@ -3939,9 +3939,9 @@ UMovieSceneFolder* FSequencer::CreateFoldersRecursively(const TArray<FString>& F
 
 	// Increment which part of the path we're searching in and then recurse inside of the folder we found (or created).
 	FolderPathIndex++;
-	if (FolderPathIndex < FolderPaths.Num())
+	if (FolderPathIndex < FolderPath.Num())
 	{
-		return CreateFoldersRecursively(FolderPaths, FolderPathIndex, OwningMovieScene, FolderToUse, FolderToUse->GetChildFolders());
+		return CreateFoldersRecursively(FolderPath, FolderPathIndex, OwningMovieScene, FolderToUse, FolderToUse->GetChildFolders());
 	}
 
 	// We return the tail folder created so that the user can add things to it.
@@ -4031,15 +4031,20 @@ FGuid FSequencer::GetHandleToObject( UObject* Object, bool bCreateHandleIfMissin
 		// Some sources that create object bindings may want to group all of these objects together for organizations sake.
 		if (OwningActor && CreatedFolderName != NAME_None)
 		{
-			TArray<FString> SubfolderHierarchy;
+			TArray<FName> SubfolderHierarchy;
 			if (OwningActor->GetFolderPath() != NAME_None)
 			{
-				OwningActor->GetFolderPath().ToString().ParseIntoArray(SubfolderHierarchy, TEXT("/"));
+				TArray<FString> FolderPath;
+				OwningActor->GetFolderPath().ToString().ParseIntoArray(FolderPath, TEXT("/"));
+				for (FString FolderStr : FolderPath)
+				{
+					SubfolderHierarchy.Add(FName(*FolderStr));
+				}
 			}
 
 			// Add the desired sub-folder as the root of the hierarchy so that the Actor's World Outliner folder structure is replicated inside of the desired folder name.
 			// This has to come after the ParseIntoArray call as that will wipe the array.
-			SubfolderHierarchy.Insert(CreatedFolderName.ToString(), 0); 
+			SubfolderHierarchy.Insert(CreatedFolderName, 0); 
 
 			UMovieSceneFolder* TailFolder = FSequencer::CreateFoldersRecursively(SubfolderHierarchy, 0, FocusedMovieScene, nullptr, FocusedMovieScene->GetRootFolders());
 			if (TailFolder)
@@ -4052,13 +4057,12 @@ FGuid FSequencer::GetHandleToObject( UObject* Object, bool bCreateHandleIfMissin
 			FString NewPath; 
 			for (int32 Index = 0; Index < SubfolderHierarchy.Num(); Index++)
 			{
-				NewPath += SubfolderHierarchy[Index];
+				NewPath += SubfolderHierarchy[Index].ToString();
 				FocusedMovieScene->GetEditorData().ExpansionStates.FindOrAdd(NewPath) = FMovieSceneExpansionState(true);
 				
 				// Expansion States are delimited by periods.
 				NewPath += TEXT(".");
 			}
-
 		}
 
 		NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
@@ -8441,13 +8445,13 @@ void FSequencer::MoveSelectedNodesToFolder(UMovieSceneFolder* DestinationFolder)
 
 	UMovieSceneFolder* ParentFolder = nullptr;
 
-	TArray<FString> FolderPath;
+	TArray<FName> FolderPath;
 
 	// Walk up the shared path to find the deepest shared folder
 	for (int32 FolderPathIndex = 0; FolderPathIndex < SharedPathLength; ++FolderPathIndex)
 	{
-		FolderPath.Add(NodePathSplits[0][FolderPathIndex]);
-		FName DesiredFolderName = FName(*FolderPath[FolderPathIndex]);
+		FolderPath.Add(FName(*NodePathSplits[0][FolderPathIndex]));
+		FName DesiredFolderName = FolderPath[FolderPathIndex];
 
 		TArray<UMovieSceneFolder*> FoldersToSearch;
 		if (!ParentFolder)
@@ -8517,7 +8521,7 @@ void FSequencer::MoveSelectedNodesToFolder(UMovieSceneFolder* DestinationFolder)
 		// Append any relative path for the node
 		for (int32 FolderPathIndex = SharedPathLength; FolderPathIndex < NodePathSplit.Num() - 1; ++FolderPathIndex)
 		{
-			FolderPath.Add(NodePathSplit[FolderPathIndex]);
+			FolderPath.Add(FName(*NodePathSplit[FolderPathIndex]));
 			NewPath += NodePathSplit[FolderPathIndex] + TEXT(".");
 		}
 
@@ -8595,13 +8599,13 @@ void FSequencer::MoveSelectedNodesToNewFolder()
 
 	UMovieSceneFolder* ParentFolder = nullptr;
 
-	TArray<FString> FolderPath;
+	TArray<FName> FolderPath;
 	
 	// Walk up the shared path to find the deepest shared folder
 	for (int32 FolderPathIndex = 0; FolderPathIndex < SharedPathLength; ++FolderPathIndex)
 	{
-		FolderPath.Add(NodePathSplits[0][FolderPathIndex]);
-		FName DesiredFolderName = FName(*FolderPath[FolderPathIndex]);
+		FolderPath.Add(FName(*NodePathSplits[0][FolderPathIndex]));
+		FName DesiredFolderName = FolderPath[FolderPathIndex];
 
 		TArray<UMovieSceneFolder*> FoldersToSearch;
 		if (!ParentFolder)
@@ -8640,9 +8644,9 @@ void FSequencer::MoveSelectedNodesToNewFolder()
 	}
 
 	FString NewFolderPath;
-	for (FString PathSection : FolderPath)
+	for (FName PathSection : FolderPath)
 	{
-		NewFolderPath.Append(PathSection);
+		NewFolderPath.Append(PathSection.ToString());
 		NewFolderPath.AppendChar('.');
 	}
 
@@ -8654,7 +8658,7 @@ void FSequencer::MoveSelectedNodesToNewFolder()
 	SharedFolder->SetFolderName(UniqueName);
 	NewFolderPath.Append(UniqueName.ToString());
 
-	FolderPath.Add(UniqueName.ToString());
+	FolderPath.Add(UniqueName);
 	int SharedFolderPathLen = FolderPath.Num();
 
 	if (!ParentFolder)
@@ -8679,7 +8683,7 @@ void FSequencer::MoveSelectedNodesToNewFolder()
 		// Append any relative path for the node
 		for (int32 FolderPathIndex = SharedPathLength; FolderPathIndex < NodePathSplit.Num() - 1; ++FolderPathIndex)
 		{
-			FolderPath.Add(NodePathSplit[FolderPathIndex]);
+			FolderPath.Add(FName(*NodePathSplit[FolderPathIndex]));
 		}
 
 		UMovieSceneFolder* DestinationFolder = CreateFoldersRecursively(FolderPath, 0, FocusedMovieScene, nullptr, FocusedMovieScene->GetRootFolders());
@@ -8811,13 +8815,22 @@ void FSequencer::ImportObjectBindingsFromText(const FString& TextToImport, /*out
 
 TArray<TSharedPtr<FMovieSceneClipboard>> GClipboardStack;
 
-void FSequencer::CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, FString& ExportedText)
+void FSequencer::CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, const TArray<UMovieSceneFolder*>& Folders, FString& ExportedText)
 {
+	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+
 	// Gather guids for the object nodes and any child object nodes
 	TSet<FGuid> GuidsToCopy;
+	TMap<FGuid, UMovieSceneFolder*> GuidToFolder;
 	for (TSharedPtr<FSequencerObjectBindingNode> ObjectNode : ObjectNodes)
 	{
 		GuidsToCopy.Add(ObjectNode->GetObjectBinding());
+
+		TSharedPtr<FSequencerFolderNode> FolderNode = ObjectNode->FindFolderNode();
+		if (FolderNode.IsValid() && Folders.Contains(&FolderNode->GetFolder()))
+		{
+			GuidToFolder.Add(ObjectNode->GetObjectBinding(), &FolderNode->GetFolder());
+		}
 
 		TSet<TSharedRef<FSequencerDisplayNode> > DescendantNodes;
 
@@ -8827,12 +8840,17 @@ void FSequencer::CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNo
 		{
 			if (DescendantNode->GetType() == ESequencerNode::Object)
 			{
-				GuidsToCopy.Add((StaticCastSharedRef<FSequencerObjectBindingNode>(DescendantNode))->GetObjectBinding());
+				TSharedRef<FSequencerObjectBindingNode> DescendantObjectNode = StaticCastSharedRef<FSequencerObjectBindingNode>(DescendantNode);
+				GuidsToCopy.Add(DescendantObjectNode->GetObjectBinding());
+
+				TSharedPtr<FSequencerFolderNode> DescendantFolderNode = DescendantObjectNode->FindFolderNode();
+				if (DescendantFolderNode.IsValid())
+				{
+					GuidToFolder.Add(DescendantObjectNode->GetObjectBinding(), &DescendantFolderNode->GetFolder());
+				}
 			}
 		}
 	}
-
-	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
 
 	// Export each of the bindings
 	TArray<UMovieSceneCopyableBinding*> CopyableBindings;
@@ -8873,8 +8891,12 @@ void FSequencer::CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNo
 				CopyableBinding->Tracks.Add(DuplicatedTrack);
 			}
 		}
-	}
 
+		if (GuidToFolder.Contains(ObjectBinding))
+		{
+			UMovieSceneFolder::CalculateFolderPath(GuidToFolder[ObjectBinding], Folders, CopyableBinding->FolderPath);
+		}
+	}
 	if (CopyableBindings.Num() > 0)
 	{
 		ExportObjectBindingsToText(CopyableBindings, /*out*/ ExportedText);
@@ -8884,8 +8906,7 @@ void FSequencer::CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNo
 	}
 }
 
-
-void FSequencer::CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& TrackNodes, FString& ExportedText)
+void FSequencer::CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& TrackNodes, const TArray<UMovieSceneFolder*>& Folders, FString& ExportedText)
 {
 	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
 
@@ -8894,7 +8915,7 @@ void FSequencer::CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& Tra
 	{
 		bool bIsParentSelected = false;
 		TSharedPtr<FSequencerDisplayNode> ParentNode = TrackNode->GetParent();
-		while (ParentNode.IsValid())
+		while (ParentNode.IsValid() && ParentNode->GetType() != ESequencerNode::Folder)
 		{
 			if (Selection.GetSelectedOutlinerNodes().Contains(ParentNode.ToSharedRef()))
 			{
@@ -8925,6 +8946,12 @@ void FSequencer::CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& Tra
 				UMovieSceneTrack* DuplicatedTrack = Cast<UMovieSceneTrack>(StaticDuplicateObject(TrackNode->GetTrack(), CopyableTrack));
 				CopyableTrack->Track = DuplicatedTrack;
 				CopyableTrack->bIsAMasterTrack = MovieScene->IsAMasterTrack(*TrackNode->GetTrack());
+
+				TSharedPtr<FSequencerFolderNode> FolderNode = TrackNode->FindFolderNode();
+				if (FolderNode.IsValid() && Folders.Contains(&FolderNode->GetFolder()))
+				{
+					UMovieSceneFolder::CalculateFolderPath(&FolderNode->GetFolder(), Folders, CopyableTrack->FolderPath);
+				}
 			}
 		}
 	}
@@ -8939,7 +8966,25 @@ void FSequencer::CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& Tra
 }
 
 
-void FSequencer::ExportObjectsToText(TArray<UObject*> ObjectsToExport, FString& ExportedText)
+void FSequencer::CopySelectedFolders(const TArray<UMovieSceneFolder*>& Folders, FString& ExportedText)
+{
+	if (Folders.Num() > 0)
+	{
+		TArray<UObject*> Objects;
+		for (UMovieSceneFolder* Folder : Folders)
+		{
+			Objects.Add(Folder);
+		}
+
+		ExportObjectsToText(Objects, /*out*/ ExportedText);
+
+		// Make sure to clear the clipboard for the keys
+		GClipboardStack.Empty();
+	}
+}
+
+
+void FSequencer::ExportObjectsToText(const TArray<UObject*>& ObjectsToExport, FString& ExportedText)
 {
 	// Clear the mark state for saving.
 	UnMarkAllObjects(EObjectMark(OBJECTMARK_TagExp | OBJECTMARK_TagImp));
@@ -8980,10 +9025,19 @@ bool FSequencer::DoPaste(bool bClearSelection)
 	FString TextToImport;
 	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
 
+	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
+
+	TArray<UMovieSceneFolder*> SelectedParentFolders;
+	FString NewNodePath;
+	CalculateSelectedFolderAndPath(SelectedParentFolders, NewNodePath);
+	UMovieSceneFolder* ParentFolder = SelectedParentFolders.Num() > 0 ? SelectedParentFolders[0] : nullptr;
+
 	TArray<FNotificationInfo> PasteErrors;
 	bool bAnythingPasted = false;
-	bAnythingPasted |= PasteObjectBindings(TextToImport, PasteErrors, bClearSelection);
-	bAnythingPasted |= PasteTracks(TextToImport, PasteErrors, bClearSelection);
+	TArray<UMovieSceneFolder*> PastedFolders;
+	bAnythingPasted |= PasteFolders(TextToImport, ParentFolder, PastedFolders, PasteErrors);
+	bAnythingPasted |= PasteObjectBindings(TextToImport, ParentFolder, PastedFolders, PasteErrors, bClearSelection);
+	bAnythingPasted |= PasteTracks(TextToImport, ParentFolder, PastedFolders, PasteErrors, bClearSelection);
 	
 	if (!bAnythingPasted)
 	{
@@ -9002,15 +9056,65 @@ bool FSequencer::DoPaste(bool bClearSelection)
 	return bAnythingPasted;
 }
 
-bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection)
+bool FSequencer::PasteFolders(const FString& TextToImport, UMovieSceneFolder* InParentFolder, TArray<UMovieSceneFolder*>& OutFolders, TArray<FNotificationInfo>& PasteErrors)
+{
+	TArray<UMovieSceneFolder*> ImportedFolders;
+	ImportFoldersFromText(TextToImport, ImportedFolders);
+
+	if (ImportedFolders.Num() == 0)
+	{
+		return false;
+	}
+
+	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+
+	MovieScene->Modify();
+
+	for (UMovieSceneFolder* CopiedFolder : ImportedFolders)
+	{
+		CopiedFolder->Rename(nullptr, MovieScene);
+
+		OutFolders.Add(CopiedFolder);
+
+		// Clear the folder contents, those relationships will be made when the tracks are pasted
+		CopiedFolder->ClearChildMasterTracks();
+		CopiedFolder->ClearChildObjectBindings();
+
+		bool bHasParent = false;
+		for (UMovieSceneFolder* ImportedParentFolder : ImportedFolders)
+		{
+			if (ImportedParentFolder != CopiedFolder)
+			{
+				if (ImportedParentFolder->GetChildFolders().Contains(CopiedFolder))
+				{
+					bHasParent = true;
+					break;
+				}
+			}
+		}
+
+		if (!bHasParent)
+		{
+			if (InParentFolder)
+			{
+				InParentFolder->AddChildFolder(CopiedFolder);
+			}
+			else
+			{
+				MovieScene->GetRootFolders().Add(CopiedFolder);
+			}
+		}
+	}
+
+	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+
+	return true;
+}
+
+bool FSequencer::PasteObjectBindings(const FString& TextToImport, UMovieSceneFolder* InParentFolder, const TArray<UMovieSceneFolder*>& InFolders, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection)
 {
 	UWorld* World = Cast<UWorld>(GetPlaybackContext());
-
-	TArray<UMovieSceneFolder*> SelectedParentFolders;
-	FString NewNodePath;
-	CalculateSelectedFolderAndPath(SelectedParentFolders, NewNodePath);
-
-	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
 
 	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
 	UObject* BindingContext = GetPlaybackContext();
@@ -9019,6 +9123,7 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	TMap<FGuid, FGuid> OldToNewGuidMap;
 	TArray<FGuid> PossessableGuids;
 	TArray<FGuid> SpawnableGuids;
+	TMap<FGuid, UMovieSceneFolder*> GuidToFolderMap;
 
 	TArray<FMovieSceneBinding> BindingsPasted;
 
@@ -9072,6 +9177,13 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 				}
 			}
 
+			UMovieSceneFolder* ParentFolder = InParentFolder;
+
+			if (CopyableBinding->FolderPath.Num() > 0)
+			{
+				ParentFolder = UMovieSceneFolder::GetFolderWithPath(CopyableBinding->FolderPath, InFolders, ParentFolder ? ParentFolder->GetChildFolders() : MovieScene->GetRootFolders());
+			}
+
 			if (CopyableBinding->Possessable.GetGuid().IsValid())
 			{
 				FGuid NewGuid = FGuid::NewGuid();
@@ -9088,6 +9200,11 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 				BindingsPasted.Add(NewBinding);
 
 				PossessableGuids.Add(NewGuid);
+
+				if (ParentFolder)
+				{
+					GuidToFolderMap.Add(NewGuid, ParentFolder);
+				}
 
 				if (FMovieScenePossessable* Possessable = MovieScene->FindPossessable(NewGuid))
 				{
@@ -9175,6 +9292,11 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 				BindingsPasted.Add(NewBinding);
 
 				SpawnableGuids.Add(NewGuid);
+
+				if (ParentFolder)
+				{
+					GuidToFolderMap.Add(NewGuid, ParentFolder);
+				}
 			}
 		}
 	}
@@ -9207,7 +9329,7 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 					{
 						FGuid NewGuid = DoAssignActor(&Actor, 1, Possessable->GetGuid());
 
-						// If assigning produces a new guid, update the possesable guids and the bindings pasted data
+						// If assigning produces a new guid, update the possessable guids and the bindings pasted data
 						if (NewGuid.IsValid())
 						{
 							for (auto BindingPasted : BindingsPasted)
@@ -9218,6 +9340,12 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 								}
 							}
 
+							if (GuidToFolderMap.Contains(PossessableGuids[PossessableGuidIndex]))
+							{
+								GuidToFolderMap.Add(NewGuid, GuidToFolderMap[PossessableGuids[PossessableGuidIndex]]);
+								GuidToFolderMap.Remove(PossessableGuids[PossessableGuidIndex]);
+							}
+
 							PossessableGuids[PossessableGuidIndex] = NewGuid;
 						}
 					}
@@ -9226,14 +9354,26 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 		}
 	}
 
-	if (SelectedParentFolders.Num() > 0)
+	// Set up folders
+	for (auto PossessableGuid : PossessableGuids)
 	{
-		for (auto PossessableGuid : PossessableGuids)
+		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(PossessableGuid);
+		if (Possessable && !Possessable->GetParent().IsValid())
 		{
-			FMovieScenePossessable* Possessable = MovieScene->FindPossessable(PossessableGuid);
-			if (Possessable && !Possessable->GetParent().IsValid())
+			if (GuidToFolderMap.Contains(PossessableGuid))
 			{
-				SelectedParentFolders[0]->AddChildObjectBinding(PossessableGuid);
+				GuidToFolderMap[PossessableGuid]->AddChildObjectBinding(PossessableGuid);
+			}
+		}
+	}
+	for (auto SpawnableGuid : SpawnableGuids)
+	{
+		FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(SpawnableGuid);
+		if (Spawnable)
+		{
+			if (GuidToFolderMap.Contains(SpawnableGuid))
+			{
+				GuidToFolderMap[SpawnableGuid]->AddChildObjectBinding(SpawnableGuid);
 			}
 		}
 	}
@@ -9322,10 +9462,8 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	return true;
 }
 
-bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection)
+bool FSequencer::PasteTracks(const FString& TextToImport, UMovieSceneFolder* InParentFolder, const TArray<UMovieSceneFolder*>& InFolders, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection)
 {
-	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
-
 	TArray<UMovieSceneCopyableTrack*> ImportedTracks;
 	FSequencer::ImportTracksFromText(TextToImport, ImportedTracks);
 
@@ -9334,12 +9472,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 		return false;
 	}
 	
-	TArray<UMovieSceneFolder*> SelectedParentFolders;
-	FString NewNodePath;
-	CalculateSelectedFolderAndPath(SelectedParentFolders, NewNodePath);
-
-	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
-	UMovieScene* OwnerMovieScene = OwnerSequence->GetMovieScene();
+	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
 	UObject* BindingContext = GetPlaybackContext();
 
 	TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = Selection.GetSelectedOutlinerNodes();
@@ -9403,7 +9536,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 					}
 
 					// Remove tracks with the same name before adding
-					for (const FMovieSceneBinding& Binding : OwnerMovieScene->GetBindings())
+					for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
 					{
 						if (Binding.GetObjectGuid() == ObjectGuid)
 						{
@@ -9413,14 +9546,14 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 								if (Track->GetClass() == NewTrack->GetClass() && Track->GetTrackName() == NewTrack->GetTrackName())
 								{
 									// If a track of the same class and name exists, remove it so the new track replaces it
-									OwnerMovieScene->RemoveTrack(*Track);
+									MovieScene->RemoveTrack(*Track);
 									break;
 								}
 							}
 						}
 					}
 
-					if (!GetFocusedMovieSceneSequence()->GetMovieScene()->AddGivenTrack(NewTrack, ObjectGuid))
+					if (!MovieScene->AddGivenTrack(NewTrack, ObjectGuid))
 					{
 						continue;
 					}
@@ -9447,25 +9580,31 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 				Subobject->ClearFlags(RF_Transient);
 			}
 
+			UMovieSceneFolder* ParentFolder = InParentFolder;
+
+			if (CopyableTrack->FolderPath.Num() > 0)
+			{
+				ParentFolder = UMovieSceneFolder::GetFolderWithPath(CopyableTrack->FolderPath, InFolders, ParentFolder ? ParentFolder->GetChildFolders() : MovieScene->GetRootFolders());
+			}
+
 			if (NewTrack->IsA(UMovieSceneCameraCutTrack::StaticClass()))
 			{
-				GetFocusedMovieSceneSequence()->GetMovieScene()->SetCameraCutTrack(NewTrack);
-				if (SelectedParentFolders.Num() > 0)
+				MovieScene->SetCameraCutTrack(NewTrack);
+				if (ParentFolder != nullptr)
 				{
-					SelectedParentFolders[0]->AddChildMasterTrack(NewTrack);
+					ParentFolder->AddChildMasterTrack(NewTrack);
 				}
 
 				++NumMasterTracksPasted;
 			}
 			else
 			{
-				if (GetFocusedMovieSceneSequence()->GetMovieScene()->AddGivenMasterTrack(NewTrack))
+				if (MovieScene->AddGivenMasterTrack(NewTrack))
 				{
-					if (SelectedParentFolders.Num() > 0)
+					if (ParentFolder != nullptr)
 					{
-						SelectedParentFolders[0]->AddChildMasterTrack(NewTrack);
+						ParentFolder->AddChildMasterTrack(NewTrack);
 					}
-
 				}
 
 				++NumMasterTracksPasted;
@@ -9528,8 +9667,6 @@ void GetSupportedTracks(TSharedRef<FSequencerDisplayNode> DisplayNode, const TAr
 
 bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
 {
-	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
-
 	// First import as a track and extract sections to allow for copying track contents to another track
 	TArray<UMovieSceneCopyableTrack*> ImportedTracks;
 	FSequencer::ImportTracksFromText(TextToImport, ImportedTracks);
@@ -9700,8 +9837,6 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 
 	if (SectionIndicesImported.Num() == 0)
 	{
-		Transaction.Cancel();
-
 		FNotificationInfo Info(LOCTEXT("PasteSections_NothingPasted", "Can't paste section. No matching section types found."));
 		PasteErrors.Add(Info);
 		return false;
@@ -9779,6 +9914,35 @@ public:
 	TArray<UMovieSceneSection*> NewSections;
 };
 
+class FFolderObjectTextFactory : public FCustomizableTextObjectFactory
+{
+public:
+	FFolderObjectTextFactory()
+		: FCustomizableTextObjectFactory(GWarn)
+	{
+	}
+
+	// FCustomizableTextObjectFactory implementation
+	virtual bool CanCreateClass(UClass* InObjectClass, bool& bOmitSubObjs) const override
+	{
+		if (InObjectClass->IsChildOf(UMovieSceneFolder::StaticClass()))
+		{
+			return true;
+		}
+		return false;
+	}
+
+
+	virtual void ProcessConstructedObject(UObject* NewObject) override
+	{
+		check(NewObject);
+
+		NewFolders.Add(Cast<UMovieSceneFolder>(NewObject));
+	}
+
+public:
+	TArray<UMovieSceneFolder*> NewFolders;
+};
 
 bool FSequencer::CanPaste(const FString& TextToImport)
 {
@@ -9796,6 +9960,12 @@ bool FSequencer::CanPaste(const FString& TextToImport)
 
 	FSectionObjectTextFactory SectionFactory;
 	if (SectionFactory.CanCreateObjectsFromText(TextToImport))
+	{
+		return true;
+	}
+
+	FFolderObjectTextFactory FolderFactory;
+	if (FolderFactory.CanCreateObjectsFromText(TextToImport))
 	{
 		return true;
 	}
@@ -9847,6 +10017,20 @@ void FSequencer::ImportSectionsFromText(const FString& TextToImport, /*out*/ TAr
 	TempPackage->RemoveFromRoot();
 }
 
+void FSequencer::ImportFoldersFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneFolder*>& ImportedFolders)
+{
+	UPackage* TempPackage = NewObject<UPackage>(nullptr, TEXT("/Engine/Sequencer/Editor/Transient"), RF_Transient);
+	TempPackage->AddToRoot();
+
+	// Turn the text buffer into objects
+	FFolderObjectTextFactory Factory;
+	Factory.ProcessBuffer(TempPackage, RF_Transactional, TextToImport);
+
+	ImportedFolders = Factory.NewFolders;
+
+	// Remove the temp package from the root now that it has served its purpose
+	TempPackage->RemoveFromRoot();
+}
 
 void FSequencer::ToggleNodeActive()
 {
@@ -11725,6 +11909,38 @@ void FSequencer::StepToPreviousMark()
 	}
 }
 
+void GatherTracksAndObjectsToCopy(TSharedRef<FSequencerDisplayNode> Node, TArray<TSharedPtr<FSequencerTrackNode>>& TracksToCopy, TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectsToCopy, TArray<UMovieSceneFolder*>& FoldersToCopy)
+{
+	if (Node->GetType() == ESequencerNode::Track)
+	{
+		TSharedPtr<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(Node);
+		if (TrackNode.IsValid() && !TracksToCopy.Contains(TrackNode))
+		{
+			TracksToCopy.Add(TrackNode);
+		}
+	}
+	else if (Node->GetType() == ESequencerNode::Object)
+	{
+		TSharedPtr<FSequencerObjectBindingNode> ObjectNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
+		if (ObjectNode.IsValid() && !ObjectsToCopy.Contains(ObjectNode))
+		{
+			ObjectsToCopy.Add(ObjectNode);
+		}
+	}
+	else if (Node->GetType() == ESequencerNode::Folder)
+	{
+		TSharedPtr<FSequencerFolderNode> FolderNode = StaticCastSharedRef<FSequencerFolderNode>(Node);
+		if (FolderNode.IsValid())
+		{
+			FoldersToCopy.Add(&FolderNode->GetFolder());
+
+			for (TSharedRef<FSequencerDisplayNode> ChildNode : FolderNode->GetChildNodes())
+			{
+				GatherTracksAndObjectsToCopy(ChildNode, TracksToCopy, ObjectsToCopy, FoldersToCopy);
+			}
+		}
+	}
+}
 
 void FSequencer::CopySelection()
 {
@@ -11740,6 +11956,7 @@ void FSequencer::CopySelection()
 	{
 		TArray<TSharedPtr<FSequencerTrackNode>> TracksToCopy;
 		TArray<TSharedPtr<FSequencerObjectBindingNode>> ObjectsToCopy;
+		TArray<UMovieSceneFolder*> FoldersToCopy;
 		TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = Selection.GetNodesWithSelectedKeysOrSections();
 		if (SelectedNodes.Num() == 0)
 		{
@@ -11747,22 +11964,7 @@ void FSequencer::CopySelection()
 		}
 		for (TSharedRef<FSequencerDisplayNode> Node : SelectedNodes)
 		{
-			if (Node->GetType() == ESequencerNode::Track)
-			{
-				TSharedPtr<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(Node);
-				if (TrackNode.IsValid())
-				{
-					TracksToCopy.Add(TrackNode);
-				}
-			}
-			else if (Node->GetType() == ESequencerNode::Object)
-			{
-				TSharedPtr<FSequencerObjectBindingNode> ObjectNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
-				if (ObjectNode.IsValid())
-				{
-					ObjectsToCopy.Add(ObjectNode);
-				}
-			}
+			GatherTracksAndObjectsToCopy(Node, TracksToCopy, ObjectsToCopy, FoldersToCopy);
 		}
 
 		// Make a empty clipboard if the stack is empty
@@ -11774,20 +11976,27 @@ void FSequencer::CopySelection()
 
 		FString ObjectsExportedText;
 		FString TracksExportedText;
+		FString FoldersExportedText;
 
 		if (ObjectsToCopy.Num())
 		{
-			CopySelectedObjects(ObjectsToCopy, ObjectsExportedText);
+			CopySelectedObjects(ObjectsToCopy, FoldersToCopy, ObjectsExportedText);
 		}
 
 		if (TracksToCopy.Num())
 		{
-			CopySelectedTracks(TracksToCopy, TracksExportedText);
+			CopySelectedTracks(TracksToCopy, FoldersToCopy, TracksExportedText);
+		}
+
+		if (FoldersToCopy.Num())
+		{
+			CopySelectedFolders(FoldersToCopy, FoldersExportedText);
 		}
 
 		FString ExportedText;
 		ExportedText += ObjectsExportedText;
 		ExportedText += TracksExportedText;
+		ExportedText += FoldersExportedText;
 
 		FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
 	}
@@ -12935,7 +13144,7 @@ void FSequencer::BindCommands()
 			SelectedNodes = Selection.GetSelectedOutlinerNodes();
 			for (TSharedRef<FSequencerDisplayNode> Node : SelectedNodes)
 			{
-				if (Node->GetType() == ESequencerNode::Track || Node->GetType() == ESequencerNode::Object)
+				if (Node->GetType() == ESequencerNode::Track || Node->GetType() == ESequencerNode::Object || Node->GetType() == ESequencerNode::Folder)
 				{
 					// if contains one node that can be copied we allow the action
 					// later on we will filter out the invalid nodes in CopySelection() or CutSelection()
@@ -13514,7 +13723,7 @@ void FSequencer::BuildAddSelectedToFolderSubMenu(FMenuBuilder& InMenuBuilder, TS
 
 void FSequencer::BuildAddSelectedToFolderMenuEntry(FMenuBuilder& InMenuBuilder, TSharedRef<TArray<UMovieSceneFolder*> > InExcludedFolders, UMovieSceneFolder* InFolder)
 {
-	TArray<UMovieSceneFolder*> ChildFolders = InFolder->GetChildFolders();;
+	TArray<UMovieSceneFolder*> ChildFolders = InFolder->GetChildFolders();
 
 	for (int32 Index = 0; Index < ChildFolders.Num(); ++Index)
 	{
