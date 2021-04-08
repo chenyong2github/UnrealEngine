@@ -86,7 +86,10 @@ namespace Metasound
 				{
 				}
 
-				virtual ~TSendOperator() {}
+				virtual ~TSendOperator() 
+				{
+					ResetSenderAndCleanupChannel();
+				}
 
 				virtual FDataReferenceCollection GetInputs() const override
 				{
@@ -105,6 +108,7 @@ namespace Metasound
 				{
 					if (SendAddress->ChannelName != CachedSendAddress.ChannelName)
 					{
+						ResetSenderAndCleanupChannel();
 						CachedSendAddress = *SendAddress;
 						Sender = FDataTransmissionCenter::Get().RegisterNewSender<TDataType>(CachedSendAddress, CachedSenderParams);
 						check(Sender.IsValid());
@@ -114,6 +118,12 @@ namespace Metasound
 				}
 
 			private:
+				void ResetSenderAndCleanupChannel()
+				{
+					Sender.Reset();
+					FDataTransmissionCenter::Get().UnregisterDataChannelIfUnconnected(GetMetasoundDataTypeName<TDataType>(), CachedSendAddress);
+				}
+
 				TDataReadReference<TDataType> InputData;
 				TDataReadReference<FSendAddress> SendAddress;
 				FSendAddress CachedSendAddress;

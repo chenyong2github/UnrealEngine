@@ -982,6 +982,7 @@ namespace Metasound
 		}
 
 		bool UnregisterDataChannel(const FName& InDataTypeName, const FName& InChannelName);
+		bool UnregisterDataChannelIfUnconnected(const FName& InDataTypeName, const FName& InChannelName);
 
 		FAddressRouter(const FAddressRouter& Other)
 			: DataChannelMap(Other.DataChannelMap)
@@ -1151,7 +1152,10 @@ namespace Metasound
 		}
 
 		// Unregisters DataChannel irrespective of number of receivers or senders still active.
-		bool UnregisterDataChannel(const FName& InDataTypeName, const FName& InChannelName);
+		bool UnregisterDataChannel(const FName& InDataTypeName, const FSendAddress& InAddress);
+
+		// Unregister a data channel if there are no senders or receivers
+		bool UnregisterDataChannelIfUnconnected(const FName& InDataTypeName, const FSendAddress& InAddress);
 
 		// Pushes a literal parameter to a specific data channel in the global router.
 		// returns false if the literal type isn't supported.

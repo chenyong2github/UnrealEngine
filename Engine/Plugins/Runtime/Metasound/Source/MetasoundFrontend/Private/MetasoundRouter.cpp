@@ -200,9 +200,24 @@ namespace Metasound
 		return MoveTemp(Receiver);
 	}
 
-	bool FDataTransmissionCenter::UnregisterDataChannel(const FName& InDataTypeName, const FName& InChannelName)
+	bool FDataTransmissionCenter::UnregisterDataChannel(const FName& InDataTypeName, const FSendAddress& InAddress)
 	{
-		return GlobalRouter.UnregisterDataChannel(InDataTypeName, InChannelName);
+		// Only supporting global router. Other subsystems are not used and will be reworked. 
+		if (ensure(InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global)))
+		{
+			return GlobalRouter.UnregisterDataChannel(InDataTypeName, InAddress.ChannelName);
+		}
+		return false;
+	}
+
+	bool FDataTransmissionCenter::UnregisterDataChannelIfUnconnected(const FName& InDataTypeName, const FSendAddress& InAddress)
+	{
+		// Only supporting global router. Other subsystems are not used and will be reworked. 
+		if (ensure(InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global)))
+		{
+			return GlobalRouter.UnregisterDataChannelIfUnconnected(InDataTypeName, InAddress.ChannelName);
+		}
+		return false;
 	}
 
 	bool FDataTransmissionCenter::PushLiteral(FName DataType, FName GlobalChannelName, const FLiteral& InParam)
@@ -313,6 +328,25 @@ namespace Metasound
 		}
 
 		return DataChannelMap.Remove(ChannelKey) > 0;
+	}
+
+	bool FAddressRouter::UnregisterDataChannelIfUnconnected(const FName& InDataTypeName, const FName& InChannelName)
+	{
+		FScopeLock ScopeLock(&DataChannelMapMutationLock);
+		const FDataChannelKey ChannelKey = GetDataChannelKey(InDataTypeName, InChannelName);
+
+		if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* Channel = DataChannelMap.Find(ChannelKey))
+		{
+			if (0 == Channel->Get().GetNumActiveReceivers())
+			{
+				if (0 == Channel->Get().GetNumActiveSenders())
+				{
+					return DataChannelMap.Remove(ChannelKey) > 0;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	TUniquePtr<IReceiver> FAddressRouter::RegisterNewReceiver(const FName& InDataTypeName, const FName& InChannelName, const FReceiverInitParams& InitParams)

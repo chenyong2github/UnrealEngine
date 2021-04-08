@@ -17,7 +17,7 @@ namespace Metasound
 
 		for (const FSendInfo& SendInfo : SendInfos)
 		{
-			bSuccess &= FDataTransmissionCenter::Get().UnregisterDataChannel(SendInfo.TypeName, SendInfo.Address.ChannelName);
+			bSuccess &= FDataTransmissionCenter::Get().UnregisterDataChannel(SendInfo.TypeName, SendInfo.Address);
 		}
 
 		return bSuccess;

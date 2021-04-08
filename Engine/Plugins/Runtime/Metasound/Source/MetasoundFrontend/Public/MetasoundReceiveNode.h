@@ -102,7 +102,10 @@ namespace Metasound
 				{
 				}
 
-				virtual ~TReceiverOperator() {}
+				virtual ~TReceiverOperator() 
+				{
+					ResetReceiverAndCleanupChannel();
+				}
 
 				virtual FDataReferenceCollection GetInputs() const override
 				{
@@ -125,13 +128,9 @@ namespace Metasound
 				{
 					if (SendAddress->ChannelName != CachedSendAddress.ChannelName)
 					{
+						ResetReceiverAndCleanupChannel();
 						CachedSendAddress = *SendAddress;
 						Receiver = FDataTransmissionCenter::Get().RegisterNewReceiver<TDataType>(CachedSendAddress, CachedReceiverParams);
-					}
-
-					if (bHasNotReceivedData)
-					{
-						*OutputData = *DefaultData;
 					}
 
 					bool bHasNewData = false;
@@ -145,6 +144,12 @@ namespace Metasound
 						}
 					}
 
+					if (bHasNotReceivedData)
+					{
+						*OutputData = *DefaultData;
+						bHasNewData = true;
+					}
+
 					if (TExecutableDataType<TDataType>::bIsExecutable)
 					{
 						TExecutableDataType<TDataType>::ExecuteInline(*OutputData, bHasNewData);
@@ -152,6 +157,13 @@ namespace Metasound
 				}
 
 			private:
+
+				void ResetReceiverAndCleanupChannel()
+				{
+					Receiver.Reset();
+					FDataTransmissionCenter::Get().UnregisterDataChannelIfUnconnected(GetMetasoundDataTypeName<TDataType>(), CachedSendAddress);
+				}
+
 				bool bHasNotReceivedData;
 
 				TDataReadReference<TDataType> DefaultData;
