@@ -25,6 +25,9 @@ private:
 
 	mutable FCriticalSection RecordsLock;
 	TMap<FName, TSet<FName>> Records;
+	FName LastReferencer = NAME_None;
+	FName LastReferenced = NAME_None;
+	TSet<FName>* LastReferencerSet = nullptr;
 	static FPackageBuildDependencyTracker Singleton;
 };
 

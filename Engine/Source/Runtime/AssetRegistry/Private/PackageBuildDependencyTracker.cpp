@@ -70,7 +70,21 @@ void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(UObject* ReadObjec
 					if (Referencer != Referenced)
 					{
 						FScopeLock RecordsScopeLock(&Singleton.RecordsLock);
-						Singleton.Records.FindOrAdd(Referencer).Add(Referenced);
+						if (Referencer == Singleton.LastReferencer)
+						{
+							if (Referenced != Singleton.LastReferenced)
+							{
+								Singleton.LastReferencerSet->Add(Referenced);
+								Singleton.LastReferenced = Referenced;
+							}
+						}
+						else
+						{
+							Singleton.LastReferenced = Referenced;
+							Singleton.LastReferencer = Referencer;
+							Singleton.LastReferencerSet = &Singleton.Records.FindOrAdd(Referencer);
+							Singleton.LastReferencerSet->Add(Referenced);
+						}
 					}
 					break;
 				}
