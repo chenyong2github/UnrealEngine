@@ -34,7 +34,7 @@
 
 // Volumetric fog interpolated per vertex gives very poor results, always sample the volumetric fog texture per-pixel
 // Opaque materials in the deferred renderer get volumetric fog applied in a deferred fog pass
-#define NEEDS_BASEPASS_PIXEL_VOLUMETRIC_FOGGING		(MATERIALBLENDING_ANY_TRANSLUCENT || FORWARD_SHADING)
+#define NEEDS_BASEPASS_PIXEL_VOLUMETRIC_FOGGING		(TRANSLUCENCY_NEEDS_BASEPASS_FOGGING || FORWARD_SHADING)
 
 #define NEEDS_LIGHTMAP						(NEEDS_LIGHTMAP_COORDINATE)
 
