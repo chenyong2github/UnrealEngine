@@ -433,7 +433,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 			}
 		)");
 
-		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT(" \n{\n");
+		OutHLSL += FString::Format(FormatSample, Args);
 	}
 	else if (FunctionInfo.DefinitionName == IssueAsyncRayTraceName)
 	{
