@@ -101,11 +101,11 @@ namespace Electra
 					{
 						OutSplits.Push(subs);
 					}
-					if (SplitPos == INDEX_NONE)
+					FirstPos = SplitPos + SplitAt.Len();
+					if (SplitPos == INDEX_NONE || FirstPos >= InString.Len())
 					{
 						break;
 					}
-					FirstPos = SplitPos + SplitAt.Len();
 				}
 			}
 		}
