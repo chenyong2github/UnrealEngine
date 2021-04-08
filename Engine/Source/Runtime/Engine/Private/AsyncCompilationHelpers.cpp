@@ -57,13 +57,17 @@ void FAsyncCompilationNotification::Update(int32 NumJobs)
 	}
 	else 
 	{
-		if(!NotificationHandle.IsValid())
+		if (!NotificationHandle.IsValid())
 		{
 			StartNumJobs = NumJobs;
 			NotificationHandle = FSlateNotificationManager::Get().StartProgressNotification(ProgressMessage, StartNumJobs);
 		}
 		else
 		{
+			if (NumJobs > StartNumJobs)
+			{
+				StartNumJobs = NumJobs;
+			}
 			FSlateNotificationManager::Get().UpdateProgressNotification(NotificationHandle, StartNumJobs - NumJobs, StartNumJobs, ProgressMessage);
 		}
 	}
