@@ -185,6 +185,11 @@ void UK2Node_ConstructObjectFromClass::AddSearchMetaDataInfo(TArray<struct FSear
 
 bool UK2Node_ConstructObjectFromClass::IsSpawnVarPin(UEdGraphPin* Pin) const
 {
+	if (Pin->ParentPin)
+	{
+		return IsSpawnVarPin(Pin->ParentPin);
+	}
+
 	return(	Pin->PinName != UEdGraphSchema_K2::PN_Execute &&
 			Pin->PinName != UEdGraphSchema_K2::PN_Then &&
 			Pin->PinName != UEdGraphSchema_K2::PN_ReturnValue &&
