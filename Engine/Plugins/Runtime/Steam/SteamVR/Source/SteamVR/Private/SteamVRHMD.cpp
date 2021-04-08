@@ -1916,25 +1916,19 @@ static void SetupHiddenAreaMeshes(vr::IVRSystem* const VRSystem, FHMDViewMesh Re
 		FVector2D* const LeftEyePositions = new FVector2D[VertexCount];
 		FVector2D* const RightEyePositions = new FVector2D[VertexCount];
 
-		uint32 DataIndex = 0;
-		for (uint32 TriangleIter = 0; TriangleIter < LeftEyeMesh.unTriangleCount; ++TriangleIter)
+		for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 		{
-			for (uint32 VertexIter = 0; VertexIter < 3; ++VertexIter)
-			{
-				const vr::HmdVector2_t& LeftSrc = LeftEyeMesh.pVertexData[DataIndex];
-				const vr::HmdVector2_t& RightSrc = RightEyeMesh.pVertexData[DataIndex];
+			const vr::HmdVector2_t& LeftSrc = LeftEyeMesh.pVertexData[VertexIndex];
+			const vr::HmdVector2_t& RightSrc = RightEyeMesh.pVertexData[VertexIndex];
 
-				FVector2D& LeftDst = LeftEyePositions[DataIndex];
-				FVector2D& RightDst = RightEyePositions[DataIndex];
+			FVector2D& LeftDst = LeftEyePositions[VertexIndex];
+			FVector2D& RightDst = RightEyePositions[VertexIndex];
 
-				LeftDst.X = LeftSrc.v[0];
-				LeftDst.Y = LeftSrc.v[1];
+			LeftDst.X = LeftSrc.v[0];
+			LeftDst.Y = LeftSrc.v[1];
 
-				RightDst.X = RightSrc.v[0];
-				RightDst.Y = RightSrc.v[1];
-
-				++DataIndex;
-			}
+			RightDst.X = RightSrc.v[0];
+			RightDst.Y = RightSrc.v[1];
 		}
 		
 		const FHMDViewMesh::EHMDMeshType MeshTransformType = (MeshType == vr::EHiddenAreaMeshType::k_eHiddenAreaMesh_Standard) ? FHMDViewMesh::MT_HiddenArea : FHMDViewMesh::MT_VisibleArea;
