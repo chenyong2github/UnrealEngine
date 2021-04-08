@@ -1310,12 +1310,17 @@ namespace Metasound
 							const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(InputName);
 							const FMetasoundFrontendLiteral DefaultLiteral = GraphHandle->GetDefaultInput(VertexID);
 							const FString DefaultLiteralString = DefaultLiteral.ToString();
-							if (MatchingPin->DefaultValue != DefaultLiteralString)
+
+							FMetasoundFrontendLiteral PinDataTypeDefaultLiteral;
+							if (GetPinDefaultLiteral(*MatchingPin, PinDataTypeDefaultLiteral))
 							{
-								const FText& OwningNodeName = NodeInput->GetOwningNode()->GetDisplayName();
-								UE_LOG(LogMetasoundEditor, Display, TEXT("Synchronizing Node '%s' Connection: Setting pin '%s' default value to '%s'"), *OwningNodeName.ToString(), *MatchingPin->GetName(), *DefaultLiteralString);
-								MatchingPin->DefaultValue = DefaultLiteralString;
-								bIsNodeDirty = true;
+								if (PinDataTypeDefaultLiteral.ToString() != DefaultLiteralString)
+								{
+									const FText& OwningNodeName = NodeInput->GetOwningNode()->GetDisplayName();
+									UE_LOG(LogMetasoundEditor, Display, TEXT("Synchronizing Node '%s' Connection: Setting pin '%s' default value to '%s'"), *OwningNodeName.ToString(), *MatchingPin->GetName(), *DefaultLiteralString);
+									MatchingPin->DefaultValue = DefaultLiteralString;
+									bIsNodeDirty = true;
+								}
 							}
 						}
 					}
