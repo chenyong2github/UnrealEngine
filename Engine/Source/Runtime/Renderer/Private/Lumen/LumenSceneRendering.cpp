@@ -31,7 +31,7 @@ FAutoConsoleVariableRef CVarLumenSceneCardCapturesPerFrame(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenSceneCardCaptureMargin = 2000.0f;
+float GLumenSceneCardCaptureMargin = 0.0f;
 FAutoConsoleVariableRef CVarLumenSceneCardCaptureMargin(
 	TEXT("r.LumenScene.CardCaptureMargin"),
 	GLumenSceneCardCaptureMargin,
@@ -180,6 +180,14 @@ FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
 	TEXT("r.LumenScene.GlobalDFClipmapExtent"),
 	GLumenSceneGlobalDFClipmapExtent,
 	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenScenePrimitivesPerPacket = 256;
+FAutoConsoleVariableRef CVarLumenScenePrimitivePerPacket(
+	TEXT("r.LumenScene.PrimitivesPerPacket"),
+	GLumenScenePrimitivesPerPacket,
+	TEXT("How many primitives to process per single Lumen packet."),
 	ECVF_RenderThreadSafe
 );
 
@@ -1062,7 +1070,6 @@ public:
 	int32 LumenInstanceIndex;
 };
 
-constexpr int32 LUMEN_PRIMITIVES_PER_PACKET = 512;
 constexpr int32 MAX_ADD_PRIMITIVE_PRIORITY = 255;
 
 class FCardAllocationOutput
@@ -1114,12 +1121,14 @@ public:
 		const TSparseSpanArray<FLumenCard>& InLumenCards,
 		FVector InViewOrigin,
 		float InMaxDistanceFromCamera,
-		int32 InFirstLumenPrimitiveIndex)
+		int32 InFirstLumenPrimitiveIndex,
+		int32 InNumPrimitivesPerPacket)
 		: LumenPrimitives(InLumenPrimitives)
 		, LumenMeshCards(InLumenMeshCards)
 		, LumenCards(InLumenCards)
 		, ViewOrigin(InViewOrigin)
 		, FirstLumenPrimitiveIndex(InFirstLumenPrimitiveIndex)
+		, NumPrimitivesPerPacket(InNumPrimitivesPerPacket)
 		, MaxDistanceFromCamera(InMaxDistanceFromCamera)
 		, TexelDensityScale(GetCardCameraDistanceTexelDensityScale())
 		, MaxTexelDensity(GLumenSceneCardMaxTexelDensity)
@@ -1132,18 +1141,21 @@ public:
 
 	void AnyThreadTask()
 	{
-		const int32 LastLumenPrimitiveIndex = FMath::Min(FirstLumenPrimitiveIndex + LUMEN_PRIMITIVES_PER_PACKET, LumenPrimitives.Num());
+		const int32 LastLumenPrimitiveIndex = FMath::Min(FirstLumenPrimitiveIndex + NumPrimitivesPerPacket, LumenPrimitives.Num());
 		const float MaxDistanceSquared = MaxDistanceFromCamera * MaxDistanceFromCamera;
 
 		for (int32 PrimitiveIndex = FirstLumenPrimitiveIndex; PrimitiveIndex < LastLumenPrimitiveIndex; ++PrimitiveIndex)
 		{
 			const FLumenPrimitive& LumenPrimitive = LumenPrimitives[PrimitiveIndex];
 
+			// Rought card min resolution test
 			const float DistanceSquared = ComputeSquaredDistanceFromBoxToPoint(LumenPrimitive.BoundingBox.Min, LumenPrimitive.BoundingBox.Max, ViewOrigin);
-			if (DistanceSquared <= MaxDistanceSquared)
+			const float MaxProjectedSize = (TexelDensityScale * LumenPrimitive.MaxCardExtent) / FMath::Sqrt(FMath::Max(DistanceSquared, 1.0f)) + 0.01f;
+
+			if (DistanceSquared <= MaxDistanceSquared && MaxProjectedSize > 2.0f)
 			{
 				for (int32 InstanceIndex = 0; InstanceIndex < LumenPrimitive.Instances.Num(); ++InstanceIndex)
-				{
+				{	
 					const FLumenPrimitiveInstance& Instance = LumenPrimitive.Instances[InstanceIndex];
 					float UpdatePriority = 0.0f;
 
@@ -1219,6 +1231,7 @@ public:
 	const TSparseSpanArray<FLumenCard>& LumenCards;
 	FVector ViewOrigin;
 	int32 FirstLumenPrimitiveIndex;
+	int32 NumPrimitivesPerPacket;
 	float MaxDistanceFromCamera;
 	float TexelDensityScale;
 	float MaxTexelDensity;
@@ -1234,12 +1247,10 @@ float ComputeMaxCardUpdateDistanceFromCamera()
 	if (GetNumLumenVoxelClipmaps() > 0 && GLumenSceneClipmapResolution > 0)
 	{
 		const float LastClipmapExtent = GLumenSceneFirstClipmapWorldExtent * (float)(1 << (GetNumLumenVoxelClipmaps() - 1));
-		const float HalfVoxelSize = LastClipmapExtent / GLumenSceneClipmapResolution;
-
-		MaxCardDistanceFromCamera = LastClipmapExtent + HalfVoxelSize;
+		MaxCardDistanceFromCamera = LastClipmapExtent;
 	}
 
-	return MaxCardDistanceFromCamera + FMath::Max(GLumenSceneCardCaptureMargin, 0.0f);
+	return MaxCardDistanceFromCamera + GLumenSceneCardCaptureMargin;
 }
 
 extern void UpdateLumenScenePrimitives(FScene* Scene);
@@ -1306,7 +1317,8 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(PrepareSurfaceCacheUpdate);
 
-				const int32 NumPackets = FMath::DivideAndRoundUp(LumenSceneData.LumenPrimitives.Num(), LUMEN_PRIMITIVES_PER_PACKET);
+				const int32 NumPrimitivesPerPacket = FMath::Max(GLumenScenePrimitivesPerPacket, 1);
+				const int32 NumPackets = FMath::DivideAndRoundUp(LumenSceneData.LumenPrimitives.Num(), NumPrimitivesPerPacket);
 
 				CardsToRender.Reset(GetMaxLumenSceneCardCapturesPerFrame());
 				Packets.Reserve(NumPackets);
@@ -1319,7 +1331,8 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 						LumenSceneData.Cards,
 						LumenSceneCameraOrigin,
 						MaxCardUpdateDistanceFromCamera,
-						PacketIndex * LUMEN_PRIMITIVES_PER_PACKET);
+						PacketIndex * NumPrimitivesPerPacket,
+						NumPrimitivesPerPacket);
 				}
 			}
 

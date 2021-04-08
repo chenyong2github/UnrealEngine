@@ -282,6 +282,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 				LumenPrimitive.Primitive = PrimitiveSceneInfo;
 				LumenPrimitive.Primitive->LumenPrimitiveIndex = LumenPrimitiveIndex;
 				LumenPrimitive.BoundingBox = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
+				LumenPrimitive.MaxCardExtent = LumenPrimitive.BoundingBox.GetExtent().GetMax();
 
 				if (PrimitiveInstances && NumInstances > 1)
 				{
@@ -339,6 +340,8 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						const FMatrix& LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 						LumenPrimitive.Instances.SetNum(NumInstances);
 
+						LumenPrimitive.MaxCardExtent = 0.0f;
+
 						for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 						{
 							FLumenPrimitiveInstance& LumenInstance = LumenPrimitive.Instances[InstanceIndex];
@@ -347,6 +350,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 							const FBox& LocalBoundingBox = PrimitiveInstance.RenderBounds.GetBox();
 
 							LumenInstance.BoundingBox = LocalBoundingBox.TransformBy(PrimitiveInstance.InstanceToLocal);
+							LumenPrimitive.MaxCardExtent = FMath::Max(LumenPrimitive.MaxCardExtent, LumenInstance.BoundingBox.GetExtent().GetMax());
 							LumenInstance.MeshCardsIndex = -1;
 							LumenInstance.bValidMeshCards = true;
 						}
@@ -400,6 +404,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 			{
 				FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[PrimitiveSceneInfo->LumenPrimitiveIndex];
 				LumenPrimitive.BoundingBox = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
+				LumenPrimitive.MaxCardExtent = LumenPrimitive.BoundingBox.GetExtent().GetMax();
 
 				const TArray<FPrimitiveInstance>* PrimitiveInstances = LumenPrimitive.Primitive->Proxy->GetPrimitiveInstances();
 
@@ -413,6 +418,8 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 				}
 				else
 				{
+					LumenPrimitive.MaxCardExtent = 0.0f;
+
 					for (int32 LumenInstanceIndex = 0; LumenInstanceIndex < LumenPrimitive.Instances.Num(); ++LumenInstanceIndex)
 					{
 						FLumenPrimitiveInstance& LumenInstance = LumenPrimitive.Instances[LumenInstanceIndex];
@@ -430,6 +437,8 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 						LumenInstance.BoundingBox = BoundingBox;
 						LumenSceneData.UpdateMeshCards(LocalToWorld, LumenInstance.MeshCardsIndex, CardRepresentationData->MeshCardsBuildData);
+
+						LumenPrimitive.MaxCardExtent = FMath::Max(LumenPrimitive.MaxCardExtent, LumenInstance.BoundingBox.GetExtent().GetMax());
 					}
 				}
 			}

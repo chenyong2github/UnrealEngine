@@ -143,6 +143,10 @@ class FLumenPrimitive
 {
 public:
 	FBox BoundingBox;
+
+	// Max extent of a card in any of instances belonging to this primitive. Used for culling.
+	float MaxCardExtent;
+
 	TArray<FLumenPrimitiveInstance, TInlineAllocator<1>> Instances;
 
 	FPrimitiveSceneInfo* Primitive = nullptr;
