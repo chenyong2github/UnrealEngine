@@ -489,11 +489,11 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Settings", meta=(ShowOnlyInnerProperties))
 	FNiagaraDebugHUDSettingsData Data;
 
-	void PostEditChangeProperty();
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange) {}
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) { PostEditChangeProperty(); }
-	virtual void NotifyPreChange(class FEditPropertyChain* PropertyAboutToChange) {}
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, class FEditPropertyChain* PropertyThatChanged) { PostEditChangeProperty(); }
+	void NotifyPropertyChanged();
+	virtual void NotifyPreChange(FProperty*) {}
+	virtual void NotifyPostChange(const FPropertyChangedEvent&, FProperty*) { NotifyPropertyChanged(); }
+	virtual void NotifyPreChange(class FEditPropertyChain*) {}
+	virtual void NotifyPostChange(const FPropertyChangedEvent&, class FEditPropertyChain*) { NotifyPropertyChanged(); }
 };
 
 

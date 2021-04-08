@@ -819,7 +819,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Play; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Play; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Play; })
 				),
@@ -834,7 +834,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Paused; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Paused; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Paused; })
 				),
@@ -849,7 +849,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Loop; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Loop; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Loop; })
 				),
@@ -864,7 +864,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Step; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Step; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Step; })
 				),
@@ -879,7 +879,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.bPlaybackRateEnabled = !Settings->Data.bPlaybackRateEnabled; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.bPlaybackRateEnabled = !Settings->Data.bPlaybackRateEnabled; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.bPlaybackRateEnabled; })
 				),
@@ -930,7 +930,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 				Speed.Get<2>(),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([Settings, Rate=Speed.Get<0>()]() { Settings->Data.PlaybackRate = Rate; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([Settings, Rate=Speed.Get<0>()]() { Settings->Data.PlaybackRate = Rate; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([Settings, Rate=Speed.Get<0>()]() { return FMath::IsNearlyEqual(Settings->Data.PlaybackRate, Rate); })
 				),
@@ -957,7 +957,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 				.MaxValue(TOptional<float>())
 				.MinSliderValue(0.0f)
 				.MaxSliderValue(1.0f)
-				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->Data.PlaybackRate = InNewValue; Settings->PostEditChangeProperty(); }))
+				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->Data.PlaybackRate = InNewValue; Settings->NotifyPropertyChanged(); }))
 			],
 			FText()
 		);
@@ -973,7 +973,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 			LOCTEXT("LoopTimeEnabledTooltip", "When enabled and in loop mode systems will loop on this time rather than when they finish"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([Settings]() { Settings->Data.bLoopTimeEnabled = !Settings->Data.bLoopTimeEnabled; Settings->PostEditChangeProperty(); }),
+				FExecuteAction::CreateLambda([Settings]() { Settings->Data.bLoopTimeEnabled = !Settings->Data.bLoopTimeEnabled; Settings->NotifyPropertyChanged(); }),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([Settings]() { return Settings->Data.bLoopTimeEnabled; })
 			),
@@ -999,7 +999,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 				.MaxValue(TOptional<float>())
 				.MinSliderValue(0.0f)
 				.MaxSliderValue(5.0f)
-				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->Data.LoopTime = InNewValue; Settings->PostEditChangeProperty(); }))
+				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->Data.LoopTime = InNewValue; Settings->NotifyPropertyChanged(); }))
 			],
 			FText()
 		);

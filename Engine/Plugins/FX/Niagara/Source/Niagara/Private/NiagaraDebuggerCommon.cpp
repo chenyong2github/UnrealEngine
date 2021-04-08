@@ -14,7 +14,7 @@ FNiagaraDebugHUDSettingsData::FNiagaraDebugHUDSettingsData()
 
 //////////////////////////////////////////////////////////////////////////
 
-void UNiagaraDebugHUDSettings::PostEditChangeProperty()
+void UNiagaraDebugHUDSettings::NotifyPropertyChanged()
 {
 	OnChangedDelegate.Broadcast();
 	SaveConfig();
