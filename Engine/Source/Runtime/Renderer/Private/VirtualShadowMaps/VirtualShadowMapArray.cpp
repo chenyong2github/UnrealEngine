@@ -653,7 +653,7 @@ void FVirtualShadowMapArray::MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder
 			RDG_EVENT_NAME("MarkRenderedPhysicalPages"),
 			ComputeShader,
 			PassParameters,
-			FIntVector(FMath::DivideAndRoundUp(ShadowMaps.Num() * FVirtualShadowMap::PageTableSize, FMarkRenderedPhysicalPagesCS::DefaultCSGroupX), 1, 1)
+			FIntVector(FMath::DivideAndRoundUp(FVirtualShadowMap::PageTableSize, FMarkRenderedPhysicalPagesCS::DefaultCSGroupX), ShadowMaps.Num(), 1)
 		);
 	}
 }

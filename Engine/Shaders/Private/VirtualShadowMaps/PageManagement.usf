@@ -927,18 +927,18 @@ StructuredBuffer<uint> VirtualShadowMapFlags;
 /**
  * Processes all page tables organized as a linear block, page table entries for mip levels are in a consecutive range,
  * so it makes no difference to this process which shadow map or level is being handled.
- * Run with Dispatch size: {NumVirtualShadowMaps * VSM_PAGE_TABLE_SIZE / VSM_DEFAULT_CS_GROUP_X, 1, 1}
+ * Run with Dispatch size: {VSM_PAGE_TABLE_SIZE / VSM_DEFAULT_CS_GROUP_X, NumVirtualShadowMaps, 1}
  */
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
-void MarkRenderedPhysicalPages(uint3 PageTableEntryIndex : SV_DispatchThreadID)
+void MarkRenderedPhysicalPages(uint3 DispatchThreadID : SV_DispatchThreadID)
 {
 	// Because of launch size rounding we might get here.
-	if (PageTableEntryIndex.x >= VirtualShadowMap.NumShadowMaps * VSM_PAGE_TABLE_SIZE)
+	if (DispatchThreadID.x >= VSM_PAGE_TABLE_SIZE)
 	{
 		return;
 	}
 
-	uint ShadowMapID = PageTableEntryIndex.x / VSM_PAGE_TABLE_SIZE;
+	uint ShadowMapID = DispatchThreadID.y;
 
 	// This is estupido, should at least use array of IDs to skip all unused ones...
 	if (VirtualShadowMapFlags[ShadowMapID] == 0)
@@ -946,7 +946,8 @@ void MarkRenderedPhysicalPages(uint3 PageTableEntryIndex : SV_DispatchThreadID)
 		return;
 	}
 
-	FShadowPhysicalPage pPage = ShadowGetPhysicalPage(PageTableEntryIndex.x);
+	uint PageTableEntryIndex = DispatchThreadID.y * VSM_PAGE_TABLE_SIZE + DispatchThreadID.x;
+	FShadowPhysicalPage pPage = ShadowGetPhysicalPage(PageTableEntryIndex);
 	if (pPage.bThisLODValid)
 	{
 		uint PageIndex = PhysPageAddressToIndex(pPage.PageIndex);

@@ -3094,6 +3094,67 @@ static void AllocateCandidateBuffers(FRDGBuilder& GraphBuilder, FGlobalShaderMap
 	}
 }
 
+// Render a large number of views by splitting them into multiple passes. This is only supported for depth-only rendering.
+// Visibility buffer rendering requires that view references are uniquely decodable.
+static void CullRasterizeMultiPass(
+	FRDGBuilder& GraphBuilder,
+	const FScene& Scene,
+	const TArray<FPackedView, SceneRenderingAllocator>& Views,
+	uint32 NumPrimaryViews,
+	FCullingContext& CullingContext,
+	const FRasterContext& RasterContext,
+	const FRasterState& RasterState,
+	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws,
+	FVirtualShadowMapArray* VirtualShadowMapArray,
+	bool bExtractStats
+)
+{
+	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::CullRasterizeSplitViewRanges");
+
+	check(RasterContext.RasterTechnique == ERasterTechnique::DepthOnly);
+
+	uint32 NextPrimaryViewIndex = 0;
+	while (NextPrimaryViewIndex < NumPrimaryViews)
+	{
+		// Fit as many views as possible into the next range
+		int32 RangeStartPrimaryView = NextPrimaryViewIndex;
+		int32 RangeNumViews = 0;
+		int32 RangeMaxMip = 0;
+		while (NextPrimaryViewIndex < NumPrimaryViews)
+		{
+			const Nanite::FPackedView& PrimaryView = Views[NextPrimaryViewIndex];
+			const int32 NumMips = PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z;
+
+			// Can we include the next primary view and its mips?
+			int32 NextRangeNumViews = FMath::Max(RangeMaxMip, NumMips) * (NextPrimaryViewIndex - RangeStartPrimaryView + 1);
+			if (NextRangeNumViews > MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
+				break;
+
+			RangeNumViews = NextRangeNumViews;
+			NextPrimaryViewIndex++;
+			RangeMaxMip = FMath::Max(RangeMaxMip, NumMips);
+		}
+
+		// Construct new view range
+		int32 RangeNumPrimaryViews = NextPrimaryViewIndex - RangeStartPrimaryView;
+		TArray<FPackedView, SceneRenderingAllocator> RangeViews;
+		RangeViews.SetNum(RangeNumViews);
+
+		for (int32 i = 0; i < RangeNumPrimaryViews; i++)
+		{
+			const Nanite::FPackedView& PrimaryView = Views[RangeStartPrimaryView + i];
+			const int32 NumMips = PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z;
+
+			for (int32 j = 0; j < NumMips; j++)
+			{
+				RangeViews[j * RangeNumPrimaryViews + i] = Views[j * NumPrimaryViews + (RangeStartPrimaryView + i)];
+			}
+		}
+
+		CullRasterize(GraphBuilder, Scene, RangeViews, RangeNumPrimaryViews, CullingContext, RasterContext, RasterState, OptionalInstanceDraws, VirtualShadowMapArray, bExtractStats);
+	}
+}
+
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -3109,7 +3170,16 @@ void CullRasterize(
 )
 {
 	LLM_SCOPE_BYTAG(Nanite);
-	RDG_EVENT_SCOPE( GraphBuilder, "Nanite::CullRasterize" );
+	
+	// Split rasterization into multiple passes if there are too many views. Only possible for depth-only rendering.
+	if (Views.Num() > MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
+	{
+		check(RasterContext.RasterTechnique == ERasterTechnique::DepthOnly);
+		CullRasterizeMultiPass(GraphBuilder, Scene, Views, NumPrimaryViews, CullingContext, RasterContext, RasterState, OptionalInstanceDraws, VirtualShadowMapArray, bExtractStats);
+		return;
+	}
+
+	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::CullRasterize");
 
 	AddPassIfDebug(GraphBuilder, [](FRHICommandList&)
 	{
@@ -3416,8 +3486,12 @@ void CullRasterize(
 		);
 	}
 
-	CullingContext.DrawPassIndex++;
-	CullingContext.RenderFlags |= RENDER_FLAG_HAVE_PREV_DRAW_DATA;
+	if (RasterContext.RasterTechnique != ERasterTechnique::DepthOnly)
+	{
+		// Pass index and number of clusters rendered in previous passes are irrelevant for depth-only rendering.
+		CullingContext.DrawPassIndex++;
+		CullingContext.RenderFlags |= RENDER_FLAG_HAVE_PREV_DRAW_DATA;
+	}
 
 	if (bExtractStats)
 	{
