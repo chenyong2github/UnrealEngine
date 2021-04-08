@@ -36,9 +36,13 @@ public:
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
     bool bSelectionOnly;
 
-	/** Whether to bake UE materials and replace all usages of the unrealMaterial attribute with material bindings to the baked assets */
+	/** Whether to bake UE materials and add material bindings to the baked assets */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
     bool bBakeMaterials;
+
+	/** Whether to remove the 'unrealMaterial' attribute after binding the corresponding baked material */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( EditCondition = "bBakeMaterials" ) )
+	bool bRemoveUnrealMaterials;
 
 	/** Whether to use UE actor folders as empty prims */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
