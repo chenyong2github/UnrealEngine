@@ -189,7 +189,9 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object)
 			// New actor
 			else
 			{
-				OnActorDescAdded(AddActor(Actor));
+				FWorldPartitionActorDesc* const AddedActorDesc = AddActor(Actor);
+				OnActorDescAdded(AddedActorDesc);
+				OnActorDescAddedEvent.Broadcast(AddedActorDesc);
 			}
 		}
 	}
@@ -203,8 +205,10 @@ void UActorDescContainer::OnPackageDeleted(UPackage* Package)
 	{
 		if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(Actor->GetActorGuid()))
 		{
-			OnActorDescRemoved(ExistingActorDesc->Get());
-			RemoveActorDescriptor(ExistingActorDesc->Get());
+			FWorldPartitionActorDesc* const RemovedActorDesc = ExistingActorDesc->Get();
+			OnActorDescRemovedEvent.Broadcast(RemovedActorDesc);
+			OnActorDescRemoved(RemovedActorDesc);
+			RemoveActorDescriptor(RemovedActorDesc);
 			ExistingActorDesc->Reset();
 		}
 	}
@@ -238,5 +242,15 @@ void UActorDescContainer::UnregisterDelegates()
 		FCoreUObjectDelegates::OnObjectSaved.RemoveAll(this);
 		FEditorDelegates::OnPackageDeleted.RemoveAll(this);
 	}
+}
+
+void UActorDescContainer::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
+{
+	OnActorDescAddedEvent.Broadcast(NewActorDesc);
+}
+
+void UActorDescContainer::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
+{
+	OnActorDescRemovedEvent.Broadcast(ActorDesc);
 }
 #endif

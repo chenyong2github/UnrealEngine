@@ -31,10 +31,19 @@ TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, co
 	GEngine->OnLevelActorFolderChanged().AddRaw(Hierarchy, &FActorHierarchy::OnLevelActorFolderChanged);
 	GEngine->OnLevelActorListChanged().AddRaw(Hierarchy, &FActorHierarchy::OnLevelActorListChanged);
 
-	if (World.IsValid() && World->PersistentLevel)
+	if (World.IsValid())
 	{
-		World->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddRaw(Hierarchy, &FActorHierarchy::OnLoadedActorAdded);
-		World->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.AddRaw(Hierarchy, &FActorHierarchy::OnLoadedActorRemoved);
+		if (World->PersistentLevel)
+		{
+			World->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddRaw(Hierarchy, &FActorHierarchy::OnLoadedActorAdded);
+			World->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.AddRaw(Hierarchy, &FActorHierarchy::OnLoadedActorRemoved);
+		}
+
+		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+		{
+			WorldPartition->OnActorDescAddedEvent.AddRaw(Hierarchy, &FActorHierarchy::OnActorDescAdded);
+			WorldPartition->OnActorDescRemovedEvent.AddRaw(Hierarchy, &FActorHierarchy::OnActorDescRemoved);
+		}
 	}
 
 	FWorldDelegates::LevelAddedToWorld.AddRaw(Hierarchy, &FActorHierarchy::OnLevelAdded);
@@ -66,10 +75,19 @@ FActorHierarchy::~FActorHierarchy()
 		GEngine->OnLevelActorListChanged().RemoveAll(this);
 	}
 
-	if (RepresentingWorld.IsValid() && RepresentingWorld->PersistentLevel)
+	if (RepresentingWorld.IsValid())
 	{
-		RepresentingWorld->PersistentLevel->OnLoadedActorAddedToLevelEvent.RemoveAll(this);
-		RepresentingWorld->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.RemoveAll(this);
+		if (RepresentingWorld->PersistentLevel)
+		{
+			RepresentingWorld->PersistentLevel->OnLoadedActorAddedToLevelEvent.RemoveAll(this);
+			RepresentingWorld->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.RemoveAll(this);
+		}
+
+		if (UWorldPartition* WorldPartition = RepresentingWorld->GetWorldPartition())
+		{
+			WorldPartition->OnActorDescAddedEvent.RemoveAll(this);
+			WorldPartition->OnActorDescRemovedEvent.RemoveAll(this);
+		}
 	}
 
 	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
@@ -535,6 +553,31 @@ void FActorHierarchy::OnLoadedActorRemoved(AActor& InActor)
 				HierarchyChangedEvent.Broadcast(EventData);
 			}
 		}
+	}
+}
+
+void FActorHierarchy::OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc)
+{
+	if (bShowingUnloadedActors && ActorDesc && !ActorDesc->IsLoaded())
+	{
+		if (UWorldPartition* WorldPartition = RepresentingWorld->GetWorldPartition())
+		{
+			FSceneOutlinerHierarchyChangedData EventData;
+			EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
+			EventData.Items.Add(Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc->GetGuid(), WorldPartition)));
+			HierarchyChangedEvent.Broadcast(EventData);
+		}
+	}
+}
+
+void FActorHierarchy::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
+{
+	if (bShowingUnloadedActors && ActorDesc)
+	{
+		FSceneOutlinerHierarchyChangedData EventData;
+		EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
+		EventData.ItemIDs.Add(ActorDesc->GetGuid());
+		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
 

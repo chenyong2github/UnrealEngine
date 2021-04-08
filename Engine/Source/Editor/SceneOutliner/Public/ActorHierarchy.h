@@ -43,6 +43,9 @@ private:
 
 	void OnLoadedActorAdded(AActor& InActor);
 	void OnLoadedActorRemoved(AActor& InActor);
+
+	void OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc);
+	void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
 	
 	void OnComponentsUpdated();
 
