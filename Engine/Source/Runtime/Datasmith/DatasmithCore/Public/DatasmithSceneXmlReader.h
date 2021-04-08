@@ -63,6 +63,7 @@ private:
 
 	FString ResolveFilePath(const FString& InAssetFile) const;
 
+	template<typename T> T ValueFromString(const FString& InString) const;
 	FQuat QuatFromHexString(const FString& HexString) const;
 
 	TUniquePtr< FXmlFile > XmlFile;
