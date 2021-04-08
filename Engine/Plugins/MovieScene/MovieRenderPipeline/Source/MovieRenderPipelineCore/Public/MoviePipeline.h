@@ -276,34 +276,6 @@ private:
 
 
 private:
-	/** Previous values for data that we modified in the sequence for restoration in shutdown. */
-	struct FMovieSceneChanges
-	{
-		// Master level settings
-		EMovieSceneEvaluationType EvaluationType;
-		TRange<FFrameNumber> PlaybackRange;
-		bool bSequenceReadOnly;
-		bool bSequencePlaybackRangeLocked;
-		bool bSequencePackageDirty;
-
-		struct FSegmentChange
-		{
-			TWeakObjectPtr<class UMovieScene> MovieScene;
-			bool bMovieScenePackageDirty;
-			TRange<FFrameNumber> MovieScenePlaybackRange;
-			bool bMovieSceneReadOnly;
-			TWeakObjectPtr<UMovieSceneCinematicShotSection> ShotSection;
-			bool bShotSectionIsLocked;
-			TRange<FFrameNumber> ShotSectionRange;
-			bool bShotSectionIsActive;
-			TWeakObjectPtr<UMovieSceneCameraCutSection> CameraSection;
-			bool bCameraSectionIsActive;
-		};
-
-		// Shot-specific settings
-		TArray<FSegmentChange> Segments;
-	};
-
 	/** Iterates through the changes we've made to a shot and applies the original settings. */
 	void RestoreTargetSequenceToOriginalState();
 
@@ -317,10 +289,10 @@ private:
 	* Modifies the TargetSequence to ensure that only the specified Shot has it's associated Cinematic Shot Section enabled.
 	* This way when Handle Frames are enabled and the sections are expanded, we don't end up evaluating the previous shot. 
 	*/
-	void SetSoloShot(const UMoviePipelineExecutorShot* InShot);
+	void SetSoloShot(UMoviePipelineExecutorShot* InShot);
 
 	/* Expands the specified shot (and contained camera cuts)'s ranges for the given settings. */
-	void ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovieSceneChanges::FSegmentChange& InSegmentData, const int32 InNumHandleFrames);
+	void ExpandShot(UMoviePipelineExecutorShot* InShot, const int32 InNumHandleFrames, const bool bIsPrePass);
 
 	/** Calculates lots of useful numbers used in timing based off of the current shot. These are constant for a given shot. */
 	MoviePipeline::FFrameConstantMetrics CalculateShotFrameMetrics(const UMoviePipelineExecutorShot* InShot) const;
@@ -432,9 +404,8 @@ private:
 	/** Keep track of clips we've exported, for building FCPXML and other project files */
 	FMovieSceneExportMetadata OutputMetadata;
 #endif
-
 	TArray<TFuture<bool>> OutputFutures;
-	FMovieSceneChanges SequenceChanges;
+	TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> CachedSequenceHierarchyRoot;
 };
 
 UCLASS()

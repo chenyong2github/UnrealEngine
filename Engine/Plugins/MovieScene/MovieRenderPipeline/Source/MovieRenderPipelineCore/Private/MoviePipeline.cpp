@@ -177,31 +177,11 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 
 	TargetSequence = Cast<ULevelSequence>(GetCurrentJob()->Sequence.TryLoad());
 
-	// Disable some user settings that conflict with our need to mutate the data.
-	{
-#if WITH_EDITORONLY_DATA
-		// Movie Scene Read Only
-		SequenceChanges.bSequenceReadOnly = TargetSequence->GetMovieScene()->IsReadOnly();
-		TargetSequence->GetMovieScene()->SetReadOnly(false);
-		
-		// Playback Range locked
-		SequenceChanges.bSequencePlaybackRangeLocked = TargetSequence->GetMovieScene()->IsPlaybackRangeLocked();
-		TargetSequence->GetMovieScene()->SetPlaybackRangeLocked(false);
-#endif
-		// Force Frame-locked evaluation off on the sequence. We control time and will respect that, but need it off for subsampling.
-		SequenceChanges.EvaluationType = TargetSequence->GetMovieScene()->GetEvaluationType();
-		TargetSequence->GetMovieScene()->SetEvaluationType(EMovieSceneEvaluationType::WithSubFrames);
-	}
-
-	if(UPackage* Package = TargetSequence->GetMovieScene()->GetTypedOuter<UPackage>())
-	{
-		SequenceChanges.bSequencePackageDirty = Package->IsDirty();
-	}
+	CachedSequenceHierarchyRoot = MakeShared<MoviePipeline::FCameraCutSubSectionHierarchyNode>();
+	MoviePipeline::CacheCompleteSequenceHierarchy(TargetSequence, CachedSequenceHierarchyRoot);
 
 	// Override the frame range on the target sequence if needed first before anyone has a chance to modify it.
 	{
-		SequenceChanges.PlaybackRange = TargetSequence->GetMovieScene()->GetPlaybackRange();
-
 		UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 		if (OutputSetting->bUseCustomPlaybackRange)
 		{
@@ -209,6 +189,9 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 			FFrameNumber EndFrameTickResolution = FFrameRate::TransformTime(FFrameTime(FFrameNumber(OutputSetting->CustomEndFrame)), TargetSequence->GetMovieScene()->GetDisplayRate(), TargetSequence->GetMovieScene()->GetTickResolution()).CeilToFrame();
 
 			TRange<FFrameNumber> CustomPlaybackRange = TRange<FFrameNumber>(StartFrameTickResolution, EndFrameTickResolution);
+			
+			TargetSequence->GetMovieScene()->SetPlaybackRangeLocked(false);
+			TargetSequence->GetMovieScene()->SetReadOnly(false);
 			TargetSequence->GetMovieScene()->SetPlaybackRange(CustomPlaybackRange);
 		}
 	}
@@ -236,7 +219,22 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSettingForShot<UMoviePipelineOutputSetting>(Shot);
 
 		FMovieSceneExportMetadataShot& ShotMetadata = OutputMetadata.Shots.AddDefaulted_GetRef();
-		ShotMetadata.MovieSceneShotSection = Cast<UMovieSceneCinematicShotSection>(Shot->OuterPathKey.TryLoad());
+
+		// The XML exporter only supports a root sequence that contains shots, but we support deep hierarchies.
+		// To resolve this, we only take the highest sub-sequence node.
+		TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> CurNode = Shot->ShotInfo.SubSectionHierarchy;
+		while (CurNode)
+		{
+			// Shorthand for checking if this node has subsequence data for the root level
+			if (CurNode->GetParent() && CurNode->GetParent()->GetParent() == nullptr)
+			{
+				ShotMetadata.MovieSceneShotSection = Cast<UMovieSceneCinematicShotSection>(CurNode->Section);
+				break;
+			}
+
+			CurNode = CurNode->GetParent();
+		}
+
 		ShotMetadata.HandleFrames = OutputSettings->HandleFrameCount;
 	}
 #endif
@@ -317,47 +315,7 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 		return;
 	}
 
-	TargetSequence->GetMovieScene()->SetEvaluationType(SequenceChanges.EvaluationType);
-	TargetSequence->GetMovieScene()->SetPlaybackRange(SequenceChanges.PlaybackRange);
-#if WITH_EDITORONLY_DATA
-	TargetSequence->GetMovieScene()->SetReadOnly(SequenceChanges.bSequenceReadOnly);
-	TargetSequence->GetMovieScene()->SetPlaybackRangeLocked(SequenceChanges.bSequencePlaybackRangeLocked);
-#endif
-	if(UPackage* Package = TargetSequence->GetMovieScene()->GetTypedOuter<UPackage>())
-	{
-		Package->SetDirtyFlag(SequenceChanges.bSequencePackageDirty);
-	}	
-
-
-	for (FMovieSceneChanges::FSegmentChange& ModifiedSegment : SequenceChanges.Segments)
-	{
-		if (ModifiedSegment.MovieScene.IsValid())
-		{
-			ModifiedSegment.MovieScene->SetPlaybackRange(ModifiedSegment.MovieScenePlaybackRange);
-#if WITH_EDITORONLY_DATA
-			ModifiedSegment.MovieScene->SetReadOnly(ModifiedSegment.bMovieSceneReadOnly);
-#endif
-			if(UPackage* Package = ModifiedSegment.MovieScene->GetTypedOuter<UPackage>())
-			{
-				Package->SetDirtyFlag(ModifiedSegment.bMovieScenePackageDirty);
-			}	
-		}
-
-		if (ModifiedSegment.ShotSection.IsValid())
-		{
-			ModifiedSegment.ShotSection->SetRange(ModifiedSegment.ShotSectionRange);
-			ModifiedSegment.ShotSection->SetIsLocked(ModifiedSegment.bShotSectionIsLocked);
-			
-			ModifiedSegment.ShotSection->SetIsActive(ModifiedSegment.bShotSectionIsActive);
-			ModifiedSegment.ShotSection->MarkAsChanged();
-		}
-
-		if (ModifiedSegment.CameraSection.IsValid())
-		{
-			ModifiedSegment.CameraSection->SetIsActive(ModifiedSegment.bCameraSectionIsActive);
-			ModifiedSegment.CameraSection->MarkAsChanged();
-		}
-	}
+	MoviePipeline::RestoreCompleteSequenceHierarchy(TargetSequence, CachedSequenceHierarchyRoot);
 }
 
 
@@ -848,6 +806,49 @@ void UMoviePipeline::BuildShotListFromSequence()
 	// Shots that are already in the list will be updated but their enable flag will be respected.
 	bool bShotsChanged = false;
 	UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(TargetSequence, GetCurrentJob(), bShotsChanged);
+
+	for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
+	{
+		// We need to run a pre-pass on shot expansion. This doesn't actually expand the data  in pre-pass mode, but it
+		// runs the calculations like it would and updates our metrics so that frame-count estimates are correct later.
+		// We do the actual expansion of each shot right before rendering.
+		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSettingForShot<UMoviePipelineOutputSetting>(Shot);
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(Shot);
+		UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(Shot);
+
+		// This info is read in ExpandShot so needs to be set first
+		Shot->ShotInfo.NumTemporalSamples = AntiAliasingSettings->TemporalSampleCount;
+		Shot->ShotInfo.NumSpatialSamples = AntiAliasingSettings->SpatialSampleCount;
+		Shot->ShotInfo.CachedFrameRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
+		Shot->ShotInfo.CachedTickResolution = TargetSequence->GetMovieScene()->GetTickResolution();
+		Shot->ShotInfo.NumTiles = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
+
+		// Expand the shot (but don't actually modify the sections)
+		const bool bPrePass = true;
+		ExpandShot(Shot, OutputSettings->HandleFrameCount, bPrePass);
+
+
+		bool bUseCameraCutForWarmUp = AntiAliasingSettings->bUseCameraCutForWarmUp;
+		if (Shot->ShotInfo.NumEngineWarmUpFramesRemaining == 0 && bUseCameraCutForWarmUp)
+		{
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Shot was asked to use excess Camera Cut section data for warm-up but no warmup range was detected. Extend the Camera Cut section to the left for this shot or disable bUseCameraCutForWarmUp to resolve this issue."));
+			// If they don't have enough data for warmup (no camera cut extended track) fall back to emulated warmup.
+			bUseCameraCutForWarmUp = false;
+		}
+
+		// Warm Up Frames. If there are any render samples we require at least one engine warm up frame.
+		int32 NumWarmupFrames = bUseCameraCutForWarmUp ? Shot->ShotInfo.NumEngineWarmUpFramesRemaining : AntiAliasingSettings->EngineWarmUpCount;
+		Shot->ShotInfo.NumEngineWarmUpFramesRemaining = FMath::Max(NumWarmupFrames, AntiAliasingSettings->RenderWarmUpCount > 0 ? 1 : 0);
+
+		// When using real warmup we don't emulate a first frame motion blur as we actually have real data.
+		Shot->ShotInfo.bEmulateFirstFrameMotionBlur = !bUseCameraCutForWarmUp;
+		Shot->ShotInfo.CalculateWorkMetrics();
+
+		// When we expanded the shot above, it pushed the first/last camera cuts ranges to account for Handle Frames.
+		// We want to start rendering from the first handle frame. Shutter Timing is a fixed offset from this number.
+		Shot->ShotInfo.CurrentTickInMaster = Shot->ShotInfo.TotalOutputRangeMaster.GetLowerBoundValue();
+	}
+
 	int32 ShotIndex = 0;
 
 	// Find any duplicate shot names and append a number to keep them unique
@@ -877,141 +878,19 @@ void UMoviePipeline::BuildShotListFromSequence()
 		}
 	}
 
+	// The active shot-list is a subset of the whole shot-list; The ShotInfo contains information about every range it detected to render
+	// but if the user has turned the shot off in the UI then we don't want to render it.
+	ActiveShotList.Empty();
 	for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
 	{
-		// Cache the original values before we modify them so that we can restore them at the end.
-		UMovieScene* InnerMovieScene = nullptr;
-		UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(Shot->OuterPathKey.TryLoad());
-
-		if (ShotSection && ShotSection->GetSequence())
+		if (Shot->ShouldRender())
 		{
-			InnerMovieScene = ShotSection->GetSequence()->GetMovieScene();
+			ActiveShotList.Add(Shot);;
 		}
-
-		// Cache information about all segments, as we disable all segments when rendering, not just active ones.
-		FMovieSceneChanges::FSegmentChange& ModifiedSegment = SequenceChanges.Segments.AddDefaulted_GetRef();
-		if (InnerMovieScene)
-		{
-			// Look to see if we have already stored data about this inner movie scene. If we have, we simply use that data.
-			// If we were to build the data from scratch each time, then the first time a inner movie scene is used it will be
-			// cached correctly, but subsequent uses would cache incorrectly as the 1st instance would modify playback bounds.
-			FMovieSceneChanges::FSegmentChange* ExistingSegment = nullptr;
-			for (int32 Index = 0; Index < SequenceChanges.Segments.Num(); Index++)
-			{
-				if (InnerMovieScene == SequenceChanges.Segments[Index].MovieScene)
-				{
-					ExistingSegment = &SequenceChanges.Segments[Index];
-				}
-			}
-
-			if (ExistingSegment)
-			{
-				ModifiedSegment.MovieScenePlaybackRange = ExistingSegment->MovieScenePlaybackRange;
-				ModifiedSegment.bMovieSceneReadOnly = ExistingSegment->bMovieSceneReadOnly;
-				ModifiedSegment.bMovieScenePackageDirty = ExistingSegment->bMovieScenePackageDirty;
-			}
-			else
-			{
-				ModifiedSegment.MovieScenePlaybackRange = InnerMovieScene->GetPlaybackRange();
-#if WITH_EDITORONLY_DATA
-				ModifiedSegment.bMovieSceneReadOnly = InnerMovieScene->IsReadOnly();
-#endif
-				if (UPackage* OwningPackage = InnerMovieScene->GetTypedOuter<UPackage>())
-				{
-					ModifiedSegment.bMovieScenePackageDirty = OwningPackage->IsDirty();
-				}
-
-#if WITH_EDITORONLY_DATA
-				// Unlock the playback range and readonly flags so we can modify the scene.
-				InnerMovieScene->SetReadOnly(false);
-#endif
-			}
-		}
-
-		// Don't set this until after we've searched the existing Segments for a matching movie scene, otherwise
-		// we match immediately and then we copy default values from our first segment.
-		ModifiedSegment.MovieScene = InnerMovieScene;
-
-		ModifiedSegment.CameraSection = Cast<UMovieSceneCameraCutSection>(Shot->InnerPathKey.TryLoad());
-		if (ModifiedSegment.CameraSection.IsValid())
-		{
-			ModifiedSegment.bCameraSectionIsActive = ModifiedSegment.CameraSection->IsActive();
-		}
-
-		if (ShotSection)
-		{
-			// Since multiple segments could map to the same cinematic shot section, and the cinematic 
-			// shot could have been modified already, find the first segment corresponding to this shot 
-			// and use its cached properties.
-			FMovieSceneChanges::FSegmentChange* ExistingShotSegment = nullptr;
-			for (int32 Index = 0; Index < SequenceChanges.Segments.Num(); Index++)
-			{
-				if (ShotSection == SequenceChanges.Segments[Index].ShotSection)
-				{
-					ExistingShotSegment = &SequenceChanges.Segments[Index];
-					break;
-				}
-			}
-			if (ExistingShotSegment)
-			{
-				ModifiedSegment.bShotSectionIsLocked = ExistingShotSegment->bShotSectionIsLocked;
-				ModifiedSegment.ShotSectionRange = ExistingShotSegment->ShotSectionRange;
-				ModifiedSegment.bShotSectionIsActive = ExistingShotSegment->bShotSectionIsActive;
-			}
-			else
-			{
-				ModifiedSegment.bShotSectionIsLocked = ShotSection->IsLocked();
-				ModifiedSegment.ShotSectionRange = ShotSection->GetRange();
-				ModifiedSegment.bShotSectionIsActive = ShotSection->IsActive();
-			}
-			
-			ShotSection->SetIsLocked(false);
-		}
-		ModifiedSegment.ShotSection = ShotSection;
-
-		// For non-active shots, this is where we stop
-		if (!Shot->ShouldRender())
-		{
-			continue;
-		}
-
-		ActiveShotList.Add(Shot);
-
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Expanding Shot %d/%d (Shot: %s Camera: %s)"), ShotIndex  + 1, ActiveShotList.Num(), *Shot->OuterName, *Shot->InnerName);
-		ShotIndex++;
-
-		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSettingForShot<UMoviePipelineOutputSetting>(Shot);
-		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(Shot);
-		UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(Shot);
-
-		// Expand the shot to encompass handle frames. This will modify our Camera Cuts bounds.
-		ExpandShot(Shot, ModifiedSegment, OutputSettings->HandleFrameCount);
-
-		bool bUseCameraCutForWarmUp = AntiAliasingSettings->bUseCameraCutForWarmUp;
-		if (Shot->ShotInfo.NumEngineWarmUpFramesRemaining == 0)
-		{
-			// If they don't have enough data for warmup (no camera cut extended track) fall back to emulated warmup.
-			bUseCameraCutForWarmUp = false;
-		}
-		// Warm Up Frames. If there are any render samples we require at least one engine warm up frame.
-		int32 NumWarmupFrames = bUseCameraCutForWarmUp ? Shot->ShotInfo.NumEngineWarmUpFramesRemaining : AntiAliasingSettings->EngineWarmUpCount;
-		Shot->ShotInfo.NumEngineWarmUpFramesRemaining = FMath::Max(NumWarmupFrames, AntiAliasingSettings->RenderWarmUpCount > 0 ? 1 : 0);
-
-		// When using real warmup we don't emulate a first frame motion blur as we actually have real data.
-		Shot->ShotInfo.bEmulateFirstFrameMotionBlur = !bUseCameraCutForWarmUp;
-		Shot->ShotInfo.NumTemporalSamples = AntiAliasingSettings->TemporalSampleCount;
-		Shot->ShotInfo.NumSpatialSamples = AntiAliasingSettings->SpatialSampleCount;
-		Shot->ShotInfo.CachedFrameRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
-		Shot->ShotInfo.CachedTickResolution = TargetSequence->GetMovieScene()->GetTickResolution();
-		Shot->ShotInfo.NumTiles = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
-		Shot->ShotInfo.CalculateWorkMetrics();
-
-		// When we expanded the shot above, it pushed the first/last camera cuts ranges to account for Handle Frames.
-		// We want to start rendering from the first handle frame. Shutter Timing is a fixed offset from this number.
-		Shot->ShotInfo.CurrentLocalSeqTick = Shot->ShotInfo.TotalOutputRangeLocal.GetLowerBoundValue();
 	}
-
 }
+
+
 
 void UMoviePipeline::InitializeShot(UMoviePipelineExecutorShot* InShot)
 {
@@ -1062,6 +941,15 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 		}
 	}
 
+	// Restore the sequence to the original state. We made changes to this when we solo'd it, so we want to unsolo now.
+	for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
+	{
+		TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> Node = Shot->ShotInfo.SubSectionHierarchy;
+
+		const bool bSaveSettings = false;
+		MoviePipeline::SaveOrRestoreSubSectionHierarchy(Node, bSaveSettings);
+	}
+
 	CurrentShotIndex++;
 
 	// Check to see if this was the last shot in the Pipeline, otherwise on the next
@@ -1073,182 +961,152 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 	}
 }
 
-void UMoviePipeline::SetSoloShot(const UMoviePipelineExecutorShot* InShot)
+
+
+void UMoviePipeline::SetSoloShot(UMoviePipelineExecutorShot* InShot)
 {
-	// We want to iterate through the entire shot list, not the active shot list to disable camera cuts and segments.
-	// Otherwise shots that may have originally fallen outside of our playback range (or were disabled by shot mask)
-	// would get skipped and could still be enabled and thus evaluated.
+	// We need to 'solo' shots whichs means disabling any other sections that may overlap with the one currently being
+	// rendered. This is because temporal samples, handle frames, warmup frames, etc. all need to evaluate outside of
+	// their original bounds and we don't want to end up evaluating something that should have been clipped by another shot.
 	for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
 	{
-		UMovieSceneCinematicShotSection* CinematicShotSection = Cast<UMovieSceneCinematicShotSection>(Shot->OuterPathKey.TryLoad());
-		if (CinematicShotSection)
-		{
-			CinematicShotSection->SetIsActive(false);
-			CinematicShotSection->MarkAsChanged();
-		}
+		TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> Node = Shot->ShotInfo.SubSectionHierarchy;
+		const bool bSaveSettings = true;
+		MoviePipeline::SaveOrRestoreSubSectionHierarchy(Node, bSaveSettings);
 
-		UMovieSceneCameraCutSection* CameraCutSection = Cast<UMovieSceneCameraCutSection>(Shot->InnerPathKey.TryLoad());
-		if (CameraCutSection)
-		{
-			CameraCutSection->SetIsActive(false);
-			CameraCutSection->MarkAsChanged();
-		}
+		MoviePipeline::SetSubSectionHierarchyActive(Node, false);
 	}
 
-	// Now that we've set them all to inactive we'll ensure that our passed in shot is active.
-	if (UMovieSceneCinematicShotSection* CurrentShotSection = Cast<UMovieSceneCinematicShotSection>(InShot->OuterPathKey.TryLoad()))
+	// Historically shot expansion was done all at once up front, however this creates a lot of complications when a movie scene isn't filled with unique data
+	// such as re-using shots or using different parts of shots. To resolve this, we expand the entire tree needed for a given range, render it, and then restore the original
+	// values before moving onto the next shot so that each shot has no effect on the others.
 	{
-		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Disabled all shot tracks and re-enabling %s for solo."), *CurrentShotSection->GetShotDisplayName());
-		CurrentShotSection->SetIsActive(true);
-		CurrentShotSection->MarkAsChanged();
-	}
-	else
-	{
-		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Disabled all shot tracks and skipped enabling a shot track due to no shot section associated with the provided shot."));
-	}
-	if (UMovieSceneCameraCutSection* CameraCutSection = Cast<UMovieSceneCameraCutSection>(InShot->InnerPathKey.TryLoad()))
-	{
-		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Disabled all camera cut tracks and re-enabling %s for solo."), *CameraCutSection->GetName());
-		CameraCutSection->SetIsActive(true);
-		CameraCutSection->MarkAsChanged();
-	}
-	else
-	{
-		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Disabled all camera cut tracks and skipped enabling a camera cut track due to no camera cut section associated with the provided shot."));
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Expanding Shot %d/%d (Shot: %s Camera: %s)"), CurrentShotIndex + 1, ActiveShotList.Num(), *InShot->OuterName, *InShot->InnerName);
+		
+		// Enable the one hierarchy we do want for rendering. We will re-disable it later when we restore the current Sequence state.
+		MoviePipeline::SetSubSectionHierarchyActive(InShot->ShotInfo.SubSectionHierarchy, true);
+
+		
+		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSettingForShot<UMoviePipelineOutputSetting>(InShot);
+
+		// Expand the shot to encompass handle frames. This will modify the sections required for expansion, etc.
+		const bool bIsPrePass = false;
+		ExpandShot(InShot, OutputSettings->HandleFrameCount, bIsPrePass);
 	}
 }
 
-void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovieSceneChanges::FSegmentChange& InSegmentData, const int32 InNumHandleFrames)
+
+
+void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const int32 InNumHandleFrames, const bool bIsPrePass)
 {
 	const MoviePipeline::FFrameConstantMetrics FrameMetrics = CalculateShotFrameMetrics(InShot);
+	int32 LeftDeltaFrames = 0;
+	int32 RightDeltaFrames = 0;
 
-	TRange<FFrameNumber> TotalPlaybackRangeMaster = TargetSequence->GetMovieScene()->GetPlaybackRange();
+	// Calculate the number of ticks added for warmup frames. These are added to both sides. The rendering
+	// code is unaware of handle frames, we just pretend the shot is bigger than it actually is.
+	LeftDeltaFrames += InNumHandleFrames;
+	RightDeltaFrames += InNumHandleFrames;
 
-	// Handle Frames will be added onto our original shot size- the actual rendering code is unaware of the handle frames. 
-	// Handle Frames only apply to the shot and expand the first/last inner cut to cover this area.
-	FFrameNumber HandleFrameTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame().Value * InNumHandleFrames;
-
-	// Expand their total output range so the renderer accounts for them.
-	InShot->ShotInfo.TotalOutputRangeLocal = UE::MovieScene::DilateRange(InShot->ShotInfo.TotalOutputRangeLocal, -HandleFrameTicks, HandleFrameTicks);
-
-	// Warm up frames only apply to the first camera cut in a shot, so we'll take the number of ticks for real warm up and
-	// convert that into frames. if they don't want real warm up it will be overriden later. 
-	if (!InShot->ShotInfo.WarmUpRangeLocal.IsEmpty())
-	{
-		FFrameNumber TicksForWarmUp = InShot->ShotInfo.WarmUpRangeLocal.Size<FFrameNumber>();
-		InShot->ShotInfo.NumEngineWarmUpFramesRemaining = FFrameRate::TransformTime(FFrameTime(TicksForWarmUp), FrameMetrics.TickResolution, FrameMetrics.FrameRate).CeilToFrame().Value;
-
-		// Handle frames weren't accounted for when we calculated the warm up range, so just reduce the amount of warmup by that.
-		// When we actually evaluate we will start our math from the first handle frame so we're still starting from the same
-		// absolute position regardless of the handle frame count.
-		InShot->ShotInfo.NumEngineWarmUpFramesRemaining = FMath::Max(InShot->ShotInfo.NumEngineWarmUpFramesRemaining - InNumHandleFrames, 0);
-	}
-
-	FFrameNumber LeftDeltaTicks = 0;
-	FFrameNumber RightDeltaTicks = 0;
-
+	// We expand both the first and last frames so Temporal Sub-Sampling can correctly evaluate either side of a frame.
 	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(InShot);
 	const bool bHasMultipleTemporalSamples = AntiAliasingSettings->TemporalSampleCount > 1;
 	if (bHasMultipleTemporalSamples)
 	{
-		LeftDeltaTicks += FrameMetrics.TicksPerOutputFrame.FloorToFrame();
-		RightDeltaTicks += FrameMetrics.TicksPerOutputFrame.FloorToFrame();
+		LeftDeltaFrames +=1;
+		RightDeltaFrames += 1;
 	}
 
-	// Account for handle frame expansion
-	LeftDeltaTicks += HandleFrameTicks;
-	RightDeltaTicks += HandleFrameTicks;
-
-	if (InSegmentData.MovieScene.IsValid())
+	// Check to see if the detected range was not aligned to a whole frame on the master.
+	const FFrameRate MasterDisplayRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
+	FFrameTime StartTimeInMaster = FFrameRate::TransformTime(InShot->ShotInfo.TotalOutputRangeMaster.GetLowerBoundValue(), InShot->ShotInfo.CachedTickResolution, MasterDisplayRate);
+	if(bIsPrePass && StartTimeInMaster.GetSubFrame() != 0.f)
 	{
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Shot/Camera \"%s\" starts on a sub-frame. Rendered range has been rounded to the previous frame to match Sequencer."), *InShot->OuterName, *InShot->InnerName);
+		FFrameNumber NewStartFrame = FFrameRate::TransformTime(FFrameTime(StartTimeInMaster.GetFrame()), MasterDisplayRate, InShot->ShotInfo.CachedTickResolution).FloorToFrame();
+		InShot->ShotInfo.TotalOutputRangeMaster.SetLowerBoundValue(NewStartFrame);
+	}
+
+	FFrameNumber LeftDeltaTicks = FFrameRate::TransformTime(FFrameTime(LeftDeltaFrames), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
+	FFrameNumber RightDeltaTicks = FFrameRate::TransformTime(FFrameTime(RightDeltaFrames), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
+
+	// We auto-expand into the warm-up ranges, but users are less concerned about 'early' data there. So we cache how many frames
+	// the user expects to check beforehand, so we can use this for a warning later.
+	const int32 LeftDeltaFramesUserPoV = LeftDeltaFrames;
+	FFrameNumber LeftDeltaTicksUserPoV = FFrameRate::TransformTime(FFrameTime(LeftDeltaFramesUserPoV), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
+
+	// We generate this from excess camera cut length. If they don't want real warmup then this is overriden later.
+	// Needs to happen after we expand the TotalOutputRangeMaster for handle frames - the MoviePipelineTiming re-calculates
+	// the required offset when jumping based on NumEngineWarmUpFramesRemaining.
+	if (!InShot->ShotInfo.WarmupRangeMaster.IsEmpty())
+	{
+		if (bIsPrePass)
+		{
+			FFrameNumber TicksForWarmUp = InShot->ShotInfo.WarmupRangeMaster.Size<FFrameNumber>();
+			InShot->ShotInfo.NumEngineWarmUpFramesRemaining = FFrameRate::TransformTime(FFrameTime(TicksForWarmUp), FrameMetrics.TickResolution, FrameMetrics.FrameRate).CeilToFrame().Value;
+
+			// Handle frames weren't accounted for when we calculated the warm up range, so just reduce the amount of warmup by that.
+			// When we actually evaluate we will start our math from the first handle frame so we're still starting from the same
+			// absolute position regardless of the handle frame count.
+			InShot->ShotInfo.NumEngineWarmUpFramesRemaining = FMath::Max(InShot->ShotInfo.NumEngineWarmUpFramesRemaining - InNumHandleFrames, 0);
+		}
+
+		LeftDeltaFrames += InShot->ShotInfo.NumEngineWarmUpFramesRemaining;
+	}
+
+	TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> Node = InShot->ShotInfo.SubSectionHierarchy;
+	while (Node)
+	{
+		LeftDeltaTicks = FFrameRate::TransformTime(FFrameTime(LeftDeltaFrames), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
+		RightDeltaTicks = FFrameRate::TransformTime(FFrameTime(RightDeltaFrames), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
 		// We need to expand the inner playback bounds to cover three features:
 		// 1) Temporal Sampling (+1 frame each end)
 		// 2) Handle frames (+n frames left/right)
 		// 3) Using the camera-cut as real warm-up frames (+n frames left side only)
 		// To keep the inner movie scene and outer sequencer section in sync we can calculate the tick delta
 		// to each side and simply expand both sections like that - ignoring all start frame offsets, etc.
-
-		// Left side only warm up.
-		if (InShot->ShotInfo.NumEngineWarmUpFramesRemaining > 0 && !InShot->ShotInfo.WarmUpRangeLocal.IsEmpty())
+		if (!bIsPrePass)
 		{
-			// Handle frames eat into warm up frames (accounted for above) so we don't double add them for expansion.
-			LeftDeltaTicks += (InShot->ShotInfo.WarmUpRangeLocal.Size<FFrameNumber>() - HandleFrameTicks);
-		}
-
-		// Expand our inner playback bounds and outer movie scene section to keep them in sync.
-		InSegmentData.ShotSection->SetRange(UE::MovieScene::DilateRange(InSegmentData.ShotSection->GetRange(), -LeftDeltaTicks, RightDeltaTicks));
-		InSegmentData.MovieScene->SetPlaybackRange(UE::MovieScene::DilateRange(InSegmentData.MovieScene->GetPlaybackRange(), -LeftDeltaTicks, RightDeltaTicks));
-	}
-
-	// Expansion of the top level playback bounds needs to happen regardless of whether there is an inner movie scene or not to cover handle frames + temporal sample.
-	// This will over-expand (once per camera cut) but it's effectively cosmetic so no harm.
-	TotalPlaybackRangeMaster = UE::MovieScene::DilateRange(TargetSequence->MovieScene->GetPlaybackRange(), -LeftDeltaTicks, RightDeltaTicks);
-
-	// Ensure the overall Movie Scene Playback Range is large enough. This will clamp evaluation if we don't expand it. We hull the existing range
-	// with the new range.
-	TRange<FFrameNumber> EncompassingPlaybackRange = TRange<FFrameNumber>::Hull(TotalPlaybackRangeMaster, TargetSequence->MovieScene->GetPlaybackRange());
-	TargetSequence->GetMovieScene()->SetPlaybackRange(EncompassingPlaybackRange);
-
-	// Validate sections evaluated in the expanded shot 
-	check(InShot->ShotInfo.OriginalRangeLocal.HasLowerBound());
-	TRange<FFrameNumber> WarningRange = TRange<FFrameNumber>(
-		TRangeBound<FFrameNumber>::Exclusive(InShot->ShotInfo.OriginalRangeLocal.GetLowerBoundValue() - LeftDeltaTicks), 
-		TRangeBound<FFrameNumber>::Inclusive(InShot->ShotInfo.OriginalRangeLocal.GetLowerBoundValue())
-	);
-
-	// Iterate through increasing outer shot sections 
-	UMovieSceneCinematicShotSection* OuterShotSection = Cast<UMovieSceneCinematicShotSection>(InShot->OuterPathKey.TryLoad());
-	while (OuterShotSection)
-	{
-		// Warn if any of the sections are contained in the handle + temporal sampling ranges
-		for (UMovieSceneSection* SectionToValidate : OuterShotSection->GetSequence()->GetMovieScene()->GetAllSections())
-		{
-			// Skip shot sections and camera cut sections since they don't apply and their range may already be expanded anyways
-			if (SectionToValidate->GetClass() == UMovieSceneCinematicShotSection::StaticClass() ||
-				SectionToValidate->GetClass() == UMovieSceneCameraCutSection::StaticClass())
+			if (Node->CameraCutSection.IsValid())
 			{
-				continue;
+				// Expand the camera cut section because there's no harm in doing it.
+				Node->CameraCutSection->SetRange(UE::MovieScene::DilateRange(Node->CameraCutSection->GetRange(), -LeftDeltaTicks, RightDeltaTicks));
+				Node->CameraCutSection->MarkAsChanged();
 			}
-			
-			if (SectionToValidate->GetRange().HasLowerBound() && WarningRange.Contains(SectionToValidate->GetRange().GetLowerBoundValue()))
+
+			if (Node->Section.IsValid())
 			{
-				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("A section (%s) starts before the camera cut begins but after temporal and handle samples begin. Evaluation in this area may fail unexpectedly."), *SectionToValidate->GetPathName());
+				// Expand the MovieSceneSubSequenceSection
+				Node->Section->SetRange(UE::MovieScene::DilateRange(Node->Section->GetRange(), -LeftDeltaTicks, RightDeltaTicks));
+				Node->Section->MarkAsChanged();
+			}
+
+			if (Node->MovieScene.IsValid())
+			{
+				// Expand the Playback Range of the movie scene as well. Expanding this at the same time as expanding the 
+				// SubSequenceSection will result in no apparent change to the evaluated time. ToDo: This doesn't work if
+				// sub-sequences have different tick resolutions?
+				Node->MovieScene->SetPlaybackRange(UE::MovieScene::DilateRange(Node->MovieScene->GetPlaybackRange(), -LeftDeltaTicks, RightDeltaTicks));
+				Node->MovieScene->MarkAsChanged();
 			}
 		}
-
-		// Update the ranges to be in the outer sequence space
-		FMovieSceneSequenceTransform InnerToOuterTransform = OuterShotSection->OuterToInnerTransform().InverseLinearOnly();
-		WarningRange = InnerToOuterTransform.TransformRangePure(WarningRange);
-
-		OuterShotSection = OuterShotSection->GetSequence()->GetTypedOuter<UMovieSceneCinematicShotSection>();
-	}
-
-	// Same warning as above, but for the top level sequence
-	for (UMovieSceneSection* SectionToValidate : TargetSequence->GetMovieScene()->GetAllSections())
-	{
-		if (SectionToValidate->GetClass() == UMovieSceneCinematicShotSection::StaticClass() ||
-			SectionToValidate->GetClass() == UMovieSceneCameraCutSection::StaticClass())
+		else
 		{
-			continue;
+			// We only do our warnings during the pre-pass
+			// Check for sections that start in the expanded evaluation range and warn user. Only check the frames user expects to (handle + temporal, no need for warm up frames to get checked as well)
+			MoviePipeline::CheckPartialSectionEvaluationAndWarn(LeftDeltaTicksUserPoV, Node, InShot, MasterDisplayRate);
 		}
 
-		if (SectionToValidate->GetRange().HasLowerBound() && WarningRange.Contains(SectionToValidate->GetRange().GetLowerBoundValue()))
-		{
-			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("A section (%s) starts on or before the camera cut begins but after temporal and handle samples begin. Evaluation in this area may fail unexpectedly."), *SectionToValidate->GetPathName());
-		}
+		Node = Node->GetParent();
 	}
 
-	// Warn for not whole frame aligned shots
-	const TRange<FFrameNumber> SectionRange = InShot->ShotInfo.OriginalRangeLocal;
-
-	TRange<FFrameTime> OriginalRangeOuter;
-	const FFrameNumber LowerInMasterTicks = (SectionRange.GetLowerBoundValue() * InShot->ShotInfo.InnerToOuterTransform).FloorToFrame();
-	FFrameTime OriginalRangeOuterLower = FFrameRate::TransformTime(FFrameTime(LowerInMasterTicks, 0.0f),
-		TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate());
-
-	if (OriginalRangeOuterLower.GetSubFrame() != 0.0f)
+	// Expand the Total Output Range Master by Handle Frames. The expansion of TotalOutputRangeMaster has to come after we do partial evaluation checks,
+	// otherwise the expanded range makes it check the wrong area for partial evaluations.
+	if (bIsPrePass)
 	{
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Detected a camera cut that started on a sub-frame (%s%s starts on %f). Output frame numbers may not match original Sequencer frame numbers"), *InShot->InnerName, InShot->OuterName.IsEmpty() ? TEXT("") : *FString(" in " + InShot->OuterName), OriginalRangeOuterLower.AsDecimal());
+		// We expand on the pre-pass so that we have the correct number of frames set up in our datastructures before we reach each shot so that metrics
+		// work as expected.
+		InShot->ShotInfo.TotalOutputRangeMaster = UE::MovieScene::DilateRange(InShot->ShotInfo.TotalOutputRangeMaster, -LeftDeltaTicksUserPoV, RightDeltaTicks);
 	}
 }
 

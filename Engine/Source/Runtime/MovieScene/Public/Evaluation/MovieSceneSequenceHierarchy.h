@@ -53,6 +53,11 @@ struct FMovieSceneSubSequenceData
 	 */
 	MOVIESCENE_API bool IsDirty(const UMovieSceneSubSection& InSubSection) const;
 
+	/**
+	* Gets the signature of the sub-section this points to. 
+	*/
+	MOVIESCENE_API FGuid GetSubSectionSignature() const { return SubSectionSignature; }
+
 	/** The sequence that the sub section references */
 	UPROPERTY(meta=(AllowedClasses="MovieSceneSequence"))
 	FSoftObjectPath Sequence;

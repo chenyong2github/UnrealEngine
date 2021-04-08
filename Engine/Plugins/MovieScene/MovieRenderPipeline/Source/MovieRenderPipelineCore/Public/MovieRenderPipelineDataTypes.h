@@ -8,8 +8,10 @@
 #include "Engine/EngineTypes.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
+#include "Sections/MovieSceneSubSection.h"
 #include "OpenColorIOColorSpace.h"
 #include "Async/ParallelFor.h"
+#include "MovieSceneSequenceID.h"
 #include "MovieRenderPipelineDataTypes.generated.h"
 
 class UMovieSceneCinematicShotSection;
@@ -276,6 +278,116 @@ namespace MoviePipeline
 			return FFrameTime(InTime) + MotionBlurCenteringOffsetTicks + ShutterOffsetTicks;
 		}
 	};
+
+	struct FCameraCutSubSectionHierarchyNode : TSharedFromThis<FCameraCutSubSectionHierarchyNode>
+	{
+		FCameraCutSubSectionHierarchyNode()
+			: bOriginalMovieSceneReadOnly(false)
+			, bOriginalMovieScenePlaybackRangeLocked(false)
+			, bOriginalMovieScenePackageDirty(false)
+			, bOriginalShotSectionIsLocked(false)
+			, bOriginalCameraCutIsActive(false)
+			, bOriginalShotSectionIsActive(false)
+			, EvaluationType(EMovieSceneEvaluationType::WithSubFrames)
+			, NodeID(MovieSceneSequenceID::Invalid)
+		{
+		}
+
+		/** The UMovieScene that this node has data for. */
+		TWeakObjectPtr<class UMovieScene> MovieScene;
+		/** The UMovieSceneSubSection within the movie scene (if any) */
+		TWeakObjectPtr<class UMovieSceneSubSection> Section;
+		/** The UMovieSceneCameraCutSection within the movie scene (if any) */
+		TWeakObjectPtr<class UMovieSceneCameraCutSection> CameraCutSection;
+		
+		// These are used to restore this node back to its proper shape post render.
+		TRange<FFrameNumber> OriginalMovieScenePlaybackRange;
+		bool bOriginalMovieSceneReadOnly;
+		bool bOriginalMovieScenePlaybackRangeLocked;
+		bool bOriginalMovieScenePackageDirty;
+
+		bool bOriginalShotSectionIsLocked;
+		TRange<FFrameNumber> OriginalShotSectionRange;
+		TRange<FFrameNumber> OriginalCameraCutSectionRange;
+
+		bool bOriginalCameraCutIsActive;
+		bool bOriginalShotSectionIsActive;
+
+		EMovieSceneEvaluationType EvaluationType;
+		FMovieSceneSequenceID NodeID;
+
+		void AddChild(TSharedPtr<FCameraCutSubSectionHierarchyNode> InChild)
+		{
+			if (!InChild)
+			{
+				return;
+			}
+
+			InChild->Parent = AsShared();
+			Children.AddUnique(InChild);
+		}
+
+		TArray<TSharedPtr<FCameraCutSubSectionHierarchyNode>> GetChildren() const
+		{
+			return Children;
+		}
+
+		void SetParent(TSharedPtr<FCameraCutSubSectionHierarchyNode> InParent)
+		{
+			if (!InParent)
+			{
+				return;
+			}
+
+			if (InParent == Parent)
+			{
+				return;
+			}
+
+			ensureAlwaysMsgf(!Parent, TEXT("Cannot switch parents of FCameraCutSubSectionHierarchy nodes."));
+
+			// Automatically adds us as a child of the parent and assigns out parent.
+			InParent->AddChild(AsShared());
+		}
+
+		bool IsEmpty() const
+		{
+			return *this == FCameraCutSubSectionHierarchyNode();
+		}
+
+		TSharedPtr<FCameraCutSubSectionHierarchyNode> GetParent() const { return Parent; }
+
+	private:
+		/** A pointer to the next node in the tree who actually includes us in the hierarchy. Different than outers as each moviescene is outered to its own package. */
+		TSharedPtr<FCameraCutSubSectionHierarchyNode> Parent;
+		/** An array of pointers to our children for downwards traversal. */
+		TArray<TSharedPtr<FCameraCutSubSectionHierarchyNode>> Children;
+
+		bool operator == (const FCameraCutSubSectionHierarchyNode& InRHS) const
+		{
+			return MovieScene == InRHS.MovieScene
+				&& Section == InRHS.Section
+				&& CameraCutSection == InRHS.CameraCutSection
+				&& OriginalMovieScenePlaybackRange == InRHS.OriginalMovieScenePlaybackRange
+				&& bOriginalMovieSceneReadOnly == InRHS.bOriginalMovieSceneReadOnly
+				&& bOriginalMovieScenePlaybackRangeLocked == InRHS.bOriginalMovieScenePlaybackRangeLocked
+				&& bOriginalMovieScenePackageDirty == InRHS.bOriginalMovieScenePackageDirty
+				&& bOriginalShotSectionIsLocked == InRHS.bOriginalShotSectionIsLocked
+				&& OriginalShotSectionRange == InRHS.OriginalShotSectionRange
+				&& OriginalCameraCutSectionRange == InRHS.OriginalCameraCutSectionRange
+				&& bOriginalCameraCutIsActive == InRHS.bOriginalCameraCutIsActive
+				&& bOriginalShotSectionIsActive == InRHS.bOriginalShotSectionIsActive
+				&& EvaluationType == InRHS.EvaluationType
+				&& NodeID == InRHS.NodeID
+				&& Children == InRHS.Children
+				&& Parent == InRHS.Parent;
+		}
+
+		bool operator != (const FCameraCutSubSectionHierarchyNode& InRHS) const
+		{
+			return !(*this == InRHS);
+		}
+	};
 }
 
 USTRUCT(BlueprintType)
@@ -341,15 +453,11 @@ struct FMoviePipelineCameraCutInfo
 	GENERATED_BODY()
 public:
 	FMoviePipelineCameraCutInfo()
-		: OriginalRangeLocal(TRange<FFrameNumber>::Empty())
-		, TotalOutputRangeLocal(TRange<FFrameNumber>::Empty())
-		, WarmUpRangeLocal(TRange<FFrameNumber>::Empty())
-		, bEmulateFirstFrameMotionBlur(true)
+		: bEmulateFirstFrameMotionBlur(true)
 		, NumTemporalSamples(0)
 		, NumSpatialSamples(0)
 		, NumTiles(0, 0)
 		, State(EMovieRenderShotState::Uninitialized)
-		, CurrentLocalSeqTick(FFrameNumber(0))
 		, bHasEvaluatedMotionBlurFrame(false)
 		, NumEngineWarmUpFramesRemaining(0)
 	{
@@ -363,17 +471,9 @@ private:
 	FFrameNumber GetOutputFrameCountEstimate() const;
 
 public:
-	/** The original non-modified range for this shot that will be rendered. This is in local space and should be multiplied by InnerToOuterTransform to convert to top-level space. */
-	TRange<FFrameNumber> OriginalRangeLocal;
+	
+	TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> SubSectionHierarchy;
 
-	/** The range for this shot including handle frames that will be rendered. This is in local space and should be multiplied by InnerToOuterTransform to convert to top-level space. */
-	TRange<FFrameNumber> TotalOutputRangeLocal;
-
-	/** The range for this shot (overlapping handle frames) that has data to do real warm ups with. Intermediate product to turn into NumEngineWarmUpFramesRemaining later. */
-	TRange<FFrameNumber> WarmUpRangeLocal;
-
-	/** The ranges in this class are in local space and need to be multiplied by the LinearTransform of this to convert them to master space. If they are already in master space the transform is identity. */
-	FMovieSceneSequenceTransform InnerToOuterTransform;
 
 	/** 
 	* Should we evaluate/render an extra frame at the start of this shot to show correct motion blur on the first frame? 
@@ -396,14 +496,18 @@ public:
 	/** Cached Tick Resolution our numbers are in. Simplifies some APIs. */
 	FFrameRate CachedTickResolution;
 	
-	
-	TWeakObjectPtr<UMovieSceneCameraCutSection> CameraCutSection;
 public:
 	/** The current state of processing this Shot is in. Not all states will be passed through. */
 	EMovieRenderShotState State;
 
-	/** The current tick of this shot that we're on local space, for knowing which frame of this sub-section is equivalent to the master. */
-	FFrameNumber CurrentLocalSeqTick;
+	/** The current tick of this shot that we're on in master space */
+	FFrameNumber CurrentTickInMaster;
+	
+	/** The total range of output frames in master space */
+	TRange<FFrameNumber> TotalOutputRangeMaster;
+	
+	/** The total range of warmup frames in master space */
+	TRange<FFrameNumber> WarmupRangeMaster;
 
 	/** Metrics - How much work has been done for this particular shot and how much do we estimate we have to do? */
 	FMoviePipelineSegmentWorkMetrics WorkMetrics;
@@ -414,26 +518,6 @@ public:
 
 	/** How many engine warm up frames are left to process for this shot. May be zero. */
 	int32 NumEngineWarmUpFramesRemaining;
-
-
-
-	bool operator == (const FMoviePipelineCameraCutInfo& InRHS) const
-	{
-		return
-			OriginalRangeLocal == InRHS.OriginalRangeLocal &&
-			TotalOutputRangeLocal == InRHS.TotalOutputRangeLocal &&
-			State == InRHS.State &&
-			NumEngineWarmUpFramesRemaining == InRHS.NumEngineWarmUpFramesRemaining &&
-			bEmulateFirstFrameMotionBlur == InRHS.bEmulateFirstFrameMotionBlur &&
-			bHasEvaluatedMotionBlurFrame == InRHS.bHasEvaluatedMotionBlurFrame &&
-			CurrentLocalSeqTick == InRHS.CurrentLocalSeqTick &&
-			CameraCutSection == InRHS.CameraCutSection;
-	}
-
-	bool operator != (const FMoviePipelineCameraCutInfo& InRHS) const
-	{
-		return !(*this == InRHS);
-	}
 };
 
 /**

@@ -5,10 +5,18 @@
 #include "Engine/Scene.h"
 #include "Engine/Engine.h"
 #include "MovieRenderPipelineDataTypes.h"
+#include "Evaluation/MovieSceneTimeTransform.h"
+#include "Misc/FrameNumber.h"
+#include "Math/Range.h"
+#include "Misc/FrameRate.h"
+#include "Evaluation/MovieSceneSequenceHierarchy.h"
+#include "MovieSceneSequenceID.h"
 
 // Forward Declare
 class UClass;
 class UMoviePipelineAntiAliasingSetting;
+class UMoviePipelineExecutorShot;
+class UMovieSceneSequence;
 
 namespace MoviePipeline
 {
@@ -120,4 +128,21 @@ namespace UE
 namespace MoviePipeline
 {
 	MOVIERENDERPIPELINECORE_API void GetOutputStateFormatArgs(FMoviePipelineFormatArgs& InOutFinalFormatArgs, const FString FrameNumber, const FString FrameNumberShot, const FString FrameNumberRel, const FString FrameNumberShotRel, const FString CameraName, const FString ShotName);
+	
+	/** Iterate root-to-tails and generate a HierarchyNode for each level. Caches the sub-section range, playback range, camera cut range, etc. */
+	void CacheCompleteSequenceHierarchy(UMovieSceneSequence* InSequence, TSharedPtr<FCameraCutSubSectionHierarchyNode> InRootNode);
+	/** Matching function to Cache. Restores the sequence properties when given the root node. */
+	void RestoreCompleteSequenceHierarchy(UMovieSceneSequence* InSequence, TSharedPtr<FCameraCutSubSectionHierarchyNode> InRootNode);
+	/** Iterates tail to root building Hierarchy Nodes while correctly keeping track of which sub-section by GUID for correct enabling/disabling later. */
+	void BuildSectionHierarchyRecursive(const FMovieSceneSequenceHierarchy& InHierarchy, UMovieSceneSequence* InRootSequence, const FMovieSceneSequenceID InSequenceId, const FMovieSceneSequenceID InChildId, TSharedPtr<FCameraCutSubSectionHierarchyNode> OutSubsectionHierarchy);
+	/** Gets the inner and outer names for the shot by resolving camera bindings/shot names, etc. Will generate a unique name (compared to what is already in OutGeneratedNames) */
+	void GetNameForShot(const FMovieSceneSequenceHierarchy& InHierarchy, UMovieSceneSequence* InRootSequence, TSharedPtr<FCameraCutSubSectionHierarchyNode> InSubSectionHierarchy, TArray<TTuple<FString, FString>>& OutGeneratedNames);
+	/** Examine the local sequence and see how much overlap the camera cut has with the start of the playback range. Converts to Root space. */
+	TRange<FFrameNumber> GetCameraWarmUpRangeFromSequence(UMovieSceneSequence* InSequence, FFrameNumber InSectionEnd, FMovieSceneTimeTransform InInnerToOuterTransform);
+	/** Given a leaf node, either caches the value of the hierarchy or restores it. Used to save the state before soloing a shot. */
+	void SaveOrRestoreSubSectionHierarchy(TSharedPtr<FCameraCutSubSectionHierarchyNode> InLeaf, const bool bInSave);
+	/** Given a leaf node, appropriately sets the IsActive flags for the whole hierarchy chain up to root for soloing a shot. */
+	void SetSubSectionHierarchyActive(TSharedPtr<FCameraCutSubSectionHierarchyNode> InRoot, bool bInActive);
+	/** Given a leaf node, searches for sections that will be partially evaluated when using temporal sub-sampling and prints a warning. */
+	void CheckPartialSectionEvaluationAndWarn(const FFrameNumber& LeftDeltaTicks, TSharedPtr<FCameraCutSubSectionHierarchyNode> Node, UMoviePipelineExecutorShot* InShot, const FFrameRate& InMasterDisplayRate);
 }
