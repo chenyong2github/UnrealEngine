@@ -45,6 +45,28 @@ static void GetPrimitiveComponentsFromLayers(UWorld* World, const TArray<FName>&
 	}
 }
 
+#if WITH_EDITOR
+static void GetEditorVisualComponentsFromWorld(UWorld* World, TSet<FPrimitiveComponentId>& OutPrimitives)
+{
+	// Iterate over all actors, looking for editor components.
+	for (const TWeakObjectPtr<AActor>& WeakActor : FActorRange(World))
+	{
+		if (AActor* Actor = WeakActor.Get())
+		{
+			TArray<UPrimitiveComponent*> PrimitiveComponents;
+			Actor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+			for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
+			{
+				if (PrimComp->GetName().EndsWith(TEXT("_impl")))
+				{
+					OutPrimitives.Add(PrimComp->ComponentId);
+				}
+			}
+		}
+	}
+}
+#endif
+
 static void AppendComponents(TSet<FPrimitiveComponentId>& InOutPrimitives, const TArray<UActorComponent*>& InComponents)
 {
 }
@@ -62,6 +84,11 @@ void FDisplayClusterViewport_VisibilitySettings::SetupSceneView(class UWorld* Wo
 {
 	check(World);
 
+#if WITH_EDITOR
+	// Don't capture editor only visual components.
+	GetEditorVisualComponentsFromWorld(World, InOutView.HiddenPrimitives);
+#endif
+	
 	switch (LayersMode)
 	{
 	case EDisplayClusterViewport_VisibilityMode::ShowOnly:
